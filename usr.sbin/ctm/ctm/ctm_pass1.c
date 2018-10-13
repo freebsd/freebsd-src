@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
@@ -114,6 +116,7 @@ Pass1(FILE *fd, unsigned applied)
 		    }
 		    if (name[0] == '/') {
 			Fatal("Absolute paths are illegal.");
+			Delete(name);
 			return Exit_Mess;
 		    }
 		    q = name;
@@ -121,6 +124,7 @@ Pass1(FILE *fd, unsigned applied)
 			if (q[0] == '.' && q[1] == '.')
 			    if (q[2] == '/' || q[2] == '\0') {
 				Fatal("Paths containing '..' are illegal.");
+				Delete(name);
 				return Exit_Mess;
 			    }
 			if ((q = strchr(q, '/')) == NULL)

@@ -249,7 +249,7 @@ typedef struct {
     t_QmExceptionsCallback  *f_Exception;           /**< An application callback routine to handle exceptions.*/
     t_Handle                h_App;                  /**< A handle to an application layer object; This handle will
                                                          be passed by the driver upon calling the above callbacks */
-    int                     errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
+    uintptr_t               errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
     uint32_t                partFqidBase;           /**< The first frame-queue-id dedicated to this partition.
                                                          NOTE: this parameter relevant only when working with multiple partitions. */
     uint32_t                partNumOfFqids;         /**< Number of frame-queue-ids dedicated to this partition.
@@ -627,7 +627,7 @@ typedef struct {
     uintptr_t                       ciBaseAddress;          /**< Cache-inhibited base address (virtual) */
     t_Handle                        h_Qm;                   /**< Qm Handle */
     e_DpaaSwPortal                  swPortalId;             /**< Portal id */
-    int                             irq;                    /**< portal interrupt line; used only if useIrq set to TRUE */
+    uintptr_t                       irq;                    /**< portal interrupt line; used only if useIrq set to TRUE */
     uint16_t                        fdLiodnOffset;                /**< liodn to be used for all frames enqueued via this software portal */
     t_QmReceivedFrameCallback       *f_DfltFrame;           /**< this callback will be called unless specific callback assigned to the FQ*/
     t_QmRejectedFrameCallback       *f_RejectedFrame;       /**< this callback will be called for rejected frames. */

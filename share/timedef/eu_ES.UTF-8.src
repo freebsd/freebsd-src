@@ -56,14 +56,14 @@ larunbata
 %Y/%m/%d
 #
 # c_fmt
-%Y(e)ko %B %e %H:%M:%S (%Z)
+%Y - %b - %e %a %X
 #
 # AM/PM
 AM
 PM
 #
 # date_fmt
-%Y(e)ko %B %e %H:%M:%S (%Z)
+%Y(e)ko %B-ren %ea, %X %Z
 #
 # Long month names (without case ending)
 urtarrilak

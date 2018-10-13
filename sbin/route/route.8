@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2014
+.Dd February 16, 2018
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -68,7 +68,7 @@ Specify
 address family as family hint for subcommands.
 .It Fl 6
 Specify
-.Cm inet
+.Cm inet6
 address family as family hint for subcommands.
 .It Fl d
 Run in debug-only mode, i.e., do not actually modify the routing table.
@@ -133,7 +133,8 @@ The flush command has the syntax:
 .Pp
 .Bd -ragged -offset indent -compact
 .Nm
-.Oo Fl n Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
+.Op Fl n
+.Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
 .Ed
 .Pp
 If the
@@ -164,15 +165,27 @@ option is specified, the operation will be applied to
 the specified FIB
 .Pq routing table .
 .Pp
-The other commands have the following syntax:
+The add command has the following syntax:
+.Pp
+.Bd -ragged -offset indent -compact
+.Nm
+.Op Fl n
+.Cm add
+.Op Fl net No \&| Fl host
+.Ar destination gateway
+.Op Ar netmask
+.Op Fl fib Ar number
+.Ed
+.Pp
+and the other commands have the following syntax:
 .Pp
 .Bd -ragged -offset indent -compact
 .Nm
 .Op Fl n
 .Ar command
 .Op Fl net No \&| Fl host
-.Ar destination gateway
-.Op Ar netmask
+.Ar destination
+.Op Ar gateway Op Ar netmask
 .Op Fl fib Ar number
 .Ed
 .Pp

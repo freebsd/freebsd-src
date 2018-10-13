@@ -1,6 +1,8 @@
 /*	$NetBSD: bnep.c,v 1.1 2008/08/17 13:20:57 plunky Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2008 Iain Hibbert
  * All rights reserved.
  *
@@ -574,7 +576,7 @@ bnep_recv_filter_multi_addr_rsp(channel_t *chan, uint8_t *ptr, size_t size)
 }
 
 void
-bnep_send_control(channel_t *chan, uint8_t type, ...)
+bnep_send_control(channel_t *chan, unsigned type, ...)
 {
 	packet_t *pkt;
 	uint8_t *p;
@@ -590,7 +592,7 @@ bnep_send_control(channel_t *chan, uint8_t type, ...)
 	va_start(ap, type);
 
 	*p++ = BNEP_CONTROL;
-	*p++ = type;
+	*p++ = (uint8_t)type;
 
 	switch(type) {
 	case BNEP_CONTROL_COMMAND_NOT_UNDERSTOOD:

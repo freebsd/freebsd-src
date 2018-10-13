@@ -163,7 +163,7 @@ struct	sock	*find_tcp(fd, ti)
 		return NULL;
 
 	fs = p->files;
-	o = (struct file **)calloc(1, sizeof(*o) * (fs->count + 1));
+	o = (struct file **)calloc(fs->count + 1, sizeof(*o));
 	if (KMCPY(o, fs->fd, (fs->count + 1) * sizeof(*o)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - fd - failed\n",

@@ -1,4 +1,4 @@
-/* $NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $ */
+/* $NetBSD: t_nanosleep.c,v 1.4 2017/01/13 21:15:14 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $");
+__RCSID("$NetBSD: t_nanosleep.c,v 1.4 2017/01/13 21:15:14 christos Exp $");
 
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -45,14 +45,19 @@ __RCSID("$NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $");
 #include <unistd.h>
 
 static void
-#ifdef __FreeBSD__
 handler(int signo __unused)
-#else
-handler(int signo)
-#endif
 {
 	/* Nothing. */
 }
+
+static int got_info;
+static void
+info_handler(int signo __unused)
+{
+
+	got_info = 1;
+}
+
 
 ATF_TC(nanosleep_basic);
 ATF_TC_HEAD(nanosleep_basic, tc)
@@ -180,12 +185,84 @@ ATF_TC_BODY(nanosleep_sig, tc)
 		atf_tc_fail("signal did not interrupt nanosleep(2)");
 }
 
+ATF_TC(nanosleep_eintr);
+ATF_TC_HEAD(nanosleep_eintr, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test [EINTR] for nanosleep(2)");
+	atf_tc_set_md_var(tc, "timeout", "7");
+}
+
+ATF_TC_BODY(nanosleep_eintr, tc)
+{
+	struct sigaction act;
+	struct timespec tso, ts;
+	pid_t pid;
+	int sta;
+
+	/*
+	 * Test that [EINTR] properly handles rmtp for nanosleep(2).
+	 */
+	pid = fork();
+
+	ATF_REQUIRE(pid >= 0);
+
+	got_info = 0;
+
+	if (pid == 0) {
+		act.sa_handler = info_handler;
+		sigemptyset(&act.sa_mask);
+		act.sa_flags = 0; /* Don't allow restart. */
+		ATF_REQUIRE(sigaction(SIGINFO, &act, NULL) == 0);
+
+		tso.tv_sec = 5;
+		tso.tv_nsec = 0;
+
+		ts.tv_sec = tso.tv_sec;
+		ts.tv_nsec = tso.tv_nsec;
+
+		errno = 0;
+		while (nanosleep(&ts, &ts) != 0) {
+			ATF_REQUIRE_MSG(timespeccmp(&ts, &tso, <=),
+			    "errno=%d ts=%0.9f should be <= last tso=%0.9f\n",
+			    errno,
+			    ts.tv_sec + ts.tv_nsec / 1e9,
+			    tso.tv_sec + tso.tv_nsec / 1e9);
+			if (errno == EINTR && got_info == 1) {
+				got_info = 0;
+				errno = 0;
+				tso.tv_sec = ts.tv_sec;
+				tso.tv_nsec = ts.tv_nsec;
+				continue;
+			}
+			_exit(EXIT_FAILURE);
+		}
+
+		if (errno != 0)
+			_exit(EXIT_FAILURE);
+
+		_exit(EXIT_SUCCESS);
+	}
+
+	/* Flood the process with SIGINFO until it exits. */
+	do {
+		for (int i = 0; i < 10; i++)
+			ATF_REQUIRE(kill(pid, SIGINFO) == 0);
+		ATF_REQUIRE(usleep(10000) == 0);
+	} while (waitpid(pid, &sta, WNOHANG) == 0);
+
+	ATF_REQUIRE(WIFEXITED(sta) == 1);
+
+	if (WEXITSTATUS(sta) != EXIT_SUCCESS)
+		atf_tc_fail("nanosleep(2) handled rtmp incorrectly");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, nanosleep_basic);
 	ATF_TP_ADD_TC(tp, nanosleep_err);
 	ATF_TP_ADD_TC(tp, nanosleep_sig);
+	ATF_TP_ADD_TC(tp, nanosleep_eintr);
 
 	return atf_no_error();
 }

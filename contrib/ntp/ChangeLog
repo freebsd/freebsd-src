@@ -1,4 +1,309 @@
 ---
+(4.2.8p12) 2018/08/14 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3505] CVE-2018-12327 - Arbitrary Code Execution Vulnerability
+  - fixed stack buffer overflow in the openhost() command-line call
+    of NTPQ/NTPDC <perlinger@ntp.org>
+* [Sec 3012] noepeer tweaks.  <stenn@ntp.org>
+* [Bug 3521] Fix a logic bug in the INVALIDNAK checks.  <stenn@ntp.org>
+* [Bug 3509] Add support for running as non-root on FreeBSD, Darwin,
+             other TrustedBSD platforms
+  - applied patch by Ian Lepore <perlinger@ntp.org>
+* [Bug 3506] Service Control Manager interacts poorly with NTPD <perlinger@ntp.org>
+  - changed interaction with SCM to signal pending startup
+* [Bug 3486] Buffer overflow in ntpq/ntpq.c:tstflags() <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3485] Undefined sockaddr used in error messages in ntp_config.c <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3484] ntpq response from ntpd is incorrect when REFID is null <perlinger@ntp.org>
+  - rework of ntpq 'nextvar()' key/value parsing
+* [Bug 3482] Fixes for compilation warnings (ntp_io.c & ntpq-subs.c) <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with mods)
+* [Bug 3480] Refclock sample filter not cleared on clock STEP <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3479] ctl_putrefid() allows unsafe characters through to ntpq <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with mods)
+* [Bug 3476]ctl_putstr() sends empty unquoted string [...] <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with mods); not sure if that's bug or feature, though
+* [Bug 3475] modify prettydate() to suppress output of zero time <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3474] Missing pmode in mode7 peer info response <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3471] Check for openssl/[ch]mac.h.  HStenn.
+  - add #define ENABLE_CMAC support in configure.  HStenn.
+* [Bug 3470] ntpd4.2.8p11 fails to compile without OpenSSL <perlinger@ntp.org>
+* [Bug 3469] Incomplete string compare [...] in is_refclk_addr <perlinger@ntp.org>
+  - patch by Stephen Friedl
+* [Bug 3467] Potential memory fault in ntpq [...] <perlinger@ntp.org>
+  - fixed IO redirection and CTRL-C handling in ntq and ntpdc
+* [Bug 3465] Default TTL values cannot be used <perlinger@ntp.org>
+* [Bug 3461] refclock_shm.c: clear error status on clock recovery <perlinger@ntp.org>
+  - initial patch by Hal Murray; also fixed refclock_report() trouble
+* [Bug 3460] Fix typo in ntpq.texi, reported by Kenyon Ralph.  <stenn@ntp.org>
+* [Bug 3456] Use uintptr_t rather than size_t to store an integer in a pointer
+  - According to Brooks Davis, there was only one location <perlinger@ntp.org>
+* [Bug 3449] ntpq - display "loop" instead of refid [...] <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3445] Symmetric peer won't sync on startup <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3442] Fixes for ntpdate as suggested by Gerry Garvey,
+  with modifications
+  New macro REFID_ISTEXT() which is also used in ntpd/ntp_control.c.
+* [Bug 3434] ntpd clears STA_UNSYNC on start <perlinger@ntp.org>
+  - applied patch by Miroslav Lichvar
+* [Bug 3426] ntpdate.html -t default is 2 seconds.  Leonid Evdokimov.
+* [Bug 3121] Drop root privileges for the forked DNS worker <perlinger@ntp.org>
+  - integrated patch by  Reinhard Max
+* [Bug 2821] minor build issues <perlinger@ntp.org>
+  - applied patches by Christos Zoulas, including real bug fixes
+* html/authopt.html: cleanup, from <stenn@ntp.org>
+* ntpd/ntpd.c: DROPROOT cleanup.  <stenn@ntp.org>
+* Symmetric key range is 1-65535.  Update docs.  <stenn@ntp.org>
+* html/authentic.html: cleanup, from <stenn@ntp.org>
+
+---
+(4.2.8p11) 2018/02/27 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3454] Unauthenticated packet can reset authenticated interleave
+  associations.  HStenn.
+* [Sec 3453] Interleaved symmetric mode cannot recover from bad state.  HStenn.
+* [Sec 3415] Permit blocking authenticated symmetric/passive associations.
+  Implement ippeerlimit.  HStenn, JPerlinger.
+* [Sec 3414] ntpq: decodearr() can write beyond its 'buf' limits
+  - initial patch by <stenn@ntp.org>, extended by <perlinger@ntp.org>
+* [Sec 3412] ctl_getitem(): Don't compare names past NUL. <perlinger@ntp.org>
+* [Sec 3012] Sybil vulnerability: noepeer support.  HStenn, JPerlinger.
+* [Bug 3457] OpenSSL FIPS mode regression <perlinger@ntp.org>
+* [Bug 3455] ntpd doesn't use scope id when binding multicast <perlinger@ntp.org>
+ - applied patch by Sean Haugh 
+* [Bug 3452] PARSE driver prints uninitialized memory. <perlinger@ntp.org>
+* [Bug 3450] Dubious error messages from plausibility checks in get_systime()
+  - removed error log caused by rounding/slew, ensured postcondition <perlinger@ntp.org>
+* [Bug 3447] AES-128-CMAC (fixes) <perlinger@ntp.org>
+  - refactoring the MAC code, too
+* [Bug 3441] Validate the assumption that AF_UNSPEC is 0.  stenn@ntp.org
+* [Bug 3439] When running multiple commands / hosts in ntpq... <perlinger@ntp.org>
+  - applied patch by ggarvey
+* [Bug 3438] Negative values and values > 999 days in... <perlinger@ntp.org>
+  - applied patch by ggarvey (with minor mods)
+* [Bug 3437] ntpd tries to open socket with AF_UNSPEC domain
+  - applied patch (with mods) by Miroslav Lichvar <perlinger@ntp.org>
+* [Bug 3435] anchor NTP era alignment <perlinger@ntp.org>
+* [Bug 3433] sntp crashes when run with -a.  <stenn@ntp.org>
+* [Bug 3430] ntpq dumps core (SIGSEGV) for "keytype md2"
+  - fixed several issues with hash algos in ntpd, sntp, ntpq,
+    ntpdc and the test suites <perlinger@ntp.org>
+* [Bug 3424] Trimble Thunderbolt 1024 week millenium bug <perlinger@ntp.org>
+  - initial patch by Daniel Pouzzner
+* [Bug 3423] QNX adjtime() implementation error checking is
+  wrong <perlinger@ntp.org>
+* [Bug 3417] ntpq ifstats packet counters can be negative
+  made IFSTATS counter quantities unsigned <perlinger@ntp.org>
+* [Bug 3411] problem about SIGN(6) packet handling for ntp-4.2.8p10
+  - raised receive buffer size to 1200 <perlinger@ntp.org>
+* [Bug 3408] refclock_jjy.c: Avoid a wrong report of the coverity static
+  analysis tool. <abe@ntp.org>
+* [Bug 3405] update-leap.in: general cleanup, HTTPS support.  Paul McMath.
+* [Bug 3404] Fix openSSL DLL usage under Windows <perlinger@ntp.org>
+  - fix/drop assumptions on OpenSSL libs directory layout
+* [Bug 3399] NTP: linker error in 4.2.8p10 during Linux cross-compilation
+  - initial patch by timeflies@mail2tor.com  <perlinger@ntp.org>
+* [Bug 3398] tests fail with core dump <perlinger@ntp.org>
+  - patch contributed by Alexander Bluhm
+* [Bug 3397] ctl_putstr() asserts that data fits in its buffer
+  rework of formatting & data transfer stuff in 'ntp_control.c'
+  avoids unecessary buffers and size limitations. <perlinger@ntp.org>
+* [Bug 3394] Leap second deletion does not work on ntpd clients
+  - fixed handling of dynamic deletion w/o leap file <perlinger@ntp.org>
+* [Bug 3391] ntpd segfaults on startup due to small warmup thread stack size
+  - increased mimimum stack size to 32kB <perlinger@ntp.org>
+* [Bug 3367] Faulty LinuxPPS NMEA clock support in 4.2.8 <perlinger@ntp.org>
+  - reverted handling of PPS kernel consumer to 4.2.6 behavior
+* [Bug 3365] Updates driver40(-ja).html and miscopt.html <abe@ntp.org>
+* [Bug 3358] Spurious KoD log messages in .INIT. phase.  HStenn.
+* [Bug 3016] wrong error position reported for bad ":config pool"
+  - fixed location counter & ntpq output <perlinger@ntp.org>
+* [Bug 2900] libntp build order problem.  HStenn.
+* [Bug 2878] Tests are cluttering up syslog <perlinger@ntp.org>
+* [Bug 2737] Wrong phone number listed for USNO. ntp-bugs@bodosom.net,
+  perlinger@ntp.org
+* [Bug 2557] Fix Thunderbolt init. ntp-bugs@bodosom.net, perlinger@ntp.
+* [Bug 948] Trustedkey config directive leaks memory. <perlinger@ntp.org>
+* Use strlcpy() to copy strings, not memcpy().  HStenn.
+* Typos.  HStenn.
+* test_ntp_scanner_LDADD needs ntpd/ntp_io.o.  HStenn.
+* refclock_jjy.c: Add missing "%s" to an msyslog() call.  HStenn.
+* Build ntpq and libntpq.a with NTP_HARD_*FLAGS.  perlinger@ntp.org
+* Fix trivial warnings from 'make check'. perlinger@ntp.org
+* Fix bug in the override portion of the compiler hardening macro. HStenn.
+* record_raw_stats(): Log entire packet.  Log writes.  HStenn.
+* AES-128-CMAC support.  BInglis, HStenn, JPerlinger.
+* sntp: tweak key file logging.  HStenn.
+* sntp: pkt_output(): Improve debug output.  HStenn.
+* update-leap: updates from Paul McMath.
+* When using pkg-config, report --modversion.  HStenn.
+* Clean up libevent configure checks.  HStenn.
+* sntp: show the IP of who sent us a crypto-NAK.  HStenn.
+* Allow .../N to specify subnet bits for IPs in ntp.keys.  HStenn, JPerlinger.
+* authistrustedip() - use it in more places.  HStenn, JPerlinger.
+* New sysstats: sys_lamport, sys_tsrounding.  HStenn.
+* Update ntp.keys .../N documentation.  HStenn.
+* Distribute testconf.yml.  HStenn.
+* Add DPRINTF(2,...) lines to receive() for packet drops.  HStenn.
+* Rename the configuration flag fifo variables.  HStenn.
+* Improve saveconfig output.  HStenn.
+* Decode restrict flags on receive() debug output.  HStenn.
+* Decode interface flags on receive() debug output.  HStenn.
+* Warn the user if deprecated "driftfile name WanderThreshold" is used.  HStenn.
+* Update the documentation in ntp.conf.def .  HStenn.
+* restrictions() must return restrict flags and ippeerlimit.  HStenn.
+* Update ntpq peer documentation to describe the 'p' type.  HStenn.
+* Rename restrict 'flags' to 'rflags.  Use an enum for the values.  HStenn.
+* Provide dump_restricts() for debugging.  HStenn.
+* Use consistent 4th arg type for [gs]etsockopt.  JPerlinger.
+* Some tests might need LIBM.  HStenn.
+* update-leap: Allow -h/--help early.  HStenn.
+
+---
+(4.2.8p10) 2017/03/21 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3389] NTP-01-016: Denial of Service via Malformed Config
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3388] NTP-01-014: Buffer Overflow in DPTS Clock
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3387] NTP-01-012: Authenticated DoS via Malicious Config Option
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3386] NTP-01-011: ntpq_stripquotes() returns incorrect Value
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3385] NTP-01-010: ereallocarray()/eallocarray() underused. HStenn
+* [Sec 3384] NTP-01-009: Privileged execution of User Library code
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3383] NTP-01-008: Stack Buffer Overflow from Command Line
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3382] NTP-01-007: Data Structure terminated insufficiently
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3380] NTP-01-005: Off-by-one in Oncore GPS Receiver
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3379] NTP-01-004: Potential Overflows in ctl_put() functions
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3378] NTP-01-003: Improper use of snprintf() in mx4200_send()
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3377] NTP-01-002: Buffer Overflow in ntpq when fetching reslist
+  (Pentest report 01.2017) <perlinger@ntp.org
+* [Sec 3376] Support build "hardening" flags.  stenn@ntp.org
+* [Sec 3361] 0rigin (zero origin) DoS.  HStenn.
+* [Bug 3393] clang scan-build findings <perlinger@ntp.org>
+* [Bug 3363] Support for openssl-1.1.0 without compatibility modes
+  - rework of patch set from <ntp.org@eroen.eu>. <perlinger@ntp.org>
+* [Bug 3356] Bugfix 3072 breaks multicastclient <perlinger@ntp.org>
+* [Bug 3216] libntp audio ioctl() args incorrectly cast to int
+  on 4.4BSD-Lite derived platforms <perlinger@ntp.org>
+  - original patch by Majdi S. Abbas
+* [Bug 3215] 'make distcheck' fails with new BK repo format <perlinger@ntp.org>
+* [Bug 3173] forking async worker: interrupted pipe I/O <perlinger@ntp.org>
+  - initial patch by Christos Zoulas
+* [Bug 3139] (...) time_pps_create: Exec format error <perlinger@ntp.org>
+  - move loader API from 'inline' to proper source
+  - augment pathless dlls with absolute path to NTPD
+  - use 'msyslog()' instead of 'printf() 'for reporting trouble
+* [Bug 3107] Incorrect Logic for Peer Event Limiting <perlinger@ntp.org>
+  - applied patch by Matthew Van Gundy
+* [Bug 3065] Quiet warnings on NetBSD <perlinger@ntp.org>
+  - applied some of the patches provided by Havard. Not all of them
+    still match the current code base, and I did not touch libopt.
+* [Bug 3062] Change the process name of forked DNS worker <perlinger@ntp.org>
+  - applied patch by Reinhard Max. See bugzilla for limitations.
+* [Bug 2923] Trap Configuration Fail <perlinger@ntp.org>
+  - fixed dependency inversion from [Bug 2837]
+* [Bug 2896] Nothing happens if minsane < maxclock < minclock
+  - produce ERROR log message about dysfunctional daemon. <perlinger@ntp.org>
+* [Bug 2851] allow -4/-6 on restrict line with mask <perlinger@ntp.org>
+  - applied patch by Miroslav Lichvar for ntp4.2.6 compat
+* [Bug 2645] out-of-bound pointers in ctl_putsys and decode_bitflags
+  - Fixed these and some more locations of this pattern.
+    Probably din't get them all, though. <perlinger@ntp.org>
+* Update copyright year.
+* bk-7 trigger updates
+
+---
+(4.2.8p9-win) 2017/02/01 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 3144] NTP does not build without openSSL. <perlinger@ntp.org>
+  - added missed changeset for automatic openssl lib detection
+  - fixed some minor warning issues
+* [Bug 3095]  More compatibility with openssl 1.1. <perlinger@ntp.org>
+* configure.ac cleanup.  stenn@ntp.org
+* openssl configure cleanup.  stenn@ntp.org
+
+---
+(4.2.8p9) 2016/11/21 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3119] Trap crash <perlinger@ntp.org>
+* [Sec 3118] Mode 6 information disclosure and DDoS vector <perlinger@ntp.org>
+  - TRAP config via mode 6 packet requires AUTH now.
+* [Sec 3114] Broadcast Mode Replay Prevention DoS
+  - applied patches by Matthew Van Gundy. <perlinger@ntp.org>
+  - with bcpollbstep, tweaks and cleanup by stenn@ntp.org
+* [Sec 3113] Broadcast Mode Poll Interval Enforcement DoS <perlinger@ntp.org>
+  - applied fix as suggested by Matthew Van Gundy
+* [Sec 3110] Windows: ntpd DoS by oversized UDP packet
+  - fixed error handling for truncated UDP packets. <perlinger@ntp.org>
+* [Sec 3102] Zero origin issues.  HStenn.
+* [Sec 3082] null pointer dereference in _IO_str_init_static_internal()
+  - more hardening to read_mru_list(). perlinger@ntp.org
+* [Sec 3072] Attack on interface selection <perlinger@ntp.org>
+  - implemented Miroslav Lichvars <mlichvar@redhat.com> suggestion
+    to skip interface updates based on incoming packets
+* [Bug 3142] bug in netmask prefix length detection <perlinger@ntp.org>
+* [Bug 3138] gpsdjson refclock should honor fudgetime1. stenn@ntp.org
+* [Bug 3129] Unknown hosts can put resolver thread into a hard loop
+  - moved retry decision where it belongs. <perlinger@ntp.org>
+* [Bug 3125] NTPD doesn't fully start when ntp.conf entries are out of order
+  using the loopback-ppsapi-provider.dll <perlinger@ntp.org>
+* [Bug 3116] unit tests for NTP time stamp expansion. <perlinger@ntp.org>
+* [Bug 3100] ntpq can't retrieve daemon_version <perlinger@ntp.org>
+  - fixed extended sysvar lookup (bug introduced with bug 3008 fix)
+* [Bug 3095] Compatibility with openssl 1.1 <perlinger@ntp.org>
+  - applied patches by Kurt Roeckx <kurt@roeckx.be> to source
+  - added shim layer for SSL API calls with issues (both directions)
+* [Bug 3089] Serial Parser does not work anymore for hopfser like device
+  - simplified / refactored hex-decoding in driver. <perlinger@ntp.org>
+* [Bug 3084] update-leap mis-parses the leapfile name.  HStenn.
+* [Bug 3068] Linker warnings when building on Solaris. perlinger@ntp.org
+  - applied patch thanks to Andrew Stormont <andyjstormont@gmail.com>
+* [Bug 3067] Root distance calculation needs improvement.  HStenn.
+* [Bug 3066] NMEA clock ignores pps. perlinger@ntp.org
+  - PPS-HACK works again.
+* [Bug 3059] Potential buffer overrun from oversized hash <perlinger@ntp.org>
+  - applied patch by Brian Utterback <brian.utterback@oracle.com>
+* [Bug 3053] ntp_loopfilter.c frequency calc precedence error.  Sarah White.
+* [Bug 3050]  Fix for bug #2960 causes [...] spurious error message.
+  <perlinger@ntp.org>
+  - patches by Reinhard Max <max@suse.com> and Havard Eidnes <he@uninett.no>
+* [Bug 3047] Fix refclock_jjy C-DEX JST2000. abe@ntp.org
+  - Patch provided by Kuramatsu.
+* [Bug 3021] unity_fixture.c needs pragma weak <perlinger@ntp.org>
+  - removed unnecessary & harmful decls of 'setUp()' & 'tearDown()'
+* [Bug 3019] Windows: ERROR_HOST_UNREACHABLE block packet processing.
+  DMayer and JPerlinger.
+* [Bug 2998] sntp/tests/packetProcessing.c broken without openssl. JPerlinger
+* [Bug 2961] sntp/tests/packetProcessing.c assumes AUTOKEY.  HStenn.
+* [Bug 2959] refclock_jupiter: gps week correction <perlinger@ntp.org>
+  - fixed GPS week expansion to work based on build date. Special thanks
+    to Craig Leres for initial patch and testing.
+* [Bug 2951] ntpd tests fail: multiple definition of `send_via_ntp_signd'
+  - fixed Makefile.am <perlinger@ntp.org>
+* [Bug 2689] ATOM driver processes last PPS pulse at startup,
+             even if it is very old <perlinger@ntp.org>
+  - make sure PPS source is alive before processing samples
+  - improve stability close to the 500ms phase jump (phase gate)
+* Fix typos in include/ntp.h.
+* Shim X509_get_signature_nid() if needed.
+* git author attribution cleanup
+* bk ignore file cleanup
+* remove locks in Windows IO, use rpc-like thread synchronisation instead
+
+---
 (4.2.8p8) 2016/06/02 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3042] Broadcast Interleave.  HStenn.
@@ -19,7 +324,7 @@
 * Fix typo in ntp-wait and plot_summary.  HStenn.
 * Make sure we have an "author" file for git imports.  HStenn.
 * Update the sntp problem tests for MacOS.  HStenn.
-  
+
 ---
 (4.2.8p7) 2016/04/26 Released by Harlan Stenn <stenn@ntp.org>
 

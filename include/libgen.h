@@ -1,7 +1,9 @@
 /*	$OpenBSD: libgen.h,v 1.4 1999/05/28 22:00:22 espie Exp $	*/
 /*	$FreeBSD$	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
  *
@@ -34,9 +36,30 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-char	*basename(const char *);
-char	*basename_r(const char *, char *);
-char	*dirname(const char *);
+char	*basename(char *);
+char	*dirname(char *);
 __END_DECLS
+
+/*
+ * In FreeBSD 12, the prototypes of basename() and dirname() were
+ * modified to comply to POSIX. These functions may now modify their
+ * input. Unfortunately, our copy of xinstall(8) shipped with previous
+ * versions of FreeBSD is built using the host headers and libc during
+ * the bootstrapping phase and depends on the old behavior.
+ *
+ * Apply a workaround where we explicitly link against basename@FBSD_1.0
+ * and dirname@FBSD_1.0 in case these functions are called on constant
+ * strings, instead of making the program crash at runtime.
+ */
+#if defined(__generic) && !defined(__cplusplus)
+__BEGIN_DECLS
+char	*__old_basename(char *);
+char	*__old_dirname(char *);
+__END_DECLS
+__sym_compat(basename, __old_basename, FBSD_1.0);
+__sym_compat(dirname, __old_dirname, FBSD_1.0);
+#define	basename(x)	__generic(x, const char *, __old_basename, basename)(x)
+#define	dirname(x)	__generic(x, const char *, __old_dirname, dirname)(x)
+#endif
 
 #endif /* !_LIBGEN_H_ */

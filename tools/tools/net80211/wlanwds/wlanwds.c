@@ -55,6 +55,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <net/if.h>
+#include <net/if_types.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -90,13 +93,14 @@ static	void wds_discovery(const char *ifname,
 		const uint8_t bssid[IEEE80211_ADDR_LEN]);
 static	void wds_destroy(const char *ifname);
 static	void wds_leave(const uint8_t bssid[IEEE80211_ADDR_LEN]);
-static	int wds_vap_create(const char *ifname, struct wds *);
+static	int wds_vap_create(const char *ifname, uint8_t macaddr[ETHER_ADDR_LEN],
+	    struct wds *);
 static	int wds_vap_destroy(const char *ifname);
 
 static void
 usage(const char *progname)
 {
-	fprintf(stderr, "usage: %s [-fjtv] [-P pidfile] [-s <set_scriptname>] [ifnet0 ... | any]\n",
+	fprintf(stderr, "usage: %s [-efjtv] [-P pidfile] [-s <set_scriptname>] [ifnet0 ... | any]\n",
 		progname);
 	exit(-1);
 }
@@ -108,10 +112,14 @@ main(int argc, char *argv[])
 	const char *pidfile = NULL;
 	int s, c, logmask, bg = 1;
 	char msg[2048];
+	int log_stderr = 0;
 
 	logmask = LOG_UPTO(LOG_INFO);
-	while ((c = getopt(argc, argv, "fjP:s:tv")) != -1)
+	while ((c = getopt(argc, argv, "efjP:s:tv")) != -1)
 		switch (c) {
+		case 'e':
+			log_stderr = LOG_PERROR;
+			break;
 		case 'f':
 			bg = 0;
 			break;
@@ -155,7 +163,7 @@ main(int argc, char *argv[])
 	if (bg && daemon(0, 0) < 0)
 		err(EX_OSERR, "daemon");
 
-	openlog("wlanwds", LOG_PID | LOG_CONS, LOG_DAEMON);
+	openlog("wlanwds", log_stderr | LOG_PID | LOG_CONS, LOG_DAEMON);
 	setlogmask(logmask);
 
 	for (;;) {
@@ -182,7 +190,7 @@ static int
 getparent(const char *ifname, char parent[IFNAMSIZ+1])
 {
 	char oid[256];
-	int parentlen;
+	size_t parentlen;
 
 	/* fetch parent interface name */
 	snprintf(oid, sizeof(oid), "net.wlan.%s.%%parent", ifname+4);
@@ -197,6 +205,11 @@ getparent(const char *ifname, char parent[IFNAMSIZ+1])
  * Check if the specified ifnet is one we're supposed to monitor.
  * The ifnet is assumed to be a vap; we find it's parent and check
  * it against the set of ifnet's specified on the command line.
+ *
+ * TODO: extend this to also optionally allow the specific DWDS
+ * VAP to be monitored, instead of assuming all VAPs on a parent
+ * physical interface are being monitored by this instance of
+ * wlanwds.
  */
 static int
 checkifnet(const char *ifname, int complain)
@@ -239,7 +252,7 @@ iswdsvap(int s, const char *ifname)
  * to have already verified this is possible.
  */
 static void
-getbssid(int s, const char *ifname, char bssid[IEEE80211_ADDR_LEN])
+getbssid(int s, const char *ifname, uint8_t bssid[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211req ireq;
 
@@ -253,6 +266,70 @@ getbssid(int s, const char *ifname, char bssid[IEEE80211_ADDR_LEN])
 }
 
 /*
+ * Fetch the mac address configured for a given ifnet.
+ * (Note - the current link level address, NOT hwaddr.)
+ *
+ * This is currently, sigh, O(n) because there's no current kernel
+ * API that will do it for a single interface.
+ *
+ * Return 0 if successful, -1 if failure.
+ */
+static int
+getlladdr(const char *ifname, uint8_t macaddr[ETHER_ADDR_LEN])
+{
+	struct ifaddrs *ifap, *ifa;
+	struct sockaddr_dl *sdl;
+
+	if (getifaddrs(&ifap) < 0) {
+		warn("%s: getifaddrs", __func__);
+		return (-1);
+	}
+
+	/* Look for a matching interface */
+	for (ifa = ifap; ifa != NULL; ifa++) {
+		if (strcmp(ifname, ifa->ifa_name) != 0)
+			continue;
+
+		/* Found it - check if there's an ifa_addr */
+		if (ifa->ifa_addr == NULL) {
+			syslog(LOG_CRIT, "%s: ifname %s; ifa_addr is NULL\n",
+			    __func__, ifname);
+			goto err;
+		}
+
+		/* Check address family */
+		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+		if (sdl->sdl_type != IFT_ETHER) {
+			syslog(LOG_CRIT, "%s: %s: unknown aftype (%d)\n",
+			    __func__,
+			    ifname,
+			    sdl->sdl_type);
+			goto err;
+		}
+		if (sdl->sdl_alen != ETHER_ADDR_LEN) {
+			syslog(LOG_CRIT, "%s: %s: aflen too short (%d)\n",
+			    __func__,
+			    ifname,
+			    sdl->sdl_alen);
+			goto err;
+		}
+
+		/* Ok, found it */
+		memcpy(macaddr, (void *) LLADDR(sdl), ETHER_ADDR_LEN);
+		goto ok;
+	}
+	syslog(LOG_CRIT, "%s: couldn't find ifname %s\n", __func__, ifname);
+	/* FALLTHROUGH */
+err:
+	freeifaddrs(ifap);
+	return (-1);
+
+ok:
+	freeifaddrs(ifap);
+	return (0);
+}
+
+/*
  * Scan the system for WDS vaps associated with the ifnet's we're
  * supposed to monitor.  Any vaps are added to our internal table
  * so we can find them (and destroy them) on station leave.
@@ -261,7 +338,7 @@ static void
 scanforvaps(int s)
 {
 	char ifname[IFNAMSIZ+1];
-	char bssid[IEEE80211_ADDR_LEN];
+	uint8_t bssid[IEEE80211_ADDR_LEN];
 	int i;
 
 	/* XXX brutal; should just walk sysctl tree */
@@ -370,6 +447,7 @@ wds_discovery(const char *ifname, const uint8_t bssid[IEEE80211_ADDR_LEN])
 	struct wds *p;
 	char parent[256];
 	char cmd[1024];
+	uint8_t macaddr[ETHER_ADDR_LEN];
 	int status;
 
 	for (p = wds; p != NULL; p = p->next)
@@ -384,13 +462,19 @@ wds_discovery(const char *ifname, const uint8_t bssid[IEEE80211_ADDR_LEN])
 		return;
 	}
 
+	if (getlladdr(ifname, macaddr) < 0) {
+		syslog(LOG_ERR, "%s: couldn't get lladdr for parent interface: %m",
+		    ifname);
+		return;
+	}
+
 	p = malloc(sizeof(struct wds));
 	if (p == NULL) {
 		syslog(LOG_ERR, "%s: malloc failed: %m", __func__);
 		return;
 	}
 	IEEE80211_ADDR_COPY(p->bssid, bssid);
-	if (wds_vap_create(parent, p) < 0) {
+	if (wds_vap_create(parent, macaddr, p) < 0) {
 		free(p);
 		return;
 	}
@@ -399,8 +483,11 @@ wds_discovery(const char *ifname, const uint8_t bssid[IEEE80211_ADDR_LEN])
 	 */
 	p->next = wds;
 	wds = p;
-	syslog(LOG_INFO, "[%s] create wds vap %s", ether_sprintf(bssid),
-	    p->ifname);
+	syslog(LOG_INFO, "[%s] create wds vap %s, parent %s (%s)",
+	    ether_sprintf(bssid),
+	    p->ifname,
+	    ifname,
+	    parent);
 	if (script != NULL) {
 		snprintf(cmd, sizeof(cmd), "%s %s", script, p->ifname);
 		status = system(cmd);
@@ -450,16 +537,34 @@ wds_leave(const uint8_t bssid[IEEE80211_ADDR_LEN])
 }
 
 static int
-wds_vap_create(const char *parent, struct wds *p)
+wds_vap_create(const char *parent, uint8_t macaddr[ETHER_ADDR_LEN],
+    struct wds *p)
 {
 	struct ieee80211_clone_params cp;
 	struct ifreq ifr;
 	int s, status;
+	char bssid_str[32], macaddr_str[32];
 
 	memset(&cp, 0, sizeof(cp));
+
+	/* Parent interface */
 	strncpy(cp.icp_parent, parent, IFNAMSIZ);
+
+	/* WDS interface */
 	cp.icp_opmode = IEEE80211_M_WDS;
+
+	/* BSSID for the current node */
 	IEEE80211_ADDR_COPY(cp.icp_bssid, p->bssid);
+
+	/*
+	 * Set the MAC address to match the actual interface
+	 * that we received the discovery event from.
+	 * That way we can run WDS on any VAP rather than
+	 * only the first VAP and then correctly set the
+	 * MAC address.
+	 */
+	cp.icp_flags |= IEEE80211_CLONE_MACADDR;
+	IEEE80211_ADDR_COPY(cp.icp_macaddr, macaddr);
 
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, "wlan", IFNAMSIZ);
@@ -473,9 +578,10 @@ wds_vap_create(const char *parent, struct wds *p)
 			status = 0;
 		} else {
 			syslog(LOG_ERR, "SIOCIFCREATE2("
-			    "mode %u flags 0x%x parent %s bssid %s): %m",
+			    "mode %u flags 0x%x parent %s bssid %s macaddr %s): %m",
 			    cp.icp_opmode, cp.icp_flags, parent,
-			    ether_sprintf(cp.icp_bssid));
+			    ether_ntoa_r((void *) cp.icp_bssid, bssid_str),
+			    ether_ntoa_r((void *) cp.icp_macaddr, macaddr_str));
 		}
 		close(s);
 	} else

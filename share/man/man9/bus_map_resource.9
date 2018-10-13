@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2016
+.Dd February 5, 2018
 .Dt BUS_MAP_RESOURCE 9
 .Os
 .Sh NAME
@@ -135,27 +135,26 @@ By default memory mappings use the
 .Dv VM_MEMATTR_UNCACHEABLE
 attribute.
 .El
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
 .Sh EXAMPLES
 This maps a PCI memory BAR with the write-combining memory attribute and
 reads the first 32-bit word:
 .Bd -literal
 	struct resource *r;
 	struct resource_map map;
-	struct resource_map_args args;
+	struct resource_map_request req;
 	uint32_t val;
 	int rid;
 
 	rid = PCIR_BAR(0);
 	r = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE |
 	    RF_UNMAPPED);
-	resource_init_map_request(&args);
-	args.memattr = VM_MEMATTR_WRITE_COMBINING;
-	bus_map_resource(dev, SYS_RES_MEMORY, r, &args, &map);
+	resource_init_map_request(&req);
+	req.memattr = VM_MEMATTR_WRITE_COMBINING;
+	bus_map_resource(dev, SYS_RES_MEMORY, r, &req, &map);
 	val = bus_read_4(&map, 0);
 .Ed
-.Pp
-.Sh RETURN VALUES
-Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
 .Xr bus_activate_resource 9 ,
 .Xr bus_alloc_resource 9 ,

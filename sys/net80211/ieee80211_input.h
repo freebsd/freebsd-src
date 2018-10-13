@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -131,6 +133,38 @@ ishtinfooui(const uint8_t *frm)
 	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
 }
 
+static __inline int
+ieee80211_check_rxseq_amsdu(const struct ieee80211_rx_stats *rxs)
+{
+
+	return (!! (rxs->c_pktflags & IEEE80211_RX_F_AMSDU));
+}
+
+/*
+ * Return 1 if the rxseq check should increment the sequence
+ * number. Return 0 if it's part of an AMSDU batch and it isn't
+ * the final frame in the decap'ed burst.
+ */
+static __inline int
+ieee80211_check_rxseq_amsdu_more(const struct ieee80211_rx_stats *rxs)
+{
+	/* No state? ok */
+	if (rxs == NULL)
+		return (1);
+
+	/* State but no AMSDU set? ok */
+	if ((rxs->c_pktflags & IEEE80211_RX_F_AMSDU) == 0)
+		return (1);
+
+	/* State, AMSDU set, then _MORE means "don't inc yet" */
+	if (rxs->c_pktflags & IEEE80211_RX_F_AMSDU_MORE) {
+		return (0);
+	}
+
+	/* Both are set, so return ok */
+	return (1);
+}
+
 /*
  * Check the current frame sequence number against the current TID
  * state and return whether it's in sequence or should be dropped.
@@ -149,10 +183,16 @@ ishtinfooui(const uint8_t *frm)
  * (as the seqnum wraps), handle that special case so packets aren't
  * incorrectly dropped - ie, if the next packet is sequence number 0
  * but a retransmit since the initial packet didn't make it.
+ *
+ * XXX TODO: handle sequence number space wrapping with dropped frames;
+ * especially in high interference conditions under high traffic load
+ * The RX AMPDU reorder code also needs it.
+ *
+ * XXX TODO: update for 802.11-2012 9.3.2.10 Duplicate Detection and Recovery.
  */
 static __inline int
 ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
-    uint8_t *bssid)
+    uint8_t *bssid, const struct ieee80211_rx_stats *rxs)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
@@ -173,6 +213,13 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	 * are always treated valid.
 	 */
 	if (! IEEE80211_HAS_SEQ(type, subtype))
+		return 1;
+
+	/*
+	 * Always allow multicast frames for now - QoS (any TID)
+	 * or not.
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		return 1;
 
 	tid = ieee80211_gettid(wh);
@@ -225,7 +272,20 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		goto fail;
 
 ok:
-	ni->ni_rxseqs[tid] = rxseq;
+	/*
+	 * Only bump the sequence number if it's the last frame
+	 * in a batch.  That way frames in the rest of the batch
+	 * get included, and the last frame in the batch kicks
+	 * it next.
+	 */
+	if (ieee80211_check_rxseq_amsdu_more(rxs)) {
+		ni->ni_rxseqs[tid] = rxseq;
+		if ((rxs != NULL) && ieee80211_check_rxseq_amsdu(rxs))
+			IEEE80211_NODE_STAT(ni, rx_amsdu_more_end);
+	} else {
+		/* .. still waiting */
+		IEEE80211_NODE_STAT(ni, rx_amsdu_more);
+	}
 
 	return 1;
 

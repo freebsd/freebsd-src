@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -52,11 +54,11 @@ int
 getchar(void)
 {
 	int retval;
-	FLOCKFILE(stdin);
+	FLOCKFILE_CANCELSAFE(stdin);
 	/* Orientation set by __sgetc() when buffer is empty. */
 	/* ORIENT(stdin, -1); */
 	retval = __sgetc(stdin);
-	FUNLOCKFILE(stdin);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }
 

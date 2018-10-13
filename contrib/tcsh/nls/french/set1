@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.5 2011/02/04 18:19:35 christos Exp $
+$ $tcsh: set1,v 1.6 2015/05/26 17:38:25 christos Exp $
 $ Messages d 'erreur
 $set 1 
 1 Erreur de syntaxe
@@ -8,7 +8,7 @@ $set 1
 5 Pas de fichier pour $0
 6 Modificateur [] incomplet
 7 $ l'expansion doit se terminer avant ]
-8 Mauvais : modificateur dans $ (%c)
+8 Mauvais : modificateur dans $ '%c'
 9 Erreur d'indice
 10 Numéro mal formé
 11 Plus de mots
@@ -51,8 +51,8 @@ $set 1
 48 Vous n'êtes pas dans une boucle while ou foreach
 49 Plus de processus
 50 Pas de correspondance
-51 %c manquant
-52 %c sans correspondance
+51 '%c' manquant
+52 '%c' sans correspondance
 53 Mémoire insuffisante
 54 Impossible de créer un tube
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Remplacement incorrect
 91 Pas de partie gauche précédente
 92 Partie droite trop longue
-93 Modificateur ! incorrect: %c
+93 Modificateur ! incorrect: '%c'
 94 Echec du modificateur
 95 Dépassement de capacité de la mémoire tampon de substitution
 96 Sélecteur d'argument ! incorrect
@@ -118,7 +118,7 @@ $set 1
 115 Pas assez de place pour la chaine termcap
 116 Syntaxe: settc %s [yes|no]
 117 Capacité `%s' inconnue
-118 Paramètre termcap inconnu `%%%c'
+118 Paramètre termcap inconnu '%%%c'
 119 Trop d'arguments pour `%s' (%d)
 120 `%s' nécessite %d arguments
 121 Syntaxe: echotc [-v|-s] [<capacité> [<args>]]
@@ -137,4 +137,4 @@ $set 1
 134 Syntaxe: unlimit [-fh] [limites]
 135 $%S est en lecture seule
 136 Pas de travail de ce type
-137 Unknown colorls variable `%c%c'
+137 Unknown colorls variable '%c%c'

@@ -28,7 +28,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2014
+.Dd August 19, 2018
 .Dt IP 4
 .Os
 .Sh NAME
@@ -136,6 +136,37 @@ determined by the destination address, returns an
 error.
 .Pp
 If the
+.Dv IP_ORIGDSTADDR
+option is enabled on a
+.Dv SOCK_DGRAM
+socket,
+the
+.Xr recvmsg 2
+call will return the destination
+.Tn IP
+address and destination port or a
+.Tn UDP
+datagram.
+The
+.Vt msg_control
+field in the
+.Vt msghdr
+structure points to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
+.Tn in_sockkaddr
+structre.
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(struct in_sockaddr))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_ORIGDSTADDR
+.Ed
+.Pp
+If the
 .Dv IP_RECVDSTADDR
 option is enabled on a
 .Dv SOCK_DGRAM
@@ -193,7 +224,7 @@ or the socket should be bound to a local address and the address supplied with
 .Dv IP_SENDSRCADDR
 should be
 .Dv INADDR_ANY .
-In the latter case bound address is overriden via generic source address
+In the latter case bound address is overridden via generic source address
 selection logic, which would choose IP address of interface closest to
 destination.
 .Pp
@@ -857,6 +888,7 @@ field was not equal to the length of the datagram written to the socket.
 .Xr recv 2 ,
 .Xr send 2 ,
 .Xr byteorder 3 ,
+.Xr CMSG_DATA 3 ,
 .Xr sourcefilter 3 ,
 .Xr icmp 4 ,
 .Xr igmp 4 ,

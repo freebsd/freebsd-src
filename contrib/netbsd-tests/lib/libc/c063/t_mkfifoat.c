@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mkfifoat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $ */
+/*	$NetBSD: t_mkfifoat.c,v 1.4 2017/01/14 20:55:26 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mkfifoat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $");
+__RCSID("$NetBSD: t_mkfifoat.c,v 1.4 2017/01/14 20:55:26 christos Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
@@ -55,14 +55,13 @@ ATF_TC_HEAD(mkfifoat_fd, tc)
 ATF_TC_BODY(mkfifoat_fd, tc)
 {
 	int dfd;
-	int fd;
 	mode_t mode = 0600;
 
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
 	ATF_REQUIRE((dfd = open(DIR, O_RDONLY, 0)) != -1);
-	ATF_REQUIRE((fd = mkfifoat(dfd, BASEFIFO, mode)) != -1);
-	ATF_REQUIRE(close(fd) == 0);
+	ATF_REQUIRE(mkfifoat(dfd, BASEFIFO, mode) != -1);
 	ATF_REQUIRE(access(FIFO, F_OK) == 0);
+	(void)close(dfd);
 }
 
 ATF_TC(mkfifoat_fdcwd);
@@ -73,12 +72,10 @@ ATF_TC_HEAD(mkfifoat_fdcwd, tc)
 }
 ATF_TC_BODY(mkfifoat_fdcwd, tc)
 {
-	int fd;
 	mode_t mode = 0600;
 
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
-	ATF_REQUIRE((fd = mkfifoat(AT_FDCWD, FIFO, mode)) != -1);
-	ATF_REQUIRE(close(fd) == 0);
+	ATF_REQUIRE(mkfifoat(AT_FDCWD, FIFO, mode) != -1);
 	ATF_REQUIRE(access(FIFO, F_OK) == 0);
 }
 
@@ -90,10 +87,9 @@ ATF_TC_HEAD(mkfifoat_fdcwderr, tc)
 }
 ATF_TC_BODY(mkfifoat_fdcwderr, tc)
 {
-	int fd;
 	mode_t mode = 0600;
 
-	ATF_REQUIRE((fd = mkfifoat(AT_FDCWD, FIFOERR, mode)) == -1);
+	ATF_REQUIRE(mkfifoat(AT_FDCWD, FIFOERR, mode) == -1);
 }
 
 ATF_TC(mkfifoat_fderr);
@@ -109,7 +105,7 @@ ATF_TC_BODY(mkfifoat_fderr, tc)
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
 	ATF_REQUIRE((fd = open(FIFO, O_CREAT|O_RDWR, 0644)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
-	ATF_REQUIRE((fd = mkfifoat(-1, FIFO, mode)) == -1);
+	ATF_REQUIRE(mkfifoat(-1, FIFO, mode) == -1);
 }
 
 ATF_TP_ADD_TCS(tp)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Nathan Whitehorn <nwhitehorn@FreeBSD.org>
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
@@ -69,7 +71,7 @@ ofw_spibus_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "OFW SPI bus");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -80,6 +82,7 @@ ofw_spibus_attach(device_t dev)
 	phandle_t child;
 	pcell_t clock, paddr;
 	device_t childdev;
+	uint32_t mode = SPIBUS_MODE_NONE;
 
 	sc->dev = dev;
 
@@ -103,8 +106,30 @@ ofw_spibus_attach(device_t dev)
 		}
 
 		/*
+		 * Try to get the cpol/cpha mode
+		 */
+		if (OF_hasprop(child, "spi-cpol"))
+			mode = SPIBUS_MODE_CPOL;
+		if (OF_hasprop(child, "spi-cpha")) {
+			if (mode == SPIBUS_MODE_CPOL)
+				mode = SPIBUS_MODE_CPOL_CPHA;
+			else
+				mode = SPIBUS_MODE_CPHA;
+		}
+
+		/*
+		 * Try to get the CS polarity
+		 */
+		if (OF_hasprop(child, "spi-cs-high"))
+			paddr |= SPIBUS_CS_HIGH;
+
+		/*
 		 * Get the maximum clock frequency for device, zero means
 		 * use the default bus speed.
+		 *
+		 * XXX Note that the current (2018-04-07) dts bindings say that
+		 * spi-max-frequency is a required property (but says nothing of
+		 * how to interpret a value of zero).
 		 */
 		if (OF_getencprop(child, "spi-max-frequency", &clock,
 		    sizeof(clock)) == -1)
@@ -120,6 +145,7 @@ ofw_spibus_attach(device_t dev)
 			continue;
 		dinfo->opd_dinfo.cs = paddr;
 		dinfo->opd_dinfo.clock = clock;
+		dinfo->opd_dinfo.mode = mode;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
 		    0) {
 			free(dinfo, M_DEVBUF);
@@ -192,10 +218,10 @@ static device_method_t ofw_spibus_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ofwspibus_devclass;
+devclass_t ofw_spibus_devclass;
 
 DEFINE_CLASS_1(spibus, ofw_spibus_driver, ofw_spibus_methods,
     sizeof(struct spibus_softc), spibus_driver);
-DRIVER_MODULE(ofw_spibus, spi, ofw_spibus_driver, ofwspibus_devclass, 0, 0);
+DRIVER_MODULE(ofw_spibus, spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 MODULE_VERSION(ofw_spibus, 1);
 MODULE_DEPEND(ofw_spibus, spibus, 1, 1, 1);

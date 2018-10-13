@@ -1,4 +1,4 @@
-/* $NetBSD: t_ttypty.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $ */
+/* $NetBSD: t_ttypty.c,v 1.2 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_ttypty.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
+__RCSID("$NetBSD: t_ttypty.c,v 1.2 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/event.h>
 #include <sys/wait.h>
@@ -45,7 +45,7 @@ __RCSID("$NetBSD: t_ttypty.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
 
 #include <atf-c.h>
 
-#include "../../../h_macros.h"
+#include "h_macros.h"
 
 static void
 h_check(bool check_master)
@@ -103,7 +103,11 @@ h_check(bool check_master)
 	RL(n = kevent(kq, NULL, 0, event, 1, NULL));
 
 	(void)printf("kevent num %d filt %d flags: %#x, fflags: %#x, "
+#ifdef __FreeBSD__
+	    "data: %" PRIdPTR "\n", n, event[0].filter, event[0].flags,
+#else
 	    "data: %" PRId64 "\n", n, event[0].filter, event[0].flags,
+#endif
 	    event[0].fflags, event[0].data);
 
 	ATF_REQUIRE_EQ(event[0].filter, EVFILT_READ);

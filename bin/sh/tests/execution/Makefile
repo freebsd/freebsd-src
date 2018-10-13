@@ -37,6 +37,7 @@ ${PACKAGE}FILES+=		redir4.0
 ${PACKAGE}FILES+=		redir5.0
 ${PACKAGE}FILES+=		redir6.0
 ${PACKAGE}FILES+=		redir7.0
+${PACKAGE}FILES+=		set-C1.0
 ${PACKAGE}FILES+=		set-n1.0
 ${PACKAGE}FILES+=		set-n2.0
 ${PACKAGE}FILES+=		set-n3.0

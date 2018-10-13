@@ -114,9 +114,15 @@ hint.arge.1.miimode=1		# GMII
 # MAC for arge1 is the second 6 bytes of the ART
 # hint.arge.1.eeprommac=0x1f7f0006
 
-# ath0: Where the ART is - last 64k in the flash
-hint.ath.0.eepromaddr=0x1fff0000
-hint.ath.0.eepromsize=16384
+# ART calibration data mapping - for the AR934x AHB device
+hint.ar71xx_caldata.0.at="nexus0"
+hint.ar71xx_caldata.0.order=0
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
 
 # ath1: it's different; it's a PCIe attached device, so
 # we instead need to teach the PCIe bridge code about it
@@ -206,21 +212,26 @@ hint.gpio.0.func.19.gpiomode=1	# output, default low
 hint.gpioled.0.at="gpiobus0"
 hint.gpioled.0.name="USB1"
 hint.gpioled.0.pins=0x0800
+hint.gpioled.0.invert=1
 
 hint.gpioled.1.at="gpiobus0"
 hint.gpioled.1.name="USB2"
 hint.gpioled.1.pins=0x1000
+hint.gpioled.1.invert=1
 
 hint.gpioled.2.at="gpiobus0"
 hint.gpioled.2.name="WLAN2G"
 hint.gpioled.2.pins=0x2000
+hint.gpioled.2.invert=1
 
 hint.gpioled.3.at="gpiobus0"
 hint.gpioled.3.name="SYSTEM"
 hint.gpioled.3.pins=0x4000
+hint.gpioled.3.invert=1
 
 hint.gpioled.4.at="gpiobus0"
 hint.gpioled.4.name="QSS"
 hint.gpioled.4.pins=0x8000
+hint.gpioled.4.invert=1
 
 # XXX TODO: WPS/RFKILL switch

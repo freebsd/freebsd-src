@@ -17,7 +17,7 @@
 namespace clang {
 namespace tooling {
 
-/// Add -fsyntax-only option to the commnand line arguments.
+/// Add -fsyntax-only option to the command line arguments.
 ArgumentsAdjuster getClangSyntaxOnlyAdjuster() {
   return [](const CommandLineArguments &Args, StringRef /*unused*/) {
     CommandLineArguments AdjustedArgs;
@@ -42,10 +42,30 @@ ArgumentsAdjuster getClangStripOutputAdjuster() {
         AdjustedArgs.push_back(Args[i]);
 
       if (Arg == "-o") {
-        // Output is specified as -o foo. Skip the next argument also.
+        // Output is specified as -o foo. Skip the next argument too.
         ++i;
       }
       // Else, the output is specified as -ofoo. Just do nothing.
+    }
+    return AdjustedArgs;
+  };
+}
+
+ArgumentsAdjuster getClangStripDependencyFileAdjuster() {
+  return [](const CommandLineArguments &Args, StringRef /*unused*/) {
+    CommandLineArguments AdjustedArgs;
+    for (size_t i = 0, e = Args.size(); i < e; ++i) {
+      StringRef Arg = Args[i];
+      // All dependency-file options begin with -M. These include -MM,
+      // -MF, -MG, -MP, -MT, -MQ, -MD, and -MMD.
+      if (!Arg.startswith("-M")) {
+        AdjustedArgs.push_back(Args[i]);
+        continue;
+      }
+
+      if (Arg == "-MF" || Arg == "-MT" || Arg == "-MQ")
+        // These flags take an argument: -MX foo. Skip the next argument also.
+        ++i;
     }
     return AdjustedArgs;
   };
@@ -76,6 +96,10 @@ ArgumentsAdjuster getInsertArgumentAdjuster(const char *Extra,
 
 ArgumentsAdjuster combineAdjusters(ArgumentsAdjuster First,
                                    ArgumentsAdjuster Second) {
+  if (!First)
+    return Second;
+  if (!Second)
+    return First;
   return [First, Second](const CommandLineArguments &Args, StringRef File) {
     return Second(First(Args, File), File);
   };
@@ -83,4 +107,3 @@ ArgumentsAdjuster combineAdjusters(ArgumentsAdjuster First,
 
 } // end namespace tooling
 } // end namespace clang
-

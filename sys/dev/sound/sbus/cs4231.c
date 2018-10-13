@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Jason L. Wright (jason@thought.net)
  * Copyright (c) 2004 Pyun YongHyeon
  * All rights reserved.
@@ -113,7 +115,7 @@ struct cs4231_channel {
 #define CS4231_RES_MEM_MAX	4
 #define CS4231_RES_IRQ_MAX	2
 struct cs4231_softc {
-	struct device		*sc_dev;
+	device_t		sc_dev;
 	int			sc_rid[CS4231_RES_MEM_MAX];
 	struct resource		*sc_res[CS4231_RES_MEM_MAX];
 	bus_space_handle_t	sc_regh[CS4231_RES_MEM_MAX];

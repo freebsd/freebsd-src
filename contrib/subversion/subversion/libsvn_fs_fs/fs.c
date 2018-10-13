@@ -27,7 +27,6 @@
 #include <apr_general.h>
 #include <apr_pools.h>
 #include <apr_file_io.h>
-#include <apr_thread_mutex.h>
 
 #include "svn_fs.h"
 #include "svn_delta.h"
@@ -135,7 +134,28 @@ fs_serialized_init(svn_fs_t *fs, apr_pool_t *common_pool, apr_pool_t *pool)
   return SVN_NO_ERROR;
 }
 
+svn_error_t *
+svn_fs_fs__initialize_shared_data(svn_fs_t *fs,
+                                  svn_mutex__t *common_pool_lock,
+                                  apr_pool_t *pool,
+                                  apr_pool_t *common_pool)
+{
+  SVN_MUTEX__WITH_LOCK(common_pool_lock,
+                       fs_serialized_init(fs, common_pool, pool));
+
+  return SVN_NO_ERROR;
+}
+
 
+
+static svn_error_t *
+fs_refresh_revprops(svn_fs_t *fs,
+                    apr_pool_t *scratch_pool)
+{
+  svn_fs_fs__reset_revprop_cache(fs);
+
+  return SVN_NO_ERROR;
+}
 
 /* This function is provided for Subversion 1.0.x compatibility.  It
    has no effect for fsfs backed Subversion filesystems.  It conforms
@@ -238,6 +258,7 @@ fs_set_uuid(svn_fs_t *fs,
 /* The vtable associated with a specific open filesystem. */
 static fs_vtable_t fs_vtable = {
   svn_fs_fs__youngest_rev,
+  fs_refresh_revprops,
   svn_fs_fs__revision_prop,
   svn_fs_fs__get_revision_proplist,
   svn_fs_fs__change_rev_prop,
@@ -270,6 +291,8 @@ initialize_fs_struct(svn_fs_t *fs)
 {
   fs_fs_data_t *ffd = apr_pcalloc(fs->pool, sizeof(*ffd));
   ffd->use_log_addressing = FALSE;
+  ffd->revprop_prefix = 0;
+  ffd->flush_to_disk = TRUE;
 
   fs->vtable = &fs_vtable;
   fs->fsap_data = ffd;
@@ -293,18 +316,18 @@ static svn_error_t *
 fs_create(svn_fs_t *fs,
           const char *path,
           svn_mutex__t *common_pool_lock,
-          apr_pool_t *pool,
+          apr_pool_t *scratch_pool,
           apr_pool_t *common_pool)
 {
   SVN_ERR(svn_fs__check_fs(fs, FALSE));
 
   SVN_ERR(initialize_fs_struct(fs));
 
-  SVN_ERR(svn_fs_fs__create(fs, path, pool));
+  SVN_ERR(svn_fs_fs__create(fs, path, scratch_pool));
 
-  SVN_ERR(svn_fs_fs__initialize_caches(fs, pool));
+  SVN_ERR(svn_fs_fs__initialize_caches(fs, scratch_pool));
   SVN_MUTEX__WITH_LOCK(common_pool_lock,
-                       fs_serialized_init(fs, common_pool, pool));
+                       fs_serialized_init(fs, common_pool, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -322,10 +345,10 @@ static svn_error_t *
 fs_open(svn_fs_t *fs,
         const char *path,
         svn_mutex__t *common_pool_lock,
-        apr_pool_t *pool,
+        apr_pool_t *scratch_pool,
         apr_pool_t *common_pool)
 {
-  apr_pool_t *subpool = svn_pool_create(pool);
+  apr_pool_t *subpool = svn_pool_create(scratch_pool);
 
   SVN_ERR(svn_fs__check_fs(fs, FALSE));
 
@@ -452,7 +475,7 @@ fs_pack(svn_fs_t *fs,
         apr_pool_t *common_pool)
 {
   SVN_ERR(fs_open(fs, path, common_pool_lock, pool, common_pool));
-  return svn_fs_fs__pack(fs, notify_func, notify_baton,
+  return svn_fs_fs__pack(fs, 0, notify_func, notify_baton,
                          cancel_func, cancel_baton, pool);
 }
 
@@ -481,28 +504,19 @@ fs_hotcopy(svn_fs_t *src_fs,
            apr_pool_t *pool,
            apr_pool_t *common_pool)
 {
-  /* Open the source repo as usual. */
   SVN_ERR(fs_open(src_fs, src_path, common_pool_lock, pool, common_pool));
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
 
-  /* Test target repo when in INCREMENTAL mode, initialize it when not.
-   * For this, we need our FS internal data structures to be temporarily
-   * available. */
+  SVN_ERR(svn_fs__check_fs(dst_fs, FALSE));
   SVN_ERR(initialize_fs_struct(dst_fs));
-  SVN_ERR(svn_fs_fs__hotcopy_prepare_target(src_fs, dst_fs, dst_path,
-                                            incremental, pool));
-  uninitialize_fs_struct(dst_fs);
 
-  /* Now, the destination repo should open just fine. */
-  SVN_ERR(fs_open(dst_fs, dst_path, common_pool_lock, pool, common_pool));
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
-
-  /* Now, we may copy data as needed ... */
-  return svn_fs_fs__hotcopy(src_fs, dst_fs, incremental,
-                            notify_func, notify_baton,
-                            cancel_func, cancel_baton, pool);
+  /* In INCREMENTAL mode, svn_fs_fs__hotcopy() will open DST_FS.
+     Otherwise, it's not an FS yet --- possibly just an empty dir --- so
+     can't be opened.
+   */
+  return svn_fs_fs__hotcopy(src_fs, dst_fs, src_path, dst_path,
+                            incremental, notify_func, notify_baton,
+                            cancel_func, cancel_baton, common_pool_lock,
+                            pool, common_pool);
 }
 
 

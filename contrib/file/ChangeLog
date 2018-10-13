@@ -1,3 +1,135 @@
+2018-07-25   8:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.34
+
+2018-06-22  16:38  Christos Zoulas <christos@zoulas.com>
+
+	* Add Quad indirect offsets
+
+2018-05-24  14:10  Christos Zoulas <christos@zoulas.com>
+
+	* Enable parsing of ELF dynamic sections to handle PIE better
+
+2018-04-15  14:52  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.33
+
+2018-02-24  14:50  Christos Zoulas <christos@zoulas.com> 
+
+	* extend the support for ${x?:} expansions for magic descriptions
+
+2018-02-21  16:25  Christos Zoulas <christos@zoulas.com> 
+
+	* add support for ${x?:} in mime types to handle
+	  pie binaries.
+
+2017-11-03   9:23  Christos Zoulas <christos@zoulas.com>
+
+	* add support for negative offsets (offsets from the end of file)
+
+2017-09-26   8:22  Christos Zoulas <christos@zoulas.com>
+
+	* close the file on error when writing magic (Steve Grubb)
+
+2017-09-24  12:02  Christos Zoulas <christos@zoulas.com>
+
+	* seccomp support (Paul Moore)
+
+2017-09-02  11:53  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.32
+
+2017-08-28  16:37  Christos Zoulas <christos@zoulas.com>
+
+	* Always reset state in {file,buffer}_apprentice (Krzysztof Wilczynski)
+
+2017-08-27  03:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix always true condition (Thomas Jarosch)
+
+2017-05-24  17:30  Christos Zoulas <christos@zoulas.com>
+
+	* pickier parsing of numeric values in magic files.
+
+2017-05-23  17:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/615 add magic_getflags()
+
+2017-05-23  13:55  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.31
+
+2017-03-17  20:32  Christos Zoulas <christos@zoulas.com>
+
+	* remove trailing spaces from magic files
+	* refactor is_tar
+	* better bounds checks for cdf
+
+2017-02-10  12:24  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.30
+
+2017-02-07  23:27  Christos Zoulas <christos@zoulas.com>
+
+	* If we exceeded the offset in a search return no match
+	  (Christoph Biedl)
+	* Be more lenient on corrupt CDF files (Christoph Biedl)
+
+2017-02-04  16:46  Christos Zoulas <christos@zoulas.com>
+
+	* pacify ubsan sign extension (oss-fuzz/524)
+
+2017-02-01  12:42  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in cdf parsing (PR/593)
+	* report debugging sections in elf (PR/591)
+
+2016-11-06  10:52  Christos Zoulas <christos@zoulas.com>
+
+	* Allow @@@ in extensions
+	* Add missing overflow check in der magic (Jonas Wagner)
+
+2016-10-25  10:40  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.29
+
+2016-10-24  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* der getlength overflow (Jonas Wagner)
+	* multiple magic file load failure (Christoph Biedl)
+
+2016-10-17  11:26  Christos Zoulas <christos@zoulas.com>
+
+	* CDF parsing improvements (Guy Helmer)
+
+2016-07-20   7:26  Christos Zoulas <christos@zoulas.com>
+
+	* Add support for signed indirect offsets
+
+2016-07-18   7:41  Christos Zoulas <christos@zoulas.com>
+
+	* cat /dev/null | file - should print empty (Christoph Biedl)
+
+2016-07-05  15:20  Christos Zoulas <christos@zoulas.com>
+
+	* Bump string size from 64 to 96.
+
+2016-06-13  20:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/556: Fix separators on annotations.
+
+2016-06-13  19:40  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.28
+	* fix leak on allocation failure
+
+2016-06-01   1:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/555: Avoid overflow for offset > nbytes
+	* PR/550: Segv on DER parsing:
+	    - use the correct variable for length
+	    - set offset to 0 on failure.
+
 2016-05-13  12:00  Christos Zoulas <christos@zoulas.com>
 	
 	* release 5.27
@@ -346,7 +478,7 @@
 		`
 2013-11-06  14:40  Christos Zoulas <christos@zoulas.com>
 
-	* fix erroneous non-zero exit code from non-existant file and message
+	* fix erroneous non-zero exit code from non-existent file and message
 
 2013-10-29  14:25  Christos Zoulas <christos@zoulas.com>
 

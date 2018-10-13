@@ -2,6 +2,8 @@
 /*	$FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -69,7 +71,6 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 #include <unistd.h>
 #include <syslog.h>
 #include <err.h>
-#include <libutil.h>
 #include <pwd.h>
 #include <string.h>
 #include <errno.h>
@@ -78,7 +79,10 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 /* Global variables */
 int debugging = 0;	/* Tell me what's going on */
 int doabort = 0;	/* When debugging, do an abort on errors */
+int terminate_rfd;	/* Pipefd to wake on signal */
+volatile sig_atomic_t doterminate = 0;	/* Terminal signal received */
 rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
+int rpcbindlockfd;
 
 /* who to suid to if -s is given */
 #define RUN_AS  "daemon"
@@ -98,7 +102,7 @@ static struct sockaddr **bound_sa;
 static int ipv6_only = 0;
 static int nhosts = 0;
 static int on = 1;
-static int rpcbindlockfd;
+static int terminate_wfd;
 
 #ifdef WARMSTART
 /* Local Variable */
@@ -131,6 +135,7 @@ main(int argc, char *argv[])
 	void *nc_handle;	/* Net config handle */
 	struct rlimit rl;
 	int maxrec = RPC_MAXDATASIZE;
+	int error, fds[2];
 
 	parseargs(argc, argv);
 
@@ -189,6 +194,16 @@ main(int argc, char *argv[])
 	    }
 	}
 	endnetconfig(nc_handle);
+
+	/*
+	 * Allocate pipe fd to wake main thread from signal handler in non-racy
+	 * way.
+	 */
+	error = pipe(fds);
+	if (error != 0)
+		err(1, "pipe failed");
+	terminate_rfd = fds[0];
+	terminate_wfd = fds[1];
 
 	/* catch the usual termination signals for graceful exit */
 	(void) signal(SIGCHLD, reap);
@@ -550,6 +565,8 @@ init_transport(struct netconfig *nconf)
 		pml->pml_map.pm_port = PMAPPORT;
 		if (strcmp(nconf->nc_proto, NC_TCP) == 0) {
 			if (tcptrans[0]) {
+				free(pml);
+				pml = NULL;
 				syslog(LOG_ERR,
 				"cannot have more than one TCP transport");
 				goto error;
@@ -757,15 +774,15 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
  * Catch the signal and die
  */
 static void
-terminate(int dummy __unused)
+terminate(int signum)
 {
-	close(rpcbindlockfd);
-#ifdef WARMSTART
-	syslog(LOG_ERR,
-		"rpcbind terminating on signal. Restart with \"rpcbind -w\"");
-	write_warmstart();	/* Dump yourself */
-#endif
-	exit(2);
+	char c = '\0';
+	ssize_t wr;
+
+	doterminate = signum;
+	wr = write(terminate_wfd, &c, 1);
+	if (wr < 1)
+		_exit(2);
 }
 
 void

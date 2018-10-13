@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd October 5, 2016
 .Dt DEVD 8
 .Os
 .Sh NAME
@@ -62,7 +62,8 @@ The default connection limit is 10.
 Do not process all pending events before becoming a daemon.
 Instead, call daemon right away.
 .It Fl q
-Quiet mode.  Only log messages at priority LOG_WARNING or above.
+Quiet mode.
+Only log messages at priority LOG_WARNING or above.
 .El
 .Sh IMPLEMENTATION NOTES
 The
@@ -153,5 +154,10 @@ A deprecated socket retained for use with old clients.
 .Sh SEE ALSO
 .Xr devctl 4 ,
 .Xr devd.conf 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An M. Warner Losh

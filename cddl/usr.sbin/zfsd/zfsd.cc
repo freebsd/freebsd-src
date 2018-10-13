@@ -98,7 +98,6 @@ int		     ZfsDaemon::s_signalPipeFD[2];
 bool		     ZfsDaemon::s_systemRescanRequested(false);
 EventFactory::Record ZfsDaemon::s_registryEntries[] =
 {
-	{ Event::NOTIFY, "DEVFS", &DevfsEvent::Builder },
 	{ Event::NOTIFY, "GEOM",  &GeomEvent::Builder },
 	{ Event::NOTIFY, "ZFS",   &ZfsEvent::Builder }
 };
@@ -437,7 +436,7 @@ void
 ZfsDaemon::ClosePIDFile()
 {
 	if (s_pidFH != NULL)
-		pidfile_close(s_pidFH);
+		pidfile_remove(s_pidFH);
 }
 
 void

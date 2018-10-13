@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 2008 Bjoern A. Zeeb <bz@FreeBSD.org>
  * Copyright (c) 2009 James Gritton <jamie@FreeBSD.org>
@@ -51,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #define	JP_USER		0x01000000
 #define	JP_OPT		0x02000000
 
-#define JLS_XO_VERSION	"1"
+#define JLS_XO_VERSION	"2"
 
 #define	PRINT_DEFAULT	0x01
 #define	PRINT_HEADER	0x02
@@ -77,7 +79,10 @@ static int sort_param(const void *a, const void *b);
 static char *noname(const char *name);
 static char *nononame(const char *name);
 static int print_jail(int pflags, int jflags);
+static int special_print(int pflags, struct jailparam *param);
 static void quoted_print(int pflags, char *name, char *value);
+static void emit_ip_addr_list(int af_family, const char *list_name,
+		struct jailparam *param);
 
 int
 main(int argc, char **argv)
@@ -379,8 +384,7 @@ print_jail(int pflags, int jflags)
 {
 	char *nname, *xo_nname;
 	char **param_values;
-	int i, ai, jid, count, n, spc;
-	char ipbuf[INET6_ADDRSTRLEN];
+	int i, jid, n, spc;
 
 	jid = jailparam_get(params, nparams, jflags);
 	if (jid < 0)
@@ -401,29 +405,13 @@ print_jail(int pflags, int jflags)
 		n = 6;
 #ifdef INET
 		if (ip4_ok && !strcmp(params[n].jp_name, "ip4.addr")) {
-			count = params[n].jp_valuelen / sizeof(struct in_addr);
-			for (ai = 0; ai < count; ai++)
-				if (inet_ntop(AF_INET,
-				    &((struct in_addr *)params[n].jp_value)[ai],
-				    ipbuf, sizeof(ipbuf)) == NULL)
-					xo_err(1, "inet_ntop");
-				else {
-					xo_emit("{P:        }{l:ipv4_addrs}{P:\n}", ipbuf);
-				}
+			emit_ip_addr_list(AF_INET, "ipv4_addrs", params + n);
 			n++;
 		}
 #endif
 #ifdef INET6
 		if (ip6_ok && !strcmp(params[n].jp_name, "ip6.addr")) {
-			count = params[n].jp_valuelen / sizeof(struct in6_addr);
-			for (ai = 0; ai < count; ai++)
-				if (inet_ntop(AF_INET6,
-				    &((struct in6_addr *)
-					params[n].jp_value)[ai],
-				    ipbuf, sizeof(ipbuf)) == NULL)
-					xo_err(1, "inet_ntop");
-				else
-					xo_emit("{P:        }{l:ipv6_addrs}{P:\n}", ipbuf);
+			emit_ip_addr_list(AF_INET6, "ipv6_addrs", params + n);
 			n++;
 		}
 #endif
@@ -499,14 +487,8 @@ print_jail(int pflags, int jflags)
 				}
 				xo_emit("{d:%s}=", params[i].jp_name);
 			}
-			if (params[i].jp_valuelen == 0) {
-				if (pflags & PRINT_QUOTED)
-					xo_emit("{P:\"\"}");
-				else if (!(pflags & PRINT_NAMEVAL))
-					xo_emit("{P:-}");
-			} else {
+			if (!special_print(pflags, params + i))
 				quoted_print(pflags, params[i].jp_name, param_values[i]);
-			}
 		}
 		xo_emit("{P:\n}");
 		for (i = 0; i < nparams; i++)
@@ -552,4 +534,71 @@ quoted_print(int pflags, char *name, char *value)
 
 	if (qc && pflags & PRINT_QUOTED)
 		xo_emit("{P:/%c}", qc);
+}
+
+static int
+special_print(int pflags, struct jailparam *param)
+{
+	int ip_as_list;
+
+	switch (xo_get_style(NULL)) {
+	case XO_STYLE_JSON:
+	case XO_STYLE_XML:
+		ip_as_list = 1;
+		break;
+	default:
+		ip_as_list = 0;
+	}
+
+	if (!ip_as_list && param->jp_valuelen == 0) {
+		if (pflags & PRINT_QUOTED)
+			xo_emit("{P:\"\"}");
+		else if (!(pflags & PRINT_NAMEVAL))
+			xo_emit("{P:-}");
+	} else if (ip_as_list && !strcmp(param->jp_name, "ip4.addr")) {
+		emit_ip_addr_list(AF_INET, param->jp_name, param);
+	} else if (ip_as_list && !strcmp(param->jp_name, "ip6.addr")) {
+		emit_ip_addr_list(AF_INET6, param->jp_name, param);
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
+static void
+emit_ip_addr_list(int af_family, const char *list_name, struct jailparam *param)
+{
+	char ipbuf[INET6_ADDRSTRLEN];
+	size_t addr_len;
+	const char *emit_str;
+	int ai, count;
+
+	switch (af_family) {
+	case AF_INET:
+		addr_len = sizeof(struct in_addr);
+		emit_str = "{P:        }{ql:ipv4_addr}{P:\n}";
+		break;
+	case AF_INET6:
+		addr_len = sizeof(struct in6_addr);
+		emit_str = "{P:        }{ql:ipv6_addr}{P:\n}";
+		break;
+	default:
+		xo_err(1, "unsupported af_family");
+		return;
+	}
+
+	count = param->jp_valuelen / addr_len;
+
+	xo_open_list(list_name);
+	for (ai = 0; ai < count; ai++) {
+		if (inet_ntop(af_family,
+		    ((uint8_t *)param->jp_value) + addr_len * ai,
+		    ipbuf, sizeof(ipbuf)) == NULL) {
+			xo_err(1, "inet_ntop");
+		} else {
+			xo_emit(emit_str, ipbuf);
+		}
+	}
+	xo_close_list(list_name);
 }

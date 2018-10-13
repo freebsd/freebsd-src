@@ -20,35 +20,30 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__PACK_H
-#define SVN_LIBSVN_FS__PACK_H
+#ifndef SVN_LIBSVN_FS_X_PACK_H
+#define SVN_LIBSVN_FS_X_PACK_H
 
 #include "fs.h"
 
 /* Possibly pack the repository at PATH.  This just take full shards, and
-   combines all the revision files into a single one, with a manifest header.
+   combines all the revision files into a single one, with a manifest header
+   when required by the repository format.
+
+   MAX_MEM limits the size of in-memory data structures needed for reordering
+   items.  0 means use the built-in default.
+
    Use optional CANCEL_FUNC/CANCEL_BATON for cancellation support.
    Use SCRATCH_POOL for temporary allocations.
 
    Existing filesystem references need not change.  */
 svn_error_t *
 svn_fs_x__pack(svn_fs_t *fs,
+               apr_size_t max_mem,
                svn_fs_pack_notify_t notify_func,
                void *notify_baton,
                svn_cancel_func_t cancel_func,
                void *cancel_baton,
                apr_pool_t *scratch_pool);
-
-/**
- * For the packed revision REV in FS,  determine the offset within the
- * revision pack file and return it in REV_OFFSET.
- * Use SCRATCH_POOL for temporary allocations.
- */
-svn_error_t *
-svn_fs_x__get_packed_offset(apr_off_t *rev_offset,
-                            svn_fs_t *fs,
-                            svn_revnum_t rev,
-                            apr_pool_t *scratch_pool);
 
 /* Return the svn_dir_entry_t* objects of DIRECTORY in an APR array
  * allocated in RESULT_POOL with entries added in storage (on-disk) order.

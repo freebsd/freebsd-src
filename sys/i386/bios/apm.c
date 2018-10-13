@@ -16,6 +16,32 @@
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  */
 
+/*-
+ * Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -38,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/timetc.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 
@@ -82,19 +109,6 @@ int	apm_evindex;
 #define APMDEV_NORMAL	0
 #define APMDEV_CTL	1
 
-#ifdef PC98
-extern int bios32_apm98(struct bios_regs *, u_int, u_short);
-
-/* PC98's SMM definition */
-#define	APM_NECSMM_PORT		0x6b8e
-#define	APM_NECSMM_PORTSZ	1
-#define	APM_NECSMM_EN		0x10
-static __inline void apm_enable_smm(struct apm_softc *);
-static __inline void apm_disable_smm(struct apm_softc *);
-int apm_necsmm_addr;
-u_int32_t apm_necsmm_mask;
-#endif
-
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
@@ -137,30 +151,6 @@ SYSCTL_INT(_debug, OID_AUTO, apm_debug, CTLFLAG_RW, &apm_debug, 0, "");
 SYSCTL_INT(_machdep, OID_AUTO, apm_swab_batt_minutes, CTLFLAG_RWTUN,
 	   &apm_swab_batt_minutes, 0, "Byte swap battery time value.");
 
-#ifdef PC98
-static __inline void
-apm_enable_smm(sc)
-	struct apm_softc *sc;
-{
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-	if (apm_necsmm_addr != 0)
-		bus_space_write_1(iot, ioh, 0,
-			  (bus_space_read_1(iot, ioh, 0) | ~apm_necsmm_mask));
-}
-
-static __inline void
-apm_disable_smm(sc)
-	struct apm_softc *sc;
-{
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-	if (apm_necsmm_addr != 0)
-		bus_space_write_1(iot, ioh, 0,
-			  (bus_space_read_1(iot, ioh, 0) & apm_necsmm_mask));
-}
-#endif
-
 /*
  * return  0 if the function successfull,
  * return  1 if the function unsuccessfull,
@@ -180,12 +170,6 @@ apm_bioscall(void)
 	}
 
 	sc->bios_busy = 1;
-#ifdef	PC98
-	set_bios_selectors(&sc->bios.seg, BIOSCODE_FLAG | BIOSDATA_FLAG);
-	if (bios32_apm98(&sc->bios.r, sc->bios.entry,
-	    GSEL(GBIOSCODE32_SEL, SEL_KPL)) != 0)
-		return 1;
-#else
 	if (sc->connectmode == APM_PROT32CONNECT) {
 		set_bios_selectors(&sc->bios.seg,
 				   BIOSCODE_FLAG | BIOSDATA_FLAG);
@@ -194,7 +178,6 @@ apm_bioscall(void)
 	} else {
 		errno = bios16(&sc->bios, NULL);
 	}
-#endif
 	sc->bios_busy = 0;
 	return (errno);
 }
@@ -207,11 +190,6 @@ apm_check_function_supported(u_int version, u_int func)
 	if (func == APM_DRVVERSION) {
 		return (1);
 	}
-#ifdef PC98
-	if (func == APM_GETPWSTATUS) {
-		return (1);
-	}
-#endif
 
 	switch (version) {
 	case INTVERSION(1, 0):
@@ -254,7 +232,7 @@ static int
 apm_driver_version(int version)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	sc->bios.r.ebx  = 0x0;
 	sc->bios.r.ecx  = version;
@@ -269,28 +247,28 @@ apm_driver_version(int version)
 
 	return (1);
 }
- 
+
 /* engage/disengage power management (APM 1.1 or later) */
 static int
 apm_engage_disengage_pm(int engage)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
 	sc->bios.r.ebx = PMDV_ALLDEV;
 	sc->bios.r.ecx = engage;
 	sc->bios.r.edx = 0;
 	return (apm_bioscall());
 }
- 
+
 /* get PM event */
 static u_int
 apm_getevent(void)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETPMEVENT;
- 
+
 	sc->bios.r.ebx = 0;
 	sc->bios.r.ecx = 0;
 	sc->bios.r.edx = 0;
@@ -298,29 +276,24 @@ apm_getevent(void)
 		return (PMEV_NOEVENT);
 	return (sc->bios.r.ebx & 0xffff);
 }
- 
+
 /* suspend entire system */
 static int
 apm_suspend_system(int state)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	sc->bios.r.ebx = PMDV_ALLDEV;
 	sc->bios.r.ecx = state;
 	sc->bios.r.edx = 0;
- 
-#ifdef PC98
-	apm_disable_smm(sc);
-#endif
+
 	if (apm_bioscall()) {
  		printf("Entire system suspend failure: errcode = %d\n",
 		       0xff & (sc->bios.r.eax >> 8));
  		return 1;
  	}
-#ifdef PC98
-	apm_enable_smm(sc);
-#endif
+
  	return 0;
 }
 
@@ -334,7 +307,7 @@ int
 apm_display(int newstate)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	sc->bios.r.ebx = PMDV_DISP0;
 	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
@@ -385,12 +358,10 @@ apm_battery_low(void)
 static struct apmhook *
 apm_add_hook(struct apmhook **list, struct apmhook *ah)
 {
-	int s;
 	struct apmhook *p, *prev;
 
 	APM_DPRINT("Add hook \"%s\"\n", ah->ah_name);
 
-	s = splhigh();
 	if (ah == NULL)
 		panic("illegal apm_hook!");
 	prev = NULL;
@@ -405,30 +376,25 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 		ah->ah_next = prev->ah_next;
 		prev->ah_next = ah;
 	}
-	splx(s);
 	return ah;
 }
 
 static void
 apm_del_hook(struct apmhook **list, struct apmhook *ah)
 {
-	int s;
 	struct apmhook *p, *prev;
 
-	s = splhigh();
 	prev = NULL;
 	for (p = *list; p != NULL; prev = p, p = p->ah_next)
 		if (p == ah)
 			goto deleteit;
 	panic("Tried to delete unregistered apm_hook.");
-	goto nosuchnode;
+	return;
 deleteit:
 	if (prev != NULL)
 		prev->ah_next = p->ah_next;
 	else
 		*list = p->ah_next;
-nosuchnode:
-	splx(s);
 }
 
 
@@ -522,7 +488,7 @@ apm_do_standby(void)
 	sc->standbys = sc->standby_countdown = 0;
 
 	/*
-	 * As far as standby, we don't need to execute 
+	 * As far as standby, we don't need to execute
 	 * all of suspend hooks.
 	 */
 	if (apm_suspend_system(PMST_STANDBY) == 0)
@@ -894,9 +860,6 @@ apm_probe(device_t dev)
 #define APM_KERNBASE	KERNBASE
 	struct vm86frame	vmf;
 	struct apm_softc	*sc = &apm_softc;
-#ifdef PC98
-	int			rid;
-#endif
 
 	device_set_desc(dev, "APM BIOS");
 	if (device_get_unit(dev) > 0) {
@@ -936,38 +899,6 @@ apm_probe(device_t dev)
 	vmf.vmf_bx = 0;
         vm86_intcall(APM_INT, &vmf);		/* disconnect, just in case */
 
-#ifdef PC98
-	/* PC98 have bogos APM 32bit BIOS */
-	if ((vmf.vmf_cx & APM_32BIT_SUPPORT) == 0)
-		return ENXIO;
-	rid = 0;
-	bus_set_resource(dev, SYS_RES_IOPORT, rid,
-			 APM_NECSMM_PORT, APM_NECSMM_PORTSZ);
-	sc->sc_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			 APM_NECSMM_PORT, ~0, APM_NECSMM_PORTSZ, RF_ACTIVE);
-	if (sc->sc_res == NULL) {
-		printf("apm: cannot open NEC smm device\n");
-		return ENXIO;
-	}
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_res);
-
-	vmf.vmf_ah = APM_BIOS;
-	vmf.vmf_al = APM_PROT32CONNECT;
-	vmf.vmf_bx = 0;
-	if (vm86_intcall(APM_INT, &vmf)) {
-		printf("apm: 32-bit connection error.\n");
-		return (ENXIO);
- 	}
-
-	sc->bios.seg.code32.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
-	sc->bios.seg.code32.limit = 0xffff;
-	sc->bios.seg.code16.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
-	sc->bios.seg.code16.limit = 0xffff;
-	sc->bios.seg.data.base = (vmf.vmf_dx << 4) + APM_KERNBASE;
-	sc->bios.seg.data.limit = 0xffff;
-	sc->bios.entry = vmf.vmf_ebx;
-	sc->connectmode = APM_PROT32CONNECT;
-#else
 	if ((vmf.vmf_cx & APM_32BIT_SUPPORT) != 0) {
 		vmf.vmf_ah = APM_BIOS;
 		vmf.vmf_al = APM_PROT32CONNECT;
@@ -1000,7 +931,7 @@ apm_probe(device_t dev)
 		sc->bios.entry = vmf.vmf_bx;
 		sc->connectmode = APM_PROT16CONNECT;
 	}
-#endif
+
 	return(0);
 }
 
@@ -1134,9 +1065,49 @@ apm_processevent(void)
 			    break;
 		}
 	} while (apm_event != PMEV_NOEVENT);
-#ifdef PC98
-	apm_disable_smm(sc);
-#endif
+}
+
+static struct timeval suspend_time;
+static struct timeval diff_time;
+
+static int
+apm_rtc_suspend(void *arg __unused)
+{
+
+	microtime(&diff_time);
+	inittodr(0);
+	microtime(&suspend_time);
+	timevalsub(&diff_time, &suspend_time);
+	return (0);
+}
+
+static int
+apm_rtc_resume(void *arg __unused)
+{
+	u_int second, minute, hour;
+	struct timeval resume_time, tmp_time;
+
+	/* modified for adjkerntz */
+	timer_restore();		/* restore the all timers */
+	inittodr(0);			/* adjust time to RTC */
+	microtime(&resume_time);
+	getmicrotime(&tmp_time);
+	timevaladd(&tmp_time, &diff_time);
+	/* Calculate the delta time suspended */
+	timevalsub(&resume_time, &suspend_time);
+
+#ifdef PMTIMER_FIXUP_CALLTODO
+	/* Fixup the calltodo list with the delta time. */
+	adjust_timeout_calltodo(&resume_time);
+#endif /* PMTIMER_FIXUP_CALLTODO */
+	second = resume_time.tv_sec;
+	hour = second / 3600;
+	second %= 3600;
+	minute = second / 60;
+	second %= 60;
+	log(LOG_NOTICE, "wakeup from sleeping state (slept %02d:%02d:%02d)\n",
+		hour, minute, second);
+	return (0);
 }
 
 /*
@@ -1150,16 +1121,12 @@ apm_attach(device_t dev)
 {
 	struct apm_softc	*sc = &apm_softc;
 	int			drv_version;
-#ifdef PC98
-	int			rid;
-#endif
+
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "apm", MTX_DEF);
 	cv_init(&sc->cv, "cbb cv");
 
-#ifndef PC98
 	if (device_get_flags(dev) & 0x20)
 		atrtcclock_disable = 1;
-#endif
 
 	sc->initialized = 0;
 
@@ -1180,22 +1147,6 @@ apm_attach(device_t dev)
 	    is_enabled(!sc->disabled));
 	APM_DPRINT("apm: CS_limit=0x%x, DS_limit=0x%x\n",
 	    sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
-
-#ifdef PC98
-	rid = 0;
-	sc->sc_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			 APM_NECSMM_PORT, ~0, APM_NECSMM_PORTSZ, RF_ACTIVE);
-	if (sc->sc_res == NULL)
-		panic("%s: counldn't map I/O ports", device_get_name(dev));
-	sc->sc_iot = rman_get_bustag(sc->sc_res);
-	sc->sc_ioh = rman_get_bushandle(sc->sc_res);
-
-	if (apm_version==0x112 || apm_version==0x111 || apm_version==0x110)
-		apm_necsmm_addr = APM_NECSMM_PORT;
-	else
-		apm_necsmm_addr = 0;
-	apm_necsmm_mask = ~APM_NECSMM_EN;
-#endif /* PC98 */
 
 	/*
          * In one test, apm bios version was 1.02; an attempt to register
@@ -1240,7 +1191,7 @@ apm_attach(device_t dev)
 	}
 
 	/* Power the system off using APM */
-	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL, 
+	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL,
 			      SHUTDOWN_PRI_LAST);
 
 	/* Register APM again to pass the correct argument of pm_func. */
@@ -1254,6 +1205,15 @@ apm_attach(device_t dev)
 	    UID_ROOT, GID_OPERATOR, 0664, "apm");
 	make_dev(&apm_cdevsw, APMDEV_CTL,
 	    UID_ROOT, GID_OPERATOR, 0660, "apmctl");
+
+	sc->sc_suspend.ah_fun = apm_rtc_suspend;
+	sc->sc_suspend.ah_arg = sc;
+	apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
+
+	sc->sc_resume.ah_fun = apm_rtc_resume;
+	sc->sc_resume.ah_arg = sc;
+	apm_hook_establish(APM_HOOK_RESUME, &sc->sc_resume);
+
 	return 0;
 }
 
@@ -1391,23 +1351,6 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			return (EPERM);
 		/* XXX compatibility with the old interface */
 		args = (struct apm_bios_arg *)addr;
-#ifdef PC98
-		if (((args->eax >> 8) & 0xff) == 0x53) {
-			sc->bios.r.eax = args->eax & ~0xffff;
-			sc->bios.r.eax |= APM_BIOS << 8;
-			switch (args->eax & 0xff) {
-			case 0x0a:
-				sc->bios.r.eax |= APM_GETPWSTATUS;
-				break;
-			case 0x0e:
-				sc->bios.r.eax |= APM_DRVVERSION;
-				break;
-			default:
-				sc->bios.r.eax |= args->eax & 0xff;
-				break;
-			}
-		} else
-#endif
 		sc->bios.r.eax = args->eax;
 		sc->bios.r.ebx = args->ebx;
 		sc->bios.r.ecx = args->ecx;
@@ -1491,7 +1434,7 @@ apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if ((error = uiomove((caddr_t)&event_type, sizeof(u_int), uio)))
 		return(error);
 
-	if (event_type < 0 || event_type >= APM_NPMEV)
+	if (event_type >= APM_NPMEV)
 		return(EINVAL);
 
 	if (sc->event_filter[event_type] == 0) {
@@ -1589,4 +1532,4 @@ apm_pm_register(void *arg)
 		power_pm_register(POWER_PM_TYPE_APM, apm_pm_func, NULL);
 }
 
-SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, apm_pm_register, 0);
+SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, apm_pm_register, NULL);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -70,6 +72,7 @@ enum {
 	ATH_DEBUG_DIVERSITY	= 0x1000000000ULL,	/* Diversity logic */
 	ATH_DEBUG_PWRSAVE	= 0x2000000000ULL,
 	ATH_DEBUG_BTCOEX	= 0x4000000000ULL,	/* BT Coex */
+	ATH_DEBUG_QUIETIE	= 0x8000000000ULL,	/* Quiet time handling */
 
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };

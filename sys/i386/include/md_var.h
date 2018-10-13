@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Bruce D. Evans.
  * All rights reserved.
  *
@@ -43,14 +45,19 @@ extern	int	szfreebsd4_sigcode;
 #endif
 #ifdef COMPAT_43
 extern	int	szosigcode;
+extern	int	sz_lcall_tramp;
 #endif
 extern	uint32_t *vm_page_dump;
+extern  vm_offset_t proc0kstack;
+extern	uintptr_t setidt_disp;
 
 struct	segment_descriptor;
 union savefpu;
 
-void	bcopyb(const void *from, void *to, size_t len);
+int	cp_slow0(vm_offset_t uva, size_t len, bool write,
+	    void (*f)(vm_offset_t, void *), void *arg);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
+void	copyout_init_tramp(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	doreti_popl_ds(void) __asm(__STRING(doreti_popl_ds));
@@ -59,16 +66,18 @@ void	doreti_popl_es(void) __asm(__STRING(doreti_popl_es));
 void	doreti_popl_es_fault(void) __asm(__STRING(doreti_popl_es_fault));
 void	doreti_popl_fs(void) __asm(__STRING(doreti_popl_fs));
 void	doreti_popl_fs_fault(void) __asm(__STRING(doreti_popl_fs_fault));
-void	finishidentcpu(void);
 void	fill_based_sd(struct segment_descriptor *sdp, uint32_t base);
 void	i686_pagezero(void *addr);
 void	sse2_pagezero(void *addr);
 void	init_AMD_Elan_sc520(void);
 vm_paddr_t kvtop(void *addr);
+void	panicifcpuunsupported(void);
 void	ppro_reenable_apic(void);
+void	set_fsbase(struct thread *td, uint32_t base);
+void	set_gsbase(struct thread *td, uint32_t base);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
+void	setidt_nodisp(int idx, uintptr_t func, int typ, int dpl, int selec);
 union savefpu *get_pcb_user_save_td(struct thread *td);
 union savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
-struct pcb *get_pcb_td(struct thread *td);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

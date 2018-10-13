@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
@@ -134,6 +136,12 @@ struct usb_hid_descriptor {
 
 /* Usages Digitizers */
 #define	HUD_UNDEFINED		0x0000
+#define	HUD_DIGITIZER		0x0001
+#define	HUD_PEN			0x0002
+#define	HUD_TOUCHSCREEN		0x0004
+#define	HUD_TOUCHPAD		0x0005
+#define	HUD_CONFIG		0x000e
+#define	HUD_FINGER		0x0022
 #define	HUD_TIP_PRESSURE	0x0030
 #define	HUD_BARREL_PRESSURE	0x0031
 #define	HUD_IN_RANGE		0x0032
@@ -157,6 +165,16 @@ struct usb_hid_descriptor {
 #define	HUD_BARREL_SWITCH	0x0044
 #define	HUD_ERASER		0x0045
 #define	HUD_TABLET_PICK		0x0046
+#define	HUD_CONFIDENCE		0x0047
+#define	HUD_WIDTH		0x0048
+#define	HUD_HEIGHT		0x0049
+#define	HUD_CONTACTID		0x0051
+#define	HUD_INPUT_MODE		0x0052
+#define	HUD_DEVICE_INDEX	0x0053
+#define	HUD_CONTACTCOUNT	0x0054
+#define	HUD_CONTACT_MAX		0x0055
+#define	HUD_SCAN_TIME		0x0056
+#define	HUD_BUTTON_TYPE		0x0059
 
 /* Usages, Consumer */
 #define	HUC_AC_PAN		0x0238
@@ -177,6 +195,12 @@ struct usb_hid_descriptor {
 #define	HIO_NULLSTATE	0x040
 #define	HIO_VOLATILE	0x080
 #define	HIO_BUFBYTES	0x100
+
+/* Units of Measure */
+#define	HUM_CENTIMETER	0x11
+#define	HUM_RADIAN	0x12
+#define	HUM_INCH	0x13
+#define	HUM_DEGREE	0x14
 
 #ifdef _KERNEL
 struct usb_config_descriptor;
@@ -244,6 +268,7 @@ struct usb_hid_descriptor *hid_get_descriptor_from_usb(
 usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 	    void **descp, uint16_t *sizep, struct malloc_type *mem,
 	    uint8_t iface_index);
+int32_t	hid_item_resolution(struct hid_item *hi);
 int	hid_is_mouse(const void *d_ptr, uint16_t d_len);
 int	hid_is_keyboard(const void *d_ptr, uint16_t d_len);
 #endif					/* _KERNEL */

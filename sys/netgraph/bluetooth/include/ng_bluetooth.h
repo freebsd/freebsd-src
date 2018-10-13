@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -223,6 +225,10 @@ u_int32_t	bluetooth_hci_max_neighbor_age	(void);
 u_int32_t	bluetooth_l2cap_rtx_timeout	(void);
 u_int32_t	bluetooth_l2cap_ertx_timeout	(void);
 u_int32_t      bluetooth_sco_rtx_timeout       (void);
+
+#define BDADDR_BREDR 0
+#define BDADDR_LE_PUBLIC 1
+#define BDADDR_LE_RANDOM 2
 
 #endif /* _NETGRAPH_BLUETOOTH_H_ */
 

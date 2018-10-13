@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 John S. Dyson.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +54,7 @@
 #define	LIO_WAIT		0x1
 
 /*
- * Maximum number of allowed LIO operations
+ * Maximum number of operations in a single lio_listio call
  */
 #define	AIO_LISTIO_MAX		16
 
@@ -119,12 +121,10 @@ struct kaiocb {
 	TAILQ_ENTRY(kaiocb) plist;	/* (a) lists of pending / done jobs */
 	TAILQ_ENTRY(kaiocb) allist;	/* (a) list of all jobs in proc */
 	int	jobflags;		/* (a) job flags */
-	int	inputcharge;		/* (*) input blocks */
-	int	outputcharge;		/* (*) output blocks */
-	struct	bio *bp;		/* (*) BIO backend BIO pointer */
-	struct	buf *pbuf;		/* (*) BIO backend buffer pointer */
-	struct	vm_page *pages[btoc(MAXPHYS)+1]; /* BIO backend pages */
-	int	npages;			/* BIO backend number of pages */
+	int	inblock;		/* (*) input blocks */
+	int	outblock;		/* (*) output blocks */
+	int	msgsnd;			/* (*) messages sent */
+	int	msgrcv;			/* (*) messages received */
 	struct	proc *userproc;		/* (*) user process */
 	struct	ucred *cred;		/* (*) active credential when created */
 	struct	file *fd_file;		/* (*) pointer to file structure */
@@ -134,9 +134,25 @@ struct kaiocb {
 	struct	aiocb uaiocb;		/* (*) copy of user I/O control block */
 	ksiginfo_t ksi;			/* (a) realtime signal info */
 	uint64_t seqno;			/* (*) job number */
-	int	pending;		/* (a) number of pending I/O, aio_fsync only */
 	aio_cancel_fn_t *cancel_fn;	/* (a) backend cancel function */
 	aio_handle_fn_t *handle_fn;	/* (c) backend handle function */
+	union {				/* Backend-specific data fields */
+		struct {		/* BIO backend */
+			struct bio *bp;	/* (*) BIO pointer */
+			struct buf *pbuf; /* (*) buffer pointer */
+			struct vm_page *pages[btoc(MAXPHYS)+1]; /* (*) */
+			int	npages;	/* (*) number of pages */
+		};
+		struct {		/* fsync() requests */
+			int	pending; /* (a) number of pending I/O */
+		};
+		struct {
+			void	*backend1;
+			void	*backend2;
+			long	backend3;
+			int	backend4;
+		};
+	};
 };
 
 struct socket;
@@ -238,7 +254,7 @@ int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
  */
 int	aio_mlock(struct aiocb *);
 
-#ifdef __BSD_VISIBLE
+#if __BSD_VISIBLE
 ssize_t	aio_waitcomplete(struct aiocb **, struct timespec *);
 #endif
 

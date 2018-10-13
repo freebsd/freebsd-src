@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,8 +49,11 @@ __FBSDID("$FreeBSD$");
  * Author:  John Kunze, Office of Comp. Affairs, UCB
  */
 
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -89,6 +94,7 @@ static void	usage(void);
 int
 main(int argc, char **argv)
 {
+	cap_rights_t rights;
 	bool	have_format = false;
 	bool	infinity = false;
 	bool	nofinalnl = false;
@@ -104,6 +110,21 @@ main(int argc, char **argv)
 	double	x, y;
 	long	i;
 	long	reps = REPS_DEF;
+
+	if (caph_limit_stdio() < 0)
+		err(1, "unable to limit rights for stdio");
+	cap_rights_init(&rights);
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdin");
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	if (caph_enter() < 0)
+		err(1, "unable to enter capability mode");
 
 	while ((ch = getopt(argc, argv, "b:cnp:rs:w:")) != -1)
 		switch (ch) {

@@ -33,6 +33,7 @@
 #include "svn_repos.h"
 #include "svn_time.h"
 #include "svn_sorts.h"
+#include "svn_subst.h"
 #include "repos.h"
 #include "svn_private_config.h"
 #include "private/svn_repos_private.h"
@@ -58,6 +59,8 @@ svn_repos_fs_commit_txn(const char **conflict_p,
   apr_hash_t *hooks_env;
 
   *new_rev = SVN_INVALID_REVNUM;
+  if (conflict_p)
+    *conflict_p = NULL;
 
   /* Parse the hooks-env file (if any). */
   SVN_ERR(svn_repos__parse_hooks_env(&hooks_env, repos->hooks_env_path,
@@ -233,10 +236,13 @@ svn_repos__validate_prop(const char *name,
            * carriage return characters ('\r'). */
           if (strchr(value->data, '\r') != NULL)
             {
-              return svn_error_createf
-                (SVN_ERR_BAD_PROPERTY_VALUE, NULL,
+              svn_error_t *err = svn_error_createf
+                (SVN_ERR_BAD_PROPERTY_VALUE_EOL, NULL,
                  _("Cannot accept non-LF line endings in '%s' property"),
                    name);
+
+              return svn_error_create(SVN_ERR_BAD_PROPERTY_VALUE, err,
+                                      _("Invalid property value"));
             }
         }
 
@@ -251,6 +257,34 @@ svn_repos__validate_prop(const char *name,
             return svn_error_create(SVN_ERR_BAD_PROPERTY_VALUE,
                                     err, NULL);
         }
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+svn_error_t *
+svn_repos__normalize_prop(const svn_string_t **result_p,
+                          svn_boolean_t *normalized_p,
+                          const char *name,
+                          const svn_string_t *value,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool)
+{
+  if (svn_prop_needs_translation(name) && value)
+    {
+      svn_string_t *new_value;
+
+      SVN_ERR(svn_subst_translate_string2(&new_value, NULL, normalized_p,
+                                          value, "UTF-8", TRUE,
+                                          result_pool, scratch_pool));
+      *result_p = new_value;
+    }
+  else
+    {
+      *result_p = svn_string_dup(value, result_pool);
+      if (normalized_p)
+        *normalized_p = FALSE;
     }
 
   return SVN_NO_ERROR;
@@ -378,7 +412,8 @@ svn_repos_fs_change_rev_prop4(svn_repos_t *repos,
            * to the hooks to be accurate. */
           svn_string_t *old_value2;
 
-          SVN_ERR(svn_fs_revision_prop(&old_value2, repos->fs, rev, name, pool));
+          SVN_ERR(svn_fs_revision_prop2(&old_value2, repos->fs, rev, name,
+                                        TRUE, pool, pool));
           old_value = old_value2;
         }
 
@@ -448,12 +483,13 @@ svn_repos_fs_revision_prop(svn_string_t **value_p,
         *value_p = NULL;
 
       else
-        SVN_ERR(svn_fs_revision_prop(value_p, repos->fs,
-                                     rev, propname, pool));
+        SVN_ERR(svn_fs_revision_prop2(value_p, repos->fs,
+                                      rev, propname, TRUE, pool, pool));
     }
   else /* wholly readable revision */
     {
-      SVN_ERR(svn_fs_revision_prop(value_p, repos->fs, rev, propname, pool));
+      SVN_ERR(svn_fs_revision_prop2(value_p, repos->fs, rev, propname, TRUE,
+                                    pool, pool));
     }
 
   return SVN_NO_ERROR;
@@ -486,7 +522,8 @@ svn_repos_fs_revision_proplist(apr_hash_t **table_p,
       svn_string_t *value;
 
       /* Produce two property hashtables, both in POOL. */
-      SVN_ERR(svn_fs_revision_proplist(&tmphash, repos->fs, rev, pool));
+      SVN_ERR(svn_fs_revision_proplist2(&tmphash, repos->fs, rev, TRUE,
+                                        pool, pool));
       *table_p = apr_hash_make(pool);
 
       /* If they exist, we only copy svn:author and svn:date into the
@@ -501,7 +538,8 @@ svn_repos_fs_revision_proplist(apr_hash_t **table_p,
     }
   else /* wholly readable revision */
     {
-      SVN_ERR(svn_fs_revision_proplist(table_p, repos->fs, rev, pool));
+      SVN_ERR(svn_fs_revision_proplist2(table_p, repos->fs, rev, TRUE,
+                                        pool, pool));
     }
 
   return SVN_NO_ERROR;
@@ -895,25 +933,26 @@ svn_repos_fs_get_locks2(apr_hash_t **locks,
 
 
 svn_error_t *
-svn_repos_fs_get_mergeinfo(svn_mergeinfo_catalog_t *mergeinfo,
-                           svn_repos_t *repos,
-                           const apr_array_header_t *paths,
-                           svn_revnum_t rev,
-                           svn_mergeinfo_inheritance_t inherit,
-                           svn_boolean_t include_descendants,
-                           svn_repos_authz_func_t authz_read_func,
-                           void *authz_read_baton,
-                           apr_pool_t *pool)
+svn_repos_fs_get_mergeinfo2(svn_repos_t *repos,
+                            const apr_array_header_t *paths,
+                            svn_revnum_t rev,
+                            svn_mergeinfo_inheritance_t inherit,
+                            svn_boolean_t include_descendants,
+                            svn_repos_authz_func_t authz_read_func,
+                            void *authz_read_baton,
+                            svn_repos_mergeinfo_receiver_t receiver,
+                            void *receiver_baton,
+                            apr_pool_t *scratch_pool)
 {
   /* Here we cast away 'const', but won't try to write through this pointer
    * without first allocating a new array. */
   apr_array_header_t *readable_paths = (apr_array_header_t *) paths;
   svn_fs_root_t *root;
-  apr_pool_t *iterpool = svn_pool_create(pool);
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
 
   if (!SVN_IS_VALID_REVNUM(rev))
-    SVN_ERR(svn_fs_youngest_rev(&rev, repos->fs, pool));
-  SVN_ERR(svn_fs_revision_root(&root, repos->fs, rev, pool));
+    SVN_ERR(svn_fs_youngest_rev(&rev, repos->fs, scratch_pool));
+  SVN_ERR(svn_fs_revision_root(&root, repos->fs, rev, scratch_pool));
 
   /* Filter out unreadable paths before divining merge tracking info. */
   if (authz_read_func)
@@ -934,7 +973,7 @@ svn_repos_fs_get_mergeinfo(svn_mergeinfo_catalog_t *mergeinfo,
               /* Requested paths differ from readable paths.  Fork
                  list of readable paths from requested paths. */
               int j;
-              readable_paths = apr_array_make(pool, paths->nelts - 1,
+              readable_paths = apr_array_make(scratch_pool, paths->nelts - 1,
                                               sizeof(char *));
               for (j = 0; j < i; j++)
                 {
@@ -951,10 +990,10 @@ svn_repos_fs_get_mergeinfo(svn_mergeinfo_catalog_t *mergeinfo,
      the change itself. */
   /* ### TODO(reint): ... but how about descendant merged-to paths? */
   if (readable_paths->nelts > 0)
-    SVN_ERR(svn_fs_get_mergeinfo2(mergeinfo, root, readable_paths, inherit,
-                                  include_descendants, TRUE, pool, pool));
-  else
-    *mergeinfo = apr_hash_make(pool);
+    SVN_ERR(svn_fs_get_mergeinfo3(root, readable_paths, inherit,
+                                  include_descendants, TRUE,
+                                  receiver, receiver_baton,
+                                  scratch_pool));
 
   svn_pool_destroy(iterpool);
   return SVN_NO_ERROR;
@@ -975,15 +1014,18 @@ pack_notify_func(void *baton,
 {
   struct pack_notify_baton *pnb = baton;
   svn_repos_notify_t *notify;
+  svn_repos_notify_action_t repos_action;
 
   /* Simple conversion works for these values. */
   SVN_ERR_ASSERT(pack_action >= svn_fs_pack_notify_start
-                 && pack_action <= svn_fs_pack_notify_end_revprop);
+                 && pack_action <= svn_fs_pack_notify_noop);
 
-  notify = svn_repos_notify_create(pack_action
-                                   + svn_repos_notify_pack_shard_start
-                                   - svn_fs_pack_notify_start,
-                                   pool);
+  repos_action = pack_action == svn_fs_pack_notify_noop
+               ? svn_repos_notify_pack_noop
+               : pack_action + svn_repos_notify_pack_shard_start
+                             - svn_fs_pack_notify_start;
+
+  notify = svn_repos_notify_create(repos_action, pool);
   notify->shard = shard;
   pnb->notify_func(pnb->notify_baton, notify, pool);
 

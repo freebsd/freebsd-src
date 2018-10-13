@@ -39,7 +39,7 @@
 #include <net/if_vlan_var.h>
 #include <net/if_types.h>
 
-#define VLAN_N_VID              4096
+#define VLAN_N_VID	4096
 
 static inline int
 is_vlan_dev(struct ifnet *ifp)

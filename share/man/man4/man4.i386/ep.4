@@ -95,15 +95,9 @@ driver supports Ethernet adapters based on the
 .It
 3Com 3C509B-TP, 3C509B-BNC, 3C509B-Combo, 3C509B-TPO, 3C509B-TPC ISA
 .It
-3Com 3C529, 3C529-TP MCA
-.It
 3Com 3C562/3C563 PCMCIA
 .It
-3Com 3C569B-J-TPO, 3C569B-J-COMBO CBUS
-.It
 3Com 3C574, 3C574TX, 3C574-TX, 3CCFE574BT, 3CXFE574BT, 3C3FE574BT PCMCIA
-.It
-3Com 3C579-TP, 3C579-BNC EISA
 .It
 3Com 3C589, 3C589B, 3C589C, 3C589D, 3CXE589DT PCMCIA
 .It
@@ -125,10 +119,7 @@ scan operation at IO address 0x110.
 Beware!
 Avoid placing other cards at that address!
 .Pp
-Furthermore, the 3c509 should only be configured in EISA mode
-when installed in a computer that has actual EISA slots
-(and an EISA-aware BIOS).
-The normal driver auto-detection support is sufficient for non-EISA systems.
+Furthermore, the 3c509 should not be configured in EISA mode.
 .Pp
 Cards in PnP mode may conflict with other resources in the system.
 Ensure your BIOS is configured correctly to exclude resources used by
@@ -184,9 +175,9 @@ has about connectors, so it is assuming the worst.
 .It "ep0: unknown ID 0xXXXXXXXX"
 The driver has found an ID that it believes it supports, but does not
 have a specific identification string to present to the user.
-.It "ep0: <%s> at port 0x%03x in EISA mode"
+.It "ep0: <%s> at port 0x%03x in EISA mode, ignored."
 The 3C509 ISA card is in EISA mode.
-This message appears to be purely informational.
+The card will be ignored until it is taken out of EISA mode.
 .It "ep0: <%s> at x0%03x in PnP mode"
 This card appears to be in Plug and Play mode.
 It should be probed as part of the plug and play phase of the ISA
@@ -200,8 +191,6 @@ This should never happen.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr ed 4 ,
-.Xr el 4 ,
-.Xr ie 4 ,
 .Xr intro 4 ,
 .Xr ng_ether 4 ,
 .Xr sn 4 ,

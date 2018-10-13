@@ -2,7 +2,7 @@
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
 .\" $FreeBSD$
-.Dd March 6, 2014
+.Dd April 19, 2017
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -10,7 +10,7 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl 6adiLls
+.Op Fl 6adiLlswW
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
 The
@@ -85,7 +85,7 @@ is also specified.
 With this option, the name-to-address translation consistency
 checks are shown in detail.
 .It Fl h Ar bindip
-Specify specific IP addresses to bind to for TCP and UDP requests.
+IP addresses to bind to when servicing TCP and UDP requests.
 This option
 may be specified multiple times and is typically necessary when running
 on a multi-homed host.
@@ -135,6 +135,22 @@ clients from using
 to connect to services from a privileged port.
 .It Fl W
 Enable libwrap (TCP wrappers) support.
+.It Fl w
+Enable the warmstart feature.
+.Pp
+The warmstart feature saves RPC registrations on termination.
+Any saved RPC registrations are restored on restart if
+.Fl w
+is specified.
+This feature helps avoid RPC service interruption when restarting
+.Nm .
+warmstart support must be compiled in to
+.Nm .
+Portmap registrations are stored in
+.Pa /tmp/portmap.file .
+.Nm
+registrations are stored in
+.Pa /tmp/rpcbind.file .
 .El
 .Sh NOTES
 All RPC servers must be restarted if
@@ -142,7 +158,14 @@ All RPC servers must be restarted if
 is restarted.
 .Sh FILES
 .Bl -tag -width /var/run/rpcbind.sock -compact
+.It Pa /tmp/portmap.file
+saved portmap registrations file.
+.It Pa /tmp/rpcbind.file
+saved
+.Nm
+registrations file.
 .It Pa /var/run/rpcbind.sock
+socket used for local connections.
 .El
 .Sh SEE ALSO
 .Xr rpcbind 3 ,

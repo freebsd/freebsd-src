@@ -5,7 +5,9 @@
 
 PACKAGE=runtime-manuals
 
-MAN=	crash.8 \
+MAN=	\
+	beinstall.8 \
+	crash.8 \
 	diskless.8 \
 	intro.8 \
 	nanobsd.8 \
@@ -17,8 +19,8 @@ MAN=	crash.8 \
 	${_uefi.8} \
 
 MLINKS= \
+	beinstall.8 beinstall.sh.8 \
 	nanobsd.8 nanobsd.sh.8 \
-	rc.8 rc.atm.8 \
 	rc.8 rc.d.8 \
 	rc.8 rc.firewall.8 \
 	rc.8 rc.local.8 \
@@ -35,8 +37,10 @@ MLINKS+=yp.8 NIS.8 \
 	yp.8 YP.8
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
 _uefi.8= uefi.8
+
+MLINKS+=uefi.8 efi.8
 .endif
 
 .include <bsd.prog.mk>

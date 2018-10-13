@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.75 2016/02/08 17:30:11 christos Exp $
+# $File: audio,v 1.89 2018/07/03 20:55:37 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -300,7 +300,7 @@
 >>5	byte		&0x40	\b, extended header
 >>5	byte		&0x20	\b, experimental
 >>5	byte		&0x10	\b, footer present
->(6.I+10)	indirect	x	\b, contains: 
+>(6.I+10)	indirect	x	\b, contains:
 
 # NSF (NES sound file) magic
 0	string		NESM\x1a	NES Sound File
@@ -314,7 +314,7 @@
 >122	byte&0x1	=0		NTSC
 
 # NSFE (Extended NES sound file) magic
-# http://slickproductions.org/docs/NSF/nsfespec.txt 
+# http://slickproductions.org/docs/NSF/nsfespec.txt
 # From: David Pflug <david@pflug.email>
 0	string		NSFE		Extended NES Sound File
 >48	search/0x1000	auth
@@ -450,7 +450,7 @@
 # Free lossless audio codec <http://flac.sourceforge.net>
 # From: Przemyslaw Augustyniak <silvathraec@rpg.pl>
 0	string			fLaC		FLAC audio bitstream data
-!:mime	audio/x-flac
+!:mime	audio/flac
 >4	byte&0x7f		>0		\b, unknown version
 >4	byte&0x7f		0		\b
 # some common bits/sample values
@@ -468,18 +468,25 @@
 >>20	byte&0xe		0xa		\b, 6 channels
 >>20	byte&0xe		0xc		\b, 7 channels
 >>20	byte&0xe		0xe		\b, 8 channels
-# some common sample rates
->>17	belong&0xfffff0		0x0ac440	\b, 44.1 kHz
->>17	belong&0xfffff0		0x0bb800	\b, 48 kHz
->>17	belong&0xfffff0		0x07d000	\b, 32 kHz
->>17	belong&0xfffff0		0x056220	\b, 22.05 kHz
->>17	belong&0xfffff0		0x05dc00	\b, 24 kHz
->>17	belong&0xfffff0		0x03e800	\b, 16 kHz
->>17	belong&0xfffff0		0x02b110	\b, 11.025 kHz
->>17	belong&0xfffff0		0x02ee00	\b, 12 kHz
->>17	belong&0xfffff0		0x01f400	\b, 8 kHz
->>17	belong&0xfffff0		0x177000	\b, 96 kHz
->>17	belong&0xfffff0		0x0fa000	\b, 64 kHz
+# sample rates derived from known oscillator frequencies;
+# 24.576 MHz (video/fs=48kHz), 22.5792 (audio/fs=44.1kHz) and
+# 16.384 (other/fs=32kHz).
+>>17	belong&0xfffff0       	0x02b110	\b, 11.025 kHz
+>>17	belong&0xfffff0       	0x03e800	\b, 16 kHz
+>>17	belong&0xfffff0       	0x056220	\b, 22.05 kHz
+>>17	belong&0xfffff0       	0x05dc00	\b, 24 kHz
+>>17	belong&0xfffff0       	0x07d000	\b, 32 kHz
+>>17	belong&0xfffff0       	0x0ac440	\b, 44.1 kHz
+>>17	belong&0xfffff0       	0x0bb800	\b, 48 kHz
+>>17	belong&0xfffff0       	0x0fa000	\b, 64 kHz
+>>17	belong&0xfffff0       	0x158880	\b, 88.2 kHz
+>>17	belong&0xfffff0       	0x177000	\b, 96 kHz
+>>17	belong&0xfffff0       	0x1f4000	\b, 128 kHz
+>>17	belong&0xfffff0       	0x2b1100	\b, 176.4 kHz
+>>17	belong&0xfffff0       	0x2ee000	\b, 192 kHz
+>>17	belong&0xfffff0       	0x3e8000	\b, 256 kHz
+>>17	belong&0xfffff0       	0x562200	\b, 352.8 kHz
+>>17	belong&0xfffff0       	0x5dc000	\b, 384 kHz
 >>21	byte&0xf		>0		\b, >4G samples
 >>21	byte&0xf		0		\b
 >>>22	belong			>0		\b, %u samples
@@ -527,7 +534,7 @@
 >>12		ulelong		x		\b, sample rate %d
 
 # adlib sound files
-# From Gurkan Sengun <gurkan@linuks.mine.nu>, http://www.linuks.mine.nu
+# From: Alex Myczko <alex@aiei.ch>
 0    	string		RAWADATA	RdosPlay RAW
 
 1068	string		RoR		AMUSIC Adlib Tracker
@@ -658,7 +665,7 @@
 
 # From Fabio R. Schmidlin <frs@pop.com.br>
 # VGM music file
-0	string		Vgm\ 
+0	string		Vgm\040
 >9	ubyte		>0	VGM Video Game Music dump v
 >>9	ubyte/16	>0	\b%d
 >>9	ubyte&0x0F	x	\b%d
@@ -723,7 +730,7 @@
 # URL:		http://www.garmin.com/
 # Reference:	http://turboccc.wikispaces.com/share/view/28622555
 # NOTE:		there exist 2 other Garmin VPM formats
-0		string	AUDIMG		
+0		string	AUDIMG
 # skip text files starting with string "AUDIMG"
 >13		ubyte		<13	Garmin Voice Processing Module
 !:mime	audio/x-vpm-wav-garmin
@@ -743,16 +750,141 @@
 # second of release (0-59)
 >>9		ubyte		x	\b:%.2d
 # if you select a language like german on your garmin device
-# you can only select voice modules with correponding language byte ID like 1 
+# you can only select voice modules with corresponding language byte ID like 1
 >>18		ubyte		x	\b, language ID %d
 # pointer to 1st audio WAV sample
->>16		uleshort	>0	
+>>16		uleshort	>0
 >>>(16.s)	ulelong		>0	\b, at offset 0x%x
 # WAV length
 >>>>(16.s+4)	ulelong		>0	%d Bytes
 # look for magic
->>>>>(&-8.l)	string		RIFF	
+>>>>>(&-8.l)	string		RIFF
 # determine type by ./riff
->>>>>>&-4	indirect	x	\b 
+>>>>>>&-4	indirect	x	\b
 # 2 - ~ 131 WAV samples following same way
+
+# From Martin Mueller Skarbiniks Pedersen
+0		string		GDM
+>0x3		byte		0xFE	General Digital Music.
+>0x4		string		>\0	title: "%s"
+>0x24		string		>\0	musician: "%s"
+>>0x44		beshort		0x0D0A
+>>>0x46		byte		0x1A
+>>>>0x47	string		GMFS	Version
+>>>>0x4B	byte		x	%d.
+>>>>0x4C	byte		x	\b%02d
+>>>>0x4D	beshort		0x000	(2GDM v
+>>>>0x4F	byte		x	\b%d.
+>>>>>0x50	byte		x	\b%d)
+
+0		string		MTM	Multitracker
+>0x3		byte/16		x	Version %d.
+>0x3		byte&0x0F	x	\b%02d
+>>0x4		string		>\0	title: "%s"
+
+0		string		HVL
+>3		byte		<2	Hively Tracker Song
+>3		byte		0	1 module data
+>3		byte		1	2 module data
+
+0		string		MO3
+>3		ubyte		<6	MOdule with MP3
+>>3		byte		0	Version	0	(With MP3 and lossless)
+>>3		byte		1	Version	1	(With ogg and lossless)
+>>3		byte		3	Version 2.2
+>>3		byte		4	(With no LAME header)
+>>3		byte		5	Version 2.4
+
+0		string		ADRVPACK	AProSys	module
+
+# ftp://ftp.modland.com/pub/documents/format_documentation/\
+# Art%20Of%20Noise%20(.aon).txt
+0		string		AON
+>4		string		"ArtOfNoise by Bastian Spiegel(twice/lego)"
+>0x2e		string		NAME	Art of Noise Tracker Song
+>3		string		<9
+>3		string		4	(4 voices)
+>3		string		8	(8 voices)
+>>0x36		string		>\0	Title: "%s"
+
+0		string		FAR
+>0x2c		byte		0x0d
+>0x2d		byte		0x0a
+>0x2e		byte		0x1a
+>>0x3		byte		0xFE	Farandole Tracker Song
+>>>0x31		byte/16		x	Version %d.
+>>>0x31		byte&0x0F	x	\b%02d
+>>>>0x4		string		>\0	\b, title: "%s"
+
+# magic for Klystrack, http://kometbomb.github.io/klystrack/
+# from Alex Myczko <alex@aiei.ch>
+0	string	cyd!song	Klystrack song
+>8	byte	>0		\b, version %u
+>8	byte	>26
+#>>9	byte	x		\b, channels %u
+#>>10	leshort	x		\b, time signature %u
+#>>12	leshort	x		\b, sequence step %u
+#>>14	byte	x		\b, instruments %u
+#>>15	leshort	x		\b, patterns %u
+#>>17	leshort	x		\b, sequences %u
+#>>19	leshort	x		\b, length %u
+#>>21	leshort	x		\b, loop point %u
+#>>23	byte	x		\b, master volume %u
+#>>24	byte	x		\b, song speed %u
+#>>25	byte	x		\b, song speed2 %u
+#>>26	byte	x		\b, song rate %u
+#>>27	belong	x		\b, flags %#x
+#>>31	byte	x		\b, multiplex period %u
+#>>32	byte	x		\b, pitch inaccuracy %u
+>>149	pstring	x		\b, title %s
+
+0	string	cyd!inst	Klystrack instrument
+
+# magic for WOPL instrument files, https://github.com/Wohlstand/OPL3BankEditor
+# see Specifications/WOPL-and-OPLI-Specification.txt
+
+0	string	WOPL3-INST\0	WOPL instrument
+>11	leshort	x	\b, version %u
+0	string	WOPL3-BANK\0	WOPL instrument bank
+>11	leshort	x	\b, version %u
+
+# AdLib/OPL instrument files. Format specifications on
+#  http://www.shikadi.net/moddingwiki
+0	string	Junglevision\ Patch\ File	Junglevision instrument data
+0	string	#OPL_II#	DMX OP2 instrument data
+0	string	IBK\x1a		IBK instrument data
+0	string	2OP\x1a		IBK instrument data, 2 operators
+0	string	4OP\x1a		IBK instrument data, 4 operators
+2	string	ADLIB-		AdLib instrument data
+>0	byte	x		\b, version %u
+>1	byte	x		\b.%u
+
+# CRI ADX ADPCM audio
+# Used by various Sega games.
+# https://en.wikipedia.org/wiki/ADX_(file_format)
+# https://wiki.multimedia.cx/index.php/CRI_ADX_file
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0x00		beshort		0x8000
+>(2.S-2)	string		(c)CRI		CRI ADX ADPCM audio
+>>0x12		byte		x		v%u
+>>0x04		byte		0x02		\b, pre-set prediction coefficients
+>>0x04		byte		0x03		\b, standard ADX
+>>0x04		byte		0x04		\b, exponential scale
+>>0x04		byte		0x05		\b, AHX
+>>0x08		belong		x		\b, %u Hz
+>>0x12		byte		0x03
+>>>0x02		beshort		>0x2B
+>>>>0x18	belong		!0		\b, looping
+>>0x12		byte		0x04
+>>>0x02		beshort		>0x37
+>>>>0x24	belong		!0		\b, looping
+>>0x13		byte&0x08	0x08		\b, encrypted
+
+# Lossless audio (.la) (http://www.lossless-audio.com/)
+0	string	LA
+>2	string	03	Lossless audio version 0.3
+>2	string	04	Lossless audio version 0.4
+
+# Sony PlayStation Audio (.xa)
+0	leshort 0x4158	Sony PlayStation Audio
 

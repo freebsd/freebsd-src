@@ -9,6 +9,7 @@ ATF_TESTS_SH=	functional_test
 
 ${PACKAGE}FILES+=	env1.0
 ${PACKAGE}FILES+=	exitstatus1.0
+${PACKAGE}FILES+=	ifs1.0
 ${PACKAGE}FILES+=	mail1.0
 ${PACKAGE}FILES+=	mail2.0
 ${PACKAGE}FILES+=	optind1.0

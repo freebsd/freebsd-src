@@ -83,7 +83,10 @@ typedef enum svn_cl__accept_t
   svn_cl__accept_edit,
 
   /* Launch user's resolver and resolve conflict with edited file. */
-  svn_cl__accept_launch
+  svn_cl__accept_launch,
+
+  /* Use recommended resolution if available, else leave the conflict alone. */
+  svn_cl__accept_recommended
 
 } svn_cl__accept_t;
 
@@ -97,6 +100,7 @@ typedef enum svn_cl__accept_t
 #define SVN_CL__ACCEPT_THEIRS_FULL "theirs-full"
 #define SVN_CL__ACCEPT_EDIT "edit"
 #define SVN_CL__ACCEPT_LAUNCH "launch"
+#define SVN_CL__ACCEPT_RECOMMENDED "recommended"
 
 /* Return the svn_cl__accept_t value corresponding to WORD, using exact
  * case-sensitive string comparison. Return svn_cl__accept_invalid if WORD
@@ -174,6 +178,7 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t help;            /* print usage message */
   const char *auth_username;     /* auth username */
   const char *auth_password;     /* auth password */
+  svn_boolean_t auth_password_from_stdin; /* read password from stdin */
   const char *extensions;        /* subprocess extension args */
   apr_array_header_t *targets;   /* target list from file */
   svn_boolean_t xml;             /* output in xml, e.g., "svn log --xml" */
@@ -249,12 +254,18 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t show_passwords;    /* show cached passwords */
   svn_boolean_t pin_externals;     /* pin externals to last-changed revisions */
   const char *show_item;           /* print only the given item */
+  svn_boolean_t adds_as_modification; /* update 'add vs add' no tree conflict */
+  svn_boolean_t vacuum_pristines; /* remove unreferenced pristines */
+  svn_boolean_t list;
 } svn_cl__opt_state_t;
 
+/* Conflict stats for operations such as update and merge. */
+typedef struct svn_cl__conflict_stats_t svn_cl__conflict_stats_t;
 
 typedef struct svn_cl__cmd_baton_t
 {
   svn_cl__opt_state_t *opt_state;
+  svn_cl__conflict_stats_t *conflict_stats;
   svn_client_ctx_t *ctx;
 } svn_cl__cmd_baton_t;
 
@@ -293,6 +304,9 @@ svn_opt_subcommand_t
   svn_cl__revert,
   svn_cl__resolve,
   svn_cl__resolved,
+  svn_cl__shelve,
+  svn_cl__unshelve,
+  svn_cl__shelves,
   svn_cl__status,
   svn_cl__switch,
   svn_cl__unlock,
@@ -335,8 +349,7 @@ svn_cl__try(svn_error_t *err,
 
 
 /* Our cancellation callback. */
-svn_error_t *
-svn_cl__check_cancel(void *baton);
+extern svn_cancel_func_t svn_cl__check_cancel;
 
 
 
@@ -345,9 +358,6 @@ svn_cl__check_cancel(void *baton);
 /* Opaque baton type for svn_cl__conflict_func_interactive(). */
 typedef struct svn_cl__interactive_conflict_baton_t
   svn_cl__interactive_conflict_baton_t;
-
-/* Conflict stats for operations such as update and merge. */
-typedef struct svn_cl__conflict_stats_t svn_cl__conflict_stats_t;
 
 /* Return a new, initialized, conflict stats structure, allocated in
  * POOL. */
@@ -362,6 +372,14 @@ svn_cl__conflict_stats_resolved(svn_cl__conflict_stats_t *conflict_stats,
                                 const char *path_local,
                                 svn_wc_conflict_kind_t conflict_kind);
 
+/* Set *CONFLICTED_PATHS to the conflicted paths contained in CONFLICT_STATS.
+ * If no conflicted path exists, set *CONFLICTED_PATHS to NULL. */
+svn_error_t *
+svn_cl__conflict_stats_get_paths(apr_array_header_t **conflicted_paths,
+                                 svn_cl__conflict_stats_t *conflict_stats,
+                                 apr_pool_t *result_pool,
+                                 apr_pool_t *scratch_pool);
+
 /* Print the conflict stats accumulated in CONFLICT_STATS.
  *
  * Return any error encountered during printing.
@@ -371,36 +389,33 @@ svn_error_t *
 svn_cl__print_conflict_stats(svn_cl__conflict_stats_t *conflict_stats,
                              apr_pool_t *scratch_pool);
 
-/* Create and return an baton for use with svn_cl__conflict_func_interactive
- * in *B, allocated from RESULT_POOL, and initialised with the values
- * ACCEPT_WHICH, CONFIG, EDITOR_CMD, CANCEL_FUNC and CANCEL_BATON. */
-svn_error_t *
-svn_cl__get_conflict_func_interactive_baton(
-  svn_cl__interactive_conflict_baton_t **b,
-  svn_cl__accept_t accept_which,
-  apr_hash_t *config,
-  const char *editor_cmd,
-  svn_cl__conflict_stats_t *conflict_stats,
-  svn_cancel_func_t cancel_func,
-  void *cancel_baton,
-  apr_pool_t *result_pool);
-
-/* A callback capable of doing interactive conflict resolution.
-
-   The BATON must come from svn_cl__get_conflict_func_interactive_baton().
-   Resolves based on the --accept option if one was given to that function,
-   otherwise prompts the user to choose one of the three fulltexts, edit
-   the merged file on the spot, or just skip the conflict (to be resolved
-   later), among other options.
-
-   Implements svn_wc_conflict_resolver_func2_t.
+/* 
+ * Interactively resolve the conflict a @a CONFLICT.
+ * TODO: more docs
  */
 svn_error_t *
-svn_cl__conflict_func_interactive(svn_wc_conflict_result_t **result,
-                                  const svn_wc_conflict_description2_t *desc,
-                                  void *baton,
-                                  apr_pool_t *result_pool,
-                                  apr_pool_t *scratch_pool);
+svn_cl__resolve_conflict(svn_boolean_t *quit,
+                         svn_boolean_t *external_failed,
+                         svn_boolean_t *printed_summary,
+                         svn_client_conflict_t *conflict,
+                         svn_cl__accept_t accept_which,
+                         const char *editor_cmd,
+                         const char *path_prefix,
+                         svn_cmdline_prompt_baton_t *pb,
+                         svn_cl__conflict_stats_t *conflict_stats,
+                         svn_client_ctx_t *ctx,
+                         apr_pool_t *scratch_pool);
+
+/* 
+ * Interactively resolve conflicts for all TARGETS.
+ * TODO: more docs
+ */
+svn_error_t *
+svn_cl__walk_conflicts(apr_array_header_t *targets,
+                       svn_cl__conflict_stats_t *conflict_stats,
+                       svn_cl__opt_state_t *opt_state,
+                       svn_client_ctx_t *ctx,
+                       apr_pool_t *scratch_pool);
 
 
 /*** Command-line output functions -- printing to the user. ***/
@@ -777,15 +792,18 @@ svn_cl__args_to_target_array_print_reserved(apr_array_header_t **targets_p,
                                             svn_boolean_t keep_dest_origpath_on_truepath_collision,
                                             apr_pool_t *pool);
 
-/* Return a string showing NODE's kind, URL and revision, to the extent that
- * that information is available in NODE. If NODE itself is NULL, this prints
- * just a 'none' node kind.
+/* Return a string showing a conflicted node's kind, URL and revision,
+ * to the extent that that information is available. If REPOS_ROOT_URL or
+ * REPOS_RELPATH are NULL, this prints just a 'none' node kind.
  * WC_REPOS_ROOT_URL should reflect the target working copy's repository
- * root URL. If NODE is from that same URL, the printed URL is abbreviated
+ * root URL. If the node is from that same URL, the printed URL is abbreviated
  * to caret notation (^/). WC_REPOS_ROOT_URL may be NULL, in which case
  * this function tries to print the conflicted node's complete URL. */
 const char *
-svn_cl__node_description(const svn_wc_conflict_version_t *node,
+svn_cl__node_description(const char *repos_root_url,
+                         const char *repos_relpath,
+                         svn_revnum_t peg_rev,
+                         svn_node_kind_t node_kind,
                          const char *wc_repos_root_URL,
                          apr_pool_t *pool);
 

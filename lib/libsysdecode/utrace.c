@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,32 +32,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <dlfcn.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <sysdecode.h>
+#include "rtld_utrace.h"
 
-#define	UTRACE_DLOPEN_START		1
-#define	UTRACE_DLOPEN_STOP		2
-#define	UTRACE_DLCLOSE_START		3
-#define	UTRACE_DLCLOSE_STOP		4
-#define	UTRACE_LOAD_OBJECT		5
-#define	UTRACE_UNLOAD_OBJECT		6
-#define	UTRACE_ADD_RUNDEP		7
-#define	UTRACE_PRELOAD_FINISHED		8
-#define	UTRACE_INIT_CALL		9
-#define	UTRACE_FINI_CALL		10
-#define	UTRACE_DLSYM_START		11
-#define	UTRACE_DLSYM_STOP		12
-
-struct utrace_rtld {
-	char sig[4];				/* 'RTLD' */
+#ifdef __LP64__
+struct utrace_rtld32 {
+	char sig[4];
 	int event;
-	void *handle;
-	void *mapbase;
-	size_t mapsize;
+	uint32_t handle;
+	uint32_t mapbase;
+	uint32_t mapsize;
 	int refcnt;
 	char name[MAXPATHLEN];
 };
+#endif
 
 static int
 print_utrace_rtld(FILE *fp, void *p)
@@ -133,6 +124,10 @@ print_utrace_rtld(FILE *fp, void *p)
 		fprintf(fp, "RTLD: %p = dlsym(%p, %s)", ut->mapbase, ut->handle,
 		    ut->name);
 		break;
+	case UTRACE_RTLD_ERROR:
+		fprintf(fp, "RTLD: error: %s\n", ut->name);
+		break;
+
 	default:
 		return (0);
 	}
@@ -144,6 +139,14 @@ struct utrace_malloc {
 	size_t s;
 	void *r;
 };
+
+#ifdef __LP64__
+struct utrace_malloc32 {
+	uint32_t p;
+	uint32_t s;
+	uint32_t r;
+};
+#endif
 
 static void
 print_utrace_malloc(FILE *fp, void *p)
@@ -163,15 +166,49 @@ print_utrace_malloc(FILE *fp, void *p)
 int
 sysdecode_utrace(FILE *fp, void *p, size_t len)
 {
+#ifdef __LP64__
+	struct utrace_rtld ur;
+	struct utrace_rtld32 *pr;
+	struct utrace_malloc um;
+	struct utrace_malloc32 *pm;
+#endif
+	static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] = RTLD_UTRACE_SIG;
 
-	if (len == sizeof(struct utrace_rtld) && bcmp(p, "RTLD", 4) == 0) {
+	if (len == sizeof(struct utrace_rtld) && bcmp(p, rtld_utrace_sig,
+	    sizeof(rtld_utrace_sig)) == 0)
 		return (print_utrace_rtld(fp, p));
-	}
 
 	if (len == sizeof(struct utrace_malloc)) {
 		print_utrace_malloc(fp, p);
 		return (1);
 	}
-	
+
+#ifdef __LP64__
+	if (len == sizeof(struct utrace_rtld32) && bcmp(p, rtld_utrace_sig,
+	    sizeof(rtld_utrace_sig)) == 0) {
+		pr = p;
+		memset(&ur, 0, sizeof(ur));
+		memcpy(ur.sig, pr->sig, sizeof(ur.sig));
+		ur.event = pr->event;
+		ur.handle = (void *)(uintptr_t)pr->handle;
+		ur.mapbase = (void *)(uintptr_t)pr->mapbase;
+		ur.mapsize = pr->mapsize;
+		ur.refcnt = pr->refcnt;
+		memcpy(ur.name, pr->name, sizeof(ur.name));
+		return (print_utrace_rtld(fp, &ur));
+	}
+
+	if (len == sizeof(struct utrace_malloc32)) {
+		pm = p;
+		memset(&um, 0, sizeof(um));
+		um.p = pm->p == (uint32_t)-1 ? (void *)(intptr_t)-1 :
+		    (void *)(uintptr_t)pm->p;
+		um.s = pm->s;
+		um.r = (void *)(uintptr_t)pm->r;
+		print_utrace_malloc(fp, &um);
+		return (1);
+	}
+#endif
+
 	return (0);
 }

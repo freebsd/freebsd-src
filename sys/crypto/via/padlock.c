@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -58,15 +58,12 @@ __FBSDID("$FreeBSD$");
 
 struct padlock_softc {
 	int32_t		sc_cid;
-	uint32_t	sc_sid;
-	TAILQ_HEAD(padlock_sessions_head, padlock_session) sc_sessions;
-	struct rwlock	sc_sessions_lock;
 };
 
-static int padlock_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
-static int padlock_freesession(device_t, uint64_t tid);
+static int padlock_newsession(device_t, crypto_session_t cses, struct cryptoini *cri);
+static void padlock_freesession(device_t, crypto_session_t cses);
 static void padlock_freesession_one(struct padlock_softc *sc,
-    struct padlock_session *ses, int locked);
+    struct padlock_session *ses);
 static int padlock_process(device_t, struct cryptop *crp, int hint __unused);
 
 MALLOC_DEFINE(M_PADLOCK, "padlock_data", "PadLock Data");
@@ -85,7 +82,7 @@ padlock_probe(device_t dev)
 {
 	char capp[256];
 
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 	/* If there is no AES support, we has nothing to do here. */
 	if (!(via_feature_xcrypt & VIA_HAS_AES)) {
 		device_printf(dev, "No ACE support.\n");
@@ -119,16 +116,13 @@ padlock_attach(device_t dev)
 {
 	struct padlock_softc *sc = device_get_softc(dev);
 
-	TAILQ_INIT(&sc->sc_sessions);
-	sc->sc_sid = 1;
-
-	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct padlock_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
 	}
 
-	rw_init(&sc->sc_sessions_lock, "padlock_lock");
 	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
@@ -143,29 +137,13 @@ static int
 padlock_detach(device_t dev)
 {
 	struct padlock_softc *sc = device_get_softc(dev);
-	struct padlock_session *ses;
 
-	rw_wlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
-		if (ses->ses_used) {
-			rw_wunlock(&sc->sc_sessions_lock);
-			device_printf(dev,
-			    "Cannot detach, sessions still active.\n");
-			return (EBUSY);
-		}
-	}
-	while ((ses = TAILQ_FIRST(&sc->sc_sessions)) != NULL) {
-		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-		fpu_kern_free_ctx(ses->ses_fpu_ctx);
-		free(ses, M_PADLOCK);
-	}
-	rw_destroy(&sc->sc_sessions_lock);
 	crypto_unregister_all(sc->sc_cid);
 	return (0);
 }
 
 static int
-padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+padlock_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses = NULL;
@@ -173,7 +151,7 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	struct thread *td;
 	int error;
 
-	if (sidp == NULL || cri == NULL)
+	if (cri == NULL)
 		return (EINVAL);
 
 	encini = macini = NULL;
@@ -208,107 +186,51 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (encini == NULL)
 		return (EINVAL);
 
-	/*
-	 * Let's look for a free session structure.
-	 */
-	rw_wlock(&sc->sc_sessions_lock);
-	/*
-	 * Free sessions goes first, so if first session is used, we need to
-	 * allocate one.
-	 */
-	ses = TAILQ_FIRST(&sc->sc_sessions);
-	if (ses == NULL || ses->ses_used) {
-		ses = malloc(sizeof(*ses), M_PADLOCK, M_NOWAIT | M_ZERO);
-		if (ses == NULL) {
-			rw_wunlock(&sc->sc_sessions_lock);
-			return (ENOMEM);
-		}
-		ses->ses_fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL |
-		    FPU_KERN_NOWAIT);
-		if (ses->ses_fpu_ctx == NULL) {
-			free(ses, M_PADLOCK);
-			rw_wunlock(&sc->sc_sessions_lock);
-			return (ENOMEM);
-		}
-		ses->ses_id = sc->sc_sid++;
-	} else {
-		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-	}
-	ses->ses_used = 1;
-	TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
-	rw_wunlock(&sc->sc_sessions_lock);
+	ses = crypto_get_driver_session(cses);
+	ses->ses_fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
 
 	error = padlock_cipher_setup(ses, encini);
 	if (error != 0) {
-		padlock_freesession_one(sc, ses, 0);
+		padlock_freesession_one(sc, ses);
 		return (error);
 	}
 
 	if (macini != NULL) {
 		td = curthread;
-		error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
+		fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
 		    FPU_KERN_KTHR);
-		if (error == 0) {
-			error = padlock_hash_setup(ses, macini);
-			fpu_kern_leave(td, ses->ses_fpu_ctx);
-		}
+		error = padlock_hash_setup(ses, macini);
+		fpu_kern_leave(td, ses->ses_fpu_ctx);
 		if (error != 0) {
-			padlock_freesession_one(sc, ses, 0);
+			padlock_freesession_one(sc, ses);
 			return (error);
 		}
 	}
 
-	*sidp = ses->ses_id;
 	return (0);
 }
 
 static void
-padlock_freesession_one(struct padlock_softc *sc, struct padlock_session *ses,
-    int locked)
+padlock_freesession_one(struct padlock_softc *sc, struct padlock_session *ses)
 {
-	struct fpu_kern_ctx *ctx;
-	uint32_t sid = ses->ses_id;
 
-	if (!locked)
-		rw_wlock(&sc->sc_sessions_lock);
-	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 	padlock_hash_free(ses);
-	ctx = ses->ses_fpu_ctx;
-	bzero(ses, sizeof(*ses));
-	ses->ses_used = 0;
-	ses->ses_id = sid;
-	ses->ses_fpu_ctx = ctx;
-	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
-	if (!locked)
-		rw_wunlock(&sc->sc_sessions_lock);
+	fpu_kern_free_ctx(ses->ses_fpu_ctx);
 }
 
-static int
-padlock_freesession(device_t dev, uint64_t tid)
+static void
+padlock_freesession(device_t dev, crypto_session_t cses)
 {
 	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses;
-	uint32_t sid = ((uint32_t)tid) & 0xffffffff;
 
-	rw_wlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, padlock_sessions_head,
-	    ses_next) {
-		if (ses->ses_id == sid)
-			break;
-	}
-	if (ses == NULL) {
-		rw_wunlock(&sc->sc_sessions_lock);
-		return (EINVAL);
-	}
-	padlock_freesession_one(sc, ses, 1);
-	rw_wunlock(&sc->sc_sessions_lock);
-	return (0);
+	ses = crypto_get_driver_session(cses);
+	padlock_freesession_one(sc, ses);
 }
 
 static int
 padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses = NULL;
 	struct cryptodesc *crd, *enccrd, *maccrd;
 	int error = 0;
@@ -355,17 +277,7 @@ padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 		goto out;
 	}
 
-	rw_rlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, padlock_sessions_head,
-	    ses_next) {
-		if (ses->ses_id == (crp->crp_sid & 0xffffffff))
-			break;
-	}
-	rw_runlock(&sc->sc_sessions_lock);
-	if (ses == NULL) {
-		error = EINVAL;
-		goto out;
-	}
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	/* Perform data authentication if requested before encryption. */
 	if (maccrd != NULL && maccrd->crd_next == enccrd) {

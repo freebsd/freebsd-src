@@ -35,8 +35,8 @@
 
 VC_DEBUG_DECLARE_STRING_VAR( vchiq_build_hostname, "dc4-arm-01" );
 VC_DEBUG_DECLARE_STRING_VAR( vchiq_build_version, "9245b4c35b99b3870e1f7dc598c5692b3c66a6f0 (tainted)" );
-VC_DEBUG_DECLARE_STRING_VAR( vchiq_build_time,    __TIME__ );
-VC_DEBUG_DECLARE_STRING_VAR( vchiq_build_date,    __DATE__ );
+VC_DEBUG_DECLARE_STRING_VAR( vchiq_build_time,    "not available" );
+VC_DEBUG_DECLARE_STRING_VAR( vchiq_build_date,    "not available" );
 
 const char *vchiq_get_build_hostname( void )
 {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -84,6 +86,11 @@ struct ar8327_port_cfg {
 	uint32_t txpause;
 	uint32_t rxpause;
 };
+
+extern struct ar8327_led_mapping {
+	int reg;
+	int shift;
+} ar8327_led_mapping[AR8327_NUM_PHYS][ETHERSWITCH_PORT_MAX_LEDS];
 
 extern	void ar8327_attach(struct arswitch_softc *sc);
 

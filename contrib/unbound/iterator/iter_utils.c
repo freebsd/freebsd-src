@@ -108,7 +108,7 @@ read_fetch_policy(struct iter_env* ie, const char* str)
 
 /** apply config caps whitelist items to name tree */
 static int
-caps_white_apply_cfg(rbtree_t* ntree, struct config_file* cfg)
+caps_white_apply_cfg(rbtree_type* ntree, struct config_file* cfg)
 {
 	struct config_strlist* p;
 	for(p=cfg->caps_whitelist; p; p=p->next) {
@@ -312,9 +312,9 @@ static int
 iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 	uint8_t* name, size_t namelen, uint16_t qtype, time_t now, 
 	struct delegpt* dp, int* selected_rtt, int open_target, 
-	struct sock_list* blacklist)
+	struct sock_list* blacklist, time_t prefetch)
 {
-	int got_num = 0, low_rtt = 0, swap_to_front;
+	int got_num = 0, low_rtt = 0, swap_to_front, rtt_band = RTT_BAND;
 	struct delegpt_addr* a, *n, *prev=NULL;
 
 	/* fillup sel_rtt and find best rtt in the bunch */
@@ -329,6 +329,16 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 			     return 0 to force the caller to fetch more */
 	}
 
+	if(env->cfg->low_rtt_permil != 0 && prefetch == 0 &&
+		low_rtt < env->cfg->low_rtt &&
+		ub_random_max(env->rnd, 1000) < env->cfg->low_rtt_permil) {
+		/* the query is not prefetch, but for a downstream client,
+		 * there is a low_rtt (fast) server.  We choose that x% of the
+		 * time */
+		/* pick rtt numbers from 0..LOWBAND_RTT */
+		rtt_band = env->cfg->low_rtt - low_rtt;
+	}
+
 	got_num = 0;
 	a = dp->result_list;
 	while(a) {
@@ -340,10 +350,10 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		}
 		/* classify the server address and determine what to do */
 		swap_to_front = 0;
-		if(a->sel_rtt >= low_rtt && a->sel_rtt - low_rtt <= RTT_BAND) {
+		if(a->sel_rtt >= low_rtt && a->sel_rtt - low_rtt <= rtt_band) {
 			got_num++;
 			swap_to_front = 1;
-		} else if(a->sel_rtt<low_rtt && low_rtt-a->sel_rtt<=RTT_BAND) {
+		} else if(a->sel_rtt<low_rtt && low_rtt-a->sel_rtt<=rtt_band) {
 			got_num++;
 			swap_to_front = 1;
 		}
@@ -360,6 +370,65 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		}
 	}
 	*selected_rtt = low_rtt;
+
+	if (env->cfg->prefer_ip6) {
+		int got_num6 = 0;
+		int low_rtt6 = 0;
+		int i;
+		int attempt = -1; /* filter to make sure addresses have
+		  less attempts on them than the first, to force round
+		  robin when all the IPv6 addresses fail */
+		int num4ok = 0; /* number ip4 at low attempt count */
+		int num4_lowrtt = 0;
+		prev = NULL;
+		a = dp->result_list;
+		for(i = 0; i < got_num; i++) {
+			swap_to_front = 0;
+			if(a->addr.ss_family != AF_INET6 && attempt == -1) {
+				/* if we only have ip4 at low attempt count,
+				 * then ip6 is failing, and we need to
+				 * select one of the remaining IPv4 addrs */
+				attempt = a->attempts;
+				num4ok++;
+				num4_lowrtt = a->sel_rtt;
+			} else if(a->addr.ss_family != AF_INET6 && attempt == a->attempts) {
+				num4ok++;
+				if(num4_lowrtt == 0 || a->sel_rtt < num4_lowrtt) {
+					num4_lowrtt = a->sel_rtt;
+				}
+			}
+			if(a->addr.ss_family == AF_INET6) {
+				if(attempt == -1) {
+					attempt = a->attempts;
+				} else if(a->attempts > attempt) {
+					break;
+				}
+				got_num6++;
+				swap_to_front = 1;
+				if(low_rtt6 == 0 || a->sel_rtt < low_rtt6) {
+					low_rtt6 = a->sel_rtt;
+				}
+			}
+			/* swap to front if IPv6, or move to next result */
+			if(swap_to_front && prev) {
+				n = a->next_result;
+				prev->next_result = n;
+				a->next_result = dp->result_list;
+				dp->result_list = a;
+				a = n;
+			} else {
+				prev = a;
+				a = a->next_result;
+			}
+		}
+		if(got_num6 > 0) {
+			got_num = got_num6;
+			*selected_rtt = low_rtt6;
+		} else if(num4ok > 0) {
+			got_num = num4ok;
+			*selected_rtt = num4_lowrtt;
+		}
+	}
 	return got_num;
 }
 
@@ -367,13 +436,14 @@ struct delegpt_addr*
 iter_server_selection(struct iter_env* iter_env, 
 	struct module_env* env, struct delegpt* dp, 
 	uint8_t* name, size_t namelen, uint16_t qtype, int* dnssec_lame,
-	int* chase_to_rd, int open_target, struct sock_list* blacklist)
+	int* chase_to_rd, int open_target, struct sock_list* blacklist,
+	time_t prefetch)
 {
 	int sel;
 	int selrtt;
 	struct delegpt_addr* a, *prev;
 	int num = iter_filter_order(iter_env, env, name, namelen, qtype,
-		*env->now, dp, &selrtt, open_target, blacklist);
+		*env->now, dp, &selrtt, open_target, blacklist, prefetch);
 
 	if(num == 0)
 		return NULL;
@@ -499,6 +569,7 @@ causes_cycle(struct module_qstate* qstate, uint8_t* name, size_t namelen,
 	qinf.qname_len = namelen;
 	qinf.qtype = t;
 	qinf.qclass = c;
+	qinf.local_alias = NULL;
 	fptr_ok(fptr_whitelist_modenv_detect_cycle(
 		qstate->env->detect_cycle));
 	return (*qstate->env->detect_cycle)(qstate, &qinf, 
@@ -590,6 +661,27 @@ iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
 	return 1;
 }
 
+int
+iter_qname_indicates_dnssec(struct module_env* env, struct query_info *qinfo)
+{
+	struct trust_anchor* a;
+	if(!env || !env->anchors || !qinfo || !qinfo->qname)
+		return 0;
+	/* a trust anchor exists above the name? */
+	if((a=anchors_lookup(env->anchors, qinfo->qname, qinfo->qname_len,
+		qinfo->qclass))) { 
+		if(a->numDS == 0 && a->numDNSKEY == 0) {
+			/* insecure trust point */
+			lock_basic_unlock(&a->lock);
+			return 0;
+		}
+		lock_basic_unlock(&a->lock);
+		return 1;
+	}
+	/* no trust anchor above it. */
+	return 0;
+}
+
 int 
 iter_indicates_dnssec(struct module_env* env, struct delegpt* dp,
         struct dns_msg* msg, uint16_t dclass)
@@ -601,6 +693,11 @@ iter_indicates_dnssec(struct module_env* env, struct delegpt* dp,
 	/* a trust anchor exists with this name, RRSIGs expected */
 	if((a=anchor_find(env->anchors, dp->name, dp->namelabs, dp->namelen,
 		dclass))) {
+		if(a->numDS == 0 && a->numDNSKEY == 0) {
+			/* insecure trust point */
+			lock_basic_unlock(&a->lock);
+			return 0;
+		}
 		lock_basic_unlock(&a->lock);
 		return 1;
 	}

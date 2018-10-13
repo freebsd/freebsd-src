@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -91,7 +93,7 @@ struct vt_driver;
 void vt_allocate(const struct vt_driver *, void *);
 void vt_deallocate(const struct vt_driver *, void *);
 
-typedef unsigned int 	vt_axis_t;
+typedef unsigned int	vt_axis_t;
 
 /*
  * List of locks
@@ -154,11 +156,15 @@ struct vt_device {
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 #define	VDF_QUIET_BELL	0x80	/* Disable bell. */
+#define	VDF_SUSPENDED	0x100	/* Device has been suspended. */
 #define	VDF_DOWNGRADE	0x8000	/* The driver is being downgraded. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 	int			 vd_altbrk;	/* (?) Alt break seq. state */
+	term_char_t		*vd_drawn;	/* (?) Most recent char drawn. */
+	term_color_t		*vd_drawnfg;	/* (?) Most recent fg color drawn. */
+	term_color_t		*vd_drawnbg;	/* (?) Most recent bg color drawn. */
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
@@ -170,7 +176,7 @@ struct vt_device {
 #define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
 
 void vt_resume(struct vt_device *vd);
-void vt_resume_flush_timer(struct vt_device *vd, int ms);
+void vt_resume_flush_timer(struct vt_window *vw, int ms);
 void vt_suspend(struct vt_device *vd);
 
 /*
@@ -194,8 +200,8 @@ struct vt_buf {
 #define	VBF_SCROLL	0x8	/* scroll locked mode. */
 #define	VBF_HISTORY_FULL 0x10	/* All rows filled. */
 	unsigned int		 vb_history_size;
-	int			 vb_roffset;	/* (b) History rows offset. */
-	int			 vb_curroffset;	/* (b) Saved rows offset. */
+	unsigned int		 vb_roffset;	/* (b) History rows offset. */
+	unsigned int		 vb_curroffset;	/* (b) Saved rows offset. */
 	term_pos_t		 vb_cursor;	/* (u) Cursor position. */
 	term_pos_t		 vb_mark_start;	/* (b) Copy region start. */
 	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
@@ -211,8 +217,10 @@ struct vt_buf {
 #define	VBF_DEFAULT_HISTORY_SIZE	500
 #endif
 
+void vtbuf_lock(struct vt_buf *);
+void vtbuf_unlock(struct vt_buf *);
 void vtbuf_copy(struct vt_buf *, const term_rect_t *, const term_pos_t *);
-void vtbuf_fill_locked(struct vt_buf *, const term_rect_t *, term_char_t);
+void vtbuf_fill(struct vt_buf *, const term_rect_t *, term_char_t);
 void vtbuf_init_early(struct vt_buf *);
 void vtbuf_init(struct vt_buf *, const term_pos_t *);
 void vtbuf_grow(struct vt_buf *, const term_pos_t *, unsigned int);
@@ -221,7 +229,7 @@ void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *);
-void vtbuf_sethistory_size(struct vt_buf *, int);
+void vtbuf_sethistory_size(struct vt_buf *, unsigned int);
 int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
@@ -316,6 +324,8 @@ typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
     const term_rect_t *area);
+typedef void vd_invalidate_text_t(struct vt_device *vd,
+    const term_rect_t *area);
 typedef void vd_bitblt_bmp_t(struct vt_device *vd, const struct vt_window *vw,
     const uint8_t *pattern, const uint8_t *mask,
     unsigned int width, unsigned int height,
@@ -341,6 +351,7 @@ struct vt_driver {
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
 	vd_bitblt_text_t *vd_bitblt_text;
+	vd_invalidate_text_t *vd_invalidate_text;
 	vd_bitblt_bmp_t	*vd_bitblt_bmp;
 
 	/* Framebuffer ioctls, if present. */
@@ -377,11 +388,11 @@ void vt_upgrade(struct vt_device *vd);
 #define	PIXEL_WIDTH(w)	((w) / 8)
 #define	PIXEL_HEIGHT(h)	((h) / 16)
 
-#ifndef VT_FB_DEFAULT_WIDTH
-#define	VT_FB_DEFAULT_WIDTH	2048
+#ifndef VT_FB_MAX_WIDTH
+#define	VT_FB_MAX_WIDTH	4096
 #endif
-#ifndef VT_FB_DEFAULT_HEIGHT
-#define	VT_FB_DEFAULT_HEIGHT	1200
+#ifndef VT_FB_MAX_HEIGHT
+#define	VT_FB_MAX_HEIGHT	2400
 #endif
 
 /* name argument is not used yet. */

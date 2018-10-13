@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -64,7 +64,7 @@ END(.rtld_start)
  */
 ENTRY(_rtld_bind_start)
 	/* Save the arguments and ra */
-	addi	sp, sp, -(8 * 25)
+	addi	sp, sp, -(8 * 17)
 	sd	a0, (8 * 0)(sp)
 	sd	a1, (8 * 1)(sp)
 	sd	a2, (8 * 2)(sp)
@@ -74,17 +74,17 @@ ENTRY(_rtld_bind_start)
 	sd	a6, (8 * 6)(sp)
 	sd	a7, (8 * 7)(sp)
 	sd	ra, (8 * 8)(sp)
-#if 0
-	/* RISCVTODO VFP */
+
+#ifdef __riscv_float_abi_double
 	/* Save any floating-point arguments */
-	fsq	fa0, (8 * 9)(sp)
-	fsq	fa1, (8 * 11)(sp)
-	fsq	fa2, (8 * 13)(sp)
-	fsq	fa3, (8 * 15)(sp)
-	fsq	fa4, (8 * 17)(sp)
-	fsq	fa5, (8 * 19)(sp)
-	fsq	fa6, (8 * 21)(sp)
-	fsq	fa7, (8 * 23)(sp)
+	fsd	fa0, (8 * 9)(sp)
+	fsd	fa1, (8 * 10)(sp)
+	fsd	fa2, (8 * 11)(sp)
+	fsd	fa3, (8 * 12)(sp)
+	fsd	fa4, (8 * 13)(sp)
+	fsd	fa5, (8 * 14)(sp)
+	fsd	fa6, (8 * 15)(sp)
+	fsd	fa7, (8 * 16)(sp)
 #endif
 
 	/* Reloc offset is 3x of the .got.plt offset */
@@ -110,19 +110,19 @@ ENTRY(_rtld_bind_start)
 	ld	a6, (8 * 6)(sp)
 	ld	a7, (8 * 7)(sp)
 	ld	ra, (8 * 8)(sp)
-#if 0
-	/* RISCVTODO VFP */
+
+#ifdef __riscv_float_abi_double
 	/* Restore floating-point arguments */
-	flq	fa0, (8 * 9)(sp)
-	flq	fa1, (8 * 11)(sp)
-	flq	fa2, (8 * 13)(sp)
-	flq	fa3, (8 * 15)(sp)
-	flq	fa4, (8 * 17)(sp)
-	flq	fa5, (8 * 19)(sp)
-	flq	fa6, (8 * 21)(sp)
-	flq	fa7, (8 * 23)(sp)
+	fld	fa0, (8 * 9)(sp)
+	fld	fa1, (8 * 10)(sp)
+	fld	fa2, (8 * 11)(sp)
+	fld	fa3, (8 * 12)(sp)
+	fld	fa4, (8 * 13)(sp)
+	fld	fa5, (8 * 14)(sp)
+	fld	fa6, (8 * 15)(sp)
+	fld	fa7, (8 * 16)(sp)
 #endif
-	addi	sp, sp, (8 * 25)
+	addi	sp, sp, (8 * 17)
 
 	/* Call into the correct function */
 	jr	t0

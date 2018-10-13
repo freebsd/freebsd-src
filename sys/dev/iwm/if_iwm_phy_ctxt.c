@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -202,8 +203,8 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	    ieee80211_chan2ieee(ic, chan),
 	    chains_static,
 	    chains_dynamic,
-	    IWM_FW_VALID_RX_ANT(sc),
-	    IWM_FW_VALID_TX_ANT(sc));
+	    iwm_mvm_get_valid_rx_ant(sc),
+	    iwm_mvm_get_valid_tx_ant(sc));
 
 
 	cmd->ci.band = IEEE80211_IS_CHAN_2GHZ(chan) ?
@@ -217,13 +218,25 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
-	cmd->rxchain_info = htole32(IWM_FW_VALID_RX_ANT(sc) <<
+	/* In scenarios where we only ever use a single-stream rates,
+	 * i.e. legacy 11b/g/a associations, single-stream APs or even
+	 * static SMPS, enable both chains to get diversity, improving
+	 * the case where we're far enough from the AP that attenuation
+	 * between the two antennas is sufficiently different to impact
+	 * performance.
+	 */
+	if (active_cnt == 1 && iwm_mvm_rx_diversity_allowed(sc)) {
+		idle_cnt = 2;
+		active_cnt = 2;
+	}
+
+	cmd->rxchain_info = htole32(iwm_mvm_get_valid_rx_ant(sc) <<
 					IWM_PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= htole32(idle_cnt << IWM_PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= htole32(active_cnt <<
 	    IWM_PHY_RX_CHAIN_MIMO_CNT_POS);
 
-	cmd->txchain_info = htole32(IWM_FW_VALID_TX_ANT(sc));
+	cmd->txchain_info = htole32(iwm_mvm_get_valid_tx_ant(sc));
 }
 
 /*

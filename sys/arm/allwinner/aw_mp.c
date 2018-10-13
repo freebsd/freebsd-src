@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Ganbold Tsagaankhuu <ganbold@freebsd.org>
- * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/platformvar.h>
 
 #include <arm/allwinner/aw_mp.h>
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 
 /* Register for all dual-core SoC */
 #define	A20_CPUCFG_BASE		0x01c25c00
@@ -83,13 +83,13 @@ __FBSDID("$FreeBSD$");
 #define	CPUCFG_DBGCTL0		0x1e0
 #define	CPUCFG_DBGCTL1		0x1e4
 
-#define	CPUS_CL_RST(cl)		(0x30 + (cluster) * 0x4)
-#define	CPUX_CL_CTRL0(cl)	(0x0 + (cluster) * 0x10)
-#define	CPUX_CL_CTRL1(cl)	(0x4 + (cluster) * 0x10)
-#define	CPUX_CL_CPU_STATUS(cl)	(0x30 + (cluster) * 0x4)
-#define	CPUX_CL_RST(cl)		(0x80 + (cluster) * 0x4)
-#define	PRCM_CL_PWROFF(cl)	(0x100 + (cluster) * 0x4)
-#define	PRCM_CL_PWR_CLAMP(cl, cpu)	(0x140 + (cluster) * 0x4 + (cpu) * 0x4)
+#define	CPUS_CL_RST(cl)		(0x30 + (cl) * 0x4)
+#define	CPUX_CL_CTRL0(cl)	(0x0 + (cl) * 0x10)
+#define	CPUX_CL_CTRL1(cl)	(0x4 + (cl) * 0x10)
+#define	CPUX_CL_CPU_STATUS(cl)	(0x30 + (cl) * 0x4)
+#define	CPUX_CL_RST(cl)		(0x80 + (cl) * 0x4)
+#define	PRCM_CL_PWROFF(cl)	(0x100 + (cl) * 0x4)
+#define	PRCM_CL_PWR_CLAMP(cl, cpu)	(0x140 + (cl) * 0x4 + (cpu) * 0x4)
 
 void
 aw_mp_setmaxid(platform_t plat)
@@ -193,7 +193,8 @@ aw_mp_start_ap(platform_t plat)
 		val |= (1 << i);
 	bus_space_write_4(fdtbus_bs_tag, cpucfg, CPUCFG_DBGCTL1, val);
 
-	armv7_sev();
+	dsb();
+	sev();
 	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
 	if (soc_family != ALLWINNERSOC_SUN7I)
 		bus_space_unmap(fdtbus_bs_tag, prcm, PRCM_SIZE);
@@ -279,7 +280,8 @@ a83t_mp_start_ap(platform_t plat)
 		panic("Couldn't map the PRCM\n");
 
 	aw_mc_mp_start_ap(cpuscfg, cpuxcfg, prcm);
-	armv7_sev();
+	dsb();
+	sev();
 	bus_space_unmap(fdtbus_bs_tag, cpuxcfg, CPUXCFG_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, cpuscfg, CPUCFG_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, prcm, PRCM_SIZE);

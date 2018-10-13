@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2015
+.Dd February 11, 2018
 .Dt DEVICE_ADD_CHILD 9
 .Os
 .Sh NAME
@@ -63,10 +63,10 @@ If no name is given then all drivers for the owning bus are probed.
 In any event, only the name of the device is stored so that one may
 safely unload/load a driver bound to that name.
 .Pp
-This allows busses which can uniquely identify device instances (such
+This allows buses which can uniquely identify device instances (such
 as PCI) to allow each driver to check each device instance for a
 match.
-For busses which rely on supplied probe hints where only one
+For buses which rely on supplied probe hints where only one
 driver can have a chance of probing the device, the driver name should
 be specified as the device name.
 .Pp
@@ -126,6 +126,7 @@ The new device if successful, NULL otherwise.
 .Sh SEE ALSO
 .Xr BUS_ADD_CHILD 9 ,
 .Xr device 9 ,
+.Xr device_delete_child 9 ,
 .Xr device_find_child 9 ,
 .Xr DEVICE_IDENTIFY 9
 .Sh AUTHORS

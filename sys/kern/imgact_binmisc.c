@@ -120,7 +120,7 @@ imgact_binmisc_populate_interp(char *str, imgact_binmisc_entry_t *ibe)
 	sp = str; tp = t;
 	while (*sp != '\0') {
 		if (*sp == ' ' || *sp == '\t') {
-			if (++len > IBE_INTERP_LEN_MAX)
+			if (++len >= IBE_INTERP_LEN_MAX)
 				break;
 			*tp++ = ' ';
 			argc++;
@@ -747,11 +747,16 @@ imgact_binmisc_fini(void *arg)
 	sx_destroy(&interp_list_sx);
 }
 
-SYSINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_init, 0);
-SYSUNINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini, 0);
+SYSINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_init,
+    NULL);
+SYSUNINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini,
+    NULL);
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw imgact_binmisc_execsw = { imgact_binmisc_exec, KMOD_NAME };
+static struct execsw imgact_binmisc_execsw = {
+	.ex_imgact = imgact_binmisc_exec,
+	.ex_name = KMOD_NAME
+};
 EXEC_SET(imgact_binmisc, imgact_binmisc_execsw);

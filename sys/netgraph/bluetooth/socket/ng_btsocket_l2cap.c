@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -614,21 +616,13 @@ ng_btsocket_l2cap_process_l2ca_con_ind(struct ng_mesg *msg,
 	
 	pcb = ng_btsocket_l2cap_pcb_by_addr(&rt->src, ip->psm);
 	if (pcb != NULL) {
-		struct socket	*so1 = NULL;
+		struct socket *so1;
 
 		mtx_lock(&pcb->pcb_mtx);
 
-		/*
-		 * First check the pending connections queue and if we have
-		 * space then create new socket and set proper source address.
-		 */
-
-		if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
-			CURVNET_SET(pcb->so->so_vnet);
-			so1 = sonewconn(pcb->so, 0);
-			CURVNET_RESTORE();
-		}
-
+		CURVNET_SET(pcb->so->so_vnet);
+		so1 = sonewconn(pcb->so, 0);
+		CURVNET_RESTORE();
 		if (so1 == NULL) {
 			result = NG_L2CAP_NO_RESOURCES;
 			goto respond;

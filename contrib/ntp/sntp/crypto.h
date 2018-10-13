@@ -20,7 +20,8 @@ struct key {
 	struct key *	next;
 	int		key_id;
 	int		key_len;
-	char		type[10];
+	int		typei;
+	char		typen[20];
 	char		key_seq[64];
 };
 

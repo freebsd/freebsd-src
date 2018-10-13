@@ -1,4 +1,4 @@
-//===-- llvm/ADT/StringExtras.h - Useful string functions -------*- C++ -*-===//
+//===- llvm/ADT/StringExtras.h - Useful string functions --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,85 +14,185 @@
 #ifndef LLVM_ADT_STRINGEXTRAS_H
 #define LLVM_ADT_STRINGEXTRAS_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/ADT/Twine.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <iterator>
+#include <string>
+#include <utility>
 
 namespace llvm {
+
 template<typename T> class SmallVectorImpl;
+class raw_ostream;
 
 /// hexdigit - Return the hexadecimal character for the
 /// given number \p X (which should be less than 16).
-static inline char hexdigit(unsigned X, bool LowerCase = false) {
+inline char hexdigit(unsigned X, bool LowerCase = false) {
   const char HexChar = LowerCase ? 'a' : 'A';
   return X < 10 ? '0' + X : HexChar + X - 10;
 }
 
 /// Construct a string ref from a boolean.
-static inline StringRef toStringRef(bool B) {
-  return StringRef(B ? "true" : "false");
+inline StringRef toStringRef(bool B) { return StringRef(B ? "true" : "false"); }
+
+/// Construct a string ref from an array ref of unsigned chars.
+inline StringRef toStringRef(ArrayRef<uint8_t> Input) {
+  return StringRef(reinterpret_cast<const char *>(Input.begin()), Input.size());
+}
+
+/// Construct a string ref from an array ref of unsigned chars.
+inline ArrayRef<uint8_t> arrayRefFromStringRef(StringRef Input) {
+  return {Input.bytes_begin(), Input.bytes_end()};
 }
 
 /// Interpret the given character \p C as a hexadecimal digit and return its
 /// value.
 ///
 /// If \p C is not a valid hex digit, -1U is returned.
-static inline unsigned hexDigitValue(char C) {
+inline unsigned hexDigitValue(char C) {
   if (C >= '0' && C <= '9') return C-'0';
   if (C >= 'a' && C <= 'f') return C-'a'+10U;
   if (C >= 'A' && C <= 'F') return C-'A'+10U;
   return -1U;
 }
 
-/// utohex_buffer - Emit the specified number into the buffer specified by
-/// BufferEnd, returning a pointer to the start of the string.  This can be used
-/// like this: (note that the buffer must be large enough to handle any number):
-///    char Buffer[40];
-///    printf("0x%s", utohex_buffer(X, Buffer+40));
-///
-/// This should only be used with unsigned types.
-///
-template<typename IntTy>
-static inline char *utohex_buffer(IntTy X, char *BufferEnd, bool LowerCase = false) {
-  char *BufPtr = BufferEnd;
-  *--BufPtr = 0;      // Null terminate buffer.
-  if (X == 0) {
-    *--BufPtr = '0';  // Handle special case.
-    return BufPtr;
-  }
+/// Checks if character \p C is one of the 10 decimal digits.
+inline bool isDigit(char C) { return C >= '0' && C <= '9'; }
+
+/// Checks if character \p C is a hexadecimal numeric character.
+inline bool isHexDigit(char C) { return hexDigitValue(C) != -1U; }
+
+/// Checks if character \p C is a valid letter as classified by "C" locale.
+inline bool isAlpha(char C) {
+  return ('a' <= C && C <= 'z') || ('A' <= C && C <= 'Z');
+}
+
+/// Checks whether character \p C is either a decimal digit or an uppercase or
+/// lowercase letter as classified by "C" locale.
+inline bool isAlnum(char C) { return isAlpha(C) || isDigit(C); }
+
+/// Returns the corresponding lowercase character if \p x is uppercase.
+inline char toLower(char x) {
+  if (x >= 'A' && x <= 'Z')
+    return x - 'A' + 'a';
+  return x;
+}
+
+/// Returns the corresponding uppercase character if \p x is lowercase.
+inline char toUpper(char x) {
+  if (x >= 'a' && x <= 'z')
+    return x - 'a' + 'A';
+  return x;
+}
+
+inline std::string utohexstr(uint64_t X, bool LowerCase = false) {
+  char Buffer[17];
+  char *BufPtr = std::end(Buffer);
+
+  if (X == 0) *--BufPtr = '0';
 
   while (X) {
     unsigned char Mod = static_cast<unsigned char>(X) & 15;
     *--BufPtr = hexdigit(Mod, LowerCase);
     X >>= 4;
   }
-  return BufPtr;
+
+  return std::string(BufPtr, std::end(Buffer));
 }
 
-static inline std::string utohexstr(uint64_t X, bool LowerCase = false) {
-  char Buffer[17];
-  return utohex_buffer(X, Buffer+17, LowerCase);
+/// Convert buffer \p Input to its hexadecimal representation.
+/// The returned string is double the size of \p Input.
+inline std::string toHex(StringRef Input) {
+  static const char *const LUT = "0123456789ABCDEF";
+  size_t Length = Input.size();
+
+  std::string Output;
+  Output.reserve(2 * Length);
+  for (size_t i = 0; i < Length; ++i) {
+    const unsigned char c = Input[i];
+    Output.push_back(LUT[c >> 4]);
+    Output.push_back(LUT[c & 15]);
+  }
+  return Output;
 }
 
-static inline std::string utostr_32(uint32_t X, bool isNeg = false) {
-  char Buffer[11];
-  char *BufPtr = Buffer+11;
+inline std::string toHex(ArrayRef<uint8_t> Input) {
+  return toHex(toStringRef(Input));
+}
 
-  if (X == 0) *--BufPtr = '0';  // Handle special case...
+inline uint8_t hexFromNibbles(char MSB, char LSB) {
+  unsigned U1 = hexDigitValue(MSB);
+  unsigned U2 = hexDigitValue(LSB);
+  assert(U1 != -1U && U2 != -1U);
 
-  while (X) {
-    *--BufPtr = '0' + char(X % 10);
-    X /= 10;
+  return static_cast<uint8_t>((U1 << 4) | U2);
+}
+
+/// Convert hexadecimal string \p Input to its binary representation.
+/// The return string is half the size of \p Input.
+inline std::string fromHex(StringRef Input) {
+  if (Input.empty())
+    return std::string();
+
+  std::string Output;
+  Output.reserve((Input.size() + 1) / 2);
+  if (Input.size() % 2 == 1) {
+    Output.push_back(hexFromNibbles('0', Input.front()));
+    Input = Input.drop_front();
   }
 
-  if (isNeg) *--BufPtr = '-';   // Add negative sign...
-
-  return std::string(BufPtr, Buffer+11);
+  assert(Input.size() % 2 == 0);
+  while (!Input.empty()) {
+    uint8_t Hex = hexFromNibbles(Input[0], Input[1]);
+    Output.push_back(Hex);
+    Input = Input.drop_front(2);
+  }
+  return Output;
 }
 
-static inline std::string utostr(uint64_t X, bool isNeg = false) {
+/// \brief Convert the string \p S to an integer of the specified type using
+/// the radix \p Base.  If \p Base is 0, auto-detects the radix.
+/// Returns true if the number was successfully converted, false otherwise.
+template <typename N> bool to_integer(StringRef S, N &Num, unsigned Base = 0) {
+  return !S.getAsInteger(Base, Num);
+}
+
+namespace detail {
+template <typename N>
+inline bool to_float(const Twine &T, N &Num, N (*StrTo)(const char *, char **)) {
+  SmallString<32> Storage;
+  StringRef S = T.toNullTerminatedStringRef(Storage);
+  char *End;
+  N Temp = StrTo(S.data(), &End);
+  if (*End != '\0')
+    return false;
+  Num = Temp;
+  return true;
+}
+}
+
+inline bool to_float(const Twine &T, float &Num) {
+  return detail::to_float(T, Num, strtof);
+}
+
+inline bool to_float(const Twine &T, double &Num) {
+  return detail::to_float(T, Num, strtod);
+}
+
+inline bool to_float(const Twine &T, long double &Num) {
+  return detail::to_float(T, Num, strtold);
+}
+
+inline std::string utostr(uint64_t X, bool isNeg = false) {
   char Buffer[21];
-  char *BufPtr = Buffer+21;
+  char *BufPtr = std::end(Buffer);
 
   if (X == 0) *--BufPtr = '0';  // Handle special case...
 
@@ -102,11 +202,10 @@ static inline std::string utostr(uint64_t X, bool isNeg = false) {
   }
 
   if (isNeg) *--BufPtr = '-';   // Add negative sign...
-  return std::string(BufPtr, Buffer+21);
+  return std::string(BufPtr, std::end(Buffer));
 }
 
-
-static inline std::string itostr(int64_t X) {
+inline std::string itostr(int64_t X) {
   if (X < 0)
     return utostr(static_cast<uint64_t>(-X), true);
   else
@@ -140,14 +239,14 @@ void SplitString(StringRef Source,
 // FIXME: Investigate whether a modified bernstein hash function performs
 // better: http://eternallyconfuzzled.com/tuts/algorithms/jsw_tut_hashing.aspx
 //   X*33+c -> X*33^c
-static inline unsigned HashString(StringRef Str, unsigned Result = 0) {
+inline unsigned HashString(StringRef Str, unsigned Result = 0) {
   for (StringRef::size_type i = 0, e = Str.size(); i != e; ++i)
     Result = Result * 33 + (unsigned char)Str[i];
   return Result;
 }
 
 /// Returns the English suffix for an ordinal integer (-st, -nd, -rd, -th).
-static inline StringRef getOrdinalSuffix(unsigned Val) {
+inline StringRef getOrdinalSuffix(unsigned Val) {
   // It is critically important that we do this perfectly for
   // user-written sequences with over 100 elements.
   switch (Val % 100) {
@@ -164,6 +263,15 @@ static inline StringRef getOrdinalSuffix(unsigned Val) {
     }
   }
 }
+
+/// PrintEscapedString - Print each character of the specified string, escaping
+/// it if it is not printable or if it is an escape char.
+void PrintEscapedString(StringRef Name, raw_ostream &Out);
+
+/// printLowerCase - Print each character as lowercase if it is uppercase.
+void printLowerCase(StringRef String, raw_ostream &Out);
+
+namespace detail {
 
 template <typename IteratorT>
 inline std::string join_impl(IteratorT Begin, IteratorT End,
@@ -199,14 +307,74 @@ inline std::string join_impl(IteratorT Begin, IteratorT End,
   return S;
 }
 
+template <typename Sep>
+inline void join_items_impl(std::string &Result, Sep Separator) {}
+
+template <typename Sep, typename Arg>
+inline void join_items_impl(std::string &Result, Sep Separator,
+                            const Arg &Item) {
+  Result += Item;
+}
+
+template <typename Sep, typename Arg1, typename... Args>
+inline void join_items_impl(std::string &Result, Sep Separator, const Arg1 &A1,
+                            Args &&... Items) {
+  Result += A1;
+  Result += Separator;
+  join_items_impl(Result, Separator, std::forward<Args>(Items)...);
+}
+
+inline size_t join_one_item_size(char C) { return 1; }
+inline size_t join_one_item_size(const char *S) { return S ? ::strlen(S) : 0; }
+
+template <typename T> inline size_t join_one_item_size(const T &Str) {
+  return Str.size();
+}
+
+inline size_t join_items_size() { return 0; }
+
+template <typename A1> inline size_t join_items_size(const A1 &A) {
+  return join_one_item_size(A);
+}
+template <typename A1, typename... Args>
+inline size_t join_items_size(const A1 &A, Args &&... Items) {
+  return join_one_item_size(A) + join_items_size(std::forward<Args>(Items)...);
+}
+
+} // end namespace detail
+
 /// Joins the strings in the range [Begin, End), adding Separator between
 /// the elements.
 template <typename IteratorT>
 inline std::string join(IteratorT Begin, IteratorT End, StringRef Separator) {
-  typedef typename std::iterator_traits<IteratorT>::iterator_category tag;
-  return join_impl(Begin, End, Separator, tag());
+  using tag = typename std::iterator_traits<IteratorT>::iterator_category;
+  return detail::join_impl(Begin, End, Separator, tag());
 }
 
-} // End llvm namespace
+/// Joins the strings in the range [R.begin(), R.end()), adding Separator
+/// between the elements.
+template <typename Range>
+inline std::string join(Range &&R, StringRef Separator) {
+  return join(R.begin(), R.end(), Separator);
+}
 
-#endif
+/// Joins the strings in the parameter pack \p Items, adding \p Separator
+/// between the elements.  All arguments must be implicitly convertible to
+/// std::string, or there should be an overload of std::string::operator+=()
+/// that accepts the argument explicitly.
+template <typename Sep, typename... Args>
+inline std::string join_items(Sep Separator, Args &&... Items) {
+  std::string Result;
+  if (sizeof...(Items) == 0)
+    return Result;
+
+  size_t NS = detail::join_one_item_size(Separator);
+  size_t NI = detail::join_items_size(std::forward<Args>(Items)...);
+  Result.reserve(NI + (sizeof...(Items) - 1) * NS + 1);
+  detail::join_items_impl(Result, Separator, std::forward<Args>(Items)...);
+  return Result;
+}
+
+} // end namespace llvm
+
+#endif // LLVM_ADT_STRINGEXTRAS_H

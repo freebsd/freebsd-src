@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_DUMP 3PCAP "5 April 2008"
+.TH PCAP_DUMP 3PCAP "8 March 2015"
 .SH NAME
 pcap_dump \- write a packet to a capture file
 .SH SYNOPSIS
@@ -40,9 +40,9 @@ Note that its calling arguments are suitable for use with
 .B pcap_dispatch()
 or
 .BR pcap_loop() .
-If called directly, the 
+If called directly, the
 .I user
-parameter is of type 
+parameter is of type
 .B pcap_dumper_t
 as returned by
 .BR pcap_dump_open() .

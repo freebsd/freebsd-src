@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998-2010 Luigi Rizzo, Universita` di Pisa
  * All rights reserved
  *
@@ -85,7 +87,7 @@ enum {
  * HEAP_TOP() returns a pointer to the top element of the heap,
  *	but makes no checks on its existence (XXX should we change ?)
  *
- * heap_extract() removes the entry at the top, returing the pointer.
+ * heap_extract() removes the entry at the top, returning the pointer.
  *	(the key should have been read before).
  *
  * heap_scan() invokes a callback on each entry of the heap.

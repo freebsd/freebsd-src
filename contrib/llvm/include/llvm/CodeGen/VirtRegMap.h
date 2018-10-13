@@ -1,4 +1,4 @@
-//===-- llvm/CodeGen/VirtRegMap.h - Virtual Register Map -*- C++ -*--------===//
+//===- llvm/CodeGen/VirtRegMap.h - Virtual Register Map ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,15 +19,17 @@
 
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/Pass.h"
+#include <cassert>
 
 namespace llvm {
-  class MachineInstr;
-  class MachineFunction;
-  class MachineRegisterInfo;
-  class TargetInstrInfo;
-  class raw_ostream;
-  class SlotIndexes;
+
+class MachineFunction;
+class MachineRegisterInfo;
+class raw_ostream;
+class TargetInstrInfo;
 
   class VirtRegMap : public MachineFunctionPass {
   public:
@@ -63,13 +65,14 @@ namespace llvm {
     /// createSpillSlot - Allocate a spill slot for RC from MFI.
     unsigned createSpillSlot(const TargetRegisterClass *RC);
 
-    VirtRegMap(const VirtRegMap&) = delete;
-    void operator=(const VirtRegMap&) = delete;
-
   public:
     static char ID;
+
     VirtRegMap() : MachineFunctionPass(ID), Virt2PhysMap(NO_PHYS_REG),
-                   Virt2StackSlotMap(NO_STACK_SLOT), Virt2SplitMap(0) { }
+                   Virt2StackSlotMap(NO_STACK_SLOT), Virt2SplitMap(0) {}
+    VirtRegMap(const VirtRegMap &) = delete;
+    VirtRegMap &operator=(const VirtRegMap &) = delete;
+
     bool runOnMachineFunction(MachineFunction &MF) override;
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -102,14 +105,7 @@ namespace llvm {
 
     /// @brief creates a mapping for the specified virtual register to
     /// the specified physical register
-    void assignVirt2Phys(unsigned virtReg, unsigned physReg) {
-      assert(TargetRegisterInfo::isVirtualRegister(virtReg) &&
-             TargetRegisterInfo::isPhysicalRegister(physReg));
-      assert(Virt2PhysMap[virtReg] == NO_PHYS_REG &&
-             "attempt to assign physical register to already mapped "
-             "virtual register");
-      Virt2PhysMap[virtReg] = physReg;
-    }
+    void assignVirt2Phys(unsigned virtReg, MCPhysReg physReg);
 
     /// @brief clears the specified virtual register's, physical
     /// register mapping
@@ -173,6 +169,7 @@ namespace llvm {
     /// @brief create a mapping for the specifed virtual register to
     /// the next available stack slot
     int assignVirt2StackSlot(unsigned virtReg);
+
     /// @brief create a mapping for the specified virtual register to
     /// the specified stack slot
     void assignVirt2StackSlot(unsigned virtReg, int frameIndex);
@@ -185,6 +182,7 @@ namespace llvm {
     VRM.print(OS);
     return OS;
   }
-} // End llvm namespace
 
-#endif
+} // end llvm namespace
+
+#endif // LLVM_CODEGEN_VIRTREGMAP_H

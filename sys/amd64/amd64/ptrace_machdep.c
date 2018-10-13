@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
@@ -28,8 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -43,10 +43,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/vmparam.h>
 
+#ifdef COMPAT_FREEBSD32
+struct ptrace_xstate_info32 {
+	uint32_t	xsave_mask1, xsave_mask2;
+	uint32_t	xsave_len;
+};
+#endif
+
 static int
 cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 {
 	struct ptrace_xstate_info info;
+#ifdef COMPAT_FREEBSD32
+	struct ptrace_xstate_info32 info32;
+#endif
 	char *savefpu;
 	int error;
 
@@ -76,13 +86,28 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 		break;
 
 	case PT_GETXSTATE_INFO:
-		if (data != sizeof(info)) {
-			error  = EINVAL;
-			break;
+#ifdef COMPAT_FREEBSD32
+		if (SV_CURPROC_FLAG(SV_ILP32)) {
+			if (data != sizeof(info32)) {
+				error = EINVAL;
+			} else {
+				info32.xsave_len = cpu_max_ext_state_size;
+				info32.xsave_mask1 = xsave_mask;
+				info32.xsave_mask2 = xsave_mask >> 32;
+				error = copyout(&info32, addr, data);
+			}
+		} else
+#endif
+		{
+			if (data != sizeof(info)) {
+				error  = EINVAL;
+			} else {
+				bzero(&info, sizeof(info));
+				info.xsave_len = cpu_max_ext_state_size;
+				info.xsave_mask = xsave_mask;
+				error = copyout(&info, addr, data);
+			}
 		}
-		info.xsave_len = cpu_max_ext_state_size;
-		info.xsave_mask = xsave_mask;
-		error = copyout(&info, addr, data);
 		break;
 
 	case PT_GETXSTATE:
@@ -117,15 +142,17 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 static void
 cpu_ptrace_setbase(struct thread *td, int req, register_t r)
 {
+	struct pcb *pcb;
 
+	pcb = td->td_pcb;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	if (req == PT_SETFSBASE) {
-		td->td_pcb->pcb_fsbase = r;
+		pcb->pcb_fsbase = r;
 		td->td_frame->tf_fs = _ufssel;
 	} else {
-		td->td_pcb->pcb_gsbase = r;
+		pcb->pcb_gsbase = r;
 		td->td_frame->tf_gs = _ugssel;
 	}
-	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }
 
 #ifdef COMPAT_FREEBSD32
@@ -136,6 +163,7 @@ static int
 cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 {
 	struct savefpu *fpstate;
+	struct pcb *pcb;
 	uint32_t r;
 	int error;
 
@@ -167,8 +195,10 @@ cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 			error = EINVAL;
 			break;
 		}
-		r = req == PT_GETFSBASE ? td->td_pcb->pcb_fsbase :
-		    td->td_pcb->pcb_gsbase;
+		pcb = td->td_pcb;
+		if (td == curthread)
+			update_pcb_bases(pcb);
+		r = req == PT_GETFSBASE ? pcb->pcb_fsbase : pcb->pcb_gsbase;
 		error = copyout(&r, addr, sizeof(r));
 		break;
 
@@ -197,6 +227,7 @@ int
 cpu_ptrace(struct thread *td, int req, void *addr, int data)
 {
 	register_t *r, rv;
+	struct pcb *pcb;
 	int error;
 
 #ifdef COMPAT_FREEBSD32
@@ -221,8 +252,10 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 
 	case PT_GETFSBASE:
 	case PT_GETGSBASE:
-		r = req == PT_GETFSBASE ? &td->td_pcb->pcb_fsbase :
-		    &td->td_pcb->pcb_gsbase;
+		pcb = td->td_pcb;
+		if (td == curthread)
+			update_pcb_bases(pcb);
+		r = req == PT_GETFSBASE ? &pcb->pcb_fsbase : &pcb->pcb_gsbase;
 		error = copyout(r, addr, sizeof(*r));
 		break;
 

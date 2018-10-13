@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -626,6 +628,9 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 
 	block = (ndis_miniport_block *)cfg;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	/*
+	device_printf(sc->ndis_dev, "NdisReadConfiguration sc=%p\n", sc);
+	*/
 
 	if (key->us_len == 0 || key->us_buf == NULL) {
 		*status = NDIS_STATUS_FAILURE;
@@ -984,7 +989,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	dev = block->nmb_physdeviceobj->do_devext;
 	drv = block->nmb_deviceobj->do_drvobj;
 	sc = device_get_softc(dev);
-	ifp = sc->ifp;
+	ifp = NDISUSB_GET_IFNET(sc);
 
 	if (ifp != NULL && ifp->if_flags & IFF_DEBUG) {
 		error = pe_get_message((vm_offset_t)drv->dro_driverstart,
@@ -1282,7 +1287,7 @@ NdisMRegisterIoPortRange(offset, adapter, port, numports)
 	if (rman_get_size(sc->ndis_res_io) < numports)
 		return (NDIS_STATUS_INVALID_LENGTH);
 
-	*offset = (void *)rman_get_start(sc->ndis_res_io);
+	*offset = (void *)(uintptr_t)rman_get_start(sc->ndis_res_io);
 
 	return (NDIS_STATUS_SUCCESS);
 }
@@ -1304,17 +1309,19 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 	ndis_handle		adapter;
 {
 	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
 	ndis_miniport_block	*block;
 	uint8_t			empty[] = { 0, 0, 0, 0, 0, 0 };
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	if (sc->ifp == NULL) {
+	ifp = NDISUSB_GET_IFNET(sc);
+	if (ifp == NULL) {
 		*status = NDIS_STATUS_FAILURE;
 		return;
 	}
 
-	if (sc->ifp->if_addr == NULL ||
+	if (ifp->if_addr == NULL ||
 	    bcmp(IF_LLADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
 		*status = NDIS_STATUS_FAILURE;
 	else {

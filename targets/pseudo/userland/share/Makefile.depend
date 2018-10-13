@@ -13,76 +13,9 @@ DIRDEPS = \
 	share/doc/legal/intel_iwi \
 	share/doc/legal/intel_iwn \
 	share/doc/legal/intel_wpi \
+	share/doc/legal/realtek \
 	share/doc/llvm/clang \
-	share/doc/papers/beyond4.3 \
-	share/doc/papers/bufbio \
-	share/doc/papers/contents \
-	share/doc/papers/devfs \
-	share/doc/papers/diskperf \
-	share/doc/papers/fsinterface \
-	share/doc/papers/hwpmc \
-	share/doc/papers/jail \
-	share/doc/papers/kernmalloc \
-	share/doc/papers/kerntune \
-	share/doc/papers/malloc \
-	share/doc/papers/newvm \
-	share/doc/papers/relengr \
-	share/doc/papers/sysperf \
-	share/doc/papers/timecounter \
-	share/doc/psd/01.cacm \
-	share/doc/psd/02.implement \
-	share/doc/psd/03.iosys \
-	share/doc/psd/04.uprog \
-	share/doc/psd/05.sysman \
-	share/doc/psd/06.Clang \
-	share/doc/psd/12.make \
-	share/doc/psd/13.rcs/rcs \
-	share/doc/psd/13.rcs/rcs_func \
-	share/doc/psd/15.yacc \
-	share/doc/psd/16.lex \
-	share/doc/psd/17.m4 \
-	share/doc/psd/18.gprof \
-	share/doc/psd/20.ipctut \
-	share/doc/psd/21.ipc \
-	share/doc/psd/22.rpcgen \
-	share/doc/psd/23.rpc \
-	share/doc/psd/24.xdr \
-	share/doc/psd/25.xdrrfc \
-	share/doc/psd/26.rpcrfc \
-	share/doc/psd/27.nfsrpc \
-	share/doc/psd/contents \
-	share/doc/psd/title \
-	share/doc/smm/01.setup \
-	share/doc/smm/02.config \
-	share/doc/smm/03.fsck \
-	share/doc/smm/04.quotas \
-	share/doc/smm/05.fastfs \
-	share/doc/smm/06.nfs \
-	share/doc/smm/07.lpd \
-	share/doc/smm/08.sendmailop \
-	share/doc/smm/11.timedop \
-	share/doc/smm/12.timed \
-	share/doc/smm/18.net \
-	share/doc/smm/contents \
-	share/doc/smm/title \
-	share/doc/usd/04.csh \
-	share/doc/usd/05.dc \
-	share/doc/usd/06.bc \
-	share/doc/usd/07.mail \
-	share/doc/usd/10.exref/exref \
-	share/doc/usd/10.exref/summary \
-	share/doc/usd/11.vitut \
-	share/doc/usd/12.vi/summary \
-	share/doc/usd/12.vi/vi \
-	share/doc/usd/12.vi/viapwh \
-	share/doc/usd/13.viref \
-	share/doc/usd/18.msdiffs \
-	share/doc/usd/19.memacros \
-	share/doc/usd/20.meref \
-	share/doc/usd/21.troff \
-	share/doc/usd/22.trofftut \
-	share/doc/usd/contents \
-	share/doc/usd/title \
+	share/doc/pjdfstest \
 	share/dtrace \
 	share/dtrace/toolkit \
 	share/examples \
@@ -158,6 +91,7 @@ DIRDEPS = \
 	share/xml/atf \
 	share/xsl/atf \
 	share/zoneinfo \
+	stand/man \
 
 
 .include <dirdeps.mk>

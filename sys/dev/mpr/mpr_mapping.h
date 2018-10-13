@@ -53,9 +53,36 @@ struct _map_phy_change {
 };
 
 /**
- * struct _map_topology_change - entries to be removed from mapping table
- * @dpm_entry_num: index of this device in device persistent map table
+ * struct _map_port_change - PCIe Port entries received in PCIe Topology change
+ * list event
+ * @physical_id: WWID of the device attached to the associated port
+ * @device_info: bitfield provides detailed info about the device
+ * @MDTS: Maximum Data Transfer Size for the device
  * @dev_handle: device handle for the device pointed by this entry
+ * @slot: slot ID
+ * @is_processed: Flag to indicate whether this entry is processed or not
+ */
+struct _map_port_change {
+	uint64_t	physical_id;
+	uint32_t	device_info;
+	uint32_t	MDTS;
+	uint16_t	dev_handle;
+	uint16_t	slot;
+	uint8_t		reason;
+	uint8_t		is_processed;
+	uint8_t		reserved[2];
+};
+
+/**
+ * struct _map_topology_change - SAS/SATA entries to be removed from mapping
+ * table
+ * @enc_handle: enclosure handle where this device is located
+ * @exp_handle: expander handle where this device is located
+ * @num_entries: number of entries in the SAS Topology Change List event
+ * @start_phy_num: PHY number of the first PHY in the event data
+ * @num_phys: number of PHYs in the expander where this device is located
+ * @exp_status: status for the expander where this device is located
+ * @phy_details: more details about each PHY in the event data
  */
 struct _map_topology_change {
 	uint16_t	enc_handle;
@@ -67,6 +94,26 @@ struct _map_topology_change {
 	struct _map_phy_change *phy_details;
 };
 
+/**
+ * struct _map_pcie_topology_change - PCIe entries to be removed from mapping
+ * table
+ * @enc_handle: enclosure handle where this device is located
+ * @switch_dev_handle:  PCIe switch device handle where this device is located
+ * @num_entries: number of entries in the PCIe Topology Change List event
+ * @start_port_num: port number of the first port in the event data
+ * @num_ports: number of ports in the PCIe switch device
+ * @switch_status: status for the PCIe switch where this device is located
+ * @port_details: more details about each Port in the event data
+ */
+struct _map_pcie_topology_change {
+	uint16_t	enc_handle;
+	uint16_t	switch_dev_handle;
+	uint8_t	num_entries;
+	uint8_t	start_port_num;
+	uint8_t	num_ports;
+	uint8_t switch_status;
+	struct _map_port_change *port_details;
+};
 
 extern int
 mprsas_get_sas_address_for_sata_disk(struct mpr_softc *ioc,

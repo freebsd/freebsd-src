@@ -26,122 +26,137 @@
  *
  */
 
+#include "opt_ddb.h"
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
-#include <machine/machdep.h>
-#include <machine/platform.h>
 #include <machine/fdt.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 
-#include "opt_ddb.h"
-#include "opt_platform.h"
+#include <arm/annapurna/alpine/alpine_mp.h>
 
-struct mtx al_dbg_lock;
+#include "platform_if.h"
 
-#define	DEVMAP_MAX_VA_ADDRESS		0xF0000000
+#define	WDTLOAD		0x000
+#define	LOAD_MIN	0x00000001
+#define	LOAD_MAX	0xFFFFFFFF
+#define	WDTVALUE	0x004
+#define	WDTCONTROL	0x008
+/* control register masks */
+#define	INT_ENABLE	(1 << 0)
+#define	RESET_ENABLE	(1 << 1)
+#define	WDTLOCK		0xC00
+#define	UNLOCK		0x1ACCE551
+#define	LOCK		0x00000001
+
 bus_addr_t al_devmap_pa;
 bus_addr_t al_devmap_size;
 
-#define	AL_NB_SERVICE_OFFSET		0x70000
-#define	AL_NB_CCU_OFFSET			0x90000
-#define	AL_CCU_SNOOP_CONTROL_IOFAB_0_OFFSET	0x4000
-#define	AL_CCU_SNOOP_CONTROL_IOFAB_1_OFFSET	0x5000
-#define	AL_CCU_SPECULATION_CONTROL_OFFSET	0x4
-
-#define	AL_NB_ACF_MISC_OFFSET			0xD0
-#define	AL_NB_ACF_MISC_READ_BYPASS 		(1 << 30)
-
-int alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size);
-
-vm_offset_t
-platform_lastaddr(void)
+static int
+alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size)
 {
+	phandle_t node;
 
-	return (DEVMAP_MAX_VA_ADDRESS);
+	if ((node = OF_finddevice("/")) == -1)
+		return (ENXIO);
+
+	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
+		return (ENXIO);
+
+	return fdt_get_range(node, 0, pa, size);
 }
 
-void
-platform_probe_and_attach(void)
+static int
+alpine_get_wdt_base(uint32_t *pbase, uint32_t *psize)
 {
+	phandle_t node;
+	u_long base = 0;
+	u_long size = 0;
 
-}
+	if (pbase == NULL || psize == NULL)
+		return (EINVAL);
 
-void
-platform_gpio_init(void)
-{
+	if ((node = OF_finddevice("/")) == -1)
+		return (EFAULT);
 
-}
+	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
+		return (EFAULT);
 
-void
-platform_late_init(void)
-{
-	bus_addr_t reg_baddr;
-	uint32_t val;
+	if ((node =
+	    fdt_find_compatible(node, "arm,sp805", 1)) == 0)
+		return (EFAULT);
 
-	if (!mtx_initialized(&al_dbg_lock))
-		mtx_init(&al_dbg_lock, "ALDBG", "ALDBG", MTX_SPIN);
+	if (fdt_regsize(node, &base, &size))
+		return (EFAULT);
 
-	/* configure system fabric */
-	if (bus_space_map(fdtbus_bs_tag, al_devmap_pa, al_devmap_size, 0,
-	    &reg_baddr))
-		panic("Couldn't map Register Space area");
+	*pbase = base;
+	*psize = size;
 
-	/* do not allow reads to bypass writes to different addresses */
-	val = bus_space_read_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_SERVICE_OFFSET + AL_NB_ACF_MISC_OFFSET);
-	val &= ~AL_NB_ACF_MISC_READ_BYPASS;
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_SERVICE_OFFSET + AL_NB_ACF_MISC_OFFSET, val);
-
-	/* enable cache snoop */
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_CCU_OFFSET + AL_CCU_SNOOP_CONTROL_IOFAB_0_OFFSET, 1);
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_CCU_OFFSET + AL_CCU_SNOOP_CONTROL_IOFAB_1_OFFSET, 1);
-
-	/* disable speculative fetches from masters */
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_CCU_OFFSET + AL_CCU_SPECULATION_CONTROL_OFFSET, 7);
-
-	bus_space_unmap(fdtbus_bs_tag, reg_baddr, al_devmap_size);
+	return (0);
 }
 
 /*
  * Construct devmap table with DT-derived config data.
  */
-int
-platform_devmap_init(void)
+static int
+alpine_devmap_init(platform_t plat)
 {
 	alpine_get_devmap_base(&al_devmap_pa, &al_devmap_size);
 	devmap_add_entry(al_devmap_pa, al_devmap_size);
 	return (0);
 }
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
+static void
+alpine_cpu_reset(platform_t plat)
 {
+	uint32_t wdbase, wdsize;
+	bus_addr_t wdbaddr;
+	int ret;
 
-	return (NULL);
+	ret = alpine_get_wdt_base(&wdbase, &wdsize);
+	if (ret) {
+		printf("Unable to get WDT base, do power down manually...");
+		goto infinite;
+	}
+
+	ret = bus_space_map(fdtbus_bs_tag, al_devmap_pa + wdbase,
+	    wdsize, 0, &wdbaddr);
+	if (ret) {
+		printf("Unable to map WDT base, do power down manually...");
+		goto infinite;
+	}
+
+	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTLOCK, UNLOCK);
+	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTLOAD, LOAD_MIN);
+	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTCONTROL,
+	    INT_ENABLE | RESET_ENABLE);
+
+infinite:
+	while (1) {}
 }
 
-int
-bus_dma_get_range_nb(void)
-{
+static platform_method_t alpine_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	alpine_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	alpine_cpu_reset),
 
-	return (0);
-}
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	alpine_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	alpine_mp_setmaxid),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(alpine, "alpine", 0, "annapurna,alpine", 200);

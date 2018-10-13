@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,6 +36,7 @@
 #define	_NETINET_IP_VAR_H_
 
 #include <sys/queue.h>
+#include <sys/epoch.h>
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -93,7 +96,7 @@ struct ip_moptions {
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
 	struct	in_mfilter *imo_mfilters;	/* source filters */
-	STAILQ_ENTRY(ip_moptions) imo_link;
+	struct	epoch_context imo_epoch_ctx;
 };
 
 struct	ipstat {
@@ -173,6 +176,7 @@ struct ip;
 struct inpcb;
 struct route;
 struct sockopt;
+struct inpcbinfo;
 
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */

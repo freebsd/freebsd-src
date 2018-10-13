@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -38,7 +40,6 @@ __FBSDID("$FreeBSD$");
 long _atomic_lock_stub(volatile long *);
 void _spinlock_stub(spinlock_t *);
 void _spinunlock_stub(spinlock_t *);
-void _spinlock_debug_stub(spinlock_t *, char *, int);
 
 __weak_reference(_atomic_lock_stub, _atomic_lock);
 
@@ -48,7 +49,6 @@ _atomic_lock_stub(volatile long *lck __unused)
 	return (0L);
 }
 
-__weak_reference(_spinlock, _spinlock_debug);
 #pragma weak _spinlock
 void
 _spinlock(spinlock_t *lck)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Kip Macy <kmacy@freebsd.org>
  * All rights reserved.
  *
@@ -32,10 +34,6 @@
 
 #include <machine/cpu.h>
 
-#if defined(INVARIANTS) && !defined(DEBUG_BUFRING)
-#define DEBUG_BUFRING 1
-#endif
-
 #ifdef DEBUG_BUFRING
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -67,6 +65,12 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	uint32_t prod_head, prod_next, cons_tail;
 #ifdef DEBUG_BUFRING
 	int i;
+
+	/*
+	 * Note: It is possible to encounter an mbuf that was removed
+	 * via drbr_peek(), and then re-added via drbr_putback() and
+	 * trigger a spurious panic.
+	 */
 	for (i = br->br_cons_head; i != br->br_prod_head;
 	     i = ((i + 1) & br->br_cons_mask))
 		if(br->br_ring[i] == buf)
@@ -161,9 +165,38 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 #endif
 	uint32_t prod_tail;
 	void *buf;
-	
+
+	/*
+	 * This is a workaround to allow using buf_ring on ARM and ARM64.
+	 * ARM64TODO: Fix buf_ring in a generic way.
+	 * REMARKS: It is suspected that br_cons_head does not require
+	 *   load_acq operation, but this change was extensively tested
+	 *   and confirmed it's working. To be reviewed once again in
+	 *   FreeBSD-12.
+	 *
+	 * Preventing following situation:
+
+	 * Core(0) - buf_ring_enqueue()                                       Core(1) - buf_ring_dequeue_sc()
+	 * -----------------------------------------                                       ----------------------------------------------
+	 *
+	 *                                                                                cons_head = br->br_cons_head;
+	 * atomic_cmpset_acq_32(&br->br_prod_head, ...));
+	 *                                                                                buf = br->br_ring[cons_head];     <see <1>>
+	 * br->br_ring[prod_head] = buf;
+	 * atomic_store_rel_32(&br->br_prod_tail, ...);
+	 *                                                                                prod_tail = br->br_prod_tail;
+	 *                                                                                if (cons_head == prod_tail) 
+	 *                                                                                        return (NULL);
+	 *                                                                                <condition is false and code uses invalid(old) buf>`	
+	 *
+	 * <1> Load (on core 1) from br->br_ring[cons_head] can be reordered (speculative readed) by CPU.
+	 */	
+#if defined(__arm__) || defined(__aarch64__)
+	cons_head = atomic_load_acq_32(&br->br_cons_head);
+#else
 	cons_head = br->br_cons_head;
-	prod_tail = br->br_prod_tail;
+#endif
+	prod_tail = atomic_load_acq_32(&br->br_prod_tail);
 	
 	cons_next = (cons_head + 1) & br->br_cons_mask;
 #ifdef PREFETCH_DEFINED
@@ -221,16 +254,16 @@ buf_ring_advance_sc(struct buf_ring *br)
 
 /*
  * Used to return a buffer (most likely already there)
- * to the top od the ring. The caller should *not*
+ * to the top of the ring. The caller should *not*
  * have used any dequeue to pull it out of the ring
  * but instead should have used the peek() function.
  * This is normally used where the transmit queue
- * of a driver is full, and an mubf must be returned.
+ * of a driver is full, and an mbuf must be returned.
  * Most likely whats in the ring-buffer is what
  * is being put back (since it was not removed), but
  * sometimes the lower transmit function may have
  * done a pullup or other function that will have
- * changed it. As an optimzation we always put it
+ * changed it. As an optimization we always put it
  * back (since jhb says the store is probably cheaper),
  * if we have to do a multi-queue version we will need
  * the compare and an atomic.

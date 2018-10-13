@@ -1,7 +1,8 @@
-/*	$OpenBSD: readpassphrase.c,v 1.22 2010/01/13 10:20:54 dtucker Exp $	*/
+/*	$OpenBSD: readpassphrase.c,v 1.26 2016/10/18 12:47:18 millert Exp $	*/
 
 /*
- * Copyright (c) 2000-2002, 2007 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2000-2002, 2007, 2010
+ *	Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -35,23 +36,14 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef TCSASOFT
-# define _T_FLUSH	(TCSAFLUSH|TCSASOFT)
-#else
-# define _T_FLUSH	(TCSAFLUSH)
+#ifndef TCSASOFT
+/* If we don't have TCSASOFT define it so that ORing it it below is a no-op. */
+# define TCSASOFT 0
 #endif
 
 /* SunOS 4.x which lacks _POSIX_VDISABLE, but has VDISABLE */
 #if !defined(_POSIX_VDISABLE) && defined(VDISABLE)
 #  define _POSIX_VDISABLE       VDISABLE
-#endif
-
-#ifndef _NSIG
-# ifdef NSIG
-#  define _NSIG NSIG
-# else
-#  define _NSIG 128
-# endif
 #endif
 
 static volatile sig_atomic_t signo[_NSIG];
@@ -95,6 +87,27 @@ restart:
 	}
 
 	/*
+	 * Turn off echo if possible.
+	 * If we are using a tty but are not the foreground pgrp this will
+	 * generate SIGTTOU, so do it *before* installing the signal handlers.
+	 */
+	if (input != STDIN_FILENO && tcgetattr(input, &oterm) == 0) {
+		memcpy(&term, &oterm, sizeof(term));
+		if (!(flags & RPP_ECHO_ON))
+			term.c_lflag &= ~(ECHO | ECHONL);
+#ifdef VSTATUS
+		if (term.c_cc[VSTATUS] != _POSIX_VDISABLE)
+			term.c_cc[VSTATUS] = _POSIX_VDISABLE;
+#endif
+		(void)tcsetattr(input, TCSAFLUSH|TCSASOFT, &term);
+	} else {
+		memset(&term, 0, sizeof(term));
+		term.c_lflag |= ECHO;
+		memset(&oterm, 0, sizeof(oterm));
+		oterm.c_lflag |= ECHO;
+	}
+
+	/*
 	 * Catch signals that would otherwise cause the user to end
 	 * up with echo turned off in the shell.  Don't worry about
 	 * things like SIGXCPU and SIGVTALRM for now.
@@ -112,53 +125,37 @@ restart:
 	(void)sigaction(SIGTTIN, &sa, &savettin);
 	(void)sigaction(SIGTTOU, &sa, &savettou);
 
-	/* Turn off echo if possible. */
-	if (input != STDIN_FILENO && tcgetattr(input, &oterm) == 0) {
-		memcpy(&term, &oterm, sizeof(term));
-		if (!(flags & RPP_ECHO_ON))
-			term.c_lflag &= ~(ECHO | ECHONL);
-#ifdef VSTATUS
-		if (term.c_cc[VSTATUS] != _POSIX_VDISABLE)
-			term.c_cc[VSTATUS] = _POSIX_VDISABLE;
-#endif
-		(void)tcsetattr(input, _T_FLUSH, &term);
-	} else {
-		memset(&term, 0, sizeof(term));
-		term.c_lflag |= ECHO;
-		memset(&oterm, 0, sizeof(oterm));
-		oterm.c_lflag |= ECHO;
-	}
-
-	/* No I/O if we are already backgrounded. */
-	if (signo[SIGTTOU] != 1 && signo[SIGTTIN] != 1) {
-		if (!(flags & RPP_STDIN))
-			(void)write(output, prompt, strlen(prompt));
-		end = buf + bufsiz - 1;
-		p = buf;
-		while ((nr = read(input, &ch, 1)) == 1 && ch != '\n' && ch != '\r') {
-			if (p < end) {
-				if ((flags & RPP_SEVENBIT))
-					ch &= 0x7f;
-				if (isalpha(ch)) {
-					if ((flags & RPP_FORCELOWER))
-						ch = (char)tolower(ch);
-					if ((flags & RPP_FORCEUPPER))
-						ch = (char)toupper(ch);
-				}
-				*p++ = ch;
+	if (!(flags & RPP_STDIN))
+		(void)write(output, prompt, strlen(prompt));
+	end = buf + bufsiz - 1;
+	p = buf;
+	while ((nr = read(input, &ch, 1)) == 1 && ch != '\n' && ch != '\r') {
+		if (p < end) {
+			if ((flags & RPP_SEVENBIT))
+				ch &= 0x7f;
+			if (isalpha((unsigned char)ch)) {
+				if ((flags & RPP_FORCELOWER))
+					ch = (char)tolower((unsigned char)ch);
+				if ((flags & RPP_FORCEUPPER))
+					ch = (char)toupper((unsigned char)ch);
 			}
+			*p++ = ch;
 		}
-		*p = '\0';
-		save_errno = errno;
-		if (!(term.c_lflag & ECHO))
-			(void)write(output, "\n", 1);
 	}
+	*p = '\0';
+	save_errno = errno;
+	if (!(term.c_lflag & ECHO))
+		(void)write(output, "\n", 1);
 
 	/* Restore old terminal settings and signals. */
 	if (memcmp(&term, &oterm, sizeof(term)) != 0) {
-		while (tcsetattr(input, _T_FLUSH, &oterm) == -1 &&
-		    errno == EINTR)
+		const int sigttou = signo[SIGTTOU];
+
+		/* Ignore SIGTTOU generated when we are not the fg pgrp. */
+		while (tcsetattr(input, TCSAFLUSH|TCSASOFT, &oterm) == -1 &&
+		    errno == EINTR && !signo[SIGTTOU])
 			continue;
+		signo[SIGTTOU] = sigttou;
 	}
 	(void)sigaction(SIGALRM, &savealrm, NULL);
 	(void)sigaction(SIGHUP, &savehup, NULL);
@@ -194,6 +191,7 @@ restart:
 		errno = save_errno;
 	return(nr == -1 ? NULL : buf);
 }
+DEF_WEAK(readpassphrase);
 
 #if 0
 char *

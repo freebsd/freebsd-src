@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
  * http://www.ralinktech.com/
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -1070,9 +1072,8 @@ ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 static int
 ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = ni->ni_ic;
-	const struct ieee80211_txparam *tp;
 	struct ural_tx_data *data;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
@@ -1084,8 +1085,6 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
-
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -1133,37 +1132,23 @@ ural_sendprot(struct ural_softc *sc,
     const struct mbuf *m, struct ieee80211_node *ni, int prot, int rate)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	const struct ieee80211_frame *wh;
 	struct ural_tx_data *data;
 	struct mbuf *mprot;
-	int protrate, ackrate, pktlen, flags, isshort;
-	uint16_t dur;
+	int protrate, flags;
 
-	KASSERT(prot == IEEE80211_PROT_RTSCTS || prot == IEEE80211_PROT_CTSONLY,
-	    ("protection %d", prot));
-
-	wh = mtod(m, const struct ieee80211_frame *);
-	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
-
-	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
-	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
-
-	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-	flags = RAL_TX_RETRY(7);
-	if (prot == IEEE80211_PROT_RTSCTS) {
-		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-		flags |= RAL_TX_ACK;
-		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
-	} else {
-		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
-	}
+	mprot = ieee80211_alloc_prot(ni, m, rate, prot);
 	if (mprot == NULL) {
-		/* XXX stat + msg */
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		device_printf(sc->sc_dev,
+		    "could not allocate mbuf for protection mode %d\n", prot);
 		return ENOBUFS;
 	}
+
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	flags = RAL_TX_RETRY(7);
+	if (prot == IEEE80211_PROT_RTSCTS)
+		flags |= RAL_TX_ACK;
+
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
@@ -1239,7 +1224,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ural_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
 	uint32_t flags = 0;
 	uint16_t dur;
@@ -1249,13 +1234,16 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (m0->m_flags & M_EAPOL)
+		rate = tp->mgmtrate;
+	else if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
-	else
+	else {
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
+	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -2208,32 +2196,29 @@ ural_ratectl_task(void *arg, int pending)
 {
 	struct ural_vap *uvp = arg;
 	struct ieee80211vap *vap = &uvp->vap;
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ural_softc *sc = ic->ic_softc;
-	struct ieee80211_node *ni;
-	int ok, fail;
-	int sum, retrycnt;
+	struct ural_softc *sc = vap->iv_ic->ic_softc;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
+	int fail;
 
-	ni = ieee80211_ref_node(vap->iv_bss);
 	RAL_LOCK(sc);
 	/* read and clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sc->sta, sizeof(sc->sta));
 
-	ok = sc->sta[7] +		/* TX ok w/o retry */
-	     sc->sta[8];		/* TX ok w/ retry */
+	txs->flags = IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->nsuccess = sc->sta[7] +	/* TX ok w/o retry */
+			sc->sta[8];	/* TX ok w/ retry */
 	fail = sc->sta[9];		/* TX retry-fail count */
-	sum = ok+fail;
-	retrycnt = sc->sta[8] + fail;
+	txs->nframes = txs->nsuccess + fail;
+	/* XXX fail * maxretry */
+	txs->nretries = sc->sta[8] + fail;
 
-	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
-	(void) ieee80211_ratectl_rate(ni, NULL, 0);
+	ieee80211_ratectl_tx_update(vap, txs);
 
 	/* count TX retry-fail as Tx errors */
-	if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, fail);
+	if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, fail);
 
 	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 	RAL_UNLOCK(sc);
-	ieee80211_free_node(ni);
 }
 
 static int

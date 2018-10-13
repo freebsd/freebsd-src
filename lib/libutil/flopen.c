@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2007-2009 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,8 +39,16 @@ __FBSDID("$FreeBSD$");
 
 #include <libutil.h>
 
-int
-flopen(const char *path, int flags, ...)
+/*
+ * Reliably open and lock a file.
+ *
+ * Please do not modify this code without first reading the revision history
+ * and discussing your changes with <des@freebsd.org>.  Don't be fooled by the
+ * code's apparent simplicity; there would be no need for this function if it
+ * was easy to get right.
+ */
+static int
+vflopenat(int dirfd, const char *path, int flags, va_list ap)
 {
 	int fd, operation, serrno, trunc;
 	struct stat sb, fsb;
@@ -50,11 +60,7 @@ flopen(const char *path, int flags, ...)
 
 	mode = 0;
 	if (flags & O_CREAT) {
-		va_list ap;
-
-		va_start(ap, flags);
 		mode = (mode_t)va_arg(ap, int); /* mode_t promoted to int */
-		va_end(ap);
 	}
 
         operation = LOCK_EX;
@@ -65,7 +71,7 @@ flopen(const char *path, int flags, ...)
 	flags &= ~O_TRUNC;
 
 	for (;;) {
-		if ((fd = open(path, flags, mode)) == -1)
+		if ((fd = openat(dirfd, path, flags, mode)) == -1)
 			/* non-existent or no access */
 			return (-1);
 		if (flock(fd, operation) == -1) {
@@ -75,7 +81,7 @@ flopen(const char *path, int flags, ...)
 			errno = serrno;
 			return (-1);
 		}
-		if (stat(path, &sb) == -1) {
+		if (fstatat(dirfd, path, &sb, 0) == -1) {
 			/* disappeared from under our feet */
 			(void)close(fd);
 			continue;
@@ -100,6 +106,42 @@ flopen(const char *path, int flags, ...)
 			errno = serrno;
 			return (-1);
 		}
+		/*
+		 * The following change is provided as a specific example to
+		 * avoid.
+		 */
+#if 0
+		if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0) {
+			serrno = errno;
+			(void)close(fd);
+			errno = serrno;
+			return (-1);
+		}
+#endif
 		return (fd);
 	}
+}
+
+int
+flopen(const char *path, int flags, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, flags);
+	ret = vflopenat(AT_FDCWD, path, flags, ap);
+	va_end(ap);
+	return (ret);
+}
+
+int
+flopenat(int dirfd, const char *path, int flags, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, flags);
+	ret = vflopenat(dirfd, path, flags, ap);
+	va_end(ap);
+	return (ret);
 }

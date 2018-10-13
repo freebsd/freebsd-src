@@ -138,3 +138,11 @@ incomplete argument information.
 Mandatory Access Control (MAC) labels, as provided by the
 .Xr mac 4
 facility, are not audited as part of records involving MAC decisions.
+.Pp
+Currently the
+.Nm
+syscalls are not supported for jailed processes.
+However, if a process has
+.Nm
+session state associated with it, audit records will still be produced and a zonename token
+containing the jail's ID or name will be present in the audit records.

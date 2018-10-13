@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/regulator/regulator.h>
 
@@ -72,8 +72,8 @@ a20_if_dwc_init(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	/* Configure PHY for MII or RGMII mode */
-	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type)) {
-		error = clk_get_by_ofw_name(dev, "allwinner_gmac_tx", &clk_tx);
+	if (OF_getprop_alloc(node, "phy-mode", (void **)&phy_type)) {
+		error = clk_get_by_ofw_name(dev, 0, "allwinner_gmac_tx", &clk_tx);
 		if (error != 0) {
 			device_printf(dev, "could not get tx clk\n");
 			return (error);
@@ -99,7 +99,7 @@ a20_if_dwc_init(device_t dev)
 	}
 
 	/* Enable PHY regulator if applicable */
-	if (regulator_get_by_ofw_property(dev, "phy-supply", &reg) == 0) {
+	if (regulator_get_by_ofw_property(dev, 0, "phy-supply", &reg) == 0) {
 		error = regulator_enable(reg);
 		if (error != 0) {
 			device_printf(dev, "could not enable PHY regulator\n");

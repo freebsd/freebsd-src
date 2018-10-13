@@ -13,6 +13,7 @@
 #include "config.h"
 #include "wpa_supplicant_i.h"
 #include "wps_supplicant.h"
+#include "binder/binder.h"
 #include "dbus/dbus_common.h"
 #include "dbus/dbus_old.h"
 #include "dbus/dbus_new.h"
@@ -34,6 +35,12 @@ int wpas_notify_supplicant_initialized(struct wpa_global *global)
 	}
 #endif /* CONFIG_DBUS */
 
+#ifdef CONFIG_BINDER
+	global->binder = wpas_binder_init(global);
+	if (!global->binder)
+		return -1;
+#endif /* CONFIG_BINDER */
+
 	return 0;
 }
 
@@ -44,6 +51,11 @@ void wpas_notify_supplicant_deinitialized(struct wpa_global *global)
 	if (global->dbus)
 		wpas_dbus_deinit(global->dbus);
 #endif /* CONFIG_DBUS */
+
+#ifdef CONFIG_BINDER
+	if (global->binder)
+		wpas_binder_deinit(global->binder);
+#endif /* CONFIG_BINDER */
 }
 
 
@@ -125,6 +137,15 @@ void wpas_notify_disconnect_reason(struct wpa_supplicant *wpa_s)
 		return;
 
 	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_DISCONNECT_REASON);
+}
+
+
+void wpas_notify_assoc_status_code(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_ASSOC_STATUS_CODE);
 }
 
 
@@ -647,13 +668,13 @@ void wpas_notify_p2p_provision_discovery(struct wpa_supplicant *wpa_s,
 
 
 void wpas_notify_p2p_group_started(struct wpa_supplicant *wpa_s,
-				   struct wpa_ssid *ssid, int network_id,
+				   struct wpa_ssid *ssid, int persistent,
 				   int client)
 {
 	/* Notify a group has been started */
 	wpas_dbus_register_p2p_group(wpa_s, ssid);
 
-	wpas_dbus_signal_p2p_group_started(wpa_s, ssid, client, network_id);
+	wpas_dbus_signal_p2p_group_started(wpa_s, client, persistent);
 }
 
 

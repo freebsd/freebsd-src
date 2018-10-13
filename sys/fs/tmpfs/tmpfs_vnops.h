@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs_vnops.h,v 1.7 2005/12/03 17:34:44 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -44,10 +46,13 @@
  */
 
 extern struct vop_vector tmpfs_vnodeop_entries;
+extern struct vop_vector tmpfs_vnodeop_nonc_entries;
 
 vop_access_t	tmpfs_access;
 vop_getattr_t	tmpfs_getattr;
 vop_setattr_t	tmpfs_setattr;
+vop_pathconf_t	tmpfs_pathconf;
+vop_print_t	tmpfs_print;
 vop_reclaim_t	tmpfs_reclaim;
 
 #endif /* _FS_TMPFS_TMPFS_VNOPS_H_ */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 1999
+.Dd August 17, 2018
 .Dt PTHREAD_RWLOCKATTR_GETPSHARED 3
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_rwlockattr_getpshared "const pthread_rwlockattr_t *attr" "int *pshared"
+.Fn pthread_rwlockattr_getpshared "const pthread_rwlockattr_t *restrict attr" "int *restrict pshared"
 .Sh DESCRIPTION
 The
 .Fn pthread_rwlockattr_getpshared

@@ -17,6 +17,7 @@
 
 namespace __sanitizer {
 
+
 INLINE void proc_yield(int cnt) {
   __asm__ __volatile__("" ::: "memory");
 }

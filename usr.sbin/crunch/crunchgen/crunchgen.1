@@ -24,7 +24,7 @@
 .\"			   University of Maryland at College Park
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2005
+.Dd January 6, 2017
 .Dt CRUNCHGEN 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Op Fl p Ar obj-prefix
 .Op Fl c Ar c-file-name
 .Op Fl e Ar exec-file-name
-.Op Ar conf-file
+.Ar conf-file
 .Ek
 .Sh DESCRIPTION
 A crunched binary is a program made up of many other programs linked
@@ -308,7 +308,7 @@ This is normally
 but some
 .Pa Makefile Ns s
 might like to use other conventions or
-prepend the program's name to the variable, e.g.\&
+prepend the program's name to the variable, e.g.,
 .Va SSHD_OBJS .
 .It Ic special Ar progname Ic lib Ar library-name ...
 Specifies libraries to be linked with object files to produce

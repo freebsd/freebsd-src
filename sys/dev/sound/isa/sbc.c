@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Seigo Tanimura
  * All rights reserved.
  *
@@ -97,20 +99,6 @@ static int release_resource(struct sbc_softc *scp);
 static devclass_t sbc_devclass;
 
 static int io_range[3] = {0x10, 0x2, 0x4};
-
-#ifdef PC98 /* I/O address table for PC98 */
-static bus_addr_t pcm_iat[] = {
-	0x000, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x700,
-	0x800, 0x900, 0xa00, 0xb00, 0xc00, 0xd00, 0xe00, 0xf00
-};
-static bus_addr_t midi_iat[] = {
-	0x000, 0x100
-};
-static bus_addr_t opl_iat[] = {
-	0x000, 0x100, 0x200, 0x300
-};
-static bus_addr_t *sb_iat[] = { pcm_iat, midi_iat, opl_iat };
-#endif
 
 static int sb_rd(struct resource *io, int reg);
 static void sb_wr(struct resource *io, int reg, u_int8_t val);
@@ -297,17 +285,9 @@ sbc_probe(device_t dev)
 		int rid = 0, ver;
 	    	struct resource *io;
 
-#ifdef PC98
-		io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
-					 pcm_iat, 16, RF_ACTIVE);
-#else
 		io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
 						 16, RF_ACTIVE);
-#endif
 		if (!io) goto bad;
-#ifdef PC98
-		isa_load_resourcev(io, pcm_iat, 16);
-#endif
     		if (sb_reset_dsp(io)) goto bad2;
 		ver = sb_identify_board(io);
 		if (ver == 0) goto bad2;
@@ -399,20 +379,6 @@ sbc_attach(device_t dev)
 		/* soft irq/dma configuration */
 		x = -1;
 		irq = rman_get_start(scp->irq[0]);
-#ifdef PC98
-		/* SB16 in PC98 use different IRQ table */
-		if	(irq == 3) x = 1;
-		else if (irq == 5) x = 8;
-		else if (irq == 10) x = 2;
-		else if (irq == 12) x = 4;
-		if (x == -1) {
-			err = "bad irq (3/5/10/12 valid)";
-			goto bad;
-		}
-		else sb_setmixer(scp->io[0], IRQ_NR, x);
-		/* SB16 in PC98 use different dma setting */
-		sb_setmixer(scp->io[0], DMA_NR, dh == 0 ? 1 : 2);
-#else
 		if      (irq == 5) x = 2;
 		else if (irq == 7) x = 4;
 		else if (irq == 9) x = 1;
@@ -423,7 +389,6 @@ sbc_attach(device_t dev)
 		}
 		else sb_setmixer(scp->io[0], IRQ_NR, x);
 		sb_setmixer(scp->io[0], DMA_NR, (1 << dh) | (1 << dl));
-#endif
 		if (bootverbose) {
 			device_printf(dev, "setting card to irq %d, drq %d", irq, dl);
 			if (dl != dh) printf(", %d", dh);
@@ -578,22 +543,13 @@ sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct sbc_softc *scp;
 	int *alloced, rid_max, alloced_max;
 	struct resource **res;
-#ifdef PC98
-	int i;
-#endif
 
 	scp = device_get_softc(bus);
 	switch (type) {
 	case SYS_RES_IOPORT:
 		alloced = scp->io_alloced;
 		res = scp->io;
-#ifdef PC98
-		rid_max = 0;
-		for (i = 0; i < IO_MAX; i++)
-			rid_max += io_range[i];
-#else
 		rid_max = IO_MAX - 1;
-#endif
 		alloced_max = 1;
 		break;
 	case SYS_RES_DRQ:
@@ -694,26 +650,12 @@ alloc_resource(struct sbc_softc *scp)
 
 	for (i = 0 ; i < IO_MAX ; i++) {
 		if (scp->io[i] == NULL) {
-#ifdef PC98
-			scp->io_rid[i] = i > 0 ?
-				scp->io_rid[i - 1] + io_range[i - 1] : 0;
-			scp->io[i] = isa_alloc_resourcev(scp->dev,
-							 SYS_RES_IOPORT,
-							 &scp->io_rid[i],
-							 sb_iat[i],
-							 io_range[i],
-							 RF_ACTIVE);
-			if (scp->io[i] != NULL)
-				isa_load_resourcev(scp->io[i], sb_iat[i],
-						   io_range[i]);
-#else
 			scp->io_rid[i] = i;
 			scp->io[i] = bus_alloc_resource_anywhere(scp->dev,
 								 SYS_RES_IOPORT,
 								 &scp->io_rid[i],
 								io_range[i],
 								RF_ACTIVE);
-#endif
 			if (i == 0 && scp->io[i] == NULL)
 				return (1);
 			scp->io_alloced[i] = 0;
@@ -808,3 +750,4 @@ DRIVER_MODULE(snd_sbc, isa, sbc_driver, sbc_devclass, 0, 0);
 DRIVER_MODULE(snd_sbc, acpi, sbc_driver, sbc_devclass, 0, 0);
 MODULE_DEPEND(snd_sbc, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_sbc, 1);
+ISA_PNP_INFO(sbc_ids);

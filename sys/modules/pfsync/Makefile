@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../netpfil/pf
+.PATH: ${SRCTOP}/sys/netpfil/pf
 
 KMOD=	pfsync
 SRCS=	if_pfsync.c \
-	opt_pf.h opt_inet.h opt_inet6.h
+	opt_pf.h opt_inet.h opt_inet6.h opt_global.h
 SRCS+=	bus_if.h device_if.h
 
 .if !defined(KERNBUILDDIR)

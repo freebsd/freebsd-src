@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
@@ -48,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 

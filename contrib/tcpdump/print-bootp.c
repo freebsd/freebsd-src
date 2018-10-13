@@ -17,22 +17,19 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Format and print bootp packets.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: BOOTP and IPv4 DHCP printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -215,8 +212,9 @@ struct bootp {
 #define	TAG_CLIENT_GUID		((uint8_t)  97)
 #define	TAG_LDAP_URL		((uint8_t)  95)
 #define	TAG_6OVER4		((uint8_t)  96)
-#define	TAG_PRINTER_NAME	((uint8_t) 100)
-#define	TAG_MDHCP_SERVER	((uint8_t) 101)
+/* RFC 4833, TZ codes */
+#define	TAG_TZ_PCODE    	((uint8_t) 100)
+#define	TAG_TZ_TCODE    	((uint8_t) 101)
 #define	TAG_IPX_COMPAT		((uint8_t) 110)
 #define	TAG_NETINFO_PARENT	((uint8_t) 112)
 #define	TAG_NETINFO_PARENT_TAG	((uint8_t) 113)
@@ -224,6 +222,7 @@ struct bootp {
 #define	TAG_FAILOVER		((uint8_t) 115)
 #define	TAG_EXTENDED_REQUEST	((uint8_t) 126)
 #define	TAG_EXTENDED_OPTION	((uint8_t) 127)
+#define TAG_MUDURL              ((uint8_t) 161)
 
 /* DHCP Message types (values for TAG_DHCP_MESSAGE option) */
 #define DHCPDISCOVER	1
@@ -294,6 +293,7 @@ bootp_print(netdissect_options *ndo,
 	ND_PRINT((ndo, "BOOTP/DHCP, %s",
 		  tok2str(bootp_op_values, "unknown (0x%02x)", bp->bp_op)));
 
+	ND_TCHECK(bp->bp_hlen);
 	if (bp->bp_htype == 1 && bp->bp_hlen == 6 && bp->bp_op == BOOTPREQUEST) {
 		ND_TCHECK2(bp->bp_chaddr[0], 6);
 		ND_PRINT((ndo, " from %s", etheraddr_string(ndo, bp->bp_chaddr)));
@@ -322,6 +322,7 @@ bootp_print(netdissect_options *ndo,
 	if (EXTRACT_16BITS(&bp->bp_secs))
 		ND_PRINT((ndo, ", secs %d", EXTRACT_16BITS(&bp->bp_secs)));
 
+	ND_TCHECK(bp->bp_flags);
 	ND_PRINT((ndo, ", Flags [%s]",
 		  bittok2str(bootp_flag_values, "none", EXTRACT_16BITS(&bp->bp_flags))));
 	if (ndo->ndo_vflag > 1)
@@ -356,7 +357,8 @@ bootp_print(netdissect_options *ndo,
 	ND_TCHECK2(bp->bp_sname[0], 1);		/* check first char only */
 	if (*bp->bp_sname) {
 		ND_PRINT((ndo, "\n\t  sname \""));
-		if (fn_print(ndo, bp->bp_sname, ndo->ndo_snapend)) {
+		if (fn_printztn(ndo, bp->bp_sname, (u_int)sizeof bp->bp_sname,
+		    ndo->ndo_snapend)) {
 			ND_PRINT((ndo, "\""));
 			ND_PRINT((ndo, "%s", tstr + 1));
 			return;
@@ -366,7 +368,8 @@ bootp_print(netdissect_options *ndo,
 	ND_TCHECK2(bp->bp_file[0], 1);		/* check first char only */
 	if (*bp->bp_file) {
 		ND_PRINT((ndo, "\n\t  file \""));
-		if (fn_print(ndo, bp->bp_file, ndo->ndo_snapend)) {
+		if (fn_printztn(ndo, bp->bp_file, (u_int)sizeof bp->bp_file,
+		    ndo->ndo_snapend)) {
 			ND_PRINT((ndo, "\""));
 			ND_PRINT((ndo, "%s", tstr + 1));
 			return;
@@ -522,13 +525,14 @@ static const struct tok tag2str[] = {
 	{ TAG_CLIENT_GUID,	"bGUID" },	/* XXX 'b' */
 	{ TAG_LDAP_URL,		"aLDAP" },
 	{ TAG_6OVER4,		"i6o4" },
-	{ TAG_PRINTER_NAME,	"aPRTR" },
-	{ TAG_MDHCP_SERVER,	"bMDHCP" },	/* XXX 'b' */
+	{ TAG_TZ_PCODE, 	"aPOSIX-TZ" },
+	{ TAG_TZ_TCODE, 	"aTZ-Name" },
 	{ TAG_IPX_COMPAT,	"bIPX" },	/* XXX 'b' */
 	{ TAG_NETINFO_PARENT,	"iNI" },
 	{ TAG_NETINFO_PARENT_TAG, "aNITAG" },
 	{ TAG_URL,		"aURL" },
 	{ TAG_FAILOVER,		"bFAIL" },	/* XXX 'b' */
+	{ TAG_MUDURL,           "aMUD-URL" },
 	{ 0, NULL }
 };
 /* 2-byte extended tags */
@@ -999,7 +1003,7 @@ rfc1048_print(netdissect_options *ndo,
 						break;
 					}
 					if (len < suboptlen) {
-						ND_PRINT((ndo, "ERROR: malformed option"));
+						ND_PRINT((ndo, "ERROR: invalid option"));
 						bp += len;
 						len = 0;
 						break;

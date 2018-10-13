@@ -17,21 +17,20 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Frame Relay printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "ethertype.h"
 #include "llc.h"
@@ -277,7 +276,8 @@ fr_print(netdissect_options *ndo,
                         if (ethertype_print(ndo, extracted_ethertype,
                                             p+addr_len+ETHERTYPE_LEN,
                                             length-addr_len-ETHERTYPE_LEN,
-                                            length-addr_len-ETHERTYPE_LEN) == 0)
+                                            ndo->ndo_snapend-p-addr_len-ETHERTYPE_LEN,
+                                            NULL, NULL) == 0)
                                 /* ether_type not known, probably it wasn't one */
                                 ND_PRINT((ndo, "UI %02x! ", p[addr_len]));
                         else
@@ -329,11 +329,11 @@ fr_print(netdissect_options *ndo,
 	case NLPID_CLNP:
 	case NLPID_ESIS:
 	case NLPID_ISIS:
-		isoclns_print(ndo, p - 1, length + 1, length + 1); /* OSI printers need the NLPID field */
+		isoclns_print(ndo, p - 1, length + 1); /* OSI printers need the NLPID field */
 		break;
 
 	case NLPID_SNAP:
-		if (snap_print(ndo, p, length, length, 0) == 0) {
+		if (snap_print(ndo, p, length, ndo->ndo_snapend - p, NULL, NULL, 0) == 0) {
 			/* ether_type not known, print raw packet */
                         if (!ndo->ndo_eflag)
                             fr_hdr_print(ndo, length + hdr_len, hdr_len,
@@ -599,6 +599,10 @@ frf15_print(netdissect_options *ndo,
 {
     uint16_t sequence_num, flags;
 
+    if (length < 2)
+        goto trunc;
+    ND_TCHECK2(*p, 2);
+
     flags = p[0]&MFR_BEC_MASK;
     sequence_num = (p[0]&0x1e)<<7 | p[1];
 
@@ -616,7 +620,10 @@ frf15_print(netdissect_options *ndo,
  * model is end-to-end or interface based wether we want to print
  * another Q.922 header
  */
+    return;
 
+trunc:
+    ND_PRINT((ndo, "[|frf.15]"));
 }
 
 /*
@@ -684,7 +691,11 @@ static const struct tok fr_q933_msg_values[] = {
     { 0, NULL }
 };
 
-#define MSG_ANSI_LOCKING_SHIFT	0x95
+#define IE_IS_SINGLE_OCTET(iecode)	((iecode) & 0x80)
+#define IE_IS_SHIFT(iecode)		(((iecode) & 0xF0) == 0x90)
+#define IE_SHIFT_IS_NON_LOCKING(iecode)	((iecode) & 0x08)
+#define IE_SHIFT_IS_LOCKING(iecode)	(!(IE_SHIFT_IS_NON_LOCKING(iecode)))
+#define IE_SHIFT_CODESET(iecode)	((iecode) & 0x07)
 
 #define FR_LMI_ANSI_REPORT_TYPE_IE	0x01
 #define FR_LMI_ANSI_LINK_VERIFY_IE_91	0x19 /* details? */
@@ -695,7 +706,7 @@ static const struct tok fr_q933_msg_values[] = {
 #define FR_LMI_CCITT_LINK_VERIFY_IE	0x53
 #define FR_LMI_CCITT_PVC_STATUS_IE	0x57
 
-static const struct tok fr_q933_ie_values_codeset5[] = {
+static const struct tok fr_q933_ie_values_codeset_0_5[] = {
     { FR_LMI_ANSI_REPORT_TYPE_IE, "ANSI Report Type" },
     { FR_LMI_ANSI_LINK_VERIFY_IE_91, "ANSI Link Verify" },
     { FR_LMI_ANSI_LINK_VERIFY_IE, "ANSI Link Verify" },
@@ -717,14 +728,14 @@ static const struct tok fr_lmi_report_type_ie_values[] = {
     { 0, NULL }
 };
 
-/* array of 16 codepages - currently we only support codepage 1,5 */
+/* array of 16 codesets - currently we only support codepage 0 and 5 */
 static const struct tok *fr_q933_ie_codesets[] = {
-    NULL,
-    fr_q933_ie_values_codeset5,
-    NULL,
+    fr_q933_ie_values_codeset_0_5,
     NULL,
     NULL,
-    fr_q933_ie_values_codeset5,
+    NULL,
+    NULL,
+    fr_q933_ie_values_codeset_0_5,
     NULL,
     NULL,
     NULL,
@@ -737,20 +748,20 @@ static const struct tok *fr_q933_ie_codesets[] = {
     NULL
 };
 
-static int fr_q933_print_ie_codeset5(netdissect_options *ndo,
-    const struct ie_tlv_header_t  *ie_p, const u_char *p);
+static int fr_q933_print_ie_codeset_0_5(netdissect_options *ndo, u_int iecode,
+    u_int ielength, const u_char *p);
 
-typedef int (*codeset_pr_func_t)(netdissect_options *,
-    const struct ie_tlv_header_t  *ie_p, const u_char *p);
+typedef int (*codeset_pr_func_t)(netdissect_options *, u_int iecode,
+    u_int ielength, const u_char *p);
 
-/* array of 16 codepages - currently we only support codepage 1,5 */
+/* array of 16 codesets - currently we only support codepage 0 and 5 */
 static const codeset_pr_func_t fr_q933_print_ie_codeset[] = {
-    NULL,
-    fr_q933_print_ie_codeset5,
-    NULL,
+    fr_q933_print_ie_codeset_0_5,
     NULL,
     NULL,
-    fr_q933_print_ie_codeset5,
+    NULL,
+    NULL,
+    fr_q933_print_ie_codeset_0_5,
     NULL,
     NULL,
     NULL,
@@ -763,121 +774,316 @@ static const codeset_pr_func_t fr_q933_print_ie_codeset[] = {
     NULL
 };
 
+/*
+ * ITU-T Q.933.
+ *
+ * p points to octet 2, the octet containing the length of the
+ * call reference value, so p[n] is octet n+2 ("octet X" is as
+ * used in Q.931/Q.933).
+ *
+ * XXX - actually used both for Q.931 and Q.933.
+ */
 void
 q933_print(netdissect_options *ndo,
            const u_char *p, u_int length)
 {
-	const u_char *ptemp = p;
-	struct ie_tlv_header_t  *ie_p;
-        int olen;
-	int is_ansi = 0;
-        u_int codeset;
-        u_int ie_is_known = 0;
+	u_int olen;
+	u_int call_ref_length, i;
+	uint8_t call_ref[15];	/* maximum length - length field is 4 bits */
+	u_int msgtype;
+	u_int iecode;
+	u_int ielength;
+	u_int codeset = 0;
+	u_int is_ansi = 0;
+	u_int ie_is_known;
+	u_int non_locking_shift;
+	u_int unshift_codeset;
 
-	if (length < 9) {	/* shortest: Q.933a LINK VERIFY */
-		ND_PRINT((ndo, "[|q.933]"));
-		return;
+	ND_PRINT((ndo, "%s", ndo->ndo_eflag ? "" : "Q.933"));
+
+	if (length == 0 || !ND_TTEST(*p)) {
+		if (!ndo->ndo_eflag)
+			ND_PRINT((ndo, ", "));
+		ND_PRINT((ndo, "length %u", length));
+		goto trunc;
 	}
 
-        codeset = p[2]&0x0f;   /* extract the codeset */
+	/*
+	 * Get the length of the call reference value.
+	 */
+	olen = length; /* preserve the original length for display */
+	call_ref_length = (*p) & 0x0f;
+	p++;
+	length--;
 
-	if (p[2] == MSG_ANSI_LOCKING_SHIFT) {
-	        is_ansi = 1;
+	/*
+	 * Get the call reference value.
+	 */
+	for (i = 0; i < call_ref_length; i++) {
+		if (length == 0 || !ND_TTEST(*p)) {
+			if (!ndo->ndo_eflag)
+				ND_PRINT((ndo, ", "));
+			ND_PRINT((ndo, "length %u", olen));
+			goto trunc;
+		}
+		call_ref[i] = *p;
+		p++;
+		length--;
 	}
 
-        ND_PRINT((ndo, "%s", ndo->ndo_eflag ? "" : "Q.933, "));
+	/*
+	 * Get the message type.
+	 */
+	if (length == 0 || !ND_TTEST(*p)) {
+		if (!ndo->ndo_eflag)
+			ND_PRINT((ndo, ", "));
+		ND_PRINT((ndo, "length %u", olen));
+		goto trunc;
+	}
+	msgtype = *p;
+	p++;
+	length--;
+
+	/*
+	 * Peek ahead to see if we start with a shift.
+	 */
+	non_locking_shift = 0;
+	unshift_codeset = codeset;
+	if (length != 0) {
+		if (!ND_TTEST(*p)) {
+			if (!ndo->ndo_eflag)
+				ND_PRINT((ndo, ", "));
+			ND_PRINT((ndo, "length %u", olen));
+			goto trunc;
+		}
+		iecode = *p;
+		if (IE_IS_SHIFT(iecode)) {
+			/*
+			 * It's a shift.  Skip over it.
+			 */
+			p++;
+			length--;
+
+			/*
+			 * Get the codeset.
+			 */
+			codeset = IE_SHIFT_CODESET(iecode);
+
+			/*
+			 * If it's a locking shift to codeset 5,
+			 * mark this as ANSI.  (XXX - 5 is actually
+			 * for national variants in general, not
+			 * the US variant in particular, but maybe
+			 * this is more American exceptionalism. :-))
+			 */
+			if (IE_SHIFT_IS_LOCKING(iecode)) {
+				/*
+				 * It's a locking shift.
+				 */
+				if (codeset == 5) {
+					/*
+					 * It's a locking shift to
+					 * codeset 5, so this is
+					 * T1.617 Annex D.
+					 */
+					is_ansi = 1;
+				}
+			} else {
+				/*
+				 * It's a non-locking shift.
+				 * Remember the current codeset, so we
+				 * can revert to it after the next IE.
+				 */
+				non_locking_shift = 1;
+				unshift_codeset = 0;
+			}
+		}
+	}
 
 	/* printing out header part */
+	if (!ndo->ndo_eflag)
+		ND_PRINT((ndo, ", "));
 	ND_PRINT((ndo, "%s, codeset %u", is_ansi ? "ANSI" : "CCITT", codeset));
 
-	if (p[0]) {
-	        ND_PRINT((ndo, ", Call Ref: 0x%02x", p[0]));
+	if (call_ref_length != 0) {
+		ND_TCHECK(p[0]);
+		if (call_ref_length > 1 || p[0] != 0) {
+			/*
+			 * Not a dummy call reference.
+			 */
+			ND_PRINT((ndo, ", Call Ref: 0x"));
+			for (i = 0; i < call_ref_length; i++)
+				ND_PRINT((ndo, "%02x", call_ref[i]));
+		}
 	}
-        if (ndo->ndo_vflag) {
-                ND_PRINT((ndo, ", %s (0x%02x), length %u",
+	if (ndo->ndo_vflag) {
+		ND_PRINT((ndo, ", %s (0x%02x), length %u",
+		   tok2str(fr_q933_msg_values,
+			"unknown message", msgtype),
+		   msgtype,
+		   olen));
+	} else {
+		ND_PRINT((ndo, ", %s",
 		       tok2str(fr_q933_msg_values,
-			       "unknown message", p[1]),
-		       p[1],
-		       length));
-        } else {
-                ND_PRINT((ndo, ", %s",
-		       tok2str(fr_q933_msg_values,
-			       "unknown message 0x%02x", p[1])));
+			       "unknown message 0x%02x", msgtype)));
 	}
 
-        olen = length; /* preserve the original length for non verbose mode */
+	/* Loop through the rest of the IEs */
+	while (length != 0) {
+		/*
+		 * What's the state of any non-locking shifts?
+		 */
+		if (non_locking_shift == 1) {
+			/*
+			 * There's a non-locking shift in effect for
+			 * this IE.  Count it, so we reset the codeset
+			 * before the next IE.
+			 */
+			non_locking_shift = 2;
+		} else if (non_locking_shift == 2) {
+			/*
+			 * Unshift.
+			 */
+			codeset = unshift_codeset;
+			non_locking_shift = 0;
+		}
 
-	if (length < (u_int)(2 - is_ansi)) {
-		ND_PRINT((ndo, "[|q.933]"));
-		return;
+		/*
+		 * Get the first octet of the IE.
+		 */
+		if (!ND_TTEST(*p)) {
+			if (!ndo->ndo_vflag) {
+				ND_PRINT((ndo, ", length %u", olen));
+			}
+			goto trunc;
+		}
+		iecode = *p;
+		p++;
+		length--;
+
+		/* Single-octet IE? */
+		if (IE_IS_SINGLE_OCTET(iecode)) {
+			/*
+			 * Yes.  Is it a shift?
+			 */
+			if (IE_IS_SHIFT(iecode)) {
+				/*
+				 * Yes.  Is it locking?
+				 */
+				if (IE_SHIFT_IS_LOCKING(iecode)) {
+					/*
+					 * Yes.
+					 */
+					non_locking_shift = 0;
+				} else {
+					/*
+					 * No.  Remember the current
+					 * codeset, so we can revert
+					 * to it after the next IE.
+					 */
+					non_locking_shift = 1;
+					unshift_codeset = codeset;
+				}
+
+				/*
+				 * Get the codeset.
+				 */
+				codeset = IE_SHIFT_CODESET(iecode);
+			}
+		} else {
+			/*
+			 * No.  Get the IE length.
+			 */
+			if (length == 0 || !ND_TTEST(*p)) {
+				if (!ndo->ndo_vflag) {
+					ND_PRINT((ndo, ", length %u", olen));
+				}
+				goto trunc;
+			}
+			ielength = *p;
+			p++;
+			length--;
+
+			/* lets do the full IE parsing only in verbose mode
+			 * however some IEs (DLCI Status, Link Verify)
+			 * are also interesting in non-verbose mode */
+			if (ndo->ndo_vflag) {
+				ND_PRINT((ndo, "\n\t%s IE (0x%02x), length %u: ",
+				    tok2str(fr_q933_ie_codesets[codeset],
+					"unknown", iecode),
+				    iecode,
+				    ielength));
+			}
+
+			/* sanity checks */
+			if (iecode == 0 || ielength == 0) {
+				return;
+			}
+			if (length < ielength || !ND_TTEST2(*p, ielength)) {
+				if (!ndo->ndo_vflag) {
+					ND_PRINT((ndo, ", length %u", olen));
+				}
+				goto trunc;
+			}
+
+			ie_is_known = 0;
+			if (fr_q933_print_ie_codeset[codeset] != NULL) {
+				ie_is_known = fr_q933_print_ie_codeset[codeset](ndo, iecode, ielength, p);
+			}
+
+			if (ie_is_known) {
+				/*
+				 * Known IE; do we want to see a hexdump
+				 * of it?
+				 */
+				if (ndo->ndo_vflag > 1) {
+					/* Yes. */
+					print_unknown_data(ndo, p, "\n\t  ", ielength);
+				}
+			} else {
+				/*
+				 * Unknown IE; if we're printing verbosely,
+				 * print its content in hex.
+				 */
+				if (ndo->ndo_vflag >= 1) {
+					print_unknown_data(ndo, p, "\n\t", ielength);
+				}
+			}
+
+			length -= ielength;
+			p += ielength;
+		}
 	}
-	length -= 2 + is_ansi;
-	ptemp += 2 + is_ansi;
-
-	/* Loop through the rest of IE */
-	while (length > sizeof(struct ie_tlv_header_t)) {
-		ie_p = (struct ie_tlv_header_t  *)ptemp;
-		if (length < sizeof(struct ie_tlv_header_t) ||
-		    length < sizeof(struct ie_tlv_header_t) + ie_p->ie_len) {
-                    if (ndo->ndo_vflag) { /* not bark if there is just a trailer */
-                        ND_PRINT((ndo, "\n[|q.933]"));
-                    } else {
-                        ND_PRINT((ndo, ", length %u", olen));
-		    }
-                    return;
-		}
-
-                /* lets do the full IE parsing only in verbose mode
-                 * however some IEs (DLCI Status, Link Verify)
-                 * are also interestting in non-verbose mode */
-                if (ndo->ndo_vflag) {
-                    ND_PRINT((ndo, "\n\t%s IE (0x%02x), length %u: ",
-                           tok2str(fr_q933_ie_codesets[codeset],
-				   "unknown", ie_p->ie_type),
-                           ie_p->ie_type,
-                           ie_p->ie_len));
-		}
-
-                /* sanity check */
-                if (ie_p->ie_type == 0 || ie_p->ie_len == 0) {
-                    return;
-		}
-
-                if (fr_q933_print_ie_codeset[codeset] != NULL) {
-                    ie_is_known = fr_q933_print_ie_codeset[codeset](ndo, ie_p, ptemp);
-		}
-
-                if (ndo->ndo_vflag >= 1 && !ie_is_known) {
-                    print_unknown_data(ndo, ptemp+2, "\n\t", ie_p->ie_len);
-		}
-
-                /* do we want to see a hexdump of the IE ? */
-                if (ndo->ndo_vflag> 1 && ie_is_known) {
-                    print_unknown_data(ndo, ptemp+2, "\n\t  ", ie_p->ie_len);
-		}
-
-		length = length - ie_p->ie_len - 2;
-		ptemp = ptemp + ie_p->ie_len + 2;
+	if (!ndo->ndo_vflag) {
+	    ND_PRINT((ndo, ", length %u", olen));
 	}
-        if (!ndo->ndo_vflag) {
-            ND_PRINT((ndo, ", length %u", olen));
-	}
+	return;
+
+trunc:
+	ND_PRINT((ndo, "[|q.933]"));
 }
 
 static int
-fr_q933_print_ie_codeset5(netdissect_options *ndo,
-                          const struct ie_tlv_header_t  *ie_p, const u_char *p)
+fr_q933_print_ie_codeset_0_5(netdissect_options *ndo, u_int iecode,
+                          u_int ielength, const u_char *p)
 {
         u_int dlci;
 
-        switch (ie_p->ie_type) {
+        switch (iecode) {
 
         case FR_LMI_ANSI_REPORT_TYPE_IE: /* fall through */
         case FR_LMI_CCITT_REPORT_TYPE_IE:
+            if (ielength < 1) {
+                if (!ndo->ndo_vflag) {
+                    ND_PRINT((ndo, ", "));
+	        }
+                ND_PRINT((ndo, "Invalid REPORT TYPE IE"));
+                return 1;
+            }
             if (ndo->ndo_vflag) {
                 ND_PRINT((ndo, "%s (%u)",
-                       tok2str(fr_lmi_report_type_ie_values,"unknown",p[2]),
-                       p[2]));
+                       tok2str(fr_lmi_report_type_ie_values,"unknown",p[0]),
+                       p[0]));
 	    }
             return 1;
 
@@ -887,7 +1093,11 @@ fr_q933_print_ie_codeset5(netdissect_options *ndo,
             if (!ndo->ndo_vflag) {
                 ND_PRINT((ndo, ", "));
 	    }
-            ND_PRINT((ndo, "TX Seq: %3d, RX Seq: %3d", p[2], p[3]));
+            if (ielength < 2) {
+                ND_PRINT((ndo, "Invalid LINK VERIFY IE"));
+                return 1;
+            }
+            ND_PRINT((ndo, "TX Seq: %3d, RX Seq: %3d", p[0], p[1]));
             return 1;
 
         case FR_LMI_ANSI_PVC_STATUS_IE: /* fall through */
@@ -896,28 +1106,29 @@ fr_q933_print_ie_codeset5(netdissect_options *ndo,
                 ND_PRINT((ndo, ", "));
 	    }
             /* now parse the DLCI information element. */
-            if ((ie_p->ie_len < 3) ||
-                (p[2] & 0x80) ||
-                ((ie_p->ie_len == 3) && !(p[3] & 0x80)) ||
-                ((ie_p->ie_len == 4) && ((p[3] & 0x80) || !(p[4] & 0x80))) ||
-                ((ie_p->ie_len == 5) && ((p[3] & 0x80) || (p[4] & 0x80) ||
-                                   !(p[5] & 0x80))) ||
-                (ie_p->ie_len > 5) ||
-                !(p[ie_p->ie_len + 1] & 0x80)) {
-                ND_PRINT((ndo, "Invalid DLCI IE"));
+            if ((ielength < 3) ||
+                (p[0] & 0x80) ||
+                ((ielength == 3) && !(p[1] & 0x80)) ||
+                ((ielength == 4) && ((p[1] & 0x80) || !(p[2] & 0x80))) ||
+                ((ielength == 5) && ((p[1] & 0x80) || (p[2] & 0x80) ||
+                                   !(p[3] & 0x80))) ||
+                (ielength > 5) ||
+                !(p[ielength - 1] & 0x80)) {
+                ND_PRINT((ndo, "Invalid DLCI in PVC STATUS IE"));
+                return 1;
 	    }
 
-            dlci = ((p[2] & 0x3F) << 4) | ((p[3] & 0x78) >> 3);
-            if (ie_p->ie_len == 4) {
-                dlci = (dlci << 6) | ((p[4] & 0x7E) >> 1);
+            dlci = ((p[0] & 0x3F) << 4) | ((p[1] & 0x78) >> 3);
+            if (ielength == 4) {
+                dlci = (dlci << 6) | ((p[2] & 0x7E) >> 1);
 	    }
-            else if (ie_p->ie_len == 5) {
-                dlci = (dlci << 13) | (p[4] & 0x7F) | ((p[5] & 0x7E) >> 1);
+            else if (ielength == 5) {
+                dlci = (dlci << 13) | (p[2] & 0x7F) | ((p[3] & 0x7E) >> 1);
 	    }
 
             ND_PRINT((ndo, "DLCI %u: status %s%s", dlci,
-                    p[ie_p->ie_len + 1] & 0x8 ? "New, " : "",
-                    p[ie_p->ie_len + 1] & 0x2 ? "Active" : "Inactive"));
+                    p[ielength - 1] & 0x8 ? "New, " : "",
+                    p[ielength - 1] & 0x2 ? "Active" : "Inactive"));
             return 1;
 	}
 

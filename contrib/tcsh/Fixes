@@ -1,3 +1,96 @@
+ 22. Fix type of read in prompt confirmation (eg. rmstar) (David Kaspar)
+ 20. V6.20.00 - 20161124
+ 19. Don't resize the screen if it did not change size.
+ 18. V6.19.01 - 20161025
+ 17. restore file description when cleaning up after eval:
+	repeat 99 time
+ 16. PR/572: Fix $SHLVL issue when exec'ing subshells.
+ 15. PR/403: Fix backquote expansion for multi-byte character sets.
+ 14. Fix drawing issu with multi-line prompt (Kensuke Iwahashi/David Kaspar)
+ 13. always send prusage to stdout.
+ 12. PR/526: Fix double \\ printing from previous fix in history expansion.
+ 11. Android updates from Corinna Vinschen
+ 10. PR/526: Quote backslashes properly so they can be preserved in ``
+     expansions
+  9. Fix memory leak for paraml
+  8. Add notempty and ask values for the noclobber setting (Martin Tournoij)
+  7. more correct $wordchars for vimode (Luke Mewburn)
+  6. expose VImode in $vimode (Luke Mewburn)
+  5. display what the compiled in editor is in bindkey -d (Luke Mewburn)
+  4. run-fg-editor improvements and documentation (Luke Mewburn)
+  3. Fix parsing of 'if (cond)then' (Fridolin Pokorny)
+  2. PR/437: Fix handling of invalid unicode characters.
+  1. PR/451: Fix error messages containing %c to be always '%c'
+
+ 41. V6.19.00 - 20150521
+ 40. V6.18.05 - 20150510
+ 39. fix reseting when interrupted inside an eval "eval sleep 10^C"
+     (paulo.cesar.pereira.de.andrade)
+ 38. rename handle_intr -> handle_interrupt as originally intended.
+ 37. fix input tests that need stdin on a tty
+ 36. V6.18.04 - 20150504
+ 35. revert fix echo "\1", it is incorrect.
+ 34. revert fix to PR/437, breaks short strings.
+ 33. V6.18.03 - 20150503
+ 32. PR/437: Nakajima Akira: Fix segmentation fault reading input files
+ 31. PR/291: Print job status messages to stderr.
+ 30. Fridolin Pokorny NUL in `` does not mean EOF.
+ 29. Pavel Raiskup fix hang with:
+	while (1)
+	   ( date & ; wait )
+        end
+ 28. Add cdtohome special variable (Martin Tournoij)
+ 27. Fix root prompt char for windows (Corinna Vinschen)
+ 26. For "next" completion matches only consider exact matches of the previous
+     word (Jamie Landeg-Jones)
+ 25. Fix echo "\1" for echo_style=both where the first character was
+     not processed properly (Gary Duzan)
+ 24. V6.18.02 - 20140618
+ 23. fix ls-F /non printing exit value twice.
+ 22. rename configure.in to configure.ac, add aclocal.m4 to CVS
+ 21. set foo="aabaabaa"; echo $foo:as/a// should produce bb
+ 20. Add locked merge history support (Marcin Konarski)
+ 19. Support more resource limits from various BSD's
+ 18. Cache history count to speed up thing
+ 17. PR/240: minix support 
+ 16. revert fix for 15. Causes extra quoting, for example (foo is a program
+     that prints its arguments):
+	$ ./foo 'abc' *
+	'\a\b\c'
+ 15. fix globbing for ``, stripping backslashes. Example:
+	cat << _EOF > huh
+	echo 'hello\;world'
+        _EOF
+	echo `./huh 0`
+	echo `./huh $?`
+ 14. fix for `` that causes hang. Example:
+	cat << _EOF > huh
+	#!/bin/sh
+	echo "[$@]"
+	echo "I am running"
+	echo "I am running ($$)" >> huh.out
+	_EOF
+	cat << _EOF > huh.tcsh
+	#!/bin/tcsh -f
+
+	./huh \
+	    `#comment blah blah blah` \
+	    parameter a \
+	    `#comment blah blah blah` \
+	    parameter b \
+	    `#comment blah blah blah` \
+	    parameter c
+	echo ok
+	_EOF
+ 13. remove AsciiOnly fix now that the real issue has been fixed (Roman Kollar)
+ 12. define utmp file for aix (Laurence Darby)
+ 11. fix if history in loops
+ 10. make ls-F print to stderr and set the exit code
+  9. make rmstar interruptible on linux
+  8. Get rid of pret_t and make the printf functions return the number of
+     characters printed as the system ones do.
+  7. Parse a FreeBSD compat $LSCOLORS. What to do when both LSCOLORS and
+     LS_COLORS are set. I am not documenting this until we decide.
   6. V6.18.01 - 20120214
   5. fix interruptible wait again
   4. ignore bogus compiler overflow message

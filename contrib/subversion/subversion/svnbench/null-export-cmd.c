@@ -165,6 +165,15 @@ close_file(void *file_baton,
   return SVN_NO_ERROR;
 }
 
+/* Implement svn_write_fn_t, simply counting the incoming data. */
+static svn_error_t *
+file_write_handler(void *baton, const char *data, apr_size_t *len)
+{
+  edit_baton_t *eb = baton;
+  eb->byte_count += *len;
+
+  return SVN_NO_ERROR;
+}
 
 /*** Public Interfaces ***/
 
@@ -198,6 +207,7 @@ bench_null_export(svn_revnum_t *result_rev,
       svn_client__pathrev_t *loc;
       svn_ra_session_t *ra_session;
       svn_node_kind_t kind;
+      edit_baton_t *eb = baton;
 
       /* Get the RA connection. */
       SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &loc,
@@ -211,6 +221,11 @@ bench_null_export(svn_revnum_t *result_rev,
         {
           apr_hash_t *props;
 
+          /* Since we don't use the editor, we must count "manually". */
+          svn_stream_t *stream = svn_stream_create(eb, pool);
+          svn_stream_set_write(stream, file_write_handler);
+          eb->file_count++;
+
           /* Since you cannot actually root an editor at a file, we
            * manually drive a few functions of our editor. */
 
@@ -218,8 +233,7 @@ bench_null_export(svn_revnum_t *result_rev,
            * to the repository. */
           /* ### note: the stream will not be closed */
           SVN_ERR(svn_ra_get_file(ra_session, "", loc->rev,
-                                  svn_stream_empty(pool),
-                                  NULL, &props, pool));
+                                  stream, NULL, &props, pool));
         }
       else if (kind == svn_node_dir)
         {
@@ -268,6 +282,10 @@ bench_null_export(svn_revnum_t *result_rev,
                                      NULL, pool));
 
           SVN_ERR(reporter->finish_report(report_baton, pool));
+
+          /* We don't receive the "add directory" callback for the starting
+           * node. */
+          eb->dir_count++;
         }
       else if (kind == svn_node_none)
         {

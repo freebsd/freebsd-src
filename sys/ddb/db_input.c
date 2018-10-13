@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -195,6 +197,7 @@ db_inputchar(c)
 		    db_delete(1, DEL_FWD);
 		break;
 	    case CTRL('u'):
+	    case CTRL('c'):
 		/* kill entire line: */
 		/* at first, delete to beginning of line */
 		if (db_lc > db_lbuf_start)
@@ -215,6 +218,19 @@ db_inputchar(c)
 		    cnputc(BACKUP);
 		    cnputc(db_lc[-2]);
 		    cnputc(db_lc[-1]);
+		}
+		break;
+	    case CTRL('w'):
+		/* erase previous word */
+		for (; db_lc > db_lbuf_start;) {
+		    if (*(db_lc - 1) != ' ')
+			break;
+		    db_delete(1, DEL_BWD);
+		}
+		for (; db_lc > db_lbuf_start;) {
+		    if (*(db_lc - 1) == ' ')
+			break;
+		    db_delete(1, DEL_BWD);
 		}
 		break;
 	    case CTRL('r'):

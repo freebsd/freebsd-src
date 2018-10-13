@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *       Copyright (c) 1997 by Simon Shapiro
  *       All Rights Reserved
  *
@@ -49,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #define _DPT_C_
 
 #include "opt_dpt.h"
-#include "opt_eisa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -79,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/dpt/dpt.h>
 
-/* dpt_isa.c, dpt_eisa.c, and dpt_pci.c need this in a central place */
+/* dpt_isa.c, and dpt_pci.c need this in a central place */
 devclass_t	dpt_devclass;
 
 #define microtime_now dpt_time_now()
@@ -107,9 +108,6 @@ devclass_t	dpt_devclass;
 /* ================= Private Inline Function declarations ===================*/
 static __inline int		dpt_just_reset(dpt_softc_t * dpt);
 static __inline int		dpt_raid_busy(dpt_softc_t * dpt);
-#ifdef DEV_EISA
-static __inline int		dpt_pio_wait (u_int32_t, u_int, u_int, u_int);
-#endif
 static __inline int		dpt_wait(dpt_softc_t *dpt, u_int bits,
 					 u_int state);
 static __inline struct dpt_ccb* dptgetccb(struct dpt_softc *dpt);
@@ -184,24 +182,6 @@ dpt_raid_busy(dpt_softc_t * dpt)
 	else
 		return (0);
 }
-
-#ifdef DEV_EISA
-static __inline int
-dpt_pio_wait (u_int32_t base, u_int reg, u_int bits, u_int state)
-{
-	int   i;
-	u_int c;
-
-	for (i = 0; i < 20000; i++) {	/* wait 20ms for not busy */
-		c = inb(base + reg) & bits;
-		if (!(c == state))
-			return (0);
-		else
-			DELAY(50);
-	}
-	return (-1);
-}
-#endif
 
 static __inline int
 dpt_wait(dpt_softc_t *dpt, u_int bits, u_int state)
@@ -391,96 +371,6 @@ dptallocccbs(dpt_softc_t *dpt)
 	}
 	return (i);
 }
-
-#ifdef DEV_EISA
-dpt_conf_t *
-dpt_pio_get_conf (u_int32_t base)
-{
-	static dpt_conf_t *	conf;
-	u_int16_t *		p;
-	int			i;
-
-	/*
-	 * Allocate a dpt_conf_t
-	 */
-	if (!conf) {
-		conf = (dpt_conf_t *)malloc(sizeof(dpt_conf_t),
-						 M_DEVBUF, M_NOWAIT | M_ZERO);
-	}
-	
-	/*
-	 * If we didn't get one then we probably won't ever get one.
-	 */
-	if (!conf) {
-		printf("dpt: unable to allocate dpt_conf_t\n");
-		return (NULL);
-	}
-
-	/*
-	 * Reset the controller.
-	 */
-	outb((base + HA_WCOMMAND), EATA_CMD_RESET);
-
-	/*
-	 * Wait for the controller to become ready.
-	 * For some reason there can be -no- delays after calling reset
-	 * before we wait on ready status.
-	 */
-	if (dpt_pio_wait(base, HA_RSTATUS, HA_SBUSY, 0)) {
-		printf("dpt: timeout waiting for controller to become ready\n");
-		return (NULL);
-	}
-
-	if (dpt_pio_wait(base, HA_RAUXSTAT, HA_ABUSY, 0)) {
-		printf("dpt: timetout waiting for adapter ready.\n");
-		return (NULL);
-	}
-
-	/*
-	 * Send the PIO_READ_CONFIG command.
-	 */
-	outb((base + HA_WCOMMAND), EATA_CMD_PIO_READ_CONFIG);
-
-	/*
-	 * Read the data into the struct.
-	 */
-	p = (u_int16_t *)conf;
-	for (i = 0; i < (sizeof(dpt_conf_t) / 2); i++) {
-
-		if (dpt_pio_wait(base, HA_RSTATUS, HA_SDRQ, 0)) {
-			if (bootverbose)
-				printf("dpt: timeout in data read.\n");
-			return (NULL);
-		}
-
-		(*p) = inw(base + HA_RDATA);
-		p++;
-	}
-
-	if (inb(base + HA_RSTATUS) & HA_SERROR) {
-		if (bootverbose)
-			printf("dpt: error reading configuration data.\n");
-		return (NULL);
-	}
-
-#define BE_EATA_SIGNATURE	0x45415441
-#define LE_EATA_SIGNATURE	0x41544145
-
-	/*
-	 * Test to see if we have a valid card.
-	 */
-	if ((conf->signature == BE_EATA_SIGNATURE) ||
-	    (conf->signature == LE_EATA_SIGNATURE)) {
-
-		while (inb(base + HA_RSTATUS) & HA_SDRQ) {
- 			inw(base + HA_RDATA);
-		}
-
-		return (conf);
-	}
-	return (NULL);
-}
-#endif
 
 /*
  * Read a configuration page into the supplied dpt_cont_t buffer.
@@ -1027,14 +917,14 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = dpt->hostid[cam_sim_bus(sim)];
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "DPT", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "DPT", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-                cpi->transport = XPORT_SPI;
-                cpi->transport_version = 2;
-                cpi->protocol = PROTO_SCSI;
-                cpi->protocol_version = SCSI_REV_2;
+		cpi->transport = XPORT_SPI;
+		cpi->transport_version = 2;
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1351,8 +1241,6 @@ dpt_init(struct dpt_softc *dpt)
 		dpt->immediate_support = 1;
 	else
 		dpt->immediate_support = 0;
-
-	dpt->broken_INQUIRY = FALSE;
 
 	dpt->cplen = ntohl(conf.cplen);
 	dpt->cppadlen = ntohs(conf.cppadlen);

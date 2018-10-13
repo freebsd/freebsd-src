@@ -33,14 +33,14 @@ ssize_t
 sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *line_nr)
 {
 	int c, prev_c;
-	int p; /* 0 -> no parenthese seen, >0 nr of ( seen */
+	int p; /* 0 -> no parentheses seen, >0 nr of ( seen */
 	int com, quoted;
 	char *t;
 	size_t i;
 	const char *d;
 	const char *del;
 
-	/* standard delimeters */
+	/* standard delimiters */
 	if (!delim) {
 		/* from isspace(3) */
 		del = LDNS_PARSE_NORMAL;
@@ -119,6 +119,10 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 			/* in parentheses */
 			if (line_nr) {
 				*line_nr = *line_nr + 1;
+			}
+			if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
+				*t = '\0';
+				return -1;
 			}
 			*t++ = ' ';
 			prev_c = c;
@@ -240,7 +244,7 @@ sldns_bget_token_par(sldns_buffer *b, char *token, const char *delim,
 	size_t limit, int* par, const char* skipw)
 {
 	int c, lc;
-	int p; /* 0 -> no parenthese seen, >0 nr of ( seen */
+	int p; /* 0 -> no parentheses seen, >0 nr of ( seen */
 	int com, quoted;
 	char *t;
 	size_t i;

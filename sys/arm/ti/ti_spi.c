@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -445,9 +444,9 @@ ti_spi_gcd(int a, int b)
 static int
 ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
-	int cs, err;
+	int err;
 	struct ti_spi_softc *sc;
-	uint32_t reg;
+	uint32_t reg, cs;
 
 	sc = device_get_softc(dev);
 
@@ -458,7 +457,10 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* Get the proper chip select for this child. */
 	spibus_get_cs(child, &cs);
-	if (cs < 0 || cs > sc->sc_numcs) {
+
+	cs &= ~SPIBUS_CS_HIGH;
+
+	if (cs > sc->sc_numcs) {
 		device_printf(dev, "Invalid chip select %d requested by %s\n",
 		    cs, device_get_nameunit(child));
 		return (EINVAL);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Michael Smith
  * All rights reserved.
  *
@@ -450,7 +452,7 @@ mlx_attach(struct mlx_softc *sc)
 	}
 	sc->mlx_enq2->me_firmware_id = ('0' << 24) | (0 << 16) | (meo->me_fwminor << 8) | meo->me_fwmajor;
 	
-	/* XXX require 2.42 or better (PCI) or 2.14 or better (EISA) */
+	/* XXX require 2.42 or better (PCI) */
 	if (meo->me_fwminor < 42) {
 	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
 	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 2.42 or later\n");

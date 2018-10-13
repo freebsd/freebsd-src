@@ -70,9 +70,6 @@ struct mprsas_target {
 	uint16_t	parent_handle;
 	uint64_t	parent_sasaddr;
 	uint32_t	parent_devinfo;
-	struct sysctl_ctx_list sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
-	TAILQ_ENTRY(mprsas_target) sysctl_link;
 	uint64_t        issued;
 	uint64_t        completed;
 	unsigned int    outstanding;
@@ -83,6 +80,8 @@ struct mprsas_target {
 	uint8_t		scsi_req_desc_type;
 	uint8_t		stop_at_shutdown;
 	uint8_t		supports_SSU;
+	uint8_t		is_nvme;
+	uint32_t	MDTS;
 };
 
 struct mprsas_softc {

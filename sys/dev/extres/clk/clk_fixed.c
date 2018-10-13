@@ -195,7 +195,7 @@ clk_fixed_init_fixed_factor(struct clk_fixed_softc *sc, phandle_t node,
 	if (rv <= 0)
 		return (ENXIO);
 	/* Get name of parent clock */
-	rv = clk_get_by_ofw_index(sc->dev, 0, &parent);
+	rv = clk_get_by_ofw_index(sc->dev, 0, 0, &parent);
 	if (rv != 0)
 		return (ENXIO);
 	def->clkdef.parent_names = malloc(sizeof(char *), M_OFWPROP, M_WAITOK);

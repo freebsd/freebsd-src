@@ -1,9 +1,10 @@
 /* Test case written by Bharat Joshi */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_fifo.c,v 1.1 2011/12/21 00:17:07 christos Exp $");
+__RCSID("$NetBSD: t_fifo.c,v 1.2 2017/01/10 22:36:29 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 #include <stdio.h>
 #include <stdlib.h>

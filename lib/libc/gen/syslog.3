@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2015
+.Dd April 12, 2018
 .Dt SYSLOG 3
 .Os
 .Sh NAME
@@ -156,6 +156,9 @@ Write the message to standard error output as well to the system log.
 .It Dv LOG_PID
 Log the process id with each message: useful for identifying
 instantiations of daemons.
+On
+.Fx ,
+this option is enabled by default.
 .El
 .Pp
 The
@@ -270,7 +273,7 @@ setlogmask(LOG_UPTO(LOG_ERR));
 
 syslog(LOG_INFO, "Connection from host %d", CallingHost);
 
-syslog(LOG_INFO|LOG_LOCAL2, "foobar error: %m");
+syslog(LOG_ERR|LOG_LOCAL2, "foobar error: %m");
 .Ed
 .Sh SEE ALSO
 .Xr logger 1 ,
@@ -292,4 +295,4 @@ for later interpolation by
 .Pp
 Always use the proper secure idiom:
 .Pp
-.Dl syslog(priority, "%s", string);
+.Dl syslog(priority, \*q%s\*q, string);

@@ -43,14 +43,18 @@ DEFINE_TEST(test_option_Z_upper)
 		if (strstr(p, "compression not available") != NULL) {
 			skipping("This version of bsdcpio was compiled "
 			    "without compress support");
+			free(p);
 			return;
 		}
 		failure("-Z option is broken");
 		assertEqualInt(r, 0);
+		free(p);
 		return;
 	}
+	free(p);
 	/* Check that the archive file has a compress signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x1f\x9d", 2);
+	free(p);
 }

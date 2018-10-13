@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2007, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
@@ -72,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #include "pmcstat_log.h"
 #include "pmcstat_top.h"
 #include "pmcpl_callgraph.h"
+
+#define	min(A,B)		((A) < (B) ? (A) : (B))
+#define	max(A,B)		((A) > (B) ? (A) : (B))
 
 /* Get the sample value in percent related to nsamples. */
 #define PMCPL_CG_COUNTP(a) \
@@ -340,7 +345,7 @@ pmcpl_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 
 	pc = cc[0];
 	pmcid = pmcr->pr_pmcid;
-	parent = pmcstat_cgnode_hash_lookup_pc(pp, pmcid, pc, usermode);
+	child = parent = pmcstat_cgnode_hash_lookup_pc(pp, pmcid, pc, usermode);
 	if (parent == NULL) {
 		pmcstat_stats.ps_callchain_dubious_frames++;
 		pmcr->pr_dubious_frames++;
@@ -379,7 +384,7 @@ pmcpl_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 			}
 		}
 		if (ppm == NULL)
-			return;
+			continue;
 
 		image = ppm->ppm_image;
 		loadaddress = ppm->ppm_lowpc + image->pi_vaddr -
@@ -468,7 +473,7 @@ pmcstat_callgraph_print(void)
 
 static void
 pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
-    int depth, uint32_t nsamples)
+    int depth __unused, uint32_t nsamples)
 {
 	int v_attrs, vs_len, ns_len, width, len, n, nchildren;
 	float v;
@@ -476,21 +481,21 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 	struct pmcstat_symbol *sym;
 	struct pmcstat_cgnode **sortbuffer, **cgn, *pcg;
 
-	(void) depth;
-
 	/* Format value. */
 	v = PMCPL_CG_COUNTP(cg);
 	snprintf(vs, sizeof(vs), "%.1f", v);
 	v_attrs = PMCSTAT_ATTRPERCENT(v);
+	sym = NULL;
 
 	/* Format name. */
-	sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
+	if (!(args.pa_flags & FLAG_SKIP_TOP_FN_RES))
+		sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
 	if (sym != NULL) {
 		snprintf(ns, sizeof(ns), "%s",
 		    pmcstat_string_unintern(sym->ps_name));
 	} else
 		snprintf(ns, sizeof(ns), "%p",
-		    (void *)cg->pcg_func);
+		    (void *)(cg->pcg_image->pi_vaddr + cg->pcg_func));
 
 	PMCSTAT_ATTRON(v_attrs);
 	PMCSTAT_PRINTW("%5.5s", vs);
@@ -638,8 +643,11 @@ pmcpl_cg_topdisplay(void)
  */
 
 int
-pmcpl_cg_topkeypress(int c, WINDOW *w)
+pmcpl_cg_topkeypress(int c, void *arg)
 {
+	WINDOW *w;
+
+	w = (WINDOW *)arg;
 
 	(void) c; (void) w;
 

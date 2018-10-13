@@ -189,6 +189,19 @@ svn_fs_fs__unparse_revision_trailer(apr_off_t root_offset,
                                changes_offset);
 }
 
+/* If ERR is not NULL, wrap it MESSAGE.  The latter must have an %ld
+ * format parameter that will be filled with REV. */
+static svn_error_t *
+wrap_footer_error(svn_error_t *err,
+                  const char *message,
+                  svn_revnum_t rev)
+{
+  if (err)
+    return svn_error_quick_wrapf(err, message, rev);
+
+  return SVN_NO_ERROR;
+}
+
 svn_error_t *
 svn_fs_fs__parse_footer(apr_off_t *l2p_offset,
                         svn_checksum_t **l2p_checksum,
@@ -196,6 +209,7 @@ svn_fs_fs__parse_footer(apr_off_t *l2p_offset,
                         svn_checksum_t **p2l_checksum,
                         svn_stringbuf_t *footer,
                         svn_revnum_t rev,
+                        apr_off_t footer_offset,
                         apr_pool_t *result_pool)
 {
   apr_int64_t val;
@@ -204,17 +218,20 @@ svn_fs_fs__parse_footer(apr_off_t *l2p_offset,
   /* Get the L2P offset. */
   const char *str = svn_cstring_tokenize(" ", &last_str);
   if (str == NULL)
-    return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
-                            _("Invalid revision footer"));
+    return svn_error_createf(SVN_ERR_FS_CORRUPT, NULL,
+                             "Invalid r%ld footer", rev);
 
-  SVN_ERR(svn_cstring_atoi64(&val, str));
+  SVN_ERR(wrap_footer_error(svn_cstring_strtoi64(&val, str, 0,
+                                                 footer_offset - 1, 10),
+                            "Invalid L2P offset in r%ld footer",
+                            rev));
   *l2p_offset = (apr_off_t)val;
 
   /* Get the L2P checksum. */
   str = svn_cstring_tokenize(" ", &last_str);
   if (str == NULL)
-    return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
-                            _("Invalid revision footer"));
+    return svn_error_createf(SVN_ERR_FS_CORRUPT, NULL,
+                             "Invalid r%ld footer", rev);
 
   SVN_ERR(svn_checksum_parse_hex(l2p_checksum, svn_checksum_md5, str,
                                  result_pool));
@@ -222,17 +239,33 @@ svn_fs_fs__parse_footer(apr_off_t *l2p_offset,
   /* Get the P2L offset. */
   str = svn_cstring_tokenize(" ", &last_str);
   if (str == NULL)
-    return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
-                            _("Invalid revision footer"));
+    return svn_error_createf(SVN_ERR_FS_CORRUPT, NULL,
+                             "Invalid r%ld footer", rev);
 
-  SVN_ERR(svn_cstring_atoi64(&val, str));
+  SVN_ERR(wrap_footer_error(svn_cstring_strtoi64(&val, str, 0,
+                                                 footer_offset - 1, 10),
+                            "Invalid P2L offset in r%ld footer",
+                            rev));
   *p2l_offset = (apr_off_t)val;
+
+  /* The P2L indes follows the L2P index */
+  if (*p2l_offset <= *l2p_offset)
+    return svn_error_createf(SVN_ERR_FS_CORRUPT, NULL,
+                             "P2L offset %s must be larger than L2P offset %s"
+                             " in r%ld footer",
+                             apr_psprintf(result_pool,
+                                          "%" APR_UINT64_T_HEX_FMT,
+                                          (apr_uint64_t)*p2l_offset),
+                             apr_psprintf(result_pool,
+                                          "%" APR_UINT64_T_HEX_FMT,
+                                          (apr_uint64_t)*l2p_offset),
+                             rev);
 
   /* Get the P2L checksum. */
   str = svn_cstring_tokenize(" ", &last_str);
   if (str == NULL)
-    return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
-                            _("Invalid revision footer"));
+    return svn_error_createf(SVN_ERR_FS_CORRUPT, NULL,
+                             "Invalid r%ld footer", rev);
 
   SVN_ERR(svn_checksum_parse_hex(p2l_checksum, svn_checksum_md5, str,
                                  result_pool));
@@ -449,10 +482,10 @@ read_change(change_t **change_p,
 svn_error_t *
 svn_fs_fs__read_changes(apr_array_header_t **changes,
                         svn_stream_t *stream,
+                        int max_count,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool)
 {
-  change_t *change;
   apr_pool_t *iterpool;
 
   /* Pre-allocate enough room for most change lists.
@@ -465,13 +498,16 @@ svn_fs_fs__read_changes(apr_array_header_t **changes,
    */
   *changes = apr_array_make(result_pool, 63, sizeof(change_t *));
 
-  SVN_ERR(read_change(&change, stream, result_pool, scratch_pool));
   iterpool = svn_pool_create(scratch_pool);
-  while (change)
+  for (; max_count > 0; --max_count)
     {
-      APR_ARRAY_PUSH(*changes, change_t*) = change;
-      SVN_ERR(read_change(&change, stream, result_pool, iterpool));
+      change_t *change;
       svn_pool_clear(iterpool);
+      SVN_ERR(read_change(&change, stream, result_pool, iterpool));
+      if (!change)
+        break;
+ 
+      APR_ARRAY_PUSH(*changes, change_t*) = change;
     }
   svn_pool_destroy(iterpool);
 
@@ -705,6 +741,9 @@ read_header_block(apr_hash_t **headers,
   return SVN_NO_ERROR;
 }
 
+/* ### Ouch!  The implementation of this function currently modifies
+   ### the input string when tokenizing it (so the input cannot be
+   ### used after that). */
 svn_error_t *
 svn_fs_fs__parse_representation(representation_t **rep_p,
                                 svn_stringbuf_t *text,
@@ -764,38 +803,73 @@ svn_fs_fs__parse_representation(representation_t **rep_p,
 
   SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_md5, str,
                                  scratch_pool));
-  memcpy(rep->md5_digest, checksum->digest, sizeof(rep->md5_digest));
+
+  /* If STR is a all-zero checksum, CHECKSUM will be NULL and REP already
+     contains the correct value. */
+  if (checksum)
+    memcpy(rep->md5_digest, checksum->digest, sizeof(rep->md5_digest));
 
   /* The remaining fields are only used for formats >= 4, so check that. */
   str = svn_cstring_tokenize(" ", &string);
   if (str == NULL)
     return SVN_NO_ERROR;
 
-  /* Read the SHA1 hash. */
-  if (strlen(str) != (APR_SHA1_DIGESTSIZE * 2))
-    return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
-                            _("Malformed text representation offset line in node-rev"));
+  /* Is the SHA1 hash present? */
+  if (str[0] == '-' && str[1] == 0)
+    {
+      checksum = NULL;
+    }
+  else
+    {
+      /* Read the SHA1 hash. */
+      if (strlen(str) != (APR_SHA1_DIGESTSIZE * 2))
+        return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
+                                _("Malformed text representation offset line in node-rev"));
 
-  SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1, str,
-                                 scratch_pool));
+      SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1, str,
+                                     scratch_pool));
+    }
+
+  /* We do have a valid SHA1 but it might be all 0.
+     We cannot be sure where that came from (Alas! legacy), so let's not
+     claim we know the SHA1 in that case. */
   rep->has_sha1 = checksum != NULL;
-  memcpy(rep->sha1_digest, checksum->digest, sizeof(rep->sha1_digest));
 
-  /* Read the uniquifier. */
-  str = svn_cstring_tokenize("/", &string);
+  /* If STR is a all-zero checksum, CHECKSUM will be NULL and REP already
+     contains the correct value. */
+  if (checksum)
+    memcpy(rep->sha1_digest, checksum->digest, sizeof(rep->sha1_digest));
+
+  str = svn_cstring_tokenize(" ", &string);
   if (str == NULL)
     return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
                             _("Malformed text representation offset line in node-rev"));
 
-  SVN_ERR(svn_fs_fs__id_txn_parse(&rep->uniquifier.noderev_txn_id, str));
+  /* Is the uniquifier present? */
+  if (str[0] == '-' && str[1] == 0)
+    {
+      end = string;
+    }
+  else
+    {
+      char *substring = str;
 
-  str = svn_cstring_tokenize(" ", &string);
-  if (str == NULL || *str != '_')
-    return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
-                            _("Malformed text representation offset line in node-rev"));
+      /* Read the uniquifier. */
+      str = svn_cstring_tokenize("/", &substring);
+      if (str == NULL)
+        return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
+                                _("Malformed text representation offset line in node-rev"));
 
-  ++str;
-  rep->uniquifier.number = svn__base36toui64(&end, str);
+      SVN_ERR(svn_fs_fs__id_txn_parse(&rep->uniquifier.noderev_txn_id, str));
+
+      str = svn_cstring_tokenize(" ", &substring);
+      if (str == NULL || *str != '_')
+        return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
+                                _("Malformed text representation offset line in node-rev"));
+
+      ++str;
+      rep->uniquifier.number = svn__base36toui64(&end, str);
+    }
 
   if (*end)
     return svn_error_create(SVN_ERR_FS_CORRUPT, NULL,
@@ -986,23 +1060,35 @@ svn_fs_fs__read_noderev(node_revision_t **noderev_p,
 }
 
 /* Return a textual representation of the DIGEST of given KIND.
- * If IS_NULL is TRUE, no digest is available.
  * Allocate the result in RESULT_POOL.
  */
 static const char *
 format_digest(const unsigned char *digest,
               svn_checksum_kind_t kind,
-              svn_boolean_t is_null,
               apr_pool_t *result_pool)
 {
   svn_checksum_t checksum;
   checksum.digest = digest;
   checksum.kind = kind;
 
-  if (is_null)
-    return "(null)";
-
   return svn_checksum_to_cstring_display(&checksum, result_pool);
+}
+
+/* Return a textual representation of the uniquifier represented
+ * by NODEREV_TXN_ID and NUMBER.  Use POOL for the allocations.
+ */
+static const char *
+format_uniquifier(const svn_fs_fs__id_part_t *noderev_txn_id,
+                  apr_uint64_t number,
+                  apr_pool_t *pool)
+{
+  char buf[SVN_INT64_BUFFER_SIZE];
+  const char *txn_id_str;
+
+  txn_id_str = svn_fs_fs__id_txn_unparse(noderev_txn_id, pool);
+  svn__ui64tobase36(buf, number);
+
+  return apr_psprintf(pool, "%s/_%s", txn_id_str, buf);
 }
 
 svn_stringbuf_t *
@@ -1012,32 +1098,80 @@ svn_fs_fs__unparse_representation(representation_t *rep,
                                   apr_pool_t *result_pool,
                                   apr_pool_t *scratch_pool)
 {
-  char buffer[SVN_INT64_BUFFER_SIZE];
+  svn_stringbuf_t *str;
+  const char *sha1_str;
+  const char *uniquifier_str;
+
   if (svn_fs_fs__id_txn_used(&rep->txn_id) && mutable_rep_truncated)
     return svn_stringbuf_ncreate("-1", 2, result_pool);
 
-  if (format < SVN_FS_FS__MIN_REP_SHARING_FORMAT || !rep->has_sha1)
-    return svn_stringbuf_createf
-            (result_pool, "%ld %" APR_UINT64_T_FMT " %" SVN_FILESIZE_T_FMT
-             " %" SVN_FILESIZE_T_FMT " %s",
-             rep->revision, rep->item_index, rep->size,
-             rep->expanded_size,
-             format_digest(rep->md5_digest, svn_checksum_md5, FALSE,
-                           scratch_pool));
+  /* Format of the string:
+     <rev> <item_index> <size> <expanded-size> <md5> [<sha1>] [<uniquifier>]
+   */
+  str = svn_stringbuf_createf(
+          result_pool,
+          "%ld"
+          " %" APR_UINT64_T_FMT
+          " %" SVN_FILESIZE_T_FMT
+          " %" SVN_FILESIZE_T_FMT
+          " %s",
+          rep->revision,
+          rep->item_index,
+          rep->size,
+          rep->expanded_size,
+          format_digest(rep->md5_digest, svn_checksum_md5, scratch_pool));
 
-  svn__ui64tobase36(buffer, rep->uniquifier.number);
-  return svn_stringbuf_createf
-          (result_pool, "%ld %" APR_UINT64_T_FMT " %" SVN_FILESIZE_T_FMT
-           " %" SVN_FILESIZE_T_FMT " %s %s %s/_%s",
-           rep->revision, rep->item_index, rep->size,
-           rep->expanded_size,
-           format_digest(rep->md5_digest, svn_checksum_md5,
-                         FALSE, scratch_pool),
-           format_digest(rep->sha1_digest, svn_checksum_sha1,
-                         !rep->has_sha1, scratch_pool),
-           svn_fs_fs__id_txn_unparse(&rep->uniquifier.noderev_txn_id,
-                                     scratch_pool),
-           buffer);
+  /* Compatibility: these formats don't understand <sha1> and <uniquifier>. */
+  if (format < SVN_FS_FS__MIN_REP_SHARING_FORMAT)
+    return str;
+
+  if (format < SVN_FS_FS__MIN_REP_STRING_OPTIONAL_VALUES_FORMAT)
+    {
+      /* Compatibility: these formats can only have <sha1> and <uniquifier>
+         present simultaneously, or don't have them at all. */
+      if (rep->has_sha1)
+        {
+          sha1_str = format_digest(rep->sha1_digest, svn_checksum_sha1,
+                                   scratch_pool);
+          uniquifier_str = format_uniquifier(&rep->uniquifier.noderev_txn_id,
+                                             rep->uniquifier.number,
+                                             scratch_pool);
+          svn_stringbuf_appendbyte(str, ' ');
+          svn_stringbuf_appendcstr(str, sha1_str);
+          svn_stringbuf_appendbyte(str, ' ');
+          svn_stringbuf_appendcstr(str, uniquifier_str);
+        }
+      return str;
+    }
+
+  /* The most recent formats support optional <sha1> and <uniquifier> values. */
+  if (rep->has_sha1)
+    {
+      sha1_str = format_digest(rep->sha1_digest, svn_checksum_sha1,
+                               scratch_pool);
+    }
+  else
+    sha1_str = "-";
+
+  if (rep->uniquifier.number == 0 &&
+      rep->uniquifier.noderev_txn_id.number == 0 &&
+      rep->uniquifier.noderev_txn_id.revision == 0)
+    {
+      uniquifier_str = "-";
+    }
+  else
+    {
+      uniquifier_str = format_uniquifier(&rep->uniquifier.noderev_txn_id,
+                                         rep->uniquifier.number,
+                                         scratch_pool);
+    }
+
+  svn_stringbuf_appendbyte(str, ' ');
+  svn_stringbuf_appendcstr(str, sha1_str);
+  svn_stringbuf_appendbyte(str, ' ');
+  svn_stringbuf_appendcstr(str, uniquifier_str);
+
+  return str;
 }
 
 

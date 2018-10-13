@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -76,8 +75,7 @@ aml8726_rng_harvest(void *arg)
 	rn[0] = CSR_READ_4(sc, AML_RNG_0_REG);
 	rn[1] = CSR_READ_4(sc, AML_RNG_1_REG);
 
-	random_harvest(rn, sizeof(rn), sizeof(rn) * NBBY / 2,
-	    RANDOM_PURE_AML8726);
+	random_harvest(rn, sizeof(rn), RANDOM_PURE_AML8726);
 
 	callout_reset(&sc->co, sc->ticks, aml8726_rng_harvest, sc);
 }

@@ -115,7 +115,7 @@ MALLOC_DEFINE(M_XENSTORE, "xenstore", "XenStore data and results");
  * to get the guest frame number for the shared page and then map it
  * into kva.  See xs_init() for details.
  */
-struct xenstore_domain_interface *xen_store;
+static struct xenstore_domain_interface *xen_store;
 
 /*-------------------------- Private Data Structures ------------------------*/
 
@@ -200,18 +200,6 @@ struct xs_softc {
 
 	/** Lock protecting the watch calback list. */
 	struct mtx watch_events_lock;
-
-	/**
-	 * Sleepable lock used to prevent VM suspension while a
-	 * xenstore transaction is outstanding.
-	 *
-	 * Each active transaction holds a shared lock on the
-	 * suspend mutex.  Our suspend method blocks waiting
-	 * to acquire an exclusive lock.  This guarantees that
-	 * suspend processing will only proceed once all active
-	 * transactions have been retired.
-	 */
-	struct sx suspend_mutex;
 
 	/**
 	 * The processid of the xenwatch thread.
@@ -710,50 +698,6 @@ xs_rcv_thread(void *arg __unused)
 }
 
 /*---------------- XenStore Message Request/Reply Processing -----------------*/
-/**
- * Filter invoked before transmitting any message to the XenStore service.
- *
- * The role of the filter may expand, but currently serves to manage
- * the interactions of messages with transaction state.
- *
- * \param request_msg_type  The message type for the request.
- */
-static inline void
-xs_request_filter(uint32_t request_msg_type)
-{
-	if (request_msg_type == XS_TRANSACTION_START)
-		sx_slock(&xs.suspend_mutex);
-}
-
-/**
- * Filter invoked after transmitting any message to the XenStore service.
- *
- * The role of the filter may expand, but currently serves to manage
- * the interactions of messages with transaction state.
- *
- * \param request_msg_type     The message type for the original request.
- * \param reply_msg_type       The message type for any received reply.
- * \param request_reply_error  The error status from the attempt to send
- *                             the request or retrieve the reply.
- */
-static inline void
-xs_reply_filter(uint32_t request_msg_type,
-    uint32_t reply_msg_type, int request_reply_error)
-{
-	/*
-	 * The count of transactions drops if we attempted
-	 * to end a transaction (even if that attempt fails
-	 * in error), we receive a transaction end acknowledgement,
-	 * or if our attempt to begin a transaction fails.
-	 */
-	if (request_msg_type == XS_TRANSACTION_END
-	 || (request_reply_error == 0 && reply_msg_type == XS_TRANSACTION_END)
-	 || (request_msg_type == XS_TRANSACTION_START
-	  && (request_reply_error != 0 || reply_msg_type == XS_ERROR)))
-		sx_sunlock(&xs.suspend_mutex);
-
-}
-
 #define xsd_error_count	(sizeof(xsd_errors) / sizeof(xsd_errors[0]))
 
 /**
@@ -798,8 +742,8 @@ xs_read_reply(enum xsd_sockmsg_type *type, u_int *len, void **result)
 
 	mtx_lock(&xs.reply_lock);
 	while (TAILQ_EMPTY(&xs.reply_list)) {
-		error = mtx_sleep(&xs.reply_list, &xs.reply_lock,
-		    PCATCH, "xswait", hz/10);
+		error = mtx_sleep(&xs.reply_list, &xs.reply_lock, 0, "xswait",
+		    hz/10);
 		if (error && error != EWOULDBLOCK) {
 			mtx_unlock(&xs.reply_lock);
 			return (error);
@@ -843,14 +787,11 @@ xs_dev_request_and_reply(struct xsd_sockmsg *msg, void **result)
 	int error;
 
 	request_type = msg->type;
-	xs_request_filter(request_type);
 
 	sx_xlock(&xs.request_mutex);
 	if ((error = xs_write_store(msg, sizeof(*msg) + msg->len)) == 0)
 		error = xs_read_reply(&msg->type, &msg->len, result);
 	sx_xunlock(&xs.request_mutex);
-
-	xs_reply_filter(request_type, msg->type, error);
 
 	return (error);
 }
@@ -887,8 +828,6 @@ xs_talkv(struct xs_transaction t, enum xsd_sockmsg_type request_type,
 	for (i = 0; i < num_vecs; i++)
 		msg.len += iovec[i].iov_len;
 
-	xs_request_filter(request_type);
-
 	sx_xlock(&xs.request_mutex);
 	error = xs_write_store(&msg, sizeof(msg));
 	if (error) {
@@ -908,7 +847,6 @@ xs_talkv(struct xs_transaction t, enum xsd_sockmsg_type request_type,
 
 error_lock_held:
 	sx_xunlock(&xs.request_mutex);
-	xs_reply_filter(request_type, msg.type, error);
 	if (error)
 		return (error);
 
@@ -1165,38 +1103,30 @@ xs_attach(device_t dev)
 	struct proc *p;
 
 	xs.initialized = false;
-	if (xen_hvm_domain()) {
-		xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
-		xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
-		xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
-		xs.initialized = true;
-	} else if (xen_pv_domain()) {
-		if (HYPERVISOR_start_info->store_evtchn == 0) {
-			struct evtchn_alloc_unbound alloc_unbound;
+	xs.evtchn = xen_get_xenstore_evtchn();
+	if (xs.evtchn == 0) {
+		struct evtchn_alloc_unbound alloc_unbound;
 
-			/* Allocate a local event channel for xenstore */
-			alloc_unbound.dom = DOMID_SELF;
-			alloc_unbound.remote_dom = DOMID_SELF;
-			error = HYPERVISOR_event_channel_op(
-			    EVTCHNOP_alloc_unbound, &alloc_unbound);
-			if (error != 0)
-				panic(
-				   "unable to alloc event channel for Dom0: %d",
-				    error);
+		/* Allocate a local event channel for xenstore */
+		alloc_unbound.dom = DOMID_SELF;
+		alloc_unbound.remote_dom = DOMID_SELF;
+		error = HYPERVISOR_event_channel_op(
+		    EVTCHNOP_alloc_unbound, &alloc_unbound);
+		if (error != 0)
+			panic(
+			   "unable to alloc event channel for Dom0: %d",
+			    error);
 
-			HYPERVISOR_start_info->store_evtchn =
-			    alloc_unbound.port;
-			xs.evtchn = alloc_unbound.port;
+		xs.evtchn = alloc_unbound.port;
 
-			/* Allocate memory for the xs shared ring */
-			xen_store = malloc(PAGE_SIZE, M_XENSTORE,
-			    M_WAITOK | M_ZERO);
-		} else {
-			xs.evtchn = HYPERVISOR_start_info->store_evtchn;
-			xs.initialized = true;
-		}
+		/* Allocate memory for the xs shared ring */
+		xen_store = malloc(PAGE_SIZE, M_XENSTORE, M_WAITOK | M_ZERO);
+		xs.gpfn = atop(pmap_kextract((vm_offset_t)xen_store));
 	} else {
-		panic("Unknown domain type, cannot initialize xenstore.");
+		xs.gpfn = xen_get_xenstore_mfn();
+		xen_store = pmap_mapdev_attr(ptoa(xs.gpfn), PAGE_SIZE,
+		    PAT_WRITE_BACK);
+		xs.initialized = true;
 	}
 
 	TAILQ_INIT(&xs.reply_list);
@@ -1206,7 +1136,6 @@ xs_attach(device_t dev)
 	mtx_init(&xs.reply_lock, "reply lock", NULL, MTX_DEF);
 	sx_init(&xs.xenwatch_mutex, "xenwatch");
 	sx_init(&xs.request_mutex, "xenstore request");
-	sx_init(&xs.suspend_mutex, "xenstore suspend");
 	mtx_init(&xs.registered_watches_lock, "watches", NULL, MTX_DEF);
 	mtx_init(&xs.watch_events_lock, "watch events", NULL, MTX_DEF);
 
@@ -1249,7 +1178,6 @@ xs_suspend(device_t dev)
 	if (error != 0)
 		return (error);
 
-	sx_xlock(&xs.suspend_mutex);
 	sx_xlock(&xs.request_mutex);
 
 	return (0);
@@ -1269,15 +1197,15 @@ xs_resume(device_t dev __unused)
 	sx_xunlock(&xs.request_mutex);
 
 	/*
-	 * No need for registered_watches_lock: the suspend_mutex
-	 * is sufficient.
+	 * NB: since xenstore childs have not been resumed yet, there's
+	 * no need to hold any watch mutex. Having clients try to add or
+	 * remove watches at this point (before xenstore is resumed) is
+	 * clearly a violantion of the resume order.
 	 */
 	LIST_FOREACH(watch, &xs.registered_watches, list) {
 		sprintf(token, "%lX", (long)watch);
 		xs_watch(watch->node, token);
 	}
-
-	sx_xunlock(&xs.suspend_mutex);
 
 	/* Resume child Xen devices. */
 	bus_generic_resume(dev);
@@ -1319,6 +1247,27 @@ SYSCTL_ULONG(_dev_xen, OID_AUTO, xsd_kva, CTLFLAG_RD, (u_long *) &xen_store, 0, 
 
 /*-------------------------------- Public API --------------------------------*/
 /*------- API comments for these methods can be found in xenstorevar.h -------*/
+bool
+xs_initialized(void)
+{
+
+	return (xs.initialized);
+}
+
+evtchn_port_t
+xs_evtchn(void)
+{
+
+    return (xs.evtchn);
+}
+
+vm_paddr_t
+xs_address(void)
+{
+
+    return (ptoa(xs.gpfn));
+}
+
 int
 xs_directory(struct xs_transaction t, const char *dir, const char *node,
     u_int *num, const char ***result)
@@ -1631,8 +1580,6 @@ xs_register_watch(struct xs_watch *watch)
 
 	sprintf(token, "%lX", (long)watch);
 
-	sx_slock(&xs.suspend_mutex);
-
 	mtx_lock(&xs.registered_watches_lock);
 	KASSERT(find_watch(token) == NULL, ("watch already registered"));
 	LIST_INSERT_HEAD(&xs.registered_watches, watch, list);
@@ -1650,8 +1597,6 @@ xs_register_watch(struct xs_watch *watch)
 		mtx_unlock(&xs.registered_watches_lock);
 	}
 
-	sx_sunlock(&xs.suspend_mutex);
-
 	return (error);
 }
 
@@ -1664,12 +1609,9 @@ xs_unregister_watch(struct xs_watch *watch)
 
 	sprintf(token, "%lX", (long)watch);
 
-	sx_slock(&xs.suspend_mutex);
-
 	mtx_lock(&xs.registered_watches_lock);
 	if (find_watch(token) == NULL) {
 		mtx_unlock(&xs.registered_watches_lock);
-		sx_sunlock(&xs.suspend_mutex);
 		return;
 	}
 	LIST_REMOVE(watch, list);
@@ -1679,8 +1621,6 @@ xs_unregister_watch(struct xs_watch *watch)
 	if (error)
 		log(LOG_WARNING, "XENSTORE Failed to release watch %s: %i\n",
 		    watch->node, error);
-
-	sx_sunlock(&xs.suspend_mutex);
 
 	/* Cancel pending watch events. */
 	mtx_lock(&xs.watch_events_lock);
@@ -1699,3 +1639,20 @@ xs_unregister_watch(struct xs_watch *watch)
 		sx_xunlock(&xs.xenwatch_mutex);
 	}
 }
+
+void
+xs_lock(void)
+{
+
+	sx_xlock(&xs.request_mutex);
+	return;
+}
+
+void
+xs_unlock(void)
+{
+
+	sx_xunlock(&xs.request_mutex);
+	return;
+}
+

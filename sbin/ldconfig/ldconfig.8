@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd January 6, 2018
 .Dt LDCONFIG 8
 .Os
 .Sh NAME
@@ -58,7 +58,9 @@ the overhead that would otherwise result from the directory search
 operations the dynamic linker would have to perform to load the
 required shared libraries.
 .Pp
-Files named on the command line are expected to contain directories
+Alternatively,
+.Ar files
+may be specified; these are expected to contain directories
 to scan for shared libraries.
 Each directory's pathname must start on a new
 line.
@@ -157,9 +159,10 @@ file.
 In particular, the
 .Ev LD_LIBRARY_PATH
 is not used to search for libraries.
-Thus, the role of ldconfig is dual.
-In
-addition to building a set of hints for quick lookup, it also serves to
+Thus, the role of
+.Nm
+is dual.
+In addition to building a set of hints for quick lookup, it also serves to
 specify the trusted collection of directories from which shared objects can
 be safely loaded.
 .Sh FILES

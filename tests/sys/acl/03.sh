@@ -89,7 +89,7 @@ echo "ok 3"
 
 cd $MNTROOT
 
-perl $TESTDIR/run $TESTDIR/tools-crossfs.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-crossfs.test >&2
 
 if [ $? -eq 0 ]; then
 	echo "ok 4"

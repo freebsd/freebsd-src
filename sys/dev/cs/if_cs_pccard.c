@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 M. Warner Losh <imp@village.org> 
  * All rights reserved.
  *

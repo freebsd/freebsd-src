@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-pkcs11.sh,v 1.2 2015/01/12 11:46:32 djm Exp $
+#	$OpenBSD: agent-pkcs11.sh,v 1.3 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="pkcs11 agent test"
@@ -53,7 +53,7 @@ else
 	fi
 
 	trace "pkcs11 connect via agent"
-	${SSH} -2 -F $OBJ/ssh_proxy somehost exit 5
+	${SSH} -F $OBJ/ssh_proxy somehost exit 5
 	r=$?
 	if [ $r -ne 5 ]; then
 		fail "ssh connect failed (exit code $r)"

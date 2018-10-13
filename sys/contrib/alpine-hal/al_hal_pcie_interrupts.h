@@ -81,7 +81,7 @@ enum al_pcie_app_int_grp_a {
 	/** [RC only] Deassert_INTB received */
 	AL_PCIE_APP_INT_DEASSERT_INTB = AL_BIT(2),
 	/**
-	 * [RC only] Deassert_INTA received - there's a didcated GIC interrupt
+	 * [RC only] Deassert_INTA received - there's a dedicated GIC interrupt
 	 * line that reflects the status of ASSERT/DEASSERT of INTA
 	 */
 	AL_PCIE_APP_INT_DEASSERT_INTA = AL_BIT(3),
@@ -92,7 +92,7 @@ enum al_pcie_app_int_grp_a {
 	/** [RC only] Assert_INTB received */
 	AL_PCIE_APP_INT_ASSERT_INTB = AL_BIT(6),
 	/**
-	 * [RC only] Assert_INTA received - there's a didcated GIC interrupt
+	 * [RC only] Assert_INTA received - there's a dedicated GIC interrupt
 	 * line that reflects the status of ASSERT/DEASSERT of INTA
 	 */
 	AL_PCIE_APP_INT_ASSERT_INTA = AL_BIT(7),
@@ -150,13 +150,13 @@ enum al_pcie_app_int_grp_b {
 	AL_PCIE_APP_INT_GRP_B_FTL_ERR_MSG_RCVD = AL_BIT(5),
 	/**
 	 * [RC/EP] Vendor Defined Message received
-	 * Asserted when a vevdor message is received (with no data), buffers 2
+	 * Asserted when a vendor message is received (with no data), buffers 2
 	 * messages only, and latch the headers in registers
 	 */
 	AL_PCIE_APP_INT_GRP_B_VNDR_MSG_A_RCVD = AL_BIT(6),
 	/**
 	 * [RC/EP] Vendor Defined Message received
-	 * Asserted when a vevdor message is received (with no data), buffers 2
+	 * Asserted when a vendor message is received (with no data), buffers 2
 	 * messages only, and latch the headers in registers
 	 */
 	AL_PCIE_APP_INT_GRP_B_VNDR_MSG_B_RCVD = AL_BIT(7),
@@ -166,7 +166,7 @@ enum al_pcie_app_int_grp_b {
 	AL_PCIE_APP_INT_GRP_B_LNK_EQ_REQ = AL_BIT(13),
 	/** [RC/EP] OB Vendor message request is granted by the PCIe core */
 	AL_PCIE_APP_INT_GRP_B_OB_VNDR_MSG_REQ_GRNT = AL_BIT(14),
-	/** [RC only] CPL timeout from the PCIe core indiication */
+	/** [RC only] CPL timeout from the PCIe core indication */
 	AL_PCIE_APP_INT_GRP_B_CPL_TO = AL_BIT(15),
 	/** [RC/EP] Slave Response Composer Lookup Error */
 	AL_PCIE_APP_INT_GRP_B_SLV_RESP_COMP_LKUP_ERR = AL_BIT(16),

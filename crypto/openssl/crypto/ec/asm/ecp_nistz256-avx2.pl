@@ -1,32 +1,19 @@
-#!/usr/bin/env perl
-
-##############################################################################
-#                                                                            #
-# Copyright 2014 Intel Corporation                                           #
-#                                                                            #
-# Licensed under the Apache License, Version 2.0 (the "License");            #
-# you may not use this file except in compliance with the License.           #
-# You may obtain a copy of the License at                                    #
-#                                                                            #
-#    http://www.apache.org/licenses/LICENSE-2.0                              #
-#                                                                            #
-# Unless required by applicable law or agreed to in writing, software        #
-# distributed under the License is distributed on an "AS IS" BASIS,          #
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   #
-# See the License for the specific language governing permissions and        #
-# limitations under the License.                                             #
-#                                                                            #
-##############################################################################
-#                                                                            #
-#  Developers and authors:                                                   #
-#  Shay Gueron (1, 2), and Vlad Krasnov (1)                                  #
-#  (1) Intel Corporation, Israel Development Center                          #
-#  (2) University of Haifa                                                   #
-#  Reference:                                                                #
-#  S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with#
-#                           256 Bit Primes"                                  #
-#                                                                            #
-##############################################################################
+#! /usr/bin/env perl
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright (c) 2014, Intel Corporation. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+#
+# Originally written by Shay Gueron (1, 2), and Vlad Krasnov (1)
+# (1) Intel Corporation, Israel Development Center, Haifa, Israel
+# (2) University of Haifa, Israel
+#
+# Reference:
+# S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with
+#                          256 Bit Primes"
 
 $flavour = shift;
 $output  = shift;
@@ -60,7 +47,7 @@ if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=12);
 }
 
-if (!$addx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9])\.([0-9]+)/) {
+if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|based on LLVM) ([3-9])\.([0-9]+)/) {
 	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
 	$avx = ($ver>=3.0) + ($ver>=3.01);
 	$addx = ($ver>=3.03);
@@ -149,8 +136,8 @@ $code.=<<___;
 ___
 
 {
-# This function recieves a pointer to an array of four affine points
-# (X, Y, <1>) and rearanges the data for AVX2 execution, while
+# This function receives a pointer to an array of four affine points
+# (X, Y, <1>) and rearranges the data for AVX2 execution, while
 # converting it to 2^29 radix redundant form
 
 my ($X0,$X1,$X2,$X3, $Y0,$Y1,$Y2,$Y3,
@@ -301,8 +288,8 @@ ___
 }
 {
 ################################################################################
-# This function recieves a pointer to an array of four AVX2 formatted points
-# (X, Y, Z) convert the data to normal representation, and rearanges the data
+# This function receives a pointer to an array of four AVX2 formatted points
+# (X, Y, Z) convert the data to normal representation, and rearranges the data
 
 my ($D0,$D1,$D2,$D3, $D4,$D5,$D6,$D7, $D8)=map("%ymm$_",(0..8));
 my ($T0,$T1,$T2,$T3, $T4,$T5,$T6)=map("%ymm$_",(9..15));
@@ -1909,7 +1896,7 @@ ___
 }
 {
 ################################################################################
-# void ecp_nistz256_avx2_multi_select_w7(void* RESULT, void *in,
+# void ecp_nistz256_avx2_multi_gather_w7(void* RESULT, void *in,
 #			    int index0, int index1, int index2, int index3);
 ################################################################################
 
@@ -1919,10 +1906,10 @@ my ($R0a,$R0b,$R1a,$R1b,$R2a,$R2b,$R3a,$R3b)=map("%ymm$_",(4..11));
 my ($M0,$T0,$T1,$TMP0)=map("%ymm$_",(12..15));
 
 $code.=<<___;
-.globl	ecp_nistz256_avx2_multi_select_w7
-.type	ecp_nistz256_avx2_multi_select_w7,\@function,6
+.globl	ecp_nistz256_avx2_multi_gather_w7
+.type	ecp_nistz256_avx2_multi_gather_w7,\@function,6
 .align	32
-ecp_nistz256_avx2_multi_select_w7:
+ecp_nistz256_avx2_multi_gather_w7:
 	vzeroupper
 ___
 $code.=<<___	if ($win64);
@@ -2036,7 +2023,7 @@ $code.=<<___	if ($win64);
 ___
 $code.=<<___;
 	ret
-.size	ecp_nistz256_avx2_multi_select_w7,.-ecp_nistz256_avx2_multi_select_w7
+.size	ecp_nistz256_avx2_multi_gather_w7,.-ecp_nistz256_avx2_multi_gather_w7
 
 .extern	OPENSSL_ia32cap_P
 .globl	ecp_nistz_avx2_eligible
@@ -2061,8 +2048,8 @@ $code.=<<___;
 .globl	ecp_nistz256_avx2_to_mont
 .globl	ecp_nistz256_avx2_from_mont
 .globl	ecp_nistz256_avx2_set1
-.globl	ecp_nistz256_avx2_multi_select_w7
-.type	ecp_nistz256_avx2_multi_select_w7,\@abi-omnipotent
+.globl	ecp_nistz256_avx2_multi_gather_w7
+.type	ecp_nistz256_avx2_multi_gather_w7,\@abi-omnipotent
 ecp_nistz256_avx2_transpose_convert:
 ecp_nistz256_avx2_convert_transpose_back:
 ecp_nistz256_avx2_point_add_affine_x4:
@@ -2070,10 +2057,10 @@ ecp_nistz256_avx2_point_add_affines_x4:
 ecp_nistz256_avx2_to_mont:
 ecp_nistz256_avx2_from_mont:
 ecp_nistz256_avx2_set1:
-ecp_nistz256_avx2_multi_select_w7:
+ecp_nistz256_avx2_multi_gather_w7:
 	.byte	0x0f,0x0b	# ud2
 	ret
-.size	ecp_nistz256_avx2_multi_select_w7,.-ecp_nistz256_avx2_multi_select_w7
+.size	ecp_nistz256_avx2_multi_gather_w7,.-ecp_nistz256_avx2_multi_gather_w7
 
 .globl	ecp_nistz_avx2_eligible
 .type	ecp_nistz_avx2_eligible,\@abi-omnipotent

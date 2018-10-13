@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2016
+.Dd April 25, 2017
 .Dt RC 8
 .Os
 .Sh NAME
@@ -87,6 +87,9 @@ The
 .Nm rc.d/
 directories contain scripts which will be automatically
 executed at boot time and shutdown time.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
 .Ss Operation of Nm
 .Bl -enum
 .It
@@ -455,15 +458,6 @@ disables the loading of firewall rules
 will load the rules in the given filename (full path required).
 .El
 .Pp
-The
-.Pa /etc/rc.d/atm*
-scripts are used to configure ATM network interfaces.
-The interfaces are configured in three passes.
-The first pass performs the initial interface configuration.
-The second pass completes the interface configuration and defines PVCs and
-permanent ATMARP entries.
-The third pass starts any ATM daemons.
-.Pp
 Most daemons, including network related daemons, have their own script in
 .Pa /etc/rc.d/ ,
 which can be used to start, stop, and check the status of the service.
@@ -557,7 +551,8 @@ is unnecessary, but is often included.
 .Xr rc.subr 8 ,
 .Xr rcorder 8 ,
 .Xr reboot 8 ,
-.Xr savecore 8
+.Xr savecore 8 ,
+.Xr sysrc 8
 .Sh HISTORY
 The
 .Nm

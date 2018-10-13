@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
  *
@@ -38,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <machine/bus.h>
 
+#include <machine/machdep.h> /* For arm_set_delay */
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -66,6 +70,8 @@ struct am335x_dmtimer_softc {
 
 static struct am335x_dmtimer_softc *am335x_dmtimer_et_sc = NULL;
 static struct am335x_dmtimer_softc *am335x_dmtimer_tc_sc = NULL;
+
+static void am335x_dmtimer_delay(int, void *);
 
 /*
  * We use dmtimer2 for eventtimer and dmtimer3 for timecounter.
@@ -235,6 +241,8 @@ am335x_dmtimer_tc_init(struct am335x_dmtimer_softc *sc)
 	am335x_dmtimer_tc_sc = sc;
 	tc_init(&sc->func.tc);
 
+	arm_set_delay(am335x_dmtimer_delay, sc);
+
 	return (0);
 }
 
@@ -328,22 +336,12 @@ static devclass_t am335x_dmtimer_devclass;
 DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, am335x_dmtimer_devclass, 0, 0);
 MODULE_DEPEND(am335x_dmtimer, am335x_prcm, 1, 1, 1);
 
-void
-DELAY(int usec)
+static void
+am335x_dmtimer_delay(int usec, void *arg)
 {
-	struct am335x_dmtimer_softc *sc;
+	struct am335x_dmtimer_softc *sc = arg;
 	int32_t counts;
 	uint32_t first, last;
-
-	sc = am335x_dmtimer_tc_sc;
-
-	if (sc == NULL) {
-		for (; usec > 0; usec--)
-			for (counts = 200; counts > 0; counts--)
-				/* Prevent gcc from optimizing  out the loop */
-				cpufunc_nullop();
-		return;
-	}
 
 	/* Get the number of times to count */
 	counts = (usec + 1) * (sc->sysclk_freq / 1000000);
@@ -360,4 +358,3 @@ DELAY(int usec)
 		first = last;
 	}
 }
-

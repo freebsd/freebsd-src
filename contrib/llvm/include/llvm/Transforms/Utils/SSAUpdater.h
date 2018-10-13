@@ -1,4 +1,4 @@
-//===-- SSAUpdater.h - Unstructured SSA Update Tool -------------*- C++ -*-===//
+//===- SSAUpdater.h - Unstructured SSA Update Tool --------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,18 +16,19 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Compiler.h"
+#include <string>
 
 namespace llvm {
-  class BasicBlock;
-  class Instruction;
-  class LoadInst;
-  template<typename T> class SmallVectorImpl;
-  template<typename T> class SSAUpdaterTraits;
-  class PHINode;
-  class Type;
-  class Use;
-  class Value;
+
+class BasicBlock;
+class Instruction;
+class LoadInst;
+class PHINode;
+template <typename T> class SmallVectorImpl;
+template <typename T> class SSAUpdaterTraits;
+class Type;
+class Use;
+class Value;
 
 /// \brief Helper class for SSA formation on a set of values defined in
 /// multiple blocks.
@@ -41,23 +42,24 @@ class SSAUpdater {
 private:
   /// This keeps track of which value to use on a per-block basis. When we
   /// insert PHI nodes, we keep track of them here.
-  //typedef DenseMap<BasicBlock*, Value*> AvailableValsTy;
-  void *AV;
+  void *AV = nullptr;
 
   /// ProtoType holds the type of the values being rewritten.
-  Type *ProtoType;
+  Type *ProtoType = nullptr;
 
   /// PHI nodes are given a name based on ProtoName.
   std::string ProtoName;
 
   /// If this is non-null, the SSAUpdater adds all PHI nodes that it creates to
   /// the vector.
-  SmallVectorImpl<PHINode*> *InsertedPHIs;
+  SmallVectorImpl<PHINode *> *InsertedPHIs;
 
 public:
   /// If InsertedPHIs is specified, it will be filled
   /// in with all PHI Nodes created by rewriting.
-  explicit SSAUpdater(SmallVectorImpl<PHINode*> *InsertedPHIs = nullptr);
+  explicit SSAUpdater(SmallVectorImpl<PHINode *> *InsertedPHIs = nullptr);
+  SSAUpdater(const SSAUpdater &) = delete;
+  SSAUpdater &operator=(const SSAUpdater &) = delete;
   ~SSAUpdater();
 
   /// \brief Reset this object to get ready for a new set of SSA updates with
@@ -118,9 +120,6 @@ public:
 
 private:
   Value *GetValueAtEndOfBlockInternal(BasicBlock *BB);
-
-  void operator=(const SSAUpdater&) = delete;
-  SSAUpdater(const SSAUpdater&) = delete;
 };
 
 /// \brief Helper class for promoting a collection of loads and stores into SSA
@@ -136,43 +135,39 @@ protected:
   SSAUpdater &SSA;
 
 public:
-  LoadAndStorePromoter(ArrayRef<const Instruction*> Insts,
+  LoadAndStorePromoter(ArrayRef<const Instruction *> Insts,
                        SSAUpdater &S, StringRef Name = StringRef());
-  virtual ~LoadAndStorePromoter() {}
+  virtual ~LoadAndStorePromoter() = default;
 
   /// \brief This does the promotion.
   ///
   /// Insts is a list of loads and stores to promote, and Name is the basename
   /// for the PHIs to insert. After this is complete, the loads and stores are
   /// removed from the code.
-  void run(const SmallVectorImpl<Instruction*> &Insts) const;
+  void run(const SmallVectorImpl<Instruction *> &Insts) const;
 
   /// \brief Return true if the specified instruction is in the Inst list.
   ///
   /// The Insts list is the one passed into the constructor. Clients should
   /// implement this with a more efficient version if possible.
   virtual bool isInstInList(Instruction *I,
-                            const SmallVectorImpl<Instruction*> &Insts) const;
+                            const SmallVectorImpl<Instruction *> &Insts) const;
 
   /// \brief This hook is invoked after all the stores are found and inserted as
   /// available values.
-  virtual void doExtraRewritesBeforeFinalDeletion() const {
-  }
+  virtual void doExtraRewritesBeforeFinalDeletion() const {}
 
   /// \brief Clients can choose to implement this to get notified right before
   /// a load is RAUW'd another value.
-  virtual void replaceLoadWithValue(LoadInst *LI, Value *V) const {
-  }
+  virtual void replaceLoadWithValue(LoadInst *LI, Value *V) const {}
 
   /// \brief Called before each instruction is deleted.
-  virtual void instructionDeleted(Instruction *I) const {
-  }
+  virtual void instructionDeleted(Instruction *I) const {}
 
   /// \brief Called to update debug info associated with the instruction.
-  virtual void updateDebugInfo(Instruction *I) const {
-  }
+  virtual void updateDebugInfo(Instruction *I) const {}
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_TRANSFORMS_UTILS_SSAUPDATER_H

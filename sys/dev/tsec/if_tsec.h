@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
  *
@@ -32,6 +34,7 @@
 
 #define TSEC_RX_NUM_DESC	256
 #define TSEC_TX_NUM_DESC	256
+#define	TSEC_TX_MAX_DMA_SEGS	8
 
 /* Interrupt Coalescing types */
 #define	TSEC_IC_RX		0
@@ -43,6 +46,12 @@
 /* Frame sizes */
 #define	TSEC_MIN_FRAME_SIZE	64
 #define	TSEC_MAX_FRAME_SIZE	9600
+
+struct tsec_bufmap {
+	bus_dmamap_t	map;
+	int		map_initialized;
+	struct mbuf	*mbuf;
+};
 
 struct tsec_softc {
 	/* XXX MII bus requires that struct ifnet is first!!! */
@@ -59,16 +68,16 @@ struct tsec_softc {
 
 	bus_dma_tag_t	tsec_tx_dtag;	/* TX descriptors tag */
 	bus_dmamap_t	tsec_tx_dmap;	/* TX descriptors map */
-	struct tsec_desc *tsec_tx_vaddr;/* vadress of TX descriptors */
-	uint32_t	tsec_tx_raddr;	/* real address of TX descriptors */
+	bus_dma_tag_t	tsec_tx_mtag;	/* TX mbufs tag */
+	uint32_t	tx_idx_head;	/* TX head descriptor/bufmap index */
+	uint32_t	tx_idx_tail;	/* TX tail descriptor/bufmap index */
+	struct tsec_desc *tsec_tx_vaddr;/* virtual address of TX descriptors */
+	struct tsec_bufmap tx_bufmap[TSEC_TX_NUM_DESC];
 
+	bus_dma_tag_t	tsec_rx_mtag;	/* TX mbufs tag */
 	bus_dma_tag_t	tsec_rx_dtag;	/* RX descriptors tag */
 	bus_dmamap_t	tsec_rx_dmap;	/* RX descriptors map */
 	struct tsec_desc *tsec_rx_vaddr; /* vadress of RX descriptors */
-	uint32_t	tsec_rx_raddr;	/* real address of RX descriptors */
-
-	bus_dma_tag_t	tsec_tx_mtag;	/* TX mbufs tag */
-	bus_dma_tag_t	tsec_rx_mtag;	/* TX mbufs tag */
 
 	struct rx_data_type {
 		bus_dmamap_t	map;	/* mbuf map */
@@ -76,8 +85,6 @@ struct tsec_softc {
 		uint32_t	paddr;	/* DMA address of buffer */
 	} rx_data[TSEC_RX_NUM_DESC];
 
-	uint32_t	tx_cur_desc_cnt;
-	uint32_t	tx_dirty_desc_cnt;
 	uint32_t	rx_cur_desc_cnt;
 
 	struct resource	*sc_rres;	/* register resource */
@@ -104,24 +111,6 @@ struct tsec_softc {
 	struct callout	tsec_callout;
 	int		tsec_watchdog;
 
-	/* TX maps */
-	bus_dmamap_t	tx_map_data[TSEC_TX_NUM_DESC];
-
-	/* unused TX maps data */
-	uint32_t	tx_map_unused_get_cnt;
-	uint32_t	tx_map_unused_put_cnt;
-	bus_dmamap_t	*tx_map_unused_data[TSEC_TX_NUM_DESC];
-
-	/* used TX maps data */
-	uint32_t	tx_map_used_get_cnt;
-	uint32_t	tx_map_used_put_cnt;
-	bus_dmamap_t	*tx_map_used_data[TSEC_TX_NUM_DESC];
-	
-	/* mbufs in TX queue */
-	uint32_t	tx_mbuf_used_get_cnt;
-	uint32_t	tx_mbuf_used_put_cnt;
-	struct mbuf	*tx_mbuf_used_data[TSEC_TX_NUM_DESC];
-
 	/* interrupt coalescing */
 	struct mtx	ic_lock;
 	uint32_t	rx_ic_time;	/* RW, valid values 0..65535 */
@@ -135,6 +124,10 @@ struct tsec_softc {
 	int		phyaddr;
 	bus_space_tag_t phy_bst;
 	bus_space_handle_t phy_bsh;
+	int		phy_regoff;
+
+	uint32_t	tsec_rx_raddr;	/* real address of RX descriptors */
+	uint32_t	tsec_tx_raddr;	/* real address of TX descriptors */
 };
 
 /* interface to get/put generic objects */
@@ -155,75 +148,8 @@ struct tsec_softc {
 			(sc)->count = (wrap) - 1;		\
 } while (0)
 
-/* TX maps interface */
-#define TSEC_TX_MAP_CNT_INIT(sc) do {						\
-		TSEC_CNT_INIT((sc)->tx_map_unused_get_cnt, TSEC_TX_NUM_DESC);	\
-		TSEC_CNT_INIT((sc)->tx_map_unused_put_cnt, TSEC_TX_NUM_DESC);	\
-		TSEC_CNT_INIT((sc)->tx_map_used_get_cnt, TSEC_TX_NUM_DESC);	\
-		TSEC_CNT_INIT((sc)->tx_map_used_put_cnt, TSEC_TX_NUM_DESC);	\
-} while (0)
-
-/* interface to get/put unused TX maps */
-#define TSEC_ALLOC_TX_MAP(sc)							\
-		TSEC_GET_GENERIC(sc, tx_map_unused_data, tx_map_unused_get_cnt,	\
-		TSEC_TX_NUM_DESC)
-
-#define TSEC_FREE_TX_MAP(sc, val)						\
-		TSEC_PUT_GENERIC(sc, tx_map_unused_data, tx_map_unused_put_cnt,	\
-		TSEC_TX_NUM_DESC, val)
-
-/* interface to get/put used TX maps */
-#define TSEC_GET_TX_MAP(sc)							\
-		TSEC_GET_GENERIC(sc, tx_map_used_data, tx_map_used_get_cnt,	\
-		TSEC_TX_NUM_DESC)
-
-#define TSEC_PUT_TX_MAP(sc, val)						\
-		TSEC_PUT_GENERIC(sc, tx_map_used_data, tx_map_used_put_cnt,	\
-		TSEC_TX_NUM_DESC, val)
-
-/* interface to get/put TX mbufs in send queue */
-#define TSEC_TX_MBUF_CNT_INIT(sc) do {						\
-		TSEC_CNT_INIT((sc)->tx_mbuf_used_get_cnt, TSEC_TX_NUM_DESC);	\
-		TSEC_CNT_INIT((sc)->tx_mbuf_used_put_cnt, TSEC_TX_NUM_DESC);	\
-} while (0)
-
-#define TSEC_GET_TX_MBUF(sc)							\
-		TSEC_GET_GENERIC(sc, tx_mbuf_used_data, tx_mbuf_used_get_cnt,	\
-		TSEC_TX_NUM_DESC)
-
-#define TSEC_PUT_TX_MBUF(sc, val)						\
-		TSEC_PUT_GENERIC(sc, tx_mbuf_used_data, tx_mbuf_used_put_cnt,	\
-		TSEC_TX_NUM_DESC, val)
-
-#define TSEC_EMPTYQ_TX_MBUF(sc) \
-		((sc)->tx_mbuf_used_get_cnt == (sc)->tx_mbuf_used_put_cnt)
-
-/* interface for manage tx tsec_desc */
-#define TSEC_TX_DESC_CNT_INIT(sc) do {						\
-		TSEC_CNT_INIT((sc)->tx_cur_desc_cnt, TSEC_TX_NUM_DESC);		\
-		TSEC_CNT_INIT((sc)->tx_dirty_desc_cnt, TSEC_TX_NUM_DESC);	\
-} while (0)
-
-#define TSEC_GET_CUR_TX_DESC(sc)						\
-		&TSEC_GET_GENERIC(sc, tsec_tx_vaddr, tx_cur_desc_cnt,		\
-		TSEC_TX_NUM_DESC)
-
-#define TSEC_GET_DIRTY_TX_DESC(sc)						\
-		&TSEC_GET_GENERIC(sc, tsec_tx_vaddr, tx_dirty_desc_cnt,		\
-		TSEC_TX_NUM_DESC)
-
-#define TSEC_BACK_DIRTY_TX_DESC(sc) \
-		TSEC_BACK_GENERIC(sc, tx_dirty_desc_cnt, TSEC_TX_NUM_DESC)
-
-#define TSEC_CUR_DIFF_DIRTY_TX_DESC(sc) \
-		((sc)->tx_cur_desc_cnt != (sc)->tx_dirty_desc_cnt)
-
-#define TSEC_FREE_TX_DESC(sc)						\
-		(((sc)->tx_cur_desc_cnt < (sc)->tx_dirty_desc_cnt) ?	\
-		((sc)->tx_dirty_desc_cnt - (sc)->tx_cur_desc_cnt - 1)	\
-		:							\
-		(TSEC_TX_NUM_DESC - (sc)->tx_cur_desc_cnt		\
-		+ (sc)->tx_dirty_desc_cnt - 1))
+#define TSEC_FREE_TX_DESC(sc) \
+    (((sc)->tx_idx_tail - (sc)->tx_idx_head - 1) & (TSEC_TX_NUM_DESC - 1))
 
 /* interface for manage rx tsec_desc */
 #define TSEC_RX_DESC_CNT_INIT(sc) do {					\
@@ -242,9 +168,8 @@ struct tsec_softc {
 
 /* init all counters (for init only!) */
 #define TSEC_TX_RX_COUNTERS_INIT(sc) do {	\
-		TSEC_TX_MAP_CNT_INIT(sc);	\
-		TSEC_TX_MBUF_CNT_INIT(sc);	\
-		TSEC_TX_DESC_CNT_INIT(sc);	\
+		sc->tx_idx_head = 0;		\
+		sc->tx_idx_tail = 0;		\
 		TSEC_RX_DESC_CNT_INIT(sc);	\
 } while (0)
 
@@ -258,9 +183,11 @@ extern struct mtx tsec_phy_mtx;
 #define TSEC_PHY_LOCK(sc)	mtx_lock(&tsec_phy_mtx)
 #define TSEC_PHY_UNLOCK(sc)	mtx_unlock(&tsec_phy_mtx)
 #define TSEC_PHY_READ(sc, reg)		\
-		bus_space_read_4((sc)->phy_bst, (sc)->phy_bsh, (reg))
+		bus_space_read_4((sc)->phy_bst, (sc)->phy_bsh, \
+			(reg) + (sc)->phy_regoff)
 #define TSEC_PHY_WRITE(sc, reg, val)	\
-		bus_space_write_4((sc)->phy_bst, (sc)->phy_bsh, (reg), (val))
+		bus_space_write_4((sc)->phy_bst, (sc)->phy_bsh, \
+			(reg) + (sc)->phy_regoff, (val))
 
 /* Lock for transmitter */
 #define TSEC_TRANSMIT_LOCK(sc) do {					\

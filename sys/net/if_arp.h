@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,7 +49,6 @@ struct	arphdr {
 	u_short	ar_hrd;		/* format of hardware address */
 #define ARPHRD_ETHER 	1	/* ethernet hardware format */
 #define ARPHRD_IEEE802	6	/* token-ring hardware format */
-#define ARPHRD_ARCNET	7	/* arcnet hardware format */
 #define ARPHRD_FRELAY 	15	/* frame relay hardware format */
 #define ARPHRD_IEEE1394	24	/* firewire hardware format */
 #define ARPHRD_INFINIBAND 32	/* infiniband hardware format */

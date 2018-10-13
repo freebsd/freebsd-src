@@ -200,7 +200,7 @@ f_sysrc_get()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2> /dev/null
+		eval printf "'%s\\n'" '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -256,7 +256,9 @@ f_sysrc_service_configs()
 			last_name=
 			print_name() {
 				local name="$1"
-				[ "$name" = "$last_name" ] && return
+				case "$name" in
+				""|.|..|*/*|"$last_name") return ;;
+				esac
 				echo "$name" >&9
 				last_name="$name"
 			}
@@ -336,7 +338,7 @@ f_sysrc_get_default()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2> /dev/null
+		eval printf "'%s\\n'" '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -554,9 +556,16 @@ f_sysrc_set()
 	fi
 
 	#
-	# If not found, append new value to last file and return.
+	# If not found, append new value to first file and return.
 	#
 	if [ "$not_found" ]; then
+		# Add a newline if missing before appending to the file
+		awk 'BEGIN { wc = 0 } NR == 1 {
+			(cmd = "wc -l " FILENAME) | getline
+			close(cmd)
+			wc = $1
+		} END { exit wc != NR }' "$file" ||
+			echo >> "$file" || return $?
 		echo "$varname=\"$new_value\"" >> "$file"
 		return $?
 	fi
@@ -604,8 +613,11 @@ f_sysrc_set()
 	#
 	# Operate on the matching file, replacing only the last occurrence.
 	#
+	# Use awk to ensure LF at end of each line, else files without ending
+	# LF will trigger a bug in `tail -r' where last two lines are joined.
+	#
 	local new_contents retval
-	new_contents=$( tail -r $file 2> /dev/null )
+	new_contents=$( awk 1 "$file" 2> /dev/null | tail -r )
 	new_contents=$( echo "$new_contents" | awk -v varname="$varname" \
 		-v new_value="$new_value" "$f_sysrc_set_awk" )
 	retval=$?

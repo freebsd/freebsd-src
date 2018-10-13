@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (c) 2004, 2007 Lukas Ertl
  *  All rights reserved.
  * 
@@ -223,8 +225,7 @@ gv_rm_vol(struct gv_softc *sc, struct gv_volume *v)
 	/* Get rid of the volume's provider. */
 	if (pp != NULL) {
 		g_topology_lock();
-		pp->flags |= G_PF_WITHER;
-		g_orphan_provider(pp, ENXIO);
+		g_wither_provider(pp, ENXIO);
 		g_topology_unlock();
 	}
 }

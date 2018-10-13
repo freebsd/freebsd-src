@@ -41,35 +41,33 @@ MachineBasicBlock::instr_iterator finalizeBundle(MachineBasicBlock &MBB,
 /// MachineFunction. Return true if any bundles are finalized.
 bool finalizeBundles(MachineFunction &MF);
 
-/// getBundleStart - Returns the first instruction in the bundle containing MI.
-///
-inline MachineInstr *getBundleStart(MachineInstr *MI) {
-  MachineBasicBlock::instr_iterator I(MI);
+/// Returns an iterator to the first instruction in the bundle containing \p I.
+inline MachineBasicBlock::instr_iterator getBundleStart(
+    MachineBasicBlock::instr_iterator I) {
   while (I->isBundledWithPred())
     --I;
-  return &*I;
+  return I;
 }
 
-inline const MachineInstr *getBundleStart(const MachineInstr *MI) {
-  MachineBasicBlock::const_instr_iterator I(MI);
+/// Returns an iterator to the first instruction in the bundle containing \p I.
+inline MachineBasicBlock::const_instr_iterator getBundleStart(
+    MachineBasicBlock::const_instr_iterator I) {
   while (I->isBundledWithPred())
     --I;
-  return &*I;
+  return I;
 }
 
-/// Return an iterator pointing beyond the bundle containing MI.
-inline MachineBasicBlock::instr_iterator
-getBundleEnd(MachineInstr *MI) {
-  MachineBasicBlock::instr_iterator I(MI);
+/// Returns an iterator pointing beyond the bundle containing \p I.
+inline MachineBasicBlock::instr_iterator getBundleEnd(
+    MachineBasicBlock::instr_iterator I) {
   while (I->isBundledWithSucc())
     ++I;
   return ++I;
 }
 
-/// Return an iterator pointing beyond the bundle containing MI.
-inline MachineBasicBlock::const_instr_iterator
-getBundleEnd(const MachineInstr *MI) {
-  MachineBasicBlock::const_instr_iterator I(MI);
+/// Returns an iterator pointing beyond the bundle containing \p I.
+inline MachineBasicBlock::const_instr_iterator getBundleEnd(
+    MachineBasicBlock::const_instr_iterator I) {
   while (I->isBundledWithSucc())
     ++I;
   return ++I;
@@ -114,12 +112,12 @@ protected:
   /// @param MI The instruction to examine.
   /// @param WholeBundle When true, visit all operands on the entire bundle.
   ///
-  explicit MachineOperandIteratorBase(MachineInstr *MI, bool WholeBundle) {
+  explicit MachineOperandIteratorBase(MachineInstr &MI, bool WholeBundle) {
     if (WholeBundle) {
-      InstrI = getBundleStart(MI)->getIterator();
-      InstrE = MI->getParent()->instr_end();
+      InstrI = getBundleStart(MI.getIterator());
+      InstrE = MI.getParent()->instr_end();
     } else {
-      InstrI = InstrE = MI->getIterator();
+      InstrI = InstrE = MI.getIterator();
       ++InstrE;
     }
     OpI = InstrI->operands_begin();
@@ -152,7 +150,7 @@ public:
   ///
   struct VirtRegInfo {
     /// Reads - One of the operands read the virtual register.  This does not
-    /// include <undef> or <internal> use operands, see MO::readsReg().
+    /// include undef or internal use operands, see MO::readsReg().
     bool Reads;
 
     /// Writes - One of the operands writes the virtual register.
@@ -184,9 +182,15 @@ public:
     /// Reg or a super-register is read. The full register is read.
     bool FullyRead;
 
-    /// Reg is FullyDefined and all defs of reg or an overlapping register are
-    /// dead.
+    /// Either:
+    /// - Reg is FullyDefined and all defs of reg or an overlapping
+    ///   register are dead, or
+    /// - Reg is completely dead because "defined" by a clobber.
     bool DeadDef;
+
+    /// Reg is Defined and all defs of reg or an overlapping register are
+    /// dead.
+    bool PartialDeadDef;
 
     /// There is a use operand of reg or a super-register with kill flag set.
     bool Killed;
@@ -216,7 +220,7 @@ public:
 ///
 class MIOperands : public MachineOperandIteratorBase {
 public:
-  MIOperands(MachineInstr *MI) : MachineOperandIteratorBase(MI, false) {}
+  MIOperands(MachineInstr &MI) : MachineOperandIteratorBase(MI, false) {}
   MachineOperand &operator* () const { return deref(); }
   MachineOperand *operator->() const { return &deref(); }
 };
@@ -225,8 +229,8 @@ public:
 ///
 class ConstMIOperands : public MachineOperandIteratorBase {
 public:
-  ConstMIOperands(const MachineInstr *MI)
-    : MachineOperandIteratorBase(const_cast<MachineInstr*>(MI), false) {}
+  ConstMIOperands(const MachineInstr &MI)
+      : MachineOperandIteratorBase(const_cast<MachineInstr &>(MI), false) {}
   const MachineOperand &operator* () const { return deref(); }
   const MachineOperand *operator->() const { return &deref(); }
 };
@@ -236,7 +240,7 @@ public:
 ///
 class MIBundleOperands : public MachineOperandIteratorBase {
 public:
-  MIBundleOperands(MachineInstr *MI) : MachineOperandIteratorBase(MI, true) {}
+  MIBundleOperands(MachineInstr &MI) : MachineOperandIteratorBase(MI, true) {}
   MachineOperand &operator* () const { return deref(); }
   MachineOperand *operator->() const { return &deref(); }
 };
@@ -246,8 +250,8 @@ public:
 ///
 class ConstMIBundleOperands : public MachineOperandIteratorBase {
 public:
-  ConstMIBundleOperands(const MachineInstr *MI)
-    : MachineOperandIteratorBase(const_cast<MachineInstr*>(MI), true) {}
+  ConstMIBundleOperands(const MachineInstr &MI)
+      : MachineOperandIteratorBase(const_cast<MachineInstr &>(MI), true) {}
   const MachineOperand &operator* () const { return deref(); }
   const MachineOperand *operator->() const { return &deref(); }
 };

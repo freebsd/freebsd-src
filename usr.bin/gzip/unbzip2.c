@@ -1,6 +1,8 @@
-/*	$NetBSD: unbzip2.c,v 1.13 2009/12/05 03:23:37 mrg Exp $	*/
+/*	$NetBSD: unbzip2.c,v 1.14 2017/08/04 07:27:08 mrg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2006 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -65,6 +67,7 @@ unbzip2(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 		*bytes_in = prelen;
 
 	while (ret == BZ_OK) {
+		check_siginfo();
 	        if (bzs.avail_in == 0 && !end_of_file) {
 			ssize_t	n;
 
@@ -73,6 +76,7 @@ unbzip2(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 	                        maybe_err("read");
 	                if (n == 0)
 	                        end_of_file = 1;
+			infile_newdata(n);
 	                bzs.next_in = inbuf;
 	                bzs.avail_in = n;
 			if (bytes_in)

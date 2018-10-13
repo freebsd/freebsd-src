@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../security/mac_biba
+.PATH: ${SRCTOP}/sys/security/mac_biba
 
 KMOD=	mac_biba
 SRCS=	vnode_if.h \

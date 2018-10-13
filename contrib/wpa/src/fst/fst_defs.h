@@ -34,7 +34,7 @@ enum session_type {
 struct session_transition_ie {
 	u8 element_id;
 	u8 length;
-	u32 fsts_id;
+	le32 fsts_id;
 	u8 session_control;
 	u8 new_band_id;
 	u8 new_band_setup;
@@ -47,7 +47,7 @@ struct session_transition_ie {
 struct fst_setup_req {
 	u8 action;
 	u8 dialog_token;
-	u32 llt;
+	le32 llt;
 	struct session_transition_ie stie;
 	/* Multi-band (optional) */
 	/* Wakeup Schedule (optional) */
@@ -70,18 +70,18 @@ struct fst_setup_res {
 struct fst_ack_req {
 	u8 action;
 	u8 dialog_token;
-	u32 fsts_id;
+	le32 fsts_id;
 } STRUCT_PACKED;
 
 struct fst_ack_res {
 	u8 action;
 	u8 dialog_token;
-	u32 fsts_id;
+	le32 fsts_id;
 } STRUCT_PACKED;
 
 struct fst_tear_down {
 	u8 action;
-	u32 fsts_id;
+	le32 fsts_id;
 } STRUCT_PACKED;
 
 #endif /* IEEE_80211_FST_DEFS_H */

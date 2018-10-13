@@ -1,5 +1,7 @@
 /*-
- * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright 2017 Nexenta Systems, Inc.
  * Copyright (c) 2002 Tim J. Robbins
  * All rights reserved.
  *
@@ -42,22 +44,22 @@ __FBSDID("$FreeBSD$");
 int
 wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 {
-	int len1, len2, pri1, pri2, ret;
+	int len1, len2, pri1, pri2;
 	wchar_t *tr1 = NULL, *tr2 = NULL;
 	int direc, pass;
+	int ret = wcscmp(ws1, ws2);
 
 	FIX_LOCALE(locale);
 	struct xlocale_collate *table =
 		(struct xlocale_collate*)locale->components[XLC_COLLATE];
 
-	if (table->__collate_load_error)
-		/*
-		 * Locale has no special collating order or could not be
-		 * loaded, do a fast binary comparison.
-		 */
-		return (wcscmp(ws1, ws2));
+	if (table->__collate_load_error || ret == 0)
+		return (ret);
 
-	ret = 0;
+	if (*ws1 == 0 && *ws2 != 0)
+		return (-1);
+	if (*ws1 != 0 && *ws2 == 0)
+		return (1);
 
 	/*
 	 * Once upon a time we had code to try to optimize this, but
@@ -77,19 +79,19 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 		const int32_t *st2 = NULL;
 		const wchar_t	*w1 = ws1;
 		const wchar_t	*w2 = ws2;
-		int check1, check2;
 
 		/* special pass for UNDEFINED */
 		if (pass == table->info->directive_count) {
-			direc = DIRECTIVE_FORWARD | DIRECTIVE_UNDEFINED;
+			direc = DIRECTIVE_FORWARD;
 		} else {
 			direc = table->info->directive[pass];
 		}
 
 		if (direc & DIRECTIVE_BACKWARD) {
 			wchar_t *bp, *fp, c;
+			free(tr1);
 			if ((tr1 = wcsdup(w1)) == NULL)
-				goto fail;
+				goto end;
 			bp = tr1;
 			fp = tr1 + wcslen(tr1) - 1;
 			while (bp < fp) {
@@ -97,8 +99,9 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 				*bp++ = *fp;
 				*fp-- = c;
 			}
+			free(tr2);
 			if ((tr2 = wcsdup(w2)) == NULL)
-				goto fail;
+				goto end;
 			bp = tr2;
 			fp = tr2 + wcslen(tr2) - 1;
 			while (bp < fp) {
@@ -111,6 +114,7 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 		}
 
 		if (direc & DIRECTIVE_POSITION) {
+			int check1, check2;
 			while (*w1 && *w2) {
 				pri1 = pri2 = 0;
 				check1 = check2 = 1;
@@ -120,7 +124,7 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 						    &pri1, pass, &st1);
 						if (pri1 < 0) {
 							errno = EINVAL;
-							goto fail;
+							goto end;
 						}
 						if (!pri1) {
 							pri1 = COLLATE_MAX_PRIORITY;
@@ -133,7 +137,7 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 						    &pri2, pass, &st2);
 						if (pri2 < 0) {
 							errno = EINVAL;
-							goto fail;
+							goto end;
 						}
 						if (!pri2) {
 							pri2 = COLLATE_MAX_PRIORITY;
@@ -149,58 +153,64 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 				w1 += len1;
 				w2 += len2;
 			}
-		} else {
-			while (*w1 && *w2) {
-				pri1 = pri2 = 0;
-				check1 = check2 = 1;
-				while ((pri1 == pri2) && (check1 || check2)) {
-					while (check1 && *w1) {
-						_collate_lookup(table, w1,
-						    &len1, &pri1, pass, &st1);
-						if (pri1 > 0)
-							break;
-						if (pri1 < 0) {
-							errno = EINVAL;
-							goto fail;
-						}
-						st1 = NULL;
-						w1 += 1;
-					}
-					check1 = (st1 != NULL);
-					while (check2 && *w2) {
-						_collate_lookup(table, w2,
-						    &len2, &pri2, pass, &st2);
-						if (pri2 > 0)
-							break;
-						if (pri2 < 0) {
-							errno = EINVAL;
-							goto fail;
-						}
-						st2 = NULL;
-						w2 += 1;
-					}
-					check2 = (st2 != NULL);
-					if (!pri1 || !pri2)
-						break;
+			if (!*w1) {
+				if (*w2) {
+					ret = -(int)*w2;
+					goto end;
 				}
-				if (!pri1 || !pri2)
+			} else {
+				ret = *w1;
+				goto end;
+			}
+		} else {
+			int vpri1 = 0, vpri2 = 0;
+			while (*w1 || *w2 || st1 || st2) {
+				pri1 = 1;
+				while (*w1 || st1) {
+					_collate_lookup(table, w1, &len1, &pri1,
+					    pass, &st1);
+					w1 += len1;
+					if (pri1 > 0) {
+						vpri1++;
+						break;
+					}
+
+					if (pri1 < 0) {
+						errno = EINVAL;
+						goto end;
+					}
+					st1 = NULL;
+				}
+				pri2 = 1;
+				while (*w2 || st2) {
+					_collate_lookup(table, w2, &len2, &pri2,
+					    pass, &st2);
+					w2 += len2;
+					if (pri2 > 0) {
+						vpri2++;
+						break;
+					}
+					if (pri2 < 0) {
+						errno = EINVAL;
+						goto end;
+					}
+					st2 = NULL;
+				}
+				if ((!pri1 || !pri2) && (vpri1 == vpri2))
 					break;
 				if (pri1 != pri2) {
 					ret = pri1 - pri2;
 					goto end;
 				}
-				w1 += len1;
-				w2 += len2;
 			}
-		}
-		if (!*w1) {
-			if (*w2) {
-				ret = -(int)*w2;
+			if (vpri1 && !vpri2) {
+				ret = 1;
 				goto end;
 			}
-		} else {
-			ret = *w1;
-			goto end;
+			if (!vpri1 && vpri2) {
+				ret = -1;
+				goto end;
+			}
 		}
 	}
 	ret = 0;
@@ -210,10 +220,6 @@ end:
 	free(tr2);
 
 	return (ret);
-
-fail:
-	ret = wcscmp(ws1, ws2);
-	goto end;
 }
 
 int

@@ -23,14 +23,14 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "pre-RA-sched"
@@ -321,7 +321,7 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
 
   // Add all nodes in depth first order.
   SmallVector<SDNode*, 64> Worklist;
-  SmallPtrSet<SDNode*, 64> Visited;
+  SmallPtrSet<SDNode*, 32> Visited;
   Worklist.push_back(DAG->getRoot().getNode());
   Visited.insert(DAG->getRoot().getNode());
 
@@ -650,6 +650,7 @@ void ScheduleDAGSDNodes::computeOperandLatency(SDNode *Def, SDNode *Use,
 }
 
 void ScheduleDAGSDNodes::dumpNode(const SUnit *SU) const {
+  // Cannot completely remove virtual function even in release mode.
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   if (!SU->getNode()) {
     dbgs() << "PHYS REG COPY\n";
@@ -704,22 +705,21 @@ ProcessSDDbgValues(SDNode *N, SelectionDAG *DAG, InstrEmitter &Emitter,
   if (!N->getHasDebugValue())
     return;
 
-  // Opportunistically insert immediate dbg_value uses, i.e. those with source
-  // order number right after the N.
+  // Opportunistically insert immediate dbg_value uses, i.e. those with the same
+  // source order number as N.
   MachineBasicBlock *BB = Emitter.getBlock();
   MachineBasicBlock::iterator InsertPos = Emitter.getInsertPos();
-  ArrayRef<SDDbgValue*> DVs = DAG->GetDbgValues(N);
-  for (unsigned i = 0, e = DVs.size(); i != e; ++i) {
-    if (DVs[i]->isInvalidated())
+  for (auto DV : DAG->GetDbgValues(N)) {
+    if (DV->isInvalidated())
       continue;
-    unsigned DVOrder = DVs[i]->getOrder();
-    if (!Order || DVOrder == ++Order) {
-      MachineInstr *DbgMI = Emitter.EmitDbgValue(DVs[i], VRBaseMap);
+    unsigned DVOrder = DV->getOrder();
+    if (!Order || DVOrder == Order) {
+      MachineInstr *DbgMI = Emitter.EmitDbgValue(DV, VRBaseMap);
       if (DbgMI) {
-        Orders.push_back(std::make_pair(DVOrder, DbgMI));
+        Orders.push_back({DVOrder, DbgMI});
         BB->insert(InsertPos, DbgMI);
       }
-      DVs[i]->setIsInvalidated();
+      DV->setIsInvalidated();
     }
   }
 }
@@ -741,16 +741,17 @@ ProcessSourceNode(SDNode *N, SelectionDAG *DAG, InstrEmitter &Emitter,
   }
 
   MachineBasicBlock *BB = Emitter.getBlock();
-  if (Emitter.getInsertPos() == BB->begin() || BB->back().isPHI() ||
+  auto IP = Emitter.getInsertPos();
+  if (IP == BB->begin() || BB->back().isPHI() ||
       // Fast-isel may have inserted some instructions, in which case the
       // BB->back().isPHI() test will not fire when we want it to.
-      std::prev(Emitter.getInsertPos())->isPHI()) {
+      std::prev(IP)->isPHI()) {
     // Did not insert any instruction.
-    Orders.push_back(std::make_pair(Order, (MachineInstr*)nullptr));
+    Orders.push_back({Order, (MachineInstr *)nullptr});
     return;
   }
 
-  Orders.push_back(std::make_pair(Order, std::prev(Emitter.getInsertPos())));
+  Orders.push_back({Order, &*std::prev(IP)});
   ProcessSDDbgValues(N, DAG, Emitter, Orders, VRBaseMap, Order);
 }
 
@@ -835,8 +836,7 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
       GluedNodes.push_back(N);
     while (!GluedNodes.empty()) {
       SDNode *N = GluedNodes.back();
-      Emitter.EmitNode(GluedNodes.back(), SU->OrigNode != SU, SU->isCloned,
-                       VRBaseMap);
+      Emitter.EmitNode(N, SU->OrigNode != SU, SU->isCloned, VRBaseMap);
       // Remember the source order of the inserted instruction.
       if (HasDbg)
         ProcessSourceNode(N, DAG, Emitter, VRBaseMap, Orders, Seen);
@@ -856,8 +856,13 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
     MachineBasicBlock::iterator BBBegin = BB->getFirstNonPHI();
 
     // Sort the source order instructions and use the order to insert debug
-    // values.
-    std::sort(Orders.begin(), Orders.end(), less_first());
+    // values. Use stable_sort so that DBG_VALUEs are inserted in the same order
+    // regardless of the host's implementation fo std::sort.
+    std::stable_sort(Orders.begin(), Orders.end(), less_first());
+    std::stable_sort(DAG->DbgBegin(), DAG->DbgEnd(),
+                     [](const SDDbgValue *LHS, const SDDbgValue *RHS) {
+                       return LHS->getOrder() < RHS->getOrder();
+                     });
 
     SDDbgInfo::DbgIterator DI = DAG->DbgBegin();
     SDDbgInfo::DbgIterator DE = DAG->DbgEnd();
@@ -869,10 +874,12 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
       // Insert all SDDbgValue's whose order(s) are before "Order".
       if (!MI)
         continue;
-      for (; DI != DE &&
-             (*DI)->getOrder() >= LastOrder && (*DI)->getOrder() < Order; ++DI) {
+      for (; DI != DE; ++DI) {
+        if ((*DI)->getOrder() < LastOrder || (*DI)->getOrder() >= Order)
+          break;
         if ((*DI)->isInvalidated())
           continue;
+
         MachineInstr *DbgMI = Emitter.EmitDbgValue(*DI, VRBaseMap);
         if (DbgMI) {
           if (!LastOrder)
@@ -891,11 +898,13 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
     // Add trailing DbgValue's before the terminator. FIXME: May want to add
     // some of them before one or more conditional branches?
     SmallVector<MachineInstr*, 8> DbgMIs;
-    while (DI != DE) {
-      if (!(*DI)->isInvalidated())
-        if (MachineInstr *DbgMI = Emitter.EmitDbgValue(*DI, VRBaseMap))
-          DbgMIs.push_back(DbgMI);
-      ++DI;
+    for (; DI != DE; ++DI) {
+      if ((*DI)->isInvalidated())
+        continue;
+      assert((*DI)->getOrder() >= LastOrder &&
+             "emitting DBG_VALUE out of order");
+      if (MachineInstr *DbgMI = Emitter.EmitDbgValue(*DI, VRBaseMap))
+        DbgMIs.push_back(DbgMI);
     }
 
     MachineBasicBlock *InsertBB = Emitter.getBlock();

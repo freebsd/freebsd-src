@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -45,11 +47,16 @@
 #define	PSL_FP		0x00002000UL	/* floating point enable */
 #define	PSL_ME		0x00001000UL	/* machine check enable */
 #define	PSL_FE0		0x00000800UL	/* floating point interrupt mode 0 */
-#define	PSL_BE		0x00000200UL	/* branch trace enable */
 #define	PSL_FE1		0x00000100UL	/* floating point interrupt mode 1 */
 #define	PSL_PMM		0x00000004UL	/* performance monitor mark */
+#define	PSL_RI		0x00000002UL	/* recoverable interrupt */
 
 /* Machine State Register - Book-E cores */
+#ifdef __powerpc64__
+#define	PSL_CM		0x80000000UL	/* Computation Mode (64-bit) */
+#endif
+
+#define PSL_GS		0x10000000UL	/* Guest state */
 #define PSL_UCLE	0x04000000UL	/* User mode cache lock enable */
 #define PSL_WE		0x00040000UL	/* Wait state enable */
 #define PSL_CE		0x00020000UL	/* Critical interrupt enable */
@@ -68,10 +75,10 @@
 #define	PSL_POW		0x00040000UL	/* power management */
 #define	PSL_ILE		0x00010000UL	/* interrupt endian mode (1 == le) */
 #define	PSL_SE		0x00000400UL	/* single-step trace enable */
+#define	PSL_BE		0x00000200UL	/* branch trace enable */
 #define	PSL_IP		0x00000040UL	/* interrupt prefix - 601 only */
 #define	PSL_IR		0x00000020UL	/* instruction address relocation */
 #define	PSL_DR		0x00000010UL	/* data address relocation */
-#define	PSL_RI		0x00000002UL	/* recoverable interrupt */
 #define	PSL_LE		0x00000001UL	/* endian mode (1 == le) */
 
 /*
@@ -83,24 +90,13 @@
 #define	PSL_FE_PREC	(PSL_FE0 | PSL_FE1) /* precise */
 #define	PSL_FE_DFLT	PSL_FE_DIS	/* default == none */
 
-#if defined(BOOKE_E500)
-/* Initial kernel MSR, use IS=1 ad DS=1. */
-#define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
-#define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
-#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
-#elif defined(BOOKE_PPC4XX)
-#define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
-#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
-#elif defined(AIM)
+#ifndef LOCORE
+extern register_t psl_kernset;		/* Default MSR values for kernel */
+extern register_t psl_userset;		/* Default MSR values for userland */
 #ifdef __powerpc64__
-#define	PSL_KERNSET	(PSL_SF | PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
-#else
-#define	PSL_KERNSET	(PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
+extern register_t psl_userset32;	/* Default user MSR values for 32-bit */
 #endif
-#define PSL_SRR1_MASK	0x783f0000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
+extern register_t psl_userstatic;	/* Bits of SRR1 userland may not set */
 #endif
-
-#define	PSL_USERSET	(PSL_KERNSET | PSL_PR)
-#define	PSL_USERSTATIC	(~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1) & ~PSL_SRR1_MASK)
 
 #endif	/* _MACHINE_PSL_H_ */

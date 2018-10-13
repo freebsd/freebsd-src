@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2002 Benno Rice.
  * All rights reserved.
  *
@@ -162,10 +164,10 @@ unin_chip_add_intr(phandle_t devnode, struct unin_chip_devinfo *dinfo)
 		return;
 	}
 
-	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
+	nintr = OF_getprop_alloc_multi(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
 	if (nintr == -1) {
-		nintr = OF_getprop_alloc(devnode, "AAPL,interrupts", 
+		nintr = OF_getprop_alloc_multi(devnode, "AAPL,interrupts", 
 			sizeof(*intr), (void **)&intr);
 		if (nintr == -1)
 			return;
@@ -205,7 +207,7 @@ unin_chip_add_reg(phandle_t devnode, struct unin_chip_devinfo *dinfo)
 	struct	unin_chip_reg *reg;
 	int	i, nreg;
 
-	nreg = OF_getprop_alloc(devnode, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(devnode, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1)
 		return;
 

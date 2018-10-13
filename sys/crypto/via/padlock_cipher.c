@@ -205,7 +205,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 	struct thread *td;
 	u_char *buf, *abuf;
 	uint32_t *key;
-	int allocated, error;
+	int allocated;
 
 	buf = padlock_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
@@ -250,10 +250,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 	}
 
 	td = curthread;
-	error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
-	    FPU_KERN_KTHR);
-	if (error != 0)
-		goto out;
+	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
 	padlock_cbc(abuf, abuf, enccrd->crd_len / AES_BLOCK_LEN, key, cw,
 	    ses->ses_iv);
 	fpu_kern_leave(td, ses->ses_fpu_ctx);
@@ -270,10 +267,9 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 		    AES_BLOCK_LEN, ses->ses_iv);
 	}
 
- out:
 	if (allocated) {
 		bzero(buf, enccrd->crd_len + 16);
 		free(buf, M_PADLOCK);
 	}
-	return (error);
+	return (0);
 }

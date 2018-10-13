@@ -13,9 +13,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "WebAssemblyInstrInfo.h"
-#include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "WebAssemblySubtarget.h"
+#include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
+#include "WebAssemblyInstrInfo.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
@@ -41,9 +41,16 @@ WebAssemblySubtarget::WebAssemblySubtarget(const Triple &TT,
                                            const std::string &FS,
                                            const TargetMachine &TM)
     : WebAssemblyGenSubtargetInfo(TT, CPU, FS), HasSIMD128(false),
-      CPUString(CPU), TargetTriple(TT), FrameLowering(),
+      HasAtomics(false), HasNontrappingFPToInt(false), CPUString(CPU),
+      TargetTriple(TT), FrameLowering(),
       InstrInfo(initializeSubtargetDependencies(FS)), TSInfo(),
       TLInfo(TM, *this) {}
 
-bool WebAssemblySubtarget::enableMachineScheduler() const { return true; }
+bool WebAssemblySubtarget::enableMachineScheduler() const {
+  // Disable the MachineScheduler for now. Even with ShouldTrackPressure set and
+  // enableMachineSchedDefaultSched overridden, it appears to have an overall
+  // negative effect for the kinds of register optimizations we're doing.
+  return false;
+}
+
 bool WebAssemblySubtarget::useAA() const { return true; }

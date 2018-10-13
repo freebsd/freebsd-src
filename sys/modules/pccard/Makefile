@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/pccard
+.PATH: ${SRCTOP}/sys/dev/pccard
 
 KMOD=	pccard
 SRCS=	pccard.c pccard_cis.c pccard_cis_quirks.c pccard_device.c \

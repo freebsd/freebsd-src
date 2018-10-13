@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -167,14 +170,6 @@ jcl(char **argv)
 			errx(1, "cbs meaningless if not doing record operations");
 	} else
 		cfunc = def;
-
-	/*
-	 * Bail out if the calculation of a file offset would overflow.
-	 */
-	if (in.offset > OFF_MAX / (ssize_t)in.dbsz ||
-	    out.offset > OFF_MAX / (ssize_t)out.dbsz)
-		errx(1, "seek offsets cannot be larger than %jd",
-		    (intmax_t)OFF_MAX);
 }
 
 static int
@@ -192,7 +187,7 @@ f_bs(char *arg)
 
 	res = get_num(arg);
 	if (res < 1 || res > SSIZE_MAX)
-		errx(1, "bs must be between 1 and %jd", (intmax_t)SSIZE_MAX);
+		errx(1, "bs must be between 1 and %zd", (ssize_t)SSIZE_MAX);
 	in.dbsz = out.dbsz = (size_t)res;
 }
 
@@ -203,22 +198,22 @@ f_cbs(char *arg)
 
 	res = get_num(arg);
 	if (res < 1 || res > SSIZE_MAX)
-		errx(1, "cbs must be between 1 and %jd", (intmax_t)SSIZE_MAX);
+		errx(1, "cbs must be between 1 and %zd", (ssize_t)SSIZE_MAX);
 	cbsz = (size_t)res;
 }
 
 static void
 f_count(char *arg)
 {
-	intmax_t res;
+	uintmax_t res;
 
-	res = (intmax_t)get_num(arg);
-	if (res < 0)
-		errx(1, "count cannot be negative");
+	res = get_num(arg);
+	if (res == UINTMAX_MAX)
+		errc(1, ERANGE, "%s", oper);
 	if (res == 0)
-		cpy_cnt = (uintmax_t)-1;
+		cpy_cnt = UINTMAX_MAX;
 	else
-		cpy_cnt = (uintmax_t)res;
+		cpy_cnt = res;
 }
 
 static void
@@ -227,7 +222,7 @@ f_files(char *arg)
 
 	files_cnt = get_num(arg);
 	if (files_cnt < 1)
-		errx(1, "files must be between 1 and %jd", (uintmax_t)-1);
+		errx(1, "files must be between 1 and %zu", SIZE_MAX);
 }
 
 static void
@@ -248,8 +243,8 @@ f_ibs(char *arg)
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
 		if (res < 1 || res > SSIZE_MAX)
-			errx(1, "ibs must be between 1 and %jd",
-			    (intmax_t)SSIZE_MAX);
+			errx(1, "ibs must be between 1 and %zd",
+			    (ssize_t)SSIZE_MAX);
 		in.dbsz = (size_t)res;
 	}
 }
@@ -269,8 +264,8 @@ f_obs(char *arg)
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
 		if (res < 1 || res > SSIZE_MAX)
-			errx(1, "obs must be between 1 and %jd",
-			    (intmax_t)SSIZE_MAX);
+			errx(1, "obs must be between 1 and %zd",
+			    (ssize_t)SSIZE_MAX);
 		out.dbsz = (size_t)res;
 	}
 }
@@ -311,6 +306,8 @@ f_status(char *arg)
 		ddflags |= C_NOINFO;
 	else if (strcmp(arg, "noxfer") == 0)
 		ddflags |= C_NOXFER;
+	else if (strcmp(arg, "progress") == 0)
+		ddflags |= C_PROGRESS;
 	else
 		errx(1, "unknown status %s", arg);
 }

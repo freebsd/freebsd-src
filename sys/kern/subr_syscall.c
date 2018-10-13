@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -45,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 #include <sys/ktr.h>
+#include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -52,13 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 static inline int
-syscallenter(struct thread *td, struct syscall_args *sa)
+syscallenter(struct thread *td)
 {
 	struct proc *p;
+	struct syscall_args *sa;
 	int error, traced;
 
-	PCPU_INC(cnt.v_syscall);
+	VM_CNT_INC(v_syscall);
 	p = td->td_proc;
+	sa = &td->td_sa;
 
 	td->td_pticks = 0;
 	if (td->td_cowgen != p->p_cowgen)
@@ -71,7 +76,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
 	}
-	error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
+	error = (p->p_sysent->sv_fetch_syscall_args)(td);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(sa->code, sa->narg, sa->args);
@@ -85,10 +90,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		STOPEVENT(p, S_SCE, sa->narg);
 		if (p->p_flag & P_TRACED) {
 			PROC_LOCK(p);
-			td->td_dbg_sc_code = sa->code;
-			td->td_dbg_sc_narg = sa->narg;
-			if (p->p_stops & S_PT_SCE)
-				ptracestop((td), SIGTRAP);
+			if (p->p_ptevents & PTRACE_SCE)
+				ptracestop((td), SIGTRAP, NULL);
 			PROC_UNLOCK(p);
 		}
 		if (td->td_dbgflags & TDB_USERWR) {
@@ -96,11 +99,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			 * Reread syscall number and arguments if
 			 * debugger modified registers or memory.
 			 */
-			error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
-			PROC_LOCK(p);
-			td->td_dbg_sc_code = sa->code;
-			td->td_dbg_sc_narg = sa->narg;
-			PROC_UNLOCK(p);
+			error = (p->p_sysent->sv_fetch_syscall_args)(td);
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSCALL))
 				ktrsyscall(sa->code, sa->narg, sa->args);
@@ -127,7 +126,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 
 #ifdef KDTRACE_HOOKS
 		/* Give the syscall:::entry DTrace probe a chance to fire. */
-		if (systrace_probe_func != NULL && sa->callp->sy_entry != 0)
+		if (__predict_false(systrace_enabled &&
+		    sa->callp->sy_entry != 0))
 			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
 #endif
 
@@ -141,7 +141,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 
 #ifdef KDTRACE_HOOKS
 		/* Give the syscall:::return DTrace probe a chance to fire. */
-		if (systrace_probe_func != NULL && sa->callp->sy_return != 0)
+		if (__predict_false(systrace_enabled &&
+		    sa->callp->sy_return != 0))
 			(*systrace_probe_func)(sa, SYSTRACE_RETURN,
 			    error ? -1 : td->td_retval[0]);
 #endif
@@ -162,15 +163,30 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 }
 
 static inline void
-syscallret(struct thread *td, int error, struct syscall_args *sa)
+syscallret(struct thread *td, int error)
 {
 	struct proc *p, *p2;
-	int traced;
+	struct syscall_args *sa;
+	ksiginfo_t ksi;
+	int traced, error1;
 
 	KASSERT((td->td_pflags & TDP_FORKING) == 0,
 	    ("fork() did not clear TDP_FORKING upon completion"));
 
 	p = td->td_proc;
+	sa = &td->td_sa;
+	if ((trap_enotcap || (p->p_flag2 & P2_TRAPCAP) != 0) &&
+	    IN_CAPABILITY_MODE(td)) {
+		error1 = (td->td_pflags & TDP_NERRNO) == 0 ? error :
+		    td->td_errno;
+		if (error1 == ENOTCAPABLE || error1 == ECAPMODE) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGTRAP;
+			ksi.ksi_errno = error1;
+			ksi.ksi_code = TRAP_CAP;
+			trapsignal(td, &ksi);
+		}
+	}
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues
@@ -208,8 +224,8 @@ syscallret(struct thread *td, int error, struct syscall_args *sa)
 		 */
 		if (traced &&
 		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
-		    (p->p_stops & S_PT_SCX) != 0))
-			ptracestop(td, SIGTRAP);
+		    (p->p_ptevents & PTRACE_SCX) != 0))
+			ptracestop(td, SIGTRAP, NULL);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
 	}
@@ -242,5 +258,13 @@ again:
 			cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
 		}
 		PROC_UNLOCK(p2);
+
+		if (td->td_dbgflags & TDB_VFORK) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_VFORK)
+				ptracestop(td, SIGTRAP, NULL);
+			td->td_dbgflags &= ~TDB_VFORK;
+			PROC_UNLOCK(p);
+		}
 	}
 }

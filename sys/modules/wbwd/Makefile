@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/wbwd
+.PATH: ${SRCTOP}/sys/dev/wbwd
 
 KMOD=	wbwd
 SRCS=	wbwd.c

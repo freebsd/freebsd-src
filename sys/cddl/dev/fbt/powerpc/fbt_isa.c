@@ -37,7 +37,7 @@
 
 #include "fbt.h"
 
-#define FBT_PATCHVAL		0x7c810808
+#define FBT_PATCHVAL		0x7ffff808
 #define FBT_MFLR_R0		0x7c0802a6
 #define FBT_MTLR_R0		0x7c0803a6
 #define FBT_BLR			0x4e800020
@@ -127,18 +127,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 		return (0);
 #endif
 
-	if (strncmp(name, "dtrace_", 7) == 0 &&
-	    strncmp(name, "dtrace_safe_", 12) != 0) {
-		/*
-		 * Anything beginning with "dtrace_" may be called
-		 * from probe context unless it explicitly indicates
-		 * that it won't be called from probe context by
-		 * using the prefix "dtrace_safe_".
-		 */
-		return (0);
-	}
-
-	if (name[0] == '_' && name[1] == '_')
+	if (fbt_excluded(name))
 		return (0);
 
 	instr = (uint32_t *) symval->value;
@@ -219,7 +208,7 @@ again:
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
 		    name, FBT_RETURN, FBT_AFRAMES, fbt);
 	} else {
-		retfbt->fbtp_next = fbt;
+		retfbt->fbtp_probenext = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
 	}
 

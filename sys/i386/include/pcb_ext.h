@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Jonathan Lemon
  * All rights reserved.
  *
@@ -44,10 +46,7 @@ struct pcb_ext {
 };
 
 #ifdef _KERNEL
-extern int private_tss;
-
 int i386_extend_pcb(struct thread *);
-
 #endif
 
 #endif /* _I386_PCB_EXT_H_ */

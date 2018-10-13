@@ -1,4 +1,4 @@
-/*	$NetBSD: t_memmem.c,v 1.2 2011/07/07 08:27:36 jruoho Exp $ */
+/*	$NetBSD: t_memmem.c,v 1.3 2017/01/11 18:07:37 christos Exp $ */
 
 /*-
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
@@ -51,6 +51,8 @@ char p6[] = "9";
 int lp6 = 1;
 char p7[] = "654";
 int lp7 = 3;
+char p8[] = "89abc";
+int lp8 = 5;
 
 char b0[] = "";
 int lb0 = 0;
@@ -94,6 +96,7 @@ ATF_TC_BODY(memmem_basic, tc)
 
 	expect(memmem(b2, lb2, p4, lp4) == NULL);
 	expect(memmem(b2, lb2, p7, lp7) == NULL);
+	expect(memmem(b2, lb2, p8, lp8) == NULL);
 }
 
 ATF_TP_ADD_TCS(tp)

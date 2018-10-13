@@ -49,6 +49,12 @@ struct reply_info;
 struct regional;
 struct delegpt;
 
+/** Flags to control behavior of dns_cache_store() and dns_cache_store_msg().
+ *  Must be an unsigned 32-bit value larger than 0xffff */
+
+/** Allow caching a DNS message with a zero TTL. */
+#define DNSCACHE_STORE_ZEROTTL 0x100000
+
 /**
  * Region allocated message reply
  */
@@ -80,11 +86,13 @@ struct dns_msg {
  * @param region: region to allocate better entries from cache into.
  *   (used when is_referral is false).
  * @param flags: flags with BIT_CD for AAAA queries in dns64 translation.
+ *   The higher 16 bits are used internally to customize the cache policy.
+ *   (See DNSCACHE_STORE_xxx flags).
  * @return 0 on alloc error (out of memory).
  */
 int dns_cache_store(struct module_env* env, struct query_info* qinf,
         struct reply_info* rep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint16_t flags); 
+	struct regional* region, uint32_t flags);
 
 /**
  * Store message in the cache. Stores in message cache and rrset cache.
@@ -103,11 +111,12 @@ int dns_cache_store(struct module_env* env, struct query_info* qinf,
  * 	from the parentside of the zonecut.  This means that the type NS
  * 	can be updated to full TTL even in prefetch situations.
  * @param qrep: message that can be altered with better rrs from cache.
+ * @param flags: customization flags for the cache policy.
  * @param region: to allocate into for qmsg.
  */
 void dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
-	hashvalue_t hash, struct reply_info* rep, time_t leeway, int pside,
-	struct reply_info* qrep, struct regional* region);
+	hashvalue_type hash, struct reply_info* rep, time_t leeway, int pside,
+	struct reply_info* qrep, uint32_t flags, struct regional* region);
 
 /**
  * Find a delegation from the cache.
@@ -126,6 +135,20 @@ struct delegpt* dns_cache_find_delegation(struct module_env* env,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass, 
 	struct regional* region, struct dns_msg** msg, time_t timenow);
 
+/**
+ * generate dns_msg from cached message
+ * @param env: module environment with the DNS cache. NULL if the LRU from cache
+ * 	does not need to be touched.
+ * @param q: query info, contains qname that will make up the dns message.
+ * @param r: reply info that, together with qname, will make up the dns message.
+ * @param region: where to allocate dns message.
+ * @param now: the time now, for check if TTL on cache entry is ok.
+ * @param scratch: where to allocate temporary data.
+ * */
+struct dns_msg* tomsg(struct module_env* env, struct query_info* q,
+	struct reply_info* r, struct regional* region, time_t now,
+	struct regional* scratch);
+
 /** 
  * Find cached message 
  * @param env: module environment with the DNS cache.
@@ -136,13 +159,16 @@ struct delegpt* dns_cache_find_delegation(struct module_env* env,
  * @param flags: flags with BIT_CD for AAAA queries in dns64 translation.
  * @param region: where to allocate result.
  * @param scratch: where to allocate temporary data.
+ * @param no_partial: if true, only complete messages and not a partial
+ *   one (with only the start of the CNAME chain and not the rest).
  * @return new response message (alloced in region, rrsets do not have IDs).
  * 	or NULL on error or if not found in cache.
  *	TTLs are made relative to the current time.
  */
 struct dns_msg* dns_cache_lookup(struct module_env* env,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	uint16_t flags, struct regional* region, struct regional* scratch);
+	uint16_t flags, struct regional* region, struct regional* scratch,
+	int no_partial);
 
 /** 
  * find and add A and AAAA records for missing nameservers in delegpt 
@@ -182,6 +208,18 @@ int dns_msg_authadd(struct dns_msg* msg, struct regional* region,
 	struct ub_packed_rrset_key* rrset, time_t now);
 
 /**
+ * Add rrset to authority section in unpacked dns_msg message. Must have enough
+ * space left, does not grow the array.
+ * @param msg: msg to put it in.
+ * @param region: region to alloc in
+ * @param rrset: to add in authority section
+ * @param now: now.
+ * @return true if worked, false on fail
+ */
+int dns_msg_ansadd(struct dns_msg* msg, struct regional* region, 
+	struct ub_packed_rrset_key* rrset, time_t now);
+
+/**
  * Adjust the prefetch_ttl for a cached message.  This adds a value to the
  * prefetch ttl - postponing the time when it will be prefetched for future
  * incoming queries.
@@ -193,5 +231,23 @@ int dns_msg_authadd(struct dns_msg* msg, struct regional* region,
  */
 int dns_cache_prefetch_adjust(struct module_env* env, struct query_info* qinfo,
         time_t adjust, uint16_t flags);
+
+/** lookup message in message cache
+ * the returned nonNULL entry is locked and has to be unlocked by the caller */
+struct msgreply_entry* msg_cache_lookup(struct module_env* env,
+	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
+	uint16_t flags, time_t now, int wr);
+
+/**
+ * Remove entry from the message cache.  For unwanted entries.
+ * @param env: with message cache.
+ * @param qname: query name, in wireformat
+ * @param qnamelen: length of qname, including terminating 0.
+ * @param qtype: query type, host order.
+ * @param qclass: query class, host order.
+ * @param flags: flags
+ */
+void msg_cache_remove(struct module_env* env, uint8_t* qname, size_t qnamelen,
+	uint16_t qtype, uint16_t qclass, uint16_t flags);
 
 #endif /* SERVICES_CACHE_DNS_H */

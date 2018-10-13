@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -81,10 +83,6 @@ struct turnstile;
 #define	TS_EXCLUSIVE_QUEUE	0
 #define	TS_SHARED_QUEUE		1
 
-/* The type of lock currently held. */
-#define	TS_EXCLUSIVE_LOCK	TS_EXCLUSIVE_QUEUE
-#define	TS_SHARED_LOCK		TS_SHARED_QUEUE
-
 void	init_turnstiles(void);
 void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
@@ -100,8 +98,10 @@ struct thread *turnstile_head(struct turnstile *, int);
 struct turnstile *turnstile_lookup(struct lock_object *);
 int	turnstile_signal(struct turnstile *, int);
 struct turnstile *turnstile_trywait(struct lock_object *);
-void	turnstile_unpend(struct turnstile *, int);
+void	turnstile_unpend(struct turnstile *);
 void	turnstile_wait(struct turnstile *, struct thread *, int);
-
+struct thread *turnstile_lock(struct turnstile *, struct lock_object **);
+void	turnstile_unlock(struct turnstile *, struct lock_object *);
+void	turnstile_assert(struct turnstile *);
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */

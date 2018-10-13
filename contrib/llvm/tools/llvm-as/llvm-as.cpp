@@ -15,9 +15,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/AsmParser/Parser.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
@@ -31,29 +31,28 @@
 #include <memory>
 using namespace llvm;
 
-static cl::opt<std::string>
-InputFilename(cl::Positional, cl::desc("<input .llvm file>"), cl::init("-"));
+static cl::opt<std::string> InputFilename(cl::Positional,
+                                          cl::desc("<input .llvm file>"),
+                                          cl::init("-"));
 
-static cl::opt<std::string>
-OutputFilename("o", cl::desc("Override output filename"),
-               cl::value_desc("filename"));
+static cl::opt<std::string> OutputFilename("o",
+                                           cl::desc("Override output filename"),
+                                           cl::value_desc("filename"));
+
+static cl::opt<bool> Force("f", cl::desc("Enable binary output on terminals"));
+
+static cl::opt<bool> DisableOutput("disable-output", cl::desc("Disable output"),
+                                   cl::init(false));
+
+static cl::opt<bool> EmitModuleHash("module-hash", cl::desc("Emit module hash"),
+                                    cl::init(false));
+
+static cl::opt<bool> DumpAsm("d", cl::desc("Print assembly as parsed"),
+                             cl::Hidden);
 
 static cl::opt<bool>
-Force("f", cl::desc("Enable binary output on terminals"));
-
-static cl::opt<bool>
-DisableOutput("disable-output", cl::desc("Disable output"), cl::init(false));
-
-static cl::opt<bool>
-EmitFunctionSummary("function-summary", cl::desc("Emit function summary index"),
-                    cl::init(false));
-
-static cl::opt<bool>
-DumpAsm("d", cl::desc("Print assembly as parsed"), cl::Hidden);
-
-static cl::opt<bool>
-DisableVerify("disable-verify", cl::Hidden,
-              cl::desc("Do not run verifier on input LLVM (dangerous!)"));
+    DisableVerify("disable-verify", cl::Hidden,
+                  cl::desc("Do not run verifier on input LLVM (dangerous!)"));
 
 static cl::opt<bool> PreserveBitcodeUseListOrder(
     "preserve-bc-uselistorder",
@@ -73,16 +72,16 @@ static void WriteOutputFile(const Module *M) {
   }
 
   std::error_code EC;
-  std::unique_ptr<tool_output_file> Out(
-      new tool_output_file(OutputFilename, EC, sys::fs::F_None));
+  std::unique_ptr<ToolOutputFile> Out(
+      new ToolOutputFile(OutputFilename, EC, sys::fs::F_None));
   if (EC) {
     errs() << EC.message() << '\n';
     exit(1);
   }
 
   if (Force || !CheckBitcodeOutputToConsole(Out->os(), true))
-    WriteBitcodeToFile(M, Out->os(), PreserveBitcodeUseListOrder,
-                       EmitFunctionSummary);
+    WriteBitcodeToFile(M, Out->os(), PreserveBitcodeUseListOrder, nullptr,
+                       EmitModuleHash);
 
   // Declare success.
   Out->keep();
@@ -90,15 +89,16 @@ static void WriteOutputFile(const Module *M) {
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
-  LLVMContext &Context = getGlobalContext();
-  llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
+  LLVMContext Context;
+  llvm_shutdown_obj Y; // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm .ll -> .bc assembler\n");
 
   // Parse the file now...
   SMDiagnostic Err;
-  std::unique_ptr<Module> M = parseAssemblyFile(InputFilename, Err, Context);
+  std::unique_ptr<Module> M =
+      parseAssemblyFile(InputFilename, Err, Context, nullptr, !DisableVerify);
   if (!M.get()) {
     Err.print(argv[0], errs());
     return 1;
@@ -115,7 +115,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (DumpAsm) errs() << "Here's the assembly:\n" << *M.get();
+  if (DumpAsm)
+    errs() << "Here's the assembly:\n" << *M.get();
 
   if (!DisableOutput)
     WriteOutputFile(M.get());

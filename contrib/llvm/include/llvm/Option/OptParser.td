@@ -46,6 +46,9 @@ def KIND_JOINED_OR_SEPARATE : OptionKind<"JoinedOrSeparate">;
 def KIND_JOINED_AND_SEPARATE : OptionKind<"JoinedAndSeparate">;
 // An option which consumes all remaining arguments if there are any.
 def KIND_REMAINING_ARGS : OptionKind<"RemainingArgs">;
+// An option which consumes an optional joined argument and any other remaining
+// arguments.
+def KIND_REMAINING_ARGS_JOINED : OptionKind<"RemainingArgsJoined">;
 
 // Define the option flags.
 
@@ -89,6 +92,8 @@ class Option<list<string> prefixes, string name, OptionKind kind> {
   int NumArgs = 0;
   string HelpText = ?;
   string MetaVarName = ?;
+  string Values = ?;
+  code ValuesCode = ?;
   list<OptionFlag> Flags = [];
   OptionGroup Group = ?;
   Option Alias = ?;
@@ -123,6 +128,8 @@ class Flags<list<OptionFlag> flags> { list<OptionFlag> Flags = flags; }
 class Group<OptionGroup group> { OptionGroup Group = group; }
 class HelpText<string text> { string HelpText = text; }
 class MetaVarName<string name> { string MetaVarName = name; }
+class Values<string value> { string Values = value; }
+class ValuesCode<code valuecode> { code ValuesCode = valuecode; }
 
 // Predefined options.
 

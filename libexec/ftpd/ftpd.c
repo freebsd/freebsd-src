@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1988, 1990, 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -93,10 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_appl.h>
 #endif
 
-#ifdef USE_BLACKLIST
 #include "blacklist_client.h"
-#endif
-
 #include "pathnames.h"
 #include "extern.h"
 
@@ -144,6 +143,7 @@ int	noretr = 0;		/* RETR command is disabled.	*/
 int	noguestretr = 0;	/* RETR command is disabled for anon users. */
 int	noguestmkd = 0;		/* MKD command is disabled for anon users. */
 int	noguestmod = 1;		/* anon users may not modify existing files. */
+int	use_blacklist = 0;
 
 off_t	file_size;
 off_t	byte_count;
@@ -305,7 +305,7 @@ main(int argc, char *argv[], char **envp)
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	while ((ch = getopt(argc, argv,
-	                    "468a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
+	                    "468a:ABdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			family = (family == AF_INET6) ? AF_UNSPEC : AF_INET;
@@ -325,6 +325,14 @@ main(int argc, char *argv[], char **envp)
 
 		case 'A':
 			anon_only = 1;
+			break;
+
+		case 'B':
+#ifdef USE_BLACKLIST
+			use_blacklist = 1;
+#else
+			syslog(LOG_WARNING, "not compiled with USE_BLACKLIST support");
+#endif
 			break;
 
 		case 'd':
@@ -423,6 +431,10 @@ main(int argc, char *argv[], char **envp)
 			break;
 		}
 	}
+
+	/* handle filesize limit gracefully */
+	sa.sa_handler = SIG_IGN;
+	(void)sigaction(SIGXFSZ, &sa, NULL);
 
 	if (daemon_mode) {
 		int *ctl_sock, fd, maxfd = -1, nfds, i;
@@ -644,9 +656,7 @@ gotchild:
 		reply(220, "%s FTP server (%s) ready.", hostname, version);
 	else
 		reply(220, "FTP server ready.");
-#ifdef USE_BLACKLIST
-	blacklist_init();
-#endif
+	BLACKLIST_INIT();
 	for (;;)
 		(void) yyparse();
 	/* NOTREACHED */
@@ -1067,7 +1077,7 @@ user(char *name)
 		}
 	}
 	if (logging)
-		strncpy(curname, name, sizeof(curname)-1);
+		strlcpy(curname, name, sizeof(curname));
 
 	pwok = 0;
 #ifdef USE_PAM
@@ -1192,14 +1202,14 @@ end_login(void)
 #endif
 
 	(void) seteuid(0);
-	if (logged_in && dowtmp)
-		ftpd_logwtmp(wtmpid, NULL, NULL);
-	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), 0, LOGIN_SETALL & ~(LOGIN_SETLOGIN |
 		       LOGIN_SETUSER | LOGIN_SETGROUP | LOGIN_SETPATH |
 		       LOGIN_SETENV));
 #endif
+	if (logged_in && dowtmp)
+		ftpd_logwtmp(wtmpid, NULL, NULL);
+	pw = NULL;
 #ifdef USE_PAM
 	if (pamh) {
 		if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
@@ -1422,9 +1432,7 @@ skip:
 		 */
 		if (rval) {
 			reply(530, "Login incorrect.");
-#ifdef USE_BLACKLIST
-			blacklist_notify(1, STDIN_FILENO, "Login incorrect");
-#endif
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, STDIN_FILENO, "Login incorrect");
 			if (logging) {
 				syslog(LOG_NOTICE,
 				    "FTP LOGIN FAILED FROM %s",
@@ -1441,12 +1449,9 @@ skip:
 				exit(0);
 			}
 			return;
+		} else {
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK, STDIN_FILENO, "Login successful");
 		}
-#ifdef USE_BLACKLIST
-		 else {
-			blacklist_notify(0, STDIN_FILENO, "Login successful");
-		}
-#endif
 	}
 	login_attempts = 0;		/* this time successful */
 	if (setegid(pw->pw_gid) < 0) {
@@ -1479,7 +1484,7 @@ skip:
 		}
 	}
 	setusercontext(lc, pw, 0, LOGIN_SETALL &
-		       ~(LOGIN_SETUSER | LOGIN_SETPATH | LOGIN_SETENV));
+		       ~(LOGIN_SETRESOURCES | LOGIN_SETUSER | LOGIN_SETPATH | LOGIN_SETENV));
 #else
 	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);
@@ -1520,6 +1525,10 @@ skip:
 		ftpd_logwtmp(wtmpid, pw->pw_name,
 		    (struct sockaddr *)&his_addr);
 	logged_in = 1;
+
+#ifdef	LOGIN_CAP
+	setusercontext(lc, pw, 0, LOGIN_SETRESOURCES);
+#endif
 
 	if (guest && stats && statfd < 0)
 #ifdef VIRTUAL_HOSTING
@@ -2771,6 +2780,11 @@ dologout(int status)
 
 	if (logged_in && dowtmp) {
 		(void) seteuid(0);
+#ifdef		LOGIN_CAP
+ 	        setusercontext(NULL, getpwuid(0), 0, LOGIN_SETALL & ~(LOGIN_SETLOGIN |
+		       LOGIN_SETUSER | LOGIN_SETGROUP | LOGIN_SETPATH |
+		       LOGIN_SETENV));
+#endif
 		ftpd_logwtmp(wtmpid, NULL, NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */

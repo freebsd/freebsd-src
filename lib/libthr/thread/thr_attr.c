@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Craig Rodrigues <rodrigc@attbi.com>.
  * All rights reserved.
  *
@@ -197,7 +199,8 @@ _pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 __weak_reference(_pthread_attr_getguardsize, pthread_attr_getguardsize);
 
 int
-_pthread_attr_getguardsize(const pthread_attr_t *attr, size_t *guardsize)
+_pthread_attr_getguardsize(const pthread_attr_t * __restrict attr,
+    size_t * __restrict guardsize)
 {
 	int	ret;
 
@@ -215,7 +218,8 @@ _pthread_attr_getguardsize(const pthread_attr_t *attr, size_t *guardsize)
 __weak_reference(_pthread_attr_getinheritsched, pthread_attr_getinheritsched);
 
 int
-_pthread_attr_getinheritsched(const pthread_attr_t *attr, int *sched_inherit)
+_pthread_attr_getinheritsched(const pthread_attr_t * __restrict attr,
+    int * __restrict sched_inherit)
 {
 	int ret = 0;
 
@@ -230,7 +234,8 @@ _pthread_attr_getinheritsched(const pthread_attr_t *attr, int *sched_inherit)
 __weak_reference(_pthread_attr_getschedparam, pthread_attr_getschedparam);
 
 int
-_pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *param)
+_pthread_attr_getschedparam(const pthread_attr_t * __restrict attr,
+    struct sched_param * __restrict param)
 {
 	int ret = 0;
 
@@ -245,7 +250,8 @@ _pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *para
 __weak_reference(_pthread_attr_getschedpolicy, pthread_attr_getschedpolicy);
 
 int
-_pthread_attr_getschedpolicy(const pthread_attr_t *attr, int *policy)
+_pthread_attr_getschedpolicy(const pthread_attr_t * __restrict attr,
+    int * __restrict policy)
 {
 	int ret = 0;
 
@@ -260,7 +266,8 @@ _pthread_attr_getschedpolicy(const pthread_attr_t *attr, int *policy)
 __weak_reference(_pthread_attr_getscope, pthread_attr_getscope);
 
 int
-_pthread_attr_getscope(const pthread_attr_t *attr, int *contentionscope)
+_pthread_attr_getscope(const pthread_attr_t * __restrict attr,
+    int * __restrict contentionscope)
 {
 	int ret = 0;
 
@@ -318,7 +325,8 @@ _pthread_attr_getstackaddr(const pthread_attr_t *attr, void **stackaddr)
 __weak_reference(_pthread_attr_getstacksize, pthread_attr_getstacksize);
 
 int
-_pthread_attr_getstacksize(const pthread_attr_t *attr, size_t *stacksize)
+_pthread_attr_getstacksize(const pthread_attr_t * __restrict attr,
+    size_t * __restrict stacksize)
 {
 	int	ret;
 
@@ -438,7 +446,8 @@ _pthread_attr_setinheritsched(pthread_attr_t *attr, int sched_inherit)
 __weak_reference(_pthread_attr_setschedparam, pthread_attr_setschedparam);
 
 int
-_pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param)
+_pthread_attr_setschedparam(pthread_attr_t * __restrict attr,
+    const struct sched_param * __restrict param)
 {
 	int policy;
 
@@ -607,7 +616,7 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 			/* Kernel checks invalid bits, we check it here too. */
 			size_t i;
 			for (i = kern_size; i < cpusetsize; ++i) {
-				if (((char *)cpusetp)[i])
+				if (((const char *)cpusetp)[i])
 					return (EINVAL);
 			}
 		}

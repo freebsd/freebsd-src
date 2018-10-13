@@ -56,43 +56,36 @@ __FBSDID("$FreeBSD$");
 
 struct ds1307_softc {
 	device_t	sc_dev;
-	int		sc_year0;
-	struct intr_config_hook	enum_hook;
-	uint16_t	sc_addr;	/* DS1307 slave address. */
+	struct intr_config_hook
+			enum_hook;
 	uint8_t		sc_ctrl;
-	int		sc_mcp7941x;
+	bool		sc_mcp7941x;
+	bool		sc_use_ampm;
 };
 
 static void ds1307_start(void *);
 
 #ifdef FDT
 static const struct ofw_compat_data ds1307_compat_data[] = {
-    {"dallas,ds1307", (uintptr_t)"Maxim DS1307 RTC"},
-    {"maxim,ds1307", (uintptr_t)"Maxim DS1307 RTC"},
-    {"microchip,mcp7941x", (uintptr_t)"Microchip MCP7941x RTC"},
+    {"dallas,ds1307",		(uintptr_t)"Dallas DS1307 RTC"},
+    {"maxim,ds1307",		(uintptr_t)"Maxim DS1307 RTC"},
+    {"microchip,mcp7941x",	(uintptr_t)"Microchip MCP7941x RTC"},
     { NULL, 0 }
 };
 #endif
 
 static int
-ds1307_read(device_t dev, uint16_t addr, uint8_t reg, uint8_t *data, size_t len)
+ds1307_read1(device_t dev, uint8_t reg, uint8_t *data)
 {
-	struct iic_msg msg[2] = {
-	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
-	    { addr, IIC_M_RD, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return (iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
 }
 
 static int
-ds1307_write(device_t dev, uint16_t addr, uint8_t *data, size_t len)
+ds1307_write1(device_t dev, uint8_t reg, uint8_t data)
 {
-	struct iic_msg msg[1] = {
-	    { addr, IIC_M_WR, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
@@ -101,8 +94,7 @@ ds1307_ctrl_read(struct ds1307_softc *sc)
 	int error;
 
 	sc->sc_ctrl = 0;
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_CONTROL,
-	    &sc->sc_ctrl, sizeof(sc->sc_ctrl));
+	error = ds1307_read1(sc->sc_dev, DS1307_CONTROL, &sc->sc_ctrl);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
@@ -115,59 +107,10 @@ static int
 ds1307_ctrl_write(struct ds1307_softc *sc)
 {
 	int error;
-	uint8_t data[2];
+	uint8_t ctrl;
 
-	data[0] = DS1307_CONTROL;
-	data[1] = sc->sc_ctrl & DS1307_CTRL_MASK;
-	error = ds1307_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
-	if (error != 0)
-		device_printf(sc->sc_dev, "cannot write to RTC.\n");
-
-	return (error);
-}
-
-static int
-ds1307_osc_enable(struct ds1307_softc *sc)
-{
-	int error;
-	uint8_t data[2], secs;
-
-	secs = 0;
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_SECS,
-	    &secs, sizeof(secs));
-	if (error) {
-		device_printf(sc->sc_dev, "cannot read from RTC.\n");
-		return (error);
-	}
-	/* Check if the oscillator is disabled. */
-	if ((secs & DS1307_SECS_CH) == 0)
-		return (0);
-	device_printf(sc->sc_dev, "clock was halted, check the battery.\n");
-	data[0] = DS1307_SECS;
-	data[1] = secs & DS1307_SECS_MASK;
-	error = ds1307_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
-	if (error != 0)
-		device_printf(sc->sc_dev, "cannot write to RTC.\n");
-
-	return (error);
-}
-
-static int
-ds1307_set_24hrs_mode(struct ds1307_softc *sc)
-{
-	int error;
-	uint8_t data[2], hour;
-
-	hour = 0;
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_HOUR,
-	    &hour, sizeof(hour));
-	if (error) {
-		device_printf(sc->sc_dev, "cannot read from RTC.\n");
-		return (error);
-	}
-	data[0] = DS1307_HOUR;
-	data[1] = hour & DS1307_HOUR_MASK;
-	error = ds1307_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	ctrl = sc->sc_ctrl & DS1307_CTRL_MASK;
+	error = ds1307_write1(sc->sc_dev, DS1307_CONTROL, ctrl);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -274,7 +217,7 @@ ds1307_probe(device_t dev)
 
 	compat = ofw_bus_search_compatible(dev, ds1307_compat_data);
 
-	if (compat == NULL)
+	if (compat->ocd_str == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, (const char *)compat->ocd_data);
@@ -283,7 +226,7 @@ ds1307_probe(device_t dev)
 #else
 	device_set_desc(dev, "Maxim DS1307 RTC");
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 #endif
 }
 
@@ -294,13 +237,13 @@ ds1307_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_addr = iicbus_get_addr(dev);
-	sc->sc_year0 = 1900;
 	sc->enum_hook.ich_func = ds1307_start;
 	sc->enum_hook.ich_arg = dev;
 
+#ifdef FDT
 	if (ofw_bus_is_compatible(dev, "microchip,mcp7941x"))
 		sc->sc_mcp7941x = 1;
+#endif
 
 	/*
 	 * We have to wait until interrupts are enabled.  Usually I2C read
@@ -312,6 +255,14 @@ ds1307_attach(device_t dev)
 	return (0);
 }
 
+static int
+ds1307_detach(device_t dev)
+{
+
+	clock_unregister(dev);
+	return (0);
+}
+
 static void
 ds1307_start(void *xdev)
 {
@@ -320,6 +271,8 @@ ds1307_start(void *xdev)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree_node;
 	struct sysctl_oid_list *tree;
+	uint8_t secs;
+	uint8_t osc_en;
 
 	dev = (device_t)xdev;
 	sc = device_get_softc(dev);
@@ -328,12 +281,21 @@ ds1307_start(void *xdev)
 	tree = SYSCTL_CHILDREN(tree_node);
 
 	config_intrhook_disestablish(&sc->enum_hook);
-	/* Set the 24 hours mode. */
-	if (ds1307_set_24hrs_mode(sc) != 0)
+
+	/* Check if the oscillator is disabled. */
+	if (ds1307_read1(sc->sc_dev, DS1307_SECS, &secs) != 0) {
+		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return;
-	/* Enable the oscillator if halted. */
-	if (ds1307_osc_enable(sc) != 0)
-		return;
+	}
+	if (sc->sc_mcp7941x)
+		osc_en = 0x80;
+	else
+		osc_en = 0x00;
+
+	if (((secs & DS1307_SECS_CH) ^ osc_en) != 0) {
+		device_printf(sc->sc_dev,
+		    "WARNING: RTC clock stopped, check the battery.\n");
+	}
 
 	/* Configuration parameters. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "sqwe",
@@ -347,66 +309,104 @@ ds1307_start(void *xdev)
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds1307_sqw_out_sysctl, "IU", "DS1307 square-wave output state");
 
-	/* 1 second resolution. */
-	clock_register(dev, 1000000);
+	/*
+	 * Register as a clock with 1 second resolution.  Schedule the
+	 * clock_settime() method to be called just after top-of-second;
+	 * resetting the time resets top-of-second in the hardware.
+	 */
+	clock_register_flags(dev, 1000000, CLOCKF_SETTIME_NO_ADJ);
+	clock_schedule(dev, 1);
 }
 
 static int
 ds1307_gettime(device_t dev, struct timespec *ts)
 {
 	int error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds1307_softc *sc;
-	uint8_t data[7];
+	uint8_t data[7], hourmask, st_mask;
 
 	sc = device_get_softc(dev);
-	memset(data, 0, sizeof(data));
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_SECS,
-	    data, sizeof(data)); 
+	error = iicdev_readfrom(sc->sc_dev, DS1307_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0) {
 		device_printf(dev, "cannot read from RTC.\n");
 		return (error);
 	}
-	ct.nsec = 0;
-	ct.sec = FROMBCD(data[DS1307_SECS] & DS1307_SECS_MASK);
-	ct.min = FROMBCD(data[DS1307_MINS] & DS1307_MINS_MASK);
-	ct.hour = FROMBCD(data[DS1307_HOUR] & DS1307_HOUR_MASK);
-	ct.day = FROMBCD(data[DS1307_DATE] & DS1307_DATE_MASK);
-	ct.dow = data[DS1307_WEEKDAY] & DS1307_WEEKDAY_MASK;
-	ct.mon = FROMBCD(data[DS1307_MONTH] & DS1307_MONTH_MASK);
-	ct.year = FROMBCD(data[DS1307_YEAR] & DS1307_YEAR_MASK);
-	ct.year += sc->sc_year0;
-	if (ct.year < POSIX_BASE_YEAR)
-		ct.year += 100;	/* assume [1970, 2069] */
 
-	return (clock_ct_to_ts(&ct, ts));
+	/* If the clock halted, we don't have good data. */
+	if (sc->sc_mcp7941x)
+		st_mask = 0x80;
+	else
+		st_mask = 0x00;
+
+	if (((data[DS1307_SECS] & DS1307_SECS_CH) ^ st_mask) != 0)
+		return (EINVAL);
+
+	/* If chip is in AM/PM mode remember that. */
+	if (data[DS1307_HOUR] & DS1307_HOUR_USE_AMPM) {
+		sc->sc_use_ampm = true;
+		hourmask = DS1307_HOUR_MASK_12HR;
+	} else
+		hourmask = DS1307_HOUR_MASK_24HR;
+
+	bct.nsec = 0;
+	bct.ispm = (data[DS1307_HOUR] & DS1307_HOUR_IS_PM) != 0;
+	bct.sec  = data[DS1307_SECS]  & DS1307_SECS_MASK;
+	bct.min  = data[DS1307_MINS]  & DS1307_MINS_MASK;
+	bct.hour = data[DS1307_HOUR]  & hourmask;
+	bct.day  = data[DS1307_DATE]  & DS1307_DATE_MASK;
+	bct.mon  = data[DS1307_MONTH] & DS1307_MONTH_MASK;
+	bct.year = data[DS1307_YEAR]  & DS1307_YEAR_MASK;
+
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, sc->sc_use_ampm));
 }
 
 static int
 ds1307_settime(device_t dev, struct timespec *ts)
 {
-	int error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds1307_softc *sc;
-	uint8_t data[8];
+	int error, year;
+	uint8_t data[7];
+	uint8_t pmflags;
 
 	sc = device_get_softc(dev);
-	/* Accuracy is only one second. */
-	if (ts->tv_nsec >= 500000000)
-		ts->tv_sec++;
-	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
-	memset(data, 0, sizeof(data));
-	data[0] = DS1307_SECS;
-	data[DS1307_SECS + 1] = TOBCD(ct.sec);
-	data[DS1307_MINS + 1] = TOBCD(ct.min);
-	data[DS1307_HOUR + 1] = TOBCD(ct.hour);
-	data[DS1307_DATE + 1] = TOBCD(ct.day);
-	data[DS1307_WEEKDAY + 1] = ct.dow;
-	data[DS1307_MONTH + 1] = TOBCD(ct.mon);
-	data[DS1307_YEAR + 1] = TOBCD(ct.year % 100);
+
+	/*
+	 * We request a timespec with no resolution-adjustment.  That also
+	 * disables utc adjustment, so apply that ourselves.
+	 */
+	ts->tv_sec -= utc_offset();
+	clock_ts_to_bcd(ts, &bct, sc->sc_use_ampm);
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_WRITE, &bct);
+
+	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
+	if (sc->sc_use_ampm) {
+		pmflags = DS1307_HOUR_USE_AMPM;
+		if (bct.ispm)
+			pmflags |= DS1307_HOUR_IS_PM;
+	} else
+		pmflags = 0;
+
+	data[DS1307_SECS]    = bct.sec;
+	data[DS1307_MINS]    = bct.min;
+	data[DS1307_HOUR]    = bct.hour | pmflags;
+	data[DS1307_DATE]    = bct.day;
+	data[DS1307_WEEKDAY] = bct.dow;
+	data[DS1307_MONTH]   = bct.mon;
+	data[DS1307_YEAR]    = bct.year & 0xff;
+	if (sc->sc_mcp7941x) {
+		data[DS1307_SECS] |= MCP7941X_SECS_ST;
+		data[DS1307_WEEKDAY] |= MCP7941X_WEEKDAY_VBATEN;
+		year = bcd2bin(bct.year >> 8) * 100 + bcd2bin(bct.year & 0xff);
+		if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
+			data[DS1307_MONTH] |= MCP7941X_MONTH_LPYR;
+	}
 	/* Write the time back to RTC. */
-	error = ds1307_write(dev, sc->sc_addr, data, sizeof(data));
+	error = iicdev_writeto(sc->sc_dev, DS1307_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0)
 		device_printf(dev, "cannot write to RTC.\n");
 
@@ -416,6 +416,7 @@ ds1307_settime(device_t dev, struct timespec *ts)
 static device_method_t ds1307_methods[] = {
 	DEVMETHOD(device_probe,		ds1307_probe),
 	DEVMETHOD(device_attach,	ds1307_attach),
+	DEVMETHOD(device_detach,	ds1307_detach),
 
 	DEVMETHOD(clock_gettime,	ds1307_gettime),
 	DEVMETHOD(clock_settime,	ds1307_settime),

@@ -1,11 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
 # $FreeBSD$
 
-DB=	fortunes freebsd-tips murphy startrek zippy
-
-# TO AVOID INSTALLING THE POTENTIALLY OFFENSIVE FORTUNES, COMMENT OUT THE
-# NEXT LINE.
-DB+=	limerick murphy-o gerrold.limerick
+DB=	freebsd-tips
 
 BLDS=	${DB:S/$/.dat/}
 FILES=	${DB} ${BLDS}
@@ -15,7 +11,7 @@ FILESDIR=	${SHAREDIR}/games/fortune
 
 .for f in ${DB}
 $f.dat: $f
-	PATH=$$PATH:/usr/bin:${.OBJDIR}/../strfile \
+	PATH=$$PATH:/usr/bin:${FORTUNE_OBJ}/strfile \
 	    strfile -Cs ${.ALLSRC} ${.TARGET}
 .endfor
 

@@ -71,7 +71,7 @@ static const char *test_groups[] = {
 	"bin",
 };
 
-int test_num;
+static int test_num;
 
 /*
  * List of test strings that must go in (and come out) of libugidfw intact.
@@ -149,7 +149,8 @@ test_libugidfw_strings(void)
 	struct mac_bsdextended_rule rule;
 	char errorstr[256];
 	char rulestr[256];
-	int error, i;
+	size_t i;
+	int error;
 
 	for (i = 0; i < nitems(test_users); i++, test_num++) {
 		if (getpwnam(test_users[i]) == NULL)
@@ -171,7 +172,7 @@ test_libugidfw_strings(void)
 		error = bsde_parse_rule_string(test_strings[i], &rule,
 		    sizeof(errorstr), errorstr);
 		if (error == -1)
-			printf("not ok %d # bsde_parse_rule_string: '%s' (%d) "
+			printf("not ok %d # bsde_parse_rule_string: '%s' (%zu) "
 			    "failed: %s\n", test_num, test_strings[i], i, errorstr);
 		else
 			printf("ok %d\n", test_num);
@@ -221,7 +222,7 @@ main(void)
 		return (0);
 	}
 
-	printf("1..%lu\n", nitems(test_users) + nitems(test_groups) +
+	printf("1..%zu\n", nitems(test_users) + nitems(test_groups) +
 	    3 * nitems(test_strings) + 2);
 
 	test_libugidfw_strings();

@@ -18,7 +18,8 @@
 #include "AMDGPUTargetStreamer.h"
 #include "InstPrinter/AMDGPUInstPrinter.h"
 #include "SIDefines.h"
-#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -56,21 +57,13 @@ createAMDGPUMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
   return createAMDGPUMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCCodeGenInfo *createAMDGPUMCCodeGenInfo(const Triple &TT,
-                                                Reloc::Model RM,
-                                                CodeModel::Model CM,
-                                                CodeGenOpt::Level OL) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-  X->initMCCodeGenInfo(RM, CM, OL);
-  return X;
-}
-
 static MCInstPrinter *createAMDGPUMCInstPrinter(const Triple &T,
                                                 unsigned SyntaxVariant,
                                                 const MCAsmInfo &MAI,
                                                 const MCInstrInfo &MII,
                                                 const MCRegisterInfo &MRI) {
-  return new AMDGPUInstPrinter(MAI, MII, MRI);
+  return T.getArch() == Triple::r600 ? new R600InstPrinter(MAI, MII, MRI) : 
+                                       new AMDGPUInstPrinter(MAI, MII, MRI);
 }
 
 static MCTargetStreamer *createAMDGPUAsmTargetStreamer(MCStreamer &S,
@@ -87,19 +80,18 @@ static MCTargetStreamer * createAMDGPUObjectTargetStreamer(
 }
 
 static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,
-                                    MCAsmBackend &MAB, raw_pwrite_stream &OS,
-                                    MCCodeEmitter *Emitter, bool RelaxAll) {
-  if (T.getOS() == Triple::AMDHSA)
-    return createAMDGPUELFStreamer(Context, MAB, OS, Emitter, RelaxAll);
-
-  return createELFStreamer(Context, MAB, OS, Emitter, RelaxAll);
+                                    std::unique_ptr<MCAsmBackend> &&MAB,
+                                    raw_pwrite_stream &OS,
+                                    std::unique_ptr<MCCodeEmitter> &&Emitter,
+                                    bool RelaxAll) {
+  return createAMDGPUELFStreamer(T, Context, std::move(MAB), OS,
+                                 std::move(Emitter), RelaxAll);
 }
 
 extern "C" void LLVMInitializeAMDGPUTargetMC() {
-  for (Target *T : {&TheAMDGPUTarget, &TheGCNTarget}) {
+  for (Target *T : {&getTheAMDGPUTarget(), &getTheGCNTarget()}) {
     RegisterMCAsmInfo<AMDGPUMCAsmInfo> X(*T);
 
-    TargetRegistry::RegisterMCCodeGenInfo(*T, createAMDGPUMCCodeGenInfo);
     TargetRegistry::RegisterMCInstrInfo(*T, createAMDGPUMCInstrInfo);
     TargetRegistry::RegisterMCRegInfo(*T, createAMDGPUMCRegisterInfo);
     TargetRegistry::RegisterMCSubtargetInfo(*T, createAMDGPUMCSubtargetInfo);
@@ -109,14 +101,15 @@ extern "C" void LLVMInitializeAMDGPUTargetMC() {
   }
 
   // R600 specific registration
-  TargetRegistry::RegisterMCCodeEmitter(TheAMDGPUTarget,
+  TargetRegistry::RegisterMCCodeEmitter(getTheAMDGPUTarget(),
                                         createR600MCCodeEmitter);
 
   // GCN specific registration
-  TargetRegistry::RegisterMCCodeEmitter(TheGCNTarget, createSIMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(getTheGCNTarget(),
+                                        createSIMCCodeEmitter);
 
-  TargetRegistry::RegisterAsmTargetStreamer(TheGCNTarget,
+  TargetRegistry::RegisterAsmTargetStreamer(getTheGCNTarget(),
                                             createAMDGPUAsmTargetStreamer);
-  TargetRegistry::RegisterObjectTargetStreamer(TheGCNTarget,
-                                              createAMDGPUObjectTargetStreamer);
+  TargetRegistry::RegisterObjectTargetStreamer(
+      getTheGCNTarget(), createAMDGPUObjectTargetStreamer);
 }

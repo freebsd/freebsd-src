@@ -168,19 +168,19 @@ extern	void	mon_clearinterface(endpt *interface);
 /* ntp_peer.c */
 extern	void	init_peer	(void);
 extern	struct peer *findexistingpeer(sockaddr_u *, const char *,
-				      struct peer *, int, u_char);
+				      struct peer *, int, u_char, int *);
 extern	struct peer *findpeer	(struct recvbuf *, int, int *);
 extern	struct peer *findpeerbyassoc(associd_t);
 extern  void	set_peerdstadr	(struct peer *, endpt *);
-extern	struct peer *newpeer	(sockaddr_u *, const char *,
-				 endpt *, u_char, u_char,
-				 u_char, u_char, u_int, u_char, u_int32,
+extern	struct peer *newpeer	(sockaddr_u *, const char *, endpt *,
+				 int, u_char, u_char, u_char, u_char,
+				 u_int, u_char, u_int32,
 				 keyid_t, const char *);
 extern	void	peer_all_reset	(void);
 extern	void	peer_clr_stats	(void);
-extern	struct peer *peer_config(sockaddr_u *, const char *,
-				 endpt *, u_char, u_char,
-				 u_char, u_char, u_int, u_int32,
+extern	struct peer *peer_config(sockaddr_u *, const char *, endpt *,
+				 int, u_char, u_char, u_char, u_char,
+				 u_int, u_int32,
 				 keyid_t, const char *);
 extern	void	peer_reset	(struct peer *);
 extern	void	refresh_all_peerinterfaces(void);
@@ -257,10 +257,11 @@ extern	void	reset_auth_stats(void);
 
 /* ntp_restrict.c */
 extern	void	init_restrict	(void);
-extern	u_short	restrictions	(sockaddr_u *);
-extern	void	hack_restrict	(int, sockaddr_u *, sockaddr_u *,
-				 u_short, u_short, u_long);
+extern	void	restrictions	(sockaddr_u *, r4addr *);
+extern	void	hack_restrict	(restrict_op, sockaddr_u *, sockaddr_u *,
+				 short, u_short, u_short, u_long);
 extern	void	restrict_source	(sockaddr_u *, int, u_long);
+extern	void	dump_restricts	(void);
 
 /* ntp_timer.c */
 extern	void	init_timer	(void);
@@ -288,7 +289,7 @@ extern	void	record_loop_stats (double, double, double, double, int);
 extern	void	record_clock_stats (sockaddr_u *, const char *);
 extern	int	mprintf_clock_stats(sockaddr_u *, const char *, ...)
 			NTP_PRINTF(2, 3);
-extern	void	record_raw_stats (sockaddr_u *srcadr, sockaddr_u *dstadr, l_fp *t1, l_fp *t2, l_fp *t3, l_fp *t4, int leap, int version, int mode, int stratum, int ppoll, int precision, double root_delay, double root_dispersion, u_int32 refid);
+extern	void	record_raw_stats (sockaddr_u *srcadr, sockaddr_u *dstadr, l_fp *t1, l_fp *t2, l_fp *t3, l_fp *t4, int leap, int version, int mode, int stratum, int ppoll, int precision, double root_delay, double root_dispersion, u_int32 refid, int len, u_char *extra);
 extern	void	check_leap_file	(int is_daily_check, u_int32 ntptime, const time_t * systime);
 extern	void	record_crypto_stats (sockaddr_u *, const char *);
 #ifdef DEBUG
@@ -321,6 +322,8 @@ extern	void	parse_cmdline_opts(int *, char ***);
 
 /* ntp_config.c */
 extern char const *	progname;
+extern int saved_argc;
+extern char **saved_argv;
 extern char	*sys_phone[];		/* ACTS phone numbers */
 #if defined(HAVE_SCHED_SETSCHEDULER)
 extern int	config_priority_override;
@@ -483,31 +486,34 @@ extern int	sys_bclient;		/* we set our time to broadcasts */
 extern double	sys_bdelay; 		/* broadcast client default delay */
 extern int	sys_authenticate;	/* requre authentication for config */
 extern l_fp	sys_authdelay;		/* authentication delay */
+extern u_char	sys_bcpollbstep;	/* broadcast poll backstep gate */
 extern u_long 	sys_epoch;		/* last clock update time */
 extern keyid_t	sys_private;		/* private value for session seed */
 extern int	sys_manycastserver;	/* respond to manycast client pkts */
+extern int	sys_maxclock;		/* maximum survivors */
 extern int	sys_minclock;		/* minimum survivors */
 extern int	sys_minsane;		/* minimum candidates */
 extern int	sys_floor;		/* cluster stratum floor */
 extern int	sys_ceiling;		/* cluster stratum ceiling */
 extern u_char	sys_ttl[MAX_TTL];	/* ttl mapping vector */
-extern int	sys_ttlmax;		/* max ttl mapping vector index */
+extern u_int	sys_ttlmax;		/* max ttl mapping vector index */
 
 /*
  * Statistics counters
  */
-extern u_long	sys_stattime;		/* time since reset */
-extern u_long	sys_received;		/* packets received */
-extern u_long	sys_processed;		/* packets for this host */
-extern u_long	sys_restricted;	 	/* restricted packets */
+extern u_long	sys_badauth;		/* bad authentication */
+extern u_long	sys_badlength;		/* bad length or format */
+extern u_long	sys_declined;		/* declined */
+extern u_long	sys_kodsent;		/* KoD sent */
+extern u_long	sys_lamport;		/* Lamport violation */
+extern u_long	sys_limitrejected;	/* rate exceeded */
 extern u_long	sys_newversion;		/* current version  */
 extern u_long	sys_oldversion;		/* old version */
+extern u_long	sys_processed;		/* packets for this host */
+extern u_long	sys_received;		/* packets received */
 extern u_long	sys_restricted;		/* access denied */
-extern u_long	sys_badlength;		/* bad length or format */
-extern u_long	sys_badauth;		/* bad authentication */
-extern u_long	sys_declined;		/* declined */
-extern u_long	sys_limitrejected;	/* rate exceeded */
-extern u_long	sys_kodsent;		/* KoD sent */
+extern u_long	sys_stattime;		/* time since reset */
+extern u_long	sys_tsrounding;		/* timestamp rounding errors */
 
 /* ntp_request.c */
 extern keyid_t	info_auth_keyid;	/* keyid used to authenticate requests */

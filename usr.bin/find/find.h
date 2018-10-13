@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,6 +36,31 @@
  */
 
 #include <regex.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+
+/*
+ * We need to build find during the bootstrap stage when building on a
+ * non-FreeBSD system. Linux does not have the st_flags and st_birthtime
+ * members in struct stat so we need to omit support for tests that depend
+ * on these members. This works fine since none of these flags are used
+ * during the build of world and kernel.
+ */
+#ifdef UF_SETTABLE
+#define HAVE_STRUCT_STAT_ST_FLAGS 1
+#else
+#define HAVE_STRUCT_STAT_ST_FLAGS 0
+#endif
+#if defined(st_birthtime) || defined(st_birthtimespec)
+#define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
+#else
+#define HAVE_STRUCT_STAT_ST_BIRTHTIME 0
+#endif
+#if defined(MFSNAMELEN) || defined(MFSTYPENAMELEN)
+#define HAVE_STRUCT_STATFS_F_FSTYPENAME 1
+#else
+#define HAVE_STRUCT_STATFS_F_FSTYPENAME 0
+#endif
 
 /* forward declarations */
 struct _plandata;
@@ -68,8 +95,10 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_IGNCASE	0x00010000	/* iname ipath iregex */
 #define	F_EXACTTIME	F_IGNCASE	/* -[acm]time units syntax */
 #define F_EXECPLUS	0x00020000	/* -exec ... {} + */
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 #define	F_TIME_B	0x00040000	/* one of -Btime, -Bnewer, -newerB* */
 #define	F_TIME2_B	0x00080000	/* one of -newer?B */
+#endif
 #define F_LINK		0x00100000	/* lname or ilname */
 
 /* node definition */

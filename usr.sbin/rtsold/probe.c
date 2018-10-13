@@ -1,6 +1,8 @@
 /*	$KAME: probe.c,v 1.17 2003/10/05 00:09:36 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  * 

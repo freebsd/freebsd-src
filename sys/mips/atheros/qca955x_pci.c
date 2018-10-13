@@ -539,7 +539,7 @@ qca955x_pci_intr(void *arg)
 	if (reg & QCA955X_PCI_INTR_DEV0) {
 		irq = AR71XX_PCI_IRQ_START;
 		event = sc->sc_eventstab[irq];
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+		if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 			printf("Stray IRQ %d\n", irq);
 			return (FILTER_STRAY);
 		}
@@ -589,6 +589,7 @@ static device_method_t qca955x_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,	qca955x_pci_read_config),
 	DEVMETHOD(pcib_write_config,	qca955x_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	qca955x_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

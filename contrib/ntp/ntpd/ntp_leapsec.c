@@ -743,14 +743,24 @@ add_range(
 	const leap_info_t * pi)
 {
 	/* If the table is full, make room by throwing out the oldest
-	 * entry. But remember the accumulated leap seconds! Likewise,
-	 * assume a positive leap insertion if this is the first entry
-	 * in the table. This is not necessarily the best of all ideas,
-	 * but it helps a great deal if a system does not have a leap
-	 * table and gets updated from an upstream server.
+	 * entry. But remember the accumulated leap seconds!
+	 *
+	 * Setting the first entry is a bit tricky, too: Simply assuming
+	 * it is an insertion is wrong if the first entry is a dynamic
+	 * leap second removal. So we decide on the sign -- if the first
+	 * entry has a negative offset, we assume that it is a leap
+	 * second removal. In both cases the table base offset is set
+	 * accordingly to reflect the decision.
+	 *
+	 * In practice starting with a removal can only happen if the
+	 * first entry is a dynamic request without having a leap file
+	 * for the history proper.
 	 */
 	if (pt->head.size == 0) {
-		pt->head.base_tai = pi->taiof - 1;
+		if (pi->taiof >= 0)
+			pt->head.base_tai = pi->taiof - 1;
+		else
+			pt->head.base_tai = pi->taiof + 1;
 	} else if (pt->head.size >= MAX_HIST) {
 		pt->head.size     = MAX_HIST - 1;
 		pt->head.base_tai = pt->info[pt->head.size].taiof;

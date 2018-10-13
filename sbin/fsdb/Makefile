@@ -7,10 +7,11 @@ PROG=	fsdb
 MAN=	fsdb.8
 SRCS=	fsdb.c fsdbutil.c \
 	dir.c ea.c fsutil.c inode.c pass1.c pass1b.c pass2.c pass3.c pass4.c \
-	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c globs.c
-CFLAGS+= -I${.CURDIR}/../fsck_ffs
+	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c globs.c prtblknos.c
+CFLAGS+= -I${.CURDIR:H}/fsck_ffs
 WARNS?= 2
-LIBADD=	edit
-.PATH:	${.CURDIR}/../fsck_ffs ${.CURDIR}/../../sys/ufs/ffs
+LIBADD=	edit ufs
+.PATH:	${.CURDIR:H}/fsck_ffs ${SRCTOP}/sys/ufs/ffs \
+	${SRCTOP}/tools/diag/prtblknos
 
 .include <bsd.prog.mk>

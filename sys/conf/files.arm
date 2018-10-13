@@ -1,4 +1,23 @@
 # $FreeBSD$
+cloudabi32_vdso.o		optional	compat_cloudabi32	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_armv6.S" \
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_armv6.S -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi32_vdso.o"
+#
+cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
+	dependency 	"cloudabi32_vdso.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-littlearm --binary-architecture arm cloudabi32_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi32_vdso_blob.o"
+#
+arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
+arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
+arm/annapurna/alpine/alpine_pci.c		optional al_pci fdt
+arm/annapurna/alpine/alpine_pci_msix.c		optional al_pci fdt
+arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
 arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
@@ -6,29 +25,25 @@ arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/bus_space_base.c	optional	fdt
 arm/arm/bus_space_generic.c	standard
-arm/arm/busdma_machdep-v4.c 	optional	!armv6
-arm/arm/busdma_machdep-v6.c 	optional	armv6
+arm/arm/busdma_machdep-v4.c 	optional	!armv7 !armv6 !ARM_USE_V6_BUSDMA
+arm/arm/busdma_machdep-v6.c 	optional	armv7 | armv6 | ARM_USE_V6_BUSDMA
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
-arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9 | cpu_arm9e
-arm/arm/cpufunc_asm_arm11.S	optional	cpu_arm1176
+arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_arm11x6.S	optional	cpu_arm1176
-arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_81342
+arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_armv5_ec.S 	optional	cpu_arm9e
-arm/arm/cpufunc_asm_armv6.S 	optional	cpu_arm1176
 arm/arm/cpufunc_asm_armv7.S	optional	cpu_cortexa | cpu_krait | cpu_mv_pj4b
-arm/arm/cpufunc_asm_fa526.S	optional	cpu_fa526
 arm/arm/cpufunc_asm_pj4b.S	optional	cpu_mv_pj4b
 arm/arm/cpufunc_asm_sheeva.S 	optional	cpu_arm9e
-arm/arm/cpufunc_asm_xscale.S	optional	cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_81342
-arm/arm/cpufunc_asm_xscale_c3.S	optional	cpu_xscale_81342
 arm/arm/cpuinfo.c		standard
-arm/arm/cpu_asm-v6.S		optional	armv6
+arm/arm/cpu_asm-v6.S		optional	armv7 | armv6
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
 arm/arm/debug_monitor.c		optional	ddb armv6
+arm/arm/debug_monitor.c		optional	ddb armv7
 arm/arm/disassem.c		optional	ddb
 arm/arm/dump_machdep.c		standard
 arm/arm/elf_machdep.c		standard
@@ -40,15 +55,20 @@ arm/arm/fusu.S			standard
 arm/arm/gdb_machdep.c		optional	gdb
 arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
-arm/arm/hdmi_if.m		optional	hdmi
-arm/arm/identcpu.c		standard
+arm/arm/gic_fdt.c		optional	gic fdt
+arm/arm/identcpu-v4.c		optional	!armv7 !armv6
+arm/arm/identcpu-v6.c		optional	armv7 | armv6
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
 arm/arm/intr.c			optional	!intrng
 kern/subr_intr.c		optional	intrng
 arm/arm/locore.S		standard	no-obj
+arm/arm/hypervisor-stub.S	optional	armv7 | armv6
 arm/arm/machdep.c		standard
+arm/arm/machdep_boot.c		standard
+arm/arm/machdep_kdb.c		standard
 arm/arm/machdep_intr.c		standard
+arm/arm/machdep_ptrace.c	standard
 arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
@@ -60,9 +80,11 @@ arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
-arm/arm/pmap-v4.c		optional	!armv6
-arm/arm/pmap-v6.c		optional	armv6
+arm/arm/platform_pl310_if.m	optional	platform pl310
+arm/arm/pmap-v4.c		optional	!armv7 !armv6
+arm/arm/pmap-v6.c		optional	armv7 | armv6
 arm/arm/pmu.c			optional	pmu | fdt hwpmc
+arm/arm/ptrace_machdep.c	standard
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -71,17 +93,18 @@ arm/arm/stdatomic.c		standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
-arm/arm/swtch-v4.S		optional	!armv6
-arm/arm/swtch-v6.S		optional	armv6
+arm/arm/swtch-v4.S		optional	!armv7 !armv6
+arm/arm/swtch-v6.S		optional	armv7 | armv6
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap-v4.c		optional	!armv6
-arm/arm/trap-v6.c		optional	armv6
+arm/arm/trap-v4.c		optional	!armv7 !armv6
+arm/arm/trap-v6.c		optional	armv7 | armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/unwind.c		optional	ddb | kdtrace_hooks
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
+arm/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 board_id.h			standard				   \
 	dependency	"$S/arm/conf/genboardid.awk $S/arm/conf/mach-types" \
 	compile-with	"${AWK} -f $S/arm/conf/genboardid.awk $S/arm/conf/mach-types > board_id.h" \
@@ -91,18 +114,21 @@ cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-
 cddl/dev/dtrace/arm/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
+dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
 dev/dwc/if_dwc.c		optional	dwc
 dev/dwc/if_dwc_if.m		optional	dwc
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
+dev/hdmi/hdmi_if.m		optional	hdmi
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
+dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv7
 dev/iicbus/twsi/twsi.c		optional	twsi
-dev/ofw/ofw_cpu.c		optional	fdt
 dev/ofw/ofwpci.c		optional	fdt pci
-dev/pci/pci_host_generic.c	optional	pci_host_generic pci fdt
+dev/pci/pci_host_generic.c	optional	pci_host_generic pci
+dev/pci/pci_host_generic_fdt.c	optional	pci_host_generic pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
@@ -137,6 +163,7 @@ libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/lshrdi3.c		standard
+libkern/memcmp.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard

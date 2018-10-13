@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -97,7 +99,7 @@ pick_option(const char *option, char **optionsp)
 
 	tofree = *optionsp;
 
-	newoptions = calloc(strlen(*optionsp) + 1, 1);
+	newoptions = calloc(1, strlen(*optionsp) + 1);
 	if (newoptions == NULL)
 		log_err(1, "calloc");
 

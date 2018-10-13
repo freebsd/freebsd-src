@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,8 +38,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,7 +90,7 @@ struct getpriority_args {
 };
 #endif
 int
-sys_getpriority(struct thread *td, register struct getpriority_args *uap)
+sys_getpriority(struct thread *td, struct getpriority_args *uap)
 {
 	struct proc *p;
 	struct pgrp *pg;
@@ -367,7 +367,7 @@ struct rtprio_args {
 };
 #endif
 int
-sys_rtprio(struct thread *td, register struct rtprio_args *uap)
+sys_rtprio(struct thread *td, struct rtprio_args *uap)
 {
 	struct proc *p;
 	struct thread *tdp;
@@ -533,7 +533,7 @@ struct osetrlimit_args {
 };
 #endif
 int
-osetrlimit(struct thread *td, register struct osetrlimit_args *uap)
+osetrlimit(struct thread *td, struct osetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit lim;
@@ -554,7 +554,7 @@ struct ogetrlimit_args {
 };
 #endif
 int
-ogetrlimit(struct thread *td, register struct ogetrlimit_args *uap)
+ogetrlimit(struct thread *td, struct ogetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit rl;
@@ -587,7 +587,7 @@ struct __setrlimit_args {
 };
 #endif
 int
-sys_setrlimit(struct thread *td, register struct __setrlimit_args *uap)
+sys_setrlimit(struct thread *td, struct __setrlimit_args *uap)
 {
 	struct rlimit alim;
 	int error;
@@ -645,7 +645,7 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
     struct rlimit *limp)
 {
 	struct plimit *newlim, *oldlim;
-	register struct rlimit *alimp;
+	struct rlimit *alimp;
 	struct rlimit oldssiz;
 	int error;
 
@@ -775,7 +775,7 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-sys_getrlimit(struct thread *td, register struct __getrlimit_args *uap)
+sys_getrlimit(struct thread *td, struct __getrlimit_args *uap)
 {
 	struct rlimit rlim;
 	int error;
@@ -945,7 +945,7 @@ struct getrusage_args {
 };
 #endif
 int
-sys_getrusage(register struct thread *td, register struct getrusage_args *uap)
+sys_getrusage(struct thread *td, struct getrusage_args *uap)
 {
 	struct rusage ru;
 	int error;
@@ -1253,6 +1253,18 @@ struct uidinfo *
 uifind(uid_t uid)
 {
 	struct uidinfo *new_uip, *uip;
+	struct ucred *cred;
+
+	cred = curthread->td_ucred;
+	if (cred->cr_uidinfo->ui_uid == uid) {
+		uip = cred->cr_uidinfo;
+		uihold(uip);
+		return (uip);
+	} else if (cred->cr_ruidinfo->ui_uid == uid) {
+		uip = cred->cr_ruidinfo;
+		uihold(uip);
+		return (uip);
+	}
 
 	rw_rlock(&uihashtbl_lock);
 	uip = uilookup(uid);
@@ -1264,7 +1276,6 @@ uifind(uid_t uid)
 	racct_create(&new_uip->ui_racct);
 	refcount_init(&new_uip->ui_ref, 1);
 	new_uip->ui_uid = uid;
-	mtx_init(&new_uip->ui_vmsize_mtx, "ui_vmsize", NULL, MTX_DEF);
 
 	rw_wlock(&uihashtbl_lock);
 	/*
@@ -1279,7 +1290,6 @@ uifind(uid_t uid)
 	} else {
 		rw_wunlock(&uihashtbl_lock);
 		racct_destroy(&new_uip->ui_racct);
-		mtx_destroy(&new_uip->ui_vmsize_mtx);
 		free(new_uip, M_UIDINFO);
 	}
 	return (uip);
@@ -1340,7 +1350,6 @@ uifree(struct uidinfo *uip)
 	if (uip->ui_vmsize != 0)
 		printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
 		    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
-	mtx_destroy(&uip->ui_vmsize_mtx);
 	free(uip, M_UIDINFO);
 }
 
@@ -1370,18 +1379,17 @@ ui_racct_foreach(void (*callback)(struct racct *racct,
 static inline int
 chglimit(struct uidinfo *uip, long *limit, int diff, rlim_t max, const char *name)
 {
+	long new;
 
 	/* Don't allow them to exceed max, but allow subtraction. */
+	new = atomic_fetchadd_long(limit, (long)diff) + diff;
 	if (diff > 0 && max != 0) {
-		if (atomic_fetchadd_long(limit, (long)diff) + diff > max) {
+		if (new < 0 || new > max) {
 			atomic_subtract_long(limit, (long)diff);
 			return (0);
 		}
-	} else {
-		atomic_add_long(limit, (long)diff);
-		if (*limit < 0)
-			printf("negative %s for uid = %d\n", name, uip->ui_uid);
-	}
+	} else if (new < 0)
+		printf("negative %s for uid = %d\n", name, uip->ui_uid);
 	return (1);
 }
 

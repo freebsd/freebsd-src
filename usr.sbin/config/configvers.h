@@ -49,5 +49,8 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	600014
+#define	CONFIGVERS	600016
 #define	MAJOR_VERS(x)	((x) / 100000)
+
+/* Last config(8) version to require envmode/hintmode */
+#define	CONFIGVERS_ENVMODE_REQ	600015

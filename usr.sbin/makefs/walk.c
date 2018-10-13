@@ -1,6 +1,8 @@
 /*	$NetBSD: walk.c,v 1.24 2008/12/28 21:51:46 christos Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -40,6 +42,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -49,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
 #include "makefs.h"
 #include "mtree.h"
@@ -78,13 +81,14 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 	char		path[MAXPATHLEN + 1];
 	struct stat	stbuf;
 	char		*name, *rp;
-	int		dot, len;
+	size_t		len;
+	int		dot;
 
 	assert(root != NULL);
 	assert(dir != NULL);
 
 	len = snprintf(path, sizeof(path), "%s/%s", root, dir);
-	if (len >= (int)sizeof(path))
+	if (len >= sizeof(path))
 		errx(1, "Pathname too long.");
 	if (debug & DEBUG_WALK_DIR)
 		printf("walk_dir: %s %p\n", path, parent);
@@ -118,8 +122,8 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 			}
 		if (debug & DEBUG_WALK_DIR_NODE)
 			printf("scanning %s/%s/%s\n", root, dir, name);
-		if (snprintf(path + len, sizeof(path) - len, "/%s", name) >=
-		    (int)sizeof(path) - len)
+		if ((size_t)snprintf(path + len, sizeof(path) - len, "/%s",
+		    name) >= sizeof(path) - len)
 			errx(1, "Pathname too long.");
 		if (lstat(path, &stbuf) == -1)
 			err(1, "Can't lstat `%s'", path);
@@ -201,8 +205,7 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 			if (llen == -1)
 				err(1, "Readlink `%s'", path);
 			slink[llen] = '\0';
-			if ((cur->symlink = strdup(slink)) == NULL)
-				err(1, "Memory allocation error");
+			cur->symlink = estrdup(slink);
 		}
 	}
 	assert(first != NULL);
@@ -220,15 +223,28 @@ create_fsnode(const char *root, const char *path, const char *name,
 {
 	fsnode *cur;
 
-	if ((cur = calloc(1, sizeof(fsnode))) == NULL ||
-	    (cur->path = strdup(path)) == NULL ||
-	    (cur->name = strdup(name)) == NULL ||
-	    (cur->inode = calloc(1, sizeof(fsinode))) == NULL)
-		err(1, "Memory allocation error");
+	cur = ecalloc(1, sizeof(*cur));
+	cur->path = estrdup(path);
+	cur->name = estrdup(name);
+	cur->inode = ecalloc(1, sizeof(*cur->inode));
 	cur->root = root;
 	cur->type = stbuf->st_mode & S_IFMT;
 	cur->inode->nlink = 1;
 	cur->inode->st = *stbuf;
+	if (stampst.st_ino) {
+		cur->inode->st.st_atime = stampst.st_atime;
+		cur->inode->st.st_mtime = stampst.st_mtime;
+		cur->inode->st.st_ctime = stampst.st_ctime;
+#if HAVE_STRUCT_STAT_ST_MTIMENSEC
+		cur->inode->st.st_atimensec = stampst.st_atimensec;
+		cur->inode->st.st_mtimensec = stampst.st_mtimensec;
+		cur->inode->st.st_ctimensec = stampst.st_ctimensec;
+#endif
+#if HAVE_STRUCT_STAT_BIRTHTIME
+		cur->inode->st.st_birthtime = stampst.st_birthtime;
+		cur->inode->st.st_birthtimensec = stampst.st_birthtimensec;
+#endif
+	}
 	return (cur);
 }
 
@@ -318,6 +334,7 @@ apply_specfile(const char *specfile, const char *dir, fsnode *parent, int specon
 				/* merge in the changes */
 	apply_specdir(dir, root, parent, speconly);
 
+	free_nodes(root);
 }
 
 static void
@@ -382,8 +399,8 @@ apply_specdir(const char *dir, NODE *specnode, fsnode *dirnode, int speconly)
 			if (strcmp(curnode->name, curfsnode->name) == 0)
 				break;
 		}
-		if (snprintf(path, sizeof(path), "%s/%s",
-		    dir, curnode->name) >= sizeof(path))
+		if ((size_t)snprintf(path, sizeof(path), "%s/%s", dir,
+		    curnode->name) >= sizeof(path))
 			errx(1, "Pathname too long.");
 		if (curfsnode == NULL) {	/* need new entry */
 			struct stat	stbuf;
@@ -441,9 +458,7 @@ apply_specdir(const char *dir, NODE *specnode, fsnode *dirnode, int speconly)
 			if (curfsnode->type == S_IFLNK) {
 				assert(curnode->slink != NULL);
 					/* for symlinks, copy the target */
-				if ((curfsnode->symlink =
-				    strdup(curnode->slink)) == NULL)
-					err(1, "Memory allocation error");
+				curfsnode->symlink = estrdup(curnode->slink);
 			}
 		}
 		apply_specentry(dir, curnode, curfsnode);
@@ -499,8 +514,7 @@ apply_specentry(const char *dir, NODE *specnode, fsnode *dirnode)
 		assert(specnode->slink != NULL);
 		ASEPRINT("symlink", "%s", dirnode->symlink, specnode->slink);
 		free(dirnode->symlink);
-		if ((dirnode->symlink = strdup(specnode->slink)) == NULL)
-			err(1, "Memory allocation error");
+		dirnode->symlink = estrdup(specnode->slink);
 	}
 	if (specnode->flags & F_TIME) {
 		ASEPRINT("time", "%ld",
@@ -649,10 +663,7 @@ link_check(fsinode *entry)
 		htused = 0;
 
 		ohtable = htable;
-		htable = calloc(htmask+1, sizeof(*htable));
-		if (!htable)
-			err(1, "Memory allocation error");
-
+		htable = ecalloc(htmask+1, sizeof(*htable));
 		/* populate newly allocated hashtable */
 		if (ohtable) {
 			int i;

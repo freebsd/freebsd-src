@@ -80,7 +80,6 @@ typedef void			irqreturn_t;
 
 #define	__init
 #define	__exit
-#define	__read_mostly
 
 #define	BUILD_BUG_ON(x)		CTASSERT(!(x))
 #define	BUILD_BUG_ON_NOT_POWER_OF_2(x)
@@ -154,6 +153,20 @@ typedef void			irqreturn_t;
 #define	DRM_WRITE64(map, offset, val)					\
 	*(volatile u_int64_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset)) = htole64(val)
+
+#ifdef __LP64__
+#define DRM_PORT "graphics/drm-stable-kmod"
+#else
+#define DRM_PORT "graphics/drm-legacy-kmod"
+#endif
+
+#define DRM_OBSOLETE(dev)							\
+    do {									\
+	device_printf(dev, "=======================================================\n"); \
+	device_printf(dev, "This code is obsolete abandonware. Install the " DRM_PORT " pkg\n"); \
+	device_printf(dev, "=======================================================\n"); \
+	gone_in_dev(dev, 13, "drm2 drivers");					\
+    } while (0)
 
 /* DRM_READMEMORYBARRIER() prevents reordering of reads.
  * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.
@@ -438,6 +451,9 @@ capable(enum __drm_capabilities cap)
 	switch (cap) {
 	case CAP_SYS_ADMIN:
 		return DRM_SUSER(curthread);
+	default:
+		panic("%s: unhandled capability: %0x", __func__, cap);
+		return (false);
 	}
 }
 
@@ -589,8 +605,10 @@ typedef struct drm_pci_id_list
 #define	CONFIG_COMPAT
 #endif
 
+#ifndef __arm__
 #define	CONFIG_AGP	1
 #define	CONFIG_MTRR	1
+#endif
 
 #define	CONFIG_FB	1
 extern const char *fb_mode_option;

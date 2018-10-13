@@ -1,13 +1,7 @@
 # $FreeBSD$
 
 cpu		CPU_CORTEXA
-machine		arm armv6
+machine		arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
-
-makeoptions	KERNVIRTADDR=0xc0f00000
-options		KERNVIRTADDR=0xc0f00000
-
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15
 
 files		"../altera/socfpga/files.socfpga"

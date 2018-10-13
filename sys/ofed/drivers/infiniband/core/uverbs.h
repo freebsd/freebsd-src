@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
@@ -32,6 +34,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef UVERBS_H
@@ -42,13 +46,29 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/cdev.h>
+#include <linux/srcu.h>
+#include <linux/rcupdate.h>
 #include <linux/rbtree.h>
 
 #include <rdma/ib_verbs.h>
-#include <rdma/ib_verbs_exp.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
-#include <rdma/ib_user_verbs_exp.h>
+
+#define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
+	do {								\
+		(udata)->inbuf  = (const void __user *) (ibuf);		\
+		(udata)->outbuf = (void __user *) (obuf);		\
+		(udata)->inlen  = (ilen);				\
+		(udata)->outlen = (olen);				\
+	} while (0)
+
+#define INIT_UDATA_BUF_OR_NULL(udata, ibuf, obuf, ilen, olen)			\
+	do {									\
+		(udata)->inbuf  = (ilen) ? (const void __user *) (ibuf) : NULL;	\
+		(udata)->outbuf = (olen) ? (void __user *) (obuf) : NULL;	\
+		(udata)->inlen  = (ilen);					\
+		(udata)->outlen = (olen);					\
+	} while (0)
 
 /*
  * Our lifetime rules for these structs are the following:
@@ -72,20 +92,24 @@
  */
 
 struct ib_uverbs_device {
-	struct kref				ref;
+	atomic_t				refcount;
 	int					num_comp_vectors;
 	struct completion			comp;
 	struct device			       *dev;
-	struct ib_device		       *ib_dev;
+	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
 	struct rb_root				xrcd_tree;
 	struct mutex				xrcd_tree_mutex;
+	struct kobject				kobj;
+	struct srcu_struct			disassociate_srcu;
+	struct mutex				lists_mutex; /* protect lists */
+	struct list_head			uverbs_file_list;
+	struct list_head			uverbs_events_file_list;
 };
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
-	struct file			       *filp;
 	int					is_async;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
@@ -93,15 +117,19 @@ struct ib_uverbs_event_file {
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
+	struct list_head			list;
 };
 
 struct ib_uverbs_file {
 	struct kref				ref;
 	struct mutex				mutex;
+	struct mutex                            cleanup_mutex; /* protect cleanup */
 	struct ib_uverbs_device		       *device;
 	struct ib_ucontext		       *ucontext;
 	struct ib_event_handler			event_handler;
 	struct ib_uverbs_event_file	       *async_file;
+	struct list_head			list;
+	int					is_closed;
 };
 
 struct ib_uverbs_event {
@@ -138,8 +166,14 @@ struct ib_usrq_object {
 
 struct ib_uqp_object {
 	struct ib_uevent_object	uevent;
+	/* lock for mcast list */
+	struct mutex		mcast_lock;
 	struct list_head 	mcast_list;
 	struct ib_uxrcd_object *uxrcd;
+};
+
+struct ib_uwq_object {
+	struct ib_uevent_object	uevent;
 };
 
 struct ib_ucq_object {
@@ -149,10 +183,6 @@ struct ib_ucq_object {
 	struct list_head	async_list;
 	u32			comp_events_reported;
 	u32			async_events_reported;
-};
-
-struct ib_udct_object {
-	struct ib_uobject	uobject;
 };
 
 extern spinlock_t ib_uverbs_idr_lock;
@@ -165,12 +195,15 @@ extern struct idr ib_uverbs_qp_idr;
 extern struct idr ib_uverbs_srq_idr;
 extern struct idr ib_uverbs_xrcd_idr;
 extern struct idr ib_uverbs_rule_idr;
-extern struct idr ib_uverbs_dct_idr;
+extern struct idr ib_uverbs_wq_idr;
+extern struct idr ib_uverbs_rwq_ind_tbl_idr;
 
 void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
+					struct ib_device *ib_dev,
 					int is_async);
+void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
 struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd);
 
 void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
@@ -182,10 +215,13 @@ void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr);
+void ib_uverbs_wq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_event_handler(struct ib_event_handler *handler,
 			     struct ib_event *event);
 void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd);
+
+int uverbs_dealloc_mw(struct ib_mw *mw);
 
 struct ib_uverbs_flow_spec {
 	union {
@@ -198,14 +234,15 @@ struct ib_uverbs_flow_spec {
 			};
 		};
 		struct ib_uverbs_flow_spec_eth     eth;
-		struct ib_uverbs_flow_spec_ib      ib;
 		struct ib_uverbs_flow_spec_ipv4    ipv4;
 		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
+		struct ib_uverbs_flow_spec_ipv6    ipv6;
 	};
 };
 
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
+				 struct ib_device *ib_dev,              \
 				 const char __user *buf, int in_len,	\
 				 int out_len)
 
@@ -215,6 +252,7 @@ IB_UVERBS_DECLARE_CMD(query_port);
 IB_UVERBS_DECLARE_CMD(alloc_pd);
 IB_UVERBS_DECLARE_CMD(dealloc_pd);
 IB_UVERBS_DECLARE_CMD(reg_mr);
+IB_UVERBS_DECLARE_CMD(rereg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
 IB_UVERBS_DECLARE_CMD(alloc_mw);
 IB_UVERBS_DECLARE_CMD(dealloc_mw);
@@ -245,25 +283,20 @@ IB_UVERBS_DECLARE_CMD(open_xrcd);
 IB_UVERBS_DECLARE_CMD(close_xrcd);
 
 #define IB_UVERBS_DECLARE_EX_CMD(name)				\
-	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,\
-				struct ib_udata *ucore,	\
+	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
+				struct ib_device *ib_dev,		\
+				struct ib_udata *ucore,		\
 				struct ib_udata *uhw)
-
-#define IB_UVERBS_DECLARE_EXP_CMD(name)					\
-	ssize_t ib_uverbs_exp_##name(struct ib_uverbs_file *file,	\
-				     struct ib_udata *ucore,		\
-				     struct ib_udata *uhw)
 
 IB_UVERBS_DECLARE_EX_CMD(create_flow);
 IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
-
-IB_UVERBS_DECLARE_EXP_CMD(create_qp);
-IB_UVERBS_DECLARE_EXP_CMD(modify_cq);
-IB_UVERBS_DECLARE_EXP_CMD(modify_qp);
-IB_UVERBS_DECLARE_EXP_CMD(create_cq);
-IB_UVERBS_DECLARE_EXP_CMD(query_device);
-IB_UVERBS_DECLARE_EXP_CMD(create_dct);
-IB_UVERBS_DECLARE_EXP_CMD(destroy_dct);
-IB_UVERBS_DECLARE_EXP_CMD(query_dct);
+IB_UVERBS_DECLARE_EX_CMD(query_device);
+IB_UVERBS_DECLARE_EX_CMD(create_cq);
+IB_UVERBS_DECLARE_EX_CMD(create_qp);
+IB_UVERBS_DECLARE_EX_CMD(create_wq);
+IB_UVERBS_DECLARE_EX_CMD(modify_wq);
+IB_UVERBS_DECLARE_EX_CMD(destroy_wq);
+IB_UVERBS_DECLARE_EX_CMD(create_rwq_ind_table);
+IB_UVERBS_DECLARE_EX_CMD(destroy_rwq_ind_table);
 
 #endif /* UVERBS_H */

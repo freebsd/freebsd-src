@@ -16,60 +16,39 @@
 using namespace lldb;
 using namespace lldb_private;
 
-NativeThreadProtocol::NativeThreadProtocol (NativeProcessProtocol *process, lldb::tid_t tid) :
-    m_process_wp (process->shared_from_this ()),
-    m_tid (tid)
-{
+NativeThreadProtocol::NativeThreadProtocol(NativeProcessProtocol &process,
+                                           lldb::tid_t tid)
+    : m_process(process), m_tid(tid) {}
+
+Status NativeThreadProtocol::ReadRegister(uint32_t reg,
+                                          RegisterValue &reg_value) {
+  NativeRegisterContext &register_context = GetRegisterContext();
+
+  const RegisterInfo *const reg_info =
+      register_context.GetRegisterInfoAtIndex(reg);
+  if (!reg_info)
+    return Status("no register info for reg num %" PRIu32, reg);
+
+  return register_context.ReadRegister(reg_info, reg_value);
+  ;
 }
 
-Error
-NativeThreadProtocol::ReadRegister (uint32_t reg, RegisterValue &reg_value)
-{
-    NativeRegisterContextSP register_context_sp = GetRegisterContext ();
-    if (!register_context_sp)
-        return Error ("no register context");
+Status NativeThreadProtocol::WriteRegister(uint32_t reg,
+                                           const RegisterValue &reg_value) {
+  NativeRegisterContext& register_context = GetRegisterContext();
 
-    const RegisterInfo *const reg_info = register_context_sp->GetRegisterInfoAtIndex (reg);
-    if (!reg_info)
-        return Error ("no register info for reg num %" PRIu32, reg);
+  const RegisterInfo *const reg_info =
+      register_context.GetRegisterInfoAtIndex(reg);
+  if (!reg_info)
+    return Status("no register info for reg num %" PRIu32, reg);
 
-    return register_context_sp->ReadRegister (reg_info, reg_value);;
+  return register_context.WriteRegister(reg_info, reg_value);
 }
 
-Error
-NativeThreadProtocol::WriteRegister (uint32_t reg, const RegisterValue &reg_value)
-{
-    NativeRegisterContextSP register_context_sp = GetRegisterContext ();
-    if (!register_context_sp)
-        return Error ("no register context");
-
-    const RegisterInfo *const reg_info = register_context_sp->GetRegisterInfoAtIndex (reg);
-    if (!reg_info)
-        return Error ("no register info for reg num %" PRIu32, reg);
-
-    return register_context_sp->WriteRegister (reg_info, reg_value);
+Status NativeThreadProtocol::SaveAllRegisters(lldb::DataBufferSP &data_sp) {
+  return GetRegisterContext().WriteAllRegisterValues(data_sp);
 }
 
-Error
-NativeThreadProtocol::SaveAllRegisters (lldb::DataBufferSP &data_sp)
-{
-    NativeRegisterContextSP register_context_sp = GetRegisterContext ();
-    if (!register_context_sp)
-        return Error ("no register context");
-    return register_context_sp->WriteAllRegisterValues (data_sp);
-}
-
-Error
-NativeThreadProtocol::RestoreAllRegisters (lldb::DataBufferSP &data_sp)
-{
-    NativeRegisterContextSP register_context_sp = GetRegisterContext ();
-    if (!register_context_sp)
-        return Error ("no register context");
-    return register_context_sp->ReadAllRegisterValues (data_sp);
-}
-
-NativeProcessProtocolSP
-NativeThreadProtocol::GetProcess ()
-{
-    return m_process_wp.lock ();
+Status NativeThreadProtocol::RestoreAllRegisters(lldb::DataBufferSP &data_sp) {
+  return GetRegisterContext().ReadAllRegisterValues(data_sp);
 }

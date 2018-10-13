@@ -10,3 +10,7 @@ mips/malta/malta_machdep.c		standard
 mips/malta/yamon.c			standard
 mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard
+
+# SMP
+mips/malta/asm_malta.S			optional smp
+mips/malta/malta_mp.c			optional smp

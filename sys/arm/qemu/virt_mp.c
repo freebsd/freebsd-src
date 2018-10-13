@@ -50,27 +50,6 @@ __FBSDID("$FreeBSD$");
 static int running_cpus;
 
 static boolean_t
-virt_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
-{
-
-	if (mp_maxid < id)
-		mp_maxid = id;
-
-	return (true);
-}
-
-void
-virt_mp_setmaxid(platform_t plat)
-{
-
-	mp_maxid = PCPU_GET(cpuid);
-	mp_ncpus = ofw_cpu_early_foreach(virt_maxid, true);
-	if (mp_ncpus < 1)
-		mp_ncpus = 1;
-	mp_ncpus = MIN(mp_ncpus, MAXCPU);
-}
-
-static boolean_t
 virt_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 {
 	int err;

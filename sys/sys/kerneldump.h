@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -38,6 +40,9 @@
 #ifndef _SYS_KERNELDUMP_H
 #define _SYS_KERNELDUMP_H
 
+#include <sys/param.h>
+#include <sys/conf.h>
+
 #include <machine/endian.h>
 
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -52,6 +57,18 @@
 #define	htod64(x)	(x)
 #endif
 
+#define	KERNELDUMP_COMP_NONE		0
+#define	KERNELDUMP_COMP_GZIP		1
+#define	KERNELDUMP_COMP_ZSTD		2
+
+#define	KERNELDUMP_ENC_NONE		0
+#define	KERNELDUMP_ENC_AES_256_CBC	1
+
+#define	KERNELDUMP_BUFFER_SIZE		4096
+#define	KERNELDUMP_IV_MAX_SIZE		32
+#define	KERNELDUMP_KEY_MAX_SIZE		64
+#define	KERNELDUMP_ENCKEY_MAX_SIZE	(16384 / 8)
+
 /*
  * All uintX_t fields are in dump byte order, which is the same as
  * network byte order. Use the macros defined above to read or
@@ -64,7 +81,8 @@ struct kerneldumpheader {
 #define	KERNELDUMPMAGIC_CLEARED	"Cleared Kernel Dump"
 	char		architecture[12];
 	uint32_t	version;
-#define	KERNELDUMPVERSION	1
+#define	KERNELDUMPVERSION		4
+#define	KERNELDUMP_TEXT_VERSION		4
 	uint32_t	architectureversion;
 #define	KERNELDUMP_AARCH64_VERSION	1
 #define	KERNELDUMP_AMD64_VERSION	2
@@ -74,15 +92,25 @@ struct kerneldumpheader {
 #define	KERNELDUMP_POWERPC_VERSION	1
 #define	KERNELDUMP_RISCV_VERSION	1
 #define	KERNELDUMP_SPARC64_VERSION	1
-#define	KERNELDUMP_TEXT_VERSION		1
 	uint64_t	dumplength;		/* excl headers */
 	uint64_t	dumptime;
+	uint32_t	dumpkeysize;
 	uint32_t	blocksize;
 	char		hostname[64];
 	char		versionstring[192];
-	char		panicstring[192];
+	char		panicstring[175];
+	uint8_t		compression;
+	uint64_t	dumpextent;
+	char		unused[4];
 	uint32_t	parity;
 };
+
+struct kerneldumpkey {
+	uint8_t		kdk_encryption;
+	uint8_t		kdk_iv[KERNELDUMP_IV_MAX_SIZE];
+	uint32_t	kdk_encryptedkeysize;
+	uint8_t		kdk_encryptedkey[];
+} __packed;
 
 /*
  * Parity calculation is endian insensitive.
@@ -106,15 +134,13 @@ struct dump_pa {
 	vm_paddr_t pa_size;
 };
 
-void mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
-    uint64_t dumplen, uint32_t blksz);
-
 int dumpsys_generic(struct dumperinfo *);
 
 void dumpsys_map_chunk(vm_paddr_t, size_t, void **);
 typedef int dumpsys_callback_t(struct dump_pa *, int, void *);
 int dumpsys_foreach_chunk(dumpsys_callback_t, void *);
 int dumpsys_cb_dumpdata(struct dump_pa *, int, void *);
+int dumpsys_buf_seek(struct dumperinfo *, size_t);
 int dumpsys_buf_write(struct dumperinfo *, char *, size_t);
 int dumpsys_buf_flush(struct dumperinfo *);
 

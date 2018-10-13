@@ -28,6 +28,11 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
+SYSTEM_LD= @${LD} -N -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
+	--no-warn-mismatch --warn-common --export-dynamic \
+	--dynamic-linker /red/herring \
+	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
+
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
 .endif

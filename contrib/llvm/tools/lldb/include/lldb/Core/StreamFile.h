@@ -10,67 +10,52 @@
 #ifndef liblldb_StreamFile_h_
 #define liblldb_StreamFile_h_
 
-// C Includes
-// C++ Includes
-
-#include <string>
-
-// Other libraries and framework includes
-// Project includes
-
-#include "lldb/Core/Stream.h"
 #include "lldb/Host/File.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/lldb-defines.h"      // for DISALLOW_COPY_AND_ASSIGN
+#include "lldb/lldb-enumerations.h" // for FilePermissions::eFilePermission...
+
+#include <stdint.h> // for uint32_t
+#include <stdio.h>  // for size_t, FILE
 
 namespace lldb_private {
 
-class StreamFile : public Stream
-{
+class StreamFile : public Stream {
 public:
-    //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
-    StreamFile ();
+  //------------------------------------------------------------------
+  // Constructors and Destructors
+  //------------------------------------------------------------------
+  StreamFile();
 
-    StreamFile (uint32_t flags, uint32_t addr_size, lldb::ByteOrder byte_order);
+  StreamFile(uint32_t flags, uint32_t addr_size, lldb::ByteOrder byte_order);
 
-    StreamFile (int fd, bool transfer_ownership);
+  StreamFile(int fd, bool transfer_ownership);
 
-    StreamFile (const char *path);
+  StreamFile(const char *path);
 
-    StreamFile (const char *path,
-                uint32_t options,
-                uint32_t permissions = lldb::eFilePermissionsFileDefault);
+  StreamFile(const char *path, uint32_t options,
+             uint32_t permissions = lldb::eFilePermissionsFileDefault);
 
-    StreamFile (FILE *fh, bool transfer_ownership);
+  StreamFile(FILE *fh, bool transfer_ownership);
 
-    ~StreamFile() override;
+  ~StreamFile() override;
 
-    File &
-    GetFile ()
-    {
-        return m_file;
-    }
+  File &GetFile() { return m_file; }
 
-    const File &
-    GetFile () const
-    {
-        return m_file;
-    }
+  const File &GetFile() const { return m_file; }
 
-    void
-    Flush () override;
+  void Flush() override;
 
-    size_t
-    Write (const void *s, size_t length) override;
+  size_t Write(const void *s, size_t length) override;
 
 protected:
-    //------------------------------------------------------------------
-    // Classes that inherit from StreamFile can see and modify these
-    //------------------------------------------------------------------
-    File m_file;
-    
+  //------------------------------------------------------------------
+  // Classes that inherit from StreamFile can see and modify these
+  //------------------------------------------------------------------
+  File m_file;
+
 private:
-    DISALLOW_COPY_AND_ASSIGN (StreamFile);
+  DISALLOW_COPY_AND_ASSIGN(StreamFile);
 };
 
 } // namespace lldb_private

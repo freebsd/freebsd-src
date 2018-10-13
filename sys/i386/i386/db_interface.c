@@ -30,17 +30,14 @@ __FBSDID("$FreeBSD$");
 /*
  * Interface to new debugger.
  */
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 
-#include <machine/cpu.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <machine/psl.h>
 
 #include <ddb/ddb.h>
 
@@ -75,64 +72,41 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	jmp_buf jb;
 	void *prev_jb;
 	char *dst;
-	pt_entry_t *ptep0 = NULL;
-	pt_entry_t oldmap0 = 0;
-	vm_offset_t addr1;
-	pt_entry_t *ptep1 = NULL;
-	pt_entry_t oldmap1 = 0;
 	int ret;
 
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
-		if (addr > trunc_page((vm_offset_t)btext) - size &&
-		    addr < round_page((vm_offset_t)etext)) {
-
-			ptep0 = pmap_pte(kernel_pmap, addr);
-			oldmap0 = *ptep0;
-			*ptep0 |= PG_RW;
-
-			/*
-			 * Map another page if the data crosses a page
-			 * boundary.
-			 */
-			if ((*ptep0 & PG_PS) == 0) {
-				addr1 = trunc_page(addr + size - 1);
-				if (trunc_page(addr) != addr1) {
-					ptep1 = pmap_pte(kernel_pmap, addr1);
-					oldmap1 = *ptep1;
-					*ptep1 |= PG_RW;
-				}
-			} else {
-				addr1 = trunc_4mpage(addr + size - 1);
-				if (trunc_4mpage(addr) != addr1) {
-					ptep1 = pmap_pte(kernel_pmap, addr1);
-					oldmap1 = *ptep1;
-					*ptep1 |= PG_RW;
-				}
-			}
-
-			invltlb();
-		}
-
 		dst = (char *)addr;
-
 		while (size-- > 0)
 			*dst++ = *data++;
 	}
-
 	(void)kdb_jmpbuf(prev_jb);
-
-	if (ptep0) {
-		*ptep0 = oldmap0;
-
-		if (ptep1)
-			*ptep1 = oldmap1;
-
-		invltlb();
-	}
-
 	return (ret);
+}
+
+int
+db_segsize(struct trapframe *tfp)
+{
+	struct proc_ldt *plp;
+	struct segment_descriptor *sdp;
+	int sel;
+
+	if (tfp == NULL)
+	    return (32);
+	if (tfp->tf_eflags & PSL_VM)
+	    return (16);
+	sel = tfp->tf_cs & 0xffff;
+	if (sel == GSEL(GCODE_SEL, SEL_KPL))
+	    return (32);
+	/* Rare cases follow.  User mode cases are currently unreachable. */
+	if (ISLDT(sel)) {
+	    plp = curthread->td_proc->p_md.md_ldt;
+	    sdp = (plp != NULL) ? &plp->ldt_sd : &ldt[0].sd;
+	} else {
+	    sdp = &gdt[PCPU_GET(cpuid) * NGDT].sd;
+	}
+	return (sdp[IDXSEL(sel)].sd_def32 == 0 ? 16 : 32);
 }
 
 void
@@ -141,4 +115,7 @@ db_show_mdpcpu(struct pcpu *pc)
 
 	db_printf("APIC ID      = %d\n", pc->pc_apic_id);
 	db_printf("currentldt   = 0x%x\n", pc->pc_currentldt);
+	db_printf("trampstk     = 0x%x\n", pc->pc_trampstk);
+	db_printf("kesp0        = 0x%x\n", pc->pc_kesp0);
+	db_printf("common_tssp  = 0x%x\n", (u_int)pc->pc_common_tssp);
 }

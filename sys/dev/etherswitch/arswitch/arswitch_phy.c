@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2012 Adrian Chadd.
  * All rights reserved.
@@ -62,10 +64,6 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
-#if	defined(DEBUG)
-static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
-#endif
-
 /*
  * Access PHYs integrated into the switch by going direct
  * to the PHY space itself, rather than through the switch
@@ -81,6 +79,9 @@ arswitch_readphy_external(device_t dev, int phy, int reg)
 
 	ARSWITCH_LOCK(sc);
 	ret = (MDIO_READREG(device_get_parent(dev), phy, reg));
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, ret=0x%08x\n",
+	    __func__, phy, reg, ret);
 	ARSWITCH_UNLOCK(sc);
 
 	return (ret);
@@ -96,6 +97,9 @@ arswitch_writephy_external(device_t dev, int phy, int reg, int data)
 	ARSWITCH_LOCK(sc);
 	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
 	    reg, data);
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, data=0x%08x\n",
+	    __func__, phy, reg, data);
 	ARSWITCH_UNLOCK(sc);
 
 	return (0);
@@ -141,16 +145,28 @@ arswitch_readphy_internal(device_t dev, int phy, int reg)
 			break;
 	}
 	if (timeout < 0) {
-		DPRINTF(dev, "arswitch_readphy(): phy=%d.%02x; timeout=%d\n", phy, reg, timeout);
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "arswitch_readphy(): phy=%d.%02x; timeout=%d\n",
+		    phy, reg, timeout);
 		goto fail;
 	}
 	data = arswitch_readreg_lsb(dev, a) &
 	    AR8X16_MDIO_CTRL_DATA_MASK;
 	ARSWITCH_UNLOCK(sc);
+
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, ret=0x%08x\n",
+	    __func__, phy, reg, data);
+
 	return (data);
 
 fail:
 	ARSWITCH_UNLOCK(sc);
+
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, fail; err=%d\n",
+	    __func__, phy, reg, err);
+
 	return (-1);
 }
 
@@ -190,6 +206,11 @@ arswitch_writephy_internal(device_t dev, int phy, int reg, int data)
 	}
 	if (timeout < 0)
 		err = EIO;
+
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, data=0x%08x, err=%d\n",
+	    __func__, phy, reg, data, err);
+
 out:
 	DEVERR(dev, err, "arswitch_writephy()=%d: phy=%d.%02x\n", phy, reg);
 	ARSWITCH_UNLOCK(sc);

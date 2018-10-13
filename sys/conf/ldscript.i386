@@ -6,7 +6,7 @@ SEARCH_DIR(/usr/lib);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = kernbase + kernload + SIZEOF_HEADERS;
+  . = kernbase + SIZEOF_HEADERS;
   .interp         : { *(.interp) }
   .hash           : { *(.hash) }
   .gnu.hash       : { *(.gnu.hash) }
@@ -44,7 +44,7 @@ SECTIONS
   .init           :
   {
     KEEP (*(.init))
-  } =0x90909090
+  } =0xCCCCCCCC
   .plt            : { *(.plt) }
   .text           :
   {
@@ -52,11 +52,11 @@ SECTIONS
     KEEP (*(.text.*personality*))
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
-  } =0x90909090
+  } =0xCCCCCCCC
   .fini           :
   {
     KEEP (*(.fini))
-  } =0x90909090
+  } =0xCCCCCCCC
   PROVIDE (__etext = .);
   PROVIDE (_etext = .);
   PROVIDE (etext = .);
@@ -137,7 +137,6 @@ SECTIONS
   {
     *(.data .data.* .gnu.linkonce.d.*)
     KEEP (*(.gnu.linkonce.d.*personality*))
-    SORT(CONSTRUCTORS)
   }
   .data1          : { *(.data1) }
   _edata = .; PROVIDE (edata = .);

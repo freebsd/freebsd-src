@@ -618,7 +618,7 @@ static void DoGlobal (int fd)
 	
 	if (wrote != bytes) {
 
-		if (errno == EMSGSIZE) {
+		if (errno == EMSGSIZE && mip != NULL) {
 
 			if (mip->ifMTU != -1)
 				SendNeedFragIcmp (icmpSock,
@@ -2006,7 +2006,7 @@ NewInstance(const char *name)
 		}
 	}
 	ninstance++;
-	ip = calloc(sizeof *ip, 1);
+	ip = calloc(1, sizeof(*ip));
 	ip->name = strdup(name);
 	ip->la = LibAliasInit (ip->la);
 	ip->assignAliasAddr	= 0;

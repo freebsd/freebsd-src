@@ -38,6 +38,8 @@ extern struct sldns_struct_lookup_table* sldns_edns_flags;
 extern struct sldns_struct_lookup_table* sldns_edns_options;
 /** error string from wireparse */
 extern struct sldns_struct_lookup_table* sldns_wireparse_errors;
+/** tsig errors are the rcodes with extra (higher) values */
+extern struct sldns_struct_lookup_table* sldns_tsig_errors;
 
 /**
  * Convert wireformat packet to a string representation
@@ -118,7 +120,7 @@ int sldns_str_print(char** str, size_t* slen, const char* format, ...)
  * @param str_len: the size of the string buffer.  If more is needed, it'll
  * 	silently truncate the output to fit in the buffer.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_pkt_buf(uint8_t* data, size_t data_len, char* str,
 	size_t str_len);
@@ -351,9 +353,25 @@ int sldns_wire2str_edns_option_code_print(char** str, size_t* str_len,
  * @param str_len: the size of the string buffer.  If more is needed, it'll
  * 	silently truncate the output to fit in the buffer.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_rr_buf(uint8_t* rr, size_t rr_len, char* str,
+	size_t str_len);
+
+/**
+ * Convert question RR to string presentation format, on one line.  User buffer.
+ * @param rr: wireformat RR data
+ * @param rr_len: length of the rr wire data.
+ * @param str: the string buffer to write to.
+ * 	If you pass NULL as the str, the return value of the function is
+ * 	the str_len you need for the entire packet.  It does not include
+ * 	the 0 byte at the end.
+ * @param str_len: the size of the string buffer.  If more is needed, it'll
+ * 	silently truncate the output to fit in the buffer.
+ * @return the number of characters for this element, excluding zerobyte.
+ * 	Is larger or equal than str_len if output was truncated.
+ */
+int sldns_wire2str_rrquestion_buf(uint8_t* rr, size_t rr_len, char* str,
 	size_t str_len);
 
 /**
@@ -369,7 +387,7 @@ int sldns_wire2str_rr_buf(uint8_t* rr, size_t rr_len, char* str,
  * @param str_len: the size of the string buffer.  If more is needed, it'll
  * 	silently truncate the output to fit in the buffer.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_rr_unknown_buf(uint8_t* rr, size_t rr_len, char* str,
 	size_t str_len);
@@ -389,7 +407,7 @@ int sldns_wire2str_rr_unknown_buf(uint8_t* rr, size_t rr_len, char* str,
  * @param str_len: the size of the string buffer.  If more is needed, it'll
  * 	silently truncate the output to fit in the buffer.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_rr_comment_buf(uint8_t* rr, size_t rr_len, size_t dname_len,
 	char* str, size_t str_len);
@@ -406,7 +424,7 @@ int sldns_wire2str_rr_comment_buf(uint8_t* rr, size_t rr_len, size_t dname_len,
  * 	silently truncate the output to fit in the buffer.
  * @param rrtype: rr type of the data
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_rdata_buf(uint8_t* rdata, size_t rdata_len, char* str,
 	size_t str_len, uint16_t rrtype);
@@ -417,7 +435,7 @@ int sldns_wire2str_rdata_buf(uint8_t* rdata, size_t rdata_len, char* str,
  * @param str: the string to write to.
  * @param len: length of str.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_type_buf(uint16_t rrtype, char* str, size_t len);
 
@@ -427,7 +445,7 @@ int sldns_wire2str_type_buf(uint16_t rrtype, char* str, size_t len);
  * @param str: the string to write to.
  * @param len: length of str.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_class_buf(uint16_t rrclass, char* str, size_t len);
 
@@ -437,9 +455,20 @@ int sldns_wire2str_class_buf(uint16_t rrclass, char* str, size_t len);
  * @param str: the string to write to.
  * @param len: length of str.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_rcode_buf(int rcode, char* str, size_t len);
+
+/**
+ * Convert host format opcode to a string. 'QUERY', 'NOTIFY', 'UPDATE'.
+ * With user buffer.
+ * @param opcode: opcode as integer in host order
+ * @param str: the string to write to.
+ * @param len: length of str.
+ * @return the number of characters for this element, excluding zerobyte.
+ * 	Is larger or equal than str_len if output was truncated.
+ */
+int sldns_wire2str_opcode_buf(int opcode, char* str, size_t len);
 
 /**
  * Convert wire dname to a string, "example.com.".  With user buffer.
@@ -448,7 +477,7 @@ int sldns_wire2str_rcode_buf(int rcode, char* str, size_t len);
  * @param str: the string to write to.
  * @param len: length of string.
  * @return the number of characters for this element, excluding zerobyte.
- * 	Is larger than str_len if output was truncated.
+ * 	Is larger or equal than str_len if output was truncated.
  */
 int sldns_wire2str_dname_buf(uint8_t* dname, size_t dname_len, char* str,
 	size_t len);
@@ -794,6 +823,19 @@ int sldns_wire2str_hip_scan(uint8_t** data, size_t* data_len, char** str,
  * 	Can return -1 on failure.
  */
 int sldns_wire2str_int16_data_scan(uint8_t** data, size_t* data_len, char** str,
+	size_t* str_len);
+
+/**
+ * Scan wireformat tsigerror field to string, with user buffers.
+ * It shifts the arguments to move along (see sldns_wire2str_pkt_scan).
+ * @param data: wireformat data.
+ * @param data_len: length of data buffer.
+ * @param str: string buffer.
+ * @param str_len: length of string buffer.
+ * @return number of characters (except null) needed to print.
+ * 	Can return -1 on failure.
+ */
+int sldns_wire2str_tsigerror_scan(uint8_t** data, size_t* data_len, char** str,
 	size_t* str_len);
 
 /**

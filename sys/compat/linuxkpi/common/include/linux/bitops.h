@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,36 @@
 #ifndef	_LINUX_BITOPS_H_
 #define	_LINUX_BITOPS_H_
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/libkern.h>
 
 #define	BIT(nr)			(1UL << (nr))
+#define	BIT_ULL(nr)		(1ULL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else
 #define	BITS_PER_LONG		32
 #endif
+
+#define	BITS_PER_LONG_LONG	64
+
 #define	BITMAP_FIRST_WORD_MASK(start)	(~0UL << ((start) % BITS_PER_LONG))
 #define	BITMAP_LAST_WORD_MASK(n)	(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
 #define	BIT_MASK(nr)		(1UL << ((nr) & (BITS_PER_LONG - 1)))
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 #define	GENMASK(h, l)		(((~0UL) >> (BITS_PER_LONG - (h) - 1)) & ((~0UL) << (l)))
-#define BITS_PER_BYTE           8
+#define	GENMASK_ULL(h, l)	(((~0ULL) >> (BITS_PER_LONG_LONG - (h) - 1)) & ((~0ULL) << (l)))
+#define BITS_PER_BYTE		8
+
+#define	hweight8(x)	bitcount((uint8_t)(x))
+#define	hweight16(x)	bitcount16(x)
+#define	hweight32(x)	bitcount32(x)
+#define	hweight64(x)	bitcount64(x)
+#define	hweight_long(x)	bitcountl(x)
 
 static inline int
 __ffs(int mask)
@@ -73,10 +86,15 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
+static inline int
+fls64(uint64_t mask)
+{
+	return (flsll(mask));
+}
+
 static inline uint32_t
 ror32(uint32_t word, unsigned int shift)
 {
-
 	return ((word >> shift) | (word << (32 - shift)));
 }
 
@@ -241,70 +259,6 @@ find_next_zero_bit(const unsigned long *addr, unsigned long size,
 	return (bit);
 }
 
-static inline void
-bitmap_zero(unsigned long *addr, int size)
-{
-	int len;
-
-	len = BITS_TO_LONGS(size) * sizeof(long);
-	memset(addr, 0, len);
-}
-
-static inline void
-bitmap_fill(unsigned long *addr, int size)
-{
-	int tail;
-	int len;
-
-	len = (size / BITS_PER_LONG) * sizeof(long);
-	memset(addr, 0xff, len);
-	tail = size & (BITS_PER_LONG - 1);
-	if (tail) 
-		addr[size / BITS_PER_LONG] = BITMAP_LAST_WORD_MASK(tail);
-}
-
-static inline int
-bitmap_full(unsigned long *addr, int size)
-{
-	unsigned long mask;
-	int tail;
-	int len;
-	int i;
-
-	len = size / BITS_PER_LONG;
-	for (i = 0; i < len; i++)
-		if (addr[i] != ~0UL)
-			return (0);
-	tail = size & (BITS_PER_LONG - 1);
-	if (tail) {
-		mask = BITMAP_LAST_WORD_MASK(tail);
-		if ((addr[i] & mask) != mask)
-			return (0);
-	}
-	return (1);
-}
-
-static inline int
-bitmap_empty(unsigned long *addr, int size)
-{
-	unsigned long mask;
-	int tail;
-	int len;
-	int i;
-
-	len = size / BITS_PER_LONG;
-	for (i = 0; i < len; i++)
-		if (addr[i] != 0)
-			return (0);
-	tail = size & (BITS_PER_LONG - 1);
-	if (tail) {
-		mask = BITMAP_LAST_WORD_MASK(tail);
-		if ((addr[i] & mask) != 0)
-			return (0);
-	}
-	return (1);
-}
-
 #define	__set_bit(i, a)							\
     atomic_set_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
@@ -318,8 +272,7 @@ bitmap_empty(unsigned long *addr, int size)
     atomic_clear_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	test_bit(i, a)							\
-    !!(atomic_load_acq_long(&((volatile unsigned long *)(a))[BIT_WORD(i)]) &	\
-    BIT_MASK(i))
+    !!(READ_ONCE(((volatile unsigned long *)(a))[BIT_WORD(i)]) & BIT_MASK(i))
 
 static inline int
 test_and_clear_bit(long bit, volatile unsigned long *var)
@@ -329,9 +282,24 @@ test_and_clear_bit(long bit, volatile unsigned long *var)
 	var += BIT_WORD(bit);
 	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
-	do {
-		val = *var;
-	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
+
+	val = *var;
+	while (!atomic_fcmpset_long(var, &val, val & ~bit))
+		;
+	return !!(val & bit);
+}
+
+static inline int
+__test_and_clear_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var &= ~bit;
 
 	return !!(val & bit);
 }
@@ -344,53 +312,26 @@ test_and_set_bit(long bit, volatile unsigned long *var)
 	var += BIT_WORD(bit);
 	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
-	do {
-		val = *var;
-	} while (atomic_cmpset_long(var, val, val | bit) == 0);
 
+	val = *var;
+	while (!atomic_fcmpset_long(var, &val, val | bit))
+		;
 	return !!(val & bit);
 }
 
-static inline void
-bitmap_set(unsigned long *map, int start, int nr)
+static inline int
+__test_and_set_bit(long bit, volatile unsigned long *var)
 {
-	unsigned long *p = map + BIT_WORD(start);
-	const int size = start + nr;
-	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
-	unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
+	long val;
 
-	while (nr - bits_to_set >= 0) {
-		*p |= mask_to_set;
-		nr -= bits_to_set;
-		bits_to_set = BITS_PER_LONG;
-		mask_to_set = ~0UL;
-		p++;
-	}
-	if (nr) {
-		mask_to_set &= BITMAP_LAST_WORD_MASK(size);
-		*p |= mask_to_set;
-	}
-}
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
 
-static inline void
-bitmap_clear(unsigned long *map, int start, int nr)
-{
-	unsigned long *p = map + BIT_WORD(start);
-	const int size = start + nr;
-	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
-	unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
+	val = *var;
+	*var |= bit;
 
-	while (nr - bits_to_clear >= 0) {
-		*p &= ~mask_to_clear;
-		nr -= bits_to_clear;
-		bits_to_clear = BITS_PER_LONG;
-		mask_to_clear = ~0UL;
-		p++;
-	}
-	if (nr) {
-		mask_to_clear &= BITMAP_LAST_WORD_MASK(size);
-		*p &= ~mask_to_clear;
-	}
+	return !!(val & bit);
 }
 
 enum {
@@ -400,7 +341,7 @@ enum {
 };
 
 static inline int
-__reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
+linux_reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
 {
         int nbits_reg;
         int index;
@@ -444,70 +385,22 @@ done:
         return ret;
 }
 
-static inline int 
-bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
-{
-        int pos;
-        int end;
-
-        for (pos = 0 ; (end = pos + (1 << order)) <= bits; pos = end) {
-                if (!__reg_op(bitmap, pos, order, REG_OP_ISFREE))
-                        continue;
-                __reg_op(bitmap, pos, order, REG_OP_ALLOC);
-                return pos;
-        }
-        return -ENOMEM;
-}
-
-static inline int
-bitmap_allocate_region(unsigned long *bitmap, int pos, int order)
-{
-        if (!__reg_op(bitmap, pos, order, REG_OP_ISFREE))
-                return -EBUSY;
-        __reg_op(bitmap, pos, order, REG_OP_ALLOC);
-        return 0;
-}
-
-static inline void 
-bitmap_release_region(unsigned long *bitmap, int pos, int order)
-{
-        __reg_op(bitmap, pos, order, REG_OP_RELEASE);
-}
-
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\
 	     (bit) < (size);					\
 	     (bit) = find_next_bit((addr), (size), (bit) + 1))
 
-static inline unsigned
-bitmap_weight(unsigned long *bitmap, unsigned nbits)
+#define	for_each_clear_bit(bit, addr, size) \
+	for ((bit) = find_first_zero_bit((addr), (size));		\
+	     (bit) < (size);						\
+	     (bit) = find_next_zero_bit((addr), (size), (bit) + 1))
+
+static inline uint64_t
+sign_extend64(uint64_t value, int index)
 {
-	unsigned bit;
-	unsigned retval = 0;
+	uint8_t shift = 63 - index;
 
-	for_each_set_bit(bit, bitmap, nbits)
-		retval++;
-	return (retval);
-}
-
-static inline int
-bitmap_equal(const unsigned long *pa,
-    const unsigned long *pb, unsigned bits)
-{
-	unsigned x;
-	unsigned y = bits / BITS_PER_LONG;
- 
-	for (x = 0; x != y; x++) {
-		if (pa[x] != pb[x])
-			return (0);
-	}
-
-	y = bits % BITS_PER_LONG;
-	if (y != 0) {
-		if ((pa[x] ^ pb[x]) & BITMAP_LAST_WORD_MASK(y))
-			return (0);
-	}
-	return (1);
+	return ((int64_t)(value << shift) >> shift);
 }
 
 #endif	/* _LINUX_BITOPS_H_ */

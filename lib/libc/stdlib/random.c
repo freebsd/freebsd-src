@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -236,7 +238,7 @@ good_rand(uint32_t ctx)
  * for default usage relies on values produced by this routine.
  */
 void
-srandom(unsigned long x)
+srandom(unsigned int x)
 {
 	int i, lim;
 
@@ -270,16 +272,24 @@ void
 srandomdev(void)
 {
 	int mib[2];
-	size_t len;
+	size_t expected, len;
 
 	if (rand_type == TYPE_0)
-		len = sizeof(state[0]);
+		expected = len = sizeof(state[0]);
 	else
-		len = rand_deg * sizeof(state[0]);
+		expected = len = rand_deg * sizeof(state[0]);
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_ARND;
-	sysctl(mib, 2, state, &len, NULL, 0);
+	if (sysctl(mib, 2, state, &len, NULL, 0) == -1 || len != expected) {
+		/*
+		 * The sysctl cannot fail. If it does fail on some FreeBSD
+		 * derivative or after some future change, just abort so that
+		 * the problem will be found and fixed. abort is not normally
+		 * suitable for a library but makes sense here.
+		 */
+		abort();
+	}
 
 	if (rand_type != TYPE_0) {
 		fptr = &state[rand_sep];
@@ -311,7 +321,7 @@ srandomdev(void)
  * complain about mis-alignment, but you should disregard these messages.
  */
 char *
-initstate(unsigned long seed, char *arg_state, long n)
+initstate(unsigned int seed, char *arg_state, size_t n)
 {
 	char *ostate = (char *)(&state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;

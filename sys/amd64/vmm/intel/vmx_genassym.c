@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <machine/vmm.h>
 #include "vmx_cpufunc.h"
@@ -86,3 +89,6 @@ ASSYM(PM_EPTGEN, offsetof(struct pmap, pm_eptgen));
 
 ASSYM(KERNEL_SS, GSEL(GDATA_SEL, SEL_KPL));
 ASSYM(KERNEL_CS, GSEL(GCODE_SEL, SEL_KPL));
+
+ASSYM(PAGE_SIZE, PAGE_SIZE);
+ASSYM(KERNBASE, KERNBASE);

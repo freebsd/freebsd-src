@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -83,10 +85,12 @@ struct cfiscsi_session {
 	int				cs_timeout;
 	struct cv			cs_maintenance_cv;
 	bool				cs_terminating;
+	bool				cs_handoff_in_progress;
 	bool				cs_tasks_aborted;
-	size_t				cs_max_data_segment_length;
-	size_t				cs_max_burst_length;
-	size_t				cs_first_burst_length;
+	int				cs_max_recv_data_segment_length;
+	int				cs_max_send_data_segment_length;
+	int				cs_max_burst_length;
+	int				cs_first_burst_length;
 	bool				cs_immediate_data;
 	char				cs_initiator_name[CTL_ISCSI_NAME_LEN];
 	char				cs_initiator_addr[CTL_ISCSI_ADDR_LEN];

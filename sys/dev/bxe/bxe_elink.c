@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2007-2017 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -4333,6 +4335,7 @@ static void elink_pause_resolve(struct elink_phy *phy,
 		 * although we advertised both, need to enable
 		 * RX only.
 		 */
+
 		if (params->req_fc_auto_adv == ELINK_FLOW_CTRL_BOTH) {
 			ELINK_DEBUG_P0(sc, "Flow Control: RX & TX\n");
 		vars->flow_ctrl = ELINK_FLOW_CTRL_BOTH;
@@ -5538,6 +5541,7 @@ static void elink_sync_link(struct elink_params *params,
 	vars->link_up = (vars->link_status & LINK_STATUS_LINK_UP);
 	if (vars->link_up) {
 		ELINK_DEBUG_P0(sc, "phy link up\n");
+		ELINK_DEBUG_P1(sc, "link status = %x\n", vars->link_status);
 
 		vars->phy_link_up = 1;
 		vars->duplex = DUPLEX_FULL;
@@ -6443,6 +6447,8 @@ static elink_status_t elink_get_link_speed_duplex(struct elink_phy *phy,
 		vars->flow_ctrl = ELINK_FLOW_CTRL_NONE;
 		vars->mac_type = ELINK_MAC_TYPE_NONE;
 	}
+	ELINK_DEBUG_P2(sc, " in elink_get_link_speed_duplex vars->link_status = %x, vars->duplex = %x\n",
+			vars->link_status, vars->duplex);
 	ELINK_DEBUG_P2(sc, " phy_link_up %x line_speed %d\n",
 		    vars->phy_link_up, vars->line_speed);
 	return ELINK_STATUS_OK;
@@ -6462,8 +6468,16 @@ static elink_status_t elink_link_settings_status(struct elink_phy *phy,
 			  MDIO_REG_BANK_GP_STATUS,
 			  MDIO_GP_STATUS_TOP_AN_STATUS1,
 			  &gp_status);
-	if (gp_status & MDIO_GP_STATUS_TOP_AN_STATUS1_DUPLEX_STATUS)
+	if (gp_status & MDIO_GP_STATUS_TOP_AN_STATUS1_DUPLEX_STATUS) {
 		duplex = DUPLEX_FULL;
+		ELINK_DEBUG_P1(sc, "duplex status read from phy is = %x\n",
+				duplex);
+	} else {
+		ELINK_DEBUG_P1(sc, "phy status does not allow interface to be FULL_DUPLEX : %x\n",
+			gp_status);
+	}		
+
+
 	if (gp_status & MDIO_GP_STATUS_TOP_AN_STATUS1_LINK_STATUS)
 		link_up = 1;
 	speed_mask = gp_status & ELINK_GP_STATUS_SPEED_MASK;
@@ -6539,6 +6553,8 @@ static elink_status_t elink_warpcore_read_status(struct elink_phy *phy,
 		elink_cl45_read(sc, phy, MDIO_WC_DEVAD,
 				MDIO_WC_REG_DIGITAL5_LINK_STATUS, &link_up);
 		link_up &= 0x1;
+		ELINK_DEBUG_P1(sc, "params->loopback_mode link_up read = %x\n",
+				link_up);
 	} else if ((phy->req_line_speed > ELINK_SPEED_10000) &&
 		(phy->supported & ELINK_SUPPORTED_20000baseMLD2_Full)) {
 		uint16_t temp_link_up;
@@ -6568,6 +6584,8 @@ static elink_status_t elink_warpcore_read_status(struct elink_phy *phy,
 			elink_cl45_read(sc, phy, MDIO_AN_DEVAD,
 					MDIO_AN_REG_STATUS, &an_link);
 			link_up |= (an_link & (1<<2));
+			ELINK_DEBUG_P2(sc,"an_link = %x, link_up = %x\n", an_link,
+						link_up);
 		}
 		if (link_up && ELINK_SINGLE_MEDIA_DIRECT(params)) {
 			uint16_t pd, gp_status4;
@@ -6587,12 +6605,17 @@ static elink_status_t elink_warpcore_read_status(struct elink_phy *phy,
 				if (pd & (1<<15))
 					vars->link_status |=
 					LINK_STATUS_PARALLEL_DETECTION_USED;
+				ELINK_DEBUG_P2(sc, "pd = %x, link_status = %x\n",
+						pd, vars->link_status);
 			}
 			elink_ext_phy_resolve_fc(phy, params, vars);
 			vars->duplex = duplex;
+			ELINK_DEBUG_P3(sc, " ELINK_SINGLE_MEDIA_DIRECT duplex %x  flow_ctrl 0x%x link_status 0x%x\n",
+					vars->duplex, vars->flow_ctrl, vars->link_status);
 		}
 	}
-
+	ELINK_DEBUG_P3(sc, "duplex %x  flow_ctrl 0x%x link_status 0x%x\n",
+			vars->duplex, vars->flow_ctrl, vars->link_status);
 	if ((vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) &&
 	    ELINK_SINGLE_MEDIA_DIRECT(params)) {
 		uint16_t val;
@@ -6607,7 +6630,8 @@ static elink_status_t elink_warpcore_read_status(struct elink_phy *phy,
 			   MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KR))
 			vars->link_status |=
 				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
-
+		ELINK_DEBUG_P2(sc, "val = %x, link_status = %x\n",
+				val, vars->link_status);
 		elink_cl45_read(sc, phy, MDIO_WC_DEVAD,
 				MDIO_WC_REG_DIGITAL3_LP_UP1, &val);
 
@@ -6617,6 +6641,8 @@ static elink_status_t elink_warpcore_read_status(struct elink_phy *phy,
 		if (val & (MDIO_OVER_1G_UP1_10G | MDIO_OVER_1G_UP1_10GH))
 			vars->link_status |=
 				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
+		ELINK_DEBUG_P2(sc, "val = %x, link_status = %x\n",
+				val, vars->link_status);
 
 	}
 
@@ -7808,6 +7834,19 @@ elink_status_t elink_link_update(struct elink_params *params, struct elink_vars 
 		ELINK_DEBUG_P1(sc, "Active external phy selected: %x\n",
 			   active_external_phy);
 	}
+	
+        ELINK_DEBUG_P3(sc, "vars : phy_flags = %x, mac_type = %x, phy_link_up = %x\n",
+                       vars->phy_flags, vars->mac_type, vars->phy_link_up);
+        ELINK_DEBUG_P3(sc, "vars : link_up = %x, line_speed = %x, duplex = %x\n",
+                       vars->link_up, vars->line_speed, vars->duplex);
+        ELINK_DEBUG_P3(sc, "vars : flow_ctrl = %x, ieee_fc = %x, link_status = %x\n",
+                       vars->flow_ctrl, vars->ieee_fc, vars->link_status);
+        ELINK_DEBUG_P3(sc, "vars : eee_status = %x, fault_detected = %x, check_kr2_recovery_cnt = %x\n",
+                       vars->eee_status, vars->fault_detected, vars->check_kr2_recovery_cnt);
+        ELINK_DEBUG_P3(sc, "vars : periodic_flags = %x, aeu_int_mask = %x, rx_tx_asic_rst = %x\n",
+                       vars->periodic_flags, vars->aeu_int_mask, vars->rx_tx_asic_rst);
+        ELINK_DEBUG_P2(sc, "vars : turn_to_run_wc_rt = %x, rsrv2 = %x\n",
+                       vars->turn_to_run_wc_rt, vars->rsrv2);	
 
 	for (phy_index = ELINK_EXT_PHY1; phy_index < params->num_phys;
 	      phy_index++) {
@@ -7835,6 +7874,7 @@ elink_status_t elink_link_update(struct elink_params *params, struct elink_vars 
 				   " link speed %d\n", vars->line_speed,
 				   ext_phy_line_speed);
 			vars->phy_link_up = 0;
+			ELINK_DEBUG_P0(sc, "phy_link_up set to 0\n");
 		} else if (prev_line_speed != vars->line_speed) {
 			REG_WR(sc, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4,
 			       0);
@@ -7882,6 +7922,12 @@ elink_status_t elink_link_update(struct elink_params *params, struct elink_vars 
 			 (ext_phy_link_up ||
 			  ELINK_SINGLE_MEDIA_DIRECT(params)) &&
 			 (phy_vars[active_external_phy].fault_detected == 0));
+
+	if(vars->link_up) {
+                ELINK_DEBUG_P0(sc, "local phy and external phy are up\n");
+        } else {
+                ELINK_DEBUG_P0(sc, "either local phy or external phy or both are down\n");
+        }
 
 	/* Update the PFC configuration in case it was changed */
 	if (params->feature_config_flags & ELINK_FEATURE_CONFIG_PFC_ENABLED)
@@ -12943,6 +12989,8 @@ static void elink_populate_preemphasis(struct bxe_softc *sc, uint32_t shmem_base
 
 		phy->tx_preemphasis[i << 1] = ((tx>>16) & 0xffff);
 		phy->tx_preemphasis[(i << 1) + 1] = (tx & 0xffff);
+		ELINK_DEBUG_P2(sc,"phy->rx_preemphasis = %x, phy->tx_preemphasis = %x\n",
+			phy->rx_preemphasis[i << 1], phy->tx_preemphasis[i << 1]);
 	}
 }
 
@@ -13070,6 +13118,8 @@ static elink_status_t elink_populate_int_phy(struct bxe_softc *sc, uint32_t shme
 			phy->flags |= ELINK_FLAGS_MDC_MDIO_WA;
 		else
 			phy->flags |= ELINK_FLAGS_MDC_MDIO_WA_B0;
+		ELINK_DEBUG_P3(sc, "media_type = %x, flags = %x, supported = %x\n",
+				phy->media_type, phy->flags, phy->supported);
 	} else
 	{
 		switch (switch_cfg) {
@@ -13300,6 +13350,9 @@ static void elink_phy_def_cfg(struct elink_params *params,
 		break;
 	}
 
+	ELINK_DEBUG_P2(sc, "Default config phy idx %x, req_duplex config %x\n",
+			phy_index, phy->req_duplex);
+
 	switch (link_config  & PORT_FEATURE_FLOW_CONTROL_MASK) {
 	case PORT_FEATURE_FLOW_CONTROL_AUTO:
 		phy->req_flow_ctrl = ELINK_FLOW_CTRL_AUTO;
@@ -13317,6 +13370,8 @@ static void elink_phy_def_cfg(struct elink_params *params,
 		phy->req_flow_ctrl = ELINK_FLOW_CTRL_NONE;
 		break;
 	}
+	ELINK_DEBUG_P3(sc, "Requested Duplex = %x, line_speed = %x, flow_ctrl = %x\n",
+			phy->req_duplex, phy->req_line_speed, phy->req_flow_ctrl);
 }
 
 uint32_t elink_phy_selection(struct elink_params *params)
@@ -13924,6 +13979,18 @@ elink_status_t elink_phy_init(struct elink_params *params, struct elink_vars *va
 	/* Check if link flap can be avoided */
 	lfa_status = elink_check_lfa(params);
 
+	ELINK_DEBUG_P3(sc, " params : port = %x, loopback_mode = %x req_duplex = %x\n",
+                        params->port, params->loopback_mode, params->req_duplex[0]);
+        ELINK_DEBUG_P3(sc, " params : switch_cfg = %x, lane_config = %x req_duplex[1] = %x\n",
+                        params->switch_cfg, params->lane_config, params->req_duplex[1]);
+        ELINK_DEBUG_P3(sc, " params : chip_id = %x, feature_config_flags = %x, num_phys = %x\n",
+                       params->chip_id, params->feature_config_flags, params->num_phys);
+        ELINK_DEBUG_P3(sc, " params : rsrv = %x, eee_mode = %x, hw_led_mode = x\n",
+                        params->rsrv, params->eee_mode, params->hw_led_mode);
+        ELINK_DEBUG_P3(sc, " params : multi_phy = %x, req_fc_auto_adv = %x, link_flags = %x\n",
+                        params->multi_phy_config, params->req_fc_auto_adv, params->link_flags);
+        ELINK_DEBUG_P2(sc, " params : lfa_base = %x, link_attr = %x\n",
+                        params->lfa_base, params->link_attr_sync);
 	if (lfa_status == 0) {
 		ELINK_DEBUG_P0(sc, "Link Flap Avoidance in progress\n");
 		return elink_avoid_link_flap(params, vars);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -75,22 +75,21 @@ ENTRY(setjmp)
 	sd	ra, (12 * 8)(a0)
 	addi	a0, a0, (13 * 8)
 
-#if 0
-	/* RISCVTODO */
-	/* Store the vfp registers */
-	fsq	fs0, (0 * 16)(a0)
-	fsq	fs1, (1 * 16)(a0)
-	fsq	fs2, (2 * 16)(a0)
-	fsq	fs3, (3 * 16)(a0)
-	fsq	fs4, (4 * 16)(a0)
-	fsq	fs5, (5 * 16)(a0)
-	fsq	fs6, (6 * 16)(a0)
-	fsq	fs7, (7 * 16)(a0)
-	fsq	fs8, (8 * 16)(a0)
-	fsq	fs9, (9 * 16)(a0)
-	fsq	fs10, (10 * 16)(a0)
-	fsq	fs11, (11 * 16)(a0)
-	addi	a0, a0, (12 * 16)
+#ifdef __riscv_float_abi_double
+	/* Store the fpe registers */
+	fsd	fs0, (0 * 8)(a0)
+	fsd	fs1, (1 * 8)(a0)
+	fsd	fs2, (2 * 8)(a0)
+	fsd	fs3, (3 * 8)(a0)
+	fsd	fs4, (4 * 8)(a0)
+	fsd	fs5, (5 * 8)(a0)
+	fsd	fs6, (6 * 8)(a0)
+	fsd	fs7, (7 * 8)(a0)
+	fsd	fs8, (8 * 8)(a0)
+	fsd	fs9, (9 * 8)(a0)
+	fsd	fs10, (10 * 8)(a0)
+	fsd	fs11, (11 * 8)(a0)
+	addi	a0, a0, (12 * 8)
 #endif
 
 	/* Return value */
@@ -145,22 +144,21 @@ ENTRY(longjmp)
 	ld	ra, (12 * 8)(a0)
 	addi	a0, a0, (13 * 8)
 
-#if 0
-	/* RISCVTODO */
-	/* Restore the vfp registers */
-	flq	fs0, (0 * 16)(a0)
-	flq	fs1, (1 * 16)(a0)
-	flq	fs2, (2 * 16)(a0)
-	flq	fs3, (3 * 16)(a0)
-	flq	fs4, (4 * 16)(a0)
-	flq	fs5, (5 * 16)(a0)
-	flq	fs6, (6 * 16)(a0)
-	flq	fs7, (7 * 16)(a0)
-	flq	fs8, (8 * 16)(a0)
-	flq	fs9, (9 * 16)(a0)
-	flq	fs10, (10 * 16)(a0)
-	flq	fs11, (11 * 16)(a0)
-	addi	a0, a0, (12 * 16)
+#ifdef __riscv_float_abi_double
+	/* Restore the fpe registers */
+	fld	fs0, (0 * 8)(a0)
+	fld	fs1, (1 * 8)(a0)
+	fld	fs2, (2 * 8)(a0)
+	fld	fs3, (3 * 8)(a0)
+	fld	fs4, (4 * 8)(a0)
+	fld	fs5, (5 * 8)(a0)
+	fld	fs6, (6 * 8)(a0)
+	fld	fs7, (7 * 8)(a0)
+	fld	fs8, (8 * 8)(a0)
+	fld	fs9, (9 * 8)(a0)
+	fld	fs10, (10 * 8)(a0)
+	fld	fs11, (11 * 8)(a0)
+	addi	a0, a0, (12 * 8)
 #endif
 
 	/* Load the return value */

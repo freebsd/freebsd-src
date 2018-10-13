@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.73 2016/06/03 01:21:59 sjg Exp $	*/
+/*	$NetBSD: nonints.h,v 1.74 2016/09/05 00:40:29 sevan Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -109,7 +109,6 @@ void JobReapChild(pid_t, WAIT_T, Boolean);
 /* main.c */
 void Main_ParseArgLine(const char *);
 void MakeMode(const char *);
-int main(int, char **);
 char *Cmd_Exec(const char *, const char **);
 void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
@@ -143,6 +142,11 @@ char *Str_FindSubstring(const char *, const char *);
 int Str_Match(const char *, const char *);
 char *Str_SYSVMatch(const char *, const char *, int *len);
 void Str_SYSVSubst(Buffer *, char *, char *, int);
+
+#ifndef HAVE_STRLCPY
+/* strlcpy.c */
+size_t strlcpy(char *, const char *, size_t);
+#endif
 
 /* suff.c */
 void Suff_ClearSuffixes(void);

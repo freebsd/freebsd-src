@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -43,8 +45,8 @@ __FBSDID("$FreeBSD$");
 
 extern bool_t xdr_ypresp_all_seq(XDR *, unsigned long *);
 
-static int (*ypresp_allfn)();
-static void *ypresp_data;
+extern int (*ypresp_allfn)();
+extern void *ypresp_data;
 extern DB *specdbp;
 extern enum ypstat yp_errno;
 

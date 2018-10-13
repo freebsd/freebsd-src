@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Doug Rabson
  * All rights reserved.
  *
@@ -53,10 +55,10 @@ printmod(int modid)
 	warn("can't stat module id %d", modid);
     else
 	if (showdata) {
-	    printf("\t\t%2d %s (%d, %u, 0x%lx)\n", stat.id, stat.name, 
+	    printf("\t\t%3d %s (%d, %u, 0x%lx)\n", stat.id, stat.name, 
 	        stat.data.intval, stat.data.uintval, stat.data.ulongval);
 	} else {
-		printf("\t\t%2d %s\n", stat.id, stat.name);
+		printf("\t\t%3d %s\n", stat.id, stat.name);
 	}
 }
 
@@ -72,21 +74,23 @@ printfile(int fileid, int verbose, int humanized)
 	err(1, "can't stat file id %d", fileid);
     } else {
 	if (humanized) {
-	       humanize_number(buf, sizeof(buf), stat.size,
-	           "", HN_AUTOSCALE, HN_DECIMAL | HN_NOSPACE);
+		humanize_number(buf, sizeof(buf), stat.size,
+		    "", HN_AUTOSCALE, HN_DECIMAL | HN_NOSPACE);
 
-	       printf("%2d %4d %p %5s %s",
-	           stat.id, stat.refs, stat.address, buf, stat.name);
+		printf("%2d %4d %*p %5s %s",
+		    stat.id, stat.refs, POINTER_WIDTH, stat.address, buf,
+		    stat.name);
 	} else {
-		printf("%2d %4d %p %-8zx %s",
-		    stat.id, stat.refs, stat.address, stat.size, stat.name);
+		printf("%2d %4d %*p %8zx %s",
+		    stat.id, stat.refs, POINTER_WIDTH, stat.address, stat.size,
+		    stat.name);
 	}
     }
 
     if (verbose) {
 	printf(" (%s)\n", stat.pathname);
 	printf("\tContains modules:\n");
-	printf("\t\tId Name\n");
+	printf("\t\t Id Name\n");
 	for (modid = kldfirstmod(fileid); modid > 0;
 	     modid = modfnext(modid))
 	    printmod(modid);
@@ -97,7 +101,7 @@ printfile(int fileid, int verbose, int humanized)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldstata[-d] [-h] [-q] [-v] [-i id] [-n filename]\n");
+    fprintf(stderr, "usage: kldstat [-d] [-h] [-q] [-v] [-i id] [-n filename]\n");
     fprintf(stderr, "       kldstat [-d] [-q] [-m modname]\n");
     exit(1);
 }
@@ -188,9 +192,9 @@ main(int argc, char** argv)
     }
 
     if (humanized)
-	    printf("Id Refs Address%*c  Size Name\n", POINTER_WIDTH - 7, ' ');
+	    printf("Id Refs Address%*c %5s Name\n", POINTER_WIDTH - 7, ' ', "Size");
     else
-	    printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
+	    printf("Id Refs Address%*c %8s Name\n", POINTER_WIDTH - 7, ' ', "Size");
     if (fileid != 0)
 	printfile(fileid, verbose, humanized);
     else

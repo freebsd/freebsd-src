@@ -1,4 +1,4 @@
-#	$NetBSD: t_traceroute.sh,v 1.5 2013/02/19 21:08:25 joerg Exp $
+#	$NetBSD: t_traceroute.sh,v 1.6 2016/08/10 23:17:35 kre Exp $
 #
 # Copyright (c) 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -26,7 +26,7 @@
 #
 
 netserver=\
-"rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif"
+"rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif -lrumpdev"
 
 atf_test_case basic cleanup
 basic_head()

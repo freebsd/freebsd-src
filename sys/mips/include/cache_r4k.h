@@ -1,6 +1,8 @@
 /*	$NetBSD: cache_r4k.h,v 1.10 2003/03/08 04:43:26 rafal Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

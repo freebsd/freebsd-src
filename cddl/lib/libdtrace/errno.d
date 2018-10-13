@@ -20,6 +20,7 @@
  * CDDL HEADER END
  *
  * Portions Copyright 2006-2008 John Birrell jb@freebsd.org
+ * Portions Copyright 2018 Devin Teske dteske@freebsd.org
  *
  * $FreeBSD$
  */
@@ -216,7 +217,15 @@ inline int ENOLINK = 91;
 #pragma D binding "1.0" ENOLINK
 inline int EPROTO = 92;
 #pragma D binding "1.0" EPROTO
-inline int ELAST = 92;
+inline int ENOTCAPABLE = 93;
+#pragma D binding "1.13" ENOTCAPABLE
+inline int ECAPMODE = 94;
+#pragma D binding "1.13" ECAPMODE
+inline int ENOTRECOVERABLE = 95;
+#pragma D binding "1.13" ENOTRECOVERABLE
+inline int EOWNERDEAD = 96;
+#pragma D binding "1.13" EOWNERDEAD
+inline int ELAST = 96;
 #pragma D binding "1.0" ELAST
 inline int ERESTART = -1;
 #pragma D binding "1.0" ERESTART
@@ -226,3 +235,114 @@ inline int ENOIOCTL = -3;
 #pragma D binding "1.0" ENOIOCTL
 inline int EDIRIOCTL = -4;
 #pragma D binding "1.0" EDIRIOCTL
+inline int ERELOOKUP = -5;
+#pragma D binding "1.13" ERELOOKUP
+
+/*
+ * Error strings from <sys/errno.h>
+ */
+#pragma D binding "1.13" strerror
+inline string strerror[int errno] =
+	errno == 0 ? 			"Success" :
+	errno == EPERM ?		"Operation not permitted" :
+	errno == ENOENT ?		"No such file or directory" :
+	errno == ESRCH ?		"No such process" :
+	errno == EINTR ?		"Interrupted system call" :
+	errno == EIO ?			"Input/output error" :
+	errno == ENXIO ?		"Device not configured" :
+	errno == E2BIG ?		"Argument list too long" :
+	errno == ENOEXEC ?		"Exec format error" :
+	errno == EBADF ?		"Bad file descriptor" :
+	errno == ECHILD ?		"No child processes" :
+	errno == EDEADLK ?		"Resource deadlock avoided" :
+	errno == ENOMEM ?		"Cannot allocate memory" :
+	errno == EACCES ?		"Permission denied" :
+	errno == EFAULT ?		"Bad address" :
+	errno == ENOTBLK ?		"Block device required" :
+	errno == EBUSY ?		"Device busy" :
+	errno == EEXIST ?		"File exists" :
+	errno == EXDEV ?		"Cross-device link" :
+	errno == ENODEV ?		"Operation not supported by device" :
+	errno == ENOTDIR ?		"Not a directory" :
+	errno == EISDIR ?		"Is a directory" :
+	errno == EINVAL ?		"Invalid argument" :
+	errno == ENFILE ?		"Too many open files in system" :
+	errno == EMFILE ?		"Too many open files" :
+	errno == ENOTTY ?		"Inappropriate ioctl for device" :
+	errno == ETXTBSY ?		"Text file busy" :
+	errno == EFBIG ?		"File too large" :
+	errno == ENOSPC ?		"No space left on device" :
+	errno == ESPIPE ?		"Illegal seek" :
+	errno == EROFS ?		"Read-only filesystem" :
+	errno == EMLINK ?		"Too many links" :
+	errno == EPIPE ?		"Broken pipe" :
+	errno == EDOM ?			"Numerical argument out of domain" :
+	errno == ERANGE ?		"Result too large" :
+	errno == EAGAIN ?		"Resource temporarily unavailable" :
+	errno == EINPROGRESS ?		"Operation now in progress" :
+	errno == EALREADY ?		"Operation already in progress" :
+	errno == ENOTSOCK ?		"Socket operation on non-socket" :
+	errno == EDESTADDRREQ ?		"Destination address required" :
+	errno == EMSGSIZE ?		"Message too long" :
+	errno == EPROTOTYPE ?		"Protocol wrong type for socket" :
+	errno == ENOPROTOOPT ?		"Protocol not available" :
+	errno == EPROTONOSUPPORT ?	"Protocol not supported" :
+	errno == ESOCKTNOSUPPORT ?	"Socket type not supported" :
+	errno == EOPNOTSUPP ?		"Operation not supported" :
+	errno == EPFNOSUPPORT ?		"Protocol family not supported" :
+	errno == EAFNOSUPPORT ?		"Address family not supported by protocol family" :
+	errno == EADDRINUSE ?		"Address already in use" :
+	errno == EADDRNOTAVAIL ?	"Can't assign requested address" :
+	errno == ENETDOWN ?		"Network is down" :
+	errno == ENETUNREACH ?		"Network is unreachable" :
+	errno == ENETRESET ?		"Network dropped connection on reset" :
+	errno == ECONNABORTED ?		"Software caused connection abort" :
+	errno == ECONNRESET ?		"Connection reset by peer" :
+	errno == ENOBUFS ?		"No buffer space available" :
+	errno == EISCONN ?		"Socket is already connected" :
+	errno == ENOTCONN ?		"Socket is not connected" :
+	errno == ESHUTDOWN ?		"Can't send after socket shutdown" :
+	errno == ETOOMANYREFS ?		"Too many references: can't splice" :
+	errno == ETIMEDOUT ?		"Operation timed out" :
+	errno == ECONNREFUSED ?		"Connection refused" :
+	errno == ELOOP ?		"Too many levels of symbolic links" :
+	errno == ENAMETOOLONG ?		"File name too long" :
+	errno == EHOSTDOWN ?		"Host is down" :
+	errno == EHOSTUNREACH ?		"No route to host" :
+	errno == ENOTEMPTY ?		"Directory not empty" :
+	errno == EPROCLIM ?		"Too many processes" :
+	errno == EUSERS ?		"Too many users" :
+	errno == EDQUOT ?		"Disc quota exceeded" :
+	errno == ESTALE ?		"Stale NFS file handle" :
+	errno == EREMOTE ?		"Too many levels of remote in path" :
+	errno == EBADRPC ?		"RPC struct is bad" :
+	errno == ERPCMISMATCH ?		"RPC version wrong" :
+	errno == EPROGUNAVAIL ?		"RPC prog. not avail" :
+	errno == EPROGMISMATCH ?	"Program version wrong" :
+	errno == EPROCUNAVAIL ?		"Bad procedure for program" :
+	errno == ENOLCK ?		"No locks available" :
+	errno == ENOSYS ?		"Function not implemented" :
+	errno == EFTYPE ?		"Inappropriate file type or format" :
+	errno == EAUTH ?		"Authentication error" :
+	errno == ENEEDAUTH ?		"Need authenticator" :
+	errno == EIDRM ?		"Identifier removed" :
+	errno == ENOMSG ?		"No message of desired type" :
+	errno == EOVERFLOW ?		"Value too large to be stored in data type" :
+	errno == ECANCELED ?		"Operation canceled" :
+	errno == EILSEQ ?		"Illegal byte sequence" :
+	errno == ENOATTR ?		"Attribute not found" :
+	errno == EDOOFUS ?		"Programming error" :
+	errno == EBADMSG ?		"Bad message" :
+	errno == EMULTIHOP ?		"Multihop attempted" :
+	errno == ENOLINK ?		"Link has been severed" :
+	errno == EPROTO ?		"Protocol error" :
+	errno == ENOTCAPABLE ?		"Capabilities insufficient" :
+	errno == ECAPMODE ?		"Not permitted in capability mode" :
+	errno == ENOTRECOVERABLE ?	"State not recoverable" :
+	errno == EOWNERDEAD ?		"Previous owner died" :
+	errno == ERESTART ?		"restart syscall" :
+	errno == EJUSTRETURN ?		"don't modify regs, just return" :
+	errno == ENOIOCTL ?		"ioctl not handled by this layer" :
+	errno == EDIRIOCTL ?		"do direct ioctl in GEOM" :
+	errno == ERELOOKUP ?		"retry the directory lookup" :
+	"Unknown error";

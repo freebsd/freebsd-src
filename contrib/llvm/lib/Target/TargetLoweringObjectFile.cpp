@@ -12,25 +12,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
+#include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Mangler.h"
-#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -43,11 +41,15 @@ using namespace llvm;
 void TargetLoweringObjectFile::Initialize(MCContext &ctx,
                                           const TargetMachine &TM) {
   Ctx = &ctx;
-  InitMCObjectFileInfo(TM.getTargetTriple(), TM.getRelocationModel(),
-                       TM.getCodeModel(), *Ctx);
+  // `Initialize` can be called more than once.
+  delete Mang;
+  Mang = new Mangler();
+  InitMCObjectFileInfo(TM.getTargetTriple(), TM.isPositionIndependent(), *Ctx,
+                       TM.getCodeModel() == CodeModel::Large);
 }
 
 TargetLoweringObjectFile::~TargetLoweringObjectFile() {
+  delete Mang;
 }
 
 static bool isSuitableForBSS(const GlobalVariable *GV, bool NoZerosInBSS) {
@@ -101,21 +103,20 @@ static bool IsNullTerminatedString(const Constant *C) {
 }
 
 MCSymbol *TargetLoweringObjectFile::getSymbolWithGlobalValueBase(
-    const GlobalValue *GV, StringRef Suffix, Mangler &Mang,
-    const TargetMachine &TM) const {
+    const GlobalValue *GV, StringRef Suffix, const TargetMachine &TM) const {
   assert(!Suffix.empty());
 
   SmallString<60> NameStr;
   NameStr += GV->getParent()->getDataLayout().getPrivateGlobalPrefix();
-  TM.getNameWithPrefix(NameStr, GV, Mang);
+  TM.getNameWithPrefix(NameStr, GV, *Mang);
   NameStr.append(Suffix.begin(), Suffix.end());
   return Ctx->getOrCreateSymbol(NameStr);
 }
 
 MCSymbol *TargetLoweringObjectFile::getCFIPersonalitySymbol(
-    const GlobalValue *GV, Mangler &Mang, const TargetMachine &TM,
+    const GlobalValue *GV, const TargetMachine &TM,
     MachineModuleInfo *MMI) const {
-  return TM.getSymbol(GV, Mang);
+  return TM.getSymbol(GV);
 }
 
 void TargetLoweringObjectFile::emitPersonalityValue(MCStreamer &Streamer,
@@ -129,15 +130,15 @@ void TargetLoweringObjectFile::emitPersonalityValue(MCStreamer &Streamer,
 /// classifies the global in a variety of ways that make various target
 /// implementations simpler.  The target implementation is free to ignore this
 /// extra info of course.
-SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
+SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalObject *GO,
                                                        const TargetMachine &TM){
-  assert(!GV->isDeclaration() && !GV->hasAvailableExternallyLinkage() &&
+  assert(!GO->isDeclaration() && !GO->hasAvailableExternallyLinkage() &&
          "Can only be used for global definitions");
 
   Reloc::Model ReloModel = TM.getRelocationModel();
 
   // Early exit - functions should be always in text sections.
-  const GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV);
+  const auto *GVar = dyn_cast<GlobalVariable>(GO);
   if (!GVar)
     return SectionKind::getText();
 
@@ -173,7 +174,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
       // If the global is required to have a unique address, it can't be put
       // into a mergable section: just drop it into the general read-only
       // section instead.
-      if (!GVar->hasUnnamedAddr())
+      if (!GVar->hasGlobalUnnamedAddr())
         return SectionKind::getReadOnly();
 
       // If initializer is a null-terminated string, put it in a "cstring"
@@ -198,21 +199,24 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
       // Otherwise, just drop it into a mergable constant section.  If we have
       // a section for this size, use it, otherwise use the arbitrary sized
       // mergable section.
-      switch (GV->getParent()->getDataLayout().getTypeAllocSize(C->getType())) {
+      switch (
+          GVar->getParent()->getDataLayout().getTypeAllocSize(C->getType())) {
       case 4:  return SectionKind::getMergeableConst4();
       case 8:  return SectionKind::getMergeableConst8();
       case 16: return SectionKind::getMergeableConst16();
+      case 32: return SectionKind::getMergeableConst32();
       default:
         return SectionKind::getReadOnly();
       }
 
     } else {
-      // In static relocation model, the linker will resolve all addresses, so
-      // the relocation entries will actually be constants by the time the app
-      // starts up.  However, we can't put this into a mergable section, because
-      // the linker doesn't take relocations into consideration when it tries to
-      // merge entries in the section.
-      if (ReloModel == Reloc::Static)
+      // In static, ROPI and RWPI relocation models, the linker will resolve
+      // all addresses, so the relocation entries will actually be constants by
+      // the time the app starts up.  However, we can't put this into a
+      // mergable section, because the linker doesn't take relocations into
+      // consideration when it tries to merge entries in the section.
+      if (ReloModel == Reloc::Static || ReloModel == Reloc::ROPI ||
+          ReloModel == Reloc::RWPI || ReloModel == Reloc::ROPI_RWPI)
         return SectionKind::getReadOnly();
 
       // Otherwise, the dynamic linker needs to fix it up, put it in the
@@ -221,39 +225,43 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
     }
   }
 
-  // Okay, this isn't a constant.  If the initializer for the global is going
-  // to require a runtime relocation by the dynamic linker, put it into a more
-  // specific section to improve startup time of the app.  This coalesces these
-  // globals together onto fewer pages, improving the locality of the dynamic
-  // linker.
-  if (ReloModel == Reloc::Static)
-    return SectionKind::getData();
-
-  if (C->needsRelocation())
-    return SectionKind::getData();
+  // Okay, this isn't a constant.
   return SectionKind::getData();
 }
 
 /// This method computes the appropriate section to emit the specified global
 /// variable or function definition.  This should not be passed external (or
 /// available externally) globals.
-MCSection *
-TargetLoweringObjectFile::SectionForGlobal(const GlobalValue *GV,
-                                           SectionKind Kind, Mangler &Mang,
-                                           const TargetMachine &TM) const {
+MCSection *TargetLoweringObjectFile::SectionForGlobal(
+    const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
   // Select section name.
-  if (GV->hasSection())
-    return getExplicitSectionGlobal(GV, Kind, Mang, TM);
+  if (GO->hasSection())
+    return getExplicitSectionGlobal(GO, Kind, TM);
 
+  if (auto *GVar = dyn_cast<GlobalVariable>(GO)) {
+    auto Attrs = GVar->getAttributes();
+    if ((Attrs.hasAttribute("bss-section") && Kind.isBSS()) ||
+        (Attrs.hasAttribute("data-section") && Kind.isData()) ||
+        (Attrs.hasAttribute("rodata-section") && Kind.isReadOnly()))  {
+       return getExplicitSectionGlobal(GO, Kind, TM);
+    }
+  }
+
+  if (auto *F = dyn_cast<Function>(GO)) {
+    if (F->hasFnAttribute("implicit-section-name"))
+      return getExplicitSectionGlobal(GO, Kind, TM);
+  }
 
   // Use default section depending on the 'type' of global
-  return SelectSectionForGlobal(GV, Kind, Mang, TM);
+  return SelectSectionForGlobal(GO, Kind, TM);
 }
 
 MCSection *TargetLoweringObjectFile::getSectionForJumpTable(
-    const Function &F, Mangler &Mang, const TargetMachine &TM) const {
+    const Function &F, const TargetMachine &TM) const {
+  unsigned Align = 0;
   return getSectionForConstant(F.getParent()->getDataLayout(),
-                               SectionKind::getReadOnly(), /*C=*/nullptr);
+                               SectionKind::getReadOnly(), /*C=*/nullptr,
+                               Align);
 }
 
 bool TargetLoweringObjectFile::shouldPutJumpTableInFunctionSection(
@@ -268,16 +276,14 @@ bool TargetLoweringObjectFile::shouldPutJumpTableInFunctionSection(
   // in discardable section
   // FIXME: this isn't the right predicate, should be based on the MCSection
   // for the function.
-  if (F.isWeakForLinker())
-    return true;
-
-  return false;
+  return F.isWeakForLinker();
 }
 
 /// Given a mergable constant with the specified size and relocation
 /// information, return a section that it should be placed in.
 MCSection *TargetLoweringObjectFile::getSectionForConstant(
-    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
+    const DataLayout &DL, SectionKind Kind, const Constant *C,
+    unsigned &Align) const {
   if (Kind.isReadOnly() && ReadOnlySection != nullptr)
     return ReadOnlySection;
 
@@ -288,11 +294,10 @@ MCSection *TargetLoweringObjectFile::getSectionForConstant(
 /// reference to the specified global variable from exception
 /// handling information.
 const MCExpr *TargetLoweringObjectFile::getTTypeGlobalReference(
-    const GlobalValue *GV, unsigned Encoding, Mangler &Mang,
-    const TargetMachine &TM, MachineModuleInfo *MMI,
-    MCStreamer &Streamer) const {
+    const GlobalValue *GV, unsigned Encoding, const TargetMachine &TM,
+    MachineModuleInfo *MMI, MCStreamer &Streamer) const {
   const MCSymbolRefExpr *Ref =
-      MCSymbolRefExpr::create(TM.getSymbol(GV, Mang), getContext());
+      MCSymbolRefExpr::create(TM.getSymbol(GV), getContext());
 
   return getTTypeReference(Ref, Encoding, Streamer);
 }
@@ -324,7 +329,7 @@ const MCExpr *TargetLoweringObjectFile::getDebugThreadLocalSymbol(const MCSymbol
 }
 
 void TargetLoweringObjectFile::getNameWithPrefix(
-    SmallVectorImpl<char> &OutName, const GlobalValue *GV, Mangler &Mang,
+    SmallVectorImpl<char> &OutName, const GlobalValue *GV,
     const TargetMachine &TM) const {
-  Mang.getNameWithPrefix(OutName, GV, /*CannotUsePrivateLabel=*/false);
+  Mang->getNameWithPrefix(OutName, GV, /*CannotUsePrivateLabel=*/false);
 }

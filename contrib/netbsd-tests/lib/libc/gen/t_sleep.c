@@ -1,4 +1,4 @@
-/* $NetBSD: t_sleep.c,v 1.8 2014/07/15 14:56:34 gson Exp $ */
+/* $NetBSD: t_sleep.c,v 1.11 2017/01/10 15:43:59 maya Exp $ */
 
 /*-
  * Copyright (c) 2006 Frank Kardel
@@ -26,18 +26,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include <sys/event.h>
+#include <sys/signal.h>
+#include <sys/time.h>		/* for TIMESPEC_TO_TIMEVAL on FreeBSD */
+
 #include <atf-c.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/cdefs.h>
-#include <sys/event.h>
-#include <sys/signal.h>
 
 #include "isqemu.h"
 
@@ -48,11 +50,6 @@
 #define MAXSLEEP	22		/* Maximum delay in seconds */
 #define KEVNT_TIMEOUT	10300		/* measured in milli-seconds */
 #define FUZZ		(40 * MILLION)	/* scheduling fuzz accepted - 40 ms */
-
-#ifdef __FreeBSD__
-#include <sys/time.h>
-#include <inttypes.h>
-#endif
 
 /*
  * Timer notes
@@ -180,7 +177,8 @@ do_kevent(struct timespec *delay, struct timespec *remain)
 	(void)close(kq);
 
 	if (rtc == -1) {
-		ATF_REQUIRE_MSG(kerrno == EINTR, "kevent: %s", strerror(errno));
+		ATF_REQUIRE_MSG(kerrno == EINTR, "kevent: %s",
+		    strerror(kerrno));
 		return 0;
 	}
 

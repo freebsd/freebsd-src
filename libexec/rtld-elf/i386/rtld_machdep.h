@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
@@ -38,21 +40,11 @@ struct Struct_Obj_Entry;
 #define rtld_dynamic(obj) \
     ((const Elf_Dyn *)((obj)->relocbase + (Elf_Addr)&_DYNAMIC))
 
-/* Fixup the jump slot at "where" to transfer control to "target". */
-static inline Elf_Addr
-reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
-	      const struct Struct_Obj_Entry *obj,
-	      const struct Struct_Obj_Entry *refobj, const Elf_Rel *rel)
-{
-#ifdef dbg
-    dbg("reloc_jmpslot: *%p = %p", (void *)(where),
-	(void *)(target));
-#endif
-    (*(Elf_Addr *)(where) = (Elf_Addr)(target));
-    return target;
-}
+Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+    const struct Struct_Obj_Entry *obj, const struct Struct_Obj_Entry *refobj,
+    const Elf_Rel *rel);
 
-#define make_function_pointer(def, defobj) \
+#define make_function_pointer(def, defobj)	\
 	((defobj)->relocbase + (def)->st_value)
 
 #define call_initfini_pointer(obj, target) \
@@ -60,6 +52,14 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
+
+extern uint32_t cpu_feature;
+extern uint32_t cpu_feature2;
+extern uint32_t cpu_stdext_feature;
+extern uint32_t cpu_stdext_feature2;
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(uint32_t, uint32_t, uint32_t, uint32_t))ptr)( \
+	    cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2))
 
 #define round(size, align) \
 	(((size) + (align) - 1) & ~((align) - 1))

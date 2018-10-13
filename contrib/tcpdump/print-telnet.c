@@ -45,16 +45,19 @@
  *      are preserved in all copies.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Telnet option printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 
-#include "interface.h"
+#include "netdissect.h"
+
+static const char tstr[] = " [|telnet]";
 
 #define TELCMDS
 #define TELOPTS
@@ -88,7 +91,7 @@
 #define SYNCH	242		/* for telfunc calls */
 
 #ifdef TELCMDS
-const char *telcmds[] = {
+static const char *telcmds[] = {
 	"EOF", "SUSP", "ABORT", "EOR",
 	"SE", "NOP", "DMARK", "BRK", "IP", "AO", "AYT", "EC",
 	"EL", "GA", "SB", "WILL", "WONT", "DO", "DONT", "IAC", 0,
@@ -149,7 +152,7 @@ extern char *telcmds[];
 
 #define	NTELOPTS	(1+TELOPT_NEW_ENVIRON)
 #ifdef TELOPTS
-const char *telopts[NTELOPTS+1] = {
+static const char *telopts[NTELOPTS+1] = {
 	"BINARY", "ECHO", "RCP", "SUPPRESS GO AHEAD", "NAME",
 	"STATUS", "TIMING MARK", "RCTE", "NAOL", "NAOP",
 	"NAOCRD", "NAOHTS", "NAOHTD", "NAOFFD", "NAOVTS",
@@ -434,10 +437,12 @@ telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
 		/* IAC SB .... IAC SE */
 		p = sp;
 		while (length > (u_int)(p + 1 - sp)) {
+			ND_TCHECK2(*p, 2);
 			if (p[0] == IAC && p[1] == SE)
 				break;
 			p++;
 		}
+		ND_TCHECK(*p);
 		if (*p != IAC)
 			goto pktend;
 
@@ -494,7 +499,7 @@ done:
 	return sp - osp;
 
 trunc:
-	ND_PRINT((ndo, "[|telnet]"));
+	ND_PRINT((ndo, "%s", tstr));
 pktend:
 	return -1;
 #undef FETCH
@@ -509,6 +514,7 @@ telnet_print(netdissect_options *ndo, const u_char *sp, u_int length)
 
 	osp = sp;
 
+	ND_TCHECK(*sp);
 	while (length > 0 && *sp == IAC) {
 		/*
 		 * Parse the Telnet command without printing it,
@@ -537,6 +543,7 @@ telnet_print(netdissect_options *ndo, const u_char *sp, u_int length)
 
 		sp += l;
 		length -= l;
+		ND_TCHECK(*sp);
 	}
 	if (!first) {
 		if (ndo->ndo_Xflag && 2 < ndo->ndo_vflag)
@@ -544,4 +551,7 @@ telnet_print(netdissect_options *ndo, const u_char *sp, u_int length)
 		else
 			ND_PRINT((ndo, "]"));
 	}
+	return;
+trunc:
+	ND_PRINT((ndo, "%s", tstr));
 }

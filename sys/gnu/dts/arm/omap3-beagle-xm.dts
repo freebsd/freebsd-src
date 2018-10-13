@@ -19,7 +19,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
@@ -27,6 +27,14 @@
 	aliases {
 		display0 = &dvi0;
 		display1 = &tv0;
+		ethernet = &ethernet;
+	};
+
+	/* fixed 26MHz oscillator */
+	hfclk_26m: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
 	};
 
 	leds {
@@ -89,9 +97,10 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio5 19 GPIO_ACTIVE_LOW>; /* gpio_147 */
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder0 {
 		compatible = "ti,tfp410";
 		powerdown-gpios = <&twl_gpio 2 GPIO_ACTIVE_LOW>;
 
@@ -104,7 +113,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_out>;
 				};
 			};
@@ -112,14 +121,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@0 {
+	dvi0: connector0 {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -134,7 +143,7 @@
 		};
 	};
 
-	tv0: connector@1 {
+	tv0: connector1 {
 		compatible = "svideo-connector";
 		label = "tv";
 
@@ -272,6 +281,9 @@
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
 
+		clocks = <&hfclk_26m>;
+		clock-names = "fck";
+
 		twl_audio: audio {
 			compatible = "ti,twl4030-audio";
 			codec {
@@ -298,7 +310,7 @@
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	bus-width = <8>;
 };
 
@@ -348,6 +360,21 @@
 
 &usbhsehci {
 	phys = <0 &hsusb2_phy>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@2 {
+		compatible = "usb424,9514";
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: usbether@1 {
+			compatible = "usb424,ec00";
+			reg = <1>;
+		};
+	};
 };
 
 &vaux2 {

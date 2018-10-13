@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, 2005,
  *	Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
  *
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
@@ -281,7 +284,7 @@ static void	mb_dtor_pack(void *, int, void *);
 static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 static void	mb_reclaim(uma_zone_t, int);
-static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 
 /* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -377,6 +380,199 @@ mbuf_init(void *dummy)
 }
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
 
+#ifdef NETDUMP
+/*
+ * netdump makes use of a pre-allocated pool of mbufs and clusters.  When
+ * netdump is configured, we initialize a set of UMA cache zones which return
+ * items from this pool.  At panic-time, the regular UMA zone pointers are
+ * overwritten with those of the cache zones so that drivers may allocate and
+ * free mbufs and clusters without attempting to allocate physical memory.
+ *
+ * We keep mbufs and clusters in a pair of mbuf queues.  In particular, for
+ * the purpose of caching clusters, we treat them as mbufs.
+ */
+static struct mbufq nd_mbufq =
+    { STAILQ_HEAD_INITIALIZER(nd_mbufq.mq_head), 0, INT_MAX };
+static struct mbufq nd_clustq =
+    { STAILQ_HEAD_INITIALIZER(nd_clustq.mq_head), 0, INT_MAX };
+
+static int nd_clsize;
+static uma_zone_t nd_zone_mbuf;
+static uma_zone_t nd_zone_clust;
+static uma_zone_t nd_zone_pack;
+
+static int
+nd_buf_import(void *arg, void **store, int count, int domain __unused,
+    int flags)
+{
+	struct mbufq *q;
+	struct mbuf *m;
+	int i;
+
+	q = arg;
+
+	for (i = 0; i < count; i++) {
+		m = mbufq_dequeue(q);
+		if (m == NULL)
+			break;
+		trash_init(m, q == &nd_mbufq ? MSIZE : nd_clsize, flags);
+		store[i] = m;
+	}
+	return (i);
+}
+
+static void
+nd_buf_release(void *arg, void **store, int count)
+{
+	struct mbufq *q;
+	struct mbuf *m;
+	int i;
+
+	q = arg;
+
+	for (i = 0; i < count; i++) {
+		m = store[i];
+		(void)mbufq_enqueue(q, m);
+	}
+}
+
+static int
+nd_pack_import(void *arg __unused, void **store, int count, int domain __unused,
+    int flags __unused)
+{
+	struct mbuf *m;
+	void *clust;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		m = m_get(MT_DATA, M_NOWAIT);
+		if (m == NULL)
+			break;
+		clust = uma_zalloc(nd_zone_clust, M_NOWAIT);
+		if (clust == NULL) {
+			m_free(m);
+			break;
+		}
+		mb_ctor_clust(clust, nd_clsize, m, 0);
+		store[i] = m;
+	}
+	return (i);
+}
+
+static void
+nd_pack_release(void *arg __unused, void **store, int count)
+{
+	struct mbuf *m;
+	void *clust;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		m = store[i];
+		clust = m->m_ext.ext_buf;
+		uma_zfree(nd_zone_clust, clust);
+		uma_zfree(nd_zone_mbuf, m);
+	}
+}
+
+/*
+ * Free the pre-allocated mbufs and clusters reserved for netdump, and destroy
+ * the corresponding UMA cache zones.
+ */
+void
+netdump_mbuf_drain(void)
+{
+	struct mbuf *m;
+	void *item;
+
+	if (nd_zone_mbuf != NULL) {
+		uma_zdestroy(nd_zone_mbuf);
+		nd_zone_mbuf = NULL;
+	}
+	if (nd_zone_clust != NULL) {
+		uma_zdestroy(nd_zone_clust);
+		nd_zone_clust = NULL;
+	}
+	if (nd_zone_pack != NULL) {
+		uma_zdestroy(nd_zone_pack);
+		nd_zone_pack = NULL;
+	}
+
+	while ((m = mbufq_dequeue(&nd_mbufq)) != NULL)
+		m_free(m);
+	while ((item = mbufq_dequeue(&nd_clustq)) != NULL)
+		uma_zfree(m_getzone(nd_clsize), item);
+}
+
+/*
+ * Callback invoked immediately prior to starting a netdump.
+ */
+void
+netdump_mbuf_dump(void)
+{
+
+	/*
+	 * All cluster zones return buffers of the size requested by the
+	 * drivers.  It's up to the driver to reinitialize the zones if the
+	 * MTU of a netdump-enabled interface changes.
+	 */
+	printf("netdump: overwriting mbuf zone pointers\n");
+	zone_mbuf = nd_zone_mbuf;
+	zone_clust = nd_zone_clust;
+	zone_pack = nd_zone_pack;
+	zone_jumbop = nd_zone_clust;
+	zone_jumbo9 = nd_zone_clust;
+	zone_jumbo16 = nd_zone_clust;
+}
+
+/*
+ * Reinitialize the netdump mbuf+cluster pool and cache zones.
+ */
+void
+netdump_mbuf_reinit(int nmbuf, int nclust, int clsize)
+{
+	struct mbuf *m;
+	void *item;
+
+	netdump_mbuf_drain();
+
+	nd_clsize = clsize;
+
+	nd_zone_mbuf = uma_zcache_create("netdump_" MBUF_MEM_NAME,
+	    MSIZE, mb_ctor_mbuf, mb_dtor_mbuf,
+#ifdef INVARIANTS
+	    trash_init, trash_fini,
+#else
+	    NULL, NULL,
+#endif
+	    nd_buf_import, nd_buf_release,
+	    &nd_mbufq, UMA_ZONE_NOBUCKET);
+
+	nd_zone_clust = uma_zcache_create("netdump_" MBUF_CLUSTER_MEM_NAME,
+	    clsize, mb_ctor_clust,
+#ifdef INVARIANTS
+	    trash_dtor, trash_init, trash_fini,
+#else
+	    NULL, NULL, NULL,
+#endif
+	    nd_buf_import, nd_buf_release,
+	    &nd_clustq, UMA_ZONE_NOBUCKET);
+
+	nd_zone_pack = uma_zcache_create("netdump_" MBUF_PACKET_MEM_NAME,
+	    MCLBYTES, mb_ctor_pack, mb_dtor_pack, NULL, NULL,
+	    nd_pack_import, nd_pack_release,
+	    NULL, UMA_ZONE_NOBUCKET);
+
+	while (nmbuf-- > 0) {
+		m = m_get(MT_DATA, M_WAITOK);
+		uma_zfree(nd_zone_mbuf, m);
+	}
+	while (nclust-- > 0) {
+		item = uma_zalloc(m_getzone(nd_clsize), M_WAITOK);
+		uma_zfree(nd_zone_clust, item);
+	}
+}
+#endif /* NETDUMP */
+
 /*
  * UMA backend page allocator for the jumbo frame zones.
  *
@@ -384,12 +580,13 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
  * pages.
  */
 static void *
-mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
+mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
+    int wait)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_arena, bytes, wait,
+	return ((void *)kmem_alloc_contig_domain(domain, bytes, wait,
 	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
 }
 
@@ -504,7 +701,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 #endif
 	m = (struct mbuf *)arg;
 	if (m != NULL) {
-		m->m_ext.ext_buf = (caddr_t)mem;
+		m->m_ext.ext_buf = (char *)mem;
 		m->m_data = m->m_ext.ext_buf;
 		m->m_flags |= M_EXT;
 		m->m_ext.ext_free = NULL;
@@ -675,32 +872,22 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_SFBUF:
-			sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-			uma_zfree(zone_mbuf, mref);
-			break;
-		case EXT_SFBUF_NOCACHE:
-			sf_ext_free_nocache(m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
-			uma_zfree(zone_mbuf, mref);
-			break;
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
-			KASSERT(m->m_ext.ext_free != NULL,
-				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			KASSERT(mref->m_ext.ext_free != NULL,
+			    ("%s: ext_free not set", __func__));
+			mref->m_ext.ext_free(mref);
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
-				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			    ("%s: ext_free not set", __func__));
+			m->m_ext.ext_free(m);
 			break;
 		default:
 			KASSERT(m->m_ext.ext_type == 0,
-				("%s: unknown ext_type", __func__));
+			    ("%s: unknown ext_type", __func__));
 		}
 	}
 
@@ -918,9 +1105,8 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
  *    Nothing.
  */
 void
-m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type)
+m_extadd(struct mbuf *mb, char *buf, u_int size, m_ext_free_t freef,
+    void *arg1, void *arg2, int flags, int type)
 {
 
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));

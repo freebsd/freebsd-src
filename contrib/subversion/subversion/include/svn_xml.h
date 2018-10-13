@@ -169,7 +169,15 @@ typedef void (*svn_xml_char_data)(void *baton,
                                   apr_size_t len);
 
 
-/** Create a general Subversion XML parser */
+/** Create a general Subversion XML parser.
+ *
+ * The @c svn_xml_parser_t object itself will be allocated from @a pool,
+ * but some internal structures may be allocated out of pool.  Use
+ * svn_xml_free_parser() to free all memory used by the parser.
+ *
+ * @since Since Subversion 1.10 parser will be freed automatically on pool
+ * cleanup or by svn_xml_free_parser() call.
+ */
 svn_xml_parser_t *
 svn_xml_make_parser(void *baton,
                     svn_xml_start_elem start_handler,

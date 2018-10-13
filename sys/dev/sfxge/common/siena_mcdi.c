@@ -54,11 +54,11 @@ __FBSDID("$FreeBSD$");
 
 			void
 siena_mcdi_send_request(
-	__in		efx_nic_t *enp,
-	__in		void *hdrp,
-	__in		size_t hdr_len,
-	__in		void *sdup,
-	__in		size_t sdu_len)
+	__in			efx_nic_t *enp,
+	__in_bcount(hdr_len)	void *hdrp,
+	__in			size_t hdr_len,
+	__in_bcount(sdu_len)	void *sdup,
+	__in			size_t sdu_len)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_dword_t dword;
@@ -246,5 +246,20 @@ fail1:
 
 	return (rc);
 }
+
+/* Default timeout for MCDI command processing. */
+#define	SIENA_MCDI_CMD_TIMEOUT_US	(10 * 1000 * 1000)
+
+			void
+siena_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp)
+{
+	_NOTE(ARGUNUSED(enp, emrp))
+
+	*timeoutp = SIENA_MCDI_CMD_TIMEOUT_US;
+}
+
 
 #endif	/* EFSYS_OPT_SIENA && EFSYS_OPT_MCDI */

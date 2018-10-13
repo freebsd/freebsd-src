@@ -1,4 +1,5 @@
 .\" Copyright (c) 2013 The FreeBSD Foundation
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" This documentation was written by Pawel Jakub Dawidek under sponsorship
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2016
+.Dd March 6, 2018
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -47,14 +48,15 @@
 .Sh LIBRARY
 .Lb libcasper
 .Sh SYNOPSIS
+.Fd #define WITH_CASPER
+.In sys/nv.h
 .In libcasper.h
-.In nv.h
 .Ft "cap_channel_t *"
 .Fn cap_init "void"
 .Ft "cap_channel_t *"
-.Fn cap_wrap "int sock"
+.Fn cap_wrap "int sock" "int flags"
 .Ft "int"
-.Fn cap_unwrap "cap_channel_t *chan"
+.Fn cap_unwrap "cap_channel_t *chan" "int *flags"
 .Ft "int"
 .Fn cap_sock "const cap_channel_t *chan"
 .Ft "cap_channel_t *"
@@ -68,14 +70,14 @@
 .Ft "int"
 .Fn cap_send_nvlist "const cap_channel_t *chan" "const nvlist_t *nvl"
 .Ft "nvlist_t *"
-.Fn cap_recv_nvlist "const cap_channel_t *chan" "int flags"
+.Fn cap_recv_nvlist "const cap_channel_t *chan"
 .Ft "nvlist_t *"
-.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl" "int flags"
+.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl"
 .Ft "cap_channel_t *"
 .Fn cap_service_open "const cap_channel_t *chan" "const char *name"
 .Sh DESCRIPTION
 The
-.Nm libcapsicum
+.Nm libcasper
 library allows to manage application capabilities through the casper process.
 .Pp
 The application capability (represented by the
@@ -104,6 +106,14 @@ or send over
 domain socket as a regular file descriptor and has to be represented as
 .Vt cap_channel_t
 again.
+The
+.Fa flags
+argument defines the channel behavior.
+The supported flags are:
+.Bl -ohang -offset indent
+.It CASPER_NO_UNIQ
+The communication between process and casper uses no unique version of nvlist.
+.El
 .Pp
 The
 .Fn cap_unwrap
@@ -151,37 +161,34 @@ it means there are no limits set.
 The
 .Fn cap_limit_set
 function sets limits for the given capability.
-The limits are provided as nvlist.
+The limits are provided as
+.Xr nvlist 9 .
 The exact format depends on the service the capability represents.
 .Pp
 The
 .Fn cap_send_nvlist
-function sends the given nvlist over the given capability.
+function sends the given
+.Xr nvlist 9
+over the given capability.
 This is low level interface to communicate with casper services.
 Most services should provide higher level API.
 .Pp
 The
 .Fn cap_recv_nvlist
-function receives the given nvlist over the given capability.
-The
-.Fa flags
-argument defines what type the top nvlist is expected to be.
-If the nvlist flags do not match the flags passed to
-.Fn cap_recv_nvlist ,
-the nvlist will not be returned.
+function receives the given
+.Xr nvlist 9
+over the given capability.
 .Pp
 The
 .Fn cap_xfer_nvlist
-function sends the given nvlist, destroys it and receives new nvlist in
-response over the given capability.
-The
-.Fa flags
-argument defines what type the top nvlist is expected to be.
-If the nvlist flags do not match the flags passed to
-.Fn cap_xfer_nvlist ,
-the nvlist will not be returned.
-It does not matter if the function succeeds or fails, the nvlist given
-for sending will always be destroyed once the function returns.
+function sends the given
+.Xr nvlist 9 ,
+destroys it and receives new
+.Xr nvlist 9
+in response over the given capability.
+It does not matter if the function succeeds or fails, the
+.Xr nvlist 9
+given for sending will always be destroyed once the function returns.
 .Pp
 The
 .Fn cap_service_open
@@ -190,6 +197,30 @@ obtained via the
 .Fn cap_init
 function.
 The function returns capability that provides access to opened service.
+Casper supports the following services in the base system:
+.Bl -tag -width "system.random" -compact -offset indent
+.Pp
+.It system.dns
+provides DNS libc compatible API
+.It system.grp
+provides
+.Xr getgrent 3
+compatible API
+.It system.pwd
+provides
+.Xr getpwent 3
+compatible API
+.It system.random
+allows to obtain entropy from
+.Pa /dev/random
+.It system.sysctl
+provides
+.Xr sysctlbyname 3
+compatible API
+.It system.syslog
+provides
+.Xr syslog 3
+compatible API
 .Sh RETURN VALUES
 The
 .Fn cap_clone ,
@@ -222,66 +253,22 @@ The
 and
 .Fn cap_unwrap
 functions always succeed.
-.Sh EXAMPLES
-The following example first opens capability to the casper then using this
-capability creates new capability to the
-.Nm system.dns
-casper service and uses the latter capability to resolve IP address.
-.Bd -literal
-cap_channel_t *capcas, *capdns;
-nvlist_t *limits;
-const char *ipstr = "127.0.0.1";
-struct in_addr ip;
-struct hostent *hp;
-
-/* Open capability to the Casper. */
-capcas = cap_init();
-if (capcas == NULL)
-	err(1, "Unable to contact Casper");
-
-/* Enter capability mode sandbox. */
-if (cap_enter() < 0 && errno != ENOSYS)
-	err(1, "Unable to enter capability mode");
-
-/* Use Casper capability to create capability to the system.dns service. */
-capdns = cap_service_open(capcas, "system.dns");
-if (capdns == NULL)
-	err(1, "Unable to open system.dns service");
-
-/* Close Casper capability, we don't need it anymore. */
-cap_close(capcas);
-
-/* Limit system.dns to reverse DNS lookups and IPv4 addresses. */
-limits = nvlist_create(0);
-nvlist_add_string(limits, "type", "ADDR");
-nvlist_add_number(limits, "family", (uint64_t)AF_INET);
-if (cap_limit_set(capdns, limits) < 0)
-	err(1, "Unable to limit access to the system.dns service");
-
-/* Convert IP address in C-string to in_addr. */
-if (!inet_aton(ipstr, &ip))
-	errx(1, "Unable to parse IP address %s.", ipstr);
-
-/* Find hostname for the given IP address. */
-hp = cap_gethostbyaddr(capdns, (const void *)&ip, sizeof(ip), AF_INET);
-if (hp == NULL)
-	errx(1, "No name associated with %s.", ipstr);
-
-printf("Name associated with %s is %s.\\n", ipstr, hp->h_name);
-.Ed
 .Sh SEE ALSO
-.Xr cap_enter 2 ,
+.Xr errno 2 ,
 .Xr execve 2 ,
 .Xr kevent 2 ,
 .Xr poll 2 ,
 .Xr select 2 ,
-.Xr cap_gethostbyaddr 3 ,
-.Xr err 3 ,
-.Xr gethostbyaddr 3 ,
-.Xr inet_aton 3 ,
-.Xr nv 3 ,
+.Xr cap_dns 3 ,
+.Xr cap_grp 3 ,
+.Xr cap_pwd 3 ,
+.Xr cap_random 3 ,
+.Xr cap_sysctl 3 ,
+.Xr cap_syslog 3 ,
+.Xr libcasper_service 3 ,
 .Xr capsicum 4 ,
-.Xr unix 4
+.Xr unix 4 ,
+.Xr nv 9
 .Sh AUTHORS
 The
 .Nm libcasper

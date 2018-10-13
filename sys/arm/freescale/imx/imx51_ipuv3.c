@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
@@ -57,13 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/fdt.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -315,10 +314,10 @@ ipu3_fb_attach(device_t dev)
 	 * On i.MX53, the offset is 0.
 	 */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "reg", &reg, sizeof(reg))) <= 0)
+	if ((OF_getencprop(node, "reg", &reg, sizeof(reg))) <= 0)
 		base = 0;
 	else
-		base = fdt32_to_cpu(reg) - IPU_CM_BASE(0);
+		base = reg - IPU_CM_BASE(0);
 	/* map controller registers */
 	err = bus_space_map(iot, IPU_CM_BASE(base), IPU_CM_SIZE, 0, &ioh);
 	if (err)

@@ -57,6 +57,9 @@ __RCSID("$NetBSD$");
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_SYS_SYSMACROS_H
+#include <sys/sysmacros.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -280,7 +283,7 @@ pack_bsdos(int n, unsigned long numbers[], const char **error)
 
 		/* list of formats and pack functions */
 		/* this list must be sorted lexically */
-static struct format {
+static const struct format {
 	const char	*name;
 	pack_t		*pack;
 } formats[] = {

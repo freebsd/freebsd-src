@@ -23,9 +23,22 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
-if [ "x$1" = "x-b" ]; then
+if [ -z $ETDUMP ]; then
+	ETDUMP=etdump
+fi
+
+if [ -z $MAKEFS ]; then
+	MAKEFS=makefs
+fi
+
+if [ -z $MKIMG ]; then
+	MKIMG=mkimg
+fi
+
+if [ "$1" = "-b" ]; then
+	BASEBITSDIR="$4"
 	# This is highly x86-centric and will be used directly below.
-	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
+	bootable="-o bootimage=i386;$BASEBITSDIR/boot/cdboot -o no-emul-boot"
 
 	# Make EFI system partition (should be done with makefs in the future)
 	dd if=/dev/zero of=efiboot.img bs=4k count=200
@@ -34,14 +47,15 @@ if [ "x$1" = "x-b" ]; then
 	mkdir efi
 	mount -t msdosfs /dev/$device efi
 	mkdir -p efi/efi/boot
-	cp "$4/boot/loader.efi" efi/efi/boot/bootx64.efi
+	cp -p "$BASEBITSDIR/boot/loader.efi" efi/efi/boot/bootx64.efi
 	umount efi
 	rmdir efi
 	mdconfig -d -u $device
-	bootable="-o bootimage=i386;efiboot.img -o no-emul-boot $bootable"
+	bootable="$bootable -o bootimage=i386;efiboot.img -o no-emul-boot -o platformid=efi"
 	
 	shift
 else
+	BASEBITSDIR="$3"
 	bootable=""
 fi
 
@@ -53,8 +67,34 @@ fi
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
 
-publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
-makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
-rm -f "$1/etc/fstab"
+publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$BASEBITSDIR/etc/fstab"
+$MAKEFS -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
+rm -f "$BASEBITSDIR/etc/fstab"
 rm -f efiboot.img
+
+if [ "$bootable" != "" ]; then
+	# Look for the EFI System Partition image we dropped in the ISO image.
+	for entry in `$ETDUMP --format shell $NAME`; do
+		eval $entry
+		if [ "$et_platform" = "efi" ]; then
+			espstart=`expr $et_lba \* 2048`
+			espsize=`expr $et_sectors \* 512`
+			espparam="-p efi::$espsize:$espstart"
+			break
+		fi
+	done
+
+	# Create a GPT image containing the partitions we need for hybrid boot.
+	imgsize=`stat -f %z "$NAME"`
+	$MKIMG -s gpt \
+	    --capacity $imgsize \
+	    -b "$BASEBITSDIR/boot/pmbr" \
+	    $espparam \
+	    -p freebsd-boot:="$BASEBITSDIR/boot/isoboot" \
+	    -o hybrid.img
+
+	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
+	dd if=hybrid.img of="$NAME" bs=32k count=1 conv=notrunc
+	rm -f hybrid.img
+fi

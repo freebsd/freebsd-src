@@ -23,7 +23,7 @@ namespace comments {
 
 namespace {
 #include "clang/AST/CommentHTMLTagsProperties.inc"
-} // unnamed namespace
+} // end anonymous namespace
 
 Sema::Sema(llvm::BumpPtrAllocator &Allocator, const SourceManager &SourceMgr,
            DiagnosticsEngine &Diags, CommandTraits &Traits,
@@ -86,7 +86,7 @@ ParamCommandComment *Sema::actOnParamCommandStart(
       new (Allocator) ParamCommandComment(LocBegin, LocEnd, CommandID,
                                           CommandMarker);
 
-  if (!isFunctionDecl())
+  if (!isFunctionDecl() && !isFunctionOrBlockPointerVarLikeDecl())
     Diag(Command->getLocation(),
          diag::warn_doc_param_not_attached_to_a_function_decl)
       << CommandMarker
@@ -353,8 +353,6 @@ void Sema::actOnTParamCommandParamNameArg(TParamCommandComment *Command,
       << CorrectedName
       << FixItHint::CreateReplacement(ArgRange, CorrectedName);
   }
-
-  return;
 }
 
 void Sema::actOnTParamCommandFinish(TParamCommandComment *Command,
@@ -586,7 +584,11 @@ void Sema::checkReturnsCommand(const BlockCommandComment *Command) {
 
   assert(ThisDeclInfo && "should not call this check on a bare comment");
 
-  if (isFunctionDecl()) {
+  // We allow the return command for all @properties because it can be used
+  // to document the value that the property getter returns.
+  if (isObjCPropertyDecl())
+    return;
+  if (isFunctionDecl() || isFunctionOrBlockPointerVarLikeDecl()) {
     if (ThisDeclInfo->ReturnType->isVoidType()) {
       unsigned DiagKind;
       switch (ThisDeclInfo->CommentDecl->getKind()) {
@@ -612,8 +614,6 @@ void Sema::checkReturnsCommand(const BlockCommandComment *Command) {
     }
     return;
   }
-  else if (isObjCPropertyDecl())
-    return;
 
   Diag(Command->getLocation(),
        diag::warn_doc_returns_not_attached_to_a_function_decl)
@@ -813,7 +813,7 @@ bool Sema::isAnyFunctionDecl() {
 }
 
 bool Sema::isFunctionOrMethodVariadic() {
-  if (!isAnyFunctionDecl() && !isObjCMethodDecl() && !isFunctionTemplateDecl())
+  if (!isFunctionDecl() || !ThisDeclInfo->CurrentDecl)
     return false;
   if (const FunctionDecl *FD =
         dyn_cast<FunctionDecl>(ThisDeclInfo->CurrentDecl))
@@ -824,6 +824,14 @@ bool Sema::isFunctionOrMethodVariadic() {
   if (const ObjCMethodDecl *MD =
         dyn_cast<ObjCMethodDecl>(ThisDeclInfo->CurrentDecl))
     return MD->isVariadic();
+  if (const TypedefNameDecl *TD =
+          dyn_cast<TypedefNameDecl>(ThisDeclInfo->CurrentDecl)) {
+    QualType Type = TD->getUnderlyingType();
+    if (Type->isFunctionPointerType() || Type->isBlockPointerType())
+      Type = Type->getPointeeType();
+    if (const auto *FT = Type->getAs<FunctionProtoType>())
+      return FT->isVariadic();
+  }
   return false;
 }
 
@@ -844,6 +852,30 @@ bool Sema::isFunctionPointerVarDecl() {
     }
   }
   return false;
+}
+
+bool Sema::isFunctionOrBlockPointerVarLikeDecl() {
+  if (!ThisDeclInfo)
+    return false;
+  if (!ThisDeclInfo->IsFilled)
+    inspectThisDecl();
+  if (ThisDeclInfo->getKind() != DeclInfo::VariableKind ||
+      !ThisDeclInfo->CurrentDecl)
+    return false;
+  QualType QT;
+  if (const auto *VD = dyn_cast<DeclaratorDecl>(ThisDeclInfo->CurrentDecl))
+    QT = VD->getType();
+  else if (const auto *PD =
+               dyn_cast<ObjCPropertyDecl>(ThisDeclInfo->CurrentDecl))
+    QT = PD->getType();
+  else
+    return false;
+  // We would like to warn about the 'returns'/'param' commands for
+  // variables that don't directly specify the function type, so type aliases
+  // can be ignored.
+  if (QT->getAs<TypedefType>())
+    return false;
+  return QT->isFunctionPointerType() || QT->isBlockPointerType();
 }
 
 bool Sema::isObjCPropertyDecl() {
@@ -952,20 +984,19 @@ unsigned Sema::resolveParmVarReference(StringRef Name,
 
 namespace {
 class SimpleTypoCorrector {
+  const NamedDecl *BestDecl;
+
   StringRef Typo;
   const unsigned MaxEditDistance;
 
-  const NamedDecl *BestDecl;
   unsigned BestEditDistance;
   unsigned BestIndex;
   unsigned NextIndex;
 
 public:
-  SimpleTypoCorrector(StringRef Typo) :
-      Typo(Typo), MaxEditDistance((Typo.size() + 2) / 3),
-      BestDecl(nullptr), BestEditDistance(MaxEditDistance + 1),
-      BestIndex(0), NextIndex(0)
-  { }
+  explicit SimpleTypoCorrector(StringRef Typo)
+      : BestDecl(nullptr), Typo(Typo), MaxEditDistance((Typo.size() + 2) / 3),
+        BestEditDistance(MaxEditDistance + 1), BestIndex(0), NextIndex(0) {}
 
   void addDecl(const NamedDecl *ND);
 
@@ -1002,7 +1033,7 @@ void SimpleTypoCorrector::addDecl(const NamedDecl *ND) {
     BestIndex = CurrIndex;
   }
 }
-} // unnamed namespace
+} // end anonymous namespace
 
 unsigned Sema::correctTypoInParmVarReference(
                                     StringRef Typo,
@@ -1040,7 +1071,7 @@ bool ResolveTParamReferenceHelper(
   }
   return false;
 }
-} // unnamed namespace
+} // end anonymous namespace
 
 bool Sema::resolveTParamReference(
                             StringRef Name,
@@ -1067,7 +1098,7 @@ void CorrectTypoInTParamReferenceHelper(
                                          Corrector);
   }
 }
-} // unnamed namespace
+} // end anonymous namespace
 
 StringRef Sema::correctTypoInTParamReference(
                             StringRef Typo,
@@ -1095,4 +1126,3 @@ Sema::getInlineCommandRenderKind(StringRef Name) const {
 
 } // end namespace comments
 } // end namespace clang
-

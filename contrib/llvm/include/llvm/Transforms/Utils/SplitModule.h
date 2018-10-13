@@ -16,13 +16,12 @@
 #ifndef LLVM_TRANSFORMS_UTILS_SPLITMODULE_H
 #define LLVM_TRANSFORMS_UTILS_SPLITMODULE_H
 
-#include <functional>
+#include "llvm/ADT/STLExtras.h"
 #include <memory>
 
 namespace llvm {
 
 class Module;
-class StringRef;
 
 /// Splits the module M into N linkable partitions. The function ModuleCallback
 /// is called N times passing each individual partition as the MPart argument.
@@ -36,8 +35,9 @@ class StringRef;
 ///   each partition.
 void SplitModule(
     std::unique_ptr<Module> M, unsigned N,
-    std::function<void(std::unique_ptr<Module> MPart)> ModuleCallback);
+    function_ref<void(std::unique_ptr<Module> MPart)> ModuleCallback,
+    bool PreserveLocals = false);
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_TRANSFORMS_UTILS_SPLITMODULE_H

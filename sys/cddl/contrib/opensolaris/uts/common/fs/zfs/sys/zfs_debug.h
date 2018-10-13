@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_DEBUG_H
@@ -52,14 +52,16 @@ extern int zfs_flags;
 extern boolean_t zfs_recover;
 extern boolean_t zfs_free_leak_on_eio;
 
-#define	ZFS_DEBUG_DPRINTF		(1<<0)
-#define	ZFS_DEBUG_DBUF_VERIFY		(1<<1)
-#define	ZFS_DEBUG_DNODE_VERIFY		(1<<2)
-#define	ZFS_DEBUG_SNAPNAMES		(1<<3)
-#define	ZFS_DEBUG_MODIFY		(1<<4)
-#define	ZFS_DEBUG_SPA			(1<<5)
-#define	ZFS_DEBUG_ZIO_FREE		(1<<6)
-#define	ZFS_DEBUG_HISTOGRAM_VERIFY	(1<<7)
+#define	ZFS_DEBUG_DPRINTF		(1 << 0)
+#define	ZFS_DEBUG_DBUF_VERIFY		(1 << 1)
+#define	ZFS_DEBUG_DNODE_VERIFY		(1 << 2)
+#define	ZFS_DEBUG_SNAPNAMES		(1 << 3)
+#define	ZFS_DEBUG_MODIFY		(1 << 4)
+/* 1<<5 was previously used, try not to reuse */
+#define	ZFS_DEBUG_ZIO_FREE		(1 << 6)
+#define	ZFS_DEBUG_HISTOGRAM_VERIFY	(1 << 7)
+#define	ZFS_DEBUG_METASLAB_VERIFY	(1 << 8)
+#define	ZFS_DEBUG_INDIRECT_REMAP	(1 << 9)
 
 #ifdef ZFS_DEBUG
 extern void __dprintf(const char *file, const char *func,

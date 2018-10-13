@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# $Id: autogen.sh 815 2014-09-12 07:47:27Z des $
+# $OpenPAM: autogen.sh 938 2017-04-30 21:34:42Z des $
 #
 
-aclocal -I m4
 libtoolize --copy --force
+aclocal -I m4
 autoheader
 automake --add-missing --copy --foreign
 autoconf

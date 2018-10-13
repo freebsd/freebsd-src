@@ -25,6 +25,8 @@ __FBSDID("$FreeBSD$");
  * http://www.ralinktech.com/
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -86,6 +88,35 @@ int run_debug = 0;
 static SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
 SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RWTUN, &run_debug, 0,
     "run debug level");
+
+enum {
+	RUN_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
+	RUN_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
+	RUN_DEBUG_RECV		= 0x00000004,	/* basic recv operation */
+	RUN_DEBUG_RECV_DESC	= 0x00000008,	/* recv descriptors */
+	RUN_DEBUG_STATE		= 0x00000010,	/* 802.11 state transitions */
+	RUN_DEBUG_RATE		= 0x00000020,	/* rate adaptation */
+	RUN_DEBUG_USB		= 0x00000040,	/* usb requests */
+	RUN_DEBUG_FIRMWARE	= 0x00000080,	/* firmware(9) loading debug */
+	RUN_DEBUG_BEACON	= 0x00000100,	/* beacon handling */
+	RUN_DEBUG_INTR		= 0x00000200,	/* ISR */
+	RUN_DEBUG_TEMP		= 0x00000400,	/* temperature calibration */
+	RUN_DEBUG_ROM		= 0x00000800,	/* various ROM info */
+	RUN_DEBUG_KEY		= 0x00001000,	/* crypto keys management */
+	RUN_DEBUG_TXPWR		= 0x00002000,	/* dump Tx power values */
+	RUN_DEBUG_RSSI		= 0x00004000,	/* dump RSSI lookups */
+	RUN_DEBUG_RESET		= 0x00008000,	/* initialization progress */
+	RUN_DEBUG_CALIB		= 0x00010000,	/* calibration progress */
+	RUN_DEBUG_CMD		= 0x00020000,	/* command queue */
+	RUN_DEBUG_ANY		= 0xffffffff
+};
+
+#define RUN_DPRINTF(_sc, _m, ...) do {			\
+	if (run_debug & (_m))				\
+		device_printf((_sc)->sc_dev, __VA_ARGS__);	\
+} while(0)
+#else
+#define RUN_DPRINTF(_sc, _m, ...)	do { (void) _sc; } while (0)
 #endif
 
 #define	IEEE80211_HAS_ADDR4(wh)	IEEE80211_IS_DSTODS(wh)
@@ -177,6 +208,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(CYBERTAN,		RT2870),
     RUN_DEV(DLINK,		RT2870),
     RUN_DEV(DLINK,		RT3072),
+    RUN_DEV(DLINK,		DWA125A3),
     RUN_DEV(DLINK,		DWA127),
     RUN_DEV(DLINK,		DWA140B3),
     RUN_DEV(DLINK,		DWA160B2),
@@ -270,6 +302,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(RALINK,		RT3572),
     RUN_DEV(RALINK,		RT3573),
     RUN_DEV(RALINK,		RT5370),
+    RUN_DEV(RALINK,		RT5372),
     RUN_DEV(RALINK,		RT5572),
     RUN_DEV(RALINK,		RT8070),
     RUN_DEV(SAMSUNG,		WIS09ABGN),
@@ -980,7 +1013,7 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (opmode == IEEE80211_M_HOSTAP)
 		sc->cmdq_run = RUN_CMDQ_GO;
 
-	DPRINTF("rvp_id=%d bmap=%x rvp_cnt=%d\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_STATE, "rvp_id=%d bmap=%x rvp_cnt=%d\n",
 	    rvp->rvp_id, sc->rvp_bmap, sc->rvp_cnt);
 
 	return (vap);
@@ -1012,7 +1045,8 @@ run_vap_delete(struct ieee80211vap *vap)
 	run_set_region_4(sc, RT2860_BCN_BASE(rvp_id), 0, 512);
 	--sc->rvp_cnt;
 
-	DPRINTF("vap=%p rvp_id=%d bmap=%x rvp_cnt=%d\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_STATE,
+	    "vap=%p rvp_id=%d bmap=%x rvp_cnt=%d\n",
 	    vap, rvp_id, sc->rvp_bmap, sc->rvp_cnt);
 
 	RUN_UNLOCK(sc);
@@ -1040,7 +1074,8 @@ run_cmdq_cb(void *arg, int pending)
 	RUN_LOCK(sc);
 	for (i = sc->cmdq_exec; sc->cmdq[i].func && pending;
 	    i = sc->cmdq_exec, pending--) {
-		DPRINTFN(6, "cmdq_exec=%d pending=%d\n", i, pending);
+		RUN_DPRINTF(sc, RUN_DEBUG_CMD, "cmdq_exec=%d pending=%d\n",
+		    i, pending);
 		if (sc->cmdq_run == RUN_CMDQ_GO) {
 			/*
 			 * If arg0 is NULL, callback func needs more
@@ -1226,7 +1261,8 @@ run_do_request(struct run_softc *sc,
 		    req, data, 0, NULL, 250 /* ms */);
 		if (err == 0)
 			break;
-		DPRINTFN(1, "Control request failed, %s (retrying)\n",
+		RUN_DPRINTF(sc, RUN_DEBUG_USB,
+		    "Control request failed, %s (retrying)\n",
 		    usbd_errstr(err));
 		run_delay(sc, 10);
 	}
@@ -1702,7 +1738,8 @@ run_get_txpower(struct run_softc *sc)
 			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 31)
 				sc->txpow2[i] = 5;
 		}
-		DPRINTF("chan %d: power1=%d, power2=%d\n",
+		RUN_DPRINTF(sc, RUN_DEBUG_TXPWR,
+		    "chan %d: power1=%d, power2=%d\n",
 		    rt2860_rf2850[i].chan, sc->txpow1[i], sc->txpow2[i]);
 	}
 	/* Read power settings for 5GHz channels. */
@@ -1723,7 +1760,8 @@ run_get_txpower(struct run_softc *sc)
 			if (sc->txpow2[14 + i] < -7 || sc->txpow2[14 + i] > 15)
 				sc->txpow2[14 + i] = 5;
 		}
-		DPRINTF("chan %d: power1=%d, power2=%d\n",
+		RUN_DPRINTF(sc, RUN_DEBUG_TXPWR,
+		    "chan %d: power1=%d, power2=%d\n",
 		    rt2860_rf2850[14 + i].chan, sc->txpow1[14 + i],
 		    sc->txpow2[14 + i]);
 	}
@@ -1742,14 +1780,15 @@ run_read_eeprom(struct run_softc *sc)
 	sc->sc_srom_read = run_eeprom_read_2;
 	if (sc->mac_ver >= 0x3070) {
 		run_read(sc, RT3070_EFUSE_CTRL, &tmp);
-		DPRINTF("EFUSE_CTRL=0x%08x\n", tmp);
+		RUN_DPRINTF(sc, RUN_DEBUG_ROM, "EFUSE_CTRL=0x%08x\n", tmp);
 		if ((tmp & RT3070_SEL_EFUSE) || sc->mac_ver == 0x3593)
 			sc->sc_srom_read = run_efuse_read_2;
 	}
 
 	/* read ROM version */
 	run_srom_read(sc, RT2860_EEPROM_VERSION, &val);
-	DPRINTF("EEPROM rev=%d, FAE=%d\n", val >> 8, val & 0xff);
+	RUN_DPRINTF(sc, RUN_DEBUG_ROM,
+	    "EEPROM rev=%d, FAE=%d\n", val >> 8, val & 0xff);
 
 	/* read MAC address */
 	run_srom_read(sc, RT2860_EEPROM_MAC01, &val);
@@ -1768,8 +1807,8 @@ run_read_eeprom(struct run_softc *sc)
 			run_srom_read(sc, RT2860_EEPROM_BBP_BASE + i, &val);
 			sc->bbp[i].val = val & 0xff;
 			sc->bbp[i].reg = val >> 8;
-			DPRINTF("BBP%d=0x%02x\n", sc->bbp[i].reg,
-			    sc->bbp[i].val);
+			RUN_DPRINTF(sc, RUN_DEBUG_ROM,
+			    "BBP%d=0x%02x\n", sc->bbp[i].reg, sc->bbp[i].val);
 		}
 		if (sc->mac_ver >= 0x3071) {
 			/* read vendor RF settings */
@@ -1778,8 +1817,8 @@ run_read_eeprom(struct run_softc *sc)
 				   &val);
 				sc->rf[i].val = val & 0xff;
 				sc->rf[i].reg = val >> 8;
-				DPRINTF("RF%d=0x%02x\n", sc->rf[i].reg,
-				    sc->rf[i].val);
+				RUN_DPRINTF(sc, RUN_DEBUG_ROM, "RF%d=0x%02x\n",
+				    sc->rf[i].reg, sc->rf[i].val);
 			}
 		}
 	}
@@ -1788,7 +1827,8 @@ run_read_eeprom(struct run_softc *sc)
 	run_srom_read(sc, (sc->mac_ver != 0x3593) ? RT2860_EEPROM_FREQ_LEDS :
 	    RT3593_EEPROM_FREQ, &val);
 	sc->freq = ((val & 0xff) != 0xff) ? val & 0xff : 0;
-	DPRINTF("EEPROM freq offset %d\n", sc->freq & 0xff);
+	RUN_DPRINTF(sc, RUN_DEBUG_ROM, "EEPROM freq offset %d\n",
+	    sc->freq & 0xff);
 
 	run_srom_read(sc, (sc->mac_ver != 0x3593) ? RT2860_EEPROM_FREQ_LEDS :
 	    RT3593_EEPROM_FREQ_LEDS, &val);
@@ -1808,7 +1848,8 @@ run_read_eeprom(struct run_softc *sc)
 		sc->led[1] = 0x2221;
 		sc->led[2] = 0x5627;	/* differs from RT2860 */
 	}
-	DPRINTF("EEPROM LED mode=0x%02x, LEDs=0x%04x/0x%04x/0x%04x\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_ROM,
+	    "EEPROM LED mode=0x%02x, LEDs=0x%04x/0x%04x/0x%04x\n",
 	    sc->leds, sc->led[0], sc->led[1], sc->led[2]);
 
 	/* read RF information */
@@ -1820,7 +1861,6 @@ run_read_eeprom(struct run_softc *sc)
 	if (val == 0xffff) {
 		device_printf(sc->sc_dev,
 		    "invalid EEPROM antenna info, using default\n");
-		DPRINTF("invalid EEPROM antenna info, using default\n");
 		if (sc->mac_ver == 0x3572) {
 			/* default to RF3052 2T2R */
 			sc->rf_rev = RT3070_RF_3052;
@@ -1846,12 +1886,12 @@ run_read_eeprom(struct run_softc *sc)
 		sc->ntxchains = (val >> 4) & 0xf;
 		sc->nrxchains = val & 0xf;
 	}
-	DPRINTF("EEPROM RF rev=0x%04x chains=%dT%dR\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_ROM, "EEPROM RF rev=0x%04x chains=%dT%dR\n",
 	    sc->rf_rev, sc->ntxchains, sc->nrxchains);
 
 	/* check if RF supports automatic Tx access gain control */
 	run_srom_read(sc, RT2860_EEPROM_CONFIG, &val);
-	DPRINTF("EEPROM CFG 0x%04x\n", val);
+	RUN_DPRINTF(sc, RUN_DEBUG_ROM, "EEPROM CFG 0x%04x\n", val);
 	/* check if driver should patch the DAC issue */
 	if ((val >> 8) != 0xff)
 		sc->patch_dac = (val >> 15) & 1;
@@ -1884,8 +1924,8 @@ run_read_eeprom(struct run_softc *sc)
 		if (!(val & 0x40))	/* negative number */
 			delta_5ghz = -delta_5ghz;
 	}
-	DPRINTF("power compensation=%d (2GHz), %d (5GHz)\n",
-	    delta_2ghz, delta_5ghz);
+	RUN_DPRINTF(sc, RUN_DEBUG_ROM | RUN_DEBUG_TXPWR,
+	    "power compensation=%d (2GHz), %d (5GHz)\n", delta_2ghz, delta_5ghz);
 
 	for (ridx = 0; ridx < 5; ridx++) {
 		uint32_t reg;
@@ -1899,7 +1939,8 @@ run_read_eeprom(struct run_softc *sc)
 		sc->txpow40mhz_2ghz[ridx] = b4inc(reg, delta_2ghz);
 		sc->txpow40mhz_5ghz[ridx] = b4inc(reg, delta_5ghz);
 
-		DPRINTF("ridx %d: power 20MHz=0x%08x, 40MHz/2GHz=0x%08x, "
+		RUN_DPRINTF(sc, RUN_DEBUG_ROM | RUN_DEBUG_TXPWR,
+		    "ridx %d: power 20MHz=0x%08x, 40MHz/2GHz=0x%08x, "
 		    "40MHz/5GHz=0x%08x\n", ridx, sc->txpow20mhz[ridx],
 		    sc->txpow40mhz_2ghz[ridx], sc->txpow40mhz_5ghz[ridx]);
 	}
@@ -1923,7 +1964,8 @@ run_read_eeprom(struct run_softc *sc)
 			if ((val & 0xff) != 0xff)
 				sc->txmixgain_2ghz = val & 0x7;
 		}
-		DPRINTF("tx mixer gain=%u (2GHz)\n", sc->txmixgain_2ghz);
+		RUN_DPRINTF(sc, RUN_DEBUG_ROM, "tx mixer gain=%u (2GHz)\n",
+		    sc->txmixgain_2ghz);
 	} else
 		sc->rssi_2ghz[2] = val & 0xff;	/* Ant C */
 	if (sc->mac_ver == 0x3593)
@@ -1943,7 +1985,8 @@ run_read_eeprom(struct run_softc *sc)
 		 */
 		if ((val & 0xff) != 0xff)
 			sc->txmixgain_5ghz = val & 0x7;
-		DPRINTF("tx mixer gain=%u (5GHz)\n", sc->txmixgain_5ghz);
+		RUN_DPRINTF(sc, RUN_DEBUG_ROM, "tx mixer gain=%u (5GHz)\n",
+		    sc->txmixgain_5ghz);
 	} else
 		sc->rssi_5ghz[2] = val & 0xff;	/* Ant C */
 	if (sc->mac_ver == 0x3593) {
@@ -1959,23 +2002,27 @@ run_read_eeprom(struct run_softc *sc)
 
 	/* fix broken 5GHz LNA entries */
 	if (sc->lna[2] == 0 || sc->lna[2] == 0xff) {
-		DPRINTF("invalid LNA for channel group %d\n", 2);
+		RUN_DPRINTF(sc, RUN_DEBUG_ROM,
+		    "invalid LNA for channel group %d\n", 2);
 		sc->lna[2] = sc->lna[1];
 	}
 	if (sc->lna[3] == 0 || sc->lna[3] == 0xff) {
-		DPRINTF("invalid LNA for channel group %d\n", 3);
+		RUN_DPRINTF(sc, RUN_DEBUG_ROM,
+		    "invalid LNA for channel group %d\n", 3);
 		sc->lna[3] = sc->lna[1];
 	}
 
 	/* fix broken RSSI offset entries */
 	for (ant = 0; ant < 3; ant++) {
 		if (sc->rssi_2ghz[ant] < -10 || sc->rssi_2ghz[ant] > 10) {
-			DPRINTF("invalid RSSI%d offset: %d (2GHz)\n",
+			RUN_DPRINTF(sc, RUN_DEBUG_ROM | RUN_DEBUG_RSSI,
+			    "invalid RSSI%d offset: %d (2GHz)\n",
 			    ant + 1, sc->rssi_2ghz[ant]);
 			sc->rssi_2ghz[ant] = 0;
 		}
 		if (sc->rssi_5ghz[ant] < -10 || sc->rssi_5ghz[ant] > 10) {
-			DPRINTF("invalid RSSI%d offset: %d (5GHz)\n",
+			RUN_DPRINTF(sc, RUN_DEBUG_ROM | RUN_DEBUG_RSSI,
+			    "invalid RSSI%d offset: %d (5GHz)\n",
 			    ant + 1, sc->rssi_5ghz[ant]);
 			sc->rssi_5ghz[ant] = 0;
 		}
@@ -2020,7 +2067,8 @@ run_media_change(struct ifnet *ifp)
 		ni = ieee80211_ref_node(vap->iv_bss);
 		rn = RUN_NODE(ni);
 		rn->fix_ridx = ridx;
-		DPRINTF("rate=%d, fix_ridx=%d\n", rate, rn->fix_ridx);
+		RUN_DPRINTF(sc, RUN_DEBUG_RATE, "rate=%d, fix_ridx=%d\n",
+		    rate, rn->fix_ridx);
 		ieee80211_free_node(ni);
 	}
 
@@ -2051,7 +2099,7 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	uint8_t bid = 1 << rvp->rvp_id;
 
 	ostate = vap->iv_state;
-	DPRINTF("%s -> %s\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_STATE, "%s -> %s\n",
 		ieee80211_state_name[ostate],
 		ieee80211_state_name[nstate]);
 
@@ -2156,7 +2204,7 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		break;
 	default:
-		DPRINTFN(6, "undefined case\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_STATE, "undefined state\n");
 		break;
 	}
 
@@ -2173,10 +2221,13 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 static int
 run_wme_update(struct ieee80211com *ic)
 {
+	struct chanAccParams chp;
 	struct run_softc *sc = ic->ic_softc;
-	const struct wmeParams *ac =
-	    ic->ic_wme.wme_chanParams.cap_wmeParams;
+	const struct wmeParams *ac;
 	int aci, error = 0;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	ac = chp.cap_wmeParams;
 
 	/* update MAC TX configuration registers */
 	RUN_LOCK(sc);
@@ -2219,7 +2270,7 @@ run_wme_update(struct ieee80211com *ic)
 err:
 	RUN_UNLOCK(sc);
 	if (error)
-		DPRINTF("WME update failed\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_USB, "WME update failed\n");
 
 	return (error);
 }
@@ -2261,11 +2312,12 @@ run_key_set_cb(void *arg)
 		mode = RT2860_MODE_AES_CCMP;
 		break;
 	default:
-		DPRINTF("undefined case\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_KEY, "undefined case\n");
 		return;
 	}
 
-	DPRINTFN(1, "associd=%x, keyix=%d, mode=%x, type=%s, tx=%s, rx=%s\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_KEY,
+	    "associd=%x, keyix=%d, mode=%x, type=%s, tx=%s, rx=%s\n",
 	    associd, k->wk_keyix, mode,
 	    (k->wk_flags & IEEE80211_KEY_GROUP) ? "group" : "pairwise",
 	    (k->wk_flags & IEEE80211_KEY_XMIT) ? "on" : "off",
@@ -2357,7 +2409,7 @@ run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k)
 	uint32_t i;
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
-	DPRINTF("cmdq_store=%d\n", i);
+	RUN_DPRINTF(sc, RUN_DEBUG_KEY, "cmdq_store=%d\n", i);
 	sc->cmdq[i].func = run_key_set_cb;
 	sc->cmdq[i].arg0 = NULL;
 	sc->cmdq[i].arg1 = vap;
@@ -2396,13 +2448,14 @@ run_key_delete_cb(void *arg)
 
 	if (k->wk_flags & IEEE80211_KEY_GROUP) {
 		/* remove group key */
-		DPRINTF("removing group key\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_KEY, "removing group key\n");
 		run_read(sc, RT2860_SKEY_MODE_0_7, &attr);
 		attr &= ~(0xf << (k->wk_keyix * 4));
 		run_write(sc, RT2860_SKEY_MODE_0_7, attr);
 	} else {
 		/* remove pairwise key */
-		DPRINTF("removing key for wcid %x\n", k->wk_pad);
+		RUN_DPRINTF(sc, RUN_DEBUG_KEY,
+		    "removing key for wcid %x\n", k->wk_pad);
 		/* matching wcid was written to wk_pad in run_key_set() */
 		wcid = k->wk_pad;
 		run_read(sc, RT2860_WCID_ATTR(wcid), &attr);
@@ -2432,7 +2485,7 @@ run_key_delete(struct ieee80211vap *vap, struct ieee80211_key *k)
 	 * So, use atomic instead.
 	 */
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
-	DPRINTF("cmdq_store=%d\n", i);
+	RUN_DPRINTF(sc, RUN_DEBUG_KEY, "cmdq_store=%d\n", i);
 	sc->cmdq[i].func = run_key_delete_cb;
 	sc->cmdq[i].arg0 = NULL;
 	sc->cmdq[i].arg1 = sc;
@@ -2504,7 +2557,7 @@ run_drain_fifo(void *arg)
 	for (;;) {
 		/* drain Tx status FIFO (maxsize = 16) */
 		run_read(sc, RT2860_TX_STAT_FIFO, &stat);
-		DPRINTFN(4, "tx stat 0x%08x\n", stat);
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "tx stat 0x%08x\n", stat);
 		if (!(stat & RT2860_TXQ_VLD))
 			break;
 
@@ -2543,7 +2596,7 @@ run_drain_fifo(void *arg)
 			(*wstat)[RUN_RETRY] += retry;
 		}
 	}
-	DPRINTFN(3, "count=%d\n", sc->fifo_cnt);
+	RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "count=%d\n", sc->fifo_cnt);
 
 	sc->fifo_cnt = 0;
 }
@@ -2552,11 +2605,12 @@ static void
 run_iter_func(void *arg, struct ieee80211_node *ni)
 {
 	struct run_softc *sc = arg;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct run_node *rn = RUN_NODE(ni);
 	union run_stats sta[2];
 	uint16_t (*wstat)[3];
-	int txcnt, success, retrycnt, error;
+	int error;
 
 	RUN_LOCK(sc);
 
@@ -2565,6 +2619,9 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	    ni != vap->iv_bss)
 		goto fail;
 
+	txs->flags = IEEE80211_RATECTL_TX_STATS_NODE |
+		     IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->ni = ni;
 	if (sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_STA)) {
 		/* read statistic counters (clear on read) and update AMRR state */
@@ -2577,12 +2634,15 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS,
 		    le16toh(sta[0].error.fail));
 
-		retrycnt = le16toh(sta[1].tx.retry);
-		success = le16toh(sta[1].tx.success);
-		txcnt = retrycnt + success + le16toh(sta[0].error.fail);
+		txs->nretries = le16toh(sta[1].tx.retry);
+		txs->nsuccess = le16toh(sta[1].tx.success);
+		/* nretries??? */
+		txs->nframes = txs->nretries + txs->nsuccess +
+		    le16toh(sta[0].error.fail);
 
-		DPRINTFN(3, "retrycnt=%d success=%d failcnt=%d\n",
-			retrycnt, success, le16toh(sta[0].error.fail));
+		RUN_DPRINTF(sc, RUN_DEBUG_RATE,
+		    "retrycnt=%d success=%d failcnt=%d\n",
+		    txs->nretries, txs->nsuccess, le16toh(sta[0].error.fail));
 	} else {
 		wstat = &(sc->wcid_stats[RUN_AID2WCID(ni->ni_associd)]);
 
@@ -2590,22 +2650,23 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 		    wstat > &(sc->wcid_stats[RT2870_WCID_MAX]))
 			goto fail;
 
-		txcnt = (*wstat)[RUN_TXCNT];
-		success = (*wstat)[RUN_SUCCESS];
-		retrycnt = (*wstat)[RUN_RETRY];
-		DPRINTFN(3, "retrycnt=%d txcnt=%d success=%d\n",
-		    retrycnt, txcnt, success);
+		txs->nretries = (*wstat)[RUN_RETRY];
+		txs->nsuccess = (*wstat)[RUN_SUCCESS];
+		txs->nframes = (*wstat)[RUN_TXCNT];
+		RUN_DPRINTF(sc, RUN_DEBUG_RATE,
+		    "retrycnt=%d txcnt=%d success=%d\n",
+		    txs->nretries, txs->nframes, txs->nsuccess);
 
 		memset(wstat, 0, sizeof(*wstat));
 	}
 
-	ieee80211_ratectl_tx_update(vap, ni, &txcnt, &success, &retrycnt);
+	ieee80211_ratectl_tx_update(vap, txs);
 	rn->amrr_ridx = ieee80211_ratectl_rate(ni, NULL, 0);
 
 fail:
 	RUN_UNLOCK(sc);
 
-	DPRINTFN(3, "ridx=%d\n", rn->amrr_ridx);
+	RUN_DPRINTF(sc, RUN_DEBUG_RATE, "ridx=%d\n", rn->amrr_ridx);
 }
 
 static void
@@ -2653,7 +2714,7 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 		 * Need to defer.
 		 */
 		uint32_t cnt = RUN_CMDQ_GET(&sc->cmdq_store);
-		DPRINTF("cmdq_store=%d\n", cnt);
+		RUN_DPRINTF(sc, RUN_DEBUG_STATE, "cmdq_store=%d\n", cnt);
 		sc->cmdq[cnt].func = run_newassoc_cb;
 		sc->cmdq[cnt].arg0 = NULL;
 		sc->cmdq[cnt].arg1 = ni;
@@ -2661,7 +2722,8 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 		ieee80211_runtask(ic, &sc->cmdq_task);
 	}
 
-	DPRINTF("new assoc isnew=%d associd=%x addr=%s\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_STATE,
+	    "new assoc isnew=%d associd=%x addr=%s\n",
 	    isnew, ni->ni_associd, ether_sprintf(ni->ni_macaddr));
 
 	for (i = 0; i < rs->rs_nrates; i++) {
@@ -2684,7 +2746,8 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 			/* no basic rate found, use mandatory one */
 			rn->ctl_ridx[i] = rt2860_rates[ridx].ctl_ridx;
 		}
-		DPRINTF("rate=0x%02x ridx=%d ctl_ridx=%d\n",
+		RUN_DPRINTF(sc, RUN_DEBUG_STATE | RUN_DEBUG_RATE,
+		    "rate=0x%02x ridx=%d ctl_ridx=%d\n",
 		    rs->rs_rates[i], rn->ridx[i], rn->ctl_ridx[i]);
 	}
 	rate = vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)].mgmtrate;
@@ -2692,7 +2755,8 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 		if (rt2860_rates[ridx].rate == rate)
 			break;
 	rn->mgt_ridx = ridx;
-	DPRINTF("rate=%d, mgmt_ridx=%d\n", rate, rn->mgt_ridx);
+	RUN_DPRINTF(sc, RUN_DEBUG_STATE | RUN_DEBUG_RATE,
+	    "rate=%d, mgmt_ridx=%d\n", rate, rn->mgt_ridx);
 
 	RUN_LOCK(sc);
 	if(sc->ratectl_run != RUN_RATECTL_OFF)
@@ -2739,7 +2803,8 @@ run_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
 		rx_tstamp = le64toh(rx_tstamp);
 
 		if (ni_tstamp >= rx_tstamp) {
-			DPRINTF("ibss merge, tsf %ju tstamp %ju\n",
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV | RUN_DEBUG_BEACON,
+			    "ibss merge, tsf %ju tstamp %ju\n",
 			    (uintmax_t)rx_tstamp, (uintmax_t)ni_tstamp);
 			(void) ieee80211_ibss_merge(ni);
 		}
@@ -2769,7 +2834,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	if (__predict_false(len > dmalen)) {
 		m_freem(m);
 		counter_u64_add(ic->ic_ierrors, 1);
-		DPRINTF("bad RXWI length %u > %u\n", len, dmalen);
+		RUN_DPRINTF(sc, RUN_DEBUG_RECV,
+		    "bad RXWI length %u > %u\n", len, dmalen);
 		return;
 	}
 	/* Rx descriptor is located at the end */
@@ -2779,7 +2845,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	if (__predict_false(flags & (RT2860_RX_CRCERR | RT2860_RX_ICVERR))) {
 		m_freem(m);
 		counter_u64_add(ic->ic_ierrors, 1);
-		DPRINTF("%s error.\n", (flags & RT2860_RX_CRCERR)?"CRC":"ICV");
+		RUN_DPRINTF(sc, RUN_DEBUG_RECV, "%s error.\n",
+		    (flags & RT2860_RX_CRCERR)?"CRC":"ICV");
 		return;
 	}
 
@@ -2794,7 +2861,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	}
 
 	if (flags & RT2860_RX_L2PAD) {
-		DPRINTFN(8, "received RT2860_RX_L2PAD frame\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_RECV,
+		    "received RT2860_RX_L2PAD frame\n");
 		len += 2;
 	}
 
@@ -2808,7 +2876,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 			    rxwi->keyidx);
 		m_freem(m);
 		counter_u64_add(ic->ic_ierrors, 1);
-		DPRINTF("MIC error. Someone is lying.\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_RECV,
+		    "MIC error. Someone is lying.\n");
 		return;
 	}
 
@@ -2889,11 +2958,13 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		DPRINTFN(15, "rx done, actlen=%d\n", xferlen);
+		RUN_DPRINTF(sc, RUN_DEBUG_RECV,
+		    "rx done, actlen=%d\n", xferlen);
 
 		if (xferlen < (int)(sizeof(uint32_t) + rxwisize +
 		    sizeof(struct rt2870_rxd))) {
-			DPRINTF("xfer too short %d\n", xferlen);
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV_DESC | RUN_DEBUG_USB,
+			    "xfer too short %d\n", xferlen);
 			goto tr_setup;
 		}
 
@@ -2908,7 +2979,8 @@ tr_setup:
 			    MJUMPAGESIZE /* xfer can be bigger than MCLBYTES */);
 		}
 		if (sc->rx_m == NULL) {
-			DPRINTF("could not allocate mbuf - idle with stall\n");
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV | RUN_DEBUG_RECV_DESC,
+			    "could not allocate mbuf - idle with stall\n");
 			counter_u64_add(ic->ic_ierrors, 1);
 			usbd_xfer_set_stall(xfer);
 			usbd_xfer_set_frames(xfer, 0);
@@ -2956,11 +3028,13 @@ tr_setup:
 
 		if ((dmalen >= (uint32_t)-8) || (dmalen == 0) ||
 		    ((dmalen & 3) != 0)) {
-			DPRINTF("bad DMA length %u\n", dmalen);
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV_DESC | RUN_DEBUG_USB,
+			    "bad DMA length %u\n", dmalen);
 			break;
 		}
 		if ((dmalen + 8) > (uint32_t)xferlen) {
-			DPRINTF("bad DMA length %u > %d\n",
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV_DESC | RUN_DEBUG_USB,
+			    "bad DMA length %u > %d\n",
 			dmalen + 8, xferlen);
 			break;
 		}
@@ -2978,7 +3052,8 @@ tr_setup:
 		/* copy aggregated frames to another mbuf */
 		m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m0 == NULL)) {
-			DPRINTF("could not allocate mbuf\n");
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV_DESC,
+			    "could not allocate mbuf\n");
 			counter_u64_add(ic->ic_ierrors, 1);
 			break;
 		}
@@ -3031,8 +3106,8 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, u_int index)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTFN(11, "transfer complete: %d "
-		    "bytes @ index %d\n", actlen, index);
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_USB,
+		    "transfer complete: %d bytes @ index %d\n", actlen, index);
 
 		data = usbd_xfer_get_priv(xfer);
 		run_tx_free(pq, data, 0);
@@ -3052,8 +3127,8 @@ tr_setup:
 		    sizeof(data->desc) + sizeof(uint32_t) : sizeof(data->desc);
 		if ((m->m_pkthdr.len +
 		    size + 3 + 8) > RUN_MAX_TXSZ) {
-			DPRINTF("data overflow, %u bytes\n",
-			    m->m_pkthdr.len);
+			RUN_DPRINTF(sc, RUN_DEBUG_XMIT_DESC | RUN_DEBUG_USB,
+			    "data overflow, %u bytes\n", m->m_pkthdr.len);
 			run_tx_free(pq, data, 1);
 			goto tr_setup;
 		}
@@ -3077,7 +3152,6 @@ tr_setup:
 			    (struct rt2860_txwi *)(&data->desc + sizeof(struct rt2870_txd));
 			tap->wt_flags = 0;
 			tap->wt_rate = rt2860_rates[data->ridx].rate;
-			run_get_tsf(sc, &tap->wt_tsf);
 			tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
 			tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 			tap->wt_hwqueue = index;
@@ -3087,7 +3161,8 @@ tr_setup:
 			ieee80211_radiotap_tx(vap, m);
 		}
 
-		DPRINTFN(11, "sending frame len=%u/%u  @ index %d\n",
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_USB,
+		    "sending frame len=%u/%u @ index %d\n",
 		    m->m_pkthdr.len, size, index);
 
 		usbd_xfer_set_frame_len(xfer, 0, size);
@@ -3098,8 +3173,8 @@ tr_setup:
 		break;
 
 	default:
-		DPRINTF("USB transfer error, %s\n",
-		    usbd_errstr(error));
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_USB,
+		    "USB transfer error, %s\n", usbd_errstr(error));
 
 		data = usbd_xfer_get_priv(xfer);
 
@@ -3117,7 +3192,8 @@ tr_setup:
 			if (error == USB_ERR_TIMEOUT) {
 				device_printf(sc->sc_dev, "device timeout\n");
 				uint32_t i = RUN_CMDQ_GET(&sc->cmdq_store);
-				DPRINTF("cmdq_store=%d\n", i);
+				RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_USB,
+				    "cmdq_store=%d\n", i);
 				sc->cmdq[i].func = run_usb_timeout_cb;
 				sc->cmdq[i].arg0 = vap;
 				ieee80211_runtask(ic, &sc->cmdq_task);
@@ -3241,8 +3317,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
-	struct ieee80211_channel *chan;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct run_node *rn = RUN_NODE(ni);
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
@@ -3288,11 +3363,8 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 	qflags = (qid < 4) ? RT2860_TX_QSEL_EDCA : RT2860_TX_QSEL_HCCA;
 
-	DPRINTFN(8, "qos %d\tqid %d\ttid %d\tqflags %x\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "qos %d\tqid %d\ttid %d\tqflags %x\n",
 	    qos, qid, tid, qflags);
-
-	chan = (ni->ni_chan != IEEE80211_CHAN_ANYC)?ni->ni_chan:ic->ic_curchan;
-	tp = &vap->iv_txparms[ieee80211_chan2mode(chan)];
 
 	/* pickup a rate index */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
@@ -3321,7 +3393,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	/* reserve slots for mgmt packets, just in case */
 	if (sc->sc_epq[qid].tx_nfree < 3) {
-		DPRINTFN(10, "tx ring %d is full\n", qid);
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "tx ring %d is full\n", qid);
 		return (-1);
 	}
 
@@ -3385,7 +3457,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			 * with a non-sleepable lock, tcpinp. So, need to defer.
 			 */
 			uint32_t i = RUN_CMDQ_GET(&sc->cmdq_store);
-			DPRINTFN(6, "cmdq_store=%d\n", i);
+			RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "cmdq_store=%d\n", i);
 			sc->cmdq[i].func = run_drain_fifo;
 			sc->cmdq[i].arg0 = sc;
 			ieee80211_runtask(ic, &sc->cmdq_task);
@@ -3396,7 +3468,8 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	usbd_transfer_start(sc->sc_xfer[qid]);
 
-	DPRINTFN(8, "sending data frame len=%d rate=%d qid=%d\n",
+	RUN_DPRINTF(sc, RUN_DEBUG_XMIT,
+	    "sending data frame len=%d rate=%d qid=%d\n",
 	    m->m_pkthdr.len + (int)(sizeof(struct rt2870_txd) +
 	    sizeof(struct rt2860_txwi)), rt2860_rates[ridx].rate, qid);
 
@@ -3414,15 +3487,12 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct rt2860_txwi *txwi;
 	uint16_t dur;
 	uint8_t ridx = rn->mgt_ridx;
-	uint8_t type;
 	uint8_t xflags = 0;
 	uint8_t wflags = 0;
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
 	wh = mtod(m, struct ieee80211_frame *);
-
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	/* tell hardware to add timestamp for probe responses */
 	if ((wh->i_fc[0] &
@@ -3458,9 +3528,9 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	run_set_tx_desc(sc, data);
 
-	DPRINTFN(10, "sending mgt frame len=%d rate=%d\n", m->m_pkthdr.len +
-	    (int)(sizeof(struct rt2870_txd) + sizeof(struct rt2860_txwi)),
-	    rt2860_rates[ridx].rate);
+	RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "sending mgt frame len=%d rate=%d\n",
+	    m->m_pkthdr.len + (int)(sizeof(struct rt2870_txd) +
+	    sizeof(struct rt2860_txwi)), rt2860_rates[ridx].rate);
 
 	STAILQ_INSERT_TAIL(&sc->sc_epq[0].tx_qh, data, next);
 
@@ -3474,56 +3544,34 @@ run_sendprot(struct run_softc *sc,
     const struct mbuf *m, struct ieee80211_node *ni, int prot, int rate)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_frame *wh;
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
 	struct rt2860_txwi *txwi;
 	struct mbuf *mprot;
 	int ridx;
 	int protrate;
-	int ackrate;
-	int pktlen;
-	int isshort;
-	uint16_t dur;
-	uint8_t type;
 	uint8_t wflags = 0;
 	uint8_t xflags = 0;
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
-
-	KASSERT(prot == IEEE80211_PROT_RTSCTS || prot == IEEE80211_PROT_CTSONLY,
-	    ("protection %d", prot));
-
-	wh = mtod(m, struct ieee80211_frame *);
-	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-
-	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
-	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
-
-	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-	wflags = RT2860_TX_FRAG;
 
 	/* check that there are free slots before allocating the mbuf */
 	if (sc->sc_epq[0].tx_nfree == 0)
 		/* let caller free mbuf */
 		return (ENOBUFS);
 
-	if (prot == IEEE80211_PROT_RTSCTS) {
-		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-		xflags |= RT2860_TX_ACK;
-		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
-	} else {
-		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
-	}
+	mprot = ieee80211_alloc_prot(ni, m, rate, prot);
 	if (mprot == NULL) {
 		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-		DPRINTF("could not allocate mbuf\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "could not allocate mbuf\n");
 		return (ENOBUFS);
 	}
+
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	wflags = RT2860_TX_FRAG;
+	xflags = 0;
+	if (prot == IEEE80211_PROT_RTSCTS)
+		xflags |= RT2860_TX_ACK;
 
         data = STAILQ_FIRST(&sc->sc_epq[0].tx_fh);
         STAILQ_REMOVE_HEAD(&sc->sc_epq[0].tx_fh, next);
@@ -3547,7 +3595,7 @@ run_sendprot(struct run_softc *sc,
 
 	run_set_tx_desc(sc, data);
 
-        DPRINTFN(1, "sending prot len=%u rate=%u\n",
+        RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "sending prot len=%u rate=%u\n",
             m->m_pkthdr.len, rate);
 
         STAILQ_INSERT_TAIL(&sc->sc_epq[0].tx_qh, data, next);
@@ -3562,11 +3610,9 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_frame *wh;
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
 	struct rt2860_txwi *txwi;
-	uint8_t type;
 	uint8_t ridx;
 	uint8_t rate;
 	uint8_t opflags = 0;
@@ -3576,9 +3622,6 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
 	KASSERT(params != NULL, ("no raw xmit params"));
-
-	wh = mtod(m, struct ieee80211_frame *);
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	rate = params->ibp_rate0;
 	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
@@ -3602,7 +3645,8 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 
 	if (sc->sc_epq[0].tx_nfree == 0) {
 		/* let caller free mbuf */
-		DPRINTF("sending raw frame, but tx ring is full\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT,
+		    "sending raw frame, but tx ring is full\n");
 		return (EIO);
 	}
         data = STAILQ_FIRST(&sc->sc_epq[0].tx_fh);
@@ -3626,7 +3670,7 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 
         run_set_tx_desc(sc, data);
 
-        DPRINTFN(10, "sending raw frame len=%u rate=%u\n",
+        RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "sending raw frame len=%u rate=%u\n",
             m->m_pkthdr.len, rate);
 
         STAILQ_INSERT_TAIL(&sc->sc_epq[0].tx_qh, data, next);
@@ -3654,13 +3698,13 @@ run_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (params == NULL) {
 		/* tx mgt packet */
 		if ((error = run_tx_mgt(sc, m, ni)) != 0) {
-			DPRINTF("mgt tx failed\n");
+			RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "mgt tx failed\n");
 			goto done;
 		}
 	} else {
 		/* tx raw packet with param */
 		if ((error = run_tx_param(sc, m, ni, params)) != 0) {
-			DPRINTF("tx with param failed\n");
+			RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "tx with param failed\n");
 			goto done;
 		}
 	}
@@ -4876,7 +4920,7 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 	ieee80211_beacon_update(ni, rvp->beacon_mbuf, mcast);
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
-	DPRINTF("cmdq_store=%d\n", i);
+	RUN_DPRINTF(sc, RUN_DEBUG_BEACON, "cmdq_store=%d\n", i);
 	sc->cmdq[i].func = run_update_beacon_cb;
 	sc->cmdq[i].arg0 = vap;
 	ieee80211_runtask(ic, &sc->cmdq_task);
@@ -4942,7 +4986,7 @@ run_updateprot(struct ieee80211com *ic)
 	uint32_t i;
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
-	DPRINTF("cmdq_store=%d\n", i);
+	RUN_DPRINTF(sc, RUN_DEBUG_BEACON, "cmdq_store=%d\n", i);
 	sc->cmdq[i].func = run_updateprot_cb;
 	sc->cmdq[i].arg0 = ic;
 	ieee80211_runtask(ic, &sc->cmdq_task);
@@ -4984,11 +5028,13 @@ run_usb_timeout_cb(void *arg)
 	    vap->iv_opmode != IEEE80211_M_STA)
 		run_reset_livelock(sc);
 	else if (vap->iv_state == IEEE80211_S_SCAN) {
-		DPRINTF("timeout caused by scan\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_USB | RUN_DEBUG_STATE,
+		    "timeout caused by scan\n");
 		/* cancel bgscan */
 		ieee80211_cancel_scan(vap);
 	} else
-		DPRINTF("timeout by unknown cause\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_USB | RUN_DEBUG_STATE,
+		    "timeout by unknown cause\n");
 }
 
 static void
@@ -5004,9 +5050,10 @@ run_reset_livelock(struct run_softc *sc)
 	 * crazy if protection is enabled.  Reset MAC/BBP for a while
 	 */
 	run_read(sc, RT2860_DEBUG, &tmp);
-	DPRINTFN(3, "debug reg %08x\n", tmp);
+	RUN_DPRINTF(sc, RUN_DEBUG_RESET, "debug reg %08x\n", tmp);
 	if ((tmp & (1 << 29)) && (tmp & (1 << 7 | 1 << 5))) {
-		DPRINTF("CTS-to-self livelock detected\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_RESET,
+		    "CTS-to-self livelock detected\n");
 		run_write(sc, RT2860_MAC_SYS_CTRL, RT2860_MAC_SRST);
 		run_delay(sc, 1);
 		run_write(sc, RT2860_MAC_SYS_CTRL,
@@ -5027,8 +5074,8 @@ run_update_promisc_locked(struct run_softc *sc)
 
 	run_write(sc, RT2860_RX_FILTR_CFG, tmp);
 
-        DPRINTF("%s promiscuous mode\n", (sc->sc_ic.ic_promisc > 0) ?
-            "entering" : "leaving");
+        RUN_DPRINTF(sc, RUN_DEBUG_RECV, "%s promiscuous mode\n",
+	    (sc->sc_ic.ic_promisc > 0) ?  "entering" : "leaving");
 }
 
 static void
@@ -5051,8 +5098,8 @@ run_enable_tsf_sync(struct run_softc *sc)
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t tmp;
 
-	DPRINTF("rvp_id=%d ic_opmode=%d\n", RUN_VAP(vap)->rvp_id,
-	    ic->ic_opmode);
+	RUN_DPRINTF(sc, RUN_DEBUG_BEACON, "rvp_id=%d ic_opmode=%d\n",
+	    RUN_VAP(vap)->rvp_id, ic->ic_opmode);
 
 	run_read(sc, RT2860_BCN_TIME_CFG, &tmp);
 	tmp &= ~0x1fffff;
@@ -5078,7 +5125,8 @@ run_enable_tsf_sync(struct run_softc *sc)
 	        /* SYNC with nobody */
 	        tmp |= 3 << RT2860_TSF_SYNC_MODE_SHIFT;
 	} else {
-		DPRINTF("Enabling TSF failed. undefined opmode\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_BEACON,
+		    "Enabling TSF failed. undefined opmode\n");
 		return;
 	}
 
@@ -5188,7 +5236,7 @@ run_updateslot(struct ieee80211com *ic)
 	uint32_t i;
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
-	DPRINTF("cmdq_store=%d\n", i);
+	RUN_DPRINTF(sc, RUN_DEBUG_BEACON, "cmdq_store=%d\n", i);
 	sc->cmdq[i].func = run_updateslot_cb;
 	sc->cmdq[i].arg0 = ic;
 	ieee80211_runtask(ic, &sc->cmdq_task);
@@ -6207,17 +6255,20 @@ run_stop(void *arg)
 	/* wait for pending Tx to complete */
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (run_read(sc, RT2860_TXRXQ_PCNT, &tmp) != 0) {
-			DPRINTF("Cannot read Tx queue count\n");
+			RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_RESET,
+			    "Cannot read Tx queue count\n");
 			break;
 		}
 		if ((tmp & RT2860_TX2Q_PCNT_MASK) == 0) {
-			DPRINTF("All Tx cleared\n");
+			RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_RESET,
+			    "All Tx cleared\n");
 			break;
 		}
 		run_delay(sc, 10);
 	}
 	if (ntries >= 100)
-		DPRINTF("There are still pending Tx\n");
+		RUN_DPRINTF(sc, RUN_DEBUG_XMIT | RUN_DEBUG_RESET,
+		    "There are still pending Tx\n");
 	run_delay(sc, 10);
 	run_write(sc, RT2860_USB_DMA_CFG, 0);
 

@@ -225,7 +225,7 @@ configure_i2c_arbitrator(struct ec_softc *sc)
 
 	/* TODO: look for compatible entry instead of hard-coded path */
 	arbitrator = OF_finddevice("/i2c-arbitrator");
-	if (arbitrator > 0 &&
+	if (arbitrator != -1 &&
 	    OF_hasprop(arbitrator, "freebsd,our-gpio") &&
 	    OF_hasprop(arbitrator, "freebsd,ec-gpio")) {
 		sc->have_arbitrator = 1;

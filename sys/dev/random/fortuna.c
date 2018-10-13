@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 W. Dean Freeman
  * Copyright (c) 2013-2015 Mark R V Murray
  * All rights reserved.
  *
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/uint128.h>
 #include <dev/random/fortuna.h>
 #else /* !_KERNEL */
+#include <sys/param.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -87,7 +89,7 @@ __FBSDID("$FreeBSD$");
  * and too small may compromise initial security but get faster reseeds.
  */
 #define	RANDOM_FORTUNA_MINPOOLSIZE 16
-#define	RANDOM_FORTUNA_MAXPOOLSIZE UINT_MAX
+#define	RANDOM_FORTUNA_MAXPOOLSIZE INT_MAX 
 CTASSERT(RANDOM_FORTUNA_MINPOOLSIZE <= RANDOM_FORTUNA_DEFPOOLSIZE);
 CTASSERT(RANDOM_FORTUNA_DEFPOOLSIZE <= RANDOM_FORTUNA_MAXPOOLSIZE);
 
@@ -96,9 +98,11 @@ CTASSERT(RANDOM_BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
 
 /* Probes for dtrace(1) */
+#ifdef _KERNEL
 SDT_PROVIDER_DECLARE(random);
 SDT_PROVIDER_DEFINE(random);
 SDT_PROBE_DEFINE2(random, fortuna, event_processor, debug, "u_int", "struct fs_pool *");
+#endif /* _KERNEL */
 
 /*
  * This is the beastie that needs protecting. It contains all of the
@@ -232,17 +236,29 @@ random_fortuna_process_event(struct harvest_event *event)
 	 * during accumulation/reseeding and reading/regating.
 	 */
 	pl = event->he_destination % RANDOM_FORTUNA_NPOOLS;
-	randomdev_hash_iterate(&fortuna_state.fs_pool[pl].fsp_hash, event, sizeof(*event));
+	/*
+	 * We ignore low entropy static/counter fields towards the end of the
+	 * he_event structure in order to increase measurable entropy when
+	 * conducting SP800-90B entropy analysis measurements of seed material
+	 * fed into PRNG.
+	 * -- wdf
+	 */
+	KASSERT(event->he_size <= sizeof(event->he_entropy),
+	    ("%s: event->he_size: %hhu > sizeof(event->he_entropy): %zu\n",
+	    __func__, event->he_size, sizeof(event->he_entropy)));
+	randomdev_hash_iterate(&fortuna_state.fs_pool[pl].fsp_hash,
+	    &event->he_somecounter, sizeof(event->he_somecounter));
+	randomdev_hash_iterate(&fortuna_state.fs_pool[pl].fsp_hash,
+	    event->he_entropy, event->he_size);
+
 	/*-
-	 * Don't wrap the length. Doing this the hard way so as not to wrap at MAXUINT.
-	 * This is a "saturating" add.
+	 * Don't wrap the length.  This is a "saturating" add.
 	 * XXX: FIX!!: We don't actually need lengths for anything but fs_pool[0],
 	 * but it's been useful debugging to see them all.
 	 */
-	if (RANDOM_FORTUNA_MAXPOOLSIZE - fortuna_state.fs_pool[pl].fsp_length > event->he_size)
-		fortuna_state.fs_pool[pl].fsp_length += event->he_size;
-	else
-		fortuna_state.fs_pool[pl].fsp_length = RANDOM_FORTUNA_MAXPOOLSIZE;
+	fortuna_state.fs_pool[pl].fsp_length = MIN(RANDOM_FORTUNA_MAXPOOLSIZE,
+	    fortuna_state.fs_pool[pl].fsp_length +
+	    sizeof(event->he_somecounter) + event->he_size);
 	explicit_bzero(event, sizeof(*event));
 	RANDOM_RESEED_UNLOCK();
 }
@@ -358,7 +374,7 @@ random_fortuna_pre_read(void)
 	if (fortuna_state.fs_pool[0].fsp_length >= fortuna_state.fs_minpoolsize
 #ifdef _KERNEL
 	    /* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
-	    && (now - fortuna_state.fs_lasttime > hz/10)
+	    && (now - fortuna_state.fs_lasttime > SBT_1S/10)
 #endif
 	) {
 #ifdef _KERNEL
@@ -385,7 +401,9 @@ random_fortuna_pre_read(void)
 			} else
 				break;
 		}
+#ifdef _KERNEL
 		SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
+#endif
 		/* FS&K */
 		random_fortuna_reseed_internal(s, i < RANDOM_FORTUNA_NPOOLS ? i + 1 : RANDOM_FORTUNA_NPOOLS);
 		/* Clean up and secure */

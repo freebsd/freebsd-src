@@ -43,7 +43,7 @@
 #include "opt_inet.h"
 
 #include <machine/asm.h>
-#include "assym.s"
+#include "assym.inc"
 __FBSDID("$FreeBSD$");
 
 	.syntax	unified

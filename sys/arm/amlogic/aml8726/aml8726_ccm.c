@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -88,7 +87,7 @@ aml8726_ccm_configure_gates(struct aml8726_ccm_softc *sc)
 
 	node = ofw_bus_get_node(sc->dev);
 
-	len = OF_getprop_alloc(node, "functions", sizeof(char),
+	len = OF_getprop_alloc(node, "functions",
 	    (void **)&functions);
 
 	if (len < 0) {

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)reboot.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2015
+.Dd July 10, 2018
 .Dt REBOOT 2
 .Os
 .Sh NAME
@@ -58,18 +58,13 @@ options, defined in the include file
 .In sys/reboot.h ,
 to be passed
 to the new kernel or the new bootstrap and init programs.
-.Bl -tag -width RB_INITNAMEA
+.Bl -tag -width RB_POWERCYCLE
 .It Dv RB_AUTOBOOT
 The default, causing the system to reboot in its usual fashion.
 .It Dv RB_ASKNAME
-Interpreted by the bootstrap program itself, causing it to
-prompt on the console as to what file should be booted.
-Normally, the system is booted from the file
-.Dq Ar xx Ns No (0,0)kernel ,
-where
-.Ar xx
-is the default disk name,
-without prompting for the file name.
+Normally the system only prompts the user if the loader specified root
+file system has an error.
+This flag forces it to always prompt the user for the root partition.
 .It Dv RB_DFLTROOT
 Use the compiled in root device.
 Normally, the system uses the device from which it was booted
@@ -84,17 +79,18 @@ for more information.
 .It Dv RB_HALT
 The processor is simply halted; no reboot takes place.
 This option should be used with caution.
+.It Dv RB_POWERCYCLE
+After halting, the shutdown code will do what it can to turn
+off the power and then turn the power back on.
+This requires hardware support, usually an auxiliary microprocessor
+that can sequence the power supply.
+At present only the
+.Xr ipmi 4
+driver implements this feature.
 .It Dv RB_POWEROFF
 After halting, the shutdown code will do what it can to turn
 off the power.
 This requires hardware support.
-.It Dv RB_INITNAME
-An option allowing the specification of an init program (see
-.Xr init 8 )
-other than
-.Pa /sbin/init
-to be run when the system reboots.
-This switch is not currently available.
 .It Dv RB_KDB
 Load the symbol table and enable a built-in debugger in the system.
 This option will have no useful function if the kernel is not configured

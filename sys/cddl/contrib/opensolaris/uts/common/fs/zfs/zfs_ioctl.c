@@ -21,17 +21,19 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
+ * Copyright (c) 2011-2012 Pawel Jakub Dawidek. All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2014 Xin Li <delphij@FreeBSD.org>. All rights reserved.
  * Copyright 2015, OmniTI Computer Consulting, Inc. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2014, Joyent, Inc. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2014, 2016 Joyent, Inc. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016 Toomas Soome <tsoome@me.com>
+ * Copyright 2017 RackTop Systems.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 /*
@@ -190,7 +192,11 @@
 #include <sys/dsl_bookmark.h>
 #include <sys/dsl_userhold.h>
 #include <sys/zfeature.h>
+#include <sys/zcp.h>
 #include <sys/zio_checksum.h>
+#include <sys/vdev_removal.h>
+#include <sys/vdev_impl.h>
+#include <sys/vdev_initialize.h>
 
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
@@ -198,7 +204,8 @@
 #include "zfs_comutil.h"
 #include "zfs_ioctl_compat.h"
 
-CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
+#include "lua.h"
+#include "lauxlib.h"
 
 static struct cdev *zfsdev;
 
@@ -501,6 +508,14 @@ zfs_secpolicy_write_perms(const char *name, const char *perm, cred_t *cr)
 	dsl_dataset_t *ds;
 	dsl_pool_t *dp;
 
+	/*
+	 * First do a quick check for root in the global zone, which
+	 * is allowed to do all write_perms.  This ensures that zfs_ioc_*
+	 * will get to handle nonexistent datasets.
+	 */
+	if (INGLOBALZONE(curthread) && secpolicy_zfs(cr) == 0)
+		return (0);
+
 	error = dsl_pool_hold(name, FTAG, &dp);
 	if (error != 0)
 		return (error);
@@ -640,7 +655,7 @@ zfs_secpolicy_setprop(const char *dsname, zfs_prop_t prop, nvpair_t *propval,
 	case ZFS_PROP_SNAPSHOT_LIMIT:
 		if (!INGLOBALZONE(curthread)) {
 			uint64_t zoned;
-			char setpoint[MAXNAMELEN];
+			char setpoint[ZFS_MAX_DATASET_NAME_LEN];
 			/*
 			 * Unprivileged users are allowed to modify the
 			 * limit on things *under* (ie. contained by)
@@ -876,7 +891,7 @@ zfs_secpolicy_destroy_snaps(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 int
 zfs_secpolicy_rename_perms(const char *from, const char *to, cred_t *cr)
 {
-	char	parentname[MAXNAMELEN];
+	char	parentname[ZFS_MAX_DATASET_NAME_LEN];
 	int	error;
 
 	if ((error = zfs_secpolicy_write_perms(from,
@@ -948,7 +963,7 @@ zfs_secpolicy_promote(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 	error = dsl_dataset_hold(dp, zc->zc_name, FTAG, &clone);
 
 	if (error == 0) {
-		char parentname[MAXNAMELEN];
+		char parentname[ZFS_MAX_DATASET_NAME_LEN];
 		dsl_dataset_t *origin = NULL;
 		dsl_dir_t *dd;
 		dd = clone->ds_dir;
@@ -1062,6 +1077,14 @@ zfs_secpolicy_bookmark(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 
 /* ARGSUSED */
 static int
+zfs_secpolicy_remap(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
+{
+	return (zfs_secpolicy_write_perms(zc->zc_name,
+	    ZFS_DELEG_PERM_REMAP, cr));
+}
+
+/* ARGSUSED */
+static int
 zfs_secpolicy_destroy_bookmarks(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 {
 	nvpair_t *pair, *nextpair;
@@ -1117,7 +1140,7 @@ zfs_secpolicy_log_history(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 static int
 zfs_secpolicy_create_clone(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 {
-	char	parentname[MAXNAMELEN];
+	char	parentname[ZFS_MAX_DATASET_NAME_LEN];
 	int	error;
 	char	*origin;
 
@@ -1260,7 +1283,7 @@ zfs_secpolicy_hold(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 
 	for (pair = nvlist_next_nvpair(holds, NULL); pair != NULL;
 	    pair = nvlist_next_nvpair(holds, pair)) {
-		char fsname[MAXNAMELEN];
+		char fsname[ZFS_MAX_DATASET_NAME_LEN];
 		error = dmu_fsname(nvpair_name(pair), fsname);
 		if (error != 0)
 			return (error);
@@ -1281,7 +1304,7 @@ zfs_secpolicy_release(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 
 	for (pair = nvlist_next_nvpair(innvl, NULL); pair != NULL;
 	    pair = nvlist_next_nvpair(innvl, pair)) {
-		char fsname[MAXNAMELEN];
+		char fsname[ZFS_MAX_DATASET_NAME_LEN];
 		error = dmu_fsname(nvpair_name(pair), fsname);
 		if (error != 0)
 			return (error);
@@ -1426,36 +1449,51 @@ put_nvlist(zfs_cmd_t *zc, nvlist_t *nvl)
 	return (error);
 }
 
-static int
+int
+getzfsvfs_impl(objset_t *os, vfs_t **vfsp)
+{
+	zfsvfs_t *zfvp;
+	int error = 0;
+
+	if (dmu_objset_type(os) != DMU_OST_ZFS) {
+		return (SET_ERROR(EINVAL));
+	}
+
+	mutex_enter(&os->os_user_ptr_lock);
+	zfvp = dmu_objset_get_user(os);
+	if (zfvp) {
+		*vfsp = zfvp->z_vfs;
+		vfs_ref(zfvp->z_vfs);
+	} else {
+		error = SET_ERROR(ESRCH);
+	}
+	mutex_exit(&os->os_user_ptr_lock);
+	return (error);
+}
+
+int
 getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 {
 	objset_t *os;
+	vfs_t *vfsp;
 	int error;
 
 	error = dmu_objset_hold(dsname, FTAG, &os);
 	if (error != 0)
 		return (error);
-	if (dmu_objset_type(os) != DMU_OST_ZFS) {
-		dmu_objset_rele(os, FTAG);
-		return (SET_ERROR(EINVAL));
-	}
-
-	mutex_enter(&os->os_user_ptr_lock);
-	*zfvp = dmu_objset_get_user(os);
-	if (*zfvp) {
-#ifdef illumos
-		VFS_HOLD((*zfvp)->z_vfs);
-#else
-		if (vfs_busy((*zfvp)->z_vfs, 0) != 0) {
-			*zfvp = NULL;
-			error = SET_ERROR(ESRCH);
-		}
-#endif
-	} else {
-		error = SET_ERROR(ESRCH);
-	}
-	mutex_exit(&os->os_user_ptr_lock);
+	error = getzfsvfs_impl(os, &vfsp);
 	dmu_objset_rele(os, FTAG);
+	if (error != 0)
+		return (error);
+
+	error = vfs_busy(vfsp, 0);
+	vfs_rel(vfsp);
+	if (error != 0) {
+		*zfvp = NULL;
+		error = SET_ERROR(ESRCH);
+	} else {
+		*zfvp = vfsp->vfs_data;
+	}
 	return (error);
 }
 
@@ -1475,6 +1513,7 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 	if (error == 0) {
 		rrm_enter(&(*zfvp)->z_teardown_lock, (writer) ? RW_WRITER :
 		    RW_READER, tag);
+#ifdef illumos
 		if ((*zfvp)->z_unmounted) {
 			/*
 			 * XXX we could probably try again, since the unmounting
@@ -1484,6 +1523,13 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 			rrm_exit(&(*zfvp)->z_teardown_lock, tag);
 			return (SET_ERROR(EBUSY));
 		}
+#else
+		/*
+		 * vfs_busy() ensures that the filesystem is not and
+		 * can not be unmounted.
+		 */
+		ASSERT(!(*zfvp)->z_unmounted);
+#endif
 	}
 	return (error);
 }
@@ -1512,6 +1558,7 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	nvlist_t *config, *props = NULL;
 	nvlist_t *rootprops = NULL;
 	nvlist_t *zplprops = NULL;
+	char *spa_name = zc->zc_name;
 
 	if (error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
 	    zc->zc_iflags, &config))
@@ -1527,6 +1574,7 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	if (props) {
 		nvlist_t *nvl = NULL;
 		uint64_t version = SPA_VERSION;
+		char *tname;
 
 		(void) nvlist_lookup_uint64(props,
 		    zpool_prop_to_name(ZPOOL_PROP_VERSION), &version);
@@ -1549,6 +1597,10 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 		    zplprops, NULL);
 		if (error != 0)
 			goto pool_props_bad;
+
+		if (nvlist_lookup_string(props,
+		    zpool_prop_to_name(ZPOOL_PROP_TNAME), &tname) == 0)
+			spa_name = tname;
 	}
 
 	error = spa_create(zc->zc_name, config, props, zplprops);
@@ -1556,9 +1608,9 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	/*
 	 * Set the remaining root properties
 	 */
-	if (!error && (error = zfs_set_prop_nvlist(zc->zc_name,
+	if (!error && (error = zfs_set_prop_nvlist(spa_name,
 	    ZPROP_SRC_LOCAL, rootprops, NULL)) != 0)
-		(void) spa_destroy(zc->zc_name);
+		(void) spa_destroy(spa_name);
 
 pool_props_bad:
 	nvlist_free(rootprops);
@@ -1715,6 +1767,7 @@ zfs_ioc_pool_tryimport(zfs_cmd_t *zc)
  * inputs:
  * zc_name              name of the pool
  * zc_cookie            scan func (pool_scan_func_t)
+ * zc_flags             scrub pause/resume flag (pool_scrub_cmd_t)
  */
 static int
 zfs_ioc_pool_scan(zfs_cmd_t *zc)
@@ -1725,7 +1778,12 @@ zfs_ioc_pool_scan(zfs_cmd_t *zc)
 	if ((error = spa_open(zc->zc_name, &spa, FTAG)) != 0)
 		return (error);
 
-	if (zc->zc_cookie == POOL_SCAN_NONE)
+	if (zc->zc_flags >= POOL_SCRUB_FLAGS_END)
+		return (SET_ERROR(EINVAL));
+
+	if (zc->zc_flags == POOL_SCRUB_PAUSE)
+		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
+	else if (zc->zc_cookie == POOL_SCAN_NONE)
 		error = spa_scan_stop(spa);
 	else
 		error = spa_scan(spa, zc->zc_cookie);
@@ -1928,8 +1986,8 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 /*
  * inputs:
  * zc_name		name of the pool
- * zc_nvlist_conf	nvlist of devices to remove
- * zc_cookie		to stop the remove?
+ * zc_guid		guid of vdev to remove
+ * zc_cookie		cancel removal
  */
 static int
 zfs_ioc_vdev_remove(zfs_cmd_t *zc)
@@ -1940,7 +1998,11 @@ zfs_ioc_vdev_remove(zfs_cmd_t *zc)
 	error = spa_open(zc->zc_name, &spa, FTAG);
 	if (error != 0)
 		return (error);
-	error = spa_vdev_remove(spa, zc->zc_guid, B_FALSE);
+	if (zc->zc_cookie != 0) {
+		error = spa_vdev_remove_cancel(spa);
+	} else {
+		error = spa_vdev_remove(spa, zc->zc_guid, B_FALSE);
+	}
 	spa_close(spa, FTAG);
 	return (error);
 }
@@ -2350,7 +2412,8 @@ zfs_ioc_snapshot_list_next(zfs_cmd_t *zc)
 	 * A dataset name of maximum length cannot have any snapshots,
 	 * so exit immediately.
 	 */
-	if (strlcat(zc->zc_name, "@", sizeof (zc->zc_name)) >= MAXNAMELEN) {
+	if (strlcat(zc->zc_name, "@", sizeof (zc->zc_name)) >=
+	    ZFS_MAX_DATASET_NAME_LEN) {
 		dmu_objset_rele(os, FTAG);
 		return (SET_ERROR(ESRCH));
 	}
@@ -2892,7 +2955,7 @@ zfs_ioc_pool_set_props(zfs_cmd_t *zc)
 		mutex_enter(&spa_namespace_lock);
 		if ((spa = spa_lookup(zc->zc_name)) != NULL) {
 			spa_configfile_set(spa, props, B_FALSE);
-			spa_config_sync(spa, B_FALSE, B_TRUE);
+			spa_write_cachefile(spa, B_FALSE, B_TRUE);
 		}
 		mutex_exit(&spa_namespace_lock);
 		if (spa != NULL) {
@@ -3016,29 +3079,6 @@ zfs_ioc_get_fsacl(zfs_cmd_t *zc)
 	return (error);
 }
 
-/*
- * Search the vfs list for a specified resource.  Returns a pointer to it
- * or NULL if no suitable entry is found. The caller of this routine
- * is responsible for releasing the returned vfs pointer.
- */
-static vfs_t *
-zfs_get_vfs(const char *resource)
-{
-	vfs_t *vfsp;
-
-	mtx_lock(&mountlist_mtx);
-	TAILQ_FOREACH(vfsp, &mountlist, mnt_list) {
-		if (strcmp(refstr_value(vfsp->vfs_resource), resource) == 0) {
-			if (vfs_busy(vfsp, MBF_MNTLSTLOCK) != 0)
-				vfsp = NULL;
-			break;
-		}
-	}
-	if (vfsp == NULL)
-		mtx_unlock(&mountlist_mtx);
-	return (vfsp);
-}
-
 /* ARGSUSED */
 static void
 zfs_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
@@ -3080,6 +3120,9 @@ zfs_fill_zplprops_impl(objset_t *os, uint64_t zplver,
 	uint64_t u8 = ZFS_PROP_UNDEFINED;
 
 	ASSERT(zplprops != NULL);
+
+	if (os != NULL && os->os_phys->os_type != DMU_OST_ZFS)
+		return (SET_ERROR(EINVAL));
 
 	/*
 	 * Pull out creator prop choices, if any.
@@ -3154,7 +3197,7 @@ zfs_fill_zplprops(const char *dataset, nvlist_t *createprops,
 	boolean_t fuids_ok, sa_ok;
 	uint64_t zplver = ZPL_VERSION;
 	objset_t *os = NULL;
-	char parentname[MAXNAMELEN];
+	char parentname[ZFS_MAX_DATASET_NAME_LEN];
 	char *cp;
 	spa_t *spa;
 	uint64_t spa_vers;
@@ -3358,6 +3401,17 @@ zfs_ioc_clone(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 	return (error);
 }
 
+/* ARGSUSED */
+static int
+zfs_ioc_remap(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
+{
+	if (strchr(fsname, '@') ||
+	    strchr(fsname, '%'))
+		return (SET_ERROR(EINVAL));
+
+	return (dmu_objset_remap_indirects(fsname));
+}
+
 /*
  * innvl: {
  *     "snaps" -> { snapshot1, snapshot2 }
@@ -3460,6 +3514,53 @@ zfs_ioc_log_history(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
 	return (error);
 }
 
+#ifdef __FreeBSD__
+static int
+zfs_ioc_nextboot(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
+{
+	char name[MAXNAMELEN];
+	spa_t *spa;
+	vdev_t *vd;
+	char *command;
+	uint64_t pool_guid;
+	uint64_t vdev_guid;
+	int error;
+
+	if (nvlist_lookup_uint64(innvl,
+	    ZPOOL_CONFIG_POOL_GUID, &pool_guid) != 0)
+		return (EINVAL);
+	if (nvlist_lookup_uint64(innvl,
+	    ZPOOL_CONFIG_GUID, &vdev_guid) != 0)
+		return (EINVAL);
+	if (nvlist_lookup_string(innvl,
+	    "command", &command) != 0)
+		return (EINVAL);
+
+	mutex_enter(&spa_namespace_lock);
+	spa = spa_by_guid(pool_guid, vdev_guid);
+	if (spa != NULL)
+		strcpy(name, spa_name(spa));
+	mutex_exit(&spa_namespace_lock);
+	if (spa == NULL)
+		return (ENOENT);
+
+	if ((error = spa_open(name, &spa, FTAG)) != 0)
+		return (error);
+	spa_vdev_state_enter(spa, SCL_ALL);
+	vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE);
+	if (vd == NULL) {
+		(void) spa_vdev_state_exit(spa, NULL, ENXIO);
+		spa_close(spa, FTAG);
+		return (ENODEV);
+	}
+	error = vdev_label_write_pad2(vd, command, strlen(command));
+	(void) spa_vdev_state_exit(spa, NULL, 0);
+	txg_wait_synced(spa->spa_dsl_pool, 0);
+	spa_close(spa, FTAG);
+	return (error);
+}
+#endif
+
 /*
  * The dp_config_rwlock must not be held when calling this, because the
  * unmount may need to write out data.
@@ -3470,50 +3571,49 @@ zfs_ioc_log_history(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
  * Returns 0 if the argument is not a snapshot, or it is not currently a
  * filesystem, or we were able to unmount it.  Returns error code otherwise.
  */
-int
+void
 zfs_unmount_snap(const char *snapname)
 {
-	vfs_t *vfsp;
-	zfsvfs_t *zfsvfs;
-	int err;
+	vfs_t *vfsp = NULL;
+	zfsvfs_t *zfsvfs = NULL;
 
 	if (strchr(snapname, '@') == NULL)
-		return (0);
+		return;
 
-	vfsp = zfs_get_vfs(snapname);
-	if (vfsp == NULL)
-		return (0);
+	int err = getzfsvfs(snapname, &zfsvfs);
+	if (err != 0) {
+		ASSERT3P(zfsvfs, ==, NULL);
+		return;
+	}
+	vfsp = zfsvfs->z_vfs;
 
-	zfsvfs = vfsp->vfs_data;
 	ASSERT(!dsl_pool_config_held(dmu_objset_pool(zfsvfs->z_os)));
 
-	err = vn_vfswlock(vfsp->vfs_vnodecovered);
 #ifdef illumos
+	err = vn_vfswlock(vfsp->vfs_vnodecovered);
 	VFS_RELE(vfsp);
-#else
-	vfs_unbusy(vfsp);
-#endif
 	if (err != 0)
-		return (SET_ERROR(err));
+		return;
+#endif
 
 	/*
 	 * Always force the unmount for snapshots.
 	 */
-
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
 	vfs_ref(vfsp);
+	vfs_unbusy(vfsp);
 	(void) dounmount(vfsp, MS_FORCE, curthread);
 #endif
-	return (0);
 }
 
 /* ARGSUSED */
 static int
 zfs_unmount_snap_cb(const char *snapname, void *arg)
 {
-	return (zfs_unmount_snap(snapname));
+	zfs_unmount_snap(snapname);
+	return (0);
 }
 
 /*
@@ -3533,10 +3633,10 @@ zfs_destroy_unmount_origin(const char *fsname)
 		return;
 	ds = dmu_objset_ds(os);
 	if (dsl_dir_is_clone(ds->ds_dir) && DS_IS_DEFER_DESTROY(ds->ds_prev)) {
-		char originname[MAXNAMELEN];
+		char originname[ZFS_MAX_DATASET_NAME_LEN];
 		dsl_dataset_name(ds->ds_prev, originname);
 		dmu_objset_rele(os, FTAG);
-		(void) zfs_unmount_snap(originname);
+		zfs_unmount_snap(originname);
 	} else {
 		dmu_objset_rele(os, FTAG);
 	}
@@ -3577,9 +3677,7 @@ zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		    (name[poollen] != '/' && name[poollen] != '@'))
 			return (SET_ERROR(EXDEV));
 
-		error = zfs_unmount_snap(name);
-		if (error != 0)
-			return (error);
+		zfs_unmount_snap(nvpair_name(pair));
 #if defined(__FreeBSD__)
 		zvol_remove_minors(name);
 #endif
@@ -3682,6 +3780,63 @@ zfs_ioc_destroy_bookmarks(const char *poolname, nvlist_t *innvl,
 	return (error);
 }
 
+static int
+zfs_ioc_channel_program(const char *poolname, nvlist_t *innvl,
+    nvlist_t *outnvl)
+{
+	char *program;
+	uint64_t instrlimit, memlimit;
+	boolean_t sync_flag;
+	nvpair_t *nvarg = NULL;
+
+	if (0 != nvlist_lookup_string(innvl, ZCP_ARG_PROGRAM, &program)) {
+		return (EINVAL);
+	}
+	if (0 != nvlist_lookup_boolean_value(innvl, ZCP_ARG_SYNC, &sync_flag)) {
+		sync_flag = B_TRUE;
+	}
+	if (0 != nvlist_lookup_uint64(innvl, ZCP_ARG_INSTRLIMIT, &instrlimit)) {
+		instrlimit = ZCP_DEFAULT_INSTRLIMIT;
+	}
+	if (0 != nvlist_lookup_uint64(innvl, ZCP_ARG_MEMLIMIT, &memlimit)) {
+		memlimit = ZCP_DEFAULT_MEMLIMIT;
+	}
+	if (0 != nvlist_lookup_nvpair(innvl, ZCP_ARG_ARGLIST, &nvarg)) {
+		return (EINVAL);
+	}
+
+	if (instrlimit == 0 || instrlimit > zfs_lua_max_instrlimit)
+		return (EINVAL);
+	if (memlimit == 0 || memlimit > zfs_lua_max_memlimit)
+		return (EINVAL);
+
+	return (zcp_eval(poolname, program, sync_flag, instrlimit, memlimit,
+	    nvarg, outnvl));
+}
+
+/*
+ * innvl: unused
+ * outnvl: empty
+ */
+/* ARGSUSED */
+static int
+zfs_ioc_pool_checkpoint(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
+{
+	return (spa_checkpoint(poolname));
+}
+
+/*
+ * innvl: unused
+ * outnvl: empty
+ */
+/* ARGSUSED */
+static int
+zfs_ioc_pool_discard_checkpoint(const char *poolname, nvlist_t *innvl,
+    nvlist_t *outnvl)
+{
+	return (spa_checkpoint_discard(poolname));
+}
+
 /*
  * inputs:
  * zc_name		name of dataset to destroy
@@ -3695,11 +3850,8 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 {
 	int err;
 
-	if (zc->zc_objset_type == DMU_OST_ZFS) {
-		err = zfs_unmount_snap(zc->zc_name);
-		if (err != 0)
-			return (err);
-	}
+	if (zc->zc_objset_type == DMU_OST_ZFS)
+		zfs_unmount_snap(zc->zc_name);
 
 	if (strchr(zc->zc_name, '@'))
 		err = dsl_destroy_snapshot(zc->zc_name, zc->zc_defer_destroy);
@@ -3715,27 +3867,119 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 }
 
 /*
+ * innvl: {
+ *     vdevs: {
+ *         guid 1, guid 2, ...
+ *     },
+ *     func: POOL_INITIALIZE_{CANCEL|DO|SUSPEND}
+ * }
+ *
+ * outnvl: {
+ *     [func: EINVAL (if provided command type didn't make sense)],
+ *     [vdevs: {
+ *         guid1: errno, (see function body for possible errnos)
+ *         ...
+ *     }]
+ * }
+ *
+ */
+static int
+zfs_ioc_pool_initialize(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
+{
+	spa_t *spa;
+	int error;
+
+	error = spa_open(poolname, &spa, FTAG);
+	if (error != 0)
+		return (error);
+
+	uint64_t cmd_type;
+	if (nvlist_lookup_uint64(innvl, ZPOOL_INITIALIZE_COMMAND,
+	    &cmd_type) != 0) {
+		spa_close(spa, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+	if (!(cmd_type == POOL_INITIALIZE_CANCEL ||
+	    cmd_type == POOL_INITIALIZE_DO ||
+	    cmd_type == POOL_INITIALIZE_SUSPEND)) {
+		spa_close(spa, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
+	nvlist_t *vdev_guids;
+	if (nvlist_lookup_nvlist(innvl, ZPOOL_INITIALIZE_VDEVS,
+	    &vdev_guids) != 0) {
+		spa_close(spa, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
+	nvlist_t *vdev_errlist = fnvlist_alloc();
+	int total_errors = 0;
+
+	for (nvpair_t *pair = nvlist_next_nvpair(vdev_guids, NULL);
+	    pair != NULL; pair = nvlist_next_nvpair(vdev_guids, pair)) {
+		uint64_t vdev_guid = fnvpair_value_uint64(pair);
+
+		error = spa_vdev_initialize(spa, vdev_guid, cmd_type);
+		if (error != 0) {
+			char guid_as_str[MAXNAMELEN];
+
+			(void) snprintf(guid_as_str, sizeof (guid_as_str),
+			    "%llu", (unsigned long long)vdev_guid);
+			fnvlist_add_int64(vdev_errlist, guid_as_str, error);
+			total_errors++;
+		}
+	}
+	if (fnvlist_size(vdev_errlist) > 0) {
+		fnvlist_add_nvlist(outnvl, ZPOOL_INITIALIZE_VDEVS,
+		    vdev_errlist);
+	}
+	fnvlist_free(vdev_errlist);
+
+	spa_close(spa, FTAG);
+	return (total_errors > 0 ? EINVAL : 0);
+}
+
+/*
  * fsname is name of dataset to rollback (to most recent snapshot)
  *
- * innvl is not used.
+ * innvl may contain name of expected target snapshot
  *
  * outnvl: "target" -> name of most recent snapshot
  * }
  */
 /* ARGSUSED */
 static int
-zfs_ioc_rollback(const char *fsname, nvlist_t *args, nvlist_t *outnvl)
+zfs_ioc_rollback(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	zfsvfs_t *zfsvfs;
+	char *target = NULL;
 	int error;
 
+	(void) nvlist_lookup_string(innvl, "target", &target);
+	if (target != NULL) {
+		const char *cp = strchr(target, '@');
+
+		/*
+		 * The snap name must contain an @, and the part after it must
+		 * contain only valid characters.
+		 */
+		if (cp == NULL ||
+		    zfs_component_namecheck(cp + 1, NULL, NULL) != 0)
+			return (SET_ERROR(EINVAL));
+	}
+
 	if (getzfsvfs(fsname, &zfsvfs) == 0) {
+		dsl_dataset_t *ds;
+
+		ds = dmu_objset_ds(zfsvfs->z_os);
 		error = zfs_suspend_fs(zfsvfs);
 		if (error == 0) {
 			int resume_err;
 
-			error = dsl_dataset_rollback(fsname, zfsvfs, outnvl);
-			resume_err = zfs_resume_fs(zfsvfs, fsname);
+			error = dsl_dataset_rollback(fsname, target, zfsvfs,
+			    outnvl);
+			resume_err = zfs_resume_fs(zfsvfs, ds);
 			error = error ? error : resume_err;
 		}
 #ifdef illumos
@@ -3744,7 +3988,7 @@ zfs_ioc_rollback(const char *fsname, nvlist_t *args, nvlist_t *outnvl)
 		vfs_unbusy(zfsvfs->z_vfs);
 #endif
 	} else {
-		error = dsl_dataset_rollback(fsname, NULL, outnvl);
+		error = dsl_dataset_rollback(fsname, target, NULL, outnvl);
 	}
 	return (error);
 }
@@ -3753,10 +3997,12 @@ static int
 recursive_unmount(const char *fsname, void *arg)
 {
 	const char *snapname = arg;
-	char fullname[MAXNAMELEN];
+	char fullname[ZFS_MAX_DATASET_NAME_LEN];
 
 	(void) snprintf(fullname, sizeof (fullname), "%s@%s", fsname, snapname);
-	return (zfs_unmount_snap(fullname));
+	zfs_unmount_snap(fullname);
+
+	return (0);
 }
 
 /*
@@ -3778,9 +4024,12 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 	allow_mounted = (zc->zc_cookie & 2) != 0;
 #endif
 
+	/* "zfs rename" from and to ...%recv datasets should both fail */
+	zc->zc_name[sizeof (zc->zc_name) - 1] = '\0';
 	zc->zc_value[sizeof (zc->zc_value) - 1] = '\0';
-	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
-	    strchr(zc->zc_value, '%'))
+	if (dataset_namecheck(zc->zc_name, NULL, NULL) != 0 ||
+	    dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
+	    strchr(zc->zc_name, '%') || strchr(zc->zc_value, '%'))
 		return (SET_ERROR(EINVAL));
 
 	at = strchr(zc->zc_name, '@');
@@ -3934,16 +4183,6 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 			spa_t *spa;
 
 			/*
-			 * If this is a bootable dataset then
-			 * the we don't allow large (>128K) blocks,
-			 * because GRUB doesn't support them.
-			 */
-			if (zfs_is_bootfs(dsname) &&
-			    intval > SPA_OLD_MAXBLOCKSIZE) {
-				return (SET_ERROR(ERANGE));
-			}
-
-			/*
 			 * We don't allow setting the property above 1MB,
 			 * unless the tunable has been changed.
 			 */
@@ -3956,6 +4195,34 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 
 			if (!spa_feature_is_enabled(spa,
 			    SPA_FEATURE_LARGE_BLOCKS)) {
+				spa_close(spa, FTAG);
+				return (SET_ERROR(ENOTSUP));
+			}
+			spa_close(spa, FTAG);
+		}
+		break;
+
+	case ZFS_PROP_DNODESIZE:
+		/* Dnode sizes above 512 need the feature to be enabled */
+		if (nvpair_value_uint64(pair, &intval) == 0 &&
+		    intval != ZFS_DNSIZE_LEGACY) {
+			spa_t *spa;
+
+			/*
+			 * If this is a bootable dataset then
+			 * we don't allow large (>512B) dnodes,
+			 * because GRUB doesn't support them.
+			 */
+			if (zfs_is_bootfs(dsname) &&
+				intval != ZFS_DNSIZE_LEGACY) {
+				return (SET_ERROR(EDOM));
+			}
+
+			if ((err = spa_open(dsname, &spa, FTAG)) != 0)
+				return (err);
+
+			if (!spa_feature_is_enabled(spa,
+			    SPA_FEATURE_LARGE_DNODE)) {
 				spa_close(spa, FTAG);
 				return (SET_ERROR(ENOTSUP));
 			}
@@ -4288,8 +4555,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	nvlist_t *delayprops = NULL; /* sent properties applied post-receive */
 	char *origin = NULL;
 	char *tosnap;
-	char tofs[ZFS_MAXNAMELEN];
-	cap_rights_t rights;
+	char tofs[ZFS_MAX_DATASET_NAME_LEN];
 	boolean_t first_recvd_props = B_FALSE;
 
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -4310,7 +4576,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 #ifdef illumos
 	fp = getf(fd);
 #else
-	fget_read(curthread, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
+	fget_read(curthread, fd, &cap_pread_rights, &fp);
 #endif
 	if (fp == NULL) {
 		nvlist_free(props);
@@ -4386,8 +4652,10 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 
 		if (getzfsvfs(tofs, &zfsvfs) == 0) {
 			/* online recv */
+			dsl_dataset_t *ds;
 			int end_err;
 
+			ds = dmu_objset_ds(zfsvfs->z_os);
 			error = zfs_suspend_fs(zfsvfs);
 			/*
 			 * If the suspend fails, then the recv_end will
@@ -4395,7 +4663,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 			 */
 			end_err = dmu_recv_end(&drc, zfsvfs);
 			if (error == 0)
-				error = zfs_resume_fs(zfsvfs, tofs);
+				error = zfs_resume_fs(zfsvfs, ds);
 			error = error ? error : end_err;
 #ifdef illumos
 			VFS_RELE(zfsvfs->z_vfs);
@@ -4528,6 +4796,7 @@ zfs_ioc_send(zfs_cmd_t *zc)
 	boolean_t estimate = (zc->zc_guid != 0);
 	boolean_t embedok = (zc->zc_flags & 0x1);
 	boolean_t large_block_ok = (zc->zc_flags & 0x2);
+	boolean_t compressok = (zc->zc_flags & 0x4);
 
 	if (zc->zc_obj != 0) {
 		dsl_pool_t *dp;
@@ -4575,7 +4844,7 @@ zfs_ioc_send(zfs_cmd_t *zc)
 			}
 		}
 
-		error = dmu_send_estimate(tosnap, fromsnap,
+		error = dmu_send_estimate(tosnap, fromsnap, compressok,
 		    &zc->zc_objset_type);
 
 		if (fromsnap != NULL)
@@ -4584,20 +4853,18 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		dsl_pool_rele(dp, FTAG);
 	} else {
 		file_t *fp;
-		cap_rights_t rights;
 
 #ifdef illumos
 		fp = getf(zc->zc_cookie);
 #else
-		fget_write(curthread, zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE), &fp);
+		fget_write(curthread, zc->zc_cookie, &cap_write_rights, &fp);
 #endif
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
 
 		off = fp->f_offset;
 		error = dmu_send_obj(zc->zc_name, zc->zc_sendobj,
-		    zc->zc_fromobj, embedok, large_block_ok,
+		    zc->zc_fromobj, embedok, large_block_ok, compressok,
 #ifdef illumos
 		    zc->zc_cookie, fp->f_vnode, &off);
 #else
@@ -4826,7 +5093,6 @@ zfs_ioc_pool_reopen(zfs_cmd_t *zc)
 /*
  * inputs:
  * zc_name	name of filesystem
- * zc_value	name of origin snapshot
  *
  * outputs:
  * zc_string	name of conflicting snapshot, if there is one
@@ -4834,16 +5100,54 @@ zfs_ioc_pool_reopen(zfs_cmd_t *zc)
 static int
 zfs_ioc_promote(zfs_cmd_t *zc)
 {
+	dsl_pool_t *dp;
+	dsl_dataset_t *ds, *ods;
+	char origin[ZFS_MAX_DATASET_NAME_LEN];
 	char *cp;
+	int error;
+
+	zc->zc_name[sizeof (zc->zc_name) - 1] = '\0';
+	if (dataset_namecheck(zc->zc_name, NULL, NULL) != 0 ||
+	    strchr(zc->zc_name, '%'))
+		return (SET_ERROR(EINVAL));
+
+	error = dsl_pool_hold(zc->zc_name, FTAG, &dp);
+	if (error != 0)
+		return (error);
+
+	error = dsl_dataset_hold(dp, zc->zc_name, FTAG, &ds);
+	if (error != 0) {
+		dsl_pool_rele(dp, FTAG);
+		return (error);
+	}
+
+	if (!dsl_dir_is_clone(ds->ds_dir)) {
+		dsl_dataset_rele(ds, FTAG);
+		dsl_pool_rele(dp, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
+	error = dsl_dataset_hold_obj(dp,
+	    dsl_dir_phys(ds->ds_dir)->dd_origin_obj, FTAG, &ods);
+	if (error != 0) {
+		dsl_dataset_rele(ds, FTAG);
+		dsl_pool_rele(dp, FTAG);
+		return (error);
+	}
+
+	dsl_dataset_name(ods, origin);
+	dsl_dataset_rele(ods, FTAG);
+	dsl_dataset_rele(ds, FTAG);
+	dsl_pool_rele(dp, FTAG);
 
 	/*
 	 * We don't need to unmount *all* the origin fs's snapshots, but
 	 * it's easier.
 	 */
-	cp = strchr(zc->zc_value, '@');
+	cp = strchr(origin, '@');
 	if (cp)
 		*cp = '\0';
-	(void) dmu_objset_find(zc->zc_value,
+	(void) dmu_objset_find(origin,
 	    zfs_unmount_snap_cb, NULL, DS_FIND_SNAPSHOTS);
 	return (dsl_dataset_promote(zc->zc_name, zc->zc_string));
 }
@@ -4941,11 +5245,14 @@ zfs_ioc_userspace_upgrade(zfs_cmd_t *zc)
 			 * objset needs to be closed & reopened (to grow the
 			 * objset_phys_t).  Suspend/resume the fs will do that.
 			 */
+			dsl_dataset_t *ds, *newds;
+
+			ds = dmu_objset_ds(zfsvfs->z_os);
 			error = zfs_suspend_fs(zfsvfs);
 			if (error == 0) {
-				dmu_objset_refresh_ownership(zfsvfs->z_os,
+				dmu_objset_refresh_ownership(ds, &newds,
 				    zfsvfs);
-				error = zfs_resume_fs(zfsvfs, zc->zc_name);
+				error = zfs_resume_fs(zfsvfs, newds);
 			}
 		}
 		if (error == 0)
@@ -5187,15 +5494,13 @@ static int
 zfs_ioc_diff(zfs_cmd_t *zc)
 {
 	file_t *fp;
-	cap_rights_t rights;
 	offset_t off;
 	int error;
 
 #ifdef illumos
 	fp = getf(zc->zc_cookie);
 #else
-	fget_write(curthread, zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE), &fp);
+	fget_write(curthread, zc->zc_cookie, &cap_write_rights, &fp);
 #endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
@@ -5575,6 +5880,8 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
  *         indicates that blocks > 128KB are permitted
  *     (optional) "embedok" -> (value ignored)
  *         presence indicates DRR_WRITE_EMBEDDED records are permitted
+ *     (optional) "compressok" -> (value ignored)
+ *         presence indicates compressed DRR_WRITE records are permitted
  *     (optional) "resume_object" and "resume_offset" -> (uint64)
  *         if present, resume send stream from specified object and offset.
  * }
@@ -5585,7 +5892,6 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
 static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
-	cap_rights_t rights;
 	file_t *fp;
 	int error;
 	offset_t off;
@@ -5593,6 +5899,7 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 	int fd;
 	boolean_t largeblockok;
 	boolean_t embedok;
+	boolean_t compressok;
 	uint64_t resumeobj = 0;
 	uint64_t resumeoff = 0;
 
@@ -5604,6 +5911,7 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 
 	largeblockok = nvlist_exists(innvl, "largeblockok");
 	embedok = nvlist_exists(innvl, "embedok");
+	compressok = nvlist_exists(innvl, "compressok");
 
 	(void) nvlist_lookup_uint64(innvl, "resume_object", &resumeobj);
 	(void) nvlist_lookup_uint64(innvl, "resume_offset", &resumeoff);
@@ -5611,17 +5919,17 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 #ifdef illumos
 	file_t *fp = getf(fd);
 #else
-	fget_write(curthread, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	fget_write(curthread, fd, &cap_write_rights, &fp);
 #endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
 	off = fp->f_offset;
-	error = dmu_send(snapname, fromname, embedok, largeblockok, fd,
+	error = dmu_send(snapname, fromname, embedok, largeblockok, compressok,
 #ifdef illumos
-	    resumeobj, resumeoff, fp->f_vnode, &off);
+	    fd, resumeobj, resumeoff, fp->f_vnode, &off);
 #else
-	    resumeobj, resumeoff, fp, &off);
+	    fd, resumeobj, resumeoff, fp, &off);
 #endif
 
 #ifdef illumos
@@ -5642,6 +5950,12 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
  * innvl: {
  *     (optional) "from" -> full snap or bookmark name to send an incremental
  *                          from
+ *     (optional) "largeblockok" -> (value ignored)
+ *         indicates that blocks > 128KB are permitted
+ *     (optional) "embedok" -> (value ignored)
+ *         presence indicates DRR_WRITE_EMBEDDED records are permitted
+ *     (optional) "compressok" -> (value ignored)
+ *         presence indicates compressed DRR_WRITE records are permitted
  * }
  *
  * outnvl: {
@@ -5655,6 +5969,7 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 	dsl_dataset_t *tosnap;
 	int error;
 	char *fromname;
+	boolean_t compressok;
 	uint64_t space;
 
 	error = dsl_pool_hold(snapname, FTAG, &dp);
@@ -5666,6 +5981,8 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 		dsl_pool_rele(dp, FTAG);
 		return (error);
 	}
+
+	compressok = nvlist_exists(innvl, "compressok");
 
 	error = nvlist_lookup_string(innvl, "from", &fromname);
 	if (error == 0) {
@@ -5679,7 +5996,8 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 			error = dsl_dataset_hold(dp, fromname, FTAG, &fromsnap);
 			if (error != 0)
 				goto out;
-			error = dmu_send_estimate(tosnap, fromsnap, &space);
+			error = dmu_send_estimate(tosnap, fromsnap, compressok,
+			    &space);
 			dsl_dataset_rele(fromsnap, FTAG);
 		} else if (strchr(fromname, '#') != NULL) {
 			/*
@@ -5694,7 +6012,7 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 			if (error != 0)
 				goto out;
 			error = dmu_send_estimate_from_txg(tosnap,
-			    frombm.zbm_creation_txg, &space);
+			    frombm.zbm_creation_txg, compressok, &space);
 		} else {
 			/*
 			 * from is not properly formatted as a snapshot or
@@ -5704,8 +6022,10 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 			goto out;
 		}
 	} else {
-		// If estimating the size of a full send, use dmu_send_estimate
-		error = dmu_send_estimate(tosnap, NULL, &space);
+		/*
+		 * If estimating the size of a full send, use dmu_send_estimate.
+		 */
+		error = dmu_send_estimate(tosnap, NULL, compressok, &space);
 	}
 
 	fnvlist_add_uint64(outnvl, "space", space);
@@ -5852,6 +6172,10 @@ zfs_ioctl_init(void)
 	    zfs_ioc_clone, zfs_secpolicy_create_clone, DATASET_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
 
+	zfs_ioctl_register("remap", ZFS_IOC_REMAP,
+	    zfs_ioc_remap, zfs_secpolicy_remap, DATASET_NAME,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_FALSE, B_TRUE);
+
 	zfs_ioctl_register("destroy_snaps", ZFS_IOC_DESTROY_SNAPS,
 	    zfs_ioc_destroy_snaps, zfs_secpolicy_destroy_snaps, POOL_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
@@ -5882,6 +6206,24 @@ zfs_ioctl_init(void)
 	zfs_ioctl_register("destroy_bookmarks", ZFS_IOC_DESTROY_BOOKMARKS,
 	    zfs_ioc_destroy_bookmarks, zfs_secpolicy_destroy_bookmarks,
 	    POOL_NAME,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
+
+	zfs_ioctl_register("channel_program", ZFS_IOC_CHANNEL_PROGRAM,
+	    zfs_ioc_channel_program, zfs_secpolicy_config,
+	    POOL_NAME, POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE,
+	    B_TRUE);
+
+	zfs_ioctl_register("zpool_checkpoint", ZFS_IOC_POOL_CHECKPOINT,
+	    zfs_ioc_pool_checkpoint, zfs_secpolicy_config, POOL_NAME,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
+
+	zfs_ioctl_register("zpool_discard_checkpoint",
+	    ZFS_IOC_POOL_DISCARD_CHECKPOINT, zfs_ioc_pool_discard_checkpoint,
+	    zfs_secpolicy_config, POOL_NAME,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
+
+	zfs_ioctl_register("initialize", ZFS_IOC_POOL_INITIALIZE,
+	    zfs_ioc_pool_initialize, zfs_secpolicy_config, POOL_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
 
 	/* IOCTLS that use the legacy function signature */
@@ -5955,7 +6297,7 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_NONE);
 
 	zfs_ioctl_register_pool(ZFS_IOC_CLEAR, zfs_ioc_clear,
-	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_NONE);
+	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_READONLY);
 	zfs_ioctl_register_pool(ZFS_IOC_POOL_REOPEN, zfs_ioc_pool_reopen,
 	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_SUSPENDED);
 
@@ -6022,6 +6364,9 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_config, POOL_CHECK_NONE);
 	zfs_ioctl_register_dataset_nolog(ZFS_IOC_UNJAIL, zfs_ioc_unjail,
 	    zfs_secpolicy_config, POOL_CHECK_NONE);
+	zfs_ioctl_register("fbsd_nextboot", ZFS_IOC_NEXTBOOT,
+	    zfs_ioc_nextboot, zfs_secpolicy_config, NO_NAME,
+	    POOL_CHECK_NONE, B_FALSE, B_FALSE);
 #endif
 }
 
@@ -6203,6 +6548,10 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 			cflag = ZFS_CMD_COMPAT_V28;
 			break;
 		case sizeof(zfs_cmd_v15_t):
+			if (cmd >= sizeof(zfs_ioctl_v15_to_v28) /
+			    sizeof(zfs_ioctl_v15_to_v28[0]))
+				return (EINVAL);
+
 			cflag = ZFS_CMD_COMPAT_V15;
 			vecnum = zfs_ioctl_v15_to_v28[cmd];
 
@@ -6249,6 +6598,14 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 				error = SET_ERROR(EINVAL);
 				goto out;
 			}
+			break;
+		case ZFS_IOCVER_INLANES:
+			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_inlanes_t)) {
+				error = SET_ERROR(EFAULT);
+				goto out;
+			}
+			compat = B_TRUE;
+			cflag = ZFS_CMD_COMPAT_INLANES;
 			break;
 		case ZFS_IOCVER_RESUME:
 			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_resume_t)) {
@@ -6357,7 +6714,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		break;
 	}
 
-	if (error == 0 && !(flag & FKIOCTL))
+	if (error == 0)
 		error = vec->zvec_secpolicy(zc, innvl, cr);
 
 	if (error != 0)
@@ -6393,11 +6750,22 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		outnvl = fnvlist_alloc();
 		error = vec->zvec_func(zc->zc_name, innvl, outnvl);
 
-		if (error == 0 && vec->zvec_allow_log &&
+		/*
+		 * Some commands can partially execute, modfiy state, and still
+		 * return an error.  In these cases, attempt to record what
+		 * was modified.
+		 */
+		if ((error == 0 ||
+		    (cmd == ZFS_IOC_CHANNEL_PROGRAM && error != EINVAL)) &&
+		    vec->zvec_allow_log &&
 		    spa_open(zc->zc_name, &spa, FTAG) == 0) {
 			if (!nvlist_empty(outnvl)) {
 				fnvlist_add_nvlist(lognv, ZPOOL_HIST_OUTPUT_NVL,
 				    outnvl);
+			}
+			if (error != 0) {
+				fnvlist_add_int64(lognv, ZPOOL_HIST_ERRNO,
+				    error);
 			}
 			(void) spa_history_log_nvl(spa, lognv);
 			spa_close(spa, FTAG);

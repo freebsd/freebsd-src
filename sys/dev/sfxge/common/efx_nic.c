@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -268,7 +270,6 @@ efx_nic_create(
 		    EFX_FEATURE_LFSR_HASH_INSERT |
 		    EFX_FEATURE_LINK_EVENTS |
 		    EFX_FEATURE_PERIODIC_MAC_STATS |
-		    EFX_FEATURE_WOL |
 		    EFX_FEATURE_MCDI |
 		    EFX_FEATURE_LOOKAHEAD_SPLIT |
 		    EFX_FEATURE_MAC_HEADER_FILTERS |
@@ -279,7 +280,6 @@ efx_nic_create(
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
 		enp->en_enop = &__efx_nic_hunt_ops;
-		/* FIXME: Add WOL support */
 		enp->en_features =
 		    EFX_FEATURE_IPV6 |
 		    EFX_FEATURE_LINK_EVENTS |
@@ -556,7 +556,7 @@ efx_nic_destroy(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, 0);
 
-	enp->en_family = 0;
+	enp->en_family = EFX_FAMILY_INVALID;
 	enp->en_esip = NULL;
 	enp->en_esbp = NULL;
 	enp->en_eslp = NULL;

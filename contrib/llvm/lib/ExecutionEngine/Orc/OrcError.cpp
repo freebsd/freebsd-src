@@ -20,9 +20,12 @@ using namespace llvm::orc;
 
 namespace {
 
+// FIXME: This class is only here to support the transition to llvm::Error. It
+// will be removed once this transition is complete. Clients should prefer to
+// deal with the Error value directly, rather than converting to error_code.
 class OrcErrorCategory : public std::error_category {
 public:
-  const char *name() const LLVM_NOEXCEPT override { return "orc"; }
+  const char *name() const noexcept override { return "orc"; }
 
   std::string message(int condition) const override {
     switch (static_cast<OrcErrorCode>(condition)) {
@@ -36,8 +39,23 @@ public:
       return "Remote indirect stubs owner does not exist";
     case OrcErrorCode::RemoteIndirectStubsOwnerIdAlreadyInUse:
       return "Remote indirect stubs owner Id already in use";
+    case OrcErrorCode::RPCConnectionClosed:
+      return "RPC connection closed";
+    case OrcErrorCode::RPCCouldNotNegotiateFunction:
+      return "Could not negotiate RPC function";
+    case OrcErrorCode::RPCResponseAbandoned:
+      return "RPC response abandoned";
+    case OrcErrorCode::JITSymbolNotFound:
+      return "JIT symbol not found";
     case OrcErrorCode::UnexpectedRPCCall:
       return "Unexpected RPC call";
+    case OrcErrorCode::UnexpectedRPCResponse:
+      return "Unexpected RPC response";
+    case OrcErrorCode::UnknownErrorCodeFromRemote:
+      return "Unknown error returned from remote RPC function "
+             "(Use StringError to get error message)";
+    case OrcErrorCode::UnknownResourceHandle:
+      return "Unknown resource handle";
     }
     llvm_unreachable("Unhandled error code");
   }
@@ -49,9 +67,29 @@ static ManagedStatic<OrcErrorCategory> OrcErrCat;
 namespace llvm {
 namespace orc {
 
+char JITSymbolNotFound::ID = 0;
+
 std::error_code orcError(OrcErrorCode ErrCode) {
   typedef std::underlying_type<OrcErrorCode>::type UT;
   return std::error_code(static_cast<UT>(ErrCode), *OrcErrCat);
 }
+
+JITSymbolNotFound::JITSymbolNotFound(std::string SymbolName)
+  : SymbolName(std::move(SymbolName)) {}
+
+std::error_code JITSymbolNotFound::convertToErrorCode() const {
+  typedef std::underlying_type<OrcErrorCode>::type UT;
+  return std::error_code(static_cast<UT>(OrcErrorCode::JITSymbolNotFound),
+                         *OrcErrCat);
+}
+
+void JITSymbolNotFound::log(raw_ostream &OS) const {
+  OS << "Could not find symbol '" << SymbolName << "'";
+}
+
+const std::string &JITSymbolNotFound::getSymbolName() const {
+  return SymbolName;
+}
+
 }
 }

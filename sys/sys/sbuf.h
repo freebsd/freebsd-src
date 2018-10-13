@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2008 Poul-Henning Kamp
  * Copyright (c) 2000-2008 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
@@ -49,6 +51,7 @@ struct sbuf {
 #define	SBUF_FIXEDLEN	0x00000000	/* fixed length buffer (default) */
 #define	SBUF_AUTOEXTEND	0x00000001	/* automatically extend buffer */
 #define	SBUF_INCLUDENUL	0x00000002	/* nulterm byte is counted in len */
+#define	SBUF_DRAINTOEOR	0x00000004	/* use section 0 as drain EOR marker */
 #define	SBUF_USRFLAGMSK	0x0000ffff	/* mask of flags the user may specify */
 #define	SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
 #define	SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
@@ -56,6 +59,7 @@ struct sbuf {
 #define	SBUF_INSECTION	0x00100000	/* set by sbuf_start_section() */
 	int		 s_flags;	/* flags */
 	ssize_t		 s_sect_len;	/* current length of section */
+	ssize_t		 s_rec_off;	/* current record start offset */
 };
 
 #ifndef HD_COLUMN_MASK
@@ -99,6 +103,7 @@ void		 sbuf_start_section(struct sbuf *, ssize_t *);
 ssize_t		 sbuf_end_section(struct sbuf *, ssize_t, size_t, int);
 void		 sbuf_hexdump(struct sbuf *, const void *, int, const char *,
 		     int);
+void		 sbuf_putbuf(struct sbuf *);
 
 #ifdef _KERNEL
 struct uio;

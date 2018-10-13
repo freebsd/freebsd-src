@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.369 2016/02/17 07:38:19 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.396 2018/07/19 10:28:47 dtucker Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 17 2016 $
+.Dd $Mdocdate: July 19 2018 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -43,8 +43,8 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Bk -words
-.Op Fl 1246AaCfGgKkMNnqsTtVvXxYy
+.Op Fl 46AaCfGgKkMNnqsTtVvXxYy
+.Op Fl B Ar bind_interface
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl D Oo Ar bind_address : Oc Ns Ar port
@@ -53,6 +53,7 @@
 .Op Fl F Ar configfile
 .Op Fl I Ar pkcs11
 .Op Fl i Ar identity_file
+.Op Fl J Ar destination
 .Op Fl L Ar address
 .Op Fl l Ar login_name
 .Op Fl m Ar mac_spec
@@ -64,9 +65,8 @@
 .Op Fl S Ar ctl_path
 .Op Fl W Ar host : Ns Ar port
 .Op Fl w Ar local_tun Ns Op : Ns Ar remote_tun
-.Oo Ar user Ns @ Oc Ns Ar hostname
+.Ar destination
 .Op Ar command
-.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -79,15 +79,20 @@ sockets can also be forwarded over the secure channel.
 .Pp
 .Nm
 connects and logs into the specified
-.Ar hostname
-(with optional
-.Ar user
-name).
+.Ar destination ,
+which may be specified as either
+.Sm off
+.Oo user @ Oc hostname
+.Sm on
+or a URI of the form
+.Sm off
+.No ssh:// Oo user @ Oc hostname Op : port .
+.Sm on
 The user must prove
 his/her identity to the remote machine using one of several methods
 (see below).
 .Pp
-If
+If a
 .Ar command
 is specified,
 it is executed on the remote host instead of a login shell.
@@ -95,16 +100,6 @@ it is executed on the remote host instead of a login shell.
 The options are as follows:
 .Pp
 .Bl -tag -width Ds -compact
-.It Fl 1
-Forces
-.Nm
-to try protocol version 1 only.
-.Pp
-.It Fl 2
-Forces
-.Nm
-to try protocol version 2 only.
-.Pp
 .It Fl 4
 Forces
 .Nm
@@ -131,6 +126,12 @@ authenticate using the identities loaded into the agent.
 .It Fl a
 Disables forwarding of the authentication agent connection.
 .Pp
+.It Fl B Ar bind_interface
+Bind to the address of
+.Ar bind_interface
+before attempting to connect to the destination host.
+This is only useful on systems with more than one address.
+.Pp
 .It Fl b Ar bind_address
 Use
 .Ar bind_address
@@ -144,12 +145,7 @@ data for forwarded X11, TCP and
 .Ux Ns -domain
 connections).
 The compression algorithm is the same used by
-.Xr gzip 1 ,
-and the
-.Dq level
-can be controlled by the
-.Cm CompressionLevel
-option for protocol version 1.
+.Xr gzip 1 .
 Compression is desirable on modem lines and other
 slow connections, but will only slow down things on fast networks.
 The default value can be set on a host-by-host basis in the
@@ -159,14 +155,6 @@ option.
 .Pp
 .It Fl c Ar cipher_spec
 Selects the cipher specification for encrypting the session.
-.Pp
-Protocol version 1 allows specification of a single cipher.
-The supported values are
-.Dq 3des ,
-.Dq blowfish ,
-and
-.Dq des .
-For protocol version 2,
 .Ar cipher_spec
 is a comma-separated list of ciphers
 listed in order of preference.
@@ -290,14 +278,11 @@ private RSA key.
 Selects a file from which the identity (private key) for
 public key authentication is read.
 The default is
-.Pa ~/.ssh/identity
-for protocol version 1, and
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_rsa
-for protocol version 2.
+.Pa ~/.ssh/id_rsa .
 Identity files may also be specified on
 a per-host basis in the configuration file.
 It is possible to have multiple
@@ -312,6 +297,18 @@ will also try to load certificate information from the filename obtained
 by appending
 .Pa -cert.pub
 to identity filenames.
+.Pp
+.It Fl J Ar destination
+Connect to the target host by first making a
+.Nm
+connection to the jump host described by
+.Ar destination
+and then establishing a TCP forwarding to the ultimate destination from
+there.
+Multiple jump hops may be specified separated by comma characters.
+This is a shortcut to specify a
+.Cm ProxyJump
+configuration directive.
 .Pp
 .It Fl K
 Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
@@ -473,11 +470,9 @@ For full details of the options listed below, and their possible values, see
 .It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
-.It Cipher
 .It Ciphers
 .It ClearAllForwardings
 .It Compression
-.It CompressionLevel
 .It ConnectionAttempts
 .It ConnectTimeout
 .It ControlMaster
@@ -502,8 +497,9 @@ For full details of the options listed below, and their possible values, see
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
-.It IdentityFile
 .It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -520,19 +516,19 @@ For full details of the options listed below, and their possible values, see
 .It PKCS11Provider
 .It Port
 .It PreferredAuthentications
-.It Protocol
 .It ProxyCommand
+.It ProxyJump
 .It ProxyUseFdpass
 .It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
+.It RemoteCommand
 .It RemoteForward
 .It RequestTTY
-.It RhostsRSAAuthentication
-.It RSAAuthentication
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
+.It SetEnv
 .It StreamLocalBindMask
 .It StreamLocalBindUnlink
 .It StrictHostKeyChecking
@@ -540,7 +536,6 @@ For full details of the options listed below, and their possible values, see
 .It Tunnel
 .It TunnelDevice
 .It UpdateHostKeys
-.It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS
@@ -602,21 +597,30 @@ Causes most warning and diagnostic messages to be suppressed.
 .Ar remote_socket : local_socket
 .Sm on
 .Xc
+.It Fl R Xo
+.Sm off
+.Oo Ar bind_address : Oc
+.Ar port
+.Sm on
+.Xc
 Specifies that connections to the given TCP port or Unix socket on the remote
-(server) host are to be forwarded to the given host and port, or Unix socket,
-on the local side.
+(server) host are to be forwarded to the local side.
+.Pp
 This works by allocating a socket to listen to either a TCP
 .Ar port
 or to a Unix socket on the remote side.
 Whenever a connection is made to this port or Unix socket, the
 connection is forwarded over the secure channel, and a connection
-is made to either
+is made from the local machine to either an explicit destination specified by
 .Ar host
 port
 .Ar hostport ,
 or
 .Ar local_socket ,
-from the local machine.
+or, if no explicit destination was specified,
+.Nm
+will act as a SOCKS 4/5 proxy and forward connections to the destinations
+requested by the remote SOCKS client.
 .Pp
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
@@ -709,7 +713,10 @@ Implies
 .Fl T ,
 .Cm ExitOnForwardFailure
 and
-.Cm ClearAllForwardings .
+.Cm ClearAllForwardings ,
+though these can be overridden in the configuration file or using
+.Fl o
+command line options.
 .Pp
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
@@ -736,10 +743,15 @@ and
 .Cm TunnelDevice
 directives in
 .Xr ssh_config 5 .
+.Pp
 If the
 .Cm Tunnel
-directive is unset, it is set to the default tunnel mode, which is
+directive is unset, it will be set to the default tunnel mode, which is
 .Dq point-to-point .
+If a different
+.Cm Tunnel
+forwarding mode it desired, then it should be specified before
+.Fl w .
 .Pp
 .It Fl X
 Enables X11 forwarding.
@@ -783,21 +795,7 @@ a per-user configuration file and a system-wide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 .Sh AUTHENTICATION
-The OpenSSH SSH client supports SSH protocols 1 and 2.
-The default is to use protocol 2 only,
-though this can be changed via the
-.Cm Protocol
-option in
-.Xr ssh_config 5
-or the
-.Fl 1
-and
-.Fl 2
-options (see above).
-Protocol 1 should not be used
-and is only offered to support legacy devices.
-It suffers from a number of cryptographic weaknesses
-and doesn't support many of the advanced features available for protocol 2.
+The OpenSSH SSH client supports SSH protocol 2.
 .Pp
 The methods available for authentication are:
 GSSAPI-based authentication,
@@ -867,11 +865,20 @@ The client proves that it has access to the private key
 and the server checks that the corresponding public key
 is authorized to accept the account.
 .Pp
+The server may inform the client of errors that prevented public key
+authentication from succeeding after authentication completes using a
+different method.
+These may be viewed by increasing the
+.Cm LogLevel
+to
+.Cm DEBUG
+or higher (e.g. by using the
+.Fl v
+flag).
+.Pp
 The user creates his/her key pair by running
 .Xr ssh-keygen 1 .
 This stores the private key in
-.Pa ~/.ssh/identity
-(protocol 1),
 .Pa ~/.ssh/id_dsa
 (DSA),
 .Pa ~/.ssh/id_ecdsa
@@ -882,8 +889,6 @@ or
 .Pa ~/.ssh/id_rsa
 (RSA)
 and stores the public key in
-.Pa ~/.ssh/identity.pub
-(protocol 1),
 .Pa ~/.ssh/id_dsa.pub
 (DSA),
 .Pa ~/.ssh/id_ecdsa.pub
@@ -1398,6 +1403,17 @@ This is set to the name of the tty (path to the device) associated
 with the current shell or command.
 If the current session has no tty,
 this variable is not set.
+.It Ev SSH_TUNNEL
+Optionally set by
+.Xr sshd 8
+to contain the interface names assigned if tunnel forwarding was
+requested by the client.
+.It Ev SSH_USER_AUTH
+Optionally set by
+.Xr sshd 8 ,
+this variable may contain a pathname to a file that lists the authentication
+methods successfully used when the session was established, including any
+public keys that were used.
 .It Ev TZ
 This variable is set to indicate the present time zone if it
 was set when the daemon was started (i.e. the daemon passes the value
@@ -1467,7 +1483,6 @@ Contains additional definitions for environment variables; see
 .Sx ENVIRONMENT ,
 above.
 .Pp
-.It Pa ~/.ssh/identity
 .It Pa ~/.ssh/id_dsa
 .It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_ed25519
@@ -1480,9 +1495,8 @@ accessible by others (read/write/execute).
 will simply ignore a private key file if it is accessible by others.
 It is possible to specify a passphrase when
 generating the key which will be used to encrypt the
-sensitive part of this file using 3DES.
+sensitive part of this file using AES-128.
 .Pp
-.It Pa ~/.ssh/identity.pub
 .It Pa ~/.ssh/id_dsa.pub
 .It Pa ~/.ssh/id_ecdsa.pub
 .It Pa ~/.ssh/id_ed25519.pub

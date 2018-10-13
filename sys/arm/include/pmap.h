@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Svatopluk Kraus
  * Copyright (c) 2016 Michal Meloun
  * All rights reserved.
@@ -37,6 +39,7 @@
 #endif
 
 #ifdef _KERNEL
+#include <sys/systm.h>
 
 extern vm_paddr_t dump_avail[];
 extern vm_paddr_t phys_avail[];
@@ -52,6 +55,12 @@ void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
+
+static inline void *
+pmap_mapdev_attr(vm_paddr_t addr, vm_size_t size, int attr)
+{
+	panic("%s is not implemented yet!\n", __func__);
+}
 
 struct pcb;
 void pmap_set_pcb_pagedir(pmap_t, struct pcb *);

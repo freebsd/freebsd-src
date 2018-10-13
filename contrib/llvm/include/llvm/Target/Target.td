@@ -21,6 +21,56 @@ include "llvm/IR/Intrinsics.td"
 
 class RegisterClass; // Forward def
 
+class HwMode<string FS> {
+  // A string representing subtarget features that turn on this HW mode.
+  // For example, "+feat1,-feat2" will indicate that the mode is active
+  // when "feat1" is enabled and "feat2" is disabled at the same time.
+  // Any other features are not checked.
+  // When multiple modes are used, they should be mutually exclusive,
+  // otherwise the results are unpredictable.
+  string Features = FS;
+}
+
+// A special mode recognized by tablegen. This mode is considered active
+// when no other mode is active. For targets that do not use specific hw
+// modes, this is the only mode.
+def DefaultMode : HwMode<"">;
+
+// A class used to associate objects with HW modes. It is only intended to
+// be used as a base class, where the derived class should contain a member
+// "Objects", which is a list of the same length as the list of modes.
+// The n-th element on the Objects list will be associated with the n-th
+// element on the Modes list.
+class HwModeSelect<list<HwMode> Ms> {
+  list<HwMode> Modes = Ms;
+}
+
+// A common class that implements a counterpart of ValueType, which is
+// dependent on a HW mode. This class inherits from ValueType itself,
+// which makes it possible to use objects of this class where ValueType
+// objects could be used. This is specifically applicable to selection
+// patterns.
+class ValueTypeByHwMode<list<HwMode> Ms, list<ValueType> Ts>
+    : HwModeSelect<Ms>, ValueType<0, 0> {
+  // The length of this list must be the same as the length of Ms.
+  list<ValueType> Objects = Ts;
+}
+
+// A class representing the register size, spill size and spill alignment
+// in bits of a register.
+class RegInfo<int RS, int SS, int SA> {
+  int RegSize = RS;         // Register size in bits.
+  int SpillSize = SS;       // Spill slot size in bits.
+  int SpillAlignment = SA;  // Spill slot alignment in bits.
+}
+
+// The register size/alignment information, parameterized by a HW mode.
+class RegInfoByHwMode<list<HwMode> Ms = [], list<RegInfo> Ts = []>
+    : HwModeSelect<Ms> {
+  // The length of this list must be the same as the length of Ms.
+  list<RegInfo> Objects = Ts;
+}
+
 // SubRegIndex - Use instances of SubRegIndex to identify subregisters.
 class SubRegIndex<int size, int offset = 0> {
   string Namespace = "";
@@ -141,7 +191,10 @@ class RegisterWithSubRegs<string n, list<Register> subregs> : Register<n> {
 // of Operand's that are legal as type qualifiers in DAG patterns.  This should
 // only ever be used for defining multiclasses that are polymorphic over both
 // RegisterClass's and other Operand's.
-class DAGOperand { }
+class DAGOperand {
+  string OperandNamespace = "MCOI";
+  string DecoderMethod = "";
+}
 
 // RegisterClass - Now that all of the registers are defined, and aliases
 // between registers are defined, specify which registers belong to which
@@ -152,6 +205,9 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
                     dag regList, RegAltNameIndex idx = NoRegAltName>
   : DAGOperand {
   string Namespace = namespace;
+
+  // The register size/alignment information, parameterized by a HW mode.
+  RegInfoByHwMode RegInfos;
 
   // RegType - Specify the list ValueType of the registers in this register
   // class.  Note that all registers in a register class must have the same
@@ -213,6 +269,21 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
   // useful as it is sometimes beneficial to assign registers to highly
   // constrained classes first. The value has to be in the range [0,63].
   int AllocationPriority = 0;
+
+  // The diagnostic type to present when referencing this operand in a match
+  // failure error message. If this is empty, the default Match_InvalidOperand
+  // diagnostic type will be used. If this is "<name>", a Match_<name> enum
+  // value will be generated and used for this operand type. The target
+  // assembly parser is responsible for converting this into a user-facing
+  // diagnostic message.
+  string DiagnosticType = "";
+
+  // A diagnostic message to emit when an invalid value is provided for this
+  // register class when it is being used an an assembly operand. If this is
+  // non-empty, an anonymous diagnostic type enum value will be generated, and
+  // the assembly matcher will provide a function to map from diagnostic types
+  // to message strings.
+  string DiagnosticString = "";
 }
 
 // The memberList in a RegisterClass is a dag of set operations. TableGen
@@ -368,6 +439,7 @@ class Instruction {
   bit isSelect     = 0;     // Is this instruction a select instruction?
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
+  bit isAdd        = 0;     // Is this instruction an add instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
   bit mayLoad      = ?;     // Is it possible for this inst to read memory?
   bit mayStore     = ?;     // Is it possible for this inst to write memory?
@@ -398,11 +470,8 @@ class Instruction {
                             // If so, make sure to override
                             // TargetInstrInfo::getInsertSubregLikeInputs.
 
-  // Side effect flags - When set, the flags have these meanings:
-  //
-  //  hasSideEffects - The instruction has side effects that are not
-  //    captured by any operands of the instruction or other flags.
-  //
+  // Does the instruction have side effects that are not captured by any
+  // operands of the instruction or other flags?
   bit hasSideEffects = ?;
 
   // Is this instruction a "real" instruction (with a distinct machine
@@ -426,6 +495,11 @@ class Instruction {
 
   // Is this instruction a pseudo instruction for use by the assembler parser.
   bit isAsmParserOnly = 0;
+
+  // This instruction is not expected to be queried for scheduling latencies
+  // and therefore needs no scheduling information even for a complete
+  // scheduling model.
+  bit hasNoSchedulingInfo = 0;
 
   InstrItinClass Itinerary = NoItinerary;// Execution steps used for scheduling.
 
@@ -480,6 +554,12 @@ class Instruction {
   /// constraint. For example, "$Rn = $Rd".
   string TwoOperandAliasConstraint = "";
 
+  /// Assembler variant name to use for this instruction. If specified then
+  /// instruction will be presented only in MatchTable for this variant. If
+  /// not specified then assembler variants will be determined based on
+  /// AsmString
+  string AsmVariantName = "";
+
   ///@}
 
   /// UseNamedOperandTable - If set, the operand indices of this instruction
@@ -518,6 +598,12 @@ class Predicate<string cond> {
   /// PredicateName - User-level name to use for the predicate. Mainly for use
   /// in diagnostics such as missing feature errors in the asm matcher.
   string PredicateName = "";
+
+  /// Setting this to '1' indicates that the predicate must be recomputed on
+  /// every function change. Most predicates can leave this at '0'.
+  ///
+  /// Ignored by SelectionDAG, it always recomputes the predicate on every use.
+  bit RecomputePerFunction = 0;
 }
 
 /// NoHonorSignDependentRounding - This predicate is true if support for
@@ -605,6 +691,26 @@ class AsmOperandClass {
   // match failure error message. By default, use a generic "invalid operand"
   // diagnostic. The target AsmParser maps these codes to text.
   string DiagnosticType = "";
+
+  /// A diagnostic message to emit when an invalid value is provided for this
+  /// operand.
+  string DiagnosticString = "";
+
+  /// Set to 1 if this operand is optional and not always required. Typically,
+  /// the AsmParser will emit an error when it finishes parsing an
+  /// instruction if it hasn't matched all the operands yet.  However, this
+  /// error will be suppressed if all of the remaining unmatched operands are
+  /// marked as IsOptional.
+  ///
+  /// Optional arguments must be at the end of the operand list.
+  bit IsOptional = 0;
+
+  /// The name of the method on the target specific asm parser that returns the
+  /// default operand for this optional operand. This method is only used if
+  /// IsOptional == 1. If not set, this will default to "defaultFooOperands",
+  /// where Foo is the AsmOperandClass name. The method signature should be:
+  ///   std::unique_ptr<MCParsedAsmOperand> defaultFooOperands() const;
+  string DefaultMethod = ?;
 }
 
 def ImmAsmOperand : AsmOperandClass {
@@ -618,9 +724,7 @@ class Operand<ValueType ty> : DAGOperand {
   ValueType Type = ty;
   string PrintMethod = "printOperand";
   string EncoderMethod = "";
-  string DecoderMethod = "";
   bit hasCompleteDecoder = 1;
-  string OperandNamespace = "MCOI";
   string OperandType = "OPERAND_UNKNOWN";
   dag MIOperandInfo = (ops);
 
@@ -648,6 +752,11 @@ class RegisterOperand<RegisterClass regclass, string pm = "printOperand">
   // this type. The method normally will just use an alt-name index to look
   // up the name to print. Default to the generic printOperand().
   string PrintMethod = pm;
+
+  // EncoderMethod - The target method name to call to encode this register
+  // operand.
+  string EncoderMethod = "";
+
   // ParserMatchClass - The "match class" that operands of this type fit
   // in. Match classes are used to define the order in which instructions are
   // match, to ensure that which instructions gets matched is deterministic.
@@ -658,8 +767,13 @@ class RegisterOperand<RegisterClass regclass, string pm = "printOperand">
   // should declare the other operand as one of its super classes.
   AsmOperandClass ParserMatchClass;
 
-  string OperandNamespace = "MCOI";
   string OperandType = "OPERAND_REGISTER";
+
+  // When referenced in the result of a CodeGen pattern, GlobalISel will
+  // normally copy the matched operand to the result. When this is set, it will
+  // emit a special copy that will replace zero-immediates with the specified
+  // zero-register.
+  Register GIZeroRegister = ?;
 }
 
 let OperandType = "OPERAND_IMMEDIATE" in {
@@ -671,6 +785,30 @@ def i64imm : Operand<i64>;
 
 def f32imm : Operand<f32>;
 def f64imm : Operand<f64>;
+}
+
+// Register operands for generic instructions don't have an MVT, but do have
+// constraints linking the operands (e.g. all operands of a G_ADD must
+// have the same LLT).
+class TypedOperand<string Ty> : Operand<untyped> {
+  let OperandType = Ty;
+  bit IsPointer = 0;
+}
+
+def type0 : TypedOperand<"OPERAND_GENERIC_0">;
+def type1 : TypedOperand<"OPERAND_GENERIC_1">;
+def type2 : TypedOperand<"OPERAND_GENERIC_2">;
+def type3 : TypedOperand<"OPERAND_GENERIC_3">;
+def type4 : TypedOperand<"OPERAND_GENERIC_4">;
+def type5 : TypedOperand<"OPERAND_GENERIC_5">;
+
+let IsPointer = 1 in {
+  def ptype0 : TypedOperand<"OPERAND_GENERIC_0">;
+  def ptype1 : TypedOperand<"OPERAND_GENERIC_1">;
+  def ptype2 : TypedOperand<"OPERAND_GENERIC_2">;
+  def ptype3 : TypedOperand<"OPERAND_GENERIC_3">;
+  def ptype4 : TypedOperand<"OPERAND_GENERIC_4">;
+  def ptype5 : TypedOperand<"OPERAND_GENERIC_5">;
 }
 
 /// zero_reg definition - Special node to stand for the zero register.
@@ -756,59 +894,81 @@ class InstrInfo {
 // Standard Pseudo Instructions.
 // This list must match TargetOpcodes.h and CodeGenTarget.cpp.
 // Only these instructions are allowed in the TargetOpcode namespace.
-let isCodeGenOnly = 1, isPseudo = 1, Namespace = "TargetOpcode" in {
-def PHI : Instruction {
-  let OutOperandList = (outs);
+// Ensure mayLoad and mayStore have a default value, so as not to break
+// targets that set guessInstructionProperties=0. Any local definition of
+// mayLoad/mayStore takes precedence over these default values.
+class StandardPseudoInstruction : Instruction {
+  let mayLoad = 0;
+  let mayStore = 0;
+  let isCodeGenOnly = 1;
+  let isPseudo = 1;
+  let hasNoSchedulingInfo = 1;
+  let Namespace = "TargetOpcode";
+}
+def PHI : StandardPseudoInstruction {
+  let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins variable_ops);
   let AsmString = "PHINODE";
+  let hasSideEffects = 0;
 }
-def INLINEASM : Instruction {
+def INLINEASM : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
   let hasSideEffects = 0;  // Note side effect is encoded in an operand.
 }
-def CFI_INSTRUCTION : Instruction {
+def CFI_INSTRUCTION : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
   let hasCtrlDep = 1;
+  let hasSideEffects = 0;
   let isNotDuplicable = 1;
 }
-def EH_LABEL : Instruction {
+def EH_LABEL : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
   let hasCtrlDep = 1;
+  let hasSideEffects = 0;
   let isNotDuplicable = 1;
 }
-def GC_LABEL : Instruction {
+def GC_LABEL : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
   let hasCtrlDep = 1;
+  let hasSideEffects = 0;
   let isNotDuplicable = 1;
 }
-def KILL : Instruction {
+def ANNOTATION_LABEL : StandardPseudoInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i32imm:$id);
+  let AsmString = "";
+  let hasCtrlDep = 1;
+  let hasSideEffects = 0;
+  let isNotDuplicable = 1;
+}
+def KILL : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
   let hasSideEffects = 0;
 }
-def EXTRACT_SUBREG : Instruction {
+def EXTRACT_SUBREG : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, i32imm:$subidx);
   let AsmString = "";
   let hasSideEffects = 0;
 }
-def INSERT_SUBREG : Instruction {
+def INSERT_SUBREG : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, unknown:$subsrc, i32imm:$subidx);
   let AsmString = "";
   let hasSideEffects = 0;
   let Constraints = "$supersrc = $dst";
 }
-def IMPLICIT_DEF : Instruction {
+def IMPLICIT_DEF : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins);
   let AsmString = "";
@@ -816,72 +976,76 @@ def IMPLICIT_DEF : Instruction {
   let isReMaterializable = 1;
   let isAsCheapAsAMove = 1;
 }
-def SUBREG_TO_REG : Instruction {
+def SUBREG_TO_REG : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$implsrc, unknown:$subsrc, i32imm:$subidx);
   let AsmString = "";
   let hasSideEffects = 0;
 }
-def COPY_TO_REGCLASS : Instruction {
+def COPY_TO_REGCLASS : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$src, i32imm:$regclass);
   let AsmString = "";
   let hasSideEffects = 0;
   let isAsCheapAsAMove = 1;
 }
-def DBG_VALUE : Instruction {
+def DBG_VALUE : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "DBG_VALUE";
   let hasSideEffects = 0;
 }
-def REG_SEQUENCE : Instruction {
+def REG_SEQUENCE : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, variable_ops);
   let AsmString = "";
   let hasSideEffects = 0;
   let isAsCheapAsAMove = 1;
 }
-def COPY : Instruction {
+def COPY : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$src);
   let AsmString = "";
   let hasSideEffects = 0;
   let isAsCheapAsAMove = 1;
+  let hasNoSchedulingInfo = 0;
 }
-def BUNDLE : Instruction {
+def BUNDLE : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "BUNDLE";
+  let hasSideEffects = 1;
 }
-def LIFETIME_START : Instruction {
+def LIFETIME_START : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "LIFETIME_START";
   let hasSideEffects = 0;
 }
-def LIFETIME_END : Instruction {
+def LIFETIME_END : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "LIFETIME_END";
   let hasSideEffects = 0;
 }
-def STACKMAP : Instruction {
+def STACKMAP : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i64imm:$id, i32imm:$nbytes, variable_ops);
+  let hasSideEffects = 1;
   let isCall = 1;
   let mayLoad = 1;
   let usesCustomInserter = 1;
 }
-def PATCHPOINT : Instruction {
+def PATCHPOINT : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins i64imm:$id, i32imm:$nbytes, unknown:$callee,
                        i32imm:$nargs, i32imm:$cc, variable_ops);
+  let hasSideEffects = 1;
   let isCall = 1;
   let mayLoad = 1;
   let usesCustomInserter = 1;
 }
-def STATEPOINT : Instruction {
+def STATEPOINT : StandardPseudoInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let usesCustomInserter = 1;
@@ -890,7 +1054,7 @@ def STATEPOINT : Instruction {
   let hasSideEffects = 1;
   let isCall = 1;
 }
-def LOAD_STACK_GUARD : Instruction {
+def LOAD_STACK_GUARD : StandardPseudoInstruction {
   let OutOperandList = (outs ptr_rc:$dst);
   let InOperandList = (ins);
   let mayLoad = 1;
@@ -898,7 +1062,7 @@ def LOAD_STACK_GUARD : Instruction {
   let hasSideEffects = 0;
   bit isPseudo = 1;
 }
-def LOCAL_ESCAPE : Instruction {
+def LOCAL_ESCAPE : StandardPseudoInstruction {
   // This instruction is really just a label. It has to be part of the chain so
   // that it doesn't get dropped from the DAG, but it produces nothing and has
   // no side effects.
@@ -907,13 +1071,78 @@ def LOCAL_ESCAPE : Instruction {
   let hasSideEffects = 0;
   let hasCtrlDep = 1;
 }
-def FAULTING_LOAD_OP : Instruction {
+def FAULTING_OP : StandardPseudoInstruction {
+  let OutOperandList = (outs unknown:$dst);
+  let InOperandList = (ins variable_ops);
+  let usesCustomInserter = 1;
+  let hasSideEffects = 1;
+  let mayLoad = 1;
+  let mayStore = 1;
+  let isTerminator = 1;
+  let isBranch = 1;
+}
+def PATCHABLE_OP : StandardPseudoInstruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins variable_ops);
   let usesCustomInserter = 1;
   let mayLoad = 1;
+  let mayStore = 1;
+  let hasSideEffects = 1;
 }
+def PATCHABLE_FUNCTION_ENTER : StandardPseudoInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let AsmString = "# XRay Function Enter.";
+  let usesCustomInserter = 1;
+  let hasSideEffects = 0;
 }
+def PATCHABLE_RET : StandardPseudoInstruction {
+  let OutOperandList = (outs unknown:$dst);
+  let InOperandList = (ins variable_ops);
+  let AsmString = "# XRay Function Patchable RET.";
+  let usesCustomInserter = 1;
+  let hasSideEffects = 1;
+  let isTerminator = 1;
+  let isReturn = 1;
+}
+def PATCHABLE_FUNCTION_EXIT : StandardPseudoInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let AsmString = "# XRay Function Exit.";
+  let usesCustomInserter = 1;
+  let hasSideEffects = 0; // FIXME: is this correct?
+  let isReturn = 0; // Original return instruction will follow
+}
+def PATCHABLE_TAIL_CALL : StandardPseudoInstruction {
+  let OutOperandList = (outs unknown:$dst);
+  let InOperandList = (ins variable_ops);
+  let AsmString = "# XRay Tail Call Exit.";
+  let usesCustomInserter = 1;
+  let hasSideEffects = 1;
+  let isReturn = 1;
+}
+def PATCHABLE_EVENT_CALL : StandardPseudoInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins ptr_rc:$event, i8imm:$size);
+  let AsmString = "# XRay Custom Event Log.";
+  let usesCustomInserter = 1;
+  let isCall = 1;
+  let mayLoad = 1;
+  let mayStore = 1;
+  let hasSideEffects = 1;
+}
+def FENTRY_CALL : StandardPseudoInstruction {
+  let OutOperandList = (outs unknown:$dst);
+  let InOperandList = (ins variable_ops);
+  let AsmString = "# FEntry call";
+  let usesCustomInserter = 1;
+  let mayLoad = 1;
+  let mayStore = 1;
+  let hasSideEffects = 1;
+}
+
+// Generic opcodes used in GlobalISel.
+include "llvm/Target/GenericOpcodes.td"
 
 //===----------------------------------------------------------------------===//
 // AsmParser - This class can be implemented by targets that wish to implement
@@ -937,9 +1166,33 @@ class AsmParser {
   // written register name matcher
   bit ShouldEmitMatchRegisterName = 1;
 
+  // Set to true if the target needs a generated 'alternative register name'
+  // matcher.
+  //
+  // This generates a function which can be used to lookup registers from
+  // their aliases. This function will fail when called on targets where
+  // several registers share the same alias (i.e. not a 1:1 mapping).
+  bit ShouldEmitMatchRegisterAltName = 0;
+
+  // Set to true if MatchRegisterName and MatchRegisterAltName functions
+  // should be generated even if there are duplicate register names. The
+  // target is responsible for coercing aliased registers as necessary
+  // (e.g. in validateTargetOperandClass), and there are no guarantees about
+  // which numeric register identifier will be returned in the case of
+  // multiple matches.
+  bit AllowDuplicateRegisterNames = 0;
+
   // HasMnemonicFirst - Set to false if target instructions don't always
   // start with a mnemonic as the first token.
   bit HasMnemonicFirst = 1;
+
+  // ReportMultipleNearMisses -
+  // When 0, the assembly matcher reports an error for one encoding or operand
+  // that did not match the parsed instruction.
+  // When 1, the assmebly matcher returns a list of encodings that were close
+  // to matching the parsed instruction, so to allow more detailed error
+  // messages.
+  bit ReportMultipleNearMisses = 0;
 }
 def DefaultAsmParser : AsmParser;
 
@@ -1058,6 +1311,10 @@ class InstAlias<string Asm, dag Result, int Emit = 1> {
   // defined AsmMatchConverter and instead use the function generated by the
   // dag Result.
   bit UseInstAsmMatchConverter = 1;
+
+  // Assembler variant name to use for this alias. If not specified then
+  // assembler variants will be determined based on AsmString
+  string AsmVariantName = "";
 }
 
 //===----------------------------------------------------------------------===//
@@ -1239,3 +1496,18 @@ include "llvm/Target/TargetCallingConv.td"
 // Pull in the common support for DAG isel generation.
 //
 include "llvm/Target/TargetSelectionDAG.td"
+
+//===----------------------------------------------------------------------===//
+// Pull in the common support for Global ISel register bank info generation.
+//
+include "llvm/Target/GlobalISel/RegisterBank.td"
+
+//===----------------------------------------------------------------------===//
+// Pull in the common support for DAG isel generation.
+//
+include "llvm/Target/GlobalISel/Target.td"
+
+//===----------------------------------------------------------------------===//
+// Pull in the common support for the Global ISel DAG-based selector generation.
+//
+include "llvm/Target/GlobalISel/SelectionDAGCompat.td"

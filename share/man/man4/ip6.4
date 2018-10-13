@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2011
+.Dd August 19, 2018
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -156,6 +156,9 @@ datagrams sent on this socket.
 .\" .It Dv IPV6_RECVDSTADDR Fa "int *"
 .\" Get or set the status of whether datagrams are received with
 .\" destination addresses.
+.\" .It Dv IPV6_ORIGDSTADDR Fa "int *"
+.\" Get or set the status of whether datagrams are received with
+.\" destination addresses and destination ports.
 .\" .It Dv IPV6_RETOPTS
 .\" Get or set IPv6 options.
 .It Dv IPV6_MULTICAST_IF Fa "u_int *"
@@ -648,6 +651,7 @@ An ancillary data object was improperly formed.
 .Xr send 2 ,
 .Xr setsockopt 2 ,
 .Xr socket 2 ,
+.Xr CMSG_DATA 3 ,
 .\" .Xr inet6_option_space 3 ,
 .\" .Xr inet6_rthdr_space 3 ,
 .Xr if_nametoindex 3 ,

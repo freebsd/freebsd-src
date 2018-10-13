@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2009 Mellanox Technologies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -131,7 +133,7 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 		tx_req->mapping[i] = addr;
 		sge->addr = addr;
 		sge->length = mb->m_len;
-		sge->lkey = ssk->sdp_dev->mr->lkey;
+		sge->lkey = ssk->sdp_dev->pd->local_dma_lkey;
 	}
 	tx_wr.next = NULL;
 	tx_wr.wr_id = mseq | SDP_OP_SEND;
@@ -418,6 +420,11 @@ sdp_tx_cq_event_handler(struct ib_event *event, void *data)
 int
 sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 {
+	struct ib_cq_init_attr tx_cq_attr = {
+		.cqe = SDP_TX_SIZE,
+		.comp_vector = 0,
+		.flags = 0,
+	};
 	struct ib_cq *tx_cq;
 	int rc = 0;
 
@@ -427,19 +434,11 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	atomic_set(&ssk->tx_ring.head, 1);
 	atomic_set(&ssk->tx_ring.tail, 1);
 
-	ssk->tx_ring.buffer = kzalloc(
-			sizeof *ssk->tx_ring.buffer * SDP_TX_SIZE, GFP_KERNEL);
-	if (!ssk->tx_ring.buffer) {
-		rc = -ENOMEM;
-		sdp_warn(ssk->socket, "Can't allocate TX Ring size %zd.\n",
-			 sizeof(*ssk->tx_ring.buffer) * SDP_TX_SIZE);
-
-		goto out;
-	}
+	ssk->tx_ring.buffer = malloc(sizeof(*ssk->tx_ring.buffer) * SDP_TX_SIZE,
+	    M_SDP, M_WAITOK);
 
 	tx_cq = ib_create_cq(device, sdp_tx_irq, sdp_tx_cq_event_handler,
-			  ssk, SDP_TX_SIZE, 0);
-
+			  ssk, &tx_cq_attr);
 	if (IS_ERR(tx_cq)) {
 		rc = PTR_ERR(tx_cq);
 		sdp_warn(ssk->socket, "Unable to allocate TX CQ: %d.\n", rc);
@@ -452,9 +451,8 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	return 0;
 
 err_cq:
-	kfree(ssk->tx_ring.buffer);
+	free(ssk->tx_ring.buffer, M_SDP);
 	ssk->tx_ring.buffer = NULL;
-out:
 	return rc;
 }
 
@@ -472,8 +470,7 @@ sdp_tx_ring_destroy(struct sdp_sock *ssk)
 
 	if (ssk->tx_ring.buffer) {
 		sdp_tx_ring_purge(ssk);
-
-		kfree(ssk->tx_ring.buffer);
+		free(ssk->tx_ring.buffer, M_SDP);
 		ssk->tx_ring.buffer = NULL;
 	}
 

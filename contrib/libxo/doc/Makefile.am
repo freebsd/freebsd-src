@@ -61,10 +61,15 @@ xolint.txt: ${top_srcdir}/xolint/xolint.pl
 CLEANFILES = \
 xolint.txt \
 ${INPUT}.xml \
-${INPUT}.txt \
 ${INPUT}.fxml \
-${INPUT}.html
+${OUTPUT}.txt \
+${OUTPUT}.html
 else
 doc docs:
 	@${ECHO} "The 'oxtradoc' tool is not installed; see libslax.org"
 endif
+
+SPHINX = python3.4 -msphinx
+
+html sphinx sphinx-html:
+	${SPHINX} -M html ${srcdir} .

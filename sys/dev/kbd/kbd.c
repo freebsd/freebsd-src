@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -45,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kbio.h>
 
+#include <dev/evdev/input-event-codes.h>
 #include <dev/kbd/kbdreg.h>
 
 #define KBD_INDEX(dev)	dev2unit(dev)
@@ -284,8 +287,8 @@ kbd_unregister(keyboard_t *kbd)
 }
 
 /* find a function table by the driver name */
-keyboard_switch_t
-*kbd_get_switch(char *driver)
+keyboard_switch_t *
+kbd_get_switch(char *driver)
 {
 	const keyboard_driver_t **list;
 	const keyboard_driver_t *p;
@@ -419,8 +422,8 @@ kbd_change_callback(keyboard_t *kbd, void *id, kbd_callback_func_t *func,
 }
 
 /* get a keyboard structure */
-keyboard_t
-*kbd_get_keyboard(int index)
+keyboard_t *
+kbd_get_keyboard(int index)
 {
 	if ((index < 0) || (index >= keyboards))
 		return (NULL);
@@ -884,11 +887,11 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			omapp->key[i].spcl = mapp->key[i].spcl;
 			omapp->key[i].flgs = mapp->key[i].flgs;
 		}
-		return (0);
+		break;
 	case PIO_KEYMAP:	/* set keyboard translation table */
 	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
-		mapp = malloc(sizeof *mapp, M_TEMP, M_NOWAIT);
+		mapp = malloc(sizeof *mapp, M_TEMP, M_WAITOK);
 		if (cmd == OPIO_KEYMAP) {
 			omapp = (okeymap_t *)arg;
 			mapp->n_keys = omapp->n_keys;
@@ -1118,8 +1121,8 @@ fkey_change_ok(fkeytab_t *oldkey, fkeyarg_t *newkey, struct thread *td)
 #endif
 
 /* get a pointer to the string associated with the given function key */
-u_char
-*genkbd_get_fkeystr(keyboard_t *kbd, int fkey, size_t *len)
+u_char *
+genkbd_get_fkeystr(keyboard_t *kbd, int fkey, size_t *len)
 {
 	if (kbd == NULL)
 		return (NULL);
@@ -1131,8 +1134,8 @@ u_char
 }
 
 /* diagnostic dump */
-static char
-*get_kbd_type_name(int type)
+static char *
+get_kbd_type_name(int type)
 {
 	static struct {
 		int type;
@@ -1327,13 +1330,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 			state &= ~NLKDOWN;
 			break;
 		case CLK:
-#ifndef PC98
 			state &= ~CLKDOWN;
-#else
-			state &= ~CLKED;
-			i = state & LOCK_MASK;
-			(void)kbdd_ioctl(kbd, KDSETLED, (caddr_t)&i);
-#endif
 			break;
 		case SLK:
 			state &= ~SLKDOWN;
@@ -1363,13 +1360,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				set_lockkey_state(kbd, state, NLK);
 				break;
 			case CLK:
-#ifndef PC98
 				set_lockkey_state(kbd, state, CLK);
-#else
-				state |= CLKED;
-				i = state & LOCK_MASK;
-				(void)kbdd_ioctl(kbd, KDSETLED, (caddr_t)&i);
-#endif
 				break;
 			case SLK:
 				set_lockkey_state(kbd, state, SLK);
@@ -1484,4 +1475,42 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 		}
 	}
 	/* NOT REACHED */
+}
+
+void
+kbd_ev_event(keyboard_t *kbd, uint16_t type, uint16_t code, int32_t value)
+{
+	int delay[2], led = 0, leds, oleds;
+
+	if (type == EV_LED) {
+		leds = oleds = KBD_LED_VAL(kbd);
+		switch (code) {
+		case LED_CAPSL:
+			led = CLKED;
+			break;
+		case LED_NUML:
+			led = NLKED;
+			break;
+		case LED_SCROLLL:
+			led = SLKED;
+			break;
+		}
+
+		if (value)
+			leds |= led;
+		else
+			leds &= ~led;
+
+		if (leds != oleds)
+			kbdd_ioctl(kbd, KDSETLED, (caddr_t)&leds);
+
+	} else if (type == EV_REP && code == REP_DELAY) {
+		delay[0] = value;
+		delay[1] = kbd->kb_delay2;
+		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+	} else if (type == EV_REP && code == REP_PERIOD) {
+		delay[0] = kbd->kb_delay1;
+		delay[1] = value;
+		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+	}
 }

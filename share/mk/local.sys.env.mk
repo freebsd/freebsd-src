@@ -40,4 +40,12 @@ TIME_STAMP = ${TIME_STAMP_FMT:localtime}
 TIME_STAMP_DATE = `date '+${TIME_STAMP_FMT}'`
 TIME_STAMP_END?= ${TIME_STAMP_DATE}
 
+# Simplify auto.obj.mk mkdir -p handling and avoid unneeded/redundant
+# error spam and show a proper error.
+Mkdirs= Mkdirs() { mkdir -p $$* || :; }
+
+.if !empty(.MAKEFLAGS:M-s)
+ECHO_TRACE?=	true
+.endif
+
 .include "src.sys.env.mk"

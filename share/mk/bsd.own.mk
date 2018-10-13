@@ -32,8 +32,6 @@
 #
 # LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
 #
-# LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
-#
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
 #
 # LIBOWN	Library owner. [${BINOWN}]
@@ -49,7 +47,7 @@
 #
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see kld(4)). [/boot/module]
+#		(see kld(4)). [/boot/modules]
 #
 # KMODOWN	Kernel and KLD owner. [${BINOWN}]
 #
@@ -75,6 +73,13 @@
 # CONFGRP	Configuration file group. [wheel]
 #
 # CONFMODE	Configuration file mode. [644]
+#
+#
+# DIROWN	Directory owner. [root]
+#
+# DIRGRP	Directory group. [wheel]
+#
+# DIRMODE	Directory mode. [755]
 #
 #
 # DOCDIR	Base path for system documentation (e.g. PSD, USD,
@@ -116,6 +121,21 @@
 # NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
+#
+# PKG_CMD	Program for creating and manipulating packages.
+#               [pkg] 
+#
+# LINKOWN	Hard link owner [${BINOWN}]
+#
+# LINKGRP	Hard link group [${BINGRP}]
+#
+# LINKMODE	Hard link mode [${NOBINMODE}]
+#
+# SYMLINKOWN	Symbolic link owner [${BINOWN} or ${LIBOWN}]
+#
+# SYMLINKGRP	Symbolic link group [${BINGRP} or ${LIBGRP}]
+#
+# SYMLINKMODE	Symbolic link mode [755]
 
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
@@ -132,31 +152,6 @@ CTFCONVERT_CMD=
 CTFCONVERT_CMD=	@:
 .endif 
 
-.if ${MK_INSTALL_AS_USER} != "no"
-.if !defined(_uid)
-_uid!=	id -u
-.export _uid
-.endif
-.if ${_uid} != 0
-.if !defined(USER)
-# Avoid exporting USER
-.if !defined(_USER)
-_USER!=	id -un
-.export _USER
-.endif
-USER=	${_USER}
-.endif
-.if !defined(_gid)
-_gid!=	id -g
-.export _gid
-.endif
-.for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
-$xOWN=	${USER}
-$xGRP=	${_gid}
-.endfor
-.endif
-.endif
-
 .endif # !_WITHOUT_SRCCONF
 
 # Binaries
@@ -170,15 +165,21 @@ KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
 DTBDIR?=	/boot/dtb
+DTBODIR?=	/boot/dtb/overlays
 DTBOWN?=	root
 DTBGRP?=	wheel
 DTBMODE?=	444
 
-LIBDIR?=	/usr/lib
+# Use make.conf / environment LIBDIR as default if set...
+.if !empty(_PREMK_LIBDIR)
+LIBDIR_BASE?=	${_PREMK_LIBDIR}
+.endif
+# otherwise use our expected default value.
+LIBDIR_BASE?=	/usr/lib
+LIBDIR?=	${LIBDIR_BASE}
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
-LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
@@ -204,6 +205,10 @@ MANOWN?=	${SHAREOWN}
 MANGRP?=	${SHAREGRP}
 MANMODE?=	${NOBINMODE}
 
+DIROWN?=	root
+DIRGRP?=	wheel
+DIRMODE?=	755
+
 DOCDIR?=	${SHAREDIR}/doc
 DOCOWN?=	${SHAREOWN}
 DOCGRP?=	${SHAREGRP}
@@ -224,12 +229,22 @@ INCLUDEDIR?=	/usr/include
 #
 # install(1) parameters.
 #
-HRDLINK?=	-l h
-SYMLINK?=	-l s
-RSYMLINK?=	-l rs
+_LINKOWN?=	${LINKOWN:U${BINOWN}}
+_LINKGRP?=	${LINKGRP:U${BINGRP}}
+_LINKMODE?=	${LINKMODE:U${NOBINMODE}}
+_SYMLINKOWN?=	${SYMLINKOWN:U${BINOWN}}
+_SYMLINKGRP?=	${SYMLINKGRP:U${BINGRP}}
+_SYMLINKMODE?=	${SYMLINKMODE:U755}
+HRDLINK?=	-l h -o ${_LINKOWN} -g ${_LINKGRP} -m ${_LINKMODE}
+MANHRDLINK?=	-l h -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+SYMLINK?=	-l s -o ${_SYMLINKOWN} -g ${_SYMLINKGRP} -m ${_SYMLINKMODE}
+LSYMLINK?=	-l s -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE}
+RSYMLINK?=	-l rs -o ${_SYMLINKOWN} -g ${_SYMLINKGRP} -m ${_SYMLINKMODE}
 
 INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_MANLINK?=	${INSTALL} ${MANHRDLINK}
 INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+INSTALL_LIBSYMLINK?=	${INSTALL} ${LSYMLINK}
 INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
 
 # Common variables
@@ -249,8 +264,10 @@ XZ_CMD?=	xz -T ${XZ_THREADS}
 XZ_CMD?=	xz
 .endif
 
+PKG_CMD?=	pkg
+
 # Pointer to the top directory into which tests are installed.  Should not be
-# overriden by Makefiles, but the user may choose to set this in src.conf(5).
+# overridden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
 
 DEPENDFILE?=	.depend

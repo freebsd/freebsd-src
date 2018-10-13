@@ -2,6 +2,8 @@
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -62,7 +64,7 @@
 #include <fs/msdosfs/msdosfsmount.h>
 
 static int msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, u_int64_t *inum);
+    struct componentname *cnp, uint64_t *inum);
 
 int
 msdosfs_lookup(struct vop_cachedlookup_args *ap)
@@ -110,7 +112,7 @@ msdosfs_deget_dotdot(struct mount *mp, void *arg, int lkflags,
  */
 static int
 msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, u_int64_t *dd_inum)
+    struct componentname *cnp, uint64_t *dd_inum)
 {
 	struct mbnambuf nb;
 	daddr_t bn;
@@ -135,7 +137,7 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	int unlen;
-	u_int64_t inode1;
+	uint64_t inode1;
 
 	int wincnt = 1;
 	int chksum = -1, chksum_ok;
@@ -455,7 +457,7 @@ found:
 	 */
 	brelse(bp);
 	bp = NULL;
-	
+
 foundroot:
 	/*
 	 * If we entered at foundroot, then we are looking for the . or ..
@@ -656,7 +658,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 	 * Now write the Win95 long name
 	 */
 	if (ddep->de_fndcnt > 0) {
-		u_int8_t chksum = winChksum(ndep->deName);
+		uint8_t chksum = winChksum(ndep->deName);
 		const u_char *un = (const u_char *)cnp->cn_nameptr;
 		int unlen = cnp->cn_namelen;
 		int cnt = 1;
@@ -1011,7 +1013,7 @@ uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 	daddr_t bn;
 	struct buf *bp;
 	int error;
-	
+
 	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 		return (unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
 		    cnp->cn_namelen, 0, pmp) ? 0 : EINVAL);
@@ -1060,57 +1062,5 @@ uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 			}
 			brelse(bp);
 		}
-	}
-}
-
-/*
- * Find any Win'95 long filename entry in directory dep
- */
-int
-findwin95(struct denode *dep)
-{
-	struct msdosfsmount *pmp = dep->de_pmp;
-	struct direntry *dentp;
-	int blsize, win95;
-	u_long cn;
-	daddr_t bn;
-	struct buf *bp;
-
-	win95 = 1;
-	/*
-	 * Read through the directory looking for Win'95 entries
-	 * Note: Error currently handled just as EOF			XXX
-	 */
-	for (cn = 0;; cn++) {
-		if (pcbmap(dep, cn, &bn, 0, &blsize))
-			return (win95);
-		if (bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp)) {
-			brelse(bp);
-			return (win95);
-		}
-		for (dentp = (struct direntry *)bp->b_data;
-		     (char *)dentp < bp->b_data + blsize;
-		     dentp++) {
-			if (dentp->deName[0] == SLOT_EMPTY) {
-				/*
-				 * Last used entry and not found
-				 */
-				brelse(bp);
-				return (win95);
-			}
-			if (dentp->deName[0] == SLOT_DELETED) {
-				/*
-				 * Ignore deleted files
-				 * Note: might be an indication of Win'95 anyway	XXX
-				 */
-				continue;
-			}
-			if (dentp->deAttributes == ATTR_WIN95) {
-				brelse(bp);
-				return 1;
-			}
-			win95 = 0;
-		}
-		brelse(bp);
 	}
 }

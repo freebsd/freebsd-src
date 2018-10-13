@@ -24,9 +24,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <err.h>
+#include <fcntl.h>
 #include <md5.h>
 #include <ripemd.h>
 #include <sha.h>
+#include <sha224.h>
 #include <sha256.h>
 #include <sha384.h>
 #include <sha512.h>
@@ -37,6 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef HAVE_CAPSICUM
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+#endif
 
 /*
  * Length of test block, number of test blocks.
@@ -57,6 +64,7 @@ typedef char *(DIGEST_End)(void *, char *);
 
 extern const char *MD5TestOutput[MDTESTCOUNT];
 extern const char *SHA1_TestOutput[MDTESTCOUNT];
+extern const char *SHA224_TestOutput[MDTESTCOUNT];
 extern const char *SHA256_TestOutput[MDTESTCOUNT];
 extern const char *SHA384_TestOutput[MDTESTCOUNT];
 extern const char *SHA512_TestOutput[MDTESTCOUNT];
@@ -74,7 +82,7 @@ typedef struct Algorithm_t {
 	DIGEST_Update *Update;
 	DIGEST_End *End;
 	char *(*Data)(const void *, unsigned int, char *);
-	char *(*File)(const char *, char *);
+	char *(*Fd)(int, char *);
 } Algorithm_t;
 
 static void MD5_Update(MD5_CTX *, const unsigned char *, size_t);
@@ -87,6 +95,7 @@ static void usage(const Algorithm_t *);
 typedef union {
 	MD5_CTX md5;
 	SHA1_CTX sha1;
+	SHA224_CTX sha224;
 	SHA256_CTX sha256;
 	SHA384_CTX sha384;
 	SHA512_CTX sha512;
@@ -106,34 +115,37 @@ typedef union {
 static const struct Algorithm_t Algorithm[] = {
 	{ "md5", "MD5", &MD5TestOutput, (DIGEST_Init*)&MD5Init,
 		(DIGEST_Update*)&MD5_Update, (DIGEST_End*)&MD5End,
-		&MD5Data, &MD5File },
+		&MD5Data, &MD5Fd },
 	{ "sha1", "SHA1", &SHA1_TestOutput, (DIGEST_Init*)&SHA1_Init,
 		(DIGEST_Update*)&SHA1_Update, (DIGEST_End*)&SHA1_End,
-		&SHA1_Data, &SHA1_File },
+		&SHA1_Data, &SHA1_Fd },
+	{ "sha224", "SHA224", &SHA224_TestOutput, (DIGEST_Init*)&SHA224_Init,
+		(DIGEST_Update*)&SHA224_Update, (DIGEST_End*)&SHA224_End,
+		&SHA224_Data, &SHA224_Fd },
 	{ "sha256", "SHA256", &SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
 		(DIGEST_Update*)&SHA256_Update, (DIGEST_End*)&SHA256_End,
-		&SHA256_Data, &SHA256_File },
+		&SHA256_Data, &SHA256_Fd },
 	{ "sha384", "SHA384", &SHA384_TestOutput, (DIGEST_Init*)&SHA384_Init,
 		(DIGEST_Update*)&SHA384_Update, (DIGEST_End*)&SHA384_End,
-		&SHA384_Data, &SHA384_File },
+		&SHA384_Data, &SHA384_Fd },
 	{ "sha512", "SHA512", &SHA512_TestOutput, (DIGEST_Init*)&SHA512_Init,
 		(DIGEST_Update*)&SHA512_Update, (DIGEST_End*)&SHA512_End,
-		&SHA512_Data, &SHA512_File },
+		&SHA512_Data, &SHA512_Fd },
 	{ "sha512t256", "SHA512t256", &SHA512t256_TestOutput, (DIGEST_Init*)&SHA512_256_Init,
 		(DIGEST_Update*)&SHA512_256_Update, (DIGEST_End*)&SHA512_256_End,
-		&SHA512_256_Data, &SHA512_256_File },
+		&SHA512_256_Data, &SHA512_256_Fd },
 	{ "rmd160", "RMD160", &RIPEMD160_TestOutput,
 		(DIGEST_Init*)&RIPEMD160_Init, (DIGEST_Update*)&RIPEMD160_Update,
-		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_File },
+		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_Fd },
 	{ "skein256", "Skein256", &SKEIN256_TestOutput,
 		(DIGEST_Init*)&SKEIN256_Init, (DIGEST_Update*)&SKEIN256_Update,
-		(DIGEST_End*)&SKEIN256_End, &SKEIN256_Data, &SKEIN256_File },
+		(DIGEST_End*)&SKEIN256_End, &SKEIN256_Data, &SKEIN256_Fd },
 	{ "skein512", "Skein512", &SKEIN512_TestOutput,
 		(DIGEST_Init*)&SKEIN512_Init, (DIGEST_Update*)&SKEIN512_Update,
-		(DIGEST_End*)&SKEIN512_End, &SKEIN512_Data, &SKEIN512_File },
+		(DIGEST_End*)&SKEIN512_End, &SKEIN512_Data, &SKEIN512_Fd },
 	{ "skein1024", "Skein1024", &SKEIN1024_TestOutput,
 		(DIGEST_Init*)&SKEIN1024_Init, (DIGEST_Update*)&SKEIN1024_Update,
-		(DIGEST_End*)&SKEIN1024_End, &SKEIN1024_Data, &SKEIN1024_File }
+		(DIGEST_End*)&SKEIN1024_End, &SKEIN1024_Data, &SKEIN1024_Fd }
 };
 
 static void
@@ -154,7 +166,10 @@ Arguments (may be any combination):
 int
 main(int argc, char *argv[])
 {
-	int	ch;
+#ifdef HAVE_CAPSICUM
+	cap_rights_t	rights;
+#endif
+	int	ch, fd;
 	char   *p;
 	char	buf[HEX_DIGEST_LENGTH];
 	int	failed;
@@ -206,10 +221,33 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+#ifdef HAVE_CAPSICUM
+	if (caph_limit_stdout() < 0 || caph_limit_stderr() < 0)
+		err(1, "unable to limit rights for stdio");
+#endif
+
 	if (*argv) {
 		do {
-			p = Algorithm[digest].File(*argv, buf);
-			if (!p) {
+			if ((fd = open(*argv, O_RDONLY)) < 0) {
+				warn("%s", *argv);
+				failed++;
+				continue;
+			}
+			/*
+			 * XXX Enter capability mode on the last argv file.
+			 * When a casper file service or other approach is
+			 * available, switch to that and enter capability mode
+			 * earlier.
+			 */
+			if (*(argv + 1) == NULL) {
+#ifdef HAVE_CAPSICUM
+				cap_rights_init(&rights, CAP_READ);
+				if ((cap_rights_limit(fd, &rights) < 0 &&
+				    errno != ENOSYS) || caph_enter() < 0)
+					err(1, "capsicum");
+#endif
+			}
+			if ((p = Algorithm[digest].Fd(fd, buf)) == NULL) {
 				warn("%s", *argv);
 				failed++;
 			} else {
@@ -220,7 +258,7 @@ main(int argc, char *argv[])
 				else
 					printf("%s (%s) = %s",
 					    Algorithm[digest].name, *argv, p);
-				if (checkAgainst && strcmp(checkAgainst,p))
+				if (checkAgainst && strcasecmp(checkAgainst, p) != 0)
 				{
 					checksFailed++;
 					if (!qflag)
@@ -229,8 +267,13 @@ main(int argc, char *argv[])
 				printf("\n");
 			}
 		} while (*++argv);
-	} else if (!sflag && (optind == 1 || qflag || rflag))
+	} else if (!sflag && (optind == 1 || qflag || rflag)) {
+#ifdef HAVE_CAPSICUM
+		if (caph_limit_stdin() < 0 || caph_enter() < 0)
+			err(1, "capsicum");
+#endif
 		MDFilter(&Algorithm[digest], 0);
+	}
 
 	if (failed != 0)
 		return (1);
@@ -255,7 +298,7 @@ MDString(const Algorithm_t *alg, const char *string)
 		printf("%s \"%s\"", buf, string);
 	else
 		printf("%s (\"%s\") = %s", alg->name, string, buf);
-	if (checkAgainst && strcmp(buf,checkAgainst))
+	if (checkAgainst && strcasecmp(buf,checkAgainst) != 0)
 	{
 		checksFailed++;
 		if (!qflag)
@@ -341,6 +384,17 @@ const char *SHA1_TestOutput[MDTESTCOUNT] = {
 	"761c457bf73b14d27e9e9265c46f4b4dda11f940",
 	"50abf5706a150990a08b2c5ea40fa0e585554732",
 	"18eca4333979c4181199b7b4fab8786d16cf2846"
+};
+
+const char *SHA224_TestOutput[MDTESTCOUNT] = {
+	"d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f",
+	"abd37534c7d9a2efb9465de931cd7055ffdb8879563ae98078d6d6d5",
+	"23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
+	"2cb21c83ae2f004de7e81c3c7019cbcb65b71ab656b22d6d0c39b8eb",
+	"45a5f72c39c5cff2522eb3429799e49e5f44b356ef926bcf390dccc2",
+	"bff72b4fcb7d75e5632900ac5f90d219e05e97a7bde72e740db393d9",
+	"b50aecbe4e9bb0b57bc5f3ae760a8e01db24f203fb3cdcd13148046e",
+	"5ae55f3779c8a1204210d7ed7689f661fbe140f96f272ab79e19d470"
 };
 
 const char *SHA256_TestOutput[MDTESTCOUNT] = {

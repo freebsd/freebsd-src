@@ -64,8 +64,8 @@ nis_domain =			nisDom-CS.columbia.edu
 # (amd -x)
 log_options =			fatal,error,user,warn,info,map,stats,all
 # (amd -D)
-debug_options =			all,amq,daemon,fork,full,hrtime,info,mem,mtab,\
-				str,readdir,test,trace,xdrtrace
+debug_options =			all,defaults,test,amq,daemon,fork,\
+				full,hrtime,info,mem,mtab,str,readdir,trace,xdrtrace
 # path for mtab file during mtab debug mode
 debug_mtab_file =               /tmp/mnttab
 # (amd -S)
@@ -108,7 +108,7 @@ exec_map_timeout =		10
 normalize_slashes =		yes | no
 
 ##############################################################################
-# these 8 global options can be overridden by each map individually
+# these 9 global options can be overridden by each map individually
 browsable_dirs =		no | yes | full
 map_options =			cache:=all
 map_type =			file|hesiod|ndbm|nis|nisplus|passwd|union|ldap
@@ -119,6 +119,8 @@ autofs_use_lofs =		yes | no
 search_path =			/etc/local:/etc/amdmaps:/misc/yp
 # selectors are not recognized by default in the /defaults entry
 selectors_in_defaults =		no | yes
+# does this map use Sun Automounter map syntax?
+sun_map_syntax =		no | yes
 ##############################################################################
 
 ##############################################################################

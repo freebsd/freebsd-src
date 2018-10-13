@@ -1,4 +1,4 @@
-/* $NetBSD: t_pipe2.c,v 1.8 2012/05/16 13:54:28 jruoho Exp $ */
+/* $NetBSD: t_pipe2.c,v 1.9 2017/01/13 21:19:45 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_pipe2.c,v 1.8 2012/05/16 13:54:28 jruoho Exp $");
+__RCSID("$NetBSD: t_pipe2.c,v 1.9 2017/01/13 21:19:45 christos Exp $");
 
 #include <atf-c.h>
 #include <fcntl.h>
@@ -56,7 +56,8 @@ run(int flags)
 #ifdef __FreeBSD__
 	closefrom(3);
 #else
-	ATF_REQUIRE(fcntl(3, F_CLOSEM) != -1);
+	ATF_REQUIRE_MSG(closefrom(3) != -1, "closefrom failed: %s",
+	    strerror(errno));
 #endif
 
 	ATF_REQUIRE(pipe2(fd, flags) == 0);
@@ -116,13 +117,13 @@ ATF_TC_BODY(pipe2_consume, tc)
 {
 	struct rlimit rl;
 	int err, filedes[2];
-#ifdef __FreeBSD__
 	int old;
 
+#ifdef __FreeBSD__
 	closefrom(4);
 #else
-	err = fcntl(4, F_CLOSEM);
-	ATF_REQUIRE(err == 0);
+	ATF_REQUIRE_MSG(closefrom(4) != -1, "closefrom failed: %s",
+	    strerror(errno));
 #endif
 
 	err = getrlimit(RLIMIT_NOFILE, &rl);
@@ -132,19 +133,15 @@ ATF_TC_BODY(pipe2_consume, tc)
 	 * file descriptor limit in the middle of a pipe2() call - i.e.
 	 * before the call only a single descriptor may be openend.
 	 */
-#ifdef __FreeBSD__
 	old = rl.rlim_cur;
-#endif
 	rl.rlim_cur = 4;
 	err = setrlimit(RLIMIT_NOFILE, &rl);
 	ATF_REQUIRE(err == 0);
 
 	err = pipe2(filedes, O_CLOEXEC);
 	ATF_REQUIRE(err == -1);
-#ifdef __FreeBSD__
 	rl.rlim_cur = old;
 	err = setrlimit(RLIMIT_NOFILE, &rl);
-#endif
 }
 
 ATF_TC(pipe2_nonblock);

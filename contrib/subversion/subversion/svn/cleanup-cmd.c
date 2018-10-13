@@ -72,13 +72,14 @@ svn_cl__cleanup(apr_getopt_t *os,
 
       SVN_ERR(svn_dirent_get_absolute(&target_abspath, target, iterpool));
 
-      if (opt_state->remove_unversioned || opt_state->remove_ignored)
+      if (opt_state->remove_unversioned || opt_state->remove_ignored ||
+          opt_state->vacuum_pristines)
         {
           svn_error_t *err = svn_client_vacuum(target_abspath,
                                                opt_state->remove_unversioned,
                                                opt_state->remove_ignored,
                                                TRUE /* fix_timestamps */,
-                                               FALSE /* vacuum_pristines */,
+                                               opt_state->vacuum_pristines,
                                                opt_state->include_externals,
                                                ctx, iterpool);
 

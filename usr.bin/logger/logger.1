@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)logger.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2015
+.Dd December 5, 2017
 .Dt LOGGER 1
 .Os
 .Sh NAME
@@ -38,9 +38,11 @@
 .Nm
 .Op Fl 46Ais
 .Op Fl f Ar file
+.Op Fl H Ar hostname
 .Op Fl h Ar host
 .Op Fl P Ar port
 .Op Fl p Ar pri
+.Op Fl S Ar addr Ns \&: Ns Ar port
 .Op Fl t Ar tag
 .Op Ar message ...
 .Sh DESCRIPTION
@@ -76,10 +78,37 @@ Log the message to standard error, as well as the system log.
 .It Fl f Ar file
 Read the contents of the specified file into syslog.
 This option is ignored when a message is also specified.
+.It Fl H Ar hostname
+Set the hostname in the header of the message to specified value.
+If not specified, host part of
+.Xr gethostname 3
+will be used.
 .It Fl h Ar host
 Send the message to the remote system
 .Ar host
 instead of logging it locally.
+Note that
+.Nm
+currently supports
+.Li AF_INET
+.Pq IPv4 ,
+.Li AF_INET6
+.Pq IPv6 ,
+and
+.Li AF_LOCAL
+.Pq Unix-domain socket
+address families.
+The following address formats are valid in
+.Ar host :
+.Pp
+.Bl -tag -width "AF_LOCAL" -compact
+.It Li AF_INET
+192.168.2.1
+.It Li AF_INET6
+2001:db8::1
+.It Li AF_LOCAL
+.Pa /var/run/log
+.El
 .It Fl P Ar port
 Send the message to the specified
 .Ar port
@@ -93,14 +122,32 @@ If an unknown service name is used,
 prints a warning and falls back to port 514.
 .It Fl p Ar pri
 Enter the message with the specified priority.
-The priority may be specified numerically or as a ``facility.level''
+The priority may be specified numerically or as a
+.Li facility.level
 pair.
-For example, ``\-p local3.info'' logs the message(s) as
+For example,
+.Dq Fl p Li local3.info
+logs the message(s) as
 .Ar info Ns rmational
 level in the
 .Ar local3
 facility.
-The default is ``user.notice.''
+The default is
+.Dq Li user.notice .
+.It Fl S Ar addr Ns \&: Ns Ar port
+Specify source address and/or source port when using
+.Fl h
+option.
+The same address will be used for all of the remote addresses
+when
+.Fl A
+flag is enabled.
+Note that a numeric IPv6 address in
+.Ar addr
+must be enclosed with
+.Dq \&[
+and
+.Dq \&] .
 .It Fl t Ar tag
 Mark every line in the log with the specified
 .Ar tag

@@ -2,6 +2,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997
  *	Jonathan Stone and Jason R. Thorpe.  All rights reserved.
  *
@@ -107,6 +109,7 @@ ifmedia_removeall(ifm)
 		LIST_REMOVE(entry, ifm_list);
 		free(entry, M_IFADDR);
 	}
+	ifm->ifm_cur = NULL;
 }
 
 /*
@@ -120,7 +123,7 @@ ifmedia_add(ifm, mword, data, aux)
 	int data;
 	void *aux;
 {
-	register struct ifmedia_entry *entry;
+	struct ifmedia_entry *entry;
 
 #ifdef IFMEDIA_DEBUG
 	if (ifmedia_debug) {
@@ -396,18 +399,6 @@ struct ifmedia_description ifm_subtype_ethernet_descriptions[] =
 struct ifmedia_description ifm_subtype_ethernet_option_descriptions[] =
     IFM_SUBTYPE_ETHERNET_OPTION_DESCRIPTIONS;
 
-struct ifmedia_description ifm_subtype_tokenring_descriptions[] =
-    IFM_SUBTYPE_TOKENRING_DESCRIPTIONS;
-
-struct ifmedia_description ifm_subtype_tokenring_option_descriptions[] =
-    IFM_SUBTYPE_TOKENRING_OPTION_DESCRIPTIONS;
-
-struct ifmedia_description ifm_subtype_fddi_descriptions[] =
-    IFM_SUBTYPE_FDDI_DESCRIPTIONS;
-
-struct ifmedia_description ifm_subtype_fddi_option_descriptions[] =
-    IFM_SUBTYPE_FDDI_OPTION_DESCRIPTIONS;
-
 struct ifmedia_description ifm_subtype_ieee80211_descriptions[] =
     IFM_SUBTYPE_IEEE80211_DESCRIPTIONS;
 
@@ -440,16 +431,6 @@ struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 	{
 	  &ifm_subtype_ethernet_descriptions[0],
 	  &ifm_subtype_ethernet_option_descriptions[0],
-	  NULL,
-	},
-	{
-	  &ifm_subtype_tokenring_descriptions[0],
-	  &ifm_subtype_tokenring_option_descriptions[0],
-	  NULL,
-	},
-	{
-	  &ifm_subtype_fddi_descriptions[0],
-	  &ifm_subtype_fddi_option_descriptions[0],
 	  NULL,
 	},
 	{

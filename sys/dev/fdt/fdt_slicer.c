@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Semihalf.
  * All rights reserved.
  *
@@ -30,10 +32,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/slicer.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
@@ -42,8 +45,13 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-int
-fdt_flash_fill_slices(device_t dev, struct flash_slice *slices, int *slices_num)
+static int fdt_flash_fill_slices(device_t dev, const char *provider,
+    struct flash_slice *slices, int *slices_num);
+static void fdt_slicer_init(void);
+
+static int
+fdt_flash_fill_slices(device_t dev, const char *provider __unused,
+    struct flash_slice *slices, int *slices_num)
 {
 	char *slice_name;
 	phandle_t dt_node, dt_child;
@@ -86,11 +94,11 @@ fdt_flash_fill_slices(device_t dev, struct flash_slice *slices, int *slices_num)
 		/*
 		 * Retrieve label.
 		 */
-		name_len = OF_getprop_alloc(dt_child, "label", sizeof(char),
+		name_len = OF_getprop_alloc(dt_child, "label",
 		    (void **)&slice_name);
 		if (name_len <= 0) {
 			/* Use node name if no label defined */
-			name_len = OF_getprop_alloc(dt_child, "name", sizeof(char),
+			name_len = OF_getprop_alloc(dt_child, "name",
 			    (void **)&slice_name);
 			if (name_len <= 0) {
 				debugf("slice i=%d with no name\n", i);
@@ -110,3 +118,23 @@ fdt_flash_fill_slices(device_t dev, struct flash_slice *slices, int *slices_num)
 	*slices_num = i;
 	return (0);
 }
+
+static void
+fdt_slicer_init(void)
+{
+
+	flash_register_slicer(fdt_flash_fill_slices, FLASH_SLICES_TYPE_NAND,
+	   FALSE);
+	flash_register_slicer(fdt_flash_fill_slices, FLASH_SLICES_TYPE_CFI,
+	   FALSE);
+	flash_register_slicer(fdt_flash_fill_slices, FLASH_SLICES_TYPE_SPI,
+	   FALSE);
+}
+
+/*
+ * Must be initialized after GEOM classes (SI_SUB_DRIVERS/SI_ORDER_FIRST),
+ * i. e. after g_init() is called, due to the use of the GEOM topology_lock
+ * in flash_register_slicer().  However, must be before SI_SUB_CONFIGURE.
+ */
+SYSINIT(fdt_slicer_rootconf, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_init,
+    NULL);

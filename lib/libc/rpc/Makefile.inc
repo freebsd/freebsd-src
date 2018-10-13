@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 .PATH: ${LIBC_SRCTOP}/rpc ${LIBC_SRCTOP}/.
+CONFS+=	rpc/netconfig rpc/rpc
 SRCS+=	auth_none.c auth_unix.c authunix_prot.c bindresvport.c clnt_bcast.c \
 	clnt_dg.c clnt_generic.c clnt_perror.c clnt_raw.c clnt_simple.c \
 	clnt_vc.c rpc_dtablesize.c getnetconfig.c getnetpath.c getrpcent.c \
@@ -33,7 +34,7 @@ CFLAGS+= -I${LIBC_SRCTOP}/rpc
 
 CLEANFILES+= crypt_clnt.c crypt_xdr.c crypt.h
 
-RPCDIR= ${DESTDIR}/usr/include/rpcsvc
+RPCDIR= ${SRCTOP}/include/rpcsvc
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 crypt_clnt.c: ${RPCDIR}/crypt.x crypt.h

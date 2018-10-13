@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Andre Oppermann, Internet Business Solutions AG
  * All rights reserved.
  *
@@ -48,22 +50,22 @@ struct hc_head {
 struct hc_metrics {
 	/* housekeeping */
 	TAILQ_ENTRY(hc_metrics) rmx_q;
-	struct	hc_head *rmx_head; /* head of bucket tail queue */
-	struct	in_addr ip4;	/* IP address */
-	struct	in6_addr ip6;	/* IP6 address */
-	uint32_t ip6_zoneid;	/* IPv6 scope zone id */
+	struct		hc_head *rmx_head; /* head of bucket tail queue */
+	struct		in_addr ip4;	/* IP address */
+	struct		in6_addr ip6;	/* IP6 address */
+	uint32_t	ip6_zoneid;	/* IPv6 scope zone id */
 	/* endpoint specific values for tcp */
-	u_long	rmx_mtu;	/* MTU for this path */
-	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
-	u_long	rmx_rtt;	/* estimated round trip time */
-	u_long	rmx_rttvar;	/* estimated rtt variance */
-	u_long	rmx_cwnd;	/* congestion window */
-	u_long	rmx_sendpipe;	/* outbound delay-bandwidth product */
-	u_long	rmx_recvpipe;	/* inbound delay-bandwidth product */
+	uint32_t	rmx_mtu;	/* MTU for this path */
+	uint32_t	rmx_ssthresh;	/* outbound gateway buffer limit */
+	uint32_t	rmx_rtt;	/* estimated round trip time */
+	uint32_t	rmx_rttvar;	/* estimated rtt variance */
+	uint32_t	rmx_cwnd;	/* congestion window */
+	uint32_t	rmx_sendpipe;	/* outbound delay-bandwidth product */
+	uint32_t	rmx_recvpipe;	/* inbound delay-bandwidth product */
 	/* TCP hostcache internal data */
-	int	rmx_expire;	/* lifetime for object */
-	u_long	rmx_hits;	/* number of hits */
-	u_long	rmx_updates;	/* number of updates */
+	int		rmx_expire;	/* lifetime for object */
+	u_long		rmx_hits;	/* number of hits */
+	u_long		rmx_updates;	/* number of updates */
 };
 
 struct tcp_hostcache {

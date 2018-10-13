@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -62,6 +64,7 @@ struct tty {
 	struct mtx	*t_mtx;		/* TTY lock. */
 	struct mtx	t_mtxobj;	/* Per-TTY lock (when not borrowing). */
 	TAILQ_ENTRY(tty) t_list;	/* (l) TTY list entry. */
+	int		t_drainwait;	/* (t) TIOCDRAIN timeout seconds. */
 	unsigned int	t_flags;	/* (t) Terminal option flags. */
 /* Keep flags in sync with db_show_tty and pstat(8). */
 #define	TF_NOPREFIX	0x00001	/* Don't prepend "tty" to device name. */
@@ -147,7 +150,7 @@ struct xtty {
 	pid_t	xt_pgid;	/* Foreground process group. */
 	pid_t	xt_sid;		/* Session. */
 	unsigned int xt_flags;	/* Terminal option flags. */
-	dev_t	xt_dev;		/* Userland device. */
+	uint32_t xt_dev;	/* Userland device. XXXKIB truncated */
 };
 
 #ifdef _KERNEL

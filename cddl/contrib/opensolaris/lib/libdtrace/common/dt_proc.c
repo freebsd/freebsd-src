@@ -25,6 +25,10 @@
  */
 
 /*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
+/*
  * DTrace Process Control
  *
  * This file provides a set of routines that permit libdtrace and its clients
@@ -426,7 +430,8 @@ dt_proc_attach(dt_proc_t *dpr, int exec)
 static void
 dt_proc_waitrun(dt_proc_t *dpr)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	printf("%s:%s(%d): not implemented\n", __FUNCTION__, __FILE__,
+	    __LINE__);
 #ifdef DOODAD
 	struct ps_prochandle *P = dpr->dpr_proc;
 	const lwpstatus_t *psp = &Pstatus(P)->pr_lwp;
@@ -503,7 +508,7 @@ dt_proc_control(void *arg)
 	dt_proc_control_data_t *datap = arg;
 	dtrace_hdl_t *dtp = datap->dpcd_hdl;
 	dt_proc_t *dpr = datap->dpcd_proc;
-	dt_proc_hash_t *dph = dpr->dpr_hdl->dt_procs;
+	dt_proc_hash_t *dph = dtp->dt_procs;
 	struct ps_prochandle *P = dpr->dpr_proc;
 	int pid = dpr->dpr_pid;
 
@@ -964,14 +969,18 @@ dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
 	(void) pthread_cond_init(&dpr->dpr_cv, NULL);
 
 #ifdef illumos
-	if ((dpr->dpr_proc = Pcreate(file, argv, &err, NULL, 0)) == NULL) {
-#else
-	if ((err = proc_create(file, argv, pcf, child_arg,
-	    &dpr->dpr_proc)) != 0) {
-#endif
+	dpr->dpr_proc = Pxcreate(file, argv, dtp->dt_proc_env, &err, NULL, 0);
+	if (dpr->dpr_proc == NULL) {
 		return (dt_proc_error(dtp, dpr,
 		    "failed to execute %s: %s\n", file, Pcreate_error(err)));
 	}
+#else
+	if ((err = proc_create(file, argv, dtp->dt_proc_env, pcf, child_arg,
+	    &dpr->dpr_proc)) != 0) {
+		return (dt_proc_error(dtp, dpr,
+		    "failed to execute %s: %s\n", file, Pcreate_error(err)));
+	}
+#endif
 
 	dpr->dpr_hdl = dtp;
 #ifdef illumos
@@ -1140,30 +1149,74 @@ dt_proc_unlock(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 }
 
 void
-dt_proc_hash_create(dtrace_hdl_t *dtp)
+dt_proc_init(dtrace_hdl_t *dtp)
 {
+	extern char **environ;
+	static char *envdef[] = {
+		"LD_NOLAZYLOAD=1",	/* linker lazy loading hides funcs */
+		NULL
+	};
+	char **p;
+	int i;
+
 	if ((dtp->dt_procs = dt_zalloc(dtp, sizeof (dt_proc_hash_t) +
-	    sizeof (dt_proc_t *) * _dtrace_pidbuckets - 1)) != NULL) {
+	    sizeof (dt_proc_t *) * _dtrace_pidbuckets - 1)) == NULL)
+		return;
 
-		(void) pthread_mutex_init(&dtp->dt_procs->dph_lock, NULL);
-		(void) pthread_cond_init(&dtp->dt_procs->dph_cv, NULL);
+	(void) pthread_mutex_init(&dtp->dt_procs->dph_lock, NULL);
+	(void) pthread_cond_init(&dtp->dt_procs->dph_cv, NULL);
 
-		dtp->dt_procs->dph_hashlen = _dtrace_pidbuckets;
-		dtp->dt_procs->dph_lrulim = _dtrace_pidlrulim;
+	dtp->dt_procs->dph_hashlen = _dtrace_pidbuckets;
+	dtp->dt_procs->dph_lrulim = _dtrace_pidlrulim;
+
+	/*
+	 * Count how big our environment needs to be.
+	 */
+	for (i = 1, p = environ; *p != NULL; i++, p++)
+		continue;
+	for (p = envdef; *p != NULL; i++, p++)
+		continue;
+
+	if ((dtp->dt_proc_env = dt_zalloc(dtp, sizeof (char *) * i)) == NULL)
+		return;
+
+	for (i = 0, p = environ; *p != NULL; i++, p++) {
+		if ((dtp->dt_proc_env[i] = strdup(*p)) == NULL)
+			goto err;
 	}
+	for (p = envdef; *p != NULL; i++, p++) {
+		if ((dtp->dt_proc_env[i] = strdup(*p)) == NULL)
+			goto err;
+	}
+
+	return;
+
+err:
+	while (--i != 0) {
+		dt_free(dtp, dtp->dt_proc_env[i]);
+	}
+	dt_free(dtp, dtp->dt_proc_env);
+	dtp->dt_proc_env = NULL;
 }
 
 void
-dt_proc_hash_destroy(dtrace_hdl_t *dtp)
+dt_proc_fini(dtrace_hdl_t *dtp)
 {
 	dt_proc_hash_t *dph = dtp->dt_procs;
 	dt_proc_t *dpr;
+	char **p;
 
 	while ((dpr = dt_list_next(&dph->dph_lrulist)) != NULL)
 		dt_proc_destroy(dtp, dpr->dpr_proc);
 
 	dtp->dt_procs = NULL;
 	dt_free(dtp, dph);
+
+	for (p = dtp->dt_proc_env; *p != NULL; p++)
+		dt_free(dtp, *p);
+
+	dt_free(dtp, dtp->dt_proc_env);
+	dtp->dt_proc_env = NULL;
 }
 
 struct ps_prochandle *

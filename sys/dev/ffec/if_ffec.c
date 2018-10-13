@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -78,11 +80,13 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/ffec/if_ffecreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <dev/mii/mii_fdt.h>
 #include "miibus_if.h"
 
 /*
@@ -95,16 +99,21 @@ enum {
 	FECTYPE_NONE,
 	FECTYPE_GENERIC,
 	FECTYPE_IMX53,
-	FECTYPE_IMX6,
+	FECTYPE_IMX6,	/* imx6 and imx7 */
 	FECTYPE_MVF,
 };
 
 /*
  * Flags that describe general differences between the FEC hardware in various
- * SoCs.  These are ORed into the FECTYPE enum values.
+ * SoCs.  These are ORed into the FECTYPE enum values in the ofw_compat_data, so
+ * the low 8 bits are reserved for the type enum.  In the softc, the type and
+ * flags are put into separate members, so that you don't need to mask the flags
+ * out of the type to compare it.
  */
-#define	FECTYPE_MASK		0x0000ffff
-#define	FECFLAG_GBE		(0x0001 << 16)
+#define	FECTYPE_MASK		0x000000ff
+#define	FECFLAG_GBE		(1 <<  8)
+#define	FECFLAG_AVB		(1 <<  9)
+#define	FECFLAG_RACC		(1 << 10)
 
 /*
  * Table of supported FDT compat strings and their associated FECTYPE values.
@@ -112,8 +121,11 @@ enum {
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx51-fec",	FECTYPE_GENERIC},
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
-	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
-	{"fsl,mvf600-fec",	FECTYPE_MVF},
+	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_RACC | FECFLAG_GBE },
+	{"fsl,imx6ul-fec",	FECTYPE_IMX6 | FECFLAG_RACC },
+	{"fsl,imx7d-fec",	FECTYPE_IMX6 | FECFLAG_RACC | FECFLAG_GBE |
+				FECFLAG_AVB },
+	{"fsl,mvf600-fec",	FECTYPE_MVF  | FECFLAG_RACC },
 	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
 };
@@ -127,18 +139,12 @@ static struct ofw_compat_data compat_data[] = {
 #define	TX_DESC_SIZE	(sizeof(struct ffec_hwdesc) * TX_DESC_COUNT)
 
 #define	WATCHDOG_TIMEOUT_SECS	5
-#define	STATS_HARVEST_INTERVAL	3
+
+#define	MAX_IRQ_COUNT 3
 
 struct ffec_bufmap {
 	struct mbuf	*mbuf;
 	bus_dmamap_t	map;
-};
-
-enum {
-	PHY_CONN_UNKNOWN,
-	PHY_CONN_MII,
-	PHY_CONN_RMII,
-	PHY_CONN_RGMII
 };
 
 struct ffec_softc {
@@ -148,17 +154,19 @@ struct ffec_softc {
 	struct ifnet		*ifp;
 	int			if_flags;
 	struct mtx		mtx;
-	struct resource		*irq_res;
+	struct resource		*irq_res[MAX_IRQ_COUNT];
 	struct resource		*mem_res;
-	void *			intr_cookie;
+	void *			intr_cookie[MAX_IRQ_COUNT];
 	struct callout		ffec_callout;
-	uint8_t			phy_conn_type;
+	mii_contype_t		phy_conn_type;
+	uint32_t		fecflags;
 	uint8_t			fectype;
 	boolean_t		link_is_up;
 	boolean_t		is_attached;
 	boolean_t		is_detaching;
 	int			tx_watchdog_count;
-	int			stats_harvest_count;
+	int			rxbuf_align;
+	int			txbuf_align;
 
 	bus_dma_tag_t		rxdesc_tag;
 	bus_dmamap_t		rxdesc_map;
@@ -177,6 +185,13 @@ struct ffec_softc {
 	uint32_t		tx_idx_head;
 	uint32_t		tx_idx_tail;
 	int			txcount;
+};
+
+static struct resource_spec irq_res_spec[MAX_IRQ_COUNT + 1] = {
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		1,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL },
+	RESOURCE_SPEC_END
 };
 
 #define	FFEC_LOCK(sc)			mtx_lock(&(sc)->mtx)
@@ -252,7 +267,7 @@ ffec_miigasket_setup(struct ffec_softc *sc)
 	 * We only need the gasket for MII and RMII connections on certain SoCs.
 	 */
 
-	switch (sc->fectype & FECTYPE_MASK)
+	switch (sc->fectype)
 	{
 	case FECTYPE_IMX53:
 		break;
@@ -262,10 +277,10 @@ ffec_miigasket_setup(struct ffec_softc *sc)
 
 	switch (sc->phy_conn_type)
 	{
-	case PHY_CONN_MII:
+	case MII_CONTYPE_MII:
 		ifmode = 0;
 		break;
-	case PHY_CONN_RMII:
+	case MII_CONTYPE_RMII:
 		ifmode = FEC_MIIGSK_CFGR_IF_MODE_RMII;
 		break;
 	default:
@@ -377,13 +392,16 @@ ffec_miibus_statchg(device_t dev)
 
 	rcr |= FEC_RCR_MII_MODE; /* Must always be on even for R[G]MII. */
 	switch (sc->phy_conn_type) {
-	case PHY_CONN_MII:
-		break;
-	case PHY_CONN_RMII:
+	case MII_CONTYPE_RMII:
 		rcr |= FEC_RCR_RMII_MODE;
 		break;
-	case PHY_CONN_RGMII:
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 		rcr |= FEC_RCR_RGMII_EN;
+		break;
+	default:
 		break;
 	}
 
@@ -460,22 +478,41 @@ ffec_media_change(struct ifnet * ifp)
 
 static void ffec_clear_stats(struct ffec_softc *sc)
 {
+	uint32_t mibc;
 
-	WR4(sc, FEC_RMON_R_PACKETS, 0);
-	WR4(sc, FEC_RMON_R_MC_PKT, 0);
-	WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
-	WR4(sc, FEC_RMON_R_UNDERSIZE, 0);
-	WR4(sc, FEC_RMON_R_OVERSIZE, 0);
-	WR4(sc, FEC_RMON_R_FRAG, 0);
-	WR4(sc, FEC_RMON_R_JAB, 0);
-	WR4(sc, FEC_RMON_T_PACKETS, 0);
-	WR4(sc, FEC_RMON_T_MC_PKT, 0);
-	WR4(sc, FEC_RMON_T_CRC_ALIGN, 0);
-	WR4(sc, FEC_RMON_T_UNDERSIZE, 0);
-	WR4(sc, FEC_RMON_T_OVERSIZE , 0);
-	WR4(sc, FEC_RMON_T_FRAG, 0);
-	WR4(sc, FEC_RMON_T_JAB, 0);
-	WR4(sc, FEC_RMON_T_COL, 0);
+	mibc = RD4(sc, FEC_MIBC_REG);
+
+	/*
+	 * On newer hardware the statistic regs are cleared by toggling a bit in
+	 * the mib control register.  On older hardware the clear procedure is
+	 * to disable statistics collection, zero the regs, then re-enable.
+	 */
+	if (sc->fectype == FECTYPE_IMX6 || sc->fectype == FECTYPE_MVF) {
+		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_CLEAR);
+		WR4(sc, FEC_MIBC_REG, mibc & ~FEC_MIBC_CLEAR);
+	} else {
+		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_DIS);
+	
+		WR4(sc, FEC_IEEE_R_DROP, 0);
+		WR4(sc, FEC_IEEE_R_MACERR, 0);
+		WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
+		WR4(sc, FEC_RMON_R_FRAG, 0);
+		WR4(sc, FEC_RMON_R_JAB, 0);
+		WR4(sc, FEC_RMON_R_MC_PKT, 0);
+		WR4(sc, FEC_RMON_R_OVERSIZE, 0);
+		WR4(sc, FEC_RMON_R_PACKETS, 0);
+		WR4(sc, FEC_RMON_R_UNDERSIZE, 0);
+		WR4(sc, FEC_RMON_T_COL, 0);
+		WR4(sc, FEC_RMON_T_CRC_ALIGN, 0);
+		WR4(sc, FEC_RMON_T_FRAG, 0);
+		WR4(sc, FEC_RMON_T_JAB, 0);
+		WR4(sc, FEC_RMON_T_MC_PKT, 0);
+		WR4(sc, FEC_RMON_T_OVERSIZE , 0);
+		WR4(sc, FEC_RMON_T_PACKETS, 0);
+		WR4(sc, FEC_RMON_T_UNDERSIZE, 0);
+
+		WR4(sc, FEC_MIBC_REG, mibc);
+	}
 }
 
 static void
@@ -483,28 +520,21 @@ ffec_harvest_stats(struct ffec_softc *sc)
 {
 	struct ifnet *ifp;
 
-	/* We don't need to harvest too often. */
-	if (++sc->stats_harvest_count < STATS_HARVEST_INTERVAL)
-		return;
-
-	/*
-	 * Try to avoid harvesting unless the IDLE flag is on, but if it has
-	 * been too long just go ahead and do it anyway, the worst that'll
-	 * happen is we'll lose a packet count or two as we clear at the end.
-	 */
-	if (sc->stats_harvest_count < (2 * STATS_HARVEST_INTERVAL) &&
-	    ((RD4(sc, FEC_MIBC_REG) & FEC_MIBC_IDLE) == 0))
-		return;
-
-	sc->stats_harvest_count = 0;
 	ifp = sc->ifp;
 
+	/*
+	 * - FEC_IEEE_R_DROP is "dropped due to invalid start frame delimiter"
+	 *   so it's really just another type of input error.
+	 * - FEC_IEEE_R_MACERR is "no receive fifo space"; count as input drops.
+	 */
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, RD4(sc, FEC_RMON_R_PACKETS));
 	if_inc_counter(ifp, IFCOUNTER_IMCASTS, RD4(sc, FEC_RMON_R_MC_PKT));
 	if_inc_counter(ifp, IFCOUNTER_IERRORS,
 	    RD4(sc, FEC_RMON_R_CRC_ALIGN) + RD4(sc, FEC_RMON_R_UNDERSIZE) +
 	    RD4(sc, FEC_RMON_R_OVERSIZE) + RD4(sc, FEC_RMON_R_FRAG) +
-	    RD4(sc, FEC_RMON_R_JAB));
+	    RD4(sc, FEC_RMON_R_JAB) + RD4(sc, FEC_IEEE_R_DROP));
+
+	if_inc_counter(ifp, IFCOUNTER_IQDROPS, RD4(sc, FEC_IEEE_R_MACERR));
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, RD4(sc, FEC_RMON_T_PACKETS));
 	if_inc_counter(ifp, IFCOUNTER_OMCASTS, RD4(sc, FEC_RMON_T_MC_PKT));
@@ -738,14 +768,17 @@ ffec_setup_rxbuf(struct ffec_softc *sc, int idx, struct mbuf * m)
 	int error, nsegs;
 	struct bus_dma_segment seg;
 
-	/*
-	 * We need to leave at least ETHER_ALIGN bytes free at the beginning of
-	 * the buffer to allow the data to be re-aligned after receiving it (by
-	 * copying it backwards ETHER_ALIGN bytes in the same buffer).  We also
-	 * have to ensure that the beginning of the buffer is aligned to the
-	 * hardware's requirements.
-	 */
-	m_adj(m, roundup(ETHER_ALIGN, FEC_RXBUF_ALIGN));
+	if (!(sc->fecflags & FECFLAG_RACC)) {
+		/*
+		 * The RACC[SHIFT16] feature is not available.  So, we need to
+		 * leave at least ETHER_ALIGN bytes free at the beginning of the
+		 * buffer to allow the data to be re-aligned after receiving it
+		 * (by copying it backwards ETHER_ALIGN bytes in the same
+		 * buffer).  We also have to ensure that the beginning of the
+		 * buffer is aligned to the hardware's requirements.
+		 */
+		m_adj(m, roundup(ETHER_ALIGN, sc->rxbuf_align));
+	}
 
 	error = bus_dmamap_load_mbuf_sg(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
 	    m, &seg, &nsegs, 0);
@@ -768,7 +801,8 @@ ffec_alloc_mbufcl(struct ffec_softc *sc)
 	struct mbuf *m;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
+	if (m != NULL)
+		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 	return (m);
 }
@@ -793,23 +827,6 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 		return;
 	}
 
-	/*
-	 *  Unfortunately, the protocol headers need to be aligned on a 32-bit
-	 *  boundary for the upper layers.  The hardware requires receive
-	 *  buffers to be 16-byte aligned.  The ethernet header is 14 bytes,
-	 *  leaving the protocol header unaligned.  We used m_adj() after
-	 *  allocating the buffer to leave empty space at the start of the
-	 *  buffer, now we'll use the alignment agnostic bcopy() routine to
-	 *  shuffle all the data backwards 2 bytes and adjust m_data.
-	 *
-	 *  XXX imx6 hardware is able to do this 2-byte alignment by setting the
-	 *  SHIFT16 bit in the RACC register.  Older hardware doesn't have that
-	 *  feature, but for them could we speed this up by copying just the
-	 *  protocol headers into their own small mbuf then chaining the cluster
-	 *  to it?  That way we'd only need to copy like 64 bytes or whatever
-	 *  the biggest header is, instead of the whole 1530ish-byte frame.
-	 */
-
 	FFEC_UNLOCK(sc);
 
 	bmap = &sc->rxbuf_map[sc->rx_idx];
@@ -822,10 +839,24 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 	m->m_pkthdr.len = len;
 	m->m_pkthdr.rcvif = sc->ifp;
 
-	src = mtod(m, uint8_t*);
-	dst = src - ETHER_ALIGN;
-	bcopy(src, dst, len);
-	m->m_data = dst;
+	/*
+	 * Align the protocol headers in the receive buffer on a 32-bit
+	 * boundary.  Newer hardware does the alignment for us.  On hardware
+	 * that doesn't support this feature, we have to copy-align the data.
+	 *
+	 *  XXX for older hardware, could we speed this up by copying just the
+	 *  protocol headers into their own small mbuf then chaining the cluster
+	 *  to it? That way we'd only need to copy like 64 bytes or whatever the
+	 *  biggest header is, instead of the whole 1530ish-byte frame.
+	 */
+	if (sc->fecflags & FECFLAG_RACC) {
+		m->m_data = mtod(m, uint8_t *) + 2;
+	} else {
+		src = mtod(m, uint8_t*);
+		dst = src - ETHER_ALIGN;
+		bcopy(src, dst, len);
+		m->m_data = dst;
+	}
 	sc->ifp->if_input(sc->ifp, m);
 
 	FFEC_LOCK(sc);
@@ -964,7 +995,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 	else {
 		ghash = 0;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/* 6 bits from MSB in LE CRC32 are used for hash. */
@@ -1014,7 +1045,6 @@ ffec_stop_locked(struct ffec_softc *sc)
 	ifp = sc->ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->tx_watchdog_count = 0;
-	sc->stats_harvest_count = 0;
 
 	/* 
 	 * Stop the hardware, mask all interrupts, and clear all current
@@ -1090,7 +1120,7 @@ ffec_init_locked(struct ffec_softc *sc)
 	 * when we support jumbo frames and receiving fragments of them into
 	 * separate buffers.
 	 */
-	maxbuf = MCLBYTES - roundup(ETHER_ALIGN, FEC_RXBUF_ALIGN);
+	maxbuf = MCLBYTES - roundup(ETHER_ALIGN, sc->rxbuf_align);
 	maxfl = min(maxbuf, 0x7ff);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1192,12 +1222,21 @@ ffec_init_locked(struct ffec_softc *sc)
 	WR4(sc, FEC_IEM_REG, FEC_IER_TXF | FEC_IER_RXF | FEC_IER_EBERR);
 
 	/*
-	 * MIBC - MIB control (hardware stats).
+	 * MIBC - MIB control (hardware stats); clear all statistics regs, then
+	 * enable collection of statistics.
 	 */
 	regval = RD4(sc, FEC_MIBC_REG);
 	WR4(sc, FEC_MIBC_REG, regval | FEC_MIBC_DIS);
 	ffec_clear_stats(sc);
 	WR4(sc, FEC_MIBC_REG, regval & ~FEC_MIBC_DIS);
+
+	if (sc->fecflags & FECFLAG_RACC) {
+		/*
+		 * RACC - Receive Accelerator Function Configuration.
+		 */
+		regval = RD4(sc, FEC_RACC_REG);
+		WR4(sc, FEC_RACC_REG, regval | FEC_RACC_SHIFT16);
+	}
 
 	/*
 	 * ECR - Ethernet control register.
@@ -1351,7 +1390,7 @@ ffec_detach(device_t dev)
 {
 	struct ffec_softc *sc;
 	bus_dmamap_t map;
-	int idx;
+	int idx, irq;
 
 	/*
 	 * NB: This function can be called internally to unwind a failure to
@@ -1402,14 +1441,16 @@ ffec_detach(device_t dev)
 		bus_dmamap_destroy(sc->txdesc_tag, sc->txdesc_map);
 	}
 	if (sc->txdesc_tag != NULL)
-	bus_dma_tag_destroy(sc->txdesc_tag);
+		bus_dma_tag_destroy(sc->txdesc_tag);
 
 	/* Release bus resources. */
-	if (sc->intr_cookie)
-		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
-
-	if (sc->irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	for (irq = 0; irq < MAX_IRQ_COUNT; ++irq) {
+		if (sc->intr_cookie[irq] != NULL) {
+			bus_teardown_intr(dev, sc->irq_res[irq],
+			    sc->intr_cookie[irq]);
+		}
+	}
+	bus_release_resources(dev, irq_res_spec, sc->irq_res);
 
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
@@ -1424,11 +1465,12 @@ ffec_attach(device_t dev)
 	struct ffec_softc *sc;
 	struct ifnet *ifp = NULL;
 	struct mbuf *m;
+	void *dummy;
+	uintptr_t typeflags;
 	phandle_t ofw_node;
-	int error, rid;
-	uint8_t eaddr[ETHER_ADDR_LEN];
-	char phy_conn_name[32];
 	uint32_t idx, mscr;
+	int error, phynum, rid, irq;
+	uint8_t eaddr[ETHER_ADDR_LEN];
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1439,7 +1481,17 @@ ffec_attach(device_t dev)
 	 * There are differences in the implementation and features of the FEC
 	 * hardware on different SoCs, so figure out what type we are.
 	 */
-	sc->fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	typeflags = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->fectype = (uint8_t)(typeflags & FECTYPE_MASK);
+	sc->fecflags = (uint32_t)(typeflags & ~FECTYPE_MASK);
+
+	if (sc->fecflags & FECFLAG_AVB) {
+		sc->rxbuf_align = 64;
+		sc->txbuf_align = 1;
+	} else {
+		sc->rxbuf_align = 16;
+		sc->txbuf_align = 16;
+	}
 
 	/*
 	 * We have to be told what kind of electrical connection exists between
@@ -1450,16 +1502,8 @@ ffec_attach(device_t dev)
 		error = ENXIO;
 		goto out;
 	}
-	if (OF_searchprop(ofw_node, "phy-mode", 
-	    phy_conn_name, sizeof(phy_conn_name)) != -1) {
-		if (strcasecmp(phy_conn_name, "mii") == 0)
-			sc->phy_conn_type = PHY_CONN_MII;
-		else if (strcasecmp(phy_conn_name, "rmii") == 0)
-			sc->phy_conn_type = PHY_CONN_RMII;
-		else if (strcasecmp(phy_conn_name, "rgmii") == 0)
-			sc->phy_conn_type = PHY_CONN_RGMII;
-	}
-	if (sc->phy_conn_type == PHY_CONN_UNKNOWN) {
+	sc->phy_conn_type = mii_fdt_get_contype(ofw_node);
+	if (sc->phy_conn_type == MII_CONTYPE_UNKNOWN) {
 		device_printf(sc->dev, "No valid 'phy-mode' "
 		    "property found in FDT data for device.\n");
 		error = ENOATTR;
@@ -1477,12 +1521,10 @@ ffec_attach(device_t dev)
 		error = ENOMEM;
 		goto out;
 	}
-	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
-	if (sc->irq_res == NULL) {
-		device_printf(dev, "could not allocate interrupt resources.\n");
-		error = ENOMEM;
+
+	error = bus_alloc_resources(dev, irq_res_spec, sc->irq_res);
+	if (error != 0) {
+		device_printf(dev, "could not allocate interrupt resources\n");
 		goto out;
 	}
 
@@ -1524,7 +1566,7 @@ ffec_attach(device_t dev)
 
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),	/* Parent tag. */
-	    FEC_TXBUF_ALIGN, 0,		/* alignment, boundary */
+	    sc->txbuf_align, 0,		/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
@@ -1626,15 +1668,34 @@ ffec_attach(device_t dev)
 	/* Try to get the MAC address from the hardware before resetting it. */
 	ffec_get_hwaddr(sc, eaddr);
 
-	/* Reset the hardware.  Disables all interrupts. */
-	WR4(sc, FEC_ECR_REG, FEC_ECR_RESET);
+	/*
+	 * Reset the hardware.  Disables all interrupts.
+	 *
+	 * When the FEC is connected to the AXI bus (indicated by AVB flag), a
+	 * MAC reset while a bus transaction is pending can hang the bus.
+	 * Instead of resetting, turn off the ENABLE bit, which allows the
+	 * hardware to complete any in-progress transfers (appending a bad CRC
+	 * to any partial packet) and release the AXI bus.  This could probably
+	 * be done unconditionally for all hardware variants, but that hasn't
+	 * been tested.
+	 */
+	if (sc->fecflags & FECFLAG_AVB)
+		WR4(sc, FEC_ECR_REG, 0);
+	else
+		WR4(sc, FEC_ECR_REG, FEC_ECR_RESET);
 
 	/* Setup interrupt handler. */
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, ffec_intr, sc, &sc->intr_cookie);
-	if (error != 0) {
-		device_printf(dev, "could not setup interrupt handler.\n");
-		goto out;
+	for (irq = 0; irq < MAX_IRQ_COUNT; ++irq) {
+		if (sc->irq_res[irq] != NULL) {
+			error = bus_setup_intr(dev, sc->irq_res[irq],
+			    INTR_TYPE_NET | INTR_MPSAFE, NULL, ffec_intr, sc,
+			    &sc->intr_cookie[irq]);
+			if (error != 0) {
+				device_printf(dev,
+				    "could not setup interrupt handler.\n");
+				goto out;
+			}
+		}
 	}
 
 	/*
@@ -1695,9 +1756,12 @@ ffec_attach(device_t dev)
 	ffec_miigasket_setup(sc);
 
 	/* Attach the mii driver. */
+	if (fdt_get_phyaddr(ofw_node, dev, &phynum, &dummy) != 0) {
+		phynum = MII_PHY_ANY;
+	}
 	error = mii_attach(dev, &sc->miibus, ifp, ffec_media_change,
-	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
-	    (sc->fectype & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
+	    ffec_media_status, BMSR_DEFCAPMASK, phynum, MII_OFFSET_ANY,
+	    (sc->fecflags & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
 	if (error != 0) {
 		device_printf(dev, "PHY attach failed\n");
 		goto out;

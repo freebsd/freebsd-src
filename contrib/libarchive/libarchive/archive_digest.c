@@ -207,7 +207,9 @@ __archive_nettle_md5final(archive_md5_ctx *ctx, void *md)
 static int
 __archive_openssl_md5init(archive_md5_ctx *ctx)
 {
-  EVP_DigestInit(ctx, EVP_md5());
+  if ((*ctx = EVP_MD_CTX_new()) == NULL)
+	return (ARCHIVE_FAILED);
+  EVP_DigestInit(*ctx, EVP_md5());
   return (ARCHIVE_OK);
 }
 
@@ -215,7 +217,7 @@ static int
 __archive_openssl_md5update(archive_md5_ctx *ctx, const void *indata,
     size_t insize)
 {
-  EVP_DigestUpdate(ctx, indata, insize);
+  EVP_DigestUpdate(*ctx, indata, insize);
   return (ARCHIVE_OK);
 }
 
@@ -226,8 +228,11 @@ __archive_openssl_md5final(archive_md5_ctx *ctx, void *md)
    * this is meant to cope with that. Real fix is probably to fix
    * archive_write_set_format_xar.c
    */
-  if (ctx->digest)
-    EVP_DigestFinal(ctx, md, NULL);
+  if (*ctx) {
+    EVP_DigestFinal(*ctx, md, NULL);
+    EVP_MD_CTX_free(*ctx);
+    *ctx = NULL;
+  }
   return (ARCHIVE_OK);
 }
 
@@ -359,7 +364,9 @@ __archive_nettle_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 static int
 __archive_openssl_ripemd160init(archive_rmd160_ctx *ctx)
 {
-  EVP_DigestInit(ctx, EVP_ripemd160());
+  if ((*ctx = EVP_MD_CTX_new()) == NULL)
+	return (ARCHIVE_FAILED);
+  EVP_DigestInit(*ctx, EVP_ripemd160());
   return (ARCHIVE_OK);
 }
 
@@ -367,14 +374,18 @@ static int
 __archive_openssl_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
     size_t insize)
 {
-  EVP_DigestUpdate(ctx, indata, insize);
+  EVP_DigestUpdate(*ctx, indata, insize);
   return (ARCHIVE_OK);
 }
 
 static int
 __archive_openssl_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
-  EVP_DigestFinal(ctx, md, NULL);
+  if (*ctx) {
+    EVP_DigestFinal(*ctx, md, NULL);
+    EVP_MD_CTX_free(*ctx);
+    *ctx = NULL;
+  }
   return (ARCHIVE_OK);
 }
 
@@ -509,7 +520,9 @@ __archive_nettle_sha1final(archive_sha1_ctx *ctx, void *md)
 static int
 __archive_openssl_sha1init(archive_sha1_ctx *ctx)
 {
-  EVP_DigestInit(ctx, EVP_sha1());
+  if ((*ctx = EVP_MD_CTX_new()) == NULL)
+	return (ARCHIVE_FAILED);
+  EVP_DigestInit(*ctx, EVP_sha1());
   return (ARCHIVE_OK);
 }
 
@@ -517,7 +530,7 @@ static int
 __archive_openssl_sha1update(archive_sha1_ctx *ctx, const void *indata,
     size_t insize)
 {
-  EVP_DigestUpdate(ctx, indata, insize);
+  EVP_DigestUpdate(*ctx, indata, insize);
   return (ARCHIVE_OK);
 }
 
@@ -528,8 +541,11 @@ __archive_openssl_sha1final(archive_sha1_ctx *ctx, void *md)
    * this is meant to cope with that. Real fix is probably to fix
    * archive_write_set_format_xar.c
    */
-  if (ctx->digest)
-    EVP_DigestFinal(ctx, md, NULL);
+  if (*ctx) {
+    EVP_DigestFinal(*ctx, md, NULL);
+    EVP_MD_CTX_free(*ctx);
+    *ctx = NULL;
+  }
   return (ARCHIVE_OK);
 }
 
@@ -733,7 +749,9 @@ __archive_nettle_sha256final(archive_sha256_ctx *ctx, void *md)
 static int
 __archive_openssl_sha256init(archive_sha256_ctx *ctx)
 {
-  EVP_DigestInit(ctx, EVP_sha256());
+  if ((*ctx = EVP_MD_CTX_new()) == NULL)
+	return (ARCHIVE_FAILED);
+  EVP_DigestInit(*ctx, EVP_sha256());
   return (ARCHIVE_OK);
 }
 
@@ -741,14 +759,18 @@ static int
 __archive_openssl_sha256update(archive_sha256_ctx *ctx, const void *indata,
     size_t insize)
 {
-  EVP_DigestUpdate(ctx, indata, insize);
+  EVP_DigestUpdate(*ctx, indata, insize);
   return (ARCHIVE_OK);
 }
 
 static int
 __archive_openssl_sha256final(archive_sha256_ctx *ctx, void *md)
 {
-  EVP_DigestFinal(ctx, md, NULL);
+  if (*ctx) {
+    EVP_DigestFinal(*ctx, md, NULL);
+    EVP_MD_CTX_free(*ctx);
+    *ctx = NULL;
+  }
   return (ARCHIVE_OK);
 }
 
@@ -928,7 +950,9 @@ __archive_nettle_sha384final(archive_sha384_ctx *ctx, void *md)
 static int
 __archive_openssl_sha384init(archive_sha384_ctx *ctx)
 {
-  EVP_DigestInit(ctx, EVP_sha384());
+  if ((*ctx = EVP_MD_CTX_new()) == NULL)
+	return (ARCHIVE_FAILED);
+  EVP_DigestInit(*ctx, EVP_sha384());
   return (ARCHIVE_OK);
 }
 
@@ -936,14 +960,18 @@ static int
 __archive_openssl_sha384update(archive_sha384_ctx *ctx, const void *indata,
     size_t insize)
 {
-  EVP_DigestUpdate(ctx, indata, insize);
+  EVP_DigestUpdate(*ctx, indata, insize);
   return (ARCHIVE_OK);
 }
 
 static int
 __archive_openssl_sha384final(archive_sha384_ctx *ctx, void *md)
 {
-  EVP_DigestFinal(ctx, md, NULL);
+  if (*ctx) {
+    EVP_DigestFinal(*ctx, md, NULL);
+    EVP_MD_CTX_free(*ctx);
+    *ctx = NULL;
+  }
   return (ARCHIVE_OK);
 }
 
@@ -1147,7 +1175,9 @@ __archive_nettle_sha512final(archive_sha512_ctx *ctx, void *md)
 static int
 __archive_openssl_sha512init(archive_sha512_ctx *ctx)
 {
-  EVP_DigestInit(ctx, EVP_sha512());
+  if ((*ctx = EVP_MD_CTX_new()) == NULL)
+	return (ARCHIVE_FAILED);
+  EVP_DigestInit(*ctx, EVP_sha512());
   return (ARCHIVE_OK);
 }
 
@@ -1155,14 +1185,18 @@ static int
 __archive_openssl_sha512update(archive_sha512_ctx *ctx, const void *indata,
     size_t insize)
 {
-  EVP_DigestUpdate(ctx, indata, insize);
+  EVP_DigestUpdate(*ctx, indata, insize);
   return (ARCHIVE_OK);
 }
 
 static int
 __archive_openssl_sha512final(archive_sha512_ctx *ctx, void *md)
 {
-  EVP_DigestFinal(ctx, md, NULL);
+  if (*ctx) {
+    EVP_DigestFinal(*ctx, md, NULL);
+    EVP_MD_CTX_free(*ctx);
+    *ctx = NULL;
+  }
   return (ARCHIVE_OK);
 }
 

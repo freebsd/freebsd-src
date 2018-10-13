@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-T5FW=	${.CURDIR}/../../../dev/cxgbe/firmware
+T5FW=	${SRCTOP}/sys/dev/cxgbe/firmware
 .PATH: ${T5FW}
 
 KMOD=	t5fw_cfg
@@ -17,7 +17,7 @@ FIRMWS+=	${F}:${F:C/.txt//}:1.0.0.0
 .endif
 .endfor
 
-T5FW_VER=	1.15.37.0
+T5FW_VER=	1.19.1.0
 FIRMWS+=	t5fw.fw:t5fw:${T5FW_VER}
 CLEANFILES+=	t5fw.fw
 

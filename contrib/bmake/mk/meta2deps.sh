@@ -77,7 +77,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.10 2016/03/02 18:53:36 sjg Exp $
+#	$Id: meta2deps.sh,v 1.12 2016/12/13 20:44:16 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -255,7 +255,7 @@ meta2deps() {
 	*)
 	    case "$lpid" in
 	    "") ;;
-	    *) eval ldir_$lpid=$ldir cwd_$lpid=$cwd;;
+	    *) eval ldir_$lpid=$ldir;;
 	    esac
 	    eval ldir=\${ldir_$pid:-$CWD} cwd=\${cwd_$pid:-$CWD}
 	    lpid=$pid
@@ -271,9 +271,11 @@ meta2deps() {
 	    esac
 	    # watch out for temp dirs that no longer exist
 	    test -d ${cwd:-/dev/null/no/such} || cwd=$CWD
+	    eval cwd_$pid=$cwd
 	    continue
 	    ;;
-	F,*)  eval cwd_$path=$cwd ldir_$path=$ldir
+	F,*) # $path is new pid  
+	    eval cwd_$path=$cwd ldir_$path=$ldir
 	    continue
 	    ;;	  
 	*)  dir=${path%/*}

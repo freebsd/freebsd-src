@@ -46,6 +46,11 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 /* Bits 58:55 are reserved for software */
 #define	ATTR_SW_MANAGED	(1UL << 56)
 #define	ATTR_SW_WIRED	(1UL << 55)
+#define	ATTR_UXN	(1UL << 54)
+#define	ATTR_PXN	(1UL << 53)
+#define	ATTR_XN		(ATTR_PXN | ATTR_UXN)
+#define	ATTR_CONTIGUOUS	(1UL << 52)
+#define	ATTR_DBM	(1UL << 51)
 #define	ATTR_nG		(1 << 11)
 #define	ATTR_AF		(1 << 10)
 #define	ATTR_SH(x)	((x) << 8)
@@ -104,6 +109,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 	/* 0x2 also marks an invalid address */
 #define	L3_PAGE		0x3
 
+#define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 8)
+
 #define	L0_ENTRIES_SHIFT 9
 #define	L0_ENTRIES	(1 << L0_ENTRIES_SHIFT)
 #define	L0_ADDR_MASK	(L0_ENTRIES - 1)
@@ -112,6 +119,11 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	Ln_ENTRIES	(1 << Ln_ENTRIES_SHIFT)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 #define	Ln_TABLE_MASK	((1 << 12) - 1)
+
+#define	pmap_l0_index(va)	(((va) >> L0_SHIFT) & L0_ADDR_MASK)
+#define	pmap_l1_index(va)	(((va) >> L1_SHIFT) & Ln_ADDR_MASK)
+#define	pmap_l2_index(va)	(((va) >> L2_SHIFT) & Ln_ADDR_MASK)
+#define	pmap_l3_index(va)	(((va) >> L3_SHIFT) & Ln_ADDR_MASK)
 
 #endif /* !_MACHINE_PTE_H_ */
 

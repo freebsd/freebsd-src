@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -36,6 +38,7 @@
 #define	G_PART_PROBE_PRI_HIGH	0
 
 enum g_part_alias {
+	G_PART_ALIAS_APPLE_APFS,	/* An Apple APFS partition. */
 	G_PART_ALIAS_APPLE_BOOT,	/* An Apple boot partition entry. */
 	G_PART_ALIAS_APPLE_CORE_STORAGE,/* An Apple Core Storage partition. */
 	G_PART_ALIAS_APPLE_HFS,		/* An HFS+ file system entry. */
@@ -75,6 +78,7 @@ enum g_part_alias {
 	G_PART_ALIAS_MS_BASIC_DATA,	/* A Microsoft Data part. entry. */
 	G_PART_ALIAS_MS_FAT16,		/* A Microsoft FAT16 partition entry. */
 	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
+	G_PART_ALIAS_MS_FAT32LBA,	/* A Microsoft FAT32 LBA partition entry */
 	G_PART_ALIAS_MS_LDM_DATA,	/* A Microsoft LDM Data part. entry. */
 	G_PART_ALIAS_MS_LDM_METADATA,	/* A Microsoft LDM Metadata entry. */
 	G_PART_ALIAS_MS_NTFS,		/* A Microsoft NTFS partition entry */

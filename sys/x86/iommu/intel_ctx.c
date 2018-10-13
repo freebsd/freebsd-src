@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -433,11 +435,13 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			TD_PINNED_ASSERT;
 			return (NULL);
 		}
-		error = domain_init_rmrr(domain1, dev);
-		if (error != 0) {
-			dmar_domain_destroy(domain1);
-			TD_PINNED_ASSERT;
-			return (NULL);
+		if (!id_mapped) {
+			error = domain_init_rmrr(domain1, dev);
+			if (error != 0) {
+				dmar_domain_destroy(domain1);
+				TD_PINNED_ASSERT;
+				return (NULL);
+			}
 		}
 		ctx1 = dmar_ctx_alloc(domain1, rid);
 		ctxp = dmar_map_ctx_entry(ctx1, &sf);
@@ -470,13 +474,15 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			    dmar->unit, dmar->segment, bus, slot,
 			    func, rid, domain->domain, domain->mgaw,
 			    domain->agaw, id_mapped ? "id" : "re");
+			dmar_unmap_pgtbl(sf);
 		} else {
-			/* Nothing needs to be done to destroy ctx1. */
+			dmar_unmap_pgtbl(sf);
 			dmar_domain_destroy(domain1);
+			/* Nothing needs to be done to destroy ctx1. */
+			free(ctx1, M_DMAR_CTX);
 			domain = ctx->domain;
 			ctx->refs++; /* tag referenced us */
 		}
-		dmar_unmap_pgtbl(sf);
 	} else {
 		domain = ctx->domain;
 		ctx->refs++; /* tag referenced us */
@@ -699,7 +705,7 @@ dmar_domain_unload_entry(struct dmar_map_entry *entry, bool free)
 	if (unit->qi_enabled) {
 		DMAR_LOCK(unit);
 		dmar_qi_invalidate_locked(entry->domain, entry->start,
-		    entry->end - entry->start, &entry->gseq);
+		    entry->end - entry->start, &entry->gseq, true);
 		if (!free)
 			entry->flags |= DMAR_MAP_ENTRY_QI_NF;
 		TAILQ_INSERT_TAIL(&unit->tlb_flush_entries, entry, dmamap_link);
@@ -711,16 +717,14 @@ dmar_domain_unload_entry(struct dmar_map_entry *entry, bool free)
 	}
 }
 
-static struct dmar_qi_genseq *
-dmar_domain_unload_gseq(struct dmar_domain *domain,
-    struct dmar_map_entry *entry, struct dmar_qi_genseq *gseq)
+static bool
+dmar_domain_unload_emit_wait(struct dmar_domain *domain,
+    struct dmar_map_entry *entry)
 {
 
-	if (TAILQ_NEXT(entry, dmamap_link) != NULL)
-		return (NULL);
-	if (domain->batch_no++ % dmar_batch_coalesce != 0)
-		return (NULL);
-	return (gseq);
+	if (TAILQ_NEXT(entry, dmamap_link) == NULL)
+		return (true);
+	return (domain->batch_no++ % dmar_batch_coalesce == 0);
 }
 
 void
@@ -729,7 +733,6 @@ dmar_domain_unload(struct dmar_domain *domain,
 {
 	struct dmar_unit *unit;
 	struct dmar_map_entry *entry, *entry1;
-	struct dmar_qi_genseq gseq;
 	int error;
 
 	unit = domain->dmar;
@@ -753,17 +756,11 @@ dmar_domain_unload(struct dmar_domain *domain,
 	KASSERT(unit->qi_enabled, ("loaded entry left"));
 	DMAR_LOCK(unit);
 	TAILQ_FOREACH(entry, entries, dmamap_link) {
-		entry->gseq.gen = 0;
-		entry->gseq.seq = 0;
 		dmar_qi_invalidate_locked(domain, entry->start, entry->end -
-		    entry->start, dmar_domain_unload_gseq(domain, entry,
-		    &gseq));
+		    entry->start, &entry->gseq,
+		    dmar_domain_unload_emit_wait(domain, entry));
 	}
-	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
-		entry->gseq = gseq;
-		TAILQ_REMOVE(entries, entry, dmamap_link);
-		TAILQ_INSERT_TAIL(&unit->tlb_flush_entries, entry, dmamap_link);
-	}
+	TAILQ_CONCAT(&unit->tlb_flush_entries, entries, dmamap_link);
 	DMAR_UNLOCK(unit);
 }	
 

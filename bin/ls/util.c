@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,19 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 #include <wctype.h>
-#include <libxo/xo.h>
 
 #include "ls.h"
 #include "extern.h"
 
 int
-prn_normal(const char *field, const char *s)
+prn_normal(const char *s)
 {
-	char fmt[_POSIX2_LINE_MAX];
-
-	snprintf(fmt, sizeof(fmt), "{:%s/%%hs}", field);
-	return xo_emit(fmt, s);
-#if 0
 	mbstate_t mbs;
 	wchar_t wc;
 	int i, n;
@@ -89,47 +85,43 @@ prn_normal(const char *field, const char *s)
 			n += wcwidth(wc);
 	}
 	return (n);
-#endif
 }
 
-char *
-get_printable(const char *s)
+int
+prn_printable(const char *s)
 {
 	mbstate_t mbs;
 	wchar_t wc;
 	int i, n;
 	size_t clen;
-	int slen = strlen(s);
-	char *buf = alloca(slen + 1), *bp = buf;
 
 	memset(&mbs, 0, sizeof(mbs));
 	n = 0;
 	while ((clen = mbrtowc(&wc, s, MB_LEN_MAX, &mbs)) != 0) {
 		if (clen == (size_t)-1) {
-			*bp++ = '?';
+			putchar('?');
 			s++;
 			n++;
 			memset(&mbs, 0, sizeof(mbs));
 			continue;
 		}
 		if (clen == (size_t)-2) {
-			*bp++ = '?';
+			putchar('?');
 			n++;
 			break;
 		}
 		if (!iswprint(wc)) {
-			*bp++ = '?';
+			putchar('?');
 			s += clen;
 			n++;
 			continue;
 		}
 		for (i = 0; i < (int)clen; i++)
-			*bp++ = (unsigned char)s[i];
+			putchar((unsigned char)s[i]);
 		s += clen;
 		n += wcwidth(wc);
 	}
-	*bp = '\0';
-	return strdup(buf);
+	return (n);
 }
 
 /*
@@ -175,8 +167,8 @@ len_octal(const char *s, int len)
 	return (r);
 }
 
-char *
-get_octal(const char *s)
+int
+prn_octal(const char *s)
 {
 	static const char esc[] = "\\\\\"\"\aa\bb\ff\nn\rr\tt\vv";
 	const char *p;
@@ -185,8 +177,6 @@ get_octal(const char *s)
 	size_t clen;
 	unsigned char ch;
 	int goodchar, i, len, prtlen;
-	int slen = strlen(s);
-	char *buf = alloca(slen * 4 + 1), *bp = buf;
 
 	memset(&mbs, 0, sizeof(mbs));
 	len = 0;
@@ -194,7 +184,7 @@ get_octal(const char *s)
 		goodchar = clen != (size_t)-1 && clen != (size_t)-2;
 		if (goodchar && iswprint(wc) && wc != L'\"' && wc != L'\\') {
 			for (i = 0; i < (int)clen; i++)
-				*bp++ = (unsigned char)s[i];
+				putchar((unsigned char)s[i]);
 			len += wcwidth(wc);
 		} else if (goodchar && f_octal_escape &&
 #if WCHAR_MIN < 0
@@ -202,8 +192,8 @@ get_octal(const char *s)
 #endif
 		    wc <= (wchar_t)UCHAR_MAX &&
 		    (p = strchr(esc, (char)wc)) != NULL) {
-			*bp ++ = '\\';
-			*bp++ = p[1];
+			putchar('\\');
+			putchar(p[1]);
 			len += 2;
 		} else {
 			if (goodchar)
@@ -214,10 +204,10 @@ get_octal(const char *s)
 				prtlen = strlen(s);
 			for (i = 0; i < prtlen; i++) {
 				ch = (unsigned char)s[i];
-				*bp++ = '\\';
-				*bp++ = '0' + (ch >> 6);
-				*bp++ = '0' + ((ch >> 3) & 7);
-				*bp++ = '0' + (ch & 7);
+				putchar('\\');
+				putchar('0' + (ch >> 6));
+				putchar('0' + ((ch >> 3) & 7));
+				putchar('0' + (ch & 7));
 				len += 4;
 			}
 		}
@@ -229,17 +219,15 @@ get_octal(const char *s)
 		} else
 			s += clen;
 	}
-
-	*bp = '\0';
-	return strdup(buf);
+	return (len);
 }
 
 void
 usage(void)
 {
-	xo_error(
+	(void)fprintf(stderr,
 #ifdef COLORLS
-	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
+	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [--color=when] [-D format]"
 #else
 	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
 #endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/netdump/netdump.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -168,6 +171,7 @@ int bxe_ilog2(int x)
 #include "ecore_sp.h"
 
 #define BRCM_VENDORID 0x14e4
+#define	QLOGIC_VENDORID	0x1077
 #define PCI_ANY_ID    (uint16_t)(~0U)
 
 struct bxe_device_type
@@ -643,6 +647,9 @@ struct bxe_fastpath {
     struct task      tq_task;
     struct taskqueue *tq;
     char             tq_name[32];
+
+    struct task tx_task;
+    struct timeout_task tx_timeout_task;
 
     /* ethernet client ID (each fastpath set of RX/TX/CQE is a client) */
     uint8_t cl_id;
@@ -1332,7 +1339,7 @@ struct bxe_softc {
     struct ifmedia  ifmedia; /* network interface media structure */
     int             media;
 
-    int             state; /* device state */
+    volatile int    state; /* device state */
 #define BXE_STATE_CLOSED                 0x0000
 #define BXE_STATE_OPENING_WAITING_LOAD   0x1000
 #define BXE_STATE_OPENING_WAITING_PORT   0x2000
@@ -1791,7 +1798,7 @@ struct bxe_softc {
     unsigned int trigger_grcdump;
     unsigned int  grcdump_done;
     unsigned int grcdump_started;
-
+    int bxe_pause_param;
     void *eeprom;
 }; /* struct bxe_softc */
 
@@ -2297,10 +2304,10 @@ void bxe_dump_mem(struct bxe_softc *sc, char *tag,
                   uint8_t *mem, uint32_t len);
 void bxe_dump_mbuf_data(struct bxe_softc *sc, char *pTag,
                         struct mbuf *m, uint8_t contents);
-extern int bxe_grc_dump(struct bxe_softc *sc);
 
 #if __FreeBSD_version >= 800000
-#if __FreeBSD_version >= 1000000
+#if (__FreeBSD_version >= 1001513 && __FreeBSD_version < 1100000) ||\
+    __FreeBSD_version >= 1100048
 #define BXE_SET_FLOWID(m) M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE)
 #define BXE_VALID_FLOWID(m) (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 #else

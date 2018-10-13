@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006 Kip Macy
  * Copyright (c) 2015 Wei Liu <wei.liu2@citrix.com>
  * All rights reserved.
@@ -74,8 +76,8 @@ __FBSDID("$FreeBSD$");
 /* Features supported by all backends.  TSO and LRO can be negotiated */
 #define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
-#define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
-#define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
+#define NET_TX_RING_SIZE __CONST_RING_SIZE(netif_tx, PAGE_SIZE)
+#define NET_RX_RING_SIZE __CONST_RING_SIZE(netif_rx, PAGE_SIZE)
 
 #define NET_RX_SLOTS_MIN (XEN_NETIF_NR_SLOTS_MIN + 1)
 
@@ -156,21 +158,6 @@ static int xn_get_responses(struct netfront_rxq *,
 #define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
 #define INVALID_P2M_ENTRY (~0UL)
-
-struct xn_rx_stats
-{
-	u_long	rx_packets;	/* total packets received	*/
-	u_long	rx_bytes;	/* total bytes received 	*/
-	u_long	rx_errors;	/* bad packets received		*/
-};
-
-struct xn_tx_stats
-{
-	u_long	tx_packets;	/* total packets transmitted	*/
-	u_long	tx_bytes;	/* total bytes transmitted	*/
-	u_long	tx_errors;	/* packet transmit problems	*/
-};
-
 #define XN_QUEUE_NAME_LEN  8	/* xn{t,r}x_%u, allow for two digits */
 struct netfront_rxq {
 	struct netfront_info 	*info;
@@ -183,15 +170,13 @@ struct netfront_rxq {
 	xen_intr_handle_t	xen_intr_handle;
 
 	grant_ref_t 		gref_head;
-	grant_ref_t 		grant_ref[NET_TX_RING_SIZE + 1];
+	grant_ref_t 		grant_ref[NET_RX_RING_SIZE + 1];
 
 	struct mbuf		*mbufs[NET_RX_RING_SIZE + 1];
 
 	struct lro_ctrl		lro;
 
 	struct callout		rx_refill;
-
-	struct xn_rx_stats	stats;
 };
 
 struct netfront_txq {
@@ -215,8 +200,6 @@ struct netfront_txq {
 	struct task       	defrtask;
 
 	bool			full;
-
-	struct xn_tx_stats	stats;
 };
 
 struct netfront_info {
@@ -458,6 +441,20 @@ static int
 netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
+	u_int i;
+
+	if (xen_suspend_cancelled) {
+		for (i = 0; i < info->num_queues; i++) {
+			XN_RX_LOCK(&info->rxq[i]);
+			XN_TX_LOCK(&info->txq[i]);
+		}
+		netfront_carrier_on(info);
+		for (i = 0; i < info->num_queues; i++) {
+			XN_RX_UNLOCK(&info->rxq[i]);
+			XN_TX_UNLOCK(&info->txq[i]);
+		}
+		return (0);
+	}
 
 	netif_disconnect_backend(info);
 	return (0);
@@ -947,7 +944,7 @@ netfront_send_fake_arp(device_t dev, struct netfront_info *info)
 	struct ifaddr *ifa;
 
 	ifp = info->xn_ifp;
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			arp_ifinit(ifp, ifa);
 		}
@@ -964,6 +961,8 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	struct netfront_info *sc = device_get_softc(dev);
 
 	DPRINTK("newstate=%d\n", newstate);
+
+	CURVNET_SET(sc->xn_ifp->if_vnet);
 
 	switch (newstate) {
 	case XenbusStateInitialising:
@@ -997,6 +996,8 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 #endif
 		break;
 	}
+
+	CURVNET_RESTORE();
 }
 
 /**
@@ -1166,17 +1167,18 @@ xn_rxeof(struct netfront_rxq *rxq)
 	struct mbufq mbufq_rxq, mbufq_errq;
 	int err, work_to_do;
 
+	XN_RX_LOCK_ASSERT(rxq);
+
+	if (!netfront_carrier_ok(np))
+		return;
+
+	/* XXX: there should be some sane limit. */
+	mbufq_init(&mbufq_errq, INT_MAX);
+	mbufq_init(&mbufq_rxq, INT_MAX);
+
+	ifp = np->xn_ifp;
+
 	do {
-		XN_RX_LOCK_ASSERT(rxq);
-		if (!netfront_carrier_ok(np))
-			return;
-
-		/* XXX: there should be some sane limit. */
-		mbufq_init(&mbufq_errq, INT_MAX);
-		mbufq_init(&mbufq_rxq, INT_MAX);
-
-		ifp = np->xn_ifp;
-
 		rp = rxq->ring.sring->rsp_prod;
 		rmb();	/* Ensure we see queued responses up to 'rp'. */
 
@@ -1191,21 +1193,23 @@ xn_rxeof(struct netfront_rxq *rxq)
 			if (__predict_false(err)) {
 				if (m)
 					(void )mbufq_enqueue(&mbufq_errq, m);
-				rxq->stats.rx_errors++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 
 			m->m_pkthdr.rcvif = ifp;
-			if ( rx->flags & NETRXF_data_validated ) {
-				/* Tell the stack the checksums are okay */
+			if (rx->flags & NETRXF_data_validated) {
 				/*
-				 * XXX this isn't necessarily the case - need to add
-				 * check
+				 * According to mbuf(9) the correct way to tell
+				 * the stack that the checksum of an inbound
+				 * packet is correct, without it actually being
+				 * present (because the underlying interface
+				 * doesn't provide it), is to set the
+				 * CSUM_DATA_VALID and CSUM_PSEUDO_HDR flags,
+				 * and the csum_data field to 0xffff.
 				 */
-
-				m->m_pkthdr.csum_flags |=
-					(CSUM_IP_CHECKED | CSUM_IP_VALID | CSUM_DATA_VALID
-					    | CSUM_PSEUDO_HDR);
+				m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID
+				    | CSUM_PSEUDO_HDR);
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 			if ((rx->flags & NETRXF_extra_info) != 0 &&
@@ -1216,54 +1220,44 @@ xn_rxeof(struct netfront_rxq *rxq)
 				m->m_pkthdr.csum_flags |= CSUM_TSO;
 			}
 
-			rxq->stats.rx_packets++;
-			rxq->stats.rx_bytes += m->m_pkthdr.len;
-
 			(void )mbufq_enqueue(&mbufq_rxq, m);
-			rxq->ring.rsp_cons = i;
-		}
-
-		mbufq_drain(&mbufq_errq);
-
-		/*
-		 * Process all the mbufs after the remapping is complete.
-		 * Break the mbuf chain first though.
-		 */
-		while ((m = mbufq_dequeue(&mbufq_rxq)) != NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-
-			/* XXX: Do we really need to drop the rx lock? */
-			XN_RX_UNLOCK(rxq);
-#if (defined(INET) || defined(INET6))
-			/* Use LRO if possible */
-			if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
-			    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
-				/*
-				 * If LRO fails, pass up to the stack
-				 * directly.
-				 */
-				(*ifp->if_input)(ifp, m);
-			}
-#else
-			(*ifp->if_input)(ifp, m);
-#endif
-
-			XN_RX_LOCK(rxq);
 		}
 
 		rxq->ring.rsp_cons = i;
-
-#if (defined(INET) || defined(INET6))
-		/*
-		 * Flush any outstanding LRO work
-		 */
-		tcp_lro_flush_all(lro);
-#endif
 
 		xn_alloc_rx_buffers(rxq);
 
 		RING_FINAL_CHECK_FOR_RESPONSES(&rxq->ring, work_to_do);
 	} while (work_to_do);
+
+	mbufq_drain(&mbufq_errq);
+	/*
+	 * Process all the mbufs after the remapping is complete.
+	 * Break the mbuf chain first though.
+	 */
+	while ((m = mbufq_dequeue(&mbufq_rxq)) != NULL) {
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+#if (defined(INET) || defined(INET6))
+		/* Use LRO if possible */
+		if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
+		    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
+			/*
+			 * If LRO fails, pass up to the stack
+			 * directly.
+			 */
+			(*ifp->if_input)(ifp, m);
+		}
+#else
+		(*ifp->if_input)(ifp, m);
+#endif
+	}
+
+#if (defined(INET) || defined(INET6))
+	/*
+	 * Flush any outstanding LRO work
+	 */
+	tcp_lro_flush_all(lro);
+#endif
 }
 
 static void
@@ -1304,12 +1298,6 @@ xn_txeof(struct netfront_txq *txq)
 				"trying to free it again!"));
 			M_ASSERTVALID(m);
 
-			/*
-			 * Increment packet count if this is the last
-			 * mbuf of the chain.
-			 */
-			if (!m->m_next)
-				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if (__predict_false(gnttab_query_foreign_access(
 			    txq->grant_ref[id]) != 0)) {
 				panic("%s: grant id %u still in use by the "
@@ -1701,10 +1689,12 @@ xn_assemble_tx_request(struct netfront_txq *txq, struct mbuf *m_head)
 	}
 	BPF_MTAP(ifp, m_head);
 
-	xn_txeof(txq);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m_head->m_pkthdr.len);
+	if (m_head->m_flags & M_MCAST)
+		if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 
-	txq->stats.tx_bytes += m_head->m_pkthdr.len;
-	txq->stats.tx_packets++;
+	xn_txeof(txq);
 
 	return (0);
 }
@@ -1760,7 +1750,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
-	int mask, error = 0;
+	int mask, error = 0, reinit;
 
 	dev = sc->xbdev;
 
@@ -1783,6 +1773,9 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		break;
 	case SIOCSIFMTU:
+		if (ifp->if_mtu == ifr->ifr_mtu)
+			break;
+
 		ifp->if_mtu = ifr->ifr_mtu;
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xn_ifinit(sc);
@@ -1809,41 +1802,36 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		reinit = 0;
+
 		if (mask & IFCAP_TXCSUM) {
-			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-				    | CSUM_IP | CSUM_TSO);
-			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
-				    | CSUM_IP);
-			}
-		}
-		if (mask & IFCAP_RXCSUM) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			ifp->if_hwassist ^= XN_CSUM_FEATURES;
 		}
 		if (mask & IFCAP_TSO4) {
-			if (IFCAP_TSO4 & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
-			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable |= IFCAP_TSO4;
-				ifp->if_hwassist |= CSUM_TSO;
-			} else {
-				IPRINTK("Xen requires tx checksum offload"
-				    " be enabled to use TSO\n");
-				error = EINVAL;
-			}
+			ifp->if_capenable ^= IFCAP_TSO4;
+			ifp->if_hwassist ^= CSUM_TSO;
 		}
-		if (mask & IFCAP_LRO) {
-			ifp->if_capenable ^= IFCAP_LRO;
 
+		if (mask & (IFCAP_RXCSUM | IFCAP_LRO)) {
+			/* These Rx features require us to renegotiate. */
+			reinit = 1;
+
+			if (mask & IFCAP_RXCSUM)
+				ifp->if_capenable ^= IFCAP_RXCSUM;
+			if (mask & IFCAP_LRO)
+				ifp->if_capenable ^= IFCAP_LRO;
 		}
+
+		if (reinit == 0)
+			break;
+
 		/*
 		 * We must reset the interface so the backend picks up the
 		 * new features.
 		 */
+		device_printf(sc->xbdev,
+		    "performing interface reset due to feature change\n");
 		XN_LOCK(sc);
 		netfront_carrier_off(sc);
 		sc->xn_reset = true;
@@ -1865,6 +1853,13 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-gso-tcpv4");
 		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-no-csum-offload");
 		xenbus_set_state(dev, XenbusStateClosing);
+
+		/*
+		 * Wait for the frontend to reconnect before returning
+		 * from the ioctl. 30s should be more than enough for any
+		 * sane backend to reconnect.
+		 */
+		error = tsleep(sc, 0, "xn_rst", 30*hz);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1971,6 +1966,7 @@ xn_connect(struct netfront_info *np)
 	 * packets.
 	 */
 	netfront_carrier_on(np);
+	wakeup(np);
 
 	return (0);
 }
@@ -2085,7 +2081,7 @@ xn_configure_features(struct netfront_info *np)
 #endif
 	if ((ifp->if_capabilities & cap_enabled & IFCAP_TXCSUM) != 0) {
 		ifp->if_capenable |= IFCAP_TXCSUM;
-		ifp->if_hwassist |= CSUM_TCP|CSUM_UDP;
+		ifp->if_hwassist |= XN_CSUM_FEATURES;
 	}
 	if ((ifp->if_capabilities & cap_enabled & IFCAP_RXCSUM) != 0)
 		ifp->if_capenable |= IFCAP_RXCSUM;
@@ -2156,6 +2152,9 @@ xn_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 
 	np = ifp->if_softc;
 	npairs = np->num_queues;
+
+	if (!netfront_carrier_ok(np))
+		return (ENOBUFS);
 
 	KASSERT(npairs != 0, ("called with 0 available queues"));
 

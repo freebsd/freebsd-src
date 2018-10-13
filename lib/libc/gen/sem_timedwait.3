@@ -34,18 +34,22 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2008
+.Dd May 24, 2017
 .Dt SEM_TIMEDWAIT 3
 .Os
 .Sh NAME
-.Nm sem_timedwait
+.Nm sem_timedwait ,
+.Nm sem_clockwait_np
 .Nd "lock a semaphore"
 .Sh LIBRARY
-.Lb libpthread
+.Lb libc
 .Sh SYNOPSIS
 .In semaphore.h
+.In time.h
 .Ft int
-.Fn sem_timedwait "sem_t *sem" "const struct timespec *abs_timeout"
+.Fn sem_timedwait "sem_t * restrict sem" "const struct timespec * restrict abs_timeout"
+.Ft int
+.Fn sem_clockwait_np "sem_t * restrict sem" "clockid_t clock_id" "int flags" "const struct timespec * rqtp" "struct timespec * rmtp"
 .Sh DESCRIPTION
 The
 .Fn sem_timedwait
@@ -77,10 +81,40 @@ clock.
 The validity of the
 .Fa abs_timeout
 is not checked if the semaphore can be locked immediately.
-.Sh RETURN VALUES
+.Pp
 The
-.Fn sem_timedwait
-function returns zero if the calling process successfully performed the
+.Fn sem_clockwait_np
+function is a more flexible variant of
+.Fn sem_timedwait .
+The
+.Fa clock_id
+parameter specifies the reference clock.
+If the
+.Fa flags
+parameter contains
+.Dv TIMER_ABSTIME ,
+then the requested timeout
+.Pq Fa rqtp
+is an absolute timeout; otherwise,
+the timeout is relative.
+If this function fails with
+.Er EINTR
+and the timeout is relative,
+a non-NULL
+.Fa rmtp
+will be updated to contain the amount of time remaining in the interval
+.Po
+the requested time minus the time actually slept
+.Pc .
+An absolute timeout has no effect on
+.Fa rmtp .
+A single structure can be used for both
+.Fa rqtp
+and
+.Fa rmtp .
+.Sh RETURN VALUES
+These
+functions return zero if the calling process successfully performed the
 semaphore lock operation on the semaphore designated by
 .Fa sem .
 If the call was unsuccessful, the state of the semaphore is unchanged,
@@ -88,9 +122,7 @@ and the function returns a value of \-1 and sets the global variable
 .Va errno
 to indicate the error.
 .Sh ERRORS
-The
-.Fn sem_timedwait
-function will fail if:
+These functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
@@ -114,6 +146,18 @@ The
 .Fn sem_timedwait
 function conforms to
 .St -p1003.1-2004 .
+The
+.Fn sem_clockwait_np
+function is not specified by any standard;
+it exists only on
+.Fx
+at the time of this writing.
 .Sh HISTORY
-The function first appeared in
+The
+.Fn sem_timedwait
+function first appeared in
 .Fx 5.0 .
+The
+.Fn sem_clockwait_np
+function first appeared in
+.Fx 11.1 .

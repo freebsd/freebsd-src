@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd April 16, 2015
+.Dd March 18, 2017
 .Dt PTHREAD_TESTCANCEL 3
 .Os
 .Sh NAME
@@ -105,6 +105,7 @@ functions:
 .It Fn accept4
 .It Fn aio_suspend
 .It Fn connect
+.It Fn clock_nanosleep
 .It Fn close
 .It Fn creat
 .It Fn fcntl
@@ -114,14 +115,15 @@ function is a cancellation point if
 .Fa cmd
 is
 .Dv F_SETLKW .
+.It Fn fdatasync
 .It Fn fsync
 .It Fn kevent
 The
 .Fn kevent
 function is a cancellation point if it is potentially blocking,
-i.e. when the
+such as when the
 .Fa nevents
-argument  is non-zero.
+argument is non-zero.
 .It Fn mq_receive
 .It Fn mq_send
 .It Fn mq_timedreceive
@@ -145,6 +147,7 @@ argument  is non-zero.
 .It Fn recvmsg
 .It Fn select
 .It Fn sem_timedwait
+.It Fn sem_clockwait_np
 .It Fn sem_wait
 .It Fn send
 .It Fn sendmsg

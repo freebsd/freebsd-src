@@ -1,6 +1,8 @@
 /*-
  * CAM ioctl compatibility shims
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Scott Long
  * All rights reserved.
  *
@@ -31,7 +33,7 @@
 #ifndef _CAM_CAM_COMPAT_H
 #define _CAM_CAM_COMPAT_H
 
-/* No user-servicable parts in here. */
+/* No user-serviceable parts in here. */
 #ifdef _KERNEL
 
 int cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
@@ -43,8 +45,8 @@ int cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #define CAM_VERSION_0x16	0x16
 
 /* The size of the union ccb didn't change when going to 0x17 */
-#define CAMIOCOMMAND_0x16	_IOWR(CAM_VERSION_0x16, 2, union ccb)
-#define CAMGETPASSTHRU_0x16	_IOWR(CAM_VERSION_0x16, 3, union ccb)
+#define	CAMIOCOMMAND_0x16	_IOC(IOC_INOUT, CAM_VERSION_0x16, 2, CAM_0X17_LEN)
+#define	CAMGETPASSTHRU_0x16	_IOC(IOC_INOUT, CAM_VERSION_0x16, 3, CAM_0X17_LEN)
 
 #define CAM_SCATTER_VALID_0x16	0x00000010
 #define CAM_SG_LIST_PHYS_0x16	0x00040000
@@ -110,8 +112,30 @@ struct ccb_pathinq_0x17 {
 	u_int16_t	hba_subdevice;	/* HBA subdevice ID */
 };
 
-#define CAM_0X17_LEN	(sizeof(union ccb) - sizeof(struct ccb_hdr) + sizeof(struct ccb_hdr_0x17))
-#define CAM_0X17_DATA_LEN (sizeof(union ccb) - sizeof(struct ccb_hdr_0x17))
+struct ccb_trans_settings_0x17 {
+	struct	  ccb_hdr_0x17 ccb_h;
+	cts_type  type;		/* Current or User settings */
+	cam_proto protocol;
+	u_int	  protocol_version;
+	cam_xport transport;
+	u_int	  transport_version;
+	union {
+		u_int  valid;	/* Which fields to honor */
+		struct ccb_trans_settings_ata ata;
+		struct ccb_trans_settings_scsi scsi;
+	} proto_specific;
+	union {
+		u_int  valid;	/* Which fields to honor */
+		struct ccb_trans_settings_spi spi;
+		struct ccb_trans_settings_fc fc;
+		struct ccb_trans_settings_sas sas;
+		struct ccb_trans_settings_pata ata;
+		struct ccb_trans_settings_sata sata;
+	} xport_specific;
+};
+
+#define CAM_0X17_DATA_LEN	CAM_0X18_DATA_LEN
+#define CAM_0X17_LEN		(sizeof(struct ccb_hdr_0x17) + CAM_0X17_DATA_LEN)
 
 #define	CAMIOCOMMAND_0x17	_IOC(IOC_INOUT, CAM_VERSION_0x17, 2, CAM_0X17_LEN)
 #define CAMGETPASSTHRU_0x17	_IOC(IOC_INOUT, CAM_VERSION_0x17, 3, CAM_0X17_LEN)
@@ -146,6 +170,28 @@ typedef enum {
 	CAM_EXTLUN_VALID_0x18	= 0x00000001,/* 64bit lun field is valid      */
 } ccb_xflags_0x18;
 
+struct ccb_trans_settings_0x18 {
+	struct	  ccb_hdr_0x18 ccb_h;
+	cts_type  type;		/* Current or User settings */
+	cam_proto protocol;
+	u_int	  protocol_version;
+	cam_xport transport;
+	u_int	  transport_version;
+	union {
+		u_int  valid;	/* Which fields to honor */
+		struct ccb_trans_settings_ata ata;
+		struct ccb_trans_settings_scsi scsi;
+	} proto_specific;
+	union {
+		u_int  valid;	/* Which fields to honor */
+		struct ccb_trans_settings_spi spi;
+		struct ccb_trans_settings_fc fc;
+		struct ccb_trans_settings_sas sas;
+		struct ccb_trans_settings_pata ata;
+		struct ccb_trans_settings_sata sata;
+	} xport_specific;
+};
+
 struct dev_match_result_0x18 {
         dev_match_type          type;
         union {
@@ -169,8 +215,8 @@ struct dev_match_result_0x18 {
 	} result;
 };
 
-#define CAM_0X18_LEN	(sizeof(union ccb) - sizeof(struct ccb_hdr) + sizeof(struct ccb_hdr_0x18))
-#define CAM_0X18_DATA_LEN (sizeof(union ccb) - sizeof(struct ccb_hdr_0x18))
+#define CAM_0X18_DATA_LEN	(sizeof(union ccb) - 2*sizeof(void *) - sizeof(struct ccb_hdr))
+#define CAM_0X18_LEN		(sizeof(struct ccb_hdr_0x18) + CAM_0X18_DATA_LEN)
 
 #define	CAMIOCOMMAND_0x18	_IOC(IOC_INOUT, CAM_VERSION_0x18, 2, CAM_0X18_LEN)
 #define CAMGETPASSTHRU_0x18	_IOC(IOC_INOUT, CAM_VERSION_0x18, 3, CAM_0X18_LEN)

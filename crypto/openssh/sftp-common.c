@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-common.c,v 1.28 2015/01/20 23:14:00 deraadt Exp $ */
+/* $OpenBSD: sftp-common.c,v 1.30 2017/06/10 06:36:46 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -27,7 +27,6 @@
 #include "includes.h"
 __RCSID("$FreeBSD$");
 
-#include <sys/param.h>	/* MAX */
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -46,6 +45,7 @@ __RCSID("$FreeBSD$");
 #include "ssherr.h"
 #include "sshbuf.h"
 #include "log.h"
+#include "misc.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -217,22 +217,21 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 	int ulen, glen, sz = 0;
 	struct tm *ltime = localtime(&st->st_mtime);
 	const char *user, *group;
-	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
+	char buf[1024], lc[8], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
 	char sbuf[FMT_SCALED_STRSIZE];
 	time_t now;
 
 	strmode(st->st_mode, mode);
-	if (!remote) {
-		user = user_from_uid(st->st_uid, 0);
-	} else {
+	if (remote) {
 		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
 		user = ubuf;
-	}
-	if (!remote) {
-		group = group_from_gid(st->st_gid, 0);
-	} else {
 		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
 		group = gbuf;
+		strlcpy(lc, "?", sizeof(lc));
+	} else {
+		user = user_from_uid(st->st_uid, 0);
+		group = group_from_gid(st->st_gid, 0);
+		snprintf(lc, sizeof(lc), "%u", (u_int)st->st_nlink);
 	}
 	if (ltime != NULL) {
 		now = time(NULL);
@@ -244,16 +243,16 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 	}
 	if (sz == 0)
 		tbuf[0] = '\0';
-	ulen = MAX(strlen(user), 8);
-	glen = MAX(strlen(group), 8);
+	ulen = MAXIMUM(strlen(user), 8);
+	glen = MAXIMUM(strlen(group), 8);
 	if (si_units) {
 		fmt_scaled((long long)st->st_size, sbuf);
-		snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8s %s %s", mode,
-		    (u_int)st->st_nlink, ulen, user, glen, group,
+		snprintf(buf, sizeof buf, "%s %3s %-*s %-*s %8s %s %s",
+		    mode, lc, ulen, user, glen, group,
 		    sbuf, tbuf, name);
 	} else {
-		snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8llu %s %s", mode,
-		    (u_int)st->st_nlink, ulen, user, glen, group,
+		snprintf(buf, sizeof buf, "%s %3s %-*s %-*s %8llu %s %s",
+		    mode, lc, ulen, user, glen, group,
 		    (unsigned long long)st->st_size, tbuf, name);
 	}
 	return xstrdup(buf);

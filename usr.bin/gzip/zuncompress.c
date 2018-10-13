@@ -1,6 +1,8 @@
 /*	$NetBSD: zuncompress.c,v 1.11 2011/08/16 13:55:02 joerg Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1986, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -279,7 +281,7 @@ zread(void *cookie, char *rbp, int num)
 			if (zs->u.r.zs_code > zs->zs_free_ent ||
 			    zs->u.r.zs_oldcode == -1) {
 				/* Bad stream. */
-				errno = EINVAL;
+				errno = EFTYPE;
 				return (-1);
 			}
 			*zs->u.r.zs_stackp++ = zs->u.r.zs_finchar;

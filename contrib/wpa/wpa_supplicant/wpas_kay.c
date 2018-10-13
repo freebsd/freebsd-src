@@ -50,10 +50,9 @@ static int wpas_set_replay_protect(void *wpa_s, Boolean enabled, u32 window)
 }
 
 
-static int wpas_set_current_cipher_suite(void *wpa_s, const u8 *cs,
-					 size_t cs_len)
+static int wpas_set_current_cipher_suite(void *wpa_s, u64 cs)
 {
-	return wpa_drv_set_current_cipher_suite(wpa_s, cs, cs_len);
+	return wpa_drv_set_current_cipher_suite(wpa_s, cs);
 }
 
 
@@ -109,7 +108,8 @@ static int wpas_create_receive_sc(void *wpa_s, u32 channel,
 				  enum validate_frames vf,
 				  enum confidentiality_offset co)
 {
-	return wpa_drv_create_receive_sc(wpa_s, channel, sci->addr, sci->port,
+	return wpa_drv_create_receive_sc(wpa_s, channel, sci->addr,
+					 be_to_host16(sci->port),
 					 conf_offset_val(co), vf);
 }
 
@@ -150,7 +150,8 @@ wpas_create_transmit_sc(void *wpa_s, u32 channel,
 			const struct ieee802_1x_mka_sci *sci,
 			enum confidentiality_offset co)
 {
-	return wpa_drv_create_transmit_sc(wpa_s, channel, sci->addr, sci->port,
+	return wpa_drv_create_transmit_sc(wpa_s, channel, sci->addr,
+					  be_to_host16(sci->port),
 					  conf_offset_val(co));
 }
 

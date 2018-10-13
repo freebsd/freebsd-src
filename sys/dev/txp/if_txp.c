@@ -1,6 +1,8 @@
 /*	$OpenBSD: if_txp.c,v 1.48 2001/06/27 06:34:50 kjc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001
  *	Jason L. Wright <jason@thought.net>, Theo de Raadt, and
  *	Aaron Campbell <aaron@monkey.org>.  All rights reserved.
@@ -371,7 +373,7 @@ txp_attach(device_t dev)
 	 * diagnose sleep image specific issues.
 	 */
 	rsp = NULL;
-	if (txp_ext_command(sc, TXP_CMD_READ_VERSION, 0, 0, 0, NULL, 0,
+	if (txp_ext_command(sc, TXP_CMD_VERSIONS_READ, 0, 0, 0, NULL, 0,
 	    &rsp, TXP_CMD_WAIT)) {
 		device_printf(dev, "can not read sleep image version\n");
 		error = ENXIO;
@@ -400,8 +402,7 @@ txp_attach(device_t dev)
 		    "Unknown Typhoon sleep image version: %u:0x%08x\n",
 		    rsp->rsp_numdesc, p2);
 	}
-	if (rsp != NULL)
-		free(rsp, M_DEVBUF);
+	free(rsp, M_DEVBUF);
 
 	sc->sc_xcvr = TXP_XCVR_AUTO;
 	txp_command(sc, TXP_CMD_XCVR_SELECT, TXP_XCVR_AUTO, 0, 0,
@@ -2741,7 +2742,7 @@ txp_set_filter(struct txp_softc *sc)
 	mchash[0] = mchash[1] = 0;
 	mcnt = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

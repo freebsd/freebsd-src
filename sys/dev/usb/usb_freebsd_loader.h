@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,6 +86,9 @@
 #define	USB_CS_RESET_LIMIT	20	/* failures = 20 * 50 ms = 1sec */
 
 #define	USB_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
+
+#define	USB_IN_POLLING_MODE_FUNC() 0
+#define	USB_IN_POLLING_MODE_VALUE() 0
 
 typedef uint32_t usb_timeout_t;		/* milliseconds */
 typedef uint32_t usb_frlength_t;	/* bytes */

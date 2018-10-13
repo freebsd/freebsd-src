@@ -8,14 +8,23 @@ unix		?=	We run FreeBSD, not UNIX.
 #
 # MACHINE_CPUARCH defines a collection of MACHINE_ARCH.  Machines with
 # the same MACHINE_ARCH can run each other's binaries, so it necessarily
-# has word size and endian swizzled in.  However, support files for
+# has word size and endian swizzled in.  However, the source files for
 # these machines often are shared amongst all combinations of size
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
+__TO_CPUARCH=C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v[67])?(eb)?/arm/:C/powerpc(64|spe)/powerpc/:C/riscv64(sf)?/riscv/
+MACHINE_CPUARCH=${MACHINE_ARCH:${__TO_CPUARCH}}
 .endif
 
+__DEFAULT_YES_OPTIONS+= \
+	UNIFIED_OBJDIR
+
+# src.sys.obj.mk enables AUTO_OBJ by default if possible but it is otherwise
+# disabled.  Ensure src.conf.5 shows it as default on.
+.if make(showconfig)
+__DEFAULT_YES_OPTIONS+= AUTO_OBJ
+.endif
 
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
@@ -42,11 +51,19 @@ __ENV_ONLY_OPTIONS:= \
 
 .include <bsd.mkopt.mk>
 
+# Disable MK_META_MODE with make -B
+.if ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B}
+MK_META_MODE=	no
+.endif
+
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
+.elif ${MK_META_MODE} == "yes"
+META_MODE+=	meta
+.if empty(.MAKEFLAGS:M-s)
 # verbose will show .MAKE.META.PREFIX for each target.
-META_MODE+=	meta verbose
+META_MODE+=	verbose
+.endif
 .if !defined(NO_META_MISSING)
 META_MODE+=	missing-meta=yes
 .endif
@@ -54,11 +71,7 @@ META_MODE+=	missing-meta=yes
 .if !defined(NO_SILENT)
 META_MODE+=	silent=yes
 .endif
-.if !exists(/dev/filemon)
-.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !defined(NO_FILEMON) && \
-    !make(showconfig)
-.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
-.endif
+.if !exists(/dev/filemon) || defined(NO_FILEMON)
 META_MODE+= nofilemon
 .endif
 # Require filemon data with bmake
@@ -69,11 +82,15 @@ META_MODE+= missing-filemon=yes
 META_MODE?= normal
 .export META_MODE
 .MAKE.MODE?= ${META_MODE}
-.if !empty(.MAKE.MODE:Mmeta) && !defined(NO_META_IGNORE_HOST)
+.if !empty(.MAKE.MODE:Mmeta)
+.if !defined(NO_META_IGNORE_HOST)
 # Ignore host file changes that will otherwise cause
 # buildworld -> installworld -> buildworld to rebuild everything.
 # Since the build is self-reliant and bootstraps everything it needs,
 # this should not be a real problem for incremental builds.
+# XXX: This relies on the existing host tools retaining ABI compatibility
+# through upgrades since they won't be rebuilt on header/library changes.
+# This is mitigated by Makefile.inc1 for known-ABI-breaking revisions.
 # Note that these are prefix matching, so /lib matches /libexec.
 .MAKE.META.IGNORE_PATHS+= \
 	${__MAKE_SHELL} \
@@ -82,22 +99,30 @@ META_MODE?= normal
 	/rescue \
 	/sbin \
 	/usr/bin \
-	/usr/include \
 	/usr/lib \
 	/usr/sbin \
 	/usr/share \
 
+.else
+NO_META_IGNORE_HOST_HEADERS=	1
 .endif
-
+.if !defined(NO_META_IGNORE_HOST_HEADERS)
+.MAKE.META.IGNORE_PATHS+= /usr/include
+.endif
+# We do not want everything out-of-date just because
+# some unrelated shared lib updated this.
+.MAKE.META.IGNORE_PATHS+= /usr/local/etc/libmap.d
+.endif	# !empty(.MAKE.MODE:Mmeta)
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
 # is not expected.
-.if !make(showconfig)
+.if !make(showconfig) && !make(print-dir) && !make(test-system-*) && \
+    empty(.MAKEFLAGS:M-[nN])
 .sinclude <auto.obj.mk>
 .endif
-.endif
+.endif	# ${MK_AUTO_OBJ} == "yes"
 .else # bmake
 .include <bsd.mkopt.mk>
 .endif
@@ -118,7 +143,7 @@ META_MODE?= normal
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
 .else
-.SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
+.SUFFIXES:	.out .a .o .bco .llo .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
 .endif
 
 AR		?=	ar
@@ -150,6 +175,7 @@ CFLAGS		?=	-O2 -pipe
 CFLAGS		+=	-fno-strict-aliasing
 .endif
 .endif
+IR_CFLAGS	?=	${STATIC_CFLAGS:N-O*} ${CFLAGS:N-O*}
 PO_CFLAGS	?=	${CFLAGS}
 
 # cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
@@ -170,6 +196,7 @@ CTFFLAGS	+=	-g
 
 CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
+IR_CXXFLAGS	?=	${STATIC_CXXFLAGS:N-O*} ${CXXFLAGS:N-O*}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
 DTRACE		?=	dtrace
@@ -212,20 +239,20 @@ INSTALL		?=	install
 LEX		?=	lex
 LFLAGS		?=
 
+# LDFLAGS is for CC, _LDFLAGS is for LD.  Generate _LDFLAGS from
+# LDFLAGS by stripping -Wl, from pass-through arguments and dropping
+# compiler driver flags (e.g. -mabi=*) that conflict with flags to LD.
 LD		?=	ld
-LDFLAGS		?=				# LDFLAGS is for CC, 
-_LDFLAGS	=	${LDFLAGS:S/-Wl,//g}	# strip -Wl, for LD
-
-LINT		?=	lint
-LINTFLAGS	?=	-cghapbx
-LINTKERNFLAGS	?=	${LINTFLAGS}
-LINTOBJFLAGS	?=	-cghapbxu -i
-LINTOBJKERNFLAGS?=	${LINTOBJFLAGS}
-LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
+LDFLAGS		?=
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g:N-mabi=*:N-fuse-ld=*}
 
 MAKE		?=	make
 
 .if !defined(%POSIX)
+LLVM_LINK	?=	llvm-link
+
+LORDER		?=	lorder
+
 NM		?=	nm
 NMFLAGS		?=
 
@@ -234,13 +261,14 @@ OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 
 OBJCOPY		?=	objcopy
 
-OBJDUMP		?=	objdump
-
 PC		?=	pc
 PFLAGS		?=
 
 RC		?=	f77
 RFLAGS		?=
+
+TSORT		?=	tsort
+TSORTFLAGS	?=	-q
 .endif
 
 SHELL		?=	sh
@@ -258,162 +286,12 @@ YFLAGS		?=	-d
 
 .if defined(%POSIX)
 
-# Posix 1003.2 mandated rules
-#
-# Quoted directly from the Posix 1003.2 draft, only the macros
-# $@, $< and $* have been replaced by ${.TARGET}, ${.IMPSRC}, and
-# ${.PREFIX}, resp.
-
-# SINGLE SUFFIX RULES
-.c:
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-
-.f:
-	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-
-.sh:
-	cp -f ${.IMPSRC} ${.TARGET}
-	chmod a+x ${.TARGET}
-
-# DOUBLE SUFFIX RULES
-
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
-
-.f.o:
-	${FC} ${FFLAGS} -c ${.IMPSRC}
-
-.y.o:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c y.tab.c
-	rm -f y.tab.c
-	mv y.tab.o ${.TARGET}
-
-.l.o:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c lex.yy.c
-	rm -f lex.yy.c
-	mv lex.yy.o ${.TARGET}
-
-.y.c:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	mv y.tab.c ${.TARGET}
-
-.l.c:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	mv lex.yy.c ${.TARGET}
-
-.c.a:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
-	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
-	rm -f ${.PREFIX}.o
-
-.f.a:
-	${FC} ${FFLAGS} -c ${.IMPSRC}
-	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
-	rm -f ${.PREFIX}.o
+.include "bsd.suffixes-posix.mk"
 
 .else
 
 # non-Posix rule set
-
-.sh:
-	cp -f ${.IMPSRC} ${.TARGET}
-	chmod a+x ${.TARGET}
-
-.c.ln:
-	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
-	    touch ${.TARGET}
-
-.cc.ln .C.ln .cpp.ln .cxx.ln:
-	${LINT} ${LINTOBJFLAGS} ${CXXFLAGS:M-[DIU]*} ${.IMPSRC} || \
-	    touch ${.TARGET}
-
-.c:
-	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.cc .cpp .cxx .C:
-	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-
-.cc.o .cpp.o .cxx.o .C.o:
-	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.m.o:
-	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.p.o:
-	${PC} ${PFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.e .r .F .f:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} \
-	    -o ${.TARGET}
-
-.e.o .r.o .F.o .f.o:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.S.o:
-	${CC:N${CCACHE_BIN}} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.asm.o:
-	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
-	    -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.s.o:
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
-
-# XXX not -j safe
-.y.o:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
-	rm -f y.tab.c
-	${CTFCONVERT_CMD}
-
-.l.o:
-	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
-	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
-	rm -f ${.PREFIX}.tmp.c
-	${CTFCONVERT_CMD}
-
-# XXX not -j safe
-.y.c:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	mv y.tab.c ${.TARGET}
-
-.l.c:
-	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
-
-.s.out .c.out .o.out:
-	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.f.out .F.out .r.out .e.out:
-	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} \
-	    ${LDLIBS} -o ${.TARGET}
-	rm -f ${.PREFIX}.o
-	${CTFCONVERT_CMD}
-
-# XXX not -j safe
-.y.out:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
-	rm -f y.tab.c
-	${CTFCONVERT_CMD}
-
-.l.out:
-	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
-	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
-	rm -f ${.PREFIX}.tmp.c
-	${CTFCONVERT_CMD}
+.include "bsd.suffixes.mk"
 
 # Pull in global settings.
 __MAKE_CONF?=/etc/make.conf
@@ -424,6 +302,10 @@ __MAKE_CONF?=/etc/make.conf
 # late include for customization
 .sinclude <local.sys.mk>
 
+.if defined(META_MODE)
+META_MODE:=	${META_MODE:O:u}
+.endif
+
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
@@ -433,7 +315,8 @@ SHELL=	${__MAKE_SHELL}
 .MAKE.EXPAND_VARIABLES= yes
 
 # Tell bmake the makefile preference
-.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
+MAKEFILE_PREFERENCE?= BSDmakefile makefile Makefile
+.MAKE.MAKEFILE_PREFERENCE= ${MAKEFILE_PREFERENCE}
 
 # Tell bmake to always pass job tokens, regardless of target depending on
 # .MAKE or looking like ${MAKE}/${.MAKE}/$(MAKE)/$(.MAKE)/make.

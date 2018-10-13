@@ -1,6 +1,12 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +61,12 @@ int			 chipc_init_child_resource(struct resource *r,
 			     struct resource *parent, 
 			     bhnd_size_t offset, bhnd_size_t size);
 
+int			 chipc_set_irq_resource(struct chipc_softc *sc,
+			     device_t child, int rid, u_int intr);
+int			 chipc_set_mem_resource(struct chipc_softc *sc,
+			     device_t child, int rid, rman_res_t start,
+			     rman_res_t count, u_int port, u_int region);
+
 struct chipc_region	*chipc_alloc_region(struct chipc_softc *sc,
 			     bhnd_port_type type, u_int port,
 			     u_int region);
@@ -84,11 +96,13 @@ struct chipc_region {
 	bhnd_addr_t		 cr_addr;	/**< region base address */
 	bhnd_addr_t		 cr_end;	/**< region end address */
 	bhnd_size_t		 cr_count;	/**< region count */
-	int			 cr_rid;	/**< rid, or -1 if no rid
-						  *  is allocated by the bus for
-						  *  this region */
+	int			 cr_rid;	/**< rid to use when performing
+						     resource allocation, or -1
+						     if region has no assigned
+						     resource ID */
 
 	struct bhnd_resource	*cr_res;	/**< bus resource, or NULL */
+	int			 cr_res_rid;	/**< cr_res RID, if any. */
 	u_int			 cr_refs;	/**< RF_ALLOCATED refcount */
 	u_int			 cr_act_refs;	/**< RF_ACTIVE refcount */
 

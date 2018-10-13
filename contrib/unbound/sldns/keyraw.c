@@ -23,6 +23,15 @@
 #ifdef HAVE_OPENSSL_ENGINE_H
 #  include <openssl/engine.h>
 #endif
+#ifdef HAVE_OPENSSL_BN_H
+#include <openssl/bn.h>
+#endif
+#ifdef HAVE_OPENSSL_RSA_H
+#include <openssl/rsa.h>
+#endif
+#ifdef HAVE_OPENSSL_DSA_H
+#include <openssl/dsa.h>
+#endif
 #endif /* HAVE_SSL */
 
 size_t
@@ -80,6 +89,14 @@ sldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
                 return 256;
         case LDNS_ECDSAP384SHA384:
                 return 384;
+#endif
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+		return 256;
+#endif
+#ifdef USE_ED448
+	case LDNS_ED448:
+		return 456;
 #endif
 	default:
 		return 0;
@@ -206,7 +223,6 @@ sldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 	offset += length;
 
 	Y = BN_bin2bn(key+offset, (int)length, NULL);
-	offset += length;
 
 	/* create the key and set its properties */
 	if(!Q || !P || !G || !Y || !(dsa = DSA_new())) {
@@ -216,12 +232,32 @@ sldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		BN_free(Y);
 		return NULL;
 	}
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #ifndef S_SPLINT_S
 	dsa->p = P;
 	dsa->q = Q;
 	dsa->g = G;
 	dsa->pub_key = Y;
 #endif /* splint */
+
+#else /* OPENSSL_VERSION_NUMBER */
+	if (!DSA_set0_pqg(dsa, P, Q, G)) {
+		/* QPG not yet attached, need to free */
+		BN_free(Q);
+		BN_free(P);
+		BN_free(G);
+
+		DSA_free(dsa);
+		BN_free(Y);
+		return NULL;
+	}
+	if (!DSA_set0_key(dsa, Y, NULL)) {
+		/* QPG attached, cleaned up by DSA_fre() */
+		DSA_free(dsa);
+		BN_free(Y);
+		return NULL;
+	}
+#endif
 
 	return dsa;
 }
@@ -274,10 +310,20 @@ sldns_key_buf2rsa_raw(unsigned char* key, size_t len)
 		BN_free(modulus);
 		return NULL;
 	}
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #ifndef S_SPLINT_S
 	rsa->n = modulus;
 	rsa->e = exponent;
 #endif /* splint */
+
+#else /* OPENSSL_VERSION_NUMBER */
+	if (!RSA_set0_key(rsa, modulus, exponent, NULL)) {
+		BN_free(exponent);
+		BN_free(modulus);
+		RSA_free(rsa);
+		return NULL;
+	}
+#endif
 
 	return rsa;
 }
@@ -349,6 +395,48 @@ sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo)
         return evp_key;
 }
 #endif /* USE_ECDSA */
+
+#ifdef USE_ED25519
+EVP_PKEY*
+sldns_ed255192pkey_raw(const unsigned char* key, size_t keylen)
+{
+	/* ASN1 for ED25519 is 302a300506032b6570032100 <32byteskey> */
+	uint8_t pre[] = {0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+		0x70, 0x03, 0x21, 0x00};
+	int pre_len = 12;
+	uint8_t buf[256];
+	EVP_PKEY *evp_key;
+	/* pp gets modified by d2i() */
+	const unsigned char* pp = (unsigned char*)buf;
+	if(keylen != 32 || keylen + pre_len > sizeof(buf))
+		return NULL; /* wrong length */
+	memmove(buf, pre, pre_len);
+	memmove(buf+pre_len, key, keylen);
+	evp_key = d2i_PUBKEY(NULL, &pp, (int)(pre_len+keylen));
+	return evp_key;
+}
+#endif /* USE_ED25519 */
+
+#ifdef USE_ED448
+EVP_PKEY*
+sldns_ed4482pkey_raw(const unsigned char* key, size_t keylen)
+{
+	/* ASN1 for ED448 is 3043300506032b6571033a00 <57byteskey> */
+	uint8_t pre[] = {0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+		0x71, 0x03, 0x3a, 0x00};
+        int pre_len = 12;
+	uint8_t buf[256];
+        EVP_PKEY *evp_key;
+	/* pp gets modified by d2i() */
+        const unsigned char* pp = (unsigned char*)buf;
+	if(keylen != 57 || keylen + pre_len > sizeof(buf))
+		return NULL; /* wrong length */
+	memmove(buf, pre, pre_len);
+	memmove(buf+pre_len, key, keylen);
+	evp_key = d2i_PUBKEY(NULL, &pp, (int)(pre_len+keylen));
+        return evp_key;
+}
+#endif /* USE_ED448 */
 
 int
 sldns_digest_evp(unsigned char* data, unsigned int len, unsigned char* dest,

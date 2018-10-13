@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -534,7 +536,7 @@ static u_int8_t tl_eeprom_putbyte(sc, byte)
 	struct tl_softc		*sc;
 	int			byte;
 {
-	register int		i, ack = 0;
+	int			i, ack = 0;
 
 	/*
 	 * Make sure we're in TX mode.
@@ -579,7 +581,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 	int			addr;
 	u_int8_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int8_t		byte = 0;
 	device_t		tl_dev = sc->tl_dev;
 
@@ -878,7 +880,8 @@ tl_setmulti(sc)
 	} else {
 		i = 1;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead, ifma_link) {
+		/* XXX want to maintain reverse semantics - pop list and re-add? */
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/*
@@ -2199,7 +2202,7 @@ static void
 tl_stop(sc)
 	struct tl_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	TL_LOCK_ASSERT(sc);

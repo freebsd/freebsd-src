@@ -26,12 +26,10 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
-
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/trap.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define SCR_NEWPTD	PCB_ESI		/* readability macros */ 
 #define SCR_VMFRAME	PCB_EBP		/* see vm86.c for explanation */
@@ -63,22 +61,17 @@ ENTRY(vm86_bioscall)
 	pushl	%edi
 	pushl	%gs
 
-#ifdef DEV_NPX
-	pushfl
-	cli
 	movl	PCPU(CURTHREAD),%ecx
 	cmpl	%ecx,PCPU(FPCURTHREAD)	/* do we need to save fp? */
 	jne	1f
 	pushl	%edx
 	movl	TD_PCB(%ecx),%ecx
 	pushl	PCB_SAVEFPU(%ecx)
-	call	npxsave
+	movl	$npxsave,%eax
+	call	*%eax
 	addl	$4,%esp
 	popl	%edx			/* recover our pcb */
 1:
-	popfl
-#endif
-
 	movl	SCR_VMFRAME(%edx),%ebx	/* target frame location */
 	movl	%ebx,%edi		/* destination */
 	movl    SCR_ARGFRAME(%edx),%esi	/* source (set on entry) */
@@ -108,9 +101,8 @@ ENTRY(vm86_bioscall)
 
 	movl	%cr3,%eax
 	pushl	%eax			/* save address space */
-	movl	IdlePTD,%ecx
+	movl	IdlePTD,%ecx		/* va (and pa) of Idle PTD */
 	movl	%ecx,%ebx
-	addl	$KERNBASE,%ebx		/* va of Idle PTD */
 	movl	0(%ebx),%eax
 	pushl	%eax			/* old ptde != 0 when booting */
 	pushl	%ebx			/* keep for reuse */
@@ -127,7 +119,8 @@ ENTRY(vm86_bioscall)
 	movl	SCR_VMFRAME(%edx),%esp	/* switch to new stack */
 
 	pushl	%esp
-	call	vm86_prepcall		/* finish setup */
+	movl	$vm86_prepcall, %eax
+	call	*%eax			/* finish setup */
 	add	$4, %esp
 	
 	/*

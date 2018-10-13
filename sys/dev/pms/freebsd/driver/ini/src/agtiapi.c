@@ -533,9 +533,6 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
   tiIOCTLPayload_t     *pIoctlPayload;
   struct agtiapi_softc *pCard;
   pCard=dev->si_drv1;
-  void *param1 = NULL;
-  void *param2 = NULL;
-  void *param3 = NULL;
   U32   status = 0;
   U32   retValue;
   int   err    = 0;
@@ -649,8 +646,8 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
       status = tiCOMMgntIOCTL( &pCard->tiRoot,
                                pIoctlPayload,
                                pCard,
-                               param2,
-                               param3 );
+                               NULL,
+                               NULL );
       if (status == IOCTL_CALL_PENDING)
       {
         ostiIOCTLWaitForSignal(&pCard->tiRoot,NULL, NULL, NULL);
@@ -1838,9 +1835,9 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     cpi->max_lun = AGTIAPI_MAX_LUN;
     cpi->maxio = 1024 *1024; /* Max supported I/O size, in bytes. */
     cpi->initiator_id = 255;
-    strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-    strncpy(cpi->hba_vid, "PMC", HBA_IDLEN);
-    strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+    strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+    strlcpy(cpi->hba_vid, "PMC", HBA_IDLEN);
+    strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
     cpi->unit_number = cam_sim_unit(sim);
     cpi->bus_id = cam_sim_bus(sim);
     // rate is set when XPT_GET_TRAN_SETTINGS is processed
@@ -2069,17 +2066,14 @@ int agtiapi_QueueCmnd_(struct agtiapi_softc *pmcsc, union ccb * ccb)
   /* get a ccb */
   if ((pccb = agtiapi_GetCCB(pmcsc)) == NULL)
   {
-    ag_device_t *targ;
     AGTIAPI_PRINTK("agtiapi_QueueCmnd_: GetCCB ERROR\n");
     if (pmcsc != NULL)
     {
+      ag_device_t *targ;
       TID = INDEX(pmcsc, TID);
       targ   = &pmcsc->pDevList[TID];
-    }
-    if (targ != NULL)
-	{
       agtiapi_adjust_queue_depth(ccb->ccb_h.path,targ->qdepth);
-	}
+    }
     ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
     ccb->ccb_h.status &= ~CAM_STATUS_MASK;
     ccb->ccb_h.status |= CAM_REQUEUE_REQ;
@@ -3089,7 +3083,6 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
   ccb_t *pccb;
   int TID;			
   ag_device_t *targ;	
-  struct ccb_relsim crs;
 
   AGTIAPI_IO( "agtiapi_StartIO: start\n" );
 
@@ -4345,18 +4338,6 @@ int agtiapi_eh_HostReset( struct agtiapi_softc *pmcsc, union ccb *cmnd )
 }
 
 
-int agtiapi_eh_DeviceReset( struct agtiapi_softc *pmcsc, union ccb *cmnd )
-{
-  AGTIAPI_PRINTK( "agtiapi_eh_HostReset: ccb pointer %p\n",
-                  cmnd );
-
-  if( cmnd == NULL )
-  {
-    printf( "agtiapi_eh_HostReset: null command, skipping reset.\n" );
-    return tiInvalidHandle;
-  }
-  return agtiapi_DoSoftReset( pmcsc );
-}
 /******************************************************************************
 agtiapi_QueueCCB()
 
@@ -5032,7 +5013,7 @@ STATIC void agtiapi_PrepCCBs( struct agtiapi_softc *pCard,
 
   int i;
   U32 hdr_sz, ccb_sz;
-  ccb_t *pccb = 0;
+  ccb_t *pccb = NULL;
   int offset = 0;
   int nsegs = 0;
   int sgl_sz = 0;
@@ -5159,7 +5140,7 @@ STATIC U32 agtiapi_InitCCBs(struct agtiapi_softc *pCard, int tgtCount, int tid)
 
   U32   max_ccb, size, ccb_sz, hdr_sz;
   int   no_allocs = 0, i;
-  ccb_hdr_t  *hdr = 0;
+  ccb_hdr_t  *hdr = NULL;
 
   AGTIAPI_PRINTK("agtiapi_InitCCBs: start\n");
   AGTIAPI_PRINTK("agtiapi_InitCCBs: tgtCount %d tid %d\n", tgtCount, tid);
@@ -5395,7 +5376,7 @@ STATIC U32 agtiapi_GetDevHandle( struct agtiapi_softc *pCard,
 
   for ( devIdx = 0; devIdx < pCard->devDiscover; devIdx++ )
   {
-    if ( agDev[devIdx] != 0 )
+    if ( agDev[devIdx] != NULL )
     {
       // AGTIAPI_PRINTK( "agtiapi_GetDevHandle: agDev %d not NULL %p\n",
       //                 devIdx, agDev[devIdx] );
@@ -5661,8 +5642,7 @@ Note:
 static void agtiapi_scan(struct agtiapi_softc *pmcsc)
 {
   union ccb *ccb;
-  int bus, tid, lun, card_no;
-  static int num=0;
+  int bus, tid, lun;
  
   AGTIAPI_PRINTK("agtiapi_scan: start cardNO %d \n", pmcsc->cardNo);
     
@@ -5820,7 +5800,7 @@ STATIC void agtiapi_ReleaseCCBs( struct agtiapi_softc *pCard )
 
   ccb_hdr_t *hdr;
   U32 hdr_sz;
-  ccb_t *pccb = 0;
+  ccb_t *pccb = NULL;
 
   AGTIAPI_PRINTK( "agtiapi_ReleaseCCBs: start\n" );
 

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2000, Boris Popov
  * All rights reserved.
  *
@@ -34,81 +36,89 @@
 
 #include <sys/param.h>
 #include <sys/linker.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <machine/elf.h>
 #define FREEBSD_ELF
 
-#include <err.h>
-
 #include "ef.h"
 
-#define	MAXSEGS 2
+#define	MAXSEGS 3
 struct ef_file {
-	char*		ef_name;
+	char		*ef_name;
 	struct elf_file *ef_efile;
-	Elf_Phdr *	ef_ph;
+	Elf_Phdr	*ef_ph;
 	int		ef_fd;
 	int		ef_type;
 	Elf_Ehdr	ef_hdr;
-	void*		ef_fpage;		/* First block of the file */
+	void		*ef_fpage;		/* First block of the file */
 	int		ef_fplen;		/* length of first block */
-	Elf_Dyn*	ef_dyn;			/* Symbol table etc. */
+	Elf_Dyn		*ef_dyn;		/* Symbol table etc. */
 	Elf_Hashelt	ef_nbuckets;
 	Elf_Hashelt	ef_nchains;
-	Elf_Hashelt*	ef_buckets;
-	Elf_Hashelt*	ef_chains;
-	Elf_Hashelt*	ef_hashtab;
+	Elf_Hashelt	*ef_buckets;
+	Elf_Hashelt	*ef_chains;
+	Elf_Hashelt	*ef_hashtab;
 	Elf_Off		ef_stroff;
 	caddr_t		ef_strtab;
 	int		ef_strsz;
 	Elf_Off		ef_symoff;
-	Elf_Sym*	ef_symtab;
+	Elf_Sym		*ef_symtab;
 	int		ef_nsegs;
-	Elf_Phdr *	ef_segs[MAXSEGS];
+	Elf_Phdr	*ef_segs[MAXSEGS];
 	int		ef_verbose;
-	Elf_Rel *	ef_rel;			/* relocation table */
+	Elf_Rel		*ef_rel;		/* relocation table */
 	int		ef_relsz;		/* number of entries */
-	Elf_Rela *	ef_rela;		/* relocation table */
+	Elf_Rela	*ef_rela;		/* relocation table */
 	int		ef_relasz;		/* number of entries */
 };
 
-static void ef_print_phdr(Elf_Phdr *);
-static u_long ef_get_offset(elf_file_t, Elf_Off);
-static int ef_parse_dynamic(elf_file_t);
+static void	ef_print_phdr(Elf_Phdr *);
+static u_long	ef_get_offset(elf_file_t, Elf_Off);
+static int	ef_parse_dynamic(elf_file_t);
 
-static int ef_get_type(elf_file_t ef);
-static int ef_close(elf_file_t ef);
-static int ef_read(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
-static int ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr);
-static int ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
-static int ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len,
-    void *dest);
-static int ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
-    void **ptr);
-static int ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
-    void **ptr);
-static Elf_Addr ef_symaddr(elf_file_t ef, Elf_Size symidx);
-static int ef_lookup_set(elf_file_t ef, const char *name, long *startp,
-    long *stopp, long *countp);
-static int ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym);
+static int	ef_get_type(elf_file_t ef);
+static int	ef_close(elf_file_t ef);
+static int	ef_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
+static int	ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
+		    void **ptr);
+
+static int	ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len,
+		    void *dest);
+static int	ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len,
+		    void *dest);
+static int	ef_seg_read_string(elf_file_t ef, Elf_Off offset, size_t len,
+		    char *dest);
+static int	ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
+		    void **ptr);
+static int	ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
+		    void **ptr);
+
+static Elf_Addr	ef_symaddr(elf_file_t ef, Elf_Size symidx);
+static int	ef_lookup_set(elf_file_t ef, const char *name, long *startp,
+		    long *stopp, long *countp);
+static int	ef_lookup_symbol(elf_file_t ef, const char *name,
+		    Elf_Sym **sym);
 
 static struct elf_file_ops ef_file_ops = {
-	ef_get_type,
-	ef_close,
-	ef_read,
-	ef_read_entry,
-	ef_seg_read,
-	ef_seg_read_rel,
-	ef_seg_read_entry,
-	ef_seg_read_entry_rel,
-	ef_symaddr,
-	ef_lookup_set,
-	ef_lookup_symbol
+	.get_type		= ef_get_type,
+	.close			= ef_close,
+	.read			= ef_read,
+	.read_entry		= ef_read_entry,
+	.seg_read		= ef_seg_read,
+	.seg_read_rel		= ef_seg_read_rel,
+	.seg_read_string	= ef_seg_read_string,
+	.seg_read_entry		= ef_seg_read_entry,
+	.seg_read_entry_rel	= ef_seg_read_entry_rel,
+	.symaddr		= ef_symaddr,
+	.lookup_set		= ef_lookup_set,
+	.lookup_symbol		= ef_lookup_symbol
 };
 
 static void
@@ -134,10 +144,10 @@ ef_get_offset(elf_file_t ef, Elf_Off off)
 	for (i = 0; i < ef->ef_nsegs; i++) {
 		ph = ef->ef_segs[i];
 		if (off >= ph->p_vaddr && off < ph->p_vaddr + ph->p_memsz) {
-			return ph->p_offset + (off - ph->p_vaddr);
+			return (ph->p_offset + (off - ph->p_vaddr));
 		}
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -153,26 +163,26 @@ ef_get_type(elf_file_t ef)
 static unsigned long
 elf_hash(const char *name)
 {
-	const unsigned char *p = (const unsigned char *) name;
-	unsigned long h = 0;
-	unsigned long g;
+	unsigned long h, g;
+	const unsigned char *p;
 
+	h = 0;
+	p = (const unsigned char *)name;
 	while (*p != '\0') {
 		h = (h << 4) + *p++;
 		if ((g = h & 0xf0000000) != 0)
 			h ^= g >> 24;
 		h &= ~g;
 	}
-	return h;
+	return (h);
 }
 
 static int
-ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
+ef_lookup_symbol(elf_file_t ef, const char *name, Elf_Sym **sym)
 {
-	unsigned long symnum;
-	Elf_Sym* symp;
+	unsigned long hash, symnum;
+	Elf_Sym *symp;
 	char *strp;
-	unsigned long hash;
 
 	/* First, search hashed global symbols */
 	hash = elf_hash(name);
@@ -182,14 +192,14 @@ ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
 		if (symnum >= ef->ef_nchains) {
 			warnx("ef_lookup_symbol: file %s have corrupted symbol table\n",
 			    ef->ef_name);
-			return ENOENT;
+			return (ENOENT);
 		}
 
 		symp = ef->ef_symtab + symnum;
 		if (symp->st_name == 0) {
 			warnx("ef_lookup_symbol: file %s have corrupted symbol table\n",
 			    ef->ef_name);
-			return ENOENT;
+			return (ENOENT);
 		}
 
 		strp = ef->ef_strtab + symp->st_name;
@@ -199,15 +209,15 @@ ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
 			    (symp->st_value != 0 &&
 				ELF_ST_TYPE(symp->st_info) == STT_FUNC)) {
 				*sym = symp;
-				return 0;
+				return (0);
 			} else
-				return ENOENT;
+				return (ENOENT);
 		}
 
 		symnum = ef->ef_chains[symnum];
 	}
 
-	return ENOENT;
+	return (ENOENT);
 }
 
 static int
@@ -221,19 +231,19 @@ ef_lookup_set(elf_file_t ef, const char *name, long *startp, long *stopp,
 	len = strlen(name) + sizeof("__start_set_"); /* sizeof includes \0 */
 	setsym = malloc(len);
 	if (setsym == NULL)
-		return (ENOMEM);
+		return (errno);
 
 	/* get address of first entry */
 	snprintf(setsym, len, "%s%s", "__start_set_", name);
 	error = ef_lookup_symbol(ef, setsym, &sym);
-	if (error)
+	if (error != 0)
 		goto out;
 	*startp = sym->st_value;
 
 	/* get address of last entry */
 	snprintf(setsym, len, "%s%s", "__stop_set_", name);
 	error = ef_lookup_symbol(ef, setsym, &sym);
-	if (error)
+	if (error != 0)
 		goto out;
 	*stopp = sym->st_value;
 
@@ -265,7 +275,6 @@ ef_parse_dynamic(elf_file_t ef)
 {
 	Elf_Dyn *dp;
 	Elf_Hashelt hashhdr[2];
-/*	int plttype = DT_REL;*/
 	int error;
 	Elf_Off rel_off;
 	Elf_Off rela_off;
@@ -282,19 +291,19 @@ ef_parse_dynamic(elf_file_t ef)
 		case DT_HASH:
 			error = ef_read(ef, ef_get_offset(ef, dp->d_un.d_ptr),
 			    sizeof(hashhdr),  hashhdr);
-			if (error) {
+			if (error != 0) {
 				warnx("can't read hash header (%lx)",
 				    ef_get_offset(ef, dp->d_un.d_ptr));
-				return error;
+				return (error);
 			}
 			ef->ef_nbuckets = hashhdr[0];
 			ef->ef_nchains = hashhdr[1];
 			error = ef_read_entry(ef, -1, 
 			    (hashhdr[0] + hashhdr[1]) * sizeof(Elf_Hashelt),
-			    (void**)&ef->ef_hashtab);
-			if (error) {
+			    (void **)&ef->ef_hashtab);
+			if (error != 0) {
 				warnx("can't read hash table");
-				return error;
+				return (error);
 			}
 			ef->ef_buckets = ef->ef_hashtab;
 			ef->ef_chains = ef->ef_buckets + ef->ef_nbuckets;
@@ -310,7 +319,7 @@ ef_parse_dynamic(elf_file_t ef)
 			break;
 		case DT_SYMENT:
 			if (dp->d_un.d_val != sizeof(Elf_Sym))
-				return EFTYPE;
+				return (EFTYPE);
 			break;
 		case DT_REL:
 			if (rel_off != 0)
@@ -346,24 +355,24 @@ ef_parse_dynamic(elf_file_t ef)
 	}
 	if (ef->ef_symoff == 0) {
 		warnx("%s: no .dynsym section found\n", ef->ef_name);
-		return EFTYPE;
+		return (EFTYPE);
 	}
 	if (ef->ef_stroff == 0) {
 		warnx("%s: no .dynstr section found\n", ef->ef_name);
-		return EFTYPE;
+		return (EFTYPE);
 	}
 	if (ef_read_entry(ef, ef_get_offset(ef, ef->ef_symoff),
 	    ef->ef_nchains * sizeof(Elf_Sym),
-		(void**)&ef->ef_symtab) != 0) {
+		(void **)&ef->ef_symtab) != 0) {
 		if (ef->ef_verbose)
 			warnx("%s: can't load .dynsym section (0x%lx)",
 			    ef->ef_name, (long)ef->ef_symoff);
-		return EIO;
+		return (EIO);
 	}
 	if (ef_read_entry(ef, ef_get_offset(ef, ef->ef_stroff), ef->ef_strsz,
-		(void**)&ef->ef_strtab) != 0) {
+		(void **)&ef->ef_strtab) != 0) {
 		warnx("can't load .dynstr section");
-		return EIO;
+		return (EIO);
 	}
 	if (rel_off != 0) {
 		if (rel_entry == 0) {
@@ -415,67 +424,69 @@ ef_parse_dynamic(elf_file_t ef)
 			warnx("%s: %d RELA entries", ef->ef_name,
 			    ef->ef_relasz);
 	}
-	return 0;
+	return (0);
 }
 
 static int
-ef_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+ef_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 {
 	ssize_t r;
 
 	if (offset != (Elf_Off)-1) {
 		if (lseek(ef->ef_fd, offset, SEEK_SET) == -1)
-			return EIO;
+			return (EIO);
 	}
 
 	r = read(ef->ef_fd, dest, len);
 	if (r != -1 && (size_t)r == len)
-		return 0;
+		return (0);
 	else
-		return EIO;
+		return (EIO);
 }
 
 static int
-ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 {
 	int error;
 
 	*ptr = malloc(len);
 	if (*ptr == NULL)
-		return ENOMEM;
+		return (errno);
 	error = ef_read(ef, offset, len, *ptr);
-	if (error)
+	if (error != 0)
 		free(*ptr);
-	return error;
+	return (error);
 }
 
 static int
-ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 {
-	u_long ofs = ef_get_offset(ef, offset);
+	u_long ofs;
 
+	ofs = ef_get_offset(ef, offset);
 	if (ofs == 0) {
 		if (ef->ef_verbose)
 			warnx("ef_seg_read(%s): zero offset (%lx:%ld)",
 			    ef->ef_name, (long)offset, ofs);
-		return EFAULT;
+		return (EFAULT);
 	}
-	return ef_read(ef, ofs, len, dest);
+	return (ef_read(ef, ofs, len, dest));
 }
 
 static int
-ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 {
-	u_long ofs = ef_get_offset(ef, offset);
+	u_long ofs;
 	const Elf_Rela *a;
 	const Elf_Rel *r;
 	int error;
 
+	ofs = ef_get_offset(ef, offset);
 	if (ofs == 0) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read(%s): zero offset (%lx:%ld)",
+			warnx("ef_seg_read_rel(%s): zero offset (%lx:%ld)",
 			    ef->ef_name, (long)offset, ofs);
-		return EFAULT;
+		return (EFAULT);
 	}
 	if ((error = ef_read(ef, ofs, len, dest)) != 0)
 		return (error);
@@ -496,31 +507,54 @@ ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 }
 
 static int
-ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+ef_seg_read_string(elf_file_t ef, Elf_Off offset, size_t len, char *dest)
 {
-	int error;
+	u_long ofs;
+	ssize_t r;
 
-	*ptr = malloc(len);
-	if (*ptr == NULL)
-		return ENOMEM;
-	error = ef_seg_read(ef, offset, len, *ptr);
-	if (error)
-		free(*ptr);
-	return error;
+	ofs = ef_get_offset(ef, offset);
+	if (ofs == 0 || ofs == (Elf_Off)-1) {
+		if (ef->ef_verbose)
+			warnx("ef_seg_read_string(%s): bad offset (%lx:%ld)",
+			    ef->ef_name, (long)offset, ofs);
+		return (EFAULT);
+	}
+
+	r = pread(ef->ef_fd, dest, len, ofs);
+	if (r < 0)
+		return (errno);
+	if (strnlen(dest, len) == len)
+		return (EFAULT);
+
+	return (0);
 }
 
 static int
-ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 {
 	int error;
 
 	*ptr = malloc(len);
 	if (*ptr == NULL)
-		return ENOMEM;
-	error = ef_seg_read_rel(ef, offset, len, *ptr);
-	if (error)
+		return (errno);
+	error = ef_seg_read(ef, offset, len, *ptr);
+	if (error != 0)
 		free(*ptr);
-	return error;
+	return (error);
+}
+
+static int
+ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
+{
+	int error;
+
+	*ptr = malloc(len);
+	if (*ptr == NULL)
+		return (errno);
+	error = ef_seg_read_rel(ef, offset, len, *ptr);
+	if (error != 0)
+		free(*ptr);
+	return (error);
 }
 
 int
@@ -535,14 +569,14 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 	Elf_Phdr *phdr, *phdyn, *phlimit;
 
 	if (filename == NULL)
-		return EFTYPE;
+		return (EINVAL);
 	if ((fd = open(filename, O_RDONLY)) == -1)
-		return errno;
+		return (errno);
 
 	ef = malloc(sizeof(*ef));
 	if (ef == NULL) {
 		close(fd);
-		return (ENOMEM);
+		return (errno);
 	}
 
 	efile->ef_ef = ef;
@@ -570,7 +604,7 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 			break;
 		phlen = hdr->e_phnum * sizeof(Elf_Phdr);
 		if (ef_read_entry(ef, hdr->e_phoff, phlen,
-		    (void**)&ef->ef_ph) != 0)
+		    (void **)&ef->ef_ph) != 0)
 			break;
 		phdr = ef->ef_ph;
 		phlimit = phdr + hdr->e_phnum;
@@ -600,48 +634,41 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 			    filename);
 			break;
 		} else if (nsegs > MAXSEGS) {
-			warnx("%s: too many sections", filename);
+			warnx("%s: too many segments", filename);
 			break;
 		}
 		ef->ef_nsegs = nsegs;
 		if (ef_read_entry(ef, phdyn->p_offset,
-			phdyn->p_filesz, (void**)&ef->ef_dyn) != 0) {
+			phdyn->p_filesz, (void **)&ef->ef_dyn) != 0) {
 			printf("ef_read_entry failed\n");
 			break;
 		}
 		error = ef_parse_dynamic(ef);
-		if (error)
+		if (error != 0)
 			break;
 		if (hdr->e_type == ET_DYN) {
 			ef->ef_type = EFT_KLD;
-/*			pad = (u_int)dest & PAGE_MASK;
-			if (pad)
-				dest += PAGE_SIZE - pad;*/
 			error = 0;
 		} else if (hdr->e_type == ET_EXEC) {
-/*			dest = hdr->e_entry;
-			if (dest == 0)
-				break;*/
 			ef->ef_type = EFT_KERNEL;
 			error = 0;
 		} else
 			break;
 	} while(0);
-	if (error)
+	if (error != 0)
 		ef_close(ef);
-	return error;
+	return (error);
 }
 
 static int
 ef_close(elf_file_t ef)
 {
+
 	close(ef->ef_fd);
-/*	if (ef->ef_fpage)
-		free(ef->ef_fpage);*/
 	if (ef->ef_name)
 		free(ef->ef_name);
 	ef->ef_efile->ef_ops = NULL;
 	ef->ef_efile->ef_ef = NULL;
 	free(ef);
-	return 0;
+	return (0);
 }

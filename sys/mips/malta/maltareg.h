@@ -1,6 +1,8 @@
 /*	$NetBSD: maltareg.h,v 1.1 2002/03/07 14:44:04 simonb Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

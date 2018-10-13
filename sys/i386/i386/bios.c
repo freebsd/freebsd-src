@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Michael Smith
  * Copyright (c) 1998 Jonathan Lemon
  * All rights reserved.
@@ -303,6 +305,7 @@ set_bios_selectors(struct bios_segments *seg, int flags)
 }
 
 extern int vm86pa;
+extern u_long vm86phystk;
 extern void bios16_jmp(void);
 
 /*
@@ -327,7 +330,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     int 	flags = BIOSCODE_FLAG | BIOSDATA_FLAG;
     u_int 	i, arg_start, arg_end;
     pt_entry_t	*pte;
-    pd_entry_t	*ptd;
+    pd_entry_t	*ptd, orig_ptd;
 
     arg_start = 0xffffffff;
     arg_end = 0;
@@ -388,27 +391,14 @@ bios16(struct bios_args *args, char *fmt, ...)
     args->seg.code32.base = (u_int)&bios16_jmp & PG_FRAME;
     args->seg.code32.limit = 0xffff;	
 
-    ptd = (pd_entry_t *)rcr3();
-#if defined(PAE) || defined(PAE_TABLES)
-    if (ptd == IdlePDPT)
-#else
-    if (ptd == IdlePTD)
-#endif
-    {
-	/*
-	 * no page table, so create one and install it.
-	 */
-	pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-	ptd = (pd_entry_t *)((u_int)IdlePTD + KERNBASE);
-	*pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V;
-	*ptd = vtophys(pte) | PG_RW | PG_V;
-    } else {
-	/*
-	 * this is a user-level page table 
-	 */
-	pte = PTmap;
-	*pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V;
-    }
+    /*
+     * no page table, so create one and install it.
+     */
+    pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+    ptd = IdlePTD;
+    *pte = vm86phystk | PG_RW | PG_V;
+    orig_ptd = *ptd;
+    *ptd = vtophys(pte) | PG_RW | PG_V;
     pmap_invalidate_all(kernel_pmap);	/* XXX insurance for now */
 
     stack_top = stack;
@@ -462,20 +452,12 @@ bios16(struct bios_args *args, char *fmt, ...)
 
     i = bios16_call(&args->r, stack_top);
 
-    if (pte == PTmap) {
-	*pte = 0;			/* remove entry */
-	/*
-	 * XXX only needs to be invlpg(0) but that doesn't work on the 386 
-	 */
-	pmap_invalidate_all(kernel_pmap);
-    } else {
-	*ptd = 0;			/* remove page table */
-	/*
-	 * XXX only needs to be invlpg(0) but that doesn't work on the 386 
-	 */
-	pmap_invalidate_all(kernel_pmap);
-	free(pte, M_TEMP);		/* ... and free it */
-    }
+    *ptd = orig_ptd;		/* remove page table */
+    /*
+     * XXX only needs to be invlpg(0) but that doesn't work on the 386
+     */
+    pmap_invalidate_all(kernel_pmap);
+    free(pte, M_TEMP);		/* ... and free it */
     return (i);
 }
 

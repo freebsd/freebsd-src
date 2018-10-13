@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,11 +61,10 @@ struct cmdentry {
 #define DO_ERR		0x01	/* prints errors */
 #define DO_NOFUNC	0x02	/* don't return shell functions, for command */
 
-extern const char *pathopt;	/* set by padvance */
 extern int exerrno;		/* last exec error */
 
 void shellexec(char **, char **, const char *, int) __dead2;
-char *padvance(const char **, const char *);
+char *padvance(const char **, const char **, const char *);
 void find_command(const char *, struct cmdentry *, int, const char *);
 int find_builtin(const char *, int *);
 void hashcd(void);

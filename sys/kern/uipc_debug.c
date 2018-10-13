@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
@@ -75,7 +77,7 @@ db_print_sotype(short so_type)
 }
 
 static void
-db_print_sooptions(short so_options)
+db_print_sooptions(int so_options)
 {
 	int comma;
 
@@ -118,6 +120,10 @@ db_print_sooptions(short so_options)
 	}
 	if (so_options & SO_REUSEPORT) {
 		db_printf("%sSO_REUSEPORT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (so_options & SO_REUSEPORT_LB) {
+		db_printf("%sSO_REUSEPORT_LB", comma ? ", " : "");
 		comma = 1;
 	}
 	if (so_options & SO_TIMESTAMP) {
@@ -333,8 +339,6 @@ db_print_protosw(struct protosw *pr, const char *prname, int indent)
 	db_printf("pr_fasttimo: %p   ", pr->pr_fasttimo);
 	db_printf("pr_slowtimo: %p   ", pr->pr_slowtimo);
 	db_printf("pr_drain: %p\n", pr->pr_drain);
-
-	db_print_indent(indent);
 }
 
 static void
@@ -408,6 +412,8 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_mbmax: %u\n", sb->sb_mbmax);
 
 	db_print_indent(indent);
+	db_printf("sb_mcnt: %u   ", sb->sb_mcnt);
+	db_printf("sb_ccnt: %u   ", sb->sb_ccnt);
 	db_printf("sb_ctl: %u   ", sb->sb_ctl);
 	db_printf("sb_lowat: %d   ", sb->sb_lowat);
 	db_printf("sb_timeo: %jd\n", sb->sb_timeo);
@@ -448,9 +454,6 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 	db_printf(")\n");
 
 	db_print_indent(indent);
-	db_printf("so_qstate: 0x%x (", so->so_qstate);
-	db_print_soqstate(so->so_qstate);
-	db_printf(")   ");
 	db_printf("so_pcb: %p   ", so->so_pcb);
 	db_printf("so_proto: %p\n", so->so_proto);
 
@@ -458,24 +461,29 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 		db_print_protosw(so->so_proto, "so_proto", indent);
 
 	db_print_indent(indent);
-	db_printf("so_head: %p   ", so->so_head);
-	db_printf("so_incomp first: %p   ", TAILQ_FIRST(&so->so_incomp));
-	db_printf("so_comp first: %p\n", TAILQ_FIRST(&so->so_comp));
+	if (so->so_options & SO_ACCEPTCONN) {
+		db_printf("sol_incomp first: %p   ",
+		    TAILQ_FIRST(&so->sol_incomp));
+		db_printf("sol_comp first: %p\n", TAILQ_FIRST(&so->sol_comp));
+		db_printf("sol_qlen: %d   ", so->sol_qlen);
+		db_printf("sol_incqlen: %d   ", so->sol_incqlen);
+		db_printf("sol_qlimit: %d   ", so->sol_qlimit);
+	} else {
+		db_printf("so_qstate: 0x%x (", so->so_qstate);
+		db_print_soqstate(so->so_qstate);
+		db_printf(")   ");
+		db_printf("so_listen: %p   ", so->so_listen);
+		/* so_list skipped */
+		db_printf("so_timeo: %d   ", so->so_timeo);
+		db_printf("so_error: %d\n", so->so_error);
 
-	db_print_indent(indent);
-	/* so_list skipped */
-	db_printf("so_qlen: %u   ", so->so_qlen);
-	db_printf("so_incqlen: %u   ", so->so_incqlen);
-	db_printf("so_qlimit: %u   ", so->so_qlimit);
-	db_printf("so_timeo: %d   ", so->so_timeo);
-	db_printf("so_error: %d\n", so->so_error);
+		db_print_indent(indent);
+		db_printf("so_sigio: %p   ", so->so_sigio);
+		db_printf("so_oobmark: %lu\n", so->so_oobmark);
 
-	db_print_indent(indent);
-	db_printf("so_sigio: %p   ", so->so_sigio);
-	db_printf("so_oobmark: %lu   ", so->so_oobmark);
-
-	db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
-	db_print_sockbuf(&so->so_snd, "so_snd", indent);
+		db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
+		db_print_sockbuf(&so->so_snd, "so_snd", indent);
+	}
 }
 
 DB_SHOW_COMMAND(socket, db_show_socket)

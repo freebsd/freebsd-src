@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Silicon Graphics International Corp.
  * All rights reserved.
  *
@@ -94,15 +96,14 @@ struct cfcs_softc {
 	CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
 	CAM_SENSE_PHYS)
 
-int cfcs_init(void);
+static int cfcs_init(void);
+static int cfcs_shutdown(void);
 static void cfcs_poll(struct cam_sim *sim);
 static void cfcs_online(void *arg);
 static void cfcs_offline(void *arg);
 static void cfcs_datamove(union ctl_io *io);
 static void cfcs_done(union ctl_io *io);
 void cfcs_action(struct cam_sim *sim, union ccb *ccb);
-static void cfcs_async(void *callback_arg, uint32_t code,
-		       struct cam_path *path, void *arg);
 
 struct cfcs_softc cfcs_softc;
 /*
@@ -121,14 +122,14 @@ static struct ctl_frontend cfcs_frontend =
 {
 	.name = "camsim",
 	.init = cfcs_init,
+	.shutdown = cfcs_shutdown,
 };
 CTL_FRONTEND_DECLARE(ctlcfcs, cfcs_frontend);
 
-int
+static int
 cfcs_init(void)
 {
 	struct cfcs_softc *softc;
-	struct ccb_setasync csa;
 	struct ctl_port *port;
 	int retval;
 
@@ -148,11 +149,6 @@ cfcs_init(void)
 	port->onoff_arg = softc;
 	port->fe_datamove = cfcs_datamove;
 	port->fe_done = cfcs_done;
-
-	/* XXX KDM what should we report here? */
-	/* XXX These should probably be fetched from CTL. */
-	port->max_targets = 1;
-	port->max_target_id = 15;
 	port->targ_port = -1;
 
 	retval = ctl_port_register(port);
@@ -214,13 +210,6 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	xpt_setup_ccb(&csa.ccb_h, softc->path, CAM_PRIORITY_NONE);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = cfcs_async;
-        csa.callback_arg = softc->sim;
-        xpt_action((union ccb *)&csa);
-
 	mtx_unlock(&softc->lock);
 
 	return (retval);
@@ -234,6 +223,27 @@ bailout:
 	mtx_destroy(&softc->lock);
 
 	return (retval);
+}
+
+static int
+cfcs_shutdown(void)
+{
+	struct cfcs_softc *softc = &cfcs_softc;
+	struct ctl_port *port = &softc->port;
+	int error;
+
+	ctl_port_offline(port);
+
+	mtx_lock(&softc->lock);
+	xpt_free_path(softc->path);
+	xpt_bus_deregister(cam_sim_path(softc->sim));
+	cam_sim_free(softc->sim, /*free_devq*/ TRUE);
+	mtx_unlock(&softc->lock);
+	mtx_destroy(&softc->lock);
+
+	if ((error = ctl_port_deregister(port)) != 0)
+		printf("%s: cam_sim port deregistration failed\n", __func__);
+	return (error);
 }
 
 static void
@@ -300,13 +310,9 @@ cfcs_datamove(union ctl_io *io)
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
 	int cam_sg_count, ctl_sg_count, cam_sg_start;
 	int cam_sg_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int ctl_watermark, cam_watermark;
 	int i, j;
-
-
-	cam_sg_offset = 0;
-	cam_sg_start = 0;
 
 	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 
@@ -330,6 +336,8 @@ cfcs_datamove(union ctl_io *io)
 
 		cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
 		cam_sg_count = ccb->csio.sglist_cnt;
+		cam_sg_start = cam_sg_count;
+		cam_sg_offset = 0;
 
 		for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
 			if ((len_seen + cam_sglist[i].ds_len) >=
@@ -346,7 +354,7 @@ cfcs_datamove(union ctl_io *io)
 	case CAM_DATA_VADDR:
 		cam_sglist = &cam_sg_entry;
 		cam_sglist[0].ds_len = ccb->csio.dxfer_len;
-		cam_sglist[0].ds_addr = (bus_addr_t)ccb->csio.data_ptr;
+		cam_sglist[0].ds_addr = (bus_addr_t)(uintptr_t)ccb->csio.data_ptr;
 		cam_sg_count = 1;
 		cam_sg_start = 0;
 		cam_sg_offset = io->scsiio.kern_rel_offset;
@@ -367,7 +375,6 @@ cfcs_datamove(union ctl_io *io)
 
 	ctl_watermark = 0;
 	cam_watermark = cam_sg_offset;
-	len_copied = 0;
 	for (i = cam_sg_start, j = 0;
 	     i < cam_sg_count && j < ctl_sg_count;) {
 		uint8_t *cam_ptr, *ctl_ptr;
@@ -375,7 +382,7 @@ cfcs_datamove(union ctl_io *io)
 		len_to_copy = MIN(cam_sglist[i].ds_len - cam_watermark,
 				  ctl_sglist[j].len - ctl_watermark);
 
-		cam_ptr = (uint8_t *)cam_sglist[i].ds_addr;
+		cam_ptr = (uint8_t *)(uintptr_t)cam_sglist[i].ds_addr;
 		cam_ptr = cam_ptr + cam_watermark;
 		if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR) {
 			/*
@@ -388,9 +395,6 @@ cfcs_datamove(union ctl_io *io)
 		} else
 			ctl_ptr = (uint8_t *)ctl_sglist[j].addr;
 		ctl_ptr = ctl_ptr + ctl_watermark;
-
-		ctl_watermark += len_to_copy;
-		cam_watermark += len_to_copy;
 
 		if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
@@ -407,24 +411,27 @@ cfcs_datamove(union ctl_io *io)
 			bcopy(cam_ptr, ctl_ptr, len_to_copy);
 		}
 
-		len_copied += len_to_copy;
+		io->scsiio.ext_data_filled += len_to_copy;
+		io->scsiio.kern_data_resid -= len_to_copy;
 
+		cam_watermark += len_to_copy;
 		if (cam_sglist[i].ds_len == cam_watermark) {
 			i++;
 			cam_watermark = 0;
 		}
 
+		ctl_watermark += len_to_copy;
 		if (ctl_sglist[j].len == ctl_watermark) {
 			j++;
 			ctl_watermark = 0;
 		}
 	}
 
-	io->scsiio.ext_data_filled += len_copied;
-
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
 		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
 		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
+		ccb->csio.resid = ccb->csio.dxfer_len -
+		    io->scsiio.ext_data_filled;
 		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -453,6 +460,10 @@ cfcs_done(union ctl_io *io)
 	/*
 	 * Translate CTL status to CAM status.
 	 */
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+		ccb->csio.resid = ccb->csio.dxfer_len -
+		    io->scsiio.ext_data_filled;
+	}
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	switch (io->io_hdr.status & CTL_STATUS_MASK) {
 	case CTL_SUCCESS:
@@ -587,8 +598,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			       __func__, csio->cdb_len, sizeof(io->scsiio.cdb));
 		}
 		io->scsiio.cdb_len = min(csio->cdb_len, sizeof(io->scsiio.cdb));
-		bcopy(csio->cdb_io.cdb_bytes, io->scsiio.cdb,
-		      io->scsiio.cdb_len);
+		bcopy(scsiio_cdb_ptr(csio), io->scsiio.cdb, io->scsiio.cdb_len);
 
 		ccb->ccb_h.status |= CAM_SIM_QUEUED;
 		err = ctl_queue(io);
@@ -773,9 +783,9 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hpath_id = 0;
 		cpi->initiator_id = 0;
 
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "FreeBSD", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "FreeBSD", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = 0;
 		cpi->bus_id = 0;
 		cpi->base_transfer_speed = 800000;
@@ -800,10 +810,4 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
-}
-
-static void
-cfcs_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
-{
-
 }

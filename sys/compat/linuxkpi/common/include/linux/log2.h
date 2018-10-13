@@ -50,7 +50,7 @@ is_power_of_2(unsigned long n)
 static inline unsigned long
 rounddown_pow_of_two(unsigned long x)
 {
-        return (1UL << (flsl(x) - 1));
+	return (1UL << (flsl(x) - 1));
 }
 
 #define	ilog2(n)				\

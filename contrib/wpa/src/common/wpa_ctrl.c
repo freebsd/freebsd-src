@@ -532,6 +532,8 @@ retry_send:
 		FD_ZERO(&rfds);
 		FD_SET(ctrl->s, &rfds);
 		res = select(ctrl->s + 1, &rfds, NULL, NULL, &tv);
+		if (res < 0 && errno == EINTR)
+			continue;
 		if (res < 0)
 			return res;
 		if (FD_ISSET(ctrl->s, &rfds)) {

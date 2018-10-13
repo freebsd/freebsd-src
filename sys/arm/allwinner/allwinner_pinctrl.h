@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@ struct allwinner_pins {
 	uint8_t port;
 	uint8_t pin;
 	const char *functions[8];
+	uint8_t eint_func;
+	uint8_t eint_num;
 };
 
 struct allwinner_padconf {

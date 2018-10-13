@@ -144,7 +144,7 @@ svn_config_write_auth_data(apr_hash_t *hash,
             apr_psprintf(pool, _("Error writing hash to '%s'"),
                          svn_dirent_local_style(auth_path, pool)));
   SVN_ERR(svn_stream_close(stream));
-  SVN_ERR(svn_io_file_rename(tmp_path, auth_path, pool));
+  SVN_ERR(svn_io_file_rename2(tmp_path, auth_path, FALSE, pool));
 
   /* To be nice, remove the realmstring from the hash again, just in
      case the caller wants their hash unchanged.

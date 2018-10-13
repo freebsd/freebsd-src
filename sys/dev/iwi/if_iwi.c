@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, 2005
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  * Copyright (c) 2005-2006 Sam Leffler, Errno Consulting
@@ -130,6 +132,15 @@ static const struct iwi_ident iwi_ident_table[] = {
 	{ 0, 0, NULL }
 };
 
+static const uint8_t def_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+static const uint8_t def_chan_5ghz_band1[] =
+	{ 36, 40, 44, 48, 52, 56, 60, 64 };
+static const uint8_t def_chan_5ghz_band2[] =
+	{ 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140 };
+static const uint8_t def_chan_5ghz_band3[] =
+	{ 149, 153, 157, 161, 165 };
+
 static struct ieee80211vap *iwi_vap_create(struct ieee80211com *,
 		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
 		    const uint8_t [IEEE80211_ADDR_LEN],
@@ -204,6 +215,9 @@ static void	iwi_radio_off(void *, int);
 static void	iwi_sysctlattach(struct iwi_softc *);
 static void	iwi_led_event(struct iwi_softc *, int);
 static void	iwi_ledattach(struct iwi_softc *);
+static void	iwi_collect_bands(struct ieee80211com *, uint8_t [], size_t);
+static void	iwi_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel []);
 
 static int iwi_probe(device_t);
 static int iwi_attach(device_t);
@@ -271,10 +285,10 @@ iwi_attach(device_t dev)
 	struct iwi_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int i, error;
 
 	sc->sc_dev = dev;
+	sc->sc_ledevent = ticks;
 
 	IWI_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
@@ -374,12 +388,8 @@ iwi_attach(device_t dev)
 	ic->ic_macaddr[4] = val & 0xff;
 	ic->ic_macaddr[5] = val >> 8;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (pci_get_device(dev) >= 0x4223) 
-		setbit(bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, bands);
+	iwi_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	/* override default methods */
@@ -399,6 +409,7 @@ iwi_attach(device_t dev)
 	ic->ic_ioctl = iwi_ioctl;
 	ic->ic_transmit = iwi_transmit;
 	ic->ic_parent = iwi_parent;
+	ic->ic_getradiocaps = iwi_getradiocaps;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
@@ -1039,12 +1050,15 @@ static int
 iwi_wme_setparams(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct chanAccParams chp;
 	const struct wmeParams *wmep;
 	int ac;
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		/* set WME values for current operating mode */
-		wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
+		wmep = &chp.cap_wmeParams[ac];
 		sc->wme[0].aifsn[ac] = wmep->wmep_aifsn;
 		sc->wme[0].cwmin[ac] = IWI_EXP2(wmep->wmep_logcwmin);
 		sc->wme[0].cwmax[ac] = IWI_EXP2(wmep->wmep_logcwmax);
@@ -1760,11 +1774,9 @@ iwi_tx_start(struct iwi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     int ac)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
 	struct iwi_node *in = (struct iwi_node *)ni;
 	const struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
-	const struct chanAccParams *cap;
 	struct iwi_tx_ring *txq = &sc->txq[ac];
 	struct iwi_tx_data *data;
 	struct iwi_tx_desc *desc;
@@ -1786,8 +1798,7 @@ iwi_tx_start(struct iwi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		flags |= IWI_DATA_FLAG_SHPREAMBLE;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
 		xflags |= IWI_DATA_XFLAG_QOS;
-		cap = &ic->ic_wme.wme_chanParams;
-		if (!cap->cap_wmeParams[ac].wmep_noackPolicy)
+		if (ieee80211_wme_vap_ac_is_noack(vap, ac))
 			flags &= ~IWI_DATA_FLAG_NEED_ACK;
 	}
 
@@ -1971,9 +1982,9 @@ iwi_start(struct iwi_softc *sc)
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (iwi_tx_start(sc, m, ni, ac) != 0) {
-			ieee80211_free_node(ni);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 		sc->sc_tx_timer = 5;
@@ -2048,7 +2059,7 @@ iwi_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	switch (cmd) {
 	case SIOCGIWISTATS:
 		/* XXX validate permissions/memory/etc? */
-		error = copyout(&sc->sc_linkqual, ifr->ifr_data,
+		error = copyout(&sc->sc_linkqual, ifr_data_get_ptr(ifr),
 		    sizeof(struct iwi_notif_link_quality));
 		break;
 	case SIOCZIWISTATS:
@@ -2539,11 +2550,35 @@ iwi_setwepkeys(struct iwi_softc *sc, struct ieee80211vap *vap)
 }
 
 static int
+iwi_set_rateset(struct iwi_softc *sc, const struct ieee80211_rateset *net_rs,
+    int mode, int type)
+{
+	struct iwi_rateset rs;
+
+	memset(&rs, 0, sizeof(rs));
+	rs.mode = mode;
+	rs.type = type;
+	rs.nrates = net_rs->rs_nrates;
+	if (rs.nrates > nitems(rs.rates)) {
+		DPRINTF(("Truncating negotiated rate set from %u\n",
+		    rs.nrates));
+		rs.nrates = nitems(rs.rates);
+	}
+	memcpy(rs.rates, net_rs->rs_rates, rs.nrates);
+	DPRINTF(("Setting .11%c%s %s rates (%u)\n",
+	    mode == IWI_MODE_11A ? 'a' : 'b',
+	    mode == IWI_MODE_11G ? "g" : "",
+	    type == IWI_RATESET_TYPE_SUPPORTED ? "supported" : "negotiated",
+	    rs.nrates));
+
+	return (iwi_cmd(sc, IWI_CMD_SET_RATES, &rs, sizeof(rs)));
+}
+
+static int
 iwi_config(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwi_configuration config;
-	struct iwi_rateset rs;
 	struct iwi_txpower power;
 	uint32_t data;
 	int error, i;
@@ -2592,25 +2627,13 @@ iwi_config(struct iwi_softc *sc)
 			return error;
 	}
 
-	memset(&rs, 0, sizeof rs);
-	rs.mode = IWI_MODE_11G;
-	rs.type = IWI_RATESET_TYPE_SUPPORTED;
-	rs.nrates = ic->ic_sup_rates[IEEE80211_MODE_11G].rs_nrates;
-	memcpy(rs.rates, ic->ic_sup_rates[IEEE80211_MODE_11G].rs_rates,
-	    rs.nrates);
-	DPRINTF(("Setting .11bg supported rates (%u)\n", rs.nrates));
-	error = iwi_cmd(sc, IWI_CMD_SET_RATES, &rs, sizeof rs);
+	error = iwi_set_rateset(sc, &ic->ic_sup_rates[IEEE80211_MODE_11G],
+	    IWI_MODE_11G, IWI_RATESET_TYPE_SUPPORTED);
 	if (error != 0)
 		return error;
 
-	memset(&rs, 0, sizeof rs);
-	rs.mode = IWI_MODE_11A;
-	rs.type = IWI_RATESET_TYPE_SUPPORTED;
-	rs.nrates = ic->ic_sup_rates[IEEE80211_MODE_11A].rs_nrates;
-	memcpy(rs.rates, ic->ic_sup_rates[IEEE80211_MODE_11A].rs_rates,
-	    rs.nrates);
-	DPRINTF(("Setting .11a supported rates (%u)\n", rs.nrates));
-	error = iwi_cmd(sc, IWI_CMD_SET_RATES, &rs, sizeof rs);
+	error = iwi_set_rateset(sc, &ic->ic_sup_rates[IEEE80211_MODE_11A],
+	    IWI_MODE_11A, IWI_RATESET_TYPE_SUPPORTED);
 	if (error != 0)
 		return error;
 
@@ -2804,7 +2827,6 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211_node *ni;
 	struct iwi_configuration config;
 	struct iwi_associate *assoc = &sc->assoc;
-	struct iwi_rateset rs;
 	uint16_t capinfo;
 	uint32_t data;
 	int error, mode;
@@ -2874,18 +2896,8 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 		goto done;
 
 	/* the rate set has already been "negotiated" */
-	memset(&rs, 0, sizeof rs);
-	rs.mode = mode;
-	rs.type = IWI_RATESET_TYPE_NEGOTIATED;
-	rs.nrates = ni->ni_rates.rs_nrates;
-	if (rs.nrates > IWI_RATESET_SIZE) {
-		DPRINTF(("Truncating negotiated rate set from %u\n",
-		    rs.nrates));
-		rs.nrates = IWI_RATESET_SIZE;
-	}
-	memcpy(rs.rates, ni->ni_rates.rs_rates, rs.nrates);
-	DPRINTF(("Setting negotiated rates (%u)\n", rs.nrates));
-	error = iwi_cmd(sc, IWI_CMD_SET_RATES, &rs, sizeof rs);
+	error = iwi_set_rateset(sc, &ni->ni_rates, mode,
+	    IWI_RATESET_TYPE_NEGOTIATED);
 	if (error != 0)
 		goto done;
 
@@ -3568,4 +3580,41 @@ iwi_scan_end(struct ieee80211com *ic)
 	if (sc->fw_state == IWI_FW_SCANNING)
 		iwi_cmd(sc, IWI_CMD_ABORT_SCAN, NULL, 0);
 	IWI_UNLOCK(sc);
+}
+
+static void
+iwi_collect_bands(struct ieee80211com *ic, uint8_t bands[], size_t bands_sz)
+{
+	struct iwi_softc *sc = ic->ic_softc;
+	device_t dev = sc->sc_dev;
+
+	memset(bands, 0, bands_sz);
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	if (pci_get_device(dev) >= 0x4223)
+		setbit(bands, IEEE80211_MODE_11A);
+}
+
+static void
+iwi_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	iwi_collect_bands(ic, bands, sizeof(bands));
+	*nchans = 0;
+	if (isset(bands, IEEE80211_MODE_11B) || isset(bands, IEEE80211_MODE_11G))
+		ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+		    def_chan_2ghz, nitems(def_chan_2ghz), bands, 0);
+	if (isset(bands, IEEE80211_MODE_11A)) {
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),
+		    bands, 0);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    def_chan_5ghz_band2, nitems(def_chan_5ghz_band2),
+		    bands, 0);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    def_chan_5ghz_band3, nitems(def_chan_5ghz_band3),
+		    bands, 0);
+	}
 }

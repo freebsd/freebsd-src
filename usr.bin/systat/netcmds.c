@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -224,13 +226,13 @@ selectport(long port, int onoff)
 }
 
 int
-checkport(struct inpcb *inp)
+checkport(struct in_conninfo *inc)
 {
 	struct pitem *p;
 
 	if (ports)
 	for (p = ports; p < ports+nports; p++)
-		if (p->port == inp->inp_lport || p->port == inp->inp_fport)
+		if (p->port == inc->inc_lport || p->port == inc->inc_fport)
 			return (p->onoff);
 	return (1);
 }
@@ -281,14 +283,14 @@ selecthost(struct in_addr *in, int onoff)
 }
 
 int
-checkhost(struct inpcb *inp)
+checkhost(struct in_conninfo *inc)
 {
 	struct hitem *p;
 
 	if (hosts)
 	for (p = hosts; p < hosts+nhosts; p++)
-		if (p->addr.s_addr == inp->inp_laddr.s_addr ||
-		    p->addr.s_addr == inp->inp_faddr.s_addr)
+		if (p->addr.s_addr == inc->inc_laddr.s_addr ||
+		    p->addr.s_addr == inc->inc_faddr.s_addr)
 			return (p->onoff);
 	return (1);
 }

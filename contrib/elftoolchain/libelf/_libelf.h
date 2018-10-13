@@ -216,12 +216,15 @@ int	(*_libelf_get_translator(Elf_Type _t, int _direction, int _elfclass))
 void	*_libelf_getphdr(Elf *_e, int _elfclass);
 void	*_libelf_getshdr(Elf_Scn *_scn, int _elfclass);
 void	_libelf_init_elf(Elf *_e, Elf_Kind _kind);
+int	_libelf_is_mips64el(Elf *e);
 int	_libelf_load_section_headers(Elf *e, void *ehdr);
 unsigned int _libelf_malign(Elf_Type _t, int _elfclass);
 Elf	*_libelf_memory(unsigned char *_image, size_t _sz, int _reporterror);
 size_t	_libelf_msize(Elf_Type _t, int _elfclass, unsigned int _version);
 void	*_libelf_newphdr(Elf *_e, int _elfclass, size_t _count);
 Elf	*_libelf_open_object(int _fd, Elf_Cmd _c, int _reporterror);
+Elf64_Xword _libelf_mips64el_r_info_tof(Elf64_Xword r_info);
+Elf64_Xword _libelf_mips64el_r_info_tom(Elf64_Xword r_info);
 struct _Libelf_Data *_libelf_release_data(struct _Libelf_Data *_d);
 Elf	*_libelf_release_elf(Elf *_e);
 Elf_Scn	*_libelf_release_scn(Elf_Scn *_s);

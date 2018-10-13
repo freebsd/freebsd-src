@@ -25,13 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2003
+.Dd August 30, 2016
 .Dt PMAP_ZERO 9
 .Os
 .Sh NAME
 .Nm pmap_zero_page ,
 .Nm pmap_zero_area ,
-.Nm pmap_zero_idle
 .Nd zero-fill a page using machine-dependent optimizations
 .Sh SYNOPSIS
 .In sys/param.h
@@ -41,8 +40,6 @@
 .Fn pmap_zero_page "vm_page_t m"
 .Ft void
 .Fn pmap_zero_page_area "vm_page_t m" "int off" "int size"
-.Ft void
-.Fn pmap_zero_page_idle "vm_page_t m"
 .Sh DESCRIPTION
 The
 .Fn pmap_zero_page
@@ -52,15 +49,6 @@ The
 function is used to zero-fill an area of a page.
 The range specified must not cross a page boundary; it must be contained
 entirely within a single page.
-.Pp
-The
-.Fn pmap_zero_page_idle
-interface is used by the
-.Nm vm_pagezero
-process.
-The system-wide
-.Va Giant
-lock should not be required to be held in order to call this interface.
 .Sh IMPLEMENTATION NOTES
 This function is required to be implemented for each architecture supported by
 .Fx .

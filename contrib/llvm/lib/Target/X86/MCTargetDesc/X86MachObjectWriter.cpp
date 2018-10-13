@@ -7,9 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "MCTargetDesc/X86FixupKinds.h"
+#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/MachO.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
@@ -19,7 +20,6 @@
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
-#include "llvm/Support/MachO.h"
 
 using namespace llvm;
 
@@ -73,7 +73,9 @@ public:
 
 static bool isFixupKindRIPRel(unsigned Kind) {
   return Kind == X86::reloc_riprel_4byte ||
-    Kind == X86::reloc_riprel_4byte_movq_load;
+         Kind == X86::reloc_riprel_4byte_movq_load ||
+         Kind == X86::reloc_riprel_4byte_relax ||
+         Kind == X86::reloc_riprel_4byte_relax_rex;
 }
 
 static unsigned getFixupKindLog2Size(unsigned Kind) {
@@ -87,8 +89,11 @@ static unsigned getFixupKindLog2Size(unsigned Kind) {
   case FK_PCRel_4:
     // FIXME: Remove these!!!
   case X86::reloc_riprel_4byte:
+  case X86::reloc_riprel_4byte_relax:
+  case X86::reloc_riprel_4byte_relax_rex:
   case X86::reloc_riprel_4byte_movq_load:
   case X86::reloc_signed_4byte:
+  case X86::reloc_signed_4byte_relax:
   case FK_Data_4: return 2;
   case FK_Data_8: return 3;
   }
@@ -148,8 +153,7 @@ void X86MachObjectWriter::RecordX86_64Relocation(
     const MCSymbol *B_Base = Asm.getAtom(*B);
 
     // Neither symbol can be modified.
-    if (Target.getSymA()->getKind() != MCSymbolRefExpr::VK_None ||
-        Target.getSymB()->getKind() != MCSymbolRefExpr::VK_None) {
+    if (Target.getSymA()->getKind() != MCSymbolRefExpr::VK_None) {
       Asm.getContext().reportError(Fixup.getLoc(),
                                    "unsupported relocation of modified symbol");
       return;
@@ -392,7 +396,7 @@ bool X86MachObjectWriter::recordScatteredRelocation(MachObjectWriter *Writer,
     if (!SB->getFragment()) {
       Asm.getContext().reportError(
           Fixup.getLoc(),
-          "symbol '" + B->getSymbol().getName() +
+          "symbol '" + SB->getName() +
               "' can not be undefined in a subtraction expression");
       return false;
     }
@@ -404,7 +408,7 @@ bool X86MachObjectWriter::recordScatteredRelocation(MachObjectWriter *Writer,
     // pedantic compatibility with 'as'.
     Type = A->isExternal() ? (unsigned)MachO::GENERIC_RELOC_SECTDIFF
                            : (unsigned)MachO::GENERIC_RELOC_LOCAL_SECTDIFF;
-    Value2 = Writer->getSymbolAddress(B->getSymbol(), Layout);
+    Value2 = Writer->getSymbolAddress(*SB, Layout);
     FixedValue -= Writer->getSectionAddress(SB->getFragment()->getParent());
   }
 
@@ -464,8 +468,8 @@ void X86MachObjectWriter::recordTLVPRelocation(MachObjectWriter *Writer,
                                                const MCFixup &Fixup,
                                                MCValue Target,
                                                uint64_t &FixedValue) {
-  assert(Target.getSymA()->getKind() == MCSymbolRefExpr::VK_TLVP &&
-         !is64Bit() &&
+  const MCSymbolRefExpr *SymA = Target.getSymA();
+  assert(SymA->getKind() == MCSymbolRefExpr::VK_TLVP && !is64Bit() &&
          "Should only be called with a 32-bit TLVP relocation!");
 
   unsigned Log2Size = getFixupKindLog2Size(Fixup.getKind());
@@ -476,15 +480,14 @@ void X86MachObjectWriter::recordTLVPRelocation(MachObjectWriter *Writer,
   // subtraction from the picbase. For 32-bit pic the addend is the difference
   // between the picbase and the next address.  For 32-bit static the addend is
   // zero.
-  if (Target.getSymB()) {
+  if (auto *SymB = Target.getSymB()) {
     // If this is a subtraction then we're pcrel.
     uint32_t FixupAddress =
       Writer->getFragmentAddress(Fragment, Layout) + Fixup.getOffset();
     IsPCRel = 1;
-    FixedValue =
-        FixupAddress -
-        Writer->getSymbolAddress(Target.getSymB()->getSymbol(), Layout) +
-        Target.getConstant();
+    FixedValue = FixupAddress -
+                 Writer->getSymbolAddress(SymB->getSymbol(), Layout) +
+                 Target.getConstant();
     FixedValue += 1ULL << Log2Size;
   } else {
     FixedValue = 0;
@@ -495,8 +498,7 @@ void X86MachObjectWriter::recordTLVPRelocation(MachObjectWriter *Writer,
   MRE.r_word0 = Value;
   MRE.r_word1 =
       (IsPCRel << 24) | (Log2Size << 25) | (MachO::GENERIC_RELOC_TLV << 28);
-  Writer->addRelocation(&Target.getSymA()->getSymbol(), Fragment->getParent(),
-                        MRE);
+  Writer->addRelocation(&SymA->getSymbol(), Fragment->getParent(), MRE);
 }
 
 void X86MachObjectWriter::RecordX86Relocation(MachObjectWriter *Writer,
@@ -595,11 +597,10 @@ void X86MachObjectWriter::RecordX86Relocation(MachObjectWriter *Writer,
   Writer->addRelocation(RelSymbol, Fragment->getParent(), MRE);
 }
 
-MCObjectWriter *llvm::createX86MachObjectWriter(raw_pwrite_stream &OS,
-                                                bool Is64Bit, uint32_t CPUType,
-                                                uint32_t CPUSubtype) {
-  return createMachObjectWriter(new X86MachObjectWriter(Is64Bit,
-                                                        CPUType,
-                                                        CPUSubtype),
-                                OS, /*IsLittleEndian=*/true);
+std::unique_ptr<MCObjectWriter>
+llvm::createX86MachObjectWriter(raw_pwrite_stream &OS, bool Is64Bit,
+                                uint32_t CPUType, uint32_t CPUSubtype) {
+  return createMachObjectWriter(
+      llvm::make_unique<X86MachObjectWriter>(Is64Bit, CPUType, CPUSubtype), OS,
+      /*IsLittleEndian=*/true);
 }

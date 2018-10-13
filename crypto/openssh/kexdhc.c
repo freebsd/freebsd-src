@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhc.c,v 1.18 2015/01/26 06:10:03 djm Exp $ */
+/* $OpenBSD: kexdhc.c,v 1.22 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -36,6 +36,8 @@
 #include <string.h>
 #include <signal.h>
 
+#include "openbsd-compat/openssl-compat.h"
+
 #include "sshkey.h"
 #include "cipher.h"
 #include "digest.h"
@@ -49,13 +51,14 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 
-static int input_kex_dh(int, u_int32_t, void *);
+static int input_kex_dh(int, u_int32_t, struct ssh *);
 
 int
 kexdh_client(struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	int r;
+	const BIGNUM *pub_key;
 
 	/* generate and send 'e', client DH public key */
 	switch (kex->kex_type) {
@@ -63,7 +66,14 @@ kexdh_client(struct ssh *ssh)
 		kex->dh = dh_new_group1();
 		break;
 	case KEX_DH_GRP14_SHA1:
+	case KEX_DH_GRP14_SHA256:
 		kex->dh = dh_new_group14();
+		break;
+	case KEX_DH_GRP16_SHA512:
+		kex->dh = dh_new_group16();
+		break;
+	case KEX_DH_GRP18_SHA512:
+		kex->dh = dh_new_group18();
 		break;
 	default:
 		r = SSH_ERR_INVALID_ARGUMENT;
@@ -74,15 +84,17 @@ kexdh_client(struct ssh *ssh)
 		goto out;
 	}
 	debug("sending SSH2_MSG_KEXDH_INIT");
-	if ((r = dh_gen_key(kex->dh, kex->we_need * 8)) != 0 ||
-	    (r = sshpkt_start(ssh, SSH2_MSG_KEXDH_INIT)) != 0 ||
-	    (r = sshpkt_put_bignum2(ssh, kex->dh->pub_key)) != 0 ||
+	if ((r = dh_gen_key(kex->dh, kex->we_need * 8)) != 0)
+		goto out;
+	DH_get0_key(kex->dh, &pub_key, NULL);
+	if ((r = sshpkt_start(ssh, SSH2_MSG_KEXDH_INIT)) != 0 ||
+	    (r = sshpkt_put_bignum2(ssh, pub_key)) != 0 ||
 	    (r = sshpkt_send(ssh)) != 0)
 		goto out;
 #ifdef DEBUG_KEXDH
 	DHparams_print_fp(stderr, kex->dh);
 	fprintf(stderr, "pub= ");
-	BN_print_fp(stderr, kex->dh->pub_key);
+	BN_print_fp(stderr, pub_key);
 	fprintf(stderr, "\n");
 #endif
 	debug("expecting SSH2_MSG_KEXDH_REPLY");
@@ -93,11 +105,11 @@ kexdh_client(struct ssh *ssh)
 }
 
 static int
-input_kex_dh(int type, u_int32_t seq, void *ctxt)
+input_kex_dh(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	BIGNUM *dh_server_pub = NULL, *shared_secret = NULL;
+	const BIGNUM *pub_key;
 	struct sshkey *server_host_key = NULL;
 	u_char *kbuf = NULL, *server_host_key_blob = NULL, *signature = NULL;
 	u_char hash[SSH_DIGEST_MAX_LENGTH];
@@ -162,21 +174,23 @@ input_kex_dh(int type, u_int32_t seq, void *ctxt)
 #endif
 
 	/* calc and verify H */
+	DH_get0_key(kex->dh, &pub_key, NULL);
 	hashlen = sizeof(hash);
 	if ((r = kex_dh_hash(
+	    kex->hash_alg,
 	    kex->client_version_string,
 	    kex->server_version_string,
 	    sshbuf_ptr(kex->my), sshbuf_len(kex->my),
 	    sshbuf_ptr(kex->peer), sshbuf_len(kex->peer),
 	    server_host_key_blob, sbloblen,
-	    kex->dh->pub_key,
+	    pub_key,
 	    dh_server_pub,
 	    shared_secret,
 	    hash, &hashlen)) != 0)
 		goto out;
 
 	if ((r = sshkey_verify(server_host_key, signature, slen, hash, hashlen,
-	    ssh->compat)) != 0)
+	    kex->hostkey_alg, ssh->compat)) != 0)
 		goto out;
 
 	/* save session id */
@@ -196,14 +210,12 @@ input_kex_dh(int type, u_int32_t seq, void *ctxt)
 	explicit_bzero(hash, sizeof(hash));
 	DH_free(kex->dh);
 	kex->dh = NULL;
-	if (dh_server_pub)
-		BN_clear_free(dh_server_pub);
+	BN_clear_free(dh_server_pub);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	sshkey_free(server_host_key);
 	free(server_host_key_blob);
 	free(signature);

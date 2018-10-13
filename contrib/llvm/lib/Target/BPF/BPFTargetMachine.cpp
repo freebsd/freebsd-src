@@ -11,11 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "BPF.h"
 #include "BPFTargetMachine.h"
-#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
-#include "llvm/IR/LegacyPassManager.h"
+#include "BPF.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
@@ -23,9 +24,9 @@ using namespace llvm;
 
 extern "C" void LLVMInitializeBPFTarget() {
   // Register the target.
-  RegisterTargetMachine<BPFTargetMachine> X(TheBPFleTarget);
-  RegisterTargetMachine<BPFTargetMachine> Y(TheBPFbeTarget);
-  RegisterTargetMachine<BPFTargetMachine> Z(TheBPFTarget);
+  RegisterTargetMachine<BPFTargetMachine> X(getTheBPFleTarget());
+  RegisterTargetMachine<BPFTargetMachine> Y(getTheBPFbeTarget());
+  RegisterTargetMachine<BPFTargetMachine> Z(getTheBPFTarget());
 }
 
 // DataLayout: little or big endian
@@ -36,12 +37,26 @@ static std::string computeDataLayout(const Triple &TT) {
     return "e-m:e-p:64:64-i64:64-n32:64-S128";
 }
 
+static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
+  if (!RM.hasValue())
+    return Reloc::PIC_;
+  return *RM;
+}
+
+static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM) {
+  if (CM)
+    return *CM;
+  return CodeModel::Small;
+}
+
 BPFTargetMachine::BPFTargetMachine(const Target &T, const Triple &TT,
                                    StringRef CPU, StringRef FS,
                                    const TargetOptions &Options,
-                                   Reloc::Model RM, CodeModel::Model CM,
-                                   CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options, RM, CM,
+                                   Optional<Reloc::Model> RM,
+                                   Optional<CodeModel::Model> CM,
+                                   CodeGenOpt::Level OL, bool JIT)
+    : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
+                        getEffectiveRelocModel(RM), getEffectiveCodeModel(CM),
                         OL),
       TLOF(make_unique<TargetLoweringObjectFileELF>()),
       Subtarget(TT, CPU, FS, *this) {
@@ -51,7 +66,7 @@ namespace {
 // BPF Code Generator Pass Configuration Options.
 class BPFPassConfig : public TargetPassConfig {
 public:
-  BPFPassConfig(BPFTargetMachine *TM, PassManagerBase &PM)
+  BPFPassConfig(BPFTargetMachine &TM, PassManagerBase &PM)
       : TargetPassConfig(TM, PM) {}
 
   BPFTargetMachine &getBPFTargetMachine() const {
@@ -63,7 +78,7 @@ public:
 }
 
 TargetPassConfig *BPFTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new BPFPassConfig(this, PM);
+  return new BPFPassConfig(*this, PM);
 }
 
 // Install an instruction selector pass using

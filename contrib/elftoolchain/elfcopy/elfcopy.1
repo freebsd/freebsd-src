@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elfcopy.1 3426 2016-03-05 13:32:28Z emaste $
+.\" $Id: elfcopy.1 3565 2017-08-31 02:24:19Z emaste $
 .\"
-.Dd March 5, 2016
+.Dd August 30, 2017
 .Os
 .Dt ELFCOPY 1
 .Sh NAME
@@ -83,6 +83,7 @@
 .Op Fl -srec-forceS3
 .Op Fl -srec-len Ns = Ns Ar val
 .Op Fl -strip-dwo
+.Op Fl -strip-symbols= Ns Ar filename
 .Op Fl -strip-unneeded
 .Ar infile
 .Op Ar outfile
@@ -339,6 +340,10 @@ This option is only meaningful when the output target is set to
 .Dq srec .
 .It Fl -strip-dwo
 Do not copy .dwo debug sections to the output file.
+.It Fl -strip-symbols= Ns Ar filename
+Do not copy any of the symbols specified by
+.Ar filename
+to the output.
 .It Fl -strip-unneeded
 Do not copy symbols that are not needed for relocation processing.
 .El

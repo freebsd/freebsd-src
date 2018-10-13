@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -72,7 +72,7 @@ Fail if the file does not exist.
 .It Dq Li w
 Open for writing.
 The stream is positioned at the beginning of the file.
-Create the file if it does not exist.
+Truncate the file to zero length if it exists or create the file if it does not exist.
 .It Dq Li a
 Open for writing.
 The stream is positioned at the end of the file.
@@ -230,15 +230,20 @@ argument,
 .Fn fmemopen
 allocates
 .Fa size
-bytes of memory. This buffer is automatically freed when the
-stream is closed. Buffers can be opened in text-mode (default) or binary-mode
+bytes of memory.
+This buffer is automatically freed when the stream is closed.
+Buffers can be opened in text-mode (default) or binary-mode
 (if
 .Dq Li b
 is present in the second or third position of the
 .Fa mode
-argument). Buffers opened in text-mode make sure that writes are terminated with
-a NULL byte, if the last write hasn't filled up the whole buffer. Buffers
-opened in binary-mode never append a NULL byte.
+argument).
+Buffers opened in text-mode make sure that writes are terminated with a
+.Dv NULL
+byte, if the last write hasn't filled up the whole buffer.
+Buffers opened in binary-mode never append a
+.Dv NULL
+byte.
 .Sh RETURN VALUES
 Upon successful completion
 .Fn fopen ,

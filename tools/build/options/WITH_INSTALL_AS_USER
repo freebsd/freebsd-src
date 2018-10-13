@@ -4,6 +4,6 @@ files with owner and group attributes set to that of the user running
 the
 .Xr make 1
 command.
-The user still has to set the
+The user still must set the
 .Va DESTDIR
 variable to point to a directory where the user has write permissions.

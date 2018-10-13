@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Texas A&M University
  * All rights reserved.
  *
@@ -512,7 +514,13 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 
 	/* convert from power-of-two-ns to WDT ticks */
 	cmd &= WD_INTERVAL;
-	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
+	
+	if (sc->tco_version == 3) {
+		timeout = ((uint64_t)1 << cmd) / ICHWD_TCO_V3_TICK;
+	} else {
+		timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
+	}
+	
 	if (cmd) {
 		if (!sc->active)
 			ichwd_tmr_enable(sc);
@@ -527,23 +535,29 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 }
 
 static device_t
-ichwd_find_ich_lpc_bridge(struct ichwd_device **id_p)
+ichwd_find_ich_lpc_bridge(device_t isa, struct ichwd_device **id_p)
 {
 	struct ichwd_device *id;
-	device_t ich = NULL;
+	device_t isab, pci;
+	uint16_t devid;
 
-	/* look for an ICH LPC interface bridge */
-	for (id = ichwd_devices; id->desc != NULL; ++id)
-		if ((ich = pci_find_device(VENDORID_INTEL, id->device)) != NULL)
-			break;
-
-	if (ich == NULL)
+	/* Check whether parent ISA bridge looks familiar. */
+	isab = device_get_parent(isa);
+	pci = device_get_parent(isab);
+	if (pci == NULL || device_get_devclass(pci) != devclass_find("pci"))
 		return (NULL);
+	if (pci_get_vendor(isab) != VENDORID_INTEL)
+		return (NULL);
+	devid = pci_get_device(isab);
+	for (id = ichwd_devices; id->desc != NULL; ++id) {
+		if (devid == id->device) {
+			if (id_p != NULL)
+				*id_p = id;
+			return (isab);
+		}
+	}
 
-	if (id_p)
-		*id_p = id;
-
-	return (ich);
+	return (NULL);
 }
 
 /*
@@ -559,7 +573,7 @@ ichwd_identify(driver_t *driver, device_t parent)
 	uint32_t base_address;
 	int rc;
 
-	ich = ichwd_find_ich_lpc_bridge(&id_p);
+	ich = ichwd_find_ich_lpc_bridge(parent, &id_p);
 	if (ich == NULL)
 		return;
 
@@ -612,7 +626,7 @@ ichwd_probe(device_t dev)
 	if (isa_get_logicalid(dev) != 0)
 		return (ENXIO);
 
-	if (ichwd_find_ich_lpc_bridge(&id_p) == NULL)
+	if (ichwd_find_ich_lpc_bridge(device_get_parent(dev), &id_p) == NULL)
 		return (ENXIO);
 
 	device_set_desc_copy(dev, id_p->desc);
@@ -630,7 +644,7 @@ ichwd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->device = dev;
 
-	ich = ichwd_find_ich_lpc_bridge(&id_p);
+	ich = ichwd_find_ich_lpc_bridge(device_get_parent(dev), &id_p);
 	if (ich == NULL) {
 		device_printf(sc->device, "Can not find ICH device.\n");
 		goto fail;
@@ -720,7 +734,6 @@ static int
 ichwd_detach(device_t dev)
 {
 	struct ichwd_softc *sc;
-	device_t ich = NULL;
 
 	sc = device_get_softc(dev);
 
@@ -745,9 +758,8 @@ ichwd_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->smi_rid, sc->smi_res);
 
 	/* deallocate memory resource */
-	ich = ichwd_find_ich_lpc_bridge(NULL);
-	if (sc->gcs_res && ich)
-		bus_release_resource(ich, SYS_RES_MEMORY, sc->gcs_rid,
+	if (sc->gcs_res)
+		bus_release_resource(sc->ich, SYS_RES_MEMORY, sc->gcs_rid,
 		    sc->gcs_res);
 
 	return (0);

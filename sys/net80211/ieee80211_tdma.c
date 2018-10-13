@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2007-2009 Intel Corporation
  * All rights reserved.
@@ -176,6 +178,8 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	settxparms(vap, IEEE80211_MODE_11NG, TDMA_TXRATE_11NG_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_HALF, TDMA_TXRATE_HALF_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_QUARTER, TDMA_TXRATE_QUARTER_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_VHT_2GHZ, TDMA_TXRATE_11NG_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_VHT_5GHZ, TDMA_TXRATE_11NA_DEFAULT);
 
 	setackpolicy(vap->iv_ic, 1);	/* disable ACK's */
 
@@ -209,9 +213,9 @@ tdma_vdetach(struct ieee80211vap *vap)
 static void
 sta_leave(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni != vap->iv_bss)
+	if (ni != vap->iv_bss)
 		ieee80211_node_leave(ni);
 }
 
@@ -246,7 +250,8 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_cancel_scan(vap);		/* background scan */
 		if (ostate == IEEE80211_S_RUN) {
 			/* purge station table; entries are stale */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_leave, NULL);
 		}
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANREQ) {
 			ieee80211_check_scan(vap,

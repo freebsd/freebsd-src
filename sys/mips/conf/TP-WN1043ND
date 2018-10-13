@@ -7,7 +7,7 @@
 #NO_UNIVERSE
 
 # Include the default AR913x parameters common to all AR913x SoC users.
-include         "AR91XX_BASE"
+include         "std.AR91XX"
 
 ident           TP-WN1043ND
 
@@ -18,6 +18,7 @@ hints           "TP-WN1043ND.hints"
 options         AR71XX_REALMEM=32*1024*1024
 
 # i2c GPIO bus
+device		gpio
 device		gpioiic
 device		iicbb
 device		iicbus
@@ -27,6 +28,7 @@ device		iic
 device		etherswitch
 
 # RTL8366RB support
+device		mdio
 device		rtl8366rb
 
 # read MSDOS formatted disks - USB

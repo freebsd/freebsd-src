@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause and BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -40,7 +42,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -282,7 +284,8 @@ struct inoinfo {
 	u_int	i_numblks;		/* size of block array in bytes */
 	ufs2_daddr_t i_blks[1];		/* actually longer */
 } **inphead, **inpsort;
-extern long numdirs, dirhash, listmax, inplast;
+extern long dirhash, inplast;
+extern unsigned long numdirs, listmax;
 extern long countdirs;		/* number of directories we actually found */
 
 #define MIBSIZE	3		/* size of fsck sysctl MIBs */
@@ -305,13 +308,14 @@ extern u_int	real_dev_bsize;		/* actual disk sector size, not overridden */
 extern char	nflag;			/* assume a no response */
 extern char	yflag;			/* assume a yes response */
 extern int	bkgrdflag;		/* use a snapshot to run on an active system */
-extern int	bflag;			/* location of alternate super block */
+extern off_t	bflag;			/* location of alternate super block */
 extern int	debug;			/* output debugging info */
 extern int	Eflag;			/* delete empty data blocks */
 extern int	Zflag;			/* zero empty data blocks */
 extern int	inoopt;			/* trim out unused inodes */
 extern char	ckclean;		/* only do work if not cleanly unmounted */
 extern int	cvtlevel;		/* convert to newer file system format */
+extern int	ckhashadd;		/* check hashes to be added */
 extern int	bkgrdcheck;		/* determine if background check is possible */
 extern int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
 extern char	usedsoftdep;		/* just fix soft dependency inconsistencies */
@@ -324,6 +328,7 @@ extern char	skipclean;		/* skip clean file systems if preening */
 extern int	fsmodified;		/* 1 => write done to file system */
 extern int	fsreadfd;		/* file descriptor for reading file system */
 extern int	fswritefd;		/* file descriptor for writing file system */
+extern struct	uufsd disk;		/* libufs user-ufs disk structure */
 extern int	surrender;		/* Give up if reads fail */
 extern int	wantrestart;		/* Restart fsck on early termination */
 
@@ -361,6 +366,7 @@ extern struct	ufs2_dinode ufs2_zino;
 #define	FOUND	0x10
 
 #define	EEXIT	8		/* Standard error exit. */
+#define	ERERUN	16		/* fsck needs to be re-run. */
 #define	ERESTART -1
 
 int flushentry(void);
@@ -433,7 +439,7 @@ void		freeinodebuf(void);
 void		fsutilinit(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
-struct bufarea *cgget(int cg);
+struct bufarea *cglookup(int cg);
 struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);

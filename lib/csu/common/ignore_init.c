@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2012 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
@@ -26,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/elf_common.h>
 #include "notes.h"
 
 extern int main(int, char **, char **);
@@ -112,7 +116,7 @@ static const struct {
     aligned(4))) __used = {
 	.namesz = sizeof(NOTE_FREEBSD_VENDOR),
 	.descsz = sizeof(uint32_t),
-	.type = CRT_NOINIT_NOTETYPE,
+	.type = NT_FREEBSD_NOINIT_TAG,
 	.name = NOTE_FREEBSD_VENDOR,
 	.desc = 0
 };

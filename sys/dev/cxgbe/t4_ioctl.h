@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -33,6 +35,7 @@
 
 #include <sys/types.h>
 #include <net/ethernet.h>
+#include <net/bpf.h>
 
 /*
  * Ioctl commands specific to this driver.
@@ -56,6 +59,10 @@ enum {
 	T4_SET_SCHED_QUEUE,             /* set queue class */
 	T4_GET_TRACER,			/* get information about a tracer */
 	T4_SET_TRACER,			/* program a tracer */
+	T4_LOAD_CFG,			/* copy a config file to card's flash */
+	T4_LOAD_BOOT,			/* flash boot rom */
+	T4_LOAD_BOOTCFG,		/* flash bootcfg */
+	T4_CUDBG_DUMP,			/* debug dump of chip state */
 };
 
 struct t4_reg {
@@ -73,6 +80,13 @@ struct t4_regdump {
 };
 
 struct t4_data {
+	uint32_t len;
+	uint8_t *data;
+};
+
+struct t4_bootrom {
+	uint32_t pf_offset;
+	uint32_t pfidx_addr;
 	uint32_t len;
 	uint8_t *data;
 };
@@ -146,12 +160,23 @@ enum {
 				  RSS subtable */
 };
 
+enum {
+	NAT_MODE_NONE = 0,	/* No NAT performed */
+	NAT_MODE_DIP,		/* NAT on Dst IP */
+	NAT_MODE_DIP_DP,	/* NAT on Dst IP, Dst Port */
+	NAT_MODE_DIP_DP_SIP,	/* NAT on Dst IP, Dst Port and Src IP */
+	NAT_MODE_DIP_DP_SP,	/* NAT on Dst IP, Dst Port and Src Port */
+	NAT_MODE_SIP_SP,	/* NAT on Src IP and Src Port */
+	NAT_MODE_DIP_SIP_SP,	/* NAT on Dst IP, Src IP and Src Port */
+	NAT_MODE_ALL		/* NAT on entire 4-tuple */
+};
+
 struct t4_filter_tuple {
 	/*
 	 * These are always available.
 	 */
 	uint8_t sip[16];	/* source IP address (IPv4 in [3:0]) */
-	uint8_t dip[16];	/* destinatin IP address (IPv4 in [3:0]) */
+	uint8_t dip[16];	/* destination IP address (IPv4 in [3:0]) */
 	uint16_t sport;		/* source port */
 	uint16_t dport;		/* destination port */
 
@@ -179,6 +204,7 @@ struct t4_filter_specification {
 	uint32_t hitcnts:1;	/* count filter hits in TCB */
 	uint32_t prio:1;	/* filter has priority over active/server */
 	uint32_t type:1;	/* 0 => IPv4, 1 => IPv6 */
+	uint32_t hash:1;	/* 0 => LE TCAM, 1 => Hash */
 	uint32_t action:2;	/* drop, pass, switch */
 	uint32_t rpttid:1;	/* report TID in RSS hash field */
 	uint32_t dirsteer:1;	/* 0 => RSS, 1 => steer to iq */
@@ -195,10 +221,19 @@ struct t4_filter_specification {
 	uint32_t eport:2;	/* egress port to switch packet out */
 	uint32_t newdmac:1;	/* rewrite destination MAC address */
 	uint32_t newsmac:1;	/* rewrite source MAC address */
+	uint32_t swapmac:1;	/* swap SMAC/DMAC for loopback packet */
 	uint32_t newvlan:2;	/* rewrite VLAN Tag */
+	uint32_t nat_mode:3;	/* NAT operation mode */
+	uint32_t nat_flag_chk:1;/* check TCP flags before NAT'ing */
+	uint32_t nat_seq_chk;	/* sequence value to use for NAT check*/
 	uint8_t dmac[ETHER_ADDR_LEN];	/* new destination MAC address */
 	uint8_t smac[ETHER_ADDR_LEN];	/* new source MAC address */
 	uint16_t vlan;		/* VLAN Tag to insert */
+
+	uint8_t nat_dip[16];	/* destination IP to use after NAT'ing */
+	uint8_t nat_sip[16];	/* source IP to use after NAT'ing */
+	uint16_t nat_dport;	/* destination port to use after NAT'ing */
+	uint16_t nat_sport;	/* source port to use after NAT'ing */
 
 	/*
 	 * Filter rule value/mask pairs.
@@ -324,13 +359,58 @@ struct t4_tracer {
 	struct t4_trace_params tp;
 };
 
+struct t4_cudbg_dump {
+	uint8_t wr_flash;
+	uint8_t	bitmap[16];
+	uint32_t len;
+	uint8_t *data;
+};
+
+enum {
+	OPEN_TYPE_LISTEN = 'L',
+	OPEN_TYPE_ACTIVE = 'A',
+	OPEN_TYPE_PASSIVE = 'P',
+	OPEN_TYPE_DONTCARE = 'D',
+};
+
+struct offload_settings {
+	int8_t offload;
+	int8_t rx_coalesce;
+	int8_t cong_algo;
+	int8_t sched_class;
+	int8_t tstamp;
+	int8_t sack;
+	int8_t nagle;
+	int8_t ecn;
+	int8_t ddp;
+	int8_t tls;
+	int16_t txq;
+	int16_t rxq;
+	int16_t mss;
+};
+
+struct offload_rule {
+	char open_type;
+	struct offload_settings settings;
+	struct bpf_program bpf_prog;	/* compiled program/filter */
+};
+
+/*
+ * An offload policy consists of a set of rules matched in sequence.  The
+ * settings of the first rule that matches are applied to that connection.
+ */
+struct t4_offload_policy {
+	uint32_t nrules;
+	struct offload_rule *rule;
+};
+
 #define CHELSIO_T4_GETREG	_IOWR('f', T4_GETREG, struct t4_reg)
 #define CHELSIO_T4_SETREG	_IOW('f', T4_SETREG, struct t4_reg)
 #define CHELSIO_T4_REGDUMP	_IOWR('f', T4_REGDUMP, struct t4_regdump)
 #define CHELSIO_T4_GET_FILTER_MODE _IOWR('f', T4_GET_FILTER_MODE, uint32_t)
 #define CHELSIO_T4_SET_FILTER_MODE _IOW('f', T4_SET_FILTER_MODE, uint32_t)
 #define CHELSIO_T4_GET_FILTER	_IOWR('f', T4_GET_FILTER, struct t4_filter)
-#define CHELSIO_T4_SET_FILTER	_IOW('f', T4_SET_FILTER, struct t4_filter)
+#define CHELSIO_T4_SET_FILTER	_IOWR('f', T4_SET_FILTER, struct t4_filter)
 #define CHELSIO_T4_DEL_FILTER	_IOW('f', T4_DEL_FILTER, struct t4_filter)
 #define CHELSIO_T4_GET_SGE_CONTEXT _IOWR('f', T4_GET_SGE_CONTEXT, \
     struct t4_sge_context)
@@ -344,4 +424,9 @@ struct t4_tracer {
     struct t4_sched_queue)
 #define CHELSIO_T4_GET_TRACER	_IOWR('f', T4_GET_TRACER, struct t4_tracer)
 #define CHELSIO_T4_SET_TRACER	_IOW('f', T4_SET_TRACER, struct t4_tracer)
+#define CHELSIO_T4_LOAD_CFG	_IOW('f', T4_LOAD_CFG, struct t4_data)
+#define CHELSIO_T4_LOAD_BOOT	_IOW('f', T4_LOAD_BOOT, struct t4_bootrom)
+#define CHELSIO_T4_LOAD_BOOTCFG	_IOW('f', T4_LOAD_BOOTCFG, struct t4_data)
+#define CHELSIO_T4_CUDBG_DUMP	_IOWR('f', T4_CUDBG_DUMP, struct t4_cudbg_dump)
+#define CHELSIO_T4_SET_OFLD_POLICY _IOW('f', T4_SET_OFLD_POLICY, struct t4_offload_policy)
 #endif

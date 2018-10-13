@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
@@ -151,13 +153,26 @@ qla_init_hw_rcv_descriptors(qla_host_t *ha)
 			(sizeof(q80_recv_desc_t) * NUM_RX_DESCRIPTORS));
 }
 
+#define QLA_LOCK_DEFAULT_MS_TIMEOUT	3000
+
+#ifndef QLA_LOCK_NO_SLEEP
+#define QLA_LOCK_NO_SLEEP		0
+#endif 
+
 static __inline int
-qla_lock(qla_host_t *ha, const char *str, uint32_t no_delay)
+qla_lock(qla_host_t *ha, const char *str, uint32_t timeout_ms,
+	uint32_t no_sleep)
 {
 	int ret = -1;
 
 	while (1) {
 		mtx_lock(&ha->hw_lock);
+
+		if (ha->qla_detach_active || ha->offline) {
+			mtx_unlock(&ha->hw_lock);
+			break;
+		}
+
 		if (!ha->hw_lock_held) {
 			ha->hw_lock_held = 1;
 			ha->qla_lock = str;
@@ -167,11 +182,21 @@ qla_lock(qla_host_t *ha, const char *str, uint32_t no_delay)
 		}
 		mtx_unlock(&ha->hw_lock);
 
-		if (no_delay)
+		if (--timeout_ms == 0) {
+			ha->hw_lock_failed++;
 			break;
-		else
-			qla_mdelay(__func__, 1);
+		} else {
+			if (no_sleep)
+				DELAY(1000);
+			else
+				qla_mdelay(__func__, 1);
+		}
 	}
+
+//	if (!ha->enable_error_recovery)
+//		device_printf(ha->pci_dev, "%s: %s ret = %d\n", __func__,
+//			str,ret);
+
 	return (ret);
 }
 
@@ -182,6 +207,11 @@ qla_unlock(qla_host_t *ha, const char *str)
 	ha->hw_lock_held = 0;
 	ha->qla_unlock = str;
 	mtx_unlock(&ha->hw_lock);
+
+//	if (!ha->enable_error_recovery)
+//		device_printf(ha->pci_dev, "%s: %s\n", __func__, str);
+
+	return;
 }
 
 #endif /* #ifndef _QL_INLINE_H_ */

@@ -10,13 +10,13 @@
 #include "MipsTargetObjectFile.h"
 #include "MipsSubtarget.h"
 #include "MipsTargetMachine.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/ELF.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
@@ -36,15 +36,23 @@ ExternSData("mextern-sdata", cl::Hidden,
                      "current object."),
             cl::init(true));
 
+static cl::opt<bool>
+EmbeddedData("membedded-data", cl::Hidden,
+             cl::desc("MIPS: Try to allocate variables in the following"
+                      " sections if possible: .rodata, .sdata, .data ."),
+             cl::init(false));
+
 void MipsTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM){
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
   InitializeELF(TM.Options.UseInitArray);
 
   SmallDataSection = getContext().getELFSection(
-      ".sdata", ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
+      ".sdata", ELF::SHT_PROGBITS,
+      ELF::SHF_WRITE | ELF::SHF_ALLOC | ELF::SHF_MIPS_GPREL);
 
   SmallBSSSection = getContext().getELFSection(".sbss", ELF::SHT_NOBITS,
-                                               ELF::SHF_WRITE | ELF::SHF_ALLOC);
+                                               ELF::SHF_WRITE | ELF::SHF_ALLOC |
+                                                   ELF::SHF_MIPS_GPREL);
   this->TM = &static_cast<const MipsTargetMachine &>(TM);
 }
 
@@ -59,31 +67,32 @@ static bool IsInSmallSection(uint64_t Size) {
 
 /// Return true if this global address should be placed into small data/bss
 /// section.
-bool MipsTargetObjectFile::
-IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM) const {
+bool MipsTargetObjectFile::IsGlobalInSmallSection(
+    const GlobalObject *GO, const TargetMachine &TM) const {
   // We first check the case where global is a declaration, because finding
   // section kind using getKindForGlobal() is only allowed for global
   // definitions.
-  if (GV->isDeclaration() || GV->hasAvailableExternallyLinkage())
-    return IsGlobalInSmallSectionImpl(GV, TM);
+  if (GO->isDeclaration() || GO->hasAvailableExternallyLinkage())
+    return IsGlobalInSmallSectionImpl(GO, TM);
 
-  return IsGlobalInSmallSection(GV, TM, getKindForGlobal(GV, TM));
+  return IsGlobalInSmallSection(GO, TM, getKindForGlobal(GO, TM));
 }
 
 /// Return true if this global address should be placed into small data/bss
 /// section.
 bool MipsTargetObjectFile::
-IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
+IsGlobalInSmallSection(const GlobalObject *GO, const TargetMachine &TM,
                        SectionKind Kind) const {
-  return (IsGlobalInSmallSectionImpl(GV, TM) &&
-          (Kind.isData() || Kind.isBSS() || Kind.isCommon()));
+  return IsGlobalInSmallSectionImpl(GO, TM) &&
+         (Kind.isData() || Kind.isBSS() || Kind.isCommon() ||
+          Kind.isReadOnly());
 }
 
 /// Return true if this global address should be placed into small data/bss
 /// section. This method does all the work, except for checking the section
 /// kind.
 bool MipsTargetObjectFile::
-IsGlobalInSmallSectionImpl(const GlobalValue *GV,
+IsGlobalInSmallSectionImpl(const GlobalObject *GO,
                            const TargetMachine &TM) const {
   const MipsSubtarget &Subtarget =
       *static_cast<const MipsTargetMachine &>(TM).getSubtargetImpl();
@@ -93,39 +102,66 @@ IsGlobalInSmallSectionImpl(const GlobalValue *GV,
     return false;
 
   // Only global variables, not functions.
-  const GlobalVariable *GVA = dyn_cast<GlobalVariable>(GV);
+  const GlobalVariable *GVA = dyn_cast<GlobalVariable>(GO);
   if (!GVA)
     return false;
 
+  // If the variable has an explicit section, it is placed in that section but
+  // it's addressing mode may change.
+  if (GVA->hasSection()) {
+    StringRef Section = GVA->getSection();
+
+    // Explicitly placing any variable in the small data section overrides
+    // the global -G value.
+    if (Section == ".sdata" || Section == ".sbss")
+      return true;
+
+    // Otherwise reject accessing it through the gp pointer. There are some
+    // historic cases which GCC doesn't appear to respect any more. These
+    // are .lit4, .lit8 and .srdata. For the moment reject these as well.
+    return false;
+  }
+
   // Enforce -mlocal-sdata.
-  if (!LocalSData && GV->hasLocalLinkage())
+  if (!LocalSData && GVA->hasLocalLinkage())
     return false;
 
   // Enforce -mextern-sdata.
-  if (!ExternSData && ((GV->hasExternalLinkage() && GV->isDeclaration()) ||
-                       GV->hasCommonLinkage()))
+  if (!ExternSData && ((GVA->hasExternalLinkage() && GVA->isDeclaration()) ||
+                       GVA->hasCommonLinkage()))
     return false;
 
-  Type *Ty = GV->getType()->getElementType();
+  // Enforce -membedded-data.
+  if (EmbeddedData && GVA->isConstant())
+    return false;
+
+  Type *Ty = GVA->getValueType();
+
+  // It is possible that the type of the global is unsized, i.e. a declaration
+  // of a extern struct. In this case don't presume it is in the small data
+  // section. This happens e.g. when building the FreeBSD kernel.
+  if (!Ty->isSized())
+    return false;
+
   return IsInSmallSection(
-      GV->getParent()->getDataLayout().getTypeAllocSize(Ty));
+      GVA->getParent()->getDataLayout().getTypeAllocSize(Ty));
 }
 
-MCSection *
-MipsTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
-                                             SectionKind Kind, Mangler &Mang,
-                                             const TargetMachine &TM) const {
+MCSection *MipsTargetObjectFile::SelectSectionForGlobal(
+    const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
   // TODO: Could also support "weak" symbols as well with ".gnu.linkonce.s.*"
   // sections?
 
   // Handle Small Section classification here.
-  if (Kind.isBSS() && IsGlobalInSmallSection(GV, TM, Kind))
+  if (Kind.isBSS() && IsGlobalInSmallSection(GO, TM, Kind))
     return SmallBSSSection;
-  if (Kind.isData() && IsGlobalInSmallSection(GV, TM, Kind))
+  if (Kind.isData() && IsGlobalInSmallSection(GO, TM, Kind))
+    return SmallDataSection;
+  if (Kind.isReadOnly() && IsGlobalInSmallSection(GO, TM, Kind))
     return SmallDataSection;
 
   // Otherwise, we work the same as ELF.
-  return TargetLoweringObjectFileELF::SelectSectionForGlobal(GV, Kind, Mang,TM);
+  return TargetLoweringObjectFileELF::SelectSectionForGlobal(GO, Kind, TM);
 }
 
 /// Return true if this constant should be placed into small data section.
@@ -138,11 +174,21 @@ bool MipsTargetObjectFile::IsConstantInSmallSection(
 }
 
 /// Return true if this constant should be placed into small data section.
-MCSection *MipsTargetObjectFile::getSectionForConstant(
-    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
+MCSection *MipsTargetObjectFile::getSectionForConstant(const DataLayout &DL,
+                                                       SectionKind Kind,
+                                                       const Constant *C,
+                                                       unsigned &Align) const {
   if (IsConstantInSmallSection(DL, C, *TM))
     return SmallDataSection;
 
   // Otherwise, we work the same as ELF.
-  return TargetLoweringObjectFileELF::getSectionForConstant(DL, Kind, C);
+  return TargetLoweringObjectFileELF::getSectionForConstant(DL, Kind, C, Align);
+}
+
+const MCExpr *
+MipsTargetObjectFile::getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
+  const MCExpr *Expr =
+      MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
+  return MCBinaryExpr::createAdd(
+      Expr, MCConstantExpr::create(0x8000, getContext()), getContext());
 }

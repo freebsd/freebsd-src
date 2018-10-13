@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
@@ -52,8 +54,14 @@ devlist_usage(void)
 static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
 {
+	uint8_t flbas_fmt, lbads;
 
-	return (1 << nsdata->lbaf[nsdata->flbas.format].lbads);
+	flbas_fmt = (nsdata->flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
+		NVME_NS_DATA_FLBAS_FORMAT_MASK;
+	lbads = (nsdata->lbaf[flbas_fmt] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
+		NVME_NS_DATA_LBAF_LBADS_MASK;
+
+	return (1 << lbads);
 }
 
 void
@@ -99,6 +107,8 @@ devlist(int argc, char *argv[])
 			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
 			    NVME_NS_PREFIX, i+1);
 			read_namespace_data(fd, i+1, &nsdata);
+			if (nsdata.nsze == 0)
+				continue;
 			printf("  %10s (%lldMB)\n",
 				name,
 				nsdata.nsze *

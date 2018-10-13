@@ -482,7 +482,7 @@ typedef struct {
     uint32_t                    exceptions;
     t_QmExceptionsCallback      *f_Exception;
     t_Handle                    h_App;
-    int                         errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
+    uintptr_t                   errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
     uint32_t                    numOfPfdr;
     uint16_t                    partNumOfCgs;
     uint16_t                    partCgsBase;

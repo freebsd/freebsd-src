@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -160,7 +162,7 @@ base64_encode(void)
 		fprintf(output, "begin-base64 %o %s\n", mode, *av);
 	while ((n = fread(buf, 1, sizeof(buf), stdin))) {
 		++sequence;
-		rv = b64_ntop(buf, n, buf2, (sizeof(buf2) / sizeof(buf2[0])));
+		rv = b64_ntop(buf, n, buf2, nitems(buf2));
 		if (rv == -1)
 			errx(1, "b64_ntop: error encoding base64");
 		fprintf(output, "%s%s", buf2, (sequence % GROUPS) ? "" : "\n");

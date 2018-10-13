@@ -1,11 +1,12 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR}
 
 PROG=	wpa_cli
-SRCS=	common.c edit.c eloop.c os_unix.c wpa_cli.c wpa_ctrl.c wpa_debug.c
+SRCS=	cli.c common.c edit.c eloop.c os_unix.c wpa_cli.c \
+	wpa_ctrl.c wpa_debug.c
 
 MAN=	wpa_cli.8
 

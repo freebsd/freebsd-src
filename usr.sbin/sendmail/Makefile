@@ -4,14 +4,14 @@
 .include <src.opts.mk>
 
 PACKAGE=sendmail
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
 .PATH: ${SMDIR}
 
 BINDIR=	${LIBEXECDIR}/sendmail
 
 PROG=	sendmail
-MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
+MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8
 MLINKS+=sendmail.8 hoststat.8
 MLINKS+=sendmail.8 purgestat.8
 SRCS=	alias.c arpadate.c bf.c collect.c conf.c control.c \
@@ -38,7 +38,7 @@ NIS=	-DNIS
 MAPS=	-DMAP_REGEX -DDNSMAP
 
 CFLAGS+= -I${SMDIR} -I${SENDMAIL_DIR}/include -I.
-CFLAGS+= ${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
+CFLAGS+= ${DBMDEF} ${NIS} ${MAPS}
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DNETINET6
@@ -46,7 +46,7 @@ CFLAGS+= -DNETINET6
 
 WARNS?=	0
 
-LIBADD=	util wrap sm smutil
+LIBADD=	util sm smutil
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -55,6 +55,11 @@ CLEANFILES+=sm_os.h
 # STARTTLS support
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1
 LIBADD+=	ssl crypto
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DTCPWRAPPERS
+LIBADD+=	wrap
 .endif
 
 # User customizations to the sendmail build environment

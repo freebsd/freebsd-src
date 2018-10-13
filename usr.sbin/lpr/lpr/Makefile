@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../common_source
+.PATH: ${.CURDIR:H}/common_source
 
 BINDIR=	/usr/bin
 
@@ -11,7 +11,7 @@ BINOWN=	root
 BINGRP=	daemon
 BINMODE= 6555
 
-CFLAGS+= -I${.CURDIR}/../common_source
+CFLAGS+= -I${.CURDIR:H}/common_source
 
 WARNS?=	2
 

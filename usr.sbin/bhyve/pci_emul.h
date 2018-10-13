@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -160,6 +162,7 @@ struct msicap {
 	uint32_t	addrhi;
 	uint16_t	msgdata;
 } __packed;
+static_assert(sizeof(struct msicap) == 14, "compile-time assertion failed");
 
 struct msixcap {
 	uint8_t		capid;
@@ -168,6 +171,7 @@ struct msixcap {
 	uint32_t	table_info;	/* bar index and offset within it */
 	uint32_t	pba_info;	/* bar index and offset within it */
 } __packed;
+static_assert(sizeof(struct msixcap) == 12, "compile-time assertion failed");
 
 struct pciecap {
 	uint8_t		capid;
@@ -202,6 +206,7 @@ struct pciecap {
 	uint16_t	slot_control2;
 	uint16_t	slot_status2;
 } __packed;
+static_assert(sizeof(struct pciecap) == 60, "compile-time assertion failed");
 
 typedef void (*pci_lintr_cb)(int b, int s, int pin, int pirq_pin,
     int ioapic_irq, void *arg);
@@ -227,8 +232,9 @@ int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
 int	pci_msix_pba_bar(struct pci_devinst *pi);
-int	pci_msi_msgnum(struct pci_devinst *pi);
+int	pci_msi_maxmsgnum(struct pci_devinst *pi);
 int	pci_parse_slot(char *opt);
+void    pci_print_supported_devices();
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
 int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,

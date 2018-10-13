@@ -122,6 +122,14 @@ acpi_lid_attach(device_t dev)
     if (acpi_parse_prw(sc->lid_handle, &prw) == 0)
 	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
 
+    /*
+     * Export the lid status
+     */
+    SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	"state", CTLFLAG_RD, &sc->lid_status, 0,
+	"Device set to wake the system");
+
     return (0);
 }
 

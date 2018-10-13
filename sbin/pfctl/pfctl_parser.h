@@ -1,6 +1,8 @@
 /*	$OpenBSD: pfctl_parser.h,v 1.86 2006/10/31 23:46:25 mcbride Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
  *
@@ -132,7 +134,7 @@ struct node_os {
 };
 
 struct node_queue_bw {
-	u_int32_t	bw_absolute;
+	u_int64_t	bw_absolute;
 	u_int16_t	bw_percent;
 };
 
@@ -255,6 +257,7 @@ void	print_src_node(struct pf_src_node *, int);
 void	print_rule(struct pf_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
 void	print_status(struct pf_status *, int);
+void	print_running(struct pf_status *);
 
 int	eval_pfaltq(struct pfctl *, struct pf_altq *, struct node_queue_bw *,
 	    struct node_queue_opt *);
@@ -312,6 +315,7 @@ int			 unmask(struct pf_addr *, sa_family_t);
 void			 ifa_load(void);
 int			 get_socket_domain(void);
 struct node_host	*ifa_exists(const char *);
+struct node_host	*ifa_grouplookup(const char *ifa_name, int flags);
 struct node_host	*ifa_lookup(const char *, int);
 struct node_host	*host(const char *);
 

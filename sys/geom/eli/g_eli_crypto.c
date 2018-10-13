@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -62,7 +64,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	struct cryptoini cri;
 	struct cryptop *crp;
 	struct cryptodesc *crd;
-	uint64_t sid;
+	crypto_session_t sid;
 	u_char *p;
 	int error;
 
@@ -95,7 +97,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	bzero(crd->crd_iv, sizeof(crd->crd_iv));
 	crd->crd_next = NULL;
 
-	crp->crp_sid = sid;
+	crp->crp_session = sid;
 	crp->crp_ilen = datasize;
 	crp->crp_olen = datasize;
 	crp->crp_opaque = NULL;
@@ -120,7 +122,7 @@ static int
 g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
     const u_char *key, size_t keysize)
 {
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX *ctx;
 	const EVP_CIPHER *type;
 	u_char iv[keysize];
 	int outsize;
@@ -173,27 +175,29 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 		return (EINVAL);
 	}
 
-	EVP_CIPHER_CTX_init(&ctx);
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		return (ENOMEM);
 
-	EVP_CipherInit_ex(&ctx, type, NULL, NULL, NULL, enc);
-	EVP_CIPHER_CTX_set_key_length(&ctx, keysize / 8);
-	EVP_CIPHER_CTX_set_padding(&ctx, 0);
+	EVP_CipherInit_ex(ctx, type, NULL, NULL, NULL, enc);
+	EVP_CIPHER_CTX_set_key_length(ctx, keysize / 8);
+	EVP_CIPHER_CTX_set_padding(ctx, 0);
 	bzero(iv, sizeof(iv));
-	EVP_CipherInit_ex(&ctx, NULL, NULL, key, iv, enc);
+	EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc);
 
-	if (EVP_CipherUpdate(&ctx, data, &outsize, data, datasize) == 0) {
-		EVP_CIPHER_CTX_cleanup(&ctx);
+	if (EVP_CipherUpdate(ctx, data, &outsize, data, datasize) == 0) {
+		EVP_CIPHER_CTX_free(ctx);
 		return (EINVAL);
 	}
 	assert(outsize == (int)datasize);
 
-	if (EVP_CipherFinal_ex(&ctx, data + outsize, &outsize) == 0) {
-		EVP_CIPHER_CTX_cleanup(&ctx);
+	if (EVP_CipherFinal_ex(ctx, data + outsize, &outsize) == 0) {
+		EVP_CIPHER_CTX_free(ctx);
 		return (EINVAL);
 	}
 	assert(outsize == 0);
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 	return (0);
 }
 #endif	/* !_KERNEL */

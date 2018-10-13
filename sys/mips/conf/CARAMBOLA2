@@ -14,7 +14,7 @@
 #NO_UNIVERSE
 
 # Include the default AR933x parameters
-include         "AR933X_BASE"
+include         "std.AR933X"
 
 ident           CARAMBOLA2
 
@@ -24,6 +24,8 @@ hints           "CARAMBOLA2.hints"
 # Board memory - 64MB
 options         AR71XX_REALMEM=(64*1024*1024)
 
+options	EARLY_PRINTF
+
 # i2c GPIO bus
 #device		gpioiic
 #device		iicbb
@@ -31,6 +33,7 @@ options         AR71XX_REALMEM=(64*1024*1024)
 #device		iic
 
 # Options required for miiproxy and mdiobus
+options		ARGE_DEBUG
 options 	ARGE_MDIO	# Export an MDIO bus separate from arge
 device		miiproxy	# MDIO bus <-> MII PHY rendezvous
 

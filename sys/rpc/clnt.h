@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt.h,v 1.14 2000/06/02 22:57:55 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010, Oracle America, Inc.
  * All rights reserved.
  *
@@ -529,7 +531,7 @@ extern CLIENT *clnt_tli_create(const int, const struct netconfig *,
 			       struct netbuf *, const rpcprog_t,
 			       const rpcvers_t, const u_int, const u_int);
 /*
- *	const register int fd;		-- fd
+ *	const int fd;			-- fd
  *	const struct netconfig *nconf;	-- netconfig structure
  *	struct netbuf *svcaddr;		-- servers address
  *	const u_long prog;			-- program number

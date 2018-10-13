@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -234,6 +236,7 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 {
 	struct g_consumer *cp2;
 	struct g_provider *pp2;
+	struct g_geom_alias *gap;
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
@@ -258,6 +261,11 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 		if (pp != NULL && pp != pp2)
 			continue;
 		g_conf_provider(sb, pp2);
+	}
+	LIST_FOREACH(gap, &gp->aliases, ga_next) {
+		sbuf_printf(sb, "      <alias>\n");
+		g_conf_printf_escaped(sb, "%s", gap->ga_alias);
+		sbuf_printf(sb, "      </alias>\n");
 	}
 	sbuf_printf(sb, "    </geom>\n");
 }

@@ -188,6 +188,12 @@ aw_hdmiclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	if (best_diff == (int64_t)*fout)
 		return (ERANGE);
 
+	*fout = fin / (1 << best_n) / (best_m + 1);
+	*stop = 1;
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
 	DEVICE_LOCK(sc);
 	HDMICLK_READ(sc, &val);
 	val &= ~(CLK_RATIO_N | CLK_RATIO_M);
@@ -195,9 +201,6 @@ aw_hdmiclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	val |= (best_m << CLK_RATIO_M_SHIFT);
 	HDMICLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
-
-	*fout = fin / (1 << best_n) / (best_m + 1);
-	*stop = 1;
 
 	return (0);
 }
@@ -249,7 +252,7 @@ aw_hdmiclk_attach(device_t dev)
 
 	clkdom = clkdom_create(dev);
 
-	error = clk_get_by_ofw_index(dev, 0, &clk_parent);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk_parent);
 	if (error != 0) {
 		device_printf(dev, "cannot parse clock parent\n");
 		return (ENXIO);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004  Hannes Gredler <hannes@tcpdump.org>
+ * Copyright (c) 1998-2004  Hannes Gredler <hannes@gredler.at>
  *      The TCPDUMP project
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,14 +14,15 @@
  * FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Syslog protocol printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 static const char tstr[] = "[|syslog]";

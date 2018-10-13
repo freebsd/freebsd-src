@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -52,7 +54,6 @@ void
 pfs_fileno_init(struct pfs_info *pi)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	mtx_init(&pi->pi_mutex, "pfs_fileno", NULL, MTX_DEF);
 	pi->pi_unrhdr = new_unrhdr(3, INT_MAX / NO_PID, &pi->pi_mutex);
 }
@@ -64,7 +65,6 @@ void
 pfs_fileno_uninit(struct pfs_info *pi)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	delete_unrhdr(pi->pi_unrhdr);
 	pi->pi_unrhdr = NULL;
 	mtx_destroy(&pi->pi_mutex);

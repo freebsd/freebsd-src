@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
@@ -50,25 +51,19 @@ SYSCTL_INT(_hw, OID_AUTO, uma_mdpages, CTLFLAG_RD, &hw_uma_mdpages, 0,
 	   "UMA MD pages in use");
 
 void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
+    int wait)
 {
 	void *va;
 	vm_paddr_t pa;
 	vm_page_t m;
-	int pflags;
 	
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
-	for (;;) {
-		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			VM_WAIT;
-		} else
-			break;
-	}
+	m = vm_page_alloc_domain(NULL, 0, domain,
+	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+	if (m == NULL) 
+		return (NULL);
 
 	pa = VM_PAGE_TO_PHYS(m);
 
@@ -76,10 +71,12 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 	if ((vm_offset_t)pa != pa)
 		return (NULL);
 
-	va = (void *)(vm_offset_t)pa;
-
-	if (!hw_direct_map)
-		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));
+	if (!hw_direct_map) {
+		pmap_kenter(pa, pa);
+		va = (void *)(vm_offset_t)pa;
+	} else {
+		va = (void *)(vm_offset_t)PHYS_TO_DMAP(pa);
+	}
 
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
@@ -97,9 +94,13 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 		pmap_remove(kernel_pmap,(vm_offset_t)mem,
 		    (vm_offset_t)mem + PAGE_SIZE);
 
-	m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
-	m->wire_count--;
+	if (hw_direct_map)
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)mem));
+	else
+		m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
+	KASSERT(m != NULL,
+	    ("Freeing UMA block at %p with no associated page", mem));
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	atomic_subtract_int(&hw_uma_mdpages, 1);
 }

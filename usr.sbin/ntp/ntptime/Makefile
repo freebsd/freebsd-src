@@ -1,16 +1,16 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/ntp/util
+.PATH: ${SRCTOP}/contrib/ntp/util
 
 PROG=	ntptime
 MAN=
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include/ \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include/ \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
-	-I${.CURDIR}/../
+CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/include/ \
+	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include/ \
+	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
+	-I${.CURDIR:H}
 
-LIBADD=	ntp pthread
+LIBADD=	m ntp pthread
 
 .include <bsd.prog.mk>

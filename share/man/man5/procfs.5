@@ -2,7 +2,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd December 26, 2015
+.Dd March 4, 2017
 .Dt PROCFS 5
 .Os
 .Sh NAME
@@ -33,48 +33,7 @@ special node called
 which always refers to the process making the lookup request.
 .Pp
 Each node is a directory which contains the following entries:
-.Pp
-Each directory contains several files:
 .Bl -tag -width status
-.It Pa ctl
-a write-only file which supports a variety
-of control operations.
-Control commands are written as strings to the
-.Pa ctl
-file.
-The control commands are:
-.Bl -tag -width detach -compact
-.It attach
-stops the target process and arranges for the sending
-process to become the debug control process.
-.It detach
-continue execution of the target process and
-remove it from control by the debug process (which
-need not be the sending process).
-.It run
-continue running the target process until
-a signal is delivered, a breakpoint is hit, or the
-target process exits.
-.It step
-single step the target process, with no signal delivery.
-.It wait
-wait for the target process to come to a steady
-state ready for debugging.
-The target process must be in this state before
-any of the other commands are allowed.
-.El
-.Pp
-The string can also be the name of a signal, lower case
-and without the
-.Dv SIG
-prefix,
-in which case that signal is delivered to the process
-(see
-.Xr sigaction 2 ) .
-.Pp
-The
-.Xr procctl 8
-utility can be used to clear tracepoints in a stuck process.
 .It Pa dbregs
 The debug registers as defined by
 .Dv "struct dbregs"
@@ -188,30 +147,8 @@ to indicate that the process is not running within a jail.
 .El
 .El
 .Pp
-In a normal debugging environment,
-where the target is fork/exec'd by the debugger,
-the debugger should fork and the child should stop
-itself (with a self-inflicted
-.Dv SIGSTOP
-for example).
-The parent should issue a
-.Dv wait
-and then an
-.Dv attach
-command via the appropriate
-.Pa ctl
-file.
-The child process will receive a
-.Dv SIGTRAP
-immediately after the call to exec (see
-.Xr execve 2 ) .
-.Pp
 Each node is owned by the process's user, and belongs to that user's
-primary group, except for the
-.Pa mem
-node, which belongs to the
-.Li kmem
-group.
+primary group.
 .Sh FILES
 .Bl -tag -width /proc/curproc/XXXXXXX -compact
 .It Pa /proc
@@ -224,8 +161,6 @@ directory containing process information for process
 directory containing process information for the current process
 .It Pa /proc/curproc/cmdline
 the process executable name
-.It Pa /proc/curproc/ctl
-used to send control messages to the process
 .It Pa /proc/curproc/etype
 executable type
 .It Pa /proc/curproc/file
@@ -261,7 +196,6 @@ file system on
 .Xr mount 2 ,
 .Xr sigaction 2 ,
 .Xr unmount 2 ,
-.Xr procctl 8 ,
 .Xr pseudofs 9
 .Sh AUTHORS
 .An -nosplit

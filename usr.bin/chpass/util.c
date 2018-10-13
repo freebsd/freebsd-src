@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2002 Networks Associates Technology, Inc.
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,6 +137,17 @@ bad:		return (1);
 	lt->tm_isdst = -1;
 	if ((tval = mktime(lt)) < 0)
 		return (1);
+#ifndef __i386__
+	/*
+	 * PR227589: The pwd.db and spwd.db files store the change and expire
+	 * dates as unsigned 32-bit ints which overflow in 2106, so larger
+	 * values must be rejected until the introduction of a v5 password
+	 * database.  i386 has 32-bit time_t and so dates beyond y2038 are
+	 * already rejected by mktime above.
+	 */
+	if (tval > UINT32_MAX)
+		return (1);
+#endif
 	*store = tval;
 	return (0);
 }

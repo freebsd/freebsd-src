@@ -42,6 +42,14 @@
 #include <expat.h>
 #endif
 
+#ifndef XML_VERSION_AT_LEAST
+#define XML_VERSION_AT_LEAST(major,minor,patch)                  \
+(((major) < XML_MAJOR_VERSION)                                       \
+ || ((major) == XML_MAJOR_VERSION && (minor) < XML_MINOR_VERSION)    \
+ || ((major) == XML_MAJOR_VERSION && (minor) == XML_MINOR_VERSION && \
+     (patch) <= XML_MICRO_VERSION))
+#endif /* XML_VERSION_AT_LEAST */
+
 #ifdef XML_UNICODE
 #error Expat is unusable -- it has been compiled for wide characters
 #endif
@@ -345,6 +353,15 @@ static void expat_start_handler(void *userData,
   svn_xml_parser_t *svn_parser = userData;
 
   (*svn_parser->start_handler)(svn_parser->baton, name, atts);
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  /* Stop XML parsing if svn_xml_signal_bailout() was called.
+     We cannot do this in svn_xml_signal_bailout() because Expat
+     documentation states that XML_StopParser() must be called only from
+     callbacks. */
+  if (svn_parser->error)
+    (void) XML_StopParser(svn_parser->parser, 0 /* resumable */);
+#endif
 }
 
 static void expat_end_handler(void *userData, const XML_Char *name)
@@ -352,6 +369,15 @@ static void expat_end_handler(void *userData, const XML_Char *name)
   svn_xml_parser_t *svn_parser = userData;
 
   (*svn_parser->end_handler)(svn_parser->baton, name);
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  /* Stop XML parsing if svn_xml_signal_bailout() was called.
+     We cannot do this in svn_xml_signal_bailout() because Expat
+     documentation states that XML_StopParser() must be called only from
+     callbacks. */
+  if (svn_parser->error)
+    (void) XML_StopParser(svn_parser->parser, 0 /* resumable */);
+#endif
 }
 
 static void expat_data_handler(void *userData, const XML_Char *s, int len)
@@ -359,10 +385,54 @@ static void expat_data_handler(void *userData, const XML_Char *s, int len)
   svn_xml_parser_t *svn_parser = userData;
 
   (*svn_parser->data_handler)(svn_parser->baton, s, (apr_size_t)len);
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  /* Stop XML parsing if svn_xml_signal_bailout() was called.
+     We cannot do this in svn_xml_signal_bailout() because Expat
+     documentation states that XML_StopParser() must be called only from
+     callbacks. */
+  if (svn_parser->error)
+    (void) XML_StopParser(svn_parser->parser, 0 /* resumable */);
+#endif
 }
 
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+static void expat_entity_declaration(void *userData,
+                                     const XML_Char *entityName,
+                                     int is_parameter_entity,
+                                     const XML_Char *value,
+                                     int value_length,
+                                     const XML_Char *base,
+                                     const XML_Char *systemId,
+                                     const XML_Char *publicId,
+                                     const XML_Char *notationName)
+{
+  svn_xml_parser_t *svn_parser = userData;
+
+  /* Stop the parser if an entity declaration is hit. */
+  XML_StopParser(svn_parser->parser, 0 /* resumable */);
+}
+#else
+/* A noop default_handler. */
+static void expat_default_handler(void *userData, const XML_Char *s, int len)
+{
+}
+#endif
 
 /*** Making a parser. ***/
+
+static apr_status_t parser_cleanup(void *data)
+{
+  svn_xml_parser_t *svn_parser = data;
+
+  /* Free Expat parser. */
+  if (svn_parser->parser)
+    {
+      XML_ParserFree(svn_parser->parser);
+      svn_parser->parser = NULL;
+    }
+  return APR_SUCCESS;
+}
 
 svn_xml_parser_t *
 svn_xml_make_parser(void *baton,
@@ -372,8 +442,6 @@ svn_xml_make_parser(void *baton,
                     apr_pool_t *pool)
 {
   svn_xml_parser_t *svn_parser;
-  apr_pool_t *subpool;
-
   XML_Parser parser = XML_ParserCreate(NULL);
 
   XML_SetElementHandler(parser,
@@ -382,21 +450,28 @@ svn_xml_make_parser(void *baton,
   XML_SetCharacterDataHandler(parser,
                               data_handler ? expat_data_handler : NULL);
 
-  /* ### we probably don't want this pool; or at least we should pass it
-     ### to the callbacks and clear it periodically.  */
-  subpool = svn_pool_create(pool);
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  XML_SetEntityDeclHandler(parser, expat_entity_declaration);
+#else
+  XML_SetDefaultHandler(parser, expat_default_handler);
+#endif
 
-  svn_parser = apr_pcalloc(subpool, sizeof(*svn_parser));
+  svn_parser = apr_pcalloc(pool, sizeof(*svn_parser));
 
   svn_parser->parser = parser;
   svn_parser->start_handler = start_handler;
   svn_parser->end_handler = end_handler;
   svn_parser->data_handler = data_handler;
   svn_parser->baton = baton;
-  svn_parser->pool = subpool;
+  svn_parser->pool = pool;
 
   /* store our parser info as the UserData in the Expat parser */
   XML_SetUserData(parser, svn_parser);
+
+  /* Register pool cleanup handler to free Expat XML parser on cleanup,
+     if svn_xml_free_parser() was not called explicitly. */
+  apr_pool_cleanup_register(svn_parser->pool, svn_parser,
+                            parser_cleanup, apr_pool_cleanup_null);
 
   return svn_parser;
 }
@@ -406,11 +481,7 @@ svn_xml_make_parser(void *baton,
 void
 svn_xml_free_parser(svn_xml_parser_t *svn_parser)
 {
-  /* Free the expat parser */
-  XML_ParserFree(svn_parser->parser);
-
-  /* Free the subversion parser */
-  svn_pool_destroy(svn_parser->pool);
+  apr_pool_cleanup_run(svn_parser->pool, svn_parser, parser_cleanup);
 }
 
 
@@ -428,6 +499,14 @@ svn_xml_parse(svn_xml_parser_t *svn_parser,
   /* Parse some xml data */
   success = XML_Parse(svn_parser->parser, buf, (int) len, is_final);
 
+  /* Did an error occur somewhere *inside* the expat callbacks? */
+  if (svn_parser->error)
+    {
+      /* Kill all parsers and return the error */
+      svn_xml_free_parser(svn_parser);
+      return svn_parser->error;
+    }
+
   /* If expat choked internally, return its error. */
   if (! success)
     {
@@ -444,14 +523,6 @@ svn_xml_parse(svn_xml_parser_t *svn_parser,
       return err;
     }
 
-  /* Did an error occur somewhere *inside* the expat callbacks? */
-  if (svn_parser->error)
-    {
-      err = svn_parser->error;
-      svn_xml_free_parser(svn_parser);
-      return err;
-    }
-
   return SVN_NO_ERROR;
 }
 
@@ -463,7 +534,9 @@ void svn_xml_signal_bailout(svn_error_t *error,
   /* This will cause the current XML_Parse() call to finish quickly! */
   XML_SetElementHandler(svn_parser->parser, NULL, NULL);
   XML_SetCharacterDataHandler(svn_parser->parser, NULL);
-
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  XML_SetEntityDeclHandler(svn_parser->parser, NULL);
+#endif
   /* Once outside of XML_Parse(), the existence of this field will
      cause svn_delta_parse()'s main read-loop to return error. */
   svn_parser->error = error;

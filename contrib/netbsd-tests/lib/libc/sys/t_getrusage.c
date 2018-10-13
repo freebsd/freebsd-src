@@ -1,4 +1,4 @@
-/* $NetBSD: t_getrusage.c,v 1.3 2014/09/03 19:24:12 matt Exp $ */
+/* $NetBSD: t_getrusage.c,v 1.5 2017/01/13 20:31:06 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_getrusage.c,v 1.3 2014/09/03 19:24:12 matt Exp $");
+__RCSID("$NetBSD: t_getrusage.c,v 1.5 2017/01/13 20:31:06 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -47,14 +47,14 @@ static void		sighandler(int);
 static const size_t	maxiter = 2000;
 
 static void
-#ifdef __FreeBSD__
 sighandler(int signo __unused)
-#else
-sighandler(int signo)
-#endif
 {
 	/* Nothing. */
 }
+
+#ifdef __FreeBSD__
+#define	asm __asm
+#endif
 
 static void
 work(void)
@@ -64,6 +64,8 @@ work(void)
 	while (n > 0) {
 #ifdef __or1k__
 		 asm volatile("l.nop");	/* Do something. */
+#elif defined(__ia64__)
+		 asm volatile("nop 0"); /* Do something. */
 #else
 		 asm volatile("nop");	/* Do something. */
 #endif

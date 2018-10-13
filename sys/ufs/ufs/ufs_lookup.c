@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,32 +77,6 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 
 /* true if old FS format...*/
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
-
-#ifdef QUOTA
-static int
-ufs_lookup_upgrade_lock(struct vnode *vp)
-{
-	int error;
-
-	ASSERT_VOP_LOCKED(vp, __FUNCTION__);
-	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
-		return (0);
-
-	error = 0;
-
-	/*
-	 * Upgrade vnode lock, since getinoquota()
-	 * requires exclusive lock to modify inode.
-	 */
-	vhold(vp);
-	vn_lock(vp, LK_UPGRADE | LK_RETRY);
-	VI_LOCK(vp);
-	if (vp->v_iflag & VI_DOOMED)
-		error = ENOENT;
-	vdropl(vp);
-	return (error);
-}
-#endif
 
 static int
 ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
@@ -259,12 +235,25 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
-#ifdef QUOTA
-	if ((nameiop == DELETE || nameiop == RENAME) && (flags & ISLASTCN)) {
-		error = ufs_lookup_upgrade_lock(vdp);
-		if (error != 0)
-			return (error);
-	}
+
+#ifdef DEBUG_VFS_LOCKS
+	/*
+	 * Assert that the directory vnode is locked, and locked
+	 * exclusively for the last component lookup for modifying
+	 * operations.
+	 *
+	 * The directory-modifying operations need to save
+	 * intermediate state in the inode between namei() call and
+	 * actual directory manipulations.  See fields in the struct
+	 * inode marked as 'used during directory lookup'.  We must
+	 * ensure that upgrade in namei() does not happen, since
+	 * upgrade might need to unlock vdp.  If quotas are enabled,
+	 * getinoquota() also requires exclusive lock to modify inode.
+	 */
+	ASSERT_VOP_LOCKED(vdp, "ufs_lookup1");
+	if ((nameiop == CREATE || nameiop == DELETE || nameiop == RENAME) &&
+	    (flags & (LOCKPARENT | ISLASTCN)) == (LOCKPARENT | ISLASTCN))
+		ASSERT_VOP_ELOCKED(vdp, "ufs_lookup2");
 #endif
 
 restart:
@@ -784,7 +773,7 @@ ufs_dirbad(ip, offset, how)
  *	record length must be multiple of 4
  *	entry must fit in rest of its DIRBLKSIZ block
  *	record must be large enough to contain entry
- *	name is not longer than MAXNAMLEN
+ *	name is not longer than UFS_MAXNAMLEN
  *	name must be as long as advertised, and null terminated
  */
 int
@@ -805,7 +794,7 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 #	endif
 	if ((ep->d_reclen & 0x3) != 0 ||
 	    ep->d_reclen > DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1)) ||
-	    ep->d_reclen < DIRSIZ(OFSFMT(dp), ep) || namlen > MAXNAMLEN) {
+	    ep->d_reclen < DIRSIZ(OFSFMT(dp), ep) || namlen > UFS_MAXNAMLEN) {
 		/*return (1); */
 		printf("First bad\n");
 		goto bad;
@@ -881,6 +870,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	struct buf *bp;
 	u_int dsize;
 	struct direct *ep, *nep;
+	u_int64_t old_isize;
 	int error, ret, blkoff, loc, spacefree, flags, namlen;
 	char *dirbuf;
 
@@ -909,16 +899,19 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			return (error);
 		}
 #endif
+		old_isize = dp->i_size;
+		vnode_pager_setsize(dvp, (u_long)dp->i_offset + DIRBLKSIZ);
 		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
 				bdwrite(newdirbp);
+			vnode_pager_setsize(dvp, (u_long)old_isize);
 			return (error);
 		}
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
+		dp->i_endoff = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
-		vnode_pager_setsize(dvp, (u_long)dp->i_size);
 		dirp->d_reclen = DIRBLKSIZ;
 		blkoff = dp->i_offset &
 		    (VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_iosize - 1);
@@ -1078,7 +1071,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		namlen = ep->d_namlen;
 #	endif
 	if (ep->d_ino == 0 ||
-	    (ep->d_ino == WINO && namlen == dirp->d_namlen &&
+	    (ep->d_ino == UFS_WINO && namlen == dirp->d_namlen &&
 	     bcmp(ep->d_name, dirp->d_name, dirp->d_namlen) == 0)) {
 		if (spacefree + dsize < newentrysize)
 			panic("ufs_direnter: compact1");
@@ -1133,7 +1126,9 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
 		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
 		if (error != 0)
-			vprint("ufs_direnter: failed to truncate", dvp);
+			vn_printf(dvp,
+			    "ufs_direnter: failed to truncate, error %d\n",
+			    error);
 #ifdef UFS_DIRHASH
 		if (error == 0 && dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
@@ -1186,12 +1181,12 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	}
 	if (flags & DOWHITEOUT) {
 		/*
-		 * Whiteout entry: set d_ino to WINO.
+		 * Whiteout entry: set d_ino to UFS_WINO.
 		 */
 		if ((error =
 		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 			return (error);
-		ep->d_ino = WINO;
+		ep->d_ino = UFS_WINO;
 		ep->d_type = DT_WHT;
 		goto out;
 	}
@@ -1245,7 +1240,7 @@ out:
 	} else {
 		if (flags & DOWHITEOUT)
 			error = bwrite(bp);
-		else if (DOINGASYNC(dvp) && dp->i_count != 0)
+		else if (DOINGASYNC(dvp))
 			bdwrite(bp);
 		else
 			error = bwrite(bp);
@@ -1361,7 +1356,7 @@ ufs_dirempty(ip, parentino, cred)
 		if (dp->d_reclen == 0)
 			return (0);
 		/* skip empty entries */
-		if (dp->d_ino == 0 || dp->d_ino == WINO)
+		if (dp->d_ino == 0 || dp->d_ino == UFS_WINO)
 			continue;
 		/* accept only "." and ".." */
 #		if (BYTE_ORDER == LITTLE_ENDIAN)
@@ -1453,7 +1448,7 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct u
 		return (EEXIST);
 	if (target->i_number == parent_ino)
 		return (0);
-	if (target->i_number == ROOTINO)
+	if (target->i_number == UFS_ROOTINO)
 		return (0);
 	for (;;) {
 		error = ufs_dir_dd_ino(vp, cred, &dd_ino, &vp1);
@@ -1463,7 +1458,7 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct u
 			error = EINVAL;
 			break;
 		}
-		if (dd_ino == ROOTINO)
+		if (dd_ino == UFS_ROOTINO)
 			break;
 		if (dd_ino == parent_ino)
 			break;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/limits.h>
+#include <sys/sysctl.h>
 
 #include <machine/resource.h>
 
@@ -56,9 +59,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define FDT_COMPAT_LEN	255
-#define FDT_TYPE_LEN	64
 
 #define FDT_REG_CELLS	4
+#define FDT_RANGES_SIZE 48
+
+SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD, 0, "Flattened Device Tree");
 
 vm_paddr_t fdt_immr_pa;
 vm_offset_t fdt_immr_va;
@@ -144,10 +149,10 @@ fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
 int
 fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 {
-	pcell_t ranges[6], *rangesptr;
+	pcell_t ranges[FDT_RANGES_SIZE], *rangesptr;
 	pcell_t addr_cells, size_cells, par_addr_cells;
 	u_long par_bus_addr, pbase, psize;
-	int err, len, tuple_size, tuples;
+	int err, len;
 
 	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
 		return (ENXIO);
@@ -172,10 +177,6 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 
 	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
 		return (EINVAL);
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
-	    size_cells);
-	tuples = len / tuple_size;
 
 	if (par_addr_cells > 2 || addr_cells > 2 || size_cells > 2)
 		return (ERANGE);
@@ -211,13 +212,13 @@ fdt_immr_addr(vm_offset_t immr_va)
 	/*
 	 * Try to access the SOC node directly i.e. through /aliases/.
 	 */
-	if ((node = OF_finddevice("soc")) != 0)
-		if (fdt_is_compatible(node, "simple-bus"))
+	if ((node = OF_finddevice("soc")) != -1)
+		if (ofw_bus_node_is_compatible(node, "simple-bus"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
 	 */
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
@@ -231,45 +232,6 @@ moveon:
 	}
 
 	return (r);
-}
-
-/*
- * This routine is an early-usage version of the ofw_bus_is_compatible() when
- * the ofw_bus I/F is not available (like early console routines and similar).
- * Note the buffer has to be on the stack since malloc() is usually not
- * available in such cases either.
- */
-int
-fdt_is_compatible(phandle_t node, const char *compatstr)
-{
-	char buf[FDT_COMPAT_LEN];
-	char *compat;
-	int len, onelen, l, rv;
-
-	if ((len = OF_getproplen(node, "compatible")) <= 0)
-		return (0);
-
-	compat = (char *)&buf;
-	bzero(compat, FDT_COMPAT_LEN);
-
-	if (OF_getprop(node, "compatible", compat, FDT_COMPAT_LEN) < 0)
-		return (0);
-
-	onelen = strlen(compatstr);
-	rv = 0;
-	while (len > 0) {
-		if (strncasecmp(compat, compatstr, onelen) == 0) {
-			/* Found it. */
-			rv = 1;
-			break;
-		}
-		/* Slide to the next sub-string. */
-		l = strlen(compat) + 1;
-		compat += l;
-		len -= l;
-	}
-
-	return (rv);
 }
 
 int
@@ -300,7 +262,7 @@ fdt_find_compatible(phandle_t start, const char *compat, int strict)
 	 * matching 'compatible' property.
 	 */
 	for (child = OF_child(start); child != 0; child = OF_peer(child))
-		if (fdt_is_compatible(child, compat)) {
+		if (ofw_bus_node_is_compatible(child, compat)) {
 			if (strict)
 				if (!fdt_is_compatible_strict(child, compat))
 					continue;
@@ -319,7 +281,7 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 	 * matching 'compatible' property.
 	 */
 	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
-		if (fdt_is_compatible(node, compat) && 
+		if (ofw_bus_node_is_compatible(node, compat) &&
 		    (strict == 0 || fdt_is_compatible_strict(node, compat))) {
 			return (node);
 		}
@@ -327,46 +289,6 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 		if (child != 0)
 			return (child);
 	}
-	return (0);
-}
-
-int
-fdt_is_enabled(phandle_t node)
-{
-	char *stat;
-	int ena, len;
-
-	len = OF_getprop_alloc(node, "status", sizeof(char),
-	    (void **)&stat);
-
-	if (len <= 0)
-		/* It is OK if no 'status' property. */
-		return (1);
-
-	/* Anything other than 'okay' means disabled. */
-	ena = 0;
-	if (strncmp((char *)stat, "okay", len) == 0)
-		ena = 1;
-
-	OF_prop_free(stat);
-	return (ena);
-}
-
-int
-fdt_is_type(phandle_t node, const char *typestr)
-{
-	char type[FDT_TYPE_LEN];
-
-	if (OF_getproplen(node, "device_type") <= 0)
-		return (0);
-
-	if (OF_getprop(node, "device_type", type, FDT_TYPE_LEN) < 0)
-		return (0);
-
-	if (strncasecmp(type, typestr, FDT_TYPE_LEN) == 0)
-		/* This fits. */
-		return (1);
-
 	return (0);
 }
 
@@ -381,19 +303,6 @@ fdt_parent_addr_cells(phandle_t node)
 		return (2);
 
 	return ((int)fdt32_to_cpu(addr_cells));
-}
-
-int
-fdt_pm_is_enabled(phandle_t node)
-{
-	int ret;
-
-	ret = 1;
-
-#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-	ret = fdt_pm(node);
-#endif
-	return (ret);
 }
 
 u_long
@@ -416,13 +325,13 @@ fdt_addrsize_cells(phandle_t node, int *addr_cells, int *size_cells)
 	 * Retrieve #{address,size}-cells.
 	 */
 	cell_size = sizeof(cell);
-	if (OF_getprop(node, "#address-cells", &cell, cell_size) < cell_size)
+	if (OF_getencprop(node, "#address-cells", &cell, cell_size) < cell_size)
 		cell = 2;
-	*addr_cells = fdt32_to_cpu((int)cell);
+	*addr_cells = (int)cell;
 
-	if (OF_getprop(node, "#size-cells", &cell, cell_size) < cell_size)
+	if (OF_getencprop(node, "#size-cells", &cell, cell_size) < cell_size)
 		cell = 1;
-	*size_cells = fdt32_to_cpu((int)cell);
+	*size_cells = (int)cell;
 
 	if (*addr_cells > 3 || *size_cells > 2)
 		return (ERANGE);
@@ -471,59 +380,6 @@ fdt_regsize(phandle_t node, u_long *base, u_long *size)
 }
 
 int
-fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
-{
-	u_long end, count, start;
-	pcell_t *reg, *regptr;
-	pcell_t addr_cells, size_cells;
-	int tuple_size, tuples;
-	int i, rv;
-	long busaddr, bussize;
-
-	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
-		return (ENXIO);
-	if (fdt_get_range(OF_parent(node), 0, &busaddr, &bussize)) {
-		busaddr = 0;
-		bussize = 0;
-	}
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
-	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
-	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
-	if (tuples <= 0)
-		/* No 'reg' property in this node. */
-		return (0);
-
-	regptr = reg;
-	for (i = 0; i < tuples; i++) {
-
-		rv = fdt_data_to_res(reg, addr_cells, size_cells, &start,
-		    &count);
-		if (rv != 0) {
-			resource_list_free(rl);
-			goto out;
-		}
-		reg += addr_cells + size_cells;
-
-		/* Calculate address range relative to base. */
-		start += busaddr;
-		end = start + count - 1;
-
-		debugf("reg addr start = %lx, end = %lx, count = %lx\n", start,
-		    end, count);
-
-		resource_list_add(rl, SYS_RES_MEMORY, i, start, end,
-		    count);
-	}
-	rv = 0;
-
-out:
-	OF_prop_free(regptr);
-	return (rv);
-}
-
-int
 fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 {
 	phandle_t phy_node;
@@ -537,11 +393,11 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 
 	phy_node = OF_node_from_xref(phy_handle);
 
-	if (OF_getprop(phy_node, "reg", (void *)&phy_reg,
+	if (OF_getencprop(phy_node, "reg", (void *)&phy_reg,
 	    sizeof(phy_reg)) <= 0)
 		return (ENXIO);
 
-	*phy_addr = fdt32_to_cpu(phy_reg);
+	*phy_addr = phy_reg;
 
 	/*
 	 * Search for softc used to communicate with phy.
@@ -592,11 +448,9 @@ fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
 	pcell_t *reservep;
 	phandle_t memory, root;
-	uint32_t memory_size;
 	int addr_cells, size_cells;
-	int i, max_size, res_len, rv, tuple_size, tuples;
+	int i, res_len, rv, tuple_size, tuples;
 
-	max_size = sizeof(reserve);
 	root = OF_finddevice("/");
 	memory = OF_finddevice("/memory");
 	if (memory == -1) {
@@ -626,7 +480,6 @@ fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 		goto out;
 	}
 
-	memory_size = 0;
 	tuples = res_len / tuple_size;
 	reservep = (pcell_t *)&reserve;
 	for (i = 0; i < tuples; i++) {
@@ -647,6 +500,47 @@ out:
 }
 
 int
+fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
+{
+	pcell_t reg[FDT_REG_CELLS];
+	phandle_t child, root;
+	int addr_cells, size_cells;
+	int i, rv;
+
+	root = OF_finddevice("/reserved-memory");
+	if (root == -1) {
+		return (ENXIO);
+	}
+
+	if ((rv = fdt_addrsize_cells(root, &addr_cells, &size_cells)) != 0)
+		return (rv);
+
+	if (addr_cells + size_cells > FDT_REG_CELLS)
+		panic("Too many address and size cells %d %d", addr_cells,
+		    size_cells);
+
+	i = 0;
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		if (!OF_hasprop(child, "no-map"))
+			continue;
+
+		rv = OF_getprop(child, "reg", reg, sizeof(reg));
+		if (rv <= 0)
+			/* XXX: Does a no-map of a dynamic range make sense? */
+			continue;
+
+		fdt_data_to_res(reg, addr_cells, size_cells,
+		    (u_long *)&reserved[i].mr_start,
+		    (u_long *)&reserved[i].mr_size);
+		i++;
+	}
+
+	*mreserved = i;
+
+	return (0);
+}
+
+int
 fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 {
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
@@ -654,9 +548,8 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 	phandle_t memory;
 	uint64_t memory_size;
 	int addr_cells, size_cells;
-	int i, max_size, reg_len, rv, tuple_size, tuples;
+	int i, reg_len, rv, tuple_size, tuples;
 
-	max_size = sizeof(reg);
 	memory = OF_finddevice("/memory");
 	if (memory == -1) {
 		rv = ENXIO;
@@ -710,17 +603,6 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 	rv = 0;
 out:
 	return (rv);
-}
-
-int
-fdt_get_unit(device_t dev)
-{
-	const char * name;
-
-	name = ofw_bus_get_name(dev);
-	name = strchr(name, '@') + 1;
-
-	return (strtol(name,NULL,0));
 }
 
 int

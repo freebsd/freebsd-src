@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2015
+.Dd June 14, 2018
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -35,13 +35,15 @@
 .Nm
 .Op Fl N
 .Op Fl @ Ar offset
+.Op Fl A
 .Op Fl B Ar boot
 .Op Fl C Ar create-size
 .Op Fl F Ar FAT-type
-.Op Fl I Ar VolumeId
+.Op Fl I Ar VolumeID
 .Op Fl L Ar label
 .Op Fl O Ar OEM
 .Op Fl S Ar sector-size
+.Op Fl T Ar timestamp
 .Op Fl a Ar FAT-size
 .Op Fl b Ar block-size
 .Op Fl c Ar cluster-size
@@ -90,6 +92,8 @@ Build the filesystem at the specified offset in bytes in the device or file.
 A suffix s, k, m, g (lower or upper case)
 appended to the offset specifies that the
 number is in sectors, kilobytes, megabytes or gigabytes, respectively.
+.It Fl A
+Attempt to cluster align root directory, useful for SD card.
 .It Fl B Ar boot
 Get bootstrap from file.
 .It Fl C Ar create-size
@@ -117,6 +121,14 @@ The default is
 Number of bytes per sector.
 Acceptable values are powers of 2
 in the range 512 through 32768, inclusive.
+.It Fl T Ar timestamp
+Create the filesystem as though the current time is
+.Ar timestamp .
+The default filesystem volume ID is derived from the time.
+.Ar timestamp
+can be a pathname (where the timestamp is derived from
+that file) or an integer value interpreted
+as the number of seconds since the Epoch.
 .It Fl a Ar FAT-size
 Number of sectors per FAT.
 .It Fl b Ar block-size
@@ -163,7 +175,7 @@ File system size.
 Number of sectors per track.
 .El
 .Sh NOTES
-If some parameters (e.g. size, number of sectors, etc.) are not specified
+If some parameters (e.g., size, number of sectors, etc.) are not specified
 through options or disktype, the program tries to generate them automatically.
 In particular, the size is determined as the device or file size minus the
 offset specified with the

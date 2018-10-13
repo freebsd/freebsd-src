@@ -37,7 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Intel fourth generation mobile cpus integrated I2C device, smbus driver.
+ * Intel fourth generation mobile cpus integrated I2C device.
  *
  * See ig4_reg.h for datasheet reference and notes.
  */
@@ -59,9 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/smbus/smbconf.h>
-
-#include "smbus_if.h"
+#include <dev/iicbus/iiconf.h>
 
 #include <dev/ichiic/ig4_reg.h>
 #include <dev/ichiic/ig4_var.h>
@@ -70,21 +68,78 @@ static int ig4iic_pci_detach(device_t dev);
 
 #define PCI_CHIP_LYNXPT_LP_I2C_1	0x9c618086
 #define PCI_CHIP_LYNXPT_LP_I2C_2	0x9c628086
+#define PCI_CHIP_BRASWELL_I2C_1 	0x22c18086
+#define PCI_CHIP_BRASWELL_I2C_2 	0x22c28086
+#define PCI_CHIP_BRASWELL_I2C_3 	0x22c38086
+#define PCI_CHIP_BRASWELL_I2C_5 	0x22c58086
+#define PCI_CHIP_BRASWELL_I2C_6 	0x22c68086
+#define PCI_CHIP_BRASWELL_I2C_7 	0x22c78086
+#define PCI_CHIP_SKYLAKE_I2C_0		0x9d608086
+#define PCI_CHIP_SKYLAKE_I2C_1		0x9d618086
+#define PCI_CHIP_SKYLAKE_I2C_2		0x9d628086
+#define PCI_CHIP_SKYLAKE_I2C_3		0x9d638086
+#define PCI_CHIP_SKYLAKE_I2C_4		0x9d648086
+#define PCI_CHIP_SKYLAKE_I2C_5		0x9d658086
+#define PCI_CHIP_KABYLAKE_I2C_0		0xa1608086
+#define PCI_CHIP_KABYLAKE_I2C_1		0xa1618086
+#define PCI_CHIP_APL_I2C_0		0x5aac8086
+#define PCI_CHIP_APL_I2C_1		0x5aae8086
+#define PCI_CHIP_APL_I2C_2		0x5ab08086
+#define PCI_CHIP_APL_I2C_3		0x5ab28086
+#define PCI_CHIP_APL_I2C_4		0x5ab48086
+#define PCI_CHIP_APL_I2C_5		0x5ab68086
+#define PCI_CHIP_APL_I2C_6		0x5ab88086
+#define PCI_CHIP_APL_I2C_7		0x5aba8086
+
+struct ig4iic_pci_device {
+	uint32_t	devid;
+	const char	*desc;
+	enum ig4_vers	version;
+};
+
+static struct ig4iic_pci_device ig4iic_pci_devices[] = {
+	{ PCI_CHIP_LYNXPT_LP_I2C_1, "Intel Lynx Point-LP I2C Controller-1", IG4_HASWELL},
+	{ PCI_CHIP_LYNXPT_LP_I2C_2, "Intel Lynx Point-LP I2C Controller-2", IG4_HASWELL},
+	{ PCI_CHIP_BRASWELL_I2C_1, "Intel Braswell Serial I/O I2C Port 1", IG4_ATOM},
+	{ PCI_CHIP_BRASWELL_I2C_2, "Intel Braswell Serial I/O I2C Port 2", IG4_ATOM},
+	{ PCI_CHIP_BRASWELL_I2C_3, "Intel Braswell Serial I/O I2C Port 3", IG4_ATOM},
+	{ PCI_CHIP_BRASWELL_I2C_5, "Intel Braswell Serial I/O I2C Port 5", IG4_ATOM},
+	{ PCI_CHIP_BRASWELL_I2C_6, "Intel Braswell Serial I/O I2C Port 6", IG4_ATOM},
+	{ PCI_CHIP_BRASWELL_I2C_7, "Intel Braswell Serial I/O I2C Port 7", IG4_ATOM},
+	{ PCI_CHIP_SKYLAKE_I2C_0, "Intel Sunrise Point-LP I2C Controller-0", IG4_SKYLAKE},
+	{ PCI_CHIP_SKYLAKE_I2C_1, "Intel Sunrise Point-LP I2C Controller-1", IG4_SKYLAKE},
+	{ PCI_CHIP_SKYLAKE_I2C_2, "Intel Sunrise Point-LP I2C Controller-2", IG4_SKYLAKE},
+	{ PCI_CHIP_SKYLAKE_I2C_3, "Intel Sunrise Point-LP I2C Controller-3", IG4_SKYLAKE},
+	{ PCI_CHIP_SKYLAKE_I2C_4, "Intel Sunrise Point-LP I2C Controller-4", IG4_SKYLAKE},
+	{ PCI_CHIP_SKYLAKE_I2C_5, "Intel Sunrise Point-LP I2C Controller-5", IG4_SKYLAKE},
+	{ PCI_CHIP_KABYLAKE_I2C_0, "Intel Sunrise Point-H I2C Controller-0", IG4_SKYLAKE},
+	{ PCI_CHIP_KABYLAKE_I2C_1, "Intel Sunrise Point-H I2C Controller-1", IG4_SKYLAKE},
+	{ PCI_CHIP_APL_I2C_0, "Intel Apollo Lake I2C Controller-0", IG4_APL},
+	{ PCI_CHIP_APL_I2C_1, "Intel Apollo Lake I2C Controller-1", IG4_APL},
+	{ PCI_CHIP_APL_I2C_2, "Intel Apollo Lake I2C Controller-2", IG4_APL},
+	{ PCI_CHIP_APL_I2C_3, "Intel Apollo Lake I2C Controller-3", IG4_APL},
+	{ PCI_CHIP_APL_I2C_4, "Intel Apollo Lake I2C Controller-4", IG4_APL},
+	{ PCI_CHIP_APL_I2C_5, "Intel Apollo Lake I2C Controller-5", IG4_APL},
+	{ PCI_CHIP_APL_I2C_6, "Intel Apollo Lake I2C Controller-6", IG4_APL},
+	{ PCI_CHIP_APL_I2C_7, "Intel Apollo Lake I2C Controller-7", IG4_APL}
+};
 
 static int
 ig4iic_pci_probe(device_t dev)
 {
-	switch(pci_get_devid(dev)) {
-	case PCI_CHIP_LYNXPT_LP_I2C_1:
-		device_set_desc(dev, "Intel Lynx Point-LP I2C Controller-1");
-		break;
-	case PCI_CHIP_LYNXPT_LP_I2C_2:
-		device_set_desc(dev, "Intel Lynx Point-LP I2C Controller-2");
-		break;
-	default:
-		return (ENXIO);
+	ig4iic_softc_t *sc = device_get_softc(dev);
+	uint32_t devid;
+	int i;
+
+	devid = pci_get_devid(dev);
+	for (i = 0; i < nitems(ig4iic_pci_devices); i++) {
+		if (ig4iic_pci_devices[i].devid == devid) {
+			device_set_desc(dev, ig4iic_pci_devices[i].desc);
+			sc->version = ig4iic_pci_devices[i].version;
+			return (BUS_PROBE_DEFAULT);
+		}
 	}
-	return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
 }
 
 static int
@@ -92,11 +147,6 @@ ig4iic_pci_attach(device_t dev)
 {
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
-
-	bzero(sc, sizeof(*sc));
-
-	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
-	sx_init(&sc->call_lock, "IG4 call lock");
 
 	sc->dev = dev;
 	sc->regs_rid = PCIR_BAR(0);
@@ -118,7 +168,7 @@ ig4iic_pci_attach(device_t dev)
 		ig4iic_pci_detach(dev);
 		return (ENXIO);
 	}
-	sc->pci_attached = 1;
+	sc->platform_attached = 1;
 
 	error = ig4iic_attach(sc);
 	if (error)
@@ -133,11 +183,11 @@ ig4iic_pci_detach(device_t dev)
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	if (sc->pci_attached) {
+	if (sc->platform_attached) {
 		error = ig4iic_detach(sc);
 		if (error)
 			return (error);
-		sc->pci_attached = 0;
+		sc->platform_attached = 0;
 	}
 
 	if (sc->intr_res) {
@@ -152,10 +202,6 @@ ig4iic_pci_detach(device_t dev)
 				     sc->regs_rid, sc->regs_res);
 		sc->regs_res = NULL;
 	}
-	if (mtx_initialized(&sc->io_lock)) {
-		mtx_destroy(&sc->io_lock);
-		sx_destroy(&sc->call_lock);
-	}
 
 	return (0);
 }
@@ -166,32 +212,27 @@ static device_method_t ig4iic_pci_methods[] = {
 	DEVMETHOD(device_attach, ig4iic_pci_attach),
 	DEVMETHOD(device_detach, ig4iic_pci_detach),
 
-	/* SMBus methods from ig4_smb.c */
-	DEVMETHOD(smbus_callback, ig4iic_smb_callback),
-	DEVMETHOD(smbus_quick, ig4iic_smb_quick),
-	DEVMETHOD(smbus_sendb, ig4iic_smb_sendb),
-	DEVMETHOD(smbus_recvb, ig4iic_smb_recvb),
-	DEVMETHOD(smbus_writeb, ig4iic_smb_writeb),
-	DEVMETHOD(smbus_writew, ig4iic_smb_writew),
-	DEVMETHOD(smbus_readb, ig4iic_smb_readb),
-	DEVMETHOD(smbus_readw, ig4iic_smb_readw),
-	DEVMETHOD(smbus_pcall, ig4iic_smb_pcall),
-	DEVMETHOD(smbus_bwrite, ig4iic_smb_bwrite),
-	DEVMETHOD(smbus_bread, ig4iic_smb_bread),
-	DEVMETHOD(smbus_trans, ig4iic_smb_trans),
+	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
+	DEVMETHOD(iicbus_reset, ig4iic_reset),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
 
 	DEVMETHOD_END
 };
 
 static driver_t ig4iic_pci_driver = {
-	"ig4iic",
+	"ig4iic_pci",
 	ig4iic_pci_methods,
 	sizeof(struct ig4iic_softc)
 };
 
 static devclass_t ig4iic_pci_devclass;
 
-DRIVER_MODULE(ig4iic, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0);
-MODULE_DEPEND(ig4iic, pci, 1, 1, 1);
-MODULE_DEPEND(ig4iic, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
-MODULE_VERSION(ig4iic, 1);
+DRIVER_MODULE_ORDERED(ig4iic_pci, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0,
+    SI_ORDER_ANY);
+MODULE_DEPEND(ig4iic_pci, pci, 1, 1, 1);
+MODULE_DEPEND(ig4iic_pci, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(ig4iic_pci, 1);
+/*
+ * Loading this module breaks suspend/resume on laptops
+ * Do not add MODULE_PNP_INFO until it's impleneted
+ */ 

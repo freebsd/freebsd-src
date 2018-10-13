@@ -1,6 +1,8 @@
 /*	$NetBSD: uchcom.c,v 1.1 2007/09/03 17:57:37 tshiozak Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2007, Takanori Watanabe
  * All rights reserved.
  *
@@ -120,11 +122,11 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_REG_BPS_MOD	0x14
 #define	UCHCOM_REG_BPS_PAD	0x0F
 #define	UCHCOM_REG_BREAK1	0x05
-#define	UCHCOM_REG_BREAK2	0x18
 #define	UCHCOM_REG_LCR1		0x18
 #define	UCHCOM_REG_LCR2		0x25
 
 #define	UCHCOM_VER_20		0x20
+#define	UCHCOM_VER_30		0x30
 
 #define	UCHCOM_BASE_UNKNOWN	0
 #define	UCHCOM_BPS_MOD_BASE	20000000
@@ -133,12 +135,14 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_DTR_MASK		0x20
 #define	UCHCOM_RTS_MASK		0x40
 
-#define	UCHCOM_BRK1_MASK	0x01
-#define	UCHCOM_BRK2_MASK	0x40
+#define	UCHCOM_BRK_MASK		0x01
 
 #define	UCHCOM_LCR1_MASK	0xAF
 #define	UCHCOM_LCR2_MASK	0x07
-#define	UCHCOM_LCR1_PARENB	0x80
+#define	UCHCOM_LCR1_RX		0x80
+#define	UCHCOM_LCR1_TX		0x40
+#define	UCHCOM_LCR1_PARENB	0x08
+#define	UCHCOM_LCR1_CS8		0x03
 #define	UCHCOM_LCR2_PAREVEN	0x07
 #define	UCHCOM_LCR2_PARODD	0x06
 #define	UCHCOM_LCR2_PARMARK	0x05
@@ -320,12 +324,16 @@ uchcom_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	switch (uaa->info.bcdDevice) {
-	case UCHCOM_REV_CH340:
+	switch (uaa->info.idProduct) {
+	case USB_PRODUCT_WCH2_CH341SER:
 		device_printf(dev, "CH340 detected\n");
 		break;
-	default:
+	case USB_PRODUCT_WCH2_CH341SER_2:
 		device_printf(dev, "CH341 detected\n");
+		break;
+	default:
+		device_printf(dev, "New CH340/CH341 product 0x%04x detected\n",
+		    uaa->info.idProduct);
 		break;
 	}
 
@@ -410,6 +418,8 @@ uchcom_ctrl_write(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, 0);
 
+	DPRINTF("WR REQ 0x%02X VAL 0x%04X IDX 0x%04X\n",
+	    reqno, value, index);
 	ucom_cfg_do_request(sc->sc_udev,
 	    &sc->sc_ucom, &req, NULL, 0, 1000);
 }
@@ -426,6 +436,8 @@ uchcom_ctrl_read(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, buflen);
 
+	DPRINTF("RD REQ 0x%02X VAL 0x%04X IDX 0x%04X LEN %d\n",
+	    reqno, value, index, buflen);
 	ucom_cfg_do_request(sc->sc_udev,
 	    &sc->sc_ucom, &req, buf, USB_SHORT_XFER_OK, 1000);
 }
@@ -500,6 +512,7 @@ static void
 uchcom_update_version(struct uchcom_softc *sc)
 {
 	uchcom_get_version(sc, &sc->sc_version);
+	DPRINTF("Chip version: 0x%02x\n", sc->sc_version);
 }
 
 static void
@@ -545,17 +558,17 @@ uchcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	uint8_t brk1;
 	uint8_t brk2;
 
-	uchcom_read_reg(sc, UCHCOM_REG_BREAK1, &brk1, UCHCOM_REG_BREAK2, &brk2);
+	uchcom_read_reg(sc, UCHCOM_REG_BREAK1, &brk1, UCHCOM_REG_LCR1, &brk2);
 	if (onoff) {
 		/* on - clear bits */
-		brk1 &= ~UCHCOM_BRK1_MASK;
-		brk2 &= ~UCHCOM_BRK2_MASK;
+		brk1 &= ~UCHCOM_BRK_MASK;
+		brk2 &= ~UCHCOM_LCR1_TX;
 	} else {
 		/* off - set bits */
-		brk1 |= UCHCOM_BRK1_MASK;
-		brk2 |= UCHCOM_BRK2_MASK;
+		brk1 |= UCHCOM_BRK_MASK;
+		brk2 |= UCHCOM_LCR1_TX;
 	}
-	uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_BREAK2, brk2);
+	uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_LCR1, brk2);
 }
 
 static int
@@ -607,8 +620,12 @@ uchcom_set_baudrate(struct uchcom_softc *sc, uint32_t rate)
 	if (uchcom_calc_divider_settings(&dv, rate))
 		return;
 
+	/*
+	 * According to linux code we need to set bit 7 of UCHCOM_REG_BPS_PRE,
+	 * otherwise the chip will buffer data.
+	 */
 	uchcom_write_reg(sc,
-	    UCHCOM_REG_BPS_PRE, dv.dv_prescaler,
+	    UCHCOM_REG_BPS_PRE, dv.dv_prescaler | 0x80,
 	    UCHCOM_REG_BPS_DIV, dv.dv_div);
 	uchcom_write_reg(sc,
 	    UCHCOM_REG_BPS_MOD, dv.dv_mod,
@@ -625,6 +642,7 @@ uchcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	DPRINTF("\n");
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }
@@ -673,6 +691,10 @@ uchcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	default:
 		return (EIO);
 	}
+	if ((t->c_cflag & CSTOPB) != 0)
+		return (EIO);
+	if ((t->c_cflag & PARENB) != 0)
+		return (EIO);
 
 	if (uchcom_calc_divider_settings(&dv, t->c_ospeed)) {
 		return (EIO);
@@ -685,11 +707,26 @@ uchcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
-	uchcom_get_version(sc, 0);
+	uchcom_get_version(sc, NULL);
 	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
 	uchcom_set_baudrate(sc, t->c_ospeed);
-	uchcom_read_reg(sc, 0x18, 0, 0x25, 0);
-	uchcom_write_reg(sc, 0x18, 0x50, 0x25, 0x00);
+	if (sc->sc_version < UCHCOM_VER_30) {
+		uchcom_read_reg(sc, UCHCOM_REG_LCR1, NULL,
+		    UCHCOM_REG_LCR2, NULL);
+		uchcom_write_reg(sc, UCHCOM_REG_LCR1, 0x50,
+		    UCHCOM_REG_LCR2, 0x00);
+	} else {
+		/*
+		 * Set up line control:
+		 * - enable transmit and receive
+		 * - set 8n1 mode
+		 * To do: support other sizes, parity, stop bits.
+		 */
+		uchcom_write_reg(sc,
+		    UCHCOM_REG_LCR1,
+		    UCHCOM_LCR1_RX | UCHCOM_LCR1_TX | UCHCOM_LCR1_CS8,
+		    UCHCOM_REG_LCR2, 0x00);
+	}
 	uchcom_update_status(sc);
 	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0x501f, 0xd90a);
 	uchcom_set_baudrate(sc, t->c_ospeed);

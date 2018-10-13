@@ -2,6 +2,8 @@
  * Definitions for low level routines and data structures
  * for the Advanced Systems Inc. SCSI controllers chips.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998, 1999, 2000 Justin T. Gibbs.
  * All rights reserved.
  *

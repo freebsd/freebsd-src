@@ -47,16 +47,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
+#include <arm/ti/omap4/omap4_scm_padconf.h>
+#include <arm/ti/am335x/am335x_scm_padconf.h>
+#include <arm/ti/ti_cpuid.h>
 #include "ti_pinmux.h"
 
 struct pincfg {
@@ -88,7 +88,7 @@ static struct ti_pinmux_softc *ti_pinmux_sc;
  *	files and is specific to the given SoC platform. Each entry in the array
  *	corresponds to an individual pin.
  */
-extern const struct ti_pinmux_device ti_pinmux_dev;
+static const struct ti_pinmux_device *ti_pinmux_dev;
 
 
 /**
@@ -104,7 +104,7 @@ ti_pinmux_padconf_from_name(const char *ballname)
 {
 	const struct ti_pinmux_padconf *padconf;
 
-	padconf = ti_pinmux_dev.padconf;
+	padconf = ti_pinmux_dev->padconf;
 	while (padconf->ballname != NULL) {
 		if (strcmp(ballname, padconf->ballname) == 0)
 			return(padconf);
@@ -137,7 +137,7 @@ ti_pinmux_padconf_set_internal(struct ti_pinmux_softc *sc,
 	uint16_t reg_val;
 
 	/* populate the new value for the PADCONF register */
-	reg_val = (uint16_t)(state & ti_pinmux_dev.padconf_sate_mask);
+	reg_val = (uint16_t)(state & ti_pinmux_dev->padconf_sate_mask);
 
 	/* find the new mode requested */
 	for (mode = 0; mode < 8; mode++) {
@@ -154,7 +154,7 @@ ti_pinmux_padconf_set_internal(struct ti_pinmux_softc *sc,
 	}
 
 	/* set the mux mode */
-	reg_val |= (uint16_t)(mode & ti_pinmux_dev.padconf_muxmode_mask);
+	reg_val |= (uint16_t)(mode & ti_pinmux_dev->padconf_muxmode_mask);
 
 	if (bootverbose)
 		device_printf(sc->sc_dev, "setting internal %x for %s\n",
@@ -229,11 +229,11 @@ ti_pinmux_padconf_get(const char *padname, const char **muxmode,
 
 	/* save the state */
 	if (state)
-		*state = (reg_val & ti_pinmux_dev.padconf_sate_mask);
+		*state = (reg_val & ti_pinmux_dev->padconf_sate_mask);
 
 	/* save the mode */
 	if (muxmode)
-		*muxmode = padconf->muxmodes[(reg_val & ti_pinmux_dev.padconf_muxmode_mask)];
+		*muxmode = padconf->muxmodes[(reg_val & ti_pinmux_dev->padconf_muxmode_mask)];
 
 	return (0);
 }
@@ -262,7 +262,7 @@ ti_pinmux_padconf_set_gpiomode(uint32_t gpio, unsigned int state)
 		return (ENXIO);
 
 	/* find the gpio pin in the padconf array */
-	padconf = ti_pinmux_dev.padconf;
+	padconf = ti_pinmux_dev->padconf;
 	while (padconf->ballname != NULL) {
 		if (padconf->gpio_pin == gpio)
 			break;
@@ -272,10 +272,10 @@ ti_pinmux_padconf_set_gpiomode(uint32_t gpio, unsigned int state)
 		return (EINVAL);
 
 	/* populate the new value for the PADCONF register */
-	reg_val = (uint16_t)(state & ti_pinmux_dev.padconf_sate_mask);
+	reg_val = (uint16_t)(state & ti_pinmux_dev->padconf_sate_mask);
 
 	/* set the mux mode */
-	reg_val |= (uint16_t)(padconf->gpio_mode & ti_pinmux_dev.padconf_muxmode_mask);
+	reg_val |= (uint16_t)(padconf->gpio_mode & ti_pinmux_dev->padconf_muxmode_mask);
 
 	/* write the register value (16-bit writes) */
 	ti_pinmux_write_2(ti_pinmux_sc, padconf->reg_off, reg_val);
@@ -307,7 +307,7 @@ ti_pinmux_padconf_get_gpiomode(uint32_t gpio, unsigned int *state)
 		return (ENXIO);
 
 	/* find the gpio pin in the padconf array */
-	padconf = ti_pinmux_dev.padconf;
+	padconf = ti_pinmux_dev->padconf;
 	while (padconf->ballname != NULL) {
 		if (padconf->gpio_pin == gpio)
 			break;
@@ -320,12 +320,12 @@ ti_pinmux_padconf_get_gpiomode(uint32_t gpio, unsigned int *state)
 	reg_val = ti_pinmux_read_2(ti_pinmux_sc, padconf->reg_off);
 
 	/* check to make sure the pins is configured as GPIO in the first state */
-	if ((reg_val & ti_pinmux_dev.padconf_muxmode_mask) != padconf->gpio_mode)
+	if ((reg_val & ti_pinmux_dev->padconf_muxmode_mask) != padconf->gpio_mode)
 		return (EINVAL);
 
 	/* read and store the reset of the state, i.e. pull-up, pull-down, etc */
 	if (state)
-		*state = (reg_val & ti_pinmux_dev.padconf_sate_mask);
+		*state = (reg_val & ti_pinmux_dev->padconf_sate_mask);
 
 	return (0);
 }
@@ -340,8 +340,8 @@ ti_pinmux_configure_pins(device_t dev, phandle_t cfgxref)
 
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
-	ntuples = OF_getencprop_alloc(cfgnode, "pinctrl-single,pins", sizeof(*cfgtuples),
-	    (void **)&cfgtuples);
+	ntuples = OF_getencprop_alloc_multi(cfgnode, "pinctrl-single,pins",
+	    sizeof(*cfgtuples), (void **)&cfgtuples);
 
 	if (ntuples < 0)
 		return (ENOENT);
@@ -384,6 +384,22 @@ ti_pinmux_probe(device_t dev)
 		    __func__);
 		return (EEXIST);
 	}
+	switch (ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		ti_pinmux_dev = &omap4_pinmux_dev;
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		ti_pinmux_dev = &ti_am335x_pinmux_dev;
+		break;
+#endif
+	default:
+		printf("Unknown CPU in pinmux\n");
+		return (ENXIO);
+	}
+
 
 	device_set_desc(dev, "TI Pinmux Module");
 	return (BUS_PROBE_DEFAULT);

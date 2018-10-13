@@ -17,10 +17,7 @@ SCRIPTS=	blocking \
 		tcpdebug \
 		tcpstate \
 		tcptrack \
-		udptrack \
-		watch_execve \
-		watch_kill \
-		watch_vop_remove
+		udptrack
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 

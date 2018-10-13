@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Peter Wemm
  * All rights reserved.
  *
@@ -28,8 +30,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -156,7 +156,7 @@ fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 	/* FPU control/status */
 	penv_87->en_cw = penv_xmm->en_cw;
 	penv_87->en_sw = penv_xmm->en_sw;
-	penv_87->en_tw = penv_xmm->en_tw;
+
 	/*
 	 * XXX for en_fip/fcs/foo/fos, check if the fxsave format
 	 * uses the old-style layout for 32 bit user apps.  If so,
@@ -170,9 +170,13 @@ fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 	/* Entry into the kernel always sets TF_HASSEGS */
 	penv_87->en_fos = td->td_frame->tf_ds;
 
-	/* FPU registers */
-	for (i = 0; i < 8; ++i)
+	/* FPU registers and tags */
+	penv_87->en_tw = 0xffff;
+	for (i = 0; i < 8; ++i) {
 		sv_87->sv_ac[i] = sv_fpu->sv_fp[i].fp_acc;
+		if ((penv_xmm->en_tw & (1 << i)) != 0)
+			penv_87->en_tw &= ~(3 << i * 2);
+	}
 
 	return (0);
 }
@@ -189,15 +193,19 @@ set_fpregs32(struct thread *td, struct fpreg32 *regs)
 	/* FPU control/status */
 	penv_xmm->en_cw = penv_87->en_cw;
 	penv_xmm->en_sw = penv_87->en_sw;
-	penv_xmm->en_tw = penv_87->en_tw;
 	penv_xmm->en_rip = penv_87->en_fip;
 	/* penv_87->en_fcs and en_fos ignored, see above */
 	penv_xmm->en_opcode = penv_87->en_opcode;
 	penv_xmm->en_rdp = penv_87->en_foo;
 
-	/* FPU registers */
-	for (i = 0; i < 8; ++i)
+	/* FPU registers and tags */
+	penv_xmm->en_tw = 0;
+	for (i = 0; i < 8; ++i) {
 		sv_fpu->sv_fp[i].fp_acc = sv_87->sv_ac[i];
+		if ((penv_87->en_tw & (3 << i * 2)) != (3 << i * 2))
+			penv_xmm->en_tw |= 1 << i;
+	}
+
 	for (i = 8; i < 16; ++i)
 		bzero(&sv_fpu->sv_fp[i].fp_acc, sizeof(sv_fpu->sv_fp[i].fp_acc));
 	fpuuserinited(td);

@@ -1,4 +1,6 @@
 /*- 
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 The FreeBSD Foundation 
  * All rights reserved. 
  * 
@@ -918,7 +920,7 @@ hwmp_update_transmitter(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    rttran->rt_metric > metric)
 	{
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
-		    "%s path to transmiter %6D of %s, metric %d:%d",
+		    "%s path to transmitter %6D of %s, metric %d:%d",
 		    rttran->rt_flags & IEEE80211_MESHRT_FLAGS_VALID ?
 		    "prefer" : "update", ni->ni_macaddr, ":", hwmp_frame,
 		    rttran->rt_metric, metric);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -37,6 +39,7 @@ static char sccsid[] = "@(#)fgets.c	8.2 (Berkeley) 12/22/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include "un-namespace.h"
@@ -52,14 +55,19 @@ char *
 fgets(char * __restrict buf, int n, FILE * __restrict fp)
 {
 	size_t len;
-	char *s;
+	char *s, *ret;
 	unsigned char *p, *t;
 
-	if (n <= 0)		/* sanity check */
-		return (NULL);
-
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
+
+	if (n <= 0) {		/* sanity check */
+		fp->_flags |= __SERR;
+		errno = EINVAL;
+		ret = NULL;
+		goto end;
+	}
+
 	s = buf;
 	n--;			/* leave space for NUL */
 	while (n != 0) {
@@ -69,9 +77,9 @@ fgets(char * __restrict buf, int n, FILE * __restrict fp)
 		if ((len = fp->_r) <= 0) {
 			if (__srefill(fp)) {
 				/* EOF/error: stop with partial or no line */
-				if (s == buf) {
-					FUNLOCKFILE(fp);
-					return (NULL);
+				if (!__sfeof(fp) || s == buf) {
+					ret = NULL;
+					goto end;
 				}
 				break;
 			}
@@ -94,8 +102,8 @@ fgets(char * __restrict buf, int n, FILE * __restrict fp)
 			fp->_p = t;
 			(void)memcpy((void *)s, (void *)p, len);
 			s[len] = 0;
-			FUNLOCKFILE(fp);
-			return (buf);
+			ret = buf;
+			goto end;
 		}
 		fp->_r -= len;
 		fp->_p += len;
@@ -104,6 +112,8 @@ fgets(char * __restrict buf, int n, FILE * __restrict fp)
 		n -= len;
 	}
 	*s = 0;
-	FUNLOCKFILE(fp);
-	return (buf);
+	ret = buf;
+end:
+	FUNLOCKFILE_CANCELSAFE();
+	return (ret);
 }

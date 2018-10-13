@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
  *
@@ -27,11 +29,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_nvme.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/sysctl.h>
 
 #include "nvme_private.h"
+
+#ifndef NVME_USE_NVD
+#define NVME_USE_NVD 1
+#endif
+
+int nvme_use_nvd = NVME_USE_NVD;
+
+SYSCTL_NODE(_hw, OID_AUTO, nvme, CTLFLAG_RD, 0, "NVMe sysctl tunables");
+SYSCTL_INT(_hw_nvme, OID_AUTO, use_nvd, CTLFLAG_RDTUN,
+    &nvme_use_nvd, 1, "1 = Create NVD devices, 0 = Create NDA devices");
 
 /*
  * CTLTYPE_S64 and sysctl_handle_64 were added in r217616.  Define these

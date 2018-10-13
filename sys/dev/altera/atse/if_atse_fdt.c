@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Bjoern A. Zeeb
  * All rights reserved.
  *
@@ -50,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -68,11 +69,13 @@ atse_probe_fdt(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "altera,atse")) {
-		device_set_desc(dev, "Altera Triple-Speed Ethernet MegaCore");
-		return (BUS_PROBE_DEFAULT);
+	if (!ofw_bus_is_compatible(dev, "altera,atse")) {
+       		return (ENXIO);
 	}
-        return (ENXIO);
+
+	device_set_desc(dev, "Altera Triple-Speed Ethernet MegaCore");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -98,8 +101,10 @@ atse_attach_fdt(device_t dev)
 	    &sc->atse_mem_rid, RF_ACTIVE);
 	if (sc->atse_mem_res == NULL) {
 		device_printf(dev, "failed to map memory for ctrl region\n");
-		error = ENXIO;
-		goto err;
+		/* Cleanup. */
+		atse_detach_resources(dev);
+
+		return (ENXIO);
 	}
 	if (bootverbose)
 		device_printf(sc->atse_dev, "MAC ctrl region at mem %p-%p\n",
@@ -107,91 +112,15 @@ atse_attach_fdt(device_t dev)
 		    (void *)(rman_get_start(sc->atse_mem_res) +
 		    rman_get_size(sc->atse_mem_res)));
 
-	/*
-	 * RX and RXC FIFO memory regions.
-	 * 0x00: 2 * 32bit FIFO data,
-	 * 0x20: 8 * 32bit FIFO ctrl, Avalon-ST Sink to Avalon-MM R-Slave.
-	 */
-	sc->atse_rx_mem_rid = 1;
-	sc->atse_rx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->atse_rx_mem_rid, RF_ACTIVE);
-	if (sc->atse_rx_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for RX FIFO\n");
-		error = ENXIO;
-		goto err;
-	}
-	if (bootverbose)
-		device_printf(sc->atse_dev, "RX FIFO at mem %p-%p\n",
-		    (void *)rman_get_start(sc->atse_rx_mem_res),
-		    (void *)(rman_get_start(sc->atse_rx_mem_res) +
-		    rman_get_size(sc->atse_rx_mem_res)));
-
-	sc->atse_rxc_mem_rid = 2;
-	sc->atse_rxc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->atse_rxc_mem_rid, RF_ACTIVE);
-	if (sc->atse_rxc_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for RXC FIFO\n");
-		error = ENXIO;
-		goto err;
-	}
-	if (bootverbose)
-		device_printf(sc->atse_dev, "RXC FIFO at mem %p-%p\n",
-		    (void *)rman_get_start(sc->atse_rxc_mem_res),
-		    (void *)(rman_get_start(sc->atse_rxc_mem_res) +
-		    rman_get_size(sc->atse_rxc_mem_res)));
-
-	/*
-	 * TX and TXC FIFO memory regions.
-	 * 0x00: 2 * 32bit FIFO data,
-	 * 0x20: 8 * 32bit FIFO ctrl, Avalon-MM W-Slave to Avalon-ST Source.
-	 */
-	sc->atse_tx_mem_rid = 3;
-	sc->atse_tx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->atse_tx_mem_rid, RF_ACTIVE);
-	if (sc->atse_tx_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for TX FIFO\n");
-		error = ENXIO;
-		goto err;
-	}
-	if (bootverbose)
-		device_printf(sc->atse_dev, "TX FIFO at mem %p-%p\n",
-		    (void *)rman_get_start(sc->atse_tx_mem_res),
-		    (void *)(rman_get_start(sc->atse_tx_mem_res) +
-		    rman_get_size(sc->atse_tx_mem_res)));
-
-	sc->atse_txc_mem_rid = 4;
-	sc->atse_txc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->atse_txc_mem_rid, RF_ACTIVE);
-	if (sc->atse_txc_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for TXC FIFO\n");
-		error = ENXIO;
-		goto err;
-	}
-	if (bootverbose)
-		device_printf(sc->atse_dev, "TXC FIFO at mem %p-%p\n",
-		    (void *)rman_get_start(sc->atse_txc_mem_res),
-		    (void *)(rman_get_start(sc->atse_txc_mem_res) +
-		    rman_get_size(sc->atse_txc_mem_res)));
-
-	/* (Optional) RX and TX IRQ. */
-	sc->atse_rx_irq_rid = 0;
-	sc->atse_rx_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->atse_rx_irq_rid, RF_ACTIVE | RF_SHAREABLE);
-	sc->atse_tx_irq_rid = 1;
-	sc->atse_tx_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->atse_tx_irq_rid, RF_ACTIVE | RF_SHAREABLE);
-
 	error = atse_attach(dev);
-	if (error)
-		goto err;
+	if (error) {
+		/* Cleanup. */
+		atse_detach_resources(dev);
+
+		return (error);
+	}
 
 	return (0);
-
-err:
-	/* Cleanup. */
-	atse_detach_resources(dev);
-
-	return (error);
 }
 
 static device_method_t atse_methods_fdt[] = {
@@ -216,5 +145,3 @@ static driver_t atse_driver_fdt = {
 
 DRIVER_MODULE(atse, simplebus, atse_driver_fdt, atse_devclass, 0, 0);
 DRIVER_MODULE(miibus, atse, miibus_driver, miibus_devclass, 0, 0);
-
-/* end */

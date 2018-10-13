@@ -61,7 +61,12 @@
 #	or
 #		Terry Quinn, "The BIPM and the Accurate Measurement
 #		of Time," Proc. of the IEEE, Vol. 79, pp. 894-905,
-#		July, 1991.
+#		July, 1991. <http://dx.doi.org/10.1109/5.84965>
+#		reprinted in: 
+#		   Christine Hackman and Donald B Sullivan (eds.)
+#		   Time and Frequency Measurement
+#		   American Association of Physics Teachers (1996)
+#		   <http://tf.nist.gov/general/pdf/1168.pdf>, pp. 75-86
 #
 #	4. The decision to insert a leap second into UTC is currently
 #	the responsibility of the International Earth Rotation and
@@ -143,7 +148,7 @@
 #		Boulder, Colorado
 #		Judah.Levine@nist.gov
 #
-#	Last Update of leap second values:   5 January 2015
+#	Last Update of leap second values:   8 July 2016
 #
 #	The following line shows this last update date in NTP timestamp
 #	format. This is the date on which the most recent change to
@@ -151,7 +156,7 @@
 #	be identified by the unique pair of characters in the first two
 #	columns as shown below.
 #
-#$	 3629404800
+#$	 3676924800
 #
 #	The NTP timestamps are in units of seconds since the NTP epoch,
 #	which is 1 January 1900, 00:00:00. The Modified Julian Day number
@@ -199,10 +204,10 @@
 #	current -- the update time stamp, the data and the name of the file
 #	will not change.
 #
-#	Updated through IERS Bulletin C50
-#	File expires on:  28 June 2016
+#	Updated through IERS Bulletin C55
+#	File expires on:  28 December 2018
 #
-#@	3676060800
+#@	3754944000
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -231,6 +236,7 @@
 3439756800	34	# 1 Jan 2009
 3550089600	35	# 1 Jul 2012
 3644697600	36	# 1 Jul 2015
+3692217600	37	# 1 Jan 2017
 #
 #	the following special comment contains the
 #	hash value of the data in this file computed
@@ -246,4 +252,4 @@
 #	the hash line is also ignored in the
 #	computation.
 #
-#h	3d037453 3acade76 570bd8f8 be2b8bc9 55ec6fe8
+#h	44dcf58c e28d25aa b36612c8 f3d3e8b5 a8fdf478

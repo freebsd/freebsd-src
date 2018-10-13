@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2006, Cisco Systems, Inc.
  * All rights reserved.
  *
@@ -668,6 +670,7 @@ static device_method_t xpcib_methods[] = {
     DEVMETHOD(pcib_read_config,		xpcib_read_config),
     DEVMETHOD(pcib_write_config,	xpcib_write_config),
     DEVMETHOD(pcib_route_interrupt,	xpcib_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
     DEVMETHOD_END
 };

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>.
  * All rights reserved.
  *
@@ -40,7 +42,8 @@
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 /*
- * Variant II tcb, first two members are required by rtld.
+ * Variant I tcb. The structure layout is fixed, don't blindly
+ * change it.
  */
 struct tcb {
 	void			*tcb_dtv;	/* required by rtld */
@@ -74,8 +77,6 @@ _tcb_get(void)
 	return (tcb);
 #endif
 }
-
-extern struct pthread *_thr_initial;
 
 static __inline struct pthread *
 _get_curthread(void)

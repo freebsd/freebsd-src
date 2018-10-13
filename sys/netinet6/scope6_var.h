@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
  *
@@ -61,7 +63,7 @@ int	sa6_checkzone(struct sockaddr_in6 *);
 int	sa6_checkzone_ifp(struct ifnet *, struct sockaddr_in6 *);
 int	in6_setscope(struct in6_addr *, struct ifnet *, u_int32_t *);
 int	in6_clearscope(struct in6_addr *);
-uint16_t in6_getscope(struct in6_addr *);
+uint16_t in6_getscope(const struct in6_addr *);
 uint32_t in6_getscopezone(const struct ifnet *, int);
 void	in6_splitscope(const struct in6_addr *, struct in6_addr *, uint32_t *);
 struct ifnet* in6_getlinkifnet(uint32_t);

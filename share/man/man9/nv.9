@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2015
+.Dd June 19, 2018
 .Dt NV 9
 .Os
 .Sh NAME
@@ -55,7 +55,8 @@
 .Nm nvlist_add ,
 .Nm nvlist_move ,
 .Nm nvlist_get ,
-.Nm nvlist_take
+.Nm nvlist_take ,
+.Nm nvlist_append
 .Nd "library for name/value pairs"
 .Sh LIBRARY
 .Lb libnv
@@ -201,11 +202,11 @@
 .Ft "const bool *"
 .Fn nvlist_get_bool_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "const uint64_t *"
-.Fn nvlist_get_number "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_get_number_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "const char * const *"
-.Fn nvlist_get_string "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_get_string_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "const nvlist_t * const *"
-.Fn nvlist_get_nvlist "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_get_nvlist_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "const int *"
 .Fn nvlist_get_descriptor_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "const nvlist_t *"
@@ -230,13 +231,24 @@
 .Ft "bool *"
 .Fn nvlist_take_bool_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "uint64_t **"
-.Fn nvlist_take_number "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_take_number_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "char **"
-.Fn nvlist_take_string "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_take_string_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "nvlist_t **"
-.Fn nvlist_take_nvlist "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_take_nvlist_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "int *"
-.Fn nvlist_take_descriptor "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Fn nvlist_take_descriptor_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.\"
+.Ft void
+.Fn nvlist_append_bool_array "nvlist_t *nvl" "const char *name" "const bool value"
+.Ft void
+.Fn nvlist_append_number_array "nvlist_t *nvl" "const char *name" "const uint64_t value"
+.Ft void
+.Fn nvlist_append_string_array "nvlist_t *nvl" "const char *name" "const char * const value"
+.Ft void
+.Fn nvlist_append_nvlist_array "nvlist_t *nvl" "const char *name" "const nvlist_t * const value"
+.Ft void
+.Fn nvlist_append_descriptor_array "nvlist_t *nvl" "const char *name" "int value"
 .\"
 .Ft void
 .Fn nvlist_free "nvlist_t *nvl" "const char *name"
@@ -577,7 +589,7 @@ The
 .Fn nvlist_add_nvlist_array ,
 .Fn nvlist_add_descriptor_array
 functions add element to the given nvlist.
-When adding string or binary buffor the functions will allocate memory
+When adding string or binary buffer the functions will allocate memory
 and copy the data over.
 When adding nvlist, the nvlist will be cloned and clone will be added.
 When adding descriptor, the descriptor will be duplicated using the
@@ -710,6 +722,20 @@ function.
 The nvlist must not be in error state.
 .Pp
 The
+.Fn nvlist_append_bool_array ,
+.Fn nvlist_append_number_array ,
+.Fn nvlist_append_string_array ,
+.Fn nvlist_append_nvlist_array ,
+.Fn nvlist_append_descriptor_array
+functions append an element to the existing array using the same semantics
+as the add functions (i.e. the element will be copied when applicable).
+If the array for a given key does not exist, then it will be created
+as if using the
+.Fn nvlist_add_<type>_array
+function.
+The internal error is set on append failure.
+.Pp
+The
 .Fn nvlist_free
 function removes element of the given name from the nvlist (besides of its type)
 and frees all resources associated with it.
@@ -742,6 +768,13 @@ function name from the nvlist and free all resources associated with it.
 If element of the given name and the given type does not exist, the program
 will be aborted.
 The nvlist must not be in error state.
+.Sh NOTES
+The
+.Fn nvlist_pack
+and
+.Fn nvlist_unpack
+functions handle the byte-order conversions, so the binary buffer can be
+packed/unpacked by the hosts with the different endianness.
 .Sh EXAMPLES
 The following example demonstrates how to prepare an nvlist and send it over
 .Xr unix 4

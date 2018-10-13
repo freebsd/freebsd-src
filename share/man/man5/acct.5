@@ -28,7 +28,7 @@
 .\"     @(#)acct.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2007
+.Dd February 13, 2017
 .Dt ACCT 5
 .Os
 .Sh NAME
@@ -51,12 +51,12 @@ to the accounting file.
 #define AC_COMM_LEN 16
 
 /*
- * Accounting structure version 2 (current).
+ * Accounting structure version 3 (current).
  * The first byte is always zero.
  * Time units are microseconds.
  */
 
-struct acctv2 {
+struct acctv3 {
 	uint8_t  ac_zero;		/* zero identifies new version */
 	uint8_t  ac_version;		/* record version number */
 	uint16_t ac_len;		/* record length */
@@ -74,7 +74,7 @@ struct acctv2 {
 
 	uint16_t ac_len2;		/* record length */
 	union {
-		__dev_t	  ac_align;	/* force v1 compatible alignment */
+		uint32_t  ac_align;	/* force v1 compatible alignment */
 
 #define	AFORK	0x01			/* forked but not exec'ed */
 /* ASU is no longer supported */

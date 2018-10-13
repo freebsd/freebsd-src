@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -172,7 +174,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-static const char 	*__efx_loopback_type_name[] = {
+static const char * const __efx_loopback_type_name[] = {
 	"OFF",
 	"DATA",
 	"GMAC",

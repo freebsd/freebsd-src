@@ -382,6 +382,29 @@ ntpcal_weekday_le(int32_t /* rdn */, int32_t /* dow */);
 extern int32_t
 ntpcal_weekday_lt(int32_t /* rdn */, int32_t /* dow */);
 
+
+/*
+ * handling of base date spec
+ */
+extern int32_t
+basedate_eval_buildstamp(void);
+
+extern int32_t
+basedate_eval_string(const char *str);
+
+extern int32_t
+basedate_set_day(int32_t dayno);
+
+extern uint32_t
+basedate_get_day(void);
+
+extern time_t
+basedate_get_eracenter(void);
+
+extern time_t
+basedate_get_erabase(void);
+
+
 /*
  * Additional support stuff for Ed Rheingold's calendrical calculations
  */

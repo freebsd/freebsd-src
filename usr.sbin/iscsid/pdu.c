@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -81,11 +83,11 @@ pdu_new(struct connection *conn)
 {
 	struct pdu *pdu;
 
-	pdu = calloc(sizeof(*pdu), 1);
+	pdu = calloc(1, sizeof(*pdu));
 	if (pdu == NULL)
 		log_err(1, "calloc");
 
-	pdu->pdu_bhs = calloc(sizeof(*pdu->pdu_bhs), 1);
+	pdu->pdu_bhs = calloc(1, sizeof(*pdu->pdu_bhs));
 	if (pdu->pdu_bhs == NULL)
 		log_err(1, "calloc");
 
@@ -106,13 +108,15 @@ pdu_new_response(struct pdu *request)
 static void
 pdu_receive_proxy(struct pdu *pdu)
 {
+	struct connection *conn;
 	struct iscsi_daemon_receive *idr;
 	size_t len;
 	int error;
 
-	assert(pdu->pdu_connection->conn_conf.isc_iser != 0);
+	conn = pdu->pdu_connection;
+	assert(conn->conn_conf.isc_iser != 0);
 
-	pdu->pdu_data = malloc(ISCSI_MAX_DATA_SEGMENT_LENGTH);
+	pdu->pdu_data = malloc(conn->conn_max_recv_data_segment_length);
 	if (pdu->pdu_data == NULL)
 		log_err(1, "malloc");
 
@@ -120,12 +124,12 @@ pdu_receive_proxy(struct pdu *pdu)
 	if (idr == NULL)
 		log_err(1, "calloc");
 
-	idr->idr_session_id = pdu->pdu_connection->conn_session_id;
+	idr->idr_session_id = conn->conn_session_id;
 	idr->idr_bhs = pdu->pdu_bhs;
-	idr->idr_data_segment_len = ISCSI_MAX_DATA_SEGMENT_LENGTH;
+	idr->idr_data_segment_len = conn->conn_max_recv_data_segment_length;
 	idr->idr_data_segment = pdu->pdu_data;
 
-	error = ioctl(pdu->pdu_connection->conn_iscsi_fd, ISCSIDRECEIVE, idr);
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDRECEIVE, idr);
 	if (error != 0)
 		log_err(1, "ISCSIDRECEIVE");
 
@@ -134,7 +138,7 @@ pdu_receive_proxy(struct pdu *pdu)
 		log_errx(1, "protocol error: non-empty AHS");
 
 	len = pdu_data_segment_length(pdu);
-	assert(len <= ISCSI_MAX_DATA_SEGMENT_LENGTH);
+	assert(len <= (size_t)conn->conn_max_recv_data_segment_length);
 	pdu->pdu_data_len = len;
 
 	free(idr);
@@ -143,10 +147,12 @@ pdu_receive_proxy(struct pdu *pdu)
 static void
 pdu_send_proxy(struct pdu *pdu)
 {
+	struct connection *conn;
 	struct iscsi_daemon_send *ids;
 	int error;
 
-	assert(pdu->pdu_connection->conn_conf.isc_iser != 0);
+	conn = pdu->pdu_connection;
+	assert(conn->conn_conf.isc_iser != 0);
 
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 
@@ -154,12 +160,12 @@ pdu_send_proxy(struct pdu *pdu)
 	if (ids == NULL)
 		log_err(1, "calloc");
 
-	ids->ids_session_id = pdu->pdu_connection->conn_session_id;
+	ids->ids_session_id = conn->conn_session_id;
 	ids->ids_bhs = pdu->pdu_bhs;
 	ids->ids_data_segment_len = pdu->pdu_data_len;
 	ids->ids_data_segment = pdu->pdu_data;
 
-	error = ioctl(pdu->pdu_connection->conn_iscsi_fd, ISCSIDSEND, ids);
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDSEND, ids);
 	if (error != 0)
 		log_err(1, "ISCSIDSEND");
 
@@ -204,18 +210,18 @@ pdu_read(const struct connection *conn, char *data, size_t len)
 void
 pdu_receive(struct pdu *pdu)
 {
+	struct connection *conn;
 	size_t len, padding;
 	char dummy[4];
 
+	conn = pdu->pdu_connection;
 #ifdef ICL_KERNEL_PROXY
-	if (pdu->pdu_connection->conn_conf.isc_iser != 0)
+	if (conn->conn_conf.isc_iser != 0)
 		return (pdu_receive_proxy(pdu));
 #endif
+	assert(conn->conn_conf.isc_iser == 0);
 
-	assert(pdu->pdu_connection->conn_conf.isc_iser == 0);
-
-	pdu_read(pdu->pdu_connection,
-	    (char *)pdu->pdu_bhs, sizeof(*pdu->pdu_bhs));
+	pdu_read(conn, (char *)pdu->pdu_bhs, sizeof(*pdu->pdu_bhs));
 
 	len = pdu_ahs_length(pdu);
 	if (len > 0)
@@ -223,10 +229,10 @@ pdu_receive(struct pdu *pdu)
 
 	len = pdu_data_segment_length(pdu);
 	if (len > 0) {
-		if (len > ISCSI_MAX_DATA_SEGMENT_LENGTH) {
+		if (len > (size_t)conn->conn_max_recv_data_segment_length) {
 			log_errx(1, "protocol error: received PDU "
 			    "with DataSegmentLength exceeding %d",
-			    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+			    conn->conn_max_recv_data_segment_length);
 		}
 
 		pdu->pdu_data_len = len;
@@ -234,14 +240,12 @@ pdu_receive(struct pdu *pdu)
 		if (pdu->pdu_data == NULL)
 			log_err(1, "malloc");
 
-		pdu_read(pdu->pdu_connection,
-		    (char *)pdu->pdu_data, pdu->pdu_data_len);
+		pdu_read(conn, (char *)pdu->pdu_data, pdu->pdu_data_len);
 
 		padding = pdu_padding(pdu);
 		if (padding != 0) {
 			assert(padding < sizeof(dummy));
-			pdu_read(pdu->pdu_connection,
-			    (char *)dummy, padding);
+			pdu_read(conn, (char *)dummy, padding);
 		}
 	}
 }
@@ -249,18 +253,20 @@ pdu_receive(struct pdu *pdu)
 void
 pdu_send(struct pdu *pdu)
 {
+	struct connection *conn;
 	ssize_t ret, total_len;
 	size_t padding;
 	uint32_t zero = 0;
 	struct iovec iov[3];
 	int iovcnt;
 
+	conn = pdu->pdu_connection;
 #ifdef ICL_KERNEL_PROXY
-	if (pdu->pdu_connection->conn_conf.isc_iser != 0)
+	if (conn->conn_conf.isc_iser != 0)
 		return (pdu_send_proxy(pdu));
 #endif
 
-	assert(pdu->pdu_connection->conn_conf.isc_iser == 0);
+	assert(conn->conn_conf.isc_iser == 0);
 
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 	iov[0].iov_base = pdu->pdu_bhs;
@@ -284,7 +290,7 @@ pdu_send(struct pdu *pdu)
 		}
 	}
 
-	ret = writev(pdu->pdu_connection->conn_socket, iov, iovcnt);
+	ret = writev(conn->conn_socket, iov, iovcnt);
 	if (ret < 0) {
 		if (timed_out())
 			log_errx(1, "exiting due to timeout");

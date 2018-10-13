@@ -42,8 +42,8 @@ check()
 
 	atf_check -s exit:0 -e file:${err_file} -o file:${out_file} \
 	    env LC_ALL=en_US.UTF-8 \
-	        LIBXO_OPTIONS=":W${xo_fmt}" TZ="EST" "${SRCDIR}/${tc}" \
-		${XO}
+	        TZ="EST" "${SRCDIR}/${tc}" \
+		"${XO} --libxo:W${xo_fmt}"
 }
 
 add_testcase()

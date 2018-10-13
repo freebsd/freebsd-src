@@ -30,8 +30,10 @@ options 	KDB
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 options 	SCHED_ULE
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 
 options 	FFS			#Berkeley Fast Filesystem
 

@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/ofw/ofw_bus.h>
@@ -666,12 +665,12 @@ tegra_i2c_attach(device_t dev)
 	}
 
 	/* FDT resources. */
-	rv = clk_get_by_ofw_name(dev, "div-clk", &sc->clk);
+	rv = clk_get_by_ofw_name(dev, 0, "div-clk", &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get i2c clock: %d\n", rv);
 		goto fail;
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "i2c", &sc->reset);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "i2c", &sc->reset);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get i2c reset\n");
 		return (ENXIO);
@@ -797,12 +796,8 @@ static device_method_t tegra_i2c_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(iichb, tegra_i2c_driver, tegra_i2c_methods,
-    sizeof(struct tegra_i2c_softc));
 static devclass_t tegra_i2c_devclass;
+static DEFINE_CLASS_0(iichb, tegra_i2c_driver, tegra_i2c_methods,
+    sizeof(struct tegra_i2c_softc));
 EARLY_DRIVER_MODULE(tegra_iic, simplebus, tegra_i2c_driver, tegra_i2c_devclass,
-    0, 0, 73);
-extern devclass_t ofwiicbus_devclass;
-extern driver_t ofw_iicbus_driver;
-EARLY_DRIVER_MODULE(ofw_iicbus, tegra_iic, ofw_iicbus_driver,
-    ofwiicbus_devclass, 0, 0, BUS_PASS_BUS);
+    NULL, NULL, 73);

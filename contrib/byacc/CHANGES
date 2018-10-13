@@ -1,4 +1,262 @@
-2016-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+2017-04-30  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/expr.oxout.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/rename_debug.c, btyaccpar.c, btyaccpar.skel:
+	fix another uninitialized variable warning in "make check_make" for btyacc
+
+	* test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/calc3.tab.c, btyaccpar.c, btyaccpar.skel, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/calc3.tab.c, yaccpar.c, defs.h, yaccpar.skel, output.c:
+	fix some compiler warnings for "make check_make" by adding section init_vars,
+	which initializes the body_vars for pure-parser configuration.
+
+2017-04-30  Tom.Shields
+
+	* output.c:
+	use YY_NO_LEAKS set in configure --with-no-leaks, in the generated code
+
+2017-04-30  Julien.Ramseier
+
+	* main.c, test/yacc/big_l.output:
+	fix typo in unsupported-flag warning message
+
+2017-04-30  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2017-03-18  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.sub: 2017-02-07
+
+	* config.guess: 2017-03-05
+
+2017-02-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/btyacc/expr.oxout.error, test/btyacc/expr.oxout.output, test/btyacc/expr.oxout.tab.c, test/btyacc/expr.oxout.tab.h, test/yacc/expr.oxout.error, test/yacc/expr.oxout.output, test/yacc/expr.oxout.tab.c, test/yacc/expr.oxout.tab.h:
+	RCS_BASE
+
+	* package/debian/copyright: update copyright
+
+	* reader.c, defs.h, main.c:
+	avoid using regex.h since some low-end platforms do not have this
+
+	* test/expr.oxout.y: RCS_BASE
+
+	* configure: regen
+
+	* aclocal.m4: quiet a strict gcc warning in CF_MKSTEMP
+
+2017-02-01  Tom.Shields
+
+	* main.c, reader.c, defs.h:
+	process #line directives, like bison and flex
+
+2017-02-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2016-12-31  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.guess, config.sub: 2017-01-01
+
+2016-12-02  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/btyacc/quote_calc4-s.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/rename_debug.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, btyaccpar.c:
+	regen
+
+	* btyaccpar.skel: changes from NetBSD
+	+ use YYINT rather than short in btyaccpar.skel
+	  (some of this had already been done by Tom Shields)
+	+ remove some casts of malloc/realloc
+
+	* yaccpar.c, yaccpar.skel, output.c: changes from NetBSD
+	- Add some more bison stuff to make the mesa/gallium parser work:
+	    %initial-action (add missing source struct member in location)
+	    %debug (unimplemented)
+	    %error-verbose (unimplemented)
+
+	This changes some existing code:
+	+ yylloc is now a pointer, so
+	+ the first parameter to YYERROR_DECL() is a pointer
+	+ struct YYLTYPE now has a "source" field
+
+	* test/btyacc/btyacc_demo.tab.h, test/btyacc/code_calc.tab.c, test/btyacc/code_error.tab.c, test/btyacc/err_inherit4.tab.h:
+	regen
+
+	* btyaccpar.c, btyaccpar.skel, reader.c: changes from NetBSD
+	- Add some more bison stuff to make the mesa/gallium parser work:
+	    %initial-action (add missing source struct member in location)
+	    %debug (unimplemented)
+	    %error-verbose (unimplemented)
+
+	This changes some existing code:
+	+ yylloc is now a pointer, so
+	+ the first parameter to YYERROR_DECL() is a pointer
+	+ struct YYLTYPE now has a "source" field
+
+	* reader.c:
+	fix from NetBSD: correct off-by-one when adding a null in copy_param()
+
+	* reader.c: adapted from NetBSD
+	- Convert *most* error fingerprints to:
+	    -unterminated_arglist(int a_lineno, char *a_line, char *a_cptr)
+	    +unterminated_arglist(const struct ainfo *a)
+	- Cast new <ctype.h> args to unsigned char
+
+	* defs.h: changes from NetBSD
+	- Add some more bison stuff to make the mesa/gallium parser work:
+	    %initial-action (add missing source struct member in location)
+	    %debug (unimplemented)
+	    %error-verbose (unimplemented)
+
+	This changes some existing code:
+	+ yylloc is now a pointer, so
+	+ the first parameter to YYERROR_DECL() is a pointer
+	+ struct YYLTYPE now has a "source" field
+
+	* defs.h: adapted from NetBSD
+	- Convert *most* error fingerprints to:
+	    -unterminated_arglist(int a_lineno, char *a_line, char *a_cptr)
+	    +unterminated_arglist(const struct ainfo *a)
+	- Cast new <ctype.h> args to unsigned char
+
+	* main.c: changes from NetBSD
+	- Add some more bison stuff to make the mesa/gallium parser work:
+	    %initial-action (add missing source struct member in location)
+	    %debug (unimplemented)
+	    %error-verbose (unimplemented)
+
+	This changes some existing code:
+	+ yylloc is now a pointer, so
+	+ the first parameter to YYERROR_DECL() is a pointer
+	+ struct YYLTYPE now has a "source" field
+
+	* error.c: adapted from NetBSD
+	- Convert *most* error fingerprints to:
+	    -unterminated_arglist(int a_lineno, char *a_line, char *a_cptr)
+	    +unterminated_arglist(const struct ainfo *a)
+	- Cast new <ctype.h> args to unsigned char
+
+	* mstring.c: adapted change from NetBSD to add casts for ctype macros
+
+	* test/btyacc/btyacc_demo.tab.h, test/btyacc/err_inherit4.tab.h: regen
+
+	* output.c: reorder to eliminate a forward-reference
+
+2016-12-02  Tom.Shields
+
+	* output.c:
+	modify output to enable compilation of a lexer generated by flex (using
+	"%option bison-bridge" and "%option bison-locations") to be used with a parser
+	generated by b(t)yacc (using directives "%locations" and "%pure-parser").
+
+2016-12-02  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* configure: regen
+
+	* aclocal.m4: Improved autoconf macros
+	CF_CC_ENV_FLAGS
+	+ improve split between compiler and options, prompted by report where user
+	  had "ccache" before the compiler
+	+ leave non-preprocessor options in "$CC" (but still copy them to "$CFLAGS"
+	  since that's where they should be)
+	CF_GNU_SOURCE,v
+	+ recent glibc (Debian 2.23-4 for example) has misordered ifdef/checks for new
+	  symbol _DEFAULT_SOURCE, producing warning messages when only _GNU_SOURCE is
+	  defined.  Add a followup check to define _DEFAULT_SOURCE.
+	CF_XOPEN_SOURCE
+	+ add "uclinux" to list of Linux's (patch by Yann E.  Morin)
+	+ use _GNU_SOURCE for cygwin headers
+	+ build-fixes for OS/2
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2016-11-20  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.sub: 2016-11-19
+
+	* config.guess: 2016-10-02
+
+2016-06-06  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* configure: regen
+
+	* aclocal.m4: improved autoconf macros:
+	CF_CC_ENV_FLAGS - don't limit the check to -I, -U and -D options, since the
+		added options can include various compiler options before and after
+		preprocessor options.
+	CF_PROG_LINT - add cpplint to programs to use; drop ad hoc tdlint and alint.
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* lalr.c: indented
+
+	* btyaccpar.c: regen
+
+	* skel2c:
+	adjust whitespace so that generated skeleton will follow the same format
+	as other code
+
+	* mkpar.c, verbose.c, lr0.c, reader.c, error.c, output.c: indented
+
+	* reader.c: fix two compiler warnings
+
+	* test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/rename_debug.c, btyaccpar.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/rename_debug.c, yaccpar.c:
+	regen
+
+2016-06-06  Tom.Shields
+
+	* btyaccpar.skel, yaccpar.skel:
+	small fix for an edge case of initialized data in Chris Dodd's btyacc changes:
+	"Avoid crash when input pops up an Action error at the first token"
+
+2016-06-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax24.error, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_calc.tab.c, test/yacc/code_calc.tab.h, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/rename_debug.c, yaccpar.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/err_syntax13.tab.c, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax2.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax24.error, test/btyacc/err_syntax24.tab.c, test/btyacc/err_syntax25.tab.c, test/btyacc/err_syntax26.tab.c, test/btyacc/err_syntax27.tab.c, test/btyacc/err_syntax3.tab.c, test/btyacc/err_syntax4.tab.c, test/btyacc/err_syntax5.tab.c, test/btyacc/err_syntax6.tab.c, test/btyacc/err_syntax7.tab.c, test/btyacc/err_syntax7a.tab.c, test/btyacc/err_syntax7b.tab.c, test/btyacc/err_syntax8.tab.c, test/btyacc/err_syntax8a.tab.c, test/btyacc/err_syntax9.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.output, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.error, test/btyacc/btyacc_demo.output, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_calc.tab.c, test/btyacc/code_calc.tab.h, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit3.output, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.output, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit5.tab.c, test/btyacc/err_syntax1.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/rename_debug.c, btyaccpar.c:
+	regen
+
+2016-06-01  Tom.Shields
+
+	* btyaccpar.skel, defs.h, error.c, output.c, reader.c, test/code_calc.y, test/err_inherit4.y, test/run_make.sh, yaccpar.skel:
+	fixes for issues in btyacc (report by Francis Andre):
+
+	+ correction to the placement of the #line directive for a %union specification
+
+	+ recovery of a set of casts originally added into btyaccpar.c rather than into
+	  btyaccpar.skel, and so are lost whenever building from scratch
+
+	+ Chris Dodd's btyacc improved handling of inherited attributes to eliminate
+	  implicit empty copy rules that are not necessary, and thereby avoiding the
+	  introduction of extra parsing ambiguity
+
+	+ Chris Dodd's added support for @-N syntax to reference inherited position
+	  information
+
+	+ correction to bad interaction between %token-table and YYDEBUG, where YYDEBUG
+	  was required to be defined in order to compile the generated code
+
+	+ correction to yyname[] access in code included with YYDEBUG defined for
+	  single character symbols not recognized (e.g., input containing '&' character
+	  where grammar doesn't define that as a symbol) - map to existing
+	  "illegal-symbol" entry in byname[]
+
+	+ fixes to test/run_make.sh:  skip test-err_* files; in the bison test phase
+	  skip additional files that contain features not supported by bison and
+	  inhibit new bison warning messages
+
+	+ minor changes to btyaccpar.skel & yaccpar.skel so they are more similar in
+	  their commonality; makes it easier to maintain the pair of files using
+	  vimdiff
+
+	+ changes to a couple of test cases for coverage of #3, #4 and #5 above
+
+2016-06-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2016-03-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c: unused variable
 
@@ -11,7 +269,7 @@
 	the first occurrence of ".c" in the name in 2005-08-13 changes rather than
 	at the end of the filename (patch by Jung-uk Kim)
 
-2016-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+2016-03-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* aclocal.m4:
 	update CF_WITH_MAN2HTML to use configured shell rather than /bin/sh
@@ -19,11 +277,11 @@
 	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
 	bump
 
-2016-01-25  Thomas E. Dickey  <tom@invisible-island.net>
+2016-01-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess, config.sub: 2016-01-01
 
-2015-07-10  Thomas E. Dickey  <tom@invisible-island.net>
+2015-07-10  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* lr0.c: fix a duplicate-free in the leak-checking
 
@@ -38,7 +296,7 @@
 	make relationship with format/size clearer (prompted by discussion
 	with Pedro Giffuni, Oliver Pinter)
 
-2015-07-05  Thomas E. Dickey  <tom@invisible-island.net>
+2015-07-05  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regen
 
@@ -52,13 +310,13 @@
 
 	* configure.in: add configure option --with-man2html
 
-2015-05-02  Thomas E. Dickey  <tom@invisible-island.net>
+2015-05-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: 2015-03-04
 
 	* config.sub: 2015-03-08
 
-2014-11-28  Thomas E. Dickey  <tom@invisible-island.net>
+2014-11-28  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* lr0.c: coverity #39181: memory leak
 
@@ -80,7 +338,7 @@
 	             Regards
 	                 Jouk.
 
-2014-10-06  Thomas E. Dickey  <tom@invisible-island.net>
+2014-10-06  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/source/format:
 	change to native format to work around regression in Debian packaging.
@@ -100,7 +358,7 @@
 	better fix for get_line, by ensuring there is enough space to null-terminate
 	its result (prompted by discussion with Craig Rodrigues).
 
-2014-10-05  Thomas E. Dickey  <tom@invisible-island.net>
+2014-10-05  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c:
 	make change to umask before calling mkstemp, as suggested in Coverity #56902
@@ -171,7 +429,7 @@
 	modify copy_param() to handle resulting comma-separated list.  Before, it
 	only expected a single parameter.
 
-2014-10-04  Thomas E. Dickey  <tom@invisible-island.net>
+2014-10-04  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c: split-out save_param() from copy_param()
 
@@ -192,28 +450,28 @@
 	* test/btyacc/btyacc_destroy3.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.error, test/btyacc/btyacc_destroy3.output, test/btyacc/btyacc_destroy3.tab.h, test/btyacc/btyacc_destroy2.error, test/btyacc/btyacc_destroy2.output, test/btyacc/btyacc_destroy2.tab.h:
 	RCS_BASE
 
-2014-10-03  Thomas E. Dickey  <tom@invisible-island.net>
+2014-10-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/btyacc_demo2.error, test/btyacc/btyacc_demo2.output, test/btyacc/btyacc_demo2.tab.c, test/btyacc/btyacc_demo2.tab.h, test/btyacc/btyacc_destroy1.error, test/btyacc/btyacc_destroy1.output, test/btyacc/btyacc_destroy1.tab.h, test/btyacc_destroy3.y, test/btyacc_destroy1.y, test/btyacc_destroy2.y:
 	RCS_BASE
 
-2014-10-02  Thomas E. Dickey  <tom@invisible-island.net>
+2014-10-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c, reader.c, defs.h:
 	use calloc in get_line() when allocating line to ensure it is fully initialized,
 	fixes a later uninitialized value in copy_param() (FreeBSD #193499).
 
-2014-09-17  Thomas E. Dickey  <tom@invisible-island.net>
+2014-09-17  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* closure.c, lalr.c, output.c, defs.h:
 	rephrase odd addressing to fix Coverity #48848, #38950, #38860, not actually
 	a bug.
 
-2014-09-01  Thomas E. Dickey  <tom@invisible-island.net>
+2014-09-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2014-07-28
 
-2014-07-27  Thomas E. Dickey  <tom@invisible-island.net>
+2014-07-27  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regen
 
@@ -222,7 +480,7 @@
 	* package/pkgsrc/Makefile, VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec:
 	bump
 
-2014-07-15  Thomas E. Dickey  <tom@invisible-island.net>
+2014-07-15  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* aclocal.m4: resync with my-autoconf (no change to configure script)
 
@@ -233,7 +491,7 @@
 	make top-level "make check" work again, by adding another step to filtering
 	the test results.
 
-2014-07-14  Thomas E. Dickey  <tom@invisible-island.net>
+2014-07-14  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/run_test.sh: changes from Garrett Cooper's patch:
 		a) ensure that the script returns an error-code if there are differences
@@ -252,12 +510,12 @@
 
 	* main.c: remove obsolete -D option from usage message
 
-2014-05-27  Thomas E. Dickey  <tom@invisible-island.net>
+2014-05-27  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* VERSION, package/byacc.spec, package/debian/changelog, test/yacc/big_b.output, test/yacc/big_l.output, test/yacc/help.output, test/yacc/no_b_opt.output, test/yacc/no_output2.output, test/yacc/no_p_opt.output, test/yacc/nostdin.output:
 	bump
 
-2014-04-22  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-22  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* mstring.c:
 	use vsnprintf() to ensure that msprintf's buffer is large enough.
@@ -285,12 +543,12 @@
 	drop "NOTES-btyacc-Changes" and "NOTES-btyacc-Disposition", merging relevant
 	content into README.BTYACC
 
-2014-04-22  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-22  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/pkgsrc/Makefile, VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec:
 	bump
 
-2014-04-19  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-19  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: 2014-04-03
 
@@ -300,7 +558,7 @@
 
 	* main.c, defs.h: patch to allow DEBUG build with WIN32 system
 
-2014-04-09  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-09  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* output.c, reader.c: gcc warnings
 
@@ -341,7 +599,7 @@
 	* yacc.1:
 	clarify relationship of btyacc features to default configuration.
 
-2014-04-08  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-08  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/yacc/ok_syntax1.output, test/yacc/ok_syntax1.tab.c, test/yacc/ok_syntax1.tab.h, test/btyacc/ok_syntax1.output, test/btyacc/ok_syntax1.tab.c, test/btyacc/ok_syntax1.tab.h:
 	reference output for testing
@@ -364,7 +622,7 @@
 
 	* mstring.c: minor reformatting to make coverage analysis simpler
 
-2014-04-07  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-07  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/run_test.sh: tidy
 
@@ -399,7 +657,7 @@
 	YYPATCH #define's to make test-outputs easier to compare #line's (report
 	by Tom Shields)
 
-2014-04-06  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-06  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c: fix for valgrind
 	(the calloc's are intentional - valgrind reported use of uninitialized memory)
@@ -503,7 +761,7 @@
 	* test/run_make.sh:
 	modify to avoid use of VPATH, which has no standard implementation
 
-2014-04-05  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-05  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c:
 	discard a change which merged CountLines() with explicit comparisons against
@@ -534,13 +792,13 @@
 
 	* test/btyacc_demo.y: fix prototypes
 
-2014-04-04  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-04  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c, defs.h, main.c:
 	more merging of Tom Shield's btyacc changes.  In the merge, I moved the
 	symbol_pval inside the btyacc ifdef's and added some more btyacc ifdefs
 
-2014-04-03  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c:
 	merge-in 3/4 of btyacc's changes, deferring those which change test-outputs.
@@ -554,7 +812,7 @@
 	Some of the merge uses ifdef-changes which I applied to ongoing resync,
 	e.g., the introduction of PER_STATE.
 
-2014-04-02  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c: regen
 
@@ -589,7 +847,7 @@
 
 	* main.c: changes for btyacc
 
-2014-04-01  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c:
 	integrate change by Tom Shields to use bsearch rather than successive
@@ -604,7 +862,7 @@
 
 	* verbose.c: changes for btyacc, ifdef'd
 
-2014-04-01  Thomas E. Dickey  <tom@invisible-island.net>
+2014-04-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* mkpar.c: eliminate most of the ifdef's using macros
 
@@ -616,7 +874,7 @@
 	new functions used for reporting errors from the btyacc configuration
 	(I reordered some, and ifdef'd the new ones -TD)
 
-2014-03-31  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-31  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c:
 	omit the GCC_UNUSED, as noted by Tom Shields not really essential
@@ -624,7 +882,7 @@
 	* test/btyacc/empty.tab.c, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit5.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax24.tab.c:
 	regen
 
-2014-03-29  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-29  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/yacc/err_syntax22.tab.c, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax24.tab.c, test/yacc/err_syntax25.tab.c, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax3.tab.c, test/yacc/err_syntax4.tab.c, test/yacc/err_syntax5.tab.c, test/yacc/err_syntax6.tab.c, test/yacc/err_syntax7.tab.c, test/yacc/err_syntax7a.tab.c, test/yacc/err_syntax7b.tab.c, test/yacc/err_syntax8.tab.c, test/yacc/err_syntax8a.tab.c, test/yacc/err_syntax9.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax1.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax13.tab.c, test/yacc/err_syntax14.tab.c, test/yacc/err_syntax15.tab.c, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax17.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax19.tab.c, test/yacc/err_syntax2.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax21.tab.c, skeleton.c:
 	comment-out yysccsid in the banner because it produces unnecessary compiler
@@ -634,7 +892,7 @@
 	* test/run_test.sh:
 	for yacc, ignore the inherit testcases, since they are btyacc-specific
 
-2014-03-28  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-28  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/yacc/varsyntax_calc1.error, test/yacc/varsyntax_calc1.output, test/yacc/varsyntax_calc1.tab.c, test/yacc/varsyntax_calc1.tab.h, test/yacc/err_inherit3.error, test/yacc/err_inherit3.output, test/yacc/err_inherit3.tab.c, test/yacc/err_inherit3.tab.h, test/yacc/err_inherit4.error, test/yacc/err_inherit4.output, test/yacc/err_inherit4.tab.c, test/yacc/err_inherit4.tab.h, test/yacc/err_inherit5.error, test/yacc/err_inherit5.output, test/yacc/err_inherit5.tab.c, test/yacc/err_inherit5.tab.h, test/yacc/inherit0.error, test/yacc/inherit0.output, test/yacc/inherit0.tab.c, test/yacc/inherit0.tab.h, test/yacc/inherit1.error, test/yacc/inherit1.output, test/yacc/inherit1.tab.c, test/yacc/inherit1.tab.h, test/yacc/inherit2.error, test/yacc/inherit2.output, test/yacc/inherit2.tab.c, test/yacc/inherit2.tab.h, test/yacc/empty.error, test/yacc/empty.output, test/yacc/empty.tab.c, test/yacc/empty.tab.h, test/yacc/err_inherit1.error, test/yacc/err_inherit1.output, test/yacc/err_inherit1.tab.c, test/yacc/err_inherit1.tab.h, test/yacc/err_inherit2.error, test/yacc/err_inherit2.output, test/yacc/err_inherit2.tab.c, test/yacc/err_inherit2.tab.h:
 	reference output for testing
@@ -664,7 +922,7 @@
 
 	* yacc.1: document -L/-B features from btyacc
 
-2014-03-25  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* yacc.1: typo
 
@@ -683,7 +941,7 @@
 
 	* mstring.c: byacc-btyacc-20140323
 
-2014-03-25  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/RCS, test/yacc/RCS: PERMIT FILE
 
@@ -698,7 +956,7 @@
 	* test/btyacc/err_syntax1.output, test/btyacc/err_syntax1.tab.c, test/btyacc/err_syntax1.tab.h, test/btyacc/err_syntax10.error, test/btyacc/err_syntax10.output, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax10.tab.h, test/btyacc/err_syntax11.error, test/btyacc/err_syntax11.output, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax11.tab.h, test/btyacc/err_syntax12.error, test/btyacc/err_syntax12.output, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax12.tab.h, test/btyacc/err_syntax13.error, test/btyacc/err_syntax13.output, test/btyacc/err_syntax13.tab.c, test/btyacc/err_syntax13.tab.h, test/btyacc/err_syntax14.error, test/btyacc/err_syntax14.output, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax14.tab.h, test/btyacc/err_syntax15.error, test/btyacc/err_syntax15.output, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax15.tab.h, test/btyacc/err_syntax16.error, test/btyacc/err_syntax16.output, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax16.tab.h, test/btyacc/err_syntax17.error, test/btyacc/err_syntax17.output, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax17.tab.h, test/btyacc/err_syntax18.error, test/btyacc/err_syntax18.output, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax18.tab.h, test/btyacc/err_syntax19.error, test/btyacc/err_syntax19.output, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax19.tab.h, test/btyacc/err_syntax2.output, test/btyacc/err_syntax2.tab.c, test/btyacc/err_syntax2.tab.h, test/btyacc/err_syntax20.error, test/btyacc/err_syntax20.output, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax20.tab.h, test/btyacc/err_syntax21.error, test/btyacc/err_syntax21.output, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax21.tab.h, test/btyacc/err_syntax22.error, test/btyacc/err_syntax22.output, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax22.tab.h, test/btyacc/err_syntax23.error, test/btyacc/err_syntax23.output, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax23.tab.h, test/btyacc/err_syntax24.error, test/btyacc/err_syntax24.output, test/btyacc/err_syntax24.tab.c, test/btyacc/err_syntax24.tab.h, test/btyacc/err_syntax25.error, test/btyacc/err_syntax25.output, test/btyacc/err_syntax25.tab.c, test/btyacc/err_syntax25.tab.h, test/btyacc/err_syntax26.error, test/btyacc/err_syntax26.output, test/btyacc/err_syntax26.tab.c, test/btyacc/err_syntax26.tab.h, test/btyacc/err_syntax3.output, test/btyacc/err_syntax3.tab.c, test/btyacc/err_syntax3.tab.h, test/btyacc/err_syntax4.output, test/btyacc/err_syntax4.tab.c, test/btyacc/err_syntax4.tab.h, test/btyacc/err_syntax5.output, test/btyacc/err_syntax5.tab.c, test/btyacc/err_syntax5.tab.h, test/btyacc/err_syntax6.output, test/btyacc/err_syntax6.tab.c, test/btyacc/err_syntax6.tab.h, test/btyacc/err_syntax7.output, test/btyacc/err_syntax7.tab.c, test/btyacc/err_syntax7.tab.h, test/btyacc/err_syntax7a.output, test/btyacc/err_syntax7a.tab.c, test/btyacc/err_syntax7a.tab.h, test/btyacc/err_syntax7b.output, test/btyacc/err_syntax7b.tab.c, test/btyacc/err_syntax7b.tab.h, test/btyacc/err_syntax8.output, test/btyacc/err_syntax8.tab.c, test/btyacc/err_syntax8.tab.h, test/btyacc/err_syntax8a.output, test/btyacc/err_syntax8a.tab.c, test/btyacc/err_syntax8a.tab.h, test/btyacc/err_syntax9.output, test/btyacc/err_syntax9.tab.c, test/btyacc/err_syntax9.tab.h:
 	reference output for testing
 
-2014-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* defs.h: fix compiler warnings due to mputc()
 
@@ -711,7 +969,7 @@
 
 	* test/varsyntax_calc1.y, test/btyacc_calc1.y: testcase for btyacc
 
-2014-03-23  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-23  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/err_syntax26.error, test/err_syntax26.output, test/err_syntax26.tab.c, test/err_syntax26.tab.h, test/yacc/err_syntax26.error, test/yacc/err_syntax26.output, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax26.tab.h:
 	reference output for testing
@@ -733,7 +991,7 @@
 	* test/btyacc/quote_calc3-s.error, test/btyacc/quote_calc4-s.error, test/btyacc/quote_calc4.error, test/btyacc/grammar.dot, test/btyacc/grammar.error, test/btyacc/pure_calc.error, test/btyacc/pure_error.error, test/btyacc/quote_calc-s.error, test/btyacc/quote_calc.error, test/btyacc/quote_calc2-s.error, test/btyacc/quote_calc2.error, test/btyacc/quote_calc3.error, test/btyacc/err_syntax2.error, test/btyacc/err_syntax3.error, test/btyacc/err_syntax4.error, test/btyacc/err_syntax5.error, test/btyacc/err_syntax6.error, test/btyacc/err_syntax7.error, test/btyacc/err_syntax7a.error, test/btyacc/err_syntax7b.error, test/btyacc/err_syntax8.error, test/btyacc/err_syntax8a.error, test/btyacc/err_syntax9.error, test/btyacc/error.error, test/btyacc/calc1.error, test/btyacc/calc2.error, test/btyacc/calc3.error, test/btyacc/code_calc.error, test/btyacc/code_error.error, test/btyacc/empty.error, test/btyacc/err_syntax1.error, test/btyacc/btyacc_calc1.error, test/btyacc/btyacc_demo.error:
 	reference output for testing
 
-2014-03-23  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-23  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/err_syntax23.error, test/err_syntax23.output, test/err_syntax23.tab.c, test/err_syntax23.tab.h, test/yacc/err_syntax23.error, test/yacc/err_syntax23.output, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax23.tab.h:
 	reference output for testing
@@ -745,7 +1003,7 @@
 	* test/run_test.sh:
 	move test-outputs into subdirectories to keep btyacc/yacc results separate
 
-2014-03-23  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-23  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/err_syntax22.error, test/err_syntax22.output, test/err_syntax22.tab.c, test/err_syntax22.tab.h, test/yacc/err_syntax22.error, test/yacc/err_syntax22.output, test/yacc/err_syntax22.tab.c, test/yacc/err_syntax22.tab.h:
 	reference output for testing
@@ -774,7 +1032,7 @@
 
 	* test/err_syntax17.y: testcase for unterminated_action()
 
-2014-03-22  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-22  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/err_syntax16.error, test/err_syntax16.output, test/err_syntax16.tab.c, test/err_syntax16.tab.h, test/yacc/err_syntax16.error, test/yacc/err_syntax16.output, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax16.tab.h:
 	reference output for testing
@@ -812,7 +1070,7 @@
 
 	* test/err_syntax10.y: testcase for retyped_warning()
 
-2014-03-21  Thomas E. Dickey  <tom@invisible-island.net>
+2014-03-21  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/err_syntax9.error, test/err_syntax9.output, test/err_syntax9.tab.c, test/err_syntax9.tab.h, test/yacc/err_syntax9.error, test/yacc/err_syntax9.output, test/yacc/err_syntax9.tab.c, test/yacc/err_syntax9.tab.h:
 	reference output for testing
@@ -932,7 +1190,7 @@
 
 	* lalr.c: rename MAXSHORT to MAXYYINT
 
-2014-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+2014-01-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* yacc.1: document %token-table, improve presentation of double-quotes
 
@@ -956,7 +1214,7 @@
 	- add YYTRANSLATE() macro
 	- recognize bison's %token-table declaration
 
-2014-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+2014-01-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regen
 
@@ -968,19 +1226,19 @@
 
 	* configure.in: use CF_MAKE_DOCS
 
-2013-12-26  Thomas E. Dickey  <tom@invisible-island.net>
+2013-12-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: 2013-11-29
 
-2013-11-19  Thomas E. Dickey  <tom@invisible-island.net>
+2013-11-19  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* aclocal.m4: resync with my-autoconf (fixes for clang and mingw)
 
-2013-10-25  Thomas E. Dickey  <tom@invisible-island.net>
+2013-10-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: 2013-10-01
 
-2013-09-25  Thomas E. Dickey  <tom@invisible-island.net>
+2013-09-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c: fix two loop-limits found by clang 3.3 --analyze
 
@@ -1015,13 +1273,13 @@
 
 	* package/debian/changelog, VERSION, package/byacc.spec: bump
 
-2013-09-07  Thomas E. Dickey  <tom@invisible-island.net>
+2013-09-07  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2013-09-15
 
 	* config.guess: update to 2013-06-10
 
-2013-03-04  Thomas E. Dickey  <tom@invisible-island.net>
+2013-03-04  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, VERSION, package/byacc.spec: bump
 
@@ -1051,11 +1309,11 @@
 	* aclocal.m4:
 	another fix for CF_GCC_VERSION to handle Debian's modification of gcc message.
 
-2013-02-10  Thomas E. Dickey  <tom@invisible-island.net>
+2013-02-10  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub, config.guess: update to 2013-02-04
 
-2012-10-03  Thomas E. Dickey  <tom@invisible-island.net>
+2012-10-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
@@ -1077,7 +1335,7 @@
 	suggested patch: drop CF_ANSI_CC_REQD, CF_ANSI_CC_CHECK, CF_PROG_EXT since
 	they are not needed.
 
-2012-10-03  Thomas E. Dickey  <tom@invisible-island.net>
+2012-10-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* aclocal.m4:
 	split-out CF_CC_ENV_FLAGS from CF_ANSI_CC_CHECK to avoid losing it in
@@ -1111,13 +1369,13 @@
 		CF_MIXEDCASE_FILENAMES
 		CF_NO_LEAKS_OPTION
 
-2012-10-03  Thomas E. Dickey  <tom@invisible-island.net>
+2012-10-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* aclocal.m4:
 	move existence-check for mkstemp out of the AC_TRY_RUN, to help with
 	cross-compiles
 
-2012-10-02  Thomas E. Dickey  <tom@invisible-island.net>
+2012-10-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config_h.in:
 	Adrian Bunk request - replace this with the output from autoheader
@@ -1135,7 +1393,7 @@
 
 	* makefile.in: add assignment for datarootdir variable.
 
-2012-05-26  Thomas E. Dickey  <tom@invisible-island.net>
+2012-05-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
@@ -1163,13 +1421,13 @@
 	use TMALLOC() and TREALLOC() macros to simplify allocation/reallocation
 	(no object change)
 
-2012-05-25  Thomas E. Dickey  <tom@invisible-island.net>
+2012-05-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* output.c, main.c, verbose.c, mkpar.c, lr0.c:
 	use TMALLOC() and TREALLOC() macros to simplify allocation/reallocation
 	(no object change)
 
-2012-01-15  Thomas E. Dickey  <tom@invisible-island.net>
+2012-01-15  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/copyright: bump
 
@@ -1274,7 +1532,7 @@
 	* test/quote_calc2-s.tab.c, test/quote_calc3-s.tab.c, test/quote_calc4-s.tab.c, test/quote_calc-s.tab.c, test/quote_calc.tab.c, test/quote_calc2.tab.c, test/quote_calc3.tab.c, test/quote_calc4.tab.c:
 	regen
 
-2012-01-14  Thomas E. Dickey  <tom@invisible-island.net>
+2012-01-14  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/calc2.tab.c, test/code_calc.code.c, test/code_error.code.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c, test/calc.tab.c, test/calc1.tab.c:
 	regen
@@ -1305,7 +1563,7 @@
 
 	* test/run_test.sh: generate/test with "-s" option applied.
 
-2012-01-13  Thomas E. Dickey  <tom@invisible-island.net>
+2012-01-13  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
@@ -1337,7 +1595,7 @@
 
 	* aclocal.m4: resync with my-autoconf, i.e., fixes for CF_XOPEN_SOURCE
 
-2011-12-19  Thomas E. Dickey  <tom@invisible-island.net>
+2011-12-19  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
@@ -1351,7 +1609,7 @@
 	Simply suppressing the second #define makes the behavior closer to yacc.
 	(report by Paulo Andrade).
 
-2011-09-08  Thomas E. Dickey  <tom@invisible-island.net>
+2011-09-08  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
@@ -1359,7 +1617,7 @@
 	fix some more interaction between -i and -d flags to ensure YYERRCODE
 	and YYSTYPE are declared, tested with cproto.
 
-2011-09-07  Thomas E. Dickey  <tom@invisible-island.net>
+2011-09-07  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* yacc.1: document "-i" option.
 
@@ -1373,14 +1631,14 @@
 
 	* skeleton.c, output.c, defs.h: changes to support "-i" option.
 
-2011-09-06  Thomas E. Dickey  <tom@invisible-island.net>
+2011-09-06  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c: pass explicit file-pointer to write_section()
 
 	* main.c:
 	add "-i" option, to generate interface-file (suggested by Denis M. Wilson)
 
-2011-09-05  Thomas E. Dickey  <tom@invisible-island.net>
+2011-09-05  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regen
 
@@ -1391,15 +1649,15 @@
 	* defs.h, error.c, reader.c:
 	add check for missing "}" on %parse-param and %lex-param lines (report by Denis M Wilson)
 
-2011-04-01  Thomas E. Dickey  <tom@invisible-island.net>
+2011-04-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2011-04-01
 
-2011-02-02  Thomas E. Dickey  <tom@invisible-island.net>
+2011-02-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: update to 2011-01-01
 
-2010-12-29  Thomas E. Dickey  <tom@invisible-island.net>
+2010-12-29  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* defs.h, skeleton.c:
 	add const qualifier to skeleton data, per NetBSD changes (report by Christos Zoulas)
@@ -1421,7 +1679,7 @@
 	* test/ftp.y:
 	improve example, which was stuck in 19XX and assumed file sizes were longs.
 
-2010-12-29  Thomas E. Dickey  <tom@invisible-island.net>
+2010-12-29  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/ftp.tab.c, test/grammar.tab.c, test/pure_calc.tab.c, test/pure_error.tab.c, test/calc.tab.c, test/calc1.tab.c, test/calc2.tab.c, test/calc3.tab.c, test/code_calc.code.c, test/code_error.code.c, test/error.tab.c:
 	regen
@@ -1439,11 +1697,11 @@
 
 	* output.c: correct definition for YYERROR_DECL()
 
-2010-12-29  Thomas E. Dickey  <tom@invisible-island.net>
+2010-12-29  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
-2010-12-26  Thomas E. Dickey  <tom@invisible-island.net>
+2010-12-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* defs.h, main.c:
 	change return-type of allocate() to avoid warnings of alignment problems
@@ -1463,7 +1721,7 @@
 	* aclocal.m4:
 	improve quoting, deprecate ${name-value} in favor of standard ${name:-value}
 
-2010-12-25  Thomas E. Dickey  <tom@invisible-island.net>
+2010-12-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c:
 	start revising use of tmpfile(), to make this work with MinGW.  Start by
@@ -1472,7 +1730,7 @@
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
-2010-11-27  Thomas E. Dickey  <tom@invisible-island.net>
+2010-11-27  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/byacc.spec, package/debian/changelog, VERSION: bump
 
@@ -1482,7 +1740,7 @@
 	corrected use of %parse-param value in yyerror(); it doesn't use &yylval
 	(report by Clifford Yapp)
 
-2010-11-26  Thomas E. Dickey  <tom@invisible-island.net>
+2010-11-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* skeleton.c: typo
 
@@ -1533,7 +1791,7 @@
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
-2010-11-24  Thomas E. Dickey  <tom@invisible-island.net>
+2010-11-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c, defs.h, symtab.c, error.c: reduce global variables
 
@@ -1543,7 +1801,7 @@
 	amend fix for Redhat #112617 to still call default_action_warning() for
 	empty rules (report by Bruce Cran).
 
-2010-11-22  Thomas E. Dickey  <tom@invisible-island.net>
+2010-11-22  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* output.c:
 	add ifdef to guard against redefinition of YYSTYPE union (request by Clifford Yapp).
@@ -1575,20 +1833,20 @@
 
 	* package/debian/changelog, package/byacc.spec, VERSION: bump
 
-2010-09-28  Thomas E. Dickey  <tom@invisible-island.net>
+2010-09-28  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: update to 2010-09-24
 
-2010-09-10  Thomas E. Dickey  <tom@invisible-island.net>
+2010-09-10  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2010-09-11
 
-2010-06-10  Thomas E. Dickey  <tom@invisible-island.net>
+2010-06-10  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* yacc.1, package/debian/changelog, package/byacc.spec, VERSION:
 	bump to 2010/06/10
 
-2010-06-09  Thomas E. Dickey  <tom@invisible-island.net>
+2010-06-09  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* reader.c: free declarations in leak-testing code.
 
@@ -1631,7 +1889,7 @@
 	* test/ftp.tab.c, test/ftp.y, reader.c, symtab.c, verbose.c, lr0.c, main.c, mkpar.c, output.c, defs.h, closure.c:
 	fix warnings from clang --analyze
 
-2010-06-08  Thomas E. Dickey  <tom@invisible-island.net>
+2010-06-08  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* output.c: fix to build with c89, etc.
 
@@ -1663,7 +1921,7 @@
 	add check_make and check_lint rules to help validate the generated files
 	in the test-directory
 
-2010-06-07  Thomas E. Dickey  <tom@invisible-island.net>
+2010-06-07  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/pure_calc.tab.c, test/pure_error.tab.c: RCS_BASE
 
@@ -1728,11 +1986,11 @@
 	anyway.  This allows for better compatibility with yacc sources written
 	for bison.
 
-2010-06-07  Thomas E. Dickey  <tom@invisible-island.net>
+2010-06-07  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* VERSION: bump to 2010/06/07
 
-2010-06-06  Thomas E. Dickey  <tom@invisible-island.net>
+2010-06-06  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/calc.tab.c, configure: regen
 
@@ -1783,12 +2041,12 @@
 		c) CF_GCC_VERSION, ignore stderr
 		d) CF_GCC_WARNINGS, adjust options to work with c89 wrapper of gcc
 
-2010-04-20  Thomas E. Dickey  <tom@invisible-island.net>
+2010-04-20  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/changelog, package/debian/compat, package/debian/control, package/debian/copyright, package/debian/docs, package/debian/postinst, package/debian/prerm, package/debian/rules, package/debian/watch:
 	scripts from Debian package
 
-2010-02-16  Thomas E. Dickey  <tom@invisible-island.net>
+2010-02-16  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* yacc.1: document -P and bison-extensions
 
@@ -1840,24 +2098,24 @@
 
 	* skeleton.c: fix a memory leak in the generated skeleton
 
-2010-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+2010-01-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/debian/source/format: scripts from Debian package
 
-2009-12-31  Thomas E. Dickey  <tom@invisible-island.net>
+2009-12-31  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: update to 2009-12-30
 
 	* config.sub: update to 2009-12-31
 
-2009-10-27  Thomas E. Dickey  <tom@invisible-island.net>
+2009-10-27  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* VERSION: 20091027
 
 	* output.c, mkpar.c, defs.h, lalr.c, closure.c, graph.c, lr0.c, verbose.c, main.c, reader.c:
 	strict compiler warnings
 
-2009-10-26  Thomas E. Dickey  <tom@invisible-island.net>
+2009-10-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/ftp.tab.c, test/grammar.tab.c, test/calc.tab.c, test/error.tab.c:
 	resync
@@ -1872,44 +2130,44 @@
 
 	* aclocal.m4: resync with my-autoconf
 
-2009-08-25  Thomas E. Dickey  <tom@invisible-island.net>
+2009-08-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess, config.sub: update to 2009-08-19
 
-2009-02-21  Thomas E. Dickey  <tom@invisible-island.net>
+2009-02-21  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* VERSION: bump
 
 	* output.c: restore "yylval" symbol, omitted in cleanup on 2008/8/25
 
-2008-12-26  Thomas E. Dickey  <tom@invisible-island.net>
+2008-12-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regen with autoconf-2.52 (patched)
 
-2008-12-25  Thomas E. Dickey  <tom@invisible-island.net>
+2008-12-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c, test/calc.tab.c:
 	regenerated
 
-2008-12-24  Thomas E. Dickey  <tom@invisible-island.net>
+2008-12-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* VERSION: bump
 
 	* skeleton.c:
 	remove ifdef-lint from goto yyerrlab, to quiet gcc warning
 
-2008-11-26  Thomas E. Dickey  <tom@invisible-island.net>
+2008-11-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* verbose.c, main.c, defs.h, mkpar.c, reader.c:
 	completed implementation of "%expect" (report by Perry E. Metzger).
 	add "%expect-rr", which is (unlike bison) allowable in LALR parsers.
 
-2008-11-24  Thomas E. Dickey  <tom@invisible-island.net>
+2008-11-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* closure.c, defs.h, error.c, graph.c, lalr.c, lr0.c, main.c, mkpar.c, output.c, reader.c, skeleton.c, symtab.c, verbose.c, warshall.c:
 	change indent-style (request by Perry E. Metzger)
 
-2008-08-27  Thomas E. Dickey  <tom@invisible-island.net>
+2008-08-27  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/calc.tab.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c:
 	better implementation of YYPARSE_PARAM, using YYPARSE_DECL() macro
@@ -1948,12 +2206,12 @@
 	* test/calc.tab.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c:
 	remove 'register' keywords
 
-2008-08-26  Thomas E. Dickey  <tom@invisible-island.net>
+2008-08-26  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* warshall.c, verbose.c, symtab.c, skeleton.c, reader.c, output.c, mkpar.c, main.c, lr0.c, lalr.c, graph.c, error.c, closure.c:
 	remove 'register' keywords
 
-2008-08-25  Thomas E. Dickey  <tom@invisible-island.net>
+2008-08-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/ftp.tab.c: regen'd
 
@@ -1993,7 +2251,7 @@
 
 	* makefile.in: add dependency on VERSION file.
 
-2008-08-24  Thomas E. Dickey  <tom@invisible-island.net>
+2008-08-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* VERSION: bump
 
@@ -2011,18 +2269,18 @@
 
 	* aclocal.m4: resync with my-autoconf (no major changes)
 
-2008-07-24  Thomas E. Dickey  <tom@invisible-island.net>
+2008-07-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/pkgsrc/Makefile, package/pkgsrc/distinfo:
 	scripts from NetBSD pkgsrc, for test-builds
 
-2008-03-14  Thomas E. Dickey  <tom@invisible-island.net>
+2008-03-14  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2008-03-08
 
 	* config.guess: update to 2008-03-12
 
-2007-05-09  Thomas E. Dickey  <tom@invisible-island.net>
+2007-05-09  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c: close graph, verbose files if opened, on exit.
 
@@ -2049,19 +2307,19 @@
 
 	* main.c: file_prefix did not always have a trailing null.
 
-2007-03-25  Thomas E. Dickey  <tom@invisible-island.net>
+2007-03-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* mkdirs.sh: improved version for "make -j"
 
-2006-12-22  Thomas E. Dickey  <tom@invisible-island.net>
+2006-12-22  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: update to 2006/12/22
 
-2006-12-08  Thomas E. Dickey  <tom@invisible-island.net>
+2006-12-08  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2006/12/08
 
-2005-08-13  Thomas E. Dickey  <tom@invisible-island.net>
+2005-08-13  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c: add -V to usage message
 
@@ -2080,23 +2338,23 @@
 	Debian #322858 (don't close union_file, which contained data).
 	This feature is used in groff.
 
-2005-08-13  Thomas E. Dickey  <tom@invisible-island.net>
+2005-08-13  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regenerated
 
 	* aclocal.m4: improve checks for Intel compiler warnings
 
-2005-06-25  Thomas E. Dickey  <tom@invisible-island.net>
+2005-06-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2005/6/2
 
 	* config.guess: update to 2005/5/27
 
-2005-05-05  Thomas E. Dickey  <tom@invisible-island.net>
+2005-05-05  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* defs.h: add a fallback for GCC_UNUSED
 
-2005-05-04  Thomas E. Dickey  <tom@invisible-island.net>
+2005-05-04  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* makefile.in: add "." to include-path to pickup config.h
 
@@ -2151,7 +2409,7 @@
 	add "-o" to usage message.  It is too long for a single line; rewrite usage()
 	to show one option per line.
 
-2005-05-03  Thomas E. Dickey  <tom@invisible-island.net>
+2005-05-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* main.c: add -o option, to work with scripts that assume bison.
 	simplify create_file_names() with a macro.
@@ -2182,21 +2440,21 @@
 	add graphical output of the LALR(1) automaton for graphviz,
 	associated with command-line option `-g'
 
-2005-04-16  Thomas E. Dickey  <tom@invisible-island.net>
+2005-04-16  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: update to 2005/2/10
 
 	* config.guess: update to 2005/3/24
 
-2005-04-13  Thomas E. Dickey  <tom@invisible-island.net>
+2005-04-13  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/pkgsrc/PLIST: scripts from NetBSD pkgsrc, for test-builds
 
-2005-03-21  Thomas E. Dickey  <tom@invisible-island.net>
+2005-03-21  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* package/pkgsrc/DESCR: scripts from NetBSD pkgsrc, for test-builds
 
-2004-03-28  Thomas E. Dickey  <tom@invisible-island.net>
+2004-03-28  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/calc.tab.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c:
 	updates due to adding yyparse() prototype
@@ -2267,32 +2525,32 @@
 
 	* README: updated to note that this is not the original
 
-2004-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+2004-03-24  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/grammar.y: RCS_BASE
 
-2004-02-23  Thomas E. Dickey  <tom@invisible-island.net>
+2004-02-23  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.sub: RCS_BASE
 
-2004-02-17  Thomas E. Dickey  <tom@invisible-island.net>
+2004-02-17  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* config.guess: RCS_BASE
 
-2003-11-29  Thomas E. Dickey  <tom@invisible-island.net>
+2003-11-29  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* install-sh: improved quoting
 
-2002-06-29  Thomas E. Dickey  <tom@invisible-island.net>
+2002-06-29  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* mkdirs.sh:
 	don't use character range, since some locales don't work as expected
 
-2001-06-22  Thomas E. Dickey  <tom@invisible-island.net>
+2001-06-22  Thomas E. Dickey  <dickey@clark.net>
 
 	* install-sh: RCS_BASE
 
-2000-11-20  Thomas E. Dickey  <tom@invisible-island.net>
+2000-11-20  Thomas E. Dickey  <dickey@clark.net>
 
 	* test/calc.y: RCS_BASE
 
@@ -2300,26 +2558,26 @@
 
 	* vmsbuild.com: original version
 
-2000-02-23  dickey
+2000-02-23  dickey@clark.net
 
 	* test/RCS, RCS: PERMIT FILE
 
-2000-02-14  Thomas E. Dickey  <tom@invisible-island.net>
+2000-02-14  Thomas E. Dickey  <dickey@clark.net>
 
 	* main.c: fix for VMS port - making pathname for temp-file
 
 	* descrip.mms: original version
 
-2000-02-13  Thomas E. Dickey  <tom@invisible-island.net>
+2000-02-13  Thomas E. Dickey  <dickey@clark.net>
 
 	* defs.h, verbose.c, reader.c, main.c, skeleton.c, warshall.c, symtab.c, closure.c, mkpar.c, lalr.c, lr0.c, output.c, error.c:
 	ansify
 
-1999-11-30  Thomas E. Dickey  <tom@invisible-island.net>
+1999-11-30  Thomas E. Dickey  <dickey@clark.net>
 
 	* mkdirs.sh: RCS_BASE
 
-1995-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+1995-01-01  Thomas E. Dickey  <dickey@clark.net>
 
 	* config_h.in: RCS_BASE
 
@@ -2339,7 +2597,7 @@
 
 	* test/ftp.output, test/ftp.tab.c, test/ftp.tab.h: RCS_BASE
 
-1993-02-22  Thomas E. Dickey  <tom@invisible-island.net>
+1993-02-22  Thomas E. Dickey  <dickey@software.org>
 
 	* test/yacc/error.output, test/yacc/error.tab.h:
 	reference output for testing
@@ -2379,7 +2637,7 @@
 
 	* symtab.c, lalr.c, error.c: original version
 
-1990-01-16  Thomas E. Dickey  <tom@invisible-island.net>
+1990-01-16  Thomas E. Dickey  <dickey@software.org>
 
 	* test/code_error.y, test/pure_error.y: RCS_BASE
 

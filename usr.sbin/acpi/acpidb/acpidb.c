@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2002 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
  * All rights reserved.
  *
@@ -495,7 +497,7 @@ load_dsdt(const char *dsdtfile)
 
 	AcpiInitializeDebugger();
 	AcpiGbl_DebuggerConfiguration = 0;
-	AcpiDbUserCommands(':', NULL);
+	AcpiDbUserCommands();
 
 	if (dounlink) {
 		unlink(filetmp);

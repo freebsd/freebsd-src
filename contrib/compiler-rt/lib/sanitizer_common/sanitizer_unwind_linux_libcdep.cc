@@ -8,11 +8,12 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains the unwind.h-based (aka "slow") stack unwinding routines
-// available to the tools on Linux, Android, and FreeBSD.
+// available to the tools on Linux, Android, NetBSD, FreeBSD, and Solaris.
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_platform.h"
-#if SANITIZER_FREEBSD || SANITIZER_LINUX
+#if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD || \
+    SANITIZER_SOLARIS
 #include "sanitizer_common.h"
 #include "sanitizer_stacktrace.h"
 
@@ -48,6 +49,11 @@ unwind_backtrace_signal_arch_func unwind_backtrace_signal_arch;
 
 #if SANITIZER_ANDROID
 void SanitizerInitializeUnwinder() {
+  if (AndroidGetApiLevel() >= ANDROID_LOLLIPOP_MR1) return;
+
+  // Pre-lollipop Android can not unwind through signal handler frames with
+  // libgcc unwinder, but it has a libcorkscrew.so library with the necessary
+  // workarounds.
   void *p = dlopen("libcorkscrew.so", RTLD_LAZY);
   if (!p) {
     VReport(1,
@@ -73,7 +79,8 @@ void SanitizerInitializeUnwinder() {
 }
 #endif
 
-#ifdef __arm__
+#if defined(__arm__) && !SANITIZER_NETBSD
+// NetBSD uses dwarf EH
 #define UNWIND_STOP _URC_END_OF_STACK
 #define UNWIND_CONTINUE _URC_NO_REASON
 #else
@@ -103,6 +110,11 @@ _Unwind_Reason_Code Unwind_Trace(struct _Unwind_Context *ctx, void *param) {
   UnwindTraceArg *arg = (UnwindTraceArg*)param;
   CHECK_LT(arg->stack->size, arg->max_depth);
   uptr pc = Unwind_GetIP(ctx);
+  const uptr kPageSize = GetPageSizeCached();
+  // Let's assume that any pointer in the 0th page (i.e. <0x1000 on i386 and
+  // x86_64) is invalid and stop unwinding here.  If we're adding support for
+  // a platform where this isn't true, we need to reconsider this check.
+  if (pc < kPageSize) return UNWIND_STOP;
   arg->stack->trace_buffer[arg->stack->size++] = pc;
   if (arg->stack->size == arg->max_depth) return UNWIND_STOP;
   return UNWIND_CONTINUE;
@@ -155,4 +167,5 @@ void BufferedStackTrace::SlowUnwindStackWithContext(uptr pc, void *context,
 
 }  // namespace __sanitizer
 
-#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX
+#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD ||
+        // SANITIZER_SOLARIS

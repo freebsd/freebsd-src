@@ -38,7 +38,7 @@
  * Created      : 16/05/95
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include <machine/asm.h>
 #include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
@@ -148,59 +148,6 @@ ENTRY(copyinstr)
 	RESTORE_REGS
 	RET
 END(copyinstr)
-
-/*
- * r0 - kernel space address
- * r1 - user space address
- * r2 - maxlens
- * r3 - lencopied
- *
- * Copy string from kernel space to user space
- */
-ENTRY(copyoutstr)
-	SAVE_REGS
-
-	teq	r2, #0x00000000
-	mov	r6, #0x00000000
-	moveq	r0, #ENAMETOOLONG
-	beq	2f
-
-	ldr	r12, =VM_MAXUSER_ADDRESS
-
-	GET_PCB(r4)
-	ldr	r4, [r4]
-
-#ifdef DIAGNOSTIC
-	teq	r4, #0x00000000
-	beq	.Lcopystrpcbfault
-#endif
-
-	adr	r5, .Lcopystrfault
-	str	r5, [r4, #PCB_ONFAULT]
-
-1:
-	cmp	r0, r12
-	bcs	.Lcopystrfault
-	ldrb	r5, [r0], #0x0001
-	add	r6, r6, #0x00000001
-	teq	r5, #0x00000000
-	strbt	r5, [r1], #0x0001
-	teqne	r6, r2
-	bne	1b
-
-	mov	r0, #0x00000000
-	str	r0, [r4, #PCB_ONFAULT]
-
-	teq	r5, #0x00000000
-	moveq	r0, #0x00000000
-	movne	r0, #ENAMETOOLONG
-
-2:	teq	r3, #0x00000000
-	strne	r6, [r3]
-
-	RESTORE_REGS
-	RET
-END(copyoutstr)
 
 /* A fault occurred during the copy */
 .Lcopystrfault:

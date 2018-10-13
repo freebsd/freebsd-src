@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -254,6 +256,8 @@ static driver_t bwi_driver = {
 };
 static	devclass_t bwi_devclass;
 DRIVER_MODULE(bwi, pci, bwi_driver, bwi_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwi, bwi_devices,
+    nitems(bwi_devices) - 1);
 MODULE_DEPEND(bwi, wlan, 1, 1, 1);		/* 802.11 media layer */
 MODULE_DEPEND(bwi, firmware, 1, 1, 1);		/* firmware support */
 MODULE_DEPEND(bwi, wlan_amrr, 1, 1, 1);

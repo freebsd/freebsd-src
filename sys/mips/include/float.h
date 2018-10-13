@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
  *
@@ -42,11 +44,7 @@ extern int __flt_rounds(void);
 __END_DECLS
 
 #define	FLT_RADIX	2		/* b */
-#ifdef CPU_HAVEFPU
 #define	FLT_ROUNDS	__flt_rounds() /* FP addition rounds to nearest */
-#else
-#define	FLT_ROUNDS	(-1)
-#endif
 
 #if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	0

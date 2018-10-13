@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000,2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -34,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 static u_long acpi_root_phys;

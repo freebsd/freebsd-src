@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the symmetric key file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p8 of <code>ntp.keys</code>.
+  <p>This document applies to version 4.2.8p12 of <code>ntp.keys</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -86,7 +86,7 @@ statement in the configuration file.
 While key number 0 is fixed by the NTP standard
 (as 56 zero bits)
 and may not be changed,
-one or more keys numbered between 1 and 65534
+one or more keys numbered between 1 and 65535
 may be arbitrarily set in the keys file.
 
   <p>The key file uses the same comment conventions
@@ -97,19 +97,27 @@ Key entries use a fixed format of the form
 </pre>
   <p>where
 <kbd>keyno</kbd>
-is a positive integer (between 1 and 65534),
+is a positive integer (between 1 and 65535),
 <kbd>type</kbd>
 is the message digest algorithm,
-and
 <kbd>key</kbd>
 is the key itself, and
 <kbd>opt_IP_list</kbd>
 is an optional comma-separated list of IPs
+where the
+<kbd>keyno</kbd>
+should be trusted. 
 that are allowed to serve time. 
+Each IP in
+<kbd>opt_IP_list</kbd>
+may contain an optional
+<code>/subnetbits</code>
+specification which identifies the number of bits for
+the desired subnet of trust. 
 If
 <kbd>opt_IP_list</kbd>
 is empty,
-any properly-authenticated server message will be
+any properly-authenticated message will be
 accepted.
 
   <p>The

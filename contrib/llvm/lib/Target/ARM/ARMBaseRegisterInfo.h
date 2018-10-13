@@ -15,24 +15,35 @@
 #define LLVM_LIB_TARGET_ARM_ARMBASEREGISTERINFO_H
 
 #include "MCTargetDesc/ARMBaseInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include <cstdint>
 
 #define GET_REGINFO_HEADER
 #include "ARMGenRegisterInfo.inc"
 
 namespace llvm {
+
+class LiveIntervals;
+
 /// Register allocation hints.
 namespace ARMRI {
+
   enum {
     RegPairOdd  = 1,
     RegPairEven = 2
   };
-}
+
+} // end namespace ARMRI
 
 /// isARMArea1Register - Returns true if the register is a low register (r0-r7)
 /// or a stack/pc register that we should push/pop.
 static inline bool isARMArea1Register(unsigned Reg, bool isIOS) {
   using namespace ARM;
+
   switch (Reg) {
     case R0:  case R1:  case R2:  case R3:
     case R4:  case R5:  case R6:  case R7:
@@ -48,6 +59,7 @@ static inline bool isARMArea1Register(unsigned Reg, bool isIOS) {
 
 static inline bool isARMArea2Register(unsigned Reg, bool isIOS) {
   using namespace ARM;
+
   switch (Reg) {
     case R8: case R9: case R10: case R11: case R12:
       // iOS has this second area.
@@ -59,6 +71,7 @@ static inline bool isARMArea2Register(unsigned Reg, bool isIOS) {
 
 static inline bool isARMArea3Register(unsigned Reg, bool isIOS) {
   using namespace ARM;
+
   switch (Reg) {
     case D15: case D14: case D13: case D12:
     case D11: case D10: case D9:  case D8:
@@ -87,7 +100,7 @@ protected:
   /// BasePtr - ARM physical register used as a base ptr in complex stack
   /// frames. I.e., when we need a 3rd base, not just SP and FP, due to
   /// variable size stack objects.
-  unsigned BasePtr;
+  unsigned BasePtr = ARM::R6;
 
   // Can be only subclassed.
   explicit ARMBaseRegisterInfo();
@@ -99,11 +112,12 @@ public:
   /// Code Generation virtual methods...
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
   const MCPhysReg *
-  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const override;
+  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
   const uint32_t *getNoPreservedMask() const override;
   const uint32_t *getTLSCallPreservedMask(const MachineFunction &MF) const;
+  const uint32_t *getSjLjDispatchPreservedMask(const MachineFunction &MF) const;
 
   /// getThisReturnPreservedMask - Returns a call preserved mask specific to the
   /// case that 'returned' is on an i32 first argument if the calling convention
@@ -131,7 +145,7 @@ public:
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
 
-  void getRegAllocationHints(unsigned VirtReg,
+  bool getRegAllocationHints(unsigned VirtReg,
                              ArrayRef<MCPhysReg> Order,
                              SmallVectorImpl<MCPhysReg> &Hints,
                              const MachineFunction &MF,
@@ -166,12 +180,12 @@ public:
 
   /// emitLoadConstPool - Emits a load from constpool to materialize the
   /// specified immediate.
-  virtual void emitLoadConstPool(MachineBasicBlock &MBB,
-                                 MachineBasicBlock::iterator &MBBI,
-                                 DebugLoc dl, unsigned DestReg, unsigned SubIdx,
-                                 int Val, ARMCC::CondCodes Pred = ARMCC::AL,
-                                 unsigned PredReg = 0,
-                                 unsigned MIFlags = MachineInstr::NoFlags)const;
+  virtual void
+  emitLoadConstPool(MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI,
+                    const DebugLoc &dl, unsigned DestReg, unsigned SubIdx,
+                    int Val, ARMCC::CondCodes Pred = ARMCC::AL,
+                    unsigned PredReg = 0,
+                    unsigned MIFlags = MachineInstr::NoFlags) const;
 
   /// Code Generation virtual methods...
   bool requiresRegisterScavenging(const MachineFunction &MF) const override;
@@ -192,9 +206,10 @@ public:
                       unsigned SubReg,
                       const TargetRegisterClass *DstRC,
                       unsigned DstSubReg,
-                      const TargetRegisterClass *NewRC) const override;
+                      const TargetRegisterClass *NewRC,
+                      LiveIntervals &LIS) const override;
 };
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_ARM_ARMBASEREGISTERINFO_H

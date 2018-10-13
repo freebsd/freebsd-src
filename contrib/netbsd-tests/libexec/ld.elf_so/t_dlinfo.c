@@ -1,4 +1,4 @@
-/*	$NetBSD: t_dlinfo.c,v 1.4 2011/03/25 14:47:31 pooka Exp $	*/
+/*	$NetBSD: t_dlinfo.c,v 1.5 2017/01/13 21:30:42 christos Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #include <dlfcn.h>
 #include <link_elf.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(rtld_dlinfo_linkmap_self);
 ATF_TC_HEAD(rtld_dlinfo_linkmap_self, tc)

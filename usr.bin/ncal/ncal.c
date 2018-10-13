@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Wolfgang Helbig
  * All rights reserved.
  *
@@ -76,7 +78,7 @@ static struct djswitch {
 	{"AT", "Austria",       {1583, 10,  5}},
 	{"AU", "Australia",     {1752,  9,  2}},
 	{"BE", "Belgium",       {1582, 12, 14}},
-	{"BG", "Bulgaria",      {1916,  3, 18}},
+	{"BG", "Bulgaria",      {1916,  3, 31}},
 	{"CA", "Canada",        {1752,  9,  2}},
 	{"CH", "Switzerland",   {1655,  2, 28}},
 	{"CN", "China",         {1911, 12, 18}},
@@ -1110,7 +1112,8 @@ highlight(char *dst, char *src, int len, int *extralen)
 	static const char *term_so, *term_se;
 
 	if (first) {
-		char tbuf[1024], cbuf[512], *b;
+		static char cbuf[512];
+		char tbuf[1024], *b;
 
 		term_se = term_so = NULL;
 

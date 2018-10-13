@@ -1,4 +1,5 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
@@ -1309,7 +1310,7 @@ static s32 e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 			 * turn it on. For compatibility with a TBI link
 			 * partner, we will store bad packets. Some
 			 * frames have an additional byte on the end and
-			 * will look like CRC errors to to the hardware.
+			 * will look like CRC errors to the hardware.
 			 */
 			if (!e1000_tbi_sbp_enabled_82543(hw)) {
 				e1000_set_tbi_sbp_82543(hw, TRUE);

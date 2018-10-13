@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2000 Christoph Herrmann, Thomas-Henning von Kamptz
  * Copyright (c) 1980, 1989, 1993 The Regents of the University of California.
  * All rights reserved.
@@ -377,7 +379,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 	/*
 	 * Ok, now prepare for dumping all direct and indirect pointers.
 	 */
-	rb=howmany(ino->di_size, sblock.fs_bsize)-NDADDR;
+	rb = howmany(ino->di_size, sblock.fs_bsize) - UFS_NDADDR;
 	if(rb>0) {
 		/*
 		 * Dump single indirect block.
@@ -529,7 +531,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 	/*
 	 * Ok, now prepare for dumping all direct and indirect pointers.
 	 */
-	rb = howmany(ino->di_size, sblock.fs_bsize) - NDADDR;
+	rb = howmany(ino->di_size, sblock.fs_bsize) - UFS_NDADDR;
 	if (rb > 0) {
 		/*
 		 * Dump single indirect block.

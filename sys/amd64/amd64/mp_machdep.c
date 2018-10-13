@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, by Steve Passe
  * Copyright (c) 2003, by Peter Wemm
  * All rights reserved.
@@ -69,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
+#include <x86/ucode.h>
 #include <machine/cpu.h>
 #include <x86/init.h>
 
@@ -81,13 +84,17 @@ __FBSDID("$FreeBSD$");
 #define BIOS_RESET		(0x0f)
 #define BIOS_WARM		(0x0a)
 
+#define GiB(v)			(v ## ULL << 30)
+
+#define	AP_BOOTPT_SZ		(PAGE_SIZE * 3)
+
 extern	struct pcpu __pcpu[];
 
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
+char *mce_stack;
 char *nmi_stack;
-
-extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
+char *dbg_stack;
 
 /*
  * Local data and functions.
@@ -95,24 +102,84 @@ extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 static int	start_ap(int apic_id);
 
-static u_int	bootMP_size;
-static u_int	boot_address;
+static bool
+is_kernel_paddr(vm_paddr_t pa)
+{
+
+	return (pa >= trunc_2mpage(btext - KERNBASE) &&
+	   pa < round_page(_end - KERNBASE));
+}
+
+static bool
+is_mpboot_good(vm_paddr_t start, vm_paddr_t end)
+{
+
+	return (start + AP_BOOTPT_SZ <= GiB(4) && atop(end) < Maxmem);
+}
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
  */
-u_int
-mp_bootaddress(u_int basemem)
+void
+mp_bootaddress(vm_paddr_t *physmap, unsigned int *physmap_idx)
 {
+	vm_paddr_t start, end;
+	unsigned int i;
+	bool allocated;
 
-	bootMP_size = mptramp_end - mptramp_start;
-	boot_address = trunc_page(basemem * 1024); /* round down to 4k boundary */
-	if (((basemem * 1024) - boot_address) < bootMP_size)
-		boot_address -= PAGE_SIZE;	/* not enough, lower by 4k */
-	/* 3 levels of page table pages */
-	mptramp_pagetables = boot_address - (PAGE_SIZE * 3);
+	alloc_ap_trampoline(physmap, physmap_idx);
 
-	return mptramp_pagetables;
+	/*
+	 * Find a memory region big enough below the 4GB boundary to
+	 * store the initial page tables.  Region must be mapped by
+	 * the direct map.
+	 *
+	 * Note that it needs to be aligned to a page boundary.
+	 */
+	allocated = false;
+	for (i = *physmap_idx; i <= *physmap_idx; i -= 2) {
+		/*
+		 * First, try to chomp at the start of the physmap region.
+		 * Kernel binary might claim it already.
+		 */
+		start = round_page(physmap[i]);
+		end = start + AP_BOOTPT_SZ;
+		if (start < end && end <= physmap[i + 1] &&
+		    is_mpboot_good(start, end) &&
+		    !is_kernel_paddr(start) && !is_kernel_paddr(end - 1)) {
+			allocated = true;
+			physmap[i] = end;
+			break;
+		}
+
+		/*
+		 * Second, try to chomp at the end.  Again, check
+		 * against kernel.
+		 */
+		end = trunc_page(physmap[i + 1]);
+		start = end - AP_BOOTPT_SZ;
+		if (start < end && start >= physmap[i] &&
+		    is_mpboot_good(start, end) &&
+		    !is_kernel_paddr(start) && !is_kernel_paddr(end - 1)) {
+			allocated = true;
+			physmap[i + 1] = start;
+			break;
+		}
+	}
+	if (allocated) {
+		mptramp_pagetables = start;
+		if (physmap[i] == physmap[i + 1] && *physmap_idx != 0) {
+			memmove(&physmap[i], &physmap[i + 2],
+			    sizeof(*physmap) * (*physmap_idx - i + 2));
+			*physmap_idx -= 2;
+		}
+	} else {
+		mptramp_pagetables = trunc_page(boot_address) - AP_BOOTPT_SZ;
+		if (bootverbose)
+			printf(
+"Cannot find enough space for the initial AP page tables, placing them at %#x",
+			    mptramp_pagetables);
+	}
 }
 
 /*
@@ -132,33 +199,50 @@ cpu_mp_start(void)
 	/* Install an inter-CPU IPI for TLB invalidation */
 	if (pmap_pcid_enabled) {
 		if (invpcid_works) {
-			setidt(IPI_INVLTLB, IDTVEC(invltlb_invpcid),
-			    SDT_SYSIGT, SEL_KPL, 0);
-		} else {
-			setidt(IPI_INVLTLB, IDTVEC(invltlb_pcid), SDT_SYSIGT,
+			setidt(IPI_INVLTLB, pti ?
+			    IDTVEC(invltlb_invpcid_pti_pti) :
+			    IDTVEC(invltlb_invpcid_nopti), SDT_SYSIGT,
 			    SEL_KPL, 0);
+			setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_invpcid_pti) :
+			    IDTVEC(invlpg_invpcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_invpcid_pti) :
+			    IDTVEC(invlrng_invpcid), SDT_SYSIGT, SEL_KPL, 0);
+		} else {
+			setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_pcid_pti) :
+			    IDTVEC(invltlb_pcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_pcid_pti) :
+			    IDTVEC(invlpg_pcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_pcid_pti) :
+			    IDTVEC(invlrng_pcid), SDT_SYSIGT, SEL_KPL, 0);
 		}
 	} else {
-		setidt(IPI_INVLTLB, IDTVEC(invltlb), SDT_SYSIGT, SEL_KPL, 0);
+		setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_pti) : IDTVEC(invltlb),
+		    SDT_SYSIGT, SEL_KPL, 0);
+		setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_pti) : IDTVEC(invlpg),
+		    SDT_SYSIGT, SEL_KPL, 0);
+		setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_pti) : IDTVEC(invlrng),
+		    SDT_SYSIGT, SEL_KPL, 0);
 	}
-	setidt(IPI_INVLPG, IDTVEC(invlpg), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IPI_INVLRNG, IDTVEC(invlrng), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for cache invalidation. */
-	setidt(IPI_INVLCACHE, IDTVEC(invlcache), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_INVLCACHE, pti ? IDTVEC(invlcache_pti) : IDTVEC(invlcache),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
-	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_RENDEZVOUS, pti ? IDTVEC(rendezvous_pti) :
+	    IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install generic inter-CPU IPI handler */
-	setidt(IPI_BITMAP_VECTOR, IDTVEC(ipi_intr_bitmap_handler),
-	       SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_BITMAP_VECTOR, pti ? IDTVEC(ipi_intr_bitmap_handler_pti) :
+	    IDTVEC(ipi_intr_bitmap_handler), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for CPU stop/restart */
-	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_STOP, pti ? IDTVEC(cpustop_pti) : IDTVEC(cpustop),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for CPU suspend/resume */
-	setidt(IPI_SUSPEND, IDTVEC(cpususpend), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_SUSPEND, pti ? IDTVEC(cpususpend_pti) : IDTVEC(cpususpend),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
@@ -188,16 +272,18 @@ init_secondary(void)
 {
 	struct pcpu *pc;
 	struct nmi_pcpu *np;
-	u_int64_t msr, cr0;
+	u_int64_t cr0;
 	int cpu, gsel_tss, x;
 	struct region_descriptor ap_gdt;
 
 	/* Set by the startup code for us to use */
 	cpu = bootAP;
 
+	/* Update microcode before doing anything else. */
+	ucode_load_ap(cpu);
+
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
-	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
 	    IOPERM_BITMAP_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
@@ -205,6 +291,14 @@ init_secondary(void)
 	/* The NMI stack runs on IST2. */
 	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
 	common_tss[cpu].tss_ist2 = (long) np;
+
+	/* The MC# stack runs on IST3. */
+	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
+	common_tss[cpu].tss_ist3 = (long) np;
+
+	/* The DB# stack runs on IST4. */
+	np = ((struct nmi_pcpu *) &dbg_stack[PAGE_SIZE]) - 1;
+	common_tss[cpu].tss_ist4 = (long) np;
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
@@ -231,17 +325,29 @@ init_secondary(void)
 	pc->pc_tssp = &common_tss[cpu];
 	pc->pc_commontssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
+	pc->pc_pti_rsp0 = (((vm_offset_t)&pc->pc_pti_stack +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
 	pc->pc_tss = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GPROC0_SEL];
 	pc->pc_fs32p = &gdt[NGDT * cpu + GUFS32_SEL];
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GUSERLDT_SEL];
-	pc->pc_curpmap = kernel_pmap;
+	/* See comment in pmap_bootstrap(). */
+	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
-	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
+	common_tss[cpu].tss_rsp0 = 0;
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
+	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t) pc;
+
+	/* Save the per-cpu pointer for use by the MC# handler. */
+	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t) pc;
+
+	/* Save the per-cpu pointer for use by the DB# handler. */
+	np = ((struct nmi_pcpu *) &dbg_stack[PAGE_SIZE]) - 1;
 	np->np_pcpu = (register_t) pc;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
@@ -263,15 +369,7 @@ init_secondary(void)
 	cr0 &= ~(CR0_CD | CR0_NW | CR0_EM);
 	load_cr0(cr0);
 
-	/* Set up the fast syscall stuff */
-	msr = rdmsr(MSR_EFER) | EFER_SCE;
-	wrmsr(MSR_EFER, msr);
-	wrmsr(MSR_LSTAR, (u_int64_t)IDTVEC(fast_syscall));
-	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
-	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
-	      ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
-	wrmsr(MSR_STAR, msr);
-	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
+	amd64_conf_fast_syscall();
 
 	/* signal our startup to the BSP. */
 	mp_naps++;
@@ -293,7 +391,6 @@ init_secondary(void)
 int
 native_start_all_aps(void)
 {
-	vm_offset_t va = boot_address + KERNBASE;
 	u_int64_t *pt4, *pt3, *pt2;
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
@@ -301,13 +398,11 @@ native_start_all_aps(void)
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	/* install the AP 1st level boot code */
-	pmap_kenter(va, boot_address);
-	pmap_invalidate_page(kernel_pmap, va);
-	bcopy(mptramp_start, (void *)va, bootMP_size);
+	/* copy the AP 1st level boot code */
+	bcopy(mptramp_start, (void *)PHYS_TO_DMAP(boot_address), bootMP_size);
 
 	/* Locate the page tables, they'll be below the trampoline */
-	pt4 = (u_int64_t *)(uintptr_t)(mptramp_pagetables + KERNBASE);
+	pt4 = (uint64_t *)PHYS_TO_DMAP(mptramp_pagetables);
 	pt3 = pt4 + (PAGE_SIZE) / sizeof(u_int64_t);
 	pt2 = pt3 + (PAGE_SIZE) / sizeof(u_int64_t);
 
@@ -342,14 +437,14 @@ native_start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
-		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc(kernel_arena,
-		    PAGE_SIZE, M_WAITOK | M_ZERO);
-		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
+		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-		    M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK |
+		    M_ZERO);
+		mce_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		nmi_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		dbg_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 		bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 		bootAP = cpu;
@@ -409,6 +504,7 @@ void
 invltlb_invpcid_handler(void)
 {
 	struct invpcid_descr d;
+	uint32_t generation;
 
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
@@ -417,17 +513,21 @@ invltlb_invpcid_handler(void)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	generation = smp_tlb_generation;
 	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
 	d.pad = 0;
 	d.addr = 0;
 	invpcid(&d, smp_tlb_pmap == kernel_pmap ? INVPCID_CTXGLOB :
 	    INVPCID_CTX);
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 void
-invltlb_pcid_handler(void)
+invltlb_invpcid_pti_handler(void)
 {
+	struct invpcid_descr d;
+	uint32_t generation;
+
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -435,6 +535,40 @@ invltlb_pcid_handler(void)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	generation = smp_tlb_generation;
+	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pad = 0;
+	d.addr = 0;
+	if (smp_tlb_pmap == kernel_pmap) {
+		/*
+		 * This invalidation actually needs to clear kernel
+		 * mappings from the TLB in the current pmap, but
+		 * since we were asked for the flush in the kernel
+		 * pmap, achieve it by performing global flush.
+		 */
+		invpcid(&d, INVPCID_CTXGLOB);
+	} else {
+		invpcid(&d, INVPCID_CTX);
+		d.pcid |= PMAP_PCID_USER_PT;
+		invpcid(&d, INVPCID_CTX);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invltlb_pcid_handler(void)
+{
+	uint64_t kcr3, ucr3;
+	uint32_t generation, pcid;
+  
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	generation = smp_tlb_generation;	/* Overlap with serialization */
 	if (smp_tlb_pmap == kernel_pmap) {
 		invltlb_glob();
 	} else {
@@ -446,9 +580,132 @@ invltlb_pcid_handler(void)
 		 * CPU.
 		 */
 		if (PCPU_GET(curpmap) == smp_tlb_pmap) {
-			load_cr3(smp_tlb_pmap->pm_cr3 |
-			    smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid);
+			pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+			kcr3 = smp_tlb_pmap->pm_cr3 | pcid;
+			ucr3 = smp_tlb_pmap->pm_ucr3;
+			if (ucr3 != PMAP_NO_CR3) {
+				ucr3 |= PMAP_PCID_USER_PT | pcid;
+				pmap_pti_pcid_invalidate(ucr3, kcr3);
+			} else
+				load_cr3(kcr3);
 		}
 	}
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlpg_invpcid_handler(void)
+{
+	struct invpcid_descr d;
+	uint32_t generation;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	invlpg(smp_tlb_addr1);
+	if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3) {
+		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
+		    PMAP_PCID_USER_PT;
+		d.pad = 0;
+		d.addr = smp_tlb_addr1;
+		invpcid(&d, INVPCID_ADDR);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlpg_pcid_handler(void)
+{
+	uint64_t kcr3, ucr3;
+	uint32_t generation;
+	uint32_t pcid;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	invlpg(smp_tlb_addr1);
+	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3) {
+		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+		pmap_pti_pcid_invlpg(ucr3, kcr3, smp_tlb_addr1);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlrng_invpcid_handler(void)
+{
+	struct invpcid_descr d;
+	vm_offset_t addr, addr2;
+	uint32_t generation;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	addr2 = smp_tlb_addr2;
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < addr2);
+	if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3) {
+		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
+		    PMAP_PCID_USER_PT;
+		d.pad = 0;
+		d.addr = smp_tlb_addr1;
+		do {
+			invpcid(&d, INVPCID_ADDR);
+			d.addr += PAGE_SIZE;
+		} while (d.addr < addr2);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlrng_pcid_handler(void)
+{
+	vm_offset_t addr, addr2;
+	uint64_t kcr3, ucr3;
+	uint32_t generation;
+	uint32_t pcid;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	addr2 = smp_tlb_addr2;
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < addr2);
+	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3) {
+		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+		pmap_pti_pcid_invlrng(ucr3, kcr3, smp_tlb_addr1, addr2);
+	}
+	PCPU_SET(smp_tlb_done, generation);
 }

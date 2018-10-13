@@ -28,7 +28,9 @@
 /* $FreeBSD$ */
 
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -43,11 +45,26 @@
 
 #define NBBY 8
 
-void
+int
 pager_output(const char *line)
 {
 
 	fprintf(stderr, "%s", line);
+	return (0);
+}
+
+uint64_t
+ldi_get_size(void *priv)
+{
+	struct stat sb;
+	int fd;
+
+	fd = *(int *)priv;
+	if (fstat(fd, &sb) != 0)
+		return (0);
+	if (S_ISCHR(sb.st_mode) && ioctl(fd, DIOCGMEDIASIZE, &sb.st_size) != 0)
+		return (0);
+	return (sb.st_size);
 }
 
 #define ZFS_TEST
@@ -107,7 +124,7 @@ main(int argc, char** argv)
 			"/dev/gpt/system0",
 			"/dev/gpt/system1",
 			"-",
-			"/boot/zfsloader",
+			"/boot/loader",
 			"/boot/support.4th",
 			"/boot/kernel/kernel",
 			NULL,

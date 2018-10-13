@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -60,7 +62,7 @@ breakpoint(void)
 	__asm __volatile("int $3");
 }
 
-static __inline u_int
+static __inline __pure2 u_int
 bsfl(u_int mask)
 {
 	u_int	result;
@@ -69,7 +71,7 @@ bsfl(u_int mask)
 	return (result);
 }
 
-static __inline u_int
+static __inline __pure2 u_int
 bsrl(u_int mask)
 {
 	u_int	result;
@@ -158,11 +160,18 @@ mfence(void)
 	__asm __volatile("mfence" : : : "memory");
 }
 
+static __inline void
+sfence(void)
+{
+
+	__asm __volatile("sfence" : : : "memory");
+}
+
 #ifdef _KERNEL
 
 #define	HAVE_INLINE_FFS
 
-static __inline int
+static __inline __pure2 int
 ffs(int mask)
 {
 	/*
@@ -176,7 +185,7 @@ ffs(int mask)
 
 #define	HAVE_INLINE_FFSL
 
-static __inline int
+static __inline __pure2 int
 ffsl(long mask)
 {
 	return (ffs((int)mask));
@@ -184,7 +193,7 @@ ffsl(long mask)
 
 #define	HAVE_INLINE_FLS
 
-static __inline int
+static __inline __pure2 int
 fls(int mask)
 {
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
@@ -192,7 +201,7 @@ fls(int mask)
 
 #define	HAVE_INLINE_FLSL
 
-static __inline int
+static __inline __pure2 int
 flsl(long mask)
 {
 	return (fls((int)mask));
@@ -356,6 +365,15 @@ rdtsc(void)
 	uint64_t rv;
 
 	__asm __volatile("rdtsc" : "=A" (rv));
+	return (rv);
+}
+
+static __inline uint64_t
+rdtscp(void)
+{
+	uint64_t rv;
+
+	__asm __volatile("rdtscp" : "=A" (rv) : : "ecx");
 	return (rv);
 }
 
@@ -625,34 +643,6 @@ load_dr3(u_int dr3)
 }
 
 static __inline u_int
-rdr4(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr4,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr4(u_int dr4)
-{
-	__asm __volatile("movl %0,%%dr4" : : "r" (dr4));
-}
-
-static __inline u_int
-rdr5(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr5,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr5(u_int dr5)
-{
-	__asm __volatile("movl %0,%%dr5" : : "r" (dr5));
-}
-
-static __inline u_int
 rdr6(void)
 {
 	u_int	data;
@@ -743,8 +733,6 @@ void	load_dr0(u_int dr0);
 void	load_dr1(u_int dr1);
 void	load_dr2(u_int dr2);
 void	load_dr3(u_int dr3);
-void	load_dr4(u_int dr4);
-void	load_dr5(u_int dr5);
 void	load_dr6(u_int dr6);
 void	load_dr7(u_int dr7);
 void	load_fs(u_short sel);
@@ -766,8 +754,6 @@ u_int	rdr0(void);
 u_int	rdr1(void);
 u_int	rdr2(void);
 u_int	rdr3(void);
-u_int	rdr4(void);
-u_int	rdr5(void);
 u_int	rdr6(void);
 u_int	rdr7(void);
 uint64_t rdtsc(void);

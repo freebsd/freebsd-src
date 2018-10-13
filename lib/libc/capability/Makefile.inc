@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 # capability sources
-.PATH: ${LIBC_SRCTOP}/../../sys/kern ${LIBC_SRCTOP}/capability
+.PATH: ${SRCTOP}/sys/kern ${LIBC_SRCTOP}/capability
 
 SRCS+=	subr_capability.c
 

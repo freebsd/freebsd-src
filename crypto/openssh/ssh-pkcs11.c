@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.22 2016/02/12 00:20:30 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.26 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -30,6 +30,7 @@
 #include <dlfcn.h>
 
 #include "openbsd-compat/sys-queue.h"
+#include "openbsd-compat/openssl-compat.h"
 
 #include <openssl/x509.h>
 
@@ -67,7 +68,7 @@ struct pkcs11_key {
 	struct pkcs11_provider	*provider;
 	CK_ULONG		slotidx;
 	int			(*orig_finish)(RSA *rsa);
-	RSA_METHOD		rsa_method;
+	RSA_METHOD		*rsa_method;
 	char			*keyid;
 	int			keyid_len;
 };
@@ -182,6 +183,7 @@ pkcs11_rsa_finish(RSA *rsa)
 			rv = k11->orig_finish(rsa);
 		if (k11->provider)
 			pkcs11_provider_unref(k11->provider);
+		RSA_meth_free(k11->rsa_method);
 		free(k11->keyid);
 		free(k11);
 	}
@@ -326,13 +328,18 @@ pkcs11_rsa_wrap(struct pkcs11_provider *provider, CK_ULONG slotidx,
 		k11->keyid = xmalloc(k11->keyid_len);
 		memcpy(k11->keyid, keyid_attrib->pValue, k11->keyid_len);
 	}
-	k11->orig_finish = def->finish;
-	memcpy(&k11->rsa_method, def, sizeof(k11->rsa_method));
-	k11->rsa_method.name = "pkcs11";
-	k11->rsa_method.rsa_priv_enc = pkcs11_rsa_private_encrypt;
-	k11->rsa_method.rsa_priv_dec = pkcs11_rsa_private_decrypt;
-	k11->rsa_method.finish = pkcs11_rsa_finish;
-	RSA_set_method(rsa, &k11->rsa_method);
+	k11->rsa_method = RSA_meth_dup(def);
+	if (k11->rsa_method == NULL)
+		fatal("%s: RSA_meth_dup failed", __func__);
+	k11->orig_finish = RSA_meth_get_finish(def);
+	if (!RSA_meth_set1_name(k11->rsa_method, "pkcs11") ||
+	    !RSA_meth_set_priv_enc(k11->rsa_method,
+	    pkcs11_rsa_private_encrypt) ||
+	    !RSA_meth_set_priv_dec(k11->rsa_method,
+	    pkcs11_rsa_private_decrypt) ||
+	    !RSA_meth_set_finish(k11->rsa_method, pkcs11_rsa_finish))
+		fatal("%s: setup pkcs11 method failed", __func__);
+	RSA_set_method(rsa, k11->rsa_method);
 	RSA_set_app_data(rsa, k11);
 	return (0);
 }
@@ -445,6 +452,15 @@ pkcs11_key_included(struct sshkey ***keysp, int *nkeys, struct sshkey *key)
 }
 
 static int
+have_rsa_key(const RSA *rsa)
+{
+	const BIGNUM *rsa_n, *rsa_e;
+
+	RSA_get0_key(rsa, &rsa_n, &rsa_e, NULL);
+	return rsa_n != NULL && rsa_e != NULL;
+}
+
+static int
 pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
     CK_ATTRIBUTE filter[], CK_ATTRIBUTE attribs[3],
     struct sshkey ***keysp, int *nkeys)
@@ -512,10 +528,20 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 			if ((rsa = RSA_new()) == NULL) {
 				error("RSA_new failed");
 			} else {
-				rsa->n = BN_bin2bn(attribs[1].pValue,
+				BIGNUM *rsa_n, *rsa_e;
+
+				rsa_n = BN_bin2bn(attribs[1].pValue,
 				    attribs[1].ulValueLen, NULL);
-				rsa->e = BN_bin2bn(attribs[2].pValue,
+				rsa_e = BN_bin2bn(attribs[2].pValue,
 				    attribs[2].ulValueLen, NULL);
+				if (rsa_n != NULL && rsa_e != NULL) {
+					if (!RSA_set0_key(rsa,
+					    rsa_n, rsa_e, NULL))
+						fatal("%s: set key", __func__);
+					rsa_n = rsa_e = NULL; /* transferred */
+				}
+				BN_free(rsa_n);
+				BN_free(rsa_e);
 			}
 		} else {
 			cp = attribs[2].pValue;
@@ -525,19 +551,19 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 			    == NULL) {
 				error("d2i_X509 failed");
 			} else if ((evp = X509_get_pubkey(x509)) == NULL ||
-			    evp->type != EVP_PKEY_RSA ||
-			    evp->pkey.rsa == NULL) {
+			    EVP_PKEY_base_id(evp) != EVP_PKEY_RSA ||
+			    EVP_PKEY_get0_RSA(evp) == NULL) {
 				debug("X509_get_pubkey failed or no rsa");
-			} else if ((rsa = RSAPublicKey_dup(evp->pkey.rsa))
-			    == NULL) {
+			} else if ((rsa = RSAPublicKey_dup(
+			    EVP_PKEY_get0_RSA(evp))) == NULL) {
 				error("RSAPublicKey_dup");
 			}
-			if (x509)
-				X509_free(x509);
+			X509_free(x509);
 		}
-		if (rsa && rsa->n && rsa->e &&
+		if (rsa && have_rsa_key(rsa) &&
 		    pkcs11_rsa_wrap(p, slotidx, &attribs[0], rsa) == 0) {
-			key = sshkey_new(KEY_UNSPEC);
+			if ((key = sshkey_new(KEY_UNSPEC)) == NULL)
+				fatal("sshkey_new failed");
 			key->rsa = rsa;
 			key->type = KEY_RSA;
 			key->flags |= SSHKEY_FLAG_EXT;
@@ -545,8 +571,8 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 				sshkey_free(key);
 			} else {
 				/* expand key array and add key */
-				*keysp = xreallocarray(*keysp, *nkeys + 1,
-				    sizeof(struct sshkey *));
+				*keysp = xrecallocarray(*keysp, *nkeys,
+				    *nkeys + 1, sizeof(struct sshkey *));
 				(*keysp)[*nkeys] = key;
 				*nkeys = *nkeys + 1;
 				debug("have %d keys", *nkeys);
@@ -577,7 +603,8 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 
 	*keyp = NULL;
 	if (pkcs11_provider_lookup(provider_id) != NULL) {
-		error("provider already registered: %s", provider_id);
+		debug("%s: provider already registered: %s",
+		    __func__, provider_id);
 		goto fail;
 	}
 	/* open shared pkcs11-libarary */
@@ -594,23 +621,27 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 	p->handle = handle;
 	/* setup the pkcs11 callbacks */
 	if ((rv = (*getfunctionlist)(&f)) != CKR_OK) {
-		error("C_GetFunctionList failed: %lu", rv);
+		error("C_GetFunctionList for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	p->function_list = f;
 	if ((rv = f->C_Initialize(NULL)) != CKR_OK) {
-		error("C_Initialize failed: %lu", rv);
+		error("C_Initialize for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	need_finalize = 1;
 	if ((rv = f->C_GetInfo(&p->info)) != CKR_OK) {
-		error("C_GetInfo failed: %lu", rv);
+		error("C_GetInfo for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	rmspace(p->info.manufacturerID, sizeof(p->info.manufacturerID));
 	rmspace(p->info.libraryDescription, sizeof(p->info.libraryDescription));
-	debug("manufacturerID <%s> cryptokiVersion %d.%d"
+	debug("provider %s: manufacturerID <%s> cryptokiVersion %d.%d"
 	    " libraryDescription <%s> libraryVersion %d.%d",
+	    provider_id,
 	    p->info.manufacturerID,
 	    p->info.cryptokiVersion.major,
 	    p->info.cryptokiVersion.minor,
@@ -622,13 +653,15 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		goto fail;
 	}
 	if (p->nslots == 0) {
-		error("no slots");
+		debug("%s: provider %s returned no slots", __func__,
+		    provider_id);
 		goto fail;
 	}
 	p->slotlist = xcalloc(p->nslots, sizeof(CK_SLOT_ID));
 	if ((rv = f->C_GetSlotList(CK_TRUE, p->slotlist, &p->nslots))
 	    != CKR_OK) {
-		error("C_GetSlotList failed: %lu", rv);
+		error("C_GetSlotList for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	p->slotinfo = xcalloc(p->nslots, sizeof(struct pkcs11_slotinfo));
@@ -638,20 +671,23 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		token = &p->slotinfo[i].token;
 		if ((rv = f->C_GetTokenInfo(p->slotlist[i], token))
 		    != CKR_OK) {
-			error("C_GetTokenInfo failed: %lu", rv);
+			error("C_GetTokenInfo for provider %s slot %lu "
+			    "failed: %lu", provider_id, (unsigned long)i, rv);
 			continue;
 		}
 		if ((token->flags & CKF_TOKEN_INITIALIZED) == 0) {
-			debug2("%s: ignoring uninitialised token in slot %lu",
-			    __func__, (unsigned long)i);
+			debug2("%s: ignoring uninitialised token in "
+			    "provider %s slot %lu", __func__,
+			    provider_id, (unsigned long)i);
 			continue;
 		}
 		rmspace(token->label, sizeof(token->label));
 		rmspace(token->manufacturerID, sizeof(token->manufacturerID));
 		rmspace(token->model, sizeof(token->model));
 		rmspace(token->serialNumber, sizeof(token->serialNumber));
-		debug("label <%s> manufacturerID <%s> model <%s> serial <%s>"
-		    " flags 0x%lx",
+		debug("provider %s slot %lu: label <%s> manufacturerID <%s> "
+		    "model <%s> serial <%s> flags 0x%lx",
+		    provider_id, (unsigned long)i,
 		    token->label, token->manufacturerID, token->model,
 		    token->serialNumber, token->flags);
 		/* open session, login with pin and retrieve public keys */
@@ -663,11 +699,12 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		p->refcount++;	/* add to provider list */
 		return (nkeys);
 	}
-	error("no keys");
+	debug("%s: provider %s returned no keys", __func__, provider_id);
 	/* don't add the provider, since it does not have any keys */
 fail:
 	if (need_finalize && (rv = f->C_Finalize(NULL)) != CKR_OK)
-		error("C_Finalize failed: %lu", rv);
+		error("C_Finalize for provider %s failed: %lu",
+		    provider_id, rv);
 	if (p) {
 		free(p->slotlist);
 		free(p->slotinfo);

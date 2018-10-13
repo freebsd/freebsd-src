@@ -32,8 +32,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <sys/bus.h>
 #include <sys/libkern.h>
+#include <sys/reboot.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -60,7 +62,9 @@ get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 		res = OF_getprop(node, "device_type", type, sizeof(type));
 		if (res != -1) {
 			type[sizeof(type) - 1] = '\0';
-			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
+			if (strcmp(type, "pci") == 0 ||
+			    strcmp(type, "pciex")== 0)
+				pci = 1;
 		}
 	}
 	if (addrp != NULL)
@@ -169,7 +173,7 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 	}
 
 	KASSERT(addr <= BUS_SPACE_MAXADDR,
-	    ("Bus sddress is too large: %jx", (uintmax_t)addr));
+	    ("Bus address is too large: %jx", (uintmax_t)addr));
 	KASSERT(size <= BUS_SPACE_MAXSIZE,
 	    ("Bus size is too large: %jx", (uintmax_t)size));
 
@@ -179,4 +183,27 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 		*ppci_hi = pci_hi;
 
 	return (0);
+}
+
+/*
+ * This is intended to be called early on, right after the OF system is
+ * initialized, so pmap may not be up yet.
+ */
+int
+ofw_parse_bootargs(void)
+{
+	phandle_t chosen;
+	char buf[2048];		/* early stack supposedly big enough */
+	int err;
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		return (chosen);
+
+	if ((err = OF_getprop(chosen, "bootargs", buf, sizeof(buf))) != -1) {
+		boothowto |= boot_parse_cmdline(buf);
+		return (0);
+	}
+
+	return (err);
 }

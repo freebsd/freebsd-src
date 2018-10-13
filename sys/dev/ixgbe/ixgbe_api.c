@@ -1,31 +1,32 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2017, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -51,6 +52,10 @@ static const u32 ixgbe_mvals_X550[IXGBE_MVALS_IDX_LIMIT] = {
 
 static const u32 ixgbe_mvals_X550EM_x[IXGBE_MVALS_IDX_LIMIT] = {
 	IXGBE_MVALS_INIT(_X550EM_x)
+};
+
+static const u32 ixgbe_mvals_X550EM_a[IXGBE_MVALS_IDX_LIMIT] = {
+	IXGBE_MVALS_INIT(_X550EM_a)
 };
 
 /**
@@ -103,13 +108,10 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 		status = ixgbe_init_ops_X550(hw);
 		break;
 	case ixgbe_mac_X550EM_x:
-		status = ixgbe_init_ops_X550EM(hw);
+		status = ixgbe_init_ops_X550EM_x(hw);
 		break;
-	case ixgbe_mac_82599_vf:
-	case ixgbe_mac_X540_vf:
-	case ixgbe_mac_X550_vf:
-	case ixgbe_mac_X550EM_x_vf:
-		status = ixgbe_init_ops_vf(hw);
+	case ixgbe_mac_X550EM_a:
+		status = ixgbe_init_ops_X550EM_a(hw);
 		break;
 	default:
 		status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
@@ -174,15 +176,6 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82599_T3_LOM:
 		hw->mac.type = ixgbe_mac_82599EB;
 		break;
-	case IXGBE_DEV_ID_82599_VF:
-	case IXGBE_DEV_ID_82599_VF_HV:
-		hw->mac.type = ixgbe_mac_82599_vf;
-		break;
-	case IXGBE_DEV_ID_X540_VF:
-	case IXGBE_DEV_ID_X540_VF_HV:
-		hw->mac.type = ixgbe_mac_X540_vf;
-		hw->mvals = ixgbe_mvals_X540;
-		break;
 	case IXGBE_DEV_ID_X540T:
 	case IXGBE_DEV_ID_X540T1:
 	case IXGBE_DEV_ID_X540_BYPASS:
@@ -199,18 +192,23 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
 	case IXGBE_DEV_ID_X550EM_X_1G_T:
 	case IXGBE_DEV_ID_X550EM_X_SFP:
+	case IXGBE_DEV_ID_X550EM_X_XFI:
 		hw->mac.type = ixgbe_mac_X550EM_x;
 		hw->mvals = ixgbe_mvals_X550EM_x;
 		break;
-	case IXGBE_DEV_ID_X550_VF:
-	case IXGBE_DEV_ID_X550_VF_HV:
-		hw->mac.type = ixgbe_mac_X550_vf;
-		hw->mvals = ixgbe_mvals_X550;
-		break;
-	case IXGBE_DEV_ID_X550EM_X_VF:
-	case IXGBE_DEV_ID_X550EM_X_VF_HV:
-		hw->mac.type = ixgbe_mac_X550EM_x_vf;
-		hw->mvals = ixgbe_mvals_X550EM_x;
+	case IXGBE_DEV_ID_X550EM_A_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR_L:
+	case IXGBE_DEV_ID_X550EM_A_SFP_N:
+	case IXGBE_DEV_ID_X550EM_A_SGMII:
+	case IXGBE_DEV_ID_X550EM_A_SGMII_L:
+	case IXGBE_DEV_ID_X550EM_A_1G_T:
+	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
+	case IXGBE_DEV_ID_X550EM_A_10G_T:
+	case IXGBE_DEV_ID_X550EM_A_QSFP:
+	case IXGBE_DEV_ID_X550EM_A_QSFP_N:
+	case IXGBE_DEV_ID_X550EM_A_SFP:
+		hw->mac.type = ixgbe_mac_X550EM_a;
+		hw->mvals = ixgbe_mvals_X550EM_a;
 		break;
 	default:
 		ret_val = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
@@ -523,6 +521,7 @@ s32 ixgbe_get_phy_firmware_version(struct ixgbe_hw *hw, u16 *firmware_version)
  *  ixgbe_read_phy_reg - Read PHY register
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit address of PHY register to read
+ *  @device_type: type of device you want to communicate with
  *  @phy_data: Pointer to read data from PHY register
  *
  *  Reads a value from a specified PHY register
@@ -541,6 +540,7 @@ s32 ixgbe_read_phy_reg(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
  *  ixgbe_write_phy_reg - Write PHY register
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit PHY register to write
+ *  @device_type: type of device you want to communicate with
  *  @phy_data: Data to write to the PHY register
  *
  *  Writes a value to specified PHY register
@@ -584,6 +584,8 @@ s32 ixgbe_setup_internal_phy(struct ixgbe_hw *hw)
 /**
  *  ixgbe_check_phy_link - Determine link and speed status
  *  @hw: pointer to hardware structure
+ *  @speed: link speed
+ *  @link_up: TRUE when link is up
  *
  *  Reads a PHY register to determine if link is up and the current speed for
  *  the PHY.
@@ -599,6 +601,7 @@ s32 ixgbe_check_phy_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  *  ixgbe_setup_phy_link_speed - Set auto advertise
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
+ *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
  *
  *  Sets the auto advertised capabilities
  **/
@@ -624,6 +627,9 @@ s32 ixgbe_set_phy_power(struct ixgbe_hw *hw, bool on)
 /**
  *  ixgbe_check_link - Get link and speed status
  *  @hw: pointer to hardware structure
+ *  @speed: pointer to link speed
+ *  @link_up: TRUE when link is up
+ *  @link_up_wait_to_complete: bool used to wait for link up or not
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
@@ -677,6 +683,7 @@ void ixgbe_flap_tx_laser(struct ixgbe_hw *hw)
  *  ixgbe_setup_link - Set link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
+ *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
  *
  *  Configures link settings.  Restarts the link.
  *  Performs autonegotiation if needed.
@@ -693,6 +700,7 @@ s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  *  ixgbe_setup_mac_link - Set link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
+ *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
  *
  *  Configures link settings.  Restarts the link.
  *  Performs autonegotiation if needed.
@@ -708,6 +716,8 @@ s32 ixgbe_setup_mac_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 /**
  *  ixgbe_get_link_capabilities - Returns link capabilities
  *  @hw: pointer to hardware structure
+ *  @speed: link speed capabilities
+ *  @autoneg: TRUE when autoneg or autotry is enabled
  *
  *  Determines the link capabilities of the current configuration.
  **/
@@ -760,6 +770,7 @@ s32 ixgbe_blink_led_start(struct ixgbe_hw *hw, u32 index)
 /**
  *  ixgbe_blink_led_stop - Stop blinking LEDs
  *  @hw: pointer to hardware structure
+ *  @index: led number to stop
  *
  *  Stop blinking LED based on index.
  **/
@@ -1002,6 +1013,7 @@ s32 ixgbe_update_uc_addr_list(struct ixgbe_hw *hw, u8 *addr_list,
  *  @mc_addr_list: the list of new multicast addresses
  *  @mc_addr_count: number of addresses
  *  @func: iterator function to walk the multicast address list
+ *  @clear: flag, when set clears the table beforehand
  *
  *  The given list replaces any existing list. Clears the MC addrs from receive
  *  address registers and the multicast table. Uses unused receive address
@@ -1057,33 +1069,38 @@ s32 ixgbe_clear_vfta(struct ixgbe_hw *hw)
  *  ixgbe_set_vfta - Set VLAN filter table
  *  @hw: pointer to hardware structure
  *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VFTA
- *  @vlan_on: boolean flag to turn on/off VLAN in VFTA
+ *  @vind: VMDq output index that maps queue to VLAN id in VLVFB
+ *  @vlan_on: boolean flag to turn on/off VLAN
+ *  @vlvf_bypass: boolean flag indicating updating the default pool is okay
  *
  *  Turn on/off specified VLAN in the VLAN filter table.
  **/
-s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
+s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
+		   bool vlvf_bypass)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.set_vfta, (hw, vlan, vind,
-			       vlan_on), IXGBE_NOT_IMPLEMENTED);
+			       vlan_on, vlvf_bypass), IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
  *  ixgbe_set_vlvf - Set VLAN Pool Filter
  *  @hw: pointer to hardware structure
  *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VFVFB
- *  @vlan_on: boolean flag to turn on/off VLAN in VFVF
- *  @vfta_changed: pointer to boolean flag which indicates whether VFTA
- *                 should be changed
+ *  @vind: VMDq output index that maps queue to VLAN id in VLVFB
+ *  @vlan_on: boolean flag to turn on/off VLAN in VLVF
+ *  @vfta_delta: pointer to the difference between the current value of VFTA
+ *		 and the desired value
+ *  @vfta: the desired value of the VFTA
+ *  @vlvf_bypass: boolean flag indicating updating the default pool is okay
  *
  *  Turn on/off specified bit in VLVF table.
  **/
 s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
-		    bool *vfta_changed)
+		   u32 *vfta_delta, u32 vfta, bool vlvf_bypass)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.set_vlvf, (hw, vlan, vind,
-			       vlan_on, vfta_changed), IXGBE_NOT_IMPLEMENTED);
+			       vlan_on, vfta_delta, vfta, vlvf_bypass),
+			       IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
@@ -1117,12 +1134,15 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
  * @min: driver minor number to be sent to firmware
  * @build: driver build number to be sent to firmware
  * @ver: driver version number to be sent to firmware
+ * @len: length of driver_ver string
+ * @driver_ver: driver string
  **/
 s32 ixgbe_set_fw_drv_ver(struct ixgbe_hw *hw, u8 maj, u8 min, u8 build,
-			 u8 ver)
+			 u8 ver, u16 len, char *driver_ver)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.set_fw_drv_ver, (hw, maj, min,
-			       build, ver), IXGBE_NOT_IMPLEMENTED);
+			       build, ver, len, driver_ver),
+			       IXGBE_NOT_IMPLEMENTED);
 }
 
 
@@ -1184,7 +1204,7 @@ s32 ixgbe_setup_eee(struct ixgbe_hw *hw, bool enable_eee)
 /**
  * ixgbe_set_source_address_pruning - Enable/Disable source address pruning
  * @hw: pointer to hardware structure
- * @enbale: enable or disable source address pruning
+ * @enable: enable or disable source address pruning
  * @pool: Rx pool - Rx pool to toggle source address pruning
  **/
 void ixgbe_set_source_address_pruning(struct ixgbe_hw *hw, bool enable,
@@ -1317,6 +1337,69 @@ s32 ixgbe_handle_lasi(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_bypass_rw - Bit bang data into by_pass FW
+ *  @hw: pointer to hardware structure
+ *  @cmd: Command we send to the FW
+ *  @status: The reply from the FW
+ *
+ *  Bit-bangs the cmd to the by_pass FW status points to what is returned.
+ **/
+s32 ixgbe_bypass_rw(struct ixgbe_hw *hw, u32 cmd, u32 *status)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.bypass_rw, (hw, cmd, status),
+				IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ * ixgbe_bypass_valid_rd - Verify valid return from bit-bang.
+ *
+ * If we send a write we can't be sure it took until we can read back
+ * that same register.  It can be a problem as some of the feilds may
+ * for valid reasons change inbetween the time wrote the register and
+ * we read it again to verify.  So this function check everything we
+ * can check and then assumes it worked.
+ *
+ * @u32 in_reg - The register cmd for the bit-bang read.
+ * @u32 out_reg - The register returned from a bit-bang read.
+ **/
+bool ixgbe_bypass_valid_rd(struct ixgbe_hw *hw, u32 in_reg, u32 out_reg)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.bypass_valid_rd,
+			       (in_reg, out_reg), IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_bypass_set - Set a bypass field in the FW CTRL Regiter.
+ *  @hw: pointer to hardware structure
+ *  @cmd: The control word we are setting.
+ *  @event: The event we are setting in the FW.  This also happens to
+ *          be the mask for the event we are setting (handy)
+ *  @action: The action we set the event to in the FW. This is in a
+ *           bit field that happens to be what we want to put in
+ *           the event spot (also handy)
+ *
+ *  Writes to the cmd control the bits in actions.
+ **/
+s32 ixgbe_bypass_set(struct ixgbe_hw *hw, u32 cmd, u32 event, u32 action)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.bypass_set,
+			       (hw, cmd, event, action),
+				IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_bypass_rd_eep - Read the bypass FW eeprom address
+ *  @hw: pointer to hardware structure
+ *  @addr: The bypass eeprom address to read.
+ *  @value: The 8b of data at the address above.
+ **/
+s32 ixgbe_bypass_rd_eep(struct ixgbe_hw *hw, u32 addr, u8 *value)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.bypass_rd_eep,
+			       (hw, addr, value), IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
  *  ixgbe_read_analog_reg8 - Reads 8 bit analog register
  *  @hw: pointer to hardware structure
  *  @reg: analog register to read
@@ -1391,35 +1474,33 @@ s32 ixgbe_read_i2c_byte_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- * ixgbe_read_i2c_combined - Perform I2C read combined operation
+ * ixgbe_read_link - Perform read operation on link device
  * @hw: pointer to the hardware structure
- * @addr: I2C bus address to read from
- * @reg: I2C device register to read from
+ * @addr: bus address to read from
+ * @reg: device register to read from
  * @val: pointer to location to receive read value
  *
  * Returns an error code on error.
  */
-s32 ixgbe_read_i2c_combined(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 *val)
+s32 ixgbe_read_link(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 *val)
 {
-	return ixgbe_call_func(hw, hw->phy.ops.read_i2c_combined, (hw, addr,
+	return ixgbe_call_func(hw, hw->link.ops.read_link, (hw, addr,
 			       reg, val), IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
- * ixgbe_read_i2c_combined_unlocked - Perform I2C read combined operation
+ * ixgbe_read_link_unlocked - Perform read operation on link device
  * @hw: pointer to the hardware structure
- * @addr: I2C bus address to read from
- * @reg: I2C device register to read from
+ * @addr: bus address to read from
+ * @reg: device register to read from
  * @val: pointer to location to receive read value
  *
  * Returns an error code on error.
  **/
-s32 ixgbe_read_i2c_combined_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg,
-				     u16 *val)
+s32 ixgbe_read_link_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 *val)
 {
-	return ixgbe_call_func(hw, hw->phy.ops.read_i2c_combined_unlocked,
-			       (hw, addr, reg, val),
-			       IXGBE_NOT_IMPLEMENTED);
+	return ixgbe_call_func(hw, hw->link.ops.read_link_unlocked,
+			       (hw, addr, reg, val), IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
@@ -1458,33 +1539,32 @@ s32 ixgbe_write_i2c_byte_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- * ixgbe_write_i2c_combined - Perform I2C write combined operation
+ * ixgbe_write_link - Perform write operation on link device
  * @hw: pointer to the hardware structure
- * @addr: I2C bus address to write to
- * @reg: I2C device register to write to
+ * @addr: bus address to write to
+ * @reg: device register to write to
  * @val: value to write
  *
  * Returns an error code on error.
  */
-s32 ixgbe_write_i2c_combined(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 val)
+s32 ixgbe_write_link(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 val)
 {
-	return ixgbe_call_func(hw, hw->phy.ops.write_i2c_combined, (hw, addr,
-			       reg, val), IXGBE_NOT_IMPLEMENTED);
+	return ixgbe_call_func(hw, hw->link.ops.write_link,
+			       (hw, addr, reg, val), IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
- * ixgbe_write_i2c_combined_unlocked - Perform I2C write combined operation
+ * ixgbe_write_link_unlocked - Perform write operation on link device
  * @hw: pointer to the hardware structure
- * @addr: I2C bus address to write to
- * @reg: I2C device register to write to
+ * @addr: bus address to write to
+ * @reg: device register to write to
  * @val: value to write
  *
  * Returns an error code on error.
  **/
-s32 ixgbe_write_i2c_combined_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg,
-				      u16 val)
+s32 ixgbe_write_link_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 val)
 {
-	return ixgbe_call_func(hw, hw->phy.ops.write_i2c_combined_unlocked,
+	return ixgbe_call_func(hw, hw->link.ops.write_link_unlocked,
 			       (hw, addr, reg, val), IXGBE_NOT_IMPLEMENTED);
 }
 
@@ -1525,7 +1605,7 @@ s32 ixgbe_read_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 *eeprom_data)
  *
  *  Determines physical layer capabilities of the current configuration.
  **/
-u32 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw)
+u64 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.get_supported_physical_layer,
 			       (hw), IXGBE_PHYSICAL_LAYER_UNKNOWN);
@@ -1594,6 +1674,21 @@ void ixgbe_release_swfw_semaphore(struct ixgbe_hw *hw, u32 mask)
 {
 	if (hw->mac.ops.release_swfw_sync)
 		hw->mac.ops.release_swfw_sync(hw, mask);
+}
+
+/**
+ *  ixgbe_init_swfw_semaphore - Clean up SWFW semaphore
+ *  @hw: pointer to hardware structure
+ *
+ *  Attempts to acquire the SWFW semaphore through SW_FW_SYNC register.
+ *  Regardless of whether is succeeds or not it then release the semaphore.
+ *  This is function is called to recover from catastrophic failures that
+ *  may have left the semaphore locked.
+ **/
+void ixgbe_init_swfw_semaphore(struct ixgbe_hw *hw)
+{
+	if (hw->mac.ops.init_swfw_sync)
+		hw->mac.ops.init_swfw_sync(hw);
 }
 
 

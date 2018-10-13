@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
+
+#include <arm/broadcom/bcm2835/bcm2836_mp.h>
 
 #ifdef DEBUG
 #define	DPRINTF(fmt, ...) do {			\
@@ -77,7 +80,7 @@ static bus_space_handle_t bs_periph;
 	bus_space_write_4(fdtbus_bs_tag, bs_periph, (addr), (val))
 
 void
-platform_mp_setmaxid(void)
+bcm2836_mp_setmaxid(platform_t plat)
 {
 
 	DPRINTF("platform_mp_setmaxid\n");
@@ -90,7 +93,7 @@ platform_mp_setmaxid(void)
 }
 
 void
-platform_mp_start_ap(void)
+bcm2836_mp_start_ap(platform_t plat)
 {
 	uint32_t val;
 	int i, retry;
@@ -114,7 +117,9 @@ platform_mp_start_ap(void)
 		/* set entry point to mailbox 3 */
 		BSWR4(MBOX3SET_CORE(i),
 		    (uint32_t)pmap_kextract((vm_offset_t)mpentry));
-		wmb();
+		/* Firmware put cores in WFE state, need SEV to wake up. */
+		dsb();
+		sev();
 
 		/* wait for bootup */
 		retry = 1000;
@@ -132,49 +137,10 @@ platform_mp_start_ap(void)
 		} while (1);
 
 		/* dsb and sev */
-		armv7_sev();
+		dsb();
+		sev();
 
 		/* recode AP in CPU map */
 		CPU_SET(i, &all_cpus);
 	}
 }
-
-#ifndef INTRNG
-void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
-{
-	int i;
-
-	dsb();
-	for (i = 0; i < mp_ncpus; i++) {
-		if (CPU_ISSET(i, &cpus))
-			BSWR4(MBOX0SET_CORE(i), 1 << ipi);
-	}
-	wmb();
-}
-
-int
-pic_ipi_read(int i)
-{
-	uint32_t val;
-	int cpu, ipi;
-
-	cpu = PCPU_GET(cpuid);
-	dsb();
-	if (i != -1) {
-		val = BSRD4(MBOX0CLR_CORE(cpu));
-		if (val == 0)
-			return (0);
-		ipi = ffs(val) - 1;
-		BSWR4(MBOX0CLR_CORE(cpu), 1 << ipi);
-		dsb();
-		return (ipi);
-	}
-	return (0x3ff);
-}
-
-void
-pic_ipi_clear(int ipi)
-{
-}
-#endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * Copyright 2011 Alexander Bluhm <bluhm@openbsd.org>
  * All rights reserved.
@@ -39,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/refcount.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -90,8 +91,10 @@ struct pf_fragment {
 	TAILQ_ENTRY(pf_fragment) frag_next;
 	uint32_t	fr_timeout;
 	uint16_t	fr_maxlen;	/* maximum length of single fragment */
+	uint16_t	fr_entries;	/* Total number of pf_fragment entries */
 	TAILQ_HEAD(pf_fragq, pf_frent) fr_queue;
 };
+#define PF_MAX_FRENT_PER_FRAGMENT	64
 
 struct pf_fragment_tag {
 	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
@@ -108,17 +111,17 @@ MTX_SYSINIT(pf_frag_mtx, &pf_frag_mtx, "pf fragments", MTX_DEF);
 
 VNET_DEFINE(uma_zone_t, pf_state_scrub_z);	/* XXX: shared with pfsync */
 
-static VNET_DEFINE(uma_zone_t, pf_frent_z);
+VNET_DEFINE_STATIC(uma_zone_t, pf_frent_z);
 #define	V_pf_frent_z	VNET(pf_frent_z)
-static VNET_DEFINE(uma_zone_t, pf_frag_z);
+VNET_DEFINE_STATIC(uma_zone_t, pf_frag_z);
 #define	V_pf_frag_z	VNET(pf_frag_z)
 
 TAILQ_HEAD(pf_fragqueue, pf_fragment);
 TAILQ_HEAD(pf_cachequeue, pf_fragment);
-static VNET_DEFINE(struct pf_fragqueue,	pf_fragqueue);
+VNET_DEFINE_STATIC(struct pf_fragqueue,	pf_fragqueue);
 #define	V_pf_fragqueue			VNET(pf_fragqueue)
 RB_HEAD(pf_frag_tree, pf_fragment);
-static VNET_DEFINE(struct pf_frag_tree,	pf_frag_tree);
+VNET_DEFINE_STATIC(struct pf_frag_tree,	pf_frag_tree);
 #define	V_pf_frag_tree			VNET(pf_frag_tree)
 static int		 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);
@@ -217,9 +220,16 @@ pf_frag_compare(struct pf_fragment *a, struct pf_fragment *b)
 void
 pf_purge_expired_fragments(void)
 {
+	u_int32_t	expire = time_uptime -
+			    V_pf_default_rule.timeout[PFTM_FRAG];
+
+	pf_purge_fragments(expire);
+}
+
+void
+pf_purge_fragments(uint32_t expire)
+{
 	struct pf_fragment	*frag;
-	u_int32_t		 expire = time_uptime -
-				    V_pf_default_rule.timeout[PFTM_FRAG];
 
 	PF_FRAG_LOCK();
 	while ((frag = TAILQ_LAST(&V_pf_fragqueue, pf_fragqueue)) != NULL) {
@@ -376,6 +386,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		*(struct pf_fragment_cmp *)frag = *key;
 		frag->fr_timeout = time_uptime;
 		frag->fr_maxlen = frent->fe_len;
+		frag->fr_entries = 0;
 		TAILQ_INIT(&frag->fr_queue);
 
 		RB_INSERT(pf_frag_tree, &V_pf_frag_tree, frag);
@@ -386,6 +397,9 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 		return (frag);
 	}
+
+	if (frag->fr_entries >= PF_MAX_FRENT_PER_FRAGMENT)
+		goto bad_fragment;
 
 	KASSERT(!TAILQ_EMPTY(&frag->fr_queue), ("!TAILQ_EMPTY()->fr_queue"));
 
@@ -458,6 +472,8 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		TAILQ_INSERT_HEAD(&frag->fr_queue, frent, fr_next);
 	else
 		TAILQ_INSERT_AFTER(&frag->fr_queue, prev, frent, fr_next);
+
+	frag->fr_entries++;
 
 	return (frag);
 
@@ -761,6 +777,10 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 		proto = hdr->ip6_nxt;
 		hdr->ip6_nxt = IPPROTO_FRAGMENT;
 	}
+
+	/* The MTU must be a multiple of 8 bytes, or we risk doing the
+	 * fragmentation wrong. */
+	maxlen = maxlen & ~7;
 
 	/*
 	 * Maxlen may be less than 8 if there was only a single
@@ -1811,7 +1831,7 @@ pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 		u_int16_t	ov, nv;
 
 		ov = *(u_int16_t *)h;
-		h->ip_tos = tos;
+		h->ip_tos = tos | (h->ip_tos & IPTOS_ECN_MASK);
 		nv = *(u_int16_t *)h;
 
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ov, nv, 0);

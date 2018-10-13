@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_DUMP_OPEN 3PCAP "5 April 2008"
+.TH PCAP_DUMP_OPEN 3PCAP "16 February 2015"
 .SH NAME
 pcap_dump_open, pcap_dump_fopen \- open a file to which to write packets
 .SH SYNOPSIS
@@ -29,6 +29,7 @@ pcap_dump_open, pcap_dump_fopen \- open a file to which to write packets
 .LP
 .ft B
 pcap_dumper_t *pcap_dump_open(pcap_t *p, const char *fname);
+pcap_dumper_t *pcap_dump_open_append(pcap_t *p, const char *fname);
 pcap_dumper_t *pcap_dump_fopen(pcap_t *p, FILE *fp);
 .ft
 .fi
@@ -60,9 +61,19 @@ or returned by an earlier call to
 .BR pcap_open_live() ,
 or
 .BR pcap_open_dead() .
-The link-layer type and snapshot length from
+The time stamp precision, link-layer type, and snapshot length from
 .I p
 are used as the link-layer type and snapshot length of the output file.
+.PP
+.B pcap_dump_open_append()
+is like
+.B pcap_dump_open
+but does not create the file if it does not exist and, if it does
+already exist, and is a pcap file with the same byte order as the host
+opening the file, and has the same time stamp precision, link-layer
+header type, and snapshot length as
+.IR p ,
+it will write new packets at the end of the file.
 .SH RETURN VALUES
 A pointer to a
 .B pcap_dumper_t
@@ -80,6 +91,6 @@ is returned,
 can be used to get the error text.
 .SH SEE ALSO
 pcap(3PCAP), pcap_create(3PCAP), pcap_activate(3PCAP),
-pcap_open_offline(3PCAP), pcap_open_live(3PCAP), pcap_open_dead(3PCAP),
+\%pcap_open_offline(3PCAP), pcap_open_live(3PCAP), pcap_open_dead(3PCAP),
 pcap_dump(3PCAP), pcap_dump_close(3PCAP), pcap_geterr(3PCAP),
-pcap-savefile(@MAN_FILE_FORMATS@)
+\%pcap-savefile(@MAN_FILE_FORMATS@)

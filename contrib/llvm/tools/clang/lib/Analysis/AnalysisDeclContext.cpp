@@ -12,8 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Analysis/AnalysisContext.h"
-#include "BodyFarm.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
@@ -23,6 +22,7 @@
 #include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
+#include "clang/Analysis/BodyFarm.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Analysis/Support/BumpVector.h"
@@ -63,50 +63,48 @@ AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
   cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
 }
 
-AnalysisDeclContextManager::AnalysisDeclContextManager(bool useUnoptimizedCFG,
-                                                       bool addImplicitDtors,
-                                                       bool addInitializers,
-                                                       bool addTemporaryDtors,
-                                                       bool synthesizeBodies,
-                                                       bool addStaticInitBranch,
-                                                       bool addCXXNewAllocator,
-                                                       CodeInjector *injector)
-  : Injector(injector), SynthesizeBodies(synthesizeBodies)
-{
+AnalysisDeclContextManager::AnalysisDeclContextManager(
+    ASTContext &ASTCtx, bool useUnoptimizedCFG, bool addImplicitDtors,
+    bool addInitializers, bool addTemporaryDtors, bool addLifetime,
+    bool addLoopExit, bool synthesizeBodies, bool addStaticInitBranch,
+    bool addCXXNewAllocator, CodeInjector *injector)
+    : Injector(injector), FunctionBodyFarm(ASTCtx, injector),
+      SynthesizeBodies(synthesizeBodies) {
   cfgBuildOptions.PruneTriviallyFalseEdges = !useUnoptimizedCFG;
   cfgBuildOptions.AddImplicitDtors = addImplicitDtors;
   cfgBuildOptions.AddInitializers = addInitializers;
   cfgBuildOptions.AddTemporaryDtors = addTemporaryDtors;
+  cfgBuildOptions.AddLifetime = addLifetime;
+  cfgBuildOptions.AddLoopExit = addLoopExit;
   cfgBuildOptions.AddStaticInitBranches = addStaticInitBranch;
   cfgBuildOptions.AddCXXNewAllocator = addCXXNewAllocator;
 }
 
-void AnalysisDeclContextManager::clear() {
-  llvm::DeleteContainerSeconds(Contexts);
-}
-
-static BodyFarm &getBodyFarm(ASTContext &C, CodeInjector *injector = nullptr) {
-  static BodyFarm *BF = new BodyFarm(C, injector);
-  return *BF;
-}
+void AnalysisDeclContextManager::clear() { Contexts.clear(); }
 
 Stmt *AnalysisDeclContext::getBody(bool &IsAutosynthesized) const {
   IsAutosynthesized = false;
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     Stmt *Body = FD->getBody();
-    if (!Body && Manager && Manager->synthesizeBodies()) {
-      Body = getBodyFarm(getASTContext(), Manager->Injector.get()).getBody(FD);
-      if (Body)
+    if (auto *CoroBody = dyn_cast_or_null<CoroutineBodyStmt>(Body))
+      Body = CoroBody->getBody();
+    if (Manager && Manager->synthesizeBodies()) {
+      Stmt *SynthesizedBody = Manager->getBodyFarm().getBody(FD);
+      if (SynthesizedBody) {
+        Body = SynthesizedBody;
         IsAutosynthesized = true;
+      }
     }
     return Body;
   }
   else if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
     Stmt *Body = MD->getBody();
-    if (!Body && Manager && Manager->synthesizeBodies()) {
-      Body = getBodyFarm(getASTContext(), Manager->Injector.get()).getBody(MD);
-      if (Body)
+    if (Manager && Manager->synthesizeBodies()) {
+      Stmt *SynthesizedBody = Manager->getBodyFarm().getBody(MD);
+      if (SynthesizedBody) {
+        Body = SynthesizedBody;
         IsAutosynthesized = true;
+      }
     }
     return Body;
   } else if (const BlockDecl *BD = dyn_cast<BlockDecl>(D))
@@ -135,6 +133,10 @@ bool AnalysisDeclContext::isBodyAutosynthesizedFromModelFile() const {
   return Tmp && Body->getLocStart().isValid();
 }
 
+/// Returns true if \param VD is an Objective-C implicit 'self' parameter.
+static bool isSelfDecl(const VarDecl *VD) {
+  return isa<ImplicitParamDecl>(VD) && VD->getName() == "self";
+}
 
 const ImplicitParamDecl *AnalysisDeclContext::getSelfDecl() const {
   if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
@@ -143,7 +145,7 @@ const ImplicitParamDecl *AnalysisDeclContext::getSelfDecl() const {
     // See if 'self' was captured by the block.
     for (const auto &I : BD->captures()) {
       const VarDecl *VD = I.getVariable();
-      if (VD->getName() == "self")
+      if (isSelfDecl(VD))
         return dyn_cast<ImplicitParamDecl>(VD);
     }    
   }
@@ -161,7 +163,7 @@ const ImplicitParamDecl *AnalysisDeclContext::getSelfDecl() const {
       continue;
 
     VarDecl *VD = LC.getCapturedVar();
-    if (VD->getName() == "self")
+    if (isSelfDecl(VD))
       return dyn_cast<ImplicitParamDecl>(VD);
   }
 
@@ -297,11 +299,13 @@ AnalysisDeclContext *AnalysisDeclContextManager::getContext(const Decl *D) {
     D = FD;
   }
 
-  AnalysisDeclContext *&AC = Contexts[D];
+  std::unique_ptr<AnalysisDeclContext> &AC = Contexts[D];
   if (!AC)
-    AC = new AnalysisDeclContext(this, D, cfgBuildOptions);
-  return AC;
+    AC = llvm::make_unique<AnalysisDeclContext>(this, D, cfgBuildOptions);
+  return AC.get();
 }
+
+BodyFarm &AnalysisDeclContextManager::getBodyFarm() { return FunctionBodyFarm; }
 
 const StackFrameContext *
 AnalysisDeclContext::getStackFrame(LocationContext const *Parent, const Stmt *S,
@@ -315,6 +319,21 @@ AnalysisDeclContext::getBlockInvocationContext(const LocationContext *parent,
                                                const void *ContextData) {
   return getLocationContextManager().getBlockInvocationContext(this, parent,
                                                                BD, ContextData);
+}
+
+bool AnalysisDeclContext::isInStdNamespace(const Decl *D) {
+  const DeclContext *DC = D->getDeclContext()->getEnclosingNamespaceContext();
+  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(DC);
+  if (!ND)
+    return false;
+
+  while (const DeclContext *Parent = ND->getParent()) {
+    if (!isa<NamespaceDecl>(Parent))
+      break;
+    ND = cast<NamespaceDecl>(Parent);
+  }
+
+  return ND->isStdNamespace();
 }
 
 LocationContextManager & AnalysisDeclContext::getLocationContextManager() {
@@ -579,10 +598,6 @@ AnalysisDeclContext::~AnalysisDeclContext() {
     llvm::DeleteContainerSeconds(*M);
     delete M;
   }
-}
-
-AnalysisDeclContextManager::~AnalysisDeclContextManager() {
-  llvm::DeleteContainerSeconds(Contexts);
 }
 
 LocationContext::~LocationContext() {}

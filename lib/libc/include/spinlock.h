@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -41,21 +43,17 @@
  * Lock structure with room for debugging information.
  */
 struct _spinlock {
-	volatile long	access_lock;
-	volatile long	lock_owner;
-	volatile char	*fname;
-	volatile int	lineno;
+	long	spare1;
+	long	spare2;
+	void	*thr_extra;
+	int	spare3;
 };
 typedef struct _spinlock spinlock_t;
 
 #define	_SPINLOCK_INITIALIZER	{ 0, 0, 0, 0 }
 
 #define _SPINUNLOCK(_lck)	_spinunlock(_lck);
-#ifdef	_LOCK_DEBUG
-#define	_SPINLOCK(_lck)		_spinlock_debug(_lck, __FILE__, __LINE__)
-#else
 #define	_SPINLOCK(_lck)		_spinlock(_lck)
-#endif
 
 /*
  * Thread function prototype definitions:
@@ -64,7 +62,6 @@ __BEGIN_DECLS
 long	_atomic_lock(volatile long *);
 void	_spinlock(spinlock_t *);
 void	_spinunlock(spinlock_t *);
-void	_spinlock_debug(spinlock_t *, char *, int);
 __END_DECLS
 
 #endif /* _SPINLOCK_H_ */

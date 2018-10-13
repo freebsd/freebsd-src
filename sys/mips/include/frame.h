@@ -1,6 +1,8 @@
 /*	$OpenBSD: frame.h,v 1.3 1998/09/15 10:50:12 pefo Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998 Per Fogelstrom, Opsycon AB
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,7 +136,7 @@ struct trapframe {
 	f_register_t	f30;
 	f_register_t	f31;
 	register_t	fsr;
-        register_t   fdummy;
+        register_t	fir;
 };
 
 #endif	/* !_MACHINE_FRAME_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007, 2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -77,7 +79,7 @@ static int g_part_mbr_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_mbr_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_mbr_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_mbr_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_mbr_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_mbr_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
@@ -119,28 +121,31 @@ static struct g_part_scheme g_part_mbr_scheme = {
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_mbr);
+MODULE_VERSION(geom_part_mbr, 0);
 
 static struct g_part_mbr_alias {
 	u_char		typ;
 	int		alias;
 } mbr_alias_match[] = {
 	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_APPLE_BOOT,	G_PART_ALIAS_APPLE_BOOT },
+	{ DOSPTYP_APPLE_UFS,	G_PART_ALIAS_APPLE_UFS },
+	{ DOSPTYP_EFI,		G_PART_ALIAS_EFI },
 	{ DOSPTYP_EXT,		G_PART_ALIAS_EBR },
-	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_EXTLBA,	G_PART_ALIAS_EBR },
 	{ DOSPTYP_FAT16,	G_PART_ALIAS_MS_FAT16 },
 	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
-	{ DOSPTYP_EXTLBA,	G_PART_ALIAS_EBR },
+	{ DOSPTYP_FAT32LBA,	G_PART_ALIAS_MS_FAT32LBA },
+	{ DOSPTYP_HFS,		G_PART_ALIAS_APPLE_HFS },
 	{ DOSPTYP_LDM,		G_PART_ALIAS_MS_LDM_DATA },
-	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
-	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
 	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
 	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
+	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
+	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
 	{ DOSPTYP_PPCBOOT,	G_PART_ALIAS_PREP_BOOT },
 	{ DOSPTYP_VMFS,		G_PART_ALIAS_VMFS },
 	{ DOSPTYP_VMKDIAG,	G_PART_ALIAS_VMKDIAG },
-	{ DOSPTYP_APPLE_UFS,	G_PART_ALIAS_APPLE_UFS },
-	{ DOSPTYP_APPLE_BOOT,	G_PART_ALIAS_APPLE_BOOT },
-	{ DOSPTYP_HFS,		G_PART_ALIAS_APPLE_HFS },
 };
 
 static int
@@ -303,11 +308,14 @@ g_part_mbr_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
-g_part_mbr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+g_part_mbr_dumpconf(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_mbr_entry *entry;
- 
+	struct g_part_mbr_table *table;
+	uint32_t dsn;
+
+	table = (struct g_part_mbr_table *)basetable;
 	entry = (struct g_part_mbr_entry *)baseentry;
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
@@ -318,13 +326,18 @@ g_part_mbr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		    entry->ent.dp_typ);
 		if (entry->ent.dp_flag & 0x80)
 			sbuf_printf(sb, "%s<attrib>active</attrib>\n", indent);
+		dsn = le32dec(table->mbr + DOSDSNOFF);
+		sbuf_printf(sb, "%s<efimedia>HD(%d,MBR,%#08x,%#jx,%#jx)", indent,
+		    entry->base.gpe_index, dsn, (intmax_t)entry->base.gpe_start,
+		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		sbuf_printf(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}
 }
 
 static int
-g_part_mbr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_mbr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_mbr_entry *entry;
 
@@ -552,7 +565,7 @@ g_part_mbr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 }
 
 static const char *
-g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_mbr_entry *entry;

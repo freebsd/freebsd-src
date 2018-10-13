@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"     @(#)fflush.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd December 25, 2017
 .Dt FFLUSH 3
 .Os
 .Sh NAME
@@ -87,9 +87,7 @@ is set to indicate the error.
 The
 .Fa stream
 argument
-is not an open stream, or, in the case of
-.Fn fflush ,
-not a stream open for writing.
+is not an open stream.
 .El
 .Pp
 The function
@@ -97,7 +95,12 @@ The function
 may also fail and set
 .Va errno
 for any of the errors specified for the routine
-.Xr write 2 .
+.Xr write 2 ,
+except that in case of
+.Fa stream
+being a read-only descriptor,
+.Fn fflush
+returns 0.
 .Sh SEE ALSO
 .Xr write 2 ,
 .Xr fclose 3 ,

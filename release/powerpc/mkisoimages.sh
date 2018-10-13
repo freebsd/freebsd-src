@@ -23,31 +23,9 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
-if [ "x$1" = "x-b" ]; then
-	# Apple boot code
-	uudecode -o /tmp/hfs-boot-block.bz2 "`dirname "$0"`/hfs-boot.bz2.uu"
-	bzip2 -d /tmp/hfs-boot-block.bz2
-	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
-	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
-	dd if="$4/boot/loader" of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
 
-	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
-
-	# pSeries/PAPR boot code
-	mkdir -p "$4/ppc/chrp"
-	cp "$4/boot/loader" "$4/ppc/chrp"
-	cat > "$4/ppc/bootinfo.txt" << EOF
-<chrp-boot>
-<description>FreeBSD Install</description>
-<os-name>FreeBSD</os-name>
-<boot-script>boot &device;:,\ppc\chrp\loader</boot-script>
-</chrp-boot>
-EOF
-	bootable="$bootable -o chrp-boot"
-
-	# Playstation 3 boot code
-	echo "FreeBSD Install='/boot/loader.ps3'" > "$4/etc/kboot.conf"
-
+if [ "$1" = "-b" ]; then
+	bootable=1
 	shift
 else
 	bootable=""
@@ -61,7 +39,35 @@ fi
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
 
-publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
+if [ -n "$bootable" ]; then
+	echo "Building bootable disc"
+
+	# Apple boot code
+	uudecode -o /tmp/hfs-boot-block.bz2 "`dirname "$0"`/hfs-boot.bz2.uu"
+	bzip2 -d /tmp/hfs-boot-block.bz2
+	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
+	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
+	dd if="$1/boot/loader" of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
+
+	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
+
+	# pSeries/PAPR boot code
+	mkdir -p "$1/ppc/chrp"
+	cp "$1/boot/loader" "$1/ppc/chrp"
+	cat > "$1/ppc/bootinfo.txt" << EOF
+<chrp-boot>
+<description>FreeBSD Install</description>
+<os-name>FreeBSD</os-name>
+<boot-script>boot &device;:,\ppc\chrp\loader</boot-script>
+</chrp-boot>
+EOF
+	bootable="$bootable -o chrp-boot"
+
+	# Petitboot config for PS3/PowerNV
+	echo FreeBSD Install=\'/boot/kernel/kernel vfs.root.mountfrom=cd9660:/dev/iso9660/$LABEL\' > "$1/etc/kboot.conf"
+fi
+
+publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
 makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
 rm -f "$1/etc/fstab"

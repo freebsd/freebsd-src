@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -97,6 +99,7 @@ int	printifname = 0;
 
 int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
+int	exit_code = 0;
 
 /* Formatter Strings */
 char	*f_inet, *f_inet6, *f_ether, *f_addr;
@@ -106,7 +109,7 @@ static	int ifconfig(int argc, char *const *argv, int iscreate,
 static	void status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
 static	void tunnel_status(int s);
-static	void usage(void);
+static _Noreturn void usage(void);
 
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
@@ -483,7 +486,7 @@ main(int argc, char *argv[])
 					errx(1, "%s: cloning name too long",
 					    ifname);
 				ifconfig(argc, argv, 1, NULL);
-				exit(0);
+				exit(exit_code);
 			}
 #ifdef JAIL
 			/*
@@ -497,7 +500,7 @@ main(int argc, char *argv[])
 					errx(1, "%s: interface name too long",
 					    ifname);
 				ifconfig(argc, argv, 0, NULL);
-				exit(0);
+				exit(exit_code);
 			}
 #endif
 			errx(1, "interface %s does not exist", ifname);
@@ -595,7 +598,7 @@ main(int argc, char *argv[])
 	freeifaddrs(ifap);
 
 	freeformat();
-	exit(0);
+	exit(exit_code);
 }
 
 static struct afswtch *afs = NULL;
@@ -760,7 +763,7 @@ top:
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0 &&
 	    (uafp != NULL || errno != EAFNOSUPPORT ||
 	     (s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0))
-		err(1, "socket(family %u,SOCK_DGRAM", ifr.ifr_addr.sa_family);
+		err(1, "socket(family %u,SOCK_DGRAM)", ifr.ifr_addr.sa_family);
 
 	while (argc > 0) {
 		p = cmd_lookup(*argv, iscreate);
@@ -802,26 +805,24 @@ top:
 			 */
 			p = (setaddr ? &setifdstaddr_cmd : &setifaddr_cmd);
 		}
-		if (p->c_u.c_func || p->c_u.c_func2) {
-			if (p->c_parameter == NEXTARG) {
-				if (argv[1] == NULL)
-					errx(1, "'%s' requires argument",
-					    p->c_name);
-				p->c_u.c_func(argv[1], 0, s, afp);
+		if (p->c_parameter == NEXTARG && p->c_u.c_func) {
+			if (argv[1] == NULL)
+				errx(1, "'%s' requires argument",
+				    p->c_name);
+			p->c_u.c_func(argv[1], 0, s, afp);
+			argc--, argv++;
+		} else if (p->c_parameter == OPTARG && p->c_u.c_func) {
+			p->c_u.c_func(argv[1], 0, s, afp);
+			if (argv[1] != NULL)
 				argc--, argv++;
-			} else if (p->c_parameter == OPTARG) {
-				p->c_u.c_func(argv[1], 0, s, afp);
-				if (argv[1] != NULL)
-					argc--, argv++;
-			} else if (p->c_parameter == NEXTARG2) {
-				if (argc < 3)
-					errx(1, "'%s' requires 2 arguments",
-					    p->c_name);
-				p->c_u.c_func2(argv[1], argv[2], s, afp);
-				argc -= 2, argv += 2;
-			} else
-				p->c_u.c_func(*argv, p->c_parameter, s, afp);
-		}
+		} else if (p->c_parameter == NEXTARG2 && p->c_u.c_func2) {
+			if (argc < 3)
+				errx(1, "'%s' requires 2 arguments",
+				    p->c_name);
+			p->c_u.c_func2(argv[1], argv[2], s, afp);
+			argc -= 2, argv += 2;
+		} else if (p->c_u.c_func)
+			p->c_u.c_func(*argv, p->c_parameter, s, afp);
 		argc--, argv++;
 	}
 
@@ -1080,6 +1081,32 @@ setifmtu(const char *val, int dummy __unused, int s,
 }
 
 static void
+setifpcp(const char *val, int arg __unused, int s, const struct afswtch *afp)
+{
+	u_long ul;
+	char *endp;
+
+	ul = strtoul(val, &endp, 0);
+	if (*endp != '\0')
+		errx(1, "invalid value for pcp");
+	if (ul > 7)
+		errx(1, "value for pcp out of range");
+	ifr.ifr_lan_pcp = ul;
+	if (ioctl(s, SIOCSLANPCP, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSLANPCP");
+}
+
+static void
+disableifpcp(const char *val, int arg __unused, int s,
+    const struct afswtch *afp)
+{
+
+	ifr.ifr_lan_pcp = IFNET_PCP_NONE;
+	if (ioctl(s, SIOCSLANPCP, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSLANPCP");
+}
+
+static void
 setifname(const char *val, int dummy __unused, int s, 
     const struct afswtch *afp)
 {
@@ -1145,7 +1172,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
 "\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC" \
 "\17TOE4\20TOE6\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE\25NETMAP" \
-"\26RXCSUM_IPV6\27TXCSUM_IPV6"
+"\26RXCSUM_IPV6\27TXCSUM_IPV6\31TXRTLMT\32HWRXTSTMP"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -1297,8 +1324,8 @@ printb(const char *s, unsigned v, const char *bits)
 		printf("%s=%o", s, v);
 	else
 		printf("%s=%x", s, v);
-	bits++;
 	if (bits) {
+		bits++;
 		putchar('<');
 		while ((i = *bits++) != '\0') {
 			if (v & (1 << (i-1))) {
@@ -1376,8 +1403,11 @@ ifmaybeload(const char *name)
 		}
 	}
 
-	/* not present, we should try to load it */
-	kldload(ifkind);
+	/*
+	 * Try to load the module.  But ignore failures, because ifconfig can't
+	 * infer the names of all drivers (eg mlx4en(4)).
+	 */
+	(void) kldload(ifkind);
 }
 
 static struct cmd basic_cmds[] = {
@@ -1433,6 +1463,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-txcsum",	-IFCAP_TXCSUM,	setifcap),
 	DEF_CMD("netcons",	IFCAP_NETCONS,	setifcap),
 	DEF_CMD("-netcons",	-IFCAP_NETCONS,	setifcap),
+	DEF_CMD_ARG("pcp",			setifpcp),
+	DEF_CMD("-pcp", 0,			disableifpcp),
 	DEF_CMD("polling",	IFCAP_POLLING,	setifcap),
 	DEF_CMD("-polling",	-IFCAP_POLLING,	setifcap),
 	DEF_CMD("tso6",		IFCAP_TSO6,	setifcap),
@@ -1453,6 +1485,10 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-wol_mcast",	-IFCAP_WOL_MCAST,	setifcap),
 	DEF_CMD("wol_magic",	IFCAP_WOL_MAGIC,	setifcap),
 	DEF_CMD("-wol_magic",	-IFCAP_WOL_MAGIC,	setifcap),
+	DEF_CMD("txrtlmt",	IFCAP_TXRTLMT,	setifcap),
+	DEF_CMD("-txrtlmt",	-IFCAP_TXRTLMT,	setifcap),
+	DEF_CMD("hwrxtstmp",	IFCAP_HWRXTSTMP,	setifcap),
+	DEF_CMD("-hwrxtstmp",	-IFCAP_HWRXTSTMP,	setifcap),
 	DEF_CMD("normal",	-IFF_LINK0,	setifflags),
 	DEF_CMD("compress",	IFF_LINK0,	setifflags),
 	DEF_CMD("noicmp",	IFF_LINK1,	setifflags),

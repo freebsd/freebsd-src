@@ -62,7 +62,7 @@
 #define	  DMT_TCLR_TRGMODE_BOTH	  (2 << 10)	/* Trigger on match + ovflow */
 #define	  DMT_TCLR_PWM_PTOGGLE	  (1 << 12)	/* PWM toggles */
 #define	  DMT_TCLR_CAP_MODE_2ND	  (1 << 13)	/* Capture second event mode */
-#define	  DMT_TCLR_GPO_CFG	  (1 << 14)	/* (no descr in datasheet) */
+#define	  DMT_TCLR_GPO_CFG	  (1 << 14)	/* Tmr pin conf, 0=out, 1=in */
 #define	DMT_TCRR		0x3C		/* Counter Register */
 #define	DMT_TLDR		0x40		/* Load Reg */
 #define	DMT_TTGR		0x44		/* Trigger Reg */

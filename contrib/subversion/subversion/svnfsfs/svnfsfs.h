@@ -63,8 +63,7 @@ open_fs(svn_fs_t **fs,
         apr_pool_t *pool);
 
 /* Our cancellation callback. */
-svn_error_t *
-check_cancel(void *baton);
+extern svn_cancel_func_t check_cancel;
 
 #ifdef __cplusplus
 }

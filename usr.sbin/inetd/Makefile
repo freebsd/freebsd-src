@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+CONFS=	inetd.conf
 PROG=	inetd
 MAN=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
@@ -16,7 +17,12 @@ CFLAGS+= -DLOGIN_CAP
 CFLAGS+= -DINET6
 .endif
 
-LIBADD=	util wrap
+LIBADD=	util
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DLIBWRAP
+LIBADD+=	wrap
+.endif
 
 # XXX for src/release/picobsd
 .if !defined(RELEASE_CRUNCH)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -138,79 +140,257 @@ MALLOC_DECLARE(M_ATHDEV);
 
 static void ath_edma_tx_processq(struct ath_softc *sc, int dosched);
 
+#ifdef	ATH_DEBUG_ALQ
+static void
+ath_tx_alq_edma_push(struct ath_softc *sc, int txq, int nframes,
+    int fifo_depth, int frame_cnt)
+{
+	struct if_ath_alq_tx_fifo_push aq;
+
+	aq.txq = htobe32(txq);
+	aq.nframes = htobe32(nframes);
+	aq.fifo_depth = htobe32(fifo_depth);
+	aq.frame_cnt = htobe32(frame_cnt);
+
+	if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TX_FIFO_PUSH,
+	    sizeof(aq),
+	    (const char *) &aq);
+}
+#endif	/* ATH_DEBUG_ALQ */
+
+/*
+ * XXX TODO: push an aggregate as a single FIFO slot, even though
+ * it may not meet the TXOP for say, DBA-gated traffic in TDMA mode.
+ *
+ * The TX completion code handles a TX FIFO slot having multiple frames,
+ * aggregate or otherwise, but it may just make things easier to deal
+ * with.
+ *
+ * XXX TODO: track the number of aggregate subframes and put that in the
+ * push alq message.
+ */
+static void
+ath_tx_edma_push_staging_list(struct ath_softc *sc, struct ath_txq *txq,
+    int limit)
+{
+	struct ath_buf *bf, *bf_last;
+	struct ath_buf *bfi, *bfp;
+	int i, sqdepth;
+	TAILQ_HEAD(axq_q_f_s, ath_buf)  sq;
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_TX_PROC,
+	    "%s: called; TXQ=%d, fifo.depth=%d, axq_q empty=%d\n",
+	    __func__,
+	    txq->axq_qnum,
+	    txq->axq_fifo_depth,
+	    !! (TAILQ_EMPTY(&txq->axq_q)));
+
+	/*
+	 * Don't bother doing any work if it's full.
+	 */
+	if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
+		return;
+
+	if (TAILQ_EMPTY(&txq->axq_q))
+		return;
+
+	TAILQ_INIT(&sq);
+
+	/*
+	 * First pass - walk sq, queue up to 'limit' entries,
+	 * subtract them from the staging queue.
+	 */
+	sqdepth = 0;
+	for (i = 0; i < limit; i++) {
+		/* Grab the head entry */
+		bf = ATH_TXQ_FIRST(txq);
+		if (bf == NULL)
+			break;
+		ATH_TXQ_REMOVE(txq, bf, bf_list);
+
+		/* Queue it into our staging list */
+		TAILQ_INSERT_TAIL(&sq, bf, bf_list);
+
+		/* Ensure the flags are cleared */
+		bf->bf_flags &= ~(ATH_BUF_FIFOPTR | ATH_BUF_FIFOEND);
+		sqdepth++;
+	}
+
+	/*
+	 * Ok, so now we have a staging list of up to 'limit'
+	 * frames from the txq.  Now let's wrap that up
+	 * into its own list and pass that to the hardware
+	 * as one FIFO entry.
+	 */
+
+	bf = TAILQ_FIRST(&sq);
+	bf_last = TAILQ_LAST(&sq, axq_q_s);
+
+	/*
+	 * Ok, so here's the gymnastics reqiured to make this
+	 * all sensible.
+	 */
+
+	/*
+	 * Tag the first/last buffer appropriately.
+	 */
+	bf->bf_flags |= ATH_BUF_FIFOPTR;
+	bf_last->bf_flags |= ATH_BUF_FIFOEND;
+
+	/*
+	 * Walk the descriptor list and link them appropriately.
+	 */
+	bfp = NULL;
+	TAILQ_FOREACH(bfi, &sq, bf_list) {
+		if (bfp != NULL) {
+			ath_hal_settxdesclink(sc->sc_ah, bfp->bf_lastds,
+			    bfi->bf_daddr);
+		}
+		bfp = bfi;
+	}
+
+	i = 0;
+	TAILQ_FOREACH(bfi, &sq, bf_list) {
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bfi, txq->axq_qnum, i, 0);
+#endif/* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+			ath_tx_alq_post(sc, bfi);
+#endif /* ATH_DEBUG_ALQ */
+		i++;
+	}
+
+	/*
+	 * We now need to push this set of frames onto the tail
+	 * of the FIFO queue.  We don't adjust the aggregate
+	 * count, only the queue depth counter(s).
+	 * We also need to blank the link pointer now.
+	 */
+
+	TAILQ_CONCAT(&txq->fifo.axq_q, &sq, bf_list);
+	/* Bump total queue tracking in FIFO queue */
+	txq->fifo.axq_depth += sqdepth;
+
+	/* Bump FIFO queue */
+	txq->axq_fifo_depth++;
+	DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_TX_PROC,
+	    "%s: queued %d packets; depth=%d, fifo depth=%d\n",
+	    __func__, sqdepth, txq->fifo.axq_depth, txq->axq_fifo_depth);
+
+	/* Push the first entry into the hardware */
+	ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
+
+	/* Push start on the DMA if it's not already started */
+	ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+
+#ifdef	ATH_DEBUG_ALQ
+	ath_tx_alq_edma_push(sc, txq->axq_qnum, sqdepth,
+	    txq->axq_fifo_depth,
+	    txq->fifo.axq_depth);
+#endif /* ATH_DEBUG_ALQ */
+}
+
+#define	TX_BATCH_SIZE	32
+
 /*
  * Push some frames into the TX FIFO if we have space.
  */
 static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_buf *bf, *bf_last;
-	int i = 0;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
-	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: Q%d: called\n",
+	DPRINTF(sc, ATH_DEBUG_TX_PROC,
+	    "%s: Q%d: called; fifo.depth=%d, fifo depth=%d, depth=%d, aggr_depth=%d\n",
 	    __func__,
-	    txq->axq_qnum);
+	    txq->axq_qnum,
+	    txq->fifo.axq_depth,
+	    txq->axq_fifo_depth,
+	    txq->axq_depth,
+	    txq->axq_aggr_depth);
 
-	TAILQ_FOREACH(bf, &txq->axq_q, bf_list) {
-		if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
-			break;
+	/*
+	 * For now, push up to 32 frames per TX FIFO slot.
+	 * If more are in the hardware queue then they'll
+	 * get populated when we try to send another frame
+	 * or complete a frame - so at most there'll be
+	 * 32 non-AMPDU frames per node/TID anyway.
+	 *
+	 * Note that the hardware staging queue will limit
+	 * how many frames in total we will have pushed into
+	 * here.
+	 *
+	 * Later on, we'll want to push less frames into
+	 * the TX FIFO since we don't want to necessarily
+	 * fill tens or hundreds of milliseconds of potential
+	 * frames.
+	 *
+	 * However, we need more frames right now because of
+	 * how the MAC implements the frame scheduling policy.
+	 * It only ungates a single FIFO entry at a time,
+	 * and will run that until CHNTIME expires or the
+	 * end of that FIFO entry descriptor list is reached.
+	 * So for TDMA we suffer a big performance penalty -
+	 * single TX FIFO entries mean the MAC only sends out
+	 * one frame per DBA event, which turned out on average
+	 * 6ms per TX frame.
+	 *
+	 * So, for aggregates it's okay - it'll push two at a
+	 * time and this will just do them more efficiently.
+	 * For non-aggregates it'll do 4 at a time, up to the
+	 * non-aggr limit (non_aggr, which is 32.)  They should
+	 * be time based rather than a hard count, but I also
+	 * do need sleep.
+	 */
 
-		/*
-		 * We have space in the FIFO - so let's push a frame
-		 * into it.
-		 */
-
-		/*
-		 * Remove it from the normal list
-		 */
-		ATH_TXQ_REMOVE(txq, bf, bf_list);
-
-		/*
-		 * XXX for now, we only dequeue a frame at a time, so
-		 * that's only one buffer.  Later on when we just
-		 * push this staging _list_ into the queue, we'll
-		 * set bf_last to the end pointer in the list.
-		 */
-		bf_last = bf;
-		DPRINTF(sc, ATH_DEBUG_TX_PROC,
-		    "%s: Q%d: depth=%d; pushing %p->%p\n",
-		    __func__,
-		    txq->axq_qnum,
-		    txq->axq_fifo_depth,
-		    bf,
-		    bf_last);
-
-		/*
-		 * Append it to the FIFO staging list
-		 */
-		ATH_TXQ_INSERT_TAIL(&txq->fifo, bf, bf_list);
-
-		/*
-		 * Set fifo start / fifo end flags appropriately
-		 *
-		 */
-		bf->bf_flags |= ATH_BUF_FIFOPTR;
-		bf_last->bf_flags |= ATH_BUF_FIFOEND;
-
-		/*
-		 * Push _into_ the FIFO.
-		 */
-		ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-			ath_printtxbuf(sc, bf, txq->axq_qnum, i, 0);
-#endif/* ATH_DEBUG */
-#ifdef	ATH_DEBUG_ALQ
-		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
-			ath_tx_alq_post(sc, bf);
-#endif /* ATH_DEBUG_ALQ */
-		txq->axq_fifo_depth++;
-		i++;
+	/*
+	 * Do some basic, basic batching to the hardware
+	 * queue.
+	 *
+	 * If we have TX_BATCH_SIZE entries in the staging
+	 * queue, then let's try to send them all in one hit.
+	 *
+	 * Ensure we don't push more than TX_BATCH_SIZE worth
+	 * in, otherwise we end up draining 8 slots worth of
+	 * 32 frames into the hardware queue and then we don't
+	 * attempt to push more frames in until we empty the
+	 * FIFO.
+	 */
+	if (txq->axq_depth >= TX_BATCH_SIZE / 2 &&
+	    txq->fifo.axq_depth <= TX_BATCH_SIZE) {
+		ath_tx_edma_push_staging_list(sc, txq, TX_BATCH_SIZE);
 	}
-	if (i > 0)
-		ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+
+	/*
+	 * Aggregate check: if we have less than two FIFO slots
+	 * busy and we have some aggregate frames, queue it.
+	 *
+	 * Now, ideally we'd just check to see if the scheduler
+	 * has given us aggregate frames and push them into the FIFO
+	 * as individual slots, as honestly we should just be pushing
+	 * a single aggregate in as one FIFO slot.
+	 *
+	 * Let's do that next once I know this works.
+	 */
+	else if (txq->axq_aggr_depth > 0 && txq->axq_fifo_depth < 2)
+		ath_tx_edma_push_staging_list(sc, txq, TX_BATCH_SIZE);
+
+	/*
+	 *
+	 * If we have less, and the TXFIFO isn't empty, let's
+	 * wait until we've finished sending the FIFO.
+	 *
+	 * If we have less, and the TXFIFO is empty, then
+	 * send them.
+	 */
+	else if (txq->axq_fifo_depth == 0) {
+		ath_tx_edma_push_staging_list(sc, txq, TX_BATCH_SIZE);
+	}
 }
 
 /*
@@ -367,13 +547,6 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 
 	/* Push and update frame stats */
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-
-	/* For now, set the link pointer in the last descriptor
-	 * to be NULL.
-	 *
-	 * Later on, when it comes time to handling multiple descriptors
-	 * in one FIFO push, we can link descriptors together this way.
-	 */
 
 	/*
 	 * Finally, call the FIFO schedule routine to schedule some
@@ -591,11 +764,30 @@ ath_edma_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
 
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 #if 0
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
 	    __func__, npending);
 #endif
 	ath_edma_tx_processq(sc, 1);
+
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
+
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	ath_tx_kick(sc);
 }
 
 /*
@@ -612,11 +804,14 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	struct ieee80211_node *ni;
 	int nacked = 0;
 	int idx;
+	int i;
 
 #ifdef	ATH_DEBUG
 	/* XXX */
 	uint32_t txstatus[32];
 #endif
+
+	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called\n", __func__);
 
 	for (idx = 0; ; idx++) {
 		bzero(&ts, sizeof(ts));
@@ -628,8 +823,12 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
 		ATH_TXSTATUS_UNLOCK(sc);
 
-		if (status == HAL_EINPROGRESS)
+		if (status == HAL_EINPROGRESS) {
+			DPRINTF(sc, ATH_DEBUG_TX_PROC,
+			    "%s: (%d): EINPROGRESS\n",
+			    __func__, idx);
 			break;
+		}
 
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_TX_PROC)
@@ -651,10 +850,11 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		}
 
 #if defined(ATH_DEBUG_ALQ) && defined(ATH_DEBUG)
-		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS))
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS)) {
 			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS,
 			    sc->sc_tx_statuslen,
 			    (char *) txstatus);
+		}
 #endif /* ATH_DEBUG_ALQ */
 
 		/*
@@ -817,28 +1017,34 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		/* Handle frame completion and rate control update */
 		ath_tx_process_buf_completion(sc, txq, &ts, bf);
 
-		/* bf is invalid at this point */
-
-		/*
-		 * Now that there's space in the FIFO, let's push some
-		 * more frames into it.
-		 */
-		ATH_TXQ_LOCK(txq);
-		if (dosched)
-			ath_edma_tx_fifo_fill(sc, txq);
-		ATH_TXQ_UNLOCK(txq);
+		/* NB: bf is invalid at this point */
 	}
 
 	sc->sc_wd_timer = 0;
 
-	/* Kick software scheduler */
 	/*
 	 * XXX It's inefficient to do this if the FIFO queue is full,
 	 * but there's no easy way right now to only populate
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
-	if (dosched)
+	if (dosched) {
+		/* Attempt to schedule more hardware frames to the TX FIFO */
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TX_LOCK(sc);
+				ath_txq_sched(sc, &sc->sc_txq[i]);
+				ATH_TX_UNLOCK(sc);
+
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				ath_edma_tx_fifo_fill(sc, &sc->sc_txq[i]);
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
+		/* Kick software scheduler */
 		ath_tx_swq_kick(sc);
+	}
+
+	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: end\n", __func__);
 }
 
 static void

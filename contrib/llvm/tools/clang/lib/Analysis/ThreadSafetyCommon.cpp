@@ -17,20 +17,14 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
-#include "clang/Analysis/Analyses/PostOrderCFGView.h"
 #include "clang/Analysis/Analyses/ThreadSafetyTIL.h"
 #include "clang/Analysis/Analyses/ThreadSafetyTraverse.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/SourceManager.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include <algorithm>
-#include <climits>
-#include <vector>
 
 using namespace clang;
 using namespace threadSafety;
@@ -239,6 +233,9 @@ til::SExpr *SExprBuilder::translate(const Stmt *S, CallingContext *Ctx) {
     return translate(cast<ExprWithCleanups>(S)->getSubExpr(), Ctx);
   case Stmt::CXXBindTemporaryExprClass:
     return translate(cast<CXXBindTemporaryExpr>(S)->getSubExpr(), Ctx);
+  case Stmt::MaterializeTemporaryExprClass:
+    return translate(cast<MaterializeTemporaryExpr>(S)->GetTemporaryExpr(),
+                     Ctx);
 
   // Collect all literals
   case Stmt::CharacterLiteralClass:
@@ -322,11 +319,11 @@ static bool hasCppPointerType(const til::SExpr *E) {
 static const CXXMethodDecl *getFirstVirtualDecl(const CXXMethodDecl *D) {
   while (true) {
     D = D->getCanonicalDecl();
-    CXXMethodDecl::method_iterator I = D->begin_overridden_methods(),
-                                   E = D->end_overridden_methods();
-    if (I == E)
+    auto OverriddenMethods = D->overridden_methods();
+    if (OverriddenMethods.begin() == OverriddenMethods.end())
       return D;  // Method does not override anything
-    D = *I;      // FIXME: this does not work with multiple inheritance.
+    // FIXME: this does not work with multiple inheritance.
+    D = *OverriddenMethods.begin();
   }
   return nullptr;
 }
@@ -508,6 +505,7 @@ til::SExpr *SExprBuilder::translateBinaryOperator(const BinaryOperator *BO,
   case BO_GE:   return translateBinOp(til::BOP_Leq, BO, Ctx, true);
   case BO_EQ:   return translateBinOp(til::BOP_Eq,  BO, Ctx);
   case BO_NE:   return translateBinOp(til::BOP_Neq, BO, Ctx);
+  case BO_Cmp:  return translateBinOp(til::BOP_Cmp, BO, Ctx);
   case BO_And:  return translateBinOp(til::BOP_BitAnd,   BO, Ctx);
   case BO_Xor:  return translateBinOp(til::BOP_BitXor,   BO, Ctx);
   case BO_Or:   return translateBinOp(til::BOP_BitOr,    BO, Ctx);

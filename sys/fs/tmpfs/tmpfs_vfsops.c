@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs_vfsops.c,v 1.10 2005/12/11 12:24:29 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -44,8 +46,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/dirent.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
@@ -54,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -79,7 +84,7 @@ static void	tmpfs_susp_clean(struct mount *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
-	"union", NULL
+	"union", "nonc", NULL
 };
 
 static const char *tmpfs_updateopts[] = {
@@ -136,8 +141,8 @@ tmpfs_mount(struct mount *mp)
 	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
-	struct thread *td = curthread;
 	int error;
+	bool nonc;
 	/* Size counters. */
 	u_quad_t pages;
 	off_t nodes_max, size_max, maxfilesize;
@@ -148,9 +153,6 @@ tmpfs_mount(struct mount *mp)
 	mode_t root_mode;
 
 	struct vattr va;
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_TMPFS))
-		return (EPERM);
 
 	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
 		return (EINVAL);
@@ -186,11 +188,12 @@ tmpfs_mount(struct mount *mp)
 		size_max = 0;
 	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
+	nonc = vfs_getopt(mp->mnt_optnew, "nonc", NULL, NULL) == 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
 	if (tmpfs_mem_avail() < TMPFS_PAGES_MINRESERVED)
-		return ENOSPC;
+		return (ENOSPC);
 
 	/* Get the maximum number of memory pages this file system is
 	 * allowed to use, based on the maximum size the user passed in
@@ -219,37 +222,35 @@ tmpfs_mount(struct mount *mp)
 	tmp = (struct tmpfs_mount *)malloc(sizeof(struct tmpfs_mount),
 	    M_TMPFSMNT, M_WAITOK | M_ZERO);
 
-	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
+	mtx_init(&tmp->tm_allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes_max;
 	tmp->tm_nodes_inuse = 0;
+	tmp->tm_refcount = 1;
 	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
-	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->allnode_lock);
+	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->tm_allnode_lock);
 	tmp->tm_dirent_pool = uma_zcreate("TMPFS dirent",
-	    sizeof(struct tmpfs_dirent),
-	    NULL, NULL, NULL, NULL,
+	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	tmp->tm_node_pool = uma_zcreate("TMPFS node",
-	    sizeof(struct tmpfs_node),
-	    tmpfs_node_ctor, tmpfs_node_dtor,
-	    tmpfs_node_init, tmpfs_node_fini,
-	    UMA_ALIGN_PTR, 0);
+	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
+	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+	tmp->tm_nonc = nonc;
 
 	/* Allocate the root node. */
-	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid,
-	    root_gid, root_mode & ALLPERMS, NULL, NULL,
-	    VNOVAL, &root);
+	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid, root_gid,
+	    root_mode & ALLPERMS, NULL, NULL, VNOVAL, &root);
 
 	if (error != 0 || root == NULL) {
-	    uma_zdestroy(tmp->tm_node_pool);
-	    uma_zdestroy(tmp->tm_dirent_pool);
-	    delete_unrhdr(tmp->tm_ino_unr);
-	    free(tmp, M_TMPFSMNT);
-	    return error;
+		uma_zdestroy(tmp->tm_node_pool);
+		uma_zdestroy(tmp->tm_dirent_pool);
+		delete_unrhdr(tmp->tm_ino_unr);
+		free(tmp, M_TMPFSMNT);
+		return (error);
 	}
 	KASSERT(root->tn_id == 2,
 	    ("tmpfs root with invalid ino: %ju", (uintmax_t)root->tn_id));
@@ -257,7 +258,7 @@ tmpfs_mount(struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;
@@ -308,25 +309,17 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 
 	TMPFS_LOCK(tmp);
 	while ((node = LIST_FIRST(&tmp->tm_nodes_used)) != NULL) {
-		TMPFS_UNLOCK(tmp);
+		TMPFS_NODE_LOCK(node);
 		if (node->tn_type == VDIR)
 			tmpfs_dir_destroy(tmp, node);
-		tmpfs_free_node(tmp, node);
-		TMPFS_LOCK(tmp);
+		if (tmpfs_free_node_locked(tmp, node, true))
+			TMPFS_LOCK(tmp);
+		else
+			TMPFS_NODE_UNLOCK(node);
 	}
-	TMPFS_UNLOCK(tmp);
 
-	uma_zdestroy(tmp->tm_dirent_pool);
-	uma_zdestroy(tmp->tm_node_pool);
-	delete_unrhdr(tmp->tm_ino_unr);
-
-	mtx_destroy(&tmp->allnode_lock);
-	MPASS(tmp->tm_pages_used == 0);
-	MPASS(tmp->tm_nodes_inuse == 0);
-
-	/* Throw away the tmpfs_mount structure. */
-	free(mp->mnt_data, M_TMPFSMNT);
 	mp->mnt_data = NULL;
+	tmpfs_free_tmp(tmp);
 	vfs_write_resume(mp, VR_START_WRITE);
 
 	MNT_ILOCK(mp);
@@ -336,52 +329,75 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 	return (0);
 }
 
+void
+tmpfs_free_tmp(struct tmpfs_mount *tmp)
+{
+
+	MPASS(tmp->tm_refcount > 0);
+	tmp->tm_refcount--;
+	if (tmp->tm_refcount > 0) {
+		TMPFS_UNLOCK(tmp);
+		return;
+	}
+	TMPFS_UNLOCK(tmp);
+
+	uma_zdestroy(tmp->tm_dirent_pool);
+	uma_zdestroy(tmp->tm_node_pool);
+	clear_unrhdr(tmp->tm_ino_unr);
+	delete_unrhdr(tmp->tm_ino_unr);
+
+	mtx_destroy(&tmp->tm_allnode_lock);
+	MPASS(tmp->tm_pages_used == 0);
+	MPASS(tmp->tm_nodes_inuse == 0);
+
+	free(tmp, M_TMPFSMNT);
+}
+
 static int
 tmpfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	int error;
+
 	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, flags, vpp);
-
-	if (!error)
+	if (error == 0)
 		(*vpp)->v_vflag |= VV_ROOT;
-
-	return error;
+	return (error);
 }
 
 static int
 tmpfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
     struct vnode **vpp)
 {
-	boolean_t found;
 	struct tmpfs_fid *tfhp;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
+	int error;
 
 	tmp = VFS_TO_TMPFS(mp);
 
 	tfhp = (struct tmpfs_fid *)fhp;
 	if (tfhp->tf_len != sizeof(struct tmpfs_fid))
-		return EINVAL;
+		return (EINVAL);
 
 	if (tfhp->tf_id >= tmp->tm_nodes_max)
-		return EINVAL;
-
-	found = FALSE;
+		return (EINVAL);
 
 	TMPFS_LOCK(tmp);
 	LIST_FOREACH(node, &tmp->tm_nodes_used, tn_entries) {
 		if (node->tn_id == tfhp->tf_id &&
 		    node->tn_gen == tfhp->tf_gen) {
-			found = TRUE;
+			tmpfs_ref_node(node);
 			break;
 		}
 	}
 	TMPFS_UNLOCK(tmp);
 
-	if (found)
-		return (tmpfs_alloc_vp(mp, node, LK_EXCLUSIVE, vpp));
-
-	return (EINVAL);
+	if (node != NULL) {
+		error = tmpfs_alloc_vp(mp, node, LK_EXCLUSIVE, vpp);
+		tmpfs_free_node(tmp, node);
+	} else
+		error = EINVAL;
+	return (error);
 }
 
 /* ARGSUSED2 */
@@ -397,7 +413,7 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_bsize = PAGE_SIZE;
 
 	used = tmpfs_pages_used(tmp);
-	if (tmp->tm_pages_max != SIZE_MAX)
+	if (tmp->tm_pages_max != ULONG_MAX)
 		 sbp->f_blocks = tmp->tm_pages_max;
 	else
 		 sbp->f_blocks = used + tmpfs_mem_avail();

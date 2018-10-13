@@ -71,9 +71,6 @@ static struct isa_pnp_id  sbni_ids[] = {
 	{ 0, NULL }	/* we have no pnp sbni cards atm.  */
 };
 
-DRIVER_MODULE(sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
-MODULE_DEPEND(sbni, isa, 1, 1, 1);
-
 static int
 sbni_probe_isa(device_t dev)
 {
@@ -132,7 +129,7 @@ sbni_attach_isa(device_t dev)
 	} else {
 		struct sbni_softc  *master;
 
-		if ((master = connect_to_master(sc)) == 0) {
+		if ((master = connect_to_master(sc)) == NULL) {
 			device_printf(dev, "failed to alloc irq\n");
 			sbni_release_resources(sc);
 			return (ENXIO);
@@ -166,3 +163,7 @@ sbni_attach_isa(device_t dev)
 
 	return (0);
 }
+
+DRIVER_MODULE(sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
+MODULE_DEPEND(sbni, isa, 1, 1, 1);
+ISA_PNP_INFO(sbni_ids);

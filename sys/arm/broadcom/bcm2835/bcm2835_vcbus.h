@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -33,16 +35,23 @@
 #ifndef _BCM2835_VCBUS_H_
 #define _BCM2835_VCBUS_H_
 
+/*
+ * ARM64 define its SOC options in opt_soc.h
+ */
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
+
 #define	BCM2835_VCBUS_SDRAM_CACHED	0x40000000
 #define	BCM2835_VCBUS_IO_BASE		0x7E000000
 #define	BCM2835_VCBUS_SDRAM_UNCACHED	0xC0000000
 
-#ifdef SOC_BCM2836
-#define	BCM2835_ARM_IO_BASE		0x3f000000
-#define	BCM2835_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_UNCACHED
-#else
+#if defined(SOC_BCM2835)
 #define	BCM2835_ARM_IO_BASE		0x20000000
 #define	BCM2835_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_CACHED
+#else
+#define	BCM2835_ARM_IO_BASE		0x3f000000
+#define	BCM2835_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_UNCACHED
 #endif
 #define	BCM2835_ARM_IO_SIZE		0x01000000
 

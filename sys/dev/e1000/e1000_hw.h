@@ -1,4 +1,5 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
@@ -142,6 +143,18 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_SPT_I219_LM2		0x15B7 /* Sunrise Point-H PCH */
 #define E1000_DEV_ID_PCH_SPT_I219_V2		0x15B8 /* Sunrise Point-H PCH */
 #define E1000_DEV_ID_PCH_LBG_I219_LM3		0x15B9 /* LEWISBURG PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM4		0x15D7
+#define E1000_DEV_ID_PCH_SPT_I219_V4		0x15D8
+#define E1000_DEV_ID_PCH_SPT_I219_LM5		0x15E3
+#define E1000_DEV_ID_PCH_SPT_I219_V5		0x15D6
+#define E1000_DEV_ID_PCH_CNP_I219_LM6		0x15BD
+#define E1000_DEV_ID_PCH_CNP_I219_V6		0x15BE
+#define E1000_DEV_ID_PCH_CNP_I219_LM7		0x15BB
+#define E1000_DEV_ID_PCH_CNP_I219_V7		0x15BC
+#define E1000_DEV_ID_PCH_ICP_I219_LM8		0x15DF
+#define E1000_DEV_ID_PCH_ICP_I219_V8		0x15E0
+#define E1000_DEV_ID_PCH_ICP_I219_LM9		0x15E1
+#define E1000_DEV_ID_PCH_ICP_I219_V9		0x15E2
 #define E1000_DEV_ID_82576			0x10C9
 #define E1000_DEV_ID_82576_FIBER		0x10E6
 #define E1000_DEV_ID_82576_SERDES		0x10E7
@@ -228,6 +241,7 @@ enum e1000_mac_type {
 	e1000_pch2lan,
 	e1000_pch_lpt,
 	e1000_pch_spt,
+	e1000_pch_cnp,
 	e1000_82575,
 	e1000_82576,
 	e1000_82580,
@@ -930,7 +944,6 @@ struct e1000_dev_spec_82543 {
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
 	u32 smb_counter;
-	E1000_MUTEX swflag_mutex;
 };
 
 struct e1000_dev_spec_80003es2lan {
@@ -954,12 +967,14 @@ enum e1000_ulp_state {
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_SHADOW_RAM_WORDS];
-	E1000_MUTEX nvm_mutex;
-	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
+	bool disable_k1_off;
 	bool eee_disable;
 	u16 eee_lp_ability;
 	enum e1000_ulp_state ulp_state;
+	bool ulp_capability_disabled;
+	bool during_suspend_flow;
+	bool during_dpg_exit;
 };
 
 struct e1000_dev_spec_82575 {

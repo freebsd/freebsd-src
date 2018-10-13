@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997,98 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -65,7 +67,7 @@
  * Implementation Details:
  * 
  * The mutex primitives used by the library (mutex_t, mutex_lock, etc.)
- * are macros which expand to the cooresponding primitives provided by
+ * are macros which expand to the corresponding primitives provided by
  * the thread engine or to nothing.  The latter is used so that code is
  * not unreasonably cluttered with #ifdefs when all thread safe support
  * is removed.

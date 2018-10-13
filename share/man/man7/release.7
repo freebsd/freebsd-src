@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2015
+.Dd March 28, 2018
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -314,7 +314,6 @@ variables are relevant only to release builds for embedded systems:
 .It Va EMBEDDEDBUILD
 Set to a non-null value to enable functionality for embedded device
 release builds.
-.Pq This option is considered highly experimental.
 .Pp
 When set,
 .Va WITH_DVD
@@ -322,15 +321,15 @@ is unset, and
 .Va NODOC
 is defined.
 Additionally,
-.Va XDEV
+.Va EMBEDDED_TARGET
 and
-.Va XDEV_ARCH
+.Va EMBEDDED_TARGET_ARCH
 must also be defined.
 When the build environment is created,
 .Fa release.sh
 runs a separate build script located in an architecture-specific
 directory in
-.Pa src/release/${XDEV}/ .
+.Pa src/release/${EMBEDDED_TARGET}/ .
 .It Va EMBEDDEDPORTS
 Set to the list of any ports that are required for the target device
 in the format of
@@ -338,27 +337,20 @@ in the format of
 The
 .Fa devel/subversion
 port is built by default.
-.It Va CROCHETSRC
-Set to the source URL for the Crochet build tool.
-.It Va CROCHETBRANCH
-Set to the subversion branch from
-.Va ${CROCHETSRC}
-to use.
-Defaults to
-.Pa trunk .
-.It Va UBOOTSRC
-Set to the source URL of u-boot, if required.
-.It Va UBOOTBRANCH
-Set to the subversion branch from
-.Va ${UBOOTSRC}
-to use.
-Defaults to
-.Pa trunk .
-.It Va UBOOTDIR
-Set to the target directory within
-.Va ${CHROOTDIR}
-to check out
-.Va ${UBOOTSRC}/${UBOOTBRANCH} .
+.It Va EMBEDDED_TARGET
+When set, its value is passed to
+.Xr make 1
+to set the
+.Va TARGET
+.Pq value of Cm uname Fl m
+to cross build the target userland.
+.It Va EMBEDDED_TARGET_ARCH
+When set, its value is passed to
+.Xr make 1
+to set the
+.Va TARGET_ARCH
+.Pq value of Cm uname Fl p
+to cross build the target userland.
 .El
 .Sh VIRTUAL MACHINE DISK IMAGES
 The following
@@ -620,10 +612,10 @@ This is analogous to the
 .Dq Nm uname Fl m
 output.
 This is necessary to cross-build some target architectures.
-For example, cross-building for PC98 machines requires
-.Ev TARGET_ARCH Ns = Ns Li i386
+For example, cross-building for ARM64 machines requires
+.Ev TARGET_ARCH Ns = Ns Li aarch64
 and
-.Ev TARGET Ns = Ns Li pc98 .
+.Ev TARGET Ns = Ns Li arm64 .
 If not set,
 .Ev TARGET
 defaults to the current hardware platform.
@@ -695,6 +687,23 @@ cd /usr/src/release
 sh release.sh -c $HOME/release.conf
 .Ed
 .Pp
+Configuration files specific to various supported embedded systems, such as
+the Raspberry Pi, exist in the directory corresponding to the
+.Va TARGET
+.Xr make 1
+variable.
+For example, to build an image for the Raspberry Pi:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm/RPI-B.conf
+.Ed
+.Pp
+To build an image for the Raspberry Pi 3:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm64/RPI3.conf
+.Ed
+.Pp
 After running these commands, all prepared release files are available in the
 .Pa /scratch
 directory.
@@ -717,11 +726,11 @@ variable in
 .Xr sysctl 8
 .Rs
 .%T "FreeBSD Release Engineering"
-.%U http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/freebsd-releng/
 .Re
 .Rs
 .%T "FreeBSD Developers' Handbook"
-.%U http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/
 .Re
 .Sh HISTORY
 .Fx

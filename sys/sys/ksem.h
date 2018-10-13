@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,7 +32,7 @@
 #define	_POSIX4_KSEM_H_
 
 #if !defined(_KERNEL) && !defined(_WANT_FILE)
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 #include <sys/condvar.h>

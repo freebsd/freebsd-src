@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -33,15 +35,17 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <grp.h>
 #include <libutil.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <err.h>
+#include <unistd.h>
 
 #include "pwupd.h"
 
 static FILE * pwd_fp = NULL;
+static int pwd_scanflag;
+static const char *pwd_filename;
 
 void
 vendpwent(void)
@@ -70,7 +74,18 @@ vnextpwent(char const *nam, uid_t uid, int doclose)
 	line = NULL;
 	linecap = 0;
 
-	if (pwd_fp != NULL || (pwd_fp = fopen(getpwpath(_MASTERPASSWD), "r")) != NULL) {
+	if (pwd_fp == NULL) {
+		if (geteuid() == 0) {
+			pwd_filename = _MASTERPASSWD;
+			pwd_scanflag = PWSCAN_MASTER;
+		} else {
+			pwd_filename = _PASSWD;
+			pwd_scanflag = 0;
+		}
+		pwd_fp = fopen(getpwpath(pwd_filename), "r");
+	}
+	 
+	if (pwd_fp != NULL) {
 		while ((linelen = getline(&line, &linecap, pwd_fp)) > 0) {
 			/* Skip comments and empty lines */
 			if (*line == '\n' || *line == '#')
@@ -78,10 +93,10 @@ vnextpwent(char const *nam, uid_t uid, int doclose)
 			/* trim latest \n */
 			if (line[linelen - 1 ] == '\n')
 				line[linelen - 1] = '\0';
-			pw = pw_scan(line, PWSCAN_MASTER);
+			pw = pw_scan(line, pwd_scanflag);
 			if (pw == NULL)
 				errx(EXIT_FAILURE, "Invalid user entry in '%s':"
-				    " '%s'", getpwpath(_MASTERPASSWD), line);
+				    " '%s'", getpwpath(pwd_filename), line);
 			if (uid != (uid_t)-1) {
 				if (uid == pw->pw_uid)
 					break;
@@ -131,13 +146,10 @@ vendgrent(void)
 	}
 }
 
-RET_SETGRENT
+void
 vsetgrent(void)
 {
 	vendgrent();
-#if defined(__FreeBSD__)
-	return 0;
-#endif
 }
 
 static struct group *

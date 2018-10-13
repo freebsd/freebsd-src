@@ -63,8 +63,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 /* TODO Move headers to mprvar */
 #include <sys/types.h>
 #include <sys/param.h>
@@ -99,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpr_ioctl.h>
 #include <dev/mpr/mprvar.h>
 #include <dev/mpr/mpr_table.h>
@@ -432,7 +431,7 @@ mpr_init_sge(struct mpr_command *cm, void *req, void *sge)
 {
 	int off, space;
 
-	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
+	space = (int)cm->cm_sc->reqframesz;
 	off = (uintptr_t)sge - (uintptr_t)req;
 
 	KASSERT(off < space, ("bad pointers %p %p, off %d, space %d",
@@ -651,7 +650,7 @@ static int
 mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 {
 	MPI2_REQUEST_HEADER *hdr;	
-	MPI2_DEFAULT_REPLY *rpl;
+	MPI2_DEFAULT_REPLY *rpl = NULL;
 	void *buf = NULL;
 	struct mpr_command *cm = NULL;
 	int err = 0;
@@ -663,7 +662,7 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 	if (cm == NULL) {
 		mpr_printf(sc, "%s: no mpr requests\n", __func__);
 		err = ENOMEM;
-		goto Ret;
+		goto RetFree;
 	}
 	mpr_unlock(sc);
 
@@ -672,7 +671,7 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 	mpr_dprint(sc, MPR_USER, "%s: req %p %d  rpl %p %d\n", __func__,
 	    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len);
 
-	if (cmd->req_len > (int)sc->facts->IOCRequestFrameSize * 4) {
+	if (cmd->req_len > (int)sc->reqframesz) {
 		err = EINVAL;
 		goto RetFreeUnlocked;
 	}
@@ -705,15 +704,16 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 		goto RetFreeUnlocked;
 
 	mpr_lock(sc);
-	err = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
+	err = mpr_wait_command(sc, &cm, 30, CAN_SLEEP);
 
-	if (err) {
+	if (err || (cm == NULL)) {
 		mpr_printf(sc, "%s: invalid request: error %d\n",
 		    __func__, err);
-		goto Ret;
+		goto RetFree;
 	}
 
-	rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
+	if (cm != NULL)
+		rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 	if (rpl != NULL)
 		sz = rpl->MsgLength * 4;
 	else
@@ -733,9 +733,9 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 
 RetFreeUnlocked:
 	mpr_lock(sc);
+RetFree:
 	if (cm != NULL)
 		mpr_free_command(sc, cm);
-Ret:
 	mpr_unlock(sc);
 	if (buf != NULL)
 		free(buf, M_MPRUSER);
@@ -747,6 +747,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 {
 	MPI2_REQUEST_HEADER	*hdr, tmphdr;	
 	MPI2_DEFAULT_REPLY	*rpl;
+	Mpi26NVMeEncapsulatedErrorReply_t *nvme_error_reply = NULL;
+	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request = NULL;
 	struct mpr_command	*cm = NULL;
 	int			i, err = 0, dir = 0, sz;
 	uint8_t			tool, function = 0;
@@ -805,7 +807,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 	if (err != 0)
 		goto RetFreeUnlocked;
 
-	if (data->RequestSize > (int)sc->facts->IOCRequestFrameSize * 4) {
+	if (data->RequestSize > (int)sc->reqframesz) {
 		err = EINVAL;
 		goto RetFreeUnlocked;
 	}
@@ -847,7 +849,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			err = 1;
 		} else {
 			mprsas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
-			err = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
+			err = mpr_wait_command(sc, &cm, 30, CAN_SLEEP);
 		}
 
 		if (err != 0) {
@@ -858,7 +860,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		/*
 		 * Copy the reply data and sense data to user space.
 		 */
-		if (cm->cm_reply != NULL) {
+		if ((cm != NULL) && (cm->cm_reply != NULL)) {
 			rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 			sz = rpl->MsgLength * 4;
 	
@@ -923,8 +925,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			    cm->cm_data, data->DataSize);
 		}
 		if (err != 0)
-			mpr_dprint(sc, MPR_FAULT, "%s: failed to copy "
-			    "IOCTL data from user space\n", __func__);
+			mpr_dprint(sc, MPR_FAULT, "%s: failed to copy IOCTL "
+			    "data from user space\n", __func__);
 	}
 	/*
 	 * Set this flag only if processing a command that does not need an
@@ -945,6 +947,35 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		}
 	}
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
+
+	if (function == MPI2_FUNCTION_NVME_ENCAPSULATED) {
+		nvme_encap_request =
+		    (Mpi26NVMeEncapsulatedRequest_t *)cm->cm_req;
+		cm->cm_desc.Default.RequestFlags =
+		    MPI26_REQ_DESCRIPT_FLAGS_PCIE_ENCAPSULATED;
+
+		/*
+		 * Get the Physical Address of the sense buffer.
+		 * Save the user's Error Response buffer address and use that
+		 *   field to hold the sense buffer address.
+		 * Clear the internal sense buffer, which will potentially hold
+		 *   the Completion Queue Entry on return, or 0 if no Entry.
+		 * Build the PRPs and set direction bits.
+		 * Send the request.
+		 */
+		cm->nvme_error_response =
+		    (uint64_t *)(uintptr_t)(((uint64_t)nvme_encap_request->
+		    ErrorResponseBaseAddress.High << 32) |
+		    (uint64_t)nvme_encap_request->
+		    ErrorResponseBaseAddress.Low);
+		nvme_encap_request->ErrorResponseBaseAddress.High =
+		    htole32((uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32));
+		nvme_encap_request->ErrorResponseBaseAddress.Low =
+		    htole32(cm->cm_sense_busaddr);
+		memset(cm->cm_sense, 0, NVME_ERROR_RESPONSE_SIZE);
+		mpr_build_nvme_prp(sc, cm, nvme_encap_request, cm->cm_data,
+		    data->DataSize, data->DataOutSize);
+	}
 
 	/*
 	 * Set up Sense buffer and SGL offset for IO passthru.  SCSI IO request
@@ -994,15 +1025,19 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO) {
 				cm->cm_desc.FastPathSCSIIO.RequestFlags =
 				    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO;
-				cm->cm_desc.FastPathSCSIIO.DevHandle =
-				    scsi_io_req->DevHandle;
+				if (!sc->atomic_desc_capable) {
+					cm->cm_desc.FastPathSCSIIO.DevHandle =
+					    scsi_io_req->DevHandle;
+				}
 				scsi_io_req->IoFlags |=
 				    MPI25_SCSIIO_IOFLAGS_FAST_PATH;
 			} else {
 				cm->cm_desc.SCSIIO.RequestFlags =
 				    MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
-				cm->cm_desc.SCSIIO.DevHandle =
-				    scsi_io_req->DevHandle;
+				if (!sc->atomic_desc_capable) {
+					cm->cm_desc.SCSIIO.DevHandle =
+					    scsi_io_req->DevHandle;
+				}
 			}
 
 			/*
@@ -1018,13 +1053,12 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 
 	mpr_lock(sc);
 
-	err = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
+	err = mpr_wait_command(sc, &cm, 30, CAN_SLEEP);
 
-	if (err) {
+	if (err || (cm == NULL)) {
 		mpr_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    err);
-		mpr_unlock(sc);
-		goto RetFreeUnlocked;
+		goto RetFree;
 	}
 
 	/*
@@ -1079,12 +1113,45 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 				mpr_lock(sc);
 			}
 		}
+
+		/*
+		 * Copy out the NVMe Error Reponse to user. The Error Response
+		 * buffer is given by the user, but a sense buffer is used to
+		 * get that data from the IOC. The user's
+		 * ErrorResponseBaseAddress is saved in the
+		 * 'nvme_error_response' field before the command because that
+		 * field is set to a sense buffer. When the command is
+		 * complete, the Error Response data from the IOC is copied to
+		 * that user address after it is checked for validity.
+		 * Also note that 'sense' buffers are not defined for
+		 * NVMe commands. Sense terminalogy is only used here so that
+		 * the same IOCTL structure and sense buffers can be used for
+		 * NVMe.
+		 */
+		if (function == MPI2_FUNCTION_NVME_ENCAPSULATED) {
+			if (cm->nvme_error_response == NULL) {
+				mpr_dprint(sc, MPR_INFO, "NVMe Error Response "
+				    "buffer is NULL. Response data will not be "
+				    "returned.\n");
+				mpr_unlock(sc);
+				goto RetFreeUnlocked;
+			}
+
+			nvme_error_reply =
+			    (Mpi26NVMeEncapsulatedErrorReply_t *)cm->cm_reply;
+			sz = MIN(le32toh(nvme_error_reply->ErrorResponseCount),
+			    NVME_ERROR_RESPONSE_SIZE);
+			mpr_unlock(sc);
+			copyout(cm->cm_sense, cm->nvme_error_response, sz);
+			mpr_lock(sc);
+		}
 	}
 	mpr_unlock(sc);
 
 RetFreeUnlocked:
 	mpr_lock(sc);
 
+RetFree:
 	if (cm != NULL) {
 		if (cm->cm_data)
 			free(cm->cm_data, M_MPRUSER);
@@ -1120,7 +1187,10 @@ mpr_user_get_adapter_data(struct mpr_softc *sc, mpr_adapter_data_t *data)
 	/*
 	 * General device info.
 	 */
-	data->AdapterType = MPRIOCTL_ADAPTER_TYPE_SAS3;
+	if (sc->mpr_flags & MPR_FLAGS_GEN35_IOC)
+		data->AdapterType = MPRIOCTL_ADAPTER_TYPE_SAS35;
+	else
+		data->AdapterType = MPRIOCTL_ADAPTER_TYPE_SAS3;
 	data->PCIDeviceHwId = pci_get_device(sc->mpr_dev);
 	data->PCIDeviceHwRev = pci_read_config(sc->mpr_dev, PCIR_REVID, 1);
 	data->SubSystemId = pci_get_subdevice(sc->mpr_dev);
@@ -1233,8 +1303,8 @@ mpr_post_fw_diag_buffer(struct mpr_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
-	if (status) {
+	status = mpr_wait_command(sc, &cm, 30, CAN_SLEEP);
+	if (status || (cm == NULL)) {
 		mpr_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
 		status = MPR_DIAG_FAILURE;
@@ -1245,6 +1315,13 @@ mpr_post_fw_diag_buffer(struct mpr_softc *sc,
 	 * Process POST reply.
 	 */
 	reply = (MPI2_DIAG_BUFFER_POST_REPLY *)cm->cm_reply;
+	if (reply == NULL) {
+		mpr_printf(sc, "%s: reply is NULL, probably due to "
+		    "reinitialization", __func__);
+		status = MPR_DIAG_FAILURE;
+		goto done;
+	}
+
 	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) {
 		status = MPR_DIAG_FAILURE;
@@ -1265,7 +1342,8 @@ mpr_post_fw_diag_buffer(struct mpr_softc *sc,
 	status = MPR_DIAG_SUCCESS;
 
 done:
-	mpr_free_command(sc, cm);
+	if (cm != NULL)
+		mpr_free_command(sc, cm);
 	return (status);
 }
 
@@ -1319,8 +1397,8 @@ mpr_release_fw_diag_buffer(struct mpr_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
-	if (status) {
+	status = mpr_wait_command(sc, &cm, 30, CAN_SLEEP);
+	if (status || (cm == NULL)) {
 		mpr_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
 		status = MPR_DIAG_FAILURE;
@@ -1331,6 +1409,12 @@ mpr_release_fw_diag_buffer(struct mpr_softc *sc,
 	 * Process RELEASE reply.
 	 */
 	reply = (MPI2_DIAG_RELEASE_REPLY *)cm->cm_reply;
+	if (reply == NULL) {
+		mpr_printf(sc, "%s: reply is NULL, probably due to "
+		    "reinitialization", __func__);
+		status = MPR_DIAG_FAILURE;
+		goto done;
+	}
 	if (((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) || pBuffer->owned_by_firmware) {
 		status = MPR_DIAG_FAILURE;
@@ -1355,6 +1439,9 @@ mpr_release_fw_diag_buffer(struct mpr_softc *sc,
 	}
 
 done:
+	if (cm != NULL)
+		mpr_free_command(sc, cm);
+
 	return (status);
 }
 
@@ -1363,15 +1450,19 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
     uint32_t *return_code)
 {
 	mpr_fw_diagnostic_buffer_t	*pBuffer;
+	struct mpr_busdma_context	*ctx;
 	uint8_t				extended_type, buffer_type, i;
 	uint32_t			buffer_size;
 	uint32_t			unique_id;
 	int				status;
+	int				error;
 
 	extended_type = diag_register->ExtendedType;
 	buffer_type = diag_register->BufferType;
 	buffer_size = diag_register->RequestedBufferSize;
 	unique_id = diag_register->UniqueId;
+	ctx = NULL;
+	error = 0;
 
 	/*
 	 * Check for valid buffer type
@@ -1420,7 +1511,7 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
 		*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
 		return (MPR_DIAG_FAILURE);
 	}
-        if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
+	if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1431,19 +1522,85 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->fw_diag_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate FW diag buffer DMA "
-		    "tag\n");
-		return (ENOMEM);
-        }
+		mpr_dprint(sc, MPR_ERROR,
+		    "Cannot allocate FW diag buffer DMA tag\n");
+		*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPR_DIAG_FAILURE;
+		goto bailout;
+	}
         if (bus_dmamem_alloc(sc->fw_diag_dmat, (void **)&sc->fw_diag_buffer,
 	    BUS_DMA_NOWAIT, &sc->fw_diag_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate FW diag buffer "
-		    "memory\n");
-		return (ENOMEM);
-        }
-        bzero(sc->fw_diag_buffer, buffer_size);
-        bus_dmamap_load(sc->fw_diag_dmat, sc->fw_diag_map, sc->fw_diag_buffer,
-	    buffer_size, mpr_memaddr_cb, &sc->fw_diag_busaddr, 0);
+		mpr_dprint(sc, MPR_ERROR,
+		    "Cannot allocate FW diag buffer memory\n");
+		*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPR_DIAG_FAILURE;
+		goto bailout;
+	}
+	bzero(sc->fw_diag_buffer, buffer_size);
+
+	ctx = malloc(sizeof(*ctx), M_MPR, M_WAITOK | M_ZERO);
+	if (ctx == NULL) {
+		device_printf(sc->mpr_dev, "%s: context malloc failed\n",
+		    __func__);
+		*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPR_DIAG_FAILURE;
+		goto bailout;
+	}
+	ctx->addr = &sc->fw_diag_busaddr;
+	ctx->buffer_dmat = sc->fw_diag_dmat;
+	ctx->buffer_dmamap = sc->fw_diag_map;
+	ctx->softc = sc;
+	error = bus_dmamap_load(sc->fw_diag_dmat, sc->fw_diag_map,
+	    sc->fw_diag_buffer, buffer_size, mpr_memaddr_wait_cb,
+	    ctx, 0);
+	if (error == EINPROGRESS) {
+
+		/* XXX KDM */
+		device_printf(sc->mpr_dev, "%s: Deferred bus_dmamap_load\n",
+		    __func__);
+		/*
+		 * Wait for the load to complete.  If we're interrupted,
+		 * bail out.
+		 */
+		mpr_lock(sc);
+		if (ctx->completed == 0) {
+			error = msleep(ctx, &sc->mpr_mtx, PCATCH, "mprwait", 0);
+			if (error != 0) {
+				/*
+				 * We got an error from msleep(9).  This is
+				 * most likely due to a signal.  Tell
+				 * mpr_memaddr_wait_cb() that we've abandoned
+				 * the context, so it needs to clean up when
+				 * it is called.
+				 */
+				ctx->abandoned = 1;
+
+				/* The callback will free this memory */
+				ctx = NULL;
+				mpr_unlock(sc);
+
+				device_printf(sc->mpr_dev, "Cannot "
+				    "bus_dmamap_load FW diag buffer, error = "
+				    "%d returned from msleep\n", error);
+				*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
+				status = MPR_DIAG_FAILURE;
+				goto bailout;
+			}
+		}
+		mpr_unlock(sc);
+	} 
+
+	if ((error != 0) || (ctx->error != 0)) {
+		device_printf(sc->mpr_dev, "Cannot bus_dmamap_load FW diag "
+		    "buffer, %serror = %d\n", error ? "" : "callback ",
+		    error ? error : ctx->error);
+		*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPR_DIAG_FAILURE;
+		goto bailout;
+	}
+
+	bus_dmamap_sync(sc->fw_diag_dmat, sc->fw_diag_map, BUS_DMASYNC_PREREAD);
+
 	pBuffer->size = buffer_size;
 
 	/*
@@ -1462,18 +1619,29 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
 	pBuffer->unique_id = unique_id;
 	status = mpr_post_fw_diag_buffer(sc, pBuffer, return_code);
 
+bailout:
+
 	/*
 	 * In case there was a failure, free the DMA buffer.
 	 */
 	if (status == MPR_DIAG_FAILURE) {
-		if (sc->fw_diag_busaddr != 0)
+		if (sc->fw_diag_busaddr != 0) {
 			bus_dmamap_unload(sc->fw_diag_dmat, sc->fw_diag_map);
-		if (sc->fw_diag_buffer != NULL)
+			sc->fw_diag_busaddr = 0;
+		}
+		if (sc->fw_diag_buffer != NULL) {
 			bus_dmamem_free(sc->fw_diag_dmat, sc->fw_diag_buffer,
 			    sc->fw_diag_map);
-		if (sc->fw_diag_dmat != NULL)
+			sc->fw_diag_buffer = NULL;
+		}
+		if (sc->fw_diag_dmat != NULL) {
 			bus_dma_tag_destroy(sc->fw_diag_dmat);
+			sc->fw_diag_dmat = NULL;
+		}
 	}
+
+	if (ctx != NULL)
+		free(ctx, M_MPR);
 
 	return (status);
 }
@@ -1519,13 +1687,19 @@ mpr_diag_unregister(struct mpr_softc *sc,
 	 */
 	pBuffer->unique_id = MPR_FW_DIAG_INVALID_UID;
 	if (status == MPR_DIAG_SUCCESS) {
-		if (sc->fw_diag_busaddr != 0)
+		if (sc->fw_diag_busaddr != 0) {
 			bus_dmamap_unload(sc->fw_diag_dmat, sc->fw_diag_map);
-		if (sc->fw_diag_buffer != NULL)
+			sc->fw_diag_busaddr = 0;
+		}
+		if (sc->fw_diag_buffer != NULL) {
 			bus_dmamem_free(sc->fw_diag_dmat, sc->fw_diag_buffer,
 			    sc->fw_diag_map);
-		if (sc->fw_diag_dmat != NULL)
+			sc->fw_diag_buffer = NULL;
+		}
+		if (sc->fw_diag_dmat != NULL) {
 			bus_dma_tag_destroy(sc->fw_diag_dmat);
+			sc->fw_diag_dmat = NULL;
+		}
 	}
 
 	return (status);
@@ -1634,6 +1808,10 @@ mpr_diag_read_buffer(struct mpr_softc *sc,
 		*return_code = MPR_FW_DIAG_ERROR_INVALID_PARAMETER;
 		return (MPR_DIAG_FAILURE);
 	}
+
+	/* Sync the DMA map before we copy to userland. */
+	bus_dmamap_sync(sc->fw_diag_dmat, sc->fw_diag_map,
+	    BUS_DMASYNC_POSTREAD);
 
 	/*
 	 * Copy the requested data from DMA to the diag_read_buffer.  The DMA
@@ -2068,7 +2246,7 @@ mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data)
 			return (EINVAL);
 
 		if (target > sc->max_devices) {
-			mpr_dprint(sc, MPR_FAULT, "Target ID is out of range "
+			mpr_dprint(sc, MPR_XINFO, "Target ID is out of range "
 			   "for Bus/Target to DevHandle mapping.");
 			return (EINVAL);
 		}
@@ -2077,7 +2255,7 @@ mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data)
 			data->DevHandle = dev_handle;
 	} else {
 		bus = 0;
-		target = mpr_mapping_get_sas_id_from_handle(sc, dev_handle);
+		target = mpr_mapping_get_tid_from_handle(sc, dev_handle);
 		data->Bus = bus;
 		data->TargetID = target;
 	}

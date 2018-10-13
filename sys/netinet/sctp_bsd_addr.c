@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -140,7 +142,6 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 		ifa->localifa_flags &= ~SCTP_ADDR_IFA_UNUSEABLE;
 	}
 }
-
 #endif				/* INET6 */
 
 
@@ -201,20 +202,18 @@ sctp_init_ifns_for_vrf(int vrfid)
 	struct ifaddr *ifa;
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
-
 #ifdef INET6
 	struct in6_ifaddr *ifa6;
-
 #endif
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
+	CK_STAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
 		if (sctp_is_desired_interface_type(ifn) == 0) {
 			/* non desired type */
 			continue;
 		}
 		IF_ADDR_RLOCK(ifn);
-		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
+		CK_STAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
@@ -306,10 +305,12 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		SCTP_BASE_VAR(first_time) = 1;
 		sctp_init_ifns_for_vrf(SCTP_DEFAULT_VRFID);
 	}
+
 	if ((cmd != RTM_ADD) && (cmd != RTM_DELETE)) {
 		/* don't know what to do with this */
 		return;
 	}
+
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
@@ -361,11 +362,11 @@ void
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
+	CK_STAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
 		if (!(*pred) (ifn)) {
 			continue;
 		}
-		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
+		CK_STAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
 			sctp_addr_change(ifa, add ? RTM_ADD : RTM_DELETE);
 		}
 	}
@@ -388,10 +389,7 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 			m_freem(m);
 			return (NULL);
 		}
-	}
-	if (SCTP_BUF_NEXT(m)) {
-		sctp_m_freem(SCTP_BUF_NEXT(m));
-		SCTP_BUF_NEXT(m) = NULL;
+		KASSERT(SCTP_BUF_NEXT(m) == NULL, ("%s: no chain allowed", __FUNCTION__));
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
@@ -480,7 +478,7 @@ again_locked:
 	lenat++;
 	*lenat = value;
 	lenat++;
-	tick_tock = (uint32_t *) lenat;
+	tick_tock = (uint32_t *)lenat;
 	lenat++;
 	*tick_tock = sctp_get_tick_count();
 	copyto = (void *)lenat;
@@ -501,7 +499,7 @@ no_log:
 
 
 int
-sctp_copy_out_packet_log(uint8_t * target, int length)
+sctp_copy_out_packet_log(uint8_t *target, int length)
 {
 	/*
 	 * We wind through the packet log starting at start copying up to

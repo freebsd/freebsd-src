@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -68,8 +70,9 @@ extern struct bio_ops {
 } bioops;
 
 struct vm_object;
+struct vm_page;
 
-typedef unsigned char b_xflags_t;
+typedef uint32_t b_xflags_t;
 
 /*
  * The buffer header describes an I/O operation in the kernel.
@@ -103,11 +106,15 @@ struct buf {
 	off_t		b_iooffset;
 	long		b_resid;
 	void	(*b_iodone)(struct buf *);
+	void	(*b_ckhashcalc)(struct buf *);
+	uint64_t	b_ckhash;	/* B_CKHASH requested check-hash */
 	daddr_t b_blkno;		/* Underlying physical block number. */
 	off_t	b_offset;		/* Offset into file. */
 	TAILQ_ENTRY(buf) b_bobufs;	/* (V) Buffer's associated vnode. */
 	uint32_t	b_vflags;	/* (V) BV_* flags */
-	unsigned short b_qindex;	/* (Q) buffer queue index */
+	uint8_t		b_qindex;	/* (Q) buffer queue index */
+	uint8_t		b_domain;	/* (Q) buf domain this resides in */
+	uint16_t	b_subqueue;	/* (Q) per-cpu q if any */
 	uint32_t	b_flags;	/* B_* flags. */
 	b_xflags_t b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
@@ -139,7 +146,15 @@ struct buf {
 	void	*b_fsprivate1;
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
-	int	b_pin_count;
+
+#if defined(FULL_BUF_TRACKING)
+#define BUF_TRACKING_SIZE	32
+#define BUF_TRACKING_ENTRY(x)	((x) & (BUF_TRACKING_SIZE - 1))
+	const char	*b_io_tracking[BUF_TRACKING_SIZE];
+	uint32_t	b_io_tcnt;
+#elif defined(BUF_TRACKING)
+	const char	*b_io_tracking;
+#endif
 };
 
 #define b_object	b_bufobj->bo_object
@@ -200,11 +215,11 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_00000100	0x00000100	/* Available flag. */
+#define	B_CKHASH	0x00000100	/* checksum hash calculated on read */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_NOREUSE	0x00000800	/* Contents not reused once released. */
-#define	B_00001000	0x00001000	/* Available flag. */
+#define	B_REUSE		0x00001000	/* Contents reused, second chance. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_BARRIER	0x00004000	/* Write this and all preceding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
@@ -228,17 +243,22 @@ struct buf {
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26b21\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14noreuse\13eintr\12done\11b8\10delwri" \
+	"\15reuse\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
  * These flags are kept in b_xflags.
+ *
+ * BX_FSPRIV reserves a set of eight flags that may be used by individual
+ * filesystems for their own purpose. Their specific definitions are
+ * found in the header files for each filesystem that uses them.
  */
 #define	BX_VNDIRTY	0x00000001	/* On vnode dirty list */
 #define	BX_VNCLEAN	0x00000002	/* On vnode clean list */
 #define	BX_BKGRDWRITE	0x00000010	/* Do writes in background */
 #define BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
 #define	BX_ALTDATA	0x00000040	/* Holds extended data */
+#define	BX_FSPRIV	0x00FF0000	/* filesystem-specific flags mask */
 
 #define	PRINT_BUF_XFLAGS "\20\7altdata\6bkgrdmarker\5bkgrdwrite\2clean\1dirty"
 
@@ -355,12 +375,6 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
 	_lockmgr_disown(&(bp)->b_lock, LOCK_FILE, LOCK_LINE)
 #endif
 
-/*
- * Find out if the lock has waiters or not.
- */
-#define	BUF_LOCKWAITERS(bp)						\
-	lockmgr_waiters(&(bp)->b_lock)
-
 #endif /* _KERNEL */
 
 struct buf_queue_head {
@@ -435,6 +449,17 @@ buf_countdeps(struct buf *bp, int i)
 		return (0);
 }
 
+static __inline void
+buf_track(struct buf *bp, const char *location)
+{
+
+#if defined(FULL_BUF_TRACKING)
+	bp->b_io_tracking[BUF_TRACKING_ENTRY(bp->b_io_tcnt++)] = location;
+#elif defined(BUF_TRACKING)
+	bp->b_io_tracking = location;
+#endif
+}
+
 #endif /* _KERNEL */
 
 /*
@@ -453,11 +478,14 @@ buf_countdeps(struct buf *bp, int i)
 #define	GB_NOWAIT_BD	0x0004		/* Do not wait for bufdaemon. */
 #define	GB_UNMAPPED	0x0008		/* Do not mmap buffer pages. */
 #define	GB_KVAALLOC	0x0010		/* But allocate KVA. */
+#define	GB_CKHASH	0x0020		/* If reading, calc checksum hash */
+#define	GB_NOSPARSE	0x0040		/* Do not instantiate holes */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
 extern long	maxswzone;		/* Max KVA for swap structures */
 extern long	maxbcache;		/* Max KVA for buffer cache */
+extern int	maxbcachebuf;		/* Max buffer cache block size */
 extern long	runningbufspace;
 extern long	hibufspace;
 extern int	dirtybufthresh;
@@ -489,15 +517,15 @@ int	buf_dirty_count_severe(void);
 void	bremfree(struct buf *);
 void	bremfreef(struct buf *);	/* XXX Force bremfree, only for nfs. */
 #define bread(vp, blkno, size, cred, bpp) \
-	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, 0, bpp)
+	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, 0, NULL, bpp)
 #define bread_gb(vp, blkno, size, cred, gbflags, bpp) \
 	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, \
-		gbflags, bpp)
+		gbflags, NULL, bpp)
 #define breadn(vp, blkno, size, rablkno, rabsize, cnt, cred, bpp) \
-	    breadn_flags(vp, blkno, size, rablkno, rabsize, cnt, cred, 0, bpp)
+	    breadn_flags(vp, blkno, size, rablkno, rabsize, cnt, cred, \
+		0, NULL, bpp)
 int	breadn_flags(struct vnode *, daddr_t, int, daddr_t *, int *, int,
-	    struct ucred *, int, struct buf **);
-void	breada(struct vnode *, daddr_t *, int *, int, struct ucred *);
+	    struct ucred *, int, void (*)(struct buf *), struct buf **);
 void	bdwrite(struct buf *);
 void	bawrite(struct buf *);
 void	babarrierwrite(struct buf *);
@@ -513,20 +541,23 @@ struct buf *     getpbuf(int *);
 struct buf *incore(struct bufobj *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
+int	getblkx(struct vnode *vp, daddr_t blkno, int size, int slpflag,
+	    int slptimeo, int flags, struct buf **bpp);
 struct buf *geteblk(int, int);
 int	bufwait(struct buf *);
 int	bufwrite(struct buf *);
 void	bufdone(struct buf *);
-void	bufdone_finish(struct buf *);
 void	bd_speedup(void);
 
 int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, int, struct buf **);
 int	cluster_wbuild(struct vnode *, long, daddr_t, int, int);
 void	cluster_write(struct vnode *, struct buf *, u_quad_t, int, int);
+void	vfs_bio_brelse(struct buf *bp, int ioflags);
 void	vfs_bio_bzero_buf(struct buf *bp, int base, int size);
-void	vfs_bio_set_valid(struct buf *, int base, int size);
 void	vfs_bio_clrbuf(struct buf *);
+void	vfs_bio_set_flags(struct buf *bp, int ioflags);
+void	vfs_bio_set_valid(struct buf *, int base, int size);
 void	vfs_busy_pages(struct buf *, int clear_modify);
 void	vfs_unbusy_pages(struct buf *);
 int	vmapbuf(struct buf *, int);
@@ -543,9 +574,12 @@ void	reassignbuf(struct buf *);
 struct	buf *trypbuf(int *);
 void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);
-void	bpin(struct buf *);
-void	bunpin(struct buf *);
-void 	bunpin_wait(struct buf *);
+
+typedef daddr_t (vbg_get_lblkno_t)(struct vnode *, vm_ooffset_t);
+typedef int (vbg_get_blksize_t)(struct vnode *, daddr_t);
+int	vfs_bio_getpages(struct vnode *vp, struct vm_page **ma, int count,
+	    int *rbehind, int *rahead, vbg_get_lblkno_t get_lblkno,
+	    vbg_get_blksize_t get_blksize);
 
 #endif /* _KERNEL */
 

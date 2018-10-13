@@ -61,25 +61,12 @@ __FBSDID("$FreeBSD$");
 ENTRY(_setjmp)
 	ldr	r1, .L_setjmp_magic
 
-#if !defined(_STANDALONE)
-	ldr	r2, .Lfpu_present
-#ifdef PIC
-	GOT_INIT(r3, .L_setjmp_got, .L_setjmp_gotinit)
-	ldr	r2, [r2, r3]
-#else
-	ldr	r2, [r2]
-#endif
-	teq	r2, #0		/* do we have a FPU? */
-	beq	1f		/*   no, don't save VFP registers */
-
-	orr	r1, r1, #(_JB_MAGIC__SETJMP ^ _JB_MAGIC__SETJMP_VFP)
-				/* change magic to VFP magic */
+#if !defined(_STANDALONE) && __ARM_ARCH >= 6
 	add	r2, r0, #(_JB_REG_D8 * 4)
 	vstmia	r2, {d8-d15}
 	vmrs	r2, fpscr
 	str	r2, [r0, #(_JB_REG_FPSCR * 4)]
-1:
-#endif /* !_STANDALONE */
+#endif /* !_STANDALONE && __ARM_ARCH >= 6 */
 
 	str	r1, [r0]
 
@@ -99,30 +86,20 @@ END(_setjmp)
 
 .L_setjmp_magic:
 	.word	_JB_MAGIC__SETJMP
-#if !defined(_STANDALONE)
-	GOT_INITSYM(.L_setjmp_got, .L_setjmp_gotinit)
-.Lfpu_present:
-	.word	PIC_SYM(_libc_arm_fpu_present, GOTOFF)
-#endif /* !_STANDALONE */
 
 WEAK_ALIAS(___longjmp, _longjmp)
 ENTRY(_longjmp)
 	ldr	r2, [r0]			/* get magic from jmp_buf */
-	bic	r3, r2, #(_JB_MAGIC__SETJMP ^ _JB_MAGIC__SETJMP_VFP)
-						/* ignore VFP-ness of magic */
 	ldr	ip, .L_setjmp_magic		/* load magic */
-	teq	ip, r3				/* magic correct? */
+	teq	ip, r2				/* magic correct? */
 	bne	botch				/*   no, botch */
 
-#if !defined(_STANDALONE)
-	teq	r3, r2				/* did magic change? */
-	beq	1f				/*   no, don't restore VFP */
+#if !defined(_STANDALONE) && __ARM_ARCH >= 6
 	add	ip, r0, #(_JB_REG_D8 * 4)
 	vldmia	ip, {d8-d15}
 	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
 	vmsr	fpscr, ip
-1:
-#endif /* !_STANDALONE */
+#endif /* !_STANDALONE && __ARM_ARCH >= 6 */
 
 	add	r0, r0, #(_JB_REG_R4 * 4)
        	/* Restore integer registers */

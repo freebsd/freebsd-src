@@ -648,12 +648,12 @@ pinmux_read_node(struct pinmux_softc *sc, phandle_t node, struct pincfg *cfg,
 {
 	int rv, i;
 
-	*lpins = OF_getprop_alloc(node, "nvidia,pins", 1, (void **)pins);
+	*lpins = OF_getprop_alloc(node, "nvidia,pins", (void **)pins);
 	if (*lpins <= 0)
 		return (ENOENT);
 
 	/* Read function (mux) settings. */
-	rv = OF_getprop_alloc(node, "nvidia,function", 1,
+	rv = OF_getprop_alloc(node, "nvidia,function",
 	    (void **)&cfg->function);
 	if (rv <= 0)
 		cfg->function = NULL;
@@ -710,7 +710,7 @@ static int pinmux_configure(device_t dev, phandle_t cfgxref)
 
 
 	for (node = OF_child(cfgnode); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_enabled(node))
+		if (!ofw_bus_node_status_okay(node))
 			continue;
 		rv = pinmux_process_node(sc, node);
 	}
@@ -792,13 +792,8 @@ static device_method_t tegra_pinmux_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_pinmux_driver = {
-	"tegra_pinmux",
-	tegra_pinmux_methods,
-	sizeof(struct pinmux_softc),
-};
-
 static devclass_t tegra_pinmux_devclass;
-
+static DEFINE_CLASS_0(pinmux, tegra_pinmux_driver, tegra_pinmux_methods,
+    sizeof(struct pinmux_softc));
 EARLY_DRIVER_MODULE(tegra_pinmux, simplebus, tegra_pinmux_driver,
-    tegra_pinmux_devclass, 0, 0, 71);
+    tegra_pinmux_devclass, NULL, NULL, 71);

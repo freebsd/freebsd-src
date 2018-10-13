@@ -172,16 +172,19 @@ struct ip6_rthdr {
 	/* followed by routing type specific data */
 } UNALIGNED;
 
+#define IPV6_RTHDR_TYPE_0 0
+#define IPV6_RTHDR_TYPE_2 2
+
 /* Type 0 Routing header */
+/* Also used for Type 2 */
 struct ip6_rthdr0 {
-	uint8_t  ip6r0_nxt;		/* next header */
-	uint8_t  ip6r0_len;		/* length in units of 8 octets */
-	uint8_t  ip6r0_type;		/* always zero */
-	uint8_t  ip6r0_segleft;	/* segments left */
-	uint8_t  ip6r0_reserved;	/* reserved field */
-	uint8_t  ip6r0_slmap[3];	/* strict/loose bit map */
+	nd_uint8_t  ip6r0_nxt;		/* next header */
+	nd_uint8_t  ip6r0_len;		/* length in units of 8 octets */
+	nd_uint8_t  ip6r0_type;		/* always zero */
+	nd_uint8_t  ip6r0_segleft;	/* segments left */
+	nd_uint32_t ip6r0_reserved;	/* reserved field */
 	struct in6_addr ip6r0_addr[1];	/* up to 23 addresses */
-} UNALIGNED;
+};
 
 /* Fragment header */
 struct ip6_frag {
@@ -194,8 +197,5 @@ struct ip6_frag {
 #define IP6F_OFF_MASK		0xfff8	/* mask out offset from ip6f_offlg */
 #define IP6F_RESERVED_MASK	0x0006	/* reserved bits in ip6f_offlg */
 #define IP6F_MORE_FRAG		0x0001	/* more-fragments flag */
-
-/* in print-ip6.c */
-extern int nextproto6_cksum(const struct ip6_hdr *, const uint8_t *, u_int, u_int, u_int);
 
 #endif /* not _NETINET_IP6_H_ */

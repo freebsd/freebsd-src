@@ -11,6 +11,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * 1. Redistributions of source code must retain the
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -61,7 +63,8 @@
 #define ALPS_TSBH1		13
 #define TUNER_MT2032		14
 #define	LG_TPI8PSB12P_PAL	15
-#define Bt848_MAX_TUNER		16
+#define PHILIPS_FI1216          16
+#define Bt848_MAX_TUNER		17
 
 /* experimental code for Automatic Frequency Control */ 
 #define TUNER_AFC

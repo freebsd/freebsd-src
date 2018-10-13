@@ -44,7 +44,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.42
+ *  mpi2.h Version:  02.00.48
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -132,7 +132,8 @@
  *                      Bumped MPI2_HEADER_VERSION_UNIT.
  *  03-16-15  02.00.37  Updated for MPI v2.6.
  *                      Bumped MPI2_HEADER_VERSION_UNIT.
- *                      Added Scratchpad registers to
+ *                      Added Scratchpad registers and
+ *                      AtomicRequestDescriptorPost register to
  *                      MPI2_SYSTEM_INTERFACE_REGS.
  *                      Added MPI2_DIAG_SBR_RELOAD.
  *                      Added MPI2_IOCSTATUS_INSUFFICIENT_POWER.
@@ -142,6 +143,16 @@
  *                      Added V7 HostDiagnostic register defines
  *  12-15-15  02.00.41  Bumped MPI_HEADER_VERSION_UNIT
  *  01-01-16  02.00.42  Bumped MPI_HEADER_VERSION_UNIT
+ *  04-05-16  02.00.43  Modified  MPI26_DIAG_BOOT_DEVICE_SELECT defines
+ *                      to be unique within first 32 characters.
+ *                      Removed AHCI support.
+ *                      Removed SOP support.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *  04-10-16  02.00.44  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  07-06-16  02.00.45  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  09-02-16  02.00.46  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-23-16  02.00.47  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  02-03-17  02.00.48  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -185,7 +196,7 @@
 
 
 /* Unit and Dev versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x2A)
+#define MPI2_HEADER_VERSION_UNIT            (0x30)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -245,7 +256,8 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
     U32         Scratchpad[4];              /* 0xB0 */
     U32         RequestDescriptorPostLow;   /* 0xC0 */
     U32         RequestDescriptorPostHigh;  /* 0xC4 */
-    U32         Reserved7[14];              /* 0xC8 */
+    U32         AtomicRequestDescriptorPost;/* 0xC8 */ /* MPI v2.6 and later; reserved in earlier versions */
+    U32         Reserved7[13];              /* 0xCC */
 } MPI2_SYSTEM_INTERFACE_REGS, MPI2_POINTER PTR_MPI2_SYSTEM_INTERFACE_REGS,
   Mpi2SystemInterfaceRegs_t, MPI2_POINTER pMpi2SystemInterfaceRegs_t;
 
@@ -293,10 +305,11 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW       (0x00000800)
 
 /* Defines for V7A/V7R HostDiagnostic Register */
-#define MPI26_DIAG_BOOT_DEVICE_SELECT_FLASH64    (0x00000000)
-#define MPI26_DIAG_BOOT_DEVICE_SELECT_HCDW64     (0x00000800)
-#define MPI26_DIAG_BOOT_DEVICE_SELECT_FLASH32    (0x00001000)
-#define MPI26_DIAG_BOOT_DEVICE_SELECT_HCDW32     (0x00001800)
+#define MPI26_DIAG_BOOT_DEVICE_SEL_64FLASH      (0x00000000)
+#define MPI26_DIAG_BOOT_DEVICE_SEL_64HCDW       (0x00000800)
+#define MPI26_DIAG_BOOT_DEVICE_SEL_32FLASH      (0x00001000)
+#define MPI26_DIAG_BOOT_DEVICE_SEL_32HCDW       (0x00001800)
+
 #define MPI2_DIAG_CLEAR_FLASH_BAD_SIG           (0x00000400)
 #define MPI2_DIAG_FORCE_HCB_ON_RESET            (0x00000200)
 #define MPI2_DIAG_HCB_MODE                      (0x00000100)
@@ -379,6 +392,7 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
  */
 #define MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET     (0x000000C0)
 #define MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET    (0x000000C4)
+#define MPI26_ATOMIC_REQUEST_DESCRIPTOR_POST_OFFSET (0x000000C8)
 
 
 /* Hard Reset delay timings */
@@ -415,6 +429,7 @@ typedef struct _MPI2_DEFAULT_REQUEST_DESCRIPTOR
 #define MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE            (0x08)
 #define MPI2_REQ_DESCRIPT_FLAGS_RAID_ACCELERATOR        (0x0A)
 #define MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO      (0x0C)
+#define MPI26_REQ_DESCRIPT_FLAGS_PCIE_ENCAPSULATED      (0x10)
 
 #define MPI2_REQ_DESCRIPT_FLAGS_IOC_FIFO_MARKER (0x01)
 
@@ -482,6 +497,14 @@ typedef MPI2_SCSI_IO_REQUEST_DESCRIPTOR
     MPI2_POINTER pMpi25FastPathSCSIIORequestDescriptor_t;
 
 
+/* PCIe Encapsulated Request Descriptor */
+typedef MPI2_SCSI_IO_REQUEST_DESCRIPTOR
+    MPI26_PCIE_ENCAPSULATED_REQUEST_DESCRIPTOR,
+    MPI2_POINTER PTR_MPI26_PCIE_ENCAPSULATED_REQUEST_DESCRIPTOR,
+    Mpi26PCIeEncapsulatedRequestDescriptor_t,
+    MPI2_POINTER pMpi26PCIeEncapsulatedRequestDescriptor_t;
+
+
 /* union of Request Descriptors */
 typedef union _MPI2_REQUEST_DESCRIPTOR_UNION
 {
@@ -491,11 +514,35 @@ typedef union _MPI2_REQUEST_DESCRIPTOR_UNION
     MPI2_SCSI_TARGET_REQUEST_DESCRIPTOR         SCSITarget;
     MPI2_RAID_ACCEL_REQUEST_DESCRIPTOR          RAIDAccelerator;
     MPI25_FP_SCSI_IO_REQUEST_DESCRIPTOR         FastPathSCSIIO;
+    MPI26_PCIE_ENCAPSULATED_REQUEST_DESCRIPTOR  PCIeEncapsulated;
     U64                                         Words;
 } MPI2_REQUEST_DESCRIPTOR_UNION, MPI2_POINTER PTR_MPI2_REQUEST_DESCRIPTOR_UNION,
   Mpi2RequestDescriptorUnion_t, MPI2_POINTER pMpi2RequestDescriptorUnion_t;
 
 
+/* Atomic Request Descriptors */
+
+/*
+ * All Atomic Request Descriptors have the same format, so the following
+ * structure is used for all Atomic Request Descriptors:
+ *      Atomic Default Request Descriptor
+ *      Atomic High Priority Request Descriptor
+ *      Atomic SCSI IO Request Descriptor
+ *      Atomic SCSI Target Request Descriptor
+ *      Atomic RAID Accelerator Request Descriptor
+ *      Atomic Fast Path SCSI IO Request Descriptor
+ *      Atomic PCIe Encapsulated Request Descriptor
+ */
+
+/* Atomic Request Descriptor */
+typedef struct _MPI26_ATOMIC_REQUEST_DESCRIPTOR
+{
+    U8              RequestFlags;               /* 0x00 */
+    U8              MSIxIndex;                  /* 0x01 */
+    U16             SMID;                       /* 0x02 */
+} MPI26_ATOMIC_REQUEST_DESCRIPTOR,
+  MPI2_POINTER PTR_MPI26_ATOMIC_REQUEST_DESCRIPTOR,
+  Mpi26AtomicRequestDescriptor_t, MPI2_POINTER pMpi26AtomicRequestDescriptor_t;
 
 /* for the RequestFlags field, use the same defines as MPI2_DEFAULT_REQUEST_DESCRIPTOR */
 
@@ -520,6 +567,7 @@ typedef struct _MPI2_DEFAULT_REPLY_DESCRIPTOR
 #define MPI2_RPY_DESCRIPT_FLAGS_TARGET_COMMAND_BUFFER       (0x03)
 #define MPI2_RPY_DESCRIPT_FLAGS_RAID_ACCELERATOR_SUCCESS    (0x05)
 #define MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS  (0x06)
+#define MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS  (0x08)
 #define MPI2_RPY_DESCRIPT_FLAGS_UNUSED                      (0x0F)
 
 /* values for marking a reply descriptor as unused */
@@ -607,6 +655,14 @@ typedef MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR
     MPI2_POINTER pMpi25FastPathSCSIIOSuccessReplyDescriptor_t;
 
 
+/* PCIe Encapsulated Success Reply Descriptor */
+typedef MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR
+    MPI26_PCIE_ENCAPSULATED_SUCCESS_REPLY_DESCRIPTOR,
+    MPI2_POINTER PTR_MPI26_PCIE_ENCAPSULATED_SUCCESS_REPLY_DESCRIPTOR,
+    Mpi26PCIeEncapsulatedSuccessReplyDescriptor_t,
+    MPI2_POINTER pMpi26PCIeEncapsulatedSuccessReplyDescriptor_t;
+
+
 /* union of Reply Descriptors */
 typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 {
@@ -617,6 +673,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
     MPI2_TARGET_COMMAND_BUFFER_REPLY_DESCRIPTOR     TargetCommandBuffer;
     MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR  RAIDAcceleratorSuccess;
     MPI25_FP_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR       FastPathSCSIIOSuccess;
+    MPI26_PCIE_ENCAPSULATED_SUCCESS_REPLY_DESCRIPTOR    PCIeEncapsulatedSuccess;
     U64                                             Words;
 } MPI2_REPLY_DESCRIPTORS_UNION, MPI2_POINTER PTR_MPI2_REPLY_DESCRIPTORS_UNION,
   Mpi2ReplyDescriptorsUnion_t, MPI2_POINTER pMpi2ReplyDescriptorsUnion_t;
@@ -659,6 +716,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_HOST_BASED_DISCOVERY_ACTION   (0x2F) /* Host Based Discovery Action */
 #define MPI2_FUNCTION_PWR_MGMT_CONTROL              (0x30) /* Power Management Control */
 #define MPI2_FUNCTION_SEND_HOST_MESSAGE             (0x31) /* Send Host Message */
+#define MPI2_FUNCTION_NVME_ENCAPSULATED             (0x33) /* NVMe Encapsulated (MPI v2.6) */
 #define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0) /* beginning of product-specific range */
 #define MPI2_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF) /* end of product-specific range */
 
@@ -1232,6 +1290,8 @@ typedef union _MPI25_SGE_IO_UNION
 
 #define MPI26_IEEE_SGE_FLAGS_NSF_MASK           (0x1C)
 #define MPI26_IEEE_SGE_FLAGS_NSF_MPI_IEEE       (0x00)
+#define MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP       (0x08)
+#define MPI26_IEEE_SGE_FLAGS_NSF_NVME_SGL       (0x10)
 
 /* Data Location Address Space */
 

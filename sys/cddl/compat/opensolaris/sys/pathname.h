@@ -34,20 +34,9 @@
 #include <sys/param.h>
 #include <sys/vnode.h>
 
-typedef struct pathname {
-	char	*pn_buf;		/* underlying storage */
-	char	*pn_path;		/* remaining pathname */
-	size_t	pn_pathlen;		/* remaining length */
-	size_t	pn_bufsize;		/* total size of pn_buf */
-} pathname_t;
-
-#define	pn_alloc(pnp)	panic("pn_alloc() called")
-#define	pn_free(pnp)	panic("pn_free() called")
-
 int lookupname(char *, enum uio_seg, enum symfollow, vnode_t **, vnode_t **);
 int lookupnameat(char *, enum uio_seg, enum symfollow, vnode_t **, vnode_t **,
     vnode_t *);
-int traverse(vnode_t **, int);
 
 #endif	/* _KERNEL */
 

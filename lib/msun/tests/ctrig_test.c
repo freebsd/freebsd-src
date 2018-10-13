@@ -31,12 +31,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
+#include <sys/param.h>
 #include <complex.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
+
+#include <atf-c.h>
 
 #include "test-utils.h"
 
@@ -60,9 +62,9 @@ __FBSDID("$FreeBSD$");
 	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(cfpequal_cs((func)(_d), (result), (checksign)));		\
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
+	ATF_CHECK(cfpequal_cs((func)(_d), (result), (checksign)));		\
+	ATF_CHECK(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 /*
@@ -74,7 +76,7 @@ __FBSDID("$FreeBSD$");
 	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	assert(cfpequal_tol((func)(_d), (result), (tol), FPE_ABS_ZERO)); \
+	ATF_CHECK(cfpequal_tol((func)(_d), (result), (tol), FPE_ABS_ZERO)); \
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */
@@ -127,11 +129,21 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 
-/* Tests for 0 */
-void
-test_zero(void)
+ATF_TC(test_zero_input);
+ATF_TC_HEAD(test_zero_input, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "test 0 input");
+}
+ATF_TC_BODY(test_zero_input, tc)
 {
 	long double complex zero = CMPLXL(0.0, 0.0);
+
+#if defined(__amd64__)
+#if defined(__clang__) && \
+	((__clang_major__ >= 4))
+	atf_tc_expect_fail("test fails with clang 4.x+ - bug 217528");
+#endif
+#endif
 
 	/* csinh(0) = ctanh(0) = 0; ccosh(0) = 1 (no exceptions raised) */
 	testall_odd(csinh, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
@@ -142,11 +154,12 @@ test_zero(void)
 	testall_odd(ctan, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
 }
 
-/*
- * Tests for NaN inputs.
- */
-void
-test_nan()
+ATF_TC(test_nan_inputs);
+ATF_TC_HEAD(test_nan_inputs, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "test NaN inputs");
+}
+ATF_TC_BODY(test_nan_inputs, tc)
 {
 	long double complex nan_nan = CMPLXL(NAN, NAN);
 	long double complex z;
@@ -222,14 +235,18 @@ test_nan()
 	testall_odd(ctan, z, nan_nan, OPT_INVALID, 0, 0);
 }
 
-void
-test_inf(void)
+ATF_TC(test_inf_inputs);
+ATF_TC_HEAD(test_inf_inputs, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "test infinity inputs");
+}
+ATF_TC_BODY(test_inf_inputs, tc)
 {
 	static const long double finites[] = {
 	    0, M_PI / 4, 3 * M_PI / 4, 5 * M_PI / 4,
 	};
 	long double complex z, c, s;
-	int i;
+	unsigned i;
 
 	/*
 	 * IN		CSINH		CCOSH		CTANH
@@ -251,7 +268,7 @@ test_inf(void)
 	testall_odd(ctan, z, CMPLXL(0, 1), ALL_STD_EXCEPT, 0, CS_REAL);
 
 	/* XXX We allow spurious inexact exceptions here (hard to avoid). */
-	for (i = 0; i < sizeof(finites) / sizeof(finites[0]); i++) {
+	for (i = 0; i < nitems(finites); i++) {
 		z = CMPLXL(INFINITY, finites[i]);
 		c = INFINITY * cosl(finites[i]);
 		s = finites[i] == 0 ? finites[i] : INFINITY * sinl(finites[i]);
@@ -287,18 +304,21 @@ test_inf(void)
 	testall_odd(ctan, z, CMPLXL(NAN, NAN), OPT_INEXACT, FE_INVALID, 0);
 }
 
-/* Tests along the real and imaginary axes. */
-void
-test_axes(void)
+ATF_TC(test_axes);
+ATF_TC_HEAD(test_axes, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "test along the real/imaginary axes");
+}
+ATF_TC_BODY(test_axes, tc)
 {
 	static const long double nums[] = {
 	    M_PI / 4, M_PI / 2, 3 * M_PI / 4,
 	    5 * M_PI / 4, 3 * M_PI / 2, 7 * M_PI / 4,
 	};
 	long double complex z;
-	int i;
+	unsigned i;
 
-	for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) {
+	for (i = 0; i < nitems(nums); i++) {
 		/* Real axis */
 		z = CMPLXL(nums[i], 0.0);
 		test_odd_tol(csinh, z, CMPLXL(sinh(nums[i]), 0), DBL_ULP());
@@ -347,8 +367,12 @@ test_axes(void)
 	}
 }
 
-void
-test_small(void)
+ATF_TC(test_small_inputs);
+ATF_TC_HEAD(test_small_inputs, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "test underflow inputs");
+}
+ATF_TC_BODY(test_small_inputs, tc)
 {
 	/*
 	 * z =  0.5 + i Pi/4
@@ -396,9 +420,9 @@ test_small(void)
 		  -0.26580222883407969212086273981988897L }
 	};
 	long double complex z;
-	int i;
+	unsigned i;
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < nitems(tests); i++) {
 		z = CMPLXL(tests[i].a, tests[i].b);
 		testall_odd_tol(csinh, z,
 		    CMPLXL(tests[i].sinh_a, tests[i].sinh_b), 1.1);
@@ -409,9 +433,13 @@ test_small(void)
         }
 }
 
-/* Test inputs that might cause overflow in a sloppy implementation. */
-void
-test_large(void)
+ATF_TC(test_large_inputs);
+ATF_TC_HEAD(test_large_inputs, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test inputs that might cause overflow in a sloppy implementation");
+}
+ATF_TC_BODY(test_large_inputs, tc)
 {
 	long double complex z;
 
@@ -427,7 +455,6 @@ test_large(void)
 	test_odd_tol(ctanh, z,
 		     CMPLXL(1.0, 8.95257245135025991216632140458264468e-309L),
 		     DBL_ULP());
-#if !defined(__i386__)
 	z = CMPLXL(30, 0x1p1023L);
 	test_odd_tol(ctanh, z,
 		     CMPLXL(1.0, -1.62994325413993477997492170229268382e-26L),
@@ -437,7 +464,6 @@ test_large(void)
 		     CMPLXL(0.878606311888306869546254022621986509L,
 			    -0.225462792499754505792678258169527424L),
 		     DBL_ULP());
-#endif
 
 	z = CMPLXL(710.6, 0.78539816339744830961566084581987572L);
 	test_odd_tol(csinh, z,
@@ -454,29 +480,15 @@ test_large(void)
 	    FE_OVERFLOW, CS_BOTH);
 }
 
-int
-main(int argc, char *argv[])
+ATF_TP_ADD_TCS(tp)
 {
 
-	printf("1..6\n");
+	ATF_TP_ADD_TC(tp, test_zero_input);
+	ATF_TP_ADD_TC(tp, test_nan_inputs);
+	ATF_TP_ADD_TC(tp, test_inf_inputs);
+	ATF_TP_ADD_TC(tp, test_axes);
+	ATF_TP_ADD_TC(tp, test_small_inputs);
+	ATF_TP_ADD_TC(tp, test_large_inputs);
 
-	test_zero();
-	printf("ok 1 - ctrig zero\n");
-
-	test_nan();
-	printf("ok 2 - ctrig nan\n");
-
-	test_inf();
-	printf("ok 3 - ctrig inf\n");
-
-	test_axes();
-	printf("ok 4 - ctrig axes\n");
-
-	test_small();
-	printf("ok 5 - ctrig small\n");
-
-	test_large();
-	printf("ok 6 - ctrig large\n");
-
-	return (0);
+	return (atf_no_error());
 }

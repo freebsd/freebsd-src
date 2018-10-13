@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /******************************************************************************
  @File          fm_mac.h
 
@@ -42,11 +43,18 @@
 #include "error_ext.h"
 #include "list_ext.h"
 #include "fm_mac_ext.h"
+#include "fm_common.h"
 
 
 #define __ERR_MODULE__  MODULE_FM_MAC
 
+/**************************************************************************//**
+ @Description       defaults
+*//***************************************************************************/
 
+
+#define DEFAULT_halfDuplex                  FALSE
+#define DEFAULT_padAndCrcEnable             TRUE
 #define DEFAULT_resetOnInit                 FALSE
 
 
@@ -54,7 +62,7 @@ typedef struct {
     uint64_t addr;      /* Ethernet Address  */
     t_List   node;
 } t_EthHashEntry;
-#define ETH_HASH_ENTRY_OBJ(ptr) LIST_OBJECT(ptr, t_EthHashEntry, node)
+#define ETH_HASH_ENTRY_OBJ(ptr) NCSW_LIST_OBJECT(ptr, t_EthHashEntry, node)
 
 typedef struct {
     uint16_t    size;
@@ -72,7 +80,9 @@ typedef struct {
     t_Error (*f_FM_MAC_ConfigPadAndCrc) (t_Handle h_FmMac, bool newVal);
     t_Error (*f_FM_MAC_ConfigHalfDuplex) (t_Handle h_FmMac, bool newVal);
     t_Error (*f_FM_MAC_ConfigLengthCheck) (t_Handle h_FmMac, bool newVal);
+    t_Error (*f_FM_MAC_ConfigTbiPhyAddr) (t_Handle h_FmMac, uint8_t newVal);
     t_Error (*f_FM_MAC_ConfigException) (t_Handle h_FmMac, e_FmMacExceptions, bool enable);
+    t_Error (*f_FM_MAC_ConfigResetOnInit) (t_Handle h_FmMac, bool enable);
 #ifdef FM_TX_ECC_FRMS_ERRATA_10GMAC_A004
     t_Error (*f_FM_MAC_ConfigSkipFman11Workaround) (t_Handle h_FmMac);
 #endif /* FM_TX_ECC_FRMS_ERRATA_10GMAC_A004 */
@@ -81,11 +91,17 @@ typedef struct {
 
     t_Error (*f_FM_MAC_Enable)  (t_Handle h_FmMac,  e_CommMode mode);
     t_Error (*f_FM_MAC_Disable) (t_Handle h_FmMac, e_CommMode mode);
+    t_Error (*f_FM_MAC_Resume)  (t_Handle h_FmMac);
     t_Error (*f_FM_MAC_Enable1588TimeStamp) (t_Handle h_FmMac);
     t_Error (*f_FM_MAC_Disable1588TimeStamp) (t_Handle h_FmMac);
     t_Error (*f_FM_MAC_Reset)   (t_Handle h_FmMac, bool wait);
 
-    t_Error (*f_FM_MAC_SetTxAutoPauseFrames)   (t_Handle h_FmMac, uint16_t pauseTime);
+    t_Error (*f_FM_MAC_SetTxAutoPauseFrames) (t_Handle h_FmMac,
+                                              uint16_t pauseTime);
+    t_Error (*f_FM_MAC_SetTxPauseFrames) (t_Handle h_FmMac,
+                                          uint8_t  priority,
+                                          uint16_t pauseTime,
+                                          uint16_t threshTime);
     t_Error (*f_FM_MAC_SetRxIgnorePauseFrames) (t_Handle h_FmMac, bool en);
 
     t_Error (*f_FM_MAC_ResetCounters) (t_Handle h_FmMac);
@@ -99,6 +115,9 @@ typedef struct {
 
     t_Error (*f_FM_MAC_SetPromiscuous) (t_Handle h_FmMac, bool newVal);
     t_Error (*f_FM_MAC_AdjustLink)     (t_Handle h_FmMac, e_EnetSpeed speed, bool fullDuplex);
+    t_Error (*f_FM_MAC_RestartAutoneg) (t_Handle h_FmMac);
+
+    t_Error (*f_FM_MAC_SetWakeOnLan)   (t_Handle h_FmMac, bool en);
 
     t_Error (*f_FM_MAC_GetId) (t_Handle h_FmMac, uint32_t *macId);
 
@@ -113,16 +132,21 @@ typedef struct {
     t_Error (*f_FM_MAC_DumpRegs) (t_Handle h_FmMac);
 #endif /* (defined(DEBUG_ERRORS) && ... */
 
-    t_Handle        h_Fm;
-    e_EnetMode      enetMode;
-    uint8_t         macId;
-    bool            resetOnInit;
-    uint16_t        clkFreq;
+    t_Handle            h_Fm;
+    t_FmRevisionInfo    fmRevInfo;
+    e_EnetMode          enetMode;
+    uint8_t             macId;
+    bool                resetOnInit;
+    uint16_t            clkFreq;
 } t_FmMacControllerDriver;
 
 
+#if (DPAA_VERSION == 10)
 t_Handle    DTSEC_Config(t_FmMacParams *p_FmMacParam);
 t_Handle    TGEC_Config(t_FmMacParams *p_FmMacParams);
+#else
+t_Handle    MEMAC_Config(t_FmMacParams *p_FmMacParam);
+#endif /* (DPAA_VERSION == 10) */
 uint16_t    FM_MAC_GetMaxFrameLength(t_Handle FmMac);
 
 
@@ -131,10 +155,10 @@ uint16_t    FM_MAC_GetMaxFrameLength(t_Handle FmMac);
 static __inline__ t_EthHashEntry *DequeueAddrFromHashEntry(t_List *p_AddrLst)
 {
    t_EthHashEntry *p_HashEntry = NULL;
-    if (!LIST_IsEmpty(p_AddrLst))
+    if (!NCSW_LIST_IsEmpty(p_AddrLst))
     {
         p_HashEntry = ETH_HASH_ENTRY_OBJ(p_AddrLst->p_Next);
-        LIST_DelAndInit(&p_HashEntry->node);
+        NCSW_LIST_DelAndInit(&p_HashEntry->node);
     }
     return p_HashEntry;
 }
@@ -146,21 +170,25 @@ static __inline__ void FreeHashTable(t_EthHash *p_Hash)
     t_EthHashEntry  *p_HashEntry;
     int             i = 0;
 
-    if (!p_Hash || !p_Hash->p_Lsts)
-        return;
-
-    for(i=0; i<p_Hash->size; i++)
+    if (p_Hash)
     {
-        p_HashEntry = DequeueAddrFromHashEntry(&p_Hash->p_Lsts[i]);
-        while (p_HashEntry)
+        if  (p_Hash->p_Lsts)
         {
-            XX_Free(p_HashEntry);
-            p_HashEntry = DequeueAddrFromHashEntry(&p_Hash->p_Lsts[i]);
-        }
-    }
+            for (i=0; i<p_Hash->size; i++)
+            {
+                p_HashEntry = DequeueAddrFromHashEntry(&p_Hash->p_Lsts[i]);
+                while (p_HashEntry)
+                {
+                    XX_Free(p_HashEntry);
+                    p_HashEntry = DequeueAddrFromHashEntry(&p_Hash->p_Lsts[i]);
+                }
+            }
 
-    XX_Free(p_Hash->p_Lsts);
-    XX_Free(p_Hash);
+            XX_Free(p_Hash->p_Lsts);
+        }
+
+        XX_Free(p_Hash);
+    }
 }
 
 /* ........................................................................... */
@@ -171,7 +199,7 @@ static __inline__ t_EthHash * AllocHashTable(uint16_t size)
     t_EthHash *p_Hash;
 
     /* Allocate address hash table */
-    p_Hash = (t_EthHash *)XX_Malloc(size*sizeof(t_EthHash *));
+    p_Hash = (t_EthHash *)XX_Malloc(sizeof(t_EthHash));
     if (!p_Hash)
     {
         REPORT_ERROR(MAJOR, E_NO_MEMORY, ("Address hash table"));
@@ -187,7 +215,7 @@ static __inline__ t_EthHash * AllocHashTable(uint16_t size)
         return NULL;
     }
 
-    for(i=0 ; i<p_Hash->size; i++)
+    for (i=0 ; i<p_Hash->size; i++)
         INIT_LIST(&p_Hash->p_Lsts[i]);
 
     return p_Hash;

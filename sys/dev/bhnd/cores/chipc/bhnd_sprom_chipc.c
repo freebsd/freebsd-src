@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
@@ -46,29 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/nvram/bhnd_nvram.h>
 #include <dev/bhnd/nvram/bhnd_spromvar.h>
 
-#include "bhnd_nvram_if.h"
+#include <dev/bhnd/cores/chipc/chipc.h>
 
-#include "chipcvar.h"
-#include "chipc_private.h"
+#include "bhnd_nvram_if.h"
 
 #define	CHIPC_VALID_SPROM_SRC(_src)	\
 	((_src) == BHND_NVRAM_SRC_SPROM || (_src) == BHND_NVRAM_SRC_OTP)
-
-static void
-chipc_sprom_identify(driver_t *driver, device_t parent)
-{
-	struct chipc_caps *caps;
-	
-	caps = BHND_CHIPC_GET_CAPS(parent);
-	if (!CHIPC_VALID_SPROM_SRC(caps->nvram_src))
-		return;
-
-	if (device_find_child(parent, "bhnd_nvram", 0) != NULL)
-		return;
-
-	if (BUS_ADD_CHILD(parent, 0, "bhnd_nvram", 0) == NULL)
-		device_printf(parent, "add bhnd_nvram failed\n");
-}
 
 static int
 chipc_sprom_probe(device_t dev)
@@ -113,7 +98,6 @@ chipc_sprom_attach(device_t dev)
 
 static device_method_t chipc_sprom_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,		chipc_sprom_identify),
 	DEVMETHOD(device_probe,			chipc_sprom_probe),
 	DEVMETHOD(device_attach,		chipc_sprom_attach),
 	DEVMETHOD_END

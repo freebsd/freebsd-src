@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,38 +43,19 @@
 #ifndef _X86_ISA_ICU_H_
 #define	_X86_ISA_ICU_H_
 
-#ifdef PC98
-#define	ICU_IMR_OFFSET	2
-#else
 #define	ICU_IMR_OFFSET	1
-#endif
 
 /*
- * PC-98 machines wire the slave 8259A to pin 7 on the master PIC, and
  * PC-AT machines wire the slave PIC to pin 2 on the master PIC.
  */
-#ifdef PC98
-#define	ICU_SLAVEID	7
-#else
 #define	ICU_SLAVEID	2
-#endif
 
 /*
  * Determine the base master and slave modes not including auto EOI support.
  * All machines that FreeBSD supports use 8086 mode.
  */
-#ifdef PC98
-/*
- * PC-98 machines do not support auto EOI on the second PIC.  Also, it
- * seems that PC-98 machine PICs use buffered mode, and the master PIC
- * uses special fully nested mode.
- */
-#define	BASE_MASTER_MODE	(ICW4_SFNM | ICW4_BUF | ICW4_MS | ICW4_8086)
-#define	BASE_SLAVE_MODE		(ICW4_BUF | ICW4_8086)
-#else
 #define	BASE_MASTER_MODE	ICW4_8086
 #define	BASE_SLAVE_MODE		ICW4_8086
-#endif
 
 /* Enable automatic EOI if requested. */
 #ifdef AUTO_EOI_1
@@ -87,7 +70,6 @@
 #endif
 
 #define	IRQ_MASK(irq)		(1 << (irq))
-#define	IMEN_MASK(ai)		(IRQ_MASK((ai)->at_irq))
 
 void	atpic_handle_intr(u_int vector, struct trapframe *frame);
 void	atpic_startup(void);

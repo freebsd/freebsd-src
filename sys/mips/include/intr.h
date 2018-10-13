@@ -55,7 +55,20 @@
 #define	NIRQ			MIPS_NIRQ
 #endif
 
+#ifndef FDT
+#define	MIPS_PIC_XREF		1	/**< unique xref */
+#endif
+
+#define NHARD_IRQS		6
+#define NSOFT_IRQS		2
+#define NREAL_IRQS		(NHARD_IRQS + NSOFT_IRQS)
+
 #define INTR_IRQ_NSPC_SWI	4
+
+/* MIPS32 PIC APIs */
+int mips_pic_map_fixed_intrs(void);
+int mips_pic_activate_intr(device_t child, struct resource *r);
+int mips_pic_deactivate_intr(device_t child, struct resource *r);
 
 /* MIPS compatibility for legacy mips code */
 void cpu_init_interrupts(void);

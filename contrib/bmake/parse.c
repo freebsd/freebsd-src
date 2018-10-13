@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $	*/
+/*	$NetBSD: parse.c,v 1.229 2018/04/05 16:31:54 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $";
+static char rcsid[] = "$NetBSD: parse.c,v 1.229 2018/04/05 16:31:54 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $");
+__RCSID("$NetBSD: parse.c,v 1.229 2018/04/05 16:31:54 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -138,6 +138,10 @@ __RCSID("$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $");
 #include "buf.h"
 #include "pathnames.h"
 
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
 #ifdef HAVE_MMAP
 #include <sys/mman.h>
 
@@ -184,6 +188,7 @@ typedef struct IFile {
 typedef enum {
     Begin,  	    /* .BEGIN */
     Default,	    /* .DEFAULT */
+    DeleteOnError,  /* .DELETE_ON_ERROR */
     End,    	    /* .END */
     dotError,	    /* .ERROR */
     Ignore,	    /* .IGNORE */
@@ -301,6 +306,7 @@ static const struct {
 } parseKeywords[] = {
 { ".BEGIN", 	  Begin,    	0 },
 { ".DEFAULT",	  Default,  	0 },
+{ ".DELETE_ON_ERROR", DeleteOnError, 0 },
 { ".END",   	  End,	    	0 },
 { ".ERROR",   	  dotError,    	0 },
 { ".EXEC",	  Attribute,   	OP_EXEC },
@@ -365,9 +371,6 @@ static void ParseHasCommands(void *);
 static void ParseDoInclude(char *);
 static void ParseSetParseFile(const char *);
 static void ParseSetIncludedFile(void);
-#ifdef SYSVINCLUDE
-static void ParseTraditionalInclude(char *);
-#endif
 #ifdef GMAKEEXPORT
 static void ParseGmakeExport(char *);
 #endif
@@ -484,7 +487,7 @@ loadfile(const char *path, int fd)
 {
 	struct loadedfile *lf;
 #ifdef HAVE_MMAP
-	long pagesize;
+	static long pagesize = 0;
 #endif
 	ssize_t result;
 	size_t bufpos;
@@ -509,9 +512,8 @@ loadfile(const char *path, int fd)
 	if (load_getsize(fd, &lf->len) == SUCCESS) {
 		/* found a size, try mmap */
 #ifdef _SC_PAGESIZE
-		pagesize = sysconf(_SC_PAGESIZE);
-#else
-		pagesize = 0;
+		if (pagesize == 0)
+			pagesize = sysconf(_SC_PAGESIZE);
 #endif
 		if (pagesize <= 0) {
 			pagesize = 0x1000;
@@ -537,7 +539,7 @@ loadfile(const char *path, int fd)
 		if (lf->buf != MAP_FAILED) {
 			/* succeeded */
 			if (lf->len == lf->maplen && lf->buf[lf->len - 1] != '\n') {
-				char *b = malloc(lf->len + 1);
+				char *b = bmake_malloc(lf->len + 1);
 				b[lf->len] = '\n';
 				memcpy(b, lf->buf, lf->len++);
 				munmap(lf->buf, lf->maplen);
@@ -558,9 +560,15 @@ loadfile(const char *path, int fd)
 	while (1) {
 		assert(bufpos <= lf->len);
 		if (bufpos == lf->len) {
+			if (lf->len > SIZE_MAX/2) {
+				errno = EFBIG;
+				Error("%s: file too large", path);
+				exit(1);
+			}
 			lf->len *= 2;
 			lf->buf = bmake_realloc(lf->buf, lf->len);
 		}
+		assert(bufpos < lf->len);
 		result = read(fd, lf->buf + bufpos, lf->len - bufpos);
 		if (result < 0) {
 			Error("%s: read error: %s", path, strerror(errno));
@@ -576,7 +584,11 @@ loadfile(const char *path, int fd)
 
 	/* truncate malloc region to actual length (maybe not useful) */
 	if (lf->len > 0) {
+		/* as for mmap case, ensure trailing \n */
+		if (lf->buf[lf->len - 1] != '\n')
+			lf->len++;
 		lf->buf = bmake_realloc(lf->buf, lf->len);
+		lf->buf[lf->len - 1] = '\n';
 	}
 
 #ifdef HAVE_MMAP
@@ -704,6 +716,8 @@ ParseVErrorInternal(FILE *f, const char *cfname, size_t clineno, int type,
 	(void)vfprintf(f, fmt, ap);
 	(void)fprintf(f, "\n");
 	(void)fflush(f);
+	if (type == PARSE_INFO)
+		return;
 	if (type == PARSE_FATAL || parseWarnFatal)
 		fatals += 1;
 	if (parseWarnFatal && !fatal_warning_error_printed) {
@@ -796,7 +810,7 @@ ParseMessage(char *line)
 
     switch(*line) {
     case 'i':
-	mtype = 0;
+	mtype = PARSE_INFO;
 	break;
     case 'w':
 	mtype = PARSE_WARNING;
@@ -1093,15 +1107,15 @@ ParseDoSrc(int tOp, const char *src)
  *-----------------------------------------------------------------------
  */
 static int
-ParseFindMain(void *gnp, void *dummy)
+ParseFindMain(void *gnp, void *dummy MAKE_ATTR_UNUSED)
 {
     GNode   	  *gn = (GNode *)gnp;
     if ((gn->type & OP_NOTARGET) == 0) {
 	mainNode = gn;
 	Targ_SetMain(gn);
-	return (dummy ? 1 : 1);
+	return 1;
     } else {
-	return (dummy ? 0 : 0);
+	return 0;
     }
 }
 
@@ -1139,10 +1153,10 @@ ParseAddDir(void *path, void *name)
  *-----------------------------------------------------------------------
  */
 static int
-ParseClearPath(void *path, void *dummy)
+ParseClearPath(void *path, void *dummy MAKE_ATTR_UNUSED)
 {
     Dir_ClearPath((Lst) path);
-    return(dummy ? 0 : 0);
+    return 0;
 }
 
 /*-
@@ -1334,6 +1348,7 @@ ParseDoDependency(char *line)
 		 *	.BEGIN
 		 *	.END
 		 *	.ERROR
+		 *	.DELETE_ON_ERROR
 		 *	.INTERRUPT  	Are not to be considered the
 		 *			main target.
 		 *  	.NOTPARALLEL	Make only one target at a time.
@@ -1368,6 +1383,9 @@ ParseDoDependency(char *line)
 		    gn->type |= (OP_NOTMAIN|OP_TRANSFORM);
 		    (void)Lst_AtEnd(targets, gn);
 		    DEFAULT = gn;
+		    break;
+		case DeleteOnError:
+		    deleteOnError = TRUE;
 		    break;
 		case NotParallel:
 		    maxJobs = 1;
@@ -1597,7 +1615,8 @@ ParseDoDependency(char *line)
 	    goto out;
 	}
 	*line = '\0';
-    } else if ((specType == NotParallel) || (specType == SingleShell)) {
+    } else if ((specType == NotParallel) || (specType == SingleShell) ||
+	    (specType == DeleteOnError)) {
 	*line = '\0';
     }
 
@@ -1658,7 +1677,7 @@ ParseDoDependency(char *line)
 		    Suff_SetNull(line);
 		    break;
 		case ExObjdir:
-		    Main_SetObjdir(line);
+		    Main_SetObjdir("%s", line);
 		    break;
 		default:
 		    break;
@@ -1674,10 +1693,12 @@ ParseDoDependency(char *line)
 	}
 	if (paths) {
 	    Lst_Destroy(paths, NULL);
+	    paths = NULL;
 	}
 	if (specType == ExPath)
 	    Dir_SetPATH();
     } else {
+	assert(paths == NULL);
 	while (*line) {
 	    /*
 	     * The targets take real sources, so we must beware of archive
@@ -1736,6 +1757,7 @@ ParseDoDependency(char *line)
     }
 
 out:
+    assert(paths == NULL);
     if (curTargs)
 	    Lst_Destroy(curTargs, NULL);
 }
@@ -1858,7 +1880,7 @@ Parse_DoVar(char *line, GNode *ctxt)
      * XXX Rather than counting () and {} we should look for $ and
      * then expand the variable.
      */
-    for (depth = 0, cp = line + 1; depth != 0 || *cp != '='; cp++) {
+    for (depth = 0, cp = line + 1; depth > 0 || *cp != '='; cp++) {
 	if (*cp == '(' || *cp == '{') {
 	    depth++;
 	    continue;
@@ -2494,7 +2516,72 @@ Parse_SetInput(const char *name, int line, int fd,
     ParseSetParseFile(name);
 }
 
+/*-
+ *-----------------------------------------------------------------------
+ * IsInclude --
+ *	Check if the line is an include directive
+ *
+ * Results:
+ *	TRUE if it is.
+ *
+ * Side Effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------
+ */
+static Boolean
+IsInclude(const char *line, Boolean sysv)
+{
+	static const char inc[] = "include";
+	static const size_t inclen = sizeof(inc) - 1;
+
+	// 'd' is not valid for sysv
+	int o = strchr(&("ds-"[sysv]), *line) != NULL;
+
+	if (strncmp(line + o, inc, inclen) != 0)
+		return FALSE;
+
+	// Space is not mandatory for BSD .include
+	return !sysv || isspace((unsigned char)line[inclen + o]);
+}
+
+
 #ifdef SYSVINCLUDE
+/*-
+ *-----------------------------------------------------------------------
+ * IsSysVInclude --
+ *	Check if the line is a SYSV include directive
+ *
+ * Results:
+ *	TRUE if it is.
+ *
+ * Side Effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------
+ */
+static Boolean
+IsSysVInclude(const char *line)
+{
+	const char *p;
+
+	if (!IsInclude(line, TRUE))
+		return FALSE;
+
+	/* Avoid interpeting a dependency line as an include */
+	for (p = line; (p = strchr(p, ':')) != NULL;) {
+		if (*++p == '\0') {
+			/* end of line -> dependency */
+			return FALSE;
+		}
+		if (*p == ':' || isspace((unsigned char)*p)) {
+			/* :: operator or ': ' -> dependency */
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
 /*-
  *---------------------------------------------------------------------
  * ParseTraditionalInclude  --
@@ -2539,7 +2626,7 @@ ParseTraditionalInclude(char *line)
     if (*file == '\0') {
 	Parse_Error(PARSE_FATAL,
 		     "Filename missing from \"include\"");
-	return;
+	goto out;
     }
 
     for (file = all_files; !done; file = cp + 1) {
@@ -2554,6 +2641,7 @@ ParseTraditionalInclude(char *line)
 
 	Parse_include_file(file, FALSE, FALSE, silent);
     }
+out:
     free(all_files);
 }
 #endif
@@ -2604,6 +2692,7 @@ ParseGmakeExport(char *line)
      */
     value = Var_Subst(NULL, value, VAR_CMD, VARF_WANTRES);
     setenv(variable, value, 1);
+    free(value);
 }
 #endif
 
@@ -2992,9 +3081,7 @@ Parse_File(const char *name, int fd)
 		for (cp = line + 1; isspace((unsigned char)*cp); cp++) {
 		    continue;
 		}
-		if (strncmp(cp, "include", 7) == 0 ||
-			((cp[0] == 'd' || cp[0] == 's' || cp[0] == '-') &&
-			    strncmp(&cp[1], "include", 7) == 0)) {
+		if (IsInclude(cp, FALSE)) {
 		    ParseDoInclude(cp);
 		    continue;
 		}
@@ -3056,12 +3143,7 @@ Parse_File(const char *name, int fd)
 	    }
 
 #ifdef SYSVINCLUDE
-	    if (((strncmp(line, "include", 7) == 0 &&
-		    isspace((unsigned char) line[7])) ||
-			((line[0] == 's' || line[0] == '-') &&
-			    strncmp(&line[1], "include", 7) == 0 &&
-			    isspace((unsigned char) line[8]))) &&
-		    strchr(line, ':') == NULL) {
+	    if (IsSysVInclude(line)) {
 		/*
 		 * It's an S3/S5-style "include".
 		 */

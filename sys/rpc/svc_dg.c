@@ -1,6 +1,8 @@
 /*	$NetBSD: svc_dg.c,v 1.4 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -142,9 +144,8 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	return (xprt);
 freedata:
 	(void) printf(svc_dg_str, __no_mem_str);
-	if (xprt) {
-		svc_xprt_free(xprt);
-	}
+	svc_xprt_free(xprt);
+
 	return (NULL);
 }
 

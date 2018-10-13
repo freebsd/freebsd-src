@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 David Chisnall
  * All rights reserved.
  *
@@ -32,6 +34,7 @@
 
 #include "input_buffer.hh"
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -46,37 +49,258 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #ifndef MAP_PREFAULT_READ
 #define MAP_PREFAULT_READ 0
 #endif
 
+using std::string;
+
+namespace
+{
+/**
+ * Subclass of input_buffer that mmap()s a file and owns the resulting memory.
+ * When this object is destroyed, the memory is unmapped.
+ */
+struct mmap_input_buffer : public dtc::input_buffer
+{
+	string fn;
+	const string &filename() const override
+	{
+		return fn;
+	}
+	/**
+	 * Constructs a new buffer from the file passed in as a file
+	 * descriptor.
+	 */
+	mmap_input_buffer(int fd, string &&filename);
+	/**
+	 * Unmaps the buffer, if one exists.
+	 */
+	virtual ~mmap_input_buffer();
+};
+/**
+ * Input buffer read from standard input.  This is used for reading device tree
+ * blobs and source from standard input.  It reads the entire input into
+ * malloc'd memory, so will be very slow for large inputs.  DTS and DTB files
+ * are very rarely more than 10KB though, so this is probably not a problem.
+ */
+struct stream_input_buffer : public dtc::input_buffer
+{
+	const string &filename() const override
+	{
+		static string n = "<standard input>";
+		return n;
+	}
+	/**
+	 * The buffer that will store the data read from the standard input.
+	 */
+	std::vector<char> b;
+	/**
+	 * Constructs a new buffer from the standard input.
+	 */
+	stream_input_buffer();
+};
+
+mmap_input_buffer::mmap_input_buffer(int fd, string &&filename)
+	: input_buffer(0, 0), fn(filename)
+{
+	struct stat sb;
+	if (fstat(fd, &sb))
+	{
+		perror("Failed to stat file");
+	}
+	size = sb.st_size;
+	buffer = (const char*)mmap(0, size, PROT_READ, MAP_PRIVATE |
+			MAP_PREFAULT_READ, fd, 0);
+	if (buffer == MAP_FAILED)
+	{
+		perror("Failed to mmap file");
+		exit(EXIT_FAILURE);
+	}
+}
+
+mmap_input_buffer::~mmap_input_buffer()
+{
+	if (buffer != 0)
+	{
+		munmap((void*)buffer, size);
+	}
+}
+
+stream_input_buffer::stream_input_buffer() : input_buffer(0, 0)
+{
+	int c;
+	while ((c = fgetc(stdin)) != EOF)
+	{
+		b.push_back(c);
+	}
+	buffer = b.data();
+	size = b.size();
+}
+
+} // Anonymous namespace
+
+
 namespace dtc
 {
+
 void
-input_buffer::skip_spaces()
+input_buffer::skip_to(char c)
 {
-	if (cursor >= size) { return; }
-	if (cursor < 0) { return; }
-	char c = buffer[cursor];
+	while ((cursor < size) && (buffer[cursor] != c))
+	{
+		cursor++;
+	}
+}
+
+void
+text_input_buffer::skip_to(char c)
+{
+	while (!finished() && (*(*this) != c))
+	{
+		++(*this);
+	}
+}
+
+void
+text_input_buffer::skip_spaces()
+{
+	if (finished()) { return; }
+	char c = *(*this);
+	bool last_nl = false;
 	while ((c == ' ') || (c == '\t') || (c == '\n') || (c == '\f')
 	       || (c == '\v') || (c == '\r'))
 	{
-		cursor++;
-		if (cursor > size)
+		last_nl = ((c == '\n') || (c == '\r'));
+		++(*this);
+		if (finished())
 		{
 			c = '\0';
 		}
 		else
 		{
-			c = buffer[cursor];
+			c = *(*this);
 		}
 	}
+	// Skip C preprocessor leftovers
+	if ((c == '#') && ((cursor == 0) || last_nl))
+	{
+		skip_to('\n');
+		skip_spaces();
+	}
+	if (consume("/include/"))
+	{
+		handle_include();
+		skip_spaces();
+	}
+}
+
+void
+text_input_buffer::handle_include()
+{
+	bool reallyInclude = true;
+	if (consume("if "))
+	{
+		next_token();
+		string name = parse_property_name();
+		if (defines.count(name) == 0)
+		{
+			reallyInclude = false;
+		}
+		consume('/');
+	}
+	next_token();
+	if (!consume('"'))
+	{
+		parse_error("Expected quoted filename");
+		return;
+	}
+	auto loc = location();
+	string file = parse_to('"');
+	consume('"');
+	if (!reallyInclude)
+	{
+		return;
+	}
+	string include_file = dir + '/' + file;
+	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
+	if (include_buffer == 0)
+	{
+		for (auto i : include_paths)
+		{
+			include_file = i + '/' + file;
+			include_buffer = input_buffer::buffer_for_file(include_file, false);
+			if (include_buffer != 0)
+			{
+				break;
+			}
+		}
+	}
+	if (depfile)
+	{
+		putc(' ', depfile);
+		fputs(include_file.c_str(), depfile);
+	}
+	if (!include_buffer)
+	{
+		loc.report_error("Unable to locate input file");
+		return;
+	}
+	input_stack.push(std::move(include_buffer));
+}
+
+bool text_input_buffer::read_binary_file(const std::string &filename, byte_buffer &b)
+{
+	bool try_include_paths = true;
+	string include_file;
+	if (filename[0] == '/')
+	{
+		include_file = filename;
+		// Don't try include paths if we're given an absolute path.
+		// Failing is better so that we don't accidentally do the wrong thing,
+		// but make it seem like everything is alright.
+		try_include_paths = false;
+	}
+	else
+	{
+		include_file = dir + '/' + filename;
+	}
+	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
+	if (include_buffer == 0 && try_include_paths)
+	{
+		for (auto i : include_paths)
+		{
+			include_file = i + '/' + filename;
+			include_buffer = input_buffer::buffer_for_file(include_file, false);
+			if (include_buffer != 0)
+			{
+				break;
+			}
+		}
+	}
+	if (!include_buffer)
+	{
+		return false;
+	}
+	if (depfile)
+	{
+		putc(' ', depfile);
+		fputs(include_file.c_str(), depfile);
+	}
+	b.insert(b.begin(), include_buffer->begin(), include_buffer->end());
+	return true;
 }
 
 input_buffer
 input_buffer::buffer_from_offset(int offset, int s)
 {
+	if (offset < 0)
+	{
+		return input_buffer();
+	}
 	if (s == 0)
 	{
 		s = size - offset;
@@ -104,7 +328,7 @@ input_buffer::consume(const char *str)
 	{
 		for (int i=0 ; i<len ; ++i)
 		{
-			if (str[i] != buffer[cursor + i])
+			if (str[i] != (*this)[i])
 			{
 				return false;
 			}
@@ -124,7 +348,7 @@ input_buffer::consume_integer(unsigned long long &outInt)
 	{
 		return false;
 	}
-	char *end=0;
+	char *end= const_cast<char*>(&buffer[size]);
 	outInt = strtoull(&buffer[cursor], &end, 0);
 	if (end == &buffer[cursor])
 	{
@@ -146,15 +370,27 @@ typedef unsigned long long valty;
  */
 struct expression
 {
+	typedef text_input_buffer::source_location source_location;
+	/**
+	 * The type that is returned when computing the result.  The boolean value
+	 * indicates whether this is a valid expression.
+	 *
+	 * FIXME: Once we can use C++17, this should be `std::optional`.
+	 */
+	typedef std::pair<valty, bool> result;
 	/**
 	 * Evaluate this node, taking into account operator precedence.
 	 */
-	virtual valty operator()() = 0;
+	virtual result operator()() = 0;
 	/**
 	 * Returns the precedence of this node.  Lower values indicate higher
 	 * precedence.
 	 */
 	virtual int precedence() = 0;
+	/**
+	 * Constructs an expression, storing the location where it was created.
+	 */
+	expression(source_location l) : loc(l) {}
 	virtual ~expression() {}
 #ifndef NDEBUG
 	/**
@@ -163,7 +399,8 @@ struct expression
 	 */
 	void dump(bool nl=false)
 	{
-		if (this == nullptr)
+		void *ptr = this;
+		if (ptr == nullptr)
 		{
 			std::cerr << "{nullptr}\n";
 			return;
@@ -180,6 +417,8 @@ struct expression
 	 */
 	virtual void dump_impl() = 0;
 #endif
+	protected:
+	source_location loc;
 };
 
 /**
@@ -194,9 +433,9 @@ class terminal_expr : public expression
 	/**
 	 * Evaluate.  Trivially returns the value that this class wraps.
 	 */
-	valty operator()() override
+	result operator()() override
 	{
-		return val;
+		return {val, true};
 	}
 	int precedence() override
 	{
@@ -206,7 +445,7 @@ class terminal_expr : public expression
 	/**
 	 * Constructor.
 	 */
-	terminal_expr(valty v) : val(v) {}
+	terminal_expr(source_location l, valty v) : expression(l), val(v) {}
 #ifndef NDEBUG
 	void dump_impl() override { std::cerr << val; }
 #endif
@@ -224,7 +463,8 @@ struct paren_expression : public expression
 	/**
 	 * Constructor.  Takes the child expression as the only argument.
 	 */
-	paren_expression(expression_ptr p) : subexpr(std::move(p)) {}
+	paren_expression(source_location l, expression_ptr p) : expression(l),
+	subexpr(std::move(p)) {}
 	int precedence() override
 	{
 		return 0;
@@ -232,7 +472,7 @@ struct paren_expression : public expression
 	/**
 	 * Evaluate - just forwards to the underlying expression.
 	 */
-	valty operator()() override
+	result operator()() override
 	{
 		return (*subexpr)();
 	}
@@ -260,10 +500,15 @@ class unary_operator : public expression
 	 * The subexpression for this unary operator.
 	 */
 	expression_ptr subexpr;
-	valty operator()() override
+	result operator()() override
 	{
 		Op op;
-		return op((*subexpr)());
+		result s = (*subexpr)();
+		if (!s.second)
+		{
+			return s;
+		}
+		return {op(s.first), true};
 	}
 	/**
 	 * All unary operators have the same precedence.  They are all evaluated
@@ -274,7 +519,8 @@ class unary_operator : public expression
 		return 3;
 	}
 	public:
-	unary_operator(expression_ptr p) : subexpr(std::move(p)) {}
+	unary_operator(source_location l, expression_ptr p) :
+		expression(l), subexpr(std::move(p)) {}
 #ifndef NDEBUG
 	void dump_impl() override
 	{
@@ -290,6 +536,7 @@ class unary_operator : public expression
  */
 struct binary_operator_base : public expression
 {
+	using expression::expression;
 	/**
 	 * The left side of the expression.
 	 */
@@ -323,10 +570,16 @@ struct binary_operator_base : public expression
 template<int Precedence, class Op>
 struct binary_operator : public binary_operator_base
 {
-	valty operator()() override
+	result operator()() override
 	{
 		Op op;
-		return op((*lhs)(), (*rhs)());
+		result l = (*lhs)();
+		result r = (*rhs)();
+		if (!(l.second && r.second))
+		{
+			return {0, false};
+		}
+		return {op(l.first, r.first), true};
 	}
 	int precedence() override
 	{
@@ -337,10 +590,12 @@ struct binary_operator : public binary_operator_base
 	 * Constructor.  Takes the name of the operator as an argument, for
 	 * debugging.  Only stores it in debug mode.
 	 */
-	binary_operator(const char *) {}
+	binary_operator(source_location l, const char *) :
+		binary_operator_base(l) {}
 #else
 	const char *opName;
-	binary_operator(const char *o) : opName(o) {}
+	binary_operator(source_location l, const char *o) :
+		binary_operator_base(l), opName(o) {}
 	void dump_impl() override
 	{
 		lhs->dump();
@@ -368,9 +623,16 @@ class ternary_conditional_operator : public expression
 	 * The expression that this evaluates to if the condition is false.
 	 */
 	expression_ptr rhs;
-	valty operator()() override
+	result operator()() override
 	{
-		return (*cond)() ? (*lhs)() : (*rhs)();
+		result c = (*cond)();
+		result l = (*lhs)();
+		result r = (*rhs)();
+		if (!(l.second && r.second && c.second))
+		{
+			return {0, false};
+		}
+		return c.first ? l : r;
 	}
 	int precedence() override
 	{
@@ -390,10 +652,12 @@ class ternary_conditional_operator : public expression
 	}
 #endif
 	public:
-	ternary_conditional_operator(expression_ptr c,
+	ternary_conditional_operator(source_location sl,
+	                             expression_ptr c,
 	                             expression_ptr l,
 	                             expression_ptr r) :
-		cond(std::move(c)), lhs(std::move(l)), rhs(std::move(r)) {}
+		expression(sl), cond(std::move(c)), lhs(std::move(l)),
+		rhs(std::move(r)) {}
 };
 
 template<typename T>
@@ -430,36 +694,53 @@ struct bit_not
 	}
 };
 
+template<typename T>
+struct divmod : public binary_operator<5, T>
+{
+	using binary_operator<5, T>::binary_operator;
+	using typename binary_operator_base::result;
+	result operator()() override
+	{
+		result r = (*binary_operator_base::rhs)();
+		if (r.second && (r.first == 0))
+		{
+			expression::loc.report_error("Division by zero");
+			return {0, false};
+		}
+		return binary_operator<5, T>::operator()();
+	}
+};
+
 } // anonymous namespace
 
 
-expression_ptr input_buffer::parse_binary_expression(expression_ptr lhs)
+expression_ptr text_input_buffer::parse_binary_expression(expression_ptr lhs)
 {
 	next_token();
 	binary_operator_base *expr = nullptr;
-	char op = ((*this)[0]);
+	char op = *(*this);
+	source_location l = location();
 	switch (op)
 	{
 		default:
 			return lhs;
 		case '+':
-			expr = new binary_operator<6, std::plus<valty>>("+");
+			expr = new binary_operator<6, std::plus<valty>>(l, "+");
 			break;
 		case '-':
-			expr = new binary_operator<6, std::minus<valty>>("-");
+			expr = new binary_operator<6, std::minus<valty>>(l, "-");
 			break;
 		case '%':
-			expr = new binary_operator<5, std::modulus<valty>>("%");
+			expr = new divmod<std::modulus<valty>>(l, "/");
 			break;
 		case '*':
-			expr = new binary_operator<5, std::multiplies<valty>>("*");
+			expr = new binary_operator<5, std::multiplies<valty>>(l, "*");
 			break;
 		case '/':
-			expr = new binary_operator<5, std::divides<valty>>("/");
+			expr = new divmod<std::divides<valty>>(l, "/");
 			break;
 		case '<':
-			cursor++;
-			switch ((*this)[0])
+			switch (peek())
 			{
 				default:
 					parse_error("Invalid operator");
@@ -467,20 +748,20 @@ expression_ptr input_buffer::parse_binary_expression(expression_ptr lhs)
 				case ' ':
 				case '(':
 				case '0'...'9':
-					cursor--;
-					expr = new binary_operator<8, std::less<valty>>("<");
+					expr = new binary_operator<8, std::less<valty>>(l, "<");
 					break;
 				case '=':
-					expr = new binary_operator<8, std::less_equal<valty>>("<=");
+					++(*this);
+					expr = new binary_operator<8, std::less_equal<valty>>(l, "<=");
 					break;
 				case '<':
-					expr = new binary_operator<7, lshift<valty>>("<<");
+					++(*this);
+					expr = new binary_operator<7, lshift<valty>>(l, "<<");
 					break;
 			}
 			break;
 		case '>':
-			cursor++;
-			switch ((*this)[0])
+			switch (peek())
 			{
 				default:
 					parse_error("Invalid operator");
@@ -488,54 +769,54 @@ expression_ptr input_buffer::parse_binary_expression(expression_ptr lhs)
 				case '(':
 				case ' ':
 				case '0'...'9':
-					cursor--;
-					expr = new binary_operator<8, std::greater<valty>>(">");
+					expr = new binary_operator<8, std::greater<valty>>(l, ">");
 					break;
 				case '=':
-					expr = new binary_operator<8, std::greater_equal<valty>>(">=");
+					++(*this);
+					expr = new binary_operator<8, std::greater_equal<valty>>(l, ">=");
 					break;
 				case '>':
-					expr = new binary_operator<7, rshift<valty>>(">>");
+					++(*this);
+					expr = new binary_operator<7, rshift<valty>>(l, ">>");
 					break;
 					return lhs;
 			}
 			break;
 		case '=':
-			if ((*this)[1] != '=')
+			if (peek() != '=')
 			{
 				parse_error("Invalid operator");
 				return nullptr;
 			}
-			consume('=');
-			expr = new binary_operator<9, std::equal_to<valty>>("==");
+			expr = new binary_operator<9, std::equal_to<valty>>(l, "==");
 			break;
 		case '!':
-			if ((*this)[1] != '=')
+			if (peek() != '=')
 			{
 				parse_error("Invalid operator");
 				return nullptr;
 			}
 			cursor++;
-			expr = new binary_operator<9, std::not_equal_to<valty>>("!=");
+			expr = new binary_operator<9, std::not_equal_to<valty>>(l, "!=");
 			break;
 		case '&':
-			if ((*this)[1] == '&')
+			if (peek() == '&')
 			{
-				expr = new binary_operator<13, std::logical_and<valty>>("&&");
+				expr = new binary_operator<13, std::logical_and<valty>>(l, "&&");
 			}
 			else
 			{
-				expr = new binary_operator<10, std::bit_and<valty>>("&");
+				expr = new binary_operator<10, std::bit_and<valty>>(l, "&");
 			}
 			break;
 		case '|':
-			if ((*this)[1] == '|')
+			if (peek() == '|')
 			{
-				expr = new binary_operator<12, std::logical_or<valty>>("||");
+				expr = new binary_operator<12, std::logical_or<valty>>(l, "||");
 			}
 			else
 			{
-				expr = new binary_operator<14, std::bit_or<valty>>("|");
+				expr = new binary_operator<14, std::bit_or<valty>>(l, "|");
 			}
 			break;
 		case '?':
@@ -554,11 +835,11 @@ expression_ptr input_buffer::parse_binary_expression(expression_ptr lhs)
 				parse_error("Expected false condition for ternary operator");
 				return nullptr;
 			}
-			return expression_ptr(new ternary_conditional_operator(std::move(lhs),
+			return expression_ptr(new ternary_conditional_operator(l, std::move(lhs),
 						std::move(true_case), std::move(false_case)));
 		}
 	}
-	cursor++;
+	++(*this);
 	next_token();
 	expression_ptr e(expr);
 	expression_ptr rhs(parse_expression());
@@ -584,19 +865,20 @@ expression_ptr input_buffer::parse_binary_expression(expression_ptr lhs)
 	return e;
 }
 
-expression_ptr input_buffer::parse_expression(bool stopAtParen)
+expression_ptr text_input_buffer::parse_expression(bool stopAtParen)
 {
 	next_token();
 	unsigned long long leftVal;
 	expression_ptr lhs;
-	switch ((*this)[0])
+	source_location l = location();
+	switch (*(*this))
 	{
 		case '0'...'9':
 			if (!consume_integer(leftVal))
 			{
 				return nullptr;
 			}
-			lhs.reset(new terminal_expr(leftVal));
+			lhs.reset(new terminal_expr(l, leftVal));
 			break;
 		case '(':
 		{
@@ -606,7 +888,7 @@ expression_ptr input_buffer::parse_expression(bool stopAtParen)
 			{
 				return nullptr;
 			}
-			lhs.reset(new paren_expression(std::move(subexpr)));
+			lhs.reset(new paren_expression(l, std::move(subexpr)));
 			if (!consume(')'))
 			{
 				return nullptr;
@@ -625,7 +907,7 @@ expression_ptr input_buffer::parse_expression(bool stopAtParen)
 			{
 				return nullptr;
 			}
-			lhs.reset(new unary_operator<'+', unary_plus<valty>>(std::move(subexpr)));
+			lhs.reset(new unary_operator<'+', unary_plus<valty>>(l, std::move(subexpr)));
 			break;
 		}
 		case '-':
@@ -636,7 +918,7 @@ expression_ptr input_buffer::parse_expression(bool stopAtParen)
 			{
 				return nullptr;
 			}
-			lhs.reset(new unary_operator<'-', std::negate<valty>>(std::move(subexpr)));
+			lhs.reset(new unary_operator<'-', std::negate<valty>>(l, std::move(subexpr)));
 			break;
 		}
 		case '!':
@@ -647,7 +929,7 @@ expression_ptr input_buffer::parse_expression(bool stopAtParen)
 			{
 				return nullptr;
 			}
-			lhs.reset(new unary_operator<'!', std::logical_not<valty>>(std::move(subexpr)));
+			lhs.reset(new unary_operator<'!', std::logical_not<valty>>(l, std::move(subexpr)));
 			break;
 		}
 		case '~':
@@ -658,7 +940,7 @@ expression_ptr input_buffer::parse_expression(bool stopAtParen)
 			{
 				return nullptr;
 			}
-			lhs.reset(new unary_operator<'~', bit_not<valty>>(std::move(subexpr)));
+			lhs.reset(new unary_operator<'~', bit_not<valty>>(l, std::move(subexpr)));
 			break;
 		}
 	}
@@ -670,9 +952,9 @@ expression_ptr input_buffer::parse_expression(bool stopAtParen)
 }
 
 bool
-input_buffer::consume_integer_expression(unsigned long long &outInt)
+text_input_buffer::consume_integer_expression(unsigned long long &outInt)
 {
-	switch ((*this)[0])
+	switch (*(*this))
 	{
 		case '(':
 		{
@@ -681,8 +963,13 @@ input_buffer::consume_integer_expression(unsigned long long &outInt)
 			{
 				return false;
 			}
-			outInt = (*e)();
-			return true;
+			auto r = (*e)();
+			if (r.second)
+			{
+				outInt = r.first;
+				return true;
+			}
+			return false;
 		}
 		case '0'...'9':
 			return consume_integer(outInt);
@@ -703,58 +990,80 @@ input_buffer::consume_hex_byte(uint8_t &outByte)
 	return true;
 }
 
-input_buffer&
-input_buffer::next_token()
+text_input_buffer&
+text_input_buffer::next_token()
 {
+	auto &self = *this;
 	int start;
 	do {
 		start = cursor;
 		skip_spaces();
+		if (finished())
+		{
+			return self;
+		}
 		// Parse /* comments
-		if ((*this)[0] == '/' && (*this)[1] == '*')
+		if (*self == '/' && peek() == '*')
 		{
 			// eat the start of the comment
-			++(*this);
-			++(*this);
+			++self;
+			++self;
 			do {
 				// Find the ending * of */
-				while ((**this != '\0') && (**this != '*'))
+				while ((*self != '\0') && (*self != '*') && !finished())
 				{
-					++(*this);
+					++self;
 				}
 				// Eat the *
-				++(*this);
-			} while ((**this != '\0') && (**this != '/'));
+				++self;
+			} while ((*self != '\0') && (*self != '/') && !finished());
 			// Eat the /
-			++(*this);
+			++self;
 		}
 		// Parse // comments
-		if (((*this)[0] == '/' && (*this)[1] == '/'))
+		if ((*self == '/' && peek() == '/'))
 		{
 			// eat the start of the comment
-			++(*this);
-			++(*this);
+			++self;
+			++self;
 			// Find the ending of the line
-			while (**this != '\n')
+			while (*self != '\n' && !finished())
 			{
-				++(*this);
+				++self;
 			}
 			// Eat the \n
-			++(*this);
+			++self;
 		}
 	} while (start != cursor);
-	return *this;
+	return self;
 }
 
 void
-input_buffer::parse_error(const char *msg)
+text_input_buffer::parse_error(const char *msg)
+{
+	if (input_stack.empty())
+	{
+		fprintf(stderr, "Error: %s\n", msg);
+		return;
+	}
+	input_buffer &b = *input_stack.top();
+	parse_error(msg, b, b.cursor);
+}
+void
+text_input_buffer::parse_error(const char *msg,
+                               input_buffer &b,
+                               int loc)
 {
 	int line_count = 1;
 	int line_start = 0;
-	int line_end = cursor;
-	for (int i=cursor ; i>0 ; --i)
+	int line_end = loc;
+	if (loc < 0 || loc > b.size)
 	{
-		if (buffer[i] == '\n')
+		return;
+	}
+	for (int i=loc ; i>0 ; --i)
+	{
+		if (b.buffer[i] == '\n')
 		{
 			line_count++;
 			if (line_start == 0)
@@ -763,20 +1072,20 @@ input_buffer::parse_error(const char *msg)
 			}
 		}
 	}
-	for (int i=cursor+1 ; i<size ; ++i)
+	for (int i=loc+1 ; i<b.size ; ++i)
 	{
-		if (buffer[i] == '\n')
+		if (b.buffer[i] == '\n')
 		{
 			line_end = i;
 			break;
 		}
 	}
-	fprintf(stderr, "Error on line %d: %s\n", line_count, msg);
-	fwrite(&buffer[line_start], line_end-line_start, 1, stderr);
+	fprintf(stderr, "Error at %s:%d:%d: %s\n", b.filename().c_str(), line_count, loc - line_start, msg);
+	fwrite(&b.buffer[line_start], line_end-line_start, 1, stderr);
 	putc('\n', stderr);
-	for (int i=0 ; i<(cursor-line_start) ; ++i)
+	for (int i=0 ; i<(loc-line_start) ; ++i)
 	{
-		char c = (buffer[i+line_start] == '\t') ? '\t' : ' ';
+		char c = (b.buffer[i+line_start] == '\t') ? '\t' : ' ';
 		putc(c, stderr);
 	}
 	putc('^', stderr);
@@ -791,40 +1100,168 @@ input_buffer::dump()
 }
 #endif
 
-mmap_input_buffer::mmap_input_buffer(int fd) : input_buffer(0, 0)
+
+namespace
 {
-	struct stat sb;
-	if (fstat(fd, &sb))
+/**
+ * The source files are ASCII, so we provide a non-locale-aware version of
+ * isalpha.  This is a class so that it can be used with a template function
+ * for parsing strings.
+ */
+struct is_alpha
+{
+	static inline bool check(const char c)
 	{
-		perror("Failed to stat file");
+		return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') &&
+			(c <= 'Z'));
 	}
-	size = sb.st_size;
-	buffer = (const char*)mmap(0, size, PROT_READ, MAP_PRIVATE |
-			MAP_PREFAULT_READ, fd, 0);
-	if (buffer == MAP_FAILED)
+};
+/**
+ * Check whether a character is in the set allowed for node names.  This is a
+ * class so that it can be used with a template function for parsing strings.
+ */
+struct is_node_name_character
+{
+	static inline bool check(const char c)
 	{
-		perror("Failed to mmap file");
-		exit(EXIT_FAILURE);
+		switch(c)
+		{
+			default:
+				return false;
+			case 'a'...'z': case 'A'...'Z': case '0'...'9':
+			case ',': case '.': case '+': case '-':
+			case '_':
+				return true;
+		}
 	}
+};
+/**
+ * Check whether a character is in the set allowed for property names.  This is
+ * a class so that it can be used with a template function for parsing strings.
+ */
+struct is_property_name_character
+{
+	static inline bool check(const char c)
+	{
+		switch(c)
+		{
+			default:
+				return false;
+			case 'a'...'z': case 'A'...'Z': case '0'...'9':
+			case ',': case '.': case '+': case '-':
+			case '_': case '#':
+				return true;
+		}
+	}
+};
+
+template<class T>
+string parse(text_input_buffer &s)
+{
+	std::vector<char> bytes;
+	for (char c=*s ; T::check(c) ; c=*(++s))
+	{
+		bytes.push_back(c);
+	}
+	return string(bytes.begin(), bytes.end());
 }
 
-mmap_input_buffer::~mmap_input_buffer()
-{
-	if (buffer != 0)
-	{
-		munmap((void*)buffer, size);
-	}
 }
 
-stream_input_buffer::stream_input_buffer() : input_buffer(0, 0)
+string
+text_input_buffer::parse_node_name()
 {
-	int c;
-	while ((c = fgetc(stdin)) != EOF)
+	return parse<is_node_name_character>(*this);
+}
+
+string
+text_input_buffer::parse_property_name()
+{
+	return parse<is_property_name_character>(*this);
+}
+
+string
+text_input_buffer::parse_node_or_property_name(bool &is_property)
+{
+	if (is_property)
 	{
-		b.push_back(c);
+		return parse_property_name();
 	}
-	buffer = b.data();
-	size = b.size();
+	std::vector<char> bytes;
+	for (char c=*(*this) ; is_node_name_character::check(c) ; c=*(++(*this)))
+	{
+		bytes.push_back(c);
+	}
+	for (char c=*(*this) ; is_property_name_character::check(c) ; c=*(++(*this)))
+	{
+		bytes.push_back(c);
+		is_property = true;
+	}
+	return string(bytes.begin(), bytes.end());
+}
+
+string
+input_buffer::parse_to(char stop)
+{
+	std::vector<char> bytes;
+	for (char c=*(*this) ; c != stop ; c=*(++(*this)))
+	{
+		bytes.push_back(c);
+	}
+	return string(bytes.begin(), bytes.end());
+}
+
+string
+text_input_buffer::parse_to(char stop)
+{
+	std::vector<char> bytes;
+	for (char c=*(*this) ; c != stop ; c=*(++(*this)))
+	{
+		if (finished())
+		{
+			break;
+		}
+		bytes.push_back(c);
+	}
+	return string(bytes.begin(), bytes.end());
+}
+
+char
+text_input_buffer::peek()
+{
+	return (*input_stack.top())[1];
+}
+
+std::unique_ptr<input_buffer>
+input_buffer::buffer_for_file(const string &path, bool warn)
+{
+	if (path == "-")
+	{
+		std::unique_ptr<input_buffer> b(new stream_input_buffer());
+		return b;
+	}
+	int source = open(path.c_str(), O_RDONLY);
+	if (source == -1)
+	{
+		if (warn)
+		{
+			fprintf(stderr, "Unable to open file '%s'.  %s\n", path.c_str(), strerror(errno));
+		}
+		return 0;
+	}
+	struct stat st;
+	if (fstat(source, &st) == 0 && S_ISDIR(st.st_mode))
+	{
+		if (warn)
+		{
+			fprintf(stderr, "File %s is a directory\n", path.c_str());
+		}
+		close(source);
+		return 0;
+	}
+	std::unique_ptr<input_buffer> b(new mmap_input_buffer(source, string(path)));
+	close(source);
+	return b;
 }
 
 } // namespace dtc

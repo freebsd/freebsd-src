@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -51,19 +53,20 @@ __FBSDID("$FreeBSD$");
 #ifndef NO_UDOM_SUPPORT
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <errno.h>
 #include <netdb.h>
 #endif
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
@@ -207,6 +210,7 @@ static void
 cook_cat(FILE *fp)
 {
 	int ch, gobble, line, prev;
+	wint_t wch;
 
 	/* Reset EOF condition on stdin. */
 	if (fp == stdin && feof(stdin))
@@ -223,10 +227,16 @@ cook_cat(FILE *fp)
 				} else
 					gobble = 0;
 			}
-			if (nflag && (!bflag || ch != '\n')) {
-				(void)fprintf(stdout, "%6d\t", ++line);
-				if (ferror(stdout))
-					break;
+			if (nflag) {
+				if (!bflag || ch != '\n') {
+					(void)fprintf(stdout, "%6d\t", ++line);
+					if (ferror(stdout))
+						break;
+				} else if (eflag) {
+					(void)fprintf(stdout, "%6s\t", "");
+					if (ferror(stdout))
+						break;
+				}
 			}
 		}
 		if (ch == '\n') {
@@ -239,18 +249,40 @@ cook_cat(FILE *fp)
 				continue;
 			}
 		} else if (vflag) {
-			if (!isascii(ch) && !isprint(ch)) {
+			(void)ungetc(ch, fp);
+			/*
+			 * Our getwc(3) doesn't change file position
+			 * on error.
+			 */
+			if ((wch = getwc(fp)) == WEOF) {
+				if (ferror(fp) && errno == EILSEQ) {
+					clearerr(fp);
+					/* Resync attempt. */
+					memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+					if ((ch = getc(fp)) == EOF)
+						break;
+					wch = ch;
+					goto ilseq;
+				} else
+					break;
+			}
+			if (!iswascii(wch) && !iswprint(wch)) {
+ilseq:
 				if (putchar('M') == EOF || putchar('-') == EOF)
 					break;
-				ch = toascii(ch);
+				wch = toascii(wch);
 			}
-			if (iscntrl(ch)) {
-				if (putchar('^') == EOF ||
-				    putchar(ch == '\177' ? '?' :
-				    ch | 0100) == EOF)
+			if (iswcntrl(wch)) {
+				ch = toascii(wch);
+				ch = (ch == '\177') ? '?' : (ch | 0100);
+				if (putchar('^') == EOF || putchar(ch) == EOF)
 					break;
 				continue;
 			}
+			if (putwchar(wch) == WEOF)
+				break;
+			ch = -1;
+			continue;
 		}
 		if (putchar(ch) == EOF)
 			break;
@@ -267,6 +299,7 @@ cook_cat(FILE *fp)
 static void
 raw_cat(int rfd)
 {
+	long pagesize;
 	int off, wfd;
 	ssize_t nr, nw;
 	static size_t bsize;
@@ -283,9 +316,12 @@ raw_cat(int rfd)
 				bsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
 			else
 				bsize = BUFSIZE_SMALL;
-		} else
-			bsize = MAX(sbuf.st_blksize,
-			    (blksize_t)sysconf(_SC_PAGESIZE));
+		} else {
+			bsize = sbuf.st_blksize;
+			pagesize = sysconf(_SC_PAGESIZE);
+			if (pagesize > 0)
+				bsize = MAX(bsize, (size_t)pagesize);
+		}
 		if ((buf = malloc(bsize)) == NULL)
 			err(1, "malloc() failure of IO buffer");
 	}

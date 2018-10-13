@@ -212,3 +212,12 @@ METHOD void decode_rid {
 	int 		*slot;
 	int 		*func;
 } DEFAULT pcib_decode_rid;
+
+#
+# Request control of PCI features from host firmware, if any.
+#
+METHOD int request_feature {
+	device_t	pcib;
+	device_t	dev;
+	enum pci_feature feature;
+};

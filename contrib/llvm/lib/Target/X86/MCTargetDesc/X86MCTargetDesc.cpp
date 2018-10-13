@@ -16,7 +16,7 @@
 #include "InstPrinter/X86IntelInstPrinter.h"
 #include "X86MCAsmInfo.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm/DebugInfo/CodeView/CodeView.h"
 #include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -66,12 +66,135 @@ unsigned X86_MC::getDwarfRegFlavour(const Triple &TT, bool isEH) {
   return DWARFFlavour::X86_32_Generic;
 }
 
-void X86_MC::InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI) {
+void X86_MC::initLLVMToSEHAndCVRegMapping(MCRegisterInfo *MRI) {
   // FIXME: TableGen these.
-  for (unsigned Reg = X86::NoRegister+1; Reg < X86::NUM_TARGET_REGS; ++Reg) {
+  for (unsigned Reg = X86::NoRegister + 1; Reg < X86::NUM_TARGET_REGS; ++Reg) {
     unsigned SEH = MRI->getEncodingValue(Reg);
     MRI->mapLLVMRegToSEHReg(Reg, SEH);
   }
+
+  // Mapping from CodeView to MC register id.
+  static const struct {
+    codeview::RegisterId CVReg;
+    MCPhysReg Reg;
+  } RegMap[] = {
+    { codeview::RegisterId::AL, X86::AL},
+    { codeview::RegisterId::CL, X86::CL},
+    { codeview::RegisterId::DL, X86::DL},
+    { codeview::RegisterId::BL, X86::BL},
+    { codeview::RegisterId::AH, X86::AH},
+    { codeview::RegisterId::CH, X86::CH},
+    { codeview::RegisterId::DH, X86::DH},
+    { codeview::RegisterId::BH, X86::BH},
+    { codeview::RegisterId::AX, X86::AX},
+    { codeview::RegisterId::CX, X86::CX},
+    { codeview::RegisterId::DX, X86::DX},
+    { codeview::RegisterId::BX, X86::BX},
+    { codeview::RegisterId::SP, X86::SP},
+    { codeview::RegisterId::BP, X86::BP},
+    { codeview::RegisterId::SI, X86::SI},
+    { codeview::RegisterId::DI, X86::DI},
+    { codeview::RegisterId::EAX, X86::EAX},
+    { codeview::RegisterId::ECX, X86::ECX},
+    { codeview::RegisterId::EDX, X86::EDX},
+    { codeview::RegisterId::EBX, X86::EBX},
+    { codeview::RegisterId::ESP, X86::ESP},
+    { codeview::RegisterId::EBP, X86::EBP},
+    { codeview::RegisterId::ESI, X86::ESI},
+    { codeview::RegisterId::EDI, X86::EDI},
+
+    { codeview::RegisterId::EFLAGS, X86::EFLAGS},
+
+    { codeview::RegisterId::ST0, X86::FP0},
+    { codeview::RegisterId::ST1, X86::FP1},
+    { codeview::RegisterId::ST2, X86::FP2},
+    { codeview::RegisterId::ST3, X86::FP3},
+    { codeview::RegisterId::ST4, X86::FP4},
+    { codeview::RegisterId::ST5, X86::FP5},
+    { codeview::RegisterId::ST6, X86::FP6},
+    { codeview::RegisterId::ST7, X86::FP7},
+
+    { codeview::RegisterId::XMM0, X86::XMM0},
+    { codeview::RegisterId::XMM1, X86::XMM1},
+    { codeview::RegisterId::XMM2, X86::XMM2},
+    { codeview::RegisterId::XMM3, X86::XMM3},
+    { codeview::RegisterId::XMM4, X86::XMM4},
+    { codeview::RegisterId::XMM5, X86::XMM5},
+    { codeview::RegisterId::XMM6, X86::XMM6},
+    { codeview::RegisterId::XMM7, X86::XMM7},
+
+    { codeview::RegisterId::XMM8, X86::XMM8},
+    { codeview::RegisterId::XMM9, X86::XMM9},
+    { codeview::RegisterId::XMM10, X86::XMM10},
+    { codeview::RegisterId::XMM11, X86::XMM11},
+    { codeview::RegisterId::XMM12, X86::XMM12},
+    { codeview::RegisterId::XMM13, X86::XMM13},
+    { codeview::RegisterId::XMM14, X86::XMM14},
+    { codeview::RegisterId::XMM15, X86::XMM15},
+
+    { codeview::RegisterId::SIL, X86::SIL},
+    { codeview::RegisterId::DIL, X86::DIL},
+    { codeview::RegisterId::BPL, X86::BPL},
+    { codeview::RegisterId::SPL, X86::SPL},
+    { codeview::RegisterId::RAX, X86::RAX},
+    { codeview::RegisterId::RBX, X86::RBX},
+    { codeview::RegisterId::RCX, X86::RCX},
+    { codeview::RegisterId::RDX, X86::RDX},
+    { codeview::RegisterId::RSI, X86::RSI},
+    { codeview::RegisterId::RDI, X86::RDI},
+    { codeview::RegisterId::RBP, X86::RBP},
+    { codeview::RegisterId::RSP, X86::RSP},
+    { codeview::RegisterId::R8, X86::R8},
+    { codeview::RegisterId::R9, X86::R9},
+    { codeview::RegisterId::R10, X86::R10},
+    { codeview::RegisterId::R11, X86::R11},
+    { codeview::RegisterId::R12, X86::R12},
+    { codeview::RegisterId::R13, X86::R13},
+    { codeview::RegisterId::R14, X86::R14},
+    { codeview::RegisterId::R15, X86::R15},
+    { codeview::RegisterId::R8B, X86::R8B},
+    { codeview::RegisterId::R9B, X86::R9B},
+    { codeview::RegisterId::R10B, X86::R10B},
+    { codeview::RegisterId::R11B, X86::R11B},
+    { codeview::RegisterId::R12B, X86::R12B},
+    { codeview::RegisterId::R13B, X86::R13B},
+    { codeview::RegisterId::R14B, X86::R14B},
+    { codeview::RegisterId::R15B, X86::R15B},
+    { codeview::RegisterId::R8W, X86::R8W},
+    { codeview::RegisterId::R9W, X86::R9W},
+    { codeview::RegisterId::R10W, X86::R10W},
+    { codeview::RegisterId::R11W, X86::R11W},
+    { codeview::RegisterId::R12W, X86::R12W},
+    { codeview::RegisterId::R13W, X86::R13W},
+    { codeview::RegisterId::R14W, X86::R14W},
+    { codeview::RegisterId::R15W, X86::R15W},
+    { codeview::RegisterId::R8D, X86::R8D},
+    { codeview::RegisterId::R9D, X86::R9D},
+    { codeview::RegisterId::R10D, X86::R10D},
+    { codeview::RegisterId::R11D, X86::R11D},
+    { codeview::RegisterId::R12D, X86::R12D},
+    { codeview::RegisterId::R13D, X86::R13D},
+    { codeview::RegisterId::R14D, X86::R14D},
+    { codeview::RegisterId::R15D, X86::R15D},
+    { codeview::RegisterId::AMD64_YMM0, X86::YMM0},
+    { codeview::RegisterId::AMD64_YMM1, X86::YMM1},
+    { codeview::RegisterId::AMD64_YMM2, X86::YMM2},
+    { codeview::RegisterId::AMD64_YMM3, X86::YMM3},
+    { codeview::RegisterId::AMD64_YMM4, X86::YMM4},
+    { codeview::RegisterId::AMD64_YMM5, X86::YMM5},
+    { codeview::RegisterId::AMD64_YMM6, X86::YMM6},
+    { codeview::RegisterId::AMD64_YMM7, X86::YMM7},
+    { codeview::RegisterId::AMD64_YMM8, X86::YMM8},
+    { codeview::RegisterId::AMD64_YMM9, X86::YMM9},
+    { codeview::RegisterId::AMD64_YMM10, X86::YMM10},
+    { codeview::RegisterId::AMD64_YMM11, X86::YMM11},
+    { codeview::RegisterId::AMD64_YMM12, X86::YMM12},
+    { codeview::RegisterId::AMD64_YMM13, X86::YMM13},
+    { codeview::RegisterId::AMD64_YMM14, X86::YMM14},
+    { codeview::RegisterId::AMD64_YMM15, X86::YMM15},
+  };
+  for (unsigned I = 0; I < array_lengthof(RegMap); ++I)
+    MRI->mapLLVMRegToCVReg(RegMap[I].Reg, static_cast<int>(RegMap[I].CVReg));
 }
 
 MCSubtargetInfo *X86_MC::createX86MCSubtargetInfo(const Triple &TT,
@@ -105,7 +228,7 @@ static MCRegisterInfo *createX86MCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitX86MCRegisterInfo(X, RA, X86_MC::getDwarfRegFlavour(TT, false),
                         X86_MC::getDwarfRegFlavour(TT, true), RA);
-  X86_MC::InitLLVM2SEHRegisterMapping(X);
+  X86_MC::initLLVMToSEHAndCVRegMapping(X);
   return X;
 }
 
@@ -152,55 +275,6 @@ static MCAsmInfo *createX86MCAsmInfo(const MCRegisterInfo &MRI,
   return MAI;
 }
 
-static MCCodeGenInfo *createX86MCCodeGenInfo(const Triple &TT, Reloc::Model RM,
-                                             CodeModel::Model CM,
-                                             CodeGenOpt::Level OL) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-
-  bool is64Bit = TT.getArch() == Triple::x86_64;
-
-  if (RM == Reloc::Default) {
-    // Darwin defaults to PIC in 64 bit mode and dynamic-no-pic in 32 bit mode.
-    // Win64 requires rip-rel addressing, thus we force it to PIC. Otherwise we
-    // use static relocation model by default.
-    if (TT.isOSDarwin()) {
-      if (is64Bit)
-        RM = Reloc::PIC_;
-      else
-        RM = Reloc::DynamicNoPIC;
-    } else if (TT.isOSWindows() && is64Bit)
-      RM = Reloc::PIC_;
-    else
-      RM = Reloc::Static;
-  }
-
-  // ELF and X86-64 don't have a distinct DynamicNoPIC model.  DynamicNoPIC
-  // is defined as a model for code which may be used in static or dynamic
-  // executables but not necessarily a shared library. On X86-32 we just
-  // compile in -static mode, in x86-64 we use PIC.
-  if (RM == Reloc::DynamicNoPIC) {
-    if (is64Bit)
-      RM = Reloc::PIC_;
-    else if (!TT.isOSDarwin())
-      RM = Reloc::Static;
-  }
-
-  // If we are on Darwin, disallow static relocation model in X86-64 mode, since
-  // the Mach-O file format doesn't support it.
-  if (RM == Reloc::Static && TT.isOSDarwin() && is64Bit)
-    RM = Reloc::PIC_;
-
-  // For static codegen, if we're not already set, use Small codegen.
-  if (CM == CodeModel::Default)
-    CM = CodeModel::Small;
-  else if (CM == CodeModel::JITDefault)
-    // 64-bit JIT places everything in the same buffer except external funcs.
-    CM = is64Bit ? CodeModel::Large : CodeModel::Small;
-
-  X->initMCCodeGenInfo(RM, CM, OL);
-  return X;
-}
-
 static MCInstPrinter *createX86MCInstPrinter(const Triple &T,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI,
@@ -215,10 +289,6 @@ static MCInstPrinter *createX86MCInstPrinter(const Triple &T,
 
 static MCRelocationInfo *createX86MCRelocationInfo(const Triple &TheTriple,
                                                    MCContext &Ctx) {
-  if (TheTriple.isOSBinFormatMachO() && TheTriple.getArch() == Triple::x86_64)
-    return createX86_64MachORelocationInfo(Ctx);
-  else if (TheTriple.isOSBinFormatELF())
-    return createX86_64ELFRelocationInfo(Ctx);
   // Default to the stock relocation info.
   return llvm::createMCRelocationInfo(TheTriple, Ctx);
 }
@@ -229,12 +299,9 @@ static MCInstrAnalysis *createX86MCInstrAnalysis(const MCInstrInfo *Info) {
 
 // Force static initialization.
 extern "C" void LLVMInitializeX86TargetMC() {
-  for (Target *T : {&TheX86_32Target, &TheX86_64Target}) {
+  for (Target *T : {&getTheX86_32Target(), &getTheX86_64Target()}) {
     // Register the MC asm info.
     RegisterMCAsmInfoFn X(*T, createX86MCAsmInfo);
-
-    // Register the MC codegen info.
-    RegisterMCCodeGenInfoFn Y(*T, createX86MCCodeGenInfo);
 
     // Register the MC instruction info.
     TargetRegistry::RegisterMCInstrInfo(*T, createX86MCInstrInfo);
@@ -252,7 +319,13 @@ extern "C" void LLVMInitializeX86TargetMC() {
     // Register the code emitter.
     TargetRegistry::RegisterMCCodeEmitter(*T, createX86MCCodeEmitter);
 
-    // Register the object streamer.
+    // Register the obj target streamer.
+    TargetRegistry::RegisterObjectTargetStreamer(*T,
+                                                 createX86ObjectTargetStreamer);
+
+    // Register the asm target streamer.
+    TargetRegistry::RegisterAsmTargetStreamer(*T, createX86AsmTargetStreamer);
+
     TargetRegistry::RegisterCOFFStreamer(*T, createX86WinCOFFStreamer);
 
     // Register the MCInstPrinter.
@@ -263,9 +336,9 @@ extern "C" void LLVMInitializeX86TargetMC() {
   }
 
   // Register the asm backend.
-  TargetRegistry::RegisterMCAsmBackend(TheX86_32Target,
+  TargetRegistry::RegisterMCAsmBackend(getTheX86_32Target(),
                                        createX86_32AsmBackend);
-  TargetRegistry::RegisterMCAsmBackend(TheX86_64Target,
+  TargetRegistry::RegisterMCAsmBackend(getTheX86_64Target(),
                                        createX86_64AsmBackend);
 }
 

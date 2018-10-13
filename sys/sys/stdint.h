@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
  * All rights reserved.
  *
@@ -65,5 +67,12 @@ typedef	__uint_fast64_t		uint_fast64_t;
 /* Limits of wchar_t. */
 #define	WCHAR_MIN	__WCHAR_MIN
 #define	WCHAR_MAX	__WCHAR_MAX
+
+#if __EXT1_VISIBLE
+/* ISO/IEC 9899:2011 K.3.4.4 */
+#ifndef RSIZE_MAX
+#define RSIZE_MAX (SIZE_MAX >> 1)
+#endif
+#endif /* __EXT1_VISIBLE */
 
 #endif /* !_SYS_STDINT_H_ */

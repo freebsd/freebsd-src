@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1994, 1995
  *	The Regents of the University of California.
  * All rights reserved.
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -133,19 +135,16 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_sack), 0, "Enable/Disable TCP SACK support");
 
 VNET_DEFINE(int, tcp_sack_maxholes) = 128;
-#define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_sack_maxholes), 0,
     "Maximum number of TCP SACK holes allowed per connection");
 
 VNET_DEFINE(int, tcp_sack_globalmaxholes) = 65536;
-#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalmaxholes, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_sack_globalmaxholes), 0, 
     "Global maximum number of TCP SACK holes");
 
 VNET_DEFINE(int, tcp_sack_globalholes) = 0;
-#define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalholes, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcp_sack_globalholes), 0,
     "Global number of TCP SACK holes currently allocated");
@@ -470,9 +469,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		tp->snd_fack = sblkp->end;
 		sack_changed = 1;
 	}
-	/* We must have at least one SACK hole in scoreboard. */
-	KASSERT(!TAILQ_EMPTY(&tp->snd_holes),
-	    ("SACK scoreboard must not be empty"));
 	cur = TAILQ_LAST(&tp->snd_holes, sackhole_head); /* Last SACK hole. */
 	/*
 	 * Since the incoming sack blocks are sorted, we can process them

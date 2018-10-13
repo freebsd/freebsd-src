@@ -64,7 +64,7 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uslcom_debug, 0, "Debug level");
 #endif
 
-#define	USLCOM_BULK_BUF_SIZE		1024
+#define	USLCOM_BULK_BUF_SIZE	1024
 #define	USLCOM_CONFIG_INDEX	0
 
 /* Request types */
@@ -73,13 +73,13 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 
 /* Request codes */
 #define	USLCOM_IFC_ENABLE	0x00
-#define	USLCOM_SET_BAUDDIV	0x01	
+#define	USLCOM_SET_BAUDDIV	0x01
 #define	USLCOM_SET_LINE_CTL	0x03
 #define	USLCOM_SET_BREAK	0x05
 #define	USLCOM_SET_MHS		0x07
 #define	USLCOM_GET_MDMSTS	0x08
 #define	USLCOM_SET_FLOW		0x13
-#define	USLCOM_SET_BAUDRATE	0x1e	
+#define	USLCOM_SET_BAUDRATE	0x1e
 #define	USLCOM_VENDOR_SPECIFIC	0xff
 
 /* USLCOM_IFC_ENABLE values */
@@ -87,7 +87,7 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	USLCOM_IFC_ENABLE_EN	0x01
 
 /* USLCOM_SET_MHS/USLCOM_GET_MDMSTS values */
-#define	USLCOM_MHS_DTR_ON	0x0001	
+#define	USLCOM_MHS_DTR_ON	0x0001
 #define	USLCOM_MHS_DTR_SET	0x0100
 #define	USLCOM_MHS_RTS_ON	0x0002
 #define	USLCOM_MHS_RTS_SET	0x0200
@@ -112,11 +112,11 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	USLCOM_SET_BREAK_ON	0x01
 
 /* USLCOM_SET_FLOW values - 1st word */
-#define	USLCOM_FLOW_DTR_ON      0x00000001 /* DTR static active */
-#define	USLCOM_FLOW_CTS_HS      0x00000008 /* CTS handshake */
+#define	USLCOM_FLOW_DTR_ON	0x00000001 /* DTR static active */
+#define	USLCOM_FLOW_CTS_HS	0x00000008 /* CTS handshake */
 /* USLCOM_SET_FLOW values - 2nd word */
-#define	USLCOM_FLOW_RTS_ON      0x00000040 /* RTS static active */
-#define	USLCOM_FLOW_RTS_HS      0x00000080 /* RTS handshake */
+#define	USLCOM_FLOW_RTS_ON	0x00000040 /* RTS static active */
+#define	USLCOM_FLOW_RTS_HS	0x00000080 /* RTS handshake */
 
 /* USLCOM_VENDOR_SPECIFIC values */
 #define	USLCOM_GET_PARTNUM	0x370B
@@ -146,10 +146,10 @@ struct uslcom_softc {
 	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
-	uint8_t		 sc_msr;
-	uint8_t		 sc_lsr;
-	uint8_t		 sc_iface_no;
-	uint8_t		 sc_partnum;
+	uint8_t sc_msr;
+	uint8_t sc_lsr;
+	uint8_t sc_iface_no;
+	uint8_t sc_partnum;
 };
 
 static device_probe_t uslcom_probe;
@@ -161,18 +161,18 @@ static usb_callback_t uslcom_write_callback;
 static usb_callback_t uslcom_read_callback;
 static usb_callback_t uslcom_control_callback;
 
-static void	uslcom_free(struct ucom_softc *);
-static void uslcom_open(struct ucom_softc *);
-static void uslcom_close(struct ucom_softc *);
+static void uslcom_free(struct ucom_softc *);
 static uint8_t uslcom_get_partnum(struct uslcom_softc *);
-static void uslcom_set_dtr(struct ucom_softc *, uint8_t);
-static void uslcom_set_rts(struct ucom_softc *, uint8_t);
-static void uslcom_set_break(struct ucom_softc *, uint8_t);
+static void uslcom_cfg_open(struct ucom_softc *);
+static void uslcom_cfg_close(struct ucom_softc *);
+static void uslcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void uslcom_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void uslcom_cfg_set_break(struct ucom_softc *, uint8_t);
+static void uslcom_cfg_param(struct ucom_softc *, struct termios *);
+static void uslcom_cfg_get_status(struct ucom_softc *, uint8_t *, uint8_t *);
 static int uslcom_ioctl(struct ucom_softc *, uint32_t, caddr_t, int,
-		struct thread *);
+    struct thread *);
 static int uslcom_pre_param(struct ucom_softc *, struct termios *);
-static void uslcom_param(struct ucom_softc *, struct termios *);
-static void uslcom_get_status(struct ucom_softc *, uint8_t *, uint8_t *);
 static void uslcom_start_read(struct ucom_softc *);
 static void uslcom_stop_read(struct ucom_softc *);
 static void uslcom_start_write(struct ucom_softc *);
@@ -180,7 +180,6 @@ static void uslcom_stop_write(struct ucom_softc *);
 static void uslcom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
-
 	[USLCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -210,15 +209,15 @@ static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
 };
 
 static struct ucom_callback uslcom_callback = {
-	.ucom_cfg_open = &uslcom_open,
-	.ucom_cfg_close = &uslcom_close,
-	.ucom_cfg_get_status = &uslcom_get_status,
-	.ucom_cfg_set_dtr = &uslcom_set_dtr,
-	.ucom_cfg_set_rts = &uslcom_set_rts,
-	.ucom_cfg_set_break = &uslcom_set_break,
-	.ucom_ioctl = &uslcom_ioctl,
-	.ucom_cfg_param = &uslcom_param,
+	.ucom_cfg_get_status = &uslcom_cfg_get_status,
+	.ucom_cfg_set_dtr = &uslcom_cfg_set_dtr,
+	.ucom_cfg_set_rts = &uslcom_cfg_set_rts,
+	.ucom_cfg_set_break = &uslcom_cfg_set_break,
+	.ucom_cfg_open = &uslcom_cfg_open,
+	.ucom_cfg_close = &uslcom_cfg_close,
+	.ucom_cfg_param = &uslcom_cfg_param,
 	.ucom_pre_param = &uslcom_pre_param,
+	.ucom_ioctl = &uslcom_ioctl,
 	.ucom_start_read = &uslcom_start_read,
 	.ucom_stop_read = &uslcom_stop_read,
 	.ucom_start_write = &uslcom_start_write,
@@ -313,6 +312,7 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(SILABS, EMS_C1007),
     USLCOM_DEV(SILABS, HAMLINKUSB),
     USLCOM_DEV(SILABS, HELICOM),
+    USLCOM_DEV(SILABS, HUBZ),
     USLCOM_DEV(SILABS, IMS_USB_RS422),
     USLCOM_DEV(SILABS, INFINITY_MIC),
     USLCOM_DEV(SILABS, INGENI_ZIGBEE),
@@ -498,7 +498,7 @@ uslcom_free(struct ucom_softc *ucom)
 }
 
 static void
-uslcom_open(struct ucom_softc *ucom)
+uslcom_cfg_open(struct ucom_softc *ucom)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
@@ -509,7 +509,7 @@ uslcom_open(struct ucom_softc *ucom)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("UART enable failed (ignored)\n");
 	}
@@ -519,7 +519,7 @@ uslcom_open(struct ucom_softc *ucom)
 }
 
 static void
-uslcom_close(struct ucom_softc *ucom)
+uslcom_cfg_close(struct ucom_softc *ucom)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
@@ -533,7 +533,7 @@ uslcom_close(struct ucom_softc *ucom)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
-	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("UART disable failed (ignored)\n");
 	}
@@ -562,13 +562,13 @@ uslcom_get_partnum(struct uslcom_softc *sc)
 }
 
 static void
-uslcom_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
+uslcom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
-        struct uslcom_softc *sc = ucom->sc_parent;
+	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
 	uint16_t ctl;
 
-        DPRINTF("onoff = %d\n", onoff);
+	DPRINTF("onoff = %d\n", onoff);
 
 	ctl = onoff ? USLCOM_MHS_DTR_ON : 0;
 	ctl |= USLCOM_MHS_DTR_SET;
@@ -579,20 +579,20 @@ uslcom_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("Setting DTR failed (ignored)\n");
 	}
 }
 
 static void
-uslcom_set_rts(struct ucom_softc *ucom, uint8_t onoff)
+uslcom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
-        struct uslcom_softc *sc = ucom->sc_parent;
+	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
 	uint16_t ctl;
 
-        DPRINTF("onoff = %d\n", onoff);
+	DPRINTF("onoff = %d\n", onoff);
 
 	ctl = onoff ? USLCOM_MHS_RTS_ON : 0;
 	ctl |= USLCOM_MHS_RTS_SET;
@@ -603,7 +603,7 @@ uslcom_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("Setting DTR failed (ignored)\n");
 	}
@@ -612,13 +612,28 @@ uslcom_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 static int
 uslcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
-	if (t->c_ospeed <= 0 || t->c_ospeed > 921600)
+	struct uslcom_softc *sc = ucom->sc_parent;
+	uint32_t maxspeed;
+
+	switch (sc->sc_partnum) {
+	case USLCOM_PARTNUM_CP2104:
+	case USLCOM_PARTNUM_CP2105:
+		maxspeed = 2000000;
+		break;
+	case USLCOM_PARTNUM_CP2101:
+	case USLCOM_PARTNUM_CP2102:
+	case USLCOM_PARTNUM_CP2103:
+	default:
+		maxspeed = 921600;
+		break;
+	}
+	if (t->c_ospeed <= 0 || t->c_ospeed > maxspeed)
 		return (EINVAL);
 	return (0);
 }
 
 static void
-uslcom_param(struct ucom_softc *ucom, struct termios *t)
+uslcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
@@ -634,9 +649,9 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, sizeof(baudrate));
 
-	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, &baudrate, 0, 1000)) {
-		DPRINTF("Set baudrate failed (ignored)\n");
+		printf("Set baudrate failed (ignored)\n");
 	}
 
 	if (t->c_cflag & CSTOPB)
@@ -671,11 +686,11 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("Set format failed (ignored)\n");
 	}
-       
+
 	if (t->c_cflag & CRTSCTS) {
 		flowctrl[0] = htole32(USLCOM_FLOW_DTR_ON | USLCOM_FLOW_CTS_HS);
 		flowctrl[1] = htole32(USLCOM_FLOW_RTS_HS);
@@ -691,27 +706,28 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, sizeof(flowctrl));
 
-	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, flowctrl, 0, 1000)) {
 		DPRINTF("Set flowcontrol failed (ignored)\n");
 	}
 }
 
 static void
-uslcom_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
+uslcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 
 	DPRINTF("\n");
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }
 
 static void
-uslcom_set_break(struct ucom_softc *ucom, uint8_t onoff)
+uslcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
-        struct uslcom_softc *sc = ucom->sc_parent;
+	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
 	uint16_t brk = onoff ? USLCOM_SET_BREAK_ON : USLCOM_SET_BREAK_OFF;
 
@@ -721,7 +737,7 @@ uslcom_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("Set BREAK failed (ignored)\n");
 	}
@@ -750,7 +766,7 @@ uslcom_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 		USETW(req.wIndex, sc->sc_iface_no);
 		USETW(req.wLength, sizeof(latch));
 
-		if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+		if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 		    &req, &latch, 0, 1000)) {
 			DPRINTF("Get LATCH failed\n");
 			error = EIO;
@@ -769,7 +785,7 @@ uslcom_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 			USETW(req.wIndex, (*(int *)data));
 			USETW(req.wLength, 0);
 
-			if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+			if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 			    &req, NULL, 0, 1000)) {
 				DPRINTF("Set LATCH failed\n");
 				error = EIO;
@@ -884,7 +900,7 @@ uslcom_control_callback(struct usb_xfer *xfer, usb_error_t error)
 		USETW(req.wValue, 0);
 		USETW(req.wIndex, sc->sc_iface_no);
 		USETW(req.wLength, sizeof(buf));
-               
+
 		usbd_xfer_set_frames(xfer, 2);
 		usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
 		usbd_xfer_set_frame_len(xfer, 1, sizeof(buf));

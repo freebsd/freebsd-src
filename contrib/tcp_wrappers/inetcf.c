@@ -15,13 +15,14 @@ static char sccsid[] = "@(#) inetcf.c 1.7 97/02/12 02:13:23";
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 extern int errno;
 extern void exit();
-extern char *malloc();
 
 #include "tcpd.h"
 #include "inetcf.h"
+#include "scaffold.h"
 
  /*
   * Network configuration files may live in unusual places. Here are some

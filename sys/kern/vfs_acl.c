@@ -1,8 +1,15 @@
 /*-
- * Copyright (c) 1999-2006 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 1999-2006, 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,18 +60,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/acl.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 CTASSERT(ACL_MAX_ENTRIES >= OLDACL_MAX_ENTRIES);
 
 MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
 
+
+static int	kern___acl_aclcheck_path(struct thread *td, const char *path,
+		    acl_type_t type, struct acl *aclp, int follow);
+static int	kern___acl_delete_path(struct thread *td, const char *path,
+		    acl_type_t type, int follow);
+static int	kern___acl_get_path(struct thread *td, const char *path,
+		    acl_type_t type, struct acl *aclp, int follow);
+static int	kern___acl_set_path(struct thread *td, const char *path,
+		    acl_type_t type, const struct acl *aclp, int follow);
 static int	vacl_set_acl(struct thread *td, struct vnode *vp,
-		    acl_type_t type, struct acl *aclp);
+		    acl_type_t type, const struct acl *aclp);
 static int	vacl_get_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
 static int	vacl_aclcheck(struct thread *td, struct vnode *vp,
-		    acl_type_t type, struct acl *aclp);
+		    acl_type_t type, const struct acl *aclp);
 
 int
 acl_copy_oldacl_into_acl(const struct oldacl *source, struct acl *dest)
@@ -122,7 +139,7 @@ acl_copy_acl_into_oldacl(const struct acl *source, struct oldacl *dest)
  * format.
  */
 static int
-acl_copyin(void *user_acl, struct acl *kernel_acl, acl_type_t type)
+acl_copyin(const void *user_acl, struct acl *kernel_acl, acl_type_t type)
 {
 	int error;
 	struct oldacl old;
@@ -146,7 +163,7 @@ acl_copyin(void *user_acl, struct acl *kernel_acl, acl_type_t type)
 }
 
 static int
-acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
+acl_copyout(const struct acl *kernel_acl, void *user_acl, acl_type_t type)
 {
 	uint32_t am;
 	int error;
@@ -210,12 +227,13 @@ acl_type_unold(int type)
  */
 static int
 vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
-    struct acl *aclp)
+    const struct acl *aclp)
 {
 	struct acl *inkernelacl;
 	struct mount *mp;
 	int error;
 
+	AUDIT_ARG_VALUE(type);
 	inkernelacl = acl_alloc(M_WAITOK);
 	error = acl_copyin(aclp, inkernelacl, type);
 	if (error != 0)
@@ -224,6 +242,7 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	if (error != 0)
 		goto out;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 #ifdef MAC
 	error = mac_vnode_check_setacl(td->td_ucred, vp, type, inkernelacl);
 	if (error != 0)
@@ -251,8 +270,10 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	struct acl *inkernelacl;
 	int error;
 
+	AUDIT_ARG_VALUE(type);
 	inkernelacl = acl_alloc(M_WAITOK | M_ZERO);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 #ifdef MAC
 	error = mac_vnode_check_getacl(td->td_ucred, vp, type);
 	if (error != 0)
@@ -280,10 +301,12 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 	struct mount *mp;
 	int error;
 
+	AUDIT_ARG_VALUE(type);
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 #ifdef MAC
 	error = mac_vnode_check_deleteacl(td->td_ucred, vp, type);
 	if (error != 0)
@@ -300,10 +323,12 @@ out:
 
 /*
  * Given a vnode, check whether an ACL is appropriate for it
+ *
+ * XXXRW: No vnode lock held so can't audit vnode state...?
  */
 static int
 vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
-    struct acl *aclp)
+    const struct acl *aclp)
 {
 	struct acl *inkernelacl;
 	int error;
@@ -330,16 +355,9 @@ out:
 int
 sys___acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 {
-	struct nameidata nd;
-	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	error = namei(&nd);
-	if (error == 0) {
-		error = vacl_get_acl(td, nd.ni_vp, uap->type, uap->aclp);
-		NDFREE(&nd, 0);
-	}
-	return (error);
+	return (kern___acl_get_path(td, uap->path, uap->type, uap->aclp,
+	    FOLLOW));
 }
 
 /*
@@ -348,13 +366,22 @@ sys___acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 int
 sys___acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
 {
+
+	return(kern___acl_get_path(td, uap->path, uap->type, uap->aclp,
+	    NOFOLLOW));
+}
+
+static int
+kern___acl_get_path(struct thread *td, const char *path, acl_type_t type,
+    struct acl *aclp, int follow)
+{
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, follow | AUDITVNODE1, UIO_USERSPACE, path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_get_acl(td, nd.ni_vp, uap->type, uap->aclp);
+		error = vacl_get_acl(td, nd.ni_vp, type, aclp);
 		NDFREE(&nd, 0);
 	}
 	return (error);
@@ -366,16 +393,9 @@ sys___acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
 int
 sys___acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 {
-	struct nameidata nd;
-	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	error = namei(&nd);
-	if (error == 0) {
-		error = vacl_set_acl(td, nd.ni_vp, uap->type, uap->aclp);
-		NDFREE(&nd, 0);
-	}
-	return (error);
+	return(kern___acl_set_path(td, uap->path, uap->type, uap->aclp,
+	    FOLLOW));
 }
 
 /*
@@ -384,13 +404,22 @@ sys___acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 int
 sys___acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
 {
+
+	return(kern___acl_set_path(td, uap->path, uap->type, uap->aclp,
+	    NOFOLLOW));
+}
+
+static int
+kern___acl_set_path(struct thread *td, const char *path,
+    acl_type_t type, const struct acl *aclp, int follow)
+{
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, follow | AUDITVNODE1, UIO_USERSPACE, path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_set_acl(td, nd.ni_vp, uap->type, uap->aclp);
+		error = vacl_set_acl(td, nd.ni_vp, type, aclp);
 		NDFREE(&nd, 0);
 	}
 	return (error);
@@ -406,6 +435,7 @@ sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 	cap_rights_t rights;
 	int error;
 
+	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
 	    cap_rights_init(&rights, CAP_ACL_GET), &fp);
 	if (error == 0) {
@@ -425,6 +455,7 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 	cap_rights_t rights;
 	int error;
 
+	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
 	    cap_rights_init(&rights, CAP_ACL_SET), &fp);
 	if (error == 0) {
@@ -440,16 +471,8 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 int
 sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 {
-	struct nameidata nd;
-	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	error = namei(&nd);
-	if (error == 0) {
-		error = vacl_delete(td, nd.ni_vp, uap->type);
-		NDFREE(&nd, 0);
-	}
-	return (error);
+	return (kern___acl_delete_path(td, uap->path, uap->type, FOLLOW));
 }
 
 /*
@@ -458,13 +481,21 @@ sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 int
 sys___acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
 {
+
+	return (kern___acl_delete_path(td, uap->path, uap->type, NOFOLLOW));
+}
+
+static int
+kern___acl_delete_path(struct thread *td, const char *path,
+    acl_type_t type, int follow)
+{
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, follow, UIO_USERSPACE, path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_delete(td, nd.ni_vp, uap->type);
+		error = vacl_delete(td, nd.ni_vp, type);
 		NDFREE(&nd, 0);
 	}
 	return (error);
@@ -480,6 +511,7 @@ sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 	cap_rights_t rights;
 	int error;
 
+	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
 	    cap_rights_init(&rights, CAP_ACL_DELETE), &fp);
 	if (error == 0) {
@@ -495,16 +527,9 @@ sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 int
 sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 {
-	struct nameidata nd;
-	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	error = namei(&nd);
-	if (error == 0) {
-		error = vacl_aclcheck(td, nd.ni_vp, uap->type, uap->aclp);
-		NDFREE(&nd, 0);
-	}
-	return (error);
+	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
+	    FOLLOW));
 }
 
 /*
@@ -513,13 +538,21 @@ sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 int
 sys___acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 {
+	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
+	    NOFOLLOW));
+}
+
+static int
+kern___acl_aclcheck_path(struct thread *td, const char *path, acl_type_t type,
+    struct acl *aclp, int follow)
+{
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, follow, UIO_USERSPACE, path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_aclcheck(td, nd.ni_vp, uap->type, uap->aclp);
+		error = vacl_aclcheck(td, nd.ni_vp, type, aclp);
 		NDFREE(&nd, 0);
 	}
 	return (error);
@@ -535,6 +568,7 @@ sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	cap_rights_t rights;
 	int error;
 
+	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
 	    cap_rights_init(&rights, CAP_ACL_CHECK), &fp);
 	if (error == 0) {

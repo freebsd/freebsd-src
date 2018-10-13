@@ -28,6 +28,10 @@
 #include "svn_diff.h"
 #include "svn_types.h"
 
+#include "diff.h"
+
+#include "svn_private_config.h"
+
 /* Copies the data from ORIGINAL_STREAM to a temporary file, returning both
    the original and compressed size. */
 static svn_error_t *
@@ -42,7 +46,6 @@ create_compressed(apr_file_t **result,
 {
   svn_stream_t *compressed;
   svn_filesize_t bytes_read = 0;
-  apr_finfo_t finfo;
   apr_size_t rd;
 
   SVN_ERR(svn_io_open_uniquely_named(result, NULL, NULL, "diffgz",
@@ -56,7 +59,7 @@ create_compressed(apr_file_t **result,
   if (original_stream)
     do
     {
-      char buffer[SVN_STREAM_CHUNK_SIZE];
+      char buffer[SVN__STREAM_CHUNK_SIZE];
       rd = sizeof(buffer);
 
       if (cancel_func)
@@ -67,7 +70,7 @@ create_compressed(apr_file_t **result,
       bytes_read += rd;
       SVN_ERR(svn_stream_write(compressed, buffer, &rd));
     }
-    while(rd == SVN_STREAM_CHUNK_SIZE);
+    while(rd == SVN__STREAM_CHUNK_SIZE);
   else
     {
       apr_size_t zero = 0;
@@ -77,8 +80,7 @@ create_compressed(apr_file_t **result,
   SVN_ERR(svn_stream_close(compressed)); /* Flush compression */
 
   *full_size = bytes_read;
-  SVN_ERR(svn_io_file_info_get(&finfo, APR_FINFO_SIZE, *result, scratch_pool));
-  *compressed_size = finfo.size;
+  SVN_ERR(svn_io_file_size_get(compressed_size, *result, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -91,6 +93,66 @@ static const char b85str[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz"
     "!#$%&()*+-;<=>?@^_`{|}~";
+
+/* Helper function for svn_diff__base85_decode_line */
+static svn_error_t *
+base85_value(int *value, char c)
+{
+  const char *p = strchr(b85str, c);
+  if (!p)
+    return svn_error_create(SVN_ERR_DIFF_UNEXPECTED_DATA, NULL,
+                            _("Invalid base85 value"));
+
+  /* It's safe to cast the ptrdiff_t value of the pointer difference
+     to int because the value will always be in the range [0..84]. */
+  *value = (int)(p - b85str);
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_diff__base85_decode_line(char *output_data,
+                             apr_ssize_t output_len,
+                             const char *base85_data,
+                             apr_ssize_t base85_len,
+                             apr_pool_t *scratch_pool)
+{
+  {
+    apr_ssize_t expected_data = (output_len + 3) / 4 * 5;
+
+    if (base85_len != expected_data)
+      return svn_error_create(SVN_ERR_DIFF_UNEXPECTED_DATA, NULL,
+                              _("Unexpected base85 line length"));
+  }
+
+  while (base85_len)
+    {
+      unsigned info = 0;
+      apr_ssize_t i, n;
+
+      for (i = 0; i < 5; i++)
+        {
+          int value;
+
+          SVN_ERR(base85_value(&value, base85_data[i]));
+          info *= 85;
+          info += value;
+        }
+
+      for (i = 0, n=24; i < 4; i++, n-=8)
+        {
+          if (i < output_len)
+            output_data[i] = (info >> n) & 0xFF;
+        }
+
+      base85_data += 5;
+      base85_len -= 5;
+      output_data += 4;
+      output_len -= 4;
+    }
+
+  return SVN_NO_ERROR;
+}
+
 
 /* Git length encoding table for write_literal */
 static const char b85lenstr[] =
@@ -214,8 +276,6 @@ svn_diff_output_binary(svn_stream_t *output_stream,
                         cancel_func, cancel_baton,
                         scratch_pool));
   svn_pool_destroy(subpool);
-
-  SVN_ERR(svn_stream_puts(output_stream, APR_EOL_STR));
 
   return SVN_NO_ERROR;
 }

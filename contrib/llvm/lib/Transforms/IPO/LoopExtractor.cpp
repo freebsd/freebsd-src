@@ -14,7 +14,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/IR/Dominators.h"
@@ -22,6 +21,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/CodeExtractor.h"
@@ -80,8 +80,8 @@ INITIALIZE_PASS(SingleLoopExtractor, "loop-extract-single",
 //
 Pass *llvm::createLoopExtractorPass() { return new LoopExtractor(); }
 
-bool LoopExtractor::runOnLoop(Loop *L, LPPassManager &) {
-  if (skipOptnoneFunction(L))
+bool LoopExtractor::runOnLoop(Loop *L, LPPassManager &LPM) {
+  if (skipLoop(L))
     return false;
 
   // Only visit top-level loops.
@@ -143,7 +143,8 @@ bool LoopExtractor::runOnLoop(Loop *L, LPPassManager &) {
       Changed = true;
       // After extraction, the loop is replaced by a function call, so
       // we shouldn't try to run any more loop passes on it.
-      LI.markAsRemoved(L);
+      LPM.markLoopAsDeleted(*L);
+      LI.erase(L);
     }
     ++NumExtracted;
   }
@@ -249,6 +250,9 @@ void BlockExtractorPass::SplitLandingPadPreds(Function *F) {
 }
 
 bool BlockExtractorPass::runOnModule(Module &M) {
+  if (skipModule(M))
+    return false;
+
   std::set<BasicBlock*> TranslatedBlocksToNotExtract;
   for (unsigned i = 0, e = BlocksToNotExtract.size(); i != e; ++i) {
     BasicBlock *BB = BlocksToNotExtract[i];
@@ -272,15 +276,13 @@ bool BlockExtractorPass::runOnModule(Module &M) {
     std::string &FuncName  = BlocksToNotExtractByName.back().first;
     std::string &BlockName = BlocksToNotExtractByName.back().second;
 
-    for (Module::iterator FI = M.begin(), FE = M.end(); FI != FE; ++FI) {
-      Function &F = *FI;
+    for (Function &F : M) {
       if (F.getName() != FuncName) continue;
 
-      for (Function::iterator BI = F.begin(), BE = F.end(); BI != BE; ++BI) {
-        BasicBlock &BB = *BI;
+      for (BasicBlock &BB : F) {
         if (BB.getName() != BlockName) continue;
 
-        TranslatedBlocksToNotExtract.insert(&*BI);
+        TranslatedBlocksToNotExtract.insert(&BB);
       }
     }
 
@@ -290,18 +292,18 @@ bool BlockExtractorPass::runOnModule(Module &M) {
   // Now that we know which blocks to not extract, figure out which ones we WANT
   // to extract.
   std::vector<BasicBlock*> BlocksToExtract;
-  for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
-    SplitLandingPadPreds(&*F);
-    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
-      if (!TranslatedBlocksToNotExtract.count(&*BB))
-        BlocksToExtract.push_back(&*BB);
+  for (Function &F : M) {
+    SplitLandingPadPreds(&F);
+    for (BasicBlock &BB : F)
+      if (!TranslatedBlocksToNotExtract.count(&BB))
+        BlocksToExtract.push_back(&BB);
   }
 
-  for (unsigned i = 0, e = BlocksToExtract.size(); i != e; ++i) {
+  for (BasicBlock *BlockToExtract : BlocksToExtract) {
     SmallVector<BasicBlock*, 2> BlocksToExtractVec;
-    BlocksToExtractVec.push_back(BlocksToExtract[i]);
+    BlocksToExtractVec.push_back(BlockToExtract);
     if (const InvokeInst *II =
-        dyn_cast<InvokeInst>(BlocksToExtract[i]->getTerminator()))
+            dyn_cast<InvokeInst>(BlockToExtract->getTerminator()))
       BlocksToExtractVec.push_back(II->getUnwindDest());
     CodeExtractor(BlocksToExtractVec).extractCodeRegion();
   }

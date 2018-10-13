@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012 Olivier Houchard <cognet@FreeBSD.org>
  * Copyright (c) 2011
  *	Ben Gray <ben.r.gray@gmail.com>.
@@ -42,11 +44,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
+#ifdef PLATFORM
+#include <machine/platformvar.h>
+#endif
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#ifdef PLATFORM
+#include "platform_pl310_if.h"
+#endif
 
 /*
  * Define this if you need to disable PL310 for debugging purpose
@@ -89,6 +97,29 @@ static struct ofw_compat_data compat_data[] = {
 	{"arm,pl310-cache",	true},
 	{NULL,			false}
 };
+
+#ifdef PLATFORM
+static void
+platform_pl310_init(struct pl310_softc *sc)
+{
+
+	PLATFORM_PL310_INIT(platform_obj(), sc);
+}
+
+static void
+platform_pl310_write_ctrl(struct pl310_softc *sc, uint32_t val)
+{
+
+	PLATFORM_PL310_WRITE_CTRL(platform_obj(), sc, val);
+}
+
+static void
+platform_pl310_write_debug(struct pl310_softc *sc, uint32_t val)
+{
+
+	PLATFORM_PL310_WRITE_DEBUG(platform_obj(), sc, val);
+}
+#endif
 
 static void
 pl310_print_config(struct pl310_softc *sc)
@@ -207,6 +238,10 @@ pl310_cache_sync(void)
 	if ((pl310_softc == NULL) || !pl310_softc->sc_enabled)
 		return;
 
+	/* Do not sync outer cache on IO coherent platform */
+	if (pl310_softc->sc_io_coherent)
+		return;
+
 #ifdef PL310_ERRATA_753970
 	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
 		/* Write uncached PL310 register */
@@ -273,7 +308,9 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 
 
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 3);
+	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
+	    pl310_softc->sc_rtl_revision < CACHE_ID_RELEASE_r3p1)
+		platform_pl310_write_debug(pl310_softc, 3);
 #endif
 	while (size > 0) {
 #ifdef PL310_ERRATA_588369
@@ -294,7 +331,9 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 		size -= g_l2cache_line_size;
 	}
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 0);
+	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
+	    pl310_softc->sc_rtl_revision < CACHE_ID_RELEASE_r3p1)
+		platform_pl310_write_debug(pl310_softc, 0);
 #endif
 
 	pl310_cache_sync();
@@ -441,6 +480,7 @@ pl310_attach(device_t dev)
 	struct pl310_softc *sc = device_get_softc(dev);
 	int rid;
 	uint32_t cache_id, debug_ctrl;
+	phandle_t node;
 
 	sc->sc_dev = dev;
 	rid = 0;
@@ -466,6 +506,15 @@ pl310_attach(device_t dev)
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);
+
+	/*
+	 * Test for "arm,io-coherent" property and disable sync operation if
+	 * platform is I/O coherent. Outer sync operations are not needed
+	 * on coherent platform and may be harmful in certain situations.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "arm,io-coherent"))
+		sc->sc_io_coherent = true;
 
 	/*
 	 * If L2 cache is already enabled then something has violated the rules,

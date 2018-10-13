@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Marcel Moolenaar
  * All rights reserved.
  *
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/armreg.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 int do_minidump = 1;
 SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,

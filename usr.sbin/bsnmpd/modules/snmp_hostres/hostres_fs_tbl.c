@@ -131,7 +131,7 @@ static const struct {
 	const struct asn_oid	*oid;	/* the OID to return */
 } fs_type_map[] = {
 	{ "ufs",	&OIDX_hrFSBerkeleyFFS_c },
-	{ "zfs",        &OIDX_hrFSOther_c },
+	{ "zfs",	&OIDX_hrFSOther_c },
 	{ "cd9660",	&OIDX_hrFSiso9660_c },
 	{ "nfs",	&OIDX_hrFSNFS_c },
 	{ "ext2fs",	&OIDX_hrFSLinuxExt2_c },
@@ -143,7 +143,7 @@ static const struct {
 	{ "hpfs",	&OIDX_hrFSHPFS_c },
 	{ "smbfs",	&OIDX_hrFSOther_c },
 };
-#define	N_FS_TYPE_MAP	(sizeof(fs_type_map) / sizeof(fs_type_map[0]))
+#define	N_FS_TYPE_MAP	nitems(fs_type_map)
 
 /**
  * Create an entry into the FS table and an entry in the map (if needed).
@@ -167,7 +167,7 @@ fs_entry_create(const char *name)
 		/* new object - get a new index */
 		if (next_fs_index > INT_MAX) {
 			/* Unrecoverable error - die clean and quicly*/
-		        syslog(LOG_ERR, "%s: hrFSTable index wrap", __func__);
+			syslog(LOG_ERR, "%s: hrFSTable index wrap", __func__);
 			errx(EX_SOFTWARE, "hrFSTable index wrap");
 		}
 

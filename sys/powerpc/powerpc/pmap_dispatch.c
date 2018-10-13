@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Peter Grehan
  * All rights reserved.
  *
@@ -70,7 +72,6 @@ static struct kobj_ops	mmu_kernel_kops;
  */
 struct pmap kernel_pmap_store;
 
-struct msgbuf *msgbufp;
 vm_offset_t    msgbuf_phys;
 
 vm_offset_t kernel_vm_end;
@@ -380,14 +381,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	MMU_ZERO_PAGE_AREA(mmu_obj, m, off, size);
 }
 
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_ZERO_PAGE_IDLE(mmu_obj, m);
-}
-
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
@@ -503,11 +496,36 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 }
 
 void
-pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
+pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 {
 
 	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, va, pa, ma);
 	MMU_KENTER_ATTR(mmu_obj, va, pa, ma);
+}
+
+void
+pmap_kremove(vm_offset_t va)
+{
+
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
+	return (MMU_KREMOVE(mmu_obj, va));
+}
+
+int
+pmap_map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr,
+    size_t ulen, size_t *klen)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, uaddr);
+	return (MMU_MAP_USER_PTR(mmu_obj, pm, uaddr, kaddr, ulen, klen));
+}
+
+int
+pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user, vm_offset_t *decoded)
+{
+
+	CTR2(KTR_PMAP, "%s(%#jx)", __func__, (uintmax_t)addr);
+	return (MMU_DECODE_KERNEL_PTR(mmu_obj, addr, is_user, decoded));
 }
 
 boolean_t
@@ -602,3 +620,21 @@ pmap_mmu_install(char *name, int prio)
 }
 
 int unmapped_buf_allowed;
+
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	switch (mode) {
+	case VM_MEMATTR_DEFAULT:
+	case VM_MEMATTR_UNCACHEABLE:
+	case VM_MEMATTR_CACHEABLE:
+	case VM_MEMATTR_WRITE_COMBINING:
+	case VM_MEMATTR_WRITE_BACK:
+	case VM_MEMATTR_WRITE_THROUGH:
+	case VM_MEMATTR_PREFETCHABLE:
+		return (TRUE);
+	default:
+		return (FALSE);
+	}
+}

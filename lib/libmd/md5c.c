@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: RSA-MD
+ *
  * MD5C.C - RSA Data Security, Inc., MD5 message-digest algorithm
  *
  * Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
@@ -127,8 +129,7 @@ static unsigned char PADDING[64] = {
 /* MD5 initialization. Begins an MD5 operation, writing a new context. */
 
 void
-MD5Init (context)
-	MD5_CTX *context;
+MD5Init (MD5_CTX *context)
 {
 
 	context->count[0] = context->count[1] = 0;
@@ -147,10 +148,7 @@ MD5Init (context)
  */
 
 void
-MD5Update (context, in, inputLen)
-	MD5_CTX *context;
-	const void *in;
-	unsigned int inputLen;
+MD5Update (MD5_CTX *context, const void *in, unsigned int inputLen)
 {
 	unsigned int i, idx, partLen;
 	const unsigned char *input = in;
@@ -190,8 +188,7 @@ MD5Update (context, in, inputLen)
  */
 
 void
-MD5Pad (context)
-	MD5_CTX *context;
+MD5Pad (MD5_CTX *context)
 {
 	unsigned char bits[8];
 	unsigned int idx, padLen;
@@ -214,9 +211,7 @@ MD5Pad (context)
  */
 
 void
-MD5Final (digest, context)
-	unsigned char digest[16];
-	MD5_CTX *context;
+MD5Final (unsigned char digest[16], MD5_CTX *context)
 {
 	/* Do padding. */
 	MD5Pad (context);
@@ -225,15 +220,13 @@ MD5Final (digest, context)
 	Encode (digest, context->state, 16);
 
 	/* Zeroize sensitive information. */
-	memset ((void *)context, 0, sizeof (*context));
+	explicit_bzero(context, sizeof(*context));
 }
 
 /* MD5 basic transformation. Transforms state based on block. */
 
 static void
-MD5Transform (state, block)
-	u_int32_t state[4];
-	const unsigned char block[64];
+MD5Transform (u_int32_t state[4], const unsigned char block[64])
 {
 	u_int32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
 

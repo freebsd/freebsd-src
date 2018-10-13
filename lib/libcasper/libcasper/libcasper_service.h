@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -40,8 +42,9 @@ struct nvlist;
 typedef struct nvlist nvlist_t;
 #endif
 
-#define	CASPER_SERVICE_STDIO		0x00000001
-#define	CASPER_SERVICE_FD		0x00000002
+#define	CASPER_SERVICE_STDIO			0x00000001
+#define	CASPER_SERVICE_FD			0x00000002
+#define	CASPER_SERVICE_NO_UNIQ_LIMITS		0x00000004
 
 typedef int service_limit_func_t(const nvlist_t *, const nvlist_t *);
 typedef int service_command_func_t(const char *cmd, const nvlist_t *,

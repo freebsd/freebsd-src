@@ -112,9 +112,8 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_crosscompile.m4 \
 	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/m4/ntp_facilitynames.m4 \
-	$(top_srcdir)/m4/ntp_googletest.m4 \
-	$(top_srcdir)/m4/ntp_ipv6.m4 $(top_srcdir)/m4/ntp_lib_m.m4 \
-	$(top_srcdir)/m4/ntp_libevent.m4 \
+	$(top_srcdir)/m4/ntp_harden.m4 $(top_srcdir)/m4/ntp_ipv6.m4 \
+	$(top_srcdir)/m4/ntp_lib_m.m4 $(top_srcdir)/m4/ntp_libevent.m4 \
 	$(top_srcdir)/m4/ntp_libntp.m4 \
 	$(top_srcdir)/m4/ntp_lineeditlibs.m4 \
 	$(top_srcdir)/m4/ntp_locinfo.m4 \
@@ -291,13 +290,12 @@ am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/libevent/build-aux/depcomp \
 	$(top_srcdir)/libevent/build-aux/install-sh \
 	$(top_srcdir)/libevent/build-aux/ltmain.sh \
-	$(top_srcdir)/libevent/build-aux/missing compile config.guess \
-	config.sub depcomp install-sh libevent/build-aux/ar-lib \
-	libevent/build-aux/compile libevent/build-aux/config.guess \
-	libevent/build-aux/config.sub libevent/build-aux/depcomp \
-	libevent/build-aux/install-sh libevent/build-aux/ltmain.sh \
-	libevent/build-aux/missing libevent/build-aux/ylwrap ltmain.sh \
-	missing
+	$(top_srcdir)/libevent/build-aux/missing \
+	libevent/build-aux/ar-lib libevent/build-aux/compile \
+	libevent/build-aux/config.guess libevent/build-aux/config.sub \
+	libevent/build-aux/depcomp libevent/build-aux/install-sh \
+	libevent/build-aux/ltmain.sh libevent/build-aux/missing \
+	libevent/build-aux/ylwrap
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -364,10 +362,6 @@ CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
 CPPFLAGS_NTP = @CPPFLAGS_NTP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
-CXXDEPMODE = @CXXDEPMODE@
-CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -382,11 +376,6 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
-GTEST_CONFIG = @GTEST_CONFIG@
-GTEST_CPPFLAGS = @GTEST_CPPFLAGS@
-GTEST_CXXFLAGS = @GTEST_CXXFLAGS@
-GTEST_LDFLAGS = @GTEST_LDFLAGS@
-GTEST_LIBS = @GTEST_LIBS@
 HAVE_INLINE = @HAVE_INLINE@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -414,6 +403,7 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MANTAGFMT = @MANTAGFMT@
@@ -466,6 +456,9 @@ NTPTRACE_DS = @NTPTRACE_DS@
 NTPTRACE_MS = @NTPTRACE_MS@
 NTPTRACE_NI = @NTPTRACE_NI@
 NTP_FORCE_LIBEVENT_DIST = @NTP_FORCE_LIBEVENT_DIST@
+NTP_HARD_CFLAGS = @NTP_HARD_CFLAGS@
+NTP_HARD_CPPFLAGS = @NTP_HARD_CPPFLAGS@
+NTP_HARD_LDFLAGS = @NTP_HARD_LDFLAGS@
 NTP_KEYGEN_DB = @NTP_KEYGEN_DB@
 NTP_KEYGEN_DL = @NTP_KEYGEN_DL@
 NTP_KEYGEN_DS = @NTP_KEYGEN_DS@
@@ -527,7 +520,6 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
-ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
@@ -577,10 +569,10 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4 -I libevent/m4 -I libopts/m4
 NULL = 
-AM_CFLAGS = $(CFLAGS_NTP)
+AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
 AM_CPPFLAGS = $(SNTP_INCS) $(LIBOPTS_CFLAGS) $(CPPFLAGS_LIBEVENT) \
-	$(CPPFLAGS_NTP)
-AM_LDFLAGS = $(LDFLAGS_NTP)
+	$(CPPFLAGS_NTP) $(NTP_HARD_CPPFLAGS)
+AM_LDFLAGS = $(LDFLAGS_NTP) $(NTP_HARD_LDFLAGS)
 LDADD = version.o libsntp.a $(LIBOPTS_LDADD) $(LDADD_LIBEVENT) \
 	../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS) \
 	$(LDADD_NTP)
@@ -639,6 +631,7 @@ EXTRA_DIST = \
 	$(srcdir)/COPYRIGHT		\
 	ag-tpl				\
 	deps-ver			\
+	harden				\
 	invoke-sntp.menu		\
 	invoke-sntp.texi		\
 	@NTP_FORCE_LIBEVENT_DIST@	\
@@ -1530,8 +1523,7 @@ check-scm-rev: $(srcdir)/scm-rev
 	@: do-nothing
 
 $(srcdir)/scm-rev:
-	-test -r $(srcdir)/../SCCS/s.ChangeSet &&		\
-	    (bk version) >/dev/null 2>&1 &&			\
+	-bk root $(srcdir) >/dev/null 2>&1 &&			\
 	    cd $(srcdir)/.. &&					\
 	    x=`bk -R prs -hr+ -nd:I: ChangeSet` &&		\
 	    y=`cat sntp/scm-rev 2>/dev/null` || true &&		\
@@ -1640,7 +1632,6 @@ install-exec-hook:
 #
 
 check-libntp: ../libntp/libntp.a
-	@echo stamp > $@
 
 ../libntp/libntp.a:
 	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a

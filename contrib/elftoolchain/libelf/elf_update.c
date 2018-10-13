@@ -808,6 +808,7 @@ _libelf_write_scn(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 
 		assert(d->d_buf != NULL);
 		assert(d->d_version == e->e_version);
+		assert(msz != 0);
 		assert(d->d_size % msz == 0);
 
 		nobjects = (size_t) (d->d_size / msz);
@@ -1211,5 +1212,6 @@ elf_update(Elf *e, Elf_Cmd c)
 
 done:
 	_libelf_release_extents(&extents);
+	e->e_flags &= ~LIBELF_F_SHDRS_LOADED;
 	return (rc);
 }

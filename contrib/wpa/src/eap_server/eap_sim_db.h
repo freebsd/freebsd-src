@@ -31,7 +31,7 @@ enum eap_sim_db_method {
 struct eap_sim_db_data;
 
 struct eap_sim_db_data *
-eap_sim_db_init(const char *config,
+eap_sim_db_init(const char *config, unsigned int db_timeout,
 		void (*get_complete_cb)(void *ctx, void *session_ctx),
 		void *ctx);
 

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,27 +131,26 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfiles")
@@ -81,9 +188,9 @@ FlSetLineNumber (
 {
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New line number %u (old %u)\n",
-         LineNumber, Gbl_LogicalLineNumber);
+         LineNumber, AslGbl_LogicalLineNumber);
 
-    Gbl_CurrentLineNumber = LineNumber;
+    AslGbl_CurrentLineNumber = LineNumber;
 }
 
 
@@ -105,11 +212,11 @@ FlSetFilename (
 {
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New filename %s (old %s)\n",
-         Filename, Gbl_Files[ASL_FILE_INPUT].Filename);
+         Filename, AslGbl_Files[ASL_FILE_INPUT].Filename);
 
     /* No need to free any existing filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
+    AslGbl_Files[ASL_FILE_INPUT].Filename = Filename;
 }
 
 
@@ -150,8 +257,9 @@ FlAddIncludeDirectory (
         NeedsSeparator = 1;
     }
 
-    NewDir = ACPI_ALLOCATE_ZEROED (sizeof (ASL_INCLUDE_DIR));
-    NewDir->Dir = ACPI_ALLOCATE (DirLength + 1 + NeedsSeparator);
+    NewDir = ACPI_CAST_PTR (ASL_INCLUDE_DIR,
+        UtLocalCacheCalloc (sizeof (ASL_INCLUDE_DIR)));
+    NewDir->Dir = UtLocalCacheCalloc (DirLength + 1 + NeedsSeparator);
     strcpy (NewDir->Dir, Dir);
     if (NeedsSeparator)
     {
@@ -162,7 +270,7 @@ FlAddIncludeDirectory (
      * Preserve command line ordering of -I options by adding new elements
      * at the end of the list
      */
-    NextDir = Gbl_IncludeDirList;
+    NextDir = AslGbl_IncludeDirList;
     while (NextDir)
     {
         PrevDir = NextDir;
@@ -175,7 +283,7 @@ FlAddIncludeDirectory (
     }
     else
     {
-        Gbl_IncludeDirList = NewDir;
+        AslGbl_IncludeDirList = NewDir;
     }
 }
 
@@ -218,14 +326,14 @@ FlMergePathnames (
         (*FilePathname == '/') ||
          (FilePathname[1] == ':'))
     {
-        Pathname = UtStringCacheCalloc (strlen (FilePathname) + 1);
+        Pathname = UtLocalCacheCalloc (strlen (FilePathname) + 1);
         strcpy (Pathname, FilePathname);
         goto ConvertBackslashes;
     }
 
     /* Need a local copy of the prefix directory path */
 
-    CommonPath = UtStringCacheCalloc (strlen (PrefixDir) + 1);
+    CommonPath = UtLocalCacheCalloc (strlen (PrefixDir) + 1);
     strcpy (CommonPath, PrefixDir);
 
     /*
@@ -261,7 +369,7 @@ FlMergePathnames (
     /* Build the final merged pathname */
 
 ConcatenatePaths:
-    Pathname = UtStringCacheCalloc (
+    Pathname = UtLocalCacheCalloc (
         strlen (CommonPath) + strlen (FilePathname) + 2);
     if (LastElement && *CommonPath)
     {
@@ -334,19 +442,19 @@ FlOpenIncludeWithPrefix (
      * Note: DtGetNextLine strips/ignores comments.
      * Save current line number since DtGetNextLine modifies it.
      */
-    Gbl_CurrentLineNumber--;
-    OriginalLineNumber = Gbl_CurrentLineNumber;
+    AslGbl_CurrentLineNumber--;
+    OriginalLineNumber = AslGbl_CurrentLineNumber;
 
     while (DtGetNextLine (IncludeFile, DT_ALLOW_MULTILINE_QUOTES) != ASL_EOF)
     {
-        if (Gbl_CurrentLineBuffer[0] == '#')
+        if (AslGbl_CurrentLineBuffer[0] == '#')
         {
             AslError (ASL_ERROR, ASL_MSG_INCLUDE_FILE,
                 Op, "use #include instead");
         }
     }
 
-    Gbl_CurrentLineNumber = OriginalLineNumber;
+    AslGbl_CurrentLineNumber = OriginalLineNumber;
 
     /* Must seek back to the start of the file */
 
@@ -384,9 +492,9 @@ FlOpenIncludeFile (
     if (!Op)
     {
         AslCommonError (ASL_ERROR, ASL_MSG_INCLUDE_FILE_OPEN,
-            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-            Gbl_InputByteCount, Gbl_CurrentColumn,
-            Gbl_Files[ASL_FILE_INPUT].Filename, " - Null parse node");
+            AslGbl_CurrentLineNumber, AslGbl_LogicalLineNumber,
+            AslGbl_InputByteCount, AslGbl_CurrentColumn,
+            AslGbl_Files[ASL_FILE_INPUT].Filename, " - Null parse node");
 
         return;
     }
@@ -397,7 +505,7 @@ FlOpenIncludeFile (
      */
     AslResetCurrentLineBuffer ();
     FlPrintFile (ASL_FILE_SOURCE_OUTPUT, "\n");
-    Gbl_CurrentLineOffset++;
+    AslGbl_CurrentLineOffset++;
 
 
     /* Attempt to open the include file */
@@ -425,7 +533,7 @@ FlOpenIncludeFile (
      * Construct the file pathname from the global directory name.
      */
     IncludeFile = FlOpenIncludeWithPrefix (
-        Gbl_DirectoryPath, Op, Op->Asl.Value.String);
+        AslGbl_DirectoryPath, Op, Op->Asl.Value.String);
     if (IncludeFile)
     {
         return;
@@ -435,7 +543,7 @@ FlOpenIncludeFile (
      * Second, search for the file within the (possibly multiple) directories
      * specified by the -I option on the command line.
      */
-    NextDir = Gbl_IncludeDirList;
+    NextDir = AslGbl_IncludeDirList;
     while (NextDir)
     {
         IncludeFile = FlOpenIncludeWithPrefix (
@@ -451,8 +559,8 @@ FlOpenIncludeFile (
     /* We could not open the include file after trying very hard */
 
 ErrorExit:
-    sprintf (MsgBuffer, "%s, %s", Op->Asl.Value.String, strerror (errno));
-    AslError (ASL_ERROR, ASL_MSG_INCLUDE_FILE_OPEN, Op, MsgBuffer);
+    sprintf (AslGbl_MsgBuffer, "%s, %s", Op->Asl.Value.String, strerror (errno));
+    AslError (ASL_ERROR, ASL_MSG_INCLUDE_FILE_OPEN, Op, AslGbl_MsgBuffer);
 }
 
 
@@ -479,7 +587,7 @@ FlOpenInputFile (
     /* Open the input ASL file, text mode */
 
     FlOpenFile (ASL_FILE_INPUT, InputFilename, "rt");
-    AslCompilerin = Gbl_Files[ASL_FILE_INPUT].Handle;
+    AslCompilerin = AslGbl_Files[ASL_FILE_INPUT].Handle;
 
     return (AE_OK);
 }
@@ -507,12 +615,18 @@ FlOpenAmlOutputFile (
 
     /* Output filename usually comes from the ASL itself */
 
-    Filename = Gbl_Files[ASL_FILE_AML_OUTPUT].Filename;
+    Filename = AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename;
     if (!Filename)
     {
         /* Create the output AML filename */
-
-        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_AML_CODE);
+        if (!AcpiGbl_CaptureComments)
+        {
+            Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_AML_CODE);
+        }
+        else
+        {
+            Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_CONVERT_AML);
+        }
         if (!Filename)
         {
             AslCommonError (ASL_ERROR, ASL_MSG_OUTPUT_FILENAME,
@@ -520,7 +634,7 @@ FlOpenAmlOutputFile (
             return (AE_ERROR);
         }
 
-        Gbl_Files[ASL_FILE_AML_OUTPUT].Filename = Filename;
+        AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename = Filename;
     }
 
     /* Open the output AML file in binary mode */
@@ -552,7 +666,7 @@ FlOpenMiscOutputFiles (
 
      /* Create/Open a map file if requested */
 
-    if (Gbl_MapfileFlag)
+    if (AslGbl_MapfileFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_MAP);
         if (!Filename)
@@ -572,14 +686,14 @@ FlOpenMiscOutputFiles (
 
     /* All done for disassembler */
 
-    if (Gbl_FileType == ASL_INPUT_TYPE_BINARY_ACPI_TABLE)
+    if (AslGbl_FileType == ASL_INPUT_TYPE_BINARY_ACPI_TABLE)
     {
         return (AE_OK);
     }
 
     /* Create/Open a hex output file if asked */
 
-    if (Gbl_HexOutputFlag)
+    if (AslGbl_HexOutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_HEX_DUMP);
         if (!Filename)
@@ -599,7 +713,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a debug output file if asked */
 
-    if (Gbl_DebugFlag)
+    if (AslGbl_DebugFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_DEBUG);
         if (!Filename)
@@ -611,11 +725,11 @@ FlOpenMiscOutputFiles (
 
         /* Open the debug file as STDERR, text mode */
 
-        Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Filename = Filename;
-        Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
+        AslGbl_Files[ASL_FILE_DEBUG_OUTPUT].Filename = Filename;
+        AslGbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
             freopen (Filename, "w+t", stderr);
 
-        if (!Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
+        if (!AslGbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
         {
             /*
              * A problem with freopen is that on error, we no longer
@@ -635,7 +749,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a cross-reference output file if asked */
 
-    if (Gbl_CrossReferenceOutput)
+    if (AslGbl_CrossReferenceOutput)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_XREF);
         if (!Filename)
@@ -653,7 +767,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a listing output file if asked */
 
-    if (Gbl_ListingFlag)
+    if (AslGbl_ListingFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_LISTING);
         if (!Filename)
@@ -673,7 +787,7 @@ FlOpenMiscOutputFiles (
 
     /* Create the preprocessor output temp file if preprocessor enabled */
 
-    if (Gbl_PreprocessFlag)
+    if (AslGbl_PreprocessFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROCESSOR);
         if (!Filename)
@@ -690,7 +804,7 @@ FlOpenMiscOutputFiles (
      * Create the "user" preprocessor output file if -li flag set.
      * Note, this file contains no embedded #line directives.
      */
-    if (Gbl_PreprocessorOutputFlag)
+    if (AslGbl_PreprocessorOutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROC_USER);
         if (!Filename)
@@ -705,7 +819,7 @@ FlOpenMiscOutputFiles (
 
     /* All done for data table compiler */
 
-    if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
+    if (AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         return (AE_OK);
     }
@@ -729,11 +843,11 @@ FlOpenMiscOutputFiles (
 
 /*
 // TBD: TEMP
-//    AslCompilerin = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
+//    AslCompilerin = AslGbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
 */
     /* Create/Open a assembly code source output file if asked */
 
-    if (Gbl_AsmOutputFlag)
+    if (AslGbl_AsmOutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_ASM_SOURCE);
         if (!Filename)
@@ -753,7 +867,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a C code source output file if asked */
 
-    if (Gbl_C_OutputFlag)
+    if (AslGbl_C_OutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_C_SOURCE);
         if (!Filename)
@@ -774,7 +888,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a C code source output file for the offset table if asked */
 
-    if (Gbl_C_OffsetTableFlag)
+    if (AslGbl_C_OffsetTableFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_C_OFFSET);
         if (!Filename)
@@ -795,7 +909,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a assembly include output file if asked */
 
-    if (Gbl_AsmIncludeOutputFlag)
+    if (AslGbl_AsmIncludeOutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_ASM_INCLUDE);
         if (!Filename)
@@ -815,7 +929,7 @@ FlOpenMiscOutputFiles (
 
     /* Create/Open a C include output file if asked */
 
-    if (Gbl_C_IncludeOutputFlag)
+    if (AslGbl_C_IncludeOutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_C_INCLUDE);
         if (!Filename)
@@ -836,7 +950,7 @@ FlOpenMiscOutputFiles (
 
     /* Create a namespace output file if asked */
 
-    if (Gbl_NsOutputFlag)
+    if (AslGbl_NsOutputFlag)
     {
         Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_NAMESPACE);
         if (!Filename)
@@ -852,6 +966,28 @@ FlOpenMiscOutputFiles (
 
         AslCompilerSignon (ASL_FILE_NAMESPACE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
+    }
+
+    /* Create a debug file for the converter */
+
+    if (AcpiGbl_DebugAslConversion)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_CONVERT_DEBUG);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the converter debug file, text mode */
+
+        FlOpenFile (ASL_FILE_CONV_DEBUG_OUTPUT, Filename, "w+t");
+
+        AslCompilerSignon (ASL_FILE_CONV_DEBUG_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_CONV_DEBUG_OUTPUT);
+
+        AcpiGbl_ConvDebugFile = AslGbl_Files[ASL_FILE_CONV_DEBUG_OUTPUT].Handle;
     }
 
     return (AE_OK);
@@ -888,40 +1024,40 @@ FlParseInputPathname (
 
     /* Get the path to the input filename's directory */
 
-    Gbl_DirectoryPath = strdup (InputFilename);
-    if (!Gbl_DirectoryPath)
+    AslGbl_DirectoryPath = strdup (InputFilename);
+    if (!AslGbl_DirectoryPath)
     {
         return (AE_NO_MEMORY);
     }
 
-    Substring = strrchr (Gbl_DirectoryPath, '\\');
+    Substring = strrchr (AslGbl_DirectoryPath, '\\');
     if (!Substring)
     {
-        Substring = strrchr (Gbl_DirectoryPath, '/');
+        Substring = strrchr (AslGbl_DirectoryPath, '/');
         if (!Substring)
         {
-            Substring = strrchr (Gbl_DirectoryPath, ':');
+            Substring = strrchr (AslGbl_DirectoryPath, ':');
         }
     }
 
     if (!Substring)
     {
-        Gbl_DirectoryPath[0] = 0;
-        if (Gbl_UseDefaultAmlFilename)
+        AslGbl_DirectoryPath[0] = 0;
+        if (AslGbl_UseDefaultAmlFilename)
         {
-            Gbl_OutputFilenamePrefix = strdup (InputFilename);
+            AslGbl_OutputFilenamePrefix = strdup (InputFilename);
         }
     }
     else
     {
-        if (Gbl_UseDefaultAmlFilename)
+        if (AslGbl_UseDefaultAmlFilename)
         {
-            Gbl_OutputFilenamePrefix = strdup (Substring + 1);
+            AslGbl_OutputFilenamePrefix = strdup (Substring + 1);
         }
         *(Substring+1) = 0;
     }
 
-    UtConvertBackslashes (Gbl_OutputFilenamePrefix);
+    UtConvertBackslashes (AslGbl_OutputFilenamePrefix);
     return (AE_OK);
 }
 #endif

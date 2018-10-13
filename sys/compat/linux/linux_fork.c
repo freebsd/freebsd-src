@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Tim J. Robbins
  * Copyright (c) 2002 Doug Rabson
  * Copyright (c) 2000 Marcel Moolenaar
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
@@ -62,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_fork(struct thread *td, struct linux_fork_args *args)
 {
@@ -121,7 +125,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 
 	linux_proc_init(td, td2, 0);
 
-   	td->td_retval[0] = p2->p_pid;
+	td->td_retval[0] = p2->p_pid;
 
 	/*
 	 * Make this runnable after we are finished with it.
@@ -133,6 +137,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 
 	return (0);
 }
+#endif
 
 static int
 linux_clone_proc(struct thread *td, struct linux_clone_args *args)
@@ -196,12 +201,12 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
 	else
-	   	em->child_set_tid = NULL;
+		em->child_set_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
 		em->child_clear_tid = args->child_tidptr;
 	else
-	   	em->child_clear_tid = NULL;
+		em->child_clear_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
 		error = copyout(&p2->p_pid, args->parent_tidptr,
@@ -224,7 +229,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		linux_set_cloned_tls(td2, args->tls);
 
 	/*
-	 * If CLONE_PARENT is set, then the parent of the new process will be 
+	 * If CLONE_PARENT is set, then the parent of the new process will be
 	 * the same as that of the calling process.
 	 */
 	if (args->flags & LINUX_CLONE_PARENT) {
@@ -299,8 +304,8 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	error = kern_thr_alloc(p, 0, &newtd);
 	if (error)
 		goto fail;
-														
-	cpu_set_upcall(newtd, td);
+
+	cpu_copy_thread(newtd, td);
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
@@ -322,15 +327,15 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
 	else
-	   	em->child_set_tid = NULL;
+		em->child_set_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
 		em->child_clear_tid = args->child_tidptr;
 	else
-	   	em->child_clear_tid = NULL;
+		em->child_clear_tid = NULL;
 
 	cpu_thread_clean(newtd);
-	
+
 	linux_set_upcall_kse(newtd, PTROUT(args->stack));
 
 	PROC_LOCK(p);
@@ -348,6 +353,9 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	thread_unlock(td);
 	if (P_SHOULDSTOP(p))
 		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
+	
+	if (p->p_ptevents & PTRACE_LWP)
+		newtd->td_dbgflags |= TDB_BORN;
 	PROC_UNLOCK(p);
 
 	tidhash_add(newtd);
@@ -463,7 +471,7 @@ linux_thread_detach(struct thread *td)
 
 		LINUX_CTR2(thread_detach, "thread(%d) %p",
 		    em->em_tid, child_clear_tid);
-	
+
 		error = suword32(child_clear_tid, 0);
 		if (error != 0)
 			return;

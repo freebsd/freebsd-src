@@ -5,9 +5,10 @@
 CFLAGS+=-D_ACL_PRIVATE
 
 # Copy kern/subr_acl_nfs4.c to the libc object directory.
-subr_acl_nfs4.c: ${LIBC_SRCTOP}/../../sys/kern/subr_acl_nfs4.c
+subr_acl_nfs4.c: ${SRCTOP}/sys/kern/subr_acl_nfs4.c
 	cat ${.ALLSRC} > ${.TARGET}
 
+CONFS+=	posix1e/mac.conf
 SRCS+=	acl_branding.c			\
 	acl_calc_mask.c			\
 	acl_copy.c			\

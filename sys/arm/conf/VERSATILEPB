@@ -4,11 +4,11 @@
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -29,19 +29,8 @@ makeoptions	MODULES_OVERRIDE=""
 options 	KERNVIRTADDR=0xc0100000
 makeoptions	KERNVIRTADDR=0xc0100000
 
-options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	LINUX_BOOT_ABI		# Process metadata passed from Linux boot loaders
-
-# Debugging for use in -current
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	KDB			# Enable kernel debugger support
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic
-# For full debugger support use this instead:
-options 	DDB			# Enable the kernel debugger
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 
 options 	ROOTDEVNAME=\"ufs:da0s1a\"
 
@@ -79,7 +68,9 @@ makeoptions	SC_DFLT_FONT=cp437
 device		md
 device		random			# Entropy device
 
+options 	PLATFORM
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=versatilepb.dts
+makeoptions	FDT_DTS_FILE=versatile-pb.dts

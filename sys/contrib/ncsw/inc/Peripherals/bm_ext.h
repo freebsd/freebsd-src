@@ -124,7 +124,7 @@ typedef struct {
     t_Handle                h_App;                  /**< A handle to an application layer object; This handle will
                                                          be passed by the driver upon calling the above callbacks.
                                                          NOTE: this parameter relevant only for BM in master mode ('guestId'=NCSW_MASTER_ID). */
-    int                     errIrq;                 /**< BM error interrupt line; NO_IRQ if interrupts not used.
+    uintptr_t               errIrq;                 /**< BM error interrupt line; NO_IRQ if interrupts not used.
                                                          NOTE: this parameter relevant only for BM in master mode ('guestId'=NCSW_MASTER_ID). */
 
     uint8_t                 partBpidBase;           /**< The first buffer-pool-id dedicated to this partition.
@@ -322,7 +322,7 @@ typedef struct {
     uintptr_t       ciBaseAddress;          /**< Cache-inhibited base address (virtual) */
     t_Handle        h_Bm;                   /**< Bm Handle */
     e_DpaaSwPortal  swPortalId;             /**< Portal id */
-    int             irq;                    /**< portal interrupt line; NO_IRQ if interrupts not used */
+    uintptr_t       irq;                    /**< portal interrupt line; NO_IRQ if interrupts not used */
 } t_BmPortalParam;
 
 
@@ -592,30 +592,6 @@ uint16_t BM_POOL_GetBufferSize(t_Handle h_BmPool);
  @Return        user's private context.
 *//***************************************************************************/
 t_Handle BM_POOL_GetBufferContext(t_Handle h_BmPool, void *p_Buff);
-
-/**************************************************************************//**
- @Function      BM_POOL_PhysToVirt
-
- @Description   Translates a physical address to the matching virtual address.
-
- @Param[in]     h_BmPool    - A handle to a BM-pool
- @Param[in]     addr        - The physical address to translate
-
- @Return        Virtual address.
-*//***************************************************************************/
-void * BM_POOL_PhysToVirt(t_Handle h_BmPool, physAddress_t addr);
-
-/**************************************************************************//**
- @Function      BM_POOL_VirtToPhys
-
- @Description   Translates a virtual address to the matching physical address.
-
- @Param[in]     h_BmPool    - A handle to a BM-pool
- @Param[in]     addr        - The virtual address to translate
-
- @Return        Physical address.
-*//***************************************************************************/
-physAddress_t BM_POOL_VirtToPhys(t_Handle h_BmPool, void *addr);
 
 /**************************************************************************//**
  @Function      BM_POOL_GetCounter

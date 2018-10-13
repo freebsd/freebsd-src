@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Stephan Uphoff <ups@FreeBSD.org>
  * All rights reserved.
  *
@@ -156,7 +158,7 @@ unlock_rm(struct lock_object *lock)
 		 */
 		critical_enter();
 		td = curthread;
-		pc = pcpu_find(curcpu);
+		pc = get_pcpu();
 		for (queue = pc->pc_rm_queue.rmq_next;
 		    queue != &pc->pc_rm_queue; queue = queue->rmq_next) {
 			tracker = (struct rm_priotracker *)queue;
@@ -258,7 +260,7 @@ rm_cleanIPI(void *arg)
 	struct rmlock *rm = arg;
 	struct rm_priotracker *tracker;
 	struct rm_queue *queue;
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 
 	for (queue = pc->pc_rm_queue.rmq_next; queue != &pc->pc_rm_queue;
 	    queue = queue->rmq_next) {
@@ -336,26 +338,19 @@ rm_wowned(const struct rmlock *rm)
 void
 rm_sysinit(void *arg)
 {
-	struct rm_args *args = arg;
+	struct rm_args *args;
 
-	rm_init(args->ra_rm, args->ra_desc);
+	args = arg;
+	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_flags);
 }
 
-void
-rm_sysinit_flags(void *arg)
-{
-	struct rm_args_flags *args = arg;
-
-	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_opts);
-}
-
-static int
+static __noinline int
 _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 {
 	struct pcpu *pc;
 
 	critical_enter();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 
 	/* Check if we just need to do a proper critical_exit. */
 	if (!CPU_ISSET(pc->pc_cpuid, &rm->rm_writecpus)) {
@@ -416,7 +411,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	}
 
 	critical_enter();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	CPU_CLR(pc->pc_cpuid, &rm->rm_writecpus);
 	rm_tracker_add(pc, tracker);
 	sched_pin();
@@ -464,15 +459,15 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	 * Fast path to combine two common conditions into a single
 	 * conditional jump.
 	 */
-	if (0 == (td->td_owepreempt |
-	    CPU_ISSET(pc->pc_cpuid, &rm->rm_writecpus)))
+	if (__predict_true(0 == (td->td_owepreempt |
+	    CPU_ISSET(pc->pc_cpuid, &rm->rm_writecpus))))
 		return (1);
 
 	/* We do not have a read token and need to acquire one. */
 	return _rm_rlock_hard(rm, tracker, trylock);
 }
 
-static void
+static __noinline void
 _rm_unlock_hard(struct thread *td,struct rm_priotracker *tracker)
 {
 
@@ -499,7 +494,7 @@ _rm_unlock_hard(struct thread *td,struct rm_priotracker *tracker)
 		ts = turnstile_lookup(&rm->lock_object);
 
 		turnstile_signal(ts, TS_EXCLUSIVE_QUEUE);
-		turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
+		turnstile_unpend(ts);
 		turnstile_chain_unlock(&rm->lock_object);
 	} else
 		mtx_unlock_spin(&rm_spinlock);
@@ -523,7 +518,7 @@ _rm_runlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	if (rm->lock_object.lo_flags & LO_SLEEPABLE)
 		THREAD_SLEEPING_OK();
 
-	if (0 == (td->td_owepreempt | tracker->rmp_flags))
+	if (__predict_true(0 == (td->td_owepreempt | tracker->rmp_flags)))
 		return;
 
 	_rm_unlock_hard(td, tracker);
@@ -556,9 +551,9 @@ _rm_wlock(struct rmlock *rm)
 		 */
 #ifdef SMP
 		smp_rendezvous_cpus(readcpus,
-		    smp_no_rendevous_barrier,
+		    smp_no_rendezvous_barrier,
 		    rm_cleanIPI,
-		    smp_no_rendevous_barrier,
+		    smp_no_rendezvous_barrier,
 		    rm);
 
 #else
@@ -641,7 +636,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 #ifdef INVARIANTS
 	if (!(rm->lock_object.lo_flags & LO_RECURSABLE) && !trylock) {
 		critical_enter();
-		KASSERT(rm_trackers_present(pcpu_find(curcpu), rm,
+		KASSERT(rm_trackers_present(get_pcpu(), rm,
 		    curthread) == 0,
 		    ("rm_rlock: recursed on non-recursive rmlock %s @ %s:%d\n",
 		    rm->lock_object.lo_name, file, line));
@@ -771,7 +766,7 @@ _rm_assert(const struct rmlock *rm, int what, const char *file, int line)
 		}
 
 		critical_enter();
-		count = rm_trackers_present(pcpu_find(curcpu), rm, curthread);
+		count = rm_trackers_present(get_pcpu(), rm, curthread);
 		critical_exit();
 
 		if (count == 0)
@@ -797,7 +792,7 @@ _rm_assert(const struct rmlock *rm, int what, const char *file, int line)
 			    rm->lock_object.lo_name, file, line);
 
 		critical_enter();
-		count = rm_trackers_present(pcpu_find(curcpu), rm, curthread);
+		count = rm_trackers_present(get_pcpu(), rm, curthread);
 		critical_exit();
 
 		if (count != 0)

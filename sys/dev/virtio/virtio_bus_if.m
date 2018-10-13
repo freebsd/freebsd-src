@@ -34,6 +34,14 @@ HEADER {
 struct vq_alloc_info;
 };
 
+CODE {
+	static int
+	virtio_bus_default_config_generation(device_t dev)
+	{
+		return (0);
+	}
+};
+
 METHOD uint64_t negotiate_features {
 	device_t	dev;
 	uint64_t	child_features;
@@ -73,6 +81,10 @@ METHOD void notify_vq {
 	device_t	dev;
 	uint16_t	queue;
 };
+
+METHOD int config_generation {
+	device_t	dev;
+} DEFAULT virtio_bus_default_config_generation;
 
 METHOD void read_device_config {
 	device_t	dev;

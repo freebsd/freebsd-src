@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.65 2015/12/04 20:48:03 christos Exp $
+# $File: compress,v 1.72 2018/03/27 23:26:41 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -49,6 +49,7 @@
 >9	byte		=0x0B		\b, from NTFS filesystem (NT)
 >9	byte		=0x0C		\b, from QDOS
 >9	byte		=0x0D		\b, from Acorn RISCOS
+>-4	lelong		x		\b, original size %d
 
 # packed data, Huffman (minimum redundancy) codes on a byte-by-byte basis
 0	string		\037\036	packed data
@@ -75,6 +76,12 @@
 # bzip2
 0	string		BZh		bzip2 compressed data
 !:mime	application/x-bzip2
+>3	byte		>47		\b, block size = %c00k
+
+# bzip	a block-sorting file compressor
+#	by Julian Seward <sewardj@cs.man.ac.uk> and others
+0	string		BZ0		bzip compressed data
+!:mime	application/x-bzip
 >3	byte		>47		\b, block size = %c00k
 
 # lzip
@@ -112,21 +119,6 @@
 #>66	byte&0xF0	0xd0
 #>99	byte&0xF0	0xd0
 #>132	byte&0xF0	0xd0		GSM 06.10 compressed audio
-
-# bzip	a block-sorting file compressor
-#	by Julian Seward <sewardj@cs.man.ac.uk> and others
-#
-#0	string		BZ		bzip compressed data
-#>2	byte		x		\b, version: %c
-#>3	string		=1		\b, compression block size 100k
-#>3	string		=2		\b, compression block size 200k
-#>3	string		=3		\b, compression block size 300k
-#>3	string		=4		\b, compression block size 400k
-#>3	string		=5		\b, compression block size 500k
-#>3	string		=6		\b, compression block size 600k
-#>3	string		=7		\b, compression block size 700k
-#>3	string		=8		\b, compression block size 800k
-#>3	string		=9		\b, compression block size 900k
 
 # lzop from <markus.oberhumer@jk.uni-linz.ac.at>
 0	string		\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a	lzop compressed data
@@ -220,6 +212,56 @@
 0	lelong		0x184c2102	LZ4 compressed data (v0.1-v0.9)
 !:mime	application/x-lz4
 
+# Zstandard/LZ4 skippable frames
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0         lelong&0xFFFFFFF0  0x184D2A50
+>(4.l+8)  indirect	x
+
+# Zstandard Dictionary ID subroutine
+0     name        zstd-dictionary-id
+# Single Segment = True
+>0    byte        &0x20   \b, Dictionary ID:
+>>0   byte&0x03   0       None
+>>0   byte&0x03   1
+>>>1  byte        x       %u
+>>0   byte&0x03   2
+>>>1  leshort     x       %u
+>>0   byte&0x03   3
+>>>1  lelong      x       %u
+# Single Segment = False
+>0    byte        ^0x20   \b, Dictionary ID:
+>>0   byte&0x03   0       None
+>>0   byte&0x03   1
+>>>2  byte        x       %u
+>>0   byte&0x03   2
+>>>2  leshort     x       %u
+>>0   byte&0x03   3
+>>>2  lelong      x       %u
+
+# Zstandard compressed data
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0     lelong       0xFD2FB522  Zstandard compressed data (v0.2)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB523  Zstandard compressed data (v0.3)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB524  Zstandard compressed data (v0.4)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB525  Zstandard compressed data (v0.5)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB526  Zstandard compressed data (v0.6)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB527  Zstandard compressed data (v0.7)
+!:mime  application/x-zstd
+>4    use          zstd-dictionary-id
+0     lelong       0xFD2FB528  Zstandard compressed data (v0.8+)
+!:mime  application/x-zstd
+>4    use          zstd-dictionary-id
+
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0  lelong    0xEC30A437  Zstandard dictionary
+!:mime  application/x-zstd-dictionary
+>4 lelong    x           (ID %u)
+
 # AFX compressed files (Wolfram Kleff)
 2	string		-afx-		AFX compressed file data
 
@@ -260,7 +302,26 @@
 
 # Zlib https://www.ietf.org/rfc/rfc6713.txt
 0	string/b	x
->0	beshort%31	=0	
+>0	beshort%31	=0
 >>0	byte&0xf	=8
 >>>0	byte&0x80 	=0	zlib compressed data
 !:mime	application/zlib
+
+# BWC compression
+0	string		BWC
+>3	byte		0	BWC compressed data
+
+# UCL compression
+0	bequad		0x00e955434cff011a	UCL compressed data
+
+# Softlib archive
+0	string		SLIB	Softlib archive
+>4	leshort		x	\b, version %d
+>6	leshort		x	(contains %d files)
+
+# URL:  https://github.com/lzfse/lzfse/blob/master/src/lzfse_internal.h#L276
+# From: Eric Hall <eric.hall@darkart.com>
+0	string	bvx-	lzfse encoded, no compression
+0	string	bvx1	lzfse compressed, uncompressed tables
+0	string	bvx2	lzfse compressed, compressed tables
+0	string	bvxn	lzfse encoded, lzvn compressed

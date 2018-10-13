@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 David O'Brien.  All rights reserved.
  * Copyright (c) 2001 Jake Burkholder
  * All rights reserved.
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -240,9 +243,9 @@ d_tags(u_int64_t tag)
 	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
 	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe:	return "DT_SUNW_USED";
-	case 0x7fffffff:	return "DT_SUNW_FILTER";
+	case DT_AUXILIARY:	return "DT_AUXILIARY";
+	case DT_USED:		return "DT_USED";
+	case DT_FILTER:		return "DT_FILTER";
 	}
 	snprintf(unknown_tag, sizeof(unknown_tag),
 		"ERROR: TAG NOT DEFINED -- tag 0x%jx", (uintmax_t)tag);
@@ -571,13 +574,12 @@ main(int ac, char **av)
 	cap_rights_init(&rights, CAP_MMAP_R);
 	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 		err(1, "unable to limit rights for %s", *av);
-	close(STDIN_FILENO);
-	cap_rights_init(&rights, CAP_WRITE);
-	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for stdout");
-	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for stderr");
-	if (cap_enter() < 0 && errno != ENOSYS)
+	cap_rights_init(&rights);
+	if ((cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS) ||
+	    caph_limit_stdout() < 0 || caph_limit_stderr() < 0) {
+                err(1, "unable to limit rights for stdio");
+	}
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
@@ -657,7 +659,7 @@ main(int ac, char **av)
 		case SHT_NOTE:
 			name = elf_get_word(e, v, SH_NAME);
 			if (flags & ED_NOTE &&
-			    strcmp(shstrtab + name, ".note.ABI-tag") == 0)
+			    strcmp(shstrtab + name, ".note.tag") == 0)
 				elf_print_note(e, v);
 			break;
 		case SHT_DYNSYM:

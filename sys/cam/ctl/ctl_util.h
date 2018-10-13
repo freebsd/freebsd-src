@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * All rights reserved.
  *
@@ -96,8 +98,10 @@ void ctl_scsi_maintenance_in(union ctl_io *io, uint8_t *data_ptr,
 #ifndef _KERNEL
 union ctl_io *ctl_scsi_alloc_io(uint32_t initid);
 void ctl_scsi_free_io(union ctl_io *io);
-#endif /* !_KERNEL */
 void ctl_scsi_zero_io(union ctl_io *io);
+#else
+#define	ctl_scsi_zero_io(io)	ctl_zero_io(io)
+#endif /* !_KERNEL */
 const char *ctl_scsi_task_string(struct ctl_taskio *taskio);
 void ctl_io_sbuf(union ctl_io *io, struct sbuf *sb);
 void ctl_io_error_sbuf(union ctl_io *io,

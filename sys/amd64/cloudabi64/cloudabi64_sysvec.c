@@ -83,19 +83,24 @@ cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
 	regs = td->td_frame;
 	regs->tf_rdi = stack + sizeof(register_t) +
 	    roundup(sizeof(cloudabi64_tcb_t), sizeof(register_t));
-	(void)cpu_set_user_tls(td, (void *)stack);
+	(void)cpu_set_user_tls(td, TO_PTR(stack));
 }
 
 static int
-cloudabi64_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cloudabi64_fetch_syscall_args(struct thread *td)
 {
-	struct trapframe *frame = td->td_frame;
+	struct trapframe *frame;
+	struct syscall_args *sa;
+
+	frame = td->td_frame;
+	sa = &td->td_sa;
 
 	/* Obtain system call number. */
 	sa->code = frame->tf_rax;
 	if (sa->code >= CLOUDABI64_SYS_MAXSYSCALL)
 		return (ENOSYS);
 	sa->callp = &cloudabi64_sysent[sa->code];
+	sa->narg = sa->callp->sy_narg;
 
 	/* Fetch system call arguments. */
 	sa->args[0] = frame->tf_rdi;
@@ -163,16 +168,16 @@ cloudabi64_thread_setregs(struct thread *td,
 	 * from the top of the stack to store a single element array,
 	 * containing a pointer to the TCB. %fs base will point to this.
 	 */
-	tcbptr = rounddown(attr->stack + attr->stack_size - sizeof(tcbptr),
+	tcbptr = rounddown(attr->stack + attr->stack_len - sizeof(tcbptr),
 	    _Alignof(tcbptr));
 	error = copyout(&tcb, (void *)tcbptr, sizeof(tcb));
 	if (error != 0)
 		return (error);
 
 	/* Perform standard register initialization. */
-	stack.ss_sp = (void *)attr->stack;
+	stack.ss_sp = TO_PTR(attr->stack);
 	stack.ss_size = tcbptr - attr->stack;
-	cpu_set_upcall_kse(td, (void *)attr->entry_point, NULL, &stack);
+	cpu_set_upcall(td, TO_PTR(attr->entry_point), NULL, &stack);
 
 	/*
 	 * Pass in the thread ID of the new thread and the argument
@@ -183,7 +188,7 @@ cloudabi64_thread_setregs(struct thread *td,
 	frame->tf_rdi = td->td_tid;
 	frame->tf_rsi = attr->argument;
 
-	return (cpu_set_user_tls(td, (void *)tcbptr));
+	return (cpu_set_user_tls(td, TO_PTR(tcbptr)));
 }
 
 static struct sysentvec cloudabi64_elf_sysvec = {
@@ -194,8 +199,8 @@ static struct sysentvec cloudabi64_elf_sysvec = {
 	.sv_coredump		= elf64_coredump,
 	.sv_pagesize		= PAGE_SIZE,
 	.sv_minuser		= VM_MIN_ADDRESS,
-	.sv_maxuser		= VM_MAXUSER_ADDRESS,
-	.sv_usrstack		= USRSTACK,
+	/* Keep top page reserved to work around AMD Ryzen stability issues. */
+	.sv_maxuser		= VM_MAXUSER_ADDRESS - PAGE_SIZE,
 	.sv_stackprot		= VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_strings	= cloudabi64_copyout_strings,
 	.sv_setregs		= cloudabi64_proc_setregs,
@@ -212,6 +217,5 @@ Elf64_Brandinfo cloudabi64_brand = {
 	.brand		= ELFOSABI_CLOUDABI,
 	.machine	= EM_X86_64,
 	.sysvec		= &cloudabi64_elf_sysvec,
-	.flags		= BI_CAN_EXEC_DYN,
-	.compat_3_brand	= "CloudABI",
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_ONLY_STATIC,
 };

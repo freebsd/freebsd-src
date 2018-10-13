@@ -179,7 +179,7 @@ inner_dir_diff(const char *left_abspath,
         {
           svn_error_clear(err);
           right_dirents = apr_hash_make(scratch_pool);
-          right_only = TRUE;
+          left_only = TRUE;
         }
       else
         SVN_ERR(err);
@@ -668,9 +668,6 @@ svn_client__arbitrary_nodes_diff(const char **root_relpath,
 
   SVN_ERR(svn_io_check_resolved_path(left_abspath, &left_kind, scratch_pool));
   SVN_ERR(svn_io_check_resolved_path(right_abspath, &right_kind, scratch_pool));
-
-  if (depth == svn_depth_unknown)
-    depth = svn_depth_infinity;
 
   if (left_kind == svn_node_dir && right_kind == svn_node_dir)
     {

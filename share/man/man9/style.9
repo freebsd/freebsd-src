@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2015
+.Dd January 25, 2018
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -65,6 +65,8 @@ The copyright header should be a multi-line comment, with the first
 line of the comment having a dash after the star like so:
 .Bd -literal
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1984-2025 John Q. Public
  * All rights reserved.
  *
@@ -82,6 +84,7 @@ license or copyright notice, change the dash to a star for those
 comments.
 Comments starting in columns other than the first are never
 considered license statements.
+Use the appropriate SPDX-License-Identifier line before the copyright.
 .Pp
 After any copyright header, there is a blank line, and the
 .Li $\&FreeBSD$
@@ -104,31 +107,39 @@ Only add
 .Dq Li "From: "
 in front of foreign VCS IDs if the file is renamed.
 .Bd -literal
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
+/* From: @(#)style	1.14 (Berkeley) 4/28/95 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 .Ed
 .Pp
-Leave another blank line before the header files.
+Leave one blank line before the header files.
 .Pp
-Kernel include files (i.e.\&
-.Pa sys/*.h )
-come first; normally, include
+Kernel include files
+.Pa ( sys/*.h )
+come first.
+If
+.In sys/cdefs.h
+is needed for
+.Fn __FBSDID ,
+include it first.
+If either
 .In sys/types.h
-OR
-.In sys/param.h ,
-but not both.
-.In sys/types.h
+or
+.In sys/param.h
+is needed, include it before other include files.
+.Po
+.In sys/param.h
 includes
-.In sys/cdefs.h ,
-and it is okay to depend on that.
+.In sys/types.h ;
+do not include both.
+.Pc
+The remaining kernel headers should be sorted alphabetically.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
+#include <sys/endian.h>
+#include <sys/lock.h>
+#include <sys/queue.h>
 .Ed
 .Pp
 For a network program, put the network include files next.
@@ -140,9 +151,9 @@ For a network program, put the network include files next.
 #include <protocols/rwhod.h>
 .Ed
 .Pp
-Do not use files in
+Do not include files from
 .Pa /usr/include
-for files in the kernel.
+in the kernel.
 .Pp
 Leave a blank line before the next group, the
 .Pa /usr/include
@@ -162,7 +173,7 @@ in the local directory.
 #include <paths.h>
 .Ed
 .Pp
-Leave another blank line before the user include files.
+Leave another blank line before the local include files.
 .Bd -literal
 #include "pathnames.h"		/* Local includes in double quotes. */
 .Ed
@@ -219,10 +230,6 @@ This comment should be used only for (subjectively) long regions, regions
 greater than 20 lines, or where a series of nested
 .Ic #ifdef 's
 may be confusing to the reader.
-Exceptions may be made for cases where code is conditionally not compiled for
-the purposes of
-.Xr lint 1 ,
-even though the uncompiled region may be small.
 The comment should be separated from the
 .Ic #endif
 or
@@ -312,6 +319,10 @@ Userspace code should include
 while kernel code should include
 .In sys/types.h .
 .Pp
+Likewise, the project is moving to using the
+.St -isoC-99
+designated initializers when it makes sense to do so.
+.Pp
 Enumeration values are all uppercase.
 .Bd -literal
 enum enumtype { ONE, TWO } et;
@@ -353,7 +364,7 @@ struct foo {
 	struct foo	*next;		/* List of active foo. */
 	struct mumble	amumble;	/* Comment for mumble. */
 	int		bar;		/* Try to align the comments. */
-	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
+	struct verylongtypename *baz;	/* Does not fit in 2 tabs. */
 };
 struct foo *foohead;			/* Head of global foo list. */
 .Ed
@@ -370,7 +381,7 @@ struct foo {
 	LIST_ENTRY(foo)	link;		/* Use queue macros for foo lists. */
 	struct mumble	amumble;	/* Comment for mumble. */
 	int		bar;		/* Try to align the comments. */
-	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
+	struct verylongtypename *baz;	/* Does not fit in 2 tabs. */
 };
 LIST_HEAD(, foo) foohead;		/* Head of global foo list. */
 .Ed
@@ -393,8 +404,7 @@ When convention requires a
 make its name match the struct tag.
 Avoid typedefs ending in
 .Dq Li _t ,
-except as specified in Standard C or by
-.Tn POSIX .
+except as specified in Standard C or by POSIX.
 .Bd -literal
 /* Make the structure name match the typedef. */
 typedef	struct bar {
@@ -419,7 +429,7 @@ alphabetical unless there is a compelling reason to use a different
 ordering.
 .Pp
 Functions that are used locally in more than one module go into a
-separate header file, e.g.\&
+separate header file, e.g.,
 .Qq Pa extern.h .
 .Pp
 Do not use the
@@ -500,7 +510,7 @@ Code which is unreachable for non-obvious reasons may be marked /*
 .Bd -literal
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
-		case 'a':		/* Don't indent the case. */
+		case 'a':		/* Do not indent the case. */
 			aflag = 1;	/* Indent case body one tab. */
 			/* FALLTHROUGH */
 		case 'b':
@@ -714,7 +724,7 @@ not:
 .Pp
 Do not use
 .Ic \&!
-for tests unless it is a boolean, e.g.\& use:
+for tests unless it is a boolean, e.g., use:
 .Bd -literal
 if (*p == '\e0')
 .Ed
@@ -747,17 +757,9 @@ do not roll your own.
 }
 .Ed
 .Pp
-Old-style function declarations look like this:
-.Bd -literal
-static char *
-function(a1, a2, fl, a4)
-	int a1, a2;	/* Declare ints, too, don't default them. */
-	float fl;	/* Beware double vs. float prototype differences. */
-	int a4;		/* List in order declared. */
-{
-.Ed
+When converting K&R style declarations to ANSI style, preserve
+any comments about parameters.
 .Pp
-Use ANSI function declarations unless you explicitly need K&R compatibility.
 Long parameter lists are wrapped with a normal four space indent.
 .Pp
 Variable numbers of arguments should look like this:
@@ -855,17 +857,28 @@ KNF
 compliant in the repository must not diverge from compliance.
 .Pp
 Whenever possible, code should be run through a code checker
-(e.g.,
-.Xr lint 1
-or
+(e.g., various static analyzers or
 .Nm cc Fl Wall )
 and produce minimal warnings.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/src/tools/tools/editing/freebsd.el
+An Emacs plugin to follow the
+.Fx
+.Nm
+indentation rules.
+.It Pa /usr/src/tools/tools/editing/freebsd.vim
+A Vim plugin to follow the
+.Fx
+.Nm
+indentation rules.
+.El
 .Sh SEE ALSO
 .Xr indent 1 ,
-.Xr lint 1 ,
 .Xr err 3 ,
 .Xr warn 3 ,
-.Xr style.Makefile 5
+.Xr style.Makefile 5 ,
+.Xr style.lua 9
 .Sh HISTORY
 This manual page is largely based on the
 .Pa src/admin/style/style

@@ -273,7 +273,7 @@ grouplist:
 	| addrmask next			{ $$ = calloc(1, sizeof(iphtent_t));
 					  $$->ipe_addr = $1[0].adf_addr;
 					  $$->ipe_mask = $1[1].adf_addr;
-#ifdef AF_INET6
+#ifdef USE_INET6
 					  if (use_inet6)
 						$$->ipe_family = AF_INET6;
 					  else
@@ -297,7 +297,7 @@ groupentry:
 					  $$->ipe_mask = $1[1].adf_addr;
 					  strncpy($$->ipe_group, $3,
 						  FR_GROUPLEN);
-#ifdef AF_INET6
+#ifdef USE_INET6
 					  if (use_inet6)
 						$$->ipe_family = AF_INET6;
 					  else

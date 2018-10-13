@@ -17,7 +17,7 @@
 
 
 struct eap_wsc_data {
-	enum { WAIT_START, MESG, FRAG_ACK, WAIT_FRAG_ACK, DONE, FAIL } state;
+	enum { WAIT_START, MESG, WAIT_FRAG_ACK, FAIL } state;
 	int registrar;
 	struct wpabuf *in_buf;
 	struct wpabuf *out_buf;
@@ -36,12 +36,8 @@ static const char * eap_wsc_state_txt(int state)
 		return "WAIT_START";
 	case MESG:
 		return "MESG";
-	case FRAG_ACK:
-		return "FRAG_ACK";
 	case WAIT_FRAG_ACK:
 		return "WAIT_FRAG_ACK";
-	case DONE:
-		return "DONE";
 	case FAIL:
 		return "FAIL";
 	default:
@@ -579,7 +575,6 @@ send_msg:
 int eap_peer_wsc_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_WFA, EAP_VENDOR_TYPE_WSC,
@@ -591,8 +586,5 @@ int eap_peer_wsc_register(void)
 	eap->deinit = eap_wsc_deinit;
 	eap->process = eap_wsc_process;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

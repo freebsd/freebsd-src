@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2008 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -45,7 +47,7 @@
 static int fifolog_write_gzip(struct fifolog_writer *f, time_t now);
 
 #define ALLOC(ptr, size) do {                   \
-	(*(ptr)) = calloc(size, 1);             \
+	(*(ptr)) = calloc(1, size);             \
 	assert(*(ptr) != NULL);                 \
 } while (0)
 

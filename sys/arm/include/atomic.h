@@ -1,6 +1,8 @@
 /* $NetBSD: atomic.h,v 1.1 2002/10/19 12:22:34 bsh Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 2003-2004 Olivier Houchard
  * Copyright (C) 1994-1997 Mark Brinicombe
  * Copyright (C) 1994 Brini
@@ -39,13 +41,12 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#include <sys/types.h>
+#include <sys/atomic_common.h>
+
 #include <machine/armreg.h>
 
 #ifndef _KERNEL
 #include <machine/sysarch.h>
-#else
-#include <machine/cpuconf.h>
 #endif
 
 #if __ARM_ARCH >= 6
@@ -54,39 +55,22 @@
 #include <machine/atomic-v4.h>
 #endif /* Arch >= v6 */
 
-static __inline int
-atomic_load_32(volatile uint32_t *v)
-{
-
-	return (*v);
-}
-
-static __inline void
-atomic_store_32(volatile uint32_t *dst, uint32_t src)
-{
-	*dst = src;
-}
-
-static __inline int
-atomic_load_long(volatile u_long *v)
-{
-
-	return (*v);
-}
-
-static __inline void
-atomic_store_long(volatile u_long *dst, u_long src)
-{
-	*dst = src;
-}
-
 #define atomic_clear_ptr		atomic_clear_32
+#define atomic_clear_acq_ptr		atomic_clear_acq_32
+#define atomic_clear_rel_ptr		atomic_clear_rel_32
 #define atomic_set_ptr			atomic_set_32
+#define atomic_set_acq_ptr		atomic_set_acq_32
+#define atomic_set_rel_ptr		atomic_set_rel_32
+#define atomic_fcmpset_ptr		atomic_fcmpset_32
+#define atomic_fcmpset_rel_ptr		atomic_fcmpset_rel_32
+#define atomic_fcmpset_acq_ptr		atomic_fcmpset_acq_32
 #define atomic_cmpset_ptr		atomic_cmpset_32
-#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
-#define atomic_store_ptr		atomic_store_32
+#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
+#define atomic_load_acq_ptr		atomic_load_acq_32
 #define atomic_store_rel_ptr		atomic_store_rel_32
+#define atomic_swap_ptr			atomic_swap_32
+#define atomic_readandclear_ptr		atomic_readandclear_32
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32
@@ -100,6 +84,9 @@ atomic_store_long(volatile u_long *dst, u_long src)
 #define atomic_set_int			atomic_set_32
 #define atomic_set_acq_int		atomic_set_acq_32
 #define atomic_set_rel_int		atomic_set_rel_32
+#define atomic_fcmpset_int		atomic_fcmpset_32
+#define atomic_fcmpset_acq_int		atomic_fcmpset_acq_32
+#define atomic_fcmpset_rel_int		atomic_fcmpset_rel_32
 #define atomic_cmpset_int		atomic_cmpset_32
 #define atomic_cmpset_acq_int		atomic_cmpset_acq_32
 #define atomic_cmpset_rel_int		atomic_cmpset_rel_32

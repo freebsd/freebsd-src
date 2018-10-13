@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,14 +29,12 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
-
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define IDXSHIFT	10
 
@@ -52,7 +50,6 @@ ENTRY(bzero)
 	movl	12(%esp),%ecx
 	xorl	%eax,%eax
 	shrl	$2,%ecx
-	cld
 	rep
 	stosl
 	movl	12(%esp),%ecx
@@ -69,9 +66,16 @@ ENTRY(sse2_pagezero)
 	movl	%ecx,%eax
 	addl	$4096,%eax
 	xor	%ebx,%ebx
+	jmp	1f
+	/*
+	 * The loop takes 14 bytes.  Ensure that it doesn't cross a 16-byte
+	 * cache line.
+	 */
+	.p2align 4,0x90
 1:
 	movnti	%ebx,(%ecx)
-	addl	$4,%ecx
+	movnti	%ebx,4(%ecx)
+	addl	$8,%ecx
 	cmpl	%ecx,%eax
 	jne	1b
 	sfence
@@ -85,7 +89,6 @@ ENTRY(i686_pagezero)
 
 	movl	12(%esp),%edi
 	movl	$1024,%ecx
-	cld
 
 	ALIGN_TEXT
 1:
@@ -136,56 +139,34 @@ ENTRY(fillw)
 	movl	8(%esp),%eax
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
-	cld
 	rep
 	stosw
 	popl	%edi
 	ret
 END(fillw)
 
-ENTRY(bcopyb)
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi
-	movl	16(%esp),%edi
-	movl	20(%esp),%ecx
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax			/* overlapping && src < dst? */
-	jb	1f
-	cld					/* nope, copy forwards */
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	ret
-
-	ALIGN_TEXT
-1:
-	addl	%ecx,%edi			/* copy backwards. */
-	addl	%ecx,%esi
-	decl	%edi
-	decl	%esi
-	std
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	cld
-	ret
-END(bcopyb)
-
 /*
+ * memmove(dst, src, cnt) (return dst)
  * bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
 ENTRY(bcopy)
+	movl	4(%esp),%eax
+	movl	8(%esp),%edx
+	movl	%eax,8(%esp)
+	movl	%edx,4(%esp)
+	MEXITCOUNT
+	jmp	memmove
+END(bcopy)
+
+ENTRY(memmove)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi
 	pushl	%edi
-	movl	8(%ebp),%esi
-	movl	12(%ebp),%edi
+	movl	8(%ebp),%edi
+	movl	12(%ebp),%esi
+1:
 	movl	16(%ebp),%ecx
 
 	movl	%edi,%eax
@@ -194,7 +175,6 @@ ENTRY(bcopy)
 	jb	1f
 
 	shrl	$2,%ecx				/* copy by 32-bit words */
-	cld					/* nope, copy forwards */
 	rep
 	movsl
 	movl	16(%ebp),%ecx
@@ -203,6 +183,7 @@ ENTRY(bcopy)
 	movsb
 	popl	%edi
 	popl	%esi
+	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
 
@@ -225,9 +206,10 @@ ENTRY(bcopy)
 	popl	%edi
 	popl	%esi
 	cld
+	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
-END(bcopy)
+END(memmove)
 
 /*
  * Note: memcpy does not support overlapping copies
@@ -240,7 +222,6 @@ ENTRY(memcpy)
 	movl	20(%esp),%ecx
 	movl	%edi,%eax
 	shrl	$2,%ecx				/* copy by 32-bit words */
-	cld					/* nope, copy forwards */
 	rep
 	movsl
 	movl	20(%esp),%ecx
@@ -251,375 +232,6 @@ ENTRY(memcpy)
 	popl	%edi
 	ret
 END(memcpy)
-
-/*****************************************************************************/
-/* copyout and fubyte family                                                 */
-/*****************************************************************************/
-/*
- * Access user memory from inside the kernel. These routines and possibly
- * the math- and DOS emulators should be the only places that do this.
- *
- * We have to access the memory with user's permissions, so use a segment
- * selector with RPL 3. For writes to user space we have to additionally
- * check the PTE for write permission, because the 386 does not check
- * write permissions when we are executing with EPL 0. The 486 does check
- * this if the WP bit is set in CR0, so we can use a simpler version here.
- *
- * These routines set curpcb->pcb_onfault for the time they execute. When a
- * protection violation occurs inside the functions, the trap handler
- * returns to *curpcb->pcb_onfault instead of the function.
- */
-
-/*
- * copyout(from_kernel, to_user, len)  - MP SAFE
- */
-ENTRY(copyout)
-	movl	PCPU(CURPCB),%eax
-	movl	$copyout_fault,PCB_ONFAULT(%eax)
-	pushl	%esi
-	pushl	%edi
-	pushl	%ebx
-	movl	16(%esp),%esi
-	movl	20(%esp),%edi
-	movl	24(%esp),%ebx
-	testl	%ebx,%ebx			/* anything to do? */
-	jz	done_copyout
-
-	/*
-	 * Check explicitly for non-user addresses.  If 486 write protection
-	 * is being used, this check is essential because we are in kernel
-	 * mode so the h/w does not provide any protection against writing
-	 * kernel addresses.
-	 */
-
-	/*
-	 * First, prevent address wrapping.
-	 */
-	movl	%edi,%eax
-	addl	%ebx,%eax
-	jc	copyout_fault
-/*
- * XXX STOP USING VM_MAXUSER_ADDRESS.
- * It is an end address, not a max, so every time it is used correctly it
- * looks like there is an off by one error, and of course it caused an off
- * by one error in several places.
- */
-	cmpl	$VM_MAXUSER_ADDRESS,%eax
-	ja	copyout_fault
-
-	/* bcopy(%esi, %edi, %ebx) */
-	movl	%ebx,%ecx
-
-	shrl	$2,%ecx
-	cld
-	rep
-	movsl
-	movb	%bl,%cl
-	andb	$3,%cl
-	rep
-	movsb
-
-done_copyout:
-	popl	%ebx
-	popl	%edi
-	popl	%esi
-	xorl	%eax,%eax
-	movl	PCPU(CURPCB),%edx
-	movl	%eax,PCB_ONFAULT(%edx)
-	ret
-END(copyout)
-
-	ALIGN_TEXT
-copyout_fault:
-	popl	%ebx
-	popl	%edi
-	popl	%esi
-	movl	PCPU(CURPCB),%edx
-	movl	$0,PCB_ONFAULT(%edx)
-	movl	$EFAULT,%eax
-	ret
-
-/*
- * copyin(from_user, to_kernel, len) - MP SAFE
- */
-ENTRY(copyin)
-	movl	PCPU(CURPCB),%eax
-	movl	$copyin_fault,PCB_ONFAULT(%eax)
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi			/* caddr_t from */
-	movl	16(%esp),%edi			/* caddr_t to */
-	movl	20(%esp),%ecx			/* size_t  len */
-
-	/*
-	 * make sure address is valid
-	 */
-	movl	%esi,%edx
-	addl	%ecx,%edx
-	jc	copyin_fault
-	cmpl	$VM_MAXUSER_ADDRESS,%edx
-	ja	copyin_fault
-
-	movb	%cl,%al
-	shrl	$2,%ecx				/* copy longword-wise */
-	cld
-	rep
-	movsl
-	movb	%al,%cl
-	andb	$3,%cl				/* copy remaining bytes */
-	rep
-	movsb
-
-	popl	%edi
-	popl	%esi
-	xorl	%eax,%eax
-	movl	PCPU(CURPCB),%edx
-	movl	%eax,PCB_ONFAULT(%edx)
-	ret
-END(copyin)
-
-	ALIGN_TEXT
-copyin_fault:
-	popl	%edi
-	popl	%esi
-	movl	PCPU(CURPCB),%edx
-	movl	$0,PCB_ONFAULT(%edx)
-	movl	$EFAULT,%eax
-	ret
-
-/*
- * casueword.  Compare and set user word.  Returns -1 on fault,
- * 0 on non-faulting access.  The current value is in *oldp.
- */
-ALTENTRY(casueword32)
-ENTRY(casueword)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx			/* dst */
-	movl	8(%esp),%eax			/* old */
-	movl	16(%esp),%ecx			/* new */
-
-	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address is valid */
-	ja	fusufault
-
-#ifdef SMP
-	lock
-#endif
-	cmpxchgl %ecx,(%edx)			/* Compare and set. */
-
-	/*
-	 * The old value is in %eax.  If the store succeeded it will be the
-	 * value we expected (old) from before the store, otherwise it will
-	 * be the current value.
-	 */
-
-	movl	PCPU(CURPCB),%ecx
-	movl	$0,PCB_ONFAULT(%ecx)
-	movl	12(%esp),%edx			/* oldp */
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	ret
-END(casueword32)
-END(casueword)
-
-/*
- * Fetch (load) a 32-bit word, a 16-bit word, or an 8-bit byte from user
- * memory.
- */
-
-ALTENTRY(fueword32)
-ENTRY(fueword)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx			/* from */
-
-	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address is valid */
-	ja	fusufault
-
-	movl	(%edx),%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	movl	8(%esp),%edx
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	ret
-END(fueword32)
-END(fueword)
-
-/*
- * fuswintr() and suswintr() are specialized variants of fuword16() and
- * suword16(), respectively.  They are called from the profiling code,
- * potentially at interrupt time.  If they fail, that's okay; good things
- * will happen later.  They always fail for now, until the trap code is
- * able to deal with this.
- */
-ALTENTRY(suswintr)
-ENTRY(fuswintr)
-	movl	$-1,%eax
-	ret
-END(suswintr)
-END(fuswintr)
-
-ENTRY(fuword16)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-
-	cmpl	$VM_MAXUSER_ADDRESS-2,%edx
-	ja	fusufault
-
-	movzwl	(%edx),%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
-END(fuword16)
-
-ENTRY(fubyte)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-
-	cmpl	$VM_MAXUSER_ADDRESS-1,%edx
-	ja	fusufault
-
-	movzbl	(%edx),%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
-END(fubyte)
-
-	ALIGN_TEXT
-fusufault:
-	movl	PCPU(CURPCB),%ecx
-	xorl	%eax,%eax
-	movl	%eax,PCB_ONFAULT(%ecx)
-	decl	%eax
-	ret
-
-/*
- * Store a 32-bit word, a 16-bit word, or an 8-bit byte to user memory.
- * All these functions are MPSAFE.
- */
-
-ALTENTRY(suword32)
-ENTRY(suword)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-
-	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
-	ja	fusufault
-
-	movl	8(%esp),%eax
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	movl	PCPU(CURPCB),%ecx
-	movl	%eax,PCB_ONFAULT(%ecx)
-	ret
-END(suword32)
-END(suword)
-
-ENTRY(suword16)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-
-	cmpl	$VM_MAXUSER_ADDRESS-2,%edx	/* verify address validity */
-	ja	fusufault
-
-	movw	8(%esp),%ax
-	movw	%ax,(%edx)
-	xorl	%eax,%eax
-	movl	PCPU(CURPCB),%ecx		/* restore trashed register */
-	movl	%eax,PCB_ONFAULT(%ecx)
-	ret
-END(suword16)
-
-ENTRY(subyte)
-	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-
-	cmpl	$VM_MAXUSER_ADDRESS-1,%edx	/* verify address validity */
-	ja	fusufault
-
-	movb	8(%esp),%al
-	movb	%al,(%edx)
-	xorl	%eax,%eax
-	movl	PCPU(CURPCB),%ecx		/* restore trashed register */
-	movl	%eax,PCB_ONFAULT(%ecx)
-	ret
-END(subyte)
-
-/*
- * copyinstr(from, to, maxlen, int *lencopied) - MP SAFE
- *
- *	copy a string from from to to, stop when a 0 character is reached.
- *	return ENAMETOOLONG if string is longer than maxlen, and
- *	EFAULT on protection violations. If lencopied is non-zero,
- *	return the actual length in *lencopied.
- */
-ENTRY(copyinstr)
-	pushl	%esi
-	pushl	%edi
-	movl	PCPU(CURPCB),%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)
-
-	movl	12(%esp),%esi			/* %esi = from */
-	movl	16(%esp),%edi			/* %edi = to */
-	movl	20(%esp),%edx			/* %edx = maxlen */
-
-	movl	$VM_MAXUSER_ADDRESS,%eax
-
-	/* make sure 'from' is within bounds */
-	subl	%esi,%eax
-	jbe	cpystrflt
-
-	/* restrict maxlen to <= VM_MAXUSER_ADDRESS-from */
-	cmpl	%edx,%eax
-	jae	1f
-	movl	%eax,%edx
-	movl	%eax,20(%esp)
-1:
-	incl	%edx
-	cld
-
-2:
-	decl	%edx
-	jz	3f
-
-	lodsb
-	stosb
-	orb	%al,%al
-	jnz	2b
-
-	/* Success -- 0 byte reached */
-	decl	%edx
-	xorl	%eax,%eax
-	jmp	cpystrflt_x
-3:
-	/* edx is zero - return ENAMETOOLONG or EFAULT */
-	cmpl	$VM_MAXUSER_ADDRESS,%esi
-	jae	cpystrflt
-4:
-	movl	$ENAMETOOLONG,%eax
-	jmp	cpystrflt_x
-
-cpystrflt:
-	movl	$EFAULT,%eax
-
-cpystrflt_x:
-	/* set *lencopied and return %eax */
-	movl	PCPU(CURPCB),%ecx
-	movl	$0,PCB_ONFAULT(%ecx)
-	movl	20(%esp),%ecx
-	subl	%edx,%ecx
-	movl	24(%esp),%edx
-	testl	%edx,%edx
-	jz	1f
-	movl	%ecx,(%edx)
-1:
-	popl	%edi
-	popl	%esi
-	ret
-END(copyinstr)
 
 /*
  * copystr(from, to, maxlen, int *lencopied) - MP SAFE
@@ -632,7 +244,6 @@ ENTRY(copystr)
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
 	incl	%edx
-	cld
 1:
 	decl	%edx
 	jz	4f
@@ -672,7 +283,6 @@ ENTRY(bcmp)
 
 	movl	%edx,%ecx
 	shrl	$2,%ecx
-	cld					/* compare forwards */
 	repe
 	cmpsl
 	jne	1f
@@ -785,7 +395,8 @@ ENTRY(longjmp)
 END(longjmp)
 
 /*
- * Support for reading MSRs in the safe manner.
+ * Support for reading MSRs in the safe manner.  (Instead of panic on #gp,
+ * return an error.)
  */
 ENTRY(rdmsr_safe)
 /* int rdmsr_safe(u_int msr, uint64_t *data) */
@@ -805,7 +416,8 @@ ENTRY(rdmsr_safe)
 	ret
 
 /*
- * Support for writing MSRs in the safe manner.
+ * Support for writing MSRs in the safe manner.  (Instead of panic on #gp,
+ * return an error.)
  */
 ENTRY(wrmsr_safe)
 /* int wrmsr_safe(u_int msr, uint64_t data) */
@@ -832,3 +444,31 @@ msr_onfault:
 	movl	$0,PCB_ONFAULT(%ecx)
 	movl	$EFAULT,%eax
 	ret
+
+ENTRY(handle_ibrs_entry)
+	cmpb	$0,hw_ibrs_active
+	je	1f
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	rdmsr
+	orl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	orl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32,%edx
+	wrmsr
+	movb	$1,PCPU(IBPB_SET)
+	/*
+	 * i386 does not implement SMEP, but the 4/4 split makes this not
+	 * that important.
+	 */
+1:	ret
+END(handle_ibrs_entry)
+
+ENTRY(handle_ibrs_exit)
+	cmpb	$0,PCPU(IBPB_SET)
+	je	1f
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	rdmsr
+	andl	$~(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	andl	$~((IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32),%edx
+	wrmsr
+	movb	$0,PCPU(IBPB_SET)
+1:	ret
+END(handle_ibrs_exit)

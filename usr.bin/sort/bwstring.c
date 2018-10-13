@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
  * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
@@ -268,7 +270,7 @@ bwscsbdup(const unsigned char *str, size_t len)
 			const char *s;
 			size_t charlen, chars, cptr;
 
-			charlen = chars = 0;
+			chars = 0;
 			cptr = 0;
 			s = (const char *) str;
 
@@ -581,7 +583,6 @@ bwsncmp(const struct bwstring *bws1, const struct bwstring *bws2,
 	size_t cmp_len, len1, len2;
 	int res = 0;
 
-	cmp_len = 0;
 	len1 = bws1->len;
 	len2 = bws2->len;
 
@@ -910,15 +911,12 @@ bws_month_score(const struct bwstring *s0)
 
 	if (MB_CUR_MAX == 1) {
 		const unsigned char *end, *s;
-		size_t len;
 
 		s = s0->data.cstr;
 		end = s + s0->len;
 
 		while (isblank(*s) && s < end)
 			++s;
-
-		len = strlen((const char*)s);
 
 		for (int i = 11; i >= 0; --i) {
 			if (cmonths[i] &&
@@ -928,15 +926,12 @@ bws_month_score(const struct bwstring *s0)
 
 	} else {
 		const wchar_t *end, *s;
-		size_t len;
 
 		s = s0->data.wstr;
 		end = s + s0->len;
 
 		while (iswblank(*s) && s < end)
 			++s;
-
-		len = wcslen(s);
 
 		for (int i = 11; i >= 0; --i) {
 			if (wmonths[i] && (s == wcsstr(s, wmonths[i])))

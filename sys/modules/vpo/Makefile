@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/ppbus
+.PATH: ${SRCTOP}/sys/dev/ppbus
 
 KMOD=	vpo
 SRCS=	bus_if.h device_if.h ppbus_if.h \

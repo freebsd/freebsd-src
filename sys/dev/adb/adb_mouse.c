@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Nathan Whitehorn
  * All rights reserved.
  *
@@ -520,7 +522,7 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 			}
 		}
 
-		sc->packet[0] = 1 << 7;
+		sc->packet[0] = 1U << 7;
 		sc->packet[0] |= (!(sc->buttons & 1)) << 2;
 		sc->packet[0] |= (!(sc->buttons & 4)) << 1;
 		sc->packet[0] |= (!(sc->buttons & 2));

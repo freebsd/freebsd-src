@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,11 +40,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -97,9 +102,6 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* if_bridge(4) support */
-struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
-int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
-		struct sockaddr *, struct rtentry *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 /* if_lagg(4) support */
@@ -115,8 +117,6 @@ static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 static	int ether_requestencap(struct ifnet *, struct if_encap_req *);
 
-#define	ETHER_IS_BROADCAST(addr) \
-	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
@@ -288,7 +288,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	int hlen;	/* link layer header length */
 	uint32_t pflags;
 	struct llentry *lle = NULL;
-	struct rtentry *rt0 = NULL;
 	int addref = 0;
 
 	phdr = NULL;
@@ -310,7 +309,13 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 				if (lle == NULL) {
 					/* if we lookup, keep cache */
 					addref = 1;
-				}
+				} else
+					/*
+					 * Notify LLE code that
+					 * the entry was used
+					 * by datapath.
+					 */
+					llentry_mark_used(lle);
 			}
 			if (lle != NULL) {
 				phdr = lle->r_linkdata;
@@ -318,7 +323,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 				pflags = lle->r_flags;
 			}
 		}
-		rt0 = ro->ro_rt;
 	}
 
 #ifdef MAC
@@ -431,6 +435,19 @@ bad:			if (m != NULL)
 	return ether_output_frame(ifp, m);
 }
 
+static bool
+ether_set_pcp(struct mbuf **mp, struct ifnet *ifp, uint8_t pcp)
+{
+	struct ether_header *eh;
+
+	eh = mtod(*mp, struct ether_header *);
+	if (ntohs(eh->ether_type) == ETHERTYPE_VLAN ||
+	    ether_8021q_frame(mp, ifp, ifp, 0, pcp))
+		return (true);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+	return (false);
+}
+
 /*
  * Ethernet link layer output routine to send a raw frame to the device.
  *
@@ -440,12 +457,18 @@ bad:			if (m != NULL)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
-	int i;
+	int error;
+	uint8_t pcp;
+
+	pcp = ifp->if_pcp;
+	if (pcp != IFNET_PCP_NONE && ifp->if_type != IFT_L2VLAN &&
+	    !ether_set_pcp(&m, ifp, pcp))
+		return (0);
 
 	if (PFIL_HOOKED(&V_link_pfil_hook)) {
-		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_OUT, NULL);
-
-		if (i != 0)
+		error = pfil_run_hooks(&V_link_pfil_hook, &m, ifp,
+		    PFIL_OUT, 0, NULL);
+		if (error != 0)
 			return (EACCES);
 
 		if (m == NULL)
@@ -491,7 +514,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_ETHER);
+	random_harvest_queue_ether(m, sizeof(*m));
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
@@ -776,7 +799,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 
 	/* Do not grab PROMISC frames in case we are re-entered. */
 	if (PFIL_HOOKED(&V_link_pfil_hook) && !(m->m_flags & M_PROMISC)) {
-		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_IN, NULL);
+		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_IN, 0,
+		    NULL);
 
 		if (i != 0 || m == NULL)
 			return;
@@ -918,6 +942,9 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
 
+	if (ifp->if_hw_addr != NULL)
+		bcopy(lla, ifp->if_hw_addr, ifp->if_addrlen);
+
 	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
@@ -930,6 +957,11 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
 
 	uuid_ether_add(LLADDR(sdl));
+
+	/* Add necessary bits are setup; announce it now. */
+	EVENTHANDLER_INVOKE(ether_ifattach_event, ifp);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("ETHERNET", ifp->if_xname, "IFATTACH", NULL);
 }
 
 /*
@@ -1074,13 +1106,8 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGIFADDR:
-		{
-			struct sockaddr *sa;
-
-			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IF_LLADDR(ifp),
-			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
-		}
+		bcopy(IF_LLADDR(ifp), &ifr->ifr_addr.sa_data[0],
+		    ETHER_ADDR_LEN);
 		break;
 
 	case SIOCSIFMTU:
@@ -1093,6 +1120,25 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 		}
 		break;
+
+	case SIOCSLANPCP:
+		error = priv_check(curthread, PRIV_NET_SETLANPCP);
+		if (error != 0)
+			break;
+		if (ifr->ifr_lan_pcp > 7 &&
+		    ifr->ifr_lan_pcp != IFNET_PCP_NONE) {
+			error = EINVAL;
+		} else {
+			ifp->if_pcp = ifr->ifr_lan_pcp;
+			/* broadcast event about PCP change */
+			EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_PCP);
+		}
+		break;
+
+	case SIOCGLANPCP:
+		ifr->ifr_lan_pcp = ifp->if_pcp;
+		break;
+
 	default:
 		error = EINVAL;			/* XXX netbsd has ENOTTY??? */
 		break;
@@ -1239,6 +1285,87 @@ ether_vlanencap(struct mbuf *m, uint16_t tag)
 	evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
 	evl->evl_tag = htons(tag);
 	return (m);
+}
+
+static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
+    "IEEE 802.1Q VLAN");
+static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
+    "for consistency");
+
+VNET_DEFINE_STATIC(int, soft_pad);
+#define	V_soft_pad	VNET(soft_pad)
+SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(soft_pad), 0,
+    "pad short frames before tagging");
+
+/*
+ * For now, make preserving PCP via an mbuf tag optional, as it increases
+ * per-packet memory allocations and frees.  In the future, it would be
+ * preferable to reuse ether_vtag for this, or similar.
+ */
+int vlan_mtag_pcp = 0;
+SYSCTL_INT(_net_link_vlan, OID_AUTO, mtag_pcp, CTLFLAG_RW,
+    &vlan_mtag_pcp, 0,
+    "Retain VLAN PCP information as packets are passed up the stack");
+
+bool
+ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
+    uint16_t vid, uint8_t pcp)
+{
+	struct m_tag *mtag;
+	int n;
+	uint16_t tag;
+	static const char pad[8];	/* just zeros */
+
+	/*
+	 * Pad the frame to the minimum size allowed if told to.
+	 * This option is in accord with IEEE Std 802.1Q, 2003 Ed.,
+	 * paragraph C.4.4.3.b.  It can help to work around buggy
+	 * bridges that violate paragraph C.4.4.3.a from the same
+	 * document, i.e., fail to pad short frames after untagging.
+	 * E.g., a tagged frame 66 bytes long (incl. FCS) is OK, but
+	 * untagging it will produce a 62-byte frame, which is a runt
+	 * and requires padding.  There are VLAN-enabled network
+	 * devices that just discard such runts instead or mishandle
+	 * them somehow.
+	 */
+	if (V_soft_pad && p->if_type == IFT_ETHER) {
+		for (n = ETHERMIN + ETHER_HDR_LEN - (*mp)->m_pkthdr.len;
+		     n > 0; n -= sizeof(pad)) {
+			if (!m_append(*mp, min(n, sizeof(pad)), pad))
+				break;
+		}
+		if (n > 0) {
+			m_freem(*mp);
+			*mp = NULL;
+			if_printf(ife, "cannot pad short frame");
+			return (false);
+		}
+	}
+
+	/*
+	 * If underlying interface can do VLAN tag insertion itself,
+	 * just pass the packet along. However, we need some way to
+	 * tell the interface where the packet came from so that it
+	 * knows how to find the VLAN tag to use, so we attach a
+	 * packet tag that holds it.
+	 */
+	if (vlan_mtag_pcp && (mtag = m_tag_locate(*mp, MTAG_8021Q,
+	    MTAG_8021Q_PCP_OUT, NULL)) != NULL)
+		tag = EVL_MAKETAG(vid, *(uint8_t *)(mtag + 1), 0);
+	else
+		tag = EVL_MAKETAG(vid, pcp, 0);
+	if (p->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		(*mp)->m_pkthdr.ether_vtag = tag;
+		(*mp)->m_flags |= M_VLANTAG;
+	} else {
+		*mp = ether_vlanencap(*mp, tag);
+		if (*mp == NULL) {
+			if_printf(ife, "unable to prepend 802.1Q header");
+			return (false);
+		}
+	}
+	return (true);
 }
 
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);

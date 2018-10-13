@@ -30,6 +30,7 @@
 #define _SYS_EFI_H_
 
 #include <sys/uuid.h>
+#include <machine/efi.h>
 
 #define	EFI_PAGE_SHIFT		12
 #define	EFI_PAGE_SIZE		(1 << EFI_PAGE_SHIFT)
@@ -69,6 +70,7 @@ struct efi_md {
 #define	EFI_MD_TYPE_IOMEM	11	/* Memory-mapped I/O. */
 #define	EFI_MD_TYPE_IOPORT	12	/* I/O port space. */
 #define	EFI_MD_TYPE_PALCODE	13	/* PAL */
+#define	EFI_MD_TYPE_PERSISTENT	14	/* Persistent memory. */
 	uint32_t	__pad;
 	uint64_t	md_phys;
 	void		*md_virt;
@@ -82,8 +84,15 @@ struct efi_md {
 #define	EFI_MD_ATTR_WP		0x0000000000001000UL
 #define	EFI_MD_ATTR_RP		0x0000000000002000UL
 #define	EFI_MD_ATTR_XP		0x0000000000004000UL
+#define	EFI_MD_ATTR_NV		0x0000000000008000UL
+#define	EFI_MD_ATTR_MORE_RELIABLE \
+				0x0000000000010000UL
+#define	EFI_MD_ATTR_RO		0x0000000000020000UL
 #define	EFI_MD_ATTR_RT		0x8000000000000000UL
 };
+
+#define efi_next_descriptor(ptr, size) \
+    ((struct efi_md *)(((uint8_t *)(ptr)) + (size)))
 
 struct efi_tm {
 	uint16_t	tm_year;		/* 1998 - 20XX */
@@ -113,25 +122,32 @@ struct efi_tblhdr {
 	uint32_t	__res;
 };
 
+#ifdef _KERNEL
+
+#ifdef EFIABI_ATTR
 struct efi_rt {
 	struct efi_tblhdr rt_hdr;
-	efi_status	(*rt_gettime)(struct efi_tm *, struct efi_tmcap *);
-	efi_status	(*rt_settime)(struct efi_tm *);
+	efi_status	(*rt_gettime)(struct efi_tm *, struct efi_tmcap *)
+	    EFIABI_ATTR;
+	efi_status	(*rt_settime)(struct efi_tm *) EFIABI_ATTR;
 	efi_status	(*rt_getwaketime)(uint8_t *, uint8_t *,
-	    struct efi_tm *);
-	efi_status	(*rt_setwaketime)(uint8_t, struct efi_tm *);
+	    struct efi_tm *) EFIABI_ATTR;
+	efi_status	(*rt_setwaketime)(uint8_t, struct efi_tm *)
+	    EFIABI_ATTR;
 	efi_status	(*rt_setvirtual)(u_long, u_long, uint32_t,
-	    struct efi_md *);
-	efi_status	(*rt_cvtptr)(u_long, void **);
+	    struct efi_md *) EFIABI_ATTR;
+	efi_status	(*rt_cvtptr)(u_long, void **) EFIABI_ATTR;
 	efi_status	(*rt_getvar)(efi_char *, struct uuid *, uint32_t *,
-	    u_long *, void *);
-	efi_status	(*rt_scanvar)(u_long *, efi_char *, struct uuid *);
+	    u_long *, void *) EFIABI_ATTR;
+	efi_status	(*rt_scanvar)(u_long *, efi_char *, struct uuid *)
+	    EFIABI_ATTR;
 	efi_status	(*rt_setvar)(efi_char *, struct uuid *, uint32_t,
-	    u_long, void *);
-	efi_status	(*rt_gethicnt)(uint32_t *);
+	    u_long, void *) EFIABI_ATTR;
+	efi_status	(*rt_gethicnt)(uint32_t *) EFIABI_ATTR;
 	efi_status	(*rt_reset)(enum efi_reset, efi_status, u_long,
-	    efi_char *);
+	    efi_char *) EFIABI_ATTR;
 };
+#endif
 
 struct efi_systbl {
 	struct efi_tblhdr st_hdr;
@@ -151,5 +167,31 @@ struct efi_systbl {
 	uint64_t	st_cfgtbl;
 };
 
-extern vm_paddr_t efi_systbl;
+extern vm_paddr_t efi_systbl_phys;
+
+struct efirt_callinfo;
+
+/* Internal MD EFI functions */
+int efi_arch_enter(void);
+void efi_arch_leave(void);
+vm_offset_t efi_phys_to_kva(vm_paddr_t);
+int efi_rt_arch_call(struct efirt_callinfo *);
+bool efi_create_1t1_map(struct efi_md *, int, int);
+void efi_destroy_1t1_map(void);
+
+/* Public MI EFI functions */
+int efi_rt_ok(void);
+int efi_get_table(struct uuid *uuid, void **ptr);
+int efi_get_time(struct efi_tm *tm);
+int efi_get_time_capabilities(struct efi_tmcap *tmcap);
+int efi_reset_system(void);
+int efi_set_time(struct efi_tm *tm);
+int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
+    size_t *datasize, void *data);
+int efi_var_nextname(size_t *namesize, uint16_t *name, struct uuid *vendor);
+int efi_var_set(uint16_t *name, struct uuid *vendor, uint32_t attrib,
+    size_t datasize, void *data);
+
+#endif	/* _KERNEL */
+
 #endif /* _SYS_EFI_H_ */

@@ -54,6 +54,8 @@ SVN_SERF_LIBS = @SVN_SERF_LIBS@
 SVN_SQLITE_LIBS = @SVN_SQLITE_LIBS@
 SVN_XML_LIBS = @SVN_XML_LIBS@
 SVN_ZLIB_LIBS = @SVN_ZLIB_LIBS@
+SVN_LZ4_LIBS = @SVN_LZ4_LIBS@
+SVN_UTF8PROC_LIBS = @SVN_UTF8PROC_LIBS@
 
 LIBS = @LIBS@
 
@@ -130,14 +132,16 @@ INCLUDES = -I$(top_srcdir)/subversion/include -I$(top_builddir)/subversion \
            @SVN_DB_INCLUDES@ @SVN_GNOME_KEYRING_INCLUDES@ \
            @SVN_KWALLET_INCLUDES@ @SVN_MAGIC_INCLUDES@ \
            @SVN_SASL_INCLUDES@ @SVN_SERF_INCLUDES@ @SVN_SQLITE_INCLUDES@ \
-           @SVN_XML_INCLUDES@ @SVN_ZLIB_INCLUDES@
+           @SVN_XML_INCLUDES@ @SVN_ZLIB_INCLUDES@ @SVN_LZ4_INCLUDES@ \
+           @SVN_UTF8PROC_INCLUDES@
 
 APACHE_INCLUDES = @APACHE_INCLUDES@
 APACHE_LIBEXECDIR = $(DESTDIR)@APACHE_LIBEXECDIR@
 APACHE_LDFLAGS = @APACHE_LDFLAGS@
 
-SVN_USE_GMOCK = @SVN_USE_GMOCK@
-GMOCK_INCLUDES = -I@GMOCK_SRCDIR@
+SVN_USE_GOOGLEMOCK = @SVN_USE_GOOGLEMOCK@
+GOOGLEMOCK_INCLUDES = -I@GOOGLEMOCK_SRCDIR@/googlemock/include -I@GOOGLEMOCK_SRCDIR@/googletest/include
+GOOGLEMOCK_LIB_INCLUDES = -I@GOOGLEMOCK_SRCDIR@/googlemock -I@GOOGLEMOCK_SRCDIR@/googletest $(GOOGLEMOCK_INCLUDES)
 
 SWIG = @SWIG@
 SWIG_PY_INCLUDES = @SWIG_PY_INCLUDES@ -I$(SWIG_SRC_DIR)/python/libsvn_swig_py
@@ -186,7 +190,10 @@ CXXMAINTAINERFLAGS = @CXXMAINTAINERFLAGS@
 CPPFLAGS = @CPPFLAGS@ $(EXTRA_CPPFLAGS)
 LDFLAGS = @LDFLAGS@ $(EXTRA_LDFLAGS)
 SWIG_LDFLAGS = @SWIG_LDFLAGS@ $(EXTRA_SWIG_LDFLAGS)
-SWIG_CPPFLAGS = @SWIG_CPPFLAGS@ $(EXTRA_CPPFLAGS)
+SWIG_FEATURES = @SWIG_FEATURES@
+SWIG_PY_FEATURES = @SWIG_PY_FEATURES@
+SWIG_PL_FEATURES = @SWIG_PL_FEATURES@
+SWIG_RB_FEATURES = @SWIG_RB_FEATURES@
 
 COMPILE = $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CMAINTAINERFLAGS) $(CFLAGS) $(INCLUDES)
 COMPILE_NOWARN = $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CNOWARNFLAGS) $(CFLAGS) $(INCLUDES)
@@ -199,7 +206,9 @@ LT_COMPILE_CXX_NOWARN = $(LIBTOOL) $(LTCXXFLAGS) --mode=compile $(COMPILE_CXX_NO
 LT_EXECUTE = $(LIBTOOL) $(LTFLAGS) --mode=execute `for f in $(abs_builddir)/subversion/*/*.la; do echo -dlopen $$f; done`
 
 # special compilation for files destined for mod_dav_svn
-COMPILE_APACHE_MOD = $(LIBTOOL) $(LTFLAGS) --mode=compile $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CFLAGS) $(CMAINTAINERFLAGS) $(LT_CFLAGS) $(APACHE_INCLUDES) $(INCLUDES) -o $@ -c
+COMPILE_APACHE_MOD = $(LIBTOOL) $(LTFLAGS) --mode=compile $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CFLAGS) $(CMAINTAINERFLAGS) $(LT_CFLAGS) $(APACHE_INCLUDES) $(INCLUDES) -o $@ -c -shared
+COMPILE_SHARED_ONLY_LIB = $(LT_COMPILE) -o $@ -c -shared
+COMPILE_SHARED_ONLY_CXX_LIB = $(LT_COMPILE_CXX) -o $@ -c -shared
 
 # special compilation for files destined for libsvn_swig_* (e.g. swigutil_*.c)
 COMPILE_SWIG_PY = $(LIBTOOL) $(LTFLAGS) --mode=compile $(SWIG_PY_COMPILE) $(CPPFLAGS) $(LT_CFLAGS) -DSWIGPYTHON $(SWIG_PY_INCLUDES) $(INCLUDES) -o $@ -c
@@ -252,8 +261,8 @@ TEST_SHLIB_VAR_SWIG_RB=\
 
 # special compilation for files destined for cxxhl
 COMPILE_CXXHL_CXX = $(LT_COMPILE_CXX) $(CXXHL_INCLUDES) -o $@ -c
-COMPILE_GMOCK_CXX = $(LT_COMPILE_CXX_NOWARN) $(GMOCK_INCLUDES) -o $@ -c
-COMPILE_CXXHL_GMOCK_CXX = $(LT_COMPILE_CXX) $(CXXHL_INCLUDES) $(GMOCK_INCLUDES) -o $@ -c
+COMPILE_GOOGLEMOCK_CXX = $(LT_COMPILE_CXX_NOWARN) $(GOOGLEMOCK_LIB_INCLUDES) -o $@ -c
+COMPILE_CXXHL_GOOGLEMOCK_CXX = $(LT_COMPILE_CXX) $(CXXHL_INCLUDES) $(GOOGLEMOCK_INCLUDES) -o $@ -c
 
 LINK = $(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LT_LDFLAGS) $(CFLAGS) $(LDFLAGS) -rpath $(libdir)
 LINK_LIB = $(LINK) $(LT_SO_VERSION)
@@ -261,11 +270,9 @@ LINK_CXX = $(LIBTOOL) $(LTCXXFLAGS) --mode=link $(CXX) $(LT_LDFLAGS) $(CXXFLAGS)
 LINK_CXX_LIB = $(LINK_CXX) $(LT_SO_VERSION)
 
 # special link rule for mod_dav_svn
-LINK_APACHE_MOD = $(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LT_LDFLAGS) $(CFLAGS) $(LDFLAGS) -rpath $(APACHE_LIBEXECDIR) -avoid-version -module $(APACHE_LDFLAGS)
+LINK_APACHE_MOD = $(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LT_LDFLAGS) $(CFLAGS) $(LDFLAGS) -rpath $(APACHE_LIBEXECDIR) -avoid-version -module $(APACHE_LDFLAGS) -shared
 
 # Special LDFLAGS for some libraries
-libsvn_auth_gnome_keyring_LDFLAGS = @libsvn_auth_gnome_keyring_LDFLAGS@
-libsvn_auth_kwallet_LDFLAGS = @libsvn_auth_kwallet_LDFLAGS@
 libsvn_client_LDFLAGS = @libsvn_client_LDFLAGS@
 libsvn_delta_LDFLAGS = @libsvn_delta_LDFLAGS@
 libsvn_diff_LDFLAGS = @libsvn_diff_LDFLAGS@
@@ -280,6 +287,10 @@ libsvn_ra_svn_LDFLAGS = @libsvn_ra_svn_LDFLAGS@
 libsvn_repos_LDFLAGS = @libsvn_repos_LDFLAGS@
 libsvn_subr_LDFLAGS = @libsvn_subr_LDFLAGS@
 libsvn_wc_LDFLAGS = @libsvn_wc_LDFLAGS@
+shared_only_LDFLAGS = @shared_only_LDFLAGS@
+
+LINK_SHARED_ONLY_LIB = $(LINK_LIB) $(shared_only_LDFLAGS) -shared
+LINK_SHARED_ONLY_CXX_LIB = $(LINK_CXX_LIB) $(shared_only_LDFLAGS) -shared
 
 # Compilation of SWIG-generated C source code
 COMPILE_PY_WRAPPER = $(LIBTOOL) $(LTFLAGS) --mode=compile $(SWIG_PY_COMPILE) $(LT_CFLAGS) $(CPPFLAGS) $(SWIG_PY_INCLUDES) -prefer-pic -c -o $@
@@ -371,6 +382,7 @@ INSTALL_EXTRA_SWIG_RB=\
 
 APXS = @APXS@
 HTTPD_VERSION = @HTTPD_VERSION@
+HTTPD_WHITELIST = @HTTPD_WHITELIST@
 
 PYTHON = @PYTHON@
 PERL = @PERL@
@@ -498,17 +510,17 @@ clean-javahl:
 check-tigris-javahl: javahl-compat
 	@FIX_JAVAHL_LIB@
 	$(TEST_SHLIB_VAR_JAVAHL) \
-	$(JAVA) -Xcheck:jni "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_compat_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.tests=$(JAVAHL_TESTS)" org.tigris.subversion.javahl.RunTests
+	$(JAVA) -Xcheck:jni "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_compat_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.cleanup=$(JAVAHL_CLEANUP)" "-Dtest.tests=$(JAVAHL_TESTS)" org.tigris.subversion.javahl.RunTests
 
 check-apache-javahl: javahl
 	@FIX_JAVAHL_LIB@
 	$(TEST_SHLIB_VAR_JAVAHL) \
-	$(JAVA) -Xcheck:jni "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.tests=$(JAVAHL_TESTS)" org.apache.subversion.javahl.RunTests
+	$(JAVA) -Xcheck:jni "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.cleanup=$(JAVAHL_CLEANUP)" "-Dtest.tests=$(JAVAHL_TESTS)" org.apache.subversion.javahl.RunTests
 
 check-deprecated-authn-javahl: javahl
 	@FIX_JAVAHL_LIB@
 	$(TEST_SHLIB_VAR_JAVAHL) \
-	$(JAVA) -Xcheck:jni "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.tests=$(JAVAHL_TESTS)" "-Dtest.authn.deprecated=true" org.apache.subversion.javahl.RunTests
+	$(JAVA) -Xcheck:jni "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.cleanup=$(JAVAHL_CLEANUP)" "-Dtest.tests=$(JAVAHL_TESTS)" "-Dtest.authn.deprecated=true" org.apache.subversion.javahl.RunTests
 
 check-javahl: check-apache-javahl
 
@@ -540,6 +552,9 @@ check: bin @TRANSFORM_LIBTOOL_SCRIPTS@ $(TEST_DEPS) @BDB_TEST_DEPS@
 	  if test "$(HTTPD_VERSION)" != ""; then                             \
 	     flags="--httpd-version $(HTTPD_VERSION) $$flags";               \
 	  fi;                                                                \
+	  if test "$(HTTPD_WHITELIST)" != ""; then                           \
+	     flags="--httpd-whitelist $(HTTPD_WHITELIST) $$flags";           \
+	  fi;                                                                \
 	  if test "$(SERVER_MINOR_VERSION)" != ""; then                      \
 	    flags="--server-minor-version $(SERVER_MINOR_VERSION) $$flags";  \
 	  fi;                                                                \
@@ -554,6 +569,9 @@ check: bin @TRANSFORM_LIBTOOL_SCRIPTS@ $(TEST_DEPS) @BDB_TEST_DEPS@
 	  fi;                                                                \
 	  if test "$(PARALLEL)" != ""; then                                  \
 	    flags="--parallel $(PARALLEL) $$flags";                          \
+	  fi;                                                                \
+	  if test "$(GLOBAL_SCHEDULER)" != ""; then                          \
+	    flags="--global-scheduler $$flags";                              \
 	  fi;                                                                \
 	  if test "$(LOG_TO_STDOUT)" != ""; then                             \
 	    flags="--log-to-stdout $$flags";                                 \
@@ -576,6 +594,15 @@ check: bin @TRANSFORM_LIBTOOL_SCRIPTS@ $(TEST_DEPS) @BDB_TEST_DEPS@
 	  fi;                                                                \
 	  if test "$(MEMCACHED_SERVER)" != ""; then                          \
 	    flags="--memcached-server $(MEMCACHED_SERVER) $$flags";          \
+	  fi;                                                                \
+	  if test "$(FSFS_COMPRESSION)" != ""; then                          \
+	    flags="--fsfs-compression $(FSFS_COMPRESSION) $$flags";          \
+	  fi;                                                                \
+	  if test "$(FSFS_DIR_DELTIFICATION)" != ""; then                    \
+	    flags="--fsfs-dir-deltification $(FSFS_DIR_DELTIFICATION) $$flags";\
+	  fi;                                                                \
+	  if test "$(SVN_BIN_DIR)" != ""; then                               \
+	    flags="--bin $(SVN_BIN_DIR) $$flags";                            \
 	  fi;                                                                \
 	  LD_LIBRARY_PATH='$(auth_plugin_dirs):$(LD_LIBRARY_PATH)'           \
 	  $(PYTHON) $(top_srcdir)/build/run_tests.py                         \
@@ -656,6 +683,7 @@ check-clean: gcov-clean
 	rm -rf subversion/tests/libsvn_fs/test-repo-*          \
 	       subversion/tests/libsvn_fs_base/test-repo-*     \
 	       subversion/tests/libsvn_fs_fs/test-repo-*       \
+	       subversion/tests/libsvn_fs_x/test-repo-*        \
 	       subversion/tests/libsvn_ra_local/test-repo-*    \
 	       subversion/tests/libsvn_repos/test-repo-*       \
 	       subversion/tests/libsvn_subr/z                  \
@@ -835,7 +863,7 @@ extraclean-swig-headers: clean-swig-headers
 $(SWIG_PL_DIR)/native/Makefile.PL: $(SWIG_SRC_DIR)/perl/native/Makefile.PL.in
 	./config.status subversion/bindings/swig/perl/native/Makefile.PL
 
-$(SWIG_PL_DIR)/native/Makefile: $(SWIG_PL_DIR)/native/Makefile.PL
+$(SWIG_PL_DIR)/native/Makefile: libsvn_swig_perl $(SWIG_PL_DIR)/native/Makefile.PL
 	cd $(SWIG_PL_DIR)/native; $(PERL) Makefile.PL PREFIX=$(prefix)
 
 # There is a "readlink -f" command on some systems for the same purpose,
@@ -844,11 +872,13 @@ $(SWIG_PL_DIR)/native/Makefile: $(SWIG_PL_DIR)/native/Makefile.PL
 READLINK_PY=$(PYTHON) -c 'import sys,os; print(os.path.realpath(sys.argv[1]))'
 READLINK_PL=$(PERL) -e 'use Cwd; print Cwd::realpath(shift)'
 
-swig-pl_DEPS = autogen-swig-pl libsvn_swig_perl \
-  $(SWIG_PL_DIR)/native/Makefile
-swig-pl: $(swig-pl_DEPS)
+swig-pl: autogen-swig-pl $(SWIG_PL_DIR)/native/Makefile
 	if test "`$(READLINK_PL) $(SWIG_PL_DIR)`" != "`$(READLINK_PL) $(SWIG_PL_SRC_DIR)`"; then \
-	  ln -sf $(SWIG_PL_SRC_DIR)/native/*.c $(SWIG_PL_DIR)/native; \
+	  for f in $(SWIG_PL_SRC_DIR)/native/*.c ; do \
+	     if [ -e "$$f" ] ; then \
+	       ln -sf "$$f" $(SWIG_PL_DIR)/native; \
+	    fi; \
+	  done; \
 	fi
 	cd $(SWIG_PL_DIR)/native; $(MAKE) OPTIMIZE="" OTHERLDFLAGS="$(SWIG_LDFLAGS)"
 
@@ -983,4 +1013,11 @@ INSTALL_EXTRA_TOOLS=\
   if test "$(DESTDIR)$(bindir)" != "$(DESTDIR)$(toolsdir)"; then \
     ln -sf $(bindir)/svnmucc$(EXEEXT) $(DESTDIR)$(toolsdir)/svnmucc$(EXEEXT); \
     ln -sf $(bindir)/svnbench$(EXEEXT) $(DESTDIR)$(toolsdir)/svn-bench$(EXEEXT); \
-  fi
+  fi; \
+  printf '\043\041/bin/sh\n%s\n' \
+    'exec $(bindir)/svnfsfs stats $${2:+"-M"} $${2:+"$$2"} "$$1"' \
+    > $(DESTDIR)$(toolsdir)/fsfs-stats$(EXEEXT) && \
+  chmod +x $(DESTDIR)$(toolsdir)/fsfs-stats$(EXEEXT)
+# \043\041 is a "#!".  It's written this way because gmake and bmake disagree on
+# how to include a literal '#' in a command, and because '!' is special to some
+# shells.

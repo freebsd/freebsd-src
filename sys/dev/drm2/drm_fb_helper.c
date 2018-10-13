@@ -339,6 +339,7 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	bool error = false;
 	int i, ret;
+
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
 		ret = mode_set->crtc->funcs->set_config(mode_set);
@@ -579,7 +580,7 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 *palette;
 		u32 value;
-		/* place color in psuedopalette */
+		/* place color in pseudopalette */
 		if (regno > 16)
 			return -EINVAL;
 		palette = (u32 *)info->pseudo_palette;
@@ -841,6 +842,9 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	struct drm_fb_helper_surface_size sizes;
 	int gamma_size = 0;
 #if defined(__FreeBSD__)
+	struct drm_crtc *crtc;
+	struct drm_device *dev;
+	int ret;
 	device_t kdev;
 #endif
 
@@ -942,6 +946,24 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		if (ret != 0)
 			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
 #endif
+	} else {
+		/* Modified version of drm_fb_helper_set_par() */
+		dev = fb_helper->dev;
+		sx_xlock(&dev->mode_config.mutex);
+		for (i = 0; i < fb_helper->crtc_count; i++) {
+			crtc = fb_helper->crtc_info[i].mode_set.crtc;
+			ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
+			if (ret) {
+				sx_xunlock(&dev->mode_config.mutex);
+				return ret;
+			}
+		}
+		sx_xunlock(&dev->mode_config.mutex);
+
+		if (fb_helper->delayed_hotplug) {
+			fb_helper->delayed_hotplug = false;
+			drm_fb_helper_hotplug_event(fb_helper);
+		}
 	}
 #else
 	if (new_fb) {

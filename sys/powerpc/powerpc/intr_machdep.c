@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -128,7 +130,7 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 static u_int stray_count;
 
 u_long intrcnt[INTR_VECTORS];
-char intrnames[INTR_VECTORS * MAXCOMLEN];
+char intrnames[INTR_VECTORS * (MAXCOMLEN + 1)];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
@@ -155,7 +157,7 @@ smp_intr_init(void *dummy __unused)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->pic == root_pic)
+		if (i != NULL && i->event != NULL && i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->cpu);
 	}
 }
@@ -176,6 +178,8 @@ intrcnt_add(const char *name, u_long **countp)
 	int idx;
 
 	idx = atomic_fetchadd_int(&intrcnt_index, 1);
+	KASSERT(idx < INTR_VECTORS, ("intrcnt_add: Interrupt counter index "
+	    "reached INTR_VECTORS"));
 	*countp = &intrcnt[idx];
 	intrcnt_setname(name, idx);
 }
@@ -317,7 +321,7 @@ powerpc_assign_intr_cpu(void *arg, int cpu)
 #endif
 }
 
-void
+u_int
 powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
     u_int atpic)
 {
@@ -356,6 +360,8 @@ powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
 	    ("Number of PICs exceeds maximum (%d)", MAX_PICS));
 
 	mtx_unlock(&intr_table_lock);
+
+	return (p->base);
 }
 
 u_int
@@ -385,7 +391,7 @@ powerpc_get_irq(uint32_t node, u_int pin)
 	piclist[idx].irqs = 124;
 	piclist[idx].ipis = 4;
 	piclist[idx].base = nirqs;
-	nirqs += 128;
+	nirqs += (1 << 25);
 	npics++;
 
 	KASSERT(npics < MAX_PICS,
@@ -451,7 +457,7 @@ powerpc_enable_intr(void)
 		if (error)
 			continue;
 
-		if (i->trig == -1)
+		if (i->trig == INTR_TRIGGER_INVALID)
 			PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode,
 			    &i->trig, &i->pol);
 		if (i->trig != INTR_TRIGGER_CONFORM ||
@@ -497,7 +503,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		error = powerpc_map_irq(i);
 
 		if (!error) {
-			if (i->trig == -1)
+			if (i->trig == INTR_TRIGGER_INVALID)
 				PIC_TRANSLATE_CODE(i->pic, i->intline,
 				    i->fwcode, &i->trig, &i->pol);
 	
@@ -545,7 +551,7 @@ powerpc_fw_config_intr(int irq, int sense_code)
 	if (i == NULL)
 		return (ENOMEM);
 
-	i->trig = -1;
+	i->trig = INTR_TRIGGER_INVALID;
 	i->pol = INTR_POLARITY_CONFORM;
 	i->fwcode = sense_code;
 

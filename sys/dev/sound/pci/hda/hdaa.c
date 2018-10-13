@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
  * Copyright (c) 2006 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 2008-2012 Alexander Motin <mav@FreeBSD.org>
@@ -1748,7 +1750,8 @@ hdaa_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 	hdaa_unlock(devinfo);
 
 	if (sndbuf_alloc(ch->b, bus_get_dma_tag(devinfo->dev),
-	    hda_get_dma_nocache(devinfo->dev) ? BUS_DMA_NOCACHE : 0,
+	    hda_get_dma_nocache(devinfo->dev) ? BUS_DMA_NOCACHE :
+	    BUS_DMA_COHERENT,
 	    pdevinfo->chan_size) != 0)
 		return (NULL);
 
@@ -2130,7 +2133,8 @@ hdaa_channel_start(struct hdaa_chan *ch)
 	uint32_t fmt;
 
 	fmt = hdaa_stream_format(ch);
-	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt)) - 1;
+	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
+	    hda_get_stripes_mask(devinfo->dev)) - 1;
 	ch->sid = HDAC_STREAM_ALLOC(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, fmt, ch->stripectl, &ch->dmapos);
 	if (ch->sid <= 0)
@@ -2382,7 +2386,7 @@ hdaa_audio_ctl_source_volume(struct hdaa_pcm_devinfo *pdevinfo,
 	}
 
 	/* If widget has own ossdev - not traverse it.
-	   It will be traversed on it's own. */
+	   It will be traversed on its own. */
 	if (w->ossdev >= 0 && depth > 0)
 		return;
 
@@ -4550,7 +4554,7 @@ hdaa_audio_ctl_source_amp(struct hdaa_devinfo *devinfo, nid_t nid, int index,
 	}
 
 	/* If widget has own ossdev - not traverse it.
-	   It will be traversed on it's own. */
+	   It will be traversed on its own. */
 	if (w->ossdev >= 0 && depth > 0)
 		return (found);
 

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2011
+.Dd July 12, 2016
 .Dt GETLOGINCLASS 2
 .Os
 .Sh NAME
@@ -80,14 +80,17 @@ Login class names are limited to
 .Dv MAXLOGNAME
 (from
 .In sys/param.h )
-characters, currently 17 including null.
+characters, currently 33 including null.
 .It Bq Er EPERM
 The caller tried to set the login class and was not the super-user.
 .It Bq Er ENAMETOOLONG
 The size of the buffer is smaller than the result to be returned.
 .El
 .Sh SEE ALSO
-.Xr setusercontext 3
+.Xr ps 1 ,
+.Xr setusercontext 3 ,
+.Xr login.conf 5 ,
+.Xr rctl 8
 .Sh HISTORY
 The
 .Fn getloginclass

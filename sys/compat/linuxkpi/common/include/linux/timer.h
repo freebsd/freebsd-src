@@ -38,37 +38,57 @@
 #include <sys/callout.h>
 
 struct timer_list {
-	struct callout timer_callout;
-	void    (*function) (unsigned long);
+	struct callout callout;
+	union {
+		void (*function) (unsigned long);	/* < v4.15 */
+		void (*function_415) (struct timer_list *);
+	};
 	unsigned long data;
-	unsigned long expires;
+	int expires;
 };
 
 extern unsigned long linux_timer_hz_mask;
 
-#define	setup_timer(timer, func, dat)					\
-do {									\
+#define	TIMER_IRQSAFE	0x0001
+
+#define	from_timer(var, arg, field)					\
+        container_of(arg, typeof(*(var)), field)
+
+#define	timer_setup(timer, func, flags) do {				\
+	CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0);			\
+	(timer)->function_415 = (func);					\
+	(timer)->data = (unsigned long)(timer);				\
+	callout_init(&(timer)->callout, 1);				\
+} while (0)
+
+#define	setup_timer(timer, func, dat) do {				\
 	(timer)->function = (func);					\
 	(timer)->data = (dat);						\
-	callout_init(&(timer)->timer_callout, 1);			\
+	callout_init(&(timer)->callout, 1);			\
 } while (0)
 
-#define	init_timer(timer)						\
-do {									\
+#define	__setup_timer(timer, func, dat, flags) do {			\
+	CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0);			\
+	setup_timer(timer, func, dat);					\
+} while (0)
+
+#define	init_timer(timer) do {						\
 	(timer)->function = NULL;					\
 	(timer)->data = 0;						\
-	callout_init(&(timer)->timer_callout, 1);			\
+	callout_init(&(timer)->callout, 1);			\
 } while (0)
 
-extern void mod_timer(struct timer_list *, unsigned long);
+extern void mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
+extern void add_timer_on(struct timer_list *, int cpu);
 
-#define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
-#define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
-#define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
-#define	round_jiffies(j) \
-	((unsigned long)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
-#define	round_jiffies_relative(j) \
-	round_jiffies(j)
+#define	del_timer(timer)	(void)callout_stop(&(timer)->callout)
+#define	del_timer_sync(timer)	(void)callout_drain(&(timer)->callout)
+#define	timer_pending(timer)	callout_pending(&(timer)->callout)
+#define	round_jiffies(j)	\
+	((int)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
+#define	round_jiffies_relative(j) round_jiffies(j)
+#define	round_jiffies_up(j)	round_jiffies(j)
+#define	round_jiffies_up_relative(j) round_jiffies_up(j)
 
 #endif					/* _LINUX_TIMER_H_ */

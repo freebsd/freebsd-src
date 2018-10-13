@@ -32,6 +32,7 @@ https://bugzilla.am-utils.org for inclusion in the next vendor release.
 Local changes:
 
 	amd/amd.8
+	  - corrected formatting of SEE ALSO
 	  r1.17 Uniformly refer to a file system as "file system"
 	  r1.16 Add the am-utils homepage to SEE ALSO
 	  r1.15 s/BSD/.Bx/ where appropriate
@@ -77,6 +78,8 @@ Local changes:
 	  r1.5 mdoc(7)NG
 	  r1.3 describe all of the command line options
 	  r1.2 un-mandocafied, un4.4BSD'ed
+        hlfsd/hlfsd.8
+	  - Fix a broken SEE ALSO section and some mdoc issues
 	mk-amd-map/mk-amd-map.8
 	  r1.4 removed HISTORY info from the .Os call.
 	  r1.2 un-mandocafied, un4.4BSD'ed

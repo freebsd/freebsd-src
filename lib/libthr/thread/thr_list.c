@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
  * Copyright (C) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * All rights reserved.
@@ -35,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <pthread.h>
 
-#include "thr_private.h"
 #include "libc_private.h"
+#include "thr_private.h"
 
 /*#define DEBUG_THREAD_LIST */
 #ifdef DEBUG_THREAD_LIST

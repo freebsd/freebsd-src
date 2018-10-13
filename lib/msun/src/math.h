@@ -500,6 +500,9 @@ long double	truncl(long double);
 
 #if __BSD_VISIBLE
 long double	lgammal_r(long double, int *);
+void		sincos(double, double *, double *);
+void		sincosf(float, float *, float *);
+void		sincosl(long double, long double *, long double *);
 #endif
 
 __END_DECLS

@@ -4,9 +4,13 @@ MAN=
 
 .include <src.opts.mk>
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/ntpd \
+.PATH:	${SRCTOP}/contrib/ntp/ntpd \
 	${.OBJDIR}
 
+CONFS=	ntp.conf
+FILES=	leap-seconds
+FILESDIR=	/etc/ntp
+FILESMODE=	644
 PROG=	ntpd
 
 SRCS=	cmd_args.c ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \
@@ -27,13 +31,13 @@ SRCS=	cmd_args.c ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \
 	refclock_tt560.c refclock_ulink.c refclock_wwv.c refclock_wwvb.c \
 	refclock_zyfer.c version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/ntpd \
-	-I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include \
-	-I${.CURDIR}/../../../contrib/ntp/sntp/libopts \
-	-I${.CURDIR}/../ \
+CFLAGS+= -I${SRCTOP}/contrib/ntp/ntpd \
+	-I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/sntp/libopts \
+	-I${.CURDIR:H} \
 	-I${.CURDIR}
 
 LIBADD=	parse ntp m opts pthread
@@ -46,7 +50,7 @@ LIBADD+=	md
 
 CLEANFILES+= .version version.c
 
-version.c: 
-	sh -e ${.CURDIR}/../scripts/mkver ntpd
+version.c:
+	sh -e ${.CURDIR:H}/scripts/mkver ntpd
 
 .include <bsd.prog.mk>

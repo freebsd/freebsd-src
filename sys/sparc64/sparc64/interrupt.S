@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pstate.h>
 #include <machine/ver.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Handle a vectored interrupt.

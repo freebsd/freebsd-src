@@ -7,11 +7,12 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/dm814x.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,dm814";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -74,6 +75,7 @@
 				reg = <0x47401300 0x100>;
 				reg-names = "phy";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
+				#phy-cells = <0>;
 			};
 
 			usb0: usb@47401000 {
@@ -248,10 +250,12 @@
 				interrupts = <67>;
 				ti,hwmods = "timer1";
 				ti,timer-alwon;
+				clocks = <&timer1_fck>;
+				clock-names = "fck";
 			};
 
 			uart1: uart@20000 {
-				compatible = "ti,omap3-uart";
+				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart1";
 				reg = <0x20000 0x2000>;
 				clock-frequency = <48000000>;
@@ -261,7 +265,7 @@
 			};
 
 			uart2: uart@22000 {
-				compatible = "ti,omap3-uart";
+				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart2";
 				reg = <0x22000 0x2000>;
 				clock-frequency = <48000000>;
@@ -271,7 +275,7 @@
 			};
 
 			uart3: uart@24000 {
-				compatible = "ti,omap3-uart";
+				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart3";
 				reg = <0x24000 0x2000>;
 				clock-frequency = <48000000>;
@@ -285,6 +289,8 @@
 				reg = <0x40000 0x2000>;
 				interrupts = <68>;
 				ti,hwmods = "timer2";
+				clocks = <&timer2_fck>;
+				clock-names = "fck";
 			};
 
 			timer3: timer@42000 {
@@ -303,6 +309,13 @@
 				interrupts = <64>;
 				interrupt-parent = <&intc>;
 				reg = <0x60000 0x1000>;
+			};
+
+			rtc: rtc@c0000 {
+				compatible = "ti,am3352-rtc", "ti,da830-rtc";
+				reg = <0xc0000 0x1000>;
+				interrupts = <75 76>;
+				ti,hwmods = "rtc";
 			};
 
 			mmc2: mmc@1d8000 {
@@ -324,10 +337,11 @@
 				ranges = <0 0x140000 0x20000>;
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon";
+					compatible = "syscon", "simple-bus";
 					reg = <0x0 0x800>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0 0x800>;
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
@@ -366,6 +380,7 @@
 					reg = <0x800 0x438>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x307ff>;
 				};
@@ -375,6 +390,7 @@
 					reg = <0x1b00 0x100>;
 					reg-names = "phy";
 					ti,ctrl_mod = <&usb_ctrl_mod>;
+					#phy-cells = <0>;
 				};
 			};
 
@@ -441,7 +457,7 @@
 			reg =	<0x49000000 0x10000>;
 			reg-names = "edma3_cc";
 			interrupts = <12 13 14>;
-			interrupt-names = "edma3_ccint", "emda3_mperr",
+			interrupt-names = "edma3_ccint", "edma3_mperr",
 					  "edma3_ccerrint";
 			dma-requests = <64>;
 			#dma-cells = <2>;
@@ -501,8 +517,6 @@
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
-			rx_descs = <64>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -547,6 +561,22 @@
 				reg= <0x48140650 0x4>;
 				reg-names = "gmii-sel";
 			};
+		};
+
+		gpmc: gpmc@50000000 {
+			compatible = "ti,am3352-gpmc";
+			ti,hwmods = "gpmc";
+			ti,no-idle-on-init;
+			reg = <0x50000000 0x2000>;
+			interrupts = <100>;
+			gpmc,num-cs = <7>;
+			gpmc,num-waitpins = <2>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 	};
 };

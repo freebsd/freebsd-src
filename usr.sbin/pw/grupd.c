@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -34,6 +36,7 @@ static const char rcsid[] =
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "pwupd.h"
 
@@ -73,8 +76,11 @@ gr_update(struct group * grp, char const * group)
 	}
 	if (gr_copy(pfd, tfd, gr, old_gr) == -1) {
 		gr_fini();
+		close(tfd);
 		err(1, "gr_copy()");
 	}
+	fsync(tfd);
+	close(tfd);
 	if (gr_mkdb() == -1) {
 		gr_fini();
 		err(1, "gr_mkdb()");

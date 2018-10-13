@@ -40,6 +40,8 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 	if (ret == 0) {
 		src = (char *)addr;
 
+		if (size == 8)
+			*((uint64_t*)data) = *((uint64_t*)src);
 		if (size == 4)
 			*((int *)data) = *((int *)src);
 		else if (size == 2)
@@ -67,10 +69,12 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		dst = (char *)addr;
 		cnt = size;
 
-		if (size == 4 && (addr & 3) == 0 && ((uintptr_t)data & 3) == 0)
+		if (size == 8)
+			*((uint64_t*)dst) = *((uint64_t*)data);
+		if (size == 4)
 			*((int*)dst) = *((int*)data);
 		else
-		if (size == 2 && (addr & 1) == 0 && ((uintptr_t)data & 1) == 0)
+		if (size == 2)
 			*((short*)dst) = *((short*)data);
 		else
 			while (cnt-- > 0)
@@ -87,5 +91,4 @@ db_show_mdpcpu(struct pcpu *pc)
 
 	db_printf("PPC: hwref   = %#zx\n", pc->pc_hwref);
 	db_printf("PPC: ipimask = %#x\n", pc->pc_ipimask);
-	db_printf("PPC: pir     = %#x\n", pc->pc_pir);
 }

@@ -262,13 +262,34 @@ x509_get_alg(const unsigned char **p, const unsigned char *end, x509_buf * alg)
 
   if (*p == end)
     return SVN_NO_ERROR;
+  
+  /* The OID encoding of 1.2.840.113549.1.1.10 (id-RSASSA-PSS) */
+#define OID_RSASSA_PSS "\x2a\x86\x48\x86\xf7\x0d\x01\x01\x0a"
 
-  /*
-   * assume the algorithm parameters must be NULL
-   */
-  err = asn1_get_tag(p, end, &len, ASN1_NULL);
-  if (err)
-    return svn_error_create(SVN_ERR_X509_CERT_INVALID_ALG, err, NULL);
+  if (equal(alg->p, alg->len, OID_RSASSA_PSS, sizeof(OID_RSASSA_PSS) - 1))
+    {
+      /* Skip over algorithm parameters for id-RSASSA-PSS (RFC 8017)
+       *
+       * RSASSA-PSS-params ::= SEQUENCE {
+       *  hashAlgorithm      [0] HashAlgorithm    DEFAULT sha1,
+       *  maskGenAlgorithm   [1] MaskGenAlgorithm DEFAULT mgf1SHA1,
+       *  saltLength         [2] INTEGER          DEFAULT 20,
+       *  trailerField       [3] TrailerField     DEFAULT trailerFieldBC
+       * }
+       */
+      err = asn1_get_tag(p, end, &len, ASN1_CONSTRUCTED | ASN1_SEQUENCE);
+      if (err)
+        return svn_error_create(SVN_ERR_X509_CERT_INVALID_ALG, err, NULL);
+
+      *p += len;
+    }
+  else
+    {
+      /* Algorithm parameters must be NULL for other algorithms */
+      err = asn1_get_tag(p, end, &len, ASN1_NULL);
+      if (err)
+        return svn_error_create(SVN_ERR_X509_CERT_INVALID_ALG, err, NULL);
+    }
 
   if (*p != end)
     {
@@ -362,7 +383,7 @@ x509_get_name(const unsigned char **p, const unsigned char *name_end,
   x509_name *cur = NULL;
 
   err = asn1_get_tag(p, name_end, &len, ASN1_CONSTRUCTED | ASN1_SET);
-  if (err)
+  if (err || len < 1)
     return svn_error_create(SVN_ERR_X509_CERT_INVALID_NAME, err, NULL);
 
   set_end = *p + len;
@@ -471,6 +492,18 @@ x509_get_date(apr_time_t *when,
 
   /* apr_time_exp_t expects months to be zero indexed, 0=Jan, 11=Dec. */
   xt.tm_mon -= 1;
+
+  /* range checks (as per definition of apr_time_exp_t in apr_time.h) */
+  if (xt.tm_usec < 0 ||
+      xt.tm_sec < 0 || xt.tm_sec > 61 ||
+      xt.tm_min < 0 || xt.tm_min > 59 ||
+      xt.tm_hour < 0 || xt.tm_hour > 23 ||
+      xt.tm_mday < 1 || xt.tm_mday > 31 ||
+      xt.tm_mon < 0 || xt.tm_mon > 11 ||
+      xt.tm_year < 0 ||
+      xt.tm_wday < 0 || xt.tm_wday > 6 ||
+      xt.tm_yday < 0 || xt.tm_yday > 365)
+    return svn_error_create(SVN_ERR_X509_CERT_INVALID_DATE, NULL, NULL);
 
   ret = apr_time_exp_gmt_get(when, &xt);
   if (ret)
@@ -691,8 +724,7 @@ x509_get_ext(apr_array_header_t *dnsnames,
           else
             {
               /* We found a dNSName entry */
-              x509_buf *dnsname = apr_palloc(dnsnames->pool,
-                                             sizeof(x509_buf));
+              x509_buf *dnsname = apr_palloc(dnsnames->pool, sizeof(*dnsname));
               dnsname->tag = ASN1_IA5_STRING; /* implicit based on dNSName */
               dnsname->len = len;
               dnsname->p = *p;
@@ -919,8 +951,7 @@ x509_name_to_certinfo(apr_array_header_t **result,
     svn_x509_name_attr_t *attr = apr_palloc(result_pool, sizeof(svn_x509_name_attr_t));
 
     attr->oid_len = name->oid.len;
-    attr->oid = apr_palloc(result_pool, attr->oid_len);
-    memcpy(attr->oid, name->oid.p, attr->oid_len);
+    attr->oid = apr_pmemdup(result_pool, name->oid.p, attr->oid_len);
     attr->utf8_value = x509name_to_utf8_string(name, result_pool);
     if (!attr->utf8_value)
       /* this should never happen */

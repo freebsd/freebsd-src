@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/simplebus.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -65,6 +64,7 @@ static device_attach_t am335x_pwmss_attach;
 static device_detach_t am335x_pwmss_detach;
 
 struct am335x_pwmss_softc {
+	struct simplebus_softc	sc_simplebus;
 	device_t		sc_dev;
 	clk_ident_t		sc_clk;
 };

@@ -1,6 +1,8 @@
 /*	$NetBSD: ufs_bswap.h,v 1.13 2003/10/05 17:48:50 bouyer Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 Manuel Bouyer.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,11 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -55,10 +52,6 @@
 
 #if !defined(_KERNEL) || defined(FFS_EI)
 /* inlines for access to swapped data */
-static __inline u_int16_t ufs_rw16 __P((u_int16_t, int));
-static __inline u_int32_t ufs_rw32 __P((u_int32_t, int));
-static __inline u_int64_t ufs_rw64 __P((u_int64_t, int));
-
 static __inline u_int16_t
 ufs_rw16(u_int16_t a, int ns)
 {

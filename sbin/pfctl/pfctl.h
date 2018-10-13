@@ -1,6 +1,8 @@
 /*	$OpenBSD: pfctl.h,v 1.42 2007/12/05 12:01:47 chl Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
  *

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
-#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 
@@ -73,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 #endif
 #include <machine/cpu.h>
+#include <machine/pcb_ext.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/vm86.h>
@@ -88,7 +90,6 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
-ASSYM(TD_TID, offsetof(struct thread, td_tid));
 
 ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 
@@ -98,9 +99,6 @@ ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
-ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
-ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
-ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 ASSYM(TD0_KSTACK_PAGES, TD0_KSTACK_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);
@@ -115,11 +113,9 @@ ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_MASK, PAGE_MASK);
 ASSYM(PDRSHIFT, PDRSHIFT);
 ASSYM(PDRMASK, PDRMASK);
-ASSYM(USRSTACK, USRSTACK);
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(KERNLOAD, KERNLOAD);
-ASSYM(MCLBYTES, MCLBYTES);
 ASSYM(PCB_CR0, offsetof(struct pcb, pcb_cr0));
 ASSYM(PCB_CR2, offsetof(struct pcb, pcb_cr2));
 ASSYM(PCB_CR3, offsetof(struct pcb, pcb_cr3));
@@ -143,9 +139,10 @@ ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
-ASSYM(PCB_PSL, offsetof(struct pcb, pcb_psl));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
+
+ASSYM(PCB_EXT_TSS, offsetof(struct pcb_ext, ext_tss));
 
 ASSYM(PCB_FSD, offsetof(struct pcb, pcb_fsd));
 ASSYM(PCB_GSD, offsetof(struct pcb, pcb_gsd));
@@ -162,11 +159,16 @@ ASSYM(PCB_IDT, offsetof(struct pcb, pcb_idt));
 ASSYM(PCB_LDT, offsetof(struct pcb, pcb_ldt));
 ASSYM(PCB_TR, offsetof(struct pcb, pcb_tr));
 
+ASSYM(TF_FS, offsetof(struct trapframe, tf_fs));
+ASSYM(TF_ES, offsetof(struct trapframe, tf_es));
+ASSYM(TF_DS, offsetof(struct trapframe, tf_ds));
 ASSYM(TF_TRAPNO, offsetof(struct trapframe, tf_trapno));
 ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
 ASSYM(TF_EIP, offsetof(struct trapframe, tf_eip));
 ASSYM(TF_CS, offsetof(struct trapframe, tf_cs));
 ASSYM(TF_EFLAGS, offsetof(struct trapframe, tf_eflags));
+ASSYM(TF_SZ, sizeof(struct trapframe));
+
 ASSYM(SIGF_HANDLER, offsetof(struct sigframe, sf_ahu.sf_handler));
 #ifdef COMPAT_43
 ASSYM(SIGF_SC, offsetof(struct osigframe, sf_siginfo.si_sc));
@@ -208,7 +210,7 @@ ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
-ASSYM(PC_COMMON_TSS, offsetof(struct pcpu, pc_common_tss));
+ASSYM(PC_COMMON_TSSP, offsetof(struct pcpu, pc_common_tssp));
 ASSYM(PC_COMMON_TSSD, offsetof(struct pcpu, pc_common_tssd));
 ASSYM(PC_TSS_GDT, offsetof(struct pcpu, pc_tss_gdt));
 ASSYM(PC_FSGS_GDT, offsetof(struct pcpu, pc_fsgs_gdt));
@@ -216,6 +218,10 @@ ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
+ASSYM(PC_KESP0, offsetof(struct pcpu, pc_kesp0));
+ASSYM(PC_TRAMPSTK, offsetof(struct pcpu, pc_trampstk));
+ASSYM(PC_COPYOUT_BUF, offsetof(struct pcpu, pc_copyout_buf));
+ASSYM(PC_IBPB_SET, offsetof(struct pcpu, pc_ibpb_set));
 
 #ifdef DEV_APIC
 ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
@@ -229,13 +235,10 @@ ASSYM(KPSEL, GSEL(GPRIV_SEL, SEL_KPL));
 ASSYM(BC32SEL, GSEL(GBIOSCODE32_SEL, SEL_KPL));
 ASSYM(GPROC0_SEL, GPROC0_SEL);
 ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
+ASSYM(VM86_STACK_SPACE, VM86_STACK_SPACE);
 
-#ifdef PC98
-#include <machine/bus.h>
-
-ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
-ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
-#endif
+ASSYM(PMAP_TRM_MIN_ADDRESS, PMAP_TRM_MIN_ADDRESS);
+ASSYM(TRAMP_COPYOUT_SZ, TRAMP_COPYOUT_SZ);
 
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);

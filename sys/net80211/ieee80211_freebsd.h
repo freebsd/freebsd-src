@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -83,6 +85,25 @@ typedef struct {
 	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED)
 
 /*
+ * Stageq / ni_tx_superg lock
+ */
+typedef struct {
+	char		name[16];		/* e.g. "ath0_ff_lock" */
+	struct mtx	mtx;
+} ieee80211_ff_lock_t;
+#define IEEE80211_FF_LOCK_INIT(_ic, _name) do {				\
+	ieee80211_ff_lock_t *fl = &(_ic)->ic_fflock;			\
+	snprintf(fl->name, sizeof(fl->name), "%s_ff_lock", _name);	\
+	mtx_init(&fl->mtx, fl->name, NULL, MTX_DEF);			\
+} while (0)
+#define IEEE80211_FF_LOCK_OBJ(_ic)	(&(_ic)->ic_fflock.mtx)
+#define IEEE80211_FF_LOCK_DESTROY(_ic)	mtx_destroy(IEEE80211_FF_LOCK_OBJ(_ic))
+#define IEEE80211_FF_LOCK(_ic)		mtx_lock(IEEE80211_FF_LOCK_OBJ(_ic))
+#define IEEE80211_FF_UNLOCK(_ic)	mtx_unlock(IEEE80211_FF_LOCK_OBJ(_ic))
+#define IEEE80211_FF_LOCK_ASSERT(_ic) \
+	mtx_assert(IEEE80211_FF_LOCK_OBJ(_ic), MA_OWNED)
+
+/*
  * Node locking definitions.
  */
 typedef struct {
@@ -105,28 +126,6 @@ typedef struct {
 	mtx_unlock(IEEE80211_NODE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_LOCK_ASSERT(_nt)	\
 	mtx_assert(IEEE80211_NODE_LOCK_OBJ(_nt), MA_OWNED)
-
-/*
- * Node table iteration locking definitions; this protects the
- * scan generation # used to iterate over the station table
- * while grabbing+releasing the node lock.
- */
-typedef struct {
-	char		name[16];		/* e.g. "ath0_scan_lock" */
-	struct mtx	mtx;
-} ieee80211_scan_lock_t;
-#define	IEEE80211_NODE_ITERATE_LOCK_INIT(_nt, _name) do {		\
-	ieee80211_scan_lock_t *sl = &(_nt)->nt_scanlock;		\
-	snprintf(sl->name, sizeof(sl->name), "%s_scan_lock", _name);	\
-	mtx_init(&sl->mtx, sl->name, NULL, MTX_DEF);			\
-} while (0)
-#define	IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt)	(&(_nt)->nt_scanlock.mtx)
-#define	IEEE80211_NODE_ITERATE_LOCK_DESTROY(_nt) \
-	mtx_destroy(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-#define	IEEE80211_NODE_ITERATE_LOCK(_nt) \
-	mtx_lock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-#define	IEEE80211_NODE_ITERATE_UNLOCK(_nt) \
-	mtx_unlock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
 
 /*
  * Power-save queue definitions. 
@@ -333,6 +332,8 @@ void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
 /* See below; this is after the bpf_params definition */
 
 #define	NET80211_TAG_RECV_PARAMS	2
+
+#define	NET80211_TAG_TOA_PARAMS		3
 
 struct ieee80211com;
 int	ieee80211_parent_xmitpkt(struct ieee80211com *, struct mbuf *);
@@ -623,42 +624,35 @@ int	ieee80211_add_xmit_params(struct mbuf *m,
 int	ieee80211_get_xmit_params(struct mbuf *m,
 	    struct ieee80211_bpf_params *);
 
-#define	IEEE80211_MAX_CHAINS		3
-#define	IEEE80211_MAX_EVM_PILOTS	6
+struct ieee80211_rx_params;
+struct ieee80211_rx_stats;
 
-#define	IEEE80211_R_NF		0x0000001	/* global NF value valid */
-#define	IEEE80211_R_RSSI	0x0000002	/* global RSSI value valid */
-#define	IEEE80211_R_C_CHAIN	0x0000004	/* RX chain count valid */
-#define	IEEE80211_R_C_NF	0x0000008	/* per-chain NF value valid */
-#define	IEEE80211_R_C_RSSI	0x0000010	/* per-chain RSSI value valid */
-#define	IEEE80211_R_C_EVM	0x0000020	/* per-chain EVM valid */
-#define	IEEE80211_R_C_HT40	0x0000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
-#define	IEEE80211_R_FREQ	0x0000080	/* Freq value populated, MHz */
-#define	IEEE80211_R_IEEE	0x0000100	/* IEEE value populated */
-#define	IEEE80211_R_BAND	0x0000200	/* Frequency band populated */
-
-struct ieee80211_rx_stats {
-	uint32_t r_flags;		/* IEEE80211_R_* flags */
-	uint8_t c_chain;		/* number of RX chains involved */
-	int16_t	c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t	c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t	c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	int16_t	c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	uint8_t nf;			/* global NF */
-	uint8_t rssi;			/* global RSSI */
-	uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
-					/* per-chain, per-pilot EVM values */
-	uint16_t c_freq;
-	uint8_t c_ieee;
-};
-
-struct ieee80211_rx_params {
-	struct ieee80211_rx_stats params;
-};
 int	ieee80211_add_rx_params(struct mbuf *m,
 	    const struct ieee80211_rx_stats *rxs);
 int	ieee80211_get_rx_params(struct mbuf *m,
 	    struct ieee80211_rx_stats *rxs);
+const struct ieee80211_rx_stats * ieee80211_get_rx_params_ptr(struct mbuf *m);
+
+struct ieee80211_toa_params {
+	int request_id;
+};
+int	ieee80211_add_toa_params(struct mbuf *m,
+	    const struct ieee80211_toa_params *p);
+int	ieee80211_get_toa_params(struct mbuf *m,
+	    struct ieee80211_toa_params *p);
+
+#define	IEEE80211_F_SURVEY_TIME		0x00000001
+#define	IEEE80211_F_SURVEY_TIME_BUSY	0x00000002
+#define	IEEE80211_F_SURVEY_NOISE_DBM	0x00000004
+#define	IEEE80211_F_SURVEY_TSC		0x00000008
+struct ieee80211_channel_survey {
+	uint32_t s_flags;
+	uint32_t s_time;
+	uint32_t s_time_busy;
+	int32_t s_noise;
+	uint64_t s_tsc;
+};
+
 #endif /* _KERNEL */
 
 /*

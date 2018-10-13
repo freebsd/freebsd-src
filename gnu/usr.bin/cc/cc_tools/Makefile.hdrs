@@ -46,6 +46,10 @@ TARGET_INC+=	${GCC_CPU}/bpabi.h
 TARGET_INC+=	${GCC_CPU}/biarch64.h
 TARGET_INC+=    ${GCC_CPU}/default64.h
 .endif
+.if ${TARGET_ARCH} == "powerpcspe" 	 
+TARGET_INC+=    ${GCC_CPU}/freebsdspe.h 	 
+TARGET_INC+=    ${GCC_CPU}/e500-double.h 	 
+.endif
 TARGET_INC+=	${GCC_CPU}/freebsd.h
 .if ${TARGET_CPUARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/freebsd64.h

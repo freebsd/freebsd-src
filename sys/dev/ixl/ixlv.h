@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -36,15 +36,14 @@
 #ifndef _IXLV_H_
 #define _IXLV_H_
 
-#include "ixlv_vc_mgr.h"
+#include "ixl.h"
 
 #define IXLV_AQ_MAX_ERR		200
 #define IXLV_MAX_FILTERS	128
 #define IXLV_MAX_QUEUES		16
 #define IXLV_AQ_TIMEOUT		(1 * hz)
-#define IXLV_CALLOUT_TIMO	(hz / 50)	/* 20 msec */
 
-#define IXLV_FLAG_AQ_ENABLE_QUEUES            (u32)(1)
+#define IXLV_FLAG_AQ_ENABLE_QUEUES            (u32)(1 << 0)
 #define IXLV_FLAG_AQ_DISABLE_QUEUES           (u32)(1 << 1)
 #define IXLV_FLAG_AQ_ADD_MAC_FILTER           (u32)(1 << 2)
 #define IXLV_FLAG_AQ_ADD_VLAN_FILTER          (u32)(1 << 3)
@@ -55,33 +54,45 @@
 #define IXLV_FLAG_AQ_HANDLE_RESET             (u32)(1 << 8)
 #define IXLV_FLAG_AQ_CONFIGURE_PROMISC        (u32)(1 << 9)
 #define IXLV_FLAG_AQ_GET_STATS                (u32)(1 << 10)
+#define IXLV_FLAG_AQ_CONFIG_RSS_KEY           (u32)(1 << 11)
+#define IXLV_FLAG_AQ_SET_RSS_HENA             (u32)(1 << 12)
+#define IXLV_FLAG_AQ_GET_RSS_HENA_CAPS        (u32)(1 << 13)
+#define IXLV_FLAG_AQ_CONFIG_RSS_LUT           (u32)(1 << 14)
 
-/* printf %b arg */
+/* printf %b flag args */
 #define IXLV_FLAGS \
     "\20\1ENABLE_QUEUES\2DISABLE_QUEUES\3ADD_MAC_FILTER" \
     "\4ADD_VLAN_FILTER\5DEL_MAC_FILTER\6DEL_VLAN_FILTER" \
     "\7CONFIGURE_QUEUES\10MAP_VECTORS\11HANDLE_RESET" \
-    "\12CONFIGURE_PROMISC\13GET_STATS"
+    "\12CONFIGURE_PROMISC\13GET_STATS\14CONFIG_RSS_KEY" \
+    "\15SET_RSS_HENA\16GET_RSS_HENA_CAPS\17CONFIG_RSS_LUT"
+#define IXLV_PRINTF_VF_OFFLOAD_FLAGS \
+    "\20\1L2" \
+    "\2IWARP" \
+    "\3RSVD" \
+    "\4RSS_AQ" \
+    "\5RSS_REG" \
+    "\6WB_ON_ITR" \
+    "\7REQ_QUEUES" \
+    "\21VLAN" \
+    "\22RX_POLLING" \
+    "\23RSS_PCTYPE_V2" \
+    "\24RSS_PF" \
+    "\25ENCAP" \
+    "\26ENCAP_CSUM" \
+    "\27RX_ENCAP_CSUM"
 
-/* Hack for compatibility with 1.0.x linux pf driver */
-#define I40E_VIRTCHNL_OP_EVENT 17
+MALLOC_DECLARE(M_IXLV);
 
 /* Driver state */
 enum ixlv_state_t {
-	IXLV_START,
-	IXLV_FAILED,
 	IXLV_RESET_REQUIRED,
 	IXLV_RESET_PENDING,
-	IXLV_VERSION_CHECK,
-	IXLV_GET_RESOURCES,
 	IXLV_INIT_READY,
-	IXLV_INIT_START,
-	IXLV_INIT_CONFIG,
-	IXLV_INIT_MAPPING,
-	IXLV_INIT_ENABLE,
-	IXLV_INIT_COMPLETE,
-	IXLV_RUNNING,	
+	IXLV_RUNNING,
 };
+
+/* Structs */
 
 struct ixlv_mac_filter {
 	SLIST_ENTRY(ixlv_mac_filter)  next;
@@ -99,74 +110,50 @@ SLIST_HEAD(vlan_list, ixlv_vlan_filter);
 
 /* Software controller structure */
 struct ixlv_sc {
+	struct ixl_vsi		vsi;
+
 	struct i40e_hw		hw;
 	struct i40e_osdep	osdep;
-	struct device		*dev;
+	device_t		dev;
 
 	struct resource		*pci_mem;
-	struct resource		*msix_mem;
 
 	enum ixlv_state_t	init_state;
 
-	/*
-	 * Interrupt resources
-	 */
-	void			*tag;
-	struct resource 	*res; /* For the AQ */
-
 	struct ifmedia		media;
-	struct callout		timer;
-	int			msix;
-	int			pf_version;
-	int			if_flags;
+	struct virtchnl_version_info	version;
+	enum ixl_dbg_mask	dbg_mask;
+	u16			promisc_flags;
 
-	bool			link_up;
-	u32			link_speed;
+	bool				link_up;
+	enum virtchnl_link_speed	link_speed;
 
-	struct mtx		mtx;
-
-	u32			qbase;
-	u32 			admvec;
-	struct timeout_task	timeout;
-	struct task     	aq_irq;
-	struct task     	aq_sched;
-	struct taskqueue	*tq;
-
-	struct ixl_vsi		vsi;
+	/* Tunable settings */
+	int			tx_itr;
+	int			rx_itr;
+	int			dynamic_tx_itr;
+	int			dynamic_rx_itr;
 
 	/* Filter lists */
 	struct mac_list		*mac_filters;
 	struct vlan_list	*vlan_filters;
 
-	/* Promiscuous mode */
-	u32			promiscuous_flags;
-
-	/* Admin queue task flags */
-	u32			aq_wait_count;
-
-	struct ixl_vc_mgr	vc_mgr;
-	struct ixl_vc_cmd	add_mac_cmd;
-	struct ixl_vc_cmd	del_mac_cmd;
-	struct ixl_vc_cmd	config_queues_cmd;
-	struct ixl_vc_cmd	map_vectors_cmd;
-	struct ixl_vc_cmd	enable_queues_cmd;
-	struct ixl_vc_cmd	add_vlan_cmd;
-	struct ixl_vc_cmd	del_vlan_cmd;
-	struct ixl_vc_cmd	add_multi_cmd;
-	struct ixl_vc_cmd	del_multi_cmd;
-
 	/* Virtual comm channel */
-	struct i40e_virtchnl_vf_resource *vf_res;
-	struct i40e_virtchnl_vsi_resource *vsi_res;
+	struct virtchnl_vf_resource *vf_res;
+	struct virtchnl_vsi_resource *vsi_res;
 
 	/* Misc stats maintained by the driver */
-	u64			watchdog_events;
 	u64			admin_irq;
 
+	/* Buffer used for reading AQ responses */
 	u8			aq_buffer[IXL_AQ_BUF_SZ];
+
+	/* State flag used in init/stop */
+	u32			queues_enabled;
+	u8			enable_queues_chan;
+	u8			disable_queues_chan;
 };
 
-#define IXLV_CORE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
 /*
 ** This checks for a zero mac addr, something that will be likely
 ** unless the Admin on the Host has created one.
@@ -182,32 +169,50 @@ ixlv_check_ether_addr(u8 *addr)
 	return (status);
 }
 
+/* Debug printing */
+#define ixlv_dbg(sc, m, s, ...)		ixl_debug_core(sc->dev, sc->dbg_mask, m, s, ##__VA_ARGS__)
+#define ixlv_dbg_init(sc, s, ...)	ixl_debug_core(sc->dev, sc->dbg_mask, IXLV_DBG_INIT, s, ##__VA_ARGS__)
+#define ixlv_dbg_info(sc, s, ...)	ixl_debug_core(sc->dev, sc->dbg_mask, IXLV_DBG_INFO, s, ##__VA_ARGS__)
+#define ixlv_dbg_vc(sc, s, ...)		ixl_debug_core(sc->dev, sc->dbg_mask, IXLV_DBG_VC, s, ##__VA_ARGS__)
+#define ixlv_dbg_filter(sc, s, ...)	ixl_debug_core(sc->dev, sc->dbg_mask, IXLV_DBG_FILTER, s, ##__VA_ARGS__)
+
 /*
 ** VF Common function prototypes
 */
+void	ixlv_if_init(if_ctx_t ctx);
+
 int	ixlv_send_api_ver(struct ixlv_sc *);
 int	ixlv_verify_api_ver(struct ixlv_sc *);
 int	ixlv_send_vf_config_msg(struct ixlv_sc *);
 int	ixlv_get_vf_config(struct ixlv_sc *);
 void	ixlv_init(void *);
 int	ixlv_reinit_locked(struct ixlv_sc *);
-void	ixlv_configure_queues(struct ixlv_sc *);
-void	ixlv_enable_queues(struct ixlv_sc *);
-void	ixlv_disable_queues(struct ixlv_sc *);
-void	ixlv_map_queues(struct ixlv_sc *);
+int	ixlv_configure_queues(struct ixlv_sc *);
+int	ixlv_enable_queues(struct ixlv_sc *);
+int	ixlv_disable_queues(struct ixlv_sc *);
+int	ixlv_map_queues(struct ixlv_sc *);
 void	ixlv_enable_intr(struct ixl_vsi *);
 void	ixlv_disable_intr(struct ixl_vsi *);
-void	ixlv_add_ether_filters(struct ixlv_sc *);
-void	ixlv_del_ether_filters(struct ixlv_sc *);
-void	ixlv_request_stats(struct ixlv_sc *);
-void	ixlv_request_reset(struct ixlv_sc *);
+int	ixlv_add_ether_filters(struct ixlv_sc *);
+int	ixlv_del_ether_filters(struct ixlv_sc *);
+int	ixlv_request_stats(struct ixlv_sc *);
+int	ixlv_request_reset(struct ixlv_sc *);
 void	ixlv_vc_completion(struct ixlv_sc *,
-	enum i40e_virtchnl_ops, i40e_status, u8 *, u16);
-void	ixlv_add_ether_filter(struct ixlv_sc *);
-void	ixlv_add_vlans(struct ixlv_sc *);
-void	ixlv_del_vlans(struct ixlv_sc *);
+	enum virtchnl_ops, enum virtchnl_status_code,
+	u8 *, u16);
+int	ixlv_add_ether_filter(struct ixlv_sc *);
+int	ixlv_add_vlans(struct ixlv_sc *);
+int	ixlv_del_vlans(struct ixlv_sc *);
 void	ixlv_update_stats_counters(struct ixlv_sc *,
 		    struct i40e_eth_stats *);
 void	ixlv_update_link_status(struct ixlv_sc *);
+int	ixlv_get_default_rss_key(u32 *, bool);
+int	ixlv_config_rss_key(struct ixlv_sc *);
+int	ixlv_set_rss_hena(struct ixlv_sc *);
+int	ixlv_config_rss_lut(struct ixlv_sc *);
+int	ixlv_config_promisc_mode(struct ixlv_sc *);
 
+int	ixl_vc_send_cmd(struct ixlv_sc *sc, uint32_t request);
+char	*ixlv_vc_speed_to_string(enum virtchnl_link_speed link_speed);
+void 	*ixl_vc_get_op_chan(struct ixlv_sc *sc, uint32_t request);
 #endif /* _IXLV_H_ */

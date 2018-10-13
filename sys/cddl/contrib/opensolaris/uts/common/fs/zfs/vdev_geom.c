@@ -49,6 +49,16 @@ struct g_class zfs_vdev_class = {
 	.attrchanged = vdev_geom_attrchanged,
 };
 
+struct consumer_vdev_elem {
+	SLIST_ENTRY(consumer_vdev_elem)	elems;
+	vdev_t				*vd;
+};
+
+SLIST_HEAD(consumer_priv_t, consumer_vdev_elem);
+_Static_assert(sizeof(((struct g_consumer*)NULL)->private)
+    == sizeof(struct consumer_priv_t*),
+    "consumer_priv_t* can't be stored in g_consumer.private");
+
 DECLARE_GEOM_CLASS(zfs_vdev_class, zfs_vdev);
 
 SYSCTL_DECL(_vfs_zfs_vdev);
@@ -85,21 +95,16 @@ vdev_geom_set_rotation_rate(vdev_t *vd, struct g_consumer *cp)
 }
 
 static void
-vdev_geom_set_physpath(struct g_consumer *cp, boolean_t do_null_update)
+vdev_geom_set_physpath(vdev_t *vd, struct g_consumer *cp,
+		       boolean_t do_null_update)
 {
-	boolean_t needs_update;
-	vdev_t *vd;
+	boolean_t needs_update = B_FALSE;
 	char *physpath;
 	int error, physpath_len;
 
-	if (g_access(cp, 1, 0, 0) != 0)
-		return;
-
-	vd = cp->private;
 	physpath_len = MAXPATHLEN;
 	physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
 	error = g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
-	g_access(cp, -1, 0, 0);
 	if (error == 0) {
 		char *old_physpath;
 
@@ -130,37 +135,40 @@ vdev_geom_set_physpath(struct g_consumer *cp, boolean_t do_null_update)
 static void
 vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
 {
-	vdev_t *vd;
 	char *old_physpath;
+	struct consumer_priv_t *priv;
+	struct consumer_vdev_elem *elem;
 	int error;
 
-	vd = cp->private;
-	if (vd == NULL)
+	priv = (struct consumer_priv_t*)&cp->private;
+	if (SLIST_EMPTY(priv))
 		return;
 
-	if (strcmp(attr, "GEOM::rotation_rate") == 0) {
-		vdev_geom_set_rotation_rate(vd, cp);
-		return;
-	}
-
-	if (strcmp(attr, "GEOM::physpath") == 0) {
-		vdev_geom_set_physpath(cp, /*do_null_update*/B_TRUE);
-		return;
+	SLIST_FOREACH(elem, priv, elems) {
+		vdev_t *vd = elem->vd;
+		if (strcmp(attr, "GEOM::rotation_rate") == 0) {
+			vdev_geom_set_rotation_rate(vd, cp);
+			return;
+		}
+		if (strcmp(attr, "GEOM::physpath") == 0) {
+			vdev_geom_set_physpath(vd, cp, /*null_update*/B_TRUE);
+			return;
+		}
 	}
 }
 
 static void
 vdev_geom_orphan(struct g_consumer *cp)
 {
-	vdev_t *vd;
+	struct consumer_priv_t *priv;
+	struct consumer_vdev_elem *elem;
 
 	g_topology_assert();
 
-	vd = cp->private;
-	if (vd == NULL) {
+	priv = (struct consumer_priv_t*)&cp->private;
+	if (SLIST_EMPTY(priv))
 		/* Vdev close in progress.  Ignore the event. */
 		return;
-	}
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -176,12 +184,16 @@ vdev_geom_orphan(struct g_consumer *cp)
 	 * async removal support to invoke a close on this
 	 * vdev once it is safe to do so.
 	 */
-	vd->vdev_remove_wanted = B_TRUE;
-	spa_async_request(vd->vdev_spa, SPA_ASYNC_REMOVE);
+	SLIST_FOREACH(elem, priv, elems) {
+		vdev_t *vd = elem->vd;
+
+		vd->vdev_remove_wanted = B_TRUE;
+		spa_async_request(vd->vdev_spa, SPA_ASYNC_REMOVE);
+	}
 }
 
 static struct g_consumer *
-vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
+vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -191,14 +203,18 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 
 	ZFS_LOG(1, "Attaching to %s.", pp->name);
 
-	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize)) {
-		ZFS_LOG(1, "Failing attach of %s. Incompatible sectorsize %d\n",
-		    pp->name, pp->sectorsize);
-		return (NULL);
-	} else if (pp->mediasize < SPA_MINDEVSIZE) {
-		ZFS_LOG(1, "Failing attach of %s. Incompatible mediasize %ju\n",
-		    pp->name, pp->mediasize);
-		return (NULL);
+	if (sanity) {
+		if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize)) {
+			ZFS_LOG(1, "Failing attach of %s. "
+				   "Incompatible sectorsize %d\n",
+			    pp->name, pp->sectorsize);
+			return (NULL);
+		} else if (pp->mediasize < SPA_MINDEVSIZE) {
+			ZFS_LOG(1, "Failing attach of %s. "
+				   "Incompatible mediasize %ju\n",
+			    pp->name, pp->mediasize);
+			return (NULL);
+		}
 	}
 
 	/* Do we have geom already? No? Create one. */
@@ -265,21 +281,8 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 		}
 	}
 
-	/* 
-	 * BUG: cp may already belong to a vdev.  This could happen if:
-	 * 1) That vdev is a shared spare, or
-	 * 2) We are trying to reopen a missing vdev and we are scanning by
-	 *    guid.  In that case, we'll ultimately fail to open this consumer,
-	 *    but not until after setting the private field.
-	 * The solution is to:
-	 * 1) Don't set the private field until after the open succeeds, and
-	 * 2) Set it to a linked list of vdevs, not just a single vdev
-	 */
-	cp->private = vd;
-	if (vd != NULL) {
+	if (vd != NULL)
 		vd->vdev_tsd = cp;
-		vdev_geom_set_physpath(cp, /*do_null_update*/B_FALSE);
-	}
 
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	return (cp);
@@ -289,15 +292,11 @@ static void
 vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 {
 	struct g_geom *gp;
-	vdev_t *vd;
 
 	g_topology_assert();
 
-	ZFS_LOG(1, "Detaching consumer. Provider %s.",
+	ZFS_LOG(1, "Detaching from %s.",
 	    cp->provider && cp->provider->name ? cp->provider->name : "NULL");
-
-	vd = cp->private;
-	cp->private = NULL;
 
 	gp = cp->geom;
 	if (open_for_read)
@@ -307,7 +306,7 @@ vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 		if (cp->acw > 0)
 			g_access(cp, 0, -cp->acw, 0);
 		if (cp->provider != NULL) {
-			ZFS_LOG(1, "Destroying consumer to %s.",
+			ZFS_LOG(1, "Destroying consumer for %s.",
 			    cp->provider->name ? cp->provider->name : "NULL");
 			g_detach(cp);
 		}
@@ -324,26 +323,28 @@ static void
 vdev_geom_close_locked(vdev_t *vd)
 {
 	struct g_consumer *cp;
+	struct consumer_priv_t *priv;
+	struct consumer_vdev_elem *elem, *elem_temp;
 
 	g_topology_assert();
 
 	cp = vd->vdev_tsd;
-	vd->vdev_tsd = NULL;
 	vd->vdev_delayed_close = B_FALSE;
 	if (cp == NULL)
 		return;
 
 	ZFS_LOG(1, "Closing access to %s.", cp->provider->name);
+	KASSERT(cp->private != NULL, ("%s: cp->private is NULL", __func__));
+	priv = (struct consumer_priv_t*)&cp->private;
+	vd->vdev_tsd = NULL;
+	SLIST_FOREACH_SAFE(elem, priv, elems, elem_temp) {
+		if (elem->vd == vd) {
+			SLIST_REMOVE(priv, elem, consumer_vdev_elem, elems);
+			g_free(elem);
+		}
+	}
 
 	vdev_geom_detach(cp, B_TRUE);
-}
-
-static void
-nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
-{
-
-	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
-	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
 }
 
 /*
@@ -408,12 +409,18 @@ vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
 	kmem_free(bios, bios_size);
 }
 
+/* 
+ * Read the vdev config from a device.  Return the number of valid labels that
+ * were found.  The vdev config will be returned in config if and only if at
+ * least one valid label was found.
+ */
 static int
-vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
+vdev_geom_read_config(struct g_consumer *cp, nvlist_t **configp)
 {
 	struct g_provider *pp;
+	nvlist_t *config;
 	vdev_phys_t *vdev_lists[VDEV_LABELS];
-	char *p, *buf;
+	char *buf;
 	size_t buflen;
 	uint64_t psize, state, txg;
 	off_t offsets[VDEV_LABELS];
@@ -421,7 +428,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	off_t sizes[VDEV_LABELS];
 	int cmds[VDEV_LABELS];
 	int errors[VDEV_LABELS];
-	int l, len;
+	int l, nlabels;
 
 	g_topology_assert_not();
 
@@ -436,7 +443,6 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 
 	buflen = sizeof(vdev_lists[0]->vp_nvlist);
 
-	*config = NULL;
 	/* Create all of the IO requests */
 	for (l = 0; l < VDEV_LABELS; l++) {
 		cmds[l] = BIO_READ;
@@ -452,39 +458,43 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	    VDEV_LABELS);
 
 	/* Parse the labels */
+	config = *configp = NULL;
+	nlabels = 0;
 	for (l = 0; l < VDEV_LABELS; l++) {
 		if (errors[l] != 0)
 			continue;
 
 		buf = vdev_lists[l]->vp_nvlist;
 
-		if (nvlist_unpack(buf, buflen, config, 0) != 0)
+		if (nvlist_unpack(buf, buflen, &config, 0) != 0)
 			continue;
 
-		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_STATE,
 		    &state) != 0 || state > POOL_STATE_L2CACHE) {
-			nvlist_free(*config);
-			*config = NULL;
+			nvlist_free(config);
 			continue;
 		}
 
 		if (state != POOL_STATE_SPARE &&
 		    state != POOL_STATE_L2CACHE &&
-		    (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_TXG,
+		    (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG,
 		    &txg) != 0 || txg == 0)) {
-			nvlist_free(*config);
-			*config = NULL;
+			nvlist_free(config);
 			continue;
 		}
 
-		break;
+		if (*configp != NULL)
+			nvlist_free(*configp);
+		*configp = config;
+
+		nlabels++;
 	}
 
 	/* Free the label storage */
 	for (l = 0; l < VDEV_LABELS; l++)
 		kmem_free(vdev_lists[l], size);
 
-	return (*config == NULL ? ENOENT : 0);
+	return (nlabels);
 }
 
 static void
@@ -567,7 +577,7 @@ vdev_geom_read_pool_label(const char *name,
 	struct g_consumer *zcp;
 	nvlist_t *vdev_cfg;
 	uint64_t pool_guid;
-	int error;
+	int error, nlabels;
 
 	DROP_GIANT();
 	g_topology_lock();
@@ -584,14 +594,14 @@ vdev_geom_read_pool_label(const char *name,
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (pp->flags & G_PF_WITHER)
 					continue;
-				zcp = vdev_geom_attach(pp, NULL);
+				zcp = vdev_geom_attach(pp, NULL, B_TRUE);
 				if (zcp == NULL)
 					continue;
 				g_topology_unlock();
-				error = vdev_geom_read_config(zcp, &vdev_cfg);
+				nlabels = vdev_geom_read_config(zcp, &vdev_cfg);
 				g_topology_lock();
 				vdev_geom_detach(zcp, B_TRUE);
-				if (error)
+				if (nlabels == 0)
 					continue;
 				ZFS_LOG(1, "successfully read vdev config");
 
@@ -606,58 +616,73 @@ vdev_geom_read_pool_label(const char *name,
 	return (*count > 0 ? 0 : ENOENT);
 }
 
-static void
-vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
-{
-	nvlist_t *config;
+enum match {
+	NO_MATCH = 0,		/* No matching labels found */
+	TOPGUID_MATCH = 1,	/* Labels match top guid, not vdev guid*/
+	ZERO_MATCH = 1,		/* Should never be returned */
+	ONE_MATCH = 2,		/* 1 label matching the vdev_guid */
+	TWO_MATCH = 3,		/* 2 label matching the vdev_guid */
+	THREE_MATCH = 4,	/* 3 label matching the vdev_guid */
+	FULL_MATCH = 5		/* all labels match the vdev_guid */
+};
 
-	g_topology_assert_not();
-
-	*pguid = 0;
-	*vguid = 0;
-	if (vdev_geom_read_config(cp, &config) == 0) {
-		nvlist_get_guids(config, pguid, vguid);
-		nvlist_free(config);
-	}
-}
-
-static boolean_t
+static enum match
 vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 {
-	uint64_t pool_guid;
-	uint64_t vdev_guid;
-	struct g_consumer *zcp;
-	boolean_t pool_ok;
-	boolean_t vdev_ok;
+	nvlist_t *config;
+	uint64_t pool_guid, top_guid, vdev_guid;
+	struct g_consumer *cp;
+	int nlabels;
 
-	zcp = vdev_geom_attach(pp, NULL);
-	if (zcp == NULL) {
+	cp = vdev_geom_attach(pp, NULL, B_TRUE);
+	if (cp == NULL) {
 		ZFS_LOG(1, "Unable to attach tasting instance to %s.",
 		    pp->name);
-		return (B_FALSE);
+		return (NO_MATCH);
 	}
 	g_topology_unlock();
-	vdev_geom_read_guids(zcp, &pool_guid, &vdev_guid);
+	nlabels = vdev_geom_read_config(cp, &config);
 	g_topology_lock();
-	vdev_geom_detach(zcp, B_TRUE);
-
-	/* 
-	 * Check that the label's vdev guid matches the desired guid.  If the
-	 * label has a pool guid, check that it matches too. (Inactive spares
-	 * and L2ARCs do not have any pool guid in the label.)
-	 */
-	if ((pool_guid == 0 || pool_guid == spa_guid(vd->vdev_spa)) &&
-	    vdev_guid == vd->vdev_guid) {
-		ZFS_LOG(1, "guids match for provider %s.", vd->vdev_path);
-		return (B_TRUE);
-	} else {
-		ZFS_LOG(1, "guid mismatch for provider %s: "
-		    "%ju:%ju != %ju:%ju.", vd->vdev_path,
-		    (uintmax_t)spa_guid(vd->vdev_spa),
-		    (uintmax_t)vd->vdev_guid,
-		    (uintmax_t)pool_guid, (uintmax_t)vdev_guid);
-		return (B_FALSE);
+	vdev_geom_detach(cp, B_TRUE);
+	if (nlabels == 0) {
+		ZFS_LOG(1, "Unable to read config from %s.", pp->name);
+		return (NO_MATCH);
 	}
+
+	pool_guid = 0;
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID, &pool_guid);
+	top_guid = 0;
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_TOP_GUID, &top_guid);
+	vdev_guid = 0;
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_GUID, &vdev_guid);
+	nvlist_free(config);
+
+	/*
+	 * Check that the label's pool guid matches the desired guid.
+	 * Inactive spares and L2ARCs do not have any pool guid in the label.
+	 */
+	if (pool_guid != 0 && pool_guid != spa_guid(vd->vdev_spa)) {
+		ZFS_LOG(1, "pool guid mismatch for provider %s: %ju != %ju.",
+		    pp->name,
+		    (uintmax_t)spa_guid(vd->vdev_spa), (uintmax_t)pool_guid);
+		return (NO_MATCH);
+	}
+
+	/*
+	 * Check that the label's vdev guid matches the desired guid.
+	 * The second condition handles possible race on vdev detach, when
+	 * remaining vdev receives GUID of destroyed top level mirror vdev.
+	 */
+	if (vdev_guid == vd->vdev_guid) {
+		ZFS_LOG(1, "guids match for provider %s.", pp->name);
+		return (ZERO_MATCH + nlabels);
+	} else if (top_guid == vd->vdev_guid && vd == vd->vdev_top) {
+		ZFS_LOG(1, "top vdev guid match for provider %s.", pp->name);
+		return (TOPGUID_MATCH);
+	}
+	ZFS_LOG(1, "vdev guid mismatch for provider %s: %ju != %ju.",
+	    pp->name, (uintmax_t)vd->vdev_guid, (uintmax_t)vdev_guid);
+	return (NO_MATCH);
 }
 
 static struct g_consumer *
@@ -665,12 +690,15 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
-	struct g_provider *pp;
+	struct g_provider *pp, *best_pp;
 	struct g_consumer *cp;
+	enum match match, best_match;
 
 	g_topology_assert();
 
 	cp = NULL;
+	best_pp = NULL;
+	best_match = NO_MATCH;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp == &zfs_vdev_class)
 			continue;
@@ -678,23 +706,25 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 			if (gp->flags & G_GEOM_WITHER)
 				continue;
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (!vdev_attach_ok(vd, pp))
-					continue;
-				cp = vdev_geom_attach(pp, vd);
-				if (cp == NULL) {
-					printf("ZFS WARNING: Unable to "
-					    "attach to %s.\n", pp->name);
-					continue;
+				match = vdev_attach_ok(vd, pp);
+				if (match > best_match) {
+					best_match = match;
+					best_pp = pp;
 				}
-				break;
+				if (match == FULL_MATCH)
+					goto out;
 			}
-			if (cp != NULL)
-				break;
 		}
-		if (cp != NULL)
-			break;
 	}
-end:
+
+out:
+	if (best_pp) {
+		cp = vdev_geom_attach(best_pp, vd, B_TRUE);
+		if (cp == NULL) {
+			printf("ZFS WARNING: Unable to attach to %s.\n",
+			    best_pp->name);
+		}
+	}
 	return (cp);
 }
 
@@ -720,7 +750,7 @@ vdev_geom_open_by_guids(vdev_t *vd)
 
 		ZFS_LOG(1, "Attach by guid [%ju:%ju] succeeded, provider %s.",
 		    (uintmax_t)spa_guid(vd->vdev_spa),
-		    (uintmax_t)vd->vdev_guid, vd->vdev_path);
+		    (uintmax_t)vd->vdev_guid, cp->provider->name);
 	} else {
 		ZFS_LOG(1, "Search by guid [%ju:%ju] failed.",
 		    (uintmax_t)spa_guid(vd->vdev_spa),
@@ -742,8 +772,8 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	pp = g_provider_by_name(vd->vdev_path + sizeof("/dev/") - 1);
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
-		if (!check_guid || vdev_attach_ok(vd, pp))
-			cp = vdev_geom_attach(pp, vd);
+		if (!check_guid || vdev_attach_ok(vd, pp) == FULL_MATCH)
+			cp = vdev_geom_attach(pp, vd, B_FALSE);
 	}
 
 	return (cp);
@@ -769,7 +799,14 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		return (EINVAL);
 	}
 
-	vd->vdev_tsd = NULL;
+	/*
+	 * Reopen the device if it's not currently open. Otherwise,
+	 * just update the physical size of the device.
+	 */
+	if ((cp = vd->vdev_tsd) != NULL) {
+		ASSERT(vd->vdev_reopening);
+		goto skip_open;
+	}
 
 	DROP_GIANT();
 	g_topology_lock();
@@ -777,7 +814,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 
 	if (vd->vdev_spa->spa_splitting_newspa ||
 	    (vd->vdev_prevstate == VDEV_STATE_UNKNOWN &&
-	     vd->vdev_spa->spa_load_state == SPA_LOAD_NONE)) {
+	     vd->vdev_spa->spa_load_state == SPA_LOAD_NONE ||
+	     vd->vdev_spa->spa_load_state == SPA_LOAD_CREATE)) {
 		/*
 		 * We are dealing with a vdev that hasn't been previously
 		 * opened (since boot), and we are not loading an
@@ -814,45 +852,67 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	VERIFY(tsd_set(zfs_geom_probe_vdev_key, NULL) == 0);
 
 	if (cp == NULL) {
-		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
+		ZFS_LOG(1, "Vdev %s not found.", vd->vdev_path);
 		error = ENOENT;
-	} else if (cp->provider->sectorsize > VDEV_PAD_SIZE ||
-	    !ISP2(cp->provider->sectorsize)) {
-		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
-		    vd->vdev_path);
+	} else {
+		struct consumer_priv_t *priv;
+		struct consumer_vdev_elem *elem;
+		int spamode;
 
-		vdev_geom_close_locked(vd);
-		error = EINVAL;
-		cp = NULL;
-	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
-		int i;
+		priv = (struct consumer_priv_t*)&cp->private;
+		if (cp->private == NULL)
+			SLIST_INIT(priv);
+		elem = g_malloc(sizeof(*elem), M_WAITOK|M_ZERO);
+		elem->vd = vd;
+		SLIST_INSERT_HEAD(priv, elem, elems);
 
-		for (i = 0; i < 5; i++) {
-			error = g_access(cp, 0, 1, 0);
-			if (error == 0)
-				break;
-			g_topology_unlock();
-			tsleep(vd, 0, "vdev", hz / 2);
-			g_topology_lock();
-		}
-		if (error != 0) {
-			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
-			    vd->vdev_path, error);
+		spamode = spa_mode(vd->vdev_spa);
+		if (cp->provider->sectorsize > VDEV_PAD_SIZE ||
+		    !ISP2(cp->provider->sectorsize)) {
+			ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
+			    cp->provider->name);
+
 			vdev_geom_close_locked(vd);
+			error = EINVAL;
 			cp = NULL;
+		} else if (cp->acw == 0 && (spamode & FWRITE) != 0) {
+			int i;
+
+			for (i = 0; i < 5; i++) {
+				error = g_access(cp, 0, 1, 0);
+				if (error == 0)
+					break;
+				g_topology_unlock();
+				tsleep(vd, 0, "vdev", hz / 2);
+				g_topology_lock();
+			}
+			if (error != 0) {
+				printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
+				    cp->provider->name, error);
+				vdev_geom_close_locked(vd);
+				cp = NULL;
+			}
 		}
 	}
 
 	/* Fetch initial physical path information for this device. */
-	if (cp != NULL)
+	if (cp != NULL) {
 		vdev_geom_attrchanged(cp, "GEOM::physpath");
 	
+		/* Set other GEOM characteristics */
+		vdev_geom_set_physpath(vd, cp, /*do_null_update*/B_FALSE);
+		vdev_geom_set_rotation_rate(vd, cp);
+	}
+
 	g_topology_unlock();
 	PICKUP_GIANT();
 	if (cp == NULL) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
+		vdev_dbgmsg(vd, "vdev_geom_open: failed to open [error=%d]",
+		    error);
 		return (error);
 	}
+skip_open:
 	pp = cp->provider;
 
 	/*
@@ -876,21 +936,24 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 */
 	vd->vdev_nowritecache = B_FALSE;
 
-	/*
-	 * Determine the device's rotation rate.
-	 */
-	vdev_geom_set_rotation_rate(vd, cp);
-
 	return (0);
 }
 
 static void
 vdev_geom_close(vdev_t *vd)
 {
+	struct g_consumer *cp;
+
+	cp = vd->vdev_tsd;
 
 	DROP_GIANT();
 	g_topology_lock();
-	vdev_geom_close_locked(vd);
+
+	if (!vd->vdev_reopening ||
+	    (cp != NULL && ((cp->flags & G_CF_ORPHAN) != 0 ||
+	    (cp->provider != NULL && cp->provider->error != 0))))
+		vdev_geom_close_locked(vd);
+
 	g_topology_unlock();
 	PICKUP_GIANT();
 }
@@ -940,7 +1003,16 @@ vdev_geom_io_intr(struct bio *bp)
 		}
 		break;
 	}
-	g_destroy_bio(bp);
+
+	/*
+	 * We have to split bio freeing into two parts, because the ABD code
+	 * cannot be called in this context and vdev_op_io_done is not called
+	 * for ZIO_TYPE_IOCTL zio-s.
+	 */
+	if (zio->io_type != ZIO_TYPE_READ && zio->io_type != ZIO_TYPE_WRITE) {
+		g_destroy_bio(bp);
+		zio->io_bio = NULL;
+	}
 	zio_delay_interrupt(zio);
 }
 
@@ -1005,10 +1077,17 @@ sendreq:
 	case ZIO_TYPE_READ:
 	case ZIO_TYPE_WRITE:
 		zio->io_target_timestamp = zio_handle_io_delay(zio);
-		bp->bio_cmd = zio->io_type == ZIO_TYPE_READ ? BIO_READ : BIO_WRITE;
-		bp->bio_data = zio->io_data;
 		bp->bio_offset = zio->io_offset;
 		bp->bio_length = zio->io_size;
+		if (zio->io_type == ZIO_TYPE_READ) {
+			bp->bio_cmd = BIO_READ;
+			bp->bio_data =
+			    abd_borrow_buf(zio->io_abd, zio->io_size);
+		} else {
+			bp->bio_cmd = BIO_WRITE;
+			bp->bio_data =
+			    abd_borrow_buf_copy(zio->io_abd, zio->io_size);
+		}
 		break;
 	case ZIO_TYPE_FREE:
 		bp->bio_cmd = BIO_DELETE;
@@ -1025,6 +1104,7 @@ sendreq:
 		break;
 	}
 	bp->bio_done = vdev_geom_io_intr;
+	zio->io_bio = bp;
 
 	g_io_request(bp, cp);
 }
@@ -1032,6 +1112,25 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
+	struct bio *bp = zio->io_bio;
+
+	if (zio->io_type != ZIO_TYPE_READ && zio->io_type != ZIO_TYPE_WRITE) {
+		ASSERT(bp == NULL);
+		return;
+	}
+
+	if (bp == NULL) {
+		ASSERT3S(zio->io_error, ==, ENXIO);
+		return;
+	}
+
+	if (zio->io_type == ZIO_TYPE_READ)
+		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
+	else
+		abd_return_buf(zio->io_abd, bp->bio_data, zio->io_size);
+
+	g_destroy_bio(bp);
+	zio->io_bio = NULL;
 }
 
 static void
@@ -1051,8 +1150,11 @@ vdev_ops_t vdev_geom_ops = {
 	vdev_geom_io_start,
 	vdev_geom_io_done,
 	NULL,
+	NULL,
 	vdev_geom_hold,
 	vdev_geom_rele,
+	NULL,
+	vdev_default_xlate,
 	VDEV_TYPE_DISK,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };

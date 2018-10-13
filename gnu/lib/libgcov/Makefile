@@ -5,9 +5,9 @@ MK_SSP=		no
 
 .include <src.opts.mk>
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
-CCDIR=	${.CURDIR}/../../usr.bin/cc
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
+CCDIR=	${SRCTOP}/gnu/usr.bin/cc
 .include "${CCDIR}/Makefile.tgt"
 .include "${CCDIR}/cc_tools/Makefile.hdrs"
 
@@ -35,7 +35,7 @@ SYMS = _gcov _gcov_merge_add _gcov_merge_single _gcov_merge_delta \
 OBJS=		${SYMS:S/$/.o/}
 OBJS_T=		${SYMS:S/$/.o/}
 OBJS_P=		${SYMS:S/$/.po/}
-OBJS_S=		${SYMS:S/$/.So/}
+OBJS_S=		${SYMS:S/$/.pico/}
 
 #-----------------------------------------------------------------------
 #

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -55,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_mesh.h>
 #endif
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_vht.h>
 
 #include <net/bpf.h>
 
@@ -116,7 +119,7 @@ static void sta_flush_table(struct sta_table *);
 /*
  * match_bss returns a bitmask describing if an entry is suitable
  * for use.  If non-zero the entry was deemed not suitable and it's
- * contents explains why.  The following flags are or'd to to this
+ * contents explains why.  The following flags are or'd to this
  * mask and can be used to figure out why the entry was rejected.
  */
 #define	MATCH_CHANNEL		0x00001	/* channel mismatch */
@@ -325,14 +328,33 @@ found:
 		}
 	} else
 		ise->se_chan = curchan;
+
+	/* VHT demotion */
+	if (IEEE80211_IS_CHAN_VHT(ise->se_chan) && sp->vhtcap == NULL) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_11N,
+		    "%s: demoting VHT->HT %d/0x%08x\n",
+		    __func__, ise->se_chan->ic_freq, ise->se_chan->ic_flags);
+		/* Demote legacy networks to a non-VHT channel. */
+		c = ieee80211_find_channel(ic, ise->se_chan->ic_freq,
+		    ise->se_chan->ic_flags & ~IEEE80211_CHAN_VHT);
+		KASSERT(c != NULL,
+		    ("no non-VHT channel %u", ise->se_chan->ic_ieee));
+		ise->se_chan = c;
+	}
+
+	/* HT demotion */
 	if (IEEE80211_IS_CHAN_HT(ise->se_chan) && sp->htcap == NULL) {
 		/* Demote legacy networks to a non-HT channel. */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_11N,
+		    "%s: demoting HT->legacy %d/0x%08x\n",
+		    __func__, ise->se_chan->ic_freq, ise->se_chan->ic_flags);
 		c = ieee80211_find_channel(ic, ise->se_chan->ic_freq,
 		    ise->se_chan->ic_flags & ~IEEE80211_CHAN_HT);
 		KASSERT(c != NULL,
 		    ("no legacy channel %u", ise->se_chan->ic_ieee));
 		ise->se_chan = c;
 	}
+
 	ise->se_fhdwell = sp->fhdwell;
 	ise->se_fhindex = sp->fhindex;
 	ise->se_erp = sp->erp;
@@ -531,10 +553,11 @@ sweepchannels(struct ieee80211_scan_state *ss, struct ieee80211vap *vap,
 		/*
 		 * Ignore dynamic turbo channels; we scan them
 		 * in normal mode (i.e. not boosted).  Likewise
-		 * for HT channels, they get scanned using
+		 * for HT/VHT channels, they get scanned using
 		 * legacy rates.
 		 */
-		if (IEEE80211_IS_CHAN_DTURBO(c) || IEEE80211_IS_CHAN_HT(c))
+		if (IEEE80211_IS_CHAN_DTURBO(c) || IEEE80211_IS_CHAN_HT(c) ||
+		    IEEE80211_IS_CHAN_VHT(c))
 			continue;
 
 		/*
@@ -819,6 +842,9 @@ maxrate(const struct ieee80211_scan_entry *se)
  * that we assume compatibility/usability has already been checked
  * so we don't need to (e.g. validate whether privacy is supported).
  * Used to select the best scan candidate for association in a BSS.
+ *
+ * TODO: should we take 11n, 11ac into account when selecting the
+ * best?  Right now it just compares frequency band and RSSI.
  */
 static int
 sta_compare(const struct sta_entry *a, const struct sta_entry *b)
@@ -1336,7 +1362,8 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			 * XXX force immediate switch on scan complete
 			 */
 			if (!IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
-			    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle))
+			    ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) ||
+			     ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle)))
 				ieee80211_bg_scan(vap, 0);
 			return;
 		}
@@ -1625,6 +1652,8 @@ notfound:
 				 */
 				chan = ieee80211_ht_adjust_channel(ic,
 				    chan, vap->iv_flags_ht);
+				chan = ieee80211_vht_adjust_channel(ic,
+				    chan, vap->iv_flags_vht);
 				ieee80211_create_ibss(vap, chan);
 				return 1;
 			}
@@ -1656,6 +1685,8 @@ notfound:
 	 */
 	chan = ieee80211_ht_adjust_channel(ic,
 	    chan, vap->iv_flags_ht);
+	chan = ieee80211_vht_adjust_channel(ic,
+	    chan, vap->iv_flags_vht);
 	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */
@@ -1775,7 +1806,7 @@ static int
 ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_channel *bestchan;
+	struct ieee80211_channel *bestchan, *chan;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP,
 		("wrong opmode %u", vap->iv_opmode));
@@ -1807,8 +1838,10 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		ss->ss_flags &= ~IEEE80211_SCAN_NOPICK;
 		return 1;
 	}
-	ieee80211_create_ibss(vap,
-	    ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ht));
+	chan = ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ht);
+	chan = ieee80211_vht_adjust_channel(ic, chan, vap->iv_flags_vht);
+	ieee80211_create_ibss(vap, chan);
+
 	return 1;
 }
 
@@ -1880,10 +1913,14 @@ notfound:
 			    IEEE80211_IS_CHAN_RADAR(vap->iv_des_chan)) {
 				struct ieee80211com *ic = vap->iv_ic;
 
+				/* XXX VHT */
 				chan = adhoc_pick_channel(ss, 0);
-				if (chan != NULL)
+				if (chan != NULL) {
 					chan = ieee80211_ht_adjust_channel(ic,
 					    chan, vap->iv_flags_ht);
+					chan = ieee80211_vht_adjust_channel(ic,
+					    chan, vap->iv_flags_vht);
+					}
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {

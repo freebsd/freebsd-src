@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 #-
-# Copyright (c) 2015 Warner Losh. All Rights Reserved.
-# Copyright (c) 2010-2011 iXsystems, Inc., All rights reserved.
+# Copyright (c) 2015 M. Warner Losh.
+# Copyright (c) 2010-2011 iXsystems, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -65,8 +65,8 @@
 # Long Term
 # o common tooling for creating images for odd-ball platforms
 # o support for boot loaders other than uboot in the image
-#   or via special insturctions
-# o No pony support. Sadly, you cannot have a pony.
+#   or via special instructions
+# o no pony support; sadly, you cannot have a pony
 #
 
 if [ -z $NANO_NAME ]; then
@@ -76,7 +76,7 @@ fi
 NANO_SLICE_FAT_SIZE=32m
 NANO_SLICE_CFG_SIZE=32m
 
-NANO_BOOT2CFG="-P -S115200"
+NANO_BOOT2CFG="-h -S115200"
 
 NANO_RAM_ETCSIZE=8192
 NANO_RAM_TMPVARSIZE=8192
@@ -106,8 +106,6 @@ mkdir -p ${NANO_OBJ}
 NANO_OBJ=$(realpath ${NANO_OBJ})
 mkdir -p ${NANO_LOG}
 NANO_LOG=$(realpath ${NANO_LOG})
-mkdir -p ${NANO_IMAGES}
-NANO_IMAGES=$(realpath ${NANO_IMAGES})
 mkdir -p ${NANO_WORLDDIR}
 NANO_WORLDDIR=$(realpath ${NANO_WORLDDIR})
 mkdir -p ${NANO_DISKIMGDIR}
@@ -132,6 +130,7 @@ customize_cmd cust_install_machine_files
 
 # NB: leave c++ enabled so devd can be built
 CONF_BUILD="
+LOCAL_XTOOL_DIRS=usr.bin/mkimg
 WITHOUT_ACPI=true
 WITHOUT_ATM=true
 WITHOUT_AUDIT=true
@@ -161,7 +160,6 @@ WITHOUT_NLS=true
 WITHOUT_NS_CACHING=true
 WITHOUT_OBJC=true
 WITHOUT_PROFILE=true
-WITHOUT_RCMDS=true
 WITHOUT_SENDMAIL=true
 WITHOUT_SHAREDOCS=true
 WITHOUT_SYSCONS=true
@@ -201,12 +199,19 @@ create_diskimage_gpt ( ) (
 
 create_diskimage_mbr ( ) (
 
+	local fmt
+
+	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
+
 	pprint 2 "build diskimage ${NANO_NAME}"
 	pprint 3 "log: ${NANO_LOG}/_.di"
+	pprint 3 "image in: ${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}"
 
 	(
 	local extra i sz fmt fmtarg bootmbr bootbsd skiparg
 	set -o xtrace
+	# Tell mtools not to be too picky
+	export MTOOLS_SKIP_CHECK=1
 
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmtarg="-f ${NANO_DISKIMAGE_FORMAT}"
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
@@ -275,7 +280,7 @@ create_diskimage_mbr ( ) (
 	out=${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}
 	# below depends on https://reviews.freebsd.org/D4403 not yet in the tree
 	# but there's problems: it marks all partitions as active, so you have to
-	# boot off parittion 3 or 2 by hand if you're playing around with this WIP
+	# boot off partition 3 or 2 by hand if you're playing around with this WIP
 	case ${NANO_LAYOUT} in
 	std-embedded)
 		mkimg -a 3 ${skiparg} ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
@@ -284,11 +289,13 @@ create_diskimage_mbr ( ) (
 			-o ${out}
 		;;
 	std-x86)
-		# s1 is cfg, s2 is /, not sure how to make that
-		# boot (marked as active) with mkimg yet
-		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
-			-p ${s2}:=${NANO_LOG}/_.s2 \
+		# s3 is cfg, s1 is /, s2 is other / (s2 is created in first boot script)
+		mkimg -a 1 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
+			-p- \
+			-p ${s3}:=${NANO_LOG}/_.s3 \
 			-o ${out}
+
+
 		;;
 	std-uefi)
 		# s1 is boot, s2 is cfg, s3 is /, not sure how to make that
@@ -335,8 +342,8 @@ die( ) {
 # Automatically include the packaging port here so it is always first so it
 # builds the port and adds the package so we can add other packages.
 #XXX Doesn't work for cross build, so punting until I can integreate qemu-static
-#XXX or poudere, both of which require priv'd execution. Or qemu-system, which
-#XXX is super, super slow.
+#XXX or poudriere, both of which require priv'd execution. Or qemu-system,
+#XXX which is super, super slow.
 #add_port ports-mgmt/pkg
 #add_port security/sudo
 #add_port ftp/curl
@@ -472,6 +479,7 @@ dos_boot_part ( ) (
 )
 
 if [ -n "$NANO_BOOT_PKG" ]; then
+	d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
 	if [ ! -d ${d} ]; then
 		echo ${NANO_BOOT_PKG} not installed. Sadly, it must be.
 		exit 1
@@ -484,7 +492,7 @@ if [ -n "$NANO_BOOT_PKG" ]; then
 fi
 
 product_custom ( ) (
-	# not quie ready to tweak these in nopriv build
+	# not quite ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
 		chown -R root:wheel ${NANO_WORLDDIR}/root
@@ -520,11 +528,10 @@ std_amd64 ( ) {
 std_arm ( ) {
 }
 
-std_armeb ( ) {
-	NANO_ENDIAN=big
+std_armv6 ( ) {
 }
 
-std_armv6 ( ) {
+std_armv7 ( ) {
 }
 
 std_i386 ( ) {
@@ -605,17 +612,23 @@ std-embedded)
 	NANO_SLICE_CFG=s2
 	NANO_SLICE_ROOT=s3
 	NANO_SLICE_ALTROOT=s4
+	NANO_ROOT=${NANO_SLICE_ROOT}a
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 std-x86)
-	NANO_SLICE_CFG=s1
-	NANO_SLICE_ROOT=s2
-	NANO_SLICE_ALTROOT=s3
+	NANO_SLICE_CFG=s3
+	NANO_SLICE_ROOT=s1
+	NANO_SLICE_ALTROOT=s2
+	NANO_ROOT=${NANO_SLICE_ROOT}a
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 powerpc64-ibm)
 	NANO_SLICE_PPCBOOT=s1
 	NANO_SLICE_CFG=s2
 	NANO_SLICE_ROOT=s3
 	NANO_SLICE_ALTROOT=s4
+	NANO_ROOT=${NANO_SLICE_ROOT}a
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 powerpc64-apple)
 	echo Not yet
@@ -626,6 +639,8 @@ std-uefi)
 	NANO_SLICE_CFG=s2
 	NANO_SLICE_ROOT=s3
 	NANO_SLICE_ALTROOT=s4
+	NANO_ROOT=${NANO_SLICE_ROOT}
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}
 	;;
 std-uefi-bios)
 	NANO_DISK_SCHEME=gpt
@@ -634,7 +649,6 @@ std-uefi-bios)
 	NANO_SLICE_CFG=p3
 	NANO_SLICE_ROOT=p4
 	NANO_SLICE_ALTROOT=p5
-	# override root name
 	NANO_ROOT=${NANO_SLICE_ROOT}
 	NANO_ALTROOT=${NANO_SLICE_ALTROOT}
 	;;
@@ -653,3 +667,8 @@ NANO_SLICE_DATA=		# Not included
 create_diskimage ( ) (
 	eval create_diskimage_${NANO_DISK_SCHEME}
 )
+
+# Set the path to the same path we use for buldworld to use latest mkimg
+NANO_TARGET=$(cd ${NANO_SRC}; ${NANO_MAKE} TARGET_ARCH=${NANO_ARCH} -V _TARGET)
+NANO_TMPPATH=$(cd ${NANO_SRC}; ${NANO_MAKE} MK_AUTO_OBJ=no TARGET=${NANO_TARGET} TARGET_ARCH=${NANO_ARCH} -f Makefile.inc1 buildenv -V TMPPATH)
+export PATH="${NANO_TMPPATH}"

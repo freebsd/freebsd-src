@@ -117,7 +117,6 @@
 		encoding="SJIS eucJP"
 		countries="JP" />
 	<language name="kk"
-		family="Cyrl"
 		countries="KZ" />  <!-- PT154 not available, UTF-8 -->
 	<language name="ko"
 		encoding="eucKR"
@@ -130,7 +129,6 @@
 		encoding="ISO8859-13"
 		countries="LV" />
 	<language name="mn"
-		family="Cyrl"
 		countries="MN" />
 	<language name="nb"
 		encoding="ISO8859-1 ISO8859-15"
@@ -202,7 +200,7 @@
 	<translation encoding="ISO8859-13" cldr="EURO SIGN" string="Eu" />
 
 	<!-- Minus and dashes -->
-	<translation encoding="ISO8859-1 ISO8859-4 ISO8859-13 ISO8859-15"
+	<translation encoding="ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-13 ISO8859-15"
 	    cldr="MINUS SIGN" unicode="HYPHEN-MINUS" />
 	<translation encoding="ISO8859-2"
 	    cldr="EN DASH" unicode="HYPHEN-MINUS" />
@@ -393,6 +391,10 @@
 	<translation encoding="CP1251" cldr="HRYVNIA SIGN" hex="E3F0ED" />
 	<translation encoding="ISO8859-5" cldr="HRYVNIA SIGN" hex="D3E0DD" />
 	<translation encoding="KOI8-U" cldr="HRYVNIA SIGN" hex="C7D2CE" />
+	<translation encoding="CP866" cldr="RUBLE SIGN" hex="E0E3A1" />
+	<translation encoding="ISO8859-5" cldr="RUBLE SIGN" hex="E0E3D1" />
+	<translation encoding="CP1251" cldr="RUBLE SIGN" hex="E0E3D1" />
+	<translation encoding="KOI8-R" cldr="RUBLE SIGN" hex="D2D5C2" />
 
 	<!-- These don't have a special Kow sign so just use KRW for it -->
 	<translation encoding="CP949" cldr="WON SIGN" hex="5C" />

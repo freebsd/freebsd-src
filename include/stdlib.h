@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,6 +38,8 @@
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+
+__NULLABILITY_PRAGMA_PUSH
 
 #if __BSD_VISIBLE
 #ifndef _RUNE_T_DECLARED
@@ -77,18 +81,18 @@ __BEGIN_DECLS
 #endif
 extern int __mb_cur_max;
 extern int ___mb_cur_max(void);
-#define	MB_CUR_MAX	(___mb_cur_max())
+#define	MB_CUR_MAX	((size_t)___mb_cur_max())
 
 _Noreturn void	 abort(void);
 int	 abs(int) __pure2;
-int	 atexit(void (*)(void));
+int	 atexit(void (* _Nonnull)(void));
 double	 atof(const char *);
 int	 atoi(const char *);
 long	 atol(const char *);
 void	*bsearch(const void *, const void *, size_t,
-	    size_t, int (*)(const void *, const void *));
+	    size_t, int (*)(const void * _Nonnull, const void *));
 void	*calloc(size_t, size_t) __malloc_like __result_use_check
-	     __alloc_size(1) __alloc_size(2);
+	     __alloc_size2(1, 2);
 div_t	 div(int, int) __pure2;
 _Noreturn void	 exit(int);
 void	 free(void *);
@@ -100,7 +104,7 @@ int	 mblen(const char *, size_t);
 size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
 void	 qsort(void *, size_t, size_t,
-	    int (*)(const void *, const void *));
+	    int (* _Nonnull)(const void *, const void *));
 int	 rand(void);
 void	*realloc(void *, size_t) __result_use_check __alloc_size(2);
 void	 srand(unsigned);
@@ -172,8 +176,7 @@ char	*realpath(const char * __restrict, char * __restrict);
 int	 rand_r(unsigned *);			/* (TSF) */
 #endif
 #if __POSIX_VISIBLE >= 200112
-int	 posix_memalign(void **, size_t, size_t) __nonnull(1) __alloc_align(2)
-	    __alloc_size(3);			/* (ADV) */
+int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 setenv(const char *, const char *, int);
 int	 unsetenv(const char *);
 #endif
@@ -205,7 +208,7 @@ double	 erand48(unsigned short[3]);
 /* char	*fcvt(double, int, int * __restrict, int * __restrict); */
 /* char	*gcvt(double, int, int * __restrict, int * __restrict); */
 int	 grantpt(int);
-char	*initstate(unsigned long /* XSI requires u_int */, char *, long);
+char	*initstate(unsigned int, char *, size_t);
 long	 jrand48(unsigned short[3]);
 char	*l64a(long);
 void	 lcong48(unsigned short[7]);
@@ -222,13 +225,9 @@ int	 putenv(char *);
 long	 random(void);
 unsigned short
 	*seed48(unsigned short[3]);
-#ifndef _SETKEY_DECLARED
-int	 setkey(const char *);
-#define	_SETKEY_DECLARED
-#endif
 char	*setstate(/* const */ char *);
 void	 srand48(long);
-void	 srandom(unsigned long);
+void	 srandom(unsigned int);
 int	 unlockpt(int);
 #endif /* __XSI_VISIBLE */
 
@@ -239,31 +238,26 @@ extern void (*malloc_message)(void *, const char *);
 /*
  * The alloca() function can't be implemented in C, and on some
  * platforms it can't be implemented at all as a callable function.
- * The GNU C compiler provides a built-in alloca() which we can use;
- * in all other cases, provide a prototype, mainly to pacify various
- * incarnations of lint.  On platforms where alloca() is not in libc,
- * programs which use it will fail to link when compiled with non-GNU
- * compilers.
+ * The GNU C compiler provides a built-in alloca() which we can use.
+ * On platforms where alloca() is not in libc, programs which use it
+ * will fail to link when compiled with non-GNU compilers.
  */
 #if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
 #undef  alloca	/* some GNU bits try to get cute and define this on their own */
 #define alloca(sz) __builtin_alloca(sz)
-#elif defined(lint)
-void	*alloca(size_t);
 #endif
 
 void	 abort2(const char *, int, void **) __dead2;
 __uint32_t
 	 arc4random(void);
-void	 arc4random_addrandom(unsigned char *, int);
 void	 arc4random_buf(void *, size_t);
-void	 arc4random_stir(void);
 __uint32_t 
 	 arc4random_uniform(__uint32_t);
+
 #ifdef __BLOCKS__
-int	 atexit_b(void (^)(void));
+int	 atexit_b(void (^ _Nonnull)(void));
 void	*bsearch_b(const void *, const void *, size_t,
-	    size_t, int (^)(const void *, const void *));
+	    size_t, int (^ _Nonnull)(const void *, const void *));
 #endif
 char	*getbsize(int *, long *);
 					/* getcap(3) functions */
@@ -279,6 +273,7 @@ int	 cgetstr(char *, const char *, char **);
 int	 cgetustr(char *, const char *, char **);
 
 int	 daemon(int, int);
+int	 daemonfd(int, int);
 char	*devname(__dev_t, __mode_t);
 char	*devname_r(__dev_t, __mode_t, char *, int);
 char	*fdevname(int);
@@ -287,11 +282,13 @@ int	 getloadavg(double [], int);
 const char *
 	 getprogname(void);
 
-int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+int	 heapsort(void *, size_t, size_t,
+	    int (* _Nonnull)(const void *, const void *));
 #ifdef __BLOCKS__
-int	 heapsort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+int	 heapsort_b(void *, size_t, size_t,
+	    int (^ _Nonnull)(const void *, const void *));
 void	 qsort_b(void *, size_t, size_t,
-	    int (^)(const void *, const void *));
+	    int (^ _Nonnull)(const void *, const void *));
 #endif
 int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
@@ -304,9 +301,9 @@ void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
-void	*reallocarray(void *, size_t, size_t) __result_use_check __alloc_size(2)
-	    __alloc_size(3);
-void	*reallocf(void *, size_t) __alloc_size(2);
+void	*reallocarray(void *, size_t, size_t) __result_use_check
+	    __alloc_size2(2, 3);
+void	*reallocf(void *, size_t) __result_use_check __alloc_size(2);
 int	 rpmatch(const char *);
 void	 setprogname(const char *);
 int	 sradixsort(const unsigned char **, int, const unsigned char *,
@@ -316,7 +313,7 @@ void	 srandomdev(void);
 long long
 	strtonum(const char *, long long, long long, const char **);
 
-/* Deprecated interfaces, to be removed in FreeBSD 6.0. */
+/* Deprecated interfaces, to be removed. */
 __int64_t
 	 strtoq(const char *, char **, int);
 __uint64_t
@@ -324,6 +321,27 @@ __uint64_t
 
 extern char *suboptarg;			/* getsubopt(3) external variable */
 #endif /* __BSD_VISIBLE */
+
+#if __EXT1_VISIBLE
+
+#ifndef _ERRNO_T_DEFINED
+#define _ERRNO_T_DEFINED
+typedef int errno_t;
+#endif
+
+/* K.3.6 */
+typedef void (*constraint_handler_t)(const char * __restrict,
+    void * __restrict, errno_t);
+/* K.3.6.1.1 */
+constraint_handler_t set_constraint_handler_s(constraint_handler_t handler);
+/* K.3.6.1.2 */
+_Noreturn void abort_handler_s(const char * __restrict, void * __restrict,
+    errno_t);
+/* K3.6.1.3 */
+void ignore_handler_s(const char * __restrict, void * __restrict, errno_t);
+#endif /* __EXT1_VISIBLE */
+
 __END_DECLS
+__NULLABILITY_PRAGMA_POP
 
 #endif /* !_STDLIB_H_ */

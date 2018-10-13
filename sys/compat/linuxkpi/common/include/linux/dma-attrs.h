@@ -38,7 +38,7 @@ enum dma_attr { DMA_ATTR_WRITE_BARRIER, DMA_ATTR_WEAK_ORDERING, DMA_ATTR_MAX, };
 struct dma_attrs {
 	unsigned long flags;
 };
- 
+
 #define DEFINE_DMA_ATTRS(x) struct dma_attrs x = { }
 
 static inline void

@@ -14,6 +14,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * 1. Redistributions of source code must retain the
  * Copyright (c) 2000 Roger Hardiman
  * All rights reserved.

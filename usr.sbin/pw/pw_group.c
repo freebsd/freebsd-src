@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -282,7 +284,7 @@ int
 pw_group_show(int argc, char **argv, char *arg1)
 {
 	struct group *grp = NULL;
-	char *name;
+	char *name = NULL;
 	intmax_t id = -1;
 	int ch;
 	bool all, force, quiet, pretty;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
  *
@@ -43,14 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
 
 #define INTC_REVISION		0x00
 #define INTC_SYSCONFIG		0x10
@@ -68,12 +67,10 @@ __FBSDID("$FreeBSD$");
 
 #define INTC_NIRQS	128
 
-#ifdef INTRNG
 struct ti_aintc_irqsrc {
 	struct intr_irqsrc	tai_isrc;
 	u_int			tai_irq;
 };
-#endif
 
 struct ti_aintc_softc {
 	device_t		sc_dev;
@@ -81,17 +78,13 @@ struct ti_aintc_softc {
 	bus_space_tag_t		aintc_bst;
 	bus_space_handle_t	aintc_bsh;
 	uint8_t			ver;
-#ifdef INTRNG
 	struct ti_aintc_irqsrc	aintc_isrcs[INTC_NIRQS];
-#endif
 };
 
 static struct resource_spec ti_aintc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-static struct ti_aintc_softc *ti_aintc_sc = NULL;
 
 #define	aintc_read_4(_sc, reg)		\
     bus_space_read_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg))
@@ -105,7 +98,6 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,		 	0},
 };
 
-#ifdef INTRNG
 static inline void
 ti_aintc_irq_eoi(struct ti_aintc_softc *sc)
 {
@@ -244,16 +236,6 @@ ti_aintc_pic_attach(struct ti_aintc_softc *sc)
 	return (intr_pic_claim_root(sc->sc_dev, xref, ti_aintc_intr, sc, 0));
 }
 
-#else
-static void
-aintc_post_filter(void *arg)
-{
-
-	arm_irq_memory_barrier(0);
-	aintc_write_4(ti_aintc_sc, INTC_CONTROL, 1); /* EOI */
-}
-#endif
-
 static int
 ti_aintc_probe(device_t dev)
 {
@@ -275,9 +257,6 @@ ti_aintc_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	if (ti_aintc_sc)
-		return (ENXIO);
-
 	if (bus_alloc_resources(dev, ti_aintc_spec, sc->aintc_res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -285,8 +264,6 @@ ti_aintc_attach(device_t dev)
 
 	sc->aintc_bst = rman_get_bustag(sc->aintc_res[0]);
 	sc->aintc_bsh = rman_get_bushandle(sc->aintc_res[0]);
-
-	ti_aintc_sc = sc;
 
 	x = aintc_read_4(sc, INTC_REVISION);
 	device_printf(dev, "Revision %u.%u\n",(x >> 4) & 0xF, x & 0xF);
@@ -300,14 +277,10 @@ ti_aintc_attach(device_t dev)
 	/*Set Priority Threshold */
 	aintc_write_4(sc, INTC_THRESHOLD, 0xFF);
 
-#ifndef INTRNG
-	arm_post_filter = aintc_post_filter;
-#else
 	if (ti_aintc_pic_attach(sc) != 0) {
 		device_printf(dev, "could not attach PIC\n");
 		return (ENXIO);
 	}
-#endif
 	return (0);
 }
 
@@ -315,69 +288,24 @@ static device_method_t ti_aintc_methods[] = {
 	DEVMETHOD(device_probe,		ti_aintc_probe),
 	DEVMETHOD(device_attach,	ti_aintc_attach),
 
-#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	ti_aintc_disable_intr),
 	DEVMETHOD(pic_enable_intr,	ti_aintc_enable_intr),
 	DEVMETHOD(pic_map_intr,		ti_aintc_map_intr),
 	DEVMETHOD(pic_post_filter,	ti_aintc_post_filter),
 	DEVMETHOD(pic_post_ithread,	ti_aintc_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	ti_aintc_pre_ithread),
-#endif
 
 	{ 0, 0 }
 };
 
 static driver_t ti_aintc_driver = {
-	"aintc",
+	"ti_aintc",
 	ti_aintc_methods,
 	sizeof(struct ti_aintc_softc),
 };
 
 static devclass_t ti_aintc_devclass;
 
-EARLY_DRIVER_MODULE(aintc, simplebus, ti_aintc_driver, ti_aintc_devclass,
+EARLY_DRIVER_MODULE(ti_aintc, simplebus, ti_aintc_driver, ti_aintc_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 SIMPLEBUS_PNP_INFO(compat_data);
-
-#ifndef INTRNG
-int
-arm_get_next_irq(int last_irq)
-{
-	struct ti_aintc_softc *sc = ti_aintc_sc;
-	uint32_t active_irq;
-
-	/* Get the next active interrupt */
-	active_irq = aintc_read_4(sc, INTC_SIR_IRQ);
-
-	/* Check for spurious interrupt */
-	if ((active_irq & 0xffffff80)) {
-		device_printf(sc->sc_dev,
-		    "Spurious interrupt detected (0x%08x)\n", active_irq);
-		aintc_write_4(sc, INTC_SIR_IRQ, 0);
-		return -1;
-	}
-
-	if (active_irq != last_irq)
-		return active_irq;
-	else
-		return -1;
-}
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-	struct ti_aintc_softc *sc = ti_aintc_sc;
-
-	aintc_write_4(sc, INTC_MIR_SET(nb >> 5), (1UL << (nb & 0x1F)));
-	aintc_write_4(sc, INTC_CONTROL, 1); /* EOI */
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	struct ti_aintc_softc *sc = ti_aintc_sc;
-
-	arm_irq_memory_barrier(nb);
-	aintc_write_4(sc, INTC_MIR_CLEAR(nb >> 5), (1UL << (nb & 0x1F)));
-}
-#endif

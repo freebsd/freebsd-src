@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -39,11 +41,21 @@ typedef	__uint32_t	fenv_t;
 typedef	__uint32_t	fexcept_t;
 
 /* Exception flags */
+#ifdef __mips_soft_float
+#define	_FPUSW_SHIFT	16
 #define	FE_INVALID	0x0001
 #define	FE_DIVBYZERO	0x0002
 #define	FE_OVERFLOW	0x0004
 #define	FE_UNDERFLOW	0x0008
 #define	FE_INEXACT	0x0010
+#else
+#define	_FCSR_CAUSE_SHIFT	10
+#define	FE_INVALID	0x0040
+#define	FE_DIVBYZERO	0x0020
+#define	FE_OVERFLOW	0x0010
+#define	FE_UNDERFLOW	0x0008
+#define	FE_INEXACT	0x0004
+#endif
 #define	FE_ALL_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | \
 			 FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW)
 
@@ -61,104 +73,139 @@ extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
 /* We need to be able to map status flag positions to mask flag positions */
-#define _FPUSW_SHIFT	16
-#define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
+#define	_ENABLE_SHIFT	5
+#define	_ENABLE_MASK	(FE_ALL_EXCEPT << _ENABLE_SHIFT)
 
-#ifdef	ARM_HARD_FLOAT
-#define	__rfs(__fpsr)	__asm __volatile("rfs %0" : "=r" (*(__fpsr)))
-#define	__wfs(__fpsr)	__asm __volatile("wfs %0" : : "r" (__fpsr))
-#else
-#define __rfs(__fpsr)
-#define __wfs(__fpsr)
+#if !defined(__mips_soft_float) && !defined(__mips_hard_float)
+#error compiler didnt set soft/hard float macros
 #endif
 
+#ifndef	__mips_soft_float
+#define	__cfc1(__fcsr)	__asm __volatile("cfc1 %0, $31" : "=r" (__fcsr))
+#define	__ctc1(__fcsr)	__asm __volatile("ctc1 %0, $31" :: "r" (__fcsr))
+#endif
+
+#ifdef __mips_soft_float
+int feclearexcept(int __excepts);
+int fegetexceptflag(fexcept_t *__flagp, int __excepts);
+int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
+int feraiseexcept(int __excepts);
+int fetestexcept(int __excepts);
+int fegetround(void);
+int fesetround(int __round);
+int fegetenv(fenv_t *__envp);
+int feholdexcept(fenv_t *__envp);
+int fesetenv(const fenv_t *__envp);
+int feupdateenv(const fenv_t *__envp);
+#else
 __fenv_static inline int
 feclearexcept(int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t fcsr;
 
-	__rfs(&__fpsr);
-	__fpsr &= ~__excepts;
-	__wfs(__fpsr);
+	__excepts &= FE_ALL_EXCEPT;
+	__cfc1(fcsr);
+	fcsr &= ~(__excepts | (__excepts << _FCSR_CAUSE_SHIFT));
+	__ctc1(fcsr);
+
 	return (0);
 }
 
 __fenv_static inline int
 fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t fcsr;
 
-	__rfs(&__fpsr);
-	*__flagp = __fpsr & __excepts;
+	__excepts &= FE_ALL_EXCEPT;
+	__cfc1(fcsr);
+	*__flagp = fcsr & __excepts;
+
 	return (0);
 }
 
 __fenv_static inline int
 fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t fcsr;
 
-	__rfs(&__fpsr);
-	__fpsr &= ~__excepts;
-	__fpsr |= *__flagp & __excepts;
-	__wfs(__fpsr);
+	__excepts &= FE_ALL_EXCEPT;
+	__cfc1(fcsr);
+	fcsr &= ~__excepts;
+	fcsr |= *__flagp & __excepts;
+	__ctc1(fcsr);
+
 	return (0);
 }
 
 __fenv_static inline int
 feraiseexcept(int __excepts)
 {
-	fexcept_t __ex = __excepts;
+	fexcept_t fcsr;
 
-	fesetexceptflag(&__ex, __excepts);	/* XXX */
+	__excepts &= FE_ALL_EXCEPT;
+	__cfc1(fcsr);
+	fcsr |= __excepts | (__excepts << _FCSR_CAUSE_SHIFT);
+	__ctc1(fcsr);
+
 	return (0);
 }
 
 __fenv_static inline int
 fetestexcept(int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t fcsr;
 
-	__rfs(&__fpsr);
-	return (__fpsr & __excepts);
+	__excepts &= FE_ALL_EXCEPT;
+	__cfc1(fcsr);
+
+	return (fcsr & __excepts);
 }
 
 __fenv_static inline int
 fegetround(void)
 {
+	fexcept_t fcsr;
 
-	/*
-	 * Apparently, the rounding mode is specified as part of the
-	 * instruction format on ARM, so the dynamic rounding mode is
-	 * indeterminate.  Some FPUs may differ.
-	 */
-	return (-1);
+	__cfc1(fcsr);
+
+	return (fcsr & _ROUND_MASK);
 }
 
 __fenv_static inline int
 fesetround(int __round)
 {
+	fexcept_t fcsr;
 
-	return (-1);
+	if (__round & ~_ROUND_MASK)
+		return (-1);
+
+	__cfc1(fcsr);
+	fcsr &= ~_ROUND_MASK;
+	fcsr |= __round;
+	__ctc1(fcsr);
+
+	return (0);
 }
 
 __fenv_static inline int
 fegetenv(fenv_t *__envp)
 {
 
-	__rfs(__envp);
+	__cfc1(*__envp);
+
 	return (0);
 }
 
 __fenv_static inline int
 feholdexcept(fenv_t *__envp)
 {
-	fenv_t __env;
+	fexcept_t fcsr;
 
-	__rfs(&__env);
-	*__envp = __env;
-	__env &= ~(FE_ALL_EXCEPT | _ENABLE_MASK);
-	__wfs(__env);
+	__cfc1(fcsr);
+	*__envp = fcsr;
+	fcsr &= ~(FE_ALL_EXCEPT | _ENABLE_MASK);
+	__ctc1(fcsr);
+
 	return (0);
 }
 
@@ -166,55 +213,68 @@ __fenv_static inline int
 fesetenv(const fenv_t *__envp)
 {
 
-	__wfs(*__envp);
+	__ctc1(*__envp);
+
 	return (0);
 }
 
 __fenv_static inline int
 feupdateenv(const fenv_t *__envp)
 {
-	fexcept_t __fpsr;
+	fexcept_t fcsr;
 
-	__rfs(&__fpsr);
-	__wfs(*__envp);
-	feraiseexcept(__fpsr & FE_ALL_EXCEPT);
+	__cfc1(fcsr);
+	fesetenv(__envp);
+	feraiseexcept(fcsr);
+
 	return (0);
 }
+#endif /* !__mips_soft_float */
 
 #if __BSD_VISIBLE
 
 /* We currently provide no external definitions of the functions below. */
 
+#ifdef __mips_soft_float
+int feenableexcept(int __mask);
+int fedisableexcept(int __mask);
+int fegetexcept(void);
+#else
 static inline int
 feenableexcept(int __mask)
 {
-	fenv_t __old_fpsr, __new_fpsr;
+	fenv_t __old_fcsr, __new_fcsr;
 
-	__rfs(&__old_fpsr);
-	__new_fpsr = __old_fpsr | (__mask & FE_ALL_EXCEPT) << _FPUSW_SHIFT;
-	__wfs(__new_fpsr);
-	return ((__old_fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
+	__cfc1(__old_fcsr);
+	__new_fcsr = __old_fcsr | (__mask & FE_ALL_EXCEPT) << _ENABLE_SHIFT;
+	__ctc1(__new_fcsr);
+
+	return ((__old_fcsr >> _ENABLE_SHIFT) & FE_ALL_EXCEPT);
 }
 
 static inline int
 fedisableexcept(int __mask)
 {
-	fenv_t __old_fpsr, __new_fpsr;
+	fenv_t __old_fcsr, __new_fcsr;
 
-	__rfs(&__old_fpsr);
-	__new_fpsr = __old_fpsr & ~((__mask & FE_ALL_EXCEPT) << _FPUSW_SHIFT);
-	__wfs(__new_fpsr);
-	return ((__old_fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
+	__cfc1(__old_fcsr);
+	__new_fcsr = __old_fcsr & ~((__mask & FE_ALL_EXCEPT) << _ENABLE_SHIFT);
+	__ctc1(__new_fcsr);
+
+	return ((__old_fcsr >> _ENABLE_SHIFT) & FE_ALL_EXCEPT);
 }
 
 static inline int
 fegetexcept(void)
 {
-	fenv_t __fpsr;
+	fexcept_t fcsr;
 
-	__rfs(&__fpsr);
-	return ((__fpsr & _ENABLE_MASK) >> _FPUSW_SHIFT);
+	__cfc1(fcsr);
+
+	return ((fcsr & _ENABLE_MASK) >> _ENABLE_SHIFT);
 }
+
+#endif /* !__mips_soft_float */
 
 #endif /* __BSD_VISIBLE */
 

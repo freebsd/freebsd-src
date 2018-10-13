@@ -27,6 +27,8 @@ __FBSDID("$FreeBSD$");
  * http://www.ralinktech.com.tw/
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -165,6 +167,8 @@ static int		rum_cmd_sleepable(struct rum_softc *, const void *,
 			    size_t, uint8_t, CMD_FUNC_PROTO);
 static void		rum_tx_free(struct rum_tx_data *, int);
 static void		rum_setup_tx_list(struct rum_softc *);
+static void		rum_reset_tx_list(struct rum_softc *,
+			    struct ieee80211vap *);
 static void		rum_unsetup_tx_list(struct rum_softc *);
 static void		rum_beacon_miss(struct ieee80211vap *);
 static void		rum_sta_recv_mgmt(struct ieee80211_node *,
@@ -723,12 +727,22 @@ rum_vap_delete(struct ieee80211vap *vap)
 {
 	struct rum_vap *rvp = RUM_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
+	struct rum_softc *sc = ic->ic_softc;
 
-	m_freem(rvp->bcn_mbuf);
+	/* Put vap into INIT state. */
+	ieee80211_new_state(vap, IEEE80211_S_INIT, -1);
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+
+	RUM_LOCK(sc);
+	/* Cancel any unfinished Tx. */
+	rum_reset_tx_list(sc, vap);
+	RUM_UNLOCK(sc);
+
 	usb_callout_drain(&rvp->ratectl_ch);
 	ieee80211_draintask(ic, &rvp->ratectl_task);
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
+	m_freem(rvp->bcn_mbuf);
 	free(rvp, M_80211_VAP);
 }
 
@@ -812,6 +826,30 @@ rum_setup_tx_list(struct rum_softc *sc)
 		data->sc = sc;
 		STAILQ_INSERT_TAIL(&sc->tx_free, data, next);
 		sc->tx_nfree++;
+	}
+}
+
+static void
+rum_reset_tx_list(struct rum_softc *sc, struct ieee80211vap *vap)
+{
+	struct rum_tx_data *data, *tmp;
+
+	KASSERT(vap != NULL, ("%s: vap is NULL\n", __func__));
+
+	STAILQ_FOREACH_SAFE(data, &sc->tx_q, next, tmp) {
+		if (data->ni != NULL && data->ni->ni_vap == vap) {
+			ieee80211_free_node(data->ni);
+			data->ni = NULL;
+
+			KASSERT(data->m != NULL, ("%s: m is NULL\n",
+			    __func__));
+			m_freem(data->m);
+			data->m = NULL;
+
+			STAILQ_REMOVE(&sc->tx_q, data, rum_tx_data, next);
+			STAILQ_INSERT_TAIL(&sc->tx_free, data, next);
+			sc->tx_nfree++;
+		}
 	}
 }
 
@@ -1082,7 +1120,6 @@ tr_setup:
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
-				rum_get_tsf(sc, &tap->wt_tsf);
 				tap->wt_antenna = sc->tx_ant;
 
 				ieee80211_radiotap_tx(vap, m);
@@ -1151,7 +1188,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		if (len < (int)(RT2573_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
+		if (len < RT2573_RX_DESC_SIZE) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
 			counter_u64_add(ic->ic_ierrors, 1);
@@ -1165,6 +1202,20 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		rssi = rum_get_rssi(sc, sc->sc_rx_desc.rssi);
 		flags = le32toh(sc->sc_rx_desc.flags);
 		sc->last_rx_flags = flags;
+		if (len < ((flags >> 16) & 0xfff)) {
+			DPRINTFN(5, "%s: frame is truncated from %d to %d "
+			    "bytes\n", device_get_nameunit(sc->sc_dev),
+			    (flags >> 16) & 0xfff, len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto tr_setup;
+		}
+		len = (flags >> 16) & 0xfff;
+		if (len < sizeof(struct ieee80211_frame_ack)) {
+			DPRINTFN(5, "%s: frame too short %d\n",
+			    device_get_nameunit(sc->sc_dev), len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto tr_setup;
+		}
 		if (flags & RT2573_RX_CRC_ERROR) {
 			/*
 		         * This should not happen since we did not
@@ -1191,7 +1242,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			goto tr_setup;
 		}
 
-		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		m = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF("could not allocate mbuf\n");
 			counter_u64_add(ic->ic_ierrors, 1);
@@ -1210,7 +1261,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 
 		/* finalize mbuf */
-		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
+		m->m_pkthdr.len = m->m_len = len;
 
 		if (ieee80211_radiotap_active(ic)) {
 			struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -1370,37 +1421,25 @@ rum_sendprot(struct rum_softc *sc,
     const struct mbuf *m, struct ieee80211_node *ni, int prot, int rate)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	const struct ieee80211_frame *wh;
 	struct rum_tx_data *data;
 	struct mbuf *mprot;
-	int protrate, pktlen, flags, isshort;
-	uint16_t dur;
+	int protrate, flags;
 
 	RUM_LOCK_ASSERT(sc);
-	KASSERT(prot == IEEE80211_PROT_RTSCTS || prot == IEEE80211_PROT_CTSONLY,
-	    ("protection %d", prot));
 
-	wh = mtod(m, const struct ieee80211_frame *);
-	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
-
-	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
-
-	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-	flags = 0;
-	if (prot == IEEE80211_PROT_RTSCTS) {
-		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-		flags |= RT2573_TX_NEED_ACK;
-		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
-	} else {
-		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
-	}
+	mprot = ieee80211_alloc_prot(ni, m, rate, prot);
 	if (mprot == NULL) {
-		/* XXX stat + msg */
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		device_printf(sc->sc_dev,
+		    "could not allocate mbuf for protection mode %d\n", prot);
 		return (ENOBUFS);
 	}
+
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	flags = 0;
+	if (prot == IEEE80211_PROT_RTSCTS)
+		flags |= RT2573_TX_NEED_ACK;
+
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
@@ -1454,11 +1493,10 @@ rum_tx_crypto_flags(struct rum_softc *sc, struct ieee80211_node *ni,
 static int
 rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct rum_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
@@ -1487,8 +1525,6 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
-
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2573_TX_NEED_ACK;
@@ -1593,7 +1629,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct rum_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
@@ -1612,13 +1648,16 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		qos = 0;
 	ac = M_WME_GETAC(m0);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (m0->m_flags & M_EAPOL)
+		rate = tp->mgmtrate;
+	else if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
-	else
+	else {
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
+	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_get_txkey(ni, m0);
@@ -2137,12 +2176,11 @@ rum_set_chan(struct rum_softc *sc, struct ieee80211_channel *c)
 static void
 rum_set_maxretry(struct rum_softc *sc, struct ieee80211vap *vap)
 {
-	const struct ieee80211_txparam *tp;
 	struct ieee80211_node *ni = vap->iv_bss;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct rum_vap *rvp = RUM_VAP(vap);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	rvp->maxretry = tp->maxretry < 0xf ? tp->maxretry : 0xf;
+	rvp->maxretry = MIN(tp->maxretry, 0xf);
 
 	rum_modbits(sc, RT2573_TXRX_CSR4, RT2573_SHORT_RETRY(rvp->maxretry) |
 	    RT2573_LONG_RETRY(rvp->maxretry),
@@ -2253,10 +2291,13 @@ rum_update_slot(struct ieee80211com *ic)
 static int
 rum_wme_update(struct ieee80211com *ic)
 {
-	const struct wmeParams *chanp =
-	    ic->ic_wme.wme_chanParams.cap_wmeParams;
+	struct chanAccParams chp;
+	const struct wmeParams *chanp;
 	struct rum_softc *sc = ic->ic_softc;
 	int error = 0;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	chanp = chp.cap_wmeParams;
 
 	RUM_LOCK(sc);
 	error = rum_write(sc, RT2573_AIFSN_CSR,
@@ -2692,6 +2733,8 @@ rum_reset(struct ieee80211vap *vap, u_long cmd)
 
 	switch (cmd) {
 	case IEEE80211_IOC_POWERSAVE:
+	case IEEE80211_IOC_PROTMODE:
+	case IEEE80211_IOC_RTSTHRESHOLD:
 		error = 0;
 		break;
 	case IEEE80211_IOC_POWERSAVESLEEP:
@@ -2991,7 +3034,7 @@ rum_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 		} else
 			*keyix = 0;
 	} else {
-		*keyix = k - vap->iv_nw_keys;
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	}
 	*rxkeyix = *keyix;
 	return 1;
@@ -3101,9 +3144,8 @@ rum_ratectl_task(void *arg, int pending)
 	struct rum_vap *rvp = arg;
 	struct ieee80211vap *vap = &rvp->vap;
 	struct rum_softc *sc = vap->iv_ic->ic_softc;
-	struct ieee80211_node *ni;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
 	int ok[3], fail;
-	int sum, success, retrycnt;
 
 	RUM_LOCK(sc);
 	/* read and clear statistic registers (STA_CSR0 to STA_CSR5) */
@@ -3114,17 +3156,14 @@ rum_ratectl_task(void *arg, int pending)
 	ok[2] = (le32toh(sc->sta[5]) & 0xffff);	/* TX ok w/ multiple retries */
 	fail =  (le32toh(sc->sta[5]) >> 16);	/* TX retry-fail count */
 
-	success = ok[0] + ok[1] + ok[2];
-	sum = success + fail;
+	txs->flags = IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->nframes = ok[0] + ok[1] + ok[2] + fail;
+	txs->nsuccess = txs->nframes - fail;
 	/* XXX at least */
-	retrycnt = ok[1] + ok[2] * 2 + fail * (rvp->maxretry + 1);
+	txs->nretries = ok[1] + ok[2] * 2 + fail * (rvp->maxretry + 1);
 
-	if (sum != 0) {
-		ni = ieee80211_ref_node(vap->iv_bss);
-		ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
-		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		ieee80211_free_node(ni);
-	}
+	if (txs->nframes != 0)
+		ieee80211_ratectl_tx_update(vap, txs);
 
 	/* count TX retry-fail as Tx errors */
 	if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, fail);

@@ -80,7 +80,9 @@ static void     ipf_p_rpcb_fixlen __P((fr_info_t *, int));
  */
 static	frentry_t	rpcbfr;	/* Skeleton rule for reference by entities
 				   this proxy creates. */
-static	int	rpcbcnt;	/* Upper bound of allocated RPCB sessions. */
+VNET_DEFINE_STATIC(int,	rpcbcnt);
+#define	V_rpcbcnt		VNET(rpcbcnt)
+				/* Upper bound of allocated RPCB sessions. */
 				/* XXX rpcbcnt still requires locking. */
 
 static	int	rpcb_proxy_init = 0;
@@ -107,7 +109,7 @@ static	int	rpcb_proxy_init = 0;
 void
 ipf_p_rpcb_main_load()
 {
-	rpcbcnt = 0;
+	V_rpcbcnt = 0;
 
 	bzero((char *)&rpcbfr, sizeof(rpcbfr));
 	rpcbfr.fr_ref = 1;
@@ -581,7 +583,7 @@ ipf_p_rpcb_insert(rs, rx)
 		return(0);
         }
 
-	if (rpcbcnt == RPCB_MAXREQS)
+	if (V_rpcbcnt == RPCB_MAXREQS)
 		return(-1);
 
 	KMALLOC(rxp, rpcb_xact_t *);
@@ -599,7 +601,7 @@ ipf_p_rpcb_insert(rs, rx)
 
 	rxp->rx_ref = 1;
 
-	++rpcbcnt;
+	++V_rpcbcnt;
 
 	return(0);
 }
@@ -1084,7 +1086,7 @@ ipf_p_rpcb_deref(rs, rx)
 
 	KFREE(rx);
 
-	--rpcbcnt;
+	--V_rpcbcnt;
 }
 
 /* --------------------------------------------------------------------	*/

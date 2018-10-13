@@ -33,7 +33,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_vstr.c 2065 2011-10-26 15:24:47Z jkoshy $");
+ELFTC_VCSID("$Id: libelftc_vstr.c 3531 2017-06-05 05:08:43Z kaiwang27 $");
 
 /**
  * @file vector_str.c
@@ -270,6 +270,47 @@ vector_str_push_vector_head(struct vector_str *dst, struct vector_str *org)
 
 	for (i = 0; i < dst->size; ++i)
 		tmp_ctn[i + org->size] = dst->container[i];
+
+	free(dst->container);
+
+	dst->container = tmp_ctn;
+	dst->capacity = tmp_cap;
+	dst->size += org->size;
+
+	return (true);
+}
+
+/**
+ * @brief Push org vector to the tail of det vector.
+ * @return false at failed, true at success.
+ */
+bool
+vector_str_push_vector(struct vector_str *dst, struct vector_str *org)
+{
+	size_t i, j, tmp_cap;
+	char **tmp_ctn;
+
+	if (dst == NULL || org == NULL)
+		return (false);
+
+	tmp_cap = (dst->size + org->size) * BUFFER_GROWFACTOR;
+
+	if ((tmp_ctn = malloc(sizeof(char *) * tmp_cap)) == NULL)
+		return (false);
+
+	for (i = 0; i < dst->size; ++i)
+		tmp_ctn[i] = dst->container[i];
+
+	for (i = 0; i < org->size; ++i)
+		if ((tmp_ctn[i + dst->size] = strdup(org->container[i])) ==
+		    NULL) {
+			for (j = 0; j < i + dst->size; ++j)
+				free(tmp_ctn[j]);
+
+			free(tmp_ctn);
+
+			return (false);
+		}
 
 	free(dst->container);
 

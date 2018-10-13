@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Peter Wemm
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vm/vm.h>
 #include <kvm.h>
 
 #include "../../sys/i386/include/minidump.h"
@@ -49,9 +52,23 @@ __FBSDID("$FreeBSD$");
 
 struct vmstate {
 	struct minidumphdr hdr;
-	struct hpt hpt;
-	void *ptemap;
 };
+
+static i386_pte_pae_t
+_i386_pte_pae_get(kvm_t *kd, u_long pteindex)
+{
+	i386_pte_pae_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return le64toh(*pte);
+}
+
+static i386_pte_t
+_i386_pte_get(kvm_t *kd, u_long pteindex)
+{
+	i386_pte_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return le32toh(*pte);
+}
 
 static int
 _i386_minidump_probe(kvm_t *kd)
@@ -66,9 +83,6 @@ _i386_minidump_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	_kvm_hpt_free(&vm->hpt);
-	if (vm->ptemap)
-		free(vm->ptemap);
 	free(vm);
 	kd->vmst = NULL;
 }
@@ -77,8 +91,7 @@ static int
 _i386_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	uint32_t *bitmap;
-	off_t off;
+	off_t off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -110,37 +123,18 @@ _i386_minidump_initvtop(kvm_t *kd)
 	/* Skip header and msgbuf */
 	off = I386_PAGE_SIZE + i386_round_page(vmst->hdr.msgbufsize);
 
-	bitmap = _kvm_malloc(kd, vmst->hdr.bitmapsize);
-	if (bitmap == NULL) {
-		_kvm_err(kd, kd->program, "cannot allocate %d bytes for bitmap", vmst->hdr.bitmapsize);
-		return (-1);
-	}
-	if (pread(kd->pmfd, bitmap, vmst->hdr.bitmapsize, off) !=
-	    (ssize_t)vmst->hdr.bitmapsize) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for page bitmap", vmst->hdr.bitmapsize);
-		free(bitmap);
+	sparse_off = off + i386_round_page(vmst->hdr.bitmapsize) +
+	    i386_round_page(vmst->hdr.ptesize);
+	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
+	    I386_PAGE_SIZE, sizeof(uint32_t)) == -1) {
 		return (-1);
 	}
 	off += i386_round_page(vmst->hdr.bitmapsize);
 
-	vmst->ptemap = _kvm_malloc(kd, vmst->hdr.ptesize);
-	if (vmst->ptemap == NULL) {
-		_kvm_err(kd, kd->program, "cannot allocate %d bytes for ptemap", vmst->hdr.ptesize);
-		free(bitmap);
+	if (_kvm_pmap_init(kd, vmst->hdr.ptesize, off) == -1) {
 		return (-1);
 	}
-	if (pread(kd->pmfd, vmst->ptemap, vmst->hdr.ptesize, off) !=
-	    (ssize_t)vmst->hdr.ptesize) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for ptemap", vmst->hdr.ptesize);
-		free(bitmap);
-		return (-1);
-	}
-	off += vmst->hdr.ptesize;
-
-	/* build physical address hash table for sparse pages */
-	_kvm_hpt_init(kd, &vmst->hpt, bitmap, vmst->hdr.bitmapsize, off,
-	    I386_PAGE_SIZE, sizeof(*bitmap));
-	free(bitmap);
+	off += i386_round_page(vmst->hdr.ptesize);
 
 	return (0);
 }
@@ -154,22 +148,22 @@ _i386_minidump_vatop_pae(kvm_t *kd, kvaddr_t va, off_t *pa)
 	kvaddr_t pteindex;
 	i386_physaddr_pae_t a;
 	off_t ofs;
-	i386_pte_pae_t *ptemap;
 
 	vm = kd->vmst;
-	ptemap = vm->ptemap;
 	offset = va & I386_PAGE_MASK;
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> I386_PAGE_SHIFT;
-		pte = le64toh(ptemap[pteindex]);
+		if (pteindex >= vm->hdr.ptesize / sizeof(pte))
+			goto invalid;
+		pte = _i386_pte_pae_get(kd, pteindex);
 		if ((pte & I386_PG_V) == 0) {
 			_kvm_err(kd, kd->program,
 			    "_i386_minidump_vatop_pae: pte not valid");
 			goto invalid;
 		}
 		a = pte & I386_PG_FRAME_PAE;
-		ofs = _kvm_hpt_find(&vm->hpt, a);
+		ofs = _kvm_pt_find(kd, a, I386_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_i386_minidump_vatop_pae: physical address 0x%jx not in minidump",
@@ -199,22 +193,22 @@ _i386_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	kvaddr_t pteindex;
 	i386_physaddr_t a;
 	off_t ofs;
-	i386_pte_t *ptemap;
 
 	vm = kd->vmst;
-	ptemap = vm->ptemap;
 	offset = va & I386_PAGE_MASK;
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> I386_PAGE_SHIFT;
-		pte = le32toh(ptemap[pteindex]);
+		if (pteindex >= vm->hdr.ptesize / sizeof(pte))
+			goto invalid;
+		pte = _i386_pte_get(kd, pteindex);
 		if ((pte & I386_PG_V) == 0) {
 			_kvm_err(kd, kd->program,
 			    "_i386_minidump_vatop: pte not valid");
 			goto invalid;
 		}
 		a = pte & I386_PG_FRAME;
-		ofs = _kvm_hpt_find(&vm->hpt, a);
+		ofs = _kvm_pt_find(kd, a, I386_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_i386_minidump_vatop: physical address 0x%jx not in minidump",
@@ -249,12 +243,99 @@ _i386_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (_i386_minidump_vatop(kd, va, pa));
 }
 
-struct kvm_arch kvm_i386_minidump = {
+static vm_prot_t
+_i386_entry_to_prot(uint64_t pte)
+{
+	vm_prot_t prot = VM_PROT_READ;
+
+	/* Source: i386/pmap.c:pmap_protect() */
+	if (pte & I386_PG_RW)
+		prot |= VM_PROT_WRITE;
+	if ((pte & I386_PG_NX) == 0)
+		prot |= VM_PROT_EXECUTE;
+
+	return prot;
+}
+
+struct i386_iter {
+	kvm_t *kd;
+	u_long nptes;
+	u_long pteindex;
+};
+
+static void
+_i386_iterator_init(struct i386_iter *it, kvm_t *kd)
+{
+	struct vmstate *vm = kd->vmst;
+
+	it->kd = kd;
+	it->pteindex = 0;
+	if (vm->hdr.paemode) {
+		it->nptes = vm->hdr.ptesize / sizeof(i386_pte_pae_t);
+	} else {
+		it->nptes = vm->hdr.ptesize / sizeof(i386_pte_t);
+	}
+	return;
+}
+
+static int
+_i386_iterator_next(struct i386_iter *it, u_long *pa, u_long *va, u_long *dva,
+    vm_prot_t *prot)
+{
+	struct vmstate *vm = it->kd->vmst;
+	i386_pte_t pte32;
+	i386_pte_pae_t pte64;
+	int found = 0;
+
+	*dva = 0;
+	*pa = 0;
+	*va = 0;
+	*dva = 0;
+	*prot = 0;
+	for (; it->pteindex < it->nptes && found == 0; it->pteindex++) {
+		if (vm->hdr.paemode) {
+			pte64 = _i386_pte_pae_get(it->kd, it->pteindex);
+			if ((pte64 & I386_PG_V) == 0)
+				continue;
+			*prot = _i386_entry_to_prot(pte64);
+			*pa = pte64 & I386_PG_FRAME_PAE;
+		} else {
+			pte32 = _i386_pte_get(it->kd, it->pteindex);
+			if ((pte32 & I386_PG_V) == 0)
+				continue;
+			*prot = _i386_entry_to_prot(pte32);
+			*pa = pte32 & I386_PG_FRAME;
+		}
+		*va = vm->hdr.kernbase + (it->pteindex << I386_PAGE_SHIFT);
+		found = 1;
+	}
+	return found;
+}
+
+static int
+_i386_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
+{
+	struct i386_iter it;
+	u_long dva, pa, va;
+	vm_prot_t prot;
+
+	_i386_iterator_init(&it, kd);
+	while (_i386_iterator_next(&it, &pa, &va, &dva, &prot)) {
+		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
+		    prot, I386_PAGE_SIZE, 0)) {
+			return (0);
+		}
+	}
+	return (1);
+}
+
+static struct kvm_arch kvm_i386_minidump = {
 	.ka_probe = _i386_minidump_probe,
 	.ka_initvtop = _i386_minidump_initvtop,
 	.ka_freevtop = _i386_minidump_freevtop,
 	.ka_kvatop = _i386_minidump_kvatop,
 	.ka_native = _i386_native,
+	.ka_walk_pages = _i386_minidump_walk_pages,
 };
 
 KVM_ARCH(kvm_i386_minidump);

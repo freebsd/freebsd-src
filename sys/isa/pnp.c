@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, Sujal M. Patel
  * All rights reserved.
  *
@@ -94,43 +96,12 @@ struct pnp_quirk pnp_quirks[] = {
 	{ 0 }
 };
 
-#ifdef PC98
-/* Some NEC PnP cards have 9 bytes serial code. */
-static pnp_id necids[] = {
-	{0x4180a3b8, 0xffffffff, 0x00},	/* PC-9801CB-B04 (NEC8041) */
-	{0x5181a3b8, 0xffffffff, 0x46},	/* PC-9821CB2-B04(NEC8151) */
-	{0x5182a3b8, 0xffffffff, 0xb8},	/* PC-9801-XX    (NEC8251) */
-	{0x9181a3b8, 0xffffffff, 0x00},	/* PC-9801-120   (NEC8191) */
-	{0, 0, 0}
-};
-#endif
-
 /* The READ_DATA port that we are using currently */
 static int pnp_rd_port;
 
 static void   pnp_send_initiation_key(void);
 static int    pnp_get_serial(pnp_id *p);
 static int    pnp_isolation_protocol(device_t parent);
-
-char *
-pnp_eisaformat(uint32_t id)
-{
-	uint8_t *data;
-	static char idbuf[8];
-	const char  hextoascii[] = "0123456789abcdef";
-
-	id = htole32(id);
-	data = (uint8_t *)&id;
-	idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
-	idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
-	idbuf[2] = '@' + (data[1] & 0x1f);
-	idbuf[3] = hextoascii[(data[2] >> 4)];
-	idbuf[4] = hextoascii[(data[2] & 0xf)];
-	idbuf[5] = hextoascii[(data[3] >> 4)];
-	idbuf[6] = hextoascii[(data[3] & 0xf)];
-	idbuf[7] = 0;
-	return(idbuf);
-}
 
 static void
 pnp_write(int d, u_char r)
@@ -677,10 +648,6 @@ pnp_isolation_protocol(device_t parent)
 	u_char *resources = NULL;
 	int space = 0;
 	int error;
-#ifdef PC98
-	int n, necpnp;
-	u_char buffer[10];
-#endif
 
 	/*
 	 * Put all cards into the Sleep state so that we can clear
@@ -722,28 +689,6 @@ pnp_isolation_protocol(device_t parent)
 			 * logical devices on the card.
 			 */
 			pnp_write(PNP_SET_CSN, csn);
-#ifdef PC98
-			if (bootverbose)
-				printf("PnP Vendor ID = %x\n", id.vendor_id);
-			/* Check for NEC PnP (9 bytes serial). */
-			for (n = necpnp = 0; necids[n].vendor_id; n++) {
-				if (id.vendor_id == necids[n].vendor_id) {
-					necpnp = 1;
-					break;
-				}
-			}
-			if (necpnp) {
-				if (bootverbose)
-					printf("An NEC-PnP card (%s).\n",
-					    pnp_eisaformat(id.vendor_id));
-				/*  Read dummy 9 bytes serial area. */
-				pnp_get_resource_info(buffer, 9);
-			} else {
-				if (bootverbose)
-					printf("A Normal-ISA-PnP card (%s).\n",
-					    pnp_eisaformat(id.vendor_id));
-			}
-#endif
 			if (bootverbose)
 				printf("Reading PnP configuration for %s.\n",
 				    pnp_eisaformat(id.vendor_id));

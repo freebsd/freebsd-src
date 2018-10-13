@@ -166,7 +166,7 @@ uint8_t *ldns_tcp_read_wire(int sockfd, size_t *size);
  *
  * \param[in] sockfd the socket to read from
  * \param[in] fr the address of the client (if applicable)
- * \param[in] *frlen the lenght of the client's addr (if applicable)
+ * \param[in] *frlen the length of the client's addr (if applicable)
  * \param[out] size the number of bytes that are read
  * \return the data read
  */
@@ -188,7 +188,7 @@ struct sockaddr_storage * ldns_rdf2native_sockaddr_storage(const ldns_rdf *rd, u
  * \param[in] port what port was used. When NULL this is not set
  * \return ldns_rdf* wth the address
  */
-ldns_rdf * ldns_sockaddr_storage2rdf(struct sockaddr_storage *sock, uint16_t *port);
+ldns_rdf * ldns_sockaddr_storage2rdf(const struct sockaddr_storage *sock, uint16_t *port);
 
 /**
  * Prepares the resolver for an axfr query
@@ -198,7 +198,7 @@ ldns_rdf * ldns_sockaddr_storage2rdf(struct sockaddr_storage *sock, uint16_t *po
  * \param[in] c the class to use
  * \return ldns_status the status of the transfer
  */
-ldns_status ldns_axfr_start(ldns_resolver *resolver, ldns_rdf *domain, ldns_rr_class c);
+ldns_status ldns_axfr_start(ldns_resolver *resolver, const ldns_rdf *domain, ldns_rr_class c);
 
 #ifdef __cplusplus
 }

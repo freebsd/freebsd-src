@@ -90,6 +90,8 @@
     cam
         ata
         ..
+        mmc
+        ..
         nvme
         ..
         scsi
@@ -110,11 +112,15 @@
         ..
         ciss
         ..
+        evdev
+        ..
         filemon
         ..
         firewire
         ..
         hwpmc
+        ..
+        hyperv
         ..
         ic
         ..
@@ -122,9 +128,11 @@
         ..
         io
         ..
-        lmc
-        ..
         mfi
+        ..
+        mlx5
+        ..
+        mmc
         ..
         mpt
             mpilib
@@ -148,9 +156,9 @@
         ..
         speaker
         ..
-        usb
+        tcp_log
         ..
-        utopia
+        usb
         ..
         vkbd
         ..
@@ -230,7 +238,7 @@
     gssapi
     ..
     infiniband
-        complib 
+        complib
         ..
         iba
         ..
@@ -248,6 +256,8 @@
     krb5
     ..
     lib80211
+    ..
+    libipt
     ..
     libmilter
     ..
@@ -278,6 +288,8 @@
     netinet
         cc
         ..
+        netdump
+        ..
     ..
     netinet6
     ..
@@ -304,6 +316,18 @@
     nfsclient
     ..
     nfsserver
+    ..
+    opencsd
+        c_api
+        ..
+        etmv3
+        ..
+        etmv4
+        ..
+        ptm
+        ..
+        stm
+        ..
     ..
     openssl
     ..
@@ -334,6 +358,8 @@
     ssp
     ..
     sys
+        disk
+        ..
     ..
     teken
     ..

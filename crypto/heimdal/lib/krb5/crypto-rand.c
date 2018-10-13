@@ -63,6 +63,7 @@ seed_something(void)
        we do not have to deal with it. */
     if (RAND_status() != 1) {
 #ifndef _WIN32
+#ifndef OPENSSL_NO_EGD
 	krb5_context context;
 	const char *p;
 
@@ -74,6 +75,7 @@ seed_something(void)
 		RAND_egd_bytes(p, ENTROPY_NEEDED);
 	    krb5_free_context(context);
 	}
+#endif
 #else
 	/* TODO: Once a Windows CryptoAPI RAND method is defined, we
 	   can use that and failover to another method. */

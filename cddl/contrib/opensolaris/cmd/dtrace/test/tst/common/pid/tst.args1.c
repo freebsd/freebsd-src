@@ -31,8 +31,8 @@
 #include <unistd.h>
 
 int
-go(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6,
-    int arg7, int arg8, int arg9)
+go(long arg0, long arg1, long arg2, long arg3, long arg4, long arg5, long arg6,
+   long arg7, long arg8, long arg9)
 {
 	return (arg1);
 }

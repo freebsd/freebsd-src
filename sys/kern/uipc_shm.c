@@ -1,6 +1,13 @@
 /*-
- * Copyright (c) 2006, 2011 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2006, 2011, 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -79,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/user.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -182,8 +190,9 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
 	 * type object.
 	 */
-	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL);
+	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_xbusy(m);
 		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
 			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
@@ -198,16 +207,14 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 			}
 		} else
 			vm_page_zero_invalid(m, TRUE);
+		vm_page_xunbusy(m);
 	}
-	vm_page_xunbusy(m);
 	vm_page_lock(m);
 	vm_page_hold(m);
-	if (m->queue == PQ_NONE) {
-		vm_page_deactivate(m);
-	} else {
-		/* Requeue to maintain LRU ordering. */
-		vm_page_requeue(m);
-	}
+	if (vm_page_active(m))
+		vm_page_reference(m);
+	else
+		vm_page_activate(m);
 	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(obj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
@@ -295,14 +302,14 @@ shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int error;
 
 	shmfd = fp->f_data;
-	foffset_lock_uio(fp, uio, flags);
-	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
-	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
 #ifdef MAC
 	error = mac_posixshm_check_read(active_cred, fp->f_cred, shmfd);
 	if (error)
 		return (error);
 #endif
+	foffset_lock_uio(fp, uio, flags);
+	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
+	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
 	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
 	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
 	foffset_unlock_uio(fp, uio, flags);
@@ -417,6 +424,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 	vm_ooffset_t delta;
 	int base, rv;
 
+	KASSERT(length >= 0, ("shm_dotruncate: length < 0"));
 	object = shmfd->shm_object;
 	VM_OBJECT_WLOCK(object);
 	if (length == shmfd->shm_size) {
@@ -448,21 +456,23 @@ retry:
 				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
-				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
-				if (m == NULL) {
-					VM_OBJECT_WUNLOCK(object);
-					VM_WAIT;
-					VM_OBJECT_WLOCK(object);
+				m = vm_page_alloc(object, idx,
+				    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
+				if (m == NULL)
 					goto retry;
-				} else if (m->valid != VM_PAGE_BITS_ALL)
-					rv = vm_pager_get_pages(object, &m, 1,
-					    NULL, NULL);
-				else
-					/* A cached page was reactivated. */
-					rv = VM_PAGER_OK;
+				rv = vm_pager_get_pages(object, &m, 1, NULL,
+				    NULL);
 				vm_page_lock(m);
 				if (rv == VM_PAGER_OK) {
-					vm_page_deactivate(m);
+					/*
+					 * Since the page was not resident,
+					 * and therefore not recently
+					 * accessed, immediately enqueue it
+					 * for asynchronous laundering.  The
+					 * current operation is not regarded
+					 * as an access.
+					 */
+					vm_page_launder(m);
 					vm_page_unlock(m);
 					vm_page_xunbusy(m);
 				} else {
@@ -480,7 +490,7 @@ retry:
 				vm_pager_page_unswapped(m);
 			}
 		}
-		delta = ptoa(object->size - nobjsize);
+		delta = IDX_TO_OFF(object->size - nobjsize);
 
 		/* Toss in memory pages. */
 		if (nobjsize < object->size)
@@ -495,8 +505,8 @@ retry:
 		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
 	} else {
-		/* Attempt to reserve the swap */
-		delta = ptoa(nobjsize - object->size);
+		/* Try to reserve additional swap space. */
+		delta = IDX_TO_OFF(nobjsize - object->size);
 		if (!swap_reserve_by_cred(delta, object->cred)) {
 			VM_OBJECT_WUNLOCK(object);
 			return (ENOMEM);
@@ -702,6 +712,9 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 		return (ECAPMODE);
 #endif
 
+	AUDIT_ARG_FFLAGS(flags);
+	AUDIT_ARG_MODE(mode);
+
 	if ((flags & O_ACCMODE) != O_RDONLY && (flags & O_ACCMODE) != O_RDWR)
 		return (EINVAL);
 
@@ -747,6 +760,7 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 			return (error);
 		}
 
+		AUDIT_ARG_UPATH1_CANON(path);
 		fnv = fnv_32_str(path, FNV1_32_INIT);
 		sx_xlock(&shm_dict_lock);
 		shmfd = shm_lookup(path, fnv);
@@ -851,6 +865,7 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 	if (KTRPOINT(curthread, KTR_NAMEI))
 		ktrnamei(path);
 #endif
+	AUDIT_ARG_UPATH1_CANON(path);
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&shm_dict_lock);
 	error = shm_remove(path, fnv, td->td_ucred);
@@ -885,20 +900,20 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 		return (EACCES);
 	maxprot &= cap_maxprot;
 
+	/* See comment in vn_mmap(). */
+	if (
+#ifdef _LP64
+	    objsize > OFF_MAX ||
+#endif
+	    foff < 0 || foff > OFF_MAX - objsize)
+		return (EINVAL);
+
 #ifdef MAC
 	error = mac_posixshm_check_mmap(td->td_ucred, shmfd, prot, flags);
 	if (error != 0)
 		return (error);
 #endif
 	
-	/*
-	 * XXXRW: This validation is probably insufficient, and subject to
-	 * sign errors.  It should be fixed.
-	 */
-	if (foff >= shmfd->shm_size ||
-	    foff + objsize > round_page(shmfd->shm_size))
-		return (EINVAL);
-
 	mtx_lock(&shm_timestamp_lock);
 	vfs_timestamp(&shmfd->shm_atime);
 	mtx_unlock(&shm_timestamp_lock);
@@ -908,7 +923,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	    shmfd->shm_object, foff, FALSE, td);
 	if (error != 0)
 		vm_object_deallocate(shmfd->shm_object);
-	return (0);
+	return (error);
 }
 
 static int

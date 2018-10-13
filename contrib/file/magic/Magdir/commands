@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.54 2016/04/19 13:40:02 christos Exp $
+# $File: commands,v 1.59 2017/08/14 07:40:38 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -56,7 +56,7 @@
 !:mime	text/x-awk
 0	string/wt	#!\ /usr/bin/awk	awk script text executable
 !:mime	text/x-awk
-0	regex/4096	=^\\s{0,100}BEGIN\\s{0,100}[{]	awk or perl script text
+0	regex/4096	=^[\040\t\f\r\n]{0,100}BEGIN[\040\t\f\r\n]{0,100}[{]	awk or perl script text
 
 # AT&T Bell Labs' Plan 9 shell
 0	string/wt	#!\ /bin/rc	Plan 9 rc shell script text executable
@@ -84,7 +84,7 @@
 # PHP scripts
 # Ulf Harnhammar <ulfh@update.uu.se>
 0	search/1/c	=<?php			PHP script text
-!:strength + 10
+!:strength + 30
 !:mime	text/x-php
 0	search/1	=<?\n			PHP script text
 !:mime	text/x-php
@@ -112,3 +112,7 @@
 # URL:  http://packages.debian.org/pdmenu
 # From: Edward Betts <edward@debian.org>
 0	string		#!/usr/bin/pdmenu	Pdmenu configuration file text
+
+# From Danny Weldon
+0	string	\x0b\x13\x08\x00
+>0x04   uleshort	<4      ksh byte-code version %d

@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_GET_ASYNC_EVENT 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -81,6 +82,8 @@ following events:
 .B IBV_EVENT_SM_CHANGE \fR SM was changed on a port
 .TP
 .B IBV_EVENT_CLIENT_REREGISTER \fR SM sent a CLIENT_REREGISTER request to a port
+.TP
+.B IBV_EVENT_GID_CHANGE \fR GID table was changed on a port
 .PP
 .I CA events:
 .TP
@@ -159,4 +162,4 @@ ibv_ack_async_event(&async_event);
 .BR ibv_open_device (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>

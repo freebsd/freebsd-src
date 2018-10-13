@@ -42,6 +42,7 @@
 #define _NETIPSEC_XFORM_H_
 
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <netinet/in.h>
 #include <opencrypto/xform.h>
 
@@ -49,78 +50,72 @@
 #define	AH_HMAC_MAXHASHLEN	(SHA2_512_HASH_LEN/2)	/* Keep this updated */
 #define	AH_HMAC_INITIAL_RPL	1	/* replay counter initial value */
 
+#ifdef _KERNEL
+struct secpolicy;
+struct secasvar;
+
 /*
  * Packet tag assigned on completion of IPsec processing; used
- * to speedup processing when/if the packet comes back for more
- * processing.
+ * to speedup security policy checking for INBOUND packets.
  */
-struct tdb_ident {
-	u_int32_t spi;
-	union sockaddr_union dst;
-	u_int8_t proto;
-	/* Cache those two for enc(4) in xform_ipip. */
-	u_int8_t alg_auth;
-	u_int8_t alg_enc;
+struct xform_history {
+	union sockaddr_union	dst;		/* destination address */
+	uint32_t		spi;		/* Security Parameters Index */
+	uint8_t			proto;		/* IPPROTO_ESP or IPPROTO_AH */
+	uint8_t			mode;		/* transport or tunnel */
 };
 
 /*
  * Opaque data structure hung off a crypto operation descriptor.
  */
-struct tdb_crypto {
-	struct ipsecrequest	*tc_isr;	/* ipsec request state */
-	u_int32_t		tc_spi;		/* associated SPI */
-	union sockaddr_union	tc_dst;		/* dst addr of packet */
-	u_int8_t		tc_proto;	/* current protocol, e.g. AH */
-	u_int8_t		tc_nxt;		/* next protocol, e.g. IPV4 */
-	int			tc_protoff;	/* current protocol offset */
-	int			tc_skip;	/* data offset */
-	caddr_t			tc_ptr;		/* associated crypto data */
-	struct secasvar 	*tc_sav;	/* related SA */
+struct xform_data {
+	struct secpolicy	*sp;		/* security policy */
+	struct secasvar		*sav;		/* related SA */
+	crypto_session_t	cryptoid;	/* used crypto session */
+	u_int			idx;		/* IPsec request index */
+	int			protoff;	/* current protocol offset */
+	int			skip;		/* data offset */
+	uint8_t			nxt;		/* next protocol, e.g. IPV4 */
+	struct vnet		*vnet;
 };
 
-struct secasvar;
-struct ipescrequest;
-
-struct xformsw {
-	u_short	xf_type;		/* xform ID */
 #define	XF_IP4		1	/* unused */
 #define	XF_AH		2	/* AH */
 #define	XF_ESP		3	/* ESP */
 #define	XF_TCPSIGNATURE	5	/* TCP MD5 Signature option, RFC 2358 */
 #define	XF_IPCOMP	6	/* IPCOMP */
-	u_short	xf_flags;
-#define	XFT_AUTH	0x0001
-#define	XFT_CONF	0x0100
-#define	XFT_COMP	0x1000
-	char	*xf_name;			/* human-readable name */
+
+struct xformsw {
+	u_short			xf_type;	/* xform ID */
+	const char		*xf_name;	/* human-readable name */
 	int	(*xf_init)(struct secasvar*, struct xformsw*);	/* setup */
 	int	(*xf_zeroize)(struct secasvar*);		/* cleanup */
 	int	(*xf_input)(struct mbuf*, struct secasvar*,	/* input */
 			int, int);
-	int	(*xf_output)(struct mbuf*,	       		/* output */
-			struct ipsecrequest *, struct mbuf **, int, int);
-	struct xformsw *xf_next;		/* list of registered xforms */
+	int	(*xf_output)(struct mbuf*,			/* output */
+	    struct secpolicy *, struct secasvar *, u_int, int, int);
+
+	volatile u_int		xf_cntr;
+	LIST_ENTRY(xformsw)	chain;
 };
 
-#ifdef _KERNEL
-extern void xform_register(struct xformsw*);
-extern int xform_init(struct secasvar *sav, int xftype);
-extern int xform_ah_authsize(struct auth_hash *esph);
+const struct enc_xform * enc_algorithm_lookup(int);
+const struct auth_hash * auth_algorithm_lookup(int);
+const struct comp_algo * comp_algorithm_lookup(int);
+
+void xform_attach(void *);
+void xform_detach(void *);
+int xform_init(struct secasvar *, u_short);
 
 struct cryptoini;
-
 /* XF_AH */
+int xform_ah_authsize(const struct auth_hash *);
 extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);
 extern int ah_zeroize(struct secasvar *sav);
-extern struct auth_hash *ah_algorithm_lookup(int alg);
 extern size_t ah_hdrsiz(struct secasvar *);
 
 /* XF_ESP */
-extern struct enc_xform *esp_algorithm_lookup(int alg);
 extern size_t esp_hdrsiz(struct secasvar *sav);
-
-/* XF_COMP */
-extern struct comp_algo *ipcomp_algorithm_lookup(int alg);
 
 #endif /* _KERNEL */
 #endif /* _NETIPSEC_XFORM_H_ */

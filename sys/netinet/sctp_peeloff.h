@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -38,6 +40,5 @@ __FBSDID("$FreeBSD$");
 #if defined(_KERNEL)
 int sctp_can_peel_off(struct socket *, sctp_assoc_t);
 int sctp_do_peeloff(struct socket *, struct socket *, sctp_assoc_t);
-
 #endif				/* _KERNEL */
 #endif				/* _NETINET_SCTP_PEELOFF_H_ */

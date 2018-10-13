@@ -171,9 +171,9 @@ main(int argc, char *argv[])
 	STAT(ips.ips_out_noroute, "no route available %ju (output)");
 	STAT(ips.ips_out_inval, "generic error %ju (output)");
 	STAT(ips.ips_out_bundlesa, "bundled SA processed %ju (output)");
-	printf("m_clone processing: %ju mbufs + %ju clusters coalesced\n",
-	    (uintmax_t)ips.ips_mbcoalesced, (uintmax_t)ips.ips_clcoalesced);
 	STAT(ips.ips_clcopied, "m_clone processing: %ju clusters copied\n");
+	STAT(ips.ips_spdcache_hits, "spd cache hits %ju\n");
+	STAT(ips.ips_spdcache_misses, "spd cache misses %ju\n");
 	STAT(ips.ips_mbinserted, "m_makespace: %ju mbufs inserted\n");
 	printf("header position [front/middle/end]: %ju/%ju/%ju\n",
 	    (uintmax_t)ips.ips_input_front, (uintmax_t)ips.ips_input_middle,

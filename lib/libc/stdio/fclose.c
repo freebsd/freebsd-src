@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993 The Regents of the University of California.
  * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -97,7 +99,7 @@ fdclose(FILE *fp, int *fdp)
 		return (EOF);
 	}
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	r = 0;
 	if (fp->_close != __sclose) {
 		r = EOF;
@@ -115,7 +117,7 @@ fdclose(FILE *fp, int *fdp)
 			*fdp = fp->_file;
 		r = cleanfile(fp, false);
 	}
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }
@@ -130,9 +132,9 @@ fclose(FILE *fp)
 		return (EOF);
 	}
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	r = cleanfile(fp, true);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }

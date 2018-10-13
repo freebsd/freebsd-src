@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -74,7 +76,7 @@ ufs_root(mp, flags, vpp)
 	struct vnode *nvp;
 	int error;
 
-	error = VFS_VGET(mp, (ino_t)ROOTINO, flags, &nvp);
+	error = VFS_VGET(mp, (ino_t)UFS_ROOTINO, flags, &nvp);
 	if (error)
 		return (error);
 	*vpp = nvp;
@@ -92,7 +94,8 @@ ufs_quotactl(mp, cmds, id, arg)
 	void *arg;
 {
 #ifndef QUOTA
-	if ((cmds >> SUBCMDSHIFT) == Q_QUOTAON)
+	if ((cmds >> SUBCMDSHIFT) == Q_QUOTAON ||
+	    (cmds >> SUBCMDSHIFT) == Q_QUOTAOFF)
 		vfs_unbusy(mp);
 
 	return (EOPNOTSUPP);
@@ -115,13 +118,13 @@ ufs_quotactl(mp, cmds, id, arg)
 			break;
 
 		default:
-			if (cmd == Q_QUOTAON)
+			if (cmd == Q_QUOTAON || cmd == Q_QUOTAOFF)
 				vfs_unbusy(mp);
 			return (EINVAL);
 		}
 	}
 	if ((u_int)type >= MAXQUOTAS) {
-		if (cmd == Q_QUOTAON)
+		if (cmd == Q_QUOTAON || cmd == Q_QUOTAOFF)
 			vfs_unbusy(mp);
 		return (EINVAL);
 	}
@@ -132,7 +135,11 @@ ufs_quotactl(mp, cmds, id, arg)
 		break;
 
 	case Q_QUOTAOFF:
+		vfs_ref(mp);
+		vfs_unbusy(mp);
+		vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
 		error = quotaoff(td, mp, type);
+		vn_finished_write(mp);
 		break;
 
 	case Q_SETQUOTA32:

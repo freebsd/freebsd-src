@@ -178,8 +178,8 @@ static struct resource_spec a10fb_spec[] = {
 static int
 a10fb_allocfb(struct a10fb_softc *sc)
 {
-	sc->vaddr = kmem_alloc_contig(kernel_arena, sc->fbsize,
-	    M_NOWAIT | M_ZERO, 0, ~0, FB_ALIGN, 0, VM_MEMATTR_WRITE_COMBINING);
+	sc->vaddr = kmem_alloc_contig(sc->fbsize, M_NOWAIT | M_ZERO, 0, ~0,
+	    FB_ALIGN, 0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->vaddr == 0) {
 		device_printf(sc->dev, "failed to allocate FB memory\n");
 		return (ENOMEM);
@@ -192,7 +192,7 @@ a10fb_allocfb(struct a10fb_softc *sc)
 static void
 a10fb_freefb(struct a10fb_softc *sc)
 {
-	kmem_free(kernel_arena, sc->vaddr, sc->fbsize);
+	kmem_free(sc->vaddr, sc->fbsize);
 }
 
 static int
@@ -209,7 +209,7 @@ a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 	height = mode->vdisplay << interlace;
 
 	/* Leave reset */
-	error = hwreset_get_by_ofw_name(sc->dev, "de_be", &rst);
+	error = hwreset_get_by_ofw_name(sc->dev, 0, "de_be", &rst);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find reset 'de_be'\n");
 		return (error);
@@ -220,7 +220,7 @@ a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 		return (error);
 	}
 	/* Gating AHB clock for BE */
-	error = clk_get_by_ofw_name(sc->dev, "ahb_de_be", &clk_ahb);
+	error = clk_get_by_ofw_name(sc->dev, 0, "ahb_de_be", &clk_ahb);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find clk 'ahb_de_be'\n");
 		return (error);
@@ -231,7 +231,7 @@ a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 		return (error);
 	}
 	/* Enable DRAM clock to BE */
-	error = clk_get_by_ofw_name(sc->dev, "dram_de_be", &clk_dram);
+	error = clk_get_by_ofw_name(sc->dev, 0, "dram_de_be", &clk_dram);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find clk 'dram_de_be'\n");
 		return (error);
@@ -242,7 +242,7 @@ a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 		return (error);
 	}
 	/* Set BE clock to 300MHz and enable */
-	error = clk_get_by_ofw_name(sc->dev, "de_be", &clk_debe);
+	error = clk_get_by_ofw_name(sc->dev, 0, "de_be", &clk_debe);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find clk 'de_be'\n");
 		return (error);
@@ -309,12 +309,12 @@ a10fb_setup_pll(struct a10fb_softc *sc, uint64_t freq)
 	clk_t clk_sclk1, clk_sclk2;
 	int error;
 
-	error = clk_get_by_ofw_name(sc->dev, "lcd_ch1_sclk1", &clk_sclk1);
+	error = clk_get_by_ofw_name(sc->dev, 0, "lcd_ch1_sclk1", &clk_sclk1);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find clk 'lcd_ch1_sclk1'\n");
 		return (error);
 	}
-	error = clk_get_by_ofw_name(sc->dev, "lcd_ch1_sclk2", &clk_sclk2);
+	error = clk_get_by_ofw_name(sc->dev, 0, "lcd_ch1_sclk2", &clk_sclk2);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find clk 'lcd_ch1_sclk2'\n");
 		return (error);
@@ -360,7 +360,7 @@ a10fb_setup_tcon(struct a10fb_softc *sc, const struct videomode *mode)
 	start_delay = START_DELAY(vbl);
 
 	/* Leave reset */
-	error = hwreset_get_by_ofw_name(sc->dev, "lcd", &rst);
+	error = hwreset_get_by_ofw_name(sc->dev, 0, "lcd", &rst);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find reset 'lcd'\n");
 		return (error);
@@ -371,7 +371,7 @@ a10fb_setup_tcon(struct a10fb_softc *sc, const struct videomode *mode)
 		return (error);
 	}
 	/* Gating AHB clock for LCD */
-	error = clk_get_by_ofw_name(sc->dev, "ahb_lcd", &clk_ahb);
+	error = clk_get_by_ofw_name(sc->dev, 0, "ahb_lcd", &clk_ahb);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot find clk 'ahb_lcd'\n");
 		return (error);

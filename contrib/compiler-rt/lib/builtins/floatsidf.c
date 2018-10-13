@@ -18,8 +18,6 @@
 
 #include "int_lib.h"
 
-ARM_EABI_FNALIAS(i2d, floatsidf)
-
 COMPILER_RT_ABI fp_t
 __floatsidf(int a) {
     
@@ -51,3 +49,13 @@ __floatsidf(int a) {
     // Insert the sign bit and return
     return fromRep(result | sign);
 }
+
+#if defined(__ARM_EABI__)
+#if defined(COMPILER_RT_ARMHF_TARGET)
+AEABI_RTABI fp_t __aeabi_i2d(int a) {
+  return __floatsidf(a);
+}
+#else
+AEABI_RTABI fp_t __aeabi_i2d(int a) COMPILER_RT_ALIAS(__floatsidf);
+#endif
+#endif

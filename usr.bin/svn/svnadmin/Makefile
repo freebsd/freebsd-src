@@ -2,7 +2,7 @@
 
 MAN=
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "${.CURDIR:H}/Makefile.inc"
 
 .PATH:	${SVNDIR}/svnadmin
 
@@ -10,11 +10,11 @@ PROG=	svn${SVNLITE}admin
 
 SRCS=	svnadmin.c
 
-CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
-	-I${.CURDIR}/../lib/libapr \
+CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR:H} \
+	-I${.CURDIR:H}/lib/libapr \
 	-I${APR}/include/arch/unix \
 	-I${APR}/include \
-	-I${.CURDIR}/../lib/libapr_util \
+	-I${.CURDIR:H}/lib/libapr_util \
 	-I${APRU}/include/private \
 	-I${APRU}/include
 

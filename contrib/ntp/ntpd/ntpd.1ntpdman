@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpd 1ntpdman "02 Jun 2016" "4.2.8p8" "User Commands"
+.TH ntpd 1ntpdman "14 Aug 2018" "4.2.8p12" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-Jnai2U/ag-Ynaa1U)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-jbaWTB/ag-ubaOSB)
 .\"
-.\" It has been AutoGen-ed June 2, 2016 at 07:36:01 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed August 14, 2018 at 08:29:02 AM by AutoGen 5.18.5
 .\" From the definitions ntpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -979,7 +979,7 @@ RFC5908
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The

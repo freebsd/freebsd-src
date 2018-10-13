@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -147,7 +149,7 @@ static funcptr ndis_rxeof_xfr_done_wrap;
 static funcptr ndis_linksts_wrap;
 static funcptr ndis_linksts_done_wrap;
 static funcptr ndis_ticktask_wrap;
-static funcptr ndis_starttask_wrap;
+static funcptr ndis_ifstarttask_wrap;
 static funcptr ndis_resettask_wrap;
 static funcptr ndis_inputtask_wrap;
 
@@ -162,11 +164,11 @@ static int ndis_raw_xmit	(struct ieee80211_node *, struct mbuf *,
 	const struct ieee80211_bpf_params *);
 static void ndis_update_mcast	(struct ieee80211com *);
 static void ndis_update_promisc	(struct ieee80211com *);
-static void ndis_start		(struct ifnet *);
-static void ndis_starttask	(device_object *, void *);
+static void ndis_ifstart	(struct ifnet *);
+static void ndis_ifstarttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
 static void ndis_inputtask	(device_object *, void *);
-static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
+static int ndis_ifioctl		(struct ifnet *, u_long, caddr_t);
 static int ndis_newstate	(struct ieee80211vap *, enum ieee80211_state,
 	int);
 static int ndis_nettype_chan	(uint32_t);
@@ -246,7 +248,7 @@ ndisdrv_modevent(mod, cmd, arg)
 		    &ndis_linksts_done_wrap, 1, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_ticktask, &ndis_ticktask_wrap,
 		    2, WINDRV_WRAP_STDCALL);
-		windrv_wrap((funcptr)ndis_starttask, &ndis_starttask_wrap,
+		windrv_wrap((funcptr)ndis_ifstarttask, &ndis_ifstarttask_wrap,
 		    2, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_resettask, &ndis_resettask_wrap,
 		    2, WINDRV_WRAP_STDCALL);
@@ -268,7 +270,7 @@ ndisdrv_modevent(mod, cmd, arg)
 		windrv_unwrap(ndis_linksts_wrap);
 		windrv_unwrap(ndis_linksts_done_wrap);
 		windrv_unwrap(ndis_ticktask_wrap);
-		windrv_unwrap(ndis_starttask_wrap);
+		windrv_unwrap(ndis_ifstarttask_wrap);
 		windrv_unwrap(ndis_resettask_wrap);
 		windrv_unwrap(ndis_inputtask_wrap);
 		break;
@@ -292,11 +294,14 @@ ndis_setmulti(sc)
 	int			len, mclistsz, error;
 	uint8_t			*mclist;
 
-	ifp = sc->ifp;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
 
+	if (sc->ndis_80211)
+		return;
+
+	ifp = sc->ifp;
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 		len = sizeof(sc->ndis_filter);
@@ -308,7 +313,7 @@ ndis_setmulti(sc)
 		return;
 	}
 
-	if (TAILQ_EMPTY(&ifp->if_multiaddrs))
+	if (CK_STAILQ_EMPTY(&ifp->if_multiaddrs))
 		return;
 
 	len = sizeof(mclistsz);
@@ -325,7 +330,7 @@ ndis_setmulti(sc)
 
 	len = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
@@ -368,13 +373,14 @@ ndis_set_offload(sc)
 	struct ifnet		*ifp;
 	int			len, error;
 
-	ifp = sc->ifp;
-
 	if (!NDIS_INITIALIZED(sc))
 		return (EINVAL);
 
+	if (sc->ndis_80211)
+		return (EINVAL);
 	/* See if there's anything to set. */
 
+	ifp = sc->ifp;
 	error = ndis_probe_offload(sc);
 	if (error)
 		return (error);
@@ -965,8 +971,8 @@ ndis_ifattach(struct ndis_softc *sc)
 	if_initname(ifp, device_get_name(sc->ndis_dev),
 	    device_get_unit(sc->ndis_dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = ndis_ioctl;
-	ifp->if_start = ndis_start;
+	ifp->if_ioctl = ndis_ifioctl;
+	ifp->if_start = ndis_ifstart;
 	ifp->if_init = ndis_init;
 	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, 50);
@@ -1414,7 +1420,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 			p = packets[i];
 			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS) {
 				p->np_refcnt++;
-				(void)ndis_return_packet(NULL ,p, block);
+				ndis_return_packet(p);
 			}
 		}
 		return;
@@ -1427,7 +1433,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 		if (ndis_ptom(&m0, p)) {
 			device_printf(sc->ndis_dev, "ptom failed\n");
 			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
-				(void)ndis_return_packet(NULL, p, block);
+				ndis_return_packet(p);
 		} else {
 #ifdef notdef
 			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES) {
@@ -1560,19 +1566,23 @@ ndis_txeof(adapter, packet, status)
 	sc->ndis_txarray[idx] = NULL;
 	sc->ndis_txpending++;
 
-	if (status == NDIS_STATUS_SUCCESS)
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	else
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-
+	if (!sc->ndis_80211) {
+		struct ifnet		*ifp = sc->ifp;
+		if (status == NDIS_STATUS_SUCCESS)
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		else
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	}
 	sc->ndis_tx_timer = 0;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	NDIS_UNLOCK(sc);
 
-	IoQueueWorkItem(sc->ndis_startitem,
-	    (io_workitem_func)ndis_starttask_wrap,
-	    WORKQUEUE_CRITICAL, ifp);
+	if (!sc->ndis_80211)
+		IoQueueWorkItem(sc->ndis_startitem,
+		    (io_workitem_func)ndis_ifstarttask_wrap,
+		    WORKQUEUE_CRITICAL, sc);
+	DPRINTF(("%s: ndis_ifstarttask_wrap sc=%p\n", __func__, sc));
 }
 
 static void
@@ -1635,9 +1645,10 @@ ndis_linksts_done(adapter)
 		IoQueueWorkItem(sc->ndis_tickitem, 
 		    (io_workitem_func)ndis_ticktask_wrap,
 		    WORKQUEUE_CRITICAL, sc);
-		IoQueueWorkItem(sc->ndis_startitem,
-		    (io_workitem_func)ndis_starttask_wrap,
-		    WORKQUEUE_CRITICAL, ifp);
+		if (!sc->ndis_80211)
+			IoQueueWorkItem(sc->ndis_startitem,
+			    (io_workitem_func)ndis_ifstarttask_wrap,
+			    WORKQUEUE_CRITICAL, sc);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		if (sc->ndis_link)
@@ -1672,9 +1683,10 @@ ndis_tick(xsc)
 		IoQueueWorkItem(sc->ndis_resetitem,
 		    (io_workitem_func)ndis_resettask_wrap,
 		    WORKQUEUE_CRITICAL, sc);
-		IoQueueWorkItem(sc->ndis_startitem,
-		    (io_workitem_func)ndis_starttask_wrap,
-		    WORKQUEUE_CRITICAL, sc->ifp);
+		if (!sc->ndis_80211)
+			IoQueueWorkItem(sc->ndis_startitem,
+			    (io_workitem_func)ndis_ifstarttask_wrap,
+			    WORKQUEUE_CRITICAL, sc);
 	}
 
 	callout_reset(&sc->ndis_stat_callout, hz, ndis_tick, sc);
@@ -1796,16 +1808,16 @@ ndis_update_promisc(struct ieee80211com *ic)
 }
 
 static void
-ndis_starttask(d, arg)
-	device_object		*d;
-	void			*arg;
+ndis_ifstarttask(device_object *d, void *arg)
 {
-	struct ifnet		*ifp;
+	struct ndis_softc	*sc = arg;
+	DPRINTF(("%s: sc=%p, ifp=%p\n", __func__, sc, sc->ifp));
+	if (sc->ndis_80211)
+		return;
 
-	ifp = arg;
-
+	struct ifnet		*ifp = sc->ifp;
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		ndis_start(ifp);
+		ndis_ifstart(ifp);
 }
 
 /*
@@ -1821,8 +1833,7 @@ ndis_starttask(d, arg)
  * will do the mapping themselves on a buffer by buffer basis.
  */
 static void
-ndis_start(ifp)
-	struct ifnet		*ifp;
+ndis_ifstart(struct ifnet *ifp)
 {
 	struct ndis_softc	*sc;
 	struct mbuf		*m = NULL;
@@ -2880,7 +2891,7 @@ ndis_getstate_80211(struct ndis_softc *sc)
 }
 
 static int
-ndis_ioctl(ifp, command, data)
+ndis_ifioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -2964,11 +2975,12 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	switch (cmd) {
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
-		error = copyin(ifr->ifr_data, &oid, sizeof(oid));
+		error = copyin(ifr_data_get_ptr(ifr), &oid, sizeof(oid));
 		if (error)
 			break;
 		oidbuf = malloc(oid.len, M_TEMP, M_WAITOK | M_ZERO);
-		error = copyin(ifr->ifr_data + sizeof(oid), oidbuf, oid.len);
+		error = copyin((caddr_t)ifr_data_get_ptr(ifr) + sizeof(oid),
+		    oidbuf, oid.len);
 	}
 
 	if (error) {
@@ -2990,7 +3002,7 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 			NDIS_UNLOCK(sc);
 			break;
 		}
-		error = copyin(ifr->ifr_data, &evt, sizeof(evt));
+		error = copyin(ifr_data_get_ptr(ifr), &evt, sizeof(evt));
 		if (error) {
 			NDIS_UNLOCK(sc);
 			break;
@@ -3001,14 +3013,15 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 			break;
 		}
 		error = copyout(&sc->ndis_evt[sc->ndis_evtcidx],
-		    ifr->ifr_data, sizeof(uint32_t) * 2);
+		    ifr_data_get_ptr(ifr), sizeof(uint32_t) * 2);
 		if (error) {
 			NDIS_UNLOCK(sc);
 			break;
 		}
 		if (sc->ndis_evt[sc->ndis_evtcidx].ne_len) {
 			error = copyout(sc->ndis_evt[sc->ndis_evtcidx].ne_buf,
-			    ifr->ifr_data + (sizeof(uint32_t) * 2),
+			    (caddr_t)ifr_data_get_ptr(ifr) +
+			    (sizeof(uint32_t) * 2),
 			    sc->ndis_evt[sc->ndis_evtcidx].ne_len);
 			if (error) {
 				NDIS_UNLOCK(sc);
@@ -3030,10 +3043,11 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	switch (cmd) {
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
-		error = copyout(&oid, ifr->ifr_data, sizeof(oid));
+		error = copyout(&oid, ifr_data_get_ptr(ifr), sizeof(oid));
 		if (error)
 			break;
-		error = copyout(oidbuf, ifr->ifr_data + sizeof(oid), oid.len);
+		error = copyout(oidbuf,
+		    (caddr_t)ifr_data_get_ptr(ifr) + sizeof(oid), oid.len);
 	}
 
 	free(oidbuf, M_TEMP);

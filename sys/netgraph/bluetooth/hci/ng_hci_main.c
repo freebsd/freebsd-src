@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -93,7 +95,22 @@ NETGRAPH_INIT(hci, &typestruct);
 MODULE_VERSION(ng_hci, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_hci, ng_bluetooth, NG_BLUETOOTH_VERSION,
 	NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);
+static int ng_hci_linktype_to_addrtype(int linktype);
 
+static int ng_hci_linktype_to_addrtype(int linktype)
+{
+	switch(linktype){
+	case NG_HCI_LINK_LE_PUBLIC:
+		return BDADDR_LE_PUBLIC;
+	case NG_HCI_LINK_LE_RANDOM:
+		return BDADDR_LE_RANDOM;
+	case NG_HCI_LINK_ACL:
+		/*FALLTHROUGH*/
+	default:
+		return BDADDR_BREDR;
+	}
+	return BDADDR_BREDR;
+}
 /*****************************************************************************
  *****************************************************************************
  **                   Netgraph methods implementation
@@ -481,11 +498,15 @@ ng_hci_default_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				e2->page_scan_rep_mode = n->page_scan_rep_mode;
 				e2->page_scan_mode = n->page_scan_mode;
 				e2->clock_offset = n->clock_offset;
+				e2->addrtype =
+					ng_hci_linktype_to_addrtype(n->addrtype);
+				e2->extinq_size = n->extinq_size;
 				bcopy(&n->bdaddr, &e2->bdaddr, 
 					sizeof(e2->bdaddr));
 				bcopy(&n->features, &e2->features,
 					sizeof(e2->features));
-
+				bcopy(&n->extinq_data, &e2->extinq_data,
+				      n->extinq_size);
 				e2 ++;
 				if (--s <= 0)
 					break;

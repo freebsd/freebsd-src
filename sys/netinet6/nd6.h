@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -256,7 +258,7 @@ struct nd_prefixctl {
 	struct prf_ra ndpr_flags;
 };
 
-
+LIST_HEAD(nd_prhead, nd_prefix);
 struct nd_prefix {
 	struct ifnet *ndpr_ifp;
 	LIST_ENTRY(nd_prefix) ndpr_entry;
@@ -275,7 +277,8 @@ struct nd_prefix {
 	/* list of routers that advertise the prefix: */
 	LIST_HEAD(pr_rtrhead, nd_pfxrouter) ndpr_advrtrs;
 	u_char	ndpr_plen;
-	int	ndpr_refcnt;	/* reference couter from addresses */
+	int	ndpr_addrcnt;	/* count of derived addresses */
+	volatile u_int ndpr_refcnt;
 };
 
 #define ndpr_raf		ndpr_flags
@@ -314,8 +317,6 @@ struct nd_pfxrouter {
 	struct nd_defrouter *router;
 };
 
-LIST_HEAD(nd_prhead, nd_prefix);
-
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IP6NDP);
 #endif
@@ -346,16 +347,29 @@ VNET_DECLARE(int, nd6_onlink_ns_rfc4861);
 
 /* Lock for the prefix and default router lists. */
 VNET_DECLARE(struct rwlock, nd6_lock);
+VNET_DECLARE(uint64_t, nd6_list_genid);
 #define	V_nd6_lock			VNET(nd6_lock)
+#define	V_nd6_list_genid		VNET(nd6_list_genid)
 
 #define	ND6_RLOCK()			rw_rlock(&V_nd6_lock)
 #define	ND6_RUNLOCK()			rw_runlock(&V_nd6_lock)
 #define	ND6_WLOCK()			rw_wlock(&V_nd6_lock)
 #define	ND6_WUNLOCK()			rw_wunlock(&V_nd6_lock)
+#define	ND6_TRY_UPGRADE()		rw_try_upgrade(&V_nd6_lock)
 #define	ND6_WLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_WLOCKED)
 #define	ND6_RLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_RLOCKED)
 #define	ND6_LOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_LOCKED)
 #define	ND6_UNLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_UNLOCKED)
+
+/* Mutex for prefix onlink/offlink transitions. */
+VNET_DECLARE(struct mtx, nd6_onlink_mtx);
+#define	V_nd6_onlink_mtx		VNET(nd6_onlink_mtx)
+
+#define	ND6_ONLINK_LOCK()		mtx_lock(&V_nd6_onlink_mtx)
+#define	ND6_ONLINK_TRYLOCK()		mtx_trylock(&V_nd6_onlink_mtx)
+#define	ND6_ONLINK_UNLOCK()		mtx_unlock(&V_nd6_onlink_mtx)
+#define	ND6_ONLINK_LOCK_ASSERT()	mtx_assert(&V_nd6_onlink_mtx, MA_OWNED)
+#define	ND6_ONLINK_UNLOCK_ASSERT()	mtx_assert(&V_nd6_onlink_mtx, MA_NOTOWNED)
 
 #define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 
@@ -414,7 +428,7 @@ void nd6_init(void);
 void nd6_destroy(void);
 #endif
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
-void nd6_ifdetach(struct nd_ifinfo *);
+void nd6_ifdetach(struct ifnet *, struct nd_ifinfo *);
 int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
@@ -434,7 +448,7 @@ void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);
 void nd6_grab_holdchain(struct llentry *, struct mbuf **,
     struct sockaddr_in6 *);
-int nd6_flush_holdchain(struct ifnet *, struct ifnet *, struct mbuf *,
+int nd6_flush_holdchain(struct ifnet *, struct mbuf *,
     struct sockaddr_in6 *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
@@ -457,15 +471,21 @@ void nd6_dad_stop(struct ifaddr *);
 void nd6_rs_input(struct mbuf *, int, int);
 void nd6_ra_input(struct mbuf *, int, int);
 void defrouter_reset(void);
+void defrouter_select_fib(int fibnum);
 void defrouter_select(void);
 void defrouter_ref(struct nd_defrouter *);
 void defrouter_rele(struct nd_defrouter *);
 bool defrouter_remove(struct in6_addr *, struct ifnet *);
 void defrouter_unlink(struct nd_defrouter *, struct nd_drhead *);
 void defrouter_del(struct nd_defrouter *);
-void prelist_remove(struct nd_prefix *);
 int nd6_prelist_add(struct nd_prefixctl *, struct nd_defrouter *,
-	struct nd_prefix **);
+    struct nd_prefix **);
+void nd6_prefix_unlink(struct nd_prefix *, struct nd_prhead *);
+void nd6_prefix_del(struct nd_prefix *);
+void nd6_prefix_ref(struct nd_prefix *);
+void nd6_prefix_rele(struct nd_prefix *);
+int nd6_prefix_onlink(struct nd_prefix *);
+int nd6_prefix_offlink(struct nd_prefix *);
 void pfxlist_onlink_check(void);
 struct nd_defrouter *defrouter_lookup(struct in6_addr *, struct ifnet *);
 struct nd_defrouter *defrouter_lookup_locked(struct in6_addr *, struct ifnet *);

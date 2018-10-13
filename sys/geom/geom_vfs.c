@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -168,7 +170,7 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	sc = cp->geom->softc;
 
 	/*
-	 * If the provider has orphaned us, just return EXIO.
+	 * If the provider has orphaned us, just return ENXIO.
 	 */
 	mtx_lock(&sc->sc_mtx);
 	if (sc->sc_orphaned) {
@@ -192,6 +194,10 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	}
 	bip->bio_done = g_vfs_done;
 	bip->bio_caller2 = bp;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	buf_track(bp, __func__);
+	bip->bio_track_bp = bp;
+#endif
 	g_io_request(bip, cp);
 }
 

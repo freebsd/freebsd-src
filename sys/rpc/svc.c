@@ -1,6 +1,8 @@
 /*	$NetBSD: svc.c,v 1.21 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -75,6 +77,7 @@ static void svc_new_thread(SVCGROUP *grp);
 static void xprt_unregister_locked(SVCXPRT *xprt);
 static void svc_change_space_used(SVCPOOL *pool, long delta);
 static bool_t svc_request_space_available(SVCPOOL *pool);
+static void svcpool_cleanup(SVCPOOL *pool);
 
 /* ***************  SVCXPRT related stuff **************** */
 
@@ -174,8 +177,12 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	return pool;
 }
 
-void
-svcpool_destroy(SVCPOOL *pool)
+/*
+ * Code common to svcpool_destroy() and svcpool_close(), which cleans up
+ * the pool data structures.
+ */
+static void
+svcpool_cleanup(SVCPOOL *pool)
 {
 	SVCGROUP *grp;
 	SVCXPRT *xprt, *nxprt;
@@ -211,6 +218,15 @@ svcpool_destroy(SVCPOOL *pool)
 		mtx_lock(&pool->sp_lock);
 	}
 	mtx_unlock(&pool->sp_lock);
+}
+
+void
+svcpool_destroy(SVCPOOL *pool)
+{
+	SVCGROUP *grp;
+	int g;
+
+	svcpool_cleanup(pool);
 
 	for (g = 0; g < SVC_MAXGROUPS; g++) {
 		grp = &pool->sp_groups[g];
@@ -223,6 +239,30 @@ svcpool_destroy(SVCPOOL *pool)
 
 	sysctl_ctx_free(&pool->sp_sysctl);
 	free(pool, M_RPC);
+}
+
+/*
+ * Similar to svcpool_destroy(), except that it does not destroy the actual
+ * data structures.  As such, "pool" may be used again.
+ */
+void
+svcpool_close(SVCPOOL *pool)
+{
+	SVCGROUP *grp;
+	int g;
+
+	svcpool_cleanup(pool);
+
+	/* Now, initialize the pool's state for a fresh svc_run() call. */
+	mtx_lock(&pool->sp_lock);
+	pool->sp_state = SVCPOOL_INIT;
+	mtx_unlock(&pool->sp_lock);
+	for (g = 0; g < SVC_MAXGROUPS; g++) {
+		grp = &pool->sp_groups[g];
+		mtx_lock(&grp->sg_lock);
+		grp->sg_state = SVCPOOL_ACTIVE;
+		mtx_unlock(&grp->sg_lock);
+	}
 }
 
 /*
@@ -841,7 +881,7 @@ svcerr_progvers(struct svc_req *rqstp, rpcvers_t low_vers, rpcvers_t high_vers)
  * parameters.
  */
 SVCXPRT *
-svc_xprt_alloc()
+svc_xprt_alloc(void)
 {
 	SVCXPRT *xprt;
 	SVCXPRT_EXT *ext;
@@ -858,8 +898,7 @@ svc_xprt_alloc()
  * Free a server transport structure.
  */
 void
-svc_xprt_free(xprt)
-	SVCXPRT *xprt;
+svc_xprt_free(SVCXPRT *xprt)
 {
 
 	mem_free(xprt->xp_p3, sizeof(SVCXPRT_EXT));
@@ -1146,7 +1185,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 			/*
 			 * Enforce maxthreads count.
 			 */
-			if (grp->sg_threadcount > grp->sg_maxthreads)
+			if (!ismaster && grp->sg_threadcount >
+			    grp->sg_maxthreads)
 				break;
 
 			/*

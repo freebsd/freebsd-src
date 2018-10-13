@@ -1,4 +1,4 @@
-.\" $File: libmagic.man,v 1.40 2016/03/31 17:51:12 christos Exp $
+.\" $File: libmagic.man,v 1.41 2017/05/23 21:54:07 christos Exp $
 .\"
 .\" Copyright (c) Christos Zoulas 2003.
 .\" All Rights Reserved.
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 11, 2015
+.Dd May 23, 2017
 .Dt LIBMAGIC 3
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm magic_errno ,
 .Nm magic_descriptor ,
 .Nm magic_buffer ,
+.Nm magic_getflags ,
 .Nm magic_setflags ,
 .Nm magic_check ,
 .Nm magic_compile ,
@@ -63,6 +64,8 @@
 .Fn magic_file "magic_t cookie" "const char *filename"
 .Ft const char *
 .Fn magic_buffer "magic_t cookie" "const void *buffer" "size_t length"
+.Ft int
+.Fn magic_getflags "magic_t cookie"
 .Ft int
 .Fn magic_setflags "magic_t cookie" "int flags"
 .Ft int
@@ -204,6 +207,12 @@ function returns a textual description of the contents of the
 argument with
 .Ar length
 bytes size.
+.Pp
+The
+.Fn magic_getflags
+functions returns a value representing current
+.Ar flags
+set.
 .Pp
 The
 .Fn magic_setflags

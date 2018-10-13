@@ -67,10 +67,7 @@
 #define	VM_PHYSSEG_SPARSE
 
 /*
- * The number of PHYSSEG entries must be one greater than the number
- * of phys_avail entries because the phys_avail entry that spans the
- * largest physical address that is accessible by ISA DMA is split
- * into two PHYSSEG entries.
+ * The number of PHYSSEG entries.
  */
 #define	VM_PHYSSEG_MAX		64
 
@@ -85,14 +82,11 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create two free page lists: VM_FREELIST_DEFAULT is for physical
- * pages that are above the largest physical address that is
- * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
- * that are below that address.
+ * Create one free page lists: VM_FREELIST_DEFAULT is for all physical
+ * pages.
  */
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
@@ -176,12 +170,13 @@
 #define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
     (va) < (dmap_max_addr))
 
+#define	PMAP_HAS_DMAP	1
 #define	PHYS_TO_DMAP(pa)						\
 ({									\
 	KASSERT(PHYS_IN_DMAP(pa),					\
 	    ("%s: PA out of range, PA: 0x%lx", __func__,		\
 	    (vm_paddr_t)(pa)));						\
-	((pa) - dmap_phys_base) | DMAP_MIN_ADDRESS;			\
+	((pa) - dmap_phys_base) + DMAP_MIN_ADDRESS;			\
 })
 
 #define	DMAP_TO_PHYS(va)						\
@@ -189,7 +184,7 @@
 	KASSERT(VIRT_IN_DMAP(va),					\
 	    ("%s: VA out of range, VA: 0x%lx", __func__,		\
 	    (vm_offset_t)(va)));					\
-	((va) & ~DMAP_MIN_ADDRESS) + dmap_phys_base;			\
+	((va) - DMAP_MIN_ADDRESS) + dmap_phys_base;			\
 })
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)

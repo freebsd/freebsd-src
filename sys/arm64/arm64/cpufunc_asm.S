@@ -103,19 +103,6 @@ ENTRY(arm64_tlb_flushID)
 	ret
 END(arm64_tlb_flushID)
 
-ENTRY(arm64_tlb_flushID_SE)
-	ldr	x1, .Lpage_mask
-	bic	x0, x0, x1
-#ifdef SMP
-	tlbi	vae1is, x0
-#else
-	tlbi	vae1, x0
-#endif
-	dsb	ish
-	isb
-	ret
-END(arm64_tlb_flushID_SE)
-
 /*
  * void arm64_dcache_wb_range(vm_offset_t, vm_size_t)
  */
@@ -151,5 +138,12 @@ END(arm64_idcache_wbinv_range)
  * void arm64_icache_sync_range(vm_offset_t, vm_size_t)
  */
 ENTRY(arm64_icache_sync_range)
-	cache_handle_range	dcop = cvac, ic = 1, icop = ivau
+	/*
+	 * XXX Temporary solution - I-cache flush should be range based for
+	 * PIPT cache or IALLUIS for VIVT or VIPT caches
+	 */
+/*	cache_handle_range	dcop = cvau, ic = 1, icop = ivau */
+	cache_handle_range	dcop = cvau
+	ic	ialluis
+	dsb	ish
 END(arm64_icache_sync_range)

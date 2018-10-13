@@ -17,7 +17,7 @@ using namespace llvm;
 #define DEBUG_TYPE "aarch64-selectiondag-info"
 
 SDValue AArch64SelectionDAGInfo::EmitTargetCodeForMemset(
-    SelectionDAG &DAG, SDLoc dl, SDValue Chain, SDValue Dst, SDValue Src,
+    SelectionDAG &DAG, const SDLoc &dl, SDValue Chain, SDValue Dst, SDValue Src,
     SDValue Size, unsigned Align, bool isVolatile,
     MachinePointerInfo DstPtrInfo) const {
   // Check to see if there is a specialized entry-point for memory zeroing.
@@ -25,11 +25,11 @@ SDValue AArch64SelectionDAGInfo::EmitTargetCodeForMemset(
   ConstantSDNode *SizeValue = dyn_cast<ConstantSDNode>(Size);
   const AArch64Subtarget &STI =
       DAG.getMachineFunction().getSubtarget<AArch64Subtarget>();
-  const char *bzeroEntry =
-      (V && V->isNullValue()) ? STI.getBZeroEntry() : nullptr;
+  const char *bzeroName = (V && V->isNullValue())
+      ? DAG.getTargetLoweringInfo().getLibcallName(RTLIB::BZERO) : nullptr;
   // For small size (< 256), it is not beneficial to use bzero
   // instead of memset.
-  if (bzeroEntry && (!SizeValue || SizeValue->getZExtValue() > 256)) {
+  if (bzeroName && (!SizeValue || SizeValue->getZExtValue() > 256)) {
     const AArch64TargetLowering &TLI = *STI.getTargetLowering();
 
     EVT IntPtr = TLI.getPointerTy(DAG.getDataLayout());
@@ -42,12 +42,18 @@ SDValue AArch64SelectionDAGInfo::EmitTargetCodeForMemset(
     Entry.Node = Size;
     Args.push_back(Entry);
     TargetLowering::CallLoweringInfo CLI(DAG);
-    CLI.setDebugLoc(dl).setChain(Chain)
-      .setCallee(CallingConv::C, Type::getVoidTy(*DAG.getContext()),
-                 DAG.getExternalSymbol(bzeroEntry, IntPtr), std::move(Args), 0)
-      .setDiscardResult();
+    CLI.setDebugLoc(dl)
+        .setChain(Chain)
+        .setLibCallee(CallingConv::C, Type::getVoidTy(*DAG.getContext()),
+                      DAG.getExternalSymbol(bzeroName, IntPtr),
+                      std::move(Args))
+        .setDiscardResult();
     std::pair<SDValue, SDValue> CallResult = TLI.LowerCallTo(CLI);
     return CallResult.second;
   }
   return SDValue();
+}
+bool AArch64SelectionDAGInfo::generateFMAsInMachineCombiner(
+    CodeGenOpt::Level OptLevel) const {
+  return OptLevel >= CodeGenOpt::Aggressive;
 }

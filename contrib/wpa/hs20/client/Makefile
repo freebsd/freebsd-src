@@ -76,6 +76,7 @@ LIBS += -lcurl
 endif
 
 CFLAGS += -DEAP_TLS_OPENSSL
+OBJS += ../../src/crypto/tls_openssl_ocsp.o
 LIBS += -lssl -lcrypto
 
 hs20-osu-client: $(OBJS)

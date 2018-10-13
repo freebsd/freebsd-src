@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
@@ -44,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/poll.h>
 #include <sys/ioccom.h>
 
@@ -56,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <sys/bus_dma.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
@@ -3380,7 +3383,19 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	mtx_lock(&sc->aac_io_lock);
-	if ((error = copyin(arg, &agf, sizeof(agf))) == 0) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
+		struct get_adapter_fib_ioctl32 agf32;
+		error = copyin(arg, &agf32, sizeof(agf32));
+		if (error == 0) {
+			agf.AdapterFibContext = agf32.AdapterFibContext;
+			agf.Wait = agf32.Wait;
+			agf.AifFib = (caddr_t)(uintptr_t)agf32.AifFib;
+		}
+	} else
+#endif
+		error = copyin(arg, &agf, sizeof(agf));
+	if (error == 0) {
 		for (ctx = sc->fibctx; ctx; ctx = ctx->next) {
 			if (agf.AdapterFibContext == ctx->unique)
 				break;

@@ -7,6 +7,7 @@
 PROG=	ipfwpcap
 
 LIBADD=	pcap
+CFLAGS+=-I${SRCTOP}/contrib/libpcap
 
 MAN=	ipfwpcap.8
 

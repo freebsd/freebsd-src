@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)daemon.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd December 23, 2017
 .Dt DAEMON 3
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@
 .In stdlib.h
 .Ft int
 .Fn daemon "int nochdir" "int noclose"
+.Ft int
+.Fn daemonfd "int chdirfd" "int nullfd"
 .Sh DESCRIPTION
 The
 .Fn daemon
@@ -59,15 +61,39 @@ is non-zero,
 .Fn daemon
 will redirect standard input, standard output, and standard error to
 .Pa /dev/null .
+.Pp
+The
+.Fn daemonfd
+function is equivalent to the
+.Fn daemon
+function except that arguments are the descriptors for the current working
+directory and to the descriptor to
+.Pa /dev/null .
+.Pp
+If
+.Fa chdirfd
+is equal to
+.Pq -1
+the current working directory is not changed.
+.Pp
+If
+.Fa nullfd
+is equals to
+.Pq -1
+the redirection of standard input, standard output, and standard error is not
+closed.
 .Sh RETURN VALUES
-.Rv -std daemon
+.Rv -std daemon daemonfd
 .Sh ERRORS
 The
 .Fn daemon
+and
+.Fn daemonfd
 function may fail and set
 .Va errno
 for any of the errors specified for the library functions
 .Xr fork 2
+.Xr open 2,
 and
 .Xr setsid 2 .
 .Sh SEE ALSO
@@ -79,6 +105,10 @@ The
 .Fn daemon
 function first appeared in
 .Bx 4.4 .
+The
+.Fn daemonfd
+function first appeared in
+.Fx 12.0 .
 .Sh CAVEATS
 Unless the
 .Fa noclose

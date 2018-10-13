@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -44,6 +46,7 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AGGR_SETUP		0x0008	/* deferred state setup */
 #define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
 #define	IEEE80211_AGGR_BARPEND		0x0020	/* BAR response pending */
+#define	IEEE80211_AGGR_WAITRX		0x0040	/* Wait for first RX frame to define BAW */
 	uint8_t		txa_tid;
 	uint8_t		txa_token;	/* dialog token */
 	int		txa_lastsample;	/* ticks @ last traffic sample */
@@ -176,8 +179,7 @@ struct ieee80211_mcs_rates {
 	uint16_t	ht40_rate_400ns;
 };
 extern const struct ieee80211_mcs_rates ieee80211_htrates[];
-const struct ieee80211_htrateset *ieee80211_get_suphtrates(
-		struct ieee80211com *, const struct ieee80211_channel *);
+void	ieee80211_init_suphtrates(struct ieee80211com *);
 
 struct ieee80211_node;
 int	ieee80211_setup_htrates(struct ieee80211_node *,
@@ -185,7 +187,8 @@ int	ieee80211_setup_htrates(struct ieee80211_node *,
 void	ieee80211_setup_basic_htrates(struct ieee80211_node *,
 		const uint8_t *htinfo);
 struct mbuf *ieee80211_decap_amsdu(struct ieee80211_node *, struct mbuf *);
-int	ieee80211_ampdu_reorder(struct ieee80211_node *, struct mbuf *);
+int	ieee80211_ampdu_reorder(struct ieee80211_node *, struct mbuf *,
+	    const struct ieee80211_rx_stats *);
 void	ieee80211_recv_bar(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_ht_node_init(struct ieee80211_node *);
 void	ieee80211_ht_node_cleanup(struct ieee80211_node *);
@@ -200,9 +203,12 @@ void	ieee80211_htprot_update(struct ieee80211com *, int protmode);
 void	ieee80211_ht_timeout(struct ieee80211com *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
-int	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
+void	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
 		const uint8_t *);
+int	ieee80211_ht_updateparams_final(struct ieee80211_node *,
+	    const uint8_t *, const uint8_t *);
 void	ieee80211_ht_updatehtcap(struct ieee80211_node *, const uint8_t *);
+void	ieee80211_ht_updatehtcap_final(struct ieee80211_node *);
 int	ieee80211_ampdu_request(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *);
 void	ieee80211_ampdu_stop(struct ieee80211_node *,
@@ -210,6 +216,8 @@ void	ieee80211_ampdu_stop(struct ieee80211_node *,
 int	ieee80211_send_bar(struct ieee80211_node *, struct ieee80211_tx_ampdu *,
 		ieee80211_seq);
 uint8_t	*ieee80211_add_htcap(uint8_t *, struct ieee80211_node *);
+uint8_t	*ieee80211_add_htcap_ch(uint8_t *, struct ieee80211vap *,
+	    struct ieee80211_channel *);
 uint8_t	*ieee80211_add_htcap_vendor(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo_vendor(uint8_t *, struct ieee80211_node *);
@@ -218,6 +226,7 @@ void	ieee80211_ht_update_beacon(struct ieee80211vap *,
 		struct ieee80211_beacon_offsets *);
 int	ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid,
 	    int seq, int baw);
+void	ieee80211_ampdu_rx_stop_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni,
 	    int tid, int status);

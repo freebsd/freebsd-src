@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
@@ -110,22 +112,11 @@ smb_strdup(const char *s)
 char *
 smb_strdupin(char *s, size_t maxlen)
 {
-	char *p, bt;
+	char *p;
 	int error;
-	size_t len;
 
-	len = 0;
-	for (p = s; ;p++) {
-		if (copyin(p, &bt, 1))
-			return NULL;
-		len++;
-		if (maxlen && len > maxlen)
-			return NULL;
-		if (bt == 0)
-			break;
-	}
-	p = malloc(len, M_SMBSTR, M_WAITOK);
-	error = copyin(s, p, len);
+	p = malloc(maxlen + 1, M_SMBSTR, M_WAITOK);
+	error = copyinstr(s, p, maxlen + 1, NULL);
 	if (error) {
 		free(p, M_SMBSTR);
 		return (NULL);

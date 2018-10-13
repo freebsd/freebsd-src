@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Codel/FQ_Codel and PIE/FQ-PIE Code:
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.
@@ -931,29 +933,35 @@ delete_schk(int i)
 static int
 copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 {
-	struct dn_id *o = _o;
+	struct dn_id o;
+	union {
+		struct dn_link l;
+		struct dn_schk s;
+	} dn;
 	int have = end - *start;
 
-	if (have < o->len || o->len == 0 || o->type == 0) {
+	memcpy(&o, _o, sizeof(o));
+	if (have < o.len || o.len == 0 || o.type == 0) {
 		D("(WARN) type %d %s %d have %d need %d",
-			o->type, msg, i, have, o->len);
+		    o.type, msg, i, have, o.len);
 		return 1;
 	}
-	ND("type %d %s %d len %d", o->type, msg, i, o->len);
-	bcopy(_o, *start, o->len);
-	if (o->type == DN_LINK) {
+	ND("type %d %s %d len %d", o.type, msg, i, o.len);
+	if (o.type == DN_LINK) {
+		memcpy(&dn.l, _o, sizeof(dn.l));
 		/* Adjust burst parameter for link */
-		struct dn_link *l = (struct dn_link *)*start;
-		l->burst =  div64(l->burst, 8 * hz);
-		l->delay = l->delay * 1000 / hz;
-	} else if (o->type == DN_SCH) {
-		/* Set id->id to the number of instances */
-		struct dn_schk *s = _o;
-		struct dn_id *id = (struct dn_id *)(*start);
-		id->id = (s->sch.flags & DN_HAVE_MASK) ?
-			dn_ht_entries(s->siht) : (s->siht ? 1 : 0);
-	}
-	*start += o->len;
+		dn.l.burst = div64(dn.l.burst, 8 * hz);
+		dn.l.delay = dn.l.delay * 1000 / hz;
+		memcpy(*start, &dn.l, sizeof(dn.l));
+	} else if (o.type == DN_SCH) {
+		/* Set dn.s.sch.oid.id to the number of instances */
+		memcpy(&dn.s, _o, sizeof(dn.s));
+		dn.s.sch.oid.id = (dn.s.sch.flags & DN_HAVE_MASK) ?
+		    dn_ht_entries(dn.s.siht) : (dn.s.siht ? 1 : 0);
+		memcpy(*start, &dn.s, sizeof(dn.s));
+	} else
+		memcpy(*start, _o, o.len);
+	*start += o.len;
 	return 0;
 }
 
@@ -974,7 +982,7 @@ copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 		return 1;
 	}
 	ND("type %d %s %d len %d", o->type, msg, i, len);
-	bcopy(_o, *start, len);
+	memcpy(*start, _o, len);
 	((struct dn_id*)(*start))->len = len;
 	*start += len;
 	return 0;
@@ -1022,7 +1030,7 @@ copy_profile(struct copy_args *a, struct dn_profile *p)
 		D("error have %d need %d", have, profile_len);
 		return 1;
 	}
-	bcopy(p, *a->start, profile_len);
+	memcpy(*a->start, p, profile_len);
 	((struct dn_id *)(*a->start))->len = profile_len;
 	*a->start += profile_len;
 	return 0;
@@ -1584,6 +1592,9 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 {
 	int i;
 	struct dn_fsk *fs;
+#ifdef NEW_AQM
+	struct dn_extra_parms *ep;
+#endif
 
 	if (nfs->oid.len != sizeof(*nfs)) {
 		D("invalid flowset len %d", nfs->oid.len);
@@ -1592,6 +1603,15 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	i = nfs->fs_nr;
 	if (i <= 0 || i >= 3*DN_MAX_ID)
 		return NULL;
+#ifdef NEW_AQM
+	ep = NULL;
+	if (arg != NULL) {
+		ep = malloc(sizeof(*ep), M_TEMP, locked ? M_NOWAIT : M_WAITOK);
+		if (ep == NULL)
+			return (NULL);
+		memcpy(ep, arg, sizeof(*ep));
+	}
+#endif
 	ND("flowset %d", i);
 	/* XXX other sanity checks */
         if (nfs->flags & DN_QSIZE_BYTES) {
@@ -1630,12 +1650,15 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	    if (bcmp(&fs->fs, nfs, sizeof(*nfs)) == 0) {
 		ND("flowset %d unchanged", i);
 #ifdef NEW_AQM
-		/* reconfigure AQM as the parameters can be changed.
-		 * we consider the flowsetis  busy if it has scheduler instance(s) 
-		*/ 
-		s = locate_scheduler(nfs->sched_nr);
-		config_aqm(fs, (struct dn_extra_parms *) arg, 
-			s != NULL && s->siht != NULL);
+		if (ep != NULL) {
+			/*
+			 * Reconfigure AQM as the parameters can be changed.
+			 * We consider the flowset as busy if it has scheduler
+			 * instance(s).
+			 */ 
+			s = locate_scheduler(nfs->sched_nr);
+			config_aqm(fs, ep, s != NULL && s->siht != NULL);
+		}
 #endif
 		break; /* no change, nothing to do */
 	    }
@@ -1657,13 +1680,19 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	    fs->fs = *nfs; /* copy configuration */
 #ifdef NEW_AQM
 			fs->aqmfp = NULL;
-			config_aqm(fs, (struct dn_extra_parms *) arg, s != NULL && s->siht != NULL);
+			if (ep != NULL)
+				config_aqm(fs, ep, s != NULL &&
+				    s->siht != NULL);
 #endif
 	    if (s != NULL)
 		fsk_attach(fs, s);
 	} while (0);
 	if (!locked)
 		DN_BH_WUNLOCK();
+#ifdef NEW_AQM
+	if (ep != NULL)
+		free(ep, M_TEMP);
+#endif
 	return fs;
 }
 
@@ -1773,7 +1802,7 @@ again: /* run twice, for wfq and fifo */
 				D("cannot allocate profile");
 				goto error; //XXX
 			}
-			bcopy(pf, s->profile, sizeof(*pf));
+			memcpy(s->profile, pf, sizeof(*pf));
 		}
 	}
 	p.link_nr = 0;
@@ -1795,7 +1824,7 @@ again: /* run twice, for wfq and fifo */
 				pf = malloc(sizeof(*pf),
 				    M_DUMMYNET, M_NOWAIT | M_ZERO);
 			if (pf)	/* XXX should issue a warning otherwise */
-				bcopy(s->profile, pf, sizeof(*pf));
+				memcpy(pf, s->profile, sizeof(*pf));
 		}
 		/* remove from the hash */
 		dn_ht_find(dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
@@ -1917,7 +1946,7 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 		olen = s->profile->oid.len;
 		if (olen < pf->oid.len)
 			olen = pf->oid.len;
-		bcopy(pf, s->profile, pf->oid.len);
+		memcpy(s->profile, pf, pf->oid.len);
 		s->profile->oid.len = olen;
 	}
 	DN_BH_WUNLOCK();
@@ -1953,30 +1982,35 @@ dummynet_flush(void)
 int
 do_config(void *p, int l)
 {
-	struct dn_id *next, *o;
-	int err = 0, err2 = 0;
-	struct dn_id *arg = NULL;
-	uintptr_t *a;
+	struct dn_id o;
+	union {
+		struct dn_profile profile;
+		struct dn_fs fs;
+		struct dn_link link;
+		struct dn_sch sched;
+	} *dn;
+	struct dn_id *arg;
+	uintptr_t a;
+	int err, err2, off;
 
-	o = p;
-	if (o->id != DN_API_VERSION) {
-		D("invalid api version got %d need %d",
-			o->id, DN_API_VERSION);
+	memcpy(&o, p, sizeof(o));
+	if (o.id != DN_API_VERSION) {
+		D("invalid api version got %d need %d", o.id, DN_API_VERSION);
 		return EINVAL;
 	}
-	for (; l >= sizeof(*o); o = next) {
-		struct dn_id *prev = arg;
-		if (o->len < sizeof(*o) || l < o->len) {
-			D("bad len o->len %d len %d", o->len, l);
+	arg = NULL;
+	dn = NULL;
+	for (off = 0; l >= sizeof(o); memcpy(&o, (char *)p + off, sizeof(o))) {
+		if (o.len < sizeof(o) || l < o.len) {
+			D("bad len o.len %d len %d", o.len, l);
 			err = EINVAL;
 			break;
 		}
-		l -= o->len;
-		next = (struct dn_id *)((char *)o + o->len);
+		l -= o.len;
 		err = 0;
-		switch (o->type) {
+		switch (o.type) {
 		default:
-			D("cmd %d not implemented", o->type);
+			D("cmd %d not implemented", o.type);
 			break;
 
 #ifdef EMULATE_SYSCTL
@@ -1994,31 +2028,30 @@ do_config(void *p, int l)
 
 		case DN_CMD_DELETE:
 			/* the argument is in the first uintptr_t after o */
-			a = (uintptr_t *)(o+1);
-			if (o->len < sizeof(*o) + sizeof(*a)) {
+			if (o.len < sizeof(o) + sizeof(a)) {
 				err = EINVAL;
 				break;
 			}
-			switch (o->subtype) {
+			memcpy(&a, (char *)p + off + sizeof(o), sizeof(a));
+			switch (o.subtype) {
 			case DN_LINK:
 				/* delete base and derived schedulers */
 				DN_BH_WLOCK();
-				err = delete_schk(*a);
-				err2 = delete_schk(*a + DN_MAX_ID);
+				err = delete_schk(a);
+				err2 = delete_schk(a + DN_MAX_ID);
 				DN_BH_WUNLOCK();
 				if (!err)
 					err = err2;
 				break;
 
 			default:
-				D("invalid delete type %d",
-					o->subtype);
+				D("invalid delete type %d", o.subtype);
 				err = EINVAL;
 				break;
 
 			case DN_FS:
-				err = (*a <1 || *a >= DN_MAX_ID) ?
-					EINVAL : delete_fs(*a, 0) ;
+				err = (a < 1 || a >= DN_MAX_ID) ?
+				    EINVAL : delete_fs(a, 0) ;
 				break;
 			}
 			break;
@@ -2028,28 +2061,47 @@ do_config(void *p, int l)
 			dummynet_flush();
 			DN_BH_WUNLOCK();
 			break;
-		case DN_TEXT:	/* store argument the next block */
-			prev = NULL;
-			arg = o;
+		case DN_TEXT:	/* store argument of next block */
+			if (arg != NULL)
+				free(arg, M_TEMP);
+			arg = malloc(o.len, M_TEMP, M_WAITOK);
+			memcpy(arg, (char *)p + off, o.len);
 			break;
 		case DN_LINK:
-			err = config_link((struct dn_link *)o, arg);
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->link, (char *)p + off, sizeof(dn->link));
+			err = config_link(&dn->link, arg);
 			break;
 		case DN_PROFILE:
-			err = config_profile((struct dn_profile *)o, arg);
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->profile, (char *)p + off,
+			    sizeof(dn->profile));
+			err = config_profile(&dn->profile, arg);
 			break;
 		case DN_SCH:
-			err = config_sched((struct dn_sch *)o, arg);
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->sched, (char *)p + off,
+			    sizeof(dn->sched));
+			err = config_sched(&dn->sched, arg);
 			break;
 		case DN_FS:
-			err = (NULL==config_fs((struct dn_fs *)o, arg, 0));
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->fs, (char *)p + off, sizeof(dn->fs));
+			err = (NULL == config_fs(&dn->fs, arg, 0));
 			break;
 		}
-		if (prev)
-			arg = NULL;
 		if (err != 0)
 			break;
+		off += o.len;
 	}
+	if (arg != NULL)
+		free(arg, M_TEMP);
+	if (dn != NULL)
+		free(dn, M_TEMP);
 	return err;
 }
 
@@ -2261,7 +2313,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	a.type = cmd->subtype;
 
 	if (compat == NULL) {
-		bcopy(cmd, start, sizeof(*cmd));
+		memcpy(start, cmd, sizeof(*cmd));
 		((struct dn_id*)(start))->len = sizeof(struct dn_id);
 		buf = start + sizeof(*cmd);
 	} else
@@ -2629,7 +2681,7 @@ static moduledata_t dummynet_mod = {
 	"dummynet", dummynet_modevent, NULL
 };
 
-#define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	DN_SI_SUB	SI_SUB_PROTO_FIREWALL
 #define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
 DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 3, 3, 3);

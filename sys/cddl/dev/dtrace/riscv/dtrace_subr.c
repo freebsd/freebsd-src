@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * Portions Copyright 2016 Ruslan Bukin <br@bsdpad.com>
+ * Portions Copyright 2016-2018 Ruslan Bukin <br@bsdpad.com>
  *
  * $FreeBSD$
  *
@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
 #include <machine/vmparam.h>
+#include <machine/encoding.h>
 #include <machine/riscvreg.h>
-#include <machine/riscv_opcode.h>
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
@@ -76,7 +76,6 @@ dtrace_invop(uintptr_t addr, struct trapframe *frame, uintptr_t eax)
 
 	return (0);
 }
-
 
 void
 dtrace_invop_add(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
@@ -137,8 +136,8 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 	else
 		CPU_SETOF(cpu, &cpus);
 
-	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
-	    smp_no_rendevous_barrier, arg);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
+	    smp_no_rendezvous_barrier, arg);
 }
 
 static void
@@ -189,7 +188,7 @@ dtrace_trap(struct trapframe *frame, u_int type)
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * a flag in its per-cpu flags to indicate that it doesn't
 	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
@@ -203,9 +202,9 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 * All the rest will be handled in the usual way.
 		 */
 		switch (type) {
-		case EXCP_LOAD_ACCESS_FAULT:
-		case EXCP_STORE_ACCESS_FAULT:
-		case EXCP_INSTR_ACCESS_FAULT:
+		case EXCP_FAULT_LOAD:
+		case EXCP_FAULT_STORE:
+		case EXCP_FAULT_FETCH:
 			/* Flag a bad address. */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
 			cpu_core[curcpu].cpuc_dtrace_illval = 0;
@@ -238,29 +237,58 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 }
 
 static int
+match_opcode(uint32_t insn, int match, int mask)  
+{
+
+	if (((insn ^ match) & mask) == 0)
+		return (1);
+
+	return (0);
+}
+
+static int
 dtrace_invop_start(struct trapframe *frame)
 {
-	int data, invop, reg, update_sp;
-	register_t arg1, arg2;
 	register_t *sp;
+	uint32_t uimm;
 	uint32_t imm;
-	InstFmt i;
-	int offs;
-	int tmp;
+	int invop;
 
 	invop = dtrace_invop(frame->tf_sepc, frame, frame->tf_sepc);
 
-	if (invop == RISCV_INSN_RET) {
+	if (match_opcode(invop, (MATCH_SD | RS2_RA | RS1_SP),
+	    (MASK_SD | RS2_MASK | RS1_MASK))) {
+		/* Non-compressed store of ra to sp */
+		imm = (invop >> 7) & 0x1f;
+		imm |= ((invop >> 25) & 0x7f) << 5;
+		sp = (register_t *)((uint8_t *)frame->tf_sp + imm);
+		*sp = frame->tf_ra;
+		frame->tf_sepc += INSN_SIZE;
+		return (0);
+	}
+
+	if (match_opcode(invop, (MATCH_JALR | (X_RA << RS1_SHIFT)),
+	    (MASK_JALR | RD_MASK | RS1_MASK | IMM_MASK))) {
+		/* Non-compressed ret */
 		frame->tf_sepc = frame->tf_ra;
 		return (0);
 	}
 
-	if ((invop & SD_RA_SP_MASK) == SD_RA_SP) {
-		i.word = invop;
-		imm = i.SType.imm0_4 | (i.SType.imm5_11 << 5);
-		sp = (register_t *)((uint8_t *)frame->tf_sp + imm);
+	if (match_opcode(invop, (MATCH_C_SDSP | RS2_C_RA),
+	    (MASK_C_SDSP | RS2_C_MASK))) {
+		/* 'C'-compressed store of ra to sp */
+		uimm = ((invop >> 10) & 0x7) << 3;
+		uimm |= ((invop >> 7) & 0x7) << 6;
+		sp = (register_t *)((uint8_t *)frame->tf_sp + uimm);
 		*sp = frame->tf_ra;
-		frame->tf_sepc += INSN_SIZE;
+		frame->tf_sepc += INSN_C_SIZE;
+		return (0);
+	}
+
+	if (match_opcode(invop, (MATCH_C_JR | (X_RA << RD_SHIFT)),
+	    (MASK_C_JR | RD_MASK))) {
+		/* 'C'-compressed ret */
+		frame->tf_sepc = frame->tf_ra;
 		return (0);
 	}
 

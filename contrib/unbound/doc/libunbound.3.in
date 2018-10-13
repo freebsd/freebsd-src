@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
+.TH "libunbound" "3" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -12,7 +12,7 @@
 .B unbound.h,
 .B ub_ctx,
 .B ub_result,
-.B ub_callback_t,
+.B ub_callback_type,
 .B ub_ctx_create,
 .B ub_ctx_delete,
 .B ub_ctx_set_option,
@@ -43,7 +43,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.5.8 functions.
+\- Unbound DNS validating resolver 1.8.1 functions.
 .SH "SYNOPSIS"
 .B #include <unbound.h>
 .LP
@@ -120,7 +120,7 @@
 .br
                  \fIint\fR rrtype, \fIint\fR rrclass, \fIvoid*\fR mydata, 
 .br
-                 \fIub_callback_t\fR callback, \fIint*\fR async_id);
+                 \fIub_callback_type\fR callback, \fIint*\fR async_id);
 .LP
 \fIint\fR
 \fBub_cancel\fR(\fIstruct ub_ctx*\fR ctx, \fIint\fR async_id);
@@ -150,7 +150,8 @@
 is an implementation of a DNS resolver, that does caching and 
 DNSSEC validation. This is the library API, for using the \-lunbound library.
 The server daemon is described in \fIunbound\fR(8).
-The library can be used to convert hostnames to ip addresses, and back,
+The library works independent from a running unbound server, and
+can be used to convert hostnames to ip addresses, and back,
 and obtain other information from the DNS. The library performs public\-key
 validation of results with DNSSEC.
 .P
@@ -162,7 +163,7 @@ and deleting it with
 It can be created and deleted at any time. Creating it anew removes any 
 previous configuration (such as trusted keys) and clears any cached results.
 .P
-The functions are thread\-safe, and a context an be used in a threaded (as 
+The functions are thread\-safe, and a context can be used in a threaded (as 
 well as in a non\-threaded) environment. Also resolution (and validation) 
 can be performed blocking and non\-blocking (also called asynchronous). 
 The async method returns from the call immediately, so that processing 
@@ -180,7 +181,7 @@ and
 .B ub_ctx_hosts
 to read them.
 Before you call this, use the openssl functions CRYPTO_set_id_callback and
-CRYPTO_set_locking_callback to set up asyncronous operation if you use
+CRYPTO_set_locking_callback to set up asynchronous operation if you use
 lib openssl (the application calls these functions once for initialisation).
 Openssl 1.0.0 or later uses the CRYPTO_THREADID_set_callback function.
 .TP
@@ -203,7 +204,10 @@ without trailing ':'.  The returned value must be free(2)d by the caller.
 A power\-user interface that lets you specify an unbound config file, see
 \fIunbound.conf\fR(5), which is read for configuration. Not all options are
 relevant. For some specific options, such as adding trust anchors, special
-routines exist.
+routines exist.  This function is thread\-safe only if a single instance of
+ub_ctx* exists in the application.  If several instances exist the
+application has to ensure that ub_ctx_config is not called in parallel by
+the different instances.
 .TP
 .B ub_ctx_set_fwd
 Set machine to forward DNS queries to, the caching resolver to use. 
@@ -407,6 +411,10 @@ returns NULL on an error (a malloc failure).
 returns true if some information may be available, false otherwise.
 .B ub_fd
 returns a file descriptor or \-1 on error.
+.B ub_ctx_config
+and
+.B ub_ctx_resolvconf
+attempt to leave errno informative on a function return with file read failure.
 .SH "SEE ALSO"
 \fIunbound.conf\fR(5), 
 \fIunbound\fR(8).

@@ -6,54 +6,39 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+
 #include "lldb/Core/FileSpecList.h"
-#include "lldb/Core/Stream.h"
-#include <algorithm>
+
+#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Utility/Stream.h"
+
+#include <utility> // for find
+
+#include <stdint.h> // for UINT32_MAX
 
 using namespace lldb_private;
 using namespace std;
 
-//------------------------------------------------------------------
-// Default constructor
-//------------------------------------------------------------------
-FileSpecList::FileSpecList() :
-    m_files()
-{
-}
+FileSpecList::FileSpecList() : m_files() {}
 
-//------------------------------------------------------------------
-// Copy constructor
-//------------------------------------------------------------------
-FileSpecList::FileSpecList(const FileSpecList& rhs) :
-    m_files(rhs.m_files)
-{
-}
+FileSpecList::FileSpecList(const FileSpecList &rhs) = default;
 
-//------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------
-FileSpecList::~FileSpecList()
-{
-}
+FileSpecList::~FileSpecList() = default;
 
 //------------------------------------------------------------------
 // Assignment operator
 //------------------------------------------------------------------
-const FileSpecList&
-FileSpecList::operator= (const FileSpecList& rhs)
-{
-    if (this != &rhs)
-        m_files = rhs.m_files;
-    return *this;
+const FileSpecList &FileSpecList::operator=(const FileSpecList &rhs) {
+  if (this != &rhs)
+    m_files = rhs.m_files;
+  return *this;
 }
 
 //------------------------------------------------------------------
 // Append the "file_spec" to the end of the file spec list.
 //------------------------------------------------------------------
-void
-FileSpecList::Append(const FileSpec &file_spec)
-{
-    m_files.push_back(file_spec);
+void FileSpecList::Append(const FileSpec &file_spec) {
+  m_files.push_back(file_spec);
 }
 
 //------------------------------------------------------------------
@@ -63,40 +48,30 @@ FileSpecList::Append(const FileSpec &file_spec)
 // Returns true if "file_spec" was added, false if this list already
 // contained a copy of "file_spec".
 //------------------------------------------------------------------
-bool
-FileSpecList::AppendIfUnique(const FileSpec &file_spec)
-{
-    collection::iterator pos, end = m_files.end();
-    if (find(m_files.begin(), end, file_spec) == end)
-    {
-        m_files.push_back(file_spec);
-        return true;
-    }
-    return false;
+bool FileSpecList::AppendIfUnique(const FileSpec &file_spec) {
+  collection::iterator end = m_files.end();
+  if (find(m_files.begin(), end, file_spec) == end) {
+    m_files.push_back(file_spec);
+    return true;
+  }
+  return false;
 }
 
 //------------------------------------------------------------------
 // Clears the file list.
 //------------------------------------------------------------------
-void
-FileSpecList::Clear()
-{
-    m_files.clear();
-}
+void FileSpecList::Clear() { m_files.clear(); }
 
 //------------------------------------------------------------------
 // Dumps the file list to the supplied stream pointer "s".
 //------------------------------------------------------------------
-void
-FileSpecList::Dump(Stream *s, const char *separator_cstr) const
-{
-    collection::const_iterator pos, end = m_files.end();
-    for (pos = m_files.begin(); pos != end; ++pos)
-    {
-        pos->Dump(s);
-        if (separator_cstr && ((pos + 1) != end))
-            s->PutCString(separator_cstr);
-    }
+void FileSpecList::Dump(Stream *s, const char *separator_cstr) const {
+  collection::const_iterator pos, end = m_files.end();
+  for (pos = m_files.begin(); pos != end; ++pos) {
+    pos->Dump(s);
+    if (separator_cstr && ((pos + 1) != end))
+      s->PutCString(separator_cstr);
+  }
 }
 
 //------------------------------------------------------------------
@@ -104,55 +79,47 @@ FileSpecList::Dump(Stream *s, const char *separator_cstr) const
 // "file_spec" starting "start_idx" entries into the file spec list.
 //
 // Returns the valid index of the file that matches "file_spec" if
-// it is found, else UINT32_MAX is returned.
+// it is found, else std::numeric_limits<uint32_t>::max() is returned.
 //------------------------------------------------------------------
-size_t
-FileSpecList::FindFileIndex (size_t start_idx, const FileSpec &file_spec, bool full, bool remove_dots) const
-{
-    const size_t num_files = m_files.size();
+size_t FileSpecList::FindFileIndex(size_t start_idx, const FileSpec &file_spec,
+                                   bool full, bool remove_dots) const {
+  const size_t num_files = m_files.size();
 
-    // When looking for files, we will compare only the filename if the
-    // FILE_SPEC argument is empty
-    bool compare_filename_only = file_spec.GetDirectory().IsEmpty();
+  // When looking for files, we will compare only the filename if the
+  // FILE_SPEC argument is empty
+  bool compare_filename_only = file_spec.GetDirectory().IsEmpty();
 
-    for (size_t idx = start_idx; idx < num_files; ++idx)
-    {
-        if (compare_filename_only)
-        {
-            if (m_files[idx].GetFilename() == file_spec.GetFilename())
-                return idx;
-        }
-        else
-        {
-            if (FileSpec::Equal (m_files[idx], file_spec, full, remove_dots))
-                return idx;
-        }
+  for (size_t idx = start_idx; idx < num_files; ++idx) {
+    if (compare_filename_only) {
+      if (ConstString::Equals(
+              m_files[idx].GetFilename(), file_spec.GetFilename(),
+              file_spec.IsCaseSensitive() || m_files[idx].IsCaseSensitive()))
+        return idx;
+    } else {
+      if (FileSpec::Equal(m_files[idx], file_spec, full, remove_dots))
+        return idx;
     }
+  }
 
-    // We didn't find the file, return an invalid index
-    return UINT32_MAX;
+  // We didn't find the file, return an invalid index
+  return UINT32_MAX;
 }
 
 //------------------------------------------------------------------
 // Returns the FileSpec object at index "idx". If "idx" is out of
 // range, then an empty FileSpec object will be returned.
 //------------------------------------------------------------------
-const FileSpec &
-FileSpecList::GetFileSpecAtIndex(size_t idx) const
-{
-
-    if (idx < m_files.size())
-        return m_files[idx];
-    static FileSpec g_empty_file_spec;
-    return g_empty_file_spec;
+const FileSpec &FileSpecList::GetFileSpecAtIndex(size_t idx) const {
+  if (idx < m_files.size())
+    return m_files[idx];
+  static FileSpec g_empty_file_spec;
+  return g_empty_file_spec;
 }
 
-const FileSpec *
-FileSpecList::GetFileSpecPointerAtIndex(size_t idx) const
-{
-    if (idx < m_files.size())
-        return &m_files[idx];
-    return NULL;
+const FileSpec *FileSpecList::GetFileSpecPointerAtIndex(size_t idx) const {
+  if (idx < m_files.size())
+    return &m_files[idx];
+  return nullptr;
 }
 
 //------------------------------------------------------------------
@@ -162,73 +129,23 @@ FileSpecList::GetFileSpecPointerAtIndex(size_t idx) const
 // doesn't not include the string values for the directories any
 // filenames as those are in shared string pools.
 //------------------------------------------------------------------
-size_t
-FileSpecList::MemorySize () const
-{
-    size_t mem_size = sizeof(FileSpecList);
-    collection::const_iterator pos, end = m_files.end();
-    for (pos = m_files.begin(); pos != end; ++pos)
-    {
-        mem_size += pos->MemorySize();
-    }
+size_t FileSpecList::MemorySize() const {
+  size_t mem_size = sizeof(FileSpecList);
+  collection::const_iterator pos, end = m_files.end();
+  for (pos = m_files.begin(); pos != end; ++pos) {
+    mem_size += pos->MemorySize();
+  }
 
-    return mem_size;
+  return mem_size;
 }
 
 //------------------------------------------------------------------
 // Return the number of files in the file spec list.
 //------------------------------------------------------------------
-size_t
-FileSpecList::GetSize() const
-{
-    return m_files.size();
-}
+size_t FileSpecList::GetSize() const { return m_files.size(); }
 
-size_t
-FileSpecList::GetFilesMatchingPartialPath (const char *path, bool dir_okay, FileSpecList &matches)
-{
-#if 0  // FIXME: Just sketching...
-    matches.Clear();
-    FileSpec path_spec = FileSpec (path);
-    if (path_spec.Exists ())
-    {
-        FileSpec::FileType type = path_spec.GetFileType();
-        if (type == FileSpec::eFileTypeSymbolicLink)
-            // Shouldn't there be a Resolve on a file spec that real-path's it?
-        {
-        }
-
-        if (type == FileSpec::eFileTypeRegular
-            || (type == FileSpec::eFileTypeDirectory && dir_okay))
-        {
-            matches.Append (path_spec);
-            return 1;
-        }
-        else if (type == FileSpec::eFileTypeDirectory)
-        {
-            // Fill the match list with all the files in the directory:
-
-        }
-        else
-        {
-            return 0;
-        }
-
-    }
-    else
-    {
-        ConstString dir_name = path_spec.GetDirectory();
-        Constring file_name = GetFilename();
-        if (dir_name == NULL)
-        {
-            // Match files in the CWD.
-        }
-        else
-        {
-            // Match files in the given directory:
-
-        }
-    }
-#endif
-    return 0;
+size_t FileSpecList::GetFilesMatchingPartialPath(const char *path,
+                                                 bool dir_okay,
+                                                 FileSpecList &matches) {
+  return 0;
 }

@@ -14,17 +14,21 @@ arm/freescale/imx/imx6_ccm.c		standard
 arm/freescale/imx/imx6_machdep.c	standard
 arm/freescale/imx/imx6_mp.c		optional smp
 arm/freescale/imx/imx6_pl310.c		standard
+arm/freescale/imx/imx6_snvs.c		optional imx6_snvs
 arm/freescale/imx/imx6_src.c		standard
+arm/freescale/imx/imx_epit.c		standard
 arm/freescale/imx/imx_iomux.c		standard
 arm/freescale/imx/imx_machdep.c		standard
-arm/freescale/imx/imx_gpt.c		standard
+arm/freescale/imx/imx_gpt.c		optional imx_gpt
 arm/freescale/imx/imx_gpio.c		optional gpio
 arm/freescale/imx/imx_i2c.c		optional fsliic
-arm/freescale/imx/imx6_sdma.c		optional sdma
+arm/freescale/imx/imx_spi.c		optional imx_spi
+arm/freescale/imx/imx6_sdma.c		optional fslsdma
 arm/freescale/imx/imx6_audmux.c		optional sound
 arm/freescale/imx/imx6_ssi.c		optional sound
+arm/freescale/imx/imx6_ahci.c		optional ahci
 
-arm/arm/hdmi_if.m			optional hdmi
+dev/hdmi/dwc_hdmi.c			optional hdmi
 arm/freescale/imx/imx6_hdmi.c		optional hdmi
 
 arm/freescale/imx/imx6_ipu.c		optional	vt
@@ -32,7 +36,7 @@ arm/freescale/imx/imx6_ipu.c		optional	vt
 #
 # Optional devices.
 #
-arm/freescale/imx/imx_sdhci.c		optional sdhci
+dev/sdhci/fsl_sdhci.c			optional sdhci
 
 arm/freescale/imx/imx_wdog.c		optional imxwdt
 
@@ -46,7 +50,7 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 #
 # Low-level serial console for debugging early kernel startup.
 #
-#arm/freescale/imx/console.c  		standard
+#arm/freescale/imx/imx_console.c  	standard
 
 #
 # Not ready yet...

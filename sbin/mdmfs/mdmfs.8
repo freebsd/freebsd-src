@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2016
+.Dd September 9, 2017
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -33,7 +33,9 @@
 .Nm mount_mfs
 .Nd configure and mount an in-memory file system using the
 .Xr md 4
-driver
+driver or the
+.Xr tmpfs 5
+filesystem
 .Sh SYNOPSIS
 .Nm
 .Op Fl DLlMNnPStTUX
@@ -63,9 +65,13 @@ utility is designed to be a work-alike and look-alike of the deprecated
 .Xr mount_mfs 8 .
 The end result is essentially the same,
 but is accomplished in a completely different way.
-The
+Based on
+.Ar md-device ,
+the
 .Nm
-utility configures an
+utility either creates a 
+.Xr tmpfs 5
+filesystem, or it configures an
 .Xr md 4
 disk using
 .Xr mdconfig 8 ,
@@ -81,6 +87,44 @@ compressed disk images, as long as the kernel supports this GEOM class.
 All the command line options are passed to the appropriate program
 at the appropriate stage in order to achieve the desired effect.
 .Pp
+When
+.Ar md-device
+is `auto',
+.Nm
+uses
+.Xr tmpfs 5
+if it is present in the kernel or can be loaded as a module,
+otherwise it falls back to using
+.Xr md 4
+auto-unit as if `md' had been specified.
+.Pp
+When
+.Ar md-device
+is `tmpfs',
+.Nm
+mounts a
+.Xr tmpfs 5
+filesystem, translating the
+.Fl s
+size option, if present, into a `-o size=' mount option.
+Any
+.Fl o
+options on the command line are passed through to the
+.Xr tmpfs 5
+mount.
+Options specific to
+.Xr mdconfig 8
+or
+.Xr newfs 8
+are ignored.
+.Pp
+When
+.Ar md-device
+does not result in
+.Xr tmpfs 5
+being used, then an
+.Xr md 4
+device is configured instead.
 By default,
 .Nm
 creates a swap-based
@@ -127,7 +171,8 @@ to try to detach the unit before attaching it.
 .It Fl d Ar max-extent-size
 The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be
-used.  It is presently limited to its default value which is 16
+used.
+It is presently limited to its default value which is 16
 times the file system blocksize.
 .It Fl E Ar path-mdconfig
 Use
@@ -218,14 +263,10 @@ is
 .Em not
 specified.
 That is,
-this will work for the default swap-backed
-.Pq Dv MD_SWAP
-disks,
-and the optional
-.Pq Fl M
-.Xr malloc 9
-backed disks
-.Pq Dv MD_MALLOC .
+this will work when the backing storage is some form of
+memory, as opposed to a fixed-size file.
+The size may include the usual SI suffixes (k, m, g, t, p).
+A number without a suffix is interpreted as a count of 512-byte sectors.
 .It Fl t
 Turn on the TRIM enable flag for
 .Xr newfs 8 .
@@ -311,8 +352,8 @@ option is passed to
 .Xr mount 8
 as
 .Fl t .
-See the programs that the options are passed to for more information
-on their semantics.
+For information on semantics, refer to the documentation of the programs
+that the options are passed to.
 .Sh EXAMPLES
 Create and mount a 32 megabyte swap-backed file system on
 .Pa /tmp :
@@ -391,8 +432,14 @@ was given on the command line.
 .Sh SEE ALSO
 .Xr md 4 ,
 .Xr fstab 5 ,
+.Xr tmpfs 5 ,
 .Xr mdconfig 8 ,
 .Xr mount 8 ,
 .Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An Dima Dorfman

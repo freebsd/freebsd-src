@@ -9,6 +9,7 @@
  */
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -78,6 +79,18 @@ main (int argc, char **argv)
     xo_set_flags(NULL, XOF_KEYS);
 
     xo_open_container_h(NULL, "top");
+
+    xo_emit("static {:type/ethernet} {:type/bridge} {:type/%4du} {:type/%3d}",
+	    18, 24);
+
+    xo_emit("anchor {[:/%d}{:address/%p}..{:port/%u}{]:}\n", 18, NULL, 1);
+    xo_emit("anchor {[:18}{:address/%p}..{:port/%u}{]:}\n", NULL, 1);
+    xo_emit("anchor {[:/18}{:address/%p}..{:port/%u}{]:}\n", NULL, 1);
+
+    xo_emit("df {:used-percent/%5.0f}{U:%%}\n", (double) 12);
+
+    xo_emit("{e:kve_start/%#jx}", (uintmax_t) 0xdeadbeef);
+    xo_emit("{e:kve_end/%#jx}", (uintmax_t) 0xcabb1e);
 
     xo_emit("testing argument modifier {a:}.{a:}...\n",
 	    "host", "my-box", "domain", "example.com");
@@ -185,6 +198,8 @@ main (int argc, char **argv)
 	    "{t:user/%s}  {t:group/%s}  \n",
 	    "mode", "octal", "links",
 	    "user", "group", "extra1", "extra2", "extra3");
+
+    xo_emit("{e:pre/%s}{t:links/%-*u}{t:post/%-*s}\n", "that", 8, 3, 8, "this");
 
     xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} "
 	    "{t:user/%-*s}  {t:group/%-*s}  \n",

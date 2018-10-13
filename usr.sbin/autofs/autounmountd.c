@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -78,7 +80,7 @@ automounted_add(fsid_t fsid, const char *mountpoint)
 {
 	struct automounted_fs *af;
 
-	af = calloc(sizeof(*af), 1);
+	af = calloc(1, sizeof(*af));
 	if (af == NULL)
 		log_err(1, "calloc");
 	af->af_mount_time = time(NULL);
@@ -161,7 +163,7 @@ unmount_by_fsid(const fsid_t fsid, const char *mountpoint)
 	if (ret < 0)
 		log_err(1, "asprintf");
 
-	error = unmount(fsid_str, MNT_BYFSID);
+	error = unmount(fsid_str, MNT_NONBUSY | MNT_BYFSID);
 	if (error != 0) {
 		if (errno == EBUSY) {
 			log_debugx("cannot unmount %s (%s): %s",
@@ -244,8 +246,11 @@ do_wait(int kq, double sleep_time)
 		log_debugx("waiting for filesystem event");
 		nevents = kevent(kq, NULL, 0, &unused, 1, NULL);
 	}
-	if (nevents < 0)
+	if (nevents < 0) {
+		if (errno == EINTR)
+			return;
 		log_err(1, "kevent");
+	}
 
 	if (nevents == 0) {
 		log_debugx("timeout reached");

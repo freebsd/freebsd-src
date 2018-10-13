@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-S=	${.CURDIR}/../..
+S=	${SRCTOP}/sys
 
-.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/${MACHINE}/${MACHINE}
+.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/dev/nvme $S/${MACHINE}/${MACHINE}
 
 KMOD=	cam
 
@@ -11,9 +11,12 @@ SRCS=	opt_cam.h
 SRCS+=	opt_ada.h
 SRCS+=	opt_scsi.h
 SRCS+=	opt_cd.h
+SRCS+=	opt_da.h
 SRCS+=	opt_pt.h
 SRCS+=	opt_sa.h
 SRCS+=	opt_ses.h
+SRCS+=	opt_ddb.h
+SRCS+=	opt_printf.h
 SRCS+=	device_if.h bus_if.h vnode_if.h
 SRCS+=	cam.c
 SRCS+=	cam_compat.c
@@ -40,6 +43,10 @@ SRCS+=	ata_da.c
 SRCS+=	ata_machdep.c
 .endif
 SRCS+=	ata_pmp.c
+SRCS+=	nvme_all.c
+SRCS+=	nvme_xpt.c
+SRCS+=	nvme_da.c
+SRCS+=	nvme_util.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 

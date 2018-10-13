@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2014
+.Dd December 6, 2017
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -485,7 +485,7 @@ to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
 pair to ifq.
-The suggested internal software queueing mechanism is buf_ring.
+The suggested internal software queuing mechanism is buf_ring.
 .It Fn if_qflush
 Free mbufs in internally managed queues when the interface is marked down.
 This function must be installed after
@@ -494,7 +494,7 @@ to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
 pair to ifq.
-The suggested internal software queueing mechanism is buf_ring.
+The suggested internal software queuing mechanism is buf_ring.
 .It Fn if_start
 Start queued output on an interface.
 This function is exposed in
@@ -642,7 +642,7 @@ structure of this interface is being released and still has
 .Va if_refcount
 references.
 .It Dv IFF_RENAMING
-.Aq D*
+.Aq D
 Set when this interface is being renamed.
 .El
 .Ss "Interface Capabilities Flags"
@@ -677,7 +677,7 @@ Userland code shall use
 .Xr ioctl 2 .
 .Pp
 The following capabilities are currently supported by the system:
-.Bl -tag -width ".Dv IFCAP_POLLING_NOCOUNT" -offset indent
+.Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
 .It Dv IFCAP_RXCSUM
 This interface can do checksum validation on receiving data.
 Some interfaces do not have sufficient buffer storage to store frames
@@ -752,9 +752,6 @@ A shorthand for
 This interface supports frame filtering in hardware on
 .Xr vlan 4
 interfaces.
-.It Dv IFCAP_POLLING_NOCOUNT
-The return value for the number of processed packets should be
-skipped for this interface.
 .It Dv IFCAP_VLAN_HWTSO
 This interface supports TCP Segmentation offloading on
 .Xr vlan 4
@@ -787,18 +784,6 @@ The interface will compute IP checksums.
 The interface will compute TCP checksums.
 .It Dv CSUM_UDP
 The interface will compute UDP checksums.
-.It Dv CSUM_IP_FRAGS
-The interface can compute a TCP or UDP checksum for a packet
-fragmented by the host CPU.
-Makes sense only along with
-.Dv CSUM_TCP
-or
-.Dv CSUM_UDP .
-.It Dv CSUM_FRAGMENT
-The interface will do the fragmentation of IP packets if necessary.
-The host CPU does not need to care about MTU on this interface
-as long as a packet to transmit through it is an IP one and it
-does not exceed the size of the hardware buffer.
 .El
 .Pp
 An interface notifies the TCP/IP module about the tasks
@@ -838,7 +823,7 @@ The actual mode change is managed by the driver-specific
 .Fn if_ioctl
 routine.
 The
-.Xr polling
+.Xr polling 4
 handler returns the number of packets processed.
 .Ss The if_data Structure
 The
@@ -963,6 +948,8 @@ Number of packets sent by link-layer multicast.
 .It Va ifi_iqdrops
 Number of packets dropped on input.
 Rarely implemented.
+.It Va ifi_oqdrops
+Number of packets dropped on output.
 .It Va ifi_noproto
 Number of packets received for unknown network-layer protocol.
 .It Va ifi_lastchange
@@ -1026,7 +1013,7 @@ Every interface is associated with a list
 (or, rather, a
 .Li TAILQ )
 of addresses, rooted at the interface structure's
-.Va if_addrlist
+.Va if_addrhead
 member.
 The first element in this list is always an
 .Dv AF_LINK

@@ -5,6 +5,8 @@
  *  University of Utah, Department of Computer Science
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -16,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,9 +48,10 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_extents.h>
 #include <fs/ext2fs/ext2_mount.h>
@@ -66,63 +69,27 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	e2fs_lbn_t lbn;
-	int bsize, error;
-	daddr_t newblk;
-	struct ext4_extent *ep;
-	struct ext4_extent_path path;
+	int error, bsize;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
 	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
-	*bpp = NULL;
 
-	/*
-	 * IN_E4EXTENTS requires special treatment as we can otherwise fall
-	 * back to the normal path.
-	 */
-	if (!(ip->i_flag & IN_E4EXTENTS))
-		goto normal;
-
-	memset(&path, 0, sizeof(path));
-	if (ext4_ext_find_extent(fs, ip, lbn, &path) == NULL)
-		goto normal;
-	ep = path.ep_ext;
-	if (ep == NULL)
-		goto normal;
-
-	newblk = lbn - ep->e_blk +
-	    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32);
-
-	if (path.ep_bp != NULL) {
-		brelse(path.ep_bp);
-		path.ep_bp = NULL;
+	if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
+		brelse(bp);
+		return (error);
 	}
-	error = bread(ip->i_devvp, fsbtodb(fs, newblk), bsize, NOCRED, &bp);
+	error = ext2_dir_blk_csum_verify(ip, bp);
 	if (error != 0) {
 		brelse(bp);
 		return (error);
 	}
 	if (res)
 		*res = (char *)bp->b_data + blkoff(fs, offset);
-	/*
-	 * If IN_E4EXTENTS is enabled we would get a wrong offset so
-	 * reset b_offset here.
-	 */
-	bp->b_offset = lbn * bsize;
-	*bpp = bp;
-	return (0);
 
-normal:
-	if (*bpp == NULL) {
-		if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
-			brelse(bp);
-			return (error);
-		}
-		if (res)
-			*res = (char *)bp->b_data + blkoff(fs, offset);
-		*bpp = bp;
-	}
+	*bpp = bp;
+
 	return (0);
 }
 
@@ -132,15 +99,17 @@ normal:
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
 void
-ext2_clusteracct(struct m_ext2fs *fs, char *bbp, int cg, daddr_t bno, int cnt)
+ext2_clusteracct(struct m_ext2fs *fs, char *bbp, int cg, e4fs_daddr_t bno, int cnt)
 {
 	int32_t *sump = fs->e2fs_clustersum[cg].cs_sum;
 	int32_t *lp;
-	int back, bit, end, forw, i, loc, start;
+	e4fs_daddr_t start, end, loc, forw, back;
+	int bit, i;
 
 	/* Initialize the cluster summary array. */
 	if (fs->e2fs_clustersum[cg].cs_init == 0) {
 		int run = 0;
+
 		bit = 1;
 		loc = 0;
 

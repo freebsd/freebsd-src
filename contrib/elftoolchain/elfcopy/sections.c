@@ -411,6 +411,7 @@ create_scn(struct elfcopy *ecp)
 			s->sz		= ish.sh_size;
 			s->align	= ish.sh_addralign;
 			s->type		= ish.sh_type;
+			s->flags	= ish.sh_flags;
 			s->vma		= ish.sh_addr;
 
 			/*
@@ -715,13 +716,13 @@ filter_reloc(struct elfcopy *ecp, struct section *s)
 #define	COPYREL(REL, SZ) do {					\
 	if (nrels == 0) {					\
 		if ((REL##SZ = malloc(cap *			\
-		    sizeof(Elf##SZ##_Rel))) == NULL)		\
+		    sizeof(*REL##SZ))) == NULL)			\
 			err(EXIT_FAILURE, "malloc failed");	\
 	}							\
 	if (nrels >= cap) {					\
 		cap *= 2;					\
 		if ((REL##SZ = realloc(REL##SZ, cap *		\
-		    sizeof(Elf##SZ##_Rel))) == NULL)		\
+		    sizeof(*REL##SZ))) == NULL)			\
 			err(EXIT_FAILURE, "realloc failed");	\
 	}							\
 	REL##SZ[nrels].r_offset = REL.r_offset;			\

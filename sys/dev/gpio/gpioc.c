@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -78,18 +80,25 @@ gpioc_probe(device_t dev)
 static int
 gpioc_attach(device_t dev)
 {
-	struct gpioc_softc *sc = device_get_softc(dev);
+	int err;
+	struct gpioc_softc *sc;
+	struct make_dev_args devargs;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_pdev = device_get_parent(dev);
 	sc->sc_unit = device_get_unit(dev);
-	sc->sc_ctl_dev = make_dev(&gpioc_cdevsw, sc->sc_unit,
-	    UID_ROOT, GID_WHEEL, 0600, "gpioc%d", sc->sc_unit);
-	if (!sc->sc_ctl_dev) {
+	make_dev_args_init(&devargs);
+	devargs.mda_devsw = &gpioc_cdevsw;
+	devargs.mda_uid = UID_ROOT;
+	devargs.mda_gid = GID_WHEEL;
+	devargs.mda_mode = 0600;
+	devargs.mda_si_drv1 = sc;
+	err = make_dev_s(&devargs, &sc->sc_ctl_dev, "gpioc%d", sc->sc_unit);
+	if (err != 0) {
 		printf("Failed to create gpioc%d", sc->sc_unit);
 		return (ENXIO);
 	}
-	sc->sc_ctl_dev->si_drv1 = sc;
 
 	return (0);
 }
@@ -118,6 +127,8 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	struct gpioc_softc *sc = cdev->si_drv1;
 	struct gpio_pin pin;
 	struct gpio_req req;
+	struct gpio_access_32 *a32;
+	struct gpio_config_32 *c32;
 	uint32_t caps;
 
 	bus = GPIO_GET_BUS(sc->sc_pdev);
@@ -177,6 +188,16 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			dprintf("set name on pin %d\n", pin.gp_pin);
 			res = GPIOBUS_PIN_SETNAME(bus, pin.gp_pin,
 			    pin.gp_name);
+			break;
+		case GPIOACCESS32:
+			a32 = (struct gpio_access_32 *)arg;
+			res = GPIO_PIN_ACCESS_32(sc->sc_pdev, a32->first_pin,
+			    a32->clear_pins, a32->orig_pins, &a32->orig_pins);
+			break;
+		case GPIOCONFIG32:
+			c32 = (struct gpio_config_32 *)arg;
+			res = GPIO_PIN_CONFIG_32(sc->sc_pdev, c32->first_pin,
+			    c32->num_pins, c32->pin_flags);
 			break;
 		default:
 			return (ENOTTY);

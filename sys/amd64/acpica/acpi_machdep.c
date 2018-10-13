@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Mitsuru IWASAKI
  * All rights reserved.
  *
@@ -61,6 +63,7 @@ acpi_machdep_init(device_t dev)
 	sc = device_get_softc(dev);
 
 	acpi_apm_init(sc);
+	acpi_install_wakeup_handler(sc);
 
 	if (intr_model != ACPI_INTR_PIC)
 		acpi_SetIntrModel(intr_model);
@@ -347,20 +350,13 @@ nexus_acpi_probe(device_t dev)
 static int
 nexus_acpi_attach(device_t dev)
 {
-	device_t acpi_dev;
-	int error;
 
 	nexus_init_resources();
 	bus_generic_probe(dev);
-	acpi_dev = BUS_ADD_CHILD(dev, 10, "acpi", 0);
-	if (acpi_dev == NULL)
+	if (BUS_ADD_CHILD(dev, 10, "acpi", 0) == NULL)
 		panic("failed to add acpi0 device");
 
-	error = bus_generic_attach(dev);
-	if (error == 0)
-		acpi_install_wakeup_handler(device_get_softc(acpi_dev));
-
-	return (error);
+	return (bus_generic_attach(dev));
 }
 
 static device_method_t nexus_acpi_methods[] = {

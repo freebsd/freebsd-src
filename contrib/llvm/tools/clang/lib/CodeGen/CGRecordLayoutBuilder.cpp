@@ -121,7 +121,7 @@ struct CGRecordLowering {
   /// \brief Wraps llvm::Type::getIntNTy with some implicit arguments.
   llvm::Type *getIntNType(uint64_t NumBits) {
     return llvm::Type::getIntNTy(Types.getLLVMContext(),
-        (unsigned)llvm::RoundUpToAlignment(NumBits, 8));
+                                 (unsigned)llvm::alignTo(NumBits, 8));
   }
   /// \brief Gets an llvm type of size NumBytes and alignment 1.
   llvm::Type *getByteArrayType(CharUnits NumBytes) {
@@ -403,6 +403,27 @@ CGRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
     }
     return;
   }
+
+  // Check if current Field is better as a single field run. When current field
+  // has legal integer width, and its bitfield offset is naturally aligned, it
+  // is better to make the bitfield a separate storage component so as it can be
+  // accessed directly with lower cost.
+  auto IsBetterAsSingleFieldRun = [&](RecordDecl::field_iterator Field) {
+    if (!Types.getCodeGenOpts().FineGrainedBitfieldAccesses)
+      return false;
+    unsigned Width = Field->getBitWidthValue(Context);
+    if (!DataLayout.isLegalInteger(Width))
+      return false;
+    // Make sure Field is natually aligned if it is treated as an IType integer.
+    if (getFieldBitOffset(*Field) %
+            Context.toBits(getAlignment(getIntNType(Width))) !=
+        0)
+      return false;
+    return true;
+  };
+
+  // The start field is better as a single field run.
+  bool StartFieldAsSingleRun = false;
   for (;;) {
     // Check to see if we need to start a new run.
     if (Run == FieldEnd) {
@@ -414,17 +435,28 @@ CGRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
         Run = Field;
         StartBitOffset = getFieldBitOffset(*Field);
         Tail = StartBitOffset + Field->getBitWidthValue(Context);
+        StartFieldAsSingleRun = IsBetterAsSingleFieldRun(Run);
       }
       ++Field;
       continue;
     }
-    // Add bitfields to the run as long as they qualify.
-    if (Field != FieldEnd && Field->getBitWidthValue(Context) != 0 &&
+
+    // If the start field of a new run is better as a single run, or
+    // if current field is better as a single run, or
+    // if current field has zero width bitfield, or
+    // if the offset of current field is inconsistent with the offset of
+    // previous field plus its offset,
+    // skip the block below and go ahead to emit the storage.
+    // Otherwise, try to add bitfields to the run.
+    if (!StartFieldAsSingleRun && Field != FieldEnd &&
+        !IsBetterAsSingleFieldRun(Field) &&
+        Field->getBitWidthValue(Context) != 0 &&
         Tail == getFieldBitOffset(*Field)) {
       Tail += Field->getBitWidthValue(Context);
       ++Field;
       continue;
     }
+
     // We've hit a break-point in the run and need to emit a storage field.
     llvm::Type *Type = getIntNType(Tail - StartBitOffset);
     // Add the storage member to the record and set the bitfield info for all of
@@ -435,6 +467,7 @@ CGRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
       Members.push_back(MemberInfo(bitsToCharUnits(StartBitOffset),
                                    MemberInfo::Field, nullptr, *Run));
     Run = FieldEnd;
+    StartFieldAsSingleRun = false;
   }
 }
 
@@ -555,7 +588,7 @@ void CGRecordLowering::clipTailPadding() {
     if (Member->Offset < Tail) {
       assert(Prior->Kind == MemberInfo::Field && !Prior->FD &&
              "Only storage fields have tail padding!");
-      Prior->Data = getByteArrayType(bitsToCharUnits(llvm::RoundUpToAlignment(
+      Prior->Data = getByteArrayType(bitsToCharUnits(llvm::alignTo(
           cast<llvm::IntegerType>(Prior->Data)->getIntegerBitWidth(), 8)));
     }
     if (Member->Data)
@@ -609,8 +642,8 @@ void CGRecordLowering::insertPadding() {
     CharUnits Offset = Member->Offset;
     assert(Offset >= Size);
     // Insert padding if we need to.
-    if (Offset != Size.RoundUpToAlignment(Packed ? CharUnits::One() :
-                                          getAlignment(Member->Data)))
+    if (Offset !=
+        Size.alignTo(Packed ? CharUnits::One() : getAlignment(Member->Data)))
       Padding.push_back(std::make_pair(Size, Offset - Size));
     Size = Offset + getSize(Member->Data);
   }
@@ -842,7 +875,7 @@ void CGRecordLayout::print(raw_ostream &OS) const {
   OS << "]>\n";
 }
 
-void CGRecordLayout::dump() const {
+LLVM_DUMP_METHOD void CGRecordLayout::dump() const {
   print(llvm::errs());
 }
 
@@ -855,6 +888,6 @@ void CGBitFieldInfo::print(raw_ostream &OS) const {
      << " StorageOffset:" << StorageOffset.getQuantity() << ">";
 }
 
-void CGBitFieldInfo::dump() const {
+LLVM_DUMP_METHOD void CGBitFieldInfo::dump() const {
   print(llvm::errs());
 }

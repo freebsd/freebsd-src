@@ -90,6 +90,29 @@ do { \
 #define WAR_USB_DISABLE_PLL_LOCK_DETECT(__ah)
 #endif
 
+/*
+ * Note: the below is the version that ships with ath9k.
+ * The original HAL version is above.
+ */
+
+static void
+ar9300_disable_pll_lock_detect(struct ath_hal *ah)
+{
+	/*
+	 * On AR9330 and AR9340 devices, some PHY registers must be
+	 * tuned to gain better stability/performance. These registers
+	 * might be changed while doing wlan reset so the registers must
+	 * be reprogrammed after each reset.
+	 */
+	if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah)) {
+		HALDEBUG(ah, HAL_DEBUG_RESET, "%s: called\n", __func__);
+		OS_REG_CLR_BIT(ah, AR_PHY_USB_CTRL1, (1 << 20));
+		OS_REG_RMW(ah, AR_PHY_USB_CTRL2,
+		    (1 << 21) | (0xf << 22),
+		    (1 << 21) | (0x3 << 22));
+	}
+}
+
 static inline void
 ar9300_attach_hw_platform(struct ath_hal *ah)
 {
@@ -1850,6 +1873,7 @@ ar9300_set_reset(struct ath_hal *ah, int type)
 
     /* Clear AHB reset */
     OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_RC), 0);
+    ar9300_disable_pll_lock_detect(ah);
 
     ar9300_attach_hw_platform(ah);
 
@@ -1984,6 +2008,7 @@ ar9300_phy_disable(struct ath_hal *ah)
 
 
     ar9300_init_pll(ah, AH_NULL);
+    ar9300_disable_pll_lock_detect(ah);
 
     return AH_TRUE;
 }
@@ -2468,15 +2493,23 @@ ar9300_calibration(struct ath_hal *ah, struct ieee80211_channel *chan, u_int8_t 
         chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
         if (nf_done) {
+            int ret;
             /*
              * Load the NF from history buffer of the current channel.
              * NF is slow time-variant, so it is OK to use a historical value.
              */
             ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
-            ar9300_load_nf(ah, nf_buf);
-    
+
+            ret = ar9300_load_nf(ah, nf_buf);
             /* start NF calibration, without updating BB NF register*/
-            ar9300_start_nf_cal(ah);	
+            ar9300_start_nf_cal(ah);
+
+            /*
+             * If we failed the NF cal then tell the upper layer that we
+             * failed so we can do a full reset
+             */
+            if (! ret)
+                return AH_FALSE;
         }
     }
     return AH_TRUE;
@@ -4263,11 +4296,11 @@ ar9300_init_user_settings(struct ath_hal *ah)
     if (ahp->ah_beacon_rssi_threshold != 0) {
         ar9300_set_hw_beacon_rssi_threshold(ah, ahp->ah_beacon_rssi_threshold);
     }
-#ifdef ATH_SUPPORT_DFS
+//#ifdef ATH_SUPPORT_DFS
     if (ahp->ah_cac_quiet_enabled) {
         ar9300_cac_tx_quiet(ah, 1);
     }
-#endif /* ATH_SUPPORT_DFS */
+//#endif /* ATH_SUPPORT_DFS */
 }
 
 int
@@ -4454,6 +4487,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
         ar9300_reset_nf_hist_buff(ah, ichan);
         ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
         ar9300_load_nf(ah, nf_buf);
+        /* XXX TODO: handle failure from load_nf */
         stats = 0;
 	} else {
         stats = 1;	
@@ -4774,7 +4808,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
              * successfully - skip the rest of reset
              */
             if (AH9300(ah)->ah_dma_stuck != AH_TRUE) {
-                WAR_USB_DISABLE_PLL_LOCK_DETECT(ah);
+                ar9300_disable_pll_lock_detect(ah);
 #if ATH_SUPPORT_MCI
                 if (AH_PRIVATE(ah)->ah_caps.halMciSupport && ahp->ah_mci_ready)
                 {
@@ -5278,6 +5312,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
     /* XXX FreeBSD is ichan appropariate? It was curchan.. */
     ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
     ar9300_load_nf(ah, nf_buf);
+    /* XXX TODO: handle NF load failure */
     if (nf_hist_buff_reset == 1)    
     {
         nf_hist_buff_reset = 0;
@@ -5350,7 +5385,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 #undef REG_WRITE
 #endif  /* ATH_LOW_POWER_ENABLE */
 
-    WAR_USB_DISABLE_PLL_LOCK_DETECT(ah);
+    ar9300_disable_pll_lock_detect(ah);
 
     /* H/W Green TX */
     ar9300_control_signals_for_green_tx_mode(ah);

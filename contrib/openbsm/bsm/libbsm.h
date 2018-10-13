@@ -83,6 +83,7 @@
 #define	NA_CONTROL_ENTRY		"naflags"
 #define	POLICY_CONTROL_ENTRY		"policy"
 #define	EXPIRE_AFTER_CONTROL_ENTRY	"expire-after"
+#define	QSZ_CONTROL_ENTRY		"qsize"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -92,6 +93,8 @@
 #define	AU_LINE_MAX		256
 #define	MAX_AUDITSTRING_LEN	256
 #define	BSM_TEXTBUFSZ		MAX_AUDITSTRING_LEN	/* OpenSSH compatibility */
+
+#define USE_DEFAULT_QSZ		-1	/* Use system default queue size */
 
 /*
  * Arguments to au_close(3).
@@ -805,6 +808,7 @@ int			 getacdir(char *name, int len);
 int			 getacdist(void);
 int			 getacexpire(int *andflg, time_t *age, size_t *size);
 int			 getacfilesz(size_t *size_val);
+int			 getacqsize(int *size_val);
 int			 getacflg(char *auditstr, int len);
 int			 getachost(char *auditstr, size_t len);
 int			 getacmin(int *min_val);
@@ -867,21 +871,6 @@ void			 au_print_tok_xml(FILE *outfp, tokenstr_t *tok,
  */
 void			 au_print_xml_header(FILE *outfp);
 void			 au_print_xml_footer(FILE *outfp);
-
-/*
- * BSM library routines for converting between local and BSM constant spaces.
- * (Note: some of these are replicated in audit_record.h for the benefit of
- * the FreeBSD and Mac OS X kernels)
- */
-int	 au_bsm_to_domain(u_short bsm_domain, int *local_domainp);
-int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
-int	 au_bsm_to_fcntl_cmd(u_short bsm_fcntl_cmd, int *local_fcntl_cmdp);
-int	 au_bsm_to_socket_type(u_short bsm_socket_type,
-	    int *local_socket_typep);
-u_short	 au_domain_to_bsm(int local_domain);
-u_char	 au_errno_to_bsm(int local_errno);
-u_short	 au_fcntl_cmd_to_bsm(int local_fcntl_command);
-u_short	 au_socket_type_to_bsm(int local_socket_type);
 
 const char	 *au_strerror(u_char bsm_error);
 __END_DECLS
@@ -1314,6 +1303,8 @@ void audit_token_to_au32(
 int audit_get_car(char *path, size_t sz);
 int audit_get_class(au_evclass_map_t *evc_map, size_t sz);
 int audit_set_class(au_evclass_map_t *evc_map, size_t sz);
+int audit_get_event(au_evname_map_t *evn_map, size_t sz);
+int audit_set_event(au_evname_map_t *evn_map, size_t sz);
 int audit_get_cond(int *cond);
 int audit_set_cond(int *cond);
 int audit_get_cwd(char *path, size_t sz);

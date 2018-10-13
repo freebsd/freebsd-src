@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.85 2015/11/03 21:36:59 christos Exp $
+.\"	$NetBSD: editline.3,v 1.88 2016/02/25 14:59:22 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2014 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2015
+.Dd April 28, 2017
 .Dt EDITLINE 3
 .Os
 .Sh NAME
@@ -72,7 +72,7 @@
 .Nm tok_wreset ,
 .Nm tok_line ,
 .Nm tok_wline ,
-.Nm tok_str
+.Nm tok_str ,
 .Nm tok_wstr
 .Nd line editor, history and tokenization functions
 .Sh LIBRARY
@@ -130,9 +130,9 @@
 .Ft void
 .Fn el_wdeletestr "EditLine *e" "int count"
 .Ft History *
-.Fn history_init
+.Fn history_init void
 .Ft HistoryW *
-.Fn history_winit
+.Fn history_winit void
 .Ft void
 .Fn history_end "History *h"
 .Ft void
@@ -175,6 +175,16 @@ library (which needs the
 library).
 Programs should be linked with
 .Fl ledit ltermcap .
+.Pp
+The
+.Nm
+library respects the
+.Ev LC_CTYPE
+locale set by the application program and never uses
+.Xr setlocale 3
+to change the locale.
+The only locales supported are UTF-8 and the default C or POSIX locale.
+If any other locale is set, behaviour is undefined.
 .Sh LINE EDITING FUNCTIONS
 The line editing functions use a common data structure,
 .Fa EditLine ,
@@ -240,14 +250,42 @@ contains the error code that caused it.
 The return value may not remain valid across calls to
 .Fn el_gets
 and must be copied if the data is to be retained.
+.It Fn el_wgetc
+Read a wide character from the tty, respecting the current locale,
+or from the input stream written by
+.Fn el_wpush
+and
+.Fn el_push
+if that is not empty, and store it in
+.Fa ch .
+If an invalid or incomplete character is found, it is discarded,
+.Va errno
+is set to
+.Er EILSEQ ,
+and the next character is read and stored in
+.Fa ch .
+Returns 1 if a valid character was read, 0 on end of file, or \-1 on
+.Xr read 2
+failure.
+In the latter case,
+.Va errno
+is set to indicate the error.
 .It Fn el_getc
-Read a character from the tty.
-.Fa ch
-is modified to contain the character read.
-Returns the number of characters read if successful, \-1 otherwise,
-in which case
-.Dv errno
-can be inspected for the cause.
+Read a wide character as described for
+.Fn el_wgetc
+and return 0 on end of file or \-1 on failure.
+If the wide character can be represented as a single-byte character,
+convert it with
+.Xr wctob 3 ,
+store the result in
+.Fa ch ,
+and return 1; otherwise, set
+.Va errno
+to
+.Er ERANGE
+and return \-1.
+In the C or POSIX locale, this simply reads a byte, but for any other
+locale, including UTF-8, this is rarely useful.
 .It Fn el_push
 Pushes
 .Fa str
@@ -729,7 +767,7 @@ Return the previous element in the history.
 Return the next element in the history.
 .It Dv H_CURR
 Return the current element in the history.
-.It Dv H_SET
+.It Dv H_SET , Fa "int position"
 Set the cursor to point to the requested element.
 .It Dv H_ADD , Fa "const char *str"
 Append
@@ -746,7 +784,7 @@ to the last new element of the history.
 .It Dv H_ENTER , Fa "const char *str"
 Add
 .Fa str
-as a new element to the history, and, if necessary,
+as a new element to the history and, if necessary,
 removing the oldest entry to keep the list to the created size.
 If
 .Dv H_SETUNIQUE

@@ -233,6 +233,43 @@ svn_cl__diff(apr_getopt_t *os,
       svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "paths", SVN_VA_NULL);
       SVN_ERR(svn_cl__error_checked_fputs(sb->data, stdout));
     }
+  if (opt_state->diff.summarize)
+    {
+      if (opt_state->diff.use_git_diff_format)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--git");
+      if (opt_state->diff.patch_compatible)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--patch-compatible");
+      if (opt_state->diff.show_copies_as_adds)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--show-copies-as-adds");
+      if (opt_state->diff.internal_diff)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--internal-diff");
+      if (opt_state->diff.diff_cmd)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--diff-cmd");
+      if (opt_state->diff.no_diff_added)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--no-diff-added");
+      if (opt_state->diff.no_diff_deleted)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--no-diff-deleted");
+      if (opt_state->force)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--force");
+      /* Not handling ignore-properties, and properties-only as there should
+         be a patch adding support for these being applied soon */
+    }
 
   SVN_ERR(svn_cl__args_to_target_array_print_reserved(&targets, os,
                                                       opt_state->targets,

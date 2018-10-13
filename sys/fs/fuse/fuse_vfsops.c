@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
  *
@@ -207,7 +209,6 @@ fuse_vfsop_mount(struct mount *mp)
 	int err;
 
 	uint64_t mntopts, __mntopts;
-	int max_read_set;
 	uint32_t max_read;
 	int daemon_timeout;
 	int fd;
@@ -220,10 +221,8 @@ fuse_vfsop_mount(struct mount *mp)
 	struct file *fp, *fptmp;
 	char *fspec, *subtype;
 	struct vfsoptlist *opts;
-	cap_rights_t rights;
 
 	subtype = NULL;
-	max_read_set = 0;
 	max_read = ~0;
 	err = 0;
 	mntopts = 0;
@@ -276,8 +275,7 @@ fuse_vfsop_mount(struct mount *mp)
 	FUSE_FLAGOPT(no_mmap, FSESS_NO_MMAP);
 	FUSE_FLAGOPT(brokenio, FSESS_BROKENIO);
 
-	if (vfs_scanopt(opts, "max_read=", "%u", &max_read) == 1)
-		max_read_set = 1;
+	(void)vfs_scanopt(opts, "max_read=", "%u", &max_read);
 	if (vfs_scanopt(opts, "timeout=", "%u", &daemon_timeout) == 1) {
 		if (daemon_timeout < FUSE_MIN_DAEMON_TIMEOUT)
 			daemon_timeout = FUSE_MIN_DAEMON_TIMEOUT;
@@ -290,7 +288,7 @@ fuse_vfsop_mount(struct mount *mp)
 
 	FS_DEBUG2G("mntopts 0x%jx\n", (uintmax_t)mntopts);
 
-	err = fget(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
+	err = fget(td, fd, &cap_read_rights, &fp);
 	if (err != 0) {
 		FS_DEBUG("invalid or not opened device: data=%p\n", data);
 		goto out;
@@ -340,7 +338,7 @@ fuse_vfsop_mount(struct mount *mp)
 	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 	/* We need this here as this slot is used by getnewvnode() */
-	mp->mnt_stat.f_iosize = PAGE_SIZE;
+	mp->mnt_stat.f_iosize = DFLTPHYS;
 	if (subtype) {
 		strlcat(mp->mnt_stat.f_fstypename, ".", MFSNAMELEN);
 		strlcat(mp->mnt_stat.f_fstypename, subtype, MFSNAMELEN);

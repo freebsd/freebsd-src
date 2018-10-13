@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
@@ -53,36 +55,25 @@ typedef enum {
 	NT_CHANGED,
 	NT_HBA_RESET,
 	NT_QUERY_TASK_SET,
-	NT_QUERY_ASYNC_EVENT
+	NT_QUERY_ASYNC_EVENT,
+	NT_SRR			/* Sequence Retransmission Request */
 } isp_ncode_t;
 
 typedef struct isp_notify {
 	void *		nt_hba;		/* HBA tag */
-	void *		nt_tmd;
-	void *		nt_lreserved;
-	void *		nt_hreserved;
+	void *		nt_lreserved;	/* original IOCB pointer */
 	uint64_t	nt_wwn;		/* source (wwn) */
 	uint64_t	nt_tgt;		/* destination (wwn) */
 	uint64_t	nt_tagval;	/* tag value */
-	uint32_t
-			nt_sid		: 24;	/* source port id */
-	uint32_t
-			nt_failed	: 1,	/* notify operation failed */
-			nt_need_ack	: 1,	/* this notify needs an ACK */
-			nt_did		: 24;	/* destination port id */
-	uint32_t
-			nt_lun		: 16,	/* logical unit */
-			nt_nphdl  	: 16;	/* n-port handle */
-	uint8_t		nt_channel;		/* channel id */
+	lun_id_t	nt_lun;		/* logical unit */
+	uint32_t	nt_sid : 24;	/* source port id */
+	uint32_t	nt_did : 24;	/* destination port id */
+	uint16_t	nt_nphdl;	/* n-port handle */
+	uint8_t		nt_channel;	/* channel id */
+	uint8_t		nt_need_ack;	/* this notify needs an ACK */
 	isp_ncode_t	nt_ncode;	/* action */
 } isp_notify_t;
-#define MATCH_TMD(tmd, iid, lun, tag)                   \
-    (                                                   \
-        (tmd) &&                                        \
-        (iid == INI_ANY || iid == tmd->cd_iid) &&       \
-        (lun == LUN_ANY || lun == tmd->cd_lun) &&       \
-        (tag == TAG_ANY || tag == tmd->cd_tagval)       \
-    )
+
 /*
  * Debug macros
  */

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, Matthew Macy (kmacy@freebsd.org)
+# Copyright (c) 2014-2018, Matthew Macy (mmacy@mattmacy.io)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,9 @@
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/iflib.h>
+#include <net/if_clone.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 
 INTERFACE ifdi;
 
@@ -47,6 +50,18 @@ CODE {
 	static void
 	null_void_op(if_ctx_t _ctx __unused)
 	{
+	}
+
+	static int
+	null_knlist_add(if_ctx_t _ctx __unused, struct knote *_kn)
+	{
+	    return (0);
+	}
+
+	static int
+	null_knote_event(if_ctx_t _ctx __unused, struct knote *_kn, int _hint)
+	{
+	    return (0);
 	}
 
 	static void
@@ -60,9 +75,16 @@ CODE {
 		return (0);
 	}
 
-	static void
+	static int
+	null_int_int_op(if_ctx_t _ctx __unused, int arg0 __unused)
+	{
+		return (ENOTSUP);
+	}
+
+	static int
 	null_queue_intr_enable(if_ctx_t _ctx __unused, uint16_t _qid __unused)
 	{
+		return (ENOTSUP);
 	}
 
 	static void
@@ -110,7 +132,70 @@ CODE {
 	{
 		return (ENOTSUP);
 	}
+
+	static void
+	null_media_status(if_ctx_t ctx __unused, struct ifmediareq *ifmr)
+	{
+	    ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
+	    ifmr->ifm_active = IFM_ETHER | IFM_25G_ACC | IFM_FDX;
+	}
+
+	static int
+	null_cloneattach(if_ctx_t ctx __unused, struct if_clone *ifc __unused,
+			 const char *name __unused, caddr_t params __unused)
+	{
+	    return (0);
+	}
+
+	static void
+	null_rx_clset(if_ctx_t _ctx __unused, uint16_t _flid __unused,
+		      uint16_t _qid __unused, caddr_t *_sdcl __unused)
+	{
+	}
+	static void
+	null_object_info_get(if_ctx_t ctx __unused, void *data __unused, int size __unused)
+	{
+	}
+	static int
+	default_mac_set(if_ctx_t ctx, const uint8_t *mac)
+	{
+	    struct ifnet *ifp = iflib_get_ifp(ctx);
+	    struct sockaddr_dl *sdl;
+
+	    if (ifp && ifp->if_addr) {
+		sdl = (struct sockaddr_dl *)ifp->if_addr->ifa_addr;
+		MPASS(sdl->sdl_type == IFT_ETHER);
+		memcpy(LLADDR(sdl), mac, ETHER_ADDR_LEN);
+	    }
+	    return (0);
+	}
 };
+
+#
+# kevent interfaces
+#
+
+METHOD int knlist_add {
+	if_ctx_t _ctx;
+	struct knote *_kn;
+} DEFAULT null_knlist_add;
+
+METHOD int knote_event {
+	if_ctx_t _ctx;
+	struct knote *_kn;
+	int hint;
+} DEFAULT null_knote_event;
+
+
+#
+# query
+#
+
+METHOD int object_info_get {
+	if_ctx_t _ctx;
+	void *data;
+	int size;
+} DEFAULT null_object_info_get;
 
 #
 # bus interfaces
@@ -118,11 +203,26 @@ CODE {
 
 METHOD int attach_pre {
 	if_ctx_t _ctx;
-};
+} DEFAULT null_int_op;
 
 METHOD int attach_post {
 	if_ctx_t _ctx;
-};
+} DEFAULT null_int_op;
+
+METHOD int reinit_pre {
+	if_ctx_t _ctx;
+} DEFAULT null_int_op;
+
+METHOD int reinit_post {
+	if_ctx_t _ctx;
+} DEFAULT null_int_op;
+
+METHOD int cloneattach {
+	if_ctx_t _ctx;
+	struct if_clone *_ifc;
+	const char *_name;
+	caddr_t params;
+} DEFAULT null_cloneattach;
 
 METHOD int detach {
 	if_ctx_t _ctx;
@@ -163,7 +263,14 @@ METHOD int rx_queues_alloc {
 
 METHOD void queues_free {
 	if_ctx_t _ctx;
-};
+} DEFAULT null_void_op;
+
+METHOD void rx_clset {
+	if_ctx_t _ctx;
+	uint16_t _fl;
+	uint16_t _qsetid;
+	caddr_t *_sdcl;
+} DEFAULT null_rx_clset;
 
 #
 # interface reset / stop
@@ -184,7 +291,7 @@ METHOD void stop {
 METHOD int msix_intr_assign {
 	if_ctx_t _sctx;
 	int msix;
-};
+} DEFAULT null_int_int_op;
 
 METHOD void intr_enable {
 	if_ctx_t _ctx;
@@ -194,7 +301,12 @@ METHOD void intr_disable {
 	if_ctx_t _ctx;
 };
 
-METHOD void queue_intr_enable {
+METHOD int rx_queue_intr_enable {
+	if_ctx_t _ctx;
+	uint16_t _qid;
+} DEFAULT null_queue_intr_enable;
+
+METHOD int tx_queue_intr_enable {
 	if_ctx_t _ctx;
 	uint16_t _qid;
 } DEFAULT null_queue_intr_enable;
@@ -215,6 +327,10 @@ METHOD int mtu_set {
 	if_ctx_t _ctx;
 	uint32_t _mtu;
 };
+METHOD int mac_set {
+	if_ctx_t _ctx;
+	const uint8_t *_mac;
+} DEFAULT default_mac_set;
 
 METHOD void media_set{
 	if_ctx_t _ctx;
@@ -228,6 +344,7 @@ METHOD int promisc_set {
 METHOD void crcstrip_set {
 	if_ctx_t _ctx;
 	int _onoff;
+	int _strip;
 };
 
 #
@@ -266,11 +383,11 @@ METHOD void update_admin_status {
 METHOD void media_status {
 	if_ctx_t _ctx;
 	struct ifmediareq *_ifm;
-};
+} DEFAULT null_media_status;
 
 METHOD int media_change {
 	if_ctx_t _ctx;
-};
+} DEFAULT null_int_op;
 
 METHOD uint64_t get_counter {
 	if_ctx_t _ctx;
@@ -311,6 +428,11 @@ METHOD void watchdog_reset {
 	if_ctx_t _ctx;
 } DEFAULT null_void_op;
 
+METHOD void watchdog_reset_queue {
+	if_ctx_t _ctx;
+	uint16_t _q;
+} DEFAULT null_timer_op;
+
 METHOD void led_func {
 	if_ctx_t _ctx;
 	int _onoff;
@@ -331,4 +453,6 @@ METHOD int sysctl_int_delay {
 	if_int_delay_info_t _iidi;
 } DEFAULT null_sysctl_int_delay;
 
-
+METHOD void debug {
+	if_ctx_t _ctx;
+} DEFAULT null_void_op;

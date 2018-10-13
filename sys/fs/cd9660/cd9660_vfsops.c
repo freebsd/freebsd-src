@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -88,6 +90,7 @@ static struct vfsops cd9660_vfsops = {
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
 
+static int cd9660_vfs_hash_cmp(struct vnode *vp, void *pino);
 static int iso_mountfs(struct vnode *devvp, struct mount *mp);
 
 /*
@@ -214,6 +217,7 @@ iso_mountfs(devvp, mp)
 	int iso_bsize;
 	int iso_blknum;
 	int joliet_level;
+	int isverified = 0;
 	struct iso_volume_descriptor *vdp = NULL;
 	struct iso_primary_descriptor *pri = NULL;
 	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
@@ -228,6 +232,8 @@ iso_mountfs(devvp, mp)
 	dev_ref(dev);
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
+	if (error == 0)
+		g_getattr("MNT::verified", cp, &isverified);
 	g_topology_unlock();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
@@ -357,7 +363,7 @@ iso_mountfs(devvp, mp)
 	 * filehandle validation.
 	 */
 	isomp->volume_space_size += ssector;
-	bcopy (rootp, isomp->root, sizeof isomp->root);
+	memcpy(isomp->root, rootp, sizeof isomp->root);
 	isomp->root_extent = isonum_733 (rootp->extent);
 	isomp->root_size = isonum_733 (rootp->size);
 
@@ -376,6 +382,8 @@ iso_mountfs(devvp, mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
 	MNT_ILOCK(mp);
+	if (isverified)
+		mp->mnt_flag |= MNT_VERIFIED;
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
@@ -457,7 +465,7 @@ iso_mountfs(devvp, mp)
 			    joliet_level);
 		rootp = (struct iso_directory_record *)
 			sup->root_directory_record;
-		bcopy (rootp, isomp->root, sizeof isomp->root);
+		memcpy(isomp->root, rootp, sizeof isomp->root);
 		isomp->root_extent = isonum_733 (rootp->extent);
 		isomp->root_size = isonum_733 (rootp->size);
 		isomp->joliet_level = joliet_level;
@@ -540,7 +548,7 @@ cd9660_root(mp, flags, vpp)
 	struct iso_mnt *imp = VFSTOISOFS(mp);
 	struct iso_directory_record *dp =
 	    (struct iso_directory_record *)imp->root;
-	ino_t ino = isodirino(dp, imp);
+	cd_ino_t ino = isodirino(dp, imp);
 
 	/*
 	 * With RRIP we must use the `.' entry of the root directory.
@@ -617,6 +625,11 @@ cd9660_fhtovp(mp, fhp, flags, vpp)
 	return (0);
 }
 
+/*
+ * Conform to standard VFS interface; can't vget arbitrary inodes beyond 4GB
+ * into media with current inode scheme and 32-bit ino_t.  This shouldn't be
+ * needed for anything other than nfsd, and who exports a mounted DVD over NFS?
+ */
 static int
 cd9660_vget(mp, ino, flags, vpp)
 	struct mount *mp;
@@ -640,10 +653,24 @@ cd9660_vget(mp, ino, flags, vpp)
 	    (struct iso_directory_record *)0));
 }
 
+/* Use special comparator for full 64-bit ino comparison. */
+static int
+cd9660_vfs_hash_cmp(vp, pino)
+	struct vnode *vp;
+	void *pino;
+{
+	struct iso_node *ip;
+	cd_ino_t ino;
+
+	ip = VTOI(vp);
+	ino = *(cd_ino_t *)pino;
+	return (ip->i_number != ino);
+}
+
 int
 cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct mount *mp;
-	ino_t ino;
+	cd_ino_t ino;
 	int flags;
 	struct vnode **vpp;
 	int relocated;
@@ -653,12 +680,12 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct iso_node *ip;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	int error;
 	struct thread *td;
 
 	td = curthread;
-	error = vfs_hash_get(mp, ino, flags, td, vpp, NULL, NULL);
+	error = vfs_hash_get(mp, ino, flags, td, vpp, cd9660_vfs_hash_cmp,
+	    &ino);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -679,7 +706,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	 */
 
 	imp = VFSTOISOFS(mp);
-	dev = imp->im_dev;
 
 	/* Allocate a new vnode/iso_node. */
 	if ((error = getnewvnode("isofs", mp, &cd9660_vnodeops, &vp)) != 0) {
@@ -699,7 +725,8 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		*vpp = NULLVP;
 		return (error);
 	}
-	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
+	error = vfs_hash_insert(vp, ino, flags, td, vpp, cd9660_vfs_hash_cmp,
+	    &ino);
 	if (error || *vpp != NULL)
 		return (error);
 

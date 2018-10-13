@@ -20,6 +20,8 @@
 #include "FormatToken.h"
 #include "clang/Format/Format.h"
 #include "llvm/Support/Regex.h"
+#include <map>
+#include <tuple>
 
 namespace clang {
 class SourceManager;
@@ -27,10 +29,20 @@ class SourceManager;
 namespace format {
 
 class AnnotatedLine;
+class BreakableToken;
 struct FormatToken;
 struct LineState;
 struct ParenState;
+struct RawStringFormatStyleManager;
 class WhitespaceManager;
+
+struct RawStringFormatStyleManager {
+  llvm::StringMap<FormatStyle> DelimiterStyle;
+
+  RawStringFormatStyleManager(const FormatStyle &CodeStyle);
+
+  llvm::Optional<FormatStyle> get(StringRef Delimiter) const;
+};
 
 class ContinuationIndenter {
 public:
@@ -38,14 +50,17 @@ public:
   /// column \p FirstIndent.
   ContinuationIndenter(const FormatStyle &Style,
                        const AdditionalKeywords &Keywords,
-                       SourceManager &SourceMgr, WhitespaceManager &Whitespaces,
+                       const SourceManager &SourceMgr,
+                       WhitespaceManager &Whitespaces,
                        encoding::Encoding Encoding,
                        bool BinPackInconclusiveFunctions);
 
   /// \brief Get the initial state, i.e. the state after placing \p Line's
-  /// first token at \p FirstIndent.
-  LineState getInitialState(unsigned FirstIndent, const AnnotatedLine *Line,
-                            bool DryRun);
+  /// first token at \p FirstIndent. When reformatting a fragment of code, as in
+  /// the case of formatting inside raw string literals, \p FirstStartColumn is
+  /// the column at which the state of the parent formatter is.
+  LineState getInitialState(unsigned FirstIndent, unsigned FirstStartColumn,
+                            const AnnotatedLine *Line, bool DryRun);
 
   // FIXME: canBreak and mustBreak aren't strictly indentation-related. Find a
   // better home.
@@ -87,17 +102,52 @@ private:
   /// \brief Update 'State' with the next token opening a nested block.
   void moveStateToNewBlock(LineState &State);
 
+  /// \brief Reformats a raw string literal.
+  /// 
+  /// \returns An extra penalty induced by reformatting the token.
+  unsigned reformatRawStringLiteral(const FormatToken &Current,
+                                    LineState &State,
+                                    const FormatStyle &RawStringStyle,
+                                    bool DryRun);
+
+  /// \brief If the current token is at the end of the current line, handle
+  /// the transition to the next line.
+  unsigned handleEndOfLine(const FormatToken &Current, LineState &State,
+                           bool DryRun, bool AllowBreak);
+
+  /// \brief If \p Current is a raw string that is configured to be reformatted,
+  /// return the style to be used.
+  llvm::Optional<FormatStyle> getRawStringStyle(const FormatToken &Current,
+                                                const LineState &State);
+
   /// \brief If the current token sticks out over the end of the line, break
   /// it if possible.
   ///
-  /// \returns An extra penalty if a token was broken, otherwise 0.
+  /// \returns A pair (penalty, exceeded), where penalty is the extra penalty
+  /// when tokens are broken or lines exceed the column limit, and exceeded
+  /// indicates whether the algorithm purposefully left lines exceeding the
+  /// column limit.
   ///
-  /// The returned penalty will cover the cost of the additional line breaks and
-  /// column limit violation in all lines except for the last one. The penalty
-  /// for the column limit violation in the last line (and in single line
-  /// tokens) is handled in \c addNextStateToQueue.
-  unsigned breakProtrudingToken(const FormatToken &Current, LineState &State,
-                                bool DryRun);
+  /// The returned penalty will cover the cost of the additional line breaks
+  /// and column limit violation in all lines except for the last one. The
+  /// penalty for the column limit violation in the last line (and in single
+  /// line tokens) is handled in \c addNextStateToQueue.
+  ///
+  /// \p Strict indicates whether reflowing is allowed to leave characters
+  /// protruding the column limit; if true, lines will be split strictly within
+  /// the column limit where possible; if false, words are allowed to protrude
+  /// over the column limit as long as the penalty is less than the penalty
+  /// of a break.
+  std::pair<unsigned, bool> breakProtrudingToken(const FormatToken &Current,
+                                                 LineState &State,
+                                                 bool AllowBreak, bool DryRun,
+                                                 bool Strict);
+
+  /// \brief Returns the \c BreakableToken starting at \p Current, or nullptr
+  /// if the current token cannot be broken.
+  std::unique_ptr<BreakableToken>
+  createBreakableToken(const FormatToken &Current, LineState &State,
+                       bool AllowBreak);
 
   /// \brief Appends the next token to \p State and updates information
   /// necessary for indentation.
@@ -137,20 +187,21 @@ private:
 
   FormatStyle Style;
   const AdditionalKeywords &Keywords;
-  SourceManager &SourceMgr;
+  const SourceManager &SourceMgr;
   WhitespaceManager &Whitespaces;
   encoding::Encoding Encoding;
   bool BinPackInconclusiveFunctions;
   llvm::Regex CommentPragmasRegex;
+  const RawStringFormatStyleManager RawStringFormats;
 };
 
 struct ParenState {
-  ParenState(unsigned Indent, unsigned IndentLevel, unsigned LastSpace,
-             bool AvoidBinPacking, bool NoLineBreak)
-      : Indent(Indent), IndentLevel(IndentLevel), LastSpace(LastSpace),
-        NestedBlockIndent(Indent), BreakBeforeClosingBrace(false),
-        AvoidBinPacking(AvoidBinPacking), BreakBeforeParameter(false),
-        NoLineBreak(NoLineBreak), LastOperatorWrapped(true),
+  ParenState(unsigned Indent, unsigned LastSpace, bool AvoidBinPacking,
+             bool NoLineBreak)
+      : Indent(Indent), LastSpace(LastSpace), NestedBlockIndent(Indent),
+        BreakBeforeClosingBrace(false), AvoidBinPacking(AvoidBinPacking),
+        BreakBeforeParameter(false), NoLineBreak(NoLineBreak),
+        NoLineBreakInOperand(false), LastOperatorWrapped(true),
         ContainsLineBreak(false), ContainsUnwrappedBuilder(false),
         AlignColons(true), ObjCSelectorNameFound(false),
         HasMultipleNestedBlocks(false), NestedBlockInlined(false) {}
@@ -158,9 +209,6 @@ struct ParenState {
   /// \brief The position to which a specific parenthesis level needs to be
   /// indented.
   unsigned Indent;
-
-  /// \brief The number of indentation levels of the block.
-  unsigned IndentLevel;
 
   /// \brief The position of the last space on each level.
   ///
@@ -222,6 +270,10 @@ struct ParenState {
 
   /// \brief Line breaking in this context would break a formatting rule.
   bool NoLineBreak : 1;
+
+  /// \brief Same as \c NoLineBreak, but is restricted until the end of the
+  /// operand (including the next ",").
+  bool NoLineBreakInOperand : 1;
 
   /// \brief True if the last binary operator on this level was wrapped to the
   /// next line.
@@ -316,6 +368,9 @@ struct LineState {
   /// \brief \c true if this line contains a continued for-loop section.
   bool LineContainsContinuedForLoopSection;
 
+  /// \brief \c true if \p NextToken should not continue this line.
+  bool NoContinuation;
+
   /// \brief The \c NestingLevel at the start of this line.
   unsigned StartOfLineLevel;
 
@@ -362,6 +417,8 @@ struct LineState {
     if (LineContainsContinuedForLoopSection !=
         Other.LineContainsContinuedForLoopSection)
       return LineContainsContinuedForLoopSection;
+    if (NoContinuation != Other.NoContinuation)
+      return NoContinuation;
     if (StartOfLineLevel != Other.StartOfLineLevel)
       return StartOfLineLevel < Other.StartOfLineLevel;
     if (LowestLevelOnLine != Other.LowestLevelOnLine)

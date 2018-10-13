@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #else
 #define BITS_PER_LONG 64
 #endif
+
+extern int bxe_grc_dump(struct bxe_softc *sc);
 
 static inline long
 bxe_hilo(uint32_t *hiref)

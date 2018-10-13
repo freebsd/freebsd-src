@@ -41,16 +41,18 @@
 #include <sys/smp.h>
 #include <sys/stddef.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
-#include <linux/kthread.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
-#include <linux/wait.h>
-#include <linux/log2.h> 
+#include <linux/log2.h>
+
 #include <asm/byteorder.h>
+#include <asm/uaccess.h>
 
 #include <machine/stdarg.h>
 
@@ -86,7 +88,11 @@
 #define	S64_C(x) x ## LL
 #define	U64_C(x) x ## ULL
 
-#define	BUILD_BUG_ON(x)		CTASSERT(!(x))
+#define	BUILD_BUG()			do { CTASSERT(0); } while (0)
+#define	BUILD_BUG_ON(x)			CTASSERT(!(x))
+#define	BUILD_BUG_ON_MSG(x, msg)	BUILD_BUG_ON(x)
+#define	BUILD_BUG_ON_NOT_POWER_OF_2(x)	BUILD_BUG_ON(!powerof2(x))
+#define	BUILD_BUG_ON_INVALID(expr)	while (0) { (void)(expr); }
 
 #define	BUG()			panic("BUG at %s:%d", __FILE__, __LINE__)
 #define	BUG_ON(cond)		do {				\
@@ -117,6 +123,8 @@
       }								\
       unlikely(__ret);						\
 })
+
+#define	oops_in_progress	SCHEDULER_STOPPED()
 
 #undef	ALIGN
 #define	ALIGN(x, y)		roundup2((x), (y))
@@ -164,12 +172,12 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
  */
 #ifdef DEBUG
 #define pr_debug(fmt, ...) \
-        log(LOG_DEBUG, fmt, ##__VA_ARGS__)
+	log(LOG_DEBUG, fmt, ##__VA_ARGS__)
 #define pr_devel(fmt, ...) \
 	log(LOG_DEBUG, pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug(fmt, ...) \
-        ({ if (0) log(LOG_DEBUG, fmt, ##__VA_ARGS__); 0; })
+	({ if (0) log(LOG_DEBUG, fmt, ##__VA_ARGS__); 0; })
 #define pr_devel(fmt, ...) \
 	({ if (0) log(LOG_DEBUG, pr_fmt(fmt), ##__VA_ARGS__); 0; })
 #endif
@@ -224,38 +232,187 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	log_once(LOG_INFO, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
+#define	pr_warn_ratelimited(...) do {		\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		pr_warning(__VA_ARGS__);	\
+} while (0)
 
 #ifndef WARN
 #define	WARN(condition, ...) ({			\
-        bool __ret_warn_on = (condition);	\
-        if (unlikely(__ret_warn_on))		\
-                pr_warning(__VA_ARGS__);	\
-        unlikely(__ret_warn_on);		\
+	bool __ret_warn_on = (condition);	\
+	if (unlikely(__ret_warn_on))		\
+		pr_warning(__VA_ARGS__);	\
+	unlikely(__ret_warn_on);		\
 })
 #endif
 
 #ifndef WARN_ONCE
 #define	WARN_ONCE(condition, ...) ({		\
-        bool __ret_warn_on = (condition);	\
-        if (unlikely(__ret_warn_on))		\
-                pr_warn_once(__VA_ARGS__);	\
-        unlikely(__ret_warn_on);		\
+	bool __ret_warn_on = (condition);	\
+	if (unlikely(__ret_warn_on))		\
+		pr_warn_once(__VA_ARGS__);	\
+	unlikely(__ret_warn_on);		\
 })
 #endif
 
 #define container_of(ptr, type, member)				\
 ({								\
-	__typeof(((type *)0)->member) *_p = (ptr);		\
-	(type *)((char *)_p - offsetof(type, member));		\
+	const __typeof(((type *)0)->member) *__p = (ptr);	\
+	(type *)((uintptr_t)__p - offsetof(type, member));	\
 })
-  
+
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
-#define	simple_strtoul(...) strtoul(__VA_ARGS__)
-#define	simple_strtol(...) strtol(__VA_ARGS__)
-#define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
-#define	kstrtoint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
-#define	kstrtouint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
+
+static inline unsigned long long
+simple_strtoull(const char *cp, char **endp, unsigned int base)
+{
+	return (strtouq(cp, endp, base));
+}
+
+static inline long long
+simple_strtoll(const char *cp, char **endp, unsigned int base)
+{
+	return (strtoq(cp, endp, base));
+}
+
+static inline unsigned long
+simple_strtoul(const char *cp, char **endp, unsigned int base)
+{
+	return (strtoul(cp, endp, base));
+}
+
+static inline long
+simple_strtol(const char *cp, char **endp, unsigned int base)
+{
+	return (strtol(cp, endp, base));
+}
+
+static inline int
+kstrtoul(const char *cp, unsigned int base, unsigned long *res)
+{
+	char *end;
+
+	*res = strtoul(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	return (0);
+}
+
+static inline int
+kstrtol(const char *cp, unsigned int base, long *res)
+{
+	char *end;
+
+	*res = strtol(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	return (0);
+}
+
+static inline int
+kstrtoint(const char *cp, unsigned int base, int *res)
+{
+	char *end;
+	long temp;
+
+	*res = temp = strtol(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (int)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
+kstrtouint(const char *cp, unsigned int base, unsigned int *res)
+{
+	char *end;
+	unsigned long temp;
+
+	*res = temp = strtoul(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (unsigned int)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
+kstrtou32(const char *cp, unsigned int base, u32 *res)
+{
+	char *end;
+	unsigned long temp;
+
+	*res = temp = strtoul(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (u32)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
+kstrtobool(const char *s, bool *res)
+{
+	int len;
+
+	if (s == NULL || (len = strlen(s)) == 0 || res == NULL)
+		return (-EINVAL);
+
+	/* skip newline character, if any */
+	if (s[len - 1] == '\n')
+		len--;
+
+	if (len == 1 && strchr("yY1", s[0]) != NULL)
+		*res = true;
+	else if (len == 1 && strchr("nN0", s[0]) != NULL)
+		*res = false;
+	else if (strncasecmp("on", s, len) == 0)
+		*res = true;
+	else if (strncasecmp("off", s, len) == 0)
+		*res = false;
+	else
+		return (-EINVAL);
+
+	return (0);
+}
+
+static inline int
+kstrtobool_from_user(const char __user *s, size_t count, bool *res)
+{
+	char buf[8] = {};
+
+	if (count > (sizeof(buf) - 1))
+		count = (sizeof(buf) - 1);
+
+	if (copy_from_user(buf, s, count))
+		return (-EFAULT);
+
+	return (kstrtobool(buf, res));
+}
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))
@@ -297,7 +454,7 @@ extern bool linux_cpu_has_clflush;
 #endif
 
 typedef struct pm_message {
-        int event;
+	int event;
 } pm_message_t;
 
 /* Swap values of a and b */
@@ -329,6 +486,17 @@ static inline int64_t
 abs64(int64_t x)
 {
 	return (x < 0 ? -x : x);
+}
+
+typedef struct linux_ratelimit {
+	struct timeval lasttime;
+	int counter;
+} linux_ratelimit_t;
+
+static inline bool
+linux_ratelimited(linux_ratelimit_t *rl)
+{
+	return (ppsratecheck(&rl->lasttime, &rl->counter, 1));
 }
 
 #endif	/* _LINUX_KERNEL_H_ */

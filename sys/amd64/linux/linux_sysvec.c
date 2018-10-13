@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #define	__ELF_WORD_SIZE	64
 
 #include <sys/param.h>
@@ -53,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
-#include <sys/sysctl.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
@@ -72,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
+#include <machine/trap.h>
 
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
@@ -87,12 +86,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux64, 1);
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define SHELLMAGIC      0x2123 /* #! */
-#else
-#define SHELLMAGIC      0x2321
-#endif
-
 #if defined(DEBUG)
 SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
 	    CTLTYPE_STRING | CTLFLAG_RW,
@@ -101,10 +94,9 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
 #endif
 
 /*
- * Allow the this functions to use the ldebug() facility
- * even though they are not syscalls themselves. Map them
- * to syscall 0. This is slightly less bogus than using
- * ldebug(sigreturn).
+ * Allow the sendsig functions to use the ldebug() facility even though they
+ * are not syscalls themselves.  Map them to syscall 0.  This is slightly less
+ * bogus than using ldebug(sigreturn).
  */
 #define	LINUX_SYS_linux_rt_sendsig	0
 
@@ -120,36 +112,16 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static register_t * linux_copyout_strings(struct image_params *imgp);
-static int	elf_linux_fixup(register_t **stack_base,
+static int	linux_fixup_elf(register_t **stack_base,
 		    struct image_params *iparams);
-static boolean_t linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
+static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 static void	linux_set_syscall_retval(struct thread *td, int error);
-static int	linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+static int	linux_fetch_syscall_args(struct thread *td);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    u_long stack);
 static int	linux_vsyscall(struct thread *td);
-
-/*
- * Linux syscalls return negative errno's, we do positive and map them
- * Reference:
- *   FreeBSD: src/sys/sys/errno.h
- *   Linux:   linux-2.6.17.8/include/asm-generic/errno-base.h
- *            linux-2.6.17.8/include/asm-generic/errno.h
- */
-static int bsd_to_linux_errno[ELAST + 1] = {
-	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
-	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
-	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
-	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
-	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-	  -6,  -6, -43, -42, -75,-125, -84, -95, -16, -74,
-	 -72, -67, -71
-};
 
 #define LINUX_T_UNKNOWN  255
 static int _bsd_to_linux_trapcode[] = {
@@ -200,30 +172,32 @@ LINUX_VDSO_SYM_CHAR(linux_platform);
  * MPSAFE
  */
 static int
-translate_traps(int signal, int trap_code)
+linux_translate_traps(int signal, int trap_code)
 {
 
 	if (signal != SIGBUS)
-		return signal;
+		return (signal);
 	switch (trap_code) {
 	case T_PROTFLT:
 	case T_TSSFLT:
 	case T_DOUBLEFLT:
 	case T_PAGEFLT:
-		return SIGSEGV;
+		return (SIGSEGV);
 	default:
-		return signal;
+		return (signal);
 	}
 }
 
 static int
-linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+linux_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	struct trapframe *frame;
+	struct syscall_args *sa;
 
 	p = td->td_proc;
 	frame = td->td_frame;
+	sa = &td->td_sa;
 
 	sa->args[0] = frame->tf_rdi;
 	sa->args[1] = frame->tf_rsi;
@@ -251,11 +225,11 @@ linux_set_syscall_retval(struct thread *td, int error)
 
 	/*
 	 * On Linux only %rcx and %r11 values are not preserved across
-	 * the syscall.
-	 * So, do not clobber %rdx and %r10
+	 * the syscall.  So, do not clobber %rdx and %r10.
 	 */
 	td->td_retval[1] = frame->tf_rdx;
-	frame->tf_r10 = frame->tf_rcx;
+	if (error != EJUSTRETURN)
+		frame->tf_r10 = frame->tf_rcx;
 
 	cpu_set_syscall_retval(td, error);
 
@@ -264,23 +238,25 @@ linux_set_syscall_retval(struct thread *td, int error)
 }
 
 static int
-elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
+linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 {
 	Elf_Auxargs *args;
-	Elf_Addr *base;
-	Elf_Addr *pos;
+	Elf_Auxinfo *argarray, *pos;
+	Elf_Addr *auxbase, *base;
 	struct ps_strings *arginfo;
 	struct proc *p;
-	int issetugid;
+	int error, issetugid;
 
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 
 	KASSERT(curthread->td_proc == imgp->proc,
-	    ("unsafe elf_linux_fixup(), should be curproc"));
+	    ("unsafe linux_fixup_elf(), should be curproc"));
 	base = (Elf64_Addr *)*stack_base;
 	args = (Elf64_Auxargs *)imgp->auxargs;
-	pos = base + (imgp->args->argc + imgp->args->envc + 2);
+	auxbase = base + imgp->args->argc + 1 + imgp->args->envc + 1;
+	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	issetugid = p->p_flag & P_SUGID ? 1 : 0;
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
@@ -308,9 +284,16 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
+	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
+
+	error = copyout(argarray, auxbase, sizeof(*argarray) * LINUX_AT_COUNT);
+	free(argarray, M_TEMP);
+	if (error != 0)
+		return (error);
 
 	base--;
-	suword(base, (uint64_t)imgp->args->argc);
+	if (suword(base, (uint64_t)imgp->args->argc) == -1)
+		return (EFAULT);
 
 	*stack_base = (register_t *)base;
 	return (0);
@@ -333,9 +316,7 @@ linux_copyout_strings(struct image_params *imgp)
 	size_t execpath_len;
 	struct proc *p;
 
-	/*
-	 * Calculate string base and vector table pointers.
-	 */
+	/* Calculate string base and vector table pointers. */
 	if (imgp->execpath != NULL && imgp->auxargs != NULL)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
@@ -343,7 +324,7 @@ linux_copyout_strings(struct image_params *imgp)
 
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
-	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
+	destp = (caddr_t)arginfo - SPARE_USRSPACE -
 	    roundup(sizeof(canary), sizeof(char *)) -
 	    roundup(execpath_len, sizeof(char *)) -
 	    roundup(ARG_MAX - imgp->args->stringspace, sizeof(char *));
@@ -353,67 +334,44 @@ linux_copyout_strings(struct image_params *imgp)
 		copyout(imgp->execpath, (void *)imgp->execpathp, execpath_len);
 	}
 
-	/*
-	 * Prepare the canary for SSP.
-	 */
+	/* Prepare the canary for SSP. */
 	arc4rand(canary, sizeof(canary), 0);
 	imgp->canary = (uintptr_t)arginfo -
 	    roundup(execpath_len, sizeof(char *)) -
 	    roundup(sizeof(canary), sizeof(char *));
 	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
-	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
-	 */
+	vectp = (char **)destp;
 	if (imgp->auxargs) {
 		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has LINUX_AT_COUNT entries.
 		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size :
-		    (LINUX_AT_COUNT * 2);
-
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets,and imgp->auxarg_size is room
-		 * for argument of Runtime loader.
-		 */
-		vectp = (char **)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size) * sizeof(char *));
-
-	} else {
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets
-		 */
-		vectp = (char **)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2) * sizeof(char *));
+		vectp -= howmany(LINUX_AT_COUNT * sizeof(Elf64_Auxinfo),
+		    sizeof(*vectp));
 	}
 
 	/*
-	 * vectp also becomes our initial stack base
+	 * Allocate room for the argv[] and env vectors including the
+	 * terminating NULL pointers.
 	 */
+	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
+
+	/* vectp also becomes our initial stack base. */
 	stack_base = (register_t *)vectp;
 
 	stringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
 	envc = imgp->args->envc;
 
-	/*
-	 * Copy out strings - arguments and environment.
-	 */
+	/* Copy out strings - arguments and environment. */
 	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
 
-	/*
-	 * Fill in "ps_strings" struct for ps, w, etc.
-	 */
+	/* Fill in "ps_strings" struct for ps, w, etc. */
 	suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp);
 	suword(&arginfo->ps_nargvstr, argc);
 
-	/*
-	 * Fill in argument portion of vector table.
-	 */
+	/* Fill in argument portion of vector table. */
 	for (; argc > 0; --argc) {
 		suword(vectp++, (long)(intptr_t)destp);
 		while (*stringp++ != 0)
@@ -421,15 +379,13 @@ linux_copyout_strings(struct image_params *imgp)
 		destp++;
 	}
 
-	/* a null vector table pointer separates the argp's from the envp's */
+	/* A null vector table pointer separates the argp's from the envp's. */
 	suword(vectp++, 0);
 
 	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);
 	suword(&arginfo->ps_nenvstr, envc);
 
-	/*
-	 * Fill in environment portion of vector table.
-	 */
+	/* Fill in environment portion of vector table. */
 	for (; envc > 0; --envc) {
 		suword(vectp++, (long)(intptr_t)destp);
 		while (*stringp++ != 0)
@@ -437,7 +393,7 @@ linux_copyout_strings(struct image_params *imgp)
 		destp++;
 	}
 
-	/* end of vector table is a null pointer */
+	/* The end of the vector table is a null pointer. */
 	suword(vectp, 0);
 	return (stack_base);
 }
@@ -448,14 +404,15 @@ linux_copyout_strings(struct image_params *imgp)
 static void
 linux_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	struct trapframe *regs = td->td_frame;
-	struct pcb *pcb = td->td_pcb;
+	struct trapframe *regs;
+	struct pcb *pcb;
+	register_t saved_rflags;
 
-	mtx_lock(&dt_lock);
+	regs = td->td_frame;
+	pcb = td->td_pcb;
+
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
 
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
@@ -463,10 +420,11 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
+	saved_rflags = regs->tf_rflags & PSL_T;
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
-	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_rflags = PSL_USER | saved_rflags;
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -682,12 +640,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rdx = (register_t)&sfp->sf_sc;	/* arg 3 in %rdx */
 
 	sf.sf_handler = catcher;
-	/* Fill in POSIX parts */
+	/* Fill in POSIX parts. */
 	ksiginfo_to_lsiginfo(ksi, &sf.sf_si, sig);
 
-	/*
-	 * Copy the sigframe out to the user's stack.
-	 */
+	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
 #ifdef DEBUG
 		printf("process %ld has trashed its stack\n", (long)p->p_pid);
@@ -705,50 +661,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_lock(&psp->ps_mtx);
 }
 
-/*
- * If a linux binary is exec'ing something, try this image activator
- * first.  We override standard shell script execution in order to
- * be able to modify the interpreter path.  We only do this if a linux
- * binary is doing the exec, so we do not create an EXEC module for it.
- */
-static int exec_linux_imgact_try(struct image_params *iparams);
-
-static int
-exec_linux_imgact_try(struct image_params *imgp)
-{
-	const char *head = (const char *)imgp->image_header;
-	char *rpath;
-	int error = -1, len;
-
-	/*
-	 * The interpreter for shell scripts run from a linux binary needs
-	 * to be located in /compat/linux if possible in order to recursively
-	 * maintain linux path emulation.
-	 */
-	if (((const short *)head)[0] == SHELLMAGIC) {
-		/*
-		 * Run our normal shell image activator.  If it succeeds
-		 * attempt to use the alternate path for the interpreter.
-		 * If an alternate path is found, use our stringspace
-		 * to store it.
-		 */
-		if ((error = exec_shell_imgact(imgp)) == 0) {
-			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			    imgp->interpreter_name, UIO_SYSSPACE,
-			    &rpath, 0, AT_FDCWD);
-			if (rpath != NULL) {
-				len = strlen(rpath) + 1;
-
-				if (len <= MAXSHELLCMDLEN)
-					memcpy(imgp->interpreter_name,
-					    rpath, len);
-				free(rpath, M_TEMP);
-			}
-		}
-	}
-	return(error);
-}
-
 #define	LINUX_VSYSCALL_START		(-10UL << 20)
 #define	LINUX_VSYSCALL_SZ		1024
 
@@ -764,11 +676,11 @@ linux_vsyscall(struct thread *td)
 	struct trapframe *frame;
 	uint64_t retqaddr;
 	int code, traced;
-	int error; 
+	int error;
 
 	frame = td->td_frame;
 
-	/* Check %rip for vsyscall area */
+	/* Check %rip for vsyscall area. */
 	if (__predict_true(frame->tf_rip < LINUX_VSYSCALL_START))
 		return (EINVAL);
 	if ((frame->tf_rip & (LINUX_VSYSCALL_SZ - 1)) != 0)
@@ -779,7 +691,7 @@ linux_vsyscall(struct thread *td)
 
 	/*
 	 * vsyscall called as callq *(%rax), so we must
-	 * use return address from %rsp and also fixup %rsp
+	 * use return address from %rsp and also fixup %rsp.
 	 */
 	error = copyin((void *)frame->tf_rsp, &retqaddr, sizeof(retqaddr));
 	if (error)
@@ -801,15 +713,15 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
-	.sv_errtbl	= bsd_to_linux_errno,
-	.sv_transtrap	= translate_traps,
-	.sv_fixup	= elf_linux_fixup,
+	.sv_errtbl	= linux_errtbl,
+	.sv_transtrap	= linux_translate_traps,
+	.sv_fixup	= linux_fixup_elf,
 	.sv_sendsig	= linux_rt_sendsig,
 	.sv_sigcode	= &_binary_linux_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
 	.sv_name	= "Linux ELF64",
 	.sv_coredump	= elf64_coredump,
-	.sv_imgact_try	= exec_linux_imgact_try,
+	.sv_imgact_try	= linux_exec_imgact_try,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
@@ -836,7 +748,9 @@ static void
 linux_vdso_install(void *param)
 {
 
-	linux_szsigcode = (&_binary_linux_locore_o_end - 
+	amd64_lower_shared_page(&elf_linux_sysvec);
+
+	linux_szsigcode = (&_binary_linux_locore_o_end -
 	    &_binary_linux_locore_o_start);
 
 	if (linux_szsigcode > elf_linux_sysvec.sv_shared_page_len)
@@ -847,31 +761,31 @@ linux_vdso_install(void *param)
 	linux_shared_page_obj = __elfN(linux_shared_page_init)
 	    (&linux_shared_page_mapping);
 
-	__elfN(linux_vdso_reloc)(&elf_linux_sysvec, SHAREDPAGE);
+	__elfN(linux_vdso_reloc)(&elf_linux_sysvec);
 
 	bcopy(elf_linux_sysvec.sv_sigcode, linux_shared_page_mapping,
 	    linux_szsigcode);
 	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
 
 	linux_kplatform = linux_shared_page_mapping +
-	    (linux_platform - (caddr_t)SHAREDPAGE);
+	    (linux_platform - (caddr_t)elf_linux_sysvec.sv_shared_page_base);
 }
 SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t)linux_vdso_install, NULL);
+    linux_vdso_install, NULL);
 
 static void
 linux_vdso_deinstall(void *param)
 {
 
 	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
-};
+}
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t)linux_vdso_deinstall, NULL);
+    linux_vdso_deinstall, NULL);
 
 static char GNULINUX_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;
 
-static boolean_t
+static bool
 linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 {
 	const Elf32_Word *desc;
@@ -882,15 +796,16 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 
 	desc = (const Elf32_Word *)p;
 	if (desc[0] != GNULINUX_ABI_DESC)
-		return (FALSE);
+		return (false);
 
 	/*
-	 * For linux we encode osrel as follows (see linux_mib.c):
-	 * VVVMMMIII (version, major, minor), see linux_mib.c.
+	 * For Linux we encode osrel using the Linux convention of
+	 * 	(version << 16) | (major << 8) | (minor)
+	 * See macro in linux_mib.h
 	 */
-	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
+	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
 
-	return (TRUE);
+	return (true);
 }
 
 static Elf_Brandnote linux64_brandnote = {
@@ -926,9 +841,22 @@ static Elf64_Brandinfo linux_glibc2brandshort = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
+static Elf64_Brandinfo linux_muslbrand = {
+	.brand		= ELFOSABI_LINUX,
+	.machine	= EM_X86_64,
+	.compat_3_brand	= "Linux",
+	.emul_path	= "/compat/linux",
+	.interp_path	= "/lib/ld-musl-x86_64.so.1",
+	.sysvec		= &elf_linux_sysvec,
+	.interp_newpath	= NULL,
+	.brand_note	= &linux64_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+};
+
 Elf64_Brandinfo *linux_brandlist[] = {
 	&linux_glibc2brand,
 	&linux_glibc2brandshort,
+	&linux_muslbrand,
 	NULL
 };
 

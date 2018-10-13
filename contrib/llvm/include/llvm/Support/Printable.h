@@ -21,7 +21,7 @@ namespace llvm {
 class raw_ostream;
 
 /// Simple wrapper around std::function<void(raw_ostream&)>.
-/// This class is usefull to construct print helpers for raw_ostream.
+/// This class is useful to construct print helpers for raw_ostream.
 ///
 /// Example:
 ///     Printable PrintRegister(unsigned Register) {
@@ -38,11 +38,11 @@ class raw_ostream;
 class Printable {
 public:
   std::function<void(raw_ostream &OS)> Print;
-  Printable(const std::function<void(raw_ostream &OS)> Print)
-    : Print(Print) {}
+  Printable(std::function<void(raw_ostream &OS)> Print)
+      : Print(std::move(Print)) {}
 };
 
-static inline raw_ostream &operator<<(raw_ostream &OS, const Printable &P) {
+inline raw_ostream &operator<<(raw_ostream &OS, const Printable &P) {
   P.Print(OS);
   return OS;
 }

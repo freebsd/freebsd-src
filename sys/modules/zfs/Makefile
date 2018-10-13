@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../..
+SYSDIR?=${SRCTOP}/sys
 
 KMOD=	zfs
 
@@ -46,7 +46,6 @@ SRCS+=		opensolaris_atomic.c
 .endif
 
 .PATH:	${SUNW}/uts/common/fs
-SRCS+=	gfs.c
 SRCS+=	vnode.c
 
 .PATH:	${SUNW}/uts/common/os
@@ -80,21 +79,26 @@ ZFS_SRCS=	${ZFS_OBJS:C/.o$/.c/}
 SRCS+=	${ZFS_SRCS}
 SRCS+=	vdev_geom.c
 SRCS+=	trim_map.c
+.PATH:	${SUNW}/uts/common/fs/zfs/lua
+LUA_SRCS=	${LUA_OBJS:C/.o$/.c/}
+SRCS+=	${LUA_SRCS}
 
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE
 
 CFLAGS+=-I${SYSDIR}/cddl/compat/opensolaris
 CFLAGS+=-I${SUNW}/uts/common/fs/zfs
+CFLAGS+=-I${SUNW}/uts/common/fs/zfs/lua
 CFLAGS+=-I${SUNW}/uts/common/zmod
 CFLAGS+=-I${SUNW}/uts/common
 CFLAGS+=-I${SYSDIR}
 CFLAGS+=-I${SUNW}/common/zfs
 CFLAGS+=-I${SUNW}/common
 CFLAGS+=-DBUILDING_ZFS
+CFLAGS.gcc+=-fms-extensions
 
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=-mminimal-toc
+CFLAGS.gcc+=-mminimal-toc
 .endif
 
 .ifdef ZFS_DEBUG

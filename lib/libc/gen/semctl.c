@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Doug Rabson
  * All rights reserved.
  *
@@ -32,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #ifndef NO_COMPAT7
 #define _WANT_SEMUN_OLD
 #endif
+#define _WANT_SEMUN
 
 #include <sys/types.h>
 #include <sys/ipc.h>

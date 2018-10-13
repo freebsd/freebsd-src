@@ -21,7 +21,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_bfd_find_target.3 3348 2016-01-18 14:18:50Z emaste $
+.\" $Id: elftc_bfd_find_target.3 3516 2017-02-10 02:33:08Z emaste $
 .\"
 .Dd November 30, 2011
 .Os
@@ -74,6 +74,7 @@ Known descriptor names and their properties include:
 .It Li elf32-littlearm Ta ELF Ta LSB Ta 32
 .It Li elf32-littlemips Ta ELF Ta LSB Ta 32
 .It Li elf32-powerpc Ta ELF Ta MSB Ta 32
+.It Li elf32-powerpc-freebsd Ta ELF Ta MSB Ta 32
 .It Li elf32-powerpcle Ta ELF Ta LSB Ta 32
 .It Li elf32-sh Ta ELF Ta MSB Ta 32
 .It Li elf32-shl Ta ELF Ta LSB Ta 32
@@ -82,6 +83,8 @@ Known descriptor names and their properties include:
 .It Li elf32-shbig-linux Ta ELF Ta MSB Ta 32
 .It Li elf32-shl-linux Ta ELF Ta LSB Ta 32
 .It Li elf32-sparc Ta ELF Ta MSB Ta 32
+.It Li elf32-tradbigmips Ta ELF Ta MSB Ta 32
+.It Li elf32-tradlittlemips Ta ELF Ta LSB Ta 32
 .It Li elf64-alpha Ta ELF Ta LSB Ta 64
 .It Li elf64-alpha-freebsd Ta ELF Ta LSB Ta 64
 .It Li elf64-big Ta ELF Ta MSB Ta 64
@@ -89,8 +92,10 @@ Known descriptor names and their properties include:
 .It Li elf64-ia64-big Ta ELF Ta MSB Ta 64
 .It Li elf64-ia64-little Ta ELF Ta LSB Ta 64
 .It Li elf64-little Ta ELF Ta LSB Ta 64
+.It Li elf64-littleaarch64 Ta ELF Ta LSB Ta 64
 .It Li elf64-littlemips Ta ELF Ta LSB Ta 64
 .It Li elf64-powerpc Ta ELF Ta MSB Ta 64
+.It Li elf64-powerpc-freebsd Ta ELF Ta MSB Ta 64
 .It Li elf64-powerpcle Ta ELF Ta LSB Ta 64
 .It Li elf64-sh64 Ta ELF Ta MSB Ta 64
 .It Li elf64-sh64l Ta ELF Ta LSB Ta 64
@@ -100,6 +105,8 @@ Known descriptor names and their properties include:
 .It Li elf64-sh64-linux Ta ELF Ta LSB Ta 64
 .It Li elf64-sparc Ta ELF Ta MSB Ta 64
 .It Li elf64-sparc-freebsd Ta ELF Ta MSB Ta 64
+.It Li elf64-tradbigmips Ta ELF Ta MSB Ta 64
+.It Li elf64-tradlittlemips Ta ELF Ta LSB Ta 64
 .It Li elf64-x86-64 Ta ELF Ta LSB Ta 64
 .It Li elf64-x86-64-freebsd Ta ELF Ta LSB Ta 64
 .It Li ihex Ta IHEX Ta - Ta -

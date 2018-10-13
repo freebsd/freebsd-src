@@ -76,7 +76,9 @@ device		adm1030		# Apple G4 MDD fan controller
 # Devices we don't want to deal with
 
 nodevice	bktr
+nodevice	ccr
 nodevice	cxgbe		# XXX: builds on powerpc64 only.
+nodevice	cxgbev
 nodevice	fdc
 nodevice	ppc
 nodevice	splash

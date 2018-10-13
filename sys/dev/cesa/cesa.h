@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009-2011 Semihalf.
  * All rights reserved.
  *
@@ -191,7 +193,6 @@ struct cesa_sa_desc {
 };
 
 struct cesa_session {
-	uint32_t			cs_sid;
 	uint32_t			cs_config;
 	unsigned int			cs_klen;
 	unsigned int			cs_ivlen;
@@ -201,8 +202,6 @@ struct cesa_session {
 	uint8_t				cs_aes_dkey[CESA_MAX_KEY_LEN];
 	uint8_t				cs_hiv_in[CESA_MAX_HASH_LEN];
 	uint8_t				cs_hiv_out[CESA_MAX_HASH_LEN];
-
-	STAILQ_ENTRY(cesa_session)	cs_stq;
 };
 
 struct cesa_request {
@@ -231,11 +230,13 @@ struct cesa_packet {
 struct cesa_softc {
 	device_t			sc_dev;
 	int32_t				sc_cid;
+	uint32_t			sc_soc_id;
 	struct resource			*sc_res[RES_CESA_NUM];
 	void				*sc_icookie;
 	bus_dma_tag_t			sc_data_dtag;
 	int				sc_error;
 	int				sc_tperr;
+	uint8_t				sc_cesa_engine_id;
 
 	struct mtx			sc_sc_lock;
 	int				sc_blocked;
@@ -260,10 +261,7 @@ struct cesa_softc {
 	STAILQ_HEAD(, cesa_request)	sc_ready_requests;
 	STAILQ_HEAD(, cesa_request)	sc_queued_requests;
 
-	/* Sessions pool */
 	struct mtx			sc_sessions_lock;
-	struct cesa_session		sc_sessions[CESA_SESSIONS];
-	STAILQ_HEAD(, cesa_session)	sc_free_sessions;
 
 	/* CESA SRAM Address */
 	bus_addr_t			sc_sram_base_pa;
@@ -335,10 +333,7 @@ struct cesa_chain_info {
 #define CESA_TDMA_CR_ENABLE		(1 << 12)
 #define CESA_TDMA_CR_FETCHND		(1 << 13)
 #define CESA_TDMA_CR_ACTIVE		(1 << 14)
-
-#if defined (SOC_MV_ARMADA38X)
 #define CESA_TDMA_NUM_OUTSTAND		(2 << 16)
-#endif
 
 #define CESA_TDMA_ECR			0x08C8
 #define CESA_TDMA_ECR_MISS		(1 << 0)
@@ -352,18 +347,10 @@ struct cesa_chain_info {
 #define CESA_TDMA_EMR_BOTH_HIT		CESA_TDMA_ECR_BOTH_HIT
 #define CESA_TDMA_EMR_DATA_ERROR	CESA_TDMA_ECR_DATA_ERROR
 
-/*  CESA TDMA address decoding registers */
-#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xA04)
-#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xA00)
-#define MV_WIN_CESA_MAX			4
-
 /* CESA SA registers definitions */
 #define CESA_SA_CMD			0x0E00
 #define CESA_SA_CMD_ACTVATE		(1 << 0)
-
-#if defined (SOC_MV_ARMADA38X)
 #define CESA_SA_CMD_SHA2		(1 << 31)
-#endif
 
 #define CESA_SA_DPR			0x0E04
 
@@ -375,4 +362,10 @@ struct cesa_chain_info {
 #define CESA_SA_SR			0x0E0C
 #define CESA_SA_SR_ACTIVE		(1 << 0)
 
+#define CESA_TDMA_SIZE			0x1000
+#define CESA_CESA_SIZE			0x1000
+#define CESA0_TDMA_ADDR			0x90000
+#define CESA0_CESA_ADDR			0x9D000
+#define CESA1_TDMA_ADDR			0x92000
+#define CESA1_CESA_ADDR			0x9F000
 #endif

@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from rc4-x86_64.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from rc4-x86_64.pl. */
 .text	
 
 
@@ -10,9 +10,16 @@ RC4:	orq	%rsi,%rsi
 	jne	.Lentry
 	.byte	0xf3,0xc3
 .Lentry:
+.cfi_startproc	
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-16
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-24
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-32
 .Lprologue:
 	movq	%rsi,%r11
 	movq	%rdx,%r12
@@ -513,16 +520,21 @@ RC4:	orq	%rsi,%rsi
 	movl	%ecx,-4(%rdi)
 
 	movq	(%rsp),%r13
+.cfi_restore	%r13
 	movq	8(%rsp),%r12
+.cfi_restore	%r12
 	movq	16(%rsp),%rbx
+.cfi_restore	%rbx
 	addq	$24,%rsp
+.cfi_adjust_cfa_offset	-24
 .Lepilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	RC4,.-RC4
-.globl	private_RC4_set_key
-.type	private_RC4_set_key,@function
+.globl	RC4_set_key
+.type	RC4_set_key,@function
 .align	16
-private_RC4_set_key:
+RC4_set_key:
 	leaq	8(%rdi),%rdi
 	leaq	(%rdx,%rsi,1),%rdx
 	negq	%rsi
@@ -589,7 +601,7 @@ private_RC4_set_key:
 	movl	%eax,-8(%rdi)
 	movl	%eax,-4(%rdi)
 	.byte	0xf3,0xc3
-.size	private_RC4_set_key,.-private_RC4_set_key
+.size	RC4_set_key,.-RC4_set_key
 
 .globl	RC4_options
 .type	RC4_options,@function

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -97,9 +99,9 @@ __nss_compat_getgrnam_r(void *retval, void *mdata, va_list ap)
 	const char	*name;
 	struct group	*grp;
 	char		*buffer;
-	int		*errnop;
+	int		*errnop, ns_status;
 	size_t		 bufsize;
-	enum nss_status	 status;
+	enum nss_status	 nss_status;
 
 	fn = mdata;
 	name = va_arg(ap, const char *);
@@ -107,11 +109,11 @@ __nss_compat_getgrnam_r(void *retval, void *mdata, va_list ap)
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
-	status = fn(name, grp, buffer, bufsize, errnop);
-	status = __nss_compat_result(status, *errnop);
-	if (status == NS_SUCCESS)
+	nss_status = fn(name, grp, buffer, bufsize, errnop);
+	ns_status = __nss_compat_result(nss_status, *errnop);
+	if (ns_status == NS_SUCCESS)
 		*(struct group **)retval = grp;
-	return (status);
+	return (ns_status);
 }
 
 
@@ -122,9 +124,9 @@ __nss_compat_getgrgid_r(void *retval, void *mdata, va_list ap)
 	gid_t		 gid;
 	struct group	*grp;
 	char		*buffer;
-	int		*errnop;
+	int		*errnop, ns_status;
 	size_t		 bufsize;
-	enum nss_status	 status;
+	enum nss_status	 nss_status;
 	
 	fn = mdata;
 	gid = va_arg(ap, gid_t);
@@ -132,11 +134,11 @@ __nss_compat_getgrgid_r(void *retval, void *mdata, va_list ap)
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
-	status = fn(gid, grp, buffer, bufsize, errnop);
-	status = __nss_compat_result(status, *errnop);
-	if (status == NS_SUCCESS)
+	nss_status = fn(gid, grp, buffer, bufsize, errnop);
+	ns_status = __nss_compat_result(nss_status, *errnop);
+	if (ns_status == NS_SUCCESS)
 		*(struct group **)retval = grp;
-	return (status);
+	return (ns_status);
 }
 
 
@@ -146,9 +148,9 @@ __nss_compat_getgrent_r(void *retval, void *mdata, va_list ap)
 	int (*fn)(struct group *, char *, size_t, int *);
 	struct group	*grp;
 	char		*buffer;
-	int		*errnop;
+	int		*errnop, ns_status;
 	size_t		 bufsize;
-	enum nss_status	 status;
+	enum nss_status	 nss_status;
 
 	if (CHECK_TERMINATOR(group))
 		return (NS_NOTFOUND);
@@ -157,13 +159,13 @@ __nss_compat_getgrent_r(void *retval, void *mdata, va_list ap)
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
-	status = fn(grp, buffer, bufsize, errnop);
-	status = __nss_compat_result(status, *errnop);
-	if (status == NS_SUCCESS)
+	nss_status = fn(grp, buffer, bufsize, errnop);
+	ns_status = __nss_compat_result(nss_status, *errnop);
+	if (ns_status == NS_SUCCESS)
 		*(struct group **)retval = grp;
-	else if (status != NS_RETURN)
+	else if (ns_status != NS_RETURN)
 		SET_TERMINATOR(group, &terminator);
-	return (status);
+	return (ns_status);
 }
 
 
@@ -198,9 +200,9 @@ __nss_compat_getpwnam_r(void *retval, void *mdata, va_list ap)
 	const char	*name;
 	struct passwd	*pwd;
 	char		*buffer;
-	int		*errnop;
+	int		*errnop, ns_status;
 	size_t		 bufsize;
-	enum nss_status	 status;
+	enum nss_status	 nss_status;
 
 	fn = mdata;
 	name = va_arg(ap, const char *);
@@ -208,11 +210,11 @@ __nss_compat_getpwnam_r(void *retval, void *mdata, va_list ap)
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
-	status = fn(name, pwd, buffer, bufsize, errnop);
-	status = __nss_compat_result(status, *errnop);
-	if (status == NS_SUCCESS)
+	nss_status = fn(name, pwd, buffer, bufsize, errnop);
+	ns_status = __nss_compat_result(nss_status, *errnop);
+	if (ns_status == NS_SUCCESS)
 		*(struct passwd **)retval = pwd;
-	return (status);
+	return (ns_status);
 }
 
 
@@ -223,9 +225,9 @@ __nss_compat_getpwuid_r(void *retval, void *mdata, va_list ap)
 	uid_t		 uid;
 	struct passwd	*pwd;
 	char		*buffer;
-	int		*errnop;
+	int		*errnop, ns_status;
 	size_t		 bufsize;
-	enum nss_status	 status;
+	enum nss_status	 nss_status;
 	
 	fn = mdata;
 	uid = va_arg(ap, uid_t);
@@ -233,11 +235,11 @@ __nss_compat_getpwuid_r(void *retval, void *mdata, va_list ap)
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
-	status = fn(uid, pwd, buffer, bufsize, errnop);
-	status = __nss_compat_result(status, *errnop);
-	if (status == NS_SUCCESS)
+	nss_status = fn(uid, pwd, buffer, bufsize, errnop);
+	ns_status = __nss_compat_result(nss_status, *errnop);
+	if (ns_status == NS_SUCCESS)
 		*(struct passwd **)retval = pwd;
-	return (status);
+	return (ns_status);
 }
 
 
@@ -247,9 +249,9 @@ __nss_compat_getpwent_r(void *retval, void *mdata, va_list ap)
 	int (*fn)(struct passwd *, char *, size_t, int *);
 	struct passwd	*pwd;
 	char		*buffer;
-	int		*errnop;
+	int		*errnop, ns_status;
 	size_t		 bufsize;
-	enum nss_status	 status;
+	enum nss_status	 nss_status;
 
 	if (CHECK_TERMINATOR(passwd))
 		return (NS_NOTFOUND);
@@ -258,13 +260,13 @@ __nss_compat_getpwent_r(void *retval, void *mdata, va_list ap)
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
-	status = fn(pwd, buffer, bufsize, errnop);
-	status = __nss_compat_result(status, *errnop);
-	if (status == NS_SUCCESS)
+	nss_status = fn(pwd, buffer, bufsize, errnop);
+	ns_status = __nss_compat_result(nss_status, *errnop);
+	if (ns_status == NS_SUCCESS)
 		*(struct passwd **)retval = pwd;
-	else if (status != NS_RETURN)
+	else if (ns_status != NS_RETURN)
 		SET_TERMINATOR(passwd, &terminator);
-	return (status);
+	return (ns_status);
 }
 
 

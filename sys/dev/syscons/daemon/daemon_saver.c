@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Sandro Sigala, Brescia, Italy.
  * Copyright (c) 1997 Chris Shenton
  * Copyright (c) 1995 Søren Schmidt
@@ -371,15 +373,7 @@ daemon_init(video_adapter_t *adp)
 	sprintf(message, "%s - %s %s", prison0.pr_hostname, ostype, osrelease);
 	mtx_unlock(&prison0.pr_mtx);
 	blanked = 0;
-	switch (adp->va_mode) {
-	case M_PC98_80x25:
-	case M_PC98_80x30:
-		attr_mask = ~FG_UNDERLINE;
-		break;
-	default:
-		attr_mask = ~0;
-		break;
-	}
+	attr_mask = ~0;
 
 	return 0;
 }

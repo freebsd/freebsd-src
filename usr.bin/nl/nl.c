@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -35,7 +37,6 @@ __COPYRIGHT(
 __RCSID("$FreeBSD$");
 #endif    
 
-#define	_WITH_GETLINE
 #include <sys/types.h>
 
 #include <err.h>

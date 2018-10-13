@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -192,13 +194,27 @@ main(int argc, char *argv[])
 	(void) setlocale(LC_ALL, "");
 	time(&now);			/* Used by routines in print.c. */
 
+	/*
+	 * Compute default output line length before processing options.
+	 * If COLUMNS is set, use it.  Otherwise, if this is part of an
+	 * interactive job (i.e. one associated with a terminal), use
+	 * the terminal width.  "Interactive" is determined by whether
+	 * any of stdout, stderr, or stdin is a terminal.  The intent
+	 * is that "ps", "ps | more", and "ps | grep" all use the same
+	 * default line length unless -w is specified.
+	 *
+	 * If not interactive, the default length was traditionally 79.
+	 * It has been changed to unlimited.  This is mostly for the
+	 * benefit of non-interactive scripts, which arguably should
+	 * use -ww, but is compatible with Linux.
+	 */
 	if ((cols = getenv("COLUMNS")) != NULL && *cols != '\0')
 		termwidth = atoi(cols);
 	else if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDIN_FILENO,  TIOCGWINSZ, (char *)&ws) == -1) ||
 	     ws.ws_col == 0)
-		termwidth = 79;
+		termwidth = UNLIMITED;
 	else
 		termwidth = ws.ws_col - 1;
 
@@ -399,7 +415,7 @@ main(int argc, char *argv[])
 		case 'w':
 			if (wflag)
 				termwidth = UNLIMITED;
-			else if (termwidth < 131)
+			else if (termwidth < 131 && termwidth != UNLIMITED)
 				termwidth = 131;
 			wflag++;
 			break;
@@ -521,7 +537,11 @@ main(int argc, char *argv[])
 	 */
 	nentries = -1;
 	kp = kvm_getprocs(kd, what, flag, &nentries);
-	if ((kp == NULL && nentries > 0) || (kp != NULL && nentries < 0))
+	/*
+	 * Ignore ESRCH to preserve behaviour of "ps -p nonexistent-pid"
+	 * not reporting an error.
+	 */
+	if ((kp == NULL && errno != ESRCH) || (kp != NULL && nentries < 0))
 		xo_errx(1, "%s", kvm_geterr(kd));
 	nkept = 0;
 	if (nentries > 0) {
@@ -612,6 +632,7 @@ main(int argc, char *argv[])
 
 	if (nkept == 0) {
 		printheader();
+		xo_finish();
 		exit(1);
 	}
 
@@ -668,7 +689,7 @@ main(int argc, char *argv[])
 			    (STAILQ_NEXT(vent, next_ve) == NULL &&
 			    (vent->var->flag & LJUST))) ? 0 : vent->var->width;
 			snprintf(fmtbuf, sizeof(fmtbuf), "{:%s/%%%s%d..%ds}",
-			    vent->var->field ?: vent->var->name,
+			    vent->var->field ? vent->var->field : vent->var->name,
 			    (vent->var->flag & LJUST) ? "-" : "",
 			    fwidthmin, fwidthmax);
 			xo_emit(fmtbuf, str);
@@ -1427,7 +1448,7 @@ pidmax_init(void)
 	}
 }
 
-static void
+static void __dead2
 usage(void)
 {
 #define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"

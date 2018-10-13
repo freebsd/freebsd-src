@@ -72,6 +72,27 @@
 #include <openssl/engine.h>
 #endif
 
+/** fake DSA support for unit tests */
+int fake_dsa = 0;
+/** fake SHA1 support for unit tests */
+int fake_sha1 = 0;
+
+/**
+ * Output a libcrypto openssl error to the logfile.
+ * @param str: string to add to it.
+ * @param e: the error to output, error number from ERR_get_error().
+ */
+static void
+log_crypto_error(const char* str, unsigned long e)
+{
+	char buf[128];
+	/* or use ERR_error_string if ERR_error_string_n is not avail TODO */
+	ERR_error_string_n(e, buf, sizeof(buf));
+	/* buf now contains */
+	/* error:[error code]:[library name]:[function name]:[reason string] */
+	log_err("%s crypto %s", str, buf);
+}
+
 /* return size of digest if supported, or 0 otherwise */
 size_t
 nsec3_hash_algo_size_supported(int id)
@@ -91,11 +112,29 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 {
 	switch(algo) {
 	case NSEC3_HASH_SHA1:
+#ifdef OPENSSL_FIPS
+		if(!sldns_digest_evp(buf, len, res, EVP_sha1()))
+			log_crypto_error("could not digest with EVP_sha1",
+				ERR_get_error());
+#else
 		(void)SHA1(buf, len, res);
+#endif
 		return 1;
 	default:
 		return 0;
 	}
+}
+
+void
+secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
+{
+#ifdef OPENSSL_FIPS
+	if(!sldns_digest_evp(buf, len, res, EVP_sha256()))
+		log_crypto_error("could not digest with EVP_sha256",
+			ERR_get_error());
+#else
+	(void)SHA256(buf, len, res);
+#endif
 }
 
 /**
@@ -107,9 +146,12 @@ size_t
 ds_digest_size_supported(int algo)
 {
 	switch(algo) {
-#ifdef HAVE_EVP_SHA1
 		case LDNS_SHA1:
+#if defined(HAVE_EVP_SHA1) && defined(USE_SHA1)
 			return SHA_DIGEST_LENGTH;
+#else
+			if(fake_sha1) return 20;
+			return 0;
 #endif
 #ifdef HAVE_EVP_SHA256
 		case LDNS_SHA256:
@@ -149,14 +191,26 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 	unsigned char* res)
 {
 	switch(algo) {
-#ifdef HAVE_EVP_SHA1
+#if defined(HAVE_EVP_SHA1) && defined(USE_SHA1)
 		case LDNS_SHA1:
+#ifdef OPENSSL_FIPS
+			if(!sldns_digest_evp(buf, len, res, EVP_sha1()))
+				log_crypto_error("could not digest with EVP_sha1",
+					ERR_get_error());
+#else
 			(void)SHA1(buf, len, res);
+#endif
 			return 1;
 #endif
 #ifdef HAVE_EVP_SHA256
 		case LDNS_SHA256:
+#ifdef OPENSSL_FIPS
+			if(!sldns_digest_evp(buf, len, res, EVP_sha256()))
+				log_crypto_error("could not digest with EVP_sha256",
+					ERR_get_error());
+#else
 			(void)SHA256(buf, len, res);
+#endif
 			return 1;
 #endif
 #ifdef USE_GOST
@@ -167,7 +221,13 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 #endif
 #ifdef USE_ECDSA
 		case LDNS_SHA384:
+#ifdef OPENSSL_FIPS
+			if(!sldns_digest_evp(buf, len, res, EVP_sha384()))
+				log_crypto_error("could not digest with EVP_sha384",
+					ERR_get_error());
+#else
 			(void)SHA384(buf, len, res);
+#endif
 			return 1;
 #endif
 		default: 
@@ -188,8 +248,22 @@ dnskey_algo_id_is_supported(int id)
 		return 0;
 	case LDNS_DSA:
 	case LDNS_DSA_NSEC3:
+#if defined(USE_DSA) && defined(USE_SHA1)
+		return 1;
+#else
+		if(fake_dsa || fake_sha1) return 1;
+		return 0;
+#endif
+
 	case LDNS_RSASHA1:
 	case LDNS_RSASHA1_NSEC3:
+#ifdef USE_SHA1
+		return 1;
+#else
+		if(fake_sha1) return 1;
+		return 0;
+#endif
+
 #if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
 	case LDNS_RSASHA256:
 #endif
@@ -200,7 +274,16 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_ECDSAP256SHA256:
 	case LDNS_ECDSAP384SHA384:
 #endif
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+#endif
+#ifdef USE_ED448
+	case LDNS_ED448:
+#endif
+#if (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) || defined(USE_ECDSA) || defined(USE_ED25519) || defined(USE_ED448)
 		return 1;
+#endif
+
 #ifdef USE_GOST
 	case LDNS_ECC_GOST:
 		/* we support GOST if it can be loaded */
@@ -211,22 +294,7 @@ dnskey_algo_id_is_supported(int id)
 	}
 }
 
-/**
- * Output a libcrypto openssl error to the logfile.
- * @param str: string to add to it.
- * @param e: the error to output, error number from ERR_get_error().
- */
-static void
-log_crypto_error(const char* str, unsigned long e)
-{
-	char buf[128];
-	/* or use ERR_error_string if ERR_error_string_n is not avail TODO */
-	ERR_error_string_n(e, buf, sizeof(buf));
-	/* buf now contains */
-	/* error:[error code]:[library name]:[function name]:[reason string] */
-	log_err("%s crypto %s", str, buf);
-}
-
+#ifdef USE_DSA
 /**
  * Setup DSA key digest in DER encoding ... 
  * @param sig: input is signature output alloced ptr (unless failure).
@@ -255,8 +323,12 @@ setup_dsa_sig(unsigned char** sig, unsigned int* len)
 	dsasig = DSA_SIG_new();
 	if(!dsasig) return 0;
 
+#ifdef HAVE_DSA_SIG_SET0
+	if(!DSA_SIG_set0(dsasig, R, S)) return 0;
+#else
 	dsasig->r = R;
 	dsasig->s = S;
+#endif
 	*sig = NULL;
 	newlen = i2d_DSA_SIG(dsasig, sig);
 	if(newlen < 0) {
@@ -268,6 +340,7 @@ setup_dsa_sig(unsigned char** sig, unsigned int* len)
 	DSA_SIG_free(dsasig);
 	return 1;
 }
+#endif /* USE_DSA */
 
 #ifdef USE_ECDSA
 /**
@@ -281,35 +354,81 @@ setup_dsa_sig(unsigned char** sig, unsigned int* len)
 static int
 setup_ecdsa_sig(unsigned char** sig, unsigned int* len)
 {
-	ECDSA_SIG* ecdsa_sig;
-	int newlen;
+        /* convert from two BIGNUMs in the rdata buffer, to ASN notation.
+	 * ASN preamble: 30440220 <R 32bytefor256> 0220 <S 32bytefor256>
+	 * the '20' is the length of that field (=bnsize).
+i	 * the '44' is the total remaining length.
+	 * if negative, start with leading zero.
+	 * if starts with 00s, remove them from the number.
+	 */
+        uint8_t pre[] = {0x30, 0x44, 0x02, 0x20};
+        int pre_len = 4;
+        uint8_t mid[] = {0x02, 0x20};
+        int mid_len = 2;
+        int raw_sig_len, r_high, s_high, r_rem=0, s_rem=0;
 	int bnsize = (int)((*len)/2);
+        unsigned char* d = *sig;
+	uint8_t* p;
 	/* if too short or not even length, fails */
 	if(*len < 16 || bnsize*2 != (int)*len)
 		return 0;
-	/* use the raw data to parse two evenly long BIGNUMs, "r | s". */
-	ecdsa_sig = ECDSA_SIG_new();
-	if(!ecdsa_sig) return 0;
-	ecdsa_sig->r = BN_bin2bn(*sig, bnsize, ecdsa_sig->r);
-	ecdsa_sig->s = BN_bin2bn(*sig+bnsize, bnsize, ecdsa_sig->s);
-	if(!ecdsa_sig->r || !ecdsa_sig->s) {
-		ECDSA_SIG_free(ecdsa_sig);
-		return 0;
-	}
 
-	/* spool it into ASN format */
-	*sig = NULL;
-	newlen = i2d_ECDSA_SIG(ecdsa_sig, sig);
-	if(newlen <= 0) {
-		ECDSA_SIG_free(ecdsa_sig);
-		free(*sig);
+        /* strip leading zeroes from r (but not last one) */
+        while(r_rem < bnsize-1 && d[r_rem] == 0)
+                r_rem++;
+        /* strip leading zeroes from s (but not last one) */
+        while(s_rem < bnsize-1 && d[bnsize+s_rem] == 0)
+                s_rem++;
+
+        r_high = ((d[0+r_rem]&0x80)?1:0);
+        s_high = ((d[bnsize+s_rem]&0x80)?1:0);
+        raw_sig_len = pre_len + r_high + bnsize - r_rem + mid_len +
+                s_high + bnsize - s_rem;
+	*sig = (unsigned char*)malloc((size_t)raw_sig_len);
+	if(!*sig)
 		return 0;
+	p = (uint8_t*)*sig;
+	p[0] = pre[0];
+	p[1] = (uint8_t)(raw_sig_len-2);
+	p[2] = pre[2];
+	p[3] = (uint8_t)(bnsize + r_high - r_rem);
+	p += 4;
+	if(r_high) {
+		*p = 0;
+		p += 1;
 	}
-	*len = (unsigned int)newlen;
-	ECDSA_SIG_free(ecdsa_sig);
+	memmove(p, d+r_rem, (size_t)bnsize-r_rem);
+	p += bnsize-r_rem;
+	memmove(p, mid, (size_t)mid_len-1);
+	p += mid_len-1;
+	*p = (uint8_t)(bnsize + s_high - s_rem);
+	p += 1;
+        if(s_high) {
+		*p = 0;
+		p += 1;
+	}
+	memmove(p, d+bnsize+s_rem, (size_t)bnsize-s_rem);
+	*len = (unsigned int)raw_sig_len;
 	return 1;
 }
 #endif /* USE_ECDSA */
+
+#ifdef USE_ECDSA_EVP_WORKAROUND
+static EVP_MD ecdsa_evp_256_md;
+static EVP_MD ecdsa_evp_384_md;
+void ecdsa_evp_workaround_init(void)
+{
+	/* openssl before 1.0.0 fixes RSA with the SHA256
+	 * hash in EVP.  We create one for ecdsa_sha256 */
+	ecdsa_evp_256_md = *EVP_sha256();
+	ecdsa_evp_256_md.required_pkey_type[0] = EVP_PKEY_EC;
+	ecdsa_evp_256_md.verify = (void*)ECDSA_verify;
+
+	ecdsa_evp_384_md = *EVP_sha384();
+	ecdsa_evp_384_md.required_pkey_type[0] = EVP_PKEY_EC;
+	ecdsa_evp_384_md.verify = (void*)ECDSA_verify;
+}
+#endif /* USE_ECDSA_EVP_WORKAROUND */
 
 /**
  * Setup key and digest for verification. Adjust sig if necessary.
@@ -325,10 +444,13 @@ static int
 setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type, 
 	unsigned char* key, size_t keylen)
 {
+#if defined(USE_DSA) && defined(USE_SHA1)
 	DSA* dsa;
+#endif
 	RSA* rsa;
 
 	switch(algo) {
+#if defined(USE_DSA) && defined(USE_SHA1)
 		case LDNS_DSA:
 		case LDNS_DSA_NSEC3:
 			*evp_key = EVP_PKEY_new();
@@ -347,11 +469,20 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 					"EVP_PKEY_assign_DSA failed");
 				return 0;
 			}
+#ifdef HAVE_EVP_DSS1
 			*digest_type = EVP_dss1();
+#else
+			*digest_type = EVP_sha1();
+#endif
 
 			break;
+#endif /* USE_DSA && USE_SHA1 */
+
+#if defined(USE_SHA1) || (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2))
+#ifdef USE_SHA1
 		case LDNS_RSASHA1:
 		case LDNS_RSASHA1_NSEC3:
+#endif
 #if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
 		case LDNS_RSASHA256:
 #endif
@@ -386,9 +517,14 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				*digest_type = EVP_sha512();
 			else
 #endif
+#ifdef USE_SHA1
 				*digest_type = EVP_sha1();
-
+#else
+				{ verbose(VERB_QUERY, "no digest available"); return 0; }
+#endif
 			break;
+#endif /* defined(USE_SHA1) || (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) */
+
 		case LDNS_RSAMD5:
 			*evp_key = EVP_PKEY_new();
 			if(!*evp_key) {
@@ -435,20 +571,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA256
-			 * hash in EVP.  We create one for ecdsa_sha256 */
-			{
-				static int md_ecdsa_256_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_256_done) {
-					EVP_MD m = *EVP_sha256();
-					md_ecdsa_256_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
+			*digest_type = &ecdsa_evp_256_md;
 #else
 			*digest_type = EVP_sha256();
 #endif
@@ -462,25 +585,34 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA384
-			 * hash in EVP.  We create one for ecdsa_sha384 */
-			{
-				static int md_ecdsa_384_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_384_done) {
-					EVP_MD m = *EVP_sha384();
-					md_ecdsa_384_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
+			*digest_type = &ecdsa_evp_384_md;
 #else
 			*digest_type = EVP_sha384();
 #endif
 			break;
 #endif /* USE_ECDSA */
+#ifdef USE_ED25519
+		case LDNS_ED25519:
+			*evp_key = sldns_ed255192pkey_raw(key, keylen);
+			if(!*evp_key) {
+				verbose(VERB_QUERY, "verify: "
+					"sldns_ed255192pkey_raw failed");
+				return 0;
+			}
+			*digest_type = NULL;
+			break;
+#endif /* USE_ED25519 */
+#ifdef USE_ED448
+		case LDNS_ED448:
+			*evp_key = sldns_ed4482pkey_raw(key, keylen);
+			if(!*evp_key) {
+				verbose(VERB_QUERY, "verify: "
+					"sldns_ed4482pkey_raw failed");
+				return 0;
+			}
+			*digest_type = NULL;
+			break;
+#endif /* USE_ED448 */
 		default:
 			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
 				algo);
@@ -508,9 +640,18 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	char** reason)
 {
 	const EVP_MD *digest_type;
-	EVP_MD_CTX ctx;
-	int res, dofree = 0;
+	EVP_MD_CTX* ctx;
+	int res, dofree = 0, docrypto_free = 0;
 	EVP_PKEY *evp_key = NULL;
+
+#ifndef USE_DSA
+	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3) &&(fake_dsa||fake_sha1))
+		return sec_status_secure;
+#endif
+#ifndef USE_SHA1
+	if(fake_sha1 && (algo == LDNS_DSA || algo == LDNS_DSA_NSEC3 || algo == LDNS_RSASHA1 || algo == LDNS_RSASHA1_NSEC3))
+		return sec_status_secure;
+#endif
 	
 	if(!setup_key_digest(algo, &evp_key, &digest_type, key, keylen)) {
 		verbose(VERB_QUERY, "verify: failed to setup key");
@@ -518,6 +659,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_PKEY_free(evp_key);
 		return sec_status_bogus;
 	}
+#ifdef USE_DSA
 	/* if it is a DSA signature in bind format, convert to DER format */
 	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3) && 
 		sigblock_len == 1+2*SHA_DIGEST_LENGTH) {
@@ -527,10 +669,14 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 			EVP_PKEY_free(evp_key);
 			return sec_status_bogus;
 		}
-		dofree = 1;
+		docrypto_free = 1;
 	}
+#endif
+#if defined(USE_ECDSA) && defined(USE_DSA)
+	else 
+#endif
 #ifdef USE_ECDSA
-	else if(algo == LDNS_ECDSAP256SHA256 || algo == LDNS_ECDSAP384SHA384) {
+	if(algo == LDNS_ECDSAP256SHA256 || algo == LDNS_ECDSAP384SHA384) {
 		/* EVP uses ASN prefix on sig, which is not in the wire data */
 		if(!setup_ecdsa_sig(&sigblock, &sigblock_len)) {
 			verbose(VERB_QUERY, "verify: failed to setup ECDSA sig");
@@ -543,32 +689,77 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #endif /* USE_ECDSA */
 
 	/* do the signature cryptography work */
-	EVP_MD_CTX_init(&ctx);
-	if(EVP_VerifyInit(&ctx, digest_type) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyInit failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
+	ctx = EVP_MD_CTX_new();
+#else
+	ctx = (EVP_MD_CTX*)malloc(sizeof(*ctx));
+	if(ctx) EVP_MD_CTX_init(ctx);
+#endif
+	if(!ctx) {
+		log_err("EVP_MD_CTX_new: malloc failure");
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
-	if(EVP_VerifyUpdate(&ctx, (unsigned char*)sldns_buffer_begin(buf), 
-		(unsigned int)sldns_buffer_limit(buf)) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyUpdate failed");
+#ifndef HAVE_EVP_DIGESTVERIFY
+	if(EVP_DigestInit(ctx, digest_type) == 0) {
+		verbose(VERB_QUERY, "verify: EVP_DigestInit failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
+		EVP_MD_CTX_destroy(ctx);
+#else
+		EVP_MD_CTX_cleanup(ctx);
+		free(ctx);
+#endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
+		return sec_status_unchecked;
+	}
+	if(EVP_DigestUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
+		(unsigned int)sldns_buffer_limit(buf)) == 0) {
+		verbose(VERB_QUERY, "verify: EVP_DigestUpdate failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
+		EVP_MD_CTX_destroy(ctx);
+#else
+		EVP_MD_CTX_cleanup(ctx);
+		free(ctx);
+#endif
+		EVP_PKEY_free(evp_key);
+		if(dofree) free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
 
-	res = EVP_VerifyFinal(&ctx, sigblock, sigblock_len, evp_key);
-	if(EVP_MD_CTX_cleanup(&ctx) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_MD_CTX_cleanup failed");
+	res = EVP_VerifyFinal(ctx, sigblock, sigblock_len, evp_key);
+#else /* HAVE_EVP_DIGESTVERIFY */
+	if(EVP_DigestVerifyInit(ctx, NULL, digest_type, NULL, evp_key) == 0) {
+		verbose(VERB_QUERY, "verify: EVP_DigestVerifyInit failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
+		EVP_MD_CTX_destroy(ctx);
+#else
+		EVP_MD_CTX_cleanup(ctx);
+		free(ctx);
+#endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
+	res = EVP_DigestVerify(ctx, sigblock, sigblock_len,
+		(unsigned char*)sldns_buffer_begin(buf),
+		sldns_buffer_limit(buf));
+#endif
+#ifdef HAVE_EVP_MD_CTX_NEW
+	EVP_MD_CTX_destroy(ctx);
+#else
+	EVP_MD_CTX_cleanup(ctx);
+	free(ctx);
+#endif
 	EVP_PKEY_free(evp_key);
 
-	if(dofree)
-		free(sigblock);
+	if(dofree) free(sigblock);
+	else if(docrypto_free) OPENSSL_free(sigblock);
 
 	if(res == 1) {
 		return sec_status_secure;
@@ -620,13 +811,21 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 	}
 }
 
+void
+secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
+{
+	(void)HASH_HashBuf(HASH_AlgSHA256, res, buf, (unsigned long)len);
+}
+
 size_t
 ds_digest_size_supported(int algo)
 {
 	/* uses libNSS */
 	switch(algo) {
+#ifdef USE_SHA1
 		case LDNS_SHA1:
 			return SHA1_LENGTH;
+#endif
 #ifdef USE_SHA2
 		case LDNS_SHA256:
 			return SHA256_LENGTH;
@@ -648,9 +847,11 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 {
 	/* uses libNSS */
 	switch(algo) {
+#ifdef USE_SHA1
 		case LDNS_SHA1:
 			return HASH_HashBuf(HASH_AlgSHA1, res, buf, len)
 				== SECSuccess;
+#endif
 #if defined(USE_SHA2)
 		case LDNS_SHA256:
 			return HASH_HashBuf(HASH_AlgSHA256, res, buf, len)
@@ -678,10 +879,15 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_RSAMD5:
 		/* RFC 6725 deprecates RSAMD5 */
 		return 0;
+#if defined(USE_SHA1) || defined(USE_SHA2)
+#if defined(USE_DSA) && defined(USE_SHA1)
 	case LDNS_DSA:
 	case LDNS_DSA_NSEC3:
+#endif
+#ifdef USE_SHA1
 	case LDNS_RSASHA1:
 	case LDNS_RSASHA1_NSEC3:
+#endif
 #ifdef USE_SHA2
 	case LDNS_RSASHA256:
 #endif
@@ -689,6 +895,8 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_RSASHA512:
 #endif
 		return 1;
+#endif /* SHA1 or SHA2 */
+
 #ifdef USE_ECDSA
 	case LDNS_ECDSAP256SHA256:
 	case LDNS_ECDSAP384SHA384:
@@ -920,6 +1128,9 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 	*/
 
 	switch(algo) {
+
+#if defined(USE_SHA1) || defined(USE_SHA2)
+#if defined(USE_DSA) && defined(USE_SHA1)
 		case LDNS_DSA:
 		case LDNS_DSA_NSEC3:
 			*pubkey = nss_buf2dsa(key, keylen);
@@ -930,8 +1141,11 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 			*htype = HASH_AlgSHA1;
 			/* no prefix for DSA verification */
 			break;
+#endif
+#ifdef USE_SHA1
 		case LDNS_RSASHA1:
 		case LDNS_RSASHA1_NSEC3:
+#endif
 #ifdef USE_SHA2
 		case LDNS_RSASHA256:
 #endif
@@ -958,13 +1172,22 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 				*prefixlen = sizeof(p_sha512);
 			} else
 #endif
+#ifdef USE_SHA1
 			{
 				*htype = HASH_AlgSHA1;
 				*prefix = p_sha1;
 				*prefixlen = sizeof(p_sha1);
 			}
+#else
+			{
+				verbose(VERB_QUERY, "verify: no digest algo");
+				return 0;
+			}
+#endif
 
 			break;
+#endif /* SHA1 or SHA2 */
+
 		case LDNS_RSAMD5:
 			*pubkey = nss_buf2rsa(key, keylen);
 			if(!*pubkey) {
@@ -1046,6 +1269,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		return sec_status_bogus;
 	}
 
+#if defined(USE_DSA) && defined(USE_SHA1)
 	/* need to convert DSA, ECDSA signatures? */
 	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3)) {
 		if(sigblock_len == 1+2*SHA1_LENGTH) {
@@ -1068,6 +1292,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 			SECITEM_FreeItem(p, PR_TRUE);
 		}
 	}
+#endif /* USE_DSA */
 
 	/* do the signature cryptography work */
 	/* hash the data */
@@ -1131,10 +1356,16 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #include "macros.h"
 #include "rsa.h"
 #include "dsa.h"
+#ifdef HAVE_NETTLE_DSA_COMPAT_H
+#include "dsa-compat.h"
+#endif
 #include "asn1.h"
 #ifdef USE_ECDSA
 #include "ecdsa.h"
 #include "ecc-curve.h"
+#endif
+#ifdef HAVE_NETTLE_EDDSA_H
+#include "eddsa.h"
 #endif
 
 static int
@@ -1206,6 +1437,12 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 	}
 }
 
+void
+secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
+{
+	_digest_nettle(SHA256_DIGEST_SIZE, (uint8_t*)buf, len, res);
+}
+
 /**
  * Return size of DS digest according to its hash algorithm.
  * @param algo: DS digest algo.
@@ -1216,7 +1453,12 @@ ds_digest_size_supported(int algo)
 {
 	switch(algo) {
 		case LDNS_SHA1:
+#ifdef USE_SHA1
 			return SHA1_DIGEST_SIZE;
+#else
+			if(fake_sha1) return 20;
+			return 0;
+#endif
 #ifdef USE_SHA2
 		case LDNS_SHA256:
 			return SHA256_DIGEST_SIZE;
@@ -1238,8 +1480,10 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 	unsigned char* res)
 {
 	switch(algo) {
+#ifdef USE_SHA1
 		case LDNS_SHA1:
 			return _digest_nettle(SHA1_DIGEST_SIZE, buf, len, res);
+#endif
 #if defined(USE_SHA2)
 		case LDNS_SHA256:
 			return _digest_nettle(SHA256_DIGEST_SIZE, buf, len, res);
@@ -1263,10 +1507,14 @@ dnskey_algo_id_is_supported(int id)
 {
 	/* uses libnettle */
 	switch(id) {
+#if defined(USE_DSA) && defined(USE_SHA1)
 	case LDNS_DSA:
 	case LDNS_DSA_NSEC3:
+#endif
+#ifdef USE_SHA1
 	case LDNS_RSASHA1:
 	case LDNS_RSASHA1_NSEC3:
+#endif
 #ifdef USE_SHA2
 	case LDNS_RSASHA256:
 	case LDNS_RSASHA512:
@@ -1276,6 +1524,10 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_ECDSAP384SHA384:
 #endif
 		return 1;
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+		return 1;
+#endif
 	case LDNS_RSAMD5: /* RFC 6725 deprecates RSAMD5 */
 	case LDNS_ECC_GOST:
 	default:
@@ -1283,12 +1535,13 @@ dnskey_algo_id_is_supported(int id)
 	}
 }
 
+#if defined(USE_DSA) && defined(USE_SHA1)
 static char *
 _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
 {
 	uint8_t digest[SHA1_DIGEST_SIZE];
-	uint8_t key_t;
+	uint8_t key_t_value;
 	int res = 0;
 	size_t offset;
 	struct dsa_public_key pubkey;
@@ -1327,8 +1580,8 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	}
 
 	/* Validate T values constraints - RFC 2536 sec. 2 & sec. 3 */
-	key_t = key[0];
-	if (key_t > 8) {
+	key_t_value = key[0];
+	if (key_t_value > 8) {
 		return "invalid T value in DSA pubkey";
 	}
 
@@ -1339,9 +1592,9 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 
 	expected_len =   1 +		/* T */
 		        20 +		/* Q */
-		       (64 + key_t*8) +	/* P */
-		       (64 + key_t*8) +	/* G */
-		       (64 + key_t*8);	/* Y */
+		       (64 + key_t_value*8) +	/* P */
+		       (64 + key_t_value*8) +	/* G */
+		       (64 + key_t_value*8);	/* Y */
 	if (keylen != expected_len ) {
 		return "invalid DSA pubkey length";
 	}
@@ -1351,11 +1604,11 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	offset = 1;
 	nettle_mpz_set_str_256_u(pubkey.q, 20, key+offset);
 	offset += 20;
-	nettle_mpz_set_str_256_u(pubkey.p, (64 + key_t*8), key+offset);
-	offset += (64 + key_t*8);
-	nettle_mpz_set_str_256_u(pubkey.g, (64 + key_t*8), key+offset);
-	offset += (64 + key_t*8);
-	nettle_mpz_set_str_256_u(pubkey.y, (64 + key_t*8), key+offset);
+	nettle_mpz_set_str_256_u(pubkey.p, (64 + key_t_value*8), key+offset);
+	offset += (64 + key_t_value*8);
+	nettle_mpz_set_str_256_u(pubkey.g, (64 + key_t_value*8), key+offset);
+	offset += (64 + key_t_value*8);
+	nettle_mpz_set_str_256_u(pubkey.y, (64 + key_t_value*8), key+offset);
 
 	/* Digest content of "buf" and verify its DSA signature in "sigblock"*/
 	res = _digest_nettle(SHA1_DIGEST_SIZE, (unsigned char*)sldns_buffer_begin(buf),
@@ -1370,6 +1623,7 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	else
 		return NULL;
 }
+#endif /* USE_DSA */
 
 static char *
 _verify_nettle_rsa(sldns_buffer* buf, unsigned int digest_size, char* sigblock,
@@ -1515,6 +1769,30 @@ _verify_nettle_ecdsa(sldns_buffer* buf, unsigned int digest_size, unsigned char*
 }
 #endif
 
+#ifdef USE_ED25519
+static char *
+_verify_nettle_ed25519(sldns_buffer* buf, unsigned char* sigblock,
+	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
+{
+	int res = 0;
+
+	if(sigblock_len != ED25519_SIGNATURE_SIZE) {
+		return "wrong ED25519 signature length";
+	}
+	if(keylen != ED25519_KEY_SIZE) {
+		return "wrong ED25519 key length";
+	}
+
+	res = ed25519_sha512_verify((uint8_t*)key, sldns_buffer_limit(buf),
+		sldns_buffer_begin(buf), (uint8_t*)sigblock);
+
+	if (!res)
+		return "ED25519 signature verification failed";
+	else
+		return NULL;
+}
+#endif
+
 /**
  * Check a canonical sig+rrset and signature against a dnskey
  * @param buf: buffer with data to verify, the first rrsig part and the
@@ -1541,6 +1819,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	}
 
 	switch(algo) {
+#if defined(USE_DSA) && defined(USE_SHA1)
 	case LDNS_DSA:
 	case LDNS_DSA_NSEC3:
 		*reason = _verify_nettle_dsa(buf, sigblock, sigblock_len, key, keylen);
@@ -1548,13 +1827,20 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 			return sec_status_bogus;
 		else
 			return sec_status_secure;
+#endif /* USE_DSA */
 
+#ifdef USE_SHA1
 	case LDNS_RSASHA1:
 	case LDNS_RSASHA1_NSEC3:
 		digest_size = (digest_size ? digest_size : SHA1_DIGEST_SIZE);
+#endif
+		/* double fallthrough annotation to please gcc parser */
+		/* fallthrough */
 #ifdef USE_SHA2
+		/* fallthrough */
 	case LDNS_RSASHA256:
 		digest_size = (digest_size ? digest_size : SHA256_DIGEST_SIZE);
+		/* fallthrough */
 	case LDNS_RSASHA512:
 		digest_size = (digest_size ? digest_size : SHA512_DIGEST_SIZE);
 
@@ -1569,10 +1855,20 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #ifdef USE_ECDSA
 	case LDNS_ECDSAP256SHA256:
 		digest_size = (digest_size ? digest_size : SHA256_DIGEST_SIZE);
+		/* fallthrough */
 	case LDNS_ECDSAP384SHA384:
 		digest_size = (digest_size ? digest_size : SHA384_DIGEST_SIZE);
 		*reason = _verify_nettle_ecdsa(buf, digest_size, sigblock,
 						sigblock_len, key, keylen);
+		if (*reason != NULL)
+			return sec_status_bogus;
+		else
+			return sec_status_secure;
+#endif
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+		*reason = _verify_nettle_ed25519(buf, sigblock, sigblock_len,
+			key, keylen);
 		if (*reason != NULL)
 			return sec_status_bogus;
 		else

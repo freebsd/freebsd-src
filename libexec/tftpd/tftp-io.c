@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <arpa/tftp.h>
 #include <arpa/inet.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -190,16 +194,16 @@ send_wrq(int peer, char *filename, char *mode)
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)WRQ);
-	size = 2;
+	size = offsetof(struct tftphdr, th_stuff);
 
 	bp = tp->th_stuff;
-	strcpy(bp, filename);
+	strlcpy(bp, filename, sizeof(buf) - size);
 	bp += strlen(filename);
 	*bp = 0;
 	bp++;
 	size += strlen(filename) + 1;
 
-	strcpy(bp, mode);
+	strlcpy(bp, mode, sizeof(buf) - size);
 	bp += strlen(mode);
 	*bp = 0;
 	bp++;
@@ -238,16 +242,16 @@ send_rrq(int peer, char *filename, char *mode)
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)RRQ);
-	size = 2;
+	size = offsetof(struct tftphdr, th_stuff);
 
 	bp = tp->th_stuff;
-	strcpy(bp, filename);
+	strlcpy(bp, filename, sizeof(buf) - size);
 	bp += strlen(filename);
 	*bp = 0;
 	bp++;
 	size += strlen(filename) + 1;
 
-	strcpy(bp, mode);
+	strlcpy(bp, mode, sizeof(buf) - size);
 	bp += strlen(mode);
 	*bp = 0;
 	bp++;
@@ -393,7 +397,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	struct sockaddr_storage *pfrom;
 	socklen_t fromlen;
 	int n;
-	static int waiting;
+	static int timed_out;
 
 	if (debug&DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG,
@@ -401,23 +405,16 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 
 	pkt = (struct tftphdr *)data;
 
-	waiting = 0;
 	signal(SIGALRM, timeout);
-	setjmp(timeoutbuf);
+	timed_out = setjmp(timeoutbuf);
 	alarm(thistimeout);
 
-	if (waiting > 0) {
-		alarm(0);
-		return (RP_TIMEOUT);
-	}
-
-	if (waiting > 0) {
+	if (timed_out != 0) {
 		tftp_log(LOG_ERR, "receive_packet: timeout");
 		alarm(0);
 		return (RP_TIMEOUT);
 	}
 
-	waiting++;
 	pfrom = (from == NULL) ? &from_local : from;
 	fromlen = sizeof(*pfrom);
 	n = recvfrom(peer, data, size, 0, (struct sockaddr *)pfrom, &fromlen);
@@ -430,8 +427,6 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 		tftp_log(LOG_ERR, "receive_packet: timeout");
 		return (RP_TIMEOUT);
 	}
-
-	alarm(0);
 
 	if (n < 0) {
 		/* No idea what could have happened if it isn't a timeout */

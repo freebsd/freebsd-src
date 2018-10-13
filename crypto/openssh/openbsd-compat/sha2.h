@@ -1,4 +1,4 @@
-/*	OpenBSD: sha2.h,v 1.6 2004/06/22 01:57:30 jfb Exp 	*/
+/*	$OpenBSD: sha2.h,v 1.6 2004/06/22 01:57:30 jfb Exp 	*/
 
 /*
  * FILE:	sha2.h

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -109,7 +111,5 @@ struct callframe {
 /* Definitions for syscalls */
 #define	FIRSTARG	3				/* first arg in reg 3 */
 #define	NARGREG		8				/* 8 args in regs */
-#define	MOREARGS(sp)	((caddr_t)((uintptr_t)(sp) + \
-    sizeof(struct callframe) - 3*sizeof(register_t))) /* more args go here */
 
 #endif	/* _MACHINE_FRAME_H_ */

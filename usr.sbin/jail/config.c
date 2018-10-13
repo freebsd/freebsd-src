@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 James Gritton
  * All rights reserved.
  *
@@ -71,6 +73,7 @@ static const struct ipspec intparams[] = {
     [IP_EXEC_POSTSTOP] =	{"exec.poststop",	PF_INTERNAL},
     [IP_EXEC_PRESTART] =	{"exec.prestart",	PF_INTERNAL},
     [IP_EXEC_PRESTOP] =		{"exec.prestop",	PF_INTERNAL},
+    [IP_EXEC_CREATED] =		{"exec.created",	PF_INTERNAL},
     [IP_EXEC_START] =		{"exec.start",		PF_INTERNAL},
     [IP_EXEC_STOP] =		{"exec.stop",		PF_INTERNAL},
     [IP_EXEC_SYSTEM_JAIL_USER]=	{"exec.system_jail_user",
@@ -103,7 +106,6 @@ static const struct ipspec intparams[] = {
     [KP_ALLOW_SOCKET_AF] =	{"allow.socket_af",	0},
     [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
     [KP_DEVFS_RULESET] =	{"devfs_ruleset",	0},
-    [KP_ENFORCE_STATFS] =	{"enforce_statfs",	0},
     [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
 #ifdef INET
     [KP_IP4_ADDR] =		{"ip4.addr",		0},

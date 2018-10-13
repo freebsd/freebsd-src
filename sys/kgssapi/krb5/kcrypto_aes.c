@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Authors: Doug Rabson <dfr@rabson.org>
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
@@ -43,8 +45,8 @@ __FBSDID("$FreeBSD$");
 
 struct aes_state {
 	struct mtx	as_lock;
-	uint64_t	as_session_aes;
-	uint64_t	as_session_sha1;
+	crypto_session_t as_session_aes;
+	crypto_session_t as_session_sha1;
 };
 
 static void
@@ -120,7 +122,7 @@ aes_crypto_cb(struct cryptop *crp)
 	int error;
 	struct aes_state *as = (struct aes_state *) crp->crp_opaque;
 	
-	if (CRYPTO_SESID2CAPS(crp->crp_sid) & CRYPTOCAP_F_SYNC)
+	if (crypto_ses2caps(crp->crp_session) & CRYPTOCAP_F_SYNC)
 		return (0);
 
 	error = crp->crp_etype;
@@ -157,7 +159,7 @@ aes_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
 	crd->crd_next = NULL;
 	crd->crd_alg = CRYPTO_AES_CBC;
 
-	crp->crp_sid = as->as_session_aes;
+	crp->crp_session = as->as_session_aes;
 	crp->crp_flags = buftype | CRYPTO_F_CBIFSYNC;
 	crp->crp_buf = buf;
 	crp->crp_opaque = (void *) as;
@@ -165,7 +167,7 @@ aes_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
 
 	error = crypto_dispatch(crp);
 
-	if ((CRYPTO_SESID2CAPS(as->as_session_aes) & CRYPTOCAP_F_SYNC) == 0) {
+	if ((crypto_ses2caps(as->as_session_aes) & CRYPTOCAP_F_SYNC) == 0) {
 		mtx_lock(&as->as_lock);
 		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
 			error = msleep(crp, &as->as_lock, 0, "gssaes", 0);
@@ -332,7 +334,7 @@ aes_checksum(const struct krb5_key_state *ks, int usage,
 	crd->crd_next = NULL;
 	crd->crd_alg = CRYPTO_SHA1_HMAC;
 
-	crp->crp_sid = as->as_session_sha1;
+	crp->crp_session = as->as_session_sha1;
 	crp->crp_ilen = inlen;
 	crp->crp_olen = 12;
 	crp->crp_etype = 0;
@@ -343,7 +345,7 @@ aes_checksum(const struct krb5_key_state *ks, int usage,
 
 	error = crypto_dispatch(crp);
 
-	if ((CRYPTO_SESID2CAPS(as->as_session_sha1) & CRYPTOCAP_F_SYNC) == 0) {
+	if ((crypto_ses2caps(as->as_session_sha1) & CRYPTOCAP_F_SYNC) == 0) {
 		mtx_lock(&as->as_lock);
 		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
 			error = msleep(crp, &as->as_lock, 0, "gssaes", 0);

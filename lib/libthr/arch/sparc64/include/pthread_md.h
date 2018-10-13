@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder <jake@freebsd.org>.
  * Copyright (c) 2003 Marcel Moolenaar
  * All rights reserved.

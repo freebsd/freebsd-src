@@ -61,7 +61,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd October 13, 1998
+.Dd March 13, 2017
 .Dt CAM_CDBPARSE 3
 .Os
 .Sh NAME
@@ -170,12 +170,11 @@ layer.
 These functions may be used in new applications, but users may find it
 easier to use the various SCSI CCB building functions included with the
 .Xr cam 3
-library.
-(e.g.\&
+library, e.g., \&
 .Fn cam_fill_csio ,
 .Fn scsi_start_stop ,
 and
-.Fn scsi_read_write )
+.Fn scsi_read_write .
 .Pp
 .Fn csio_build
 builds up a
@@ -522,17 +521,18 @@ implemented for the old
 layer.
 The encoding/decoding functions in the old
 .Tn SCSI
-code were written by Peter Dufault.
+code were written by
+.An Peter Dufault Aq Mt dufault@hda.com .
 .Pp
 Many systems have comparable interfaces to permit a user to construct a
 SCSI command in user space.
 .Pp
 The old
 .Va scsireq
-data structure was almost identical to the SGI /dev/scsi data
-structure.
-If anyone knows the name of the authors it should
-go here; Peter Dufault first read about it in a 1989 Sun Expert magazine.
+data structure was almost identical to the SGI /dev/scsi data structure.
+If anyone knows the name of the authors it should go here;
+Peter Dufault
+first read about it in a 1989 Sun Expert magazine.
 .Pp
 The new CCB data structures are derived from the CAM-2 and CAM-3
 specifications.
@@ -545,11 +545,14 @@ led to the original
 .Fx
 .Tn SCSI
 library and the related kernel ioctl.
-If anyone needs that for compatibility contact dufault@hda.com.
+If anyone needs that for compatibility, contact
+.Mt dufault@hda.com .
 .Sh AUTHORS
-Kenneth Merry implemented the CAM versions of these encoding and decoding
-functions.
-This current work is based upon earlier work by Peter Dufault.
+.An -nosplit
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+implemented the CAM versions of these encoding and decoding functions.
+This current work is based upon earlier work by
+.An Peter Dufault Aq Mt dufault@hda.com .
 .Sh BUGS
 There should probably be a function that encodes both the CDB and the data
 buffer portions of a

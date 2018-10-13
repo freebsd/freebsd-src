@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -78,7 +80,7 @@ ufs_bmap(ap)
 	 * to physical mapping is requested.
 	 */
 	if (ap->a_bop != NULL)
-		*ap->a_bop = &VTOI(ap->a_vp)->i_devvp->v_bufobj;
+		*ap->a_bop = &VFSTOUFS(ap->a_vp->v_mount)->um_devvp->v_bufobj;
 	if (ap->a_bnp == NULL)
 		return (0);
 
@@ -115,7 +117,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 	struct buf *bp;
 	struct ufsmount *ump;
 	struct mount *mp;
-	struct indir a[NIADDR+1], *ap;
+	struct indir a[UFS_NIADDR+1], *ap;
 	ufs2_daddr_t daddr;
 	ufs_lbn_t metalbn;
 	int error, num, maxrun = 0;
@@ -144,9 +146,9 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 
 	num = *nump;
 	if (num == 0) {
-		if (bn >= 0 && bn < NDADDR) {
+		if (bn >= 0 && bn < UFS_NDADDR) {
 			*bnp = blkptrtodb(ump, DIP(ip, i_db[bn]));
-		} else if (bn < 0 && bn >= -NXADDR) {
+		} else if (bn < 0 && bn >= -UFS_NXADDR) {
 			*bnp = blkptrtodb(ump, ip->i_din2->di_extb[-1 - bn]);
 			if (*bnp == 0)
 				*bnp = -1;
@@ -175,7 +177,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 				*bnp = -1;
 		} else if (runp) {
 			ufs2_daddr_t bnb = bn;
-			for (++bn; bn < NDADDR && *runp < maxrun &&
+			for (++bn; bn < UFS_NDADDR && *runp < maxrun &&
 			    is_sequential(ump, DIP(ip, i_db[bn - 1]),
 			    DIP(ip, i_db[bn]));
 			    ++bn, ++*runp);
@@ -239,7 +241,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			}
 		}
 
-		if (ip->i_ump->um_fstype == UFS1) {
+		if (I_IS_UFS1(ip)) {
 			daddr = ((ufs1_daddr_t *)bp->b_data)[ap->in_off];
 			if (num == 1 && daddr && runp) {
 				for (bn = ap->in_off + 1;
@@ -330,17 +332,18 @@ ufs_getlbns(vp, bn, ap, nump)
 	if (bn < 0)
 		bn = -bn;
 
-	/* The first NDADDR blocks are direct blocks. */
-	if (bn < NDADDR)
+	/* The first UFS_NDADDR blocks are direct blocks. */
+	if (bn < UFS_NDADDR)
 		return (0);
 
 	/*
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
-	 * at the previous level of indirection, and NIADDR - i is the number
-	 * of levels of indirection needed to locate the requested block.
+	 * at the previous level of indirection, and UFS_NIADDR - i is the
+	 * number of levels of indirection needed to locate the requested block.
 	 */
-	for (blockcnt = 1, i = NIADDR, bn -= NDADDR;; i--, bn -= blockcnt) {
+	for (blockcnt = 1, i = UFS_NIADDR, bn -= UFS_NDADDR; ;
+	    i--, bn -= blockcnt) {
 		if (i == 0)
 			return (EFBIG);
 		blockcnt *= MNINDIR(ump);
@@ -350,9 +353,9 @@ ufs_getlbns(vp, bn, ap, nump)
 
 	/* Calculate the address of the first meta-block. */
 	if (realbn >= 0)
-		metalbn = -(realbn - bn + NIADDR - i);
+		metalbn = -(realbn - bn + UFS_NIADDR - i);
 	else
-		metalbn = -(-realbn - bn + NIADDR - i);
+		metalbn = -(-realbn - bn + UFS_NIADDR - i);
 
 	/*
 	 * At each iteration, off is the offset into the bap array which is
@@ -361,9 +364,9 @@ ufs_getlbns(vp, bn, ap, nump)
 	 * into the argument array.
 	 */
 	ap->in_lbn = metalbn;
-	ap->in_off = off = NIADDR - i;
+	ap->in_off = off = UFS_NIADDR - i;
 	ap++;
-	for (++numlevels; i <= NIADDR; i++) {
+	for (++numlevels; i <= UFS_NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
 		if (metalbn == realbn)
 			break;

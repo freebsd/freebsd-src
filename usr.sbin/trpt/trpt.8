@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)trpt.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd February 15, 2018
 .Dt TRPT 8
 .Os
 .Sh NAME
@@ -41,7 +41,6 @@
 .Op Fl j
 .Op Fl p Ar hex-address
 .Op Fl s
-.Op Fl t
 .Oo
 .Ar system Op Ar core
 .Oc
@@ -86,10 +85,6 @@ control block at the given address
 In addition to the normal output,
 print a detailed description of the packet
 sequencing information.
-.It Fl t
-In addition to the normal output,
-print the values for all timers at each
-point in the trace.
 .El
 .Pp
 The recommended use of

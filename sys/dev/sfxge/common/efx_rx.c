@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -540,24 +542,30 @@ efx_rx_qdestroy(
 }
 
 	__checkReturn	efx_rc_t
-efx_psuedo_hdr_pkt_length_get(
-	__in		efx_nic_t *enp,
+efx_pseudo_hdr_pkt_length_get(
+	__in		efx_rxq_t *erp,
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp)
 {
+	efx_nic_t *enp = erp->er_enp;
 	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	return (erxop->erxo_prefix_pktlen(enp, buffer, lengthp));
 }
 
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	uint32_t
-efx_psuedo_hdr_hash_get(
-	__in		efx_nic_t *enp,
+efx_pseudo_hdr_hash_get(
+	__in		efx_rxq_t *erp,
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer)
 {
+	efx_nic_t *enp = erp->er_enp;
 	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	EFSYS_ASSERT3U(enp->en_hash_support, ==, EFX_RX_HASH_AVAILABLE);
 	return (erxop->erxo_prefix_hash(enp, func, buffer));
@@ -725,12 +733,12 @@ siena_rx_scale_mode_set(
 
 	case EFX_RX_HASHALG_TOEPLITZ:
 		EFX_RX_TOEPLITZ_IPV4_HASH(enp, insert,
-		    type & (1 << EFX_RX_HASH_IPV4),
-		    type & (1 << EFX_RX_HASH_TCPIPV4));
+		    type & EFX_RX_HASH_IPV4,
+		    type & EFX_RX_HASH_TCPIPV4);
 
 		EFX_RX_TOEPLITZ_IPV6_HASH(enp,
-		    type & (1 << EFX_RX_HASH_IPV6),
-		    type & (1 << EFX_RX_HASH_TCPIPV6),
+		    type & EFX_RX_HASH_IPV6,
+		    type & EFX_RX_HASH_TCPIPV6,
 		    rc);
 		if (rc != 0)
 			goto fail1;
@@ -943,11 +951,11 @@ fail1:
 #endif
 
 /*
- * Falcon/Siena psuedo-header
+ * Falcon/Siena pseudo-header
  * --------------------------
  *
  * Receive packets are prefixed by an optional 16 byte pseudo-header.
- * The psuedo-header is a byte array of one of the forms:
+ * The pseudo-header is a byte array of one of the forms:
  *
  *  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
  * xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.TT.TT.TT.TT

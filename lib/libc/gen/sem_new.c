@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 David Xu <davidxu@freebsd.org>.
  * All rights reserved.
  * 
@@ -41,6 +43,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -56,6 +59,7 @@ __weak_reference(_sem_init, sem_init);
 __weak_reference(_sem_open, sem_open);
 __weak_reference(_sem_post, sem_post);
 __weak_reference(_sem_timedwait, sem_timedwait);
+__weak_reference(_sem_clockwait_np, sem_clockwait_np);
 __weak_reference(_sem_trywait, sem_trywait);
 __weak_reference(_sem_unlink, sem_unlink);
 __weak_reference(_sem_wait, sem_wait);
@@ -76,36 +80,34 @@ struct sem_nameinfo {
 
 static pthread_once_t once = PTHREAD_ONCE_INIT;
 static pthread_mutex_t sem_llock;
-static LIST_HEAD(,sem_nameinfo) sem_list = LIST_HEAD_INITIALIZER(sem_list);
+static LIST_HEAD(, sem_nameinfo) sem_list = LIST_HEAD_INITIALIZER(sem_list);
 
 static void
-sem_prefork()
+sem_prefork(void)
 {
 	
 	_pthread_mutex_lock(&sem_llock);
 }
 
 static void
-sem_postfork()
+sem_postfork(void)
 {
+
 	_pthread_mutex_unlock(&sem_llock);
 }
 
 static void
-sem_child_postfork()
+sem_child_postfork(void)
 {
+
 	_pthread_mutex_unlock(&sem_llock);
 }
 
 static void
 sem_module_init(void)
 {
-	pthread_mutexattr_t ma;
 
-	_pthread_mutexattr_init(&ma);
-	_pthread_mutexattr_settype(&ma,  PTHREAD_MUTEX_RECURSIVE);
-	_pthread_mutex_init(&sem_llock, &ma);
-	_pthread_mutexattr_destroy(&ma);
+	_pthread_mutex_init(&sem_llock, NULL);
 	_pthread_atfork(sem_prefork, sem_postfork, sem_child_postfork);
 }
 
@@ -115,10 +117,8 @@ sem_check_validity(sem_t *sem)
 
 	if (sem->_magic == SEM_MAGIC)
 		return (0);
-	else {
-		errno = EINVAL;
-		return (-1);
-	}
+	errno = EINVAL;
+	return (-1);
 }
 
 int
@@ -141,13 +141,16 @@ sem_t *
 _sem_open(const char *name, int flags, ...)
 {
 	char path[PATH_MAX];
-
 	struct stat sb;
 	va_list ap;
-	struct sem_nameinfo *ni = NULL;
-	sem_t *sem = NULL;
-	int fd = -1, mode, len, errsave;
-	int value = 0;
+	struct sem_nameinfo *ni;
+	sem_t *sem, tmp;
+	int errsave, fd, len, mode, value;
+
+	ni = NULL;
+	sem = NULL;
+	fd = -1;
+	value = 0;
 
 	if (name[0] != '/') {
 		errno = EINVAL;
@@ -212,8 +215,6 @@ _sem_open(const char *name, int flags, ...)
 			goto error;
 	}
 	if (sb.st_size < sizeof(sem_t)) {
-		sem_t tmp;
-
 		tmp._magic = SEM_MAGIC;
 		tmp._kern._count = value;
 		tmp._kern._flags = USYNC_PROCESS_SHARED | SEM_NAMED;
@@ -221,8 +222,8 @@ _sem_open(const char *name, int flags, ...)
 			goto error;
 	}
 	flock(fd, LOCK_UN);
-	sem = (sem_t *)mmap(NULL, sizeof(sem_t), PROT_READ|PROT_WRITE,
-		MAP_SHARED|MAP_NOSYNC, fd, 0);
+	sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE,
+	    MAP_SHARED | MAP_NOSYNC, fd, 0);
 	if (sem == MAP_FAILED) {
 		sem = NULL;
 		if (errno == ENOMEM)
@@ -258,6 +259,7 @@ int
 _sem_close(sem_t *sem)
 {
 	struct sem_nameinfo *ni;
+	bool last;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
@@ -272,21 +274,16 @@ _sem_close(sem_t *sem)
 	_pthread_mutex_lock(&sem_llock);
 	LIST_FOREACH(ni, &sem_list, next) {
 		if (sem == ni->sem) {
-			if (--ni->open_count > 0) {
-				_pthread_mutex_unlock(&sem_llock);
-				return (0);
+			last = --ni->open_count == 0;
+			if (last)
+				LIST_REMOVE(ni, next);
+			_pthread_mutex_unlock(&sem_llock);
+			if (last) {
+				munmap(sem, sizeof(*sem));
+				free(ni);
 			}
-			else
-				break;
+			return (0);
 		}
-	}
-
-	if (ni) {
-		LIST_REMOVE(ni, next);
-		_pthread_mutex_unlock(&sem_llock);
-		munmap(sem, sizeof(*sem));
-		free(ni);
-		return (0);
 	}
 	_pthread_mutex_unlock(&sem_llock);
 	errno = EINVAL;
@@ -341,27 +338,39 @@ _sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 static __inline int
 usem_wake(struct _usem2 *sem)
 {
-	return _umtx_op(sem, UMTX_OP_SEM2_WAKE, 0, NULL, NULL);
+
+	return (_umtx_op(sem, UMTX_OP_SEM2_WAKE, 0, NULL, NULL));
 }
 
 static __inline int
-usem_wait(struct _usem2 *sem, const struct timespec *abstime)
+usem_wait(struct _usem2 *sem, clockid_t clock_id, int flags,
+    const struct timespec *rqtp, struct timespec *rmtp)
 {
-	struct _umtx_time *tm_p, timeout;
+	struct {
+		struct _umtx_time timeout;
+		struct timespec remain;
+	} tms;
+	void *tm_p;
 	size_t tm_size;
+	int retval;
 
-	if (abstime == NULL) {
+	if (rqtp == NULL) {
 		tm_p = NULL;
 		tm_size = 0;
 	} else {
-		timeout._clockid = CLOCK_REALTIME;
-		timeout._flags = UMTX_ABSTIME;
-		timeout._timeout = *abstime;
-		tm_p = &timeout;
-		tm_size = sizeof(timeout);
+		tms.timeout._clockid = clock_id;
+		tms.timeout._flags = (flags & TIMER_ABSTIME) ? UMTX_ABSTIME : 0;
+		tms.timeout._timeout = *rqtp;
+		tm_p = &tms;
+		tm_size = sizeof(tms);
 	}
-	return _umtx_op(sem, UMTX_OP_SEM2_WAIT, 0, 
-		    (void *)tm_size, __DECONST(void*, tm_p));
+	retval = _umtx_op(sem, UMTX_OP_SEM2_WAIT, 0, (void *)tm_size, tm_p);
+	if (retval == -1 && errno == EINTR && (flags & TIMER_ABSTIME) == 0 &&
+	    rqtp != NULL && rmtp != NULL) {
+		*rmtp = tms.remain;
+	}
+
+	return (retval);
 }
 
 int
@@ -381,8 +390,8 @@ _sem_trywait(sem_t *sem)
 }
 
 int
-_sem_timedwait(sem_t * __restrict sem,
-	const struct timespec * __restrict abstime)
+_sem_clockwait_np(sem_t * __restrict sem, clockid_t clock_id, int flags,
+	const struct timespec *rqtp, struct timespec *rmtp)
 {
 	int val, retval;
 
@@ -393,7 +402,8 @@ _sem_timedwait(sem_t * __restrict sem,
 	_pthread_testcancel();
 	for (;;) {
 		while (USEM_COUNT(val = sem->_kern._count) > 0) {
-			if (atomic_cmpset_acq_int(&sem->_kern._count, val, val - 1))
+			if (atomic_cmpset_acq_int(&sem->_kern._count, val,
+			    val - 1))
 				return (0);
 		}
 
@@ -406,23 +416,33 @@ _sem_timedwait(sem_t * __restrict sem,
 		 * The timeout argument is only supposed to
 		 * be checked if the thread would have blocked.
 		 */
-		if (abstime != NULL) {
-			if (abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0) {
+		if (rqtp != NULL) {
+			if (rqtp->tv_nsec >= 1000000000 || rqtp->tv_nsec < 0) {
 				errno = EINVAL;
 				return (-1);
 			}
 		}
 		_pthread_cancel_enter(1);
-		retval = usem_wait(&sem->_kern, abstime);
+		retval = usem_wait(&sem->_kern, clock_id, flags, rqtp, rmtp);
 		_pthread_cancel_leave(0);
 	}
 	return (retval);
 }
 
 int
+_sem_timedwait(sem_t * __restrict sem,
+	const struct timespec * __restrict abstime)
+{
+
+	return (_sem_clockwait_np(sem, CLOCK_REALTIME, TIMER_ABSTIME, abstime,
+	    NULL));
+};
+
+int
 _sem_wait(sem_t *sem)
 {
-	return _sem_timedwait(sem, NULL);
+
+	return (_sem_timedwait(sem, NULL));
 }
 
 /*

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2016
+.Dd August 16, 2018
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@ and
 .Pa /usr/ports .
 These directories may be initially empty or non-existent until updated with
 .Xr svn 1
+or
+.Xr svnlite 1
 or
 .Xr portsnap 8 .
 Directory
@@ -82,18 +84,7 @@ or under
 if variable
 .Va MAKEOBJDIRPREFIX
 is not set.
-For a given source directory, its canonical object directory
-would be
-.Pa ${MAKEOBJDIRPREFIX}${.CURDIR}
-if
-.Xr make 1
-variable
-.Va MAKEOBJDIRPREFIX
-is set, or
-.Pa /usr/obj${.CURDIR}
-if this variable is not set.
-Cross-builds set the object directory as described in the
-documentation for the
+The canonical object directory is described in the documentation for the
 .Cm buildworld
 target below.
 .Pp
@@ -201,17 +192,32 @@ by setting the
 .Pa MAKEOBJDIRPREFIX
 .Xr make 1
 variable.
-The actual build location prefix used is
+The actual build location prefix used
+depends on the
+.Va WITH_UNIFIED_OBJDIR
+option from
+.Xr src.conf 5 .
+If enabled it is
+.Pa ${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}
+for all builds.
+If disabled it is
 .Pa ${MAKEOBJDIRPREFIX}${.CURDIR}
 for native builds, and
-.Pa ${MAKEOBJDIRPREFIX}/${TARGET}${.CURDIR}
+.Pa ${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}${.CURDIR}
 for cross builds and native builds with variable
 .Va CROSS_BUILD_TESTING
 set.
 .It Cm cleanworld
 Attempt to clean up targets built by a preceding
-.Cm buildworld
-step.
+.Cm buildworld ,
+or similar step built from this source directory.
+.It Cm cleanuniverse
+When
+.Va WITH_UNIFIED_OBJDIR
+is enabled, attempt to clean up targets built by a preceding
+.Cm buildworld ,
+.Cm universe ,
+or similar step, for any architecture built from this source directory.
 .It Cm distributeworld
 Distribute everything compiled by a preceding
 .Cm buildworld
@@ -222,6 +228,29 @@ variable
 .Va DISTDIR .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm native-xtools
+This target builds a cross-toolchain for the given
+.Sy TARGET
+and
+.Sy TARGET_ARCH ,
+as well as a select list of static userland tools for the host system.
+This is intended to be used in a jail where QEMU is used to improve
+performance by avoiding emulating binaries that do not need to be emulated.
+.Sy TARGET
+and
+.Sy TARGET_ARCH
+should be defined.
+.It Cm native-xtools-install
+Installs the results to
+.Pa ${DESTDIR}/${NXTP}
+where
+.Va NXTP
+defaults to
+.Pa nxb-bin .
+.Sy TARGET
+and
+.Sy TARGET_ARCH
+must be defined.
 .It Cm packageworld
 Archive the results of
 .Cm distributeworld ,
@@ -276,6 +305,43 @@ In addition print a summary of all failed targets at the end and
 exit with an error if there were any.
 .It Cm toolchains
 Create a build toolchain for each architecture supported by the build system.
+.It Cm xdev
+Builds and installs a cross-toolchain and sysroot for the given
+.Sy TARGET
+and
+.Sy TARGET_ARCH .
+The sysroot contains target library and headers.
+The target is an alias for
+.Cm xdev-build
+and
+.Cm xdev-install .
+The location of the files installed can be controlled with
+.Va DESTDIR .
+The target location in
+.Va DESTDIR
+is
+.Pa ${DESTDIR}/${XDTP}
+where
+.Va XDTP
+defaults to
+.Pa /usr/${XDDIR}
+and
+.Va XDDIR
+defaults to
+.Pa ${TARGET_ARCH}-freebsd .
+.It Cm xdev-build
+Builds for the
+.Cm xdev
+target.
+.It Cm xdev-install
+Installs the files for the
+.Cm xdev
+target.
+.It Cm xdev-links
+Installs autoconf-style symlinks to
+.Pa ${DESTDIR}/usr/bin
+pointing into the xdev toolchain in
+.Pa ${DESTDIR}/${XDTP} .
 .El
 .Pp
 Kernel specific build targets in
@@ -400,8 +466,12 @@ Defines the prefix for directory names in the tree of built objects.
 Defaults to
 .Pa /usr/obj
 if not defined.
-This variable should only be set in the environment and not via
+This variable should only be set in the environment or
+.Pa /etc/src-env.conf
+and not via
 .Pa /etc/make.conf
+or
+.Pa /etc/src.conf
 or the command line.
 .It Va NO_WERROR
 If defined, compiler warnings will not cause the build to halt,
@@ -422,6 +492,14 @@ Overrides which kernel to build and install for the various kernel
 make targets.
 It defaults to
 .Cm GENERIC .
+.It Va KERNCONFDIR
+Overrides the directory in which
+.Va KERNCONF
+and any files included by
+.Va KERNCONF
+should be found.
+Defaults to
+.Pa sys/${ARCH}/conf .
 .It Va KERNFAST
 If set, the build target
 .Cm buildkernel
@@ -441,6 +519,15 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm everything
 target.
+The directories are built in parallel with each other,
+and with the base system directories.
+Insert a
+.Va .WAIT
+directive at the beginning of the
+.Va LOCAL_DIRS
+list to ensure all base system directories are built first.
+.Va .WAIT
+may also be used as needed elsewhere within the list.
 .It Va LOCAL_ITOOLS
 If set, this variable supplies a list of additional tools that are used by the
 .Cm installworld
@@ -452,6 +539,15 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm libraries
 target.
+The directories are built in parallel with each other,
+and with the base system libraries.
+Insert a
+.Va .WAIT
+directive at the beginning of the
+.Va LOCAL_DIRS
+list to ensure all base system libraries are built first.
+.Va .WAIT
+may also be used as needed elsewhere within the list.
 .It Va LOCAL_MTREE
 If set, this variable supplies a list of additional mtrees relative to the
 root of the source tree to use as part of the
@@ -461,6 +557,11 @@ target.
 If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm build-tools
+target.
+.It Va LOCAL_XTOOL_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm cross-tools
 target.
 .It Va PORTS_MODULES
 A list of ports with kernel modules that should be built and installed
@@ -494,6 +595,11 @@ If combined with
 .Cm buildworld
 then all libraries and includes, and some of the build tools will still build
 as well.
+Specifying
+.Cm -DNO_LIBS ,
+and
+.Cm -DWORLDFAST
+will only build the specified directory as was done historically.
 When combined with
 .Cm buildworld
 it is necesarry to override
@@ -512,13 +618,16 @@ This is analogous to the
 .Dq Nm uname Fl m
 output.
 This is necessary to cross-build some target architectures.
-For example, cross-building for PC98 machines requires
-.Va TARGET_ARCH Ns = Ns Li i386
+For example, cross-building for ARM64 machines requires
+.Va TARGET_ARCH Ns = Ns Li aarch64
 and
-.Va TARGET Ns = Ns Li pc98 .
+.Va TARGET Ns = Ns Li arm64 .
 If not set,
 .Va TARGET
-defaults to the current hardware platform.
+defaults to the current hardware platform, unless
+.Va TARGET_ARCH
+is also set, in which case it defaults to the appropriate
+value for that architecture.
 .It Va TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
@@ -543,6 +652,18 @@ using the
 option of
 .Xr make 1 :
 .Bl -tag -width ".Va -DNO_KERNELCONFIG"
+.It Va LOADER_DEFAULT_INTERP
+Defines what interpreter the default loader program will have.
+Valid values include
+.Dq 4th ,
+.Dq lua ,
+and
+.Dq simp .
+This creates the default link for
+.Pa /boot/loader
+to the loader with that interpreter.
+It also determines what interpreter is compiled into
+.Pa userboot .
 .It Va NO_CLEANDIR
 If set, the build targets that clean parts of the object tree use the
 equivalent of
@@ -600,6 +721,12 @@ If set, the update process does not update the source of the
 documentation as part of the
 .Dq make update
 target.
+.It Va NO_LIBS
+If set, the libraries phase will be skipped.
+.It Va NO_OBJWALK
+If set, no object directories will be created.
+This should only be used if object directories were created in a
+previous build and no new directories are connected.
 .It Va NO_PORTSUPDATE
 If set, the update process does not update the Ports tree as part of the
 .Dq make update
@@ -608,6 +735,16 @@ target.
 If set, the update process does not update the www tree as part of the
 .Dq make update
 target.
+.It Va WORLDFAST
+If set, the build target
+.Cm buildworld
+defaults to setting
+.Va NO_CLEAN ,
+.Va NO_OBJWALK ,
+and will skip most bootstrap phases.
+It will only bootstrap libraries and build all of userland.
+This option should be used only when it is known that none of the bootstrap
+needs changed and that no new directories have been connected to the build.
 .El
 .Pp
 Builds under directory
@@ -663,26 +800,28 @@ section in
 .Pa src/UPDATING .
 .Pp
 The following sequence of commands can be used to cross-build the
-system for the sparc64 architecture on an i386 host:
+system for the armv6 architecture on an amd64 host:
 .Bd -literal -offset indent
 cd /usr/src
-make TARGET=sparc64 buildworld
-make TARGET=sparc64 DESTDIR=/clients/sparc64 installworld
+make TARGET_ARCH=armv6 buildworld buildkernel
+make TARGET_ARCH=armv6 DESTDIR=/clients/arm64 installworld installkernel
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr svn 1 ,
+.Xr svnlite 1 ,
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
+.Xr arch 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
+.Xr tests 7 ,
 .Xr config 8 ,
 .Xr mergemaster 8 ,
 .Xr portsnap 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8 ,
-.Xr tests 7
+.Xr shutdown 8
 .Sh AUTHORS
 .An Mike W. Meyer Aq Mt mwm@mired.org

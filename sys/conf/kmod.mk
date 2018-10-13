@@ -44,6 +44,10 @@
 #
 # DESTDIR	The tree where the module gets installed. [not set]
 #
+# KERNBUILDDIR
+#		Set to the location of the kernel build directory where
+#		the opt_*.h files, .o's and kernel winds up.
+#
 # +++ targets +++
 #
 # 	install:
@@ -77,13 +81,18 @@ OBJCOPY?=	objcopy
 .include "config.mk"
 
 # Search for kernel source tree in standard places.
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if empty(KERNBUILDDIR)
+.if !defined(SYSDIR)
+.for _dir in ${SRCTOP:D${SRCTOP}/sys} \
+    ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
 SYSDIR=	${_dir:tA}
 .endif
 .endfor
+.endif
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
 .error "can't find kernel source tree"
+.endif
 .endif
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
@@ -102,6 +111,9 @@ WERROR?=	-Werror
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
+.if defined(MODULE_TIED)
+CFLAGS+=	-DKLD_TIED
+.endif
 
 # Don't use any standard or source-relative include directories.
 NOSTDINC=	-nostdinc
@@ -113,7 +125,7 @@ CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 # Add -I paths for system headers.  Individual module makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
-CFLAGS+=	-I. -I${SYSDIR}
+CFLAGS+=	-I. -I${SYSDIR} -I${SYSDIR}/contrib/ck/include
 
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS.gcc+=	-fms-extensions
@@ -124,6 +136,10 @@ CFLAGS.gcc+= --param large-function-growth=1000
 # somewhere unexpected, allocate storage for them in the module itself.
 CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
+
+.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mbuild-id}
+LDFLAGS+=	-Wl,--build-id=sha1
+.endif
 
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == amd64
@@ -171,11 +187,13 @@ ${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
-		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
+		    -m ${LD_EMULATION} -r -d			\
+		    -o ${.TARGET} ${_firmw:C/\:.*$//};		\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
-		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
+		    -m ${LD_EMULATION} -r -d			\
+		    -o ${.TARGET} ${_firmw:C/\:.*$//};		\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
 
@@ -207,17 +225,8 @@ ${PROG}.debug: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-.if ${MACHINE_CPUARCH} != "aarch64"
-	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
-.else
-#XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
-#       not work.  The linker corrupts the references to the external
-#       symbols which are defined by other object in the linking set
-#       and should therefore loose the GOT entry.  The problem seems
-#       to be fixed in the binutils-gdb git HEAD as of 2015-10-04.  Hack
-#       below allows to get partially functioning modules for now.
-	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${OBJS}
-.endif
+	${LD} -m ${LD_EMULATION} -Bshareable -znotext ${_LDFLAGS} \
+	    -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -233,7 +242,7 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+	${LD} -m ${LD_EMULATION} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
@@ -242,13 +251,17 @@ ${FULLPROG}: ${OBJS}
 .if ${EXPORT_SYMS} == NO
 	:> export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
-	echo ${EXPORT_SYMS} > export_syms
+	echo -n "${EXPORT_SYMS:@s@$s${.newline}@}" > export_syms
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
 	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
+.endif # defined(EXPORT_SYMS)
+.if defined(PREFIX_SYMS)
+	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
+	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .if !defined(DEBUG_FLAGS) && ${__KLD_SHARED} == no
 	${OBJCOPY} --strip-debug ${.TARGET}
@@ -272,7 +285,7 @@ beforebuild: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${_link}
+OBJS_DEPEND_GUESS+=	${_link}
 .endif
 .endfor
 
@@ -287,7 +300,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
-	ln -fhs $$path ${.TARGET:T}
+	ln -fns $$path ${.TARGET:T}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
@@ -365,7 +378,7 @@ ${_src}:
 .endif
 
 # Respect configuration-specific C flags.
-CFLAGS+=	${CONF_CFLAGS}
+CFLAGS+=	${ARCH_FLAGS} ${CONF_CFLAGS}
 
 .if !empty(SRCS:Mvnode_if.c)
 CLEANFILES+=	vnode_if.c
@@ -449,26 +462,32 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
-.if !empty(SRCS:Massym.s)
-CLEANFILES+=	assym.s genassym.o
-assym.s: genassym.o
-.if defined(KERNBUILDDIR)
-genassym.o: opt_global.h
+.if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
+CLEANFILES+=	assym.inc
+DEPENDOBJS+=	genassym.o
+DPSRCS+=	offset.inc
 .endif
-assym.s: ${SYSDIR}/kern/genassym.sh
+.if defined(MODULE_TIED)
+DPSRCS+=	offset.inc
+.endif
+.if !empty(SRCS:Moffset.inc) || !empty(DPSRCS:Moffset.inc)
+CLEANFILES+=	offset.inc genoffset.o
+DEPENDOBJS+=	genoffset.o
+.endif
+assym.inc: genassym.o
+offset.inc: genoffset.o
+assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
-genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
+genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c offset.inc
 genassym.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-fno-common} \
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
-.endif
-
-lint: ${SRCS}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
-
-.if defined(KERNBUILDDIR)
-${OBJS}: opt_global.h
-.endif
+offset.inc: ${SYSDIR}/kern/genoffset.sh genoffset.o
+	sh ${SYSDIR}/kern/genoffset.sh genoffset.o > ${.TARGET}
+genoffset.o: ${SYSDIR}/kern/genoffset.c
+genoffset.o: ${SRCS:Mopt_*.h}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
+	    ${SYSDIR}/kern/genoffset.c
 
 CLEANDEPENDFILES+=	${_ILINKS}
 # .depend needs include links so we remove them only together.
@@ -476,6 +495,9 @@ cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.if defined(KERNBUILDDIR)
+OBJS_DEPEND_GUESS+= opt_global.h
+.endif
 
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>

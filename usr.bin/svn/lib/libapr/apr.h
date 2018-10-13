@@ -261,7 +261,7 @@ extern "C" {
 #define APR_HAVE_STRSTR         1
 #define APR_HAVE_MEMCHR         1
 #define APR_HAVE_STRUCT_RLIMIT  1
-#define APR_HAVE_UNION_SEMUN    1
+#define APR_HAVE_UNION_SEMUN    0
 #define APR_HAVE_SCTP           1
 #define APR_HAVE_IOVEC          1
 

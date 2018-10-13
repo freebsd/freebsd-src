@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
@@ -378,7 +380,6 @@ int
 smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	struct smb_share **sspp, struct smb_dev **ssdp)
 {
-	cap_rights_t rights;
 	struct file *fp, *fptmp;
 	struct smb_dev *sdp;
 	struct smb_share *ssp;
@@ -386,7 +387,7 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	int error;
 
 	td = curthread;
-	error = fget(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
+	error = fget(td, fd, &cap_read_rights, &fp);
 	if (error)
 		return (error);
 	fptmp = td->td_fpop;

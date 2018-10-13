@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994 Christopher G. Demetriou
  * Copyright (c) 1994 Simon J. Gerraty
  * Copyright (c) 2012 Ed Schouten <ed@FreeBSD.org>

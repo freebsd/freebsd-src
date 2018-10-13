@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -202,7 +204,7 @@ cd9660_rrip_slink(p,ana)
 			return 0;
 		}
 
-		bcopy(inbuf,outbuf,wlen);
+		memcpy(outbuf, inbuf, wlen);
 		outbuf += wlen;
 		len += wlen;
 
@@ -276,7 +278,7 @@ cd9660_rrip_altname(p,ana)
 		return 0;
 	}
 
-	bcopy(inbuf,ana->outbuf,wlen);
+	memcpy(ana->outbuf, inbuf, wlen);
 	ana->outbuf += wlen;
 
 	if (!cont) {
@@ -354,7 +356,7 @@ cd9660_rrip_tstamp(p,ana)
 					    ISO_FTYPE_RRIP);
 			ptime += 7;
 		} else
-			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
+			memset(&ana->inop->inode.iso_mtime, 0, sizeof(struct timespec));
 
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_atime,
@@ -377,7 +379,7 @@ cd9660_rrip_tstamp(p,ana)
 			cd9660_tstamp_conv17(ptime,&ana->inop->inode.iso_mtime);
 			ptime += 17;
 		} else
-			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
+			memset(&ana->inop->inode.iso_mtime, 0, sizeof(struct timespec));
 
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv17(ptime,&ana->inop->inode.iso_atime);
@@ -628,7 +630,7 @@ cd9660_rrip_getname(isodir,outbuf,outlen,inump,imp)
 	struct iso_directory_record *isodir;
 	char *outbuf;
 	u_short *outlen;
-	ino_t *inump;
+	cd_ino_t *inump;
 	struct iso_mnt *imp;
 {
 	ISO_RRIP_ANALYZE analyze;

@@ -23,6 +23,8 @@
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -1133,8 +1135,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 #undef EXIT_COND
 
 	if (timeout) {
-		timespecsub(&now, &before);
-		timespecsub(timeout, &now);
+		timespecsub(&now, &before, &now);
+		timespecsub(timeout, &now, timeout);
 	}
 
 	switch (end) {
@@ -1474,8 +1476,8 @@ i915_gem_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 int i915_intr_pf;
 
 static int
-i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
-    vm_page_t *mres)
+i915_gem_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
+    vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct drm_gem_object *gem_obj = vm_obj->handle;
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
@@ -1483,31 +1485,9 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	vm_page_t page;
 	int ret = 0;
-#ifdef FREEBSD_WIP
-	bool write = (prot & VM_PROT_WRITE) != 0;
-#else
-	bool write = true;
-#endif /* FREEBSD_WIP */
+	bool write = (max_prot & VM_PROT_WRITE) != 0;
 	bool pinned;
 
-	vm_object_pip_add(vm_obj, 1);
-
-	/*
-	 * Remove the placeholder page inserted by vm_fault() from the
-	 * object before dropping the object lock. If
-	 * i915_gem_release_mmap() is active in parallel on this gem
-	 * object, then it owns the drm device sx and might find the
-	 * placeholder already. Then, since the page is busy,
-	 * i915_gem_release_mmap() sleeps waiting for the busy state
-	 * of the page cleared. We will be unable to acquire drm
-	 * device lock until i915_gem_release_mmap() is able to make a
-	 * progress.
-	 */
-	if (*mres != NULL) {
-		vm_page_lock(*mres);
-		vm_page_remove(*mres);
-		vm_page_unlock(*mres);
-	}
 	VM_OBJECT_WUNLOCK(vm_obj);
 retry:
 	ret = 0;
@@ -1527,13 +1507,13 @@ retry:
 	 * mapping for the page.  Recheck.
 	 */
 	VM_OBJECT_WLOCK(vm_obj);
-	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	page = vm_page_lookup(vm_obj, pidx);
 	if (page != NULL) {
 		if (vm_page_busied(page)) {
 			DRM_UNLOCK(dev);
 			vm_page_lock(page);
 			VM_OBJECT_WUNLOCK(vm_obj);
-			vm_page_busy_sleep(page, "915pee");
+			vm_page_busy_sleep(page, "915pee", false);
 			goto retry;
 		}
 		goto have_page;
@@ -1556,57 +1536,49 @@ retry:
 
 	obj->fault_mappable = true;
 
-	VM_OBJECT_WLOCK(vm_obj);
-	page = PHYS_TO_VM_PAGE(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset);
-	KASSERT((page->flags & PG_FICTITIOUS) != 0,
-	    ("physical address %#jx not fictitious",
-	    (uintmax_t)(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset)));
+	page = PHYS_TO_VM_PAGE(dev_priv->mm.gtt_base_addr + obj->gtt_offset +
+	    IDX_TO_OFF(pidx));
 	if (page == NULL) {
-		VM_OBJECT_WUNLOCK(vm_obj);
 		ret = -EFAULT;
 		goto unpin;
 	}
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
-	    ("not fictitious %p", page));
+	    ("physical address %#jx not fictitious, page %p",
+	    (uintmax_t)(dev_priv->mm.gtt_base_addr + obj->gtt_offset +
+	    IDX_TO_OFF(pidx)), page));
 	KASSERT(page->wire_count == 1, ("wire_count not 1 %p", page));
 
+	VM_OBJECT_WLOCK(vm_obj);
 	if (vm_page_busied(page)) {
 		i915_gem_object_unpin(obj);
 		DRM_UNLOCK(dev);
 		vm_page_lock(page);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(page, "915pbs");
+		vm_page_busy_sleep(page, "915pbs", false);
 		goto retry;
 	}
-	if (vm_page_insert(page, vm_obj, OFF_TO_IDX(offset))) {
+	if (vm_page_insert(page, vm_obj, pidx)) {
 		i915_gem_object_unpin(obj);
 		DRM_UNLOCK(dev);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		VM_WAIT;
+		vm_wait(vm_obj);
 		goto retry;
 	}
 	page->valid = VM_PAGE_BITS_ALL;
 have_page:
 	vm_page_xbusy(page);
 
-	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, offset, prot,
+	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, pidx, fault_type,
 	    page->phys_addr);
 	if (pinned) {
 		/*
 		 * We may have not pinned the object if the page was
-		 * found by the call to vm_page_lookup()
+		 * found by the call to vm_page_lookup().
 		 */
 		i915_gem_object_unpin(obj);
 	}
 	DRM_UNLOCK(dev);
-	if (*mres != NULL) {
-		KASSERT(*mres != page, ("losing %p %p", *mres, page));
-		vm_page_lock(*mres);
-		vm_page_free(*mres);
-		vm_page_unlock(*mres);
-	}
-	*mres = page;
-	vm_object_pip_wakeup(vm_obj);
+	*first = *last = pidx;
 	return (VM_PAGER_OK);
 
 unpin:
@@ -1615,7 +1587,7 @@ unlock:
 	DRM_UNLOCK(dev);
 out:
 	KASSERT(ret != 0, ("i915_gem_pager_fault: wrong return"));
-	CTR4(KTR_DRM, "fault_fail %p %jx %x err %d", gem_obj, offset, prot,
+	CTR4(KTR_DRM, "fault_fail %p %jx %x err %d", gem_obj, pidx, fault_type,
 	    -ret);
 	if (ret == -ERESTARTSYS) {
 		/*
@@ -1629,7 +1601,6 @@ out:
 		goto retry;
 	}
 	VM_OBJECT_WLOCK(vm_obj);
-	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_ERROR);
 }
 
@@ -1645,9 +1616,9 @@ i915_gem_pager_dtor(void *handle)
 }
 
 struct cdev_pager_ops i915_gem_pager_ops = {
-	.cdev_pg_fault	= i915_gem_pager_fault,
-	.cdev_pg_ctor	= i915_gem_pager_ctor,
-	.cdev_pg_dtor	= i915_gem_pager_dtor
+	.cdev_pg_populate	= i915_gem_pager_populate,
+	.cdev_pg_ctor		= i915_gem_pager_ctor,
+	.cdev_pg_dtor		= i915_gem_pager_dtor,
 };
 
 /**
@@ -1921,8 +1892,7 @@ i915_gem_object_put_pages_range_locked(struct drm_i915_gem_object *obj,
 		KASSERT(page->pindex == i, ("pindex %jx %jx",
 		    (uintmax_t)page->pindex, (uintmax_t)i));
 		vm_page_lock(page);
-		vm_page_unwire(page, PQ_INACTIVE);
-		if (page->wire_count == 0)
+		if (vm_page_unwire(page, PQ_INACTIVE))
 			atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 		vm_page_unlock(page);
 	}
@@ -4767,12 +4737,15 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh)
 	int rv;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
+	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_WIRED);
 	if (page->valid != VM_PAGE_BITS_ALL) {
+		vm_page_xbusy(page);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(page);
+				vm_page_unwire(page, PQ_NONE);
 				vm_page_free(page);
 				vm_page_unlock(page);
 				return (NULL);
@@ -4786,13 +4759,9 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh)
 			if (fresh != NULL)
 				*fresh = false;
 		}
-	} else if (fresh != NULL) {
+		vm_page_xunbusy(page);
+	} else if (fresh != NULL)
 		*fresh = false;
-	}
-	vm_page_lock(page);
-	vm_page_wire(page);
-	vm_page_unlock(page);
-	vm_page_xunbusy(page);
 	atomic_add_long(&i915_gem_wired_pages_cnt, 1);
 	return (page);
 }

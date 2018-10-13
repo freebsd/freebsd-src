@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)opendir.c	8.8 (Berkeley) 5/1/95");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -296,6 +296,7 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 	dirp->dd_td = (struct _telldir *)((char *)dirp + sizeof(DIR));
 	LIST_INIT(&dirp->dd_td->td_locq);
 	dirp->dd_td->td_loccnt = 0;
+	dirp->dd_compat_de = NULL;
 
 	/*
 	 * Use the system page size if that is a multiple of DIRBLKSIZ.

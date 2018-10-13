@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * Copyright (c) 1992-1998 Søren Schmidt
  * All rights reserved.
@@ -345,7 +347,7 @@ static video_info_t bios_vmode[] = {
     { M_EGAMONO80x25, 0,          80, 25, 8, 14, 2, 1,
       MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     /* EGA */
-    { M_ENH_B80x43, 0,            80, 43, 8,  8, 2, 1,
+    { M_ENH_B80x43, V_INFO_COLOR, 80, 43, 8,  8, 2, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_ENH_C80x43, V_INFO_COLOR, 80, 43, 8,  8, 4, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
@@ -375,7 +377,7 @@ static video_info_t bios_vmode[] = {
     { M_VGA_C90x30, V_INFO_COLOR, 90, 30, 8, 16, 4, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_VGA_M90x43, 0,            90, 43, 8,  8, 2, 1,
-      CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
+      MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_VGA_C90x43, V_INFO_COLOR, 90, 43, 8,  8, 4, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_VGA_M90x50, 0,            90, 50, 8,  8, 2, 1,
@@ -591,7 +593,7 @@ map_mode_num(int mode)
         { M_VGA_C90x25, M_VGA_C80x25 },
         { M_VGA_M90x30, M_VGA_M80x25 },
         { M_VGA_C90x30, M_VGA_C80x25 },
-        { M_VGA_M90x43, M_ENH_B80x25 },
+        { M_VGA_M90x43, M_VGA_M80x25 },
         { M_VGA_C90x43, M_ENH_C80x25 },
         { M_VGA_M90x50, M_VGA_M80x25 },
         { M_VGA_C90x50, M_VGA_C80x25 },
@@ -862,6 +864,9 @@ update_adapter_info(video_adapter_t *adp, video_info_t *info)
     /* XXX */
     adp->va_buffer = info->vi_buffer;
     adp->va_buffer_size = info->vi_buffer_size;
+    adp->va_flags &= ~V_ADP_CWIDTH9;
+    if (info->vi_flags & V_INFO_CWIDTH9)
+	adp->va_flags |= V_ADP_CWIDTH9;
     if (info->vi_mem_model == V_INFO_MM_VGAX) {
 	adp->va_line_width = info->vi_width/2;
     } else if (info->vi_flags & V_INFO_GRAPHICS) {
@@ -939,7 +944,7 @@ probe_adapters(void)
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
     u_char *mp;
 #endif
-    int i;
+    int height, i, width;
 
     /* do this test only once */
     if (vga_init_done)
@@ -1134,15 +1139,34 @@ probe_adapters(void)
 		case COMP_DIFFERENT:
 		default:
 		    /*
-		     * Don't use the parameter table in BIOS. It doesn't
-		     * look familiar to us. Video mode switching is allowed
-		     * only if the new mode is the same as or based on
-		     * the initial mode. 
+		     * Don't use the parameter table in the BIOS, since
+		     * even the BIOS doesn't use it for the initial mode.
+		     * Restrict the tweaked modes to (in practice) 80x50
+		     * from 80x25 with 400 scan lines, since the only safe
+		     * tweak is changing the characters from 8x16 to 8x8.
 		     */
 		    video_mode_ptr = NULL;
 		    bzero(mode_map, sizeof(mode_map));
 		    mode_map[adp->va_initial_mode] = adpstate.regs;
 		    rows_offset = 1;
+
+		    width = height = -1;
+		    for (i = 0; i < nitems(bios_vmode); ++i) {
+			if (bios_vmode[i].vi_mode == adp->va_initial_mode) {
+			    width = bios_vmode[i].vi_width;
+			    height = bios_vmode[i].vi_height;
+			    break;
+			}
+		    }
+		    for (i = 0; i < nitems(bios_vmode); ++i) {
+			if (bios_vmode[i].vi_mode != adp->va_initial_mode &&
+			    map_mode_num(bios_vmode[i].vi_mode) ==
+			     adp->va_initial_mode &&
+			    (bios_vmode[i].vi_width != width ||
+			     bios_vmode[i].vi_height != 2 * height)) {
+			    bios_vmode[i].vi_mode = NA;
+			}
+		    }
 		    break;
 		}
 	    }
@@ -1201,6 +1225,29 @@ probe_adapters(void)
 	    }
 	}
     }
+
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
+    /*
+     * Attempt to determine the real character width for each mode.  9 wide
+     * is supposed to be standard for EGA mono mode and most VGA text modes,
+     * but some hardware doesn't support it, so dynamic configuration is
+     * needed.  Bit 0 in sequencer register 1 is supposed control the width
+     * (set = 8), but this is unreliable too.  Trust that 0 in the sequencer
+     * bit means 9 wide after verifying that 9 is consistent with some CRTC
+     * timing. The ratio (Horizontal Total) / (Horizontal Displayed) is
+     * about 1.2 in all standard 9-wide modes and should be about 9/8 larger
+     * again  in similar 8-wide modes; in practice it is usually about 1.4
+     * times larger.
+     */
+    for (i = 0; i < nitems(bios_vmode); ++i) {
+	if (bios_vmode[i].vi_mem_model == V_INFO_MM_TEXT &&
+	    bios_vmode[i].vi_width != 90) {
+	    mp = get_mode_param(map_mode_num(bios_vmode[i].vi_mode));
+	    if (mp != NULL && !(mp[5] & 1) && mp[10] <= mp[11] * 125 / 100)
+		bios_vmode[i].vi_flags |= V_INFO_CWIDTH9;
+	}
+    }
+#endif
 
     /* buffer address */
     vga_get_info(&biosadapter[V_ADP_PRIMARY],

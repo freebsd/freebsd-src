@@ -1,3 +1,33 @@
+byacc (20170430) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 30 Apr 2017 16:55:15 -0400
+
+byacc (20170201) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 01 Feb 2017 04:55:04 -0500
+
+byacc (20161202) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 02 Dec 2016 07:58:46 -0500
+
+byacc (20160606) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 06 Jun 2016 20:44:26 -0400
+
+byacc (20160601) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 06 Jun 2016 05:21:18 -0400
+
 byacc (20160324) unstable; urgency=low
 
   * maintenance updates

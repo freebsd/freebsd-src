@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -76,6 +78,10 @@
  *
  * For details on the use of these macros, see the queue(3) manual page.
  *
+ * Below is a summary of implemented functions where:
+ *  +  means the macro is available
+ *  -  means the macro is not available
+ *  s  means the macro is available but is slow (runs in O(n) time)
  *
  *				SLIST	LIST	STAILQ	TAILQ
  * _HEAD			+	+	+	+
@@ -89,6 +95,7 @@
  * _NEXT			+	+	+	+
  * _PREV			-	+	-	+
  * _LAST			-	-	+	+
+ * _LAST_FAST			-	-	-	+
  * _FOREACH			+	+	+	+
  * _FOREACH_FROM		+	+	+	+
  * _FOREACH_SAFE		+	+	+	+
@@ -101,14 +108,20 @@
  * _INSERT_BEFORE		-	+	-	+
  * _INSERT_AFTER		+	+	+	+
  * _INSERT_TAIL			-	-	+	+
- * _CONCAT			-	-	+	+
+ * _CONCAT			s	s	+	+
  * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	-	+	-
- * _REMOVE			+	+	+	+
+ * _REMOVE			s	+	s	+
  * _SWAP			+	+	+	+
  *
  */
 #ifdef QUEUE_MACRO_DEBUG
+#warn Use QUEUE_MACRO_DEBUG_TRACE and/or QUEUE_MACRO_DEBUG_TRASH
+#define	QUEUE_MACRO_DEBUG_TRACE
+#define	QUEUE_MACRO_DEBUG_TRASH
+#endif
+
+#ifdef QUEUE_MACRO_DEBUG_TRACE
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
 	unsigned long	 lastline;
@@ -119,8 +132,6 @@ struct qm_trace {
 
 #define	TRACEBUF	struct qm_trace trace;
 #define	TRACEBUF_INITIALIZER	{ __LINE__, 0, __FILE__, NULL } ,
-#define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
-#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 
 #define	QMD_TRACE_HEAD(head) do {					\
 	(head)->trace.prevline = (head)->trace.lastline;		\
@@ -136,14 +147,26 @@ struct qm_trace {
 	(elem)->trace.lastfile = __FILE__;				\
 } while (0)
 
-#else
+#else	/* !QUEUE_MACRO_DEBUG_TRACE */
 #define	QMD_TRACE_ELEM(elem)
 #define	QMD_TRACE_HEAD(head)
-#define	QMD_SAVELINK(name, link)
 #define	TRACEBUF
 #define	TRACEBUF_INITIALIZER
+#endif	/* QUEUE_MACRO_DEBUG_TRACE */
+
+#ifdef QUEUE_MACRO_DEBUG_TRASH
+#define	TRASHIT(x)		do {(x) = (void *)-1;} while (0)
+#define	QMD_IS_TRASHED(x)	((x) == (void *)(intptr_t)-1)
+#else	/* !QUEUE_MACRO_DEBUG_TRASH */
 #define	TRASHIT(x)
-#endif	/* QUEUE_MACRO_DEBUG */
+#define	QMD_IS_TRASHED(x)	0
+#endif	/* QUEUE_MACRO_DEBUG_TRASH */
+
+#if defined(QUEUE_MACRO_DEBUG_TRACE) || defined(QUEUE_MACRO_DEBUG_TRASH)
+#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
+#else	/* !QUEUE_MACRO_DEBUG_TRACE && !QUEUE_MACRO_DEBUG_TRASH */
+#define	QMD_SAVELINK(name, link)
+#endif	/* QUEUE_MACRO_DEBUG_TRACE || QUEUE_MACRO_DEBUG_TRASH */
 
 #ifdef __cplusplus
 /*
@@ -183,6 +206,29 @@ struct {								\
 /*
  * Singly-linked List functions.
  */
+#if (defined(_KERNEL) && defined(INVARIANTS))
+#define	QMD_SLIST_CHECK_PREVPTR(prevp, elm) do {			\
+	if (*(prevp) != (elm))						\
+		panic("Bad prevptr *(%p) == %p != %p",			\
+		    (prevp), *(prevp), (elm));				\
+} while (0)
+#else
+#define	QMD_SLIST_CHECK_PREVPTR(prevp, elm)
+#endif
+
+#define SLIST_CONCAT(head1, head2, type, field) do {			\
+	QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head1);		\
+	if (curelm == NULL) {						\
+		if ((SLIST_FIRST(head1) = SLIST_FIRST(head2)) != NULL)	\
+			SLIST_INIT(head2);				\
+	} else if (SLIST_FIRST(head2) != NULL) {			\
+		while (SLIST_NEXT(curelm, field) != NULL)		\
+			curelm = SLIST_NEXT(curelm, field);		\
+		SLIST_NEXT(curelm, field) = SLIST_FIRST(head2);		\
+		SLIST_INIT(head2);					\
+	}								\
+} while (0)
+
 #define	SLIST_EMPTY(head)	((head)->slh_first == NULL)
 
 #define	SLIST_FIRST(head)	((head)->slh_first)
@@ -249,6 +295,12 @@ struct {								\
 
 #define	SLIST_REMOVE_HEAD(head, field) do {				\
 	SLIST_FIRST((head)) = SLIST_NEXT(SLIST_FIRST((head)), field);	\
+} while (0)
+
+#define	SLIST_REMOVE_PREVPTR(prevp, elm, field) do {			\
+	QMD_SLIST_CHECK_PREVPTR(prevp, elm);				\
+	*(prevp) = SLIST_NEXT(elm, field);				\
+	TRASHIT((elm)->field.sle_next);					\
 } while (0)
 
 #define SLIST_SWAP(head1, head2, type) do {				\
@@ -423,6 +475,12 @@ struct {								\
  */
 
 #if (defined(_KERNEL) && defined(INVARIANTS))
+/*
+ * QMD_LIST_CHECK_HEAD(LIST_HEAD *head, LIST_ENTRY NAME)
+ *
+ * If the list is non-empty, validates that the first element of the list
+ * points back at 'head.'
+ */
 #define	QMD_LIST_CHECK_HEAD(head, field) do {				\
 	if (LIST_FIRST((head)) != NULL &&				\
 	    LIST_FIRST((head))->field.le_prev !=			\
@@ -430,6 +488,12 @@ struct {								\
 		panic("Bad list head %p first->prev != head", (head));	\
 } while (0)
 
+/*
+ * QMD_LIST_CHECK_NEXT(TYPE *elm, LIST_ENTRY NAME)
+ *
+ * If an element follows 'elm' in the list, validates that the next element
+ * points back at 'elm.'
+ */
 #define	QMD_LIST_CHECK_NEXT(elm, field) do {				\
 	if (LIST_NEXT((elm), field) != NULL &&				\
 	    LIST_NEXT((elm), field)->field.le_prev !=			\
@@ -437,6 +501,11 @@ struct {								\
 	     	panic("Bad link elm %p next->prev != elm", (elm));	\
 } while (0)
 
+/*
+ * QMD_LIST_CHECK_PREV(TYPE *elm, LIST_ENTRY NAME)
+ *
+ * Validates that the previous element (or head of the list) points to 'elm.'
+ */
 #define	QMD_LIST_CHECK_PREV(elm, field) do {				\
 	if (*(elm)->field.le_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
@@ -446,6 +515,23 @@ struct {								\
 #define	QMD_LIST_CHECK_NEXT(elm, field)
 #define	QMD_LIST_CHECK_PREV(elm, field)
 #endif /* (_KERNEL && INVARIANTS) */
+
+#define LIST_CONCAT(head1, head2, type, field) do {			      \
+	QUEUE_TYPEOF(type) *curelm = LIST_FIRST(head1);			      \
+	if (curelm == NULL) {						      \
+		if ((LIST_FIRST(head1) = LIST_FIRST(head2)) != NULL) {	      \
+			LIST_FIRST(head2)->field.le_prev =		      \
+			    &LIST_FIRST((head1));			      \
+			LIST_INIT(head2);				      \
+		}							      \
+	} else if (LIST_FIRST(head2) != NULL) {				      \
+		while (LIST_NEXT(curelm, field) != NULL)		      \
+			curelm = LIST_NEXT(curelm, field);		      \
+		LIST_NEXT(curelm, field) = LIST_FIRST(head2);		      \
+		LIST_FIRST(head2)->field.le_prev = &LIST_NEXT(curelm, field); \
+		LIST_INIT(head2);					      \
+	}								      \
+} while (0)
 
 #define	LIST_EMPTY(head)	((head)->lh_first == NULL)
 
@@ -568,6 +654,12 @@ struct {								\
  * Tail queue functions.
  */
 #if (defined(_KERNEL) && defined(INVARIANTS))
+/*
+ * QMD_TAILQ_CHECK_HEAD(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
+ *
+ * If the tailq is non-empty, validates that the first element of the tailq
+ * points back at 'head.'
+ */
 #define	QMD_TAILQ_CHECK_HEAD(head, field) do {				\
 	if (!TAILQ_EMPTY(head) &&					\
 	    TAILQ_FIRST((head))->field.tqe_prev !=			\
@@ -575,11 +667,22 @@ struct {								\
 		panic("Bad tailq head %p first->prev != head", (head));	\
 } while (0)
 
+/*
+ * QMD_TAILQ_CHECK_TAIL(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
+ *
+ * Validates that the tail of the tailq is a pointer to pointer to NULL.
+ */
 #define	QMD_TAILQ_CHECK_TAIL(head, field) do {				\
 	if (*(head)->tqh_last != NULL)					\
 	    	panic("Bad tailq NEXT(%p->tqh_last) != NULL", (head)); 	\
 } while (0)
 
+/*
+ * QMD_TAILQ_CHECK_NEXT(TYPE *elm, TAILQ_ENTRY NAME)
+ *
+ * If an element follows 'elm' in the tailq, validates that the next element
+ * points back at 'elm.'
+ */
 #define	QMD_TAILQ_CHECK_NEXT(elm, field) do {				\
 	if (TAILQ_NEXT((elm), field) != NULL &&				\
 	    TAILQ_NEXT((elm), field)->field.tqe_prev !=			\
@@ -587,6 +690,11 @@ struct {								\
 		panic("Bad link elm %p next->prev != elm", (elm));	\
 } while (0)
 
+/*
+ * QMD_TAILQ_CHECK_PREV(TYPE *elm, TAILQ_ENTRY NAME)
+ *
+ * Validates that the previous element (or head of the tailq) points to 'elm.'
+ */
 #define	QMD_TAILQ_CHECK_PREV(elm, field) do {				\
 	if (*(elm)->field.tqe_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
@@ -709,6 +817,16 @@ struct {								\
 
 #define	TAILQ_LAST(head, headname)					\
 	(*(((struct headname *)((head)->tqh_last))->tqh_last))
+
+/*
+ * The FAST function is fast in that it causes no data access other
+ * then the access to the head. The standard LAST function above
+ * will cause a data access of both the element you want and 
+ * the previous element. FAST is very useful for instances when
+ * you may want to prefetch the last data element.
+ */
+#define	TAILQ_LAST_FAST(head, type, field)			\
+    (TAILQ_EMPTY(head) ? NULL : __containerof((head)->tqh_last, QUEUE_TYPEOF(type), field.tqe_next))
 
 #define	TAILQ_NEXT(elm, field) ((elm)->field.tqe_next)
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 Terrence R. Lambert
  * All rights reserved.
  *
@@ -85,9 +87,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_domain.h>
 #include <sys/copyright.h>
 
 #include <ddb/ddb.h>
@@ -99,7 +101,7 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
-struct thread0_storage thread0_st __aligned(16);
+struct thread0_storage thread0_st __aligned(32);
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
@@ -116,6 +118,18 @@ SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
 int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
+
+#ifdef VERBOSE_SYSINIT
+/*
+ * We'll use the defined value of VERBOSE_SYSINIT from the kernel config to
+ * dictate the default VERBOSE_SYSINIT behavior.  Significant values for this
+ * option and associated tunable are:
+ * - 0, 'compiled in but silent by default'
+ * - 1, 'compiled in but verbose by default' (default)
+ */
+int	verbose_sysinit = VERBOSE_SYSINIT;
+TUNABLE_INT("debug.verbose_sysinit", &verbose_sysinit);
+#endif
 
 #ifdef INVARIANTS
 FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
@@ -135,6 +149,11 @@ SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
 SET_DECLARE(sysinit_set, struct sysinit);
 struct sysinit **sysinit, **sysinit_end;
 struct sysinit **newsysinit, **newsysinit_end;
+
+EVENTHANDLER_LIST_DECLARE(process_init);
+EVENTHANDLER_LIST_DECLARE(thread_init);
+EVENTHANDLER_LIST_DECLARE(process_ctor);
+EVENTHANDLER_LIST_DECLARE(thread_ctor);
 
 /*
  * Merge a new sysinit set into the current set, reallocating it if
@@ -204,14 +223,16 @@ void
 mi_startup(void)
 {
 
-	register struct sysinit **sipp;		/* system initialization*/
-	register struct sysinit **xipp;		/* interior loop of sort*/
-	register struct sysinit *save;		/* bubble*/
+	struct sysinit **sipp;	/* system initialization*/
+	struct sysinit **xipp;	/* interior loop of sort*/
+	struct sysinit *save;	/* bubble*/
 
 #if defined(VERBOSE_SYSINIT)
 	int last;
 	int verbose;
 #endif
+
+	TSENTER();
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
@@ -259,7 +280,7 @@ restart:
 			continue;
 
 #if defined(VERBOSE_SYSINIT)
-		if ((*sipp)->subsystem > last) {
+		if ((*sipp)->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
 			last = (*sipp)->subsystem;
 			printf("subsystem %x\n", last);
@@ -306,6 +327,8 @@ restart:
 		}
 	}
 
+	TSEXIT();	/* Here so we don't overlap with start_init. */
+
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
 
@@ -316,15 +339,6 @@ restart:
 	/* NOTREACHED*/
 }
 
-
-/*
- ***************************************************************************
- ****
- **** The following SYSINIT's belong elsewhere, but have not yet
- **** been moved.
- ****
- ***************************************************************************
- */
 static void
 print_caddr_t(void *data)
 {
@@ -369,8 +383,7 @@ SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 2,
 #endif
 
 static int
-null_fetch_syscall_args(struct thread *td __unused,
-    struct syscall_args *sa __unused)
+null_fetch_syscall_args(struct thread *td __unused)
 {
 
 	panic("null_fetch_syscall_args");
@@ -418,17 +431,10 @@ struct sysentvec null_sysvec = {
 };
 
 /*
- ***************************************************************************
- ****
- **** The two following SYSINIT's are proc0 specific glue code.  I am not
- **** convinced that they can not be safely combined, but their order of
- **** operation has been maintained as the same as the original init_main.c
- **** for right now.
- ****
- **** These probably belong in init_proc.c or kern_proc.c, since they
- **** deal with proc0 (the fork template process).
- ****
- ***************************************************************************
+ * The two following SYSINIT's are proc0 specific glue code.  I am not
+ * convinced that they can not be safely combined, but their order of
+ * operation has been maintained as the same as the original init_main.c
+ * for right now.
  */
 /* ARGSUSED*/
 static void
@@ -437,6 +443,10 @@ proc0_init(void *dummy __unused)
 	struct proc *p;
 	struct thread *td;
 	struct ucred *newcred;
+	struct uidinfo tmpuinfo;
+	struct loginclass tmplc = {
+		.lc_name = "",
+	};
 	vm_paddr_t pageablemem;
 	int i;
 
@@ -482,7 +492,7 @@ proc0_init(void *dummy __unused)
 	p->p_flag = P_SYSTEM | P_INMEM | P_KPROC;
 	p->p_flag2 = 0;
 	p->p_state = PRS_NORMAL;
-	knlist_init_mtx(&p->p_klist, &p->p_mtx);
+	p->p_klist = knlist_alloc(&p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	/* pid_max cannot be greater than PID_MAX */
@@ -495,18 +505,16 @@ proc0_init(void *dummy __unused)
 	td->td_lend_user_pri = PRI_MAX;
 	td->td_priority = PVM;
 	td->td_base_pri = PVM;
-	td->td_oncpu = 0;
+	td->td_oncpu = curcpu;
 	td->td_flags = TDF_INMEM;
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
-	vm_domain_policy_init(&td->td_vm_dom_policy);
-	vm_domain_policy_set(&td->td_vm_dom_policy, VM_POLICY_NONE, -1);
-	vm_domain_policy_init(&p->p_vm_dom_policy);
-	vm_domain_policy_set(&p->p_vm_dom_policy, VM_POLICY_NONE, -1);
+	td->td_domain.dr_policy = td->td_cpuset->cs_domain;
 	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;
 	p->p_reaper = p;
+	p->p_treeflag |= P_TREE_REAPER;
 	LIST_INIT(&p->p_reaplist);
 
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
@@ -519,10 +527,17 @@ proc0_init(void *dummy __unused)
 	/* Create credentials. */
 	newcred = crget();
 	newcred->cr_ngroups = 1;	/* group 0 */
+	/* A hack to prevent uifind from tripping over NULL pointers. */
+	curthread->td_ucred = newcred;
+	tmpuinfo.ui_uid = 1;
+	newcred->cr_uidinfo = newcred->cr_ruidinfo = &tmpuinfo;
 	newcred->cr_uidinfo = uifind(0);
 	newcred->cr_ruidinfo = uifind(0);
-	newcred->cr_prison = &prison0;
+	newcred->cr_loginclass = &tmplc;
 	newcred->cr_loginclass = loginclass_find("default");
+	/* End hack. creds get properly set later with thread_cow_get_proc */
+	curthread->td_ucred = NULL;
+	newcred->cr_prison = &prison0;
 	proc_set_cred_init(p, newcred);
 #ifdef AUDIT
 	audit_cred_kproc0(newcred);
@@ -554,7 +569,7 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
 	/* Cast to avoid overflow on i386/PAE. */
-	pageablemem = ptoa((vm_paddr_t)vm_cnt.v_free_count);
+	pageablemem = ptoa((vm_paddr_t)vm_free_count());
 	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = pageablemem;
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = pageablemem / 3;
@@ -586,10 +601,10 @@ proc0_init(void *dummy __unused)
 	 * Call the init and ctor for the new thread and proc.  We wait
 	 * to do this until all other structures are fairly sane.
 	 */
-	EVENTHANDLER_INVOKE(process_init, p);
-	EVENTHANDLER_INVOKE(thread_init, td);
-	EVENTHANDLER_INVOKE(process_ctor, p);
-	EVENTHANDLER_INVOKE(thread_ctor, td);
+	EVENTHANDLER_DIRECT_INVOKE(process_init, p);
+	EVENTHANDLER_DIRECT_INVOKE(thread_init, td);
+	EVENTHANDLER_DIRECT_INVOKE(process_ctor, p);
+	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 
 	/*
 	 * Charge root for one process.
@@ -616,17 +631,23 @@ proc0_post(void *dummy __unused)
 	 */
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
 		rufetch(p, &ru);	/* Clears thread stats */
-		PROC_STATUNLOCK(p);
 		p->p_rux.rux_runtime = 0;
 		p->p_rux.rux_uticks = 0;
 		p->p_rux.rux_sticks = 0;
 		p->p_rux.rux_iticks = 0;
+		PROC_STATUNLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			td->td_runtime = 0;
 		}
+		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
 	PCPU_SET(switchtime, cpu_ticks());
@@ -658,16 +679,6 @@ SYSINIT(random, SI_SUB_RANDOM, SI_ORDER_FIRST, random_init, NULL);
  ****
  **** The following SYSINIT's and glue code should be moved to the
  **** respective files on a per subsystem basis.
- ****
- ***************************************************************************
- */
-
-
-/*
- ***************************************************************************
- ****
- **** The following code probably belongs in another file, like
- **** kern/init_init.c.
  ****
  ***************************************************************************
  */
@@ -706,14 +717,14 @@ start_init(void *dummy)
 	vm_offset_t addr;
 	struct execve_args args;
 	int options, error;
-	char *var, *path, *next, *s;
+	size_t pathlen;
+	char *var, *path;
+	char *free_init_path, *tmp_init_path;
 	char *ucp, **uap, *arg0, *arg1;
 	struct thread *td;
 	struct proc *p;
 
-	mtx_lock(&Giant);
-
-	GIANT_REQUIRED;
+	TSENTER();	/* Here so we don't overlap with mi_startup. */
 
 	td = curthread;
 	p = td->td_proc;
@@ -737,17 +748,12 @@ start_init(void *dummy)
 		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
 	}
+	free_init_path = tmp_init_path = strdup(init_path, M_TEMP);
 	
-	for (path = init_path; *path != '\0'; path = next) {
-		while (*path == ':')
-			path++;
-		if (*path == '\0')
-			break;
-		for (next = path; *next != '\0' && *next != ':'; next++)
-			/* nothing */ ;
+	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
+		pathlen = strlen(path) + 1;
 		if (bootverbose)
-			printf("start_init: trying %.*s\n", (int)(next - path),
-			    path);
+			printf("start_init: trying %s\n", path);
 			
 		/*
 		 * Move out the boot flag argument.
@@ -779,9 +785,8 @@ start_init(void *dummy)
 		/*
 		 * Move out the file name (also arg 0).
 		 */
-		(void)subyte(--ucp, 0);
-		for (s = next - 1; s >= path; s--)
-			(void)subyte(--ucp, *s);
+		ucp -= pathlen;
+		copyout(path, ucp, pathlen);
 		arg0 = ucp;
 
 		/*
@@ -806,20 +811,21 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = sys_execve(td, &args)) == 0) {
-			mtx_unlock(&Giant);
+		if ((error = sys_execve(td, &args)) == EJUSTRETURN) {
+			free(free_init_path, M_TEMP);
+			TSEXIT();
 			return;
 		}
 		if (error != ENOENT)
-			printf("exec %.*s: error %d\n", (int)(next - path), 
-			    path, error);
+			printf("exec %s: error %d\n", path, error);
 	}
+	free(free_init_path, M_TEMP);
 	printf("init: not found in path %s\n", init_path);
 	panic("no init");
 }
 
 /*
- * Like kproc_create(), but runs in it's own address space.
+ * Like kproc_create(), but runs in its own address space.
  * We do this early to reserve pid 1.
  *
  * Note special case - do not make it runnable yet.  Other work
@@ -846,7 +852,6 @@ create_init(const void *udata __unused)
 	PROC_LOCK(initproc);
 	initproc->p_flag |= P_SYSTEM | P_INMEM;
 	initproc->p_treeflag |= P_TREE_REAPER;
-	LIST_INSERT_HEAD(&initproc->p_reaplist, &proc0, p_reapsibling);
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
@@ -862,7 +867,8 @@ create_init(const void *udata __unused)
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
-	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
+	cpu_fork_kthread_handler(FIRST_THREAD_IN_PROC(initproc),
+	    start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);
 

@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.284 2016/02/17 07:38:19 jmc Exp $
+.\" $OpenBSD: sshd.8,v 1.304 2018/07/22 12:16:59 dtucker Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 17 2016 $
+.Dd $Mdocdate: July 22 2018 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -45,14 +45,12 @@
 .Nm sshd
 .Bk -words
 .Op Fl 46DdeiqTt
-.Op Fl b Ar bits
 .Op Fl C Ar connection_spec
 .Op Fl c Ar host_certificate_file
 .Op Fl E Ar log_file
 .Op Fl f Ar config_file
 .Op Fl g Ar login_grace_time
 .Op Fl h Ar host_key_file
-.Op Fl k Ar key_gen_time
 .Op Fl o Ar option
 .Op Fl p Ar port
 .Op Fl u Ar len
@@ -97,29 +95,28 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
-.It Fl b Ar bits
-Specifies the number of bits in the ephemeral protocol version 1
-server key (default 1024).
 .It Fl C Ar connection_spec
 Specify the connection parameters to use for the
 .Fl T
 extended test mode.
 If provided, any
 .Cm Match
-directives in the configuration file
-that would apply to the specified user, host, and address will be set before
-the configuration is written to standard output.
-The connection parameters are supplied as keyword=value pairs.
+directives in the configuration file that would apply are applied before the
+configuration is written to standard output.
+The connection parameters are supplied as keyword=value pairs and may be
+supplied in any order, either with multiple
+.Fl C
+options or as a comma-separated list.
 The keywords are
+.Dq addr,
 .Dq user ,
 .Dq host ,
 .Dq laddr ,
 .Dq lport ,
 and
-.Dq addr .
-All are required and may be supplied in any order, either with multiple
-.Fl C
-options or as a comma-separated list.
+.Dq rdomain
+and correspond to source address, user, resolved source host name,
+local address, local port number and routing domain respectively.
 .It Fl c Ar host_certificate_file
 Specifies a path to a certificate file to identify
 .Nm
@@ -170,36 +167,17 @@ This option must be given if
 is not run as root (as the normal
 host key files are normally not readable by anyone but root).
 The default is
-.Pa /etc/ssh/ssh_host_key
-for protocol version 1, and
-.Pa /etc/ssh/ssh_host_dsa_key ,
-.Pa /etc/ssh/ssh_host_ecdsa_key .
+.Pa /etc/ssh/ssh_host_ecdsa_key ,
 .Pa /etc/ssh/ssh_host_ed25519_key
 and
-.Pa /etc/ssh/ssh_host_rsa_key
-for protocol version 2.
+.Pa /etc/ssh/ssh_host_rsa_key .
 It is possible to have multiple host key files for
-the different protocol versions and host key algorithms.
+the different host key algorithms.
 .It Fl i
 Specifies that
 .Nm
 is being run from
 .Xr inetd 8 .
-If SSH protocol 1 is enabled,
-.Nm
-should not  normally be run
-from inetd because it needs to generate the server key before it can
-respond to the client, and this may take some time.
-Clients may have to wait too long if the key was regenerated every time.
-.It Fl k Ar key_gen_time
-Specifies how often the ephemeral protocol version 1 server key is
-regenerated (default 3600 seconds, or one hour).
-The motivation for regenerating the key fairly
-often is that the key is not stored anywhere, and after about an hour
-it becomes impossible to recover the key for decrypting intercepted
-communications even if the machine is cracked into or physically
-seized.
-A value of zero indicates that the key will never be regenerated.
 .It Fl o Ar option
 Can be used to give options in the format used in the configuration file.
 This is useful for specifying options for which there is no separate
@@ -258,8 +236,7 @@ may also be used to prevent
 from making DNS requests unless the authentication
 mechanism or configuration requires it.
 Authentication mechanisms that may require DNS include
-.Cm RhostsRSAAuthentication ,
-.Cm HostbasedAuthentication ,
+.Cm HostbasedAuthentication
 and using a
 .Cm from="pattern-list"
 option in a key file.
@@ -270,42 +247,14 @@ or
 .Cm DenyUsers .
 .El
 .Sh AUTHENTICATION
-The OpenSSH SSH daemon supports SSH protocols 1 and 2.
-The default is to use protocol 2 only,
-though this can be changed via the
-.Cm Protocol
-option in
-.Xr sshd_config 5 .
-Protocol 1 should not be used
-and is only offered to support legacy devices.
-.Pp
+The OpenSSH SSH daemon supports SSH protocol 2 only.
 Each host has a host-specific key,
 used to identify the host.
-Partial forward security for protocol 1 is provided through
-an additional server key,
-normally 1024 bits,
-generated when the server starts.
-This key is normally regenerated every hour if it has been used, and
-is never stored on disk.
 Whenever a client connects, the daemon responds with its public
-host and server keys.
+host key.
 The client compares the
-RSA host key against its own database to verify that it has not changed.
-The client then generates a 256-bit random number.
-It encrypts this
-random number using both the host key and the server key, and sends
-the encrypted number to the server.
-Both sides then use this
-random number as a session key which is used to encrypt all further
-communications in the session.
-The rest of the session is encrypted
-using a conventional cipher, currently Blowfish or 3DES, with 3DES
-being used by default.
-The client selects the encryption algorithm
-to use from those offered by the server.
-.Pp
-For protocol 2,
-forward security is provided through a Diffie-Hellman key agreement.
+host key against its own database to verify that it has not changed.
+Forward security is provided through a Diffie-Hellman key agreement.
 This key agreement results in a shared session key.
 The rest of the session is encrypted using a symmetric cipher, currently
 128-bit AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.
@@ -313,7 +262,7 @@ The client selects the encryption algorithm
 to use from those offered by the server.
 Additionally, session integrity is provided
 through a cryptographic message authentication code
-(hmac-md5, hmac-sha1, umac-64, umac-128, hmac-ripemd160,
+(hmac-md5, hmac-sha1, umac-64, umac-128,
 hmac-sha2-256 or hmac-sha2-512).
 .Pp
 Finally, the server and the client enter an authentication dialog.
@@ -329,7 +278,7 @@ locked, listed in
 .Cm DenyUsers
 or its group is listed in
 .Cm DenyGroups
-\&.  The definition of a locked account is system dependant. Some platforms
+\&.  The definition of a locked account is system dependent. Some platforms
 have their own account database (eg AIX) and some modify the passwd field (
 .Ql \&*LK\&*
 on Solaris and UnixWare,
@@ -480,32 +429,25 @@ key (empty lines and lines starting with a
 .Ql #
 are ignored as
 comments).
-Protocol 1 public keys consist of the following space-separated fields:
-options, bits, exponent, modulus, comment.
-Protocol 2 public key consist of:
+Public keys consist of the following space-separated fields:
 options, keytype, base64-encoded key, comment.
-The options field is optional;
-its presence is determined by whether the line starts
-with a number or not (the options field never starts with a number).
-The bits, exponent, modulus, and comment fields give the RSA key for
-protocol version 1; the
-comment field is not used for anything (but may be convenient for the
-user to identify the key).
-For protocol version 2 the keytype is
+The options field is optional.
+The keytype is
 .Dq ecdsa-sha2-nistp256 ,
 .Dq ecdsa-sha2-nistp384 ,
 .Dq ecdsa-sha2-nistp521 ,
 .Dq ssh-ed25519 ,
 .Dq ssh-dss
 or
-.Dq ssh-rsa .
+.Dq ssh-rsa ;
+the comment field is not used for anything (but may be convenient for the
+user to identify the key).
 .Pp
-Note that lines in this file are usually several hundred bytes long
+Note that lines in this file can be several hundred bytes long
 (because of the size of the public key encoding) up to a limit of
 8 kilobytes, which permits DSA keys up to 8 kilobits and RSA
 keys up to 16 kilobits.
 You don't want to type them in; instead, copy the
-.Pa identity.pub ,
 .Pa id_dsa.pub ,
 .Pa id_ecdsa.pub ,
 .Pa id_ed25519.pub ,
@@ -514,8 +456,7 @@ or the
 file and edit it.
 .Pp
 .Nm
-enforces a minimum RSA key modulus size for protocol 1
-and protocol 2 keys of 768 bits.
+enforces a minimum RSA key modulus size of 1024 bits.
 .Pp
 The options (if present) consist of comma-separated option
 specifications.
@@ -544,19 +485,27 @@ If an 8-bit clean channel is required,
 one must not request a pty or should specify
 .Cm no-pty .
 A quote may be included in the command by quoting it with a backslash.
+.Pp
 This option might be useful
 to restrict certain public keys to perform just a specific operation.
 An example might be a key that permits remote backups but nothing else.
 Note that the client may specify TCP and/or X11
-forwarding unless they are explicitly prohibited.
+forwarding unless they are explicitly prohibited, e.g. using the
+.Cm restrict
+key option.
+.Pp
 The command originally supplied by the client is available in the
 .Ev SSH_ORIGINAL_COMMAND
 environment variable.
 Note that this option applies to shell, command or subsystem execution.
-Also note that this command may be superseded by either a
+Also note that this command may be superseded by a
 .Xr sshd_config 5
 .Cm ForceCommand
-directive or a command embedded in a certificate.
+directive.
+.Pp
+If a command is specified and a forced-command is embedded in a certificate
+used for authentication, then the certificate will be accepted only if the
+two commands are identical.
 .It Cm environment="NAME=value"
 Specifies that the string is to be added to the environment when
 logging in using this key.
@@ -567,9 +516,10 @@ Environment processing is disabled by default and is
 controlled via the
 .Cm PermitUserEnvironment
 option.
-This option is automatically disabled if
-.Cm UseLogin
-is enabled.
+.It Cm expiry-time="timespec"
+Specifies a time after which the key will not be accepted.
+The time may be specified as a YYYYMMDD date or a YYYYMMDDHHMM[SS] time
+in the system time-zone.
 .It Cm from="pattern-list"
 Specifies that in addition to public key authentication, either the canonical
 name of the remote host or its IP address must be present in the
@@ -607,11 +557,37 @@ Disables execution of
 .It Cm no-X11-forwarding
 Forbids X11 forwarding when this key is used for authentication.
 Any X11 forward requests by the client will return an error.
+.It Cm permitlisten="[host:]port"
+Limit remote port forwarding with the
+.Xr ssh 1
+.Fl R
+option such that it may only listen on the specified host (optional) and port.
+IPv6 addresses can be specified by enclosing the address in square brackets.
+Multiple
+.Cm permitlisten
+options may be applied separated by commas.
+Hostnames may include wildcards as described in the PATTERNS section in
+.Xr ssh_config 5 .
+A port specification of
+.Cm *
+matches any port.
+Note that the setting of
+.Cm GatewayPorts
+may further restrict listen addresses.
+Note that
+.Xr ssh 1
+will send a hostname of
+.Dq localhost
+if a listen host was not specified when the forwarding was requested, and
+that this name is treated differently to the explicit localhost addresses
+.Dq 127.0.0.1
+and
+.Dq ::1 .
 .It Cm permitopen="host:port"
-Limit local port forwarding with
+Limit local port forwarding with the
 .Xr ssh 1
 .Fl L
-such that it may only connect to the specified host and port.
+option such that it may only connect to the specified host and port.
 IPv6 addresses can be specified by enclosing the address in square brackets.
 Multiple
 .Cm permitopen
@@ -624,6 +600,7 @@ matches any port.
 .It Cm port-forwarding
 Enable port forwarding previously disabled by the
 .Cm restrict
+option.
 .It Cm principals="principals"
 On a
 .Cm cert-authority
@@ -670,9 +647,11 @@ An example authorized_keys file:
 ssh-rsa AAAAB3Nza...LiPk== user@example.net
 from="*.sales.example.net,!pc.sales.example.net" ssh-rsa
 AAAAB2...19Q== john@example.net
-command="dump /home",no-pty,no-port-forwarding ssh-dss
+command="dump /home",no-pty,no-port-forwarding ssh-rsa
 AAAAC3...51R== example.net
-permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-dss
+permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa
+AAAAB5...21S==
+permitlisten="localhost:8080",permitopen="localhost:22000" ssh-rsa
 AAAAB5...21S==
 tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
 jane@example.net
@@ -689,11 +668,11 @@ and
 files contain host public keys for all known hosts.
 The global file should
 be prepared by the administrator (optional), and the per-user file is
-maintained automatically: whenever the user connects from an unknown host,
+maintained automatically: whenever the user connects to an unknown host,
 its key is added to the per-user file.
 .Pp
 Each line in these files contains the following fields: markers (optional),
-hostnames, bits, exponent, modulus, comment.
+hostnames, keytype, base64-encoded key, comment.
 The fields are separated by spaces.
 .Pp
 The marker is optional, but if it is present then it must be one of
@@ -710,9 +689,23 @@ Hostnames is a comma-separated list of patterns
 and
 .Ql \&?
 act as
-wildcards); each pattern in turn is matched against the canonical host
-name (when authenticating a client) or against the user-supplied
-name (when authenticating a server).
+wildcards); each pattern in turn is matched against the host name.
+When
+.Nm sshd
+is authenticating a client, such as when using
+.Cm HostbasedAuthentication ,
+this will be the canonical client host name.
+When
+.Xr ssh 1
+is authenticating a server, this will be the host name
+given by the user, the value of the
+.Xr ssh 1
+.Cm HostkeyAlias
+if it was specified, or the canonical server hostname if the
+.Xr ssh 1
+.Cm CanonicalizeHostname
+option was used.
+.Pp
 A pattern may also be preceded by
 .Ql \&!
 to indicate negation: if the host name matches a negated
@@ -734,9 +727,9 @@ character.
 Only one hashed hostname may appear on a single line and none of the above
 negation or wildcard operators may be applied.
 .Pp
-Bits, exponent, and modulus are taken directly from the RSA host key; they
+The keytype and base64-encoded key are taken directly from the host key; they
 can be obtained, for example, from
-.Pa /etc/ssh/ssh_host_key.pub .
+.Pa /etc/ssh/ssh_host_rsa_key.pub .
 The optional comment field continues to the end of the line, and is not used.
 .Pp
 Lines starting with
@@ -775,8 +768,8 @@ Note that the lines in these files are typically hundreds of characters
 long, and you definitely don't want to type in the host keys by hand.
 Rather, generate them by a script,
 .Xr ssh-keyscan 1
-or by taking
-.Pa /etc/ssh/ssh_host_key.pub
+or by taking, for example,
+.Pa /etc/ssh/ssh_host_rsa_key.pub
 and adding the host names at the front.
 .Xr ssh-keygen 1
 also offers some basic automated editing for
@@ -921,8 +914,6 @@ This file is used in exactly the same way as
 but allows host-based authentication without permitting login with
 rlogin/rsh.
 .Pp
-.It Pa /etc/ssh/ssh_host_key
-.It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
 .It Pa /etc/ssh/ssh_host_ed25519_key
 .It Pa /etc/ssh/ssh_host_rsa_key
@@ -933,8 +924,6 @@ Note that
 .Nm
 does not start if these files are group/world-accessible.
 .Pp
-.It Pa /etc/ssh/ssh_host_key.pub
-.It Pa /etc/ssh/ssh_host_dsa_key.pub
 .It Pa /etc/ssh/ssh_host_ecdsa_key.pub
 .It Pa /etc/ssh/ssh_host_ed25519_key.pub
 .It Pa /etc/ssh/ssh_host_rsa_key.pub

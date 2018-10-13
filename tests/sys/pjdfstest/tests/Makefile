@@ -35,5 +35,6 @@ TESTS_SUBDIRS+=	rmdir
 TESTS_SUBDIRS+=	symlink
 TESTS_SUBDIRS+=	truncate
 TESTS_SUBDIRS+=	unlink
+TESTS_SUBDIRS+=	utimensat
 
 .include <bsd.test.mk>

@@ -25,7 +25,7 @@
 #
 # ident	"%Z%%M%	%I%	%E% SMI"
 
-# Make sure <unistd.h> defines _DTRACE_VERSION
+# Make sure <sys/sdt.h> defines _DTRACE_VERSION
 
 DIR=/var/tmp/dtest.$$
 
@@ -33,7 +33,7 @@ mkdir $DIR
 cd $DIR
 
 cat > test.c <<EOF
-#include <unistd.h>
+#include <sys/sdt.h>
 
 int
 main(int argc, char **argv)
@@ -46,7 +46,7 @@ main(int argc, char **argv)
 }
 EOF
 
-cc -xarch=generic -o test test.c
+cc -o test test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1

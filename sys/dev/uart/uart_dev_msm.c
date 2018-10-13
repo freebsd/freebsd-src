@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kdb.h>
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
@@ -122,9 +121,6 @@ msm_uart_param(struct uart_bas *bas, int baudrate, int databits,
 		return (EINVAL);
 	}
 	uart_setreg(bas, UART_DM_MR2, ulcon);
-
-	/* Set 115200 for both TX and RX. */
-	uart_setreg(bas, UART_DM_CSR, UART_DM_CSR_115200);
 	uart_barrier(bas);
 
 	return (0);
@@ -142,6 +138,8 @@ struct uart_ops uart_msm_ops = {
 static int
 msm_probe(struct uart_bas *bas)
 {
+
+	bas->regiowidth = 4;
 
 	return (0);
 }
@@ -202,8 +200,7 @@ msm_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	SETREG(bas, UART_DM_CR, UART_DM_RESET_STALE_INT);
 
 	/* Enable/Disable Rx/Tx DM interfaces */
-	/* Disable Data Mover for now. */
-	uart_setreg(bas, UART_DM_DMEN, 0x0);
+	uart_setreg(bas, UART_DM_DMEN, UART_DM_DMEN_RX_SC_ENABLE);
 
 	/* Enable transmitter and receiver */
 	uart_setreg(bas, UART_DM_CR, UART_DM_CR_RX_ENABLE);
@@ -239,6 +236,7 @@ msm_putc(struct uart_bas *bas, int c)
 		while ((uart_getreg(bas, UART_DM_ISR) & UART_DM_TX_READY) == 0
 		    && --limit)
 			DELAY(4);
+		SETREG(bas, UART_DM_CR, UART_DM_CLEAR_TX_READY);
 	}
 	/* FIFO is ready, write number of characters to be written */
 	uart_setreg(bas, UART_DM_NO_CHARS_FOR_TX, 1);
@@ -324,6 +322,10 @@ static kobj_method_t msm_methods[] = {
 int
 msm_bus_probe(struct uart_softc *sc)
 {
+	struct uart_bas *bas;
+
+	bas = &sc->sc_bas;
+	bas->regiowidth = 4;
 
 	sc->sc_txfifosz = 64;
 	sc->sc_rxfifosz = 64;
@@ -570,7 +572,8 @@ static struct uart_class uart_msm_class = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"qcom,msm-uartdm",	(uintptr_t)&uart_msm_class},
-	{NULL,			(uintptr_t)NULL},
+	{"qcom,msm-uartdm-v1.4",	(uintptr_t)&uart_msm_class},
+	{"qcom,msm-uartdm",		(uintptr_t)&uart_msm_class},
+	{NULL,				(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);

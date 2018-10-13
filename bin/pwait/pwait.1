@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2009
+.Dd March 7, 2017
 .Dt PWAIT 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nd wait for processes to terminate
 .Sh SYNOPSIS
 .Nm
+.Op Fl t Ar duration
 .Op Fl v
 .Ar pid
 \&...
@@ -50,13 +51,36 @@ utility will wait until each of the given processes has terminated.
 .Pp
 The following option is available:
 .Bl -tag -width indent
+.It Fl t Ar duration
+If any process is still running after
+.Ar duration ,
+.Nm
+will exit.
+The
+.Ar duration
+value can be integer or decimal numbers.
+Values without unit symbols are interpreted as seconds.
+.Pp
+Supported unit symbols are:
+.Bl -tag -width indent -compact
+.It s
+seconds
+.It m
+minutes
+.It h
+hours
+.El
 .It Fl v
 Print the exit status when each process terminates.
 .El
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 The
 .Nm
-utility returns 0 on success, and >0 if an error occurs.
+utility exits 0 on success, and >0 if an error occurs.
+.Pp
+If the
+.Fl t
+flag is specified and a timeout occurs, the exit status will be 124.
 .Pp
 Invalid pids elicit a warning message but are otherwise ignored.
 .Sh SEE ALSO

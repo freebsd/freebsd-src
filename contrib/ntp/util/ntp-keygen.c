@@ -98,13 +98,18 @@
 #include "ntp-keygen-opts.h"
 
 #ifdef OPENSSL
+#include "openssl/asn1.h"
 #include "openssl/bn.h"
+#include "openssl/crypto.h"
 #include "openssl/evp.h"
 #include "openssl/err.h"
 #include "openssl/rand.h"
+#include "openssl/opensslv.h"
 #include "openssl/pem.h"
+#include "openssl/x509.h"
 #include "openssl/x509v3.h"
 #include <openssl/objects.h>
+#include "libssl_compat.h"
 #endif	/* OPENSSL */
 #include <ssl_applink.c>
 
@@ -148,6 +153,10 @@ EVP_PKEY *genkey	(const char *, const char *);
 EVP_PKEY *readkey	(char *, char *, u_int *, EVP_PKEY **);
 void	writekey	(char *, char *, u_int *, EVP_PKEY **);
 u_long	asn2ntp		(ASN1_TIME *);
+
+static DSA* genDsaParams(int, char*);
+static RSA* genRsaKeyPair(int, char*);
+
 #endif	/* AUTOKEY */
 
 /*
@@ -294,7 +303,6 @@ main(
 	int	optct;		/* option count */
 #ifdef AUTOKEY
 	X509	*cert = NULL;	/* X509 certificate */
-	X509_EXTENSION *ext;	/* X509v3 extension */
 	EVP_PKEY *pkey_host = NULL; /* host key */
 	EVP_PKEY *pkey_sign = NULL; /* sign key */
 	EVP_PKEY *pkey_iffkey = NULL; /* IFF sever keys */
@@ -322,6 +330,10 @@ main(
 	int	i, cnt;
 	char *	ptr;
 #endif	/* AUTOKEY */
+#ifdef OPENSSL
+	const char *sslvtext;
+	int sslvmatch;
+#endif /* OPENSSL */
 
 	progname = argv[0];
 
@@ -359,12 +371,14 @@ main(
 	argv += optct;	// Just in case we care later.
 
 #ifdef OPENSSL
-	if (SSLeay() == SSLEAY_VERSION_NUMBER)
+	sslvtext = OpenSSL_version(OPENSSL_VERSION);
+	sslvmatch = OpenSSL_version_num() == OPENSSL_VERSION_NUMBER;
+	if (sslvmatch)
 		fprintf(stderr, "Using OpenSSL version %s\n",
-			SSLeay_version(SSLEAY_VERSION));
+			sslvtext);
 	else
 		fprintf(stderr, "Built against OpenSSL %s, using version %s\n",
-			OPENSSL_VERSION_TEXT, SSLeay_version(SSLEAY_VERSION));
+			OPENSSL_VERSION_TEXT, sslvtext);
 #endif /* OPENSSL */
 
 	debug = OPT_VALUE_SET_DEBUG_LEVEL;
@@ -460,8 +474,10 @@ main(
 	/*
 	 * Seed random number generator and grow weeds.
 	 */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
+#endif /* OPENSSL_VERSION_NUMBER */
 	if (!RAND_status()) {
 		if (RAND_file_name(pathbuf, sizeof(pathbuf)) == NULL) {
 			fprintf(stderr, "RAND_file_name %s\n",
@@ -511,8 +527,7 @@ main(
 		 * Extract digest/signature scheme.
 		 */
 		if (scheme == NULL) {
-			nid = OBJ_obj2nid(cert->cert_info->
-			    signature->algorithm);
+			nid = X509_get_signature_nid(cert);
 			scheme = OBJ_nid2sn(nid);
 		}
 
@@ -524,8 +539,13 @@ main(
 			ptr = strstr(groupbuf, "CN=");
 			cnt = X509_get_ext_count(cert);
 			for (i = 0; i < cnt; i++) {
+				X509_EXTENSION *ext;
+				ASN1_OBJECT *obj;
+
 				ext = X509_get_ext(cert, i);
-				if (OBJ_obj2nid(ext->object) ==
+				obj = X509_EXTENSION_get_object(ext);
+
+				if (OBJ_obj2nid(obj) ==
 				    NID_ext_key_usage) {
 					bp = BIO_new(BIO_s_mem());
 					X509V3_EXT_print(bp, ext, 0, 0);
@@ -617,8 +637,14 @@ main(
 			    filename);
 		}
 	}
-	if (pkey_gqkey != NULL)
-		grpkey = BN_bn2hex(pkey_gqkey->pkey.rsa->q);
+	if (pkey_gqkey != NULL) {
+		RSA	*rsa;
+		const BIGNUM *q;
+
+		rsa = EVP_PKEY_get0_RSA(pkey_gqkey);
+		RSA_get0_factors(rsa, NULL, &q);
+		grpkey = BN_bn2hex(q);
+	}
 
 	/*
 	 * Write the nonencrypted GQ client parameters to the stdout
@@ -634,9 +660,10 @@ main(
 		    filename);
 		fprintf(stdout, "# %s\n# %s\n", filename,
 		    ctime(&epoch));
-		rsa = pkey_gqkey->pkey.rsa;
-		BN_copy(rsa->p, BN_value_one());
-		BN_copy(rsa->q, BN_value_one());
+		/* XXX: This modifies the private key and should probably use a
+		 * copy of it instead. */
+		rsa = EVP_PKEY_get0_RSA(pkey_gqkey);
+		RSA_set0_factors(rsa, BN_dup(BN_value_one()), BN_dup(BN_value_one()));
 		pkey = EVP_PKEY_new();
 		EVP_PKEY_assign_RSA(pkey, rsa);
 		PEM_write_PKCS8PrivateKey(stdout, pkey, NULL, NULL, 0,
@@ -658,7 +685,7 @@ main(
 		    filename);
 		fprintf(stdout, "# %s\n# %s\n", filename,
 		    ctime(&epoch));
-		rsa = pkey_gqkey->pkey.rsa;
+		rsa = EVP_PKEY_get0_RSA(pkey_gqkey);
 		pkey = EVP_PKEY_new();
 		EVP_PKEY_assign_RSA(pkey, rsa);
 		PEM_write_PKCS8PrivateKey(stdout, pkey, cipher, NULL, 0,
@@ -699,8 +726,10 @@ main(
 		    filename);
 		fprintf(stdout, "# %s\n# %s\n", filename,
 		    ctime(&epoch));
-		dsa = pkey_iffkey->pkey.dsa;
-		BN_copy(dsa->priv_key, BN_value_one());
+		/* XXX: This modifies the private key and should probably use a
+		 * copy of it instead. */
+		dsa = EVP_PKEY_get0_DSA(pkey_iffkey);
+		DSA_set0_key(dsa, NULL, BN_dup(BN_value_one()));
 		pkey = EVP_PKEY_new();
 		EVP_PKEY_assign_DSA(pkey, dsa);
 		PEM_write_PKCS8PrivateKey(stdout, pkey, NULL, NULL, 0,
@@ -722,7 +751,7 @@ main(
 		    filename);
 		fprintf(stdout, "# %s\n# %s\n", filename,
 		    ctime(&epoch));
-		dsa = pkey_iffkey->pkey.dsa;
+		dsa = EVP_PKEY_get0_DSA(pkey_iffkey);
 		pkey = EVP_PKEY_new();
 		EVP_PKEY_assign_DSA(pkey, dsa);
 		PEM_write_PKCS8PrivateKey(stdout, pkey, cipher, NULL, 0,
@@ -767,7 +796,7 @@ main(
 		    NULL, NULL);
 		fflush(stdout);
 		if (debug)
-			DSA_print_fp(stderr, pkey->pkey.dsa, 0);
+			DSA_print_fp(stderr, EVP_PKEY_get0_DSA(pkey), 0);
 	}
 
 	/*
@@ -785,7 +814,7 @@ main(
 		    NULL, passwd2);
 		fflush(stdout);
 		if (debug)
-			DSA_print_fp(stderr, pkey->pkey.dsa, 0);
+			DSA_print_fp(stderr, EVP_PKEY_get0_DSA(pkey), 0);
 	}
 
 	/*
@@ -934,11 +963,11 @@ readkey(
 		if (pkey == NULL)
 			pkey = parkey;
 		if (debug) {
-			if (parkey->type == EVP_PKEY_DSA)
-				DSA_print_fp(stderr, parkey->pkey.dsa,
+			if (EVP_PKEY_base_id(parkey) == EVP_PKEY_DSA)
+				DSA_print_fp(stderr, EVP_PKEY_get0_DSA(parkey),
 				    0);
-			else if (parkey->type == EVP_PKEY_RSA)
-				RSA_print_fp(stderr, parkey->pkey.rsa,
+			else if (EVP_PKEY_base_id(parkey) == EVP_PKEY_RSA)
+				RSA_print_fp(stderr, EVP_PKEY_get0_RSA(parkey),
 				    0);
 		}
 	}
@@ -967,7 +996,7 @@ gen_rsa(
 	FILE	*str;
 
 	fprintf(stderr, "Generating RSA keys (%d bits)...\n", modulus);
-	rsa = RSA_generate_key(modulus, 65537, cb, _UC("RSA"));
+	rsa = genRsaKeyPair(modulus, _UC("RSA"));
 	fprintf(stderr, "\n");
 	if (rsa == NULL) {
 		fprintf(stderr, "RSA generate keys fails\n%s\n",
@@ -1006,7 +1035,7 @@ gen_rsa(
 	return (pkey);
 }
 
- 
+
 /*
  * Generate DSA public/private key pair
  */
@@ -1017,7 +1046,6 @@ gen_dsa(
 {
 	EVP_PKEY *pkey;		/* private key */
 	DSA	*dsa;		/* DSA parameters */
-	u_char	seed[20];	/* seed for parameters */
 	FILE	*str;
 
 	/*
@@ -1025,9 +1053,7 @@ gen_dsa(
 	 */
 	fprintf(stderr,
 	    "Generating DSA parameters (%d bits)...\n", modulus);
-	RAND_bytes(seed, sizeof(seed));
-	dsa = DSA_generate_parameters(modulus, seed, sizeof(seed), NULL,
-	    NULL, cb, _UC("DSA"));
+	dsa = genDsaParams(modulus, _UC("DSA"));
 	fprintf(stderr, "\n");
 	if (dsa == NULL) {
 		fprintf(stderr, "DSA generate parameters fails\n%s\n",
@@ -1119,26 +1145,26 @@ gen_iffkey(
 {
 	EVP_PKEY *pkey;		/* private key */
 	DSA	*dsa;		/* DSA parameters */
-	u_char	seed[20];	/* seed for parameters */
 	BN_CTX	*ctx;		/* BN working space */
 	BIGNUM	*b, *r, *k, *u, *v, *w; /* BN temp */
 	FILE	*str;
 	u_int	temp;
-
+	const BIGNUM *p, *q, *g;
+	BIGNUM *pub_key, *priv_key;
+	
 	/*
 	 * Generate DSA parameters for use as IFF parameters.
 	 */
 	fprintf(stderr, "Generating IFF keys (%d bits)...\n",
 	    modulus2);
-	RAND_bytes(seed, sizeof(seed));
-	dsa = DSA_generate_parameters(modulus2, seed, sizeof(seed), NULL,
-	    NULL, cb, _UC("IFF"));
+	dsa = genDsaParams(modulus2, _UC("IFF"));
 	fprintf(stderr, "\n");
 	if (dsa == NULL) {
 		fprintf(stderr, "DSA generate parameters fails\n%s\n",
 		    ERR_error_string(ERR_get_error(), NULL));
-		return (NULL);;
+		return (NULL);
 	}
+	DSA_get0_pqg(dsa, &p, &q, &g);
 
 	/*
 	 * Generate the private and public keys. The DSA parameters and
@@ -1147,12 +1173,12 @@ gen_iffkey(
 	 */
 	b = BN_new(); r = BN_new(); k = BN_new();
 	u = BN_new(); v = BN_new(); w = BN_new(); ctx = BN_CTX_new();
-	BN_rand(b, BN_num_bits(dsa->q), -1, 0);	/* a */
-	BN_mod(b, b, dsa->q, ctx);
-	BN_sub(v, dsa->q, b);
-	BN_mod_exp(v, dsa->g, v, dsa->p, ctx); /* g^(q - b) mod p */
-	BN_mod_exp(u, dsa->g, b, dsa->p, ctx);	/* g^b mod p */
-	BN_mod_mul(u, u, v, dsa->p, ctx);
+	BN_rand(b, BN_num_bits(q), -1, 0);	/* a */
+	BN_mod(b, b, q, ctx);
+	BN_sub(v, q, b);
+	BN_mod_exp(v, g, v, p, ctx); /* g^(q - b) mod p */
+	BN_mod_exp(u, g, b, p, ctx);	/* g^b mod p */
+	BN_mod_mul(u, u, v, p, ctx);
 	temp = BN_is_one(u);
 	fprintf(stderr,
 	    "Confirm g^(q - b) g^b = 1 mod p: %s\n", temp == 1 ?
@@ -1162,28 +1188,29 @@ gen_iffkey(
 		BN_free(u); BN_free(v); BN_free(w); BN_CTX_free(ctx);
 		return (NULL);
 	}
-	dsa->priv_key = BN_dup(b);		/* private key */
-	dsa->pub_key = BN_dup(v);		/* public key */
+	pub_key = BN_dup(v);
+	priv_key = BN_dup(b);
+	DSA_set0_key(dsa, pub_key, priv_key);
 
 	/*
 	 * Here is a trial round of the protocol. First, Alice rolls
 	 * random nonce r mod q and sends it to Bob. She needs only
 	 * q from parameters.
 	 */
-	BN_rand(r, BN_num_bits(dsa->q), -1, 0);	/* r */
-	BN_mod(r, r, dsa->q, ctx);
+	BN_rand(r, BN_num_bits(q), -1, 0);	/* r */
+	BN_mod(r, r, q, ctx);
 
 	/*
 	 * Bob rolls random nonce k mod q, computes y = k + b r mod q
 	 * and x = g^k mod p, then sends (y, x) to Alice. He needs
 	 * p, q and b from parameters and r from Alice.
 	 */
-	BN_rand(k, BN_num_bits(dsa->q), -1, 0);	/* k, 0 < k < q  */
-	BN_mod(k, k, dsa->q, ctx);
-	BN_mod_mul(v, dsa->priv_key, r, dsa->q, ctx); /* b r mod q */
+	BN_rand(k, BN_num_bits(q), -1, 0);	/* k, 0 < k < q  */
+	BN_mod(k, k, q, ctx);
+	BN_mod_mul(v, priv_key, r, q, ctx); /* b r mod q */
 	BN_add(v, v, k);
-	BN_mod(v, v, dsa->q, ctx);		/* y = k + b r mod q */
-	BN_mod_exp(u, dsa->g, k, dsa->p, ctx);	/* x = g^k mod p */
+	BN_mod(v, v, q, ctx);		/* y = k + b r mod q */
+	BN_mod_exp(u, g, k, p, ctx);	/* x = g^k mod p */
 
 	/*
 	 * Alice verifies x = g^y v^r to confirm that Bob has group key
@@ -1191,9 +1218,9 @@ gen_iffkey(
 	 * original r. We omit the detail here thatt only the hash of y
 	 * is sent.
 	 */
-	BN_mod_exp(v, dsa->g, v, dsa->p, ctx); /* g^y mod p */
-	BN_mod_exp(w, dsa->pub_key, r, dsa->p, ctx); /* v^r */
-	BN_mod_mul(v, w, v, dsa->p, ctx);	/* product mod p */
+	BN_mod_exp(v, g, v, p, ctx); /* g^y mod p */
+	BN_mod_exp(w, pub_key, r, p, ctx); /* v^r */
+	BN_mod_mul(v, w, v, p, ctx);	/* product mod p */
 	temp = BN_cmp(u, v);
 	fprintf(stderr,
 	    "Confirm g^k = g^(k + b r) g^(q - b) r: %s\n", temp ==
@@ -1301,22 +1328,26 @@ gen_gqkey(
 	BIGNUM	*u, *v, *g, *k, *r, *y; /* BN temps */
 	FILE	*str;
 	u_int	temp;
-
+	BIGNUM	*b;
+	const BIGNUM	*n;
+	
 	/*
 	 * Generate RSA parameters for use as GQ parameters.
 	 */
 	fprintf(stderr,
 	    "Generating GQ parameters (%d bits)...\n",
 	     modulus2);
-	rsa = RSA_generate_key(modulus2, 65537, cb, _UC("GQ"));
+	rsa = genRsaKeyPair(modulus2, _UC("GQ"));
 	fprintf(stderr, "\n");
 	if (rsa == NULL) {
 		fprintf(stderr, "RSA generate keys fails\n%s\n",
 		    ERR_error_string(ERR_get_error(), NULL));
 		return (NULL);
 	}
+	RSA_get0_key(rsa, &n, NULL, NULL);
 	u = BN_new(); v = BN_new(); g = BN_new();
 	k = BN_new(); r = BN_new(); y = BN_new();
+	b = BN_new();
 
 	/*
 	 * Generate the group key b, which is saved in the e member of
@@ -1324,26 +1355,26 @@ gen_gqkey(
 	 * member encrypted by the member private key.
 	 */
 	ctx = BN_CTX_new();
-	BN_rand(rsa->e, BN_num_bits(rsa->n), -1, 0); /* b */
-	BN_mod(rsa->e, rsa->e, rsa->n, ctx);
+	BN_rand(b, BN_num_bits(n), -1, 0); /* b */
+	BN_mod(b, b, n, ctx);
 
 	/*
 	 * When generating his certificate, Bob rolls random private key
 	 * u, then computes inverse v = u^-1. 
 	 */
-	BN_rand(u, BN_num_bits(rsa->n), -1, 0); /* u */
-	BN_mod(u, u, rsa->n, ctx);
-	BN_mod_inverse(v, u, rsa->n, ctx);	/* u^-1 mod n */
-	BN_mod_mul(k, v, u, rsa->n, ctx);
+	BN_rand(u, BN_num_bits(n), -1, 0); /* u */
+	BN_mod(u, u, n, ctx);
+	BN_mod_inverse(v, u, n, ctx);	/* u^-1 mod n */
+	BN_mod_mul(k, v, u, n, ctx);
 
 	/*
 	 * Bob computes public key v = (u^-1)^b, which is saved in an
 	 * extension field on his certificate. We check that u^b v =
 	 * 1 mod n.
 	 */
-	BN_mod_exp(v, v, rsa->e, rsa->n, ctx);
-	BN_mod_exp(g, u, rsa->e, rsa->n, ctx); /* u^b */
-	BN_mod_mul(g, g, v, rsa->n, ctx); /* u^b (u^-1)^b */
+	BN_mod_exp(v, v, b, n, ctx);
+	BN_mod_exp(g, u, b, n, ctx); /* u^b */
+	BN_mod_mul(g, g, v, n, ctx); /* u^b (u^-1)^b */
 	temp = BN_is_one(g);
 	fprintf(stderr,
 	    "Confirm u^b (u^-1)^b = 1 mod n: %s\n", temp ? "yes" :
@@ -1355,27 +1386,30 @@ gen_gqkey(
 		RSA_free(rsa);
 		return (NULL);
 	}
-	BN_copy(rsa->p, u);			/* private key */
-	BN_copy(rsa->q, v);			/* public key */
+	/* setting 'u' and 'v' into a RSA object takes over ownership.
+	 * Since we use these values again, we have to pass in dupes,
+	 * or we'll corrupt the program!
+	 */
+	RSA_set0_factors(rsa, BN_dup(u), BN_dup(v));
 
 	/*
 	 * Here is a trial run of the protocol. First, Alice rolls
 	 * random nonce r mod n and sends it to Bob. She needs only n
 	 * from parameters.
 	 */
-	BN_rand(r, BN_num_bits(rsa->n), -1, 0);	/* r */
-	BN_mod(r, r, rsa->n, ctx);
+	BN_rand(r, BN_num_bits(n), -1, 0);	/* r */
+	BN_mod(r, r, n, ctx);
 
 	/*
 	 * Bob rolls random nonce k mod n, computes y = k u^r mod n and
 	 * g = k^b mod n, then sends (y, g) to Alice. He needs n, u, b
 	 * from parameters and r from Alice. 
 	 */
-	BN_rand(k, BN_num_bits(rsa->n), -1, 0);	/* k */
-	BN_mod(k, k, rsa->n, ctx);
-	BN_mod_exp(y, rsa->p, r, rsa->n, ctx);	/* u^r mod n */
-	BN_mod_mul(y, k, y, rsa->n, ctx);	/* y = k u^r mod n */
-	BN_mod_exp(g, k, rsa->e, rsa->n, ctx);	/* g = k^b mod n */
+	BN_rand(k, BN_num_bits(n), -1, 0);	/* k */
+	BN_mod(k, k, n, ctx);
+	BN_mod_exp(y, u, r, n, ctx);	/* u^r mod n */
+	BN_mod_mul(y, k, y, n, ctx);	/* y = k u^r mod n */
+	BN_mod_exp(g, k, b, n, ctx);	/* g = k^b mod n */
 
 	/*
 	 * Alice verifies g = v^r y^b mod n to confirm that Bob has
@@ -1384,9 +1418,9 @@ gen_gqkey(
 	 * original r. We omit the detaul here that only the hash of g
 	 * is sent.
 	 */
-	BN_mod_exp(v, rsa->q, r, rsa->n, ctx);	/* v^r mod n */
-	BN_mod_exp(y, y, rsa->e, rsa->n, ctx); /* y^b mod n */
-	BN_mod_mul(y, v, y, rsa->n, ctx);	/* v^r y^b mod n */
+	BN_mod_exp(v, v, r, n, ctx);	/* v^r mod n */
+	BN_mod_exp(y, y, b, n, ctx);	/* y^b mod n */
+	BN_mod_mul(y, v, y, n, ctx);	/* v^r y^b mod n */
 	temp = BN_cmp(y, g);
 	fprintf(stderr, "Confirm g^k = v^r y^b mod n: %s\n", temp == 0 ?
 	    "yes" : "no");
@@ -1410,10 +1444,9 @@ gen_gqkey(
 	 * dmq1	not used
 	 * iqmp	not used
 	 */
-	BN_copy(rsa->d, BN_value_one());
-	BN_copy(rsa->dmp1, BN_value_one());
-	BN_copy(rsa->dmq1, BN_value_one());
-	BN_copy(rsa->iqmp, BN_value_one());
+	RSA_set0_key(rsa, NULL, b, BN_dup(BN_value_one()));
+	RSA_set0_crt_params(rsa, BN_dup(BN_value_one()), BN_dup(BN_value_one()),
+		BN_dup(BN_value_one()));
 	str = fheader("GQkey", id, groupname);
 	pkey = EVP_PKEY_new();
 	EVP_PKEY_assign_RSA(pkey, rsa);
@@ -1509,7 +1542,7 @@ gen_mvkey(
 	DSA	*dsa, *dsa2, *sdsa; /* DSA parameters */
 	BN_CTX	*ctx;		/* BN working space */
 	BIGNUM	*a[MVMAX];	/* polynomial coefficient vector */
-	BIGNUM	*g[MVMAX];	/* public key vector */
+	BIGNUM	*gs[MVMAX];	/* public key vector */
 	BIGNUM	*s1[MVMAX];	/* private enabling keys */
 	BIGNUM	*x[MVMAX];	/* polynomial zeros vector */
 	BIGNUM	*xbar[MVMAX], *xhat[MVMAX]; /* private keys vector */
@@ -1520,6 +1553,7 @@ gen_mvkey(
 	BIGNUM	*bige;		/* session encryption key */
 	BIGNUM	*gbar, *ghat;	/* public key */
 	BIGNUM	*u, *v, *w;	/* BN scratch */
+	BIGNUM	*p, *q, *g, *priv_key, *pub_key;
 	int	i, j, n;
 	FILE	*str;
 	u_int	temp;
@@ -1544,14 +1578,14 @@ gen_mvkey(
 	ctx = BN_CTX_new(); u = BN_new(); v = BN_new(); w = BN_new();
 	b = BN_new(); b1 = BN_new();
 	dsa = DSA_new();
-	dsa->p = BN_new(); dsa->q = BN_new(); dsa->g = BN_new();
-	dsa->priv_key = BN_new(); dsa->pub_key = BN_new();
+	p = BN_new(); q = BN_new(); g = BN_new();
+	priv_key = BN_new(); pub_key = BN_new();
 	temp = 0;
 	for (j = 1; j <= n; j++) {
 		s1[j] = BN_new();
 		while (1) {
-			BN_generate_prime(s1[j], modulus2 / n, 0, NULL,
-			    NULL, NULL, NULL);
+			BN_generate_prime_ex(s1[j], modulus2 / n, 0,
+					     NULL, NULL, NULL);
 			for (i = 1; i < j; i++) {
 				if (BN_cmp(s1[i], s1[j]) == 0)
 					break;
@@ -1577,21 +1611,20 @@ gen_mvkey(
 	 */
 	temp = 0;
 	while (1) {
-		BN_one(dsa->q);
+		BN_one(q);
 		for (j = 1; j <= n; j++)
-			BN_mul(dsa->q, dsa->q, s1[j], ctx);
-		BN_copy(dsa->p, dsa->q);
-		BN_add(dsa->p, dsa->p, dsa->p);
-		BN_add_word(dsa->p, 1);
-		if (BN_is_prime(dsa->p, BN_prime_checks, NULL, ctx,
-		    NULL))
+			BN_mul(q, q, s1[j], ctx);
+		BN_copy(p, q);
+		BN_add(p, p, p);
+		BN_add_word(p, 1);
+		if (BN_is_prime_ex(p, BN_prime_checks, ctx, NULL))
 			break;
 
 		temp++;
 		j = temp % n + 1;
 		while (1) {
-			BN_generate_prime(u, modulus2 / n, 0, 0, NULL,
-			    NULL, NULL);
+			BN_generate_prime_ex(u, modulus2 / n, 0,
+					     NULL, NULL, NULL);
 			for (i = 1; i <= n; i++) {
 				if (BN_cmp(u, s1[i]) == 0)
 					break;
@@ -1608,19 +1641,21 @@ gen_mvkey(
 	 * gcd(g, p - 1) = 1 and g^q = 1. This is a generator of p, not
 	 * q. This may take several iterations.
 	 */
-	BN_copy(v, dsa->p);
+	BN_copy(v, p);
 	BN_sub_word(v, 1);
 	while (1) {
-		BN_rand(dsa->g, BN_num_bits(dsa->p) - 1, 0, 0);
-		BN_mod(dsa->g, dsa->g, dsa->p, ctx);
-		BN_gcd(u, dsa->g, v, ctx);
+		BN_rand(g, BN_num_bits(p) - 1, 0, 0);
+		BN_mod(g, g, p, ctx);
+		BN_gcd(u, g, v, ctx);
 		if (!BN_is_one(u))
 			continue;
 
-		BN_mod_exp(u, dsa->g, dsa->q, dsa->p, ctx);
+		BN_mod_exp(u, g, q, p, ctx);
 		if (BN_is_one(u))
 			break;
 	}
+
+	DSA_set0_pqg(dsa, p, q, g);
 
 	/*
 	 * Setup is now complete. Roll random polynomial roots x[j]
@@ -1630,14 +1665,14 @@ gen_mvkey(
 	 */
 	fprintf(stderr,
 	    "Generating polynomial coefficients for %d roots (%d bits)\n",
-	    n, BN_num_bits(dsa->q)); 
+	    n, BN_num_bits(q));
 	for (j = 1; j <= n; j++) {
 		x[j] = BN_new();
 
 		while (1) {
-			BN_rand(x[j], BN_num_bits(dsa->q), 0, 0);
-			BN_mod(x[j], x[j], dsa->q, ctx);
-			BN_gcd(u, x[j], dsa->q, ctx);
+			BN_rand(x[j], BN_num_bits(q), 0, 0);
+			BN_mod(x[j], x[j], q, ctx);
+			BN_gcd(u, x[j], q, ctx);
 			if (BN_is_one(u))
 				break;
 		}
@@ -1655,26 +1690,26 @@ gen_mvkey(
 	for (j = 1; j <= n; j++) {
 		BN_zero(w);
 		for (i = 0; i < j; i++) {
-			BN_copy(u, dsa->q);
-			BN_mod_mul(v, a[i], x[j], dsa->q, ctx);
+			BN_copy(u, q);
+			BN_mod_mul(v, a[i], x[j], q, ctx);
 			BN_sub(u, u, v);
 			BN_add(u, u, w);
 			BN_copy(w, a[i]);
-			BN_mod(a[i], u, dsa->q, ctx);
+			BN_mod(a[i], u, q, ctx);
 		}
 	}
 
 	/*
-	 * Generate g[i] = g^a[i] mod p for all i and the generator g.
+	 * Generate gs[i] = g^a[i] mod p for all i and the generator g.
 	 */
 	for (i = 0; i <= n; i++) {
-		g[i] = BN_new();
-		BN_mod_exp(g[i], dsa->g, a[i], dsa->p, ctx);
+		gs[i] = BN_new();
+		BN_mod_exp(gs[i], g, a[i], p, ctx);
 	}
 
 	/*
-	 * Verify prod(g[i]^(a[i] x[j]^i)) = 1 for all i, j. Note the
-	 * a[i] x[j]^i exponent is computed mod q, but the g[i] is
+	 * Verify prod(gs[i]^(a[i] x[j]^i)) = 1 for all i, j. Note the
+	 * a[i] x[j]^i exponent is computed mod q, but the gs[i] is
 	 * computed mod p. also note the expression given in the paper
 	 * is incorrect.
 	 */
@@ -1683,16 +1718,16 @@ gen_mvkey(
 		BN_one(u);
 		for (i = 0; i <= n; i++) {
 			BN_set_word(v, i);
-			BN_mod_exp(v, x[j], v, dsa->q, ctx);
-			BN_mod_mul(v, v, a[i], dsa->q, ctx);
-			BN_mod_exp(v, dsa->g, v, dsa->p, ctx);
-			BN_mod_mul(u, u, v, dsa->p, ctx);
+			BN_mod_exp(v, x[j], v, q, ctx);
+			BN_mod_mul(v, v, a[i], q, ctx);
+			BN_mod_exp(v, g, v, p, ctx);
+			BN_mod_mul(u, u, v, p, ctx);
 		}
 		if (!BN_is_one(u))
 			temp = 0;
 	}
 	fprintf(stderr,
-	    "Confirm prod(g[i]^(x[j]^i)) = 1 for all i, j: %s\n", temp ?
+	    "Confirm prod(gs[i]^(x[j]^i)) = 1 for all i, j: %s\n", temp ?
 	    "yes" : "no");
 	if (!temp) {
 		return (NULL);
@@ -1708,9 +1743,9 @@ gen_mvkey(
 	for (j = 1; j <= n; j++) {
 		for (i = 0; i < n; i++) {
 			BN_set_word(v, i);
-			BN_mod_exp(v, x[j], v, dsa->q, ctx);
-			BN_mod_exp(v, g[i], v, dsa->p, ctx);
-			BN_mod_mul(biga, biga, v, dsa->p, ctx);
+			BN_mod_exp(v, x[j], v, q, ctx);
+			BN_mod_exp(v, gs[i], v, p, ctx);
+			BN_mod_mul(biga, biga, v, p, ctx);
 		}
 	}
 
@@ -1720,13 +1755,13 @@ gen_mvkey(
 	 * mod q. If b is changed, the client keys must be recomputed.
 	 */
 	while (1) {
-		BN_rand(b, BN_num_bits(dsa->q), 0, 0);
-		BN_mod(b, b, dsa->q, ctx);
-		BN_gcd(u, b, dsa->q, ctx);
+		BN_rand(b, BN_num_bits(q), 0, 0);
+		BN_mod(b, b, q, ctx);
+		BN_gcd(u, b, q, ctx);
 		if (BN_is_one(u))
 			break;
 	}
-	BN_mod_inverse(b1, b, dsa->q, ctx);
+	BN_mod_inverse(b1, b, q, ctx);
 
 	/*
 	 * Make private client keys (xbar[j], xhat[j]) for all j. Note
@@ -1740,7 +1775,7 @@ gen_mvkey(
 	for (j = 1; j <= n; j++) {
 		xbar[j] = BN_new(); xhat[j] = BN_new();
 
-		BN_add(w, dsa->q, s1[j]);
+		BN_add(w, q, s1[j]);
 		BN_div(w, u, w, s1[j], ctx);
 		BN_zero(xbar[j]);
 		BN_set_word(v, n);
@@ -1748,12 +1783,12 @@ gen_mvkey(
 			if (i == j)
 				continue;
 
-			BN_mod_exp(u, x[i], v, dsa->q, ctx);
+			BN_mod_exp(u, x[i], v, q, ctx);
 			BN_add(xbar[j], xbar[j], u);
 		}
-		BN_mod_mul(xbar[j], xbar[j], b1, dsa->q, ctx);
-		BN_mod_exp(xhat[j], x[j], v, dsa->q, ctx);
-		BN_mod_mul(xhat[j], xhat[j], w, dsa->q, ctx);
+		BN_mod_mul(xbar[j], xbar[j], b1, q, ctx);
+		BN_mod_exp(xhat[j], x[j], v, q, ctx);
+		BN_mod_mul(xhat[j], xhat[j], w, q, ctx);
 	}
 
 	/*
@@ -1764,7 +1799,7 @@ gen_mvkey(
 	 * additional keys, so we sail on with only token revocations.
 	 */
 	s = BN_new();
-	BN_copy(s, dsa->q);
+	BN_copy(s, q);
 	BN_div(s, u, s, s1[n], ctx);
 
 	/*
@@ -1776,10 +1811,10 @@ gen_mvkey(
 	 * changed.
 	 */
 	bige = BN_new(); gbar = BN_new(); ghat = BN_new();
-	BN_mod_exp(bige, biga, s, dsa->p, ctx);
-	BN_mod_exp(gbar, dsa->g, s, dsa->p, ctx);
-	BN_mod_mul(v, s, b, dsa->q, ctx);
-	BN_mod_exp(ghat, dsa->g, v, dsa->p, ctx);
+	BN_mod_exp(bige, biga, s, p, ctx);
+	BN_mod_exp(gbar, g, s, p, ctx);
+	BN_mod_mul(v, s, b, q, ctx);
+	BN_mod_exp(ghat, g, v, p, ctx);
 	
 	/*
 	 * Notes: We produce the key media in three steps. The first
@@ -1815,8 +1850,9 @@ gen_mvkey(
 	i = 0;
 	str = fheader("MVta", "mvta", groupname);
 	fprintf(stderr, "Generating MV trusted-authority keys\n");
-	BN_copy(dsa->priv_key, biga);
-	BN_copy(dsa->pub_key, b);
+	BN_copy(priv_key, biga);
+	BN_copy(pub_key, b);
+	DSA_set0_key(dsa, pub_key, priv_key);
 	pkey = EVP_PKEY_new();
 	EVP_PKEY_assign_DSA(pkey, dsa);
 	PEM_write_PKCS8PrivateKey(str, pkey, cipher, NULL, 0, NULL,
@@ -1838,11 +1874,8 @@ gen_mvkey(
 	 */
 	fprintf(stderr, "Generating MV server keys\n");
 	dsa2 = DSA_new();
-	dsa2->p = BN_dup(dsa->p);
-	dsa2->q = BN_dup(dsa->q); 
-	dsa2->g = BN_dup(bige); 
-	dsa2->priv_key = BN_dup(gbar);
-	dsa2->pub_key = BN_dup(ghat);
+	DSA_set0_pqg(dsa2, BN_dup(p), BN_dup(q), BN_dup(bige));
+	DSA_set0_key(dsa2, BN_dup(ghat), BN_dup(gbar));
 	pkey1 = EVP_PKEY_new();
 	EVP_PKEY_assign_DSA(pkey1, dsa2);
 	PEM_write_PKCS8PrivateKey(str, pkey1, cipher, NULL, 0, NULL,
@@ -1863,11 +1896,9 @@ gen_mvkey(
 	fprintf(stderr, "Generating %d MV client keys\n", n);
 	for (j = 1; j <= n; j++) {
 		sdsa = DSA_new();
-		sdsa->p = BN_dup(dsa->p);
-		sdsa->q = BN_dup(BN_value_one()); 
-		sdsa->g = BN_dup(BN_value_one()); 
-		sdsa->priv_key = BN_dup(xbar[j]);
-		sdsa->pub_key = BN_dup(xhat[j]);
+		DSA_set0_pqg(sdsa, BN_dup(p), BN_dup(BN_value_one()),
+			BN_dup(BN_value_one()));
+		DSA_set0_key(sdsa, BN_dup(xhat[j]), BN_dup(xbar[j]));
 		pkey1 = EVP_PKEY_new();
 		EVP_PKEY_set1_DSA(pkey1, sdsa);
 		PEM_write_PKCS8PrivateKey(str, pkey1, cipher, NULL, 0,
@@ -1877,17 +1908,15 @@ gen_mvkey(
 			DSA_print_fp(stderr, sdsa, 0);
 
 		/*
-		 * The product gbar^k)^xbar[j] (ghat^k)^xhat[j] and E
+		 * The product (gbar^k)^xbar[j] (ghat^k)^xhat[j] and E
 		 * are inverses of each other. We check that the product
 		 * is one for each client except the ones that have been
 		 * revoked. 
 		 */
-		BN_mod_exp(v, dsa2->priv_key, sdsa->pub_key, dsa->p,
-		    ctx);
-		BN_mod_exp(u, dsa2->pub_key, sdsa->priv_key, dsa->p,
-		    ctx);
-		BN_mod_mul(u, u, v, dsa->p, ctx);
-		BN_mod_mul(u, u, bige, dsa->p, ctx);
+		BN_mod_exp(v, gbar, xhat[j], p, ctx);
+		BN_mod_exp(u, ghat, xbar[j], p, ctx);
+		BN_mod_mul(u, u, v, p, ctx);
+		BN_mod_mul(u, u, bige, p, ctx);
 		if (!BN_is_one(u)) {
 			fprintf(stderr, "Revoke key %d\n", j);
 			continue;
@@ -1900,7 +1929,7 @@ gen_mvkey(
 	 * Free the countries.
 	 */
 	for (i = 0; i <= n; i++) {
-		BN_free(a[i]); BN_free(g[i]);
+		BN_free(a[i]); BN_free(gs[i]);
 	}
 	for (j = 1; j <= n; j++) {
 		BN_free(x[j]); BN_free(xbar[j]); BN_free(xhat[j]);
@@ -1945,7 +1974,7 @@ x509	(
 	 * the version to 3. Set the initial validity to the current
 	 * time and the finalvalidity one year hence.
 	 */
- 	id = OBJ_nid2sn(md->pkey_type);
+ 	id = OBJ_nid2sn(EVP_MD_pkey_type(md));
 	fprintf(stderr, "Generating new certificate %s %s\n", name, id);
 	cert = X509_new();
 	X509_set_version(cert, 2L);
@@ -1953,8 +1982,8 @@ x509	(
 	ASN1_INTEGER_set(serial, (long)epoch + JAN_1970);
 	X509_set_serialNumber(cert, serial);
 	ASN1_INTEGER_free(serial);
-	X509_time_adj(X509_get_notBefore(cert), 0L, &epoch);
-	X509_time_adj(X509_get_notAfter(cert), lifetime * SECSPERDAY, &epoch);
+	X509_time_adj(X509_getm_notBefore(cert), 0L, &epoch);
+	X509_time_adj(X509_getm_notAfter(cert), lifetime * SECSPERDAY, &epoch);
 	subj = X509_get_subject_name(cert);
 	X509_NAME_add_entry_by_txt(subj, "commonName", MBSTRING_ASC,
 	    (u_char *)name, -1, -1, 0);
@@ -2154,6 +2183,56 @@ genkey(
 	fprintf(stderr, "Invalid %s key type %s\n", id, type);
 	return (NULL);
 }
+
+static RSA*
+genRsaKeyPair(
+	int	bits,
+	char *	what
+	)
+{
+	RSA *		rsa = RSA_new();
+	BN_GENCB *	gcb = BN_GENCB_new();
+	BIGNUM *	bne = BN_new();
+	
+	if (gcb)
+		BN_GENCB_set_old(gcb, cb, what);
+	if (bne)
+		BN_set_word(bne, 65537);
+	if (!(rsa && gcb && bne && RSA_generate_key_ex(
+		      rsa, bits, bne, gcb)))
+	{
+		RSA_free(rsa);
+		rsa = NULL;
+	}
+	BN_GENCB_free(gcb);
+	BN_free(bne);
+	return rsa;
+}
+
+static DSA*
+genDsaParams(
+	int	bits,
+	char *	what
+	)
+{
+	
+	DSA *		dsa = DSA_new();
+	BN_GENCB *	gcb = BN_GENCB_new();
+	u_char		seed[20];
+	
+	if (gcb)
+		BN_GENCB_set_old(gcb, cb, what);
+	RAND_bytes(seed, sizeof(seed));
+	if (!(dsa && gcb && DSA_generate_parameters_ex(
+		      dsa, bits, seed, sizeof(seed), NULL, NULL, gcb)))
+	{
+		DSA_free(dsa);
+		dsa = NULL;
+	}
+	BN_GENCB_free(gcb);
+	return dsa;
+}
+
 #endif	/* AUTOKEY */
 
 

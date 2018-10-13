@@ -31,7 +31,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -51,13 +51,12 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,25 +86,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*-
- * Copyright (c) 2007-2010 Damien Bergamini <damien.bergamini@free.fr>
- *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -155,16 +140,27 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_debug.h>
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_binding.h>
+#include <dev/iwm/if_iwm_sf.h>
 
 /*
  * BEGIN iwlwifi/mvm/binding.c
  */
 
-int
-iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_node *in, uint32_t action)
+struct iwm_mvm_iface_iterator_data {
+	int idx;
+
+	struct iwm_mvm_phy_ctxt *phyctxt;
+
+	uint16_t ids[IWM_MAX_MACS_IN_BINDING];
+	int16_t colors[IWM_MAX_MACS_IN_BINDING];
+};
+
+static int
+iwm_mvm_binding_cmd(struct iwm_softc *sc, uint32_t action,
+	struct iwm_mvm_iface_iterator_data *data)
 {
 	struct iwm_binding_cmd cmd;
-	struct iwm_mvm_phy_ctxt *phyctxt = in->in_phyctxt;
+	struct iwm_mvm_phy_ctxt *phyctxt = data->phyctxt;
 	int i, ret;
 	uint32_t status;
 
@@ -175,41 +171,84 @@ iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_node *in, uint32_t action)
 	cmd.action = htole32(action);
 	cmd.phy = htole32(IWM_FW_CMD_ID_AND_COLOR(phyctxt->id, phyctxt->color));
 
-	cmd.macs[0] = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	    IWM_DEFAULT_COLOR));
-	/* We use MACID 0 here.. */
-	for (i = 1; i < IWM_MAX_MACS_IN_BINDING; i++)
+	for (i = 0; i < IWM_MAX_MACS_IN_BINDING; i++)
 		cmd.macs[i] = htole32(IWM_FW_CTXT_INVALID);
+	for (i = 0; i < data->idx; i++)
+		cmd.macs[i] = htole32(IWM_FW_CMD_ID_AND_COLOR(data->ids[i],
+							      data->colors[i]));
 
 	status = 0;
 	ret = iwm_mvm_send_cmd_pdu_status(sc, IWM_BINDING_CONTEXT_CMD,
 	    sizeof(cmd), &cmd, &status);
 	if (ret) {
-		IWM_DPRINTF(sc, IWM_DEBUG_CMD | IWM_DEBUG_RESET,
-		    "%s: Failed to send binding (action:%d): %d\n",
-		    __func__, action, ret);
+		device_printf(sc->sc_dev,
+		    "Failed to send binding (action:%d): %d\n", action, ret);
 		return ret;
 	}
 
 	if (status) {
-		IWM_DPRINTF(sc, IWM_DEBUG_CMD | IWM_DEBUG_RESET,
-		    "%s: Binding command failed: %u\n",
-		    __func__,
-		    status);
+		device_printf(sc->sc_dev,
+		    "Binding command failed: %u\n", status);
 		ret = EIO;
 	}
 
 	return ret;
 }
 
-int
-iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_node *in)
+static int
+iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_vap *ivp,
+	struct iwm_mvm_phy_ctxt *phyctxt, boolean_t add)
 {
-	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_MODIFY);
+	struct iwm_mvm_iface_iterator_data data = {
+		.phyctxt = phyctxt,
+	};
+	uint32_t action;
+
+	if (add)
+		action = IWM_FW_CTXT_ACTION_ADD;
+	else
+		action = IWM_FW_CTXT_ACTION_REMOVE;
+
+	if (add) {
+		data.ids[0] = ivp->id;
+		data.colors[0] = ivp->color;
+		data.idx++;
+	}
+
+	return iwm_mvm_binding_cmd(sc, action, &data);
 }
 
 int
-iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
-	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_ADD);
+	if (!ivp->phy_ctxt)
+		return EINVAL;
+
+	/*
+	 * Update SF - Disable if needed. if this fails, SF might still be on
+	 * while many macs are bound, which is forbidden - so fail the binding.
+	 */
+	if (iwm_mvm_sf_update(sc, &ivp->iv_vap, FALSE))
+		return EINVAL;
+
+	return iwm_mvm_binding_update(sc, ivp, ivp->phy_ctxt, TRUE);
+}
+
+int
+iwm_mvm_binding_remove_vif(struct iwm_softc *sc, struct iwm_vap *ivp)
+{
+	int ret;
+
+	if (!ivp->phy_ctxt)
+		return EINVAL;
+
+	ret = iwm_mvm_binding_update(sc, ivp, ivp->phy_ctxt, FALSE);
+
+	if (!ret) {
+		if (iwm_mvm_sf_update(sc, &ivp->iv_vap, TRUE))
+			device_printf(sc->sc_dev,
+			    "Failed to update SF state\n");
+	}
+
+	return ret;
 }

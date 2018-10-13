@@ -1840,9 +1840,9 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 	len = strlen(p);
 
 	/*
-	 * Add "./" prefiex.
+	 * Add "./" prefix.
 	 * NOTE: If the pathname does not have a path separator, we have
-	 * to add "./" to the head of the pathename because mtree reader
+	 * to add "./" to the head of the pathname because mtree reader
 	 * will suppose that it is v1(a.k.a classic) mtree format and
 	 * change the directory unexpectedly and so it will make a wrong
 	 * path.

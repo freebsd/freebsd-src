@@ -9,12 +9,9 @@
 #include <rpc/rpc.h>
 #include <rpc/rpcb_prot.h>
 #include <rpc/pmap_prot.h>
-#include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libutil.h>
 #include <syslog.h>
 #include <netdb.h>
 

@@ -44,8 +44,12 @@
 #define	CLK_NODE_CANNOT_STOP	0x00000004	/* Clock cannot be disabled */
 
 /* Flags passed to clk_set_freq() and clknode_set_freq(). */
+#define	CLK_SET_ROUND(x)	((x) & (CLK_SET_ROUND_UP | CLK_SET_ROUND_DOWN))
+#define	CLK_SET_ROUND_EXACT	0
 #define	CLK_SET_ROUND_UP	0x00000001
 #define	CLK_SET_ROUND_DOWN	0x00000002
+#define	CLK_SET_ROUND_ANY	(CLK_SET_ROUND_UP | CLK_SET_ROUND_DOWN)
+
 #define	CLK_SET_USER_MASK	0x0000FFFF
 #define	CLK_SET_DRYRUN		0x00010000
 
@@ -129,8 +133,11 @@ int clk_set_parent_by_clk(clk_t clk, clk_t parent);
 const char *clk_get_name(clk_t clk);
 
 #ifdef FDT
-int clk_get_by_ofw_index(device_t dev, int idx, clk_t *clk);
-int clk_get_by_ofw_name(device_t dev, const char *name, clk_t *clk);
+int clk_set_assigned(device_t dev, phandle_t node);
+int clk_get_by_ofw_index(device_t dev, phandle_t node, int idx, clk_t *clk);
+int clk_get_by_ofw_index_prop(device_t dev, phandle_t cnode, const char *prop, int idx, clk_t *clk);
+int clk_get_by_ofw_name(device_t dev, phandle_t node, const char *name,
+     clk_t *clk);
 int clk_parse_ofw_out_names(device_t dev, phandle_t node,
     const char ***out_names, uint32_t **indices);
 int clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name);

@@ -46,6 +46,8 @@ struct armv7_event_code_map {
 	uint8_t		pe_code;
 };
 
+#define	PMC_EV_CPU_CYCLES	0xFF
+
 /*
  * Per-processor information.
  */
@@ -171,10 +173,11 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 	pm  = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
 
-	if (pm->pm_md.pm_armv7.pm_armv7_evsel == 0xFF)
-		tmp = cp15_pmccntr_get();
+	if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
+		tmp = (uint32_t)cp15_pmccntr_get();
 	else
 		tmp = armv7_pmcn_read(ri);
+	tmp += 0x100000000llu * pm->pm_overflowcnt;
 
 	PMCDBG2(MDP, REA, 2, "armv7-read id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -202,7 +205,7 @@ armv7_write_pmc(int cpu, int ri, pmc_value_t v)
 	
 	PMCDBG3(MDP, WRI, 1, "armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
-	if (pm->pm_md.pm_armv7.pm_armv7_evsel == 0xFF)
+	if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
 		cp15_pmccntr_set(v);
 	else
 		armv7_pmcn_write(ri, v);
@@ -244,11 +247,16 @@ armv7_start_pmc(int cpu, int ri)
 	pm     = phw->phw_pmc;
 	config = pm->pm_md.pm_armv7.pm_armv7_evsel;
 
+	pm->pm_overflowcnt = 0;
+
 	/*
 	 * Configure the event selection.
 	 */
-	cp15_pmselr_set(ri);
-	cp15_pmxevtyper_set(config);
+	if (config != PMC_EV_CPU_CYCLES) {
+		cp15_pmselr_set(ri);
+		cp15_pmxevtyper_set(config);
+	} else
+		ri = 31;
 
 	/*
 	 * Enable the PMC.
@@ -264,9 +272,13 @@ armv7_stop_pmc(int cpu, int ri)
 {
 	struct pmc_hw *phw;
 	struct pmc *pm;
+	uint32_t config;
 
 	phw    = &armv7_pcpu[cpu]->pc_armv7pmcs[ri];
 	pm     = phw->phw_pmc;
+	config = pm->pm_md.pm_armv7.pm_armv7_evsel;
+	if (config == PMC_EV_CPU_CYCLES)
+		ri = 31;
 
 	/*
 	 * Disable the PMCs.
@@ -295,29 +307,28 @@ armv7_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-armv7_intr(int cpu, struct trapframe *tf)
+armv7_intr(struct trapframe *tf)
 {
 	struct armv7_cpu *pc;
 	int retval, ri;
 	struct pmc *pm;
 	int error;
-	int reg;
+	int reg, cpu;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] CPU %d out of range", __LINE__, cpu));
 
 	retval = 0;
+	cpu = curcpu;
 	pc = armv7_pcpu[cpu];
 
 	for (ri = 0; ri < armv7_npmcs; ri++) {
 		pm = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
 		if (pm == NULL)
 			continue;
-		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-			continue;
 
 		/* Check if counter has overflowed */
-		if (pm->pm_md.pm_armv7.pm_armv7_evsel == 0xFF)
+		if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
 			reg = (1 << 31);
 		else
 			reg = (1 << ri);
@@ -330,11 +341,15 @@ armv7_intr(int cpu, struct trapframe *tf)
 		cp15_pmovsr_set(reg);
 
 		retval = 1; /* Found an interrupting PMC. */
+
+		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+			pm->pm_overflowcnt += 1;
+			continue;
+		}
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error)
 			armv7_stop_pmc(cpu, ri);
 
@@ -430,6 +445,11 @@ armv7_pcpu_init(struct pmc_mdep *md, int cpu)
 		pc->pc_hwpmcs[i + first_ri] = phw;
 	}
 
+	pmnc = 0xffffffff;
+	cp15_pmcnten_clr(pmnc);
+	cp15_pminten_clr(pmnc);
+	cp15_pmovsr_set(pmnc);
+
 	/* Enable unit */
 	pmnc = cp15_pmcr_get();
 	pmnc |= ARMV7_PMNC_ENABLE;
@@ -446,6 +466,11 @@ armv7_pcpu_fini(struct pmc_mdep *md, int cpu)
 	pmnc = cp15_pmcr_get();
 	pmnc &= ~ARMV7_PMNC_ENABLE;
 	cp15_pmcr_set(pmnc);
+
+	pmnc = 0xffffffff;
+	cp15_pmcnten_clr(pmnc);
+	cp15_pminten_clr(pmnc);
+	cp15_pmovsr_set(pmnc);
 
 	return 0;
 }

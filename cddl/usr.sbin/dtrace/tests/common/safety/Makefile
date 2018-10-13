@@ -19,6 +19,8 @@ ${PACKAGE}FILES= \
      tst.gid.d  \
      tst.hton.d  \
      tst.index.d  \
+     tst.jailname.d  \
+     tst.jid.d  \
      tst.msgdsize.d  \
      tst.msgsize.d  \
      tst.null.d  \
@@ -52,5 +54,7 @@ TESTEXES= \
 CFILES= \
 
 
+
+TEST_METADATA.t_dtrace_contrib+=	required_memory="4g"
 
 .include "../../dtrace.test.mk"

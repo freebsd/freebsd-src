@@ -5,7 +5,7 @@ The current maintainers:
     Denis Ovsienko                <denis at ovsienko dot info>
     Fulvio Risso                  <risso at polito dot it>
     Guy Harris                    <guy at alum dot mit dot edu>
-    Hannes Gredler                <hannes at juniper dot net>
+    Hannes Gredler                <hannes at gredler dot at>
     Michael Richardson            <mcr at sandelman dot ottawa dot on dot ca>
     Francois-Xavier Le Bail       <fx dot lebail at yahoo dot com>
 
@@ -20,11 +20,13 @@ Additional people who have contributed patches:
     Andrea Bittau                 <a dot bittau at cs dot ucl dot ac dot uk>
     Andrew Brown                  <atatat at atatdot dot net>
     Andrew Church                 <andrew at users dot sourceforge dot net>
+    Andrew Darqui                 <andrew dot darqui at gmail dot com>
     Andrew Hintz                  <adhintz at users dot sourceforge dot net>
     Andrew Nording                <andrew at nording dot ru>
     Andrew Tridgell               <tridge at linuxcare dot com>
     Andy Heffernan                <ahh at juniper dot net>
     Anton Bernal                  <anton at juniper dot net>
+    Antonin Décimo                <antonin dot decimo at gmail dot com>
     Arkadiusz Miskiewicz          <misiek at pld dot org dot pl>
     Armando L. Caro Jr.           <acaro at mail dot eecis dot udel dot edu>
     Arnaldo Carvalho de Melo      <acme at ghostprotocols dot net>
@@ -33,9 +35,11 @@ Additional people who have contributed patches:
     Ben Byer                      <bushing at sourceforge dot net>
     Ben Smithurst                 <ben at scientia dot demon dot co dot uk>
     Bert Vermeulen                <bert at biot dot com>
+    Bill Parker                   <wp02855 at gmail dot com>
     Bjoern A. Zeeb                <bzeeb at Zabbadoz dot NeT>
     Bram                          <tcpdump at mail dot wizbit dot be>
     Brent L. Bates                <blbates at vigyan dot com>
+    Brian Carpenter               <brian dot carpenter at gmail dot com>
     Brian Ginsbach                <ginsbach at cray dot com>
     Bruce M. Simpson              <bms at spc dot org>
     Carles Kishimoto Bisbe        <ckishimo at ac dot upc dot es>
@@ -51,6 +55,7 @@ Additional people who have contributed patches:
     Craig Rodrigues               <rodrigc at mediaone dot net>
     Crist J. Clark                <cjclark at alum dot mit dot edu>
     Daniel Hagerty                <hag at ai dot mit dot edu>
+    Daniel Lee                    <Longinus00 at gmail dot com>
     Darren Reed                   <darrenr at reed dot wattle dot id dot au>
     David Binderman               <d dot binderman at virgin dot net>
     David Horn                    <dhorn2000 at gmail dot com>
@@ -82,6 +87,7 @@ Additional people who have contributed patches:
     Greg Stark                    <gsstark at mit dot edu>
     Hank Leininger                <tcpdump-workers at progressive-comp dot com>
     Hannes Viertel                <hviertel at juniper dot net>
+    Hanno Böck                    <hanno at hboeck dot de>
     Harry Raaymakers              <harryr at connect dot com dot au>
     Heinz-Ado Arnolds             <Ado dot Arnolds at dhm-systems dot de>
     Hendrik Scholz                <hendrik at scholz dot net>
@@ -95,6 +101,7 @@ Additional people who have contributed patches:
     Jason R. Thorpe               <thorpej at netbsd dot org>
     Jefferson Ogata               <jogata at nodc dot noaa dot gov>
     Jeffrey Hutzelman             <jhutz at cmu dot edu>
+    Jean-Raphaël Gaglione         <jr dot gaglione at yahoo dot fr>
     Jesper Peterson               <jesper at endace dot com>
     Jesse Gross                   <jesse at nicira dot com>
     Jim Hutchins                  <jim at ca dot sandia dot gov>
@@ -107,6 +114,7 @@ Additional people who have contributed patches:
     Juliusz Chroboczek            <jch at pps dot jussieu dot fr>
     Kaarthik Sivakumar            <kaarthik at torrentnet dot com>
     Kaladhar Musunuru             <kaladharm at sourceforge dot net>
+    Kamil Frankowicz              <kontakt at frankowicz dot me>
     Karl Norby                    <karl-norby at sourceforge dot net>
     Kazushi Sugyo                 <sugyo at pb dot jp dot nec dot com>
     Kelly Carmichael              <kcarmich at ipapp dot com>
@@ -119,7 +127,6 @@ Additional people who have contributed patches:
     Larry Lile                    <lile at stdio dot com>
     Lennert Buytenhek             <buytenh at gnu dot org>
     Loganaden Velvindron          <logan at elandsys dot com>
-    Longinus00                    <Longinus00 at gmail dot com>
     Loris Degioanni               <loris at netgroup-serv dot polito dot it>
     Love Hörnquist-Åstrand        <lha at stacken dot kth dot se>
     Lucas C. Villa Real           <lucasvr at us dot ibm dot com>
@@ -134,6 +141,7 @@ Additional people who have contributed patches:
     Markus Schöpflin              <schoepflin at sourceforge dot net>
     Marshall Rose                 <mrose at dbc dot mtview dot ca dot us>
     Martin Husemann               <martin at netbsd dot org>
+    Matthieu Boutier              <boutier at pps dot univ-paris-diderot dot fr>
     Max Laier                     <max at love2party dot net>
     Michael A. Meffie III         <meffie at sourceforge dot net>
     Michael Madore                <mmadore at turbolinux dot com>
@@ -161,6 +169,7 @@ Additional people who have contributed patches:
     Paolo Abeni                   <paolo dot abeni at email dot it>
     Pascal Hennequin              <pascal dot hennequin at int-evry dot fr>
     Pasvorn Boonmark              <boonmark at juniper dot net>
+    Patrik Lundquist              <patrik dot lundquist at gmail dot com>
     Paul Ferrell                  <pflarr at sourceforge dot net>
     Paul Mundt                    <lethal at linux-sh dot org>
     Paul S. Traina                <pst at freebsd dot org>

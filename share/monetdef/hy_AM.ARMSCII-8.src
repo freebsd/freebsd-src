@@ -13,10 +13,10 @@ AMD
 ,
 #
 # mon_thousands_sep
-.
+ 
 #
 # mon_grouping
--1
+3
 #
 # positive_sign
 

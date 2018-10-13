@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2011
+.Dd Mar 13, 2017
 .Dt TEKEN 3
 .Os
 .Sh NAME
@@ -43,23 +43,25 @@
 .Ft void
 .Fn teken_set_winsize "teken_t *t" "const teken_pos_t *size"
 .Ft const teken_pos_t *
-.Fn teken_get_cursor "teken_t *t"
+.Fn teken_get_cursor "const teken_t *t"
 .Ft void
 .Fn teken_set_cursor "teken_t *t" "const teken_pos_t *pos"
 .Ft const teken_attr_t *
-.Fn teken_get_curattr "teken_t *t"
+.Fn teken_get_curattr "const teken_t *t"
 .Ft void
 .Fn teken_set_curattr "teken_t *t" "const teken_attr_t *attr"
 .Ft const teken_attr_t *
-.Fn teken_get_defattr "teken_t *t"
+.Fn teken_get_defattr "const teken_t *t"
 .Ft void
 .Fn teken_set_defattr "teken_t *t" "const teken_attr_t *attr"
 .Ft const char *
-.Fn teken_get_sequence "teken_t *t" "unsigned int id"
+.Fn teken_get_sequence "const teken_t *t" "unsigned int id"
+.Ft teken_color_t
+.Fn teken_256to16 "teken_color_t color"
 .Ft teken_color_t
 .Fn teken_256to8 "teken_color_t color"
 .Ft void
-.Fn teken_get_defattr_cons25 "teken_t *t" "int *fg" "int *bg"
+.Fn teken_get_defattr_cons25 "const teken_t *t" "int *fg" "int *bg"
 .Ft void
 .Fn teken_set_8bit "teken_t *t"
 .Ft void
@@ -163,10 +165,22 @@ This library also provides a set of functions that shouldn't be used in
 any modern applications.
 .Pp
 The
+.Fn teken_256to16
+function converts an xterm-256 256-color code to an xterm 16-color code
+whose color with default palettes is as similar as possible (not very
+similar).
+The lower 3 bits of the result are the ANSI color and the next lowest
+bit is brightness.
+Other layers (hardare and software) that only support 16 colors can use
+this to avoid knowing the details of 256-color codes.
+.Pp
+The
 .Fn teken_256to8
-function converts a color code to one of the 8 primary colors, allowing
-the terminal to be rendered on graphics hardware that only supports 8 or
-16 colors (e.g. VGA).
+function is similar to
+.Fn teken_256to16
+except it converts to an ANSI 8-color code.
+This is more accurate than discarding the brigtness bit in the result of
+.Fn teken_256to16 .
 .Pp
 The
 .Fn teken_get_defattr_cons25

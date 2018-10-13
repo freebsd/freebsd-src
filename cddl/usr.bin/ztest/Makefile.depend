@@ -10,7 +10,6 @@ DIRDEPS = \
 	cddl/lib/libzfs_core \
 	cddl/lib/libzpool \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \

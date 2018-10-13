@@ -46,13 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/regulator/regulator.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "phy_if.h"
+#include "phynode_if.h"
 
 #define	CTRL_ICUSB_CTRL			0x15c
 #define	  ICUSB_CTR_IC_ENB1			(1 << 3)
@@ -299,6 +298,16 @@ static struct ofw_compat_data compat_data[] = {
 	{"nvidia,tegra30-usb-phy",	1},
 	{NULL,				0},
 };
+
+ /* Phy controller class and methods. */
+static int usbphy_phy_enable(struct phynode *phy, bool enable);
+static phynode_method_t usbphy_phynode_methods[] = {
+	PHYNODEMETHOD(phynode_enable, usbphy_phy_enable),
+
+	PHYNODEMETHOD_END
+};
+DEFINE_CLASS_1(usbphy_phynode, usbphy_phynode_class, usbphy_phynode_methods,
+    0, phynode_class);
 
 #define	RD4(sc, offs)							\
 	 bus_read_4(sc->mem_res, offs)
@@ -555,11 +564,13 @@ usbphy_utmi_disable(struct usbphy_softc *sc)
 }
 
 static int
-usbphy_phy_enable(device_t dev, int id, bool enable)
+usbphy_phy_enable(struct phynode *phy, bool enable)
 {
+	device_t dev;
 	struct usbphy_softc *sc;
 	int rv = 0;
 
+	dev = phynode_get_device(phy);
 	sc = device_get_softc(dev);
 
 	if (sc->ifc_type != USB_IFC_TYPE_UTMI) {
@@ -582,7 +593,7 @@ usb_get_ifc_mode(device_t dev, phandle_t node, char *name)
 	int rv;
 	enum usb_ifc_type ret;
 
-	rv = OF_getprop_alloc(node, name, 1, (void **)&tmpstr);
+	rv = OF_getprop_alloc(node, name, (void **)&tmpstr);
 	if (rv <= 0)
 		return (USB_IFC_TYPE_UNKNOWN);
 
@@ -604,7 +615,7 @@ usb_get_dr_mode(device_t dev, phandle_t node, char *name)
 	int rv;
 	enum usb_dr_mode ret;
 
-	rv = OF_getprop_alloc(node, name, 1, (void **)&tmpstr);
+	rv = OF_getprop_alloc(node, name, (void **)&tmpstr);
 	if (rv <= 0)
 		return (USB_DR_MODE_UNKNOWN);
 
@@ -701,9 +712,11 @@ usbphy_probe(device_t dev)
 static int
 usbphy_attach(device_t dev)
 {
-	struct usbphy_softc * sc;
+	struct usbphy_softc *sc;
 	int rid, rv;
 	phandle_t node;
+	struct phynode *phynode;
+	struct phynode_init_def phy_init;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -726,28 +739,28 @@ usbphy_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	rv = hwreset_get_by_ofw_name(sc->dev, "usb", &sc->reset_usb);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "usb", &sc->reset_usb);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'usb' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "utmi-pads", &sc->reset_pads);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "utmi-pads", &sc->reset_pads);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'utmi-pads' reset\n");
 		return (ENXIO);
 	}
 
-	rv = clk_get_by_ofw_name(sc->dev, "reg", &sc->clk_reg);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "reg", &sc->clk_reg);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'reg' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "pll_u", &sc->clk_pllu);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pll_u", &sc->clk_pllu);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll_u' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "utmi-pads", &sc->clk_pads);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "utmi-pads", &sc->clk_pads);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'utmi-pads' clock\n");
 		return (ENXIO);
@@ -788,7 +801,7 @@ usbphy_attach(device_t dev)
 		return rv;
 
 	if (OF_hasprop(node, "vbus-supply")) {
-		rv = regulator_get_by_ofw_property(sc->dev, "vbus-supply",
+		rv = regulator_get_by_ofw_property(sc->dev, 0, "vbus-supply",
 		    &sc->supply_vbus);
 		if (rv != 0) {
 			device_printf(sc->dev,
@@ -803,7 +816,20 @@ usbphy_attach(device_t dev)
 		}
 	}
 
-	phy_register_provider(dev);
+	/* Create and register phy. */
+	bzero(&phy_init, sizeof(phy_init));
+	phy_init.id = 1;
+	phy_init.ofw_node = node;
+	phynode = phynode_create(dev, &usbphy_phynode_class, &phy_init);
+	if (phynode == NULL) {
+		device_printf(sc->dev, "Cannot create phy\n");
+		return (ENXIO);
+	}
+	if (phynode_register(phynode) == NULL) {
+		device_printf(sc->dev, "Cannot create phy\n");
+		return (ENXIO);
+	}
+
 	return (0);
 }
 
@@ -821,19 +847,11 @@ static device_method_t tegra_usbphy_methods[] = {
 	DEVMETHOD(device_attach,	usbphy_attach),
 	DEVMETHOD(device_detach,	usbphy_detach),
 
-	/* phy interface */
-	DEVMETHOD(phy_enable,		usbphy_phy_enable),
-
 	DEVMETHOD_END
 };
 
-static driver_t tegra_usbphy_driver = {
-	"tegra_usbphy",
-	tegra_usbphy_methods,
-	sizeof(struct usbphy_softc),
-};
-
 static devclass_t tegra_usbphy_devclass;
-
+static DEFINE_CLASS_0(usbphy, tegra_usbphy_driver, tegra_usbphy_methods,
+    sizeof(struct usbphy_softc));
 EARLY_DRIVER_MODULE(tegra_usbphy, simplebus, tegra_usbphy_driver,
-    tegra_usbphy_devclass, 0, 0, 79);
+    tegra_usbphy_devclass, NULL, NULL, 79);

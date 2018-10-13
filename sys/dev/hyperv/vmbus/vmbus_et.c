@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015,2016 Microsoft Corp.
+ * Copyright (c) 2015,2016-2017 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
-#include <sys/time.h>
+#include <sys/systm.h>
 #include <sys/timeet.h>
 
+#include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
@@ -48,16 +48,40 @@ __FBSDID("$FreeBSD$");
 	 MSR_HV_STIMER_CFG_SINT_MASK)
 
 /*
- * Two additionally required features:
+ * Additionally required feature:
  * - SynIC is needed for interrupt generation.
- * - Time reference counter is needed to set ABS reference count to
- *   STIMER0_COUNT.
  */
-#define CPUID_HV_ET_MASK		(CPUID_HV_MSR_TIME_REFCNT |	\
-					 CPUID_HV_MSR_SYNIC |		\
+#define CPUID_HV_ET_MASK		(CPUID_HV_MSR_SYNIC |		\
 					 CPUID_HV_MSR_SYNTIMER)
 
+static void			vmbus_et_identify(driver_t *, device_t);
+static int			vmbus_et_probe(device_t);
+static int			vmbus_et_attach(device_t);
+static int			vmbus_et_detach(device_t);
+static int			vmbus_et_start(struct eventtimer *, sbintime_t,
+				    sbintime_t);
+
 static struct eventtimer	vmbus_et;
+
+static device_method_t vmbus_et_methods[] = {
+	DEVMETHOD(device_identify,	vmbus_et_identify),
+	DEVMETHOD(device_probe,		vmbus_et_probe),
+	DEVMETHOD(device_attach,	vmbus_et_attach),
+	DEVMETHOD(device_detach,	vmbus_et_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_et_driver = {
+	VMBUS_ET_NAME,
+	vmbus_et_methods,
+	0
+};
+
+static devclass_t vmbus_et_devclass;
+
+DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
+MODULE_VERSION(hv_et, 1);
 
 static __inline uint64_t
 hyperv_sbintime2count(sbintime_t time)
@@ -75,7 +99,7 @@ vmbus_et_start(struct eventtimer *et __unused, sbintime_t first,
 {
 	uint64_t current;
 
-	current = rdmsr(MSR_HV_TIME_REF_COUNT);
+	current = hyperv_tc64();
 	current += hyperv_sbintime2count(first);
 	wrmsr(MSR_HV_STIMER0_COUNT, current);
 
@@ -104,7 +128,8 @@ vmbus_et_identify(driver_t *driver, device_t parent)
 {
 	if (device_get_unit(parent) != 0 ||
 	    device_find_child(parent, VMBUS_ET_NAME, -1) != NULL ||
-	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK)
+	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK ||
+	    hyperv_tc64 == NULL)
 		return;
 
 	device_add_child(parent, VMBUS_ET_NAME, -1);
@@ -160,9 +185,8 @@ vmbus_et_attach(device_t dev)
 	vmbus_et.et_start = vmbus_et_start;
 
 	/*
-	 * Delay a bit to make sure that MSR_HV_TIME_REF_COUNT will
-	 * not return 0, since writing 0 to STIMER0_COUNT will disable
-	 * STIMER0.
+	 * Delay a bit to make sure that hyperv_tc64 will not return 0,
+	 * since writing 0 to STIMER0_COUNT will disable STIMER0.
 	 */
 	DELAY(100);
 	smp_rendezvous(NULL, vmbus_et_config, NULL, NULL);
@@ -175,22 +199,3 @@ vmbus_et_detach(device_t dev)
 {
 	return (et_deregister(&vmbus_et));
 }
-
-static device_method_t vmbus_et_methods[] = {
-	DEVMETHOD(device_identify,	vmbus_et_identify),
-	DEVMETHOD(device_probe,		vmbus_et_probe),
-	DEVMETHOD(device_attach,	vmbus_et_attach),
-	DEVMETHOD(device_detach,	vmbus_et_detach),
-
-	DEVMETHOD_END
-};
-
-static driver_t vmbus_et_driver = {
-	VMBUS_ET_NAME,
-	vmbus_et_methods,
-	0
-};
-
-static devclass_t vmbus_et_devclass;
-DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
-MODULE_VERSION(hv_et, 1);

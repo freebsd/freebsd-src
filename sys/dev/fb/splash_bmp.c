@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Michael Smith <msmith@freebsd.org>
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@freebsd.org>
  * All rights reserved.
@@ -36,11 +38,9 @@
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
-#ifndef PC98
 #include <dev/fb/vgareg.h>
 
 #include <isa/isareg.h>
-#endif
 
 #define FADE_TIMEOUT	15	/* sec */
 #define FADE_LEVELS	10
@@ -65,15 +65,6 @@ bmp_start(video_adapter_t *adp)
 {
     /* currently only 256-color modes are supported XXX */
     static int		modes[] = {
-#ifdef PC98
-    			/*
-			 * As 640x400 doesn't generally look great,
-			 * it's least preferred here.
-			 */
-			M_PC98_PEGC640x400,
-			M_PC98_PEGC640x480,
-			M_PC98_EGC640x400,
-#else
 			M_VESA_CG640x480,
 			M_VESA_CG800x600,
 			M_VESA_CG1024x768,
@@ -83,7 +74,6 @@ bmp_start(video_adapter_t *adp)
 			 * it's least preferred here.
 			 */
 			M_VGA_CG320,
-#endif		
 			-1,
     };
     video_info_t 	info;
@@ -239,9 +229,6 @@ typedef struct
     u_char	*vidmem;		/* video memory allocated for drawing */
     video_adapter_t *adp;
     int		bank;
-#ifdef PC98
-    u_char	prev_val;
-#endif
 } BMP_INFO;
 
 static BMP_INFO bmp_info;
@@ -273,25 +260,6 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
     x += (info->swidth - info->width) / 2;
 
     switch(info->sdepth) {
-#ifdef PC98
-    case 4:
-	sofs += (x >> 3);
-	bofs = x & 0x7;				/* offset within byte */
-
-	outb(0x7c, 0x80 | 0x40);	/* GRCG on & RMW mode */
-	if (val != info->prev_val) {
-	    outb(0x7e, (val & 1) ? 0xff : 0);	/* tile B */
-	    outb(0x7e, (val & 2) ? 0xff : 0);	/* tile R */
-	    outb(0x7e, (val & 4) ? 0xff : 0);	/* tile G */
-	    outb(0x7e, (val & 8) ? 0xff : 0);	/* tile I */
-
-	    info->prev_val = val;
-	}
-
-	*(info->vidmem+sofs) = (0x80 >> bofs);	/* write new bit */
-	outb(0x7c, 0);		/* GRCG off */
-	break;
-#else
     case 4:
     case 1:
 	/* EGA/VGA planar modes */
@@ -307,7 +275,6 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 	outw(GDCIDX, (val << 8) | 0x00);	/* set/reset */
 	*(info->vidmem + sofs) ^= 0xff;		/* read-modify-write */
 	break;
-#endif
 
     case 8:
 	sofs += x;
@@ -589,9 +556,7 @@ bmp_Draw(video_adapter_t *adp)
 {
     int		line;
 #if 0
-#ifndef PC98
     int		i;
-#endif
 #endif
 
     if (bmp_info.data == NULL) {	/* init failed, do nothing */
@@ -607,15 +572,11 @@ bmp_Draw(video_adapter_t *adp)
 
     /* initialise the info structure for drawing */
     bmp_info.index = bmp_info.data;
-#ifdef PC98
-    bmp_info.prev_val = 255;
-#endif
     
     /* set the palette for our image */
     vidd_load_palette(adp, (u_char *)&bmp_info.palette);
 
 #if 0
-#ifndef PC98
     /* XXX: this is ugly, but necessary for EGA/VGA 1bpp/4bpp modes */
     if ((adp->va_type == KD_EGA) || (adp->va_type == KD_VGA)) {
 	inb(adp->va_crtc_addr + 6);		/* reset flip-flop */
@@ -633,7 +594,6 @@ bmp_Draw(video_adapter_t *adp)
 	if (bmp_info.sdepth == 1)
 	    outw(TSIDX, 0x0102);		/* unmask plane #0 */
     }
-#endif
 #endif
 
     for (line = 0; (line < bmp_info.height) && bmp_info.index; line++) {

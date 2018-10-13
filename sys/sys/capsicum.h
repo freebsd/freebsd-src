@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2010, 2015 Robert N. M. Watson
  * Copyright (c) 2012 FreeBSD Foundation
  * All rights reserved.
@@ -336,12 +338,115 @@ bool cap_rights_is_valid(const cap_rights_t *rights);
 cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
 cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
 bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
+void __cap_rights_sysinit(void *arg);
 
 __END_DECLS
+struct cap_rights_init_args {
+	cap_rights_t *cria_rights;
+	uint64_t cria_value1;
+	uint64_t cria_value2;
+	uint64_t cria_value3;
+	uint64_t cria_value4;
+	uint64_t cria_value5;
+};
+
+#define CAP_RIGHTS_SYSINIT0(name, rights)		   \
+		static struct cap_rights_init_args name##_args = { \
+			&(rights)										\
+		};																\
+		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT+1, SI_ORDER_ANY, \
+		    __cap_rights_sysinit, &name##_args);
+
+#define CAP_RIGHTS_SYSINIT1(name, rights, value1)		   \
+		static struct cap_rights_init_args name##_args = { \
+			&(rights),										\
+			(value1)										\
+		};																\
+		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT+1, SI_ORDER_ANY, \
+		    __cap_rights_sysinit, &name##_args);
+
+#define CAP_RIGHTS_SYSINIT2(name, rights, value1, value2)		   \
+		static struct cap_rights_init_args name##_args = { \
+			&(rights),										\
+			(value1),										\
+			(value2)													\
+		};																\
+		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, \
+		    __cap_rights_sysinit, &name##_args);
+
+#define CAP_RIGHTS_SYSINIT3(name, rights, value1, value2, value3) \
+		static struct cap_rights_init_args name##_args = { \
+			&(rights),										\
+			(value1),										\
+			(value2),										\
+			(value3)													\
+		};																\
+		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, \
+		    __cap_rights_sysinit, &name##_args);
+
+#define CAP_RIGHTS_SYSINIT4(name, rights, value1, value2, value3, value4)	\
+		static struct cap_rights_init_args name##_args = { \
+			&(rights),										\
+			(value1),										\
+			(value2),										\
+			(value3),										\
+			(value4)													\
+		};																\
+		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, \
+		    __cap_rights_sysinit, &name##_args);
+
+#define CAP_RIGHTS_DEFINE1(name, value)								\
+	__read_mostly cap_rights_t name;					\
+	CAP_RIGHTS_SYSINIT1(name, name, value);
 
 #ifdef _KERNEL
 
 #include <sys/systm.h>
+extern cap_rights_t cap_accept_rights;
+extern cap_rights_t cap_bind_rights;
+extern cap_rights_t cap_connect_rights;
+extern cap_rights_t cap_event_rights;
+extern cap_rights_t cap_fchdir_rights;
+extern cap_rights_t cap_fchflags_rights;
+extern cap_rights_t cap_fchmod_rights;
+extern cap_rights_t cap_fchown_rights;
+extern cap_rights_t cap_fcntl_rights;
+extern cap_rights_t cap_fexecve_rights;
+extern cap_rights_t cap_flock_rights;
+extern cap_rights_t cap_fpathconf_rights;
+extern cap_rights_t cap_fstat_rights;
+extern cap_rights_t cap_fstatfs_rights;
+extern cap_rights_t cap_fsync_rights;
+extern cap_rights_t cap_ftruncate_rights;
+extern cap_rights_t cap_futimes_rights;
+extern cap_rights_t cap_getpeername_rights;
+extern cap_rights_t cap_getsockopt_rights;
+extern cap_rights_t cap_getsockname_rights;
+extern cap_rights_t cap_ioctl_rights;
+extern cap_rights_t cap_linkat_source_rights;
+extern cap_rights_t cap_linkat_target_rights;
+extern cap_rights_t cap_listen_rights;
+extern cap_rights_t cap_mkdirat_rights;
+extern cap_rights_t cap_mkfifoat_rights;
+extern cap_rights_t cap_mknodat_rights;
+extern cap_rights_t cap_mmap_rights;
+extern cap_rights_t cap_no_rights;
+extern cap_rights_t cap_pdgetpid_rights;
+extern cap_rights_t cap_pdkill_rights;
+extern cap_rights_t cap_pread_rights;
+extern cap_rights_t cap_pwrite_rights;
+extern cap_rights_t cap_read_rights;
+extern cap_rights_t cap_recv_rights;
+extern cap_rights_t cap_renameat_source_rights;
+extern cap_rights_t cap_renameat_target_rights;
+extern cap_rights_t cap_seek_rights;
+extern cap_rights_t cap_send_rights;
+extern cap_rights_t cap_send_connect_rights;
+extern cap_rights_t cap_setsockopt_rights;
+extern cap_rights_t cap_shutdown_rights;
+extern cap_rights_t cap_symlinkat_rights;
+extern cap_rights_t cap_unlinkat_rights;
+extern cap_rights_t cap_write_rights;
 
 #define IN_CAPABILITY_MODE(td) (((td)->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
 
@@ -355,18 +460,26 @@ int	cap_check(const cap_rights_t *havep, const cap_rights_t *needp);
 /*
  * Convert capability rights into VM access flags.
  */
-u_char	cap_rights_to_vmprot(cap_rights_t *havep);
+u_char	cap_rights_to_vmprot(const cap_rights_t *havep);
 
 /*
  * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
  * extract the rights from a capability.
+ *
+ * Dereferencing fdep requires filedesc.h, but including it would cause
+ * significant pollution. Instead add a macro for consumers which want it,
+ * most notably kern_descrip.c.
  */
-cap_rights_t	*cap_rights_fde(struct filedescent *fde);
-cap_rights_t	*cap_rights(struct filedesc *fdp, int fd);
+#define cap_rights_fde_inline(fdep)	(&(fdep)->fde_rights)
+
+const cap_rights_t	*cap_rights_fde(const struct filedescent *fde);
+const cap_rights_t	*cap_rights(struct filedesc *fdp, int fd);
 
 int	cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd);
 int	cap_fcntl_check_fde(struct filedescent *fde, int cmd);
 int	cap_fcntl_check(struct filedesc *fdp, int fd, int cmd);
+
+extern bool trap_enotcap;
 
 #else /* !_KERNEL */
 

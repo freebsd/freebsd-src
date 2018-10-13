@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -205,7 +207,7 @@ bridge_interfaces(int s, const char *prefix)
 		}
 		printf("\n");
 	}
-
+	free(pad);
 	free(inbuf);
 }
 

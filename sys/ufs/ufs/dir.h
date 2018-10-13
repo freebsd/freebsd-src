@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -57,7 +59,7 @@
  * the length of the entry, and the length of the name contained in
  * the entry.  These are followed by the name padded to a 4 byte boundary
  * with null bytes.  All names are guaranteed null terminated.
- * The maximum length of a name in a directory is MAXNAMLEN.
+ * The maximum length of a name in a directory is UFS_MAXNAMLEN.
  *
  * The macro DIRSIZ(fmt, dp) gives the amount of space required to represent
  * a directory entry.  Free space in a directory is represented by
@@ -72,14 +74,15 @@
  * dp->d_ino set to 0.
  */
 #define	DIRBLKSIZ	DEV_BSIZE
-#define	MAXNAMLEN	255
+#define	UFS_MAXNAMLEN	255
 
 struct	direct {
 	u_int32_t d_ino;		/* inode number of entry */
 	u_int16_t d_reclen;		/* length of this record */
 	u_int8_t  d_type; 		/* file type, see below */
 	u_int8_t  d_namlen;		/* length of string in d_name */
-	char	  d_name[MAXNAMLEN + 1];/* name with length <= MAXNAMLEN */
+	char	  d_name[UFS_MAXNAMLEN + 1];
+					/* name with length <= UFS_MAXNAMLEN */
 };
 
 /*
@@ -124,7 +127,7 @@ struct	direct {
 
 /*
  * Template for manipulating directories.  Should use struct direct's,
- * but the name field is MAXNAMLEN - 1, and this just won't do.
+ * but the name field is UFS_MAXNAMLEN - 1, and this just won't do.
  */
 struct dirtemplate {
 	u_int32_t	dot_ino;

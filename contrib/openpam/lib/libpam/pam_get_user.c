@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_user.c 670 2013-03-17 19:26:07Z des $
+ * $OpenPAM: pam_get_user.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -69,8 +69,6 @@ pam_get_user(pam_handle_t *pamh,
 	int r;
 
 	ENTER();
-	if (pamh == NULL || user == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	r = pam_get_item(pamh, PAM_USER, (const void **)user);
 	if (r == PAM_SUCCESS && *user != NULL)
 		RETURNC(PAM_SUCCESS);
@@ -78,10 +76,11 @@ pam_get_user(pam_handle_t *pamh,
 	if ((promptp = openpam_get_option(pamh, "user_prompt")) != NULL)
 		prompt = promptp;
 	/* no prompt provided, see if there is one tucked away somewhere */
-	if (prompt == NULL)
-		if (pam_get_item(pamh, PAM_USER_PROMPT, &promptp) &&
-		    promptp != NULL)
+	if (prompt == NULL) {
+		r = pam_get_item(pamh, PAM_USER_PROMPT, &promptp);
+		if (r == PAM_SUCCESS && promptp != NULL)
 			prompt = promptp;
+	}
 	/* fall back to hardcoded default */
 	if (prompt == NULL)
 		prompt = user_prompt;

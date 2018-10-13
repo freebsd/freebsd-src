@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -51,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /*
- * Cenatek chipset support functions
+ * Micron chipset support functions
  */
 static int
 ata_micron_probe(device_t dev)

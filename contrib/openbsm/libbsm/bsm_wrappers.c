@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2004-2009 Apple Inc.
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -258,12 +264,14 @@ audit_set_terminal_host(uint32_t *m)
 int
 audit_set_terminal_id(au_tid_t *tid)
 {
+	dev_t port;
 	int ret;
 
 	if (tid == NULL)
 		return (kAUBadParamErr);
-	if ((ret = audit_set_terminal_port(&tid->port)) != kAUNoErr)
+	if ((ret = audit_set_terminal_port(&port)) != kAUNoErr)
 		return (ret);
+	tid->port = port;
 	return (audit_set_terminal_host(&tid->machine));
 }
 
@@ -686,6 +694,30 @@ audit_set_class(au_evclass_map_t *evc_map, size_t sz)
 	}
 
 	return (auditon(A_SETCLASS, evc_map, sz));
+}
+
+int
+audit_get_event(au_evname_map_t *evn_map, size_t sz)
+{
+
+	if (sizeof(*evn_map) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETEVENT, evn_map, sz));
+}
+
+int
+audit_set_event(au_evname_map_t *evn_map, size_t sz)
+{
+
+	if (sizeof(*evn_map) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_SETEVENT, evn_map, sz));
 }
 
 int

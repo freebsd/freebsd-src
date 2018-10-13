@@ -9,6 +9,7 @@ cython.mk
 dep.mk
 doc.mk
 dpadd.mk
+files.mk
 final.mk
 host-target.mk
 host.libnames.mk
@@ -16,6 +17,7 @@ inc.mk
 init.mk
 install-mk
 java.mk
+ldorder.mk
 lib.mk
 libnames.mk
 libs.mk
@@ -38,7 +40,9 @@ stage-install.sh
 subdir.mk
 sys.mk
 sys.clean-env.mk
+sys.debug.mk
 sys.dependfile.mk
+sys.vars.mk
 sys/AIX.mk
 sys/Darwin.mk
 sys/Generic.mk
@@ -55,6 +59,7 @@ warnings.mk
 whats.mk
 yacc.mk
 dirdeps.mk
+dirdeps-options.mk
 gendirdeps.mk
 install-new.mk
 meta2deps.py

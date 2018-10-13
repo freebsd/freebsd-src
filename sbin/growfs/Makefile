@@ -6,24 +6,23 @@
 
 .include <src.opts.mk>
 
-.PATH:	${.CURDIR}/../mount
+.PATH:	${.CURDIR:H}/mount
 
 PACKAGE=runtime
 PROG=   growfs
 SRCS=   growfs.c getmntopts.c
 MAN=	growfs.8
-CFLAGS+=-I${.CURDIR}/../mount
+CFLAGS+=-I${.CURDIR:H}/mount
 
 .if defined(GFSDBG)
 SRCS+=	debug.c
 CFLAGS+= -DFS_DEBUG
 NO_WCAST_ALIGN= yes
-.endif  
-
-LIBADD=	util
-
-.if ${MK_TESTS} != "no"
-SUBDIR+=    tests
 .endif
+
+LIBADD=	ufs util
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

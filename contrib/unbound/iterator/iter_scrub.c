@@ -161,8 +161,8 @@ mark_additional_rrset(sldns_buffer* pkt, struct msg_parse* msg,
 	for(rr = rrset->rr_first; rr; rr = rr->next) {
 		if(get_additional_name(rrset, rr, &nm, &nmlen, pkt)) {
 			/* mark A */
-			hashvalue_t h = pkt_hash_rrset(pkt, nm, LDNS_RR_TYPE_A, 
-				rrset->rrset_class, 0);
+			hashvalue_type h = pkt_hash_rrset(pkt, nm,
+				LDNS_RR_TYPE_A, rrset->rrset_class, 0);
 			struct rrset_parse* r = msgparse_hashtable_lookup(
 				msg, pkt, h, 0, nm, nmlen, 
 				LDNS_RR_TYPE_A, rrset->rrset_class);
@@ -437,7 +437,9 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					rrset->rrset_all_next =
 						nx->rrset_all_next;
 					nx->rrset_all_next = rrset;
-					prev = nx;
+					/* prev = nx; unused, enable if there
+					 * is other rrset removal code after
+					 * this */
 				}
 			}
 
@@ -502,6 +504,24 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					"RRset:", pkt, msg, prev, &rrset);
 				continue;
 			}
+		}
+		/* if this is type DS and we query for type DS we just got
+		 * a referral answer for our type DS query, fix packet */
+		if(rrset->type==LDNS_RR_TYPE_DS &&
+			qinfo->qtype == LDNS_RR_TYPE_DS &&
+			dname_pkt_compare(pkt, qinfo->qname, rrset->dname) == 0) {
+			rrset->section = LDNS_SECTION_ANSWER;
+			msg->ancount = rrset->rr_count + rrset->rrsig_count;
+			msg->nscount = 0;
+			msg->arcount = 0;
+			msg->an_rrsets = 1;
+			msg->ns_rrsets = 0;
+			msg->ar_rrsets = 0;
+			msg->rrset_count = 1;
+			msg->rrset_first = rrset;
+			msg->rrset_last = rrset;
+			rrset->rrset_all_next = NULL;
+			return 1;
 		}
 		mark_additional_rrset(pkt, msg, rrset);
 		prev = rrset;

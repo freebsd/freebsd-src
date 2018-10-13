@@ -99,9 +99,13 @@ TokenConcatenation::TokenConcatenation(Preprocessor &pp) : PP(pp) {
     TokenInfo[tok::utf32_char_constant ] |= aci_custom;
   }
 
-  // These tokens have custom code in C++1z mode.
-  if (PP.getLangOpts().CPlusPlus1z)
+  // These tokens have custom code in C++17 mode.
+  if (PP.getLangOpts().CPlusPlus17)
     TokenInfo[tok::utf8_char_constant] |= aci_custom;
+
+  // These tokens have custom code in C++2a mode.
+  if (PP.getLangOpts().CPlusPlus2a)
+    TokenInfo[tok::lessequal ] |= aci_custom_firstchar;
 
   // These tokens change behavior if followed by an '='.
   TokenInfo[tok::amp         ] |= aci_avoid_equal;           // &=
@@ -232,7 +236,7 @@ bool TokenConcatenation::AvoidConcat(const Token &PrevPrevTok,
     // it as an identifier.
     if (!PrevTok.hasUDSuffix())
       return false;
-    // FALL THROUGH.
+    LLVM_FALLTHROUGH;
   case tok::identifier:   // id+id or id+number or id+L"foo".
     // id+'.'... will not append.
     if (Tok.is(tok::numeric_constant))
@@ -283,5 +287,7 @@ bool TokenConcatenation::AvoidConcat(const Token &PrevPrevTok,
     return FirstChar == '#' || FirstChar == '@' || FirstChar == '%';
   case tok::arrow:           // ->*
     return PP.getLangOpts().CPlusPlus && FirstChar == '*';
+  case tok::lessequal:       // <=> (C++2a)
+    return PP.getLangOpts().CPlusPlus2a && FirstChar == '>';
   }
 }

@@ -1,4 +1,4 @@
-//===-- X86AsmInstrumentation.cpp - Instrument X86 inline assembly C++ -*-===//
+//===-- X86AsmInstrumentation.cpp - Instrument X86 inline assembly --------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,31 +7,38 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/X86BaseInfo.h"
 #include "X86AsmInstrumentation.h"
+#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "X86Operand.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCDwarf.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstBuilder.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
+#include "llvm/MC/MCParser/MCTargetAsmParser.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SMLoc.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
+#include <limits>
+#include <memory>
 #include <vector>
 
 // Following comment describes how assembly instrumentation works.
 // Currently we have only AddressSanitizer instrumentation, but we're
 // planning to implement MemorySanitizer for inline assembly too. If
 // you're not familiar with AddressSanitizer algorithm, please, read
-// https://code.google.com/p/address-sanitizer/wiki/AddressSanitizerAlgorithm.
+// https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm
 //
 // When inline assembly is parsed by an instance of X86AsmParser, all
 // instructions are emitted via EmitInstruction method. That's the
@@ -91,30 +98,35 @@
 //   register as a frame register and temprorary override current CFA
 //   register.
 
-namespace llvm {
-namespace {
+using namespace llvm;
 
 static cl::opt<bool> ClAsanInstrumentAssembly(
     "asan-instrument-assembly",
     cl::desc("instrument assembly with AddressSanitizer checks"), cl::Hidden,
     cl::init(false));
 
-const int64_t MinAllowedDisplacement = std::numeric_limits<int32_t>::min();
-const int64_t MaxAllowedDisplacement = std::numeric_limits<int32_t>::max();
+static const int64_t MinAllowedDisplacement =
+    std::numeric_limits<int32_t>::min();
+static const int64_t MaxAllowedDisplacement =
+    std::numeric_limits<int32_t>::max();
 
-int64_t ApplyDisplacementBounds(int64_t Displacement) {
+static int64_t ApplyDisplacementBounds(int64_t Displacement) {
   return std::max(std::min(MaxAllowedDisplacement, Displacement),
                   MinAllowedDisplacement);
 }
 
-void CheckDisplacementBounds(int64_t Displacement) {
+static void CheckDisplacementBounds(int64_t Displacement) {
   assert(Displacement >= MinAllowedDisplacement &&
          Displacement <= MaxAllowedDisplacement);
 }
 
-bool IsStackReg(unsigned Reg) { return Reg == X86::RSP || Reg == X86::ESP; }
+static bool IsStackReg(unsigned Reg) {
+  return Reg == X86::RSP || Reg == X86::ESP;
+}
 
-bool IsSmallMemAccess(unsigned AccessSize) { return AccessSize < 8; }
+static bool IsSmallMemAccess(unsigned AccessSize) { return AccessSize < 8; }
+
+namespace {
 
 class X86AddressSanitizer : public X86AsmInstrumentation {
 public:
@@ -178,14 +190,13 @@ public:
   X86AddressSanitizer(const MCSubtargetInfo *&STI)
       : X86AsmInstrumentation(STI), RepPrefix(false), OrigSPOffset(0) {}
 
-  ~X86AddressSanitizer() override {}
+  ~X86AddressSanitizer() override = default;
 
   // X86AsmInstrumentation implementation:
-  void InstrumentAndEmitInstruction(const MCInst &Inst,
-                                    OperandVector &Operands,
-                                    MCContext &Ctx,
-                                    const MCInstrInfo &MII,
-                                    MCStreamer &Out) override {
+  void InstrumentAndEmitInstruction(const MCInst &Inst, OperandVector &Operands,
+                                    MCContext &Ctx, const MCInstrInfo &MII,
+                                    MCStreamer &Out,
+                                    /* unused */ bool) override {
     InstrumentMOVS(Inst, Operands, Ctx, MII, Out);
     if (RepPrefix)
       EmitInstruction(Out, MCInstBuilder(X86::REP_PREFIX));
@@ -255,9 +266,11 @@ protected:
   bool is64BitMode() const {
     return STI->getFeatureBits()[X86::Mode64Bit];
   }
+
   bool is32BitMode() const {
     return STI->getFeatureBits()[X86::Mode32Bit];
   }
+
   bool is16BitMode() const {
     return STI->getFeatureBits()[X86::Mode16Bit];
   }
@@ -498,7 +511,7 @@ public:
   X86AddressSanitizer32(const MCSubtargetInfo *&STI)
       : X86AddressSanitizer(STI) {}
 
-  ~X86AddressSanitizer32() override {}
+  ~X86AddressSanitizer32() override = default;
 
   unsigned GetFrameReg(const MCContext &Ctx, MCStreamer &Out) {
     unsigned FrameReg = GetFrameRegGeneric(Ctx, Out);
@@ -597,16 +610,16 @@ private:
     EmitInstruction(Out, MCInstBuilder(X86::CLD));
     EmitInstruction(Out, MCInstBuilder(X86::MMX_EMMS));
 
-    EmitInstruction(Out, MCInstBuilder(X86::AND64ri8)
+    EmitInstruction(Out, MCInstBuilder(X86::AND32ri8)
                              .addReg(X86::ESP)
                              .addReg(X86::ESP)
                              .addImm(-16));
     EmitInstruction(
         Out, MCInstBuilder(X86::PUSH32r).addReg(RegCtx.AddressReg(32)));
 
-    MCSymbol *FnSym = Ctx.getOrCreateSymbol(llvm::Twine("__asan_report_") +
+    MCSymbol *FnSym = Ctx.getOrCreateSymbol(Twine("__asan_report_") +
                                             (IsWrite ? "store" : "load") +
-                                            llvm::Twine(AccessSize));
+                                            Twine(AccessSize));
     const MCSymbolRefExpr *FnExpr =
         MCSymbolRefExpr::create(FnSym, MCSymbolRefExpr::VK_PLT, Ctx);
     EmitInstruction(Out, MCInstBuilder(X86::CALLpcrel32).addExpr(FnExpr));
@@ -756,7 +769,7 @@ public:
   X86AddressSanitizer64(const MCSubtargetInfo *&STI)
       : X86AddressSanitizer(STI) {}
 
-  ~X86AddressSanitizer64() override {}
+  ~X86AddressSanitizer64() override = default;
 
   unsigned GetFrameReg(const MCContext &Ctx, MCStreamer &Out) {
     unsigned FrameReg = GetFrameRegGeneric(Ctx, Out);
@@ -875,14 +888,16 @@ private:
       EmitInstruction(Out, MCInstBuilder(X86::MOV64rr).addReg(X86::RDI).addReg(
                                RegCtx.AddressReg(64)));
     }
-    MCSymbol *FnSym = Ctx.getOrCreateSymbol(llvm::Twine("__asan_report_") +
+    MCSymbol *FnSym = Ctx.getOrCreateSymbol(Twine("__asan_report_") +
                                             (IsWrite ? "store" : "load") +
-                                            llvm::Twine(AccessSize));
+                                            Twine(AccessSize));
     const MCSymbolRefExpr *FnExpr =
         MCSymbolRefExpr::create(FnSym, MCSymbolRefExpr::VK_PLT, Ctx);
     EmitInstruction(Out, MCInstBuilder(X86::CALL64pcrel32).addExpr(FnExpr));
   }
 };
+
+} // end anonymous namespace
 
 void X86AddressSanitizer64::InstrumentMemOperandSmall(
     X86Operand &Op, unsigned AccessSize, bool IsWrite,
@@ -1022,22 +1037,20 @@ void X86AddressSanitizer64::InstrumentMOVSImpl(unsigned AccessSize,
   RestoreFlags(Out);
 }
 
-} // End anonymous namespace
-
 X86AsmInstrumentation::X86AsmInstrumentation(const MCSubtargetInfo *&STI)
-    : STI(STI), InitialFrameReg(0) {}
+    : STI(STI) {}
 
-X86AsmInstrumentation::~X86AsmInstrumentation() {}
+X86AsmInstrumentation::~X86AsmInstrumentation() = default;
 
 void X86AsmInstrumentation::InstrumentAndEmitInstruction(
     const MCInst &Inst, OperandVector &Operands, MCContext &Ctx,
-    const MCInstrInfo &MII, MCStreamer &Out) {
-  EmitInstruction(Out, Inst);
+    const MCInstrInfo &MII, MCStreamer &Out, bool PrintSchedInfoEnabled) {
+  EmitInstruction(Out, Inst, PrintSchedInfoEnabled);
 }
 
-void X86AsmInstrumentation::EmitInstruction(MCStreamer &Out,
-                                            const MCInst &Inst) {
-  Out.EmitInstruction(Inst, *STI);
+void X86AsmInstrumentation::EmitInstruction(MCStreamer &Out, const MCInst &Inst,
+                                            bool PrintSchedInfoEnabled) {
+  Out.EmitInstruction(Inst, *STI, PrintSchedInfoEnabled);
 }
 
 unsigned X86AsmInstrumentation::GetFrameRegGeneric(const MCContext &Ctx,
@@ -1060,8 +1073,9 @@ unsigned X86AsmInstrumentation::GetFrameRegGeneric(const MCContext &Ctx,
 }
 
 X86AsmInstrumentation *
-CreateX86AsmInstrumentation(const MCTargetOptions &MCOptions,
-                            const MCContext &Ctx, const MCSubtargetInfo *&STI) {
+llvm::CreateX86AsmInstrumentation(const MCTargetOptions &MCOptions,
+                                  const MCContext &Ctx,
+                                  const MCSubtargetInfo *&STI) {
   Triple T(STI->getTargetTriple());
   const bool hasCompilerRTSupport = T.isOSLinux();
   if (ClAsanInstrumentAssembly && hasCompilerRTSupport &&
@@ -1073,5 +1087,3 @@ CreateX86AsmInstrumentation(const MCTargetOptions &MCOptions,
   }
   return new X86AsmInstrumentation(STI);
 }
-
-} // end llvm namespace

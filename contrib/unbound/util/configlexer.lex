@@ -9,8 +9,12 @@
  */
 #include "config.h"
 
+/* because flex keeps having sign-unsigned compare problems that are unfixed*/
+#if defined(__clang__)||(defined(__GNUC__)&&((__GNUC__ >4)||(defined(__GNUC_MINOR__)&&(__GNUC__ ==4)&&(__GNUC_MINOR__ >=2))))
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+
 #include <ctype.h>
-#include <string.h>
 #include <strings.h>
 #ifdef HAVE_GLOB_H
 # include <glob.h>
@@ -208,6 +212,7 @@ SQANY     [^\'\n\r\\]|\\.
 	LEXOUT(("comment(%s) ", ub_c_text)); /* ignore */ }
 server{COLON}			{ YDVAR(0, VAR_SERVER) }
 qname-minimisation{COLON}	{ YDVAR(1, VAR_QNAME_MINIMISATION) }
+qname-minimisation-strict{COLON} { YDVAR(1, VAR_QNAME_MINIMISATION_STRICT) }
 num-threads{COLON}		{ YDVAR(1, VAR_NUM_THREADS) }
 verbosity{COLON}		{ YDVAR(1, VAR_VERBOSITY) }
 port{COLON}			{ YDVAR(1, VAR_PORT) }
@@ -218,15 +223,31 @@ outgoing-num-tcp{COLON}		{ YDVAR(1, VAR_OUTGOING_NUM_TCP) }
 incoming-num-tcp{COLON}		{ YDVAR(1, VAR_INCOMING_NUM_TCP) }
 do-ip4{COLON}			{ YDVAR(1, VAR_DO_IP4) }
 do-ip6{COLON}			{ YDVAR(1, VAR_DO_IP6) }
+prefer-ip6{COLON}		{ YDVAR(1, VAR_PREFER_IP6) }
 do-udp{COLON}			{ YDVAR(1, VAR_DO_UDP) }
 do-tcp{COLON}			{ YDVAR(1, VAR_DO_TCP) }
 tcp-upstream{COLON}		{ YDVAR(1, VAR_TCP_UPSTREAM) }
 tcp-mss{COLON}			{ YDVAR(1, VAR_TCP_MSS) }
 outgoing-tcp-mss{COLON}		{ YDVAR(1, VAR_OUTGOING_TCP_MSS) }
+tcp-idle-timeout{COLON}		{ YDVAR(1, VAR_TCP_IDLE_TIMEOUT) }
+edns-tcp-keepalive{COLON}	{ YDVAR(1, VAR_EDNS_TCP_KEEPALIVE) }
+edns-tcp-keepalive-timeout{COLON} { YDVAR(1, VAR_EDNS_TCP_KEEPALIVE_TIMEOUT) }
 ssl-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
+tls-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
 ssl-service-key{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_KEY) }
+tls-service-key{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_KEY) }
 ssl-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
+tls-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
 ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
+tls-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
+ssl-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
+tls-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
+tls-win-cert{COLON}		{ YDVAR(1, VAR_TLS_WIN_CERT) }
+additional-ssl-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+additional-tls-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-additional-ports{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-additional-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
 ip-address{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -236,6 +257,7 @@ so-rcvbuf{COLON}		{ YDVAR(1, VAR_SO_RCVBUF) }
 so-sndbuf{COLON}		{ YDVAR(1, VAR_SO_SNDBUF) }
 so-reuseport{COLON}		{ YDVAR(1, VAR_SO_REUSEPORT) }
 ip-transparent{COLON}		{ YDVAR(1, VAR_IP_TRANSPARENT) }
+ip-freebind{COLON}		{ YDVAR(1, VAR_IP_FREEBIND) }
 chroot{COLON}			{ YDVAR(1, VAR_CHROOT) }
 username{COLON}			{ YDVAR(1, VAR_USERNAME) }
 directory{COLON}		{ YDVAR(1, VAR_DIRECTORY) }
@@ -281,15 +303,38 @@ stub-addr{COLON}		{ YDVAR(1, VAR_STUB_ADDR) }
 stub-host{COLON}		{ YDVAR(1, VAR_STUB_HOST) }
 stub-prime{COLON}		{ YDVAR(1, VAR_STUB_PRIME) }
 stub-first{COLON}		{ YDVAR(1, VAR_STUB_FIRST) }
+stub-no-cache{COLON}		{ YDVAR(1, VAR_STUB_NO_CACHE) }
+stub-ssl-upstream{COLON}	{ YDVAR(1, VAR_STUB_SSL_UPSTREAM) }
+stub-tls-upstream{COLON}	{ YDVAR(1, VAR_STUB_SSL_UPSTREAM) }
 forward-zone{COLON}		{ YDVAR(0, VAR_FORWARD_ZONE) }
 forward-addr{COLON}		{ YDVAR(1, VAR_FORWARD_ADDR) }
 forward-host{COLON}		{ YDVAR(1, VAR_FORWARD_HOST) }
 forward-first{COLON}		{ YDVAR(1, VAR_FORWARD_FIRST) }
+forward-no-cache{COLON}		{ YDVAR(1, VAR_FORWARD_NO_CACHE) }
+forward-ssl-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
+forward-tls-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
+auth-zone{COLON}		{ YDVAR(0, VAR_AUTH_ZONE) }
+zonefile{COLON}			{ YDVAR(1, VAR_ZONEFILE) }
+master{COLON}			{ YDVAR(1, VAR_MASTER) }
+url{COLON}			{ YDVAR(1, VAR_URL) }
+allow-notify{COLON}		{ YDVAR(1, VAR_ALLOW_NOTIFY) }
+for-downstream{COLON}		{ YDVAR(1, VAR_FOR_DOWNSTREAM) }
+for-upstream{COLON}		{ YDVAR(1, VAR_FOR_UPSTREAM) }
+fallback-enabled{COLON}		{ YDVAR(1, VAR_FALLBACK_ENABLED) }
+view{COLON}			{ YDVAR(0, VAR_VIEW) }
+view-first{COLON}		{ YDVAR(1, VAR_VIEW_FIRST) }
 do-not-query-address{COLON}	{ YDVAR(1, VAR_DO_NOT_QUERY_ADDRESS) }
 do-not-query-localhost{COLON}	{ YDVAR(1, VAR_DO_NOT_QUERY_LOCALHOST) }
 access-control{COLON}		{ YDVAR(2, VAR_ACCESS_CONTROL) }
+send-client-subnet{COLON}	{ YDVAR(1, VAR_SEND_CLIENT_SUBNET) }
+client-subnet-zone{COLON}	{ YDVAR(1, VAR_CLIENT_SUBNET_ZONE) }
+client-subnet-always-forward{COLON} { YDVAR(1, VAR_CLIENT_SUBNET_ALWAYS_FORWARD) }
+client-subnet-opcode{COLON}	{ YDVAR(1, VAR_CLIENT_SUBNET_OPCODE) }
+max-client-subnet-ipv4{COLON}	{ YDVAR(1, VAR_MAX_CLIENT_SUBNET_IPV4) }
+max-client-subnet-ipv6{COLON}	{ YDVAR(1, VAR_MAX_CLIENT_SUBNET_IPV6) }
 hide-identity{COLON}		{ YDVAR(1, VAR_HIDE_IDENTITY) }
 hide-version{COLON}		{ YDVAR(1, VAR_HIDE_VERSION) }
+hide-trustanchor{COLON}		{ YDVAR(1, VAR_HIDE_TRUSTANCHOR) }
 identity{COLON}			{ YDVAR(1, VAR_IDENTITY) }
 version{COLON}			{ YDVAR(1, VAR_VERSION) }
 module-config{COLON}     	{ YDVAR(1, VAR_MODULE_CONF) }
@@ -299,13 +344,21 @@ trust-anchor-file{COLON}	{ YDVAR(1, VAR_TRUST_ANCHOR_FILE) }
 auto-trust-anchor-file{COLON}	{ YDVAR(1, VAR_AUTO_TRUST_ANCHOR_FILE) }
 trusted-keys-file{COLON}	{ YDVAR(1, VAR_TRUSTED_KEYS_FILE) }
 trust-anchor{COLON}		{ YDVAR(1, VAR_TRUST_ANCHOR) }
+trust-anchor-signaling{COLON}	{ YDVAR(1, VAR_TRUST_ANCHOR_SIGNALING) }
+root-key-sentinel{COLON}	{ YDVAR(1, VAR_ROOT_KEY_SENTINEL) }
 val-override-date{COLON}	{ YDVAR(1, VAR_VAL_OVERRIDE_DATE) }
 val-sig-skew-min{COLON}		{ YDVAR(1, VAR_VAL_SIG_SKEW_MIN) }
 val-sig-skew-max{COLON}		{ YDVAR(1, VAR_VAL_SIG_SKEW_MAX) }
 val-bogus-ttl{COLON}		{ YDVAR(1, VAR_BOGUS_TTL) }
 val-clean-additional{COLON}	{ YDVAR(1, VAR_VAL_CLEAN_ADDITIONAL) }
 val-permissive-mode{COLON}	{ YDVAR(1, VAR_VAL_PERMISSIVE_MODE) }
+aggressive-nsec{COLON}		{ YDVAR(1, VAR_AGGRESSIVE_NSEC) }
 ignore-cd-flag{COLON}		{ YDVAR(1, VAR_IGNORE_CD_FLAG) }
+serve-expired{COLON}		{ YDVAR(1, VAR_SERVE_EXPIRED) }
+serve-expired-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL) }
+serve-expired-ttl-reset{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL_RESET) }
+fake-dsa{COLON}			{ YDVAR(1, VAR_FAKE_DSA) }
+fake-sha1{COLON}		{ YDVAR(1, VAR_FAKE_SHA1) }
 val-log-level{COLON}		{ YDVAR(1, VAR_VAL_LOG_LEVEL) }
 key-cache-size{COLON}		{ YDVAR(1, VAR_KEY_CACHE_SIZE) }
 key-cache-slabs{COLON}		{ YDVAR(1, VAR_KEY_CACHE_SLABS) }
@@ -317,8 +370,12 @@ del-holddown{COLON}		{ YDVAR(1, VAR_DEL_HOLDDOWN) }
 keep-missing{COLON}		{ YDVAR(1, VAR_KEEP_MISSING) }
 permit-small-holddown{COLON}	{ YDVAR(1, VAR_PERMIT_SMALL_HOLDDOWN) }
 use-syslog{COLON}		{ YDVAR(1, VAR_USE_SYSLOG) }
+log-identity{COLON}		{ YDVAR(1, VAR_LOG_IDENTITY) }
 log-time-ascii{COLON}		{ YDVAR(1, VAR_LOG_TIME_ASCII) }
 log-queries{COLON}		{ YDVAR(1, VAR_LOG_QUERIES) }
+log-replies{COLON}		{ YDVAR(1, VAR_LOG_REPLIES) }
+log-local-actions{COLON}       { YDVAR(1, VAR_LOG_LOCAL_ACTIONS) }
+log-servfail{COLON}		{ YDVAR(1, VAR_LOG_SERVFAIL) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
 local-data{COLON}		{ YDVAR(1, VAR_LOCAL_DATA) }
 local-data-ptr{COLON}		{ YDVAR(1, VAR_LOCAL_DATA_PTR) }
@@ -327,6 +384,8 @@ insecure-lan-zones{COLON}	{ YDVAR(1, VAR_INSECURE_LAN_ZONES) }
 statistics-interval{COLON}	{ YDVAR(1, VAR_STATISTICS_INTERVAL) }
 statistics-cumulative{COLON}	{ YDVAR(1, VAR_STATISTICS_CUMULATIVE) }
 extended-statistics{COLON}	{ YDVAR(1, VAR_EXTENDED_STATISTICS) }
+shm-enable{COLON}		{ YDVAR(1, VAR_SHM_ENABLE) }
+shm-key{COLON}			{ YDVAR(1, VAR_SHM_KEY) }
 remote-control{COLON}		{ YDVAR(0, VAR_REMOTE_CONTROL) }
 control-enable{COLON}		{ YDVAR(1, VAR_CONTROL_ENABLE) }
 control-interface{COLON}	{ YDVAR(1, VAR_CONTROL_INTERFACE) }
@@ -344,6 +403,14 @@ rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
 dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
+dns64-ignore-aaaa{COLON}	{ YDVAR(1, VAR_DNS64_IGNORE_AAAA) }
+define-tag{COLON}		{ YDVAR(1, VAR_DEFINE_TAG) }
+local-zone-tag{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE_TAG) }
+access-control-tag{COLON}	{ YDVAR(2, VAR_ACCESS_CONTROL_TAG) }
+access-control-tag-action{COLON} { YDVAR(3, VAR_ACCESS_CONTROL_TAG_ACTION) }
+access-control-tag-data{COLON}	{ YDVAR(3, VAR_ACCESS_CONTROL_TAG_DATA) }
+access-control-view{COLON}	{ YDVAR(2, VAR_ACCESS_CONTROL_VIEW) }
+local-zone-override{COLON}	{ YDVAR(3, VAR_LOCAL_ZONE_OVERRIDE) }
 dnstap{COLON}			{ YDVAR(0, VAR_DNSTAP) }
 dnstap-enable{COLON}		{ YDVAR(1, VAR_DNSTAP_ENABLE) }
 dnstap-socket-path{COLON}	{ YDVAR(1, VAR_DNSTAP_SOCKET_PATH) }
@@ -363,12 +430,50 @@ dnstap-log-forwarder-query-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
 dnstap-log-forwarder-response-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
+disable-dnssec-lame-check{COLON} { YDVAR(1, VAR_DISABLE_DNSSEC_LAME_CHECK) }
+ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
 ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
+ip-ratelimit-slabs{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_SLABS) }
 ratelimit-slabs{COLON}		{ YDVAR(1, VAR_RATELIMIT_SLABS) }
+ip-ratelimit-size{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_SIZE) }
 ratelimit-size{COLON}		{ YDVAR(1, VAR_RATELIMIT_SIZE) }
 ratelimit-for-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_FOR_DOMAIN) }
 ratelimit-below-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_BELOW_DOMAIN) }
+ip-ratelimit-factor{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_FACTOR) }
 ratelimit-factor{COLON}		{ YDVAR(1, VAR_RATELIMIT_FACTOR) }
+low-rtt{COLON}			{ YDVAR(1, VAR_LOW_RTT) }
+low-rtt-pct{COLON}		{ YDVAR(1, VAR_LOW_RTT_PERMIL) }
+low-rtt-permil{COLON}		{ YDVAR(1, VAR_LOW_RTT_PERMIL) }
+response-ip-tag{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_TAG) }
+response-ip{COLON}		{ YDVAR(2, VAR_RESPONSE_IP) }
+response-ip-data{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_DATA) }
+dnscrypt{COLON}			{ YDVAR(0, VAR_DNSCRYPT) }
+dnscrypt-enable{COLON}		{ YDVAR(1, VAR_DNSCRYPT_ENABLE) }
+dnscrypt-port{COLON}		{ YDVAR(1, VAR_DNSCRYPT_PORT) }
+dnscrypt-provider{COLON}	{ YDVAR(1, VAR_DNSCRYPT_PROVIDER) }
+dnscrypt-secret-key{COLON}	{ YDVAR(1, VAR_DNSCRYPT_SECRET_KEY) }
+dnscrypt-provider-cert{COLON}	{ YDVAR(1, VAR_DNSCRYPT_PROVIDER_CERT) }
+dnscrypt-provider-cert-rotated{COLON}	{ YDVAR(1, VAR_DNSCRYPT_PROVIDER_CERT_ROTATED) }
+dnscrypt-shared-secret-cache-size{COLON}	{
+		YDVAR(1, VAR_DNSCRYPT_SHARED_SECRET_CACHE_SIZE) }
+dnscrypt-shared-secret-cache-slabs{COLON}	{
+		YDVAR(1, VAR_DNSCRYPT_SHARED_SECRET_CACHE_SLABS) }
+dnscrypt-nonce-cache-size{COLON}	{ YDVAR(1, VAR_DNSCRYPT_NONCE_CACHE_SIZE) }
+dnscrypt-nonce-cache-slabs{COLON}	{ YDVAR(1, VAR_DNSCRYPT_NONCE_CACHE_SLABS) }
+ipsecmod-enabled{COLON}		{ YDVAR(1, VAR_IPSECMOD_ENABLED) }
+ipsecmod-ignore-bogus{COLON}	{ YDVAR(1, VAR_IPSECMOD_IGNORE_BOGUS) }
+ipsecmod-hook{COLON}		{ YDVAR(1, VAR_IPSECMOD_HOOK) }
+ipsecmod-max-ttl{COLON}		{ YDVAR(1, VAR_IPSECMOD_MAX_TTL) }
+ipsecmod-whitelist{COLON}	{ YDVAR(1, VAR_IPSECMOD_WHITELIST) }
+ipsecmod-strict{COLON}		{ YDVAR(1, VAR_IPSECMOD_STRICT) }
+cachedb{COLON}			{ YDVAR(0, VAR_CACHEDB) }
+backend{COLON}			{ YDVAR(1, VAR_CACHEDB_BACKEND) }
+secret-seed{COLON}		{ YDVAR(1, VAR_CACHEDB_SECRETSEED) }
+redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
+redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
+redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
+udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM) }
+tcp-connection-limit{COLON}	{ YDVAR(2, VAR_TCP_CONNECTION_LIMIT) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 
 	/* Quoted strings. Strip leading and ending quotes */

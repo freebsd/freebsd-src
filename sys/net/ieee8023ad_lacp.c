@@ -1,6 +1,8 @@
 /*	$NetBSD: ieee8023ad_lacp.c,v 1.3 2005/12/11 12:24:54 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c)2005 YAMAMOTO Takashi,
  * Copyright (c)2008 Andrew Thompson <thompsa@FreeBSD.org>
  * All rights reserved.
@@ -29,6 +31,8 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_ratelimit.h"
 
 #include <sys/param.h>
 #include <sys/callout.h>
@@ -190,15 +194,15 @@ static const char *lacp_format_portid(const struct lacp_portid *, char *,
 static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
 		    __attribute__((__format__(__printf__, 2, 3)));
 
-static VNET_DEFINE(int, lacp_debug);
+VNET_DEFINE_STATIC(int, lacp_debug);
 #define	V_lacp_debug	VNET(lacp_debug)
 SYSCTL_NODE(_net_link_lagg, OID_AUTO, lacp, CTLFLAG_RD, 0, "ieee802.3ad");
 SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(lacp_debug), 0, "Enable LACP debug logging (1=debug, 2=trace)");
 
-static VNET_DEFINE(int, lacp_default_strict_mode) = 1;
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode, CTLFLAG_RWTUN,
-    &VNET_NAME(lacp_default_strict_mode), 0,
+VNET_DEFINE_STATIC(int, lacp_default_strict_mode) = 1;
+SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode,
+    CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(lacp_default_strict_mode), 0,
     "LACP strict protocol compliance default");
 
 #define LACP_DPRINTF(a) if (V_lacp_debug & 0x01) { lacp_dprintf a ; }
@@ -461,7 +465,11 @@ lacp_linkstate(struct lagg_port *lgp)
 	uint16_t old_key;
 
 	bzero((char *)&ifmr, sizeof(ifmr));
-	error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
+	error = (*ifp->if_ioctl)(ifp, SIOCGIFXMEDIA, (caddr_t)&ifmr);
+	if (error != 0) {
+		bzero((char *)&ifmr, sizeof(ifmr));
+		error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
+	}
 	if (error != 0)
 		return;
 
@@ -526,9 +534,6 @@ lacp_port_create(struct lagg_port *lgp)
 	struct ifmultiaddr *rifma = NULL;
 	int error;
 
-	boolean_t active = TRUE; /* XXX should be configurable */
-	boolean_t fast = FALSE; /* Configurable via ioctl */ 
-
 	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
@@ -557,9 +562,7 @@ lacp_port_create(struct lagg_port *lgp)
 
 	lacp_fill_actorinfo(lp, &lp->lp_actor);
 	lacp_fill_markerinfo(lp, &lp->lp_marker);
-	lp->lp_state =
-	    (active ? LACP_STATE_ACTIVITY : 0) |
-	    (fast ? LACP_STATE_TIMEOUT : 0);
+	lp->lp_state = LACP_STATE_ACTIVITY;
 	lp->lp_aggregator = NULL;
 	lacp_sm_rx_set_expired(lp);
 	LACP_UNLOCK(lsc);
@@ -708,6 +711,8 @@ lacp_disable_distributing(struct lacp_port *lp)
 	}
 
 	lp->lp_state &= ~LACP_STATE_DISTRIBUTING;
+	if_link_state_change(sc->sc_ifp,
+	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void
@@ -742,6 +747,9 @@ lacp_enable_distributing(struct lacp_port *lp)
 	} else
 		/* try to become the active aggregator */
 		lacp_select_active_aggregator(lsc);
+
+	if_link_state_change(sc->sc_ifp,
+	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void
@@ -853,6 +861,35 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 
 	return (lp->lp_lagg);
 }
+
+#ifdef RATELIMIT
+struct lagg_port *
+lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t flowid)
+{
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
+	struct lacp_portmap *pm;
+	struct lacp_port *lp;
+	uint32_t hash;
+
+	if (__predict_false(lsc->lsc_suppress_distributing)) {
+		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
+		return (NULL);
+	}
+
+	pm = &lsc->lsc_pmap[lsc->lsc_activemap];
+	if (pm->pm_count == 0) {
+		LACP_DPRINTF((NULL, "%s: no active aggregator\n", __func__));
+		return (NULL);
+	}
+
+	hash = flowid >> sc->flowid_shift;
+	hash %= pm->pm_count;
+	lp = pm->pm_map[hash];
+
+	return (lp->lp_lagg);
+}
+#endif
+
 /*
  * lacp_suppress_distributing: drop transmit packets for a while
  * to preserve packet ordering.
@@ -1072,6 +1109,7 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_100_VG:
 		case IFM_100_T2:
 		case IFM_100_T:
+		case IFM_100_SGMII:
 			key = IFM_100_TX;
 			break;
 		case IFM_1000_SX:
@@ -1095,6 +1133,7 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_10G_CR1:
 		case IFM_10G_ER:
 		case IFM_10G_SFI:
+		case IFM_10G_AOC:
 			key = IFM_10G_LR;
 			break;
 		case IFM_20G_KR2:
@@ -1102,14 +1141,31 @@ lacp_compose_key(struct lacp_port *lp)
 			break;
 		case IFM_2500_KX:
 		case IFM_2500_T:
+		case IFM_2500_X:
 			key = IFM_2500_KX;
 			break;
 		case IFM_5000_T:
+		case IFM_5000_KR:
+		case IFM_5000_KR_S:
+		case IFM_5000_KR1:
 			key = IFM_5000_T;
 			break;
 		case IFM_50G_PCIE:
 		case IFM_50G_CR2:
 		case IFM_50G_KR2:
+		case IFM_50G_SR2:
+		case IFM_50G_LR2:
+		case IFM_50G_LAUI2_AC:
+		case IFM_50G_LAUI2:
+		case IFM_50G_AUI2_AC:
+		case IFM_50G_AUI2:
+		case IFM_50G_CP:
+		case IFM_50G_SR:
+		case IFM_50G_LR:
+		case IFM_50G_FR:
+		case IFM_50G_KR_PAM4:
+		case IFM_50G_AUI1_AC:
+		case IFM_50G_AUI1:
 			key = IFM_50G_PCIE;
 			break;
 		case IFM_56G_R4:
@@ -1119,6 +1175,15 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_25G_CR:
 		case IFM_25G_KR:
 		case IFM_25G_SR:
+		case IFM_25G_LR:
+		case IFM_25G_ACC:
+		case IFM_25G_AOC:
+		case IFM_25G_T:
+		case IFM_25G_CR_S:
+		case IFM_25G_CR1:
+		case IFM_25G_KR_S:
+		case IFM_25G_AUI:
+		case IFM_25G_KR1:
 			key = IFM_25G_PCIE;
 			break;
 		case IFM_40G_CR4:
@@ -1126,13 +1191,49 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_40G_LR4:
 		case IFM_40G_XLPPI:
 		case IFM_40G_KR4:
+		case IFM_40G_XLAUI:
+		case IFM_40G_XLAUI_AC:
+		case IFM_40G_ER4:
 			key = IFM_40G_CR4;
 			break;
 		case IFM_100G_CR4:
 		case IFM_100G_SR4:
 		case IFM_100G_KR4:
 		case IFM_100G_LR4:
+		case IFM_100G_CAUI4_AC:
+		case IFM_100G_CAUI4:
+		case IFM_100G_AUI4_AC:
+		case IFM_100G_AUI4:
+		case IFM_100G_CR_PAM4:
+		case IFM_100G_KR_PAM4:
+		case IFM_100G_CP2:
+		case IFM_100G_SR2:
+		case IFM_100G_DR:
+		case IFM_100G_KR2_PAM4:
+		case IFM_100G_CAUI2_AC:
+		case IFM_100G_CAUI2:
+		case IFM_100G_AUI2_AC:
+		case IFM_100G_AUI2:
 			key = IFM_100G_CR4;
+			break;
+		case IFM_200G_CR4_PAM4:
+		case IFM_200G_SR4:
+		case IFM_200G_FR4:
+		case IFM_200G_LR4:
+		case IFM_200G_DR4:
+		case IFM_200G_KR4_PAM4:
+		case IFM_200G_AUI4_AC:
+		case IFM_200G_AUI4:
+		case IFM_200G_AUI8_AC:
+		case IFM_200G_AUI8:
+			key = IFM_200G_CR4_PAM4;
+			break;
+		case IFM_400G_FR8:
+		case IFM_400G_LR8:
+		case IFM_400G_DR4:
+		case IFM_400G_AUI8_AC:
+		case IFM_400G_AUI8:
+			key = IFM_400G_FR8;
 			break;
 		default:
 			key = subtype;
@@ -1304,6 +1405,10 @@ lacp_select(struct lacp_port *lp)
 	if (lp->lp_aggregator) {
 		return;
 	}
+
+	/* If we haven't heard from our peer, skip this step. */
+	if (lp->lp_state & LACP_STATE_DEFAULTED)
+		return;
 
 	KASSERT(!LACP_TIMER_ISARMED(lp, LACP_TIMER_WAIT_WHILE),
 	    ("timer_wait_while still active"));
@@ -1660,7 +1765,15 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 	    LACP_STATE_AGGREGATION) &&
 	    !lacp_compare_peerinfo(&lp->lp_actor, &du->ldu_partner))
 	    || (du->ldu_partner.lip_state & LACP_STATE_AGGREGATION) == 0)) {
-		/* XXX nothing? */
+		/*
+		 * XXX Maintain legacy behavior of leaving the
+		 * LACP_STATE_SYNC bit unchanged from the partner's
+		 * advertisement if lsc_strict_mode is false.
+		 * TODO: We should re-examine the concept of the "strict mode"
+		 * to ensure it makes sense to maintain a non-strict mode.
+		 */
+		if (lp->lp_lsc->lsc_strict_mode)
+			lp->lp_partner.lip_state |= LACP_STATE_SYNC;
 	} else {
 		lp->lp_partner.lip_state &= ~LACP_STATE_SYNC;
 	}
@@ -1674,10 +1787,6 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 		    lacp_format_state(lp->lp_partner.lip_state, buf,
 		    sizeof(buf))));
 	}
-
-	/* XXX Hack, still need to implement 5.4.9 para 2,3,4 */
-	if (lp->lp_lsc->lsc_strict_mode)
-		lp->lp_partner.lip_state |= LACP_STATE_SYNC;
 
 	lacp_sm_ptx_update_timeout(lp, oldpstate);
 }

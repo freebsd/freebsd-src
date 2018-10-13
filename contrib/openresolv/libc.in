@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2014 Roy Marples
+# Copyright (c) 2007-2016 Roy Marples
 # All rights reserved
 
 # libc subscriber for resolvconf
@@ -97,7 +97,6 @@ elif [ -d "$SYSCONFDIR"/resolvconf ]; then
 fi
 : ${resolv_conf:=/etc/resolv.conf}
 : ${libc_service:=nscd}
-: ${libc_restart:=@RESTARTCMD ${libc_service}@}
 : ${list_resolv:=@SBINDIR@/resolvconf -l}
 if [ "${resolv_conf_head-x}" = x -a -f "$SYSCONFDIR"/resolv.conf.head ]; then
 	resolv_conf_head="$(cat "${SYSCONFDIR}"/resolv.conf.head)"
@@ -217,7 +216,7 @@ fi
 if $backup; then
 	if [ "$newconf" = "$signature$NL" ]; then
 		if [ -e "$resolv_conf.bak" ]; then
-			newconf="$(cat "$resolv_conf.bak")"
+			newconf="$(cat "$resolv_conf.bak")$NL"
 		fi
 	elif [ -e "$resolv_conf" ]; then
 		read line <"$resolv_conf"
@@ -229,7 +228,14 @@ fi
 
 # Create our resolv.conf now
 (umask 022; echo "$newconf" >"$resolv_conf")
-eval $libc_restart
+if [ -n "$libc_restart" ]; then
+	eval $libc_restart
+elif [ -n "$RESTARTCMD" ]; then
+	set -- ${libc_service}
+	eval $RESTARTCMD
+else
+	@SBINDIR@/resolvconf -r ${libc_service}
+fi
 
 retval=0
 # Notify users of the resolver

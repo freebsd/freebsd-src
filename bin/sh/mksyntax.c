@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -63,6 +65,7 @@ struct synclass {
 static const struct synclass synclass[] = {
 	{ "CWORD",	"character is nothing special" },
 	{ "CNL",	"newline character" },
+	{ "CQNL",	"newline character in quotes" },
 	{ "CBACK",	"a backslash character" },
 	{ "CSBACK",	"a backslash character in single quotes" },
 	{ "CSQUOTE",	"single quote" },
@@ -183,7 +186,7 @@ main(int argc __unused, char **argv __unused)
 	fputs("\n/* syntax table used when in double quotes */\n", cfile);
 	init("dqsyntax");
 	add_default();
-	add("\n", "CNL");
+	add("\n", "CQNL");
 	add("\\", "CBACK");
 	add("\"", "CENDQUOTE");
 	add("`", "CBQUOTE");
@@ -196,7 +199,7 @@ main(int argc __unused, char **argv __unused)
 	fputs("\n/* syntax table used when in single quotes */\n", cfile);
 	init("sqsyntax");
 	add_default();
-	add("\n", "CNL");
+	add("\n", "CQNL");
 	add("\\", "CSBACK");
 	add("'", "CENDQUOTE");
 	/* ':/' for tilde expansion, '-^]' for [a\-x] pattern ranges */
@@ -206,7 +209,7 @@ main(int argc __unused, char **argv __unused)
 	fputs("\n/* syntax table used when in arithmetic */\n", cfile);
 	init("arisyntax");
 	add_default();
-	add("\n", "CNL");
+	add("\n", "CQNL");
 	add("\\", "CBACK");
 	add("`", "CBQUOTE");
 	add("\"", "CIGN");

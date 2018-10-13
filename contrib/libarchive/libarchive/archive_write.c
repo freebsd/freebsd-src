@@ -109,10 +109,9 @@ archive_write_new(void)
 	struct archive_write *a;
 	unsigned char *nulls;
 
-	a = (struct archive_write *)malloc(sizeof(*a));
+	a = (struct archive_write *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_WRITE_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_write_vtable();
@@ -126,12 +125,11 @@ archive_write_new(void)
 
 	/* Initialize a block of nulls for padding purposes. */
 	a->null_length = 1024;
-	nulls = (unsigned char *)malloc(a->null_length);
+	nulls = (unsigned char *)calloc(1, a->null_length);
 	if (nulls == NULL) {
 		free(a);
 		return (NULL);
 	}
-	memset(nulls, 0, a->null_length);
 	a->nulls = nulls;
 	return (&a->archive);
 }
@@ -192,7 +190,7 @@ archive_write_get_bytes_in_last_block(struct archive *_a)
  * an archive to itself recursively.
  */
 int
-archive_write_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+archive_write_set_skip_file(struct archive *_a, la_int64_t d, la_int64_t i)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
@@ -233,7 +231,7 @@ __archive_write_filter(struct archive_write_filter *f,
 	if (length == 0)
 		return(ARCHIVE_OK);
 	if (f->write == NULL)
-		/* If unset, a fatal error has already ocuured, so this filter
+		/* If unset, a fatal error has already occurred, so this filter
 		 * didn't open. We cannot write anything. */
 		return(ARCHIVE_FATAL);
 	r = (f->write)(f, buff, length);

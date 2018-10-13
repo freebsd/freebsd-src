@@ -37,7 +37,7 @@
  * \file
  *
  * This file contains functions to resolve DNS queries and 
- * validate the answers. Synchonously and asynchronously.
+ * validate the answers. Synchronously and asynchronously.
  *
  * Several ways to use this interface from an application wishing
  * to perform (validated) DNS lookups.
@@ -177,7 +177,7 @@ struct ub_result {
 	 * False, if validation failed or domain queried has no security info.
 	 *
 	 * It is possible to get a result with no data (havedata is false),
-	 * and secure is true. This means that the non-existance of the data
+	 * and secure is true. This means that the non-existence of the data
 	 * was cryptographically proven (with signatures).
 	 */
 	int secure;
@@ -204,6 +204,12 @@ struct ub_result {
 	char* why_bogus;
 
 	/**
+	 * If the query or one of its subqueries was ratelimited. Useful if
+	 * ratelimiting is enabled and answer is SERVFAIL.
+	 */
+	int was_ratelimited;
+
+	/**
 	 * TTL for the result, in seconds.  If the security is bogus, then
 	 * you also cannot trust this value.
 	 */
@@ -223,7 +229,7 @@ struct ub_result {
  *		This structure is allocated on the heap and needs to be
  *		freed with ub_resolve_free(result);
  */
-typedef void (*ub_callback_t)(void*, int, struct ub_result*);
+typedef void (*ub_callback_type)(void*, int, struct ub_result*);
 
 /**
  * Create a resolving and validation context.
@@ -519,7 +525,7 @@ int ub_resolve(struct ub_ctx* ctx, const char* name, int rrtype,
  * @return 0 if OK, else error.
  */
 int ub_resolve_async(struct ub_ctx* ctx, const char* name, int rrtype, 
-	int rrclass, void* mydata, ub_callback_t callback, int* async_id);
+	int rrclass, void* mydata, ub_callback_type callback, int* async_id);
 
 /**
  * Cancel an async query in progress.
@@ -600,6 +606,196 @@ int ub_ctx_data_remove(struct ub_ctx* ctx, const char *data);
  * @return a static constant string with the version number.
  */
 const char* ub_version(void);
+
+/** 
+ * Some global statistics that are not in struct stats_info,
+ * this struct is shared on a shm segment (shm-key in unbound.conf)
+ */
+struct ub_shm_stat_info {
+	int num_threads;
+
+	struct {
+		long long now_sec, now_usec;
+		long long up_sec, up_usec;
+		long long elapsed_sec, elapsed_usec;
+	} time;
+
+	struct {
+		long long msg;
+		long long rrset;
+		long long val;
+		long long iter;
+		long long subnet;
+		long long ipsecmod;
+		long long respip;
+		long long dnscrypt_shared_secret;
+		long long dnscrypt_nonce;
+	} mem;
+};
+
+/** number of qtype that is stored for in array */
+#define UB_STATS_QTYPE_NUM 256
+/** number of qclass that is stored for in array */
+#define UB_STATS_QCLASS_NUM 256
+/** number of rcodes in stats */
+#define UB_STATS_RCODE_NUM 16
+/** number of opcodes in stats */
+#define UB_STATS_OPCODE_NUM 16
+/** number of histogram buckets */
+#define UB_STATS_BUCKET_NUM 40
+
+/** per worker statistics. */
+struct ub_server_stats {
+	/** number of queries from clients received. */
+	long long num_queries;
+	/** number of queries that have been dropped/ratelimited by ip. */
+	long long num_queries_ip_ratelimited;
+	/** number of queries that had a cache-miss. */
+	long long num_queries_missed_cache;
+	/** number of prefetch queries - cachehits with prefetch */
+	long long num_queries_prefetch;
+
+	/**
+	 * Sum of the querylistsize of the worker for 
+	 * every query that missed cache. To calculate average.
+	 */
+	long long sum_query_list_size;
+	/** max value of query list size reached. */
+	long long max_query_list_size;
+
+	/** Extended stats below (bool) */
+	int extended;
+
+	/** qtype stats */
+	long long qtype[UB_STATS_QTYPE_NUM];
+	/** bigger qtype values not in array */
+	long long qtype_big;
+	/** qclass stats */
+	long long qclass[UB_STATS_QCLASS_NUM];
+	/** bigger qclass values not in array */
+	long long qclass_big;
+	/** query opcodes */
+	long long qopcode[UB_STATS_OPCODE_NUM];
+	/** number of queries over TCP */
+	long long qtcp;
+	/** number of outgoing queries over TCP */
+	long long qtcp_outgoing;
+	/** number of queries over (DNS over) TLS */
+	long long qtls;
+	/** number of queries over IPv6 */
+	long long qipv6;
+	/** number of queries with QR bit */
+	long long qbit_QR;
+	/** number of queries with AA bit */
+	long long qbit_AA;
+	/** number of queries with TC bit */
+	long long qbit_TC;
+	/** number of queries with RD bit */
+	long long qbit_RD;
+	/** number of queries with RA bit */
+	long long qbit_RA;
+	/** number of queries with Z bit */
+	long long qbit_Z;
+	/** number of queries with AD bit */
+	long long qbit_AD;
+	/** number of queries with CD bit */
+	long long qbit_CD;
+	/** number of queries with EDNS OPT record */
+	long long qEDNS;
+	/** number of queries with EDNS with DO flag */
+	long long qEDNS_DO;
+	/** answer rcodes */
+	long long ans_rcode[UB_STATS_RCODE_NUM];
+	/** answers with pseudo rcode 'nodata' */
+	long long ans_rcode_nodata;
+	/** answers that were secure (AD) */
+	long long ans_secure;
+	/** answers that were bogus (withheld as SERVFAIL) */
+	long long ans_bogus;
+	/** rrsets marked bogus by validator */
+	long long rrset_bogus;
+	/** number of queries that have been ratelimited by domain recursion. */
+	long long queries_ratelimited;
+	/** unwanted traffic received on server-facing ports */
+	long long unwanted_replies;
+	/** unwanted traffic received on client-facing ports */
+	long long unwanted_queries;
+	/** usage of tcp accept list */
+	long long tcp_accept_usage;
+	/** answers served from expired cache */
+	long long zero_ttl_responses;
+	/** histogram data exported to array 
+	 * if the array is the same size, no data is lost, and
+	 * if all histograms are same size (is so by default) then
+	 * adding up works well. */
+	long long hist[UB_STATS_BUCKET_NUM];
+	
+	/** number of message cache entries */
+	long long msg_cache_count;
+	/** number of rrset cache entries */
+	long long rrset_cache_count;
+	/** number of infra cache entries */
+	long long infra_cache_count;
+	/** number of key cache entries */
+	long long key_cache_count;
+
+	/** number of queries that used dnscrypt */
+	long long num_query_dnscrypt_crypted;
+	/** number of queries that queried dnscrypt certificates */
+	long long num_query_dnscrypt_cert;
+	/** number of queries in clear text and not asking for the certificates */
+	long long num_query_dnscrypt_cleartext;
+	/** number of malformed encrypted queries */
+	long long num_query_dnscrypt_crypted_malformed;
+	/** number of queries which did not have a shared secret in cache */
+	long long num_query_dnscrypt_secret_missed_cache;
+	/** number of dnscrypt shared secret cache entries */
+	long long shared_secret_cache_count;
+	/** number of queries which are replays */
+	long long num_query_dnscrypt_replay;
+	/** number of dnscrypt nonces cache entries */
+	long long nonce_cache_count;
+	/** number of queries for unbound's auth_zones, upstream query */
+	long long num_query_authzone_up;
+	/** number of queries for unbound's auth_zones, downstream answers */
+	long long num_query_authzone_down;
+	/** number of times neg cache records were used to generate NOERROR
+	 * responses. */
+	long long num_neg_cache_noerror;
+	/** number of times neg cache records were used to generate NXDOMAIN
+	 * responses. */
+	long long num_neg_cache_nxdomain;
+	/** number of queries answered from edns-subnet specific data */
+	long long num_query_subnet;
+	/** number of queries answered from edns-subnet specific data, and
+	 * the answer was from the edns-subnet cache. */
+	long long num_query_subnet_cache;
+};
+
+/** 
+ * Statistics to send over the control pipe when asked
+ * This struct is made to be memcopied, sent in binary.
+ * shm mapped with (number+1) at num_threads+1, with first as total
+ */
+struct ub_stats_info {
+	/** the thread stats */
+	struct ub_server_stats svr;
+
+	/** mesh stats: current number of states */
+	long long mesh_num_states;
+	/** mesh stats: current number of reply (user) states */
+	long long mesh_num_reply_states;
+	/** mesh stats: number of reply states overwritten with a new one */
+	long long mesh_jostled;
+	/** mesh stats: number of incoming queries dropped */
+	long long mesh_dropped;
+	/** mesh stats: replies sent */
+	long long mesh_replies_sent;
+	/** mesh stats: sum of waiting times for the replies */
+	long long mesh_replies_sum_wait_sec, mesh_replies_sum_wait_usec;
+	/** mesh stats: median of waiting times for replies (in sec) */
+	double mesh_time_median;
+};
 
 #ifdef __cplusplus
 }

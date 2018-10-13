@@ -26,6 +26,7 @@ SUCH DAMAGE.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/event.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -49,10 +50,12 @@ main(void)
 {
 	char buffer[32768], buffer2[32768], go[] = "go", go2[] = "go2";
 	int desc[2], ipc_coord[2];
+	struct kevent event, ke;
 	ssize_t error;
 	int successes = 0;
 	struct stat status;
 	pid_t new_pid;
+	int kq;
 
 	error = pipe(desc);
 	if (error == -1)
@@ -118,9 +121,24 @@ main(void)
 		_exit(0);
 	}
 
+	kq = kqueue();
+	if (kq == -1)
+		_exit(1);
+
+	EV_SET(&ke, desc[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
+
+	/* Attach event to the kqueue. */
+	if (kevent(kq, &ke, 1, NULL, 0, NULL) != 0)
+		_exit(2);
+
 	while (successes < 5) {
 		SYNC_W(1, go);
 		SYNC_R(1, go2);
+
+		/* Ensure data is available to read */
+		if (kevent(kq, NULL, 0, &event, 1, NULL) != 1)
+			_exit(3);
+
 		fstat(desc[0], &status);
 		error = read(desc[0], &buffer2, sizeof(buffer2));
 

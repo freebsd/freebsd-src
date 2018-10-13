@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2007 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -28,6 +30,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef IB_UMEM_H
@@ -36,58 +40,73 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
-#include <linux/dma-attrs.h>
-#include <linux/completion.h>
-#include <rdma/ib_peer_mem.h>
 
 struct ib_ucontext;
-struct ib_umem;
-
-typedef void (*umem_invalidate_func_t)(void *invalidation_cookie,
-					    struct ib_umem *umem,
-					    unsigned long addr, size_t size);
-
-struct invalidation_ctx {
-	struct ib_umem *umem;
-	umem_invalidate_func_t func;
-	void *cookie;
-	unsigned long context_ticket;
-	int peer_callback;
-	int inflight_invalidation;
-	int peer_invalidated;
-	struct completion comp;
-};
+struct ib_umem_odp;
 
 struct ib_umem {
 	struct ib_ucontext     *context;
 	size_t			length;
-	int			offset;
+	unsigned long		address;
 	int			page_size;
 	int                     writable;
-	int                     hugetlb;
 	struct work_struct	work;
+	pid_t			pid;
+	struct mm_struct       *mm;
 	unsigned long		diff;
-	unsigned long           start;
+	struct ib_umem_odp     *odp_data;
 	struct sg_table sg_head;
-	int                     nmap;
+	int             nmap;
 	int             npages;
-	/* peer memory that manages this umem*/
-	struct ib_peer_memory_client *ib_peer_mem;
-	struct invalidation_ctx *invalidation_ctx;
-	int peer_mem_srcu_key;
-	/* peer memory private context */
-	void *peer_mem_client_context;
 };
+
+/* Returns the offset of the umem start relative to the first page. */
+static inline int ib_umem_offset(struct ib_umem *umem)
+{
+	return umem->address & ((unsigned long)umem->page_size - 1);
+}
+
+/* Returns the first page of an ODP umem. */
+static inline unsigned long ib_umem_start(struct ib_umem *umem)
+{
+	return umem->address - ib_umem_offset(umem);
+}
+
+/* Returns the address of the page after the last one of an ODP umem. */
+static inline unsigned long ib_umem_end(struct ib_umem *umem)
+{
+	return PAGE_ALIGN(umem->address + umem->length);
+}
+
+static inline size_t ib_umem_num_pages(struct ib_umem *umem)
+{
+	return (ib_umem_end(umem) - ib_umem_start(umem)) >> PAGE_SHIFT;
+}
+
+#ifdef CONFIG_INFINIBAND_USER_MEM
 
 struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 			    size_t size, int access, int dmasync);
-struct ib_umem *ib_umem_get_ex(struct ib_ucontext *context, unsigned long addr,
-			    size_t size, int access, int dmasync,
-			    int invalidation_supported);
-void  ib_umem_activate_invalidation_notifier(struct ib_umem *umem,
-					       umem_invalidate_func_t func,
-					       void *cookie);
 void ib_umem_release(struct ib_umem *umem);
 int ib_umem_page_count(struct ib_umem *umem);
+int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
+		      size_t length);
+
+#else /* CONFIG_INFINIBAND_USER_MEM */
+
+#include <linux/err.h>
+
+static inline struct ib_umem *ib_umem_get(struct ib_ucontext *context,
+					  unsigned long addr, size_t size,
+					  int access, int dmasync) {
+	return ERR_PTR(-EINVAL);
+}
+static inline void ib_umem_release(struct ib_umem *umem) { }
+static inline int ib_umem_page_count(struct ib_umem *umem) { return 0; }
+static inline int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
+		      		    size_t length) {
+	return -EINVAL;
+}
+#endif /* CONFIG_INFINIBAND_USER_MEM */
 
 #endif /* IB_UMEM_H */

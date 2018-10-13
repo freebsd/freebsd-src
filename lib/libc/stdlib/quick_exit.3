@@ -1,6 +1,6 @@
 .\"  Copyright (c) 2011 David Chisnall
 .\"  All rights reserved.
-.\" 
+.\"
 .\"  Redistribution and use in source and binary forms, with or without
 .\"  modification, are permitted provided that the following conditions
 .\"  are met:
@@ -9,7 +9,7 @@
 .\"  2. Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
 .\"     documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\"  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -21,10 +21,10 @@
 .\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\"  SUCH DAMAGE.
-.\" 
+.\"
 .\"  $FreeBSD$
 .\"
-.Dd December 13, 2014
+.Dd November 4, 2017
 .Dt QUICK_EXIT 3
 .Os
 .Sh NAME
@@ -44,6 +44,17 @@ with
 .Xr at_quick_exit 3
 but not any C++ destructors or cleanup code registered with
 .Xr atexit 3 .
+The
+.Xr stdio 3
+file buffers are not flushed.
+.Pp
+The function
+.Fn quick_exit
+is
+.Em async-signal safe
+when the functions registered with
+.Xr at_quick_exit 3
+are.
 .Sh RETURN VALUES
 The
 .Fn quick_exit

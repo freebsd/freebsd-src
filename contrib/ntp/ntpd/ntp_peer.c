@@ -117,7 +117,7 @@ static struct peer *	findexistingpeer_name(const char *, u_short,
 					      struct peer *, int);
 static struct peer *	findexistingpeer_addr(sockaddr_u *,
 					      struct peer *, int,
-					      u_char);
+					      u_char, int *);
 static void		free_peer(struct peer *, int);
 static void		getmorepeermem(void);
 static int		score(struct peer *);
@@ -161,7 +161,7 @@ getmorepeermem(void)
 	int i;
 	struct peer *peers;
 
-	peers = emalloc_zero(INC_PEER_ALLOC * sizeof(*peers));
+	peers = eallocarray(INC_PEER_ALLOC, sizeof(*peers));
 
 	for (i = INC_PEER_ALLOC - 1; i >= 0; i--)
 		LINK_SLIST(peer_free, &peers[i], p_link);
@@ -203,17 +203,18 @@ findexistingpeer_addr(
 	sockaddr_u *	addr,
 	struct peer *	start_peer,
 	int		mode,
-	u_char		cast_flags
+	u_char		cast_flags,
+	int *		ip_count
 	)
 {
 	struct peer *peer;
 
-	DPRINTF(2, ("findexistingpeer_addr(%s, %s, %d, 0x%x)\n",
+	DPRINTF(2, ("findexistingpeer_addr(%s, %s, %d, 0x%x, %p)\n",
 		sptoa(addr),
 		(start_peer)
 		    ? sptoa(&start_peer->srcadr)
 		    : "NULL",
-		mode, (u_int)cast_flags));
+		mode, (u_int)cast_flags, ip_count));
 
 	/*
 	 * start_peer is included so we can locate instances of the
@@ -234,6 +235,11 @@ findexistingpeer_addr(
 		DPRINTF(3, ("%s %s %d %d 0x%x 0x%x ", sptoa(addr),
 			sptoa(&peer->srcadr), mode, peer->hmode,
 			(u_int)cast_flags, (u_int)peer->cast_flags));
+		if (ip_count) {
+			if (SOCK_EQ(addr, &peer->srcadr)) {
+				(*ip_count)++;
+			}
+		}
  		if ((-1 == mode || peer->hmode == mode ||
 		     ((MDF_BCLNT & peer->cast_flags) &&
 		      (MDF_BCLNT & cast_flags))) &&
@@ -258,7 +264,8 @@ findexistingpeer(
 	const char *	hostname,
 	struct peer *	start_peer,
 	int		mode,
-	u_char		cast_flags
+	u_char		cast_flags,
+	int *		ip_count
 	)
 {
 	if (hostname != NULL)
@@ -266,13 +273,29 @@ findexistingpeer(
 					     start_peer, mode);
 	else
 		return findexistingpeer_addr(addr, start_peer, mode,
-					     cast_flags);
+					     cast_flags, ip_count);
 }
 
 
 /*
  * findpeer - find and return a peer match for a received datagram in
  *	      the peer_hash table.
+ *
+ * [Bug 3072] To faciliate a faster reorganisation after routing changes
+ * the original code re-assigned the peer address to be the destination
+ * of the received packet and initiated another round on a mismatch.
+ * Unfortunately this leaves us wide open for a DoS attack where the
+ * attacker directs a packet with forged destination address to us --
+ * this results in a wrong interface assignment, actually creating a DoS
+ * situation.
+ *
+ * This condition would persist until the next update of the interface
+ * list, but a continued attack would put us out of business again soon
+ * enough. Authentication alone does not help here, since it does not
+ * protect the UDP layer and leaves us open for a replay attack.
+ *
+ * So we do not update the adresses and wait until the next interface
+ * list update does the right thing for us.
  */
 struct peer *
 findpeer(
@@ -291,61 +314,51 @@ findpeer(
 	srcadr = &rbufp->recv_srcadr;
 	hash = NTP_HASH_ADDR(srcadr);
 	for (p = peer_hash[hash]; p != NULL; p = p->adr_link) {
-		if (ADDR_PORT_EQ(srcadr, &p->srcadr)) {
 
-			/*
-			 * if the association matching rules determine
-			 * that this is not a valid combination, then
-			 * look for the next valid peer association.
-			 */
-			*action = MATCH_ASSOC(p->hmode, pkt_mode);
+		/* [Bug 3072] ensure interface of peer matches */
+		/* [Bug 3356] ... if NOT a broadcast peer!     */
+		if (p->hmode != MODE_BCLIENT && p->dstadr != rbufp->dstadr)
+			continue;
 
-			/*
-			 * A response to our manycastclient solicitation
-			 * might be misassociated with an ephemeral peer
-			 * already spun for the server.  If the packet's
-			 * org timestamp doesn't match the peer's, check
-			 * if it matches the ACST prototype peer's.  If
-			 * so it is a redundant solicitation response,
-			 * return AM_ERR to discard it.  [Bug 1762]
-			 */
-			if (MODE_SERVER == pkt_mode &&
-			    AM_PROCPKT == *action) {
-				pkt = &rbufp->recv_pkt;
-				NTOHL_FP(&pkt->org, &pkt_org);
-				if (!L_ISEQU(&p->aorg, &pkt_org) &&
-				    findmanycastpeer(rbufp))
-					*action = AM_ERR;
-			}
+		/* ensure peer source address matches */
+		if ( ! ADDR_PORT_EQ(srcadr, &p->srcadr))
+			continue;
+		
+		/* If the association matching rules determine that this
+		 * is not a valid combination, then look for the next
+		 * valid peer association.
+		 */
+		*action = MATCH_ASSOC(p->hmode, pkt_mode);
 
-			/*
-			 * if an error was returned, exit back right
-			 * here.
-			 */
-			if (*action == AM_ERR)
-				return NULL;
-
-			/*
-			 * if a match is found, we stop our search.
-			 */
-			if (*action != AM_NOMATCH)
-				break;
+		/* A response to our manycastclient solicitation might
+		 * be misassociated with an ephemeral peer already spun
+		 * for the server.  If the packet's org timestamp
+		 * doesn't match the peer's, check if it matches the
+		 * ACST prototype peer's.  If so it is a redundant
+		 * solicitation response, return AM_ERR to discard it.
+		 * [Bug 1762]
+		 */
+		if (MODE_SERVER == pkt_mode && AM_PROCPKT == *action) {
+			pkt = &rbufp->recv_pkt;
+			NTOHL_FP(&pkt->org, &pkt_org);
+			if (!L_ISEQU(&p->aorg, &pkt_org) &&
+			    findmanycastpeer(rbufp))
+				*action = AM_ERR;
 		}
+
+		/* if an error was returned, exit back right here. */
+		if (*action == AM_ERR)
+			return NULL;
+
+		/* if a match is found, we stop our search. */
+		if (*action != AM_NOMATCH)
+			break;
 	}
 
-	/*
-	 * If no matching association is found
-	 */
-	if (NULL == p) {
+	/* If no matching association is found... */
+	if (NULL == p)
 		*action = MATCH_ASSOC(NO_PEER, pkt_mode);
-	} else if (p->dstadr != rbufp->dstadr) {
-		set_peerdstadr(p, rbufp->dstadr);
-		if (p->dstadr == rbufp->dstadr) {
-			DPRINTF(1, ("Changed %s local address to match response\n",
-				    stoa(&p->srcadr)));
-			return findpeer(rbufp, pkt_mode, action);
-		}
-	}
+
 	return p;
 }
 
@@ -555,6 +568,7 @@ peer_config(
 	sockaddr_u *	srcadr,
 	const char *	hostname,
 	endpt *		dstadr,
+	int		ippeerlimit,
 	u_char		hmode,
 	u_char		version,
 	u_char		minpoll,
@@ -605,7 +619,7 @@ peer_config(
 		flags |= FLAG_IBURST;
 	if ((MDF_ACAST | MDF_POOL) & cast_flags)
 		flags &= ~FLAG_PREEMPT;
-	return newpeer(srcadr, hostname, dstadr, hmode, version,
+	return newpeer(srcadr, hostname, dstadr, ippeerlimit, hmode, version,
 	    minpoll, maxpoll, flags, cast_flags, ttl, key, ident);
 }
 
@@ -621,6 +635,12 @@ set_peerdstadr(
 {
 	struct peer *	unlinked;
 
+	DEBUG_INSIST(p != NULL);
+
+	if (p == NULL)
+		return;
+
+	/* check for impossible or identical assignment */
 	if (p->dstadr == dstadr)
 		return;
 
@@ -632,6 +652,8 @@ set_peerdstadr(
 	    (INT_MCASTIF & dstadr->flags) && MODE_CLIENT == p->hmode) {
 		return;
 	}
+
+	/* unlink from list if we have an address prior to assignment */
 	if (p->dstadr != NULL) {
 		p->dstadr->peercnt--;
 		UNLINK_SLIST(unlinked, p->dstadr->peers, p, ilink,
@@ -640,8 +662,11 @@ set_peerdstadr(
 			stoa(&p->srcadr), latoa(p->dstadr),
 			latoa(dstadr));
 	}
+	
 	p->dstadr = dstadr;
-	if (dstadr != NULL) {
+
+	/* link to list if we have an address after assignment */
+	if (p->dstadr != NULL) {
 		LINK_SLIST(dstadr->peers, p, ilink);
 		dstadr->peercnt++;
 	}
@@ -736,6 +761,7 @@ newpeer(
 	sockaddr_u *	srcadr,
 	const char *	hostname,
 	endpt *		dstadr,
+	int		ippeerlimit,
 	u_char		hmode,
 	u_char		version,
 	u_char		minpoll,
@@ -749,6 +775,8 @@ newpeer(
 {
 	struct peer *	peer;
 	u_int		hash;
+	int		ip_count = 0;
+
 
 	DEBUG_REQUIRE(srcadr);
 
@@ -782,11 +810,11 @@ newpeer(
 	 */
 	if (dstadr != NULL) {
 		peer = findexistingpeer(srcadr, hostname, NULL, hmode,
-					cast_flags);
+					cast_flags, &ip_count);
 		while (peer != NULL) {
-			if (peer->dstadr == dstadr ||
-			    ((MDF_BCLNT & cast_flags) &&
-			     (MDF_BCLNT & peer->cast_flags)))
+			if (   peer->dstadr == dstadr
+			    || (   (MDF_BCLNT & cast_flags)
+				&& (MDF_BCLNT & peer->cast_flags)))
 				break;
 
 			if (dstadr == ANY_INTERFACE_CHOOSE(srcadr) &&
@@ -794,12 +822,12 @@ newpeer(
 				break;
 
 			peer = findexistingpeer(srcadr, hostname, peer,
-						hmode, cast_flags);
+						hmode, cast_flags, &ip_count);
 		}
 	} else {
 		/* no endpt address given */
 		peer = findexistingpeer(srcadr, hostname, NULL, hmode,
-					cast_flags);
+					cast_flags, &ip_count);
 	}
 
 	/*
@@ -814,6 +842,30 @@ newpeer(
 			    ? hostname
 			    : stoa(srcadr)));
 		return NULL;
+	}
+
+DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
+		(hostname)
+		    ? hostname
+		    : stoa(srcadr),
+		ip_count));
+
+	/* Check ippeerlimit wrt ip_count */
+	if (ippeerlimit > -1) {
+		if (ip_count + 1 > ippeerlimit) {
+			DPRINTF(2, ("newpeer(%s) denied - ippeerlimit %d\n",
+				(hostname)
+				    ? hostname
+				    : stoa(srcadr),
+				ippeerlimit));
+			return NULL;
+		}
+	} else {
+		DPRINTF(1, ("newpeer(%s) - ippeerlimit %d ignored\n",
+			(hostname)
+			    ? hostname
+			    : stoa(srcadr),
+			ippeerlimit));
 	}
 
 	/*

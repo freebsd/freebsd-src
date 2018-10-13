@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/ntp/libntp \
-	${.CURDIR}/../../../contrib/ntp/lib/isc \
-	${.CURDIR}/../../../contrib/ntp/lib/isc/nls \
-	${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads \
-	${.CURDIR}/../../../contrib/ntp/lib/isc/unix \
+.PATH: ${SRCTOP}/contrib/ntp/libntp \
+	${SRCTOP}/contrib/ntp/lib/isc \
+	${SRCTOP}/contrib/ntp/lib/isc/nls \
+	${SRCTOP}/contrib/ntp/lib/isc/pthreads \
+	${SRCTOP}/contrib/ntp/lib/isc/unix \
 
 LIB= ntp
 INTERNALLIB=
@@ -17,7 +17,9 @@ NTP_SRCS= systime.c	a_md5encrypt.c	adjtime.c	atoint.c \
 	emalloc.c	findconfig.c	getopt.c	hextoint.c \
 	hextolfp.c	humandate.c	icom.c		iosignal.c \
 	is_ip_address.c \
-	lib_strbuf.c	machines.c	mktime.c	modetoa.c \
+	lib_strbuf.c	\
+	libssl_compat.c \
+	machines.c	mktime.c	modetoa.c \
 	mstolfp.c	msyslog.c	netof.c		ntp_calendar.c \
 	ntp_crypto_rnd.c		ntp_intres.c	ntp_libopts.c \
 	ntp_lineedit.c	ntp_random.c	ntp_rfc2553.c	ntp_worker.c \
@@ -71,14 +73,14 @@ ISC_SRCS= assertions.c \
 
 SRCS=	${NTP_SRCS} ${ISC_SRCS} version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
-	-I${.CURDIR}/../../../contrib/ntp/sntp/libopts \
-	-I${.CURDIR}/../../../lib/libc/${MACHINE_ARCH} \
-	-I${.CURDIR}/../../../lib/libedit/edit \
-	-I${.CURDIR}/../ \
+CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
+	-I${SRCTOP}/contrib/ntp/sntp/libopts \
+	-I${SRCTOP}/lib/libc/${MACHINE_ARCH} \
+	-I${SRCTOP}/lib/libedit/edit \
+	-I${.CURDIR:H} \
 	-I${.CURDIR}/
 
 CFLAGS+= -DHAVE_BSD_NICE -DHAVE_STDINT_H
@@ -86,6 +88,6 @@ CFLAGS+= -DHAVE_BSD_NICE -DHAVE_STDINT_H
 CLEANFILES+= .version version.c
 
 version.c:
-	sh -e ${.CURDIR}/../scripts/mkver ntpd
+	sh -e ${.CURDIR:H}/scripts/mkver ntpd
 
 .include <bsd.lib.mk>

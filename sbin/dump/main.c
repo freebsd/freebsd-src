@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -57,6 +59,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
+#include <libufs.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdint.h>
@@ -82,11 +85,6 @@ long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
 
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-
 static char *getmntpt(char *, int *);
 static long numarg(const char *, long, long);
 static void obsolete(int *, char **[]);
@@ -102,7 +100,7 @@ main(int argc, char *argv[])
 	struct fstab *dt;
 	char *map, *mntpt;
 	int ch, mode, mntflags;
-	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
+	int i, ret, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	int just_estimate = 0;
 	ino_t maxino;
 	char *tmsg;
@@ -435,19 +433,16 @@ main(int argc, char *argv[])
 		msgtail("to %s\n", tape);
 
 	sync();
-	sblock = (struct fs *)sblock_buf;
-	for (i = 0; sblock_try[i] != -1; i++) {
-		sblock->fs_fsize = SBLOCKSIZE; /* needed in bread */
-		bread(sblock_try[i] >> dev_bshift, (char *) sblock, SBLOCKSIZE);
-		if ((sblock->fs_magic == FS_UFS1_MAGIC ||
-		     (sblock->fs_magic == FS_UFS2_MAGIC &&
-		      sblock->fs_sblockloc == sblock_try[i])) &&
-		    sblock->fs_bsize <= MAXBSIZE &&
-		    sblock->fs_bsize >= sizeof(struct fs))
-			break;
+	if ((ret = sbget(diskfd, &sblock, -1)) != 0) {
+		switch (ret) {
+		case ENOENT:
+			warn("Cannot find file system superblock");
+			return (1);
+		default:
+			warn("Unable to read file system superblock");
+			return (1);
+		}
 	}
-	if (sblock_try[i] == -1)
-		quit("Cannot find file system superblock\n");
 	dev_bsize = sblock->fs_fsize / fsbtodb(sblock, 1);
 	dev_bshift = ffs(dev_bsize) - 1;
 	if (dev_bsize != (1 << dev_bshift))
@@ -554,7 +549,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip directory inodes deleted and maybe reallocated
 		 */
-		dp = getino(ino, &mode);
+		dp = getinode(ino, &mode);
 		if (mode != IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
@@ -573,7 +568,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip inodes deleted and reallocated as directories.
 		 */
-		dp = getino(ino, &mode);
+		dp = getinode(ino, &mode);
 		if (mode == IFDIR)
 			continue;
 		(void)dumpino(dp, ino);

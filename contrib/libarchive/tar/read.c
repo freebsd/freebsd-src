@@ -105,7 +105,7 @@ tar_mode_x(struct bsdtar *bsdtar)
 	writer = archive_write_disk_new();
 	if (writer == NULL)
 		lafe_errc(1, ENOMEM, "Cannot allocate disk writer object");
-	if (!bsdtar->option_numeric_owner)
+	if ((bsdtar->flags & OPTFLAG_NUMERIC_OWNER) == 0)
 		archive_write_disk_set_standard_lookup(writer);
 	archive_write_disk_set_options(writer, bsdtar->extract_flags);
 
@@ -177,7 +177,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	if (bsdtar->names_from_file != NULL)
 		if (archive_match_include_pattern_from_file(
 		    bsdtar->matching, bsdtar->names_from_file,
-		    bsdtar->option_null) != ARCHIVE_OK)
+		    (bsdtar->flags & OPTFLAG_NULL)) != ARCHIVE_OK)
 			lafe_errc(1, 0, "Error inclusion pattern: %s",
 			    archive_error_string(bsdtar->matching));
 
@@ -188,18 +188,17 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 	reader_options = getenv(ENV_READER_OPTIONS);
 	if (reader_options != NULL) {
+		size_t module_len = sizeof(IGNORE_WRONG_MODULE_NAME) - 1;
+		size_t opt_len = strlen(reader_options) + 1;
 		char *p;
 		/* Set default read options. */
-		p = (char *)malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
-		    + strlen(reader_options) + 1);
-		if (p == NULL)
+		if ((p = malloc(module_len + opt_len)) == NULL)
 			lafe_errc(1, errno, "Out of memory");
 		/* Prepend magic code to ignore options for
 		 * a format or  modules which are not added to
 		 *  the archive read object. */
-		strncpy(p, IGNORE_WRONG_MODULE_NAME,
-		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
-		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, reader_options);
+		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
+		memcpy(p + module_len, reader_options, opt_len);
 		r = archive_read_set_options(a, p);
 		free(p);
 		if (r == ARCHIVE_FATAL)
@@ -209,7 +208,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	}
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (bsdtar->option_ignore_zeros)
+	if (bsdtar->flags & OPTFLAG_IGNORE_ZEROS)
 		if (archive_read_set_options(a,
 		    "read_concatenated_archives") != ARCHIVE_OK)
 			lafe_errc(1, 0, "%s", archive_error_string(a));
@@ -235,7 +234,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		    &progress_data);
 	}
 
-	if (mode == 'x' && bsdtar->option_chroot) {
+	if (mode == 'x' && (bsdtar->flags & OPTFLAG_CHROOT)) {
 #if HAVE_CHROOT
 		if (chroot(".") != 0)
 			lafe_errc(1, errno, "Can't chroot to \".\"");
@@ -246,7 +245,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	}
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	if (mode == 'x' && bsdtar->option_stdout) {
+	if (mode == 'x' && (bsdtar->flags & OPTFLAG_STDOUT)) {
 		_setmode(1, _O_BINARY);
 	}
 #endif
@@ -254,7 +253,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	for (;;) {
 		/* Support --fast-read option */
 		const char *p;
-		if (bsdtar->option_fast_read &&
+		if ((bsdtar->flags & OPTFLAG_FAST_READ) &&
 		    archive_match_path_unmatched_inclusions(bsdtar->matching) == 0)
 			break;
 
@@ -308,7 +307,8 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		if (mode == 't') {
 			/* Perversely, gtar uses -O to mean "send to stderr"
 			 * when used with -t. */
-			out = bsdtar->option_stdout ? stderr : stdout;
+			out = (bsdtar->flags & OPTFLAG_STDOUT) ?
+			    stderr : stdout;
 
 			/*
 			 * TODO: Provide some reasonable way to
@@ -346,7 +346,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			if (edit_pathname(bsdtar, entry))
 				continue; /* Excluded by a rewrite failure. */
 
-			if (bsdtar->option_interactive &&
+			if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
 
@@ -365,7 +365,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 			/* TODO siginfo_printinfo(bsdtar, 0); */
 
-			if (bsdtar->option_stdout)
+			if (bsdtar->flags & OPTFLAG_STDOUT)
 				r = archive_read_data_into_fd(a, 1);
 			else
 				r = archive_read_extract2(a, entry, writer);

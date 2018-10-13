@@ -87,6 +87,205 @@ DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
   xorl  %eax, %eax    # return UNW_ESUCCESS
   ret
 
+#elif defined(__mips__) && defined(_ABIO32) && _MIPS_SIM == _ABIO32
+
+#
+# extern int unw_getcontext(unw_context_t* thread_state)
+#
+# On entry:
+#  thread_state pointer is in a0 ($4)
+#
+DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
+  .set push
+  .set noat
+  .set noreorder
+  .set nomacro
+  sw    $1, (4 * 1)($4)
+  sw    $2, (4 * 2)($4)
+  sw    $3, (4 * 3)($4)
+  sw    $4, (4 * 4)($4)
+  sw    $5, (4 * 5)($4)
+  sw    $6, (4 * 6)($4)
+  sw    $7, (4 * 7)($4)
+  sw    $8, (4 * 8)($4)
+  sw    $9, (4 * 9)($4)
+  sw    $10, (4 * 10)($4)
+  sw    $11, (4 * 11)($4)
+  sw    $12, (4 * 12)($4)
+  sw    $13, (4 * 13)($4)
+  sw    $14, (4 * 14)($4)
+  sw    $15, (4 * 15)($4)
+  sw    $16, (4 * 16)($4)
+  sw    $17, (4 * 17)($4)
+  sw    $18, (4 * 18)($4)
+  sw    $19, (4 * 19)($4)
+  sw    $20, (4 * 20)($4)
+  sw    $21, (4 * 21)($4)
+  sw    $22, (4 * 22)($4)
+  sw    $23, (4 * 23)($4)
+  sw    $24, (4 * 24)($4)
+  sw    $25, (4 * 25)($4)
+  sw    $26, (4 * 26)($4)
+  sw    $27, (4 * 27)($4)
+  sw    $28, (4 * 28)($4)
+  sw    $29, (4 * 29)($4)
+  sw    $30, (4 * 30)($4)
+  sw    $31, (4 * 31)($4)
+  # Store return address to pc
+  sw    $31, (4 * 32)($4)
+  # hi and lo
+  mfhi  $8
+  sw    $8,  (4 * 33)($4)
+  mflo  $8
+  sw    $8,  (4 * 34)($4)
+#ifdef __mips_hard_float
+#if __mips_fpr == 32
+  sdc1  $f0, (4 * 36 + 8 * 0)($4)
+  sdc1  $f2, (4 * 36 + 8 * 2)($4)
+  sdc1  $f4, (4 * 36 + 8 * 4)($4)
+  sdc1  $f6, (4 * 36 + 8 * 6)($4)
+  sdc1  $f8, (4 * 36 + 8 * 8)($4)
+  sdc1  $f10, (4 * 36 + 8 * 10)($4)
+  sdc1  $f12, (4 * 36 + 8 * 12)($4)
+  sdc1  $f14, (4 * 36 + 8 * 14)($4)
+  sdc1  $f16, (4 * 36 + 8 * 16)($4)
+  sdc1  $f18, (4 * 36 + 8 * 18)($4)
+  sdc1  $f20, (4 * 36 + 8 * 20)($4)
+  sdc1  $f22, (4 * 36 + 8 * 22)($4)
+  sdc1  $f24, (4 * 36 + 8 * 24)($4)
+  sdc1  $f26, (4 * 36 + 8 * 26)($4)
+  sdc1  $f28, (4 * 36 + 8 * 28)($4)
+  sdc1  $f30, (4 * 36 + 8 * 30)($4)
+#else
+  sdc1  $f0, (4 * 36 + 8 * 0)($4)
+  sdc1  $f1, (4 * 36 + 8 * 1)($4)
+  sdc1  $f2, (4 * 36 + 8 * 2)($4)
+  sdc1  $f3, (4 * 36 + 8 * 3)($4)
+  sdc1  $f4, (4 * 36 + 8 * 4)($4)
+  sdc1  $f5, (4 * 36 + 8 * 5)($4)
+  sdc1  $f6, (4 * 36 + 8 * 6)($4)
+  sdc1  $f7, (4 * 36 + 8 * 7)($4)
+  sdc1  $f8, (4 * 36 + 8 * 8)($4)
+  sdc1  $f9, (4 * 36 + 8 * 9)($4)
+  sdc1  $f10, (4 * 36 + 8 * 10)($4)
+  sdc1  $f11, (4 * 36 + 8 * 11)($4)
+  sdc1  $f12, (4 * 36 + 8 * 12)($4)
+  sdc1  $f13, (4 * 36 + 8 * 13)($4)
+  sdc1  $f14, (4 * 36 + 8 * 14)($4)
+  sdc1  $f15, (4 * 36 + 8 * 15)($4)
+  sdc1  $f16, (4 * 36 + 8 * 16)($4)
+  sdc1  $f17, (4 * 36 + 8 * 17)($4)
+  sdc1  $f18, (4 * 36 + 8 * 18)($4)
+  sdc1  $f19, (4 * 36 + 8 * 19)($4)
+  sdc1  $f20, (4 * 36 + 8 * 20)($4)
+  sdc1  $f21, (4 * 36 + 8 * 21)($4)
+  sdc1  $f22, (4 * 36 + 8 * 22)($4)
+  sdc1  $f23, (4 * 36 + 8 * 23)($4)
+  sdc1  $f24, (4 * 36 + 8 * 24)($4)
+  sdc1  $f25, (4 * 36 + 8 * 25)($4)
+  sdc1  $f26, (4 * 36 + 8 * 26)($4)
+  sdc1  $f27, (4 * 36 + 8 * 27)($4)
+  sdc1  $f28, (4 * 36 + 8 * 28)($4)
+  sdc1  $f29, (4 * 36 + 8 * 29)($4)
+  sdc1  $f30, (4 * 36 + 8 * 30)($4)
+  sdc1  $f31, (4 * 36 + 8 * 31)($4)
+#endif
+#endif
+  jr	$31
+  # return UNW_ESUCCESS
+  or    $2, $0, $0
+  .set pop
+
+#elif defined(__mips64)
+
+#
+# extern int unw_getcontext(unw_context_t* thread_state)
+#
+# On entry:
+#  thread_state pointer is in a0 ($4)
+#
+DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
+  .set push
+  .set noat
+  .set noreorder
+  .set nomacro
+  sd    $1, (8 * 1)($4)
+  sd    $2, (8 * 2)($4)
+  sd    $3, (8 * 3)($4)
+  sd    $4, (8 * 4)($4)
+  sd    $5, (8 * 5)($4)
+  sd    $6, (8 * 6)($4)
+  sd    $7, (8 * 7)($4)
+  sd    $8, (8 * 8)($4)
+  sd    $9, (8 * 9)($4)
+  sd    $10, (8 * 10)($4)
+  sd    $11, (8 * 11)($4)
+  sd    $12, (8 * 12)($4)
+  sd    $13, (8 * 13)($4)
+  sd    $14, (8 * 14)($4)
+  sd    $15, (8 * 15)($4)
+  sd    $16, (8 * 16)($4)
+  sd    $17, (8 * 17)($4)
+  sd    $18, (8 * 18)($4)
+  sd    $19, (8 * 19)($4)
+  sd    $20, (8 * 20)($4)
+  sd    $21, (8 * 21)($4)
+  sd    $22, (8 * 22)($4)
+  sd    $23, (8 * 23)($4)
+  sd    $24, (8 * 24)($4)
+  sd    $25, (8 * 25)($4)
+  sd    $26, (8 * 26)($4)
+  sd    $27, (8 * 27)($4)
+  sd    $28, (8 * 28)($4)
+  sd    $29, (8 * 29)($4)
+  sd    $30, (8 * 30)($4)
+  sd    $31, (8 * 31)($4)
+  # Store return address to pc
+  sd    $31, (8 * 32)($4)
+  # hi and lo
+  mfhi  $8
+  sd    $8,  (8 * 33)($4)
+  mflo  $8
+  sd    $8,  (8 * 34)($4)
+#ifdef __mips_hard_float
+  sdc1  $f0, (8 * 35)($4)
+  sdc1  $f1, (8 * 36)($4)
+  sdc1  $f2, (8 * 37)($4)
+  sdc1  $f3, (8 * 38)($4)
+  sdc1  $f4, (8 * 39)($4)
+  sdc1  $f5, (8 * 40)($4)
+  sdc1  $f6, (8 * 41)($4)
+  sdc1  $f7, (8 * 42)($4)
+  sdc1  $f8, (8 * 43)($4)
+  sdc1  $f9, (8 * 44)($4)
+  sdc1  $f10, (8 * 45)($4)
+  sdc1  $f11, (8 * 46)($4)
+  sdc1  $f12, (8 * 47)($4)
+  sdc1  $f13, (8 * 48)($4)
+  sdc1  $f14, (8 * 49)($4)
+  sdc1  $f15, (8 * 50)($4)
+  sdc1  $f16, (8 * 51)($4)
+  sdc1  $f17, (8 * 52)($4)
+  sdc1  $f18, (8 * 53)($4)
+  sdc1  $f19, (8 * 54)($4)
+  sdc1  $f20, (8 * 55)($4)
+  sdc1  $f21, (8 * 56)($4)
+  sdc1  $f22, (8 * 57)($4)
+  sdc1  $f23, (8 * 58)($4)
+  sdc1  $f24, (8 * 59)($4)
+  sdc1  $f25, (8 * 60)($4)
+  sdc1  $f26, (8 * 61)($4)
+  sdc1  $f27, (8 * 62)($4)
+  sdc1  $f28, (8 * 63)($4)
+  sdc1  $f29, (8 * 64)($4)
+  sdc1  $f30, (8 * 65)($4)
+  sdc1  $f31, (8 * 66)($4)
+#endif
+  jr	$31
+  # return UNW_ESUCCESS
+  or    $2, $0, $0
+  .set pop
+
 # elif defined(__mips__)
 
 #
@@ -263,11 +462,11 @@ DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
   stp    x22,x23, [x0, #0x0B0]
   stp    x24,x25, [x0, #0x0C0]
   stp    x26,x27, [x0, #0x0D0]
-  stp    x28,fp,  [x0, #0x0E0]
-  str    lr,      [x0, #0x0F0]
+  stp    x28,x29, [x0, #0x0E0]
+  str    x30,     [x0, #0x0F0]
   mov    x1,sp
   str    x1,      [x0, #0x0F8]
-  str    lr,      [x0, #0x100]    // store return address as pc
+  str    x30,     [x0, #0x100]    // store return address as pc
   // skip cpsr
   stp    d0, d1,  [x0, #0x110]
   stp    d2, d3,  [x0, #0x120]
@@ -464,8 +663,86 @@ DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
   l.sw     120(r3), r30
   l.sw     124(r3), r31
 
-#elif defined(__riscv__)
+#elif defined(__riscv)
 
-/* RISCVTODO */
+#
+# extern int unw_getcontext(unw_context_t* thread_state)
+#
+# On entry:
+#  thread_state pointer is in a0
+#
+DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
+  // x0 is zero
+  sd    x1, (8 * 1)(a0)
+  sd    x2, (8 * 2)(a0)
+  sd    x3, (8 * 3)(a0)
+  sd    x4, (8 * 4)(a0)
+  sd    x5, (8 * 5)(a0)
+  sd    x6, (8 * 6)(a0)
+  sd    x7, (8 * 7)(a0)
+  sd    x8, (8 * 8)(a0)
+  sd    x9, (8 * 9)(a0)
+  sd    x10, (8 * 10)(a0)
+  sd    x11, (8 * 11)(a0)
+  sd    x12, (8 * 12)(a0)
+  sd    x13, (8 * 13)(a0)
+  sd    x14, (8 * 14)(a0)
+  sd    x15, (8 * 15)(a0)
+  sd    x16, (8 * 16)(a0)
+  sd    x17, (8 * 17)(a0)
+  sd    x18, (8 * 18)(a0)
+  sd    x19, (8 * 19)(a0)
+  sd    x20, (8 * 20)(a0)
+  sd    x21, (8 * 21)(a0)
+  sd    x22, (8 * 22)(a0)
+  sd    x23, (8 * 23)(a0)
+  sd    x24, (8 * 24)(a0)
+  sd    x25, (8 * 25)(a0)
+  sd    x26, (8 * 26)(a0)
+  sd    x27, (8 * 27)(a0)
+  sd    x28, (8 * 28)(a0)
+  sd    x29, (8 * 29)(a0)
+  sd    x30, (8 * 30)(a0)
+  sd    x31, (8 * 31)(a0)
 
+#ifdef __riscv_float_abi_double
+  fsd    f0, (8 * 32 + 8 * 0)(a0)
+  fsd    f1, (8 * 32 + 8 * 1)(a0)
+  fsd    f2, (8 * 32 + 8 * 2)(a0)
+  fsd    f3, (8 * 32 + 8 * 3)(a0)
+  fsd    f4, (8 * 32 + 8 * 4)(a0)
+  fsd    f5, (8 * 32 + 8 * 5)(a0)
+  fsd    f6, (8 * 32 + 8 * 6)(a0)
+  fsd    f7, (8 * 32 + 8 * 7)(a0)
+  fsd    f8, (8 * 32 + 8 * 8)(a0)
+  fsd    f9, (8 * 32 + 8 * 9)(a0)
+  fsd    f10, (8 * 32 + 8 * 10)(a0)
+  fsd    f11, (8 * 32 + 8 * 11)(a0)
+  fsd    f12, (8 * 32 + 8 * 12)(a0)
+  fsd    f13, (8 * 32 + 8 * 13)(a0)
+  fsd    f14, (8 * 32 + 8 * 14)(a0)
+  fsd    f15, (8 * 32 + 8 * 15)(a0)
+  fsd    f16, (8 * 32 + 8 * 16)(a0)
+  fsd    f17, (8 * 32 + 8 * 17)(a0)
+  fsd    f18, (8 * 32 + 8 * 18)(a0)
+  fsd    f19, (8 * 32 + 8 * 19)(a0)
+  fsd    f20, (8 * 32 + 8 * 20)(a0)
+  fsd    f21, (8 * 32 + 8 * 21)(a0)
+  fsd    f22, (8 * 32 + 8 * 22)(a0)
+  fsd    f23, (8 * 32 + 8 * 23)(a0)
+  fsd    f24, (8 * 32 + 8 * 24)(a0)
+  fsd    f25, (8 * 32 + 8 * 25)(a0)
+  fsd    f26, (8 * 32 + 8 * 26)(a0)
+  fsd    f27, (8 * 32 + 8 * 27)(a0)
+  fsd    f28, (8 * 32 + 8 * 28)(a0)
+  fsd    f29, (8 * 32 + 8 * 29)(a0)
+  fsd    f30, (8 * 32 + 8 * 30)(a0)
+  fsd    f31, (8 * 32 + 8 * 31)(a0)
 #endif
+
+  li     a0, 0  // return UNW_ESUCCESS
+  ret           // jump to ra
+#endif
+
+NO_EXEC_STACK_DIRECTIVE
+

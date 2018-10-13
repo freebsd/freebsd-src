@@ -53,6 +53,12 @@
 #include "ntp_parser.h"
 #include "ntpd-opts.h"
 
+#ifndef IGNORE_DNS_ERRORS
+# define DNSFLAGS 0
+#else
+# define DNSFLAGS GAIR_F_IGNDNSERR
+#endif
+
 extern int yyparse(void);
 
 /* Bug 2817 */
@@ -143,9 +149,9 @@ typedef struct peer_resolved_ctx_tag {
 extern int yydebug;			/* ntp_parser.c (.y) */
 config_tree cfgt;			/* Parser output stored here */
 struct config_tree_tag *cfg_tree_history;	/* History of configs */
-char	*sys_phone[MAXPHONE] = {NULL};	/* ACTS phone numbers */
+char *	sys_phone[MAXPHONE] = {NULL};	/* ACTS phone numbers */
 char	default_keysdir[] = NTP_KEYSDIR;
-char	*keysdir = default_keysdir;	/* crypto keys directory */
+char *	keysdir = default_keysdir;	/* crypto keys directory */
 char *	saveconfigdir;
 #if defined(HAVE_SCHED_SETSCHEDULER)
 int	config_priority_override = 0;
@@ -306,6 +312,7 @@ static void config_monitor(config_tree *);
 static void config_rlimit(config_tree *);
 static void config_system_opts(config_tree *);
 static void config_tinker(config_tree *);
+static int  config_tos_clock(config_tree *);
 static void config_tos(config_tree *);
 static void config_vars(config_tree *);
 
@@ -355,11 +362,32 @@ static char * normal_dtoa(double);
 static u_int32 get_pfxmatch(const char **, struct masks *);
 static u_int32 get_match(const char *, struct masks *);
 static u_int32 get_logmask(const char *);
+static int/*BOOL*/ is_refclk_addr(const address_node * addr);
+
+static void	appendstr(char *, size_t, const char *);
+
+
 #ifndef SIM
 static int getnetnum(const char *num, sockaddr_u *addr, int complain,
 		     enum gnn_type a_type);
 
 #endif
+
+#if defined(__GNUC__) /* this covers CLANG, too */
+static void  __attribute__((noreturn,format(printf,1,2))) fatal_error(const char *fmt, ...)
+#elif defined(_MSC_VER)
+static void __declspec(noreturn) fatal_error(const char *fmt, ...)
+#else
+static void fatal_error(const char *fmt, ...)
+#endif
+{
+	va_list va;
+
+	va_start(va, fmt);
+	mvsyslog(LOG_EMERG, fmt, va);
+	va_end(va);
+	_exit(1);
+}
 
 
 /* FUNCTIONS FOR INITIALIZATION
@@ -503,7 +531,7 @@ dump_config_tree(
 	setvar_node *setv_node;
 	nic_rule_node *rule_node;
 	int_node *i_n;
-	int_node *flags;
+	int_node *flag_tok_fifo;
 	int_node *counter_set;
 	string_node *str_node;
 
@@ -529,7 +557,10 @@ dump_config_tree(
 			ptree->source.value.s);
 	}
 
-	/* For options I didn't find documentation I'll just output its name and the cor. value */
+	/*
+	 * For options without documentation we just output the name
+	 * and its data value
+	 */
 	atrv = HEAD_PFIFO(ptree->vars);
 	for ( ; atrv != NULL; atrv = atrv->link) {
 		switch (atrv->type) {
@@ -697,6 +728,21 @@ dump_config_tree(
 					token_name(atrv->type));
 				break;
 #endif
+			case T_Integer:
+				if (atrv->attr == T_Basedate) {
+					struct calendar jd;
+					ntpcal_rd_to_date(&jd, atrv->value.i + DAY_NTP_STARTS);
+					fprintf(df, " %s \"%04hu-%02hu-%02hu\"",
+						keyword(atrv->attr), jd.year,
+						(u_short)jd.month,
+						(u_short)jd.monthday);
+				} else {
+					fprintf(df, " %s %d",
+					keyword(atrv->attr),
+					atrv->value.i);
+				}
+				break;
+
 			case T_Double:
 				fprintf(df, " %s %s",
 					keyword(atrv->attr),
@@ -879,30 +925,52 @@ dump_config_tree(
 		fprintf(df, "\n");
 	}
 
-
 	for (rest_node = HEAD_PFIFO(ptree->restrict_opts);
 	     rest_node != NULL;
 	     rest_node = rest_node->link) {
+		int is_default = 0;
 
 		if (NULL == rest_node->addr) {
 			s = "default";
-			flags = HEAD_PFIFO(rest_node->flags);
-			for ( ; flags != NULL; flags = flags->link)
-				if (T_Source == flags->i) {
+			/* Don't need to set is_default=1 here */
+			flag_tok_fifo = HEAD_PFIFO(rest_node->flag_tok_fifo);
+			for ( ; flag_tok_fifo != NULL; flag_tok_fifo = flag_tok_fifo->link) {
+				if (T_Source == flag_tok_fifo->i) {
 					s = "source";
 					break;
 				}
+			}
 		} else {
-			s = rest_node->addr->address;
+			const char *ap = rest_node->addr->address;
+			const char *mp = "";
+
+			if (rest_node->mask)
+				mp = rest_node->mask->address;
+
+			if (   rest_node->addr->type == AF_INET
+			    && !strcmp(ap, "0.0.0.0")
+			    && !strcmp(mp, "0.0.0.0")) {
+				is_default = 1;
+				s = "-4 default";
+			} else if (   rest_node->mask
+				   && rest_node->mask->type == AF_INET6
+				   && !strcmp(ap, "::")
+				   && !strcmp(mp, "::")) {
+				is_default = 1;
+				s = "-6 default";
+			} else {
+				s = ap;
+			}
 		}
 		fprintf(df, "restrict %s", s);
-		if (rest_node->mask != NULL)
+		if (rest_node->mask != NULL && !is_default)
 			fprintf(df, " mask %s",
 				rest_node->mask->address);
-		flags = HEAD_PFIFO(rest_node->flags);
-		for ( ; flags != NULL; flags = flags->link)
-			if (T_Source != flags->i)
-				fprintf(df, " %s", keyword(flags->i));
+		fprintf(df, " ippeerlimit %d", rest_node->ippeerlimit);
+		flag_tok_fifo = HEAD_PFIFO(rest_node->flag_tok_fifo);
+		for ( ; flag_tok_fifo != NULL; flag_tok_fifo = flag_tok_fifo->link)
+			if (T_Source != flag_tok_fifo->i)
+				fprintf(df, " %s", keyword(flag_tok_fifo->i));
 		fprintf(df, "\n");
 	}
 
@@ -1032,10 +1100,44 @@ concat_gen_fifos(
 	return pf1;
 }
 
+void*
+destroy_gen_fifo(
+	void        *fifo,
+	fifo_deleter func
+	)
+{
+	any_node *	np  = NULL;
+	any_node_fifo *	pf1 = fifo;
+
+	if (pf1 != NULL) {
+		if (!func)
+			func = free;
+		for (;;) {
+			UNLINK_FIFO(np, *pf1, link);
+			if (np == NULL)
+				break;
+			(*func)(np);
+		}
+		free(pf1);
+	}
+	return NULL;
+}
 
 /* FUNCTIONS FOR CREATING NODES ON THE SYNTAX TREE
  * -----------------------------------------------
  */
+
+void
+destroy_attr_val(
+	attr_val *	av
+	)
+{
+	if (av) {
+		if (T_String == av->type)
+			free(av->value.s);
+		free(av);
+	}
+}
 
 attr_val *
 create_attr_dval(
@@ -1260,7 +1362,10 @@ create_peer_node(
 			break;
 
 		case T_Ttl:
-			if (option->value.u >= MAX_TTL) {
+			if (is_refclk_addr(addr)) {
+				msyslog(LOG_ERR, "'ttl' does not apply for refclocks");
+				errflag = 1;
+			} else if (option->value.u >= MAX_TTL) {
 				msyslog(LOG_ERR, "ttl: invalid argument");
 				errflag = 1;
 			} else {
@@ -1269,7 +1374,12 @@ create_peer_node(
 			break;
 
 		case T_Mode:
-			my_node->ttl = option->value.u;
+			if (is_refclk_addr(addr)) {
+				my_node->ttl = option->value.u;
+			} else {
+				msyslog(LOG_ERR, "'mode' does not apply for network peers");
+				errflag = 1;
+			}
 			break;
 
 		case T_Key:
@@ -1322,8 +1432,8 @@ create_unpeer_node(
 	)
 {
 	unpeer_node *	my_node;
-	u_int		u;
-	char *		pch;
+	u_long		u;
+	const u_char *	pch;
 
 	my_node = emalloc_zero(sizeof(*my_node));
 
@@ -1332,16 +1442,15 @@ create_unpeer_node(
 	 * its generic T_String definition of a name/address "address".
 	 * We treat all valid 16-bit numbers as association IDs.
 	 */
-	pch = addr->address;
-	while (*pch && isdigit((unsigned char)*pch))
-		pch++;
+	for (u = 0, pch = (u_char*)addr->address; isdigit(*pch); ++pch) {
+		/* accumulate with overflow retention */
+		u = (10 * u + *pch - '0') | (u & 0xFF000000u);
+	}
 
-	if (!*pch
-	    && 1 == sscanf(addr->address, "%u", &u)
-	    && u <= ASSOCID_MAX) {
+	if (!*pch && u <= ASSOCID_MAX) {
 		my_node->assocID = (associd_t)u;
-		destroy_address_node(addr);
 		my_node->addr = NULL;
+		destroy_address_node(addr);
 	} else {
 		my_node->assocID = 0;
 		my_node->addr = addr;
@@ -1370,7 +1479,8 @@ restrict_node *
 create_restrict_node(
 	address_node *	addr,
 	address_node *	mask,
-	int_fifo *	flags,
+	short		ippeerlimit,
+	int_fifo *	flag_tok_fifo,
 	int		line_no
 	)
 {
@@ -1379,7 +1489,8 @@ create_restrict_node(
 	my_node = emalloc_zero(sizeof(*my_node));
 	my_node->addr = addr;
 	my_node->mask = mask;
-	my_node->flags = flags;
+	my_node->ippeerlimit = ippeerlimit;
+	my_node->flag_tok_fifo = flag_tok_fifo;
 	my_node->line_no = line_no;
 
 	return my_node;
@@ -1396,7 +1507,7 @@ destroy_restrict_node(
 	 */
 	destroy_address_node(my_node->addr);
 	destroy_address_node(my_node->mask);
-	destroy_int_fifo(my_node->flags);
+	destroy_int_fifo(my_node->flag_tok_fifo);
 	free(my_node);
 }
 
@@ -1452,9 +1563,7 @@ destroy_attr_val_fifo(
 			UNLINK_FIFO(av, *av_fifo, link);
 			if (av == NULL)
 				break;
-			if (T_String == av->type)
-				free(av->value.s);
-			free(av);
+			destroy_attr_val(av);
 		}
 		free(av_fifo);
 	}
@@ -1835,16 +1944,12 @@ config_auth(
 
 	/* Crypto Command */
 #ifdef AUTOKEY
-# ifdef __GNUC__
-	item = -1;	/* quiet warning */
-# endif
 	my_val = HEAD_PFIFO(ptree->auth.crypto_cmd_list);
 	for (; my_val != NULL; my_val = my_val->link) {
 		switch (my_val->attr) {
 
 		default:
-			INSIST(0);
-			break;
+			fatal_error("config_auth: attr-token=%d", my_val->attr);
 
 		case T_Host:
 			item = CRYPTO_CONF_PRIV;
@@ -1981,6 +2086,35 @@ free_config_auth(
 #endif	/* FREE_CFG_T */
 
 
+/* Configure low-level clock-related parameters. Return TRUE if the
+ * clock might need adjustment like era-checking after the call, FALSE
+ * otherwise.
+ */
+static int/*BOOL*/
+config_tos_clock(
+	config_tree *ptree
+	)
+{
+	int		ret;
+	attr_val *	tos;
+
+	ret = FALSE;
+	tos = HEAD_PFIFO(ptree->orphan_cmds);
+	for (; tos != NULL; tos = tos->link) {
+		switch(tos->attr) {
+
+		default:
+			break;
+
+		case T_Basedate:
+			basedate_set_day(tos->value.i);
+			ret = TRUE;
+			break;
+		}
+	}
+	return ret;
+}
+
 static void
 config_tos(
 	config_tree *ptree
@@ -1990,25 +2124,103 @@ config_tos(
 	int		item;
 	double		val;
 
-#ifdef __GNUC__
-	item = -1;	/* quiet warning */
-#endif
+	/* [Bug 2896] For the daemon to work properly it is essential
+	 * that minsane < minclock <= maxclock.
+	 *
+	 * If either constraint is violated, the daemon will be or might
+	 * become dysfunctional. Fixing the values is too fragile here,
+	 * since three variables with interdependecies are involved. We
+	 * just log an error but do not stop: This might be caused by
+	 * remote config, and it might be fixed by remote config, too.
+	 */
+	int l_maxclock = sys_maxclock;
+	int l_minclock = sys_minclock;
+	int l_minsane  = sys_minsane;
+
+	/* -*- phase one: inspect / sanitize the values */
 	tos = HEAD_PFIFO(ptree->orphan_cmds);
 	for (; tos != NULL; tos = tos->link) {
-		val = tos->value.d;
+		/* not all attributes are doubles (any more), so loading
+		 * 'val' in all cases is not a good idea: It should be
+		 * done as needed in every case processed here.
+		 */
 		switch(tos->attr) {
-
 		default:
-			INSIST(0);
+			break;
+
+		case T_Bcpollbstep:
+			val = tos->value.d;
+			if (val > 4) {
+				msyslog(LOG_WARNING,
+					"Using maximum bcpollbstep ceiling %d, %d requested",
+					4, (int)val);
+				tos->value.d = 4;
+			} else if (val < 0) {
+				msyslog(LOG_WARNING,
+					"Using minimum bcpollbstep floor %d, %d requested",
+					0, (int)val);
+				tos->value.d = 0;
+			}
 			break;
 
 		case T_Ceiling:
+			val = tos->value.d;
 			if (val > STRATUM_UNSPEC - 1) {
 				msyslog(LOG_WARNING,
-					"Using maximum tos ceiling %d, %g requested",
-					STRATUM_UNSPEC - 1, val);
-				val = STRATUM_UNSPEC - 1;
+					"Using maximum tos ceiling %d, %d requested",
+					STRATUM_UNSPEC - 1, (int)val);
+				tos->value.d = STRATUM_UNSPEC - 1;
+			} else if (val < 1) {
+				msyslog(LOG_WARNING,
+					"Using minimum tos floor %d, %d requested",
+					1, (int)val);
+				tos->value.d = 1;
 			}
+			break;
+
+		case T_Minclock:
+			val = tos->value.d;
+			if ((int)tos->value.d < 1)
+				tos->value.d = 1;
+			l_minclock = (int)tos->value.d;
+			break;
+
+		case T_Maxclock:
+			val = tos->value.d;
+			if ((int)tos->value.d < 1)
+				tos->value.d = 1;
+			l_maxclock = (int)tos->value.d;
+			break;
+
+		case T_Minsane:
+			val = tos->value.d;
+			if ((int)tos->value.d < 1)
+				tos->value.d = 1;
+			l_minsane = (int)tos->value.d;
+			break;
+		}
+	}
+
+	if ( ! (l_minsane < l_minclock && l_minclock <= l_maxclock)) {
+		msyslog(LOG_ERR,
+			"tos error: must have minsane (%d) < minclock (%d) <= maxclock (%d)"
+			" - daemon will not operate properly!",
+			l_minsane, l_minclock, l_maxclock);
+	}
+
+	/* -*- phase two: forward the values to the protocol machinery */
+	tos = HEAD_PFIFO(ptree->orphan_cmds);
+	for (; tos != NULL; tos = tos->link) {
+		switch(tos->attr) {
+
+		default:
+			fatal_error("config-tos: attr-token=%d", tos->attr);
+
+		case T_Bcpollbstep:
+			item = PROTO_BCPOLLBSTEP;
+			break;
+
+		case T_Ceiling:
 			item = PROTO_CEILING;
 			break;
 
@@ -2051,8 +2263,11 @@ config_tos(
 		case T_Beacon:
 			item = PROTO_BEACON;
 			break;
+
+		case T_Basedate:
+			continue; /* SKIP proto-config for this! */
 		}
-		proto_config(item, 0, val, NULL);
+		proto_config(item, 0, tos->value.d, NULL);
 	}
 }
 
@@ -2151,8 +2366,7 @@ config_monitor(
 				switch (my_opts->value.i) {
 
 				default:
-					INSIST(0);
-					break;
+					fatal_error("config-monitor: type-token=%d", my_opts->value.i);
 
 				case T_None:
 					filegen_type = FILEGEN_NONE;
@@ -2250,7 +2464,7 @@ config_access(
 	static int		warned_signd;
 	attr_val *		my_opt;
 	restrict_node *		my_node;
-	int_node *		curr_flag;
+	int_node *		curr_tok_fifo;
 	sockaddr_u		addr;
 	sockaddr_u		mask;
 	struct addrinfo		hints;
@@ -2258,8 +2472,9 @@ config_access(
 	struct addrinfo *	pai;
 	int			rc;
 	int			restrict_default;
-	u_short			flags;
+	u_short			rflags;
 	u_short			mflags;
+	short			ippeerlimit;
 	int			range_err;
 	const char *		signd_warning =
 #ifdef HAVE_NTP_SIGND
@@ -2378,18 +2593,23 @@ config_access(
 
 	/* Configure the restrict options */
 	my_node = HEAD_PFIFO(ptree->restrict_opts);
+
 	for (; my_node != NULL; my_node = my_node->link) {
+		/* Grab the ippeerlmit */
+		ippeerlimit = my_node->ippeerlimit;
+
+DPRINTF(1, ("config_access: top-level node %p: ippeerlimit %d\n", my_node, ippeerlimit));
+
 		/* Parse the flags */
-		flags = 0;
+		rflags = 0;
 		mflags = 0;
 
-		curr_flag = HEAD_PFIFO(my_node->flags);
-		for (; curr_flag != NULL; curr_flag = curr_flag->link) {
-			switch (curr_flag->i) {
+		curr_tok_fifo = HEAD_PFIFO(my_node->flag_tok_fifo);
+		for (; curr_tok_fifo != NULL; curr_tok_fifo = curr_tok_fifo->link) {
+			switch (curr_tok_fifo->i) {
 
 			default:
-				INSIST(0);
-				break;
+				fatal_error("config_access: flag-type-token=%d", curr_tok_fifo->i);
 
 			case T_Ntpport:
 				mflags |= RESM_NTPONLY;
@@ -2400,71 +2620,75 @@ config_access(
 				break;
 
 			case T_Flake:
-				flags |= RES_FLAKE;
+				rflags |= RES_FLAKE;
 				break;
 
 			case T_Ignore:
-				flags |= RES_IGNORE;
+				rflags |= RES_IGNORE;
 				break;
 
 			case T_Kod:
-				flags |= RES_KOD;
+				rflags |= RES_KOD;
 				break;
 
 			case T_Mssntp:
-				flags |= RES_MSSNTP;
+				rflags |= RES_MSSNTP;
 				break;
 
 			case T_Limited:
-				flags |= RES_LIMITED;
+				rflags |= RES_LIMITED;
 				break;
 
 			case T_Lowpriotrap:
-				flags |= RES_LPTRAP;
+				rflags |= RES_LPTRAP;
 				break;
 
 			case T_Nomodify:
-				flags |= RES_NOMODIFY;
+				rflags |= RES_NOMODIFY;
 				break;
 
 			case T_Nomrulist:
-				flags |= RES_NOMRULIST;
+				rflags |= RES_NOMRULIST;
+				break;
+
+			case T_Noepeer:
+				rflags |= RES_NOEPEER;
 				break;
 
 			case T_Nopeer:
-				flags |= RES_NOPEER;
+				rflags |= RES_NOPEER;
 				break;
 
 			case T_Noquery:
-				flags |= RES_NOQUERY;
+				rflags |= RES_NOQUERY;
 				break;
 
 			case T_Noserve:
-				flags |= RES_DONTSERVE;
+				rflags |= RES_DONTSERVE;
 				break;
 
 			case T_Notrap:
-				flags |= RES_NOTRAP;
+				rflags |= RES_NOTRAP;
 				break;
 
 			case T_Notrust:
-				flags |= RES_DONTTRUST;
+				rflags |= RES_DONTTRUST;
 				break;
 
 			case T_Version:
-				flags |= RES_VERSION;
+				rflags |= RES_VERSION;
 				break;
 			}
 		}
 
-		if ((RES_MSSNTP & flags) && !warned_signd) {
+		if ((RES_MSSNTP & rflags) && !warned_signd) {
 			warned_signd = 1;
 			fprintf(stderr, "%s\n", signd_warning);
 			msyslog(LOG_WARNING, "%s", signd_warning);
 		}
 
 		/* It would be swell if we could identify the line number */
-		if ((RES_KOD & flags) && !(RES_LIMITED & flags)) {
+		if ((RES_KOD & rflags) && !(RES_LIMITED & rflags)) {
 			const char *kod_where = (my_node->addr)
 					  ? my_node->addr->address
 					  : (mflags & RESM_SOURCE)
@@ -2492,10 +2716,10 @@ config_access(
 				restrict_default = 1;
 			} else {
 				/* apply "restrict source ..." */
-				DPRINTF(1, ("restrict source template mflags %x flags %x\n",
-					mflags, flags));
-				hack_restrict(RESTRICT_FLAGS, NULL,
-					      NULL, mflags, flags, 0);
+				DPRINTF(1, ("restrict source template ippeerlimit %d mflags %x rflags %x\n",
+					ippeerlimit, mflags, rflags));
+				hack_restrict(RESTRICT_FLAGS, NULL, NULL,
+					      ippeerlimit, mflags, rflags, 0);
 				continue;
 			}
 		} else {
@@ -2564,15 +2788,15 @@ config_access(
 		if (restrict_default) {
 			AF(&addr) = AF_INET;
 			AF(&mask) = AF_INET;
-			hack_restrict(RESTRICT_FLAGS, &addr,
-				      &mask, mflags, flags, 0);
+			hack_restrict(RESTRICT_FLAGS, &addr, &mask,
+				      ippeerlimit, mflags, rflags, 0);
 			AF(&addr) = AF_INET6;
 			AF(&mask) = AF_INET6;
 		}
 
 		do {
-			hack_restrict(RESTRICT_FLAGS, &addr,
-				      &mask, mflags, flags, 0);
+			hack_restrict(RESTRICT_FLAGS, &addr, &mask,
+				      ippeerlimit, mflags, rflags, 0);
 			if (pai != NULL &&
 			    NULL != (pai = pai->ai_next)) {
 				INSIST(pai->ai_addr != NULL);
@@ -2619,11 +2843,13 @@ config_rlimit(
 		switch (rlimit_av->attr) {
 
 		default:
-			INSIST(0);
-			break;
+			fatal_error("config-rlimit: value-token=%d", rlimit_av->attr);
 
 		case T_Memlock:
 			/* What if we HAVE_OPT(SAVECONFIGQUIT) ? */
+			if (HAVE_OPT( SAVECONFIGQUIT )) {
+				break;
+			}
 			if (rlimit_av->value.i == -1) {
 # if defined(HAVE_MLOCKALL)
 				if (cur_memlock != 0) {
@@ -2693,16 +2919,12 @@ config_tinker(
 	attr_val *	tinker;
 	int		item;
 
-#ifdef __GNUC__
-	item = -1;	/* quiet warning */
-#endif
 	tinker = HEAD_PFIFO(ptree->tinker);
 	for (; tinker != NULL; tinker = tinker->link) {
 		switch (tinker->attr) {
 
 		default:
-			INSIST(0);
-			break;
+			fatal_error("config_tinker: attr-token=%d", tinker->attr);
 
 		case T_Allan:
 			item = LOOP_ALLAN;
@@ -2809,16 +3031,7 @@ config_nic_rules(
 		switch (curr_node->match_class) {
 
 		default:
-#ifdef __GNUC__
-			/*
-			 * this assignment quiets a gcc "may be used
-			 * uninitialized" warning and is here for no
-			 * other reason.
-			 */
-			match_type = MATCH_ALL;
-#endif
-			INSIST(FALSE);
-			break;
+			fatal_error("config_nic_rules: match-class-token=%d", curr_node->match_class);
 
 		case 0:
 			/*
@@ -2869,16 +3082,7 @@ config_nic_rules(
 		switch (curr_node->action) {
 
 		default:
-#ifdef __GNUC__
-			/*
-			 * this assignment quiets a gcc "may be used
-			 * uninitialized" warning and is here for no
-			 * other reason.
-			 */
-			action = ACTION_LISTEN;
-#endif
-			INSIST(FALSE);
-			break;
+			fatal_error("config_nic_rules: action-token=%d", curr_node->action);
 
 		case T_Listen:
 			action = ACTION_LISTEN;
@@ -2932,17 +3136,17 @@ apply_enable_disable(
 	int		enable
 	)
 {
-	attr_val *curr_flag;
+	attr_val *curr_tok_fifo;
 	int option;
 #ifdef BC_LIST_FRAMEWORK_NOT_YET_USED
 	bc_entry *pentry;
 #endif
 
-	for (curr_flag = HEAD_PFIFO(fifo);
-	     curr_flag != NULL;
-	     curr_flag = curr_flag->link) {
+	for (curr_tok_fifo = HEAD_PFIFO(fifo);
+	     curr_tok_fifo != NULL;
+	     curr_tok_fifo = curr_tok_fifo->link) {
 
-		option = curr_flag->value.i;
+		option = curr_tok_fifo->value.i;
 		switch (option) {
 
 		default:
@@ -3066,8 +3270,7 @@ config_logconfig(
 			ntp_syslogmask = get_logmask(my_lc->value.s);
 			break;
 		default:
-			INSIST(0);
-			break;
+			fatal_error("config-logconfig: modifier='%c'", my_lc->attr);
 		}
 	}
 }
@@ -3180,6 +3383,10 @@ config_ttl(
 	size_t i = 0;
 	int_node *curr_ttl;
 
+	/* [Bug 3465] There is a built-in default for the TTLs. We must
+	 * overwrite 'sys_ttlmax' if we change that preset, and leave it
+	 * alone otherwise!
+	 */
 	curr_ttl = HEAD_PFIFO(ptree->ttl);
 	for (; curr_ttl != NULL; curr_ttl = curr_ttl->link) {
 		if (i < COUNTOF(sys_ttl))
@@ -3189,7 +3396,8 @@ config_ttl(
 				"ttl: Number of TTL entries exceeds %zu. Ignoring TTL %d...",
 				COUNTOF(sys_ttl), curr_ttl->i);
 	}
-	sys_ttlmax = i - 1;
+	if (0 != i) /* anything written back at all? */
+		sys_ttlmax = i - 1;
 }
 #endif	/* !SIM */
 
@@ -3418,10 +3626,8 @@ config_fudge(
 			err_flag = 1;
 			msyslog(LOG_ERR,
 				"unrecognized fudge reference clock address %s, line ignored",
-				stoa(&addr_sock));
-		}
-
-		if (!ISREFCLOCKADR(&addr_sock)) {
+				addr_node->address);
+		} else if (!ISREFCLOCKADR(&addr_sock)) {
 			err_flag = 1;
 			msyslog(LOG_ERR,
 				"inappropriate address %s for the fudge command, line ignored",
@@ -3493,7 +3699,7 @@ config_fudge(
 				msyslog(LOG_ERR,
 					"Unexpected fudge flag %s (%d) for %s",
 					token_name(curr_opt->attr),
-					curr_opt->attr, stoa(&addr_sock));
+					curr_opt->attr, addr_node->address);
 				exit(curr_opt->attr ? curr_opt->attr : 1);
 			}
 		}
@@ -3717,8 +3923,7 @@ peerflag_bits(
 		switch (option->value.i) {
 
 		default:
-			INSIST(0);
-			break;
+			fatal_error("peerflag_bits: option-token=%d", option->value.i);
 
 		case T_Autokey:
 			peerflags |= FLAG_SKEY;
@@ -3779,6 +3984,9 @@ config_peers(
 		 * If we have a numeric address, we can safely
 		 * proceed in the mainline with it.  Otherwise, hand
 		 * the hostname off to the blocking child.
+		 *
+		 * Note that if we're told to add the peer here, we
+		 * do that regardless of ippeerlimit.
 		 */
 		if (is_ip_address(*cmdline_servers, AF_UNSPEC,
 				  &peeraddr)) {
@@ -3790,6 +3998,7 @@ config_peers(
 					&peeraddr,
 					NULL,
 					NULL,
+					-1,
 					MODE_CLIENT,
 					NTP_VERSION,
 					0,
@@ -3813,11 +4022,11 @@ config_peers(
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_protocol = IPPROTO_UDP;
 
-			getaddrinfo_sometime(*cmdline_servers,
+			getaddrinfo_sometime_ex(*cmdline_servers,
 					     "ntp", &hints,
 					     INITIAL_DNS_RETRY,
 					     &peer_name_resolved,
-					     (void *)ctx);
+					     (void *)ctx, DNSFLAGS);
 # else	/* !WORKER follows */
 			msyslog(LOG_ERR,
 				"hostname %s can not be used, please use IP address instead.",
@@ -3840,6 +4049,7 @@ config_peers(
 				&peeraddr,
 				curr_peer->addr->address,
 				NULL,
+				-1,
 				hmode,
 				curr_peer->peerversion,
 				curr_peer->minpoll,
@@ -3863,6 +4073,7 @@ config_peers(
 					&peeraddr,
 					NULL,
 					NULL,
+					-1,
 					hmode,
 					curr_peer->peerversion,
 					curr_peer->minpoll,
@@ -3891,10 +4102,11 @@ config_peers(
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_protocol = IPPROTO_UDP;
 
-			getaddrinfo_sometime(curr_peer->addr->address,
+			getaddrinfo_sometime_ex(curr_peer->addr->address,
 					     "ntp", &hints,
 					     INITIAL_DNS_RETRY,
-					     &peer_name_resolved, ctx);
+					     &peer_name_resolved, ctx,
+					     DNSFLAGS);
 # else	/* !WORKER follows */
 			msyslog(LOG_ERR,
 				"hostname %s can not be used, please use IP address instead.",
@@ -3935,16 +4147,10 @@ peer_name_resolved(
 	DPRINTF(1, ("peer_name_resolved(%s) rescode %d\n", name, rescode));
 
 	if (rescode) {
-#ifndef IGNORE_DNS_ERRORS
 		free(ctx);
 		msyslog(LOG_ERR,
 			"giving up resolving host %s: %s (%d)",
 			name, gai_strerror(rescode), rescode);
-#else	/* IGNORE_DNS_ERRORS follows */
-		getaddrinfo_sometime(name, service, hints,
-				     INITIAL_DNS_RETRY,
-				     &peer_name_resolved, context);
-#endif
 		return;
 	}
 
@@ -3968,6 +4174,7 @@ peer_name_resolved(
 				&peeraddr,
 				NULL,
 				NULL,
+				-1,
 				ctx->hmode,
 				ctx->version,
 				ctx->minpoll,
@@ -4024,10 +4231,10 @@ config_unpeers(
 	curr_unpeer = HEAD_PFIFO(ptree->unpeers);
 	for (; curr_unpeer != NULL; curr_unpeer = curr_unpeer->link) {
 		/*
-		 * Either AssocID will be zero, and we unpeer by name/
-		 * address addr, or it is nonzero and addr NULL.
+		 * If we have no address attached, assume we have to
+		 * unpeer by AssocID.
 		 */
-		if (curr_unpeer->assocID) {
+		if (!curr_unpeer->addr) {
 			p = findpeerbyassoc(curr_unpeer->assocID);
 			if (p != NULL) {
 				msyslog(LOG_NOTICE, "unpeered %s",
@@ -4035,7 +4242,6 @@ config_unpeers(
 				peer_clear(p, "GONE");
 				unpeer(p);
 			}
-
 			continue;
 		}
 
@@ -4047,14 +4253,13 @@ config_unpeers(
 		if (rc > 0) {
 			DPRINTF(1, ("unpeer: searching for %s\n",
 				    stoa(&peeraddr)));
-			p = findexistingpeer(&peeraddr, NULL, NULL, -1, 0);
+			p = findexistingpeer(&peeraddr, NULL, NULL, -1, 0, NULL);
 			if (p != NULL) {
 				msyslog(LOG_NOTICE, "unpeered %s",
 					stoa(&peeraddr));
 				peer_clear(p, "GONE");
 				unpeer(p);
 			}
-
 			continue;
 		}
 		/*
@@ -4128,7 +4333,7 @@ unpeer_name_resolved(
 		memcpy(&peeraddr, res->ai_addr, res->ai_addrlen);
 		DPRINTF(1, ("unpeer: searching for peer %s\n",
 			    stoa(&peeraddr)));
-		peer = findexistingpeer(&peeraddr, NULL, NULL, -1, 0);
+		peer = findexistingpeer(&peeraddr, NULL, NULL, -1, 0, NULL);
 		if (peer != NULL) {
 			af = AF(&peeraddr);
 			fam_spec = (AF_INET6 == af)
@@ -4355,6 +4560,15 @@ config_ntpd(
 	int/*BOOL*/ input_from_files
 	)
 {
+	/* [Bug 3435] check and esure clock sanity if configured from
+	 * file and clock sanity parameters (-> basedate) are given. Do
+	 * this ASAP, so we don't disturb the closed loop controller.
+	 */
+	if (input_from_files) {
+		if (config_tos_clock(ptree))
+			clamp_systime();
+	}
+
 	config_nic_rules(ptree, input_from_files);
 	config_monitor(ptree);
 	config_auth(ptree);
@@ -4368,16 +4582,22 @@ config_ntpd(
 	config_mdnstries(ptree);
 	config_setvar(ptree);
 	config_ttl(ptree);
-	config_trap(ptree);
 	config_vars(ptree);
 
-	io_open_sockets();
+	io_open_sockets();	/* [bug 2837] dep. on config_vars() */
 
+	config_trap(ptree);	/* [bug 2923] dep. on io_open_sockets() */
 	config_other_modes(ptree);
 	config_peers(ptree);
 	config_unpeers(ptree);
 	config_fudge(ptree);
 	config_reset_counters(ptree);
+
+#ifdef DEBUG
+	if (debug > 1) {
+		dump_restricts();
+	}
+#endif
 
 #ifdef TEST_BLOCKING_WORKER
 	{
@@ -4620,6 +4840,16 @@ save_and_apply_config_tree(int/*BOOL*/ input_from_file)
 #endif
 }
 
+/* Hack to disambiguate 'server' statements for refclocks and network peers.
+ * Please note the qualification 'hack'. It's just that.
+ */
+static int/*BOOL*/
+is_refclk_addr(
+	const address_node * addr
+	)
+{
+	return addr && addr->address && !strncmp(addr->address, "127.127.", 8);
+}
 
 static void
 ntpd_set_tod_using(
@@ -4968,6 +5198,9 @@ ntp_rlimit(
 	switch (rl_what) {
 # ifdef RLIMIT_MEMLOCK
 	    case RLIMIT_MEMLOCK:
+		if (HAVE_OPT( SAVECONFIGQUIT )) {
+			break;
+		}
 		/*
 		 * The default RLIMIT_MEMLOCK is very low on Linux systems.
 		 * Unless we increase this limit malloc calls are likely to
@@ -5025,8 +5258,221 @@ ntp_rlimit(
 # endif /* RLIMIT_STACK */
 
 	    default:
-		INSIST(!"Unexpected setrlimit() case!");
-		break;
+		    fatal_error("ntp_rlimit: unexpected RLIMIT case: %d", rl_what);
 	}
 }
 #endif	/* HAVE_SETRLIMIT */
+
+
+char *
+build_iflags(u_int32 iflags)
+{
+	static char ifs[1024];
+
+	ifs[0] = '\0';
+
+	if (iflags & INT_UP) {
+		iflags &= ~INT_UP;
+		appendstr(ifs, sizeof ifs, "up");
+	}
+
+	if (iflags & INT_PPP) {
+		iflags &= ~INT_PPP;
+		appendstr(ifs, sizeof ifs, "ppp");
+	}
+
+	if (iflags & INT_LOOPBACK) {
+		iflags &= ~INT_LOOPBACK;
+		appendstr(ifs, sizeof ifs, "loopback");
+	}
+
+	if (iflags & INT_BROADCAST) {
+		iflags &= ~INT_BROADCAST;
+		appendstr(ifs, sizeof ifs, "broadcast");
+	}
+
+	if (iflags & INT_MULTICAST) {
+		iflags &= ~INT_MULTICAST;
+		appendstr(ifs, sizeof ifs, "multicast");
+	}
+
+	if (iflags & INT_BCASTOPEN) {
+		iflags &= ~INT_BCASTOPEN;
+		appendstr(ifs, sizeof ifs, "bcastopen");
+	}
+
+	if (iflags & INT_MCASTOPEN) {
+		iflags &= ~INT_MCASTOPEN;
+		appendstr(ifs, sizeof ifs, "mcastopen");
+	}
+
+	if (iflags & INT_WILDCARD) {
+		iflags &= ~INT_WILDCARD;
+		appendstr(ifs, sizeof ifs, "wildcard");
+	}
+
+	if (iflags & INT_MCASTIF) {
+		iflags &= ~INT_MCASTIF;
+		appendstr(ifs, sizeof ifs, "MCASTif");
+	}
+
+	if (iflags & INT_PRIVACY) {
+		iflags &= ~INT_PRIVACY;
+		appendstr(ifs, sizeof ifs, "IPv6privacy");
+	}
+
+	if (iflags & INT_BCASTXMIT) {
+		iflags &= ~INT_BCASTXMIT;
+		appendstr(ifs, sizeof ifs, "bcastxmit");
+	}
+
+	if (iflags) {
+		char string[10];
+
+		snprintf(string, sizeof string, "%0x", iflags);
+		appendstr(ifs, sizeof ifs, string);
+	}
+
+	return ifs;
+}
+
+
+char *
+build_mflags(u_short mflags)
+{
+	static char mfs[1024];
+
+	mfs[0] = '\0';
+
+	if (mflags & RESM_NTPONLY) {
+		mflags &= ~RESM_NTPONLY;
+		appendstr(mfs, sizeof mfs, "ntponly");
+	}
+
+	if (mflags & RESM_SOURCE) {
+		mflags &= ~RESM_SOURCE;
+		appendstr(mfs, sizeof mfs, "source");
+	}
+
+	if (mflags) {
+		char string[10];
+
+		snprintf(string, sizeof string, "%0x", mflags);
+		appendstr(mfs, sizeof mfs, string);
+	}
+
+	return mfs;
+}
+
+
+char *
+build_rflags(u_short rflags)
+{
+	static char rfs[1024];
+
+	rfs[0] = '\0';
+
+	if (rflags & RES_FLAKE) {
+		rflags &= ~RES_FLAKE;
+		appendstr(rfs, sizeof rfs, "flake");
+	}
+
+	if (rflags & RES_IGNORE) {
+		rflags &= ~RES_IGNORE;
+		appendstr(rfs, sizeof rfs, "ignore");
+	}
+
+	if (rflags & RES_KOD) {
+		rflags &= ~RES_KOD;
+		appendstr(rfs, sizeof rfs, "kod");
+	}
+
+	if (rflags & RES_MSSNTP) {
+		rflags &= ~RES_MSSNTP;
+		appendstr(rfs, sizeof rfs, "mssntp");
+	}
+
+	if (rflags & RES_LIMITED) {
+		rflags &= ~RES_LIMITED;
+		appendstr(rfs, sizeof rfs, "limited");
+	}
+
+	if (rflags & RES_LPTRAP) {
+		rflags &= ~RES_LPTRAP;
+		appendstr(rfs, sizeof rfs, "lptrap");
+	}
+
+	if (rflags & RES_NOMODIFY) {
+		rflags &= ~RES_NOMODIFY;
+		appendstr(rfs, sizeof rfs, "nomodify");
+	}
+
+	if (rflags & RES_NOMRULIST) {
+		rflags &= ~RES_NOMRULIST;
+		appendstr(rfs, sizeof rfs, "nomrulist");
+	}
+
+	if (rflags & RES_NOEPEER) {
+		rflags &= ~RES_NOEPEER;
+		appendstr(rfs, sizeof rfs, "noepeer");
+	}
+
+	if (rflags & RES_NOPEER) {
+		rflags &= ~RES_NOPEER;
+		appendstr(rfs, sizeof rfs, "nopeer");
+	}
+
+	if (rflags & RES_NOQUERY) {
+		rflags &= ~RES_NOQUERY;
+		appendstr(rfs, sizeof rfs, "noquery");
+	}
+
+	if (rflags & RES_DONTSERVE) {
+		rflags &= ~RES_DONTSERVE;
+		appendstr(rfs, sizeof rfs, "dontserve");
+	}
+
+	if (rflags & RES_NOTRAP) {
+		rflags &= ~RES_NOTRAP;
+		appendstr(rfs, sizeof rfs, "notrap");
+	}
+
+	if (rflags & RES_DONTTRUST) {
+		rflags &= ~RES_DONTTRUST;
+		appendstr(rfs, sizeof rfs, "notrust");
+	}
+
+	if (rflags & RES_VERSION) {
+		rflags &= ~RES_VERSION;
+		appendstr(rfs, sizeof rfs, "version");
+	}
+
+	if (rflags) {
+		char string[10];
+
+		snprintf(string, sizeof string, "%0x", rflags);
+		appendstr(rfs, sizeof rfs, string);
+	}
+
+	if ('\0' == rfs[0]) {
+		appendstr(rfs, sizeof rfs, "(none)");
+	}
+
+	return rfs;
+}
+
+
+static void
+appendstr(
+	char *string,
+	size_t s,
+	const char *new
+	)
+{
+	if (*string != '\0') {
+		(void)strlcat(string, ",", s);
+	}
+	(void)strlcat(string, new, s);
+
+	return;
+}

@@ -110,4 +110,7 @@ void modstack_desetup(struct module_stack* stack, struct module_env* env);
  */
 int modstack_find(struct module_stack* stack, const char* name);
 
+/** fetch memory for a module by name, returns 0 if module not there */
+size_t mod_get_mem(struct module_env* env, const char* name);
+
 #endif /* SERVICES_MODSTACK_H */

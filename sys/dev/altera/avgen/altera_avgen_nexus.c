@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012-2013, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -64,7 +66,7 @@ static int
 altera_avgen_nexus_attach(device_t dev)
 {
 	struct altera_avgen_softc *sc;
-	const char *str_fileio, *str_mmapio;
+	const char *str_fileio, *str_geomio, *str_mmapio;
 	const char *str_devname;
 	int devunit, error;
 
@@ -77,6 +79,7 @@ altera_avgen_nexus_attach(device_t dev)
 	 * on the device, and whether it is cached.
 	 */
 	str_fileio = NULL;
+	str_geomio = NULL;
 	str_mmapio = NULL;
 	str_devname = NULL;
 	devunit = -1;
@@ -89,6 +92,8 @@ altera_avgen_nexus_attach(device_t dev)
 	}
 	(void)resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), ALTERA_AVALON_STR_FILEIO, &str_fileio);
+	(void)resource_string_value(device_get_name(dev),
+	    device_get_unit(dev), ALTERA_AVALON_STR_GEOMIO, &str_geomio);
 	(void)resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), ALTERA_AVALON_STR_MMAPIO, &str_mmapio);
 	(void)resource_string_value(device_get_name(dev),
@@ -104,8 +109,8 @@ altera_avgen_nexus_attach(device_t dev)
 		device_printf(dev, "couldn't map memory\n");
 		return (ENXIO);
 	}
-	error = altera_avgen_attach(sc, str_fileio, str_mmapio, str_devname,
-	    devunit);
+	error = altera_avgen_attach(sc, str_fileio, str_geomio, str_mmapio,
+	    str_devname, devunit);
 	if (error != 0)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->avg_rid,
 		    sc->avg_res);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -57,7 +59,11 @@
 #ifdef __powerpc64__
 #define	MACHINE_ARCH	"powerpc64"
 #else
+#ifdef	__SPE__
+#define	MACHINE_ARCH	"powerpcspe"
+#else
 #define	MACHINE_ARCH	"powerpc"
+#endif
 #endif
 #endif
 #define	MID_MACHINE	MID_POWERPC

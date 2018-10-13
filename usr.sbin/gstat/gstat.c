@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -51,11 +53,14 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int flag_a, flag_b, flag_c, flag_d, flag_o, flag_p;
+static int flag_a, flag_b, flag_B, flag_c, flag_C, flag_d, flag_o, flag_p,
+	   flag_s;
 static int flag_I = 1000000;
 
+#define HIGH_PCT_BUSY_THRESH 80
+#define MEDIUM_PCT_BUSY_THRESH 50
 #define PRINTMSG(...) do {						\
-		if (flag_b && !loop)					\
+		if ((flag_b && !loop) || (flag_B))			\
 			printf(__VA_ARGS__);				\
 		else if (!flag_b)					\
 			printw(__VA_ARGS__);				\
@@ -74,7 +79,7 @@ int
 main(int argc, char **argv)
 {
 	int error, i, quit;
-	int curx, cury, maxx, maxy, line_len, loop, max_flen;
+	int curx, cury, maxx, maxy, line_len, loop, max_flen, head_printed;
 	struct devstat *gsp, *gsq;
 	void *sp, *sq;
 	double dt;
@@ -87,8 +92,9 @@ main(int argc, char **argv)
 	short cf, cb;
 	char *p;
 	char f_s[100], pf_s[100], tmp_f_s[100];
+	char ts[100], g_name[4096];
 	const char *line;
-	long double ld[13];
+	long double ld[16];
 	uint64_t u64;
 	EditLine *el;
 	History *hist;
@@ -104,7 +110,7 @@ main(int argc, char **argv)
 		flag_b = 1;
 
 	f_s[0] = '\0';
-	while ((i = getopt(argc, argv, "abdcf:I:op")) != -1) {
+	while ((i = getopt(argc, argv, "abBdcCf:I:ops")) != -1) {
 		switch (i) {
 		case 'a':
 			flag_a = 1;
@@ -112,8 +118,19 @@ main(int argc, char **argv)
 		case 'b':
 			flag_b = 1;
 			break;
+		case 'B':
+			flag_B = 1;
+			flag_b = 1;
+			break;
 		case 'c':
 			flag_c = 1;
+			break;
+		case 'C':
+			flag_C = 1;
+			/* csv out implies repeating batch mode */
+			flag_b = 1;
+			flag_B = 1;
+			head_printed = 0;
 			break;
 		case 'd':
 			flag_d = 1;
@@ -146,6 +163,9 @@ main(int argc, char **argv)
 		case 'p':
 			flag_p = 1;
 			break;
+		case 's':
+			flag_s = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -167,20 +187,6 @@ main(int argc, char **argv)
 	if (sq == NULL)
 		err(1, "geom_stats_snapshot()");
 	if (!flag_b) {
-		/* Setup curses */
-		initscr();
-		start_color();
-		use_default_colors();
-		pair_content(0, &cf, &cb);
-		init_pair(1, COLOR_GREEN, cb);
-		init_pair(2, COLOR_MAGENTA, cb);
-		init_pair(3, COLOR_RED, cb);
-		cbreak();
-		noecho();
-		nonl();
-		nodelay(stdscr, 1);
-		intrflush(stdscr, FALSE);
-		keypad(stdscr, TRUE);
 		/* Setup libedit */
 		hist = history_init();
 		if (hist == NULL)
@@ -195,6 +201,20 @@ main(int argc, char **argv)
 		el_set(el, EL_PROMPT, el_prompt);
 		if (f_s[0] != '\0')
 			history(hist, &hist_ev, H_ENTER, f_s);
+		/* Setup curses */
+		initscr();
+		start_color();
+		use_default_colors();
+		pair_content(0, &cf, &cb);
+		init_pair(1, COLOR_GREEN, cb);
+		init_pair(2, COLOR_MAGENTA, cb);
+		init_pair(3, COLOR_RED, cb);
+		cbreak();
+		noecho();
+		nonl();
+		nodelay(stdscr, 1);
+		intrflush(stdscr, FALSE);
+		keypad(stdscr, TRUE);
 	}
 	geom_stats_snapshot_timestamp(sq, &tq);
 	for (quit = 0; !quit;) {
@@ -205,12 +225,21 @@ main(int argc, char **argv)
 		dt = tp.tv_sec - tq.tv_sec;
 		dt += (tp.tv_nsec - tq.tv_nsec) * 1e-9;
 		tq = tp;
+		if (flag_C) { /* set timestamp string */
+			(void)strftime(ts,sizeof(ts),
+					"%F %T",localtime(&tq.tv_sec));
+			(void)snprintf(ts,sizeof(ts),
+					"%s.%.9ld",ts,tq.tv_nsec);
+		}
 	
 		geom_stats_snapshot_reset(sp);
 		geom_stats_snapshot_reset(sq);
-		move(0,0);
-		PRINTMSG("dT: %5.3fs  w: %.3fs", dt, (float)flag_I / 1000000);
-		if (f_s[0] != '\0') {
+		if (!flag_b)
+			move(0,0);
+		if (!flag_C)
+			PRINTMSG("dT: %5.3fs  w: %.3fs", dt,
+					(float)flag_I / 1000000);
+		if (!flag_C && f_s[0] != '\0') {
 			PRINTMSG("  filter: ");
 			if (!flag_b) {
 				getyx(stdscr, cury, curx);
@@ -229,15 +258,52 @@ main(int argc, char **argv)
 			}
 			PRINTMSG("%s", pf_s);
 		}
-		PRINTMSG("\n");
-		PRINTMSG(" L(q)  ops/s   ");
-		PRINTMSG(" r/s   kBps   ms/r   ");
-		PRINTMSG(" w/s   kBps   ms/w   ");
-		if (flag_d)
-			PRINTMSG(" d/s   kBps   ms/d   ");
-		if (flag_o)
-			PRINTMSG(" o/s   ms/o   ");
-		PRINTMSG("%%busy Name\n");
+		if (!flag_C) {
+			PRINTMSG("\n");
+			PRINTMSG(" L(q)  ops/s   ");
+			if (flag_s) {
+				PRINTMSG(" r/s     kB   kBps   ms/r   ");
+				PRINTMSG(" w/s     kB   kBps   ms/w   ");
+			}
+			else {
+				PRINTMSG(" r/s   kBps   ms/r   ");
+				PRINTMSG(" w/s   kBps   ms/w   ");
+			}
+			if (flag_d) {
+				if (flag_s) {
+					PRINTMSG(" d/s     kB   kBps");
+					PRINTMSG("   ms/d   ");
+				} else
+					PRINTMSG(" d/s   kBps   ms/d   ");
+			}
+			if (flag_o)
+				PRINTMSG(" o/s   ms/o   ");
+			PRINTMSG("%%busy Name\n");
+		} else if (flag_C && !head_printed) {
+			PRINTMSG("timestamp,name,q-depth,total_ops/s");
+			if (flag_s) {
+				PRINTMSG(",read/s,read_sz-KiB");
+				PRINTMSG(",read-KiB/s,ms/read");
+				PRINTMSG(",write/s,write_sz-KiB");
+				PRINTMSG(",write-KiB/s,ms/write");
+			} else {
+				PRINTMSG(",read/s,read-KiB/s,ms/read");
+				PRINTMSG(",write/s,write-KiB/s,ms/write");
+			}
+			if (flag_d) {
+				if (flag_s) {
+					PRINTMSG(",delete/s,delete-sz-KiB");
+					PRINTMSG(",delete-KiB/s,ms/delete");
+				} else {
+					PRINTMSG(",delete/s,delete-KiB/s");
+					PRINTMSG(",ms/delete");
+				}
+			}
+			if (flag_o)
+				PRINTMSG(",other/s,ms/other");
+			PRINTMSG(",%%busy\n");
+			head_printed = 1;
+		}
 		for (;;) {
 			gsp = geom_stats_snapshot_next(sp);
 			gsq = geom_stats_snapshot_next(sq);
@@ -258,7 +324,8 @@ main(int argc, char **argv)
 			if (gid->lg_what == ISCONSUMER && !flag_c)
 				continue;
 			if (flag_p && gid->lg_what == ISPROVIDER &&
-			   ((struct gprovider *)(gid->lg_ptr))->lg_geom->lg_rank != 1)
+			   ((struct gprovider *)
+			    (gid->lg_ptr))->lg_geom->lg_rank != 1)
 				continue;
 			/* Do not print past end of window */
 			if (!flag_b) {
@@ -274,7 +341,12 @@ main(int argc, char **argv)
 				  continue;
 			}
 			if (gsp->sequence0 != gsp->sequence1) {
-				PRINTMSG("*\n");
+				/* 
+				 * it is ok to skip entire line silently
+				 * for CSV output
+				 */
+				if (!flag_C)
+					PRINTMSG("*\n");
 				continue;
 			}
 			devstat_compute_statistics(gsp, gsq, dt, 
@@ -298,6 +370,10 @@ main(int argc, char **argv)
 			    DSM_TRANSFERS_PER_SECOND_OTHER, &ld[11],
 			    DSM_MS_PER_TRANSACTION_OTHER, &ld[12],
 
+			    DSM_KB_PER_TRANSFER_READ, &ld[13],
+			    DSM_KB_PER_TRANSFER_WRITE, &ld[14],
+			    DSM_KB_PER_TRANSFER_FREE, &ld[15],
+
 			    DSM_NONE);
 
 			if (flag_a && ld[7] < 0.1) {
@@ -305,66 +381,131 @@ main(int argc, char **argv)
 				continue;
 			}
 
-			PRINTMSG(" %4ju", (uintmax_t)u64);
-			PRINTMSG(" %6.0f", (double)ld[0]);
-			PRINTMSG(" %6.0f", (double)ld[1]);
-			PRINTMSG(" %6.0f", (double)ld[2] * 1024);
-			if (ld[3] > 1e3) 
-				PRINTMSG(" %6.0f", (double)ld[3]);
-			else
-				PRINTMSG(" %6.1f", (double)ld[3]);
-			PRINTMSG(" %6.0f", (double)ld[4]);
-			PRINTMSG(" %6.0f", (double)ld[5] * 1024);
-			if (ld[6] > 1e3) 
-				PRINTMSG(" %6.0f", (double)ld[6]);
-			else
-				PRINTMSG(" %6.1f", (double)ld[6]);
-
-			if (flag_d) {
-				PRINTMSG(" %6.0f", (double)ld[8]);
-				PRINTMSG(" %6.0f", (double)ld[9] * 1024);
-				if (ld[10] > 1e3) 
-					PRINTMSG(" %6.0f", (double)ld[10]);
-				else
-					PRINTMSG(" %6.1f", (double)ld[10]);
-			}
-
-			if (flag_o) {
-				PRINTMSG(" %6.0f", (double)ld[11]);
-				if (ld[12] > 1e3) 
-					PRINTMSG(" %6.0f", (double)ld[12]);
-				else
-					PRINTMSG(" %6.1f", (double)ld[12]);
-			}
-
-			if (ld[7] > 80)
-				i = 3;
-			else if (ld[7] > 50)
-				i = 2;
-			else 
-				i = 1;
-			if (!flag_b)
-				attron(COLOR_PAIR(i));
-			PRINTMSG(" %6.1lf", (double)ld[7]);
-			if (!flag_b) {
-				attroff(COLOR_PAIR(i));
-				PRINTMSG("|");
-			} else
-				PRINTMSG(" ");
+			/* store name for geom device */
 			if (gid == NULL) {
-				PRINTMSG(" ??");
+				(void)snprintf(g_name, sizeof(g_name), "??");
 			} else if (gid->lg_what == ISPROVIDER) {
 				pp = gid->lg_ptr;
-				PRINTMSG(" %s", pp->lg_name);
+				(void)snprintf(g_name, sizeof(g_name), "%s",
+						pp->lg_name);
 			} else if (gid->lg_what == ISCONSUMER) {
 				cp = gid->lg_ptr;
-				PRINTMSG(" %s/%s/%s",
-				    cp->lg_geom->lg_class->lg_name,
-				    cp->lg_geom->lg_name,
-				    cp->lg_provider->lg_name);
+				(void)snprintf(g_name, sizeof(g_name),
+					"%s/%s/%s",
+					cp->lg_geom->lg_class->lg_name,
+				   	cp->lg_geom->lg_name,
+				    	cp->lg_provider->lg_name);
 			}
-			if (!flag_b)
-				clrtoeol();
+	
+			if (flag_C) {
+				PRINTMSG("%s", ts); /* timestamp */
+				PRINTMSG(",%s", g_name); /* print name */
+				PRINTMSG(",%ju", (uintmax_t)u64);
+				PRINTMSG(",%.0f", (double)ld[0]);
+				PRINTMSG(",%.0f", (double)ld[1]);
+				if (flag_s)
+					PRINTMSG(",%.0f", (double)ld[13]);
+				PRINTMSG(",%.0f", (double)ld[2] * 1024);
+				if (ld[3] > 1e3) 
+					PRINTMSG(",%.0f", (double)ld[3]);
+				else
+					PRINTMSG(",%.1f", (double)ld[3]);
+				PRINTMSG(",%.0f", (double)ld[4]);
+				if (flag_s)
+					PRINTMSG(",%.0f", (double)ld[14]);
+				PRINTMSG(",%.0f", (double)ld[5] * 1024);
+				if (ld[6] > 1e3) 
+					PRINTMSG(",%.0f", (double)ld[6]);
+				else
+					PRINTMSG(",%.1f", (double)ld[6]);
+
+				if (flag_d) {
+					PRINTMSG(",%.0f", (double)ld[8]);
+					if (flag_s)
+						PRINTMSG(",%.0f",
+								(double)ld[15]);
+					PRINTMSG(",%.0f", (double)ld[9] * 1024);
+					if (ld[10] > 1e3) 
+						PRINTMSG(",%.0f",
+								(double)ld[10]);
+					else
+						PRINTMSG(",%.1f",
+								(double)ld[10]);
+				}
+
+				if (flag_o) {
+					PRINTMSG(",%.0f", (double)ld[11]);
+					if (ld[12] > 1e3) 
+						PRINTMSG(",%.0f",
+								(double)ld[12]);
+					else
+						PRINTMSG(",%.1f", 
+								(double)ld[12]);
+				}
+				PRINTMSG(",%.1lf", (double)ld[7]);
+			} else {
+				PRINTMSG(" %4ju", (uintmax_t)u64);
+				PRINTMSG(" %6.0f", (double)ld[0]);
+				PRINTMSG(" %6.0f", (double)ld[1]);
+				if (flag_s)
+					PRINTMSG(" %6.0f", (double)ld[13]);
+				PRINTMSG(" %6.0f", (double)ld[2] * 1024);
+				if (ld[3] > 1e3) 
+					PRINTMSG(" %6.0f", (double)ld[3]);
+				else
+					PRINTMSG(" %6.1f", (double)ld[3]);
+				PRINTMSG(" %6.0f", (double)ld[4]);
+				if (flag_s)
+					PRINTMSG(" %6.0f", (double)ld[14]);
+				PRINTMSG(" %6.0f", (double)ld[5] * 1024);
+				if (ld[6] > 1e3) 
+					PRINTMSG(" %6.0f", (double)ld[6]);
+				else
+					PRINTMSG(" %6.1f", (double)ld[6]);
+
+				if (flag_d) {
+					PRINTMSG(" %6.0f", (double)ld[8]);
+					if (flag_s)
+						PRINTMSG(" %6.0f", 
+								(double)ld[15]);
+					PRINTMSG(" %6.0f", 
+							(double)ld[9] * 1024);
+					if (ld[10] > 1e3) 
+						PRINTMSG(" %6.0f",
+								(double)ld[10]);
+					else
+						PRINTMSG(" %6.1f",
+								(double)ld[10]);
+				}
+
+				if (flag_o) {
+					PRINTMSG(" %6.0f", (double)ld[11]);
+					if (ld[12] > 1e3) 
+						PRINTMSG(" %6.0f",
+								(double)ld[12]);
+					else
+						PRINTMSG(" %6.1f", 
+								(double)ld[12]);
+				}
+
+				if (ld[7] > HIGH_PCT_BUSY_THRESH)
+					i = 3;
+				else if (ld[7] > MEDIUM_PCT_BUSY_THRESH)
+					i = 2;
+				else 
+					i = 1;
+				if (!flag_b)
+					attron(COLOR_PAIR(i));
+				PRINTMSG(" %6.1lf", (double)ld[7]);
+				if (!flag_b) {
+					attroff(COLOR_PAIR(i));
+					PRINTMSG("|");
+				} else
+					PRINTMSG(" ");
+				PRINTMSG(" %s", g_name);
+				if (!flag_b)
+					clrtoeol();
+			}
 			PRINTMSG("\n");
 			*gsq = *gsp;
 		}
@@ -373,7 +514,10 @@ main(int argc, char **argv)
 			/* We loop extra to make sure we get the information. */
 			if (!loop)
 				break;
-			loop = 0;
+			if (!flag_B)
+				loop = 0;
+			else
+				fflush(stdout);
 			usleep(flag_I);
 			continue;
 		}
@@ -410,12 +554,15 @@ main(int argc, char **argv)
 				if ((p = strchr(tmp_f_s, '\n')) != NULL)
 					*p = '\0';
 				/*
-				 * We have to clear since we messed up
+				 * Fix the terminal.  We messed up
 				 * curses idea of the screen by using
 				 * libedit.
 				 */
 				clear();
 				refresh();
+				cbreak();
+				noecho();
+				nonl();
 				if (regcomp(&tmp_f_re, tmp_f_s, REG_EXTENDED)
 				    != 0) {
 					move(0, 0);
@@ -440,8 +587,8 @@ main(int argc, char **argv)
 	}
 
 	if (!flag_b) {
-		endwin();
 		el_end(el);
+		endwin();
 	}
 	exit(EX_OK);
 }
@@ -449,7 +596,7 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: gstat [-abcdp] [-f filter] [-I interval]\n");
+	fprintf(stderr, "usage: gstat [-abBcCdps] [-f filter] [-I interval]\n");
 	exit(EX_USAGE);
         /* NOTREACHED */
 }

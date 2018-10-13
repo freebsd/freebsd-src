@@ -1,4 +1,4 @@
-/* $Id: error.c,v 1.11 2014/04/07 22:22:49 tom Exp $ */
+/* $Id: error.c,v 1.14 2016/12/02 18:35:55 tom Exp $ */
 
 /* routines for printing error messages  */
 
@@ -77,38 +77,38 @@ syntax_error(int st_lineno, char *st_line, char *st_cptr)
 }
 
 void
-unterminated_comment(int c_lineno, char *c_line, char *c_cptr)
+unterminated_comment(const struct ainfo *a)
 {
     fprintf(stderr, "%s: e - line %d of \"%s\", unmatched /*\n",
-	    myname, c_lineno, input_file_name);
-    print_pos(c_line, c_cptr);
+	    myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
     done(1);
 }
 
 void
-unterminated_string(int s_lineno, char *s_line, char *s_cptr)
+unterminated_string(const struct ainfo *a)
 {
     fprintf(stderr, "%s: e - line %d of \"%s\", unterminated string\n",
-	    myname, s_lineno, input_file_name);
-    print_pos(s_line, s_cptr);
+	    myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
     done(1);
 }
 
 void
-unterminated_text(int t_lineno, char *t_line, char *t_cptr)
+unterminated_text(const struct ainfo *a)
 {
     fprintf(stderr, "%s: e - line %d of \"%s\", unmatched %%{\n",
-	    myname, t_lineno, input_file_name);
-    print_pos(t_line, t_cptr);
+	    myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
     done(1);
 }
 
 void
-unterminated_union(int u_lineno, char *u_line, char *u_cptr)
+unterminated_union(const struct ainfo *a)
 {
     fprintf(stderr, "%s: e - line %d of \"%s\", unterminated %%union \
-declaration\n", myname, u_lineno, input_file_name);
-    print_pos(u_line, u_cptr);
+declaration\n", myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
     done(1);
 }
 
@@ -218,11 +218,11 @@ specifiers\n", myname, lineno, input_file_name);
 }
 
 void
-unterminated_action(int a_lineno, char *a_line, char *a_cptr)
+unterminated_action(const struct ainfo *a)
 {
     fprintf(stderr, "%s: e - line %d of \"%s\", unterminated action\n",
-	    myname, a_lineno, input_file_name);
-    print_pos(a_line, a_cptr);
+	    myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
     done(1);
 }
 
@@ -267,11 +267,12 @@ unknown_rhs(int i)
 }
 
 void
-default_action_warning(void)
+default_action_warning(char *s)
 {
     fprintf(stderr,
-	    "%s: w - line %d of \"%s\", the default action assigns an \
-undefined value to $$\n", myname, lineno, input_file_name);
+	    "%s: w - line %d of \"%s\", the default action for %s assigns an \
+undefined value to $$\n",
+	    myname, lineno, input_file_name, s);
 }
 
 void
@@ -315,12 +316,12 @@ at_error(int a_lineno, char *a_line, char *a_cptr)
 }
 
 void
-unterminated_arglist(int a_lineno, char *a_line, char *a_cptr)
+unterminated_arglist(const struct ainfo *a)
 {
     fprintf(stderr,
 	    "%s: e - line %d of \"%s\", unterminated argument list\n",
-	    myname, a_lineno, input_file_name);
-    print_pos(a_line, a_cptr);
+	    myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
     done(1);
 }
 
@@ -393,10 +394,10 @@ start_requires_args(char *a_name)
 }
 
 void
-destructor_redeclared_warning(int a_lineno, char *a_line, char *a_cptr)
+destructor_redeclared_warning(const struct ainfo *a)
 {
     fprintf(stderr, "%s: w - line %d of \"%s\", destructor redeclared\n",
-	    myname, a_lineno, input_file_name);
-    print_pos(a_line, a_cptr);
+	    myname, a->a_lineno, input_file_name);
+    print_pos(a->a_line, a->a_cptr);
 }
 #endif

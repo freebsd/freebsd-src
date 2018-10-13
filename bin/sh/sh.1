@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2016
+.Dd July 19, 2018
 .Dt SH 1
 .Os
 .Sh NAME
@@ -69,8 +69,7 @@ is close to the
 .St -p1003.1
 specification for the shell.
 It only supports features
-designated by
-.Tn POSIX ,
+designated by POSIX,
 plus a few Berkeley extensions.
 This man page is not intended to be a tutorial nor a complete
 specification of the shell.
@@ -248,9 +247,7 @@ particularly in larger scripts.
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl h Li trackall
-A do-nothing option for
-.Tn POSIX
-compliance.
+A do-nothing option for POSIX compliance.
 .It Fl I Li ignoreeof
 Ignore
 .Dv EOF Ap s
@@ -343,10 +340,8 @@ Write each command
 variable subjected to parameter expansion and arithmetic expansion)
 to standard error before it is executed.
 Useful for debugging.
-.It nolog
-Another do-nothing option for
-.Tn POSIX
-compliance.
+.It Li nolog
+Another do-nothing option for POSIX compliance.
 It only has a long name.
 .El
 .Pp
@@ -409,7 +404,7 @@ The word starting with
 .Ql #
 and the rest of the line are ignored.
 .Pp
-.Tn ASCII
+ASCII
 .Dv NUL
 characters (character code 0) are not allowed in shell input.
 .Ss Quoting
@@ -447,9 +442,7 @@ If
 .Ar c
 is a backslash, it must be doubled.
 .It \ee
-The ESC character
-.Tn ( ASCII
-0x1b)
+The ESC character (ASCII 0x1b)
 .It \ef
 Formfeed
 .It \en
@@ -745,9 +738,7 @@ passing the arguments and the environment to the program.
 If the program is not a normal executable file
 (i.e., if it does not begin with the
 .Dq "magic number"
-whose
-.Tn ASCII
-representation is
+whose ASCII representation is
 .Dq Li #! ,
 resulting in an
 .Er ENOEXEC
@@ -1033,7 +1024,7 @@ The syntax of the
 command is:
 .Bd -unfilled -offset indent -compact
 .Ic case Ar word Ic in
-.Ar pattern Ns Li ) Ar list Li ;;
+.Ar pattern ) Ar list Li ;;
 .Ar ...
 .Ic esac
 .Ed
@@ -1064,11 +1055,16 @@ command.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Pp
-.D1 Li \&( Ns Ar list Ns Li \%)
+.Sm off
+.Bd -literal -offset -ident
+.Po Ar list Pc
+.Ed
+.Sm on
 .Pp
 or
-.Pp
-.D1 Li { Ar list Ns Li \&; }
+.Bd -literal -offset -ident
+.No { Ar list ; }
+.Ed
 .Pp
 The first form executes the commands in a subshell environment.
 A subshell environment has its own copy of:
@@ -1349,13 +1345,13 @@ used in tilde expansion and as a default directory for the
 built-in.
 .It Va IFS
 Input Field Separators.
-The default value is
+This is initialized at startup to
 .Aq space ,
 .Aq tab ,
 and
 .Aq newline
 in that order.
-This default also applies if
+This value also applies if
 .Va IFS
 is unset, but not if it is set to the empty string.
 See the
@@ -1750,11 +1746,11 @@ and contain integer constants.
 .It Unary operators
 .Li "! ~ + -"
 .It Binary operators
-.Li "* / % + - << >> < <= > >= == != & ^ | && ||"
+.Li "* / % + - << >> < <= > >= == != & ^ | && ||"\&
 .It Assignment operators
 .Li "= += -= *= /= %= <<= >>= &= ^= |="
 .It Conditional operator
-.Li "? :"
+.Li "? :"\&
 .El
 .Pp
 The result of the expression is substituted in decimal.
@@ -1862,7 +1858,7 @@ A locale-dependent range of characters may be specified using a minus sign.
 A named class of characters (see
 .Xr wctype 3 )
 may be specified by surrounding the name with
-.Ql \&[:
+.Ql \&[:\&
 and
 .Ql :\&] .
 For example,
@@ -2018,6 +2014,11 @@ to return exit status 1 if the full pathname of the new directory
 cannot be determined reliably or at all.
 Normally this is not considered an error,
 although a warning is printed.
+.Pp
+If changing the directory fails, the exit status is greater than 1.
+If the directory is changed, the exit status is 0, or also 1 if
+.Fl e
+was given.
 .It Ic chdir
 A synonym for the
 .Ic cd
@@ -2094,9 +2095,7 @@ Backspace
 Suppress the trailing newline (this has the side-effect of truncating the
 line if it is not the last character)
 .It \ee
-The ESC character
-.Tn ( ASCII
-0x1b)
+The ESC character (ASCII 0x1b)
 .It \ef
 Formfeed
 .It \en
@@ -2296,8 +2295,7 @@ Move the specified
 .Ar job
 or the current job to the foreground.
 .It Ic getopts Ar optstring var
-The
-.Tn POSIX
+The POSIX
 .Ic getopts
 command.
 The
@@ -2410,7 +2408,7 @@ read from the standard input.
 The trailing newline
 is deleted from the line and the line is split as
 described in the section on
-.Sx White Space Splitting (Field Splitting)
+.Sx White Space Splitting (Field Splitting)\&
 above, and
 the pieces are assigned to the variables in order.
 If there are more pieces than variables, the remaining
@@ -2658,6 +2656,9 @@ They are mutually exclusive.
 The maximum size of socket buffer usage, in bytes.
 .It Fl c Ar coredumpsize
 The maximal size of core dump files, in 512-byte blocks.
+Setting
+.Ar coredumpsize
+to 0 prevents core dump files from being created.
 .It Fl d Ar datasize
 The maximal size of the data segment of a process, in kilobytes.
 .It Fl f Ar filesize
@@ -2734,7 +2735,7 @@ were a known job that exited with exit status 127.
 If no operands are given, wait for all jobs to complete
 and return an exit status of zero.
 .El
-.Ss Commandline Editing
+.Ss Command Line Editing
 When
 .Nm
 is being used interactively from a terminal, the current command

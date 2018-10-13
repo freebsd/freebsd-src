@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,17 +41,20 @@
 	USB_MODE_DEVICE ? (((xfer)->endpointno & UE_DIR_IN) ? 0 : 1) : \
 	(((xfer)->endpointno & UE_DIR_IN) ? 1 : 0))
 
-/* macros */
+/* locking wrappers for BUS lock */
+#define	USB_BUS_LOCK(_b)		USB_MTX_LOCK(&(_b)->bus_mtx)
+#define	USB_BUS_UNLOCK(_b)		USB_MTX_UNLOCK(&(_b)->bus_mtx)
+#define	USB_BUS_LOCK_ASSERT(_b, _t)	USB_MTX_ASSERT(&(_b)->bus_mtx, _t)
 
-#define	USB_BUS_LOCK(_b)		mtx_lock(&(_b)->bus_mtx)
-#define	USB_BUS_UNLOCK(_b)		mtx_unlock(&(_b)->bus_mtx)
-#define	USB_BUS_LOCK_ASSERT(_b, _t)	mtx_assert(&(_b)->bus_mtx, _t)
-#define	USB_BUS_SPIN_LOCK(_b)		mtx_lock_spin(&(_b)->bus_spin_lock)
-#define	USB_BUS_SPIN_UNLOCK(_b)		mtx_unlock_spin(&(_b)->bus_spin_lock)
-#define	USB_BUS_SPIN_LOCK_ASSERT(_b, _t)	mtx_assert(&(_b)->bus_spin_lock, _t)
-#define	USB_XFER_LOCK(_x)		mtx_lock((_x)->xroot->xfer_mtx)
-#define	USB_XFER_UNLOCK(_x)		mtx_unlock((_x)->xroot->xfer_mtx)
-#define	USB_XFER_LOCK_ASSERT(_x, _t)	mtx_assert((_x)->xroot->xfer_mtx, _t)
+/* locking wrappers for BUS spin lock */
+#define	USB_BUS_SPIN_LOCK(_b)		USB_MTX_LOCK_SPIN(&(_b)->bus_spin_lock)
+#define	USB_BUS_SPIN_UNLOCK(_b)		USB_MTX_UNLOCK_SPIN(&(_b)->bus_spin_lock)
+#define	USB_BUS_SPIN_LOCK_ASSERT(_b, _t) USB_MTX_ASSERT(&(_b)->bus_spin_lock, _t)
+
+/* locking wrappers for XFER lock */
+#define	USB_XFER_LOCK(_x)		USB_MTX_LOCK((_x)->xroot->xfer_mtx)
+#define	USB_XFER_UNLOCK(_x)		USB_MTX_UNLOCK((_x)->xroot->xfer_mtx)
+#define	USB_XFER_LOCK_ASSERT(_x, _t)	USB_MTX_ASSERT((_x)->xroot->xfer_mtx, _t)
 
 /* helper for converting pointers to integers */
 #define	USB_P2U(ptr) \

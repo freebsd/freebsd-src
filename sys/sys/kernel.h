@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 Terrence R. Lambert
  * All rights reserved.
  *
@@ -51,6 +53,9 @@
 
 /* for intrhook below */
 #include <sys/queue.h>
+
+/* for timestamping SYSINITs; other files may assume this is included here */
+#include <sys/tslog.h>
 
 /* Global variables for the kernel. */
 
@@ -118,6 +123,7 @@ enum sysinit_sub_id {
 	SI_SUB_SCHED_IDLE	= 0x2600000,	/* required idle procs */
 	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
 	SI_SUB_INTR		= 0x2800000,	/* interrupt threads */
+	SI_SUB_TASKQ		= 0x2880000,	/* task queues */
 #ifdef EARLY_AP_STARTUP
 	SI_SUB_SMP		= 0x2900000,	/* start the APs*/
 #endif
@@ -226,6 +232,35 @@ struct sysinit {
  * correct warnings when -Wcast-qual is used.
  *
  */
+#ifdef TSLOG
+struct sysinit_tslog {
+	sysinit_cfunc_t func;
+	const void * data;
+	const char * name;
+};
+static inline void
+sysinit_tslog_shim(const void * data)
+{
+	const struct sysinit_tslog * x = data;
+
+	TSRAW(curthread, TS_ENTER, "SYSINIT", x->name);
+	(x->func)(x->data);
+	TSRAW(curthread, TS_EXIT, "SYSINIT", x->name);
+}
+#define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
+	static struct sysinit_tslog uniquifier ## _sys_init_tslog = {	\
+		func,						\
+		(ident),					\
+		#uniquifier					\
+	};							\
+	static struct sysinit uniquifier ## _sys_init = {	\
+		subsystem,					\
+		order,						\
+		sysinit_tslog_shim,				\
+		&uniquifier ## _sys_init_tslog			\
+	};							\
+	DATA_WSET(sysinit_set,uniquifier ## _sys_init)
+#else
 #define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit uniquifier ## _sys_init = {	\
 		subsystem,					\
@@ -233,7 +268,8 @@ struct sysinit {
 		func,						\
 		(ident)						\
 	};							\
-	DATA_SET(sysinit_set,uniquifier ## _sys_init)
+	DATA_WSET(sysinit_set,uniquifier ## _sys_init)
+#endif
 
 #define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	C_SYSINIT(uniquifier, subsystem, order,			\
@@ -249,7 +285,7 @@ struct sysinit {
 		func,						\
 		(ident)						\
 	};							\
-	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
+	DATA_WSET(sysuninit_set,uniquifier ## _sys_uninit)
 
 #define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
 	C_SYSUNINIT(uniquifier, subsystem, order,		\
@@ -352,7 +388,7 @@ struct tunable_uint64 {
 	uint64_t *var;
 };
 #define	TUNABLE_UINT64(path, var)				\
-	static struct tunable_ulong __CONCAT(__tunable_uint64_, __LINE__) = { \
+	static struct tunable_uint64 __CONCAT(__tunable_uint64_, __LINE__) = { \
 		(path),						\
 		(var),						\
 	};							\
@@ -400,13 +436,16 @@ struct tunable_str {
 #define	TUNABLE_STR_FETCH(path, var, size)			\
 	getenv_string((path), (var), (size))
 
+typedef void (*ich_func_t)(void *_arg);
+
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;
-	void	(*ich_func)(void *arg);
-	void	*ich_arg;
+	ich_func_t	ich_func;
+	void		*ich_arg;
 };
 
 int	config_intrhook_establish(struct intr_config_hook *hook);
 void	config_intrhook_disestablish(struct intr_config_hook *hook);
+void	config_intrhook_oneshot(ich_func_t _func, void *_arg);
 
 #endif /* !_SYS_KERNEL_H_*/

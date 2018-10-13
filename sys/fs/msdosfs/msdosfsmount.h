@@ -2,6 +2,8 @@
 /*	$NetBSD: msdosfsmount.h,v 1.17 1997/11/17 15:37:07 ws Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -65,7 +67,7 @@ MALLOC_DECLARE(M_MSDOSFSMNT);
 struct msdosfs_fileno;
 
 /*
- * Layout of the mount control block for a msdos filesystem.
+ * Layout of the mount control block for a MSDOSFS filesystem.
  */
 struct msdosfsmount {
 	struct mount *pm_mountp;/* vfs mount struct for this fs */
@@ -73,7 +75,7 @@ struct msdosfsmount {
 	struct bufobj *pm_bo;
 	uid_t pm_uid;		/* uid to set as owner of the files */
 	gid_t pm_gid;		/* gid to set as owner of the files */
-	mode_t pm_mask;		/* mask to and with file protection bits 
+	mode_t pm_mask;		/* mask to and with file protection bits
 				   for files */
 	mode_t pm_dirmask;	/* mask to and with file protection bits
 				   for directories */
@@ -81,7 +83,7 @@ struct msdosfsmount {
 	struct cdev *pm_dev;	/* character device mounted */
 	struct bpb50 pm_bpb;	/* BIOS parameter blk for this fs */
 	u_long pm_BlkPerSec;	/* How many DEV_BSIZE blocks fit inside a physical sector */
-	u_long pm_FATsecs;	/* actual number of fat sectors */
+	u_long pm_FATsecs;	/* actual number of FAT sectors */
 	u_long pm_fatblk;	/* block # of first FAT */
 	u_long pm_rootdirblk;	/* block # (cluster # for FAT32) of root directory number */
 	u_long pm_rootdirsize;	/* size in blocks (not clusters) */
@@ -93,25 +95,22 @@ struct msdosfsmount {
 	u_long pm_bnshift;	/* shift file offset right this amount to get a block number */
 	u_long pm_bpcluster;	/* bytes per cluster */
 	u_long pm_fmod;		/* ~0 if fs is modified, this can rollover to 0	*/
-	u_long pm_fatblocksize;	/* size of fat blocks in bytes */
-	u_long pm_fatblocksec;	/* size of fat blocks in sectors */
-	u_long pm_fatsize;	/* size of fat in bytes */
-	u_int32_t pm_fatmask;	/* mask to use for fat numbers */
+	u_long pm_fatblocksize;	/* size of FAT blocks in bytes */
+	u_long pm_fatblocksec;	/* size of FAT blocks in sectors */
+	u_long pm_fatsize;	/* size of FAT in bytes */
+	uint32_t pm_fatmask;	/* mask to use for FAT numbers */
 	u_long pm_fsinfo;	/* fsinfo block number */
 	u_long pm_nxtfree;	/* next place to search for a free cluster */
-	u_int pm_fatmult;	/* these 2 values are used in fat */
+	u_int pm_fatmult;	/* these 2 values are used in FAT */
 	u_int pm_fatdiv;	/*	offset computation */
-	u_int pm_curfat;	/* current fat for FAT32 (0 otherwise) */
+	u_int pm_curfat;	/* current FAT for FAT32 (0 otherwise) */
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
 	uint64_t pm_flags;	/* see below */
 	void *pm_u2w;	/* Local->Unicode iconv handle */
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
-	u_int32_t pm_nfileno;	/* next 32-bit fileno */
-	RB_HEAD(msdosfs_filenotree, msdosfs_fileno)
-	    pm_filenos; /* 64<->32-bit fileno mapping */
-	struct lock pm_fatlock;	/* lockmgr protecting allocations and rb tree */
+	struct lock pm_fatlock;	/* lockmgr protecting allocations */
 };
 
 /*
@@ -216,10 +215,6 @@ struct msdosfs_fileno {
 	 ? roottobn((pmp), (dirofs)) \
 	 : cntobn((pmp), (dirclu)))
 
-void msdosfs_fileno_init(struct mount *);
-void msdosfs_fileno_free(struct mount *);
-uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
-
 #define	MSDOSFS_LOCK_MP(pmp) \
 	lockmgr(&(pmp)->pm_fatlock, LK_EXCLUSIVE, NULL)
 #define	MSDOSFS_UNLOCK_MP(pmp) \
@@ -240,7 +235,7 @@ struct msdosfs_args {
 	mode_t	mask;		/* file mask to be applied for msdosfs perms */
 	int	flags;		/* see below */
 	int	unused1;	/* unused, was version number */
-	u_int16_t unused2[128];	/* no longer used, was Local->Unicode table */
+	uint16_t unused2[128];	/* no longer used, was Local->Unicode table */
 	char	*cs_win;	/* Windows(Unicode) Charset */
 	char	*cs_dos;	/* DOS Charset */
 	char	*cs_local;	/* Local Charset */
@@ -261,7 +256,6 @@ struct msdosfs_args {
 #define	MSDOSFSMNT_RONLY	0x80000000	/* mounted read-only	*/
 #define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
-#define	MSDOSFS_LARGEFS		0x10000000	/* perform fileno mapping */
 #define	MSDOSFS_FSIMOD		0x01000000
 
 #endif /* !_MSDOSFS_MSDOSFSMOUNT_H_ */

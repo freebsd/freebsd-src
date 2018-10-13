@@ -393,15 +393,15 @@ create_hooks(svn_repos_t *repos, apr_pool_t *pool)
 "# e.g.: \"" SVN_RA_CAPABILITY_MERGEINFO ":some-other-capability\" "         \
   "(the order is undefined)."                                                NL
 "#"                                                                          NL
+"# The list is self-reported by the client.  Therefore, you should not"      NL
+"# make security assumptions based on the capabilities list, nor should"     NL
+"# you assume that clients reliably report every capability they have."      NL
+"#"                                                                          NL
 "# Note: The TXN-NAME parameter is new in Subversion 1.8.  Prior to version" NL
 "# 1.8, the start-commit hook was invoked before the commit txn was even"    NL
 "# created, so the ability to inspect the commit txn and its metadata from"  NL
 "# within the start-commit hook was not possible."                           NL
 "# "                                                                         NL
-"# The list is self-reported by the client.  Therefore, you should not"      NL
-"# make security assumptions based on the capabilities list, nor should"     NL
-"# you assume that clients reliably report every capability they have."      NL
-"#"                                                                          NL
 "# If the hook program exits with success, the commit continues; but"        NL
 "# if it exits with failure (non-zero), the commit is stopped before"        NL
 "# a Subversion txn is created, and STDERR is returned to the client."       NL;
@@ -712,7 +712,7 @@ create_hooks(svn_repos_t *repos, apr_pool_t *pool)
 "# Because the locks have already been created and cannot be undone,"        NL
 "# the exit code of the hook program is ignored.  The hook program"          NL
 "# can use the 'svnlook' utility to examine the paths in the repository"     NL
-"# but since the hook is invoked asyncronously the newly-created locks"      NL
+"# but since the hook is invoked asynchronously the newly-created locks"     NL
 "# may no longer be present."                                                NL;
   script =
 "REPOS=\"$1\""                                                               NL
@@ -882,7 +882,7 @@ create_conf(svn_repos_t *repos, apr_pool_t *pool)
 "[sasl]"                                                                     NL
 "### This option specifies whether you want to use the Cyrus SASL"           NL
 "### library for authentication. Default is false."                          NL
-"### This section will be ignored if svnserve is not built with Cyrus"       NL
+"### Enabling this option requires svnserve to have been built with Cyrus"   NL
 "### SASL support; to check, run 'svnserve --version' and look for a line"   NL
 "### reading 'Cyrus SASL authentication is available.'"                      NL
 "# use-sasl = true"                                                          NL
@@ -1180,8 +1180,8 @@ svn_repos_create(svn_repos_t **repos_p,
   SVN_ERR(lock_repos(repos, FALSE, FALSE, scratch_pool));
 
   /* Create an environment for the filesystem. */
-  if ((err = svn_fs_create(&repos->fs, repos->db_path, fs_config,
-                           result_pool)))
+  if ((err = svn_fs_create2(&repos->fs, repos->db_path, fs_config,
+                            result_pool, scratch_pool)))
     {
       /* If there was an error making the filesytem, e.g. unknown/supported
        * filesystem type.  Clean up after ourselves.  Yes this is safe because
@@ -1504,6 +1504,16 @@ static const char *capability_yes = "yes";
 /* Repository does not support the capability. */
 static const char *capability_no = "no";
 
+static svn_error_t *
+dummy_mergeinfo_receiver(const char *path,
+                         svn_mergeinfo_t mergeinfo,
+                         void *baton,
+                         apr_pool_t *scratch_pool)
+{
+  return SVN_NO_ERROR;
+}
+
+
 svn_error_t *
 svn_repos_has_capability(svn_repos_t *repos,
                          svn_boolean_t *has,
@@ -1525,14 +1535,13 @@ svn_repos_has_capability(svn_repos_t *repos,
     {
       svn_error_t *err;
       svn_fs_root_t *root;
-      svn_mergeinfo_catalog_t ignored;
       apr_array_header_t *paths = apr_array_make(pool, 1,
                                                  sizeof(char *));
 
       SVN_ERR(svn_fs_revision_root(&root, repos->fs, 0, pool));
       APR_ARRAY_PUSH(paths, const char *) = "";
-      err = svn_fs_get_mergeinfo2(&ignored, root, paths, FALSE, FALSE,
-                                  TRUE, pool, pool);
+      err = svn_fs_get_mergeinfo3(root, paths, FALSE, FALSE, TRUE,
+                                  dummy_mergeinfo_receiver, NULL, pool);
 
       if (err)
         {
@@ -2059,45 +2068,6 @@ const svn_version_t *
 svn_repos_version(void)
 {
   SVN_VERSION_BODY;
-}
-
-
-
-svn_error_t *
-svn_repos_stat(svn_dirent_t **dirent,
-               svn_fs_root_t *root,
-               const char *path,
-               apr_pool_t *pool)
-{
-  svn_node_kind_t kind;
-  svn_dirent_t *ent;
-  const char *datestring;
-
-  SVN_ERR(svn_fs_check_path(&kind, root, path, pool));
-
-  if (kind == svn_node_none)
-    {
-      *dirent = NULL;
-      return SVN_NO_ERROR;
-    }
-
-  ent = svn_dirent_create(pool);
-  ent->kind = kind;
-
-  if (kind == svn_node_file)
-    SVN_ERR(svn_fs_file_length(&(ent->size), root, path, pool));
-
-  SVN_ERR(svn_fs_node_has_props(&ent->has_props, root, path, pool));
-
-  SVN_ERR(svn_repos_get_committed_info(&(ent->created_rev),
-                                       &datestring,
-                                       &(ent->last_author),
-                                       root, path, pool));
-  if (datestring)
-    SVN_ERR(svn_time_from_cstring(&(ent->time), datestring, pool));
-
-  *dirent = ent;
-  return SVN_NO_ERROR;
 }
 
 svn_error_t *

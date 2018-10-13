@@ -155,6 +155,15 @@ enum run_mode {
  */
 #define ACCEPT_BACKLOG 128
 
+/* Default limit to the client request size in MBytes.  This effectively
+ * limits the size of a paths and individual property values to about
+ * this value.
+ *
+ * Note that (MAX_REQUEST_SIZE + 4M) * THREADPOOL_MAX_SIZE is roughly
+ * the peak memory usage of the RA layer.
+ */
+#define MAX_REQUEST_SIZE 16
+
 #ifdef WIN32
 static apr_os_sock_t winservice_svnserve_accept_socket = INVALID_SOCKET;
 
@@ -210,6 +219,20 @@ void winservice_notify_stop(void)
 #define SVNSERVE_OPT_MIN_THREADS     271
 #define SVNSERVE_OPT_MAX_THREADS     272
 #define SVNSERVE_OPT_BLOCK_READ      273
+#define SVNSERVE_OPT_MAX_REQUEST     274
+#define SVNSERVE_OPT_MAX_RESPONSE    275
+#define SVNSERVE_OPT_CACHE_NODEPROPS 276
+
+/* Text macro because we can't use #ifdef sections inside a N_("...")
+   macro expansion. */
+#ifdef CONNECTION_HAVE_THREAD_OPTION
+#define ONLY_AVAILABLE_WITH_THEADS \
+        "\n" \
+        "                             "\
+        "[used only with --threads]"
+#else
+#define ONLY_AVAILABLE_WITH_THEADS ""
+#endif
 
 static const apr_getopt_option_t svnserve__options[] =
   {
@@ -296,6 +319,12 @@ static const apr_getopt_option_t svnserve__options[] =
         "Default is no.\n"
         "                             "
         "[used for FSFS and FSX repositories only]")},
+    {"cache-nodeprops", SVNSERVE_OPT_CACHE_NODEPROPS, 1,
+     N_("enable or disable caching of node properties\n"
+        "                             "
+        "Default is yes.\n"
+        "                             "
+        "[used for FSFS repositories only]")},
     {"client-speed", SVNSERVE_OPT_CLIENT_SPEED, 1,
      N_("Optimize network handling based on the assumption\n"
         "                             "
@@ -317,34 +346,46 @@ static const apr_getopt_option_t svnserve__options[] =
      * ### this option never exists when --service exists. */
     {"threads",          'T', 0, N_("use threads instead of fork "
                                     "[mode: daemon]")},
+#endif
+#if APR_HAS_THREADS
     {"min-threads",      SVNSERVE_OPT_MIN_THREADS, 1,
      N_("Minimum number of server threads, even if idle.\n"
         "                             "
         "Capped to max-threads; minimum value is 0.\n"
         "                             "
-        "Default is 1.\n"
-        "                             "
-        "[used only with --threads]")},
-#if (APR_SIZEOF_VOIDP <= 4)
+        "Default is 1."
+        ONLY_AVAILABLE_WITH_THEADS)},
     {"max-threads",      SVNSERVE_OPT_MAX_THREADS, 1,
      N_("Maximum number of server threads, even if there\n"
         "                             "
         "are more connections.  Minimum value is 1.\n"
         "                             "
-        "Default is 64.\n"
-        "                             "
-        "[used only with --threads]")},
-#else
-    {"max-threads",      SVNSERVE_OPT_MAX_THREADS, 1,
-     N_("Maximum number of server threads, even if there\n"
-        "                             "
-        "are more connections.  Minimum value is 1.\n"
-        "                             "
-        "Default is 256.\n"
-        "                             "
-        "[used only with --threads]")},
+        "Default is " APR_STRINGIFY(THREADPOOL_MAX_SIZE) "."
+        ONLY_AVAILABLE_WITH_THEADS)},
 #endif
-#endif
+    {"max-request-size", SVNSERVE_OPT_MAX_REQUEST, 1,
+     N_("Maximum acceptable size of a client request in MB.\n"
+        "                             "
+        "This implicitly limits the length of paths and\n"
+        "                             "
+        "property values that can be sent to the server.\n"
+        "                             "
+        "Also the peak memory usage for protocol handling\n"
+        "                             "
+        "per server thread or sub-process.\n"
+        "                             "
+        "0 disables the size check; default is "
+        APR_STRINGIFY(MAX_REQUEST_SIZE) ".")},
+    {"max-response-size", SVNSERVE_OPT_MAX_RESPONSE, 1,
+     N_("Maximum acceptable server response size in MB.\n"
+        "                             "
+        "Longer responses get truncated and return an\n"
+        "                             "
+        "error.  This limits the server load e.g. when\n"
+        "                             "
+        "checking out at the wrong path level.\n"
+        "                             "
+        "Default is 0 (disabled).")},
     {"foreground",        SVNSERVE_OPT_FOREGROUND, 0,
      N_("run in foreground (useful for debugging)\n"
         "                             "
@@ -680,6 +721,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   svn_boolean_t is_multi_threaded;
   enum connection_handling_mode handling_mode = CONNECTION_DEFAULT;
   svn_boolean_t cache_fulltexts = TRUE;
+  svn_boolean_t cache_nodeprops = TRUE;
   svn_boolean_t cache_txdeltas = TRUE;
   svn_boolean_t cache_revprops = FALSE;
   svn_boolean_t use_block_read = FALSE;
@@ -710,6 +752,9 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   /* Initialize the FS library. */
   SVN_ERR(svn_fs_initialize(pool));
 
+  /* Initialize the efficient Authz support. */
+  SVN_ERR(svn_repos_authz_initialize(pool));
+
   SVN_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
 
   params.root = "/";
@@ -721,13 +766,14 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   params.compression_level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
   params.logger = NULL;
   params.config_pool = NULL;
-  params.authz_pool = NULL;
   params.fs_config = NULL;
   params.vhost = FALSE;
   params.username_case = CASE_ASIS;
   params.memory_cache_size = (apr_uint64_t)-1;
   params.zero_copy_limit = 0;
   params.error_check_interval = 4096;
+  params.max_request_size = MAX_REQUEST_SIZE * 0x100000;
+  params.max_response_size = 0;
 
   while (1)
     {
@@ -855,7 +901,12 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           break;
 
         case 'M':
-          params.memory_cache_size = 0x100000 * apr_strtoi64(arg, NULL, 0);
+          {
+            apr_uint64_t sz_val;
+            SVN_ERR(svn_cstring_atoui64(&sz_val, arg));
+
+            params.memory_cache_size = 0x100000 * sz_val;
+          }
           break;
 
         case SVNSERVE_OPT_CACHE_TXDELTAS:
@@ -868,6 +919,10 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
         case SVNSERVE_OPT_CACHE_REVPROPS:
           cache_revprops = svn_tristate__from_word(arg) == svn_tristate_true;
+          break;
+
+        case SVNSERVE_OPT_CACHE_NODEPROPS:
+          cache_nodeprops = svn_tristate__from_word(arg) == svn_tristate_true;
           break;
 
         case SVNSERVE_OPT_BLOCK_READ:
@@ -889,6 +944,14 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
                 params.error_check_interval = bandwidth * 120;
               }
           }
+          break;
+
+        case SVNSERVE_OPT_MAX_REQUEST:
+          params.max_request_size = 0x100000 * apr_strtoi64(arg, NULL, 0);
+          break;
+
+        case SVNSERVE_OPT_MAX_RESPONSE:
+          params.max_response_size = 0x100000 * apr_strtoi64(arg, NULL, 0);
           break;
 
         case SVNSERVE_OPT_MIN_THREADS:
@@ -980,6 +1043,8 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
                 cache_txdeltas ? "1" :"0");
   svn_hash_sets(params.fs_config, SVN_FS_CONFIG_FSFS_CACHE_FULLTEXTS,
                 cache_fulltexts ? "1" :"0");
+  svn_hash_sets(params.fs_config, SVN_FS_CONFIG_FSFS_CACHE_NODEPROPS,
+                cache_nodeprops ? "1" :"0");
   svn_hash_sets(params.fs_config, SVN_FS_CONFIG_FSFS_CACHE_REVPROPS,
                 cache_revprops ? "2" :"0");
   svn_hash_sets(params.fs_config, SVN_FS_CONFIG_FSFS_BLOCK_READ,
@@ -988,10 +1053,6 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   SVN_ERR(svn_repos__config_pool_create(&params.config_pool,
                                         is_multi_threaded,
                                         pool));
-  SVN_ERR(svn_repos__authz_pool_create(&params.authz_pool,
-                                       params.config_pool,
-                                       is_multi_threaded,
-                                       pool));
 
   /* If a configuration file is specified, load it and any referenced
    * password and authorization files. */
@@ -999,11 +1060,10 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
     {
       params.base = svn_dirent_dirname(config_filename, pool);
 
-      SVN_ERR(svn_repos__config_pool_get(&params.cfg, NULL,
+      SVN_ERR(svn_repos__config_pool_get(&params.cfg,
                                          params.config_pool,
                                          config_filename,
                                          TRUE, /* must_exist */
-                                         FALSE, /* names_case_sensitive */
                                          NULL,
                                          pool));
     }
@@ -1030,17 +1090,21 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
       apr_pool_cleanup_register(pool, pool, apr_pool_cleanup_null,
                                 redirect_stdout);
 
-      SVN_ERR(svn_stream_for_stdin(&stdin_stream, pool));
+      /* We are an interactive server, i.e. can't use APR buffering on
+       * stdin. */
+      SVN_ERR(svn_stream_for_stdin2(&stdin_stream, FALSE, pool));
       SVN_ERR(svn_stream_for_stdout(&stdout_stream, pool));
 
       /* Use a subpool for the connection to ensure that if SASL is used
        * the pool cleanup handlers that call sasl_dispose() (connection_pool)
        * and sasl_done() (pool) are run in the right order. See issue #3664. */
       connection_pool = svn_pool_create(pool);
-      conn = svn_ra_svn_create_conn4(NULL, stdin_stream, stdout_stream,
+      conn = svn_ra_svn_create_conn5(NULL, stdin_stream, stdout_stream,
                                      params.compression_level,
                                      params.zero_copy_limit,
                                      params.error_check_interval,
+                                     params.max_request_size,
+                                     params.max_response_size,
                                      connection_pool);
       err = serve(conn, &params, connection_pool);
       svn_pool_destroy(connection_pool);

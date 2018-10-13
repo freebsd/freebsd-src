@@ -28,17 +28,20 @@
  * SUCH DAMAGE.
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
-#include <machine/cpuconf.h>
 #include <machine/pte-v6.h>
 
 __FBSDID("$FreeBSD$");
 
+/* We map 64MB of kernel unless overridden in assym.inc by the kernel option. */
+#ifndef LOCORE_MAP_MB
+#define	LOCORE_MAP_MB	64
+#endif
 
 #if __ARM_ARCH >= 7
 #if defined(__ARM_ARCH_7VE__) || defined(__clang__)
@@ -47,11 +50,6 @@ __FBSDID("$FreeBSD$");
  * when enabled. llvm >= 3.6 supports it too.
  */
 .arch_extension virt
-#define	MSR_ELR_HYP(regnum)	msr	elr_hyp, lr
-#define	ERET	eret
-#else
-#define MSR_ELR_HYP(regnum) .word (0xe12ef300 | regnum)
-#define ERET .word 0xe160006e
 #endif
 #endif /* __ARM_ARCH >= 7 */
 
@@ -62,12 +60,17 @@ __FBSDID("$FreeBSD$");
 	.align	2
 
 #if __ARM_ARCH >= 7
-#define	LEAVE_HYP							\
+#define	HANDLE_HYP							\
 	/* Leave HYP mode */						;\
 	mrs	r0, cpsr						;\
 	and	r0, r0, #(PSR_MODE)   /* Mode is in the low 5 bits of CPSR */ ;\
 	teq	r0, #(PSR_HYP32_MODE) /* Hyp Mode? */			;\
 	bne	1f							;\
+	/* Install Hypervisor Stub Exception Vector */			;\
+	bl hypervisor_stub_vect_install					;\
+	mov	r0, 0							;\
+	adr	r1, hypmode_enabled					;\
+	str	r0, [r1]						;\
 	/* Ensure that IRQ, FIQ and Aborts will be disabled after eret */ ;\
 	mrs	r0, cpsr						;\
 	bic	r0, r0, #(PSR_MODE)					;\
@@ -75,12 +78,16 @@ __FBSDID("$FreeBSD$");
 	orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
 	msr	spsr_cxsf, r0						;\
 	/* Exit hypervisor mode */					;\
-	adr	lr, 1f							;\
+	adr	lr, 2f							;\
 	MSR_ELR_HYP(14)							;\
 	ERET								;\
-1:
+1:									;\
+	mov	r0, -1							;\
+	adr	r1, hypmode_enabled					;\
+	str	r0, [r1]						;\
+2:
 #else
-#define	LEAVE_HYP
+#define	HANDLE_HYP
 #endif /* __ARM_ARCH >= 7 */
 
 /*
@@ -108,7 +115,8 @@ ASENTRY_NP(_start)
 	mov	r10, r2		/* Save meta data */
 	mov	r11, r3		/* Future expansion */
 
-	LEAVE_HYP
+	# If HYP-MODE is active, install an exception vector stub
+	HANDLE_HYP
 
 	/*
 	 * Check whether data cache is enabled.  If it is, then we know
@@ -173,12 +181,13 @@ ASENTRY_NP(_start)
 	bl	build_pagetables
 
 	/* 
-	 * Next we do 64MiB starting at the physical load address, mapped to
-	 * the VA the kernel is linked for.
+	 * Next we map the kernel starting at the physical load address, mapped
+	 * to the VA the kernel is linked for.  The default size we map is 64MiB
+	 * but it can be overridden with a kernel option.
 	 */
 	mov	r1, r5
 	ldr	r2, =(KERNVIRTADDR)
-	mov	r3, #64
+	ldr	r3, =(LOCORE_MAP_MB)
 	bl	build_pagetables
 
 	/* Create a device mapping for early_printf if specified. */
@@ -412,6 +421,9 @@ build_pagetables:
 
 VA_TO_PA_POINTER(Lpagetable, boot_pt1)
 
+	.global _C_LABEL(hypmode_enabled)
+_C_LABEL(hypmode_enabled):
+	.word 0
 
 .Lstart:
 	.word	_edata			/* Note that these three items are */
@@ -430,7 +442,7 @@ svcstk:
  * Memory for the initial pagetable. We are unable to place this in
  * the bss as this will be cleared after the table is loaded.
  */
-	.section ".init_pagetable"
+	.section ".init_pagetable", "aw", %nobits
 	.align	14 /* 16KiB aligned */
 	.globl	boot_pt1
 boot_pt1:
@@ -439,16 +451,13 @@ boot_pt1:
 	.text
 	.align	2
 
-.Lcpufuncs:
-	.word	_C_LABEL(cpufuncs)
-
 #if defined(SMP)
 
 ASENTRY_NP(mpentry)
 	/* Make sure interrupts are disabled. */
 	cpsid	ifa
 
-	LEAVE_HYP
+	HANDLE_HYP
 
 	/* Setup core, disable all caches. */
 	mrc	CP15_SCTLR(r0)

@@ -20,7 +20,13 @@
 #include "Mips.h"
 #include "MipsELFStreamer.h"
 #include "MipsMCNaCl.h"
+#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCELFStreamer.h"
+#include "llvm/MC/MCInst.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 
 using namespace llvm;
 
@@ -36,16 +42,17 @@ const unsigned LoadStoreStackMaskReg = Mips::T7;
 
 class MipsNaClELFStreamer : public MipsELFStreamer {
 public:
-  MipsNaClELFStreamer(MCContext &Context, MCAsmBackend &TAB,
-                      raw_pwrite_stream &OS, MCCodeEmitter *Emitter)
-      : MipsELFStreamer(Context, TAB, OS, Emitter), PendingCall(false) {}
+  MipsNaClELFStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> TAB,
+                      raw_pwrite_stream &OS,
+                      std::unique_ptr<MCCodeEmitter> Emitter)
+      : MipsELFStreamer(Context, std::move(TAB), OS, std::move(Emitter)) {}
 
-  ~MipsNaClELFStreamer() override {}
+  ~MipsNaClELFStreamer() override = default;
 
 private:
   // Whether we started the sandboxing sequence for calls.  Calls are bundled
   // with branch delays and aligned to the bundle end.
-  bool PendingCall;
+  bool PendingCall = false;
 
   bool isIndirectJump(const MCInst &MI) {
     if (MI.getOpcode() == Mips::JALR) {
@@ -135,8 +142,8 @@ private:
 public:
   /// This function is the one used to emit instruction data into the ELF
   /// streamer.  We override it to mask dangerous instructions.
-  void EmitInstruction(const MCInst &Inst,
-                       const MCSubtargetInfo &STI) override {
+  void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
+                       bool) override {
     // Sandbox indirect jumps.
     if (isIndirectJump(Inst)) {
       if (PendingCall)
@@ -251,11 +258,13 @@ bool baseRegNeedsLoadStoreMask(unsigned Reg) {
   return Reg != Mips::SP && Reg != Mips::T8;
 }
 
-MCELFStreamer *createMipsNaClELFStreamer(MCContext &Context, MCAsmBackend &TAB,
+MCELFStreamer *createMipsNaClELFStreamer(MCContext &Context,
+                                         std::unique_ptr<MCAsmBackend> TAB,
                                          raw_pwrite_stream &OS,
-                                         MCCodeEmitter *Emitter,
+                                         std::unique_ptr<MCCodeEmitter> Emitter,
                                          bool RelaxAll) {
-  MipsNaClELFStreamer *S = new MipsNaClELFStreamer(Context, TAB, OS, Emitter);
+  MipsNaClELFStreamer *S =
+      new MipsNaClELFStreamer(Context, std::move(TAB), OS, std::move(Emitter));
   if (RelaxAll)
     S->getAssembler().setRelaxAll(true);
 
@@ -265,4 +274,4 @@ MCELFStreamer *createMipsNaClELFStreamer(MCContext &Context, MCAsmBackend &TAB,
   return S;
 }
 
-}
+} // end namespace llvm

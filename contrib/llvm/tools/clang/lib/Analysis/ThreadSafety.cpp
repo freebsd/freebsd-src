@@ -15,25 +15,23 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Analysis/Analyses/ThreadSafety.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Analysis/Analyses/PostOrderCFGView.h"
-#include "clang/Analysis/Analyses/ThreadSafety.h"
 #include "clang/Analysis/Analyses/ThreadSafetyCommon.h"
 #include "clang/Analysis/Analyses/ThreadSafetyLogical.h"
 #include "clang/Analysis/Analyses/ThreadSafetyTIL.h"
 #include "clang/Analysis/Analyses/ThreadSafetyTraverse.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallVector.h"
@@ -259,7 +257,7 @@ private:
 
   struct BeforeInfo {
     BeforeInfo() : Visited(0) {}
-    BeforeInfo(BeforeInfo &&O) : Vect(std::move(O.Vect)), Visited(O.Visited) {}
+    BeforeInfo(BeforeInfo &&) = default;
 
     BeforeVect Vect;
     int Visited;
@@ -1585,7 +1583,7 @@ void BuildLockset::warnIfMutexHeld(const NamedDecl *D, const Expr *Exp,
 /// a pointer marked with pt_guarded_by.
 void BuildLockset::checkAccess(const Expr *Exp, AccessKind AK,
                                ProtectedOperationKind POK) {
-  Exp = Exp->IgnoreParenCasts();
+  Exp = Exp->IgnoreImplicit()->IgnoreParenCasts();
 
   SourceLocation Loc = Exp->getExprLoc();
 
@@ -1737,8 +1735,23 @@ void BuildLockset::handleCall(Expr *Exp, const NamedDecl *D, VarDecl *VD) {
         CapExprSet AssertLocks;
         Analyzer->getMutexIDs(AssertLocks, A, Exp, D, VD);
         for (const auto &AssertLock : AssertLocks)
-          Analyzer->addLock(FSet, llvm::make_unique<LockableFactEntry>(
-                                      AssertLock, LK_Shared, Loc, false, true),
+          Analyzer->addLock(FSet,
+                            llvm::make_unique<LockableFactEntry>(
+                                AssertLock, LK_Shared, Loc, false, true),
+                            ClassifyDiagnostic(A));
+        break;
+      }
+
+      case attr::AssertCapability: {
+        AssertCapabilityAttr *A = cast<AssertCapabilityAttr>(At);
+        CapExprSet AssertLocks;
+        Analyzer->getMutexIDs(AssertLocks, A, Exp, D, VD);
+        for (const auto &AssertLock : AssertLocks)
+          Analyzer->addLock(FSet,
+                            llvm::make_unique<LockableFactEntry>(
+                                AssertLock,
+                                A->isShared() ? LK_Shared : LK_Exclusive, Loc,
+                                false, true),
                             ClassifyDiagnostic(A));
         break;
       }

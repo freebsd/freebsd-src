@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/fdt/simplebus.h>
-#include <dev/fdt/fdt_common.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -76,11 +75,16 @@ struct aw_ccu_softc {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10",	CLOCK_CCU },
+	{ "allwinner,sun5i-a13",	CLOCK_CCU },
 	{ "allwinner,sun7i-a20",	CLOCK_CCU },
 	{ "allwinner,sun6i-a31",	CLOCK_CCU },
 	{ "allwinner,sun6i-a31s",	CLOCK_CCU },
+	{ "allwinner,sun50i-a64",	CLOCK_CCU },
+	{ "allwinner,sun50i-h5",	CLOCK_CCU },
+	{ "allwinner,sun8i-a33",	CLOCK_CCU },
 	{ "allwinner,sun8i-a83t",	CLOCK_CCU|CLOCK_PRCM|CLOCK_SYSCTRL },
-	{ "allwinner,sun8i-h3",		CLOCK_CCU },
+	{ "allwinner,sun8i-h2-plus",	CLOCK_CCU|CLOCK_PRCM },
+	{ "allwinner,sun8i-h3",		CLOCK_CCU|CLOCK_PRCM },
 	{ NULL, 0 }
 };
 
@@ -193,7 +197,7 @@ aw_ccu_search_compatible(void)
 
 	root = OF_finddevice("/");
 	for (compat = compat_data; compat->ocd_str != NULL; compat++)
-		if (fdt_is_compatible(root, compat->ocd_str))
+		if (ofw_bus_node_is_compatible(root, compat->ocd_str))
 			break;
 
 	return (compat);

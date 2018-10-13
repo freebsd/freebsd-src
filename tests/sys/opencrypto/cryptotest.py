@@ -29,6 +29,8 @@
 # $FreeBSD$
 #
 
+from __future__ import print_function
+import errno
 import cryptodev
 import itertools
 import os
@@ -40,11 +42,12 @@ from glob import iglob
 katdir = '/usr/local/share/nist-kat'
 
 def katg(base, glob):
+	assert os.path.exists(os.path.join(katdir, base)), "Please 'pkg install nist-kat'"
 	return iglob(os.path.join(katdir, base, glob))
 
-aesmodules = [ 'cryptosoft0', 'aesni0', ]
+aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
 desmodules = [ 'cryptosoft0', ]
-shamodules = [ 'cryptosoft0', ]
+shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
 
 def GenTestCase(cname):
 	try:
@@ -56,15 +59,17 @@ def GenTestCase(cname):
 		###############
 		##### AES #####
 		###############
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % `cname`)
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
 		def test_xts(self):
 			for i in katg('XTSTestVectors/format tweak value input - data unit seq no', '*.rsp'):
 				self.runXTS(i, cryptodev.CRYPTO_AES_XTS)
 
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
 		def test_cbc(self):
 			for i in katg('KAT_AES', 'CBC[GKV]*.rsp'):
 				self.runCBC(i)
 
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
 		def test_gcm(self):
 			for i in katg('gcmtestvectors', 'gcmEncrypt*'):
 				self.runGCM(i, 'ENCRYPT')
@@ -85,7 +90,7 @@ def GenTestCase(cname):
 				swapptct = True
 				curfun = Crypto.decrypt
 			else:
-				raise RuntimeError('unknown mode: %s' % `mode`)
+				raise RuntimeError('unknown mode: %r' % repr(mode))
 
 			for bogusmode, lines in cryptodev.KATParser(fname,
 			    [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]):
@@ -103,18 +108,30 @@ def GenTestCase(cname):
 						# XXX - isn't supported
 						continue
 
-					c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
-					    cipherkey,
-					    mac=self._gmacsizes[len(cipherkey)],
-					    mackey=cipherkey, crid=crid)
+					try:
+						c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
+						    cipherkey,
+						    mac=self._gmacsizes[len(cipherkey)],
+						    mackey=cipherkey, crid=crid)
+					except EnvironmentError, e:
+						# Can't test algorithms the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
 
 					if mode == 'ENCRYPT':
-						rct, rtag = c.encrypt(pt, iv, aad)
+						try:
+							rct, rtag = c.encrypt(pt, iv, aad)
+						except EnvironmentError, e:
+							# Can't test inputs the driver does not support.
+							if e.errno != errno.EINVAL:
+								raise
+							continue
 						rtag = rtag[:len(tag)]
 						data['rct'] = rct.encode('hex')
 						data['rtag'] = rtag.encode('hex')
-						self.assertEqual(rct, ct, `data`)
-						self.assertEqual(rtag, tag, `data`)
+						self.assertEqual(rct, ct, repr(data))
+						self.assertEqual(rtag, tag, repr(data))
 					else:
 						if len(tag) != 16:
 							continue
@@ -123,11 +140,17 @@ def GenTestCase(cname):
 							self.assertRaises(IOError,
 								c.decrypt, *args)
 						else:
-							rpt, rtag = c.decrypt(*args)
+							try:
+								rpt, rtag = c.decrypt(*args)
+							except EnvironmentError, e:
+								# Can't test inputs the driver does not support.
+								if e.errno != errno.EINVAL:
+									raise
+								continue
 							data['rpt'] = rpt.encode('hex')
 							data['rtag'] = rtag.encode('hex')
 							self.assertEqual(rpt, pt,
-							    `data`)
+							    repr(data))
 
 		def runCBC(self, fname):
 			curfun = None
@@ -140,7 +163,7 @@ def GenTestCase(cname):
 					swapptct = True
 					curfun = Crypto.decrypt
 				else:
-					raise RuntimeError('unknown mode: %s' % `mode`)
+					raise RuntimeError('unknown mode: %r' % repr(mode))
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
@@ -168,7 +191,7 @@ def GenTestCase(cname):
 					swapptct = True
 					curfun = Crypto.decrypt
 				else:
-					raise RuntimeError('unknown mode: %s' % `mode`)
+					raise RuntimeError('unknown mode: %r' % repr(mode))
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
@@ -184,14 +207,20 @@ def GenTestCase(cname):
 					if swapptct:
 						pt, ct = ct, pt
 					# run the fun
-					c = Crypto(meth, cipherkey, crid=crid)
-					r = curfun(c, pt, iv)
+					try:
+						c = Crypto(meth, cipherkey, crid=crid)
+						r = curfun(c, pt, iv)
+					except EnvironmentError, e:
+						# Can't test hashes the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
 					self.assertEqual(r, ct)
 
 		###############
 		##### DES #####
 		###############
-		@unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % `cname`)
+		@unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % (cname))
 		def test_tdes(self):
 			for i in katg('KAT_TDES', 'TCBC[a-z]*.rsp'):
 				self.runTDES(i)
@@ -207,7 +236,7 @@ def GenTestCase(cname):
 					swapptct = True
 					curfun = Crypto.decrypt
 				else:
-					raise RuntimeError('unknown mode: %s' % `mode`)
+					raise RuntimeError('unknown mode: %r' % repr(mode))
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
@@ -227,39 +256,84 @@ def GenTestCase(cname):
 		###############
 		##### SHA #####
 		###############
-		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % `cname`)
+		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
 		def test_sha(self):
 			# SHA not available in software
 			pass
 			#for i in iglob('SHA1*'):
 			#	self.runSHA(i)
 
+		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
 		def test_sha1hmac(self):
 			for i in katg('hmactestvectors', 'HMAC.rsp'):
 				self.runSHA1HMAC(i)
 
 		def runSHA1HMAC(self, fname):
-			for bogusmode, lines in cryptodev.KATParser(fname,
+			for hashlength, lines in cryptodev.KATParser(fname,
 			    [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]):
+				# E.g., hashlength will be "L=20" (bytes)
+				hashlen = int(hashlength.split("=")[1])
+
+				blocksize = None
+				if hashlen == 20:
+					alg = cryptodev.CRYPTO_SHA1_HMAC
+					blocksize = 64
+				elif hashlen == 28:
+					# Cryptodev doesn't support SHA-224
+					# Slurp remaining input in section
+					for data in lines:
+						continue
+					continue
+				elif hashlen == 32:
+					alg = cryptodev.CRYPTO_SHA2_256_HMAC
+					blocksize = 64
+				elif hashlen == 48:
+					alg = cryptodev.CRYPTO_SHA2_384_HMAC
+					blocksize = 128
+				elif hashlen == 64:
+					alg = cryptodev.CRYPTO_SHA2_512_HMAC
+					blocksize = 128
+				else:
+					# Skip unsupported hashes
+					# Slurp remaining input in section
+					for data in lines:
+						continue
+					continue
+
 				for data in lines:
 					key = data['Key'].decode('hex')
 					msg = data['Msg'].decode('hex')
 					mac = data['Mac'].decode('hex')
+					tlen = int(data['Tlen'])
 
-					if len(key) != 20:
-						# XXX - implementation bug
+					if len(key) > blocksize:
 						continue
 
-					c = Crypto(mac=cryptodev.CRYPTO_SHA1_HMAC,
-					    mackey=key, crid=crid)
+					try:
+						c = Crypto(mac=alg, mackey=key,
+						    crid=crid)
+					except EnvironmentError, e:
+						# Can't test hashes the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
 
-					r = c.encrypt(msg)
-					self.assertEqual(r, mac, `data`)
+					_, r = c.encrypt(msg, iv="")
+
+					# A limitation in cryptodev.py means we
+					# can only store MACs up to 16 bytes.
+					# That's good enough to validate the
+					# correct behavior, more or less.
+					maclen = min(tlen, 16)
+					self.assertEqual(r[:maclen], mac[:maclen], "Actual: " + \
+					    repr(r[:maclen].encode("hex")) + " Expected: " + repr(data))
 
 	return GendCryptoTestCase
 
 cryptosoft = GenTestCase('cryptosoft0')
 aesni = GenTestCase('aesni0')
+ccr = GenTestCase('ccr0')
+ccp = GenTestCase('ccp0')
 
 if __name__ == '__main__':
 	unittest.main()

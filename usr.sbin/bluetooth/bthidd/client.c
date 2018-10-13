@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -186,14 +188,11 @@ client_connect(bthid_server_p srv, int32_t fd)
 		s->state = OPEN;
 		connect_in_progress = 0;
 
-		/* Register session's vkbd descriptor (if any) for read */
-		if (s->state == OPEN && d->keyboard) {
-			assert(s->vkbd != -1);
-
-			FD_SET(s->vkbd, &srv->rfdset);
-			if (s->vkbd > srv->maxfd)
-				srv->maxfd = s->vkbd;
-	        }
+		/* Create kbd/mouse after both channels are established */
+		if (session_run(s) < 0) {
+			session_close(s);
+			return (-1);
+		}
 		break;
 
 	default:

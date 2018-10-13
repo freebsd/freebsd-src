@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2011 Xin Li <delphij@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2011 Xin LI <delphij@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

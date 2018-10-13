@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Olivier Houchard.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,8 +136,8 @@
 #define		PREFETCH_CTRL_INSTR_PREFETCH	(1 << 29)
 #define		PREFETCH_CTRL_DL		(1 << 30)
 #define PL310_POWER_CTRL		0xF80
-#define		POWER_CTRL_ENABLE_GATING	(1 << 0)
-#define		POWER_CTRL_ENABLE_STANDBY	(1 << 1)
+#define		POWER_CTRL_ENABLE_GATING	(1 << 1)
+#define		POWER_CTRL_ENABLE_STANDBY	(1 << 0)
 
 struct intr_config_hook;
 
@@ -148,6 +150,7 @@ struct pl310_softc {
 	struct mtx	sc_mtx;
 	u_int		sc_rtl_revision;
 	struct intr_config_hook *sc_ich;
+	boolean_t	sc_io_coherent;
 };
 
 /**
@@ -180,8 +183,10 @@ pl310_write4(struct pl310_softc *sc, bus_size_t off, uint32_t val)
 void pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
     uint32_t read, uint32_t write, uint32_t setup);
 
+#ifndef PLATFORM
 void platform_pl310_init(struct pl310_softc *);
 void platform_pl310_write_ctrl(struct pl310_softc *, uint32_t);
 void platform_pl310_write_debug(struct pl310_softc *, uint32_t);
+#endif
 
 #endif /* PL310_H_ */

@@ -6,18 +6,18 @@
 #
 
 ident		BCM
+cpu		CPU_MIPS74K
 
 hints		"BCM.hints"
 include		"../broadcom/std.broadcom"
 
 # ships with cfe firmware
 options 	CFE
+device		cfe
+
 options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
 options		BOOTVERBOSE=0
-
-makeoptions	INTRNG
-options		INTRNG
 
 makeoptions	TRAMPLOADADDR=0x80800000
 makeoptions	DEBUG="-g3"		#Build kernel with gdb(1) debug symbols
@@ -28,6 +28,7 @@ options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	NFSCL			#Network Filesystem Client
 #options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	PSEUDOFS		#Pseudo-filesystem framework
@@ -52,6 +53,7 @@ options 	INVARIANT_SUPPORT
 #options	BHND_LOGLEVEL=BHND_DEBUG_LEVEL
 #options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
+options 	EARLY_PRINTF
 #options	VERBOSE_SYSINIT
 #makeoptions	VERBOSE_SYSINIT
 
@@ -65,6 +67,7 @@ device		bhnd_pcib		# PCIe-G1 core
 
 #device		bgmac			# Broadcom GMAC - not yet
 
+device		gpio
 device		mdio
 
 #Flash
@@ -93,8 +96,16 @@ device 		miibus			# attachments
 
 # pci devices
 
-# USB is not yet ready
-#options 	USB_DEBUG		# enable debug msgs
-#device		usb			# USB Bus (required)
-#device		uhci			# UHCI PCI->USB interface
-#device		ehci			# EHCI PCI->USB interface (USB 2.0)
+# USB
+options 	USB_DEBUG		# enable debug msgs
+# taken from atheros
+options 	USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+options 	USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
+
+device		usb			# USB Bus (required)
+device		ohci			# OHCI interface
+device		ehci			# EHCI interface (USB 2.0)
+
+device		scbus
+device		umass
+device		da

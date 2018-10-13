@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #include "opt_hwpmc_hooks.h"
 
@@ -40,6 +40,41 @@
 #include <machine/tlb.h>
 
 #define TMPSTACKSZ	16384
+
+#ifdef __powerpc64__
+#define GET_TOCBASE(r)  \
+	mfspr	r, SPR_SPRG8
+#define	TOC_RESTORE	nop
+#define	CMPI	cmpdi
+#define	CMPL	cmpld
+#define	LOAD	ld
+#define	LOADX	ldarx
+#define	STORE	std
+#define	STOREX	stdcx.
+#define	STU	stdu
+#define	CALLSIZE	48
+#define	REDZONE		288
+#define	THREAD_REG	%r13
+#define	ADDR(x)	\
+	.llong	x
+#define	WORD_SIZE	8
+#else
+#define	GET_TOCBASE(r)
+#define	TOC_RESTORE
+#define	CMPI	cmpwi
+#define	CMPL	cmplw
+#define	LOAD	lwz
+#define	LOADX	lwarx
+#define	STOREX	stwcx.
+#define	STORE	stw
+#define	STU	stwu
+#define	CALLSIZE	8
+#define	REDZONE		0
+#define	THREAD_REG	%r2
+#define	ADDR(x)	\
+	.long	x
+#define	WORD_SIZE	4
+#endif
 
 	.text
 	.globl	btext
@@ -79,7 +114,7 @@ __start:
  *  - Switch to temp mapping
  *  - Map 64MB of RAM in TLB1[1]
  *  - Use AS=1, set EPN to KERNBASE and RPN to kernel load address
- *  - Switch to to TLB1[1] mapping
+ *  - Switch to TLB1[1] mapping
  *  - Invalidate temp mapping
  *
  * locore registers use:
@@ -101,6 +136,9 @@ __start:
  * Initial cleanup
  */
 	li	%r3, PSL_DE	/* Keep debug exceptions for CodeWarrior. */
+#ifdef __powerpc64__
+	oris	%r3, %r3, PSL_CM@h
+#endif
 	mtmsr	%r3
 	isync
 
@@ -140,6 +178,8 @@ __start:
 	beq	1f
 	cmpli	0, 0, %r3, FSL_E5500
 	beq	1f
+	cmpli	0, 0, %r3, FSL_E6500
+	beq	1f
 
 	lis	%r3, HID1_E500_DEFAULT_SET@h
 	ori	%r3, %r3, HID1_E500_DEFAULT_SET@l
@@ -171,7 +211,7 @@ __start:
 	ori	%r3, %r3, (PSL_IS | PSL_DS)
 	bl	2f
 2:	mflr	%r4
-	addi	%r4, %r4, 20
+	addi	%r4, %r4, (3f - 2b)
 	mtspr	SPR_SRR0, %r4
 	mtspr	SPR_SRR1, %r3
 	rfi				/* Switch context */
@@ -179,6 +219,7 @@ __start:
 /*
  * Invalidate initial entry
  */
+3:
 	mr	%r3, %r29
 	bl	tlb1_inval_entry
 
@@ -197,11 +238,8 @@ __start:
 	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
 
-	lis	%r3, KERNBASE@h
-	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
-#ifdef SMP
+	LOAD_ADDR(%r3, KERNBASE)
 	ori	%r3, %r3, (_TLB_ENTRY_SHARED | MAS2_M)@l /* WIMGE = 0b00100 */
-#endif
 	mtspr	SPR_MAS2, %r3
 	isync
 
@@ -221,11 +259,19 @@ __start:
 	/* Switch to the above TLB1[1] mapping */
 	bl	4f
 4:	mflr	%r4
-	rlwinm	%r4, %r4, 0, 8, 31	/* Current offset from kernel load address */
+#ifdef __powerpc64__
+	clrldi	%r4, %r4, 38
+	clrrdi	%r3, %r3, 12
+#else
+	rlwinm	%r4, %r4, 0, 6, 31	/* Current offset from kernel load address */
 	rlwinm	%r3, %r3, 0, 0, 19
+#endif
 	add	%r4, %r4, %r3		/* Convert to kernel virtual address */
-	addi	%r4, %r4, 36
+	addi	%r4, %r4, (5f - 4b)
 	li	%r3, PSL_DE		/* Note AS=0 */
+#ifdef __powerpc64__
+	oris	%r3, %r3, PSL_CM@h
+#endif
 	mtspr   SPR_SRR0, %r4
 	mtspr   SPR_SRR1, %r3
 	rfi
@@ -233,11 +279,39 @@ __start:
 /*
  * Invalidate temp mapping
  */
+5:
 	mr	%r3, %r28
 	bl	tlb1_inval_entry
 
 done_mapping:
 
+#ifdef __powerpc64__
+	/* Set up the TOC pointer */
+	b	0f
+	.align 3
+0:	nop
+	bl	1f
+	.llong	__tocbase + 0x8000 - .
+1:	mflr	%r2
+	ld	%r1,0(%r2)
+	add	%r2,%r1,%r2
+	mtspr	SPR_SPRG8, %r2
+
+	/* Get load offset */
+	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
+	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
+
+	/* Set up the stack pointer */
+	ld	%r1,TOC_REF(tmpstack)(%r2)
+	addi	%r1,%r1,TMPSTACKSZ-96
+	add	%r1,%r1,%r31
+	bl	1f
+	.llong _DYNAMIC-.
+1:	mflr	%r3
+	ld	%r4,0(%r3)
+	add	%r3,%r4,%r3
+	mr	%r4,%r31
+#else
 /*
  * Setup a temporary stack
  */
@@ -261,12 +335,15 @@ done_mapping:
 	add	%r4,%r4,%r5
 	lwz	%r4,4(%r4)	/* got[0] is _DYNAMIC link addr */
 	subf	%r4,%r4,%r3	/* subtract to calculate relocbase */
-	bl	elf_reloc_self
+#endif
+	bl	CNAME(elf_reloc_self)
+	TOC_RESTORE
 
 /*
  * Initialise exception vector offsets
  */
-	bl	ivor_setup
+	bl	CNAME(ivor_setup)
+	TOC_RESTORE
 
 /*
  * Set up arguments and jump to system initialization code
@@ -275,15 +352,17 @@ done_mapping:
 	mr	%r4, %r31
 
 	/* Prepare core */
-	bl	booke_init
+	bl	CNAME(booke_init)
+	TOC_RESTORE
 
 	/* Switch to thread0.td_kstack now */
 	mr	%r1, %r3
 	li	%r3, 0
-	stw	%r3, 0(%r1)
+	STORE	%r3, 0(%r1)
 
 	/* Machine independet part, does not return */
-	bl	mi_startup
+	bl	CNAME(mi_startup)
+	TOC_RESTORE
 	/* NOT REACHED */
 5:	b	5b
 
@@ -360,9 +439,12 @@ bp_kernload:
 
 	mfmsr	%r3
 	ori	%r3, %r3, (PSL_IS | PSL_DS)
+#ifdef __powerpc64__
+	oris	%r3, %r3, PSL_CM@h
+#endif
 	bl	3f
 3:	mflr	%r4
-	addi	%r4, %r4, 20
+	addi	%r4, %r4, (4f - 3b)
 	mtspr	SPR_SRR0, %r4
 	mtspr	SPR_SRR1, %r3
 	rfi				/* Switch context */
@@ -370,6 +452,7 @@ bp_kernload:
 /*
  * Invalidate initial entry
  */
+4:
 	mr	%r3, %r29
 	bl	tlb1_inval_entry
 
@@ -388,20 +471,31 @@ bp_kernload:
 	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
 
-	lis	%r3, KERNBASE@h
-	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
+	LOAD_ADDR(%r3, KERNBASE)
 	ori	%r3, %r3, (_TLB_ENTRY_SHARED | MAS2_M)@l /* WIMGE = 0b00100 */
 	mtspr	SPR_MAS2, %r3
 	isync
 
 	/* Retrieve kernel load [physical] address from bp_kernload */
-	bl	4f
-	.long	bp_kernload
-	.long	__boot_page
-4:	mflr	%r3
+#ifdef __powerpc64__
+	b	0f
+	.align	3
+0:
+	nop
+#endif
+	bl 5f
+	ADDR(bp_kernload)
+	ADDR(__boot_page)
+5:	mflr	%r3
+#ifdef __powerpc64__
+	ld	%r4, 0(%r3)
+	ld	%r5, 8(%r3)
+	clrrdi	%r3, %r3, 12
+#else
 	lwz	%r4, 0(%r3)
 	lwz	%r5, 4(%r3)
 	rlwinm	%r3, %r3, 0, 0, 19
+#endif
 	sub	%r4, %r4, %r5	/* offset of bp_kernload within __boot_page */
 	lwzx	%r3, %r4, %r3
 
@@ -409,20 +503,27 @@ bp_kernload:
 	ori	%r3, %r3, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r3
 	isync
+	bl	zero_mas7
+	bl	zero_mas8
 	tlbwe
 	isync
 	msync
 
 	/* Switch to the final mapping */
-	bl	5f
-5:	mflr	%r3
+	bl	6f
+6:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
 	add	%r3, %r3, %r5		/* Make this virtual address */
-	addi	%r3, %r3, 32
+	addi	%r3, %r3, (7f - 6b)
+#ifdef __powerpc64__
+	lis	%r4, PSL_CM@h		/* Note AS=0 */
+#else
 	li	%r4, 0			/* Note AS=0 */
+#endif
 	mtspr	SPR_SRR0, %r3
 	mtspr	SPR_SRR1, %r4
 	rfi
+7:
 
 /*
  * At this point we're running at virtual addresses KERNBASE and beyond so
@@ -436,6 +537,27 @@ bp_kernload:
 	mr	%r3, %r28
 	bl	tlb1_inval_entry
 
+#ifdef __powerpc64__
+	/* Set up the TOC pointer */
+	b	0f
+	.align 3
+0:	nop
+	bl	1f
+	.llong	__tocbase + 0x8000 - .
+1:	mflr	%r2
+	ld	%r1,0(%r2)
+	add	%r2,%r1,%r2
+	mtspr	SPR_SPRG8, %r2
+
+	/* Get load offset */
+	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
+	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
+
+	/* Set up the stack pointer */
+	ld	%r1,TOC_REF(tmpstack)(%r2)
+	addi	%r1,%r1,TMPSTACKSZ-96
+	add	%r1,%r1,%r31
+#else
 /*
  * Setup a temporary stack
  */
@@ -446,11 +568,13 @@ bp_kernload:
 	add	%r1,%r1,%r2
 	stw	%r1, 0(%r1)
 	addi	%r1, %r1, (TMPSTACKSZ - 16)
+#endif
 
 /*
  * Initialise exception vector offsets
  */
-	bl	ivor_setup
+	bl	CNAME(ivor_setup)
+	TOC_RESTORE
 
 	/*
 	 * Assign our pcpu instance
@@ -460,16 +584,19 @@ bp_kernload:
 1:	mflr	%r4
 	lwz	%r3, 0(%r4)
 	add	%r3, %r3, %r4
-	lwz	%r3, 0(%r3)
+	LOAD	%r3, 0(%r3)
 	mtsprg0	%r3
 
-	bl	pmap_bootstrap_ap
+	bl	CNAME(pmap_bootstrap_ap)
+	TOC_RESTORE
 
-	bl	cpudep_ap_bootstrap
+	bl	CNAME(cpudep_ap_bootstrap)
+	TOC_RESTORE
 	/* Switch to the idle thread's kstack */
 	mr	%r1, %r3
 	
-	bl	machdep_ap_bootstrap
+	bl	CNAME(machdep_ap_bootstrap)
+	TOC_RESTORE
 
 	/* NOT REACHED */
 6:	b	6b
@@ -586,7 +713,6 @@ tlb1_temp_mapping_as1:
  * r3-r5	scratched
  */
 tlb1_inval_all_but_current:
-	mr	%r6, %r3
 	mfspr	%r3, SPR_TLB1CFG	/* Get number of entries */
 	andi.	%r3, %r3, TLBCFG_NENTRY_MASK@l
 	li	%r4, 0			/* Start from Entry 0 */
@@ -780,66 +906,12 @@ ENTRY(bpred_enable)
 	isync
 	blr
 
-ENTRY(dataloss_erratum_access)
-	/* Lock two cache lines into I-Cache */
-	sync
-	mfspr	%r11, SPR_L1CSR1
-	rlwinm	%r11, %r11, 0, ~L1CSR1_ICUL
-	sync
-	isync
-	mtspr	SPR_L1CSR1, %r11
-	isync
-
-	lis	%r8, 2f@h
-	ori	%r8, %r8, 2f@l
-	icbtls	0, 0, %r8
-	addi	%r9, %r8, 64
-
-	sync
-	mfspr	%r11, SPR_L1CSR1
-3:	andi.	%r11, %r11, L1CSR1_ICUL
-	bne	3b
-
-	icbtls	0, 0, %r9
-
-	sync
-	mfspr	%r11, SPR_L1CSR1
-3:	andi.	%r11, %r11, L1CSR1_ICUL
-	bne	3b
-
-	b	2f
-	.align	6
-	/* Inside a locked cacheline, wait a while, write, then wait a while */
-2:	sync
-
-	mfspr	%r5, TBR_TBL
-4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
-	mfspr	%r5, TBR_TBL
-	subf.	%r5, %r5, %r11
-	bgt	4b
-
-	stw	%r4, 0(%r3)
-
-	mfspr	%r5, TBR_TBL
-4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
-	mfspr	%r5, TBR_TBL
-	subf.	%r5, %r5, %r11
-	bgt	4b
-
-	sync
-
-	/*
-	 * Fill out the rest of this cache line and the next with nops,
-	 * to ensure that nothing outside the locked area will be
-	 * fetched due to a branch.
-	 */
-	.rept 19
-	nop
-	.endr
-
-	icblc	0, 0, %r8
-	icblc	0, 0, %r9
-
+/*
+ * XXX: This should be moved to a shared AIM/booke asm file, if one ever is
+ * created.
+ */
+ENTRY(get_spr)
+	mfspr	%r3, 0
 	blr
 
 /************************************************************************/
@@ -848,14 +920,18 @@ ENTRY(dataloss_erratum_access)
 	.data
 	.align 3
 GLOBAL(__startkernel)
-	.long   begin
+	ADDR(begin)
 GLOBAL(__endkernel)
-	.long   end
+	ADDR(end)
 	.align	4
 tmpstack:
 	.space	TMPSTACKSZ
 tmpstackbound:
 	.space 10240	/* XXX: this really should not be necessary */
+#ifdef __powerpc64__
+TOC_ENTRY(tmpstack)
+TOC_ENTRY(bp_kernload)
+#endif
 
 /*
  * Compiled KERNBASE locations

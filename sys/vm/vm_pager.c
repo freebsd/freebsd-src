@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -107,43 +109,35 @@ static vm_object_t
 dead_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t off, struct ucred *cred)
 {
-	return NULL;
+
+	return (NULL);
 }
 
 static void
-dead_pager_putpages(object, m, count, flags, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int flags;
-	int *rtvals;
+dead_pager_putpages(vm_object_t object, vm_page_t *m, int count,
+    int flags, int *rtvals)
 {
 	int i;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++)
 		rtvals[i] = VM_PAGER_AGAIN;
-	}
 }
 
 static int
-dead_pager_haspage(object, pindex, prev, next)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int *prev;
-	int *next;
+dead_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *prev, int *next)
 {
-	if (prev)
+
+	if (prev != NULL)
 		*prev = 0;
-	if (next)
+	if (next != NULL)
 		*next = 0;
-	return FALSE;
+	return (FALSE);
 }
 
 static void
-dead_pager_dealloc(object)
-	vm_object_t object;
+dead_pager_dealloc(vm_object_t object)
 {
-	return;
+
 }
 
 static struct pagerops deadpagerops = {
@@ -173,13 +167,13 @@ struct pagerops *pagertab[] = {
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-struct mtx_padalign pbuf_mtx;
+struct mtx_padalign __exclusive_cache_line pbuf_mtx;
 static TAILQ_HEAD(swqueue, buf) bswlist;
 static int bswneeded;
 vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
-vm_pager_init()
+vm_pager_init(void)
 {
 	struct pagerops **pgops;
 
@@ -189,11 +183,11 @@ vm_pager_init()
 	 */
 	for (pgops = pagertab; pgops < &pagertab[nitems(pagertab)]; pgops++)
 		if ((*pgops)->pgo_init != NULL)
-			(*(*pgops)->pgo_init) ();
+			(*(*pgops)->pgo_init)();
 }
 
 void
-vm_pager_bufferinit()
+vm_pager_bufferinit(void)
 {
 	struct buf *bp;
 	int i;
@@ -230,7 +224,7 @@ vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
 
 	ops = pagertab[type];
 	if (ops)
-		ret = (*ops->pgo_alloc) (handle, size, prot, off, cred);
+		ret = (*ops->pgo_alloc)(handle, size, prot, off, cred);
 	else
 		ret = NULL;
 	return (ret);
@@ -240,8 +234,7 @@ vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
  *	The object must be locked.
  */
 void
-vm_pager_deallocate(object)
-	vm_object_t object;
+vm_pager_deallocate(vm_object_t object)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -260,6 +253,8 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
 	 * not dirty and belong to the proper object.
 	 */
 	for (int i = 0 ; i < count; i++) {
+		if (m[i] == bogus_page)
+			continue;
 		vm_page_assert_xbusied(m[i]);
 		KASSERT(!pmap_page_is_mapped(m[i]),
 		    ("%s: page %p is mapped", __func__, m[i]));
@@ -362,12 +357,13 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 static void
 initpbuf(struct buf *bp)
 {
+
 	KASSERT(bp->b_bufobj == NULL, ("initpbuf with bufobj"));
 	KASSERT(bp->b_vp == NULL, ("initpbuf with vp"));
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
 	bp->b_qindex = 0;	/* On no queue (QUEUE_NONE) */
-	bp->b_kvabase = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
+	bp->b_kvabase = (caddr_t)(MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_data = bp->b_kvabase;
 	bp->b_kvasize = MAXPHYS;
 	bp->b_flags = 0;
@@ -376,6 +372,7 @@ initpbuf(struct buf *bp)
 	bp->b_iodone = NULL;
 	bp->b_error = 0;
 	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
+	buf_track(bp, __func__);
 }
 
 /*
@@ -399,9 +396,8 @@ getpbuf(int *pfreecnt)
 	struct buf *bp;
 
 	mtx_lock(&pbuf_mtx);
-
 	for (;;) {
-		if (pfreecnt) {
+		if (pfreecnt != NULL) {
 			while (*pfreecnt == 0) {
 				msleep(pfreecnt, &pbuf_mtx, PVM, "wswbuf0", 0);
 			}
@@ -419,9 +415,8 @@ getpbuf(int *pfreecnt)
 	if (pfreecnt)
 		--*pfreecnt;
 	mtx_unlock(&pbuf_mtx);
-
 	initpbuf(bp);
-	return bp;
+	return (bp);
 }
 
 /*
@@ -441,14 +436,10 @@ trypbuf(int *pfreecnt)
 		return NULL;
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
-
 	--*pfreecnt;
-
 	mtx_unlock(&pbuf_mtx);
-
 	initpbuf(bp);
-
-	return bp;
+	return (bp);
 }
 
 /*
@@ -473,6 +464,7 @@ relpbuf(struct buf *bp, int *pfreecnt)
 	KASSERT(bp->b_vp == NULL, ("relpbuf with vp"));
 	KASSERT(bp->b_bufobj == NULL, ("relpbuf with bufobj"));
 
+	buf_track(bp, __func__);
 	BUF_UNLOCK(bp);
 
 	mtx_lock(&pbuf_mtx);

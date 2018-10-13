@@ -373,9 +373,9 @@ evtchn_bind_user_port(struct per_user_data *u, struct user_evtchn *evtchn)
 	mtx_lock(&u->bind_mutex);
 	RB_INSERT(evtchn_tree, &u->evtchns, evtchn);
 	mtx_unlock(&u->bind_mutex);
-	error = xen_intr_add_handler(evtchn_dev, evtchn_filter,
-	    evtchn_interrupt, evtchn, INTR_TYPE_MISC | INTR_MPSAFE,
-	    evtchn->handle);
+	error = xen_intr_add_handler(device_get_nameunit(evtchn_dev),
+	    evtchn_filter, evtchn_interrupt, evtchn,
+	    INTR_TYPE_MISC | INTR_MPSAFE, evtchn->handle);
 	if (error != 0) {
 		xen_intr_unbind(&evtchn->handle);
 		mtx_lock(&u->bind_mutex);
@@ -474,10 +474,10 @@ evtchn_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 			error = ENOTCONN;
 			break;
 		}
-
-		xen_intr_unbind(&evtchn->handle);
 		RB_REMOVE(evtchn_tree, &u->evtchns, evtchn);
 		mtx_unlock(&u->bind_mutex);
+
+		xen_intr_unbind(&evtchn->handle);
 		free(evtchn, M_EVTCHN);
 		error = 0;
 		break;

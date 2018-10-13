@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2015
+.Dd July 7, 2017
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -43,13 +43,19 @@
 .Nm BIT_EMPTY ,
 .Nm BIT_ISFULLSET ,
 .Nm BIT_FFS ,
+.Nm BIT_FLS ,
 .Nm BIT_COUNT ,
 .Nm BIT_SUBSET ,
 .Nm BIT_OVERLAP ,
 .Nm BIT_CMP ,
 .Nm BIT_OR ,
+.Nm BIT_OR2 ,
 .Nm BIT_AND ,
+.Nm BIT_AND2 ,
 .Nm BIT_NAND ,
+.Nm BIT_NAND2 ,
+.Nm BIT_XOR ,
+.Nm BIT_XOR2 ,
 .Nm BIT_CLR_ATOMIC ,
 .Nm BIT_SET_ATOMIC ,
 .Nm BIT_SET_ATOMIC_ACQ ,
@@ -77,9 +83,11 @@
 .Fn BIT_EMPTY "const SETSIZE" "struct STRUCTNAME *bitset"
 .Ft bool
 .Fn BIT_ISFULLSET "const SETSIZE" "struct STRUCTNAME *bitset"
-.Ft size_t
+.Ft int
 .Fn BIT_FFS "const SETSIZE" "struct STRUCTNAME *bitset"
-.Ft size_t
+.Ft int
+.Fn BIT_FLS "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft int
 .Fn BIT_COUNT "const SETSIZE" "struct STRUCTNAME *bitset"
 .\"
 .Ft bool
@@ -95,8 +103,33 @@
 .Fa "const SETSIZE" "struct STRUCTNAME *bitset1" "struct STRUCTNAME *bitset2"
 .Fc
 .Fn BIT_OR "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_OR2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
 .Fn BIT_AND "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_AND2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
 .Fn BIT_NAND "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_NAND2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
+.Fn BIT_XOR "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_XOR2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
 .\"
 .Fn BIT_CLR_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
 .Fn BIT_SET_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
@@ -252,6 +285,23 @@ index parameter to any other
 macro, you must subtract one from the result.
 .Pp
 The
+.Fn BIT_FLS
+macro returns the 1-index of the last (highest) set bit in
+.Fa bitset ,
+or zero if
+.Fa bitset
+is empty.
+Like with
+.Xr fls 3 ,
+to use the non-zero result of
+.Fn BIT_FLS
+as a
+.Fa bit
+index parameter to any other
+.Nm
+macro, you must subtract one from the result.
+.Pp
+The
 .Fn BIT_COUNT
 macro returns the total number of set bits in
 .Fa bitset .
@@ -312,6 +362,23 @@ is composed of multiple machine words,
 performs multiple individually atomic operations.)
 .Pp
 The
+.Fn BIT_OR2
+macro computes
+.Fa src1
+bitwise or
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+|
+.Fa src2 . )
+.Pp
+The
 .Fn BIT_AND
 macro clears bits absent from
 .Fa src
@@ -328,6 +395,23 @@ is similar, with the same atomic semantics as
 .Fn BIT_OR_ATOMIC .
 .Pp
 The
+.Fn BIT_AND2
+macro computes
+.Fa src1
+bitwise and
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+&
+.Fa src2 . )
+.Pp
+The
 .Fn BIT_NAND
 macro clears bits set in
 .Fa src
@@ -339,6 +423,53 @@ equivalent of the scalar:
 .Fa dst
 &=
 .Fa ~ src . )
+.Pp
+The
+.Fn BIT_NAND2
+macro computes
+.Fa src1
+bitwise and not
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+& ~
+.Fa src2 . )
+.Pp
+The
+.Fn BIT_XOR
+macro toggles bits set in
+.Fa src
+in
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+^=
+.Fa src . )
+.Pp
+The
+.Fn BIT_XOR2
+macro computes
+.Fa src1
+bitwise exclusive or
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+^
+.Fa src2 . )
 .Sh BITSET_T_INITIALIZER EXAMPLE
 .Bd -literal
 BITSET_DEFINE(_myset, MYSETSIZE);
@@ -388,4 +519,6 @@ argument to all of these macros must match the value given to
 .Pp
 Unlike every other reference to individual set members, which are zero-indexed,
 .Fn BIT_FFS
-returns a one-indexed result (or zero if the set is empty).
+and
+.Fn BIT_FLS
+return a one-indexed result (or zero if the set is empty).

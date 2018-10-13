@@ -1,4 +1,4 @@
-//===--- PreprocessingRecord.h - Record of Preprocessing --------*- C++ -*-===//
+//===- PreprocessingRecord.h - Record of Preprocessing ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,37 +11,49 @@
 //  of what occurred during preprocessing.
 //
 //===----------------------------------------------------------------------===//
+
 #ifndef LLVM_CLANG_LEX_PREPROCESSINGRECORD_H
 #define LLVM_CLANG_LEX_PREPROCESSINGRECORD_H
 
-#include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
+#include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <utility>
 #include <vector>
 
 namespace clang {
-  class IdentifierInfo;
-  class MacroInfo;
-  class PreprocessingRecord;
-}
+
+class PreprocessingRecord;
+
+} // namespace clang
 
 /// \brief Allocates memory within a Clang preprocessing record.
 void *operator new(size_t bytes, clang::PreprocessingRecord &PR,
-                   unsigned alignment = 8) LLVM_NOEXCEPT;
+                   unsigned alignment = 8) noexcept;
 
 /// \brief Frees memory allocated in a Clang preprocessing record.
 void operator delete(void *ptr, clang::PreprocessingRecord &PR,
-                     unsigned) LLVM_NOEXCEPT;
+                     unsigned) noexcept;
 
 namespace clang {
-  class MacroDefinitionRecord;
-  class FileEntry;
+
+class FileEntry;
+class IdentifierInfo;
+class MacroInfo;
+class SourceManager;
+class Token;
 
   /// \brief Base class that describes a preprocessed entity, which may be a
   /// preprocessor directive or macro expansion.
@@ -79,10 +91,10 @@ namespace clang {
     SourceRange Range;
     
   protected:
-    PreprocessedEntity(EntityKind Kind, SourceRange Range)
-      : Kind(Kind), Range(Range) { }
-
     friend class PreprocessingRecord;
+
+    PreprocessedEntity(EntityKind Kind, SourceRange Range)
+        : Kind(Kind), Range(Range) {}
 
   public:
     /// \brief Retrieve the kind of preprocessed entity stored in this object.
@@ -99,31 +111,31 @@ namespace clang {
     // Only allow allocation of preprocessed entities using the allocator 
     // in PreprocessingRecord or by doing a placement new.
     void *operator new(size_t bytes, PreprocessingRecord &PR,
-                       unsigned alignment = 8) LLVM_NOEXCEPT {
+                       unsigned alignment = 8) noexcept {
       return ::operator new(bytes, PR, alignment);
     }
 
-    void *operator new(size_t bytes, void *mem) LLVM_NOEXCEPT { return mem; }
+    void *operator new(size_t bytes, void *mem) noexcept { return mem; }
 
     void operator delete(void *ptr, PreprocessingRecord &PR,
-                         unsigned alignment) LLVM_NOEXCEPT {
+                         unsigned alignment) noexcept {
       return ::operator delete(ptr, PR, alignment);
     }
 
-    void operator delete(void *, std::size_t) LLVM_NOEXCEPT {}
-    void operator delete(void *, void *) LLVM_NOEXCEPT {}
+    void operator delete(void *, std::size_t) noexcept {}
+    void operator delete(void *, void *) noexcept {}
 
   private:
     // Make vanilla 'new' and 'delete' illegal for preprocessed entities.
-    void *operator new(size_t bytes) LLVM_NOEXCEPT;
-    void operator delete(void *data) LLVM_NOEXCEPT;
+    void *operator new(size_t bytes) noexcept;
+    void operator delete(void *data) noexcept;
   };
   
   /// \brief Records the presence of a preprocessor directive.
   class PreprocessingDirective : public PreprocessedEntity {
   public:
     PreprocessingDirective(EntityKind Kind, SourceRange Range) 
-      : PreprocessedEntity(Kind, Range) { }
+        : PreprocessedEntity(Kind, Range) {}
     
     // Implement isa/cast/dyncast/etc.
     static bool classof(const PreprocessedEntity *PD) { 
@@ -200,10 +212,13 @@ namespace clang {
     enum InclusionKind {
       /// \brief An \c \#include directive.
       Include,
+
       /// \brief An Objective-C \c \#import directive.
       Import,
+
       /// \brief A GNU \c \#include_next directive.
       IncludeNext,
+
       /// \brief A Clang \c \#__include_macros directive.
       IncludeMacros
     };
@@ -317,11 +332,14 @@ namespace clang {
     /// value 1 corresponds to element 0 in the local entities vector,
     /// value 2 corresponds to element 1 in the local entities vector, etc.
     class PPEntityID {
-      int ID;
-      explicit PPEntityID(int ID) : ID(ID) {}
       friend class PreprocessingRecord;
+
+      int ID = 0;
+
+      explicit PPEntityID(int ID) : ID(ID) {}
+
     public:
-      PPEntityID() : ID(0) {}
+      PPEntityID() = default;
     };
 
     static PPEntityID getPPEntityID(unsigned Index, bool isLoaded) {
@@ -332,7 +350,7 @@ namespace clang {
     llvm::DenseMap<const MacroInfo *, MacroDefinitionRecord *> MacroDefinitions;
 
     /// \brief External source of preprocessed entities.
-    ExternalPreprocessingRecordSource *ExternalSource;
+    ExternalPreprocessingRecordSource *ExternalSource = nullptr;
 
     /// \brief Retrieve the preprocessed entity at the given ID.
     PreprocessedEntity *getPreprocessedEntity(PPEntityID PPID);
@@ -372,7 +390,7 @@ namespace clang {
     }
     
     /// \brief Deallocate memory in the preprocessing record.
-    void Deallocate(void *Ptr) { }
+    void Deallocate(void *Ptr) {}
 
     size_t getTotalMemory() const;
 
@@ -398,11 +416,12 @@ namespace clang {
                          iterator, int, std::random_access_iterator_tag,
                          PreprocessedEntity *, int, PreprocessedEntity *,
                          PreprocessedEntity *> {
+      friend class PreprocessingRecord;
+
       PreprocessingRecord *Self;
 
       iterator(PreprocessingRecord *Self, int Position)
           : iterator::iterator_adaptor_base(Position), Self(Self) {}
-      friend class PreprocessingRecord;
 
     public:
       iterator() : iterator(nullptr, 0) {}
@@ -452,7 +471,6 @@ namespace clang {
     /// encompasses.
     ///
     /// \param R the range to look for preprocessed entities.
-    ///
     llvm::iterator_range<iterator>
     getPreprocessedEntitiesInRange(SourceRange R);
 
@@ -486,10 +504,14 @@ namespace clang {
     }
         
   private:
+    friend class ASTReader;
+    friend class ASTWriter;
+
     void MacroExpands(const Token &Id, const MacroDefinition &MD,
                       SourceRange Range, const MacroArgs *Args) override;
     void MacroDefined(const Token &Id, const MacroDirective *MD) override;
-    void MacroUndefined(const Token &Id, const MacroDefinition &MD) override;
+    void MacroUndefined(const Token &Id, const MacroDefinition &MD,
+                        const MacroDirective *Undef) override;
     void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
                             StringRef FileName, bool IsAngled,
                             CharSourceRange FilenameRange,
@@ -500,11 +522,13 @@ namespace clang {
                const MacroDefinition &MD) override;
     void Ifndef(SourceLocation Loc, const Token &MacroNameTok,
                 const MacroDefinition &MD) override;
+
     /// \brief Hook called whenever the 'defined' operator is seen.
     void Defined(const Token &MacroNameTok, const MacroDefinition &MD,
                  SourceRange Range) override;
 
-    void SourceRangeSkipped(SourceRange Range) override;
+    void SourceRangeSkipped(SourceRange Range,
+                            SourceLocation EndifLoc) override;
 
     void addMacroExpansion(const Token &Id, const MacroInfo *MI,
                            SourceRange Range);
@@ -517,19 +541,17 @@ namespace clang {
     } CachedRangeQuery;
 
     std::pair<int, int> getPreprocessedEntitiesInRangeSlow(SourceRange R);
-
-    friend class ASTReader;
-    friend class ASTWriter;
   };
-} // end namespace clang
+
+} // namespace clang
 
 inline void *operator new(size_t bytes, clang::PreprocessingRecord &PR,
-                          unsigned alignment) LLVM_NOEXCEPT {
+                          unsigned alignment) noexcept {
   return PR.Allocate(bytes, alignment);
 }
 
 inline void operator delete(void *ptr, clang::PreprocessingRecord &PR,
-                            unsigned) LLVM_NOEXCEPT {
+                            unsigned) noexcept {
   PR.Deallocate(ptr);
 }
 

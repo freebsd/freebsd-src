@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,6 +32,8 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
+
 int	 acccmp(const FTSENT *, const FTSENT *);
 int	 revacccmp(const FTSENT *, const FTSENT *);
 int	 birthcmp(const FTSENT *, const FTSENT *);
@@ -45,17 +49,14 @@ int	 revsizecmp(const FTSENT *, const FTSENT *);
 
 void	 printcol(const DISPLAY *);
 void	 printlong(const DISPLAY *);
-int	 printname(const char *, const char *);
+int	 printname(const char *);
 void	 printscol(const DISPLAY *);
 void	 printstream(const DISPLAY *);
 void	 usage(void);
-int	 prn_normal(const char *, const char *);
-char *	 getname(const char *);
+int	 prn_normal(const char *);
 size_t	 len_octal(const char *, int);
-int	 prn_octal(const char *, const char *);
-char *	 get_octal(const char *);
-int	 prn_printable(const char *, const char *);
-char *	 get_printable(const char *);
+int	 prn_octal(const char *);
+int	 prn_printable(const char *);
 #ifdef COLORLS
 void	 parsecolors(const char *cs);
 void	 colorquit(int);
@@ -65,5 +66,12 @@ extern	char	*ansi_bgcol;
 extern	char	*ansi_coloff;
 extern	char	*attrs_off;
 extern	char	*enter_bold;
+
+extern int	 colorflag;
+extern bool	 explicitansi;
+
+#define	COLORFLAG_NEVER		0
+#define	COLORFLAG_AUTO		1
+#define	COLORFLAG_ALWAYS	2
 #endif
 extern int	termwidth;

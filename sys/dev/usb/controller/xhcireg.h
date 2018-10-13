@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,8 +54,8 @@
 #define	XHCI_HCSPARAMS2		0x08	/* RO structural parameters 2 */
 #define	XHCI_HCS2_IST(x)	((x) & 0xF)
 #define	XHCI_HCS2_ERST_MAX(x)	(((x) >> 4) & 0xF)
-#define	XHCI_HCS2_SPR(x)	(((x) >> 24) & 0x1)
-#define	XHCI_HCS2_SPB_MAX(x)	(((x) >> 27) & 0x7F)
+#define	XHCI_HCS2_SPR(x)	(((x) >> 26) & 0x1)
+#define	XHCI_HCS2_SPB_MAX(x)	((((x) >> 16) & 0x3E0) | (((x) >> 27) & 0x1F))
 #define	XHCI_HCSPARAMS3		0x0C	/* RO structural parameters 3 */
 #define	XHCI_HCS3_U1_DEL(x)	((x) & 0xFF)
 #define	XHCI_HCS3_U2_DEL(x)	(((x) >> 16) & 0xFFFF)

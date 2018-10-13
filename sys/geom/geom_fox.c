@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -52,6 +54,8 @@
 
 #define FOX_CLASS_NAME "FOX"
 #define FOX_MAGIC	"GEOM::FOX"
+
+static int g_fox_once;
 
 FEATURE(geom_fox, "GEOM FOX redundant path mitigation support");
 
@@ -438,8 +442,15 @@ printf("fox %s lock %p\n", gp->name, &sc->lock);
 		g_free(buf);
 	g_access(cp, -1, 0, 0);
 
-	if (!LIST_EMPTY(&gp->provider))
+	if (!LIST_EMPTY(&gp->provider)) {
+		if (!g_fox_once) {
+			g_fox_once = 1;
+			printf(
+			    "WARNING: geom_fox (geom %s) is deprecated, "
+			    "use gmultipath instead.\n", gp->name);
+		}
 		return (gp);
+	}
 
 	g_free(gp->softc);
 	g_detach(cp);
@@ -474,3 +485,4 @@ static struct g_class g_fox_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_fox_class, g_fox);
+MODULE_VERSION(geom_fox, 0);

@@ -81,6 +81,12 @@ struct delegpt {
 	uint8_t has_parent_side_NS;
 	/** for assertions on type of delegpt */
 	uint8_t dp_type_mlc;
+	/** use SSL for upstream query */
+	uint8_t ssl_upstream;
+	/** delegpt from authoritative zone that is locally hosted */
+	uint8_t auth_dp;
+	/*** no cache */
+	int no_cache;
 };
 
 /**
@@ -147,6 +153,8 @@ struct delegpt_addr {
 	 * option is useful to mark the address dnsseclame.
 	 * This value is not copied in addr-copy and dp-copy. */
 	uint8_t dnsseclame;
+	/** the TLS authentication name, (if not NULL) to use. */
+	char* tls_auth_name;
 };
 
 /**
@@ -255,11 +263,12 @@ int delegpt_add_rrset(struct delegpt* dp, struct regional* regional,
  * @param addrlen: the length of addr.
  * @param bogus: if address is bogus.
  * @param lame: if address is lame.
+ * @param tls_auth_name: TLS authentication name (or NULL).
  * @return false on error.
  */
 int delegpt_add_addr(struct delegpt* dp, struct regional* regional, 
 	struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t bogus, uint8_t lame);
+	uint8_t bogus, uint8_t lame, char* tls_auth_name);
 
 /** 
  * Find NS record in name list of delegation point.
@@ -355,7 +364,7 @@ void delegpt_no_ipv4(struct delegpt* dp);
 
 /** 
  * create malloced delegation point, with the given name 
- * @param name: uncompressed wireformat of degegpt name.
+ * @param name: uncompressed wireformat of delegpt name.
  * @return NULL on alloc failure
  */
 struct delegpt* delegpt_create_mlc(uint8_t* name);
@@ -390,10 +399,11 @@ int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame);
  * @param addrlen: the length of addr.
  * @param bogus: if address is bogus.
  * @param lame: if address is lame.
+ * @param tls_auth_name: TLS authentication name (or NULL).
  * @return false on error.
  */
 int delegpt_add_addr_mlc(struct delegpt* dp, struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t bogus, uint8_t lame);
+	socklen_t addrlen, uint8_t bogus, uint8_t lame, char* tls_auth_name);
 
 /**
  * Add target address to the delegation point.

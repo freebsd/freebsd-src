@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Pyun YongHyeon <yongari@FreeBSD.org>
  * All rights reserved.
  *
@@ -62,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netinet/netdump/netdump.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -121,6 +124,10 @@ static struct alc_ident alc_ident_table[] = {
 		"Atheros AR8172 PCIe Fast Ethernet" },
 	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_E2200, 9 * 1024,
 		"Killer E2200 Gigabit Ethernet" },
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_E2400, 9 * 1024,
+		"Killer E2400 Gigabit Ethernet" },
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_E2500, 9 * 1024,
+		"Killer E2500 Gigabit Ethernet" },
 	{ 0, 0, 0, NULL}
 };
 
@@ -193,6 +200,7 @@ static int	alc_shutdown(device_t);
 static void	alc_start(struct ifnet *);
 static void	alc_start_locked(struct ifnet *);
 static void	alc_start_queue(struct alc_softc *);
+static void	alc_start_tx(struct alc_softc *);
 static void	alc_stats_clear(struct alc_softc *);
 static void	alc_stats_update(struct alc_softc *);
 static void	alc_stop(struct alc_softc *);
@@ -206,6 +214,8 @@ static void	alc_watchdog(struct alc_softc *);
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int	sysctl_hw_alc_proc_limit(SYSCTL_HANDLER_ARGS);
 static int	sysctl_hw_alc_int_mod(SYSCTL_HANDLER_ARGS);
+
+NETDUMP_DEFINE(alc);
 
 static device_method_t alc_methods[] = {
 	/* Device interface. */
@@ -221,7 +231,7 @@ static device_method_t alc_methods[] = {
 	DEVMETHOD(miibus_writereg,	alc_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	alc_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t alc_driver = {
@@ -233,6 +243,8 @@ static driver_t alc_driver = {
 static devclass_t alc_devclass;
 
 DRIVER_MODULE(alc, pci, alc_driver, alc_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, alc, alc_ident_table,
+    nitems(alc_ident_table) - 1);
 DRIVER_MODULE(miibus, alc, miibus_driver, miibus_devclass, 0, 0);
 
 static struct resource_spec alc_res_spec_mem[] = {
@@ -255,7 +267,7 @@ static struct resource_spec alc_irq_spec_msix[] = {
 	{ -1,			0,		0 }
 };
 
-static uint32_t alc_dma_burst[] = { 128, 256, 512, 1024, 2048, 4096, 0 };
+static uint32_t alc_dma_burst[] = { 128, 256, 512, 1024, 2048, 4096, 0, 0 };
 
 static int
 alc_miibus_readreg(device_t dev, int phy, int reg)
@@ -1080,6 +1092,8 @@ alc_phy_down(struct alc_softc *sc)
 	switch (sc->alc_ident->deviceid) {
 	case DEVICEID_ATHEROS_AR8161:
 	case DEVICEID_ATHEROS_E2200:
+	case DEVICEID_ATHEROS_E2400:
+	case DEVICEID_ATHEROS_E2500:
 	case DEVICEID_ATHEROS_AR8162:
 	case DEVICEID_ATHEROS_AR8171:
 	case DEVICEID_ATHEROS_AR8172:
@@ -1397,12 +1411,16 @@ alc_attach(device_t dev)
 	 * shows the same PHY model/revision number of AR8131.
 	 */
 	switch (sc->alc_ident->deviceid) {
+	case DEVICEID_ATHEROS_E2200:
+	case DEVICEID_ATHEROS_E2400:
+	case DEVICEID_ATHEROS_E2500:
+		sc->alc_flags |= ALC_FLAG_E2X00;
+		/* FALLTHROUGH */
 	case DEVICEID_ATHEROS_AR8161:
 		if (pci_get_subvendor(dev) == VENDORID_ATHEROS &&
 		    pci_get_subdevice(dev) == 0x0091 && sc->alc_rev == 0)
 			sc->alc_flags |= ALC_FLAG_LINK_WAR;
 		/* FALLTHROUGH */
-	case DEVICEID_ATHEROS_E2200:
 	case DEVICEID_ATHEROS_AR8171:
 		sc->alc_flags |= ALC_FLAG_AR816X_FAMILY;
 		break;
@@ -1473,6 +1491,13 @@ alc_attach(device_t dev)
 			sc->alc_dma_rd_burst = 3;
 		if (alc_dma_burst[sc->alc_dma_wr_burst] > 1024)
 			sc->alc_dma_wr_burst = 3;
+		/*
+		 * Force maximum payload size to 128 bytes for
+		 * E2200/E2400/E2500.
+		 * Otherwise it triggers DMA write error.
+		 */
+		if ((sc->alc_flags & ALC_FLAG_E2X00) != 0)
+			sc->alc_dma_wr_burst = 0;
 		alc_init_pcie(sc);
 	}
 
@@ -1631,6 +1656,9 @@ alc_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	/* Attach driver netdump methods. */
+	NETDUMP_SET(ifp, alc);
 
 fail:
 	if (error != 0)
@@ -2955,22 +2983,28 @@ alc_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (enq > 0) {
-		/* Sync descriptors. */
-		bus_dmamap_sync(sc->alc_cdata.alc_tx_ring_tag,
-		    sc->alc_cdata.alc_tx_ring_map, BUS_DMASYNC_PREWRITE);
-		/* Kick. Assume we're using normal Tx priority queue. */
-		if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) != 0)
-			CSR_WRITE_2(sc, ALC_MBOX_TD_PRI0_PROD_IDX,
-			    (uint16_t)sc->alc_cdata.alc_tx_prod);
-		else
-			CSR_WRITE_4(sc, ALC_MBOX_TD_PROD_IDX,
-			    (sc->alc_cdata.alc_tx_prod <<
-			    MBOX_TD_PROD_LO_IDX_SHIFT) &
-			    MBOX_TD_PROD_LO_IDX_MASK);
-		/* Set a timeout in case the chip goes out to lunch. */
-		sc->alc_watchdog_timer = ALC_TX_TIMEOUT;
-	}
+	if (enq > 0)
+		alc_start_tx(sc);
+}
+
+static void
+alc_start_tx(struct alc_softc *sc)
+{
+
+	/* Sync descriptors. */
+	bus_dmamap_sync(sc->alc_cdata.alc_tx_ring_tag,
+	    sc->alc_cdata.alc_tx_ring_map, BUS_DMASYNC_PREWRITE);
+	/* Kick. Assume we're using normal Tx priority queue. */
+	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) != 0)
+		CSR_WRITE_2(sc, ALC_MBOX_TD_PRI0_PROD_IDX,
+		    (uint16_t)sc->alc_cdata.alc_tx_prod);
+	else
+		CSR_WRITE_4(sc, ALC_MBOX_TD_PROD_IDX,
+		    (sc->alc_cdata.alc_tx_prod <<
+		    MBOX_TD_PROD_LO_IDX_SHIFT) &
+		    MBOX_TD_PROD_LO_IDX_MASK);
+	/* Set a timeout in case the chip goes out to lunch. */
+	sc->alc_watchdog_timer = ALC_TX_TIMEOUT;
 }
 
 static void
@@ -4184,13 +4218,17 @@ alc_init_locked(struct alc_softc *sc)
 	reg = (RXQ_CFG_RD_BURST_DEFAULT << RXQ_CFG_RD_BURST_SHIFT) &
 	    RXQ_CFG_RD_BURST_MASK;
 	reg |= RXQ_CFG_RSS_MODE_DIS;
-	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) != 0)
+	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) != 0) {
 		reg |= (RXQ_CFG_816X_IDT_TBL_SIZE_DEFAULT <<
 		    RXQ_CFG_816X_IDT_TBL_SIZE_SHIFT) &
 		    RXQ_CFG_816X_IDT_TBL_SIZE_MASK;
-	if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0 &&
-	    sc->alc_ident->deviceid != DEVICEID_ATHEROS_AR8151_V2)
-		reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_1M;
+		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
+			reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_100M;
+	} else {
+		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0 &&
+		    sc->alc_ident->deviceid != DEVICEID_ATHEROS_AR8151_V2)
+			reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_100M;
+	}
 	CSR_WRITE_4(sc, ALC_RXQ_CFG, reg);
 
 	/* Configure DMA parameters. */
@@ -4214,12 +4252,12 @@ alc_init_locked(struct alc_softc *sc)
 		switch (AR816X_REV(sc->alc_rev)) {
 		case AR816X_REV_A0:
 		case AR816X_REV_A1:
-			reg |= DMA_CFG_RD_CHNL_SEL_1;
+			reg |= DMA_CFG_RD_CHNL_SEL_2;
 			break;
 		case AR816X_REV_B0:
 			/* FALLTHROUGH */
 		default:
-			reg |= DMA_CFG_RD_CHNL_SEL_3;
+			reg |= DMA_CFG_RD_CHNL_SEL_4;
 			break;
 		}
 	}
@@ -4572,7 +4610,7 @@ alc_rxfilter(struct alc_softc *sc)
 	}
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->alc_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->alc_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -4619,3 +4657,54 @@ sysctl_hw_alc_int_mod(SYSCTL_HANDLER_ARGS)
 	return (sysctl_int_range(oidp, arg1, arg2, req,
 	    ALC_IM_TIMER_MIN, ALC_IM_TIMER_MAX));
 }
+
+#ifdef NETDUMP
+static void
+alc_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+{
+	struct alc_softc *sc;
+
+	sc = if_getsoftc(ifp);
+	KASSERT(sc->alc_buf_size <= MCLBYTES, ("incorrect cluster size"));
+
+	*nrxr = ALC_RX_RING_CNT;
+	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*clsize = MCLBYTES;
+}
+
+static void
+alc_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+{
+}
+
+static int
+alc_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	struct alc_softc *sc;
+	int error;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (EBUSY);
+
+	error = alc_encap(sc, &m);
+	if (error == 0)
+		alc_start_tx(sc);
+	return (error);
+}
+
+static int
+alc_netdump_poll(struct ifnet *ifp, int count)
+{
+	struct alc_softc *sc;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (EBUSY);
+
+	alc_txeof(sc);
+	return (alc_rxintr(sc, count));
+}
+#endif /* NETDUMP */

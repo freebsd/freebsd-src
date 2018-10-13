@@ -1,6 +1,8 @@
 /*	$NetBSD: cpuregs.h,v 1.70 2006/05/15 02:26:54 simonb Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -58,6 +60,10 @@
 #ifndef _MIPS_CPUREGS_H_
 #define	_MIPS_CPUREGS_H_
 
+#ifndef _KVM_MINIDUMP
+#include <machine/cca.h>
+#endif
+
 /*
  * Address space.
  * 32-bit mips CPUS partition their 32-bit address space into four segments:
@@ -102,91 +108,6 @@
 	    ((vm_offset_t)(x) <= MIPS_KSEG1_END))
 #define	MIPS_IS_VALID_PTR(x)		(MIPS_IS_KSEG0_ADDR(x) || \
 					    MIPS_IS_KSEG1_ADDR(x))
-
-/*
- * Cache Coherency Attributes:
- *	UC:	Uncached.
- *	UA:	Uncached accelerated.
- *	C:	Cacheable, coherency unspecified.
- *	CNC:	Cacheable non-coherent.
- *	CC:	Cacheable coherent.
- *	CCS:	Cacheable coherent, shared read.
- *	CCE:	Cacheable coherent, exclusive read.
- *	CCEW:	Cacheable coherent, exclusive write.
- *	CCUOW:	Cacheable coherent, update on write.
- *
- * Note that some bits vary in meaning across implementations (and that the
- * listing here is no doubt incomplete) and that the optimal cached mode varies
- * between implementations.  0x02 is required to be UC and 0x03 is required to
- * be a least C.
- *
- * We define the following logical bits:
- * 	UNCACHED:
- * 		The optimal uncached mode for the target CPU type.  This must
- * 		be suitable for use in accessing memory-mapped devices.
- * 	CACHED:	The optional cached mode for the target CPU type.
- */
-
-#define	MIPS_CCA_UC		0x02	/* Uncached. */
-#define	MIPS_CCA_C		0x03	/* Cacheable, coherency unspecified. */
-
-#if defined(CPU_R4000) || defined(CPU_R10000)
-#define	MIPS_CCA_CNC	0x03
-#define	MIPS_CCA_CCE	0x04
-#define	MIPS_CCA_CCEW	0x05
-
-#ifdef CPU_R4000
-#define	MIPS_CCA_CCUOW	0x06
-#endif
-
-#ifdef CPU_R10000
-#define	MIPS_CCA_UA	0x07
-#endif
-
-#define	MIPS_CCA_CACHED	MIPS_CCA_CCEW
-#endif /* defined(CPU_R4000) || defined(CPU_R10000) */
-
-#if defined(CPU_SB1)
-#define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
-#endif
-
-#if defined(CPU_MIPS74K)
-#define	MIPS_CCA_UNCACHED	0x02
-#define	MIPS_CCA_CACHED		0x03
-#endif
-
-/*
- * 1004K and 1074K cores, as well as interAptiv and proAptiv cores, support
- * Cacheable Coherent CCAs 0x04 and 0x05, as well as Cacheable non-Coherent
- * CCA 0x03 and Uncached Accelerated CCA 0x07
- */
-#if defined(CPU_MIPS1004K) || defined(CPU_MIPS1074K) ||	\
-    defined(CPU_INTERAPTIV) || defined(CPU_PROAPTIV)
-#define	MIPS_CCA_CNC		0x03
-#define	MIPS_CCA_CCE		0x04
-#define	MIPS_CCA_CCS		0x05
-#define	MIPS_CCA_UA		0x07
-
-/* We use shared read CCA for CACHED CCA */
-#define	MIPS_CCA_CACHED		MIPS_CCA_CCS
-#endif
-
-#ifndef	MIPS_CCA_UNCACHED
-#define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
-#endif
-
-/*
- * If we don't know which cached mode to use and there is a cache coherent
- * mode, use it.  If there is not a cache coherent mode, use the required
- * cacheable mode.
- */
-#ifndef MIPS_CCA_CACHED
-#ifdef MIPS_CCA_CC
-#define	MIPS_CCA_CACHED	MIPS_CCA_CC
-#else
-#define	MIPS_CCA_CACHED	MIPS_CCA_C
-#endif
-#endif
 
 #define	MIPS_PHYS_TO_XKPHYS(cca,x) \
 	((0x2ULL << 62) | ((unsigned long long)(cca) << 59) | (x))
@@ -454,14 +375,16 @@
  *  2	MIPS_COP_0_TLB_LO0	.636 r4k TLB entry low.
  *  3	MIPS_COP_0_TLB_LO1	.636 r4k TLB entry low, extended.
  *  4	MIPS_COP_0_TLB_CONTEXT	3636 TLB Context.
+ *  4/2	MIPS_COP_0_USERLOCAL	..36 UserLocal.
  *  5	MIPS_COP_0_TLB_PG_MASK	.333 TLB Page Mask register.
  *  6	MIPS_COP_0_TLB_WIRED	.333 Wired TLB number.
- *  7	MIPS_COP_0_INFO		..33 Info registers
+ *  7	MIPS_COP_0_HWRENA	..33 rdHWR Enable.
  *  8	MIPS_COP_0_BAD_VADDR	3636 Bad virtual address.
  *  9	MIPS_COP_0_COUNT	.333 Count register.
  * 10	MIPS_COP_0_TLB_HI	3636 TLB entry high.
  * 11	MIPS_COP_0_COMPARE	.333 Compare (against Count).
  * 12	MIPS_COP_0_STATUS	3333 Status register.
+ * 12/1	MIPS_COP_0_INTCTL	..33 Interrupt setup (MIPS32/64 r2).
  * 13	MIPS_COP_0_CAUSE	3333 Exception cause register.
  * 14	MIPS_COP_0_EXC_PC	3636 Exception PC.
  * 15	MIPS_COP_0_PRID		3333 Processor revision identifier.
@@ -521,12 +444,18 @@
 
 #define	MIPS_COP_0_COUNT	_(9)
 #define	MIPS_COP_0_COMPARE	_(11)
-
+#ifdef CPU_XBURST
+#define	MIPS_COP_0_XBURST_C12	_(12)
+#endif
 #define	MIPS_COP_0_CONFIG	_(16)
 #define	MIPS_COP_0_LLADDR	_(17)
 #define	MIPS_COP_0_WATCH_LO	_(18)
 #define	MIPS_COP_0_WATCH_HI	_(19)
 #define	MIPS_COP_0_TLB_XCONTEXT _(20)
+#ifdef CPU_XBURST
+#define	MIPS_COP_0_XBURST_MBOX	_(20)
+#endif
+
 #define	MIPS_COP_0_ECC		_(26)
 #define	MIPS_COP_0_CACHE_ERR	_(27)
 #define	MIPS_COP_0_TAG_LO	_(28)
@@ -534,7 +463,9 @@
 #define	MIPS_COP_0_ERROR_PC	_(30)
 
 /* MIPS32/64 */
-#define	MIPS_COP_0_INFO		_(7)
+#define	MIPS_COP_0_USERLOCAL	_(4)	/* sel 2 is userlevel register */
+#define	MIPS_COP_0_HWRENA	_(7)
+#define	MIPS_COP_0_INTCTL	_(12)
 #define	MIPS_COP_0_DEBUG	_(23)
 #define	MIPS_COP_0_DEPC		_(24)
 #define	MIPS_COP_0_PERFCNT	_(25)
@@ -548,11 +479,31 @@
 #define MIPS_MMU_BAT			0x02		/* Standard BAT */
 #define MIPS_MMU_FIXED			0x03		/* Standard fixed mapping */
 
-#define MIPS_CONFIG0_MT_MASK		0x00000380	/* bits 9..7 MMU Type */
-#define MIPS_CONFIG0_MT_SHIFT		7
-#define MIPS_CONFIG0_BE			0x00008000	/* data is big-endian */
-#define MIPS_CONFIG0_VI			0x00000008	/* instruction cache is virtual */
+/*
+ * IntCtl Register Fields
+ */
+#define	MIPS_INTCTL_IPTI_MASK	0xE0000000	/* bits 31..29 timer intr # */
+#define	MIPS_INTCTL_IPTI_SHIFT	29
+#define	MIPS_INTCTL_IPPCI_MASK	0x1C000000	/* bits 26..29 perf counter intr # */
+#define	MIPS_INTCTL_IPPCI_SHIFT	26
+#define	MIPS_INTCTL_VS_MASK	0x000001F0	/* bits 5..9 vector spacing */
+#define	MIPS_INTCTL_VS_SHIFT	4
 
+/*
+ * Config Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.39)
+ */
+#define	MIPS_CONFIG0_M		0x80000000 	/* Flag: Config1 is present. */
+#define	MIPS_CONFIG0_MT_MASK	0x00000380	/* bits 9..7 MMU Type */
+#define	MIPS_CONFIG0_MT_SHIFT	7
+#define	MIPS_CONFIG0_BE		0x00008000	/* data is big-endian */
+#define	MIPS_CONFIG0_VI		0x00000008	/* inst cache is virtual */
+ 
+/*
+ * Config1 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9-1)
+ */
+#define	MIPS_CONFIG1_M		0x80000000	/* Flag: Config2 is present. */
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
 
@@ -585,6 +536,19 @@
 #define MIPS_CONFIG2_SS_MASK		0xf
 
 #define MIPS_CONFIG3_CMGCR_MASK		(1 << 29)	/* Coherence manager present */
+
+/*
+ * Config2 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.40)
+ */
+#define	MIPS_CONFIG2_M		0x80000000	/* Flag: Config3 is present. */
+
+/*
+ * Config3 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.41)
+ */
+#define	MIPS_CONFIG3_M		0x80000000	/* Flag: Config4 is present */
+#define	MIPS_CONFIG3_ULR	0x00002000	/* UserLocal reg implemented */
 
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
 #define MIPS_CONFIG4_MMUEXTDEF		0x0000C000	/* bits 15.14 MMU Extension Definition */
@@ -666,5 +630,16 @@
 /* Coherence manager constants */
 #define	MIPS_CMGCRB_BASE	11
 #define	MIPS_CMGCRF_BASE	(~((1 << MIPS_CMGCRB_BASE) - 1))
+
+/*
+ * Bits defined for for the HWREna (CP0 register 7, select 0).
+ */
+#define	MIPS_HWRENA_CPUNUM	(1<<0)	/* CPU number program is running on */
+#define	MIPS_HWRENA_SYNCI_STEP 	(1<<1)	/* Address step sized used with SYNCI */
+#define	MIPS_HWRENA_CC		(1<<2)	/* Hi Res cycle counter */
+#define	MIPS_HWRENA_CCRES	(1<<3)	/* Cycle counter resolution */
+#define	MIPS_HWRENA_UL		(1<<29)	/* UserLocal Register */
+#define	MIPS_HWRENA_IMPL30	(1<<30)	/* Implementation-dependent 30 */
+#define	MIPS_HWRENA_IMPL31	(1<<31)	/* Implementation-dependent 31 */
 
 #endif /* _MIPS_CPUREGS_H_ */

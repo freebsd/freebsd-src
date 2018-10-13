@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -222,7 +224,7 @@ devstat_remove_entry(struct devstat *ds)
  * here.
  */
 void
-devstat_start_transaction(struct devstat *ds, struct bintime *now)
+devstat_start_transaction(struct devstat *ds, const struct bintime *now)
 {
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
@@ -292,7 +294,7 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 void
 devstat_end_transaction(struct devstat *ds, uint32_t bytes, 
 			devstat_tag_type tag_type, devstat_trans_flags flags,
-			struct bintime *now, struct bintime *then)
+			const struct bintime *now, const struct bintime *then)
 {
 	struct bintime dt, lnow;
 
@@ -301,8 +303,8 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 		return;
 
 	if (now == NULL) {
+		binuptime(&lnow);
 		now = &lnow;
-		binuptime(now);
 	}
 
 	atomic_add_acq_int(&ds->sequence1, 1);
@@ -336,15 +338,15 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 }
 
 void
-devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
+devstat_end_transaction_bio(struct devstat *ds, const struct bio *bp)
 {
 
 	devstat_end_transaction_bio_bt(ds, bp, NULL);
 }
 
 void
-devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
-    struct bintime *now)
+devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
+    const struct bintime *now)
 {
 	devstat_trans_flags flg;
 

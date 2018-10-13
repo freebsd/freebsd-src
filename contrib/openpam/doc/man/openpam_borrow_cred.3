@@ -1,13 +1,11 @@
 .\" Generated from openpam_borrow_cred.c by gendoc.pl
-.\" $Id: openpam_borrow_cred.c 649 2013-03-05 17:58:33Z des $
-.Dd September 12, 2014
+.\" $OpenPAM: openpam_borrow_cred.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt OPENPAM_BORROW_CRED 3
 .Os
 .Sh NAME
 .Nm openpam_borrow_cred
 .Nd temporarily borrow user credentials
-.Sh LIBRARY
-.Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
@@ -31,6 +29,8 @@ The
 .Fn openpam_borrow_cred
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
 .It Bq Er PAM_BUF_ERR
 Memory buffer error.
 .It Bq Er PAM_PERM_DENIED
@@ -62,4 +62,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\(/orgrav Aq des@des.no .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

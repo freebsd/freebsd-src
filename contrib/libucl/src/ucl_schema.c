@@ -69,7 +69,7 @@ ucl_schema_create_error (struct ucl_schema_error *err,
  * Check whether we have a pattern specified
  */
 static const ucl_object_t *
-ucl_schema_test_pattern (const ucl_object_t *obj, const char *pattern)
+ucl_schema_test_pattern (const ucl_object_t *obj, const char *pattern, bool recursive)
 {
 	const ucl_object_t *res = NULL;
 #ifdef HAVE_REGEX_H
@@ -78,11 +78,16 @@ ucl_schema_test_pattern (const ucl_object_t *obj, const char *pattern)
 	ucl_object_iter_t iter = NULL;
 
 	if (regcomp (&reg, pattern, REG_EXTENDED | REG_NOSUB) == 0) {
-		while ((elt = ucl_object_iterate (obj, &iter, true)) != NULL) {
-			if (regexec (&reg, ucl_object_key (elt), 0, NULL, 0) == 0) {
-				res = elt;
-				break;
+		if (recursive) {
+			while ((elt = ucl_object_iterate (obj, &iter, true)) != NULL) {
+				if (regexec (&reg, ucl_object_key (elt), 0, NULL, 0) == 0) {
+					res = elt;
+					break;
+				}
 			}
+		} else {
+			if (regexec (&reg, ucl_object_key (obj), 0, NULL, 0) == 0)
+				res = obj;
 		}
 		regfree (&reg);
 	}
@@ -205,12 +210,17 @@ ucl_schema_validate_object (const ucl_object_t *schema,
 			}
 		}
 		else if (strcmp (ucl_object_key (elt), "patternProperties") == 0) {
+			const ucl_object_t *vobj;
+			ucl_object_iter_t viter;
 			piter = NULL;
 			while (ret && (prop = ucl_object_iterate (elt, &piter, true)) != NULL) {
-				found = ucl_schema_test_pattern (obj, ucl_object_key (prop));
-				if (found) {
-					ret = ucl_schema_validate (prop, found, true, err, root,
-							ext_ref);
+				viter = NULL;
+				while (ret && (vobj = ucl_object_iterate (obj, &viter, true)) != NULL) {
+					found = ucl_schema_test_pattern (vobj, ucl_object_key (prop), false);
+					if (found) {
+						ret = ucl_schema_validate (prop, found, true, err, root,
+								ext_ref);
+					}
 				}
 			}
 		}
@@ -234,7 +244,7 @@ ucl_schema_validate_object (const ucl_object_t *schema,
 					piter = NULL;
 					pat = ucl_object_lookup (schema, "patternProperties");
 					while ((pelt = ucl_object_iterate (pat, &piter, true)) != NULL) {
-						found = ucl_schema_test_pattern (obj, ucl_object_key (pelt));
+						found = ucl_schema_test_pattern (obj, ucl_object_key (pelt), true);
 						if (found != NULL) {
 							break;
 						}

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -91,6 +199,9 @@ static const char           *AcpiGbl_DmTypeNames[] =
 
 #define METHOD_SEPARATORS           " \t,()\n"
 
+static const char          *ExternalConflictMessage =
+    "    // Conflicts with a later declaration";
+
 
 /* Local prototypes */
 
@@ -102,6 +213,16 @@ static char *
 AcpiDmNormalizeParentPrefix (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Path);
+
+static ACPI_STATUS
+AcpiDmGetExternalAndInternalPath (
+    ACPI_NAMESPACE_NODE     *Node,
+    char                    **ExternalPath,
+    char                    **InternalPath);
+
+static ACPI_STATUS
+AcpiDmRemoveRootPrefix (
+    char                    **Path);
 
 static void
 AcpiDmAddPathToExternalList (
@@ -117,6 +238,21 @@ AcpiDmCreateNewExternal (
     UINT8                   Type,
     UINT32                  Value,
     UINT16                  Flags);
+
+static void
+AcpiDmCheckForExternalConflict (
+    char                    *Path);
+
+static ACPI_STATUS
+AcpiDmResolveExternal (
+    char                    *Path,
+    UINT8                   Type,
+    ACPI_NAMESPACE_NODE     **Node);
+
+
+static void
+AcpiDmConflictingDeclaration (
+    char                    *Path);
 
 
 /*******************************************************************************
@@ -384,27 +520,27 @@ AcpiDmGetExternalsFromFile (
     UINT32                  ImportCount = 0;
 
 
-    if (!Gbl_ExternalRefFilename)
+    if (!AslGbl_ExternalRefFilename)
     {
         return;
     }
 
     /* Open the file */
 
-    ExternalRefFile = fopen (Gbl_ExternalRefFilename, "r");
+    ExternalRefFile = fopen (AslGbl_ExternalRefFilename, "r");
     if (!ExternalRefFile)
     {
         fprintf (stderr, "Could not open external reference file \"%s\"\n",
-            Gbl_ExternalRefFilename);
+            AslGbl_ExternalRefFilename);
         AslAbort ();
         return;
     }
 
     /* Each line defines a method */
 
-    while (fgets (StringBuffer, ASL_MSG_BUFFER_SIZE, ExternalRefFile))
+    while (fgets (AslGbl_StringBuffer, ASL_STRING_BUFFER_SIZE, ExternalRefFile))
     {
-        Token = strtok (StringBuffer, METHOD_SEPARATORS);   /* "External" */
+        Token = strtok (AslGbl_StringBuffer, METHOD_SEPARATORS);   /* "External" */
         if (!Token)
         {
             continue;
@@ -457,7 +593,7 @@ AcpiDmGetExternalsFromFile (
         /* Add this external to the global list */
 
         AcpiOsPrintf ("%s: Importing method external (%u arguments) %s\n",
-            Gbl_ExternalRefFilename, ArgCount, MethodName);
+            AslGbl_ExternalRefFilename, ArgCount, MethodName);
 
         AcpiDmAddPathToExternalList (MethodName, ACPI_TYPE_METHOD,
             ArgCount, (ACPI_EXT_RESOLVED_REFERENCE | ACPI_EXT_ORIGIN_FROM_FILE));
@@ -468,16 +604,16 @@ AcpiDmGetExternalsFromFile (
     {
         fprintf (stderr,
             "Did not find any external methods in reference file \"%s\"\n",
-            Gbl_ExternalRefFilename);
+            AslGbl_ExternalRefFilename);
     }
     else
     {
         /* Add the external(s) to the namespace */
 
-        AcpiDmAddExternalsToNamespace ();
+        AcpiDmAddExternalListToNamespace ();
 
         AcpiOsPrintf ("%s: Imported %u external method definitions\n",
-            Gbl_ExternalRefFilename, ImportCount);
+            AslGbl_ExternalRefFilename, ImportCount);
     }
 
     fclose (ExternalRefFile);
@@ -590,6 +726,86 @@ AcpiDmAddOpToExternalList (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmGetExternalAndInternalPath
+ *
+ * PARAMETERS:  Node                - Namespace node for object to be added
+ *              ExternalPath        - Will contain the external path of the node
+ *              InternalPath        - Will contain the internal path of the node
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Get the External and Internal path from the given node.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDmGetExternalAndInternalPath (
+    ACPI_NAMESPACE_NODE     *Node,
+    char                    **ExternalPath,
+    char                    **InternalPath)
+{
+    ACPI_STATUS             Status;
+
+
+    if (!Node)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    /* Get the full external and internal pathnames to the node */
+
+    *ExternalPath = AcpiNsGetExternalPathname (Node);
+    if (!*ExternalPath)
+    {
+        return (AE_BAD_PATHNAME);
+    }
+
+    Status = AcpiNsInternalizeName (*ExternalPath, InternalPath);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_FREE (*ExternalPath);
+        return (Status);
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmRemoveRootPrefix
+ *
+ * PARAMETERS:  Path                - Remove Root prefix from this Path
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Remove the root prefix character '\' from Path.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDmRemoveRootPrefix (
+    char                    **Path)
+{
+    char                    *InputPath = *Path;
+
+
+    if ((*InputPath == AML_ROOT_PREFIX) && (InputPath[1]))
+    {
+        if (!memmove(InputPath, InputPath+1, strlen(InputPath)))
+        {
+            return (AE_ERROR);
+        }
+
+        *Path = InputPath;
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmAddNodeToExternalList
  *
  * PARAMETERS:  Node                - Namespace node for object to be added
@@ -619,46 +835,27 @@ AcpiDmAddNodeToExternalList (
 {
     char                    *ExternalPath;
     char                    *InternalPath;
-    char                    *Temp;
     ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE (DmAddNodeToExternalList);
 
-
-    if (!Node)
-    {
-        return_VOID;
-    }
-
     /* Get the full external and internal pathnames to the node */
 
-    ExternalPath = AcpiNsGetExternalPathname (Node);
-    if (!ExternalPath)
-    {
-        return_VOID;
-    }
-
-    Status = AcpiNsInternalizeName (ExternalPath, &InternalPath);
+    Status = AcpiDmGetExternalAndInternalPath (Node, &ExternalPath, &InternalPath);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_FREE (ExternalPath);
         return_VOID;
     }
 
     /* Remove the root backslash */
 
-    if ((*ExternalPath == AML_ROOT_PREFIX) && (ExternalPath[1]))
+    Status = AcpiDmRemoveRootPrefix (&ExternalPath);
+    if (ACPI_FAILURE (Status))
     {
-        Temp = ACPI_ALLOCATE_ZEROED (strlen (ExternalPath) + 1);
-        if (!Temp)
-        {
-            return_VOID;
-        }
-
-        strcpy (Temp, &ExternalPath[1]);
         ACPI_FREE (ExternalPath);
-        ExternalPath = Temp;
+        ACPI_FREE (InternalPath);
+        return_VOID;
     }
 
     /* Create the new External() declaration node */
@@ -905,68 +1102,171 @@ AcpiDmCreateNewExternal (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmAddExternalsToNamespace
+ * FUNCTION:    AcpiDmResolveExternal
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Path               - Path of the external
+ *              Type               - Type of the external
+ *              Node               - Input node for AcpiNsLookup
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Resolve the external within the namespace by AcpiNsLookup.
+ *              If the returned node is an external and has the same type
+ *              we assume that it was either an existing external or a
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDmResolveExternal (
+    char                    *Path,
+    UINT8                   Type,
+    ACPI_NAMESPACE_NODE     **Node)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = AcpiNsLookup (NULL, Path, Type,
+        ACPI_IMODE_LOAD_PASS1,
+        ACPI_NS_ERROR_IF_FOUND | ACPI_NS_EXTERNAL | ACPI_NS_DONT_OPEN_SCOPE,
+        NULL, Node);
+
+    if (!Node)
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "while adding external to namespace [%s]", Path));
+    }
+
+    /* Note the asl code "external(a) external(a)" is acceptable ASL */
+
+    else if ((*Node)->Type == Type &&
+        (*Node)->Flags & ANOBJ_IS_EXTERNAL)
+    {
+        return (AE_OK);
+    }
+    else
+    {
+        ACPI_EXCEPTION ((AE_INFO, AE_ERROR,
+            "[%s] has conflicting declarations", Path));
+    }
+
+    return (AE_ERROR);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmCreateSubobjectForExternal
+ *
+ * PARAMETERS:  Type                  - Type of the external
+ *              Node                  - Namespace node from AcpiNsLookup
+ *              ParamCount            - Value to be used for Method
  *
  * RETURN:      None
  *
- * DESCRIPTION: Add all externals to the namespace. Allows externals to be
+ * DESCRIPTION: Add one external to the namespace. Allows external to be
  *              "resolved".
  *
  ******************************************************************************/
 
 void
-AcpiDmAddExternalsToNamespace (
-    void)
+AcpiDmCreateSubobjectForExternal (
+    UINT8                   Type,
+    ACPI_NAMESPACE_NODE     **Node,
+    UINT32                  ParamCount)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+
+
+    switch (Type)
+    {
+    case ACPI_TYPE_METHOD:
+
+        /* For methods, we need to save the argument count */
+
+        ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
+        ObjDesc->Method.ParamCount = (UINT8) ParamCount;
+        (*Node)->Object = ObjDesc;
+        break;
+
+    case ACPI_TYPE_REGION:
+
+        /* Regions require a region sub-object */
+
+        ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_REGION);
+        ObjDesc->Region.Node = *Node;
+        (*Node)->Object = ObjDesc;
+        break;
+
+    default:
+
+        break;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmAddOneExternalToNamespace
+ *
+ * PARAMETERS:  Path                   - External parse object
+ *              Type                   - Type of parse object
+ *              ParamCount             - External method parameter count
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Add one external to the namespace by resolvign the external
+ *              (by performing a namespace lookup) and annotating the resulting
+ *              namespace node with the approperiate information if the type
+ *              is ACPI_TYPE_REGION or ACPI_TYPE_METHOD.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmAddOneExternalToNamespace (
+    char                    *Path,
+    UINT8                   Type,
+    UINT32                  ParamCount)
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_OPERAND_OBJECT     *ObjDesc;
+
+
+    Status = AcpiDmResolveExternal (Path, Type, &Node);
+
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    AcpiDmCreateSubobjectForExternal (Type, &Node, ParamCount);
+
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmAddExternalListToNamespace
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Add all externals within AcpiGbl_ExternalList to the namespace.
+ *              Allows externals to be "resolved".
+ *
+ ******************************************************************************/
+
+void
+AcpiDmAddExternalListToNamespace (
+    void)
+{
     ACPI_EXTERNAL_LIST      *External = AcpiGbl_ExternalList;
 
 
     while (External)
     {
-        /* Add the external name (object) into the namespace */
-
-        Status = AcpiNsLookup (NULL, External->InternalPath, External->Type,
-            ACPI_IMODE_LOAD_PASS1,
-            ACPI_NS_ERROR_IF_FOUND | ACPI_NS_EXTERNAL | ACPI_NS_DONT_OPEN_SCOPE,
-            NULL, &Node);
-
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status,
-                "while adding external to namespace [%s]",
-                External->Path));
-        }
-
-        else switch (External->Type)
-        {
-        case ACPI_TYPE_METHOD:
-
-            /* For methods, we need to save the argument count */
-
-            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
-            ObjDesc->Method.ParamCount = (UINT8) External->Value;
-            Node->Object = ObjDesc;
-            break;
-
-        case ACPI_TYPE_REGION:
-
-            /* Regions require a region sub-object */
-
-            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_REGION);
-            ObjDesc->Region.Node = Node;
-            Node->Object = ObjDesc;
-            break;
-
-        default:
-
-            break;
-        }
-
+        AcpiDmAddOneExternalToNamespace (External->InternalPath,
+            External->Type, External->Value);
         External = External->Next;
     }
 }
@@ -974,23 +1274,28 @@ AcpiDmAddExternalsToNamespace (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmGetExternalMethodCount
+ * FUNCTION:    AcpiDmGetUnresolvedExternalMethodCount
  *
  * PARAMETERS:  None
  *
- * RETURN:      The number of control method externals in the external list
+ * RETURN:      The number of unresolved control method externals in the
+ *              external list
  *
- * DESCRIPTION: Return the number of method externals that have been generated.
- *              If any control method externals have been found, we must
- *              re-parse the entire definition block with the new information
- *              (number of arguments for the methods.) This is limitation of
- *              AML, we don't know the number of arguments from the control
- *              method invocation itself.
+ * DESCRIPTION: Return the number of unresolved external methods that have been
+ *              generated. If any unresolved control method externals have been
+ *              found, we must re-parse the entire definition block with the new
+ *              information (number of arguments for the methods.)
+ *              This is limitation of AML, we don't know the number of arguments
+ *              from the control method invocation itself.
+ *
+ *              Note: resolved external control methods are external control
+ *              methods encoded with the AML_EXTERNAL_OP bytecode within the
+ *              AML being disassembled.
  *
  ******************************************************************************/
 
 UINT32
-AcpiDmGetExternalMethodCount (
+AcpiDmGetUnresolvedExternalMethodCount (
     void)
 {
     ACPI_EXTERNAL_LIST      *External = AcpiGbl_ExternalList;
@@ -999,7 +1304,8 @@ AcpiDmGetExternalMethodCount (
 
     while (External)
     {
-        if (External->Type == ACPI_TYPE_METHOD)
+        if (External->Type == ACPI_TYPE_METHOD &&
+            !(External->Flags & ACPI_EXT_ORIGIN_FROM_OPCODE))
         {
             Count++;
         }
@@ -1088,12 +1394,12 @@ AcpiDmEmitExternals (
 
     AcpiDmUnresolvedWarning (1);
 
-    if (Gbl_ExternalRefFilename)
+    if (AslGbl_ExternalRefFilename)
     {
         AcpiOsPrintf (
             "    /*\n     * External declarations were imported from\n"
             "     * a reference file -- %s\n     */\n\n",
-            Gbl_ExternalRefFilename);
+            AslGbl_ExternalRefFilename);
     }
 
     /*
@@ -1143,6 +1449,11 @@ AcpiDmEmitExternals (
                 }
             }
 
+            if (AcpiGbl_ExternalList->Flags &= ACPI_EXT_CONFLICTING_DECLARATION)
+            {
+                AcpiOsPrintf ("%s", ExternalConflictMessage);
+                AcpiDmConflictingDeclaration (AcpiGbl_ExternalList->Path);
+            }
             AcpiOsPrintf ("\n");
         }
 
@@ -1165,6 +1476,194 @@ AcpiDmEmitExternals (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmMarkExternalConflict
+ *
+ * PARAMETERS:  Path          - Namepath to search
+ *
+ * RETURN:      ExternalList
+ *
+ * DESCRIPTION: Search the AcpiGbl_ExternalList for a matching path
+ *
+ ******************************************************************************/
+
+void
+AcpiDmMarkExternalConflict (
+    ACPI_NAMESPACE_NODE     *Node)
+{
+    ACPI_EXTERNAL_LIST      *ExternalList = AcpiGbl_ExternalList;
+    char                    *ExternalPath;
+    char                    *InternalPath;
+    char                    *Temp;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (DmMarkExternalConflict);
+
+
+    if (Node->Flags & ANOBJ_IS_EXTERNAL)
+    {
+        return_VOID;
+    }
+
+    /* Get the full external and internal pathnames to the node */
+
+    Status = AcpiDmGetExternalAndInternalPath (Node,
+        &ExternalPath, &InternalPath);
+    if (ACPI_FAILURE (Status))
+    {
+        return_VOID;
+    }
+
+    /* Remove the root backslash */
+
+    Status = AcpiDmRemoveRootPrefix (&InternalPath);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_FREE (InternalPath);
+        ACPI_FREE (ExternalPath);
+        return_VOID;
+    }
+
+    while (ExternalList)
+    {
+        Temp = ExternalList->InternalPath;
+        if ((*ExternalList->InternalPath == AML_ROOT_PREFIX) &&
+            (ExternalList->InternalPath[1]))
+        {
+            Temp++;
+        }
+
+        if (!strcmp (ExternalList->InternalPath, InternalPath))
+        {
+            ExternalList->Flags |= ACPI_EXT_CONFLICTING_DECLARATION;
+        }
+        ExternalList = ExternalList->Next;
+    }
+
+    ACPI_FREE (InternalPath);
+    ACPI_FREE (ExternalPath);
+
+    return_VOID;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmConflictingDeclaration
+ *
+ * PARAMETERS:  Path                - Path with conflicting declaration
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Emit a warning when printing conflicting ASL external
+ *              declarations.
+ *
+ ******************************************************************************/
+
+static void
+AcpiDmConflictingDeclaration (
+    char                    *Path)
+{
+    fprintf (stderr,
+        " Warning - Emitting ASL code \"External (%s)\"\n"
+        "           This is a conflicting declaration with some "
+        "other declaration within the ASL code.\n"
+        "           This external declaration may need to be "
+        "deleted in order to recompile the dsl file.\n\n",
+        Path);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmEmitExternal
+ *
+ * PARAMETERS:  Op                  External Parse Object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Emit an External() ASL statement for the current External
+ *              parse object. Note: External Ops are named types so the
+ *              namepath is contained within NameOp->Name.Path.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmEmitExternal (
+    ACPI_PARSE_OBJECT       *NameOp,
+    ACPI_PARSE_OBJECT       *TypeOp)
+{
+    AcpiOsPrintf ("External (");
+    AcpiDmNamestring (NameOp->Named.Path);
+    AcpiOsPrintf ("%s)",
+        AcpiDmGetObjectTypeName ((ACPI_OBJECT_TYPE) TypeOp->Common.Value.Integer));
+    AcpiDmCheckForExternalConflict (NameOp->Named.Path);
+    AcpiOsPrintf ("\n");
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmCheckForExternalConflict
+ *
+ * PARAMETERS:  Path                - Path to check
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Search the External List to see if the input Path has a
+ *              conflicting declaration.
+ *
+ ******************************************************************************/
+
+static void
+AcpiDmCheckForExternalConflict (
+    char                    *Path)
+{
+    ACPI_EXTERNAL_LIST      *ExternalList = AcpiGbl_ExternalList;
+    char                    *ListItemPath;
+    char                    *InputPath;
+
+
+    if (!Path)
+    {
+        return;
+    }
+
+    /* Move past the root prefix '\' */
+
+    InputPath = Path;
+    if ((*InputPath == AML_ROOT_PREFIX) && InputPath[1])
+    {
+        InputPath++;
+    }
+
+    while (ExternalList)
+    {
+        ListItemPath = ExternalList->Path;
+        if (ListItemPath)
+        {
+            /* Move past the root prefix '\' */
+
+            if ((*ListItemPath == AML_ROOT_PREFIX) &&
+                ListItemPath[1])
+            {
+                ListItemPath++;
+            }
+
+            if (!strcmp (ListItemPath, InputPath) &&
+                (ExternalList->Flags & ACPI_EXT_CONFLICTING_DECLARATION))
+            {
+                AcpiOsPrintf ("%s", ExternalConflictMessage);
+                AcpiDmConflictingDeclaration (Path);
+
+                return;
+            }
+        }
+        ExternalList = ExternalList->Next;
+    }
+}
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmUnresolvedWarning
  *
  * PARAMETERS:  Type                - Where to output the warning.
@@ -1178,7 +1677,7 @@ AcpiDmEmitExternals (
  *
  ******************************************************************************/
 
-#if 0
+/*
 Summary of the external control method problem:
 
 When the -e option is used with disassembly, the various SSDTs are simply
@@ -1247,7 +1746,7 @@ disassembler, otherwise it does not know how to handle the method invocations.
 In other words, if ABCD and EFGH are actually external control methods
 appearing in an SSDT, the disassembler does not know what to do unless
 the owning SSDT has been loaded via the -e option.
-#endif
+*/
 
 static char             ExternalWarningPart1[600];
 static char             ExternalWarningPart2[400];

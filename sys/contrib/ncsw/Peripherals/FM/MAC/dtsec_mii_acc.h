@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2013 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,43 +36,7 @@
 #include "std_ext.h"
 
 
-/* MII Management Configuration Register */
-#define MIIMCFG_RESET_MGMT          0x80000000
-#define MIIMCFG_MGMT_CLOCK_SELECT   0x00000007
-
-/* MII  Management Command Register */
-#define MIIMCOM_READ_CYCLE          0x00000001
-#define MIIMCOM_SCAN_CYCLE          0x00000002
-
-/* MII  Management Address Register */
-#define MIIMADD_PHY_ADDR_SHIFT      8
-
-/* MII Management Indicator Register */
-#define MIIMIND_BUSY                0x00000001
-
-
-#if defined(__MWERKS__) && !defined(__GNUC__)
-#pragma pack(push,1)
-#endif /* defined(__MWERKS__) && ... */
-#define MEM_MAP_START
-
-/*----------------------------------------------------*/
-/* MII Configuration Control Memory Map Registers     */
-/*----------------------------------------------------*/
-typedef _Packed struct t_MiiAccessMemMap
-{
-    volatile uint32_t miimcfg;    /* MII Mgmt:configuration */
-    volatile uint32_t miimcom;    /* MII Mgmt:command       */
-    volatile uint32_t miimadd;    /* MII Mgmt:address       */
-    volatile uint32_t miimcon;    /* MII Mgmt:control 3     */
-    volatile uint32_t miimstat;   /* MII Mgmt:status        */
-    volatile uint32_t miimind;    /* MII Mgmt:indicators    */
-} _PackedType t_MiiAccessMemMap ;
-
-#define MEM_MAP_END
-#if defined(__MWERKS__) && !defined(__GNUC__)
-#pragma pack(pop)
-#endif /* defined(__MWERKS__) && ... */
-
+t_Error DTSEC_MII_WritePhyReg(t_Handle h_Dtsec, uint8_t phyAddr, uint8_t reg, uint16_t data);
+t_Error DTSEC_MII_ReadPhyReg(t_Handle  h_Dtsec, uint8_t phyAddr, uint8_t reg, uint16_t *p_Data);
 
 #endif /* __DTSEC_MII_ACC_H */

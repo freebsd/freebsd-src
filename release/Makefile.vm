@@ -7,7 +7,8 @@
 
 VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	20G
+VMSIZE?=	30G
+SWAPSIZE?=	1G
 VMBASE?=	vm
 
 VHD_DESC=	Azure, VirtualPC, Hyper-V, Xen disk image
@@ -54,11 +55,11 @@ ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 
 cw-${_CW:tl}:
 	mkdir -p ${.OBJDIR}/${.TARGET}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
+		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}IMAGE} -c ${${_CW:tu}CONF}
 	touch ${.TARGET}
 
 cw${_CW:tl}-package:
@@ -88,7 +89,7 @@ vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . for FORMAT in ${VMFORMATS}
 	mkdir -p ${.OBJDIR}/${.TARGET}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-i ${.OBJDIR}/${FORMAT}.img -s ${VMSIZE} -f ${FORMAT} \

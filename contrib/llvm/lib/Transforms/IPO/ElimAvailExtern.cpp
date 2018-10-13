@@ -1,5 +1,4 @@
-//===-- ElimAvailExtern.cpp - DCE unreachable internal functions
-//----------------===//
+//===- ElimAvailExtern.cpp - DCE unreachable internal functions -----------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,12 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/IPO/ElimAvailExtern.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/IR/Constants.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Transforms/Utils/GlobalStatus.h"
 #include "llvm/Pass.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Utils/GlobalStatus.h"
+
 using namespace llvm;
 
 #define DEBUG_TYPE "elim-avail-extern"
@@ -26,30 +30,7 @@ using namespace llvm;
 STATISTIC(NumFunctions, "Number of functions removed");
 STATISTIC(NumVariables, "Number of global variables removed");
 
-namespace {
-struct EliminateAvailableExternally : public ModulePass {
-  static char ID; // Pass identification, replacement for typeid
-  EliminateAvailableExternally() : ModulePass(ID) {
-    initializeEliminateAvailableExternallyPass(
-        *PassRegistry::getPassRegistry());
-  }
-
-  // run - Do the EliminateAvailableExternally pass on the specified module,
-  // optionally updating the specified callgraph to reflect the changes.
-  //
-  bool runOnModule(Module &M) override;
-};
-}
-
-char EliminateAvailableExternally::ID = 0;
-INITIALIZE_PASS(EliminateAvailableExternally, "elim-avail-extern",
-                "Eliminate Available Externally Globals", false, false)
-
-ModulePass *llvm::createEliminateAvailableExternallyPass() {
-  return new EliminateAvailableExternally();
-}
-
-bool EliminateAvailableExternally::runOnModule(Module &M) {
+static bool eliminateAvailableExternally(Module &M) {
   bool Changed = false;
 
   // Drop initializers of available externally global variables.
@@ -81,4 +62,41 @@ bool EliminateAvailableExternally::runOnModule(Module &M) {
   }
 
   return Changed;
+}
+
+PreservedAnalyses
+EliminateAvailableExternallyPass::run(Module &M, ModuleAnalysisManager &) {
+  if (!eliminateAvailableExternally(M))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
+}
+
+namespace {
+
+struct EliminateAvailableExternallyLegacyPass : public ModulePass {
+  static char ID; // Pass identification, replacement for typeid
+
+  EliminateAvailableExternallyLegacyPass() : ModulePass(ID) {
+    initializeEliminateAvailableExternallyLegacyPassPass(
+        *PassRegistry::getPassRegistry());
+  }
+
+  // run - Do the EliminateAvailableExternally pass on the specified module,
+  // optionally updating the specified callgraph to reflect the changes.
+  bool runOnModule(Module &M) override {
+    if (skipModule(M))
+      return false;
+    return eliminateAvailableExternally(M);
+  }
+};
+
+} // end anonymous namespace
+
+char EliminateAvailableExternallyLegacyPass::ID = 0;
+
+INITIALIZE_PASS(EliminateAvailableExternallyLegacyPass, "elim-avail-extern",
+                "Eliminate Available Externally Globals", false, false)
+
+ModulePass *llvm::createEliminateAvailableExternallyPass() {
+  return new EliminateAvailableExternallyLegacyPass();
 }

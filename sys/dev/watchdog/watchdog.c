@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Poul-Henning Kamp
  * Copyright (c) 2013 iXsystems.com,
  *               author: Alfred Perlstein <alfred@freebsd.org>
@@ -76,6 +78,9 @@ SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u_secs, CTLFLAG_RD,
 static int wd_lastpat_valid = 0;
 static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
 
+/* Hook for external software watchdog to register for use if needed */
+void (*wdog_software_attach)(void);
+
 static void
 pow2ns_to_ts(int pow2ns, struct timespec *ts)
 {
@@ -118,6 +123,7 @@ int
 wdog_kern_pat(u_int utim)
 {
 	int error;
+	static int first = 1;
 
 	if ((utim & WD_LASTVAL) != 0 && (utim & WD_INTERVAL) > 0)
 		return (EINVAL);
@@ -159,6 +165,17 @@ wdog_kern_pat(u_int utim)
 	} else {
 		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
 	}
+	/*
+	 * If we no hardware watchdog responded, we have not tried to
+	 * attach an external software watchdog, and one is available,
+	 * attach it now and retry.
+	 */
+	if (error == EOPNOTSUPP && first && *wdog_software_attach != NULL) {
+		(*wdog_software_attach)();
+		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+	}
+	first = 0;
+
 	wd_set_pretimeout(wd_pretimeout, true);
 	/*
 	 * If we were able to arm/strobe the watchdog, then
@@ -229,13 +246,13 @@ wd_timeout_cb(void *arg)
 #ifdef DDB
 	if ((wd_pretimeout_act & WD_SOFT_DDB)) {
 		char kdb_why[80];
-		snprintf(kdb_why, sizeof(kdb_why), "watchdog %s timeout", type);
+		snprintf(kdb_why, sizeof(kdb_why), "watchdog %s-timeout", type);
 		kdb_backtrace();
 		kdb_enter(KDB_WHY_WATCHDOG, kdb_why);
 	}
 #endif
 	if ((wd_pretimeout_act & WD_SOFT_LOG))
-		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG", type);
+		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG\n", type);
 	if ((wd_pretimeout_act & WD_SOFT_PRINTF))
 		printf("watchdog %s-timeout, WD_SOFT_PRINTF\n", type);
 	if ((wd_pretimeout_act & WD_SOFT_PANIC))
@@ -292,8 +309,7 @@ wd_set_pretimeout(int newtimeout, int disableiftoolong)
 
 	/* We determined the value is sane, so reset the callout */
 	(void) callout_reset(&wd_pretimeo_handle,
-	    timeout_ticks,
-	    wd_timeout_cb, "pre-timeout");
+	    timeout_ticks, wd_timeout_cb, "pre");
 	wd_pretimeout = newtimeout;
 	return 0;
 }

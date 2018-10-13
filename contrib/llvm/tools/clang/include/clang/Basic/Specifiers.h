@@ -52,8 +52,10 @@ namespace clang {
     TST_int,
     TST_int128,
     TST_half,         // OpenCL half, ARM NEON __fp16
+    TST_Float16,      // C11 extension ISO/IEC TS 18661-3
     TST_float,
     TST_double,
+    TST_float128,
     TST_bool,         // _Bool
     TST_decimal32,    // _Decimal32
     TST_decimal64,    // _Decimal64
@@ -73,17 +75,20 @@ namespace clang {
     TST_auto_type,        // __auto_type extension
     TST_unknown_anytype,  // __unknown_anytype extension
     TST_atomic,           // C11 _Atomic
-    TST_error         // erroneous type
+#define GENERIC_IMAGE_TYPE(ImgType, Id) TST_##ImgType##_t, // OpenCL image types
+#include "clang/Basic/OpenCLImageTypes.def"
+    TST_error // erroneous type
   };
-  
+
   /// \brief Structure that packs information about the type specifiers that
   /// were written in a particular type specifier sequence.
   struct WrittenBuiltinSpecs {
-    /*DeclSpec::TST*/ unsigned Type  : 5;
+    static_assert(TST_error < 1 << 6, "Type bitfield not wide enough for TST");
+    /*DeclSpec::TST*/ unsigned Type  : 6;
     /*DeclSpec::TSS*/ unsigned Sign  : 2;
     /*DeclSpec::TSW*/ unsigned Width : 2;
-    bool ModeAttr : 1;
-  };  
+    unsigned ModeAttr : 1;
+  };
 
   /// \brief A C++ access specifier (public, private, protected), plus the
   /// special value "none" which means different things in different contexts.
@@ -232,13 +237,17 @@ namespace clang {
     CC_X86ThisCall, // __attribute__((thiscall))
     CC_X86VectorCall, // __attribute__((vectorcall))
     CC_X86Pascal,   // __attribute__((pascal))
-    CC_X86_64Win64, // __attribute__((ms_abi))
+    CC_Win64,       // __attribute__((ms_abi))
     CC_X86_64SysV,  // __attribute__((sysv_abi))
+    CC_X86RegCall, // __attribute__((regcall))
     CC_AAPCS,       // __attribute__((pcs("aapcs")))
     CC_AAPCS_VFP,   // __attribute__((pcs("aapcs-vfp")))
     CC_IntelOclBicc, // __attribute__((intel_ocl_bicc))
     CC_SpirFunction, // default for OpenCL functions on SPIR target
-    CC_SpirKernel    // inferred for OpenCL kernels on SPIR target
+    CC_OpenCLKernel, // inferred for OpenCL kernels
+    CC_Swift,        // __attribute__((swiftcall))
+    CC_PreserveMost, // __attribute__((preserve_most))
+    CC_PreserveAll,  // __attribute__((preserve_all))
   };
 
   /// \brief Checks whether the given calling convention supports variadic
@@ -248,10 +257,12 @@ namespace clang {
     case CC_X86StdCall:
     case CC_X86FastCall:
     case CC_X86ThisCall:
+    case CC_X86RegCall:
     case CC_X86Pascal:
     case CC_X86VectorCall:
     case CC_SpirFunction:
-    case CC_SpirKernel:
+    case CC_OpenCLKernel:
+    case CC_Swift:
       return false;
     default:
       return true;
@@ -283,6 +294,28 @@ namespace clang {
   /// Retrieve the spelling of the given nullability kind.
   llvm::StringRef getNullabilitySpelling(NullabilityKind kind,
                                          bool isContextSensitive = false);
+
+  /// \brief Kinds of parameter ABI.
+  enum class ParameterABI {
+    /// This parameter uses ordinary ABI rules for its type.
+    Ordinary,
+
+    /// This parameter (which must have pointer type) is a Swift
+    /// indirect result parameter.
+    SwiftIndirectResult,
+
+    /// This parameter (which must have pointer-to-pointer type) uses
+    /// the special Swift error-result ABI treatment.  There can be at
+    /// most one parameter on a given function that uses this treatment.
+    SwiftErrorResult,
+
+    /// This parameter (which must have pointer type) uses the special
+    /// Swift context-pointer ABI treatment.  There can be at
+    /// most one parameter on a given function that uses this treatment.
+    SwiftContext
+  };
+
+  llvm::StringRef getParameterABISpelling(ParameterABI kind);
 } // end namespace clang
 
 #endif // LLVM_CLANG_BASIC_SPECIFIERS_H

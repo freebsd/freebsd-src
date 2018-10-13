@@ -161,9 +161,10 @@ static void sme_auth_handle_rrm(struct wpa_supplicant *wpa_s,
 		return;
 	}
 
-	if (!(wpa_s->drv_rrm_flags &
-	      WPA_DRIVER_FLAGS_DS_PARAM_SET_IE_IN_PROBES) ||
-	    !(wpa_s->drv_rrm_flags & WPA_DRIVER_FLAGS_QUIET)) {
+	if (!((wpa_s->drv_rrm_flags &
+	       WPA_DRIVER_FLAGS_DS_PARAM_SET_IE_IN_PROBES) &&
+	      (wpa_s->drv_rrm_flags & WPA_DRIVER_FLAGS_QUIET)) &&
+	    !(wpa_s->drv_rrm_flags & WPA_DRIVER_FLAGS_SUPPORT_RRM)) {
 		wpa_printf(MSG_DEBUG,
 			   "RRM: Insufficient RRM support in driver - do not use RRM");
 		return;
@@ -185,6 +186,9 @@ static void sme_auth_handle_rrm(struct wpa_supplicant *wpa_s,
 	/* Set supported capabilites flags */
 	if (wpa_s->drv_rrm_flags & WPA_DRIVER_FLAGS_TX_POWER_INSERTION)
 		*pos |= WLAN_RRM_CAPS_LINK_MEASUREMENT;
+
+	if (wpa_s->lci)
+		pos[1] |= WLAN_RRM_CAPS_LCI_MEASUREMENT;
 
 	wpa_s->sme.assoc_req_ie_len += rrm_ie_len + 2;
 	wpa_s->rrm.rrm_used = 1;
@@ -208,6 +212,9 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
 	u8 ext_capab[18];
 	int ext_capab_len;
 	int skip_auth;
+#ifdef CONFIG_MBO
+	const u8 *mbo;
+#endif /* CONFIG_MBO */
 
 	if (bss == NULL) {
 		wpa_msg(wpa_s, MSG_ERROR, "SME: No scan result available for "
@@ -416,9 +423,60 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
 	}
 #endif /* CONFIG_P2P */
 
+#ifdef CONFIG_FST
+	if (wpa_s->fst_ies) {
+		int fst_ies_len = wpabuf_len(wpa_s->fst_ies);
+
+		if (wpa_s->sme.assoc_req_ie_len + fst_ies_len <=
+		    sizeof(wpa_s->sme.assoc_req_ie)) {
+			os_memcpy(wpa_s->sme.assoc_req_ie +
+				  wpa_s->sme.assoc_req_ie_len,
+				  wpabuf_head(wpa_s->fst_ies),
+				  fst_ies_len);
+			wpa_s->sme.assoc_req_ie_len += fst_ies_len;
+		}
+	}
+#endif /* CONFIG_FST */
+
+	sme_auth_handle_rrm(wpa_s, bss);
+
+#ifdef CONFIG_MBO
+	mbo = wpa_bss_get_vendor_ie(bss, MBO_IE_VENDOR_TYPE);
+	if (mbo) {
+		int len;
+
+		len = wpas_mbo_supp_op_class_ie(
+			wpa_s, bss->freq,
+			wpa_s->sme.assoc_req_ie + wpa_s->sme.assoc_req_ie_len,
+			sizeof(wpa_s->sme.assoc_req_ie) -
+			wpa_s->sme.assoc_req_ie_len);
+		if (len > 0)
+			wpa_s->sme.assoc_req_ie_len += len;
+	}
+#endif /* CONFIG_MBO */
+
+	if (params.p2p)
+		wpa_drv_get_ext_capa(wpa_s, WPA_IF_P2P_CLIENT);
+	else
+		wpa_drv_get_ext_capa(wpa_s, WPA_IF_STATION);
+
+	ext_capab_len = wpas_build_ext_capab(wpa_s, ext_capab,
+					     sizeof(ext_capab));
+	if (ext_capab_len > 0) {
+		u8 *pos = wpa_s->sme.assoc_req_ie;
+		if (wpa_s->sme.assoc_req_ie_len > 0 && pos[0] == WLAN_EID_RSN)
+			pos += 2 + pos[1];
+		os_memmove(pos + ext_capab_len, pos,
+			   wpa_s->sme.assoc_req_ie_len -
+			   (pos - wpa_s->sme.assoc_req_ie));
+		wpa_s->sme.assoc_req_ie_len += ext_capab_len;
+		os_memcpy(pos, ext_capab, ext_capab_len);
+	}
+
 #ifdef CONFIG_HS20
 	if (is_hs20_network(wpa_s, ssid, bss)) {
 		struct wpabuf *hs20;
+
 		hs20 = wpabuf_alloc(20);
 		if (hs20) {
 			int pps_mo_id = hs20_get_pps_mo_id(wpa_s, ssid);
@@ -438,34 +496,6 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
 	}
 #endif /* CONFIG_HS20 */
 
-#ifdef CONFIG_FST
-	if (wpa_s->fst_ies) {
-		int fst_ies_len = wpabuf_len(wpa_s->fst_ies);
-
-		if (wpa_s->sme.assoc_req_ie_len + fst_ies_len <=
-		    sizeof(wpa_s->sme.assoc_req_ie)) {
-			os_memcpy(wpa_s->sme.assoc_req_ie +
-				  wpa_s->sme.assoc_req_ie_len,
-				  wpabuf_head(wpa_s->fst_ies),
-				  fst_ies_len);
-			wpa_s->sme.assoc_req_ie_len += fst_ies_len;
-		}
-	}
-#endif /* CONFIG_FST */
-
-	ext_capab_len = wpas_build_ext_capab(wpa_s, ext_capab,
-					     sizeof(ext_capab));
-	if (ext_capab_len > 0) {
-		u8 *pos = wpa_s->sme.assoc_req_ie;
-		if (wpa_s->sme.assoc_req_ie_len > 0 && pos[0] == WLAN_EID_RSN)
-			pos += 2 + pos[1];
-		os_memmove(pos + ext_capab_len, pos,
-			   wpa_s->sme.assoc_req_ie_len -
-			   (pos - wpa_s->sme.assoc_req_ie));
-		wpa_s->sme.assoc_req_ie_len += ext_capab_len;
-		os_memcpy(pos, ext_capab, ext_capab_len);
-	}
-
 	if (wpa_s->vendor_elem[VENDOR_ELEM_ASSOC_REQ]) {
 		struct wpabuf *buf = wpa_s->vendor_elem[VENDOR_ELEM_ASSOC_REQ];
 		size_t len;
@@ -480,7 +510,18 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
 		}
 	}
 
-	sme_auth_handle_rrm(wpa_s, bss);
+#ifdef CONFIG_MBO
+	if (mbo) {
+		int len;
+
+		len = wpas_mbo_ie(wpa_s, wpa_s->sme.assoc_req_ie +
+				  wpa_s->sme.assoc_req_ie_len,
+				  sizeof(wpa_s->sme.assoc_req_ie) -
+				  wpa_s->sme.assoc_req_ie_len);
+		if (len >= 0)
+			wpa_s->sme.assoc_req_ie_len += len;
+	}
+#endif /* CONFIG_MBO */
 
 #ifdef CONFIG_SAE
 	if (!skip_auth && params.auth_alg == WPA_AUTH_ALG_SAE &&
@@ -523,6 +564,10 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
 	wpa_supplicant_initiate_eapol(wpa_s);
 	if (old_ssid != wpa_s->current_ssid)
 		wpas_notify_network_changed(wpa_s);
+
+#ifdef CONFIG_HS20
+	hs20_configure_frame_filters(wpa_s);
+#endif /* CONFIG_HS20 */
 
 #ifdef CONFIG_P2P
 	/*
@@ -631,6 +676,8 @@ void sme_authenticate(struct wpa_supplicant *wpa_s,
 			"SME: Remove previous pending sme-connect");
 		radio_remove_works(wpa_s, "sme-connect", 0);
 	}
+
+	wpas_abort_ongoing_scan(wpa_s);
 
 	cwork = os_zalloc(sizeof(*cwork));
 	if (cwork == NULL)
@@ -812,7 +859,7 @@ void sme_event_auth(struct wpa_supplicant *wpa_s, union wpa_event_data *data)
 		wpa_printf(MSG_DEBUG, "SME: SAE completed - setting PMK for "
 			   "4-way handshake");
 		wpa_sm_set_pmk(wpa_s->wpa, wpa_s->sme.sae.pmk, PMK_LEN,
-			       wpa_s->pending_bssid);
+			       wpa_s->sme.sae.pmkid, wpa_s->pending_bssid);
 	}
 #endif /* CONFIG_SAE */
 
@@ -975,8 +1022,8 @@ void sme_associate(struct wpa_supplicant *wpa_s, enum wpas_mode mode,
 	if (wpa_s->current_ssid && wpa_s->current_ssid->p2p_group)
 		params.p2p = 1;
 
-	if (wpa_s->parent->set_sta_uapsd)
-		params.uapsd = wpa_s->parent->sta_uapsd;
+	if (wpa_s->p2pdev->set_sta_uapsd)
+		params.uapsd = wpa_s->p2pdev->sta_uapsd;
 	else
 		params.uapsd = -1;
 
@@ -1320,21 +1367,6 @@ int sme_proc_obss_scan(struct wpa_supplicant *wpa_s)
 }
 
 
-static struct hostapd_hw_modes * get_mode(struct hostapd_hw_modes *modes,
-					  u16 num_modes,
-					  enum hostapd_hw_mode mode)
-{
-	u16 i;
-
-	for (i = 0; i < num_modes; i++) {
-		if (modes[i].mode == mode)
-			return &modes[i];
-	}
-
-	return NULL;
-}
-
-
 static void wpa_obss_scan_freqs_list(struct wpa_supplicant *wpa_s,
 				     struct wpa_driver_scan_params *params)
 {
@@ -1553,8 +1585,10 @@ static void sme_sa_query_timer(void *eloop_ctx, void *timeout_ctx)
 	nbuf = os_realloc_array(wpa_s->sme.sa_query_trans_id,
 				wpa_s->sme.sa_query_count + 1,
 				WLAN_SA_QUERY_TR_ID_LEN);
-	if (nbuf == NULL)
+	if (nbuf == NULL) {
+		sme_stop_sa_query(wpa_s);
 		return;
+	}
 	if (wpa_s->sme.sa_query_count == 0) {
 		/* Starting a new SA Query procedure */
 		os_get_reltime(&wpa_s->sme.sa_query_start);
@@ -1565,6 +1599,7 @@ static void sme_sa_query_timer(void *eloop_ctx, void *timeout_ctx)
 
 	if (os_get_random(trans_id, WLAN_SA_QUERY_TR_ID_LEN) < 0) {
 		wpa_printf(MSG_DEBUG, "Could not generate SA Query ID");
+		sme_stop_sa_query(wpa_s);
 		return;
 	}
 

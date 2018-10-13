@@ -168,7 +168,7 @@
 #include <unistd.h>
 
 #include "xmalloc.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "ssh.h"
 #include "loginrec.h"
@@ -177,7 +177,8 @@
 #include "packet.h"
 #include "canohost.h"
 #include "auth.h"
-#include "buffer.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 
 #ifdef HAVE_UTIL_H
 # include <util.h>
@@ -210,7 +211,7 @@ int utmpx_get_entry(struct logininfo *li);
 int wtmp_get_entry(struct logininfo *li);
 int wtmpx_get_entry(struct logininfo *li);
 
-extern Buffer loginmsg;
+extern struct sshbuf *loginmsg;
 
 /* pick the shortest string */
 #define MIN_SIZEOF(s1,s2) (sizeof(s1) < sizeof(s2) ? sizeof(s1) : sizeof(s2))
@@ -663,15 +664,9 @@ construct_utmp(struct logininfo *li,
 	switch (li->type) {
 	case LTYPE_LOGIN:
 		ut->ut_type = USER_PROCESS;
-#ifdef _UNICOS
-		cray_set_tmpdir(ut);
-#endif
 		break;
 	case LTYPE_LOGOUT:
 		ut->ut_type = DEAD_PROCESS;
-#ifdef _UNICOS
-		cray_retain_utmp(ut, li->pid);
-#endif
 		break;
 	}
 # endif

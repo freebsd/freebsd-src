@@ -1,6 +1,8 @@
 #!/bin/sh
 
 #-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright 2004-2007 Colin Percival
 # All rights reserved
 #
@@ -418,6 +420,9 @@ init_params () {
 
 	# Run without a TTY
 	NOTTYOK=0
+
+	# Fetched first in a chain of commands
+	ISFETCHED=0
 }
 
 # Parse the command line
@@ -783,8 +788,10 @@ install_check_params () {
 	# Check that we have updates ready to install
 	if ! [ -L ${BDHASH}-install ]; then
 		echo "No updates are available to install."
-		echo "Run '$0 fetch' first."
-		exit 1
+		if [ $ISFETCHED -eq 0 ]; then
+			echo "Run '$0 fetch' first."
+		fi
+		exit 0
 	fi
 	if ! [ -f ${BDHASH}-install/INDEX-OLD ] ||
 	    ! [ -f ${BDHASH}-install/INDEX-NEW ]; then
@@ -953,7 +960,7 @@ fetch_pick_server_init () {
 # "$name server selection ..."; we allow either format.
 	MLIST="_http._tcp.${SERVERNAME}"
 	host -t srv "${MLIST}" |
-	    sed -nE "s/${MLIST} (has SRV record|server selection) //p" |
+	    sed -nE "s/${MLIST} (has SRV record|server selection) //Ip" |
 	    cut -f 1,2,4 -d ' ' |
 	    sed -e 's/\.$//' |
 	    sort > serverlist_full
@@ -1047,7 +1054,7 @@ fetch_make_patchlist () {
 				continue
 			fi
 			echo "${X}|${Y}"
-		done | uniq
+		done | sort -u
 }
 
 # Print user-friendly progress statistics
@@ -1250,7 +1257,7 @@ fetch_metadata_sanity () {
 
 	# Check that the first four fields make sense.
 	if gunzip -c < files/$1.gz |
-	    grep -qvE "^[a-z]+\|[0-9a-z]+\|${P}+\|[fdL-]\|"; then
+	    grep -qvE "^[a-z]+\|[0-9a-z-]+\|${P}+\|[fdL-]\|"; then
 		fetch_metadata_bogus ""
 		return 1
 	fi
@@ -2380,7 +2387,7 @@ upgrade_merge () {
 				cp merge/old/${F} merge/new/${F}
 				;;
 			*)
-				if ! merge -p -L "current version"	\
+				if ! diff3 -E -m -L "current version"	\
 				    -L "${OLDRELNUM}" -L "${RELNUM}"	\
 				    merge/old/${F}			\
 				    merge/${OLDRELNUM}/${F}		\
@@ -3241,6 +3248,7 @@ cmd_fetch () {
 	fi
 	fetch_check_params
 	fetch_run || exit 1
+	ISFETCHED=1
 }
 
 # Cron command.  Make sure the parameters are sensible; wait
@@ -3292,7 +3300,7 @@ export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${PATH}
 
 # Set a pager if the user doesn't
 if [ -z "$PAGER" ]; then
-	PAGER=/usr/bin/more
+	PAGER=/usr/bin/less
 fi
 
 # Set LC_ALL in order to avoid problems with character ranges like [A-Z].

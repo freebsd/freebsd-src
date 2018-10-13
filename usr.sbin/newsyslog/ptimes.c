@@ -478,6 +478,75 @@ ptimeget_ctime(const struct ptime_data *ptime)
 	return (ctime(&ptime->tsecs));
 }
 
+/*
+ * Generate a time of day string in an RFC5424 compatible format. Return a
+ * pointer to the buffer with the timestamp string or NULL if an error. If the
+ * time is not supplied, cannot be converted to local time, or the resulting
+ * string would overflow the buffer, the returned string will be the RFC5424
+ * NILVALUE.
+ */
+char *
+ptimeget_ctime_rfc5424(const struct ptime_data *ptime,
+    char *timebuf, size_t bufsize)
+{
+	static const char NILVALUE[] = {"-"};	/* RFC5424 specified NILVALUE */
+	int chars;
+	struct tm tm;
+	int tz_hours;
+	int tz_mins;
+	long tz_offset;
+	char tz_sign;
+
+	if (timebuf == NULL) {
+		return (NULL);
+	}
+
+	if (bufsize < sizeof(NILVALUE)) {
+		return (NULL);
+	}
+
+	/*
+	 * Convert to localtime. RFC5424 mandates the use of the NILVALUE if
+	 * the time cannot be obtained, so use that if there is an error in the
+	 * conversion.
+	 */
+	if (ptime == NULL || localtime_r(&(ptime->tsecs), &tm) == NULL) {
+		strlcpy(timebuf, NILVALUE, bufsize);
+		return (timebuf);
+	}
+
+	/*
+	 * Convert the time to a string in RFC5424 format. The conversion
+	 * cannot be done with strftime() because it cannot produce the correct
+	 * timezone offset format.
+	 */
+	if (tm.tm_gmtoff < 0) {
+		tz_sign = '-';
+		tz_offset = -tm.tm_gmtoff;
+	} else {
+		tz_sign = '+';
+		tz_offset = tm.tm_gmtoff;
+	}
+
+	tz_hours = tz_offset / 3600;
+	tz_mins = (tz_offset % 3600) / 60;
+
+	chars = snprintf(timebuf, bufsize,
+	    "%04d-%02d-%02d"	/* date */
+	    "T%02d:%02d:%02d"	/* time */
+	    "%c%02d:%02d",	/* time zone offset */
+	    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+	    tm.tm_hour, tm.tm_min, tm.tm_sec,
+	    tz_sign, tz_hours, tz_mins);
+
+	/* If the timestamp is too big for timebuf, return the NILVALUE. */
+	if (chars >= (int)bufsize) {
+		strlcpy(timebuf, NILVALUE, bufsize);
+	}
+
+	return (timebuf);
+}
+
 double
 ptimeget_diff(const struct ptime_data *minuend, const struct
     ptime_data *subtrahend)

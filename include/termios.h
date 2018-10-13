@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,12 +44,12 @@ typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
 #endif
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	OXTABS		TAB3
 #define	MDMBUF		CCAR_OFLOW
 #endif 
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	CCEQ(val, c)	((c) == (val) && (val) != _POSIX_VDISABLE)
 #endif
 
@@ -57,7 +59,7 @@ typedef	__pid_t		pid_t;
 #define	TCSANOW		0		/* make change immediate */
 #define	TCSADRAIN	1		/* drain output, then change */
 #define	TCSAFLUSH	2		/* drain output, flush input */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	TCSASOFT	0x10		/* flag - don't alter h.w. state */
 #endif
 
@@ -95,7 +97,7 @@ __END_DECLS
 
 #endif /* !_TERMIOS_H_ */
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #include <sys/ttycom.h>
 #include <sys/ttydefaults.h>
 #endif

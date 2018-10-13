@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -47,7 +49,7 @@ static const efx_phy_ops_t	__efx_phy_siena_ops = {
 #endif	/* EFSYS_OPT_PHY_STATS */
 #if EFSYS_OPT_BIST
 	NULL,				/* epo_bist_enable_offline */
-	siena_phy_bist_start, 		/* epo_bist_start */
+	siena_phy_bist_start,		/* epo_bist_start */
 	siena_phy_bist_poll,		/* epo_bist_poll */
 	siena_phy_bist_stop,		/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */
@@ -65,11 +67,10 @@ static const efx_phy_ops_t	__efx_phy_ef10_ops = {
 	ef10_phy_stats_update,		/* epo_stats_update */
 #endif	/* EFSYS_OPT_PHY_STATS */
 #if EFSYS_OPT_BIST
-	/* FIXME: Are these BIST methods appropriate for Medford? */
-	hunt_bist_enable_offline,	/* epo_bist_enable_offline */
-	hunt_bist_start,		/* epo_bist_start */
-	hunt_bist_poll,			/* epo_bist_poll */
-	hunt_bist_stop,			/* epo_bist_stop */
+	ef10_bist_enable_offline,	/* epo_bist_enable_offline */
+	ef10_bist_start,		/* epo_bist_start */
+	ef10_bist_poll,			/* epo_bist_poll */
+	ef10_bist_stop,			/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */
 };
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
@@ -336,8 +337,8 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED PhyStatNamesBlock d5f79b4bc2c050fe */
-static const char 	*__efx_phy_stat_name[] = {
+/* START MKCONFIG GENERATED PhyStatNamesBlock af9ffa24da3bc100 */
+static const char * const __efx_phy_stat_name[] = {
 	"oui",
 	"pma_pmd_link_up",
 	"pma_pmd_rx_fault",

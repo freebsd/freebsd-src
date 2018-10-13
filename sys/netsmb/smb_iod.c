@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
@@ -555,9 +557,9 @@ smb_iod_sendall(struct smbiod *iod)
 			break;
 		    case SMBRQ_SENT:
 			SMB_TRAN_GETPARAM(vcp, SMBTP_TIMEOUT, &tstimeout);
-			timespecadd(&tstimeout, &tstimeout);
+			timespecadd(&tstimeout, &tstimeout, &tstimeout);
 			getnanotime(&ts);
-			timespecsub(&ts, &tstimeout);
+			timespecsub(&ts, &tstimeout, &ts);
 			if (timespeccmp(&ts, &rqp->sr_timesent, >)) {
 				smb_iod_rqprocessed(rqp, ETIMEDOUT);
 			}
@@ -628,7 +630,7 @@ smb_iod_main(struct smbiod *iod)
 #if 0
 	if (iod->iod_state == SMBIOD_ST_VCACTIVE) {
 		getnanotime(&tsnow);
-		timespecsub(&tsnow, &iod->iod_pingtimo);
+		timespecsub(&tsnow, &iod->iod_pingtimo, &tsnow);
 		if (timespeccmp(&tsnow, &iod->iod_lastrqsent, >)) {
 			smb_smb_echo(vcp, &iod->iod_scred);
 		}

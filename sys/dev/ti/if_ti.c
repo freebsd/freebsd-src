@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -1621,7 +1623,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 			}
 			sf[i] = sf_buf_alloc(frame, SFB_NOWAIT);
 			if (sf[i] == NULL) {
-				vm_page_unwire(frame, PQ_INACTIVE);
+				vm_page_unwire(frame, PQ_NONE);
 				vm_page_free(frame);
 				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");
@@ -1976,7 +1978,7 @@ ti_setmulti(struct ti_softc *sc)
 
 	/* Now program new ones. */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mc = malloc(sizeof(struct ti_mc_entry), M_DEVBUF, M_NOWAIT);

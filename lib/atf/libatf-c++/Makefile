@@ -35,15 +35,15 @@ SHLIB_MAJOR=	2
 # libatf-c++ depends on the C version of the ATF library to build.
 LIBADD+=	atf_c
 
-LDFLAGS+=	-L${.OBJDIR}/../libatf-c
+LDFLAGS+=	-L${.OBJDIR:H}/libatf-c
 
-ATF=		${.CURDIR:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
 
 CFLAGS+=	-I${ATF}
-CFLAGS+=	-I${.CURDIR}/../libatf-c
+CFLAGS+=	-I${.CURDIR:H}/libatf-c
 CFLAGS+=	-I.
 
 CFLAGS+=	-DHAVE_CONFIG_H
@@ -72,9 +72,8 @@ INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 MAN=		atf-c++.3
 MLINKS+=	atf-c++.3 atf-c-api++.3  # Backwards compatibility.
 
-.if ${MK_TESTS} != "no"
-SUBDIR=		tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include "../common.mk"
 .include <bsd.lib.mk>

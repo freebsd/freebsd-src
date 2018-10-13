@@ -36,8 +36,6 @@
 
 #include "ef.h"
 
-#include <stdio.h>
-
 /*
  * Apply relocations to the values obtained from the file. `relbase' is the
  * target relocation address of the section, and `dataoff/len' is the region
@@ -47,9 +45,9 @@ int
 ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
     Elf_Off dataoff, size_t len, void *dest)
 {
-        Elf_Addr *where, addend;
-        Elf_Size rtype, symidx;
-        const Elf_Rela *rela;
+	Elf_Addr *where, addend;
+	Elf_Size rtype;
+	const Elf_Rela *rela;
 
 	if (reltype != EF_RELOC_RELA)
 		return (EINVAL);
@@ -58,10 +56,9 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
 	where = (Elf_Addr *) ((Elf_Off)dest - dataoff + rela->r_offset);
 	addend = rela->r_addend;
 	rtype = ELF_R_TYPE(rela->r_info);
-	symidx = ELF_R_SYM(rela->r_info);
 
 	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
-                return (0);
+		return (0);
 
 	switch(rtype) {
 	case R_AARCH64_RELATIVE:

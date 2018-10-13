@@ -17,23 +17,22 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Internet Control Message Protocol (ICMP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
 
 #include "ip.h"
 #include "udp.h"
@@ -346,9 +345,9 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 	char buf[MAXHOSTNAMELEN + 100];
 	struct cksum_vec vec[1];
 
-	dp = (struct icmp *)bp;
-        ext_dp = (struct icmp_ext_t *)bp;
-	ip = (struct ip *)bp2;
+	dp = (const struct icmp *)bp;
+        ext_dp = (const struct icmp_ext_t *)bp;
+	ip = (const struct ip *)bp2;
 	str = buf;
 
 	ND_TCHECK(dp->icmp_code);
@@ -380,7 +379,7 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 			ND_TCHECK(dp->icmp_ip.ip_p);
 			oip = &dp->icmp_ip;
 			hlen = IP_HL(oip) * 4;
-			ouh = (struct udphdr *)(((u_char *)oip) + hlen);
+			ouh = (const struct udphdr *)(((const u_char *)oip) + hlen);
 			ND_TCHECK(ouh->uh_dport);
 			dport = EXTRACT_16BITS(&ouh->uh_dport);
 			switch (oip->ip_p) {
@@ -389,14 +388,14 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 				(void)snprintf(buf, sizeof(buf),
 					"%s tcp port %s unreachable",
 					ipaddr_string(ndo, &oip->ip_dst),
-					tcpport_string(dport));
+					tcpport_string(ndo, dport));
 				break;
 
 			case IPPROTO_UDP:
 				(void)snprintf(buf, sizeof(buf),
 					"%s udp port %s unreachable",
 					ipaddr_string(ndo, &oip->ip_dst),
-					udpport_string(dport));
+					udpport_string(ndo, dport));
 				break;
 
 			default:
@@ -411,7 +410,7 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 		case ICMP_UNREACH_NEEDFRAG:
 		    {
 			register const struct mtu_discovery *mp;
-			mp = (struct mtu_discovery *)(u_char *)&dp->icmp_void;
+			mp = (const struct mtu_discovery *)(const u_char *)&dp->icmp_void;
 			mtu = EXTRACT_16BITS(&mp->nexthopmtu);
 			if (mtu) {
 				(void)snprintf(buf, sizeof(buf),
@@ -452,7 +451,7 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 		(void)snprintf(buf, sizeof(buf), "router advertisement");
 		cp = buf + strlen(buf);
 
-		ihp = (struct ih_rdiscovery *)&dp->icmp_void;
+		ihp = (const struct ih_rdiscovery *)&dp->icmp_void;
 		ND_TCHECK(*ihp);
 		(void)strncpy(cp, " lifetime ", sizeof(buf) - (cp - buf));
 		cp = buf + strlen(buf);
@@ -482,7 +481,7 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 			    " [size %d]", size);
 			break;
 		}
-		idp = (struct id_rdiscovery *)&dp->icmp_data;
+		idp = (const struct id_rdiscovery *)&dp->icmp_data;
 		while (num-- > 0) {
 			ND_TCHECK(*idp);
 			(void)snprintf(cp, sizeof(buf) - (cp - buf), " {%s %u}",
@@ -559,9 +558,9 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 	ND_PRINT((ndo, "ICMP %s, length %u", str, plen));
 	if (ndo->ndo_vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
 		uint16_t sum, icmp_sum;
-		struct cksum_vec vec[1];
+
 		if (ND_TTEST2(*bp, plen)) {
-			vec[0].ptr = (const uint8_t *)(void *)dp;
+			vec[0].ptr = (const uint8_t *)(const void *)dp;
 			vec[0].len = plen;
 			sum = in_cksum(vec, 1);
 			if (sum != 0) {
@@ -580,9 +579,10 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 	if (ndo->ndo_vflag >= 1 && ICMP_ERRTYPE(dp->icmp_type)) {
 		bp += 8;
 		ND_PRINT((ndo, "\n\t"));
-		ip = (struct ip *)bp;
+		ip = (const struct ip *)bp;
 		ndo->ndo_snaplen = ndo->ndo_snapend - bp;
                 snapend_save = ndo->ndo_snapend;
+		ND_TCHECK_16BITS(&ip->ip_len);
 		ip_print(ndo, bp, EXTRACT_16BITS(&ip->ip_len));
                 ndo->ndo_snapend = snapend_save;
 	}
@@ -600,8 +600,9 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
              * to check if an extension header is present. This is expedient,
              * however not all implementations set the length field proper.
              */
-            if (!ext_dp->icmp_length) {
-                vec[0].ptr = (const uint8_t *)(void *)&ext_dp->icmp_ext_version_res;
+            if (!ext_dp->icmp_length &&
+                ND_TTEST2(ext_dp->icmp_ext_version_res, plen - ICMP_EXTD_MINLEN)) {
+                vec[0].ptr = (const uint8_t *)(const void *)&ext_dp->icmp_ext_version_res;
                 vec[0].len = plen - ICMP_EXTD_MINLEN;
                 if (in_cksum(vec, 1)) {
                     return;
@@ -621,19 +622,21 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
             }
 
             hlen = plen - ICMP_EXTD_MINLEN;
-            vec[0].ptr = (const uint8_t *)(void *)&ext_dp->icmp_ext_version_res;
-            vec[0].len = hlen;
-            ND_PRINT((ndo, ", checksum 0x%04x (%scorrect), length %u",
-                   EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
-                   in_cksum(vec, 1) ? "in" : "",
-                   hlen));
+            if (ND_TTEST2(ext_dp->icmp_ext_version_res, hlen)) {
+                vec[0].ptr = (const uint8_t *)(const void *)&ext_dp->icmp_ext_version_res;
+                vec[0].len = hlen;
+                ND_PRINT((ndo, ", checksum 0x%04x (%scorrect), length %u",
+                       EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
+                       in_cksum(vec, 1) ? "in" : "",
+                       hlen));
+            }
 
             hlen -= 4; /* subtract common header size */
-            obj_tptr = (uint8_t *)ext_dp->icmp_ext_data;
+            obj_tptr = (const uint8_t *)ext_dp->icmp_ext_data;
 
             while (hlen > sizeof(struct icmp_mpls_ext_object_header_t)) {
 
-                icmp_mpls_ext_object_header = (struct icmp_mpls_ext_object_header_t *)obj_tptr;
+                icmp_mpls_ext_object_header = (const struct icmp_mpls_ext_object_header_t *)obj_tptr;
                 ND_TCHECK(*icmp_mpls_ext_object_header);
                 obj_tlen = EXTRACT_16BITS(icmp_mpls_ext_object_header->length);
                 obj_class_num = icmp_mpls_ext_object_header->class_num;

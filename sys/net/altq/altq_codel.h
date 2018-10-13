@@ -57,6 +57,12 @@ struct codel_ifstats {
 	struct pktcntr	cl_dropcnt;	/* dropped packet counter */
 };
 
+/*
+ * CBQ_STATS_VERSION is defined in altq.h to work around issues stemming
+ * from mixing of public-API and internal bits in each scheduler-specific
+ * header.
+ */
+
 #ifdef _KERNEL
 #include <net/altq/altq_classq.h>
 

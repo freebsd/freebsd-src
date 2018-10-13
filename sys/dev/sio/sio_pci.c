@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,9 +120,7 @@ sio_pci_probe(dev)
 	if (id->desc == NULL)
 		return (ENXIO);
 	device_set_desc(dev, id->desc);
-#ifdef PC98
-	SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
-#endif
+
 	return (sioprobe(dev, id->rid, 0UL, 0));
 }
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/eli
+.PATH: ${SRCTOP}/sys/geom/eli
 
 KMOD=	geom_eli
 SRCS=	g_eli.c

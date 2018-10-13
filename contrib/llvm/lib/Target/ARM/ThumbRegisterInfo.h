@@ -17,7 +17,7 @@
 #define LLVM_LIB_TARGET_ARM_THUMB1REGISTERINFO_H
 
 #include "ARMBaseRegisterInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 namespace llvm {
   class ARMSubtarget;
@@ -39,8 +39,9 @@ public:
   /// specified immediate.
   void
   emitLoadConstPool(MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI,
-                    DebugLoc dl, unsigned DestReg, unsigned SubIdx, int Val,
-                    ARMCC::CondCodes Pred = ARMCC::AL, unsigned PredReg = 0,
+                    const DebugLoc &dl, unsigned DestReg, unsigned SubIdx,
+                    int Val, ARMCC::CondCodes Pred = ARMCC::AL,
+                    unsigned PredReg = 0,
                     unsigned MIFlags = MachineInstr::NoFlags) const override;
 
   // rewrite MI to access 'Offset' bytes from the FP. Update Offset to be

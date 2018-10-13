@@ -87,7 +87,7 @@
 
 static inline void
 be16_add_cpu(uint16_t *var, uint16_t val)
-{ 
+{
 	*var = cpu_to_be16(be16_to_cpu(*var) + val);
 }
 

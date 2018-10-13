@@ -1,6 +1,8 @@
 /*	$NetBSD: svc_vc.c,v 1.7 2000/08/03 00:01:53 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -700,7 +702,7 @@ svc_vc_rendezvous_ops(SVCXPRT *xprt)
 		ops.xp_reply =
 		    (bool_t (*)(SVCXPRT *, struct rpc_msg *))abort;
 		ops.xp_freeargs =
-		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort,
+		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort;
 		ops.xp_destroy = svc_vc_destroy;
 		ops2.xp_control = svc_vc_rendezvous_control;
 	}

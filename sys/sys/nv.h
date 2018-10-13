@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2009-2013 The FreeBSD Foundation
  * Copyright (c) 2013-2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -158,6 +160,14 @@ void nvlist_add_nvlist_array(nvlist_t *nvl, const char *name, const nvlist_t * c
 #ifndef _KERNEL
 void nvlist_add_descriptor(nvlist_t *nvl, const char *name, int value);
 void nvlist_add_descriptor_array(nvlist_t *nvl, const char *name, const int *value, size_t nitems);
+#endif
+
+void nvlist_append_bool_array(nvlist_t *nvl, const char *name, const bool value);
+void nvlist_append_number_array(nvlist_t *nvl, const char *name, const uint64_t value);
+void nvlist_append_string_array(nvlist_t *nvl, const char *name, const char * const value);
+void nvlist_append_nvlist_array(nvlist_t *nvl, const char *name, const nvlist_t * const value);
+#ifndef _KERNEL
+void nvlist_append_descriptor_array(nvlist_t *nvl, const char *name, int value);
 #endif
 
 /*

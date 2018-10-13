@@ -36,13 +36,19 @@
 #include <sys/systm.h>
 
 static inline void
-linux_msleep(int ms)
+linux_msleep(unsigned int ms)
 {
-	pause("lnxsleep", msecs_to_jiffies(ms));
+	/* guard against invalid values */
+	if (ms == 0)
+		ms = 1;
+	pause_sbt("lnxsleep", mstosbt(ms), 0, C_HARDCLOCK);
 }
 
 #undef msleep
-#define	msleep	linux_msleep
+#define	msleep(ms) linux_msleep(ms)
+
+#undef msleep_interruptible
+#define	msleep_interruptible(ms) linux_msleep_interruptible(ms)
 
 #define	udelay(t)	DELAY(t)
 
@@ -64,5 +70,7 @@ usleep_range(unsigned long min, unsigned long max)
 {
 	DELAY(min);
 }
+
+extern unsigned int linux_msleep_interruptible(unsigned int ms);
 
 #endif	/* _LINUX_DELAY_H_ */

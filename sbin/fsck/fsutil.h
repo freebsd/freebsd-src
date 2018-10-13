@@ -1,6 +1,8 @@
 /*	$NetBSD: fsutil.h,v 1.114 2009/10/21 01:07:46 snj Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1996 Christos Zoulas.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

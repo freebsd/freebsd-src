@@ -28,13 +28,36 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
-ATF=		${.CURDIR:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-sh
 
 PROG_CXX=	atf-sh
 SRCS=		atf-sh.cpp
 MAN=		atf-sh.1 atf-sh.3
-MLINKS+=	atf-sh.3 atf-sh-api.3  # Backwards compatibility.
+# Backwards compatibility.
+MLINKS+=	atf-sh.3 atf-sh-api.3
+
+MLINKS+=	\
+		atf-sh.3 atf_add_test_case.3 \
+		atf-sh.3 atf_check.3 \
+		atf-sh.3 atf_check_equal.3 \
+		atf-sh.3 atf_config_get.3 \
+		atf-sh.3 atf_config_has.3 \
+		atf-sh.3 atf_expect_death.3 \
+		atf-sh.3 atf_expect_exit.3 \
+		atf-sh.3 atf_expect_fail.3 \
+		atf-sh.3 atf_expect_pass.3 \
+		atf-sh.3 atf_expect_signal.3 \
+		atf-sh.3 atf_expect_timeout.3 \
+		atf-sh.3 atf_fail.3 \
+		atf-sh.3 atf_get.3 \
+		atf-sh.3 atf_get_srcdir.3 \
+		atf-sh.3 atf_init_test_cases.3 \
+		atf-sh.3 atf_pass.3 \
+		atf-sh.3 atf_require_prog.3 \
+		atf-sh.3 atf_set.3 \
+		atf-sh.3 atf_skip.3 \
+		atf-sh.3 atf_test_case.3
 
 CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-DATF_LIBEXECDIR='"${LIBEXECDIR}"'
@@ -49,9 +72,8 @@ FILESGROUPS=	SUBR
 SUBRDIR=	${SHAREDIR}/atf
 SUBR=		libatf-sh.subr
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include "../../../lib/atf/common.mk"
 .include <bsd.prog.mk>

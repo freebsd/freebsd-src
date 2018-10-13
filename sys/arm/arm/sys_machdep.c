@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -46,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
+#include <machine/machdep.h>
 #include <machine/vmparam.h>
 
 #ifndef _SYS_SYSPROTO_H_
@@ -166,10 +169,10 @@ static int
 arm32_set_tp(struct thread *td, void *args)
 {
 
-	td->td_md.md_tp = (register_t)args;
 #if __ARM_ARCH >= 6
 	set_tls(args);
 #else
+	td->td_md.md_tp = (register_t)args;
 	*(register_t *)ARM_TP_ADDRESS = (register_t)args;
 #endif
 	return (0);
@@ -180,7 +183,7 @@ arm32_get_tp(struct thread *td, void *args)
 {
 
 #if __ARM_ARCH >= 6
-	td->td_retval[0] = td->td_md.md_tp;
+	td->td_retval[0] = (register_t)get_tls();
 #else
 	td->td_retval[0] = *(register_t *)ARM_TP_ADDRESS;
 #endif
@@ -188,9 +191,7 @@ arm32_get_tp(struct thread *td, void *args)
 }
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 
@@ -206,6 +207,7 @@ sysarch(td, uap)
 		case ARM_DRAIN_WRITEBUF:
 		case ARM_SET_TP:
 		case ARM_GET_TP:
+		case ARM_GET_VFPSTATE:
 			break;
 
 		default:
@@ -230,6 +232,9 @@ sysarch(td, uap)
 		break;
 	case ARM_GET_TP:
 		error = arm32_get_tp(td, uap->parms);
+		break;
+	case ARM_GET_VFPSTATE:
+		error = arm_get_vfpstate(td, uap->parms);
 		break;
 	default:
 		error = EINVAL;

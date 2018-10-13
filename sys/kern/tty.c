@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -31,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
@@ -95,64 +96,101 @@ static const char	*dev_console_filename;
 
 #define	TTY_CALLOUT(tp,d) (dev2unit(d) & TTYUNIT_CALLOUT)
 
+static int  tty_drainwait = 5 * 60;
+SYSCTL_INT(_kern, OID_AUTO, tty_drainwait, CTLFLAG_RWTUN,
+    &tty_drainwait, 0, "Default output drain timeout in seconds");
+
 /*
  * Set TTY buffer sizes.
  */
 
 #define	TTYBUF_MAX	65536
 
-static void
+/*
+ * Allocate buffer space if necessary, and set low watermarks, based on speed.
+ * Note that the ttyxxxq_setsize() functions may drop and then reacquire the tty
+ * lock during memory allocation.  They will return ENXIO if the tty disappears
+ * while unlocked.
+ */
+static int
 tty_watermarks(struct tty *tp)
 {
 	size_t bs = 0;
+	int error;
 
-	/* Provide an input buffer for 0.2 seconds of data. */
+	/* Provide an input buffer for 2 seconds of data. */
 	if (tp->t_termios.c_cflag & CREAD)
 		bs = MIN(tp->t_termios.c_ispeed / 5, TTYBUF_MAX);
-	ttyinq_setsize(&tp->t_inq, tp, bs);
+	error = ttyinq_setsize(&tp->t_inq, tp, bs);
+	if (error != 0)
+		return (error);
 
 	/* Set low watermark at 10% (when 90% is available). */
 	tp->t_inlow = (ttyinq_getallocatedsize(&tp->t_inq) * 9) / 10;
 
-	/* Provide an output buffer for 0.2 seconds of data. */
+	/* Provide an output buffer for 2 seconds of data. */
 	bs = MIN(tp->t_termios.c_ospeed / 5, TTYBUF_MAX);
-	ttyoutq_setsize(&tp->t_outq, tp, bs);
+	error = ttyoutq_setsize(&tp->t_outq, tp, bs);
+	if (error != 0)
+		return (error);
 
 	/* Set low watermark at 10% (when 90% is available). */
 	tp->t_outlow = (ttyoutq_getallocatedsize(&tp->t_outq) * 9) / 10;
+
+	return (0);
 }
 
 static int
 tty_drain(struct tty *tp, int leaving)
 {
-	size_t bytesused;
+	sbintime_t timeout_at;
+	size_t bytes;
 	int error;
 
 	if (ttyhook_hashook(tp, getc_inject))
 		/* buffer is inaccessible */
 		return (0);
 
-	while (ttyoutq_bytesused(&tp->t_outq) > 0 || ttydevsw_busy(tp)) {
-		ttydevsw_outwakeup(tp);
-		/* Could be handled synchronously. */
-		bytesused = ttyoutq_bytesused(&tp->t_outq);
-		if (bytesused == 0 && !ttydevsw_busy(tp))
+	/*
+	 * For close(), use the recent historic timeout of "1 second without
+	 * making progress".  For tcdrain(), use t_drainwait as the timeout,
+	 * with zero meaning "no timeout" which gives POSIX behavior.
+	 */
+	if (leaving)
+		timeout_at = getsbinuptime() + SBT_1S;
+	else if (tp->t_drainwait != 0)
+		timeout_at = getsbinuptime() + SBT_1S * tp->t_drainwait;
+	else
+		timeout_at = 0;
+
+	/*
+	 * Poll the output buffer and the hardware for completion, at 10 Hz.
+	 * Polling is required for devices which are not able to signal an
+	 * interrupt when the transmitter becomes idle (most USB serial devs).
+	 * The unusual structure of this loop ensures we check for busy one more
+	 * time after tty_timedwait() returns EWOULDBLOCK, so that success has
+	 * higher priority than timeout if the IO completed in the last 100mS.
+	 */
+	error = 0;
+	bytes = ttyoutq_bytesused(&tp->t_outq);
+	for (;;) {
+		if (ttyoutq_bytesused(&tp->t_outq) == 0 && !ttydevsw_busy(tp))
 			return (0);
-
-		/* Wait for data to be drained. */
-		if (leaving) {
-			error = tty_timedwait(tp, &tp->t_outwait, hz);
-			if (error == EWOULDBLOCK &&
-			    ttyoutq_bytesused(&tp->t_outq) < bytesused)
-				error = 0;
-		} else
-			error = tty_wait(tp, &tp->t_outwait);
-
-		if (error)
+		if (error != 0)
 			return (error);
+		ttydevsw_outwakeup(tp);
+		error = tty_timedwait(tp, &tp->t_outwait, hz / 10);
+		if (error != 0 && error != EWOULDBLOCK)
+			return (error);
+		else if (timeout_at == 0 || getsbinuptime() < timeout_at)
+			error = 0;
+		else if (leaving && ttyoutq_bytesused(&tp->t_outq) < bytes) {
+			/* In close, making progress, grant an extra second. */
+			error = 0;
+			timeout_at += SBT_1S;
+			bytes = ttyoutq_bytesused(&tp->t_outq);
+		}
 	}
-
-	return (0);
 }
 
 /*
@@ -294,7 +332,9 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
 			goto done;
 
 		ttydisc_open(tp);
-		tty_watermarks(tp); /* XXXGL: drops lock */
+		error = tty_watermarks(tp);
+		if (error != 0)
+			goto done;
 	}
 
 	/* Wait for Carrier Detect. */
@@ -1015,6 +1055,7 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	tp->t_devsw = tsw;
 	tp->t_devswsoftc = sc;
 	tp->t_flags = tsw->tsw_flags;
+	tp->t_drainwait = tty_drainwait;
 
 	tty_init_termios(tp);
 
@@ -1165,7 +1206,7 @@ tty_to_xtty(struct tty *tp, struct xtty *xt)
 	xt->xt_pgid = tp->t_pgrp ? tp->t_pgrp->pg_id : 0;
 	xt->xt_sid = tp->t_session ? tp->t_session->s_sid : 0;
 	xt->xt_flags = tp->t_flags;
-	xt->xt_dev = tp->t_dev ? dev2udev(tp->t_dev) : NODEV;
+	xt->xt_dev = tp->t_dev ? dev2udev(tp->t_dev) : (uint32_t)NODEV;
 }
 
 static int
@@ -1602,7 +1643,9 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 			tp->t_termios.c_ospeed = t->c_ospeed;
 
 			/* Baud rate has changed - update watermarks. */
-			tty_watermarks(tp);
+			error = tty_watermarks(tp);
+			if (error)
+				return (error);
 		}
 
 		/* Copy new non-device driver parameters. */
@@ -1755,6 +1798,14 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 	case TIOCDRAIN:
 		/* Drain TTY output. */
 		return tty_drain(tp, 0);
+	case TIOCGDRAINWAIT:
+		*(int *)data = tp->t_drainwait;
+		return (0);
+	case TIOCSDRAINWAIT:
+		error = priv_check(td, PRIV_TTY_DRAINWAIT);
+		if (error == 0)
+			tp->t_drainwait = *(int *)data;
+		return (error);
 	case TIOCCONS:
 		/* Set terminal as console TTY. */
 		if (*(int *)data) {

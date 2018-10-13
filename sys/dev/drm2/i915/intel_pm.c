@@ -3102,8 +3102,7 @@ static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 	mtx_assert(&mchdev_lock, MA_OWNED);
 
 	nanotime(&now);
-	diff1 = now;
-	timespecsub(&diff1, &dev_priv->ips.last_time2);
+	timespecsub(&now, &dev_priv->ips.last_time2, &diff1);
 
 	/* Don't divide by 0 */
 	diffms = diff1.tv_sec * 1000 + diff1.tv_nsec / 1000000;

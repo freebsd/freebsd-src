@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,10 +30,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include "string_ext.h"
 #include "error_ext.h"
 #include "std_ext.h"
-#include "sprint_ext.h"
 #include "part_ext.h"
 #include "xx_ext.h"
 
@@ -246,6 +246,7 @@ static t_Error AddFree(t_MM *p_MM, uint64_t base, uint64_t end)
                     else
                         p_MM->freeBlocks[i] = p_CurrB->p_Next;
                     XX_Free(p_CurrB);
+                    p_CurrB = NULL;
                 }
                 break;
             }
@@ -575,7 +576,10 @@ static uint64_t MmGetGreaterAlignment(t_MM *p_MM, uint64_t size, uint64_t alignm
 
     /* calls Update routine to update a lists of free blocks */
     if ( CutFree ( p_MM, holdBase, holdEnd ) != E_OK )
+    {
+        XX_Free(p_NewBusyB);
         return (uint64_t)(ILLEGAL_BASE);
+    }
 
     /* insert the new busy block into the list of busy blocks */
     AddBusy ( p_MM, p_NewBusyB );
@@ -614,21 +618,30 @@ t_Error MM_Init(t_Handle *h_MM, uint64_t base, uint64_t size)
         RETURN_ERROR(MAJOR, E_NO_MEMORY, ("MM spinlock!"));
     }
 
-    /* initializes a new memory block */
-    if ((p_MM->memBlocks = CreateNewBlock(base, size)) == NULL)
-        RETURN_ERROR(MAJOR, E_NO_MEMORY, NO_MSG);
+    /* Initializes counter of free memory to total size */
+    p_MM->freeMemSize = size;
 
     /* A busy list is empty */
     p_MM->busyBlocks = 0;
 
-    /*Initializes a new free block for each free list*/
+    /* Initializes a new memory block */
+    if ((p_MM->memBlocks = CreateNewBlock(base, size)) == NULL)
+    {
+        MM_Free(p_MM);
+        RETURN_ERROR(MAJOR, E_NO_MEMORY, NO_MSG);
+    }
+
+    /* Initializes a new free block for each free list*/
     for (i=0; i <= MM_MAX_ALIGNMENT; i++)
     {
         newBase = MAKE_ALIGNED( base, (0x1 << i) );
         newSize = size - (newBase - base);
 
         if ((p_MM->freeBlocks[i] = CreateFreeBlock(newBase, newSize)) == NULL)
+        {
+            MM_Free(p_MM);
             RETURN_ERROR(MAJOR, E_NO_MEMORY, NO_MSG);
+        }
     }
 
     *h_MM = p_MM;
@@ -751,8 +764,12 @@ uint64_t MM_Get(t_Handle h_MM, uint64_t size, uint64_t alignment, char* name)
     if ( CutFree ( p_MM, holdBase, holdEnd ) != E_OK )
     {
         XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
+        XX_Free(p_NewBusyB);
         return (uint64_t)(ILLEGAL_BASE);
     }
+
+    /* Decreasing the allocated memory size from free memory size */
+    p_MM->freeMemSize -= size;
 
     /* insert the new busy block into the list of busy blocks */
     AddBusy ( p_MM, p_NewBusyB );
@@ -804,8 +821,12 @@ uint64_t MM_GetForce(t_Handle h_MM, uint64_t base, uint64_t size, char* name)
     if ( CutFree ( p_MM, base, base+size ) != E_OK )
     {
         XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
+        XX_Free(p_NewBusyB);
         return (uint64_t)(ILLEGAL_BASE);
     }
+
+    /* Decreasing the allocated memory size from free memory size */
+    p_MM->freeMemSize -= size;
 
     /* insert the new busy block into the list of busy blocks */
     AddBusy ( p_MM, p_NewBusyB );
@@ -889,8 +910,12 @@ uint64_t MM_GetForceMin(t_Handle h_MM, uint64_t size, uint64_t alignment, uint64
     if ( CutFree( p_MM, holdBase, holdEnd ) != E_OK )
     {
         XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
+        XX_Free(p_NewBusyB);
         return (uint64_t)(ILLEGAL_BASE);
     }
+
+    /* Decreasing the allocated memory size from free memory size */
+    p_MM->freeMemSize -= size;
 
     /* insert the new busy block into the list of busy blocks */
     AddBusy( p_MM, p_NewBusyB );
@@ -942,6 +967,9 @@ uint64_t MM_Put(t_Handle h_MM, uint64_t base)
 
     size = p_BusyB->end - p_BusyB->base;
 
+    /* Adding the deallocated memory size to free memory size */
+    p_MM->freeMemSize += size;
+
     XX_Free(p_BusyB);
     XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
 
@@ -958,6 +986,7 @@ uint64_t MM_PutForce(t_Handle h_MM, uint64_t base, uint64_t size)
     ASSERT_COND(p_MM);
 
     intFlags = XX_LockIntrSpinlock(p_MM->h_Spinlock);
+
     if ( CutBusy( p_MM, base, end ) != E_OK )
     {
         XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
@@ -969,6 +998,10 @@ uint64_t MM_PutForce(t_Handle h_MM, uint64_t base, uint64_t size)
         XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
         return (uint64_t)(0);
     }
+
+    /* Adding the deallocated memory size to free memory size */
+    p_MM->freeMemSize += size;
+
     XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
 
     return (size);
@@ -988,6 +1021,7 @@ t_Error MM_Add(t_Handle h_MM, uint64_t base, uint64_t size)
      * memory block
      */
     intFlags = XX_LockIntrSpinlock(p_MM->h_Spinlock);
+
     p_MemB = p_MM->memBlocks;
     while ( p_MemB->p_Next )
     {
@@ -1024,6 +1058,10 @@ t_Error MM_Add(t_Handle h_MM, uint64_t base, uint64_t size)
         XX_Free(p_NewMemB);
         return ((t_Error)errCode);
     }
+
+    /* Adding the new block size to free memory size */
+    p_MM->freeMemSize += size;
+
     XX_UnlockIntrSpinlock(p_MM->h_Spinlock, intFlags);
 
     return (E_OK);
@@ -1077,7 +1115,17 @@ bool MM_InRange(t_Handle h_MM, uint64_t addr)
 }
 
 /*****************************************************************************/
-void MM_Dump(t_Handle h_MM, void *buff)
+uint64_t MM_GetFreeMemSize(t_Handle h_MM)
+{
+    t_MM       *p_MM = (t_MM*)h_MM;
+
+    ASSERT_COND(p_MM);
+
+    return p_MM->freeMemSize;
+}
+
+/*****************************************************************************/
+void MM_Dump(t_Handle h_MM)
 {
     t_MM        *p_MM = (t_MM *)h_MM;
     t_FreeBlock *p_FreeB;
@@ -1085,25 +1133,23 @@ void MM_Dump(t_Handle h_MM, void *buff)
     int          i;
 
     p_BusyB = p_MM->busyBlocks;
-    Sprint(buff, "List of busy blocks:\n");
+    XX_Print("List of busy blocks:\n");
     while (p_BusyB)
     {
-        Sprint(buff, "\t0x%p: (%s: b=0x%lx, e=0x%lx)\n",
-               p_BusyB, p_BusyB->name, p_BusyB->base, p_BusyB->end );
+        XX_Print("\t0x%p: (%s: b=0x%llx, e=0x%llx)\n", p_BusyB, p_BusyB->name, p_BusyB->base, p_BusyB->end );
         p_BusyB = p_BusyB->p_Next;
     }
 
-    Sprint(buff, "\nLists of free blocks according to alignment:\n");
+    XX_Print("\nLists of free blocks according to alignment:\n");
     for (i=0; i <= MM_MAX_ALIGNMENT; i++)
     {
-        Sprint(buff, "%d alignment:\n", (0x1 << i));
+        XX_Print("%d alignment:\n", (0x1 << i));
         p_FreeB = p_MM->freeBlocks[i];
         while (p_FreeB)
         {
-            Sprint(buff, "\t0x%p: (b=0x%lx, e=0x%lx)\n",
-                   p_FreeB, p_FreeB->base, p_FreeB->end);
+            XX_Print("\t0x%p: (b=0x%llx, e=0x%llx)\n", p_FreeB, p_FreeB->base, p_FreeB->end);
             p_FreeB = p_FreeB->p_Next;
         }
-        Sprint(buff, "\n");
+        XX_Print("\n");
     }
 }

@@ -1,4 +1,4 @@
-/* $NetBSD: t_strerror.c,v 1.3 2011/05/10 06:55:27 jruoho Exp $ */
+/* $NetBSD: t_strerror.c,v 1.4 2017/01/10 20:35:49 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,17 +29,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_strerror.c,v 1.3 2011/05/10 06:55:27 jruoho Exp $");
+__RCSID("$NetBSD: t_strerror.c,v 1.4 2017/01/10 20:35:49 christos Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
+#include <stdio.h>	/* Needed for sys_nerr on FreeBSD */
 #include <limits.h>
 #include <locale.h>
 #include <string.h>
-
-#ifdef __FreeBSD__
-#include <stdio.h>
-#endif
 
 ATF_TC(strerror_basic);
 ATF_TC_HEAD(strerror_basic, tc)

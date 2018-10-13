@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -65,11 +67,8 @@ typedef uint64_t __be64;
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define __BIG_ENDIAN_BITFIELD
-#define htobe32_const(x) (x)
 #elif BYTE_ORDER == LITTLE_ENDIAN
 #define __LITTLE_ENDIAN_BITFIELD
-#define htobe32_const(x) (((x) >> 24) | (((x) >> 8) & 0xff00) |	\
-    ((((x) & 0xffffff) << 8) & 0xff0000) | ((((x) & 0xff) << 24) & 0xff000000))
 #else
 #error "Must set BYTE_ORDER"
 #endif
@@ -109,6 +108,7 @@ typedef boolean_t bool;
 
 #define DUPLEX_HALF	0
 #define DUPLEX_FULL	1
+#define AUTONEG_AUTO	(-1)
 #define AUTONEG_DISABLE	0
 #define AUTONEG_ENABLE	1
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Poul-Henning Kamp
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -52,9 +54,23 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <machine/md_var.h>
 
-#define	RTC_LOCK	do { if (!kdb_active) mtx_lock_spin(&clock_lock); } while (0)
-#define	RTC_UNLOCK	do { if (!kdb_active) mtx_unlock_spin(&clock_lock); } while (0)
+/*
+ * atrtc_lock protects low-level access to individual hardware registers.
+ * atrtc_time_lock protects the entire sequence of accessing multiple registers
+ * to read or write the date and time.
+ */
+static struct mtx atrtc_lock;
+MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
+
+/* Force RTC enabled/disabled. */
+static int atrtc_enabled = -1;
+TUNABLE_INT("hw.atrtc.enabled", &atrtc_enabled);
+
+struct mtx atrtc_time_lock;
+MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc_time", MTX_DEF);
 
 int	atrtcclock_disable = 0;
 
@@ -66,28 +82,23 @@ static	u_char	rtc_statusb = RTCSB_24HR;
  * RTC support routines
  */
 
-int
-rtcin(int reg)
+static inline u_char
+rtcin_locked(int reg)
 {
-	u_char val;
 
-	RTC_LOCK;
 	if (rtc_reg != reg) {
 		inb(0x84);
 		outb(IO_RTC, reg);
 		rtc_reg = reg;
 		inb(0x84);
 	}
-	val = inb(IO_RTC + 1);
-	RTC_UNLOCK;
-	return (val);
+	return (inb(IO_RTC + 1));
 }
 
-void
-writertc(int reg, u_char val)
+static inline void
+rtcout_locked(int reg, u_char val)
 {
 
-	RTC_LOCK;
 	if (rtc_reg != reg) {
 		inb(0x84);
 		outb(IO_RTC, reg);
@@ -96,21 +107,36 @@ writertc(int reg, u_char val)
 	}
 	outb(IO_RTC + 1, val);
 	inb(0x84);
-	RTC_UNLOCK;
 }
 
-static __inline int
-readrtc(int port)
+int
+rtcin(int reg)
 {
-	return(bcd2bin(rtcin(port)));
+	u_char val;
+
+	mtx_lock_spin(&atrtc_lock);
+	val = rtcin_locked(reg);
+	mtx_unlock_spin(&atrtc_lock);
+	return (val);
+}
+
+void
+writertc(int reg, u_char val)
+{
+
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(reg, val);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
 atrtc_start(void)
 {
 
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSA, rtc_statusa);
+	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -126,8 +152,10 @@ atrtc_enable_intr(void)
 {
 
 	rtc_statusb |= RTCSB_PINTR;
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -135,8 +163,10 @@ atrtc_disable_intr(void)
 {
 
 	rtc_statusb &= ~RTCSB_PINTR;
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 void
@@ -144,38 +174,13 @@ atrtc_restore(void)
 {
 
 	/* Restore all of the RTC's "status" (actually, control) registers. */
-	rtcin(RTC_STATUSA);	/* dummy to get rtc_reg set */
-	writertc(RTC_STATUSB, RTCSB_24HR);
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
-}
-
-void
-atrtc_set(struct timespec *ts)
-{
-	struct clocktime ct;
-
-	clock_ts_to_ct(ts, &ct);
-
-	/* Disable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
-
-	writertc(RTC_SEC, bin2bcd(ct.sec)); 		/* Write back Seconds */
-	writertc(RTC_MIN, bin2bcd(ct.min)); 		/* Write back Minutes */
-	writertc(RTC_HRS, bin2bcd(ct.hour));		/* Write back Hours   */
-
-	writertc(RTC_WDAY, ct.dow + 1);			/* Write back Weekday */
-	writertc(RTC_DAY, bin2bcd(ct.day));		/* Write back Day */
-	writertc(RTC_MONTH, bin2bcd(ct.mon));           /* Write back Month   */
-	writertc(RTC_YEAR, bin2bcd(ct.year % 100));	/* Write back Year    */
-#ifdef USE_RTC_CENTURY
-	writertc(RTC_CENTURY, bin2bcd(ct.year / 100));	/* ... and Century    */
-#endif
-
-	/* Re-enable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcin_locked(RTC_STATUSA);	/* dummy to get rtc_reg set */
+	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
+	rtcout_locked(RTC_STATUSA, rtc_statusa);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 /**********************************************************************
@@ -250,11 +255,26 @@ static struct isa_pnp_id atrtc_ids[] = {
 	{ 0 }
 };
 
+static bool
+atrtc_acpi_disabled(void)
+{
+	uint16_t flags;
+
+	if (!acpi_get_fadt_bootflags(&flags))
+		return (false);
+	return ((flags & ACPI_FADT_NO_CMOS_RTC) != 0);
+		return (true);
+}
+
 static int
 atrtc_probe(device_t dev)
 {
 	int result;
-	
+
+	if ((atrtc_enabled == -1 && atrtc_acpi_disabled()) ||
+	    (atrtc_enabled == 0))
+		return (ENXIO);
+
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, atrtc_ids);
 	/* ENOENT means no PnP-ID, device is hinted. */
 	if (result == ENOENT) {
@@ -324,15 +344,45 @@ atrtc_resume(device_t dev)
 static int
 atrtc_settime(device_t dev __unused, struct timespec *ts)
 {
+	struct bcd_clocktime bct;
 
-	atrtc_set(ts);
+	clock_ts_to_bcd(ts, &bct, false);
+	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
+
+	mtx_lock(&atrtc_time_lock);
+	mtx_lock_spin(&atrtc_lock);
+
+	/* Disable RTC updates and interrupts.  */
+	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+
+	/* Write all the time registers. */
+	rtcout_locked(RTC_SEC,   bct.sec);
+	rtcout_locked(RTC_MIN,   bct.min);
+	rtcout_locked(RTC_HRS,   bct.hour);
+	rtcout_locked(RTC_WDAY,  bct.dow + 1);
+	rtcout_locked(RTC_DAY,   bct.day);
+	rtcout_locked(RTC_MONTH, bct.mon);
+	rtcout_locked(RTC_YEAR,  bct.year & 0xff);
+#ifdef USE_RTC_CENTURY
+	rtcout_locked(RTC_CENTURY, bct.year >> 8);
+#endif
+
+	/*
+	 * Re-enable RTC updates and interrupts.
+	 */
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+
+	mtx_unlock_spin(&atrtc_lock);
+	mtx_unlock(&atrtc_time_lock);
+
 	return (0);
 }
 
 static int
 atrtc_gettime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
@@ -347,26 +397,26 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	 * to make sure that no more than 240us pass after we start reading,
 	 * and try again if so.
 	 */
+	mtx_lock(&atrtc_time_lock);
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
-	critical_enter();
-	ct.nsec = 0;
-	ct.sec = readrtc(RTC_SEC);
-	ct.min = readrtc(RTC_MIN);
-	ct.hour = readrtc(RTC_HRS);
-	ct.day = readrtc(RTC_DAY);
-	ct.dow = readrtc(RTC_WDAY) - 1;
-	ct.mon = readrtc(RTC_MONTH);
-	ct.year = readrtc(RTC_YEAR);
+	mtx_lock_spin(&atrtc_lock);
+	bct.sec  = rtcin_locked(RTC_SEC);
+	bct.min  = rtcin_locked(RTC_MIN);
+	bct.hour = rtcin_locked(RTC_HRS);
+	bct.day  = rtcin_locked(RTC_DAY);
+	bct.mon  = rtcin_locked(RTC_MONTH);
+	bct.year = rtcin_locked(RTC_YEAR);
 #ifdef USE_RTC_CENTURY
-	ct.year += readrtc(RTC_CENTURY) * 100;
-#else
-	ct.year += (ct.year < 80 ? 2000 : 1900);
+	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
-	critical_exit();
-	/* Set dow = -1 because some clocks don't set it correctly. */
-	ct.dow = -1;
-	return (clock_ct_to_ts(&ct, ts));
+	mtx_unlock_spin(&atrtc_lock);
+	mtx_unlock(&atrtc_time_lock);
+	/* dow is unused in timespec conversion and we have no nsec info. */
+	bct.dow  = 0;
+	bct.nsec = 0;
+	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct);
+	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
 static device_method_t atrtc_methods[] = {
@@ -396,16 +446,4 @@ static devclass_t atrtc_devclass;
 
 DRIVER_MODULE(atrtc, isa, atrtc_driver, atrtc_devclass, 0, 0);
 DRIVER_MODULE(atrtc, acpi, atrtc_driver, atrtc_devclass, 0, 0);
-
-#include "opt_ddb.h"
-#ifdef DDB
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(rtc, rtc)
-{
-	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
-		rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
-		rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
-		rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
-}
-#endif /* DDB */
+ISA_PNP_INFO(atrtc_ids);

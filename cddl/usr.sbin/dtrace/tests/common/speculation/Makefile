@@ -68,7 +68,7 @@ ${PACKAGE}FILES= \
      tst.zerosize.d  \
 
 TESTEXES= \
-
+     tst.NoSpecBuffer.exe  \
 
 CFILES= \
 

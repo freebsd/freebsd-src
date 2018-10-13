@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/	
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 1999-2003 3Com Corporation.  All Rights Reserved.    
  *
  * Redistribution and use in source and binary forms of the 3c990img.h

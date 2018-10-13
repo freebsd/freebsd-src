@@ -16,11 +16,28 @@ You want to prepare for the future, but you need to live in the
 present.  You'd love a flying car, but need to get to work today.  You
 want to support features like XML, JSON, and HTML rendering to allow
 integration with NETCONF, REST, and web browsers, but you need to make
-text output for command line users.  And you don't want multiple code
-paths that can't help but get out of sync.  None of this "if (xml)
-{... } else {...}"  logic.  And ifdefs are right out.  But you'd
-really, really like all the fancy features that modern encoding
-formats can provide.  libxo can help.
+text output for command line users.
+
+And you don't want multiple code paths that can't help but get out of
+sync:
+
+    /* None of this "if (xml) {... } else {...}"  logic */
+    if (xml) {
+        /* some code to make xml*/
+    } else {
+        /* other code to make text */
+        /* oops forgot to add something on both clauses! */
+    }
+
+    /* And ifdefs are right out. */
+    #ifdef MAKE_XML
+        /* icky */
+    #else
+        /* pooh */
+    #endif
+
+But you'd really, really like all the fancy features that modern
+encoding formats can provide.  libxo can help.
 
 The libxo library allows an application to generate text, XML, JSON,
 and HTML output using a common set of function calls.  The application
@@ -35,8 +52,11 @@ braces with a printf-like format string (^format-strings^):
             linect, wordct, charct, file);
 
 Each field can have a role, with the 'value' role being the default,
-and the role tells libxo how and when to render that field.  Output
-can then be generated in various style, using the "--libxo" option:
+and the role tells libxo how and when to render that field (see
+^field-roles^ for details).  Modifiers change how the field is
+rendered in different output styles (see ^field-modifiers^ for
+details.  Output can then be generated in various style, using the
+"--libxo" option:
 
     % wc /etc/motd
           25     165    1140 /etc/motd
@@ -74,7 +94,12 @@ can then be generated in various style, using the "--libxo" option:
       <div class="data" data-tag="filename">/etc/motd</div>
     </div>
 
-** Getting libxo
+Same code path, same format strings, same information, but it's
+rendered in distinct styles based on run-time flags.
+
+* Getting libxo
+
+libxo now ships as part of the FreeBSD Operating System (as of -11).
 
 libxo lives on github as:
 
@@ -101,7 +126,7 @@ as part of the FreeBSD operating system starting with release 11.0.
 Issues, problems, and bugs should be directly to the issues page on
 our github site.
 
-*** Downloading libxo Source Code
+** Downloading libxo Source Code
 
 You can retrieve the source for libxo in two ways:
 
@@ -140,7 +165,7 @@ download the source code from svn, then you'll need to run
 "autoreconf" by hand.  This step is done for you by the "setup.sh"
 script, described in the next section.
 
-*** Building libxo
+** Building libxo
 
 To build libxo, you'll need to set up the build, run the "configure"
 script, run the "make" command, and run the regression tests.
@@ -159,7 +184,7 @@ The following sections will walk through each of these steps with
 additional details and options, but the above directions should be all
 that's needed.
 
-**** Setting up the build
+*** Setting up the build
 
 [If you downloaded a distfile, you can skip this step.]
 
@@ -171,7 +196,7 @@ generated files.
 
 Note: We're are currently using autoreconf version 2.69.
 
-**** Running the "configure" Script
+*** Running the "configure" Script
 
 Configure (and autoconf in general) provides a means of building
 software in diverse environments.  Our configure script supports
@@ -221,7 +246,7 @@ machine.  To run the regression tests:
 
     make test
 
-**** Installing libxo
+*** Installing libxo
 
 Once the software is built, you'll need to install libxo using the
 "make install" command.  If you are the root user, or the owner of the
@@ -544,6 +569,15 @@ The following color names are supported:
 | yellow  |                                            |
 |---------+--------------------------------------------|
 
+When using colors, the developer should remember that users will
+change the foreground and background colors of terminal session
+according to their own tastes, so assuming that "blue" looks nice is
+never safe, and is a constant annoyance to your dear author.  In
+addition, a significant percentage of users (1 in 12) will be color
+blind.  Depending on color to convey critical information is not a
+good idea.  Color should enhance output, but should not be used as the
+sole means of encoding information.
+
 **** The Decoration Role ({D:})
 
 Decorations are typically punctuation marks such as colons,
@@ -818,7 +852,7 @@ more meaningful.
 "hn" can be used as an alias for "humanize".
 
 The humanize modifier only affects display styles (TEXT and HMTL).
-The "no-humanize" option (See ^LIBXO_OPTIONS^) will block the function of
+The "no-humanize" option (See ^options^) will block the function of
 the humanize modifier.
 
 There are a number of modifiers that affect details of humanization.
@@ -1070,7 +1104,7 @@ libxo will convert these arguments as needed to either UTF-8 (for XML,
 JSON, and HTML styles) or locale-based strings for display in text
 style.
 
-   xo_emit("Alll strings are utf-8 content {:tag/%ls}",
+   xo_emit("All strings are utf-8 content {:tag/%ls}",
            L"except for wide strings");
 
 "%S" is equivalent to "%ls".
@@ -1444,7 +1478,7 @@ properly.
         xo_close_marker("fish-guts");
     }
 
-** Command-line Arguments
+* Command-line Arguments @options@
 
 libxo uses command line options to trigger rendering behavior.  The
 following options are recognised:
@@ -1453,8 +1487,16 @@ following options are recognised:
 - --libxo=<options>
 - --libxo:<brief-options>
 
+The following invocations are all identical in outcome:
+
+  my-app --libxo warn,pretty arg1
+  my-app --libxo=warn,pretty arg1
+  my-app --libxo:WP arg1
+
 Programs using libxo are expecting to call the xo_parse_args function
 to parse these arguments.  See ^xo_parse_args^ for details.
+
+** Option keywords
 
 Options is a comma-separated list of tokens that correspond to output
 styles, flags, or features:
@@ -1463,7 +1505,10 @@ styles, flags, or features:
 | Token       | Action                                                |
 |-------------+-------------------------------------------------------|
 | color       | Enable colors/effects for display styles (TEXT, HTML) |
+| colors=xxxx | Adjust color output values                            |
 | dtrt        | Enable "Do The Right Thing" mode                      |
+| flush       | Flush after every libxo function call                 |
+| flush-line  | Flush after every line (line-buffered)                |
 | html        | Emit HTML output                                      |
 | indent=xx   | Set the indentation level                             |
 | info        | Add info attributes (HTML)                            |
@@ -1479,7 +1524,7 @@ styles, flags, or features:
 | pretty      | Emit pretty-printed output                            |
 | retain      | Force retaining formatting information                |
 | text        | Emit TEXT output                                      |
-| underscores | Replace XML-friendly "-"s with JSON friendly "_"s e   |
+| underscores | Replace XML-friendly "-"s with JSON friendly "_"s     |
 | units       | Add the 'units' (XML) or 'data-units (HTML) attribute |
 | warn        | Emit warnings when libxo detects bad calls            |
 | warn-xml    | Emit warnings in XML                                  |
@@ -1487,7 +1532,96 @@ styles, flags, or features:
 | xpath       | Add XPath expressions (HTML)                          |
 |-------------+-------------------------------------------------------|
 
-The brief options are detailed in ^LIBXO_OPTIONS^.
+Most of these option are simple and direct, but some require
+additional details:
+
+- "colors" is described in ^color-mapping^.
+- "flush-line" performs line buffering, even when the output is not
+directed to a TTY device.
+- "info" generates additional data for HTML, encoded in attributes
+using names that state with "data-".
+- "keys" adds a "key" attribute for XML output to indicate that a leaf
+is an identifier for the list member.
+- "no-humanize"avoids "humanizing" numeric output (see
+humanize_number(3) for details).
+- "no-locale" instructs libxo to avoid translating output to the
+current locale.
+- "no-retain" disables the ability of libxo to internally retain
+"compiled" information about formatting strings.
+- "underscores" can be used with JSON output to change XML-friendly
+names with dashes into JSON-friendly name with underscores.
+- "warn" allows libxo to emit warnings on stderr when application code
+make incorrect calls.
+- "warn-xml" causes those warnings to be placed in XML inside the
+output.
+
+** Brief Options
+
+The brief options are simple single-letter aliases to the normal
+keywords, as detailed below:
+
+|--------+---------------------------------------------|
+| Option | Action                                      |
+|--------+---------------------------------------------|
+| c      | Enable color/effects for TEXT/HTML          |
+| F      | Force line-buffered flushing                |
+| H      | Enable HTML output (XO_STYLE_HTML)          |
+| I      | Enable info output (XOF_INFO)               |
+| i<num> | Indent by <number>                          |
+| J      | Enable JSON output (XO_STYLE_JSON)          |
+| k      | Add keys to XPATH expressions in HTML       |
+| n      | Disable humanization (TEXT, HTML)           |
+| P      | Enable pretty-printed output (XOF_PRETTY)   |
+| T      | Enable text output (XO_STYLE_TEXT)          |
+| U      | Add units to HTML output                    |
+| u      | Change "-"s to "_"s in element names (JSON) |
+| W      | Enable warnings (XOF_WARN)                  |
+| X      | Enable XML output (XO_STYLE_XML)            |
+| x      | Enable XPath data (XOF_XPATH)               |
+|--------+---------------------------------------------|
+
+** Color Mapping
+The "colors" option takes a value that is a set of mappings from the
+pre-defined set of colors to new foreground and background colors.
+The value is a series of "fg/bg" values, separated by a "+".  Each
+pair of "fg/bg" values gives the colors to which a basic color is
+mapped when used as a foreground or background color.  The order is
+the mappings is:
+
+- black
+- red
+- green
+- yellow
+- blue
+- magenta
+- cyan
+- white
+
+Pairs may be skipped, leaving them mapped as normal, as are missing
+pairs or single colors.
+
+For example consider the following xo_emit call:
+
+    xo_emit("{C:fg-red,bg-green}Merry XMas!!{C:}\n");
+
+To turn all colored output to red-on-blue, use eight pairs of
+"red/blue" mappings separated by "+"s:
+
+    --libxo colors=red/blue+red/blue+red/blue+red/blue+\
+                   red/blue+red/blue+red/blue+red/blue
+
+To turn the red-on-green text to magenta-on-cyan, give a "magenta"
+foreground value for red (the second mapping) and a "cyan" background
+to green (the third mapping):
+
+    --libxo colors=+magenta+/cyan
+
+Consider the common situation where blue output looks unreadable on a
+terminal session with a black background.  To turn both "blue"
+foreground and background output to "yellow", give only the fifth
+mapping, skipping the first four mappings with bare "+"s:
+
+    --libxo colors=++++yellow/yellow
 
 * The libxo API
 
@@ -1576,6 +1710,16 @@ To set the style, use the xo_set_style() function:
 To use the default handle, pass a NULL handle:
 
     xo_set_style(NULL, XO_STYLE_XML);
+
+*** xo_get_style
+
+To find the current style, use the xo_get_style() function:
+
+    xo_style_t xo_get_style(xo_handle_t *xop);
+
+To use the default handle, pass a NULL handle:
+
+    style = xo_get_style(NULL);
 
 **** Output Styles (XO_STYLE_*) @styles@
 
@@ -1706,7 +1850,7 @@ and flags and enables them for a specific handle.
 
     int xo_set_options (xo_handle_t *xop, const char *input);
 
-The options are identical to those listed in ^command-line-arguments^.
+The options are identical to those listed in ^options^.
 
 *** xo_destroy
 
@@ -1930,7 +2074,7 @@ is returned.  On failure, a message it emitted and -1 is returned.
         exit(EXIT_FAILURE);
 
 Following the call to xo_parse_args, the application can process the
-remaining arguments in a normal manner.  See ^command-line-arguments^
+remaining arguments in a normal manner.  See ^options^
 for a description of valid arguments.
 
 *** xo_set_program
@@ -2021,36 +2165,24 @@ By default, the standard realloc() and free() functions are used.
 
 *** LIBXO_OPTIONS @LIBXO_OPTIONS@
 
-The environment variable "LIBXO_OPTIONS" can be set to a string of
-options:
+The environment variable "LIBXO_OPTIONS" can be set to a subset of
+libxo options, including:
 
-|--------+---------------------------------------------|
-| Option | Action                                      |
-|--------+---------------------------------------------|
-| c      | Enable color/effects for TEXT/HTML          |
-| F      | Force line-buffered flushing                |
-| H      | Enable HTML output (XO_STYLE_HTML)          |
-| I      | Enable info output (XOF_INFO)               |
-| i<num> | Indent by <number>                          |
-| J      | Enable JSON output (XO_STYLE_JSON)          |
-| k      | Add keys to XPATH expressions in HTML       |
-| n      | Disable humanization (TEXT, HTML)           |
-| P      | Enable pretty-printed output (XOF_PRETTY)   |
-| T      | Enable text output (XO_STYLE_TEXT)          |
-| U      | Add units to HTML output                    |
-| u      | Change "-"s to "_"s in element names (JSON) |
-| W      | Enable warnings (XOF_WARN)                  |
-| X      | Enable XML output (XO_STYLE_XML)            |
-| x      | Enable XPath data (XOF_XPATH)               |
-|--------+---------------------------------------------|
+- color
+- flush
+- flush-line
+- no-color
+- no-humanize
+- no-locale
+- no-retain
+- pretty
+- retain
+- underscores
+- warn
 
 For example, warnings can be enabled by:
 
-    % env LIBXO_OPTIONS=W my-app
-
-Complete HTML output can be generated with:
-
-    % env LIBXO_OPTIONS=HXI my-app
+    % env LIBXO_OPTIONS=warn my-app
 
 Since environment variables are inherited, child processes will have
 the same options, which may be undesirable, making the use of the
@@ -2439,9 +2571,9 @@ HTML using the same commands that emit text output.
 
 The style of output can be selected using a specific option: "-X" for
 XML, "-J" for JSON, "-H" for HTML, or "-T" for TEXT, which is the
-default.  The "--style <style>" option can also be used.  The
-LIBXO_OPTIONS environment variable can also be used to set the style,
-as well as other flags.
+default.  The "--style <style>" option can also be used.  The standard
+set of "--libxo" options are available (see ^options^), as well as the
+LIBXO_OPTIONS environment variable (see ^LIBXO_OPTIONS^).
 
 The "xo" utility accepts a format string suitable for xo_emit() and a
 set of zero or more arguments used to supply data for that string.
@@ -2883,9 +3015,9 @@ which include the following:
 Compiler warnings are a very good thing, but recent compiler version
 have added some very pedantic checks.  While every attempt is made to
 keep libxo code warning-free, warnings are now optional.  If you are
-doing development work on libxo, it is required that you use
---enable-warnings to keep the code warning free, but most users need
-not use this option.
+doing development work on libxo, it is required that you
+use --enable-warnings to keep the code warning free, but most users
+need not use this option.
 
 libxo provides the --enable-text-only option to reduce the footprint
 of the library for smaller installations.  XML, JSON, and HTML

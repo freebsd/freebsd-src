@@ -1,4 +1,4 @@
-/*	$NetBSD: t_io.c,v 1.12 2013/08/04 11:02:02 pooka Exp $	*/
+/*	$NetBSD: t_io.c,v 1.17 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -39,7 +39,7 @@
 #include <rump/rump.h>
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define TESTSTR "this is a string.  collect enough and you'll have Em"
 #define TESTSZ sizeof(TESTSTR)
@@ -222,6 +222,22 @@ wrrd_after_unlink(const atf_tc_t *tc, const char *mp)
 	FSTEST_EXIT();
 }
 
+static void
+read_fault(const atf_tc_t *tc, const char *mp)
+{
+	char ch = 123;
+	int fd;
+
+	FSTEST_ENTER();
+	RL(fd = rump_sys_open("file", O_CREAT | O_RDWR, 0777));
+	ATF_REQUIRE_EQ(rump_sys_write(fd, &ch, 1), 1);
+	RL(rump_sys_close(fd));
+	RL(fd = rump_sys_open("file", O_RDONLY | O_SYNC | O_RSYNC));
+	ATF_REQUIRE_ERRNO(EFAULT, rump_sys_read(fd, NULL, 1) == -1);
+	RL(rump_sys_close(fd));
+	FSTEST_EXIT();
+}
+
 ATF_TC_FSAPPLY(holywrite, "create a sparse file and fill hole");
 ATF_TC_FSAPPLY(extendfile, "check that extending a file works");
 ATF_TC_FSAPPLY(extendfile_append, "check that extending a file works "
@@ -232,6 +248,7 @@ ATF_TC_FSAPPLY(overwrite_trunc, "write 64k + truncate + rewrite");
 ATF_TC_FSAPPLY(shrinkfile, "shrink file");
 ATF_TC_FSAPPLY(read_after_unlink, "contents can be read off disk after unlink");
 ATF_TC_FSAPPLY(wrrd_after_unlink, "file can be written and read after unlink");
+ATF_TC_FSAPPLY(read_fault, "read at bad address must return EFAULT");
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -245,6 +262,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_FSAPPLY(shrinkfile);
 	ATF_TP_FSAPPLY(read_after_unlink);
 	ATF_TP_FSAPPLY(wrrd_after_unlink);
+	ATF_TP_FSAPPLY(read_fault);
 
 	return atf_no_error();
 }

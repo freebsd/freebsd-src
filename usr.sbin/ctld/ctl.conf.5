@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2015
+.Dd July 21, 2016
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -479,6 +479,97 @@ target naa.50015178f369f092 {
 	port isp0
 	port isp1
 	lun 0 example_1
+}
+.Ed
+.Pp
+An equivalent configuration in UCL format, for use with
+.Fl u :
+.Bd -literal
+auth-group {
+	ag0 {
+		chap-mutual = [
+			{
+				user = "user"
+				secret = "secretsecret"
+				mutual-user = "mutualuser"
+				mutual-secret = "mutualsecret"
+			},
+			{
+				user = "user2"
+				secret = "secret2secret2"
+				mutual-user = "mutualuser"
+				mutual-secret = "mutualsecret"
+			}
+		]
+	}
+
+	ag1 {
+		auth-type = none
+		initiator-name = [
+			"iqn.2012-06.com.example:initiatorhost1",
+			"iqn.2012-06.com.example:initiatorhost2"
+		]
+		initiator-portal = [192.168.1.1/24, "[2001:db8::de:ef]"]
+	}
+}
+
+portal-group {
+	pg0 {
+		discovery-auth-group = no-authentication
+		listen = [
+			0.0.0.0:3260,
+			"[::]:3260",
+			"[fe80::be:ef]:3261"
+		]
+	}
+}
+
+lun {
+	example_0 {
+		path = /dev/zvol/tank/example_0
+		blocksize = 4096
+		size = "4G"
+	}
+
+	example_1 {
+		path = /dev/zvol/tank/example_1
+		options {
+			naa = "0x50015178f369f093"
+		}
+	}
+
+	example_2 {
+		path = /dev/zvol/tank/example_2
+		options {
+			vendor = "FreeBSD"
+		}
+	}
+}
+
+target {
+	"iqn.2012-06.com.example:target0" {
+		alias = "Example target"
+		auth-group = no-authentication
+		lun = [
+			{ number = 0, name = example_0 },
+		]
+	}
+
+	"iqn.2012-06.com.example:target1" {
+		auth-group = ag0
+		portal-group { name = pg0 }
+		lun = [
+			{ number = 0, name = example_1 },
+			{ number = 1, name = example_2 }
+		]
+	}
+
+	naa.50015178f369f092 {
+		port = isp0
+		lun = [
+			{ number = 0, name = example_1 }
+		]
+	}
 }
 .Ed
 .Sh SEE ALSO

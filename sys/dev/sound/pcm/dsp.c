@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
@@ -2220,7 +2222,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	 * Unfortunately, we have to give up this one due to linux_mmap
 	 * changes.
 	 *
-	 * http://lists.freebsd.org/pipermail/freebsd-emulation/2007-June/003698.html
+	 * https://lists.freebsd.org/pipermail/freebsd-emulation/2007-June/003698.html
 	 *
 	 */
 #ifdef SV_ABI_LINUX

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2015
+.Dd May 3, 2017
 .Dt CPUSET 2
 .Os
 .Sh NAME
@@ -48,21 +48,21 @@
 The
 .Nm
 family of system calls allow applications to control sets of processors and
-assign processes and threads to these sets.
-Processor sets contain lists of CPUs that members may run on and exist only
-as long as some process is a member of the set.
+memory domains and assign processes and threads to these sets.
+Processor sets contain lists of CPUs and domains that members may run on
+and exist only as long as some process is a member of the set.
 All processes in the system have an assigned set.
 The default set for all processes in the system is the set numbered 1.
 Threads belong to the same set as the process which contains them,
 however, they may further restrict their set with the anonymous
-per-thread mask.
+per-thread mask to bind to a specific CPU or subset of CPUs and memory domains.
 .Pp
 Sets are referenced by a number of type
 .Ft cpuset_id_t .
 Each thread has a root set, an assigned set, and an anonymous mask.
 Only the root and assigned sets are numbered.
-The root set is the set of all CPUs available in the system or in the
-system partition the thread is running in.
+The root set is the set of all CPUs and memory domains available in the system
+or in the system partition the thread is running in.
 The assigned set is a subset of the root set and is administratively
 assignable on a per-process basis.
 Many processes and threads may be members of a numbered set.
@@ -72,7 +72,8 @@ set.
 It is intended that administrators will manipulate numbered sets using
 .Xr cpuset 1
 while application developers will manipulate anonymous sets using
-.Xr cpuset_setaffinity 2 .
+.Xr cpuset_setaffinity 2 and
+.Xr cpuset_setdomain 2 .
 .Pp
 To select the correct set a value of type
 .Ft cpulevel_t
@@ -101,6 +102,8 @@ argument may have the following values:
 .It Dv CPU_WHICH_JAIL Ta "id is jid (jail id)"
 .It Dv CPU_WHICH_CPUSET Ta "id is a cpusetid_t (cpuset id)"
 .It Dv CPU_WHICH_IRQ Ta "id is an irq number"
+.It Dv CPU_WHICH_INTRHANDLER Ta "id is an irq number for an interrupt handler"
+.It Dv CPU_WHICH_ITHREAD Ta "id is an irq number for an ithread"
 .It Dv CPU_WHICH_DOMAIN Ta "id is a NUMA domain"
 .El
 .Pp
@@ -173,9 +176,10 @@ with a process or thread is unsupported since
 this references the unnumbered anonymous mask.
 .Pp
 The actual contents of the sets may be retrieved or manipulated using
-.Xr cpuset_getaffinity 2
-and
-.Xr cpuset_setaffinity 2 .
+.Xr cpuset_getaffinity 2 ,
+.Xr cpuset_setaffinity 2 ,
+.Xr cpuset_getdomain 2 , and
+.Xr cpuset_setdomain 2 .
 See those manual pages for more detail.
 .Sh RETURN VALUES
 .Rv -std
@@ -218,6 +222,8 @@ for allocation.
 .Xr cpuset 1 ,
 .Xr cpuset_getaffinity 2 ,
 .Xr cpuset_setaffinity 2 ,
+.Xr cpuset_getdomain 2 ,
+.Xr cpuset_setdomain 2 ,
 .Xr pthread_affinity_np 3 ,
 .Xr pthread_attr_affinity_np 3 ,
 .Xr cpuset 9

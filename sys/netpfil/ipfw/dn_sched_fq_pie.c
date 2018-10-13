@@ -111,7 +111,7 @@ struct fq_pie_flow {
 	int deficit;
 	int active;		/* 1: flow is active (in a list) */
 	struct pie_status pst;	/* pie status variables */
-	struct fq_pie_si *psi;	/* parent scheduler instance */
+	struct fq_pie_si_extra *psi_extra;
 	STAILQ_ENTRY(fq_pie_flow) flowchain;
 };
 
@@ -120,23 +120,30 @@ struct fq_pie_schk {
 	struct dn_sch_fq_pie_parms cfg;
 };
 
+
+/* fq_pie scheduler instance extra state vars.
+ * The purpose of separation this structure is to preserve number of active
+ * sub-queues and the flows array pointer even after the scheduler instance
+ * is destroyed.
+ * Preserving these varaiables allows freeing the allocated memory by
+ * fqpie_callout_cleanup() independently from fq_pie_free_sched().
+ */
+struct fq_pie_si_extra {
+	uint32_t nr_active_q;	/* number of active queues */
+	struct fq_pie_flow *flows;	/* array of flows (queues) */
+	};
+
 /* fq_pie scheduler instance */
 struct fq_pie_si {
-	struct dn_sch_inst _si;	/* standard scheduler instance */
+	struct dn_sch_inst _si;	/* standard scheduler instance. SHOULD BE FIRST */ 
 	struct dn_queue main_q; /* main queue is after si directly */
-	uint32_t nr_active_q;
-	struct fq_pie_flow *flows;	/* array of flows (queues) */
 	uint32_t perturbation; 	/* random value */
 	struct fq_pie_list newflows;	/* list of new queues */
 	struct fq_pie_list oldflows;	/* list of old queues */
+	struct fq_pie_si_extra *si_extra; /* extra state vars*/
 };
 
 
-struct mem_to_free {
-	void *mem_flows;
-	void *mem_callout;
-};
-static struct mtx freemem_mtx;
 static struct dn_alg fq_pie_desc;
 
 /*  Default FQ-PIE parameters including PIE */
@@ -370,38 +377,34 @@ fq_calculate_drop_prob(void *x)
 	struct dn_aqm_pie_parms *pprms; 
 	int64_t p, prob, oldprob;
 	aqm_time_t now;
-
-	/* dealing with race condition */
-	if (callout_pending(&pst->aqm_pie_callout)) {
-		/* callout was reset */
-		mtx_unlock(&pst->lock_mtx);
-		return;
-	}
-
-	if (!callout_active(&pst->aqm_pie_callout)) {
-		/* callout was stopped */
-		mtx_unlock(&pst->lock_mtx);
-		mtx_destroy(&pst->lock_mtx);
-		q->psi->nr_active_q--;
-		return;
-	}
-	callout_deactivate(&pst->aqm_pie_callout);
+	int p_isneg;
 
 	now = AQM_UNOW;
 	pprms = pst->parms;
 	prob = pst->drop_prob;
 
-	/* calculate current qdelay */
-	if (pprms->flags & PIE_DEPRATEEST_ENABLED) {
+	/* calculate current qdelay using DRE method.
+	 * If TS is used and no data in the queue, reset current_qdelay
+	 * as it stays at last value during dequeue process.
+	*/
+	if (pprms->flags & PIE_DEPRATEEST_ENABLED)
 		pst->current_qdelay = ((uint64_t)q->stats.len_bytes  * pst->avg_dq_time)
 			>> PIE_DQ_THRESHOLD_BITS;
-	}
+	else
+		if (!q->stats.len_bytes)
+			pst->current_qdelay = 0;
 
 	/* calculate drop probability */
 	p = (int64_t)pprms->alpha * 
 		((int64_t)pst->current_qdelay - (int64_t)pprms->qdelay_ref); 
 	p +=(int64_t) pprms->beta * 
 		((int64_t)pst->current_qdelay - (int64_t)pst->qdelay_old); 
+
+	/* take absolute value so right shift result is well defined */
+	p_isneg = p < 0;
+	if (p_isneg) {
+		p = -p;
+	}
 		
 	/* We PIE_MAX_PROB shift by 12-bits to increase the division precision  */
 	p *= (PIE_MAX_PROB << 12) / AQM_TIME_1S;
@@ -424,37 +427,47 @@ fq_calculate_drop_prob(void *x)
 
 	oldprob = prob;
 
-	/* Cap Drop adjustment */
-	if ((pprms->flags & PIE_CAPDROP_ENABLED) && prob >= PIE_MAX_PROB / 10
-		&& p > PIE_MAX_PROB / 50 ) 
+	if (p_isneg) {
+		prob = prob - p;
+
+		/* check for multiplication underflow */
+		if (prob > oldprob) {
+			prob= 0;
+			D("underflow");
+		}
+	} else {
+		/* Cap Drop adjustment */
+		if ((pprms->flags & PIE_CAPDROP_ENABLED) &&
+		    prob >= PIE_MAX_PROB / 10 &&
+		    p > PIE_MAX_PROB / 50 ) {
 			p = PIE_MAX_PROB / 50;
+		}
 
-	prob = prob + p;
+		prob = prob + p;
 
-	/* decay the drop probability exponentially */
-	if (pst->current_qdelay == 0 && pst->qdelay_old == 0)
-		/* 0.98 ~= 1- 1/64 */
-		prob = prob - (prob >> 6); 
-
-
-	/* check for multiplication over/under flow */
-	if (p>0) {
+		/* check for multiplication overflow */
 		if (prob<oldprob) {
 			D("overflow");
 			prob= PIE_MAX_PROB;
 		}
 	}
-	else
-		if (prob>oldprob) {
-			prob= 0;
-			D("underflow");
+
+	/*
+	 * decay the drop probability exponentially
+	 * and restrict it to range 0 to PIE_MAX_PROB
+	 */
+	if (prob < 0) {
+		prob = 0;
+	} else {
+		if (pst->current_qdelay == 0 && pst->qdelay_old == 0) {
+			/* 0.98 ~= 1- 1/64 */
+			prob = prob - (prob >> 6); 
 		}
 
-	/* make drop probability between 0 and PIE_MAX_PROB*/
-	if (prob < 0)
-		prob = 0;
-	else if (prob > PIE_MAX_PROB)
-		prob = PIE_MAX_PROB;
+		if (prob > PIE_MAX_PROB) {
+			prob = PIE_MAX_PROB;
+		}
+	}
 
 	pst->drop_prob = prob;
 	
@@ -524,20 +537,17 @@ fq_deactivate_pie(struct pie_status *pst)
   * Initialize PIE for sub-queue 'q'
   */
 static int
-pie_init(struct fq_pie_flow *q)
+pie_init(struct fq_pie_flow *q, struct fq_pie_schk *fqpie_schk)
 {
 	struct pie_status *pst=&q->pst;
 	struct dn_aqm_pie_parms *pprms = pst->parms;
-	struct fq_pie_schk *fqpie_schk;
-	
-	fqpie_schk = (struct fq_pie_schk *)(q->psi->_si.sched+1);
-	int err = 0;
 
+	int err = 0;
 	if (!pprms){
 		D("AQM_PIE is not configured");
 		err = EINVAL;
 	} else {
-		q->psi->nr_active_q++;
+		q->psi_extra->nr_active_q++;
 
 		/* For speed optimization, we caculate 1/3 queue size once here */
 		// XXX limit divided by number of queues divided by 3 ??? 
@@ -553,8 +563,36 @@ pie_init(struct fq_pie_flow *q)
 }
 
 /* 
+ * callout function to destroy PIE lock, and free fq_pie flows and fq_pie si
+ * extra memory when number of active sub-queues reaches zero.
+ * 'x' is a fq_pie_flow to be destroyed
+ */
+static void
+fqpie_callout_cleanup(void *x)
+{
+	struct fq_pie_flow *q = x;
+	struct pie_status *pst = &q->pst;
+	struct fq_pie_si_extra *psi_extra;
+
+	mtx_unlock(&pst->lock_mtx);
+	mtx_destroy(&pst->lock_mtx);
+	psi_extra = q->psi_extra;
+	
+	DN_BH_WLOCK();
+	psi_extra->nr_active_q--;
+
+	/* when all sub-queues are destroyed, free flows fq_pie extra vars memory */
+	if (!psi_extra->nr_active_q) {
+		free(psi_extra->flows, M_DUMMYNET);
+		free(psi_extra, M_DUMMYNET);
+		fq_pie_desc.ref_count--;
+	}
+	DN_BH_WUNLOCK();
+}
+
+/* 
  * Clean up PIE status for sub-queue 'q' 
- * Stop callout timer and destroy mtx 
+ * Stop callout timer and destroy mtx using fqpie_callout_cleanup() callout.
  */
 static int
 pie_cleanup(struct fq_pie_flow *q)
@@ -562,14 +600,9 @@ pie_cleanup(struct fq_pie_flow *q)
 	struct pie_status *pst  = &q->pst;
 
 	mtx_lock(&pst->lock_mtx);
-	if (callout_stop(&pst->aqm_pie_callout) || !(pst->sflags & PIE_ACTIVE)) {
-		mtx_unlock(&pst->lock_mtx);
-		mtx_destroy(&pst->lock_mtx);
-		q->psi->nr_active_q--;
-	} else {
-		mtx_unlock(&pst->lock_mtx);
-		return EBUSY;
-	}
+	callout_reset_sbt(&pst->aqm_pie_callout,
+		SBT_1US, 0, fqpie_callout_cleanup, q, 0);
+	mtx_unlock(&pst->lock_mtx);
 	return 0;
 }
 
@@ -759,13 +792,14 @@ fq_pie_classify_flow(struct mbuf *m, uint16_t fcount, struct fq_pie_si *si)
 	uint8_t tuple[41];
 	uint16_t hash=0;
 
+	ip = (struct ip *)mtodo(m, dn_tag_get(m)->iphdr_off);
 //#ifdef INET6
 	struct ip6_hdr *ip6;
 	int isip6;
-	isip6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
+	isip6 = (ip->ip_v == 6);
 
 	if(isip6) {
-		ip6 = mtod(m, struct ip6_hdr *);
+		ip6 = (struct ip6_hdr *)ip;
 		*((uint8_t *) &tuple[0]) = ip6->ip6_nxt;
 		*((uint32_t *) &tuple[1]) = si->perturbation;
 		memcpy(&tuple[5], ip6->ip6_src.s6_addr, 16);
@@ -793,7 +827,6 @@ fq_pie_classify_flow(struct mbuf *m, uint16_t fcount, struct fq_pie_si *si)
 //#endif
 
 	/* IPv4 */
-	ip = mtod(m, struct ip *);
 	*((uint8_t *) &tuple[0]) = ip->ip_p;
 	*((uint32_t *) &tuple[1]) = si->perturbation;
 	*((uint32_t *) &tuple[5]) = ip->ip_src.s_addr;
@@ -831,10 +864,12 @@ fq_pie_enqueue(struct dn_sch_inst *_si, struct dn_queue *_q,
 	struct fq_pie_schk *schk;
 	struct dn_sch_fq_pie_parms *param;
 	struct dn_queue *mainq;
+	struct fq_pie_flow *flows;
 	int idx, drop, i, maxidx;
 
 	mainq = (struct dn_queue *)(_si + 1);
 	si = (struct fq_pie_si *)_si;
+	flows = si->si_extra->flows;
 	schk = (struct fq_pie_schk *)(si->_si.sched+1);
 	param = &schk->cfg;
 
@@ -844,7 +879,7 @@ fq_pie_enqueue(struct dn_sch_inst *_si, struct dn_queue *_q,
 	/* enqueue packet into appropriate queue using PIE AQM.
 	 * Note: 'pie_enqueue' function returns 1 only when it unable to 
 	 * add timestamp to packet (no limit check)*/
-	drop = pie_enqueue(&si->flows[idx], m, si);
+	drop = pie_enqueue(&flows[idx], m, si);
 	
 	/* pie unable to timestamp a packet */ 
 	if (drop)
@@ -853,11 +888,11 @@ fq_pie_enqueue(struct dn_sch_inst *_si, struct dn_queue *_q,
 	/* If the flow (sub-queue) is not active ,then add it to tail of
 	 * new flows list, initialize and activate it.
 	 */
-	if (!si->flows[idx].active) {
-		STAILQ_INSERT_TAIL(&si->newflows, &si->flows[idx], flowchain);
-		si->flows[idx].deficit = param->quantum;
-		fq_activate_pie(&si->flows[idx]);
-		si->flows[idx].active = 1;
+	if (!flows[idx].active) {
+		STAILQ_INSERT_TAIL(&si->newflows, &flows[idx], flowchain);
+		flows[idx].deficit = param->quantum;
+		fq_activate_pie(&flows[idx]);
+		flows[idx].active = 1;
 	}
 
 	/* check the limit for all queues and remove a packet from the
@@ -866,15 +901,15 @@ fq_pie_enqueue(struct dn_sch_inst *_si, struct dn_queue *_q,
 	if (mainq->ni.length > schk->cfg.limit) {
 		/* find first active flow */
 		for (maxidx = 0; maxidx < schk->cfg.flows_cnt; maxidx++)
-			if (si->flows[maxidx].active)
+			if (flows[maxidx].active)
 				break;
 		if (maxidx < schk->cfg.flows_cnt) {
 			/* find the largest sub- queue */
 			for (i = maxidx + 1; i < schk->cfg.flows_cnt; i++) 
-				if (si->flows[i].active && si->flows[i].stats.length >
-					si->flows[maxidx].stats.length)
+				if (flows[i].active && flows[i].stats.length >
+					flows[maxidx].stats.length)
 					maxidx = i;
-			pie_drop_head(&si->flows[maxidx], si);
+			pie_drop_head(&flows[maxidx], si);
 			drop = 1;
 		}
 	}
@@ -974,12 +1009,13 @@ fq_pie_new_sched(struct dn_sch_inst *_si)
 	struct fq_pie_si *si;
 	struct dn_queue *q;
 	struct fq_pie_schk *schk;
+	struct fq_pie_flow *flows;
 	int i;
 
 	si = (struct fq_pie_si *)_si;
 	schk = (struct fq_pie_schk *)(_si->sched+1);
 
-	if(si->flows) {
+	if(si->si_extra) {
 		D("si already configured!");
 		return 0;
 	}
@@ -990,17 +1026,27 @@ fq_pie_new_sched(struct dn_sch_inst *_si)
 	q->_si = _si;
 	q->fs = _si->sched->fs;
 
-	/* allocate memory for flows array */
-	si->flows = malloc(schk->cfg.flows_cnt * sizeof(struct fq_pie_flow),
+	/* allocate memory for scheduler instance extra vars */
+	si->si_extra = malloc(sizeof(struct fq_pie_si_extra),
 		 M_DUMMYNET, M_NOWAIT | M_ZERO);
-	if (si->flows == NULL) {
-		D("cannot allocate memory for fq_pie configuration parameters");
+	if (si->si_extra == NULL) {
+		D("cannot allocate memory for fq_pie si extra vars");
+		return ENOMEM ; 
+	}
+	/* allocate memory for flows array */
+	si->si_extra->flows = mallocarray(schk->cfg.flows_cnt,
+	    sizeof(struct fq_pie_flow), M_DUMMYNET, M_NOWAIT | M_ZERO);
+	flows = si->si_extra->flows;
+	if (flows == NULL) {
+		free(si->si_extra, M_DUMMYNET);
+		si->si_extra = NULL;
+		D("cannot allocate memory for fq_pie flows");
 		return ENOMEM ; 
 	}
 
 	/* init perturbation for this si */
 	si->perturbation = random();
-	si->nr_active_q = 0;
+	si->si_extra->nr_active_q = 0;
 
 	/* init the old and new flows lists */
 	STAILQ_INIT(&si->newflows);
@@ -1008,45 +1054,16 @@ fq_pie_new_sched(struct dn_sch_inst *_si)
 
 	/* init the flows (sub-queues) */
 	for (i = 0; i < schk->cfg.flows_cnt; i++) {
-		si->flows[i].pst.parms = &schk->cfg.pcfg;
-		si->flows[i].psi = si;
-		pie_init(&si->flows[i]);
+		flows[i].pst.parms = &schk->cfg.pcfg;
+		flows[i].psi_extra = si->si_extra;
+		pie_init(&flows[i], schk);
 	}
 
-	/* init mtx lock and callout function for free memory  */
-	if (!fq_pie_desc.ref_count) {
-		mtx_init(&freemem_mtx, "mtx_pie", NULL, MTX_DEF);
-	}
-
-	mtx_lock(&freemem_mtx);
 	fq_pie_desc.ref_count++;
-	mtx_unlock(&freemem_mtx);
 
 	return 0;
 }
 
-/* 
- * Free FQ-PIE flows memory callout function.
- * This function is scheduled when a flow or more still active and
- *  the scheduer is about to be destroyed, to prevent memory leak.
- */
-static void 
-free_flows(void *_mem) 
-{
-	struct mem_to_free *mem = _mem;
-
-	free(mem->mem_flows, M_DUMMYNET);
-	free(mem->mem_callout, M_DUMMYNET);
-	free(_mem, M_DUMMYNET);
-
-	fq_pie_desc.ref_count--;
-	if (!fq_pie_desc.ref_count) {
-		mtx_unlock(&freemem_mtx);
-		mtx_destroy(&freemem_mtx);
-	} else
-		mtx_unlock(&freemem_mtx);
-	//D("mem freed ok!");
-}
 
 /*
  * Free fq_pie scheduler instance.
@@ -1056,61 +1073,17 @@ fq_pie_free_sched(struct dn_sch_inst *_si)
 {
 	struct fq_pie_si *si;
 	struct fq_pie_schk *schk;
+	struct fq_pie_flow *flows;
 	int i;
 
 	si = (struct fq_pie_si *)_si;
 	schk = (struct fq_pie_schk *)(_si->sched+1);
-
+	flows = si->si_extra->flows;
 	for (i = 0; i < schk->cfg.flows_cnt; i++) {
-		pie_cleanup(&si->flows[i]);
+		pie_cleanup(&flows[i]);
 	}
-
-	/* if there are still some queues have a callout going to start,
-	 * we cannot free flows memory. If we do so, a panic can happen
-	 *  as prob calculate callout function uses flows memory.
-	 */
-	if (!si->nr_active_q) {
-		/* free the flows array */
-		free(si->flows , M_DUMMYNET);
-		si->flows = NULL;
-		mtx_lock(&freemem_mtx);
-		fq_pie_desc.ref_count--;
-		if (!fq_pie_desc.ref_count) {
-			mtx_unlock(&freemem_mtx);
-			mtx_destroy(&freemem_mtx);
-		} else
-			mtx_unlock(&freemem_mtx);
-		//D("ok!");
-		return 0;
-	} else {
-		/* memory leak happens here. So, we register a callout function to free
-		 *  flows memory later.
-		 */
-		D("unable to stop all fq_pie sub-queues!");
-		mtx_lock(&freemem_mtx);
-
-		struct callout *mem_callout;
-		struct mem_to_free *mem;
-
-		mem = malloc(sizeof(*mem), M_DUMMYNET,
-			M_NOWAIT | M_ZERO);
-		mem_callout = malloc(sizeof(*mem_callout), M_DUMMYNET,
-			M_NOWAIT | M_ZERO);
-
-		callout_init_mtx(mem_callout, &freemem_mtx,
-			CALLOUT_RETURNUNLOCKED);
-
-		mem->mem_flows = si->flows;
-		mem->mem_callout = mem_callout;
-		callout_reset_sbt(mem_callout, 
-			(uint64_t)(si->flows[0].pst.parms->tupdate + 1000) * SBT_1US,
-			0, free_flows, mem, 0);
-
-		si->flows = NULL;
-		mtx_unlock(&freemem_mtx);
-
-		return EBUSY;
-	}
+	si->si_extra = NULL;
+	return 0;
 }
 
 /*

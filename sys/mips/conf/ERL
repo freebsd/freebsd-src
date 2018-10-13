@@ -5,11 +5,11 @@
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -21,11 +21,9 @@
 
 ident		ERL
 
-makeoptions	ARCH_FLAGS="-march=octeon -mabi=64"
+makeoptions	ARCH_FLAGS="-march=octeon+ -mabi=64"
 makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
-# Don't build any modules yet.
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
 # We don't need to build a trampolined version of the kernel.
@@ -41,7 +39,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #options 	OCTEON_VENDOR_LANNER		# Support for Lanner boards.
 #options 	OCTEON_VENDOR_RADISYS		# Support for Radisys boards.
 options 	OCTEON_VENDOR_UBIQUITI		# Support for Ubiquiti boards.
-#options	OCTEON_VENDOR_GEFES		# Support for GE LANIC boards
+#options 	OCTEON_VENDOR_GEFES		# Support for GE LANIC boards
 #options 	OCTEON_BOARD_CAPK_0100ND	# Support for CAPK-0100nd.
 
 # Compile for a specified Octeon model.  If not specified, support for
@@ -55,6 +53,8 @@ options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	IPSEC			# IP (v4/v6) security
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -73,6 +73,8 @@ options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD32	# Compatible with o32 binaries
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -84,15 +86,15 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
-#options 	KDTRACE_FRAME		# Ensure frames are compiled in
-#options 	KDTRACE_HOOKS		# Kernel DTrace hooks
-options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
-options 	NO_SWAPPING		# Disable support for paging
-options		TMPFS			# Temporary file system
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
+options 	TMPFS			# Temporary file system
 
 # Debugging for use in -current
 #options 	KDB			# Enable kernel debugger support.
-#options 	DDB			# Support DDB.
+options 	DDB			# Support DDB.
 #options 	GDB			# Support remote GDB.
 #options 	DEADLKRES		# Enable the deadlock resolver
 #options 	INVARIANTS		# Enable calls of extra sanity checking
@@ -201,7 +203,7 @@ device		ural		# Ralink Technology RT2500USB wireless NICs
 device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 
 # crypto subsystem
-device		crypto		# core crypto support
+device		crypto		# core crypto support (required for IPSEC)
 device		cryptodev	# /dev/crypto for access to h/w
 device		cryptocteon	# Octeon coprocessor 2 crypto offload
 

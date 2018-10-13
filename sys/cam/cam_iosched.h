@@ -1,8 +1,9 @@
 /*-
  * CAM IO Scheduler Interface
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Netflix, Inc.
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +32,7 @@
 #ifndef _CAM_CAM_IOSCHED_H
 #define _CAM_CAM_IOSCHED_H
 
-/* No user-servicable parts in here. */
+/* No user-serviceable parts in here. */
 #ifdef _KERNEL
 
 /* Forward declare all structs to keep interface thin */
@@ -40,6 +41,44 @@ struct sysctl_ctx_list;
 struct sysctl_oid;
 union ccb;
 struct bio;
+
+/*
+ * For 64-bit platforms, we know that uintptr_t is the same size as sbintime_t
+ * so we can store values in it. For 32-bit systems, however, uintptr_t is only
+ * 32-bits, so it won't fit. For those systems, store 24 bits of fraction and 8
+ * bits of seconds. This allows us to measure an interval of up to ~256s, which
+ * is ~200x what our current uses require. Provide some convenience functions to
+ * get the time, subtract two times and convert back to sbintime_t in a safe way
+ * that can be centralized.
+ */
+#ifdef __LP64__
+#define CAM_IOSCHED_TIME_SHIFT 0
+#else
+#define CAM_IOSCHED_TIME_SHIFT 8
+#endif
+static inline uintptr_t
+cam_iosched_now(void)
+{
+
+	/* Cast here is to avoid right shifting a signed value */
+	return (uintptr_t)((uint64_t)sbinuptime() >> CAM_IOSCHED_TIME_SHIFT);
+}
+
+static inline uintptr_t
+cam_iosched_delta_t(uintptr_t then)
+{
+
+	/* Since the types are identical, wrapping works correctly */
+	return (cam_iosched_now() - then);
+}
+
+static inline sbintime_t
+cam_iosched_sbintime_t(uintptr_t delta)
+{
+
+	/* Cast here is to widen the type so the left shift doesn't lose precision */
+	return (sbintime_t)((uint64_t)delta << CAM_IOSCHED_TIME_SHIFT);
+}
 
 int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph);
 void cam_iosched_fini(struct cam_iosched_softc *);

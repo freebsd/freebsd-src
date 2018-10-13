@@ -313,6 +313,9 @@
 /* Provide the explicit 127.0.0.0/8 martian filter? */
 #define ENABLE_BUG3020_FIX 1
 
+/* Enable CMAC support? */
+#define ENABLE_CMAC 1
+
 /* nls support in libopts */
 /* #undef ENABLE_NLS */
 
@@ -374,6 +377,14 @@
 /* Define to 1 if you have the `daemon' function. */
 #define HAVE_DAEMON 1
 
+/* Define to 1 if you have the declaration of `siglongjmp', and to 0 if you
+   don't. */
+#define HAVE_DECL_SIGLONGJMP 1
+
+/* Define to 1 if you have the declaration of `sigsetjmp', and to 0 if you
+   don't. */
+#define HAVE_DECL_SIGSETJMP 1
+
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */
 #define HAVE_DECL_STRERROR_R 1
@@ -392,7 +403,7 @@
 /* #undef HAVE_DOPRNT */
 
 /* Can we drop root privileges? */
-/* #undef HAVE_DROPROOT */
+#define HAVE_DROPROOT
 
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
@@ -654,6 +665,12 @@
 
 /* if you have NT Threads */
 /* #undef HAVE_NT_THREADS */
+
+/* Define to 1 if you have the <openssl/cmac.h> header file. */
+#define HAVE_OPENSSL_CMAC_H 1
+
+/* Define to 1 if you have the <openssl/hmac.h> header file. */
+#define HAVE_OPENSSL_HMAC_H 1
 
 /* Define to 1 if the system has the type `pid_t'. */
 #define HAVE_PID_T 1
@@ -959,6 +976,9 @@
 /* Define to 1 if you have the <sys/lock.h> header file. */
 #define HAVE_SYS_LOCK_H 1
 
+/* Define to 1 if you have the <sys/mac.h> header file. */
+#define HAVE_SYS_MAC_H 1
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
 
@@ -1118,6 +1138,9 @@
 
 /* Do we have the TIO serial stuff? */
 /* #undef HAVE_TIO_SERIAL_STUFF */
+
+/* Are TrustedBSD MAC policy privileges available? */
+#define HAVE_TRUSTEDBSD_MAC 1
 
 /* Define to 1 if the system has the type `uint16_t'. */
 #define HAVE_UINT16_T 1
@@ -1336,7 +1359,7 @@
 #define LDAP_API_FEATURE_X_OPENLDAP_THREAD_SAFE 1
 
 /* leap smear mechanism */
-/* #undef LEAP_SMEAR */
+#define LEAP_SMEAR 1
 
 /* Define to any value to include libseccomp sandboxing. */
 /* #undef LIBSECCOMP */
@@ -1344,8 +1367,7 @@
 /* Should we align with the NIST lockclock scheme? */
 /* #undef LOCKCLOCK */
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Does the target support multicast IP? */
@@ -1397,9 +1419,6 @@
 /* Should we NOT read /dev/kmem? */
 #define NOKMEM 1
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
-
 /* Should we avoid #warning on option name collisions? */
 /* #undef NO_OPTION_NAME_WARNINGS */
 
@@ -1449,7 +1468,7 @@
 #define PACKAGE_NAME "ntp"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ntp 4.2.8p8"
+#define PACKAGE_STRING "ntp 4.2.8p12"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "ntp"
@@ -1458,10 +1477,10 @@
 #define PACKAGE_URL "http://www.ntp.org./"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2.8p8"
+#define PACKAGE_VERSION "4.2.8p12"
 
 /* data dir */
-#define PERLLIBDIR "/usr/local/share/ntp/lib"
+#define PERLLIBDIR "/usr/share/ntp/lib"
 
 /* define to a working POSIX compliant shell */
 #define POSIX_SHELL "/bin/sh"
@@ -1639,10 +1658,10 @@ typedef unsigned int	uintptr_t;
 /* #undef USE_UDP_SIGPOLL */
 
 /* Version number of package */
-#define VERSION "4.2.8p8"
+#define VERSION "4.2.8p12"
 
 /* vsnprintf expands "%m" to strerror(errno) */
-/* #undef VSNPRINTF_PERCENT_M */
+#define VSNPRINTF_PERCENT_M 1
 
 /* configure --enable-ipv6 */
 #define WANT_IPV6 1
@@ -1816,5 +1835,5 @@ typedef union mpinfou {
 /*
  * FreeBSD specific: Explicitly specify date/time for reproducible build.
  */
-#define	MKREPRO_DATE "Jun 03 2016"
-#define	MKREPRO_TIME "06:34:37"
+#define	MKREPRO_DATE "Aug 19 2018"
+#define	MKREPRO_TIME "01:24:29"

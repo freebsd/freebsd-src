@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getmntinfo.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)getmntinfo.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
@@ -38,29 +38,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <stdlib.h>
 
+#define	MAX_TRIES	3
+#define	SCALING_FACTOR	2
+
 /*
  * Return information about mounted filesystems.
  */
 int
-getmntinfo(struct statfs **mntbufp, int flags)
+getmntinfo(struct statfs **mntbufp, int mode)
 {
 	static struct statfs *mntbuf;
 	static int mntsize;
 	static long bufsize;
+	unsigned tries = 0;
 
 	if (mntsize <= 0 && (mntsize = getfsstat(0, 0, MNT_NOWAIT)) < 0)
 		return (0);
-	if (bufsize > 0 && (mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
+	if (bufsize > 0 && (mntsize = getfsstat(mntbuf, bufsize, mode)) < 0)
 		return (0);
-	while (bufsize <= mntsize * sizeof(struct statfs)) {
-		if (mntbuf)
-			free(mntbuf);
-		bufsize = (mntsize + 1) * sizeof(struct statfs);
-		if ((mntbuf = malloc(bufsize)) == NULL)
+	while (tries++ < MAX_TRIES && bufsize <= mntsize * sizeof(*mntbuf)) {
+		bufsize = (mntsize * SCALING_FACTOR) * sizeof(*mntbuf);
+		if ((mntbuf = reallocf(mntbuf, bufsize)) == NULL)
 			return (0);
-		if ((mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
+		if ((mntsize = getfsstat(mntbuf, bufsize, mode)) < 0)
 			return (0);
 	}
 	*mntbufp = mntbuf;
+	if (mntsize > (bufsize / sizeof(*mntbuf)))
+		return (bufsize / sizeof(*mntbuf));
 	return (mntsize);
 }

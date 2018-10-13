@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,6 +57,11 @@ typedef u_int32_t n_long;		/* long as received from the net */
 typedef	u_int32_t n_time;		/* ms since 00:00 UTC, byte rev */
 
 #ifdef _KERNEL
+struct inpcb;
+struct ucred;
+
+int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
+
 uint32_t	 iptime(void);
 #endif
 

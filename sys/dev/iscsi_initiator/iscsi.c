@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2011 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
@@ -388,20 +390,14 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
      if(sp->soc != NULL)
 	  isc_stop_receiver(sp);
 
-     error = fget(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT), &sp->fp);
+     error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT),
+	     &sp->fp, NULL, NULL);
      if(error)
 	  return error;
 
-     error = fgetsock(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT),
-        &sp->soc, 0);
-     if(error == 0) {
-	  sp->td = td;
-	  isc_start_receiver(sp);
-     }
-     else {
-	  fdrop(sp->fp, td);
-	  sp->fp = NULL;
-     }
+     sp->soc = sp->fp->f_data;
+     sp->td = td;
+     isc_start_receiver(sp);
 
      return error;
 }

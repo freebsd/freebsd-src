@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -572,7 +574,9 @@ __get_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_disk,
 int
 __put_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_bitmap)
 {
-	int fd, page, size, wsize;
+	int fd, page, size;
+	ssize_t wsize;
+	char pbuf[MAX_BSIZE];
 
 	size = hashp->BSIZE;
 	if ((hashp->fp == -1) && open_temp(hashp))
@@ -582,15 +586,18 @@ __put_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_bitmap)
 	if (hashp->LORDER != BYTE_ORDER) {
 		int i, max;
 
+		memcpy(pbuf, p, size);
 		if (is_bitmap) {
 			max = hashp->BSIZE >> 2;	/* divide by 4 */
 			for (i = 0; i < max; i++)
-				M_32_SWAP(((int *)p)[i]);
+				M_32_SWAP(((int *)pbuf)[i]);
 		} else {
-			max = ((u_int16_t *)p)[0] + 2;
+			uint16_t *bp = (uint16_t *)(void *)pbuf;
+			max = bp[0] + 2;
 			for (i = 0; i <= max; i++)
-				M_16_SWAP(((u_int16_t *)p)[i]);
+				M_16_SWAP(bp[i]);
 		}
+		p = pbuf;
 	}
 	if (is_bucket)
 		page = BUCKET_TO_PAGE(bucket);

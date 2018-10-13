@@ -1,3 +1,313 @@
+Sunday September 3, 2017 denis@ovsienko.info
+  Summary for 4.9.2 tcpdump release
+    Do not use getprotobynumber() for protocol name resolution.  Do not do
+      any protocol name resolution if -n is specified.
+    Improve errors detection in the test scripts.
+    Fix a segfault with OpenSSL 1.1 and improve OpenSSL usage.
+    Clean up IS-IS printing.
+    Fix buffer overflow vulnerabilities:
+      CVE-2017-11543 (SLIP)
+      CVE-2017-13011 (bittok2str_internal)
+    Fix infinite loop vulnerabilities:
+      CVE-2017-12989 (RESP)
+      CVE-2017-12990 (ISAKMP)
+      CVE-2017-12995 (DNS)
+      CVE-2017-12997 (LLDP)
+    Fix buffer over-read vulnerabilities:
+      CVE-2017-11541 (safeputs)
+      CVE-2017-11542 (PIMv1)
+      CVE-2017-12893 (SMB/CIFS)
+      CVE-2017-12894 (lookup_bytestring)
+      CVE-2017-12895 (ICMP)
+      CVE-2017-12896 (ISAKMP)
+      CVE-2017-12897 (ISO CLNS)
+      CVE-2017-12898 (NFS)
+      CVE-2017-12899 (DECnet)
+      CVE-2017-12900 (tok2strbuf)
+      CVE-2017-12901 (EIGRP)
+      CVE-2017-12902 (Zephyr)
+      CVE-2017-12985 (IPv6)
+      CVE-2017-12986 (IPv6 routing headers)
+      CVE-2017-12987 (IEEE 802.11)
+      CVE-2017-12988 (telnet)
+      CVE-2017-12991 (BGP)
+      CVE-2017-12992 (RIPng)
+      CVE-2017-12993 (Juniper)
+      CVE-2017-11542 (PIMv1)
+      CVE-2017-11541 (safeputs)
+      CVE-2017-12994 (BGP)
+      CVE-2017-12996 (PIMv2)
+      CVE-2017-12998 (ISO IS-IS)
+      CVE-2017-12999 (ISO IS-IS)
+      CVE-2017-13000 (IEEE 802.15.4)
+      CVE-2017-13001 (NFS)
+      CVE-2017-13002 (AODV)
+      CVE-2017-13003 (LMP)
+      CVE-2017-13004 (Juniper)
+      CVE-2017-13005 (NFS)
+      CVE-2017-13006 (L2TP)
+      CVE-2017-13007 (Apple PKTAP)
+      CVE-2017-13008 (IEEE 802.11)
+      CVE-2017-13009 (IPv6 mobility)
+      CVE-2017-13010 (BEEP)
+      CVE-2017-13012 (ICMP)
+      CVE-2017-13013 (ARP)
+      CVE-2017-13014 (White Board)
+      CVE-2017-13015 (EAP)
+      CVE-2017-11543 (SLIP)
+      CVE-2017-13016 (ISO ES-IS)
+      CVE-2017-13017 (DHCPv6)
+      CVE-2017-13018 (PGM)
+      CVE-2017-13019 (PGM)
+      CVE-2017-13020 (VTP)
+      CVE-2017-13021 (ICMPv6)
+      CVE-2017-13022 (IP)
+      CVE-2017-13023 (IPv6 mobility)
+      CVE-2017-13024 (IPv6 mobility)
+      CVE-2017-13025 (IPv6 mobility)
+      CVE-2017-13026 (ISO IS-IS)
+      CVE-2017-13027 (LLDP)
+      CVE-2017-13028 (BOOTP)
+      CVE-2017-13029 (PPP)
+      CVE-2017-13030 (PIM)
+      CVE-2017-13031 (IPv6 fragmentation header)
+      CVE-2017-13032 (RADIUS)
+      CVE-2017-13033 (VTP)
+      CVE-2017-13034 (PGM)
+      CVE-2017-13035 (ISO IS-IS)
+      CVE-2017-13036 (OSPFv3)
+      CVE-2017-13037 (IP)
+      CVE-2017-13038 (PPP)
+      CVE-2017-13039 (ISAKMP)
+      CVE-2017-13040 (MPTCP)
+      CVE-2017-13041 (ICMPv6)
+      CVE-2017-13042 (HNCP)
+      CVE-2017-13043 (BGP)
+      CVE-2017-13044 (HNCP)
+      CVE-2017-13045 (VQP)
+      CVE-2017-13046 (BGP)
+      CVE-2017-13047 (ISO ES-IS)
+      CVE-2017-13048 (RSVP)
+      CVE-2017-13049 (Rx)
+      CVE-2017-13050 (RPKI-Router)
+      CVE-2017-13051 (RSVP)
+      CVE-2017-13052 (CFM)
+      CVE-2017-13053 (BGP)
+      CVE-2017-13054 (LLDP)
+      CVE-2017-13055 (ISO IS-IS)
+      CVE-2017-13687 (Cisco HDLC)
+      CVE-2017-13688 (OLSR)
+      CVE-2017-13689 (IKEv1)
+      CVE-2017-13690 (IKEv2)
+      CVE-2017-13725 (IPv6 routing headers)
+
+Sunday July 23, 2017 denis@ovsienko.info
+  Summary for 4.9.1 tcpdump release
+    CVE-2017-11108/Fix bounds checking for STP.
+    Make assorted documentation updates and fix a few typos in tcpdump output.
+    Fixup -C for file size >2GB (GH #488).
+    Show AddressSanitizer presence in version output.
+    Fix a bug in test scripts (exposed in GH #613).
+    On FreeBSD adjust Capsicum capabilities for netmap.
+    On Linux fix a use-after-free when the requested interface does not exist.
+
+Wednesday January 18, 2017 devel.fx.lebail@orange.fr
+  Summary for 4.9.0 tcpdump release
+    General updates:
+    Fix some heap overflows found with American Fuzzy Lop by Hanno Boeck and others
+        (More information in the log with CVE-2016-* and CVE-2017-*)
+    Change the way protocols print link-layer addresses (Fix heap overflows
+        in CALM-FAST and GeoNetworking printers)
+    Pass correct caplen value to ether_print() and some other functions
+    Fix lookup_nsap() to match what isonsap_string() expects
+    Clean up relative time stamp printing (Fix an array overflow)
+    Fix some alignment issues with GCC on Solaris 10 SPARC
+    Add some ND_TTEST_/ND_TCHECK_ macros to simplify writing bounds checks
+    Add a fn_printztn() which returns the number of bytes processed
+    Add nd_init() and nd_cleanup() functions. Improve libsmi support
+    Add CONTRIBUTING file
+    Add a summary comment in all printers
+    Compile with more warning options in devel mode if supported (-Wcast-qual, ...)
+    Fix some leaks found by Valgrind/Memcheck
+    Fix a bunch of de-constifications
+    Squelch some Coverity warnings and some compiler warnings
+    Update Coverity and Travis-CI setup
+    Update Visual Studio files
+
+    Frontend:
+    Fix capsicum support to work with zerocopy buffers in bpf
+    Try opening interfaces by name first, then by name-as-index
+    Work around pcap_create() failures fetching time stamp type lists
+    Fix a segmentation fault with 'tcpdump -J'
+    Improve addrtostr6() bounds checking
+    Add exit_tcpdump() function
+    Don't drop CAP_SYS_CHROOT before chrooting
+    Fixes issue where statistics not reported when -G and -W options used
+
+    Updated printers:
+    802.11: Beginnings of 11ac radiotap support
+    802.11: Check the Protected bit for management frames
+    802.11: Do bounds checking on last_presentp before dereferencing it (Fix a heap overflow)
+    802.11: Fix the radiotap printer to handle the special bits correctly
+    802.11: If we have the MCS field, it's 11n
+    802.11: Only print unknown frame type or subtype messages once
+    802.11: Radiotap dBm values get printed as dB; Update a test output accordingly
+    802.11: Source and destination addresses were backwards
+    AH: Add a bounds check
+    AH: Report to our caller that dissection failed if a bounds check fails
+    AP1394: Print src > dst, not dst > src
+    ARP: Don't assume the target hardware address is <= 6 octets long (Fix a heap overflow)
+    ATALK: Add bounds and length checks (Fix heap overflows)
+    ATM: Add some bounds checks (Fix a heap overflow)
+    ATM: Fix an incorrect bounds check
+    BFD: Update specification from draft to RFC 5880
+    BFD: Update to print optional authentication field
+    BGP: Add support for the AIGP attribute (RFC7311)
+    BGP: Print LARGE_COMMUNITY Path Attribute
+    BGP: Update BGP numbers from IANA; Print minor values for FSM notification
+    BOOTP: Add a bounds check
+    Babel: Add decoder for source-specific extension
+    CDP: Filter out non-printable characters
+    CFM: Fixes to match the IEEE standard, additional bounds and length checks
+    CSLIP: Add more bounds checks (Fix a heap overflow)
+    ClassicalIPoATM: Add a bounds check on LLC+SNAP header (Fix a heap overflow)
+    DHCP: Fix MUDURL and TZ options
+    DHCPv6: Process MUDURL and TZ options
+    DHCPv6: Update Status Codes with RFCs/IANA names
+    DNS: Represent the "DNSSEC OK" bit as "DO" instead of "OK". Add a test case
+    DTP: Improve packet integrity checks
+    EGP: Fix bounds checks
+    ESP: Don't use OpenSSL_add_all_algorithms() in OpenSSL 1.1.0 or later
+    Ethernet: Add some bounds checking before calling isoclns_print (Fix a heap overflow)
+    Ethernet: Print the Length/Type field as length when needed
+    FDDI: Fix -e output for FDDI
+    FR: Add some packet-length checks and improve Q.933 printing (Fix heap overflows)
+    GRE: Add some bounds checks (Fix heap overflows)
+    Geneve: Fix error message with invalid option length; Update list option classes
+    HNCP: Fix incorrect time interval format. Fix handling of IPv4 prefixes
+    ICMP6: Fetch a 32-bit big-endian quantity with EXTRACT_32BITS()
+    IGMP: Add a length check
+    IP: Add a bounds check (Fix a heap overflow)
+    IP: Check before fetching the protocol version (Fix a heap overflow)
+    IP: Don't try to dissect if IP version != 4 (Fix a heap overflow)
+    IP: Stop processing IPPROTO_ values once we hit IPPROTO_IPCOMP
+    IPComp: Check whether we have the CPI before we fetch it (Fix a heap overflow)
+    IPoFC: Fix -e output (IP-over-Fibre Channel)
+    IPv6: Don't overwrite the destination IPv6 address for routing headers
+    IPv6: Fix header printing
+    IPv6: Stop processing IPPROTO_ values once we hit IPPROTO_IPCOMP
+    ISAKMP: Clean up parsing of IKEv2 Security Associations
+    ISOCLNS/IS-IS: Add support for Purge Originator Identifier (RFC6232) and test cases
+    ISOCLNS/IS-IS: Don't overwrite packet data when checking the signature
+    ISOCLNS/IS-IS: Filter out non-printable characters
+    ISOCLNS/IS-IS: Fix segmentation faults
+    ISOCLNS/IS-IS: Have signature_verify() do the copying and clearing
+    ISOCLNS: Add some bounds checks
+    Juniper: Make sure a Juniper header TLV isn't bigger than what's left in the packet (Fix a heap overflow)
+    LLC/SNAP: With -e, print the LLC header before the SNAP header; without it, cut the SNAP header
+    LLC: Add a bounds check (Fix a heap overflow)
+    LLC: Clean up printing of LLC packets
+    LLC: Fix the printing of RFC 948-style IP packets
+    LLC: Skip the LLC and SNAP headers with -x for 802.11 and some other protocols
+    LLDP: Implement IANA OUI and LLDP MUD option
+    MPLS LSP ping: Update printing for RFC 4379, bug fixes, more bounds checks
+    MPLS: "length" is now the *remaining* packet length
+    MPLS: Add bounds and length checks (Fix a heap overflow)
+    NFS: Don't assume the ONC RPC header is nicely aligned
+    NFS: Don't overflow the Opaque_Handle buffer (Fix a segmentation fault)
+    NFS: Don't run past the end of an NFSv3 file handle
+    OLSR: Add a test to cover a HNA sgw case
+    OLSR: Fix 'Advertised networks' count
+    OLSR: Fix printing of smart-gateway HNAs in IPv4
+    OSPF: Add a bounds check for the Hello packet options
+    OSPF: Do more bounds checking
+    OSPF: Fix a segmentation fault
+    OSPF: Fix printing 'ospf_topology_values' default
+    OTV: Add missing bounds checks
+    PGM: Print the formatted IP address, not the raw binary address, as a string
+    PIM: Add some bounds checking (Fix a heap overflow)
+    PIMv2: Fix checksumming of Register messages
+    PPP: Add some bounds checks (Fix a heap overflow)
+    PPP: Report invalid PAP AACK/ANAK packets
+    Q.933: Add a missing bounds check
+    RADIUS: Add Value 13 "VLAN" to Tunnel-Type attribute
+    RADIUS: Filter out non-printable characters
+    RADIUS: Translate UDP/1700 as RADIUS
+    RESP: Do better checking of RESP packets
+    RPKI-RTR: Add a return value check for "fn_printn" call
+    RPKI-RTR: Remove printing when truncated condition already detected
+    RPL: Fix 'Consistency Check' control code
+    RPL: Fix suboption print
+    RSVP: An INTEGRITY object in a submessage covers only the submessage
+    RSVP: Fix an infinite loop; Add bounds and length checks
+    RSVP: Fix some if statements missing brackets
+    RSVP: Have signature_verify() do the copying and clearing
+    RTCP: Add some bounds checks
+    RTP: Add some bounds checks, fix two segmentation faults
+    SCTP: Do more bounds checking
+    SFLOW: Fix bounds checking
+    SLOW: Fix bugs, add checks
+    SMB: Before fetching the flags2 field, make sure we have it
+    SMB: Do bounds checks on NBNS resource types and resource data lengths
+    SNMP: Clean up the "have libsmi but no modules loaded" case
+    SNMP: Clean up the object abbreviation list and fix the code to match them
+    SNMP: Do bounds checks when printing character and octet strings
+    SNMP: Improve ASN.1 bounds checks
+    SNMP: More bounds and length checks
+    STP: Add a bunch of bounds checks, and fix some printing (Fix heap overflows)
+    STP: Filter out non-printable characters
+    TCP: Add bounds and length checks for packets with TCP option 20
+    TCP: Correct TCP option Kind value for TCP Auth and add SCPS-TP
+    TCP: Fix two bounds checks (Fix heap overflows)
+    TCP: Make sure we have the data offset field before fetching it (Fix a heap overflow)
+    TCP: Put TCP-AO option decoding right
+    TFTP: Don't use strchr() to scan packet data (Fix a heap overflow)
+    Telnet: Add some bounds checks
+    TokenRing: Fix -e output
+    UDLD: Fix an infinite loop
+    UDP: Add a bounds check (Fix a heap overflow)
+    UDP: Check against the packet length first
+    VAT: Add some bounds checks
+    VTP: Add a test on Mgmt Domain Name length
+    VTP: Add bounds checks and filter out non-printable characters
+    VXLAN: Add a bound check and a test case
+    ZeroMQ: Fix an infinite loop
+
+Tuesday October 25, 2016 mcr@sandelman.ca
+  Summary for 4.8.1 tcpdump release
+	Fix "-x" for Apple PKTAP and PPI packets
+        Improve separation frontend/backend (tcpdump/libnetdissect)
+        Fix display of timestamps with -tt, -ttt and -ttttt options
+        Add support for the Marvell Extended Distributed Switch Architecture header
+        Use PRIx64 to print a 64-bit number in hex.
+        Printer for HNCP (RFCs 7787 and 7788).
+        dagid is always an IPv6 address, not an opaque 128-bit string, and other fixes to RPL printer.
+        RSVP: Add bounds and length checks
+        OSPF: Do more bounds checking
+        Handle OpenSSL 1.1.x.
+        Initial support for the REdis Serialization Protocol known as RESP.
+        Add printing function for Generic Protocol Extension for VXLAN
+            draft-ietf-nvo3-vxlan-gpe-01
+        Network Service Header: draft-ietf-sfc-nsh-01
+        Don't recompile the filter if the new file has the same DLT.
+        Pass an adjusted struct pcap_pkthdr to the sub-printer.
+        Add three test cases for already fixed CVEs
+           CVE-2014-8767: OLSR
+           CVE-2014-8768: Geonet
+           CVE-2014-8769: AODV
+        Don't do the DDP-over-UDP heuristic first: GitHub issue #499.
+        Use the new debugging routines in libpcap.
+        Harmonize TCP source or destination ports tests with UDP ones
+        Introduce data types to use for integral values in packet structures.
+        RSVP: Fix an infinite loop
+        Support of Type 3 and Type 4 LISP packets.
+        Don't require IPv6 library support in order to support IPv6 addresses.
+        Many many changes to support libnetdissect usage.
+        Add a test that makes unaligned accesses: GitHub issue #478.
+        add a DNSSEC test case: GH #445 and GH #467.
+        BGP: add decoding of ADD-PATH capability
+        fixes to LLC header printing, and RFC948-style IP packets
+
 Friday April 10, 2015 guy@alum.mit.edu
   Summary for 4.7.4 tcpdump release
 	RPKI to Router Protocol: Fix Segmentation Faults and other problems
@@ -464,10 +774,10 @@ Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 3.8 release
 
 Tuesday, February 25, 2003. fenner@research.att.com.  3.7.2 release
 
-	Fixed infinite loop when parsing malformed isakmp packets.
+	Fixed infinite loop when parsing invalid isakmp packets.
 	 (reported by iDefense; already fixed in CVS)
-	Fixed infinite loop when parsing malformed BGP packets.
-	Fixed buffer overflow with certain malformed NFS packets.
+	Fixed infinite loop when parsing invalid BGP packets.
+	Fixed buffer overflow with certain invalid NFS packets.
 	Pretty-print unprintable network names in 802.11 printer.
 	Handle truncated nbp (appletalk) packets.
 	Updated DHCPv6 printer to match draft-ietf-dhc-dhcpv6-22.txt

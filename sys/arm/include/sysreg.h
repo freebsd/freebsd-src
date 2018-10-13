@@ -89,6 +89,9 @@
 
 #define	CP15_CSSELR(rr)		p15, 2, rr, c0, c0,  0 /* Cache Size Selection Register */
 
+#define	CP15_VPIDR(rr)		p15, 4, rr, c0, c0,  0 /* Virtualization Processor ID Register */
+#define	CP15_VMPIDR(rr)		p15, 4, rr, c0, c0,  5 /* Virtualization Multiprocessor ID Register */
+
 /*
  * CP15 C1 registers
  */
@@ -100,12 +103,22 @@
 #define	CP15_SDER(rr)		p15, 0, rr, c1, c1,  1 /* Secure Debug Enable Register */
 #define	CP15_NSACR(rr)		p15, 0, rr, c1, c1,  2 /* Non-Secure Access Control Register */
 
+#define	CP15_HSCTLR(rr)		p15, 4, rr, c1, c0,  0 /* Hyp System Control Register */
+
+#define	CP15_HCR(rr)		p15, 4, rr, c1, c1,  0 /* Hyp Configuration Register */
+#define	CP15_HDCR(rr)		p15, 4, rr, c1, c1,  1 /* Hyp Debug Configuration Register */
+#define	CP15_HCPTR(rr)		p15, 4, rr, c1, c1,  2 /* Hyp Coprocessor Trap Register */
+#define	CP15_HSTR(rr)		p15, 4, rr, c1, c1,  3 /* Hyp System Trap Register */
+
 /*
  * CP15 C2 registers
  */
 #define	CP15_TTBR0(rr)		p15, 0, rr, c2, c0,  0 /* Translation Table Base Register 0 */
 #define	CP15_TTBR1(rr)		p15, 0, rr, c2, c0,  1 /* Translation Table Base Register 1 */
 #define	CP15_TTBCR(rr)		p15, 0, rr, c2, c0,  2 /* Translation Table Base Control Register */
+
+#define	CP15_HTCR(rr)		p15, 4, rr, c2, c0,  2 /* Hyp Translation Control Register */
+#define	CP15_VTCR(rr)		p15, 4, rr, c2, c1,  2 /* Virtualization Translation Control Register */
 
 /*
  * CP15 C3 registers
@@ -116,6 +129,7 @@
  * CP15 C5 registers
  */
 #define	CP15_DFSR(rr)		p15, 0, rr, c5, c0,  0 /* Data Fault Status Register */
+#define	CP15_HSR(rr)		p15, 4, rr, c5, c2,  0 /* Hyp Syndrome Register */
 
 #if __ARM_ARCH >= 6
 /* From ARMv6: */
@@ -131,6 +145,9 @@
  * CP15 C6 registers
  */
 #define	CP15_DFAR(rr)		p15, 0, rr, c6, c0,  0 /* Data Fault Address Register */
+#define	CP15_HDFAR(rr)		p15, 4, rr, c6, c0,  0 /* Hyp Data Fault Address Register */
+#define	CP15_HIFAR(rr)		p15, 4, rr, c6, c0,  2 /* Hyp Instruction Fault Address Register */
+#define	CP15_HPFAR(rr)		p15, 4, rr, c6, c0,  4 /* Hyp IPA Fault Address Register */
 
 #if __ARM_ARCH >= 6
 /* From ARMv6k: */
@@ -217,6 +234,8 @@
 #define	CP15_TLBIMVA(rr)	p15, 0, rr, c8, c7, 1 /* Invalidate unified TLB by MVA */
 #define	CP15_TLBIASID(rr)	p15, 0, rr, c8, c7, 2 /* Invalidate unified TLB by ASID */
 
+#define	CP15_TLBIALLH(rr)	p15, 4, rr, c8, c7, 0 /* Invalidate Entire Hyp Unified TLB */
+
 #if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_TLBIMVAA(rr)	p15, 0, rr, c8, c7, 3 /* Invalidate unified TLB by MVA, all ASID */
@@ -258,6 +277,9 @@
 #define	CP15_AMAIR0(rr)		p15, 0, rr, c10, c3, 0 /* Auxiliary Memory Attribute Indirection Register 0 */
 #define	CP15_AMAIR1(rr)		p15, 0, rr, c10, c3, 1 /* Auxiliary Memory Attribute Indirection Register 1 */
 
+#define	CP15_HMAIR0(rr)		p15, 4, rr, c10, c2, 0 /* Hyp Memory Attribute Indirection Register 0 */
+#define	CP15_HMAIR1(rr)		p15, 4, rr, c10, c2, 1 /* Hyp Memory Attribute Indirection Register 1 */
+
 /*
  * CP15 C12 registers
  */
@@ -265,6 +287,7 @@
 #define	CP15_MVBAR(rr)		p15, 0, rr, c12, c0, 1 /* Monitor Vector Base Address Register */
 
 #define	CP15_ISR(rr)		p15, 0, rr, c12, c1, 0 /* Interrupt Status Register */
+#define	CP15_HVBAR(rr)		p15, 4, rr, c12, c0, 0 /* Hyp Vector Base Address Register*/
 
 /*
  * CP15 C13 registers
@@ -274,6 +297,7 @@
 #define	CP15_TPIDRURW(rr)	p15, 0, rr, c13, c0, 2 /* User Read/Write Thread ID Register */
 #define	CP15_TPIDRURO(rr)	p15, 0, rr, c13, c0, 3 /* User Read-Only Thread ID Register */
 #define	CP15_TPIDRPRW(rr)	p15, 0, rr, c13, c0, 4 /* PL1 only Thread ID Register */
+#define	CP15_HTPIDR(rr)		p15, 4, rr, c13, c0, 2 /* Hyp Software Thread ID Register */
 
 /*
  * CP15 C14 registers
@@ -296,6 +320,12 @@
 #define	CP15_CNTV_CVAL(rq, rr)	p15, 3, rq, rr, c14	/* Virtual Timer Compare Value Register */
 #define	CP15_CNTVOFF(rq, rr)	p15, 4, rq, rr, c14	/* Virtual Offset Register */
 #define	CP15_CNTHP_CVAL(rq, rr)	p15, 6, rq, rr, c14	/* PL2 Physical Timer Compare Value Register */
+
+#define	CP15_VTTBR(rq, rr)	p15, 6, rq, rr, c2	/* Virtualization Translation Table Base Register */
+#define	CP15_HTTBR(rq, rr)	p15, 4, rq, rr, c2	/* Hyp Translation Table Base Register */
+#define	CP15_TTBR0_2(rq, rr)	p15, 0, rq, rr, c2	/* Translation Table Base Register 0 */
+#define	CP15_TTBR1_2(rq, rr)	p15, 1, rq, rr, c2	/* Translation Table Base Register 1 */
+#define	CP15_PAR_2(rq, rr)	p15, 0, rq, rr, c7	/* Physical Address Register */
 
 /*
  * CP15 C15 registers

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #define	TCPTIMERS
 #include <netinet/tcp_timer.h>
+#define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #define	TANAMES
@@ -76,23 +79,24 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <nlist.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-struct nlist nl[3];
+static struct nlist nl[3];
 #define	N_TCP_DEBUG	0
 #define	N_TCP_DEBX	1
 
 static caddr_t tcp_pcbs[TCP_NDEBUG];
 static n_time ntime;
-static int aflag, kflag, memf, follow, sflag, tflag;
+static int aflag, kflag, memf, follow, sflag;
 
-void dotrace(caddr_t);
-void klseek(int, off_t, int);
-int numeric(const void *, const void *);
-void tcp_trace(short, short, struct tcpcb *, int, void *, struct tcphdr *, int);
+static void dotrace(caddr_t);
+static void klseek(int, off_t, int);
+static int numeric(const void *, const void *);
+static void tcp_trace(short, short, struct tcpcb *, int, void *, struct tcphdr *, int);
 static void usage(void);
 
 int
@@ -105,7 +109,7 @@ main(int argc, char **argv)
 	nl[1].n_name = strdup("_tcp_debx");
 
 	jflag = npcbs = 0;
-	while ((ch = getopt(argc, argv, "afjp:st")) != -1)
+	while ((ch = getopt(argc, argv, "afjp:s")) != -1)
 		switch (ch) {
 		case 'a':
 			++aflag;
@@ -124,9 +128,6 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			++sflag;
-			break;
-		case 't':
-			++tflag;
 			break;
 		case '?':
 		default:
@@ -150,8 +151,7 @@ main(int argc, char **argv)
 		 */
 		if (setgid(getgid()) != 0)
 			err(1, "setgid");
-	}
-	else
+	} else
 		syst = getbootfile();
 
 	if (nlist(syst, nl) < 0 || !nl[0].n_value)
@@ -178,8 +178,8 @@ main(int argc, char **argv)
 	 */
 	if (!npcbs) {
 		for (i = 0; i < TCP_NDEBUG; i++) {
-			register struct tcp_debug *td = &tcp_debug[i];
-			register int j;
+			struct tcp_debug *td = &tcp_debug[i];
+			int j;
 
 			if (td->td_tcb == 0)
 				continue;
@@ -201,31 +201,31 @@ main(int argc, char **argv)
 			fputs(", ", stdout);
 		}
 		putchar('\n');
-	}
-	else for (i = 0; i < npcbs; i++) {
-		printf("\n%p:\n", tcp_pcbs[i]);
-		dotrace(tcp_pcbs[i]);
-	}
+	} else
+		for (i = 0; i < npcbs; i++) {
+			printf("\n%p:\n", tcp_pcbs[i]);
+			dotrace(tcp_pcbs[i]);
+		}
 	exit(0);
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: trpt [-afjst] [-p hex-address] [system [core]]\n");
+	    "usage: trpt [-afjs] [-p hex-address] [system [core]]\n");
 	exit(1);
 }
 
-void
-dotrace(tcpcb)
-	register caddr_t tcpcb;
+static void
+dotrace(caddr_t tcpcb)
 {
-	register struct tcp_debug *td;
-	register int i;
+	struct tcp_debug *td;
+	int i;
 	int prev_debx = tcp_debx, family;
 
-again:	if (--tcp_debx < 0)
+again:
+	if (--tcp_debx < 0)
 		tcp_debx = TCP_NDEBUG - 1;
 	for (i = prev_debx % TCP_NDEBUG; i < TCP_NDEBUG; i++) {
 		td = &tcp_debug[i];
@@ -237,17 +237,17 @@ again:	if (--tcp_debx < 0)
 #else
 		family = AF_INET;
 #endif
-		switch(family) {
+		switch (family) {
 		case AF_INET:
-			tcp_trace(td->td_act, td->td_ostate,
-				  &td->td_cb, td->td_family, &td->td_ti.ti_i,
-				  &td->td_ti.ti_t, td->td_req);
+			tcp_trace(td->td_act, td->td_ostate, &td->td_cb,
+			    td->td_family, &td->td_ti.ti_i, &td->td_ti.ti_t,
+			    td->td_req);
 			break;
 #ifdef INET6
 		case AF_INET6:
-			tcp_trace(td->td_act, td->td_ostate,
-				  &td->td_cb, td->td_family, &td->td_ti6.ip6,
-				  &td->td_ti6.th, td->td_req);
+			tcp_trace(td->td_act, td->td_ostate, &td->td_cb,
+			    td->td_family, &td->td_ti6.ip6, &td->td_ti6.th,
+			    td->td_req);
 			break;
 #endif
 		}
@@ -264,22 +264,23 @@ again:	if (--tcp_debx < 0)
 #else
 		family = AF_INET;
 #endif
-		switch(family) {
+		switch (family) {
 		case AF_INET:
-			tcp_trace(td->td_act, td->td_ostate,
-				  &td->td_cb, td->td_family, &td->td_ti.ti_i,
-				  &td->td_ti.ti_t, td->td_req);
+			tcp_trace(td->td_act, td->td_ostate, &td->td_cb,
+			    td->td_family, &td->td_ti.ti_i, &td->td_ti.ti_t,
+			    td->td_req);
 			break;
 #ifdef INET6
 		case AF_INET6:
-			tcp_trace(td->td_act, td->td_ostate,
-				  &td->td_cb, td->td_family, &td->td_ti6.ip6,
-				  &td->td_ti6.th, td->td_req);
+			tcp_trace(td->td_act, td->td_ostate, &td->td_cb,
+			    td->td_family, &td->td_ti6.ip6, &td->td_ti6.th,
+			    td->td_req);
 			break;
 #endif
 		}
 	}
-done:	if (follow) {
+done:
+	if (follow) {
 		prev_debx = tcp_debx + 1;
 		if (prev_debx >= TCP_NDEBUG)
 			prev_debx = 0;
@@ -302,7 +303,7 @@ done:	if (follow) {
  * Tcp debug routines
  */
 /*ARGSUSED*/
-void
+static void
 tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
     void *ip, struct tcphdr *th, int req)
 {
@@ -310,21 +311,26 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
 	int flags, len, win, timer;
 	struct ip *ip4;
 #ifdef INET6
-	int isipv6, nopkt = 1;
+	bool isipv6, nopkt = true;
 	struct ip6_hdr *ip6;
 	char ntop_buf[INET6_ADDRSTRLEN];
 #endif
 
 #ifdef INET6
+	/* Appease GCC -Wmaybe-uninitialized */
+	ip4 = NULL;
+	ip6 = NULL;
+	isipv6 = false;
+
 	switch (family) {
 	case AF_INET:
-		nopkt = 0;
-		isipv6 = 0;
+		nopkt = false;
+		isipv6 = false;
 		ip4 = (struct ip *)ip;
 		break;
 	case AF_INET6:
-		nopkt = 0;
-		isipv6 = 1;
+		nopkt = false;
+		isipv6 = true;
 		ip6 = (struct ip6_hdr *)ip;
 	case 0:
 	default:
@@ -333,43 +339,39 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
 #else
 	ip4 = (struct ip *)ip;
 #endif
-	printf("%03ld %s:%s ", (long)((ntime/10) % 1000), tcpstates[ostate],
+	printf("%03ld %s:%s ", (long)((ntime / 10) % 1000), tcpstates[ostate],
 	    tanames[act]);
 	switch (act) {
 	case TA_INPUT:
 	case TA_OUTPUT:
 	case TA_DROP:
 #ifdef INET6
-		if (nopkt != 0)
+		if (nopkt)
 			break;
 #endif
 		if (aflag) {
 			printf("(src=%s,%u, ",
 
 #ifdef INET6
-			       isipv6
-			       ? inet_ntop(AF_INET6, &ip6->ip6_src, ntop_buf,
-					   sizeof(ntop_buf)) :
+			    isipv6 ? inet_ntop(AF_INET6, &ip6->ip6_src,
+				ntop_buf, sizeof(ntop_buf)) :
 #endif
-			       inet_ntoa(ip4->ip_src),
-			       ntohs(th->th_sport));
+			    inet_ntoa(ip4->ip_src), ntohs(th->th_sport));
 			printf("dst=%s,%u)",
 #ifdef INET6
-			       isipv6
-			       ? inet_ntop(AF_INET6, &ip6->ip6_dst, ntop_buf,
-					   sizeof(ntop_buf)) :
+			    isipv6 ? inet_ntop(AF_INET6, &ip6->ip6_dst,
+				ntop_buf, sizeof(ntop_buf)) :
 #endif
-			       inet_ntoa(ip4->ip_dst),
-			       ntohs(th->th_dport));
+			    inet_ntoa(ip4->ip_dst), ntohs(th->th_dport));
 		}
 		seq = th->th_seq;
 		ack = th->th_ack;
 
 		len =
 #ifdef INET6
-			isipv6 ? ip6->ip6_plen :
+		    isipv6 ? ip6->ip6_plen :
 #endif
-			ip4->ip_len;
+		    ip4->ip_len;
 		win = th->th_win;
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
@@ -417,49 +419,25 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
 	printf("\n");
 	if (sflag) {
 		printf("\trcv_nxt %lx rcv_wnd %lx snd_una %lx snd_nxt %lx snd_max %lx\n",
-		    (u_long)tp->rcv_nxt, tp->rcv_wnd,
+		    (u_long)tp->rcv_nxt, (u_long)tp->rcv_wnd,
 		    (u_long)tp->snd_una, (u_long)tp->snd_nxt,
 		    (u_long)tp->snd_max);
 		printf("\tsnd_wl1 %lx snd_wl2 %lx snd_wnd %lx\n",
-		    (u_long)tp->snd_wl1,
-		    (u_long)tp->snd_wl2, tp->snd_wnd);
+		    (u_long)tp->snd_wl1, (u_long)tp->snd_wl2,
+		    (u_long)tp->snd_wnd);
 	}
-	/* print out timers? */
-#if 0
-	/*
-	 * XXX 
-	 * kernel now uses callouts, not integer time values.
-	 */
-	if (tflag) {
-		register char *cp = "\t";
-		register int i;
-
-		for (i = 0; i < TCPT_NTIMERS; i++) {
-			if (tp->t_timer[i] == 0)
-				continue;
-			printf("%s%s=%d", cp, tcptimers[i], tp->t_timer[i]);
-			if (i == TCPT_REXMT)
-				printf(" (t_rxtshft=%d)", tp->t_rxtshift);
-			cp = ", ";
-		}
-		if (*cp != '\t')
-			putchar('\n');
-	}
-#endif
 }
 
-int
-numeric(v1, v2)
-	const void *v1, *v2;
+static int
+numeric(const void *v1, const void *v2)
 {
 	const caddr_t *c1 = v1, *c2 = v2;
-	return(*c1 - *c2);
+
+	return (*c1 - *c2);
 }
 
-void
-klseek(fd, base, off)
-	int fd, off;
-	off_t base;
+static void
+klseek(int fd, off_t base, int off)
 {
 	(void)lseek(fd, base, off);
 }

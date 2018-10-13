@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -63,7 +65,7 @@ setvbuf(FILE * __restrict fp, char * __restrict buf, int mode, size_t size)
 		if ((mode != _IOFBF && mode != _IOLBF) || (int)size < 0)
 			return (EOF);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	/*
 	 * Write current buffer, if any.  Discard unread input (including
 	 * ungetc data), cancel line buffering, and free old buffer if
@@ -115,8 +117,7 @@ nbf:
 			fp->_w = 0;
 			fp->_bf._base = fp->_p = fp->_nbuf;
 			fp->_bf._size = 1;
-			FUNLOCKFILE(fp);
-			return (ret);
+			goto end;
 		}
 		flags |= __SMBF;
 	}
@@ -156,6 +157,7 @@ nbf:
 	}
 	__cleanup = _cleanup;
 
-	FUNLOCKFILE(fp);
+end:
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }

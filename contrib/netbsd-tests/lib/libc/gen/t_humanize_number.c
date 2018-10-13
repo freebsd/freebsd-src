@@ -1,4 +1,4 @@
-/*	$NetBSD: t_humanize_number.c,v 1.8 2012/03/18 07:14:08 jruoho Exp $	*/
+/*	$NetBSD: t_humanize_number.c,v 1.9 2017/01/10 15:20:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010, 2011 The NetBSD Foundation, Inc.
@@ -34,11 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef __FreeBSD__
-#include <libutil.h>
-#else
 #include <util.h>
-#endif
 
 const struct hnopts {
 	size_t ho_len;
@@ -247,6 +243,7 @@ ATF_TC_BODY(humanize_number_basic, tc)
 		newline();
 		atf_tc_fail_nonfatal("Failed for table entry %d", i);
 	}
+	free(buf);
 }
 
 ATF_TC(humanize_number_big);

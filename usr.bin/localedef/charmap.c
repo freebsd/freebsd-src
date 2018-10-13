@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
  *
@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <unistd.h>
 #include <stddef.h>
 #include <unistd.h>
 #include "localedef.h"

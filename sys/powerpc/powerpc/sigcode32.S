@@ -34,7 +34,7 @@
 
 #include <machine/asm.h>
 #include <sys/syscall.h>
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * The following code gets copied to the top of the user stack on process

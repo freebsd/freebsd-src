@@ -58,4 +58,12 @@
 const sqlite3_api_routines *const svn_sqlite3__api_funcs = &sqlite3Apis;
 int (*const svn_sqlite3__api_initialize)(void) = sqlite3_initialize;
 int (*const svn_sqlite3__api_config)(int, ...)  = sqlite3_config;
-#endif
+
+#else  /* !SVN_SQLITE_INLINE */
+
+/* Silence OSX ranlib warnings about object files with no symbols. */
+#include <apr.h>
+extern const apr_uint32_t svn__fake__sqlite3wrapper;
+const apr_uint32_t svn__fake__sqlite3wrapper = 0xdeadbeef;
+
+#endif /* SVN_SQLITE_INLINE */

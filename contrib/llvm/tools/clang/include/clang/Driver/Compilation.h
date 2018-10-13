@@ -14,7 +14,7 @@
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/Path.h"
+#include <map>
 
 namespace llvm {
 namespace opt {
@@ -38,8 +38,16 @@ class Compilation {
   /// The default tool chain.
   const ToolChain &DefaultToolChain;
 
-  const ToolChain *CudaHostToolChain;
-  const ToolChain *CudaDeviceToolChain;
+  /// A mask of all the programming models the host has to support in the
+  /// current compilation.
+  unsigned ActiveOffloadMask;
+
+  /// Array with the toolchains of offloading host and devices in the order they
+  /// were requested by the user. We are preserving that order in case the code
+  /// generation needs to derive a programming-model-specific semantic out of
+  /// it.
+  std::multimap<Action::OffloadKind, const ToolChain *>
+      OrderedOffloadingToolchains;
 
   /// The original (untranslated) input argument list.
   llvm::opt::InputArgList *Args;
@@ -59,10 +67,27 @@ class Compilation {
   /// The root list of jobs.
   JobList Jobs;
 
-  /// Cache of translated arguments for a particular tool chain and bound
-  /// architecture.
-  llvm::DenseMap<std::pair<const ToolChain *, const char *>,
-                 llvm::opt::DerivedArgList *> TCArgs;
+  /// Cache of translated arguments for a particular tool chain, bound
+  /// architecture, and device offload kind.
+  struct TCArgsKey final {
+    const ToolChain *TC = nullptr;
+    StringRef BoundArch;
+    Action::OffloadKind DeviceOffloadKind = Action::OFK_None;
+    bool operator<(const TCArgsKey &K) const {
+      if (TC < K.TC)
+        return true;
+      else if (TC == K.TC && BoundArch < K.BoundArch)
+        return true;
+      else if (TC == K.TC && BoundArch == K.BoundArch &&
+               DeviceOffloadKind < K.DeviceOffloadKind)
+        return true;
+      return false;
+    }
+    TCArgsKey(const ToolChain *TC, StringRef BoundArch,
+              Action::OffloadKind DeviceOffloadKind)
+        : TC(TC), BoundArch(BoundArch), DeviceOffloadKind(DeviceOffloadKind) {}
+  };
+  std::map<TCArgsKey, llvm::opt::DerivedArgList *> TCArgs;
 
   /// Temporary files which should be removed on exit.
   llvm::opt::ArgStringList TempFiles;
@@ -74,31 +99,70 @@ class Compilation {
   /// only be removed if we crash.
   ArgStringMap FailureResultFiles;
 
-  /// Redirection for stdout, stderr, etc.
-  const StringRef **Redirects;
+  /// Optional redirection for stdin, stdout, stderr.
+  std::vector<Optional<StringRef>> Redirects;
 
   /// Whether we're compiling for diagnostic purposes.
   bool ForDiagnostics;
 
+  /// Whether an error during the parsing of the input args.
+  bool ContainsError;
+
 public:
   Compilation(const Driver &D, const ToolChain &DefaultToolChain,
               llvm::opt::InputArgList *Args,
-              llvm::opt::DerivedArgList *TranslatedArgs);
+              llvm::opt::DerivedArgList *TranslatedArgs, bool ContainsError);
   ~Compilation();
 
   const Driver &getDriver() const { return TheDriver; }
 
   const ToolChain &getDefaultToolChain() const { return DefaultToolChain; }
-  const ToolChain *getCudaHostToolChain() const { return CudaHostToolChain; }
-  const ToolChain *getCudaDeviceToolChain() const {
-    return CudaDeviceToolChain;
+
+  unsigned isOffloadingHostKind(Action::OffloadKind Kind) const {
+    return ActiveOffloadMask & Kind;
   }
 
-  void setCudaHostToolChain(const ToolChain *HostToolChain) {
-    CudaHostToolChain = HostToolChain;
+  /// Iterator that visits device toolchains of a given kind.
+  typedef const std::multimap<Action::OffloadKind,
+                              const ToolChain *>::const_iterator
+      const_offload_toolchains_iterator;
+  typedef std::pair<const_offload_toolchains_iterator,
+                    const_offload_toolchains_iterator>
+      const_offload_toolchains_range;
+
+  template <Action::OffloadKind Kind>
+  const_offload_toolchains_range getOffloadToolChains() const {
+    return OrderedOffloadingToolchains.equal_range(Kind);
   }
-  void setCudaDeviceToolChain(const ToolChain *DeviceToolChain) {
-    CudaDeviceToolChain = DeviceToolChain;
+
+  /// Return true if an offloading tool chain of a given kind exists.
+  template <Action::OffloadKind Kind> bool hasOffloadToolChain() const {
+    return OrderedOffloadingToolchains.find(Kind) !=
+           OrderedOffloadingToolchains.end();
+  }
+
+  /// Return an offload toolchain of the provided kind. Only one is expected to
+  /// exist.
+  template <Action::OffloadKind Kind>
+  const ToolChain *getSingleOffloadToolChain() const {
+    auto TCs = getOffloadToolChains<Kind>();
+
+    assert(TCs.first != TCs.second &&
+           "No tool chains of the selected kind exist!");
+    assert(std::next(TCs.first) == TCs.second &&
+           "More than one tool chain of the this kind exist.");
+    return TCs.first->second;
+  }
+
+  void addOffloadDeviceToolChain(const ToolChain *DeviceToolChain,
+                                 Action::OffloadKind OffloadKind) {
+    assert(OffloadKind != Action::OFK_Host && OffloadKind != Action::OFK_None &&
+           "This is not a device tool chain!");
+
+    // Update the host offload kind to also contain this kind.
+    ActiveOffloadMask |= OffloadKind;
+    OrderedOffloadingToolchains.insert(
+        std::make_pair(OffloadKind, DeviceToolChain));
   }
 
   const llvm::opt::InputArgList &getInputArgs() const { return *Args; }
@@ -137,10 +201,15 @@ public:
 
   /// getArgsForToolChain - Return the derived argument list for the
   /// tool chain \p TC (or the default tool chain, if TC is not specified).
+  /// If a device offloading kind is specified, a translation specific for that
+  /// kind is performed, if any.
   ///
   /// \param BoundArch - The bound architecture name, or 0.
-  const llvm::opt::DerivedArgList &getArgsForToolChain(const ToolChain *TC,
-                                                       const char *BoundArch);
+  /// \param DeviceOffloadKind - The offload device kind that should be used in
+  /// the translation, if any.
+  const llvm::opt::DerivedArgList &
+  getArgsForToolChain(const ToolChain *TC, StringRef BoundArch,
+                      Action::OffloadKind DeviceOffloadKind);
 
   /// addTempFile - Add a file to remove on exit, and returns its
   /// argument.
@@ -208,6 +277,16 @@ public:
 
   /// Return true if we're compiling for diagnostics.
   bool isForDiagnostics() const { return ForDiagnostics; }
+
+  /// Return whether an error during the parsing of the input args.
+  bool containsError() const { return ContainsError; }
+
+  /// Redirect - Redirect output of this compilation. Can only be done once.
+  ///
+  /// \param Redirects - array of optional paths. The array should have a size
+  /// of three. The inferior process's stdin(0), stdout(1), and stderr(2) will
+  /// be redirected to the corresponding paths, if provided (not llvm::None).
+  void Redirect(ArrayRef<Optional<StringRef>> Redirects);
 };
 
 } // end namespace driver

@@ -2,7 +2,15 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 26
+# Version 34
+# 2016-03-21 Check -ldl -pthread for libcrypto for ldns and openssl 1.1.0.
+# 2016-03-21 Use HMAC_Update instead of HMAC_CTX_Init (for openssl-1.1.0).
+# 2016-01-04 -D_DEFAULT_SOURCE defined with -D_BSD_SOURCE for Linux glibc 2.20
+# 2015-12-11 FLTO check for new OSX, clang.
+# 2015-11-18 spelling check fix.
+# 2015-11-05 ACX_SSL_CHECKS no longer adds -ldl needlessly.
+# 2015-08-28 ACX_CHECK_PIE and ACX_CHECK_RELRO_NOW added.
+# 2015-03-17 AHX_CONFIG_REALLOCARRAY added
 # 2013-09-19 FLTO help text improved.
 # 2013-07-18 Enable ACX_CHECK_COMPILER_FLAG to test for -Wstrict-prototypes
 # 2013-06-25 FLTO has --disable-flto option.
@@ -93,6 +101,8 @@
 # ACX_CHECK_MEMCMP_SIGNED	- check if memcmp uses signed characters.
 # AHX_MEMCMP_BROKEN		- replace memcmp func for CHECK_MEMCMP_SIGNED.
 # ACX_CHECK_SS_FAMILY           - check for sockaddr_storage.ss_family
+# ACX_CHECK_PIE			- add --enable-pie option and check if works
+# ACX_CHECK_RELRO_NOW		- add --enable-relro-now option and check it
 #
 
 dnl Escape backslashes as \\, for C:\ paths, for the C preprocessor defines.
@@ -235,7 +245,7 @@ ACX_CHECK_COMPILER_FLAG(xc99, [C99FLAG="-xc99"])
 
 AC_CHECK_HEADERS([getopt.h time.h],,, [AC_INCLUDES_DEFAULT])
 
-ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D_ALL_SOURCE,
+ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D_ALL_SOURCE,
 [
 #include "confdefs.h"
 #include <stdlib.h>
@@ -270,9 +280,9 @@ int test() {
 		a = 0;
 	return a;
 }
-], [CFLAGS="$CFLAGS $C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D_ALL_SOURCE"])
+], [CFLAGS="$CFLAGS $C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D_ALL_SOURCE"])
 
-ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_ALL_SOURCE,
+ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_ALL_SOURCE,
 [
 #include "confdefs.h"
 #include <stdlib.h>
@@ -307,7 +317,7 @@ int test() {
 		a = 0;
 	return a;
 }
-], [CFLAGS="$CFLAGS $C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_ALL_SOURCE"])
+], [CFLAGS="$CFLAGS $C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 -D_ALL_SOURCE"])
 
 ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG,
 [
@@ -319,7 +329,7 @@ int test() {
 }
 ], [CFLAGS="$CFLAGS $C99FLAG"])
 
-ACX_CHECK_COMPILER_FLAG_NEEDED(-D_BSD_SOURCE,
+ACX_CHECK_COMPILER_FLAG_NEEDED(-D_BSD_SOURCE -D_DEFAULT_SOURCE,
 [
 #include <ctype.h>
 
@@ -328,7 +338,7 @@ int test() {
         a = isascii(32);
         return a;
 }
-], [CFLAGS="$CFLAGS -D_BSD_SOURCE"])
+], [CFLAGS="$CFLAGS -D_BSD_SOURCE -D_DEFAULT_SOURCE"])
 
 ACX_CHECK_COMPILER_FLAG_NEEDED(-D_GNU_SOURCE,
 [
@@ -417,7 +427,7 @@ AC_DEFUN([ACX_CHECK_FLTO], [
         BAKCFLAGS="$CFLAGS"
         CFLAGS="$CFLAGS -flto"
         AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [
-            if $CC $CFLAGS -o conftest conftest.c 2>&1 | grep "warning: no debug symbols in executable" >/dev/null; then
+            if $CC $CFLAGS -o conftest conftest.c 2>&1 | $GREP -e "warning: no debug symbols in executable" -e "warning: object" >/dev/null; then
                 CFLAGS="$BAKCFLAGS"
                 AC_MSG_RESULT(no)
             else
@@ -663,16 +673,16 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 ACX_RUNTIME_PATH_ADD([$ssldir/lib])
             fi
         
-            AC_MSG_CHECKING([for HMAC_CTX_init in -lcrypto])
+            AC_MSG_CHECKING([for HMAC_Update in -lcrypto])
             LIBS="$LIBS -lcrypto"
             LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
             AC_TRY_LINK(, [
-                int HMAC_CTX_init(void);
-                (void)HMAC_CTX_init();
+                int HMAC_Update(void);
+                (void)HMAC_Update();
               ], [
                 AC_MSG_RESULT(yes)
-                AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                          [If you have HMAC_CTX_init])
+                AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                          [If you have HMAC_Update])
               ], [
                 AC_MSG_RESULT(no)
                 # check if -lwsock32 or -lgdi32 are needed.	
@@ -682,11 +692,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32"
                 AC_MSG_CHECKING([if -lcrypto needs -lgdi32])
                 AC_TRY_LINK([], [
-                    int HMAC_CTX_init(void);
-                    (void)HMAC_CTX_init();
+                    int HMAC_Update(void);
+                    (void)HMAC_Update();
                   ],[
-                    AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                        [If you have HMAC_CTX_init])
+                    AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                        [If you have HMAC_Update])
                     AC_MSG_RESULT(yes) 
                   ],[
                     AC_MSG_RESULT(no)
@@ -696,27 +706,36 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                     LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
                     AC_MSG_CHECKING([if -lcrypto needs -ldl])
                     AC_TRY_LINK([], [
-                        int HMAC_CTX_init(void);
-                        (void)HMAC_CTX_init();
+                        int HMAC_Update(void);
+                        (void)HMAC_Update();
                       ],[
-                        AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                            [If you have HMAC_CTX_init])
+                        AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                            [If you have HMAC_Update])
                         AC_MSG_RESULT(yes) 
                       ],[
                         AC_MSG_RESULT(no)
-                    AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+                        LIBS="$BAKLIBS"
+                        LIBSSL_LIBS="$BAKSSLLIBS"
+                        LIBS="$LIBS -ldl -pthread"
+                        LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
+                        AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
+                        AC_TRY_LINK([], [
+                            int HMAC_Update(void);
+                            (void)HMAC_Update();
+                          ],[
+                            AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                                [If you have HMAC_Update])
+                            AC_MSG_RESULT(yes) 
+                          ],[
+                            AC_MSG_RESULT(no)
+                            AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+			])
                     ])
                 ])
             ])
         fi
         AC_SUBST(HAVE_SSL)
         AC_SUBST(RUNTIME_PATH)
-	# openssl engine functionality needs dlopen().
-	BAKLIBS="$LIBS"
-	AC_SEARCH_LIBS([dlopen], [dl])
-	if test "$LIBS" != "$BAKLIBS"; then
-		LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
-	fi
     fi
 AC_CHECK_HEADERS([openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/err.h],,, [AC_INCLUDES_DEFAULT])
@@ -1213,6 +1232,16 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
 ])
 
+dnl provide reallocarray compat prototype.
+dnl $1: unique name for compat code
+AC_DEFUN([AHX_CONFIG_REALLOCARRAY],
+[
+#ifndef HAVE_REALLOCARRAY
+#define reallocarray reallocarray$1
+void* reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+])
+
 dnl provide w32 compat definition for sleep
 AC_DEFUN([AHX_CONFIG_W32_SLEEP],
 [
@@ -1274,6 +1303,7 @@ AC_DEFUN([ACX_STRIP_EXT_FLAGS],
   AC_MSG_NOTICE([Stripping extension flags...])
   ACX_CFLAGS_STRIP(-D_GNU_SOURCE)
   ACX_CFLAGS_STRIP(-D_BSD_SOURCE)
+  ACX_CFLAGS_STRIP(-D_DEFAULT_SOURCE)
   ACX_CFLAGS_STRIP(-D__EXTENSIONS__)
   ACX_CFLAGS_STRIP(-D_POSIX_C_SOURCE=200112)
   ACX_CFLAGS_STRIP(-D_XOPEN_SOURCE=600)
@@ -1301,6 +1331,7 @@ dnl config.h part to define omitted cflags, use with ACX_STRIP_EXT_FLAGS.
 AC_DEFUN([AHX_CONFIG_EXT_FLAGS],
 [AHX_CONFIG_FLAG_EXT(-D_GNU_SOURCE)
 AHX_CONFIG_FLAG_EXT(-D_BSD_SOURCE)
+AHX_CONFIG_FLAG_EXT(-D_DEFAULT_SOURCE)
 AHX_CONFIG_FLAG_EXT(-D__EXTENSIONS__)
 AHX_CONFIG_FLAG_EXT(-D_POSIX_C_SOURCE=200112)
 AHX_CONFIG_FLAG_EXT(-D_XOPEN_SOURCE=600)
@@ -1374,5 +1405,47 @@ AC_DEFUN([ACX_CHECK_SS_FAMILY],
 #include <arpa/inet.h>
 #endif
 ]) ])
+
+dnl Check if CC and linker support -fPIE and -pie.
+dnl If so, sets them in CFLAGS / LDFLAGS.
+AC_DEFUN([ACX_CHECK_PIE], [
+    AC_ARG_ENABLE([pie], AS_HELP_STRING([--enable-pie], [Enable Position-Independent Executable (eg. to fully benefit from ASLR, small performance penalty)]))
+    AS_IF([test "x$enable_pie" = "xyes"], [
+	AC_MSG_CHECKING([if $CC supports PIE])
+	BAKLDFLAGS="$LDFLAGS"
+	BAKCFLAGS="$CFLAGS"
+	LDFLAGS="$LDFLAGS -pie"
+	CFLAGS="$CFLAGS -fPIE"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [
+	    if $CC $CFLAGS $LDFLAGS -o conftest conftest.c 2>&1 | grep "warning: no debug symbols in executable" >/dev/null; then
+		LDFLAGS="$BAKLDFLAGS"
+		AC_MSG_RESULT(no)
+	    else
+		AC_MSG_RESULT(yes)
+	    fi
+	    rm -f conftest conftest.c conftest.o
+	], [LDFLAGS="$BAKLDFLAGS" ; CFLAGS="$BAKCFLAGS" ; AC_MSG_RESULT(no)])
+    ])
+])
+
+dnl Check if linker supports -Wl,-z,relro,-z,now.
+dnl If so, adds it to LDFLAGS.
+AC_DEFUN([ACX_CHECK_RELRO_NOW], [
+    AC_ARG_ENABLE([relro_now], AS_HELP_STRING([--enable-relro-now], [Enable full relocation binding at load-time (RELRO NOW, to protect GOT and .dtor areas)]))
+    AS_IF([test "x$enable_relro_now" = "xyes"], [
+	AC_MSG_CHECKING([if $CC supports -Wl,-z,relro,-z,now])
+	BAKLDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS -Wl,-z,relro,-z,now"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [
+	    if $CC $CFLAGS $LDFLAGS -o conftest conftest.c 2>&1 | grep "warning: no debug symbols in executable" >/dev/null; then
+		LDFLAGS="$BAKLDFLAGS"
+		AC_MSG_RESULT(no)
+	    else
+		AC_MSG_RESULT(yes)
+	    fi
+	    rm -f conftest conftest.c conftest.o
+	], [LDFLAGS="$BAKLDFLAGS" ; AC_MSG_RESULT(no)])
+    ])
+])
 
 dnl End of file

@@ -11,31 +11,30 @@
 #define LLDB_INITIALIZATION_SYSTEM_LIFETIME_MANAGER_H
 
 #include "lldb/lldb-private-types.h"
-#include "lldb/Host/Mutex.h"
 
 #include <memory>
+#include <mutex>
 
-namespace lldb_private
-{
+namespace lldb_private {
 class SystemInitializer;
 
-class SystemLifetimeManager
-{
-  public:
-    SystemLifetimeManager();
-    ~SystemLifetimeManager();
+class SystemLifetimeManager {
+public:
+  SystemLifetimeManager();
+  ~SystemLifetimeManager();
 
-    void Initialize(std::unique_ptr<SystemInitializer> initializer, LoadPluginCallbackType plugin_callback);
-    void Terminate();
+  void Initialize(std::unique_ptr<SystemInitializer> initializer,
+                  LoadPluginCallbackType plugin_callback);
+  void Terminate();
 
-  private:
-    Mutex m_mutex;
-    std::unique_ptr<SystemInitializer> m_initializer;
-    bool m_initialized;
+private:
+  std::recursive_mutex m_mutex;
+  std::unique_ptr<SystemInitializer> m_initializer;
+  bool m_initialized;
 
-    // Noncopyable.
-    SystemLifetimeManager(const SystemLifetimeManager &other) = delete;
-    SystemLifetimeManager &operator=(const SystemLifetimeManager &other) = delete;
+  // Noncopyable.
+  SystemLifetimeManager(const SystemLifetimeManager &other) = delete;
+  SystemLifetimeManager &operator=(const SystemLifetimeManager &other) = delete;
 };
 }
 

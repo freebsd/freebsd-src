@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -41,13 +43,59 @@
 #include <dev/usb/usbhid.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <usbhid.h>
 #include "bthid_config.h"
 #include "bthidd.h"
+#include "btuinput.h"
 #include "kbd.h"
+
+/*
+ * Inoffical and unannounced report ids for Apple Mice and trackpad
+ */
+#define TRACKPAD_REPORT_ID	0x28
+#define AMM_REPORT_ID		0x29
+#define BATT_STAT_REPORT_ID	0x30
+#define BATT_STRENGTH_REPORT_ID	0x47
+#define SURFACE_REPORT_ID	0x61
+
+/*
+ * Apple magic mouse (AMM) specific device state
+ */
+#define AMM_MAX_BUTTONS 16
+struct apple_state {
+	int	y   [AMM_MAX_BUTTONS];
+	int	button_state;
+};
+
+#define MAGIC_MOUSE(D) (((D)->vendor_id == 0x5ac) && ((D)->product_id == 0x30d))
+#define AMM_BASIC_BLOCK   5
+#define AMM_FINGER_BLOCK  8
+#define AMM_VALID_REPORT(L) (((L) >= AMM_BASIC_BLOCK) && \
+    ((L) <= 16*AMM_FINGER_BLOCK    + AMM_BASIC_BLOCK) && \
+    ((L)  % AMM_FINGER_BLOCK)     == AMM_BASIC_BLOCK)
+#define AMM_WHEEL_SPEED 100
+
+/*
+ * Probe for per-device initialisation
+ */
+void
+hid_initialise(bthid_session_p s)
+{
+	hid_device_p hid_device = get_hid_device(&s->bdaddr);
+
+	if (hid_device && MAGIC_MOUSE(hid_device)) {
+		/* Magic report to enable trackpad on Apple's Magic Mouse */
+		static uint8_t rep[] = {0x53, 0xd7, 0x01};
+
+		if ((s->ctx = calloc(1, sizeof(struct apple_state))) == NULL)
+			return;
+		write(s->ctrl, rep, 3);
+	}
+}
 
 /*
  * Process data from control channel
@@ -124,7 +172,7 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_data_t	d;
 	hid_item_t	h;
 	int32_t		report_id, usage, page, val,
-			mouse_x, mouse_y, mouse_z, mouse_butt,
+			mouse_x, mouse_y, mouse_z, mouse_t, mouse_butt,
 			mevents, kevents, i;
 
 	assert(s != NULL);
@@ -151,7 +199,8 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_device = get_hid_device(&s->bdaddr);
 	assert(hid_device != NULL);
 
-	mouse_x = mouse_y = mouse_z = mouse_butt = mevents = kevents = 0;
+	mouse_x = mouse_y = mouse_z = mouse_t = mouse_butt = 0;
+	mevents = kevents = 0;
 
 	for (d = hid_start_parse(hid_device->desc, 1 << hid_input, -1);
 	     hid_get_item(d, &h) > 0; ) {
@@ -232,17 +281,26 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 			break;
 
 		case HUP_CONSUMER:
+			if (hid_device->keyboard && s->srv->uinput) {
+				if (h.flags & HIO_VARIABLE) {
+					uinput_rep_cons(s->ukbd, usage, !!val);
+				} else {
+					if (s->consk > 0)
+						uinput_rep_cons(s->ukbd,
+						    s->consk, 0);
+					if (uinput_rep_cons(s->ukbd, val, 1)
+					    == 0)
+						s->consk = val;
+				}
+			}
+
 			if (!val)
 				break;
 
 			switch (usage) {
 			case HUC_AC_PAN:
 				/* Horizontal scroll */
-				if (val < 0)
-					mouse_butt |= (1 << 5);
-				else
-					mouse_butt |= (1 << 6);
-
+				mouse_t = val;
 				mevents ++;
 				val = 0;
 				break;
@@ -371,6 +429,91 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_end_parse(d);
 
 	/*
+	 * Apple adheres to no standards and sends reports it does
+	 * not introduce in its hid descriptor for its magic mouse.
+	 * Handle those reports here.
+	 */
+	if (MAGIC_MOUSE(hid_device) && s->ctx) {
+		struct apple_state *c = (struct apple_state *)s->ctx;
+		int firm = 0, middle = 0;
+		int16_t v;
+
+		data++, len--;		/* Chomp report_id */
+
+		if (report_id != AMM_REPORT_ID || !AMM_VALID_REPORT(len))
+			goto check_middle_button;
+
+		/*
+		 * The basics. When touches are detected, no normal mouse
+		 * reports are sent. Collect clicks and dx/dy
+		 */
+		if (data[2] & 1)
+			mouse_butt |= 0x1;
+		if (data[2] & 2)
+			mouse_butt |= 0x4;
+
+		if ((v = data[0] + ((data[2] & 0x0C) << 6)))
+			mouse_x += ((int16_t)(v << 6)) >> 6, mevents++;
+		if ((v = data[1] + ((data[2] & 0x30) << 4)))
+			mouse_y += ((int16_t)(v << 6)) >> 6, mevents++;
+
+		/*
+		 * The hard part: accumulate touch events and emulate middle
+		 */
+		for (data += AMM_BASIC_BLOCK,  len -= AMM_BASIC_BLOCK;
+		     len >=  AMM_FINGER_BLOCK;
+		     data += AMM_FINGER_BLOCK, len -= AMM_FINGER_BLOCK) {
+			int x, y, z, force, id;
+
+			v = data[0] | ((data[1] & 0xf) << 8);
+			x = ((int16_t)(v << 4)) >> 4;
+
+			v = (data[1] >> 4) | (data[2] << 4);
+			y = -(((int16_t)(v << 4)) >> 4);
+
+			force = data[5] & 0x3f;
+			id = 0xf & ((data[5] >> 6) | (data[6] << 2));
+			z = (y - c->y[id]) / AMM_WHEEL_SPEED;
+
+			switch ((data[7] >> 4) & 0x7) {	/* Phase */
+			case 3:	/* First touch */
+				c->y[id] = y;
+				break;
+			case 4:	/* Touch dragged */
+				if (z) {
+					mouse_z += z;
+					c->y[id] += z * AMM_WHEEL_SPEED;
+					mevents++;
+				}
+				break;
+			default:
+				break;
+			}
+			/* Count firm touches vs. firm+middle touches */
+			if (force >= 8 && ++firm && x > -350 && x < 350)
+				++middle;
+		}
+
+		/*
+		 * If a new click is registered by mouse and there are firm
+		 * touches which are all in center, make it a middle click
+		 */
+		if (mouse_butt && !c->button_state && firm && middle == firm)
+			mouse_butt = 0x2;
+
+		/*
+		 * If we're still clicking and have converted the click
+		 * to a middle click, keep it middle clicking
+		 */
+check_middle_button:
+		if (mouse_butt && c->button_state == 0x2)
+			mouse_butt = 0x2;
+
+		if (mouse_butt != c->button_state)
+			c->button_state = mouse_butt, mevents++;
+	}
+
+	/*
 	 * XXX FIXME Feed keyboard events into kernel.
 	 * The code below works, bit host also needs to track
 	 * and handle repeat.
@@ -399,7 +542,20 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	if (mevents > 0) {
 		struct mouse_info	mi;
 
+		memset(&mi, 0, sizeof(mi));
 		mi.operation = MOUSE_ACTION;
+		mi.u.data.buttons = mouse_butt;
+
+		/* translate T-axis into button presses */
+		if (mouse_t != 0) {
+			mi.u.data.buttons |= 1 << (mouse_t > 0 ? 6 : 5);
+			if (ioctl(s->srv->cons, CONS_MOUSECTL, &mi) < 0)
+				syslog(LOG_ERR, "Could not process mouse " \
+					"events from %s. %s (%d)",
+					bt_ntoa(&s->bdaddr, NULL),
+					strerror(errno), errno);
+		}
+
 		mi.u.data.x = mouse_x;
 		mi.u.data.y = mouse_y;
 		mi.u.data.z = mouse_z;
@@ -409,6 +565,14 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 			syslog(LOG_ERR, "Could not process mouse events from " \
 				"%s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
 				strerror(errno), errno);
+
+		if (hid_device->mouse && s->srv->uinput &&
+		    uinput_rep_mouse(s->umouse, mouse_x, mouse_y, mouse_z,
+					mouse_t, mouse_butt, s->obutt) < 0)
+			syslog(LOG_ERR, "Could not process mouse events from " \
+				"%s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
+				strerror(errno), errno);
+		s->obutt = mouse_butt;
 	}
 
 	return (0);

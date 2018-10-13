@@ -21,6 +21,9 @@ FBSD_1.2 {
 	sbuf_len;
 	sbuf_done;
 	sbuf_delete;
+	sbuf_clear_flags;
+	sbuf_get_flags;
+	sbuf_set_flags;
 };
 
 FBSD_1.3 {
@@ -31,3 +34,8 @@ FBSD_1.3 {
 FBSD_1.4 {
 	sbuf_hexdump;
 };
+
+FBSD_1.5 {
+	sbuf_putbuf;
+};
+

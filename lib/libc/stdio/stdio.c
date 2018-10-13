@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -165,4 +167,12 @@ _sseek(FILE *fp, fpos_t offset, int whence)
 		fp->_offset = ret;
 	}
 	return (ret);
+}
+
+void
+__stdio_cancel_cleanup(void * arg)
+{
+
+	if (arg != NULL)
+		_funlockfile((FILE *)arg);
 }

@@ -36,7 +36,10 @@
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 
+#ifndef __ELF_WORD_SIZE
 #define	__ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
+#endif
+
 #include <sys/elf_generic.h>
 
 /*
@@ -90,14 +93,24 @@ __ElfType(Auxinfo);
 #define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
+#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
+#define	AT_HWCAP2	26	/* CPU feature flags 2. */
 
-#define	AT_COUNT	24	/* Count of defined aux entry types. */
+#define	AT_COUNT	27	/* Count of defined aux entry types. */
 
 /* Define "machine" characteristics */
+#if __ELF_WORD_SIZE == 64
 #define	ELF_TARG_CLASS	ELFCLASS64
 #define	ELF_TARG_DATA	ELFDATA2LSB
 #define	ELF_TARG_MACH	EM_AARCH64
 #define	ELF_TARG_VER	1
+#else
+#define	ELF_TARG_CLASS	ELFCLASS32
+#define	ELF_TARG_DATA	ELFDATA2LSB
+#define	ELF_TARG_MACH	EM_ARM
+#define	ELF_TARG_VER	1
+#endif
 
 #define	ET_DYN_LOAD_ADDR 0x100000
 

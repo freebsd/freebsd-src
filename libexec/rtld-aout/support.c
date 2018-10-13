@@ -1,9 +1,11 @@
-/*
+/*-
  * Generic "support" routines to replace those obtained from libiberty for ld.
  *
  * I've collected these from random bits of (published) code I've written
  * over the years, not that they are a big deal.  peter@freebsd.org
- *-
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	Peter Wemm.  All rights reserved.
  *

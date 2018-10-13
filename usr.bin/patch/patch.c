@@ -112,7 +112,7 @@ static bool	reverse_flag_specified = false;
 static bool	Vflag = false;
 
 /* buffer holding the name of the rejected patch file. */
-static char	rejname[NAME_MAX + 1];
+static char	rejname[PATH_MAX];
 
 /* how many input lines have been irretractibly output */
 static LINENUM	last_frozen_line = 0;
@@ -749,10 +749,10 @@ rej_line(int ch, LINENUM i)
 	size_t len;
 	const char *line = pfetch(i);
 
-	len = strnlen(line, USHRT_MAX);
+	len = strlen(line);
 
 	fprintf(rejfp, "%c%s", ch, line);
-	if (len == 0 || line[len-1] != '\n') {
+	if (len == 0 || line[len - 1] != '\n') {
 		if (len >= USHRT_MAX)
 			fprintf(rejfp, "\n\\ Line too long\n");
 		else
@@ -1026,6 +1026,9 @@ patch_match(LINENUM base, LINENUM offset, LINENUM fuzz)
 	const char	*plineptr;
 	unsigned short	plinelen;
 
+	/* Patch does not match if we don't have any more context to use */
+	if (pline > pat_lines)
+		return false;
 	for (iline = base + offset + fuzz; pline <= pat_lines; pline++, iline++) {
 		ilineptr = ifetch(iline, offset >= 0);
 		if (ilineptr == NULL)

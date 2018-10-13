@@ -10,17 +10,20 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Bidirectional Forwarding Detection (BFD) printer */
+
+/* specification: RFC 5880 (for version 1) and RFC 5881 */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 #include "udp.h"
@@ -46,12 +49,12 @@
  */
 
 /*
- *  Control packet, BFDv1, draft-ietf-bfd-base-02.txt
+ *  Control packet, BFDv1, RFC 5880
  *
  *     0                   1                   2                   3
  *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    |Vers |  Diag   |Sta|P|F|C|A|D|R|  Detect Mult  |    Length     |
+ *    |Vers |  Diag   |Sta|P|F|C|A|D|M|  Detect Mult  |    Length     |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *    |                       My Discriminator                        |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -91,27 +94,43 @@ struct bfd_auth_header_t {
     uint8_t auth_type;
     uint8_t auth_len;
     uint8_t auth_data;
+    uint8_t dummy; /* minimun 4 bytes */
+};
+
+enum auth_type {
+    AUTH_PASSWORD = 1,
+    AUTH_MD5      = 2,
+    AUTH_MET_MD5  = 3,
+    AUTH_SHA1     = 4,
+    AUTH_MET_SHA1 = 5
 };
 
 static const struct tok bfd_v1_authentication_values[] = {
-    { 0,        "Reserved" },
-    { 1,        "Simple Password" },
-    { 2,        "Keyed MD5" },
-    { 3,        "Meticulous Keyed MD5" },
-    { 4,        "Keyed SHA1" },
-    { 5,        "Meticulous Keyed SHA1" },
+    { AUTH_PASSWORD, "Simple Password" },
+    { AUTH_MD5,      "Keyed MD5" },
+    { AUTH_MET_MD5,  "Meticulous Keyed MD5" },
+    { AUTH_SHA1,     "Keyed SHA1" },
+    { AUTH_MET_SHA1, "Meticulous Keyed SHA1" },
     { 0, NULL }
 };
 
-#define	BFD_EXTRACT_VERSION(x) (((x)&0xe0)>>5)
-#define	BFD_EXTRACT_DIAG(x)     ((x)&0x1f)
+enum auth_length {
+    AUTH_PASSWORD_FIELD_MIN_LEN = 4,  /* header + password min: 3 + 1 */
+    AUTH_PASSWORD_FIELD_MAX_LEN = 19, /* header + password max: 3 + 16 */
+    AUTH_MD5_FIELD_LEN  = 24,
+    AUTH_MD5_HASH_LEN   = 16,
+    AUTH_SHA1_FIELD_LEN = 28,
+    AUTH_SHA1_HASH_LEN  = 20
+};
+
+#define BFD_EXTRACT_VERSION(x) (((x)&0xe0)>>5)
+#define BFD_EXTRACT_DIAG(x)     ((x)&0x1f)
 
 static const struct tok bfd_port_values[] = {
     { BFD_CONTROL_PORT, "Control" },
     { BFD_ECHO_PORT,    "Echo" },
     { 0, NULL }
 };
-
 
 static const struct tok bfd_diag_values[] = {
     { 0, "No Diagnostic" },
@@ -127,14 +146,14 @@ static const struct tok bfd_diag_values[] = {
 };
 
 static const struct tok bfd_v0_flag_values[] = {
-    { 0x80,	"I Hear You" },
-    { 0x40,	"Demand" },
-    { 0x20,	"Poll" },
-    { 0x10,	"Final" },
-    { 0x08,	"Reserved" },
-    { 0x04,	"Reserved" },
-    { 0x02,	"Reserved" },
-    { 0x01,	"Reserved" },
+    { 0x80, "I Hear You" },
+    { 0x40, "Demand" },
+    { 0x20, "Poll" },
+    { 0x10, "Final" },
+    { 0x08, "Reserved" },
+    { 0x04, "Reserved" },
+    { 0x02, "Reserved" },
+    { 0x01, "Reserved" },
     { 0, NULL }
 };
 
@@ -146,7 +165,7 @@ static const struct tok bfd_v1_flag_values[] = {
     { 0x08, "Control Plane Independent" },
     { BFD_FLAG_AUTH, "Authentication Present" },
     { 0x02, "Demand" },
-    { 0x01, "Reserved" },
+    { 0x01, "Multipoint" },
     { 0, NULL }
 };
 
@@ -158,12 +177,122 @@ static const struct tok bfd_v1_state_values[] = {
     { 0, NULL }
 };
 
+static int
+auth_print(netdissect_options *ndo, register const u_char *pptr)
+{
+        const struct bfd_auth_header_t *bfd_auth_header;
+        int i;
+
+        pptr += sizeof (const struct bfd_header_t);
+        bfd_auth_header = (const struct bfd_auth_header_t *)pptr;
+        ND_TCHECK(*bfd_auth_header);
+        ND_PRINT((ndo, "\n\tAuthentication: %s (%u), length: %u",
+                 tok2str(bfd_v1_authentication_values,"Unknown",bfd_auth_header->auth_type),
+                 bfd_auth_header->auth_type,
+                 bfd_auth_header->auth_len));
+                pptr += 2;
+                ND_PRINT((ndo, "\n\t  Auth Key ID: %d", *pptr));
+
+        switch(bfd_auth_header->auth_type) {
+            case AUTH_PASSWORD:
+/*
+ *    Simple Password Authentication Section Format
+ *
+ *     0                   1                   2                   3
+ *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |   Auth Type   |   Auth Len    |  Auth Key ID  |  Password...  |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                              ...                              |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+                if (bfd_auth_header->auth_len < AUTH_PASSWORD_FIELD_MIN_LEN ||
+                    bfd_auth_header->auth_len > AUTH_PASSWORD_FIELD_MAX_LEN) {
+                    ND_PRINT((ndo, "[invalid length %d]",
+                             bfd_auth_header->auth_len));
+                    break;
+                }
+                pptr++;
+                ND_PRINT((ndo, ", Password: "));
+                /* the length is equal to the password length plus three */
+                if (fn_printn(ndo, pptr, bfd_auth_header->auth_len - 3,
+                              ndo->ndo_snapend))
+                    goto trunc;
+                break;
+            case AUTH_MD5:
+            case AUTH_MET_MD5:
+/*
+ *    Keyed MD5 and Meticulous Keyed MD5 Authentication Section Format
+ *
+ *     0                   1                   2                   3
+ *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |   Auth Type   |   Auth Len    |  Auth Key ID  |   Reserved    |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                        Sequence Number                        |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                      Auth Key/Digest...                       |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                              ...                              |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+                if (bfd_auth_header->auth_len != AUTH_MD5_FIELD_LEN) {
+                    ND_PRINT((ndo, "[invalid length %d]",
+                             bfd_auth_header->auth_len));
+                    break;
+                }
+                pptr += 2;
+                ND_TCHECK2(*pptr, 4);
+                ND_PRINT((ndo, ", Sequence Number: 0x%08x", EXTRACT_32BITS(pptr)));
+                pptr += 4;
+                ND_TCHECK2(*pptr, AUTH_MD5_HASH_LEN);
+                ND_PRINT((ndo, "\n\t  Digest: "));
+                for(i = 0; i < AUTH_MD5_HASH_LEN; i++)
+                    ND_PRINT((ndo, "%02x", pptr[i]));
+                break;
+            case AUTH_SHA1:
+            case AUTH_MET_SHA1:
+/*
+ *    Keyed SHA1 and Meticulous Keyed SHA1 Authentication Section Format
+ *
+ *     0                   1                   2                   3
+ *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |   Auth Type   |   Auth Len    |  Auth Key ID  |   Reserved    |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                        Sequence Number                        |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                       Auth Key/Hash...                        |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                              ...                              |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+                if (bfd_auth_header->auth_len != AUTH_SHA1_FIELD_LEN) {
+                    ND_PRINT((ndo, "[invalid length %d]",
+                             bfd_auth_header->auth_len));
+                    break;
+                }
+                pptr += 2;
+                ND_TCHECK2(*pptr, 4);
+                ND_PRINT((ndo, ", Sequence Number: 0x%08x", EXTRACT_32BITS(pptr)));
+                pptr += 4;
+                ND_TCHECK2(*pptr, AUTH_SHA1_HASH_LEN);
+                ND_PRINT((ndo, "\n\t  Hash: "));
+                for(i = 0; i < AUTH_SHA1_HASH_LEN; i++)
+                    ND_PRINT((ndo, "%02x", pptr[i]));
+                break;
+        }
+        return 0;
+
+trunc:
+        return 1;
+}
+
 void
 bfd_print(netdissect_options *ndo, register const u_char *pptr,
           register u_int len, register u_int port)
 {
         const struct bfd_header_t *bfd_header;
-        const struct bfd_auth_header_t *bfd_auth_header;
         uint8_t version = 0;
 
         bfd_header = (const struct bfd_header_t *)pptr;
@@ -244,13 +373,8 @@ bfd_print(netdissect_options *ndo, register const u_char *pptr,
             ND_PRINT((ndo, "\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000));
 
             if (bfd_header->flags & BFD_FLAG_AUTH) {
-                pptr += sizeof (const struct bfd_header_t);
-                bfd_auth_header = (const struct bfd_auth_header_t *)pptr;
-                ND_TCHECK2(*bfd_auth_header, sizeof(const struct bfd_auth_header_t));
-                ND_PRINT((ndo, "\n\t%s (%u) Authentication, length %u present",
-                       tok2str(bfd_v1_authentication_values,"Unknown",bfd_auth_header->auth_type),
-                       bfd_auth_header->auth_type,
-                       bfd_auth_header->auth_len));
+                if (auth_print(ndo, pptr))
+                    goto trunc;
             }
             break;
 

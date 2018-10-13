@@ -29,6 +29,7 @@
 #define	_CLOUDABI64_UTIL_H_
 
 #include <sys/types.h>
+#define	__ELF_WORD_SIZE	64
 #include <sys/imgact_elf.h>
 
 #include <contrib/cloudabi/cloudabi64_types.h>
@@ -37,6 +38,8 @@ struct image_params;
 struct thread;
 
 extern Elf64_Brandinfo cloudabi64_brand;
+
+#define	TO_PTR(x)	((void *)(uintptr_t)(x))
 
 /* Stack initialization during process execution. */
 register_t *cloudabi64_copyout_strings(struct image_params *);

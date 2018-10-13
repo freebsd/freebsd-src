@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_frame.c 3106 2014-12-19 16:00:58Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_frame.c 3589 2018-03-13 20:34:33Z kaiwang27 $");
 
 static int
 _dwarf_frame_find_cie(Dwarf_FrameSec fs, Dwarf_Unsigned offset,
@@ -142,6 +142,8 @@ _dwarf_frame_parse_lsb_cie_augment(Dwarf_Debug dbg, Dwarf_Cie cie,
 	augdata_p = cie->cie_augdata;
 	while (*aug_p != '\0') {
 		switch (*aug_p) {
+		case 'S':
+			break;
 		case 'L':
 			/* Skip one augment in augment data. */
 			augdata_p++;

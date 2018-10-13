@@ -196,6 +196,13 @@ public:
     return getState()->getSVal(S, getLocationContext());
   }
 
+  /// \brief Returns true if the value of \p E is greater than or equal to \p
+  /// Val under unsigned comparison
+  bool isGreaterOrEqual(const Expr *E, unsigned long long Val);
+
+  /// Returns true if the value of \p E is negative.
+  bool isNegative(const Expr *E);
+
   /// \brief Generates a new transition in the program state graph
   /// (ExplodedGraph). Uses the default CheckerContext predecessor node.
   ///
@@ -262,6 +269,10 @@ public:
     Changed = true;
     Eng.getBugReporter().emitReport(std::move(R));
   }
+
+  /// \brief Returns the word that should be used to refer to the declaration
+  /// in the report.
+  StringRef getDeclDescription(const Decl *D);
 
   /// \brief Get the declaration of the called function (path-sensitive).
   const FunctionDecl *getCalleeDecl(const CallExpr *CE) const;

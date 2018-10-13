@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,12 +32,11 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
 #include "opt_sched.h"
 
 #include <machine/asmacros.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #if defined(SMP) && defined(SCHED_ULE)
 #define	SETOP		xchgl
@@ -75,20 +74,14 @@
  */
 ENTRY(cpu_throw)
 	movl	PCPU(CPUID), %esi
-	movl	4(%esp),%ecx			/* Old thread */
-	testl	%ecx,%ecx			/* no thread? */
-	jz	1f
 	/* release bit from old pm_active */
 	movl	PCPU(CURPMAP), %ebx
 #ifdef SMP
 	lock
 #endif
 	btrl	%esi, PM_ACTIVE(%ebx)		/* clear old */
-1:
 	movl	8(%esp),%ecx			/* New thread */
 	movl	TD_PCB(%ecx),%edx
-	movl	PCB_CR3(%edx),%eax
-	movl	%eax,%cr3
 	/* set bit in new pm_active */
 	movl	TD_PROC(%ecx),%eax
 	movl	P_VMSPACE(%eax), %ebx
@@ -131,8 +124,6 @@ ENTRY(cpu_switch)
 	movl	%esi,PCB_ESI(%edx)
 	movl	%edi,PCB_EDI(%edx)
 	mov	%gs,PCB_GS(%edx)
-	pushfl					/* PSL */
-	popl	PCB_PSL(%edx)
 	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
 	jz      1f                              /* no, skip over */
@@ -152,7 +143,6 @@ ENTRY(cpu_switch)
 	movl    %eax,PCB_DR0(%edx)
 1:
 
-#ifdef DEV_NPX
 	/* have we used fp, and need a save? */
 	cmpl	%ecx,PCPU(FPCURTHREAD)
 	jne	1f
@@ -160,9 +150,8 @@ ENTRY(cpu_switch)
 	call	npxsave				/* do it in a big C function */
 	popl	%eax
 1:
-#endif
 
-	/* Save is done.  Now fire up new thread. Leave old vmspace. */
+	/* Save is done.  Now fire up new thread. */
 	movl	4(%esp),%edi
 	movl	8(%esp),%ecx			/* New thread */
 	movl	12(%esp),%esi			/* New lock */
@@ -172,15 +161,10 @@ ENTRY(cpu_switch)
 #endif
 	movl	TD_PCB(%ecx),%edx
 
-	/* switch address space */
-	movl	PCB_CR3(%edx),%eax
-	movl	%cr3,%ebx			/* The same address space? */
-	cmpl	%ebx,%eax
-	je	sw0
-	movl	%eax,%cr3			/* new address space */
+	/* Switchout td_lock */
 	movl	%esi,%eax
 	movl	PCPU(CPUID),%esi
-	SETOP	%eax,TD_LOCK(%edi)		/* Switchout td_lock */
+	SETOP	%eax,TD_LOCK(%edi)
 
 	/* Release bit from old pmap->pm_active */
 	movl	PCPU(CURPMAP), %ebx
@@ -198,33 +182,31 @@ ENTRY(cpu_switch)
 	lock
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
-	jmp	sw1
-
-sw0:
-	SETOP	%esi,TD_LOCK(%edi)		/* Switchout td_lock */
 sw1:
 	BLOCK_SPIN(%ecx)
 	/*
-	 * At this point, we've switched address spaces and are ready
+	 * At this point, we have managed thread locks and are ready
 	 * to load up the rest of the next context.
 	 */
+
+	/* Load a pointer to the thread kernel stack into PCPU. */
+	leal	-VM86_STACK_SPACE(%edx), %eax	/* leave space for vm86 */
+	movl	%eax, PCPU(KESP0)
+
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f				/* If not, use the default */
 	movl	$1, PCPU(PRIVATE_TSS) 		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
+	movl	PCPU(TRAMPSTK), %ebx
+	movl	%ebx, PCB_EXT_TSS+TSS_ESP0(%edi)
 	jmp	2f				/* Load it up */
 
 1:	/*
 	 * Use the common default TSS instead of our own.
-	 * Set our stack pointer into the TSS, it's set to just
-	 * below the PCB.  In C, common_tss.tss_esp0 = &pcb - 16;
-	 */
-	leal	-16(%edx), %ebx			/* leave space for vm86 */
-	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
-
-	/*
-	 * Test this CPU's  bit in the bitmap to see if this
-	 * CPU was using a private TSS.
+	 * Stack pointer in the common TSS points to the trampoline stack
+	 * already and should be not changed.
+	 *
+	 * Test this CPU's flag to see if this CPU was using a private TSS.
 	 */
 	cmpl	$0, PCPU(PRIVATE_TSS)		/* Already using the common? */
 	je	3f				/* if so, skip reloading */
@@ -261,11 +243,8 @@ sw1:
 	movl	PCB_EDI(%edx),%edi
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
-	pushl	PCB_PSL(%edx)
-	popfl
 
 	movl	%edx, PCPU(CURPCB)
-	movl	TD_TID(%ecx),%eax
 	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
 
 	/*
@@ -286,6 +265,10 @@ sw1:
 	pushl	%edx				/* Preserve pointer to pcb. */
 	addl	$P_MD,%eax			/* Pointer to mdproc is arg. */
 	pushl	%eax
+	/*
+	 * Holding dt_lock prevents context switches, so dt_lock cannot
+	 * be held now and set_user_ldt() will not deadlock acquiring it.
+	 */
 	call	set_user_ldt
 	addl	$4,%esp
 	popl	%edx
@@ -295,6 +278,12 @@ sw1:
 	.globl	cpu_switch_load_gs
 cpu_switch_load_gs:
 	mov	PCB_GS(%edx),%gs
+
+	pushl	%edx
+	pushl	PCPU(CURTHREAD)
+	call	npxswitch
+	popl	%edx
+	popl	%edx
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
@@ -365,8 +354,6 @@ ENTRY(savectx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 	mov	%gs,PCB_GS(%ecx)
-	pushfl
-	popl	PCB_PSL(%ecx)
 
 	movl	%cr0,%eax
 	movl	%eax,PCB_CR0(%ecx)

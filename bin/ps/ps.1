@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd March 13, 2018
 .Dt PS 1
 .Os
 .Sh NAME
@@ -101,6 +101,14 @@ The default output format includes, for each process, the process' ID,
 controlling terminal, state, CPU time (including both user and system time)
 and associated command.
 .Pp
+If the
+.Nm
+process is associated with a terminal, the default output width is that of the
+terminal; otherwise the output width is unlimited.
+See also the
+.Fl w
+option.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl -libxo
@@ -129,7 +137,7 @@ time (this normally has
 no effect).
 .It Fl d
 Arrange processes into descendancy order and prefix each command with
-indentation text showing sibling and parent/child relationships.
+indentation text showing sibling and parent/child relationships as a tree.
 If either of the
 .Fl m
 and
@@ -148,12 +156,7 @@ This option is honored only if the UID of the user is 0.
 Display information about processes which are running with the specified
 real group IDs.
 .It Fl H
-Show all of the
-.Em kernel visible
-threads associated with each process.
-Depending on the threading package that
-is in use, this may show only the process, only the kernel scheduled entities,
-or all of the process threads.
+Show all of the threads associated with each process.
 .It Fl h
 Repeat the information header as often as necessary to guarantee one
 header per page of information.
@@ -262,13 +265,15 @@ option implies the
 .Fl m
 option.
 .It Fl w
-Use 132 columns to display information, instead of the default which
-is your window size.
+Use at least 132 columns to display information, instead of the default which
+is the window size if
+.Nm
+is associated with a terminal.
 If the
 .Fl w
 option is specified more than once,
 .Nm
-will use as many columns as necessary without regard for your window size.
+will use as many columns as necessary without regard for the window size.
 Note that this option has no effect if the
 .Dq command
 column is not the last column displayed.
@@ -319,7 +324,6 @@ the include file
 .It Dv "P_ADVLOCK" Ta No "0x00001" Ta "Process may hold a POSIX advisory lock"
 .It Dv "P_CONTROLT" Ta No "0x00002" Ta "Has a controlling terminal"
 .It Dv "P_KPROC" Ta No "0x00004" Ta "Kernel process"
-.It Dv "P_FOLLOWFORK" Ta No "0x00008" Ta "Attach debugger to new children"
 .It Dv "P_PPWAIT" Ta No "0x00010" Ta "Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020" Ta "Has started profiling"
 .It Dv "P_STOPPROF" Ta No "0x00040" Ta "Has thread in requesting to stop prof"
@@ -360,6 +364,7 @@ the include file
 .It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No ptrace(2) attach or coredumps"
 .It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta "Keep P2_NOPTRACE on exec(2)"
 .It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
+.It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
 .El
 .It Cm label
 The MAC label of the process.
@@ -436,6 +441,10 @@ information:
 The process is in the foreground process group of its control terminal.
 .It Li <
 The process has raised CPU scheduling priority.
+.It Li C
+The process is in
+.Xr capsicum 4
+capability mode.
 .It Li E
 The process is trying to exit.
 .It Li J
@@ -541,7 +550,7 @@ short-term CPU usage factor (for scheduling)
 .It Cm dsiz
 data size (in Kbytes)
 .It Cm emul
-system-call emulation environment
+system-call emulation environment (ABI)
 .It Cm etime
 elapsed running time, format
 .Op days- Ns
@@ -567,6 +576,8 @@ group name (from egid) (alias
 .It Cm inblk
 total blocks read (alias
 .Cm inblock )
+.It Cm jail
+jail name
 .It Cm jid
 jail ID
 .It Cm jobc
@@ -584,7 +595,8 @@ login name of user who started the session
 .It Cm lstart
 time started
 .It Cm lwp
-process thread-id
+thread (light-weight process) ID (alias
+.Cm tid )
 .It Cm majflt
 total page faults
 .It Cm minflt
@@ -601,7 +613,7 @@ nice value (alias
 .It Cm nivcsw
 total involuntary context switches
 .It Cm nlwp
-number of threads tied to a process
+number of threads (light-weight processes) tied to a process
 .It Cm nsigs
 total signals taken (alias
 .Cm nsignals )
@@ -671,6 +683,8 @@ saved UID from a setuid executable
 accumulated system CPU time
 .It Cm tdaddr
 thread address
+.It Cm tdname
+thread name
 .It Cm tdev
 control terminal device number
 .It Cm time
@@ -704,6 +718,8 @@ process pointer
 user name (from UID)
 .It Cm usertime
 accumulated user CPU time
+.It Cm vmaddr
+vmspace pointer
 .It Cm vsz
 virtual size in Kbytes (alias
 .Cm vsize )
@@ -767,7 +783,8 @@ operating systems.
 The
 .Nm
 command appeared in
-.At v4 .
+.At v3
+in section 8 of the manual.
 .Sh BUGS
 Since
 .Nm

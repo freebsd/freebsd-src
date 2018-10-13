@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -39,24 +41,62 @@
 #include <stdbool.h>
 
 /*
- * One of these structures is malloced to describe the current directory
- * position each time telldir is called. It records the current magic
- * cookie returned by getdirentries and the offset within the buffer
- * associated with that return value.
+ * telldir will malloc one of these to describe the current directory position,
+ * if it can't fit that information into the packed structure below.  It
+ * records the current magic cookie returned by getdirentries and the offset
+ * within the buffer associated with that return value.
  */
-struct ddloc {
-	LIST_ENTRY(ddloc) loc_lqe; /* entry in list */
+struct ddloc_mem {
+	LIST_ENTRY(ddloc_mem) loc_lqe; /* entry in list */
 	long	loc_index;	/* key associated with structure */
-	long	loc_seek;	/* magic cookie returned by getdirentries */
+	off_t	loc_seek;	/* magic cookie returned by getdirentries */
 	long	loc_loc;	/* offset of entry in buffer */
 };
+
+#ifdef __LP64__
+#define DD_LOC_BITS	31
+#define DD_SEEK_BITS	32
+#define DD_INDEX_BITS	63
+#else
+#define DD_LOC_BITS	12
+#define DD_SEEK_BITS	19
+#define DD_INDEX_BITS	31
+#endif
+
+/*
+ * This is the real type returned by telldir.  telldir will prefer to return
+ * the packed type, if possible, or the malloced type otherwise.  For msdosfs,
+ * UFS, and NFS, directory positions usually fit within the packed type.  For
+ * ZFS and tmpfs, they usually fit within the packed type on 64-bit
+ * architectures.
+ */
+union ddloc_packed {
+	long	l;		/* Opaque type returned by telldir(3) */
+	struct {
+		/* Identifies union type.  Must be 0. */
+		unsigned long is_packed:1;
+		/* Index into directory's linked list of ddloc_mem */
+		unsigned long index:DD_INDEX_BITS;
+	} __packed i;
+	struct {
+		/* Identifies union type.  Must be 1. */
+		unsigned long is_packed:1;
+		/* offset of entry in buffer*/
+		unsigned long loc:DD_LOC_BITS;
+		/* magic cookie returned by getdirentries */
+		unsigned long seek:DD_SEEK_BITS;
+	} __packed s;
+};
+
+_Static_assert(sizeof(long) == sizeof(union ddloc_packed),
+    "packed telldir size mismatch!");
 
 /*
  * One of these structures is malloced for each DIR to record telldir
  * positions.
  */
 struct _telldir {
-	LIST_HEAD(, ddloc) td_locq; /* list of locations */
+	LIST_HEAD(, ddloc_mem) td_locq; /* list of locations */
 	long	td_loccnt;	/* index of entry for sequential readdir's */
 };
 
@@ -65,5 +105,8 @@ struct dirent	*_readdir_unlocked(DIR *, int);
 void 		_reclaim_telldir(DIR *);
 void 		_seekdir(DIR *, long);
 void		_fixtelldir(DIR *dirp, long oldseek, long oldloc);
+
+#define	RDU_SKIP	0x0001
+#define	RDU_SHORT	0x0002
 
 #endif

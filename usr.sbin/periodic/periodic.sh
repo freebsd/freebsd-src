@@ -30,7 +30,7 @@ if [ $# -lt 1 ] ; then
     usage
 fi
 
-# If possible, check the global system configuration file, 
+# If possible, check the global system configuration file,
 # to see if there are additional dirs to check
 if [ -r /etc/defaults/periodic.conf ]; then
     . /etc/defaults/periodic.conf
@@ -43,7 +43,7 @@ export host
 # If we were called normally, then create a lock file for each argument
 # in turn and reinvoke ourselves with the LOCKED argument.  This prevents
 # very long running jobs from being overlapped by another run as this is
-# will lead the system running progressivly slower and more and more jobs 
+# will lead the system running progressivly slower and more and more jobs
 # are run at once.
 if [ $1 != "LOCKED" ]; then
     ret=0
@@ -76,6 +76,12 @@ fi
 shift
 arg=$1
 
+if [ -z "$PERIODIC_ANTICONGESTION_FILE" ] ; then
+	export PERIODIC_ANTICONGESTION_FILE=`mktemp ${TMPDIR:-/tmp}/periodic.anticongestion.XXXXXXXXXX`
+fi
+if tty > /dev/null 2>&1; then
+	export PERIODIC_IS_INTERACTIVE=1
+fi
 tmp_output=`mktemp ${TMPDIR:-/tmp}/periodic.XXXXXXXXXX`
 context="$PERIODIC"
 export PERIODIC="$arg${PERIODIC:+ }${PERIODIC}"
@@ -96,8 +102,8 @@ case $arg in
 /*) if [ -d "$arg" ]; then
         dirlist="$arg"
     else
-        echo "$0: $arg not found" >&2 
-        continue
+        echo "$0: $arg not found" >&2
+        exit 1
     fi
     ;;
 *)  dirlist=
@@ -141,3 +147,4 @@ esac
 } | output_pipe $arg "$context"
 
 rm -f $tmp_output
+rm -f $PERIODIC_ANTICONGESTION_FILE

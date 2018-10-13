@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998
  *	HD Associates, Inc.  All rights reserved.
  *
@@ -91,7 +93,6 @@ P1B_SYSCTL(CTL_P1003_1B_FSYNC, fsync);
 P1B_SYSCTL(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, shared_memory_objects);
 P1B_SYSCTL(CTL_P1003_1B_SYNCHRONIZED_IO, synchronized_io);
 P1B_SYSCTL(CTL_P1003_1B_TIMERS, timers);
-P1B_SYSCTL(CTL_P1003_1B_AIO_LISTIO_MAX, aio_listio_max);
 P1B_SYSCTL(CTL_P1003_1B_AIO_MAX, aio_max);
 P1B_SYSCTL(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, aio_prio_delta_max);
 P1B_SYSCTL(CTL_P1003_1B_DELAYTIMER_MAX, delaytimer_max);
@@ -172,5 +173,5 @@ p31b_set_standard(void *dummy)
 }
 
 SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard, 
-	0);
+    NULL);
 

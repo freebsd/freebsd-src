@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Roman Divacky
  * All rights reserved.
  *
@@ -40,10 +42,10 @@
  */
 #define	LINUX_POSIX_FADV_NORMAL		0
 #define	LINUX_POSIX_FADV_RANDOM		1
-#define	LINUX_POSIX_FADV_SEQUENTIAL    	2
-#define	LINUX_POSIX_FADV_WILLNEED      	3
-#define	LINUX_POSIX_FADV_DONTNEED      	4
-#define	LINUX_POSIX_FADV_NOREUSE       	5
+#define	LINUX_POSIX_FADV_SEQUENTIAL	2
+#define	LINUX_POSIX_FADV_WILLNEED	3
+#define	LINUX_POSIX_FADV_DONTNEED	4
+#define	LINUX_POSIX_FADV_NOREUSE	5
 
 /*
  * mount flags

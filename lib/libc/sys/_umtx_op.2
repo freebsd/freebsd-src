@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 29, 2016
+.Dd November 13, 2017
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ All objects require ABI-mandated alignment, but this is not currently
 enforced consistently on all architectures.
 .Pp
 The following flags are defined for flag fields of all structures:
-.Bl -tag -width "Dv USYNC_PROCESS_SHARED"
+.Bl -tag -width indent
 .It Dv USYNC_PROCESS_SHARED
 Allow selection of the process-shared sleep queue for the thread sleep
 container, when the lock ownership cannot be granted immediately,
@@ -77,7 +77,6 @@ See the
 .Sx SLEEP QUEUES
 subsection below for more details on sleep queues.
 .El
-.Pp
 .Bl -hang -offset indent
 .It Sy Mutex
 .Bd -literal
@@ -96,7 +95,7 @@ It contains either the thread identifier of the lock owner in the
 locked state, or zero when the lock is unowned.
 The highest bit set indicates that there is contention on the lock.
 The constants are defined for special values:
-.Bl -tag -width "Dv UMUTEX_RB_OWNERDEAD"
+.Bl -tag -width indent
 .It Dv UMUTEX_UNOWNED
 Zero, the value stored in the unowned lock.
 .It Dv UMUTEX_CONTESTED
@@ -113,7 +112,7 @@ The
 .Dv m_flags
 field may contain the following umutex-specific flags, in addition to
 the common flags:
-.Bl -tag -width "Dv UMUTEX_NONCONSISTENT"
+.Bl -tag -width indent
 .It Dv UMUTEX_PRIO_INHERIT
 Mutex implements
 .Em Priority Inheritance
@@ -136,8 +135,9 @@ In the manual page, mutexes not having
 and
 .Dv UMUTEX_PRIO_PROTECT
 flags set, are called normal mutexes.
-Each type of mutex, i.e. normal mutexes, priority-inherited mutexes,
-and priority-protected mutexes, have a separate sleep queue associated
+Each type of mutex
+.Pq normal, priority-inherited, and priority-protected
+has a separate sleep queue associated
 with the given key.
 .Pp
 For priority protected mutexes, the
@@ -182,8 +182,8 @@ request.
 The
 .Dv c_flags
 field contains flags.
-Only the common flags, i.e.
-.Dv USYNC_PROCESS_SHARED ,
+Only the common flags
+.Pq Dv USYNC_PROCESS_SHARED
 are defined for ucond.
 .Pp
 The
@@ -193,23 +193,34 @@ member provides the clock identifier to use for timeout, when the
 request has both the
 .Dv CVWAIT_CLOCKID
 flag and the timeout specified.
-Valid clock identifiers are subset of the valid clock ids for the
-.Xr clock_gettime 2
-syscall, namely,
-.Dv CLOCK_REALTIME ,
-.Dv CLOCK_VIRTUAL ,
-.Dv CLOCK_PROF ,
-.Dv CLOCK_MONOTONIC ,
-.Dv CLOCK_UPTIME ,
-.Dv CLOCK_UPTIME_PRECISE ,
-.Dv CLOCK_UPTIME_FAST ,
-.Dv CLOCK_REALTIME_PRECISE ,
-.Dv CLOCK_REALTIME_FAST ,
-.Dv CLOCK_MONOTONIC_PRECISE ,
-.Dv CLOCK_MONOTONIC_FAST ,
-and
+Valid clock identifiers are a subset of those for
+.Xr clock_gettime 2 :
+.Bl -bullet -compact
+.It
+.Dv CLOCK_MONOTONIC
+.It
+.Dv CLOCK_MONOTONIC_FAST
+.It
+.Dv CLOCK_MONOTONIC_PRECISE
+.It
+.Dv CLOCK_PROF
+.It
+.Dv CLOCK_REALTIME
+.It
+.Dv CLOCK_REALTIME_FAST
+.It
+.Dv CLOCK_REALTIME_PRECISE
+.It
 .Dv CLOCK_SECOND
-are allowed.
+.It
+.Dv CLOCK_UPTIME
+.It
+.Dv CLOCK_UPTIME_FAST
+.It
+.Dv CLOCK_UPTIME_PRECISE
+.It
+.Dv CLOCK_VIRTUAL
+.El
 .It Sy Reader/writer lock
 .Bd -literal
 struct urwlock {
@@ -228,7 +239,7 @@ granted.
 Names of the
 .Dv rw_state
 bits are following:
-.Bl -tag -width "Dv URWLOCK_WRITE_WAITERS"
+.Bl -tag -width indent
 .It Dv URWLOCK_WRITE_OWNER
 Write lock was granted.
 .It Dv URWLOCK_WRITE_WAITERS
@@ -253,7 +264,7 @@ The following flags for the
 member of
 .Vt struct urwlock
 are defined, in addition to the common flags:
-.Bl -tag -width "Dv URWLOCK_PREFER_READER"
+.Bl -tag -width indent
 .It Dv URWLOCK_PREFER_READER
 If specified, immediately grant read lock requests when
 .Dv urwlock
@@ -302,7 +313,7 @@ The
 .Dv USEM_COUNT()
 macro, applied to the
 .Dv _count
-word, returns the current semaphore counter, i.e. the number of posts
+word, returns the current semaphore counter, which is the number of posts
 issued on the semaphore.
 .Pp
 The following bits for the
@@ -310,7 +321,7 @@ The following bits for the
 member of
 .Vt struct _usem2
 are defined, in addition to the common flags:
-.Bl -tag -width "Dv USEM_NAMED"
+.Bl -tag -width indent
 .It Dv USEM_NAMED
 Flag is ignored by kernel.
 .El
@@ -359,7 +370,7 @@ Interval counting is always performed by the monotonic wall clock.
 The
 .Dv _flags
 argument allows the following flags to further define the timeout behaviour:
-.Bl -tag -width "It Dv UMTX_ABSTIME"
+.Bl -tag -width indent
 .It Dv UMTX_ABSTIME
 The
 .Dv _timeout
@@ -374,7 +385,6 @@ start.
 .El
 .El
 .Ss SLEEP QUEUES
-.Pp
 When a locking request cannot be immediately satisfied, the thread is
 typically put to
 .Em sleep ,
@@ -416,7 +426,7 @@ regardless of the kind of backing memory.
 .Pp
 Only the address of the start byte of the variable specified as key is
 important for determining corresponding sleep queue.
-The size of the variable does not matter, so e.g. sleep on the same
+The size of the variable does not matter, so, for example, sleep on the same
 address interpeted as
 .Vt uint32_t
 and
@@ -505,11 +515,11 @@ error for lock attempts, without granting the lock.
 The following operations, requested by the
 .Fa op
 argument to the function, are implemented:
-.Bl -tag -width "It Dv UMTX_OP_WAIT_UINT_PRIVATE"
+.Bl -tag -width indent
 .It Dv UMTX_OP_WAIT
 Wait.
 The arguments for the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to a variable of type
 .Vt long .
@@ -558,7 +568,7 @@ Optionally, a timeout for the request may be specified.
 Wake the threads possibly sleeping due to
 .Dv UMTX_OP_WAIT .
 The arguments for the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to a variable, used as a key to find sleeping threads.
 .It Fa val
@@ -572,7 +582,7 @@ to wake up all waiters.
 .It Dv UMTX_OP_MUTEX_TRYLOCK
 Try to lock umutex.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the umutex.
 .El
@@ -585,7 +595,7 @@ instead of sleeping if the lock cannot be obtained immediately.
 .It Dv UMTX_OP_MUTEX_LOCK
 Lock umutex.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the umutex.
 .El
@@ -624,7 +634,7 @@ from a signal handler.
 .It Dv UMTX_OP_MUTEX_UNLOCK
 Unlock umutex.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the umutex.
 .El
@@ -661,7 +671,7 @@ priority protected protocol mutex.
 .It Dv UMTX_OP_SET_CEILING
 Set ceiling for the priority protected umutex.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "uaddr"
 .It Fa obj
 Pointer to the umutex.
 .It Fa val
@@ -696,7 +706,7 @@ interface.
 .It Dv UMTX_OP_CV_WAIT
 Wait for a condition.
 The arguments to the request are:
-.Bl -tag -width "It Fa uaddr2"
+.Bl -tag -width "uaddr2"
 .It Fa obj
 Pointer to the
 .Vt struct ucond .
@@ -743,7 +753,7 @@ After wakeup, the
 umutex is not relocked.
 .Pp
 The following flags are defined:
-.Bl -tag -width "Dv CVWAIT_CLOCKID"
+.Bl -tag -width "CVWAIT_CLOCKID"
 .It Dv CVWAIT_ABSTIME
 Timeout is absolute.
 .It Dv CVWAIT_CLOCKID
@@ -782,7 +792,7 @@ error.
 .It Dv UMTX_OP_CV_SIGNAL
 Wake up one condition waiter.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to
 .Vt struct ucond .
@@ -800,7 +810,7 @@ is cleared.
 .It Dv UMTX_OP_CV_BROADCAST
 Wake up all condition waiters.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to
 .Vt struct ucond .
@@ -820,14 +830,14 @@ Same as
 but the type of the variable pointed to by
 .Fa obj
 is
-.Vt u_int ,
-i.e. 32-bit integer.
+.Vt u_int
+.Pq a 32-bit integer .
 .It Dv UMTX_OP_RW_RDLOCK
 Read-lock a
 .Vt struct rwlock
 lock.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the lock (of type
 .Vt struct rwlock )
@@ -837,7 +847,7 @@ Additional flags to augment locking behaviour.
 The valid flags in the
 .Fa val
 argument are:
-.Bl -tag -width "It Dv URWLOCK_PREFER_READER"
+.Bl -tag -width indent
 .It Dv URWLOCK_PREFER_READER
 .El
 .El
@@ -889,7 +899,7 @@ Write-lock a
 .Vt struct rwlock
 lock.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the lock (of type
 .Vt struct rwlock )
@@ -925,7 +935,7 @@ error.
 .It Dv UMTX_OP_RW_UNLOCK
 Unlock rwlock.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the lock (of type
 .Vt struct rwlock )
@@ -967,7 +977,7 @@ but unconditionally select the process-private sleep queue.
 .It Dv UMTX_OP_MUTEX_WAIT
 Wait for mutex availability.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Address of the mutex.
 .El
@@ -991,7 +1001,6 @@ priority inherited protocol mutexes.
 .Pp
 Optionally, a timeout for the request may be specified.
 .Pp
-.Pp
 A request with a timeout specified is not restartable.
 An unblocked signal delivered during the wait always results in sleep
 interruption and
@@ -1007,7 +1016,7 @@ member
 .It Dv UMTX_OP_NWAKE_PRIVATE
 Wake up a batch of sleeping threads.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the array of pointers.
 .It Fa val
@@ -1024,7 +1033,7 @@ being the byte addressed by the array element.
 .It Dv UMTX_OP_MUTEX_WAKE
 Check if a normal umutex is unlocked and wake up a waiter.
 The arguments for the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the umutex.
 .El
@@ -1058,7 +1067,7 @@ bit may then modify freed memory.
 .It Dv UMTX_OP_MUTEX_WAKE2
 Check if a umutex is unlocked and wake up a waiter.
 The arguments for the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the umutex.
 .It Fa val
@@ -1088,11 +1097,12 @@ word of the
 .It Dv UMTX_OP_SEM2_WAIT
 Wait until semaphore is available.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the semaphore (of type
 .Vt struct _usem2 ) .
 .El
+.Pp
 Put the requesting thread onto a sleep queue if the semaphore counter
 is zero.
 If the thread is put to sleep, the
@@ -1117,7 +1127,7 @@ error.
 .It Dv UMTX_OP_SEM2_WAKE
 Wake up waiters on semaphore lock.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "obj"
 .It Fa obj
 Pointer to the semaphore (of type
 .Vt struct _usem2 ) .
@@ -1145,7 +1155,7 @@ The
 argument specifies the sub-request of the
 .Dv UMTX_OP_SHM
 request:
-.Bl -tag -width "Dv UMTX_SHM_DESTROY"
+.Bl -tag -width indent
 .It Dv UMTX_SHM_CREAT
 Creates the anonymous shared memory object, which can be looked up
 with the specified key
@@ -1191,7 +1201,7 @@ creation or lookup.
 .It Dv UMTX_OP_ROBUST_LISTS
 Register the list heads for the current thread's robust mutex lists.
 The arguments to the request are:
-.Bl -tag -width "It Fa obj"
+.Bl -tag -width "uaddr"
 .It Fa val
 Size of the structure passed in the
 .Fa uaddr
@@ -1261,8 +1271,8 @@ variable is set to indicate the error.
 .Sh ERRORS
 The
 .Fn _umtx_op
-operations will return the following errors:
-.Bl -tag -width "Bq Er ENOTRECOVERABLE"
+operations can fail with the following errors:
+.Bl -tag -width "[ETIMEDOUT]"
 .It Bq Er EFAULT
 One of the arguments point to invalid memory.
 .It Bq Er EINVAL
@@ -1382,6 +1392,28 @@ Mutex lock requests without timeout specified are restartable.
 The error is not returned to userspace code since restart
 is handled by usual adjustment of the instruction counter.
 .El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr mmap 2 ,
+.Xr setrlimit 2 ,
+.Xr shm_open 2 ,
+.Xr sigaction 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_new 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr signal 3
+.Sh STANDARDS
+The
+.Fn _umtx_op
+system call is non-standard and is used by the
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.
 .Sh BUGS
 A window between a unlocking robust mutex and resetting the pointer in the
 .Dv robust_inact_offset
@@ -1403,25 +1435,3 @@ This is not done because it is believed that the race is adequately
 covered by other consistency checks, while adding the check would
 prevent alternative implementations of
 .Li libpthread .
-.Sh SEE ALSO
-.Xr clock_gettime 2 ,
-.Xr mmap 2 ,
-.Xr shm_open 2 ,
-.Xr setrlimit 2 ,
-.Xr sigaction 2 ,
-.Xr thr_exit 2 ,
-.Xr thr_kill 2 ,
-.Xr thr_kill2 2 ,
-.Xr thr_new 2 ,
-.Xr thr_self 2 ,
-.Xr thr_set_name 2 ,
-.Xr signal 3
-.Sh STANDARDS
-The
-.Fn _umtx_op
-system call is non-standard and is used by the
-.Lb libthr
-to implement
-.St -p1003.1-2001
-.Xr pthread 3
-functionality.

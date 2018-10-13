@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005, David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
@@ -100,9 +102,4 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 	atomic_store_rel_int(&once_control->state, ONCE_DONE);
 	_thr_umtx_wake(&once_control->state, INT_MAX, 0);
 	return (0);
-}
-
-void
-_thr_once_init(void)
-{
 }

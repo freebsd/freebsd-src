@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,12 +31,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
-#endif
-#endif /* LIBC_SCCS and not lint */
+__SCCSID("@(#)pty.c	8.3 (Berkeley) 5/16/94");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -99,12 +96,13 @@ forkpty(int *amaster, char *name, struct termios *termp, struct winsize *winp)
 		return (-1);
 	switch (pid = fork()) {
 	case -1:
+		(void)close(slave);
 		return (-1);
 	case 0:
 		/*
 		 * child
 		 */
-		(void) close(master);
+		(void)close(master);
 		login_tty(slave);
 		return (0);
 	}

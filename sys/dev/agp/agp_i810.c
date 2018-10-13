@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Doug Rabson
  * Copyright (c) 2000 Ruslan Ermilov
  * Copyright (c) 2011 The FreeBSD Foundation
@@ -1187,9 +1189,8 @@ agp_i810_install_gatt(device_t dev)
 		sc->dcache_size = 0;
 
 	/* According to the specs the gatt on the i810 must be 64k. */
-	sc->gatt->ag_virtual = (void *)kmem_alloc_contig(kernel_arena,
-	    64 * 1024, M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE,
-	    0, VM_MEMATTR_WRITE_COMBINING);
+	sc->gatt->ag_virtual = (void *)kmem_alloc_contig(64 * 1024, M_NOWAIT |
+	    M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->gatt->ag_virtual == NULL) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
@@ -1328,7 +1329,7 @@ agp_i810_deinstall_gatt(device_t dev)
 
 	sc = device_get_softc(dev);
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, 0);
-	kmem_free(kernel_arena, (vm_offset_t)sc->gatt->ag_virtual, 64 * 1024);
+	kmem_free((vm_offset_t)sc->gatt->ag_virtual, 64 * 1024);
 }
 
 static void
@@ -1932,8 +1933,6 @@ DRIVER_MODULE(agp_i810, vgapci, agp_i810_driver, agp_devclass, 0, 0);
 MODULE_DEPEND(agp_i810, agp, 1, 1, 1);
 MODULE_DEPEND(agp_i810, pci, 1, 1, 1);
 
-extern vm_page_t bogus_page;
-
 void
 agp_intel_gtt_clear_range(device_t dev, u_int first_entry, u_int num_entries)
 {
@@ -2244,6 +2243,16 @@ agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
 	return (0);
 }
 
+static void
+agp_intel_gtt_install_pte(device_t dev, u_int index, vm_paddr_t addr,
+    u_int flags)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->match->driver->install_gtt_pte(dev, index, addr, flags);
+}
+
 void
 agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
     u_int first_entry, u_int flags)
@@ -2320,6 +2329,13 @@ intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int first_entry,
 {
 
 	agp_intel_gtt_insert_sg_entries(intel_agp, sg_list, first_entry, flags);
+}
+
+void
+intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags)
+{
+
+	agp_intel_gtt_install_pte(intel_agp, index, addr, flags);
 }
 
 device_t

@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -61,8 +64,8 @@ int
 isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir, ispds64_t *ecmd)
 {
 	uint8_t storage[QENTRY_LEN];
-	uint8_t type, nqe;
-	uint32_t seg, curseg, seglim, nxt, nxtnxt, ddf;
+	uint8_t type, nqe, need64;
+	uint32_t seg, seglim, nxt, nxtnxt, ddf;
 	ispds_t *dsp = NULL;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1;
@@ -88,8 +91,21 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 		goto copy_and_sync;
 	}
 
+	need64 = 0;
+	for (seg = 0; seg < nsegs; seg++)
+		need64 |= XS_NEED_DMA64_SEG(segp, seg);
+	if (need64) {
+		if (type == RQSTYPE_T2RQS)
+			((isphdr_t *)fqe)->rqs_entry_type = type = RQSTYPE_T3RQS;
+		else if (type == RQSTYPE_REQUEST)
+			((isphdr_t *)fqe)->rqs_entry_type = type = RQSTYPE_A64;
+		else if (type == RQSTYPE_CTIO2)
+			((isphdr_t *)fqe)->rqs_entry_type = type = RQSTYPE_CTIO3;
+	}
+
 	/*
-	 * First figure out how many pieces of data to transfer and what kind and how many we can put into the first queue entry.
+	 * First figure out how many pieces of data to transfer, what
+	 * kind and how many we can put into the first queue entry.
 	 */
 	switch (type) {
 	case RQSTYPE_REQUEST:
@@ -121,22 +137,33 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 		dsp64 = &((ispreqt7_t *)fqe)->req_dataseg;
 		seglim = 1;
 		break;
+#ifdef	ISP_TARGET_MODE
+	case RQSTYPE_CTIO2:
+		dsp = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg;
+		seglim = ISP_RQDSEG_T2;
+		break;
+	case RQSTYPE_CTIO3:
+		dsp64 = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg64;
+		seglim = ISP_RQDSEG_T3;
+		break;
+	case RQSTYPE_CTIO7:
+		dsp64 = &((ct7_entry_t *)fqe)->rsp.m0.ds;
+		seglim = 1;
+		break;
+#endif
 	default:
 		return (CMD_COMPLETE);
 	}
-
-	if (seglim > nsegs) {
+	if (seglim > nsegs)
 		seglim = nsegs;
-	}
-
-	for (seg = curseg = 0; curseg < seglim; curseg++) {
+	seg = 0;
+	while (seg < seglim) {
 		if (dsp64) {
 			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
 		} else {
 			XS_GET_DMA_SEG(dsp++, segp, seg++);
 		}
 	}
-
 
 	/*
 	 * Second, start building additional continuation segments as needed.
@@ -164,10 +191,10 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 			crq->req_header.rqs_entry_count = 1;
 			dsp = crq->req_dataseg;
 		}
-		if (seg + seglim > nsegs) {
-			seglim = nsegs - seg;
-		}
-		for (curseg = 0; curseg < seglim; curseg++) {
+		seglim += seg;
+		if (seglim > nsegs)
+			seglim = nsegs;
+		while (seg < seglim) {
 			if (dsp64) {
 				XS_GET_DMA64_SEG(dsp64++, segp, seg++);
 			} else {
@@ -191,23 +218,17 @@ copy_and_sync:
 	switch (type) {
 	case RQSTYPE_REQUEST:
 		((ispreq_t *)fqe)->req_flags |= ddf;
-		/*
-		 * This is historical and not clear whether really needed.
-		 */
-		if (nsegs == 0) {
+		/* This is historical and not clear whether really needed. */
+		if (nsegs == 0)
 			nsegs = 1;
-		}
 		((ispreq_t *)fqe)->req_seg_count = nsegs;
 		isp_put_request(isp, fqe, qe0);
 		break;
 	case RQSTYPE_CMDONLY:
 		((ispreq_t *)fqe)->req_flags |= ddf;
-		/*
-		 * This is historical and not clear whether really needed.
-		 */
-		if (nsegs == 0) {
+		/* This is historical and not clear whether really needed. */
+		if (nsegs == 0)
 			nsegs = 1;
-		}
 		((ispextreq_t *)fqe)->req_seg_count = nsegs;
 		isp_put_extended_request(isp, fqe, qe0);
 		break;
@@ -233,11 +254,34 @@ copy_and_sync:
 		}
 		break;
 	case RQSTYPE_T7RQS:
-        	((ispreqt7_t *)fqe)->req_alen_datadir = ddf;
+		((ispreqt7_t *)fqe)->req_alen_datadir = ddf;
 		((ispreqt7_t *)fqe)->req_seg_count = nsegs;
 		((ispreqt7_t *)fqe)->req_dl = totalcnt;
 		isp_put_request_t7(isp, fqe, qe0);
 		break;
+#ifdef	ISP_TARGET_MODE
+	case RQSTYPE_CTIO2:
+	case RQSTYPE_CTIO3:
+		if (((ct2_entry_t *)fqe)->ct_flags & CT2_FLAG_MODE2) {
+			((ct2_entry_t *)fqe)->ct_seg_count = 1;
+		} else {
+			((ct2_entry_t *)fqe)->ct_seg_count = nsegs;
+		}
+		if (ISP_CAP_2KLOGIN(isp)) {
+			isp_put_ctio2e(isp, fqe, qe0);
+		} else {
+			isp_put_ctio2(isp, fqe, qe0);
+		}
+		break;
+	case RQSTYPE_CTIO7:
+		if (((ct7_entry_t *)fqe)->ct_flags & CT7_FLAG_MODE2) {
+			((ct7_entry_t *)fqe)->ct_seg_count = 1;
+		} else {
+			((ct7_entry_t *)fqe)->ct_seg_count = nsegs;
+		}
+		isp_put_ctio7(isp, fqe, qe0);
+		break;
+#endif
 	default:
 		return (CMD_COMPLETE);
 	}
@@ -630,28 +674,6 @@ isp_clear_commands(ispsoftc_t *isp)
 		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
 	}
 #endif
-}
-
-void
-isp_shutdown(ispsoftc_t *isp)
-{
-	if (IS_FC(isp)) {
-		if (IS_24XX(isp)) {
-			ISP_WRITE(isp, BIU2400_ICR, 0);
-			ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_PAUSE);
-		} else {
-			ISP_WRITE(isp, BIU_ICR, 0);
-			ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
-			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FPM0_REGS);
-			ISP_WRITE(isp, FPM_DIAG_CONFIG, FPM_SOFT_RESET);
-			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FB_REGS);
-			ISP_WRITE(isp, FBM_CMD, FBMCMD_FIFO_RESET_ALL);
-			ISP_WRITE(isp, BIU2100_CSR, BIU2100_RISC_REGS);
-		}
-	} else {
-		ISP_WRITE(isp, BIU_ICR, 0);
-		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
-	}
 }
 
 /*
@@ -1723,7 +1745,7 @@ isp_put_gid_ft_request(ispsoftc_t *isp, sns_gid_ft_req_t *src, sns_gid_ft_req_t 
 }
 
 void
-isp_put_gxn_id_request(ispsoftc_t *isp, sns_gxn_id_req_t *src, sns_gxn_id_req_t *dst)
+isp_put_gid_pt_request(ispsoftc_t *isp, sns_gid_pt_req_t *src, sns_gid_pt_req_t *dst)
 {
 	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
 	ISP_IOXPUT_16(isp, src->snscb_reserved0, &dst->snscb_reserved0);
@@ -1734,48 +1756,46 @@ isp_put_gxn_id_request(ispsoftc_t *isp, sns_gxn_id_req_t *src, sns_gxn_id_req_t 
 	ISP_IOXPUT_16(isp, src->snscb_sblen, &dst->snscb_sblen);
 	ISP_IOXPUT_16(isp, src->snscb_reserved1, &dst->snscb_reserved1);
 	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
-	ISP_IOXPUT_16(isp, src->snscb_reserved2, &dst->snscb_reserved2);
+	ISP_IOXPUT_16(isp, src->snscb_mword_div_2, &dst->snscb_mword_div_2);
+	ISP_IOXPUT_32(isp, src->snscb_reserved3, &dst->snscb_reserved3);
+	ISP_IOXPUT_8(isp, src->snscb_port_type, &dst->snscb_port_type);
+	ISP_IOXPUT_8(isp, src->snscb_domain, &dst->snscb_domain);
+	ISP_IOXPUT_8(isp, src->snscb_area, &dst->snscb_area);
+	ISP_IOXPUT_8(isp, src->snscb_flags, &dst->snscb_flags);
+}
+
+void
+isp_put_gxx_id_request(ispsoftc_t *isp, sns_gxx_id_req_t *src, sns_gxx_id_req_t *dst)
+{
+	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
+	ISP_IOXPUT_16(isp, src->snscb_reserved0, &dst->snscb_reserved0);
+	ISP_IOXPUT_16(isp, src->snscb_addr[0], &dst->snscb_addr[0]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[1], &dst->snscb_addr[1]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[2], &dst->snscb_addr[2]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[3], &dst->snscb_addr[3]);
+	ISP_IOXPUT_16(isp, src->snscb_sblen, &dst->snscb_sblen);
+	ISP_IOXPUT_16(isp, src->snscb_reserved1, &dst->snscb_reserved1);
+	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
+	ISP_IOXPUT_16(isp, src->snscb_mword_div_2, &dst->snscb_mword_div_2);
 	ISP_IOXPUT_32(isp, src->snscb_reserved3, &dst->snscb_reserved3);
 	ISP_IOXPUT_32(isp, src->snscb_portid, &dst->snscb_portid);
 }
 
-/*
- * Generic SNS response - not particularly useful since the per-command data
- * isn't always 16 bit words.
- */
 void
-isp_get_sns_response(ispsoftc_t *isp, sns_scrsp_t *src, sns_scrsp_t *dst, int nwords)
+isp_get_gid_xx_response(ispsoftc_t *isp, sns_gid_xx_rsp_t *src, sns_gid_xx_rsp_t *dst, int nwords)
 {
-	int i;
-	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
-	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
-	for (i = 0; i < 3; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_port_id[i],
-		    dst->snscb_port_id[i]);
-	}
-	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_portname[i],
-		    dst->snscb_portname[i]);
-	}
-	for (i = 0; i < nwords; i++) {
-		ISP_IOXGET_16(isp, &src->snscb_data[i], dst->snscb_data[i]);
-	}
-}
+	int i, j;
 
-void
-isp_get_gid_ft_response(ispsoftc_t *isp, sns_gid_ft_rsp_t *src, sns_gid_ft_rsp_t *dst, int nwords)
-{
-	int i;
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < nwords; i++) {
-		int j;
-		ISP_IOXGET_8(isp, &src->snscb_ports[i].control, dst->snscb_ports[i].control);
+		ISP_IOZGET_8(isp, &src->snscb_ports[i].control,
+		    dst->snscb_ports[i].control);
 		for (j = 0; j < 3; j++) {
-			ISP_IOXGET_8(isp, &src->snscb_ports[i].portid[j], dst->snscb_ports[i].portid[j]);
+			ISP_IOZGET_8(isp, &src->snscb_ports[i].portid[j],
+			    dst->snscb_ports[i].portid[j]);
 		}
-		if (dst->snscb_ports[i].control & 0x80) {
+		if (dst->snscb_ports[i].control & 0x80)
 			break;
-		}
 	}
 }
 
@@ -1783,9 +1803,21 @@ void
 isp_get_gxn_id_response(ispsoftc_t *isp, sns_gxn_id_rsp_t *src, sns_gxn_id_rsp_t *dst)
 {
 	int i;
+
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
+	for (i = 0; i < 8; i++)
+		ISP_IOZGET_8(isp, &src->snscb_wwn[i], dst->snscb_wwn[i]);
+}
+
+void
+isp_get_gft_id_response(ispsoftc_t *isp, sns_gft_id_rsp_t *src, sns_gft_id_rsp_t *dst)
+{
+	int i;
+
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_wwn[i], dst->snscb_wwn[i]);
+		ISP_IOZGET_32(isp, &src->snscb_fc4_types[i],
+		    dst->snscb_fc4_types[i]);
 	}
 }
 
@@ -1793,9 +1825,11 @@ void
 isp_get_gff_id_response(ispsoftc_t *isp, sns_gff_id_rsp_t *src, sns_gff_id_rsp_t *dst)
 {
 	int i;
+
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < 32; i++) {
-		ISP_IOXGET_32(isp, &src->snscb_fc4_features[i], dst->snscb_fc4_features[i]);
+		ISP_IOZGET_32(isp, &src->snscb_fc4_features[i],
+		    dst->snscb_fc4_features[i]);
 	}
 }
 
@@ -1804,42 +1838,42 @@ isp_get_ga_nxt_response(ispsoftc_t *isp, sns_ga_nxt_rsp_t *src, sns_ga_nxt_rsp_t
 {
 	int i;
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
-	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
+	ISP_IOZGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
 	for (i = 0; i < 3; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_port_id[i], dst->snscb_port_id[i]);
+		ISP_IOZGET_8(isp, &src->snscb_port_id[i], dst->snscb_port_id[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_portname[i], dst->snscb_portname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_portname[i], dst->snscb_portname[i]);
 	}
-	ISP_IOXGET_8(isp, &src->snscb_pnlen, dst->snscb_pnlen);
+	ISP_IOZGET_8(isp, &src->snscb_pnlen, dst->snscb_pnlen);
 	for (i = 0; i < 255; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_pname[i], dst->snscb_pname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_pname[i], dst->snscb_pname[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_nodename[i], dst->snscb_nodename[i]);
+		ISP_IOZGET_8(isp, &src->snscb_nodename[i], dst->snscb_nodename[i]);
 	}
-	ISP_IOXGET_8(isp, &src->snscb_nnlen, dst->snscb_nnlen);
+	ISP_IOZGET_8(isp, &src->snscb_nnlen, dst->snscb_nnlen);
 	for (i = 0; i < 255; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_nname[i], dst->snscb_nname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_nname[i], dst->snscb_nname[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_ipassoc[i], dst->snscb_ipassoc[i]);
+		ISP_IOZGET_8(isp, &src->snscb_ipassoc[i], dst->snscb_ipassoc[i]);
 	}
 	for (i = 0; i < 16; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_ipaddr[i], dst->snscb_ipaddr[i]);
+		ISP_IOZGET_8(isp, &src->snscb_ipaddr[i], dst->snscb_ipaddr[i]);
 	}
 	for (i = 0; i < 4; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_svc_class[i], dst->snscb_svc_class[i]);
+		ISP_IOZGET_8(isp, &src->snscb_svc_class[i], dst->snscb_svc_class[i]);
 	}
 	for (i = 0; i < 32; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_fc4_types[i], dst->snscb_fc4_types[i]);
+		ISP_IOZGET_8(isp, &src->snscb_fc4_types[i], dst->snscb_fc4_types[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_fpname[i], dst->snscb_fpname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_fpname[i], dst->snscb_fpname[i]);
 	}
-	ISP_IOXGET_8(isp, &src->snscb_reserved, dst->snscb_reserved);
+	ISP_IOZGET_8(isp, &src->snscb_reserved, dst->snscb_reserved);
 	for (i = 0; i < 3; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_hardaddr[i], dst->snscb_hardaddr[i]);
+		ISP_IOZGET_8(isp, &src->snscb_hardaddr[i], dst->snscb_hardaddr[i]);
 	}
 }
 
@@ -2078,168 +2112,6 @@ isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *src, fcp_rsp_iu_t *dst)
 	ISP_IOZPUT_32(isp, src->fcp_rsp_snslen, &dst->fcp_rsp_snslen);
 	ISP_IOZPUT_32(isp, src->fcp_rsp_rsplen, &dst->fcp_rsp_rsplen);
 }
-
-#ifdef	ISP_TARGET_MODE
-
-/*
- * Command shipping- finish off first queue entry and do dma mapping and
- * additional segments as needed.
- *
- * Called with the first queue entry mostly filled out.
- * Our job here is to finish that and add additional data
- * segments if needed.
- *
- * We used to do synthetic entries to split data and status
- * at this level, but that started getting too tricky.
- */
-int
-isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir, void *snsptr, uint32_t snslen)
-{
-	uint8_t storage[QENTRY_LEN];
-	uint8_t type, nqe;
-	uint32_t seg, curseg, seglim, nxt, nxtnxt;
-	ispds_t *dsp = NULL;
-	ispds64_t *dsp64 = NULL;
-	void *qe0, *qe1;
-
-	qe0 = isp_getrqentry(isp);
-	if (qe0 == NULL) {
-		return (CMD_EAGAIN);
-	}
-	nxt = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
-
-	type = ((isphdr_t *)fqe)->rqs_entry_type;
-	nqe = 1;
-	seglim = 0;
-
-	/*
-	 * If we have data to transmit, figure out how many segments can fit into the first entry.
-	 */
-	if (ddir != ISP_NOXFR) {
-		/*
-		 * First, figure out how many pieces of data to transfer and what kind and how many we can put into the first queue entry.
-		 */
-		switch (type) {
-		case RQSTYPE_CTIO2:
-			dsp = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg;
-			seglim = ISP_RQDSEG_T2;
-			break;
-		case RQSTYPE_CTIO3:
-			dsp64 = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg64;
-			seglim = ISP_RQDSEG_T3;
-			break;
-		case RQSTYPE_CTIO7:
-			dsp64 = &((ct7_entry_t *)fqe)->rsp.m0.ds;
-			seglim = 1;
-			break;
-		default:
-			return (CMD_COMPLETE);
-		}
-	}
-
-	/*
-	 * First, fill out any of the data transfer stuff that fits
-	 * in the first queue entry.
-	 */
-	if (seglim > nsegs) {
-		seglim = nsegs;
-	}
-
-	for (seg = curseg = 0; curseg < seglim; curseg++) {
-		if (dsp64) {
-			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
-		} else {
-			XS_GET_DMA_SEG(dsp++, segp, seg++);
-		}
-	}
-
-	/*
-	 * Second, start building additional continuation segments as needed.
-	 */
-	while (seg < nsegs) {
-		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
-		if (nxtnxt == isp->isp_reqodx) {
-			isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
-			if (nxtnxt == isp->isp_reqodx)
-				return (CMD_EAGAIN);
-		}
-		ISP_MEMZERO(storage, QENTRY_LEN);
-		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
-		nxt = nxtnxt;
-		if (dsp64) {
-			ispcontreq64_t *crq = (ispcontreq64_t *) storage;
-			seglim = ISP_CDSEG64;
-			crq->req_header.rqs_entry_type = RQSTYPE_A64_CONT;
-			crq->req_header.rqs_entry_count = 1;
-			dsp64 = crq->req_dataseg;
-		} else {
-			ispcontreq_t *crq = (ispcontreq_t *) storage;
-			seglim = ISP_CDSEG;
-			crq->req_header.rqs_entry_type = RQSTYPE_DATASEG;
-			crq->req_header.rqs_entry_count = 1;
-			dsp = crq->req_dataseg;
-		}
-		if (seg + seglim > nsegs) {
-			seglim = nsegs - seg;
-		}
-		for (curseg = 0; curseg < seglim; curseg++) {
-			if (dsp64) {
-				XS_GET_DMA64_SEG(dsp64++, segp, seg++);
-			} else {
-				XS_GET_DMA_SEG(dsp++, segp, seg++);
-			}
-		}
-		if (dsp64) {
-			isp_put_cont64_req(isp, (ispcontreq64_t *)storage, qe1);
-		} else {
-			isp_put_cont_req(isp, (ispcontreq_t *)storage, qe1);
-		}
-		if (isp->isp_dblev & ISP_LOGTDEBUG1) {
-			isp_print_bytes(isp, "additional queue entry",
-			    QENTRY_LEN, qe1);
-		}
-		nqe++;
-        }
-
-	/*
-	 * Third, not patch up the first queue entry with the number of segments
-	 * we actually are going to be transmitting. At the same time, handle
-	 * any mode 2 requests.
-	 */
-	((isphdr_t *)fqe)->rqs_entry_count = nqe;
-	switch (type) {
-	case RQSTYPE_CTIO2:
-	case RQSTYPE_CTIO3:
-		if (((ct2_entry_t *)fqe)->ct_flags & CT2_FLAG_MODE2) {
-			((ct2_entry_t *)fqe)->ct_seg_count = 1;
-		} else {
-			((ct2_entry_t *)fqe)->ct_seg_count = nsegs;
-		}
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_ctio2e(isp, fqe, qe0);
-		} else {
-			isp_put_ctio2(isp, fqe, qe0);
-		}
-		break;
-	case RQSTYPE_CTIO7:
-		if (((ct7_entry_t *)fqe)->ct_flags & CT7_FLAG_MODE2) {
-			((ct7_entry_t *)fqe)->ct_seg_count = 1;
-		} else {
-			((ct7_entry_t *)fqe)->ct_seg_count = nsegs;
-		}
-		isp_put_ctio7(isp, fqe, qe0);
-		break;
-	default:
-		return (CMD_COMPLETE);
-	}
-	if (isp->isp_dblev & ISP_LOGTDEBUG1) {
-		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, qe0);
-	}
-	ISP_ADD_REQUEST(isp, nxt);
-	return (CMD_QUEUED);
-}
-
-#endif
 
 /*
  * Find port database entries
@@ -3073,78 +2945,6 @@ isp_get_ctio7(ispsoftc_t *isp, ct7_entry_t *src, ct7_entry_t *dst)
 		ISP_IOXGET_32(isp, &src->rsp.m2.ct_fcp_rsp_iudata.ds_base, dst->rsp.m2.ct_fcp_rsp_iudata.ds_base);
 		ISP_IOXGET_32(isp, &src->rsp.m2.ct_fcp_rsp_iudata.ds_basehi, dst->rsp.m2.ct_fcp_rsp_iudata.ds_basehi);
 		ISP_IOXGET_32(isp, &src->rsp.m2.ct_fcp_rsp_iudata.ds_count, dst->rsp.m2.ct_fcp_rsp_iudata.ds_count);
-	}
-}
-
-void
-isp_put_enable_lun(ispsoftc_t *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
-{
-	int i;
-	isp_put_hdr(isp, &lesrc->le_header, &ledst->le_header);
-	ISP_IOXPUT_32(isp, lesrc->le_reserved, &ledst->le_reserved);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXPUT_8(isp, lesrc->le_lun, &ledst->le_rsvd);
-		ISP_IOXPUT_8(isp, lesrc->le_rsvd, &ledst->le_lun);
-		ISP_IOXPUT_8(isp, lesrc->le_ops, &ledst->le_tgt);
-		ISP_IOXPUT_8(isp, lesrc->le_tgt, &ledst->le_ops);
-		ISP_IOXPUT_8(isp, lesrc->le_status, &ledst->le_reserved2);
-		ISP_IOXPUT_8(isp, lesrc->le_reserved2, &ledst->le_status);
-		ISP_IOXPUT_8(isp, lesrc->le_cmd_count, &ledst->le_in_count);
-		ISP_IOXPUT_8(isp, lesrc->le_in_count, &ledst->le_cmd_count);
-		ISP_IOXPUT_8(isp, lesrc->le_cdb6len, &ledst->le_cdb7len);
-		ISP_IOXPUT_8(isp, lesrc->le_cdb7len, &ledst->le_cdb6len);
-	} else {
-		ISP_IOXPUT_8(isp, lesrc->le_lun, &ledst->le_lun);
-		ISP_IOXPUT_8(isp, lesrc->le_rsvd, &ledst->le_rsvd);
-		ISP_IOXPUT_8(isp, lesrc->le_ops, &ledst->le_ops);
-		ISP_IOXPUT_8(isp, lesrc->le_tgt, &ledst->le_tgt);
-		ISP_IOXPUT_8(isp, lesrc->le_status, &ledst->le_status);
-		ISP_IOXPUT_8(isp, lesrc->le_reserved2, &ledst->le_reserved2);
-		ISP_IOXPUT_8(isp, lesrc->le_cmd_count, &ledst->le_cmd_count);
-		ISP_IOXPUT_8(isp, lesrc->le_in_count, &ledst->le_in_count);
-		ISP_IOXPUT_8(isp, lesrc->le_cdb6len, &ledst->le_cdb6len);
-		ISP_IOXPUT_8(isp, lesrc->le_cdb7len, &ledst->le_cdb7len);
-	}
-	ISP_IOXPUT_32(isp, lesrc->le_flags, &ledst->le_flags);
-	ISP_IOXPUT_16(isp, lesrc->le_timeout, &ledst->le_timeout);
-	for (i = 0; i < 20; i++) {
-		ISP_IOXPUT_8(isp, lesrc->le_reserved3[i], &ledst->le_reserved3[i]);
-	}
-}
-
-void
-isp_get_enable_lun(ispsoftc_t *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
-{
-	int i;
-	isp_get_hdr(isp, &lesrc->le_header, &ledst->le_header);
-	ISP_IOXGET_32(isp, &lesrc->le_reserved, ledst->le_reserved);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXGET_8(isp, &lesrc->le_lun, ledst->le_rsvd);
-		ISP_IOXGET_8(isp, &lesrc->le_rsvd, ledst->le_lun);
-		ISP_IOXGET_8(isp, &lesrc->le_ops, ledst->le_tgt);
-		ISP_IOXGET_8(isp, &lesrc->le_tgt, ledst->le_ops);
-		ISP_IOXGET_8(isp, &lesrc->le_status, ledst->le_reserved2);
-		ISP_IOXGET_8(isp, &lesrc->le_reserved2, ledst->le_status);
-		ISP_IOXGET_8(isp, &lesrc->le_cmd_count, ledst->le_in_count);
-		ISP_IOXGET_8(isp, &lesrc->le_in_count, ledst->le_cmd_count);
-		ISP_IOXGET_8(isp, &lesrc->le_cdb6len, ledst->le_cdb7len);
-		ISP_IOXGET_8(isp, &lesrc->le_cdb7len, ledst->le_cdb6len);
-	} else {
-		ISP_IOXGET_8(isp, &lesrc->le_lun, ledst->le_lun);
-		ISP_IOXGET_8(isp, &lesrc->le_rsvd, ledst->le_rsvd);
-		ISP_IOXGET_8(isp, &lesrc->le_ops, ledst->le_ops);
-		ISP_IOXGET_8(isp, &lesrc->le_tgt, ledst->le_tgt);
-		ISP_IOXGET_8(isp, &lesrc->le_status, ledst->le_status);
-		ISP_IOXGET_8(isp, &lesrc->le_reserved2, ledst->le_reserved2);
-		ISP_IOXGET_8(isp, &lesrc->le_cmd_count, ledst->le_cmd_count);
-		ISP_IOXGET_8(isp, &lesrc->le_in_count, ledst->le_in_count);
-		ISP_IOXGET_8(isp, &lesrc->le_cdb6len, ledst->le_cdb6len);
-		ISP_IOXGET_8(isp, &lesrc->le_cdb7len, ledst->le_cdb7len);
-	}
-	ISP_IOXGET_32(isp, &lesrc->le_flags, ledst->le_flags);
-	ISP_IOXGET_16(isp, &lesrc->le_timeout, ledst->le_timeout);
-	for (i = 0; i < 20; i++) {
-		ISP_IOXGET_8(isp, &lesrc->le_reserved3[i], ledst->le_reserved3[i]);
 	}
 }
 

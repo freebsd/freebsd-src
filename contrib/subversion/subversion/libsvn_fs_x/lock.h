@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS_LOCK_H
-#define SVN_LIBSVN_FS_LOCK_H
+#ifndef SVN_LIBSVN_FS_X_LOCK_H
+#define SVN_LIBSVN_FS_X_LOCK_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -113,4 +113,4 @@ svn_fs_x__allow_locked_operation(const char *path,
 }
 #endif /* __cplusplus */
 
-#endif /* SVN_LIBSVN_FS_LOCK_H */
+#endif /* SVN_LIBSVN_FS_X_LOCK_H */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -53,6 +55,13 @@
 #define MV_MODE_ENDPOINT	0
 #define MV_MODE_ROOT		1
 
+enum soc_family{
+	MV_SOC_ARMADA_38X 	= 0x00,
+	MV_SOC_ARMADA_XP	= 0x01,
+	MV_SOC_ARMV5		= 0x02,
+	MV_SOC_UNSUPPORTED	= 0xff,
+};
+
 struct gpio_config {
 	int		gc_gpio;	/* GPIO number */
 	uint32_t	gc_flags;	/* GPIO flags */
@@ -74,20 +83,11 @@ extern const struct decode_win *xor_wins;
 extern int idma_wins_no;
 extern int xor_wins_no;
 
-/* Function prototypes */
-int mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
-    void (*hand)(void *), void *arg, int pin, int flags, void **cookiep);
-void mv_gpio_intr_mask(int pin);
-void mv_gpio_intr_unmask(int pin);
-void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
-uint8_t mv_gpio_in(uint32_t pin);
-
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_dump_decode_win(void);
 uint32_t soc_power_ctrl_get(uint32_t mask);
 void soc_power_ctrl_set(uint32_t mask);
-uint64_t get_sar_value(void);
 
 int decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
     vm_paddr_t remap);
@@ -104,16 +104,15 @@ uint32_t ddr_target(int i);
 
 uint32_t cpu_extra_feat(void);
 uint32_t get_tclk(void);
+uint32_t get_cpu_freq(void);
 uint32_t get_l2clk(void);
 uint32_t read_cpu_ctrl(uint32_t);
 void write_cpu_ctrl(uint32_t, uint32_t);
 
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 uint32_t read_cpu_mp_clocks(uint32_t reg);
 void write_cpu_mp_clocks(uint32_t reg, uint32_t val);
 uint32_t read_cpu_misc(uint32_t reg);
 void write_cpu_misc(uint32_t reg, uint32_t val);
-#endif
 
 int mv_pcib_bar_win_set(device_t dev, uint32_t base, uint32_t size,
     uint32_t remap, int winno, int busno);
@@ -140,5 +139,13 @@ struct devmap_entry;
 int mv_pci_devmap(phandle_t, struct devmap_entry *, vm_offset_t,
     vm_offset_t);
 int fdt_localbus_devmap(phandle_t, struct devmap_entry *, int, int *);
+enum soc_family mv_check_soc_family(void);
 
+int mv_fdt_is_type(phandle_t, const char *);
+int mv_fdt_pm(phandle_t);
+
+uint32_t get_tclk_armadaxp(void);
+uint32_t get_tclk_armada38x(void);
+uint32_t get_cpu_freq_armadaxp(void);
+uint32_t get_cpu_freq_armada38x(void);
 #endif /* _MVVAR_H_ */

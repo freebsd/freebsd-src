@@ -1,8 +1,8 @@
 .\"
 .\" Copyright (c) 2010 Spectra Logic Corporation
 .\" Copyright (c) 2014 LSI Corp
-.\" Copyright (c) 2016 Avago Technologies
-.\" Copyright (c) 2016 Broadcom Ltd.
+.\" Copyright (c) 2015-2017 Avago Technologies
+.\" Copyright (c) 2015-2017 Broadcom Ltd.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -38,12 +38,12 @@
 .\" $Id$
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2016
+.Dd May 25, 2017
 .Dt MPR 4
 .Os
 .Sh NAME
 .Nm mpr
-.Nd "LSI Fusion-MPT 3 IT/IR 12Gb/s Serial Attached SCSI/SATA driver"
+.Nd "LSI Fusion-MPT 3/3.5 IT/IR 12Gb/s Serial Attached SCSI/SATA/PCIe driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel, place these lines in the kernel
 configuration file:
@@ -62,8 +62,8 @@ mpr_load="YES"
 The
 .Nm
 driver provides support for Broadcom Ltd./Avago Tech (LSI)
-Fusion-MPT 3 IT/IR
-.Tn SAS
+Fusion-MPT 3/3.5 IT/IR
+.Tn SAS/PCIe
 controllers.
 .Sh HARDWARE
 These controllers are supported by the
@@ -81,9 +81,26 @@ Broadcom Ltd./Avago Tech (LSI) SAS 3108 (8 Port SAS)
 Broadcom Ltd./Avago Tech (LSI) SAS 3216 (16 Port SAS)
 .It
 Broadcom Ltd./Avago Tech (LSI) SAS 3224 (24 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3316 (16 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3324 (24 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3408 (8 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3416 (16 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3508 (8 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3516 (16 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3616 (16 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3708 (8 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3716 (16 Port SAS/PCIe)
 .El
 .Sh CONFIGURATION
-.Pp
 In all tunable descriptions below, X represents the adapter number.
 .Pp
 To disable MSI interrupts for all
@@ -157,6 +174,46 @@ dev.mpr.X.io_cmds_active
 .Xr sysctl 8
 variable.
 .Pp
+The current number of free PRP pages is stored in the
+dev.mpr.X.prp_pages_free
+.Xr sysctl 8
+variable.
+PRP pages are used by NVMe devices for I/O transfers, much like Scatter/Gather
+lists.
+.Pp
+The lowest number of free PRP pages seen since boot is stored in the
+dev.mpr.X.prp_pages_free_lowwater
+.Xr sysctl 8
+variable.
+.Pp
+The number of times that PRP page allocations have failed since boot is
+stored in the
+dev.mpr.X.prp_page_alloc_fail
+.Xr sysctl 8
+variable.
+.Pp
+To set the maximum number of pages that will be used per I/O for all adapters,
+set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.max_io_pages=NNNN
+.Ed
+.Pp
+To set the maximum number of pages that will be used per I/O for a specific
+adapter, set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.max_io_pages=NNNN
+.Ed
+.Pp
+The default max_io_pages value is -1, meaning that the maximum I/O size that
+will be used per I/O will be calculated using the IOCFacts values stored in
+the controller.
+The lowest value that the driver will use for max_io_pages is 1, otherwise
+IOCFacts will be used to calculate the maximum I/O size.
+The smaller I/O size calculated from either max_io_pages or IOCFacts will be the
+maximum I/O size used by the driver.
+.Pp
 The highest number of active I/O commands seen since boot is stored in the
 dev.mpr.X.io_cmds_highwater
 .Xr sysctl 8
@@ -208,19 +265,19 @@ Send SSU to HDDs, but not to SSDs.
 Send SSU to both HDDs and SSDs.
 .El
 .Pp
-To control the feature for a specific adapter, set this tunable value in
+To control this feature for a specific adapter, set this tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 dev.mpr.X.enable_ssu
 .Ed
 .Pp
-The same set of values are valid when setting this tunable for all adapters.
+The same set of values are valid as when setting this tunable for all adapters.
 .Pp
 SATA disks that take several seconds to spin up and fail the SATA Identify
 command might not be discovered by the driver.
 This problem can sometimes be overcome by increasing the value of the spinup
 wait time in
-.Xr loader.conf 5 :
+.Xr loader.conf 5
 with the
 .Bd -literal -offset indent
 hw.mpr.spinup_wait_time=NNNN
@@ -240,32 +297,86 @@ dev.mpr.X.spinup_wait_time=NNNN
 tunable.
 NNNN is the number of seconds to wait for SATA devices to spin up when they fail
 the initial SATA Identify command.
-.Sh DEBUGGING
-To enable debugging prints from the
-.Nm
-driver, set the
+.Pp
+The driver can map devices discovered by the adapter so that target IDs
+corresponding to a specific device persist across resets and reboots.
+In some cases it is possible for devices to lose their mapped IDs due to
+unexpected behavior from certain hardware, such as some types of enclosures.
+To overcome this problem, a tunable is provided that will force the driver to
+map devices using the Phy number associated with the device.
+This feature is not recommended if the topology includes multiple
+enclosures/expanders.
+If multiple enclosures/expanders are present in the topology, Phy numbers are
+repeated, causing all devices at these Phy numbers except the first device to
+fail enumeration.
+To control this feature for all adapters, set the
 .Bd -literal -offset indent
-hw.mpr.X.debug_level
+hw.mpr.use_phy_num
 .Ed
 .Pp
-tunable, either in
+tunable in
 .Xr loader.conf 5
-or by using
-.Xr sysctl 8 .
-These bits have the described effects:
+to one of these values:
+.Bl -tag -width 6n -offset indent
+.It -1
+Only use Phy numbers to map devices and bypass the driver's mapping logic.
+.It 0
+Never use Phy numbers to map devices.
+.It 1
+Use Phy numbers to map devices, but only if the driver's mapping logic fails
+to map the device that is being enumerated.
+This is the default value.
+.El
+.Pp
+To control this feature for a specific adapter, set this tunable value in
+.Xr loader.conf 5 :
 .Bd -literal -offset indent
-0x0001 Enable informational prints (set by default).
-0x0002 Enable prints for driver faults (set by default).
-0x0004 Enable prints for controller events.
-0x0008 Enable prints for controller logging.
-0x0010 Enable prints for tracing recovery operations.
-0x0020 Enable prints for parameter errors and programming bugs.
-0x0040 Enable prints for system initialization operations.
-0x0080 Enable prints for more detailed information.
-0x0100 Enable prints for user-generated commands (IOCTL).
-0x0200 Enable prints for device mapping.
-0x0400 Enable prints for tracing through driver functions.
+dev.mpr.X.use_phy_num
 .Ed
+.Pp
+The same set of values are valid as when setting this tunable for all adapters.
+.Pp
+.Sh DEBUGGING
+Driver diagnostic printing is controlled in
+.Xr loader.conf 5
+by using the global
+.Va hw.mpr.debug_level
+and per-device
+.Va dev.mpr.X.debug_level
+tunables.
+One can alter the debug level for any adapter at run-time using the
+.Xr sysctl 8
+variable
+.Va dev.mpr.X.debug_level .
+.Pp
+All
+.Va debug_level
+variables can be named by either an integer value or a text string.
+Multiple values can be specified together by either ORing the
+integer values or by providing a comma-separated list of names.
+A text string prefixed by
+.Qq +
+adds the specified debug levels to the existing set, while the prefix
+.Qq -
+removes them from the existing set.
+The current
+.Va debug_level
+status is reported in both formats for convenience.
+The following levels are available:
+.Bl -column "FlagXX" "NameXXXX" "Description" -offset indent
+.It Em Flag Ta Em Name Ta Em Description
+.It 0x0001 Ta info Ta Basic information (enabled by default)
+.It 0x0002 Ta fault Ta Driver faults (enabled by default)
+.It 0x0004 Ta event Ta Controller events
+.It 0x0008 Ta log Ta Logging data from controller
+.It 0x0010 Ta recovery Ta Tracing of recovery operations
+.It 0x0020 Ta error Ta Parameter errors and programming bugs
+.It 0x0040 Ta init Ta System initialization operations
+.It 0x0080 Ta xinfo Ta More detailed information
+.It 0x0100 Ta user Ta Tracing of user-generated commands (IOCTL)
+.It 0x0200 Ta mapping Ta Tracing of device mapping
+.It 0x0400 Ta trace Ta Tracing through driver functions
+.El
 .Sh SEE ALSO
 .Xr cam 4 ,
 .Xr cd 4 ,
@@ -282,7 +393,8 @@ These bits have the described effects:
 .Sh HISTORY
 The
 .Nm
-driver first appeared in FreeBSD 9.3.
+driver first appeared in
+.Fx 9.3 .
 .Sh AUTHORS
 The
 .Nm

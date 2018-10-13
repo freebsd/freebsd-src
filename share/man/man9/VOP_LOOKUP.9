@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 1997
+.Dd August 8, 2018
 .Dt VOP_LOOKUP 9
 .Os
 .Sh NAME
@@ -51,10 +51,7 @@ The locked vnode of the directory to search.
 The address of a variable where the resulting locked vnode should be stored.
 .It Fa cnp
 The pathname component to be searched for.
-.El
-.Pp
-.Fa Cnp
-is a pointer to a componentname structure defined as follows:
+It is a pointer to a componentname structure defined as follows:
 .Bd -literal
 struct componentname {
 	/*
@@ -64,14 +61,13 @@ struct componentname {
 	u_long	cn_flags;	/* flags to namei */
 	struct	thread *cn_thread;	/* thread requesting lookup */
 	struct	ucred *cn_cred;	/* credentials */
+	int     cn_lkflags;     /* Lock flags LK_EXCLUSIVE or LK_SHARED */
 	/*
 	 * Shared between lookup and commit routines.
 	 */
 	char	*cn_pnbuf;	/* pathname buffer */
 	char	*cn_nameptr;	/* pointer to looked up name */
 	long	cn_namelen;	/* length of looked up component */
-	u_long	cn_hash;	/* hash value of looked up name */
-	long	cn_consume;	/* chars to consume in lookup() */
 };
 .Ed
 .Pp
@@ -122,19 +118,9 @@ If not at end, add name to cache; if at end and neither creating
 nor deleting, add name to cache.
 .Ed
 .Sh LOCKS
-The directory,
+The directory
 .Fa dvp
-should be locked on entry.
-If an error (note: the return value
-.Er EJUSTRETURN
-is not considered an error)
-is detected, it will be returned locked.
-Otherwise, it will be unlocked unless both
-.Dv LOCKPARENT
-and
-.Dv ISLASTCN
-are specified in
-.Fa cnp->cn_flags .
+should be locked on entry and exit, regardless of error condition.
 If an entry is found in the directory, it will be returned locked.
 .Sh RETURN VALUES
 Zero is returned with

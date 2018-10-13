@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -55,10 +57,16 @@ void imx_wdog_init_last_reset(vm_offset_t _wdsr_phys);
 #define	IMXSOC_6DL	0x61000000
 #define	IMXSOC_6S	0x62000000
 #define	IMXSOC_6Q	0x63000000
+#define	IMXSOC_6UL	0x64000000
 #define	IMXSOC_FAMSHIFT	28
 
 u_int imx_soc_type(void);
-u_int imx_soc_family(void);
+
+static inline u_int
+imx_soc_family(void)
+{
+	return (imx_soc_type() >> IMXSOC_FAMSHIFT);
+}
 
 #endif
 

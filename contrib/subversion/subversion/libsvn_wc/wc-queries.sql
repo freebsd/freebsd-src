@@ -46,7 +46,7 @@ SELECT op_depth, nodes.repos_id, nodes.repos_path, presence, kind, revision,
   lock_token, lock_owner, lock_comment, lock_date
 FROM nodes
 LEFT OUTER JOIN lock ON nodes.repos_id = lock.repos_id
-  AND nodes.repos_path = lock.repos_relpath
+  AND nodes.repos_path = lock.repos_relpath AND nodes.op_depth=0
 WHERE wc_id = ?1 AND local_relpath = ?2
 ORDER BY op_depth DESC
 
@@ -134,7 +134,7 @@ SELECT op_depth, nodes.repos_id, nodes.repos_path, presence, kind, revision,
   lock_comment, lock_date, local_relpath, moved_here, moved_to, file_external
 FROM nodes
 LEFT OUTER JOIN lock ON nodes.repos_id = lock.repos_id
-  AND nodes.repos_path = lock.repos_relpath AND op_depth = 0
+  AND nodes.repos_path = lock.repos_relpath AND nodes.op_depth = 0
 WHERE wc_id = ?1 AND parent_relpath = ?2
 ORDER BY local_relpath DESC, op_depth DESC
 
@@ -148,7 +148,7 @@ SELECT op_depth, nodes.repos_id, nodes.repos_path, presence, kind, revision,
   lock_comment, lock_date, local_relpath, moved_here, moved_to, file_external
 FROM nodes
 LEFT OUTER JOIN lock ON nodes.repos_id = lock.repos_id
-  AND nodes.repos_path = lock.repos_relpath AND op_depth = 0
+  AND nodes.repos_path = lock.repos_relpath
 WHERE wc_id = ?1 AND parent_relpath = ?2 AND op_depth = 0
 ORDER BY local_relpath DESC
 
@@ -1291,6 +1291,10 @@ PRAGMA locking_mode = exclusive;
    exclusive-locking is mostly used on remote file systems. */
 PRAGMA journal_mode = DELETE
 
+-- STMT_FIND_REPOS_PATH_IN_WC
+SELECT local_relpath FROM nodes_current
+  WHERE wc_id = ?1 AND repos_path = ?2
+
 /* ------------------------------------------------------------------------- */
 
 /* these are used in entries.c  */
@@ -1746,13 +1750,6 @@ WHERE wc_id = ?1
 /* ------------------------------------------------------------------------- */
 
 /* Queries for cached inherited properties. */
-
-/* Select the inherited properties of a single base node. */
--- STMT_SELECT_IPROPS
-SELECT inherited_props FROM nodes
-WHERE wc_id = ?1
-  AND local_relpath = ?2
-  AND op_depth = 0
 
 /* Update the inherited properties of a single base node. */
 -- STMT_UPDATE_IPROP

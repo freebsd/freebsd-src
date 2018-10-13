@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -71,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include <security/pam_appl.h>
+#include <security/openpam.h>	/* for openpam_ttyconv() */
+
 #define	TIMEOUT	15
 
 static void quit(int);
@@ -89,19 +94,23 @@ static int		vtyunlock;		/* Unlock flag and code. */
 int
 main(int argc, char **argv)
 {
+	static const struct pam_conv pamc = { &openpam_ttyconv, NULL };
+	pam_handle_t *pamh;
 	struct passwd *pw;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
 	time_t timval;
-	int ch, failures, sectimeout, usemine, vtylock;
-	char *ap, *cryptpw, *mypw, *ttynam, *tzn;
+	int ch, failures, pam_err, sectimeout, usemine, vtylock;
+	char *ap, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 
 	openlog("lock", 0, LOG_AUTH);
 
+	pam_err = PAM_SYSTEM_ERR; /* pacify GCC */
+
 	sectimeout = TIMEOUT;
+	pamh = NULL;
 	pw = NULL;
-	mypw = NULL;
 	usemine = 0;
 	no_timeout = 0;
 	vtylock = 0;
@@ -115,7 +124,6 @@ main(int argc, char **argv)
 			usemine = 1;
 			if (!(pw = getpwuid(getuid())))
 				errx(1, "unknown uid %d", getuid());
-			mypw = strdup(pw->pw_passwd);
 			break;
 		case 'n':
 			no_timeout = 1;
@@ -129,9 +137,11 @@ main(int argc, char **argv)
 		}
 	timeout.tv_sec = sectimeout * 60;
 
-	/* discard privs */
-	if (setuid(getuid()) != 0)
-		errx(1, "setuid failed");
+	if (!usemine) {	/* -p with PAM or S/key needs privs */
+		/* discard privs */
+		if (setuid(getuid()) != 0)
+			errx(1, "setuid failed");
+	}
 
 	if (tcgetattr(0, &tty))		/* get information for header */
 		exit(1);
@@ -151,7 +161,11 @@ main(int argc, char **argv)
 	ntty = tty; ntty.c_lflag &= ~ECHO;
 	(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &ntty);
 
-	if (!mypw) {
+	if (usemine) {
+		pam_err = pam_start("lock", pw->pw_name, &pamc, &pamh);
+		if (pam_err != PAM_SUCCESS)
+			err(1, "pam_start: %s", pam_strerror(NULL, pam_err));
+	} else {
 		/* get key and check again */
 		(void)printf("Key: ");
 		if (!fgets(s, sizeof(s), stdin) || *s == '\n')
@@ -169,7 +183,6 @@ main(int argc, char **argv)
 			exit(1);
 		}
 		s[0] = '\0';
-		mypw = s1;
 	}
 
 	/* set signal handlers */
@@ -214,19 +227,27 @@ main(int argc, char **argv)
 	failures = 0;
 
 	for (;;) {
+		if (usemine) {
+			pam_err = pam_authenticate(pamh, 0);
+			if (pam_err == PAM_SUCCESS)
+				break;
+
+			if (pam_err != PAM_AUTH_ERR &&
+			    pam_err != PAM_USER_UNKNOWN &&
+			    pam_err != PAM_MAXTRIES) {
+				syslog(LOG_ERR, "pam_authenticate: %s",
+				    pam_strerror(pamh, pam_err));
+			}
+			
+			goto tryagain;
+		}
 		(void)printf("Key: ");
 		if (!fgets(s, sizeof(s), stdin)) {
 			clearerr(stdin);
 			hi(0);
 			goto tryagain;
 		}
-		if (usemine) {
-			s[strlen(s) - 1] = '\0';
-			cryptpw = crypt(s, mypw);
-			if (cryptpw == NULL || !strcmp(mypw, cryptpw))
-				break;
-		}
-		else if (!strcmp(s, s1))
+		if (!strcmp(s, s1))
 			break;
 		(void)printf("\07\n");
 	    	failures++;
@@ -241,6 +262,8 @@ tryagain:
 	if (getuid() == 0)
 		syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
 		    hostname, ttynam);
+	if (usemine)
+		(void)pam_end(pamh, pam_err);
 	quit(0);
 	return(0); /* not reached */
 }

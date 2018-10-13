@@ -387,8 +387,8 @@ ldns_status ldns_verify(ldns_rr_list *rrset,
  *                        are added to it
  * \return status LDNS_STATUS_OK if there is at least one correct key
  */
-ldns_status ldns_verify_time(ldns_rr_list *rrset,
-				    ldns_rr_list *rrsig,
+ldns_status ldns_verify_time(const ldns_rr_list *rrset,
+				    const ldns_rr_list *rrsig,
 				    const ldns_rr_list *keys,
 				    time_t check_time,
 				    ldns_rr_list *good_keys);	
@@ -666,7 +666,7 @@ ldns_status ldns_verify_rrsig_keylist(ldns_rr_list *rrset,
  * status LDNS_STATUS_OK if at least one key matched. Else an error.
  */
 ldns_status ldns_verify_rrsig_keylist_time(
-		ldns_rr_list *rrset, ldns_rr *rrsig, 
+		const ldns_rr_list *rrset, const ldns_rr *rrsig, 
 		const ldns_rr_list *keys, time_t check_time,
 	       	ldns_rr_list *good_keys);
 
@@ -682,8 +682,8 @@ ldns_status ldns_verify_rrsig_keylist_time(
  * \return a list of keys which validate the rrsig + rrset. Returns
  * status LDNS_STATUS_OK if at least one key matched. Else an error.
  */
-ldns_status ldns_verify_rrsig_keylist_notime(ldns_rr_list *rrset,
-							   ldns_rr *rrsig,
+ldns_status ldns_verify_rrsig_keylist_notime(const ldns_rr_list *rrset,
+							   const ldns_rr *rrsig,
 							   const ldns_rr_list *keys,
 							   ldns_rr_list *good_keys);
 
@@ -735,9 +735,9 @@ ldns_status ldns_verify_rrsig_evp(ldns_buffer *sig,
  * \param[in] key the EVP key structure
  * \param[in] digest_type The digest type of the signature
  */
-ldns_status ldns_verify_rrsig_evp_raw(unsigned char *sig,
+ldns_status ldns_verify_rrsig_evp_raw(const unsigned char *sig,
 							   size_t siglen,
-							   ldns_buffer *rrset,
+							   const ldns_buffer *rrset,
 							   EVP_PKEY *key,
 							   const EVP_MD *digest_type);
 #endif

@@ -63,6 +63,8 @@ verify(const char *refname)
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	free(p);
 }
 
 DEFINE_TEST(test_read_format_zip_comment_stored)

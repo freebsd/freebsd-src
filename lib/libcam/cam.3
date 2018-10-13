@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 1998
+.Dd March 11, 2017
 .Dt CAM 3
 .Os
 .Sh NAME
@@ -132,7 +132,7 @@ Many of the CAM library functions use the
 structure:
 .Bd -literal
 struct cam_device {
-	char 		device_path[MAXPATHLEN+1];/*
+	char		device_path[MAXPATHLEN+1];/*
 						   * Pathname of the
 						   * device given by the
 						   * user. This may be
@@ -151,7 +151,7 @@ struct cam_device {
 						     */
 	char		device_name[DEV_IDLEN+1];/*
 						  * Name of the device,
-						  * e.g. 'pass'
+						  * e.g., 'pass'
 						  */
 	uint32_t	dev_unit_num;	/* Unit number of the passthrough
 					 * device associated with this
@@ -159,7 +159,7 @@ struct cam_device {
 					 */
 
 	char		sim_name[SIM_IDLEN+1];/*
-					       * Controller name, e.g.'ahc'
+					       * Controller name, e.g., 'ahc'
 					       */
 	uint32_t	sim_unit_number; /* Controller unit number */
 	uint32_t	bus_id;		 /* Controller bus number */
@@ -208,7 +208,7 @@ structure.
 If the
 .Ar device
 argument is
-.Va NULL ,
+.Dv NULL ,
 .Fn cam_open_spec_device
 will allocate space for the
 .Va cam_device
@@ -258,7 +258,9 @@ argument, as with
 .Fn cam_open_spec_device
 and
 .Fn cam_open_btl ,
-should be NULL if the user wants the CAM library to allocate space for the
+should be
+.Dv NULL
+if the user wants the CAM library to allocate space for the
 .Va cam_device
 structure.
 .Fn cam_close_device
@@ -300,6 +302,11 @@ structure.
 .Fn cam_freeccb
 frees CCBs allocated by
 .Fn cam_getccb .
+If
+.Va ccb
+is
+.Dv NULL ,
+no action is taken.
 .Pp
 .Fn cam_path_string
 takes as arguments a
@@ -365,11 +372,14 @@ and
 .Fn cam_open_pass
 return a pointer to a
 .Va cam_device
-structure, or NULL if there was an error.
+structure, or
+.Dv NULL
+if there was an error.
 .Pp
 .Fn cam_getccb
-returns an allocated and partially initialized CCB, or NULL if allocation
-of the CCB failed.
+returns an allocated and partially initialized CCB, or
+.Dv NULL
+if allocation of the CCB failed.
 .Pp
 .Fn cam_send_ccb
 returns a value of -1 if an error occurred, and
@@ -386,7 +396,9 @@ that is passed into
 .Fn cam_device_dup
 returns a copy of the
 .Va device
-passed in, or NULL if an error occurred.
+passed in, or
+.Dv NULL
+if an error occurred.
 .Pp
 .Fn cam_get_device
 returns 0 for success, and -1 to indicate failure.
@@ -422,4 +434,4 @@ require a definitive way to identify a device node as a
 .Xr pass 4
 device.
 .Pp
-Some of the functions are possibly mis-named or poorly named.
+Some of the functions are possibly misnamed or poorly named.

@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <sys/syscall.h>
 
@@ -79,13 +79,14 @@ __start:
 	/* Set up temporary stack pointer */
 	lwz	%r1,8(%r30)
 	add	%r1,%r1,%r30
-	addi	%r1,%r1,(8+TMPSTKSZ-32)
+	addi	%r1,%r1,(8+TMPSTKSZ-40)
 
 	/* Relocate self */
 	stw	%r3,16(%r1)
 	stw	%r4,20(%r1)
 	stw	%r5,24(%r1)
 	stw	%r6,28(%r1)
+	stw	%r7,32(%r1)
 
 	lwz	%r3,0(%r30) /* _DYNAMIC in %r3 */
 	add	%r3,%r3,%r30
@@ -99,6 +100,7 @@ __start:
 	lwz	%r4,20(%r1)
 	lwz	%r5,24(%r1)
 	lwz	%r6,28(%r1)
+	lwz	%r7,32(%r1)
 
 	/* MD setup */
 	bl	powerpc_init

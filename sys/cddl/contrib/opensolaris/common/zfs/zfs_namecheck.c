@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  */
 
 /*
@@ -34,8 +34,6 @@
  * name is invalid.  In the kernel, we only care whether it's valid or not.
  * Each routine therefore takes a 'namecheck_err_t' which describes exactly why
  * the name failed to validate.
- *
- * Each function returns 0 on success, -1 on error.
  */
 
 #if defined(_KERNEL)
@@ -44,10 +42,19 @@
 #include <string.h>
 #endif
 
+#include <sys/dsl_dir.h>
 #include <sys/param.h>
 #include <sys/nvpair.h>
 #include "zfs_namecheck.h"
 #include "zfs_deleg.h"
+
+/*
+ * Deeply nested datasets can overflow the stack, so we put a limit
+ * in the amount of nesting a path can have. zfs_max_dataset_nesting
+ * can be tuned temporarily to fix existing datasets that exceed our
+ * predefined limit.
+ */
+int zfs_max_dataset_nesting = 50;
 
 static int
 valid_char(char c)
@@ -59,17 +66,42 @@ valid_char(char c)
 }
 
 /*
+ * Looks at a path and returns its level of nesting (depth).
+ */
+int
+get_dataset_depth(const char *path)
+{
+	const char *loc = path;
+	int nesting = 0;
+
+	/*
+	 * Keep track of nesting until you hit the end of the
+	 * path or found the snapshot/bookmark seperator.
+	 */
+	for (int i = 0; loc[i] != '\0' &&
+	    loc[i] != '@' &&
+	    loc[i] != '#'; i++) {
+		if (loc[i] == '/')
+			nesting++;
+	}
+
+	return (nesting);
+}
+
+/*
  * Snapshot names must be made up of alphanumeric characters plus the following
  * characters:
  *
- * 	[-_.: ]
+ *	[-_.: ]
+ *
+ * Returns 0 on success, -1 on error.
  */
 int
 zfs_component_namecheck(const char *path, namecheck_err_t *why, char *what)
 {
 	const char *loc;
 
-	if (strlen(path) >= MAXNAMELEN) {
+	if (strlen(path) >= ZFS_MAX_DATASET_NAME_LEN) {
 		if (why)
 			*why = NAME_ERR_TOOLONG;
 		return (-1);
@@ -98,6 +130,8 @@ zfs_component_namecheck(const char *path, namecheck_err_t *why, char *what)
  * Permissions set name must start with the letter '@' followed by the
  * same character restrictions as snapshot names, except that the name
  * cannot exceed 64 characters.
+ *
+ * Returns 0 on success, -1 on error.
  */
 int
 permset_namecheck(const char *path, namecheck_err_t *why, char *what)
@@ -120,34 +154,41 @@ permset_namecheck(const char *path, namecheck_err_t *why, char *what)
 }
 
 /*
- * Dataset names must be of the following form:
+ * Dataset paths should not be deeper than zfs_max_dataset_nesting
+ * in terms of nesting.
  *
- * 	[component][/]*[component][@component]
+ * Returns 0 on success, -1 on error.
+ */
+int
+dataset_nestcheck(const char *path)
+{
+	return ((get_dataset_depth(path) < zfs_max_dataset_nesting) ? 0 : -1);
+}
+
+/*
+ * Entity names must be of the following form:
+ *
+ *	[component/]*[component][(@|#)component]?
  *
  * Where each component is made up of alphanumeric characters plus the following
  * characters:
  *
- * 	[-_.:%]
+ *	[-_.:%]
  *
  * We allow '%' here as we use that character internally to create unique
  * names for temporary clones (for online recv).
+ *
+ * Returns 0 on success, -1 on error.
  */
 int
-dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
+entity_namecheck(const char *path, namecheck_err_t *why, char *what)
 {
-	const char *loc, *end;
-	int found_snapshot;
+	const char *end;
 
 	/*
 	 * Make sure the name is not too long.
-	 *
-	 * ZFS_MAXNAMELEN is the maximum dataset length used in the userland
-	 * which is the same as MAXNAMELEN used in the kernel.
-	 * If ZFS_MAXNAMELEN value is changed, make sure to cleanup all
-	 * places using MAXNAMELEN.
 	 */
-
-	if (strlen(path) >= MAXNAMELEN) {
+	if (strlen(path) >= ZFS_MAX_DATASET_NAME_LEN) {
 		if (why)
 			*why = NAME_ERR_TOOLONG;
 		return (-1);
@@ -166,12 +207,13 @@ dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
 		return (-1);
 	}
 
-	loc = path;
-	found_snapshot = 0;
+	const char *start = path;
+	boolean_t found_delim = B_FALSE;
 	for (;;) {
 		/* Find the end of this component */
-		end = loc;
-		while (*end != '/' && *end != '@' && *end != '\0')
+		end = start;
+		while (*end != '/' && *end != '@' && *end != '#' &&
+		    *end != '\0')
 			end++;
 
 		if (*end == '\0' && end[-1] == '/') {
@@ -181,25 +223,8 @@ dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
 			return (-1);
 		}
 
-		/* Zero-length components are not allowed */
-		if (loc == end) {
-			if (why) {
-				/*
-				 * Make sure this is really a zero-length
-				 * component and not a '@@'.
-				 */
-				if (*end == '@' && found_snapshot) {
-					*why = NAME_ERR_MULTIPLE_AT;
-				} else {
-					*why = NAME_ERR_EMPTY_COMPONENT;
-				}
-			}
-
-			return (-1);
-		}
-
 		/* Validate the contents of this component */
-		while (loc != end) {
+		for (const char *loc = start; loc != end; loc++) {
 			if (!valid_char(*loc) && *loc != '%') {
 				if (why) {
 					*why = NAME_ERR_INVALCHAR;
@@ -207,48 +232,71 @@ dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
 				}
 				return (-1);
 			}
-			loc++;
+		}
+
+		/* Snapshot or bookmark delimiter found */
+		if (*end == '@' || *end == '#') {
+			/* Multiple delimiters are not allowed */
+			if (found_delim != 0) {
+				if (why)
+					*why = NAME_ERR_MULTIPLE_DELIMITERS;
+				return (-1);
+			}
+
+			found_delim = B_TRUE;
+		}
+
+		/* Zero-length components are not allowed */
+		if (start == end) {
+			if (why)
+				*why = NAME_ERR_EMPTY_COMPONENT;
+			return (-1);
 		}
 
 		/* If we've reached the end of the string, we're OK */
 		if (*end == '\0')
 			return (0);
 
-		if (*end == '@') {
-			/*
-			 * If we've found an @ symbol, indicate that we're in
-			 * the snapshot component, and report a second '@'
-			 * character as an error.
-			 */
-			if (found_snapshot) {
-				if (why)
-					*why = NAME_ERR_MULTIPLE_AT;
-				return (-1);
-			}
-
-			found_snapshot = 1;
-		}
-
 		/*
-		 * If there is a '/' in a snapshot name
+		 * If there is a '/' in a snapshot or bookmark name
 		 * then report an error
 		 */
-		if (*end == '/' && found_snapshot) {
+		if (*end == '/' && found_delim != 0) {
 			if (why)
 				*why = NAME_ERR_TRAILING_SLASH;
 			return (-1);
 		}
 
 		/* Update to the next component */
-		loc = end + 1;
+		start = end + 1;
 	}
 }
 
+/*
+ * Dataset is any entity, except bookmark
+ */
+int
+dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
+{
+	int ret = entity_namecheck(path, why, what);
+
+	if (ret == 0 && strchr(path, '#') != NULL) {
+		if (why != NULL) {
+			*why = NAME_ERR_INVALCHAR;
+			*what = '#';
+		}
+		return (-1);
+	}
+
+	return (ret);
+}
 
 /*
  * mountpoint names must be of the following form:
  *
  *	/[component][/]*[component][/]
+ *
+ * Returns 0 on success, -1 on error.
  */
 int
 mountpoint_namecheck(const char *path, namecheck_err_t *why)
@@ -276,7 +324,7 @@ mountpoint_namecheck(const char *path, namecheck_err_t *why)
 		while (*end != '/' && *end != '\0')
 			end++;
 
-		if (end - start >= MAXNAMELEN) {
+		if (end - start >= ZFS_MAX_DATASET_NAME_LEN) {
 			if (why)
 				*why = NAME_ERR_TOOLONG;
 			return (-1);
@@ -293,6 +341,8 @@ mountpoint_namecheck(const char *path, namecheck_err_t *why)
  * dataset names, with the additional restriction that the pool name must begin
  * with a letter.  The pool names 'raidz' and 'mirror' are also reserved names
  * that cannot be used.
+ *
+ * Returns 0 on success, -1 on error.
  */
 int
 pool_namecheck(const char *pool, namecheck_err_t *why, char *what)
@@ -301,13 +351,14 @@ pool_namecheck(const char *pool, namecheck_err_t *why, char *what)
 
 	/*
 	 * Make sure the name is not too long.
-	 *
-	 * ZPOOL_MAXNAMELEN is the maximum pool length used in the userland
-	 * which is the same as MAXNAMELEN used in the kernel.
-	 * If ZPOOL_MAXNAMELEN value is changed, make sure to cleanup all
-	 * places using MAXNAMELEN.
+	 * If we're creating a pool with version >= SPA_VERSION_DSL_SCRUB (v11)
+	 * we need to account for additional space needed by the origin ds which
+	 * will also be snapshotted: "poolname"+"/"+"$ORIGIN"+"@"+"$ORIGIN".
+	 * Play it safe and enforce this limit even if the pool version is < 11
+	 * so it can be upgraded without issues.
 	 */
-	if (strlen(pool) >= MAXNAMELEN) {
+	if (strlen(pool) >= (ZFS_MAX_DATASET_NAME_LEN - 2 -
+	    strlen(ORIGIN_DIR_NAME) * 2)) {
 		if (why)
 			*why = NAME_ERR_TOOLONG;
 		return (-1);

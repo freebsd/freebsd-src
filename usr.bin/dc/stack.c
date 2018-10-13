@@ -1,4 +1,4 @@
-/*	$OpenBSD: stack.c,v 1.11 2009/10/27 23:59:37 deraadt Exp $	*/
+/*	$OpenBSD: stack.c,v 1.13 2014/12/01 13:13:00 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -68,10 +68,8 @@ stack_free_value(struct value *v)
 		free(v->u.string);
 		break;
 	}
-	if (v->array != NULL) {
-		array_free(v->array);
-		v->array = NULL;
-	}
+	array_free(v->array);
+	v->array = NULL;
 }
 
 /* Copy number or string content into already allocated target */
@@ -141,8 +139,8 @@ stack_grow(struct stack *stack)
 
 	if (++stack->sp == stack->size) {
 		new_size = stack->size * 2 + 1;
-		stack->stack = brealloc(stack->stack,
-		    new_size * sizeof(*stack->stack));
+		stack->stack = breallocarray(stack->stack,
+		    new_size, sizeof(*stack->stack));
 		stack->size = new_size;
 	}
 }
@@ -225,10 +223,8 @@ stack_popnumber(struct stack *stack)
 
 	if (stack_empty(stack))
 		return (NULL);
-	if (stack->stack[stack->sp].array != NULL) {
-		array_free(stack->stack[stack->sp].array);
-		stack->stack[stack->sp].array = NULL;
-	}
+	array_free(stack->stack[stack->sp].array);
+	stack->stack[stack->sp].array = NULL;
 	if (stack->stack[stack->sp].type != BCODE_NUMBER) {
 		warnx("not a number"); /* XXX remove */
 		return (NULL);
@@ -242,10 +238,8 @@ stack_popstring(struct stack *stack)
 
 	if (stack_empty(stack))
 		return (NULL);
-	if (stack->stack[stack->sp].array != NULL) {
-		array_free(stack->stack[stack->sp].array);
-		stack->stack[stack->sp].array = NULL;
-	}
+	array_free(stack->stack[stack->sp].array);
+	stack->stack[stack->sp].array = NULL;
 	if (stack->stack[stack->sp].type != BCODE_STRING) {
 		warnx("not a string"); /* XXX remove */
 		return (NULL);
@@ -257,9 +251,8 @@ void
 stack_clear(struct stack *stack)
 {
 
-	while (stack->sp >= 0) {
+	while (stack->sp >= 0)
 		stack_free_value(&stack->stack[stack->sp--]);
-	}
 	free(stack->stack);
 	stack_init(stack);
 }
@@ -320,7 +313,7 @@ array_grow(struct array *array, size_t newsize)
 {
 	size_t i;
 
-	array->data = brealloc(array->data, newsize * sizeof(*array->data));
+	array->data = breallocarray(array->data, newsize, sizeof(*array->data));
 	for (i = array->size; i < newsize; i++) {
 		array->data[i].type = BCODE_NONE;
 		array->data[i].array = NULL;

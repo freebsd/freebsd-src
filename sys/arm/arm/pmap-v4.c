@@ -168,6 +168,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/vm_extern.h>
 
 #include <machine/md_var.h>
@@ -192,6 +193,11 @@ int pmap_debug_level = 0;
 extern struct pv_addr systempage;
 
 extern int last_fault_code;
+
+#define	l1pte_section_p(pde)	(((pde) & L1_TYPE_MASK) == L1_TYPE_S)
+#define	l2pte_index(v)		(((v) & L1_S_OFFSET) >> L2_S_SHIFT)
+#define	l2pte_valid(pte)	((pte) != 0)
+#define	l2pte_pa(pte)		((pte) & L2_S_FRAME)
 
 /*
  * Internal function prototypes
@@ -239,33 +245,17 @@ static void		pmap_init_l1(struct l1_ttable *, pd_entry_t *);
  * them (though, they shouldn't).
  */
 
-pt_entry_t	pte_l1_s_cache_mode;
-pt_entry_t	pte_l1_s_cache_mode_pt;
-pt_entry_t	pte_l1_s_cache_mask;
+static pt_entry_t	pte_l1_s_cache_mode;
+static pt_entry_t	pte_l1_s_cache_mode_pt;
+static pt_entry_t	pte_l1_s_cache_mask;
 
-pt_entry_t	pte_l2_l_cache_mode;
-pt_entry_t	pte_l2_l_cache_mode_pt;
-pt_entry_t	pte_l2_l_cache_mask;
+static pt_entry_t	pte_l2_l_cache_mode;
+static pt_entry_t	pte_l2_l_cache_mode_pt;
+static pt_entry_t	pte_l2_l_cache_mask;
 
-pt_entry_t	pte_l2_s_cache_mode;
-pt_entry_t	pte_l2_s_cache_mode_pt;
-pt_entry_t	pte_l2_s_cache_mask;
-
-pt_entry_t	pte_l2_s_prot_u;
-pt_entry_t	pte_l2_s_prot_w;
-pt_entry_t	pte_l2_s_prot_mask;
-
-pt_entry_t	pte_l1_s_proto;
-pt_entry_t	pte_l1_c_proto;
-pt_entry_t	pte_l2_s_proto;
-
-void		(*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
-void		(*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
-		    vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs,
-		    int cnt);
-void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
-
-struct msgbuf *msgbufp = NULL;
+static pt_entry_t	pte_l2_s_cache_mode;
+static pt_entry_t	pte_l2_s_cache_mode_pt;
+static pt_entry_t	pte_l2_s_cache_mask;
 
 /*
  * Crashdump maps.
@@ -407,10 +397,6 @@ static struct rwlock pvh_global_lock;
 
 void pmap_copy_page_offs_generic(vm_paddr_t a_phys, vm_offset_t a_offs,
     vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
-#if ARM_MMU_XSCALE == 1
-void pmap_copy_page_offs_xscale(vm_paddr_t a_phys, vm_offset_t a_offs,
-    vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
-#endif
 
 /*
  * This list exists for the benefit of pmap_map_chunk().  It keeps track
@@ -458,19 +444,18 @@ kernel_pt_lookup(vm_paddr_t pa)
 	return (0);
 }
 
-#if ARM_MMU_GENERIC != 0
 void
 pmap_pte_init_generic(void)
 {
 
 	pte_l1_s_cache_mode = L1_S_B|L1_S_C;
-	pte_l1_s_cache_mask = L1_S_CACHE_MASK_generic;
+	pte_l1_s_cache_mask = L1_S_CACHE_MASK;
 
 	pte_l2_l_cache_mode = L2_B|L2_C;
-	pte_l2_l_cache_mask = L2_L_CACHE_MASK_generic;
+	pte_l2_l_cache_mask = L2_L_CACHE_MASK;
 
 	pte_l2_s_cache_mode = L2_B|L2_C;
-	pte_l2_s_cache_mask = L2_S_CACHE_MASK_generic;
+	pte_l2_s_cache_mask = L2_S_CACHE_MASK;
 
 	/*
 	 * If we have a write-through cache, set B and C.  If
@@ -486,191 +471,7 @@ pmap_pte_init_generic(void)
 		pte_l2_l_cache_mode_pt = L2_C;
 		pte_l2_s_cache_mode_pt = L2_C;
 	}
-
-	pte_l2_s_prot_u = L2_S_PROT_U_generic;
-	pte_l2_s_prot_w = L2_S_PROT_W_generic;
-	pte_l2_s_prot_mask = L2_S_PROT_MASK_generic;
-
-	pte_l1_s_proto = L1_S_PROTO_generic;
-	pte_l1_c_proto = L1_C_PROTO_generic;
-	pte_l2_s_proto = L2_S_PROTO_generic;
-
-	pmap_copy_page_func = pmap_copy_page_generic;
-	pmap_copy_page_offs_func = pmap_copy_page_offs_generic;
-	pmap_zero_page_func = pmap_zero_page_generic;
 }
-
-#endif /* ARM_MMU_GENERIC != 0 */
-
-#if ARM_MMU_XSCALE == 1
-#if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
-static u_int xscale_use_minidata;
-#endif
-
-void
-pmap_pte_init_xscale(void)
-{
-	uint32_t auxctl;
-	int write_through = 0;
-
-	pte_l1_s_cache_mode = L1_S_B|L1_S_C|L1_S_XSCALE_P;
-	pte_l1_s_cache_mask = L1_S_CACHE_MASK_xscale;
-
-	pte_l2_l_cache_mode = L2_B|L2_C;
-	pte_l2_l_cache_mask = L2_L_CACHE_MASK_xscale;
-
-	pte_l2_s_cache_mode = L2_B|L2_C;
-	pte_l2_s_cache_mask = L2_S_CACHE_MASK_xscale;
-
-	pte_l1_s_cache_mode_pt = L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_C;
-	pte_l2_s_cache_mode_pt = L2_C;
-#ifdef XSCALE_CACHE_READ_WRITE_ALLOCATE
-	/*
-	 * The XScale core has an enhanced mode where writes that
-	 * miss the cache cause a cache line to be allocated.  This
-	 * is significantly faster than the traditional, write-through
-	 * behavior of this case.
-	 */
-	pte_l1_s_cache_mode |= L1_S_XSCALE_TEX(TEX_XSCALE_X);
-	pte_l2_l_cache_mode |= L2_XSCALE_L_TEX(TEX_XSCALE_X);
-	pte_l2_s_cache_mode |= L2_XSCALE_T_TEX(TEX_XSCALE_X);
-#endif /* XSCALE_CACHE_READ_WRITE_ALLOCATE */
-#ifdef XSCALE_CACHE_WRITE_THROUGH
-	/*
-	 * Some versions of the XScale core have various bugs in
-	 * their cache units, the work-around for which is to run
-	 * the cache in write-through mode.  Unfortunately, this
-	 * has a major (negative) impact on performance.  So, we
-	 * go ahead and run fast-and-loose, in the hopes that we
-	 * don't line up the planets in a way that will trip the
-	 * bugs.
-	 *
-	 * However, we give you the option to be slow-but-correct.
-	 */
-	write_through = 1;
-#elif defined(XSCALE_CACHE_WRITE_BACK)
-	/* force write back cache mode */
-	write_through = 0;
-#elif defined(CPU_XSCALE_PXA2X0)
-	/*
-	 * Intel PXA2[15]0 processors are known to have a bug in
-	 * write-back cache on revision 4 and earlier (stepping
-	 * A[01] and B[012]).  Fixed for C0 and later.
-	 */
-	{
-		uint32_t id, type;
-
-		id = cpu_ident();
-		type = id & ~(CPU_ID_XSCALE_COREREV_MASK|CPU_ID_REVISION_MASK);
-
-		if (type == CPU_ID_PXA250 || type == CPU_ID_PXA210) {
-			if ((id & CPU_ID_REVISION_MASK) < 5) {
-				/* write through for stepping A0-1 and B0-2 */
-				write_through = 1;
-			}
-		}
-	}
-#endif /* XSCALE_CACHE_WRITE_THROUGH */
-
-	if (write_through) {
-		pte_l1_s_cache_mode = L1_S_C;
-		pte_l2_l_cache_mode = L2_C;
-		pte_l2_s_cache_mode = L2_C;
-	}
-
-#if (ARM_NMMUS > 1)
-	xscale_use_minidata = 1;
-#endif
-
-	pte_l2_s_prot_u = L2_S_PROT_U_xscale;
-	pte_l2_s_prot_w = L2_S_PROT_W_xscale;
-	pte_l2_s_prot_mask = L2_S_PROT_MASK_xscale;
-
-	pte_l1_s_proto = L1_S_PROTO_xscale;
-	pte_l1_c_proto = L1_C_PROTO_xscale;
-	pte_l2_s_proto = L2_S_PROTO_xscale;
-
-#ifdef CPU_XSCALE_CORE3
-	pmap_copy_page_func = pmap_copy_page_generic;
-	pmap_copy_page_offs_func = pmap_copy_page_offs_generic;
-	pmap_zero_page_func = pmap_zero_page_generic;
-	xscale_use_minidata = 0;
-	/* Make sure it is L2-cachable */
-    	pte_l1_s_cache_mode |= L1_S_XSCALE_TEX(TEX_XSCALE_T);
-	pte_l1_s_cache_mode_pt = pte_l1_s_cache_mode &~ L1_S_XSCALE_P;
-	pte_l2_l_cache_mode |= L2_XSCALE_L_TEX(TEX_XSCALE_T) ;
-	pte_l2_l_cache_mode_pt = pte_l1_s_cache_mode;
-	pte_l2_s_cache_mode |= L2_XSCALE_T_TEX(TEX_XSCALE_T);
-	pte_l2_s_cache_mode_pt = pte_l2_s_cache_mode;
-
-#else
-	pmap_copy_page_func = pmap_copy_page_xscale;
-	pmap_copy_page_offs_func = pmap_copy_page_offs_xscale;
-	pmap_zero_page_func = pmap_zero_page_xscale;
-#endif
-
-	/*
-	 * Disable ECC protection of page table access, for now.
-	 */
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 1" : "=r" (auxctl));
-	auxctl &= ~XSCALE_AUXCTL_P;
-	__asm __volatile("mcr p15, 0, %0, c1, c0, 1" : : "r" (auxctl));
-}
-
-/*
- * xscale_setup_minidata:
- *
- *	Set up the mini-data cache clean area.  We require the
- *	caller to allocate the right amount of physically and
- *	virtually contiguous space.
- */
-extern vm_offset_t xscale_minidata_clean_addr;
-extern vm_size_t xscale_minidata_clean_size; /* already initialized */
-void
-xscale_setup_minidata(vm_offset_t l1pt, vm_offset_t va, vm_paddr_t pa)
-{
-	pd_entry_t *pde = (pd_entry_t *) l1pt;
-	pt_entry_t *pte;
-	vm_size_t size;
-	uint32_t auxctl;
-
-	xscale_minidata_clean_addr = va;
-
-	/* Round it to page size. */
-	size = (xscale_minidata_clean_size + L2_S_OFFSET) & L2_S_FRAME;
-
-	for (; size != 0;
-	     va += L2_S_SIZE, pa += L2_S_SIZE, size -= L2_S_SIZE) {
-		pte = (pt_entry_t *) kernel_pt_lookup(
-		    pde[L1_IDX(va)] & L1_C_ADDR_MASK);
-		if (pte == NULL)
-			panic("xscale_setup_minidata: can't find L2 table for "
-			    "VA 0x%08x", (u_int32_t) va);
-		pte[l2pte_index(va)] =
-		    L2_S_PROTO | pa | L2_S_PROT(PTE_KERNEL, VM_PROT_READ) |
-		    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);
-	}
-
-	/*
-	 * Configure the mini-data cache for write-back with
-	 * read/write-allocate.
-	 *
-	 * NOTE: In order to reconfigure the mini-data cache, we must
-	 * make sure it contains no valid data!  In order to do that,
-	 * we must issue a global data cache invalidate command!
-	 *
-	 * WE ASSUME WE ARE RUNNING UN-CACHED WHEN THIS ROUTINE IS CALLED!
-	 * THIS IS VERY IMPORTANT!
-	 */
-
-	/* Invalidate data and mini-data. */
-	__asm __volatile("mcr p15, 0, %0, c7, c6, 0" : : "r" (0));
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 1" : "=r" (auxctl));
-	auxctl = (auxctl & ~XSCALE_AUXCTL_MD_MASK) | XSCALE_AUXCTL_MD_WB_RWA;
-	__asm __volatile("mcr p15, 0, %0, c1, c0, 1" : : "r" (auxctl));
-}
-#endif
 
 /*
  * Allocate an L1 translation table for the specified pmap.
@@ -1727,6 +1528,8 @@ pmap_page_init(vm_page_t m)
 
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
+	m->md.pvh_attrs = 0;
+	m->md.pv_kva = 0;
 }
 
 /*
@@ -2571,56 +2374,7 @@ pmap_remove_pages(pmap_t pmap)
  * Low level mapping routines.....
  ***************************************************/
 
-#ifdef ARM_HAVE_SUPERSECTIONS
-/* Map a super section into the KVA. */
-
-void
-pmap_kenter_supersection(vm_offset_t va, uint64_t pa, int flags)
-{
-	pd_entry_t pd = L1_S_PROTO | L1_S_SUPERSEC | (pa & L1_SUP_FRAME) |
-	    (((pa >> 32) & 0xf) << 20) | L1_S_PROT(PTE_KERNEL,
-	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
-	struct l1_ttable *l1;
-	vm_offset_t va0, va_end;
-
-	KASSERT(((va | pa) & L1_SUP_OFFSET) == 0,
-	    ("Not a valid super section mapping"));
-	if (flags & SECTION_CACHE)
-		pd |= pte_l1_s_cache_mode;
-	else if (flags & SECTION_PT)
-		pd |= pte_l1_s_cache_mode_pt;
-	va0 = va & L1_SUP_FRAME;
-	va_end = va + L1_SUP_SIZE;
-	SLIST_FOREACH(l1, &l1_list, l1_link) {
-		va = va0;
-		for (; va < va_end; va += L1_S_SIZE) {
-			l1->l1_kva[L1_IDX(va)] = pd;
-			PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
-		}
-	}
-}
-#endif
-
 /* Map a section into the KVA. */
-
-void
-pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
-{
-	pd_entry_t pd = L1_S_PROTO | pa | L1_S_PROT(PTE_KERNEL,
-	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
-	struct l1_ttable *l1;
-
-	KASSERT(((va | pa) & L1_S_OFFSET) == 0,
-	    ("Not a valid section mapping"));
-	if (flags & SECTION_CACHE)
-		pd |= pte_l1_s_cache_mode;
-	else if (flags & SECTION_PT)
-		pd |= pte_l1_s_cache_mode_pt;
-	SLIST_FOREACH(l1, &l1_list, l1_link) {
-		l1->l1_kva[L1_IDX(va)] = pd;
-		PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
-	}
-}
 
 /*
  * Make a temporary mapping for a physical address.  This is only intended
@@ -3250,7 +3004,7 @@ do_l2b_alloc:
 			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(&pvh_global_lock);
-				VM_WAIT;
+				vm_wait(NULL);
 				rw_wlock(&pvh_global_lock);
 				PMAP_LOCK(pmap);
 				goto do_l2b_alloc;
@@ -3819,7 +3573,7 @@ pmap_get_pv_entry(void)
 
 	pv_entry_count++;
 	if (pv_entry_count > pv_entry_high_water)
-		pagedaemon_wakeup();
+		pagedaemon_wakeup(0); /* XXX ARM NUMA */
 	ret_value = uma_zalloc(pvzone, M_NOWAIT);
 	return ret_value;
 }
@@ -3954,8 +3708,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_CORE3)
-void
+static void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
 
@@ -3981,78 +3734,6 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 
 	mtx_unlock(&cmtx);
 }
-#endif /* ARM_MMU_GENERIC != 0 */
-
-#if ARM_MMU_XSCALE == 1
-void
-pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
-{
-
-	if (_arm_bzero && size >= _min_bzero_size &&
-	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
-		return;
-
-	mtx_lock(&cmtx);
-	/*
-	 * Hook in the page, zero it, and purge the cache for that
-	 * zeroed page. Invalidate the TLB as needed.
-	 */
-	*cdst_pte = L2_S_PROTO | phys |
-	    L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE) |
-	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);	/* mini-data */
-	PTE_SYNC(cdst_pte);
-	cpu_tlb_flushD_SE(cdstp);
-	cpu_cpwait();
-	if (off || size != PAGE_SIZE)
-		bzero((void *)(cdstp + off), size);
-	else
-		bzero_page(cdstp);
-	mtx_unlock(&cmtx);
-	xscale_cache_clean_minidata();
-}
-
-/*
- * Change the PTEs for the specified kernel mappings such that they
- * will use the mini data cache instead of the main data cache.
- */
-void
-pmap_use_minicache(vm_offset_t va, vm_size_t size)
-{
-	struct l2_bucket *l2b;
-	pt_entry_t *ptep, *sptep, pte;
-	vm_offset_t next_bucket, eva;
-
-#if (ARM_NMMUS > 1) || defined(CPU_XSCALE_CORE3)
-	if (xscale_use_minidata == 0)
-		return;
-#endif
-
-	eva = va + size;
-
-	while (va < eva) {
-		next_bucket = L2_NEXT_BUCKET(va);
-		if (next_bucket > eva)
-			next_bucket = eva;
-
-		l2b = pmap_get_l2_bucket(kernel_pmap, va);
-
-		sptep = ptep = &l2b->l2b_kva[l2pte_index(va)];
-
-		while (va < next_bucket) {
-			pte = *ptep;
-			if (!l2pte_minidata(pte)) {
-				cpu_dcache_wbinv_range(va, PAGE_SIZE);
-				cpu_tlb_flushD_SE(va);
-				*ptep = pte & ~L2_B;
-			}
-			ptep++;
-			va += PAGE_SIZE;
-		}
-		PTE_SYNC_RANGE(sptep, (u_int)(ptep - sptep));
-	}
-	cpu_cpwait();
-}
-#endif /* ARM_MMU_XSCALE == 1 */
 
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping
@@ -4061,7 +3742,7 @@ pmap_use_minicache(vm_offset_t va, vm_size_t size)
 void
 pmap_zero_page(vm_page_t m)
 {
-	pmap_zero_page_func(VM_PAGE_TO_PHYS(m), 0, PAGE_SIZE);
+	pmap_zero_page_generic(VM_PAGE_TO_PHYS(m), 0, PAGE_SIZE);
 }
 
 
@@ -4075,22 +3756,9 @@ void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 
-	pmap_zero_page_func(VM_PAGE_TO_PHYS(m), off, size);
+	pmap_zero_page_generic(VM_PAGE_TO_PHYS(m), off, size);
 }
 
-
-/*
- *	pmap_zero_page_idle zeros the specified hardware page by mapping
- *	the page into KVM and using bzero to clear its contents.  This
- *	is intended to be called from the vm_pagezero process only and
- *	outside of Giant.
- */
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-
-	pmap_zero_page(m);
-}
 
 #if 0
 /*
@@ -4197,8 +3865,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-#if ARM_MMU_GENERIC != 0 || defined (CPU_XSCALE_CORE3)
-void
+static void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
 #if 0
@@ -4262,73 +3929,6 @@ pmap_copy_page_offs_generic(vm_paddr_t a_phys, vm_offset_t a_offs,
 	cpu_l2cache_inv_range(csrcp + a_offs, cnt);
 	cpu_l2cache_wbinv_range(cdstp + b_offs, cnt);
 }
-#endif /* ARM_MMU_GENERIC != 0 */
-
-#if ARM_MMU_XSCALE == 1
-void
-pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
-{
-#if 0
-	/* XXX: Only needed for pmap_clean_page(), which is commented out. */
-	struct vm_page *src_pg = PHYS_TO_VM_PAGE(src);
-#endif
-
-	/*
-	 * Clean the source page.  Hold the source page's lock for
-	 * the duration of the copy so that no other mappings can
-	 * be created while we have a potentially aliased mapping.
-	 */
-#if 0
-	/*
-	 * XXX: Not needed while we call cpu_dcache_wbinv_all() in
-	 * pmap_copy_page().
-	 */
-	(void) pmap_clean_page(TAILQ_FIRST(&src_pg->md.pv_list), TRUE);
-#endif
-	/*
-	 * Map the pages into the page hook points, copy them, and purge
-	 * the cache for the appropriate page. Invalidate the TLB
-	 * as required.
-	 */
-	mtx_lock(&cmtx);
-	*csrc_pte = L2_S_PROTO | src |
-	    L2_S_PROT(PTE_KERNEL, VM_PROT_READ) |
-	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);	/* mini-data */
-	PTE_SYNC(csrc_pte);
-	*cdst_pte = L2_S_PROTO | dst |
-	    L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE) |
-	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);	/* mini-data */
-	PTE_SYNC(cdst_pte);
-	cpu_tlb_flushD_SE(csrcp);
-	cpu_tlb_flushD_SE(cdstp);
-	cpu_cpwait();
-	bcopy_page(csrcp, cdstp);
-	mtx_unlock(&cmtx);
-	xscale_cache_clean_minidata();
-}
-
-void
-pmap_copy_page_offs_xscale(vm_paddr_t a_phys, vm_offset_t a_offs,
-    vm_paddr_t b_phys, vm_offset_t b_offs, int cnt)
-{
-
-	mtx_lock(&cmtx);
-	*csrc_pte = L2_S_PROTO | a_phys |
-	    L2_S_PROT(PTE_KERNEL, VM_PROT_READ) |
-	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);
-	PTE_SYNC(csrc_pte);
-	*cdst_pte = L2_S_PROTO | b_phys |
-	    L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE) |
-	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);
-	PTE_SYNC(cdst_pte);
-	cpu_tlb_flushD_SE(csrcp);
-	cpu_tlb_flushD_SE(cdstp);
-	cpu_cpwait();
-	bcopy((char *)csrcp + a_offs, (char *)cdstp + b_offs, cnt);
-	mtx_unlock(&cmtx);
-	xscale_cache_clean_minidata();
-}
-#endif /* ARM_MMU_XSCALE == 1 */
 
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
@@ -4340,7 +3940,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst),
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
 		return;
-	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
+	pmap_copy_page_generic(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 }
 
 /*
@@ -4368,7 +3968,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg = mb[b_offset >> PAGE_SHIFT];
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		pmap_copy_page_offs_func(VM_PAGE_TO_PHYS(a_pg), a_pg_offset,
+		pmap_copy_page_offs_generic(VM_PAGE_TO_PHYS(a_pg), a_pg_offset,
 		    VM_PAGE_TO_PHYS(b_pg), b_pg_offset, cnt);
 		xfersize -= cnt;
 		a_offset += cnt;
@@ -4871,4 +4471,9 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 		panic("Can't change memattr on page with existing mappings");
 }
 
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
 
+	return (mode == VM_MEMATTR_DEFAULT || mode == VM_MEMATTR_UNCACHEABLE);
+}

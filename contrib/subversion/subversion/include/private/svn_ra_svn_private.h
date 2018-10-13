@@ -34,6 +34,104 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/** Memory representation of an on-the-wire data item. */
+typedef struct svn_ra_svn__item_t svn_ra_svn__item_t;
+
+/* A list of svn_ra_svn__item_t objects. */
+typedef struct svn_ra_svn__list_t
+{
+  /* List contents (array).  May be NULL if NELTS is 0. */
+  struct svn_ra_svn__item_t *items;
+
+  /* Number of elements in ITEMS. */
+  int nelts;
+} svn_ra_svn__list_t;
+
+/* List element access macro. */
+#define SVN_RA_SVN__LIST_ITEM(list, idx) (list)->items[idx]
+
+/** Memory representation of an on-the-wire data item. */
+struct svn_ra_svn__item_t
+{
+  /** Variant indicator. */
+  svn_ra_svn_item_kind_t kind;
+
+  /** Variant data. */
+  union {
+    apr_uint64_t number;
+    svn_string_t string;
+    svn_string_t word;
+    svn_ra_svn__list_t list;
+  } u;
+};
+
+/** Command handler, used by svn_ra_svn__handle_commands(). */
+typedef svn_error_t *(*svn_ra_svn__command_handler)(svn_ra_svn_conn_t *conn,
+                                                    apr_pool_t *pool,
+                                                    svn_ra_svn__list_t *params,
+                                                    void *baton);
+
+/** Command table, used by svn_ra_svn_handle_commands().
+ */
+typedef struct svn_ra_svn__cmd_entry_t
+{
+  /** Name of the command */
+  const char *cmdname;
+
+  /** Handler for the command */
+  svn_ra_svn__command_handler handler;
+
+  /** Only set when used through a deprecated API.
+   * HANDLER is NULL in that case. */
+  svn_ra_svn_command_handler deprecated_handler;
+
+  /** Termination flag.  If set, command-handling will cease after
+   * command is processed. */
+  svn_boolean_t terminate;
+} svn_ra_svn__cmd_entry_t;
+
+
+/* Return a deep copy of the SOURCE array containing private API
+ * svn_ra_svn__item_t SOURCE to public API *TARGET, allocating
+ * sub-structures in RESULT_POOL. */
+apr_array_header_t *
+svn_ra_svn__to_public_array(const svn_ra_svn__list_t *source,
+                            apr_pool_t *result_pool);
+
+/* Deep copy contents from private API *SOURCE to public API *TARGET,
+ * allocating sub-structures in RESULT_POOL. */
+void
+svn_ra_svn__to_public_item(svn_ra_svn_item_t *target,
+                           const svn_ra_svn__item_t *source,
+                           apr_pool_t *result_pool);
+
+svn_ra_svn__list_t *
+svn_ra_svn__to_private_array(const apr_array_header_t *source,
+                             apr_pool_t *result_pool);
+
+/* Deep copy contents from public API *SOURCE to private API *TARGET,
+ * allocating sub-structures in RESULT_POOL. */
+void
+svn_ra_svn__to_private_item(svn_ra_svn__item_t *target,
+                            const svn_ra_svn_item_t *source,
+                            apr_pool_t *result_pool);
+
+/** Add the capabilities in @a list to @a conn's capabilities.
+ * @a list contains svn_ra_svn__item_t entries (which should be of type
+ * SVN_RA_SVN_WORD; a malformed data error will result if any are not).
+ *
+ * This is idempotent: if a given capability was already set for
+ * @a conn, it remains set.
+ */
+svn_error_t *
+svn_ra_svn__set_capabilities(svn_ra_svn_conn_t *conn,
+                             const svn_ra_svn__list_t *list);
+
+/** Returns the preferred svndiff version to be used with connection @a conn.
+ */
+int
+svn_ra_svn__svndiff_version(svn_ra_svn_conn_t *conn);
+
 
 /**
  * Set the shim callbacks to be used by @a conn to @a shim_callbacks.
@@ -161,10 +259,10 @@ svn_ra_svn__flush(svn_ra_svn_conn_t *conn,
  * to transmit an array or other unusual data.  For example, to write
  * a tuple containing a revision, an array of words, and a boolean:
  * @code
-     SVN_ERR(svn_ra_svn_write_tuple(conn, pool, "r(!", rev));
+     SVN_ERR(svn_ra_svn__write_tuple(conn, pool, "r(!", rev));
      for (i = 0; i < n; i++)
-       SVN_ERR(svn_ra_svn_write_word(conn, pool, words[i]));
-     SVN_ERR(svn_ra_svn_write_tuple(conn, pool, "!)b", flag)); @endcode
+       SVN_ERR(svn_ra_svn__write_word(conn, pool, words[i]));
+     SVN_ERR(svn_ra_svn__write_tuple(conn, pool, "!)b", flag)); @endcode
  */
 svn_error_t *
 svn_ra_svn__write_tuple(svn_ra_svn_conn_t *conn,
@@ -175,7 +273,7 @@ svn_ra_svn__write_tuple(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__read_item(svn_ra_svn_conn_t *conn,
                       apr_pool_t *pool,
-                      svn_ra_svn_item_t **item);
+                      svn_ra_svn__item_t **item);
 
 /** Scan data on @a conn until we find something which looks like the
  * beginning of an svn server greeting (an open paren followed by a
@@ -221,13 +319,12 @@ svn_ra_svn__skip_leading_garbage(svn_ra_svn_conn_t *conn,
  *
  * If an optional part of a tuple contains no data, 'r' values will be
  * set to @c SVN_INVALID_REVNUM; 'n' and 'B' values will be set to
- * #SVN_RA_SVN_UNSPECIFIED_NUMBER; 's', 'c', 'w', and 'l' values
- * will be set to @c NULL; and '3' values will be set to #svn_tristate_unknown
- * 'b' may not appear inside an optional tuple specification; use '3' instead.
+ * #SVN_RA_SVN_UNSPECIFIED_NUMBER; 's', 'c', 'w', and 'l' values will
+ * be set to @c NULL; '3' values will be set to #svn_tristate_unknown;
+ * and 'b' values will be set to @c FALSE.
  */
 svn_error_t *
-svn_ra_svn__parse_tuple(const apr_array_header_t *list,
-                        apr_pool_t *pool,
+svn_ra_svn__parse_tuple(const svn_ra_svn__list_t *list,
                         const char *fmt, ...);
 
 /** Read a tuple from the network and parse it as a tuple, using the
@@ -238,13 +335,13 @@ svn_ra_svn__read_tuple(svn_ra_svn_conn_t *conn,
                        apr_pool_t *pool,
                        const char *fmt, ...);
 
-/** Parse an array of @c svn_ra_svn_item_t structures as a list of
+/** Parse an array of @c svn_ra_svn__item_t structures as a list of
  * properties, storing the properties in a hash table.
  *
  * @since New in 1.5.
  */
 svn_error_t *
-svn_ra_svn__parse_proplist(const apr_array_header_t *list,
+svn_ra_svn__parse_proplist(const svn_ra_svn__list_t *list,
                            apr_pool_t *pool,
                            apr_hash_t **props);
 
@@ -300,7 +397,7 @@ svn_ra_svn__handle_command(svn_boolean_t *terminate,
 svn_error_t *
 svn_ra_svn__handle_commands2(svn_ra_svn_conn_t *conn,
                              apr_pool_t *pool,
-                             const svn_ra_svn_cmd_entry_t *commands,
+                             const svn_ra_svn__cmd_entry_t *commands,
                              void *baton,
                              svn_boolean_t error_on_disconnect);
 
@@ -347,7 +444,7 @@ svn_error_t *
 svn_ra_svn__write_cmd_open_root(svn_ra_svn_conn_t *conn,
                                 apr_pool_t *pool,
                                 svn_revnum_t rev,
-                                const char *token);
+                                const svn_string_t *token);
 
 /** Send a "delete-entry" command over connection @a conn.  Delete the
  * @a path at optional revision @a rev below @a parent_token.
@@ -358,7 +455,7 @@ svn_ra_svn__write_cmd_delete_entry(svn_ra_svn_conn_t *conn,
                                    apr_pool_t *pool,
                                    const char *path,
                                    svn_revnum_t rev,
-                                   const char *parent_token);
+                                   const svn_string_t *parent_token);
 
 /** Send a "add-dir" command over connection @a conn.  Add a new directory
  * node named @a path under the directory identified by @a parent_token.
@@ -370,8 +467,8 @@ svn_error_t *
 svn_ra_svn__write_cmd_add_dir(svn_ra_svn_conn_t *conn,
                               apr_pool_t *pool,
                               const char *path,
-                              const char *parent_token,
-                              const char *token,
+                              const svn_string_t *parent_token,
+                              const svn_string_t *token,
                               const char *copy_path,
                               svn_revnum_t copy_rev);
 
@@ -384,8 +481,8 @@ svn_error_t *
 svn_ra_svn__write_cmd_open_dir(svn_ra_svn_conn_t *conn,
                                apr_pool_t *pool,
                                const char *path,
-                               const char *parent_token,
-                               const char *token,
+                               const svn_string_t *parent_token,
+                               const svn_string_t *token,
                                svn_revnum_t rev);
 
 /** Send a "change-dir-prop" command over connection @a conn.  Set the
@@ -395,7 +492,7 @@ svn_ra_svn__write_cmd_open_dir(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_change_dir_prop(svn_ra_svn_conn_t *conn,
                                       apr_pool_t *pool,
-                                      const char *token,
+                                      const svn_string_t *token,
                                       const char *name,
                                       const svn_string_t *value);
 
@@ -406,7 +503,7 @@ svn_ra_svn__write_cmd_change_dir_prop(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_close_dir(svn_ra_svn_conn_t *conn,
                                 apr_pool_t *pool,
-                                const char *token);
+                                const svn_string_t *token);
 
 /** Send a "absent-dir" command over connection @a conn.  Directory node
  * named @a path under the directory identified by @a parent_token is
@@ -416,7 +513,7 @@ svn_error_t *
 svn_ra_svn__write_cmd_absent_dir(svn_ra_svn_conn_t *conn,
                                  apr_pool_t *pool,
                                  const char *path,
-                                 const char *parent_token);
+                                 const svn_string_t *parent_token);
 
 /** Send a "add-file" command over connection @a conn.  Add a new file
  * node named @a path under the directory identified by @a parent_token.
@@ -428,8 +525,8 @@ svn_error_t *
 svn_ra_svn__write_cmd_add_file(svn_ra_svn_conn_t *conn,
                                apr_pool_t *pool,
                                const char *path,
-                               const char *parent_token,
-                               const char *token,
+                               const svn_string_t *parent_token,
+                               const svn_string_t *token,
                                const char *copy_path,
                                svn_revnum_t copy_rev);
 
@@ -442,8 +539,8 @@ svn_error_t *
 svn_ra_svn__write_cmd_open_file(svn_ra_svn_conn_t *conn,
                                 apr_pool_t *pool,
                                 const char *path,
-                                const char *parent_token,
-                                const char *token,
+                                const svn_string_t *parent_token,
+                                const svn_string_t *token,
                                 svn_revnum_t rev);
 
 /** Send a "change-file-prop" command over connection @a conn.  Set the
@@ -453,7 +550,7 @@ svn_ra_svn__write_cmd_open_file(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_change_file_prop(svn_ra_svn_conn_t *conn,
                                        apr_pool_t *pool,
-                                       const char *token,
+                                       const svn_string_t *token,
                                        const char *name,
                                        const svn_string_t *value);
 
@@ -465,7 +562,7 @@ svn_ra_svn__write_cmd_change_file_prop(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_close_file(svn_ra_svn_conn_t *conn,
                                  apr_pool_t *pool,
-                                 const char *token,
+                                 const svn_string_t *token,
                                  const char *text_checksum);
 
 /** Send a "absent-file" command over connection @a conn.  File node
@@ -476,7 +573,7 @@ svn_error_t *
 svn_ra_svn__write_cmd_absent_file(svn_ra_svn_conn_t *conn,
                                   apr_pool_t *pool,
                                   const char *path,
-                                  const char *parent_token);
+                                  const svn_string_t *parent_token);
 
 /** Send a "apply-textdelta" command over connection @a conn.  Starts a
  * series of text deltas to be applied to the file identified by @a token.
@@ -486,7 +583,7 @@ svn_ra_svn__write_cmd_absent_file(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_apply_textdelta(svn_ra_svn_conn_t *conn,
                                       apr_pool_t *pool,
-                                      const char *token,
+                                      const svn_string_t *token,
                                       const char *base_checksum);
 
 /** Send a "textdelta-chunk" command over connection @a conn.  Apply
@@ -496,7 +593,7 @@ svn_ra_svn__write_cmd_apply_textdelta(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_textdelta_chunk(svn_ra_svn_conn_t *conn,
                                       apr_pool_t *pool,
-                                      const char *token,
+                                      const svn_string_t *token,
                                       const svn_string_t *chunk);
 
 /** Send a "textdelta-end" command over connection @a conn.  Ends the
@@ -506,7 +603,7 @@ svn_ra_svn__write_cmd_textdelta_chunk(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_cmd_textdelta_end(svn_ra_svn_conn_t *conn,
                                     apr_pool_t *pool,
-                                    const char *token);
+                                    const svn_string_t *token);
 
 /** Send a "close-edit" command over connection @a conn.  Ends the editor
  * drive (successfully).  Use @a pool for allocations.
@@ -790,7 +887,7 @@ svn_error_t *
 svn_ra_svn__write_cmd_unlock(svn_ra_svn_conn_t *conn,
                              apr_pool_t *pool,
                              const char *path,
-                             const char *token,
+                             const svn_string_t *token,
                              svn_boolean_t break_lock);
 
 /** Send a "get-lock" command over connection @a conn.
@@ -886,7 +983,7 @@ svn_ra_svn__write_cmd_finish_replay(svn_ra_svn_conn_t *conn,
 svn_error_t *
 svn_ra_svn__write_data_log_changed_path(svn_ra_svn_conn_t *conn,
                                         apr_pool_t *pool,
-                                        const char *path,
+                                        const svn_string_t *path,
                                         char action,
                                         const char *copyfrom_path,
                                         svn_revnum_t copyfrom_rev,
@@ -916,6 +1013,19 @@ svn_ra_svn__write_data_log_entry(svn_ra_svn_conn_t *conn,
                                  svn_boolean_t invalid_revnum,
                                  unsigned revprop_count);
 
+/** Send a directory entry @a dirent for @a path over connection @a conn.
+ * Use @a pool for allocations.
+ *
+ * Depending on the flags in @a dirent_fields, only selected elements will
+ * be transmitted.
+ */
+svn_error_t *
+svn_ra_svn__write_dirent(svn_ra_svn_conn_t *conn,
+                         apr_pool_t *pool,
+                         const char *path,
+                         svn_dirent_t *dirent,
+                         apr_uint32_t dirent_fields);
+
 /**
  * @}
  */
@@ -931,7 +1041,7 @@ svn_ra_svn__write_data_log_entry(svn_ra_svn_conn_t *conn,
  * @see svn_log_changed_path2_t for a description of the output parameters.
  */
 svn_error_t *
-svn_ra_svn__read_data_log_changed_entry(const apr_array_header_t *items,
+svn_ra_svn__read_data_log_changed_entry(const svn_ra_svn__list_t *items,
                                         svn_string_t **cpath,
                                         const char **action,
                                         const char **copy_path,

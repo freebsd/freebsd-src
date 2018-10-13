@@ -20,6 +20,7 @@
  * CDDL HEADER END
  *
  * Portions Copyright 2008 John Birrell jb@freebsd.org
+ * Portions Copyright 2018 Devin Teske dteske@freebsd.org
  *
  * $FreeBSD$
  */
@@ -86,6 +87,47 @@ inline int SIGUSR1 = 30;
 #pragma D binding "1.0" SIGUSR1
 inline int SIGUSR2 = 31;
 #pragma D binding "1.0" SIGUSR2
+inline int SIGTHR = 32;
+#pragma D binding "1.13" SIGTHR
+inline int SIGLIBRT = 33;
+#pragma D binding "1.13" SIGLIBRT
+
+#pragma D binding "1.13" signal_string
+inline string signal_string[int signal] =
+	signal == SIGHUP ?	"SIGHUP" :
+	signal == SIGINT ?	"SIGINT" :
+	signal == SIGQUIT ?	"SIGQUIT" :
+	signal == SIGILL ?	"SIGILL":
+	signal == SIGTRAP ?	"SIGTRAP" :
+	signal == SIGABRT ?	"SIGABRT" :
+	signal == SIGEMT ?	"SIGEMT" :
+	signal == SIGFPE ?	"SIGFPE" :
+	signal == SIGKILL ?	"SIGKILL" :
+	signal == SIGBUS ?	"SIGBUS" :
+	signal == SIGSEGV ?	"SIGSEGV" :
+	signal == SIGSYS ?	"SIGSYS" :
+	signal == SIGPIPE ?	"SIGPIPE" :
+	signal == SIGALRM ?	"SIGALRM" :
+	signal == SIGTERM ?	"SIGTERM" :
+	signal == SIGURG ?	"SIGURG" :
+	signal == SIGSTOP ?	"SIGSTOP" :
+	signal == SIGTSTP ?	"SIGTSTP" :
+	signal == SIGCONT ?	"SIGCONT" :
+	signal == SIGCHLD ?	"SIGCHLD" :
+	signal == SIGTTIN ?	"SIGTTIN" :
+	signal == SIGTTOU ?	"SIGTTOU" :
+	signal == SIGIO ?	"SIGIO" :
+	signal == SIGXCPU ?	"SIGXCPU" :
+	signal == SIGXFSZ ?	"SIGXFSZ" :
+	signal == SIGVTALRM ?	"SIGVTALRM" :
+	signal == SIGPROF ?	"SIGPROF" :
+	signal == SIGWINCH ?	"SIGWINCH" :
+	signal == SIGINFO ?	"SIGINFO" :
+	signal == SIGUSR1 ?	"SIGUSR1" :
+	signal == SIGUSR2 ?	"SIGUSR2" :
+	signal == SIGTHR ?	"SIGTHR" :
+	signal == SIGLIBRT ?	"SIGLIBRT" :
+	"UNKNOWN";
 
 inline int CLD_EXITED = 1;
 #pragma D binding "1.0" CLD_EXITED
@@ -99,3 +141,13 @@ inline int CLD_STOPPED = 5;
 #pragma D binding "1.0" CLD_STOPPED
 inline int CLD_CONTINUED = 6;
 #pragma D binding "1.0" CLD_CONTINUED
+
+#pragma D binding "1.13" child_signal_string
+inline string child_signal_string[int child_signal] =
+	child_signal == CLD_EXITED ?	"child exited" :
+	child_signal == CLD_KILLED ?	"child terminated abnormally" :
+	child_signal == CLD_DUMPED ?	"child core dumped" :
+	child_signal == CLD_TRAPPED ?	"traced child trapped" :
+	child_signal == CLD_STOPPED ?	"child stopped" :
+	child_signal == CLD_CONTINUED ?	"stopped child continued" :
+	strjoin("unknown SIGCHLD code (", strjoin(lltostr(child_signal), ")"));

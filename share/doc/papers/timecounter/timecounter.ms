@@ -17,7 +17,6 @@ Timecounters: Efficient and precise timekeeping in SMP kernels.
 .AA
 .A "Poul-Henning Kamp" "The FreeBSD Project"
 .AB
-.PP
 The FreeBSD timecounters are an architecture-independent implementation
 of a binary timescale using whatever hardware support is at hand  
 for tracking time.  The binary timescale converts using simple
@@ -31,6 +30,7 @@ be detailed as well as the mechanisms used for synchronisation. \**
 .FS
 This paper was presented at the EuroBSDcon 2002 conference in Amsterdam.
 .FE
+.1C
 .SH
 Introduction
 .PP

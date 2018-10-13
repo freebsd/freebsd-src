@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -102,9 +104,9 @@ typedef	__uid_t		uid_t;
 #ifdef _KERNEL
 struct ostat {
 	__uint16_t st_dev;		/* inode's device */
-	ino_t	  st_ino;		/* inode's number */
+	__uint32_t st_ino;		/* inode's number */
 	mode_t	  st_mode;		/* inode protection mode */
-	nlink_t	  st_nlink;		/* number of hard links */
+	__uint16_t st_nlink;		/* number of hard links */
 	__uint16_t st_uid;		/* user ID of the file's owner */
 	__uint16_t st_gid;		/* group ID of the file's group */
 	__uint16_t st_rdev;		/* device type */
@@ -119,14 +121,15 @@ struct ostat {
 };
 #endif
 
-struct stat {
-	__dev_t   st_dev;		/* inode's device */
-	ino_t	  st_ino;		/* inode's number */
+#if defined(_WANT_FREEBSD11_STAT) || defined(_KERNEL)
+struct freebsd11_stat {
+	__uint32_t st_dev;		/* inode's device */
+	__uint32_t st_ino;		/* inode's number */
 	mode_t	  st_mode;		/* inode protection mode */
-	nlink_t	  st_nlink;		/* number of hard links */
+	__uint16_t st_nlink;		/* number of hard links */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
-	__dev_t   st_rdev;		/* device type */
+	__uint32_t st_rdev;		/* device type */
 	struct	timespec st_atim;	/* time of last access */
 	struct	timespec st_mtim;	/* time of last data modification */
 	struct	timespec st_ctim;	/* time of last file status change */
@@ -148,16 +151,55 @@ struct stat {
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
 };
+#endif /* _WANT_FREEBSD11_STAT || _KERNEL */
+
+#if defined(__i386__)
+#define	__STAT_TIME_T_EXT	1
+#endif
+
+struct stat {
+	dev_t     st_dev;		/* inode's device */
+	ino_t	  st_ino;		/* inode's number */
+	nlink_t	  st_nlink;		/* number of hard links */
+	mode_t	  st_mode;		/* inode protection mode */
+	__int16_t st_padding0;
+	uid_t	  st_uid;		/* user ID of the file's owner */
+	gid_t	  st_gid;		/* group ID of the file's group */
+	__int32_t st_padding1;
+	dev_t     st_rdev;		/* device type */
+#ifdef	__STAT_TIME_T_EXT
+	__int32_t st_atim_ext;
+#endif
+	struct	timespec st_atim;	/* time of last access */
+#ifdef	__STAT_TIME_T_EXT
+	__int32_t st_mtim_ext;
+#endif
+	struct	timespec st_mtim;	/* time of last data modification */
+#ifdef	__STAT_TIME_T_EXT
+	__int32_t st_ctim_ext;
+#endif
+	struct	timespec st_ctim;	/* time of last file status change */
+#ifdef	__STAT_TIME_T_EXT
+	__int32_t st_btim_ext;
+#endif
+	struct	timespec st_birthtim;	/* time of file creation */
+	off_t	  st_size;		/* file size, in bytes */
+	blkcnt_t st_blocks;		/* blocks allocated for file */
+	blksize_t st_blksize;		/* optimal blocksize for I/O */
+	fflags_t  st_flags;		/* user defined flags for file */
+	__uint64_t st_gen;		/* file generation number */
+	__uint64_t st_spare[10];
+};
 
 #ifdef _KERNEL
 struct nstat {
-	__dev_t   st_dev;		/* inode's device */
-	ino_t	  st_ino;		/* inode's number */
+	__uint32_t st_dev;		/* inode's device */
+	__uint32_t st_ino;		/* inode's number */
 	__uint32_t st_mode;		/* inode protection mode */
 	__uint32_t st_nlink;		/* number of hard links */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
-	__dev_t   st_rdev;		/* device type */
+	__uint32_t st_rdev;		/* device type */
 	struct	timespec st_atim;	/* time of last access */
 	struct	timespec st_mtim;	/* time of last data modification */
 	struct	timespec st_ctim;	/* time of last file status change */
@@ -168,7 +210,8 @@ struct nstat {
 	__uint32_t st_gen;		/* file generation number */
 	struct timespec st_birthtim;	/* time of file creation */
 	/*
-	 * See above about the following padding.
+	 * See comment in the definition of struct freebsd11_stat
+	 * above about the following padding.
 	 */
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));

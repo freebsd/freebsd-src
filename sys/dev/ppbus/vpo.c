@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
@@ -390,9 +392,9 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = VP0_INITIATOR;
 		cpi->bus_id = sim->bus_id;
 		cpi->base_transfer_speed = 93;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
-		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
+		strlcpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
 		cpi->transport = XPORT_PPB;
 		cpi->transport_version = 0;

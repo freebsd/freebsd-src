@@ -221,8 +221,8 @@ struct sdma_softc {
 	uint32_t			num_bd;
 	uint32_t			ccb_phys;
 	uint32_t			context_phys;
-	struct sdma_firmware_header	*fw_header;
-	struct sdma_script_start_addrs	*fw_scripts;
+	const struct sdma_firmware_header	*fw_header;
+	const struct sdma_script_start_addrs	*fw_scripts;
 };
 
 struct sdma_conf {

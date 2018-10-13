@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -71,14 +73,17 @@ main(int argc, char *argv[])
 	u_int pageins;
 	const char *user, *kernel = NULL;
 
-	if (strcmp(getprogname(), "halt") == 0) {
+	if (strstr(getprogname(), "halt") != NULL) {
 		dohalt = 1;
 		howto = RB_HALT;
 	} else
 		howto = 0;
 	lflag = nflag = qflag = Nflag = 0;
-	while ((ch = getopt(argc, argv, "dk:lNnpqr")) != -1)
+	while ((ch = getopt(argc, argv, "cdk:lNnpqr")) != -1)
 		switch(ch) {
+		case 'c':
+			howto |= RB_POWERCYCLE;
+			break;
 		case 'd':
 			howto |= RB_DUMP;
 			break;
@@ -111,13 +116,17 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+	if (argc != 0)
+		usage();
 
 	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
 	if (Nflag && (howto & RB_NOSYNC) != 0)
 		errx(1, "-N cannot be used with -n");
+	if ((howto & RB_POWEROFF) && (howto & RB_POWERCYCLE))
+		errx(1, "-c and -p cannot be used together");
 	if ((howto & RB_REROOT) != 0 && howto != RB_REROOT)
-		errx(1, "-r cannot be used with -d, -n, or -p");
+		errx(1, "-r cannot be used with -c, -d, -n, or -p");
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
@@ -151,6 +160,12 @@ main(int argc, char *argv[])
 		} else if (howto & RB_REROOT) {
 			openlog("reroot", 0, LOG_AUTH | LOG_CONS);
 			syslog(LOG_CRIT, "rerooted by %s", user);
+		} else if (howto & RB_POWEROFF) {
+			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			syslog(LOG_CRIT, "powered off by %s", user);
+		} else if (howto & RB_POWERCYCLE) {
+			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			syslog(LOG_CRIT, "power cycled by %s", user);
 		} else {
 			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
 			syslog(LOG_CRIT, "rebooted by %s", user);
@@ -248,8 +263,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, dohalt ?
-	    "usage: halt [-lNnpq] [-k kernel]\n" :
-	    "usage: reboot [-dlNnpqr] [-k kernel]\n");
+	    "usage: halt [-clNnpq] [-k kernel]\n" :
+	    "usage: reboot [-cdlNnpqr] [-k kernel]\n");
 	exit(1);
 }
 

@@ -15,26 +15,22 @@
  * support for the IEEE "slow protocols" LACP, MARKER as per 802.3ad
  *                                       OAM as per 802.3ah
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IEEE "slow protocols" (802.3ad/802.3ah) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 #include "ether.h"
 #include "oui.h"
-
-struct slow_common_header_t {
-    uint8_t proto_subtype;
-    uint8_t version;
-};
 
 #define	SLOW_PROTO_LACP                     1
 #define	SLOW_PROTO_MARKER                   2
@@ -185,21 +181,21 @@ struct tlv_header_t {
     uint8_t length;
 };
 
-#define LACP_TLV_TERMINATOR     0x00
-#define LACP_TLV_ACTOR_INFO     0x01
-#define LACP_TLV_PARTNER_INFO   0x02
-#define LACP_TLV_COLLECTOR_INFO 0x03
+#define LACP_MARKER_TLV_TERMINATOR     0x00  /* same code for LACP and Marker */
 
-#define MARKER_TLV_TERMINATOR   0x00
-#define MARKER_TLV_MARKER_INFO  0x01
+#define LACP_TLV_ACTOR_INFO            0x01
+#define LACP_TLV_PARTNER_INFO          0x02
+#define LACP_TLV_COLLECTOR_INFO        0x03
+
+#define MARKER_TLV_MARKER_INFO         0x01
 
 static const struct tok slow_tlv_values[] = {
-    { (SLOW_PROTO_LACP << 8) + LACP_TLV_TERMINATOR, "Terminator"},
+    { (SLOW_PROTO_LACP << 8) + LACP_MARKER_TLV_TERMINATOR, "Terminator"},
     { (SLOW_PROTO_LACP << 8) + LACP_TLV_ACTOR_INFO, "Actor Information"},
     { (SLOW_PROTO_LACP << 8) + LACP_TLV_PARTNER_INFO, "Partner Information"},
     { (SLOW_PROTO_LACP << 8) + LACP_TLV_COLLECTOR_INFO, "Collector Information"},
 
-    { (SLOW_PROTO_MARKER << 8) + MARKER_TLV_TERMINATOR, "Terminator"},
+    { (SLOW_PROTO_MARKER << 8) + LACP_MARKER_TLV_TERMINATOR, "Terminator"},
     { (SLOW_PROTO_MARKER << 8) + MARKER_TLV_MARKER_INFO, "Marker Information"},
     { 0, NULL}
 };
@@ -242,35 +238,42 @@ struct lacp_marker_tlv_terminator_t {
     uint8_t pad[50];
 };
 
-static void slow_marker_lacp_print(netdissect_options *, register const u_char *, register u_int);
+static void slow_marker_lacp_print(netdissect_options *, register const u_char *, register u_int, u_int);
 static void slow_oam_print(netdissect_options *, register const u_char *, register u_int);
-
-const struct slow_common_header_t *slow_com_header;
 
 void
 slow_print(netdissect_options *ndo,
            register const u_char *pptr, register u_int len)
 {
     int print_version;
+    u_int subtype;
 
-    slow_com_header = (const struct slow_common_header_t *)pptr;
-    ND_TCHECK(*slow_com_header);
+    if (len < 1)
+        goto tooshort;
+    ND_TCHECK(*pptr);
+    subtype = *pptr;
 
     /*
      * Sanity checking of the header.
      */
-    switch (slow_com_header->proto_subtype) {
+    switch (subtype) {
     case SLOW_PROTO_LACP:
-        if (slow_com_header->version != LACP_VERSION) {
-            ND_PRINT((ndo, "LACP version %u packet not supported",slow_com_header->version));
+        if (len < 2)
+            goto tooshort;
+        ND_TCHECK(*(pptr+1));
+        if (*(pptr+1) != LACP_VERSION) {
+            ND_PRINT((ndo, "LACP version %u packet not supported", *(pptr+1)));
             return;
         }
         print_version = 1;
         break;
 
     case SLOW_PROTO_MARKER:
-        if (slow_com_header->version != MARKER_VERSION) {
-            ND_PRINT((ndo, "MARKER version %u packet not supported",slow_com_header->version));
+        if (len < 2)
+            goto tooshort;
+        ND_TCHECK(*(pptr+1));
+        if (*(pptr+1) != MARKER_VERSION) {
+            ND_PRINT((ndo, "MARKER version %u packet not supported", *(pptr+1)));
             return;
         }
         print_version = 1;
@@ -286,15 +289,15 @@ slow_print(netdissect_options *ndo,
         break;
     }
 
-    if (print_version) {
+    if (print_version == 1) {
         ND_PRINT((ndo, "%sv%u, length %u",
-               tok2str(slow_proto_values, "unknown (%u)",slow_com_header->proto_subtype),
-               slow_com_header->version,
+               tok2str(slow_proto_values, "unknown (%u)", subtype),
+               *(pptr+1),
                len));
     } else {
         /* some slow protos don't have a version number in the header */
         ND_PRINT((ndo, "%s, length %u",
-               tok2str(slow_proto_values, "unknown (%u)",slow_com_header->proto_subtype),
+               tok2str(slow_proto_values, "unknown (%u)", subtype),
                len));
     }
 
@@ -307,32 +310,45 @@ slow_print(netdissect_options *ndo,
     if (!ndo->ndo_vflag)
         return;
 
-    switch (slow_com_header->proto_subtype) {
+    switch (subtype) {
     default: /* should not happen */
         break;
 
     case SLOW_PROTO_OAM:
-        /* skip proto_subtype */
-        slow_oam_print(ndo, pptr+1, len-1);
+        /* skip subtype */
+        len -= 1;
+        pptr += 1;
+        slow_oam_print(ndo, pptr, len);
         break;
 
     case SLOW_PROTO_LACP:   /* LACP and MARKER share the same semantics */
     case SLOW_PROTO_MARKER:
-        /* skip slow_common_header */
-        len -= sizeof(const struct slow_common_header_t);
-        pptr += sizeof(const struct slow_common_header_t);
-        slow_marker_lacp_print(ndo, pptr, len);
+        /* skip subtype and version */
+        len -= 2;
+        pptr += 2;
+        slow_marker_lacp_print(ndo, pptr, len, subtype);
         break;
     }
     return;
 
+tooshort:
+    if (!ndo->ndo_vflag)
+        ND_PRINT((ndo, " (packet is too short)"));
+    else
+        ND_PRINT((ndo, "\n\t\t packet is too short"));
+    return;
+
 trunc:
-    ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
+    if (!ndo->ndo_vflag)
+        ND_PRINT((ndo, " (packet exceeded snapshot)"));
+    else
+        ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
 }
 
 static void
 slow_marker_lacp_print(netdissect_options *ndo,
-                       register const u_char *tptr, register u_int tlen)
+                       register const u_char *tptr, register u_int tlen,
+                       u_int proto_subtype)
 {
     const struct tlv_header_t *tlv_header;
     const u_char *tlv_tptr;
@@ -346,6 +362,9 @@ slow_marker_lacp_print(netdissect_options *ndo,
     } tlv_ptr;
 
     while(tlen>0) {
+        /* is the packet big enough to include the tlv header ? */
+        if (tlen < sizeof(struct tlv_header_t))
+            goto tooshort;
         /* did we capture enough for fully decoding the tlv header ? */
         ND_TCHECK2(*tptr, sizeof(struct tlv_header_t));
         tlv_header = (const struct tlv_header_t *)tptr;
@@ -354,30 +373,46 @@ slow_marker_lacp_print(netdissect_options *ndo,
         ND_PRINT((ndo, "\n\t%s TLV (0x%02x), length %u",
                tok2str(slow_tlv_values,
                        "Unknown",
-                       (slow_com_header->proto_subtype << 8) + tlv_header->type),
+                       (proto_subtype << 8) + tlv_header->type),
                tlv_header->type,
                tlv_len));
 
-        if ((tlv_len < sizeof(struct tlv_header_t) ||
-            tlv_len > tlen) &&
-            tlv_header->type != LACP_TLV_TERMINATOR &&
-            tlv_header->type != MARKER_TLV_TERMINATOR) {
-            ND_PRINT((ndo, "\n\t-----trailing data-----"));
-            print_unknown_data(ndo, tptr+sizeof(struct tlv_header_t), "\n\t  ", tlen);
+        if (tlv_header->type == LACP_MARKER_TLV_TERMINATOR) {
+            /*
+             * This TLV has a length of zero, and means there are no
+             * more TLVs to process.
+             */
             return;
         }
+
+        /* length includes the type and length fields */
+        if (tlv_len < sizeof(struct tlv_header_t)) {
+            ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be >= %lu",
+                   (unsigned long) sizeof(struct tlv_header_t)));
+            return;
+        }
+
+        /* is the packet big enough to include the tlv ? */
+        if (tlen < tlv_len)
+            goto tooshort;
+        /* did we capture enough for fully decoding the tlv ? */
+        ND_TCHECK2(*tptr, tlv_len);
 
         tlv_tptr=tptr+sizeof(struct tlv_header_t);
         tlv_tlen=tlv_len-sizeof(struct tlv_header_t);
 
-        /* did we capture enough for fully decoding the tlv ? */
-        ND_TCHECK2(*tptr, tlv_len);
-
-        switch((slow_com_header->proto_subtype << 8) + tlv_header->type) {
+        switch((proto_subtype << 8) + tlv_header->type) {
 
             /* those two TLVs have the same structure -> fall through */
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_ACTOR_INFO):
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_PARTNER_INFO):
+            if (tlv_tlen !=
+                sizeof(struct lacp_tlv_actor_partner_info_t)) {
+                ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be %lu",
+                       (unsigned long) (sizeof(struct tlv_header_t) + sizeof(struct lacp_tlv_actor_partner_info_t))));
+                goto badlength;
+            }
+
             tlv_ptr.lacp_tlv_actor_partner_info = (const struct lacp_tlv_actor_partner_info_t *)tlv_tptr;
 
             ND_PRINT((ndo, "\n\t  System %s, System Priority %u, Key %u" \
@@ -394,6 +429,13 @@ slow_marker_lacp_print(netdissect_options *ndo,
             break;
 
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_COLLECTOR_INFO):
+            if (tlv_tlen !=
+                sizeof(struct lacp_tlv_collector_info_t)) {
+                ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be %lu",
+                       (unsigned long) (sizeof(struct tlv_header_t) + sizeof(struct lacp_tlv_collector_info_t))));
+                goto badlength;
+            }
+
             tlv_ptr.lacp_tlv_collector_info = (const struct lacp_tlv_collector_info_t *)tlv_tptr;
 
             ND_PRINT((ndo, "\n\t  Max Delay %u",
@@ -402,6 +444,13 @@ slow_marker_lacp_print(netdissect_options *ndo,
             break;
 
         case ((SLOW_PROTO_MARKER << 8) + MARKER_TLV_MARKER_INFO):
+            if (tlv_tlen !=
+                sizeof(struct marker_tlv_marker_info_t)) {
+                ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be %lu",
+                       (unsigned long) (sizeof(struct tlv_header_t) + sizeof(struct marker_tlv_marker_info_t))));
+                goto badlength;
+            }
+
             tlv_ptr.marker_tlv_marker_info = (const struct marker_tlv_marker_info_t *)tlv_tptr;
 
             ND_PRINT((ndo, "\n\t  Request System %s, Request Port %u, Request Transaction ID 0x%08x",
@@ -411,29 +460,13 @@ slow_marker_lacp_print(netdissect_options *ndo,
 
             break;
 
-            /* those two TLVs have the same structure -> fall through */
-        case ((SLOW_PROTO_LACP << 8) + LACP_TLV_TERMINATOR):
-        case ((SLOW_PROTO_MARKER << 8) + LACP_TLV_TERMINATOR):
-            tlv_ptr.lacp_marker_tlv_terminator = (const struct lacp_marker_tlv_terminator_t *)tlv_tptr;
-            if (tlv_len == 0) {
-                tlv_len = sizeof(tlv_ptr.lacp_marker_tlv_terminator->pad) +
-                    sizeof(struct tlv_header_t);
-                /* tell the user that we modified the length field  */
-                if (ndo->ndo_vflag>1)
-                    ND_PRINT((ndo, " (=%u)", tlv_len));
-                /* we have messed around with the length field - now we need to check
-                 * again if there are enough bytes on the wire for the hexdump */
-                ND_TCHECK2(tlv_ptr.lacp_marker_tlv_terminator->pad[0],
-                        sizeof(tlv_ptr.lacp_marker_tlv_terminator->pad));
-            }
-
-            break;
-
         default:
             if (ndo->ndo_vflag <= 1)
                 print_unknown_data(ndo, tlv_tptr, "\n\t  ", tlv_tlen);
             break;
         }
+
+    badlength:
         /* do we want to see an additional hexdump ? */
         if (ndo->ndo_vflag > 1) {
             print_unknown_data(ndo, tptr+sizeof(struct tlv_header_t), "\n\t  ",
@@ -444,6 +477,11 @@ slow_marker_lacp_print(netdissect_options *ndo,
         tlen-=tlv_len;
     }
     return;
+
+tooshort:
+    ND_PRINT((ndo, "\n\t\t packet is too short"));
+    return;
+
 trunc:
     ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
 }
@@ -477,7 +515,10 @@ slow_oam_print(netdissect_options *ndo,
         const struct slow_oam_loopbackctrl_t *slow_oam_loopbackctrl;
     } tlv;
 
-    ptr.slow_oam_common_header = (struct slow_oam_common_header_t *)tptr;
+    ptr.slow_oam_common_header = (const struct slow_oam_common_header_t *)tptr;
+    if (tlen < sizeof(*ptr.slow_oam_common_header))
+        goto tooshort;
+    ND_TCHECK(*ptr.slow_oam_common_header);
     tptr += sizeof(struct slow_oam_common_header_t);
     tlen -= sizeof(struct slow_oam_common_header_t);
 
@@ -491,20 +532,36 @@ slow_oam_print(netdissect_options *ndo,
     case SLOW_OAM_CODE_INFO:
         while (tlen > 0) {
             ptr.slow_oam_tlv_header = (const struct slow_oam_tlv_header_t *)tptr;
+            if (tlen < sizeof(*ptr.slow_oam_tlv_header))
+                goto tooshort;
+            ND_TCHECK(*ptr.slow_oam_tlv_header);
             ND_PRINT((ndo, "\n\t  %s Information Type (%u), length %u",
                    tok2str(slow_oam_info_type_values, "Reserved",
                            ptr.slow_oam_tlv_header->type),
                    ptr.slow_oam_tlv_header->type,
                    ptr.slow_oam_tlv_header->length));
 
+            if (ptr.slow_oam_tlv_header->type == SLOW_OAM_INFO_TYPE_END_OF_TLV) {
+                /*
+                 * As IEEE Std 802.3-2015 says for the End of TLV Marker,
+                 * "(the length and value of the Type 0x00 TLV can be ignored)".
+                 */
+                return;
+            }
+
+            /* length includes the type and length fields */
+            if (ptr.slow_oam_tlv_header->length < sizeof(struct slow_oam_tlv_header_t)) {
+                ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be >= %u",
+                       (u_int)sizeof(struct slow_oam_tlv_header_t)));
+                return;
+            }
+
+            if (tlen < ptr.slow_oam_tlv_header->length)
+                goto tooshort;
+            ND_TCHECK2(*tptr, ptr.slow_oam_tlv_header->length);
+
             hexdump = FALSE;
             switch (ptr.slow_oam_tlv_header->type) {
-            case SLOW_OAM_INFO_TYPE_END_OF_TLV:
-                if (ptr.slow_oam_tlv_header->length != 0) {
-                    ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be 0"));
-                }
-                return;
-
             case SLOW_OAM_INFO_TYPE_LOCAL: /* identical format - fall through */
             case SLOW_OAM_INFO_TYPE_REMOTE:
                 tlv.slow_oam_info = (const struct slow_oam_info_t *)tptr;
@@ -513,7 +570,8 @@ slow_oam_print(netdissect_options *ndo,
                     sizeof(struct slow_oam_info_t)) {
                     ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be %lu",
                            (unsigned long) sizeof(struct slow_oam_info_t)));
-                    return;
+                    hexdump = TRUE;
+                    goto badlength_code_info;
                 }
 
                 ND_PRINT((ndo, "\n\t    OAM-Version %u, Revision %u",
@@ -546,11 +604,7 @@ slow_oam_print(netdissect_options *ndo,
                 break;
             }
 
-            /* infinite loop check */
-            if (!ptr.slow_oam_tlv_header->length) {
-                return;
-            }
-
+        badlength_code_info:
             /* do we also want to see a hex dump ? */
             if (ndo->ndo_vflag > 1 || hexdump==TRUE) {
                 print_unknown_data(ndo, tptr, "\n\t  ",
@@ -563,22 +617,47 @@ slow_oam_print(netdissect_options *ndo,
         break;
 
     case SLOW_OAM_CODE_EVENT_NOTIF:
+        /* Sequence number */
+        if (tlen < 2)
+            goto tooshort;
+        ND_TCHECK2(*tptr, 2);
+        ND_PRINT((ndo, "\n\t  Sequence Number %u", EXTRACT_16BITS(tptr)));
+        tlen -= 2;
+        tptr += 2;
+
+        /* TLVs */
         while (tlen > 0) {
             ptr.slow_oam_tlv_header = (const struct slow_oam_tlv_header_t *)tptr;
+            if (tlen < sizeof(*ptr.slow_oam_tlv_header))
+                goto tooshort;
+            ND_TCHECK(*ptr.slow_oam_tlv_header);
             ND_PRINT((ndo, "\n\t  %s Link Event Type (%u), length %u",
                    tok2str(slow_oam_link_event_values, "Reserved",
                            ptr.slow_oam_tlv_header->type),
                    ptr.slow_oam_tlv_header->type,
                    ptr.slow_oam_tlv_header->length));
 
+            if (ptr.slow_oam_tlv_header->type == SLOW_OAM_INFO_TYPE_END_OF_TLV) {
+                /*
+                 * As IEEE Std 802.3-2015 says for the End of TLV Marker,
+                 * "(the length and value of the Type 0x00 TLV can be ignored)".
+                 */
+                return;
+            }
+
+            /* length includes the type and length fields */
+            if (ptr.slow_oam_tlv_header->length < sizeof(struct slow_oam_tlv_header_t)) {
+                ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be >= %u",
+                       (u_int)sizeof(struct slow_oam_tlv_header_t)));
+                return;
+            }
+
+            if (tlen < ptr.slow_oam_tlv_header->length)
+                goto tooshort;
+            ND_TCHECK2(*tptr, ptr.slow_oam_tlv_header->length);
+
             hexdump = FALSE;
             switch (ptr.slow_oam_tlv_header->type) {
-            case SLOW_OAM_LINK_EVENT_END_OF_TLV:
-                if (ptr.slow_oam_tlv_header->length != 0) {
-                    ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be 0"));
-                }
-                return;
-
             case SLOW_OAM_LINK_EVENT_ERR_SYM_PER: /* identical format - fall through */
             case SLOW_OAM_LINK_EVENT_ERR_FRM:
             case SLOW_OAM_LINK_EVENT_ERR_FRM_PER:
@@ -589,7 +668,8 @@ slow_oam_print(netdissect_options *ndo,
                     sizeof(struct slow_oam_link_event_t)) {
                     ND_PRINT((ndo, "\n\t    ERROR: illegal length - should be %lu",
                            (unsigned long) sizeof(struct slow_oam_link_event_t)));
-                    return;
+                    hexdump = TRUE;
+                    goto badlength_event_notif;
                 }
 
                 ND_PRINT((ndo, "\n\t    Timestamp %u ms, Errored Window %" PRIu64
@@ -614,11 +694,7 @@ slow_oam_print(netdissect_options *ndo,
                 break;
             }
 
-            /* infinite loop check */
-            if (!ptr.slow_oam_tlv_header->length) {
-                return;
-            }
-
+        badlength_event_notif:
             /* do we also want to see a hex dump ? */
             if (ndo->ndo_vflag > 1 || hexdump==TRUE) {
                 print_unknown_data(ndo, tptr, "\n\t  ",
@@ -632,13 +708,16 @@ slow_oam_print(netdissect_options *ndo,
 
     case SLOW_OAM_CODE_LOOPBACK_CTRL:
         tlv.slow_oam_loopbackctrl = (const struct slow_oam_loopbackctrl_t *)tptr;
+        if (tlen < sizeof(*tlv.slow_oam_loopbackctrl))
+            goto tooshort;
+        ND_TCHECK(*tlv.slow_oam_loopbackctrl);
         ND_PRINT((ndo, "\n\t  Command %s (%u)",
                tok2str(slow_oam_loopbackctrl_cmd_values,
                        "Unknown",
                        tlv.slow_oam_loopbackctrl->command),
                tlv.slow_oam_loopbackctrl->command));
-               tptr ++;
-               tlen --;
+        tptr ++;
+        tlen --;
         break;
 
         /*
@@ -655,4 +734,11 @@ slow_oam_print(netdissect_options *ndo,
         break;
     }
     return;
+
+tooshort:
+    ND_PRINT((ndo, "\n\t\t packet is too short"));
+    return;
+
+trunc:
+    ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
 }

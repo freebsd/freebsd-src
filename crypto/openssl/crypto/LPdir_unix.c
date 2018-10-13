@@ -1,9 +1,17 @@
 /*
- * $LP: LPlib/source/LPdir_unix.c,v 1.11 2004/09/23 22:07:22 _cvs_levitte Exp
- * $
+ * Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
+
 /*
- * Copyright (c) 2004, Richard Levitte <richard@levitte.org>
+ * This file is dual-licensed and is also available under the following
+ * terms:
+ *
+ * Copyright (c) 2004, 2018, Richard Levitte <richard@levitte.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +46,9 @@
 #ifndef LPDIR_H
 # include "LPdir.h"
 #endif
+#ifdef __VMS
+# include <ctype.h>
+#endif
 
 /*
  * The POSIXly macro for the maximum number of characters in a file path is
@@ -65,6 +76,10 @@
 struct LP_dir_context_st {
     DIR *dir;
     char entry_name[LP_ENTRY_SIZE + 1];
+#ifdef __VMS
+    int expect_file_generations;
+    char previous_entry_name[LP_ENTRY_SIZE + 1];
+#endif
 };
 
 const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
@@ -78,12 +93,21 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 
     errno = 0;
     if (*ctx == NULL) {
-        *ctx = (LP_DIR_CTX *)malloc(sizeof(LP_DIR_CTX));
+        *ctx = malloc(sizeof(**ctx));
         if (*ctx == NULL) {
             errno = ENOMEM;
             return 0;
         }
-        memset(*ctx, '\0', sizeof(LP_DIR_CTX));
+        memset(*ctx, 0, sizeof(**ctx));
+
+#ifdef __VMS
+        {
+            char c = directory[strlen(directory) - 1];
+
+            if (c == ']' || c == '>' || c == ':')
+                (*ctx)->expect_file_generations = 1;
+        }
+#endif
 
         (*ctx)->dir = opendir(directory);
         if ((*ctx)->dir == NULL) {
@@ -95,6 +119,13 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
         }
     }
 
+#ifdef __VMS
+    strncpy((*ctx)->previous_entry_name, (*ctx)->entry_name,
+            sizeof((*ctx)->previous_entry_name));
+
+ again:
+#endif
+
     direntry = readdir((*ctx)->dir);
     if (direntry == NULL) {
         return 0;
@@ -103,6 +134,18 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
     strncpy((*ctx)->entry_name, direntry->d_name,
             sizeof((*ctx)->entry_name) - 1);
     (*ctx)->entry_name[sizeof((*ctx)->entry_name) - 1] = '\0';
+#ifdef __VMS
+    if ((*ctx)->expect_file_generations) {
+        char *p = (*ctx)->entry_name + strlen((*ctx)->entry_name);
+
+        while(p > (*ctx)->entry_name && isdigit(p[-1]))
+            p--;
+        if (p > (*ctx)->entry_name && p[-1] == ';')
+            p[-1] = '\0';
+        if (strcasecmp((*ctx)->entry_name, (*ctx)->previous_entry_name) == 0)
+            goto again;
+    }
+#endif
     return (*ctx)->entry_name;
 }
 

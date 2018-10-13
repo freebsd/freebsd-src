@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008
  * 	Swinburne University of Technology, Melbourne, Australia.
  *
@@ -25,7 +27,7 @@
  */
 
 /*
- * Alias_sctp forms part of the libalias kernel module to handle 
+ * Alias_sctp forms part of the libalias kernel module to handle
  * Network Address Translation (NAT) for the SCTP protocol.
  *
  *  This software was developed by David A. Hayes and Jason But
@@ -37,13 +39,13 @@
  * proposed by Jason But and Grenville Armitage:
  * http://caia.swin.edu.au/urp/sonata/
  *
- * 
+ *
  * This project has been made possible in part by a grant from
  * the Cisco University Research Program Fund at Community
  * Foundation Silicon Valley.
  *
  */
-/** @mainpage 
+/** @mainpage
  * Alias_sctp is part of the SONATA (http://caia.swin.edu.au/urp/sonata) project
  * to develop and release a BSD licensed implementation of a Network Address
  * Translation (NAT) module that supports the Stream Control Transmission
@@ -174,7 +176,7 @@ static void SctpAliasLog(const char *format, ...);
  *
  * Calls the higher level ShowAliasStats() in alias_db.c which logs all current
  * statistics about the libalias instance - including SCTP statistics
- * 
+ *
  * @param la Pointer to the libalias instance
  */
 void SctpShowAliasStats(struct libalias *la);
@@ -185,7 +187,7 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 /* Use kernel allocator. */
 #ifdef _SYS_MALLOC_H_
 #define	sn_malloc(x)	malloc(x, M_SCTPNAT, M_NOWAIT|M_ZERO)
-#define	sn_calloc(n,x)	sn_malloc(x * n)
+#define	sn_calloc(n,x)	mallocarray((n), (x), M_SCTPNAT, M_NOWAIT|M_ZERO)
 #define	sn_free(x)	free(x, M_SCTPNAT)
 #endif// #ifdef _SYS_MALLOC_H_
 
@@ -259,7 +261,7 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
  * Define various log levels and a macro to call specified log functions only if
  * the current log level (sysctl_log_level) matches the specified level @{
  */
-#define	SN_LOG_LOW	  0	
+#define	SN_LOG_LOW	  0
 #define SN_LOG_EVENT      1
 #define	SN_LOG_INFO	  2
 #define	SN_LOG_DETAIL	  3
@@ -420,9 +422,9 @@ int sysctl_chg_loglevel(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &level, 0, req);
 	if (error) return (error);
 
-	sysctl_log_level = (level > SN_LOG_DEBUG_MAX)?(SN_LOG_DEBUG_MAX):(level);
-	sysctl_log_level = (level < SN_LOG_LOW)?(SN_LOG_LOW):(level);
-
+	level = (level > SN_LOG_DEBUG_MAX) ? (SN_LOG_DEBUG_MAX) : (level);
+	level = (level < SN_LOG_LOW) ? (SN_LOG_LOW) : (level);
+	sysctl_log_level = level;
 	return (0);
 }
 
@@ -441,12 +443,11 @@ int sysctl_chg_timer(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &timer, 0, req);
 	if (error) return (error);
 
-	timer = (timer > SN_MAX_TIMER)?(SN_MAX_TIMER):(timer);
+	timer = (timer > SN_MAX_TIMER) ? (SN_MAX_TIMER) : (timer);
 
-	if (((u_int *)arg1) != &sysctl_holddown_timer)
-	    {
-		    timer = (timer < SN_MIN_TIMER)?(SN_MIN_TIMER):(timer);
-	    }
+	if (((u_int *)arg1) != &sysctl_holddown_timer) {
+		timer = (timer < SN_MIN_TIMER) ? (SN_MIN_TIMER) : (timer);
+	}
 
 	*(u_int *)arg1 = timer;
 
@@ -470,11 +471,11 @@ int sysctl_chg_hashtable_size(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &size, 0, req);
 	if (error) return (error);
 
-	size = (size < SN_MIN_HASH_SIZE)?(SN_MIN_HASH_SIZE):((size > SN_MAX_HASH_SIZE)?(SN_MAX_HASH_SIZE):(size));
+	size = (size < SN_MIN_HASH_SIZE) ? (SN_MIN_HASH_SIZE) : ((size > SN_MAX_HASH_SIZE) ? (SN_MAX_HASH_SIZE) : (size));
 
 	size |= 0x00000001; /* make odd */
 
-	for(;(((size % 3) == 0) || ((size % 5) == 0) || ((size % 7) == 0) || ((size % 11) == 0)); size+=2);
+	for (;(((size % 3) == 0) || ((size % 5) == 0) || ((size % 7) == 0) || ((size % 11) == 0)); size+=2);
 	sysctl_hashtable_size = size;
 
 	return (0);
@@ -483,7 +484,7 @@ int sysctl_chg_hashtable_size(SYSCTL_HANDLER_ARGS)
 /** @ingroup sysctl
  * @brief sysctl callback for changing net.inet.ip.alias.sctp.error_on_ootb
  *
- * Updates the error_on_clash sysctl variable. 
+ * Updates the error_on_clash sysctl variable.
  * If set to 0, no ErrorM will be sent if there is a look up table clash
  * If set to 1, an ErrorM is sent only to the local side
  * If set to 2, an ErrorM is sent to the local side and global side if there is
@@ -538,16 +539,16 @@ int sysctl_chg_initialising_chunk_proc_limit(SYSCTL_HANDLER_ARGS)
 	if (error) return (error);
 
 	sysctl_initialising_chunk_proc_limit = (proclimit < 1) ? 1: proclimit;
-	sysctl_chunk_proc_limit = 
+	sysctl_chunk_proc_limit =
 		(sysctl_chunk_proc_limit < sysctl_initialising_chunk_proc_limit) ? sysctl_initialising_chunk_proc_limit : sysctl_chunk_proc_limit;
- 
+
 	return (0);
 }
 
 /** @ingroup sysctl
  * @brief sysctl callback for changing net.inet.ip.alias.sctp.chunk_proc_limit
  *
- * Updates the chunk_proc_limit sysctl variable. 
+ * Updates the chunk_proc_limit sysctl variable.
  * Number of chunks that should be processed to find key chunk:
  *  >= initialising_chunk_proc_limit (A high value is a DoS risk)
  */
@@ -559,7 +560,7 @@ int sysctl_chg_chunk_proc_limit(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &proclimit, 0, req);
 	if (error) return (error);
 
-	sysctl_chunk_proc_limit = 
+	sysctl_chunk_proc_limit =
 		(proclimit < sysctl_initialising_chunk_proc_limit) ? sysctl_initialising_chunk_proc_limit : proclimit;
 
 	return (0);
@@ -569,7 +570,7 @@ int sysctl_chg_chunk_proc_limit(SYSCTL_HANDLER_ARGS)
 /** @ingroup sysctl
  * @brief sysctl callback for changing net.inet.ip.alias.sctp.param_proc_limit
  *
- * Updates the param_proc_limit sysctl variable. 
+ * Updates the param_proc_limit sysctl variable.
  * Number of parameters that should be processed to find key parameters:
  *  > 1 (A high value is a DoS risk)
  */
@@ -581,7 +582,7 @@ int sysctl_chg_param_proc_limit(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &proclimit, 0, req);
 	if (error) return (error);
 
-	sysctl_param_proc_limit = 
+	sysctl_param_proc_limit =
 		(proclimit < 2) ? 2 : proclimit;
 
 	return (0);
@@ -612,9 +613,9 @@ int sysctl_chg_track_global_addresses(SYSCTL_HANDLER_ARGS)
  *                            CODE BEGINS HERE
  * ----------------------------------------------------------------------
  */
-/** 
+/**
  * @brief Initialises the SCTP NAT Implementation
- * 
+ *
  * Creates the look-up tables and the timer queue and initialises all state
  * variables
  *
@@ -648,7 +649,7 @@ void AliasSctpInit(struct libalias *la)
 	la->sctpLinkCount = 0;
 }
 
-/** 
+/**
  * @brief Cleans-up the SCTP NAT Implementation prior to unloading
  *
  * Removes all entries from the timer queue, freeing associations as it goes.
@@ -703,7 +704,7 @@ void AliasSctpTerm(struct libalias *la)
  * @param la Pointer to the relevant libalias instance
  * @param pip Pointer to IP packet to process
  * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
- * 
+ *
  * @return  PKT_ALIAS_OK | PKT_ALIAS_IGNORE | PKT_ALIAS_ERROR
  */
 int
@@ -715,10 +716,10 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
 
 	if ((direction != SN_TO_LOCAL) && (direction != SN_TO_GLOBAL)) {
 		SctpAliasLog("ERROR: Invalid direction\n");
-		return(PKT_ALIAS_ERROR);
+		return (PKT_ALIAS_ERROR);
 	}
 
-	sctp_CheckTimers(la); /* Check timers */ 
+	sctp_CheckTimers(la); /* Check timers */
 
 	/* Parse the packet */
 	rtnval = sctp_PktParser(la, direction, pip, &msg, &assoc); //using *char (change to mbuf when get code from paolo)
@@ -733,24 +734,24 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
 		}
 		SN_LOG(SN_LOG_EVENT,
 		    logsctperror("SN_PARSE_ERROR", msg.sctp_hdr->v_tag, rtnval, direction));
-		return(PKT_ALIAS_ERROR);
+		return (PKT_ALIAS_ERROR);
 	case SN_PARSE_ERROR_PARTIALLOOKUP:
 		if (sysctl_error_on_ootb > SN_LOCALandPARTIAL_ERROR_ON_OOTB) {
 			SN_LOG(SN_LOG_EVENT,
 			    logsctperror("SN_PARSE_ERROR", msg.sctp_hdr->v_tag, rtnval, direction));
-			return(PKT_ALIAS_ERROR);
+			return (PKT_ALIAS_ERROR);
 		}
 	case SN_PARSE_ERROR_LOOKUP:
 		if (sysctl_error_on_ootb == SN_ERROR_ON_OOTB ||
 		    (sysctl_error_on_ootb == SN_LOCALandPARTIAL_ERROR_ON_OOTB && direction == SN_TO_LOCAL) ||
 		    (sysctl_error_on_ootb == SN_LOCAL_ERROR_ON_OOTB && direction == SN_TO_GLOBAL)) {
 			TxAbortErrorM(la, &msg, assoc, SN_REFLECT_ERROR, direction); /*NB assoc=NULL */
-			return(PKT_ALIAS_RESPOND);
+			return (PKT_ALIAS_RESPOND);
 		}
 	default:
 		SN_LOG(SN_LOG_EVENT,
 		    logsctperror("SN_PARSE_ERROR", msg.sctp_hdr->v_tag, rtnval, direction));
-		return(PKT_ALIAS_ERROR);
+		return (PKT_ALIAS_ERROR);
 	}
 
 	SN_LOG(SN_LOG_DETAIL,
@@ -768,9 +769,9 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
 		);
 	SN_LOG(SN_LOG_DEBUG, logTimerQ(la));
 
-	switch(rtnval){
+	switch (rtnval) {
 	case SN_NAT_PKT:
-		switch(direction) {
+		switch (direction) {
 		case SN_TO_LOCAL:
 			DifferentialChecksum(&(msg.ip_hdr->ip_sum),
 			    &(assoc->l_addr), &(msg.ip_hdr->ip_dst), 2);
@@ -792,7 +793,7 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
 		break;
 	case SN_REPLY_ABORT:
 	case SN_REPLY_ERROR:
-	case SN_SEND_ABORT: 
+	case SN_SEND_ABORT:
 		TxAbortErrorM(la, &msg, assoc, rtnval, direction);
 		break;
 	default:
@@ -812,22 +813,22 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
 		freeGlobalAddressList(assoc);
 		sn_free(assoc);
 	}
-	switch(rtnval) {
+	switch (rtnval) {
 	case SN_NAT_PKT:
-		return(PKT_ALIAS_OK);
+		return (PKT_ALIAS_OK);
 	case SN_SEND_ABORT:
-		return(PKT_ALIAS_OK);
+		return (PKT_ALIAS_OK);
 	case SN_REPLY_ABORT:
 	case SN_REPLY_ERROR:
 	case SN_REFLECT_ERROR:
-		return(PKT_ALIAS_RESPOND);
+		return (PKT_ALIAS_RESPOND);
 	case SN_DROP_PKT:
 	default:
-		return(PKT_ALIAS_ERROR);
+		return (PKT_ALIAS_ERROR);
 	}
 }
 
-/** 
+/**
  * @brief Send an AbortM or ErrorM
  *
  * We construct the new SCTP packet to send in place of the existing packet we
@@ -863,7 +864,7 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
 static uint32_t
 local_sctp_finalize_crc32(uint32_t crc32c)
 {
-	/* This routine is duplicated from SCTP 
+	/* This routine is duplicated from SCTP
 	 * we need to do that since it MAY be that SCTP
 	 * is NOT compiled into the kernel. The CRC32C routines
 	 * however are always available in libkern.
@@ -904,6 +905,7 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 	int ip_size = sizeof(struct ip) + sctp_size;
 	int include_error_cause = 1;
 	char tmp_ip[ip_size];
+	char addrbuf[INET_ADDRSTRLEN];
 
 	if (ntohs(sm->ip_hdr->ip_len) < ip_size) { /* short packet, cannot send error cause */
 		include_error_cause = 0;
@@ -921,7 +923,7 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 	ip->ip_hl = 5; /* 5*32 bit words */
 	ip->ip_tos = 0;
 	ip->ip_len = htons(ip_size);
-	ip->ip_id =  sm->ip_hdr->ip_id;
+	ip->ip_id = sm->ip_hdr->ip_id;
 	ip->ip_off = 0;
 	ip->ip_ttl = 255;
 	ip->ip_p = IPPROTO_SCTP;
@@ -934,7 +936,7 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 	chunk_hdr->chunk_type = (sndrply & SN_TX_ABORT) ? SCTP_ABORT_ASSOCIATION : SCTP_OPERATION_ERROR;
 	chunk_hdr->chunk_flags = SCTP_MIDDLEBOX_FLAG;
 	if (include_error_cause) {
-		error_cause->code = htons((sndrply & SN_REFLECT_ERROR) ? SCTP_MISSING_NAT :  SCTP_NAT_TABLE_COLLISION);
+		error_cause->code = htons((sndrply & SN_REFLECT_ERROR) ? SCTP_MISSING_NAT : SCTP_NAT_TABLE_COLLISION);
 		error_cause->length = htons(sizeof(struct sctp_error_cause));
 		chunk_hdr->chunk_length = htons(sizeof(*chunk_hdr) + sizeof(struct sctp_error_cause));
 	} else {
@@ -942,22 +944,22 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 	}
 
 	/* set specific values */
-	switch(sndrply) {
+	switch (sndrply) {
 	case SN_REFLECT_ERROR:
 		chunk_hdr->chunk_flags |= SCTP_HAD_NO_TCB; /* set Tbit */
-		sctp_hdr->v_tag =  sm->sctp_hdr->v_tag;
+		sctp_hdr->v_tag = sm->sctp_hdr->v_tag;
 		break;
 	case SN_REPLY_ERROR:
-		sctp_hdr->v_tag = (direction == SN_TO_LOCAL) ? assoc->g_vtag :  assoc->l_vtag ;
+		sctp_hdr->v_tag = (direction == SN_TO_LOCAL) ? assoc->g_vtag : assoc->l_vtag ;
 		break;
 	case SN_SEND_ABORT:
-		sctp_hdr->v_tag =  sm->sctp_hdr->v_tag;
+		sctp_hdr->v_tag = sm->sctp_hdr->v_tag;
 		break;
 	case SN_REPLY_ABORT:
 		sctp_hdr->v_tag = sm->sctpchnk.Init->initiate_tag;
 		break;
 	}
-  
+
 	/* Set send/reply values */
 	if (sndrply == SN_SEND_ABORT) { /*pass through NAT */
 		ip->ip_src = (direction == SN_TO_LOCAL) ? sm->ip_hdr->ip_src : assoc->a_addr;
@@ -970,10 +972,10 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 		sctp_hdr->src_port = sm->sctp_hdr->dest_port;
 		sctp_hdr->dest_port = sm->sctp_hdr->src_port;
 	}
-  
+
 	/* Calculate IP header checksum */
 	ip->ip_sum = in_cksum_hdr(ip);
-  
+
 	/* calculate SCTP header CRC32 */
 	sctp_hdr->checksum = 0;
 	sctp_hdr->checksum = local_sctp_finalize_crc32(calculate_crc32c(0xffffffff, (unsigned char *) sctp_hdr, sctp_size));
@@ -984,7 +986,8 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 		((sndrply == SN_SEND_ABORT) ? "Sending" : "Replying"),
 		((sndrply & SN_TX_ERROR) ? "ErrorM" : "AbortM"),
 		(include_error_cause ? ntohs(error_cause->code) : 0),
-		inet_ntoa(ip->ip_dst),ntohs(sctp_hdr->dest_port), 
+		inet_ntoa_r(ip->ip_dst, INET_NTOA_BUF(addrbuf)),
+		ntohs(sctp_hdr->dest_port),
 		ntohl(sctp_hdr->v_tag), ntohl(sctp_hdr->checksum)));
 }
 
@@ -999,18 +1002,18 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
  */
 /** @ingroup packet_parser
  * @brief Parses SCTP packets for the key SCTP chunk that will be processed
- * 
+ *
  * This module parses SCTP packets for the key SCTP chunk that will be processed
  * The module completes the sctp_nat_msg structure and either retrieves the
  * relevant (existing) stored association from the Hash Tables or creates a new
  * association entity with state SN_ID
  *
  * @param la Pointer to the relevant libalias instance
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
- * @param pip 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
+ * @param pip
  * @param sm Pointer to sctp message information
  * @param passoc Pointer to the association this SCTP Message belongs to
- * 
+ *
  * @return SN_PARSE_OK | SN_PARSE_ERROR_*
  */
 static int
@@ -1045,26 +1048,26 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 	/* Check SCTP header length and move to first chunk */
 	if (bytes_left < sizeof(struct sctphdr)) {
 		sm->sctp_hdr = NULL;
-		return(SN_PARSE_ERROR_IPSHL); /* packet not long enough*/
+		return (SN_PARSE_ERROR_IPSHL); /* packet not long enough*/
 	}
 
 	sm->sctp_hdr = sctp_hdr = (struct sctphdr *) ip_next(pip);
 	bytes_left -= sizeof(struct sctphdr);
-  
+
 	/* Check for valid ports (zero valued ports would find partially initialised associations */
 	if (sctp_hdr->src_port == 0 || sctp_hdr->dest_port == 0)
-		return(SN_PARSE_ERROR_PORT);
+		return (SN_PARSE_ERROR_PORT);
 
 	/* Check length of first chunk */
 	if (bytes_left < SN_MIN_CHUNK_SIZE) /* malformed chunk - could cause endless loop*/
-		return(SN_PARSE_ERROR_CHHL); /* packet not long enough for this chunk */
-  
+		return (SN_PARSE_ERROR_CHHL); /* packet not long enough for this chunk */
+
 	/* First chunk */
 	chunk_hdr = SN_SCTP_FIRSTCHUNK(sctp_hdr);
-  
+
 	chunk_length = SCTP_SIZE32(ntohs(chunk_hdr->chunk_length));
 	if ((chunk_length < SN_MIN_CHUNK_SIZE) || (chunk_length > bytes_left)) /* malformed chunk - could cause endless loop*/
-		return(SN_PARSE_ERROR_CHHL);
+		return (SN_PARSE_ERROR_CHHL);
 
 	if ((chunk_hdr->chunk_flags & SCTP_HAD_NO_TCB) &&
 	    ((chunk_hdr->chunk_type == SCTP_ABORT_ASSOCIATION) ||
@@ -1087,43 +1090,43 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 	sm->msg = SN_SCTP_OTHER;/* Initialise to largest value*/
 	sm->chunk_length = 0; /* only care about length for key chunks */
 	while (IS_SCTP_CONTROL(chunk_hdr)) {
-		switch(chunk_hdr->chunk_type) {
+		switch (chunk_hdr->chunk_type) {
 		case SCTP_INITIATION:
 			if (chunk_length < sizeof(struct sctp_init_chunk)) /* malformed chunk*/
-				return(SN_PARSE_ERROR_CHHL);
+				return (SN_PARSE_ERROR_CHHL);
 			sm->msg = SN_SCTP_INIT;
 			sm->sctpchnk.Init = (struct sctp_init *) ((char *) chunk_hdr + sizeof(struct sctp_chunkhdr));
 			sm->chunk_length = chunk_length;
 			/* if no existing association, create a new one */
 			if (*passoc == NULL) {
-				if (sctp_hdr->v_tag == 0){ //Init requires vtag=0
+				if (sctp_hdr->v_tag == 0) { //Init requires vtag=0
 					*passoc = (struct sctp_nat_assoc *) sn_malloc(sizeof(struct sctp_nat_assoc));
-					if (*passoc == NULL) {/* out of resources */ 
-						return(SN_PARSE_ERROR_AS_MALLOC);
+					if (*passoc == NULL) {/* out of resources */
+						return (SN_PARSE_ERROR_AS_MALLOC);
 					}
-					/* Initialise association - malloc initialises memory to zeros */
+					/* Initialize association - sn_malloc initializes memory to zeros */
 					(*passoc)->state = SN_ID;
 					LIST_INIT(&((*passoc)->Gaddr)); /* always initialise to avoid memory problems */
 					(*passoc)->TableRegister = SN_NULL_TBL;
-					return(SN_PARSE_OK);
+					return (SN_PARSE_OK);
 				}
-				return(SN_PARSE_ERROR_VTAG);
+				return (SN_PARSE_ERROR_VTAG);
 			}
-			return(SN_PARSE_ERROR_LOOKUP);
+			return (SN_PARSE_ERROR_LOOKUP);
 		case SCTP_INITIATION_ACK:
 			if (chunk_length < sizeof(struct sctp_init_ack_chunk)) /* malformed chunk*/
-				return(SN_PARSE_ERROR_CHHL);
+				return (SN_PARSE_ERROR_CHHL);
 			sm->msg = SN_SCTP_INITACK;
 			sm->sctpchnk.InitAck = (struct sctp_init_ack *) ((char *) chunk_hdr + sizeof(struct sctp_chunkhdr));
 			sm->chunk_length = chunk_length;
-			return ((*passoc == NULL)?(SN_PARSE_ERROR_LOOKUP):(SN_PARSE_OK));
+			return ((*passoc == NULL) ? (SN_PARSE_ERROR_LOOKUP) : (SN_PARSE_OK));
 		case SCTP_ABORT_ASSOCIATION: /* access only minimum sized chunk */
 			sm->msg = SN_SCTP_ABORT;
 			sm->chunk_length = chunk_length;
-			return ((*passoc == NULL)?(SN_PARSE_ERROR_LOOKUP_ABORT):(SN_PARSE_OK));
+			return ((*passoc == NULL) ? (SN_PARSE_ERROR_LOOKUP_ABORT) : (SN_PARSE_OK));
 		case SCTP_SHUTDOWN_ACK:
 			if (chunk_length < sizeof(struct sctp_shutdown_ack_chunk)) /* malformed chunk*/
-				return(SN_PARSE_ERROR_CHHL);
+				return (SN_PARSE_ERROR_CHHL);
 			if (sm->msg > SN_SCTP_SHUTACK) {
 				sm->msg = SN_SCTP_SHUTACK;
 				sm->chunk_length = chunk_length;
@@ -1134,11 +1137,11 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 				sm->msg = SN_SCTP_SHUTCOMP;
 				sm->chunk_length = chunk_length;
 			}
-			return ((*passoc == NULL)?(SN_PARSE_ERROR_LOOKUP):(SN_PARSE_OK));
+			return ((*passoc == NULL) ? (SN_PARSE_ERROR_LOOKUP) : (SN_PARSE_OK));
 		case SCTP_ASCONF:
 			if (sm->msg > SN_SCTP_ASCONF) {
 				if (chunk_length < (sizeof(struct  sctp_asconf_chunk) + sizeof(struct  sctp_ipv4addr_param))) /* malformed chunk*/
-					return(SN_PARSE_ERROR_CHHL);
+					return (SN_PARSE_ERROR_CHHL);
 				//leave parameter searching to later, if required
 				param_hdr = (struct sctp_paramhdr *) ((char *) chunk_hdr + sizeof(struct sctp_asconf_chunk)); /*compulsory IP parameter*/
 				if (ntohs(param_hdr->param_type) == SCTP_IPV4_ADDRESS) {
@@ -1147,38 +1150,38 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 						ipv4addr.s_addr = ((struct sctp_ipv4addr_param *) param_hdr)->addr;
 						*passoc = FindSctpGlobal(la, ipv4addr, sctp_hdr->v_tag, sctp_hdr->src_port, sctp_hdr->dest_port, &partial_match);
 					}
-					param_hdr = (struct sctp_paramhdr *) 
+					param_hdr = (struct sctp_paramhdr *)
 						((char *) param_hdr + sizeof(struct sctp_ipv4addr_param)); /*asconf's compulsory address parameter */
 					sm->chunk_length = chunk_length - sizeof(struct  sctp_asconf_chunk) - sizeof(struct  sctp_ipv4addr_param); /* rest of chunk */
 				} else {
 					if (chunk_length < (sizeof(struct  sctp_asconf_chunk) + sizeof(struct  sctp_ipv6addr_param))) /* malformed chunk*/
-						return(SN_PARSE_ERROR_CHHL);
-					param_hdr = (struct sctp_paramhdr *) 
-						((char *) param_hdr + sizeof(struct sctp_ipv6addr_param)); /*asconf's compulsory address parameter */	  
+						return (SN_PARSE_ERROR_CHHL);
+					param_hdr = (struct sctp_paramhdr *)
+						((char *) param_hdr + sizeof(struct sctp_ipv6addr_param)); /*asconf's compulsory address parameter */
 					sm->chunk_length = chunk_length - sizeof(struct  sctp_asconf_chunk) - sizeof(struct  sctp_ipv6addr_param); /* rest of chunk */
 				}
 				sm->msg = SN_SCTP_ASCONF;
 				sm->sctpchnk.Asconf = param_hdr;
-	
+
 				if (*passoc == NULL) { /* AddIP with no association */
 					*passoc = (struct sctp_nat_assoc *) sn_malloc(sizeof(struct sctp_nat_assoc));
-					if (*passoc == NULL) {/* out of resources */ 
-						return(SN_PARSE_ERROR_AS_MALLOC);
+					if (*passoc == NULL) {/* out of resources */
+						return (SN_PARSE_ERROR_AS_MALLOC);
 					}
-					/* Initialise association  - malloc initialises memory to zeros */
+					/* Initialize association  - sn_malloc initializes memory to zeros */
 					(*passoc)->state = SN_ID;
 					LIST_INIT(&((*passoc)->Gaddr)); /* always initialise to avoid memory problems */
 					(*passoc)->TableRegister = SN_NULL_TBL;
-					return(SN_PARSE_OK);
+					return (SN_PARSE_OK);
 				}
 			}
 			break;
 		case SCTP_ASCONF_ACK:
 			if (sm->msg > SN_SCTP_ASCONFACK) {
 				if (chunk_length < sizeof(struct  sctp_asconf_ack_chunk)) /* malformed chunk*/
-					return(SN_PARSE_ERROR_CHHL);
+					return (SN_PARSE_ERROR_CHHL);
 				//leave parameter searching to later, if required
-				param_hdr = (struct sctp_paramhdr *) ((char *) chunk_hdr 
+				param_hdr = (struct sctp_paramhdr *) ((char *) chunk_hdr
 				    + sizeof(struct sctp_asconf_ack_chunk));
 				sm->msg = SN_SCTP_ASCONFACK;
 				sm->sctpchnk.Asconf = param_hdr;
@@ -1191,33 +1194,33 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 
 		/* if no association is found exit - we need to find an Init or AddIP within sysctl_initialising_chunk_proc_limit */
 		if ((*passoc == NULL) && (chunk_count >= sysctl_initialising_chunk_proc_limit))
-			return(SN_PARSE_ERROR_LOOKUP);
+			return (SN_PARSE_ERROR_LOOKUP);
 
 		/* finished with this chunk, on to the next chunk*/
 		bytes_left-= chunk_length;
 
 		/* Is this the end of the packet ? */
 		if (bytes_left == 0)
-			return (*passoc == NULL)?(SN_PARSE_ERROR_LOOKUP):(SN_PARSE_OK);
+			return (*passoc == NULL) ? (SN_PARSE_ERROR_LOOKUP) : (SN_PARSE_OK);
 
 		/* Are there enough bytes in packet to at least retrieve length of next chunk ? */
 		if (bytes_left < SN_MIN_CHUNK_SIZE)
-			return(SN_PARSE_ERROR_CHHL);
+			return (SN_PARSE_ERROR_CHHL);
 
 		chunk_hdr = SN_SCTP_NEXTCHUNK(chunk_hdr);
 
 		/* Is the chunk long enough to not cause endless look and are there enough bytes in packet to read the chunk ? */
 		chunk_length = SCTP_SIZE32(ntohs(chunk_hdr->chunk_length));
 		if ((chunk_length < SN_MIN_CHUNK_SIZE) || (chunk_length > bytes_left))
-			return(SN_PARSE_ERROR_CHHL);
-		if(++chunk_count > sysctl_chunk_proc_limit)
-			return(SN_PARSE_OK); /* limit for processing chunks, take what we get */
+			return (SN_PARSE_ERROR_CHHL);
+		if (++chunk_count > sysctl_chunk_proc_limit)
+			return (SN_PARSE_OK); /* limit for processing chunks, take what we get */
 	}
 
 	if (*passoc == NULL)
-		return (partial_match)?(SN_PARSE_ERROR_PARTIALLOOKUP):(SN_PARSE_ERROR_LOOKUP);
+		return (partial_match) ? (SN_PARSE_ERROR_PARTIALLOOKUP) : (SN_PARSE_ERROR_LOOKUP);
 	else
-		return(SN_PARSE_OK);
+		return (SN_PARSE_OK);
 }
 
 /** @ingroup packet_parser
@@ -1225,7 +1228,7 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
  *
  * GetAsconfVtags scans an Asconf Chunk for the vtags parameter, and then
  * extracts the vtags.
- * 
+ *
  * GetAsconfVtags is not called from within sctp_PktParser. It is called only
  * from within ID_process when an AddIP has been received.
  *
@@ -1233,9 +1236,9 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
  * @param sm Pointer to sctp message information
  * @param l_vtag Pointer to the local vtag in the association this SCTP Message belongs to
  * @param g_vtag Pointer to the local vtag in the association this SCTP Message belongs to
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
- * 
- * @return 1 - success | 0 - fail 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
+ *
+ * @return 1 - success | 0 - fail
  */
 static int
 GetAsconfVtags(struct libalias *la, struct sctp_nat_msg *sm, uint32_t *l_vtag, uint32_t *g_vtag, int direction)
@@ -1247,7 +1250,7 @@ GetAsconfVtags(struct libalias *la, struct sctp_nat_msg *sm, uint32_t *l_vtag, u
 		uint32_t local_vtag;
 		uint32_t remote_vtag;
 	}                    __attribute__((packed));
-  
+
 	struct sctp_vtag_param *vtag_param;
 	struct sctp_paramhdr *param;
 	int bytes_left;
@@ -1262,7 +1265,7 @@ GetAsconfVtags(struct libalias *la, struct sctp_nat_msg *sm, uint32_t *l_vtag, u
 	while((bytes_left >= param_size) && (bytes_left >= SN_VTAG_PARAM_SIZE)) {
 		if (ntohs(param->param_type) == SCTP_VTAG_PARAM) {
 			vtag_param = (struct sctp_vtag_param *) param;
-			switch(direction) {
+			switch (direction) {
 				/* The Internet draft is a little ambigious as to order of these vtags.
 				   We think it is this way around. If we are wrong, the order will need
 				   to be changed. */
@@ -1275,11 +1278,11 @@ GetAsconfVtags(struct libalias *la, struct sctp_nat_msg *sm, uint32_t *l_vtag, u
 				*l_vtag = vtag_param->local_vtag;
 				break;
 			}
-			return(1); /* found */
+			return (1); /* found */
 		}
 
 		bytes_left -= param_size;
-		if (bytes_left < SN_MIN_PARAM_SIZE) return(0);
+		if (bytes_left < SN_MIN_PARAM_SIZE) return (0);
 
 		param = SN_SCTP_NEXTPARAM(param);
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
@@ -1287,22 +1290,22 @@ GetAsconfVtags(struct libalias *la, struct sctp_nat_msg *sm, uint32_t *l_vtag, u
 			SN_LOG(SN_LOG_EVENT,
 			    logsctperror("Parameter parse limit exceeded (GetAsconfVtags)",
 				sm->sctp_hdr->v_tag, sysctl_param_proc_limit, direction));
-			return(0); /* not found limit exceeded*/
+			return (0); /* not found limit exceeded*/
 		}
 	}
-	return(0); /* not found */
+	return (0); /* not found */
 }
 
 /** @ingroup packet_parser
  * @brief AddGlobalIPAddresses from Init,InitAck,or AddIP packets
- * 
+ *
  * AddGlobalIPAddresses scans an SCTP chunk (in sm) for Global IP addresses, and
  * adds them.
  *
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
- * 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
+ *
  */
 static void
 AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int direction)
@@ -1315,7 +1318,7 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 	int param_size;
 	int param_count, addr_param_count = 0;
 
-	switch(direction) {
+	switch (direction) {
 	case SN_TO_GLOBAL: /* does not contain global addresses */
 		g_addr = sm->ip_hdr->ip_dst;
 		bytes_left = 0; /* force exit */
@@ -1323,7 +1326,7 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 	case SN_TO_LOCAL:
 		g_addr = sm->ip_hdr->ip_src;
 		param_count = 1;
-		switch(sm->msg) {
+		switch (sm->msg) {
 		case SN_SCTP_INIT:
 			bytes_left = sm->chunk_length - sizeof(struct sctp_init_chunk);
 			param = (struct sctp_paramhdr *)((char *)sm->sctpchnk.Init + sizeof(struct sctp_init));
@@ -1338,16 +1341,16 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 			break;
 		}
 	}
-	if (bytes_left >= SN_MIN_PARAM_SIZE)	
+	if (bytes_left >= SN_MIN_PARAM_SIZE)
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
 	else
 		param_size = bytes_left+1; /* force skip loop */
-  
-	if ((assoc->state == SN_ID) && ((sm->msg == SN_SCTP_INIT) || (bytes_left < SN_MIN_PARAM_SIZE))) {/* add pkt address */ 
+
+	if ((assoc->state == SN_ID) && ((sm->msg == SN_SCTP_INIT) || (bytes_left < SN_MIN_PARAM_SIZE))) {/* add pkt address */
 		G_Addr = (struct sctp_GlobalAddress *) sn_malloc(sizeof(struct sctp_GlobalAddress));
-		if (G_Addr == NULL) {/* out of resources */ 
+		if (G_Addr == NULL) {/* out of resources */
 			SN_LOG(SN_LOG_EVENT,
-			    logsctperror("AddGlobalIPAddress: No resources for adding global address - revert to no tracking", 
+			    logsctperror("AddGlobalIPAddress: No resources for adding global address - revert to no tracking",
 				sm->sctp_hdr->v_tag,  0, direction));
 			assoc->num_Gaddr = 0; /* don't track any more for this assoc*/
 			sysctl_track_global_addresses=0;
@@ -1356,7 +1359,7 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 		G_Addr->g_addr = g_addr;
 		if (!Add_Global_Address_to_List(assoc, G_Addr))
 			SN_LOG(SN_LOG_EVENT,
-			    logsctperror("AddGlobalIPAddress: Address already in list", 
+			    logsctperror("AddGlobalIPAddress: Address already in list",
 				sm->sctp_hdr->v_tag,  assoc->num_Gaddr, direction));
 	}
 
@@ -1364,21 +1367,22 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 	while((bytes_left >= param_size) && (bytes_left >= sizeof(struct sctp_ipv4addr_param))) {
 		if (assoc->num_Gaddr >= sysctl_track_global_addresses) {
 			SN_LOG(SN_LOG_EVENT,
-			    logsctperror("AddGlobalIPAddress: Maximum Number of addresses reached", 
+			    logsctperror("AddGlobalIPAddress: Maximum Number of addresses reached",
 				sm->sctp_hdr->v_tag,  sysctl_track_global_addresses, direction));
 			return;
 		}
-		switch(ntohs(param->param_type)) {
+		switch (ntohs(param->param_type)) {
 		case SCTP_ADD_IP_ADDRESS:
 			/* skip to address parameter - leave param_size so bytes left will be calculated properly*/
 			param = (struct sctp_paramhdr *) &((struct sctp_asconf_addrv4_param *) param)->addrp;
+			/* FALLTHROUGH */
 		case SCTP_IPV4_ADDRESS:
 			ipv4_param = (struct sctp_ipv4addr_param *) param;
 			/* add addresses to association */
 			G_Addr = (struct sctp_GlobalAddress *) sn_malloc(sizeof(struct sctp_GlobalAddress));
-			if (G_Addr == NULL) {/* out of resources */ 
+			if (G_Addr == NULL) {/* out of resources */
 				SN_LOG(SN_LOG_EVENT,
-				    logsctperror("AddGlobalIPAddress: No resources for adding global address - revert to no tracking", 
+				    logsctperror("AddGlobalIPAddress: No resources for adding global address - revert to no tracking",
 					sm->sctp_hdr->v_tag,  0, direction));
 				assoc->num_Gaddr = 0; /* don't track any more for this assoc*/
 				sysctl_track_global_addresses=0;
@@ -1390,22 +1394,22 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 				G_Addr->g_addr = g_addr;
 				if (!Add_Global_Address_to_List(assoc, G_Addr))
 					SN_LOG(SN_LOG_EVENT,
-					    logsctperror("AddGlobalIPAddress: Address already in list", 
+					    logsctperror("AddGlobalIPAddress: Address already in list",
 						sm->sctp_hdr->v_tag,  assoc->num_Gaddr, direction));
 				return; /*shouldn't be any other addresses if the zero address is given*/
 			} else {
 				G_Addr->g_addr.s_addr = ipv4_param->addr;
 				if (!Add_Global_Address_to_List(assoc, G_Addr))
 					SN_LOG(SN_LOG_EVENT,
-					    logsctperror("AddGlobalIPAddress: Address already in list", 
+					    logsctperror("AddGlobalIPAddress: Address already in list",
 						sm->sctp_hdr->v_tag,  assoc->num_Gaddr, direction));
 			}
-		} 
-    
+		}
+
 		bytes_left -= param_size;
 		if (bytes_left < SN_MIN_PARAM_SIZE)
 			break;
-    
+
 		param = SN_SCTP_NEXTPARAM(param);
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
 		if (++param_count > sysctl_param_proc_limit) {
@@ -1417,39 +1421,39 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 	}
 	if (addr_param_count == 0) {
 		SN_LOG(SN_LOG_DETAIL,
-		    logsctperror("AddGlobalIPAddress: no address parameters to add", 
+		    logsctperror("AddGlobalIPAddress: no address parameters to add",
 			sm->sctp_hdr->v_tag, assoc->num_Gaddr, direction));
 	}
 }
 
-/** 
+/**
  * @brief Add_Global_Address_to_List
  *
  * Adds a global IP address to an associations address list, if it is not
  * already there.  The first address added us usually the packet's address, and
  * is most likely to be used, so it is added at the beginning. Subsequent
  * addresses are added after this one.
- * 
+ *
  * @param assoc Pointer to the association this SCTP Message belongs to
  * @param G_addr Pointer to the global address to add
  *
- * @return 1 - success | 0 - fail 
+ * @return 1 - success | 0 - fail
  */
 static int  Add_Global_Address_to_List(struct sctp_nat_assoc *assoc,  struct sctp_GlobalAddress *G_addr)
 {
-	struct sctp_GlobalAddress *iter_G_Addr = NULL, *first_G_Addr = NULL;     
-	first_G_Addr = LIST_FIRST(&(assoc->Gaddr));  
+	struct sctp_GlobalAddress *iter_G_Addr = NULL, *first_G_Addr = NULL;
+	first_G_Addr = LIST_FIRST(&(assoc->Gaddr));
 	if (first_G_Addr == NULL) {
 		LIST_INSERT_HEAD(&(assoc->Gaddr), G_addr, list_Gaddr); /* add new address to beginning of list*/
 	} else {
 		LIST_FOREACH(iter_G_Addr, &(assoc->Gaddr), list_Gaddr) {
 			if (G_addr->g_addr.s_addr == iter_G_Addr->g_addr.s_addr)
-				return(0); /* already exists, so don't add */
+				return (0); /* already exists, so don't add */
 		}
 		LIST_INSERT_AFTER(first_G_Addr, G_addr, list_Gaddr); /* add address to end of list*/
 	}
-	assoc->num_Gaddr++;	  
-	return(1); /* success */   
+	assoc->num_Gaddr++;
+	return (1); /* success */
 }
 
 /** @ingroup packet_parser
@@ -1462,8 +1466,8 @@ static int  Add_Global_Address_to_List(struct sctp_nat_assoc *assoc,  struct sct
  *
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
- * 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
+ *
  */
 static void
 RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int direction)
@@ -1476,7 +1480,7 @@ RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int d
 	int param_size;
 	int param_count;
 
-	if(direction == SN_TO_GLOBAL)
+	if (direction == SN_TO_GLOBAL)
 		g_addr = sm->ip_hdr->ip_dst;
 	else
 		g_addr = sm->ip_hdr->ip_src;
@@ -1484,29 +1488,29 @@ RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int d
 	bytes_left = sm->chunk_length;
 	param_count = 1;
 	param = sm->sctpchnk.Asconf;
-	if (bytes_left >= SN_MIN_PARAM_SIZE) {		
+	if (bytes_left >= SN_MIN_PARAM_SIZE) {
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
 	} else {
 		SN_LOG(SN_LOG_EVENT,
-		    logsctperror("RmGlobalIPAddress: truncated packet - cannot remove IP addresses", 
+		    logsctperror("RmGlobalIPAddress: truncated packet - cannot remove IP addresses",
 			sm->sctp_hdr->v_tag, sysctl_track_global_addresses, direction));
 		return;
 	}
- 
+
 	/* step through Asconf parameters */
 	while((bytes_left >= param_size) && (bytes_left >= sizeof(struct sctp_ipv4addr_param))) {
 		if (ntohs(param->param_type) == SCTP_DEL_IP_ADDRESS) {
 			asconf_ipv4_param = (struct sctp_asconf_addrv4_param *) param;
 			if (asconf_ipv4_param->addrp.addr == INADDR_ANY) { /* remove all bar pkt address */
 				LIST_FOREACH_SAFE(G_Addr, &(assoc->Gaddr), list_Gaddr, G_Addr_tmp) {
-					if(G_Addr->g_addr.s_addr != sm->ip_hdr->ip_src.s_addr) {
+					if (G_Addr->g_addr.s_addr != sm->ip_hdr->ip_src.s_addr) {
 						if (assoc->num_Gaddr > 1) { /* only delete if more than one */
 							LIST_REMOVE(G_Addr, list_Gaddr);
 							sn_free(G_Addr);
 							assoc->num_Gaddr--;
 						} else {
 							SN_LOG(SN_LOG_EVENT,
-							    logsctperror("RmGlobalIPAddress: Request to remove last IP address (didn't)", 
+							    logsctperror("RmGlobalIPAddress: Request to remove last IP address (didn't)",
 								sm->sctp_hdr->v_tag, assoc->num_Gaddr, direction));
 						}
 					}
@@ -1514,7 +1518,7 @@ RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int d
 				return; /*shouldn't be any other addresses if the zero address is given*/
 			} else {
 				LIST_FOREACH_SAFE(G_Addr, &(assoc->Gaddr), list_Gaddr, G_Addr_tmp) {
-					if(G_Addr->g_addr.s_addr == asconf_ipv4_param->addrp.addr) {
+					if (G_Addr->g_addr.s_addr == asconf_ipv4_param->addrp.addr) {
 						if (assoc->num_Gaddr > 1) { /* only delete if more than one */
 							LIST_REMOVE(G_Addr, list_Gaddr);
 							sn_free(G_Addr);
@@ -1522,22 +1526,22 @@ RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int d
 							break; /* Since add only adds new addresses, there should be no double entries */
 						} else {
 							SN_LOG(SN_LOG_EVENT,
-							    logsctperror("RmGlobalIPAddress: Request to remove last IP address (didn't)", 
+							    logsctperror("RmGlobalIPAddress: Request to remove last IP address (didn't)",
 								sm->sctp_hdr->v_tag, assoc->num_Gaddr, direction));
 						}
 					}
 				}
 			}
-		}      
+		}
 		bytes_left -= param_size;
 		if (bytes_left == 0) return;
 		else if (bytes_left < SN_MIN_PARAM_SIZE) {
 			SN_LOG(SN_LOG_EVENT,
-			    logsctperror("RmGlobalIPAddress: truncated packet - may not have removed all IP addresses", 
+			    logsctperror("RmGlobalIPAddress: truncated packet - may not have removed all IP addresses",
 				sm->sctp_hdr->v_tag, sysctl_track_global_addresses, direction));
 			return;
 		}
-    
+
 		param = SN_SCTP_NEXTPARAM(param);
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
 		if (++param_count > sysctl_param_proc_limit) {
@@ -1564,11 +1568,11 @@ RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int d
  * Since there is currently no connection on this path, there should be no other
  * ASCONF configuration parameters outstanding, so we presume that if there is
  * an ACK that it is responding to the AddIP and activate the new association.
- * 
+ *
  * @param la Pointer to the relevant libalias instance
  * @param sm Pointer to sctp message information
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
- * 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
+ *
  * @return 1 - success | 0 - fail
  */
 static int
@@ -1583,45 +1587,45 @@ IsASCONFack(struct libalias *la, struct sctp_nat_msg *sm, int direction)
 	param = sm->sctpchnk.Asconf;
 	param_size = SCTP_SIZE32(ntohs(param->param_length));
 	if (param_size == 8)
-		return(1); /*success - default acknowledgement of everything */
+		return (1); /*success - default acknowledgement of everything */
 
 	bytes_left = sm->chunk_length;
 	if (bytes_left < param_size)
-		return(0); /* not found */
+		return (0); /* not found */
 	/* step through Asconf parameters */
 	while(bytes_left >= SN_ASCONFACK_PARAM_SIZE) {
 		if (ntohs(param->param_type) == SCTP_SUCCESS_REPORT)
-			return(1); /* success - but can't match correlation IDs - should only be one */
+			return (1); /* success - but can't match correlation IDs - should only be one */
 		/* check others just in case */
 		bytes_left -= param_size;
 		if (bytes_left >= SN_MIN_PARAM_SIZE) {
 			param = SN_SCTP_NEXTPARAM(param);
 		} else {
-			return(0);
+			return (0);
 		}
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
-		if (bytes_left < param_size) return(0);
+		if (bytes_left < param_size) return (0);
 
 		if (++param_count > sysctl_param_proc_limit) {
 			SN_LOG(SN_LOG_EVENT,
-			    logsctperror("Parameter parse limit exceeded (IsASCONFack)", 
+			    logsctperror("Parameter parse limit exceeded (IsASCONFack)",
 				sm->sctp_hdr->v_tag, sysctl_param_proc_limit, direction));
-			return(0); /* not found limit exceeded*/
+			return (0); /* not found limit exceeded*/
 		}
 	}
-	return(0); /* not success */
+	return (0); /* not success */
 }
 
 /**  @ingroup packet_parser
- * @brief Check to see if ASCONF contains an Add IP or Del IP parameter 
- * 
+ * @brief Check to see if ASCONF contains an Add IP or Del IP parameter
+ *
  * IsADDorDEL scans an ASCONF packet to see if it contains an AddIP or DelIP
  * parameter
  *
  * @param la Pointer to the relevant libalias instance
  * @param sm Pointer to sctp message information
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
- * 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
+ *
  * @return SCTP_ADD_IP_ADDRESS | SCTP_DEL_IP_ADDRESS | 0 - fail
  */
 static int
@@ -1638,31 +1642,31 @@ IsADDorDEL(struct libalias *la, struct sctp_nat_msg *sm, int direction)
 
 	bytes_left = sm->chunk_length;
 	if (bytes_left < param_size)
-		return(0); /* not found */
+		return (0); /* not found */
 	/* step through Asconf parameters */
 	while(bytes_left >= SN_ASCONFACK_PARAM_SIZE) {
 		if (ntohs(param->param_type) == SCTP_ADD_IP_ADDRESS)
-			return(SCTP_ADD_IP_ADDRESS);
-		else if (ntohs(param->param_type) == SCTP_DEL_IP_ADDRESS) 
-			return(SCTP_DEL_IP_ADDRESS);
+			return (SCTP_ADD_IP_ADDRESS);
+		else if (ntohs(param->param_type) == SCTP_DEL_IP_ADDRESS)
+			return (SCTP_DEL_IP_ADDRESS);
 		/* check others just in case */
 		bytes_left -= param_size;
 		if (bytes_left >= SN_MIN_PARAM_SIZE) {
 			param = SN_SCTP_NEXTPARAM(param);
 		} else {
-			return(0); /*Neither found */
+			return (0); /*Neither found */
 		}
 		param_size = SCTP_SIZE32(ntohs(param->param_length));
-		if (bytes_left < param_size) return(0);
+		if (bytes_left < param_size) return (0);
 
 		if (++param_count > sysctl_param_proc_limit) {
 			SN_LOG(SN_LOG_EVENT,
-			    logsctperror("Parameter parse limit exceeded IsADDorDEL)", 
+			    logsctperror("Parameter parse limit exceeded IsADDorDEL)",
 				sm->sctp_hdr->v_tag, sysctl_param_proc_limit, direction));
-			return(0); /* not found limit exceeded*/
+			return (0); /* not found limit exceeded*/
 		}
 	}
-	return(0);  /*Neither found */
+	return (0);  /*Neither found */
 }
 
 /* ----------------------------------------------------------------------
@@ -1685,7 +1689,7 @@ IsADDorDEL(struct libalias *la, struct sctp_nat_msg *sm, int direction)
  * each state.
  *
  * @param la Pointer to the relevant libalias instance
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
  *
@@ -1702,17 +1706,17 @@ ProcessSctpMsg(struct libalias *la, int direction, struct sctp_nat_msg *sm, stru
 		if (rtnval != SN_NAT_PKT) {
 			assoc->state = SN_RM;/* Mark for removal*/
 		}
-		return(rtnval);
+		return (rtnval);
 	case SN_INi: /* Initialising - Init */
-		return(INi_process(la, direction, assoc, sm));
+		return (INi_process(la, direction, assoc, sm));
 	case SN_INa: /* Initialising - AddIP */
-		return(INa_process(la, direction, assoc, sm));
+		return (INa_process(la, direction, assoc, sm));
 	case SN_UP:  /* Association UP */
-		return(UP_process(la, direction, assoc, sm));
+		return (UP_process(la, direction, assoc, sm));
 	case SN_CL:  /* Association Closing */
-		return(CL_process(la, direction, assoc, sm));
+		return (CL_process(la, direction, assoc, sm));
 	}
-	return(SN_PROCESSING_ERROR);
+	return (SN_PROCESSING_ERROR);
 }
 
 /** @ingroup state_machine
@@ -1732,56 +1736,57 @@ ProcessSctpMsg(struct libalias *la, int direction, struct sctp_nat_msg *sm, stru
 static int
 ID_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, struct sctp_nat_msg *sm)
 {
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_ASCONF:           /* a packet containing an ASCONF chunk with ADDIP */
 		if (!sysctl_accept_global_ootb_addip && (direction == SN_TO_LOCAL))
-			return(SN_DROP_PKT);
+			return (SN_DROP_PKT);
 		/* if this Asconf packet does not contain the Vtag parameters it is of no use in Idle state */
 		if (!GetAsconfVtags(la, sm, &(assoc->l_vtag), &(assoc->g_vtag), direction))
-			return(SN_DROP_PKT);
+			return (SN_DROP_PKT);
+		/* FALLTHROUGH */
 	case SN_SCTP_INIT:            /* a packet containing an INIT chunk or an ASCONF AddIP */
 		if (sysctl_track_global_addresses)
 			AddGlobalIPAddresses(sm, assoc, direction);
-		switch(direction){
+		switch (direction) {
 		case SN_TO_GLOBAL:
 			assoc->l_addr = sm->ip_hdr->ip_src;
 			assoc->a_addr = FindAliasAddress(la, assoc->l_addr);
 			assoc->l_port = sm->sctp_hdr->src_port;
 			assoc->g_port = sm->sctp_hdr->dest_port;
-			if(sm->msg == SN_SCTP_INIT)
+			if (sm->msg == SN_SCTP_INIT)
 				assoc->g_vtag = sm->sctpchnk.Init->initiate_tag;
 			if (AddSctpAssocGlobal(la, assoc)) /* DB clash *///**** need to add dst address
-				return((sm->msg == SN_SCTP_INIT) ? SN_REPLY_ABORT : SN_REPLY_ERROR);
-			if(sm->msg == SN_SCTP_ASCONF) {
+				return ((sm->msg == SN_SCTP_INIT) ? SN_REPLY_ABORT : SN_REPLY_ERROR);
+			if (sm->msg == SN_SCTP_ASCONF) {
 				if (AddSctpAssocLocal(la, assoc, sm->ip_hdr->ip_dst)) /* DB clash */
-					return(SN_REPLY_ERROR);
+					return (SN_REPLY_ERROR);
 				assoc->TableRegister |= SN_WAIT_TOLOCAL; /* wait for tolocal ack */
 			}
 		break;
 		case SN_TO_LOCAL:
 			assoc->l_addr = FindSctpRedirectAddress(la, sm);
-			assoc->a_addr = sm->ip_hdr->ip_dst; 
+			assoc->a_addr = sm->ip_hdr->ip_dst;
 			assoc->l_port = sm->sctp_hdr->dest_port;
 			assoc->g_port = sm->sctp_hdr->src_port;
-			if(sm->msg == SN_SCTP_INIT)
+			if (sm->msg == SN_SCTP_INIT)
 				assoc->l_vtag = sm->sctpchnk.Init->initiate_tag;
 			if (AddSctpAssocLocal(la, assoc, sm->ip_hdr->ip_src)) /* DB clash */
-				return((sm->msg == SN_SCTP_INIT) ? SN_REPLY_ABORT : SN_REPLY_ERROR);
-			if(sm->msg == SN_SCTP_ASCONF) {
+				return ((sm->msg == SN_SCTP_INIT) ? SN_REPLY_ABORT : SN_REPLY_ERROR);
+			if (sm->msg == SN_SCTP_ASCONF) {
 				if (AddSctpAssocGlobal(la, assoc)) /* DB clash */ //**** need to add src address
-					return(SN_REPLY_ERROR);
+					return (SN_REPLY_ERROR);
 				assoc->TableRegister |= SN_WAIT_TOGLOBAL; /* wait for toglobal ack */
 					}
 			break;
 		}
-	assoc->state = (sm->msg == SN_SCTP_INIT) ? SN_INi : SN_INa;
-	assoc->exp = SN_I_T(la);
-	sctp_AddTimeOut(la,assoc);
-	return(SN_NAT_PKT);
+		assoc->state = (sm->msg == SN_SCTP_INIT) ? SN_INi : SN_INa;
+		assoc->exp = SN_I_T(la);
+		sctp_AddTimeOut(la,assoc);
+		return (SN_NAT_PKT);
 	default: /* Any other type of SCTP message is not valid in Idle */
-		return(SN_DROP_PKT);
+		return (SN_DROP_PKT);
 	}
-return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
+	return (SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
 }
 
 /** @ingroup state_machine
@@ -1789,30 +1794,30 @@ return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the b
  *
  * Only an INIT-ACK, resent INIT, or an ABORT SCTP packet are valid in this
  * state, all other packets are dropped.
- * 
+ *
  * @param la Pointer to the relevant libalias instance
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
- * 
- * @return SN_NAT_PKT | SN_DROP_PKT | SN_REPLY_ABORT 
+ *
+ * @return SN_NAT_PKT | SN_DROP_PKT | SN_REPLY_ABORT
  */
 static int
 INi_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, struct sctp_nat_msg *sm)
 {
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_INIT:            /* a packet containing a retransmitted INIT chunk */
 		sctp_ResetTimeOut(la, assoc, SN_I_T(la));
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_INITACK:         /* a packet containing an INIT-ACK chunk */
-		switch(direction){
+		switch (direction) {
 		case SN_TO_LOCAL:
 			if (assoc->num_Gaddr) /*If tracking global addresses for this association */
 				AddGlobalIPAddresses(sm, assoc, direction);
 			assoc->l_vtag = sm->sctpchnk.Init->initiate_tag;
 			if (AddSctpAssocLocal(la, assoc, sm->ip_hdr->ip_src)) { /* DB clash */
 				assoc->state = SN_RM;/* Mark for removal*/
-				return(SN_SEND_ABORT);
+				return (SN_SEND_ABORT);
 			}
 			break;
 		case SN_TO_GLOBAL:
@@ -1820,97 +1825,97 @@ INi_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, st
 			assoc->g_vtag = sm->sctpchnk.Init->initiate_tag;
 			if (AddSctpAssocGlobal(la, assoc)) { /* DB clash */
 				assoc->state = SN_RM;/* Mark for removal*/
-				return(SN_SEND_ABORT);
+				return (SN_SEND_ABORT);
 			}
 			break;
 		}
 		assoc->state = SN_UP;/* association established for NAT */
 		sctp_ResetTimeOut(la,assoc, SN_U_T(la));
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_ABORT:           /* a packet containing an ABORT chunk */
 		assoc->state = SN_RM;/* Mark for removal*/
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	default:
-		return(SN_DROP_PKT);
+		return (SN_DROP_PKT);
 	}
-	return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
+	return (SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
 }
 
 /** @ingroup state_machine
  * @brief Process SCTP message while waiting for an AddIp-ACK message
- * 
+ *
  * Only an AddIP-ACK, resent AddIP, or an ABORT message are valid, all other
  * SCTP packets are dropped
  *
  * @param la Pointer to the relevant libalias instance
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
- * 
- * @return SN_NAT_PKT | SN_DROP_PKT 
+ *
+ * @return SN_NAT_PKT | SN_DROP_PKT
  */
 static int
 INa_process(struct libalias *la, int direction,struct sctp_nat_assoc *assoc, struct sctp_nat_msg *sm)
 {
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_ASCONF:           /* a packet containing an ASCONF chunk*/
 		sctp_ResetTimeOut(la,assoc, SN_I_T(la));
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_ASCONFACK:        /* a packet containing an ASCONF chunk with a ADDIP-ACK */
-		switch(direction){
+		switch (direction) {
 		case SN_TO_LOCAL:
 			if (!(assoc->TableRegister & SN_WAIT_TOLOCAL)) /* wrong direction */
-				return(SN_DROP_PKT);
+				return (SN_DROP_PKT);
 			break;
 		case SN_TO_GLOBAL:
 			if (!(assoc->TableRegister & SN_WAIT_TOGLOBAL)) /* wrong direction */
-				return(SN_DROP_PKT);
+				return (SN_DROP_PKT);
 		}
 		if (IsASCONFack(la,sm,direction)) {
 			assoc->TableRegister &= SN_BOTH_TBL; /* remove wait flags */
 			assoc->state = SN_UP; /* association established for NAT */
 			sctp_ResetTimeOut(la,assoc, SN_U_T(la));
-			return(SN_NAT_PKT);
+			return (SN_NAT_PKT);
 		} else {
 			assoc->state = SN_RM;/* Mark for removal*/
-			return(SN_NAT_PKT);
+			return (SN_NAT_PKT);
 		}
 	case SN_SCTP_ABORT:           /* a packet containing an ABORT chunk */
 		assoc->state = SN_RM;/* Mark for removal*/
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	default:
-		return(SN_DROP_PKT);
+		return (SN_DROP_PKT);
 	}
-	return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
+	return (SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
 }
 
 /** @ingroup state_machine
  * @brief Process SCTP messages while association is UP redirecting packets
- * 
+ *
  * While in the SN_UP state, all packets for the particular association
  * are passed. Only a SHUT-ACK or an ABORT will cause a change of state.
  *
  * @param la Pointer to the relevant libalias instance
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
- * 
- * @return SN_NAT_PKT | SN_DROP_PKT 
+ *
+ * @return SN_NAT_PKT | SN_DROP_PKT
  */
 static int
 UP_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, struct sctp_nat_msg *sm)
 {
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_SHUTACK:         /* a packet containing a SHUTDOWN-ACK chunk */
 		assoc->state = SN_CL;
 		sctp_ResetTimeOut(la,assoc, SN_C_T(la));
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_ABORT:           /* a packet containing an ABORT chunk */
 		assoc->state = SN_RM;/* Mark for removal*/
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_ASCONF:           /* a packet containing an ASCONF chunk*/
 		if ((direction == SN_TO_LOCAL) && assoc->num_Gaddr) /*If tracking global addresses for this association & from global side */
-			switch(IsADDorDEL(la,sm,direction)) {
+			switch (IsADDorDEL(la,sm,direction)) {
 			case SCTP_ADD_IP_ADDRESS:
 				AddGlobalIPAddresses(sm, assoc, direction);
 				break;
@@ -1920,9 +1925,9 @@ UP_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, str
 			} /* fall through to default */
 	default:
 		sctp_ResetTimeOut(la,assoc, SN_U_T(la));
-		return(SN_NAT_PKT);  /* forward packet */
+		return (SN_NAT_PKT);  /* forward packet */
 	}
-	return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
+	return (SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
 }
 
 /** @ingroup state_machine
@@ -1934,34 +1939,34 @@ UP_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, str
  * ABORT packets are permitted in this state. All other packets are dropped.
  *
  * @param la Pointer to the relevant libalias instance
- * @param direction SN_TO_LOCAL | SN_TO_GLOBAL 
+ * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
  * @param sm Pointer to sctp message information
  * @param assoc Pointer to the association this SCTP Message belongs to
- * 
- * @return SN_NAT_PKT | SN_DROP_PKT 
+ *
+ * @return SN_NAT_PKT | SN_DROP_PKT
  */
 static int
 CL_process(struct libalias *la, int direction,struct sctp_nat_assoc *assoc, struct sctp_nat_msg *sm)
 {
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_SHUTCOMP:        /* a packet containing a SHUTDOWN-COMPLETE chunk */
 		assoc->state = SN_CL;  /* Stay in Close state until timeout */
 		if (sysctl_holddown_timer > 0)
 			sctp_ResetTimeOut(la, assoc, SN_X_T(la));/* allow to stay open for Tbit packets*/
 		else
 			assoc->state = SN_RM;/* Mark for removal*/
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_SHUTACK:         /* a packet containing a SHUTDOWN-ACK chunk */
 		assoc->state = SN_CL;  /* Stay in Close state until timeout */
 		sctp_ResetTimeOut(la, assoc, SN_C_T(la));
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	case SN_SCTP_ABORT:           /* a packet containing an ABORT chunk */
 		assoc->state = SN_RM;/* Mark for removal*/
-		return(SN_NAT_PKT);
+		return (SN_NAT_PKT);
 	default:
-		return(SN_DROP_PKT);
+		return (SN_DROP_PKT);
 	}
-	return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
+	return (SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
 }
 
 /* ----------------------------------------------------------------------
@@ -1975,7 +1980,7 @@ CL_process(struct libalias *la, int direction,struct sctp_nat_assoc *assoc, stru
  */
 /** @ingroup Hash
  * @brief Find the SCTP association given the local address, port and vtag
- * 
+ *
  * Searches the local look-up table for the association entry matching the
  * provided local <address:ports:vtag> tuple
  *
@@ -1985,7 +1990,7 @@ CL_process(struct libalias *la, int direction,struct sctp_nat_assoc *assoc, stru
  * @param l_vtag local Vtag
  * @param l_port local Port
  * @param g_port global Port
- * 
+ *
  * @return pointer to association or NULL
  */
 static struct sctp_nat_assoc*
@@ -1994,7 +1999,7 @@ FindSctpLocal(struct libalias *la, struct in_addr l_addr, struct in_addr g_addr,
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL;
 	struct sctp_GlobalAddress *G_Addr = NULL;
-  
+
 	if (l_vtag != 0) { /* an init packet, vtag==0 */
 		i = SN_TABLE_HASH(l_vtag, l_port, la->sctpNatTableSize);
 		LIST_FOREACH(assoc, &la->sctpTableLocal[i], list_L) {
@@ -2002,27 +2007,27 @@ FindSctpLocal(struct libalias *la, struct in_addr l_addr, struct in_addr g_addr,
 			    && (assoc->l_addr.s_addr == l_addr.s_addr)) {
 				if (assoc->num_Gaddr) {
 					LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-						if(G_Addr->g_addr.s_addr == g_addr.s_addr)
-							return(assoc);
+						if (G_Addr->g_addr.s_addr == g_addr.s_addr)
+							return (assoc);
 					}
 				} else {
-					return(assoc);
+					return (assoc);
 				}
 			}
 		}
 	}
-	return(NULL);
+	return (NULL);
 }
 
 /** @ingroup Hash
  * @brief Check for Global Clash
- * 
+ *
  * Searches the global look-up table for the association entry matching the
  * provided global <(addresses):ports:vtag> tuple
  *
  * @param la Pointer to the relevant libalias instance
  * @param Cassoc association being checked for a clash
- * 
+ *
  * @return pointer to association or NULL
  */
 static struct sctp_nat_assoc*
@@ -2032,7 +2037,7 @@ FindSctpGlobalClash(struct libalias *la,  struct sctp_nat_assoc *Cassoc)
 	struct sctp_nat_assoc *assoc = NULL;
 	struct sctp_GlobalAddress *G_Addr = NULL;
 	struct sctp_GlobalAddress *G_AddrC = NULL;
-  
+
 	if (Cassoc->g_vtag != 0) { /* an init packet, vtag==0 */
 		i = SN_TABLE_HASH(Cassoc->g_vtag, Cassoc->g_port, la->sctpNatTableSize);
 		LIST_FOREACH(assoc, &la->sctpTableGlobal[i], list_G) {
@@ -2040,22 +2045,22 @@ FindSctpGlobalClash(struct libalias *la,  struct sctp_nat_assoc *Cassoc)
 				if (assoc->num_Gaddr) {
 					LIST_FOREACH(G_AddrC, &(Cassoc->Gaddr), list_Gaddr) {
 						LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-							if(G_Addr->g_addr.s_addr == G_AddrC->g_addr.s_addr)
-								return(assoc);
+							if (G_Addr->g_addr.s_addr == G_AddrC->g_addr.s_addr)
+								return (assoc);
 						}
 					}
 				} else {
-					return(assoc);
+					return (assoc);
 				}
 			}
 		}
 	}
-	return(NULL);
+	return (NULL);
 }
 
 /** @ingroup Hash
  * @brief Find the SCTP association given the global port and vtag
- * 
+ *
  * Searches the global look-up table for the association entry matching the
  * provided global <address:ports:vtag> tuple
  *
@@ -2069,7 +2074,7 @@ FindSctpGlobalClash(struct libalias *la,  struct sctp_nat_assoc *Cassoc)
  * @param g_vtag global vtag
  * @param g_port global port
  * @param l_port local port
- * 
+ *
  * @return pointer to association or NULL
  */
 static struct sctp_nat_assoc*
@@ -2078,7 +2083,7 @@ FindSctpGlobal(struct libalias *la, struct in_addr g_addr, uint32_t g_vtag, uint
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL;
 	struct sctp_GlobalAddress *G_Addr = NULL;
-  
+
 	*partial_match = 0;
 	if (g_vtag != 0) { /* an init packet, vtag==0 */
 		i = SN_TABLE_HASH(g_vtag, g_port, la->sctpNatTableSize);
@@ -2087,21 +2092,21 @@ FindSctpGlobal(struct libalias *la, struct in_addr g_addr, uint32_t g_vtag, uint
 				*partial_match = 1;
 				if (assoc->num_Gaddr) {
 					LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-						if(G_Addr->g_addr.s_addr == g_addr.s_addr)
-							return(assoc);
+						if (G_Addr->g_addr.s_addr == g_addr.s_addr)
+							return (assoc);
 					}
 				} else {
-					return(assoc);
+					return (assoc);
 				}
 			}
 		}
 	}
-	return(NULL);
+	return (NULL);
 }
 
 /** @ingroup Hash
  * @brief Find the SCTP association for a T-Flag message (given the global port and local vtag)
- * 
+ *
  * Searches the local look-up table for a unique association entry matching the
  * provided global port and local vtag information
  *
@@ -2110,40 +2115,40 @@ FindSctpGlobal(struct libalias *la, struct in_addr g_addr, uint32_t g_vtag, uint
  * @param l_vtag local Vtag
  * @param g_port global Port
  * @param l_port local Port
- * 
+ *
  * @return pointer to association or NULL
  */
 static struct sctp_nat_assoc*
-FindSctpLocalT(struct libalias *la,  struct in_addr g_addr, uint32_t l_vtag, uint16_t g_port, uint16_t l_port)
+FindSctpLocalT(struct libalias *la, struct in_addr g_addr, uint32_t l_vtag, uint16_t g_port, uint16_t l_port)
 {
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL, *lastmatch = NULL;
 	struct sctp_GlobalAddress *G_Addr = NULL;
 	int cnt = 0;
-  
+
 	if (l_vtag != 0) { /* an init packet, vtag==0 */
 		i = SN_TABLE_HASH(l_vtag, g_port, la->sctpNatTableSize);
 		LIST_FOREACH(assoc, &la->sctpTableGlobal[i], list_G) {
 			if ((assoc->g_vtag == l_vtag) && (assoc->g_port == g_port) && (assoc->l_port == l_port)) {
 				if (assoc->num_Gaddr) {
 					LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-						if(G_Addr->g_addr.s_addr == G_Addr->g_addr.s_addr)
-							return(assoc); /* full match */
+						if (G_Addr->g_addr.s_addr == g_addr.s_addr)
+							return (assoc); /* full match */
 					}
 				} else {
-					if (++cnt > 1) return(NULL);
+					if (++cnt > 1) return (NULL);
 					lastmatch = assoc;
 				}
 			}
 		}
 	}
 	/* If there is more than one match we do not know which local address to send to */
-	return( cnt ? lastmatch : NULL );
+	return (cnt ? lastmatch : NULL);
 }
 
 /** @ingroup Hash
  * @brief Find the SCTP association for a T-Flag message (given the local port and global vtag)
- * 
+ *
  * Searches the global look-up table for a unique association entry matching the
  * provided local port and global vtag information
  *
@@ -2152,7 +2157,7 @@ FindSctpLocalT(struct libalias *la,  struct in_addr g_addr, uint32_t l_vtag, uin
  * @param g_vtag global vtag
  * @param l_port local port
  * @param g_port global port
- * 
+ *
  * @return pointer to association or NULL
  */
 static struct sctp_nat_assoc*
@@ -2161,28 +2166,28 @@ FindSctpGlobalT(struct libalias *la, struct in_addr g_addr, uint32_t g_vtag, uin
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL;
 	struct sctp_GlobalAddress *G_Addr = NULL;
- 
+
 	if (g_vtag != 0) { /* an init packet, vtag==0 */
 		i = SN_TABLE_HASH(g_vtag, l_port, la->sctpNatTableSize);
 		LIST_FOREACH(assoc, &la->sctpTableLocal[i], list_L) {
 			if ((assoc->l_vtag == g_vtag) && (assoc->l_port == l_port) && (assoc->g_port == g_port)) {
 				if (assoc->num_Gaddr) {
 					LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-						if(G_Addr->g_addr.s_addr == g_addr.s_addr)
-							return(assoc);
+						if (G_Addr->g_addr.s_addr == g_addr.s_addr)
+							return (assoc);
 					}
 				} else {
-					return(assoc);
+					return (assoc);
 				}
 			}
 		}
 	}
-	return(NULL);
+	return (NULL);
 }
 
 /** @ingroup Hash
  * @brief  Add the sctp association information to the local look up table
- * 
+ *
  * Searches the local look-up table for an existing association with the same
  * details. If a match exists and is ONLY in the local look-up table then this
  * is a repeated INIT packet, we need to remove this association from the
@@ -2193,7 +2198,7 @@ FindSctpGlobalT(struct libalias *la, struct in_addr g_addr, uint32_t g_vtag, uin
  * @param la Pointer to the relevant libalias instance
  * @param assoc pointer to sctp association
  * @param g_addr global address
- * 
+ *
  * @return SN_ADD_OK | SN_ADD_CLASH
  */
 static int
@@ -2219,9 +2224,9 @@ AddSctpAssocLocal(struct libalias *la, struct sctp_nat_assoc *assoc, struct in_a
 			freeGlobalAddressList(found);
 			sn_free(found);
 		} else
-			return(SN_ADD_CLASH);
+			return (SN_ADD_CLASH);
 	}
-  
+
 	LIST_INSERT_HEAD(&la->sctpTableLocal[SN_TABLE_HASH(assoc->l_vtag, assoc->l_port, la->sctpNatTableSize)],
 	    assoc, list_L);
 	assoc->TableRegister |= SN_LOCAL_TBL;
@@ -2235,7 +2240,7 @@ AddSctpAssocLocal(struct libalias *la, struct sctp_nat_assoc *assoc, struct in_a
 		SN_LOG(SN_LOG_INFO, logsctpassoc(assoc, "^"));
 	}
 
-	return(SN_ADD_OK);
+	return (SN_ADD_OK);
 }
 
 /** @ingroup Hash
@@ -2268,9 +2273,9 @@ AddSctpAssocGlobal(struct libalias *la, struct sctp_nat_assoc *assoc)
 			freeGlobalAddressList(found);
 			sn_free(found);
 		} else
-			return(SN_ADD_CLASH);
+			return (SN_ADD_CLASH);
 	}
- 
+
 	LIST_INSERT_HEAD(&la->sctpTableGlobal[SN_TABLE_HASH(assoc->g_vtag, assoc->g_port, la->sctpNatTableSize)],
 	    assoc, list_G);
 	assoc->TableRegister |= SN_GLOBAL_TBL;
@@ -2284,12 +2289,12 @@ AddSctpAssocGlobal(struct libalias *la, struct sctp_nat_assoc *assoc)
 		SN_LOG(SN_LOG_INFO, logsctpassoc(assoc, "^"));
 	}
 
-	return(SN_ADD_OK);
+	return (SN_ADD_OK);
 }
 
 /** @ingroup Hash
  * @brief Remove the sctp association information from the look up table
- * 
+ *
  * For each of the two (local/global) look-up tables, remove the association
  * from that table IF it has been registered in that table.
  *
@@ -2321,7 +2326,7 @@ RmSctpAssoc(struct libalias *la, struct sctp_nat_assoc *assoc)
 		la->sctpLinkCount--; //decrement link count
 		LIST_REMOVE(assoc, list_L);
 	}
-  
+
 	if (assoc->TableRegister & SN_GLOBAL_TBL) {
 		assoc->TableRegister ^= SN_GLOBAL_TBL;
 		la->sctpLinkCount--; //decrement link count
@@ -2333,20 +2338,20 @@ RmSctpAssoc(struct libalias *la, struct sctp_nat_assoc *assoc)
 		SctpShowAliasStats(la);
 }
 
-/** 
+/**
  * @ingroup Hash
  * @brief  free the Global Address List memory
- * 
+ *
  * freeGlobalAddressList deletes all global IP addresses in an associations
  * global IP address list.
  *
- * @param assoc 
+ * @param assoc
  */
 static void freeGlobalAddressList(struct sctp_nat_assoc *assoc)
 {
 	struct sctp_GlobalAddress *gaddr1=NULL,*gaddr2=NULL;
 	/*free global address list*/
-	gaddr1 = LIST_FIRST(&(assoc->Gaddr));  
+	gaddr1 = LIST_FIRST(&(assoc->Gaddr));
 	while (gaddr1 != NULL) {
 		gaddr2 = LIST_NEXT(gaddr1, list_Gaddr);
 		sn_free(gaddr1);
@@ -2377,8 +2382,8 @@ static void freeGlobalAddressList(struct sctp_nat_assoc *assoc)
  * Determine the location in the queue to add the timeout and insert the
  * association into the list at that queue position
  *
- * @param la 
- * @param assoc 
+ * @param la
+ * @param assoc
  */
 static void
 sctp_AddTimeOut(struct libalias *la, struct sctp_nat_assoc *assoc)
@@ -2434,7 +2439,7 @@ sctp_ResetTimeOut(struct libalias *la, struct sctp_nat_assoc *assoc, int newexp)
 
 /** @ingroup Timer
  * @brief Check timer Q against current time
- * 
+ *
  * Loop through each entry in the timer queue since the last time we processed
  * the timer queue until now (the current time). For each association in the
  * event list, we remove it from that position in the timer queue and check if
@@ -2445,22 +2450,22 @@ sctp_ResetTimeOut(struct libalias *la, struct sctp_nat_assoc *assoc, int newexp)
  *
  * If the timer hasn't really expired we place the association into its new
  * correct position in the timer queue.
- * 
+ *
  * @param la  Pointer to the relevant libalias instance
  */
 void
 sctp_CheckTimers(struct libalias *la)
 {
 	struct sctp_nat_assoc *assoc;
-  
+
 	LIBALIAS_LOCK_ASSERT(la);
 	while(la->timeStamp >= la->sctpNatTimer.loc_time) {
-		while (!LIST_EMPTY(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc])) {  
+		while (!LIST_EMPTY(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc])) {
 			assoc = LIST_FIRST(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc]);
 			//SLIST_REMOVE_HEAD(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc], timer_Q);
 			LIST_REMOVE(assoc, timer_Q);
 			if (la->timeStamp >= assoc->exp) { /* state expired */
-				SN_LOG(((assoc->state == SN_CL)?(SN_LOG_DEBUG):(SN_LOG_INFO)),
+				SN_LOG(((assoc->state == SN_CL) ? (SN_LOG_DEBUG) : (SN_LOG_INFO)),
 				    logsctperror("Timer Expired", assoc->g_vtag, assoc->state, SN_TO_NODIR));
 				RmSctpAssoc(la, assoc);
 				freeGlobalAddressList(assoc);
@@ -2477,7 +2482,7 @@ sctp_CheckTimers(struct libalias *la)
 }
 
 /* ----------------------------------------------------------------------
- *                              LOGGING CODE 
+ *                              LOGGING CODE
  * ----------------------------------------------------------------------
  */
 /** @addtogroup Logging
@@ -2488,7 +2493,7 @@ sctp_CheckTimers(struct libalias *la)
  */
 /** @ingroup Logging
  * @brief Log sctp nat errors
- * 
+ *
  * @param errormsg Error message to be logged
  * @param vtag Current Vtag
  * @param error Error number
@@ -2498,7 +2503,7 @@ static void
 logsctperror(char* errormsg, uint32_t vtag, int error, int direction)
 {
 	char dir;
-	switch(direction) {
+	switch (direction) {
 	case SN_TO_LOCAL:
 		dir = 'L';
 		break;
@@ -2514,7 +2519,7 @@ logsctperror(char* errormsg, uint32_t vtag, int error, int direction)
 
 /** @ingroup Logging
  * @brief Log what the parser parsed
- * 
+ *
  * @param direction Direction of packet
  * @param sm Pointer to sctp message information
  */
@@ -2522,7 +2527,7 @@ static void
 logsctpparse(int direction, struct sctp_nat_msg *sm)
 {
 	char *ploc, *pstate;
-	switch(direction) {
+	switch (direction) {
 	case SN_TO_LOCAL:
 		ploc = "TO_LOCAL -";
 		break;
@@ -2532,7 +2537,7 @@ logsctpparse(int direction, struct sctp_nat_msg *sm)
 	default:
 		ploc = "";
 	}
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_INIT:
 		pstate = "Init";
 		break;
@@ -2566,7 +2571,7 @@ logsctpparse(int direction, struct sctp_nat_msg *sm)
 
 /** @ingroup Logging
  * @brief Log an SCTP association's details
- * 
+ *
  * @param assoc pointer to sctp association
  * @param s Character that indicates the state of processing for this packet
  */
@@ -2574,7 +2579,9 @@ static void logsctpassoc(struct sctp_nat_assoc *assoc, char* s)
 {
 	struct sctp_GlobalAddress *G_Addr = NULL;
 	char *sp;
-	switch(assoc->state) {
+	char addrbuf[INET_ADDRSTRLEN];
+
+	switch (assoc->state) {
 	case SN_ID:
 		sp = "ID ";
 		break;
@@ -2598,25 +2605,27 @@ static void logsctpassoc(struct sctp_nat_assoc *assoc, char* s)
 		break;
 	}
 	SctpAliasLog("%sAssoc: %s exp=%u la=%s lv=%u lp=%u gv=%u gp=%u tbl=%d\n",
-	    s, sp, assoc->exp, inet_ntoa(assoc->l_addr), ntohl(assoc->l_vtag),
-	    ntohs(assoc->l_port), ntohl(assoc->g_vtag), ntohs(assoc->g_port),
+	    s, sp, assoc->exp, inet_ntoa_r(assoc->l_addr, addrbuf),
+	    ntohl(assoc->l_vtag), ntohs(assoc->l_port),
+	    ntohl(assoc->g_vtag), ntohs(assoc->g_port),
 	    assoc->TableRegister);
 	/* list global addresses */
 	LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-		SctpAliasLog("\t\tga=%s\n",inet_ntoa(G_Addr->g_addr));
+		SctpAliasLog("\t\tga=%s\n",
+		    inet_ntoa_r(G_Addr->g_addr, addrbuf));
 	}
 }
 
 /** @ingroup Logging
- * @brief Output Global table to log 
- * 
+ * @brief Output Global table to log
+ *
  * @param la Pointer to the relevant libalias instance
  */
 static void logSctpGlobal(struct libalias *la)
 {
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL;
-  
+
 	SctpAliasLog("G->\n");
 	for (i=0; i < la->sctpNatTableSize; i++) {
 		LIST_FOREACH(assoc, &la->sctpTableGlobal[i], list_G) {
@@ -2626,15 +2635,15 @@ static void logSctpGlobal(struct libalias *la)
 }
 
 /** @ingroup Logging
- * @brief  Output Local table to log 
- * 
+ * @brief  Output Local table to log
+ *
  * @param la Pointer to the relevant libalias instance
  */
 static void logSctpLocal(struct libalias *la)
 {
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL;
-  
+
 	SctpAliasLog("L->\n");
 	for (i=0; i < la->sctpNatTableSize; i++) {
 		LIST_FOREACH(assoc, &la->sctpTableLocal[i], list_L) {
@@ -2645,7 +2654,7 @@ static void logSctpLocal(struct libalias *la)
 
 /** @ingroup Logging
  * @brief Output timer queue to log
- * 
+ *
  * @param la Pointer to the relevant libalias instance
  */
 static void logTimerQ(struct libalias *la)
@@ -2664,12 +2673,12 @@ static void logTimerQ(struct libalias *la)
 	}
 }
 
-/** @ingroup Logging 
+/** @ingroup Logging
  * @brief Sctp NAT logging function
- * 
+ *
  * This function is based on a similar function in alias_db.c
  *
- * @param str/stream logging descriptor  
+ * @param str/stream logging descriptor
  * @param format printf type string
  */
 #ifdef _KERNEL

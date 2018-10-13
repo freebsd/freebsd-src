@@ -1,20 +1,27 @@
 1. Prerequisites
 ----------------
 
+A C compiler.  Any C89 or better compiler should work.  Where supported,
+configure will attempt to enable the compiler's run-time integrity checking
+options.  Some notes about specific compilers:
+ - clang: -ftrapv and -sanitize=integer require the compiler-rt runtime
+  (CC=clang LDFLAGS=--rtlib=compiler-rt ./configure)
+
 You will need working installations of Zlib and libcrypto (LibreSSL /
 OpenSSL)
 
-Zlib 1.1.4 or 1.2.1.2 or greater (ealier 1.2.x versions have problems):
+Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
-libcrypto (LibreSSL or OpenSSL >= 0.9.8f)
+libcrypto (LibreSSL or OpenSSL >= 1.0.1 < 1.1.0)
 LibreSSL http://www.libressl.org/ ; or
 OpenSSL http://www.openssl.org/
 
 LibreSSL/OpenSSL should be compiled as a position-independent library
 (i.e. with -fPIC) otherwise OpenSSH will not be able to link with it.
 If you must use a non-position-independent libcrypto, then you may need
-to configure OpenSSH --without-pie.
+to configure OpenSSH --without-pie.  Note that because of API changes,
+OpenSSL 1.1.x is not currently supported.
 
 The remaining items are optional.
 
@@ -68,13 +75,6 @@ known to work.
 
 http://ftp.porcupine.org/pub/security/index.html
 
-S/Key Libraries:
-
-If you wish to use --with-skey then you will need the library below
-installed.  No other S/Key library is currently known to be supported.
-
-http://www.sparc.spb.su/solaris/skey/
-
 LibEdit:
 
 sftp supports command-line editing via NetBSD's libedit.  If your platform
@@ -93,7 +93,7 @@ http://nlnetlabs.nl/projects/ldns/
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
-the code out of CVS yourself) then you will need autoconf-2.68 to rebuild
+the code out of git yourself) then you will need autoconf-2.69 to rebuild
 the automatically generated files by running "autoreconf".  Earlier
 versions may also work but this is not guaranteed.
 
@@ -101,10 +101,17 @@ http://www.gnu.org/software/autoconf/
 
 Basic Security Module (BSM):
 
-Native BSM support is know to exist in Solaris from at least 2.5.1,
+Native BSM support is known to exist in Solaris from at least 2.5.1,
 FreeBSD 6.1 and OS X.  Alternatively, you may use the OpenBSM
 implementation (http://www.openbsm.org).
 
+makedepend:
+
+https://www.x.org/archive/individual/util/
+
+If you are making significant changes to the code you may need to rebuild
+the dependency (.depend) file using "make depend", which requires the
+"makedepend" tool from the X11 distribution.
 
 2. Building / Installation
 --------------------------
@@ -164,13 +171,11 @@ also be enabled in sshd_config (refer to the UsePAM directive).
 
 --with-prngd-socket=/some/file allows you to enable EGD or PRNGD
 support and to specify a PRNGd socket. Use this if your Unix lacks
-/dev/random and you don't want to use OpenSSH's builtin entropy
-collection support.
+/dev/random.
 
 --with-prngd-port=portnum allows you to enable EGD or PRNGD support
 and to specify a EGD localhost TCP port. Use this if your Unix lacks
-/dev/random and you don't want to use OpenSSH's builtin entropy
-collection support.
+/dev/random.
 
 --with-lastlog=FILE will specify the location of the lastlog file.
 ./configure searches a few locations for lastlog, but may not find
@@ -180,9 +185,6 @@ it if lastlog is installed in a different place.
 
 --with-osfsia, --without-osfsia will enable or disable OSF1's Security
 Integration Architecture.  The default for OSF1 machines is enable.
-
---with-skey=PATH will enable S/Key one time password support. You will
-need the S/Key libraries and header files installed for this to work.
 
 --with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
 support.
@@ -209,8 +211,7 @@ created.
 --with-xauth=PATH specifies the location of the xauth binary
 
 --with-ssl-dir=DIR allows you to specify where your Libre/OpenSSL
-libraries
-are installed.
+libraries are installed.
 
 --with-ssl-engine enables Libre/OpenSSL's (hardware) ENGINE support
 
@@ -221,7 +222,7 @@ If you need to pass special options to the compiler or linker, you
 can specify these as environment variables before running ./configure.
 For example:
 
-CFLAGS="-O -m486" LDFLAGS="-s" LIBS="-lrubbish" LD="/usr/foo/ld" ./configure
+CC="/usr/foo/cc" CFLAGS="-O" LDFLAGS="-s" LIBS="-lrubbish" ./configure
 
 3. Configuration
 ----------------
@@ -235,9 +236,13 @@ review it to ensure that it matches your security requirements.
 To generate a host key, run "make host-key". Alternately you can do so
 manually using the following commands:
 
-    ssh-keygen -t rsa1 -f /etc/ssh/ssh_host_key -N ""
-    ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ""
-    ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N ""
+    ssh-keygen -t [type] -f /etc/ssh/ssh_host_key -N ""
+
+for each of the types you wish to generate (rsa, dsa or ecdsa) or
+
+    ssh-keygen -A
+
+to generate keys for all supported types.
 
 Replacing /etc/ssh with the correct path to the configuration directory.
 (${prefix}/etc or whatever you specified with --sysconfdir during
@@ -268,7 +273,4 @@ summary data may be published.
 
 If you experience problems compiling, installing or running OpenSSH.
 Please refer to the "reporting bugs" section of the webpage at
-http://www.openssh.com/
-
-
-$Id: INSTALL,v 1.91 2014/09/09 02:23:11 dtucker Exp $
+https://www.openssh.com/

@@ -5,6 +5,7 @@ Makefile.config.in
 PSD.doc/Makefile
 PSD.doc/tutorial.ms
 README
+VERSION
 aclocal.m4
 arch.c
 bmake.1

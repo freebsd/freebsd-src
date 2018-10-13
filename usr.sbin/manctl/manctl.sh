@@ -1,5 +1,7 @@
 #!/bin/sh 
 #
+# SPDX-License-Identifier: BSD-4-Clause
+#
 # Copyright (c) 1994 Geoffrey M. Rehmet, Rhodes University
 # All rights reserved.
 #
@@ -39,7 +41,6 @@
 #		this is now two-pass.  If possible, .so's
 #		are replaced with hard links
 #	uncompress compressed man pages
-#	purge old formatted man pages (not implemented yet)
 # Things to watch out for:
 #	Hard links - careful with g(un)zipping!
 #	.so's - throw everything through soelim before gzip!
@@ -47,16 +48,6 @@
 #			don't want to compress this!
 #
 PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH
-
-#
-# purge cat? directories
-#
-do_purge()
-{
-	echo "purge $@" 2>&1
-	echo "not implemented yet\n" 2>&1
-}
-
 
 #
 # Uncompress one page
@@ -351,8 +342,6 @@ ctl_usage()
 {
 	echo "usage: $1 -compress <path> ... " 1>&2
 	echo "       $1 -uncompress <path> ... " 1>&2
-	echo "       $1 -purge <days> <path> ... " 1>&2
-	echo "       $1 -purge expire <path> ... " 1>&2
 	exit 1
 }
 
@@ -375,6 +364,5 @@ if [ $# -lt 2 ] ; then ctl_usage $0 ; fi ;
 case "$1" in
 	-compress)	shift ; do_compress "$@" ;;
 	-uncompress)	shift ; do_uncompress "$@" ;;
-	-purge)		shift ; do_purge "$@" ;;
 	*)		ctl_usage $0 ;;
 esac

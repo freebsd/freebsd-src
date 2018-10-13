@@ -84,8 +84,6 @@ LINTFLAGS?=	-chapbx
 
 LORDER?=	lorder
 
-MAKE?=		bmake
-
 NM?=		nm
 
 PC?=		pc

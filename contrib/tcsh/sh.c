@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.174 2011/11/29 18:38:54 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.189 2016/09/12 16:33:54 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -39,7 +39,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$tcsh: sh.c,v 3.174 2011/11/29 18:38:54 christos Exp $")
+RCSID("$tcsh: sh.c,v 3.189 2016/09/12 16:33:54 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -78,7 +78,8 @@ extern int NLSMapsAreInited;
  * ported to Apple Unix (TM) (OREO)  26 -- 29 Jun 1987
  */
 
-jmp_buf_t reslab;
+jmp_buf_t reslab IZERO_STRUCT;
+struct wordent paraml IZERO_STRUCT;
 
 static const char tcshstr[] = "tcsh";
 
@@ -247,13 +248,15 @@ main(int argc, char **argv)
     char *tcp, *ttyn;
     int f, reenter;
     char **tempv;
+    const char *targinp = NULL;
     int osetintr;
     struct sigaction oparintr;
 
-    (void)memset(&reslab, 0, sizeof(reslab));
 #ifdef WINNT_NATIVE
     nt_init();
 #endif /* WINNT_NATIVE */
+
+    (void)memset(&reslab, 0, sizeof(reslab));
 #if defined(NLS_CATALOGS) && defined(LC_MESSAGES)
     (void) setlocale(LC_MESSAGES, "");
 #endif /* NLS_CATALOGS && LC_MESSAGES */
@@ -272,6 +275,7 @@ main(int argc, char **argv)
 #endif
 
     nlsinit();
+    initlex(&paraml);
 
 #ifdef MALLOC_TRACE
     mal_setstatsfile(fdopen(dmove(xopen("/tmp/tcsh.trace", 
@@ -343,6 +347,7 @@ main(int argc, char **argv)
 # endif
 #endif
     STR_WORD_CHARS = SAVE(WORD_CHARS);
+    STR_WORD_CHARS_VI = SAVE(WORD_CHARS_VI);
 
     HIST = '!';
     HISTSUB = '^';
@@ -355,6 +360,7 @@ main(int argc, char **argv)
 
     /* Default history size to 100 */
     setcopy(STRhistory, str2short("100"), VAR_READWRITE);
+    sethistory(100);
 
     tempv = argv;
     ffile = SAVE(tempv[0]);
@@ -477,6 +483,9 @@ main(int argc, char **argv)
      */
     initdesc();
 
+    cdtohome = 1;
+    setv(STRcdtohome, SAVE(""), VAR_READWRITE);
+
     /*
      * Get and set the tty now
      */
@@ -493,6 +502,7 @@ main(int argc, char **argv)
     }
     else
 	setv(STRtty, cp = SAVE(""), VAR_READWRITE);
+
     /*
      * Initialize the shell variables. ARGV and PROMPT are initialized later.
      * STATUS is also munged in several places. CHILD is munged when
@@ -588,19 +598,22 @@ main(int argc, char **argv)
      */
     shlvl(1);
 
+#ifdef __ANDROID__
+    /* On Android, $HOME either isn't set or set to /data, a R/O location.
+       Check for the environment variable EXTERNAL_STORAGE, which contains
+       the mount point of the external storage (SD card, mostly).  If
+       EXTERNAL_STORAGE isn't set fall back to "/sdcard".  Eventually
+       override $HOME so the environment is on the same page. */
+    if (((tcp = getenv("HOME")) != NULL && strcmp (tcp, "/data") != 0)
+	|| (tcp = getenv("EXTERNAL_STORAGE")) != NULL) {
+	cp = quote(SAVE(tcp));
+    } else
+	cp = quote(SAVE("/sdcard"));
+    tsetenv(STRKHOME, cp);
+#else
     if ((tcp = getenv("HOME")) != NULL)
 	cp = quote(SAVE(tcp));
     else
-#ifdef __ANDROID__
-	/* On Android, $HOME usually isn't set, so we can't load user RC files.
-	   Check for the environment variable EXTERNAL_STORAGE, which contains
-	   the mount point of the external storage (SD card, mostly).  If
-	   EXTERNAL_STORAGE isn't set fall back to "/sdcard". */
-    if ((tcp = getenv("EXTERNAL_STORAGE")) != NULL)
-	cp = quote(SAVE(tcp));
-    else
-	cp = quote(SAVE("/sdcard"));
-#else
 	cp = NULL;
 #endif
 
@@ -797,9 +810,12 @@ main(int argc, char **argv)
 #ifdef COLOR_LS_F
     if ((tcp = getenv("LS_COLORS")) != NULL)
 	parseLS_COLORS(str2short(tcp));
+    if ((tcp = getenv("LSCOLORS")) != NULL)
+	parseLSCOLORS(str2short(tcp));
 #endif /* COLOR_LS_F */
 
-    doldol = putn((tcsh_number_t)getpid());	/* For $$ */
+    mainpid = getpid();
+    doldol = putn((tcsh_number_t)mainpid);	/* For $$ */
 #ifdef WINNT_NATIVE
     {
 	char *tmp;
@@ -818,7 +834,7 @@ main(int argc, char **argv)
 #else /* !WINNT_NATIVE */
 #ifdef HAVE_MKSTEMP
     {
-	char *tmpdir = getenv ("TMPDIR");
+	const char *tmpdir = getenv ("TMPDIR");
 	if (!tmpdir)
 	    tmpdir = "/tmp";
 	shtemp = Strspl(SAVE(tmpdir), SAVE("/sh" TMP_TEMPLATE)); /* For << */
@@ -922,30 +938,7 @@ main(int argc, char **argv)
 		      *p &= ASCII;
 		  }
 #endif
-		arginp = SAVE(tempv[0]);
-
-		/*
-		 * we put the command into a variable
-		 */
-		if (arginp != NULL)
-		    setv(STRcommand, quote(Strsave(arginp)), VAR_READWRITE);
-
-		/*
-		 * * Give an error on -c arguments that end in * backslash to
-		 * ensure that you don't make * nonportable csh scripts.
-		 */
-		{
-		    int count;
-
-		    cp = Strend(arginp);
-		    count = 0;
-		    while (cp > arginp && *--cp == '\\')
-			++count;
-		    if ((count & 1) != 0) {
-			exiterr = 1;
-			stderror(ERR_ARGC);
-		    }
-		}
+		targinp = tempv[0];
 		prompt = 0;
 		nofile = 1;
 		break;
@@ -1190,7 +1183,7 @@ main(int argc, char **argv)
 	    sigset_interrupting(SIGXFSZ, queue_phup);
 #endif
 
-	if (quitit == 0 && arginp == 0) {
+	if (quitit == 0 && targinp == 0) {
 #ifdef SIGTSTP
 	    (void) signal(SIGTSTP, SIG_IGN);
 #endif
@@ -1215,14 +1208,14 @@ main(int argc, char **argv)
 
 #ifdef NeXT
 	    /* NeXT 2.0 /usr/etc/rlogind, does not set our process group! */
-	    if (shpgrp == 0) {
+	    if (f != -1 && shpgrp == 0) {
 	        shpgrp = getpid();
 		(void) setpgid(0, shpgrp);
 	        (void) tcsetpgrp(f, shpgrp);
 	    }
 #endif /* NeXT */
 #ifdef BSDJOBS			/* if we have tty job control */
-	    if (grabpgrp(f, shpgrp) != -1) {
+	    if (f != -1 && grabpgrp(f, shpgrp) != -1) {
 		/*
 		 * Thanks to Matt Day for the POSIX references, and to
 		 * Paul Close for the SGI clarification.
@@ -1308,7 +1301,7 @@ main(int argc, char **argv)
  */
     sigset_interrupting(SIGCHLD, queue_pchild);
 
-    if (intty && !arginp) 	
+    if (intty && !targinp) 	
 	(void) ed_Setup(editing);/* Get the tty state, and set defaults */
 				 /* Only alter the tty state if editing */
     
@@ -1343,7 +1336,7 @@ main(int argc, char **argv)
 #ifdef _PATH_DOTCSHRC
 	    (void) srcfile(_PATH_DOTCSHRC, 0, 0, NULL);
 #endif
-	    if (!arginp && !onelflg && !havhash)
+	    if (!targinp && !onelflg && !havhash)
 		dohash(NULL,NULL);
 #ifndef LOGINFIRST
 #ifdef _PATH_DOTLOGIN
@@ -1363,7 +1356,7 @@ main(int argc, char **argv)
 	if (!srccat(varval(STRhome), STRsldottcshrc))
 	    (void) srccat(varval(STRhome), STRsldotcshrc);
 
-	if (!arginp && !onelflg && !havhash)
+	if (!targinp && !onelflg && !havhash)
 	    dohash(NULL,NULL);
 
 	/*
@@ -1383,7 +1376,7 @@ main(int argc, char **argv)
     exitset--;
 
     /* Initing AFTER .cshrc is the Right Way */
-    if (intty && !arginp) {	/* PWP setup stuff */
+    if (intty && !targinp) {	/* PWP setup stuff */
 	ed_Init();		/* init the new line editor */
 #ifdef SIG_WINDOW
 	check_window_size(1);	/* mung environment */
@@ -1398,6 +1391,32 @@ main(int argc, char **argv)
     if (nexececho)
 	setNS(STRecho);
     
+
+    if (targinp) {
+	arginp = SAVE(targinp);
+	/*
+	 * we put the command into a variable
+	 */
+	if (arginp != NULL)
+	    setv(STRcommand, quote(Strsave(arginp)), VAR_READWRITE);
+
+	/*
+	 * * Give an error on -c arguments that end in * backslash to
+	 * ensure that you don't make * nonportable csh scripts.
+	 */
+	{
+	    int count;
+
+	    cp = Strend(arginp);
+	    count = 0;
+	    while (cp > arginp && *--cp == '\\')
+		++count;
+	    if ((count & 1) != 0) {
+		exiterr = 1;
+		stderror(ERR_ARGC);
+	    }
+	}
+    }
     /*
      * All the rest of the world is inside this call. The argument to process
      * indicates whether it should catch "error unwinds".  Thus if we are a
@@ -1904,6 +1923,8 @@ pintr1(int wantnl)
     {
 	(void) Cookedmode();
 	GettingInput = 0;
+	if (evalvec)
+	    doneinp = 1;
     }
     drainoline();
 #ifdef HAVE_GETPWENT
@@ -2037,6 +2058,7 @@ process(int catch)
 	 */
 	if (setintr)
 	    pintr_push_enable(&old_pintr_disabled);
+	freelex(&paraml);
 	hadhist = lex(&paraml);
 	if (setintr)
 	    cleanup_until(&old_pintr_disabled);
@@ -2178,6 +2200,7 @@ dosource(Char **t, struct command *c)
     cleanup_push(file, xfree);
     xfree(f);
     t = glob_all_or_error(t);
+    cleanup_push(t, blk_cleanup);
     if ((!srcfile(file, 0, hflg, t)) && (!hflg) && (!bequiet))
 	stderror(ERR_SYSTEM, file, strerror(errno));
     cleanup_until(file);

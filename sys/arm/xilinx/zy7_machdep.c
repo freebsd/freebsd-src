@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Thomas Skibo
  * All rights reserved.
  *
@@ -33,10 +35,11 @@
  * (v1.4) November 16, 2012.  Xilinx doc UG585.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -45,46 +48,26 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <machine/bus.h>
 #include <machine/machdep.h>
 #include <machine/platform.h> 
+#include <machine/platformvar.h>
 
+#include <arm/xilinx/zy7_machdep.h>
 #include <arm/xilinx/zy7_reg.h>
 
+#include "platform_if.h"
+#include "platform_pl310_if.h"
+
 void (*zynq7_cpu_reset)(void);
-
-vm_offset_t
-platform_lastaddr(void)
-{
-
-	return (devmap_lastaddr());
-}
-
-void
-platform_probe_and_attach(void)
-{
-
-}
-
-void
-platform_gpio_init(void)
-{
-}
-
-void
-platform_late_init(void)
-{
-}
 
 /*
  * Set up static device mappings.  Not strictly necessary -- simplebus will
  * dynamically establish mappings as needed -- but doing it this way gets us
  * nice efficient 1MB section mappings.
  */
-int
-platform_devmap_init(void)
+static int
+zynq7_devmap_init(platform_t plat)
 {
 
 	devmap_add_entry(ZYNQ7_PSIO_HWBASE, ZYNQ7_PSIO_SIZE);
@@ -93,49 +76,8 @@ platform_devmap_init(void)
 	return (0);
 }
 
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
-#ifndef INTRNG
-static int
-fdt_gic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-
-	if (!fdt_is_compatible(node, "arm,gic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_gic_decode_ic,
-	NULL
-};
-#endif
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-void
-cpu_reset()
+static void
+zynq7_do_cpu_reset(platform_t plat)
 {
 	if (zynq7_cpu_reset != NULL)
 		(*zynq7_cpu_reset)();
@@ -144,3 +86,19 @@ cpu_reset()
 	for (;;)
 		;
 }
+
+static platform_method_t zynq7_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	zynq7_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	zynq7_do_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_setmaxid,	zynq7_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap,	zynq7_mp_start_ap),
+#endif
+
+	PLATFORMMETHOD(platform_pl310_init,	zynq7_pl310_init),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(zynq7, "zynq7", 0, "xlnx,zynq-7000", 200);

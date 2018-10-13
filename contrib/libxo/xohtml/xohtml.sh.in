@@ -10,8 +10,10 @@
 #
 
 BASE=@XO_SHAREDIR@
+VERSION=@LIBXO_VERSION@
 CMD=cat
 DONE=
+WEB=http://juniper.github.io/libxo/${VERSION}/xohtml
 
 do_help () {
     echo "xohtml: wrap libxo-enabled output in HTML"
@@ -41,6 +43,11 @@ while [ -z "$DONE" -a ! -z "$1" ]; do
 	    shift;
 	    exec > "$FILE";
             ;;
+        -w|--web)
+            shift;
+            BASE="${WEB}";
+            ;;
+
 	-*)
 	    do_help
 	    ;;
@@ -57,7 +64,8 @@ if [ "$CMD" = "cat" -a -t 0 ]; then
     do_help
 fi
 
-echo "<html>\n<head>\n"
+echo '<html>'
+echo '<head>'
 echo '<meta http-equiv="content-type" content="text/html; charset=utf-8"/>'
 echo '<link rel="stylesheet" href="'$BASE'/xohtml.css">'
 echo '<link rel="stylesheet" href="'$BASE'/external/jquery.qtip.css"/>'
@@ -66,10 +74,12 @@ echo '<script type="text/javascript" src="'$BASE'/external/jquery.qtip.js"></scr
 echo '<script type="text/javascript" src="'$BASE'/xohtml.js"></script>'
 echo '<script>'
 echo '</script>'
-echo "</head>\n<body>\n"
+echo '</head>'
+echo '<body>'
 
 $CMD
 
-echo "</body>\n</html>\n"
+echo '</body>'
+echo '</html>'
 
 exit 0

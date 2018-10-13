@@ -53,7 +53,7 @@ static struct devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
 static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
-#if defined(__aarch64__) || defined(__riscv__)
+#if defined(__aarch64__) || defined(__riscv)
 extern int early_boot;
 #endif
 
@@ -197,7 +197,7 @@ devmap_bootstrap(vm_offset_t l1pt, const struct devmap_entry *table)
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
 		    VM_PROT_READ | VM_PROT_WRITE, PTE_DEVICE);
 #endif
-#elif defined(__aarch64__) || defined(__riscv__)
+#elif defined(__aarch64__) || defined(__riscv)
 		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
 #endif
 	}
@@ -270,7 +270,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
 
-#if defined(__aarch64__) || defined(__riscv__)
+#if defined(__aarch64__) || defined(__riscv)
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
@@ -286,6 +286,37 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 
 	return ((void *)(va + offset));
 }
+
+#if defined(__aarch64__)
+void *
+pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
+{
+	vm_offset_t va, offset;
+	void * rva;
+
+	/* First look in the static mapping table. */
+	if ((rva = devmap_ptov(pa, size)) != NULL)
+		return (rva);
+
+	offset = pa & PAGE_MASK;
+	pa = trunc_page(pa);
+	size = round_page(size + offset);
+
+	if (early_boot) {
+		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
+		va = akva_devmap_vaddr;
+		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE)),
+		    ("Too many early devmap mappings 2"));
+	} else
+		va = kva_alloc(size);
+	if (!va)
+		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
+
+	pmap_kenter(va, size, pa, ma);
+
+	return ((void *)(va + offset));
+}
+#endif
 
 /*
  * Unmap device memory and free the kva space.

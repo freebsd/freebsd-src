@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 David S. Miller, davem@nadzieja.rutgers.edu
  * Copyright (c) 1995 Paul Kranenburg
  * All rights reserved.

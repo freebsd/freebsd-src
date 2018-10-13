@@ -35,9 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#include <dev/fdt/fdt_common.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <machine/bus.h>
 
 #include "opt_platform.h"
 
@@ -48,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #include "fman.h"
 
+
+static MALLOC_DEFINE(M_FMAN, "fman", "fman devices information");
 
 /**
  * @group FMan private defines.
@@ -66,8 +70,8 @@ enum fman_mu_ram_map {
 struct fman_config {
 	device_t fman_device;
 	uintptr_t mem_base_addr;
-	int irq_num;
-	int err_irq_num;
+	uintptr_t irq_num;
+	uintptr_t err_irq_num;
 	uint8_t fm_id;
 	t_FmExceptionsCallback *exception_callback;
 	t_FmBusErrorCallback *bus_error_callback;
@@ -83,11 +87,186 @@ struct fman_config {
  */
 const uint32_t fman_firmware[] = FMAN_UC_IMG;
 const uint32_t fman_firmware_size = sizeof(fman_firmware);
-static struct fman_softc *fm_sc = NULL;
+
+int
+fman_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	struct fman_softc *sc;
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
+	int i, rv;
+
+	sc = device_get_softc(bus);
+	if (type != SYS_RES_IRQ) {
+		for (i = 0; i < sc->sc_base.nranges; i++) {
+			if (rman_is_region_manager(res, &sc->rman) != 0) {
+				bt = rman_get_bustag(sc->mem_res);
+				rv = bus_space_subregion(bt,
+				    rman_get_bushandle(sc->mem_res),
+				    rman_get_start(res) -
+				    rman_get_start(sc->mem_res),
+				    rman_get_size(res), &bh);
+				if (rv != 0)
+					return (rv);
+				rman_set_bustag(res, bt);
+				rman_set_bushandle(res, bh);
+				return (rman_activate_resource(res));
+			}
+		}
+		return (EINVAL);
+	}
+	return (bus_generic_activate_resource(bus, child, type, rid, res));
+}
+
+int
+fman_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	struct fman_softc *sc;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+	int passthrough, rv;
+
+	passthrough = (device_get_parent(child) != bus);
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
+	sc = device_get_softc(bus);
+	if (type != SYS_RES_IRQ) {
+		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
+			rv = bus_deactivate_resource(child, type, rid, res);
+			if (rv != 0)
+				return (rv);
+		}
+		rv = rman_release_resource(res);
+		if (rv != 0)
+			return (rv);
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, rid);
+			KASSERT(rle != NULL,
+			    ("%s: resource entry not found!", __func__));
+			KASSERT(rle->res != NULL,
+			   ("%s: resource entry is not busy", __func__));
+			rle->res = NULL;
+		}
+		return (0);
+	}
+	return (resource_list_release(rl, bus, child, type, rid, res));
+}
+
+struct resource *
+fman_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	struct fman_softc *sc;
+	struct resource_list *rl;
+	struct resource_list_entry *rle = NULL;
+	struct resource *res;
+	int i, isdefault, passthrough;
+
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
+	passthrough = (device_get_parent(child) != bus);
+	sc = device_get_softc(bus);
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
+	switch (type) {
+	case SYS_RES_MEMORY:
+		KASSERT(!(isdefault && passthrough),
+		    ("%s: passthrough of default allocation", __func__));
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, *rid);
+			if (rle == NULL)
+				return (NULL);
+			KASSERT(rle->res == NULL,
+			    ("%s: resource entry is busy", __func__));
+			if (isdefault) {
+				start = rle->start;
+				count = ulmax(count, rle->count);
+				end = ulmax(rle->end, start + count - 1);
+			}
+		}
+
+		res = NULL;
+		/* Map fman ranges to nexus ranges. */
+		for (i = 0; i < sc->sc_base.nranges; i++) {
+			if (start >= sc->sc_base.ranges[i].bus && end <
+			    sc->sc_base.ranges[i].bus + sc->sc_base.ranges[i].size) {
+				start += rman_get_start(sc->mem_res);
+				end += rman_get_start(sc->mem_res);
+				res = rman_reserve_resource(&sc->rman, start,
+				    end, count, flags & ~RF_ACTIVE, child);
+				if (res == NULL)
+					return (NULL);
+				rman_set_rid(res, *rid);
+				if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(
+				    child, type, *rid, res) != 0) {
+					rman_release_resource(res);
+					return (NULL);
+				}
+				break;
+			}
+		}
+		if (!passthrough)
+			rle->res = res;
+		return (res);
+	case SYS_RES_IRQ:
+		return (resource_list_alloc(rl, bus, child, type, rid, start,
+		    end, count, flags));
+	}
+	return (NULL);
+}
+
+static int
+fman_fill_ranges(phandle_t node, struct simplebus_softc *sc)
+{
+	int host_address_cells;
+	cell_t *base_ranges;
+	ssize_t nbase_ranges;
+	int err;
+	int i, j, k;
+
+	err = OF_searchencprop(OF_parent(node), "#address-cells",
+	    &host_address_cells, sizeof(host_address_cells));
+	if (err <= 0)
+		return (-1);
+
+	nbase_ranges = OF_getproplen(node, "ranges");
+	if (nbase_ranges < 0)
+		return (-1);
+	sc->nranges = nbase_ranges / sizeof(cell_t) /
+	    (sc->acells + host_address_cells + sc->scells);
+	if (sc->nranges == 0)
+		return (0);
+
+	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]),
+	    M_DEVBUF, M_WAITOK);
+	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
+	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
+
+	for (i = 0, j = 0; i < sc->nranges; i++) {
+		sc->ranges[i].bus = 0;
+		for (k = 0; k < sc->acells; k++) {
+			sc->ranges[i].bus <<= 32;
+			sc->ranges[i].bus |= base_ranges[j++];
+		}
+		sc->ranges[i].host = 0;
+		for (k = 0; k < host_address_cells; k++) {
+			sc->ranges[i].host <<= 32;
+			sc->ranges[i].host |= base_ranges[j++];
+		}
+		sc->ranges[i].size = 0;
+		for (k = 0; k < sc->scells; k++) {
+			sc->ranges[i].size <<= 32;
+			sc->ranges[i].size |= base_ranges[j++];
+		}
+	}
+
+	free(base_ranges, M_DEVBUF);
+	return (sc->nranges);
+}
 
 static t_Handle
 fman_init(struct fman_softc *sc, struct fman_config *cfg)
 {
+	phandle_t node;
 	t_FmParams fm_params;
 	t_Handle muram_handle, fm_handle;
 	t_Error error;
@@ -158,6 +337,18 @@ fman_init(struct fman_softc *sc, struct fman_config *cfg)
 	device_printf(cfg->fman_device, "Hardware version: %d.%d.\n",
 	    revision_info.majorRev, revision_info.minorRev);
 
+	/* Initialize the simplebus part of things */
+	simplebus_init(sc->sc_base.dev, 0);
+
+	node = ofw_bus_get_node(sc->sc_base.dev);
+	fman_fill_ranges(node, &sc->sc_base);
+	sc->rman.rm_type = RMAN_ARRAY;
+	sc->rman.rm_descr = "FMan range";
+	rman_init_from_resource(&sc->rman, sc->mem_res);
+	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+		simplebus_add_device(sc->sc_base.dev, node, 0, NULL, -1, NULL);
+	}
+
 	return (fm_handle);
 
 err2:
@@ -173,7 +364,7 @@ fman_exception_callback(t_Handle app_handle, e_FmExceptions exception)
 	struct fman_softc *sc;
 
 	sc = app_handle;
-	device_printf(sc->dev, "FMan exception occurred.\n");
+	device_printf(sc->sc_base.dev, "FMan exception occurred.\n");
 }
 
 static void
@@ -183,7 +374,7 @@ fman_error_callback(t_Handle app_handle, e_FmPortType port_type,
 	struct fman_softc *sc;
 
 	sc = app_handle;
-	device_printf(sc->dev, "FMan error occurred.\n");
+	device_printf(sc->sc_base.dev, "FMan error occurred.\n");
 }
 /** @} */
 
@@ -194,37 +385,31 @@ fman_error_callback(t_Handle app_handle, e_FmPortType port_type,
  */
 
 int
-fman_get_handle(t_Handle *fmh)
+fman_get_handle(device_t dev, t_Handle *fmh)
 {
+	struct fman_softc *sc = device_get_softc(dev);
 
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*fmh = fm_sc->fm_handle;
+	*fmh = sc->fm_handle;
 
 	return (0);
 }
 
 int
-fman_get_muram_handle(t_Handle *muramh)
+fman_get_muram_handle(device_t dev, t_Handle *muramh)
 {
+	struct fman_softc *sc = device_get_softc(dev);
 
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*muramh = fm_sc->muram_handle;
+	*muramh = sc->muram_handle;
 
 	return (0);
 }
 
 int
-fman_get_bushandle(vm_offset_t *fm_base)
+fman_get_bushandle(device_t dev, vm_offset_t *fm_base)
 {
+	struct fman_softc *sc = device_get_softc(dev);
 
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*fm_base = rman_get_bushandle(fm_sc->mem_res);
+	*fm_base = rman_get_bushandle(sc->mem_res);
 
 	return (0);
 }
@@ -234,10 +419,11 @@ fman_attach(device_t dev)
 {
 	struct fman_softc *sc;
 	struct fman_config cfg;
+	pcell_t qchan_range[2];
+	phandle_t node;
 
 	sc = device_get_softc(dev);
-	sc->dev = dev;
-	fm_sc = sc;
+	sc->sc_base.dev = dev;
 
 	/* Check if MallocSmart allocator is ready */
 	if (XX_MallocSmartInit() != E_OK) {
@@ -245,11 +431,17 @@ fman_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	XX_TrackInit();
-
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "fsl,qman-channel-range", qchan_range,
+	    sizeof(qchan_range)) <= 0) {
+		device_printf(dev, "Missing QMan channel range property!\n");
+		return (ENXIO);
+	}
+	sc->qman_chan_base = qchan_range[0];
+	sc->qman_chan_count = qchan_range[1];
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->mem_res) {
 		device_printf(dev, "could not allocate memory.\n");
 		return (ENXIO);
@@ -282,8 +474,8 @@ fman_attach(device_t dev)
 	cfg.fman_device = dev;
 	cfg.fm_id = device_get_unit(dev);
 	cfg.mem_base_addr = rman_get_bushandle(sc->mem_res);
-	cfg.irq_num = (int)sc->irq_res;
-	cfg.err_irq_num = (int)sc->err_irq_res;
+	cfg.irq_num = (uintptr_t)sc->irq_res;
+	cfg.err_irq_num = (uintptr_t)sc->err_irq_res;
 	cfg.exception_callback = fman_exception_callback;
 	cfg.bus_error_callback = fman_error_callback;
 
@@ -341,7 +533,7 @@ fman_suspend(device_t dev)
 }
 
 int
-fman_resume(device_t dev)
+fman_resume_dev(device_t dev)
 {
 
 	return (0);
@@ -350,6 +542,23 @@ fman_resume(device_t dev)
 int
 fman_shutdown(device_t dev)
 {
+
+	return (0);
+}
+
+int
+fman_qman_channel_id(device_t dev, int port)
+{
+	struct fman_softc *sc;
+	int qman_port_id[] = {0x31, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
+	    0x2f, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+	int i;
+
+	sc = device_get_softc(dev);
+	for (i = 0; i < sc->qman_chan_count; i++) {
+		if (qman_port_id[i] == port)
+			return (sc->qman_chan_base + i);
+	}
 
 	return (0);
 }

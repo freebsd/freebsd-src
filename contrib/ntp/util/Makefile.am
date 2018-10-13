@@ -7,13 +7,16 @@ sbin_PROGRAMS=	$(NTP_KEYGEN_DS) $(NTPTIME_DS) $(TICKADJ_DS) $(TIMETRIM_DS)
 EXTRA_PROGRAMS=	audio-pcm byteorder hist jitter kern longsize ntp-keygen \
 	ntptime pps-api precision sht testrs6000 tg tg2 tickadj timetrim
 
-AM_CFLAGS = $(CFLAGS_NTP)
+AM_CFLAGS  = $(CFLAGS_NTP)
+AM_CFLAGS += $(NTP_HARD_CFLAGS)
 
 AM_CPPFLAGS  = $(NTP_INCS)
 AM_CPPFLAGS += $(LIBOPTS_CFLAGS)
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
+AM_CPPFLAGS += $(NTP_HARD_CPPFLAGS)
 
-AM_LDFLAGS = $(LDFLAGS_NTP)
+AM_LDFLAGS  = $(LDFLAGS_NTP)
+AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
 # LDADD might need RESLIB and ADJLIB
 LDADD=		../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)

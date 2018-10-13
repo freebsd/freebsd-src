@@ -1,4 +1,38 @@
 <div class="line">
+  <div class="text">static </div>
+  <div class="data" data-tag="type" data-xpath="/top/type">ethernet</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type" data-xpath="/top/type">bridge</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type" data-xpath="/top/type">  18u</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type" data-xpath="/top/type"> 24</div>
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address" data-xpath="/top/address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port" data-xpath="/top/port">1</div>
+</div>
+<div class="line">
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address" data-xpath="/top/address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port" data-xpath="/top/port">1</div>
+</div>
+<div class="line">
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address" data-xpath="/top/address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port" data-xpath="/top/port">1</div>
+</div>
+<div class="line">
+  <div class="text">df </div>
+  <div class="data" data-tag="used-percent" data-xpath="/top/used-percent">   12</div>
+  <div class="units">%</div>
+</div>
+<div class="line">
   <div class="text">testing argument modifier </div>
   <div class="data" data-tag="host" data-xpath="/top/host">my-box</div>
   <div class="text">.</div>
@@ -331,6 +365,10 @@
   <div class="text">  </div>
   <div class="data" data-tag="group" data-xpath="/top/group">group</div>
   <div class="text">  </div>
+</div>
+<div class="line">
+  <div class="data" data-tag="links" data-xpath="/top/links">3       </div>
+  <div class="data" data-tag="post" data-xpath="/top/post">this    </div>
 </div>
 <div class="line">
   <div class="data" data-tag="mode" data-xpath="/top/mode">/some/file</div>

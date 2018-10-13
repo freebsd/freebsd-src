@@ -51,61 +51,61 @@
 /***************************/
 
 /* Cache-inhibited register offsets */
-#define REG_EQCR_PI_CINH    (void *)0x0000
-#define REG_EQCR_CI_CINH    (void *)0x0004
-#define REG_EQCR_ITR        (void *)0x0008
-#define REG_DQRR_PI_CINH    (void *)0x0040
-#define REG_DQRR_CI_CINH    (void *)0x0044
-#define REG_DQRR_ITR        (void *)0x0048
-#define REG_DQRR_DCAP       (void *)0x0050
-#define REG_DQRR_SDQCR      (void *)0x0054
-#define REG_DQRR_VDQCR      (void *)0x0058
-#define REG_DQRR_PDQCR      (void *)0x005c
-#define REG_MR_PI_CINH      (void *)0x0080
-#define REG_MR_CI_CINH      (void *)0x0084
-#define REG_MR_ITR          (void *)0x0088
-#define REG_CFG             (void *)0x0100
-#define REG_ISR             (void *)0x0e00
-#define REG_IER             (void *)0x0e04
-#define REG_ISDR            (void *)0x0e08
-#define REG_IIR             (void *)0x0e0c
-#define REG_ITPR            (void *)0x0e14
+#define REG_EQCR_PI_CINH    0x0000
+#define REG_EQCR_CI_CINH    0x0004
+#define REG_EQCR_ITR        0x0008
+#define REG_DQRR_PI_CINH    0x0040
+#define REG_DQRR_CI_CINH    0x0044
+#define REG_DQRR_ITR        0x0048
+#define REG_DQRR_DCAP       0x0050
+#define REG_DQRR_SDQCR      0x0054
+#define REG_DQRR_VDQCR      0x0058
+#define REG_DQRR_PDQCR      0x005c
+#define REG_MR_PI_CINH      0x0080
+#define REG_MR_CI_CINH      0x0084
+#define REG_MR_ITR          0x0088
+#define REG_CFG             0x0100
+#define REG_ISR             0x0e00
+#define REG_IER             0x0e04
+#define REG_ISDR            0x0e08
+#define REG_IIR             0x0e0c
+#define REG_ITPR            0x0e14
 
 /* Cache-enabled register offsets */
-#define CL_EQCR             (void *)0x0000
-#define CL_DQRR             (void *)0x1000
-#define CL_MR               (void *)0x2000
-#define CL_EQCR_PI_CENA     (void *)0x3000
-#define CL_EQCR_CI_CENA     (void *)0x3100
-#define CL_DQRR_PI_CENA     (void *)0x3200
-#define CL_DQRR_CI_CENA     (void *)0x3300
-#define CL_MR_PI_CENA       (void *)0x3400
-#define CL_MR_CI_CENA       (void *)0x3500
-#define CL_RORI_CENA        (void *)0x3600
-#define CL_CR               (void *)0x3800
-#define CL_RR0              (void *)0x3900
-#define CL_RR1              (void *)0x3940
+#define CL_EQCR             0x0000
+#define CL_DQRR             0x1000
+#define CL_MR               0x2000
+#define CL_EQCR_PI_CENA     0x3000
+#define CL_EQCR_CI_CENA     0x3100
+#define CL_DQRR_PI_CENA     0x3200
+#define CL_DQRR_CI_CENA     0x3300
+#define CL_MR_PI_CENA       0x3400
+#define CL_MR_CI_CENA       0x3500
+#define CL_RORI_CENA        0x3600
+#define CL_CR               0x3800
+#define CL_RR0              0x3900
+#define CL_RR1              0x3940
 
-static __inline__ void *ptr_ADD(void *a, void *b)
+static __inline__ void *ptr_ADD(void *a, uintptr_t b)
 {
-    return (void *)((uintptr_t)a + (uintptr_t)b);
+    return (void *)((uintptr_t)a + b);
 }
 
 /* The h/w design requires mappings to be size-aligned so that "add"s can be
  * reduced to "or"s. The primitives below do the same for s/w. */
 /* Bitwise-OR two pointers */
-static __inline__ void *ptr_OR(void *a, void *b)
+static __inline__ void *ptr_OR(void *a, uintptr_t b)
 {
-    return (void *)((uintptr_t)a + (uintptr_t)b);
+    return (void *)((uintptr_t)a | b);
 }
 
 /* Cache-inhibited register access */
-static __inline__ uint32_t __qm_in(struct qm_addr *qm, void *offset)
+static __inline__ uint32_t __qm_in(struct qm_addr *qm, uintptr_t offset)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(qm->addr_ci, offset);
     return GET_UINT32(*tmp);
 }
-static __inline__ void __qm_out(struct qm_addr *qm, void *offset, uint32_t val)
+static __inline__ void __qm_out(struct qm_addr *qm, uintptr_t offset, uint32_t val)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(qm->addr_ci, offset);
     WRITE_UINT32(*tmp, val);
@@ -114,29 +114,29 @@ static __inline__ void __qm_out(struct qm_addr *qm, void *offset, uint32_t val)
 #define qm_out(reg, val)    __qm_out(&portal->addr, REG_##reg, (uint32_t)val)
 
 /* Convert 'n' cachelines to a pointer value for bitwise OR */
-#define qm_cl(n)        (void *)((n) << 6)
+#define qm_cl(n)        ((n) << 6)
 
 /* Cache-enabled (index) register access */
-static __inline__ void __qm_cl_touch_ro(struct qm_addr *qm, void *offset)
+static __inline__ void __qm_cl_touch_ro(struct qm_addr *qm, uintptr_t offset)
 {
     dcbt_ro(ptr_ADD(qm->addr_ce, offset));
 }
-static __inline__ void __qm_cl_touch_rw(struct qm_addr *qm, void *offset)
+static __inline__ void __qm_cl_touch_rw(struct qm_addr *qm, uintptr_t offset)
 {
     dcbt_rw(ptr_ADD(qm->addr_ce, offset));
 }
-static __inline__ uint32_t __qm_cl_in(struct qm_addr *qm, void *offset)
+static __inline__ uint32_t __qm_cl_in(struct qm_addr *qm, uintptr_t offset)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(qm->addr_ce, offset);
     return GET_UINT32(*tmp);
 }
-static __inline__ void __qm_cl_out(struct qm_addr *qm, void *offset, uint32_t val)
+static __inline__ void __qm_cl_out(struct qm_addr *qm, uintptr_t offset, uint32_t val)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(qm->addr_ce, offset);
     WRITE_UINT32(*tmp, val);
     dcbf(tmp);
 }
-static __inline__ void __qm_cl_invalidate(struct qm_addr *qm, void *offset)
+static __inline__ void __qm_cl_invalidate(struct qm_addr *qm, uintptr_t offset)
 {
     dcbi(ptr_ADD(qm->addr_ce, offset));
 }
@@ -190,7 +190,7 @@ static __inline__ void __qm_portal_unbind(struct qm_portal *portal, uint8_t ifac
 /* Bit-wise logic to convert a ring pointer to a ring index */
 static __inline__ uint8_t EQCR_PTR2IDX(struct qm_eqcr_entry *e)
 {
-    return (uint8_t)(((uint32_t)e >> 6) & (QM_EQCR_SIZE - 1));
+    return (uint8_t)(((uintptr_t)e >> 6) & (QM_EQCR_SIZE - 1));
 }
 
 /* Increment the 'cursor' ring pointer, taking 'vbit' into account */
@@ -323,7 +323,7 @@ static __inline__ void qmPortalEqcrPciCommit(struct qm_portal *portal, uint8_t m
     EQCR_INC(eqcr);
     eqcr->available--;
     dcbf_64(eqcr->cursor);
-    hwsync();
+    mb();
     qm_out(EQCR_PI_CINH, EQCR_PTR2IDX(eqcr->cursor));
 #ifdef QM_CHECKING
     eqcr->busy = 0;
@@ -351,7 +351,7 @@ static __inline__ void qmPortalEqcrPceCommit(struct qm_portal *portal, uint8_t m
     EQCR_INC(eqcr);
     eqcr->available--;
     dcbf_64(eqcr->cursor);
-    lwsync();
+    wmb();
     qm_cl_out(EQCR_PI, EQCR_PTR2IDX(eqcr->cursor));
 #ifdef QM_CHECKING
     eqcr->busy = 0;
@@ -366,7 +366,7 @@ static __inline__ void qmPortalEqcrPvbCommit(struct qm_portal *portal, uint8_t m
     EQCR_COMMIT_CHECKS(eqcr);
     ASSERT_COND(eqcr->pmode == e_QmPortalPVB);
 #endif /* QM_CHECKING */
-    lwsync();
+    rmb();
     eqcursor = eqcr->cursor;
     eqcursor->__dont_write_directly__verb = (uint8_t)(myverb | eqcr->vbit);
     dcbf_64(eqcursor);
@@ -459,7 +459,7 @@ static __inline__ uint8_t qm_eqcr_get_fill(struct qm_portal *portal)
 
 static __inline__ uint8_t DQRR_PTR2IDX(struct qm_dqrr_entry *e)
 {
-    return (uint8_t)(((uint32_t)e >> 6) & (QM_DQRR_SIZE - 1));
+    return (uint8_t)(((uintptr_t)e >> 6) & (QM_DQRR_SIZE - 1));
 }
 
 static __inline__ struct qm_dqrr_entry *DQRR_INC(struct qm_dqrr_entry *e)
@@ -829,7 +829,7 @@ static __inline__ uint8_t qm_dqrr_get_maxfill(struct qm_portal *portal)
 
 static __inline__ uint8_t MR_PTR2IDX(struct qm_mr_entry *e)
 {
-    return (uint8_t)(((uint32_t)e >> 6) & (QM_MR_SIZE - 1));
+    return (uint8_t)(((uintptr_t)e >> 6) & (QM_MR_SIZE - 1));
 }
 
 static __inline__ struct qm_mr_entry *MR_INC(struct qm_mr_entry *e)
@@ -1086,7 +1086,7 @@ static __inline__ void qm_mc_commit(struct qm_portal *portal, uint8_t myverb)
 #ifdef QM_CHECKING
     ASSERT_COND(mc->state == mc_user);
 #endif /* QM_CHECKING */
-    lwsync();
+    rmb();
     mc->cr->__dont_write_directly__verb = (uint8_t)(myverb | mc->vbit);
     dcbf_64(mc->cr);
     dcbit_ro(mc->rr + mc->rridx);
@@ -1139,10 +1139,10 @@ static __inline__ void qm_isr_set_iperiod(struct qm_portal *portal, uint16_t ipe
 
 static __inline__ uint32_t __qm_isr_read(struct qm_portal *portal, enum qm_isr_reg n)
 {
-    return __qm_in(&portal->addr, PTR_MOVE(REG_ISR, (n << 2)));
+    return __qm_in(&portal->addr, REG_ISR + (n << 2));
 }
 
 static __inline__ void __qm_isr_write(struct qm_portal *portal, enum qm_isr_reg n, uint32_t val)
 {
-    __qm_out(&portal->addr, PTR_MOVE(REG_ISR, (n << 2)), val);
+    __qm_out(&portal->addr, REG_ISR + (n << 2), val);
 }

@@ -32,11 +32,11 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 
 #pragma weak __vdso_gettc
-u_int
-__vdso_gettc(const struct vdso_timehands *th)
+int
+__vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 {
 
-	return (0);
+	return (ENOSYS);
 }
 
 #pragma weak __vdso_gettimekeep

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Authors: Doug Rabson <dfr@rabson.org>
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
@@ -91,17 +93,10 @@ static SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
 /*
  * Syscall hooks
  */
-static int nlm_syscall_offset = SYS_nlm_syscall;
-static struct sysent nlm_syscall_prev_sysent;
-#if __FreeBSD_version < 700000
-static struct sysent nlm_syscall_sysent = {
-	(sizeof(struct nlm_syscall_args) / sizeof(register_t)) | SYF_MPSAFE,
-	(sy_call_t *) nlm_syscall
+static struct syscall_helper_data nlm_syscalls[] = {
+	SYSCALL_INIT_HELPER(nlm_syscall),
+	SYSCALL_INIT_LAST
 };
-#else
-MAKE_SYSENT(nlm_syscall);
-#endif
-static bool_t nlm_syscall_registered = FALSE;
 
 /*
  * Debug level passed in from userland. We also support a sysctl hook
@@ -285,8 +280,8 @@ ng_cookie(struct netobj *src)
 /*
  * Initialise NLM globals.
  */
-static void
-nlm_init(void *dummy)
+static int
+nlm_init(void)
 {
 	int error;
 
@@ -294,24 +289,18 @@ nlm_init(void *dummy)
 	TAILQ_INIT(&nlm_waiting_locks);
 	TAILQ_INIT(&nlm_hosts);
 
-	error = syscall_register(&nlm_syscall_offset, &nlm_syscall_sysent,
-	    &nlm_syscall_prev_sysent, SY_THR_STATIC_KLD);
-	if (error)
+	error = syscall_helper_register(nlm_syscalls, SY_THR_STATIC_KLD);
+	if (error != 0)
 		NLM_ERR("Can't register NLM syscall\n");
-	else
-		nlm_syscall_registered = TRUE;
+	return (error);
 }
-SYSINIT(nlm_init, SI_SUB_LOCK, SI_ORDER_FIRST, nlm_init, NULL);
 
 static void
-nlm_uninit(void *dummy)
+nlm_uninit(void)
 {
 
-	if (nlm_syscall_registered)
-		syscall_deregister(&nlm_syscall_offset,
-		    &nlm_syscall_prev_sysent);
+	syscall_helper_unregister(nlm_syscalls);
 }
-SYSUNINIT(nlm_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, nlm_uninit, NULL);
 
 /*
  * Create a netobj from an arbitrary source.
@@ -346,7 +335,6 @@ static CLIENT *
 nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 {
 	char *wchan = "nlmrcv";
-	const char* protofmly;
 	struct sockaddr_storage ss;
 	struct socket *so;
 	CLIENT *rpcb;
@@ -368,14 +356,11 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	switch (ss.ss_family) {
 	case AF_INET:
 		((struct sockaddr_in *)&ss)->sin_port = htons(111);
-		protofmly = "inet";
 		so = nlm_socket;
 		break;
-		
 #ifdef INET6
 	case AF_INET6:
 		((struct sockaddr_in6 *)&ss)->sin6_port = htons(111);
-		protofmly = "inet6";
 		so = nlm_socket6;
 		break;
 #endif
@@ -1356,7 +1341,7 @@ int
 nlm_wait_lock(void *handle, int timo)
 {
 	struct nlm_waiting_lock *nw = handle;
-	int error;
+	int error, stops_deferred;
 
 	/*
 	 * If the granted message arrived before we got here,
@@ -1364,8 +1349,11 @@ nlm_wait_lock(void *handle, int timo)
 	 */
 	mtx_lock(&nlm_global_lock);
 	error = 0;
-	if (nw->nw_waiting)
+	if (nw->nw_waiting) {
+		stops_deferred = sigdeferstop(SIGDEFERSTOP_ERESTART);
 		error = msleep(nw, &nlm_global_lock, PCATCH, "nlmlock", timo);
+		sigallowstop(stops_deferred);
+	}
 	TAILQ_REMOVE(&nlm_waiting_locks, nw, nw_link);
 	if (error) {
 		/*
@@ -2411,8 +2399,10 @@ nfslockd_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		return (0);
+		return (nlm_init());
+
 	case MOD_UNLOAD:
+		nlm_uninit();
 		/* The NLM module cannot be safely unloaded. */
 		/* FALLTHROUGH */
 	default:

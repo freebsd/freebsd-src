@@ -307,12 +307,12 @@ typedef struct ifstats_row_tag {
 	sockaddr_u	bcast;
 	int		enabled;
 	u_int		flags;
-	int		mcast_count;
+	u_int		mcast_count;
 	char		name[32];
-	int		peer_count;
-	int		received;
-	int		sent;
-	int		send_errors;
+	u_int		peer_count;
+	u_int		received;
+	u_int		sent;
+	u_int		send_errors;
 	u_int		ttl;
 	u_int		uptime;
 } ifstats_row;
@@ -446,6 +446,7 @@ doaddvlist(
 
 	len = strlen(vars);
 	while (nextvar(&len, &vars, &name, &value)) {
+		INSIST(name && value);
 		vl = findlistvar(vlist, name);
 		if (NULL == vl) {
 			fprintf(stderr, "Variable list full\n");
@@ -481,6 +482,7 @@ dormvlist(
 
 	len = strlen(vars);
 	while (nextvar(&len, &vars, &name, &value)) {
+		INSIST(name && value);
 		vl = findlistvar(vlist, name);
 		if (vl == 0 || vl->name == 0) {
 			(void) fprintf(stderr, "Variable `%s' not found\n",
@@ -1153,7 +1155,7 @@ printassoc(
 	 * Output a header
 	 */
 	(void) fprintf(fp,
-			   "\nind assid status  conf reach auth condition  last_event cnt\n");
+			   "ind assid status  conf reach auth condition  last_event cnt\n");
 	(void) fprintf(fp,
 			   "===========================================================\n");
 	for (i = 0; i < numassoc; i++) {
@@ -1452,6 +1454,8 @@ when(
 	else
 		return 0;
 
+	if (ts->l_ui < lasttime->l_ui)
+		return -1;
 	return (ts->l_ui - lasttime->l_ui);
 }
 
@@ -1473,24 +1477,36 @@ prettyinterval(
 	}
 
 	if (diff <= 2048) {
-		snprintf(buf, cb, "%ld", diff);
+		snprintf(buf, cb, "%u", (unsigned int)diff);
 		return buf;
 	}
 
 	diff = (diff + 29) / 60;
 	if (diff <= 300) {
-		snprintf(buf, cb, "%ldm", diff);
+		snprintf(buf, cb, "%um", (unsigned int)diff);
 		return buf;
 	}
 
 	diff = (diff + 29) / 60;
 	if (diff <= 96) {
-		snprintf(buf, cb, "%ldh", diff);
+		snprintf(buf, cb, "%uh", (unsigned int)diff);
 		return buf;
 	}
 
 	diff = (diff + 11) / 24;
-	snprintf(buf, cb, "%ldd", diff);
+	if (diff <= 999) {
+		snprintf(buf, cb, "%ud", (unsigned int)diff);
+		return buf;
+	}
+
+	/* years are only approximated... */
+	diff = (long)floor(diff / 365.25 + 0.5);
+	if (diff <= 999) {
+		snprintf(buf, cb, "%uy", (unsigned int)diff);
+		return buf;
+	}
+	/* Ok, this amounts to infinity... */
+	strlcpy(buf, "INF", cb);
 	return buf;
 }
 
@@ -1629,10 +1645,14 @@ doprintpeers(
 	l_fp rec;
 	l_fp ts;
 	u_long poll_sec;
+	u_long flash = 0;
 	char type = '?';
-	char whenbuf[8], pollbuf[8];
 	char clock_name[LENHOSTNAME];
-
+	char whenbuf[12], pollbuf[12];
+	/* [Bug 3482] formally whenbuf & pollbuf should be able to hold
+	 * a full signed int. Not that we would use that much string
+	 * data for it...
+	 */
 	get_systime(&ts);
 	
 	have_srchost = FALSE;
@@ -1648,6 +1668,7 @@ doprintpeers(
 	ZERO(estdisp);
 
 	while (nextvar(&datalen, &data, &name, &value)) {
+		INSIST(name && value);
 		if (!strcmp("srcadr", name) ||
 		    !strcmp("peeradr", name)) {
 			if (!decodenetnum(value, &srcadr))
@@ -1762,6 +1783,8 @@ doprintpeers(
 		} else if (!strcmp("reftime", name)) {
 			if (!decodets(value, &reftime))
 				L_CLR(&reftime);
+		} else if (!strcmp("flash", name)) {
+		    decodeuint(value, &flash);
 		} else {
 			// fprintf(stderr, "UNRECOGNIZED name=%s ", name);
 		}
@@ -1833,11 +1856,17 @@ doprintpeers(
 		if (!have_srchost)
 			strlcpy(clock_name, nntohost(&srcadr),
 				sizeof(clock_name));
+		/* wide and long source - space over on next line */
+		/* allow for host + sp if > 1 and regular tally + source + sp */
 		if (wideremote && 15 < strlen(clock_name))
-			fprintf(fp, "%c%s\n                 ", c, clock_name);
+			fprintf(fp, "%c%s\n%*s", c, clock_name,
+				((numhosts > 1) ? (int)maxhostlen + 1 : 0)
+							+ 1 + 15 + 1, "");
 		else
 			fprintf(fp, "%c%-15.15s ", c, clock_name);
-		if (!have_da_rid) {
+		if ((flash & TEST12) && (pvl != opeervarlist)) {
+			drlen = fprintf(fp, "(loop)");
+		} else if (!have_da_rid) {
 			drlen = 0;
 		} else {
 			drlen = strlen(dstadr_refid);
@@ -2225,14 +2254,13 @@ config (
 	col = -1;
 	if (1 == sscanf(resp, "column %d syntax error", &col)
 	    && col >= 0 && (size_t)col <= strlen(cfgcmd) + 1) {
-		if (interactive) {
-			printf("______");	/* "ntpq> " */
-			printf("________");	/* ":config " */
-		} else
+		if (interactive)
+			fputs("             *", stdout); /* "ntpq> :config " */
+		else
 			printf("%s\n", cfgcmd);
-		for (i = 1; i < col; i++)
-			putchar('_');
-		printf("^\n");
+		for (i = 0; i < col; i++)
+			fputc('_', stdout);
+		fputs("^\n", stdout);
 	}
 	printf("%s\n", resp);
 	free(resp);
@@ -2369,7 +2397,7 @@ fetch_nonce(
 		return FALSE;
 	}
 	chars = rsize - (sizeof(nonce_eq) - 1);
-	if (chars >= (int)cb_nonce)
+	if (chars >= cb_nonce)
 		return FALSE;
 	memcpy(nonce, rdata + sizeof(nonce_eq) - 1, chars);
 	nonce[chars] = '\0';
@@ -2635,6 +2663,7 @@ collect_mru_list(
 		have_addr_older = FALSE;
 		have_last_older = FALSE;
 		while (!qres && nextvar(&rsize, &rdata, &tag, &val)) {
+			INSIST(tag && val);
 			if (debug > 1)
 				fprintf(stderr, "nextvar gave: %s = %s\n",
 					tag, val);
@@ -3277,7 +3306,7 @@ validate_ifnum(
 		return;
 	if (prow->ifnum + 1 <= ifnum) {
 		if (*pfields < IFSTATS_FIELDS)
-			fprintf(fp, "Warning: incomplete row with %d (of %d) fields",
+			fprintf(fp, "Warning: incomplete row with %d (of %d) fields\n",
 				*pfields, IFSTATS_FIELDS);
 		*pfields = 0;
 		prow->ifnum = ifnum;
@@ -3314,7 +3343,7 @@ another_ifstats_field(
 	"==============================================================================\n");
 	 */
 	fprintf(fp,
-		"%3u %-24.24s %c %4x %3d %2d %6d %6d %6d %5d %8d\n"
+		"%3u %-24.24s %c %4x %3u %2u %6u %6u %6u %5u %8d\n"
 		"    %s\n",
 		prow->ifnum, prow->name,
 		(prow->enabled)
@@ -3379,11 +3408,9 @@ ifstats(
 	fields = 0;
 	ui = 0;
 	while (nextvar(&dsize, &datap, &tag, &val)) {
+		INSIST(tag && val);
 		if (debug > 1)
-			fprintf(stderr, "nextvar gave: %s = %s\n", tag,
-				(NULL == val)
-				    ? ""
-				    : val);
+		    fprintf(stderr, "nextvar gave: %s = %s\n", tag, val);
 		comprende = FALSE;
 		switch(tag[0]) {
 
@@ -3395,7 +3422,7 @@ ifstats(
 
 		case 'b':
 			if (1 == sscanf(tag, bcast_fmt, &ui) &&
-			    (NULL == val ||
+			    ('\0' == *val ||
 			     decodenetnum(val, &row.bcast)))
 				comprende = TRUE;
 			break;
@@ -3414,14 +3441,13 @@ ifstats(
 
 		case 'm':
 			if (1 == sscanf(tag, mc_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.mcast_count))
+			    1 == sscanf(val, "%u", &row.mcast_count))
 				comprende = TRUE;
 			break;
 
 		case 'n':
 			if (1 == sscanf(tag, name_fmt, &ui)) {
 				/* strip quotes */
-				INSIST(val);
 				len = strlen(val);
 				if (len >= 2 &&
 				    len - 2 < sizeof(row.name)) {
@@ -3435,31 +3461,31 @@ ifstats(
 
 		case 'p':
 			if (1 == sscanf(tag, pc_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.peer_count))
+			    1 == sscanf(val, "%u", &row.peer_count))
 				comprende = TRUE;
 			break;
 
 		case 'r':
 			if (1 == sscanf(tag, rx_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.received))
+			    1 == sscanf(val, "%u", &row.received))
 				comprende = TRUE;
 			break;
 
 		case 't':
 			if (1 == sscanf(tag, tl_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.ttl))
+			    1 == sscanf(val, "%u", &row.ttl))
 				comprende = TRUE;
 			else if (1 == sscanf(tag, tx_fmt, &ui) &&
-				 1 == sscanf(val, "%d", &row.sent))
+				 1 == sscanf(val, "%u", &row.sent))
 				comprende = TRUE;
 			else if (1 == sscanf(tag, txerr_fmt, &ui) &&
-				 1 == sscanf(val, "%d", &row.send_errors))
+				 1 == sscanf(val, "%u", &row.send_errors))
 				comprende = TRUE;
 			break;
 
 		case 'u':
 			if (1 == sscanf(tag, up_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.uptime))
+			    1 == sscanf(val, "%u", &row.uptime))
 				comprende = TRUE;
 			break;
 		}
@@ -3472,7 +3498,7 @@ ifstats(
 		}
 	}
 	if (fields != IFSTATS_FIELDS)
-		fprintf(fp, "Warning: incomplete row with %d (of %d) fields",
+		fprintf(fp, "Warning: incomplete row with %d (of %d) fields\n",
 			fields, IFSTATS_FIELDS);
 
 	fflush(fp);
@@ -3595,11 +3621,9 @@ reslist(
 	fields = 0;
 	ui = 0;
 	while (nextvar(&dsize, &datap, &tag, &val)) {
+		INSIST(tag && val);
 		if (debug > 1)
-			fprintf(stderr, "nextvar gave: %s = %s\n", tag,
-				(NULL == val)
-				    ? ""
-				    : val);
+			fprintf(stderr, "nextvar gave: %s = %s\n", tag, val);
 		comprende = FALSE;
 		switch(tag[0]) {
 
@@ -3614,11 +3638,13 @@ reslist(
 				if (NULL == val) {
 					row.flagstr[0] = '\0';
 					comprende = TRUE;
-				} else {
-					len = strlen(val);
+				} else if ((len = strlen(val)) < sizeof(row.flagstr)) {
 					memcpy(row.flagstr, val, len);
 					row.flagstr[len] = '\0';
 					comprende = TRUE;
+				} else {
+					 /* no flags, and still !comprende */
+					row.flagstr[0] = '\0';
 				}
 			}
 			break;
@@ -3704,8 +3730,7 @@ collect_display_vdc(
 	 * the retrieved values.
 	 */
 	while (nextvar(&rsize, &rdata, &tag, &val)) {
-		if (NULL == val)
-			continue;
+		INSIST(tag && val);
 		n = 0;
 		for (pvdc = table; pvdc->tag != NULL; pvdc++) {
 			len = strlen(pvdc->tag);
@@ -3845,6 +3870,10 @@ sysstats(
 	VDC_INIT("ss_limited",		"rate limited:         ", NTP_STR),
 	VDC_INIT("ss_kodsent",		"KoD responses:        ", NTP_STR),
 	VDC_INIT("ss_processed",	"processed for time:   ", NTP_STR),
+#if 0
+	VDC_INIT("ss_lamport",		"Lamport violations:    ", NTP_STR),
+	VDC_INIT("ss_tsrounding",	"bad timestamp rounding:", NTP_STR),
+#endif
 	VDC_INIT(NULL,			NULL,			  0)
     };
 
@@ -3926,9 +3955,9 @@ monstats(
 	)
 {
     static vdc monstats_vdc[] = {
-	VDC_INIT("mru_enabled",	"enabled:            ", NTP_STR),
+	VDC_INIT("mru_enabled",		"enabled:            ", NTP_STR),
 	VDC_INIT("mru_depth",		"addresses:          ", NTP_STR),
-	VDC_INIT("mru_deepest",	"peak addresses:     ", NTP_STR),
+	VDC_INIT("mru_deepest",		"peak addresses:     ", NTP_STR),
 	VDC_INIT("mru_maxdepth",	"maximum addresses:  ", NTP_STR),
 	VDC_INIT("mru_mindepth",	"reclaim above count:", NTP_STR),
 	VDC_INIT("mru_maxage",		"reclaim older than: ", NTP_STR),

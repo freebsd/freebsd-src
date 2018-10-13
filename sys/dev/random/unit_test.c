@@ -31,7 +31,6 @@
 
 cc -g -O0 -pthread -DRANDOM_<alg> -I../.. -lstdthreads -Wall \
 	unit_test.c \
-	yarrow.c \
 	fortuna.c \
 	hash.c \
 	../../crypto/rijndael/rijndael-api-fst.c \
@@ -41,7 +40,9 @@ cc -g -O0 -pthread -DRANDOM_<alg> -I../.. -lstdthreads -Wall \
 	-o unit_test
 ./unit_test
 
-Where <alg> is YARROW or FORTUNA.
+Where <alg> is FORTUNA. The parameterisation is a leftover from
+when Yarrow was an option, and remains to enable the testing of
+possible future algorithms.
 */
 
 #include <sys/types.h>
@@ -157,7 +158,6 @@ RunHarvester(void *arg __unused)
 		e.he_somecounter = i;
 		*((uint64_t *)e.he_entropy) = random();
 		e.he_size = 8;
-		e.he_bits = random()%4;
 		e.he_destination = i;
 		e.he_source = (i + 3)%7;
 		e.he_next = NULL;

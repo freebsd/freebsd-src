@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * Copyright (c) 2014 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved
@@ -62,14 +64,11 @@ struct greip6 {
 
 struct gre_softc {
 	struct ifnet		*gre_ifp;
-	LIST_ENTRY(gre_softc)	gre_list;
-	struct rmlock		gre_lock;
 	int			gre_family;	/* AF of delivery header */
 	uint32_t		gre_iseq;
 	uint32_t		gre_oseq;
 	uint32_t		gre_key;
 	uint32_t		gre_options;
-	uint32_t		gre_mtu;
 	u_int			gre_fibnum;
 	u_int			gre_hlen;	/* header size */
 	union {
@@ -81,18 +80,20 @@ struct gre_softc {
 		struct greip6	*gi6hdr;
 #endif
 	} gre_uhdr;
-	const struct encaptab	*gre_ecookie;
+
+	CK_LIST_ENTRY(gre_softc) chain;
 };
+CK_LIST_HEAD(gre_list, gre_softc);
+MALLOC_DECLARE(M_GRE);
+
+#ifndef GRE_HASH_SIZE
+#define	GRE_HASH_SIZE	(1 << 4)
+#endif
+
 #define	GRE2IFP(sc)		((sc)->gre_ifp)
-#define	GRE_LOCK_INIT(sc)	rm_init(&(sc)->gre_lock, "gre softc")
-#define	GRE_LOCK_DESTROY(sc)	rm_destroy(&(sc)->gre_lock)
-#define	GRE_RLOCK_TRACKER	struct rm_priotracker gre_tracker
-#define	GRE_RLOCK(sc)		rm_rlock(&(sc)->gre_lock, &gre_tracker)
-#define	GRE_RUNLOCK(sc)		rm_runlock(&(sc)->gre_lock, &gre_tracker)
-#define	GRE_RLOCK_ASSERT(sc)	rm_assert(&(sc)->gre_lock, RA_RLOCKED)
-#define	GRE_WLOCK(sc)		rm_wlock(&(sc)->gre_lock)
-#define	GRE_WUNLOCK(sc)		rm_wunlock(&(sc)->gre_lock)
-#define	GRE_WLOCK_ASSERT(sc)	rm_assert(&(sc)->gre_lock, RA_WLOCKED)
+#define	GRE_RLOCK()		struct epoch_tracker gre_et; epoch_enter_preempt(net_epoch_preempt, &gre_et)
+#define	GRE_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &gre_et)
+#define	GRE_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 
 #define	gre_hdr			gre_uhdr.hdr
 #define	gre_gihdr		gre_uhdr.gihdr
@@ -100,15 +101,23 @@ struct gre_softc {
 #define	gre_oip			gre_gihdr->gi_ip
 #define	gre_oip6		gre_gi6hdr->gi6_ip6
 
-int	gre_input(struct mbuf **, int *, int);
-#ifdef INET
-int	in_gre_attach(struct gre_softc *);
+struct gre_list *gre_hashinit(void);
+void gre_hashdestroy(struct gre_list *);
+
+int	gre_input(struct mbuf *, int, int, void *);
+void	gre_updatehdr(struct gre_softc *, struct grehdr *);
+
+void	in_gre_init(void);
+void	in_gre_uninit(void);
+void	in_gre_setopts(struct gre_softc *, u_long, uint32_t);
+int	in_gre_ioctl(struct gre_softc *, u_long, caddr_t);
 int	in_gre_output(struct mbuf *, int, int);
-#endif
-#ifdef INET6
-int	in6_gre_attach(struct gre_softc *);
+
+void	in6_gre_init(void);
+void	in6_gre_uninit(void);
+void	in6_gre_setopts(struct gre_softc *, u_long, uint32_t);
+int	in6_gre_ioctl(struct gre_softc *, u_long, caddr_t);
 int	in6_gre_output(struct mbuf *, int, int);
-#endif
 /*
  * CISCO uses special type for GRE tunnel created as part of WCCP
  * connection, while in fact those packets are just IPv4 encapsulated

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Peter Wemm <peter@netplex.com.au>
  * All rights reserved.
  *
@@ -33,6 +35,7 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
+#define	PC_PTI_STACK_SZ	16
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -46,8 +49,12 @@
 	struct	pmap *pc_curpmap;					\
 	struct	amd64tss *pc_tssp;	/* TSS segment active on CPU */	\
 	struct	amd64tss *pc_commontssp;/* Common TSS for the CPU */	\
+	uint64_t pc_kcr3;						\
+	uint64_t pc_ucr3;						\
+	uint64_t pc_saved_ucr3;						\
 	register_t pc_rsp0;						\
 	register_t pc_scratch_rsp;	/* User %rsp in syscall */	\
+	register_t pc_scratch_rax;					\
 	u_int	pc_apic_id;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	/* Pointer to the CPU %fs descriptor */				\
@@ -61,29 +68,22 @@
 	uint64_t	pc_pm_save_cnt;					\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
+	uint64_t pc_pti_stack[PC_PTI_STACK_SZ];				\
+	register_t pc_pti_rsp0;						\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
 	uint32_t pc_pcid_next;						\
 	uint32_t pc_pcid_gen;						\
-	char	__pad[149]		/* be divisor of PAGE_SIZE	\
-					   after cache alignment */
+	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
+	uint32_t pc_ibpb_set;						\
+	char	__pad[3288]		/* pad to UMA_PCPU_ALLOC_SIZE */
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1
 
 #ifdef _KERNEL
 
-#ifdef lint
-
-extern struct pcpu *pcpup;
-
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_ADD(member, val)	(pcpup->pc_ ## member += (val))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member, val)	(pcpup->pc_ ## member = (val))
-
-#elif defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
+#if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
@@ -202,6 +202,15 @@ extern struct pcpu *pcpup;
 	}								\
 }
 
+#define	get_pcpu() __extension__ ({					\
+	struct pcpu *__pc;						\
+									\
+	__asm __volatile("movq %%gs:%1,%0"				\
+	    : "=r" (__pc)						\
+	    : "m" (*(struct pcpu *)(__pcpu_offset(pc_prvspace))));	\
+	__pc;								\
+})
+
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
 #define	PCPU_INC(member)	__PCPU_INC(pc_ ## member)
@@ -240,11 +249,11 @@ __curpcb(void)
 
 #define	IS_BSP()	(PCPU_GET(cpuid) == 0)
 
-#else /* !lint || defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
+#else /* !__GNUCLIKE_ASM || !__GNUCLIKE___TYPEOF */
 
 #error "this file needs to be ported to your compiler"
 
-#endif /* lint, etc. */
+#endif /* __GNUCLIKE_ASM && __GNUCLIKE___TYPEOF */
 
 #endif /* _KERNEL */
 

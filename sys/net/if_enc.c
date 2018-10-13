@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 The FreeBSD Project.
  * Copyright (c) 2015 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
@@ -84,9 +86,9 @@ struct enchdr {
 struct enc_softc {
 	struct	ifnet *sc_ifp;
 };
-static VNET_DEFINE(struct enc_softc *, enc_sc);
+VNET_DEFINE_STATIC(struct enc_softc *, enc_sc);
 #define	V_enc_sc	VNET(enc_sc)
-static VNET_DEFINE(struct if_clone *, enc_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, enc_cloner);
 #define	V_enc_cloner	VNET(enc_cloner)
 
 static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
@@ -99,14 +101,20 @@ static void	enc_remove_hhooks(struct enc_softc *);
 
 static const char encname[] = "enc";
 
+#define	IPSEC_ENC_AFTER_PFIL	0x04
 /*
  * Before and after are relative to when we are stripping the
  * outer IP header.
+ *
+ * AFTER_PFIL flag used only for bpf_mask_*. It enables BPF capturing
+ * after PFIL hook execution. It might be useful when PFIL hook does
+ * some changes to the packet, e.g. address translation. If PFIL hook
+ * consumes mbuf, nothing will be captured.
  */
-static VNET_DEFINE(int, filter_mask_in) = IPSEC_ENC_BEFORE;
-static VNET_DEFINE(int, bpf_mask_in) = IPSEC_ENC_BEFORE;
-static VNET_DEFINE(int, filter_mask_out) = IPSEC_ENC_BEFORE;
-static VNET_DEFINE(int, bpf_mask_out) = IPSEC_ENC_BEFORE | IPSEC_ENC_AFTER;
+VNET_DEFINE_STATIC(int, filter_mask_in) = IPSEC_ENC_BEFORE;
+VNET_DEFINE_STATIC(int, bpf_mask_in) = IPSEC_ENC_BEFORE;
+VNET_DEFINE_STATIC(int, filter_mask_out) = IPSEC_ENC_BEFORE;
+VNET_DEFINE_STATIC(int, bpf_mask_out) = IPSEC_ENC_BEFORE | IPSEC_ENC_AFTER;
 #define	V_filter_mask_in	VNET(filter_mask_in)
 #define	V_bpf_mask_in		VNET(bpf_mask_in)
 #define	V_filter_mask_out	VNET(filter_mask_out)
@@ -136,7 +144,6 @@ enc_clone_destroy(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KASSERT(sc == V_enc_sc, ("sc != ifp->if_softc"));
 
-	enc_remove_hhooks(sc);
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
@@ -170,10 +177,6 @@ enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_softc = sc;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_ENC, sizeof(struct enchdr));
-	if (enc_add_hhooks(sc) != 0) {
-		enc_clone_destroy(ifp);
-		return (ENXIO);
-	}
 	return (0);
 }
 
@@ -199,6 +202,30 @@ enc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (0);
 }
 
+static void
+enc_bpftap(struct ifnet *ifp, struct mbuf *m, const struct secasvar *sav,
+    int32_t hhook_type, uint8_t enc, uint8_t af)
+{
+	struct enchdr hdr;
+
+	if (hhook_type == HHOOK_TYPE_IPSEC_IN &&
+	    (enc & V_bpf_mask_in) == 0)
+		return;
+	else if (hhook_type == HHOOK_TYPE_IPSEC_OUT &&
+	    (enc & V_bpf_mask_out) == 0)
+		return;
+	if (bpf_peers_present(ifp->if_bpf) == 0)
+		return;
+	hdr.af = af;
+	hdr.spi = sav->spi;
+	hdr.flags = 0;
+	if (sav->alg_enc != SADB_EALG_NONE)
+		hdr.flags |= M_CONF;
+	if (sav->alg_auth != SADB_AALG_NONE)
+		hdr.flags |= M_AUTH;
+	bpf_mtap2(ifp->if_bpf, &hdr, sizeof(hdr), m);
+}
+
 /*
  * One helper hook function is used by any hook points.
  * + from hhook_type we can determine the packet direction:
@@ -211,7 +238,6 @@ static int
 enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
     void *hdata, struct osd *hosd)
 {
-	struct enchdr hdr;
 	struct ipsec_ctx_data *ctx;
 	struct enc_softc *sc;
 	struct ifnet *ifp, *rcvif;
@@ -228,21 +254,7 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 	if (ctx->af != hhook_id)
 		return (EPFNOSUPPORT);
 
-	if (((hhook_type == HHOOK_TYPE_IPSEC_IN &&
-	    (ctx->enc & V_bpf_mask_in) != 0) ||
-	    (hhook_type == HHOOK_TYPE_IPSEC_OUT &&
-	    (ctx->enc & V_bpf_mask_out) != 0)) &&
-	    bpf_peers_present(ifp->if_bpf) != 0) {
-		hdr.af = ctx->af;
-		hdr.spi = ctx->sav->spi;
-		hdr.flags = 0;
-		if (ctx->sav->alg_enc != SADB_EALG_NONE)
-			hdr.flags |= M_CONF;
-		if (ctx->sav->alg_auth != SADB_AALG_NONE)
-			hdr.flags |= M_AUTH;
-		bpf_mtap2(ifp->if_bpf, &hdr, sizeof(hdr), *ctx->mp);
-	}
-
+	enc_bpftap(ifp, *ctx->mp, ctx->sav, hhook_type, ctx->enc, ctx->af);
 	switch (hhook_type) {
 	case HHOOK_TYPE_IPSEC_IN:
 		if (ctx->enc == IPSEC_ENC_BEFORE) {
@@ -289,12 +301,14 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 	/* Make a packet looks like it was received on enc(4) */
 	rcvif = (*ctx->mp)->m_pkthdr.rcvif;
 	(*ctx->mp)->m_pkthdr.rcvif = ifp;
-	if (pfil_run_hooks(ph, ctx->mp, ifp, pdir, NULL) != 0 ||
+	if (pfil_run_hooks(ph, ctx->mp, ifp, pdir, 0, ctx->inp) != 0 ||
 	    *ctx->mp == NULL) {
 		*ctx->mp = NULL; /* consumed by filter */
 		return (EACCES);
 	}
 	(*ctx->mp)->m_pkthdr.rcvif = rcvif;
+	enc_bpftap(ifp, *ctx->mp, ctx->sav, hhook_type,
+	    IPSEC_ENC_AFTER_PFIL, ctx->af);
 	return (0);
 }
 
@@ -369,17 +383,43 @@ vnet_enc_init(const void *unused __unused)
 	V_enc_cloner = if_clone_simple(encname, enc_clone_create,
 	    enc_clone_destroy, 1);
 }
-VNET_SYSINIT(vnet_enc_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_enc_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_enc_init, NULL);
+
+static void
+vnet_enc_init_proto(void *unused __unused)
+{
+	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
+
+	if (enc_add_hhooks(V_enc_sc) != 0)
+		enc_clone_destroy(V_enc_sc->sc_ifp);
+}
+VNET_SYSINIT(vnet_enc_init_proto, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_enc_init_proto, NULL);
 
 static void
 vnet_enc_uninit(const void *unused __unused)
 {
+	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
 
 	if_clone_detach(V_enc_cloner);
 }
-VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_enc_uninit, NULL);
+
+/*
+ * The hhook consumer needs to go before ip[6]_destroy are called on
+ * SI_ORDER_THIRD.
+ */
+static void
+vnet_enc_uninit_hhook(const void *unused __unused)
+{
+	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
+
+	enc_remove_hhooks(V_enc_sc);
+}
+VNET_SYSUNINIT(vnet_enc_uninit_hhook, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    vnet_enc_uninit_hhook, NULL);
 
 static int
 enc_modevent(module_t mod, int type, void *data)
@@ -401,4 +441,5 @@ static moduledata_t enc_mod = {
 	0
 };
 
-DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_enc, 1);

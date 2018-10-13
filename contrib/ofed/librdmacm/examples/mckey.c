@@ -37,15 +37,14 @@
 #include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <byteswap.h>
 #include <unistd.h>
 #include <getopt.h>
 
 #include <rdma/rdma_cma.h>
+#include <infiniband/ib.h>
 
 struct cmatest_node {
 	int			id;
@@ -67,9 +66,9 @@ struct cmatest {
 	int			conn_index;
 	int			connects_left;
 
-	struct sockaddr_in6	dst_in;
+	struct sockaddr_storage	dst_in;
 	struct sockaddr		*dst_addr;
-	struct sockaddr_in6	src_in;
+	struct sockaddr_storage	src_in;
 	struct sockaddr		*src_addr;
 };
 
@@ -141,7 +140,7 @@ static int init_node(struct cmatest_node *node)
 	}
 
 	cqe = message_count ? message_count * 2 : 2;
-	node->cq = ibv_create_cq(node->cma_id->verbs, cqe, node, 0, 0);
+	node->cq = ibv_create_cq(node->cma_id->verbs, cqe, node, NULL, 0);
 	if (!node->cq) {
 		ret = -ENOMEM;
 		printf("mckey: unable to create CQ\n");
@@ -216,7 +215,7 @@ static int post_sends(struct cmatest_node *node, int signal_flag)
 	send_wr.opcode = IBV_WR_SEND_WITH_IMM;
 	send_wr.send_flags = signal_flag;
 	send_wr.wr_id = (unsigned long)node;
-	send_wr.imm_data = htonl(node->cma_id->qp->qp_num);
+	send_wr.imm_data = htobe32(node->cma_id->qp->qp_num);
 
 	send_wr.wr.ud.ah = node->ah;
 	send_wr.wr.ud.remote_qpn = node->remote_qpn;
@@ -451,7 +450,7 @@ static int get_addr(char *dst, struct sockaddr *addr)
 
 	ret = getaddrinfo(dst, NULL, NULL, &res);
 	if (ret) {
-		printf("getaddrinfo failed - invalid hostname or IP address\n");
+		printf("getaddrinfo failed (%s) - invalid hostname or IP address\n", gai_strerror(ret));
 		return ret;
 	}
 
@@ -460,9 +459,23 @@ static int get_addr(char *dst, struct sockaddr *addr)
 	return ret;
 }
 
+static int get_dst_addr(char *dst, struct sockaddr *addr)
+{
+	struct sockaddr_ib *sib;
+
+	if (!unmapped_addr)
+		return get_addr(dst, addr);
+
+	sib = (struct sockaddr_ib *) addr;
+	memset(sib, 0, sizeof *sib);
+	sib->sib_family = AF_IB;
+	inet_pton(AF_INET6, dst, &sib->sib_addr);
+	return 0;
+}
+
 static int run(void)
 {
-	int i, ret;
+	int i, ret, err;
 
 	printf("mckey: starting %s\n", is_sender ? "client" : "server");
 	if (src_addr) {
@@ -471,7 +484,7 @@ static int run(void)
 			return ret;
 	}
 
-	ret = get_addr(dst_addr, (struct sockaddr *) &test.dst_in);
+	ret = get_dst_addr(dst_addr, (struct sockaddr *) &test.dst_in);
 	if (ret)
 		return ret;
 
@@ -530,10 +543,12 @@ static int run(void)
 	}
 out:
 	for (i = 0; i < connections; i++) {
-		ret = rdma_leave_multicast(test.nodes[i].cma_id,
+		err = rdma_leave_multicast(test.nodes[i].cma_id,
 					   test.dst_addr);
-		if (ret)
+		if (err) {
 			perror("mckey: failure leaving");
+			ret = err;
+		}
 	}
 	return ret;
 }

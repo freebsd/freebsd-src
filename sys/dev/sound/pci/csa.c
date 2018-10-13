@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Seigo Tanimura
  * All rights reserved.
  *
@@ -167,6 +169,7 @@ static struct csa_card cards_4614[] = {
 	{0x1014, 0x0132, "Thinkpad 570", amp_none, NULL, NULL, 0},
 	{0x1014, 0x0153, "Thinkpad 600X/A20/T20", amp_none, NULL, clkrun_hack, 0},
 	{0x1014, 0x1010, "Thinkpad 600E (unsupported)", NULL, NULL, NULL, 0},
+	{0x153b, 0x1136, "Terratec SiXPack 5.1+", NULL, NULL, NULL, 0},
 	{0, 0, "Unknown/invalid SSID (CS4614)", NULL, NULL, NULL, 0},
 };
 
@@ -708,7 +711,7 @@ csa_initialize(sc_p scp)
 	 * the codec is pumping ADC data across the AC-link.
 	 */
 	acisv = 0;
-	for (i = 0 ; i < 1000 ; i++) {
+	for (i = 0 ; i < 2000 ; i++) {
 		/*
 		 * First, lets wait a short while to let things settle out a bit,
 		 * and to prevent retrying the read too quickly.

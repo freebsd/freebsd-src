@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +46,7 @@ struct kvm_arch {
 	void	(*ka_freevtop)(kvm_t *);
 	int	(*ka_kvatop)(kvm_t *, kvaddr_t, off_t *);
 	int	(*ka_native)(kvm_t *);
+	int	(*ka_walk_pages)(kvm_t *, kvm_walk_pages_cb_t *, void *);
 };
 
 #define	KVM_ARCH(ka)	DATA_SET(kvm_arch, ka)
@@ -78,6 +81,7 @@ struct __kvm {
 	 */
 	struct vmstate *vmst;
 	int	rawdump;	/* raw dump format */
+	int	writable;	/* physical memory is writable */
 
 	int		vnet_initialized;	/* vnet fields set up */
 	kvaddr_t	vnet_start;	/* start of kernel's vnet region */
@@ -97,23 +101,32 @@ struct __kvm {
 	uintptr_t	*dpcpu_off;	/* base array, indexed by CPU ID */
 	u_int		dpcpu_curcpu;	/* CPU we're currently working with */
 	kvaddr_t	dpcpu_curoff;	/* dpcpu base of current CPU */
+
+	/* Page table lookup structures. */
+	uint64_t	*pt_map;
+	size_t		pt_map_size;
+	off_t		pt_sparse_off;
+	uint64_t	pt_sparse_size;
+	uint32_t	*pt_popcounts;
+	unsigned int	pt_page_size;
+	unsigned int	pt_word_size;
+
+	/* Page & sparse map structures. */
+	void		*page_map;
+	uint32_t	page_map_size;
+	off_t		page_map_off;
+	void		*sparse_map;
 };
 
-/*
- * Page table hash used by minidump backends to map physical addresses
- * to file offsets.
- */
-struct hpte {
-	struct hpte	*next;
-	uint64_t	pa;
-	off_t		off;
+struct kvm_bitmap {
+	uint8_t *map;
+	u_long size;
 };
 
-#define HPT_SIZE 1024
-
-struct hpt {
-	struct hpte	*hpt_head[HPT_SIZE];
-};
+/* Page table lookup constants. */
+#define POPCOUNT_BITS	1024
+#define BITS_IN(v)	(sizeof(v) * NBBY)
+#define POPCOUNTS_IN(v)	(POPCOUNT_BITS / BITS_IN(v))
 
 /*
  * Functions used internally by kvm, but across kvm modules.
@@ -138,6 +151,11 @@ _kvm64toh(kvm_t *kd, uint64_t val)
 		return (be64toh(val));
 }
 
+int	 _kvm_bitmap_init(struct kvm_bitmap *, u_long, u_long *);
+void	 _kvm_bitmap_set(struct kvm_bitmap *, u_long, unsigned int);
+int	 _kvm_bitmap_next(struct kvm_bitmap *, u_long *);
+void	 _kvm_bitmap_deinit(struct kvm_bitmap *);
+
 void	 _kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
 	    __printflike(3, 4);
 void	 _kvm_freeprocs(kvm_t *kd);
@@ -154,6 +172,10 @@ kvaddr_t _kvm_dpcpu_validaddr(kvm_t *, kvaddr_t);
 int	 _kvm_probe_elf_kernel(kvm_t *, int, int);
 int	 _kvm_is_minidump(kvm_t *);
 int	 _kvm_read_core_phdrs(kvm_t *, size_t *, GElf_Phdr **);
-void	 _kvm_hpt_init(kvm_t *, struct hpt *, void *, size_t, off_t, int, int);
-off_t	 _kvm_hpt_find(struct hpt *, uint64_t);
-void	 _kvm_hpt_free(struct hpt *);
+int	 _kvm_pt_init(kvm_t *, size_t, off_t, off_t, int, int);
+off_t	 _kvm_pt_find(kvm_t *, uint64_t, unsigned int);
+int	 _kvm_visit_cb(kvm_t *, kvm_walk_pages_cb_t *, void *, u_long,
+	    u_long, u_long, vm_prot_t, size_t, unsigned int);
+int	 _kvm_pmap_init(kvm_t *, uint32_t, off_t);
+void *	 _kvm_pmap_get(kvm_t *, u_long, size_t);
+void *	 _kvm_map_get(kvm_t *, u_long, unsigned int);

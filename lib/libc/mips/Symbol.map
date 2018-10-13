@@ -31,6 +31,10 @@ FBSD_1.0 {
 	sbrk;
 };
 
+FBSD_1.3 {
+	__flt_rounds;
+};
+
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
 	__sys_getlogin;
@@ -39,10 +43,6 @@ FBSDprivate_1.0 {
 
 	_set_tp;
 	___longjmp;
-	__umodsi3;
-	__modsi3;
-	__udivsi3;
-	__divsi3;
 	__makecontext;
 	__longjmp;
 	signalcontext;
@@ -50,25 +50,6 @@ FBSDprivate_1.0 {
 	__siglongjmp;
 	__sys_vfork;
 	_vfork;
-	_end;
 	_brk;
 	_sbrk;
-
-	/* softfloat */
-	__addsf3;
-	__adddf3;
-	__subsf3;
-	__subdf3;
-	__mulsf3;
-	__muldf3;
-	__divsf3;
-	__divdf3;
-	__floatsisf;
-	__floatsidf;
-	__fixsfsi;
-	__fixdfsi;
-	__fixunssfsi;
-	__fixunsdfsi;
-	__extendsfdf2;
-	__truncdfsf2;
 };

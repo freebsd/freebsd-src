@@ -1,5 +1,5 @@
 Apache Subversion
-Copyright 2016 The Apache Software Foundation
+Copyright 2018 The Apache Software Foundation
 
 This product includes software developed by many people, and distributed
 under Contributor License Agreements to The Apache Software Foundation
@@ -26,3 +26,6 @@ under a permissive license, see LICENSE.
 
 This software contains code derived from TropicSSL under a BSD 3-Clause
 license, see LICENSE.
+
+This product includes code derived from the software developed by Yann Collet
+under a BSD 2-Clause license, see LICENSE.

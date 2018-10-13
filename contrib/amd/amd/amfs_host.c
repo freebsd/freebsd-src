@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -227,7 +223,14 @@ fetch_fhandle(CLIENT *client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versio
 
   plog(XLOG_INFO, "fetch_fhandle: NFS version %d", (int) nfs_version);
 #ifdef HAVE_FS_NFS3
-  if (nfs_version == NFS_VERSION3) {
+  if (nfs_version == NFS_VERSION3
+#ifdef HAVE_FS_NFS4
+#ifndef NO_FALLBACK
+      || nfs_version == NFS_VERSION4
+#endif /* NO_FALLBACK */
+#endif /* HAVE_FS_NFS4 */
+    ) {
+
     memset((char *) &res3, 0, sizeof(res3));
     clnt_stat = clnt_call(client,
 			  MOUNTPROC_MNT,
@@ -303,8 +306,8 @@ amfs_host_mount(am_node *am, mntfs *mf)
   int n_export;
   int j, k;
   exports exlist = 0, ex;
-  exports *ep = 0;
-  am_nfs_handle_t *fp = 0;
+  exports *ep = NULL;
+  am_nfs_handle_t *fp = NULL;
   char *host;
   int error = 0;
   struct sockaddr_in sin;
@@ -449,13 +452,13 @@ amfs_host_mount(am_node *am, mntfs *mf)
     /* Check and avoid a duplicated export entry */
     if (j > k && ep[k] && STREQ(ep[j]->ex_dir, ep[k]->ex_dir)) {
       dlog("avoiding dup fhandle requested for %s", ep[j]->ex_dir);
-      ep[j] = 0;
+      ep[j] = NULL;
     } else {
       k = j;
       error = fetch_fhandle(client, ep[j]->ex_dir, &fp[j],
 			    mf->mf_server->fs_version);
       if (error)
-	ep[j] = 0;
+	ep[j] = NULL;
     }
   }
 
@@ -465,8 +468,8 @@ amfs_host_mount(am_node *am, mntfs *mf)
    * error code 0 at the end.  If they all fail then return
    * the last error code.
    */
-  xstrlcpy(fs_name, mf->mf_info, MAXPATHLEN);
-  if ((rfs_dir = strchr(fs_name, ':')) == (char *) 0) {
+  xstrlcpy(fs_name, mf->mf_info, sizeof(fs_name));
+  if ((rfs_dir = strchr(fs_name, ':')) == (char *) NULL) {
     plog(XLOG_FATAL, "amfs_host_mount: mf_info has no colon");
     error = EINVAL;
     goto out;
@@ -493,10 +496,8 @@ amfs_host_mount(am_node *am, mntfs *mf)
    */
 out:
   discard_mntlist(mlist);
-  if (ep)
-    XFREE(ep);
-  if (fp)
-    XFREE(fp);
+  XFREE(ep);
+  XFREE(fp);
   if (sock != RPC_ANYSOCK)
     (void) amu_close(sock);
   if (client)
@@ -554,7 +555,7 @@ amfs_host_umount(am_node *am, mntfs *mf)
    * Reverse list...
    */
   ml = mlist;
-  mprev = 0;
+  mprev = NULL;
   while (ml) {
     mntlist *ml2 = ml->mnext;
     ml->mnext = mprev;

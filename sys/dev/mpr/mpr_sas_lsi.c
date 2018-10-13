@@ -46,10 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/sbuf.h>
+#include <sys/reboot.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -71,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpi/mpi2.h>
 #include <dev/mpr/mpi/mpi2_ioc.h>
 #include <dev/mpr/mpi/mpi2_sas.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_raid.h>
@@ -116,6 +119,8 @@ static void mprsas_fw_work(struct mpr_softc *sc,
 static void mprsas_fw_event_free(struct mpr_softc *,
     struct mpr_fw_event_work *);
 static int mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate);
+static int mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle,
+    u8 linkrate);
 static int mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz,
     u32 devinfo);
@@ -124,7 +129,7 @@ int mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
 static int mprsas_volume_add(struct mpr_softc *sc,
     u16 handle);
-static void mprsas_SSU_to_SATA_devices(struct mpr_softc *sc);
+static void mprsas_SSU_to_SATA_devices(struct mpr_softc *sc, int howto);
 static void mprsas_stop_unit_done(struct cam_periph *periph,
     union ccb *done_ccb);
 
@@ -136,7 +141,7 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	u16 sz;
 
 	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
-	mpr_print_evt_sas(sc, event);
+	MPR_DPRINT_EVENT(sc, sas, event);
 	mprsas_record_event(sc, event);
 
 	fw_event = malloc(sizeof(struct mpr_fw_event_work), M_MPR,
@@ -156,6 +161,7 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	bcopy(event->EventData, fw_event->event_data, sz);
 	fw_event->event = event->Event;
 	if ((event->Event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST ||
+	    event->Event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST ||
 	    event->Event == MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE ||
 	    event->Event == MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST) &&
 	    sc->track_mapping_events)
@@ -167,13 +173,13 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	 * events are processed.
 	 */
 	if ((event->Event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST ||
+	    event->Event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST ||
 	    event->Event == MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST) &&
 	    sc->wait_for_port_enable)
 		mprsas_startup_increment(sc->sassc);
 
 	TAILQ_INSERT_TAIL(&sc->sassc->ev_queue, fw_event, ev_link);
 	taskqueue_enqueue(sc->sassc->ev_tq, &sc->sassc->ev_task);
-
 }
 
 static void
@@ -205,7 +211,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 	{
 		MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST *data;
 		MPI2_EVENT_SAS_TOPO_PHY_ENTRY *phy;
-		int i;
+		uint8_t i;
 
 		data = (MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST *)
 		    fw_event->event_data;
@@ -219,8 +225,9 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 				if (mprsas_add_device(sc,
 				    le16toh(phy->AttachedDevHandle),
 				    phy->LinkRate)) {
-					printf("%s: failed to add device with "
-					    "handle 0x%x\n", __func__,
+					mpr_dprint(sc, MPR_ERROR, "%s: "
+					    "failed to add device with handle "
+					    "0x%x\n", __func__,
 					    le16toh(phy->AttachedDevHandle));
 					mprsas_prepare_remove(sassc, le16toh(
 					    phy->AttachedDevHandle));
@@ -285,7 +292,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 
 		element =
 		    (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
-		id = mpr_mapping_get_raid_id_from_handle(sc,
+		id = mpr_mapping_get_raid_tid_from_handle(sc,
 		    element->VolDevHandle);
 
 		mpr_mapping_ir_config_change_event(sc, event_data);
@@ -319,7 +326,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 			{
 				// build RAID Action message
 				Mpi2RaidActionRequest_t	*action;
-				Mpi2RaidActionReply_t *reply;
+				Mpi2RaidActionReply_t *reply = NULL;
 				struct mpr_command *cm;
 				int error = 0;
 				if ((cm = mpr_alloc_command(sc)) == NULL) {
@@ -339,8 +346,10 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 				action->PhysDiskNum = element->PhysDiskNum;
 				cm->cm_desc.Default.RequestFlags =
 				    MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
-				error = mpr_request_polled(sc, cm);
-				reply = (Mpi2RaidActionReply_t *)cm->cm_reply;
+				error = mpr_request_polled(sc, &cm);
+				if (cm != NULL)
+					reply = (Mpi2RaidActionReply_t *)
+					    cm->cm_reply;
 				if (error || (reply == NULL)) {
 					/* FIXME */
 					/*
@@ -651,15 +660,116 @@ skip_fp_send:
 		ace_event_data =
 		    (pMpi26EventDataActiveCableExcept_t)fw_event->event_data;
 
-		if (ace_event_data->ReasonCode ==
-		    MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER) {
-			mpr_printf(sc, "Currently an active cable with "
+		switch(ace_event_data->ReasonCode) {
+		case MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER:
+		{
+			mpr_printf(sc, "Currently a cable with "
 			    "ReceptacleID %d cannot be powered and device "
 			    "connected to this active cable will not be seen. "
 			    "This active cable requires %d mW of power.\n",
 			    ace_event_data->ReceptacleID,
 			    ace_event_data->ActiveCablePowerRequirement);
+			break;
 		}
+		case MPI26_EVENT_ACTIVE_CABLE_DEGRADED:
+		{
+			mpr_printf(sc, "Currently a cable with "
+			    "ReceptacleID %d is not running at optimal speed "
+			    "(12 Gb/s rate)\n", ace_event_data->ReceptacleID);
+			break;
+		}
+		default:
+			break;
+		}
+		break;
+	}
+	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+	{
+		pMpi25EventDataSasDeviceDiscoveryError_t discovery_error_data;
+		uint64_t sas_address;
+
+		discovery_error_data =
+		    (pMpi25EventDataSasDeviceDiscoveryError_t)
+		    fw_event->event_data;
+		
+		sas_address = discovery_error_data->SASAddress.High;
+		sas_address = (sas_address << 32) |
+		    discovery_error_data->SASAddress.Low;
+
+		switch(discovery_error_data->ReasonCode) {
+		case MPI25_EVENT_SAS_DISC_ERR_SMP_FAILED:
+		{
+			mpr_printf(sc, "SMP command failed during discovery "
+			    "for expander with SAS Address %jx and "
+			    "handle 0x%x.\n", sas_address,
+			    discovery_error_data->DevHandle);
+			break;
+		}
+		case MPI25_EVENT_SAS_DISC_ERR_SMP_TIMEOUT:
+		{
+			mpr_printf(sc, "SMP command timed out during "
+			    "discovery for expander with SAS Address %jx and "
+			    "handle 0x%x.\n", sas_address,
+			    discovery_error_data->DevHandle);
+			break;
+		}
+		default:
+			break;
+		}
+		break;
+	}
+	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST: 
+	{
+		MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST *data;
+		MPI26_EVENT_PCIE_TOPO_PORT_ENTRY *port_entry;
+		uint8_t i, link_rate;
+		uint16_t handle;
+
+		data = (MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST *)
+		    fw_event->event_data;
+
+		mpr_mapping_pcie_topology_change_event(sc,
+		    fw_event->event_data);
+
+		for (i = 0; i < data->NumEntries; i++) {
+			port_entry = &data->PortEntry[i];
+			handle = le16toh(port_entry->AttachedDevHandle);
+			link_rate = port_entry->CurrentPortInfo &
+			    MPI26_EVENT_PCIE_TOPO_PI_RATE_MASK;
+			switch (port_entry->PortStatus) {
+			case MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED:
+				if (link_rate <
+				    MPI26_EVENT_PCIE_TOPO_PI_RATE_2_5) {
+					mpr_dprint(sc, MPR_ERROR, "%s: Cannot "
+					    "add PCIe device with handle 0x%x "
+					    "with unknown link rate.\n",
+					    __func__, handle);
+					break;
+				}
+				if (mprsas_add_pcie_device(sc, handle,
+				    link_rate)) {
+					mpr_dprint(sc, MPR_ERROR, "%s: failed "
+					    "to add PCIe device with handle "
+					    "0x%x\n", __func__, handle);
+					mprsas_prepare_remove(sassc, handle);
+				}
+				break;
+			case MPI26_EVENT_PCIE_TOPO_PS_NOT_RESPONDING:
+				mprsas_prepare_remove(sassc, handle);
+				break;
+			case MPI26_EVENT_PCIE_TOPO_PS_PORT_CHANGED:
+			case MPI26_EVENT_PCIE_TOPO_PS_NO_CHANGE:
+			case MPI26_EVENT_PCIE_TOPO_PS_DELAY_NOT_RESPONDING:
+			default:
+				break;
+			}
+		}
+		/*
+		 * refcount was incremented for this event in
+		 * mprsas_evt_handler.  Decrement it here because the event has
+		 * been processed.
+		 */
+		mprsas_startup_decrement(sassc);
 		break;
 	}
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
@@ -691,7 +801,8 @@ mprsas_firmware_event_work(void *arg, int pending)
 }
 
 static int
-mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
+mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
+{
 	char devstring[80];
 	struct mprsas_softc *sassc;
 	struct mprsas_target *targ;
@@ -707,9 +818,11 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 
 	sassc = sc->sassc;
 	mprsas_startup_increment(sassc);
-	if ((mpr_config_get_sas_device_pg0(sc, &mpi_reply, &config_page,
-	     MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
-		printf("%s: error reading SAS device page0\n", __func__);
+	if (mpr_config_get_sas_device_pg0(sc, &mpi_reply, &config_page,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle) != 0) {
+		mpr_dprint(sc, MPR_INFO|MPR_MAPPING|MPR_FAULT,
+		    "Error reading SAS device %#x page0, iocstatus= 0x%x\n",
+		    handle, mpi_reply.IOCStatus);
 		error = ENXIO;
 		goto out;
 	}
@@ -721,11 +834,14 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 		Mpi2ConfigReply_t tmp_mpi_reply;
 		Mpi2SasDevicePage0_t parent_config_page;
 
-		if ((mpr_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
-		     &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
-		     le16toh(config_page.ParentDevHandle)))) {
-			printf("%s: error reading SAS device %#x page0\n",
-			    __func__, le16toh(config_page.ParentDevHandle));
+		if (mpr_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
+		    &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
+		    le16toh(config_page.ParentDevHandle)) != 0) {
+			mpr_dprint(sc, MPR_MAPPING|MPR_FAULT,
+			    "Error reading parent SAS device %#x page0, "
+			    "iocstatus= 0x%x\n",
+			    le16toh(config_page.ParentDevHandle),
+			    tmp_mpi_reply.IOCStatus);
 		} else {
 			parent_sas_address = parent_config_page.SASAddress.High;
 			parent_sas_address = (parent_sas_address << 32) |
@@ -736,8 +852,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 	/* TODO Check proper endianness */
 	sas_address = config_page.SASAddress.High;
 	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
-	mpr_dprint(sc, MPR_INFO, "SAS Address from SAS device page0 = %jx\n",
-	    sas_address);
+	mpr_dprint(sc, MPR_MAPPING, "Handle 0x%04x SAS Address from SAS device "
+	    "page0 = %jx\n", handle, sas_address);
 
 	/*
 	 * Always get SATA Identify information because this is used to
@@ -748,33 +864,69 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 		ret = mprsas_get_sas_address_for_sata_disk(sc, &sas_address,
 		    handle, device_info, &is_SATA_SSD);
 		if (ret) {
-			mpr_dprint(sc, MPR_ERROR, "%s: failed to get disk type "
-			    "(SSD or HDD) for SATA device with handle 0x%04x\n",
+			mpr_dprint(sc, MPR_MAPPING|MPR_ERROR,
+			    "%s: failed to get disk type (SSD or HDD) for SATA "
+			    "device with handle 0x%04x\n",
 			    __func__, handle);
 		} else {
-			mpr_dprint(sc, MPR_INFO, "SAS Address from SATA "
-			    "device = %jx\n", sas_address);
+			mpr_dprint(sc, MPR_MAPPING, "Handle 0x%04x SAS Address "
+			    "from SATA device = %jx\n", handle, sas_address);
 		}
 	}
 
-	id = mpr_mapping_get_sas_id(sc, sas_address, handle);
+	/*
+	 * use_phynum:
+	 *  1 - use the PhyNum field as a fallback to the mapping logic
+	 *  0 - never use the PhyNum field
+	 * -1 - only use the PhyNum field
+	 *
+	 * Note that using the Phy number to map a device can cause device adds
+	 * to fail if multiple enclosures/expanders are in the topology. For
+	 * example, if two devices are in the same slot number in two different
+	 * enclosures within the topology, only one of those devices will be
+	 * added. PhyNum mapping should not be used if multiple enclosures are
+	 * in the topology.
+	 */
+	id = MPR_MAP_BAD_ID;
+	if (sc->use_phynum != -1) 
+		id = mpr_mapping_get_tid(sc, sas_address, handle);
 	if (id == MPR_MAP_BAD_ID) {
-		printf("failure at %s:%d/%s()! Could not get ID for device "
-		    "with handle 0x%04x\n", __FILE__, __LINE__, __func__,
-		    handle);
-		error = ENXIO;
-		goto out;
+		if ((sc->use_phynum == 0) ||
+		    ((id = config_page.PhyNum) > sassc->maxtargets)) {
+			mpr_dprint(sc, MPR_INFO, "failure at %s:%d/%s()! "
+			    "Could not get ID for device with handle 0x%04x\n",
+			    __FILE__, __LINE__, __func__, handle);
+			error = ENXIO;
+			goto out;
+		}
 	}
+	mpr_dprint(sc, MPR_MAPPING, "%s: Target ID for added device is %d.\n",
+	    __func__, id);
 
-	if (mprsas_check_id(sassc, id) != 0) {
-		device_printf(sc->mpr_dev, "Excluding target id %d\n", id);
-		error = ENXIO;
-		goto out;
-	}
-
-	mpr_dprint(sc, MPR_MAPPING, "SAS Address from SAS device page0 = %jx\n",
-	    sas_address);
+	/*
+	 * Only do the ID check and reuse check if the target is not from a
+	 * RAID Component. For Physical Disks of a Volume, the ID will be reused
+	 * when a volume is deleted because the mapping entry for the PD will
+	 * still be in the mapping table. The ID check should not be done here
+	 * either since this PD is already being used.
+	 */
 	targ = &sassc->targets[id];
+	if (!(targ->flags & MPR_TARGET_FLAGS_RAID_COMPONENT)) {
+		if (mprsas_check_id(sassc, id) != 0) {
+			mpr_dprint(sc, MPR_MAPPING|MPR_INFO,
+			    "Excluding target id %d\n", id);
+			error = ENXIO;
+			goto out;
+		}
+
+		if (targ->handle != 0x0) {
+			mpr_dprint(sc, MPR_MAPPING, "Attempting to reuse "
+			    "target id %d handle 0x%04x\n", id, targ->handle);
+			error = ENXIO;
+			goto out;
+		}
+	}
+
 	targ->devinfo = device_info;
 	targ->devname = le32toh(config_page.DeviceName.High);
 	targ->devname = (targ->devname << 32) | 
@@ -797,8 +949,10 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 	if (is_SATA_SSD) {
 		targ->flags = MPR_TARGET_IS_SATA_SSD;
 	}
-	if (le16toh(config_page.Flags) &
-	    MPI25_SAS_DEVICE0_FLAGS_FAST_PATH_CAPABLE) {
+	if ((le16toh(config_page.Flags) &
+	    MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH) &&
+	    (le16toh(config_page.Flags) &
+	    MPI25_SAS_DEVICE0_FLAGS_FAST_PATH_CAPABLE)) {
 		targ->scsi_req_desc_type =
 		    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO;
 	}
@@ -878,7 +1032,7 @@ out:
 	mprsas_startup_decrement(sassc);
 	return (error);
 }
-	
+
 int
 mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD)
@@ -893,6 +1047,7 @@ mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
 	u8 sas_status;
 
 	memset(&ata_identify, 0, sizeof(ata_identify));
+	memset(&mpi_reply, 0, sizeof(mpi_reply));
 	try_count = 0;
 	do {
 		rc = mprsas_get_sata_identify(sc, handle, &mpi_reply,
@@ -1020,20 +1175,23 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 	    "command\n", __func__);
 	callout_reset(&cm->cm_callout, MPR_ATA_ID_TIMEOUT * hz,
 	    mprsas_ata_id_timeout, cm);
-	error = mpr_wait_command(sc, cm, 60, CAN_SLEEP);
+	error = mpr_wait_command(sc, &cm, 60, CAN_SLEEP);
 	mpr_dprint(sc, MPR_XINFO, "%s stop timeout counter for SATA ID "
 	    "command\n", __func__);
+	/* XXX KDM need to fix the case where this command is destroyed */
 	callout_stop(&cm->cm_callout);
 
-	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
+	if (cm != NULL)
+		reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
 		/*
 		 * If the request returns an error then we need to do a diag
 		 * reset
 		 */
-		printf("%s: request for page completed with error %d",
-		    __func__, error);
+		mpr_dprint(sc, MPR_INFO|MPR_FAULT|MPR_MAPPING,
+		    "Request for SATA PASSTHROUGH page completed with error %d",
+		    error);
 		error = ENXIO;
 		goto out;
 	}
@@ -1041,8 +1199,9 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 	bcopy(reply, mpi_reply, sizeof(Mpi2SataPassthroughReply_t));
 	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) {
-		printf("%s: error reading SATA PASSTHRU; iocstatus = 0x%x\n",
-		    __func__, reply->IOCStatus);
+		mpr_dprint(sc, MPR_INFO|MPR_MAPPING|MPR_FAULT,
+		    "Error reading device %#x SATA PASSTHRU; iocstatus= 0x%x\n",
+		    handle, reply->IOCStatus);
 		error = ENXIO;
 		goto out;
 	}
@@ -1056,6 +1215,7 @@ out:
 		mpr_free_command(sc, cm);
 	else if (error == 0)
 		error = EWOULDBLOCK;
+	cm->cm_data = NULL;
 	free(buffer, M_MPR);
 	return (error);
 }
@@ -1108,6 +1268,144 @@ mprsas_ata_id_timeout(void *data)
 }
 
 static int
+mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
+{
+	char devstring[80];
+	struct mprsas_softc *sassc;
+	struct mprsas_target *targ;
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi26PCIeDevicePage0_t config_page;
+	Mpi26PCIeDevicePage2_t config_page2;
+	uint64_t pcie_wwid, parent_wwid = 0;
+	u32 device_info, parent_devinfo = 0;
+	unsigned int id;
+	int error = 0;
+	struct mprsas_lun *lun;
+
+	sassc = sc->sassc;
+	mprsas_startup_increment(sassc);
+	if ((mpr_config_get_pcie_device_pg0(sc, &mpi_reply, &config_page,
+	     MPI26_PCIE_DEVICE_PGAD_FORM_HANDLE, handle))) {
+		printf("%s: error reading PCIe device page0\n", __func__);
+		error = ENXIO;
+		goto out;
+	}
+
+	device_info = le32toh(config_page.DeviceInfo);
+
+	if (((device_info & MPI26_PCIE_DEVINFO_PCI_SWITCH) == 0)
+	    && (le16toh(config_page.ParentDevHandle) != 0)) {
+		Mpi2ConfigReply_t tmp_mpi_reply;
+		Mpi26PCIeDevicePage0_t parent_config_page;
+
+		if ((mpr_config_get_pcie_device_pg0(sc, &tmp_mpi_reply,
+		     &parent_config_page, MPI26_PCIE_DEVICE_PGAD_FORM_HANDLE,
+		     le16toh(config_page.ParentDevHandle)))) {
+			printf("%s: error reading PCIe device %#x page0\n",
+			    __func__, le16toh(config_page.ParentDevHandle));
+		} else {
+			parent_wwid = parent_config_page.WWID.High;
+			parent_wwid = (parent_wwid << 32) |
+			    parent_config_page.WWID.Low;
+			parent_devinfo = le32toh(parent_config_page.DeviceInfo);
+		}
+	}
+	/* TODO Check proper endianness */
+	pcie_wwid = config_page.WWID.High;
+	pcie_wwid = (pcie_wwid << 32) | config_page.WWID.Low;
+	mpr_dprint(sc, MPR_INFO, "PCIe WWID from PCIe device page0 = %jx\n",
+	    pcie_wwid);
+
+	if ((mpr_config_get_pcie_device_pg2(sc, &mpi_reply, &config_page2,
+	     MPI26_PCIE_DEVICE_PGAD_FORM_HANDLE, handle))) {
+		printf("%s: error reading PCIe device page2\n", __func__);
+		error = ENXIO;
+		goto out;
+	}
+
+	id = mpr_mapping_get_tid(sc, pcie_wwid, handle);
+	if (id == MPR_MAP_BAD_ID) {
+		mpr_dprint(sc, MPR_ERROR | MPR_INFO, "failure at %s:%d/%s()! "
+		    "Could not get ID for device with handle 0x%04x\n",
+		    __FILE__, __LINE__, __func__, handle);
+		error = ENXIO;
+		goto out;
+	}
+	mpr_dprint(sc, MPR_MAPPING, "%s: Target ID for added device is %d.\n",
+	    __func__, id);
+
+	if (mprsas_check_id(sassc, id) != 0) {
+		mpr_dprint(sc, MPR_MAPPING|MPR_INFO,
+		    "Excluding target id %d\n", id);
+		error = ENXIO;
+		goto out;
+	}
+
+	mpr_dprint(sc, MPR_MAPPING, "WWID from PCIe device page0 = %jx\n",
+	    pcie_wwid);
+	targ = &sassc->targets[id];
+	targ->devinfo = device_info;
+	targ->encl_handle = le16toh(config_page.EnclosureHandle);
+	targ->encl_slot = le16toh(config_page.Slot);
+	targ->encl_level = config_page.EnclosureLevel;
+	targ->connector_name[0] = ((char *)&config_page.ConnectorName)[0];
+	targ->connector_name[1] = ((char *)&config_page.ConnectorName)[1];
+	targ->connector_name[2] = ((char *)&config_page.ConnectorName)[2];
+	targ->connector_name[3] = ((char *)&config_page.ConnectorName)[3];
+	targ->is_nvme = device_info & MPI26_PCIE_DEVINFO_NVME;
+	targ->MDTS = config_page2.MaximumDataTransferSize;
+	/*
+	 * Assume always TRUE for encl_level_valid because there is no valid
+	 * flag for PCIe.
+	 */
+	targ->encl_level_valid = TRUE;
+	targ->handle = handle;
+	targ->parent_handle = le16toh(config_page.ParentDevHandle);
+	targ->sasaddr = mpr_to_u64(&config_page.WWID);
+	targ->parent_sasaddr = le64toh(parent_wwid);
+	targ->parent_devinfo = parent_devinfo;
+	targ->tid = id;
+	targ->linkrate = linkrate;
+	targ->flags = 0;
+	if ((le16toh(config_page.Flags) &
+	    MPI26_PCIEDEV0_FLAGS_ENABLED_FAST_PATH) && 
+	    (le16toh(config_page.Flags) &
+	    MPI26_PCIEDEV0_FLAGS_FAST_PATH_CAPABLE)) {
+		targ->scsi_req_desc_type =
+		    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO;
+	}
+	TAILQ_INIT(&targ->commands);
+	TAILQ_INIT(&targ->timedout_commands);
+	while (!SLIST_EMPTY(&targ->luns)) {
+		lun = SLIST_FIRST(&targ->luns);
+		SLIST_REMOVE_HEAD(&targ->luns, lun_link);
+		free(lun, M_MPR);
+	}
+	SLIST_INIT(&targ->luns);
+
+	mpr_describe_devinfo(targ->devinfo, devstring, 80);
+	mpr_dprint(sc, (MPR_INFO|MPR_MAPPING), "Found PCIe device <%s> <%s> "
+	    "handle<0x%04x> enclosureHandle<0x%04x> slot %d\n", devstring,
+	    mpr_describe_table(mpr_pcie_linkrate_names, targ->linkrate),
+	    targ->handle, targ->encl_handle, targ->encl_slot);
+	if (targ->encl_level_valid) {
+		mpr_dprint(sc, (MPR_INFO|MPR_MAPPING), "At enclosure level %d "
+		    "and connector name (%4s)\n", targ->encl_level,
+		    targ->connector_name);
+	}
+#if ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000039)) || \
+    (__FreeBSD_version < 902502)
+	if ((sassc->flags & MPRSAS_IN_STARTUP) == 0)
+#endif
+		mprsas_rescan_target(sc, targ);
+	mpr_dprint(sc, MPR_MAPPING, "Target id 0x%x added\n", targ->tid);
+
+out:
+	mprsas_startup_decrement(sassc);
+	return (error);
+}
+
+static int
 mprsas_volume_add(struct mpr_softc *sc, u16 handle)
 {
 	struct mprsas_softc *sassc;
@@ -1128,7 +1426,7 @@ mprsas_volume_add(struct mpr_softc *sc, u16 handle)
 		goto out;
 	}
 
-	id = mpr_mapping_get_raid_id(sc, wwid, handle);
+	id = mpr_mapping_get_raid_tid(sc, wwid, handle);
 	if (id == MPR_MAP_BAD_ID) {
 		printf("%s: could not get ID for volume with handle 0x%04x and "
 		    "WWID 0x%016llx\n", __func__, handle,
@@ -1173,7 +1471,7 @@ out:
  * Return nothing.
  */
 static void
-mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
+mprsas_SSU_to_SATA_devices(struct mpr_softc *sc, int howto)
 {
 	struct mprsas_softc *sassc = sc->sassc;
 	union ccb *ccb;
@@ -1181,7 +1479,7 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	target_id_t targetid;
 	struct mprsas_target *target;
 	char path_str[64];
-	struct timeval cur_time, start_time;
+	int timeout;
 
 	mpr_lock(sc);
 
@@ -1190,17 +1488,10 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	 */
 	sc->SSU_started = TRUE;
 	sc->SSU_refcount = 0;
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
-		}
-
-		ccb = xpt_alloc_ccb_nowait();
-		if (ccb == NULL) {
-			mpr_dprint(sc, MPR_FAULT, "Unable to alloc CCB to stop "
-			    "unit.\n");
-			return;
 		}
 
 		/*
@@ -1208,6 +1499,13 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 		 * a SATA direct-access end device.
 		 */
 		if (target->stop_at_shutdown) {
+			ccb = xpt_alloc_ccb_nowait();
+			if (ccb == NULL) {
+				mpr_dprint(sc, MPR_FAULT, "Unable to alloc CCB "
+				    "to stop unit.\n");
+				return;
+			}
+
 			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
 			    pathid, targetid, CAM_LUN_WILDCARD) !=
 			    CAM_REQ_CMP) {
@@ -1248,17 +1546,25 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	mpr_unlock(sc);
 
 	/*
-	 * Wait until all of the SSU commands have completed or time has
-	 * expired (60 seconds).  Pause for 100ms each time through.  If any
-	 * command times out, the target will be reset in the SCSI command
-	 * timeout routine.
+	 * Timeout after 60 seconds by default or 10 seconds if howto has
+	 * RB_NOSYNC set which indicates we're likely handling a panic.
 	 */
-	getmicrotime(&start_time);
-	while (sc->SSU_refcount) {
+	timeout = 600;
+	if (howto & RB_NOSYNC)
+		timeout = 100;
+
+	/*
+	 * Wait until all of the SSU commands have completed or time
+	 * has expired. Pause for 100ms each time through.  If any
+	 * command times out, the target will be reset in the SCSI
+	 * command timeout routine.
+	 */
+	while (sc->SSU_refcount > 0) {
 		pause("mprwait", hz/10);
+		if (SCHEDULER_STOPPED())
+			xpt_sim_poll(sassc->sim);
 		
-		getmicrotime(&cur_time);
-		if ((cur_time.tv_sec - start_time.tv_sec) > 60) {
+		if (--timeout == 0) {
 			mpr_dprint(sc, MPR_ERROR, "Time has expired waiting "
 			    "for SSU commands to complete.\n");
 			break;
@@ -1300,7 +1606,7 @@ mprsas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
  * Return nothing.
  */
 void
-mprsas_ir_shutdown(struct mpr_softc *sc)
+mprsas_ir_shutdown(struct mpr_softc *sc, int howto)
 {
 	u16 volume_mapping_flags;
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
@@ -1353,7 +1659,7 @@ mprsas_ir_shutdown(struct mpr_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mpr_lock(sc);
-	mpr_wait_command(sc, cm, 5, CAN_SLEEP);
+	mpr_wait_command(sc, &cm, 5, CAN_SLEEP);
 	mpr_unlock(sc);
 
 	/*
@@ -1374,7 +1680,7 @@ out:
 	 * 3: enable to SSD and HDD
 	 * anything else will default to 1.
 	 */
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sc->sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
@@ -1405,5 +1711,5 @@ out:
 			}
 		}
 	}
-	mprsas_SSU_to_SATA_devices(sc);
+	mprsas_SSU_to_SATA_devices(sc, howto);
 }

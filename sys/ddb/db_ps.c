@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,11 +46,17 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <ddb/ddb.h>
 
+#define PRINT_NONE	0
+#define PRINT_ARGS	1
+
 static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 		    int all);
+static int	ps_mode;
+
 /*
  * At least one non-optional show-command must be implemented using
  * DB_SHOW_ALL_COMMAND() so that db_show_all_cmd_set gets created.
@@ -57,6 +65,24 @@ static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 DB_SHOW_ALL_COMMAND(procs, db_procs_cmd)
 {
 	db_ps(addr, have_addr, count, modif);
+}
+
+static void
+dump_args(volatile struct proc *p)
+{
+	char *args;
+	int i, len;
+
+	if (p->p_args == NULL)
+		return;
+	args = p->p_args->ar_args;
+	len = (int)p->p_args->ar_length;
+	for (i = 0; i < len; i++) {
+		if (args[i] == '\0')
+			db_printf(" ");
+		else
+			db_printf("%c", args[i]);
+	}
 }
 
 /*
@@ -69,10 +95,10 @@ DB_SHOW_ALL_COMMAND(procs, db_procs_cmd)
  *
  *          1         2         3         4         5         6         7
  * 1234567890123456789012345678901234567890123456789012345678901234567890
- *   pid  ppid  pgrp   uid   state   wmesg     wchan    cmd
- * <pid> <ppi> <pgi> <uid>  <stat> < wmesg > < wchan  > <name>
+ *   pid  ppid  pgrp   uid  state   wmesg   wchan       cmd
+ * <pid> <ppi> <pgi> <uid>  <stat>  <wmesg> <wchan   >  <name>
  * <pid> <ppi> <pgi> <uid>  <stat>  (threaded)          <command>
- * <tid >                   <stat> < wmesg > < wchan  > <name>
+ * <tid >                   <stat>  <wmesg> <wchan   >  <name>
  *
  * For machines with 64-bit pointers, we expand the wchan field 8 more
  * characters.
@@ -87,6 +113,7 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 	char state[9];
 	int np, rflag, sflag, dflag, lflag, wflag;
 
+	ps_mode = modif[0] == 'a' ? PRINT_ARGS : PRINT_NONE;
 	np = nprocs;
 
 	if (!LIST_EMPTY(&allproc))
@@ -95,9 +122,9 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 		p = &proc0;
 
 #ifdef __LP64__
-	db_printf("  pid  ppid  pgrp   uid   state   wmesg         wchan        cmd\n");
+	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan               cmd\n");
 #else
-	db_printf("  pid  ppid  pgrp   uid   state   wmesg     wchan    cmd\n");
+	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan       cmd\n");
 #endif
 	while (--np >= 0 && !db_pager_quit) {
 		if (p == NULL) {
@@ -204,6 +231,10 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 			db_printf("%s", p->p_comm);
 			if (p->p_flag & P_SYSTEM)
 				db_printf("]");
+			if (ps_mode == PRINT_ARGS) {
+				db_printf(" ");
+				dump_args(p);
+			}
 			db_printf("\n");
 		}
 		FOREACH_THREAD_IN_PROC(p, td) {
@@ -279,15 +310,15 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 		wmesg = "";
 		wchan = NULL;
 	}
-	db_printf("%c%-8.8s ", wprefix, wmesg);
+	db_printf("%c%-7.7s ", wprefix, wmesg);
 	if (wchan == NULL)
 #ifdef __LP64__
-		db_printf("%18s ", "");
+		db_printf("%18s  ", "");
 #else
-		db_printf("%10s ", "");
+		db_printf("%10s  ", "");
 #endif
 	else
-		db_printf("%p ", wchan);
+		db_printf("%p  ", wchan);
 	if (p->p_flag & P_SYSTEM)
 		db_printf("[");
 	if (td->td_name[0] != '\0')
@@ -296,6 +327,10 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 		db_printf("%s", td->td_proc->p_comm);
 	if (p->p_flag & P_SYSTEM)
 		db_printf("]");
+	if (ps_mode == PRINT_ARGS && all == 0) {
+		db_printf(" ");
+		dump_args(p);
+	}
 	db_printf("\n");
 }
 
@@ -375,8 +410,13 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		db_printf(" lock: %s  turnstile: %p\n", td->td_lockname,
 		    td->td_blocked);
 	if (TD_ON_SLEEPQ(td))
-		db_printf(" wmesg: %s  wchan: %p\n", td->td_wmesg,
-		    td->td_wchan);
+		db_printf(
+	    " wmesg: %s  wchan: %p sleeptimo %lx. %jx (curr %lx. %jx)\n",
+		    td->td_wmesg, td->td_wchan,
+		    (long)sbttobt(td->td_sleeptimo).sec,
+		    (uintmax_t)sbttobt(td->td_sleeptimo).frac,
+		    (long)sbttobt(sbinuptime()).sec,
+		    (uintmax_t)sbttobt(sbinuptime()).frac);
 	db_printf(" priority: %d\n", td->td_priority);
 	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
 	if (td->td_swvoltick != 0) {
@@ -435,9 +475,21 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		    p->p_leader);
 	if (p->p_sysent != NULL)
 		db_printf(" ABI: %s\n", p->p_sysent->sv_name);
-	if (p->p_args != NULL)
-		db_printf(" arguments: %.*s\n", (int)p->p_args->ar_length,
-		    p->p_args->ar_args);
+	if (p->p_args != NULL) {
+		db_printf(" arguments: ");
+		dump_args(p);
+		db_printf("\n");
+	}
+	db_printf(" repear: %p reapsubtree: %d\n",
+	    p->p_reaper, p->p_reapsubtree);
+	db_printf(" sigparent: %d\n", p->p_sigparent);
+	db_printf(" vmspace: %p\n", p->p_vmspace);
+	db_printf("   (map %p)\n",
+	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_map : 0);
+	db_printf("   (map.pmap %p)\n",
+	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_map.pmap : 0);
+	db_printf("   (pmap %p)\n",
+	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_pmap : 0);
 	db_printf(" threads: %d\n", p->p_numthreads);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		dumpthread(p, td, 1);

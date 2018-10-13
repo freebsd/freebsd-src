@@ -6,7 +6,7 @@
 PACKAGE=runtime-manuals
 
 #MISSING: eqnchar.7 ms.7 term.7
-MAN=	adding_user.7 \
+MAN=	arch.7 \
 	ascii.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
@@ -22,7 +22,6 @@ MAN=	adding_user.7 \
 	hostname.7 \
 	intro.7 \
 	maclabel.7 \
-	mailaddr.7 \
 	operator.7 \
 	ports.7 \
 	release.7 \
@@ -42,7 +41,7 @@ MLINKS+= c99.7 c89.7
 MLINKS+= c99.7 c90.7
 
 .if ${MK_TESTS} != "no"
-ATF=	${.CURDIR}/../../../contrib/atf
+ATF=	${SRCTOP}/contrib/atf
 .PATH:	${ATF}/doc
 MAN+=	atf.7
 

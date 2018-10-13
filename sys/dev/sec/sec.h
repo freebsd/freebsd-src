@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008-2009 Semihalf, Piotr Ziecik
  * All rights reserved.
  *
@@ -151,7 +153,6 @@ struct sec_eu_methods {
 };
 
 struct sec_session {
-	u_int			ss_used;
 	struct sec_eu_methods	*ss_eu;
 	uint8_t			ss_key[SEC_MAX_KEY_LEN];
 	uint8_t			ss_mkey[SEC_MAX_KEY_LEN];
@@ -179,11 +180,8 @@ struct sec_softc {
 	uint64_t		sc_int_error_mask;
 	uint64_t		sc_channel_idle_mask;
 
-	struct sec_session	sc_sessions[SEC_MAX_SESSIONS];
-
 	struct mtx		sc_controller_lock;
 	struct mtx		sc_descriptors_lock;
-	struct mtx		sc_sessions_lock;
 
 	struct sec_desc		sc_desc[SEC_DESCRIPTORS];
 	u_int			sc_free_desc_get_cnt;

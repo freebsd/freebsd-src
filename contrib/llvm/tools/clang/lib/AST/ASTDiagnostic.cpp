@@ -10,6 +10,7 @@
 // This file implements a diagnostic formatting hook for AST elements.
 //
 //===----------------------------------------------------------------------===//
+
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTLambda.h"
@@ -19,7 +20,6 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/Type.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -118,7 +118,7 @@ static QualType Desugar(ASTContext &Context, QualType QT, bool &ShouldAKA) {
         if (DesugarArgument) {
           ShouldAKA = true;
           QT = Context.getTemplateSpecializationType(
-              TST->getTemplateName(), Args.data(), Args.size(), QT);
+              TST->getTemplateName(), Args, QT);
         }
         break;
       }
@@ -360,6 +360,7 @@ void clang::FormatASTNodeDiagnosticArgument(
       Modifier = StringRef();
       Argument = StringRef();
       // Fall through
+      LLVM_FALLTHROUGH;
     }
     case DiagnosticsEngine::ak_qualtype: {
       assert(Modifier.empty() && Argument.empty() &&
@@ -443,7 +444,6 @@ void clang::FormatASTNodeDiagnosticArgument(
       NeedQuotes = false;
       break;
     }
-
   }
 
   if (NeedQuotes) {
@@ -497,7 +497,7 @@ class TemplateDiff {
     enum DiffKind {
       /// Incomplete or invalid node.
       Invalid,
-      /// Another level of templates, requires that
+      /// Another level of templates
       Template,
       /// Type difference, all type differences except those falling under
       /// the Template difference.
@@ -616,7 +616,7 @@ class TemplateDiff {
       SetDefault(FromDefault, ToDefault);
     }
 
-    void SetIntegerDiff(llvm::APSInt FromInt, llvm::APSInt ToInt,
+    void SetIntegerDiff(const llvm::APSInt &FromInt, const llvm::APSInt &ToInt,
                         bool IsValidFromInt, bool IsValidToInt,
                         QualType FromIntType, QualType ToIntType,
                         Expr *FromExpr, Expr *ToExpr, bool FromDefault,
@@ -653,7 +653,7 @@ class TemplateDiff {
 
     void SetFromDeclarationAndToIntegerDiff(
         ValueDecl *FromValueDecl, bool FromAddressOf, bool FromNullPtr,
-        Expr *FromExpr, llvm::APSInt ToInt, bool IsValidToInt,
+        Expr *FromExpr, const llvm::APSInt &ToInt, bool IsValidToInt,
         QualType ToIntType, Expr *ToExpr, bool FromDefault, bool ToDefault) {
       assert(FlatTree[CurrentNode].Kind == Invalid && "Node is not empty.");
       FlatTree[CurrentNode].Kind = FromDeclarationAndToInteger;
@@ -669,7 +669,7 @@ class TemplateDiff {
     }
 
     void SetFromIntegerAndToDeclarationDiff(
-        llvm::APSInt FromInt, bool IsValidFromInt, QualType FromIntType,
+        const llvm::APSInt &FromInt, bool IsValidFromInt, QualType FromIntType,
         Expr *FromExpr, ValueDecl *ToValueDecl, bool ToAddressOf,
         bool ToNullPtr, Expr *ToExpr, bool FromDefault, bool ToDefault) {
       assert(FlatTree[CurrentNode].Kind == Invalid && "Node is not empty.");
@@ -917,6 +917,8 @@ class TemplateDiff {
       /// template argument.
       InternalIterator(const TemplateSpecializationType *TST)
           : TST(TST), Index(0), CurrentTA(nullptr), EndTA(nullptr) {
+        if (!TST) return;
+
         if (isEnd()) return;
 
         // Set to first template argument.  If not a parameter pack, done.
@@ -935,13 +937,18 @@ class TemplateDiff {
         ++(*this);
       }
 
+      /// Return true if the iterator is non-singular.
+      bool isValid() const { return TST; }
+
       /// isEnd - Returns true if the iterator is one past the end.
       bool isEnd() const {
+        assert(TST && "InternalIterator is invalid with a null TST.");
         return Index >= TST->getNumArgs();
       }
 
       /// &operator++ - Increment the iterator to the next template argument.
       InternalIterator &operator++() {
+        assert(TST && "InternalIterator is invalid with a null TST.");
         if (isEnd()) {
           return *this;
         }
@@ -977,6 +984,7 @@ class TemplateDiff {
 
       /// operator* - Returns the appropriate TemplateArgument.
       reference operator*() const {
+        assert(TST && "InternalIterator is invalid with a null TST.");
         assert(!isEnd() && "Index exceeds number of arguments.");
         if (CurrentTA == EndTA)
           return TST->getArg(Index);
@@ -986,6 +994,7 @@ class TemplateDiff {
 
       /// operator-> - Allow access to the underlying TemplateArgument.
       pointer operator->() const {
+        assert(TST && "InternalIterator is invalid with a null TST.");
         return &operator*();
       }
     };
@@ -997,12 +1006,15 @@ class TemplateDiff {
     TSTiterator(ASTContext &Context, const TemplateSpecializationType *TST)
         : SugaredIterator(TST),
           DesugaredIterator(
-              GetTemplateSpecializationType(Context, TST->desugar())) {}
+              (TST->isSugared() && !TST->isTypeAlias())
+                  ? GetTemplateSpecializationType(Context, TST->desugar())
+                  : nullptr) {}
 
     /// &operator++ - Increment the iterator to the next template argument.
     TSTiterator &operator++() {
       ++SugaredIterator;
-      ++DesugaredIterator;
+      if (DesugaredIterator.isValid())
+        ++DesugaredIterator;
       return *this;
     }
 
@@ -1024,11 +1036,13 @@ class TemplateDiff {
     /// hasDesugaredTA - Returns true if there is another TemplateArgument
     /// available.
     bool hasDesugaredTA() const {
-      return !DesugaredIterator.isEnd();
+      return DesugaredIterator.isValid() && !DesugaredIterator.isEnd();
     }
 
     /// getDesugaredTA - Returns the desugared TemplateArgument.
     reference getDesugaredTA() const {
+      assert(DesugaredIterator.isValid() &&
+             "Desugared TemplateArgument should not be used.");
       return *DesugaredIterator;
     }
   };
@@ -1055,8 +1069,7 @@ class TemplateDiff {
 
     Ty = Context.getTemplateSpecializationType(
              TemplateName(CTSD->getSpecializedTemplate()),
-             CTSD->getTemplateArgs().data(),
-             CTSD->getTemplateArgs().size(),
+             CTSD->getTemplateArgs().asArray(),
              Ty.getLocalUnqualifiedType().getCanonicalType());
 
     return Ty->getAs<TemplateSpecializationType>();
@@ -1523,12 +1536,14 @@ class TemplateDiff {
         OS << FromTD->getNameAsString() << '<';
         Tree.MoveToChild();
         unsigned NumElideArgs = 0;
+        bool AllArgsElided = true;
         do {
           if (ElideType) {
             if (Tree.NodeIsSame()) {
               ++NumElideArgs;
               continue;
             }
+            AllArgsElided = false;
             if (NumElideArgs > 0) {
               PrintElideArgs(NumElideArgs, Indent);
               NumElideArgs = 0;
@@ -1539,8 +1554,12 @@ class TemplateDiff {
           if (Tree.HasNextSibling())
             OS << ", ";
         } while (Tree.AdvanceSibling());
-        if (NumElideArgs > 0)
-          PrintElideArgs(NumElideArgs, Indent);
+        if (NumElideArgs > 0) {
+          if (AllArgsElided)
+            OS << "...";
+          else
+            PrintElideArgs(NumElideArgs, Indent);
+        }
 
         Tree.Parent();
         OS << ">";
@@ -1622,7 +1641,6 @@ class TemplateDiff {
       Unbold();
       OS << "]";
     }
-    return;
   }
 
   /// PrintExpr - Prints out the expr template arguments, highlighting argument
@@ -1695,7 +1713,7 @@ class TemplateDiff {
 
   /// PrintAPSInt - Handles printing of integral arguments, highlighting
   /// argument differences.
-  void PrintAPSInt(llvm::APSInt FromInt, llvm::APSInt ToInt,
+  void PrintAPSInt(const llvm::APSInt &FromInt, const llvm::APSInt &ToInt,
                    bool IsValidFromInt, bool IsValidToInt, QualType FromIntType,
                    QualType ToIntType, Expr *FromExpr, Expr *ToExpr,
                    bool FromDefault, bool ToDefault, bool Same) {
@@ -1728,8 +1746,8 @@ class TemplateDiff {
 
   /// PrintAPSInt - If valid, print the APSInt.  If the expression is
   /// gives more information, print it too.
-  void PrintAPSInt(llvm::APSInt Val, Expr *E, bool Valid, QualType IntType,
-                   bool PrintType) {
+  void PrintAPSInt(const llvm::APSInt &Val, Expr *E, bool Valid,
+                   QualType IntType, bool PrintType) {
     Bold();
     if (Valid) {
       if (HasExtraInfo(E)) {
@@ -1834,14 +1852,13 @@ class TemplateDiff {
       Unbold();
       OS << ']';
     }
-
   }
 
   /// PrintValueDeclAndInteger - Uses the print functions for ValueDecl and
   /// APSInt to print a mixed difference.
   void PrintValueDeclAndInteger(ValueDecl *VD, bool NeedAddressOf,
                                 bool IsNullPtr, Expr *VDExpr, bool DefaultDecl,
-                                llvm::APSInt Val, QualType IntType,
+                                const llvm::APSInt &Val, QualType IntType,
                                 Expr *IntExpr, bool DefaultInt) {
     if (!PrintTree) {
       OS << (DefaultDecl ? "(default) " : "");
@@ -1861,7 +1878,7 @@ class TemplateDiff {
 
   /// PrintIntegerAndValueDecl - Uses the print functions for APSInt and
   /// ValueDecl to print a mixed difference.
-  void PrintIntegerAndValueDecl(llvm::APSInt Val, QualType IntType,
+  void PrintIntegerAndValueDecl(const llvm::APSInt &Val, QualType IntType,
                                 Expr *IntExpr, bool DefaultInt, ValueDecl *VD,
                                 bool NeedAddressOf, bool IsNullPtr,
                                 Expr *VDExpr, bool DefaultDecl) {
@@ -2016,7 +2033,7 @@ public:
     return true;
   }
 }; // end class TemplateDiff
-}  // end namespace
+}  // end anonymous namespace
 
 /// FormatTemplateTypeDiff - A helper static function to start the template
 /// diff and return the properly formatted string.  Returns true if the diff

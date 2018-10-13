@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -56,6 +58,7 @@ pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
 	uint8_t *counter, *keyp;
 	u_int i, bsize, passlen;
 	uint32_t count;
+	struct hmac_ctx startpoint, ctx;
 
 	passlen = strlen(passphrase);
 	bzero(key, keylen);
@@ -66,24 +69,27 @@ pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
 	for (count = 1; keylen > 0; count++, keylen -= bsize, keyp += bsize) {
 		bsize = MIN(keylen, sizeof(md));
 
-		counter[0] = (count >> 24) & 0xff;
-		counter[1] = (count >> 16) & 0xff;
-		counter[2] = (count >> 8) & 0xff;
-		counter[3] = count & 0xff;
-		g_eli_crypto_hmac(passphrase, passlen, saltcount,
-		    sizeof(saltcount), md, 0);
+		be32enc(counter, count);
+
+		g_eli_crypto_hmac_init(&startpoint, passphrase, passlen);
+		ctx = startpoint;
+		g_eli_crypto_hmac_update(&ctx, saltcount, sizeof(saltcount));
+		g_eli_crypto_hmac_final(&ctx, md, sizeof(md));
 		xor(keyp, md, bsize);
 
 		for(i = 1; i < iterations; i++) {
-			g_eli_crypto_hmac(passphrase, passlen, md, sizeof(md),
-			    md, 0);
+			ctx = startpoint;
+			g_eli_crypto_hmac_update(&ctx, md, sizeof(md));
+			g_eli_crypto_hmac_final(&ctx, md, sizeof(md));
 			xor(keyp, md, bsize);
 		}
 	}
+	explicit_bzero(&startpoint, sizeof(startpoint));
+	explicit_bzero(&ctx, sizeof(ctx));
 }
 
 #ifndef _KERNEL
-#ifndef _STAND
+#ifndef _STANDALONE
 /*
  * Return the number of microseconds needed for 'interations' iterations.
  */
@@ -121,5 +127,5 @@ pkcs5v2_calculate(int usecs)
 	}
 	return (((intmax_t)iterations * (intmax_t)usecs) / v);
 }
-#endif	/* !_STAND */
+#endif	/* !_STANDALONE */
 #endif	/* !_KERNEL */

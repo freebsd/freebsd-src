@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/GraphWriter.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -57,8 +58,8 @@ bool EdgeBundles::runOnMachineFunction(MachineFunction &mf) {
   Blocks.resize(getNumBundles());
 
   for (unsigned i = 0, e = MF->getNumBlockIDs(); i != e; ++i) {
-    unsigned b0 = getBundle(i, 0);
-    unsigned b1 = getBundle(i, 1);
+    unsigned b0 = getBundle(i, false);
+    unsigned b1 = getBundle(i, true);
     Blocks[b0].push_back(i);
     if (b1 != b0)
       Blocks[b1].push_back(i);
@@ -69,6 +70,7 @@ bool EdgeBundles::runOnMachineFunction(MachineFunction &mf) {
 
 /// Specialize WriteGraph, the standard implementation won't work.
 namespace llvm {
+
 template<>
 raw_ostream &WriteGraph<>(raw_ostream &O, const EdgeBundles &G,
                           bool ShortNames,
@@ -78,18 +80,21 @@ raw_ostream &WriteGraph<>(raw_ostream &O, const EdgeBundles &G,
   O << "digraph {\n";
   for (const auto &MBB : *MF) {
     unsigned BB = MBB.getNumber();
-    O << "\t\"BB#" << BB << "\" [ shape=box ]\n"
-      << '\t' << G.getBundle(BB, false) << " -> \"BB#" << BB << "\"\n"
-      << "\t\"BB#" << BB << "\" -> " << G.getBundle(BB, true) << '\n';
+    O << "\t\"" << printMBBReference(MBB) << "\" [ shape=box ]\n"
+      << '\t' << G.getBundle(BB, false) << " -> \"" << printMBBReference(MBB)
+      << "\"\n"
+      << "\t\"" << printMBBReference(MBB) << "\" -> " << G.getBundle(BB, true)
+      << '\n';
     for (MachineBasicBlock::const_succ_iterator SI = MBB.succ_begin(),
            SE = MBB.succ_end(); SI != SE; ++SI)
-      O << "\t\"BB#" << BB << "\" -> \"BB#" << (*SI)->getNumber()
-        << "\" [ color=lightgray ]\n";
+      O << "\t\"" << printMBBReference(MBB) << "\" -> \""
+        << printMBBReference(**SI) << "\" [ color=lightgray ]\n";
   }
   O << "}\n";
   return O;
 }
-}
+
+} // end namespace llvm
 
 /// view - Visualize the annotated bipartite CFG with Graphviz.
 void EdgeBundles::view() const {

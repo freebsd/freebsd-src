@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -182,6 +178,59 @@ xdr_amq_mount_info_list(XDR *xdrs, amq_mount_info_list *objp)
 		 ~0,
 		 sizeof(amq_mount_info),
 		 (XDRPROC_T_TYPE) xdr_amq_mount_info)) {
+    return (FALSE);
+  }
+  return (TRUE);
+}
+
+bool_t
+xdr_amq_map_info(XDR *xdrs, amq_map_info *objp)
+{
+  if (!xdr_amq_string(xdrs, &objp->mi_name)) {
+    return (FALSE);
+  }
+
+  if (!xdr_amq_string(xdrs, &objp->mi_wildcard)) {
+    return (FALSE);
+  }
+
+  if (!xdr_time_type(xdrs, &objp->mi_modify)) {
+    return (FALSE);
+  }
+
+  if (!xdr_int(xdrs, &objp->mi_flags)) {
+    return (FALSE);
+  }
+
+  if (!xdr_int(xdrs, &objp->mi_nentries)) {
+    return (FALSE);
+  }
+
+  if (!xdr_int(xdrs, &objp->mi_reloads)) {
+    return (FALSE);
+  }
+
+  if (!xdr_int(xdrs, &objp->mi_refc)) {
+    return (FALSE);
+  }
+
+  if (!xdr_int(xdrs, &objp->mi_up)) {
+    return (FALSE);
+  }
+
+  return (TRUE);
+}
+
+
+bool_t
+xdr_amq_map_info_list(XDR *xdrs, amq_map_info_list *objp)
+{
+  if (!xdr_array(xdrs,
+		 (char **) ((voidp) &objp->amq_map_info_list_val),
+		 (u_int *) &objp->amq_map_info_list_len,
+		 ~0,
+		 sizeof(amq_map_info),
+		 (XDRPROC_T_TYPE) xdr_amq_map_info)) {
     return (FALSE);
   }
   return (TRUE);

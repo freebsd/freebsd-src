@@ -42,7 +42,14 @@ struct atu_opt {
  * Definitions for the Marvell 88E6000 series Ethernet Switch.
  */
 
-#define CPU_PORT			0x5
+/* Switch IDs. */
+#define	MV88E6141	0x3400
+#define	MV88E6341	0x3410
+#define	MV88E6352	0x3520
+#define	MV88E6172	0x1720
+#define	MV88E6176	0x1760
+
+#define	MVSWITCH(_sc, id)	((_sc)->swid == (id))
 
 /*
  * Switch Registers
@@ -57,10 +64,30 @@ struct atu_opt {
  * Per-Port Switch Registers
  */
 #define PORT_STATUS			0x0
+#define	PORT_STATUS_SPEED_MASK		0x300
+#define	PORT_STATUS_SPEED_10		0
+#define	PORT_STATUS_SPEED_100		1
+#define	PORT_STATUS_SPEED_1000		2
+#define	PORT_STATUS_DUPLEX_MASK		(1 << 10)
+#define	PORT_STATUS_LINK_MASK		(1 << 11)
+#define	PORT_STATUS_PHY_DETECT_MASK	(1 << 12)
+
 #define PSC_CONTROL			0x1
+#define	PSC_CONTROL_FORCED_SPD		(1 << 13)
+#define	PSC_CONTROL_EEE_ON		(1 << 9)
+#define	PSC_CONTROL_FORCED_EEE		(1 << 8)
+#define	PSC_CONTROL_FC_ON		(1 << 7)
+#define	PSC_CONTROL_FORCED_FC		(1 << 6)
+#define	PSC_CONTROL_LINK_UP		(1 << 5)
+#define	PSC_CONTROL_FORCED_LINK		(1 << 4)
+#define	PSC_CONTROL_FULLDPX		(1 << 3)
+#define	PSC_CONTROL_FORCED_DPX		(1 << 2)
+#define	PSC_CONTROL_SPD2500		0x3
+#define	PSC_CONTROL_SPD1000		0x2
 #define SWITCH_ID			0x3
 #define PORT_CONTROL			0x4
 #define PORT_CONTROL_1			0x5
+#define	PORT_CONTROL_1_FID_MASK		0xf
 #define PORT_VLAN_MAP			0x6
 #define PORT_VID			0x7
 #define PORT_ASSOCIATION_VECTOR		0xb
@@ -78,6 +105,7 @@ struct atu_opt {
 #define PORT_VLAN_MAP_TABLE_MASK	0x7f
 #define PORT_VLAN_MAP_FID		12
 #define PORT_VLAN_MAP_FID_MASK		0xf000
+
 /*
  * Switch Global Register 1 accessed via REG_GLOBAL_ADDR
  */
@@ -149,8 +177,6 @@ struct atu_opt {
 #define SMI_PHY_CMD_REG			0x18
 #define SMI_PHY_DATA_REG		0x19
 
-#define PHY_CMD				0x18
-#define PHY_DATA			0x19
 #define PHY_DATA_MASK			0xffff
 
 #define PHY_CMD_SMI_BUSY		15
@@ -167,19 +193,19 @@ struct atu_opt {
 
 #define PHY_PAGE_REG			22
 
-#define E6000SW_NUM_PHYS		5
+/*
+ * Scratch and Misc register accessed via
+ * 'Switch Global Registers' (REG_GLOBAL2)
+ */
+#define SCR_AND_MISC_REG		0x1a
+
+#define SCR_AND_MISC_PTR_CFG		0x7000
+#define SCR_AND_MISC_DATA_CFG_MASK	0xf0
+
 #define E6000SW_NUM_PHY_REGS		29
-#define E6000SW_CPUPORTS_MASK		((1 << 5) | (1 << 6))
-#define E6000SW_NUM_VGROUPS		8
-#define E6000SW_NUM_PORTS		7
-#define E6000SW_PORT_NO_VGROUP		-1
+#define	E6000SW_MAX_PORTS		8
 #define E6000SW_DEFAULT_AGETIME		20
 #define E6000SW_RETRIES			100
-
-
-/* Default vlangroups */
-#define E6000SW_DEF_VLANGROUP0		(1 | (1 << 1) | (1 << 2) | (1 << 3) | \
-    (1 << 6))
-#define E6000SW_DEF_VLANGROUP1		((1 << 4) | (1 << 5))
+#define E6000SW_SMI_TIMEOUT		16
 
 #endif /* _E6000SWREG_H_ */

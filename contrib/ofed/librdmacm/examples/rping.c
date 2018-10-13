@@ -30,23 +30,21 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
+#define _GNU_SOURCE
+#include <infiniband/endian.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <semaphore.h>
-#include <arpa/inet.h>
 #include <pthread.h>
 #include <inttypes.h>
-
+#include <libgen.h>
 #include <rdma/rdma_cma.h>
-#include <infiniband/arch.h>
 
 static int debug = 0;
 #define DEBUG_LOG if (debug) printf
@@ -81,13 +79,14 @@ enum test_state {
 	RDMA_READ_COMPLETE,
 	RDMA_WRITE_ADV,
 	RDMA_WRITE_COMPLETE,
+	DISCONNECTED,
 	ERROR
 };
 
 struct rping_rdma_info {
-	uint64_t buf;
-	uint32_t rkey;
-	uint32_t size;
+	__be64 buf;
+	__be32 rkey;
+	__be32 size;
 };
 
 /*
@@ -143,7 +142,8 @@ struct rping_cb {
 	sem_t sem;
 
 	struct sockaddr_storage sin;
-	uint16_t port;			/* dst port in NBO */
+	struct sockaddr_storage ssource;
+	__be16 port;			/* dst port in NBO */
 	int verbose;			/* verbose logging */
 	int count;			/* ping count */
 	int size;			/* ping data size */
@@ -216,11 +216,14 @@ static int rping_cma_event_handler(struct rdma_cm_id *cma_id,
 	case RDMA_CM_EVENT_DISCONNECTED:
 		fprintf(stderr, "%s DISCONNECT EVENT...\n",
 			cb->server ? "server" : "client");
+		cb->state = DISCONNECTED;
 		sem_post(&cb->sem);
 		break;
 
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		fprintf(stderr, "cma detected device removal!!!!\n");
+		cb->state = ERROR;
+		sem_post(&cb->sem);
 		ret = -1;
 		break;
 
@@ -240,9 +243,9 @@ static int server_recv(struct rping_cb *cb, struct ibv_wc *wc)
 		return -1;
 	}
 
-	cb->remote_rkey = ntohl(cb->recv_buf.rkey);
-	cb->remote_addr = ntohll(cb->recv_buf.buf);
-	cb->remote_len  = ntohl(cb->recv_buf.size);
+	cb->remote_rkey = be32toh(cb->recv_buf.rkey);
+	cb->remote_addr = be64toh(cb->recv_buf.buf);
+	cb->remote_len  = be32toh(cb->recv_buf.size);
 	DEBUG_LOG("Received rkey %x addr %" PRIx64 " len %d from peer\n",
 		  cb->remote_rkey, cb->remote_addr, cb->remote_len);
 
@@ -274,14 +277,20 @@ static int rping_cq_event_handler(struct rping_cb *cb)
 	struct ibv_wc wc;
 	struct ibv_recv_wr *bad_wr;
 	int ret;
+	int flushed = 0;
 
 	while ((ret = ibv_poll_cq(cb->cq, 1, &wc)) == 1) {
 		ret = 0;
 
 		if (wc.status) {
-			if (wc.status != IBV_WC_WR_FLUSH_ERR)
-				fprintf(stderr, "cq completion failed status %d\n",
-					wc.status);
+			if (wc.status == IBV_WC_WR_FLUSH_ERR) {
+				flushed = 1;
+				continue;
+
+			}
+			fprintf(stderr,
+				"cq completion failed status %d\n",
+				wc.status);
 			ret = -1;
 			goto error;
 		}
@@ -330,7 +339,7 @@ static int rping_cq_event_handler(struct rping_cb *cb)
 		fprintf(stderr, "poll error %d\n", ret);
 		goto error;
 	}
-	return 0;
+	return flushed;
 
 error:
 	cb->state = ERROR;
@@ -340,16 +349,11 @@ error:
 
 static int rping_accept(struct rping_cb *cb)
 {
-	struct rdma_conn_param conn_param;
 	int ret;
 
 	DEBUG_LOG("accepting client connection request\n");
 
-	memset(&conn_param, 0, sizeof conn_param);
-	conn_param.responder_resources = 1;
-	conn_param.initiator_depth = 1;
-
-	ret = rdma_accept(cb->child_cm_id, &conn_param);
+	ret = rdma_accept(cb->child_cm_id, NULL);
 	if (ret) {
 		perror("rdma_accept");
 		return ret;
@@ -616,12 +620,12 @@ static void rping_format_send(struct rping_cb *cb, char *buf, struct ibv_mr *mr)
 {
 	struct rping_rdma_info *info = &cb->send_buf;
 
-	info->buf = htonll((uint64_t) (unsigned long) buf);
-	info->rkey = htonl(mr->rkey);
-	info->size = htonl(cb->size);
+	info->buf = htobe64((uint64_t) (unsigned long) buf);
+	info->rkey = htobe32(mr->rkey);
+	info->size = htobe32(cb->size);
 
 	DEBUG_LOG("RDMA addr %" PRIx64" rkey %x len %d\n",
-		  ntohll(info->buf), ntohl(info->rkey), ntohl(info->size));
+		  be64toh(info->buf), be32toh(info->rkey), be32toh(info->size));
 }
 
 static int rping_test_server(struct rping_cb *cb)
@@ -721,7 +725,7 @@ static int rping_test_server(struct rping_cb *cb)
 		DEBUG_LOG("server posted go ahead\n");
 	}
 
-	return ret;
+	return (cb->state == DISCONNECTED) ? 0 : ret;
 }
 
 static int rping_bind_server(struct rping_cb *cb)
@@ -755,6 +759,7 @@ static struct rping_cb *clone_cb(struct rping_cb *listening_cb)
 	struct rping_cb *cb = malloc(sizeof *cb);
 	if (!cb)
 		return NULL;
+	memset(cb, 0, sizeof *cb);
 	*cb = *listening_cb;
 	cb->child_cm_id->context = cb;
 	return cb;
@@ -789,7 +794,11 @@ static void *rping_persistent_server_thread(void *arg)
 		goto err2;
 	}
 
-	pthread_create(&cb->cqthread, NULL, cq_thread, cb);
+	ret = pthread_create(&cb->cqthread, NULL, cq_thread, cb);
+	if (ret) {
+		perror("pthread_create");
+		goto err2;
+	}
 
 	ret = rping_accept(cb);
 	if (ret) {
@@ -821,10 +830,26 @@ static int rping_run_persistent_server(struct rping_cb *listening_cb)
 {
 	int ret;
 	struct rping_cb *cb;
+	pthread_attr_t attr;
 
 	ret = rping_bind_server(listening_cb);
 	if (ret)
 		return ret;
+
+	/*
+	 * Set persistent server threads to DEATCHED state so
+	 * they release all their resources when they exit.
+	 */
+	ret = pthread_attr_init(&attr);
+	if (ret) {
+		perror("pthread_attr_init");
+		return ret;
+	}
+	ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (ret) {
+		perror("pthread_attr_setdetachstate");
+		return ret;
+	}
 
 	while (1) {
 		sem_wait(&listening_cb->sem);
@@ -837,7 +862,12 @@ static int rping_run_persistent_server(struct rping_cb *listening_cb)
 		cb = clone_cb(listening_cb);
 		if (!cb)
 			return -1;
-		pthread_create(&cb->persistent_server_thread, NULL, rping_persistent_server_thread, cb);
+
+		ret = pthread_create(&cb->persistent_server_thread, &attr, rping_persistent_server_thread, cb);
+		if (ret) {
+			perror("pthread_create");
+			return ret;
+		}
 	}
 	return 0;
 }
@@ -876,7 +906,11 @@ static int rping_run_server(struct rping_cb *cb)
 		goto err2;
 	}
 
-	pthread_create(&cb->cqthread, NULL, cq_thread, cb);
+	ret = pthread_create(&cb->cqthread, NULL, cq_thread, cb);
+	if (ret) {
+		perror("pthread_create");
+		goto err2;
+	}
 
 	ret = rping_accept(cb);
 	if (ret) {
@@ -884,7 +918,14 @@ static int rping_run_server(struct rping_cb *cb)
 		goto err2;
 	}
 
-	rping_test_server(cb);
+	ret = rping_test_server(cb);
+	if (ret) {
+		fprintf(stderr, "rping server failed: %d\n", ret);
+		goto err3;
+	}
+
+	ret = 0;
+err3:
 	rdma_disconnect(cb->child_cm_id);
 	pthread_join(cb->cqthread, NULL);
 	rdma_destroy_id(cb->child_cm_id);
@@ -907,7 +948,7 @@ static int rping_test_client(struct rping_cb *cb)
 		cb->state = RDMA_READ_ADV;
 
 		/* Put some ascii text in the buffer. */
-		cc = sprintf(cb->start_buf, RPING_MSG_FMT, ping);
+		cc = snprintf(cb->start_buf, cb->size, RPING_MSG_FMT, ping);
 		for (i = cc, c = start; i < cb->size; i++) {
 			cb->start_buf[i] = c;
 			c++;
@@ -962,7 +1003,7 @@ static int rping_test_client(struct rping_cb *cb)
 			printf("ping data: %s\n", cb->rdma_buf);
 	}
 
-	return ret;
+	return (cb->state == DISCONNECTED) ? 0 : ret;
 }
 
 static int rping_connect_client(struct rping_cb *cb)
@@ -973,7 +1014,7 @@ static int rping_connect_client(struct rping_cb *cb)
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 1;
 	conn_param.initiator_depth = 1;
-	conn_param.retry_count = 10;
+	conn_param.retry_count = 7;
 
 	ret = rdma_connect(cb->cm_id, &conn_param);
 	if (ret) {
@@ -1000,7 +1041,12 @@ static int rping_bind_client(struct rping_cb *cb)
 	else
 		((struct sockaddr_in6 *) &cb->sin)->sin6_port = cb->port;
 
-	ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *) &cb->sin, 2000);
+	if (cb->ssource.ss_family) 
+		ret = rdma_resolve_addr(cb->cm_id, (struct sockaddr *) &cb->ssource,
+					(struct sockaddr *) &cb->sin, 2000);
+	else
+		ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *) &cb->sin, 2000);
+
 	if (ret) {
 		perror("rdma_resolve_addr");
 		return ret;
@@ -1044,7 +1090,11 @@ static int rping_run_client(struct rping_cb *cb)
 		goto err2;
 	}
 
-	pthread_create(&cb->cqthread, NULL, cq_thread, cb);
+	ret = pthread_create(&cb->cqthread, NULL, cq_thread, cb);
+	if (ret) {
+		perror("pthread_create");
+		goto err2;
+	}
 
 	ret = rping_connect_client(cb);
 	if (ret) {
@@ -1057,6 +1107,7 @@ static int rping_run_client(struct rping_cb *cb)
 		fprintf(stderr, "rping client failed: %d\n", ret);
 		goto err4;
 	}
+
 	ret = 0;
 err4:
 	rdma_disconnect(cb->cm_id);
@@ -1077,7 +1128,7 @@ static int get_addr(char *dst, struct sockaddr *addr)
 
 	ret = getaddrinfo(dst, NULL, NULL, &res);
 	if (ret) {
-		printf("getaddrinfo failed - invalid hostname or IP address\n");
+		printf("getaddrinfo failed (%s) - invalid hostname or IP address\n", gai_strerror(ret));
 		return ret;
 	}
 
@@ -1092,13 +1143,14 @@ static int get_addr(char *dst, struct sockaddr *addr)
 	return ret;
 }
 
-static void usage(char *name)
+static void usage(const char *name)
 {
 	printf("%s -s [-vVd] [-S size] [-C count] [-a addr] [-p port]\n", 
-	       name);
-	printf("%s -c [-vVd] [-S size] [-C count] -a addr [-p port]\n", 
-	       name);
+	       basename(name));
+	printf("%s -c [-vVd] [-S size] [-C count] [-I addr] -a addr [-p port]\n", 
+	       basename(name));
 	printf("\t-c\t\tclient side\n");
+	printf("\t-I\t\tSource address to bind to for client.\n");
 	printf("\t-s\t\tserver side.  To bind to any address with IPv6 use -a ::0\n");
 	printf("\t-v\t\tdisplay ping data to stdout\n");
 	printf("\t-V\t\tvalidate ping data\n");
@@ -1126,20 +1178,23 @@ int main(int argc, char *argv[])
 	cb->state = IDLE;
 	cb->size = 64;
 	cb->sin.ss_family = PF_INET;
-	cb->port = htons(7174);
+	cb->port = htobe16(7174);
 	sem_init(&cb->sem, 0, 0);
 
 	opterr = 0;
-	while ((op=getopt(argc, argv, "a:Pp:C:S:t:scvVd")) != -1) {
+	while ((op=getopt(argc, argv, "a:I:Pp:C:S:t:scvVd")) != -1) {
 		switch (op) {
 		case 'a':
 			ret = get_addr(optarg, (struct sockaddr *) &cb->sin);
+			break;
+		case 'I':
+			ret = get_addr(optarg, (struct sockaddr *) &cb->ssource);
 			break;
 		case 'P':
 			persistent_server = 1;
 			break;
 		case 'p':
-			cb->port = htons(atoi(optarg));
+			cb->port = htobe16(atoi(optarg));
 			DEBUG_LOG("port %d\n", (int) atoi(optarg));
 			break;
 		case 's':
@@ -1155,9 +1210,8 @@ int main(int argc, char *argv[])
 			if ((cb->size < RPING_MIN_BUFSIZE) ||
 			    (cb->size > (RPING_BUFSIZE - 1))) {
 				fprintf(stderr, "Invalid size %d "
-				       "(valid range is %d to %d)\n",
-				       (int)cb->size, (int)(RPING_MIN_BUFSIZE),
-				       (int)(RPING_BUFSIZE));
+				       "(valid range is %zd to %d)\n",
+				       cb->size, RPING_MIN_BUFSIZE, RPING_BUFSIZE);
 				ret = EINVAL;
 			} else
 				DEBUG_LOG("size %d\n", (int) atoi(optarg));
@@ -1200,6 +1254,7 @@ int main(int argc, char *argv[])
 	cb->cm_channel = rdma_create_event_channel();
 	if (!cb->cm_channel) {
 		perror("rdma_create_event_channel");
+		ret = errno;
 		goto out;
 	}
 
@@ -1210,15 +1265,20 @@ int main(int argc, char *argv[])
 	}
 	DEBUG_LOG("created cm_id %p\n", cb->cm_id);
 
-	pthread_create(&cb->cmthread, NULL, cm_thread, cb);
+	ret = pthread_create(&cb->cmthread, NULL, cm_thread, cb);
+	if (ret) {
+		perror("pthread_create");
+		goto out2;
+	}
 
 	if (cb->server) {
 		if (persistent_server)
 			ret = rping_run_persistent_server(cb);
 		else
 			ret = rping_run_server(cb);
-	} else
+	} else {
 		ret = rping_run_client(cb);
+	}
 
 	DEBUG_LOG("destroy cm_id %p\n", cb->cm_id);
 	rdma_destroy_id(cb->cm_id);

@@ -63,9 +63,10 @@ public:
         CallOperator->getType()->getAs<FunctionProtoType>();
     ASTContext &Context = CallOperator->getASTContext();
 
+    FunctionProtoType::ExtProtoInfo EPI;
+    EPI.Variadic = Proto->isVariadic();
     QualType Key =
-        Context.getFunctionType(Context.VoidTy, Proto->getParamTypes(),
-                                FunctionProtoType::ExtProtoInfo());
+        Context.getFunctionType(Context.VoidTy, Proto->getParamTypes(), EPI);
     Key = Context.getCanonicalType(Key);
     return ++ManglingNumbers[Key->castAs<FunctionProtoType>()];
   }
@@ -100,15 +101,17 @@ protected:
 public:
   ItaniumCXXABI(ASTContext &Ctx) : Context(Ctx) { }
 
-  std::pair<uint64_t, unsigned>
-  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const override {
+  MemberPointerInfo
+  getMemberPointerInfo(const MemberPointerType *MPT) const override {
     const TargetInfo &Target = Context.getTargetInfo();
     TargetInfo::IntType PtrDiff = Target.getPtrDiffType(0);
-    uint64_t Width = Target.getTypeWidth(PtrDiff);
-    unsigned Align = Target.getTypeAlign(PtrDiff);
+    MemberPointerInfo MPI;
+    MPI.Width = Target.getTypeWidth(PtrDiff);
+    MPI.Align = Target.getTypeAlign(PtrDiff);
+    MPI.HasPadding = false;
     if (MPT->isMemberFunctionPointer())
-      Width = 2 * Width;
-    return std::make_pair(Width, Align);
+      MPI.Width *= 2;
+    return MPI;
   }
 
   CallingConv getDefaultMethodCallConv(bool isVariadic) const override {
@@ -141,14 +144,6 @@ public:
   void addCopyConstructorForExceptionObject(CXXRecordDecl *RD,
                                             CXXConstructorDecl *CD) override {}
 
-  void addDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
-                                       unsigned ParmIdx, Expr *DAE) override {}
-
-  Expr *getDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
-                                        unsigned ParmIdx) override {
-    return nullptr;
-  }
-
   void addTypedefNameForUnnamedTagDecl(TagDecl *TD,
                                        TypedefNameDecl *DD) override {}
 
@@ -163,8 +158,9 @@ public:
     return nullptr;
   }
 
-  MangleNumberingContext *createMangleNumberingContext() const override {
-    return new ItaniumNumberingContext();
+  std::unique_ptr<MangleNumberingContext>
+  createMangleNumberingContext() const override {
+    return llvm::make_unique<ItaniumNumberingContext>();
   }
 };
 }

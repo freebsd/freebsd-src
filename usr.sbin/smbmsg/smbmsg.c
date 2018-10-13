@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2004 Joerg Wunsch
  * All Rights Reserved.
  *
@@ -61,7 +63,7 @@ static int wflag;		/* word IO */
 
 static unsigned char ibuf[SMB_MAXBLOCKSIZE];
 static unsigned char obuf[SMB_MAXBLOCKSIZE];
-static unsigned short oword, iword;
+static unsigned short oword;
 
 /*
  * The I2C specs say that all addresses below 16 and above or equal
@@ -135,6 +137,8 @@ do_io(void)
 
 	c.slave = slave;
 	c.cmd = cflag;
+	c.rcount = 0;
+	c.wcount = 0;
 
 	if (fmt == NULL && iflag > 0)
 		fmt = wflag? wordfmt: bytefmt;
@@ -163,11 +167,9 @@ do_io(void)
 	}
 	if (iflag == 1 && oflag == -1) {
 		/* command + 1 byte input: read byte op. */
-		c.rbuf = ibuf;
-		c.rcount = iflag;
 		if (ioctl(fd, SMB_READB, &c) == -1)
 			return (-1);
-		printf(fmt, (int)(unsigned char)ibuf[0]);
+		printf(fmt, (unsigned char)c.rdata.byte);
 		putchar('\n');
 		return (0);
 	} else if (iflag == -1 && oflag == 1) {
@@ -176,11 +178,9 @@ do_io(void)
 		return (ioctl(fd, SMB_WRITEB, &c));
 	} else if (wflag && iflag == 2 && oflag == -1) {
 		/* command + 2 bytes input: read word op. */
-		c.rbuf = (char*) &iword;
-		c.rcount = iflag;
 		if (ioctl(fd, SMB_READW, &c) == -1)
 			return (-1);
-		printf(fmt, (int)(unsigned short)iword);
+		printf(fmt, (unsigned short)c.rdata.word);
 		putchar('\n');
 		return (0);
 	} else if (wflag && iflag == -1 && oflag == 2) {
@@ -193,11 +193,9 @@ do_io(void)
 		 * "process call" op.
 		 */
 		c.wdata.word = oword;
-		c.rbuf = (char*) &iword;
-		c.rcount = iflag;
 		if (ioctl(fd, SMB_PCALL, &c) == -1)
 			return (-1);
-		printf(fmt, (int)(unsigned short)iword);
+		printf(fmt, (unsigned short)c.rdata.word);
 		putchar('\n');
 		return (0);
 	} else if (iflag > 1 && oflag == -1) {
@@ -206,7 +204,7 @@ do_io(void)
 		c.rcount = iflag;
 		if (ioctl(fd, SMB_BREAD, &c) == -1)
 			return (-1);
-		for (i = 0; i < iflag; i++) {
+		for (i = 0; i < c.rcount; i++) {
 			if (i != 0)
 				putchar(' ');
 			printf(fmt, ibuf[i]);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,6 +77,12 @@ typedef	unsigned long bitstr_t;
 #define	_BITSTR_MASK (~0UL)
 #define	_BITSTR_BITS (sizeof(bitstr_t) * 8)
 
+#ifdef roundup2
+#define        _bit_roundup2 roundup2
+#else
+#define        _bit_roundup2(x, y)        (((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
+#endif
+
 /* bitstr_t in bit string containing the bit. */
 static inline int
 _bit_idx(int _bit)
@@ -104,9 +112,8 @@ _bit_make_mask(int _start, int _stop)
 }
 
 /*----------------------------- Public Interface -----------------------------*/
-/* Number of bytes consumed by a bit string of nbits bits */
-#define	bitstr_size(_nbits) \
-	(((_nbits) + _BITSTR_BITS - 1) / 8)
+/* Number of bytes allocated for a bit string of nbits bits */
+#define	bitstr_size(_nbits) (_bit_roundup2(_nbits, _BITSTR_BITS) / 8)
 
 /* Allocate a bit string initialized with no bits set. */
 #ifdef _KERNEL
@@ -123,7 +130,7 @@ bit_alloc(int _nbits)
 }
 #endif
 
-/* Allocate a bit string on the stack with no bits set. */
+/* Allocate a bit string on the stack */
 #define	bit_decl(name, nbits) \
 	((name)[bitstr_size(nbits) / sizeof(bitstr_t)])
 

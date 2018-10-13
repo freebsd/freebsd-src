@@ -282,8 +282,8 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_arm646jumptoEv)
   ldp    x22,x23, [x0, #0x0B0]
   ldp    x24,x25, [x0, #0x0C0]
   ldp    x26,x27, [x0, #0x0D0]
-  ldp    x28,fp,  [x0, #0x0E0]
-  ldr    lr,      [x0, #0x100]  // restore pc into lr
+  ldp    x28,x29, [x0, #0x0E0]
+  ldr    x30,     [x0, #0x100]  // restore pc into lr
   ldr    x1,      [x0, #0x0F8]
   mov    sp,x1                  // restore sp
 
@@ -306,7 +306,7 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_arm646jumptoEv)
   ldr    d31,     [x0, #0x208]
 
   ldp    x0, x1,  [x0, #0x000]  // restore x0,x1
-  ret    lr                     // jump to pc
+  ret    x30                    // jump to pc
 
 #elif defined(__arm__) && !defined(__APPLE__)
 
@@ -478,8 +478,287 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind14Registers_or1k6jumptoEv)
   l.jr     r9
    l.nop
 
-#elif defined(__riscv__)
+#elif defined(__riscv)
 
-/* RISCVTODO */
+//
+// void libunwind::Registers_riscv::jumpto()
+//
+// On entry:
+//  thread_state pointer is in a0
+//
+  .p2align 2
+DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_riscv6jumptoEv)
+#ifdef __riscv_float_abi_double
+  fld    f0, (8 * 32 + 8 * 0)(a0)
+  fld    f1, (8 * 32 + 8 * 1)(a0)
+  fld    f2, (8 * 32 + 8 * 2)(a0)
+  fld    f3, (8 * 32 + 8 * 3)(a0)
+  fld    f4, (8 * 32 + 8 * 4)(a0)
+  fld    f5, (8 * 32 + 8 * 5)(a0)
+  fld    f6, (8 * 32 + 8 * 6)(a0)
+  fld    f7, (8 * 32 + 8 * 7)(a0)
+  fld    f8, (8 * 32 + 8 * 8)(a0)
+  fld    f9, (8 * 32 + 8 * 9)(a0)
+  fld    f10, (8 * 32 + 8 * 10)(a0)
+  fld    f11, (8 * 32 + 8 * 11)(a0)
+  fld    f12, (8 * 32 + 8 * 12)(a0)
+  fld    f13, (8 * 32 + 8 * 13)(a0)
+  fld    f14, (8 * 32 + 8 * 14)(a0)
+  fld    f15, (8 * 32 + 8 * 15)(a0)
+  fld    f16, (8 * 32 + 8 * 16)(a0)
+  fld    f17, (8 * 32 + 8 * 17)(a0)
+  fld    f18, (8 * 32 + 8 * 18)(a0)
+  fld    f19, (8 * 32 + 8 * 19)(a0)
+  fld    f20, (8 * 32 + 8 * 20)(a0)
+  fld    f21, (8 * 32 + 8 * 21)(a0)
+  fld    f22, (8 * 32 + 8 * 22)(a0)
+  fld    f23, (8 * 32 + 8 * 23)(a0)
+  fld    f24, (8 * 32 + 8 * 24)(a0)
+  fld    f25, (8 * 32 + 8 * 25)(a0)
+  fld    f26, (8 * 32 + 8 * 26)(a0)
+  fld    f27, (8 * 32 + 8 * 27)(a0)
+  fld    f28, (8 * 32 + 8 * 28)(a0)
+  fld    f29, (8 * 32 + 8 * 29)(a0)
+  fld    f30, (8 * 32 + 8 * 30)(a0)
+  fld    f31, (8 * 32 + 8 * 31)(a0)
+#endif
+
+  // x0 is zero
+  ld    x1, (8 * 1)(a0)
+  ld    x2, (8 * 2)(a0)
+  ld    x3, (8 * 3)(a0)
+  ld    x4, (8 * 4)(a0)
+  ld    x5, (8 * 5)(a0)
+  ld    x6, (8 * 6)(a0)
+  ld    x7, (8 * 7)(a0)
+  ld    x8, (8 * 8)(a0)
+  ld    x9, (8 * 9)(a0)
+  // skip a0 for now
+  ld    x11, (8 * 11)(a0)
+  ld    x12, (8 * 12)(a0)
+  ld    x13, (8 * 13)(a0)
+  ld    x14, (8 * 14)(a0)
+  ld    x15, (8 * 15)(a0)
+  ld    x16, (8 * 16)(a0)
+  ld    x17, (8 * 17)(a0)
+  ld    x18, (8 * 18)(a0)
+  ld    x19, (8 * 19)(a0)
+  ld    x20, (8 * 20)(a0)
+  ld    x21, (8 * 21)(a0)
+  ld    x22, (8 * 22)(a0)
+  ld    x23, (8 * 23)(a0)
+  ld    x24, (8 * 24)(a0)
+  ld    x25, (8 * 25)(a0)
+  ld    x26, (8 * 26)(a0)
+  ld    x27, (8 * 27)(a0)
+  ld    x28, (8 * 28)(a0)
+  ld    x29, (8 * 29)(a0)
+  ld    x30, (8 * 30)(a0)
+  ld    x31, (8 * 31)(a0)
+  ld    x10, (8 * 10)(a0)   // restore a0
+
+  ret                       // jump to ra
+
+#elif defined(__mips__) && defined(_ABIO32) && _MIPS_SIM == _ABIO32
+
+//
+// void libunwind::Registers_mips_o32::jumpto()
+//
+// On entry:
+//  thread state pointer is in a0 ($4)
+//
+DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind18Registers_mips_o326jumptoEv)
+  .set push
+  .set noat
+  .set noreorder
+  .set nomacro
+#ifdef __mips_hard_float
+#if __mips_fpr == 32
+  ldc1  $f0, (4 * 36 + 8 * 0)($4)
+  ldc1  $f2, (4 * 36 + 8 * 2)($4)
+  ldc1  $f4, (4 * 36 + 8 * 4)($4)
+  ldc1  $f6, (4 * 36 + 8 * 6)($4)
+  ldc1  $f8, (4 * 36 + 8 * 8)($4)
+  ldc1  $f10, (4 * 36 + 8 * 10)($4)
+  ldc1  $f12, (4 * 36 + 8 * 12)($4)
+  ldc1  $f14, (4 * 36 + 8 * 14)($4)
+  ldc1  $f16, (4 * 36 + 8 * 16)($4)
+  ldc1  $f18, (4 * 36 + 8 * 18)($4)
+  ldc1  $f20, (4 * 36 + 8 * 20)($4)
+  ldc1  $f22, (4 * 36 + 8 * 22)($4)
+  ldc1  $f24, (4 * 36 + 8 * 24)($4)
+  ldc1  $f26, (4 * 36 + 8 * 26)($4)
+  ldc1  $f28, (4 * 36 + 8 * 28)($4)
+  ldc1  $f30, (4 * 36 + 8 * 30)($4)
+#else
+  ldc1  $f0, (4 * 36 + 8 * 0)($4)
+  ldc1  $f1, (4 * 36 + 8 * 1)($4)
+  ldc1  $f2, (4 * 36 + 8 * 2)($4)
+  ldc1  $f3, (4 * 36 + 8 * 3)($4)
+  ldc1  $f4, (4 * 36 + 8 * 4)($4)
+  ldc1  $f5, (4 * 36 + 8 * 5)($4)
+  ldc1  $f6, (4 * 36 + 8 * 6)($4)
+  ldc1  $f7, (4 * 36 + 8 * 7)($4)
+  ldc1  $f8, (4 * 36 + 8 * 8)($4)
+  ldc1  $f9, (4 * 36 + 8 * 9)($4)
+  ldc1  $f10, (4 * 36 + 8 * 10)($4)
+  ldc1  $f11, (4 * 36 + 8 * 11)($4)
+  ldc1  $f12, (4 * 36 + 8 * 12)($4)
+  ldc1  $f13, (4 * 36 + 8 * 13)($4)
+  ldc1  $f14, (4 * 36 + 8 * 14)($4)
+  ldc1  $f15, (4 * 36 + 8 * 15)($4)
+  ldc1  $f16, (4 * 36 + 8 * 16)($4)
+  ldc1  $f17, (4 * 36 + 8 * 17)($4)
+  ldc1  $f18, (4 * 36 + 8 * 18)($4)
+  ldc1  $f19, (4 * 36 + 8 * 19)($4)
+  ldc1  $f20, (4 * 36 + 8 * 20)($4)
+  ldc1  $f21, (4 * 36 + 8 * 21)($4)
+  ldc1  $f22, (4 * 36 + 8 * 22)($4)
+  ldc1  $f23, (4 * 36 + 8 * 23)($4)
+  ldc1  $f24, (4 * 36 + 8 * 24)($4)
+  ldc1  $f25, (4 * 36 + 8 * 25)($4)
+  ldc1  $f26, (4 * 36 + 8 * 26)($4)
+  ldc1  $f27, (4 * 36 + 8 * 27)($4)
+  ldc1  $f28, (4 * 36 + 8 * 28)($4)
+  ldc1  $f29, (4 * 36 + 8 * 29)($4)
+  ldc1  $f30, (4 * 36 + 8 * 30)($4)
+  ldc1  $f31, (4 * 36 + 8 * 31)($4)
+#endif
+#endif
+  // restore hi and lo
+  lw    $8, (4 * 33)($4)
+  mthi  $8
+  lw    $8, (4 * 34)($4)
+  mtlo  $8
+  // r0 is zero
+  lw    $1, (4 * 1)($4)
+  lw    $2, (4 * 2)($4)
+  lw    $3, (4 * 3)($4)
+  // skip a0 for now
+  lw    $5, (4 * 5)($4)
+  lw    $6, (4 * 6)($4)
+  lw    $7, (4 * 7)($4)
+  lw    $8, (4 * 8)($4)
+  lw    $9, (4 * 9)($4)
+  lw    $10, (4 * 10)($4)
+  lw    $11, (4 * 11)($4)
+  lw    $12, (4 * 12)($4)
+  lw    $13, (4 * 13)($4)
+  lw    $14, (4 * 14)($4)
+  lw    $15, (4 * 15)($4)
+  lw    $16, (4 * 16)($4)
+  lw    $17, (4 * 17)($4)
+  lw    $18, (4 * 18)($4)
+  lw    $19, (4 * 19)($4)
+  lw    $20, (4 * 20)($4)
+  lw    $21, (4 * 21)($4)
+  lw    $22, (4 * 22)($4)
+  lw    $23, (4 * 23)($4)
+  lw    $24, (4 * 24)($4)
+  lw    $25, (4 * 25)($4)
+  lw    $26, (4 * 26)($4)
+  lw    $27, (4 * 27)($4)
+  lw    $28, (4 * 28)($4)
+  lw    $29, (4 * 29)($4)
+  lw    $30, (4 * 30)($4)
+  // load new pc into ra
+  lw    $31, (4 * 32)($4)
+  // jump to ra, load a0 in the delay slot
+  jr    $31
+  lw    $4, (4 * 4)($4)
+  .set pop
+
+#elif defined(__mips64)
+
+//
+// void libunwind::Registers_mips_newabi::jumpto()
+//
+// On entry:
+//  thread state pointer is in a0 ($4)
+//
+DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind21Registers_mips_newabi6jumptoEv)
+  .set push
+  .set noat
+  .set noreorder
+  .set nomacro
+#ifdef __mips_hard_float
+  ldc1  $f0, (8 * 35)($4)
+  ldc1  $f1, (8 * 36)($4)
+  ldc1  $f2, (8 * 37)($4)
+  ldc1  $f3, (8 * 38)($4)
+  ldc1  $f4, (8 * 39)($4)
+  ldc1  $f5, (8 * 40)($4)
+  ldc1  $f6, (8 * 41)($4)
+  ldc1  $f7, (8 * 42)($4)
+  ldc1  $f8, (8 * 43)($4)
+  ldc1  $f9, (8 * 44)($4)
+  ldc1  $f10, (8 * 45)($4)
+  ldc1  $f11, (8 * 46)($4)
+  ldc1  $f12, (8 * 47)($4)
+  ldc1  $f13, (8 * 48)($4)
+  ldc1  $f14, (8 * 49)($4)
+  ldc1  $f15, (8 * 50)($4)
+  ldc1  $f16, (8 * 51)($4)
+  ldc1  $f17, (8 * 52)($4)
+  ldc1  $f18, (8 * 53)($4)
+  ldc1  $f19, (8 * 54)($4)
+  ldc1  $f20, (8 * 55)($4)
+  ldc1  $f21, (8 * 56)($4)
+  ldc1  $f22, (8 * 57)($4)
+  ldc1  $f23, (8 * 58)($4)
+  ldc1  $f24, (8 * 59)($4)
+  ldc1  $f25, (8 * 60)($4)
+  ldc1  $f26, (8 * 61)($4)
+  ldc1  $f27, (8 * 62)($4)
+  ldc1  $f28, (8 * 63)($4)
+  ldc1  $f29, (8 * 64)($4)
+  ldc1  $f30, (8 * 65)($4)
+  ldc1  $f31, (8 * 66)($4)
+#endif
+  // restore hi and lo
+  ld    $8, (8 * 33)($4)
+  mthi  $8
+  ld    $8, (8 * 34)($4)
+  mtlo  $8
+  // r0 is zero
+  ld    $1, (8 * 1)($4)
+  ld    $2, (8 * 2)($4)
+  ld    $3, (8 * 3)($4)
+  // skip a0 for now
+  ld    $5, (8 * 5)($4)
+  ld    $6, (8 * 6)($4)
+  ld    $7, (8 * 7)($4)
+  ld    $8, (8 * 8)($4)
+  ld    $9, (8 * 9)($4)
+  ld    $10, (8 * 10)($4)
+  ld    $11, (8 * 11)($4)
+  ld    $12, (8 * 12)($4)
+  ld    $13, (8 * 13)($4)
+  ld    $14, (8 * 14)($4)
+  ld    $15, (8 * 15)($4)
+  ld    $16, (8 * 16)($4)
+  ld    $17, (8 * 17)($4)
+  ld    $18, (8 * 18)($4)
+  ld    $19, (8 * 19)($4)
+  ld    $20, (8 * 20)($4)
+  ld    $21, (8 * 21)($4)
+  ld    $22, (8 * 22)($4)
+  ld    $23, (8 * 23)($4)
+  ld    $24, (8 * 24)($4)
+  ld    $25, (8 * 25)($4)
+  ld    $26, (8 * 26)($4)
+  ld    $27, (8 * 27)($4)
+  ld    $28, (8 * 28)($4)
+  ld    $29, (8 * 29)($4)
+  ld    $30, (8 * 30)($4)
+  // load new pc into ra
+  ld    $31, (8 * 32)($4)
+  // jump to ra, load a0 in the delay slot
+  jr    $31
+  ld    $4, (8 * 4)($4)
+  .set pop
 
 #endif
+
+NO_EXEC_STACK_DIRECTIVE
+

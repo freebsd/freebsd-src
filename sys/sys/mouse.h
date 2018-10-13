@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-1-Clause
+ *
  * Copyright (c) 1992, 1993 Erik Forsberg.
  * Copyright (c) 1996, 1997 Kazutaka YOKOTA
  * All rights reserved.
@@ -36,8 +38,6 @@
 #define MOUSE_SETMODE		_IOW('M', 3, mousemode_t)
 #define MOUSE_GETLEVEL		_IOR('M', 4, int)
 #define MOUSE_SETLEVEL		_IOW('M', 5, int)
-#define MOUSE_GETVARS		_IOR('M', 6, mousevar_t)
-#define MOUSE_SETVARS		_IOW('M', 7, mousevar_t)
 #define MOUSE_READSTATE		_IOWR('M', 8, mousedata_t)
 #define MOUSE_READDATA		_IOWR('M', 9, mousedata_t)
 
@@ -135,6 +135,7 @@ typedef struct synapticshw {
 	int maximumYCoord;
 	int infoXupmm;
 	int infoYupmm;
+	int forcePad;
 } synapticshw_t;
 
 /* iftype */
@@ -170,6 +171,7 @@ typedef struct synapticshw {
 #define MOUSE_MODEL_4DPLUS		12
 #define MOUSE_MODEL_SYNAPTICS		13
 #define	MOUSE_MODEL_TRACKPOINT		14
+#define	MOUSE_MODEL_ELANTECH		15
 
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
@@ -224,21 +226,11 @@ typedef struct mousedata {
 	int buf[16];		/* data buffer */
 } mousedata_t;
 
-#if (defined(MOUSE_GETVARS))
-
-typedef struct mousevar {
-	int var[16];
-} mousevar_t;
-
-/* magic numbers in var[0] */
-#define MOUSE_VARS_PS2_SIG	0x00325350	/* 'PS2' */
-#define MOUSE_VARS_BUS_SIG	0x00535542	/* 'BUS' */
-#define MOUSE_VARS_INPORT_SIG	0x00504e49	/* 'INP' */
-
-#endif /* MOUSE_GETVARS */
-
 /* Synaptics Touchpad */
 #define MOUSE_SYNAPTICS_PACKETSIZE	6	/* '3' works better */
+
+/* Elantech Touchpad */
+#define MOUSE_ELANTECH_PACKETSIZE	6
 
 /* Microsoft Serial mouse data packet */
 #define MOUSE_MSS_PACKETSIZE	3

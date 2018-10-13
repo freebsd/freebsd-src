@@ -1,5 +1,6 @@
-.\" $File: magic.man,v 1.86 2015/09/08 13:48:44 christos Exp $
-.Dd January 1, 2015
+.It S2
+.\" $File: magic.man,v 1.93 2018/06/22 20:39:49 christos Exp $
+.Dd June 22, 2018
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -7,7 +8,7 @@
 .Nm magic
 .Nd file command's magic pattern file
 .Sh DESCRIPTION
-This manual page documents the format of the magic file as
+This manual page documents the format of magic files as
 used by the
 .Xr file __CSECTION__
 command, version __VERSION__.
@@ -17,21 +18,39 @@ command identifies the type of a file using,
 among other tests,
 a test for whether the file contains certain
 .Dq "magic patterns" .
-The file
-.Pa __MAGIC__
-specifies what patterns are to be tested for, what message or
+The database of these
+.Dq "magic patterns"
+is usually located in a binary file in
+.Pa __MAGIC__.mgc
+or a directory of source text magic pattern fragment files in
+.Pa __MAGIC__ .
+The database specifies what patterns are to be tested for, what message or
 MIME type to print if a particular pattern is found,
 and additional information to extract from the file.
 .Pp
-Each line of the file specifies a test to be performed.
+The format of the source fragment files that are used to build this database
+is as follows:
+Each line of a fragment file specifies a test to be performed.
 A test compares the data starting at a particular offset
 in the file with a byte value, a string or a numeric value.
 If the test succeeds, a message is printed.
 The line consists of the following fields:
 .Bl -tag -width ".Dv message"
 .It Dv offset
-A number specifying the offset, in bytes, into the file of the data
+A number specifying the offset (in bytes) into the file of the data
 which is to be tested.
+This offset can be a negative number if it is:
+.Bl -bullet  -compact
+.It
+The first direct offset of the magic entry (at continuation level 0),
+in which case it is interpreted an offset from end end of the file
+going backwards.
+This works only when a file descriptor to the file is a available and it
+is a regular file.
+.It
+A continuation offset relative to the end of the last up-level field
+.Dv ( \*[Am] ) .
+.El
 .It Dv type
 The type of the data to be tested.
 The possible values are:
@@ -98,13 +117,13 @@ The following modifiers are supported:
 .It B
 A byte length (default).
 .It H
-A 2 byte big endian length.
-.It h
-A 2 byte big little length.
-.It L
 A 4 byte big endian length.
+.It h
+A 2 byte big endian length.
+.It L
+A 4 byte little endian length.
 .It l
-A 4 byte big little length.
+A 2 byte little endian length.
 .It J
 The length includes itself in its count.
 .El
@@ -535,13 +554,18 @@ the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.Em (( x [.[bislBISL]][+\-][ y ]) .
+.Em (( x [[.,][bBcCeEfFgGhHiIlmsSqQ]][+\-][ y ]) .
 The value of
 .Em x
 is used as an offset in the file.
 A byte, id3 length, short or long is read at that offset depending on the
-.Em [bislBISLm]
+.Em [bBcCeEfFgGhHiIlmsSqQ]
 type specifier.
+The value is treated as signed if
+.Dq ,
+is specified or unsigned if
+.Dq .
+is specified.
 The capitalized types interpret the number as a big endian
 value, whereas the small letter versions interpret the number as a little
 endian value;
@@ -552,6 +576,20 @@ To that number the value of
 .Em y
 is added and the result is used as an offset in the file.
 The default type if one is not specified is long.
+The following types are recognized:
+.Bl -column -offset indent "Type" "Half/Short" "Little" "Size"
+.It Sy Type	Sy Mnemonic	Sy Endian	Sy Size
+.It bcBc	Byte/Char	N/A	1
+.It efg	Double	Little	8
+.It EFG	Double	Big	8
+.It hs	Half/Short	Little	2
+.It HS	Half/Short	Big	2
+.It i	ID3	Little	4
+.It I	ID3	Big	4
+.It m	Middle	Middle	4
+.It q	Quad	Little	8
+.It Q	Quad	Big	8
+.El
 .Pp
 That way variable length structures can be examined:
 .Bd -literal -offset indent
@@ -564,9 +602,9 @@ That way variable length structures can be examined:
 \*[Gt]\*[Gt](0x3c.l)  string  LX\e0\e0  LX executable (OS/2)
 .Ed
 .Pp
-This strategy of examining has a drawback: You must make sure that
-you eventually print something, or users may get empty output (like, when
-there is neither PE\e0\e0 nor LE\e0\e0 in the above example)
+This strategy of examining has a drawback: you must make sure that you
+eventually print something, or users may get empty output (such as when
+there is neither PE\e0\e0 nor LE\e0\e0 in the above example).
 .Pp
 If this indirect offset cannot be used directly, simple calculations are
 possible: appending
@@ -646,7 +684,7 @@ start of the main indirect offset.
 \*[Gt]\*[Gt]\*[Gt]\*[Gt](\*[Am]0xe.l+(-4)) string       PK\e3\e4 \eb, ZIP self-extracting archive
 .Ed
 .Pp
-If you have a list of known avalues at a particular continuation level,
+If you have a list of known values at a particular continuation level,
 and you want to provide a switch-like default case:
 .Bd -literal -offset indent
 # clear that continuation level match

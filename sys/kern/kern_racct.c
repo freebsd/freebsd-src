@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -443,12 +445,8 @@ racct_sub_racct(struct racct *dest, const struct racct *src)
 		}
 		if (RACCT_CAN_DROP(i)) {
 			dest->r_resources[i] -= src->r_resources[i];
-			if (dest->r_resources[i] < 0) {
-				KASSERT(RACCT_IS_SLOPPY(i) ||
-				    RACCT_IS_DECAYING(i),
-				    ("%s: resource %d usage < 0", __func__, i));
+			if (dest->r_resources[i] < 0)
 				dest->r_resources[i] = 0;
-			}
 		}
 	}
 }
@@ -1014,10 +1012,13 @@ racct_proc_exit(struct proc *p)
 	racct_set_locked(p, RACCT_CPU, runtime, 0);
 	racct_add_cred_locked(p->p_ucred, RACCT_PCTCPU, pct);
 
+	KASSERT(p->p_racct->r_resources[RACCT_RSS] == 0,
+	    ("process reaped with %ju allocated for RSS\n",
+	    p->p_racct->r_resources[RACCT_RSS]));
 	for (i = 0; i <= RACCT_MAX; i++) {
 		if (p->p_racct->r_resources[i] == 0)
 			continue;
-	    	if (!RACCT_IS_RECLAIMABLE(i))
+		if (!RACCT_IS_RECLAIMABLE(i))
 			continue;
 		racct_set_locked(p, i, 0, 0);
 	}
@@ -1045,7 +1046,7 @@ racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 	if (!racct_enable)
 		return;
 
-	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	newuip = newcred->cr_ruidinfo;
 	olduip = oldcred->cr_ruidinfo;
@@ -1072,10 +1073,6 @@ racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 			    p->p_racct);
 	}
 	RACCT_UNLOCK();
-
-#ifdef RCTL
-	rctl_proc_ucred_changed(p, newcred);
-#endif
 }
 
 void

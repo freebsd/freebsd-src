@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -304,7 +412,7 @@ AcpiExOpcode_1A_1T_1R (
     case AML_FIND_SET_RIGHT_BIT_OP:
     case AML_FROM_BCD_OP:
     case AML_TO_BCD_OP:
-    case AML_COND_REF_OF_OP:
+    case AML_CONDITIONAL_REF_OF_OP:
 
         /* Create a return object of type Integer for these opcodes */
 
@@ -435,7 +543,7 @@ AcpiExOpcode_1A_1T_1R (
             }
             break;
 
-        case AML_COND_REF_OF_OP:        /* CondRefOf (SourceObject, Result)  */
+        case AML_CONDITIONAL_REF_OF_OP:     /* CondRefOf (SourceObject, Result)  */
             /*
              * This op is a little strange because the internal return value is
              * different than the return value stored in the result descriptor
@@ -507,13 +615,13 @@ AcpiExOpcode_1A_1T_1R (
     /*
      * ACPI 2.0 Opcodes
      */
-    case AML_COPY_OP:               /* Copy (Source, Target) */
+    case AML_COPY_OBJECT_OP:        /* CopyObject (Source, Target) */
 
         Status = AcpiUtCopyIobjectToIobject (
             Operand[0], &ReturnDesc, WalkState);
         break;
 
-    case AML_TO_DECSTRING_OP:       /* ToDecimalString (Data, Result) */
+    case AML_TO_DECIMAL_STRING_OP:  /* ToDecimalString (Data, Result) */
 
         Status = AcpiExConvertToString (
             Operand[0], &ReturnDesc, ACPI_EXPLICIT_CONVERT_DECIMAL);
@@ -525,7 +633,7 @@ AcpiExOpcode_1A_1T_1R (
         }
         break;
 
-    case AML_TO_HEXSTRING_OP:       /* ToHexString (Data, Result) */
+    case AML_TO_HEX_STRING_OP:      /* ToHexString (Data, Result) */
 
         Status = AcpiExConvertToString (
             Operand[0], &ReturnDesc, ACPI_EXPLICIT_CONVERT_HEX);
@@ -550,8 +658,9 @@ AcpiExOpcode_1A_1T_1R (
 
     case AML_TO_INTEGER_OP:         /* ToInteger (Data, Result) */
 
-        Status = AcpiExConvertToInteger (
-            Operand[0], &ReturnDesc, ACPI_ANY_BASE);
+        /* Perform "explicit" conversion */
+
+        Status = AcpiExConvertToInteger (Operand[0], &ReturnDesc, 0);
         if (ReturnDesc == Operand[0])
         {
             /* No conversion performed, add ref to handle return value */
@@ -639,7 +748,7 @@ AcpiExOpcode_1A_0T_1R (
 
     switch (WalkState->Opcode)
     {
-    case AML_LNOT_OP:               /* LNot (Operand) */
+    case AML_LOGICAL_NOT_OP:        /* LNot (Operand) */
 
         ReturnDesc = AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!ReturnDesc)
@@ -690,7 +799,8 @@ AcpiExOpcode_1A_0T_1R (
          * NOTE:  We use LNOT_OP here in order to force resolution of the
          * reference operand to an actual integer.
          */
-        Status = AcpiExResolveOperands (AML_LNOT_OP, &TempDesc, WalkState);
+        Status = AcpiExResolveOperands (AML_LOGICAL_NOT_OP,
+            &TempDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
@@ -849,7 +959,7 @@ AcpiExOpcode_1A_0T_1R (
         if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_NAMED)
         {
             TempDesc = AcpiNsGetAttachedObject (
-                           (ACPI_NAMESPACE_NODE *) Operand[0]);
+                (ACPI_NAMESPACE_NODE *) Operand[0]);
             if (TempDesc &&
                  ((TempDesc->Common.Type == ACPI_TYPE_STRING) ||
                   (TempDesc->Common.Type == ACPI_TYPE_LOCAL_REFERENCE)))
@@ -936,7 +1046,7 @@ AcpiExOpcode_1A_0T_1R (
                  * 2) Dereference the node to an actual object. Could be a
                  *    Field, so we need to resolve the node to a value.
                  */
-                Status = AcpiNsGetNode (WalkState->ScopeInfo->Scope.Node,
+                Status = AcpiNsGetNodeUnlocked (WalkState->ScopeInfo->Scope.Node,
                     Operand[0]->String.Pointer,
                     ACPI_NS_SEARCH_PARENT,
                     ACPI_CAST_INDIRECT_PTR (
@@ -962,11 +1072,27 @@ AcpiExOpcode_1A_0T_1R (
              * This is a DerefOf (ObjectReference)
              * Get the actual object from the Node (This is the dereference).
              * This case may only happen when a LocalX or ArgX is
-             * dereferenced above.
+             * dereferenced above, or for references to device and
+             * thermal objects.
              */
-            ReturnDesc = AcpiNsGetAttachedObject (
-                (ACPI_NAMESPACE_NODE *) Operand[0]);
-            AcpiUtAddReference (ReturnDesc);
+            switch (((ACPI_NAMESPACE_NODE *) Operand[0])->Type)
+            {
+            case ACPI_TYPE_DEVICE:
+            case ACPI_TYPE_THERMAL:
+
+                /* These types have no node subobject, return the NS node */
+
+                ReturnDesc = Operand[0];
+                break;
+
+            default:
+                /* For most types, get the object attached to the node */
+
+                ReturnDesc = AcpiNsGetAttachedObject (
+                    (ACPI_NAMESPACE_NODE *) Operand[0]);
+                AcpiUtAddReference (ReturnDesc);
+                break;
+            }
         }
         else
         {

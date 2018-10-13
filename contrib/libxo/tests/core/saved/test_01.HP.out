@@ -1,4 +1,38 @@
 <div class="line">
+  <div class="text">static </div>
+  <div class="data" data-tag="type">ethernet</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type">bridge</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type">  18u</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type"> 24</div>
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port">1</div>
+</div>
+<div class="line">
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port">1</div>
+</div>
+<div class="line">
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port">1</div>
+</div>
+<div class="line">
+  <div class="text">df </div>
+  <div class="data" data-tag="used-percent">   12</div>
+  <div class="units">%</div>
+</div>
+<div class="line">
   <div class="text">testing argument modifier </div>
   <div class="data" data-tag="host">my-box</div>
   <div class="text">.</div>
@@ -331,6 +365,10 @@
   <div class="text">  </div>
   <div class="data" data-tag="group">group</div>
   <div class="text">  </div>
+</div>
+<div class="line">
+  <div class="data" data-tag="links">3       </div>
+  <div class="data" data-tag="post">this    </div>
 </div>
 <div class="line">
   <div class="data" data-tag="mode">/some/file</div>

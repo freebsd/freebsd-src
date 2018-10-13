@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Zhixiang Yu <zcore@freebsd.org>
+ * Copyright (c) 2015-2016 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include "ahci.h"
 #include "block_if.h"
 
-#define	MAX_PORTS	6	/* Intel ICH8 AHCI supports 6 ports */
+#define	DEF_PORTS	6	/* Intel ICH8 AHCI supports 6 ports */
+#define	MAX_PORTS	32	/* AHCI supports 32 ports */
 
 #define	PxSIG_ATA	0x00000101 /* ATA drive */
 #define	PxSIG_ATAPI	0xeb140101 /* ATAPI drive */
@@ -133,6 +137,7 @@ struct ahci_port {
 	uint8_t *cmd_lst;
 	uint8_t *rfis;
 	char ident[20 + 1];
+	int port;
 	int atapi;
 	int reset;
 	int waitforclear;
@@ -217,47 +222,95 @@ static inline void lba_to_msf(uint8_t *buf, int lba)
 }
 
 /*
- * generate HBA intr depending on whether or not ports within
- * the controller have an interrupt pending.
+ * Generate HBA interrupts on global IS register write.
  */
 static void
-ahci_generate_intr(struct pci_ahci_softc *sc)
+ahci_generate_intr(struct pci_ahci_softc *sc, uint32_t mask)
 {
-	struct pci_devinst *pi;
-	int i;
+	struct pci_devinst *pi = sc->asc_pi;
+	struct ahci_port *p;
+	int i, nmsg;
+	uint32_t mmask;
 
-	pi = sc->asc_pi;
-
+	/* Update global IS from PxIS/PxIE. */
 	for (i = 0; i < sc->ports; i++) {
-		struct ahci_port *pr;
-		pr = &sc->port[i];
-		if (pr->is & pr->ie)
+		p = &sc->port[i];
+		if (p->is & p->ie)
 			sc->is |= (1 << i);
 	}
+	DPRINTF("%s(%08x) %08x\n", __func__, mask, sc->is);
 
-	DPRINTF("%s %x\n", __func__, sc->is);
+	/* If there is nothing enabled -- clear legacy interrupt and exit. */
+	if (sc->is == 0 || (sc->ghc & AHCI_GHC_IE) == 0) {
+		if (sc->lintr) {
+			pci_lintr_deassert(pi);
+			sc->lintr = 0;
+		}
+		return;
+	}
 
-	if (sc->is && (sc->ghc & AHCI_GHC_IE)) {		
-		if (pci_msi_enabled(pi)) {
-			/*
-			 * Generate an MSI interrupt on every edge
-			 */
-			pci_generate_msi(pi, 0);
-		} else if (!sc->lintr) {
-			/*
-			 * Only generate a pin-based interrupt if one wasn't
-			 * in progress
-			 */
+	/* If there is anything and no MSI -- assert legacy interrupt. */
+	nmsg = pci_msi_maxmsgnum(pi);
+	if (nmsg == 0) {
+		if (!sc->lintr) {
 			sc->lintr = 1;
 			pci_lintr_assert(pi);
 		}
-	} else if (sc->lintr) {
-		/*
-		 * No interrupts: deassert pin-based signal if it had
-		 * been asserted
-		 */
-		pci_lintr_deassert(pi);
-		sc->lintr = 0;
+		return;
+	}
+
+	/* Assert respective MSIs for ports that were touched. */
+	for (i = 0; i < nmsg; i++) {
+		if (sc->ports <= nmsg || i < nmsg - 1)
+			mmask = 1 << i;
+		else
+			mmask = 0xffffffff << i;
+		if (sc->is & mask && mmask & mask)
+			pci_generate_msi(pi, i);
+	}
+}
+
+/*
+ * Generate HBA interrupt on specific port event.
+ */
+static void
+ahci_port_intr(struct ahci_port *p)
+{
+	struct pci_ahci_softc *sc = p->pr_sc;
+	struct pci_devinst *pi = sc->asc_pi;
+	int nmsg;
+
+	DPRINTF("%s(%d) %08x/%08x %08x\n", __func__,
+	    p->port, p->is, p->ie, sc->is);
+
+	/* If there is nothing enabled -- we are done. */
+	if ((p->is & p->ie) == 0)
+		return;
+
+	/* In case of non-shared MSI always generate interrupt. */
+	nmsg = pci_msi_maxmsgnum(pi);
+	if (sc->ports <= nmsg || p->port < nmsg - 1) {
+		sc->is |= (1 << p->port);
+		if ((sc->ghc & AHCI_GHC_IE) == 0)
+			return;
+		pci_generate_msi(pi, p->port);
+		return;
+	}
+
+	/* If IS for this port is already set -- do nothing. */
+	if (sc->is & (1 << p->port))
+		return;
+
+	sc->is |= (1 << p->port);
+
+	/* If interrupts are enabled -- generate one. */
+	if ((sc->ghc & AHCI_GHC_IE) == 0)
+		return;
+	if (nmsg > 0) {
+		pci_generate_msi(pi, nmsg - 1);
+	} else if (!sc->lintr) {
+		sc->lintr = 1;
+		pci_lintr_assert(pi);
 	}
 }
 
@@ -295,8 +348,10 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 	}
 	memcpy(p->rfis + offset, fis, len);
 	if (irq) {
-		p->is |= irq;
-		ahci_generate_intr(p->pr_sc);
+		if (~p->is & irq) {
+			p->is |= irq;
+			ahci_port_intr(p);
+		}
 	}
 }
 
@@ -784,7 +839,15 @@ next:
 	done += 8;
 	if (elen == 0) {
 		if (done >= len) {
-			ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
+			if (ncq) {
+				if (first)
+					ahci_write_fis_d2h_ncq(p, slot);
+				ahci_write_fis_sdb(p, slot, cfis,
+				    ATA_S_READY | ATA_S_DSC);
+			} else {
+				ahci_write_fis_d2h(p, slot, cfis,
+				    ATA_S_READY | ATA_S_DSC);
+			}
 			p->pending &= ~(1 << slot);
 			ahci_check_stopped(p);
 			if (!first)
@@ -871,19 +934,36 @@ static void
 ahci_handle_read_log(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 	struct ahci_cmd_hdr *hdr;
-	uint8_t buf[512];
+	uint32_t buf[128];
+	uint8_t *buf8 = (uint8_t *)buf;
+	uint16_t *buf16 = (uint16_t *)buf;
 
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
-	if (p->atapi || hdr->prdtl == 0 || cfis[4] != 0x10 ||
-	    cfis[5] != 0 || cfis[9] != 0 || cfis[12] != 1 || cfis[13] != 0) {
+	if (p->atapi || hdr->prdtl == 0 || cfis[5] != 0 ||
+	    cfis[9] != 0 || cfis[12] != 1 || cfis[13] != 0) {
 		ahci_write_fis_d2h(p, slot, cfis,
 		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 		return;
 	}
 
 	memset(buf, 0, sizeof(buf));
-	memcpy(buf, p->err_cfis, sizeof(p->err_cfis));
-	ahci_checksum(buf, sizeof(buf));
+	if (cfis[4] == 0x00) {	/* Log directory */
+		buf16[0x00] = 1; /* Version -- 1 */
+		buf16[0x10] = 1; /* NCQ Command Error Log -- 1 page */
+		buf16[0x13] = 1; /* SATA NCQ Send and Receive Log -- 1 page */
+	} else if (cfis[4] == 0x10) {	/* NCQ Command Error Log */
+		memcpy(buf8, p->err_cfis, sizeof(p->err_cfis));
+		ahci_checksum(buf8, sizeof(buf));
+	} else if (cfis[4] == 0x13) {	/* SATA NCQ Send and Receive Log */
+		if (blockif_candelete(p->bctx) && !blockif_is_ro(p->bctx)) {
+			buf[0x00] = 1;	/* SFQ DSM supported */
+			buf[0x01] = 1;	/* SFQ DSM TRIM supported */
+		}
+	} else {
+		ahci_write_fis_d2h(p, slot, cfis,
+		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
+		return;
+	}
 
 	if (cfis[2] == ATA_READ_LOG_EXT)
 		ahci_write_fis_piosetup(p);
@@ -1665,7 +1745,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_SEND_FPDMA_QUEUED:
 		if ((cfis[13] & 0x1f) == ATA_SFPDMA_DSM &&
 		    cfis[17] == 0 && cfis[16] == ATA_DSM_TRIM &&
-		    cfis[11] == 0 && cfis[13] == 1) {
+		    cfis[11] == 0 && cfis[3] == 1) {
 			ahci_handle_dsm_trim(p, slot, cfis, 0);
 			break;
 		}
@@ -1717,19 +1797,25 @@ static void
 ahci_handle_slot(struct ahci_port *p, int slot)
 {
 	struct ahci_cmd_hdr *hdr;
+#ifdef AHCI_DEBUG
 	struct ahci_prdt_entry *prdt;
+#endif
 	struct pci_ahci_softc *sc;
 	uint8_t *cfis;
-	int cfl;
+#ifdef AHCI_DEBUG
+	int cfl, i;
+#endif
 
 	sc = p->pr_sc;
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
+#ifdef AHCI_DEBUG
 	cfl = (hdr->flags & 0x1f) * 4;
+#endif
 	cfis = paddr_guest2host(ahci_ctx(sc), hdr->ctba,
 			0x80 + hdr->prdtl * sizeof(struct ahci_prdt_entry));
+#ifdef AHCI_DEBUG
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 
-#ifdef AHCI_DEBUG
 	DPRINTF("\ncfis:");
 	for (i = 0; i < cfl; i++) {
 		if (i % 10 == 0)
@@ -1978,10 +2064,11 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		break;
 	case AHCI_P_IS:
 		p->is &= ~value;
+		ahci_port_intr(p);
 		break;
 	case AHCI_P_IE:
 		p->ie = value & 0xFDC000FF;
-		ahci_generate_intr(sc);
+		ahci_port_intr(p);
 		break;
 	case AHCI_P_CMD:
 	{
@@ -2071,16 +2158,19 @@ pci_ahci_host_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		DPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
 		break;
 	case AHCI_GHC:
-		if (value & AHCI_GHC_HR)
+		if (value & AHCI_GHC_HR) {
 			ahci_reset(sc);
-		else if (value & AHCI_GHC_IE) {
-			sc->ghc |= AHCI_GHC_IE;
-			ahci_generate_intr(sc);
+			break;
 		}
+		if (value & AHCI_GHC_IE)
+			sc->ghc |= AHCI_GHC_IE;
+		else
+			sc->ghc &= ~AHCI_GHC_IE;
+		ahci_generate_intr(sc, 0xffffffff);
 		break;
 	case AHCI_IS:
 		sc->is &= ~value;
-		ahci_generate_intr(sc);
+		ahci_generate_intr(sc, value);
 		break;
 	default:
 		break;
@@ -2215,19 +2305,15 @@ pci_ahci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 static int
 pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 {
-	char bident[sizeof("XX:X:X")];
+	char bident[sizeof("XX:XX:XX")];
 	struct blockif_ctxt *bctxt;
 	struct pci_ahci_softc *sc;
-	int ret, slots;
+	int ret, slots, p;
 	MD5_CTX mdctx;
 	u_char digest[16];
+	char *next, *next2;
 
 	ret = 0;
-
-	if (opts == NULL) {
-		fprintf(stderr, "pci_ahci: backing device required\n");
-		return (1);
-	}
 
 #ifdef AHCI_DEBUG
 	dbg = fopen("/tmp/log", "w+");
@@ -2236,58 +2322,84 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	sc = calloc(1, sizeof(struct pci_ahci_softc));
 	pi->pi_arg = sc;
 	sc->asc_pi = pi;
-	sc->ports = MAX_PORTS;
-
-	/*
-	 * Only use port 0 for a backing device. All other ports will be
-	 * marked as unused
-	 */
-	sc->port[0].atapi = atapi;
-
-	/*
-	 * Attempt to open the backing image. Use the PCI
-	 * slot/func for the identifier string.
-	 */
-	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
-	bctxt = blockif_open(opts, bident);
-	if (bctxt == NULL) {       	
-		ret = 1;
-		goto open_fail;
-	}	
-	sc->port[0].bctx = bctxt;
-	sc->port[0].pr_sc = sc;
-
-	/*
-	 * Create an identifier for the backing file. Use parts of the
-	 * md5 sum of the filename
-	 */
-	MD5Init(&mdctx);
-	MD5Update(&mdctx, opts, strlen(opts));
-	MD5Final(digest, &mdctx);	
-	sprintf(sc->port[0].ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
-	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
-
-	/*
-	 * Allocate blockif request structures and add them
-	 * to the free list
-	 */
-	pci_ahci_ioreq_init(&sc->port[0]);
-
 	pthread_mutex_init(&sc->mtx, NULL);
+	sc->ports = 0;
+	sc->pi = 0;
+	slots = 32;
+
+	for (p = 0; p < MAX_PORTS && opts != NULL; p++, opts = next) {
+		/* Identify and cut off type of present port. */
+		if (strncmp(opts, "hd:", 3) == 0) {
+			atapi = 0;
+			opts += 3;
+		} else if (strncmp(opts, "cd:", 3) == 0) {
+			atapi = 1;
+			opts += 3;
+		}
+
+		/* Find and cut off the next port options. */
+		next = strstr(opts, ",hd:");
+		next2 = strstr(opts, ",cd:");
+		if (next == NULL || (next2 != NULL && next2 < next))
+			next = next2;
+		if (next != NULL) {
+			next[0] = 0;
+			next++;
+		}
+
+		if (opts[0] == 0)
+			continue;
+
+		/*
+		 * Attempt to open the backing image. Use the PCI slot/func
+		 * and the port number for the identifier string.
+		 */
+		snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot,
+		    pi->pi_func, p);
+		bctxt = blockif_open(opts, bident);
+		if (bctxt == NULL) {
+			sc->ports = p;
+			ret = 1;
+			goto open_fail;
+		}	
+		sc->port[p].bctx = bctxt;
+		sc->port[p].pr_sc = sc;
+		sc->port[p].port = p;
+		sc->port[p].atapi = atapi;
+
+		/*
+		 * Create an identifier for the backing file.
+		 * Use parts of the md5 sum of the filename
+		 */
+		MD5Init(&mdctx);
+		MD5Update(&mdctx, opts, strlen(opts));
+		MD5Final(digest, &mdctx);
+		sprintf(sc->port[p].ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+		    digest[0], digest[1], digest[2], digest[3], digest[4],
+		    digest[5]);
+
+		/*
+		 * Allocate blockif request structures and add them
+		 * to the free list
+		 */
+		pci_ahci_ioreq_init(&sc->port[p]);
+
+		sc->pi |= (1 << p);
+		if (sc->port[p].ioqsz < slots)
+			slots = sc->port[p].ioqsz;
+	}
+	sc->ports = p;
 
 	/* Intel ICH8 AHCI */
-	slots = sc->port[0].ioqsz;
-	if (slots > 32)
-		slots = 32;
 	--slots;
+	if (sc->ports < DEF_PORTS)
+		sc->ports = DEF_PORTS;
 	sc->cap = AHCI_CAP_64BIT | AHCI_CAP_SNCQ | AHCI_CAP_SSNTF |
 	    AHCI_CAP_SMPS | AHCI_CAP_SSS | AHCI_CAP_SALP |
 	    AHCI_CAP_SAL | AHCI_CAP_SCLO | (0x3 << AHCI_CAP_ISS_SHIFT)|
 	    AHCI_CAP_PMD | AHCI_CAP_SSC | AHCI_CAP_PSC |
 	    (slots << AHCI_CAP_NCS_SHIFT) | AHCI_CAP_SXS | (sc->ports - 1);
 
-	/* Only port 0 implemented */
-	sc->pi = 1;
 	sc->vs = 0x10300;
 	sc->cap2 = AHCI_CAP2_APST;
 	ahci_reset(sc);
@@ -2297,7 +2409,9 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_STORAGE_SATA);
 	pci_set_cfgdata8(pi, PCIR_PROGIF, PCIP_STORAGE_SATA_AHCI_1_0);
-	pci_emul_add_msicap(pi, 1);
+	p = MIN(sc->ports, 16);
+	p = flsl(p) - ((p & (p - 1)) ? 0 : 1);
+	pci_emul_add_msicap(pi, 1 << p);
 	pci_emul_alloc_bar(pi, 5, PCIBAR_MEM32,
 	    AHCI_OFFSET + sc->ports * AHCI_STEP);
 
@@ -2305,8 +2419,10 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 
 open_fail:
 	if (ret) {
-		if (sc->port[0].bctx != NULL)
-			blockif_close(sc->port[0].bctx);
+		for (p = 0; p < sc->ports; p++) {
+			if (sc->port[p].bctx != NULL)
+				blockif_close(sc->port[p].bctx);
+		}
 		free(sc);
 	}
 
@@ -2330,6 +2446,14 @@ pci_ahci_atapi_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 /*
  * Use separate emulation names to distinguish drive and atapi devices
  */
+struct pci_devemu pci_de_ahci = {
+	.pe_emu =	"ahci",
+	.pe_init =	pci_ahci_hd_init,
+	.pe_barwrite =	pci_ahci_write,
+	.pe_barread =	pci_ahci_read
+};
+PCI_EMUL_SET(pci_de_ahci);
+
 struct pci_devemu pci_de_ahci_hd = {
 	.pe_emu =	"ahci-hd",
 	.pe_init =	pci_ahci_hd_init,

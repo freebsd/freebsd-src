@@ -24,12 +24,12 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 7, 2012
+.Dd December 20, 2017
 .Dt CAM 4
 .Os
 .Sh NAME
 .Nm CAM
-.Nd Common Access Method SCSI/ATA subsystem
+.Nd Common Access Method Storage subsystem
 .Sh SYNOPSIS
 .Cd "device scbus"
 .Cd "device ada"
@@ -54,15 +54,19 @@ The
 .Nm
 subsystem provides a uniform and modular system for the implementation
 of drivers to control various
-.Tn SCSI
+.Tn SCSI ,
+.Tn ATA ,
+.Tn NMVe ,
 and
-.Tn ATA
+.Tn MMC / SD
 devices, and to utilize different
-.Tn SCSI
+.Tn SCSI ,
+.Tn ATA ,
+.Tn NVMe ,
 and
-.Tn ATA
+.Tn MMC / SD
 host adapters through host adapter drivers.
-When the system probes busses, it attaches any devices it finds to the
+When the system probes buses, it attaches any devices it finds to the
 appropriate drivers.
 The
 .Xr pass 4
@@ -150,7 +154,7 @@ In that case, the
 will be reset to 100ms.
 .El
 .Pp
-All devices and busses support dynamic allocation so that
+All devices and buses support dynamic allocation so that
 an upper number of devices and controllers does not need to be configured;
 .Cd "device da"
 will suffice for any number of disk drivers.
@@ -213,6 +217,31 @@ and use the first respective counted instances.
 These examples can be combined together to allow a peripheral device to be
 wired to any particular controller, bus, target, and/or unit instance.
 .Pp
+This also works with
+.Xr nvme 4
+drives as well.
+.Bd -literal -offset indent
+hint.nvme.4.at="pci7:0:0"
+hint.scbus.10.at="nvme4"
+hint.nda.10.at="scbus10"
+hint.nda.10.target="1"
+hint.nda.10.unit="12"
+hint.nda.11.at="scbus10"
+hint.nda.11.target="1"
+hint.nda.11.unit="2"
+.Ed
+.Pp
+This assigns the NVMe card living at PCI bus 7 to scbus 10 (in PCIe,
+slot and function are rarely used and usually 0).
+The target for
+.Xr nda 4
+devices is always 1.
+The unit is the namespace identifier from the drive.
+The namespace id 1 is exported as
+.Tn nda10
+and namespace id 2 is exported as
+.Tn nda11 .
+.Pp
 When you have a mixture of wired down and counted devices then the
 counting begins with the first non-wired down unit for a particular
 type.
@@ -225,9 +254,11 @@ The system allows common device drivers to work through many different
 types of adapters.
 The adapters take requests from the upper layers and do
 all IO between the
-.Tn SCSI
+.Tn SCSI ,
+.Tn ATA ,
+.Tn NVMe ,
 or
-.Tn ATA
+.Tn MMC / SD
 bus and the system.
 The maximum size of a transfer is governed by the
 adapter.
@@ -256,8 +287,7 @@ There are currently seven debugging flags that may be compiled in and used:
 This flag enables general informational printfs for the device
 or devices in question.
 .It Dv CAM_DEBUG_TRACE
-This flag enables function-level command flow tracing.
-i.e.\&
+This flag enables function-level command flow tracing i.e.,
 kernel printfs will happen at the entrance and exit of various functions.
 .It Dv CAM_DEBUG_SUBTRACE
 This flag enables debugging output internal to various functions.
@@ -297,7 +327,7 @@ see printfs for multiple debugging levels.
 This allows to set the various debugging flags from a kernel config file.
 .It Dv CAM_DEBUG_BUS
 Specify a bus to debug.
-To debug all busses, set this to -1.
+To debug all buses, set this to -1.
 .It Dv CAM_DEBUG_TARGET
 Specify a target to debug.
 To debug all targets, set this to -1.
@@ -315,14 +345,16 @@ for details.
 .Sh SEE ALSO
 .Xr ada 4 ,
 .Xr aha 4 ,
-.Xr ahb 4 ,
 .Xr ahc 4 ,
 .Xr ahci 4 ,
+.Xr ahd 4 ,
 .Xr ata 4 ,
 .Xr bt 4 ,
 .Xr cd 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
+.Xr nda 4 ,
+.Xr nvme 4 ,
 .Xr pass 4 ,
 .Xr pt 4 ,
 .Xr sa 4 ,
@@ -352,3 +384,8 @@ The
 .Tn ATA
 support was added by
 .An Alexander Motin Aq Mt mav@FreeBSD.org .
+The
+.Nm
+.Tn NVMe
+support was added by
+.An Warner Losh Aq Mt imp@FreeBSD.org .

@@ -106,8 +106,13 @@
 #ifndef	__IF_IWN_SCAN_H__
 #define	__IF_IWN_SCAN_H__
 
-extern	int
-iwm_mvm_scan_request(struct iwm_softc *sc, int flags,
-	    int n_ssids, uint8_t *ssid, int ssid_len);
+extern	int iwm_mvm_lmac_scan(struct iwm_softc *);
+extern	int iwm_mvm_config_umac_scan(struct iwm_softc *);
+extern	int iwm_mvm_umac_scan(struct iwm_softc *);
+extern	int iwm_mvm_scan_stop_wait(struct iwm_softc *);
+extern	void iwm_mvm_rx_lmac_scan_complete_notif(struct iwm_softc *,
+						 struct iwm_rx_packet *);
+extern	void iwm_mvm_rx_umac_scan_complete_notif(struct iwm_softc *,
+						 struct iwm_rx_packet *);
 
 #endif	/* __IF_IWN_SCAN_H__ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -238,7 +240,7 @@ typedef union efx_oword_u {
 #endif
 #if EFSYS_HAS_UINT64
 	uint64_t eo_u64[2];
-#endif	
+#endif
 	uint32_t eo_u32[4];
 	uint16_t eo_u16[8];
 	uint8_t eo_u8[16];
@@ -246,7 +248,7 @@ typedef union efx_oword_u {
 
 #pragma pack()
 
-#define	__SWAP16(_x) 				\
+#define	__SWAP16(_x)				\
 	((((_x) & 0xff) << 8) |			\
 	(((_x) >> 8) & 0xff))
 
@@ -264,37 +266,37 @@ typedef union efx_oword_u {
 
 #if EFSYS_IS_BIG_ENDIAN
 
-#define	__CPU_TO_LE_16(_x)	(uint16_t)__SWAP16(_x)
-#define	__LE_TO_CPU_16(_x)	(uint16_t)__SWAP16(_x)
-#define	__CPU_TO_BE_16(_x)	(uint16_t)__NOSWAP16(_x)
-#define	__BE_TO_CPU_16(_x)	(uint16_t)__NOSWAP16(_x)
+#define	__CPU_TO_LE_16(_x)	((uint16_t)__SWAP16(_x))
+#define	__LE_TO_CPU_16(_x)	((uint16_t)__SWAP16(_x))
+#define	__CPU_TO_BE_16(_x)	((uint16_t)__NOSWAP16(_x))
+#define	__BE_TO_CPU_16(_x)	((uint16_t)__NOSWAP16(_x))
 
-#define	__CPU_TO_LE_32(_x)	(uint32_t)__SWAP32(_x)
-#define	__LE_TO_CPU_32(_x)	(uint32_t)__SWAP32(_x)
-#define	__CPU_TO_BE_32(_x)	(uint32_t)__NOSWAP32(_x)
-#define	__BE_TO_CPU_32(_x)	(uint32_t)__NOSWAP32(_x)
+#define	__CPU_TO_LE_32(_x)	((uint32_t)__SWAP32(_x))
+#define	__LE_TO_CPU_32(_x)	((uint32_t)__SWAP32(_x))
+#define	__CPU_TO_BE_32(_x)	((uint32_t)__NOSWAP32(_x))
+#define	__BE_TO_CPU_32(_x)	((uint32_t)__NOSWAP32(_x))
 
-#define	__CPU_TO_LE_64(_x)	(uint64_t)__SWAP64(_x)
-#define	__LE_TO_CPU_64(_x)	(uint64_t)__SWAP64(_x)
-#define	__CPU_TO_BE_64(_x)	(uint64_t)__NOSWAP64(_x)
-#define	__BE_TO_CPU_64(_x)	(uint64_t)__NOSWAP64(_x)
+#define	__CPU_TO_LE_64(_x)	((uint64_t)__SWAP64(_x))
+#define	__LE_TO_CPU_64(_x)	((uint64_t)__SWAP64(_x))
+#define	__CPU_TO_BE_64(_x)	((uint64_t)__NOSWAP64(_x))
+#define	__BE_TO_CPU_64(_x)	((uint64_t)__NOSWAP64(_x))
 
 #elif EFSYS_IS_LITTLE_ENDIAN
 
-#define	__CPU_TO_LE_16(_x)	(uint16_t)__NOSWAP16(_x)
-#define	__LE_TO_CPU_16(_x)	(uint16_t)__NOSWAP16(_x)
-#define	__CPU_TO_BE_16(_x)	(uint16_t)__SWAP16(_x)
-#define	__BE_TO_CPU_16(_x)	(uint16_t)__SWAP16(_x)
+#define	__CPU_TO_LE_16(_x)	((uint16_t)__NOSWAP16(_x))
+#define	__LE_TO_CPU_16(_x)	((uint16_t)__NOSWAP16(_x))
+#define	__CPU_TO_BE_16(_x)	((uint16_t)__SWAP16(_x))
+#define	__BE_TO_CPU_16(_x)	((uint16_t)__SWAP16(_x))
 
-#define	__CPU_TO_LE_32(_x)	(uint32_t)__NOSWAP32(_x)
-#define	__LE_TO_CPU_32(_x)	(uint32_t)__NOSWAP32(_x)
-#define	__CPU_TO_BE_32(_x)	(uint32_t)__SWAP32(_x)
-#define	__BE_TO_CPU_32(_x)	(uint32_t)__SWAP32(_x)
+#define	__CPU_TO_LE_32(_x)	((uint32_t)__NOSWAP32(_x))
+#define	__LE_TO_CPU_32(_x)	((uint32_t)__NOSWAP32(_x))
+#define	__CPU_TO_BE_32(_x)	((uint32_t)__SWAP32(_x))
+#define	__BE_TO_CPU_32(_x)	((uint32_t)__SWAP32(_x))
 
-#define	__CPU_TO_LE_64(_x)	(uint64_t)__NOSWAP64(_x)
-#define	__LE_TO_CPU_64(_x)	(uint64_t)__NOSWAP64(_x)
-#define	__CPU_TO_BE_64(_x)	(uint64_t)__SWAP64(_x)
-#define	__BE_TO_CPU_64(_x)	(uint64_t)__SWAP64(_x)
+#define	__CPU_TO_LE_64(_x)	((uint64_t)__NOSWAP64(_x))
+#define	__LE_TO_CPU_64(_x)	((uint64_t)__NOSWAP64(_x))
+#define	__CPU_TO_BE_64(_x)	((uint64_t)__SWAP64(_x))
+#define	__BE_TO_CPU_64(_x)	((uint64_t)__SWAP64(_x))
 
 #else
 
@@ -688,21 +690,21 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u64[0] = EFX_INSERT_FIELDS64(0, 63,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u64[1] = EFX_INSERT_FIELDS64(64, 127,	\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_POPULATE_OWORD32(_oword,					\
@@ -711,35 +713,35 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[0] = EFX_INSERT_FIELDS32(0, 31,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[1] = EFX_INSERT_FIELDS32(32, 63,	\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[2] = EFX_INSERT_FIELDS32(64, 95,	\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[3] = EFX_INSERT_FIELDS32(96, 127,	\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_POPULATE_QWORD64(_qword,					\
@@ -748,14 +750,14 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u64[0] = EFX_INSERT_FIELDS64(0, 63,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_POPULATE_QWORD32(_qword,					\
@@ -764,21 +766,21 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u32[0] = EFX_INSERT_FIELDS32(0, 31,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u32[1] = EFX_INSERT_FIELDS32(32, 63,	\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
 		    _field5, _value5, _field6, _value6,			\
 		    _field7, _value7, _field8, _value8,			\
 		    _field9, _value9, _field10, _value10);		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_POPULATE_DWORD(_dword,					\
@@ -787,7 +789,7 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_dword).ed_u32[0] = EFX_INSERT_FIELDS32(0, 31,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
@@ -803,7 +805,7 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_word).ew_u16[0] = EFX_INSERT_FIELDS16(0, 15,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
@@ -819,7 +821,7 @@ extern int fix_lint;
 	    _field7, _value7, _field8, _value8,	_field9, _value9,	\
 	    _field10, _value10)						\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_byte).eb_u8[0] = EFX_INSERT_FIELDS8(0, 7,		\
 		    _field1, _value1, _field2, _value2,			\
 		    _field3, _value3, _field4, _value4,			\
@@ -1212,105 +1214,105 @@ extern int fix_lint;
 #define	EFX_INSERT_FIELD8(_min, _max, _field, _value)			\
 	__NATIVE_8(EFX_INSERT_FIELD_NATIVE8(_min, _max, _field, _value))
 
-#define	EFX_INPLACE_MASK64(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK64(_min, _max, _field)				\
 	EFX_INSERT_FIELD64(_min, _max, _field, EFX_MASK64(_field))
 
-#define	EFX_INPLACE_MASK32(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK32(_min, _max, _field)				\
 	EFX_INSERT_FIELD32(_min, _max, _field, EFX_MASK32(_field))
 
-#define	EFX_INPLACE_MASK16(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK16(_min, _max, _field)				\
 	EFX_INSERT_FIELD16(_min, _max, _field, EFX_MASK16(_field))
 
-#define	EFX_INPLACE_MASK8(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK8(_min, _max, _field)				\
 	EFX_INSERT_FIELD8(_min, _max, _field, EFX_MASK8(_field))
 
 #define	EFX_SET_OWORD_FIELD64(_oword, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u64[0] = (((_oword).eo_u64[0] &		\
 		    ~EFX_INPLACE_MASK64(0, 63, _field)) |		\
 		    EFX_INSERT_FIELD64(0, 63, _field, _value));		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u64[1] = (((_oword).eo_u64[1] &		\
 		    ~EFX_INPLACE_MASK64(64, 127, _field)) |		\
 		    EFX_INSERT_FIELD64(64, 127, _field, _value));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_OWORD_FIELD32(_oword, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[0] = (((_oword).eo_u32[0] &		\
 		    ~EFX_INPLACE_MASK32(0, 31, _field)) |		\
 		    EFX_INSERT_FIELD32(0, 31, _field, _value));		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[1] = (((_oword).eo_u32[1] &		\
 		    ~EFX_INPLACE_MASK32(32, 63, _field)) |		\
 		    EFX_INSERT_FIELD32(32, 63, _field, _value));	\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[2] = (((_oword).eo_u32[2] &		\
 		    ~EFX_INPLACE_MASK32(64, 95, _field)) |		\
 		    EFX_INSERT_FIELD32(64, 95, _field, _value));	\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[3] = (((_oword).eo_u32[3] &		\
 		    ~EFX_INPLACE_MASK32(96, 127, _field)) |		\
 		    EFX_INSERT_FIELD32(96, 127, _field, _value));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_QWORD_FIELD64(_qword, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u64[0] = (((_qword).eq_u64[0] &		\
 		    ~EFX_INPLACE_MASK64(0, 63, _field)) |		\
 		    EFX_INSERT_FIELD64(0, 63, _field, _value));		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_QWORD_FIELD32(_qword, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u32[0] = (((_qword).eq_u32[0] &		\
 		    ~EFX_INPLACE_MASK32(0, 31, _field)) |		\
 		    EFX_INSERT_FIELD32(0, 31, _field, _value));		\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u32[1] = (((_qword).eq_u32[1] &		\
 		    ~EFX_INPLACE_MASK32(32, 63, _field)) |		\
 		    EFX_INSERT_FIELD32(32, 63, _field, _value));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_DWORD_FIELD(_dword, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_dword).ed_u32[0] = (((_dword).ed_u32[0] &		\
 		    ~EFX_INPLACE_MASK32(0, 31, _field)) |		\
 		    EFX_INSERT_FIELD32(0, 31, _field, _value));		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_WORD_FIELD(_word, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_word).ew_u16[0] = (((_word).ew_u16[0] &		\
 		    ~EFX_INPLACE_MASK16(0, 15, _field)) |		\
 		    EFX_INSERT_FIELD16(0, 15, _field, _value));		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_BYTE_FIELD(_byte, _field, _value)			\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_byte).eb_u8[0] = (((_byte).eb_u8[0] &			\
 		    ~EFX_INPLACE_MASK8(0, 7, _field)) |			\
 		    EFX_INSERT_FIELD8(0, 7, _field, _value));		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 /*
  * Set or clear a numbered bit within an octword.
  */
- 
+
 #define	EFX_SHIFT64(_bit, _base)					\
 	(((_bit) >= (_base) && (_bit) < (_base) + 64) ?			\
 		((uint64_t)1 << ((_bit) - (_base))) :			\
@@ -1333,17 +1335,17 @@ extern int fix_lint;
 
 #define	EFX_SET_OWORD_BIT64(_oword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u64[0] |=					\
 		    __CPU_TO_LE_64(EFX_SHIFT64(_bit, FIX_LINT(0)));	\
 		(_oword).eo_u64[1] |=					\
 		    __CPU_TO_LE_64(EFX_SHIFT64(_bit, FIX_LINT(64)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_OWORD_BIT32(_oword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[0] |=					\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)));	\
 		(_oword).eo_u32[1] |=					\
@@ -1352,22 +1354,22 @@ extern int fix_lint;
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(64)));	\
 		(_oword).eo_u32[3] |=					\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(96)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_OWORD_BIT64(_oword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u64[0] &=					\
 		    __CPU_TO_LE_64(~EFX_SHIFT64(_bit, FIX_LINT(0)));	\
 		(_oword).eo_u64[1] &=					\
 		    __CPU_TO_LE_64(~EFX_SHIFT64(_bit, FIX_LINT(64)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_OWORD_BIT32(_oword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_oword).eo_u32[0] &=					\
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(0)));	\
 		(_oword).eo_u32[1] &=					\
@@ -1376,7 +1378,7 @@ extern int fix_lint;
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(64)));	\
 		(_oword).eo_u32[3] &=					\
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(96)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_TEST_OWORD_BIT64(_oword, _bit)				\
@@ -1398,38 +1400,38 @@ extern int fix_lint;
 
 #define	EFX_SET_QWORD_BIT64(_qword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u64[0] |=					\
 		    __CPU_TO_LE_64(EFX_SHIFT64(_bit, FIX_LINT(0)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_SET_QWORD_BIT32(_qword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u32[0] |=					\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)));	\
 		(_qword).eq_u32[1] |=					\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(32)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_QWORD_BIT64(_qword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u64[0] &=					\
 		    __CPU_TO_LE_64(~EFX_SHIFT64(_bit, FIX_LINT(0)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_QWORD_BIT32(_qword, _bit)				\
 	do {								\
-		_NOTE(CONSTANTCONDITION) 				\
+		_NOTE(CONSTANTCONDITION)				\
 		(_qword).eq_u32[0] &=					\
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(0)));	\
 		(_qword).eq_u32[1] &=					\
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(32)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_TEST_QWORD_BIT64(_qword, _bit)				\
@@ -1447,14 +1449,14 @@ extern int fix_lint;
 	do {								\
 		(_dword).ed_u32[0] |=					\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_DWORD_BIT(_dword, _bit)				\
 	do {								\
 		(_dword).ed_u32[0] &=					\
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(0)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_TEST_DWORD_BIT(_dword, _bit)				\
@@ -1466,14 +1468,14 @@ extern int fix_lint;
 	do {								\
 		(_word).ew_u16[0] |=					\
 		    __CPU_TO_LE_16(EFX_SHIFT16(_bit, FIX_LINT(0)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_WORD_BIT(_word, _bit)					\
 	do {								\
 		(_word).ew_u32[0] &=					\
 		    __CPU_TO_LE_16(~EFX_SHIFT16(_bit, FIX_LINT(0)));	\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_TEST_WORD_BIT(_word, _bit)					\
@@ -1485,14 +1487,14 @@ extern int fix_lint;
 	do {								\
 		(_byte).eb_u8[0] |=					\
 		    __NATIVE_8(EFX_SHIFT8(_bit, FIX_LINT(0)));		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_CLEAR_BYTE_BIT(_byte, _bit)					\
 	do {								\
 		(_byte).eb_u8[0] &=					\
 		    __NATIVE_8(~EFX_SHIFT8(_bit, FIX_LINT(0)));		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_TEST_BYTE_BIT(_byte, _bit)					\
@@ -1504,7 +1506,7 @@ extern int fix_lint;
 	do {								\
 		(_oword1).eo_u64[0] |= (_oword2).eo_u64[0];		\
 		(_oword1).eo_u64[1] |= (_oword2).eo_u64[1];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_OR_OWORD32(_oword1, _oword2)				\
@@ -1513,14 +1515,14 @@ extern int fix_lint;
 		(_oword1).eo_u32[1] |= (_oword2).eo_u32[1];		\
 		(_oword1).eo_u32[2] |= (_oword2).eo_u32[2];		\
 		(_oword1).eo_u32[3] |= (_oword2).eo_u32[3];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_OWORD64(_oword1, _oword2)				\
 	do {								\
 		(_oword1).eo_u64[0] &= (_oword2).eo_u64[0];		\
 		(_oword1).eo_u64[1] &= (_oword2).eo_u64[1];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_OWORD32(_oword1, _oword2)				\
@@ -1529,69 +1531,69 @@ extern int fix_lint;
 		(_oword1).eo_u32[1] &= (_oword2).eo_u32[1];		\
 		(_oword1).eo_u32[2] &= (_oword2).eo_u32[2];		\
 		(_oword1).eo_u32[3] &= (_oword2).eo_u32[3];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_OR_QWORD64(_qword1, _qword2)				\
 	do {								\
 		(_qword1).eq_u64[0] |= (_qword2).eq_u64[0];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_OR_QWORD32(_qword1, _qword2)				\
 	do {								\
 		(_qword1).eq_u32[0] |= (_qword2).eq_u32[0];		\
 		(_qword1).eq_u32[1] |= (_qword2).eq_u32[1];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_QWORD64(_qword1, _qword2)				\
 	do {								\
 		(_qword1).eq_u64[0] &= (_qword2).eq_u64[0];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_QWORD32(_qword1, _qword2)				\
 	do {								\
 		(_qword1).eq_u32[0] &= (_qword2).eq_u32[0];		\
 		(_qword1).eq_u32[1] &= (_qword2).eq_u32[1];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_OR_DWORD(_dword1, _dword2)					\
 	do {								\
 		(_dword1).ed_u32[0] |= (_dword2).ed_u32[0];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_DWORD(_dword1, _dword2)					\
 	do {								\
 		(_dword1).ed_u32[0] &= (_dword2).ed_u32[0];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_OR_WORD(_word1, _word2)					\
 	do {								\
 		(_word1).ew_u16[0] |= (_word2).ew_u16[0];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_WORD(_word1, _word2)					\
 	do {								\
 		(_word1).ew_u16[0] &= (_word2).ew_u16[0];		\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_OR_BYTE(_byte1, _byte2)					\
 	do {								\
 		(_byte1).eb_u8[0] |= (_byte2).eb_u8[0];			\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #define	EFX_AND_BYTE(_byte1, _byte2)					\
 	do {								\
 		(_byte1).eb_u8[0] &= (_byte2).eb_u8[0];			\
-	_NOTE(CONSTANTCONDITION) 					\
+	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
 #if EFSYS_USE_UINT64

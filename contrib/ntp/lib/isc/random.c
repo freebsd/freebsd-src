@@ -67,8 +67,6 @@ isc_random_seed(isc_uint32_t seed)
 
 #ifndef HAVE_ARC4RANDOM
 	srand(seed);
-#else
-	arc4random_addrandom((u_char *) &seed, sizeof(isc_uint32_t));
 #endif
 }
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../../sys/boot/zfs ${.CURDIR}/../../../sys/cddl/boot/zfs
+.PATH:		${SRCTOP}/stand/zfs ${SRCTOP}/sys/cddl/boot/zfs
 
 BINDIR?=	/usr/bin
 SCRIPTSDIR?=	/usr/bin
@@ -11,8 +11,8 @@ SCRIPTSNAME=	zfsboottest.sh
 MAN=
 
 CFLAGS=	-O1 \
-	-I${.CURDIR}/../../../sys/boot/zfs \
-	-I${.CURDIR}/../../../sys/cddl/boot/zfs \
+	-I${SRCTOP}/stand/zfs \
+	-I${SRCTOP}/sys/cddl/boot/zfs \
 	-I. \
 	-fdiagnostics-show-option \
 	-W -Wextra -Wno-sign-compare -Wno-unused-parameter
@@ -23,7 +23,7 @@ LIBADD+=	md
 beforedepend zfsboottest.o: machine
 CLEANFILES+=	machine
 machine:
-	ln -sf ${.CURDIR}/../../../sys/i386/include machine
+	ln -sf ${SRCTOP}/sys/i386/include machine
 .endif
 
 .include <bsd.prog.mk>

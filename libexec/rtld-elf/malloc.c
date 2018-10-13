@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983 Regents of the University of California.
  * All rights reserved.
  *
@@ -45,6 +47,7 @@ static char *rcsid = "$FreeBSD$";
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -53,7 +56,9 @@ static char *rcsid = "$FreeBSD$";
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/mman.h>
+#include "rtld.h"
 #include "rtld_printf.h"
+#include "paths.h"
 
 static void morecore();
 static int findbucket();
@@ -61,7 +66,7 @@ static int findbucket();
 /*
  * Pre-allocate mmap'ed pages
  */
-#define	NPOOLPAGES	(32*1024/pagesz)
+#define	NPOOLPAGES	(128*1024/pagesz)
 static caddr_t		pagepool_start, pagepool_end;
 static int		morepages();
 
@@ -470,17 +475,21 @@ int	n;
 	if (pagepool_end - pagepool_start > pagesz) {
 		caddr_t	addr = (caddr_t)
 			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
-		if (munmap(addr, pagepool_end - addr) != 0)
-			rtld_fdprintf(STDERR_FILENO, "morepages: munmap %p",
-			    addr);
+		if (munmap(addr, pagepool_end - addr) != 0) {
+			rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": "
+			    "morepages: cannot munmap %p: %s\n",
+			    addr, rtld_strerror(errno));
+		}
 	}
 
 	offset = (long)pagepool_start - ((long)pagepool_start & ~(pagesz - 1));
 
 	if ((pagepool_start = mmap(0, n * pagesz,
 			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_COPY, fd, 0)) == (caddr_t)-1) {
-		rtld_printf("Cannot map anonymous memory\n");
+			MAP_ANON|MAP_PRIVATE, fd, 0)) == (caddr_t)-1) {
+		rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": morepages: "
+		    "cannot mmap anonymous memory: %s\n",
+		    rtld_strerror(errno));
 		return 0;
 	}
 	pagepool_end = pagepool_start + n * pagesz;

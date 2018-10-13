@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Fabien Thomas
  * All rights reserved.
  *
@@ -205,9 +207,6 @@ ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EINVAL);
 
 	ev = pm->pm_event;
-	if (ev < PMC_EV_UCF_FIRST || ev > PMC_EV_UCF_LAST)
-		return (EINVAL);
-
 	flags = UCF_EN;
 
 	pm->pm_md.pm_ucf.pm_ucf_ctrl = (flags << (ri * 4));
@@ -483,313 +482,6 @@ struct ucp_event_descr {
 
 #define	UCP_F_CMASK		0xFF000000
 
-static struct ucp_event_descr ucp_events[] = {
-#undef UCPDESCR
-#define	UCPDESCR(N,EV,UM,FLAGS) {					\
-	.ucp_ev = PMC_EV_UCP_EVENT_##N,					\
-	.ucp_evcode = (EV),						\
-	.ucp_umask = (UM),						\
-	.ucp_flags = (FLAGS)						\
-	}
-
-    UCPDESCR(00H_01H, 0x00, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(00H_02H, 0x00, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(00H_04H, 0x00, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(01H_01H, 0x01, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(01H_02H, 0x01, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(01H_04H, 0x01, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(02H_01H, 0x02, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_01H, 0x03, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_02H, 0x03, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_04H, 0x03, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_08H, 0x03, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_10H, 0x03, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_20H, 0x03, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(03H_40H, 0x03, 0x40, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(04H_01H, 0x04, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(04H_02H, 0x04, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(04H_04H, 0x04, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(04H_08H, 0x04, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(04H_10H, 0x04, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(05H_01H, 0x05, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(05H_02H, 0x05, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(05H_04H, 0x05, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(06H_01H, 0x06, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(06H_02H, 0x06, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(06H_04H, 0x06, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(06H_08H, 0x06, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(06H_10H, 0x06, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(06H_20H, 0x06, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(07H_01H, 0x07, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(07H_02H, 0x07, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(07H_04H, 0x07, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(07H_08H, 0x07, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(07H_10H, 0x07, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(07H_20H, 0x07, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(07H_24H, 0x07, 0x24, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(08H_01H, 0x08, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(08H_02H, 0x08, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(08H_04H, 0x08, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(08H_03H, 0x08, 0x03, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(09H_01H, 0x09, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(09H_02H, 0x09, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(09H_04H, 0x09, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(09H_03H, 0x09, 0x03, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(0AH_01H, 0x0A, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0AH_02H, 0x0A, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0AH_04H, 0x0A, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0AH_08H, 0x0A, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0AH_0FH, 0x0A, 0x0F, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(0BH_01H, 0x0B, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0BH_02H, 0x0B, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0BH_04H, 0x0B, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0BH_08H, 0x0B, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0BH_10H, 0x0B, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(0BH_1FH, 0x0B, 0x1F, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(0CH_01H, 0x0C, 0x01, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_02H, 0x0C, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_04H_E, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_04H_F, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_04H_M, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_04H_S, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_08H_E, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_08H_F, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_08H_M, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_08H_S, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(20H_01H, 0x20, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(20H_02H, 0x20, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(20H_04H, 0x20, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(20H_08H, 0x20, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(20H_10H, 0x20, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(20H_20H, 0x20, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(21H_01H, 0x21, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(21H_02H, 0x21, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(21H_04H, 0x21, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(22H_01H, 0x22, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM |
-	UCP_F_SB | UCP_F_HW),
-    UCPDESCR(22H_02H, 0x22, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM |
-	UCP_F_SB | UCP_F_HW),
-    UCPDESCR(22H_04H, 0x22, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM |
-	UCP_F_SB | UCP_F_HW),
-    UCPDESCR(22H_08H, 0x22, 0x08, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-    UCPDESCR(22H_10H, 0x22, 0x10, UCP_F_FM | UCP_F_HW),
-    UCPDESCR(22H_20H, 0x22, 0x20, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-    UCPDESCR(22H_40H, 0x22, 0x40, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-    UCPDESCR(22H_80H, 0x22, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-
-    UCPDESCR(23H_01H, 0x23, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(23H_02H, 0x23, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(23H_04H, 0x23, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(24H_02H, 0x24, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(24H_04H, 0x24, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(25H_01H, 0x25, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(25H_02H, 0x25, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(25H_04H, 0x25, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(26H_01H, 0x26, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(27H_01H, 0x27, 0x01, UCP_F_FM | UCP_F_I7),
-    UCPDESCR(27H_02H, 0x27, 0x02, UCP_F_FM | UCP_F_I7),
-    UCPDESCR(27H_04H, 0x27, 0x04, UCP_F_FM | UCP_F_I7),
-    UCPDESCR(27H_08H, 0x27, 0x08, UCP_F_FM | UCP_F_I7),
-    UCPDESCR(27H_10H, 0x27, 0x10, UCP_F_FM | UCP_F_I7),
-    UCPDESCR(27H_20H, 0x27, 0x20, UCP_F_FM | UCP_F_I7),
-
-    UCPDESCR(28H_01H, 0x28, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(28H_02H, 0x28, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(28H_04H, 0x28, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(28H_08H, 0x28, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(28H_10H, 0x28, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(28H_20H, 0x28, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(29H_01H, 0x29, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(29H_02H, 0x29, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(29H_04H, 0x29, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(29H_08H, 0x29, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(29H_10H, 0x29, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(29H_20H, 0x29, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(2AH_01H, 0x2A, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2AH_02H, 0x2A, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2AH_04H, 0x2A, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2AH_07H, 0x2A, 0x07, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(2BH_01H, 0x2B, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2BH_02H, 0x2B, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2BH_04H, 0x2B, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2BH_07H, 0x2B, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(2CH_01H, 0x2C, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2CH_02H, 0x2C, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2CH_04H, 0x2C, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2CH_07H, 0x2C, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(2DH_01H, 0x2D, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2DH_02H, 0x2D, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2DH_04H, 0x2D, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2DH_07H, 0x2D, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(2EH_01H, 0x2E, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2EH_02H, 0x2E, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2EH_04H, 0x2E, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2EH_07H, 0x2E, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(2FH_01H, 0x2F, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_02H, 0x2F, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_04H, 0x2F, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_07H, 0x2F, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_08H, 0x2F, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_10H, 0x2F, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_20H, 0x2F, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(2FH_38H, 0x2F, 0x38, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(30H_01H, 0x30, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(30H_02H, 0x30, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(30H_04H, 0x30, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(30H_07H, 0x30, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(31H_01H, 0x31, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(31H_02H, 0x31, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(31H_04H, 0x31, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(31H_07H, 0x31, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(32H_01H, 0x32, 0x01, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(32H_02H, 0x32, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(32H_04H, 0x32, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(32H_07H, 0x32, 0x07, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(33H_01H, 0x33, 0x01, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(33H_02H, 0x33, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(33H_04H, 0x33, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(33H_07H, 0x33, 0x07, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(34H_01H, 0x34, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(34H_02H, 0x34, 0x02, UCP_F_FM | UCP_F_WM | UCP_F_SB),
-    UCPDESCR(34H_04H, 0x34, 0x04, UCP_F_FM | UCP_F_WM | UCP_F_SB),
-    UCPDESCR(34H_06H, 0x34, 0x06, UCP_F_FM | UCP_F_HW),
-    UCPDESCR(34H_08H, 0x34, 0x08, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(34H_10H, 0x34, 0x10, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(34H_20H, 0x34, 0x20, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(34H_40H, 0x34, 0x40, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-    UCPDESCR(34H_80H, 0x34, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-
-    UCPDESCR(35H_01H, 0x35, 0x01, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(35H_02H, 0x35, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(35H_04H, 0x35, 0x04, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(40H_01H, 0x40, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_02H, 0x40, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_04H, 0x40, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_08H, 0x40, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_10H, 0x40, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_20H, 0x40, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_07H, 0x40, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(40H_38H, 0x40, 0x38, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(41H_01H, 0x41, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_02H, 0x41, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_04H, 0x41, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_08H, 0x41, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_10H, 0x41, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_20H, 0x41, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_07H, 0x41, 0x07, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(41H_38H, 0x41, 0x38, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(42H_01H, 0x42, 0x01, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(42H_02H, 0x42, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(42H_04H, 0x42, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(42H_08H, 0x42, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(43H_01H, 0x43, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(43H_02H, 0x43, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(60H_01H, 0x60, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(60H_02H, 0x60, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(60H_04H, 0x60, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(61H_01H, 0x61, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(61H_02H, 0x61, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(61H_04H, 0x61, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(62H_01H, 0x62, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(62H_02H, 0x62, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(62H_04H, 0x62, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(63H_01H, 0x63, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(63H_02H, 0x63, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(63H_04H, 0x63, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(63H_08H, 0x63, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(63H_10H, 0x63, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(63H_20H, 0x63, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(64H_01H, 0x64, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(64H_02H, 0x64, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(64H_04H, 0x64, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(64H_08H, 0x64, 0x08, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(64H_10H, 0x64, 0x10, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(64H_20H, 0x64, 0x20, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(65H_01H, 0x65, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(65H_02H, 0x65, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(65H_04H, 0x65, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(66H_01H, 0x66, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(66H_02H, 0x66, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-    UCPDESCR(66H_04H, 0x66, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
-
-    UCPDESCR(67H_01H, 0x67, 0x01, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(80H_01H, 0x80, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(80H_02H, 0x80, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(80H_04H, 0x80, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(80H_08H, 0x80, 0x08, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(81H_01H, 0x81, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(81H_02H, 0x81, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(81H_04H, 0x81, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(81H_08H, 0x81, 0x08, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(81H_20H, 0x81, 0x20, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-    UCPDESCR(81H_80H, 0x81, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
-
-    UCPDESCR(82H_01H, 0x82, 0x01, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(83H_01H, 0x83, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(83H_02H, 0x83, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(83H_04H, 0x83, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(83H_08H, 0x83, 0x08, UCP_F_FM | UCP_F_WM),
-
-    UCPDESCR(84H_01H, 0x84, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
-	UCP_F_HW),
-    UCPDESCR(84H_02H, 0x84, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(84H_04H, 0x84, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(84H_08H, 0x84, 0x08, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(85H_02H, 0x85, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(86H_01H, 0x86, 0x01, UCP_F_FM | UCP_F_WM)
-};
-
 static pmc_value_t
 ucp_perfctr_value_to_reload_count(pmc_value_t v)
 {
@@ -807,16 +499,16 @@ ucp_reload_count_to_perfctr_value(pmc_value_t rlc)
  * Counter specific event information for Sandybridge and Haswell
  */
 static int
-ucp_event_sb_hw_ok_on_counter(enum pmc_event pe, int ri)
+ucp_event_sb_hw_ok_on_counter(uint8_t ev, int ri)
 {
 	uint32_t mask;
 
-	switch (pe) {
+	switch (ev) {
 		/*
 		 * Events valid only on counter 0.
 		 */
-	case PMC_EV_UCP_EVENT_80H_01H:
-	case PMC_EV_UCP_EVENT_83H_01H:
+		case 0x80:
+		case 0x83:
 		mask = (1 << 0);
 		break;
 
@@ -831,10 +523,9 @@ static int
 ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	int n;
-	enum pmc_event ev;
-	struct ucp_event_descr *ie;
-	uint32_t caps, config, cpuflag, evsel;
+	uint8_t ev;
+	uint32_t caps;
+	const struct pmc_md_ucp_op_pmcallocate *ucp;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal CPU %d", __LINE__, cpu));
@@ -846,8 +537,8 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if ((UCP_PMC_CAPS & caps) != caps)
 		return (EPERM);
 
-	ev = pm->pm_event;
-
+	ucp = &a->pm_md.pm_ucp;
+	ev = UCP_EVSEL(ucp->pm_ucp_config);
 	switch (uncore_cputype) {
 	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
@@ -858,66 +549,7 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		break;
 	}
 
-
-	/*
-	 * Look for an event descriptor with matching CPU and event id
-	 * fields.
-	 */
-
-	switch (uncore_cputype) {
-	case PMC_CPU_INTEL_COREI7:
-		cpuflag = UCP_F_I7;
-		break;
-	case PMC_CPU_INTEL_HASWELL:
-		cpuflag = UCP_F_HW;
-		break;
-	case PMC_CPU_INTEL_SANDYBRIDGE:
-		cpuflag = UCP_F_SB;
-		break;
-	case PMC_CPU_INTEL_WESTMERE:
-		cpuflag = UCP_F_WM;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	for (n = 0, ie = ucp_events; n < nitems(ucp_events); n++, ie++)
-		if (ie->ucp_ev == ev && ie->ucp_flags & cpuflag)
-			break;
-
-	if (n == nitems(ucp_events))
-		return (EINVAL);
-
-	/*
-	 * A matching event descriptor has been found, so start
-	 * assembling the contents of the event select register.
-	 */
-	evsel = ie->ucp_evcode | UCP_EN;
-
-	config = a->pm_md.pm_ucp.pm_ucp_config & ~UCP_F_CMASK;
-
-	/*
-	 * If the event uses a fixed umask value, reject any umask
-	 * bits set by the user.
-	 */
-	if (ie->ucp_flags & UCP_F_FM) {
-
-		if (UCP_UMASK(config) != 0)
-			return (EINVAL);
-
-		evsel |= (ie->ucp_umask << 8);
-
-	} else
-		return (EINVAL);
-
-	if (caps & PMC_CAP_THRESHOLD)
-		evsel |= (a->pm_md.pm_ucp.pm_ucp_config & UCP_F_CMASK);
-	if (caps & PMC_CAP_EDGE)
-		evsel |= UCP_EDGE;
-	if (caps & PMC_CAP_INVERT)
-		evsel |= UCP_INV;
-
-	pm->pm_md.pm_ucp.pm_ucp_evsel = evsel;
+	pm->pm_md.pm_ucp.pm_ucp_evsel = ucp->pm_ucp_config | UCP_EN;
 
 	return (0);
 }
@@ -1072,7 +704,6 @@ ucp_start_pmc(int cpu, int ri)
 	default:
 		break;
 	}
-
 	wrmsr(SELECTSEL(uncore_cputype) + ri, evsel);
 
 	do {

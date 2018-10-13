@@ -9,10 +9,11 @@ CELL
 
 POWERPC
 POWERPC64
+POWERPCSPE
 
 FPU_EMU
 
-COMPAT_FREEBSD32	opt_compat.h
+COMPAT_FREEBSD32	opt_global.h
 
 GFB_DEBUG		opt_gfb.h
 GFB_NO_FONT_LOADING	opt_gfb.h
@@ -21,8 +22,8 @@ GFB_NO_MODE_CHANGE	opt_gfb.h
 MPC85XX			opt_platform.h
 POWERMAC		opt_platform.h
 PS3			opt_platform.h
-QORIQ_DPAA		opt_platform.h
 MAMBO
+POWERNV			opt_platform.h
 PSERIES
 PSIM
 

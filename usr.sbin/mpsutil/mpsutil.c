@@ -59,9 +59,9 @@ usage(void)
 	fprintf(stderr, "usage: %s [-u unit] <command> ...\n\n", getprogname());
 	fprintf(stderr, "Commands include:\n");
 	SET_FOREACH(cmd, MPS_DATASET(usage)) {
-		if (*cmd == NULL)
+		if (*cmd == NULL) {
 			fprintf(stderr, "\n");
-		else
+		} else {
 			(*cmd)->handler(&args, &desc);
 			if (strncmp((*cmd)->set, "top", 3) == 0)
 				fprintf(stderr, "%s %-30s\t%s\n",
@@ -69,6 +69,7 @@ usage(void)
 			else
 				fprintf(stderr, "%s %s %-30s\t%s\n",
 				    (*cmd)->set, (*cmd)->name, args, desc);
+		}
 	}
 	exit(1);
 }
@@ -205,3 +206,32 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 		printf("\n");
 	}
 }
+
+#define PCHAR(c) { if (retval < tmpsz) { *outbuf++ = (c); retval++; } }
+
+int
+mps_parse_flags(uintmax_t num, const char *q, char *outbuf, int tmpsz)
+{
+	int n, tmp, retval = 0;
+
+	if (num == 0)
+		return (retval);
+
+	/* %b conversion flag format. */
+	tmp = retval;
+	while (*q) {
+		n = *q++;
+		if (num & (1 << (n - 1))) {
+			PCHAR(retval != tmp ?  ',' : '<');
+			for (; (n = *q) > ' '; ++q)
+				PCHAR(n);
+		} else
+			for (; *q > ' '; ++q)
+				continue;
+	}
+	if (retval != tmp)
+		PCHAR('>');
+
+	return (retval);
+}
+

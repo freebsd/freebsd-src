@@ -1,4 +1,5 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
@@ -469,6 +470,8 @@
 
 #define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x3F00
+/* The datasheet maximum supported RX size is 9.5KB (9728 bytes) */
+#define MAX_RX_JUMBO_FRAME_SIZE		0x2600
 #define E1000_TX_PTR_GAP		0x1F
 
 /* Extended Configuration Control and Size */

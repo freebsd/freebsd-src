@@ -1,7 +1,9 @@
 /*	$FreeBSD$	*/
 /*	$KAME: if.c,v 1.17 2001/01/21 15:27:30 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
@@ -114,6 +116,8 @@ lladdropt_length(struct sockaddr_dl *sdl)
 {
 	switch (sdl->sdl_type) {
 	case IFT_ETHER:
+	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		return (ROUNDUP8(ETHER_ADDR_LEN + 2));
 	default:
 		return (0);
@@ -129,6 +133,8 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 
 	switch (sdl->sdl_type) {
 	case IFT_ETHER:
+	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		ndopt->nd_opt_len = (ROUNDUP8(ETHER_ADDR_LEN + 2)) >> 3;
 		addr = (char *)(ndopt + 1);
 		memcpy(addr, LLADDR(sdl), ETHER_ADDR_LEN);
@@ -470,11 +476,18 @@ update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
 			    ifindex != ifm->ifm_index)
 				continue;
 
+			/* ifname */
+			if (if_indextoname(ifm->ifm_index, ifname) == NULL) {
+				syslog(LOG_WARNING,
+				    "<%s> ifname not found (idx=%d)",
+				    __func__, ifm->ifm_index);
+				continue;
+			}
+
 			/* lookup an entry with the same ifindex */
 			TAILQ_FOREACH(ifi, ifi_head, ifi_next) {
 				if (ifm->ifm_index == ifi->ifi_ifindex)
 					break;
-				if_indextoname(ifm->ifm_index, ifname);
 				if (strncmp(ifname, ifi->ifi_ifname,
 					sizeof(ifname)) == 0)
 					break;
@@ -493,15 +506,7 @@ update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
 			ifi->ifi_ifindex = ifm->ifm_index;
 
 			/* ifname */
-			if_indextoname(ifm->ifm_index, ifi->ifi_ifname);
-			if (ifi->ifi_ifname == NULL) {
-				syslog(LOG_WARNING,
-				    "<%s> ifname not found (idx=%d)",
-				    __func__, ifm->ifm_index);
-				if (ifi_new)
-					free(ifi);
-				continue;
-			}
+			strlcpy(ifi->ifi_ifname, ifname, IFNAMSIZ);
 
 			if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 				syslog(LOG_ERR,

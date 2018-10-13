@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
@@ -170,7 +172,14 @@ nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns)
 uint32_t
 nvme_ns_get_sector_size(struct nvme_namespace *ns)
 {
-	return (1 << ns->data.lbaf[ns->data.flbas.format].lbads);
+	uint8_t flbas_fmt, lbads;
+
+	flbas_fmt = (ns->data.flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
+		NVME_NS_DATA_FLBAS_FORMAT_MASK;
+	lbads = (ns->data.lbaf[flbas_fmt] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
+		NVME_NS_DATA_LBAF_LBADS_MASK;
+
+	return (1 << lbads);
 }
 
 uint64_t
@@ -263,8 +272,10 @@ nvme_bio_child_inbed(struct bio *parent, int bio_error)
 	inbed = atomic_fetchadd_int(&parent->bio_inbed, 1) + 1;
 	if (inbed == children) {
 		bzero(&parent_cpl, sizeof(parent_cpl));
-		if (parent->bio_flags & BIO_ERROR)
-			parent_cpl.status.sc = NVME_SC_DATA_TRANSFER_ERROR;
+		if (parent->bio_flags & BIO_ERROR) {
+			parent_cpl.status &= ~(NVME_STATUS_SC_MASK << NVME_STATUS_SC_SHIFT);
+			parent_cpl.status |= (NVME_SC_DATA_TRANSFER_ERROR) << NVME_STATUS_SC_SHIFT;
+		}
 		nvme_ns_bio_done(parent, &parent_cpl);
 	}
 }
@@ -457,10 +468,14 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 		dsm_range =
 		    malloc(sizeof(struct nvme_dsm_range), M_NVME,
 		    M_ZERO | M_WAITOK);
+		if (!dsm_range) {
+			err = ENOMEM;
+			break;
+		}
 		dsm_range->length =
-		    bp->bio_bcount/nvme_ns_get_sector_size(ns);
+		    htole32(bp->bio_bcount/nvme_ns_get_sector_size(ns));
 		dsm_range->starting_lba =
-		    bp->bio_offset/nvme_ns_get_sector_size(ns);
+		    htole64(bp->bio_offset/nvme_ns_get_sector_size(ns));
 		bp->bio_driver2 = dsm_range;
 		err = nvme_ns_cmd_deallocate(ns, dsm_range, 1,
 			nvme_ns_bio_done, bp);
@@ -476,19 +491,38 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 }
 
 int
-nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
+nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
     struct nvme_controller *ctrlr)
 {
+	struct make_dev_args                    md_args;
 	struct nvme_completion_poll_status	status;
+	int                                     res;
 	int					unit;
+	uint16_t				oncs;
+	uint8_t					dsm;
+	uint8_t					flbas_fmt;
+	uint8_t					vwc_present;
 
 	ns->ctrlr = ctrlr;
 	ns->id = id;
 	ns->stripesize = 0;
 
-	if (pci_get_devid(ctrlr->dev) == 0x09538086 && ctrlr->cdata.vs[3] != 0)
-		ns->stripesize =
-		    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+	/*
+	 * Older Intel devices advertise in vendor specific space an alignment
+	 * that improves performance.  If present use for the stripe size.  NVMe
+	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
+	 */
+	switch (pci_get_devid(ctrlr->dev)) {
+	case 0x09538086:		/* Intel DC PC3500 */
+	case 0x0a538086:		/* Intel DC PC3520 */
+	case 0x0a548086:		/* Intel DC PC4500 */
+		if (ctrlr->cdata.vs[3] != 0)
+			ns->stripesize =
+			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * Namespaces are reconstructed after a controller reset, so check
@@ -511,20 +545,38 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 		return (ENXIO);
 	}
 
+	/* Convert data to host endian */
+	nvme_namespace_data_swapbytes(&ns->data);
+
+	/*
+	 * If the size of is zero, chances are this isn't a valid
+	 * namespace (eg one that's not been configured yet). The
+	 * standard says the entire id will be zeros, so this is a
+	 * cheap way to test for that.
+	 */
+	if (ns->data.nsze == 0)
+		return (ENXIO);
+
+	flbas_fmt = (ns->data.flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
+		NVME_NS_DATA_FLBAS_FORMAT_MASK;
 	/*
 	 * Note: format is a 0-based value, so > is appropriate here,
 	 *  not >=.
 	 */
-	if (ns->data.flbas.format > ns->data.nlbaf) {
+	if (flbas_fmt > ns->data.nlbaf) {
 		printf("lba format %d exceeds number supported (%d)\n",
-		    ns->data.flbas.format, ns->data.nlbaf+1);
-		return (1);
+		    flbas_fmt, ns->data.nlbaf + 1);
+		return (ENXIO);
 	}
 
-	if (ctrlr->cdata.oncs.dsm)
+	oncs = ctrlr->cdata.oncs;
+	dsm = (oncs >> NVME_CTRLR_DATA_ONCS_DSM_SHIFT) & NVME_CTRLR_DATA_ONCS_DSM_MASK;
+	if (dsm)
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
-	if (ctrlr->cdata.vwc.present)
+	vwc_present = (ctrlr->cdata.vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
+		NVME_CTRLR_DATA_VWC_PRESENT_MASK;
+	if (vwc_present)
 		ns->flags |= NVME_NS_FLUSH_SUPPORTED;
 
 	/*
@@ -540,27 +592,19 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	 */
 	unit = device_get_unit(ctrlr->dev) * NVME_MAX_NAMESPACES + ns->id - 1;
 
-/*
- * MAKEDEV_ETERNAL was added in r210923, for cdevs that will never
- *  be destroyed.  This avoids refcounting on the cdev object.
- *  That should be OK case here, as long as we're not supporting PCIe
- *  surprise removal nor namespace deletion.
- */
-#ifdef MAKEDEV_ETERNAL_KLD
-	ns->cdev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &nvme_ns_cdevsw, unit,
-	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
+	make_dev_args_init(&md_args);
+	md_args.mda_devsw = &nvme_ns_cdevsw;
+	md_args.mda_unit = unit;
+	md_args.mda_mode = 0600;
+	md_args.mda_si_drv1 = ns;
+	res = make_dev_s(&md_args, &ns->cdev, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
-#else
-	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, unit,
-	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
-	    device_get_unit(ctrlr->dev), ns->id);
-#endif
+	if (res != 0)
+		return (ENXIO);
+
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	ns->cdev->si_flags |= SI_UNMAPPED;
 #endif
-
-	if (ns->cdev != NULL)
-		ns->cdev->si_drv1 = ns;
 
 	return (0);
 }

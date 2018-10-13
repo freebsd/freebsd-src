@@ -1,4 +1,5 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
@@ -37,7 +38,6 @@
 
 static s32 e1000_acquire_nvm_i210(struct e1000_hw *hw);
 static void e1000_release_nvm_i210(struct e1000_hw *hw);
-static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw);
 static s32 e1000_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 				u16 *data);
 static s32 e1000_pool_flash_update_done_i210(struct e1000_hw *hw);
@@ -58,7 +58,7 @@ static s32 e1000_acquire_nvm_i210(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_acquire_nvm_i210");
 
-	ret_val = e1000_acquire_swfw_sync_i210(hw, E1000_SWFW_EEP_SM);
+	ret_val = e1000_acquire_swfw_sync(hw, E1000_SWFW_EEP_SM);
 
 	return ret_val;
 }
@@ -74,152 +74,7 @@ static void e1000_release_nvm_i210(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_release_nvm_i210");
 
-	e1000_release_swfw_sync_i210(hw, E1000_SWFW_EEP_SM);
-}
-
-/**
- *  e1000_acquire_swfw_sync_i210 - Acquire SW/FW semaphore
- *  @hw: pointer to the HW structure
- *  @mask: specifies which semaphore to acquire
- *
- *  Acquire the SW/FW semaphore to access the PHY or NVM.  The mask
- *  will also specify which port we're acquiring the lock for.
- **/
-s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
-{
-	u32 swfw_sync;
-	u32 swmask = mask;
-	u32 fwmask = mask << 16;
-	s32 ret_val = E1000_SUCCESS;
-	s32 i = 0, timeout = 200; /* FIXME: find real value to use here */
-
-	DEBUGFUNC("e1000_acquire_swfw_sync_i210");
-
-	while (i < timeout) {
-		if (e1000_get_hw_semaphore_i210(hw)) {
-			ret_val = -E1000_ERR_SWFW_SYNC;
-			goto out;
-		}
-
-		swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-		if (!(swfw_sync & (fwmask | swmask)))
-			break;
-
-		/*
-		 * Firmware currently using resource (fwmask)
-		 * or other software thread using resource (swmask)
-		 */
-		e1000_put_hw_semaphore_generic(hw);
-		msec_delay_irq(5);
-		i++;
-	}
-
-	if (i == timeout) {
-		DEBUGOUT("Driver can't access resource, SW_FW_SYNC timeout.\n");
-		ret_val = -E1000_ERR_SWFW_SYNC;
-		goto out;
-	}
-
-	swfw_sync |= swmask;
-	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
-
-	e1000_put_hw_semaphore_generic(hw);
-
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_release_swfw_sync_i210 - Release SW/FW semaphore
- *  @hw: pointer to the HW structure
- *  @mask: specifies which semaphore to acquire
- *
- *  Release the SW/FW semaphore used to access the PHY or NVM.  The mask
- *  will also specify which port we're releasing the lock for.
- **/
-void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
-{
-	u32 swfw_sync;
-
-	DEBUGFUNC("e1000_release_swfw_sync_i210");
-
-	while (e1000_get_hw_semaphore_i210(hw) != E1000_SUCCESS)
-		; /* Empty */
-
-	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-	swfw_sync &= ~mask;
-	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
-
-	e1000_put_hw_semaphore_generic(hw);
-}
-
-/**
- *  e1000_get_hw_semaphore_i210 - Acquire hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Acquire the HW semaphore to access the PHY or NVM
- **/
-static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-	s32 timeout = hw->nvm.word_size + 1;
-	s32 i = 0;
-
-	DEBUGFUNC("e1000_get_hw_semaphore_i210");
-
-	/* Get the SW semaphore */
-	while (i < timeout) {
-		swsm = E1000_READ_REG(hw, E1000_SWSM);
-		if (!(swsm & E1000_SWSM_SMBI))
-			break;
-
-		usec_delay(50);
-		i++;
-	}
-
-	if (i == timeout) {
-		/* In rare circumstances, the SW semaphore may already be held
-		 * unintentionally. Clear the semaphore once before giving up.
-		 */
-		if (hw->dev_spec._82575.clear_semaphore_once) {
-			hw->dev_spec._82575.clear_semaphore_once = FALSE;
-			e1000_put_hw_semaphore_generic(hw);
-			for (i = 0; i < timeout; i++) {
-				swsm = E1000_READ_REG(hw, E1000_SWSM);
-				if (!(swsm & E1000_SWSM_SMBI))
-					break;
-
-				usec_delay(50);
-			}
-		}
-
-		/* If we do not have the semaphore here, we have to give up. */
-		if (i == timeout) {
-			DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
-			return -E1000_ERR_NVM;
-		}
-	}
-
-	/* Get the FW semaphore. */
-	for (i = 0; i < timeout; i++) {
-		swsm = E1000_READ_REG(hw, E1000_SWSM);
-		E1000_WRITE_REG(hw, E1000_SWSM, swsm | E1000_SWSM_SWESMBI);
-
-		/* Semaphore acquired if bit latched */
-		if (E1000_READ_REG(hw, E1000_SWSM) & E1000_SWSM_SWESMBI)
-			break;
-
-		usec_delay(50);
-	}
-
-	if (i == timeout) {
-		/* Release semaphores */
-		e1000_put_hw_semaphore_generic(hw);
-		DEBUGOUT("Driver can't access the NVM\n");
-		return -E1000_ERR_NVM;
-	}
-
-	return E1000_SUCCESS;
+	e1000_release_swfw_sync(hw, E1000_SWFW_EEP_SM);
 }
 
 /**

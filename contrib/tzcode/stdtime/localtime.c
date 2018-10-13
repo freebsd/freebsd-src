@@ -1453,14 +1453,13 @@ localtime(const time_t *const timep)
 		}
 		_RWLOCK_RDLOCK(&lcl_rwlock);
 		tzset_basic(1);
-		localsub(timep, 0L, p_tm);
+		p_tm = localsub(timep, 0L, p_tm);
 		_RWLOCK_UNLOCK(&lcl_rwlock);
-		return(p_tm);
 	} else {
 		tzset_basic(0);
-		localsub(timep, 0L, &tm);
-		return(&tm);
+		p_tm = localsub(timep, 0L, &tm);
 	}
+	return(p_tm);
 }
 
 /*
@@ -1472,7 +1471,7 @@ localtime_r(const time_t *const timep, struct tm *tmp)
 {
 	_RWLOCK_RDLOCK(&lcl_rwlock);
 	tzset_basic(1);
-	localsub(timep, 0L, tmp);
+	tmp = localsub(timep, 0L, tmp);
 	_RWLOCK_UNLOCK(&lcl_rwlock);
 	return tmp;
 }

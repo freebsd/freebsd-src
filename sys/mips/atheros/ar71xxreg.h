@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Oleksandr Tymoshenko
  * All rights reserved.
  *
@@ -111,6 +113,10 @@
 #define PCI_WINDOW7_CONF_ADDR		0x07000000
 
 #define	AR71XX_UART_ADDR		0x18020000
+#define		AR71XX_UART_THR		0x0
+#define		AR71XX_UART_LSR		0x14
+#define		AR71XX_UART_LSR_THRE	(1 << 5)
+#define		AR71XX_UART_LSR_TEMT	(1 << 6)
 
 #define	AR71XX_USB_CTRL_FLADJ		0x18030000
 #define		USB_CTRL_FLADJ_HOST_SHIFT	12
@@ -524,10 +530,14 @@ typedef enum {
 #define		AR71XX_SPI_RDS		0x0C
 
 #define ATH_READ_REG(reg) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
-
+	*((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
+/*
+ * Note: Don't put a flush read here; some users (eg the AR724x PCI fixup code)
+ * requires write-only space to certain registers.  Doing the read afterwards
+ * causes things to break.
+ */
 #define ATH_WRITE_REG(reg, val) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
+      *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
 
 static inline void
 ar71xx_ddr_flush(uint32_t reg)

@@ -1,3 +1,7 @@
+static ethernet bridge   18u  24anchor             0x0..1
+anchor             0x0..1
+anchor             0x0..1
+df    12%
 testing argument modifier my-box.example.com...
 testing argument modifier with encoding to .example.com...
 Label text value
@@ -50,4 +54,5 @@ XXXXXXXX
 X        XCost: 425
 X                              XCost: 455
  links user  group  
+3       this    
 /some/file        1 user        group         

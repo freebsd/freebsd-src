@@ -57,6 +57,7 @@ extern "C" {
 /* *INDENT-ON* */
 
 #define AL_BIT(b)	(1UL << (b))
+#define AL_BIT_64(b)	(1ULL << (b))
 
 #define AL_ADDR_LOW(x)	((uint32_t)((al_phys_addr_t)(x)))
 #define AL_ADDR_HIGH(x)	((uint32_t)((((al_phys_addr_t)(x)) >> 16) >> 16))

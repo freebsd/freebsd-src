@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -125,7 +127,7 @@ static struct sx addrsel_sxlock;
 #define	ADDRSEL_XUNLOCK()	sx_xunlock(&addrsel_sxlock)
 
 #define ADDR_LABEL_NOTAPP (-1)
-static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
+VNET_DEFINE_STATIC(struct in6_addrpolicy, defaultaddrpolicy);
 #define	V_defaultaddrpolicy		VNET(defaultaddrpolicy)
 
 VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
@@ -158,7 +160,6 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
  */
 #define REPLACE(r) do {\
 	IP6STAT_INC(ip6s_sources_rule[(r)]); \
-	rule = (r);	\
 	/* { \
 	char ip6buf[INET6_ADDRSTRLEN], ip6b[INET6_ADDRSTRLEN]; \
 	printf("in6_selectsrc: replace %s with %s by %d\n", ia_best ? ip6_sprintf(ip6buf, &ia_best->ia_addr.sin6_addr) : "none", ip6_sprintf(ip6b, &ia->ia_addr.sin6_addr), (r)); \
@@ -174,7 +175,6 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 } while(0)
 #define BREAK(r) do { \
 	IP6STAT_INC(ip6s_sources_rule[(r)]); \
-	rule = (r);	\
 	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
@@ -192,7 +192,7 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	struct in6_addrpolicy *dst_policy = NULL, *best_policy = NULL;
 	u_int32_t odstzone;
 	int prefer_tempaddr;
-	int error, rule;
+	int error;
 	struct ip6_moptions *mopts;
 
 	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
@@ -297,7 +297,7 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	 */
 	/* get the outgoing interface */
 	if ((error = in6_selectif(dstsock, opts, mopts, &ifp, oifp,
-	    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB)) != 0)
+	    (inp != NULL) ? inp->inp_inc.inc_fibnum : fibnum)) != 0)
 		return (error);
 
 #ifdef DIAGNOSTIC
@@ -308,9 +308,8 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	if (error)
 		return (error);
 
-	rule = 0;
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+	CK_STAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		int new_scope = -1, new_matchlen = -1;
 		struct in6_addrpolicy *new_policy = NULL;
 		u_int32_t srczone, osrczone, dstzone;
@@ -563,7 +562,7 @@ in6_selectsrc_socket(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	uint32_t fibnum;
 	int error;
 
-	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
+	fibnum = inp->inp_inc.inc_fibnum;
 	retifp = NULL;
 
 	error = in6_selectsrc(fibnum, dstsock, opts, inp, cred, &retifp, srcp);
@@ -974,7 +973,7 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 		return(error);
 
 	/* XXX: this is redundant when called from in6_pcbbind */
-	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
+	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
 
 	inp->inp_flags |= INP_ANONPORT;
@@ -1095,7 +1094,7 @@ struct addrsel_policyent {
 
 TAILQ_HEAD(addrsel_policyhead, addrsel_policyent);
 
-static VNET_DEFINE(struct addrsel_policyhead, addrsel_policytab);
+VNET_DEFINE_STATIC(struct addrsel_policyhead, addrsel_policytab);
 #define	V_addrsel_policytab		VNET(addrsel_policytab)
 
 static void

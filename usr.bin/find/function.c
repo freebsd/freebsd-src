@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,11 +32,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
 static const char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
 #endif
-#endif /* not lint */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -259,9 +259,11 @@ f_Xmin(PLAN *plan, FTSENT *entry)
 	} else if (plan->flags & F_TIME_A) {
 		COMPARE((now - entry->fts_statp->st_atime +
 		    60 - 1) / 60, plan->t_data.tv_sec);
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	} else if (plan->flags & F_TIME_B) {
 		COMPARE((now - entry->fts_statp->st_birthtime +
 		    60 - 1) / 60, plan->t_data.tv_sec);
+#endif
 	} else {
 		COMPARE((now - entry->fts_statp->st_mtime +
 		    60 - 1) / 60, plan->t_data.tv_sec);
@@ -302,8 +304,10 @@ f_Xtime(PLAN *plan, FTSENT *entry)
 
 	if (plan->flags & F_TIME_A)
 		xtime = entry->fts_statp->st_atime;
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	else if (plan->flags & F_TIME_B)
 		xtime = entry->fts_statp->st_birthtime;
+#endif
 	else if (plan->flags & F_TIME_C)
 		xtime = entry->fts_statp->st_ctime;
 	else
@@ -360,6 +364,7 @@ c_mXXdepth(OPTION *option, char ***argvp)
 	return new;
 }
 
+#ifdef ACL_TYPE_NFS4
 /*
  * -acl function --
  *
@@ -410,6 +415,7 @@ f_acl(PLAN *plan __unused, FTSENT *entry)
 		return (0);
 	return (1);
 }
+#endif
 
 PLAN *
 c_acl(OPTION *option, char ***argvp __unused)
@@ -446,12 +452,14 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 		errx(1, "-delete: %s: relative path potentially not safe",
 			entry->fts_accpath);
 
+#if HAVE_STRUCT_STAT_ST_FLAGS
 	/* Turn off user immutable bits if running as root */
 	if ((entry->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 	    !(entry->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 	    geteuid() == 0)
 		lchflags(entry->fts_accpath,
 		       entry->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
+#endif
 
 	/* rmdir directories, unlink everything else */
 	if (S_ISDIR(entry->fts_statp->st_mode)) {
@@ -804,6 +812,7 @@ finish_execplus(void)
 	}
 }
 
+#if HAVE_STRUCT_STAT_ST_FLAGS
 int
 f_flags(PLAN *plan, FTSENT *entry)
 {
@@ -847,6 +856,7 @@ c_flags(OPTION *option, char ***argvp)
 	new->fl_notflags = notflags;
 	return new;
 }
+#endif
 
 /*
  * -follow functions --
@@ -863,6 +873,7 @@ c_follow(OPTION *option, char ***argvp __unused)
 	return palloc(option);
 }
 
+#if HAVE_STRUCT_STATFS_F_FSTYPENAME
 /*
  * -fstype functions --
  *
@@ -902,8 +913,13 @@ f_fstype(PLAN *plan, FTSENT *entry)
 		} else
 			p = NULL;
 
-		if (statfs(entry->fts_accpath, &sb))
-			err(1, "%s", entry->fts_accpath);
+		if (statfs(entry->fts_accpath, &sb)) {
+			if (!ignore_readdir_race || errno != ENOENT) {
+				warn("statfs: %s", entry->fts_accpath);
+				exitstatus = 1;
+			}
+			return 0;
+		}
 
 		if (p) {
 			p[0] = save[0];
@@ -960,6 +976,7 @@ c_fstype(OPTION *option, char ***argvp)
 	new->c_data = fsname;
 	return new;
 }
+#endif
 
 /*
  * -group gname functions --
@@ -1059,12 +1076,17 @@ c_samefile(OPTION *option, char ***argvp)
 	char *fn;
 	PLAN *new;
 	struct stat sb;
+	int error;
 
 	fn = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
 
 	new = palloc(option);
-	if (stat(fn, &sb))
+	if (ftsoptions & FTS_PHYSICAL)
+		error = lstat(fn, &sb);
+	else
+		error = stat(fn, &sb);
+	if (error != 0)
 		err(1, "%s", fn);
 	new->i_data = sb.st_ino;
 	return new;
@@ -1177,10 +1199,12 @@ f_newer(PLAN *plan, FTSENT *entry)
 
 	if (plan->flags & F_TIME_C)
 		ft = entry->fts_statp->st_ctim;
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	else if (plan->flags & F_TIME_A)
 		ft = entry->fts_statp->st_atim;
 	else if (plan->flags & F_TIME_B)
 		ft = entry->fts_statp->st_birthtim;
+#endif
 	else
 		ft = entry->fts_statp->st_mtim;
 	return (ft.tv_sec > plan->t_data.tv_sec ||
@@ -1194,6 +1218,7 @@ c_newer(OPTION *option, char ***argvp)
 	char *fn_or_tspec;
 	PLAN *new;
 	struct stat sb;
+	int error;
 
 	fn_or_tspec = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
@@ -1207,14 +1232,20 @@ c_newer(OPTION *option, char ***argvp)
 		/* Use the seconds only in the comparison. */
 		new->t_data.tv_nsec = 999999999;
 	} else {
-		if (stat(fn_or_tspec, &sb))
+		if (ftsoptions & FTS_PHYSICAL)
+			error = lstat(fn_or_tspec, &sb);
+		else
+			error = stat(fn_or_tspec, &sb);
+		if (error != 0)
 			err(1, "%s", fn_or_tspec);
 		if (option->flags & F_TIME2_C)
 			new->t_data = sb.st_ctim;
 		else if (option->flags & F_TIME2_A)
 			new->t_data = sb.st_atim;
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 		else if (option->flags & F_TIME2_B)
 			new->t_data = sb.st_birthtim;
+#endif
 		else
 			new->t_data = sb.st_mtim;
 	}
@@ -1598,7 +1629,7 @@ c_type(OPTION *option, char ***argvp)
 	case 's':
 		mask = S_IFSOCK;
 		break;
-#ifdef FTS_WHITEOUT
+#if defined(FTS_WHITEOUT) && defined(S_IFWHT)
 	case 'w':
 		mask = S_IFWHT;
 		ftsoptions |= FTS_WHITEOUT;

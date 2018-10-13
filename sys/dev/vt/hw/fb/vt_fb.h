@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -41,6 +43,7 @@ vd_init_t		vt_fb_init;
 vd_fini_t		vt_fb_fini;
 vd_blank_t		vt_fb_blank;
 vd_bitblt_text_t	vt_fb_bitblt_text;
+vd_invalidate_text_t	vt_fb_invalidate_text;
 vd_bitblt_bmp_t		vt_fb_bitblt_bitmap;
 vd_drawrect_t		vt_fb_drawrect;
 vd_setpixel_t		vt_fb_setpixel;

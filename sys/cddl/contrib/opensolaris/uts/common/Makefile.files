@@ -32,14 +32,47 @@
 # and its children. These are the source files which may be considered
 # common to all SunOS systems.
 
+LUA_OBJS +=			\
+	ldo.o			\
+	lvm.o			\
+	lbitlib.o		\
+	lopcodes.o		\
+	lstring.o		\
+	ltable.o		\
+	ltm.o			\
+	lcorolib.o		\
+	lauxlib.o		\
+	ldebug.o		\
+	lstate.o		\
+	lgc.o			\
+	lmem.o			\
+	lctype.o		\
+	lfunc.o			\
+	ldump.o			\
+	lundump.o		\
+	lstrlib.o		\
+	ltablib.o		\
+	lapi.o			\
+	lobject.o		\
+	lbaselib.o		\
+	lcompat.o		\
+	lzio.o			\
+	lcode.o			\
+	llex.o			\
+	lparser.o
+
 ZFS_COMMON_OBJS +=		\
+	abd.o			\
+	aggsum.o		\
 	arc.o			\
 	bplist.o		\
 	blkptr.o		\
 	bpobj.o			\
 	bptree.o		\
 	bqueue.o		\
+	cityhash.o		\
 	dbuf.o			\
+	dbuf_stats.o		\
 	ddt.o			\
 	ddt_zap.o		\
 	dmu.o			\
@@ -76,6 +109,7 @@ ZFS_COMMON_OBJS +=		\
 	sha256.o		\
 	skein_zfs.o		\
 	spa.o			\
+	spa_checkpoint.o	\
 	spa_config.o		\
 	spa_errlog.o		\
 	spa_history.o		\
@@ -88,15 +122,25 @@ ZFS_COMMON_OBJS +=		\
 	vdev.o			\
 	vdev_cache.o		\
 	vdev_file.o		\
+	vdev_indirect.o		\
+	vdev_indirect_births.o	\
+	vdev_indirect_mapping.o	\
+	vdev_initialize.o	\
 	vdev_label.o		\
 	vdev_mirror.o		\
 	vdev_missing.o		\
 	vdev_queue.o		\
 	vdev_raidz.o		\
+	vdev_removal.o		\
 	vdev_root.o		\
 	zap.o			\
 	zap_leaf.o		\
 	zap_micro.o		\
+	zcp.o			\
+	zcp_get.o		\
+	zcp_global.o		\
+	zcp_iter.o		\
+	zcp_synctask.o		\
 	zfs_byteswap.o		\
 	zfs_debug.o		\
 	zfs_fm.o		\
@@ -109,7 +153,8 @@ ZFS_COMMON_OBJS +=		\
 	zio_compress.o		\
 	zio_inject.o		\
 	zle.o			\
-	zrlock.o
+	zrlock.o		\
+	zthr.o
 
 ZFS_SHARED_OBJS +=		\
 	zfeature_common.o	\

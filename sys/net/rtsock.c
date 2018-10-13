@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,7 +31,6 @@
  *	@(#)rtsock.c	8.7 (Berkeley) 10/12/95
  * $FreeBSD$
  */
-#include "opt_compat.h"
 #include "opt_mpath.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -44,6 +45,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -110,6 +112,12 @@ struct ifa_msghdrl32 {
 	int32_t	ifam_metric;
 	struct	if_data ifam_data;
 };
+
+#define SA_SIZE32(sa)						\
+    (  (((struct sockaddr *)(sa))->sa_len == 0) ?		\
+	sizeof(int)		:				\
+	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(int) - 1) ) )
+
 #endif /* COMPAT_FREEBSD32 */
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
@@ -132,7 +140,7 @@ typedef struct {
 	int	ip6_count;	/* attached w/ AF_INET6 */
 	int	any_count;	/* total attached */
 } route_cb_t;
-static VNET_DEFINE(route_cb_t, route_cb);
+VNET_DEFINE_STATIC(route_cb_t, route_cb);
 #define	V_route_cb VNET(route_cb)
 
 struct mtx rtsock_mtx;
@@ -451,7 +459,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * that belongs to the jail.
 		 */
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -493,7 +501,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * that belongs to the jail.
 		 */
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET6)
@@ -535,6 +543,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 static int
 route_output(struct mbuf *m, struct socket *so, ...)
 {
+	RIB_RLOCK_TRACKER;
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
 	struct rib_head *rnh;
@@ -666,12 +675,15 @@ route_output(struct mbuf *m, struct socket *so, ...)
 
 	case RTM_ADD:
 	case RTM_CHANGE:
-		if (info.rti_info[RTAX_GATEWAY] == NULL)
-			senderr(EINVAL);
+		if (rtm->rtm_type == RTM_ADD) {
+			if (info.rti_info[RTAX_GATEWAY] == NULL)
+				senderr(EINVAL);
+		}
 		saved_nrt = NULL;
 
 		/* support for new ARP code */
-		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
+		if (info.rti_info[RTAX_GATEWAY] != NULL &&
+		    info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
 			error = lla_rt_output(rtm, &info);
 #ifdef INET6
@@ -728,7 +740,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		if (info.rti_info[RTAX_NETMASK] == NULL &&
 		    rtm->rtm_type == RTM_GET) {
 			/*
-			 * Provide logest prefix match for
+			 * Provide longest prefix match for
 			 * address lookup (no mask).
 			 * 'route -n get addr'
 			 */
@@ -774,12 +786,14 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
 				struct ifaddr *ifa;
 
+				NET_EPOCH_ENTER();
 				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
 						RT_ALL_FIBS);
 				if (ifa != NULL)
 					rt_maskedcopy(ifa->ifa_addr,
 						      &laddr,
 						      ifa->ifa_netmask);
+				NET_EPOCH_EXIT();
 			} else
 				rt_maskedcopy(rt->rt_ifa->ifa_addr,
 					      &laddr,
@@ -1114,6 +1128,9 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 	struct sockaddr_storage ss;
 	struct sockaddr_in6 *sin6;
 #endif
+#ifdef COMPAT_FREEBSD32
+	bool compat32 = false;
+#endif
 
 	switch (type) {
 
@@ -1121,9 +1138,10 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 	case RTM_NEWADDR:
 		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
 #ifdef COMPAT_FREEBSD32
-			if (w->w_req->flags & SCTL_MASK32)
+			if (w->w_req->flags & SCTL_MASK32) {
 				len = sizeof(struct ifa_msghdrl32);
-			else
+				compat32 = true;
+			} else
 #endif
 				len = sizeof(struct ifa_msghdrl);
 		} else
@@ -1137,6 +1155,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 				len = sizeof(struct if_msghdrl32);
 			else
 				len = sizeof(struct if_msghdr32);
+			compat32 = true;
 			break;
 		}
 #endif
@@ -1167,7 +1186,12 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 		if ((sa = rtinfo->rti_info[i]) == NULL)
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
-		dlen = SA_SIZE(sa);
+#ifdef COMPAT_FREEBSD32
+		if (compat32)
+			dlen = SA_SIZE32(sa);
+		else
+#endif
+			dlen = SA_SIZE(sa);
 		if (cp != NULL && buflen >= dlen) {
 #ifdef INET6
 			if (V_deembed_scopeid && sa->sa_family == AF_INET6) {
@@ -1391,7 +1415,10 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_IFA] = ifma->ifma_addr;
-	info.rti_info[RTAX_IFP] = ifp ? ifp->if_addr->ifa_addr : NULL;
+	if (ifp && ifp->if_addr)
+		info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
+	else
+		info.rti_info[RTAX_IFP] = NULL;
 	/*
 	 * If a link-layer address is present, present it as a ``gateway''
 	 * (similarly to how ARP entries, e.g., are presented).
@@ -1566,8 +1593,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 }
 
 static int
-sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
-    struct walkarg *w, int len)
+sysctl_iflist_ifml(struct ifnet *ifp, const struct if_data *src_ifd,
+    struct rt_addrinfo *info, struct walkarg *w, int len)
 {
 	struct if_msghdrl *ifm;
 	struct if_data *ifd;
@@ -1598,14 +1625,14 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 		ifd = &ifm->ifm_data;
 	}
 
-	if_data_copy(ifp, ifd);
+	memcpy(ifd, src_ifd, sizeof(*ifd));
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
 
 static int
-sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
-    struct walkarg *w, int len)
+sysctl_iflist_ifm(struct ifnet *ifp, const struct if_data *src_ifd,
+    struct rt_addrinfo *info, struct walkarg *w, int len)
 {
 	struct if_msghdr *ifm;
 	struct if_data *ifd;
@@ -1630,7 +1657,7 @@ sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
 		ifd = &ifm->ifm_data;
 	}
 
-	if_data_copy(ifp, ifd);
+	memcpy(ifd, src_ifd, sizeof(*ifd));
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
@@ -1705,16 +1732,19 @@ sysctl_iflist(int af, struct walkarg *w)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
+	struct if_data ifd;
 	struct rt_addrinfo info;
 	int len, error = 0;
 	struct sockaddr_storage ss;
+	struct epoch_tracker et;
 
 	bzero((caddr_t)&info, sizeof(info));
-	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	bzero(&ifd, sizeof(ifd));
+	NET_EPOCH_ENTER_ET(et);
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		IF_ADDR_RLOCK(ifp);
+		if_data_copy(ifp, &ifd);
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		error = rtsock_msg_buffer(RTM_IFINFO, &info, w, &len);
@@ -1723,13 +1753,15 @@ sysctl_iflist(int af, struct walkarg *w)
 		info.rti_info[RTAX_IFP] = NULL;
 		if (w->w_req && w->w_tmem) {
 			if (w->w_op == NET_RT_IFLISTL)
-				error = sysctl_iflist_ifml(ifp, &info, w, len);
+				error = sysctl_iflist_ifml(ifp, &ifd, &info, w,
+				    len);
 			else
-				error = sysctl_iflist_ifm(ifp, &info, w, len);
+				error = sysctl_iflist_ifm(ifp, &ifd, &info, w,
+				    len);
 			if (error)
 				goto done;
 		}
-		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != NULL) {
+		while ((ifa = CK_STAILQ_NEXT(ifa, ifa_link)) != NULL) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
 			if (prison_if(w->w_req->td->td_ucred,
@@ -1753,36 +1785,35 @@ sysctl_iflist(int af, struct walkarg *w)
 					goto done;
 			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = NULL;
 		info.rti_info[RTAX_NETMASK] = NULL;
 		info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
-	if (ifp != NULL)
-		IF_ADDR_RUNLOCK(ifp);
-	IFNET_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT_ET(et);
 	return (error);
 }
 
 static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
-	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	struct	rt_addrinfo info;
-	int	len, error = 0;
+	struct rt_addrinfo info;
 	struct ifaddr *ifa;
+	struct ifmultiaddr *ifma;
+	struct ifnet *ifp;
+	int error, len;
 
+	error = 0;
 	bzero((caddr_t)&info, sizeof(info));
+
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
 			if (prison_if(w->w_req->td->td_ucred,
@@ -1794,7 +1825,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			    ifma->ifma_lladdr : NULL;
 			error = rtsock_msg_buffer(RTM_NEWMADDR, &info, w, &len);
 			if (error != 0)
-				goto done;
+				break;
 			if (w->w_req && w->w_tmem) {
 				struct ifma_msghdr *ifmam;
 
@@ -1803,15 +1834,14 @@ sysctl_ifmalist(int af, struct walkarg *w)
 				ifmam->ifmam_flags = 0;
 				ifmam->ifmam_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
-				if (error) {
-					IF_ADDR_RUNLOCK(ifp);
-					goto done;
-				}
+				if (error != 0)
+					break;
 			}
 		}
 		IF_ADDR_RUNLOCK(ifp);
+		if (error != 0)
+			break;
 	}
-done:
 	IFNET_RUNLOCK_NOSLEEP();
 	return (error);
 }
@@ -1819,6 +1849,7 @@ done:
 static int
 sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
+	RIB_RLOCK_TRACKER;
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
 	struct rib_head *rnh = NULL; /* silence compiler. */

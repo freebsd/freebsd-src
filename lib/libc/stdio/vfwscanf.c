@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -428,10 +430,10 @@ vfwscanf_l(FILE * __restrict fp, locale_t locale,
 	int ret;
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, 1);
 	ret = __vfwscanf(fp, locale, fmt, ap);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 int
@@ -492,7 +494,7 @@ literal:
 				goto input_failure;
 			if (wi != c) {
 				__ungetwc(wi, fp, locale);
-				goto input_failure;
+				goto match_failure;
 			}
 			nread++;
 			continue;

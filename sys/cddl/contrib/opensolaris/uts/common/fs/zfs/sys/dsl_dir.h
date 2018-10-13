@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
@@ -47,6 +47,7 @@ struct dsl_dataset;
 
 #define	DD_FIELD_FILESYSTEM_COUNT	"com.joyent:filesystem_count"
 #define	DD_FIELD_SNAPSHOT_COUNT		"com.joyent:snapshot_count"
+#define	DD_FIELD_LAST_REMAP_TXG		"com.delphix:last_remap_txg"
 
 typedef enum dd_used {
 	DD_USED_HEAD,
@@ -112,7 +113,7 @@ struct dsl_dir {
 	int64_t dd_space_towrite[TXG_SIZE];
 
 	/* protected by dd_lock; keep at end of struct for better locality */
-	char dd_myname[MAXNAMELEN];
+	char dd_myname[ZFS_MAX_DATASET_NAME_LEN];
 };
 
 inline dsl_dir_phys_t *
@@ -131,14 +132,29 @@ void dsl_dir_name(dsl_dir_t *dd, char *buf);
 int dsl_dir_namelen(dsl_dir_t *dd);
 uint64_t dsl_dir_create_sync(dsl_pool_t *dp, dsl_dir_t *pds,
     const char *name, dmu_tx_t *tx);
+
+uint64_t dsl_dir_get_used(dsl_dir_t *dd);
+uint64_t dsl_dir_get_compressed(dsl_dir_t *dd);
+uint64_t dsl_dir_get_quota(dsl_dir_t *dd);
+uint64_t dsl_dir_get_reservation(dsl_dir_t *dd);
+uint64_t dsl_dir_get_compressratio(dsl_dir_t *dd);
+uint64_t dsl_dir_get_logicalused(dsl_dir_t *dd);
+uint64_t dsl_dir_get_usedsnap(dsl_dir_t *dd);
+uint64_t dsl_dir_get_usedds(dsl_dir_t *dd);
+uint64_t dsl_dir_get_usedrefreserv(dsl_dir_t *dd);
+uint64_t dsl_dir_get_usedchild(dsl_dir_t *dd);
+void dsl_dir_get_origin(dsl_dir_t *dd, char *buf);
+int dsl_dir_get_filesystem_count(dsl_dir_t *dd, uint64_t *count);
+int dsl_dir_get_snapshot_count(dsl_dir_t *dd, uint64_t *count);
+int dsl_dir_get_remaptxg(dsl_dir_t *dd, uint64_t *count);
+
 void dsl_dir_stats(dsl_dir_t *dd, nvlist_t *nv);
 uint64_t dsl_dir_space_available(dsl_dir_t *dd,
     dsl_dir_t *ancestor, int64_t delta, int ondiskonly);
 void dsl_dir_dirty(dsl_dir_t *dd, dmu_tx_t *tx);
 void dsl_dir_sync(dsl_dir_t *dd, dmu_tx_t *tx);
 int dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t mem,
-    uint64_t asize, uint64_t fsize, uint64_t usize, void **tr_cookiep,
-    dmu_tx_t *tx);
+    uint64_t asize, boolean_t netfree, void **tr_cookiep, dmu_tx_t *tx);
 void dsl_dir_tempreserve_clear(void *tr_cookie, dmu_tx_t *tx);
 void dsl_dir_willuse_space(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx);
 void dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
@@ -153,6 +169,7 @@ int dsl_dir_activate_fs_ss_limit(const char *);
 int dsl_fs_ss_limit_check(dsl_dir_t *, uint64_t, zfs_prop_t, dsl_dir_t *,
     cred_t *);
 void dsl_fs_ss_count_adjust(dsl_dir_t *, int64_t, const char *, dmu_tx_t *);
+int dsl_dir_update_last_remap_txg(dsl_dir_t *, uint64_t);
 int dsl_dir_rename(const char *oldname, const char *newname);
 int dsl_dir_transfer_possible(dsl_dir_t *sdd, dsl_dir_t *tdd,
     uint64_t fs_cnt, uint64_t ss_cnt, uint64_t space, cred_t *);
@@ -169,18 +186,16 @@ boolean_t dsl_dir_is_zapified(dsl_dir_t *dd);
 /* internal reserved dir name */
 #define	MOS_DIR_NAME "$MOS"
 #define	ORIGIN_DIR_NAME "$ORIGIN"
-#define	XLATION_DIR_NAME "$XLATION"
 #define	FREE_DIR_NAME "$FREE"
 #define	LEAK_DIR_NAME "$LEAK"
 
 #ifdef ZFS_DEBUG
 #define	dprintf_dd(dd, fmt, ...) do { \
 	if (zfs_flags & ZFS_DEBUG_DPRINTF) { \
-	char *__ds_name = kmem_alloc(MAXNAMELEN + strlen(MOS_DIR_NAME) + 1, \
-	    KM_SLEEP); \
+	char *__ds_name = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP); \
 	dsl_dir_name(dd, __ds_name); \
 	dprintf("dd=%s " fmt, __ds_name, __VA_ARGS__); \
-	kmem_free(__ds_name, MAXNAMELEN + strlen(MOS_DIR_NAME) + 1); \
+	kmem_free(__ds_name, ZFS_MAX_DATASET_NAME_LEN); \
 	} \
 _NOTE(CONSTCOND) } while (0)
 #else

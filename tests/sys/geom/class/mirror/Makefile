@@ -11,6 +11,14 @@ TAP_TESTS_SH+=	4_test
 TAP_TESTS_SH+=	5_test
 TAP_TESTS_SH+=	6_test
 TAP_TESTS_SH+=	7_test
+TAP_TESTS_SH+=	8_test
+TAP_TESTS_SH+=	9_test
+TAP_TESTS_SH+=	10_test
+TAP_TESTS_SH+=	11_test
+TAP_TESTS_SH+=	12_test
+TAP_TESTS_SH+=	13_test
+
+ATF_TESTS_SH+=	sync_error
 
 ${PACKAGE}FILES+=		conf.sh
 

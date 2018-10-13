@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm2/i915
+.PATH:	${SRCTOP}/sys/dev/drm2/i915
 KMOD	= i915kms
 SRCS	= \
 	dvo_ch7017.c \
@@ -48,7 +48,6 @@ SRCS	+= i915_ioc32.c
 
 SRCS	+=								\
 	opt_acpi.h							\
-	opt_compat.h							\
 	opt_drm.h							\
 	opt_syscons.h							\
 	acpi_if.h							\
@@ -64,3 +63,9 @@ SRCS	+=								\
 CWARNFLAGS.i915_debug.c=	-Wno-unused-function
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_tv.c=		-Wno-unused
+CWARNFLAGS.i915_gem.c=		${NO_WTAUTOLOGICAL_POINTER_COMPARE}
+CWARNFLAGS.i915_gem_tiling.c=	${NO_WTAUTOLOGICAL_POINTER_COMPARE}
+CWARNFLAGS.i915_gem_execbuffer.c=	${NO_WTAUTOLOGICAL_POINTER_COMPARE}
+CWARNFLAGS.intel_display.c=	${NO_WTAUTOLOGICAL_POINTER_COMPARE}
+CWARNFLAGS.intel_overlay.c=	${NO_WTAUTOLOGICAL_POINTER_COMPARE}
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}

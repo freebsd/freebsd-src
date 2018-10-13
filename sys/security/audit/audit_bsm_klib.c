@@ -1,7 +1,14 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2009 Apple Inc.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005, 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sem.h>
 #include <sys/sbuf.h>
+#include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -51,30 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <bsm/audit_kevents.h>
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
-
-/*
- * Hash table functions for the audit event number to event class mask
- * mapping.
- */
-#define	EVCLASSMAP_HASH_TABLE_SIZE	251
-struct evclass_elem {
-	au_event_t event;
-	au_class_t class;
-	LIST_ENTRY(evclass_elem) entry;
-};
-struct evclass_list {
-	LIST_HEAD(, evclass_elem) head;
-};
-
-static MALLOC_DEFINE(M_AUDITEVCLASS, "audit_evclass", "Audit event class");
-static struct rwlock		evclass_lock;
-static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
-
-#define	EVCLASS_LOCK_INIT()	rw_init(&evclass_lock, "evclass_lock")
-#define	EVCLASS_RLOCK()		rw_rlock(&evclass_lock)
-#define	EVCLASS_RUNLOCK()	rw_runlock(&evclass_lock)
-#define	EVCLASS_WLOCK()		rw_wlock(&evclass_lock)
-#define	EVCLASS_WUNLOCK()	rw_wunlock(&evclass_lock)
 
 struct aue_open_event {
 	int		aoe_flags;
@@ -111,91 +95,31 @@ static const struct aue_open_event aue_openat[] = {
 	{ (O_WRONLY | O_TRUNC),				AUE_OPENAT_WT },
 };
 
-/*
- * Look up the class for an audit event in the class mapping table.
- */
-au_class_t
-au_event_class(au_event_t event)
-{
-	struct evclass_list *evcl;
-	struct evclass_elem *evc;
-	au_class_t class;
+static const int aue_msgsys[] = {
+	/* 0 */ AUE_MSGCTL,
+	/* 1 */ AUE_MSGGET,
+	/* 2 */ AUE_MSGSND,
+	/* 3 */ AUE_MSGRCV,
+};
+static const int aue_msgsys_count = sizeof(aue_msgsys) / sizeof(int);
 
-	EVCLASS_RLOCK();
-	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
-	class = 0;
-	LIST_FOREACH(evc, &evcl->head, entry) {
-		if (evc->event == event) {
-			class = evc->class;
-			goto out;
-		}
-	}
-out:
-	EVCLASS_RUNLOCK();
-	return (class);
-}
+static const int aue_semsys[] = {
+	/* 0 */ AUE_SEMCTL,
+	/* 1 */ AUE_SEMGET,
+	/* 2 */ AUE_SEMOP,
+};
+static const int aue_semsys_count = sizeof(aue_semsys) / sizeof(int);
 
-/*
- * Insert a event to class mapping. If the event already exists in the
- * mapping, then replace the mapping with the new one.
- *
- * XXX There is currently no constraints placed on the number of mappings.
- * May want to either limit to a number, or in terms of memory usage.
- */
-void
-au_evclassmap_insert(au_event_t event, au_class_t class)
-{
-	struct evclass_list *evcl;
-	struct evclass_elem *evc, *evc_new;
-
-	/*
-	 * Pessimistically, always allocate storage before acquiring mutex.
-	 * Free if there is already a mapping for this event.
-	 */
-	evc_new = malloc(sizeof(*evc), M_AUDITEVCLASS, M_WAITOK);
-
-	EVCLASS_WLOCK();
-	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
-	LIST_FOREACH(evc, &evcl->head, entry) {
-		if (evc->event == event) {
-			evc->class = class;
-			EVCLASS_WUNLOCK();
-			free(evc_new, M_AUDITEVCLASS);
-			return;
-		}
-	}
-	evc = evc_new;
-	evc->event = event;
-	evc->class = class;
-	LIST_INSERT_HEAD(&evcl->head, evc, entry);
-	EVCLASS_WUNLOCK();
-}
-
-void
-au_evclassmap_init(void)
-{
-	int i;
-
-	EVCLASS_LOCK_INIT();
-	for (i = 0; i < EVCLASSMAP_HASH_TABLE_SIZE; i++)
-		LIST_INIT(&evclass_hash[i].head);
-
-	/*
-	 * Set up the initial event to class mapping for system calls.
-	 *
-	 * XXXRW: Really, this should walk all possible audit events, not all
-	 * native ABI system calls, as there may be audit events reachable
-	 * only through non-native system calls.  It also seems a shame to
-	 * frob the mutex this early.
-	 */
-	for (i = 0; i < SYS_MAXSYSCALL; i++) {
-		if (sysent[i].sy_auevent != AUE_NULL)
-			au_evclassmap_insert(sysent[i].sy_auevent, 0);
-	}
-}
+static const int aue_shmsys[] = {
+	/* 0 */ AUE_SHMAT,
+	/* 1 */ AUE_SHMDT,
+	/* 2 */ AUE_SHMGET,
+	/* 3 */ AUE_SHMCTL,
+};
+static const int aue_shmsys_count = sizeof(aue_shmsys) / sizeof(int);
 
 /*
- * Check whether an event is aditable by comparing the mask of classes this
+ * Check whether an event is auditable by comparing the mask of classes this
  * event is part of against the given mask.
  */
 int
@@ -382,6 +306,43 @@ audit_semctl_to_event(int cmd)
 		/* We will audit a bad command. */
 		return (AUE_SEMCTL);
 	}
+}
+
+/*
+ * Convert msgsys(2), semsys(2), and shmsys(2) system-call variations into
+ * audit events, if possible.
+ */
+au_event_t
+audit_msgsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_msgsys_count))
+		return (aue_msgsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_MSGSYS);
+}
+
+au_event_t
+audit_semsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_semsys_count))
+		return (aue_semsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_SEMSYS);
+}
+
+au_event_t
+audit_shmsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_shmsys_count))
+		return (aue_shmsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_SHMSYS);
 }
 
 /*

@@ -333,7 +333,7 @@ svn_sort__array_delete(apr_array_header_t *arr,
   if (delete_index >= 0
       && delete_index < arr->nelts
       && elements_to_delete > 0
-      && (elements_to_delete + delete_index) <= arr->nelts)
+      && (arr->nelts - delete_index) >= elements_to_delete)
     {
       /* If we are not deleting a block of elements that extends to the end
          of the array, then we need to move the remaining elements to keep

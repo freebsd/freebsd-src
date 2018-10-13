@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #define	SIZEREG	a2
 
 LEAF(memcpy)
+XLEAF(memmove)
 	.set	noat
 	.set	noreorder
 

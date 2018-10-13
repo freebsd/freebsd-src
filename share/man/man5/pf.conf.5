@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 25, 2015
+.Dd October 6, 2016
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -498,6 +498,31 @@ For example:
 .Bd -literal -offset indent
 set block-policy return
 .Ed
+
+.It Ar set fail-policy
+The
+.Ar fail-policy
+option sets the behaviour of rules which should pass a packet but were unable to
+do so. This might happen when a nat or route-to rule uses an empty table as list
+of targets or if a rule fails to create state or source node.
+The following
+.Ar block
+actions are possible:
+.Pp
+.Bl -tag -width xxxxxxxx -compact
+.It Ar drop
+Incoming packet is silently dropped.
+.It Ar return
+Incoming packet is dropped and TCP RST is returned for TCP packets,
+an ICMP UNREACHABLE is returned for UDP packets,
+and no response is sent for other packets.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+set fail-policy return
+.Ed
+
 .It Ar set state-policy
 The
 .Ar state-policy
@@ -648,9 +673,16 @@ for matching IP packets.
 .Em TOS
 may be
 given as one of
+.Ar critical ,
+.Ar inetcontrol ,
 .Ar lowdelay ,
+.Ar netcontrol ,
 .Ar throughput ,
 .Ar reliability ,
+or one of the DiffServ Code Points:
+.Ar ef ,
+.Ar af11 No ... Ar af43 ,
+.Ar cs0 No ... Ar cs7 ;
 or as either hex or decimal.
 .It Ar random-id
 Replaces the IP identification field with random values to compensate
@@ -1697,9 +1729,16 @@ bits set.
 .Em TOS
 may be
 given as one of
+.Ar critical ,
+.Ar inetcontrol ,
 .Ar lowdelay ,
+.Ar netcontrol ,
 .Ar throughput ,
 .Ar reliability ,
+or one of the DiffServ Code Points:
+.Ar ef ,
+.Ar af11 No ... Ar af43 ,
+.Ar cs0 No ... Ar cs7 ;
 or as either hex or decimal.
 .Pp
 For example, the following rules are identical:
@@ -1785,6 +1824,24 @@ For example:
 pass in proto tcp to port 25 queue mail
 pass in proto tcp to port 22 queue(ssh_bulk, ssh_prio)
 .Ed
+.Pp
+.It Cm set prio Ar priority | Pq Ar priority , priority
+Packets matching this rule will be assigned a specific queueing priority.
+Priorities are assigned as integers 0 through 7.
+If the packet is transmitted on a
+.Xr vlan 4
+interface, the queueing priority will be written as the priority
+code point in the 802.1Q VLAN header.
+If two priorities are given, packets which have a TOS of
+.Cm lowdelay
+and TCP ACKs with no data payload will be assigned to the second one.
+.Pp
+For example:
+.Bd -literal -offset indent
+pass in proto tcp to port 25 set prio 2
+pass in proto tcp to port 22 set prio (2, 5)
+.Ed
+.Pp
 .It Ar tag Aq Ar string
 Packets matching this rule will be tagged with the
 specified string.
@@ -1845,6 +1902,9 @@ For example, the following rule will drop 20% of incoming ICMP packets:
 .Bd -literal -offset indent
 block in proto icmp probability 20%
 .Ed
+.It Ar prio Aq Ar number
+Only match packets which have the given queueing priority assigned.
+.Pp
 .El
 .Sh ROUTING
 If a packet matches a rule with a route option set, the packet filter will
@@ -1852,10 +1912,6 @@ route the packet according to the type of route option.
 When such a rule creates state, the route option is also applied to all
 packets matching the same connection.
 .Bl -tag -width xxxx
-.It Ar fastroute
-The
-.Ar fastroute
-option does a normal route lookup to find the next hop for the packet.
 .It Ar route-to
 The
 .Ar route-to
@@ -2817,7 +2873,7 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
 
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
-                 [ "on" ifspec ] [ "fastroute" | route ] [ af ] [ protospec ]
+                 [ "on" ifspec ] [ route ] [ af ] [ protospec ]
                  hosts [ filteropt-list ]
 
 logopts        = logopt [ "," logopts ]
@@ -2831,8 +2887,9 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "max-mss" number | "random-id" | "reassemble tcp" |
                  fragmentation | "allow-opts" |
                  "label" string | "tag" string | [ ! ] "tagged" string |
+                 "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
-                 "rtable" number | "probability" number"%"
+                 "rtable" number | "probability" number"%" | "prio" number
 
 nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]

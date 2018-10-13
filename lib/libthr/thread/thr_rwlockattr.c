@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Alex Nash
  * All rights reserved.
  *
@@ -55,8 +57,9 @@ _pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
 }
 
 int
-_pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *rwlockattr,
-    int *pshared)
+_pthread_rwlockattr_getpshared(
+    const pthread_rwlockattr_t * __restrict rwlockattr,
+    int * __restrict pshared)
 {
 
 	*pshared = (*rwlockattr)->pshared;

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -43,6 +45,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <poll.h>
+#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -52,8 +55,6 @@ static const char rcsid[] =
 #include "gettytab.h"
 #include "pathnames.h"
 #include "extern.h"
-
-
 
 /*
  * Get a table entry.
@@ -67,12 +68,13 @@ gettable(const char *name, char *buf)
 	long n;
 	int l;
 	char *p;
-	char *msg = NULL;
-	const char *dba[2];
+	static char path_gettytab[PATH_MAX];
+	char *dba[2];
 
 	static int firsttime = 1;
 
-	dba[0] = _PATH_GETTYTAB;
+	strlcpy(path_gettytab, _PATH_GETTYTAB, sizeof(path_gettytab));
+	dba[0] = path_gettytab;
 	dba[1] = NULL;
 
 	if (firsttime) {
@@ -100,32 +102,28 @@ gettable(const char *name, char *buf)
 		firsttime = 0;
 	}
 
-	switch (cgetent(&buf, (char **)dba, (char *)name)) {
+	switch (cgetent(&buf, dba, name)) {
 	case 1:
-		msg = "%s: couldn't resolve 'tc=' in gettytab '%s'";
+		syslog(LOG_ERR, "getty: couldn't resolve 'tc=' in gettytab '%s'", name);
+		return;
 	case 0:
 		break;
 	case -1:
-		msg = "%s: unknown gettytab entry '%s'";
-		break;
+		syslog(LOG_ERR, "getty: unknown gettytab entry '%s'", name);
+		return;
 	case -2:
-		msg = "%s: retrieving gettytab entry '%s': %m";
-		break;
+		syslog(LOG_ERR, "getty: retrieving gettytab entry '%s': %m", name);
+		return;
 	case -3:
-		msg = "%s: recursive 'tc=' reference gettytab entry '%s'";
-		break;
+		syslog(LOG_ERR, "getty: recursive 'tc=' reference gettytab entry '%s'", name);
+		return;
 	default:
-		msg = "%s: unexpected cgetent() error for entry '%s'";
-		break;
-	}
-
-	if (msg != NULL) {
-		syslog(LOG_ERR, msg, "getty", name);
+		syslog(LOG_ERR, "getty: unexpected cgetent() error for entry '%s'", name);
 		return;
 	}
 
 	for (sp = gettystrs; sp->field; sp++) {
-		if ((l = cgetstr(buf, (char*)sp->field, &p)) >= 0) {
+		if ((l = cgetstr(buf, sp->field, &p)) >= 0) {
 			if (sp->value) {
 				/* prefer existing value */
 				if (strcmp(p, sp->value) != 0)
@@ -143,7 +141,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (np = gettynums; np->field; np++) {
-		if (cgetnum(buf, (char*)np->field, &n) == -1)
+		if (cgetnum(buf, np->field, &n) == -1)
 			np->set = 0;
 		else {
 			np->set = 1;
@@ -152,7 +150,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (fp = gettyflags; fp->field; fp++) {
-		if (cgetcap(buf, (char *)fp->field, ':') == NULL)
+		if (cgetcap(buf, fp->field, ':') == NULL)
 			fp->set = 0;
 		else {
 			fp->set = 1;
@@ -469,42 +467,48 @@ adelay(int ms, struct delayval *dp)
 char	editedhost[MAXHOSTNAMELEN];
 
 void
-edithost(const char *pat)
+edithost(const char *pattern)
 {
-	const char *host = HN;
-	char *res = editedhost;
+	regex_t regex;
+	regmatch_t *match;
+	int found;
 
-	if (!pat)
-		pat = "";
-	while (*pat) {
-		switch (*pat) {
+	if (pattern == NULL || *pattern == '\0')
+		goto copyasis;
+	if (regcomp(&regex, pattern, REG_EXTENDED) != 0)
+		goto copyasis;
 
-		case '#':
-			if (*host)
-				host++;
-			break;
-
-		case '@':
-			if (*host)
-				*res++ = *host++;
-			break;
-
-		default:
-			*res++ = *pat;
-			break;
-
-		}
-		if (res == &editedhost[sizeof editedhost - 1]) {
-			*res = '\0';
-			return;
-		}
-		pat++;
+	match = calloc(regex.re_nsub + 1, sizeof(*match));
+	if (match == NULL) {
+		regfree(&regex);
+		goto copyasis;
 	}
-	if (*host)
-		strncpy(res, host, sizeof editedhost - (res - editedhost) - 1);
-	else
-		*res = '\0';
-	editedhost[sizeof editedhost - 1] = '\0';
+
+	found = !regexec(&regex, HN, regex.re_nsub + 1, match, 0);
+	if (found) {
+		size_t subex, totalsize;
+
+		/*
+		 * We found a match.  If there were no parenthesized
+		 * subexpressions in the pattern, use entire matched
+		 * string as ``editedhost''; otherwise use the first
+		 * matched subexpression.
+		 */
+		subex = !!regex.re_nsub;
+		totalsize = match[subex].rm_eo - match[subex].rm_so + 1;
+		strlcpy(editedhost, HN + match[subex].rm_so, totalsize >
+		    sizeof(editedhost) ? sizeof(editedhost) : totalsize);
+	}
+	free(match);
+	regfree(&regex);
+	if (found)
+		return;
+	/*
+	 * In case of any errors, or if the pattern did not match, pass
+	 * the original hostname as is.
+	 */
+ copyasis:
+	strlcpy(editedhost, HN, sizeof(editedhost));
 }
 
 static struct speedtab {
@@ -532,7 +536,7 @@ static struct speedtab {
 	{ 57600, B57600 },
 	{ 115200, B115200 },
 	{ 230400, B230400 },
-	{ 0 }
+	{ 0, 0 }
 };
 
 int
@@ -581,7 +585,7 @@ makeenv(char *env[])
  * baud rate. This string indicates the user's actual speed.
  * The routine below returns the terminal type mapped from derived speed.
  */
-struct	portselect {
+static struct	portselect {
 	const char	*ps_baud;
 	const char	*ps_type;
 } portspeeds[] = {

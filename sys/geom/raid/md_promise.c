@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
@@ -341,6 +343,11 @@ promise_meta_read(struct g_consumer *cp, struct promise_raid_conf **metaarr)
 
 	pp = cp->provider;
 	subdisks = 0;
+
+	if (pp->sectorsize * 4 > MAXPHYS) {
+		G_RAID_DEBUG(1, "%s: Blocksize is too big.", pp->name);
+		return (subdisks);
+	}
 next:
 	/* Read metadata block. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize *
@@ -673,7 +680,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 	meta = pv->pv_meta;
 
 	if (sdn >= 0) {
-		/* Find disk position in metadata by it's serial. */
+		/* Find disk position in metadata by its serial. */
 		md_disk_pos = promise_meta_find_disk(meta, pd->pd_meta[sdn]->disk.id);
 		/* For RAID0+1 we need to translate order. */
 		disk_pos = promise_meta_translate_disk(vol, md_disk_pos);
@@ -1093,7 +1100,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	struct g_provider *pp;
 	struct g_raid_softc *sc;
 	struct g_raid_disk *disk;
-	struct promise_raid_conf *meta, *metaarr[4];
+	struct promise_raid_conf *metaarr[4];
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_geom *geom;
 	int i, j, result, len, subdisks;
@@ -1104,7 +1111,6 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	pp = cp->provider;
 
 	/* Read metadata from device. */
-	meta = NULL;
 	g_topology_unlock();
 	vendor = 0xffff;
 	len = sizeof(vendor);

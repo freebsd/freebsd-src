@@ -4,7 +4,7 @@
  * 
  * This software was developed by Rui Paulo under sponsorship from the
  * FreeBSD Foundation. 
- *  
+ *
  * Redistribution and use in source and binary forms, with or without 
  * modification, are permitted provided that the following conditions 
  * are met: 
@@ -34,6 +34,9 @@
  * Functions sorted alphabetically.
  */
 #define	PR_LMID_EVERY 0
+#define	PGRAB_RDONLY	PATTACH_RDONLY
+#define	PGRAB_FORCE	PATTACH_FORCE
+
 #define	Psetrun(p, a1, a2) proc_continue((p))
 #define	Pxlookup_by_addr(p, a, n, s, sym, i) \
     proc_addr2sym(p, a, n, s, sym)
@@ -44,7 +47,7 @@
 #define	Pdelbkpt proc_bkptdel
 #define	Pgrab_error strerror
 #define	Plmid(p, a, l) (-1)
-#define	Plmid_to_map(p, l, o) proc_obj2map((p), (o))
+#define	Plmid_to_map(p, l, o) proc_name2map(p, o)
 #define	Plookup_by_addr proc_addr2sym
 #define	Pname_to_ctf(p, obj) (ctf_file_t *)proc_name2ctf(p, obj)
 #define	Pname_to_map proc_name2map

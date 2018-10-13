@@ -23,14 +23,15 @@
  * FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Virtual Router Redundancy Protocol (VRRP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 
@@ -147,7 +148,7 @@ vrrp_print(netdissect_options *ndo,
 		}
 
 		if (version == 3 && ND_TTEST2(bp[0], len)) {
-			uint16_t cksum = nextproto4_cksum(ndo, (struct ip *)bp2, bp,
+			uint16_t cksum = nextproto4_cksum(ndo, (const struct ip *)bp2, bp,
 				len, len, IPPROTO_VRRP);
 			if (cksum)
 				ND_PRINT((ndo, ", (bad vrrp cksum %x)",

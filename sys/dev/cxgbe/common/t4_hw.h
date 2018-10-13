@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -276,8 +278,17 @@ enum {
 	FLASH_MIN_SIZE = FLASH_CFG_START + FLASH_CFG_MAX_SIZE,
 
 	/*
-	 * Sectors 32-63 are reserved for FLASH failover.
+	 * Sectors 32-63 for CUDBG.
 	 */
+	FLASH_CUDBG_START_SEC = 32,
+	FLASH_CUDBG_NSECS = 32,
+	FLASH_CUDBG_START = FLASH_START(FLASH_CUDBG_START_SEC),
+	FLASH_CUDBG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CUDBG_NSECS),
+
+	/*
+	 * Size of defined FLASH regions.
+	 */
+	FLASH_END_SEC = 64,
 };
 
 #undef FLASH_START

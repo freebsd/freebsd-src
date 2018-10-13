@@ -43,23 +43,30 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_SSBD, offsetof(struct pcpu, pc_ssbd));
 
 /* Size of pcb, rounded to keep stack alignment */
 ASSYM(PCB_SIZE, roundup2(sizeof(struct pcb), STACKALIGNBYTES + 1));
 ASSYM(PCB_SINGLE_STEP_SHIFT, PCB_SINGLE_STEP_SHIFT);
 ASSYM(PCB_REGS, offsetof(struct pcb, pcb_x));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
-ASSYM(PCB_L0ADDR, offsetof(struct pcb, pcb_l0addr));
+ASSYM(PCB_TPIDRRO, offsetof(struct pcb, pcb_tpidrro_el0));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 
+ASSYM(P_MD, offsetof(struct proc, p_md));
+ASSYM(MD_L0ADDR, offsetof(struct mdproc, md_l0addr));
+
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
+ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 
 ASSYM(TF_SIZE, sizeof(struct trapframe));
 ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));
 ASSYM(TF_ELR, offsetof(struct trapframe, tf_elr));
+ASSYM(TF_SPSR, offsetof(struct trapframe, tf_spsr));
 ASSYM(TF_X, offsetof(struct trapframe, tf_x));

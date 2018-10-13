@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2015
+.Dd May 23, 2018
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -57,7 +57,8 @@
 .Nm sbuf_delete ,
 .Nm sbuf_start_section ,
 .Nm sbuf_end_section ,
-.Nm sbuf_hexdump
+.Nm sbuf_hexdump ,
+.Nm sbuf_putbuf
 .Nd safe string composition
 .Sh SYNOPSIS
 .In sys/types.h
@@ -65,57 +66,123 @@
 .Ft typedef\ int ( sbuf_drain_func ) ( void\ *arg, const\ char\ *data, int\ len ) ;
 .Pp
 .Ft struct sbuf *
-.Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
+.Fo sbuf_new
+.Fa "struct sbuf *s"
+.Fa "char *buf"
+.Fa "int length"
+.Fa "int flags"
+.Fc
 .Ft struct sbuf *
-.Fn sbuf_new_auto
+.Fo sbuf_new_auto
+.Fa "void"
+.Fc
 .Ft void
-.Fn sbuf_clear "struct sbuf *s"
+.Fo sbuf_clear
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_get_flags "struct sbuf *s"
+.Fo sbuf_get_flags
+.Fa "struct sbuf *s"
+.Fc
 .Ft void
-.Fn sbuf_set_flags "struct sbuf *s" "int flags"
+.Fo sbuf_set_flags
+.Fa "struct sbuf *s"
+.Fa "int flags"
+.Fc
 .Ft void
-.Fn sbuf_clear_flags "struct sbuf *s" "int flags"
+.Fo sbuf_clear_flags
+.Fa "struct sbuf *s"
+.Fa "int flags"
+.Fc
 .Ft int
-.Fn sbuf_setpos "struct sbuf *s" "int pos"
+.Fo sbuf_setpos
+.Fa "struct sbuf *s"
+.Fa "int pos"
+.Fc
 .Ft int
-.Fn sbuf_bcat "struct sbuf *s" "const void *buf" "size_t len"
+.Fo sbuf_bcat
+.Fa "struct sbuf *s"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fc
 .Ft int
-.Fn sbuf_bcopyin "struct sbuf *s" "const void *uaddr" "size_t len"
+.Fo sbuf_bcpy
+.Fa "struct sbuf *s"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fc
 .Ft int
-.Fn sbuf_bcpy "struct sbuf *s" "const void *buf" "size_t len"
+.Fo sbuf_cat
+.Fa "struct sbuf *s"
+.Fa "const char *str"
+.Fc
 .Ft int
-.Fn sbuf_cat "struct sbuf *s" "const char *str"
+.Fo sbuf_cpy
+.Fa "struct sbuf *s"
+.Fa "const char *str"
+.Fc
 .Ft int
-.Fn sbuf_copyin "struct sbuf *s" "const void *uaddr" "size_t len"
+.Fo sbuf_printf
+.Fa "struct sbuf *s"
+.Fa "const char *fmt" "..."
+.Fc
 .Ft int
-.Fn sbuf_cpy "struct sbuf *s" "const char *str"
+.Fo sbuf_vprintf
+.Fa "struct sbuf *s"
+.Fa "const char *fmt"
+.Fa "va_list ap"
+.Fc
 .Ft int
-.Fn sbuf_printf "struct sbuf *s" "const char *fmt" "..."
-.Ft int
-.Fn sbuf_vprintf "struct sbuf *s" "const char *fmt" "va_list ap"
-.Ft int
-.Fn sbuf_putc "struct sbuf *s" "int c"
+.Fo sbuf_putc
+.Fa "struct sbuf *s"
+.Fa "int c"
+.Fc
 .Ft void
-.Fn sbuf_set_drain "struct sbuf *s" "sbuf_drain_func *func" "void *arg"
+.Fo sbuf_set_drain
+.Fa "struct sbuf *s"
+.Fa "sbuf_drain_func *func"
+.Fa "void *arg"
+.Fc
 .Ft int
-.Fn sbuf_trim "struct sbuf *s"
+.Fo sbuf_trim
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_error "struct sbuf *s"
+.Fo sbuf_error
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_finish "struct sbuf *s"
+.Fo sbuf_finish
+.Fa "struct sbuf *s"
+.Fc
 .Ft char *
-.Fn sbuf_data "struct sbuf *s"
+.Fo sbuf_data
+.Fa "struct sbuf *s"
+.Fc
 .Ft ssize_t
-.Fn sbuf_len "struct sbuf *s"
+.Fo sbuf_len
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_done "struct sbuf *s"
+.Fo sbuf_done
+.Fa "struct sbuf *s"
+.Fc
 .Ft void
-.Fn sbuf_delete "struct sbuf *s"
+.Fo sbuf_delete
+.Fa "struct sbuf *s"
+.Fc
 .Ft void
-.Fn sbuf_start_section "struct sbuf *s" "ssize_t *old_lenp"
+.Fo sbuf_start_section
+.Fa "struct sbuf *s"
+.Fa "ssize_t *old_lenp"
+.Fc
 .Ft ssize_t
-.Fn sbuf_end_section "struct sbuf *s" "ssize_t old_len" "size_t pad" "int c"
+.Fo sbuf_end_section
+.Fa "struct sbuf *s"
+.Fa "ssize_t old_len"
+.Fa "size_t pad"
+.Fa "int c"
+.Fc
 .Ft void
 .Fo sbuf_hexdump
 .Fa "struct sbuf *sb"
@@ -124,9 +191,34 @@
 .Fa "const char *hdr"
 .Fa "int flags"
 .Fc
+.Ft void
+.Fo sbuf_putbuf
+.Fa "struct sbuf *s"
+.Fc
+.Fd #ifdef _KERNEL
+.In sys/types.h
+.In sys/sbuf.h
+.Ft int
+.Fo sbuf_bcopyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo sbuf_copyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
 .In sys/sysctl.h
 .Ft struct sbuf *
-.Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
+.Fo sbuf_new_for_sysctl
+.Fa "struct sbuf *s"
+.Fa "char *buf"
+.Fa "int length"
+.Fa "struct sysctl_req *req"
+.Fc
+.Fd #endif	/* _KERNEL */
 .Sh DESCRIPTION
 The
 .Nm
@@ -179,6 +271,14 @@ This indicates that the storage buffer may be extended as necessary, so long
 as resources allow, to hold additional data.
 .It Dv SBUF_INCLUDENUL
 This causes the final nulterm byte to be counted in the length of the data.
+.It Dv SBUF_DRAINTOEOR
+Treat top-level sections started with
+.Fn sbuf_start_section
+as a record boundary marker that will be used during drain operations to avoid
+records being split.
+If a record grows sufficiently large such that it fills the
+.Fa sbuf
+and therefore cannot be drained without being split, an error of EDEADLK is set.
 .El
 .Pp
 Note that if
@@ -472,6 +572,12 @@ representation of the bytes if possible.
 See the
 .Xr hexdump 3
 man page for more details on the interface.
+.Pp
+The
+.Fn sbuf_putbuf
+function printfs the sbuf to stdout if in userland, and to the console
+and log if in the kernel.
+It does not drain the buffer or update any pointers.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
@@ -518,6 +624,7 @@ function returns \-1 if
 was invalid, and zero otherwise.
 .Pp
 The
+.Fn sbuf_bcat ,
 .Fn sbuf_cat ,
 .Fn sbuf_cpy ,
 .Fn sbuf_printf ,
@@ -558,6 +665,7 @@ function (the userland version)
 will return zero for success and \-1 and set errno on error.
 .Sh EXAMPLES
 .Bd -literal -compact
+#include <sys/types.h>
 #include <sys/sbuf.h>
 
 struct sbuf *sb;

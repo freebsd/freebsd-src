@@ -1,4 +1,4 @@
-//===--- MacroInfo.cpp - Information about #defined identifiers -----------===//
+//===- MacroInfo.cpp - Information about #defined identifiers -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,28 +12,31 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/MacroInfo.h"
+#include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/Token.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <utility>
+
 using namespace clang;
 
 MacroInfo::MacroInfo(SourceLocation DefLoc)
-  : Location(DefLoc),
-    ArgumentList(nullptr),
-    NumArguments(0),
-    IsDefinitionLengthCached(false),
-    IsFunctionLike(false),
-    IsC99Varargs(false),
-    IsGNUVarargs(false),
-    IsBuiltinMacro(false),
-    HasCommaPasting(false),
-    IsDisabled(false),
-    IsUsed(false),
-    IsAllowRedefinitionsWithoutWarning(false),
-    IsWarnIfUnused(false),
-    FromASTFile(false),
-    UsedForHeaderGuard(false) {
-}
+    : Location(DefLoc), IsDefinitionLengthCached(false), IsFunctionLike(false),
+      IsC99Varargs(false), IsGNUVarargs(false), IsBuiltinMacro(false),
+      HasCommaPasting(false), IsDisabled(false), IsUsed(false),
+      IsAllowRedefinitionsWithoutWarning(false), IsWarnIfUnused(false),
+      UsedForHeaderGuard(false) {}
 
-unsigned MacroInfo::getDefinitionLengthSlow(SourceManager &SM) const {
+unsigned MacroInfo::getDefinitionLengthSlow(const SourceManager &SM) const {
   assert(!IsDefinitionLengthCached);
   IsDefinitionLengthCached = true;
 
@@ -75,7 +78,7 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP,
 
   // Check # tokens in replacement, number of args, and various flags all match.
   if (ReplacementTokens.size() != Other.ReplacementTokens.size() ||
-      getNumArgs() != Other.getNumArgs() ||
+      getNumParams() != Other.getNumParams() ||
       isFunctionLike() != Other.isFunctionLike() ||
       isC99Varargs() != Other.isC99Varargs() ||
       isGNUVarargs() != Other.isGNUVarargs())
@@ -83,7 +86,8 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP,
 
   if (Lexically) {
     // Check arguments.
-    for (arg_iterator I = arg_begin(), OI = Other.arg_begin(), E = arg_end();
+    for (param_iterator I = param_begin(), OI = Other.param_begin(),
+                        E = param_end();
          I != E; ++I, ++OI)
       if (*I != *OI) return false;
   }
@@ -110,10 +114,10 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP,
         return false;
       // With syntactic equivalence the parameter names can be different as long
       // as they are used in the same place.
-      int AArgNum = getArgumentNum(A.getIdentifierInfo());
+      int AArgNum = getParameterNum(A.getIdentifierInfo());
       if (AArgNum == -1)
         return false;
-      if (AArgNum != Other.getArgumentNum(B.getIdentifierInfo()))
+      if (AArgNum != Other.getParameterNum(B.getIdentifierInfo()))
         return false;
       continue;
     }
@@ -126,7 +130,7 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP,
   return true;
 }
 
-void MacroInfo::dump() const {
+LLVM_DUMP_METHOD void MacroInfo::dump() const {
   llvm::raw_ostream &Out = llvm::errs();
 
   // FIXME: Dump locations.
@@ -137,18 +141,17 @@ void MacroInfo::dump() const {
   if (IsAllowRedefinitionsWithoutWarning)
     Out << " allow_redefinitions_without_warning";
   if (IsWarnIfUnused) Out << " warn_if_unused";
-  if (FromASTFile) Out << " imported";
   if (UsedForHeaderGuard) Out << " header_guard";
 
   Out << "\n    #define <macro>";
   if (IsFunctionLike) {
     Out << "(";
-    for (unsigned I = 0; I != NumArguments; ++I) {
+    for (unsigned I = 0; I != NumParameters; ++I) {
       if (I) Out << ", ";
-      Out << ArgumentList[I]->getName();
+      Out << ParameterList[I]->getName();
     }
     if (IsC99Varargs || IsGNUVarargs) {
-      if (NumArguments && IsC99Varargs) Out << ", ";
+      if (NumParameters && IsC99Varargs) Out << ", ";
       Out << "...";
     }
     Out << ")";
@@ -209,7 +212,7 @@ MacroDirective::findDirectiveAtLoc(SourceLocation L, SourceManager &SM) const {
   return DefInfo();
 }
 
-void MacroDirective::dump() const {
+LLVM_DUMP_METHOD void MacroDirective::dump() const {
   llvm::raw_ostream &Out = llvm::errs();
 
   switch (getKind()) {
@@ -240,6 +243,6 @@ ModuleMacro *ModuleMacro::create(Preprocessor &PP, Module *OwningModule,
                                  ArrayRef<ModuleMacro *> Overrides) {
   void *Mem = PP.getPreprocessorAllocator().Allocate(
       sizeof(ModuleMacro) + sizeof(ModuleMacro *) * Overrides.size(),
-      llvm::alignOf<ModuleMacro>());
+      alignof(ModuleMacro));
   return new (Mem) ModuleMacro(OwningModule, II, Macro, Overrides);
 }

@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -227,10 +229,6 @@ struct sockaddr_l2cap_compat {
 	u_int16_t	l2cap_psm;	/* PSM (Protocol/Service Multiplexor) */
 	bdaddr_t	l2cap_bdaddr;	/* address */
 };
-
-#define BDADDR_BREDR 0
-#define BDADDR_LE_PUBLIC 1
-#define BDADDR_LE_RANDOM 2
 
 struct sockaddr_l2cap {
 	u_char		l2cap_len;	/* total length */

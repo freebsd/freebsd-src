@@ -55,7 +55,9 @@ typedef	uint64_t	amd64_pml4e_t;
 #define	AMD64_NPML4EPG		(AMD64_PAGE_SIZE / sizeof(amd64_pml4e_t))
 #define	AMD64_PML4SHIFT		39
 
+#define	AMD64_PG_NX		(1ULL << 63)
 #define	AMD64_PG_V		0x001
+#define	AMD64_PG_RW		0x002
 #define	AMD64_PG_PS		0x080
 #define	AMD64_PG_FRAME		(0x000ffffffffff000)
 #define	AMD64_PG_PS_FRAME	(0x000fffffffe00000)

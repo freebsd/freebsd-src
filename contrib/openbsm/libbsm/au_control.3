@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 19, 2005
+.Dd December 2, 2016
 .Dt AU_CONTROL 3
 .Os
 .Sh NAME
@@ -67,6 +67,8 @@
 .Fn getacna "char *auditstr" "int len"
 .Ft int
 .Fn getacpol "char *auditstr" "size_t len"
+.Ft int
+.Fn getacqsize "int *size_val"
 .Ft ssize_t
 .Fn au_poltostr "int policy" "size_t maxsize" "char *buf"
 .Ft int
@@ -172,6 +174,17 @@ of length
 .Fa len .
 .Pp
 The
+.Fn getacqsize
+function returns the size of the audit post-commit queue in the passed
+.Fa size_val
+buffer.
+If the parameter is not specified in the
+.Xr audit_control 5
+file it is set to
+.Dv -1 ,
+indicating that the kernel's default queue size is being used.
+.Pp
+The
 .Fn au_poltostr
 function
 converts a numeric audit policy mask,
@@ -198,6 +211,7 @@ The
 .Fn getacmin ,
 .Fn getacna ,
 .Fn getacpol ,
+.Fn getacqsize ,
 and
 .Fn au_strtopol
 functions

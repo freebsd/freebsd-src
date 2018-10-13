@@ -4,15 +4,13 @@
 
 SUBDIR=
 .if ${MK_OPENSSL} != "no"
-SUBDIR+=bdes openssl
+SUBDIR+=openssl
 .if ${MK_OPENSSH} != "no"
 SUBDIR+=scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan
 .endif
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 SUBDIR_PARALLEL=
 

@@ -14,6 +14,8 @@ arm/ti/omap4/omap4_scm_padconf.c		standard
 arm/ti/omap4/omap4_mp.c				optional	smp
 arm/ti/omap4/omap4_wugen.c			standard
 
+arm/ti/omap4/pandaboard/pandaboard.c		standard
+
 arm/ti/twl/twl.c				optional	twl
 arm/ti/twl/twl_vreg.c				optional	twl twl_vreg
 arm/ti/twl/twl_clks.c				optional	twl twl_clks

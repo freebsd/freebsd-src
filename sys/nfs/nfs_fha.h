@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +33,8 @@
 
 /* Sysctl defaults. */
 #define FHA_DEF_ENABLE			1
+#define FHA_DEF_READ			1
+#define FHA_DEF_WRITE			1
 #define FHA_DEF_BIN_SHIFT		22 /* 4MB */
 #define FHA_DEF_MAX_NFSDS_PER_FH	8
 #define FHA_DEF_MAX_REQS_PER_NFSD	0  /* Unlimited */
@@ -39,6 +43,8 @@
 
 struct fha_ctls {
 	int	 enable;
+	int	 read;
+	int	 write;
 	uint32_t bin_shift;
 	uint32_t max_nfsds_per_fh;
 	uint32_t max_reqs_per_nfsd;
@@ -79,6 +85,8 @@ struct fha_info {
 	u_int64_t fh;
 	off_t offset;
 	int locktype;
+	int read;
+	int write;
 };
 
 struct fha_callbacks {

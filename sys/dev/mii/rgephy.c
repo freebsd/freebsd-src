@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -121,6 +123,8 @@ rgephy_attach(device_t dev)
 	flags = 0;
 	if (mii_dev_mac_match(dev, "re"))
 		flags |= MIIF_PHYPRIV0;
+	else if (mii_dev_mac_match(dev, "ure"))
+		flags |= MIIF_PHYPRIV1;
 	mii_phy_dev_attach(dev, flags, &rgephy_funcs, 0);
 
 	/* RTL8169S do not report auto-sense; add manually. */
@@ -293,7 +297,10 @@ rgephy_linkup(struct mii_softc *sc)
 				linkup++;
 		}
 	} else {
-		reg = PHY_READ(sc, RL_GMEDIASTAT);
+		if (sc->mii_flags & MIIF_PHYPRIV1)
+			reg = PHY_READ(sc, URE_GMEDIASTAT);
+		else
+			reg = PHY_READ(sc, RL_GMEDIASTAT);
 		if (reg & RL_GMEDIASTAT_LINK)
 			linkup++;
 	}
@@ -378,7 +385,10 @@ rgephy_status(struct mii_softc *sc)
 				mii->mii_media_active |= IFM_HDX;
 		}
 	} else {
-		bmsr = PHY_READ(sc, RL_GMEDIASTAT);
+		if (sc->mii_flags & MIIF_PHYPRIV1)
+			bmsr = PHY_READ(sc, URE_GMEDIASTAT);
+		else
+			bmsr = PHY_READ(sc, RL_GMEDIASTAT);
 		if (bmsr & RL_GMEDIASTAT_1000MBPS)
 			mii->mii_media_active |= IFM_1000_T;
 		else if (bmsr & RL_GMEDIASTAT_100MBPS)

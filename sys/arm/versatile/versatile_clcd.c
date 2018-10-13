@@ -1,5 +1,7 @@
-/*
- * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012-2017 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -50,21 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
 
+#include <arm/versatile/versatile_scm.h>
+
 #include <machine/bus.h>
 
 #define	PL110_VENDOR_ARM926PXP	1
-
-#define	MEM_SYS		0
-#define	MEM_CLCD	1
-#define MEM_REGIONS	2
-
-#define	SYS_CLCD		0x00
-#define		SYS_CLCD_CLCDID_SHIFT	0x08
-#define		SYS_CLCD_CLCDID_MASK	0x1f
-#define		SYS_CLCD_PWR3V5VSWITCH	(1 << 4)
-#define		SYS_CLCD_VDDPOSSWITCH 	(1 << 3)
-#define		SYS_CLCD_NLCDIOON  	(1 << 2)
-#define		SYS_CLCD_LCD_MODE_MASK	0x03
 
 #define	CLCD_MODE_RGB888	0x0
 #define	CLCD_MODE_RGB555	0x01
@@ -120,18 +111,13 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
-#define	versatile_clcdc_sys_read_4(sc, reg)	\
-	bus_read_4((sc)->mem_res[MEM_SYS], (reg))
-#define	versatile_clcdc_sys_write_4(sc, reg, val)	\
-	bus_write_4((sc)->mem_res[MEM_SYS], (reg), (val))
-
 #define	versatile_clcdc_read_4(sc, reg)	\
-	bus_read_4((sc)->mem_res[MEM_CLCD], (reg))
+	bus_read_4((sc)->mem_res, (reg))
 #define	versatile_clcdc_write_4(sc, reg, val)	\
-	bus_write_4((sc)->mem_res[MEM_CLCD], (reg), (val))
+	bus_write_4((sc)->mem_res, (reg), (val))
 
 struct versatile_clcdc_softc {
-	struct resource*	mem_res[MEM_REGIONS];
+	struct resource*	mem_res;
 
 	struct mtx		mtx;
 
@@ -206,12 +192,6 @@ static u_char mouse_pointer[16] = {
 
 static struct video_adapter_softc va_softc;
 
-static struct resource_spec versatile_clcdc_mem_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ SYS_RES_MEMORY, 1, RF_ACTIVE },
-	{ -1, 0, 0 }
-};
-
 static int versatilefb_configure(int);
 static void versatilefb_update_margins(video_adapter_t *adp);
 
@@ -247,21 +227,25 @@ versatile_clcdc_attach(device_t dev)
 {
 	struct versatile_clcdc_softc *sc = device_get_softc(dev);
 	struct video_adapter_softc *va_sc = &va_softc;
-	int err;
+	int err, rid;
 	uint32_t reg;
 	int clcdid;
 	int dma_size;
 
 	/* Request memory resources */
-	err = bus_alloc_resources(dev, versatile_clcdc_mem_spec,
-		sc->mem_res);
-	if (err) {
-		device_printf(dev, "Error: could not allocate memory resources\n");
+	rid = 0;
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (sc->mem_res == NULL) {
+		device_printf(dev, "could not allocate memory resources\n");
 		return (ENXIO);
 	}
 
-	reg = versatile_clcdc_sys_read_4(sc, SYS_CLCD);
-	clcdid = (reg >> SYS_CLCD_CLCDID_SHIFT) & SYS_CLCD_CLCDID_MASK;
+	err = versatile_scm_reg_read_4(SCM_CLCD, &reg);
+	if (err) {
+		device_printf(dev, "failed to read SCM register\n");
+		goto fail;
+	}
+	clcdid = (reg >> SCM_CLCD_CLCDID_SHIFT) & SCM_CLCD_CLCDID_MASK;
 	switch (clcdid) {
 		case 31:
 			device_printf(dev, "QEMU VGA 640x480\n");
@@ -273,17 +257,17 @@ versatile_clcdc_attach(device_t dev)
 			goto fail;
 	}
 
-	reg &= ~SYS_CLCD_LCD_MODE_MASK;
+	reg &= ~SCM_CLCD_LCD_MODE_MASK;
 	reg |= CLCD_MODE_RGB565;
 	sc->mode = CLCD_MODE_RGB565;
-	versatile_clcdc_sys_write_4(sc, SYS_CLCD, reg);
-	dma_size = sc->width*sc->height*2;
-
-	/*
+	versatile_scm_reg_write_4(SCM_CLCD, reg);
+ 	dma_size = sc->width*sc->height*2;
+ 
+ 	/*
 	 * Power on LCD
 	 */
-	reg |= SYS_CLCD_PWR3V5VSWITCH | SYS_CLCD_NLCDIOON;
-	versatile_clcdc_sys_write_4(sc, SYS_CLCD, reg);
+	reg |= SCM_CLCD_PWR3V5VSWITCH | SCM_CLCD_NLCDIOON;
+	versatile_scm_reg_write_4(SCM_CLCD, reg);
 
 	/*
 	 * XXX: hardcoded timing for VGA. For other modes/panels
@@ -655,7 +639,6 @@ versatilefb_init(int unit, video_adapter_t *adp, int flags)
 
 	sc->xmargin = (sc->width - (vi->vi_width * vi->vi_cwidth)) / 2;
 	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight))/2;
-
 
 	adp->va_window = (vm_offset_t) versatilefb_static_window;
 	adp->va_flags |= V_ADP_FONT /* | V_ADP_COLOR | V_ADP_MODECHANGE */;

@@ -925,7 +925,7 @@ telnet(int f, int p, char *host)
 	edithost(HE, host_name);
 	if (hostinfo && *IM)
 		putf(IM, ptyibuf2);
-	if (IF && if_fd != -1) {
+	if (if_fd != -1) {
 		if (fstat(if_fd, &statbuf) != -1 && statbuf.st_size > 0) {
 			if_buf = (char *) mmap (0, statbuf.st_size,
 			    PROT_READ, 0, if_fd, 0);

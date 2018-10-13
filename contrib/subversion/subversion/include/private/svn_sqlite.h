@@ -555,6 +555,15 @@ svn_sqlite__hotcopy(const char *src_path,
                     const char *dst_path,
                     apr_pool_t *scratch_pool);
 
+/* Evaluate the expression EXPR.  If any error is returned, close
+ * the connection in DB. */
+#define SVN_SQLITE__ERR_CLOSE(expr, db) do                            \
+{                                                                     \
+  svn_error_t *svn__err = (expr);                                     \
+  if (svn__err)                                                       \
+    return svn_error_compose_create(svn__err, svn_sqlite__close(db)); \
+} while (0)
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

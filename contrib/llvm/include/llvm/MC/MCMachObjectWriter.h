@@ -1,4 +1,4 @@
-//===-- llvm/MC/MCMachObjectWriter.h - Mach Object Writer -------*- C++ -*-===//
+//===- llvm/MC/MCMachObjectWriter.h - Mach Object Writer --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,13 +11,15 @@
 #define LLVM_MC_MCMACHOBJECTWRITER_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/BinaryFormat/MachO.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/MC/StringTableBuilder.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/MachO.h"
+#include <cstdint>
+#include <memory>
+#include <string>
 #include <vector>
 
 namespace llvm {
@@ -96,8 +98,8 @@ class MachObjectWriter : public MCObjectWriter {
         : Sym(Sym), MRE(MRE) {}
   };
 
-  llvm::DenseMap<const MCSection *, std::vector<RelAndSymbol>> Relocations;
-  llvm::DenseMap<const MCSection *, unsigned> IndirectSymBase;
+  DenseMap<const MCSection *, std::vector<RelAndSymbol>> Relocations;
+  DenseMap<const MCSection *, unsigned> IndirectSymBase;
 
   SectionAddrMap SectionAddress;
 
@@ -115,9 +117,10 @@ class MachObjectWriter : public MCObjectWriter {
   MachSymbolData *findSymbolData(const MCSymbol &Sym);
 
 public:
-  MachObjectWriter(MCMachObjectTargetWriter *MOTW, raw_pwrite_stream &OS,
-                   bool IsLittleEndian)
-      : MCObjectWriter(OS, IsLittleEndian), TargetObjectWriter(MOTW) {}
+  MachObjectWriter(std::unique_ptr<MCMachObjectTargetWriter> MOTW,
+                   raw_pwrite_stream &OS, bool IsLittleEndian)
+      : MCObjectWriter(OS, IsLittleEndian),
+        TargetObjectWriter(std::move(MOTW)) {}
 
   const MCSymbol &findAliasedSymbol(const MCSymbol &Sym) const;
 
@@ -231,8 +234,7 @@ public:
 
   void recordRelocation(MCAssembler &Asm, const MCAsmLayout &Layout,
                         const MCFragment *Fragment, const MCFixup &Fixup,
-                        MCValue Target, bool &IsPCRel,
-                        uint64_t &FixedValue) override;
+                        MCValue Target, uint64_t &FixedValue) override;
 
   void bindIndirectSymbols(MCAssembler &Asm);
 
@@ -268,10 +270,10 @@ public:
 /// \param MOTW - The target specific Mach-O writer subclass.
 /// \param OS - The stream to write to.
 /// \returns The constructed object writer.
-MCObjectWriter *createMachObjectWriter(MCMachObjectTargetWriter *MOTW,
-                                       raw_pwrite_stream &OS,
-                                       bool IsLittleEndian);
+std::unique_ptr<MCObjectWriter>
+createMachObjectWriter(std::unique_ptr<MCMachObjectTargetWriter> MOTW,
+                       raw_pwrite_stream &OS, bool IsLittleEndian);
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCMACHOBJECTWRITER_H

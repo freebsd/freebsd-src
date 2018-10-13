@@ -32,15 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
-#include <sys/slicer.h>
 #include <sys/smp.h>
 
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
-#include <dev/nand/nand.h>
 #include <dev/ofw/openfirm.h>
-#include <geom/geom_disk.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -58,39 +55,6 @@ static platform_method_t rb_methods[] = {
 DEFINE_CLASS_1(rb, rb_platform, rb_methods, 0, mpc85xx_platform);
 
 PLATFORM_DEF(rb_platform);
-
-/* Slicer operates on the NAND controller, so we have to find the chip. */
-static int
-rb_nand_slicer(device_t dev, struct flash_slice *slices, int *nslices)
-{
-	struct nand_chip *chip;
-	device_t *children;
-	int n;
-
-	if (device_get_children(dev, &children, &n) != 0) {
-		panic("Slicer called on controller with no child!");
-	}
-	dev = children[0];
-	free(children, M_TEMP);
-
-	if (device_get_children(dev, &children, &n) != 0) {
-		panic("Slicer called on controller with nandbus but no child!");
-	}
-	dev = children[0];
-	free(children, M_TEMP);
-
-	chip = device_get_softc(dev);
-	*nslices = 2;
-	slices[0].base = 0;
-	slices[0].size = 4 * 1024 * 1024;
-	slices[0].label = "boot";
-
-	slices[1].base = 4 * 1024 * 1024;
-	slices[1].size = chip->ndisk->d_mediasize - slices[0].size;
-	slices[1].label = "rootfs";
-
-	return (0);
-}
 
 static int
 rb_probe(platform_t plat)
@@ -116,8 +80,6 @@ rb_attach(platform_t plat)
 	error = mpc85xx_attach(plat);
 	if (error)
 		return (error);
-
-	flash_register_slicer(rb_nand_slicer);
 
 	return (0);
 }

@@ -158,7 +158,7 @@ print_sta_stats(FILE *fd, const u_int8_t macaddr[IEEE80211_ADDR_LEN])
 
 void
 usage(void) {
-	printf("wlanstats: [-ah] [-i ifname] [-l] [-o fmt] [interval]\n");
+	printf("wlanstats: [-ah] [-i ifname] [-l] [-m station MAC address] [-o fmt] [interval]\n");
 }
 
 int

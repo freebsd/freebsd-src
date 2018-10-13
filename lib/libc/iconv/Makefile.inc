@@ -22,5 +22,5 @@ SRCS+=	iconv_compat.c
 SYM_MAPS+= ${LIBC_SRCTOP}/iconv/Symbol.map
 
 .if ${MK_ICONV} == yes
-.include "${LIBC_SRCTOP}/../libc_nonshared/Makefile.iconv"
+.include "${SRCTOP}/lib/libc_nonshared/Makefile.iconv"
 .endif

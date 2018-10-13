@@ -1,4 +1,4 @@
-/* $NetBSD: t_pow.c,v 1.3 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_pow.c,v 1.5 2017/01/20 21:15:56 maya Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,14 +29,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_pow.c,v 1.3 2014/03/03 10:39:08 martin Exp $");
+__RCSID("$NetBSD: t_pow.c,v 1.5 2017/01/20 21:15:56 maya Exp $");
 
 #include <atf-c.h>
 #include <math.h>
-
-#ifdef __FreeBSD__
-#define isinff isinf
-#endif
 
 /*
  * pow(3)
@@ -284,21 +280,18 @@ ATF_TC_BODY(pow_zero_x, tc)
 	z = pow(+0.0, -4.0);
 
 	if (z != HUGE_VAL) {
-		atf_tc_expect_fail("PR port-amd64/45391");
 		atf_tc_fail_nonfatal("pow(+0.0, -4.0) != HUGE_VAL");
 	}
 
 	z = pow(-0.0, -4.0);
 
 	if (z != HUGE_VAL) {
-		atf_tc_expect_fail("PR port-amd64/45391");
 		atf_tc_fail_nonfatal("pow(-0.0, -4.0) != HUGE_VAL");
 	}
 
 	z = pow(+0.0, -5.0);
 
 	if (z != HUGE_VAL) {
-		atf_tc_expect_fail("PR port-amd64/45391");
 		atf_tc_fail_nonfatal("pow(+0.0, -5.0) != HUGE_VAL");
 	}
 
@@ -386,12 +379,12 @@ ATF_TC_BODY(powf_inf_neg_x, tc)
 	 */
 	z = powf(x, 3.0);
 
-	if (isinff(z) == 0 || signbit(z) == 0)
+	if (isinf(z) == 0 || signbit(z) == 0)
 		atf_tc_fail_nonfatal("powf(-Inf, 3.0) != -Inf");
 
 	z = powf(x, 4.0);
 
-	if (isinff(z) == 0 || signbit(z) != 0)
+	if (isinf(z) == 0 || signbit(z) != 0)
 		atf_tc_fail_nonfatal("powf(-Inf, 4.0) != +Inf");
 
 	/*
@@ -428,7 +421,7 @@ ATF_TC_BODY(powf_inf_neg_y, tc)
 	 */
 	z = powf(0.1, y);
 
-	if (isinff(z) == 0 || signbit(z) != 0)
+	if (isinf(z) == 0 || signbit(z) != 0)
 		atf_tc_fail_nonfatal("powf(0.1, -Inf) != +Inf");
 
 	z = powf(1.1, y);
@@ -459,7 +452,7 @@ ATF_TC_BODY(powf_inf_pos_x, tc)
 
 	z = powf(x, 2.0);
 
-	if (isinff(z) == 0 || signbit(z) != 0)
+	if (isinf(z) == 0 || signbit(z) != 0)
 		atf_tc_fail_nonfatal("powf(+Inf, 2.0) != +Inf");
 }
 
@@ -485,7 +478,7 @@ ATF_TC_BODY(powf_inf_pos_y, tc)
 
 	z = powf(1.1, y);
 
-	if (isinff(z) == 0 || signbit(z) != 0)
+	if (isinf(z) == 0 || signbit(z) != 0)
 		atf_tc_fail_nonfatal("powf(1.1, +Inf) != +Inf");
 }
 
@@ -503,8 +496,8 @@ ATF_TC_BODY(powf_one_neg_x, tc)
 	/*
 	 * If x is -1.0, and y is +-Inf, 1.0 shall be returned.
 	 */
-	ATF_REQUIRE(isinff(infp) != 0);
-	ATF_REQUIRE(isinff(infn) != 0);
+	ATF_REQUIRE(isinf(infp) != 0);
+	ATF_REQUIRE(isinf(infn) != 0);
 
 	if (powf(-1.0, infp) != 1.0) {
 		atf_tc_expect_fail("PR lib/45372");

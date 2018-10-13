@@ -172,7 +172,8 @@ int get_wpa_status(const char *ifname, const char *field, char *obuf,
 	if (ctrl == NULL)
 		return -1;
 	len = sizeof(buf);
-	if (wpa_ctrl_request(ctrl, "STATUS", 6, buf, &len, NULL) < 0) {
+	if (wpa_ctrl_request(ctrl, "STATUS-NO_EVENTS", 16, buf, &len,
+			     NULL) < 0) {
 		wpa_ctrl_close(ctrl);
 		return -1;
 	}

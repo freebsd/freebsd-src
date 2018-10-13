@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -232,7 +234,7 @@ struct usb_m_copy_in_arg {
 static int
 usbd_m_copy_in_cb(void *arg, void *src, uint32_t count)
 {
-	register struct usb_m_copy_in_arg *ua = arg;
+	struct usb_m_copy_in_arg *ua = arg;
 
 	usbd_copy_in(ua->cache, ua->dst_offset, src, count);
 	ua->dst_offset += count;
@@ -508,7 +510,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 done:
 	owned = mtx_owned(uptag->mtx);
 	if (!owned)
-		mtx_lock(uptag->mtx);
+		USB_MTX_LOCK(uptag->mtx);
 
 	uptag->dma_error = (error ? 1 : 0);
 	if (isload) {
@@ -517,7 +519,7 @@ done:
 		cv_broadcast(uptag->cv);
 	}
 	if (!owned)
-		mtx_unlock(uptag->mtx);
+		USB_MTX_UNLOCK(uptag->mtx);
 }
 
 /*------------------------------------------------------------------------*
@@ -592,7 +594,7 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 	pc->tag = utag->tag;
 	pc->ismultiseg = (align == 1);
 
-	mtx_lock(uptag->mtx);
+	USB_MTX_LOCK(uptag->mtx);
 
 	/* load memory into DMA */
 	err = bus_dmamap_load(
@@ -603,7 +605,7 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 		cv_wait(uptag->cv, uptag->mtx);
 		err = 0;
 	}
-	mtx_unlock(uptag->mtx);
+	USB_MTX_UNLOCK(uptag->mtx);
 
 	if (err || uptag->dma_error) {
 		bus_dmamem_free(utag->tag, ptr, map);
@@ -659,7 +661,7 @@ usb_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 	pc->page_offset_end = size;
 	pc->ismultiseg = 1;
 
-	mtx_assert(pc->tag_parent->mtx, MA_OWNED);
+	USB_MTX_ASSERT(pc->tag_parent->mtx, MA_OWNED);
 
 	if (size > 0) {
 		if (sync) {
@@ -917,7 +919,7 @@ usb_bdma_work_loop(struct usb_xfer_queue *pq)
 	xfer = pq->curr;
 	info = xfer->xroot;
 
-	mtx_assert(info->xfer_mtx, MA_OWNED);
+	USB_MTX_ASSERT(info->xfer_mtx, MA_OWNED);
 
 	if (xfer->error) {
 		/* some error happened */
@@ -1041,7 +1043,7 @@ usb_bdma_done_event(struct usb_dma_parent_tag *udpt)
 
 	info = USB_DMATAG_TO_XROOT(udpt);
 
-	mtx_assert(info->xfer_mtx, MA_OWNED);
+	USB_MTX_ASSERT(info->xfer_mtx, MA_OWNED);
 
 	/* copy error */
 	info->dma_error = udpt->dma_error;

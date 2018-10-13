@@ -2,6 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Scott Long
  * All rights reserved.
  *
@@ -85,6 +87,15 @@ __FBSDID("$FreeBSD$");
 #define	UMCT_SET_LCR_SIZE	1
 #define	UMCT_SET_MCR		10	/* Set Modem Control Register */
 #define	UMCT_SET_MCR_SIZE	1
+
+#define	UMCT_MSR_CTS_CHG	0x01
+#define	UMCT_MSR_DSR_CHG	0x02
+#define	UMCT_MSR_RI_CHG		0x04
+#define	UMCT_MSR_CD_CHG		0x08
+#define	UMCT_MSR_CTS		0x10
+#define	UMCT_MSR_RTS		0x20
+#define	UMCT_MSR_RI		0x40
+#define	UMCT_MSR_CD		0x80
 
 #define	UMCT_INTR_INTERVAL	100
 #define	UMCT_IFACE_INDEX	0
@@ -384,11 +395,23 @@ umct_intr_callback_sub(struct usb_xfer *xfer, usb_error_t error)
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, buf, sizeof(buf));
 
-		sc->sc_msr = buf[0];
+		/*
+		 * MSR bits need translation from ns16550 to SER_* values.
+		 * LSR bits are ns16550 in hardware and ucom.
+		 */
+		sc->sc_msr = 0;
+		if (buf[0] & UMCT_MSR_CTS)
+			sc->sc_msr |= SER_CTS;
+		if (buf[0] & UMCT_MSR_CD)
+			sc->sc_msr |= SER_DCD;
+		if (buf[0] & UMCT_MSR_RI)
+			sc->sc_msr |= SER_RI;
+		if (buf[0] & UMCT_MSR_RTS)
+			sc->sc_msr |= SER_DSR;
 		sc->sc_lsr = buf[1];
 
 		ucom_status_change(&sc->sc_ucom);
-
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));

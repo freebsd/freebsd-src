@@ -84,14 +84,6 @@ CODE {
 	{
 		return;
 	}
-	static void platform_null_idle(platform_t plat, int cpu)
-	{
-		return;
-	}
-	static int platform_null_idle_wakeup(platform_t plat, int cpu)
-	{
-		return (0);
-	}
 };
 
 /**
@@ -219,25 +211,20 @@ METHOD void reset {
 };
 
 /**
- * @brief Idle a CPU
- */
-METHOD void idle {
-	platform_t	_plat;
-	int		_cpu;
-} DEFAULT platform_null_idle;
-
-/**
- * @brief Wake up an idle CPU
- */
-METHOD int idle_wakeup {
-	platform_t	_plat;
-	int		_cpu;
-} DEFAULT platform_null_idle_wakeup;
-
-/**
  * @brief Suspend the CPU
  */
 METHOD void sleep {
 	platform_t	_plat;
+};
+
+/**
+ * @brief Attempt to synchronize timebase of current CPU with others.
+ * Entered (approximately) simultaneously on all CPUs, including the BSP.
+ * Passed the timebase value on the BSP as of shortly before the call.
+ */
+METHOD void smp_timebase_sync {
+	platform_t	_plat;
+	u_long		_tb;
+	int		_ap;
 };
 

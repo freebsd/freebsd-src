@@ -523,14 +523,16 @@ static void
 umoscom_cfg_get_status(struct ucom_softc *ucom, uint8_t *p_lsr, uint8_t *p_msr)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
-	uint8_t lsr;
 	uint8_t msr;
 
 	DPRINTFN(5, "\n");
 
-	/* read status registers */
+	/*
+	 * Read status registers.  MSR bits need translation from ns16550 to
+	 * SER_* values.  LSR bits are ns16550 in hardware and ucom.
+	 */
 
-	lsr = umoscom_cfg_read(sc, UMOSCOM_LSR);
+	*p_lsr = umoscom_cfg_read(sc, UMOSCOM_LSR);
 	msr = umoscom_cfg_read(sc, UMOSCOM_MSR);
 
 	/* translate bits */

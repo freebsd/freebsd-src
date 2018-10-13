@@ -1,4 +1,4 @@
-/*	$NetBSD: t_etfs.c,v 1.10 2014/05/12 15:33:12 christos Exp $	*/
+/*	$NetBSD: t_etfs.c,v 1.11 2017/01/13 21:30:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(reregister_reg);
 ATF_TC_HEAD(reregister_reg, tc)

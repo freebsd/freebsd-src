@@ -32,11 +32,20 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_MakeMd5Mac(void);
 extern void test_MakeSHA1Mac(void);
+extern void test_MakeCMac(void);
 extern void test_VerifyCorrectMD5(void);
 extern void test_VerifySHA1(void);
+extern void test_VerifyCMAC(void);
 extern void test_VerifyFailure(void);
 extern void test_PacketSizeNotMultipleOfFourBytes(void);
 
+
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
 
 //=======Test Reset Option=====
 void resetTest(void);
@@ -53,13 +62,16 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("crypto.c");
-  RUN_TEST(test_MakeMd5Mac, 12);
-  RUN_TEST(test_MakeSHA1Mac, 13);
-  RUN_TEST(test_VerifyCorrectMD5, 14);
-  RUN_TEST(test_VerifySHA1, 15);
-  RUN_TEST(test_VerifyFailure, 16);
-  RUN_TEST(test_PacketSizeNotMultipleOfFourBytes, 17);
+  RUN_TEST(test_MakeMd5Mac, 15);
+  RUN_TEST(test_MakeSHA1Mac, 16);
+  RUN_TEST(test_MakeCMac, 17);
+  RUN_TEST(test_VerifyCorrectMD5, 18);
+  RUN_TEST(test_VerifySHA1, 19);
+  RUN_TEST(test_VerifyCMAC, 20);
+  RUN_TEST(test_VerifyFailure, 21);
+  RUN_TEST(test_PacketSizeNotMultipleOfFourBytes, 22);
 
   return (UnityEnd());
 }

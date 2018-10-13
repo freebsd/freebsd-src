@@ -666,6 +666,8 @@ mprintf_clock_stats(
  * peer ip address
  * IP address
  * t1 t2 t3 t4 timestamps
+ * leap, version, mode, stratum, ppoll, precision, root delay, root dispersion, REFID
+ * length and hex dump of any EFs and any legacy MAC.
  */
 void
 record_raw_stats(
@@ -683,7 +685,9 @@ record_raw_stats(
 	int	precision,
 	double	root_delay,	/* seconds */
 	double	root_dispersion,/* seconds */
-	u_int32	refid
+	u_int32	refid,
+	int	len,
+	u_char	*extra
 	)
 {
 	l_fp	now;
@@ -697,13 +701,23 @@ record_raw_stats(
 	day = now.l_ui / 86400 + MJD_1900;
 	now.l_ui %= 86400;
 	if (rawstats.fp != NULL) {
-		fprintf(rawstats.fp, "%lu %s %s %s %s %s %s %s %d %d %d %d %d %d %.6f %.6f %s\n",
+		fprintf(rawstats.fp, "%lu %s %s %s %s %s %s %s %d %d %d %d %d %d %.6f %.6f %s",
 		    day, ulfptoa(&now, 3),
-		    stoa(srcadr), dstadr ?  stoa(dstadr) : "-",
+		    srcadr ? stoa(srcadr) : "-",
+		    dstadr ? stoa(dstadr) : "-",
 		    ulfptoa(t1, 9), ulfptoa(t2, 9),
 		    ulfptoa(t3, 9), ulfptoa(t4, 9),
 		    leap, version, mode, stratum, ppoll, precision,
 		    root_delay, root_dispersion, refid_str(refid, stratum));
+		if (len > 0) {
+			int i;
+
+			fprintf(rawstats.fp, " %d: ", len);
+			for (i = 0; i < len; ++i) {
+				fprintf(rawstats.fp, "%02x", extra[i]);
+			}
+		}
+		fprintf(rawstats.fp, "\n");
 		fflush(rawstats.fp);
 	}
 }

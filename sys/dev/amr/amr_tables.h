@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.

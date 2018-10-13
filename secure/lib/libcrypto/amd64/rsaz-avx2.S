@@ -1,20 +1,29 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from rsaz-avx2.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from rsaz-avx2.pl. */
 .text	
 
 .globl	rsaz_1024_sqr_avx2
 .type	rsaz_1024_sqr_avx2,@function
 .align	64
 rsaz_1024_sqr_avx2:
+.cfi_startproc	
 	leaq	(%rsp),%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 	vzeroupper
 	movq	%rax,%rbp
+.cfi_def_cfa_register	%rbp
 	movq	%rdx,%r13
 	subq	$832,%rsp
 	movq	%r13,%r15
@@ -68,7 +77,7 @@ rsaz_1024_sqr_avx2:
 	vmovdqu	256-128(%rsi),%ymm8
 
 	leaq	192(%rsp),%rbx
-	vpbroadcastq	.Land_mask(%rip),%ymm15
+	vmovdqu	.Land_mask(%rip),%ymm15
 	jmp	.LOOP_GRANDE_SQR_1024
 
 .align	32
@@ -627,28 +636,46 @@ rsaz_1024_sqr_avx2:
 
 	vzeroall
 	movq	%rbp,%rax
+.cfi_def_cfa_register	%rax
 	movq	-48(%rax),%r15
+.cfi_restore	%r15
 	movq	-40(%rax),%r14
+.cfi_restore	%r14
 	movq	-32(%rax),%r13
+.cfi_restore	%r13
 	movq	-24(%rax),%r12
+.cfi_restore	%r12
 	movq	-16(%rax),%rbp
+.cfi_restore	%rbp
 	movq	-8(%rax),%rbx
+.cfi_restore	%rbx
 	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lsqr_1024_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	rsaz_1024_sqr_avx2,.-rsaz_1024_sqr_avx2
 .globl	rsaz_1024_mul_avx2
 .type	rsaz_1024_mul_avx2,@function
 .align	64
 rsaz_1024_mul_avx2:
+.cfi_startproc	
 	leaq	(%rsp),%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 	movq	%rax,%rbp
+.cfi_def_cfa_register	%rbp
 	vzeroall
 	movq	%rdx,%r13
 	subq	$64,%rsp
@@ -801,10 +828,10 @@ rsaz_1024_mul_avx2:
 	vpmuludq	192-128(%rcx),%ymm11,%ymm12
 	vpaddq	%ymm12,%ymm6,%ymm6
 	vpmuludq	224-128(%rcx),%ymm11,%ymm13
-	vpblendd	$3,%ymm14,%ymm9,%ymm9
+	vpblendd	$3,%ymm14,%ymm9,%ymm12
 	vpaddq	%ymm13,%ymm7,%ymm7
 	vpmuludq	256-128(%rcx),%ymm11,%ymm0
-	vpaddq	%ymm9,%ymm3,%ymm3
+	vpaddq	%ymm12,%ymm3,%ymm3
 	vpaddq	%ymm0,%ymm8,%ymm8
 
 	movq	%rbx,%rax
@@ -817,7 +844,9 @@ rsaz_1024_mul_avx2:
 	vmovdqu	-8+64-128(%rsi),%ymm13
 
 	movq	%r10,%rax
+	vpblendd	$0xfc,%ymm14,%ymm9,%ymm9
 	imull	%r8d,%eax
+	vpaddq	%ymm9,%ymm4,%ymm4
 	andl	$0x1fffffff,%eax
 
 	imulq	16-128(%rsi),%rbx
@@ -1046,7 +1075,6 @@ rsaz_1024_mul_avx2:
 
 	decl	%r14d
 	jnz	.Loop_mul_1024
-	vpermq	$0,%ymm15,%ymm15
 	vpaddq	(%rsp),%ymm12,%ymm0
 
 	vpsrlq	$29,%ymm0,%ymm12
@@ -1163,15 +1191,24 @@ rsaz_1024_mul_avx2:
 	vzeroupper
 
 	movq	%rbp,%rax
+.cfi_def_cfa_register	%rax
 	movq	-48(%rax),%r15
+.cfi_restore	%r15
 	movq	-40(%rax),%r14
+.cfi_restore	%r14
 	movq	-32(%rax),%r13
+.cfi_restore	%r13
 	movq	-24(%rax),%r12
+.cfi_restore	%r12
 	movq	-16(%rax),%rbp
+.cfi_restore	%rbp
 	movq	-8(%rax),%rbx
+.cfi_restore	%rbx
 	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_1024_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	rsaz_1024_mul_avx2,.-rsaz_1024_mul_avx2
 .globl	rsaz_1024_red2norm_avx2
 .type	rsaz_1024_red2norm_avx2,@function
@@ -1556,8 +1593,10 @@ rsaz_1024_scatter5_avx2:
 .type	rsaz_1024_gather5_avx2,@function
 .align	32
 rsaz_1024_gather5_avx2:
+.cfi_startproc	
 	vzeroupper
 	movq	%rsp,%r11
+.cfi_def_cfa_register	%r11
 	leaq	-256(%rsp),%rsp
 	andq	$-32,%rsp
 	leaq	.Linc(%rip),%r10
@@ -1666,7 +1705,10 @@ rsaz_1024_gather5_avx2:
 	vmovdqu	%ymm0,(%rdi)
 	vzeroupper
 	leaq	(%r11),%rsp
+.cfi_def_cfa_register	%rsp
 	.byte	0xf3,0xc3
+.cfi_endproc	
+.LSEH_end_rsaz_1024_gather5:
 .size	rsaz_1024_gather5_avx2,.-rsaz_1024_gather5_avx2
 
 .globl	rsaz_avx2_eligible
@@ -1686,7 +1728,7 @@ rsaz_avx2_eligible:
 
 .align	64
 .Land_mask:
-.quad	0x1fffffff,0x1fffffff,0x1fffffff,-1
+.quad	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
 .Lscatter_permd:
 .long	0,2,4,6,7,7,7,7
 .Lgather_permd:

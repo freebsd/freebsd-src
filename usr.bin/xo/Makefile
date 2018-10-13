@@ -4,6 +4,7 @@
 
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
+.PATH:
 .PATH:	${LIBXOSRC}/xo
 
 PROG=	xo
@@ -17,8 +18,7 @@ CFLAGS+=-I${SRCTOP}/lib/libxo
 
 LIBADD=	xo util
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

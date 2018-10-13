@@ -1,6 +1,8 @@
 /*	$NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 Christos Zoulas. All rights reserved.
  * Copyright (c) 1980, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -215,7 +217,7 @@ main(int argc, char *argv[])
 			if (vfstype == NULL)
 				vfstype = getfstype(spec);
 			if (vfstype == NULL)
-				errx(1, "Could not determine filesystem type");
+				vfstype = "ufs";
 			type = vfstype;
 			devcheck(spec);
 		} else {

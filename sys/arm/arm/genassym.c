@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Olivier Houchard
  * All rights reserved.
  *
@@ -31,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
@@ -49,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/intr.h>
 #include <machine/sysarch.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -57,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 
 ASSYM(KERNBASE, KERNBASE);
+ASSYM(KERNVIRTADDR, KERNVIRTADDR);
 #if __ARM_ARCH >= 6
 ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
 #endif
@@ -81,6 +86,9 @@ ASSYM(PCB_R12, offsetof(struct pcb, pcb_regs.sf_r12));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_regs.sf_sp));
 ASSYM(PCB_LR, offsetof(struct pcb, pcb_regs.sf_lr));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_regs.sf_pc));
+#if __ARM_ARCH >= 6
+ASSYM(PCB_TPIDRURW, offsetof(struct pcb, pcb_regs.sf_tpidrurw));
+#endif
 
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
@@ -89,19 +97,21 @@ ASSYM(M_DATA, offsetof(struct mbuf, m_data));
 ASSYM(M_NEXT, offsetof(struct mbuf, m_next));
 ASSYM(IP_SRC, offsetof(struct ip, ip_src));
 ASSYM(IP_DST, offsetof(struct ip, ip_dst));
+#if __ARM_ARCH < 6
 ASSYM(CF_CONTEXT_SWITCH, offsetof(struct cpu_functions, cf_context_switch));
 ASSYM(CF_DCACHE_WB_RANGE, offsetof(struct cpu_functions, cf_dcache_wb_range));
 ASSYM(CF_IDCACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_idcache_wbinv_all));
 ASSYM(CF_L2CACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_l2cache_wbinv_all));
 ASSYM(CF_TLB_FLUSHID_SE, offsetof(struct cpu_functions, cf_tlb_flushID_SE));
+#endif
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
-ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
 #if __ARM_ARCH < 6
+ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
 ASSYM(MD_RAS_START, offsetof(struct mdthread, md_ras_start));
 ASSYM(MD_RAS_END, offsetof(struct mdthread, md_ras_end));
 #endif
@@ -127,6 +137,10 @@ ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
 
 #if __ARM_ARCH >= 6
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
+ASSYM(PC_BP_HARDEN_KIND, offsetof(struct pcpu, pc_bp_harden_kind));
+ASSYM(PCPU_BP_HARDEN_KIND_NONE, PCPU_BP_HARDEN_KIND_NONE);
+ASSYM(PCPU_BP_HARDEN_KIND_BPIALL, PCPU_BP_HARDEN_KIND_BPIALL);
+ASSYM(PCPU_BP_HARDEN_KIND_ICIALLU, PCPU_BP_HARDEN_KIND_ICIALLU);
 #endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
@@ -154,3 +168,12 @@ ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
 ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
 ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));
+
+/*
+ * Emit the LOCORE_MAP_MB option as a #define only if the option was set.
+ */
+#include "opt_locore.h"
+
+#ifdef LOCORE_MAP_MB
+ASSYM(LOCORE_MAP_MB, LOCORE_MAP_MB);
+#endif

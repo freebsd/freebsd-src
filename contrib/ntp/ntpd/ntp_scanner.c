@@ -167,6 +167,7 @@ lex_getch(
 		stream->backch = EOF;
 		if (stream->fpi)
 			conf_file_sum += ch;
+		stream->curpos.ncol++;
 	} else if (stream->fpi) {
 		/* fetch next 7-bit ASCII char (or EOF) from file */
 		while ((ch = fgetc(stream->fpi)) != EOF && ch > SCHAR_MAX)
@@ -892,7 +893,6 @@ yylex(void)
 		}
 	}
 
-	instring = FALSE;
 	if (FOLLBY_STRING == followedby)
 		followedby = FOLLBY_TOKEN;
 

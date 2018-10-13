@@ -53,13 +53,12 @@ __FBSDID("$FreeBSD$");
 #define	SCLK_GATING		(1 << 31)
 #define	CLK_SRC_SEL		(0x3 << 24)
 #define	CLK_SRC_SEL_SHIFT	24
-#define	CLK_SRC_SEL_MAX		0x3
 #define	CLK_RATIO_N		(0x3 << 16)
 #define	CLK_RATIO_N_SHIFT	16
 #define	CLK_RATIO_N_MAX		0x3
-#define	CLK_RATIO_M		(0x1f << 0)
+#define	CLK_RATIO_M		(0xf << 0)
 #define	CLK_RATIO_M_SHIFT	0
-#define	CLK_RATIO_M_MAX		0x1f
+#define	CLK_RATIO_M_MAX		0xf
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-mod0-clk",	1 },
@@ -90,7 +89,10 @@ aw_modclk_init(struct clknode *clk, device_t dev)
 
 	index = (val & CLK_SRC_SEL) >> CLK_SRC_SEL_SHIFT;
 
-	clknode_init_parent_idx(clk, index);
+	if (index <= clknode_get_parents_num(clk))
+		clknode_init_parent_idx(clk, index);
+	else
+		clknode_init_parent_idx(clk, 0);
 	return (0);
 }
 
@@ -102,7 +104,7 @@ aw_modclk_set_mux(struct clknode *clk, int index)
 
 	sc = clknode_get_softc(clk);
 
-	if (index < 0 || index > CLK_SRC_SEL_MAX)
+	if (index < 0 || index >= clknode_get_parents_num(clk))
 		return (ERANGE);
 
 	DEVICE_LOCK(sc);
@@ -160,27 +162,57 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
     int flags, int *stop)
 {
 	struct aw_modclk_sc *sc;
-	uint32_t val, m, n, best_m, best_n;
+	struct clknode *parent_clk, *best_parent;
+	const char **parent_names;
+	uint32_t val, m, n, src, best_m, best_n, best_src;
 	uint64_t cur_freq;
 	int64_t best_diff, cur_diff;
+	int error;
 
 	sc = clknode_get_softc(clk);
 	best_n = best_m = 0;
 	best_diff = (int64_t)*fout; 
+	best_src = 0;
 
-	for (n = 0; n <= CLK_RATIO_N_MAX; n++)
-		for (m = 0; m <= CLK_RATIO_M_MAX; m++) {
-			cur_freq = fin / (1 << n) / (m + 1);
-			cur_diff = (int64_t)*fout - cur_freq;
-			if (cur_diff >= 0 && cur_diff < best_diff) {
-				best_diff = cur_diff;
-				best_m = m;
-				best_n = n;
+	parent_names = clknode_get_parent_names(clk);
+	for (src = 0; src < clknode_get_parents_num(clk); src++) {
+		parent_clk = clknode_find_by_name(parent_names[src]);
+		if (parent_clk == NULL)
+			continue;
+		error = clknode_get_freq(parent_clk, &fin);
+		if (error != 0)
+			continue;
+
+		for (n = 0; n <= CLK_RATIO_N_MAX; n++)
+			for (m = 0; m <= CLK_RATIO_M_MAX; m++) {
+				cur_freq = fin / (1 << n) / (m + 1);
+				cur_diff = (int64_t)*fout - cur_freq;
+				if (cur_diff >= 0 && cur_diff < best_diff) {
+					best_src = src;
+					best_parent = parent_clk;
+					best_diff = cur_diff;
+					best_m = m;
+					best_n = n;
+				}
 			}
-		}
+	}
 
 	if (best_diff == (int64_t)*fout)
 		return (ERANGE);
+
+	error = clknode_get_freq(best_parent, &fin);
+	if (error != 0)
+		return (error);
+
+	*fout = fin / (1 << best_n) / (best_m + 1);
+	*stop = 1;
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
+	error = clknode_set_parent_by_idx(clk, best_src);
+	if (error != 0)
+		return (error);
 
 	DEVICE_LOCK(sc);
 	MODCLK_READ(sc, &val);
@@ -189,9 +221,6 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	val |= (best_m << CLK_RATIO_M_SHIFT);
 	MODCLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
-
-	*fout = fin / (1 << best_n) / (best_m + 1);
-	*stop = 1;
 
 	return (0);
 }
@@ -260,7 +289,7 @@ aw_modclk_attach(device_t dev)
 	def.id = 1;
 	def.parent_names = malloc(sizeof(char *) * ncells, M_OFWPROP, M_WAITOK);
 	for (i = 0; i < ncells; i++) {
-		error = clk_get_by_ofw_index(dev, i, &clk_parent);
+		error = clk_get_by_ofw_index(dev, 0, i, &clk_parent);
 		if (error != 0) {
 			device_printf(dev, "cannot get clock %d\n", i);
 			goto fail;

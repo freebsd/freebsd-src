@@ -49,6 +49,8 @@ verify_zip_filesize(uint64_t size, int expected)
 	archive_entry_set_size(ae, size);
 	assertEqualInt(expected, archive_write_header(a, ae));
 
+	archive_entry_free(ae);
+
 	/* Don't actually write 4GB! ;-) */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
 }

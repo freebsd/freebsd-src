@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -87,6 +89,7 @@ struct intel_gtt *intel_gtt_get(void);
 int intel_gtt_chipset_flush(void);
 void intel_gtt_unmap_memory(struct sglist *sg_list);
 void intel_gtt_clear_range(u_int first_entry, u_int num_entries);
+void intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags);
 int intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
     struct sglist **sg_list);
 void intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int pg_start,

@@ -106,7 +106,12 @@ crop_children(svn_wc__db_t *db,
           svn_boolean_t modified, all_deletes;
 
           if (child_status != svn_wc__db_status_deleted)
-            continue; /* Leave local additions alone */
+            {
+              /* ### TODO: Check for issue #4636 constraints, but not only on
+                     this node, but also at all its descendants: We don't want
+                     to remove moved_from information here! */
+              continue; /* Leave local additions alone */
+            }
 
           SVN_ERR(svn_wc__node_has_local_mods(&modified, &all_deletes,
                                               db, child_abspath, FALSE,

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -233,9 +235,8 @@ _db_show_sta(const struct ieee80211_node *ni)
 	db_printf("\tvap %p wdsvap %p ic %p table %p\n",
 		ni->ni_vap, ni->ni_wdsvap, ni->ni_ic, ni->ni_table);
 	db_printf("\tflags=%b\n", ni->ni_flags, IEEE80211_NODE_BITS);
-	db_printf("\tscangen %u authmode %u ath_flags 0x%x ath_defkeyix %u\n",
-		ni->ni_scangen, ni->ni_authmode,
-		ni->ni_ath_flags, ni->ni_ath_defkeyix);
+	db_printf("\tauthmode %u ath_flags 0x%x ath_defkeyix %u\n",
+		ni->ni_authmode, ni->ni_ath_flags, ni->ni_ath_defkeyix);
 	db_printf("\tassocid 0x%x txpower %u vlan %u\n",
 		ni->ni_associd, ni->ni_txpower, ni->ni_vlan);
 	db_printf("\tjointime %d (%lu secs) challenge %p\n",
@@ -507,6 +508,8 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	db_printf("\tsoftc %p", ic->ic_softc);
 	db_printf("\tname %s", ic->ic_name);
 	db_printf(" comlock %p", &ic->ic_comlock);
+	db_printf(" txlock %p", &ic->ic_txlock);
+	db_printf(" fflock %p", &ic->ic_fflock);
 	db_printf("\n");
 	db_printf("\theadroom %d", ic->ic_headroom);
 	db_printf(" phytype %d", ic->ic_phytype);
@@ -688,8 +691,6 @@ _db_show_node_table(const char *tag, const struct ieee80211_node_table *nt)
 	db_printf("%s%s@%p:\n", tag, nt->nt_name, nt);
 	db_printf("%s nodelock %p", tag, &nt->nt_nodelock);
 	db_printf(" inact_init %d", nt->nt_inact_init);
-	db_printf(" scanlock %p", &nt->nt_scanlock);
-	db_printf(" scangen %u\n", nt->nt_scangen);
 	db_printf("%s keyixmax %d keyixmap %p\n",
 	    tag, nt->nt_keyixmax, nt->nt_keyixmap);
 	for (i = 0; i < nt->nt_keyixmax; i++) {

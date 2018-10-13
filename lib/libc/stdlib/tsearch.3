@@ -27,7 +27,7 @@
 .\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2015
+.Dd June 4, 2017
 .Dt TSEARCH 3
 .Os
 .Sh NAME
@@ -36,13 +36,13 @@
 .Sh SYNOPSIS
 .In search.h
 .Ft void *
-.Fn tdelete "const void * restrict key" "void ** restrict rootp" "int (*compar) (const void *, const void *)"
-.Ft void *
-.Fn tfind "const void *key" "void * const *rootp" "int (*compar) (const void *, const void *)"
-.Ft void *
-.Fn tsearch "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
+.Fn tdelete "const void * restrict key" "posix_tnode ** restrict rootp" "int (*compar) (const void *, const void *)"
+.Ft posix_tnode *
+.Fn tfind "const void *key" "posix_tnode * const *rootp" "int (*compar) (const void *, const void *)"
+.Ft posix_tnode *
+.Fn tsearch "const void *key" "posix_tnode **rootp" "int (*compar) (const void *, const void *)"
 .Ft void
-.Fn twalk "const void *root" "void (*action) (const void *, VISIT, int)"
+.Fn twalk "const posix_tnode *root" "void (*action) (const posix_tnode *, VISIT, int)"
 .Sh DESCRIPTION
 The
 .Fn tdelete ,
@@ -130,7 +130,80 @@ is NULL or the datum cannot be found.
 The
 .Fn twalk
 function returns no value.
+.Sh EXAMPLES
+This example uses
+.Fn tsearch
+to search for four strings in
+.Dv root .
+Because the strings are not already present, they are added.
+.Fn tsearch
+is called twice on the fourth string to demonstrate that a string is not added when it is already present.
+.Fn tfind
+is used to find the single instance of the fourth string, and
+.Fn tdelete
+removes it.
+Finally,
+.Fn twalk
+is used to return and display the resulting binary search tree.
+.Bd -literal
+#include <stdio.h>
+#include <search.h>
+#include <string.h>
+
+int
+comp(const void *a, const void *b)
+{
+
+	return strcmp(a, b);
+}
+
+void
+printwalk(const posix_tnode * node, VISIT v, int __unused0)
+{
+
+	if (v == postorder || v == leaf) {
+		printf("node: %s\en", *(char **)node);
+	}
+}
+
+int
+main(void)
+{
+	posix_tnode *root = NULL;
+
+	char one[] = "blah1";
+	char two[] = "blah-2";
+	char three[] = "blah-3";
+	char four[] = "blah-4";
+
+	tsearch(one, &root, comp);
+	tsearch(two, &root, comp);
+	tsearch(three, &root, comp);
+	tsearch(four, &root, comp);
+	tsearch(four, &root, comp);
+	printf("four: %s\en", *(char **)tfind(four, &root, comp));
+	tdelete(four, &root, comp);
+
+	twalk(root, printwalk);
+	return 0;
+}
+.Ed
 .Sh SEE ALSO
 .Xr bsearch 3 ,
 .Xr hsearch 3 ,
 .Xr lsearch 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fa posix_tnode
+type is not part of
+.St -p1003.1-2008 ,
+but is expected to be standardized by future versions of the standard.
+It is defined as
+.Fa void
+for source-level compatibility.
+Using
+.Fa posix_tnode
+makes distinguishing between nodes and keys easier.

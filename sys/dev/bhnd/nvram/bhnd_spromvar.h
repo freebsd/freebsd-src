@@ -34,8 +34,9 @@
 
 #include <dev/bhnd/bhnd.h>
 
+#include "bhnd_nvram_store.h"
+
 DECLARE_CLASS(bhnd_sprom_driver);
-struct bhnd_sprom;
 
 int	bhnd_sprom_probe(device_t dev);
 int	bhnd_sprom_attach(device_t dev, bus_size_t offset);
@@ -43,42 +44,13 @@ int	bhnd_sprom_resume(device_t dev);
 int	bhnd_sprom_suspend(device_t dev);
 int	bhnd_sprom_detach(device_t dev);
 
-int	bhnd_sprom_init(struct bhnd_sprom *sprom, struct bhnd_resource *r,
-	    bus_size_t offset);
-void	bhnd_sprom_fini(struct bhnd_sprom *sprom);
-int	bhnd_sprom_getvar(struct bhnd_sprom *sc, const char *name, void *buf,
-	    size_t *len);
-int	bhnd_sprom_setvar(struct bhnd_sprom *sc, const char *name,
-	    const void *buf, size_t len);
-
-/**
- * bhnd sprom parser instance state.
- */
-struct bhnd_sprom {
-	device_t		 dev;		/**< sprom parent device */
-
-	uint8_t			 sp_rev;	/**< sprom revision */
-	
-	struct bhnd_resource	*sp_res;	/**< sprom resource. */
-	bus_size_t		 sp_res_off;	/**< offset to sprom image */
-
-	uint8_t			*sp_shadow;	/**< sprom shadow */
-	bus_size_t		 sp_size_max;	/**< maximum possible sprom length */
-	size_t			 sp_size;	/**< shadow size */
-	size_t			 sp_capacity;	/**< shadow buffer capacity */
-};
-
-
 /**
  * bhnd_sprom driver instance state. Must be first member of all subclass
  * softc structures.
  */
 struct bhnd_sprom_softc {
-	device_t		 dev;
-	struct bhnd_resource	*sprom_res;	/**< SPROM resource */
-	int			 sprom_rid;	/**< SPROM RID */
-	struct bhnd_sprom	 shadow;	/**< SPROM shadow */
-	struct mtx		 mtx;		/**< SPROM shadow mutex */
+	device_t			 dev;
+	struct bhnd_nvram_store		*store;	/**< nvram store */
 };
 
 #endif /* _BHND_NVRAM_BHND_SPROMVAR_H_ */

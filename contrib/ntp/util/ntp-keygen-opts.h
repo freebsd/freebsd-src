@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntp-keygen-opts.h)
  *
- *  It has been AutoGen-ed  June  2, 2016 at 07:39:23 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  August 14, 2018 at 08:30:20 AM by AutoGen 5.18.5
  *  From the definitions    ntp-keygen-opts.def
  *  and the template file   options
  *
@@ -18,7 +18,7 @@
  * The ntp-keygen program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -75,13 +75,13 @@ typedef enum {
     INDEX_OPT_IFFKEY           =  8,
     INDEX_OPT_IDENT            =  9,
     INDEX_OPT_LIFETIME         = 10,
-    INDEX_OPT_MD5KEY           = 11,
-    INDEX_OPT_MODULUS          = 12,
+    INDEX_OPT_MODULUS          = 11,
+    INDEX_OPT_MD5KEY           = 12,
     INDEX_OPT_PVT_CERT         = 13,
     INDEX_OPT_PASSWORD         = 14,
     INDEX_OPT_EXPORT_PASSWD    = 15,
-    INDEX_OPT_SIGN_KEY         = 16,
-    INDEX_OPT_SUBJECT_NAME     = 17,
+    INDEX_OPT_SUBJECT_NAME     = 16,
+    INDEX_OPT_SIGN_KEY         = 17,
     INDEX_OPT_TRUSTED_CERT     = 18,
     INDEX_OPT_MV_PARAMS        = 19,
     INDEX_OPT_MV_KEYS          = 20,
@@ -94,9 +94,9 @@ typedef enum {
 /** count of all options for ntp-keygen */
 #define OPTION_CT    26
 /** ntp-keygen version */
-#define NTP_KEYGEN_VERSION       "4.2.8p8"
+#define NTP_KEYGEN_VERSION       "4.2.8p12"
 /** Full ntp-keygen version text */
-#define NTP_KEYGEN_FULL_VERSION  "ntp-keygen (ntp) 4.2.8p8"
+#define NTP_KEYGEN_FULL_VERSION  "ntp-keygen (ntp) 4.2.8p12"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -193,13 +193,13 @@ typedef enum {
 #  warning undefining LIFETIME due to option name conflict
 #  undef   LIFETIME
 # endif
-# ifdef    MD5KEY
-#  warning undefining MD5KEY due to option name conflict
-#  undef   MD5KEY
-# endif
 # ifdef    MODULUS
 #  warning undefining MODULUS due to option name conflict
 #  undef   MODULUS
+# endif
+# ifdef    MD5KEY
+#  warning undefining MD5KEY due to option name conflict
+#  undef   MD5KEY
 # endif
 # ifdef    PVT_CERT
 #  warning undefining PVT_CERT due to option name conflict
@@ -213,13 +213,13 @@ typedef enum {
 #  warning undefining EXPORT_PASSWD due to option name conflict
 #  undef   EXPORT_PASSWD
 # endif
-# ifdef    SIGN_KEY
-#  warning undefining SIGN_KEY due to option name conflict
-#  undef   SIGN_KEY
-# endif
 # ifdef    SUBJECT_NAME
 #  warning undefining SUBJECT_NAME due to option name conflict
 #  undef   SUBJECT_NAME
+# endif
+# ifdef    SIGN_KEY
+#  warning undefining SIGN_KEY due to option name conflict
+#  undef   SIGN_KEY
 # endif
 # ifdef    TRUSTED_CERT
 #  warning undefining TRUSTED_CERT due to option name conflict
@@ -245,13 +245,13 @@ typedef enum {
 # undef IFFKEY
 # undef IDENT
 # undef LIFETIME
-# undef MD5KEY
 # undef MODULUS
+# undef MD5KEY
 # undef PVT_CERT
 # undef PASSWORD
 # undef EXPORT_PASSWD
-# undef SIGN_KEY
 # undef SUBJECT_NAME
+# undef SIGN_KEY
 # undef TRUSTED_CERT
 # undef MV_PARAMS
 # undef MV_KEYS
@@ -280,16 +280,16 @@ typedef enum {
 #ifdef AUTOKEY
 #define OPT_VALUE_LIFETIME       (DESC(LIFETIME).optArg.argInt)
 #endif /* AUTOKEY */
-#define VALUE_OPT_MD5KEY         'M'
 #define VALUE_OPT_MODULUS        'm'
 #ifdef AUTOKEY
 #define OPT_VALUE_MODULUS        (DESC(MODULUS).optArg.argInt)
 #endif /* AUTOKEY */
+#define VALUE_OPT_MD5KEY         'M'
 #define VALUE_OPT_PVT_CERT       'P'
 #define VALUE_OPT_PASSWORD       'p'
 #define VALUE_OPT_EXPORT_PASSWD  'q'
-#define VALUE_OPT_SIGN_KEY       'S'
 #define VALUE_OPT_SUBJECT_NAME   's'
+#define VALUE_OPT_SIGN_KEY       'S'
 #define VALUE_OPT_TRUSTED_CERT   'T'
 #define VALUE_OPT_MV_PARAMS      'V'
 #ifdef AUTOKEY

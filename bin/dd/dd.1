@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2016
+.Dd August 8, 2018
 .Dt DD 1
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ displays the number of complete and partial input and output blocks
 and truncated input records to the standard error output.
 .Pp
 The following operands are available:
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.Bl -tag -width "of=file"
 .It Cm bs Ns = Ns Ar n
 Set both input and output block size to
 .Ar n
@@ -164,18 +164,20 @@ bytes per second.
 Where
 .Cm value
 is one of the symbols from the following list.
-.Bl -tag -width ".Cm noxfer"
+.Bl -tag -width "progress"
 .It Cm noxfer
 Do not print the transfer statistics as the last line of status output.
 .It Cm none
 Do not print the status output.
 Error messages are shown; informational messages are not.
+.It Cm progress
+Print basic transfer statistics once per second.
 .El
 .It Cm conv Ns = Ns Ar value Ns Op , Ns Ar value ...
 Where
 .Cm value
 is one of the symbols from the following list.
-.Bl -tag -width ".Cm unblock"
+.Bl -tag -width "unblock"
 .It Cm ascii , oldascii
 The same as the
 .Cm unblock
@@ -414,7 +416,7 @@ Check for (even) parity errors on a file:
 To create an image of a Mode-1 CD-ROM, which is a commonly used format
 for data CD-ROM disks, use a block size of 2048 bytes:
 .Pp
-.Dl "dd if=/dev/acd0 of=filename.iso bs=2048"
+.Dl "dd if=/dev/cd0 of=filename.iso bs=2048"
 .Pp
 Write a filesystem image to a memory stick, padding the end with zeros,
 if necessary, to a 1MiB boundary:
@@ -447,6 +449,11 @@ and
 values are extensions to the
 .Tn POSIX
 standard.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v5 .
 .Sh BUGS
 Protection mechanisms in the
 .Xr geom 4
@@ -454,4 +461,4 @@ subsystem might prevent the super-user from writing blocks to a disk.
 Instructions for temporarily disabling these protection mechanisms can be
 found in the
 .Xr geom 4
-manpage.
+man page.

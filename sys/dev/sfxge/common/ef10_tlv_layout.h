@@ -432,6 +432,7 @@ struct tlv_firmware_options {
 #define TLV_FIRMWARE_VARIANT_HIGH_TX_RATE    MC_CMD_FW_HIGH_TX_RATE
 #define TLV_FIRMWARE_VARIANT_PACKED_STREAM_HASH_MODE_1 \
                                              MC_CMD_FW_PACKED_STREAM_HASH_MODE_1
+#define TLV_FIRMWARE_VARIANT_RULES_ENGINE    MC_CMD_FW_RULES_ENGINE
 };
 
 /* Voltage settings
@@ -553,12 +554,14 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_40G                        (1) /* 40G, single QSFP/40G-KR */
 #define TLV_PORT_MODE_10G_10G                    (2) /* 2x10G, dual SFP/10G-KR or single QSFP */
 #define TLV_PORT_MODE_40G_40G                    (3) /* 40G + 40G, dual QSFP/40G-KR (Greenport, Medford) */
-#define TLV_PORT_MODE_10G_10G_10G_10G            (4) /* 2x10G + 2x10G, quad SFP/10G-KR or dual QSFP (Greenport, Medford) */
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q          (5) /* 4x10G, single QSFP, cage 0 (Medford) */
+#define TLV_PORT_MODE_10G_10G_10G_10G            (4) /* 2x10G + 2x10G, quad SFP/10G-KR or dual QSFP (Greenport) */
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1         (4) /* 4x10G, single QSFP, cage 0 (Medford) */
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q          (5) /* 4x10G, single QSFP, cage 0 (Medford) OBSOLETE DO NOT USE */
 #define TLV_PORT_MODE_40G_10G_10G                (6) /* 1x40G + 2x10G, dual QSFP (Greenport, Medford) */
 #define TLV_PORT_MODE_10G_10G_40G                (7) /* 2x10G + 1x40G, dual QSFP (Greenport, Medford) */
 #define TLV_PORT_MODE_10G_10G_10G_10G_Q2         (8) /* 4x10G, single QSFP, cage 1 (Medford) */
-#define TLV_PORT_MODE_MAX TLV_PORT_MODE_10G_10G_10G_10G_Q2
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2      (9) /* 2x10G + 2x10G, dual QSFP (Medford) */
+#define TLV_PORT_MODE_MAX TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2
 };
 
 /* Type of the v-switch created implicitly by the firmware */
@@ -765,8 +768,8 @@ struct tlv_rx_event_merging_config {
 #define TLV_RX_EVENT_MERGING_CONFIG_MAX_EVENTS_MAX ((1 << 4) - 1)
   uint32_t  timeout_ns;
 };
-#define TLV_RX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
-#define TLV_RX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 8740
+#define TLV_RX_EVENT_MERGING_MAX_EVENTS_DEFAULT (0xffffffff)
+#define TLV_RX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
 
 #define TLV_TAG_PCIE_LINK_SETTINGS (0x101f0000)
 struct tlv_pcie_link_settings {
@@ -791,22 +794,22 @@ struct tlv_tx_event_merging_config {
   uint32_t  timeout_ns;
   uint32_t  qempty_timeout_ns; /* Medford only */
 };
-#define TLV_TX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
-#define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 1400
-#define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT 700
+#define TLV_TX_EVENT_MERGING_MAX_EVENTS_DEFAULT (0xffffffff)
+#define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
+#define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT (0xffffffff)
 
-/* Tx vFIFO Low latency configuration 
- * 
- * To keep the desired booting behaviour for the switch, it just requires to
- * know if the low latency mode is enabled.
+/* BIU mode
+ *
+ * Medford2 tag for selecting VI window decode (see values below)
  */
-
-#define TLV_TAG_TX_VFIFO_ULL_MODE          (0x10270000)
-struct tlv_tx_vfifo_ull_mode {
+#define TLV_TAG_BIU_VI_WINDOW_MODE       (0x10280000)
+struct tlv_biu_vi_window_mode {
   uint32_t tag;
   uint32_t length;
   uint8_t  mode;
-#define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+#define TLV_BIU_VI_WINDOW_MODE_8K    0  /*  8k per VI, CTPIO not mapped, medford/hunt compatible */
+#define TLV_BIU_VI_WINDOW_MODE_16K   1  /* 16k per VI, CTPIO mapped */
+#define TLV_BIU_VI_WINDOW_MODE_64K   2  /* 64k per VI, CTPIO mapped, POWER-friendly */
 };
 
 #define TLV_TAG_LICENSE (0x30800000)
@@ -840,8 +843,8 @@ typedef struct tlv_tsan_config {
   uint32_t netmask;
   uint32_t gateway;
   uint32_t port;
-  uint32_t bind_retry;
-  uint32_t bind_bkout;
+  uint32_t bind_retry;  /* DEPRECATED */
+  uint32_t bind_bkout;  /* DEPRECATED */
 } tlv_tsan_config_t;
 
 /* TSA Controller IP address configuration
@@ -882,7 +885,7 @@ typedef struct tlv_binding_ticket {
   uint8_t  bytes[];
 } tlv_binding_ticket_t;
 
-/* Solarflare private key
+/* Solarflare private key  (DEPRECATED)
  *
  * Sets the Solareflare private key used for signing during the binding process
  *
@@ -891,7 +894,7 @@ typedef struct tlv_binding_ticket {
  * released code yet.
  */
 
-#define TLV_TAG_TMP_PIK_SF              (0x10250000)
+#define TLV_TAG_TMP_PIK_SF              (0x10250000)    /* DEPRECATED */
 
 typedef struct tlv_pik_sf {
   uint32_t tag;
@@ -916,5 +919,19 @@ typedef struct tlv_ca_root_cert {
   uint32_t length;
   uint8_t  bytes[];
 } tlv_ca_root_cert_t;
+
+/* Tx vFIFO Low latency configuration
+ *
+ * To keep the desired booting behaviour for the switch, it just requires to
+ * know if the low latency mode is enabled.
+ */
+
+#define TLV_TAG_TX_VFIFO_ULL_MODE       (0x10270000)
+struct tlv_tx_vfifo_ull_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+};
 
 #endif /* CI_MGMT_TLV_LAYOUT_H */

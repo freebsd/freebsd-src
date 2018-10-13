@@ -1,6 +1,8 @@
 /*	$NetBSD: cpu.h,v 1.70 2003/01/17 23:36:08 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -58,6 +60,7 @@ struct mips_cpuinfo {
 	u_int16_t	tlb_nentries;
 	u_int8_t	icache_virtual;
 	boolean_t	cache_coherent_dma;
+	boolean_t	userlocal_reg;
 	struct {
 		u_int32_t	ic_size;
 		u_int8_t	ic_linesize;
@@ -74,6 +77,7 @@ struct mips_cpuinfo {
 		u_int8_t	dc_nways;
 		u_int16_t	dc_nsets;
 	} l2;
+	u_int32_t	fpu_id;
 };
 
 extern struct mips_cpuinfo cpuinfo;

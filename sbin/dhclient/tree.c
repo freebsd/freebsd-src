@@ -2,7 +2,9 @@
 
 /* Routines for manipulating parse trees... */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.
  * All rights reserved.
  *
@@ -44,8 +46,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
-
-extern int h_errno;
 
 pair
 cons(caddr_t car, pair cdr)

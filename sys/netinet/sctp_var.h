@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -267,7 +269,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	if (stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
 		stcb->asoc.fs_index = 0;\
 	stcb->asoc.fslog[stcb->asoc.fs_index].total_flight = stcb->asoc.total_flight; \
-	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.TSN_seq; \
+	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.tsn; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].book = tp1->book_size; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].sent = tp1->sent; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].incr = 0; \
@@ -288,7 +290,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	if (stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
 		stcb->asoc.fs_index = 0;\
 	stcb->asoc.fslog[stcb->asoc.fs_index].total_flight = stcb->asoc.total_flight; \
-	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.TSN_seq; \
+	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.tsn; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].book = tp1->book_size; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].sent = tp1->sent; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].incr = 1; \
@@ -332,21 +334,19 @@ void sctp_close(struct socket *so);
 int sctp_disconnect(struct socket *so);
 void sctp_ctlinput(int, struct sockaddr *, void *);
 int sctp_ctloutput(struct socket *, struct sockopt *);
-
 #ifdef INET
 void sctp_input_with_port(struct mbuf *, int, uint16_t);
 int sctp_input(struct mbuf **, int *, int);
-
 #endif
 void sctp_pathmtu_adjustment(struct sctp_tcb *, uint16_t);
 void sctp_drain(void);
 void sctp_init(void);
-void 
+void
 sctp_notify(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *,
-    uint8_t, uint8_t, uint16_t, uint16_t);
+    uint8_t, uint8_t, uint16_t, uint32_t);
 int sctp_flush(struct socket *, int);
 int sctp_shutdown(struct socket *);
-int 
+int
 sctp_bindx(struct socket *, int, struct sockaddr_storage *,
     int, int, struct proc *);
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -215,8 +217,7 @@ vtrnd_harvest(struct vtrnd_softc *sc)
 	virtqueue_notify(vq);
 	virtqueue_poll(vq, NULL);
 
-	random_harvest_queue(&value, sizeof(value), sizeof(value) * NBBY / 2,
-	    RANDOM_PURE_VIRTIO);
+	random_harvest_queue(&value, sizeof(value), RANDOM_PURE_VIRTIO);
 }
 
 static void

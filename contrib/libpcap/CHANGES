@@ -1,5 +1,107 @@
+Wednesday, Jan. 25, 2017 guy@alum.mit.edu
+  Summary for 1.9.0 libpcap release
+    Man page improvements
+    Fix Linux cooked mode userspace filtering (GitHub pull request #429)
+    Fix compilation if IPv6 support not enabled
+    Fix some Linux memory-mapped capture buffer size issues
+    Don't fail if kernel filter can't be set on Linux (GitHub issue
+      #549)
+    Improve sorting of interfaces for pcap_findalldevs()
+    Don't list Linux usbmon devices if usbmon module isn't loaded
+    Report PCAP_ERROR_PERM_DENIED if no permission to open Linux usbmon
+      devices
+    Fix DLT_ type for Solaris IPNET devices
+    Always return an error message for errors finding DAG or Myricom
+      devices
+    If possible, don't require that a device be openable when
+      enumerating them for pcap_findalldevs()
+    Don't put incompletely-initialized addresses in the address list for
+    When finding Myricom devices, update description for regular
+      interfaces that are Myricom devices and handle SNF_FLAGS=0x2(port
+      aggregation enabled)
+    Fix compilation error in DAG support
+    Fix issues with CMake configuration
+    Add support for stream buffers larger than 2GB on newer DAG cards
+    Remove support for building against DAG versions without STREAMS
+      support (before dag-3.0.0 2007)
+
+Tuesday, Oct. 25, 2016 mcr@sandelman.ca
+  Summary for 1.8.1 libpcap release
+    Add a target in Makefile.in for Exuberant Ctags use: 'extags'.
+    Rename configure.in to configure.ac: autoconf 2.59
+    Clean up the name-to-DLT mapping table.
+    Add some newer DLT_ values: IPMI_HPM_2,ZWAVE_R1_R2,ZWAVE_R3,WATTSTOPPER_DLM,ISO_14443,RDS
+    Clarify what the return values are for both success and failure.
+    Many changes to build on windows
+    Check for the "break the loop" condition in the inner loop for TPACKET_V3.
+    Fix handling of packet count in the TPACKET_V3 inner loop: GitHub issue #493.
+    Filter out duplicate looped back CAN frames.
+    Fix the handling of loopback filters for IPv6 packets.
+    Add a link-layer header type for RDS (IEC 62106) groups.
+    Use different intermediate folders for x86 and x64 builds on Windows.
+    On Linux, handle all CAN captures with pcap-linux.c, in cooked mode.
+    Removes the need for the "host-endian" link-layer header type.
+    Compile with '-Wused-but-marked-unused' in devel mode if supported
+    Have separate DLTs for big-endian and host-endian SocketCAN headers.
+    Reflect version.h being renamed to pcap_version.h.
+    Require that version.h be generated: all build procedures we support generate version.h (autoconf, CMake, MSVC)!
+    Properly check for sock_recv() errors.
+    Re-impose some of Winsock's limitations on sock_recv().
+    Replace sprintf() with pcap_snprintf().
+    Fix signature of pcap_stats_ex_remote().
+    Initial cmake support for remote packet capture.
+    Have rpcap_remoteact_getsock() return a SOCKET and supply an "is active" flag.
+    Clean up {DAG, Septel, Myricom SNF}-only builds.
+    Do UTF-16-to-ASCII conversion into the right place.
+    pcap_create_interface() needs the interface name on Linux.
+    Clean up hardware time stamp support: the "any" device does not support any time stamp types.
+    Add support for capturing on FreeBSD usbusN interfaces.
+    Add a LINKTYPE/DLT_ value for FreeBSD USB.
+    Go back to using PCAP_API on Windows.
+    CMake support
+    Add TurboCap support from WinPcap.
+    Recognize 802.1ad nested VLAN tag in vlan filter.
+
+Thursday Sep. 3, 2015 guy@alum.mit.edu
+  Summary for 1.7.5 libpcap release
+	Man page cleanups.
+	Add some allocation failure checks.
+	Fix a number of Linux/ucLinux configure/build issues.
+	Fix some memory leaks.
+	Recognize 802.1ad nested VLAN tag in vlan filter.
+	Fix building Bluetooth Linux Monitor support with BlueZ 5.1+
+
+Saturday Jun. 27, 2015 mcr@sandelman.ca
+  Summary for 1.7.4 libpcap release
+	Include fix for GitHub issue #424 -- out of tree builds.
+
+Friday Apr. 10, 2015 guy@alum.mit.edu
+  Summary for 1.7.3 libpcap release
+	Work around a Linux bonding driver bug.
+
+Thursday Feb. 12, 2015 guy@alum.mit.edu/mcr@sandelman.ca
+  Summary for 1.7.2 libpcap release
+	Support for filtering Geneve encapsulated packets.
+	Generalize encapsulation handling, fixing some bugs.
+	Don't add null addresses to address lists.
+	Add pcap_dump_open_append() to open for appending.
+	Fix the swapping of isochronous descriptors in Linux USB.
+	Attempt to handle TPACKET_V1 with 32-bit userland and 64-bit kernel.
+
+Wednesday Nov. 12, 2014 guy@alum.mit.edu/mcr@sandelman.ca
+  Summary for 1.7.0 libpcap release
+	Fix handling of zones for BPF on Solaris
+	new DLT for ZWAVE
+	clarifications for read timeouts.
+	Use BPF extensions in compiled filters, fixing VLAN filters
+	some fixes to compilation without stdint.h
+	EBUSY can now be returned by SNFv3 code.
+	Fix the range checks in BPF loads
+	Various DAG fixes.
+	Various Linux fixes.
+
 Monday Aug. 12, 2014 guy@alum.mit.edu
-  Summary for 1.6.2 tcpdump release
+  Summary for 1.6.2 libpcap release
 	Don't crash on filters testing a non-existent link-layer type
 	    field.
 	Fix sending in non-blocking mode on Linux with memory-mapped
@@ -8,12 +110,12 @@ Monday Aug. 12, 2014 guy@alum.mit.edu
 	    machines.
 
 Saturday  Jul. 19, 2014 mcr@sandelman.ca
-  Summary for 1.6.1 tcpdump release
+  Summary for 1.6.1 libpcap release
 	some fixes for the any device
-	changes for how --enable-XXX works
+	changes for how --enable-XXX (--enable-sniffing, --enable-can) works
 
 Wednesday Jul. 2, 2014 mcr@sandelman.ca
-  Summary for 1.6.0 tcpdump release
+  Summary for 1.6.0 libpcap release
         Don't support D-Bus sniffing on OS X
         fixes for byte order issues with NFLOG captures
         Handle using cooked mode for DLT_NETLINK in activate_new().

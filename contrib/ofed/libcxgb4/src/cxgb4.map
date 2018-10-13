@@ -1,6 +1,0 @@
-{
-	global:
-		ibv_driver_init;
-		openib_driver_init;
-	local: *;
-};

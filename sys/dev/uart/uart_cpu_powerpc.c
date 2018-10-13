@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
@@ -35,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/ofw_machdep.h>
 
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
@@ -163,14 +166,13 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 	if (strcmp(buf, "serial") != 0)
 		return (ENXIO);
-	if (OF_getprop(input, "compatible", buf, sizeof(buf)) == -1)
-		return (ENXIO);
 
-	if (strncmp(buf, "chrp,es", 7) == 0) {
+	if (ofw_bus_node_is_compatible(input, "chrp,es")) {
 		class = &uart_z8530_class;
 		di->bas.regshft = 4;
 		di->bas.chan = 1;
-	} else if (strcmp(buf,"ns16550") == 0 || strcmp(buf,"ns8250") == 0) {
+	} else if (ofw_bus_node_is_compatible(input,"ns16550") ||
+	    ofw_bus_node_is_compatible(input,"ns8250")) {
 		class = &uart_ns8250_class;
 		di->bas.regshft = 0;
 		di->bas.chan = 0;

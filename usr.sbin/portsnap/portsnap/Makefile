@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+CONFS=	portsnap.conf
 SCRIPTS=portsnap.sh
 MAN=	portsnap.8
 

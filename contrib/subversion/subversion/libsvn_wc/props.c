@@ -2170,11 +2170,8 @@ svn_wc_canonicalize_svn_prop(const svn_string_t **propval_p,
 
   /* Keep this static, it may get stored (for read-only purposes) in a
      hash that outlives this function. */
-  static const svn_string_t boolean_value =
-    {
-      SVN_PROP_BOOLEAN_TRUE,
-      sizeof(SVN_PROP_BOOLEAN_TRUE) - 1
-    };
+  static const svn_string_t boolean_value
+    = SVN__STATIC_STRING(SVN_PROP_BOOLEAN_TRUE);
 
   SVN_ERR(validate_prop_against_node_kind(propname, path, kind, pool));
 

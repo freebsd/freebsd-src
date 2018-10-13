@@ -1,8 +1,8 @@
-dnl $Id: configure.ac 816 2014-09-12 07:50:22Z des $
+dnl $OpenPAM: configure.ac 939 2017-04-30 21:36:50Z des $
 
 AC_PREREQ([2.62])
-AC_REVISION([$Id: configure.ac 816 2014-09-12 07:50:22Z des $])
-AC_INIT([OpenPAM], [20140912], [des@des.no], [openpam], [http://www.openpam.org/])
+AC_REVISION([$OpenPAM: configure.ac 939 2017-04-30 21:36:50Z des $])
+AC_INIT([OpenPAM], [20170430], [des@des.no], [openpam], [http://www.openpam.org/])
 AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
@@ -62,22 +62,28 @@ AC_ARG_WITH([doc],
 AM_CONDITIONAL([WITH_DOC], [test x"$with_doc" = x"yes"])
 
 AC_ARG_WITH([pam-unix],
-    AC_HELP_STRING([--with-pam-unix], [compile sample pam_unix(8) module]),
+    AC_HELP_STRING([--with-pam-unix], [build sample pam_unix(8) module]),
     [],
     [with_pam_unix=no])
 AM_CONDITIONAL([WITH_PAM_UNIX], [test x"$with_pam_unix" = x"yes"])
 
 AC_ARG_WITH(pamtest,
-    AC_HELP_STRING([--with-pamtest], [compile test application]),
+    AC_HELP_STRING([--with-pamtest], [build test application]),
     [],
     [with_pamtest=no])
 AM_CONDITIONAL([WITH_PAMTEST], [test x"$with_pamtest" = x"yes"])
 
 AC_ARG_WITH(su,
-    AC_HELP_STRING([--with-su], [compile sample su(1) implementation]),
+    AC_HELP_STRING([--with-su], [build sample su(1) implementation]),
     [],
     [with_su=no])
 AM_CONDITIONAL([WITH_SU], [test x"$with_su" = x"yes"])
+
+AC_ARG_WITH(system-libpam,
+    AC_HELP_STRING([--with-system-libpam], [use system libpam]),
+    [],
+    [with_system_libpam=no])
+AM_CONDITIONAL([WITH_SYSTEM_LIBPAM], [test x"$with_system_libpam" = x"yes"])
 
 AC_CHECK_HEADERS([crypt.h])
 
@@ -108,6 +114,25 @@ CRYPTO_LIBS="${LIBS}"
 LIBS="${saved_LIBS}"
 AC_SUBST(CRYPTO_LIBS)
 
+saved_LIBS="${LIBS}"
+LIBS=""
+AC_CHECK_LIB([pam], [pam_start])
+SYSTEM_LIBPAM="${LIBS}"
+LIBS="${saved_LIBS}"
+AC_SUBST(SYSTEM_LIBPAM)
+
+save_LIBS="${LIBS}"
+LIBS=""
+AC_SEARCH_LIBS([cryb_test_version], [cryb-test], [
+  CRYB_TEST_LIBS="${LIBS}"
+], [
+  CRYB_TEST_LIBS=""
+  AC_MSG_WARN([cryb-test library not available, unit tests disabled])
+])
+LIBS="${save_LIBS}"
+AC_SUBST(CRYB_TEST_LIBS)
+AM_CONDITIONAL([WITH_TEST], [ test x"$CRYB_TEST_LIBS" != x"" ])
+
 AC_ARG_ENABLE([developer-warnings],
     AS_HELP_STRING([--enable-developer-warnings], [enable strict warnings (default is NO)]),
     [CFLAGS="${CFLAGS} -Wall -Wextra -Wcast-qual"])
@@ -130,12 +155,15 @@ AC_CONFIG_FILES([
     include/security/Makefile
     lib/Makefile
     lib/libpam/Makefile
+    misc/Makefile
     modules/Makefile
     modules/pam_deny/Makefile
     modules/pam_permit/Makefile
+    modules/pam_return/Makefile
     modules/pam_unix/Makefile
     t/Makefile
 ])
-AC_CONFIG_FILES([pamgdb],[chmod +x pamgdb])
 AC_CONFIG_FILES([mkpkgng],[chmod +x mkpkgng])
+AC_CONFIG_FILES([misc/coverage.sh],[chmod +x misc/coverage.sh])
+AC_CONFIG_FILES([misc/coverity.sh],[chmod +x misc/coverity.sh])
 AC_OUTPUT

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/module.h>
 
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -53,17 +54,16 @@ static device_method_t fman_methods[] = {
 
 	DEVMETHOD(device_shutdown,	fman_shutdown),
 	DEVMETHOD(device_suspend,	fman_suspend),
-	DEVMETHOD(device_resume,	fman_resume),
+	DEVMETHOD(device_resume,	fman_resume_dev),
 
+	DEVMETHOD(bus_alloc_resource,	fman_alloc_resource),
+	DEVMETHOD(bus_activate_resource,	fman_activate_resource),
+	DEVMETHOD(bus_release_resource,	fman_release_resource),
 	{ 0, 0 }
 };
 
-static driver_t fman_driver = {
-	"fman",
-	fman_methods,
-	sizeof(struct fman_softc),
-};
-
+DEFINE_CLASS_1(fman, fman_driver, fman_methods,
+    sizeof(struct fman_softc), simplebus_driver);
 static devclass_t fman_devclass;
 EARLY_DRIVER_MODULE(fman, simplebus, fman_driver, fman_devclass, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
@@ -88,7 +88,7 @@ fman_get_clock(struct fman_softc *sc)
 	phandle_t node;
 	pcell_t fman_clock;
 
-	dev = sc->dev;
+	dev = sc->sc_base.dev;
 	node = ofw_bus_get_node(dev);
 
 	if ((OF_getprop(node, "clock-frequency", &fman_clock,

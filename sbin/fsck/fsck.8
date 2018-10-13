@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2014
+.Dd October 5, 2016
 .Dt FSCK 8
 .Os
 .Sh NAME
@@ -229,3 +229,15 @@ file system table
 .Xr fsck_ffs 8 ,
 .Xr fsck_msdosfs 8 ,
 .Xr mount 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Bx 4.0 .
+It was reimplemented as a filesystem independent wrapper in
+.Nx 1.3
+and first appeared in
+.Fx 5.0 .
+The original filesystem specific utility became
+.Xr fsck_ffs 8
+at this point.

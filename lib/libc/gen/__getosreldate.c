@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Peter Wemm
  * All rights reserved.
  *
@@ -32,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <link.h>
 #include "libc_private.h"
-
-int __getosreldate(void);
 
 /*
  * This is private to libc.  It is intended for wrapping syscall stubs in order

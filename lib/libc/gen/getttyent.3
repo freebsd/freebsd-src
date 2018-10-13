@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -75,6 +75,8 @@ struct ttyent {
 #define	TTY_SECURE	0x02	/* allow uid of 0 to login */
 #define	TTY_DIALUP	0x04	/* is a dialup tty */
 #define	TTY_NETWORK	0x08	/* is a network tty */
+#define	TTY_IFEXISTS	0x10	/* configured as "onifexists" */
+#define	TTY_IFCONSOLE	0x20	/* configured as "onifconsole" */
 	int	ty_status;	/* status flags */
 	char	*ty_window;	/* command to start up window manager */
 	char	*ty_comment;	/* comment field */
@@ -115,6 +117,10 @@ Identifies a tty used for network connections.
 If this flag is set, then
 .Fn isnettty
 will return a non-zero value.
+.It Dv TTY_IFEXISTS
+Identifies a tty that does not necessarily exist.
+.It Dv TTY_IFCONSOLE
+Identifies a tty that might be a system console.
 .El
 .It Fa ty_window
 The command to execute for a window system associated with the line.

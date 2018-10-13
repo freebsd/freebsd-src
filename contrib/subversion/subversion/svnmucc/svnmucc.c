@@ -74,6 +74,7 @@ check_lib_versions(void)
   return svn_ver_check_list2(&my_version, checklist, svn_ver_equal);
 }
 
+/* Implements svn_commit_callback2_t */
 static svn_error_t *
 commit_callback(const svn_commit_info_t *commit_info,
                 void *baton,
@@ -84,6 +85,15 @@ commit_callback(const svn_commit_info_t *commit_info,
                              (commit_info->author
                               ? commit_info->author : "(no author)"),
                              commit_info->date));
+
+  /* Writing to stdout, as there maybe systems that consider the
+   * presence of stderr as an indication of commit failure.
+   * OTOH, this is only of informational nature to the user as
+   * the commit has succeeded. */
+  if (commit_info->post_commit_err)
+    SVN_ERR(svn_cmdline_printf(pool, _("\nWarning: %s\n"),
+                               commit_info->post_commit_err));
+
   return SVN_NO_ERROR;
 }
 
@@ -193,7 +203,7 @@ execute(const apr_array_header_t *actions,
               SVN_ERR(svn_stream_open_readonly(&src, action->path[1],
                                                pool, iterpool));
             else
-              SVN_ERR(svn_stream_for_stdin(&src, pool));
+              SVN_ERR(svn_stream_for_stdin2(&src, TRUE, pool));
 
 
             if (kind == svn_node_file)
@@ -287,6 +297,7 @@ help(FILE *stream, apr_pool_t *pool)
       "  -F [--file] ARG        : read log message from file ARG\n"
       "  -u [--username] ARG    : commit the changes as username ARG\n"
       "  -p [--password] ARG    : use ARG as the password\n"
+      "  --password-from-stdin  : read password from stdin\n"
       "  -U [--root-url] ARG    : interpret all action URLs relative to ARG\n"
       "  -r [--revision] ARG    : use revision ARG as baseline for changes\n"
       "  --with-revprop ARG     : set revision property in the following format:\n"
@@ -471,12 +482,14 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
     force_interactive_opt,
     trust_server_cert_opt,
     trust_server_cert_failures_opt,
+    password_from_stdin_opt
   };
   static const apr_getopt_option_t options[] = {
     {"message", 'm', 1, ""},
     {"file", 'F', 1, ""},
     {"username", 'u', 1, ""},
     {"password", 'p', 1, ""},
+    {"password-from-stdin", password_from_stdin_opt, 0, ""},
     {"root-url", 'U', 1, ""},
     {"revision", 'r', 1, ""},
     {"with-revprop",  with_revprop_opt, 1, ""},
@@ -517,9 +530,13 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   svn_client_ctx_t *ctx;
   struct log_message_baton lmb;
   int i;
+  svn_boolean_t read_pass_from_stdin = FALSE;
 
   /* Check library versions */
   SVN_ERR(check_lib_versions());
+
+  /* Initialize the RA library. */
+  SVN_ERR(svn_ra_initialize(pool));
 
   config_options = apr_array_make(pool, 0,
                                   sizeof(svn_cmdline__config_argument_t*));
@@ -548,9 +565,9 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           break;
         case 'F':
           {
-            const char *arg_utf8;
-            SVN_ERR(svn_utf_cstring_to_utf8(&arg_utf8, arg, pool));
-            SVN_ERR(svn_stringbuf_from_file2(&filedata, arg, pool));
+            const char *filename;
+            SVN_ERR(svn_utf_cstring_to_utf8(&filename, arg, pool));
+            SVN_ERR(svn_stringbuf_from_file2(&filedata, filename, pool));
           }
           break;
         case 'u':
@@ -558,6 +575,9 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           break;
         case 'p':
           password = apr_pstrdup(pool, arg);
+          break;
+        case password_from_stdin_opt:
+          read_pass_from_stdin = TRUE;
           break;
         case 'U':
           SVN_ERR(svn_utf_cstring_to_utf8(&root_url, arg, pool));
@@ -585,7 +605,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           SVN_ERR(svn_opt_parse_revprop(&revprops, arg, pool));
           break;
         case 'X':
-          extra_args_file = apr_pstrdup(pool, arg);
+          SVN_ERR(svn_utf_cstring_to_utf8(&extra_args_file, arg, pool));
           break;
         case non_interactive_opt:
           non_interactive = TRUE;
@@ -659,27 +679,33 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
                                   "--non-interactive"));
     }
 
+  /* --password-from-stdin can only be used with --non-interactive */
+  if (read_pass_from_stdin && !non_interactive)
+    {
+      return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                              _("--password-from-stdin requires "
+                                "--non-interactive"));
+    }
+
+
   /* Copy the rest of our command-line arguments to an array,
      UTF-8-ing them along the way. */
   action_args = apr_array_make(pool, opts->argc, sizeof(const char *));
   while (opts->ind < opts->argc)
     {
-      const char *arg = opts->argv[opts->ind++];
-      SVN_ERR(svn_utf_cstring_to_utf8(&APR_ARRAY_PUSH(action_args,
-                                                      const char *),
-                                      arg, pool));
+      const char *arg;
+
+      SVN_ERR(svn_utf_cstring_to_utf8(&arg, opts->argv[opts->ind++], pool));
+      APR_ARRAY_PUSH(action_args, const char *) = arg;
     }
 
   /* If there are extra arguments in a supplementary file, tack those
      on, too (again, in UTF8 form). */
   if (extra_args_file)
     {
-      const char *extra_args_file_utf8;
       svn_stringbuf_t *contents, *contents_utf8;
 
-      SVN_ERR(svn_utf_cstring_to_utf8(&extra_args_file_utf8,
-                                      extra_args_file, pool));
-      SVN_ERR(svn_stringbuf_from_file2(&contents, extra_args_file_utf8, pool));
+      SVN_ERR(svn_stringbuf_from_file2(&contents, extra_args_file, pool));
       SVN_ERR(svn_utf_stringbuf_to_utf8(&contents_utf8, contents, pool));
       svn_cstring_split_append(action_args, contents_utf8->data, "\n\r",
                                FALSE, pool);
@@ -709,6 +735,12 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
       svn_error_clear(
           svn_cmdline__apply_config_options(cfg_hash, config_options,
                                             "svnmucc: ", "--config-option"));
+    }
+
+  /* Get password from stdin if necessary */
+  if (read_pass_from_stdin)
+    {
+      SVN_ERR(svn_cmdline__stdin_readline(&password, pool, pool));
     }
 
   SVN_ERR(svn_client_create_context2(&ctx, cfg_hash, pool));

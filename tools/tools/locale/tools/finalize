@@ -8,6 +8,8 @@
 # the generate makefile to pull the LOCALES first.
 #
 
+set -e
+
 usage ()
 {
 	echo "finalize <type>' to package standard localization"
@@ -36,6 +38,68 @@ AWKCMD="/## PLACEHOLDER/ { \
 	/## LOCALES_MAPPED/ { \
 	  while ( getline line < \"${TEMP4}\" ) {print line} } \
 	!/## / { print \$0 }"
+
+# Rename the sources with 3 components name into the POSIX version of the name using @modifier
+cd $old
+pwd
+for i in *_*_*.*.src; do
+	if [ "$i" = "*_*_*.*.src" ]; then
+		break
+	fi
+	oldname=${i%.*}
+	nname=`echo $oldname | awk '{ split($0, a, "_"); print a[1]"_"a[3]"@"a[2];} '`
+	mv -f ${oldname}.src ${nname}.src
+	sed -i '' -e "s/${oldname}/${nname}/g" Makefile
+	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${oldname}/${nname}/g")
+done
+
+# For variable without @modifier ambiguity do not keep the @modifier
+for i in *@*.src; do
+	if [ "$i" = "*@*.src" ]; then
+		break
+	fi
+	oldname=${i%.*}
+	shortname=${oldname%@*}
+	if [ $(ls ${shortname}@* | wc -l) -eq 1 ] ; then
+		mv -f $i ${shortname}.src
+		sed -i '' -e "s/${oldname}/${shortname}/g" Makefile
+		COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${oldname}/${shortname}/g")
+	fi
+done
+
+# Rename the modifiers into non abbreviated version
+for i in *@Latn.src; do
+	if [ "$i" = "*@Latn.src" ]; then
+		break
+	fi
+	mv -f ${i} ${i%@*}@latin.src
+	sed -i '' -e "s/${i%.*}/${i%@*}@latin/g" Makefile
+	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${i%.*}/${i%@*}@latin/g")
+done
+
+for i in *@Cyrl.src; do
+	if [ "$i" = "*@Cyrl.src" ]; then
+		break
+	fi
+	mv -f ${i} ${i%@*}@cyrillic.src
+	sed -i '' -e "s/${i%.*}/${i%@*}@cyrillic/g" Makefile
+	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${i%.*}/${i%@*}@cyrillic/g")
+done
+
+# On locales with multiple modifiers rename the "default" version without the @modifier
+default_locales="sr_RS@cyrillic"
+for i in ${default_locales}; do
+	localename=${i%@*}
+	mod=${i#*@}
+	for l in ${localename}.*@${mod}.src; do
+		if [ "$l" = "${localename}.*@${mod}.src" ]; then
+			break
+		fi
+		mv -f ${l} ${l%@*}.src
+		sed -i '' -e "s/${l%.*}/${l%@*}/g" Makefile
+	done
+done
+cd -
 
 grep '^LOCALES+' ${old}/Makefile > ${TEMP}
 
@@ -99,7 +163,7 @@ then
 	done
 
 	keep=$(cat ${TEMP} | awk '{ print $2 }')
-	for original in ${keep}
+	for original in ${keep} ${COLLATIONS_SPECIAL}
 	do
 		cp ${old}/${original}.src ${new}/
 	done

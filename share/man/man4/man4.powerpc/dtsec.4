@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2016
+.Dd October 31, 2017
 .Dt DTSEC 4
 .Os
 .Sh NAME
@@ -35,10 +35,8 @@
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "include ""dpaa/DPAA""
-.Cd "options QORIQ_DPAA"
+.Cd "include ""dpaa/config.dpaa""
 .Cd "device dpaa"
-.Cd "device dtsec"
 .Cd "device miibus"
 .Ed
 .Sh DESCRIPTION
@@ -91,6 +89,14 @@ P2041, P3041
 .It
 P5010, P5020
 .El
+.Pp
+Additionally, the following devices are expected to work, but are untested:
+.Bl -bullet -compact
+.It
+P4080, P4040
+.It
+P5040
+.El
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
@@ -98,13 +104,6 @@ P5010, P5020
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr ifconfig 8
-.Sh BUGS
-The
-.Nm
-driver assumes that there is only one Frame Manager, and that dtsec0 controls
-the MDIO interface.  Though this is the case for the supported devices, other
-SoCs with the DPAA controller may not work correctly.  Particularly, the P5040
-and P4080 SoCs have two frame managers, which breaks this assumption.
 .Sh HISTORY
 The
 .Nm

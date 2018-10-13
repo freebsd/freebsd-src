@@ -70,10 +70,6 @@ struct platform_kobj {
 	struct platform_class *cls;
 };
 
-struct platform_data {
-	int delay_count;
-};
-
 typedef struct platform_kobj	*platform_t;
 typedef struct platform_class	platform_def_t;
 #define platform_method_t	kobj_method_t
@@ -94,20 +90,9 @@ typedef struct fdt_platform_class fdt_platform_def_t;
 
 extern platform_method_t fdt_platform_methods[];
 
-#ifdef MULTIDELAY
-#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay > 0)
-#else
-#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay == 0)
-#endif
-
-#define	PLATFORM_DATA(NAME, delay)					\
-static struct platform_data NAME ## _platc = {				\
-	.delay_count = delay;						\
-};
-
 #define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, size, compatible,	\
     delay)								\
-FDT_PLATFORM_CTASSERT(delay);						\
+CTASSERT(delay > 0);							\
 static fdt_platform_def_t VAR_NAME ## _fdt_platform = {			\
 	.name = NAME_STR,						\
 	.methods = fdt_platform_methods,				\
@@ -128,6 +113,11 @@ DATA_SET(platform_set, VAR_NAME ## _platform)
     FDT_PLATFORM_DEF2(NAME, NAME, NAME_STR, size, compatible, delay)
 
 #endif
+
+/*
+ * Helper to get the platform object
+ */
+platform_t platform_obj(void);
 
 bool arm_tmr_timed_wait(platform_t, int);
 

@@ -25,13 +25,14 @@
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
-.\" Copyright (c) 2014 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2016 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\" Copyright (c) 2014-2015, The FreeBSD Foundation, All Rights Reserved.
+.\" Copyright 2018 Joyent, Inc.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2016
+.Dd August 11, 2018
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -114,7 +115,10 @@
 .Op Fl t Ar type Ns Oo , Ns type Ns Oc Ns ...
 .Oo Fl s Ar property Oc Ns ...
 .Oo Fl S Ar property Oc Ns ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot | Ns Ar bookmark Ns ...
+.Nm
+.Cm remap
+.Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm set
 .Ar property Ns = Ns Ar value Oo Ar property Ns = Ns Ar value Oc Ns ...
@@ -180,12 +184,12 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DnPpRveL
+.Op Fl DLPRcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
 .Cm send
-.Op Fl eL
+.Op Fl Lce
 .Op Fl i Ar snapshot Ns | Ns bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
@@ -286,6 +290,13 @@
 .Ar snapshot
 .Op Ar snapshot Ns | Ns Ar filesystem
 .Nm
+.Cm program
+.Op Fl n
+.Op Fl t Ar timeout
+.Op Fl m Ar memory_limit
+.Ar pool script
+.Op Ar arg1 No ...
+.Nm
 .Cm jail
 .Ar jailid Ns | Ns Ar jailname filesystem
 .Nm
@@ -309,7 +320,8 @@ namespace. For example:
 .Pp
 where the maximum length of a dataset name is
 .Dv MAXNAMELEN
-(256 bytes).
+(256 bytes)
+and the maximum amount of nesting allowed in a path is 50 levels deep.
 .Pp
 A dataset can be one of the following:
 .Bl -hang -width 12n
@@ -450,8 +462,11 @@ responsible for mounting and unmounting the file system.
 dataset can be attached to a jail by using the
 .Qq Nm Cm jail
 subcommand. You cannot attach a dataset to one jail and the children of the
-same dataset to another jails. To allow management of the dataset from within
-a jail, the
+same dataset to another jail. You can also not attach the root file system
+of the jail or any dataset which needs to be mounted before the zfs rc script
+is run inside the jail, as it would be attached unmounted until it is
+mounted from the rc script inside the jail. To allow management of the
+dataset from within a jail, the
 .Sy jailed
 property has to be set and the jail needs access to the
 .Pa /dev/zfs
@@ -536,6 +551,13 @@ property. Compression can be turned on by running:
 .Qq Nm Cm set compression=on Ar dataset
 The default value is
 .Cm off .
+.It Sy createtxg
+The transaction group (txg) in which the dataset was created.
+Bookmarks have the same
+.Sy createtxg
+as the snapshot they are initially tied to.
+This property is suitable for ordering a list of snapshots,
+e.g. for incremental send and receive.
 .It Sy creation
 The time this dataset was created.
 .It Sy clones
@@ -563,6 +585,14 @@ This value is only available when a
 .Sy filesystem_limit
 has
 been set somewhere in the tree under which the dataset resides.
+.It Sy guid
+The 64 bit GUID of this dataset or bookmark which does not change over its
+entire lifetime.
+When a snapshot is sent to another pool, the received snapshot has the same
+GUID.
+Thus, the
+.Sy guid
+is suitable to identify a snapshot across pools.
 .It Sy logicalreferenced
 The amount of space that is
 .Qq logically
@@ -967,6 +997,10 @@ Please see
 for more information on these algorithms.
 .Pp
 Changing this property affects only newly-written data.
+.Pp
+Salted checksum algorithms
+.Pq Cm edonr , skein
+are currently not supported for any filesystem on the boot pools.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
 Controls the compression algorithm used for this dataset.
 Setting compression to
@@ -1297,7 +1331,7 @@ The default value is
 Limits the amount of space a dataset can consume. This property enforces a hard
 limit on the amount of space used. This hard limit does not include space used
 by descendents, including file systems and snapshots.
-.It Sy refreservation Ns = Ns Ar size | Cm none
+.It Sy refreservation Ns = Ns Ar size | Cm none | Cm auto
 The minimum amount of space guaranteed to a dataset, not including its
 descendents. When the amount of space used is below this value, the dataset is
 treated as if it were taking up the amount of space specified by
@@ -1312,6 +1346,18 @@ If
 is set, a snapshot is only allowed if there is enough free pool space outside
 of this reservation to accommodate the current number of "referenced" bytes in
 the dataset.
+.Pp
+If
+.Sy refreservation
+is set to
+.Sy auto ,
+a volume is thick provisioned or not sparse.
+.Sy refreservation Ns = Cm auto
+is only supported on volumes.
+See
+.Sy volsize
+in the Native Properties
+section for more information about sparse volumes.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy refreserv .
@@ -1445,18 +1491,33 @@ on how the volume is used. These effects can also occur when the volume size is
 changed while it is in use (particularly when shrinking the size). Extreme care
 should be used when adjusting the volume size.
 .Pp
-Though not recommended, a "sparse volume" (also known as "thin provisioning")
+Though not recommended, a "sparse volume" (also known as "thin provisioned")
 can be created by specifying the
 .Fl s
 option to the
 .Qq Nm Cm create Fl V
-command, or by changing the reservation after the volume has been created. A
-"sparse volume" is a volume where the reservation is less then the volume size.
+command, or by changing the value of the
+.Sy refreservation
+property, or
+.Sy reservation
+property on pool version 8 or earlier
+.Pc
+after the volume has been created.
+A "sparse volume" is a volume where the value of
+.Sy refreservation
+is less then the size of the volume plus the space required to store its
+metadata.
 Consequently, writes to a sparse volume can fail with
 .Sy ENOSPC
 when the pool is low on space. For a sparse volume, changes to
 .Sy volsize
-are not reflected in the reservation.
+are not reflected in the
+.Sy refreservation .
+A volume that is not sparse is said to be "thick provisioned".
+A sparse volume can become thick provisioned by setting
+.Sy refreservation
+to
+.Sy auto .
 .It Sy volmode Ns = Ns Cm default | geom | dev | none
 This property specifies how volumes should be exposed to the OS.
 Setting it to
@@ -2156,7 +2217,7 @@ section.
 .Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 .Op Fl s Ar source Ns Oo , Ns Ar source Oc Ns ...
 .Ar all | property Ns Oo , Ns Ar property Oc Ns ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns | Ns Ar bookmark Ns ...
 .Xc
 .Pp
 Displays properties for the given datasets. If no datasets are specified, then
@@ -2255,6 +2316,17 @@ if the
 .Fl S
 option was not specified.
 .El
+.It Xo
+.Nm
+.Cm remap
+.Ar filesystem Ns | Ns Ar volume
+.Xc
+.Pp
+Remap the indirect blocks in the given fileystem or volume so that they no
+longer reference blocks on previously removed vdevs and we can eventually
+shrink the size of the indirect mapping objects for the previously removed
+vdevs. Note that remapping all blocks might not be possible and that
+references from snapshots will still exist and cannot be remapped.
 .It Xo
 .Nm
 .Cm upgrade
@@ -2535,7 +2607,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRveL
+.Op Fl DLPRcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2580,7 +2652,7 @@ The incremental
 source may be specified as with the
 .Fl i
 option.
-.It Fl R
+.It Fl R, -replicate
 Generate a replication stream package, which will replicate the specified
 filesystem, and all descendent file systems, up to the named snapshot. When
 received, all properties, snapshots, descendent file systems, and clones are
@@ -2598,7 +2670,7 @@ is received. If the
 .Fl F
 flag is specified when this stream is received, snapshots and file systems that
 do not exist on the sending side are destroyed.
-.It Fl D
+.It Fl D, -dedup
 Generate a deduplicated stream. Blocks which would have been sent multiple
 times in the send stream will only be sent once.  The receiving system must
 also support this feature to receive a deduplicated stream.  This flag can
@@ -2607,7 +2679,7 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
-.It Fl L
+.It Fl L, -large-block
 Generate a stream which may contain blocks larger than 128KB.
 This flag
 has no effect if the
@@ -2623,7 +2695,7 @@ See
 for details on ZFS feature flags and the
 .Sy large_blocks
 feature.
-.It Fl e
+.It Fl e, -embed
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
 .Sy embedded_data
@@ -2646,11 +2718,27 @@ See
 for details on ZFS feature flags and the
 .Sy embedded_data
 feature.
-.It Fl p
+.It Fl c, -compressed
+Generate a more compact stream by using compressed WRITE records for blocks
+which are compressed on disk and in memory (see the
+.Sy compression
+property for details).
+If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have that
+feature enabled as well. If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
+option is not supplied in conjunction with
+.Fl c
+then the data will be decompressed before sending so it can be split
+into smaller block sizes.
+.It Fl p, -props
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
 is specified. The receiving system must also support this feature.
-.It Fl n
+.It Fl n, -dryrun
 Do a dry-run ("No-op") send.  Do not generate any actual send data.  This is
 useful in conjunction with the
 .Fl v
@@ -2660,9 +2748,9 @@ flags to determine what data will be sent.
 In this case, the verbose output will be written to
 standard output (contrast with a non-dry-run, where the stream is written
 to standard output and the verbose output goes to standard error).
-.It Fl P
+.It Fl P, -parsable
 Print machine-parsable verbose information about the stream package generated.
-.It Fl v
+.It Fl v, -verbose
 Print verbose information about the stream package generated.
 This information includes a per-second report of how much data has been sent.
 .El
@@ -2673,7 +2761,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
-.Op Fl eL
+.Op Fl Lce
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2699,7 +2787,7 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
-.It Fl L
+.It Fl L, -large-block
 Generate a stream which may contain blocks larger than 128KB.
 This flag
 has no effect if the
@@ -2715,7 +2803,22 @@ See
 for details on ZFS feature flags and the
 .Sy large_blocks
 feature.
-.It Fl e
+.It Fl c, -compressed
+Generate a more compact stream by using compressed WRITE records for blocks
+which are compressed on disk and in memory (see the
+.Sy compression
+property for details).  If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have
+that feature enabled as well. If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
+option is not supplied in conjunction with
+.Fl c
+then the data will be decompressed before sending so it can be split
+into smaller block sizes.
+.It Fl e, -embed
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
 .Sy embedded_data
@@ -3255,6 +3358,57 @@ Give more parsable tab-separated output, without header lines and without
 arrows.
 .It Fl t
 Display the path's inode change time as the first column of output.
+.El
+.It Xo
+.Nm
+.Cm program
+.Op Fl n
+.Op Fl t Ar timeout
+.Op Fl m Ar memory_limit
+.Ar pool script
+.Op Ar arg1 No ...
+.Xc
+.Pp
+Executes
+.Ar script
+as a ZFS channel program on
+.Ar pool .
+The ZFS channel
+program interface allows ZFS administrative operations to be run
+programmatically via a Lua script.
+The entire script is executed atomically, with no other administrative
+operations taking effect concurrently.
+A library of ZFS calls is made available to channel program scripts.
+Channel programs may only be run with root privileges.
+.Pp
+For full documentation of the ZFS channel program interface, see the manual
+page for
+.Xr zfs-program 8 .
+.Bl -tag -width indent
+.It Fl n
+Executes a read-only channel program, which runs faster.
+The program cannot change on-disk state by calling functions from
+the zfs.sync submodule.
+The program can be used to gather information such as properties and
+determining if changes would succeed (zfs.check.*).
+Without this flag, all pending changes must be synced to disk before
+a channel program can complete.
+.It Fl t Ar timeout
+Execution time limit, in milliseconds.
+If a channel program executes for longer than the provided timeout, it will
+be stopped and an error will be returned.
+The default timeout is 1000 ms, and can be set to a maximum of 10000 ms.
+.It Fl m Ar memory-limit
+Memory limit, in bytes.
+If a channel program attempts to allocate more memory than the given limit,
+it will be stopped and an error returned.
+The default memory limit is 10 MB, and can be set to a maximum of 100 MB.
+.Pp
+All remaining argument strings are passed directly to the channel program as
+arguments.
+See
+.Xr zfs-program 8
+for more information.
 .El
 .It Xo
 .Nm

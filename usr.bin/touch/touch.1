@@ -12,7 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -31,7 +31,7 @@
 .\"     @(#)touch.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2015
+.Dd June 1, 2018
 .Dt TOUCH 1
 .Os
 .Sh NAME
@@ -53,7 +53,8 @@ If any file does not exist, it is created with default permissions.
 .Pp
 By default,
 .Nm
-changes both modification and access times.  The
+changes both modification and access times.
+The
 .Fl a
 and
 .Fl m
@@ -113,39 +114,36 @@ The
 utility does not treat this as an error.
 No error messages are displayed and the exit value is not affected.
 .It Fl d
-Change the access and modification times to the specified time instead
+Change the access and modification times to the specified date time instead
 of the current time of day.
 The argument is of the form
 .Dq YYYY-MM-DDThh:mm:SS[.frac][tz]
 where the letters represent the following:
 .Bl -tag -width Ds -compact -offset indent
 .It Ar YYYY
-The year.
-.It Ar MM
-The month of the year, from 01 to 12.
-.It Ar DD
-The day of the month, from 01 to 31.
+At least four decimal digits representing the year.
+.It Ar MM , Ar DD , Ar hh , Ar mm , Ar SS
+As with
+.Fl t
+time.
 .It Ar T
 The letter
 .Li T
-or a space.
-.It Ar hh
-The hour of the day, from 00 to 23.
-.It Ar mm
-The minute of the hour, from 00 to 59.
-.It Ar SS
-The second of the minute, from 00 to 61.
+or a space is the time designator.
 .It Ar .frac
-An optional fraction,
-consisting of a period or a comma followed by one or more digits.
-The number of significant digits depends on the kernel configuration and
-the filesystem, and may be zero.
+An optional fraction, consisting of a period or a comma followed by one or
+more digits.
+The number of significant digits depends on the kernel configuration and the
+filesystem, and may be zero.
 .It Ar tz
 An optional letter
 .Li Z
 indicating the time is in
 .Tn UTC .
 Otherwise, the time is assumed to be in local time.
+Local time is affected by the value of the
+.Ev TZ
+environment variable.
 .El
 .It Fl h
 If the file is a symbolic link, change the times of the link
@@ -196,7 +194,7 @@ The hour of the day, from 00 to 23.
 .It Ar mm
 The minute of the hour, from 00 to 59.
 .It Ar SS
-The second of the minute, from 00 to 61.
+The second of the minute, from 00 to 60.
 .El
 .Pp
 If the

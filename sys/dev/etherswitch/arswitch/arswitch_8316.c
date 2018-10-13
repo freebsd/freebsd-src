@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2012 Adrian Chadd.
  * All rights reserved.
@@ -127,6 +129,8 @@ static int
 ar8316_hw_global_setup(struct arswitch_softc *sc)
 {
 
+	ARSWITCH_LOCK(sc);
+
 	arswitch_writereg(sc->sc_dev, 0x38, AR8X16_MAGIC);
 
 	/* Enable CPU port and disable mirror port. */
@@ -135,10 +139,6 @@ ar8316_hw_global_setup(struct arswitch_softc *sc)
 
 	/* Setup TAG priority mapping. */
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
-
-	/* Enable ARP frame acknowledge. */
-	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_AT_CTRL, 0,
-	    AR8X16_AT_CTRL_ARP_EN);
 
 	/*
 	 * Flood address table misses to all ports, and enable forwarding of
@@ -155,6 +155,7 @@ ar8316_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,
 	    AR8X16_SERVICE_TAG_MASK, 0);
 
+	ARSWITCH_UNLOCK(sc);
 	return (0);
 }
 

@@ -1,7 +1,9 @@
 /*
  * vim:sw=4 ts=8
  */
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2009 David McCullough <david.mccullough@securecomputing.com>
  *
  * Copyright (c) 2003-2007 Cavium Networks (support@cavium.com). All rights
@@ -587,7 +589,7 @@ octo_null_md5_encrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     uint64_t *data;
     uint64_t tmp1, tmp2;
     int data_i, data_l, alen = auth_len;
@@ -689,7 +691,7 @@ octo_null_sha1_encrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     uint64_t *data;
     uint64_t tmp1, tmp2, tmp3;
     int data_i, data_l, alen = auth_len;
@@ -794,7 +796,7 @@ octo_des_cbc_md5_encrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -942,7 +944,7 @@ octo_des_cbc_md5_decrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -1093,7 +1095,7 @@ octo_des_cbc_sha1_encrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -1244,7 +1246,7 @@ octo_des_cbc_sha1_decrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -1397,7 +1399,7 @@ octo_aes_cbc_md5_encrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -1574,7 +1576,7 @@ octo_aes_cbc_md5_decrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -1750,7 +1752,7 @@ octo_aes_cbc_sha1_encrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];
@@ -1946,7 +1948,7 @@ octo_aes_cbc_sha1_decrypt(
     int crypt_off, int crypt_len,
     int icv_off, uint8_t *ivp)
 {
-    register int next = 0;
+    int next = 0;
     union {
 	uint32_t data32[2];
 	uint64_t data64[1];

@@ -1710,10 +1710,13 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 	/* Add RSSI/NF to this mbuf */
 	bzero(&rxs, sizeof(rxs));
 	rxs.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rxs.nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
-	rxs.rssi = tail->rssi;
+	rxs.c_nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
+	rxs.c_rssi = tail->rssi;
 	/* XXX TODO: add MIMO RSSI/NF as well */
-	ieee80211_add_rx_params(m, &rxs);
+	if (ieee80211_add_rx_params(m, &rxs) == 0) {
+		counter_u64_add(ic->ic_ierrors, 1);
+		return;
+	}
 
 	/* XXX make a method */
 	STAILQ_INSERT_TAIL(&rxq->mq_head, m, m_stailqpkt);
@@ -1826,10 +1829,10 @@ tr_setup:
 			if (ni != NULL) {
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input_mimo(ni, m, NULL);
+				(void)ieee80211_input_mimo(ni, m);
 				ieee80211_free_node(ni);
 			} else
-				(void)ieee80211_input_mimo_all(ic, m, NULL);
+				(void)ieee80211_input_mimo_all(ic, m);
 		}
 #ifdef	IEEE80211_SUPPORT_SUPERG
 		ieee80211_ff_age_all(ic, 100);
@@ -2148,14 +2151,18 @@ otus_hw_rate_is_ofdm(struct otus_softc *sc, uint8_t hw_rate)
 static void
 otus_tx_update_ratectl(struct otus_softc *sc, struct ieee80211_node *ni)
 {
-	int tx, tx_success, tx_retry;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
+	struct otus_node *on = OTUS_NODE(ni);
 
-	tx = OTUS_NODE(ni)->tx_done;
-	tx_success = OTUS_NODE(ni)->tx_done - OTUS_NODE(ni)->tx_err;
-	tx_retry = OTUS_NODE(ni)->tx_retries;
+	txs->flags = IEEE80211_RATECTL_TX_STATS_NODE |
+		     IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->ni = ni;
+	txs->nframes = on->tx_done;
+	txs->nsuccess = on->tx_done - on->tx_err;
+	txs->nretries = on->tx_retries;
 
-	ieee80211_ratectl_tx_update(ni->ni_vap, ni, &tx, &tx_success,
-	    &tx_retry);
+	ieee80211_ratectl_tx_update(ni->ni_vap, txs);
+	on->tx_done = on->tx_err = on->tx_retries = 0;
 }
 
 /*
@@ -2175,6 +2182,7 @@ static int
 otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
     struct otus_data *data, const struct ieee80211_bpf_params *params)
 {
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
@@ -2183,7 +2191,7 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	uint32_t phyctl;
 	uint16_t macctl, qos;
 	uint8_t qid, rate;
-	int hasqos, xferlen;
+	int hasqos, xferlen, type, ismcast;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -2221,17 +2229,19 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 		qid = WME_AC_BE;
 	}
 
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+
 	/* Pickup a rate index. */
-	if (params != NULL) {
+	if (params != NULL)
 		rate = otus_rate_to_hw_rate(sc, params->ibp_rate0);
-	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
-		/* Get lowest rate */
-		rate = otus_rate_to_hw_rate(sc, 0);
-	} else if (m->m_flags & M_EAPOL) {
-		/* Get lowest rate */
-		rate = otus_rate_to_hw_rate(sc, 0);
-	} else {
+	else if (!!(m->m_flags & M_EAPOL) || type != IEEE80211_FC0_TYPE_DATA)
+		rate = otus_rate_to_hw_rate(sc, tp->mgmtrate);
+	else if (ismcast)
+		rate = otus_rate_to_hw_rate(sc, tp->mcastrate);
+	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
+		rate = otus_rate_to_hw_rate(sc, tp->ucastrate);
+	else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = otus_rate_to_hw_rate(sc, ni->ni_txrate);
 	}
@@ -2242,12 +2252,12 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	/*
 	 * XXX TODO: params for NOACK, ACK, RTS, CTS, etc
 	 */
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
+	if (ismcast ||
 	    (hasqos && ((qos & IEEE80211_QOS_ACKPOLICY) ==
 	     IEEE80211_QOS_ACKPOLICY_NOACK)))
 		macctl |= AR_TX_MAC_NOACK;
 
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	if (!ismcast) {
 		if (m->m_pkthdr.len + IEEE80211_CRC_LEN >= vap->iv_rtsthreshold)
 			macctl |= AR_TX_MAC_RTS;
 		else if (ic->ic_flags & IEEE80211_F_USEPROT) {
@@ -2320,7 +2330,7 @@ otus_set_multi(struct otus_softc *sc)
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 			ifp = vap->iv_ifp;
 			if_maddr_rlock(ifp);
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				caddr_t dl;
 				uint32_t val;
 
@@ -2385,12 +2395,15 @@ otus_updateedca_locked(struct otus_softc *sc)
 {
 #define EXP2(val)	((1 << (val)) - 1)
 #define AIFS(val)	((val) * 9 + 10)
+	struct chanAccParams chp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct wmeParams *edca;
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	OTUS_LOCK_ASSERT(sc);
 
-	edca = ic->ic_wme.wme_chanParams.cap_wmeParams;
+	edca = chp.cap_wmeParams;
 
 	/* Set CWmin/CWmax values. */
 	otus_write(sc, AR_MAC_REG_AC0_CW,

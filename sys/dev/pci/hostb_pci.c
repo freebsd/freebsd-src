@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
  *
@@ -37,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Provide a device to "eat" the host->pci bridge devices that show up
- * on PCI busses and stop them showing up twice on the probes.  This also
+ * on PCI buses and stop them showing up twice on the probes.  This also
  * stops them showing up as 'none' in pciconf -l.  If the host bridge
  * provides an AGP capability then we create a child agp device for the
  * agp GART driver to attach to.
@@ -205,6 +207,14 @@ pci_hostb_find_cap(device_t dev, device_t child, int capability,
 }
 
 static int
+pci_hostb_find_next_cap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_cap(dev, capability, start, capreg));
+}
+
+static int
 pci_hostb_find_extcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
@@ -213,11 +223,27 @@ pci_hostb_find_extcap(device_t dev, device_t child, int capability,
 }
 
 static int
+pci_hostb_find_next_extcap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_extcap(dev, capability, start, capreg));
+}
+
+static int
 pci_hostb_find_htcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
 
 	return (pci_find_htcap(dev, capability, capreg));
+}
+
+static int
+pci_hostb_find_next_htcap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_htcap(dev, capability, start, capreg));
 }
 
 static device_method_t pci_hostb_methods[] = {
@@ -250,8 +276,11 @@ static device_method_t pci_hostb_methods[] = {
 	DEVMETHOD(pci_set_powerstate,	pci_hostb_set_powerstate),
 	DEVMETHOD(pci_assign_interrupt,	pci_hostb_assign_interrupt),
 	DEVMETHOD(pci_find_cap,		pci_hostb_find_cap),
+	DEVMETHOD(pci_find_next_cap,	pci_hostb_find_next_cap),
 	DEVMETHOD(pci_find_extcap,	pci_hostb_find_extcap),
+	DEVMETHOD(pci_find_next_extcap,	pci_hostb_find_next_extcap),
 	DEVMETHOD(pci_find_htcap,	pci_hostb_find_htcap),
+	DEVMETHOD(pci_find_next_htcap,	pci_hostb_find_next_htcap),
 
 	{ 0, 0 }
 };

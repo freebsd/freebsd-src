@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999 Marcel Moolenaar
  * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
@@ -31,6 +33,8 @@
 
 #ifndef	_COMPAT_IA32_IA32_SIGNAL_H
 #define	_COMPAT_IA32_IA32_SIGNAL_H
+
+#include <compat/freebsd32/freebsd32_signal.h>
 
 #define	_MC_IA32_HASSEGS	0x1
 #define	_MC_IA32_HASBASES	0x2

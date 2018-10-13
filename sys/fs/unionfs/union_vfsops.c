@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994, 1995 The Regents of the University of California.
  * Copyright (c) 1994, 1995 Jan-Simon Pendry.
  * Copyright (c) 2005, 2006, 2012 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
@@ -16,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -390,7 +392,7 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct unionfs_mount *ump;
 	int		error;
-	struct statfs	mstat;
+	struct statfs	*mstat;
 	uint64_t	lbsize;
 
 	ump = MOUNTTOUNIONFSMOUNT(mp);
@@ -398,39 +400,47 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp)
 	UNIONFSDEBUG("unionfs_statfs(mp = %p, lvp = %p, uvp = %p)\n",
 	    (void *)mp, (void *)ump->um_lowervp, (void *)ump->um_uppervp);
 
-	bzero(&mstat, sizeof(mstat));
+	mstat = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK | M_ZERO);
 
-	error = VFS_STATFS(ump->um_lowervp->v_mount, &mstat);
-	if (error)
+	error = VFS_STATFS(ump->um_lowervp->v_mount, mstat);
+	if (error) {
+		free(mstat, M_STATFS);
 		return (error);
+	}
 
 	/* now copy across the "interesting" information and fake the rest */
-	sbp->f_blocks = mstat.f_blocks;
-	sbp->f_files = mstat.f_files;
+	sbp->f_blocks = mstat->f_blocks;
+	sbp->f_files = mstat->f_files;
 
-	lbsize = mstat.f_bsize;
+	lbsize = mstat->f_bsize;
 
-	error = VFS_STATFS(ump->um_uppervp->v_mount, &mstat);
-	if (error)
+	error = VFS_STATFS(ump->um_uppervp->v_mount, mstat);
+	if (error) {
+		free(mstat, M_STATFS);
 		return (error);
+	}
+
 
 	/*
 	 * The FS type etc is copy from upper vfs.
 	 * (write able vfs have priority)
 	 */
-	sbp->f_type = mstat.f_type;
-	sbp->f_flags = mstat.f_flags;
-	sbp->f_bsize = mstat.f_bsize;
-	sbp->f_iosize = mstat.f_iosize;
+	sbp->f_type = mstat->f_type;
+	sbp->f_flags = mstat->f_flags;
+	sbp->f_bsize = mstat->f_bsize;
+	sbp->f_iosize = mstat->f_iosize;
 
-	if (mstat.f_bsize != lbsize)
-		sbp->f_blocks = ((off_t)sbp->f_blocks * lbsize) / mstat.f_bsize;
+	if (mstat->f_bsize != lbsize)
+		sbp->f_blocks = ((off_t)sbp->f_blocks * lbsize) /
+		    mstat->f_bsize;
 
-	sbp->f_blocks += mstat.f_blocks;
-	sbp->f_bfree = mstat.f_bfree;
-	sbp->f_bavail = mstat.f_bavail;
-	sbp->f_files += mstat.f_files;
-	sbp->f_ffree = mstat.f_ffree;
+	sbp->f_blocks += mstat->f_blocks;
+	sbp->f_bfree = mstat->f_bfree;
+	sbp->f_bavail = mstat->f_bavail;
+	sbp->f_files += mstat->f_files;
+	sbp->f_ffree = mstat->f_ffree;
+
+	free(mstat, M_STATFS);
 	return (0);
 }
 

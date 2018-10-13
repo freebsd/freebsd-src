@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,6 +43,7 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 
@@ -52,6 +55,7 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif
+#define	_WANT_INPCB
 #include <netinet/in_pcb.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
@@ -62,6 +66,7 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
+#define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_debug.h>
 #include <netinet/udp.h>
@@ -76,9 +81,9 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include "systat.h"
 #include "extern.h"
 
-static struct netinfo *enter(struct inpcb *, int, const char *);
+static struct netinfo *enter(struct in_conninfo *, uint8_t, int, const char *);
 static void enter_kvm(struct inpcb *, struct socket *, int, const char *);
-static void enter_sysctl(struct inpcb *, struct xsocket *, int, const char *);
+static void enter_sysctl(struct xinpcb *, struct xsocket *, int, const char *);
 static void fetchnetstat_kvm(void);
 static void fetchnetstat_sysctl(void);
 static char *inetname(struct sockaddr *);
@@ -212,9 +217,9 @@ again:
 			}
 #endif
 		}
-		if (nhosts && !checkhost(&inpcb))
+		if (nhosts && !checkhost(&inpcb.inp_inc))
 			continue;
-		if (nports && !checkport(&inpcb))
+		if (nports && !checkport(&inpcb.inp_inc))
 			continue;
 		if (istcp) {
 			if (inpcb.inp_flags & INP_TIMEWAIT) {
@@ -245,7 +250,6 @@ fetchnetstat_sysctl(void)
 	int idx;
 	struct xinpgen *inpg;
 	char *cur, *end;
-	struct inpcb *inpcb;
 	struct xinpcb *xip = NULL;
 	struct xtcpcb *xtp = NULL;
 	int plen;
@@ -291,37 +295,36 @@ fetchnetstat_sysctl(void)
 		while (cur + plen <= end) {
 			if (idx == 0) { /* TCP */
 				xtp = (struct xtcpcb *)cur;
-				inpcb = &xtp->xt_inp;
+				xip = &xtp->xt_inp;
 			} else {
 				xip = (struct xinpcb *)cur;
-				inpcb = &xip->xi_inp;
 			}
 			cur += plen;
 
 			if (!aflag) {
-				if (inpcb->inp_vflag & INP_IPV4) {
-					if (inet_lnaof(inpcb->inp_laddr) ==
+				if (xip->inp_vflag & INP_IPV4) {
+					if (inet_lnaof(xip->inp_laddr) ==
 					    INADDR_ANY)
 						continue;
 				}
 #ifdef INET6
-				else if (inpcb->inp_vflag & INP_IPV6) {
-					if (memcmp(&inpcb->in6p_laddr,
+				else if (xip->inp_vflag & INP_IPV6) {
+					if (memcmp(&xip->in6p_laddr,
 					    &in6addr_any, sizeof(in6addr_any))
 					    == 0)
 						continue;
 				}
 #endif
 			}
-			if (nhosts && !checkhost(inpcb))
+			if (nhosts && !checkhost(&xip->inp_inc))
 				continue;
-			if (nports && !checkport(inpcb))
+			if (nports && !checkport(&xip->inp_inc))
 				continue;
-			if (idx == 0)	/* TCP */
-				enter_sysctl(inpcb, &xtp->xt_socket,
-				    xtp->xt_tp.t_state, "tcp");
-			else		/* UDP */
-				enter_sysctl(inpcb, &xip->xi_socket, 0, "udp");
+			if (idx == 0)
+				enter_sysctl(xip, &xip->xi_socket,
+				    xtp->t_state, "tcp");
+			else
+				enter_sysctl(xip, &xip->xi_socket, 0, "udp");
 		}
 		free(inpg);
 	}
@@ -332,25 +335,26 @@ enter_kvm(struct inpcb *inp, struct socket *so, int state, const char *proto)
 {
 	struct netinfo *p;
 
-	if ((p = enter(inp, state, proto)) != NULL) {
+	if ((p = enter(&inp->inp_inc, inp->inp_vflag, state, proto)) != NULL) {
 		p->ni_rcvcc = so->so_rcv.sb_ccc;
 		p->ni_sndcc = so->so_snd.sb_ccc;
 	}
 }
 
 static void
-enter_sysctl(struct inpcb *inp, struct xsocket *so, int state, const char *proto)
+enter_sysctl(struct xinpcb *xip, struct xsocket *so, int state,
+    const char *proto)
 {
 	struct netinfo *p;
 
-	if ((p = enter(inp, state, proto)) != NULL) {
+	if ((p = enter(&xip->inp_inc, xip->inp_vflag, state, proto)) != NULL) {
 		p->ni_rcvcc = so->so_rcv.sb_cc;
 		p->ni_sndcc = so->so_snd.sb_cc;
 	}
 }
 
 static struct netinfo *
-enter(struct inpcb *inp, int state, const char *proto)
+enter(struct in_conninfo *inc, uint8_t vflag, int state, const char *proto)
 {
 	struct netinfo *p;
 	struct sockaddr_storage lsa, fsa;
@@ -361,32 +365,32 @@ enter(struct inpcb *inp, int state, const char *proto)
 
 	memset(&lsa, 0, sizeof(lsa));
 	memset(&fsa, 0, sizeof(fsa));
-	if (inp->inp_vflag & INP_IPV4) {
+	if (vflag & INP_IPV4) {
 		sa4 = (struct sockaddr_in *)&lsa;
-		sa4->sin_addr = inp->inp_laddr;
-		sa4->sin_port = inp->inp_lport;
+		sa4->sin_addr = inc->inc_laddr;
+		sa4->sin_port = inc->inc_lport;
 		sa4->sin_family = AF_INET;
 		sa4->sin_len = sizeof(struct sockaddr_in);
 
 		sa4 = (struct sockaddr_in *)&fsa;
-		sa4->sin_addr = inp->inp_faddr;
-		sa4->sin_port = inp->inp_fport;
+		sa4->sin_addr = inc->inc_faddr;
+		sa4->sin_port = inc->inc_fport;
 		sa4->sin_family = AF_INET;
 		sa4->sin_len = sizeof(struct sockaddr_in);
 	}
 #ifdef INET6
-	else if (inp->inp_vflag & INP_IPV6) {
+	else if (vflag & INP_IPV6) {
 		sa6 = (struct sockaddr_in6 *)&lsa;
-		memcpy(&sa6->sin6_addr, &inp->in6p_laddr,
+		memcpy(&sa6->sin6_addr, &inc->inc6_laddr,
 		    sizeof(struct in6_addr));
-		sa6->sin6_port = inp->inp_lport;
+		sa6->sin6_port = inc->inc_lport;
 		sa6->sin6_family = AF_INET6;
 		sa6->sin6_len = sizeof(struct sockaddr_in6);
 
 		sa6 = (struct sockaddr_in6 *)&fsa;
-		memcpy(&sa6->sin6_addr, &inp->in6p_faddr,
+		memcpy(&sa6->sin6_addr, &inc->inc6_faddr,
 		    sizeof(struct in6_addr));
-		sa6->sin6_port = inp->inp_fport;
+		sa6->sin6_port = inc->inc_fport;
 		sa6->sin6_family = AF_INET6;
 		sa6->sin6_len = sizeof(struct sockaddr_in6);
 	}

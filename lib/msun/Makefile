@@ -13,11 +13,7 @@
 #
 
 PACKAGE=	clibs
-.if ${MACHINE_CPUARCH} == "i386"
-ARCH_SUBDIR= i387
-.else
-ARCH_SUBDIR= ${MACHINE_CPUARCH}
-.endif
+ARCH_SUBDIR=	${MACHINE_CPUARCH:S/i386/i387/}
 
 .include "${ARCH_SUBDIR}/Makefile.inc"
 
@@ -61,14 +57,14 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	k_cos.c k_cosf.c k_exp.c k_expf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c s_cargl.c \
-	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c \
+	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c s_clog.c s_clogf.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c \
 	s_csqrt.c s_csqrtf.c s_erf.c s_erff.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
 	s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_fma.c s_fmaf.c \
-	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
-	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
+	s_fmax.c s_fmaxf.c s_fmin.c \
+	s_fminf.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c s_llroundl.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
@@ -77,7 +73,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_nexttowardf.c s_remquo.c s_remquof.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
-	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c \
+	s_signgam.c s_significand.c s_significandf.c s_sin.c \
+	s_sincos.c s_sincosf.c s_sinf.c \
 	s_tan.c s_tanf.c s_tanh.c s_tanhf.c s_tgammaf.c s_trunc.c s_truncf.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
@@ -98,16 +95,19 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
+COMMON_SRCS+=	catrigl.c \
+	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	e_coshl.c e_fmodl.c e_hypotl.c \
-	e_lgammal.c e_lgammal_r.c \
+	e_lgammal.c e_lgammal_r.c e_powl.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
+	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c \
+	s_clogl.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
-	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
-	s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c s_scalbnl.c \
-	s_sinl.c s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
+	s_fmaxl.c s_fminl.c s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
+	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
+	s_scalbnl.c s_sinl.c s_sincosl.c \
+	s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
 
 # C99 complex functions
@@ -115,6 +115,7 @@ COMMON_SRCS+=	catrig.c catrigf.c \
 	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
 	s_cimag.c s_cimagf.c s_cimagl.c \
 	s_conj.c s_conjf.c s_conjl.c \
+	s_cpow.c s_cpowf.c s_cpowl.c \
 	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c \
 	s_csinh.c s_csinhf.c s_ctanh.c s_ctanhf.c
 
@@ -134,13 +135,15 @@ INCS+=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	ceil.3 cacos.3 ccos.3 ccosh.3 cexp.3 \
-	cimag.3 copysign.3 cos.3 cosh.3 csqrt.3 erf.3 exp.3 fabs.3 fdim.3 \
+	cimag.3 clog.3 copysign.3 cos.3 cosh.3 cpow.3 csqrt.3 erf.3 \
+	exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
 	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
-	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3 \
+	round.3 scalbn.3 signbit.3 sin.3 sincos.3 \
+	sinh.3 sqrt.3 tan.3 tanh.3 trunc.3 \
 	complex.3
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
@@ -151,9 +154,12 @@ MLINKS+=atan.3 atanf.3 atan.3 atanl.3
 MLINKS+=atanh.3 atanhf.3 atanh.3 atanhl.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
-MLINKS+=cacos.3 cacosf.3 cacos.3 cacosh.3 cacos.3 cacoshf.3 \
-	cacos.3 casin.3 cacos.3 casinf.3 cacos.3 casinh.3 cacos.3 casinhf.3 \
-	cacos.3 catan.3 cacos.3 catanf.3 cacos.3 catanh.3 cacos.3 catanhf.3
+MLINKS+=cacos.3 cacosf.3 cacos.3 cacosl.3 \
+	cacos.3 cacosh.3 cacos.3 cacoshf.3 cacos.3 cacoshl.3 \
+	cacos.3 casin.3 cacos.3 casinf.3 cacos.3 casinl.3 \
+	cacos.3 casinh.3 cacos.3 casinhf.3 cacos.3 casinhl.3 \
+	cacos.3 catan.3 cacos.3 catanf.3 cacos.3 catanl.3 \
+	cacos.3 catanh.3 cacos.3 catanhf.3 cacos.3 catanhl.3
 MLINKS+=ccos.3 ccosf.3 ccos.3 csin.3 ccos.3 csinf.3 ccos.3 ctan.3 ccos.3 ctanf.3
 MLINKS+=ccosh.3 ccoshf.3 ccosh.3 csinh.3 ccosh.3 csinhf.3 \
 	ccosh.3 ctanh.3 ccosh.3 ctanhf.3
@@ -163,9 +169,11 @@ MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
 	cimag.3 cproj.3 cimag.3 cprojf.3 cimag.3 cprojl.3 \
 	cimag.3 creal.3 cimag.3 crealf.3 cimag.3 creall.3
+MLINKS+=clog.3 clogf.3 clog.3 clogl.3
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3 cosh.3 coshl.3
+MLINKS+=cpow.3 cpowf.3 cpow.3 cpowl.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3 erf.3 erfl.3 erf.3 erfcl.3
 MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 expm1l.3 exp.3 pow.3 exp.3 powf.3 \
@@ -215,6 +223,7 @@ MLINKS+=round.3 roundf.3 round.3 roundl.3
 MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
 MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
 MLINKS+=sin.3 sinf.3 sin.3 sinl.3
+MLINKS+=sincos.3 sincosf.3 sin.3 sincosl.3
 MLINKS+=sinh.3 sinhf.3 sinh.3 sinhl.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 cbrtl.3 sqrt.3 sqrtf.3 \
 	sqrt.3 sqrtl.3
@@ -224,8 +233,7 @@ MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 
 .include <src.opts.mk>
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -55,7 +57,6 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 {
 	struct cg *cgp;
 	struct buf *bp;
-	ufs2_daddr_t cgbno;
 	int error, cg;
 	struct cdev *dev;
 	struct inode *ip;
@@ -65,34 +66,27 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	ino_t ino;
 
 	ip = VTOI(vp);
-	ump = ip->i_ump;
-	fs = ip->i_fs;
-	devvp = ip->i_devvp;
+	ump = VFSTOUFS(vp->v_mount);
+	fs = ump->um_fs;
+	devvp = ump->um_devvp;
 	ino = ip->i_number;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
-		dev = VTOI(devvp)->i_devvp->v_rdev;
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
-	} else {
+		dev = VFSTOUFS(devvp->v_mount)->um_devvp->v_rdev;
+	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
+	} else {
+		bp = NULL;
+		return (EIO);
 	}
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ufs_gjournal_modref: range: dev = %s, ino = %lu, fs = %s",
 		    devtoname(dev), (u_long)ino, fs->fs_fsmnt);
-	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
 		return (error);
-	}
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return (0);
-	}
-	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_unrefs += count;
 	UFS_LOCK(ump);
 	fs->fs_unrefs += count;

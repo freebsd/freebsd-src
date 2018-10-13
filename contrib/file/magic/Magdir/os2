@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: os2,v 1.9 2016/05/11 15:51:57 christos Exp $
+# $File: os2,v 1.10 2017/03/17 21:35:28 christos Exp $
 # os2:  file(1) magic for OS/2 files
 #
 
@@ -25,7 +25,7 @@
 #>5	string	>\			(Local file) <%s>
 
 # >>>>> OS/2 INF/HLP <<<<<  (source: Daniel Dissett ddissett@netcom.com)
-# Carl Hauser (chauser.parc@xerox.com) and 
+# Carl Hauser (chauser.parc@xerox.com) and
 # Marcus Groeber (marcusg@ph-cip.uni-koeln.de)
 # list the following header format in inf02a.doc:
 #
@@ -35,11 +35,11 @@
 #                      //  bit 0: set if INF style file
 #                      //  bit 4: set if HLP style file
 #                      // patching this byte allows reading HLP files
-#                      // using the VIEW command, while help files 
+#                      // using the VIEW command, while help files
 #                      // seem to work with INF settings here as well.
 #  int16 hdrsize;      // total size of header
 #  int16 unknown2;     // unknown purpose
-# 
+#
 0   string  HSP\x01\x9b\x00 OS/2 INF
 >107 string >0                      (%s)
 0   string  HSP\x10\x9b\x00     OS/2 HLP

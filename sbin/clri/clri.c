@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,16 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <libufs.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
 
 static void
 usage(void)
@@ -73,41 +72,35 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct fs *sbp;
+	struct fs *fs;
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2;
 	char *ibuf[MAXBSIZE];
 	long generation, bsize;
 	off_t offset;
-	int i, fd, inonum;
-	char *fs, sblock[SBLOCKSIZE];
+	int fd, ret, inonum;
+	char *fsname;
 	void *v = ibuf;
 
 	if (argc < 3)
 		usage();
 
-	fs = *++argv;
-	sbp = NULL;
+	fsname = *++argv;
 
 	/* get the superblock. */
-	if ((fd = open(fs, O_RDWR, 0)) < 0)
-		err(1, "%s", fs);
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if (lseek(fd, (off_t)(sblock_try[i]), SEEK_SET) < 0)
-			err(1, "%s", fs);
-		if (read(fd, sblock, sizeof(sblock)) != sizeof(sblock))
-			errx(1, "%s: can't read superblock", fs);
-		sbp = (struct fs *)sblock;
-		if ((sbp->fs_magic == FS_UFS1_MAGIC ||
-		     (sbp->fs_magic == FS_UFS2_MAGIC &&
-		      sbp->fs_sblockloc == sblock_try[i])) &&
-		    sbp->fs_bsize <= MAXBSIZE &&
-		    sbp->fs_bsize >= (int)sizeof(struct fs))
-			break;
+	if ((fd = open(fsname, O_RDWR, 0)) < 0)
+		err(1, "%s", fsname);
+	if ((ret = sbget(fd, &fs, -1)) != 0) {
+		switch (ret) {
+		case ENOENT:
+			warn("Cannot find file system superblock");
+			return (1);
+		default:
+			warn("Unable to read file system superblock");
+			return (1);
+		}
 	}
-	if (sblock_try[i] == -1)
-		errx(2, "cannot find file system superblock");
-	bsize = sbp->fs_bsize;
+	bsize = fs->fs_bsize;
 
 	/* remaining arguments are inode numbers. */
 	while (*++argv) {
@@ -117,20 +110,20 @@ main(int argc, char *argv[])
 		(void)printf("clearing %d\n", inonum);
 
 		/* read in the appropriate block. */
-		offset = ino_to_fsba(sbp, inonum);	/* inode to fs blk */
-		offset = fsbtodb(sbp, offset);		/* fs blk disk blk */
+		offset = ino_to_fsba(fs, inonum);	/* inode to fs blk */
+		offset = fsbtodb(fs, offset);		/* fs blk disk blk */
 		offset *= DEV_BSIZE;			/* disk blk to bytes */
 
 		/* seek and read the block */
 		if (lseek(fd, offset, SEEK_SET) < 0)
-			err(1, "%s", fs);
+			err(1, "%s", fsname);
 		if (read(fd, ibuf, bsize) != bsize)
-			err(1, "%s", fs);
+			err(1, "%s", fsname);
 
-		if (sbp->fs_magic == FS_UFS2_MAGIC) {
+		if (fs->fs_magic == FS_UFS2_MAGIC) {
 			/* get the inode within the block. */
 			dp2 = &(((struct ufs2_dinode *)v)
-			    [ino_to_fsbo(sbp, inonum)]);
+			    [ino_to_fsbo(fs, inonum)]);
 
 			/* clear the inode, and bump the generation count. */
 			generation = dp2->di_gen + 1;
@@ -139,7 +132,7 @@ main(int argc, char *argv[])
 		} else {
 			/* get the inode within the block. */
 			dp1 = &(((struct ufs1_dinode *)v)
-			    [ino_to_fsbo(sbp, inonum)]);
+			    [ino_to_fsbo(fs, inonum)]);
 
 			/* clear the inode, and bump the generation count. */
 			generation = dp1->di_gen + 1;
@@ -149,9 +142,9 @@ main(int argc, char *argv[])
 
 		/* backup and write the block */
 		if (lseek(fd, (off_t)-bsize, SEEK_CUR) < 0)
-			err(1, "%s", fs);
+			err(1, "%s", fsname);
 		if (write(fd, ibuf, bsize) != bsize)
-			err(1, "%s", fs);
+			err(1, "%s", fsname);
 		(void)fsync(fd);
 	}
 	(void)close(fd);

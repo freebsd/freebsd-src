@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -204,6 +206,14 @@ struct __dbreg64 {
 				/* Index 8-15: reserved */
 };
 
+#define	DBREG_DR6_RESERVED1	0xffff0ff0
+#define	DBREG_DR6_BMASK		0x000f
+#define	DBREG_DR6_B(i)		(1 << (i))
+#define	DBREG_DR6_BD		0x2000
+#define	DBREG_DR6_BS		0x4000
+#define	DBREG_DR6_BT		0x8000
+
+#define	DBREG_DR7_RESERVED1	0x0400
 #define	DBREG_DR7_LOCAL_ENABLE	0x01
 #define	DBREG_DR7_GLOBAL_ENABLE	0x02
 #define	DBREG_DR7_LEN_1		0x00	/* 1 byte length          */
@@ -234,6 +244,8 @@ struct __dbreg64 {
 #undef __dbreg64
 
 #ifdef _KERNEL
+struct thread;
+
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */

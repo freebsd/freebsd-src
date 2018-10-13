@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Chris Torek <torek @ torek net>
  * All rights reserved.
  *
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * front of virtio-based device softc" constraint, let's use
  * this to convert.
  */
-#define DEV_SOFTC(vs) ((void *)(vs))
+#define	DEV_SOFTC(vs) ((void *)(vs))
 
 /*
  * Link a virtio_softc to its constants, the device softc, and

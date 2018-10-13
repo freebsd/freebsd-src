@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2016
+.Dd May 18, 2017
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -88,6 +88,16 @@ An extension to the POSIX shared memory API to support anonymous swap objects
 associated with file descriptors; described in greater detail in
 .Xr shm_open 2 .
 .El
+.Pp
+In some cases,
+.Nm
+limits the valid values of some parameters to traditional APIs in order to
+restrict access to global namespaces:
+.Bl -tag -width indent
+.It process IDs
+Processes can only act upon their own process ID with syscalls such as
+.Xr cpuset_setaffinity 2 .
+.El
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
 .Xr cap_fcntls_limit 2 ,
@@ -104,7 +114,7 @@ associated with file descriptors; described in greater detail in
 .Xr shm_open 2 ,
 .Xr write 2 ,
 .Xr cap_rights_get 3 ,
-.Xr casper 3 ,
+.Xr libcasper 3 ,
 .Xr procdesc 4
 .Sh HISTORY
 .Nm

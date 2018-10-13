@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -53,7 +55,7 @@
 
 typedef struct {
 	void *dptr;
-	int dsize;
+	int dsize;	/* XXX Should be size_t according to 1003.1-2008. */
 } datum;
 
 typedef DB DBM;

@@ -30,7 +30,7 @@
 /**
  * \file xenbusb.c
  *
- * \brief Shared support functions for managing the NewBus busses that contain
+ * \brief Shared support functions for managing the NewBus buses that contain
  *        Xen front and back end device instances.
  *
  * The NewBus implementation of XenBus attaches a xenbusb_front and xenbusb_back
@@ -736,7 +736,7 @@ xenbusb_attach(device_t dev, char *bus_node, u_int id_components)
 	xbs->xbs_dev = dev;
 
 	/*
-	 * Since XenBus busses are attached to the XenStore, and
+	 * Since XenBus buses are attached to the XenStore, and
 	 * the XenStore does not probe children until after interrupt
 	 * services are available, this config hook is used solely
 	 * to ensure that the remainder of the boot process (e.g.
@@ -790,6 +790,11 @@ xenbusb_resume(device_t dev)
 		for (i = 0; i < count; i++) {
 			if (device_get_state(kids[i]) == DS_NOTPRESENT)
 				continue;
+
+			if (xen_suspend_cancelled) {
+				DEVICE_RESUME(kids[i]);
+				continue;
+			}
 
 			ivars = device_get_ivars(kids[i]);
 

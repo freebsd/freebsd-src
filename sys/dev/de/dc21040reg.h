@@ -3,6 +3,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1994, 1995, 1996 Matt Thomas <matt@3am-software.com>
  * All rights reserved.
  *
@@ -493,20 +495,6 @@ typedef struct {
 #define	PHYCTL_ISOLATE		0x0400
 #define	PHYCTL_AUTONEG_RESTART	0x0200
 #define	PHYCTL_FULL_DUPLEX	0x0100
-
-/*
- * Definitions for the DE425.
- */
-#define	DE425_CFID		0x08	/* Configuration Id */
-#define	DE425_CFCS		0x0C	/* Configuration Command-Status */
-#define	DE425_CFRV		0x18	/* Configuration Revision */
-#define	DE425_CFLT		0x1C	/* Configuration Latency Timer */
-#define	DE425_CBIO		0x28	/* Configuration Base IO Address */
-#define	DE425_CFDA		0x2C	/* Configuration Driver Area */
-#define	DE425_ENETROM_OFFSET	0xC90	/* Offset in I/O space for ENETROM */
-#define	DE425_CFG0		0xC88	/* IRQ register */
-#define	DE425_EISAID		0x10a34250 /* EISA device id */
-#define	DE425_EISA_IOSIZE	0x100
 
 #define	DEC_VENDORID		0x1011
 #define	CHIPID_21040		0x0002

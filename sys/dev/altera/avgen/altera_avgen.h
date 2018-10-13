@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2012 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -39,6 +41,7 @@ struct altera_avgen_softc {
 	 */
 	device_t	 avg_dev;
 	int		 avg_unit;
+	char		*avg_name;
 
 	/*
 	 * The device node and memory-mapped I/O region.
@@ -52,6 +55,13 @@ struct altera_avgen_softc {
 	 */
 	u_int		 avg_flags;
 	u_int		 avg_width;
+	u_int		 avg_sectorsize;
+
+	/*
+	 * disk(9) state, if required for this device.
+	 */
+	struct disk	*avg_disk;
+	struct mtx	 avg_disk_mtx;
 };
 
 /*
@@ -63,6 +73,8 @@ struct altera_avgen_softc {
 #define	ALTERA_AVALON_FLAG_MMAP_READ		0x04
 #define	ALTERA_AVALON_FLAG_MMAP_WRITE		0x08
 #define	ALTERA_AVALON_FLAG_MMAP_EXEC		0x10
+#define	ALTERA_AVALON_FLAG_GEOM_READ		0x20
+#define	ALTERA_AVALON_FLAG_GEOM_WRITE		0x40
 
 #define	ALTERA_AVALON_CHAR_READ			'r'
 #define	ALTERA_AVALON_CHAR_WRITE		'w'
@@ -70,6 +82,7 @@ struct altera_avgen_softc {
 
 #define	ALTERA_AVALON_STR_WIDTH			"width"
 #define	ALTERA_AVALON_STR_FILEIO		"fileio"
+#define	ALTERA_AVALON_STR_GEOMIO		"geomio"
 #define	ALTERA_AVALON_STR_MMAPIO		"mmapio"
 #define ALTERA_AVALON_STR_DEVNAME		"devname"
 #define	ALTERA_AVALON_STR_DEVUNIT		"devunit"
@@ -78,8 +91,8 @@ struct altera_avgen_softc {
  * Driver setup routines from the bus attachment/teardown.
  */
 int	altera_avgen_attach(struct altera_avgen_softc *sc,
-	    const char *str_fileio, const char *str_mmapio,
-	    const char *str_devname, int devunit);
+	    const char *str_fileio, const char *str_geomio,
+	    const char *str_mmapio, const char *str_devname, int devunit);
 void	altera_avgen_detach(struct altera_avgen_softc *sc);
 
 extern devclass_t	altera_avgen_devclass;

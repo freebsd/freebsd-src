@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -39,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/clock.h>
+#include <sys/disk.h>
 #include <geom/geom.h>
 #include "geom/raid/g_raid.h"
 #include "geom/raid/md_ddf.h"
@@ -570,7 +573,7 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 	off_t anchorlba;
 	u_int ss, pos, size;
 	int len, error;
-	char serial_buffer[24];
+	char serial_buffer[DISK_IDENT_SIZE];
 
 	if (sample->hdr == NULL)
 		sample = NULL;
@@ -755,10 +758,8 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 static void
 ddf_meta_copy(struct ddf_meta *dst, struct ddf_meta *src)
 {
-	struct ddf_header *hdr;
 	u_int ss;
 
-	hdr = src->hdr;
 	dst->bigendian = src->bigendian;
 	ss = dst->sectorsize = src->sectorsize;
 	dst->hdr = malloc(ss, M_MD_DDF, M_WAITOK);
@@ -843,10 +844,8 @@ ddf_vol_meta_create(struct ddf_vol_meta *meta, struct ddf_meta *sample)
 {
 	struct timespec ts;
 	struct clocktime ct;
-	struct ddf_header *hdr;
 	u_int ss, size;
 
-	hdr = sample->hdr;
 	meta->bigendian = sample->bigendian;
 	ss = meta->sectorsize = sample->sectorsize;
 	meta->hdr = malloc(ss, M_MD_DDF, M_WAITOK);
@@ -872,13 +871,11 @@ static void
 ddf_vol_meta_update(struct ddf_vol_meta *dst, struct ddf_meta *src,
     uint8_t *GUID, int started)
 {
-	struct ddf_header *hdr;
 	struct ddf_vd_entry *vde;
 	struct ddf_vdc_record *vdc;
 	int vnew, bvnew, bvd, size;
 	u_int ss;
 
-	hdr = src->hdr;
 	vde = &src->vdr->entry[ddf_meta_find_vd(src, GUID)];
 	vdc = ddf_meta_find_vdc(src, GUID);
 	if (GET8D(src, vdc->Secondary_Element_Count) == 1)
@@ -1161,6 +1158,16 @@ hdrerror:
 		    (GET16(meta, hdr->Configuration_Record_Length) * ss - 512) / 12));
 	}
 
+	if (GET32(meta, hdr->cd_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->pdr_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->vdr_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->cr_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->pdd_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->bbmlog_length) * ss >= MAXPHYS) {
+		G_RAID_DEBUG(1, "%s: Blocksize is too big.", pp->name);
+		goto hdrerror;
+	}
+
 	/* Read controller data. */
 	buf = g_read_data(cp, (lba + GET32(meta, hdr->cd_section)) * ss,
 	    GET32(meta, hdr->cd_length) * ss, &error);
@@ -1415,12 +1422,10 @@ static int
 g_raid_md_ddf_purge_volumes(struct g_raid_softc *sc)
 {
 	struct g_raid_volume	*vol, *tvol;
-	struct g_raid_md_ddf_pervolume *pv;
 	int i, res;
 
 	res = 0;
 	TAILQ_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tvol) {
-		pv = vol->v_md_data;
 		if (vol->v_stopping)
 			continue;
 		for (i = 0; i < vol->v_disks_count; i++) {
@@ -1626,7 +1631,7 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 	vmeta = &pv->pv_meta;
 	gmeta = &mdi->mdio_meta;
 
-	/* Find disk position in metadata by it's reference. */
+	/* Find disk position in metadata by its reference. */
 	disk_pos = ddf_meta_find_disk(vmeta, reference,
 	    &md_disk_bvd, &md_disk_pos);
 	md_pde_pos = ddf_meta_find_pd(gmeta, NULL, reference);
@@ -1854,7 +1859,6 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	struct g_raid_md_ddf_pervolume *pv;
 	struct g_raid_md_ddf_object *mdi;
 	struct ddf_vol_meta *vmeta;
-	struct ddf_vdc_record *vdc;
 	uint64_t *val2;
 	int i, j, bvd;
 
@@ -1863,7 +1867,6 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	mdi = (struct g_raid_md_ddf_object *)md;
 	pv = vol->v_md_data;
 	vmeta = &pv->pv_meta;
-	vdc = vmeta->vdc;
 
 	vol->v_raid_level = GET8(vmeta, vdc->Primary_RAID_Level);
 	vol->v_raid_level_qualifier = GET8(vmeta, vdc->RLQ);

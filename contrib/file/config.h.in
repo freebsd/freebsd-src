@@ -77,6 +77,9 @@
 /* Define to 1 if you have the `gnurx' library (-lgnurx). */
 #undef HAVE_LIBGNURX
 
+/* Define to 1 if you have the `seccomp' library (-lseccomp). */
+#undef HAVE_LIBSECCOMP
+
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 
@@ -327,6 +330,9 @@
 #  undef WORDS_BIGENDIAN
 # endif
 #endif
+
+/* Enable zlib compression support */
+#undef ZLIBSUPPORT
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE

@@ -111,12 +111,15 @@ svn_cl__update(apr_getopt_t *os,
                apr_pool_t *scratch_pool)
 {
   svn_cl__opt_state_t *opt_state = ((svn_cl__cmd_baton_t *) baton)->opt_state;
+  svn_cl__conflict_stats_t *conflict_stats =
+    ((svn_cl__cmd_baton_t *) baton)->conflict_stats;
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
   apr_array_header_t *targets;
   svn_depth_t depth;
   svn_boolean_t depth_is_sticky;
   struct svn_cl__check_externals_failed_notify_baton nwb;
   apr_array_header_t *result_revs;
+  apr_array_header_t *conflicted_paths;
   svn_error_t *err = SVN_NO_ERROR;
   svn_error_t *externals_err = SVN_NO_ERROR;
 
@@ -167,7 +170,8 @@ svn_cl__update(apr_getopt_t *os,
                              &(opt_state->start_revision),
                              depth, depth_is_sticky,
                              opt_state->ignore_externals,
-                             opt_state->force, TRUE /* adds_as_modification */,
+                             opt_state->force,
+                             opt_state->adds_as_modification,
                              opt_state->parents,
                              ctx, scratch_pool));
 
@@ -176,6 +180,13 @@ svn_cl__update(apr_getopt_t *os,
                                      NULL,
                                      _("Failure occurred processing one or "
                                        "more externals definitions"));
+
+  /* Run the interactive resolver if conflicts were raised. */
+  SVN_ERR(svn_cl__conflict_stats_get_paths(&conflicted_paths, conflict_stats,
+                                           scratch_pool, scratch_pool));
+  if (conflicted_paths)
+    SVN_ERR(svn_cl__walk_conflicts(conflicted_paths, conflict_stats,
+                                   opt_state, ctx, scratch_pool));
 
   if (! opt_state->quiet)
     {

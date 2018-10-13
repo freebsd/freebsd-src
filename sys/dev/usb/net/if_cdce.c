@@ -1,6 +1,8 @@
 /*	$NetBSD: if_cdce.c,v 1.4 2004/10/24 12:50:54 augustss Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000-2003 Bill Paul <wpaul@windriver.com>
  * Copyright (c) 2003-2005 Craig Boston
  * Copyright (c) 2004 Daniel Hartmeier
@@ -283,6 +285,9 @@ static const STRUCT_USB_HOST_ID cdce_host_devs[] = {
 		USB_DRIVER_INFO(0)},
 	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
 		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x76),
+		USB_DRIVER_INFO(0)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x03), USB_IFACE_PROTOCOL(0x16),
 		USB_DRIVER_INFO(0)},
 };
 

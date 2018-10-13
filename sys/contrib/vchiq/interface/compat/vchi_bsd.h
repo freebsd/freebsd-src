@@ -28,8 +28,8 @@
 #ifndef __VCHI_BSD_H__
 #define __VCHI_BSD_H__
 
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/lock.h>
@@ -329,7 +329,8 @@ device_rlprintf(int pps, device_t dev, const char *fmt, ...)
 MALLOC_DECLARE(M_VCHI);
 
 #define kmalloc(size, flags)	malloc((size), M_VCHI, M_NOWAIT | M_ZERO)
-#define kcalloc(n, size, flags)	malloc((n) * (size), M_VCHI, M_NOWAIT | M_ZERO)
+#define kcalloc(n, size, flags)	mallocarray((n), (size), M_VCHI, \
+				    M_NOWAIT | M_ZERO)
 #define kzalloc(a, b)		kcalloc(1, (a), (b))
 #define kfree(p)		free(p, M_VCHI)
 

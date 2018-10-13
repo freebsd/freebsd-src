@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Fabien Thomas <fabient@FreeBSD.org>.
  * All rights reserved.
  *
@@ -138,7 +140,7 @@ via_update(const char *dev, const char *path)
 	fd = open(path, O_RDONLY, 0);
 	if (fd < 0) {
 		WARN(0, "open(%s)", path);
-		return;
+		goto fail;
 	}
 	error = fstat(fd, &st);
 	if (error != 0) {

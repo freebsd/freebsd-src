@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -40,6 +42,7 @@
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/linker.h>
@@ -49,6 +52,7 @@
 
 #include <machine/altivec.h>
 #include <machine/cpu.h>
+#include <machine/fpu.h>
 #include <machine/elf.h>
 #include <machine/reg.h>
 #include <machine/md_var.h>
@@ -58,6 +62,18 @@
 #include <compat/freebsd32/freebsd32_util.h>
 
 extern const char *freebsd32_syscallnames[];
+static void ppc32_fixlimit(struct rlimit *rl, int which);
+
+static SYSCTL_NODE(_compat, OID_AUTO, ppc32, CTLFLAG_RW, 0, "32-bit mode");
+
+#define PPC32_MAXDSIZ (1024*1024*1024)
+static u_long ppc32_maxdsiz = PPC32_MAXDSIZ;
+SYSCTL_ULONG(_compat_ppc32, OID_AUTO, maxdsiz, CTLFLAG_RWTUN, &ppc32_maxdsiz,
+             0, "");
+#define PPC32_MAXSSIZ (64*1024*1024)
+u_long ppc32_maxssiz = PPC32_MAXSSIZ;
+SYSCTL_ULONG(_compat_ppc32, OID_AUTO, maxssiz, CTLFLAG_RWTUN, &ppc32_maxssiz,
+             0, "");
 #endif
 
 struct sysentvec elf32_freebsd_sysvec = {
@@ -89,6 +105,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_copyout_strings = freebsd32_copyout_strings,
 	.sv_setregs	= ppc32_setregs,
 	.sv_syscallnames = freebsd32_syscallnames,
+	.sv_fixlimit	= ppc32_fixlimit,
 #else
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
 	.sv_usrstack	= USRSTACK,
@@ -96,8 +113,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
 	.sv_syscallnames = syscallnames,
-#endif
 	.sv_fixlimit	= NULL,
+#endif
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_SHP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
@@ -107,6 +124,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
+	.sv_hwcap	= &cpu_features,
+	.sv_hwcap2	= &cpu_features2,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
@@ -153,23 +172,55 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
 	size_t len;
 	struct pcb *pcb;
+	uint64_t vshr[32];
+	uint64_t *vsr_dw1;
+	int vsr_idx;
 
 	len = 0;
 	pcb = td->td_pcb;
+
 	if (pcb->pcb_flags & PCB_VEC) {
 		save_vec_nodrop(td);
 		if (dst != NULL) {
 			len += elf32_populate_note(NT_PPC_VMX,
-			    &pcb->pcb_vec, dst,
+			    &pcb->pcb_vec, (char *)dst + len,
 			    sizeof(pcb->pcb_vec), NULL);
 		} else
 			len += elf32_populate_note(NT_PPC_VMX, NULL, NULL,
 			    sizeof(pcb->pcb_vec), NULL);
 	}
+
+	if (pcb->pcb_flags & PCB_VSX) {
+		save_fpu_nodrop(td);
+		if (dst != NULL) {
+			/*
+			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31 and
+			 * VSR32-VSR63 overlap with VR0-VR31, so we only copy
+			 * the non-overlapping data, which is doubleword 1 of VSR0-VSR31.
+			 */
+			for (vsr_idx = 0; vsr_idx < nitems(vshr); vsr_idx++) {
+				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx].vsr[2];
+				vshr[vsr_idx] = *vsr_dw1;
+			}
+			len += elf32_populate_note(NT_PPC_VSX,
+			    vshr, (char *)dst + len,
+			    sizeof(vshr), NULL);
+		} else
+			len += elf32_populate_note(NT_PPC_VSX, NULL, NULL,
+			    sizeof(vshr), NULL);
+	}
+
 	*off = len;
 }
 
 #ifndef __powerpc64__
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
@@ -317,5 +368,30 @@ elf_cpu_unload_file(linker_file_t lf __unused)
 {
 
 	return (0);
+}
+#endif
+
+#ifdef __powerpc64__
+static void
+ppc32_fixlimit(struct rlimit *rl, int which)
+{
+	switch (which) {
+	case RLIMIT_DATA:
+		if (ppc32_maxdsiz != 0) {
+			if (rl->rlim_cur > ppc32_maxdsiz)
+				rl->rlim_cur = ppc32_maxdsiz;
+			if (rl->rlim_max > ppc32_maxdsiz)
+				rl->rlim_max = ppc32_maxdsiz;
+		}
+		break;
+	case RLIMIT_STACK:
+		if (ppc32_maxssiz != 0) {
+			if (rl->rlim_cur > ppc32_maxssiz)
+				rl->rlim_cur = ppc32_maxssiz;
+			if (rl->rlim_max > ppc32_maxssiz)
+				rl->rlim_max = ppc32_maxssiz;
+		}
+		break;
+	}
 }
 #endif

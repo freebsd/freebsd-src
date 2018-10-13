@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Robert N. M. Watson
  * All rights reserved.
  *
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/reboot.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
 
@@ -48,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/altera/jtag_uart/altera_jtag_uart.h>
 
 devclass_t	altera_jtag_uart_devclass;
+
+static SYSCTL_NODE(_hw, OID_AUTO, altera_jtag_uart, CTLFLAG_RW, 0,
+    "Altera JTAG UART configuration knobs");
 
 /*
  * One-byte buffer as we can't check whether the UART is readable without
@@ -82,6 +88,11 @@ static cn_ungrab_t	aju_cnungrab;
  * no AC bit set.
  */
 #define	ALTERA_JTAG_UART_AC_POLL_DELAY	10000
+static u_int	altera_jtag_uart_ac_poll_delay =
+		    ALTERA_JTAG_UART_AC_POLL_DELAY;
+SYSCTL_UINT(_hw_altera_jtag_uart, OID_AUTO, ac_poll_delay,
+    CTLFLAG_RW, &altera_jtag_uart_ac_poll_delay, 0,
+    "Maximum delay waiting for JTAG present flag when buffer is full");
 
 /*
  * I/O routines lifted from Deimos.  This is not only MIPS-specific, but also
@@ -220,10 +231,10 @@ aju_cons_write(char ch)
 	 * layer clearing of the bit doesn't trigger a TTY-layer
 	 * disconnection.
 	 *
-	 * XXXRW: The polling delay may require tuning.
-	 *
 	 * XXXRW: Notice the inherent race with hardware: in clearing the
-	 * bit, we may race with hardware setting the same bit.
+	 * bit, we may race with hardware setting the same bit.  This can
+	 * cause real-world reliability problems due to lost output on the
+	 * console.
 	 */
 	v = aju_cons_control_read();
 	if (v & ALTERA_JTAG_UART_CONTROL_AC) {
@@ -235,7 +246,7 @@ aju_cons_write(char ch)
 	while ((v & ALTERA_JTAG_UART_CONTROL_WSPACE) == 0) {
 		if (!aju_cons_jtag_present)
 			return;
-		DELAY(ALTERA_JTAG_UART_AC_POLL_DELAY);
+		DELAY(altera_jtag_uart_ac_poll_delay);
 		v = aju_cons_control_read();
 		if (v & ALTERA_JTAG_UART_CONTROL_AC) {
 			aju_cons_jtag_present = 1;

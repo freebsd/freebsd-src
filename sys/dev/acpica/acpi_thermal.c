@@ -258,9 +258,9 @@ acpi_tz_attach(device_t dev)
     }
     sysctl_ctx_init(&sc->tz_sysctl_ctx);
     sprintf(oidname, "tz%d", device_get_unit(dev));
-    sc->tz_sysctl_tree = SYSCTL_ADD_NODE(&sc->tz_sysctl_ctx,
-					 SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
-					 OID_AUTO, oidname, CTLFLAG_RD, 0, "");
+    sc->tz_sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&sc->tz_sysctl_ctx,
+			 SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
+			 OID_AUTO, oidname, CTLFLAG_RD, 0, "", "thermal_zone");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
 		    &sc->tz_temperature, 0, sysctl_handle_int,
@@ -535,7 +535,7 @@ acpi_tz_monitor(void *Context)
 	(newactive == TZ_ACTIVE_NONE || newactive > sc->tz_active)) {
 
 	getnanotime(&curtime);
-	timespecsub(&curtime, &sc->tz_cooling_started);
+	timespecsub(&curtime, &sc->tz_cooling_started, &curtime);
 	if (curtime.tv_sec < acpi_tz_min_runtime)
 	    newactive = sc->tz_active;
     }

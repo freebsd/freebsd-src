@@ -15,8 +15,7 @@ MLINKS+=	rmextattr.8 lsextattr.8
 
 .include <src.opts.mk>
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

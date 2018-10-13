@@ -3,19 +3,35 @@
 .include <bsd.own.mk>
 
 ATF_TESTS_C+=		arc4random_test
+ATF_TESTS_C+=		dir2_test
+ATF_TESTS_C+=		dlopen_empty_test
 ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test
 ATF_TESTS_C+=		fnmatch2_test
 ATF_TESTS_C+=		fpclassify2_test
 ATF_TESTS_C+=		ftw_test
+ATF_TESTS_C+=		getentropy_test
+ATF_TESTS_C+=		getmntinfo_test
+ATF_TESTS_C+=		glob2_test
+ATF_TESTS_C+=		makecontext_test
 ATF_TESTS_C+=		popen_test
 ATF_TESTS_C+=		posix_spawn_test
+ATF_TESTS_C+=		realpath2_test
 ATF_TESTS_C+=		wordexp_test
-ATF_TESTS_C+=		dlopen_empty_test
 
-# TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid, t_sleep
+# TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid,
 # TODO: t_siginfo (fixes require further inspection)
 # TODO: t_sethostname_test (consistently screws up the hostname)
+
+CFLAGS+=	-DTEST_LONG_DOUBLE
+
+# Not sure why this isn't defined for all architectures, since most
+# have long double.
+.if ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+CFLAGS+=	-D__HAVE_LONG_DOUBLE
+.endif
 
 NETBSD_ATF_TESTS_C=	alarm_test
 NETBSD_ATF_TESTS_C+=	assert_test
@@ -46,6 +62,8 @@ NETBSD_ATF_TESTS_C+=	vis_test
 
 .include "../Makefile.netbsd-tests"
 
+CFLAGS.getentropy_test+=	-I${SRCTOP}/include
+LIBADD.getentropy_test+=	c
 LIBADD.humanize_number_test+=	util
 
 LIBADD.fpclassify_test+=m
@@ -60,6 +78,7 @@ CFLAGS+=		-I${.CURDIR}
 SRCS.fmtcheck2_test=	fmtcheck_test.c
 SRCS.fnmatch2_test=	fnmatch_test.c
 
+TEST_METADATA.setdomainname_test+=	is_exclusive=true
 TESTS_SUBDIRS=	execve
 TESTS_SUBDIRS+=	posix_spawn
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 M. Warner Losh
  * All rights reserved.
  *
@@ -86,9 +88,6 @@ typedef struct mse_softc {
 
 /* and Mouse Types */
 #define	MSE_NONE	0	/* don't move this! */
-
-/* pc98 bus mouse types */
-#define	MSE_98BUSMOUSE	0x1
 
 /* isa bus mouse types */
 #define	MSE_LOGITECH	0x1

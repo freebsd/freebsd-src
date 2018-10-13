@@ -322,7 +322,7 @@ bailout:
 
 int
 zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
-     int retry_count, int timeout, int verbosemode __unused)
+     int task_attr, int retry_count, int timeout, int verbosemode __unused)
 {
 	union ccb *ccb = NULL;
 	int action = -1, rep_option = -1;
@@ -455,7 +455,7 @@ restart_report:
 			scsi_zbc_in(&ccb->csio,
 			    /*retries*/ retry_count,
 			    /*cbfcnp*/ NULL,
-			    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			    /*tag_action*/ task_attr,
 			    /*service_action*/ action,
 			    /*zone_start_lba*/ lba,
 			    /*zone_options*/ (rep_option != -1) ?
@@ -500,7 +500,7 @@ restart_report:
 			error = build_ata_cmd(ccb,
 			    /*retry_count*/ retry_count,
 			    /*flags*/ CAM_DIR_IN | CAM_DEV_QFRZDIS,
-			    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			    /*tag_action*/ task_attr,
 			    /*protocol*/ protocol,
 			    /*ata_flags*/ AP_FLAG_BYT_BLOK_BLOCKS |
 					  AP_FLAG_TLEN_SECT_CNT |
@@ -548,7 +548,7 @@ restart_report:
 			scsi_zbc_out(&ccb->csio,
 			    /*retries*/ retry_count,
 			    /*cbfcnp*/ NULL,
-			    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			    /*tag_action*/ task_attr,
 			    /*service_action*/ action,
 			    /*zone_id*/ lba,
 			    /*zone_flags*/ (all_zones != 0) ? ZBC_OUT_ALL : 0,
@@ -593,7 +593,7 @@ restart_report:
 			error = build_ata_cmd(ccb,
 			    /*retry_count*/ retry_count,
 			    /*flags*/ CAM_DIR_NONE | CAM_DEV_QFRZDIS,
-			    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			    /*tag_action*/ task_attr,
 			    /*protocol*/ AP_PROTO_NON_DATA,
 			    /*ata_flags*/ AP_FLAG_BYT_BLOK_BYTES |
 					  AP_FLAG_TLEN_NO_DATA,

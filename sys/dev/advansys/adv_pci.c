@@ -33,6 +33,8 @@
  *	 * This board has been sold by SIIG as the Fast SCSI Pro PCI.
  *	** This board has been sold by Iomega as a Jaz Jet PCI adapter. 
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin Gibbs.
  * All rights reserved.
  *

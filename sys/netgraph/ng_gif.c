@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause
+ *
  * Copyright 2001 The Aerospace Corporation.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -556,7 +558,7 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		IFNET_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
-			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 				if (ifp->if_type == IFT_GIF)
 					ng_gif_attach(ifp);
 			}

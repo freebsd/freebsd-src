@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -96,11 +98,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/tte.h>
 #include <machine/tsb.h>
 #include <machine/ver.h>
-
-/*
- * Virtual address of message buffer
- */
-struct msgbuf *msgbufp;
 
 /*
  * Map of physical memory reagions
@@ -223,10 +220,6 @@ PMAP_STATS_VAR(pmap_nzero_page_area);
 PMAP_STATS_VAR(pmap_nzero_page_area_c);
 PMAP_STATS_VAR(pmap_nzero_page_area_oc);
 PMAP_STATS_VAR(pmap_nzero_page_area_nc);
-PMAP_STATS_VAR(pmap_nzero_page_idle);
-PMAP_STATS_VAR(pmap_nzero_page_idle_c);
-PMAP_STATS_VAR(pmap_nzero_page_idle_oc);
-PMAP_STATS_VAR(pmap_nzero_page_idle_nc);
 PMAP_STATS_VAR(pmap_ncopy_page);
 PMAP_STATS_VAR(pmap_ncopy_page_c);
 PMAP_STATS_VAR(pmap_ncopy_page_oc);
@@ -1230,7 +1223,6 @@ int
 pmap_pinit(pmap_t pm)
 {
 	vm_page_t ma[TSB_PAGES];
-	vm_page_t m;
 	int i;
 
 	/*
@@ -1253,14 +1245,11 @@ pmap_pinit(pmap_t pm)
 	CPU_ZERO(&pm->pm_active);
 
 	VM_OBJECT_WLOCK(pm->pm_tsb_obj);
-	for (i = 0; i < TSB_PAGES; i++) {
-		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-		m->valid = VM_PAGE_BITS_ALL;
-		m->md.pmap = pm;
-		ma[i] = m;
-	}
+	(void)vm_page_grab_pages(pm->pm_tsb_obj, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED | VM_ALLOC_ZERO, ma, TSB_PAGES);
 	VM_OBJECT_WUNLOCK(pm->pm_tsb_obj);
+	for (i = 0; i < TSB_PAGES; i++)
+		ma[i]->md.pmap = pm;
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
@@ -1319,8 +1308,7 @@ pmap_release(pmap_t pm)
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
 		m->md.pmap = NULL;
-		m->wire_count--;
-		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+		vm_page_unwire_noq(m);
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_WUNLOCK(obj);
@@ -1849,35 +1837,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 }
 
 void
-pmap_zero_page_idle(vm_page_t m)
-{
-	struct tte *tp;
-	vm_offset_t va;
-	vm_paddr_t pa;
-
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_zero_page_idle: fake page"));
-	PMAP_STATS_INC(pmap_nzero_page_idle);
-	pa = VM_PAGE_TO_PHYS(m);
-	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
-		PMAP_STATS_INC(pmap_nzero_page_idle_c);
-		va = TLB_PHYS_TO_DIRECT(pa);
-		cpu_block_zero((void *)va, PAGE_SIZE);
-	} else if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
-		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	} else {
-		PMAP_STATS_INC(pmap_nzero_page_idle_oc);
-		va = pmap_idle_map + (m->md.color * PAGE_SIZE);
-		tp = tsb_kvtotte(va);
-		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
-		tp->tte_vpn = TV_VPN(va, TS_8K);
-		cpu_block_zero((void *)va, PAGE_SIZE);
-		tlb_page_demap(kernel_pmap, va);
-	}
-}
-
-void
 pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
 	vm_offset_t vdst;
@@ -2112,9 +2071,13 @@ pmap_page_is_mapped(vm_page_t m)
  * is necessary that 0 only be returned when there are truly no
  * reference bits set.
  *
- * XXX: The exact number of bits to check and clear is a matter that
- * should be tested and standardized at some point in the future for
- * optimal aging of shared pages.
+ * As an optimization, update the page's dirty field if a modified bit is
+ * found while counting reference bits.  This opportunistic update can be
+ * performed at low cost and can eliminate the need for some future calls
+ * to pmap_is_modified().  However, since this function stops after
+ * finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ * dirty pages.  Those dirty pages will only be detected by a future call
+ * to pmap_is_modified().
  */
 int
 pmap_ts_referenced(vm_page_t m)
@@ -2138,7 +2101,10 @@ pmap_ts_referenced(vm_page_t m)
 			if ((tp->tte_data & TD_PV) == 0)
 				continue;
 			data = atomic_clear_long(&tp->tte_data, TD_REF);
-			if ((data & TD_REF) != 0 && ++count > 4)
+			if ((data & TD_W) != 0)
+				vm_page_dirty(m);
+			if ((data & TD_REF) != 0 && ++count >=
+			    PMAP_TS_REFERENCED_MAX)
 				break;
 		} while ((tp = tpn) != NULL && tp != tpf);
 	}
@@ -2351,4 +2317,11 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
 
+}
+
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	return (mode == VM_MEMATTR_DEFAULT);
 }

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-files		"../mv/files.mv"
+files		"../mv/files.arm7"
 cpu		CPU_MV_PJ4B
-machine 	arm	armv6
+machine 	arm	armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 # This was originally defined as "(KERNBASE-(1024*1024*1024))" but that

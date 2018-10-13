@@ -1,4 +1,4 @@
-.\"	$NetBSD: vis.3,v 1.45 2016/06/08 15:00:04 wiz Exp $
+.\"	$NetBSD: vis.3,v 1.49 2017/08/05 20:22:29 wiz Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1989, 1991, 1993
@@ -30,7 +30,7 @@
 .\"
 .\"     @(#)vis.3	8.1 (Berkeley) 6/9/93
 .\"
-.Dd January 14, 2015
+.Dd April 22, 2017
 .Dt VIS 3
 .Os
 .Sh NAME
@@ -243,6 +243,8 @@ except space, tab, and newline are encoded (see
 The following flags
 alter this:
 .Bl -tag -width VIS_WHITEX
+.It Dv VIS_DQ
+Also encode double quotes
 .It Dv VIS_GLOB
 Also encode the magic characters
 .Ql ( * ,
@@ -310,7 +312,7 @@ warning on the use of the
 .Dv VIS_NOSLASH
 flag below).
 .Pp
-There are four forms of encoding.
+There are six forms of encoding.
 All forms use the backslash character
 .Ql \e
 to introduce a special
@@ -373,7 +375,6 @@ space.
 .It Dv \e240
 Represents Meta-space.
 .El
-.Pp
 .It Dv VIS_CSTYLE
 Use C-style backslash sequences to represent standard non-printable
 characters.
@@ -402,6 +403,9 @@ If
 .Fa nextc
 is an octal digit, the latter representation is used to
 avoid ambiguity.
+.Pp
+Non-printable characters without C-style
+backslash sequences use the default representation.
 .It Dv VIS_OCTAL
 Use a three digit octal sequence.
 The form is
@@ -409,6 +413,11 @@ The form is
 where
 .Em d
 represents an octal digit.
+.It Dv VIS_CSTYLE \&| Dv VIS_OCTAL
+Same as
+.Dv VIS_CSTYLE
+except that non-printable characters without C-style
+backslash sequences use a three digit octal sequence.
 .It Dv VIS_HTTPSTYLE
 Use URI encoding as described in RFC 1738.
 The form is

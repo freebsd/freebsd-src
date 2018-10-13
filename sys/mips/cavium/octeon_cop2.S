@@ -29,7 +29,7 @@
 #include <machine/asm.h>
 #include <mips/cavium/octeon_cop2.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 .set noreorder
 

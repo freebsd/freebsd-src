@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2015
+.Dd June 29, 2017
 .Dt SESUTIL 8
 .Os
 .Sh NAME
@@ -43,9 +43,11 @@
 .Op on | off
 .Nm
 .Cm map
+.Op Fl -libxo Ar options
 .Op Fl u Ar /dev/sesN
 .Nm
 .Cm status
+.Op Fl -libxo Ar options
 .Op Fl u Ar /dev/sesN
 .Sh DESCRIPTION
 The
@@ -55,6 +57,12 @@ Services (SES) devices.
 .Pp
 List of supported commands:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
 .It Cm fault Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
 Change the state of the external fault LED associated with
 .Ar disk .
@@ -114,6 +122,8 @@ Turn on the fault LED for a drive bay not associated with a device:
 .Pp
 .Dl Nm Cm fault -u /dev/ses2 7 on
 .Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
 .Xr ses 4
 .Sh HISTORY
 The

@@ -98,6 +98,17 @@
 #endif
 
 
+////////////////////////////////
+// Compiler-specific features //
+////////////////////////////////
+
+// Newer Intel C compilers require immintrin.h for _bit_scan_reverse()
+// and such functions.
+#if defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1500)
+#	include <immintrin.h>
+#endif
+
+
 ///////////////////
 // Byte swapping //
 ///////////////////

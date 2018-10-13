@@ -39,21 +39,26 @@ CPU_PROAPTIV	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
 CPU_SENTRY5	opt_global.h
-CPU_HAVEFPU	opt_global.h
 CPU_SB1 	opt_global.h
 CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
 CPU_BERI	opt_global.h
+CPU_XBURST	opt_global.h
+CPU_MALTA	opt_global.h
 
 # which MACHINE_ARCH architecture
 MIPS
+MIPSHF
 MIPSEL
+MIPSELHF
 MIPS64
+MIPS64HF
 MIPS64EL
+MIPS64ELHF
 MIPSN32
 
-COMPAT_FREEBSD32	opt_compat.h
+COMPAT_FREEBSD32	opt_global.h
 
 YAMON		opt_global.h
 CFE		opt_global.h
@@ -94,6 +99,7 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 # Options specific to the BERI platform. 
 #
 BERI_LARGE_TLB			opt_global.h
+PLATFORM_INIT_SECONDARY		opt_global.h
 
 #
 # Options that control the NetFPGA-10G Embedded CPU Ethernet Core.
@@ -118,6 +124,17 @@ AR71XX_ENV_ROUTERBOOT		opt_ar71xx.h
 AR71XX_ATH_EEPROM		opt_ar71xx.h
 
 #
+# Options for AR531X SOC. AR531X_1ST_GENERATION is AR5311 to AR5314.
+#
+
+AR531X_1ST_GENERATION		opt_ar531x.h
+AR531X_REALMEM			opt_ar531x.h
+AR531X_ENV_UBOOT		opt_ar531x.h
+AR531X_APB_DEBUG		opt_ar531x.h
+ARE_MDIO			opt_ar531x.h
+ARE_MII				opt_ar531x.h
+
+#
 # Options that control the Ralink RT305xF Etherenet MAC.
 #
 IF_RT_DEBUG			opt_if_rt.h
@@ -135,6 +152,7 @@ RT3050F				opt_rt305x.h
 RT305X				opt_rt305x.h
 RT305X_UBOOT			opt_rt305x.h
 RT305X_USE_UART			opt_rt305x.h
+RT_MDIO				opt_rt305x.h
 
 #
 # Options that affect the pmap.

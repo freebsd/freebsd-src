@@ -37,7 +37,8 @@
  * \file
  *
  * This file checks to see that the current 5011 keys work to prime the
- * current root anchor.  If not a certificate is used to update the anchor.
+ * current root anchor.  If not a certificate is used to update the anchor,
+ * with RFC7958 https xml fetch.
  *
  * This is a concept solution for distribution of the DNSSEC root
  * trust anchor.  It is a small tool, called "unbound-anchor", that
@@ -47,7 +48,7 @@
  * Management-Abstract:
  *    * first run: fill root.key file with hardcoded DS record.
  *    * mostly: use RFC5011 tracking, quick . DNSKEY UDP query.
- *    * failover: use builtin certificate, do https and update.
+ *    * failover: use RFC7958 builtin certificate, do https and update.
  * Special considerations:
  *    * 30-days RFC5011 timer saves a lot of https traffic.
  *    * DNSKEY probe must be NOERROR, saves a lot of https traffic.
@@ -77,7 +78,7 @@
  * the file contains a list of normal DNSKEY/DS records, and uses that to
  * bootstrap 5011 (the KSK is made VALID).
  *
- * The certificate update is done by fetching root-anchors.xml and
+ * The certificate RFC7958 update is done by fetching root-anchors.xml and
  * root-anchors.p7s via SSL.  The HTTPS certificate can be logged but is
  * not validated (https for channel security; the security comes from the
  * certificate).  The 'data.iana.org' domain name A and AAAA are resolved
@@ -171,9 +172,9 @@ struct ip_list {
 
 /** Give unbound-anchor usage, and exit (1). */
 static void
-usage()
+usage(void)
 {
-	printf("Usage:	unbound-anchor [opts]\n");
+	printf("Usage:	local-unbound-anchor [opts]\n");
 	printf("	Setup or update root anchor. "
 		"Most options have defaults.\n");
 	printf("	Run this program before you start the validator.\n");
@@ -191,9 +192,10 @@ usage()
 	printf("-n name		signer's subject emailAddress, default %s\n", P7SIGNER);
 	printf("-4		work using IPv4 only\n");
 	printf("-6		work using IPv6 only\n");
-	printf("-f resolv.conf	use given resolv.conf to resolve -u name\n");
-	printf("-r root.hints	use given root.hints to resolve -u name\n"
+	printf("-f resolv.conf	use given resolv.conf\n");
+	printf("-r root.hints	use given root.hints\n"
 		"		builtin root hints are used by default\n");
+	printf("-R		fallback from -f to root query on error\n");
 	printf("-v		more verbose\n");
 	printf("-C conf		debug, read config\n");
 	printf("-P port		use port for https connect, default 443\n");
@@ -240,7 +242,12 @@ static const char*
 get_builtin_ds(void)
 {
 	return
-". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5\n";
+/* The anchors must start on a new line with ". IN DS and end with \n"[;]
+ * because the makedist script greps on the source here */
+/* anchor 19036 is from 2010 */
+/* anchor 20326 is from 2017 */
+". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5\n"
+". IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D\n";
 }
 
 /** print hex data */
@@ -419,7 +426,7 @@ read_builtin_cert(void)
 {
 	const char* builtin_cert = get_builtin_cert();
 	STACK_OF(X509)* sk;
-	BIO *bio = BIO_new_mem_buf((void*)builtin_cert,
+	BIO *bio = BIO_new_mem_buf(builtin_cert,
 		(int)strlen(builtin_cert));
 	if(!bio) {
 		if(verb) printf("out of memory\n");
@@ -656,7 +663,7 @@ wipe_ip_usage(struct ip_list* p)
 	}
 }
 
-/** cound unused IPs */
+/** count unused IPs */
 static int
 count_unused(struct ip_list* p)
 {
@@ -1083,11 +1090,14 @@ read_http_result(SSL* ssl)
 	}
 	if(!data) return NULL;
 	if(verb >= 4) print_data("read data", data, (int)len);
-	m = BIO_new_mem_buf(data, (int)len);
+	m = BIO_new(BIO_s_mem());
 	if(!m) {
 		if(verb) printf("out of memory\n");
+		free(data);
 		exit(0);
 	}
+	BIO_write(m, data, (int)len);
+	free(data);
 	return m;
 }
 
@@ -1152,17 +1162,6 @@ https(struct ip_list* ip_list, const char* pathname, const char* urlname)
 			pathname, (int)BIO_ctrl_pending(bio));
 	}
 	return bio;
-}
-
-/** free up a downloaded file BIO */
-static void
-free_file_bio(BIO* bio)
-{
-	char* pp = NULL;
-	(void)BIO_reset(bio);
-	(void)BIO_get_mem_data(bio, &pp);
-	free(pp);
-	BIO_free(bio);
 }
 
 /** XML parse private data during the parse */
@@ -1589,7 +1588,7 @@ xml_parse(BIO* xml, time_t now)
 	xml_parse_setup(parser, &data, now);
 
 	/* parse it */
-	(void)BIO_reset(xml);
+	(void)BIO_seek(xml, 0);
 	len = (int)BIO_get_mem_data(xml, &pp);
 	if(!len || !pp) {
 		if(verb) printf("out of memory\n");
@@ -1763,8 +1762,8 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, const char* p7signer)
 	X509_VERIFY_PARAM_free(param);
 #endif
 
-	(void)BIO_reset(p7s);
-	(void)BIO_reset(data);
+	(void)BIO_seek(p7s, 0);
+	(void)BIO_seek(data, 0);
 
 	/* convert p7s to p7 (the signature) */
 	p7 = d2i_PKCS7_bio(p7s, NULL);
@@ -1836,7 +1835,7 @@ write_unsigned_root(const char* root_anchor_file)
 #ifdef HAVE_FSYNC
 	fsync(fileno(out));
 #else
-	FlushFileBuffers((HANDLE)_fileno(out));
+	FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(out)));
 #endif
 	fclose(out);
 }
@@ -1868,7 +1867,7 @@ write_root_anchor(const char* root_anchor_file, BIO* ds)
 #ifdef HAVE_FSYNC
 	fsync(fileno(out));
 #else
-	FlushFileBuffers((HANDLE)_fileno(out));
+	FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(out)));
 #endif
 	fclose(out);
 }
@@ -1907,8 +1906,7 @@ static int
 do_certupdate(const char* root_anchor_file, const char* root_cert_file,
 	const char* urlname, const char* xmlname, const char* p7sname,
 	const char* p7signer, const char* res_conf, const char* root_hints,
-	const char* debugconf, int ip4only, int ip6only, int port,
-	struct ub_result* dnskey)
+	const char* debugconf, int ip4only, int ip6only, int port)
 {
 	STACK_OF(X509)* cert;
 	BIO *xml, *p7s;
@@ -1943,12 +1941,11 @@ do_certupdate(const char* root_anchor_file, const char* root_cert_file,
 	if(verb) printf("success: the anchor has been updated "
 			"using the cert\n");
 
-	free_file_bio(xml);
-	free_file_bio(p7s);
+	BIO_free(xml);
+	BIO_free(p7s);
 #ifndef S_SPLINT_S
 	sk_X509_pop_free(cert, X509_free);
 #endif
-	ub_resolve_free(dnskey);
 	ip_list_free(ip_list);
 	return 1;
 }
@@ -2186,16 +2183,33 @@ probe_date_allows_certupdate(const char* root_anchor_file)
 	return 0;
 }
 
+static struct ub_result *
+fetch_root_key(const char* root_anchor_file, const char* res_conf,
+	const char* root_hints, const char* debugconf,
+	int ip4only, int ip6only)
+{
+	struct ub_ctx* ctx;
+	struct ub_result* dnskey;
+
+	ctx = create_unbound_context(res_conf, root_hints, debugconf,
+		ip4only, ip6only);
+	add_5011_probe_root(ctx, root_anchor_file);
+	dnskey = prime_root_key(ctx);
+	ub_ctx_delete(ctx);
+	return dnskey;
+}
+
 /** perform the unbound-anchor work */
 static int
 do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
 	const char* urlname, const char* xmlname, const char* p7sname,
 	const char* p7signer, const char* res_conf, const char* root_hints,
-	const char* debugconf, int ip4only, int ip6only, int force, int port)
+	const char* debugconf, int ip4only, int ip6only, int force,
+	int res_conf_fallback, int port)
 {
-	struct ub_ctx* ctx;
 	struct ub_result* dnskey;
 	int used_builtin = 0;
+	int rcode;
 
 	/* see if builtin rootanchor needs to be provided, or if
 	 * rootanchor is 'revoked-trust-point' */
@@ -2204,12 +2218,22 @@ do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
 
 	/* make unbound context with 5011-probe for root anchor,
 	 * and probe . DNSKEY */
-	ctx = create_unbound_context(res_conf, root_hints, debugconf,
-		ip4only, ip6only);
-	add_5011_probe_root(ctx, root_anchor_file);
-	dnskey = prime_root_key(ctx);
-	ub_ctx_delete(ctx);
-	
+	dnskey = fetch_root_key(root_anchor_file, res_conf,
+		root_hints, debugconf, ip4only, ip6only);
+	rcode = dnskey->rcode;
+
+	if (res_conf_fallback && res_conf && !dnskey->secure) {
+		if (verb) printf("%s failed, retrying direct\n", res_conf);
+		ub_resolve_free(dnskey);
+		/* try direct query without res_conf */
+		dnskey = fetch_root_key(root_anchor_file, NULL,
+			root_hints, debugconf, ip4only, ip6only);
+		if (rcode != 0 && dnskey->rcode == 0) {
+			res_conf = NULL;
+			rcode = 0;
+		}
+	}
+
 	/* if secure: exit */
 	if(dnskey->secure && !force) {
 		if(verb) printf("success: the anchor is ok\n");
@@ -2217,18 +2241,18 @@ do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
 		return used_builtin;
 	}
 	if(force && verb) printf("debug cert update forced\n");
+	ub_resolve_free(dnskey);
 
 	/* if not (and NOERROR): check date and do certupdate */
-	if((dnskey->rcode == 0 &&
+	if((rcode == 0 &&
 		probe_date_allows_certupdate(root_anchor_file)) || force) {
 		if(do_certupdate(root_anchor_file, root_cert_file, urlname,
 			xmlname, p7sname, p7signer, res_conf, root_hints,
-			debugconf, ip4only, ip6only, port, dnskey))
+			debugconf, ip4only, ip6only, port))
 			return 1;
 		return used_builtin;
 	}
 	if(verb) printf("fail: the anchor is NOT ok and could not be fixed\n");
-	ub_resolve_free(dnskey);
 	return used_builtin;
 }
 
@@ -2251,8 +2275,9 @@ int main(int argc, char* argv[])
 	const char* root_hints = NULL;
 	const char* debugconf = NULL;
 	int dolist=0, ip4only=0, ip6only=0, force=0, port = HTTPS_PORT;
+	int res_conf_fallback = 0;
 	/* parse the options */
-	while( (c=getopt(argc, argv, "46C:FP:a:c:f:hln:r:s:u:vx:")) != -1) {
+	while( (c=getopt(argc, argv, "46C:FRP:a:c:f:hln:r:s:u:vx:")) != -1) {
 		switch(c) {
 		case 'l':
 			dolist = 1;
@@ -2287,6 +2312,9 @@ int main(int argc, char* argv[])
 		case 'r':
 			root_hints = optarg;
 			break;
+		case 'R':
+			res_conf_fallback = 1;
+			break;
 		case 'C':
 			debugconf = optarg;
 			break;
@@ -2306,18 +2334,32 @@ int main(int argc, char* argv[])
 		}
 	}
 	argc -= optind;
-	argv += optind;
+	/* argv += optind; not using further arguments */
 	if(argc != 0)
 		usage();
 
+#ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
 	ERR_load_crypto_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	ERR_load_SSL_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
 	OpenSSL_add_all_algorithms();
+#else
+	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
+		| OPENSSL_INIT_ADD_ALL_DIGESTS
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	(void)SSL_library_init();
+#else
+	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+#endif
 
 	if(dolist) do_list_builtin();
 
 	return do_root_update_work(root_anchor_file, root_cert_file, urlname,
 		xmlname, p7sname, p7signer, res_conf, root_hints, debugconf,
-		ip4only, ip6only, force, port);
+		ip4only, ip6only, force, res_conf_fallback, port);
 }

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * ------+---------+---------+---------+---------+---------+---------+---------*
  * Copyright (c) 2001  - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
@@ -82,6 +84,8 @@ skim_printcap(const char *pcap_fname, int verbosity)
 	enum {CMNT_LINE, ENTRY_LINE, TAB_LINE, TABERR_LINE} is_type, had_type;
 
 	skinf = malloc(sizeof(struct skiminfo));
+	if (skinf == NULL)
+		return (NULL);
 	memset(skinf, 0, sizeof(struct skiminfo));
 
 	pc_file = fopen(pcap_fname, "r");

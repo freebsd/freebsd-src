@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * Copyright (c) 2009 Ulf Lilleengen
  * All rights reserved.
@@ -31,8 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/user.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -75,14 +77,14 @@ kinfo_getallproc(int *cntp)
 	mib[2] = KERN_PROC_PROC;
 
 	len = 0;
-	if (sysctl(mib, 3, NULL, &len, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &len, NULL, 0) < 0)
 		return (NULL);
 
 	kipp = malloc(len);
 	if (kipp == NULL)
 		return (NULL);
 
-	if (sysctl(mib, 3, kipp, &len, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), kipp, &len, NULL, 0) < 0)
 		goto bad;
 	if (len % sizeof(*kipp) != 0)
 		goto bad;

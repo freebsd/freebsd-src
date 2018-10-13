@@ -23,8 +23,8 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	clean		"ukbdmap.h"
 #
 cddl/contrib/opensolaris/common/atomic/sparc64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
@@ -71,7 +71,7 @@ libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
-libkern/memmove.c		standard
+libkern/memcmp.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
 sparc64/ebus/epic.c		optional	epic ebus

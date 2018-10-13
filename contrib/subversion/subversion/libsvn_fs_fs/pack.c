@@ -108,8 +108,8 @@ typedef struct path_order_t
   /* noderev predecessor count */
   int predecessor_count;
 
-  /* this is a directory node */
-  svn_boolean_t is_dir;
+  /* this is a node is the latest for this PATH in this rev / pack file */
+  svn_boolean_t is_head;
 
   /* length of the expanded representation content */
   apr_int64_t expanded_size;
@@ -221,7 +221,7 @@ typedef struct pack_context_t
    * to NULL that we already processed. */
   apr_array_header_t *reps;
 
-  /* array of int, marking for each revision, the which offset their items
+  /* array of int, marking for each revision, at which offset their items
    * begin in REPS.  Will be filled in phase 2 and be cleared after
    * each revision range. */
   apr_array_header_t *rev_offsets;
@@ -233,6 +233,9 @@ typedef struct pack_context_t
   /* pool used for temporary data structures that will be cleaned up when
    * the next range of revisions is being processed */
   apr_pool_t *info_pool;
+
+  /* ensure that all filesystem changes are written to disk. */
+  svn_boolean_t flush_to_disk;
 } pack_context_t;
 
 /* Create and initialize a new pack context for packing shard SHARD_REV in
@@ -240,7 +243,7 @@ typedef struct pack_context_t
  * and return the structure in *CONTEXT.
  *
  * Limit the number of items being copied per iteration to MAX_ITEMS.
- * Set CANCEL_FUNC and CANCEL_BATON as well.
+ * Set FLUSH_TO_DISK, CANCEL_FUNC and CANCEL_BATON as well.
  */
 static svn_error_t *
 initialize_pack_context(pack_context_t *context,
@@ -249,6 +252,7 @@ initialize_pack_context(pack_context_t *context,
                         const char *shard_dir,
                         svn_revnum_t shard_rev,
                         int max_items,
+                        svn_boolean_t flush_to_disk,
                         svn_cancel_func_t cancel_func,
                         void *cancel_baton,
                         apr_pool_t *pool)
@@ -272,6 +276,12 @@ initialize_pack_context(pack_context_t *context,
   context->start_rev = shard_rev;
   context->end_rev = shard_rev;
   context->shard_end_rev = shard_rev + ffd->max_files_per_dir;
+
+  /* the pool used for temp structures */
+  context->info_pool = svn_pool_create(pool);
+  context->paths = svn_prefix_tree__create(context->info_pool);
+
+  context->flush_to_disk = flush_to_disk;
 
   /* Create the new directory and pack file. */
   context->shard_dir = shard_dir;
@@ -300,15 +310,18 @@ initialize_pack_context(pack_context_t *context,
   context->changes = apr_array_make(pool, max_items,
                                     sizeof(svn_fs_fs__p2l_entry_t *));
   SVN_ERR(svn_io_open_unique_file3(&context->changes_file, NULL, temp_dir,
-                                   svn_io_file_del_on_close, pool, pool));
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
   context->file_props = apr_array_make(pool, max_items,
                                        sizeof(svn_fs_fs__p2l_entry_t *));
   SVN_ERR(svn_io_open_unique_file3(&context->file_props_file, NULL, temp_dir,
-                                   svn_io_file_del_on_close, pool, pool));
+                                   svn_io_file_del_on_close, 
+                                   context->info_pool, pool));
   context->dir_props = apr_array_make(pool, max_items,
                                       sizeof(svn_fs_fs__p2l_entry_t *));
   SVN_ERR(svn_io_open_unique_file3(&context->dir_props_file, NULL, temp_dir,
-                                   svn_io_file_del_on_close, pool, pool));
+                                   svn_io_file_del_on_close, 
+                                   context->info_pool, pool));
 
   /* noderev and representation item bucket */
   context->rev_offsets = apr_array_make(pool, max_revs, sizeof(int));
@@ -321,10 +334,6 @@ initialize_pack_context(pack_context_t *context,
   SVN_ERR(svn_io_open_unique_file3(&context->reps_file, NULL, temp_dir,
                                    svn_io_file_del_on_close, pool, pool));
 
-  /* the pool used for temp structures */
-  context->info_pool = svn_pool_create(pool);
-  context->paths = svn_prefix_tree__create(context->info_pool);
-
   return SVN_NO_ERROR;
 }
 
@@ -335,20 +344,39 @@ static svn_error_t *
 reset_pack_context(pack_context_t *context,
                    apr_pool_t *pool)
 {
+  const char *temp_dir;
+
   apr_array_clear(context->changes);
-  SVN_ERR(svn_io_file_trunc(context->changes_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->changes_file, pool));
   apr_array_clear(context->file_props);
-  SVN_ERR(svn_io_file_trunc(context->file_props_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->file_props_file, pool));
   apr_array_clear(context->dir_props);
-  SVN_ERR(svn_io_file_trunc(context->dir_props_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->dir_props_file, pool));
 
   apr_array_clear(context->rev_offsets);
   apr_array_clear(context->path_order);
   apr_array_clear(context->references);
   apr_array_clear(context->reps);
-  SVN_ERR(svn_io_file_trunc(context->reps_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->reps_file, pool));
 
   svn_pool_clear(context->info_pool);
+
+  /* The new temporary files must live at least as long as any other info
+   * object in CONTEXT. */
+  SVN_ERR(svn_io_temp_dir(&temp_dir, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->changes_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->file_props_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->dir_props_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->reps_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  context->paths = svn_prefix_tree__create(context->info_pool);
 
   return SVN_NO_ERROR;
 }
@@ -385,7 +413,8 @@ close_pack_context(pack_context_t *context,
   SVN_ERR(svn_io_remove_file2(proto_p2l_index_path, FALSE, pool));
 
   /* Ensure that packed file is written to disk.*/
-  SVN_ERR(svn_io_file_flush_to_disk(context->pack_file, pool));
+  if (context->flush_to_disk)
+    SVN_ERR(svn_io_file_flush_to_disk(context->pack_file, pool));
   SVN_ERR(svn_io_file_close(context->pack_file, pool));
 
   return SVN_NO_ERROR;
@@ -481,7 +510,7 @@ copy_item_to_temp(pack_context_t *context,
   svn_fs_fs__p2l_entry_t *new_entry
     = apr_pmemdup(context->info_pool, entry, sizeof(*entry));
 
-  SVN_ERR(svn_fs_fs__get_file_offset(&new_entry->offset, temp_file, pool));
+  SVN_ERR(svn_io_file_get_offset(&new_entry->offset, temp_file, pool));
   APR_ARRAY_PUSH(entries, svn_fs_fs__p2l_entry_t *) = new_entry;
 
   SVN_ERR(copy_file_data(context, temp_file, rev_file, entry->size, pool));
@@ -568,13 +597,13 @@ copy_rep_to_temp(pack_context_t *context,
   /* create a copy of ENTRY, make it point to the copy destination and
    * store it in CONTEXT */
   entry = apr_pmemdup(context->info_pool, entry, sizeof(*entry));
-  SVN_ERR(svn_fs_fs__get_file_offset(&entry->offset, context->reps_file, pool));
+  SVN_ERR(svn_io_file_get_offset(&entry->offset, context->reps_file, pool));
   add_item_rep_mapping(context, entry);
 
   /* read & parse the representation header */
   stream = svn_stream_from_aprfile2(rev_file, TRUE, pool);
   SVN_ERR(svn_fs_fs__read_rep_header(&rep_header, stream, pool, pool));
-  svn_stream_close(stream);
+  SVN_ERR(svn_stream_close(stream));
 
   /* if the representation is a delta against some other rep, link the two */
   if (   rep_header->type == svn_fs_fs__rep_delta
@@ -609,9 +638,6 @@ compare_dir_entries_format7(const svn_sort__item_t *a,
 {
   const svn_fs_dirent_t *lhs = (const svn_fs_dirent_t *) a->value;
   const svn_fs_dirent_t *rhs = (const svn_fs_dirent_t *) b->value;
-
-  if (lhs->kind != rhs->kind)
-    return lhs->kind == svn_node_dir ? -1 : 1;
 
   return strcmp(lhs->name, rhs->name);
 }
@@ -666,7 +692,7 @@ svn_fs_fs__order_dir_entries(svn_fs_t *fs,
   return result;
 }
 
-/* Return a duplicate of the the ORIGINAL path and with special sub-strins
+/* Return a duplicate of the ORIGINAL path and with special sub-strings
  * (e.g. "trunk") modified in such a way that have a lower lexicographic
  * value than any other "normal" file name.
  */
@@ -703,7 +729,7 @@ tweak_path_for_ordering(const char *original,
  */
 static svn_error_t *
 copy_node_to_temp(pack_context_t *context,
-                  apr_file_t *rev_file,
+                  svn_fs_fs__revision_file_t *rev_file,
                   svn_fs_fs__p2l_entry_t *entry,
                   apr_pool_t *pool)
 {
@@ -711,25 +737,22 @@ copy_node_to_temp(pack_context_t *context,
                                          sizeof(*path_order));
   node_revision_t *noderev;
   const char *sort_path;
-  svn_stream_t *stream;
   apr_off_t source_offset = entry->offset;
 
   /* read & parse noderev */
-  stream = svn_stream_from_aprfile2(rev_file, TRUE, pool);
-  SVN_ERR(svn_fs_fs__read_noderev(&noderev, stream, pool, pool));
-  svn_stream_close(stream);
+  SVN_ERR(svn_fs_fs__read_noderev(&noderev, rev_file->stream, pool, pool));
 
   /* create a copy of ENTRY, make it point to the copy destination and
    * store it in CONTEXT */
   entry = apr_pmemdup(context->info_pool, entry, sizeof(*entry));
-  SVN_ERR(svn_fs_fs__get_file_offset(&entry->offset, context->reps_file,
-                                     pool));
+  SVN_ERR(svn_io_file_get_offset(&entry->offset, context->reps_file,
+                                 pool));
   add_item_rep_mapping(context, entry);
 
   /* copy the noderev to our temp file */
-  SVN_ERR(svn_io_file_seek(rev_file, APR_SET, &source_offset, pool));
-  SVN_ERR(copy_file_data(context, context->reps_file, rev_file, entry->size,
-                         pool));
+  SVN_ERR(svn_io_file_seek(rev_file->file, APR_SET, &source_offset, pool));
+  SVN_ERR(copy_file_data(context, context->reps_file, rev_file->file,
+                         entry->size, pool));
 
   /* if the node has a data representation, make that the node's "base".
    * This will (often) cause the noderev to be placed right in front of
@@ -739,9 +762,7 @@ copy_node_to_temp(pack_context_t *context,
     {
       path_order->rep_id.revision = noderev->data_rep->revision;
       path_order->rep_id.number = noderev->data_rep->item_index;
-      path_order->expanded_size = noderev->data_rep->expanded_size
-                                ? noderev->data_rep->expanded_size
-                                : noderev->data_rep->size;
+      path_order->expanded_size = noderev->data_rep->expanded_size;
     }
 
   /* Sort path is the key used for ordering noderevs and associated reps.
@@ -751,7 +772,6 @@ copy_node_to_temp(pack_context_t *context,
   path_order->node_id = *svn_fs_fs__id_node_id(noderev->id);
   path_order->revision = svn_fs_fs__id_rev(noderev->id);
   path_order->predecessor_count = noderev->predecessor_count;
-  path_order->is_dir = noderev->kind == svn_node_dir;
   path_order->noderev_id = *svn_fs_fs__id_rev_item(noderev->id);
   APR_ARRAY_PUSH(context->path_order, path_order_t *) = path_order;
 
@@ -768,13 +788,8 @@ compare_path_order(const path_order_t * const * lhs_p,
   const path_order_t * lhs = *lhs_p;
   const path_order_t * rhs = *rhs_p;
 
-  /* cluster all directories */
-  int diff = rhs->is_dir - lhs->is_dir;
-  if (diff)
-    return diff;
-
   /* lexicographic order on path and node (i.e. latest first) */
-  diff = svn_prefix_string__compare(lhs->path, rhs->path);
+  int diff = svn_prefix_string__compare(lhs->path, rhs->path);
   if (diff)
     return diff;
 
@@ -812,22 +827,48 @@ compare_ref_to_item(const reference_t * const * lhs_p,
   return svn_fs_fs__id_part_compare(&(*lhs_p)->from, rhs_p);
 }
 
-/* implements compare_fn_t.  Finds the DIR / FILE boundary.
- */
-static int
-compare_is_dir(const path_order_t * const * lhs_p,
-               const void *unused)
-{
-  return (*lhs_p)->is_dir ? -1 : 0;
-}
-
 /* Look for the least significant bit set in VALUE and return the smallest
  * number with the same property, i.e. the largest power of 2 that is a
- * factor in VALUE. */
+ * factor in VALUE.  Edge case: roundness(0) := 0 . */
 static int
 roundness(int value)
 {
-  return value ? value - (value & (value - 1)) : INT_MAX;
+  return value - (value & (value - 1));
+}
+
+/* For all paths in first COUNT entries in PATH_ORDER, mark their latest
+ * node as "HEAD".  PATH_ORDER must be ordered by path, revision.
+ */
+static void
+classify_nodes(path_order_t **path_order,
+               int count)
+{
+  const svn_prefix_string__t *path;
+  int i;
+
+  /* The logic below would fail for empty ranges. */
+  if (count == 0)
+    return;
+
+  /* All entries are sorted by path, followed by revision.
+   * So, the first index is also HEAD for the first path.
+   */
+  path = path_order[0]->path;
+  path_order[0]->is_head = TRUE;
+
+  /* Since the sorting implicitly groups all entries by path and then sorts
+   * by descending revision within the group, whenever we encounter a new
+   * path, the first entry is "HEAD" for that path.
+   */
+  for (i = 1; i < count; ++i)
+    {
+      /* New path? */
+      if (svn_prefix_string__compare(path, path_order[i]->path))
+        {
+          path = path_order[i]->path;
+          path_order[i]->is_head = TRUE;
+        }
+    }
 }
 
 /* Order a range of data collected in CONTEXT such that we can place them
@@ -836,13 +877,13 @@ roundness(int value)
  */
 static void
 sort_reps_range(pack_context_t *context,
-                const path_order_t **path_order,
-                const path_order_t **temp,
+                path_order_t **path_order,
+                path_order_t **temp,
                 int first,
                 int last)
 {
   const svn_prefix_string__t *path;
-  int i, dest, best;
+  int i, dest;
   svn_fs_fs__id_part_t rep_id;
   fs_fs_data_t *ffd = context->fs->fsap_data;
 
@@ -859,49 +900,52 @@ sort_reps_range(pack_context_t *context,
    * We simply pick & chose from the existing path, rev order.
    */
   dest = first;
-  path = path_order[first]->path;
-  best = first;
 
-  /* (1) For each path, pick the "roundest" representation and put it in
-   * front of all other nodes in the pack file.  The "roundest" rep is
-   * the one most likely to be referenced from future pack files, i.e. we
-   * concentrate those potential "foreign link targets" in one section of
-   * the pack file.
+  /* (1) There are two classes of representations that are likely to be
+   * referenced from future shards.  These form a "hot zone" of mostly
+   * relevant data, i.e. we try to include as many reps as possible that
+   * are needed for future checkouts while trying to exclude as many as
+   * possible that are likely not needed in future checkouts.
    *
-   * And we only apply this to reps outside the linear deltification
-   * sections because references *into* linear deltification ranges are
-   * much less likely.
+   * First, "very round" representations from frequently changing nodes.
+   * That excludes many in-between representations not accessed from HEAD.
+   *
+   * The second class are infrequently changing nodes.  Because they are
+   * unlikely to change often in the future, they will remain relevant for
+   * HEAD even over long spans of revisions.  They are most likely the only
+   * thing we need from very old pack files.
    */
   for (i = first; i < last; ++i)
     {
-      /* Investigated all nodes for the current path? */
-      if (svn_prefix_string__compare(path, path_order[i]->path))
+      int round = roundness(path_order[i]->predecessor_count);
+
+      /* Class 1:
+       * Pretty round _and_ a significant stop in the node's delta chain.
+       * This may pick up more than one representation from the same chain
+       * but that's rare and not a problem.  Prefer simple checks here.
+       *
+       * The divider of 4 is arbitrary but seems to work well in practice.
+       * Larger values increase the number of items in the "hot zone".
+       * Smaller values make delta chains at HEAD more likely to contain
+       * "cold zone" representations. */
+      svn_boolean_t likely_target
+        =    (round >= ffd->max_linear_deltification)
+          && (round >= path_order[i]->predecessor_count / 4);
+
+      /* Class 2:
+       * Anything from short node chains.  The default of 16 is generous
+       * but we'd rather include too many than too few nodes here to keep
+       * seeks between different regions of this pack file at a minimum. */
+      svn_boolean_t likely_head
+        =   path_order[i]->predecessor_count
+          < ffd->max_linear_deltification;
+
+      /* Pick any node that from either class. */
+      if (likely_target || likely_head)
         {
-          /* next path */
-          path = path_order[i]->path;
-
-          /* Pick roundest non-linear deltified node. */
-          if (roundness(path_order[best]->predecessor_count)
-              >= ffd->max_linear_deltification)
-            {
-              temp[dest++] = path_order[best];
-              path_order[best] = NULL;
-              best = i;
-            }
+          temp[dest++] = path_order[i];
+          path_order[i] = NULL;
         }
-
-      /* next entry */
-      if (  roundness(path_order[best]->predecessor_count)
-          < roundness(path_order[i]->predecessor_count))
-        best = i;
-    }
-
-  /* Treat the last path the same as all others. */
-  if (roundness(path_order[best]->predecessor_count)
-      >= ffd->max_linear_deltification)
-    {
-      temp[dest++] = path_order[best];
-      path_order[best] = NULL;
     }
 
   /* (2) For each (remaining) path, pick the nodes along the delta chain
@@ -967,8 +1011,8 @@ static void
 sort_reps(pack_context_t *context)
 {
   apr_pool_t *temp_pool;
-  const path_order_t **temp, **path_order;
-  int i, count, dir_count;
+  path_order_t **temp, **path_order;
+  int i, count;
 
   /* We will later assume that there is at least one node / path.
    */
@@ -993,13 +1037,11 @@ sort_reps(pack_context_t *context)
   temp = apr_pcalloc(temp_pool, count * sizeof(*temp));
   path_order = (void *)context->path_order->elts;
 
-  /* Find the boundary between DIR and FILE section. */
-  dir_count = svn_sort__bsearch_lower_bound(context->path_order, NULL,
-                     (int (*)(const void *, const void *))compare_is_dir);
+  /* Mark nodes depending on what other nodes exist for the same path etc. */
+  classify_nodes(path_order, count);
 
-  /* Sort those sub-sections separately. */
-  sort_reps_range(context, path_order, temp, 0, dir_count);
-  sort_reps_range(context, path_order, temp, dir_count, count);
+  /* Rearrange those sub-sections separately. */
+  sort_reps_range(context, path_order, temp, 0, count);
 
   /* We now know the final ordering. */
   for (i = 0; i < count; ++i)
@@ -1035,7 +1077,7 @@ sort_items(apr_array_header_t *entries)
 /* Return the remaining unused bytes in the current block in CONTEXT's
  * pack file.
  */
-static apr_ssize_t
+static apr_off_t
 get_block_left(pack_context_t *context)
 {
   fs_fs_data_t *ffd = context->fs->fsap_data;
@@ -1166,7 +1208,7 @@ copy_reps_from_temp(pack_context_t *context,
   apr_array_header_t *path_order = context->path_order;
   int i;
 
-  /* copy items in path order. */
+  /* copy items in path order.  Exclude the non-HEAD noderevs. */
   for (i = 0; i < path_order->nelts; ++i)
     {
       path_order_t *current_path;
@@ -1176,13 +1218,30 @@ copy_reps_from_temp(pack_context_t *context,
       svn_pool_clear(iterpool);
 
       current_path = APR_ARRAY_IDX(path_order, i, path_order_t *);
-      node_part = get_item(context, &current_path->noderev_id, TRUE);
-      rep_part = get_item(context, &current_path->rep_id, TRUE);
+      if (current_path->is_head)
+        {
+          node_part = get_item(context, &current_path->noderev_id, TRUE);
+          if (node_part)
+            SVN_ERR(store_item(context, temp_file, node_part, iterpool));
+        }
 
-      if (node_part)
-        SVN_ERR(store_item(context, temp_file, node_part, iterpool));
+      rep_part = get_item(context, &current_path->rep_id, TRUE);
       if (rep_part)
         SVN_ERR(store_item(context, temp_file, rep_part, iterpool));
+    }
+
+  /* copy the remaining non-head noderevs. */
+  for (i = 0; i < path_order->nelts; ++i)
+    {
+      path_order_t *current_path;
+      svn_fs_fs__p2l_entry_t *node_part;
+
+      svn_pool_clear(iterpool);
+
+      current_path = APR_ARRAY_IDX(path_order, i, path_order_t *);
+      node_part = get_item(context, &current_path->noderev_id, TRUE);
+      if (node_part)
+        SVN_ERR(store_item(context, temp_file, node_part, iterpool));
     }
 
   svn_pool_destroy(iterpool);
@@ -1351,7 +1410,7 @@ pack_range(pack_context_t *context,
                     SVN_ERR(copy_rep_to_temp(context, rev_file->file, entry,
                                              iterpool2));
                   else if (entry->type == SVN_FS_FS__ITEM_TYPE_NODEREV)
-                    SVN_ERR(copy_node_to_temp(context, rev_file->file, entry,
+                    SVN_ERR(copy_node_to_temp(context, rev_file, entry,
                                               iterpool2));
                   else
                     SVN_ERR_ASSERT(entry->type == SVN_FS_FS__ITEM_TYPE_UNUSED);
@@ -1410,21 +1469,19 @@ append_revision(pack_context_t *context,
   apr_off_t offset = 0;
   apr_pool_t *iterpool = svn_pool_create(pool);
   svn_fs_fs__revision_file_t *rev_file;
-  apr_finfo_t finfo;
+  svn_filesize_t revdata_size;
 
-  /* Get the size of the file. */
-  const char *path = svn_dirent_join(context->shard_dir,
-                                     apr_psprintf(iterpool, "%ld",
-                                                  context->start_rev),
-                                     pool);
-  SVN_ERR(svn_io_stat(&finfo, path, APR_FINFO_SIZE, pool));
-
-  /* Copy all the bits from the rev file to the end of the pack file. */
+  /* Copy all non-index contents the rev file to the end of the pack file. */
   SVN_ERR(svn_fs_fs__open_pack_or_rev_file(&rev_file, context->fs,
                                            context->start_rev, pool,
                                            iterpool));
+  SVN_ERR(svn_fs_fs__auto_read_footer(rev_file));
+  revdata_size = rev_file->l2p_offset;
+
+  SVN_ERR(svn_io_file_aligned_seek(rev_file->file, ffd->block_size, NULL, 0,
+                                   iterpool));
   SVN_ERR(copy_file_data(context, context->pack_file, rev_file->file,
-                         finfo.size, iterpool));
+                         revdata_size, iterpool));
 
   /* mark the start of a new revision */
   SVN_ERR(svn_fs_fs__l2p_proto_index_add_revision(context->proto_l2p_index,
@@ -1432,7 +1489,7 @@ append_revision(pack_context_t *context,
 
   /* read the phys-to-log index file until we covered the whole rev file.
    * That index contains enough info to build both target indexes from it. */
-  while (offset < finfo.size)
+  while (offset < revdata_size)
     {
       /* read one cluster */
       int i;
@@ -1456,7 +1513,7 @@ append_revision(pack_context_t *context,
 
           /* process entry while inside the rev file */
           offset = entry->offset;
-          if (offset < finfo.size)
+          if (offset < revdata_size)
             {
               entry->offset += context->pack_offset;
               offset += entry->size;
@@ -1470,7 +1527,7 @@ append_revision(pack_context_t *context,
     }
 
   svn_pool_destroy(iterpool);
-  context->pack_offset += finfo.size;
+  context->pack_offset += revdata_size;
 
   SVN_ERR(svn_fs_fs__close_revision_file(rev_file));
 
@@ -1481,8 +1538,9 @@ append_revision(pack_context_t *context,
  *
  * Pack the revision shard starting at SHARD_REV in filesystem FS from
  * SHARD_DIR into the PACK_FILE_DIR, using POOL for allocations.  Limit
- * the extra memory consumption to MAX_MEM bytes.  CANCEL_FUNC and
- * CANCEL_BATON are what you think they are.
+ * the extra memory consumption to MAX_MEM bytes.  If FLUSH_TO_DISK is
+ * non-zero, do not return until the data has actually been written on
+ * the disk.  CANCEL_FUNC and CANCEL_BATON are what you think they are.
  */
 static svn_error_t *
 pack_log_addressed(svn_fs_t *fs,
@@ -1490,6 +1548,7 @@ pack_log_addressed(svn_fs_t *fs,
                    const char *shard_dir,
                    svn_revnum_t shard_rev,
                    apr_size_t max_mem,
+                   svn_boolean_t flush_to_disk,
                    svn_cancel_func_t cancel_func,
                    void *cancel_baton,
                    apr_pool_t *pool)
@@ -1522,8 +1581,8 @@ pack_log_addressed(svn_fs_t *fs,
 
   /* set up a pack context */
   SVN_ERR(initialize_pack_context(&context, fs, pack_file_dir, shard_dir,
-                                  shard_rev, max_items, cancel_func,
-                                  cancel_baton, pool));
+                                  shard_rev, max_items, flush_to_disk,
+                                  cancel_func, cancel_baton, pool));
 
   /* phase 1: determine the size of the revisions to pack */
   SVN_ERR(svn_fs_fs__l2p_get_max_ids(&max_ids, fs, shard_rev,
@@ -1532,8 +1591,10 @@ pack_log_addressed(svn_fs_t *fs,
 
   /* pack revisions in ranges that don't exceed MAX_MEM */
   for (i = 0; i < max_ids->nelts; ++i)
-    if (APR_ARRAY_IDX(max_ids, i, apr_uint64_t) + item_count <= max_items)
+    if (   APR_ARRAY_IDX(max_ids, i, apr_uint64_t)
+        <= (apr_uint64_t)max_items - item_count)
       {
+        item_count += APR_ARRAY_IDX(max_ids, i, apr_uint64_t);
         context.end_rev++;
       }
     else
@@ -1645,14 +1706,16 @@ svn_fs_fs__get_packed_offset(apr_off_t *rev_offset,
  *
  * Pack the revision shard starting at SHARD_REV containing exactly
  * MAX_FILES_PER_DIR revisions from SHARD_PATH into the PACK_FILE_DIR,
- * using POOL for allocations.  CANCEL_FUNC and CANCEL_BATON are what you
- * think they are.
+ * using POOL for allocations.  If FLUSH_TO_DISK is non-zero, do not
+ * return until the data has actually been written on the disk.
+ * CANCEL_FUNC and CANCEL_BATON are what you think they are.
  */
 static svn_error_t *
 pack_phys_addressed(const char *pack_file_dir,
                     const char *shard_path,
                     svn_revnum_t start_rev,
                     int max_files_per_dir,
+                    svn_boolean_t flush_to_disk,
                     svn_cancel_func_t cancel_func,
                     void *cancel_baton,
                     apr_pool_t *pool)
@@ -1662,7 +1725,6 @@ pack_phys_addressed(const char *pack_file_dir,
   apr_file_t *manifest_file;
   svn_stream_t *manifest_stream;
   svn_revnum_t end_rev, rev;
-  apr_off_t next_offset;
   apr_pool_t *iterpool;
 
   /* Some useful paths. */
@@ -1683,32 +1745,37 @@ pack_phys_addressed(const char *pack_file_dir,
   manifest_stream = svn_stream_from_aprfile2(manifest_file, TRUE, pool);
 
   end_rev = start_rev + max_files_per_dir - 1;
-  next_offset = 0;
   iterpool = svn_pool_create(pool);
 
   /* Iterate over the revisions in this shard, squashing them together. */
   for (rev = start_rev; rev <= end_rev; rev++)
     {
       svn_stream_t *rev_stream;
-      apr_finfo_t finfo;
       const char *path;
+      apr_off_t offset;
+      apr_file_t *rev_file;
 
       svn_pool_clear(iterpool);
 
-      /* Get the size of the file. */
       path = svn_dirent_join(shard_path, apr_psprintf(iterpool, "%ld", rev),
                              iterpool);
-      SVN_ERR(svn_io_stat(&finfo, path, APR_FINFO_SIZE, iterpool));
+
+      /* Obtain current offset in pack file. */
+      SVN_ERR(svn_io_file_get_offset(&offset, pack_file, iterpool));
 
       /* build manifest */
       SVN_ERR(svn_stream_printf(manifest_stream, iterpool,
-                                "%" APR_OFF_T_FMT "\n", next_offset));
-      next_offset += finfo.size;
+                                "%" APR_OFF_T_FMT "\n", offset));
 
-      /* Copy all the bits from the rev file to the end of the pack file. */
-      SVN_ERR(svn_stream_open_readonly(&rev_stream, path, iterpool, iterpool));
+      /* Copy all the bits from the rev file to the end of the pack file.
+       * Use unbuffered apr_file_t since we're going to write using 16kb
+       * chunks. */
+      SVN_ERR(svn_io_file_open(&rev_file, path, APR_READ, APR_OS_DEFAULT,
+                               iterpool));
+      rev_stream = svn_stream_from_aprfile2(rev_file, FALSE, iterpool);
       SVN_ERR(svn_stream_copy3(rev_stream,
-                               svn_stream_from_aprfile2(pack_file, TRUE, pool),
+                               svn_stream_from_aprfile2(pack_file, TRUE,
+                                                        iterpool),
                                cancel_func, cancel_baton, iterpool));
     }
 
@@ -1716,14 +1783,16 @@ pack_phys_addressed(const char *pack_file_dir,
   SVN_ERR(svn_stream_close(manifest_stream));
 
   /* Ensure that pack file is written to disk. */
-  SVN_ERR(svn_io_file_flush_to_disk(manifest_file, pool));
+  if (flush_to_disk)
+    SVN_ERR(svn_io_file_flush_to_disk(manifest_file, pool));
   SVN_ERR(svn_io_file_close(manifest_file, pool));
 
   /* disallow write access to the manifest file */
   SVN_ERR(svn_io_set_file_read_only(manifest_file_path, FALSE, iterpool));
 
   /* Ensure that pack file is written to disk. */
-  SVN_ERR(svn_io_file_flush_to_disk(pack_file, pool));
+  if (flush_to_disk)
+    SVN_ERR(svn_io_file_flush_to_disk(pack_file, pool));
   SVN_ERR(svn_io_file_close(pack_file, pool));
 
   svn_pool_destroy(iterpool);
@@ -1734,8 +1803,9 @@ pack_phys_addressed(const char *pack_file_dir,
 /* In filesystem FS, pack the revision SHARD containing exactly
  * MAX_FILES_PER_DIR revisions from SHARD_PATH into the PACK_FILE_DIR,
  * using POOL for allocations.  Try to limit the amount of temporary
- * memory needed to MAX_MEM bytes.  CANCEL_FUNC and CANCEL_BATON are what
- * you think they are.
+ * memory needed to MAX_MEM bytes.  If FLUSH_TO_DISK is non-zero, do
+ * not return until the data has actually been written on the disk.
+ * CANCEL_FUNC and CANCEL_BATON are what you think they are.
  *
  * If for some reason we detect a partial packing already performed, we
  * remove the pack file and start again.
@@ -1749,6 +1819,7 @@ pack_rev_shard(svn_fs_t *fs,
                apr_int64_t shard,
                int max_files_per_dir,
                apr_size_t max_mem,
+               svn_boolean_t flush_to_disk,
                svn_cancel_func_t cancel_func,
                void *cancel_baton,
                apr_pool_t *pool)
@@ -1768,12 +1839,13 @@ pack_rev_shard(svn_fs_t *fs,
 
   /* Index information files */
   if (svn_fs_fs__use_log_addressing(fs))
-    SVN_ERR(pack_log_addressed(fs, pack_file_dir, shard_path, shard_rev,
-                               max_mem, cancel_func, cancel_baton, pool));
+    SVN_ERR(pack_log_addressed(fs, pack_file_dir, shard_path,
+                               shard_rev, max_mem, flush_to_disk,
+                               cancel_func, cancel_baton, pool));
   else
     SVN_ERR(pack_phys_addressed(pack_file_dir, shard_path, shard_rev,
-                                max_files_per_dir, cancel_func,
-                                cancel_baton, pool));
+                                max_files_per_dir, flush_to_disk,
+                                cancel_func, cancel_baton, pool));
 
   SVN_ERR(svn_io_copy_perms(shard_path, pack_file_dir, pool));
   SVN_ERR(svn_io_set_file_read_only(pack_file_path, FALSE, pool));
@@ -1792,6 +1864,7 @@ struct pack_baton
   void *notify_baton;
   svn_cancel_func_t cancel_func;
   void *cancel_baton;
+  size_t max_mem;
 
   /* Additional entries valid when entering pack_shard(). */
   const char *revs_dir;
@@ -1820,6 +1893,8 @@ synced_pack_shard(void *baton,
   /* if enabled, pack the revprops in an equivalent way */
   if (pb->revsprops_dir)
     {
+      apr_int64_t pack_size_limit = 0.9 * ffd->revprop_pack_size;
+
       revprops_pack_file_dir = svn_dirent_join(pb->revsprops_dir,
                    apr_psprintf(pool,
                                 "%" APR_INT64_T_FMT PATH_EXT_PACKED_SHARD,
@@ -1833,10 +1908,11 @@ synced_pack_shard(void *baton,
                                              revprops_shard_path,
                                              pb->shard,
                                              ffd->max_files_per_dir,
-                                             (int)(0.9*ffd->revprop_pack_size),
+                                             pack_size_limit,
                                              ffd->compress_packed_revprops
                                                ? SVN__COMPRESSION_ZLIB_DEFAULT
                                                : SVN__COMPRESSION_NONE,
+                                             ffd->flush_to_disk,
                                              pb->cancel_func,
                                              pb->cancel_baton,
                                              pool));
@@ -1913,8 +1989,8 @@ pack_shard(struct pack_baton *baton,
   /* pack the revision content */
   SVN_ERR(pack_rev_shard(baton->fs, rev_pack_file_dir, baton->rev_shard_path,
                          baton->shard, ffd->max_files_per_dir,
-                         DEFAULT_MAX_MEM, baton->cancel_func,
-                         baton->cancel_baton, pool));
+                         baton->max_mem, ffd->flush_to_disk,
+                         baton->cancel_func, baton->cancel_baton, pool));
 
   /* For newer repo formats, we only acquired the pack lock so far.
      Before modifying the repo state by switching over to the packed
@@ -1929,6 +2005,34 @@ pack_shard(struct pack_baton *baton,
   if (baton->notify_func)
     SVN_ERR(baton->notify_func(baton->notify_baton, baton->shard,
                                svn_fs_pack_notify_end, pool));
+
+  return SVN_NO_ERROR;
+}
+
+/* Read the youngest rev and the first non-packed rev info for FS from disk.
+   Set *FULLY_PACKED when there is no completed unpacked shard.
+   Use SCRATCH_POOL for temporary allocations.
+ */
+static svn_error_t *
+get_pack_status(svn_boolean_t *fully_packed,
+                svn_fs_t *fs,
+                apr_pool_t *scratch_pool)
+{
+  fs_fs_data_t *ffd = fs->fsap_data;
+  apr_int64_t completed_shards;
+  svn_revnum_t youngest;
+
+  SVN_ERR(svn_fs_fs__read_min_unpacked_rev(&ffd->min_unpacked_rev, fs,
+                                           scratch_pool));
+
+  SVN_ERR(svn_fs_fs__youngest_rev(&youngest, fs, scratch_pool));
+  completed_shards = (youngest + 1) / ffd->max_files_per_dir;
+
+  /* See if we've already completed all possible shards thus far. */
+  if (ffd->min_unpacked_rev == (completed_shards * ffd->max_files_per_dir))
+    *fully_packed = TRUE;
+  else
+    *fully_packed = FALSE;
 
   return SVN_NO_ERROR;
 }
@@ -1954,30 +2058,23 @@ pack_body(void *baton,
   struct pack_baton *pb = baton;
   fs_fs_data_t *ffd = pb->fs->fsap_data;
   apr_int64_t completed_shards;
-  svn_revnum_t youngest;
   apr_pool_t *iterpool;
+  svn_boolean_t fully_packed;
 
-  /* If the repository isn't a new enough format, we don't support packing.
-     Return a friendly error to that effect. */
-  if (ffd->format < SVN_FS_FS__MIN_PACKED_FORMAT)
-    return svn_error_createf(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
-      _("FSFS format (%d) too old to pack; please upgrade the filesystem."),
-      ffd->format);
+  /* Since another process might have already packed the repo,
+     we need to re-read the pack status. */
+  SVN_ERR(get_pack_status(&fully_packed, pb->fs, pool));
+  if (fully_packed)
+    {
+      if (pb->notify_func)
+        (*pb->notify_func)(pb->notify_baton,
+                           ffd->min_unpacked_rev / ffd->max_files_per_dir,
+                           svn_fs_pack_notify_noop, pool);
 
-  /* If we aren't using sharding, we can't do any packing, so quit. */
-  if (!ffd->max_files_per_dir)
-    return SVN_NO_ERROR;
+      return SVN_NO_ERROR;
+    }
 
-  SVN_ERR(svn_fs_fs__read_min_unpacked_rev(&ffd->min_unpacked_rev, pb->fs,
-                                           pool));
-
-  SVN_ERR(svn_fs_fs__youngest_rev(&youngest, pb->fs, pool));
-  completed_shards = (youngest + 1) / ffd->max_files_per_dir;
-
-  /* See if we've already completed all possible shards thus far. */
-  if (ffd->min_unpacked_rev == (completed_shards * ffd->max_files_per_dir))
-    return SVN_NO_ERROR;
-
+  completed_shards = (ffd->youngest_rev_cache + 1) / ffd->max_files_per_dir;
   pb->revs_dir = svn_dirent_join(pb->fs->path, PATH_REVS_DIR, pool);
   if (ffd->format >= SVN_FS_FS__MIN_PACKED_REVPROP_FORMAT)
     pb->revsprops_dir = svn_dirent_join(pb->fs->path, PATH_REVPROPS_DIR,
@@ -2002,6 +2099,7 @@ pack_body(void *baton,
 
 svn_error_t *
 svn_fs_fs__pack(svn_fs_t *fs,
+                apr_size_t max_mem,
                 svn_fs_pack_notify_t notify_func,
                 void *notify_baton,
                 svn_cancel_func_t cancel_func,
@@ -2011,12 +2109,43 @@ svn_fs_fs__pack(svn_fs_t *fs,
   struct pack_baton pb = { 0 };
   fs_fs_data_t *ffd = fs->fsap_data;
   svn_error_t *err;
+  svn_boolean_t fully_packed;
 
+  /* If the repository isn't a new enough format, we don't support packing.
+     Return a friendly error to that effect. */
+  if (ffd->format < SVN_FS_FS__MIN_PACKED_FORMAT)
+    return svn_error_createf(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+      _("FSFS format (%d) too old to pack; please upgrade the filesystem."),
+      ffd->format);
+
+  /* If we aren't using sharding, we can't do any packing, so quit. */
+  if (!ffd->max_files_per_dir)
+    {
+      if (notify_func)
+        (*notify_func)(notify_baton, -1, svn_fs_pack_notify_noop, pool);
+
+      return SVN_NO_ERROR;
+    }
+
+  /* Is there we even anything to do?. */
+  SVN_ERR(get_pack_status(&fully_packed, fs, pool));
+  if (fully_packed)
+    {
+      if (notify_func)
+        (*notify_func)(notify_baton,
+                       ffd->min_unpacked_rev / ffd->max_files_per_dir,
+                       svn_fs_pack_notify_noop, pool);
+
+      return SVN_NO_ERROR;
+    }
+
+  /* Lock the repo and start the pack process. */
   pb.fs = fs;
   pb.notify_func = notify_func;
   pb.notify_baton = notify_baton;
   pb.cancel_func = cancel_func;
   pb.cancel_baton = cancel_baton;
+  pb.max_mem = max_mem ? max_mem : DEFAULT_MAX_MEM;
 
   if (ffd->format >= SVN_FS_FS__MIN_PACK_LOCK_FORMAT)
     {

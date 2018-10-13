@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,8 +39,6 @@
 
 #define HUMANVALSTR_LEN	5
 
-#define LS_XO_VERSION	"1"
-
 extern long blocksize;		/* block size units */
 
 extern int f_accesstime;	/* use time of last access */
@@ -60,7 +60,6 @@ extern int f_statustime;	/* use time of last mode change */
 extern int f_thousands;		/* show file sizes with thousands separators */
 extern char *f_timeformat;	/* user-specified time format */
 extern int f_notabs;		/* don't use tab-separated multi-col output */
-extern int f_numericonly;	/* don't convert uid/gid to name */
 extern int f_type;		/* add type character for non-regular files */
 #ifdef COLORLS
 extern int f_color;		/* add type in color for non-regular files */

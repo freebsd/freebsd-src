@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1993 Herb Peyerl (hpeyerl@novatel.ca) All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,8 +79,6 @@
 #define EEPROM_MFG_PRODUCT      0x6	/* Product code */
 #define EEPROM_MFG_ID		0x7	/* 0x6d50 */
 #define EEPROM_ADDR_CFG		0x8	/* Base addr */
-#define ADDR_CFG_EISA		0x1f
-#define ADDR_CFG_MASK		0x1f
 #define EEPROM_RESOURCE_CFG	0x9	/* IRQ. Bits 12-15 */
 #define EEPROM_OEM_ADDR0        0xa
 #define EEPROM_OEM_ADDR1        0xb
@@ -87,8 +87,6 @@
 #define EEPROM_COMPAT           0xe
 #define EEPROM_SOFTINFO2        0xf
 #define EEPROM_CAP              0x10
-#define CAP_ISA		0x2083
-#define CAP_PCMCIA		0x2082
 #define EEPROM_INT_CONFIG_0	0x12
 #define EEPROM_INT_CONFIG_1	0x13
 /* RAM Partition TX FIFO/RX FIFO */
@@ -112,7 +110,7 @@
 
 /**************************************************************************
  * These are the registers for the 3Com 3c509 and their bit patterns when *
- * applicable.  They have been taken out the "EtherLink III Parallel  *
+ * applicable.  They have been taken out the "EtherLink III Parallel      *
  * Tasking EISA and ISA Technical Reference" "Beta Draft 10/30/92" manual *
  * from 3com.								  *
  **************************************************************************/

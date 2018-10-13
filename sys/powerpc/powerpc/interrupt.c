@@ -86,9 +86,13 @@ powerpc_interrupt(struct trapframe *framep)
 
 	switch (framep->exc) {
 	case EXC_EXI:
+	case EXC_HVI:
 		critical_enter();
 		PIC_DISPATCH(root_pic, framep);
 		critical_exit();
+#ifdef BOOKE
+		framep->srr1 &= ~PSL_WE;
+#endif
 		break;
 
 	case EXC_DECR:
@@ -100,12 +104,15 @@ powerpc_interrupt(struct trapframe *framep)
 		td->td_intr_frame = oldframe;
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);
 		critical_exit();
+#ifdef BOOKE
+		framep->srr1 &= ~PSL_WE;
+#endif
 		break;
 #ifdef HWPMC_HOOKS
 	case EXC_PERF:
 		critical_enter();
 		KASSERT(pmc_intr != NULL, ("Performance exception, but no handler!"));
-		(*pmc_intr)(PCPU_GET(cpuid), framep);
+		(*pmc_intr)(framep);
 		if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
 			pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
 		critical_exit();

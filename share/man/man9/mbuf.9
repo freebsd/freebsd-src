@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 29, 2016
+.Dd September 27, 2017
 .Dt MBUF 9
 .Os
 .\"
@@ -44,12 +44,12 @@
 .Fn MCLGET "struct mbuf *mbuf" "int how"
 .Fo MEXTADD
 .Fa "struct mbuf *mbuf"
-.Fa "caddr_t buf"
+.Fa "char *buf"
 .Fa "u_int size"
-.Fa "void (*free)(void *opt_arg1, void *opt_arg2)"
+.Fa "void (*free)(struct mbuf *)"
 .Fa "void *opt_arg1"
 .Fa "void *opt_arg2"
-.Fa "short flags"
+.Fa "int flags"
 .Fa "int type"
 .Fc
 .\"
@@ -79,8 +79,6 @@
 .Ft struct mbuf *
 .Fn m_getcl "int how" "short type" "int flags"
 .Ft struct mbuf *
-.Fn m_getclr "int how" "short type"
-.Ft struct mbuf *
 .Fn m_gethdr "int how" "short type"
 .Ft struct mbuf *
 .Fn m_free "struct mbuf *mbuf"
@@ -107,7 +105,7 @@
 .Ft struct mbuf *
 .Fn m_copypacket "struct mbuf *mbuf" "int how"
 .Ft struct mbuf *
-.Fn m_dup "struct mbuf *mbuf" "int how"
+.Fn m_dup "const struct mbuf *mbuf" "int how"
 .Ft void
 .Fn m_copydata "const struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
 .Ft void
@@ -126,8 +124,8 @@
 .Fn m_catpkt "struct mbuf *m" "struct mbuf *n"
 .Ft u_int
 .Fn m_fixhdr "struct mbuf *mbuf"
-.Ft void
-.Fn m_dup_pkthdr "struct mbuf *to" "struct mbuf *from"
+.Ft int
+.Fn m_dup_pkthdr "struct mbuf *to" "const struct mbuf *from" "int how"
 .Ft void
 .Fn m_move_pkthdr "struct mbuf *to" "struct mbuf *from"
 .Ft u_int
@@ -255,7 +253,7 @@ The available external buffer types are defined as follows:
 #define EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define EXT_PACKET	6	/* mbuf+cluster from packet zone */
-#define EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
+#define EXT_MBUF	7	/* external mbuf reference */
 #define EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
 #define EXT_MOD_TYPE	253	/* custom module's ext_buf type */
 #define EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
@@ -418,8 +416,13 @@ The
 .Fa opt_arg1
 and
 .Fa opt_arg2
-arguments will be passed unmodified to
-.Fa free .
+arguments will be saved in
+.Va ext_arg1
+and
+.Va ext_arg2
+fields of the
+.Va struct m_ext
+of the mbuf.
 The
 .Fa flags
 argument specifies additional
@@ -602,10 +605,6 @@ This is like
 but it the size of the cluster allocated will be large enough for
 .Fa size
 bytes.
-.It Fn m_getclr how type
-Allocate an
-.Vt mbuf
-and zero out the data region.
 .It Fn m_free mbuf
 Frees
 .Vt mbuf .

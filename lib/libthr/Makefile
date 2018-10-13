@@ -3,10 +3,7 @@
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
 # not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
-# below.  Note, there are no IDs for syscall stubs whose sources are generated.
-# To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
-# (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
-# system call stubs.
+# below.
 
 PACKAGE=	clibs
 SHLIBDIR?= /lib
@@ -16,16 +13,23 @@ MK_SSP=	no
 
 LIB=thr
 SHLIB_MAJOR= 3
-WARNS?=	3
+NO_WTHREAD_SAFETY=1
+NO_WCAST_ALIGN.gcc=1    # for gcc 4.2
 CFLAGS+=-DPTHREAD_KERNEL
-CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
-	-I${.CURDIR}/../../include
+CFLAGS+=-I${SRCTOP}/lib/libc/include -I${.CURDIR}/thread \
+	-I${SRCTOP}/include
 CFLAGS+=-I${.CURDIR}/arch/${MACHINE_CPUARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
-CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
-CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_CPUARCH}
-CFLAGS+=-I${.CURDIR}/../libthread_db
+CFLAGS+=-I${SRCTOP}/libexec/rtld-elf
+CFLAGS+=-I${SRCTOP}/libexec/rtld-elf/${MACHINE_CPUARCH}
+CFLAGS+=-I${SRCTOP}/lib/libthread_db
 CFLAGS+=-Winline
+
+CFLAGS.thr_stack.c+=	-Wno-cast-align
+.include <bsd.compiler.mk>
+.if !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 40300)
+CFLAGS.thr_symbols.c+=	-Wno-missing-variable-declarations
+.endif
 
 .ifndef NO_THREAD_UNWIND_STACK
 CFLAGS+=-fexceptions
@@ -34,7 +38,7 @@ CFLAGS+=-D_PTHREAD_FORCED_UNWIND
 
 LDFLAGS+=-Wl,-znodelete
 
-VERSION_DEF=${.CURDIR}/../libc/Versions.def
+VERSION_DEF=${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=${.CURDIR}/pthread.map
 
 MAN=	libthr.3
@@ -62,8 +66,7 @@ SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

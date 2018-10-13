@@ -12,11 +12,8 @@ SUBDIR=	${_drti} \
 	${_libzfs_core} \
 	${_libzfs} \
 	${_libzpool} \
-	${_tests}
 
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .if ${MK_ZFS} != "no"
 _libzfs_core=	libzfs_core

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.h,v 1.29 2015/11/15 22:26:49 jcs Exp $ */
+/* $OpenBSD: sshconnect.h,v 1.35 2018/07/19 10:28:47 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -26,14 +26,15 @@
 
 typedef struct Sensitive Sensitive;
 struct Sensitive {
-	Key	**keys;
-	int	nkeys;
-	int	external_keysign;
+	struct sshkey	**keys;
+	int		nkeys;
 };
 
 struct addrinfo;
-int	 ssh_connect(const char *, struct addrinfo *, struct sockaddr_storage *,
-    u_short, int, int, int *, int, int);
+struct ssh;
+
+int	 ssh_connect(struct ssh *, const char *, struct addrinfo *,
+	    struct sockaddr_storage *, u_short, int, int, int *, int);
 void	 ssh_kill_proxy_command(void);
 
 void	 ssh_login(Sensitive *, const char *, struct sockaddr *, u_short,
@@ -41,7 +42,7 @@ void	 ssh_login(Sensitive *, const char *, struct sockaddr *, u_short,
 
 void	 ssh_exchange_identification(int);
 
-int	 verify_host_key(char *, struct sockaddr *, Key *);
+int	 verify_host_key(char *, struct sockaddr *, struct sshkey *);
 
 void	 get_hostfile_hostname_ipaddr(char *, struct sockaddr *, u_short,
     char **, char **);
@@ -55,23 +56,4 @@ void	 ssh_userauth2(const char *, const char *, char *, Sensitive *);
 void	 ssh_put_password(char *);
 int	 ssh_local_cmd(const char *);
 
-void	 maybe_add_key_to_agent(char *, Key *, char *, char *);
-
-/*
- * Macros to raise/lower permissions.
- */
-#define PRIV_START do {					\
-	int save_errno = errno;				\
-	if (seteuid(original_effective_uid) != 0)	\
-		fatal("PRIV_START: seteuid: %s",	\
-		    strerror(errno));			\
-	errno = save_errno;				\
-} while (0)
-
-#define PRIV_END do {					\
-	int save_errno = errno;				\
-	if (seteuid(original_real_uid) != 0)		\
-		fatal("PRIV_END: seteuid: %s",		\
-		    strerror(errno));			\
-	errno = save_errno;				\
-} while (0)
+void	 maybe_add_key_to_agent(char *, const struct sshkey *, char *, char *);

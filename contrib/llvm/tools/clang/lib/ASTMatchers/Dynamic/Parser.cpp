@@ -1,4 +1,4 @@
-//===--- Parser.cpp - Matcher expression parser -----*- C++ -*-===//
+//===- Parser.cpp - Matcher expression parser -----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,12 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/ASTMatchers/Dynamic/Parser.h"
+#include "clang/ASTMatchers/ASTMatchersInternal.h"
+#include "clang/ASTMatchers/Dynamic/Diagnostics.h"
 #include "clang/ASTMatchers/Dynamic/Registry.h"
 #include "clang/Basic/CharInfo.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/Twine.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
+#include <cstddef>
+#include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace clang {
@@ -44,10 +53,10 @@ struct Parser::TokenInfo {
   /// \brief Some known identifiers.
   static const char* const ID_Bind;
 
-  TokenInfo() : Text(), Kind(TK_Eof), Range(), Value() {}
+  TokenInfo() = default;
 
   StringRef Text;
-  TokenKind Kind;
+  TokenKind Kind = TK_Eof;
   SourceRange Range;
   VariantValue Value;
 };
@@ -58,14 +67,13 @@ const char* const Parser::TokenInfo::ID_Bind = "bind";
 class Parser::CodeTokenizer {
 public:
   explicit CodeTokenizer(StringRef MatcherCode, Diagnostics *Error)
-      : Code(MatcherCode), StartOfLine(MatcherCode), Line(1), Error(Error),
-        CodeCompletionLocation(nullptr) {
+      : Code(MatcherCode), StartOfLine(MatcherCode), Error(Error) {
     NextToken = getNextToken();
   }
 
   CodeTokenizer(StringRef MatcherCode, Diagnostics *Error,
                 unsigned CodeCompletionOffset)
-      : Code(MatcherCode), StartOfLine(MatcherCode), Line(1), Error(Error),
+      : Code(MatcherCode), StartOfLine(MatcherCode), Error(Error),
         CodeCompletionLocation(MatcherCode.data() + CodeCompletionOffset) {
     NextToken = getNextToken();
   }
@@ -131,15 +139,15 @@ private:
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      // Parse an unsigned literal.
-      consumeUnsignedLiteral(&Result);
+      // Parse an unsigned and float literal.
+      consumeNumberLiteral(&Result);
       break;
 
     default:
       if (isAlphanumeric(Code[0])) {
         // Parse an identifier
         size_t TokenLength = 1;
-        while (1) {
+        while (true) {
           // A code completion location in/immediately after an identifier will
           // cause the portion of the identifier before the code completion
           // location to become a code completion token.
@@ -154,8 +162,16 @@ private:
             break;
           ++TokenLength;
         }
-        Result.Kind = TokenInfo::TK_Ident;
-        Result.Text = Code.substr(0, TokenLength);
+        if (TokenLength == 4 && Code.startswith("true")) {
+          Result.Kind = TokenInfo::TK_Literal;
+          Result.Value = true;
+        } else if (TokenLength == 5 && Code.startswith("false")) {
+          Result.Kind = TokenInfo::TK_Literal;
+          Result.Value = false;
+        } else {
+          Result.Kind = TokenInfo::TK_Ident;
+          Result.Text = Code.substr(0, TokenLength);
+        }
         Code = Code.drop_front(TokenLength);
       } else {
         Result.Kind = TokenInfo::TK_InvalidChar;
@@ -169,8 +185,9 @@ private:
     return Result;
   }
 
-  /// \brief Consume an unsigned literal.
-  void consumeUnsignedLiteral(TokenInfo *Result) {
+  /// \brief Consume an unsigned and float literal.
+  void consumeNumberLiteral(TokenInfo *Result) {
+    bool isFloatingLiteral = false;
     unsigned Length = 1;
     if (Code.size() > 1) {
       // Consume the 'x' or 'b' radix modifier, if present.
@@ -181,20 +198,44 @@ private:
     while (Length < Code.size() && isHexDigit(Code[Length]))
       ++Length;
 
+    // Try to recognize a floating point literal.
+    while (Length < Code.size()) {
+      char c = Code[Length];
+      if (c == '-' || c == '+' || c == '.' || isHexDigit(c)) {
+        isFloatingLiteral = true;
+        Length++;
+      } else {
+        break;
+      }
+    }
+
     Result->Text = Code.substr(0, Length);
     Code = Code.drop_front(Length);
 
-    unsigned Value;
-    if (!Result->Text.getAsInteger(0, Value)) {
-      Result->Kind = TokenInfo::TK_Literal;
-      Result->Value = Value;
+    if (isFloatingLiteral) {
+      char *end;
+      errno = 0;
+      std::string Text = Result->Text.str();
+      double doubleValue = strtod(Text.c_str(), &end);
+      if (*end == 0 && errno == 0) {
+        Result->Kind = TokenInfo::TK_Literal;
+        Result->Value = doubleValue;
+        return;
+      }
     } else {
-      SourceRange Range;
-      Range.Start = Result->Range.Start;
-      Range.End = currentLocation();
-      Error->addError(Range, Error->ET_ParserUnsignedError) << Result->Text;
-      Result->Kind = TokenInfo::TK_Error;
+      unsigned Value;
+      if (!Result->Text.getAsInteger(0, Value)) {
+        Result->Kind = TokenInfo::TK_Literal;
+        Result->Value = Value;
+        return;
+      }
     }
+
+    SourceRange Range;
+    Range.Start = Result->Range.Start;
+    Range.End = currentLocation();
+    Error->addError(Range, Error->ET_ParserNumberError) << Result->Text;
+    Result->Kind = TokenInfo::TK_Error;
   }
 
   /// \brief Consume a string literal.
@@ -251,22 +292,22 @@ private:
 
   StringRef Code;
   StringRef StartOfLine;
-  unsigned Line;
+  unsigned Line = 1;
   Diagnostics *Error;
   TokenInfo NextToken;
-  const char *CodeCompletionLocation;
+  const char *CodeCompletionLocation = nullptr;
 };
 
-Parser::Sema::~Sema() {}
+Parser::Sema::~Sema() = default;
 
 std::vector<ArgKind> Parser::Sema::getAcceptedCompletionTypes(
     llvm::ArrayRef<std::pair<MatcherCtor, unsigned>> Context) {
-  return std::vector<ArgKind>();
+  return {};
 }
 
 std::vector<MatcherCompletion>
 Parser::Sema::getMatcherCompletions(llvm::ArrayRef<ArgKind> AcceptedTypes) {
-  return std::vector<MatcherCompletion>();
+  return {};
 }
 
 struct Parser::ScopedContextEntry {
@@ -352,7 +393,7 @@ bool Parser::parseMatcherExpressionImpl(const TokenInfo &NameToken,
         EndToken = Tokenizer->consumeNextToken();
         break;
       }
-      if (Args.size() > 0) {
+      if (!Args.empty()) {
         // We must find a , token to continue.
         const TokenInfo CommaToken = Tokenizer->consumeNextToken();
         if (CommaToken.Kind != TokenInfo::TK_Comma) {
@@ -526,7 +567,7 @@ Parser::Parser(CodeTokenizer *Tokenizer, Sema *S,
     : Tokenizer(Tokenizer), S(S ? S : &*DefaultRegistrySema),
       NamedValues(NamedValues), Error(Error) {}
 
-Parser::RegistrySema::~RegistrySema() {}
+Parser::RegistrySema::~RegistrySema() = default;
 
 llvm::Optional<MatcherCtor>
 Parser::RegistrySema::lookupMatcherCtor(StringRef MatcherName) {
@@ -608,6 +649,6 @@ Parser::parseMatcherExpression(StringRef Code, Sema *S,
   return Result;
 }
 
-}  // namespace dynamic
-}  // namespace ast_matchers
-}  // namespace clang
+} // namespace dynamic
+} // namespace ast_matchers
+} // namespace clang

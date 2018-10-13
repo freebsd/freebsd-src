@@ -5,7 +5,7 @@
 ###############################################################################
 
 jail_enable="YES"
-jail_list="xxx"
+jail_list="XXX"
 
 #
 # Global presets for all jails
@@ -57,19 +57,19 @@ jail_devfs_enable="YES"		# mount devfs
 #
 # XXX
 #
-jail_xxx_hostname="xxx.yyy"			# hostname
-jail_xxx_rootdir="/vm/xxx"			# root directory
+jail_XXX_hostname="XXX.YYY"			# hostname
+jail_XXX_rootdir="/vm/XXX"			# root directory
 # netgraph
-jail_xxx_vnet_interface="ng0_xxx"		# vnet interface(s)
-jail_xxx_exec_prestart0="jng bridge xxx em0"	# bridge interface(s)
-jail_xxx_exec_poststop0="jng shutdown xxx"	# destroy interface(s)
+jail_XXX_vnet_interface="ng0_XXX"		# vnet interface(s)
+jail_XXX_exec_prestart0="jng bridge XXX em0"	# bridge interface(s)
+jail_XXX_exec_poststop0="jng shutdown XXX"	# destroy interface(s)
 # if_bridge
-#jail_xxx_vnet_interface="e0b_xxx"		# vnet interface(s)
-#jail_xxx_exec_prestart0="jib addm xxx em0"	# bridge interface(s)
-#jail_xxx_exec_poststop0="jib destroy xxx"	# destroy interface(s)
+#jail_XXX_vnet_interface="e0b_XXX"		# vnet interface(s)
+#jail_XXX_exec_prestart0="jib addm XXX em0"	# bridge interface(s)
+#jail_XXX_exec_poststop0="jib destroy XXX"	# destroy interface(s)
 # Optional (default off)
-#jail_xxx_devfs_ruleset="11"			# rule to unhide bpf for DHCP
-#jail_xxx_mount_enable="YES"			# mount /etc/fstab.xxx
+#jail_XXX_devfs_ruleset="11"			# rule to unhide bpf for DHCP
+#jail_XXX_mount_enable="YES"			# mount /etc/fstab.XXX
 
 ################################################################################
 # END

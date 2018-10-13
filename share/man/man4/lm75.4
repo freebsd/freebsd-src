@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2014
+.Dd December 26, 2017
 .Dt LM75 4
 .Os
 .Sh NAME
@@ -122,7 +122,7 @@ clones may not work reliably.
 .Pp
 On a
 .Xr device.hints 5
-based system, like
+based system, such as
 .Li MIPS ,
 these values are configurable for
 .Nm :
@@ -140,31 +140,28 @@ i2c address on the
 .Pp
 On a
 .Xr FDT 4
-based system, like
+based system, such as
 .Li ARM ,
 the DTS part for a
 .Nm
 device usually looks like:
 .Bd -literal
 i2c {
-
+	/* Properties describing the controller appear here. */
 	...
-
-	lm750 {
+	lm750@49 {
 		compatible = "national,lm75";
-		i2c-address = <0x49>;
+		reg = <0x49>;
 	};
 };
 .Ed
 .Pp
 Where:
-.Bl -tag -width ".Va i2c-address"
+.Bl -tag -width ".Va compatible"
 .It Va compatible
 Should always be set to "national,lm75".
-.It Va i2c-address
-The
-.Va i2c-address
-property indicates which i2c address the
+.It Va reg
+Indicates which 7-bit i2c address the
 .Nm
 is wired at.
 .Nm

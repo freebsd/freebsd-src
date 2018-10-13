@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2010
+.Dd August 1, 2017
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -127,9 +127,11 @@ regardless of whether the
 module is statically linked into the kernel
 or loaded as a module.
 .Sh FILES
-.Bl -tag -width /compat/linux/proc -compact
+.Bl -tag -width /compat/linux/dev/fd -compact
 .It Pa /compat/linux
 minimal Linux run-time environment
+.It Pa /compat/linux/dev/fd
+limited Linux file-descriptor file system
 .It Pa /compat/linux/proc
 limited Linux process file system
 .It Pa /compat/linux/sys
@@ -138,6 +140,7 @@ limited Linux system file system
 .Sh SEE ALSO
 .Xr brandelf 1 ,
 .Xr elf 5 ,
+.Xr fdescfs 5 ,
 .Xr linprocfs 5 ,
 .Xr linsysfs 5
 .Sh HISTORY

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Olivier Houchard.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,13 +34,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <arm/ti/ti_smc.h>
-#include <arm/ti/omap4/omap4_smc.h>
 #include <machine/bus.h>
 #include <machine/pl310.h>
+#include <machine/platformvar.h>
+
+#include <arm/ti/ti_smc.h>
+#include <arm/ti/omap4/omap4_machdep.h>
+#include <arm/ti/omap4/omap4_smc.h>
+
+#include "platform_pl310_if.h"
 
 void
-platform_pl310_init(struct pl310_softc *sc)
+omap4_pl310_init(platform_t plat, struct pl310_softc *sc)
 {
 	uint32_t aux, prefetch;
 
@@ -70,13 +77,15 @@ platform_pl310_init(struct pl310_softc *sc)
 }
 
 void
-platform_pl310_write_ctrl(struct pl310_softc *sc, uint32_t val)
+omap4_pl310_write_ctrl(platform_t plat, struct pl310_softc *sc, uint32_t val)
 {
+
 	ti_smc0(val, 0, L2CACHE_WRITE_CTRL_REG);
 }
 
 void
-platform_pl310_write_debug(struct pl310_softc *sc, uint32_t val)
+omap4_pl310_write_debug(platform_t plat, struct pl310_softc *sc, uint32_t val)
 {
+
 	ti_smc0(val, 0, L2CACHE_WRITE_DEBUG_REG);
 }

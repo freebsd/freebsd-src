@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Weongyo Jeong. All rights reserved.
  * Copyright (c) 2011, by Michael Tuexen. All rights reserved.
  *
@@ -104,95 +106,6 @@ struct xraddr_entry {
 	LIST_ENTRY(xraddr_entry) xraddr_entries;
 };
 
-/*
- * Construct an Internet address representation.
- * If numeric_addr has been supplied, give
- * numeric value, otherwise try for symbolic name.
- */
-#ifdef INET
-static char *
-inetname(struct in_addr *inp)
-{
-	char *cp;
-	static char line[MAXHOSTNAMELEN];
-	struct hostent *hp;
-	struct netent *np;
-
-	cp = 0;
-	if (!numeric_addr && inp->s_addr != INADDR_ANY) {
-		int net = inet_netof(*inp);
-		int lna = inet_lnaof(*inp);
-
-		if (lna == INADDR_ANY) {
-			np = getnetbyaddr(net, AF_INET);
-			if (np)
-				cp = np->n_name;
-		}
-		if (cp == NULL) {
-			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
-			if (hp) {
-				cp = hp->h_name;
-				trimdomain(cp, strlen(cp));
-			}
-		}
-	}
-	if (inp->s_addr == INADDR_ANY)
-		strcpy(line, "*");
-	else if (cp) {
-		strlcpy(line, cp, sizeof(line));
-	} else {
-		inp->s_addr = ntohl(inp->s_addr);
-#define	C(x)	((u_int)((x) & 0xff))
-		sprintf(line, "%u.%u.%u.%u", C(inp->s_addr >> 24),
-		    C(inp->s_addr >> 16), C(inp->s_addr >> 8), C(inp->s_addr));
-		inp->s_addr = htonl(inp->s_addr);
-	}
-	return (line);
-}
-#endif
-
-#ifdef INET6
-static char ntop_buf[INET6_ADDRSTRLEN];
-
-static char *
-inet6name(struct in6_addr *in6p)
-{
-	char *cp;
-	static char line[50];
-	struct hostent *hp;
-	static char domain[MAXHOSTNAMELEN];
-	static int first = 1;
-
-	if (first && !numeric_addr) {
-		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = strchr(domain, '.')))
-			(void) strcpy(domain, cp + 1);
-		else
-			domain[0] = 0;
-	}
-	cp = 0;
-	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
-		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
-		if (hp) {
-			if ((cp = strchr(hp->h_name, '.')) &&
-			    !strcmp(cp + 1, domain))
-				*cp = 0;
-			cp = hp->h_name;
-		}
-	}
-	if (IN6_IS_ADDR_UNSPECIFIED(in6p))
-		strcpy(line, "*");
-	else if (cp)
-		strcpy(line, cp);
-	else
-		sprintf(line, "%s",
-			inet_ntop(AF_INET6, (void *)in6p, ntop_buf,
-				sizeof(ntop_buf)));
-	return (line);
-}
-#endif
-
 static void
 sctp_print_address(const char *container, union sctp_sockstore *address,
     int port, int num_port)
@@ -200,6 +113,7 @@ sctp_print_address(const char *container, union sctp_sockstore *address,
 	struct servent *sp = 0;
 	char line[80], *cp;
 	int width;
+	size_t alen, plen;
 
 	if (container)
 		xo_open_container(container);
@@ -207,29 +121,36 @@ sctp_print_address(const char *container, union sctp_sockstore *address,
 	switch (address->sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		sprintf(line, "%.*s.", Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
+		snprintf(line, sizeof(line), "%.*s.",
+		    Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		sprintf(line, "%.*s.", Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));
+		snprintf(line, sizeof(line), "%.*s.",
+		    Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));
 		break;
 #endif
 	default:
-		sprintf(line, "%.*s.", Wflag ? 39 : 16, "");
+		snprintf(line, sizeof(line), "%.*s.",
+		    Wflag ? 39 : 16, "");
 		break;
 	}
-	cp = strchr(line, '\0');
+	alen = strlen(line);
+	cp = line + alen;
 	if (!num_port && port)
 		sp = getservbyport((int)port, "sctp");
 	if (sp || port == 0)
-		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
+		snprintf(cp, sizeof(line) - alen,
+		    "%.15s ", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d ", ntohs((u_short)port));
+		snprintf(cp, sizeof(line) - alen,
+		    "%d ", ntohs((u_short)port));
 	width = Wflag ? 45 : 22;
 	xo_emit("{d:target/%-*.*s} ", width, width, line);
 
-	int alen = cp - line - 1, plen = strlen(cp) - 1;
+	plen = strlen(cp) - 1;
+	alen--;
 	xo_emit("{e:address/%*.*s}{e:port/%*.*s}", alen, alen, line, plen,
 	    plen, cp);
 
@@ -447,7 +368,8 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb,
 		first = 0;
 	}
 	xladdr = (struct xsctp_laddr *)(buf + *offset);
-	if (Lflag && !is_listening) {
+	if ((!aflag && is_listening) ||
+	    (Lflag && !is_listening)) {
 		sctp_skip_xinpcb_ifneed(buf, buflen, offset);
 		return;
 	}
@@ -513,8 +435,10 @@ retry:
 		xo_open_instance("local-address");
 
 		if (xladdr_total == 0) {
-			xo_emit("{:protocol/%-6.6s/%s} {:type/%-5.5s/%s} ",
-			    pname, tname);
+			if (!Lflag) {
+				xo_emit("{:protocol/%-6.6s/%s} "
+				    "{:type/%-5.5s/%s} ", pname, tname);
+			}
 		} else {
 			xo_emit("\n");
 			xo_emit(Lflag ? "{P:/%-21.21s} " : "{P:/%-12.12s} ",
@@ -529,7 +453,7 @@ retry:
 					    "{:state/CLOSED}", " ");
 				} else {
 					xo_emit("{P:/%-45.45s} "
-					    "{:state:LISTEN}", " ");
+					    "{:state/LISTEN}", " ");
 				}
 			} else {
 				if (process_closed) {

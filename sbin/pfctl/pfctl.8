@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2011
+.Dd October 3, 2016
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -390,7 +390,7 @@ Note that the
 optimization done automatically by the kernel
 will skip evaluation of rules where possible.
 Packets passed statefully are counted in the rule that created the state
-(even though the rule isn't evaluated more than once for the entire
+(even though the rule is not evaluated more than once for the entire
 connection).
 .It Fl s Cm Anchors
 Show the currently loaded anchors directly attached to the main ruleset.
@@ -412,6 +412,8 @@ Show filter information (statistics and counters).
 When used together with
 .Fl v ,
 source tracking statistics are also shown.
+.It Fl s Cm Running
+Show the running status and provide a non-zero exit status when disabled.
 .It Fl s Cm labels
 Show per-rule statistics (label, evaluations, packets total, bytes total,
 packets in, bytes in, packets out, bytes out, state creations) of
@@ -593,7 +595,7 @@ counters are incremented instead of the
 .Dq Pass
 counters when a
 .Dq stateful
-packet is passed but doesn't match the table anymore.
+packet is passed but does not match the table anymore.
 This will happen in our example if someone flushes the table while the
 .Xr ping 8
 command is running.
@@ -609,7 +611,7 @@ The flags are defined as follows:
 For constant tables, which cannot be altered outside
 .Xr pf.conf 5 .
 .It p
-For persistent tables, which don't get automatically killed when no rules
+For persistent tables, which do not get automatically killed when no rules
 refer to them.
 .It a
 For tables which are part of the
@@ -648,7 +650,7 @@ Set the debug
 .Pp
 .Bl -tag -width xxxxxxxxxxxx -compact
 .It Fl x Cm none
-Don't generate debug messages.
+Do not generate debug messages.
 .It Fl x Cm urgent
 Generate debug messages only for serious errors.
 .It Fl x Cm misc
@@ -682,5 +684,9 @@ The
 .Nm
 program and the
 .Xr pf 4
-filter mechanism first appeared in
+filter mechanism appeared in
 .Ox 3.0 .
+They first appeared in
+.Fx 5.3
+ported from the version in
+.Ox 3.5

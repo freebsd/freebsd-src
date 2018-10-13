@@ -1,4 +1,4 @@
-//===--- TemplateBase.cpp - Common template AST class implementation ------===//
+//===- TemplateBase.cpp - Common template AST class implementation --------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,17 +14,32 @@
 
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/PrettyPrinter.h"
+#include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 using namespace clang;
 
@@ -37,7 +52,7 @@ using namespace clang;
 /// \param Policy the printing policy for EnumConstantDecl printing.
 static void printIntegral(const TemplateArgument &TemplArg,
                           raw_ostream &Out, const PrintingPolicy& Policy) {
-  const ::clang::Type *T = TemplArg.getIntegralType().getTypePtr();
+  const Type *T = TemplArg.getIntegralType().getTypePtr();
   const llvm::APSInt &Val = TemplArg.getAsIntegral();
 
   if (const EnumType *ET = T->getAs<EnumType>()) {
@@ -243,6 +258,31 @@ Optional<unsigned> TemplateArgument::getNumTemplateExpansions() const {
   return None; 
 }
 
+QualType TemplateArgument::getNonTypeTemplateArgumentType() const {
+  switch (getKind()) {
+  case TemplateArgument::Null:
+  case TemplateArgument::Type:
+  case TemplateArgument::Template:
+  case TemplateArgument::TemplateExpansion:
+  case TemplateArgument::Pack:
+    return QualType();
+
+  case TemplateArgument::Integral:
+    return getIntegralType();
+
+  case TemplateArgument::Expression:
+    return getAsExpr()->getType();
+
+  case TemplateArgument::Declaration:
+    return getParamTypeForDecl();
+
+  case TemplateArgument::NullPtr:
+    return getNullPtrType();
+  }
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
+}
+
 void TemplateArgument::Profile(llvm::FoldingSetNodeID &ID,
                                const ASTContext &Context) const {
   ID.AddInteger(getKind());
@@ -390,10 +430,9 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
     Out << "...";
     break;
       
-  case Integral: {
+  case Integral:
     printIntegral(*this, Out, Policy);
     break;
-  }
     
   case Expression:
     getAsExpr()->printPretty(Out, nullptr, Policy);
@@ -415,13 +454,18 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
   }
 }
 
+void TemplateArgument::dump(raw_ostream &Out) const {
+  LangOptions LO; // FIXME! see also TemplateName::dump().
+  LO.CPlusPlus = true;
+  LO.Bool = true;
+  print(PrintingPolicy(LO), Out);
+}
+
+LLVM_DUMP_METHOD void TemplateArgument::dump() const { dump(llvm::errs()); }
+
 //===----------------------------------------------------------------------===//
 // TemplateArgumentLoc Implementation
 //===----------------------------------------------------------------------===//
-
-TemplateArgumentLocInfo::TemplateArgumentLocInfo() {
-  memset((void*)this, 0, sizeof(TemplateArgumentLocInfo));
-}
 
 SourceRange TemplateArgumentLoc::getSourceRange() const {
   switch (Argument.getKind()) {
@@ -521,7 +565,7 @@ const ASTTemplateArgumentListInfo *
 ASTTemplateArgumentListInfo::Create(ASTContext &C,
                                     const TemplateArgumentListInfo &List) {
   std::size_t size = totalSizeToAlloc<TemplateArgumentLoc>(List.size());
-  void *Mem = C.Allocate(size, llvm::alignOf<ASTTemplateArgumentListInfo>());
+  void *Mem = C.Allocate(size, alignof(ASTTemplateArgumentListInfo));
   return new (Mem) ASTTemplateArgumentListInfo(List);
 }
 

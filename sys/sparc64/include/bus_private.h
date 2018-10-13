@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.

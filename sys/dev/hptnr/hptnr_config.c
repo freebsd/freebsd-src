@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -46,7 +48,7 @@ int init_config(void)
 
 const char driver_name[] = "hptnr";
 const char driver_name_long[] = "R750/DC7280 controller driver";
-const char driver_ver[] = "v1.1.4";
+const char driver_ver[] = "v1.1.5";
 int  osm_max_targets = 0xff;
 
 

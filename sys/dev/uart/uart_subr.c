@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #define	UART_TAG_RS	7
 #define	UART_TAG_SB	8
 #define	UART_TAG_XO	9
+#define	UART_TAG_BD	10
 
 static struct uart_class *uart_classes[] = {
 	&uart_ns8250_class,
@@ -122,6 +125,10 @@ uart_parse_tag(const char **p)
 {
 	int tag;
 
+	if ((*p)[0] == 'b' && (*p)[1] == 'd') {
+		tag = UART_TAG_BD;
+		goto out;
+	}
 	if ((*p)[0] == 'b' && (*p)[1] == 'r') {
 		tag = UART_TAG_BR;
 		goto out;
@@ -177,6 +184,7 @@ out:
  * separated by commas. Each attribute is a tag-value pair with the tag and
  * value separated by a colon. Supported tags are:
  *
+ *	bd = Busy Detect
  *	br = Baudrate
  *	ch = Channel
  *	db = Data bits
@@ -240,6 +248,9 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	spec = cp;
 	for (;;) {
 		switch (uart_parse_tag(&spec)) {
+		case UART_TAG_BD:
+			di->bas.busy_detect = uart_parse_long(&spec);
+			break;
 		case UART_TAG_BR:
 			di->baudrate = uart_parse_long(&spec);
 			break;

@@ -17,8 +17,8 @@
 
 // Other libraries and framework includes
 // Project includes
-#include "lldb/lldb-private-forward.h"
 #include "GDBRemoteCommunication.h"
+#include "lldb/lldb-private-forward.h"
 
 class StringExtractorGDBRemote;
 
@@ -27,52 +27,54 @@ namespace process_gdb_remote {
 
 class ProcessGDBRemote;
 
-class GDBRemoteCommunicationServer : public GDBRemoteCommunication
-{
+class GDBRemoteCommunicationServer : public GDBRemoteCommunication {
 public:
-    using PortMap = std::map<uint16_t, lldb::pid_t>;
-    using PacketHandler = std::function<PacketResult(StringExtractorGDBRemote &packet,
-                                                     Error &error,
-                                                     bool &interrupt,
-                                                     bool &quit)>;
+  using PortMap = std::map<uint16_t, lldb::pid_t>;
+  using PacketHandler =
+      std::function<PacketResult(StringExtractorGDBRemote &packet,
+                                 Status &error, bool &interrupt, bool &quit)>;
 
-    GDBRemoteCommunicationServer(const char *comm_name,
-                                 const char *listener_name);
+  GDBRemoteCommunicationServer(const char *comm_name,
+                               const char *listener_name);
 
-    ~GDBRemoteCommunicationServer() override;
+  ~GDBRemoteCommunicationServer() override;
 
-    void RegisterPacketHandler(StringExtractorGDBRemote::ServerPacketType packet_type,
-                               PacketHandler handler);
+  void
+  RegisterPacketHandler(StringExtractorGDBRemote::ServerPacketType packet_type,
+                        PacketHandler handler);
 
-    PacketResult
-    GetPacketAndSendResponse (uint32_t timeout_usec,
-                              Error &error,
-                              bool &interrupt, 
-                              bool &quit);
+  PacketResult GetPacketAndSendResponse(Timeout<std::micro> timeout,
+                                        Status &error, bool &interrupt,
+                                        bool &quit);
 
-    // After connecting, do a little handshake with the client to make sure
-    // we are at least communicating
-    bool
-    HandshakeWithClient ();
+  // After connecting, do a little handshake with the client to make sure
+  // we are at least communicating
+  bool HandshakeWithClient();
 
 protected:
-    std::map<StringExtractorGDBRemote::ServerPacketType, PacketHandler> m_packet_handlers;
-    bool m_exit_now; // use in asynchronous handling to indicate process should exit.
+  std::map<StringExtractorGDBRemote::ServerPacketType, PacketHandler>
+      m_packet_handlers;
+  bool m_exit_now; // use in asynchronous handling to indicate process should
+                   // exit.
 
-    PacketResult
-    SendUnimplementedResponse (const char *packet);
+  bool m_send_error_strings; // If the client enables this then
+                             // we will send error strings as well.
 
-    PacketResult
-    SendErrorResponse (uint8_t error);
+  PacketResult Handle_QErrorStringEnable(StringExtractorGDBRemote &packet);
 
-    PacketResult
-    SendIllFormedResponse (const StringExtractorGDBRemote &packet, const char *error_message);
+  PacketResult SendErrorResponse(const Status &error);
 
-    PacketResult
-    SendOKResponse ();
+  PacketResult SendUnimplementedResponse(const char *packet);
+
+  PacketResult SendErrorResponse(uint8_t error);
+
+  PacketResult SendIllFormedResponse(const StringExtractorGDBRemote &packet,
+                                     const char *error_message);
+
+  PacketResult SendOKResponse();
 
 private:
-    DISALLOW_COPY_AND_ASSIGN (GDBRemoteCommunicationServer);
+  DISALLOW_COPY_AND_ASSIGN(GDBRemoteCommunicationServer);
 };
 
 } // namespace process_gdb_remote

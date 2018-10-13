@@ -14,11 +14,11 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/API/SBDefines.h"
 #include "lldb/API/SBAddress.h"
 #include "lldb/API/SBAttachInfo.h"
 #include "lldb/API/SBBlock.h"
 #include "lldb/API/SBBreakpoint.h"
+#include "lldb/API/SBBreakpointName.h"
 #include "lldb/API/SBBreakpointLocation.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBCommandInterpreter.h"
@@ -28,6 +28,7 @@
 #include "lldb/API/SBData.h"
 #include "lldb/API/SBDebugger.h"
 #include "lldb/API/SBDeclaration.h"
+#include "lldb/API/SBDefines.h"
 #include "lldb/API/SBError.h"
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBExecutionContext.h"
@@ -43,16 +44,20 @@
 #include "lldb/API/SBLaunchInfo.h"
 #include "lldb/API/SBLineEntry.h"
 #include "lldb/API/SBListener.h"
+#include "lldb/API/SBMemoryRegionInfo.h"
+#include "lldb/API/SBMemoryRegionInfoList.h"
 #include "lldb/API/SBModule.h"
 #include "lldb/API/SBModuleSpec.h"
 #include "lldb/API/SBPlatform.h"
 #include "lldb/API/SBProcess.h"
+#include "lldb/API/SBProcessInfo.h"
 #include "lldb/API/SBQueue.h"
 #include "lldb/API/SBQueueItem.h"
 #include "lldb/API/SBSection.h"
 #include "lldb/API/SBSourceManager.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBStringList.h"
+#include "lldb/API/SBStructuredData.h"
 #include "lldb/API/SBSymbol.h"
 #include "lldb/API/SBSymbolContext.h"
 #include "lldb/API/SBSymbolContextList.h"
@@ -60,6 +65,8 @@
 #include "lldb/API/SBThread.h"
 #include "lldb/API/SBThreadCollection.h"
 #include "lldb/API/SBThreadPlan.h"
+#include "lldb/API/SBTrace.h"
+#include "lldb/API/SBTraceOptions.h"
 #include "lldb/API/SBType.h"
 #include "lldb/API/SBTypeCategory.h"
 #include "lldb/API/SBTypeEnumMember.h"
@@ -74,4 +81,4 @@
 #include "lldb/API/SBVariablesOptions.h"
 #include "lldb/API/SBWatchpoint.h"
 
-#endif  // LLDB_LLDB_h_
+#endif // LLDB_LLDB_h_

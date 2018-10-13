@@ -32,6 +32,12 @@
 INTERFACE iicbus;
 
 CODE {
+	static int iicbus_nosupport(void)
+	{
+
+		return (ENODEV);
+	}
+
 	static u_int
 	iicbus_default_frequency(device_t bus, u_char speed)
 	{
@@ -69,7 +75,7 @@ METHOD int repeated_start {
 	device_t dev;
 	u_char slave;
 	int timeout;
-};
+} DEFAULT iicbus_nosupport;
 
 #
 # Send START condition
@@ -78,14 +84,14 @@ METHOD int start {
 	device_t dev;
 	u_char slave;
 	int timeout;
-};
+} DEFAULT iicbus_nosupport;
 
 #
 # Send STOP condition
 #
 METHOD int stop {
 	device_t dev;
-};
+} DEFAULT iicbus_nosupport;
 
 #
 # Read from I2C bus
@@ -97,7 +103,7 @@ METHOD int read {
 	int *bytes;
 	int last;
 	int delay;
-};
+} DEFAULT iicbus_nosupport;
 
 #
 # Write to the I2C bus
@@ -108,7 +114,7 @@ METHOD int write {
 	int len;
 	int *bytes;
 	int timeout;
-};
+} DEFAULT iicbus_nosupport;
 
 #
 # Reset I2C bus

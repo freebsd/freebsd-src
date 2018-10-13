@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -255,7 +257,7 @@ fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 	pinode(ino);
 	printf("\n");
 	getpathname(pathbuf, cwd, ino);
-	if (ino < ROOTINO || ino > maxino) {
+	if (ino < UFS_ROOTINO || ino > maxino) {
 		pfatal("NAME=%s\n", pathbuf);
 		return;
 	}
@@ -401,24 +403,25 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		if (reply("RECONNECT") == 0)
 			return (0);
 	if (lfdir == 0) {
-		dp = ginode(ROOTINO);
+		dp = ginode(UFS_ROOTINO);
 		idesc.id_name = strdup(lfname);
 		idesc.id_type = DATA;
 		idesc.id_func = findino;
-		idesc.id_number = ROOTINO;
+		idesc.id_number = UFS_ROOTINO;
 		if ((ckinode(dp, &idesc) & FOUND) != 0) {
 			lfdir = idesc.id_parent;
 		} else {
 			pwarn("NO lost+found DIRECTORY");
 			if (preen || reply("CREATE")) {
-				lfdir = allocdir(ROOTINO, (ino_t)0, lfmode);
+				lfdir = allocdir(UFS_ROOTINO, (ino_t)0, lfmode);
 				if (lfdir != 0) {
-					if (makeentry(ROOTINO, lfdir, lfname) != 0) {
+					if (makeentry(UFS_ROOTINO, lfdir,
+					    lfname) != 0) {
 						numdirs++;
 						if (preen)
 							printf(" (CREATED)\n");
 					} else {
-						freedir(lfdir, ROOTINO);
+						freedir(lfdir, UFS_ROOTINO);
 						lfdir = 0;
 						if (preen)
 							printf("\n");
@@ -438,11 +441,11 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		if (reply("REALLOCATE") == 0)
 			return (0);
 		oldlfdir = lfdir;
-		if ((lfdir = allocdir(ROOTINO, (ino_t)0, lfmode)) == 0) {
+		if ((lfdir = allocdir(UFS_ROOTINO, (ino_t)0, lfmode)) == 0) {
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY\n\n");
 			return (0);
 		}
-		if ((changeino(ROOTINO, lfname, lfdir) & ALTERED) == 0) {
+		if ((changeino(UFS_ROOTINO, lfname, lfdir) & ALTERED) == 0) {
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY\n\n");
 			return (0);
 		}
@@ -519,8 +522,8 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 	struct inodesc idesc;
 	char pathbuf[MAXPATHLEN + 1];
 
-	if (parent < ROOTINO || parent >= maxino ||
-	    ino < ROOTINO || ino >= maxino)
+	if (parent < UFS_ROOTINO || parent >= maxino ||
+	    ino < UFS_ROOTINO || ino >= maxino)
 		return (0);
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = DATA;
@@ -554,7 +557,7 @@ expanddir(union dinode *dp, char *name)
 	char *cp, firstblk[DIRBLKSIZ];
 
 	lastbn = lblkno(&sblock, DIP(dp, di_size));
-	if (lastbn >= NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
+	if (lastbn >= UFS_NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
 	    DIP(dp, di_size) == 0)
 		return (0);
 	if ((newblk = allocblk(sblock.fs_frag)) == 0)
@@ -630,7 +633,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	dirty(bp);
 	DIP_SET(dp, di_nlink, 2);
 	inodirty();
-	if (ino == ROOTINO) {
+	if (ino == UFS_ROOTINO) {
 		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
 		cacheino(dp, ino);
 		return(ino);

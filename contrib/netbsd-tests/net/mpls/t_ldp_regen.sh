@@ -1,4 +1,4 @@
-# $NetBSD: t_ldp_regen.sh,v 1.4 2014/09/01 06:38:35 gson Exp $
+# $NetBSD: t_ldp_regen.sh,v 1.7 2016/08/10 07:50:37 ozaki-r Exp $
 #
 # Copyright (c) 2013 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -41,7 +41,8 @@ RUMP_SERVER2=unix://./r2
 RUMP_SERVER3=unix://./r3
 RUMP_SERVER4=unix://./r4
 
-RUMP_LIBS="-lrumpnet -lrumpnet_net -lrumpnet_netmpls -lrumpnet_netinet -lrumpnet_netinet6 -lrumpnet_shmif"
+RUMP_LIBS="-lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_netinet6 \
+           -lrumpdev -lrumpnet_netmpls -lrumpnet_shmif"
 LDP_FLAGS=""
 
 atf_test_case ldp_regen cleanup
@@ -57,6 +58,8 @@ newaddr_and_ping() {
 	# Add new address on R4
 	RUMP_SERVER=${RUMP_SERVER4} atf_check -s exit:0 \
 		rump.ifconfig shmif1 10.0.5.1/24 alias
+	RUMP_SERVER=${RUMP_SERVER4} atf_check -s exit:0 \
+		rump.ifconfig -w 60
 
 	# Now ldpd on R5 should take notice of the new route and announce it
 	# to R4's ldpd. ldpd on R4 should verify that the next hop
@@ -145,6 +148,8 @@ create_servers() {
 wait_ldp_ok() {
 
 	RUMP_SERVER=${RUMP_SERVER1} atf_check -s exit:0 -o ignore -e ignore \
+		rump.ifconfig -w 60
+	RUMP_SERVER=${RUMP_SERVER1} atf_check -s exit:0 -o ignore -e ignore \
 		rump.ping -o -w 60 10.0.4.1
 }
 
@@ -158,7 +163,7 @@ docleanup() {
 
 ldp_regen_body() {
 
-        if sysctl machdep.cpu_brand | grep QEMU >/dev/null 2>&1
+        if sysctl machdep.cpu_brand 2>/dev/null | grep QEMU >/dev/null 2>&1
 	then
 	    atf_skip "unreliable under qemu, skip until PR kern/43997 fixed"
 	fi

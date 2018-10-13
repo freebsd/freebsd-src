@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2009
+.Dd March 25, 2017
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -265,7 +265,7 @@ will force it to exit.
 .It Supports client callback.
 .Nm
 can use either the standard LCP callback protocol or the Microsoft
-CallBack Control Protocol (ftp://ftp.microsoft.com/developr/rfc/cbcp.txt).
+CallBack Control Protocol (https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-CBCP/[MS-CBCP].pdf).
 .It Supports NAT or packet aliasing.
 Packet aliasing (a.k.a.\& IP masquerading) allows computers on a
 private, unregistered network to access the Internet.
@@ -3523,7 +3523,7 @@ for details of the available commands.
 This command tells
 .Nm
 to punch holes in the firewall for FTP or IRC DCC connections.
-This is done dynamically by installing termporary firewall rules which
+This is done dynamically by installing temporary firewall rules which
 allow a particular connection (and only that connection) to go through
 the firewall.
 The rules are removed once the corresponding connection terminates.
@@ -5555,7 +5555,7 @@ seconds.
 .It set rad_port_id Ar option
 When RADIUS is configured, setting the
 .Dq rad_port_id
-value allows to specify what should be sent to the RADIUS server as
+value specifies what should be sent to the RADIUS server as
 NAS-Port-Id.
 The
 .Ar option Ns No s
@@ -5823,6 +5823,13 @@ If
 is specified, all priority port lists are disabled and even
 .Dv IPTOS_LOWDELAY
 packets are not prioritised.
+.It set urgent length Ar length
+This command tells ppp to prioritize small packets up to
+.Ar length
+bytes.
+If
+.Ar length
+is not specified, or 0, this feature is disabled.
 .It set vj slotcomp on|off
 This command tells
 .Nm
@@ -5950,9 +5957,9 @@ to get online information about what is available.
 The following URLs contain useful information:
 .Bl -bullet -compact
 .It
-http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/ppp.html
+https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/ppp.html
 .It
-http://www.FreeBSD.org/doc/handbook/userppp.html
+https://www.FreeBSD.org/doc/handbook/userppp.html
 .El
 .El
 .Sh FILES

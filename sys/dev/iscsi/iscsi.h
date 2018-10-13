@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -62,12 +64,13 @@ struct iscsi_session {
 	int				is_header_digest;
 	int				is_data_digest;
 	int				is_initial_r2t;
-	size_t				is_max_burst_length;
-	size_t				is_first_burst_length;
+	int				is_max_burst_length;
+	int				is_first_burst_length;
 	uint8_t				is_isid[6];
 	uint16_t			is_tsih;
 	bool				is_immediate_data;
-	size_t				is_max_data_segment_length;
+	int				is_max_recv_data_segment_length;
+	int				is_max_send_data_segment_length;
 	char				is_target_alias[ISCSI_ALIAS_LEN];
 
 	TAILQ_HEAD(, iscsi_outstanding)	is_outstanding;

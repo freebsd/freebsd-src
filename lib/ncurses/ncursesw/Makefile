@@ -2,6 +2,6 @@
 
 ENABLE_WIDEC=
 
-.PATH: ${.CURDIR}/../ncurses
+.PATH: ${.CURDIR:H}/ncurses
 
-.include "${.CURDIR}/../ncurses/Makefile"
+.include "${.CURDIR:H}/ncurses/Makefile"

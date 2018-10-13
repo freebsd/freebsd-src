@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -105,6 +107,7 @@ static struct g_part_scheme g_part_apm_scheme = {
 	.gps_maxent = 4096,
 };
 G_PART_SCHEME_DECLARE(g_part_apm);
+MODULE_VERSION(geom_part_apm, 0);
 
 static void
 swab(char *buf, size_t bufsz)
@@ -207,7 +210,7 @@ apm_read_ent(struct g_consumer *cp, uint32_t blk, struct apm_ent *ent,
 }
 
 static int
-g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
 	struct g_part_apm_entry *entry;

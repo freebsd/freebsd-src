@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2009 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -56,6 +58,7 @@ typedef unsigned char teken_color_t;
 #define	TC_CYAN		6
 #define	TC_WHITE	7
 #define	TC_NCOLORS	8
+#define	TC_LIGHT	8	/* ORed with the others. */
 
 typedef struct {
 	teken_unit_t	tp_row;
@@ -90,6 +93,8 @@ typedef void tf_putchar_t(void *, const teken_pos_t *, teken_char_t,
 typedef void tf_fill_t(void *, const teken_rect_t *, teken_char_t,
     const teken_attr_t *);
 typedef void tf_copy_t(void *, const teken_rect_t *, const teken_pos_t *);
+typedef void tf_pre_input_t(void *);
+typedef void tf_post_input_t(void *);
 typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SHOWCURSOR	0
 #define	TP_KEYPADAPP	1
@@ -100,6 +105,9 @@ typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SETBELLPD_PITCH(pd)		((pd) >> 16)
 #define	TP_SETBELLPD_DURATION(pd)	((pd) & 0xffff)
 #define	TP_MOUSE	6
+#define	TP_SETBORDER	7
+#define	TP_SETLOCALCURSOR	8
+#define	TP_SETGLOBALCURSOR	9
 typedef void tf_respond_t(void *, const void *, size_t);
 
 typedef struct {
@@ -108,11 +116,13 @@ typedef struct {
 	tf_putchar_t	*tf_putchar;
 	tf_fill_t	*tf_fill;
 	tf_copy_t	*tf_copy;
+	tf_pre_input_t	*tf_pre_input;
+	tf_post_input_t	*tf_post_input;
 	tf_param_t	*tf_param;
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;
 
-typedef teken_char_t teken_scs_t(teken_t *, teken_char_t);
+typedef teken_char_t teken_scs_t(const teken_t *, teken_char_t);
 
 /*
  * Terminal state.
@@ -160,11 +170,11 @@ void	teken_init(teken_t *, const teken_funcs_t *, void *);
 void	teken_input(teken_t *, const void *, size_t);
 
 /* Get/set teken attributes. */
-const teken_pos_t *teken_get_cursor(teken_t *);
-const teken_attr_t *teken_get_curattr(teken_t *);
-const teken_attr_t *teken_get_defattr(teken_t *);
-void	teken_get_defattr_cons25(teken_t *, int *, int *);
-const teken_pos_t *teken_get_winsize(teken_t *);
+const teken_pos_t *teken_get_cursor(const teken_t *);
+const teken_attr_t *teken_get_curattr(const teken_t *);
+const teken_attr_t *teken_get_defattr(const teken_t *);
+void	teken_get_defattr_cons25(const teken_t *, int *, int *);
+const teken_pos_t *teken_get_winsize(const teken_t *);
 void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
@@ -196,13 +206,14 @@ void	teken_set_winsize_noreset(teken_t *, const teken_pos_t *);
 #define	TKEY_F10	0x13
 #define	TKEY_F11	0x14
 #define	TKEY_F12	0x15
-const char *teken_get_sequence(teken_t *, unsigned int);
+const char *teken_get_sequence(const teken_t *, unsigned int);
 
 /* Legacy features. */
 void	teken_set_8bit(teken_t *);
 void	teken_set_cons25(teken_t *);
 
 /* Color conversion. */
+teken_color_t teken_256to16(teken_color_t);
 teken_color_t teken_256to8(teken_color_t);
 
 #endif /* !_TEKEN_H_ */

@@ -14,13 +14,11 @@
 #ifndef LLVM_IR_LEGACYPASSMANAGERS_H
 #define LLVM_IR_LEGACYPASSMANAGERS_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Pass.h"
-#include <map>
 #include <vector>
 
 //===----------------------------------------------------------------------===//
@@ -93,12 +91,13 @@
 #include "llvm/Support/PrettyStackTrace.h"
 
 namespace llvm {
-  class Module;
-  class Pass;
-  class StringRef;
-  class Value;
-  class Timer;
-  class PMDataManager;
+template <typename T> class ArrayRef;
+class Module;
+class Pass;
+class StringRef;
+class Value;
+class Timer;
+class PMDataManager;
 
 // enums for debugging strings
 enum PassDebuggingString {
@@ -280,11 +279,11 @@ private:
   // when we have multiple instances of the same pass since they'll usually
   // have the same analysis usage and can share storage.
   FoldingSet<AUFoldingSetNode> UniqueAnalysisUsages;
-  
+
   // Allocator used for allocating UAFoldingSetNodes.  This handles deletion of
   // all allocated nodes in one fell swoop.
   SpecificBumpPtrAllocator<AUFoldingSetNode> AUFoldingSetNodeAllocator;
-  
+
   // Maps from a pass to it's associated entry in UniqueAnalysisUsages.  Does
   // not own the storage associated with either key or value.. 
   DenseMap<Pass *, AnalysisUsage*> AnUsageMap;
@@ -487,9 +486,7 @@ public:
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) override;
 
-  const char *getPassName() const override {
-    return "Function Pass Manager";
-  }
+  StringRef getPassName() const override { return "Function Pass Manager"; }
 
   FunctionPass *getContainedPass(unsigned N) {
     assert ( N < PassVector.size() && "Pass number out of range!");

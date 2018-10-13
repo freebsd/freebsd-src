@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 cpu		CPU_CORTEXA
-machine		arm armv6
+machine		arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 # Physical memory starts at 0x80000000.  We assume the kernel is loaded
@@ -19,9 +19,6 @@ files		"../amlogic/aml8726/files.aml8726"
 
 # Set all global interrupts to be edge triggered, active high.
 options		GIC_DEFAULT_ICFGR_INIT=0xffffffff
-
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15
 
 #options 	EARLY_PRINTF
 #options 	SOCDEV_PA=0xc8100000

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * =============================================================================
  *  Copyright (c) 1997-1999	Yamaha Corporation.	All Rights Reserved.
  *

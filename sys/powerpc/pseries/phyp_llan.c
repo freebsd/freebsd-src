@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2013 Nathan Whitehorn
  * All rights reserved.
  *
@@ -507,7 +509,7 @@ llan_set_multicast(struct llan_softc *sc)
 	phyp_hcall(H_MULTICAST_CTRL, sc->unit, LLAN_CLEAR_MULTICAST, 0);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 

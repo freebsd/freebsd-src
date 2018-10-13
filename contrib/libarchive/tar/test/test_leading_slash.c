@@ -44,6 +44,7 @@ DEFINE_TEST(test_leading_slash)
 	if (assertFileExists("test.err")) {
 		errfile = slurpfile(&errfile_size, "test.err");
 		assert(strstr(errfile, expected_errmsg) != NULL);
+		free(errfile);
 	}
 }
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -859,7 +861,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 
 		/*
 		 * Logical mode: match each APIC that has a bit set
-		 * in it's LDR that matches a bit in the ldest.
+		 * in its LDR that matches a bit in the ldest.
 		 */
 		CPU_ZERO(dmask);
 		amask = vm_active_cpus(vm);

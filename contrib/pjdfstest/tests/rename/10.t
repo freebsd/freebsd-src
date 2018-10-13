@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/rename/10.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="rename returns EACCES or EPERM if the file pointed at by the 'to' argument exists, the directory containing 'to' is marked sticky, and neither the containing directory nor 'to' are owned by the effective user ID"

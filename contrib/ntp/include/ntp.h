@@ -391,7 +391,7 @@ struct peer {
 	 * Statistic counters
 	 */
 	u_long	timereset;	/* time stat counters were reset */
-	u_long	timelastrec;	/* last packet received time */
+	u_long	timelastrec;	/* last packet received time, incl. trash */
 	u_long	timereceived;	/* last (clean) packet received time */
 	u_long	timereachable;	/* last reachable/unreachable time */
 
@@ -419,8 +419,7 @@ struct peer {
  * MODE_BROADCAST and MODE_BCLIENT appear in the transition
  * function. MODE_CONTROL and MODE_PRIVATE can appear in packets,
  * but those never survive to the transition function.
- * is a
-/ */
+ */
 #define	MODE_UNSPEC	0	/* unspecified (old version) */
 #define	MODE_ACTIVE	1	/* symmetric active mode */
 #define	MODE_PASSIVE	2	/* symmetric passive mode */
@@ -433,7 +432,7 @@ struct peer {
 #define	MODE_CONTROL	6	/* control mode */
 #define	MODE_PRIVATE	7	/* private mode */
 /*
- * This is a madeup mode for broadcast client.
+ * This is a made-up mode for broadcast client.
  */
 #define	MODE_BCLIENT	6	/* broadcast client mode */
 
@@ -554,11 +553,13 @@ struct pkt {
 	l_fp	rec;		/* receive time stamp */
 	l_fp	xmt;		/* transmit time stamp */
 
-#define	MIN_V4_PKT_LEN	(12 * sizeof(u_int32)) /* min header length */
-#define	LEN_PKT_NOMAC	(12 * sizeof(u_int32)) /* min header length */
-#define MIN_MAC_LEN	(1 * sizeof(u_int32))	/* crypto_NAK */
-#define MAX_MD5_LEN	(5 * sizeof(u_int32))	/* MD5 */
+#define	MIN_V4_PKT_LEN	(12 * sizeof(u_int32))	/* min header length */
+#define	LEN_PKT_NOMAC	(12 * sizeof(u_int32))	/* min header length */
+#define	MIN_MAC_LEN	(1 * sizeof(u_int32))	/* crypto_NAK */
+#define	MAX_MD5_LEN	(5 * sizeof(u_int32))	/* MD5 */
 #define	MAX_MAC_LEN	(6 * sizeof(u_int32))	/* SHA */
+#define	KEY_MAC_LEN	sizeof(u_int32)		/* key ID in MAC */
+#define	MAX_MDG_LEN	(MAX_MAC_LEN-KEY_MAC_LEN) /* max. digest len */
 
 	/*
 	 * The length of the packet less MAC must be a multiple of 64
@@ -608,6 +609,18 @@ struct pkt {
 
 #define	STRATUM_TO_PKT(s)	((u_char)(((s) == (STRATUM_UNSPEC)) ?\
 				(STRATUM_PKT_UNSPEC) : (s)))
+
+
+/*
+ * A test to determine if the refid should be interpreted as text string.
+ * This is usually the case for a refclock, which has stratum 0 internally,
+ * which results in sys_stratum 1 if the refclock becomes system peer, or
+ * in case of a kiss-of-death (KoD) packet that has STRATUM_PKT_UNSPEC (==0)
+ * in the packet which is converted to STRATUM_UNSPEC when the packet
+ * is evaluated.
+ */
+#define REFID_ISTEXT(s) (((s) <= 1) || ((s) >= STRATUM_UNSPEC))
+
 
 /*
  * Event codes. Used for reporting errors/events to the control module
@@ -724,6 +737,7 @@ struct pkt {
 #define	PROTO_UECRYPTONAK	30
 #define	PROTO_UEDIGEST		31
 #define	PROTO_PCEDIGEST		32
+#define	PROTO_BCPOLLBSTEP	33
 
 /*
  * Configuration items for the loop filter
@@ -731,7 +745,7 @@ struct pkt {
 #define	LOOP_DRIFTINIT		1	/* iniitialize frequency */
 #define	LOOP_KERN_CLEAR		2	/* set initial frequency offset */
 #define LOOP_MAX		3	/* set both step offsets */
-#define LOOP_MAX_BACK		4	/* set bacward-step offset */
+#define LOOP_MAX_BACK		4	/* set backward-step offset */
 #define LOOP_MAX_FWD		5	/* set forward-step offset */
 #define LOOP_PANIC		6	/* set panic offseet */
 #define LOOP_PHI		7	/* set dispersion rate */
@@ -822,11 +836,12 @@ typedef struct res_addr6_tag {
 
 typedef struct restrict_u_tag	restrict_u;
 struct restrict_u_tag {
-	restrict_u *		link;	/* link to next entry */
-	u_int32			count;	/* number of packets matched */
-	u_short			flags;	/* accesslist flags */
-	u_short			mflags;	/* match flags */
-	u_long			expire;	/* valid until time */
+	restrict_u *	link;		/* link to next entry */
+	u_int32		count;		/* number of packets matched */
+	u_short		rflags;		/* restrict (accesslist) flags */
+	u_short		mflags;		/* match flags */
+	short		ippeerlimit;	/* IP peer limit */
+	u_long		expire;		/* valid until time */
 	union {				/* variant starting here */
 		res_addr4 v4;
 		res_addr6 v6;
@@ -837,28 +852,40 @@ struct restrict_u_tag {
 #define	V6_SIZEOF_RESTRICT_U	(offsetof(restrict_u, u)	\
 				 + sizeof(res_addr6))
 
+typedef struct r4addr_tag	r4addr;
+struct r4addr_tag {
+	u_short		rflags;		/* match flags */
+	short		ippeerlimit;	/* IP peer limit */
+};
+
+char *build_iflags(u_int32 flags);
+char *build_mflags(u_short mflags);
+char *build_rflags(u_short rflags);
+
 /*
- * Access flags
+ * Restrict (Access) flags (rflags)
  */
 #define	RES_IGNORE		0x0001	/* ignore packet */
 #define	RES_DONTSERVE		0x0002	/* access denied */
 #define	RES_DONTTRUST		0x0004	/* authentication required */
 #define	RES_VERSION		0x0008	/* version mismatch */
 #define	RES_NOPEER		0x0010	/* new association denied */
-#define RES_LIMITED		0x0020	/* packet rate exceeded */
+#define	RES_NOEPEER		0x0020	/* new ephemeral association denied */
+#define RES_LIMITED		0x0040	/* packet rate exceeded */
 #define RES_FLAGS		(RES_IGNORE | RES_DONTSERVE |\
 				    RES_DONTTRUST | RES_VERSION |\
-				    RES_NOPEER | RES_LIMITED)
+				    RES_NOPEER | RES_NOEPEER | RES_LIMITED)
 
-#define	RES_NOQUERY		0x0040	/* mode 6/7 packet denied */
-#define	RES_NOMODIFY		0x0080	/* mode 6/7 modify denied */
-#define	RES_NOTRAP		0x0100	/* mode 6/7 set trap denied */
-#define	RES_LPTRAP		0x0200	/* mode 6/7 low priority trap */
+#define	RES_NOQUERY		0x0080	/* mode 6/7 packet denied */
+#define	RES_NOMODIFY		0x0100	/* mode 6/7 modify denied */
+#define	RES_NOTRAP		0x0200	/* mode 6/7 set trap denied */
+#define	RES_LPTRAP		0x0400	/* mode 6/7 low priority trap */
 
-#define	RES_KOD			0x0400	/* send kiss of death packet */
-#define	RES_MSSNTP		0x0800	/* enable MS-SNTP authentication */
-#define	RES_FLAKE		0x1000	/* flakeway - drop 10% */
-#define	RES_NOMRULIST		0x2000	/* mode 6 mrulist denied */
+#define	RES_KOD			0x0800	/* send kiss of death packet */
+#define	RES_MSSNTP		0x1000	/* enable MS-SNTP authentication */
+#define	RES_FLAKE		0x2000	/* flakeway - drop 10% */
+#define	RES_NOMRULIST		0x4000	/* mode 6 mrulist denied */
+#define RES_UNUSED		0x8000	/* Unused flag bits */
 
 #define	RES_ALLFLAGS		(RES_FLAGS | RES_NOQUERY |	\
 				 RES_NOMODIFY | RES_NOTRAP |	\
@@ -867,7 +894,7 @@ struct restrict_u_tag {
 				 RES_NOMRULIST)
 
 /*
- * Match flags
+ * Match flags (mflags)
  */
 #define	RESM_INTERFACE		0x1000	/* this is an interface */
 #define	RESM_NTPONLY		0x2000	/* match source port 123 */
@@ -876,10 +903,13 @@ struct restrict_u_tag {
 /*
  * Restriction configuration ops
  */
-#define	RESTRICT_FLAGS		1	/* add flags to restrict entry */
-#define	RESTRICT_UNFLAG		2	/* remove flags from restrict entry */
-#define	RESTRICT_REMOVE		3	/* remove a restrict entry */
-#define	RESTRICT_REMOVEIF	4	/* remove an interface restrict entry */
+typedef enum
+restrict_ops {
+	RESTRICT_FLAGS = 1,	/* add rflags to restrict entry */
+	RESTRICT_UNFLAG,	/* remove rflags from restrict entry */
+	RESTRICT_REMOVE,	/* remove a restrict entry */
+	RESTRICT_REMOVEIF,	/* remove an interface restrict entry */
+} restrict_op;
 
 /*
  * Endpoint structure for the select algorithm

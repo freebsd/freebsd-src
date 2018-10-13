@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -69,6 +71,7 @@ static DIR *dirp;
 
 static int	 hscmp(const void *, const void *);
 static char	*interval(time_t, const char *);
+static int	 iwidth(int);
 static int	 lcmp(const void *, const void *);
 static void	 ruptime(const char *, int, int (*)(const void *, const void *));
 static int	 tcmp(const void *, const void *);
@@ -143,6 +146,21 @@ interval(time_t tval, const char *updown)
 	return (resbuf);
 }
 
+/* Width to print a small nonnegative integer. */
+static int
+iwidth(int w)
+{
+	if (w < 10)
+		return (1);
+	if (w < 100)
+		return (2);
+	if (w < 1000)
+		return (3);
+	if (w < 10000)
+		return (4);
+	return (5);
+}
+
 #define	HS(a)	((const struct hs *)(a))
 
 /* Alphabetical comparison. */
@@ -176,14 +194,17 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	struct whod *wd;
 	struct whoent *we;
 	struct dirent *dp;
-	const char *hostname;
-	int fd, i, maxloadav;
+	int fd, hostnamewidth, i, loadavwidth[3], userswidth, w;
 	size_t hspace;
 	ssize_t cc;
 
 	rewinddir(dirp);
 	hsp = NULL;
-	maxloadav = -1;
+	hostnamewidth = 0;
+	loadavwidth[0] = 4;
+	loadavwidth[1] = 4;
+	loadavwidth[2] = 4;
+	userswidth = 1;
 	(void)time(&now);
 	for (nhosts = hspace = 0; (dp = readdir(dirp)) != NULL;) {
 		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5) != 0)
@@ -206,22 +227,25 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 		if (cc < (ssize_t)WHDRSIZE)
 			continue;
 
-		if (host != NULL) {
-			hostname = wd->wd_hostname;
-			if (strcasecmp(hostname, host) != 0)
-				continue;
-		}
+		if (host != NULL && strcasecmp(wd->wd_hostname, host) != 0)
+			continue;
 		if (LEFTEARTH(wd->wd_recvtime))
 			continue;
 
-		for (i = 0; i < 2; i++)
-			if (wd->wd_loadav[i] > maxloadav)
-				maxloadav = wd->wd_loadav[i];
+		if (hostnamewidth < (int)strlen(wd->wd_hostname))
+			hostnamewidth = (int)strlen(wd->wd_hostname);
+		for (i = 0; i < 3; i++) {
+			w = iwidth(wd->wd_loadav[i] / 100) + 3;
+			if (loadavwidth[i] < w)
+				loadavwidth[i] = w;
+		}
 
 		for (hsp->hs_nusers = 0, we = &wd->wd_we[0];
 		    (char *)(we + 1) <= (char *)wd + cc; we++)
 			if (aflg || we->we_idle < 3600)
 				++hsp->hs_nusers;
+		if (userswidth < iwidth(hsp->hs_nusers))
+			userswidth = iwidth(hsp->hs_nusers);
 		++hsp;
 		++nhosts;
 	}
@@ -233,27 +257,28 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	}
 
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
+	w = userswidth + loadavwidth[0] + loadavwidth[1] + loadavwidth[2];
+	if (hostnamewidth + w > 41)
+		hostnamewidth = 41 - w;	/* limit to 79 cols */
 	for (i = 0; i < (int)nhosts; i++) {
 		hsp = &hs[i];
 		wd = &hsp->hs_wd;
 		if (ISDOWN(hsp)) {
-			(void)printf("%-25.25s%s\n", wd->wd_hostname,
+			(void)printf("%-*.*s%s\n",
+			    hostnamewidth, hostnamewidth, wd->wd_hostname,
 			    interval(now - hsp->hs_wd.wd_recvtime, "down"));
 			continue;
 		}
 		(void)printf(
-		    "%-25.25s%s,  %4d user%s  load %*.2f, %*.2f, %*.2f\n",
-		    wd->wd_hostname,
+		    "%-*.*s  %s,  %*d user%s  load %*.2f, %*.2f, %*.2f\n",
+		    hostnamewidth, hostnamewidth, wd->wd_hostname,
 		    interval((time_t)wd->wd_sendtime -
 		        (time_t)wd->wd_boottime, "  up"),
-		    hsp->hs_nusers,
+		    userswidth, hsp->hs_nusers,
 		    hsp->hs_nusers == 1 ? ", " : "s,",
-		    maxloadav >= 1000 ? 5 : 4,
-		        wd->wd_loadav[0] / 100.0,
-		    maxloadav >= 1000 ? 5 : 4,
-		        wd->wd_loadav[1] / 100.0,
-		    maxloadav >= 1000 ? 5 : 4,
-		        wd->wd_loadav[2] / 100.0);
+		    loadavwidth[0], wd->wd_loadav[0] / 100.0,
+		    loadavwidth[1], wd->wd_loadav[1] / 100.0,
+		    loadavwidth[2], wd->wd_loadav[2] / 100.0);
 	}
 	free(hs);
 	hs = NULL;

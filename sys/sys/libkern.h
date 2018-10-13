@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,9 +51,43 @@ extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
 extern char const	hex2ascii_data[];
 
-#define	bcd2bin(bcd)	(bcd2bin_data[bcd])
-#define	bin2bcd(bin)	(bin2bcd_data[bin])
-#define	hex2ascii(hex)	(hex2ascii_data[hex])
+#define	LIBKERN_LEN_BCD2BIN	154
+#define	LIBKERN_LEN_BIN2BCD	100
+#define	LIBKERN_LEN_HEX2ASCII	36
+
+static inline u_char
+bcd2bin(int bcd)
+{
+
+	KASSERT(bcd >= 0 && bcd < LIBKERN_LEN_BCD2BIN,
+	    ("invalid bcd %d", bcd));
+	return (bcd2bin_data[bcd]);
+}
+
+static inline u_char
+bin2bcd(int bin)
+{
+
+	KASSERT(bin >= 0 && bin < LIBKERN_LEN_BIN2BCD,
+	    ("invalid bin %d", bin));
+	return (bin2bcd_data[bin]);
+}
+
+static inline char
+hex2ascii(int hex)
+{
+
+	KASSERT(hex >= 0 && hex < LIBKERN_LEN_HEX2ASCII,
+	    ("invalid hex %d", hex));
+	return (hex2ascii_data[hex]);
+}
+
+static inline bool
+validbcd(int bcd)
+{
+
+	return (bcd == 0 || (bcd > 0 && bcd <= 0x99 && bcd2bin_data[bcd] != 0));
+}
 
 static __inline int imax(int a, int b) { return (a > b ? a : b); }
 static __inline int imin(int a, int b) { return (a < b ? a : b); }
@@ -90,8 +126,8 @@ extern int arc4rand_iniseed_state;
 /* Prototypes for non-quad routines. */
 struct malloc_type;
 uint32_t arc4random(void);
-void	 arc4rand(void *ptr, u_int len, int reseed);
-int	 bcmp(const void *, const void *, size_t);
+void	 arc4random_buf(void *, size_t);
+void	 arc4rand(void *, u_int, int);
 int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
@@ -123,7 +159,6 @@ int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n);
 void	*memcchr(const void *s, int c, size_t n);
-int	 memcmp(const void *b1, const void *b2, size_t len);
 void	*memmem(const void *l, size_t l_len, const void *s, size_t s_len);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
@@ -178,22 +213,13 @@ crc32(const void *buf, size_t size)
 uint32_t
 calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
     unsigned int length);
-
-
-LIBKERN_INLINE void *memset(void *, int, size_t);
-#ifdef LIBKERN_BODY
-LIBKERN_INLINE void *
-memset(void *b, int c, size_t len)
-{
-	char *bb;
-
-	if (c == 0)
-		bzero(b, len);
-	else
-		for (bb = (char *)b; len--; )
-			*bb++ = c;
-	return (b);
-}
+#ifdef _KERNEL
+#if defined(__amd64__) || defined(__i386__)
+uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
+#endif
+#if defined(__aarch64__)
+uint32_t armv8_crc32c(uint32_t, const unsigned char *, unsigned int);
+#endif
 #endif
 
 static __inline char *

@@ -1,5 +1,7 @@
 /*	BSDI inet.c,v 2.3 1995/10/24 02:19:29 prb Exp	*/
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -69,8 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <libxo/xo.h>
 #include "netstat.h"
-
-char	*inet6name(struct in6_addr *);
 
 static char ntop_buf[INET6_ADDRSTRLEN];
 
@@ -207,11 +207,11 @@ static	const char *ip6nh[] = {
 	"#129",
 	"#130",
 	"#131",
-	"#132",
+	"SCTP",
 	"#133",
 	"#134",
 	"#135",
-	"#136",
+	"UDPLite",
 	"#137",
 	"#138",
 	"#139",
@@ -488,8 +488,8 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			  "{N:/global%s}\n");\
 			break;\
 		default:\
-			xo_emit("\t\t{qke:name/%x}{:count/%ju} " \
-				"addresses scope=%x\n",\
+			xo_emit("\t\t{qke:name/%#x}{:count/%ju} " \
+				"{N:/addresses scope=%#x}\n",\
 				i, (uintmax_t)ip6stat.s, i);	   \
 		}\
 	} while (0);
@@ -620,7 +620,7 @@ ip6_ifstats(char *ifname)
 		return;
 	}
 
-	strcpy(ifr.ifr_name, ifname);
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFSTAT_IN6, (char *)&ifr) < 0) {
 		if (errno != EPFNOSUPPORT)
 			xo_warn("Warning: ioctl(SIOCGIFSTAT_IN6)");
@@ -1081,7 +1081,7 @@ icmp6_ifstats(char *ifname)
 		return;
 	}
 
-	strcpy(ifr.ifr_name, ifname);
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFSTAT_ICMP6, (char *)&ifr) < 0) {
 		if (errno != EPFNOSUPPORT)
 			xo_warn("Warning: ioctl(SIOCGIFSTAT_ICMP6)");
@@ -1270,24 +1270,30 @@ inet6print(const char *container, struct in6_addr *in6, int port,
 	struct servent *sp = 0;
 	char line[80], *cp;
 	int width;
+	size_t alen, plen;
 
 	if (container)
 		xo_open_container(container);
 
-	sprintf(line, "%.*s.", Wflag ? 39 : (Aflag && !numeric) ? 12 : 16,
+	snprintf(line, sizeof(line), "%.*s.",
+	    Wflag ? 39 : (Aflag && !numeric) ? 12 : 16,
 	    inet6name(in6));
-	cp = strchr(line, '\0');
+	alen = strlen(line);
+	cp = line + alen;
 	if (!numeric && port)
 		GETSERVBYPORT6(port, proto, sp);
 	if (sp || port == 0)
-		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
+		snprintf(cp, sizeof(line) - alen,
+		    "%.15s", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d", ntohs((u_short)port));
+		snprintf(cp, sizeof(line) - alen,
+		    "%d", ntohs((u_short)port));
 	width = Wflag ? 45 : Aflag ? 18 : 22;
 
 	xo_emit("{d:target/%-*.*s} ", width, width, line);
 
-	int alen = cp - line - 1, plen = strlen(cp) - 1;
+	plen = strlen(cp);
+	alen--;
 	xo_emit("{e:address/%*.*s}{e:port/%*.*s}", alen, alen, line, plen,
 	    plen, cp);
 
@@ -1306,7 +1312,7 @@ inet6name(struct in6_addr *in6p)
 {
 	struct sockaddr_in6 sin6;
 	char hbuf[NI_MAXHOST], *cp;
-	static char line[50];
+	static char line[NI_MAXHOST];
 	static char domain[MAXHOSTNAMELEN];
 	static int first = 1;
 	int flags, error;
@@ -1317,9 +1323,9 @@ inet6name(struct in6_addr *in6p)
 	}
 	if (first && !numeric_addr) {
 		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+		if (gethostname(domain, sizeof(domain)) == 0 &&
 		    (cp = strchr(domain, '.')))
-			(void) strcpy(domain, cp + 1);
+			strlcpy(domain, cp + 1, sizeof(domain));
 		else
 			domain[0] = 0;
 	}
@@ -1336,10 +1342,10 @@ inet6name(struct in6_addr *in6p)
 		    (cp = strchr(hbuf, '.')) &&
 		    !strcmp(cp + 1, domain))
 			*cp = 0;
-		strcpy(line, hbuf);
+		strlcpy(line, hbuf, sizeof(line));
 	} else {
 		/* XXX: this should not happen. */
-		sprintf(line, "%s",
+		snprintf(line, sizeof(line), "%s",
 			inet_ntop(AF_INET6, (void *)&sin6.sin6_addr, ntop_buf,
 				sizeof(ntop_buf)));
 	}

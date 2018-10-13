@@ -7,7 +7,7 @@ SRCS=	mount_cd9660.c getmntopts.c
 MAN=	mount_cd9660.8
 LIBADD=	kiconv
 
-MOUNT=	${.CURDIR}/../mount
+MOUNT=	${.CURDIR:H}/mount
 CFLAGS+= -I${MOUNT}
 
 # Needs to be dynamically linked for optional dlopen() access to

@@ -1,6 +1,8 @@
 /*	$NetBSD: lsi64854var.h,v 1.12 2008/04/28 20:23:50 martin Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

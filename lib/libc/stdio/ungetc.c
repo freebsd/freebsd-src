@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -73,14 +75,14 @@ __submore(FILE *fp)
 		return (0);
 	}
 	i = fp->_ub._size;
-	p = realloc(fp->_ub._base, (size_t)(i << 1));
+	p = reallocarray(fp->_ub._base, i, 2);
 	if (p == NULL)
 		return (EOF);
 	/* no overlap (hence can use memcpy) because we doubled the size */
 	(void)memcpy((void *)(p + i), (void *)p, (size_t)i);
 	fp->_p = p + i;
 	fp->_ub._base = p;
-	fp->_ub._size = i << 1;
+	fp->_ub._size = i * 2;
 	return (0);
 }
 
@@ -94,10 +96,10 @@ ungetc(int c, FILE *fp)
 
 	if (!__sdidinit)
 		__sinit();
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	ret = __ungetc(c, fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 

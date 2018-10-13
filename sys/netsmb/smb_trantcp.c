@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
@@ -544,15 +546,14 @@ smb_nbst_connect(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td)
 	if (error)
 		return error;
 	getnanotime(&ts2);
-	timespecsub(&ts2, &ts1);
+	timespecsub(&ts2, &ts1, &ts2);
 	if (ts2.tv_sec == 0) {
 		ts2.tv_sec = 1;
 		ts2.tv_nsec = 0;
 	}
-	nbp->nbp_timo = ts2;
-	timespecadd(&nbp->nbp_timo, &ts2);
-	timespecadd(&nbp->nbp_timo, &ts2);
-	timespecadd(&nbp->nbp_timo, &ts2);	/*  * 4 */
+	timespecadd(&ts2, &ts2, &nbp->nbp_timo);
+	timespecadd(&nbp->nbp_timo, &ts2, &nbp->nbp_timo);
+	timespecadd(&nbp->nbp_timo, &ts2, &nbp->nbp_timo);	/*  * 4 */
 	error = nbssn_rq_request(nbp, td);
 	if (error)
 		smb_nbst_disconnect(vcp, td);

@@ -1,6 +1,8 @@
 /*-
  * CAM ioctl compatibility shims
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Scott Long
  * All rights reserved.
  *
@@ -149,7 +151,24 @@ cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	ccbb = (uint8_t *)&hdr[1];
 	ccbb17 = (uint8_t *)&hdr17[1];
-	bcopy(ccbb17, ccbb, CAM_0X17_DATA_LEN);
+	if (ccb->ccb_h.func_code == XPT_SET_TRAN_SETTINGS) {
+		struct ccb_trans_settings *cts;
+		struct ccb_trans_settings_0x17 *cts17;
+
+		cts = &ccb->cts;
+		cts17 = (struct ccb_trans_settings_0x17 *)hdr17;
+		cts->type = cts17->type;
+		cts->protocol = cts17->protocol;
+		cts->protocol_version = cts17->protocol_version;
+		cts->transport = cts17->transport;
+		cts->transport_version = cts17->transport_version;
+		bcopy(&cts17->proto_specific, &cts->proto_specific,
+		    sizeof(cts17->proto_specific));
+		bcopy(&cts17->xport_specific, &cts->xport_specific,
+		    sizeof(cts17->xport_specific));
+	} else {
+		bcopy(ccbb17, ccbb, CAM_0X17_DATA_LEN);
+	}
 
 	error = (cbfnp)(dev, cmd, (caddr_t)ccb, flag, td);
 
@@ -205,6 +224,21 @@ cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		cpi17->hba_device = cpi->hba_device;
 		cpi17->hba_subvendor = cpi->hba_subvendor;
 		cpi17->hba_subdevice = cpi->hba_subdevice;
+	} else if (ccb->ccb_h.func_code == XPT_GET_TRAN_SETTINGS) {
+		struct ccb_trans_settings *cts;
+		struct ccb_trans_settings_0x17 *cts17;
+
+		cts = &ccb->cts;
+		cts17 = (struct ccb_trans_settings_0x17 *)hdr17;
+		cts17->type = cts->type;
+		cts17->protocol = cts->protocol;
+		cts17->protocol_version = cts->protocol_version;
+		cts17->transport = cts->transport;
+		cts17->transport_version = cts->transport_version;
+		bcopy(&cts->proto_specific, &cts17->proto_specific,
+		    sizeof(cts17->proto_specific));
+		bcopy(&cts->xport_specific, &cts17->xport_specific,
+		    sizeof(cts17->xport_specific));
 	} else if (ccb->ccb_h.func_code == XPT_DEV_MATCH) {
 		/* Copy the rest of the header over */
 		bcopy(ccbb, ccbb17, CAM_0X17_DATA_LEN);
@@ -257,7 +291,24 @@ cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	ccbb = (uint8_t *)&hdr[1];
 	ccbb18 = (uint8_t *)&hdr18[1];
-	bcopy(ccbb18, ccbb, CAM_0X18_DATA_LEN);
+	if (ccb->ccb_h.func_code == XPT_SET_TRAN_SETTINGS) {
+		struct ccb_trans_settings *cts;
+		struct ccb_trans_settings_0x18 *cts18;
+
+		cts = &ccb->cts;
+		cts18 = (struct ccb_trans_settings_0x18 *)hdr18;
+		cts->type = cts18->type;
+		cts->protocol = cts18->protocol;
+		cts->protocol_version = cts18->protocol_version;
+		cts->transport = cts18->transport;
+		cts->transport_version = cts18->transport_version;
+		bcopy(&cts18->proto_specific, &cts->proto_specific,
+		    sizeof(cts18->proto_specific));
+		bcopy(&cts18->xport_specific, &cts->xport_specific,
+		    sizeof(cts18->xport_specific));
+	} else {
+		bcopy(ccbb18, ccbb, CAM_0X18_DATA_LEN);
+	}
 
 	error = (cbfnp)(dev, cmd, (caddr_t)ccb, flag, td);
 
@@ -280,10 +331,27 @@ cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	hdr18->sim_priv = hdr->sim_priv;
 	hdr18->timeout = hdr->timeout;
 
-	bcopy(ccbb, ccbb18, CAM_0X18_DATA_LEN);
+	if (ccb->ccb_h.func_code == XPT_GET_TRAN_SETTINGS) {
+		struct ccb_trans_settings *cts;
+		struct ccb_trans_settings_0x18 *cts18;
 
-	if (ccb->ccb_h.func_code == XPT_DEV_MATCH)
+		cts = &ccb->cts;
+		cts18 = (struct ccb_trans_settings_0x18 *)hdr18;
+		cts18->type = cts->type;
+		cts18->protocol = cts->protocol;
+		cts18->protocol_version = cts->protocol_version;
+		cts18->transport = cts->transport;
+		cts18->transport_version = cts->transport_version;
+		bcopy(&cts->proto_specific, &cts18->proto_specific,
+		    sizeof(cts18->proto_specific));
+		bcopy(&cts->xport_specific, &cts18->xport_specific,
+		    sizeof(cts18->xport_specific));
+	} else if (ccb->ccb_h.func_code == XPT_DEV_MATCH) {
+		bcopy(ccbb, ccbb18, CAM_0X18_DATA_LEN);
 		cam_compat_translate_dev_match_0x18(ccb);
+	} else {
+		bcopy(ccbb, ccbb18, CAM_0X18_DATA_LEN);
+	}
 
 	xpt_free_ccb(ccb);
 

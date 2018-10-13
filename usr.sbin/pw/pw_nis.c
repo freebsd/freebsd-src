@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -34,6 +36,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <pwd.h>
 #include <libutil.h>
+#include <unistd.h>
 
 #include "pw.h"
 
@@ -63,8 +66,11 @@ pw_nisupdate(const char * path, struct passwd * pwd, char const * user)
 	}
 	if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
 		pw_fini();
+		close(tfd);
 		err(1, "pw_copy()");
 	}
+	fsync(tfd);
+	close(tfd);
 	if (chmod(pw_tempname(), 0644) == -1)
 		err(1, "chmod()");
 	if (rename(pw_tempname(), path) == -1)

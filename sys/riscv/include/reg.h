@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -50,7 +50,8 @@ struct reg {
 };
 
 struct fpreg {
-	int dummy;
+	uint64_t	fp_x[32][2];	/* Floating point registers */
+	uint64_t	fp_fcsr;	/* Floating point control reg */
 };
 
 struct dbreg {

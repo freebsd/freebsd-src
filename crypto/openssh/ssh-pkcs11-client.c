@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-client.c,v 1.6 2015/12/11 00:20:04 mmcc Exp $ */
+/* $OpenBSD: ssh-pkcs11-client.c,v 1.10 2018/07/09 21:59:10 markus Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -32,15 +32,18 @@
 
 #include <openssl/rsa.h>
 
+#include "openbsd-compat/openssl-compat.h"
+
 #include "pathnames.h"
 #include "xmalloc.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "log.h"
 #include "misc.h"
-#include "key.h"
+#include "sshkey.h"
 #include "authfd.h"
 #include "atomicio.h"
 #include "ssh-pkcs11.h"
+#include "ssherr.h"
 
 /* borrows code from sftp-server and ssh-agent */
 
@@ -48,34 +51,37 @@ int fd = -1;
 pid_t pid = -1;
 
 static void
-send_msg(Buffer *m)
+send_msg(struct sshbuf *m)
 {
 	u_char buf[4];
-	int mlen = buffer_len(m);
+	size_t mlen = sshbuf_len(m);
+	int r;
 
-	put_u32(buf, mlen);
+	POKE_U32(buf, mlen);
 	if (atomicio(vwrite, fd, buf, 4) != 4 ||
-	    atomicio(vwrite, fd, buffer_ptr(m),
-	    buffer_len(m)) != buffer_len(m))
+	    atomicio(vwrite, fd, sshbuf_mutable_ptr(m),
+	    sshbuf_len(m)) != sshbuf_len(m))
 		error("write to helper failed");
-	buffer_consume(m, mlen);
+	if ((r = sshbuf_consume(m, mlen)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 }
 
 static int
-recv_msg(Buffer *m)
+recv_msg(struct sshbuf *m)
 {
 	u_int l, len;
-	u_char buf[1024];
+	u_char c, buf[1024];
+	int r;
 
 	if ((len = atomicio(read, fd, buf, 4)) != 4) {
 		error("read from helper failed: %u", len);
 		return (0); /* XXX */
 	}
-	len = get_u32(buf);
+	len = PEEK_U32(buf);
 	if (len > 256 * 1024)
 		fatal("response too long: %u", len);
 	/* read len bytes into m */
-	buffer_clear(m);
+	sshbuf_reset(m);
 	while (len > 0) {
 		l = len;
 		if (l > sizeof(buf))
@@ -84,10 +90,13 @@ recv_msg(Buffer *m)
 			error("response from helper failed.");
 			return (0); /* XXX */
 		}
-		buffer_append(m, buf, l);
+		if ((r = sshbuf_put(m, buf, l)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 		len -= l;
 	}
-	return (buffer_get_char(m));
+	if ((r = sshbuf_get_u8(m, &c)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	return c;
 }
 
 int
@@ -99,43 +108,49 @@ pkcs11_init(int interactive)
 void
 pkcs11_terminate(void)
 {
-	close(fd);
+	if (fd >= 0)
+		close(fd);
 }
 
 static int
 pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
     int padding)
 {
-	Key key;
+	struct sshkey key;	/* XXX */
 	u_char *blob, *signature = NULL;
-	u_int blen, slen = 0;
-	int ret = -1;
-	Buffer msg;
+	size_t blen, slen = 0;
+	int r, ret = -1;
+	struct sshbuf *msg;
 
 	if (padding != RSA_PKCS1_PADDING)
 		return (-1);
 	key.type = KEY_RSA;
 	key.rsa = rsa;
-	if (key_to_blob(&key, &blob, &blen) == 0)
+	if ((r = sshkey_to_blob(&key, &blob, &blen)) != 0) {
+		error("%s: sshkey_to_blob: %s", __func__, ssh_err(r));
 		return -1;
-	buffer_init(&msg);
-	buffer_put_char(&msg, SSH2_AGENTC_SIGN_REQUEST);
-	buffer_put_string(&msg, blob, blen);
-	buffer_put_string(&msg, from, flen);
-	buffer_put_int(&msg, 0);
+	}
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshbuf_put_u8(msg, SSH2_AGENTC_SIGN_REQUEST)) != 0 ||
+	    (r = sshbuf_put_string(msg, blob, blen)) != 0 ||
+	    (r = sshbuf_put_string(msg, from, flen)) != 0 ||
+	    (r = sshbuf_put_u32(msg, 0)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	free(blob);
-	send_msg(&msg);
-	buffer_clear(&msg);
+	send_msg(msg);
+	sshbuf_reset(msg);
 
-	if (recv_msg(&msg) == SSH2_AGENT_SIGN_RESPONSE) {
-		signature = buffer_get_string(&msg, &slen);
-		if (slen <= (u_int)RSA_size(rsa)) {
+	if (recv_msg(msg) == SSH2_AGENT_SIGN_RESPONSE) {
+		if ((r = sshbuf_get_string(msg, &signature, &slen)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		if (slen <= (size_t)RSA_size(rsa)) {
 			memcpy(to, signature, slen);
 			ret = slen;
 		}
 		free(signature);
 	}
-	buffer_free(&msg);
+	sshbuf_free(msg);
 	return (ret);
 }
 
@@ -143,12 +158,14 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 static int
 wrap_key(RSA *rsa)
 {
-	static RSA_METHOD helper_rsa;
+	static RSA_METHOD *helper_rsa;
 
-	memcpy(&helper_rsa, RSA_get_default_method(), sizeof(helper_rsa));
-	helper_rsa.name = "ssh-pkcs11-helper";
-	helper_rsa.rsa_priv_enc = pkcs11_rsa_private_encrypt;
-	RSA_set_method(rsa, &helper_rsa);
+	if ((helper_rsa = RSA_meth_dup(RSA_get_default_method())) == NULL)
+		fatal("%s: RSA_meth_dup failed", __func__);
+	if (!RSA_meth_set1_name(helper_rsa, "ssh-pkcs11-helper") ||
+	    !RSA_meth_set_priv_enc(helper_rsa, pkcs11_rsa_private_encrypt))
+		fatal("%s: failed to prepare method", __func__);
+	RSA_set_method(rsa, helper_rsa);
 	return (0);
 }
 
@@ -184,31 +201,39 @@ pkcs11_start_helper(void)
 }
 
 int
-pkcs11_add_provider(char *name, char *pin, Key ***keysp)
+pkcs11_add_provider(char *name, char *pin, struct sshkey ***keysp)
 {
-	Key *k;
-	int i, nkeys;
+	struct sshkey *k;
+	int r;
 	u_char *blob;
-	u_int blen;
-	Buffer msg;
+	size_t blen;
+	u_int nkeys, i;
+	struct sshbuf *msg;
 
 	if (fd < 0 && pkcs11_start_helper() < 0)
 		return (-1);
 
-	buffer_init(&msg);
-	buffer_put_char(&msg, SSH_AGENTC_ADD_SMARTCARD_KEY);
-	buffer_put_cstring(&msg, name);
-	buffer_put_cstring(&msg, pin);
-	send_msg(&msg);
-	buffer_clear(&msg);
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshbuf_put_u8(msg, SSH_AGENTC_ADD_SMARTCARD_KEY)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, name)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, pin)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	send_msg(msg);
+	sshbuf_reset(msg);
 
-	if (recv_msg(&msg) == SSH2_AGENT_IDENTITIES_ANSWER) {
-		nkeys = buffer_get_int(&msg);
-		*keysp = xcalloc(nkeys, sizeof(Key *));
+	if (recv_msg(msg) == SSH2_AGENT_IDENTITIES_ANSWER) {
+		if ((r = sshbuf_get_u32(msg, &nkeys)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		*keysp = xcalloc(nkeys, sizeof(struct sshkey *));
 		for (i = 0; i < nkeys; i++) {
-			blob = buffer_get_string(&msg, &blen);
-			free(buffer_get_string(&msg, NULL));
-			k = key_from_blob(blob, blen);
+			/* XXX clean up properly instead of fatal() */
+			if ((r = sshbuf_get_string(msg, &blob, &blen)) != 0 ||
+			    (r = sshbuf_skip_string(msg)) != 0)
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
+			if ((r = sshkey_from_blob(blob, blen, &k)) != 0)
+				fatal("%s: bad key: %s", __func__, ssh_err(r));
 			wrap_key(k->rsa);
 			(*keysp)[i] = k;
 			free(blob);
@@ -216,26 +241,28 @@ pkcs11_add_provider(char *name, char *pin, Key ***keysp)
 	} else {
 		nkeys = -1;
 	}
-	buffer_free(&msg);
+	sshbuf_free(msg);
 	return (nkeys);
 }
 
 int
 pkcs11_del_provider(char *name)
 {
-	int ret = -1;
-	Buffer msg;
+	int r, ret = -1;
+	struct sshbuf *msg;
 
-	buffer_init(&msg);
-	buffer_put_char(&msg, SSH_AGENTC_REMOVE_SMARTCARD_KEY);
-	buffer_put_cstring(&msg, name);
-	buffer_put_cstring(&msg, "");
-	send_msg(&msg);
-	buffer_clear(&msg);
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshbuf_put_u8(msg, SSH_AGENTC_REMOVE_SMARTCARD_KEY)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, name)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, "")) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	send_msg(msg);
+	sshbuf_reset(msg);
 
-	if (recv_msg(&msg) == SSH_AGENT_SUCCESS)
+	if (recv_msg(msg) == SSH_AGENT_SUCCESS)
 		ret = 0;
-	buffer_free(&msg);
+	sshbuf_free(msg);
 	return (ret);
 }
 

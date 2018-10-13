@@ -720,11 +720,6 @@ u8 * wpa_sm_write_assoc_resp_ies(struct wpa_state_machine *sm, u8 *pos,
 	ftie_len = res;
 	pos += res;
 
-	os_free(sm->assoc_resp_ftie);
-	sm->assoc_resp_ftie = os_malloc(ftie_len);
-	if (sm->assoc_resp_ftie)
-		os_memcpy(sm->assoc_resp_ftie, ftie, ftie_len);
-
 	_ftie = (struct rsn_ftie *) (ftie + 2);
 	if (auth_alg == WLAN_AUTH_FT)
 		_ftie->mic_control[1] = 3; /* Information element count */
@@ -749,6 +744,11 @@ u8 * wpa_sm_write_assoc_resp_ies(struct wpa_state_machine *sm, u8 *pos,
 		       ric_start, ric_start ? pos - ric_start : 0,
 		       _ftie->mic) < 0)
 		wpa_printf(MSG_DEBUG, "FT: Failed to calculate MIC");
+
+	os_free(sm->assoc_resp_ftie);
+	sm->assoc_resp_ftie = os_malloc(ftie_len);
+	if (sm->assoc_resp_ftie)
+		os_memcpy(sm->assoc_resp_ftie, ftie, ftie_len);
 
 	return pos;
 }
@@ -780,6 +780,14 @@ void wpa_ft_install_ptk(struct wpa_state_machine *sm)
 		return;
 	}
 
+	if (sm->tk_already_set) {
+		/* Must avoid TK reconfiguration to prevent clearing of TX/RX
+		 * PN in the driver */
+		wpa_printf(MSG_DEBUG,
+			   "FT: Do not re-install same PTK to the driver");
+		return;
+	}
+
 	/* FIX: add STA entry to kernel/driver here? The set_key will fail
 	 * most likely without this.. At the moment, STA entry is added only
 	 * after association has been completed. This function will be called
@@ -792,6 +800,7 @@ void wpa_ft_install_ptk(struct wpa_state_machine *sm)
 
 	/* FIX: MLME-SetProtection.Request(TA, Tx_Rx) */
 	sm->pairwise_set = TRUE;
+	sm->tk_already_set = TRUE;
 }
 
 
@@ -898,6 +907,7 @@ static int wpa_ft_process_auth_req(struct wpa_state_machine *sm,
 
 	sm->pairwise = pairwise;
 	sm->PTK_valid = TRUE;
+	sm->tk_already_set = FALSE;
 	wpa_ft_install_ptk(sm);
 
 	buflen = 2 + sizeof(struct rsn_mdie) + 2 + sizeof(struct rsn_ftie) +

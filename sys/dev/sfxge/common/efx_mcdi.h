@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -218,7 +220,7 @@ extern	__checkReturn	efx_rc_t
 efx_mcdi_mac_stats_periodic(
 	__in		efx_nic_t *enp,
 	__in		efsys_mem_t *esmp,
-	__in		uint16_t period,
+	__in		uint16_t period_ms,
 	__in		boolean_t events);
 
 

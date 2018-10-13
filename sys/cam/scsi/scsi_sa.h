@@ -2,6 +2,8 @@
  * Structure and function declarations for the
  * SCSI Sequential Access Peripheral driver for CAM.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, 2000 Matthew Jacob
  * Copyright (c) 2013, 2014, 2015 Spectra Logic Corporation
  * All rights reserved.
@@ -484,6 +486,19 @@ struct scsi_medium_type_data {
 	u_int8_t assigning_org[8];
 	u_int8_t medium_type_name[8];
 	u_int8_t description[20];
+};
+
+/*
+ * Manufacturer-assigned Serial Number VPD page.
+ * Current as of SSC-5r03, 28 September 2016.
+ */
+struct scsi_vpd_mfg_serial_number
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define	SVPD_MFG_SERIAL_NUMBER_PAGE_CODE 0xB1
+	u_int8_t page_length[2];
+	u_int8_t mfg_serial_num[];
 };
 
 /*

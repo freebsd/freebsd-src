@@ -47,7 +47,7 @@ do
 	${SH} -c "VAR=1; VAR=0 ${cmd}; exit \${VAR}" >/dev/null 2>&1
 done
 
-# For other built-ins and utilites they do not.
+# For other built-ins and utilities they do not.
 set -- ${UTILS}
 for cmd in "$@"
 do

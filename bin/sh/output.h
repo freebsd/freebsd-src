@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,7 +42,7 @@
 
 struct output {
 	char *nextc;
-	int nleft;
+	char *bufend;
 	char *buf;
 	int bufsize;
 	short fd;
@@ -75,7 +77,7 @@ void fmtstr(char *, int, const char *, ...) __printflike(3, 4);
 void doformat(struct output *, const char *, va_list) __printflike(2, 0);
 int xwrite(int, const char *, int);
 
-#define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
+#define outc(c, file)	((file)->nextc == (file)->bufend ? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
 #define out1c(c)	outc(c, out1);
 #define out2c(c)	outcslow(c, out2);
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.208 2016/06/03 01:21:59 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.218 2018/02/18 00:52:42 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.208 2016/06/03 01:21:59 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.218 2018/02/18 00:52:42 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.208 2016/06/03 01:21:59 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.218 2018/02/18 00:52:42 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -970,7 +970,8 @@ Var_Set(const char *name, const char *val, GNode *ctxt, int flags)
 	VarAdd(name, val, ctxt);
     } else {
 	Buf_Empty(&v->val);
-	Buf_AddBytes(&v->val, strlen(val), val);
+	if (val)
+	    Buf_AddBytes(&v->val, strlen(val), val);
 
 	if (DEBUG(VAR)) {
 	    fprintf(debug_file, "%s:%s = %s\n", ctxt->name, name, val);
@@ -997,7 +998,7 @@ Var_Set(const char *name, const char *val, GNode *ctxt, int flags)
 	 * Makefile settings.
 	 */
 	if (varNoExportEnv != TRUE)
-	    setenv(name, val, 1);
+	    setenv(name, val ? val : "", 1);
 
 	Var_Append(MAKEOVERRIDES, name, VAR_GLOBAL);
     }
@@ -1060,11 +1061,11 @@ Var_Append(const char *name, const char *val, GNode *ctxt)
 	name = expanded_name;
     }
 
-    v = VarFind(name, ctxt, (ctxt == VAR_GLOBAL) ? FIND_ENV : 0);
+    v = VarFind(name, ctxt, (ctxt == VAR_GLOBAL) ? (FIND_CMD|FIND_ENV) : 0);
 
     if (v == NULL) {
-	VarAdd(name, val, ctxt);
-    } else {
+	Var_Set(name, val, ctxt, 0);
+    } else if (ctxt == VAR_CMD || !(v->flags & VAR_FROM_CMD)) {
 	Buf_AddByte(&v->val, ' ');
 	Buf_AddBytes(&v->val, strlen(val), val);
 
@@ -1181,7 +1182,7 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 static Boolean
 VarHead(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	char *word, Boolean addSpace, Buffer *buf,
-	void *dummy)
+	void *dummy MAKE_ATTR_UNUSED)
 {
     char *slash;
 
@@ -1202,7 +1203,7 @@ VarHead(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	    Buf_AddByte(buf, vpstate->varSpace);
 	Buf_AddByte(buf, '.');
     }
-    return(dummy ? TRUE : TRUE);
+    return TRUE;
 }
 
 /*-
@@ -1229,7 +1230,7 @@ VarHead(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 static Boolean
 VarTail(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	char *word, Boolean addSpace, Buffer *buf,
-	void *dummy)
+	void *dummy MAKE_ATTR_UNUSED)
 {
     char *slash;
 
@@ -1245,7 +1246,7 @@ VarTail(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
     } else {
 	Buf_AddBytes(buf, strlen(word), word);
     }
-    return (dummy ? TRUE : TRUE);
+    return TRUE;
 }
 
 /*-
@@ -1271,7 +1272,7 @@ VarTail(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 static Boolean
 VarSuffix(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	  char *word, Boolean addSpace, Buffer *buf,
-	  void *dummy)
+	  void *dummy MAKE_ATTR_UNUSED)
 {
     char *dot;
 
@@ -1285,7 +1286,7 @@ VarSuffix(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	dot[-1] = '.';
 	addSpace = TRUE;
     }
-    return (dummy ? addSpace : addSpace);
+    return addSpace;
 }
 
 /*-
@@ -1312,7 +1313,7 @@ VarSuffix(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 static Boolean
 VarRoot(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	char *word, Boolean addSpace, Buffer *buf,
-	void *dummy)
+	void *dummy MAKE_ATTR_UNUSED)
 {
     char *dot;
 
@@ -1328,7 +1329,7 @@ VarRoot(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
     } else {
 	Buf_AddBytes(buf, strlen(word), word);
     }
-    return (dummy ? TRUE : TRUE);
+    return TRUE;
 }
 
 /*-
@@ -1836,8 +1837,8 @@ VarLoopExpand(GNode *ctx MAKE_ATTR_UNUSED,
                 Buf_AddByte(buf, ' ');
             Buf_AddBytes(buf, (slen = strlen(s)), s);
             addSpace = (slen > 0 && s[slen - 1] != '\n');
-            free(s);
         }
+	free(s);
     }
     return addSpace;
 }
@@ -2139,6 +2140,51 @@ VarUniq(const char *str)
     return Buf_Destroy(&buf, FALSE);
 }
 
+/*-
+ *-----------------------------------------------------------------------
+ * VarRange --
+ *	Return an integer sequence
+ *
+ * Input:
+ *	str		String whose words provide default range
+ *	ac		range length, if 0 use str words
+ *
+ * Side Effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------
+ */
+static char *
+VarRange(const char *str, int ac)
+{
+    Buffer	  buf;		    /* Buffer for new string */
+    char	  tmp[32];	    /* each element */
+    char 	**av;		    /* List of words to affect */
+    char 	 *as;		    /* Word list memory */
+    int 	  i, n;
+
+    Buf_Init(&buf, 0);
+    if (ac > 0) {
+	as = NULL;
+	av = NULL;
+    } else {
+	av = brk_string(str, &ac, FALSE, &as);
+    }
+    for (i = 0; i < ac; i++) {
+	n = snprintf(tmp, sizeof(tmp), "%d", 1 + i);
+	if (n >= (int)sizeof(tmp))
+	    break;
+	Buf_AddBytes(&buf, n, tmp);
+	if (i != ac - 1)
+	    Buf_AddByte(&buf, ' ');
+    }
+
+    free(as);
+    free(av);
+
+    return Buf_Destroy(&buf, FALSE);
+}
+
 
 /*-
  *-----------------------------------------------------------------------
@@ -2380,12 +2426,12 @@ VarHash(char *str)
 }
 
 static char *
-VarStrftime(const char *fmt, int zulu)
+VarStrftime(const char *fmt, int zulu, time_t utc)
 {
     char buf[BUFSIZ];
-    time_t utc;
 
-    time(&utc);
+    if (!utc)
+	time(&utc);
     if (!*fmt)
 	fmt = "%c";
     strftime(buf, sizeof(buf), fmt, zulu ? gmtime(&utc) : localtime(&utc));
@@ -2482,6 +2528,9 @@ VarStrftime(const char *fmt, int zulu)
 /* we now have some modifiers with long names */
 #define STRMOD_MATCH(s, want, n) \
     (strncmp(s, want, n) == 0 && (s[n] == endc || s[n] == ':'))
+#define STRMOD_MATCHX(s, want, n) \
+    (strncmp(s, want, n) == 0 && (s[n] == endc || s[n] == ':' || s[n] == '='))
+#define CHARMOD_MATCH(c) (c == endc || c == ':')
 
 static char *
 ApplyModifiers(char *nstr, const char *tstr,
@@ -2493,12 +2542,14 @@ ApplyModifiers(char *nstr, const char *tstr,
     const char     *cp;    	/* Secondary pointer into str (place marker
 				 * for tstr) */
     char	   *newStr;	/* New value to return */
+    char	   *ep;
     char	    termc;	/* Character which terminated scan */
     int             cnt;	/* Used to count brace pairs when variable in
 				 * in parens or braces */
     char	delim;
     int		modifier;	/* that we are processing */
     Var_Parse_State parsestate; /* Flags passed to helper functions */
+    time_t	utc;		/* for VarStrftime */
 
     delim = '\0';
     parsestate.oneBigWord = FALSE;
@@ -2690,6 +2741,28 @@ ApplyModifiers(char *nstr, const char *tstr,
 		free(loop.str);
 		break;
 	    }
+	case '_':			/* remember current value */
+	    cp = tstr + 1;	/* make sure it is set */
+	    if (STRMOD_MATCHX(tstr, "_", 1)) {
+		if (tstr[1] == '=') {
+		    char *np;
+		    int n;
+
+		    cp++;
+		    n = strcspn(cp, ":)}");
+		    np = bmake_strndup(cp, n+1);
+		    np[n] = '\0';
+		    cp = tstr + 2 + n;
+		    Var_Set(np, nstr, ctxt, 0);
+		    free(np);
+		} else {
+		    Var_Set("_", nstr, ctxt, 0);
+		}
+		newStr = nstr;
+		termc = *cp;
+		break;
+	    }
+	    goto default_case;
 	case 'D':
 	case 'U':
 	    {
@@ -2895,8 +2968,6 @@ ApplyModifiers(char *nstr, const char *tstr,
 		     * integer for :[N], or two integers
 		     * separated by ".." for :[start..end].
 		     */
-		    char *ep;
-
 		    VarSelectWords_t seldata = { 0, 0 };
 
 		    seldata.start = strtol(estr, &ep, 0);
@@ -2955,9 +3026,15 @@ ApplyModifiers(char *nstr, const char *tstr,
 	    }
 	case 'g':
 	    cp = tstr + 1;	/* make sure it is set */
-	    if (STRMOD_MATCH(tstr, "gmtime", 6)) {
-		newStr = VarStrftime(nstr, 1);
-		cp = tstr + 6;
+	    if (STRMOD_MATCHX(tstr, "gmtime", 6)) {
+		if (tstr[6] == '=') {
+		    utc = strtoul(&tstr[7], &ep, 10);
+		    cp = ep;
+		} else {
+		    utc = 0;
+		    cp = tstr + 6;
+		}
+		newStr = VarStrftime(nstr, 1, utc);
 		termc = *cp;
 	    } else {
 		goto default_case;
@@ -2975,9 +3052,15 @@ ApplyModifiers(char *nstr, const char *tstr,
 	    break;
 	case 'l':
 	    cp = tstr + 1;	/* make sure it is set */
-	    if (STRMOD_MATCH(tstr, "localtime", 9)) {
-		newStr = VarStrftime(nstr, 0);
-		cp = tstr + 9;
+	    if (STRMOD_MATCHX(tstr, "localtime", 9)) {
+		if (tstr[9] == '=') {
+		    utc = strtoul(&tstr[10], &ep, 10);
+		    cp = ep;
+		} else {
+		    utc = 0;
+		    cp = tstr + 9;
+		}
+		newStr = VarStrftime(nstr, 0, utc);
 		termc = *cp;
 	    } else {
 		goto default_case;
@@ -3026,7 +3109,6 @@ ApplyModifiers(char *nstr, const char *tstr,
 				goto get_numeric;
 			    default:
 				if (isdigit((unsigned char)tstr[3])) {
-				    char *ep;
 
 				get_numeric:
 				    parsestate.varSpace =
@@ -3443,6 +3525,23 @@ ApplyModifiers(char *nstr, const char *tstr,
 		newStr = VarModify(ctxt, &parsestate, nstr, VarRoot,
 				   NULL);
 		cp = tstr + 1;
+		termc = *cp;
+		break;
+	    }
+	    goto default_case;
+	case 'r':
+	    cp = tstr + 1;	/* make sure it is set */
+	    if (STRMOD_MATCHX(tstr, "range", 5)) {
+		int n;
+		
+		if (tstr[5] == '=') {
+		    n = strtoul(&tstr[6], &ep, 10);
+		    cp = ep;
+		} else {
+		    n = 0;
+		    cp = tstr + 5;
+		}
+		newStr = VarRange(nstr, n);
 		termc = *cp;
 		break;
 	    }

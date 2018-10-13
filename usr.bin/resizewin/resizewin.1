@@ -27,17 +27,38 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2016
+.Dd May 9, 2017
 .Dt RESIZEWIN 1
 .Os
 .Sh NAME
 .Nm resizewin
-.Nd update the kernel window size for the current TTY
+.Nd update terminal size
+.Sh SYNOPSIS
+.Nm
+.Op Fl z
 .Sh DESCRIPTION
-Query the terminal emulator window size with the
+The
+.Nm
+utility
+queries the terminal emulator for the current window size and updates
+the size known to the kernel using the
 .Dv TIOCSWINSZ
-ioctl and set the window size known by the kernel to the new values.
-The terminal is assumed to be VT100/ANSI compatible.
+ioctl.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl z"
+.It Fl z
+Do nothing unless the current kernel terminal size is zero.
+This is useful when run from a user's profile (shell startup) scripts:
+querying the window size is required for serial lines, but not when
+logging in over the network, as protocols like TELNET or SSH already
+handle the terminal size by themselves.
+.El
+.Pp
+After a terminal window has been resized, running
+.Nm
+updates the kernel's window size to match the new size.
+.Pp
 .Nm
 is functionally similar to
 .Xr resize 1 ,
@@ -46,19 +67,18 @@ which is part of the
 distribution.
 However,
 .Nm
-only works with VT100/ANSI-compatible terminals and does
-not emit commands to set environment variables.
+only works with VT100/ANSI-compatible terminals and does not emit
+commands to set environment variables.
 .Pp
-After a terminal window has been resized, running
-.Nm
-updates the kernel's window size to match the new size.
-.Pp
-Note that virtually all modern terninals support VT100/ANSI escape
-sequences, including xterm, konsole, gnome-terminal iTerm,
-Terminal.app, and puTTY.
+The terminal is assumed to be VT100/ANSI compatible.
+The VT100/ANSI escape sequences are supported by virtually all modern
+terminals, including xterm, konsole, gnome-terminal, iTerm,
+Terminal.app, and PuTTY.
 .Sh SEE ALSO
-.Xr resize 1 ,
-.Xr stty 1
+.Xr stty 1 ,
+.Xr tty 4
 .Sh HISTORY
+The
 .Nm
-appeared in FreeBSD 11.
+command first appeared in
+.Fx 11.0 .

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -76,10 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <arpa/inet.h>
 
-#ifdef HAVE_LIBCASPER
 #include <libcasper.h>
 #include <casper/cap_dns.h>
-#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -204,15 +204,11 @@ static double tsumsq = 0.0;	/* sum of all times squared, for std. dev. */
 static volatile sig_atomic_t finish_up;
 static volatile sig_atomic_t siginfo_p;
 
-#ifdef HAVE_LIBCASPER
 static cap_channel_t *capdns;
-#endif
 
 static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
-#ifdef HAVE_LIBCASPER
 static cap_channel_t *capdns_setup(void);
-#endif
 static void check_status(void);
 static void finish(void) __dead2;
 static void pinger(void);
@@ -563,21 +559,17 @@ main(int argc, char *const *argv)
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
 	}
-#ifdef HAVE_LIBCASPER
 	capdns = capdns_setup();
-#endif
 	if (source) {
 		bzero((char *)&sock_in, sizeof(sock_in));
 		sock_in.sin_family = AF_INET;
 		if (inet_aton(source, &sock_in.sin_addr) != 0) {
 			shostname = source;
 		} else {
-#ifdef HAVE_LIBCASPER
 			if (capdns != NULL)
 				hp = cap_gethostbyname2(capdns, source,
 				    AF_INET);
 			else
-#endif
 				hp = gethostbyname2(source, AF_INET);
 			if (!hp)
 				errx(EX_NOHOST, "cannot resolve %s: %s",
@@ -606,11 +598,9 @@ main(int argc, char *const *argv)
 	if (inet_aton(target, &to->sin_addr) != 0) {
 		hostname = target;
 	} else {
-#ifdef HAVE_LIBCASPER
 		if (capdns != NULL)
 			hp = cap_gethostbyname2(capdns, target, AF_INET);
 		else
-#endif
 			hp = gethostbyname2(target, AF_INET);
 		if (!hp)
 			errx(EX_NOHOST, "cannot resolve %s: %s",
@@ -624,7 +614,6 @@ main(int argc, char *const *argv)
 		hostname = hnamebuf;
 	}
 
-#ifdef HAVE_LIBCASPER
 	/* From now on we will use only reverse DNS lookups. */
 	if (capdns != NULL) {
 		const char *types[1];
@@ -633,7 +622,6 @@ main(int argc, char *const *argv)
 		if (cap_dns_type_limit(capdns, types, 1) < 0)
 			err(1, "unable to limit access to system.dns service");
 	}
-#endif
 
 	if (connect(ssend, (struct sockaddr *)&whereto, sizeof(whereto)) != 0)
 		err(1, "connect");
@@ -722,10 +710,8 @@ main(int argc, char *const *argv)
 
 	if (options & F_NUMERIC)
 		cansandbox = true;
-#ifdef HAVE_LIBCASPER
 	else if (capdns != NULL)
-		cansandbox = true;
-#endif
+		cansandbox = CASPER_SUPPORT;
 	else
 		cansandbox = false;
 
@@ -1666,6 +1652,7 @@ pr_icmph(struct icmp *icp)
 static void
 pr_iph(struct ip *ip)
 {
+	struct in_addr ina;
 	u_char *cp;
 	int hlen;
 
@@ -1681,8 +1668,10 @@ pr_iph(struct ip *ip)
 	    (u_long) ntohl(ip->ip_off) & 0x1fff);
 	(void)printf("  %02x  %02x %04x", ip->ip_ttl, ip->ip_p,
 							    ntohs(ip->ip_sum));
-	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_src.s_addr));
-	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_dst.s_addr));
+	memcpy(&ina, &ip->ip_src.s_addr, sizeof ina);
+	(void)printf(" %s ", inet_ntoa(ina));
+	memcpy(&ina, &ip->ip_dst.s_addr, sizeof ina);
+	(void)printf(" %s ", inet_ntoa(ina));
 	/* dump any option bytes */
 	while (hlen-- > 20) {
 		(void)printf("%02x", *cp++);
@@ -1704,11 +1693,9 @@ pr_addr(struct in_addr ina)
 	if (options & F_NUMERIC)
 		return inet_ntoa(ina);
 
-#ifdef HAVE_LIBCASPER
 	if (capdns != NULL)
 		hp = cap_gethostbyaddr(capdns, (char *)&ina, 4, AF_INET);
 	else
-#endif
 		hp = gethostbyaddr((char *)&ina, 4, AF_INET);
 
 	if (hp == NULL)
@@ -1788,7 +1775,6 @@ fill(char *bp, char *patp)
 	}
 }
 
-#ifdef HAVE_LIBCASPER
 static cap_channel_t *
 capdns_setup(void)
 {
@@ -1814,7 +1800,6 @@ capdns_setup(void)
 
 	return (capdnsloc);
 }
-#endif /* HAVE_LIBCASPER */
 
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 #define	SECOPT		" [-P policy]"

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2011-2014 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -233,8 +235,6 @@ em_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * First part: import newly received packets.
 	 */
 	if (netmap_no_pendintr || force_update) {
-		uint16_t slot_flags = kring->nkr_slot_flags;
-
 		nic_i = rxr->next_to_check;
 		nm_i = netmap_idx_n2k(kring, nic_i);
 
@@ -245,7 +245,7 @@ em_netmap_rxsync(struct netmap_kring *kring, int flags)
 			if ((staterr & E1000_RXD_STAT_DD) == 0)
 				break;
 			ring->slot[nm_i].len = le16toh(curr->wb.upper.length);
-			ring->slot[nm_i].flags = slot_flags;
+			ring->slot[nm_i].flags = 0;
 			bus_dmamap_sync(rxr->rxtag, rxr->rx_buffers[nic_i].map,
 				BUS_DMASYNC_POSTREAD);
 			nm_i = nm_next(nm_i, lim);
@@ -277,9 +277,9 @@ em_netmap_rxsync(struct netmap_kring *kring, int flags)
 			if (addr == NETMAP_BUF_BASE(na)) /* bad buf */
 				goto ring_reset;
 
+			curr->read.buffer_addr = htole64(paddr);
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				curr->read.buffer_addr = htole64(paddr);
 				netmap_reload_map(na, rxr->rxtag, rxbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}

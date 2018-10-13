@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 #include "ofw_bus_if.h"
 #endif
@@ -75,7 +76,11 @@ __FBSDID("$FreeBSD$");
 #define dprintf(x, arg...)
 #endif  /* NEXUS_DEBUG */
 
-#define NUM_MIPS_IRQS	6
+#ifdef INTRNG
+#define	NUM_MIPS_IRQS	NIRQ	/* Any INTRNG-mapped IRQ */
+#else
+#define	NUM_MIPS_IRQS	6	/* HW IRQs only */
+#endif
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
@@ -199,6 +204,12 @@ nexus_probe(device_t dev)
 static int
 nexus_attach(device_t dev)
 {
+#if defined(INTRNG) && !defined(FDT)
+	int error;
+
+	if ((error = mips_pic_map_fixed_intrs()))
+		return (error);
+#endif
 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
@@ -290,7 +301,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * and we know what the resources for this device are (ie. they aren't
 	 * maintained by a child bus), then work out the start/end values.
 	 */
-	if (isdefault) {
+	if (!passthrough && isdefault) {
 		rle = resource_list_find(&ndev->nx_resources, type, *rid);
 		if (rle == NULL)
 			return (NULL);
@@ -429,6 +440,14 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 		rman_set_virtual(r, vaddr);
 		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
+	} else if (type == SYS_RES_IRQ) {
+#ifdef INTRNG
+		err = mips_pic_activate_intr(child, r);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
+#endif
 	}
 
 	return (rman_activate_resource(r));
@@ -448,6 +467,10 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		bus_space_unmap(rman_get_bustag(r), vaddr, psize);
 		rman_set_virtual(r, NULL);
 		rman_set_bushandle(r, 0);
+	} else if (type == SYS_RES_IRQ) {
+#ifdef INTRNG
+		mips_pic_deactivate_intr(child, r);
+#endif
 	}
 
 	return (rman_deactivate_resource(r));
@@ -457,7 +480,6 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-
 #ifdef INTRNG
 	return (intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
@@ -523,12 +545,18 @@ static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
+	u_int irq;
+	struct intr_map_data_fdt *fdt_data;
+	size_t len;
 
-#ifdef INTRNG
-	return (INTR_IRQ_INVALID);
-#else
-	return (intr_fdt_map_irq(iparent, intr, icells));
-#endif
+	len = sizeof(*fdt_data) + icells * sizeof(pcell_t);
+	fdt_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
+	    INTR_MAP_DATA_FDT, len, M_WAITOK | M_ZERO);
+	fdt_data->iparent = iparent;
+	fdt_data->ncells = icells;
+	memcpy(fdt_data->cells, intr, icells * sizeof(pcell_t));
+	irq = intr_map_irq(NULL, iparent, (struct intr_map_data *)fdt_data);
+	return (irq);
 }
 #endif
 #endif /* INTRNG */

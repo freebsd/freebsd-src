@@ -24,11 +24,11 @@ void TestModuleFileExtension::Writer::writeExtensionContents(
   using namespace llvm;
 
   // Write an abbreviation for this record.
-  BitCodeAbbrev *Abv = new llvm::BitCodeAbbrev();
+  auto Abv = std::make_shared<llvm::BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(FIRST_EXTENSION_RECORD_ID));
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // # of characters
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));   // message
-  auto Abbrev = Stream.EmitAbbrev(Abv);
+  auto Abbrev = Stream.EmitAbbrev(std::move(Abv));
 
   // Write a message into the extension block.
   SmallString<64> Message;
@@ -38,9 +38,7 @@ void TestModuleFileExtension::Writer::writeExtensionContents(
     OS << "Hello from " << Ext->BlockName << " v" << Ext->MajorVersion << "."
        << Ext->MinorVersion;
   }
-  SmallVector<uint64_t, 4> Record;
-  Record.push_back(FIRST_EXTENSION_RECORD_ID);
-  Record.push_back(Message.size());
+  uint64_t Record[] = {FIRST_EXTENSION_RECORD_ID, Message.size()};
   Stream.EmitRecordWithBlob(Abbrev, Record, Message);
 }
 

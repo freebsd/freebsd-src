@@ -2,6 +2,10 @@
 
 device {
 	bdaddr			00:50:f2:e5:68:84;
+	name			"Bluetooth Mouse";
+	vendor_id		0x0000;
+	product_id		0x0000;
+	version			0x0000;
 	control_psm		0x11;
 	interrupt_psm		0x13;
 	reconnect_initiate	true;
@@ -24,6 +28,10 @@ device {
 
 device {
 	bdaddr			00:50:f2:e3:fb:e1;
+	name			"Bluetooth Keyboard";
+	vendor_id		0x0000;
+	product_id		0x0000;
+	version			0x0000;
 	control_psm		0x11;
 	interrupt_psm		0x13;
 	reconnect_initiate	true;

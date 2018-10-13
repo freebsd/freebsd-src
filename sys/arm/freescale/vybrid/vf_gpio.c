@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -45,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/gpio.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>

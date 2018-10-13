@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2015
+.Dd December 1, 2017
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -199,7 +199,12 @@ to enable writing on the disk label area.
 The value
 .Fa nbytes
 is greater than
-.Dv INT_MAX .
+.Dv SSIZE_MAX
+(or greater than
+.Dv INT_MAX ,
+if the sysctl
+.Va debug.iosize_max_clamp
+is non-zero).
 .El
 .Pp
 In addition,
@@ -282,4 +287,4 @@ system call appeared in
 The
 .Fn write
 function appeared in
-.At v6 .
+.At v1 .

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -36,6 +38,7 @@
 struct tcpopt;
 struct tcphdr;
 struct in_conninfo;
+struct tcp_info;
 
 struct toedev {
 	TAILQ_ENTRY(toedev) link;	/* glue for toedev_list */
@@ -99,6 +102,10 @@ struct toedev {
 
 	/* TCP socket option */
 	void (*tod_ctloutput)(struct toedev *, struct tcpcb *, int, int);
+
+	/* Update software state */
+	void (*tod_tcp_info)(struct toedev *, struct tcpcb *,
+	    struct tcp_info *);
 };
 
 #include <sys/eventhandler.h>

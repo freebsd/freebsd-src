@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -73,6 +73,42 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "var.h"
 #include "builtins.h"
+
+
+/*
+ * A job structure contains information about a job.  A job is either a
+ * single process or a set of processes contained in a pipeline.  In the
+ * latter case, pidlist will be non-NULL, and will point to a -1 terminated
+ * array of pids.
+ */
+
+struct procstat {
+	pid_t pid;		/* process id */
+	int status;		/* status flags (defined above) */
+	char *cmd;		/* text of command being run */
+};
+
+
+/* states */
+#define JOBSTOPPED 1		/* all procs are stopped */
+#define JOBDONE 2		/* all procs are completed */
+
+
+struct job {
+	struct procstat ps0;	/* status of process */
+	struct procstat *ps;	/* status or processes when more than one */
+	short nprocs;		/* number of processes */
+	pid_t pgrp;		/* process group of this job */
+	char state;		/* true if job is finished */
+	char used;		/* true if this entry is in used */
+	char changed;		/* true if status has changed */
+	char foreground;	/* true if running in the foreground */
+	char remembered;	/* true if $! referenced */
+#if JOBS
+	char jobctl;		/* job running under job control */
+	struct job *next;	/* job used after this one */
+#endif
+};
 
 
 static struct job *jobtab;	/* array of jobs */
@@ -326,7 +362,7 @@ showjob(struct job *jp, int mode)
 	const char *statestr, *coredump;
 	struct procstat *ps;
 	struct job *j;
-	int col, curr, i, jobno, prev, procno;
+	int col, curr, i, jobno, prev, procno, status;
 	char c;
 
 	procno = (mode == SHOWJOBS_PGIDS) ? 1 : jp->nprocs;
@@ -340,11 +376,12 @@ showjob(struct job *jp, int mode)
 	}
 #endif
 	coredump = "";
-	ps = jp->ps + jp->nprocs - 1;
+	status = jp->ps[jp->nprocs - 1].status;
 	if (jp->state == 0) {
 		statestr = "Running";
 #if JOBS
 	} else if (jp->state == JOBSTOPPED) {
+		ps = jp->ps + jp->nprocs - 1;
 		while (!WIFSTOPPED(ps->status) && ps > jp->ps)
 			ps--;
 		if (WIFSTOPPED(ps->status))
@@ -355,20 +392,20 @@ showjob(struct job *jp, int mode)
 		if (statestr == NULL)
 			statestr = "Suspended";
 #endif
-	} else if (WIFEXITED(ps->status)) {
-		if (WEXITSTATUS(ps->status) == 0)
+	} else if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) == 0)
 			statestr = "Done";
 		else {
 			fmtstr(statebuf, sizeof(statebuf), "Done(%d)",
-			    WEXITSTATUS(ps->status));
+			    WEXITSTATUS(status));
 			statestr = statebuf;
 		}
 	} else {
-		i = WTERMSIG(ps->status);
+		i = WTERMSIG(status);
 		statestr = strsignal(i);
 		if (statestr == NULL)
 			statestr = "Unknown signal";
-		if (WCOREDUMP(ps->status))
+		if (WCOREDUMP(status))
 			coredump = " (core dumped)";
 	}
 
@@ -1016,7 +1053,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
  */
 
 int
-waitforjob(struct job *jp, int *origstatus)
+waitforjob(struct job *jp, int *signaled)
 {
 #if JOBS
 	int propagate_int = jp->jobctl && jp->foreground;
@@ -1039,8 +1076,8 @@ waitforjob(struct job *jp, int *origstatus)
 		setcurjob(jp);
 #endif
 	status = jp->ps[jp->nprocs - 1].status;
-	if (origstatus != NULL)
-		*origstatus = status;
+	if (signaled != NULL)
+		*signaled = WIFSIGNALED(status);
 	/* convert to 8 bits */
 	if (WIFEXITED(status))
 		st = WEXITSTATUS(status);

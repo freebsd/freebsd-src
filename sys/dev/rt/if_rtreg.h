@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Aleksandr Rybalko
  * All rights reserved.
  *
@@ -47,6 +49,10 @@
 #define	    MDIO_PHYREG_ADDR_SHIFT 16
 #define	    MDIO_PHY_DATA_MASK	0x0000ffff
 #define	    MDIO_PHY_DATA_SHIFT	0
+
+#define	MDIO_CFG	0x04
+#define	    MDIO_2880_100T_INIT	0x1001BC01
+#define	    MDIO_2880_GIGA_INIT	0x1F01DC01
 
 #define	FE_GLO_CFG	0x08 /*Frame Engine Global Configuration */
 #define	    EXT_VLAN_TYPE_MASK	0xffff0000
@@ -105,9 +111,10 @@
 #define	    FOE_TS_TIMESTAMP_MASK 0x0000ffff
 #define	    FOE_TS_TIMESTAMP_SHIFT 0
 
-#define	GDMA1_BASE 0x0020
-#define	GDMA2_BASE 0x0060
-#define	CDMA_BASE  0x0080
+#define	GDMA1_BASE		0x0020
+#define	GDMA2_BASE		0x0060
+#define	CDMA_BASE		0x0080
+#define	MT7620_GDMA1_BASE	0x600
 
 #define	GDMA_FWD_CFG	0x00	/* Only GDMA */
 #define	    GDM_DROP_256B	(1<<23)

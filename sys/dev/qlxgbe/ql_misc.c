@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
@@ -77,7 +79,7 @@ ql_rdwr_indreg32(qla_host_t *ha, uint32_t addr, uint32_t *val, uint32_t rd)
 	if (!count || QL_ERR_INJECT(ha, INJCT_RDWR_INDREG_FAILURE)) {
 		device_printf(ha->pci_dev, "%s: [0x%08x, 0x%08x, %d] failed\n",
 			__func__, addr, *val, rd);
-		ha->qla_initiate_recovery = 1;
+		QL_INITIATE_RECOVERY(ha);
 		return -1;
 	}
 
@@ -210,7 +212,7 @@ exit_ql_rdwr_offchip_mem:
 		(uint32_t)(addr), val->data_lo, val->data_hi, val->data_ulo,
 		val->data_uhi, rd, step);
 
-	ha->qla_initiate_recovery = 1;
+	QL_INITIATE_RECOVERY(ha);
 
 	return (-1);
 }
@@ -773,12 +775,13 @@ ql_init_hw(qla_host_t *ha)
 			}
 			qla_mdelay(__func__, 100);
 		}
-		return (-1);
+		ret = -1;
+		goto ql_init_hw_exit;
 	}
 
 	
 	val = READ_REG32(ha, Q8_CMDPEG_STATE);
-	if (!cold || (val != 0xFF01)) {
+	if (!cold || (val != 0xFF01) || ha->qla_initiate_recovery) {
         	ret = qla_init_from_flash(ha);
 		qla_mdelay(__func__, 100);
 	}
@@ -792,6 +795,13 @@ qla_init_exit:
 		device_printf(dev, "%s: qla_get_fdt failed\n", __func__);
 	} else {
 		ha->hw.flags.fdt_valid = 1;
+	}
+
+ql_init_hw_exit:
+
+	if (ret) {
+		if (ha->hw.sp_log_stop_events & Q8_SP_LOG_STOP_HW_INIT_FAILURE)
+			ha->hw.sp_log_stop = -1;
 	}
 
         return (ret);
@@ -1280,6 +1290,7 @@ qla_ld_fw_init(qla_host_t *ha)
 
 	hdr = (q8_tmplt_hdr_t *)ql83xx_resetseq;
 
+	device_printf(ha->pci_dev, "%s: reset sequence\n", __func__);
 	if (qla_tmplt_16bit_checksum(ha, (uint16_t *)ql83xx_resetseq,
 		(uint32_t)hdr->size)) {
 		device_printf(ha->pci_dev, "%s: reset seq checksum failed\n",
@@ -1290,7 +1301,7 @@ qla_ld_fw_init(qla_host_t *ha)
 
 	buf = ql83xx_resetseq + hdr->stop_seq_off;
 
-//	device_printf(ha->pci_dev, "%s: stop sequence\n", __func__);
+	device_printf(ha->pci_dev, "%s: stop sequence\n", __func__);
 	if (qla_tmplt_execute(ha, buf, index , &end_idx, hdr->nentries)) {
 		device_printf(ha->pci_dev, "%s: stop seq failed\n", __func__);
 		return -1;
@@ -1300,7 +1311,7 @@ qla_ld_fw_init(qla_host_t *ha)
 
 	buf = ql83xx_resetseq + hdr->init_seq_off;
 
-//	device_printf(ha->pci_dev, "%s: init sequence\n", __func__);
+	device_printf(ha->pci_dev, "%s: init sequence\n", __func__);
 	if (qla_tmplt_execute(ha, buf, index , &end_idx, hdr->nentries)) {
 		device_printf(ha->pci_dev, "%s: init seq failed\n", __func__);
 		return -1;
@@ -1322,7 +1333,7 @@ qla_ld_fw_init(qla_host_t *ha)
 	index = end_idx;
 	buf = ql83xx_resetseq + hdr->start_seq_off;
 
-//	device_printf(ha->pci_dev, "%s: start sequence\n", __func__);
+	device_printf(ha->pci_dev, "%s: start sequence\n", __func__);
 	if (qla_tmplt_execute(ha, buf, index , &end_idx, hdr->nentries)) {
 		device_printf(ha->pci_dev, "%s: init seq failed\n", __func__);
 		return -1;

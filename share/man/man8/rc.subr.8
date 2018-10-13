@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2016
+.Dd June 19, 2018
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -105,17 +105,7 @@ Make a backup copy of
 .Ar file
 into
 .Ar current .
-If the
-.Xr rc.conf 5
-variable
-.Va backup_uses_rcs
-is
-.Dq Li YES ,
-use
-.Xr rcs 1
-to archive the previous version of
-.Ar current ,
-otherwise save the previous version of
+Save the previous version of
 .Ar current
 as
 .Ar backup .
@@ -129,9 +119,7 @@ may be one of the following:
 .Ar file
 is now being backed up by or possibly re-entered into this backup mechanism.
 .Ar current
-is created, and if necessary, the
-.Xr rcs 1
-files are created as well.
+is created.
 .It Cm update
 .Ar file
 has changed and needs to be backed up.
@@ -139,9 +127,6 @@ If
 .Ar current
 exists, it is copied to
 .Ar backup
-or checked into
-.Xr rcs 1
-(if the repository file is old),
 and then
 .Ar file
 is copied to
@@ -149,12 +134,6 @@ is copied to
 .It Cm remove
 .Ar file
 is no longer being tracked by this backup mechanism.
-If
-.Xr rcs 1
-is being used, an empty file is checked in and
-.Ar current
-is removed,
-otherwise
 .Ar current
 is moved to
 .Ar backup .
@@ -440,7 +419,7 @@ and errors about usage of services that are not enabled in
 .Xr rc.conf 5 .
 This prefix also sets
 .Va rc_quiet Ns = Ns Li YES .
-.Em Please, note:
+.Em Please, note\&:
 .Va rc_quiet
 is not intended to completely mask all debug and warning messages,
 but only certain small classes of them.
@@ -527,7 +506,7 @@ This is done after invoking the commands from
 so that the missing modules are not loaded in vain
 if the preliminary commands indicate a error condition.
 A word in the list can have an optional
-.Dq Li : Ns Ar modname
+.Dq Li \&: Ns Ar modname
 or
 .Dq Li ~ Ns Ar pattern
 suffix.
@@ -572,9 +551,16 @@ is mounted.
 A list of environment variables to run
 .Va command
 with.
-This will be passed as arguments to
+This will be passed as arguments to the
 .Xr env 1
 utility.
+.It Va ${name}_env_file
+A file to source for environmental variables to run
+.Va command
+with.
+Note that all the variables which are being assigned in this file are going
+to be exported into the environment of
+.Va command .
 .It Va ${name}_fib
 FIB
 .Pa Routing Table
@@ -604,15 +590,28 @@ as.
 Only supported after
 .Pa /usr
 is mounted.
+.It Va ${name}_limits
+Resource limits to apply to
+.Va command .
+This will be passed as arguments to the
+.Xr limits 1
+utility.
+By default, the resource limits are based on the login class defined in
+.Va ${name}_login_class .
+.It Va ${name}_login_class
+Login class to use with
+.Va ${name}_limits .
+Defaults to
+.Dq Li daemon .
 .It Va ${name}_oomprotect
 .Xr protect 1
 .Va command
 from being killed when swap space is exhausted.
 If
-.Em YES
+.Dq Li YES
 is used, no child processes are protected.
 If
-.Em ALL ,
+.Dq Li ALL ,
 protect all child processes.
 .It Va ${name}_program
 Full path to the command.

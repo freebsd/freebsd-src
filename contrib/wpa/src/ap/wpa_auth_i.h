@@ -60,10 +60,12 @@ struct wpa_state_machine {
 	u8 SNonce[WPA_NONCE_LEN];
 	u8 alt_SNonce[WPA_NONCE_LEN];
 	u8 alt_replay_counter[WPA_REPLAY_COUNTER_LEN];
-	u8 PMK[PMK_LEN];
+	u8 PMK[PMK_LEN_MAX];
+	unsigned int pmk_len;
 	struct wpa_ptk PTK;
 	Boolean PTK_valid;
 	Boolean pairwise_set;
+	Boolean tk_already_set;
 	int keycount;
 	Boolean Pair;
 	struct wpa_key_replay_counter {
@@ -171,6 +173,7 @@ struct wpa_group {
 #endif /* CONFIG_IEEE80211W */
 	/* Number of references except those in struct wpa_group->next */
 	unsigned int references;
+	unsigned int num_setup_iface;
 };
 
 

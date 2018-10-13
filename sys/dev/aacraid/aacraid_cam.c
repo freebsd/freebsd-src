@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2010 Adaptec, Inc.
  * Copyright (c) 2010-2012 PMC-Sierra, Inc.
  * All rights reserved.
@@ -247,7 +249,7 @@ aac_cam_probe(device_t dev)
 	camsc = (struct aac_cam *)device_get_softc(dev);
 	if (!camsc->inf)
 		return (0);
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+	fwprintf(camsc->inf->aac_sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	return (0);
 }
 
@@ -1037,9 +1039,9 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol_version = SCSI_REV_SPC2;
 #endif
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "PMC-Sierra", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "PMC-Sierra", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -1136,13 +1138,13 @@ aac_container_complete(struct aac_command *cm)
 	union	ccb *ccb;
 	u_int32_t status;
 
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+	fwprintf(cm->cm_sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	ccb = cm->cm_ccb;
 	status = ((u_int32_t *)cm->cm_fib->data)[0];
 
 	if (cm->cm_flags & AAC_CMD_RESET) {
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
-	} else if (status == ST_OK) {	
+	} else if (status == ST_OK) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else if (status == ST_NOT_READY) {
 		ccb->ccb_h.status = CAM_BUSY;

@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -41,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/cpufunc.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
@@ -58,7 +56,7 @@ vm_offset_t aml8726_aobus_kva_base;
 #endif
 
 static void
-aml8726_fixup_busfreq()
+aml8726_fixup_busfreq(void)
 {
 	phandle_t node;
 	pcell_t freq, prop;
@@ -165,24 +163,6 @@ platform_devmap_init(void)
 
 	return (0);
 }
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
 
 #ifndef INTRNG
 #ifndef DEV_GIC

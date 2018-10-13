@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -85,7 +87,7 @@ g_bde_orphan(struct g_consumer *cp)
 	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
 	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, ENXIO);
+		g_wither_provider(pp, ENXIO);
 	bzero(sc, sizeof(struct g_bde_softc));	/* destroy evidence */
 	return;
 }
@@ -290,3 +292,4 @@ static struct g_class g_bde_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_bde_class, g_bde);
+MODULE_VERSION(geom_bde, 0);

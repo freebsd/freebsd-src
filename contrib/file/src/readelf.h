@@ -141,7 +141,7 @@ typedef struct {
 #define	SHT_SYMTAB	2
 #define	SHT_NOTE	7
 #define	SHT_DYNSYM	11
-#define	SHT_SUNW_cap	0x6ffffff5	/* SunOS 5.x hw/sw capabilites */
+#define	SHT_SUNW_cap	0x6ffffff5	/* SunOS 5.x hw/sw capabilities */
 
 /* elf type */
 #define	ELFDATANONE	0		/* e_ident[EI_DATA] */
@@ -230,6 +230,33 @@ typedef struct {
 } Elf64_Shdr;
 
 #define	NT_NETBSD_CORE_PROCINFO		1
+#define	NT_NETBSD_CORE_AUXV		2
+
+struct NetBSD_elfcore_procinfo {
+	/* Version 1 fields start here. */
+	uint32_t	cpi_version;		/* our version */
+	uint32_t	cpi_cpisize;		/* sizeof(this struct) */
+	uint32_t	cpi_signo;		/* killing signal */
+	uint32_t	cpi_sigcode;		/* signal code */
+	uint32_t	cpi_sigpend[4];		/* pending signals */
+	uint32_t	cpi_sigmask[4];		/* blocked signals */
+	uint32_t	cpi_sigignore[4];	/* ignored signals */
+	uint32_t	cpi_sigcatch[4];	/* caught signals */
+	int32_t		cpi_pid;		/* process ID */
+	int32_t		cpi_ppid;		/* parent process ID */
+	int32_t		cpi_pgrp;		/* process group ID */
+	int32_t		cpi_sid;		/* session ID */
+	uint32_t	cpi_ruid;		/* real user ID */
+	uint32_t	cpi_euid;		/* effective user ID */
+	uint32_t	cpi_svuid;		/* saved user ID */
+	uint32_t	cpi_rgid;		/* real group ID */
+	uint32_t	cpi_egid;		/* effective group ID */
+	uint32_t	cpi_svgid;		/* saved group ID */
+	uint32_t	cpi_nlwps;		/* number of LWPs */
+	int8_t		cpi_name[32];		/* copy of p->p_comm */
+	/* Add version 2 fields below here. */
+	int32_t		cpi_siglwp;	/* LWP target of killing signal */
+};
 
 /* Note header in a PT_NOTE section */
 typedef struct elf_note {
@@ -328,6 +355,20 @@ typedef struct {
  */
 #define NT_NETBSD_CMODEL	6
 
+/*
+ * Golang-specific note type
+ * name: Go\0\0
+ * namesz: 4
+ * desc: base-64 build id.
+ * descsz: < 128
+ */
+#define NT_GO_BUILD_ID	4
+
+/*
+ * FreeBSD specific notes
+ */
+#define NT_FREEBSD_PROCSTAT_AUXV	16
+
 #if !defined(ELFSIZE) && defined(ARCH_ELFSIZE)
 #define ELFSIZE ARCH_ELFSIZE
 #endif
@@ -397,5 +438,108 @@ typedef struct {
 #define	AV_386_SSSE3		0x00400000
 #define	AV_386_SSE4_1		0x00800000
 #define	AV_386_SSE4_2		0x01000000
+
+/*
+ * Dynamic Section structure array
+ */
+typedef struct {
+	Elf32_Word		d_tag;	/* entry tag value */
+	union {
+		Elf32_Addr	d_ptr;
+		Elf32_Word	d_val;
+	} d_un;
+} Elf32_Dyn;
+
+typedef struct {
+	Elf64_Xword		d_tag;	/* entry tag value */
+	union {
+		Elf64_Addr	d_ptr;
+		Elf64_Xword	d_val;
+	} d_un;
+} Elf64_Dyn;
+
+/* d_tag */
+#define DT_NULL		0	/* Marks end of dynamic array */
+#define DT_NEEDED	1	/* Name of needed library (DT_STRTAB offset) */
+#define DT_PLTRELSZ	2	/* Size, in bytes, of relocations in PLT */
+#define DT_PLTGOT	3	/* Address of PLT and/or GOT */
+#define DT_HASH		4	/* Address of symbol hash table */
+#define DT_STRTAB	5	/* Address of string table */
+#define DT_SYMTAB	6	/* Address of symbol table */
+#define DT_RELA		7	/* Address of Rela relocation table */
+#define DT_RELASZ	8	/* Size, in bytes, of DT_RELA table */
+#define DT_RELAENT	9	/* Size, in bytes, of one DT_RELA entry */
+#define DT_STRSZ	10	/* Size, in bytes, of DT_STRTAB table */
+#define DT_SYMENT	11	/* Size, in bytes, of one DT_SYMTAB entry */
+#define DT_INIT		12	/* Address of initialization function */
+#define DT_FINI		13	/* Address of termination function */
+#define DT_SONAME	14	/* Shared object name (DT_STRTAB offset) */
+#define DT_RPATH	15	/* Library search path (DT_STRTAB offset) */
+#define DT_SYMBOLIC	16	/* Start symbol search within local object */
+#define DT_REL		17	/* Address of Rel relocation table */
+#define DT_RELSZ	18	/* Size, in bytes, of DT_REL table */
+#define DT_RELENT	19	/* Size, in bytes, of one DT_REL entry */
+#define DT_PLTREL	20	/* Type of PLT relocation entries */
+#define DT_DEBUG	21	/* Used for debugging; unspecified */
+#define DT_TEXTREL	22	/* Relocations might modify non-writable seg */
+#define DT_JMPREL	23	/* Address of relocations associated with PLT */
+#define DT_BIND_NOW	24	/* Process all relocations at load-time */
+#define DT_INIT_ARRAY	25	/* Address of initialization function array */
+#define DT_FINI_ARRAY	26	/* Size, in bytes, of DT_INIT_ARRAY array */
+#define DT_INIT_ARRAYSZ 27	/* Address of termination function array */
+#define DT_FINI_ARRAYSZ 28	/* Size, in bytes, of DT_FINI_ARRAY array*/
+#define DT_RUNPATH	29	/* overrides DT_RPATH */
+#define DT_FLAGS	30	/* Encodes ORIGIN, SYMBOLIC, TEXTREL, BIND_NOW, STATIC_TLS */
+#define DT_ENCODING	31	/* ??? */
+#define DT_PREINIT_ARRAY 32	/* Address of pre-init function array */
+#define DT_PREINIT_ARRAYSZ 33	/* Size, in bytes, of DT_PREINIT_ARRAY array */
+#define DT_NUM		34
+
+#define DT_LOOS		0x60000000	/* Operating system specific range */
+#define DT_VERSYM	0x6ffffff0	/* Symbol versions */
+#define DT_FLAGS_1	0x6ffffffb	/* ELF dynamic flags */
+#define DT_VERDEF	0x6ffffffc	/* Versions defined by file */
+#define DT_VERDEFNUM	0x6ffffffd	/* Number of versions defined by file */
+#define DT_VERNEED	0x6ffffffe	/* Versions needed by file */
+#define DT_VERNEEDNUM	0x6fffffff	/* Number of versions needed by file */
+#define DT_HIOS		0x6fffffff
+#define DT_LOPROC	0x70000000	/* Processor-specific range */
+#define DT_HIPROC	0x7fffffff
+
+/* Flag values for DT_FLAGS */
+#define DF_ORIGIN	0x00000001	/* uses $ORIGIN */
+#define DF_SYMBOLIC	0x00000002	/* */
+#define DF_TEXTREL	0x00000004	/* */
+#define DF_BIND_NOW	0x00000008	/* */
+#define DF_STATIC_TLS	0x00000010	/* */
+
+/* Flag values for DT_FLAGS_1 */
+#define	DF_1_NOW	0x00000001	/* Same as DF_BIND_NOW */
+#define	DF_1_GLOBAL	0x00000002	/* Unused */
+#define	DF_1_GROUP	0x00000004	/* Is member of group */
+#define	DF_1_NODELETE	0x00000008	/* Cannot be deleted from process */
+#define	DF_1_LOADFLTR	0x00000010	/* Immediate loading of filters */
+#define	DF_1_INITFIRST	0x00000020	/* init/fini takes priority */
+#define	DF_1_NOOPEN	0x00000040	/* Do not allow loading on dlopen() */
+#define	DF_1_ORIGIN	0x00000080 	/* Require $ORIGIN processing */
+#define	DF_1_DIRECT	0x00000100	/* Enable direct bindings */
+#define	DF_1_INTERPOSE 	0x00000400	/* Is an interposer */
+#define	DF_1_NODEFLIB	0x00000800 	/* Ignore default library search path */
+#define	DF_1_NODUMP	0x00001000 	/* Cannot be dumped with dldump(3C) */
+#define	DF_1_CONFALT	0x00002000 	/* Configuration alternative */
+#define	DF_1_ENDFILTEE	0x00004000	/* Filtee ends filter's search */
+#define	DF_1_DISPRELDNE	0x00008000	/* Did displacement relocation */
+#define	DF_1_DISPRELPND 0x00010000	/* Pending displacement relocation */
+#define	DF_1_NODIRECT	0x00020000 	/* Has non-direct bindings */
+#define	DF_1_IGNMULDEF	0x00040000	/* Used internally */
+#define	DF_1_NOKSYMS	0x00080000	/* Used internally */
+#define	DF_1_NOHDR	0x00100000	/* Used internally */
+#define	DF_1_EDITED	0x00200000	/* Has been modified since build */
+#define	DF_1_NORELOC	0x00400000 	/* Used internally */
+#define	DF_1_SYMINTPOSE 0x00800000 	/* Has individual symbol interposers */
+#define	DF_1_GLOBAUDIT	0x01000000	/* Require global auditing */
+#define	DF_1_SINGLETON	0x02000000	/* Has singleton symbols */
+#define	DF_1_STUB	0x04000000	/* Stub */
+#define	DF_1_PIE	0x08000000	/* Position Independent Executable */
 
 #endif

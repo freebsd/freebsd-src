@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -62,6 +64,12 @@ struct lpteg {
 	struct lpte pt[8];
 };
 
+/* Partition table entry */
+struct pate {
+	u_int64_t pagetab;
+	u_int64_t proctab;
+};
+
 #endif	/* LOCORE */
 
 /* 32-bit PTE definitions */
@@ -123,6 +131,37 @@ struct lpteg {
 #define	LPTE_RW		LPTE_BW
 #define	LPTE_RO		LPTE_BR
 
+/* POWER ISA 3.0 Radix Table Definitions */
+#define	RPTE_VALID		0x8000000000000000ULL
+#define	RPTE_LEAF		0x4000000000000000ULL /* is a PTE: always 1 */
+#define	RPTE_SW0		0x2000000000000000ULL
+#define	RPTE_RPN_MASK		0x00FFFFFFFFFFF000ULL
+#define	RPTE_RPN_SHIFT		12
+#define	RPTE_SW1		0x0000000000000800ULL
+#define	RPTE_SW2		0x0000000000000400ULL
+#define	RPTE_SW3		0x0000000000000200ULL
+#define	RPTE_R			0x0000000000000100ULL
+#define	RPTE_C			0x0000000000000080ULL
+
+#define	RPTE_ATTR_MASK		0x0000000000000030ULL
+#define	RPTE_ATTR_MEM		0x0000000000000000ULL /* PTE M */
+#define	RPTE_ATTR_SAO		0x0000000000000010ULL /* PTE WIM */
+#define	RPTE_ATTR_GUARDEDIO	0x0000000000000020ULL /* PTE IMG */
+#define	RPTE_ATTR_UNGUARDEDIO	0x0000000000000030ULL /* PTE IM */
+
+#define	RPTE_EAA_MASK		0x000000000000000FULL
+#define	RPTE_EAA_P		0x0000000000000008ULL /* Supervisor only */
+#define	RPTE_EAA_R		0x0000000000000004ULL /* Read allowed */
+#define	RPTE_EAA_W		0x0000000000000002ULL /* Write (+read) */
+#define	RPTE_EAA_X		0x0000000000000001ULL /* Execute allowed */
+
+#define	RPDE_VALID		RPTE_VALID
+#define	RPDE_LEAF		RPTE_LEAF             /* is a PTE: always 0 */
+#define	RPDE_NLB_MASK		0x0FFFFFFFFFFFFF00ULL
+#define	RPDE_NLB_SHIFT		8
+#define	RPDE_NLS_MASK		0x000000000000001FULL
+
+
 #ifndef	LOCORE
 typedef	struct pte pte_t;
 typedef	struct lpte lpte_t;
@@ -162,6 +201,83 @@ typedef	struct lpte lpte_t;
 
 #include <machine/tlb.h>
 
+#ifdef __powerpc64__
+
+#include <machine/tlb.h>
+
+/*
+ * The virtual address is:
+ *
+ * 4K page size
+ *   +-----+-----+-----+-------+-------------+-------------+----------------+
+ *   |  -  |p2d#h|  -  | p2d#l |     dir#    |     pte#    | off in 4K page |
+ *   +-----+-----+-----+-------+-------------+-------------+----------------+
+ *    63 62 61 60 59 40 39   30 29    ^    21 20    ^    12 11             0
+ *                                    |             |
+ *                                index in 1 page of pointers
+ *
+ * 1st level - pointers to page table directory (pp2d)
+ *
+ * pp2d consists of PP2D_NENTRIES entries, each being a pointer to
+ * second level entity, i.e. the page table directory (pdir).
+ */
+#define HARDWARE_WALKER
+#define PP2D_H_H		61
+#define PP2D_H_L		60
+#define PP2D_L_H		39
+#define PP2D_L_L		30	/* >30 would work with no page table pool */
+#ifndef LOCORE
+#define PP2D_SIZE		(1UL << PP2D_L_L)	/* va range mapped by pp2d */
+#else
+#define PP2D_SIZE		(1 << PP2D_L_L)	/* va range mapped by pp2d */
+#endif
+#define PP2D_L_SHIFT		PP2D_L_L
+#define PP2D_L_NUM		(PP2D_L_H-PP2D_L_L+1)
+#define PP2D_L_MASK		((1<<PP2D_L_NUM)-1)
+#define PP2D_H_SHIFT		(PP2D_H_L-PP2D_L_NUM)
+#define PP2D_H_NUM		(PP2D_H_H-PP2D_H_L+1)
+#define PP2D_H_MASK		(((1<<PP2D_H_NUM)-1)<<PP2D_L_NUM)
+#define PP2D_IDX(va)		(((va >> PP2D_H_SHIFT) & PP2D_H_MASK) | ((va >> PP2D_L_SHIFT) & PP2D_L_MASK))
+#define PP2D_NENTRIES		(1<<(PP2D_L_NUM+PP2D_H_NUM))
+#define PP2D_ENTRY_SHIFT	3	/* log2 (sizeof(struct pte_entry **)) */
+
+/*
+ * 2nd level - page table directory (pdir)
+ *
+ * pdir consists of PDIR_NENTRIES entries, each being a pointer to
+ * second level entity, i.e. the actual page table (ptbl).
+ */
+#define PDIR_H			(PP2D_L_L-1)
+#define PDIR_L			21
+#define PDIR_NUM		(PDIR_H-PDIR_L+1)
+#define PDIR_SIZE		(1 << PDIR_L)	/* va range mapped by pdir */
+#define PDIR_MASK		((1<<PDIR_NUM)-1)
+#define PDIR_SHIFT		PDIR_L
+#define PDIR_NENTRIES		(1<<PDIR_NUM)
+#define PDIR_IDX(va)		(((va) >> PDIR_SHIFT) & PDIR_MASK)
+#define PDIR_ENTRY_SHIFT	3	/* log2 (sizeof(struct pte_entry *)) */
+#define PDIR_PAGES		((PDIR_NENTRIES * (1<<PDIR_ENTRY_SHIFT)) / PAGE_SIZE)
+
+/*
+ * 3rd level - page table (ptbl)
+ *
+ * Page table covers PTBL_NENTRIES page table entries. Page
+ * table entry (pte) is 64 bit wide and defines mapping
+ * for a single page.
+ */
+#define PTBL_H			(PDIR_L-1)
+#define PTBL_L			PAGE_SHIFT
+#define PTBL_NUM		(PTBL_H-PTBL_L+1)
+#define PTBL_MASK		((1<<PTBL_NUM)-1)
+#define PTBL_SHIFT		PTBL_L
+#define PTBL_SIZE		PAGE_SIZE	/* va range mapped by ptbl entry */
+#define PTBL_NENTRIES		(1<<PTBL_NUM)
+#define PTBL_IDX(va)		((va >> PTBL_SHIFT) & PTBL_MASK)
+#define PTBL_ENTRY_SHIFT	 3	/* log2 (sizeof (struct pte_entry)) */
+#define PTBL_PAGES		((PTBL_NENTRIES * (1<<PTBL_ENTRY_SHIFT)) / PAGE_SIZE)
+
+#define KERNEL_LINEAR_MAX	0xc000000040000000
+#else
 /*
  * 1st level - page table directory (pdir)
  *
@@ -196,6 +312,8 @@ typedef	struct lpte lpte_t;
 /* Size of ptbl in pages, 1024 entries, each sizeof(struct pte_entry). */
 #define PTBL_PAGES	2
 #define PTBL_ENTRY_SHIFT 3	/* entry size is 2^3 = 8 bytes */
+
+#endif
 
 /*
  * Flags for pte_remove() routine.
@@ -267,6 +385,29 @@ typedef uint64_t pte_t;
 #define PTE_WIRED	0x00002000	/* Wired */
 #define PTE_MANAGED	0x00000002	/* Managed */
 #define PTE_REFERENCED	0x00040000	/* Referenced */
+
+/*
+ * Page Table Entry definitions and macros.
+ *
+ * We use the hardware page table entry format:
+ *
+ * 63       24 23 19 18 17 14  13 12 11  8  7  6  5  4  3  2  1  0
+ * ---------------------------------------------------------------
+ * ARPN(12:51) WIMGE  R U0:U3 SW0 C  PSIZE UX SX UW SW UR SR SW1 V
+ * ---------------------------------------------------------------
+ */
+
+/* PTE fields. */
+#define PTE_TSIZE_SHIFT		(63-54)
+#define PTE_TSIZE_MASK		0x7
+#define PTE_TSIZE_SHIFT_DIRECT	(63-55)
+#define PTE_TSIZE_MASK_DIRECT	0xf
+#define PTE_PS_DIRECT(ps)	(ps<<PTE_TSIZE_SHIFT_DIRECT)	/* Direct Entry Page Size */
+#define PTE_PS(ps)		(ps<<PTE_TSIZE_SHIFT)	/* Page Size */
+
+/* Macro argument must of pte_t type. */
+#define PTE_TSIZE(pte)		(int)((*pte >> PTE_TSIZE_SHIFT) & PTE_TSIZE_MASK)
+#define PTE_TSIZE_DIRECT(pte)	(int)((*pte >> PTE_TSIZE_SHIFT_DIRECT) & PTE_TSIZE_MASK_DIRECT)
 
 /* Macro argument must of pte_t type. */
 #define	PTE_ARPN_SHIFT		12

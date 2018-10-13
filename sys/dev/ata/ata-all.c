@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -314,13 +316,13 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-	if (ch->flags & ATA_PERIODIC_POLL)
-		callout_drain(&ch->poll_callout);
-	mtx_lock(&ch->state_mtx);
-	xpt_freeze_simq(ch->sim, 1);
-	while (ch->state != ATA_IDLE)
-		msleep(ch, &ch->state_mtx, PRIBIO, "atasusp", hz/100);
-	mtx_unlock(&ch->state_mtx);
+    if (ch->flags & ATA_PERIODIC_POLL)
+	callout_drain(&ch->poll_callout);
+    mtx_lock(&ch->state_mtx);
+    xpt_freeze_simq(ch->sim, 1);
+    while (ch->state != ATA_IDLE)
+	msleep(ch, &ch->state_mtx, PRIBIO, "atasusp", hz/100);
+    mtx_unlock(&ch->state_mtx);
     return(0);
 }
 
@@ -1013,10 +1015,6 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		}
 		ata_cam_begin_transaction(dev, ccb);
 		return;
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -1167,9 +1165,9 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			cpi->base_transfer_speed = 150000;
 		else
 			cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "ATA", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "ATA", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		if (ch->flags & ATA_SATA)
 			cpi->transport = XPORT_SATA;

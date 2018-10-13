@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
  *
@@ -42,13 +44,20 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+/* XXX: Userland code compiled with gcc will need an heuristic
+ * to be correctly detected. 
+ */
+#ifdef __clang__
+#define PC_OFF 1
+#define FP_OFF 0
+#else
+#define PC_OFF -1
+#define FP_OFF -3
+#endif
+
 struct pmc_mdep *
 pmc_md_initialize()
 {
-#ifdef CPU_XSCALE_IXP425
-	if (cpu_class == CPU_CLASS_XSCALE)
-		return pmc_xscale_initialize();
-#endif
 #ifdef CPU_CORTEXA
 	if (cpu_class == CPU_CLASS_CORTEXA)
 		return pmc_armv7_initialize();
@@ -59,13 +68,6 @@ pmc_md_initialize()
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
-#ifdef CPU_XSCALE_IXP425
-	if (cpu_class == CPU_CLASS_XSCALE)
-		pmc_xscale_finalize(md);
-	else
-		KASSERT(0, ("[arm,%d] Unknown CPU Class 0x%x", __LINE__,
-		    cpu_class));
-#endif
 #ifdef CPU_CORTEXA
 	if (cpu_class == CPU_CLASS_CORTEXA)
 		pmc_armv7_finalize(md);
@@ -100,7 +102,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
 
 	for (count = 1; count < maxsamples; count++) {
 		/* Use saved lr as pc. */
-		r = fp - sizeof(uintptr_t);
+		r = fp + PC_OFF * sizeof(uintptr_t);
 		if (!PMC_IN_KERNEL_STACK(r, stackstart, stackend))
 			break;
 		pc = *(uintptr_t *)r;
@@ -110,7 +112,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
 		*cc++ = pc;
 
 		/* Switch to next frame up */
-		r = fp - 3 * sizeof(uintptr_t);
+		r = fp + FP_OFF * sizeof(uintptr_t);
 		if (!PMC_IN_KERNEL_STACK(r, stackstart, stackend))
 			break;
 		fp = *(uintptr_t *)r;
@@ -147,7 +149,7 @@ pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
 
 	for (count = 1; count < maxsamples; count++) {
 		/* Use saved lr as pc. */
-		r = fp - sizeof(uintptr_t);
+		r = fp + PC_OFF * sizeof(uintptr_t);
 		if (copyin((void *)r, &pc, sizeof(pc)) != 0)
 			break;
 		if (!PMC_IN_USERSPACE(pc))
@@ -157,7 +159,7 @@ pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
 
 		/* Switch to next frame up */
 		oldfp = fp;
-		r = fp - 3 * sizeof(uintptr_t);
+		r = fp + FP_OFF * sizeof(uintptr_t);
 		if (copyin((void *)r, &fp, sizeof(fp)) != 0)
 			break;
 		if (fp < oldfp || !PMC_IN_USERSPACE(fp))

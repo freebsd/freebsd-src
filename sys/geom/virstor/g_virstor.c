@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2007 Ivan Voras <ivoras@freebsd.org>
  * All rights reserved.
  *
@@ -900,11 +902,9 @@ remove_component(struct g_virstor_softc *sc, struct g_virstor_component *comp,
 	LOG_MSG(LVL_DEBUG, "Component %s removed from %s", c->provider->name,
 	    sc->geom->name);
 	if (sc->provider != NULL) {
-		/* Whither, GEOM? */
-		sc->provider->flags |= G_PF_WITHER;
-		g_orphan_provider(sc->provider, ENXIO);
+		LOG_MSG(LVL_INFO, "Removing provider %s", sc->provider->name);
+		g_wither_provider(sc->provider, ENXIO);
 		sc->provider = NULL;
-		LOG_MSG(LVL_INFO, "Removing provider %s", sc->geom->name);
 	}
 
 	if (c->acr > 0 || c->acw > 0 || c->ace > 0)
@@ -1042,6 +1042,7 @@ write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 	pp = cp->provider;
 
 	buf = malloc(pp->sectorsize, M_GVIRSTOR, M_WAITOK);
+	bzero(buf, pp->sectorsize);
 	virstor_metadata_encode(md, buf);
 	g_topology_unlock();
 	error = g_write_data(cp, pp->mediasize - pp->sectorsize, buf,
@@ -1890,3 +1891,4 @@ invalid_call(void)
 }
 
 DECLARE_GEOM_CLASS(g_virstor_class, g_virstor); /* Let there be light */
+MODULE_VERSION(geom_virstor, 0);

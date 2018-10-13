@@ -36,10 +36,13 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
 #include "dma.h"
+
+#define MAX_LINE_RFC822	1000
 
 void
 bounce(struct qitem *it, const char *reason)
@@ -341,19 +344,47 @@ newaddr:
 	goto again;
 }
 
+static int
+writeline(struct queue *queue, const char *line, ssize_t linelen)
+{
+	ssize_t len;
+
+	while (linelen > 0) {
+		len = linelen;
+		if (linelen > MAX_LINE_RFC822) {
+			len = MAX_LINE_RFC822 - 10;
+		}
+
+		if (fwrite(line, len, 1, queue->mailf) != 1)
+			return (-1);
+
+		if (linelen <= MAX_LINE_RFC822)
+			break;
+
+		if (fwrite("\n", 1, 1, queue->mailf) != 1)
+			return (-1);
+
+		line += MAX_LINE_RFC822 - 10;
+		linelen = strlen(line);
+	}
+	return (0);
+}
+
 int
 readmail(struct queue *queue, int nodot, int recp_from_header)
 {
 	struct parse_state parse_state;
-	char line[1000];	/* by RFC2822 */
-	size_t linelen;
+	char *line = NULL;
+	ssize_t linelen;
+	size_t linecap = 0;
+	char newline[MAX_LINE_RFC822];
 	size_t error;
 	int had_headers = 0;
 	int had_from = 0;
 	int had_messagid = 0;
 	int had_date = 0;
-	int had_last_line = 0;
 	int nocopy = 0;
+	int ret = -1;
 
 	parse_state.state = NONE;
 
@@ -372,24 +403,17 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 		return (-1);
 
 	while (!feof(stdin)) {
-		if (fgets(line, sizeof(line) - 1, stdin) == NULL)
+		newline[0] = '\0';
+		if ((linelen = getline(&line, &linecap, stdin)) <= 0)
 			break;
-		if (had_last_line)
-			errlogx(EX_DATAERR, "bad mail input format:"
-				" from %s (uid %d) (envelope-from %s)",
-				username, useruid, queue->sender);
-		linelen = strlen(line);
-		if (linelen == 0 || line[linelen - 1] != '\n') {
-			/*
-			 * This line did not end with a newline character.
-			 * If we fix it, it better be the last line of
-			 * the file.
-			 */
-			line[linelen] = '\n';
-			line[linelen + 1] = 0;
-			had_last_line = 1;
-		}
+
 		if (!had_headers) {
+			if (linelen > MAX_LINE_RFC822) {
+				/* XXX also split headers */
+				errlogx(EX_DATAERR, "bad mail input format:"
+				    " from %s (uid %d) (envelope-from %s)",
+				    username, useruid, queue->sender);
+			}
 			/*
 			 * Unless this is a continuation, switch of
 			 * the Bcc: nocopy flag.
@@ -430,31 +454,39 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 			while (!had_date || !had_messagid || !had_from) {
 				if (!had_date) {
 					had_date = 1;
-					snprintf(line, sizeof(line), "Date: %s\n", rfc822date());
+					snprintf(newline, sizeof(newline), "Date: %s\n", rfc822date());
 				} else if (!had_messagid) {
 					/* XXX msgid, assign earlier and log? */
 					had_messagid = 1;
-					snprintf(line, sizeof(line), "Message-Id: <%"PRIxMAX".%s.%"PRIxMAX"@%s>\n",
+					snprintf(newline, sizeof(newline), "Message-Id: <%"PRIxMAX".%s.%"PRIxMAX"@%s>\n",
 						 (uintmax_t)time(NULL),
 						 queue->id,
 						 (uintmax_t)random(),
 						 hostname());
 				} else if (!had_from) {
 					had_from = 1;
-					snprintf(line, sizeof(line), "From: <%s>\n", queue->sender);
+					snprintf(newline, sizeof(newline), "From: <%s>\n", queue->sender);
 				}
-				if (fwrite(line, strlen(line), 1, queue->mailf) != 1)
-					return (-1);
+				if (fwrite(newline, strlen(newline), 1, queue->mailf) != 1)
+					goto fail;
 			}
-			strcpy(line, "\n");
+			strlcpy(newline, "\n", sizeof(newline));
 		}
 		if (!nodot && linelen == 2 && line[0] == '.')
 			break;
 		if (!nocopy) {
-			if (fwrite(line, strlen(line), 1, queue->mailf) != 1)
-				return (-1);
+			if (newline[0]) {
+				if (fwrite(newline, strlen(newline), 1, queue->mailf) != 1)
+					goto fail;
+			} else {
+				if (writeline(queue, line, linelen) != 0)
+					goto fail;
+			}
 		}
 	}
 
-	return (0);
+	ret = 0;
+fail:
+	free(line);
+	return (ret);
 }

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2016
+.Dd June 27, 2018
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -145,6 +145,12 @@ is specified as a series of colon-separated hex digits.
 This can be used to, for example,
 set a new MAC address on an Ethernet interface, though the
 mechanism used is not Ethernet specific.
+Use the
+.Pq Dq random
+keyword to set a randomly generated MAC address.
+A randomly-generated MAC address might be the same as one already in use
+in the network.
+Such duplications are extremely unlikely.
 If the interface is already
 up when this option is used, it will be briefly brought down and
 then brought back up again in order to ensure that the receive
@@ -254,7 +260,7 @@ Display subnet masks in dotted quad notation, for example:
 .br
 255.255.0.0 or 255.255.255.192
 .It Sy hex
-Display subnet masks in hexidecimal, for example:
+Display subnet masks in hexadecimal, for example:
 .br
 0xffff0000 or 0xffffffc0
 .El
@@ -454,6 +460,8 @@ this directive is used to select between 802.11a
 and 802.11g
 .Pq Cm 11g
 operating modes.
+.It Cm txrtlmt
+Set if the driver supports TX rate limiting.
 .It Cm inst Ar minst , Cm instance Ar minst
 Set the media instance to
 .Ar minst .
@@ -716,10 +724,6 @@ controls whether this flag is set by default or not.
 .It Cm -accept_rtadv
 Clear a flag
 .Cm accept_rtadv .
-.It Cm autoconf
-Set a flag to accept router advertisements on an interface.
-.It Fl autoconf
-Disable autoconfiguration.
 .It Cm no_radr
 Set a flag to control whether routers from which the system accepts
 Router Advertisement messages will be added to the Default Router List
@@ -792,6 +796,10 @@ Note that the address family keyword
 .Dq Li inet6
 is needed for them:
 .Bl -tag -width indent
+.It Cm autoconf
+Set the IPv6 autoconfigured address bit.
+.It Fl autoconf
+Clear the IPv6 autoconfigured address bit.
 .It Cm deprecated
 Set the IPv6 deprecated address bit.
 .It Fl deprecated
@@ -824,13 +832,13 @@ is one of
 .Cm sta ,
 .Cm ahdemo
 (or
-.Cm adhoc-demo ),
+.Cm adhoc-demo ) ,
 .Cm ibss ,
 (or
-.Cm adhoc ),
+.Cm adhoc ) ,
 .Cm ap ,
 (or
-.Cm hostap ),
+.Cm hostap ) ,
 .Cm wds ,
 .Cm tdma ,
 .Cm mesh ,
@@ -2510,7 +2518,7 @@ means
 Disable lacp strict compliance on the interface.
 .El
 .Pp
-The following parameters are specific to IP tunnel interfaces,
+The following parameters apply to IP tunnel interfaces,
 .Xr gif 4 :
 .Bl -tag -width indent
 .It Cm tunnel Ar src_addr dest_addr
@@ -2560,9 +2568,26 @@ Clear a flag
 .Cm send_rev_ethip_ver .
 .El
 .Pp
-The following parameters are specific to GRE tunnel interfaces,
+The following parameters apply to GRE tunnel interfaces,
 .Xr gre 4 :
 .Bl -tag -width indent
+.It Cm tunnel Ar src_addr dest_addr
+Configure the physical source and destination address for GRE tunnel
+interfaces.
+The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Fl tunnel
+Unconfigure the physical source and destination address for GRE tunnel
+interfaces previously configured with
+.Cm tunnel .
+.It Cm deletetunnel
+Another name for the
+.Fl tunnel
+parameter.
 .It Cm grekey Ar key
 Configure the GRE key to be used for outgoing packets.
 Note that
@@ -2615,13 +2640,13 @@ and
 .Cm vlandev
 must both be set at the same time.
 .It Cm vlanpcp Ar priority_code_point
-Priority code point 
+Priority code point
 .Pq Dv PCP
 is an 3-bit field which refers to the IEEE 802.1p
 class of service and maps to the frame priority level.
 .Pp
 Values in order of priority are:
-.Cm 1 
+.Cm 1
 .Pq Dv Background (lowest) ,
 .Cm 0
 .Pq Dv Best effort (default) ,
@@ -2759,7 +2784,7 @@ interface to send the frame directly to the remote host instead of
 broadcasting the frame to the multicast group.
 This is the default.
 .It Fl vxlanlearn
-The forwarding table is not populated by recevied packets.
+The forwarding table is not populated by received packets.
 .It Cm vxlanflush
 Delete all dynamically-learned addresses from the forwarding table.
 .It Cm vxlanflushall

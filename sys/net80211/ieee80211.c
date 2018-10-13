@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_superg.h>
 #endif
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_vht.h>
 
 #include <net/bpf.h>
 
@@ -70,6 +73,8 @@ const char *ieee80211_phymode_name[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]  = "quarter",
 	[IEEE80211_MODE_11NA]	  = "11na",
 	[IEEE80211_MODE_11NG]	  = "11ng",
+	[IEEE80211_MODE_VHT_2GHZ]	  = "11acg",
+	[IEEE80211_MODE_VHT_5GHZ]	  = "11ac",
 };
 /* map ieee80211_opmode to the corresponding capability bit */
 const int ieee80211_opcap[IEEE80211_OPMODE_MAX] = {
@@ -90,6 +95,7 @@ const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ext_locked(struct ieee80211com *ic, int flag);
+static	void ieee80211_syncflag_vht_locked(struct ieee80211com *ic, int flag);
 static	int ieee80211_media_setup(struct ieee80211com *ic,
 		struct ifmedia *media, int caps, int addsta,
 		ifm_change_cb_t media_change, ifm_stat_cb_t media_stat);
@@ -115,6 +121,8 @@ static const struct ieee80211_rateset ieee80211_rateset_11b =
 static const struct ieee80211_rateset ieee80211_rateset_11g =
 	{ 12, { B(2), B(4), B(11), B(22), 12, 18, 24, 36, 48, 72, 96, 108 } };
 #undef B
+
+static int set_vht_extchan(struct ieee80211_channel *c);
 
 /*
  * Fill in 802.11 available channel set, mark
@@ -147,10 +155,23 @@ ieee80211_chan_init(struct ieee80211com *ic)
 		 */
 		if (c->ic_ieee == 0)
 			c->ic_ieee = ieee80211_mhz2ieee(c->ic_freq,c->ic_flags);
+
+		/*
+		 * Setup the HT40/VHT40 upper/lower bits.
+		 * The VHT80 math is done elsewhere.
+		 */
 		if (IEEE80211_IS_CHAN_HT40(c) && c->ic_extieee == 0)
 			c->ic_extieee = ieee80211_mhz2ieee(c->ic_freq +
 			    (IEEE80211_IS_CHAN_HT40U(c) ? 20 : -20),
 			    c->ic_flags);
+
+		/* Update VHT math */
+		/*
+		 * XXX VHT again, note that this assumes VHT80 channels
+		 * are legit already
+		 */
+		set_vht_extchan(c);
+
 		/* default max tx power to max regulatory */
 		if (c->ic_maxpower == 0)
 			c->ic_maxpower = 2*c->ic_maxregpower;
@@ -180,6 +201,10 @@ ieee80211_chan_init(struct ieee80211com *ic)
 			setbit(ic->ic_modecaps, IEEE80211_MODE_11NA);
 		if (IEEE80211_IS_CHAN_HTG(c))
 			setbit(ic->ic_modecaps, IEEE80211_MODE_11NG);
+		if (IEEE80211_IS_CHAN_VHTA(c))
+			setbit(ic->ic_modecaps, IEEE80211_MODE_VHT_5GHZ);
+		if (IEEE80211_IS_CHAN_VHTG(c))
+			setbit(ic->ic_modecaps, IEEE80211_MODE_VHT_2GHZ);
 	}
 	/* initialize candidate channels to all available */
 	memcpy(ic->ic_chan_active, ic->ic_chan_avail,
@@ -207,6 +232,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_QUARTER,	 ieee80211_rateset_quarter);
 	DEFAULTRATES(IEEE80211_MODE_11NA,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
+	DEFAULTRATES(IEEE80211_MODE_VHT_2GHZ,	 ieee80211_rateset_11g);
+	DEFAULTRATES(IEEE80211_MODE_VHT_5GHZ,	 ieee80211_rateset_11a);
 
 	/*
 	 * Setup required information to fill the mcsset field, if driver did
@@ -216,6 +243,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 		ic->ic_rxstream = 2;
 	if (ic->ic_txstream == 0)
 		ic->ic_txstream = 2;
+
+	ieee80211_init_suphtrates(ic);
 
 	/*
 	 * Set auto mode to reset active channel state and any desired channel.
@@ -247,14 +276,14 @@ null_update_chw(struct ieee80211com *ic)
 
 int
 ic_printf(struct ieee80211com *ic, const char * fmt, ...)
-{ 
+{
 	va_list ap;
 	int retval;
 
 	retval = printf("%s: ", ic->ic_name);
 	va_start(ap, fmt);
 	retval += vprintf(fmt, ap);
-	va_end(ap);  
+	va_end(ap);
 	return (retval);
 }
 
@@ -334,6 +363,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ieee80211_superg_attach(ic);
 #endif
 	ieee80211_ht_attach(ic);
+	ieee80211_vht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
 	ieee80211_dfs_attach(ic);
@@ -356,6 +386,15 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap;
 
+	/*
+	 * We use this as an indicator that ifattach never had a chance to be
+	 * called, e.g. early driver attach failed and ifdetach was called
+	 * during subsequent detach.  Never fear, for we have nothing to do
+	 * here.
+	 */
+	if (ic->ic_tq == NULL)
+		return;
+
 	mtx_lock(&ic_list_mtx);
 	LIST_REMOVE(ic, ic_next);
 	mtx_unlock(&ic_list_mtx);
@@ -377,6 +416,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_superg_detach(ic);
 #endif
+	ieee80211_vht_detach(ic);
 	ieee80211_ht_detach(ic);
 	/* NB: must be called before ieee80211_node_detach */
 	ieee80211_proto_detach(ic);
@@ -430,6 +470,22 @@ static int
 default_reset(struct ieee80211vap *vap, u_long cmd)
 {
 	return ENETRESET;
+}
+
+/*
+ * Default for updating the VAP default TX key index.
+ *
+ * Drivers that support TX offload as well as hardware encryption offload
+ * may need to be informed of key index changes separate from the key
+ * update.
+ */
+static void
+default_update_deftxkey(struct ieee80211vap *vap, ieee80211_keyix kid)
+{
+
+	/* XXX assert validity */
+	/* XXX assert we're in a key update block */
+	vap->iv_def_txkey = kid;
 }
 
 /*
@@ -490,8 +546,15 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_flags_ext = ic->ic_flags_ext;
 	vap->iv_flags_ven = ic->ic_flags_ven;
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
+
+	/* 11n capabilities - XXX methodize */
 	vap->iv_htcaps = ic->ic_htcaps;
 	vap->iv_htextcaps = ic->ic_htextcaps;
+
+	/* 11ac capabilities - XXX methodize */
+	vap->iv_vhtcaps = ic->ic_vhtcaps;
+	vap->iv_vhtextcaps = ic->ic_vhtextcaps;
+
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	IEEE80211_ADDR_COPY(vap->iv_myaddr, ic->ic_macaddr);
@@ -561,6 +624,12 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	 */
 	vap->iv_reset = default_reset;
 
+	/*
+	 * Install a default crypto key update method, the driver
+	 * can override this.
+	 */
+	vap->iv_update_deftxkey = default_update_deftxkey;
+
 	ieee80211_sysctl_vattach(vap);
 	ieee80211_crypto_vattach(vap);
 	ieee80211_node_vattach(vap);
@@ -570,6 +639,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_superg_vattach(vap);
 #endif
 	ieee80211_ht_vattach(vap);
+	ieee80211_vht_vattach(vap);
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
@@ -630,12 +700,18 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
+
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_VHT);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT40);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT160);
 	IEEE80211_UNLOCK(ic);
 
 	return 1;
 }
 
-/* 
+/*
  * Tear down vap state and reclaim the ifnet.
  * The driver is assumed to have prepared for
  * this; e.g. by turning off interrupts for the
@@ -662,6 +738,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	 */
 	ieee80211_draintask(ic, &vap->iv_nstate_task);
 	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+	ieee80211_draintask(ic, &vap->iv_wme_task);
+	ieee80211_draintask(ic, &ic->ic_parent_task);
 
 	/* XXX band-aid until ifnet handles this for us */
 	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
@@ -677,6 +755,13 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
+
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_VHT);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT40);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT160);
+
 	/* NB: this handles the bpfdetach done below */
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	if (vap->iv_ifflags & IFF_PROMISC)
@@ -693,6 +778,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_superg_vdetach(vap);
 #endif
+	ieee80211_vht_vdetach(vap);
 	ieee80211_ht_vdetach(vap);
 	/* NB: must be before ieee80211_node_vdetach */
 	ieee80211_proto_vdetach(vap);
@@ -827,6 +913,46 @@ ieee80211_syncflag_ht(struct ieee80211vap *vap, int flag)
 	} else
 		vap->iv_flags_ht |= flag;
 	ieee80211_syncflag_ht_locked(ic, flag);
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Synchronize flags_vht bit state in the com structure
+ * according to the state of all vap's.  This is used,
+ * for example, to handle state changes via ioctls.
+ */
+static void
+ieee80211_syncflag_vht_locked(struct ieee80211com *ic, int flag)
+{
+	struct ieee80211vap *vap;
+	int bit;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
+	bit = 0;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_flags_vht & flag) {
+			bit = 1;
+			break;
+		}
+	if (bit)
+		ic->ic_flags_vht |= flag;
+	else
+		ic->ic_flags_vht &= ~flag;
+}
+
+void
+ieee80211_syncflag_vht(struct ieee80211vap *vap, int flag)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	if (flag < 0) {
+		flag = -flag;
+		vap->iv_flags_vht &= ~flag;
+	} else
+		vap->iv_flags_vht |= flag;
+	ieee80211_syncflag_vht_locked(ic, flag);
 	IEEE80211_UNLOCK(ic);
 }
 
@@ -997,6 +1123,110 @@ set_extchan(struct ieee80211_channel *c)
 		c->ic_extieee = 0;
 }
 
+/*
+ * Populate the freq1/freq2 fields as appropriate for VHT channels.
+ *
+ * This for now uses a hard-coded list of 80MHz wide channels.
+ *
+ * For HT20/HT40, freq1 just is the centre frequency of the 40MHz
+ * wide channel we've already decided upon.
+ *
+ * For VHT80 and VHT160, there are only a small number of fixed
+ * 80/160MHz wide channels, so we just use those.
+ *
+ * This is all likely very very wrong - both the regulatory code
+ * and this code needs to ensure that all four channels are
+ * available and valid before the VHT80 (and eight for VHT160) channel
+ * is created.
+ */
+
+struct vht_chan_range {
+	uint16_t freq_start;
+	uint16_t freq_end;
+};
+
+struct vht_chan_range vht80_chan_ranges[] = {
+	{ 5170, 5250 },
+	{ 5250, 5330 },
+	{ 5490, 5570 },
+	{ 5570, 5650 },
+	{ 5650, 5730 },
+	{ 5735, 5815 },
+	{ 0, 0, }
+};
+
+static int
+set_vht_extchan(struct ieee80211_channel *c)
+{
+	int i;
+
+	if (! IEEE80211_IS_CHAN_VHT(c)) {
+		return (0);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT20(c)) {
+		c->ic_vht_ch_freq1 = c->ic_ieee;
+		return (1);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT40(c)) {
+		if (IEEE80211_IS_CHAN_HT40U(c))
+			c->ic_vht_ch_freq1 = c->ic_ieee + 2;
+		else if (IEEE80211_IS_CHAN_HT40D(c))
+			c->ic_vht_ch_freq1 = c->ic_ieee - 2;
+		else
+			return (0);
+		return (1);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT80(c)) {
+		for (i = 0; vht80_chan_ranges[i].freq_start != 0; i++) {
+			if (c->ic_freq >= vht80_chan_ranges[i].freq_start &&
+			    c->ic_freq < vht80_chan_ranges[i].freq_end) {
+				int midpoint;
+
+				midpoint = vht80_chan_ranges[i].freq_start + 40;
+				c->ic_vht_ch_freq1 =
+				    ieee80211_mhz2ieee(midpoint, c->ic_flags);
+				c->ic_vht_ch_freq2 = 0;
+#if 0
+				printf("%s: %d, freq=%d, midpoint=%d, freq1=%d, freq2=%d\n",
+				    __func__, c->ic_ieee, c->ic_freq, midpoint,
+				    c->ic_vht_ch_freq1, c->ic_vht_ch_freq2);
+#endif
+				return (1);
+			}
+		}
+		return (0);
+	}
+
+	printf("%s: unknown VHT channel type (ieee=%d, flags=0x%08x)\n",
+	    __func__,
+	    c->ic_ieee,
+	    c->ic_flags);
+
+	return (0);
+}
+
+/*
+ * Return whether the current channel could possibly be a part of
+ * a VHT80 channel.
+ *
+ * This doesn't check that the whole range is in the allowed list
+ * according to regulatory.
+ */
+static int
+is_vht80_valid_freq(uint16_t freq)
+{
+	int i;
+	for (i = 0; vht80_chan_ranges[i].freq_start != 0; i++) {
+		if (freq >= vht80_chan_ranges[i].freq_start &&
+		    freq < vht80_chan_ranges[i].freq_end)
+			return (1);
+	}
+	return (0);
+}
+
 static int
 addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
     uint8_t ieee, uint16_t freq, int8_t maxregpower, uint32_t flags)
@@ -1006,13 +1236,25 @@ addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
 	if (*nchans >= maxchans)
 		return (ENOBUFS);
 
+#if 0
+	printf("%s: %d: ieee=%d, freq=%d, flags=0x%08x\n",
+	    __func__,
+	    *nchans,
+	    ieee,
+	    freq,
+	    flags);
+#endif
+
 	c = &chans[(*nchans)++];
 	c->ic_ieee = ieee;
 	c->ic_freq = freq != 0 ? freq : ieee80211_ieee2mhz(ieee, flags);
 	c->ic_maxregpower = maxregpower;
 	c->ic_maxpower = 2 * maxregpower;
 	c->ic_flags = flags;
+	c->ic_vht_ch_freq1 = 0;
+	c->ic_vht_ch_freq2 = 0;
 	set_extchan(c);
+	set_vht_extchan(c);
 
 	return (0);
 }
@@ -1028,14 +1270,27 @@ copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
 	if (*nchans >= maxchans)
 		return (ENOBUFS);
 
+#if 0
+	printf("%s: %d: flags=0x%08x\n",
+	    __func__,
+	    *nchans,
+	    flags);
+#endif
+
 	c = &chans[(*nchans)++];
 	c[0] = c[-1];
 	c->ic_flags = flags;
+	c->ic_vht_ch_freq1 = 0;
+	c->ic_vht_ch_freq2 = 0;
 	set_extchan(c);
+	set_vht_extchan(c);
 
 	return (0);
 }
 
+/*
+ * XXX VHT-2GHz
+ */
 static void
 getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
 {
@@ -1056,35 +1311,73 @@ getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
 }
 
 static void
-getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40)
+getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 {
 	int nmodes;
 
+	/*
+	 * the addchan_list function seems to expect the flags array to
+	 * be in channel width order, so the VHT bits are interspersed
+	 * as appropriate to maintain said order.
+	 *
+	 * It also assumes HT40U is before HT40D.
+	 */
 	nmodes = 0;
+
+	/* 20MHz */
 	if (isset(bands, IEEE80211_MODE_11A))
 		flags[nmodes++] = IEEE80211_CHAN_A;
 	if (isset(bands, IEEE80211_MODE_11NA))
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT20;
+	if (isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT20 |
+		    IEEE80211_CHAN_VHT20;
+	}
+
+	/* 40MHz */
 	if (ht40) {
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U;
+	}
+	if (ht40 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U
+		    | IEEE80211_CHAN_VHT40U;
+	}
+	if (ht40) {
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D;
 	}
+	if (ht40 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D
+		    | IEEE80211_CHAN_VHT40D;
+	}
+
+	/* 80MHz */
+	if (vht80 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A |
+		    IEEE80211_CHAN_HT40U | IEEE80211_CHAN_VHT80;
+		flags[nmodes++] = IEEE80211_CHAN_A |
+		    IEEE80211_CHAN_HT40D | IEEE80211_CHAN_VHT80;
+	}
+
+	/* XXX VHT80+80 */
+	/* XXX VHT160 */
 	flags[nmodes] = 0;
 }
 
 static void
-getflags(const uint8_t bands[], uint32_t flags[], int ht40)
+getflags(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 {
 
 	flags[0] = 0;
 	if (isset(bands, IEEE80211_MODE_11A) ||
-	    isset(bands, IEEE80211_MODE_11NA)) {
+	    isset(bands, IEEE80211_MODE_11NA) ||
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
 		if (isset(bands, IEEE80211_MODE_11B) ||
 		    isset(bands, IEEE80211_MODE_11G) ||
-		    isset(bands, IEEE80211_MODE_11NG))
+		    isset(bands, IEEE80211_MODE_11NG) ||
+		    isset(bands, IEEE80211_MODE_VHT_2GHZ))
 			return;
 
-		getflags_5ghz(bands, flags, ht40);
+		getflags_5ghz(bands, flags, ht40, vht80);
 	} else
 		getflags_2ghz(bands, flags, ht40);
 }
@@ -1092,6 +1385,7 @@ getflags(const uint8_t bands[], uint32_t flags[], int ht40)
 /*
  * Add one 20 MHz channel into specified channel list.
  */
+/* XXX VHT */
 int
 ieee80211_add_channel(struct ieee80211_channel chans[], int maxchans,
     int *nchans, uint8_t ieee, uint16_t freq, int8_t maxregpower,
@@ -1100,7 +1394,7 @@ ieee80211_add_channel(struct ieee80211_channel chans[], int maxchans,
 	uint32_t flags[IEEE80211_MODE_MAX];
 	int i, error;
 
-	getflags(bands, flags, 0);
+	getflags(bands, flags, 0, 0);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	error = addchan(chans, maxchans, nchans, ieee, freq, maxregpower,
@@ -1134,6 +1428,7 @@ findchannel(struct ieee80211_channel chans[], int nchans, uint16_t freq,
 /*
  * Add 40 MHz channel pair into specified channel list.
  */
+/* XXX VHT */
 int
 ieee80211_add_channel_ht40(struct ieee80211_channel chans[], int maxchans,
     int *nchans, uint8_t ieee, int8_t maxregpower, uint32_t flags)
@@ -1170,6 +1465,62 @@ ieee80211_add_channel_ht40(struct ieee80211_channel chans[], int maxchans,
 }
 
 /*
+ * Fetch the center frequency for the primary channel.
+ */
+uint32_t
+ieee80211_get_channel_center_freq(const struct ieee80211_channel *c)
+{
+
+	return (c->ic_freq);
+}
+
+/*
+ * Fetch the center frequency for the primary BAND channel.
+ *
+ * For 5, 10, 20MHz channels it'll be the normally configured channel
+ * frequency.
+ *
+ * For 40MHz, 80MHz, 160Mhz channels it'll the the centre of the
+ * wide channel, not the centre of the primary channel (that's ic_freq).
+ *
+ * For 80+80MHz channels this will be the centre of the primary
+ * 80MHz channel; the secondary 80MHz channel will be center_freq2().
+ */
+uint32_t
+ieee80211_get_channel_center_freq1(const struct ieee80211_channel *c)
+{
+
+	/*
+	 * VHT - use the pre-calculated centre frequency
+	 * of the given channel.
+	 */
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return (ieee80211_ieee2mhz(c->ic_vht_ch_freq1, c->ic_flags));
+
+	if (IEEE80211_IS_CHAN_HT40U(c)) {
+		return (c->ic_freq + 10);
+	}
+	if (IEEE80211_IS_CHAN_HT40D(c)) {
+		return (c->ic_freq - 10);
+	}
+
+	return (c->ic_freq);
+}
+
+/*
+ * For now, no 80+80 support; it will likely always return 0.
+ */
+uint32_t
+ieee80211_get_channel_center_freq2(const struct ieee80211_channel *c)
+{
+
+	if (IEEE80211_IS_CHAN_VHT(c) && (c->ic_vht_ch_freq2 != 0))
+		return (ieee80211_ieee2mhz(c->ic_vht_ch_freq2, c->ic_flags));
+
+	return (0);
+}
+
+/*
  * Adds channels into specified channel list (ieee[] array must be sorted).
  * Channels are already sorted.
  */
@@ -1179,16 +1530,70 @@ add_chanlist(struct ieee80211_channel chans[], int maxchans, int *nchans,
 {
 	uint16_t freq;
 	int i, j, error;
+	int is_vht;
 
 	for (i = 0; i < nieee; i++) {
 		freq = ieee80211_ieee2mhz(ieee[i], flags[0]);
 		for (j = 0; flags[j] != 0; j++) {
+			/*
+			 * Notes:
+			 * + HT40 and VHT40 channels occur together, so
+			 *   we need to be careful that we actually allow that.
+			 * + VHT80, VHT160 will coexist with HT40/VHT40, so
+			 *   make sure it's not skipped because of the overlap
+			 *   check used for (V)HT40.
+			 */
+			is_vht = !! (flags[j] & IEEE80211_CHAN_VHT);
+
+			/*
+			 * Test for VHT80.
+			 * XXX This is all very broken right now.
+			 * What we /should/ do is:
+			 *
+			 * + check that the frequency is in the list of
+			 *   allowed VHT80 ranges; and
+			 * + the other 3 channels in the list are actually
+			 *   also available.
+			 */
+			if (is_vht && flags[j] & IEEE80211_CHAN_VHT80)
+				if (! is_vht80_valid_freq(freq))
+					continue;
+
+			/*
+			 * Test for (V)HT40.
+			 *
+			 * This is also a fall through from VHT80; as we only
+			 * allow a VHT80 channel if the VHT40 combination is
+			 * also valid.  If the VHT40 form is not valid then
+			 * we certainly can't do VHT80..
+			 */
 			if (flags[j] & IEEE80211_CHAN_HT40D)
+				/*
+				 * Can't have a "lower" channel if we are the
+				 * first channel.
+				 *
+				 * Can't have a "lower" channel if it's below/
+				 * within 20MHz of the first channel.
+				 *
+				 * Can't have a "lower" channel if the channel
+				 * below it is not 20MHz away.
+				 */
 				if (i == 0 || ieee[i] < ieee[0] + 4 ||
 				    freq - 20 !=
 				    ieee80211_ieee2mhz(ieee[i] - 4, flags[j]))
 					continue;
 			if (flags[j] & IEEE80211_CHAN_HT40U)
+				/*
+				 * Can't have an "upper" channel if we are
+				 * the last channel.
+				 *
+				 * Can't have an "upper" channel be above the
+				 * last channel in the list.
+				 *
+				 * Can't have an "upper" channel if the next
+				 * channel according to the math isn't 20MHz
+				 * away.  (Likely for channel 13/14.)
+				 */
 				if (i == nieee - 1 ||
 				    ieee[i] + 4 > ieee[nieee - 1] ||
 				    freq + 20 !=
@@ -1217,6 +1622,7 @@ ieee80211_add_channel_list_2ghz(struct ieee80211_channel chans[], int maxchans,
 {
 	uint32_t flags[IEEE80211_MODE_MAX];
 
+	/* XXX no VHT for now */
 	getflags_2ghz(bands, flags, ht40);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
@@ -1229,8 +1635,15 @@ ieee80211_add_channel_list_5ghz(struct ieee80211_channel chans[], int maxchans,
     int ht40)
 {
 	uint32_t flags[IEEE80211_MODE_MAX];
+	int vht80 = 0;
 
-	getflags_5ghz(bands, flags, ht40);
+	/*
+	 * For now, assume VHT == VHT80 support as a minimum.
+	 */
+	if (isset(bands, IEEE80211_MODE_VHT_5GHZ))
+		vht80 = 1;
+
+	getflags_5ghz(bands, flags, ht40, vht80);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	return (add_chanlist(chans, maxchans, nchans, ieee, nieee, flags));
@@ -1356,7 +1769,7 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 #define	ADD(_ic, _s, _o) \
 	ifmedia_add(media, \
 		IFM_MAKEWORD(IFM_IEEE80211, (_s), (_o), 0), 0, NULL)
-	static const u_int mopts[IEEE80211_MODE_MAX] = { 
+	static const u_int mopts[IEEE80211_MODE_MAX] = {
 	    [IEEE80211_MODE_AUTO]	= IFM_AUTO,
 	    [IEEE80211_MODE_11A]	= IFM_IEEE80211_11A,
 	    [IEEE80211_MODE_11B]	= IFM_IEEE80211_11B,
@@ -1369,6 +1782,8 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 	    [IEEE80211_MODE_QUARTER]	= IFM_IEEE80211_11A,	/* XXX */
 	    [IEEE80211_MODE_11NA]	= IFM_IEEE80211_11NA,
 	    [IEEE80211_MODE_11NG]	= IFM_IEEE80211_11NG,
+	    [IEEE80211_MODE_VHT_2GHZ]	= IFM_IEEE80211_VHT2G,
+	    [IEEE80211_MODE_VHT_5GHZ]	= IFM_IEEE80211_VHT5G,
 	};
 	u_int mopt;
 
@@ -1481,6 +1896,19 @@ ieee80211_media_setup(struct ieee80211com *ic,
 		if (rate > maxrate)
 			maxrate = rate;
 	}
+
+	/*
+	 * Add VHT media.
+	 */
+	for (; mode <= IEEE80211_MODE_VHT_5GHZ; mode++) {
+		if (isclr(ic->ic_modecaps, mode))
+			continue;
+		addmedia(media, caps, addsta, mode, IFM_AUTO);
+		addmedia(media, caps, addsta, mode, IFM_IEEE80211_VHT);
+
+		/* XXX TODO: VHT maxrate */
+	}
+
 	return maxrate;
 }
 
@@ -1490,6 +1918,14 @@ ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *
 {
 	/* XXX does this work for 11ng basic rates? */
 	return &ic->ic_sup_rates[ieee80211_chan2mode(c)];
+}
+
+/* XXX inline or eliminate? */
+const struct ieee80211_htrateset *
+ieee80211_get_suphtrates(struct ieee80211com *ic,
+    const struct ieee80211_channel *c)
+{
+	return &ic->ic_sup_htrates;
 }
 
 void
@@ -1516,6 +1952,7 @@ ieee80211_announce(struct ieee80211com *ic)
 		printf("\n");
 	}
 	ieee80211_ht_announce(ic);
+	ieee80211_vht_announce(ic);
 }
 
 void
@@ -1760,7 +2197,11 @@ enum ieee80211_phymode
 ieee80211_chan2mode(const struct ieee80211_channel *chan)
 {
 
-	if (IEEE80211_IS_CHAN_HTA(chan))
+	if (IEEE80211_IS_CHAN_VHT_2GHZ(chan))
+		return IEEE80211_MODE_VHT_2GHZ;
+	else if (IEEE80211_IS_CHAN_VHT_5GHZ(chan))
+		return IEEE80211_MODE_VHT_5GHZ;
+	else if (IEEE80211_IS_CHAN_HTA(chan))
 		return IEEE80211_MODE_11NA;
 	else if (IEEE80211_IS_CHAN_HTG(chan))
 		return IEEE80211_MODE_11NG;
@@ -1954,13 +2395,13 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	case IEEE80211_MODE_11NA:
 	case IEEE80211_MODE_TURBO_A:
 	case IEEE80211_MODE_STURBO_A:
-		return findmedia(rates, nitems(rates), 
+		return findmedia(rates, nitems(rates),
 		    rate | IFM_IEEE80211_11A);
 	case IEEE80211_MODE_11B:
-		return findmedia(rates, nitems(rates), 
+		return findmedia(rates, nitems(rates),
 		    rate | IFM_IEEE80211_11B);
 	case IEEE80211_MODE_FH:
-		return findmedia(rates, nitems(rates), 
+		return findmedia(rates, nitems(rates),
 		    rate | IFM_IEEE80211_FH);
 	case IEEE80211_MODE_AUTO:
 		/* NB: ic may be NULL for some drivers */
@@ -1973,6 +2414,10 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	case IEEE80211_MODE_11NG:
 	case IEEE80211_MODE_TURBO_G:
 		return findmedia(rates, nitems(rates), rate | IFM_IEEE80211_11G);
+	case IEEE80211_MODE_VHT_2GHZ:
+	case IEEE80211_MODE_VHT_5GHZ:
+		/* XXX TODO: need to figure out mapping for VHT rates */
+		return IFM_AUTO;
 	}
 	return IFM_AUTO;
 }
@@ -2006,6 +2451,7 @@ ieee80211_media2rate(int mword)
 		9,		/* IFM_IEEE80211_OFDM4 */
 		54,		/* IFM_IEEE80211_OFDM27 */
 		-1,		/* IFM_IEEE80211_MCS */
+		-1,		/* IFM_IEEE80211_VHT */
 	};
 	return IFM_SUBTYPE(mword) < nitems(ieeerates) ?
 		ieeerates[IFM_SUBTYPE(mword)] : 0;
@@ -2056,6 +2502,8 @@ ieee80211_channel_type_char(const struct ieee80211_channel *c)
 		return 'T';
 	if (IEEE80211_IS_CHAN_108G(c))
 		return 'G';
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return 'v';
 	if (IEEE80211_IS_CHAN_HT(c))
 		return 'n';
 	if (IEEE80211_IS_CHAN_A(c))

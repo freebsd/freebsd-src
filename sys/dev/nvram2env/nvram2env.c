@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Aleksandr Rybalko.
  * All rights reserved.
  *
@@ -46,50 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
-
-#define nvram2env_read_1(sc, reg)				\
-	bus_space_read_1((sc)->sc_bt, (sc)->sc_bh,(reg))
-
-#define nvram2env_read_2(sc, reg)				\
-	bus_space_read_2((sc)->sc_bt, (sc)->sc_bh,(reg))
-
-#define nvram2env_read_4(sc, reg)				\
-	bus_space_read_4((sc)->sc_bt, (sc)->sc_bh,(reg))
-
-#define nvram2env_write_1(sc, reg, val)			\
-	bus_space_write_1((sc)->sc_bt, (sc)->sc_bh,	\
-			 (reg), (val))
-
-#define nvram2env_write_2(sc, reg, val)			\
-	bus_space_write_2((sc)->sc_bt, (sc)->sc_bh,	\
-			 (reg), (val))
-
-#define nvram2env_write_4(sc, reg, val)			\
-	bus_space_write_4((sc)->sc_bt, (sc)->sc_bh,	\
-			 (reg), (val))
-
-struct nvram2env_softc {
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	bus_addr_t addr;
-	int need_swap;
-	uint32_t sig;
-	uint32_t flags;
-#define NVRAM_FLAGS_NOCHECK	0x0001	/* Do not check(CRC or somthing else)*/
-#define NVRAM_FLAGS_GENERIC	0x0002	/* Format Generic, skip 4b and read */
-#define NVRAM_FLAGS_BROADCOM	0x0004	/* Format Broadcom, use struct nvram */
-#define NVRAM_FLAGS_UBOOT	0x0008	/* Format Generic, skip 4b of CRC and read */
-	uint32_t maxsize;
-	uint32_t crc;
-};
-
-static int	nvram2env_attach(device_t);
-static int	nvram2env_probe(device_t);
-
-#define NVRAM_MAX_SIZE 0x10000
+#include "nvram2env.h"
 
 static void
 nvram2env_identify(driver_t * drv, device_t parent)
@@ -100,34 +59,55 @@ nvram2env_identify(driver_t * drv, device_t parent)
 		BUS_ADD_CHILD(parent, 0, "nvram2env", i);
 }
 
-static int
+int
 nvram2env_probe(device_t dev)
 {
 	uint32_t i, ivar, sig;
 	struct nvram2env_softc * sc = device_get_softc(dev);
-	sc->bst = mips_bus_space_generic;
 
-	if (resource_int_value("nvram", device_get_unit(dev), "sig",
-	    &sc->sig) != 0 || sc->sig == 0)
-		sc->sig = 0x48534c46;
+	/*
+	 * Please ensure that your implementation of NVRAM->ENV specifies
+	 * bus tag
+	 */
+	if (sc->bst == NULL)
+		return (ENXIO);
 
-	if (resource_int_value("nvram", device_get_unit(dev), "maxsize",
-	    &sc->maxsize) != 0 || sc->maxsize == 0)
-		sc->maxsize = NVRAM_MAX_SIZE;
+	if (sc->sig == 0)
+		if (resource_int_value("nvram", device_get_unit(dev), "sig",
+		    &sc->sig) != 0 || sc->sig == 0)
+			sc->sig = CFE_NVRAM_SIGNATURE;
 
-	if (resource_int_value("nvram", device_get_unit(dev), "flags", 
-	    &sc->flags) != 0 || sc->flags == 0)
-		sc->flags = NVRAM_FLAGS_GENERIC;
+	if (sc->maxsize == 0)
+		if (resource_int_value("nvram", device_get_unit(dev), "maxsize",
+		    &sc->maxsize) != 0 || sc->maxsize == 0)
+			sc->maxsize = NVRAM_MAX_SIZE;
+
+	if (sc->flags == 0)
+		if (resource_int_value("nvram", device_get_unit(dev), "flags",
+		    &sc->flags) != 0 || sc->flags == 0)
+			sc->flags = NVRAM_FLAGS_GENERIC;
 
 
 	for (i = 0; i < 2; i ++)
 	{
-		if (resource_int_value("nvram", device_get_unit(dev), 
-			(!i)?"base":"fallbackbase", &ivar) != 0 ||
-		    ivar == 0)
-			continue;
+		switch (i) {
+		case 0:
+			break;
+		case 1:
+		case 2:
+			if (resource_int_value("nvram", device_get_unit(dev),
+			    (i == 1) ? "base" : "fallbackbase", &ivar) != 0 ||
+			    ivar == 0)
+				continue;
 
-		sc->addr = ivar;
+			sc->addr = ivar;
+			break;
+		default:
+			break;
+		}
+
+		if (sc->addr == 0)
+			continue;
 
 		if (bootverbose)
 			device_printf(dev, "base=0x%08x sig=0x%08x "
@@ -172,15 +152,6 @@ unmap_done:
 
 }
 
-struct nvram {
-	u_int32_t sig;
-	u_int32_t size;
-	u_int32_t unknown1;
-	u_int32_t unknown2;
-	u_int32_t unknown3;
-	char data[];
-};
-
 static uint32_t read_4(struct nvram2env_softc * sc, int offset) 
 {
 	if (sc->need_swap) 
@@ -190,7 +161,7 @@ static uint32_t read_4(struct nvram2env_softc * sc, int offset)
 }
 
 
-static int
+int
 nvram2env_attach(device_t dev)
 {
 	struct nvram2env_softc 	*sc;
@@ -209,10 +180,11 @@ nvram2env_attach(device_t dev)
 
 	sig  = read_4(sc, 0);
 	size = read_4(sc, 4);
-#if 1
+
 	if (bootverbose)
-		device_printf(dev, " size=0x%05x maxsize=0x%05x\n", size, sc->maxsize);
-#endif
+		device_printf(dev, " size=0x%05x maxsize=0x%05x\n", size,
+				sc->maxsize);
+
 	size = (size > sc->maxsize)?sc->maxsize:size;
 
 
@@ -265,12 +237,12 @@ nvram2env_attach(device_t dev)
 			assign = strchr(pair,'=');
 			assign[0] = '\0';
 			value = assign+1;
-#if 1
+
 			if (bootverbose)
-				printf("ENV: %s=%s\n", pair, value);
-#else
-			printf("ENV: %s\n", pair);
-#endif
+				printf("ENV[%p]: %s=%s\n",
+				    (void*)((char*)pair - (char*)nv),
+				    pair, value);
+
 			kern_setenv(pair, value);
 
 			if (strcasecmp(pair, "WAN_MAC_ADDR") == 0) {
@@ -313,12 +285,10 @@ static device_method_t nvram2env_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t nvram2env_driver = {
+driver_t nvram2env_driver = {
 	"nvram2env",
 	nvram2env_methods,
 	sizeof(struct nvram2env_softc),
 };
-static devclass_t nvram2env_devclass;
 
-DRIVER_MODULE(nvram2env, nexus, nvram2env_driver, nvram2env_devclass, 0, 0);
-
+devclass_t nvram2env_devclass;

@@ -79,11 +79,6 @@ _rtld-elf=	rtld-elf
 SUBDIR+=	rbootd
 .endif
 
-.if ${MK_RCMDS} != "no"
-_rlogind=	rlogind
-_rshd=		rshd
-.endif
-
 .if ${MK_SENDMAIL} != "no"
 _mail.local=	mail.local
 _smrsh=		smrsh

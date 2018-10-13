@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -138,8 +140,8 @@ static MV_BOOLEAN hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter,
 
 static struct sx hptmv_list_lock;
 SX_SYSINIT(hptmv_list_lock, &hptmv_list_lock, "hptmv list");
-IAL_ADAPTER_T *gIal_Adapter = 0;
-IAL_ADAPTER_T *pCurAdapter = 0;
+IAL_ADAPTER_T *gIal_Adapter = NULL;
+IAL_ADAPTER_T *pCurAdapter = NULL;
 static MV_SATA_CHANNEL gMvSataChannels[MAX_VBUS][MV_SATA_CHANNELS_NUM];
 
 typedef struct st_HPT_DPC {
@@ -1262,7 +1264,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	sx_xlock(&hptmv_list_lock);
 	pAdapter->next = 0;
 
-	if(gIal_Adapter == 0){
+	if(gIal_Adapter == NULL){
 		gIal_Adapter = pAdapter;
 		pCurAdapter = gIal_Adapter;
 	}
@@ -2289,10 +2291,6 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 
 		case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
-		case XPT_EN_LUN:		/* Enable LUN as a target */
-		case XPT_TARGET_IO:		/* Execute target I/O request */
-		case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-		case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 		case XPT_ABORT:			/* Abort the specified CCB */
 		case XPT_TERM_IO:		/* Terminate the I/O process */
 			/* XXX Implement */
@@ -2329,9 +2327,9 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 
 			cpi->bus_id = cam_sim_bus(sim);
 			cpi->base_transfer_speed = 3300;
-			strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-			strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
-			strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+			strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+			strlcpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
+			strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 			cpi->unit_number = cam_sim_unit(sim);
 			cpi->transport = XPORT_SPI;
 			cpi->transport_version = 2;
@@ -2431,7 +2429,7 @@ static void hpt_worker_thread(void)
 				sx_slock(&hptmv_list_lock);
 				pAdapter = gIal_Adapter;
 
-				while(pAdapter != 0){
+				while(pAdapter != NULL){
 					mtx_lock(&pAdapter->lock);
 					_vbus_p = &pAdapter->VBus;
 

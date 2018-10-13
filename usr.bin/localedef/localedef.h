@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
  *
@@ -35,10 +35,11 @@
  */
 
 /* Common header files. */
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <sys/types.h>
 
 extern int com_char;
 extern int esc_char;
@@ -54,8 +55,8 @@ extern int warnings;
 
 int yylex(void);
 void yyerror(const char *);
-void errf(const char *, ...);
-void warn(const char *, ...);
+_Noreturn void errf(const char *, ...) __printflike(1, 2);
+void warn(const char *, ...) __printflike(1, 2);
 
 int putl_category(const char *, FILE *);
 int wr_category(void *, size_t, FILE *);

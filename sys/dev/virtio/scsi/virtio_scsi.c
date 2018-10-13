@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -917,9 +919,9 @@ vtscsi_cam_path_inquiry(struct vtscsi_softc *sc, struct cam_sim *sim,
 	cpi->max_lun = sc->vtscsi_max_lun;
 	cpi->initiator_id = VTSCSI_INITIATOR_ID;
 
-	strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-	strncpy(cpi->hba_vid, "VirtIO", HBA_IDLEN);
-	strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+	strlcpy(cpi->hba_vid, "VirtIO", HBA_IDLEN);
+	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);

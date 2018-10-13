@@ -34,10 +34,10 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include <map>
 #include <set>
 
@@ -52,9 +52,7 @@ namespace {
 
     bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    const char *getPassName() const override {
-      return "ARM A15 S->D optimizer";
-    }
+    StringRef getPassName() const override { return "ARM A15 S->D optimizer"; }
 
   private:
     const ARMBaseInstrInfo *TII;
@@ -68,34 +66,31 @@ namespace {
     //
     unsigned createDupLane(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator InsertBefore,
-                           DebugLoc DL,
-                           unsigned Reg, unsigned Lane,
-                           bool QPR=false);
+                           const DebugLoc &DL, unsigned Reg, unsigned Lane,
+                           bool QPR = false);
 
     unsigned createExtractSubreg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator InsertBefore,
-                                 DebugLoc DL,
-                                 unsigned DReg, unsigned Lane,
-                                 const TargetRegisterClass *TRC);
+                                 const DebugLoc &DL, unsigned DReg,
+                                 unsigned Lane, const TargetRegisterClass *TRC);
 
     unsigned createVExt(MachineBasicBlock &MBB,
                         MachineBasicBlock::iterator InsertBefore,
-                        DebugLoc DL,
-                        unsigned Ssub0, unsigned Ssub1);
+                        const DebugLoc &DL, unsigned Ssub0, unsigned Ssub1);
 
     unsigned createRegSequence(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator InsertBefore,
-                               DebugLoc DL,
-                               unsigned Reg1, unsigned Reg2);
+                               const DebugLoc &DL, unsigned Reg1,
+                               unsigned Reg2);
 
     unsigned createInsertSubreg(MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator InsertBefore,
-                                DebugLoc DL, unsigned DReg, unsigned Lane,
-                                unsigned ToInsert);
+                                const DebugLoc &DL, unsigned DReg,
+                                unsigned Lane, unsigned ToInsert);
 
     unsigned createImplicitDef(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator InsertBefore,
-                               DebugLoc DL);
+                               const DebugLoc &DL);
 
     //
     // Various property checkers
@@ -194,8 +189,7 @@ void A15SDOptimizer::eraseInstrWithNoUses(MachineInstr *MI) {
 
     // MI is already known to be dead. We need to see
     // if other instructions can also be removed.
-    for (unsigned int i = 0; i < MI->getNumOperands(); ++i) {
-      MachineOperand &MO = MI->getOperand(i);
+    for (MachineOperand &MO : MI->operands()) {
       if ((!MO.isReg()) || (!MO.isUse()))
         continue;
       unsigned Reg = MO.getReg();
@@ -217,8 +211,7 @@ void A15SDOptimizer::eraseInstrWithNoUses(MachineInstr *MI) {
       // dead. If so, we can also mark this instruction as being
       // dead.
       bool IsDead = true;
-      for (unsigned int j = 0; j < Def->getNumOperands(); ++j) {
-        MachineOperand &MODef = Def->getOperand(j);
+      for (MachineOperand &MODef : Def->operands()) {
         if ((!MODef.isReg()) || (!MODef.isDef()))
           continue;
         unsigned DefReg = MODef.getReg();
@@ -226,13 +219,11 @@ void A15SDOptimizer::eraseInstrWithNoUses(MachineInstr *MI) {
           IsDead = false;
           break;
         }
-        for (MachineRegisterInfo::use_instr_iterator
-             II = MRI->use_instr_begin(Reg), EE = MRI->use_instr_end();
-             II != EE; ++II) {
+        for (MachineInstr &Use : MRI->use_instructions(Reg)) {
           // We don't care about self references.
-          if (&*II == Def)
+          if (&Use == Def)
             continue;
-          if (DeadInstr.find(&*II) == DeadInstr.end()) {
+          if (DeadInstr.find(&Use) == DeadInstr.end()) {
             IsDead = false;
             break;
           }
@@ -282,7 +273,7 @@ unsigned A15SDOptimizer::optimizeSDPattern(MachineInstr *MI) {
               MRI->getRegClass(MI->getOperand(1).getReg());
             if (TRC->hasSuperClassEq(MRI->getRegClass(FullReg))) {
               DEBUG(dbgs() << "Subreg copy is compatible - returning ");
-              DEBUG(dbgs() << PrintReg(FullReg) << "\n");
+              DEBUG(dbgs() << printReg(FullReg) << "\n");
               eraseInstrWithNoUses(MI);
               return FullReg;
             }
@@ -410,9 +401,7 @@ SmallVector<unsigned, 8> A15SDOptimizer::getReadDPRs(MachineInstr *MI) {
     return SmallVector<unsigned, 8>();
 
   SmallVector<unsigned, 8> Defs;
-  for (unsigned i = 0; i < MI->getNumOperands(); ++i) {
-    MachineOperand &MO = MI->getOperand(i);
-
+  for (MachineOperand &MO : MI->operands()) {
     if (!MO.isReg() || !MO.isUse())
       continue;
     if (!usesRegClass(MO, &ARM::DPRRegClass) &&
@@ -426,31 +415,26 @@ SmallVector<unsigned, 8> A15SDOptimizer::getReadDPRs(MachineInstr *MI) {
 }
 
 // Creates a DPR register from an SPR one by using a VDUP.
-unsigned
-A15SDOptimizer::createDupLane(MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator InsertBefore,
-                              DebugLoc DL,
-                              unsigned Reg, unsigned Lane, bool QPR) {
+unsigned A15SDOptimizer::createDupLane(MachineBasicBlock &MBB,
+                                       MachineBasicBlock::iterator InsertBefore,
+                                       const DebugLoc &DL, unsigned Reg,
+                                       unsigned Lane, bool QPR) {
   unsigned Out = MRI->createVirtualRegister(QPR ? &ARM::QPRRegClass :
                                                   &ARM::DPRRegClass);
-  AddDefaultPred(BuildMI(MBB,
-                         InsertBefore,
-                         DL,
-                         TII->get(QPR ? ARM::VDUPLN32q : ARM::VDUPLN32d),
-                         Out)
-                   .addReg(Reg)
-                   .addImm(Lane));
+  BuildMI(MBB, InsertBefore, DL,
+          TII->get(QPR ? ARM::VDUPLN32q : ARM::VDUPLN32d), Out)
+      .addReg(Reg)
+      .addImm(Lane)
+      .add(predOps(ARMCC::AL));
 
   return Out;
 }
 
 // Creates a SPR register from a DPR by copying the value in lane 0.
-unsigned
-A15SDOptimizer::createExtractSubreg(MachineBasicBlock &MBB,
-                                    MachineBasicBlock::iterator InsertBefore,
-                                    DebugLoc DL,
-                                    unsigned DReg, unsigned Lane,
-                                    const TargetRegisterClass *TRC) {
+unsigned A15SDOptimizer::createExtractSubreg(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator InsertBefore,
+    const DebugLoc &DL, unsigned DReg, unsigned Lane,
+    const TargetRegisterClass *TRC) {
   unsigned Out = MRI->createVirtualRegister(TRC);
   BuildMI(MBB,
           InsertBefore,
@@ -462,11 +446,9 @@ A15SDOptimizer::createExtractSubreg(MachineBasicBlock &MBB,
 }
 
 // Takes two SPR registers and creates a DPR by using a REG_SEQUENCE.
-unsigned
-A15SDOptimizer::createRegSequence(MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator InsertBefore,
-                                  DebugLoc DL,
-                                  unsigned Reg1, unsigned Reg2) {
+unsigned A15SDOptimizer::createRegSequence(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator InsertBefore,
+    const DebugLoc &DL, unsigned Reg1, unsigned Reg2) {
   unsigned Out = MRI->createVirtualRegister(&ARM::QPRRegClass);
   BuildMI(MBB,
           InsertBefore,
@@ -481,27 +463,22 @@ A15SDOptimizer::createRegSequence(MachineBasicBlock &MBB,
 
 // Takes two DPR registers that have previously been VDUPed (Ssub0 and Ssub1)
 // and merges them into one DPR register.
-unsigned
-A15SDOptimizer::createVExt(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator InsertBefore,
-                           DebugLoc DL,
-                           unsigned Ssub0, unsigned Ssub1) {
+unsigned A15SDOptimizer::createVExt(MachineBasicBlock &MBB,
+                                    MachineBasicBlock::iterator InsertBefore,
+                                    const DebugLoc &DL, unsigned Ssub0,
+                                    unsigned Ssub1) {
   unsigned Out = MRI->createVirtualRegister(&ARM::DPRRegClass);
-  AddDefaultPred(BuildMI(MBB,
-                         InsertBefore,
-                         DL,
-                         TII->get(ARM::VEXTd32), Out)
-                   .addReg(Ssub0)
-                   .addReg(Ssub1)
-                   .addImm(1));
+  BuildMI(MBB, InsertBefore, DL, TII->get(ARM::VEXTd32), Out)
+      .addReg(Ssub0)
+      .addReg(Ssub1)
+      .addImm(1)
+      .add(predOps(ARMCC::AL));
   return Out;
 }
 
-unsigned
-A15SDOptimizer::createInsertSubreg(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator InsertBefore,
-                                   DebugLoc DL, unsigned DReg, unsigned Lane,
-                                   unsigned ToInsert) {
+unsigned A15SDOptimizer::createInsertSubreg(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator InsertBefore,
+    const DebugLoc &DL, unsigned DReg, unsigned Lane, unsigned ToInsert) {
   unsigned Out = MRI->createVirtualRegister(&ARM::DPR_VFP2RegClass);
   BuildMI(MBB,
           InsertBefore,
@@ -517,7 +494,7 @@ A15SDOptimizer::createInsertSubreg(MachineBasicBlock &MBB,
 unsigned
 A15SDOptimizer::createImplicitDef(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator InsertBefore,
-                                  DebugLoc DL) {
+                                  const DebugLoc &DL) {
   unsigned Out = MRI->createVirtualRegister(&ARM::DPRRegClass);
   BuildMI(MBB,
           InsertBefore,
@@ -634,10 +611,7 @@ bool A15SDOptimizer::runOnInstruction(MachineInstr *MI) {
 
     elideCopiesAndPHIs(Def, DefSrcs);
 
-    for (SmallVectorImpl<MachineInstr *>::iterator II = DefSrcs.begin(),
-      EE = DefSrcs.end(); II != EE; ++II) {
-      MachineInstr *MI = *II;
-
+    for (MachineInstr *MI : DefSrcs) {
       // If we've already analyzed and replaced this operand, don't do
       // anything.
       if (Replacements.find(MI) != Replacements.end())
@@ -670,7 +644,7 @@ bool A15SDOptimizer::runOnInstruction(MachineInstr *MI) {
 
           DEBUG(dbgs() << "Replacing operand "
                        << **I << " with "
-                       << PrintReg(NewReg) << "\n");
+                       << printReg(NewReg) << "\n");
           (*I)->substVirtReg(NewReg, 0, *TRI);
         }
       }
@@ -681,6 +655,9 @@ bool A15SDOptimizer::runOnInstruction(MachineInstr *MI) {
 }
 
 bool A15SDOptimizer::runOnMachineFunction(MachineFunction &Fn) {
+  if (skipFunction(Fn.getFunction()))
+    return false;
+
   const ARMSubtarget &STI = Fn.getSubtarget<ARMSubtarget>();
   // Since the A15SDOptimizer pass can insert VDUP instructions, it can only be
   // enabled when NEON is available.
@@ -696,20 +673,14 @@ bool A15SDOptimizer::runOnMachineFunction(MachineFunction &Fn) {
   DeadInstr.clear();
   Replacements.clear();
 
-  for (MachineFunction::iterator MFI = Fn.begin(), E = Fn.end(); MFI != E;
-       ++MFI) {
-
-    for (MachineBasicBlock::iterator MI = MFI->begin(), ME = MFI->end();
-      MI != ME;) {
-      Modified |= runOnInstruction(MI++);
+  for (MachineBasicBlock &MBB : Fn) {
+    for (MachineInstr &MI : MBB) {
+      Modified |= runOnInstruction(&MI);
     }
-
   }
 
-  for (std::set<MachineInstr *>::iterator I = DeadInstr.begin(),
-                                            E = DeadInstr.end();
-                                            I != E; ++I) {
-    (*I)->eraseFromParent();
+  for (MachineInstr *MI : DeadInstr) {
+    MI->eraseFromParent();
   }
 
   return Modified;

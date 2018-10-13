@@ -26,6 +26,7 @@
 
 /*
  * Copyright (c) 2014 by Delphix. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -134,7 +135,7 @@ extern "C" {
 #define	BIT_ONLYONESET(u) \
 	((((u) == 0) ? 0 : ((u) & ((u) - 1)) == 0))
 
-#if defined(_KERNEL) && !defined(_ASM)
+#if (defined(_KERNEL) || defined(_FAKE_KERNEL)) && !defined(_ASM)
 #include <sys/atomic.h>
 
 /*
@@ -188,7 +189,7 @@ extern int	odd_parity(ulong_t);
  */
 #define	BITX(u, h, l)	(((u) >> (l)) & ((1LU << ((h) - (l) + 1LU)) - 1LU))
 
-#endif	/* _KERNEL && !_ASM */
+#endif	/* (_KERNEL || _FAKE_KERNEL) && !_ASM */
 
 #ifdef	__cplusplus
 }

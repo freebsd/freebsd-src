@@ -25,10 +25,7 @@
  */
 /*
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
- */
-
-/*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2018 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -59,26 +56,31 @@ static zcomp_stats_t zcomp_stats = {
 kstat_t		*zcomp_ksp;
 
 /*
+ * If nonzero, every 1/X decompression attempts will fail, simulating
+ * an undetected memory error.
+ */
+uint64_t zio_decompress_fail_fraction = 0;
+
+/*
  * Compression vectors.
  */
-
 zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS] = {
-	{NULL,			NULL,			0,	"inherit"},
-	{NULL,			NULL,			0,	"on"},
-	{NULL,			NULL,			0,	"uncompressed"},
-	{lzjb_compress,		lzjb_decompress,	0,	"lzjb"},
-	{NULL,			NULL,			0,	"empty"},
-	{gzip_compress,		gzip_decompress,	1,	"gzip-1"},
-	{gzip_compress,		gzip_decompress,	2,	"gzip-2"},
-	{gzip_compress,		gzip_decompress,	3,	"gzip-3"},
-	{gzip_compress,		gzip_decompress,	4,	"gzip-4"},
-	{gzip_compress,		gzip_decompress,	5,	"gzip-5"},
-	{gzip_compress,		gzip_decompress,	6,	"gzip-6"},
-	{gzip_compress,		gzip_decompress,	7,	"gzip-7"},
-	{gzip_compress,		gzip_decompress,	8,	"gzip-8"},
-	{gzip_compress,		gzip_decompress,	9,	"gzip-9"},
-	{zle_compress,		zle_decompress,		64,	"zle"},
-	{lz4_compress,		lz4_decompress,		0,	"lz4"},
+	{"inherit",		0,	NULL,		NULL},
+	{"on",			0,	NULL,		NULL},
+	{"uncompressed",	0,	NULL,		NULL},
+	{"lzjb",		0,	lzjb_compress,	lzjb_decompress},
+	{"empty",		0,	NULL,		NULL},
+	{"gzip-1",		1,	gzip_compress,	gzip_decompress},
+	{"gzip-2",		2,	gzip_compress,	gzip_decompress},
+	{"gzip-3",		3,	gzip_compress,	gzip_decompress},
+	{"gzip-4",		4,	gzip_compress,	gzip_decompress},
+	{"gzip-5",		5,	gzip_compress,	gzip_decompress},
+	{"gzip-6",		6,	gzip_compress,	gzip_decompress},
+	{"gzip-7",		7,	gzip_compress,	gzip_decompress},
+	{"gzip-8",		8,	gzip_compress,	gzip_decompress},
+	{"gzip-9",		9,	gzip_compress,	gzip_decompress},
+	{"zle",			64,	zle_compress,	zle_decompress},
+	{"lz4",			0,	lz4_compress,	lz4_decompress}
 };
 
 enum zio_compress
@@ -105,10 +107,21 @@ zio_compress_select(spa_t *spa, enum zio_compress child,
 	return (result);
 }
 
-size_t
-zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
+/*ARGSUSED*/
+static int
+zio_compress_zeroed_cb(void *data, size_t len, void *private)
 {
-	uint64_t *word, *word_end;
+	uint64_t *end = (uint64_t *)((char *)data + len);
+	for (uint64_t *word = (uint64_t *)data; word < end; word++)
+		if (*word != 0)
+			return (1);
+
+	return (0);
+}
+
+size_t
+zio_compress_data(enum zio_compress c, abd_t *src, void *dst, size_t s_len)
+{
 	size_t c_len, d_len;
 	zio_compress_info_t *ci = &zio_compress_table[c];
 
@@ -121,14 +134,9 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
 	 * If the data is all zeroes, we don't even need to allocate
 	 * a block for it.  We indicate this by returning zero size.
 	 */
-	word_end = (uint64_t *)((char *)src + s_len);
-	for (word = src; word < word_end; word++)
-		if (*word != 0)
-			break;
-
-	if (word == word_end) {
+	if (abd_iterate_func(src, 0, s_len, zio_compress_zeroed_cb, NULL) == 0) {
 		ZCOMPSTAT_BUMP(zcompstat_empty);
- 		return (0);
+		return (0);
 	}
 
 	if (c == ZIO_COMPRESS_EMPTY)
@@ -136,7 +144,11 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
 
 	/* Compress at least 12.5% */
 	d_len = s_len - (s_len >> 3);
-	c_len = ci->ci_compress(src, dst, s_len, d_len, ci->ci_level);
+
+	/* No compression algorithms can read from ABDs directly */
+	void *tmp = abd_borrow_buf_copy(src, s_len);
+	c_len = ci->ci_compress(tmp, dst, s_len, d_len, ci->ci_level);
+	abd_return_buf(src, tmp, s_len);
 
 	if (c_len > d_len) {
 		ZCOMPSTAT_BUMP(zcompstat_skipped_insufficient_gain);
@@ -148,15 +160,35 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
 }
 
 int
-zio_decompress_data(enum zio_compress c, void *src, void *dst,
+zio_decompress_data_buf(enum zio_compress c, void *src, void *dst,
     size_t s_len, size_t d_len)
 {
 	zio_compress_info_t *ci = &zio_compress_table[c];
-
 	if ((uint_t)c >= ZIO_COMPRESS_FUNCTIONS || ci->ci_decompress == NULL)
 		return (SET_ERROR(EINVAL));
 
 	return (ci->ci_decompress(src, dst, s_len, d_len, ci->ci_level));
+}
+
+int
+zio_decompress_data(enum zio_compress c, abd_t *src, void *dst,
+    size_t s_len, size_t d_len)
+{
+	void *tmp = abd_borrow_buf_copy(src, s_len);
+	int ret = zio_decompress_data_buf(c, tmp, dst, s_len, d_len);
+	abd_return_buf(src, tmp, s_len);
+
+	/*
+	 * Decompression shouldn't fail, because we've already verifyied
+	 * the checksum.  However, for extra protection (e.g. against bitflips
+	 * in non-ECC RAM), we handle this error (and test it).
+	 */
+	ASSERT0(ret);
+	if (zio_decompress_fail_fraction != 0 &&
+	    spa_get_random(zio_decompress_fail_fraction) == 0)
+		ret = SET_ERROR(EINVAL);
+
+	return (ret);
 }
 
 void

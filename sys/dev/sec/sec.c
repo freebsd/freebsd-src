@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008-2009 Semihalf, Piotr Ziecik
  * All rights reserved.
  *
@@ -83,10 +85,8 @@ static int	sec_make_pointer(struct sec_softc *sc, struct sec_desc *desc,
     u_int n, void *data, bus_size_t doffset, bus_size_t dsize, int dtype);
 static int	sec_make_pointer_direct(struct sec_softc *sc,
     struct sec_desc *desc, u_int n, bus_addr_t data, bus_size_t dsize);
-static int	sec_alloc_session(struct sec_softc *sc);
-static int	sec_newsession(device_t dev, u_int32_t *sidp,
+static int	sec_newsession(device_t dev, crypto_session_t cses,
     struct cryptoini *cri);
-static int	sec_freesession(device_t dev, uint64_t tid);
 static int	sec_process(device_t dev, struct cryptop *crp, int hint);
 static int	sec_split_cri(struct cryptoini *cri, struct cryptoini **enc,
     struct cryptoini **mac);
@@ -99,7 +99,6 @@ static int	sec_build_common_s_desc(struct sec_softc *sc,
     struct sec_desc *desc, struct sec_session *ses, struct cryptop *crp,
     struct cryptodesc *enc, struct cryptodesc *mac, int buftype);
 
-static struct sec_session *sec_get_session(struct sec_softc *sc, u_int sid);
 static struct sec_desc *sec_find_desc(struct sec_softc *sc, bus_addr_t paddr);
 
 /* AESU */
@@ -138,7 +137,6 @@ static device_method_t sec_methods[] = {
 
 	/* Crypto methods */
 	DEVMETHOD(cryptodev_newsession,	sec_newsession),
-	DEVMETHOD(cryptodev_freesession,sec_freesession),
 	DEVMETHOD(cryptodev_process,	sec_process),
 
 	DEVMETHOD_END
@@ -176,15 +174,6 @@ sec_sync_dma_mem(struct sec_dma_mem *dma_mem, bus_dmasync_op_t op)
 	/* Sync only if dma memory is valid */
 	if (dma_mem->dma_vaddr != NULL)
 		bus_dmamap_sync(dma_mem->dma_tag, dma_mem->dma_map, op);
-}
-
-static inline void
-sec_free_session(struct sec_softc *sc, struct sec_session *ses)
-{
-
-	SEC_LOCK(sc, sessions);
-	ses->ss_used = 0;
-	SEC_UNLOCK(sc, sessions);
 }
 
 static inline void *
@@ -256,7 +245,8 @@ sec_attach(device_t dev)
 	sc->sc_blocked = 0;
 	sc->sc_shutdown = 0;
 
-	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct sec_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver ID!\n");
 		return (ENXIO);
@@ -267,8 +257,6 @@ sec_attach(device_t dev)
 	    "SEC Controller lock", MTX_DEF);
 	mtx_init(&sc->sc_descriptors_lock, device_get_nameunit(dev),
 	    "SEC Descriptors lock", MTX_DEF);
-	mtx_init(&sc->sc_sessions_lock, device_get_nameunit(dev),
-	    "SEC Sessions lock", MTX_DEF);
 
 	/* Allocate I/O memory for SEC registers */
 	sc->sc_rrid = 0;
@@ -409,7 +397,6 @@ fail2:
 fail1:
 	mtx_destroy(&sc->sc_controller_lock);
 	mtx_destroy(&sc->sc_descriptors_lock);
-	mtx_destroy(&sc->sc_sessions_lock);
 
 	return (ENXIO);
 }
@@ -480,7 +467,6 @@ sec_detach(device_t dev)
 
 	mtx_destroy(&sc->sc_controller_lock);
 	mtx_destroy(&sc->sc_descriptors_lock);
-	mtx_destroy(&sc->sc_sessions_lock);
 
 	return (0);
 }
@@ -1233,53 +1219,7 @@ sec_split_crp(struct cryptop *crp, struct cryptodesc **enc,
 }
 
 static int
-sec_alloc_session(struct sec_softc *sc)
-{
-	struct sec_session *ses = NULL;
-	int sid = -1;
-	u_int i;
-
-	SEC_LOCK(sc, sessions);
-
-	for (i = 0; i < SEC_MAX_SESSIONS; i++) {
-		if (sc->sc_sessions[i].ss_used == 0) {
-			ses = &(sc->sc_sessions[i]);
-			ses->ss_used = 1;
-			ses->ss_ivlen = 0;
-			ses->ss_klen = 0;
-			ses->ss_mklen = 0;
-			sid = i;
-			break;
-		}
-	}
-
-	SEC_UNLOCK(sc, sessions);
-
-	return (sid);
-}
-
-static struct sec_session *
-sec_get_session(struct sec_softc *sc, u_int sid)
-{
-	struct sec_session *ses;
-
-	if (sid >= SEC_MAX_SESSIONS)
-		return (NULL);
-
-	SEC_LOCK(sc, sessions);
-
-	ses = &(sc->sc_sessions[sid]);
-
-	if (ses->ss_used == 0)
-		ses = NULL;
-
-	SEC_UNLOCK(sc, sessions);
-
-	return (ses);
-}
-
-static int
-sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
+sec_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct sec_softc *sc = device_get_softc(dev);
 	struct sec_eu_methods *eu = sec_eus;
@@ -1287,7 +1227,6 @@ sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *mac = NULL;
 	struct sec_session *ses;
 	int error = -1;
-	int sid;
 
 	error = sec_split_cri(cri, &enc, &mac);
 	if (error)
@@ -1304,11 +1243,7 @@ sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 	if (sc->sc_version < 3 && mac && mac->cri_klen > 256)
 		return (E2BIG);
 
-	sid = sec_alloc_session(sc);
-	if (sid < 0)
-		return (ENOMEM);
-
-	ses = sec_get_session(sc, sid);
+	ses = crypto_get_driver_session(cses);
 
 	/* Find EU for this session */
 	while (eu->sem_make_desc != NULL) {
@@ -1320,10 +1255,8 @@ sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 	}
 
 	/* If not found, return EINVAL */
-	if (error < 0) {
-		sec_free_session(sc, ses);
+	if (error < 0)
 		return (EINVAL);
-	}
 
 	/* Save cipher key */
 	if (enc && enc->cri_key) {
@@ -1338,25 +1271,7 @@ sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 	}
 
 	ses->ss_eu = eu;
-	*sidp = sid;
-
 	return (0);
-}
-
-static int
-sec_freesession(device_t dev, uint64_t tid)
-{
-	struct sec_softc *sc = device_get_softc(dev);
-	struct sec_session *ses;
-	int error = 0;
-
-	ses = sec_get_session(sc, CRYPTO_SESID2LID(tid));
-	if (ses == NULL)
-		return (EINVAL);
-
-	sec_free_session(sc, ses);
-
-	return (error);
 }
 
 static int
@@ -1368,13 +1283,7 @@ sec_process(device_t dev, struct cryptop *crp, int hint)
 	struct sec_session *ses;
 	int buftype, error = 0;
 
-	/* Check Session ID */
-	ses = sec_get_session(sc, CRYPTO_SESID2LID(crp->crp_sid));
-	if (ses == NULL) {
-		crp->crp_etype = EINVAL;
-		crypto_done(crp);
-		return (0);
-	}
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	/* Check for input length */
 	if (crp->crp_ilen > SEC_MAX_DMA_BLOCK_SIZE) {

@@ -1618,8 +1618,6 @@ int i915_verify_lists(struct drm_device *dev);
 #endif
 void i915_gem_object_check_coherency(struct drm_i915_gem_object *obj,
 				     int handle);
-void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
-			  const char *where, uint32_t mark);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
@@ -1673,7 +1671,6 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 bool force_restore);
-extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);

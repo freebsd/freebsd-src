@@ -11,16 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/BPFMCTargetDesc.h"
 #include "BPF.h"
-#include "BPFMCTargetDesc.h"
-#include "BPFMCAsmInfo.h"
 #include "InstPrinter/BPFInstPrinter.h"
-#include "llvm/MC/MCCodeGenInfo.h"
+#include "MCTargetDesc/BPFMCAsmInfo.h"
+#include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
-#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
@@ -51,19 +50,13 @@ static MCSubtargetInfo *createBPFMCSubtargetInfo(const Triple &TT,
   return createBPFMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCCodeGenInfo *createBPFMCCodeGenInfo(const Triple &TT, Reloc::Model RM,
-                                             CodeModel::Model CM,
-                                             CodeGenOpt::Level OL) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-  X->initMCCodeGenInfo(RM, CM, OL);
-  return X;
-}
-
-static MCStreamer *createBPFMCStreamer(const Triple &T,
-                                       MCContext &Ctx, MCAsmBackend &MAB,
-                                       raw_pwrite_stream &OS, MCCodeEmitter *Emitter,
+static MCStreamer *createBPFMCStreamer(const Triple &T, MCContext &Ctx,
+                                       std::unique_ptr<MCAsmBackend> &&MAB,
+                                       raw_pwrite_stream &OS,
+                                       std::unique_ptr<MCCodeEmitter> &&Emitter,
                                        bool RelaxAll) {
-  return createELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll);
+  return createELFStreamer(Ctx, std::move(MAB), OS, std::move(Emitter),
+                           RelaxAll);
 }
 
 static MCInstPrinter *createBPFMCInstPrinter(const Triple &T,
@@ -73,16 +66,43 @@ static MCInstPrinter *createBPFMCInstPrinter(const Triple &T,
                                              const MCRegisterInfo &MRI) {
   if (SyntaxVariant == 0)
     return new BPFInstPrinter(MAI, MII, MRI);
-  return 0;
+  return nullptr;
+}
+
+namespace {
+
+class BPFMCInstrAnalysis : public MCInstrAnalysis {
+public:
+  explicit BPFMCInstrAnalysis(const MCInstrInfo *Info)
+      : MCInstrAnalysis(Info) {}
+
+  bool evaluateBranch(const MCInst &Inst, uint64_t Addr, uint64_t Size,
+                      uint64_t &Target) const override {
+    // The target is the 3rd operand of cond inst and the 1st of uncond inst.
+    int16_t Imm;
+    if (isConditionalBranch(Inst)) {
+      Imm = Inst.getOperand(2).getImm();
+    } else if (isUnconditionalBranch(Inst))
+      Imm = Inst.getOperand(0).getImm();
+    else
+      return false;
+
+    Target = Addr + Size + Imm * Size;
+    return true;
+  }
+};
+
+} // end anonymous namespace
+
+static MCInstrAnalysis *createBPFInstrAnalysis(const MCInstrInfo *Info) {
+  return new BPFMCInstrAnalysis(Info);
 }
 
 extern "C" void LLVMInitializeBPFTargetMC() {
-  for (Target *T : {&TheBPFleTarget, &TheBPFbeTarget, &TheBPFTarget}) {
+  for (Target *T :
+       {&getTheBPFleTarget(), &getTheBPFbeTarget(), &getTheBPFTarget()}) {
     // Register the MC asm info.
     RegisterMCAsmInfo<BPFMCAsmInfo> X(*T);
-
-    // Register the MC codegen info.
-    TargetRegistry::RegisterMCCodeGenInfo(*T, createBPFMCCodeGenInfo);
 
     // Register the MC instruction info.
     TargetRegistry::RegisterMCInstrInfo(*T, createBPFMCInstrInfo);
@@ -99,21 +119,33 @@ extern "C" void LLVMInitializeBPFTargetMC() {
 
     // Register the MCInstPrinter.
     TargetRegistry::RegisterMCInstPrinter(*T, createBPFMCInstPrinter);
+
+    // Register the MC instruction analyzer.
+    TargetRegistry::RegisterMCInstrAnalysis(*T, createBPFInstrAnalysis);
   }
 
   // Register the MC code emitter
-  TargetRegistry::RegisterMCCodeEmitter(TheBPFleTarget, createBPFMCCodeEmitter);
-  TargetRegistry::RegisterMCCodeEmitter(TheBPFbeTarget, createBPFbeMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(getTheBPFleTarget(),
+                                        createBPFMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(getTheBPFbeTarget(),
+                                        createBPFbeMCCodeEmitter);
 
   // Register the ASM Backend
-  TargetRegistry::RegisterMCAsmBackend(TheBPFleTarget, createBPFAsmBackend);
-  TargetRegistry::RegisterMCAsmBackend(TheBPFbeTarget, createBPFbeAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(getTheBPFleTarget(),
+                                       createBPFAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(getTheBPFbeTarget(),
+                                       createBPFbeAsmBackend);
 
   if (sys::IsLittleEndianHost) {
-    TargetRegistry::RegisterMCCodeEmitter(TheBPFTarget, createBPFMCCodeEmitter);
-    TargetRegistry::RegisterMCAsmBackend(TheBPFTarget, createBPFAsmBackend);
+    TargetRegistry::RegisterMCCodeEmitter(getTheBPFTarget(),
+                                          createBPFMCCodeEmitter);
+    TargetRegistry::RegisterMCAsmBackend(getTheBPFTarget(),
+                                         createBPFAsmBackend);
   } else {
-    TargetRegistry::RegisterMCCodeEmitter(TheBPFTarget, createBPFbeMCCodeEmitter);
-    TargetRegistry::RegisterMCAsmBackend(TheBPFTarget, createBPFbeAsmBackend);
+    TargetRegistry::RegisterMCCodeEmitter(getTheBPFTarget(),
+                                          createBPFbeMCCodeEmitter);
+    TargetRegistry::RegisterMCAsmBackend(getTheBPFTarget(),
+                                         createBPFbeAsmBackend);
   }
+
 }

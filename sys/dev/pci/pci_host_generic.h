@@ -34,6 +34,8 @@
 #ifndef __PCI_HOST_GENERIC_H_
 #define	__PCI_HOST_GENERIC_H_
 
+#include "pci_if.h"
+
 #define	MAX_RANGES_TUPLES	16
 #define	MIN_RANGES_TUPLES	2
 
@@ -46,7 +48,7 @@ struct pcie_range {
 #define	FLAG_MEM	(1 << 1)
 };
 
-struct generic_pcie_softc {
+struct generic_pcie_core_softc {
 	struct pcie_range	ranges[MAX_RANGES_TUPLES];
 	int			nranges;
 	int			coherent;
@@ -60,17 +62,14 @@ struct generic_pcie_softc {
 	device_t		dev;
 	bus_space_handle_t	ioh;
 	bus_dma_tag_t		dmat;
-#ifdef FDT
-	struct ofw_bus_iinfo	pci_iinfo;
-#endif
 };
 
-extern devclass_t generic_pcie_devclass;
-DECLARE_CLASS(generic_pcie_driver);
+DECLARE_CLASS(generic_pcie_core_driver);
 
-struct resource *pci_host_generic_alloc_resource(device_t,
-    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-int pci_host_generic_attach(device_t);
-int generic_pcie_get_id(device_t, device_t, enum pci_id_type, uintptr_t *);
+int pci_host_generic_core_attach(device_t);
+struct resource *pci_host_generic_core_alloc_resource(device_t, device_t, int,
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+int pci_host_generic_core_release_resource(device_t, device_t, int, int,
+    struct resource *);
 
 #endif /* __PCI_HOST_GENERIC_H_ */

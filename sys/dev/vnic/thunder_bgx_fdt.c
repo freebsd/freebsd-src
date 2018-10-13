@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #define	BGX_NODE_NAME		"bgx"
 #define	BGX_MAXID		9
+/* BGX func. 0, i.e.: reg = <0x8000 0 0 0 0>; DEVFN = 0x80 */
+#define	BGX_DEVFN_0		0x80
 
 #define	FDT_NAME_MAXLEN		31
 
@@ -82,57 +84,137 @@ bgx_fdt_get_macaddr(phandle_t phy, uint8_t *hwaddr)
 }
 
 static boolean_t
-bgx_fdt_phy_mode_match(struct bgx *bgx, char *qlm_mode, size_t size)
+bgx_fdt_phy_mode_match(struct bgx *bgx, char *qlm_mode, ssize_t size)
 {
-
-	size -= CONN_TYPE_OFFSET;
+	const char *type;
+	ssize_t sz;
+	ssize_t offset;
 
 	switch (bgx->qlm_mode) {
 	case QLM_MODE_SGMII:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "sgmii", size) == 0)
-			return (TRUE);
+		type = "sgmii";
+		sz = sizeof("sgmii");
+		offset = size - sz;
 		break;
 	case QLM_MODE_XAUI_1X4:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "xaui", size) == 0)
+		type = "xaui";
+		sz = sizeof("xaui");
+		offset = size - sz;
+		if (offset < 0)
+			return (FALSE);
+		if (strncmp(&qlm_mode[offset], type, sz) == 0)
 			return (TRUE);
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "dxaui", size) == 0)
-			return (TRUE);
+		type = "dxaui";
+		sz = sizeof("dxaui");
+		offset = size - sz;
 		break;
 	case QLM_MODE_RXAUI_2X2:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "raui", size) == 0)
-			return (TRUE);
+		type = "raui";
+		sz = sizeof("raui");
+		offset = size - sz;
 		break;
 	case QLM_MODE_XFI_4X1:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "xfi", size) == 0)
-			return (TRUE);
+		type = "xfi";
+		sz = sizeof("xfi");
+		offset = size - sz;
 		break;
 	case QLM_MODE_XLAUI_1X4:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "xlaui", size) == 0)
-			return (TRUE);
+		type = "xlaui";
+		sz = sizeof("xlaui");
+		offset = size - sz;
 		break;
 	case QLM_MODE_10G_KR_4X1:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "xfi-10g-kr", size) == 0)
-			return (TRUE);
+		type = "xfi-10g-kr";
+		sz = sizeof("xfi-10g-kr");
+		offset = size - sz;
 		break;
 	case QLM_MODE_40G_KR4_1X4:
-		if (strncmp(&qlm_mode[CONN_TYPE_OFFSET], "xlaui-40g-kr", size) == 0)
-			return (TRUE);
+		type = "xlaui-40g-kr";
+		sz = sizeof("xlaui-40g-kr");
+		offset = size - sz;
 		break;
 	default:
 		return (FALSE);
 	}
 
+	if (offset < 0)
+		return (FALSE);
+
+	if (strncmp(&qlm_mode[offset], type, sz) == 0)
+		return (TRUE);
+
+	return (FALSE);
+}
+
+static boolean_t
+bgx_fdt_phy_name_match(struct bgx *bgx, char *phy_name, ssize_t size)
+{
+	const char *type;
+	ssize_t sz;
+
+	switch (bgx->qlm_mode) {
+	case QLM_MODE_SGMII:
+		type = "sgmii";
+		sz = sizeof("sgmii");
+		break;
+	case QLM_MODE_XAUI_1X4:
+		type = "xaui";
+		sz = sizeof("xaui");
+		if (sz < size)
+			return (FALSE);
+		if (strncmp(phy_name, type, sz) == 0)
+			return (TRUE);
+		type = "dxaui";
+		sz = sizeof("dxaui");
+		break;
+	case QLM_MODE_RXAUI_2X2:
+		type = "raui";
+		sz = sizeof("raui");
+		break;
+	case QLM_MODE_XFI_4X1:
+		type = "xfi";
+		sz = sizeof("xfi");
+		break;
+	case QLM_MODE_XLAUI_1X4:
+		type = "xlaui";
+		sz = sizeof("xlaui");
+		break;
+	case QLM_MODE_10G_KR_4X1:
+		type = "xfi-10g-kr";
+		sz = sizeof("xfi-10g-kr");
+		break;
+	case QLM_MODE_40G_KR4_1X4:
+		type = "xlaui-40g-kr";
+		sz = sizeof("xlaui-40g-kr");
+		break;
+	default:
+		return (FALSE);
+	}
+
+	if (sz > size)
+		return (FALSE);
+	if (strncmp(phy_name, type, sz - 1) == 0 &&
+	    (phy_name[sz - 1] == '\0' || phy_name[sz - 1] == '@'))
+		return (TRUE);
+
 	return (FALSE);
 }
 
 static phandle_t
-bgx_fdt_traverse_nodes(phandle_t start, char *name, size_t len)
+bgx_fdt_traverse_nodes(uint8_t unit, phandle_t start, char *name,
+    size_t len)
 {
 	phandle_t node, ret;
+	uint32_t *reg;
 	size_t buf_size;
+	ssize_t proplen;
 	char *node_name;
 	int err;
 
+	/*
+	 * Traverse all subordinate nodes of 'start' to find BGX instance.
+	 * This supports both old (by name) and new (by reg) methods.
+	 */
 	buf_size = sizeof(*node_name) * FDT_NAME_MAXLEN;
 	if (len > buf_size) {
 		/*
@@ -148,17 +230,49 @@ bgx_fdt_traverse_nodes(phandle_t start, char *name, size_t len)
 		memset(node_name, 0, buf_size);
 		/* Recurse to children */
 		if (OF_child(node) != 0) {
-			ret = bgx_fdt_traverse_nodes(node, name, len);
+			ret = bgx_fdt_traverse_nodes(unit, node, name, len);
 			if (ret != 0) {
 				free(node_name, M_BGX);
 				return (ret);
 			}
 		}
-		err = OF_getprop(node, "name", node_name, FDT_NAME_MAXLEN);
-		if ((err > 0) && (strncmp(node_name, name, len) == 0)) {
+		/*
+		 * Old way - by name
+		 */
+		proplen = OF_getproplen(node, "name");
+		if ((proplen <= 0) || (proplen < len))
+			continue;
+
+		err = OF_getprop(node, "name", node_name, proplen);
+		if (err <= 0)
+			continue;
+
+		if (strncmp(node_name, name, len) == 0) {
 			free(node_name, M_BGX);
 			return (node);
 		}
+		/*
+		 * New way - by reg
+		 */
+		/* Check if even BGX */
+		if (strncmp(node_name,
+		    BGX_NODE_NAME, sizeof(BGX_NODE_NAME) - 1) != 0)
+			continue;
+		/* Get reg */
+		err = OF_getencprop_alloc_multi(node, "reg", sizeof(*reg),
+		    (void **)&reg);
+		if (err == -1) {
+			free(reg, M_OFWPROP);
+			continue;
+		}
+
+		/* Match BGX device function */
+		if ((BGX_DEVFN_0 + unit) == (reg[0] >> 8)) {
+			free(reg, M_OFWPROP);
+			free(node_name, M_BGX);
+			return (node);
+		}
+		free(reg, M_OFWPROP);
 	}
 	free(node_name, M_BGX);
 
@@ -223,7 +337,7 @@ bgx_fdt_find_node(struct bgx *bgx)
 	snprintf(bgx_sel, len + 1, "/"BGX_NODE_NAME"%d", bgx->bgx_id);
 	/* First try the root node */
 	node =  OF_finddevice(bgx_sel);
-	if ((int)node > 0) {
+	if (node != -1) {
 		/* Found relevant node */
 		goto out;
 	}
@@ -249,7 +363,7 @@ bgx_fdt_find_node(struct bgx *bgx)
 		goto out;
 	}
 
-	node = bgx_fdt_traverse_nodes(node, bgx_sel, len);
+	node = bgx_fdt_traverse_nodes(bgx->bgx_id, node, bgx_sel, len);
 out:
 	free(bgx_sel, M_BGX);
 	return (node);
@@ -258,8 +372,10 @@ out:
 int
 bgx_fdt_init_phy(struct bgx *bgx)
 {
+	char *node_name;
 	phandle_t node, child;
 	phandle_t phy, mdio;
+	ssize_t len;
 	uint8_t lmac;
 	char qlm_mode[CONN_TYPE_MAXLEN];
 
@@ -272,19 +388,27 @@ bgx_fdt_init_phy(struct bgx *bgx)
 
 	lmac = 0;
 	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "qlm-mode", qlm_mode,
-		    sizeof(qlm_mode)) <= 0) {
-			/* Missing qlm-mode, skipping */
-			continue;
-		}
+		len = OF_getprop(child, "qlm-mode", qlm_mode, sizeof(qlm_mode));
+		if (len > 0) {
+			if (!bgx_fdt_phy_mode_match(bgx, qlm_mode, len)) {
+				/*
+				 * Connection type not match with BGX mode.
+				 */
+				continue;
+			}
+		} else {
+			len = OF_getprop_alloc(child, "name",
+			    (void **)&node_name);
+			if (len <= 0) {
+				continue;
+			}
 
-		if (!bgx_fdt_phy_mode_match(bgx, qlm_mode, sizeof(qlm_mode))) {
-			/*
-			 * Connection type not match with BGX mode.
-			 */
-			continue;
+			if (!bgx_fdt_phy_name_match(bgx, node_name, len)) {
+				free(node_name, M_OFWPROP);
+				continue;
+			}
+			free(node_name, M_OFWPROP);
 		}
-
 
 		/* Acquire PHY address */
 		if (OF_getencprop(child, "reg", &bgx->lmac[lmac].phyaddr,

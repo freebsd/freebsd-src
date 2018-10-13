@@ -39,21 +39,21 @@ void CallingConvEmitter::run(raw_ostream &O) {
 
   // Emit prototypes for all of the non-custom CC's so that they can forward ref
   // each other.
-  for (unsigned i = 0, e = CCs.size(); i != e; ++i) {
-    if (!CCs[i]->getValueAsBit("Custom")) {
-      O << "static bool " << CCs[i]->getName()
+  for (Record *CC : CCs) {
+    if (!CC->getValueAsBit("Custom")) {
+      O << "static bool " << CC->getName()
         << "(unsigned ValNo, MVT ValVT,\n"
-        << std::string(CCs[i]->getName().size() + 13, ' ')
+        << std::string(CC->getName().size() + 13, ' ')
         << "MVT LocVT, CCValAssign::LocInfo LocInfo,\n"
-        << std::string(CCs[i]->getName().size() + 13, ' ')
+        << std::string(CC->getName().size() + 13, ' ')
         << "ISD::ArgFlagsTy ArgFlags, CCState &State);\n";
     }
   }
 
   // Emit each non-custom calling convention description in full.
-  for (unsigned i = 0, e = CCs.size(); i != e; ++i) {
-    if (!CCs[i]->getValueAsBit("Custom"))
-      EmitCallingConv(CCs[i], O);
+  for (Record *CC : CCs) {
+    if (!CC->getValueAsBit("Custom"))
+      EmitCallingConv(CC, O);
   }
 }
 
@@ -96,7 +96,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
     } else if (Action->isSubClassOf("CCIf")) {
       O << Action->getValueAsString("Predicate");
     } else {
-      Action->dump();
+      errs() << *Action;
       PrintFatalError("Unknown CCPredicateAction!");
     }
     
@@ -268,7 +268,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
         << "LocVT, LocInfo, ArgFlags, State))\n";
       O << IndentStr << IndentStr << "return false;\n";
     } else {
-      Action->dump();
+      errs() << *Action;
       PrintFatalError("Unknown CCAction!");
     }
   }

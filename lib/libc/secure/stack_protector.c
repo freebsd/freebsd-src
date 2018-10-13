@@ -54,15 +54,27 @@ static void
 __guard_setup(void)
 {
 	static const int mib[2] = { CTL_KERN, KERN_ARND };
+	volatile long tmp_stack_chk_guard[nitems(__stack_chk_guard)];
 	size_t len;
-	int error;
+	int error, idx;
 
 	if (__stack_chk_guard[0] != 0)
 		return;
-	error = _elf_aux_info(AT_CANARY, __stack_chk_guard,
-	    sizeof(__stack_chk_guard));
-	if (error == 0 && __stack_chk_guard[0] != 0)
+	/*
+	 * Avoid using functions which might have stack protection
+	 * enabled, to update the __stack_chk_guard.  First fetch the
+	 * data into a temporal array, then do manual volatile copy to
+	 * not allow optimizer to call memcpy() behind us.
+	 */
+	error = _elf_aux_info(AT_CANARY, (void *)tmp_stack_chk_guard,
+	    sizeof(tmp_stack_chk_guard));
+	if (error == 0 && tmp_stack_chk_guard[0] != 0) {
+		for (idx = 0; idx < nitems(__stack_chk_guard); idx++) {
+			__stack_chk_guard[idx] = tmp_stack_chk_guard[idx];
+			tmp_stack_chk_guard[idx] = 0;
+		}
 		return;
+	}
 
 	len = sizeof(__stack_chk_guard);
 	if (__sysctl(mib, nitems(mib), __stack_chk_guard, &len, NULL, 0) ==

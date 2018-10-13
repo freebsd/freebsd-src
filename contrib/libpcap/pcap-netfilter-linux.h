@@ -11,8 +11,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote 
- * products derived from this software without specific prior written 
+ * 3. The name of the author may not be used to endorse or promote
+ * products derived from this software without specific prior written
  * permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -31,5 +31,5 @@
 /*
  * Prototypes for netlink-related functions
  */
-int netfilter_findalldevs(pcap_if_t **alldevsp, char *err_str);
+int netfilter_findalldevs(pcap_if_list_t *devlistp, char *err_str);
 pcap_t *netfilter_create(const char *device, char *ebuf, int *is_ours);

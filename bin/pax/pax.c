@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -107,7 +109,7 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 /*
  *	PAX - Portable Archive Interchange
  *
- * 	A utility to read, write, and write lists of the members of archive
+ *	A utility to read, write, and write lists of the members of archive
  *	files and copy directory hierarchies. A variety of archive formats
  *	are supported (some are described in POSIX 1003.1 10.1):
  *
@@ -235,7 +237,7 @@ main(int argc, char *argv[])
 	/*
 	 * Keep a reference to cwd, so we can always come back home.
 	 */
-	cwdfd = open(".", O_RDONLY);
+	cwdfd = open(".", O_RDONLY | O_CLOEXEC);
 	if (cwdfd < 0) {
 		syswarn(0, errno, "Can't open current working directory.");
 		return(exit_val);
@@ -247,7 +249,7 @@ main(int argc, char *argv[])
 	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
 		tmpdir = _PATH_TMP;
 	tdlen = strlen(tmpdir);
-	while(tdlen > 0 && tmpdir[tdlen - 1] == '/')
+	while (tdlen > 0 && tmpdir[tdlen - 1] == '/')
 		tdlen--;
 	tempfile = malloc(tdlen + 1 + sizeof(_TFILE_BASE));
 	if (tempfile == NULL) {
@@ -269,7 +271,7 @@ main(int argc, char *argv[])
 	/*
 	 * select a primary operation mode
 	 */
-	switch(act) {
+	switch (act) {
 	case EXTRACT:
 		extract();
 		break;
@@ -323,6 +325,25 @@ sig_cleanup(int which_sig)
 }
 
 /*
+ * setup_sig()
+ *	set a signal to be caught, but only if it isn't being ignored already
+ */
+
+static int
+setup_sig(int sig, const struct sigaction *n_hand)
+{
+	struct sigaction o_hand;
+
+	if (sigaction(sig, NULL, &o_hand) < 0)
+		return (-1);
+
+	if (o_hand.sa_handler == SIG_IGN)
+		return (0);
+
+	return (sigaction(sig, n_hand, NULL));
+}
+
+/*
  * gen_init()
  *	general setup routines. Not all are required, but they really help
  *	when dealing with a medium to large sized archives.
@@ -333,7 +354,6 @@ gen_init(void)
 {
 	struct rlimit reslimit;
 	struct sigaction n_hand;
-	struct sigaction o_hand;
 
 	/*
 	 * Really needed to handle large archives. We can run out of memory for
@@ -387,34 +407,16 @@ gen_init(void)
 	n_hand.sa_flags = 0;
 	n_hand.sa_handler = sig_cleanup;
 
-	if ((sigaction(SIGHUP, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGHUP, &o_hand, &o_hand) < 0))
-		goto out;
-
-	if ((sigaction(SIGTERM, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGTERM, &o_hand, &o_hand) < 0))
-		goto out;
-
-	if ((sigaction(SIGINT, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGINT, &o_hand, &o_hand) < 0))
-		goto out;
-
-	if ((sigaction(SIGQUIT, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGQUIT, &o_hand, &o_hand) < 0))
-		goto out;
-
-	if ((sigaction(SIGXCPU, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGXCPU, &o_hand, &o_hand) < 0))
+	if (setup_sig(SIGHUP,  &n_hand) ||
+	   setup_sig(SIGTERM, &n_hand) ||
+	   setup_sig(SIGINT,  &n_hand) ||
+	   setup_sig(SIGQUIT, &n_hand) ||
+	   setup_sig(SIGXCPU, &n_hand))
 		goto out;
 
 	n_hand.sa_handler = SIG_IGN;
-	if ((sigaction(SIGPIPE, &n_hand, &o_hand) < 0) ||
-	    (sigaction(SIGXFSZ, &n_hand, &o_hand) < 0))
+	if ((sigaction(SIGPIPE, &n_hand, NULL) < 0) ||
+	    (sigaction(SIGXFSZ, &n_hand, NULL) < 0))
 		goto out;
 	return(0);
 

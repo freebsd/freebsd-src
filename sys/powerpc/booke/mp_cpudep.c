@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2009 Semihalf, Rafal Jaworowski
  * All rights reserved.
  *
@@ -50,7 +52,8 @@ volatile void *ap_pcpu;
 uintptr_t
 cpudep_ap_bootstrap()
 {
-	uint32_t msr, sp, csr;
+	uint32_t msr, csr;
+	uintptr_t sp;
 
 	/* Enable L1 caches */
 	csr = mfspr(SPR_L1CSR0);
@@ -66,7 +69,11 @@ cpudep_ap_bootstrap()
 	}
 
 	/* Set MSR */
+#ifdef __powerpc64__
+	msr = PSL_CM | PSL_ME;
+#else
 	msr = PSL_ME;
+#endif
 	mtmsr(msr);
 
 	/* Assign pcpu fields, return ptr to this AP's idle thread kstack */

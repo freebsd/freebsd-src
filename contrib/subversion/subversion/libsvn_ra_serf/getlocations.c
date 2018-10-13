@@ -193,9 +193,8 @@ svn_ra_serf__get_locations(svn_ra_session_t *ra_session,
 
   SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
-  SVN_ERR(svn_ra_serf__error_on_status(handler->sline,
-                                       handler->path,
-                                       handler->location));
+  if (handler->sline.code != 200)
+    SVN_ERR(svn_ra_serf__unexpected_status(handler));
 
   return SVN_NO_ERROR;
 }

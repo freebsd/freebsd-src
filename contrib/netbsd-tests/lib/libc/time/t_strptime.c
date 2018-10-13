@@ -1,4 +1,4 @@
-/* $NetBSD: t_strptime.c,v 1.1 2011/01/13 00:14:10 pgoyette Exp $ */
+/* $NetBSD: t_strptime.c,v 1.12 2015/10/31 02:25:11 christos Exp $ */
 
 /*-
  * Copyright (c) 1998, 2008 The NetBSD Foundation, Inc.
@@ -32,9 +32,11 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_strptime.c,v 1.1 2011/01/13 00:14:10 pgoyette Exp $");
+__RCSID("$NetBSD: t_strptime.c,v 1.12 2015/10/31 02:25:11 christos Exp $");
 
 #include <time.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include <atf-c.h>
 
@@ -97,6 +99,124 @@ h_fail(const char *buf, const char *fmt)
 #endif
 }
 
+static struct {
+	const char *name;
+	long offs;
+} zt[] = {
+	{ "Z",				0 },
+	{ "UT",				0 },
+	{ "UTC",			0 },
+	{ "GMT",			0 },
+	{ "EST",			-18000 },
+	{ "EDT",			-14400 },
+	{ "CST",			-21600 },
+	{ "CDT",			-18000 },
+	{ "MST",			-25200 },
+	{ "MDT",			-21600 },
+	{ "PST",			-28800 },
+	{ "PDT",			-25200 },
+
+	{ "VST",			-1 },
+	{ "VDT",			-1 },
+
+	{ "+03",			10800 },
+	{ "-03",			-10800 },
+	{ "+0403",			14580 },
+	{ "-0403",			-14580 },
+	{ "+04:03",			14580 },
+	{ "-04:03",			-14580 },
+	{ "+14:00",			50400 },
+	{ "-14:00",			-50400 },
+	{ "+23:59",			86340 },
+	{ "-23:59",			-86340 },
+
+	{ "1",				-1 },
+	{ "03",				-1 },
+	{ "0304",			-1 },
+	{ "+1",				-1 },
+	{ "-203",			-1 },
+	{ "+12345",			-1 },
+	{ "+12:345",			-1 },
+	{ "+123:45",			-1 },
+	{ "+2400",			-1 },
+	{ "-2400",			-1 },
+	{ "+1060",			-1 },
+	{ "-1060",			-1 },
+
+	{ "A",				-3600 },
+	{ "B",				-7200 },
+	{ "C",				-10800 },
+	{ "D",				-14400 },
+	{ "E",				-18000 },
+	{ "F",				-21600 },
+	{ "G",				-25200 },
+	{ "H",				-28800 },
+	{ "I",				-32400 },
+	{ "L",				-39600 },
+	{ "M",				-43200 },
+	{ "N",				3600 },
+	{ "O",				7200 },
+	{ "P",				10800 },
+	{ "Q",				14400 },
+	{ "R",				18000 },
+	{ "T",				25200 },
+	{ "U",				28800 },
+	{ "V",				32400 },
+	{ "W",				36000 },
+	{ "X",				39600 },
+	{ "Y",				43200 },
+
+	{ "J",				-2 },
+
+	{ "America/Los_Angeles",	-28800 },
+	{ "America/New_York",		-18000 },
+	{ "EST4EDT",			-14400 },
+
+	{ "Bogus",			-1 },
+};
+
+static void
+ztest1(const char *name, const char *fmt, long value)
+{
+	struct tm tm;
+	char *rv;
+
+	memset(&tm, 0, sizeof(tm));
+	if ((rv = strptime(name, fmt, &tm)) == NULL) 
+		tm.tm_gmtoff = -1;
+	else if (rv == name && fmt[1] == 'Z')
+		value = 0;
+
+	switch (value) {
+	case -2:
+		value = -timezone;
+		break;
+	case -1:
+		if (fmt[1] == 'Z')
+			value = 0;
+		break;
+	default:
+		break;
+	}
+
+	ATF_REQUIRE_MSG(tm.tm_gmtoff == value,
+	    "strptime(\"%s\", \"%s\", &tm): "
+	    "expected: tm.tm_gmtoff=%ld, got: tm.tm_gmtoff=%ld",
+	    name, fmt, value, tm.tm_gmtoff);
+	printf("%s %s %ld\n", name, fmt, tm.tm_gmtoff);
+}
+
+static void
+ztest(const char *fmt)
+{
+	setenv("TZ", "US/Eastern", 1);
+	ztest1("GMT", fmt, 0);
+	ztest1("UTC", fmt, 0);
+	ztest1("US/Eastern", fmt, -18000);
+	for (size_t i = 0; i < __arraycount(zt); i++)
+		ztest1(zt[i].name, fmt, zt[i].offs);
+}
+
 ATF_TC(common);
 
 ATF_TC_HEAD(common, tc)
@@ -113,33 +233,17 @@ ATF_TC_BODY(common, tc)
 #endif
 
 	h_pass("Tue Jan 20 23:27:46 1998", "%a %b %d %T %Y",
-		24, 46, 27, 23, 20, 0, 98, 2, -1);
+		24, 46, 27, 23, 20, 0, 98, 2, 19);
 	h_pass("Tue Jan 20 23:27:46 1998", "%a %b %d %H:%M:%S %Y",
-		24, 46, 27, 23, 20, 0, 98, 2, -1);
+		24, 46, 27, 23, 20, 0, 98, 2, 19);
 	h_pass("Tue Jan 20 23:27:46 1998", "%c",
-		24, 46, 27, 23, 20, 0, 98, 2, -1);
+		24, 46, 27, 23, 20, 0, 98, 2, 19);
 	h_pass("Fri Mar  4 20:05:34 2005", "%a %b %e %H:%M:%S %Y",
-		24, 34, 5, 20, 4, 2, 105, 5, -1);
+		24, 34, 5, 20, 4, 2, 105, 5, 62);
 	h_pass("5\t3  4 8pm:05:34 2005", "%w%n%m%t%d%n%k%p:%M:%S %Y",
-		21, 34, 5, 20, 4, 2, 105, 5, -1);
+		21, 34, 5, 20, 4, 2, 105, 5, 62);
 	h_pass("Fri Mar  4 20:05:34 2005", "%c",
-		24, 34, 5, 20, 4, 2, 105, 5, -1);
-
-	h_pass("x20y", "x%Cy", 4, -1, -1, -1, -1, -1, 100, -1, -1);
-	h_pass("x84y", "x%yy", 4, -1, -1, -1, -1, -1, 84, -1, -1);
-	h_pass("x2084y", "x%C%yy", 6, -1, -1, -1, -1, -1, 184, -1, -1);
-	h_pass("x8420y", "x%y%Cy", 6, -1, -1, -1, -1, -1, 184, -1, -1);
-	h_pass("%20845", "%%%C%y5", 6, -1, -1, -1, -1, -1, 184, -1, -1);
-	h_fail("%", "%E%");
-
-	h_pass("1980", "%Y", 4, -1, -1, -1, -1, -1, 80, -1, -1);
-	h_pass("1980", "%EY", 4, -1, -1, -1, -1, -1, 80, -1, -1);
-
-	h_pass("0", "%S", 1, 0, -1, -1, -1, -1, -1, -1, -1);
-	h_pass("59", "%S", 2, 59, -1, -1, -1, -1, -1, -1, -1);
-	h_pass("60", "%S", 2, 60, -1, -1, -1, -1, -1, -1, -1);
-	h_pass("61", "%S", 2, 61, -1, -1, -1, -1, -1, -1, -1);
-	h_fail("62", "%S");
+		24, 34, 5, 20, 4, 2, 105, 5, 62);
 }
 
 ATF_TC(day);
@@ -147,7 +251,8 @@ ATF_TC(day);
 ATF_TC_HEAD(day, tc)
 {
 
-	atf_tc_set_md_var(tc, "descr", "Checks strptime(3): day names");
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) day name conversions [aA]");
 }
 
 ATF_TC_BODY(day, tc)
@@ -202,12 +307,35 @@ ATF_TC_BODY(day, tc)
 #endif
 }
 
+ATF_TC(hour);
+
+ATF_TC_HEAD(hour, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) hour conversions [IH]");
+}
+
+ATF_TC_BODY(hour, tc)
+{
+
+	h_fail("00", "%I");
+	h_fail("13", "%I");
+
+	h_pass("00", "%H", 2, -1, -1, 0, -1, -1, -1, -1, -1);
+	h_pass("12", "%H", 2, -1, -1, 12, -1, -1, -1, -1, -1);
+	h_pass("23", "%H", 2, -1, -1, 23, -1, -1, -1, -1, -1);
+	h_fail("24", "%H");
+}
+
+
 ATF_TC(month);
 
 ATF_TC_HEAD(month, tc)
 {
 
-	atf_tc_set_md_var(tc, "descr", "Checks strptime(3): month names");
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) month name conversions [bB]");
 }
 
 ATF_TC_BODY(month, tc)
@@ -270,12 +398,89 @@ ATF_TC_BODY(month, tc)
 	h_pass("septembe", "%B", 3, -1, -1, -1, -1, 8, -1, -1, -1);
 }
 
+ATF_TC(seconds);
+
+ATF_TC_HEAD(seconds, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) seconds conversions [S]");
+}
+
+ATF_TC_BODY(seconds, tc)
+{
+
+	h_pass("0", "%S", 1, 0, -1, -1, -1, -1, -1, -1, -1);
+	h_pass("59", "%S", 2, 59, -1, -1, -1, -1, -1, -1, -1);
+	h_pass("60", "%S", 2, 60, -1, -1, -1, -1, -1, -1, -1);
+	h_pass("61", "%S", 2, 61, -1, -1, -1, -1, -1, -1, -1);
+	h_fail("62", "%S");
+}
+
+ATF_TC(year);
+
+ATF_TC_HEAD(year, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) century/year conversions [CyY]");
+}
+
+ATF_TC_BODY(year, tc)
+{
+
+	h_pass("x20y", "x%Cy", 4, -1, -1, -1, -1, -1, 100, -1, -1);
+	h_pass("x84y", "x%yy", 4, -1, -1, -1, -1, -1, 84, -1, -1);
+	h_pass("x2084y", "x%C%yy", 6, -1, -1, -1, -1, -1, 184, -1, -1);
+	h_pass("x8420y", "x%y%Cy", 6, -1, -1, -1, -1, -1, 184, -1, -1);
+	h_pass("%20845", "%%%C%y5", 6, -1, -1, -1, -1, -1, 184, -1, -1);
+	h_fail("%", "%E%");
+
+	h_pass("1980", "%Y", 4, -1, -1, -1, -1, -1, 80, -1, -1);
+	h_pass("1980", "%EY", 4, -1, -1, -1, -1, -1, 80, -1, -1);
+}
+
+ATF_TC(zone);
+
+ATF_TC_HEAD(zone, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) timezone conversion [z]");
+}
+
+
+ATF_TC_BODY(zone, tc)
+{
+	ztest("%z");
+}
+
+ATF_TC(Zone);
+
+ATF_TC_HEAD(Zone, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+			  "Checks strptime(3) timezone conversion [Z]");
+}
+
+
+ATF_TC_BODY(Zone, tc)
+{
+	ztest("%z");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, common);
 	ATF_TP_ADD_TC(tp, day);
+	ATF_TP_ADD_TC(tp, hour);
 	ATF_TP_ADD_TC(tp, month);
+	ATF_TP_ADD_TC(tp, seconds);
+	ATF_TP_ADD_TC(tp, year);
+	ATF_TP_ADD_TC(tp, zone);
+	ATF_TP_ADD_TC(tp, Zone);
 
 	return atf_no_error();
 }

@@ -2,7 +2,10 @@
  * $FreeBSD$
  */
 
-/* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
+/*-
+   SPDX-License-Identifier: RSA-MD
+
+   Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
    rights reserved.
 
    License to copy and use this software is granted provided that it
@@ -53,6 +56,12 @@ __BEGIN_DECLS
 #ifndef MD4End
 #define MD4End		_libmd_MD4End
 #endif
+#ifndef MD4Fd
+#define MD4Fd		_libmd_MD4Fd
+#endif
+#ifndef MD4FdChunk
+#define MD4FdChunk	_libmd_MD4FdChunk
+#endif
 #ifndef MD4File
 #define MD4File		_libmd_MD4File
 #endif
@@ -68,6 +77,8 @@ void   MD4Update(MD4_CTX *, const void *, unsigned int);
 void   MD4Pad(MD4_CTX *);
 void   MD4Final(unsigned char [16], MD4_CTX *);
 char * MD4End(MD4_CTX *, char *);
+char * MD4Fd(int, char *);
+char * MD4FdChunk(int, char *, off_t, off_t);
 char * MD4File(const char *, char *);
 char * MD4FileChunk(const char *, char *, off_t, off_t);
 char * MD4Data(const void *, unsigned int, char *);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
@@ -87,7 +89,8 @@ g_eli_crypto_read_done(struct cryptop *crp)
 			bp->bio_error = crp->crp_etype;
 	}
 	sc = bp->bio_to->geom->softc;
-	g_eli_key_drop(sc, crp->crp_desc->crd_key);
+	if (sc != NULL)
+		g_eli_key_drop(sc, crp->crp_desc->crd_key);
 	/*
 	 * Do we have all sectors already?
 	 */
@@ -104,7 +107,8 @@ g_eli_crypto_read_done(struct cryptop *crp)
 	 * Read is finished, send it up.
 	 */
 	g_io_deliver(bp, bp->bio_error);
-	atomic_subtract_int(&sc->sc_inflight, 1);
+	if (sc != NULL)
+		atomic_subtract_int(&sc->sc_inflight, 1);
 	return (0);
 }
 
@@ -275,7 +279,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
 
-		crp->crp_sid = wr->w_sid;
+		crp->crp_session = wr->w_sid;
 		crp->crp_ilen = secsize;
 		crp->crp_olen = secsize;
 		crp->crp_opaque = (void *)bp;

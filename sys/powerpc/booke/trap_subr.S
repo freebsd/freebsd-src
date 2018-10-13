@@ -82,9 +82,13 @@
 /* Get the per-CPU data structure */
 #define GET_CPUINFO(r) mfsprg0 r
 
-#define RES_GRANULE	32
+#define RES_GRANULE	64
 #define RES_LOCK	0	/* offset to the 'lock' word */
+#ifdef __powerpc64__
+#define RES_RECURSE	8	/* offset to the 'recurse' word */
+#else
 #define RES_RECURSE	4	/* offset to the 'recurse' word */
+#endif
 
 /*
  * Standard interrupt prolog
@@ -114,16 +118,16 @@
 #define STANDARD_PROLOG(sprg_sp, savearea, isrr0, isrr1)		\
 	mtspr	sprg_sp, %r1;		/* Save SP */			\
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
-	stw	%r30, (savearea+CPUSAVE_R30)(%r1);			\
-	stw	%r31, (savearea+CPUSAVE_R31)(%r1); 			\
+	STORE	%r30, (savearea+CPUSAVE_R30)(%r1);			\
+	STORE	%r31, (savearea+CPUSAVE_R31)(%r1); 			\
 	mfdear	%r30;		 					\
 	mfesr	%r31;							\
-	stw	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1); 		\
-	stw	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1); 		\
+	STORE	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1); 		\
+	STORE	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1); 		\
 	mfspr	%r30, isrr0;						\
 	mfspr	%r31, isrr1;	 	/* MSR at interrupt time */	\
-	stw	%r30, (savearea+CPUSAVE_SRR0)(%r1);			\
-	stw	%r31, (savearea+CPUSAVE_SRR1)(%r1);			\
+	STORE	%r30, (savearea+CPUSAVE_SRR0)(%r1);			\
+	STORE	%r31, (savearea+CPUSAVE_SRR1)(%r1);			\
 	isync;			 					\
 	mfspr	%r1, sprg_sp;	 	/* Restore SP */		\
 	mfcr	%r30;		 	/* Save CR */			\
@@ -131,26 +135,26 @@
 	mtcr	%r31;			/* MSR at interrupt time  */	\
 	bf	17, 1f;							\
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
-	lwz	%r1, PC_CURPCB(%r1); 	/* Per-thread kernel stack */	\
+	LOAD	%r1, PC_CURPCB(%r1); 	/* Per-thread kernel stack */	\
 1:
 
 #define	STANDARD_CRIT_PROLOG(sprg_sp, savearea, isrr0, isrr1)		\
 	mtspr	sprg_sp, %r1;		/* Save SP */			\
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
-	stw	%r30, (savearea+CPUSAVE_R30)(%r1);			\
-	stw	%r31, (savearea+CPUSAVE_R31)(%r1);			\
+	STORE	%r30, (savearea+CPUSAVE_R30)(%r1);			\
+	STORE	%r31, (savearea+CPUSAVE_R31)(%r1);			\
 	mfdear	%r30;							\
 	mfesr	%r31;							\
-	stw	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1);		\
-	stw	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1);		\
+	STORE	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1);		\
+	STORE	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1);		\
 	mfspr	%r30, isrr0;						\
 	mfspr	%r31, isrr1;		/* MSR at interrupt time */	\
-	stw	%r30, (savearea+CPUSAVE_SRR0)(%r1);			\
-	stw	%r31, (savearea+CPUSAVE_SRR1)(%r1);			\
+	STORE	%r30, (savearea+CPUSAVE_SRR0)(%r1);			\
+	STORE	%r31, (savearea+CPUSAVE_SRR1)(%r1);			\
 	mfspr	%r30, SPR_SRR0;						\
 	mfspr	%r31, SPR_SRR1;		/* MSR at interrupt time */	\
-	stw	%r30, (savearea+CPUSAVE_SRR0+8)(%r1);			\
-	stw	%r31, (savearea+CPUSAVE_SRR1+8)(%r1);			\
+	STORE	%r30, (savearea+BOOKE_CRITSAVE_SRR0)(%r1);		\
+	STORE	%r31, (savearea+BOOKE_CRITSAVE_SRR1)(%r1);		\
 	isync;								\
 	mfspr	%r1, sprg_sp;		/* Restore SP */		\
 	mfcr	%r30;			/* Save CR */			\
@@ -158,7 +162,7 @@
 	mtcr	%r31;			/* MSR at interrupt time  */	\
 	bf	17, 1f;							\
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
-	lwz	%r1, PC_CURPCB(%r1);	/* Per-thread kernel stack */	\
+	LOAD	%r1, PC_CURPCB(%r1);	/* Per-thread kernel stack */	\
 1:
 
 /*
@@ -185,42 +189,109 @@
  *   enough i.e. when kstack crosses page boundary and both pages are
  *   untranslated)
  */
+#ifdef __powerpc64__
+#define SAVE_REGS(r)							\
+	std	%r3, FRAME_3+CALLSIZE(r);				\
+	std	%r4, FRAME_4+CALLSIZE(r);				\
+	std	%r5, FRAME_5+CALLSIZE(r);				\
+	std	%r6, FRAME_6+CALLSIZE(r);				\
+	std	%r7, FRAME_7+CALLSIZE(r);				\
+	std	%r8, FRAME_8+CALLSIZE(r);				\
+	std	%r9, FRAME_9+CALLSIZE(r);				\
+	std	%r10, FRAME_10+CALLSIZE(r);				\
+	std	%r11, FRAME_11+CALLSIZE(r);				\
+	std	%r12, FRAME_12+CALLSIZE(r);				\
+	std	%r13, FRAME_13+CALLSIZE(r);				\
+	std	%r14, FRAME_14+CALLSIZE(r);				\
+	std	%r15, FRAME_15+CALLSIZE(r);				\
+	std	%r16, FRAME_16+CALLSIZE(r);				\
+	std	%r17, FRAME_17+CALLSIZE(r);				\
+	std	%r18, FRAME_18+CALLSIZE(r);				\
+	std	%r19, FRAME_19+CALLSIZE(r);				\
+	std	%r20, FRAME_20+CALLSIZE(r);				\
+	std	%r21, FRAME_21+CALLSIZE(r);				\
+	std	%r22, FRAME_22+CALLSIZE(r);				\
+	std	%r23, FRAME_23+CALLSIZE(r);				\
+	std	%r24, FRAME_24+CALLSIZE(r);				\
+	std	%r25, FRAME_25+CALLSIZE(r);				\
+	std	%r26, FRAME_26+CALLSIZE(r);				\
+	std	%r27, FRAME_27+CALLSIZE(r);				\
+	std	%r28, FRAME_28+CALLSIZE(r);				\
+	std	%r29, FRAME_29+CALLSIZE(r);				\
+	std	%r30, FRAME_30+CALLSIZE(r);				\
+	std	%r31, FRAME_31+CALLSIZE(r)
+#define LD_REGS(r)							\
+	ld	%r3, FRAME_3+CALLSIZE(r);				\
+	ld	%r4, FRAME_4+CALLSIZE(r);				\
+	ld	%r5, FRAME_5+CALLSIZE(r);				\
+	ld	%r6, FRAME_6+CALLSIZE(r);				\
+	ld	%r7, FRAME_7+CALLSIZE(r);				\
+	ld	%r8, FRAME_8+CALLSIZE(r);				\
+	ld	%r9, FRAME_9+CALLSIZE(r);				\
+	ld	%r10, FRAME_10+CALLSIZE(r);				\
+	ld	%r11, FRAME_11+CALLSIZE(r);				\
+	ld	%r12, FRAME_12+CALLSIZE(r);				\
+	ld	%r13, FRAME_13+CALLSIZE(r);				\
+	ld	%r14, FRAME_14+CALLSIZE(r);				\
+	ld	%r15, FRAME_15+CALLSIZE(r);				\
+	ld	%r16, FRAME_16+CALLSIZE(r);				\
+	ld	%r17, FRAME_17+CALLSIZE(r);				\
+	ld	%r18, FRAME_18+CALLSIZE(r);				\
+	ld	%r19, FRAME_19+CALLSIZE(r);				\
+	ld	%r20, FRAME_20+CALLSIZE(r);				\
+	ld	%r21, FRAME_21+CALLSIZE(r);				\
+	ld	%r22, FRAME_22+CALLSIZE(r);				\
+	ld	%r23, FRAME_23+CALLSIZE(r);				\
+	ld	%r24, FRAME_24+CALLSIZE(r);				\
+	ld	%r25, FRAME_25+CALLSIZE(r);				\
+	ld	%r26, FRAME_26+CALLSIZE(r);				\
+	ld	%r27, FRAME_27+CALLSIZE(r);				\
+	ld	%r28, FRAME_28+CALLSIZE(r);				\
+	ld	%r29, FRAME_29+CALLSIZE(r);				\
+	ld	%r30, FRAME_30+CALLSIZE(r);				\
+	ld	%r31, FRAME_31+CALLSIZE(r)
+#else
+#define SAVE_REGS(r)							\
+	stmw	%r3,  FRAME_3+CALLSIZE(r)
+#define LD_REGS(r)							\
+	lmw	%r3,  FRAME_3+CALLSIZE(r)
+#endif
 #define	FRAME_SETUP(sprg_sp, savearea, exc)				\
 	mfspr	%r31, sprg_sp;		/* get saved SP */		\
 	/* establish a new stack frame and put everything on it */	\
-	stwu	%r31, -FRAMELEN(%r1);					\
-	stw	%r0, FRAME_0+8(%r1);	/* save r0 in the trapframe */	\
-	stw	%r31, FRAME_1+8(%r1);	/* save SP   "      "       */	\
-	stw	%r2, FRAME_2+8(%r1);	/* save r2   "      "       */	\
+	STU	%r31, -(FRAMELEN+REDZONE)(%r1);				\
+	STORE	%r0, FRAME_0+CALLSIZE(%r1);	/* save r0 in the trapframe */	\
+	STORE	%r31, FRAME_1+CALLSIZE(%r1);	/* save SP   "     " */	\
+	STORE	%r2, FRAME_2+CALLSIZE(%r1);	/* save r2   "     " */	\
 	mflr	%r31;		 					\
-	stw	%r31, FRAME_LR+8(%r1);	/* save LR   "      "       */	\
-	stw	%r30, FRAME_CR+8(%r1);	/* save CR   "      "       */	\
+	STORE	%r31, FRAME_LR+CALLSIZE(%r1);	/* save LR   "     " */	\
+	STORE	%r30, FRAME_CR+CALLSIZE(%r1);	/* save CR   "     " */	\
 	GET_CPUINFO(%r2);						\
-	lwz	%r30, (savearea+CPUSAVE_R30)(%r2); /* get saved r30 */	\
-	lwz	%r31, (savearea+CPUSAVE_R31)(%r2); /* get saved r31 */	\
+	LOAD	%r30, (savearea+CPUSAVE_R30)(%r2); /* get saved r30 */	\
+	LOAD	%r31, (savearea+CPUSAVE_R31)(%r2); /* get saved r31 */	\
 	/* save R3-31 */						\
-	stmw	%r3,  FRAME_3+8(%r1) ;					\
+	SAVE_REGS(%r1);							\
 	/* save DEAR, ESR */						\
-	lwz	%r28, (savearea+CPUSAVE_BOOKE_DEAR)(%r2);		\
-	lwz	%r29, (savearea+CPUSAVE_BOOKE_ESR)(%r2);		\
-	stw	%r28, FRAME_BOOKE_DEAR+8(%r1);				\
-	stw	%r29, FRAME_BOOKE_ESR+8(%r1);				\
+	LOAD	%r28, (savearea+CPUSAVE_BOOKE_DEAR)(%r2);		\
+	LOAD	%r29, (savearea+CPUSAVE_BOOKE_ESR)(%r2);		\
+	STORE	%r28, FRAME_BOOKE_DEAR+CALLSIZE(%r1);			\
+	STORE	%r29, FRAME_BOOKE_ESR+CALLSIZE(%r1);			\
 	/* save XER, CTR, exc number */					\
 	mfxer	%r3;							\
 	mfctr	%r4;							\
-	stw	%r3, FRAME_XER+8(%r1);					\
-	stw	%r4, FRAME_CTR+8(%r1);					\
+	STORE	%r3, FRAME_XER+CALLSIZE(%r1);				\
+	STORE	%r4, FRAME_CTR+CALLSIZE(%r1);				\
 	li	%r5, exc;						\
-	stw	%r5, FRAME_EXC+8(%r1);					\
+	STORE	%r5, FRAME_EXC+CALLSIZE(%r1);				\
 	/* save DBCR0 */						\
 	mfspr	%r3, SPR_DBCR0;						\
-	stw	%r3, FRAME_BOOKE_DBCR0+8(%r1);				\
+	STORE	%r3, FRAME_BOOKE_DBCR0+CALLSIZE(%r1);			\
 	/* save xSSR0-1 */						\
-	lwz	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
-	lwz	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
-	stw	%r30, FRAME_SRR0+8(%r1);				\
-	stw	%r31, FRAME_SRR1+8(%r1);				\
-	lwz	%r2,PC_CURTHREAD(%r2)	/* set curthread pointer */
+	LOAD	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
+	LOAD	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
+	STORE	%r30, FRAME_SRR0+CALLSIZE(%r1);				\
+	STORE	%r31, FRAME_SRR1+CALLSIZE(%r1);				\
+	LOAD	THREAD_REG, PC_CURTHREAD(%r2);				\
 
 /*
  *
@@ -231,27 +302,29 @@
  *  - potential TLB miss: YES. The deref'd kstack may be not covered
  */
 #define	FRAME_LEAVE(isrr0, isrr1)					\
+	wrteei 0;							\
 	/* restore CTR, XER, LR, CR */					\
-	lwz	%r4, FRAME_CTR+8(%r1);					\
-	lwz	%r5, FRAME_XER+8(%r1);					\
-	lwz	%r6, FRAME_LR+8(%r1);					\
-	lwz	%r7, FRAME_CR+8(%r1);					\
+	LOAD	%r4, FRAME_CTR+CALLSIZE(%r1);				\
+	LOAD	%r5, FRAME_XER+CALLSIZE(%r1);				\
+	LOAD	%r6, FRAME_LR+CALLSIZE(%r1);				\
+	LOAD	%r7, FRAME_CR+CALLSIZE(%r1);				\
 	mtctr	%r4;							\
 	mtxer	%r5;							\
 	mtlr	%r6;							\
 	mtcr	%r7;							\
 	/* restore DBCR0 */						\
-	lwz	%r4, FRAME_BOOKE_DBCR0+8(%r1);				\
+	LOAD	%r4, FRAME_BOOKE_DBCR0+CALLSIZE(%r1);			\
 	mtspr	SPR_DBCR0, %r4;						\
 	/* restore xSRR0-1 */						\
-	lwz	%r30, FRAME_SRR0+8(%r1);				\
-	lwz	%r31, FRAME_SRR1+8(%r1);				\
+	LOAD	%r30, FRAME_SRR0+CALLSIZE(%r1);				\
+	LOAD	%r31, FRAME_SRR1+CALLSIZE(%r1);				\
 	mtspr	isrr0, %r30;						\
 	mtspr	isrr1, %r31;						\
 	/* restore R2-31, SP */						\
-	lmw	%r2, FRAME_2+8(%r1) ;					\
-	lwz	%r0, FRAME_0+8(%r1);					\
-	lwz	%r1, FRAME_1+8(%r1);					\
+	LD_REGS(%r1);							\
+	LOAD	%r2, FRAME_2+CALLSIZE(%r1);				\
+	LOAD	%r0, FRAME_0+CALLSIZE(%r1);				\
+	LOAD	%r1, FRAME_1+CALLSIZE(%r1);				\
 	isync
 
 /*
@@ -264,33 +337,70 @@
  *    miss within the TLB prolog itself!
  *  - TLBSAVE is always translated
  */
+#ifdef __powerpc64__
+#define	TLB_SAVE_REGS(br)						\
+	std	%r20, (TLBSAVE_BOOKE_R20)(br);				\
+	std	%r21, (TLBSAVE_BOOKE_R21)(br);				\
+	std	%r22, (TLBSAVE_BOOKE_R22)(br);				\
+	std	%r23, (TLBSAVE_BOOKE_R23)(br);				\
+	std	%r24, (TLBSAVE_BOOKE_R24)(br);				\
+	std	%r25, (TLBSAVE_BOOKE_R25)(br);				\
+	std	%r26, (TLBSAVE_BOOKE_R26)(br);				\
+	std	%r27, (TLBSAVE_BOOKE_R27)(br);				\
+	std	%r28, (TLBSAVE_BOOKE_R28)(br);				\
+	std	%r29, (TLBSAVE_BOOKE_R29)(br);				\
+	std	%r30, (TLBSAVE_BOOKE_R30)(br);				\
+	std	%r31, (TLBSAVE_BOOKE_R31)(br);				
+#define	TLB_RESTORE_REGS(br)						\
+	ld	%r20, (TLBSAVE_BOOKE_R20)(br);				\
+	ld	%r21, (TLBSAVE_BOOKE_R21)(br);				\
+	ld	%r22, (TLBSAVE_BOOKE_R22)(br);				\
+	ld	%r23, (TLBSAVE_BOOKE_R23)(br);				\
+	ld	%r24, (TLBSAVE_BOOKE_R24)(br);				\
+	ld	%r25, (TLBSAVE_BOOKE_R25)(br);				\
+	ld	%r26, (TLBSAVE_BOOKE_R26)(br);				\
+	ld	%r27, (TLBSAVE_BOOKE_R27)(br);				\
+	ld	%r28, (TLBSAVE_BOOKE_R28)(br);				\
+	ld	%r29, (TLBSAVE_BOOKE_R29)(br);				\
+	ld	%r30, (TLBSAVE_BOOKE_R30)(br);				\
+	ld	%r31, (TLBSAVE_BOOKE_R31)(br);				
+#define TLB_NEST(outr,inr)						\
+	rlwinm	outr, inr, 7, 22, 24;	/* 8 x TLBSAVE_LEN */
+#else
+#define TLB_SAVE_REGS(br)						\
+	stmw	%r20, TLBSAVE_BOOKE_R20(br)
+#define TLB_RESTORE_REGS(br)						\
+	lmw	%r20, TLBSAVE_BOOKE_R20(br)
+#define TLB_NEST(outr,inr)						\
+	rlwinm	outr, inr, 6, 23, 25;	/* 4 x TLBSAVE_LEN */
+#endif
 #define TLB_PROLOG							\
 	mtsprg4	%r1;			/* Save SP */			\
 	mtsprg5 %r28;							\
 	mtsprg6 %r29;							\
 	/* calculate TLB nesting level and TLBSAVE instance address */	\
 	GET_CPUINFO(%r1);	 	/* Per-cpu structure */		\
-	lwz	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
-	rlwinm	%r29, %r28, 6, 23, 25;	/* 4 x TLBSAVE_LEN */		\
+	LOAD	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
+	TLB_NEST(%r29,%r28);						\
 	addi	%r28, %r28, 1;						\
-	stw	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
+	STORE	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
 	addi	%r29, %r29, PC_BOOKE_TLBSAVE@l; 			\
 	add	%r1, %r1, %r29;		/* current TLBSAVE ptr */	\
 									\
 	/* save R20-31 */						\
 	mfsprg5 %r28;		 					\
 	mfsprg6 %r29;							\
-	stmw	%r20, (TLBSAVE_BOOKE_R20)(%r1);				\
+	TLB_SAVE_REGS(%r1);			\
 	/* save LR, CR */						\
 	mflr	%r30;		 					\
 	mfcr	%r31;							\
-	stw	%r30, (TLBSAVE_BOOKE_LR)(%r1);				\
-	stw	%r31, (TLBSAVE_BOOKE_CR)(%r1);				\
+	STORE	%r30, (TLBSAVE_BOOKE_LR)(%r1);				\
+	STORE	%r31, (TLBSAVE_BOOKE_CR)(%r1);				\
 	/* save SRR0-1 */						\
 	mfsrr0	%r30;		/* execution addr at interrupt time */	\
 	mfsrr1	%r31;		/* MSR at interrupt time*/		\
-	stw	%r30, (TLBSAVE_BOOKE_SRR0)(%r1);	/* save SRR0 */	\
-	stw	%r31, (TLBSAVE_BOOKE_SRR1)(%r1);	/* save SRR1 */	\
+	STORE	%r30, (TLBSAVE_BOOKE_SRR0)(%r1);	/* save SRR0 */	\
+	STORE	%r31, (TLBSAVE_BOOKE_SRR1)(%r1);	/* save SRR1 */	\
 	isync;								\
 	mfsprg4	%r1
 
@@ -303,43 +413,43 @@
 	mtsprg4	%r1;			/* Save SP */			\
 	GET_CPUINFO(%r1);	 	/* Per-cpu structure */		\
 	/* calculate TLB nesting level and TLBSAVE instance addr */	\
-	lwz	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
+	LOAD	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
 	subi	%r28, %r28, 1;						\
-	stw	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
-	rlwinm	%r29, %r28, 6, 23, 25; /* 4 x TLBSAVE_LEN */		\
+	STORE	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
+	TLB_NEST(%r29,%r28);						\
 	addi	%r29, %r29, PC_BOOKE_TLBSAVE@l;				\
 	add	%r1, %r1, %r29;						\
 									\
 	/* restore LR, CR */						\
-	lwz	%r30, (TLBSAVE_BOOKE_LR)(%r1);				\
-	lwz	%r31, (TLBSAVE_BOOKE_CR)(%r1);				\
+	LOAD	%r30, (TLBSAVE_BOOKE_LR)(%r1);				\
+	LOAD	%r31, (TLBSAVE_BOOKE_CR)(%r1);				\
 	mtlr	%r30;							\
 	mtcr	%r31;							\
 	/* restore SRR0-1 */						\
-	lwz	%r30, (TLBSAVE_BOOKE_SRR0)(%r1);			\
-	lwz	%r31, (TLBSAVE_BOOKE_SRR1)(%r1);			\
+	LOAD	%r30, (TLBSAVE_BOOKE_SRR0)(%r1);			\
+	LOAD	%r31, (TLBSAVE_BOOKE_SRR1)(%r1);			\
 	mtsrr0	%r30;							\
 	mtsrr1	%r31;							\
 	/* restore R20-31 */						\
-	lmw	%r20, (TLBSAVE_BOOKE_R20)(%r1);				\
+	TLB_RESTORE_REGS(%r1);						\
 	mfsprg4	%r1
 
 #ifdef SMP
 #define TLB_LOCK							\
 	GET_CPUINFO(%r20);						\
-	lwz	%r21, PC_CURTHREAD(%r20);				\
-	lwz	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
+	LOAD	%r21, PC_CURTHREAD(%r20);				\
+	LOAD	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
 									\
-1:	lwarx	%r23, 0, %r22;						\
-	cmpwi	%r23, TLB_UNLOCKED;					\
+1:	LOADX	%r23, 0, %r22;						\
+	CMPI	%r23, TLB_UNLOCKED;					\
 	beq	2f;							\
 									\
 	/* check if this is recursion */				\
-	cmplw	cr0, %r21, %r23;					\
+	CMPL	cr0, %r21, %r23;					\
 	bne-	1b;							\
 									\
 2:	/* try to acquire lock */					\
-	stwcx.	%r21, 0, %r22;						\
+	STOREX	%r21, 0, %r22;						\
 	bne-	1b;							\
 									\
 	/* got it, update recursion counter */				\
@@ -351,22 +461,22 @@
 
 #define TLB_UNLOCK							\
 	GET_CPUINFO(%r20);						\
-	lwz	%r21, PC_CURTHREAD(%r20);				\
-	lwz	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
+	LOAD	%r21, PC_CURTHREAD(%r20);				\
+	LOAD	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
 									\
 	/* update recursion counter */					\
 	lwz	%r23, RES_RECURSE(%r22);				\
 	subi	%r23, %r23, 1;						\
 	stw	%r23, RES_RECURSE(%r22);				\
 									\
-	cmpwi	%r23, 0;						\
+	cmplwi	%r23, 0;						\
 	bne	1f;							\
 	isync;								\
 	msync;								\
 									\
 	/* release the lock */						\
 	li	%r23, TLB_UNLOCKED;					\
-	stw	%r23, 0(%r22);						\
+	STORE	%r23, 0(%r22);						\
 1:	isync;								\
 	msync
 #else
@@ -407,8 +517,10 @@ INTERRUPT(int_unknown)
 INTERRUPT(int_critical_input)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_CRIT)
-	addi	%r3, %r1, 8
+	GET_TOCBASE(%r2)
+	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(powerpc_interrupt)
+	TOC_RESTORE
 	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
 	rfci
 
@@ -419,8 +531,10 @@ INTERRUPT(int_critical_input)
 INTERRUPT(int_machine_check)
 	STANDARD_PROLOG(SPR_SPRG3, PC_BOOKE_MCHKSAVE, SPR_MCSRR0, SPR_MCSRR1)
 	FRAME_SETUP(SPR_SPRG3, PC_BOOKE_MCHKSAVE, EXC_MCHK)
-	addi	%r3, %r1, 8
+	GET_TOCBASE(%r2)
+	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(powerpc_interrupt)
+	TOC_RESTORE
 	FRAME_LEAVE(SPR_MCSRR0, SPR_MCSRR1)
 	rfmci
 
@@ -449,9 +563,7 @@ INTERRUPT(int_instr_storage)
 INTERRUPT(int_external_input)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_EXI)
-	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_interrupt)
-	b	clear_we
+	b	trap_common
 
 
 INTERRUPT(int_alignment)
@@ -487,9 +599,7 @@ INTERRUPT(int_syscall)
 INTERRUPT(int_decrementer)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_DECR)
-	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_interrupt)
-	b	clear_we
+	b	trap_common
 
 
 /*****************************************************************************
@@ -520,7 +630,7 @@ INTERRUPT(int_vec)
 
 
 /*****************************************************************************
- * Watchdog interrupt
+ * Altivec Assist interrupt
  ****************************************************************************/
 INTERRUPT(int_vecast)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
@@ -535,9 +645,7 @@ INTERRUPT(int_vecast)
 INTERRUPT(int_performance_counter)
 	STANDARD_PROLOG(SPR_SPRG3, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG3, PC_TEMPSAVE, EXC_PERF)
-	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_interrupt)
-	b	trapexit
+	b	trap_common
 #endif
 
 
@@ -574,9 +682,8 @@ INTERRUPT(int_data_tlb_error)
 	mfspr	%r27, SPR_MAS2
 
 	/* Check faulting address. */
-	lis	%r21, VM_MAXUSER_ADDRESS@h
-	ori	%r21, %r21, VM_MAXUSER_ADDRESS@l
-	cmplw	cr0, %r31, %r21
+	LOAD_ADDR(%r21, VM_MAXUSER_ADDRESS)
+	CMPL	cr0, %r31, %r21
 	blt	search_user_pmap
 	
 	/* If it's kernel address, allow only supervisor mode misses. */
@@ -587,9 +694,13 @@ INTERRUPT(int_data_tlb_error)
 search_kernel_pmap:
 	/* Load r26 with kernel_pmap address */
 	bl	1f
+#ifdef __powerpc64__
+	.llong kernel_pmap_store-.
+#else
 	.long kernel_pmap_store-.
+#endif
 1:	mflr	%r21
-	lwz	%r26, 0(%r21)
+	LOAD	%r26, 0(%r21)
 	add	%r26, %r21, %r26	/* kernel_pmap_store in r26 */
 
 	/* Force kernel tid, set TID to 0 in MAS1. */
@@ -600,7 +711,7 @@ tlb_miss_handle:
 	/* This may result in nested tlb miss. */
 	bl	pte_lookup		/* returns PTE address in R25 */
 
-	cmpwi	%r25, 0			/* pte found? */
+	CMPI	%r25, 0			/* pte found? */
 	beq	search_failed
 
 	/* Finish up, write TLB entry. */
@@ -614,7 +725,7 @@ tlb_miss_return:
 search_user_pmap:
 	/* Load r26 with current user space process pmap */
 	GET_CPUINFO(%r26)
-	lwz	%r26, PC_CURPMAP(%r26)
+	LOAD	%r26, PC_CURPMAP(%r26)
 
 	b	tlb_miss_handle
 
@@ -657,9 +768,35 @@ search_failed:
  *
  ****************************************************************************/
 pte_lookup:
-	cmpwi	%r26, 0
+	CMPI	%r26, 0
 	beq	1f			/* fail quickly if pmap is invalid */
 
+#ifdef __powerpc64__
+	rldicl  %r21, %r31, (64 - PP2D_L_L), (64 - PP2D_L_NUM) /* pp2d offset */
+	rldicl  %r25, %r31, (64 - PP2D_H_L), (64 - PP2D_H_NUM)
+	rldimi  %r21, %r25, PP2D_L_NUM, (64 - (PP2D_L_NUM + PP2D_H_NUM))
+	slwi    %r21, %r21, PP2D_ENTRY_SHIFT	/* multiply by pp2d entry size */
+	addi    %r25, %r26, PM_PP2D		/* pmap pm_pp2d[] address */
+	add     %r25, %r25, %r21		/* offset within pm_pp2d[] table */
+	ld      %r25, 0(%r25)			/* get pdir address, i.e.  pmap->pm_pp2d[pp2d_idx] * */
+
+	cmpdi   %r25, 0
+	beq 1f
+
+#if PAGE_SIZE < 65536
+	rldicl  %r21, %r31, (64 - PDIR_L), (64 - PDIR_NUM)      /* pdir offset */
+	slwi    %r21, %r21, PDIR_ENTRY_SHIFT    /* multiply by pdir entry size */
+	add     %r25, %r25, %r21                /* offset within pdir table */
+	ld      %r25, 0(%r25)                   /* get ptbl address, i.e.  pmap->pm_pp2d[pp2d_idx][pdir_idx] */
+
+	cmpdi   %r25, 0
+	beq     1f
+#endif
+
+	rldicl  %r21, %r31, (64 - PTBL_L), (64 - PTBL_NUM) /* ptbl offset */
+	slwi    %r21, %r21, PTBL_ENTRY_SHIFT   /* multiply by pte entry size */
+
+#else
 	srwi	%r21, %r31, PDIR_SHIFT		/* pdir offset */
 	slwi	%r21, %r21, PDIR_ENTRY_SHIFT	/* multiply by pdir entry size */
 
@@ -669,8 +806,8 @@ pte_lookup:
 	 * Get ptbl address, i.e. pmap->pm_pdir[pdir_idx]
 	 * This load may cause a Data TLB miss for non-kernel pmap!
 	 */
-	lwz	%r25, 0(%r25)
-	cmpwi	%r25, 0
+	LOAD	%r25, 0(%r25)
+	CMPI	%r25, 0
 	beq	2f
 
 	lis	%r21, PTBL_MASK@h
@@ -679,6 +816,7 @@ pte_lookup:
 
 	/* ptbl offset, multiply by ptbl entry size */
 	srwi	%r21, %r21, (PTBL_SHIFT - PTBL_ENTRY_SHIFT)
+#endif
 
 	add	%r25, %r25, %r21		/* address of pte entry */
 	/*
@@ -730,12 +868,19 @@ tlb_fill_entry:
 	rlwimi	%r27, %r21, 13, 27, 30		/* insert WIMG bits from pte */
 
 	/* Setup MAS3 value in r23. */
-	lwz	%r23, PTE_RPN(%r25)		/* get pte->rpn */
+	LOAD	%r23, PTE_RPN(%r25)		/* get pte->rpn */
+#ifdef __powerpc64__
+	rldicr	%r22, %r23, 52, 51		/* extract MAS3 portion of RPN */
+	rldicl	%r23, %r23, 20, 54		/* extract MAS7 portion of RPN */
+
+	rlwimi	%r22, %r21, 30, 26, 31		/* insert protection bits from pte */
+#else
 	rlwinm	%r22, %r23, 20, 0, 11		/* extract MAS3 portion of RPN */
 
 	rlwimi	%r22, %r21, 30, 26, 31		/* insert protection bits from pte */
 	rlwimi	%r22, %r21, 20, 12, 19		/* insert lower 8 RPN bits to MAS3 */
 	rlwinm	%r23, %r23, 20, 24, 31		/* MAS7 portion of RPN */
+#endif
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
@@ -794,52 +939,59 @@ interrupt_vector_top:
 INTERRUPT(int_debug)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
-	GET_CPUINFO(%r3)
-	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
-	bl	0f
-	.long	interrupt_vector_base-.
-	.long	interrupt_vector_top-.
-0:	mflr	%r5
-	lwz	%r4,0(%r5)	/* interrupt_vector_base in r4 */
-	add	%r4,%r4,%r5
-	cmplw	cr0, %r3, %r4
-	blt	1f
-	lwz	%r4,4(%r5)	/* interrupt_vector_top in r4 */
-	add	%r4,%r4,%r5
-	addi	%r4,%r4,4
-	cmplw	cr0, %r3, %r4
-	bge	1f
-	/* Disable single-stepping for the interrupt handlers. */
-	lwz	%r3, FRAME_SRR1+8(%r1);
-	rlwinm	%r3, %r3, 0, 23, 21
-	stw	%r3, FRAME_SRR1+8(%r1);
-	/* Restore srr0 and srr1 as they could have been clobbered. */
-	GET_CPUINFO(%r4)
-	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0+8)(%r4);
-	mtspr	SPR_SRR0, %r3
-	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r4);
-	mtspr	SPR_SRR1, %r4
-	b	9f
-1:
-	addi	%r3, %r1, 8
-	bl	CNAME(trap)
-	/*
-	 * Handle ASTs, needed for proper support of single-stepping.
-	 * We actually need to return to the process with an rfi.
-	 */
-	b	trapexit
-9:
+	bl	int_debug_int
 	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
 	rfci
 
+INTERRUPT(int_debug_ed)
+	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_DSRR0, SPR_DSRR1)
+	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
+	bl	int_debug_int
+	FRAME_LEAVE(SPR_DSRR0, SPR_DSRR1)
+	rfdi
+	/* .long 0x4c00004e */
+
+/* Internal helper for debug interrupt handling. */
+/* Common code between e500v1/v2 and e500mc-based cores. */
+int_debug_int:
+	mflr	%r14
+	GET_CPUINFO(%r3)
+	LOAD	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
+	bl	0f
+	ADDR(interrupt_vector_base-.)
+	ADDR(interrupt_vector_top-.)
+0:	mflr	%r5
+	LOAD	%r4,0(%r5)	/* interrupt_vector_base in r4 */
+	add	%r4,%r4,%r5
+	CMPL	cr0, %r3, %r4
+	blt	trap_common
+	LOAD	%r4,WORD_SIZE(%r5)	/* interrupt_vector_top in r4 */
+	add	%r4,%r4,%r5
+	addi	%r4,%r4,4
+	CMPL	cr0, %r3, %r4
+	bge	trap_common
+	/* Disable single-stepping for the interrupt handlers. */
+	LOAD	%r3, FRAME_SRR1+CALLSIZE(%r1);
+	rlwinm	%r3, %r3, 0, 23, 21
+	STORE	%r3, FRAME_SRR1+CALLSIZE(%r1);
+	/* Restore srr0 and srr1 as they could have been clobbered. */
+	GET_CPUINFO(%r4)
+	LOAD	%r3, (PC_BOOKE_CRITSAVE+BOOKE_CRITSAVE_SRR0)(%r4);
+	mtspr	SPR_SRR0, %r3
+	LOAD	%r4, (PC_BOOKE_CRITSAVE+BOOKE_CRITSAVE_SRR1)(%r4);
+	mtspr	SPR_SRR1, %r4
+	mtlr	%r14
+	blr
 
 /*****************************************************************************
  * Common trap code
  ****************************************************************************/
 trap_common:
 	/* Call C trap dispatcher */
-	addi	%r3, %r1, 8
-	bl	CNAME(trap)
+	GET_TOCBASE(%r2)
+	addi	%r3, %r1, CALLSIZE
+	bl	CNAME(powerpc_interrupt)
+	TOC_RESTORE
 
 	.globl	CNAME(trapexit)		/* exported for db_backtrace use */
 CNAME(trapexit):
@@ -847,12 +999,12 @@ CNAME(trapexit):
 	wrteei	0
 
 	/* Test AST pending - makes sense for user process only */
-	lwz	%r5, FRAME_SRR1+8(%r1)
+	LOAD	%r5, FRAME_SRR1+CALLSIZE(%r1)
 	mtcr	%r5
 	bf	17, 1f
 
 	GET_CPUINFO(%r3)
-	lwz	%r4, PC_CURTHREAD(%r3)
+	LOAD	%r4, PC_CURTHREAD(%r3)
 	lwz	%r4, TD_FLAGS(%r4)
 	lis	%r5, (TDF_ASTPENDING | TDF_NEEDRESCHED)@h
 	ori	%r5, %r5, (TDF_ASTPENDING | TDF_NEEDRESCHED)@l
@@ -862,8 +1014,9 @@ CNAME(trapexit):
 	/* re-enable interrupts before calling ast() */
 	wrteei	1
 
-	addi	%r3, %r1, 8
+	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(ast)
+	TOC_RESTORE
 	.globl	CNAME(asttrapexit)	/* db_backtrace code sentinel #2 */
 CNAME(asttrapexit):
 	b	trapexit		/* test ast ret value ? */
@@ -876,30 +1029,32 @@ CNAME(asttrapexit):
 /*
  * Deliberate entry to dbtrap
  */
-	.globl	CNAME(breakpoint)
-CNAME(breakpoint):
+	/* .globl	CNAME(breakpoint)*/
+ASENTRY_NOPROF(breakpoint)
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
-	andi.	%r3, %r3, ~(PSL_EE | PSL_ME)@l
+	li	%r4, ~(PSL_EE | PSL_ME)@l
+	oris	%r4, %r4, ~(PSL_EE | PSL_ME)@h
+	and	%r3, %r3, %r4
 	mtmsr	%r3			/* disable interrupts */
 	isync
 	GET_CPUINFO(%r3)
-	stw	%r30, (PC_DBSAVE+CPUSAVE_R30)(%r3)
-	stw	%r31, (PC_DBSAVE+CPUSAVE_R31)(%r3)
+	STORE	%r30, (PC_DBSAVE+CPUSAVE_R30)(%r3)
+	STORE	%r31, (PC_DBSAVE+CPUSAVE_R31)(%r3)
 
 	mflr	%r31
 	mtsrr0	%r31
 
 	mfdear	%r30
 	mfesr	%r31
-	stw	%r30, (PC_DBSAVE+CPUSAVE_BOOKE_DEAR)(%r3)
-	stw	%r31, (PC_DBSAVE+CPUSAVE_BOOKE_ESR)(%r3)
+	STORE	%r30, (PC_DBSAVE+CPUSAVE_BOOKE_DEAR)(%r3)
+	STORE	%r31, (PC_DBSAVE+CPUSAVE_BOOKE_ESR)(%r3)
 
 	mfsrr0	%r30
 	mfsrr1	%r31
-	stw	%r30, (PC_DBSAVE+CPUSAVE_SRR0)(%r3)
-	stw	%r31, (PC_DBSAVE+CPUSAVE_SRR1)(%r3)
+	STORE	%r30, (PC_DBSAVE+CPUSAVE_SRR0)(%r3)
+	STORE	%r31, (PC_DBSAVE+CPUSAVE_SRR1)(%r3)
 	isync
 
 	mfcr	%r30
@@ -910,8 +1065,10 @@ CNAME(breakpoint):
 dbtrap:
 	FRAME_SETUP(SPR_SPRG1, PC_DBSAVE, EXC_DEBUG)
 /* Call C trap code: */
-	addi	%r3, %r1, 8
+	GET_TOCBASE(%r2)
+	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(db_trap_glue)
+	TOC_RESTORE
 	or.	%r3, %r3, %r3
 	bne	dbleave
 /* This wasn't for KDB, so switch to real trap: */
@@ -922,20 +1079,14 @@ dbleave:
 	rfi
 #endif /* KDB */
 
-clear_we:
-	lwz	%r3, (FRAME_SRR1+8)(%r1)
-	rlwinm	%r3, %r3, 0, 14, 12
-	stw	%r3, (FRAME_SRR1+8)(%r1)
-	b	trapexit
-
 #ifdef SMP
 ENTRY(tlb_lock)
 	GET_CPUINFO(%r5)
-	lwz	%r5, PC_CURTHREAD(%r5)
-1:	lwarx	%r4, 0, %r3
-	cmpwi	%r4, TLB_UNLOCKED
+	LOAD	%r5, PC_CURTHREAD(%r5)
+1:	LOADX	%r4, 0, %r3
+	CMPI	%r4, TLB_UNLOCKED
 	bne	1b
-	stwcx.	%r5, 0, %r3
+	STOREX	%r5, 0, %r3
 	bne-	1b
 	isync
 	msync
@@ -945,7 +1096,7 @@ ENTRY(tlb_unlock)
 	isync
 	msync
 	li	%r4, TLB_UNLOCKED
-	stw	%r4, 0(%r3)
+	STORE	%r4, 0(%r3)
 	isync
 	msync
 	blr

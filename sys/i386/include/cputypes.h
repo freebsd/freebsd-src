@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 Christopher G. Demetriou
  * All rights reserved.
  *
@@ -62,5 +64,10 @@
 #define	CPU_PIII		15	/* Intel Pentium III */
 #define	CPU_P4			16	/* Intel Pentium 4 */
 #define	CPU_GEODE1100		17	/* NS Geode SC1100 */
+
+#ifndef LOCORE
+extern int	cpu;
+extern int	cpu_class;
+#endif
 
 #endif /* !_MACHINE_CPUTYPES_H_ */

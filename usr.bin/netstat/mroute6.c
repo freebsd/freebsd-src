@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *

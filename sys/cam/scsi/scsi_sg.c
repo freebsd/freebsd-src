@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Scott Long
  * All rights reserved.
  *
@@ -322,10 +324,7 @@ sgregister(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->rdwr_done);
 	periph->softc = softc;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */
@@ -354,7 +353,7 @@ sgregister(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -440,7 +439,7 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	/*
@@ -581,7 +580,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 
 		cam_fill_csio(csio,
 			      /*retries*/1,
-			      sgdone,
+			      /*cbfcnp*/NULL,
 			      dir|CAM_DEV_QFRZDIS,
 			      MSG_SIMPLE_Q_TAG,
 			      req->dxferp,
@@ -941,8 +940,7 @@ sgerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sg_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cam_flags, sense_flags,
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

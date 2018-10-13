@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998-2000
  * University of Southern California/Information Sciences Institute.
  * All rights reserved.
@@ -71,8 +73,6 @@ struct pimstat {
 #define PIMCTL_STATS		1	/* statistics (read-only) */
 
 #ifdef _KERNEL
-
-int pim_input(struct mbuf **, int *, int);
 SYSCTL_DECL(_net_inet_pim);
 #endif
 

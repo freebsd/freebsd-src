@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -93,6 +95,13 @@ int vmm_fetch_instruction(struct vm *vm, int cpuid,
  * EFAULT	  N/A		An unrecoverable hypervisor error occurred
  */
 int vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *is_fault);
+
+/*
+ * Like vm_gla2gpa, but no exceptions are injected into the guest and
+ * PTEs are not changed.
+ */
+int vm_gla2gpa_nofault(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa, int *is_fault);
 
 void vie_init(struct vie *vie, const char *inst_bytes, int inst_length);

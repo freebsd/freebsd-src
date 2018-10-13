@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=sendmail
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libmilter ${SENDMAIL_DIR}/libsm
 
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
@@ -29,6 +29,7 @@ SRCS+=	main.c engine.c listener.c handler.c comm.c monitor.c smfi.c \
 CLEANFILES+=sm_os.h
 
 WARNS?=	0
+SHLIB_MAJOR= 6
 
 sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}

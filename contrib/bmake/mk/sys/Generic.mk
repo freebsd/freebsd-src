@@ -1,4 +1,4 @@
-#	$Id: Generic.mk,v 1.12 2016/03/22 20:45:14 sjg Exp $
+#	$Id: Generic.mk,v 1.13 2017/05/05 18:02:16 sjg Exp $
 #
 
 # some reasonable defaults
@@ -79,8 +79,6 @@ LDFLAGS?=
 
 LINT?=		lint
 LINTFLAGS?=	-chapbxzF
-
-MAKE?=		${.MAKE}
 
 NM?=		nm
 

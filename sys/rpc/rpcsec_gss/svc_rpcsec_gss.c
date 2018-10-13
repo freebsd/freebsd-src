@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ * Copyright (c) 1990 The Regents of the University of California.
+ *
  * Copyright (c) 2008 Doug Rabson
  * All rights reserved.
  *
@@ -504,11 +507,13 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	struct timeval boottime;
 	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
 
 	getcredhostid(curthread->td_ucred, &hostid);
+	getboottime(&boottime);
 	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
 		return (NULL);
 
@@ -537,6 +542,7 @@ svc_rpc_gss_create_client(void)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	struct timeval boottime;
 	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_create_client()");
@@ -547,6 +553,7 @@ svc_rpc_gss_create_client(void)
 	sx_init(&client->cl_lock, "GSS-client");
 	getcredhostid(curthread->td_ucred, &hostid);
 	client->cl_id.ci_hostid = hostid;
+	getboottime(&boottime);
 	client->cl_id.ci_boottime = boottime.tv_sec;
 	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
 	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2016
+.Dd September 8, 2016
 .Dt AMDSBWD 4
 .Os
 .Sh NAME
@@ -51,7 +51,22 @@ The
 driver provides
 .Xr watchdog 4
 support for the watchdog timers present on
-AMD SB600, SB7xx, SB8xx and SB9xx southbridges and Axx FCHs.
+the supported chipsets.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following chipsets:
+.Pp
+.Bl -bullet -compact
+.It
+AMD SB600/7x0/8x0/9x0 southbridges
+.It
+AMD Axx/Hudson/Bolton FCHs
+.It
+AMD FCHs integrated into Family 15h Models 60h-6Fh, 70h-7Fh Processors
+.It
+AMD FCHs integrated into Family 16h Models 00h-0Fh, 30h-3Fh Processors
+.El
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdog 8 ,

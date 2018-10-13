@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2016
+.Dd August 6, 2018
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -119,7 +119,7 @@ supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv TCP_CONGESTION"
+.Bl -tag -width ".Dv TCP_FUNCTION_BLK"
 .It Dv TCP_INFO
 Information about a socket's underlying TCP session may be retrieved
 by passing the read-only option
@@ -148,6 +148,20 @@ connection.
 See
 .Xr mod_cc 4
 for details.
+.It Dv TCP_FUNCTION_BLK
+Select or query the set of functions that TCP will use for this connection.
+This allows a user to select an alternate TCP stack.
+The alternate TCP stack must already be loaded in the kernel.
+To list the available TCP stacks, see
+.Va functions_available
+in the
+.Sx MIB Variables
+section further down.
+To list the default TCP stack, see
+.Va functions_default
+in the
+.Sx MIB Variables
+section.
 .It Dv TCP_KEEPINIT
 This
 .Xr setsockopt 2
@@ -258,33 +272,27 @@ or the internal send buffer is filled.
 This option enables the use of MD5 digests (also known as TCP-MD5)
 on writes to the specified socket.
 Outgoing traffic is digested;
-digests on incoming traffic are verified if the
-.Va net.inet.tcp.signature_verify_input
-sysctl is nonzero.
-The current default behavior for the system is to respond to a system
-advertising this option with TCP-MD5; this may change.
+digests on incoming traffic are verified.
+When this option is enabled on a socket, all inbound and outgoing
+TCP segments must be signed with MD5 digests.
 .Pp
 One common use for this in a
 .Fx
 router deployment is to enable
 based routers to interwork with Cisco equipment at peering points.
 Support for this feature conforms to RFC 2385.
-Only IPv4
-.Pq Dv AF_INET
-sessions are supported.
 .Pp
 In order for this option to function correctly, it is necessary for the
 administrator to add a tcp-md5 key entry to the system's security
 associations database (SADB) using the
 .Xr setkey 8
 utility.
-This entry must have an SPI of 0x1000 and can therefore only be specified
-on a per-host basis at this time.
+This entry can only be specified on a per-host basis at this time.
 .Pp
-If an SADB entry cannot be found for the destination, the outgoing traffic
-will have an invalid digest option prepended, and the following error message
-will be visible on the system console:
-.Em "tcp_signature_compute: SADB lookup failed for %d.%d.%d.%d" .
+If an SADB entry cannot be found for the destination,
+the system does not send any outgoing segments and drops any inbound segments.
+.Pp
+Each dropped segment is taken into account in the TCP protocol statistics.
 .El
 .Pp
 The option level for the
@@ -437,6 +445,20 @@ no reseeding will occur.
 Reseeding should not be necessary, and will break
 .Dv TIME_WAIT
 recycling for a few minutes.
+.It Va reass.cursegments
+The current total number of segments present in all reassembly queues.
+.It Va reass.maxsegments
+The maximum limit on the total number of segments across all reassembly
+queues.
+The limit can be adjusted as a tunable.
+.It Va reass.maxqueuelen
+The maximum number of segments allowed in each reassembly queue.
+By default, the system chooses a limit based on each TCP connection's
+receive buffer size and maximum segment size (MSS).
+The actual limit applied to a session's reassembly queue will be the lower of
+the system-calculated automatic limit and the user-specified
+.Va reass.maxqueuelen
+limit.
 .It Va rexmit_min , rexmit_slop
 Adjust the retransmit timer calculation for
 .Tn TCP .
@@ -568,6 +590,22 @@ Number of times default MSS was used in an attempt to downshift.
 .It Va pmtud_blackhole_failed
 Number of connections for which retransmits continued even after MSS
 downshift.
+.It Va functions_available
+List of available TCP function blocks (TCP stacks).
+.It Va functions_default
+The default TCP function block (TCP stack).
+.It Va functions_inherit_listen_socket_stack
+Determines whether to inherit listen socket's tcp stack or use the current
+system default tcp stack, as defined by
+.Va functions_default
+.Pc .
+Default is true.
+.It Va insecure_rst
+Use criteria defined in RFC793 instead of RFC5961 for accepting RST segments.
+Default is false.
+.It Va insecure_syn
+Use criteria defined in RFC793 instead of RFC5961 for accepting SYN segments.
+Default is false.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
@@ -575,7 +613,7 @@ A socket operation may fail with one of the following errors returned:
 .It Bq Er EISCONN
 when trying to establish a connection on a socket which
 already has one;
-.It Bq Er ENOBUFS
+.It Bo Er ENOBUFS Bc or Bo Er ENOMEM Bc
 when the system runs out of memory for
 an internal data structure;
 .It Bq Er ETIMEDOUT
@@ -599,6 +637,10 @@ exists;
 .It Bq Er EAFNOSUPPORT
 when an attempt is made to bind or connect a socket to a multicast
 address.
+.It Bq Er EINVAL
+when trying to change TCP function blocks at an invalid point in the session;
+.It Bq Er ENOENT
+when trying to use a TCP function block that is not available;
 .El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
@@ -611,7 +653,8 @@ address.
 .Xr mod_cc 4 ,
 .Xr siftr 4 ,
 .Xr syncache 4 ,
-.Xr setkey 8
+.Xr setkey 8 ,
+.Xr tcp_functions 9
 .Rs
 .%A "V. Jacobson"
 .%A "R. Braden"

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2015
+.Dd July 25, 2017
 .Dt UMOUNT 8
 .Os
 .Sh NAME
@@ -36,12 +36,12 @@
 .Nd unmount file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl fv
+.Op Fl fNnv
 .Ar special ... | node ... | fsid ...
 .Nm
 .Fl a | A
 .Op Fl F Ar fstab
-.Op Fl fv
+.Op Fl fnv
 .Op Fl h Ar host
 .Op Fl t Ar type
 .Sh DESCRIPTION
@@ -81,6 +81,15 @@ The root file system cannot be forcibly unmounted.
 For NFS, a forced dismount can take up to 1 minute or more to
 complete against an unresponsive server and may throw away
 data not yet written to the server for this case.
+If a process, such as
+.Nm
+without the
+.Fl f
+flag is hung on an
+.Tn NFS
+mount point, use the
+.Fl N
+flag instead.
 Also, doing a forced dismount of an NFSv3 mount when
 .Xr rpc.lockd 8
 is running is unsafe and can result in a crash.
@@ -94,6 +103,33 @@ option and, unless otherwise specified with the
 option, will only unmount
 .Tn NFS
 file systems.
+.It Fl N
+Do a forced dismount of an
+.Tn NFS
+mount point without checking the mount path.
+This option can only be used with the path to the mount point
+.Ar node
+and the path must be specified exactly as it was at mount time.
+This option is useful when a process is hung waiting for an unresponsive
+.Tn NFS
+server while holding a vnode lock on the mounted-on vnode, such that
+.Nm
+with the
+.Fl f
+flag can't complete.
+Using this option can result in a loss of file updates that have not been
+flushed to the
+.Tn NFS
+server.
+.It Fl n
+Unless the
+.Fl f
+is used, the
+.Nm
+will not unmount an active file system.
+It will, however, perform a flush.
+This flag disables this behaviour, preventing the flush
+if there are any files open.
 .It Fl t Ar type
 Is used to indicate the actions should only be taken on
 file systems of the specified type.
@@ -149,4 +185,4 @@ file system table
 A
 .Nm
 utility appeared in
-.At v6 .
+.At v1 .

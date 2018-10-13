@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.25 2015/05/04 06:10:48 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.36 2018/07/31 03:10:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -34,12 +34,12 @@
 #include "xmalloc.h"
 #include "ssh2.h"
 #include "packet.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "log.h"
 #include "misc.h"
 #include "servconf.h"
 #include "compat.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "canohost.h"
@@ -48,6 +48,7 @@
 #endif
 #include "monitor_wrap.h"
 #include "pathnames.h"
+#include "ssherr.h"
 #include "match.h"
 
 /* import */
@@ -56,97 +57,99 @@ extern u_char *session_id2;
 extern u_int session_id2_len;
 
 static int
-userauth_hostbased(Authctxt *authctxt)
+userauth_hostbased(struct ssh *ssh)
 {
-	Buffer b;
-	Key *key = NULL;
-	char *pkalg, *cuser, *chost, *service;
+	Authctxt *authctxt = ssh->authctxt;
+	struct sshbuf *b;
+	struct sshkey *key = NULL;
+	char *pkalg, *cuser, *chost;
 	u_char *pkblob, *sig;
-	u_int alen, blen, slen;
-	int pktype;
-	int authenticated = 0;
+	size_t alen, blen, slen;
+	int r, pktype, authenticated = 0;
 
-	if (!authctxt->valid) {
-		debug2("userauth_hostbased: disabled because of invalid user");
-		return 0;
-	}
-	pkalg = packet_get_string(&alen);
-	pkblob = packet_get_string(&blen);
-	chost = packet_get_string(NULL);
-	cuser = packet_get_string(NULL);
-	sig = packet_get_string(&slen);
+	/* XXX use sshkey_froms() */
+	if ((r = sshpkt_get_cstring(ssh, &pkalg, &alen)) != 0 ||
+	    (r = sshpkt_get_string(ssh, &pkblob, &blen)) != 0 ||
+	    (r = sshpkt_get_cstring(ssh, &chost, NULL)) != 0 ||
+	    (r = sshpkt_get_cstring(ssh, &cuser, NULL)) != 0 ||
+	    (r = sshpkt_get_string(ssh, &sig, &slen)) != 0)
+		fatal("%s: packet parsing: %s", __func__, ssh_err(r));
 
-	debug("userauth_hostbased: cuser %s chost %s pkalg %s slen %d",
+	debug("%s: cuser %s chost %s pkalg %s slen %zu", __func__,
 	    cuser, chost, pkalg, slen);
 #ifdef DEBUG_PK
 	debug("signature:");
-	buffer_init(&b);
-	buffer_append(&b, sig, slen);
-	buffer_dump(&b);
-	buffer_free(&b);
+	sshbuf_dump_data(sig, siglen, stderr);
 #endif
-	pktype = key_type_from_name(pkalg);
+	pktype = sshkey_type_from_name(pkalg);
 	if (pktype == KEY_UNSPEC) {
 		/* this is perfectly legal */
-		logit("userauth_hostbased: unsupported "
-		    "public key algorithm: %s", pkalg);
+		logit("%s: unsupported public key algorithm: %s",
+		    __func__, pkalg);
 		goto done;
 	}
-	key = key_from_blob(pkblob, blen);
+	if ((r = sshkey_from_blob(pkblob, blen, &key)) != 0) {
+		error("%s: key_from_blob: %s", __func__, ssh_err(r));
+		goto done;
+	}
 	if (key == NULL) {
-		error("userauth_hostbased: cannot decode key: %s", pkalg);
+		error("%s: cannot decode key: %s", __func__, pkalg);
 		goto done;
 	}
 	if (key->type != pktype) {
-		error("userauth_hostbased: type mismatch for decoded key "
-		    "(received %d, expected %d)", key->type, pktype);
+		error("%s: type mismatch for decoded key "
+		    "(received %d, expected %d)", __func__, key->type, pktype);
 		goto done;
 	}
-	if (key_type_plain(key->type) == KEY_RSA &&
-	    (datafellows & SSH_BUG_RSASIGMD5) != 0) {
+	if (sshkey_type_plain(key->type) == KEY_RSA &&
+	    (ssh->compat & SSH_BUG_RSASIGMD5) != 0) {
 		error("Refusing RSA key because peer uses unsafe "
 		    "signature format");
 		goto done;
 	}
-	if (match_pattern_list(sshkey_ssh_name(key),
-	    options.hostbased_key_types, 0) != 1) {
+	if (match_pattern_list(pkalg, options.hostbased_key_types, 0) != 1) {
 		logit("%s: key type %s not in HostbasedAcceptedKeyTypes",
 		    __func__, sshkey_type(key));
 		goto done;
 	}
 
-	service = datafellows & SSH_BUG_HBSERVICE ? "ssh-userauth" :
-	    authctxt->service;
-	buffer_init(&b);
-	buffer_put_string(&b, session_id2, session_id2_len);
+	if (!authctxt->valid || authctxt->user == NULL) {
+		debug2("%s: disabled because of invalid user", __func__);
+		goto done;
+	}
+
+	if ((b = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
 	/* reconstruct packet */
-	buffer_put_char(&b, SSH2_MSG_USERAUTH_REQUEST);
-	buffer_put_cstring(&b, authctxt->user);
-	buffer_put_cstring(&b, service);
-	buffer_put_cstring(&b, "hostbased");
-	buffer_put_string(&b, pkalg, alen);
-	buffer_put_string(&b, pkblob, blen);
-	buffer_put_cstring(&b, chost);
-	buffer_put_cstring(&b, cuser);
+	if ((r = sshbuf_put_string(b, session_id2, session_id2_len)) != 0 ||
+	    (r = sshbuf_put_u8(b, SSH2_MSG_USERAUTH_REQUEST)) != 0 ||
+	    (r = sshbuf_put_cstring(b, authctxt->user)) != 0 ||
+	    (r = sshbuf_put_cstring(b, authctxt->service)) != 0 ||
+	    (r = sshbuf_put_cstring(b, "hostbased")) != 0 ||
+	    (r = sshbuf_put_string(b, pkalg, alen)) != 0 ||
+	    (r = sshbuf_put_string(b, pkblob, blen)) != 0 ||
+	    (r = sshbuf_put_cstring(b, chost)) != 0 ||
+	    (r = sshbuf_put_cstring(b, cuser)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 #ifdef DEBUG_PK
-	buffer_dump(&b);
+	sshbuf_dump(b, stderr);
 #endif
 
-	pubkey_auth_info(authctxt, key,
+	auth2_record_info(authctxt,
 	    "client user \"%.100s\", client host \"%.100s\"", cuser, chost);
 
 	/* test for allowed key and correct signature */
 	authenticated = 0;
 	if (PRIVSEP(hostbased_key_allowed(authctxt->pw, cuser, chost, key)) &&
-	    PRIVSEP(key_verify(key, sig, slen, buffer_ptr(&b),
-			buffer_len(&b))) == 1)
+	    PRIVSEP(sshkey_verify(key, sig, slen,
+	    sshbuf_ptr(b), sshbuf_len(b), pkalg, ssh->compat)) == 0)
 		authenticated = 1;
 
-	buffer_free(&b);
+	auth2_record_key(authctxt, authenticated, key);
+	sshbuf_free(b);
 done:
-	debug2("userauth_hostbased: authenticated %d", authenticated);
-	if (key != NULL)
-		key_free(key);
+	debug2("%s: authenticated %d", __func__, authenticated);
+	sshkey_free(key);
 	free(pkalg);
 	free(pkblob);
 	free(cuser);
@@ -158,8 +161,9 @@ done:
 /* return 1 if given hostkey is allowed */
 int
 hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
-    Key *key)
+    struct sshkey *key)
 {
+	struct ssh *ssh = active_state; /* XXX */
 	const char *resolvedname, *ipaddr, *lookup, *reason;
 	HostStatus host_status;
 	int len;
@@ -168,8 +172,8 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 	if (auth_key_is_revoked(key))
 		return 0;
 
-	resolvedname = get_canonical_hostname(options.use_dns);
-	ipaddr = get_remote_ipaddr();
+	resolvedname = auth_get_canonical_hostname(ssh, options.use_dns);
+	ipaddr = ssh_remote_ipaddr(ssh);
 
 	debug2("%s: chost %s resolvedname %s ipaddr %s", __func__,
 	    chost, resolvedname, ipaddr);
@@ -202,8 +206,8 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 	}
 	debug2("%s: access allowed by auth_rhosts2", __func__);
 
-	if (key_is_cert(key) && 
-	    key_cert_check_authority(key, 1, 0, lookup, &reason)) {
+	if (sshkey_is_cert(key) &&
+	    sshkey_cert_check_authority(key, 1, 0, lookup, &reason)) {
 		error("%s", reason);
 		auth_debug_add("%s", reason);
 		return 0;
@@ -222,20 +226,20 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 	}
 
 	if (host_status == HOST_OK) {
-		if (key_is_cert(key)) {
+		if (sshkey_is_cert(key)) {
 			if ((fp = sshkey_fingerprint(key->cert->signature_key,
 			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
 				fatal("%s: sshkey_fingerprint fail", __func__);
 			verbose("Accepted certificate ID \"%s\" signed by "
 			    "%s CA %s from %s@%s", key->cert->key_id,
-			    key_type(key->cert->signature_key), fp,
+			    sshkey_type(key->cert->signature_key), fp,
 			    cuser, lookup);
 		} else {
 			if ((fp = sshkey_fingerprint(key,
 			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
 				fatal("%s: sshkey_fingerprint fail", __func__);
 			verbose("Accepted %s public key %s from %s@%s",
-			    key_type(key), fp, cuser, lookup);
+			    sshkey_type(key), fp, cuser, lookup);
 		}
 		free(fp);
 	}

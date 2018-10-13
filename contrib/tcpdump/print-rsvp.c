@@ -12,23 +12,26 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Resource ReSerVation Protocol (RSVP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 #include "ethertype.h"
 #include "gmpls.h"
 #include "af.h"
 #include "signature.h"
+
+static const char tstr[] = " [|rsvp]";
 
 /*
  * RFC 2205 common header
@@ -82,7 +85,7 @@ struct rsvp_object_header {
 #define	RSVP_MSGTYPE_PATHTEAR   5
 #define	RSVP_MSGTYPE_RESVTEAR   6
 #define	RSVP_MSGTYPE_RESVCONF   7
-#define RSVP_MSGTYPE_AGGREGATE  12
+#define RSVP_MSGTYPE_BUNDLE     12
 #define RSVP_MSGTYPE_ACK        13
 #define RSVP_MSGTYPE_HELLO_OLD  14      /* ancient Hellos */
 #define RSVP_MSGTYPE_SREFRESH   15
@@ -96,7 +99,7 @@ static const struct tok rsvp_msg_type_values[] = {
     { RSVP_MSGTYPE_PATHTEAR,	"PathTear" },
     { RSVP_MSGTYPE_RESVTEAR,	"ResvTear" },
     { RSVP_MSGTYPE_RESVCONF,	"ResvConf" },
-    { RSVP_MSGTYPE_AGGREGATE,	"Aggregate" },
+    { RSVP_MSGTYPE_BUNDLE,	"Bundle" },
     { RSVP_MSGTYPE_ACK,	        "Acknowledgement" },
     { RSVP_MSGTYPE_HELLO_OLD,	"Hello (Old)" },
     { RSVP_MSGTYPE_SREFRESH,	"Refresh" },
@@ -497,6 +500,7 @@ rsvp_intserv_print(netdissect_options *ndo,
     if (obj_tlen < 4)
         return 0;
     parameter_id = *(tptr);
+    ND_TCHECK2(*(tptr + 2), 2);
     parameter_length = EXTRACT_16BITS(tptr+2)<<2; /* convert wordcount to bytecount */
 
     ND_PRINT((ndo, "\n\t      Parameter ID: %s (%u), length: %u, Flags: [0x%02x]",
@@ -517,8 +521,10 @@ rsvp_intserv_print(netdissect_options *ndo,
         * |        IS hop cnt (32-bit unsigned integer)                   |
         * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         */
-        if (parameter_length == 4)
+        if (parameter_length == 4) {
+	    ND_TCHECK2(*(tptr + 4), 4);
             ND_PRINT((ndo, "\n\t\tIS hop count: %u", EXTRACT_32BITS(tptr + 4)));
+        }
         break;
 
     case 6:
@@ -530,6 +536,7 @@ rsvp_intserv_print(netdissect_options *ndo,
         * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         */
         if (parameter_length == 4) {
+	    ND_TCHECK2(*(tptr + 4), 4);
             bw.i = EXTRACT_32BITS(tptr+4);
             ND_PRINT((ndo, "\n\t\tPath b/w estimate: %.10g Mbps", bw.f / 125000));
         }
@@ -544,6 +551,7 @@ rsvp_intserv_print(netdissect_options *ndo,
         * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         */
         if (parameter_length == 4) {
+	    ND_TCHECK2(*(tptr + 4), 4);
             ND_PRINT((ndo, "\n\t\tMinimum path latency: "));
             if (EXTRACT_32BITS(tptr+4) == 0xffffffff)
                 ND_PRINT((ndo, "don't care"));
@@ -561,8 +569,10 @@ rsvp_intserv_print(netdissect_options *ndo,
         * |      Composed MTU (32-bit unsigned integer)                   |
         * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         */
-        if (parameter_length == 4)
+        if (parameter_length == 4) {
+	    ND_TCHECK2(*(tptr + 4), 4);
             ND_PRINT((ndo, "\n\t\tComposed MTU: %u bytes", EXTRACT_32BITS(tptr + 4)));
+        }
         break;
     case 127:
        /*
@@ -582,6 +592,7 @@ rsvp_intserv_print(netdissect_options *ndo,
         */
 
         if (parameter_length == 20) {
+	    ND_TCHECK2(*(tptr + 4), 20);
             bw.i = EXTRACT_32BITS(tptr+4);
             ND_PRINT((ndo, "\n\t\tToken Bucket Rate: %.10g Mbps", bw.f / 125000));
             bw.i = EXTRACT_32BITS(tptr+8);
@@ -605,6 +616,7 @@ rsvp_intserv_print(netdissect_options *ndo,
         */
 
         if (parameter_length == 8) {
+	    ND_TCHECK2(*(tptr + 4), 8);
             bw.i = EXTRACT_32BITS(tptr+4);
             ND_PRINT((ndo, "\n\t\tRate: %.10g Mbps", bw.f / 125000));
             ND_PRINT((ndo, "\n\t\tSlack Term: %u", EXTRACT_32BITS(tptr + 8)));
@@ -615,8 +627,10 @@ rsvp_intserv_print(netdissect_options *ndo,
     case 134:
     case 135:
     case 136:
-        if (parameter_length == 4)
+        if (parameter_length == 4) {
+	    ND_TCHECK2(*(tptr + 4), 4);
             ND_PRINT((ndo, "\n\t\tValue: %u", EXTRACT_32BITS(tptr + 4)));
+        }
         break;
 
     default:
@@ -624,20 +638,29 @@ rsvp_intserv_print(netdissect_options *ndo,
             print_unknown_data(ndo, tptr + 4, "\n\t\t", parameter_length);
     }
     return (parameter_length+4); /* header length 4 bytes */
+
+trunc:
+    ND_PRINT((ndo, "%s", tstr));
+    return 0;
+}
+
+/*
+ * Clear checksum prior to signature verification.
+ */
+static void
+rsvp_clear_checksum(void *header)
+{
+    struct rsvp_common_header *rsvp_com_header = (struct rsvp_common_header *) header;
+
+    rsvp_com_header->checksum[0] = 0;
+    rsvp_com_header->checksum[1] = 0;
 }
 
 static int
 rsvp_obj_print(netdissect_options *ndo,
-                const u_char *pptr
-#ifndef HAVE_LIBCRYPTO
-_U_
-#endif
-, u_int plen
-#ifndef HAVE_LIBCRYPTO
-_U_
-#endif
-, const u_char *tptr,
-                const char *ident, u_int tlen)
+               const u_char *pptr, u_int plen, const u_char *tptr,
+               const char *ident, u_int tlen,
+               const struct rsvp_common_header *rsvp_com_header)
 {
     const struct rsvp_object_header *rsvp_obj_header;
     const u_char *obj_tptr;
@@ -723,7 +746,6 @@ _U_
                 obj_tlen-=8;
                 obj_tptr+=8;
                 break;
-#ifdef INET6
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < 20)
                     return -1;
@@ -762,7 +784,6 @@ _U_
                 obj_tlen-=26;
                 obj_tptr+=26;
                 break;
-#endif
             case RSVP_CTYPE_13: /* IPv4 p2mp LSP Tunnel */
                 if (obj_tlen < 12)
                     return -1;
@@ -802,7 +823,6 @@ _U_
                 obj_tlen-=sizeof(struct in_addr);
                 obj_tptr+=sizeof(struct in_addr);
                 break;
-#ifdef INET6
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < sizeof(struct in6_addr))
                     return -1;
@@ -812,7 +832,6 @@ _U_
                 obj_tlen-=sizeof(struct in6_addr);
                 obj_tptr+=sizeof(struct in6_addr);
                 break;
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -829,7 +848,6 @@ _U_
                 obj_tlen-=sizeof(struct in_addr);
                 obj_tptr+=sizeof(struct in_addr);
                 break;
-#ifdef INET6
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < sizeof(struct in6_addr))
                     return-1;
@@ -839,7 +857,6 @@ _U_
                 obj_tlen-=sizeof(struct in6_addr);
                 obj_tptr+=sizeof(struct in6_addr);
                 break;
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -914,7 +931,6 @@ _U_
                 obj_tlen-=8;
                 obj_tptr+=8;
                 break;
-#ifdef INET6
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < 20)
                     return-1;
@@ -939,7 +955,6 @@ _U_
                 obj_tlen-=40;
                 obj_tptr+=40;
                 break;
-#endif
             case RSVP_CTYPE_TUNNEL_IPV4:
                 if (obj_tlen < 8)
                     return-1;
@@ -1051,20 +1066,37 @@ _U_
             switch(rsvp_obj_ctype) {
             case RSVP_CTYPE_IPV4:
                 while(obj_tlen >= 4 ) {
+		    u_char length;
+
+		    ND_TCHECK2(*obj_tptr, 4);
+		    length = *(obj_tptr + 1);
                     ND_PRINT((ndo, "%s  Subobject Type: %s, length %u",
                            ident,
                            tok2str(rsvp_obj_xro_values,
                                    "Unknown %u",
                                    RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)),
-                           *(obj_tptr + 1)));
+                           length));
 
-                    if (*(obj_tptr+1) == 0) { /* prevent infinite loops */
+                    if (length == 0) { /* prevent infinite loops */
                         ND_PRINT((ndo, "%s  ERROR: zero length ERO subtype", ident));
                         break;
                     }
 
                     switch(RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)) {
+		    u_char prefix_length;
+
                     case RSVP_OBJ_XRO_IPV4:
+			if (length != 8) {
+				ND_PRINT((ndo, " ERROR: length != 8"));
+				goto invalid;
+			}
+			ND_TCHECK2(*obj_tptr, 8);
+			prefix_length = *(obj_tptr+6);
+			if (prefix_length != 32) {
+				ND_PRINT((ndo, " ERROR: Prefix length %u != 32",
+					  prefix_length));
+				goto invalid;
+			}
                         ND_PRINT((ndo, ", %s, %s/%u, Flags: [%s]",
                                RSVP_OBJ_XRO_MASK_LOOSE(*obj_tptr) ? "Loose" : "Strict",
                                ipaddr_string(ndo, obj_tptr+2),
@@ -1074,6 +1106,11 @@ _U_
                                    *(obj_tptr + 7)))); /* rfc3209 says that this field is rsvd. */
                     break;
                     case RSVP_OBJ_XRO_LABEL:
+			if (length != 8) {
+				ND_PRINT((ndo, " ERROR: length != 8"));
+				goto invalid;
+			}
+			ND_TCHECK2(*obj_tptr, 8);
                         ND_PRINT((ndo, ", Flags: [%s] (%#x), Class-Type: %s (%u), %u",
                                bittok2str(rsvp_obj_rro_label_flag_values,
                                    "none",
@@ -1168,6 +1205,17 @@ _U_
 		/* read variable length subobjects */
 		total_subobj_len = obj_tlen;
                 while(total_subobj_len > 0) {
+                    /* If RFC 3476 Section 3.1 defined that a sub-object of the
+                     * GENERALIZED_UNI RSVP object must have the Length field as
+                     * a multiple of 4, instead of the check below it would be
+                     * better to test total_subobj_len only once before the loop.
+                     * So long as it does not define it and this while loop does
+                     * not implement such a requirement, let's accept that within
+                     * each iteration subobj_len may happen to be a multiple of 1
+                     * and test it and total_subobj_len respectively.
+                     */
+                    if (total_subobj_len < 4)
+                        goto invalid;
                     subobj_len  = EXTRACT_16BITS(obj_tptr);
                     subobj_type = (EXTRACT_16BITS(obj_tptr+2))>>8;
                     af = (EXTRACT_16BITS(obj_tptr+2))&0x00FF;
@@ -1178,6 +1226,15 @@ _U_
                            subobj_type,
                            tok2str(af_values, "Unknown", af), af,
                            subobj_len));
+
+                    /* In addition to what is explained above, the same spec does not
+                     * explicitly say that the same Length field includes the 4-octet
+                     * sub-object header, but as long as this while loop implements it
+                     * as it does include, let's keep the check below consistent with
+                     * the rest of the code.
+                     */
+                    if(subobj_len < 4 || subobj_len > total_subobj_len)
+                        goto invalid;
 
                     switch(subobj_type) {
                     case RSVP_GEN_UNI_SUBOBJ_SOURCE_TNA_ADDRESS:
@@ -1190,14 +1247,12 @@ _U_
                             ND_PRINT((ndo, "%s    UNI IPv4 TNA address: %s",
                                    ident, ipaddr_string(ndo, obj_tptr + 4)));
                             break;
-#ifdef INET6
                         case AFNUM_INET6:
                             if (subobj_len < 20)
                                 return -1;
                             ND_PRINT((ndo, "%s    UNI IPv6 TNA address: %s",
                                    ident, ip6addr_string(ndo, obj_tptr + 4)));
                             break;
-#endif
                         case AFNUM_NSAP:
                             if (subobj_len) {
                                 /* unless we have a TLV parser lets just hexdump */
@@ -1271,7 +1326,6 @@ _U_
                 if (obj_tlen)
                     hexdump=TRUE; /* unless we have a TLV parser lets just hexdump */
                 break;
-#ifdef INET6
             case RSVP_CTYPE_4: /* fall through - FIXME add TLV parser */
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < 20)
@@ -1284,7 +1338,6 @@ _U_
                 obj_tptr+=20;
                 hexdump=TRUE; /* unless we have a TLV parser lets just hexdump */
                 break;
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -1360,7 +1413,6 @@ _U_
                 obj_tlen-=8;
                 obj_tptr+=8;
                 break;
-#ifdef INET6
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < 20)
                     return-1;
@@ -1405,7 +1457,6 @@ _U_
                 obj_tlen-=40;
                 obj_tptr+=40;
                 break;
-#endif
             case RSVP_CTYPE_TUNNEL_IPV4:
                 if (obj_tlen < 8)
                     return-1;
@@ -1438,12 +1489,12 @@ _U_
         case RSVP_OBJ_FASTREROUTE:
             /* the differences between c-type 1 and 7 are minor */
             obj_ptr.rsvp_obj_frr = (const struct rsvp_obj_frr_t *)obj_tptr;
-            bw.i = EXTRACT_32BITS(obj_ptr.rsvp_obj_frr->bandwidth);
 
             switch(rsvp_obj_ctype) {
             case RSVP_CTYPE_1: /* new style */
                 if (obj_tlen < sizeof(struct rsvp_obj_frr_t))
                     return-1;
+                bw.i = EXTRACT_32BITS(obj_ptr.rsvp_obj_frr->bandwidth);
                 ND_PRINT((ndo, "%s  Setup Priority: %u, Holding Priority: %u, Hop-limit: %u, Bandwidth: %.10g Mbps",
                        ident,
                        (int)obj_ptr.rsvp_obj_frr->setup_prio,
@@ -1462,6 +1513,7 @@ _U_
             case RSVP_CTYPE_TUNNEL_IPV4: /* old style */
                 if (obj_tlen < 16)
                     return-1;
+                bw.i = EXTRACT_32BITS(obj_ptr.rsvp_obj_frr->bandwidth);
                 ND_PRINT((ndo, "%s  Setup Priority: %u, Holding Priority: %u, Hop-limit: %u, Bandwidth: %.10g Mbps",
                        ident,
                        (int)obj_ptr.rsvp_obj_frr->setup_prio,
@@ -1547,7 +1599,6 @@ _U_
                 obj_tlen-=8;
                 obj_tptr+=8;
                 break;
-#ifdef INET6
             case RSVP_CTYPE_4: /* fall through - FIXME add TLV parser */
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < 20)
@@ -1574,7 +1625,6 @@ _U_
                 obj_tlen-=20;
                 obj_tptr+=20;
                 break;
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -1664,12 +1714,10 @@ _U_
                        EXTRACT_32BITS(obj_ptr.rsvp_obj_integrity->digest+8),
                        EXTRACT_32BITS(obj_ptr.rsvp_obj_integrity->digest + 12)));
 
-#ifdef HAVE_LIBCRYPTO
-                sigcheck = signature_verify(ndo, pptr, plen, (unsigned char *)obj_ptr.\
-                                             rsvp_obj_integrity->digest);
-#else
-                sigcheck = CANT_CHECK_SIGNATURE;
-#endif
+                sigcheck = signature_verify(ndo, pptr, plen,
+                                            obj_ptr.rsvp_obj_integrity->digest,
+                                            rsvp_clear_checksum,
+                                            rsvp_com_header);
                 ND_PRINT((ndo, " (%s)", tok2str(signature_check_values, "Unknown", sigcheck)));
 
                 obj_tlen+=sizeof(struct rsvp_obj_integrity_t);
@@ -1750,7 +1798,6 @@ _U_
                 obj_tlen-=4;
                 obj_tptr+=4;
                 break;
-#ifdef INET6
             case RSVP_CTYPE_IPV6:
                 if (obj_tlen < 16)
                     return-1;
@@ -1760,7 +1807,6 @@ _U_
                 obj_tlen-=16;
                 obj_tptr+=16;
                 break;
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -1788,8 +1834,12 @@ _U_
         tlen-=rsvp_obj_len;
     }
     return 0;
+invalid:
+    ND_PRINT((ndo, "%s", istr));
+    return -1;
 trunc:
-    ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
+    ND_PRINT((ndo, "\n\t\t"));
+    ND_PRINT((ndo, "%s", tstr));
     return -1;
 }
 
@@ -1797,13 +1847,13 @@ void
 rsvp_print(netdissect_options *ndo,
            register const u_char *pptr, register u_int len)
 {
-    struct rsvp_common_header *rsvp_com_header;
-    const u_char *tptr,*subtptr;
-    u_short plen, tlen, subtlen;
+    const struct rsvp_common_header *rsvp_com_header;
+    const u_char *tptr;
+    u_short plen, tlen;
 
     tptr=pptr;
 
-    rsvp_com_header = (struct rsvp_common_header *)pptr;
+    rsvp_com_header = (const struct rsvp_common_header *)pptr;
     ND_TCHECK(*rsvp_com_header);
 
     /*
@@ -1837,12 +1887,6 @@ rsvp_print(netdissect_options *ndo,
            rsvp_com_header->ttl,
            EXTRACT_16BITS(rsvp_com_header->checksum)));
 
-    /*
-     * Clear checksum prior to signature verification.
-     */
-    rsvp_com_header->checksum[0] = 0;
-    rsvp_com_header->checksum[1] = 0;
-
     if (tlen < sizeof(const struct rsvp_common_header)) {
         ND_PRINT((ndo, "ERROR: common header too short %u < %lu", tlen,
                (unsigned long)sizeof(const struct rsvp_common_header)));
@@ -1854,10 +1898,19 @@ rsvp_print(netdissect_options *ndo,
 
     switch(rsvp_com_header->msg_type) {
 
-    case RSVP_MSGTYPE_AGGREGATE:
+    case RSVP_MSGTYPE_BUNDLE:
+        /*
+         * Process each submessage in the bundle message.
+         * Bundle messages may not contain bundle submessages, so we don't
+         * need to handle bundle submessages specially.
+         */
         while(tlen > 0) {
-            subtptr=tptr;
-            rsvp_com_header = (struct rsvp_common_header *)subtptr;
+            const u_char *subpptr=tptr, *subtptr;
+            u_short subplen, subtlen;
+
+            subtptr=subpptr;
+
+            rsvp_com_header = (const struct rsvp_common_header *)subpptr;
             ND_TCHECK(*rsvp_com_header);
 
             /*
@@ -1868,7 +1921,8 @@ rsvp_print(netdissect_options *ndo,
                        RSVP_EXTRACT_VERSION(rsvp_com_header->version_flags)));
                 return;
             }
-            subtlen=EXTRACT_16BITS(rsvp_com_header->length);
+
+            subplen = subtlen = EXTRACT_16BITS(rsvp_com_header->length);
 
             ND_PRINT((ndo, "\n\t  RSVPv%u %s Message (%u), Flags: [%s], length: %u, ttl: %u, checksum: 0x%04x",
                    RSVP_EXTRACT_VERSION(rsvp_com_header->version_flags),
@@ -1878,12 +1932,6 @@ rsvp_print(netdissect_options *ndo,
                    subtlen,
                    rsvp_com_header->ttl,
                    EXTRACT_16BITS(rsvp_com_header->checksum)));
-
-            /*
-             * Clear checksum prior to signature verification.
-             */
-            rsvp_com_header->checksum[0] = 0;
-            rsvp_com_header->checksum[1] = 0;
 
             if (subtlen < sizeof(const struct rsvp_common_header)) {
                 ND_PRINT((ndo, "ERROR: common header too short %u < %lu", subtlen,
@@ -1900,7 +1948,10 @@ rsvp_print(netdissect_options *ndo,
             subtptr+=sizeof(const struct rsvp_common_header);
             subtlen-=sizeof(const struct rsvp_common_header);
 
-            if (rsvp_obj_print(ndo, pptr, plen, subtptr, "\n\t    ", subtlen) == -1)
+            /*
+             * Print all objects in the submessage.
+             */
+            if (rsvp_obj_print(ndo, subpptr, subplen, subtptr, "\n\t    ", subtlen, rsvp_com_header) == -1)
                 return;
 
             tptr+=subtlen+sizeof(const struct rsvp_common_header);
@@ -1920,7 +1971,10 @@ rsvp_print(netdissect_options *ndo,
     case RSVP_MSGTYPE_HELLO:
     case RSVP_MSGTYPE_ACK:
     case RSVP_MSGTYPE_SREFRESH:
-        if (rsvp_obj_print(ndo, pptr, plen, tptr, "\n\t  ", tlen) == -1)
+        /*
+         * Print all objects in the message.
+         */
+        if (rsvp_obj_print(ndo, pptr, plen, tptr, "\n\t  ", tlen, rsvp_com_header) == -1)
             return;
         break;
 
@@ -1931,5 +1985,6 @@ rsvp_print(netdissect_options *ndo,
 
     return;
 trunc:
-    ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
+    ND_PRINT((ndo, "\n\t\t"));
+    ND_PRINT((ndo, "%s", tstr));
 }

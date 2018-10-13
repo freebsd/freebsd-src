@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2006 Jason Evans <jasone@FreeBSD.org>.
  * All rights reserved.
  *
@@ -37,39 +39,55 @@
 #include <strings.h>
 
 __BEGIN_DECLS
-typedef void *(chunk_alloc_t)(void *, size_t, size_t, bool *, bool *, unsigned);
-typedef bool (chunk_dalloc_t)(void *, size_t, bool, unsigned);
-typedef bool (chunk_commit_t)(void *, size_t, size_t, size_t, unsigned);
-typedef bool (chunk_decommit_t)(void *, size_t, size_t, size_t, unsigned);
-typedef bool (chunk_purge_t)(void *, size_t, size_t, size_t, unsigned);
-typedef bool (chunk_split_t)(void *, size_t, size_t, size_t, bool, unsigned);
-typedef bool (chunk_merge_t)(void *, size_t, void *, size_t, bool, unsigned);
-typedef struct {
-	chunk_alloc_t		*alloc;
-	chunk_dalloc_t		*dalloc;
-	chunk_commit_t		*commit;
-	chunk_decommit_t	*decommit;
-	chunk_purge_t		*purge;
-	chunk_split_t		*split;
-	chunk_merge_t		*merge;
-} chunk_hooks_t;
+typedef struct extent_hooks_s extent_hooks_t;
+typedef void *(extent_alloc_t)(extent_hooks_t *, void *, size_t, size_t, bool *,
+    bool *, unsigned);
+typedef bool (extent_dalloc_t)(extent_hooks_t *, void *, size_t, bool,
+    unsigned);
+typedef void (extent_destroy_t)(extent_hooks_t *, void *, size_t, bool,
+    unsigned);
+typedef bool (extent_commit_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
+    unsigned);
+typedef bool (extent_decommit_t)(extent_hooks_t *, void *, size_t, size_t,
+    size_t, unsigned);
+typedef bool (extent_purge_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
+    unsigned);
+typedef bool (extent_split_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
+    bool, unsigned);
+typedef bool (extent_merge_t)(extent_hooks_t *, void *, size_t, void *, size_t,
+    bool, unsigned);
+struct extent_hooks_s {
+	extent_alloc_t		*alloc;
+	extent_dalloc_t		*dalloc;
+	extent_destroy_t	*destroy;
+	extent_commit_t		*commit;
+	extent_decommit_t	*decommit;
+	extent_purge_t		*purge_lazy;
+	extent_purge_t		*purge_forced;
+	extent_split_t		*split;
+	extent_merge_t		*merge;
+};
 
 size_t	malloc_usable_size(const void *ptr);
 
 void	malloc_stats_print(void (*write_cb)(void *, const char *),
     void *cbopaque, const char *opts);
+
+#define	MALLCTL_ARENAS_ALL	4096
+#define	MALLCTL_ARENAS_DESTROYED	4097
+
 int	mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
     size_t newlen);
 int	mallctlnametomib(const char *name, size_t *mibp, size_t *miblenp);
 int	mallctlbymib(const size_t *mib, size_t miblen, void *oldp,
     size_t *oldlenp, void *newp, size_t newlen);
 
-#define	MALLOCX_LG_ALIGN(la)	(la)
-#define	MALLOCX_ALIGN(a)	(ffsl(a)-1)
+#define	MALLOCX_LG_ALIGN(la)	((int)(la))
+#define	MALLOCX_ALIGN(a)	((int)(ffsl((int)(a))-1))
 #define	MALLOCX_ZERO		((int)0x40)
 #define	MALLOCX_TCACHE(tc)	((int)(((tc)+2) << 8))
 #define	MALLOCX_TCACHE_NONE	MALLOCX_TCACHE(-1)
-#define	MALLOCX_ARENA(a)	((int)(((a)+1) << 20))
+#define	MALLOCX_ARENA(a)	((((int)(a))+1) << 20)
 
 void	*mallocx(size_t size, int flags);
 void	*rallocx(void *ptr, size_t size, int flags);

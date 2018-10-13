@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * 1. Redistributions of source code must retain the
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -415,6 +417,18 @@ static const struct CARDTYPE cards[] = {
 	   0,                                   /* EEProm size */
 	   { 0x01, 0x04, 0x01, 0x03, 1 },       /* audio MUX values */
 	   0x00ffffff },
+	{  CARD_LEADTEK_WINFAST_2000_XP,        /* the card id */
+	   "Leadtek Winfast 2000 XP",           /* the 'name' */
+	   NULL,                                /* the tuner */
+	   0,                                   /* the tuner i2c address */
+	   0,                                   /* dbx is optional */
+	   0,
+	   0,
+	   0,                                   /* EEProm unknown */
+	   0,                                   /* size unknown */
+	   { 0x122000, 0x1000, 0x620000, 0x0000, 1 },   /* audio MUX values */
+	   0xb33000 },                          /* GPIO mask */
+
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008 M. Warner Losh.  All Rights Reserved.
  * Copyright (c) 2000,2001 Jonathan Chen.  All rights reserved.
  *
@@ -195,6 +197,7 @@ cardbus_attach_card(device_t cbdev)
 	domain = pcib_get_domain(cbdev);
 	bus = pcib_get_bus(cbdev);
 	slot = 0;
+	mtx_lock(&Giant);
 	/* For each function, set it up and try to attach a driver to it */
 	for (func = 0; func <= cardbusfunchigh; func++) {
 		struct cardbus_devinfo *dinfo;
@@ -228,6 +231,7 @@ cardbus_attach_card(device_t cbdev)
 		else
 			pci_cfg_save(dinfo->pci.cfg.dev, &dinfo->pci, 1);
 	}
+	mtx_unlock(&Giant);
 	if (cardattached > 0)
 		return (0);
 /*	POWER_DISABLE_SOCKET(brdev, cbdev); */

@@ -2,6 +2,8 @@
  * Definitions for low level routines and data structures
  * for the Advanced Systems Inc. SCSI controllers chips.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996-1997, 1999-2000 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -66,9 +68,7 @@ typedef enum {
 	ADV_ISA		= 0x001,
 	ADV_ISAPNP	= 0x003,
 	ADV_VL		= 0x004,
-	ADV_EISA	= 0x008,
 	ADV_PCI		= 0x010,
-	ADV_MCA		= 0x020,
 	ADV_PCMCIA	= 0x040,
 	ADV_ULTRA	= 0x100,
 	ADV_WIDE	= 0x200,
@@ -170,9 +170,6 @@ struct adv_ccb_info {
 #define		ADV_CHIP_VER_ISA_BIT     	0x30
 #define		ADV_CHIP_VER_ISAPNP_BIT  	0x20
 #define		ADV_CHIP_VER_ASYN_BUG	 	0x21
-#define		ADV_CHIP_MIN_VER_EISA 	 	0x41
-#define		ADV_CHIP_MAX_VER_EISA	 	0x47
-#define		ADV_CHIP_VER_EISA_BIT		0x40
 
 #define ADV_CONFIG_MSW				0x0004
 #define		ADV_CFG_MSW_SCSI_TARGET_ON	0x0080

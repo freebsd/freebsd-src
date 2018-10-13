@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,6 +62,7 @@
 #define	IPFW_ARG_MAX		65534
 #define IP_FW_TABLEARG		65535	/* Compat value for old clients */
 #define	IP_FW_TARG		0	/* Current tablearg value */
+#define	IP_FW_NAT44_GLOBAL	65535	/* arg1 value for "nat global" */
 
 /*
  * Number of entries in the call stack of the call/return commands.
@@ -108,6 +111,28 @@ typedef struct _ip_fw3_opheader {
 
 #define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
 #define	IP_FW_DUMP_SRVOBJECTS	117	/* Dump existing named objects */
+
+#define	IP_FW_NAT64STL_CREATE	130	/* Create stateless NAT64 instance */
+#define	IP_FW_NAT64STL_DESTROY	131	/* Destroy stateless NAT64 instance */
+#define	IP_FW_NAT64STL_CONFIG	132	/* Modify stateless NAT64 instance */
+#define	IP_FW_NAT64STL_LIST	133	/* List stateless NAT64 instances */
+#define	IP_FW_NAT64STL_STATS	134	/* Get NAT64STL instance statistics */
+#define	IP_FW_NAT64STL_RESET_STATS 135	/* Reset NAT64STL instance statistics */
+
+#define	IP_FW_NAT64LSN_CREATE	140	/* Create stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_DESTROY	141	/* Destroy stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_CONFIG	142	/* Modify stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_LIST	143	/* List stateful NAT64 instances */
+#define	IP_FW_NAT64LSN_STATS	144	/* Get NAT64LSN instance statistics */
+#define	IP_FW_NAT64LSN_LIST_STATES 145	/* Get stateful NAT64 states */
+#define	IP_FW_NAT64LSN_RESET_STATS 146	/* Reset NAT64LSN instance statistics */
+
+#define	IP_FW_NPTV6_CREATE	150	/* Create NPTv6 instance */
+#define	IP_FW_NPTV6_DESTROY	151	/* Destroy NPTv6 instance */
+#define	IP_FW_NPTV6_CONFIG	152	/* Modify NPTv6 instance */
+#define	IP_FW_NPTV6_LIST	153	/* List NPTv6 instances */
+#define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
+#define	IP_FW_NPTV6_RESET_STATS	155	/* Reset NPTv6 instance statistics */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -258,6 +283,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_EXTERNAL_ACTION,	/* arg1=id of external action handler */
 	O_EXTERNAL_INSTANCE,	/* arg1=id of eaction handler instance */
+	O_EXTERNAL_DATA,	/* variable length data */
+
+	O_SKIP_ACTION,		/* none				*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -645,7 +673,7 @@ struct ipfw_flow_id {
 	uint32_t	src_ip;
 	uint16_t	dst_port;
 	uint16_t	src_port;
-	uint8_t		fib;
+	uint8_t		fib;	/* XXX: must be uint16_t */
 	uint8_t		proto;
 	uint8_t		_flags;	/* protocol-specific flags */
 	uint8_t		addr_type; /* 4=ip4, 6=ip6, 1=ether ? */
@@ -656,6 +684,7 @@ struct ipfw_flow_id {
 };
 #endif
 
+#define	IS_IP4_FLOW_ID(id)	((id)->addr_type == 4)
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
 
 /*
@@ -682,7 +711,8 @@ struct _ipfw_dyn_rule {
 					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
-};
+	u_int16_t	kidx;		/* index of named object */
+} __packed __aligned(8);
 
 /*
  * Definitions for IP option names.
@@ -703,6 +733,8 @@ struct _ipfw_dyn_rule {
 
 #define	ICMP_REJECT_RST		0x100	/* fake ICMP code (send a TCP RST) */
 #define	ICMP6_UNREACH_RST	0x100	/* fake ICMPv6 code (send a TCP RST) */
+#define	ICMP_REJECT_ABORT	0x101	/* fake ICMP code (send an SCTP ABORT) */
+#define	ICMP6_UNREACH_ABORT	0x101	/* fake ICMPv6 code (send an SCTP ABORT) */
 
 /*
  * These are used for lookup tables.
@@ -783,9 +815,17 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_TBLENT_LIST	8
 #define	IPFW_TLV_RANGE		9
 #define	IPFW_TLV_EACTION	10
+#define	IPFW_TLV_COUNTERS	11
+#define	IPFW_TLV_OBJDATA	12
+#define	IPFW_TLV_STATE_NAME	14
 
 #define	IPFW_TLV_EACTION_BASE	1000
 #define	IPFW_TLV_EACTION_NAME(arg)	(IPFW_TLV_EACTION_BASE + (arg))
+
+typedef struct _ipfw_obj_data {
+	ipfw_obj_tlv	head;
+	void		*data[0];
+} ipfw_obj_data;
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {

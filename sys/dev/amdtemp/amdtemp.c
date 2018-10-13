@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, 2009 Rui Paulo <rpaulo@FreeBSD.org>
  * Copyright (c) 2009 Norikatsu Shigemura <nork@FreeBSD.org>
  * Copyright (c) 2009-2012 Jung-uk Kim <jkim@FreeBSD.org>
@@ -49,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <x86/pci_cfgreg.h>
 
+#include <dev/amdsmn/amdsmn.h>
+
 typedef enum {
 	CORE0_SENSOR0,
 	CORE0_SENSOR1,
@@ -59,7 +63,6 @@ typedef enum {
 } amdsensor_t;
 
 struct amdtemp_softc {
-	device_t	sc_dev;
 	int		sc_ncores;
 	int		sc_ntemps;
 	int		sc_flags;
@@ -70,6 +73,7 @@ struct amdtemp_softc {
 	int32_t		(*sc_gettemp)(device_t, amdsensor_t);
 	struct sysctl_oid *sc_sysctl_cpu[MAXCPU];
 	struct intr_config_hook sc_ich;
+	device_t	sc_smn;
 };
 
 #define	VENDORID_AMD		0x1022
@@ -82,6 +86,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_MISC16	0x1533
 #define	DEVICEID_AMD_MISC16_M30H	0x1583
 #define	DEVICEID_AMD_MISC17	0x141d
+#define	DEVICEID_AMD_HOSTB17H	0x1450
 
 static struct amdtemp_product {
 	uint16_t	amdtemp_vendorid;
@@ -96,13 +101,18 @@ static struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC16 },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC16_M30H },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC17 },
-	{ 0, 0 }
+	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H },
 };
 
 /*
  * Reported Temperature Control Register
  */
 #define	AMDTEMP_REPTMP_CTRL	0xa4
+
+/*
+ * Reported Temperature, Family 17h
+ */
+#define	AMDTEMP_17H_CUR_TMP	0x59800
 
 /*
  * Thermaltrip Status Register (Family 0Fh only)
@@ -133,6 +143,7 @@ static int	amdtemp_detach(device_t dev);
 static int 	amdtemp_match(device_t dev);
 static int32_t	amdtemp_gettemp0f(device_t dev, amdsensor_t sensor);
 static int32_t	amdtemp_gettemp(device_t dev, amdsensor_t sensor);
+static int32_t	amdtemp_gettemp17h(device_t dev, amdsensor_t sensor);
 static int	amdtemp_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t amdtemp_methods[] = {
@@ -153,6 +164,10 @@ static driver_t amdtemp_driver = {
 
 static devclass_t amdtemp_devclass;
 DRIVER_MODULE(amdtemp, hostb, amdtemp_driver, amdtemp_devclass, NULL, NULL);
+MODULE_VERSION(amdtemp, 1);
+MODULE_DEPEND(amdtemp, amdsmn, 1, 1, 1);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, amdtemp, amdtemp_products,
+    nitems(amdtemp_products));
 
 static int
 amdtemp_match(device_t dev)
@@ -163,7 +178,7 @@ amdtemp_match(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 
-	for (i = 0; amdtemp_products[i].amdtemp_vendorid != 0; i++) {
+	for (i = 0; i < nitems(amdtemp_products); i++) {
 		if (vendor == amdtemp_products[i].amdtemp_vendorid &&
 		    devid == amdtemp_products[i].amdtemp_deviceid)
 			return (1);
@@ -195,6 +210,8 @@ amdtemp_probe(device_t dev)
 
 	if (resource_disabled("amdtemp", 0))
 		return (ENXIO);
+	if (!amdtemp_match(device_get_parent(dev)))
+		return (ENXIO);
 
 	family = CPUID_TO_FAMILY(cpu_id);
 	model = CPUID_TO_MODEL(cpu_id);
@@ -211,6 +228,7 @@ amdtemp_probe(device_t dev)
 	case 0x14:
 	case 0x15:
 	case 0x16:
+	case 0x17:
 		break;
 	default:
 		return (ENXIO);
@@ -240,7 +258,7 @@ amdtemp_attach(device_t dev)
 	cpuid = cpu_id;
 	family = CPUID_TO_FAMILY(cpuid);
 	model = CPUID_TO_MODEL(cpuid);
-	if (family != 0x0f || model >= 0x40) {
+	if ((family != 0x0f || model >= 0x40) && family != 0x17) {
 		cpuid = pci_read_config(dev, AMDTEMP_CPUID, 4);
 		family = CPUID_TO_FAMILY(cpuid);
 		model = CPUID_TO_MODEL(cpuid);
@@ -341,6 +359,17 @@ amdtemp_attach(device_t dev)
 		sc->sc_ntemps = 1;
 
 		sc->sc_gettemp = amdtemp_gettemp;
+		break;
+	case 0x17:
+		sc->sc_ntemps = 1;
+		sc->sc_gettemp = amdtemp_gettemp17h;
+		sc->sc_smn = device_find_child(
+		    device_get_parent(dev), "amdsmn", -1);
+		if (sc->sc_smn == NULL) {
+			if (bootverbose)
+				device_printf(dev, "No SMN device found\n");
+			return (ENXIO);
+		}
 		break;
 	}
 
@@ -552,6 +581,22 @@ amdtemp_gettemp(device_t dev, amdsensor_t sensor)
 	uint32_t temp;
 
 	temp = pci_read_config(dev, AMDTEMP_REPTMP_CTRL, 4);
+	temp = ((temp >> 21) & 0x7ff) * 5 / 4;
+	temp += AMDTEMP_ZERO_C_TO_K + sc->sc_offset * 10;
+
+	return (temp);
+}
+
+static int32_t
+amdtemp_gettemp17h(device_t dev, amdsensor_t sensor)
+{
+	struct amdtemp_softc *sc = device_get_softc(dev);
+	uint32_t temp;
+	int error;
+
+	error = amdsmn_read(sc->sc_smn, AMDTEMP_17H_CUR_TMP, &temp);
+	KASSERT(error == 0, ("amdsmn_read"));
+
 	temp = ((temp >> 21) & 0x7ff) * 5 / 4;
 	temp += AMDTEMP_ZERO_C_TO_K + sc->sc_offset * 10;
 

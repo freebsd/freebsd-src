@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Max Khon
  * Copyright (c) 2014 Juniper Networks, Inc.
  * Copyright (c) 2006-2016 Maxim Sobolev <sobomax@FreeBSD.org>
@@ -60,6 +62,8 @@ FEATURE(geom_uzip, "GEOM read-only compressed disks support");
 struct g_uzip_blk {
         uint64_t offset;
         uint32_t blen;
+        unsigned char last:1;
+        unsigned char padded:1;
 #define BLEN_UNDEF      UINT32_MAX
 };
 
@@ -83,6 +87,16 @@ struct g_uzip_blk {
 #define	GUZ_DBG_INFO	2
 #define	GUZ_DBG_IO	3
 #define	GUZ_DBG_TOC	4
+
+#define	GUZ_DEV_SUFX	".uzip"
+#define	GUZ_DEV_NAME(p)	(p GUZ_DEV_SUFX)
+
+static char g_uzip_attach_to[MAXPATHLEN] = {"*"};
+static char g_uzip_noattach_to[MAXPATHLEN] = {GUZ_DEV_NAME("*")};
+TUNABLE_STR("kern.geom.uzip.attach_to", g_uzip_attach_to,
+    sizeof(g_uzip_attach_to));
+TUNABLE_STR("kern.geom.uzip.noattach_to", g_uzip_noattach_to,
+    sizeof(g_uzip_noattach_to));
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, uzip, CTLFLAG_RW, 0, "GEOM_UZIP stuff");
@@ -258,8 +272,9 @@ g_uzip_request(struct g_geom *gp, struct bio *bp)
 	}
 
 	DPRINTF_BRNG(GUZ_DBG_IO, start_blk, end_blk, ("%s/%s: %p: "
-	    "start=%u (%ju), end=%u (%ju)\n", __func__, gp->name, bp,
+	    "start=%u (%ju[%jd]), end=%u (%ju)\n", __func__, gp->name, bp,
 	    (u_int)start_blk, (uintmax_t)sc->toc[start_blk].offset,
+	    (intmax_t)sc->toc[start_blk].blen,
 	    (u_int)end_blk, (uintmax_t)BLK_ENDS(sc, end_blk - 1)));
 
 	bp2 = g_clone_bio(bp);
@@ -272,16 +287,18 @@ g_uzip_request(struct g_geom *gp, struct bio *bp)
 	bp2->bio_offset = TOFF_2_BOFF(sc, pp, start_blk);
 	while (1) {
 		bp2->bio_length = TLEN_2_BLEN(sc, pp, bp2, end_blk - 1);
-		if (bp2->bio_length <= MAXPHYS)
+		if (bp2->bio_length <= MAXPHYS) {
 			break;
+		}
 		if (end_blk == (start_blk + 1)) {
 			break;
 		}
 		end_blk--;
 	}
 
-	DPRINTF(GUZ_DBG_IO, ("%s/%s: bp2->bio_length = %jd\n",
-	    __func__, gp->name, (intmax_t)bp2->bio_length));
+	DPRINTF(GUZ_DBG_IO, ("%s/%s: bp2->bio_length = %jd, "
+	    "bp2->bio_offset = %jd\n", __func__, gp->name,
+	    (intmax_t)bp2->bio_length, (intmax_t)bp2->bio_offset));
 
 	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UZIP, M_NOWAIT);
 	if (bp2->bio_data == NULL) {
@@ -313,6 +330,15 @@ g_uzip_read_done(struct bio *bp)
 	bioq_disksort(&sc->bio_queue, bp);
 	mtx_unlock(&sc->queue_mtx);
 	wakeup(sc);
+}
+
+static int
+g_uzip_memvcmp(const void *memory, unsigned char val, size_t size)
+{
+	const u_char *mm;
+
+	mm = (const u_char *)memory;
+	return (*mm == val) && memcmp(mm, mm + 1, size - 1) == 0;
 }
 
 static void
@@ -362,18 +388,33 @@ g_uzip_do(struct g_uzip_softc *sc, struct bio *bp)
 		    bp->bio_completed, data2, (u_int)ulen, data, (u_int)len));
 		if (len == 0) {
 			/* All zero block: no cache update */
+zero_block:
 			bzero(data2, ulen);
 		} else if (len <= bp->bio_completed) {
 			mtx_lock(&sc->last_mtx);
 			err = sc->dcp->decompress(sc->dcp, gp->name, data,
 			    len, sc->last_buf);
+			if (err != 0 && sc->toc[blk].last != 0) {
+				/*
+				 * Last block decompression has failed, check
+				 * if it's just zero padding.
+				 */
+				if (g_uzip_memvcmp(data, '\0', len) == 0) {
+					sc->toc[blk].blen = 0;
+					sc->last_blk = -1;
+					mtx_unlock(&sc->last_mtx);
+					len = 0;
+					goto zero_block;
+				}
+			}
 			if (err != 0) {
 				sc->last_blk = -1;
 				mtx_unlock(&sc->last_mtx);
 				bp2->bio_error = EILSEQ;
 				DPRINTF(GUZ_DBG_ERR, ("%s/%s: decompress"
-				    "(%p) failed\n", __func__, gp->name,
-				    sc->dcp));
+				    "(%p, %ju, %ju) failed\n", __func__,
+				    gp->name, sc->dcp, (uintmax_t)blk,
+				    (uintmax_t)len));
 				goto done;
 			}
 			sc->last_blk = blk;
@@ -425,6 +466,27 @@ g_uzip_start(struct bio *bp)
 	sc = gp->softc;
 	sc->req_total++;
 
+	if (bp->bio_cmd == BIO_GETATTR) {
+		struct bio *bp2;
+		struct g_consumer *cp;
+		struct g_geom *gp;
+		struct g_provider *pp;
+
+		/* pass on MNT:* requests and ignore others */
+		if (strncmp(bp->bio_attribute, "MNT:", 4) == 0) {
+			bp2 = g_clone_bio(bp);
+			if (bp2 == NULL) {
+				g_io_deliver(bp, ENOMEM);
+				return;
+			}
+			bp2->bio_done = g_std_done;
+			pp = bp->bio_to;
+			gp = pp->geom;
+			cp = LIST_FIRST(&gp->consumer);
+			g_io_request(bp2, cp);
+			return;
+		}
+	}
 	if (bp->bio_cmd != BIO_READ) {
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -471,6 +533,7 @@ g_uzip_spoiled(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 
+	G_VALID_CONSUMER(cp);
 	gp = cp->geom;
 	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp, gp->name);
 	g_topology_assert();
@@ -486,10 +549,12 @@ g_uzip_parse_toc(struct g_uzip_softc *sc, struct g_provider *pp,
 {
 	uint32_t i, j, backref_to;
 	uint64_t max_offset, min_offset;
+	struct g_uzip_blk *last_blk;
 
 	min_offset = sizeof(struct cloop_header) +
 	    (sc->nblocks + 1) * sizeof(uint64_t);
 	max_offset = sc->toc[0].offset - 1;
+	last_blk = &sc->toc[0];
 	for (i = 0; i < sc->nblocks; i++) {
 		/* First do some bounds checking */
 		if ((sc->toc[i].offset < min_offset) ||
@@ -497,7 +562,7 @@ g_uzip_parse_toc(struct g_uzip_softc *sc, struct g_provider *pp,
 			goto error_offset;
 		}
 		DPRINTF_BLK(GUZ_DBG_IO, i, ("%s: cluster #%u "
-		    "sc->toc[i].offset=%ju max_offset=%ju\n", gp->name,
+		    "offset=%ju max_offset=%ju\n", gp->name,
 		    (u_int)i, (uintmax_t)sc->toc[i].offset,
 		    (uintmax_t)max_offset));
 		backref_to = BLEN_UNDEF;
@@ -523,6 +588,7 @@ g_uzip_parse_toc(struct g_uzip_softc *sc, struct g_provider *pp,
 			sc->toc[i].blen = sc->toc[j].blen;
 			backref_to = j;
 		} else {
+			last_blk = &sc->toc[i];
 			/*
 			 * For the "normal blocks" seek forward until we hit
 			 * block whose offset is larger than ours and assume
@@ -557,6 +623,25 @@ g_uzip_parse_toc(struct g_uzip_softc *sc, struct g_provider *pp,
 		}
 		DPRINTF_BLK(GUZ_DBG_TOC, i, ("\n"));
 	}
+	last_blk->last = 1;
+	/* Do a second pass to validate block lengths */
+	for (i = 0; i < sc->nblocks; i++) {
+		if (sc->toc[i].blen > sc->dcp->max_blen) {
+			if (sc->toc[i].last == 0) {
+				DPRINTF(GUZ_DBG_ERR, ("%s: cluster #%u "
+				    "length (%ju) exceeds "
+				    "max_blen (%ju)\n", gp->name, i,
+				    (uintmax_t)sc->toc[i].blen,
+				    (uintmax_t)sc->dcp->max_blen));
+				return (-1);
+			}
+			DPRINTF(GUZ_DBG_INFO, ("%s: cluster #%u extra "
+			    "padding is detected, trimmed to %ju\n",
+			    gp->name, i, (uintmax_t)sc->dcp->max_blen));
+			    sc->toc[i].blen = sc->dcp->max_blen;
+			sc->toc[i].padded = 1;
+		}
+	}
 	return (0);
 
 error_offset:
@@ -589,12 +674,19 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (pp->acw > 0)
 		return (NULL);
 
+	if ((fnmatch(g_uzip_attach_to, pp->name, 0) != 0) ||
+	    (fnmatch(g_uzip_noattach_to, pp->name, 0) == 0)) {
+		DPRINTF(GUZ_DBG_INFO, ("%s(%s,%s), ignoring\n", __func__,
+		    mp->name, pp->name));
+		return (NULL);
+	}
+
 	buf = NULL;
 
 	/*
 	 * Create geom instance.
 	 */
-	gp = g_new_geomf(mp, "%s.uzip", pp->name);
+	gp = g_new_geomf(mp, GUZ_DEV_NAME("%s"), pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	if (error == 0)
@@ -712,6 +804,16 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    sc->nblocks < offsets_read ? "more" : "less"));
 		goto e5;
 	}
+
+	if (type == G_UZIP) {
+		sc->dcp = g_uzip_zlib_ctor(sc->blksz);
+	} else {
+		sc->dcp = g_uzip_lzma_ctor(sc->blksz);
+	}
+	if (sc->dcp == NULL) {
+		goto e5;
+	}
+
 	/*
 	 * "Fake" last+1 block, to make it easier for the TOC parser to
 	 * iterate without making the last element a special case.
@@ -720,7 +822,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	/* Massage TOC (table of contents), make sure it is sound */
 	if (g_uzip_parse_toc(sc, pp, gp) != 0) {
 		DPRINTF(GUZ_DBG_ERR, ("%s: TOC error\n", gp->name));
-		goto e5;
+		goto e6;
 	}
 	mtx_init(&sc->last_mtx, "geom_uzip cache", NULL, MTX_DEF);
 	mtx_init(&sc->queue_mtx, "geom_uzip wrkthread", NULL, MTX_DEF);
@@ -729,15 +831,6 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	sc->last_buf = malloc(sc->blksz, M_GEOM_UZIP, M_WAITOK);
 	sc->req_total = 0;
 	sc->req_cached = 0;
-
-	if (type == G_UZIP) {
-		sc->dcp = g_uzip_zlib_ctor(sc->blksz);
-	} else {
-		sc->dcp = g_uzip_lzma_ctor(sc->blksz);
-	}
-	if (sc->dcp == NULL) {
-		goto e6;
-	}
 
 	sc->uzip_do = &g_uzip_do;
 
@@ -764,11 +857,11 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	return (gp);
 
 e7:
-	sc->dcp->free(sc->dcp);
-e6:
 	free(sc->last_buf, M_GEOM);
 	mtx_destroy(&sc->queue_mtx);
 	mtx_destroy(&sc->last_mtx);
+e6:
+	sc->dcp->free(sc->dcp);
 e5:
 	free(sc->toc, M_GEOM);
 e4:
@@ -829,3 +922,4 @@ static struct g_class g_uzip_class = {
 
 DECLARE_GEOM_CLASS(g_uzip_class, g_uzip);
 MODULE_DEPEND(g_uzip, zlib, 1, 1, 1);
+MODULE_VERSION(geom_uzip, 0);

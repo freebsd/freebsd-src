@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -47,6 +49,11 @@
 #define	CMD_BLOCK_32K_ERASE	0x52
 #define	CMD_ENTER_4B_MODE	0xB7
 #define	CMD_EXIT_4B_MODE	0xE9
+
+/* Quad 4B-addressing operations. */
+#define	CMD_QUAD_SECTOR_ERASE	0xDC
+#define	CMD_QUAD_PAGE_PROGRAM	0x34
+#define	CMD_READ_4B_QUAD_OUTPUT	0x6C
 
 /*
  * Status register flags

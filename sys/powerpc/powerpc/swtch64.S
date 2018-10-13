@@ -56,12 +56,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_sched.h"
 
 #include <sys/syscall.h>
 
 #include <machine/trap.h>
+#include <machine/spr.h>
 #include <machine/param.h>
 #include <machine/asm.h>
 
@@ -124,6 +125,14 @@ ENTRY(cpu_switch)
 	
 	stdu	%r1,-48(%r1)
 
+	lwz	%r7, PCB_FLAGS(%r17)
+	andi.	%r7, %r7, PCB_CDSCR
+	beq	.L0
+	/* Custom DSCR was set. Reseting it to enter kernel */
+	li	%r7, 0x0
+	mtspr   SPR_DSCR, %r7
+
+.L0:
 	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
 	andi.	%r7, %r7, PCB_FPU
@@ -160,6 +169,7 @@ blocked_loop:
 	
 	ld	%r17,TD_PCB(%r13)	/* Get new PCB */
 	ld	%r1,PCB_SP(%r17)	/* Load the stack pointer */
+	addi	%r1,%r1,-48		/* Remember about cpu_switch stack frame */
 
 	/* Release old thread now that we have a stack pointer set up */
 	cmpdi	%r14,0
@@ -187,10 +197,18 @@ blocked_loop:
 	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore Altivec context if needed */
 	andi.	%r6, %r6, PCB_VEC
-	beq	.L4
+	beq	.L31
 	mr	%r3,%r13		/* Pass curthread to enable_vec */
 	bl	enable_vec
 	nop
+
+.L31:
+	lwz	%r6, PCB_FLAGS(%r17)
+	/* Restore Custom DSCR if needed */
+	andi.	%r6, %r6, PCB_CDSCR
+	beq	.L4
+	ld	%r6, PCB_DSCR(%r17)	/* Load the DSCR register*/
+	mtspr	SPR_DSCR, %r6
 
 	/* thread to restore is in r3 */
 .L4:
@@ -280,5 +298,5 @@ ENTRY_NOPROF(fork_trampoline)
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */
-	b	trapexit
+	bl	trapexit
 	nop

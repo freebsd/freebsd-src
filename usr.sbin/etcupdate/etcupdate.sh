@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2010-2013 Hudson River Trading LLC
 # Written by: John H. Baldwin <jhb@FreeBSD.org>
 # All rights reserved.
@@ -184,7 +186,7 @@ build_tree()
 {
 	local destdir dir file make
 
-	make="make $MAKE_OPTIONS"
+	make="make $MAKE_OPTIONS -DNO_FILEMON"
 
 	log "Building tree at $1 with $make"
 	mkdir -p $1/usr/obj >&3 2>&1
@@ -814,15 +816,19 @@ merge_file()
 	local res
 
 	# Try the merge to see if there is a conflict.
-	merge -q -p ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1 >/dev/null 2>&3
+	diff3 -E -m ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1 > /dev/null 2>&3
 	res=$?
 	case $res in
 		0)
 			# No conflicts, so just redo the merge to the
 			# real file.
-			log "merge ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1"
+			log "diff3 -E -m ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1"
 			if [ -z "$dryrun" ]; then
-				merge ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1
+				temp=$(mktemp -t etcupdate)
+				diff3 -E -m ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1 > ${temp}
+				# Use "cat >" to preserve metadata.
+				cat ${temp} > ${DESTDIR}$1
+				rm -f ${temp}
 			fi
 			post_install_file $1
 			echo "  M $1"
@@ -832,10 +838,10 @@ merge_file()
 			# the conflicts directory.
 			if [ -z "$dryrun" ]; then
 				install_dirs $NEWTREE $CONFLICTS $1
-				log "cp -Rp ${DESTDIR}$1 ${CONFLICTS}$1"
-				cp -Rp ${DESTDIR}$1 ${CONFLICTS}$1 >&3 2>&1
-				merge -A -q -L "yours" -L "original" -L "new" \
-				    ${CONFLICTS}$1 ${OLDTREE}$1 ${NEWTREE}$1
+				log "diff3 -m -A ${DESTDIR}$1 ${CONFLICTS}$1"
+				diff3 -m -A -L "yours" -L "original" -L "new" \
+				    ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1 > \
+				    ${CONFLICTS}$1
 			fi
 			echo "  C $1"
 			;;

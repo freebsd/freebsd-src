@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2016
+.Dd April 10, 2018
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nd set ACL information
 .Sh SYNOPSIS
 .Nm
+.Op Fl R Op Fl H | L | P
 .Op Fl bdhkn
 .Op Fl a Ar position entries
 .Op Fl m Ar entries
@@ -79,18 +80,30 @@ entries of the current ACL.
 The operations apply to the default ACL entries instead of
 access ACL entries.
 Currently only directories may have
-default ACL's.  This option is not applicable to NFSv4 ACLs.
+default ACL's.
+This option is not applicable to NFSv4 ACLs.
 .It Fl h
 If the target of the operation is a symbolic link, perform the operation
 on the symbolic link itself, rather than following the link.
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during tree traversal are not followed.)
 .It Fl k
 Delete any default ACL entries on the specified files.
 It
 is not considered an error if the specified files do not have
 any default ACL entries.
 An error will be reported if any of
-the specified files cannot have a default entry (i.e.\&
-non-directories).  This option is not applicable to NFSv4 ACLs.
+the specified files cannot have a default entry (i.e.,
+non-directories).
+This option is not applicable to NFSv4 ACLs.
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
 .It Fl m Ar entries
 Modify the ACL on the specified file.
 New entries will be added, and existing entries will be modified
@@ -114,7 +127,15 @@ is
 the input is taken from stdin.
 .It Fl n
 Do not recalculate the permissions associated with the ACL
-mask entry.  This option is not applicable to NFSv4 ACLs.
+mask entry.
+This option is not applicable to NFSv4 ACLs.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+This is the default.
+.It Fl R
+Perform the action recursively on any specified directories.
 .It Fl x Ar entries | position
 If
 .Ar entries
@@ -291,7 +312,8 @@ specifying the access granted to the owner of the file;
 .Dq Li group@
 specifying the access granted to the file owning group;
 .Dq Li everyone@
-specifying everyone.  Note that
+specifying everyone.
+Note that
 .Dq Li everyone@
 is not the same as traditional Unix
 .Dq Li other
@@ -301,8 +323,8 @@ literally, everyone, including file owner and owning group.
 The ACL qualifier field describes the user or group associated with
 the ACL entry.
 It may consist of one of the following: uid or
-user name, or gid or group name.  In entries whose tag type is
-one of
+user name, or gid or group name.
+In entries whose tag type is one of
 .Dq Li owner@ ,
 .Dq Li group@ ,
 or

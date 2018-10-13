@@ -21,7 +21,7 @@ STAGE_TARGETS?=		iso-images-stage
 .endif
 
 .if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
-. if ${TARGET} == "arm" || ${EMBEDDED_TARGET} == "arm"
+. if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != ""
 EMBEDDED=		1
 . endif
 .endif
@@ -57,12 +57,7 @@ TLD?=			${FTPDIR}/releases
 .endif
 
 .if defined(EMBEDDED) && !empty(EMBEDDED)
-. if ${TARGET} == "arm" && ${TARGET_ARCH} == "armv6"
-.  if !defined(BOARDNAME) && empty(BOARDNAME)
-BOARDNAME:=		${KERNCONF}
-.  else
-OLDNAME:=		${KERNCONF}
-.  endif
+. if ${TARGET:Marm*} != "" && (${TARGET_ARCH:Marm*} != "" || ${TARGET_ARCH} == "aarch64")
 .  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
 SNAPSHOT=		1
 .  endif
@@ -91,12 +86,6 @@ iso-images-stage:
 	cd ${RELEASEDIR} && rm -f CHECKSUM.*
 . for IMAGE in ${IMAGES}
 .  if defined(EMBEDDED) && !empty(EMBEDDED)
-.   if defined(OLDNAME) && !empty(OLDNAME)
-	@# arm/armv6 IMX6 -> WANDBOARD, for example.
-	cd ${RELEASEDIR} && \
-		mv ${OSRELEASE}-${OLDNAME}.${IMAGE}.xz \
-		${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
-.   endif
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz \
 		${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz
@@ -150,12 +139,6 @@ iso-images-stage:
 .else # not snapshot
 . for IMAGE in ${IMAGES}
 .  if defined(EMBEDDED) && !empty(EMBEDDED)
-.   if defined(OLDNAME) && !empty(OLDNAME)
-	@# arm/armv6 IMX6 -> WANDBOARD, for example.
-	cd ${RELEASEDIR} && \
-		mv ${OSRELEASE}-${OLDNAME}.${IMAGE}.xz \
-		${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
-.   endif
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \

@@ -44,14 +44,7 @@
 /* Upper value is determined by LPI max priority */
 #define	GIC_PRIORITY_MIN	(0xFCUL)
 
-/* Numbers for software generated interrupts */
-#define	GIC_FIRST_SGI		(0)
-#define	GIC_LAST_SGI		(15)
-/* Numbers for private peripheral interrupts */
-#define	GIC_FIRST_PPI		(16)
-#define	GIC_LAST_PPI		(31)
-/* Numbers for spared peripheral interrupts */
-#define	GIC_FIRST_SPI		(32)
+/* Numbers for shared peripheral interrupts */
 #define	GIC_LAST_SPI		(1019)
 /* Numbers for local peripheral interrupts */
 #define	GIC_FIRST_LPI		(8192)
@@ -59,46 +52,35 @@
 /*
  * Registers (v2/v3)
  */
-#define	GICD_CTLR		(0x0000)
-#define	GICD_CTLR_G1		(1 << 0)
-#define	GICD_CTLR_G1A		(1 << 1)
-#define	GICD_CTLR_ARE_NS	(1 << 4)
-#define	GICD_CTLR_RWP		(1 << 31)
-
-#define	GICD_TYPER		(0x0004)
-#define		GICD_TYPER_IDBITS(n)	((((n) >> 19) & 0x1F) + 1)
-#define		GICD_TYPER_I_NUM(n)	((((n) & 0x1F) + 1) * 32)
-
-#define	GICD_ISENABLER(n)	(0x0100 + (((n) >> 5) * 4))
-#define		GICD_I_PER_ISENABLERn	(32)
-
-#define	GICD_ICENABLER(n)	(0x0180 + (((n) >> 5) * 4))
-#define	GICD_IPRIORITYR(n)	(0x0400 + (((n) >> 2) * 4))
-#define		GICD_I_PER_IPRIORITYn	(4)
-
-#define	GICD_I_MASK(n)		(1 << ((n) % 32))
-
-#define	GICD_ICFGR(n)		(0x0C00 + (((n) >> 4) * 4))
-/* First bit is a polarity bit (0 - low, 1 - high) */
-#define		GICD_ICFGR_POL_LOW	(0 << 0)
-#define		GICD_ICFGR_POL_HIGH	(1 << 0)
-#define		GICD_ICFGR_POL_MASK	(0x1)
-/* Second bit is a trigger bit (0 - level, 1 - edge) */
-#define		GICD_ICFGR_TRIG_LVL	(0 << 1)
-#define		GICD_ICFGR_TRIG_EDGE	(1 << 1)
-#define		GICD_ICFGR_TRIG_MASK	(0x2)
-
-#define		GICD_I_PER_ICFGRn	(16)
+/* GICD_CTLR */
+#define	 GICD_CTLR_G1		(1 << 0)
+#define	 GICD_CTLR_G1A		(1 << 1)
+#define	 GICD_CTLR_ARE_NS	(1 << 4)
+#define	 GICD_CTLR_RWP		(1 << 31)
+/* GICD_TYPER */
+#define	 GICD_TYPER_IDBITS(n)	((((n) >> 19) & 0x1F) + 1)
 
 /*
  * Registers (v3)
  */
 #define	GICD_IROUTER(n)		(0x6000 + ((n) * 8))
-#define	GICD_PIDR2		(0xFFE8)
 
-#define	GICR_PIDR2_ARCH_MASK	(0xF0)
-#define	GICR_PIDR2_ARCH_GICv3	(0x30)
-#define	GICR_PIDR2_ARCH_GICv4	(0x40)
+#define	GICD_PIDR4		0xFFD0
+#define	GICD_PIDR5		0xFFD4
+#define	GICD_PIDR6		0xFFD8
+#define	GICD_PIDR7		0xFFDC
+#define	GICD_PIDR0		0xFFE0
+#define	GICD_PIDR1		0xFFE4
+#define	GICD_PIDR2		0xFFE8
+
+#define	GICR_PIDR2_ARCH_SHIFT	4
+#define	GICR_PIDR2_ARCH_MASK	0xF0
+#define	GICR_PIDR2_ARCH(x)				\
+    (((x) & GICR_PIDR2_ARCH_MASK) >> GICR_PIDR2_ARCH_SHIFT)
+#define	GICR_PIDR2_ARCH_GICv3	0x3
+#define	GICR_PIDR2_ARCH_GICv4	0x4
+
+#define	GICD_PIDR3		0xFFEC
 
 /* Redistributor registers */
 #define	GICR_CTLR		GICD_CTLR
@@ -205,6 +187,7 @@
 #define	GICR_VLPI_BASE_SIZE	PAGE_SIZE_64K
 #define	GICR_RESERVED_SIZE	PAGE_SIZE_64K
 
+#define	GICR_IGROUPR0				(0x0080)
 #define	GICR_ISENABLER0				(0x0100)
 #define	GICR_ICENABLER0				(0x0180)
 #define		GICR_I_ENABLER_SGI_MASK		(0x0000FFFF)

@@ -212,6 +212,7 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_SSE_PSHUF_RI, [InstrStage<1, [Port0]>] >,
   InstrItinData<IIC_SSE_PSHUF_MI, [InstrStage<1, [Port0]>] >,
 
+  InstrItinData<IIC_SSE_PACK, [InstrStage<1, [Port0]>] >,
   InstrItinData<IIC_SSE_UNPCK, [InstrStage<1, [Port0]>] >,
 
   InstrItinData<IIC_SSE_SQRTPS_RR, [InstrStage<70, [Port0, Port1]>] >,
@@ -337,6 +338,7 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_MMX_PEXTR,   [InstrStage<4, [Port0, Port1]>] >,
   InstrItinData<IIC_MMX_PINSRW,  [InstrStage<1, [Port0]>] >,
   InstrItinData<IIC_MMX_MASKMOV, [InstrStage<1, [Port0]>] >,
+  InstrItinData<IIC_MMX_MOVMSK, [InstrStage<3, [Port0]>] >,
   // conversions
   // from/to PD
   InstrItinData<IIC_MMX_CVT_PD_RR, [InstrStage<7, [Port0, Port1]>] >,
@@ -362,6 +364,7 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_FST80, [InstrStage<5, [Port0, Port1]>] >,
   InstrItinData<IIC_FIST,  [InstrStage<6, [Port0, Port1]>] >,
 
+  InstrItinData<IIC_FCMOV,  [InstrStage<9, [Port0, Port1]>] >,
   InstrItinData<IIC_FLDZ,   [InstrStage<1, [Port0, Port1]>] >,
   InstrItinData<IIC_FUCOM,  [InstrStage<1, [Port1]>] >,
   InstrItinData<IIC_FUCOMI, [InstrStage<9, [Port0, Port1]>] >,
@@ -392,6 +395,8 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_FXSAVE,  [InstrStage<140, [Port0, Port1]>] >,
   InstrItinData<IIC_FXRSTOR,  [InstrStage<141, [Port0, Port1]>] >,
   InstrItinData<IIC_FXCH, [InstrStage<1, [Port0], 0>, InstrStage<1, [Port1]>] >,
+  InstrItinData<IIC_FSIGN,  [InstrStage<1, [Port1]>] >,
+  InstrItinData<IIC_FSQRT,  [InstrStage<71, [Port0, Port1]>] >,
 
   // System instructions
   InstrItinData<IIC_CPUID, [InstrStage<121, [Port0, Port1]>] >,
@@ -404,6 +409,7 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_LXS,   [InstrStage<10, [Port0, Port1]>] >,
   InstrItinData<IIC_LTR,   [InstrStage<83, [Port0, Port1]>] >,
   InstrItinData<IIC_RDTSC, [InstrStage<30, [Port0, Port1]>] >,
+  InstrItinData<IIC_RDTSCP, [InstrStage<30, [Port0, Port1]>] >,
   InstrItinData<IIC_RSM,   [InstrStage<741, [Port0, Port1]>] >,
   InstrItinData<IIC_SIDT,  [InstrStage<4, [Port0, Port1]>] >,
   InstrItinData<IIC_SGDT,  [InstrStage<4, [Port0, Port1]>] >,
@@ -508,12 +514,10 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_CMPXCHG_16B, [InstrStage<22, [Port0, Port1]>] >,
   InstrItinData<IIC_LODS, [InstrStage<2, [Port0, Port1]>] >,
   InstrItinData<IIC_OUTS, [InstrStage<74, [Port0, Port1]>] >,
-  InstrItinData<IIC_CLC, [InstrStage<1, [Port0, Port1]>] >,
+  InstrItinData<IIC_CLC_CMC_STC, [InstrStage<1, [Port0, Port1]>] >,
   InstrItinData<IIC_CLD, [InstrStage<3, [Port0, Port1]>] >,
   InstrItinData<IIC_CLI, [InstrStage<14, [Port0, Port1]>] >,
-  InstrItinData<IIC_CMC, [InstrStage<1, [Port0, Port1]>] >,
   InstrItinData<IIC_CLTS, [InstrStage<33, [Port0, Port1]>] >,
-  InstrItinData<IIC_STC, [InstrStage<1, [Port0, Port1]>] >,
   InstrItinData<IIC_STI, [InstrStage<17, [Port0, Port1]>] >,
   InstrItinData<IIC_STD, [InstrStage<21, [Port0, Port1]>] >,
   InstrItinData<IIC_XLAT, [InstrStage<6, [Port0, Port1]>] >,
@@ -544,6 +548,7 @@ def AtomModel : SchedMachineModel {
   // simple loops, expand by a small factor to hide the backedge cost.
   let LoopMicroOpBufferSize = 10;
   let PostRAScheduler = 1;
+  let CompleteModel = 0;
 
   let Itineraries = AtomItineraries;
 }

@@ -102,7 +102,8 @@ CaseFile::Find(Guid poolGUID, Guid vdevGUID)
 	for (CaseFileList::iterator curCase = s_activeCases.begin();
 	     curCase != s_activeCases.end(); curCase++) {
 
-		if ((*curCase)->PoolGUID() != poolGUID
+		if (((*curCase)->PoolGUID() != poolGUID
+		  && Guid::InvalidGuid() != poolGUID)
 		 || (*curCase)->VdevGUID() != vdevGUID)
 			continue;
 
@@ -185,6 +186,12 @@ CaseFile::DeSerialize()
 	free(caseFiles);
 }
 
+bool
+CaseFile::Empty()
+{
+	return (s_activeCases.empty());
+}
+
 void
 CaseFile::LogAll()
 {
@@ -232,6 +239,8 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 {
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	zpool_handle_t *pool(zpl.empty() ? NULL : zpl.front());
+	zpool_boot_label_t boot_type;
+	uint64_t boot_size;
 
 	if (pool == NULL || !RefreshVdevState()) {
 		/*
@@ -268,7 +277,8 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 	}
 
 	if (vdev != NULL
-	 && vdev->PoolGUID() == m_poolGUID
+	 && ( vdev->PoolGUID() == m_poolGUID
+	   || vdev->PoolGUID() == Guid::InvalidGuid())
 	 && vdev->GUID() == m_vdevGUID) {
 
 		zpool_vdev_online(pool, vdev->GUIDString().c_str(),
@@ -323,7 +333,13 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 	}
 
 	/* Write a label on the newly inserted disk. */
-	if (zpool_label_disk(g_zfsHandle, pool, devPath.c_str()) != 0) {
+	if (zpool_is_bootable(pool))
+		boot_type = ZPOOL_COPY_BOOT_LABEL;
+	else
+		boot_type = ZPOOL_NO_BOOT_LABEL;
+	boot_size = zpool_get_prop_int(pool, ZPOOL_PROP_BOOTSIZE, NULL);
+	if (zpool_label_disk(g_zfsHandle, pool, devPath.c_str(),
+	    boot_type, boot_size, NULL) != 0) {
 		syslog(LOG_ERR,
 		       "Replace vdev(%s/%s) by physical path (label): %s: %s\n",
 		       zpool_get_name(pool), VdevGUIDString().c_str(),
@@ -440,10 +456,38 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 	return (consumed || closed);
 }
 
+/* Find a Vdev containing the vdev with the given GUID */
+static nvlist_t*
+find_parent(nvlist_t *pool_config, nvlist_t *config, DevdCtl::Guid child_guid)
+{
+	nvlist_t **vdevChildren;
+	int        error;
+	unsigned   ch, numChildren;
+
+	error = nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_CHILDREN,
+					   &vdevChildren, &numChildren);
+
+	if (error != 0 || numChildren == 0)
+		return (NULL);
+
+	for (ch = 0; ch < numChildren; ch++) {
+		nvlist *result;
+		Vdev vdev(pool_config, vdevChildren[ch]);
+
+		if (vdev.GUID() == child_guid)
+			return (config);
+
+		result = find_parent(pool_config, vdevChildren[ch], child_guid);
+		if (result != NULL)
+			return (result);
+	}
+
+	return (NULL);
+}
 
 bool
 CaseFile::ActivateSpare() {
-	nvlist_t	*config, *nvroot;
+	nvlist_t	*config, *nvroot, *parent_config;
 	nvlist_t       **spares;
 	char		*devPath, *vdev_type;
 	const char	*poolname;
@@ -470,6 +514,22 @@ CaseFile::ActivateSpare() {
 		       "tree for pool %s", poolname);
 		return (false);
 	}
+
+	parent_config = find_parent(config, nvroot, m_vdevGUID);
+	if (parent_config != NULL) {
+		char *parent_type;
+
+		/* 
+		 * Don't activate spares for members of a "replacing" vdev.
+		 * They're already dealt with.  Sparing them will just drag out
+		 * the resilver process.
+		 */
+		error = nvlist_lookup_string(parent_config,
+		    ZPOOL_CONFIG_TYPE, &parent_type);
+		if (error == 0 && strcmp(parent_type, VDEV_TYPE_REPLACING) == 0)
+			return (false);
+	}
+
 	nspares = 0;
 	nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES, &spares,
 				   &nspares);
@@ -656,8 +716,11 @@ CaseFile::DeSerializeFile(const char *fileName)
 		uint64_t vdevGUID;
 		nvlist_t *vdevConf;
 
-		sscanf(fileName, "pool_%" PRIu64 "_vdev_%" PRIu64 ".case",
-		       &poolGUID, &vdevGUID);
+		if (sscanf(fileName, "pool_%" PRIu64 "_vdev_%" PRIu64 ".case",
+		       &poolGUID, &vdevGUID) != 2) {
+			throw ZfsdException("CaseFile::DeSerialize: "
+			    "Unintelligible CaseFile filename %s.\n", fileName);
+		}
 		existingCaseFile = Find(Guid(poolGUID), Guid(vdevGUID));
 		if (existingCaseFile != NULL) {
 			/*

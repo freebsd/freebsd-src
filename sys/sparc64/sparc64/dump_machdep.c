@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Marcel Moolenaar
  * Copyright (c) 2002 Thomas Moestl
  * All rights reserved.
@@ -49,7 +51,6 @@ __FBSDID("$FreeBSD$");
 
 static off_t fileofs;
 
-extern off_t dumplo;
 extern struct dump_pa dump_map[DUMPSYS_MD_PA_NPAIRS];
 
 int do_minidump = 0;
@@ -78,7 +79,7 @@ dumpsys(struct dumperinfo *di)
 {
 	static struct kerneldumpheader kdh;
 	struct sparc64_dump_hdr hdr;
-	vm_size_t size, totsize, hdrsize;
+	vm_size_t size, hdrsize;
 	int error, i, nreg;
 
 	/* Set up dump_map and calculate dump size. */
@@ -94,28 +95,14 @@ dumpsys(struct dumperinfo *di)
 	    DEV_BSIZE);
 	size += hdrsize;
 
-	totsize = size + 2 * sizeof(kdh);
-	if (totsize > di->mediasize) {
-		printf("Insufficient space on device (need %ld, have %ld), "
-		    "refusing to dump.\n", (long)totsize,
-		    (long)di->mediasize);
-		error = ENOSPC;
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_SPARC64_VERSION,
+	    size);
+
+	error = dump_start(di, &kdh);
+	if (error != 0)
 		goto fail;
-	}
-
-	/* Determine dump offset on device. */
-	dumplo = di->mediaoffset + di->mediasize - totsize;
-
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_SPARC64_VERSION, size,
-	    di->blocksize);
 
 	printf("Dumping %lu MB (%d chunks)\n", (u_long)(size >> 20), nreg);
-
-	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
-		goto fail;
-	dumplo += sizeof(kdh);
 
 	/* Dump the private header. */
 	hdr.dh_hdr_size = hdrsize;
@@ -142,13 +129,10 @@ dumpsys(struct dumperinfo *di)
 	if (error < 0)
 		goto fail;
 
-	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
+	error = dump_finish(di, &kdh);
+	if (error != 0)
 		goto fail;
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 

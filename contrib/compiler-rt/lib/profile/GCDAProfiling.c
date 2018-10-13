@@ -20,8 +20,6 @@
 |*
 \*===----------------------------------------------------------------------===*/
 
-#include "InstrProfilingUtil.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -35,7 +33,11 @@
 #include <sys/file.h>
 #endif
 
-#define I386_FREEBSD (defined(__FreeBSD__) && defined(__i386__))
+#if defined(__FreeBSD__) && defined(__i386__)
+#define I386_FREEBSD 1
+#else
+#define I386_FREEBSD 0
+#endif
 
 #if !defined(_MSC_VER) && !I386_FREEBSD
 #include <stdint.h>
@@ -53,6 +55,9 @@ typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
 #endif
+
+#include "InstrProfiling.h"
+#include "InstrProfilingUtil.h"
 
 /* #define DEBUG_GCDAPROFILING */
 
@@ -166,44 +171,16 @@ static uint64_t read_64bit_value() {
 
 static char *mangle_filename(const char *orig_filename) {
   char *new_filename;
-  size_t filename_len, prefix_len;
+  size_t prefix_len;
   int prefix_strip;
-  int level = 0;
-  const char *fname, *ptr;
-  const char *prefix = getenv("GCOV_PREFIX");
-  const char *prefix_strip_str = getenv("GCOV_PREFIX_STRIP");
+  const char *prefix = lprofGetPathPrefix(&prefix_strip, &prefix_len);
 
-  if (prefix == NULL || prefix[0] == '\0')
+  if (prefix == NULL)
     return strdup(orig_filename);
 
-  if (prefix_strip_str) {
-    prefix_strip = atoi(prefix_strip_str);
-
-    /* Negative GCOV_PREFIX_STRIP values are ignored */
-    if (prefix_strip < 0)
-      prefix_strip = 0;
-  } else {
-    prefix_strip = 0;
-  }
-
-  fname = orig_filename;
-  for (level = 0, ptr = fname + 1; level < prefix_strip; ++ptr) {
-    if (*ptr == '\0')
-      break;
-    if (*ptr != '/')
-      continue;
-    fname = ptr;
-    ++level;
-  }
-
-  filename_len = strlen(fname);
-  prefix_len = strlen(prefix);
-  new_filename = malloc(prefix_len + 1 + filename_len + 1);
-  memcpy(new_filename, prefix, prefix_len);
-
-  if (prefix[prefix_len - 1] != '/')
-    new_filename[prefix_len++] = '/';
-  memcpy(new_filename + prefix_len, fname, filename_len + 1);
+  new_filename = malloc(prefix_len + 1 + strlen(orig_filename) + 1);
+  lprofApplyPathPrefix(new_filename, orig_filename, prefix, prefix_len,
+                       prefix_strip);
 
   return new_filename;
 }
@@ -251,6 +228,7 @@ static void unmap_file() {
  * profiling enabled will emit to a different file. Only one file may be
  * started at a time.
  */
+COMPILER_RT_VISIBILITY
 void llvm_gcda_start_file(const char *orig_filename, const char version[4],
                           uint32_t checksum) {
   const char *mode = "r+b";
@@ -258,17 +236,17 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4],
 
   /* Try just opening the file. */
   new_file = 0;
-  fd = open(filename, O_RDWR);
+  fd = open(filename, O_RDWR | O_BINARY);
 
   if (fd == -1) {
     /* Try opening the file, creating it if necessary. */
     new_file = 1;
     mode = "w+b";
-    fd = open(filename, O_RDWR | O_CREAT, 0644);
+    fd = open(filename, O_RDWR | O_CREAT | O_BINARY, 0644);
     if (fd == -1) {
       /* Try creating the directories first then opening the file. */
       __llvm_profile_recursive_mkdir(filename);
-      fd = open(filename, O_RDWR | O_CREAT, 0644);
+      fd = open(filename, O_RDWR | O_CREAT | O_BINARY, 0644);
       if (fd == -1) {
         /* Bah! It's hopeless. */
         int errnum = errno;
@@ -283,7 +261,7 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4],
    * same GCDA. This can fail if the filesystem doesn't support it, but in that
    * case we'll just carry on with the old racy behaviour and hope for the best.
    */
-  flock(fd, LOCK_EX);
+  lprofLockFd(fd);
   output_file = fdopen(fd, mode);
 
   /* Initialize the write buffer. */
@@ -318,6 +296,7 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4],
 /* Given an array of pointers to counters (counters), increment the n-th one,
  * where we're also given a pointer to n (predecessor).
  */
+COMPILER_RT_VISIBILITY
 void llvm_gcda_increment_indirect_counter(uint32_t *predecessor,
                                           uint64_t **counters) {
   uint64_t *counter;
@@ -340,6 +319,7 @@ void llvm_gcda_increment_indirect_counter(uint32_t *predecessor,
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_emit_function(uint32_t ident, const char *function_name,
                              uint32_t func_checksum, uint8_t use_extra_checksum,
                              uint32_t cfg_checksum) {
@@ -366,6 +346,7 @@ void llvm_gcda_emit_function(uint32_t ident, const char *function_name,
     write_string(function_name);
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
   uint32_t i;
   uint64_t *old_ctrs = NULL;
@@ -417,6 +398,7 @@ void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_summary_info() {
   const uint32_t obj_summary_len = 9; /* Length for gcov compatibility. */
   uint32_t i;
@@ -470,6 +452,7 @@ void llvm_gcda_summary_info() {
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_end_file() {
   /* Write out EOF record. */
   if (output_file) {
@@ -482,8 +465,9 @@ void llvm_gcda_end_file() {
       unmap_file();
     }
 
+    fflush(output_file);
+    lprofUnlockFd(fd);
     fclose(output_file);
-    flock(fd, LOCK_UN);
     output_file = NULL;
     write_buffer = NULL;
   }
@@ -494,6 +478,7 @@ void llvm_gcda_end_file() {
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_register_writeout_function(writeout_fn fn) {
   struct writeout_fn_node *new_node = malloc(sizeof(struct writeout_fn_node));
   new_node->fn = fn;
@@ -507,7 +492,8 @@ void llvm_register_writeout_function(writeout_fn fn) {
   }
 }
 
-void llvm_writeout_files() {
+COMPILER_RT_VISIBILITY
+void llvm_writeout_files(void) {
   struct writeout_fn_node *curr = writeout_fn_head;
 
   while (curr) {
@@ -516,7 +502,8 @@ void llvm_writeout_files() {
   }
 }
 
-void llvm_delete_writeout_function_list() {
+COMPILER_RT_VISIBILITY
+void llvm_delete_writeout_function_list(void) {
   while (writeout_fn_head) {
     struct writeout_fn_node *node = writeout_fn_head;
     writeout_fn_head = writeout_fn_head->next;
@@ -526,6 +513,7 @@ void llvm_delete_writeout_function_list() {
   writeout_fn_head = writeout_fn_tail = NULL;
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_register_flush_function(flush_fn fn) {
   struct flush_fn_node *new_node = malloc(sizeof(struct flush_fn_node));
   new_node->fn = fn;
@@ -539,6 +527,7 @@ void llvm_register_flush_function(flush_fn fn) {
   }
 }
 
+COMPILER_RT_VISIBILITY
 void __gcov_flush() {
   struct flush_fn_node *curr = flush_fn_head;
 
@@ -548,7 +537,8 @@ void __gcov_flush() {
   }
 }
 
-void llvm_delete_flush_function_list() {
+COMPILER_RT_VISIBILITY
+void llvm_delete_flush_function_list(void) {
   while (flush_fn_head) {
     struct flush_fn_node *node = flush_fn_head;
     flush_fn_head = flush_fn_head->next;
@@ -558,6 +548,7 @@ void llvm_delete_flush_function_list() {
   flush_fn_head = flush_fn_tail = NULL;
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcov_init(writeout_fn wfn, flush_fn ffn) {
   static int atexit_ran = 0;
 

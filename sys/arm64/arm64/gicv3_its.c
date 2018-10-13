@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 
+#include <arm/arm/gic_common.h>
 #include <arm64/arm64/gic_v3_reg.h>
 #include <arm64/arm64/gic_v3_var.h>
 
@@ -123,6 +125,83 @@ MALLOC_DEFINE(M_GICV3_ITS, "GICv3 ITS",
 #define	CMD_VALID_SHIFT		(63)
 #define	CMD_VALID_MASK		(1UL << CMD_VALID_SHIFT)
 
+#define	ITS_TARGET_NONE		0xFBADBEEF
+
+/* LPI chunk owned by ITS device */
+struct lpi_chunk {
+	u_int	lpi_base;
+	u_int	lpi_free;	/* First free LPI in set */
+	u_int	lpi_num;	/* Total number of LPIs in chunk */
+	u_int	lpi_busy;	/* Number of busy LPIs in chink */
+};
+
+/* ITS device */
+struct its_dev {
+	TAILQ_ENTRY(its_dev)	entry;
+	/* PCI device */
+	device_t		pci_dev;
+	/* Device ID (i.e. PCI device ID) */
+	uint32_t		devid;
+	/* List of assigned LPIs */
+	struct lpi_chunk	lpis;
+	/* Virtual address of ITT */
+	vm_offset_t		itt;
+	size_t			itt_size;
+};
+
+/*
+ * ITS command descriptor.
+ * Idea for command description passing taken from Linux.
+ */
+struct its_cmd_desc {
+	uint8_t cmd_type;
+
+	union {
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t id;
+		} cmd_desc_movi;
+
+		struct {
+			struct its_col *col;
+		} cmd_desc_sync;
+
+		struct {
+			struct its_col *col;
+			uint8_t valid;
+		} cmd_desc_mapc;
+
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t pid;
+			uint32_t id;
+		} cmd_desc_mapvi;
+
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t pid;
+		} cmd_desc_mapi;
+
+		struct {
+			struct its_dev *its_dev;
+			uint8_t valid;
+		} cmd_desc_mapd;
+
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t pid;
+		} cmd_desc_inv;
+
+		struct {
+			struct its_col *col;
+		} cmd_desc_invall;
+	};
+};
+
 /* ITS command. Each command is 32 bytes long */
 struct its_cmd {
 	uint64_t	cmd_dword[4];	/* ITS command double word */
@@ -150,6 +229,9 @@ struct gicv3_its_softc {
 	struct intr_pic *sc_pic;
 	struct resource *sc_its_res;
 
+	cpuset_t	sc_cpus;
+	u_int		gic_irq_cpu;
+
 	struct its_ptable sc_its_ptab[GITS_BASER_NUM];
 	struct its_col *sc_its_cols[MAXCPU];	/* Per-CPU collections */
 
@@ -167,6 +249,8 @@ struct gicv3_its_softc {
 
 	vmem_t *sc_irq_alloc;
 	struct gicv3_its_irqsrc	*sc_irqs;
+	u_int	sc_irq_base;
+	u_int	sc_irq_length;
 
 	struct mtx sc_its_dev_lock;
 	TAILQ_HEAD(its_dev_list, its_dev) sc_its_dev_list;
@@ -195,8 +279,6 @@ static const struct {
 		.func = its_quirk_cavium_22375,
 	},
 };
-
-static u_int gic_irq_cpu;
 
 #define	gic_its_read_4(sc, reg)			\
     bus_read_4((sc)->sc_its_res, (reg))
@@ -376,7 +458,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		/* Allocate the table */
 		table = (vm_offset_t)contigmalloc(npages * PAGE_SIZE,
 		    M_GICV3_ITS, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
-		    PAGE_SIZE, 0);
+		    PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
 		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
@@ -407,7 +489,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 				break;
 			case PAGE_SIZE_16K:	/* 16KB */
 				reg |=
-				    GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
+				    GITS_BASER_PSZ_16K << GITS_BASER_PSZ_SHIFT;
 				break;
 			case PAGE_SIZE_64K:	/* 64KB */
 				reg |=
@@ -420,7 +502,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			/* Read back to check */
 			tmp = gic_its_read_8(sc, GITS_BASER(i));
 
-			/* Do the snareability masks line up? */
+			/* Do the shareability masks line up? */
 			if ((tmp & GITS_BASER_SHARE_MASK) !=
 			    (reg & GITS_BASER_SHARE_MASK)) {
 				share = (tmp & GITS_BASER_SHARE_MASK) >>
@@ -476,8 +558,8 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < mp_ncpus; i++) {
-		if (CPU_ISSET(i, &all_cpus) == 0)
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ISSET(i, &sc->sc_cpus) == 0)
 			continue;
 
 		sc->sc_pend_base[i] = (vm_offset_t)contigmalloc(
@@ -485,7 +567,7 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 		    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
 
 		/* Flush so the ITS can see the memory */
-		cpu_dcache_wb_range((vm_offset_t)sc->sc_pend_base,
+		cpu_dcache_wb_range((vm_offset_t)sc->sc_pend_base[i],
 		    LPI_PENDTAB_SIZE);
 	}
 }
@@ -498,6 +580,15 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 	uint64_t xbaser, tmp;
 	uint32_t ctlr;
 	u_int cpuid;
+	int domain;
+
+	if (!CPU_ISSET(PCPU_GET(cpuid), &sc->sc_cpus))
+		return (0);
+
+	if (bus_get_domain(dev, &domain) == 0) {
+		if (PCPU_GET(domain) != domain)
+			return (0);
+	}
 
 	gicv3 = device_get_parent(dev);
 	cpuid = PCPU_GET(cpuid);
@@ -599,9 +690,13 @@ gicv3_its_attach(device_t dev)
 	struct gicv3_its_softc *sc;
 	const char *name;
 	uint32_t iidr;
-	int err, i, rid;
+	int domain, err, i, rid;
 
 	sc = device_get_softc(dev);
+
+	sc->sc_irq_length = gicv3_get_nirqs(dev);
+	sc->sc_irq_base = GIC_FIRST_LPI;
+	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
 
 	rid = 0;
 	sc->sc_its_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -634,12 +729,20 @@ gicv3_its_attach(device_t dev)
 	/* Protects access to the ITS command circular buffer. */
 	mtx_init(&sc->sc_its_cmd_lock, "ITS cmd lock", NULL, MTX_SPIN);
 
+	if (bus_get_domain(dev, &domain) == 0) {
+		CPU_ZERO(&sc->sc_cpus);
+		if (domain < MAXMEMDOM)
+			CPU_COPY(&cpuset_domain[domain], &sc->sc_cpus);
+	} else {
+		CPU_COPY(&all_cpus, &sc->sc_cpus);
+	}
+
 	/* Allocate the command circular buffer */
 	gicv3_its_cmdq_init(sc);
 
 	/* Allocate the per-CPU collections */
-	for (int cpu = 0; cpu < mp_ncpus; cpu++)
-		if (CPU_ISSET(cpu, &all_cpus) != 0)
+	for (int cpu = 0; cpu <= mp_maxid; cpu++)
+		if (CPU_ISSET(cpu, &sc->sc_cpus) != 0)
 			sc->sc_its_cols[cpu] = malloc(
 			    sizeof(*sc->sc_its_cols[0]), M_GICV3_ITS,
 			    M_WAITOK | M_ZERO);
@@ -662,18 +765,18 @@ gicv3_its_attach(device_t dev)
 	TAILQ_INIT(&sc->sc_its_dev_list);
 
 	/*
-	 * Create the vmem object to allocate IRQs from. We try to use all
-	 * IRQs not already used by the GICv3.
+	 * Create the vmem object to allocate INTRNG IRQs from. We try to
+	 * use all IRQs not already used by the GICv3.
 	 * XXX: This assumes there are no other interrupt controllers in the
 	 * system.
 	 */
 	sc->sc_irq_alloc = vmem_create("GICv3 ITS IRQs", 0,
-	    NIRQ - gicv3_get_nirqs(dev), 1, 1, M_FIRSTFIT | M_WAITOK);
+	    gicv3_get_nirqs(dev), 1, 1, M_FIRSTFIT | M_WAITOK);
 
-	sc->sc_irqs = malloc(sizeof(*sc->sc_irqs) * LPI_NIRQS, M_GICV3_ITS,
-	    M_WAITOK | M_ZERO);
+	sc->sc_irqs = malloc(sizeof(*sc->sc_irqs) * sc->sc_irq_length,
+	    M_GICV3_ITS, M_WAITOK | M_ZERO);
 	name = device_get_nameunit(dev);
-	for (i = 0; i < LPI_NIRQS; i++) {
+	for (i = 0; i < sc->sc_irq_length; i++) {
 		sc->sc_irqs[i].gi_irq = i;
 		err = intr_isrc_register(&sc->sc_irqs[i].gi_isrc, dev, 0,
 		    "%s,%u", name, i);
@@ -753,11 +856,11 @@ gicv3_its_intr(void *arg, uintptr_t irq)
 	struct gicv3_its_irqsrc *girq;
 	struct trapframe *tf;
 
-	irq -= GIC_FIRST_LPI;
+	irq -= sc->sc_irq_base;
 	girq = &sc->sc_irqs[irq];
 	if (girq == NULL)
 		panic("gicv3_its_intr: Invalid interrupt %ld",
-		    irq + GIC_FIRST_LPI);
+		    irq + sc->sc_irq_base);
 
 	tf = curthread->td_intr_frame;
 	intr_isrc_dispatch(&girq->gi_isrc, tf);
@@ -768,10 +871,12 @@ static void
 gicv3_its_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct gicv3_its_irqsrc *girq;
+	struct gicv3_its_softc *sc;
 
+	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
 	gicv3_its_disable_intr(dev, isrc);
-	gic_icc_write(EOIR1, girq->gi_irq + GIC_FIRST_LPI);
+	gic_icc_write(EOIR1, girq->gi_irq + sc->sc_irq_base);
 }
 
 static void
@@ -785,20 +890,25 @@ static void
 gicv3_its_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct gicv3_its_irqsrc *girq;
+	struct gicv3_its_softc *sc;
 
+	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-	gic_icc_write(EOIR1, girq->gi_irq + GIC_FIRST_LPI);
+	gic_icc_write(EOIR1, girq->gi_irq + sc->sc_irq_base);
 }
 
 static int
 gicv3_its_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct gicv3_its_irqsrc *girq;
+	struct gicv3_its_softc *sc;
 
+	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
 	if (CPU_EMPTY(&isrc->isrc_cpu)) {
-		gic_irq_cpu = intr_irq_next_cpu(gic_irq_cpu, &all_cpus);
-		CPU_SETOF(gic_irq_cpu, &isrc->isrc_cpu);
+		sc->gic_irq_cpu = intr_irq_next_cpu(sc->gic_irq_cpu,
+		    &sc->sc_cpus);
+		CPU_SETOF(sc->gic_irq_cpu, &isrc->isrc_cpu);
 	}
 
 	its_cmd_movi(dev, girq);
@@ -1000,12 +1110,10 @@ static int
 gicv3_its_release_msi(device_t dev, device_t child, int count,
     struct intr_irqsrc **isrc)
 {
-	struct gicv3_its_softc *sc;
 	struct gicv3_its_irqsrc *girq;
 	struct its_dev *its_dev;
 	int i;
 
-	sc = device_get_softc(dev);
 	its_dev = its_device_find(dev, child);
 
 	KASSERT(its_dev != NULL,
@@ -1060,11 +1168,9 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 static int
 gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 {
-	struct gicv3_its_softc *sc;
 	struct gicv3_its_irqsrc *girq;
 	struct its_dev *its_dev;
 
-	sc = device_get_softc(dev);
 	its_dev = its_device_find(dev, child);
 
 	KASSERT(its_dev != NULL,
@@ -1300,9 +1406,7 @@ its_cmd_prepare(struct its_cmd *cmd, struct its_cmd_desc *desc)
 	uint64_t target;
 	uint8_t cmd_type;
 	u_int size;
-	boolean_t error;
 
-	error = FALSE;
 	cmd_type = desc->cmd_type;
 	target = ITS_TARGET_NONE;
 
@@ -1474,7 +1578,7 @@ its_cmd_mapti(device_t dev, struct gicv3_its_irqsrc *girq)
 	/* The EventID sent to the device */
 	desc.cmd_desc_mapvi.id = girq->gi_irq - girq->gi_its_dev->lpis.lpi_base;
 	/* The physical interrupt presented to softeware */
-	desc.cmd_desc_mapvi.pid = girq->gi_irq + GIC_FIRST_LPI;
+	desc.cmd_desc_mapvi.pid = girq->gi_irq + sc->sc_irq_base;
 
 	its_cmd_send(dev, &desc);
 }
@@ -1541,7 +1645,7 @@ DEFINE_CLASS_1(its, gicv3_its_fdt_driver, gicv3_its_fdt_methods,
 #undef its_baseclasses
 static devclass_t gicv3_its_fdt_devclass;
 
-EARLY_DRIVER_MODULE(its, gic, gicv3_its_fdt_driver,
+EARLY_DRIVER_MODULE(its_fdt, gic, gicv3_its_fdt_driver,
     gicv3_its_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static int
@@ -1565,20 +1669,78 @@ gicv3_its_fdt_attach(device_t dev)
 	phandle_t xref;
 	int err;
 
+	sc = device_get_softc(dev);
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
-
-	sc = device_get_softc(dev);
 
 	/* Register this device as a interrupt controller */
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 	sc->sc_pic = intr_pic_register(dev, xref);
 	intr_pic_add_handler(device_get_parent(dev), sc->sc_pic,
-	    gicv3_its_intr, sc, GIC_FIRST_LPI, LPI_NIRQS);
+	    gicv3_its_intr, sc, sc->sc_irq_base, sc->sc_irq_length);
 
 	/* Register this device to handle MSI interrupts */
 	intr_msi_register(dev, xref);
+
+	return (0);
+}
+#endif
+
+#ifdef DEV_ACPI
+static device_probe_t gicv3_its_acpi_probe;
+static device_attach_t gicv3_its_acpi_attach;
+
+static device_method_t gicv3_its_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		gicv3_its_acpi_probe),
+	DEVMETHOD(device_attach,	gicv3_its_acpi_attach),
+
+	/* End */
+	DEVMETHOD_END
+};
+
+#define its_baseclasses its_acpi_baseclasses
+DEFINE_CLASS_1(its, gicv3_its_acpi_driver, gicv3_its_acpi_methods,
+    sizeof(struct gicv3_its_softc), gicv3_its_driver);
+#undef its_baseclasses
+static devclass_t gicv3_its_acpi_devclass;
+
+EARLY_DRIVER_MODULE(its_acpi, gic, gicv3_its_acpi_driver,
+    gicv3_its_acpi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+
+static int
+gicv3_its_acpi_probe(device_t dev)
+{
+
+	if (gic_get_bus(dev) != GIC_BUS_ACPI)
+		return (EINVAL);
+
+	if (gic_get_hw_rev(dev) < 3)
+		return (EINVAL);
+
+	device_set_desc(dev, "ARM GIC Interrupt Translation Service");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+gicv3_its_acpi_attach(device_t dev)
+{
+	struct gicv3_its_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+	err = gicv3_its_attach(dev);
+	if (err != 0)
+		return (err);
+
+	sc->sc_pic = intr_pic_register(dev,
+	    device_get_unit(dev) + ACPI_MSI_XREF);
+	intr_pic_add_handler(device_get_parent(dev), sc->sc_pic,
+	    gicv3_its_intr, sc, GIC_FIRST_LPI, LPI_NIRQS);
+
+	/* Register this device to handle MSI interrupts */
+	intr_msi_register(dev, device_get_unit(dev) + ACPI_MSI_XREF);
 
 	return (0);
 }

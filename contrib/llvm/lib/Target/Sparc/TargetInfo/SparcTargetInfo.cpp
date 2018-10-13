@@ -12,15 +12,24 @@
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
-Target llvm::TheSparcTarget;
-Target llvm::TheSparcV9Target;
-Target llvm::TheSparcelTarget;
+Target &llvm::getTheSparcTarget() {
+  static Target TheSparcTarget;
+  return TheSparcTarget;
+}
+Target &llvm::getTheSparcV9Target() {
+  static Target TheSparcV9Target;
+  return TheSparcV9Target;
+}
+Target &llvm::getTheSparcelTarget() {
+  static Target TheSparcelTarget;
+  return TheSparcelTarget;
+}
 
 extern "C" void LLVMInitializeSparcTargetInfo() {
-  RegisterTarget<Triple::sparc, /*HasJIT=*/true> X(TheSparcTarget, "sparc",
-                                                   "Sparc");
-  RegisterTarget<Triple::sparcv9, /*HasJIT=*/true> Y(TheSparcV9Target,
-                                                     "sparcv9", "Sparc V9");
-  RegisterTarget<Triple::sparcel, /*HasJIT=*/true> Z(TheSparcelTarget,
-                                                     "sparcel", "Sparc LE");
+  RegisterTarget<Triple::sparc, /*HasJIT=*/true> X(getTheSparcTarget(), "sparc",
+                                                   "Sparc", "Sparc");
+  RegisterTarget<Triple::sparcv9, /*HasJIT=*/true> Y(
+      getTheSparcV9Target(), "sparcv9", "Sparc V9", "Sparc");
+  RegisterTarget<Triple::sparcel, /*HasJIT=*/true> Z(
+      getTheSparcelTarget(), "sparcel", "Sparc LE", "Sparc");
 }

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2011-2014 Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -199,7 +201,6 @@ re_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * is to stop right before nm_hwcur.
 	 */
 	if (netmap_no_pendintr || force_update) {
-		uint16_t slot_flags = kring->nkr_slot_flags;
 		uint32_t stop_i = nm_prev(kring->nr_hwcur, lim);
 
 		nic_i = sc->rl_ldata.rl_rx_prodidx; /* next pkt to check */
@@ -216,7 +217,7 @@ re_netmap_rxsync(struct netmap_kring *kring, int flags)
 			/* XXX subtract crc */
 			total_len = (total_len < 4) ? 0 : total_len - 4;
 			ring->slot[nm_i].len = total_len;
-			ring->slot[nm_i].flags = slot_flags;
+			ring->slot[nm_i].flags = 0;
 			/*  sync was in re_newbuf() */
 			bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 			    rxd[nic_i].rx_dmamap, BUS_DMASYNC_POSTREAD);
@@ -303,7 +304,7 @@ re_netmap_tx_init(struct rl_softc *sc)
 	/* l points in the netmap ring, i points in the NIC ring */
 	for (i = 0; i < n; i++) {
 		uint64_t paddr;
-		int l = netmap_idx_n2k(&na->tx_rings[0], i);
+		int l = netmap_idx_n2k(na->tx_rings[0], i);
 		void *addr = PNMB(na, slot + l, &paddr);
 
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
@@ -329,11 +330,11 @@ re_netmap_rx_init(struct rl_softc *sc)
 	 * Do not release the slots owned by userspace,
 	 * and also keep one empty.
 	 */
-	max_avail = n - 1 - nm_kr_rxspace(&na->rx_rings[0]);
+	max_avail = n - 1 - nm_kr_rxspace(na->rx_rings[0]);
 	for (nic_i = 0; nic_i < n; nic_i++) {
 		void *addr;
 		uint64_t paddr;
-		uint32_t nm_i = netmap_idx_n2k(&na->rx_rings[0], nic_i);
+		uint32_t nm_i = netmap_idx_n2k(na->rx_rings[0], nic_i);
 
 		addr = PNMB(na, slot + nm_i, &paddr);
 

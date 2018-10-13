@@ -1,4 +1,4 @@
-/*	$NetBSD: t_extmem.c,v 1.1 2014/07/09 13:49:49 alnsn Exp $ */
+/*	$NetBSD: t_extmem.c,v 1.2 2017/01/13 21:30:42 christos Exp $ */
 
 /*-
  * Copyright (c) 2014 Alexander Nasonov.
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_extmem.c,v 1.1 2014/07/09 13:49:49 alnsn Exp $");
+__RCSID("$NetBSD: t_extmem.c,v 1.2 2017/01/13 21:30:42 christos Exp $");
 
 #include <stdint.h>
 #include <string.h>
@@ -46,7 +46,7 @@ __RCSID("$NetBSD: t_extmem.c,v 1.1 2014/07/09 13:49:49 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 static uint32_t retM(const bpf_ctx_t *bc, bpf_args_t *args, uint32_t A);
 

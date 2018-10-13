@@ -43,6 +43,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 2);
 	failure("The archive should be compressed");
 	assertEqualMem(p, "\x1f\x9d", 2);
+	free(p);
 
 	/* Test2: archive it with .taZ suffix. */
 	assertEqualInt(0,
@@ -53,6 +54,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 2);
 	failure("The archive should be compressed");
 	assertEqualMem(p, "\x1f\x9d", 2);
+	free(p);
 
 	/* Test3: archive it with .tar.Z.uu suffix. */
 	assertEqualInt(0,
@@ -63,6 +65,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 12);
 	failure("The archive should be uuencoded");
 	assertEqualMem(p, "begin 644 -\n", 12);
+	free(p);
 
 	/* Test4: archive it with .zip suffix. */
 	assertEqualInt(0,
@@ -73,6 +76,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 4);
 	failure("The archive should be zipped");
 	assertEqualMem(p, "\x50\x4b\x03\x04", 4);
+	free(p);
 
 	/* Test5: archive it with .tar.Z suffix and --uuencode option. */
 	assertEqualInt(0,
@@ -84,6 +88,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 2);
 	failure("The archive should be compressed, ignoring --uuencode option");
 	assertEqualMem(p, "\x1f\x9d", 2);
+	free(p);
 
 	/* Test6: archive it with .xxx suffix(unknown suffix) and
 	 * --uuencode option. */
@@ -96,6 +101,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 12);
 	failure("The archive should be uuencoded");
 	assertEqualMem(p, "begin 644 -\n", 12);
+	free(p);
 
 	/* Test7: archive it with .tar.Z suffix using a long-name option. */
 	assertEqualInt(0,
@@ -107,4 +113,5 @@ DEFINE_TEST(test_option_a)
 	assert(s > 2);
 	failure("The archive should be compressed");
 	assertEqualMem(p, "\x1f\x9d", 2);
+	free(p);
 }

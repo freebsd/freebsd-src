@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2013
+.Dd May 2, 2018
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -363,6 +363,13 @@ request fails or blocks respectively when another process has existing
 locks on bytes in the specified region and the type of any of those
 locks conflicts with the type specified in the request.
 .Pp
+The queuing for
+.Dv F_SETLKW
+requests on local files is fair;
+that is, while the thread is blocked,
+subsequent requests conflicting with its requests will not be granted,
+even if these requests do not conflict with existing locks.
+.Pp
 This interface follows the completely stupid semantics of System V and
 .St -p1003.1-88
 that require that all locks associated with a file for a given process are
@@ -565,6 +572,14 @@ process are already in use,
 or no file descriptors greater than or equal to
 .Fa arg
 are available.
+.It Bq Er ENOTTY
+The
+.Fa fd
+argument is not a valid file descriptor for the requested operation.
+This may be the case if
+.Fa fd
+is a device node, or a descriptor returned by
+.Xr kqueue 2 .
 .It Bq Er ENOLCK
 The argument
 .Fa cmd
@@ -646,6 +661,20 @@ The
 .Dv F_DUP2FD
 constant is non portable.
 It is provided for compatibility with AIX and Solaris.
+.Pp
+Per
+.St -susv4 ,
+a call with
+.Dv F_SETLKW
+should fail with
+.Bq Er EINTR
+after any caught signal
+and should continue waiting during thread suspension such as a stop signal.
+However, in this implementation a call with
+.Dv F_SETLKW
+is restarted after catching a signal with a
+.Dv SA_RESTART
+handler or a thread suspension such as a stop signal.
 .Sh HISTORY
 The
 .Fn fcntl

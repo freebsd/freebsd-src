@@ -1,7 +1,13 @@
 /*-
  * Copyright (c) 2004-2009 Apple Inc.
  * Copyright (c) 2006 Martin Voros
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,8 +42,19 @@
  * praudit [-lnpx] [-r | -s] [-d del] [file ...]
  */
 
+#include <config/config.h>
+
 #include <bsm/libbsm.h>
 
+#ifdef HAVE_CAP_ENTER
+#include <sys/capsicum.h>
+#include <sys/wait.h>
+#include <err.h>
+#include <errno.h>
+#endif
+
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -108,6 +125,10 @@ main(int argc, char **argv)
 {
 	int ch;
 	int i;
+#ifdef HAVE_CAP_ENTER
+	int retval;
+	pid_t childpid, pid;
+#endif
 	FILE *fp;
 
 	while ((ch = getopt(argc, argv, "d:lnprsx")) != -1) {
@@ -150,24 +171,67 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifdef HAVE_CAP_ENTER
+	/*
+	 * Prime group, password, and audit-event files to be opened before we
+	 * enter capability mode.
+	 */
+	(void)getgrgid(0);
+	(void)setgroupent(1);
+	(void)getpwuid(0);
+	(void)setpassent(1);
+	(void)getauevent();
+#endif
+
 	if (oflags & AU_OFLAG_XML)
 		au_print_xml_header(stdout);
 
 	/* For each of the files passed as arguments dump the contents. */
 	if (optind == argc) {
+#ifdef HAVE_CAP_ENTER
+		retval = cap_enter();
+		if (retval != 0 && errno != ENOSYS)
+			err(EXIT_FAILURE, "cap_enter");
+#endif
 		print_tokens(stdin);
 		return (1);
 	}
 	for (i = optind; i < argc; i++) {
 		fp = fopen(argv[i], "r");
-		if ((fp == NULL) || (print_tokens(fp) == -1))
+		if (fp == NULL) {
 			perror(argv[i]);
-		if (fp != NULL)
-			fclose(fp);
+			continue;
+		}
+
+		/*
+		 * If operating with sandboxing, create a sandbox process for
+		 * each trail file we operate on.  This avoids the need to do
+		 * fancy things with file descriptors, etc, when iterating on
+		 * a list of arguments.
+		 */
+#ifdef HAVE_CAP_ENTER
+		childpid = fork();
+		if (childpid == 0) {
+			/* Child. */
+			retval = cap_enter();
+			if (retval != 0 && errno != ENOSYS)
+				err(EXIT_FAILURE, "cap_enter");
+			if (print_tokens(fp) == -1)
+				perror(argv[i]);
+			exit(0);
+		}
+
+		/* Parent.  Await child termination. */
+		while ((pid = waitpid(childpid, NULL, 0)) != childpid);
+#else
+		if (print_tokens(fp) == -1)
+			perror(argv[i]);
+#endif
+		fclose(fp);
 	}
 
 	if (oflags & AU_OFLAG_XML)
 		au_print_xml_footer(stdout);
 
-	return (1);
+	return (0);
 }

@@ -37,19 +37,22 @@
 
 #include <linux/list.h>
 #include <linux/compiler.h>
+#include <linux/kmod.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
+#define	MODULE_INFO(tag, info)
+#define	MODULE_FIRMWARE(firmware)
 
 #define	THIS_MODULE	((struct module *)0)
 
-#define	EXPORT_SYMBOL(name)
-#define	EXPORT_SYMBOL_GPL(name)
+#define	__MODULE_STRING(x) __stringify(x)
 
 /* OFED pre-module initialization */
 #define	SI_SUB_OFED_PREINIT	(SI_SUB_ROOT_CONF - 2)
@@ -74,9 +77,7 @@ _module_run(void *arg)
 		printf("Running %s (%p)\n", name, pc);
 #endif
 	fn = arg;
-	DROP_GIANT();
 	fn();
-	PICKUP_GIANT();
 }
 
 #define	module_init(fn)							\
@@ -98,5 +99,7 @@ _module_run(void *arg)
 #define	module_get(module)
 #define	module_put(module)
 #define	try_module_get(module)	1
+
+#define	postcore_initcall(fn)	module_init(fn)
 
 #endif	/* _LINUX_MODULE_H_ */

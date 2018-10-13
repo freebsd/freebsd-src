@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3446 2016-05-03 01:31:17Z emaste $");
+ELFTC_VCSID("$Id: main.c 3577 2017-09-14 02:19:42Z emaste $");
 
 enum options
 {
@@ -285,6 +285,7 @@ create_elf(struct elfcopy *ecp)
 	size_t		 ishnum;
 
 	ecp->flags |= SYMTAB_INTACT;
+	ecp->flags &= ~SYMTAB_EXIST;
 
 	/* Create EHDR. */
 	if (gelf_getehdr(ecp->ein, &ieh) == NULL)
@@ -371,6 +372,14 @@ create_elf(struct elfcopy *ecp)
 		create_symtab(ecp);
 
 	/*
+	 * Write the underlying ehdr. Note that it should be called
+	 * before elf_setshstrndx() since it will overwrite e->e_shstrndx.
+	 */
+	if (gelf_update_ehdr(ecp->eout, &oeh) == 0)
+		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
+		    elf_errmsg(-1));
+
+	/*
 	 * First processing of output sections: at this stage we copy the
 	 * content of each section from input to output object.  Section
 	 * content will be modified and printed (mcs) if need. Also content of
@@ -378,14 +387,6 @@ create_elf(struct elfcopy *ecp)
 	 * to symbol table changes.
 	 */
 	copy_content(ecp);
-
-	/*
-	 * Write the underlying ehdr. Note that it should be called
-	 * before elf_setshstrndx() since it will overwrite e->e_shstrndx.
-	 */
-	if (gelf_update_ehdr(ecp->eout, &oeh) == 0)
-		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
-		    elf_errmsg(-1));
 
 	/* Generate section name string table (.shstrtab). */
 	set_shstrtab(ecp);
@@ -498,6 +499,10 @@ free_elf(struct elfcopy *ecp)
 			free(sec);
 		}
 	}
+
+	ecp->symtab = NULL;
+	ecp->strtab = NULL;
+	ecp->shstrtab = NULL;
 
 	if (ecp->secndx != NULL) {
 		free(ecp->secndx);
@@ -674,6 +679,8 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 		if ((ifd = open(elftemp, O_RDONLY)) == -1)
 			err(EXIT_FAILURE, "open %s failed", src);
 		close(efd);
+		if (unlink(elftemp) < 0)
+			err(EXIT_FAILURE, "unlink %s failed", elftemp);
 		free(elftemp);
 	}
 
@@ -1278,8 +1285,9 @@ parse_symlist_file(struct elfcopy *ecp, const char *fn, unsigned int op)
 		err(EXIT_FAILURE, "can not open %s", fn);
 	if ((data = malloc(sb.st_size + 1)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
-	if (fread(data, 1, sb.st_size, fp) == 0 || ferror(fp))
-		err(EXIT_FAILURE, "fread failed");
+	if (sb.st_size > 0)
+		if (fread(data, sb.st_size, 1, fp) != 1)
+			err(EXIT_FAILURE, "fread failed");
 	fclose(fp);
 	data[sb.st_size] = '\0';
 
@@ -1529,6 +1537,22 @@ print_version(void)
 	exit(EXIT_SUCCESS);
 }
 
+/*
+ * Compare the ending of s with end.
+ */
+static int
+strrcmp(const char *s, const char *end)
+{
+	size_t endlen, slen;
+
+	slen = strlen(s);
+	endlen = strlen(end);
+
+	if (slen >= endlen)
+		s += slen - endlen;
+	return (strcmp(s, end));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1562,12 +1586,16 @@ main(int argc, char **argv)
 	if ((ecp->progname = ELFTC_GETPROGNAME()) == NULL)
 		ecp->progname = "elfcopy";
 
-	if (strcmp(ecp->progname, "strip") == 0)
+	if (strrcmp(ecp->progname, "strip") == 0)
 		strip_main(ecp, argc, argv);
-	else if (strcmp(ecp->progname, "mcs") == 0)
+	else if (strrcmp(ecp->progname, "mcs") == 0)
 		mcs_main(ecp, argc, argv);
-	else
+	else {
+		if (strrcmp(ecp->progname, "elfcopy") != 0 &&
+		    strrcmp(ecp->progname, "objcopy") != 0)
+			warnx("program mode not known, defaulting to elfcopy");
 		elfcopy_main(ecp, argc, argv);
+	}
 
 	free_sec_add(ecp);
 	free_sec_act(ecp);

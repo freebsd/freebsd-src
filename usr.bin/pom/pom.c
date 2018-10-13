@@ -53,6 +53,11 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -87,6 +92,13 @@ main(int argc, char **argv)
 	int ch, cnt, pflag = 0;
 	char *odate = NULL, *otime = NULL;
 	char *progname = argv[0];
+
+	if (caph_limit_stdio() < 0)
+		err(1, "unable to limit capabitilities for stdio");
+
+	caph_cache_catpages();
+	if (caph_enter() < 0)
+		err(1, "unable to enter capability mode");
 
 	while ((ch = getopt(argc, argv, "d:pt:")) != -1)
 		switch (ch) {

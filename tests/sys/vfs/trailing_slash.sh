@@ -6,8 +6,9 @@
 # point to files.  See kern/21768 for details.  Fixed in r193028.
 #
 
-testfile="/tmp/testfile-$$"
-testlink="/tmp/testlink-$$"
+: ${TMPDIR=/tmp}
+testfile="$TMPDIR/testfile-$$"
+testlink="$TMPDIR/testlink-$$"
 
 tests="
 $testfile:$testlink:$testfile:0

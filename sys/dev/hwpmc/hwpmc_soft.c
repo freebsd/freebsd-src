@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Fabien Thomas
  * All rights reserved.
  *
@@ -423,8 +425,7 @@ pmc_soft_intr(struct pmckern_soft *ks)
 			else
 				continue;
 			user_mode = TRAPF_USERMODE(ks->pm_tf);
-			error = pmc_process_interrupt(ks->pm_cpu, PMC_SR, pm,
-			    ks->pm_tf, user_mode);
+			error = pmc_process_interrupt(PMC_SR, pm, ks->pm_tf);
 			if (error) {
 				soft_stop_pmc(ks->pm_cpu, ri);
 				continue;
@@ -439,9 +440,10 @@ pmc_soft_intr(struct pmckern_soft *ks)
 		} else
 			pc->soft_values[ri]++;
 	}
-
-	atomic_add_int(processed ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (processed)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	return (processed);
 }

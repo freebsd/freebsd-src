@@ -2,6 +2,8 @@
 /*	$NetBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [Ported for FreeBSD]
  *  Copyright (c) 2000
  *      Noriaki Mitsunaga, Mitsuru Iwasaki and Takanori Watanabe.
@@ -261,6 +263,7 @@ ncv_pccard_attach(device_t dev)
 		ncv_release_resource(dev);
 		return(ENXIO);
 	}
+	gone_in_dev(dev, 12, "ncv(4) driver");
 
 	return(0);
 }

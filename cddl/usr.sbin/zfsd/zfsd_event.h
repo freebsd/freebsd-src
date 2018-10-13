@@ -60,63 +60,6 @@ typedef struct zpool_handle zpool_handle_t;
 struct nvlist;
 typedef struct nvlist nvlist_t;
 
-/*============================= Class Definitions ============================*/
-/*-------------------------------- DevfsEvent --------------------------------*/
-class DevfsEvent : public DevdCtl::DevfsEvent
-{
-public:
-	/** Specialized DevdCtlEvent object factory for Devfs events. */
-	static BuildMethod Builder;
-
-	virtual DevdCtl::Event *DeepCopy() const;
-
-	/**
-	 * Interpret and perform any actions necessary to
-	 * consume the event.
-	 * \return True if this event should be queued for later reevaluation
-	 */
-	virtual bool Process()		  const;
-
-protected:
-	/**
-	 * \brief Read and return label information for a device.
-	 *
-	 * \param devFd     The device from which to read ZFS label information.
-	 * \param inUse     The device is part of an active or potentially
-	 *                  active configuration.
-	 * \param degraded  The device label indicates the vdev is not healthy.
-	 *
-	 * \return  If label information is available, an nvlist describing
-	 *          the vdev configuraiton found on the device specified by
-	 *          devFd.  Otherwise NULL.
-	 */
-	static nvlist_t    *ReadLabel(int devFd, bool &inUse, bool &degraded);
-
-	/**
-	 * Attempt to match the ZFS labeled device at devPath with an active
-	 * CaseFile for a missing vdev.  If a CaseFile is found, attempt
-	 * to re-integrate the device with its pool.
-	 *
-	 * \param devPath    The devfs path to the potential leaf vdev.
-	 * \param physPath   The physical path string reported by the device
-	 *                   at devPath.
-	 * \param devConfig  The ZFS label information found on the device
-	 *                   at devPath.
-	 *
-	 * \return  true if the event that caused the online action can
-	 *          be considered consumed.
-	 */
-	static bool	    OnlineByLabel(const string &devPath,
-					  const string& physPath,
-					  nvlist_t *devConfig);
-
-	/** DeepCopy Constructor. */
-	DevfsEvent(const DevfsEvent &src);
-
-	/** Constructor */
-	DevfsEvent(Type, DevdCtl::NVPairMap &, const string &);
-};
-
 /*--------------------------------- ZfsEvent ---------------------------------*/
 class ZfsEvent : public DevdCtl::ZfsEvent
 {
@@ -164,5 +107,38 @@ protected:
 
 	/** Constructor */
 	GeomEvent(Type, DevdCtl::NVPairMap &, const string &);
+
+	/**
+	 * Attempt to match the ZFS labeled device at devPath with an active
+	 * CaseFile for a missing vdev.  If a CaseFile is found, attempt
+	 * to re-integrate the device with its pool.
+	 *
+	 * \param devPath    The devfs path to the potential leaf vdev.
+	 * \param physPath   The physical path string reported by the device
+	 *                   at devPath.
+	 * \param devConfig  The ZFS label information found on the device
+	 *                   at devPath.
+	 *
+	 * \return  true if the event that caused the online action can
+	 *          be considered consumed.
+	 */
+	static bool	    OnlineByLabel(const string &devPath,
+					  const string& physPath,
+					  nvlist_t *devConfig);
+
+	/**
+	 * \brief Read and return label information for a device.
+	 *
+	 * \param devFd     The device from which to read ZFS label information.
+	 * \param inUse     The device is part of an active or potentially
+	 *                  active configuration.
+	 * \param degraded  The device label indicates the vdev is not healthy.
+	 *
+	 * \return  If label information is available, an nvlist describing
+	 *          the vdev configuraiton found on the device specified by
+	 *          devFd.  Otherwise NULL.
+	 */
+	static nvlist_t    *ReadLabel(int devFd, bool &inUse, bool &degraded);
+
 };
 #endif /*_ZFSD_EVENT_H_ */

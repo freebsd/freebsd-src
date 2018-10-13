@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Aditya Sarawgi
  * All rights reserved.
  *
@@ -71,7 +73,10 @@
 #define	EXT4_TOPDIR		0x00020000 /* Top of directory hierarchies*/
 #define	EXT4_HUGE_FILE		0x00040000	/* Set to each huge file */
 #define	EXT4_EXTENTS		0x00080000	/* Inode uses extents */
+#define	EXT4_EA_INODE		0x00200000	/* Inode used for large EA */
 #define	EXT4_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
+#define	EXT4_INLINE_DATA	0x10000000 /* Inode has inline data */
+#define	EXT4_PROJINHERIT	0x20000000 /* Children inherit project ID */
 
 /*
  * Definitions for nanosecond timestamps.

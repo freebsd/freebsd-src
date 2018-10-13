@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../../tests/callout_test
+.PATH: ${SRCTOP}/sys/tests/callout_test
 
 KMOD=	callout_test
 SRCS=	callout_test.c

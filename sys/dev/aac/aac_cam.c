@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Adaptec, Inc.
  * All rights reserved.
  *
@@ -317,9 +319,9 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = camsc->inf->InitiatorBusId;
 		cpi->bus_id = camsc->inf->BusNumber;
 		cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;

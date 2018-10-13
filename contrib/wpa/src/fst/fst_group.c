@@ -18,22 +18,6 @@
 
 struct dl_list fst_global_groups_list;
 
-#ifndef HOSTAPD
-static Boolean fst_has_fst_peer(struct fst_iface *iface, Boolean *has_peer)
-{
-	const u8 *bssid;
-
-	bssid = fst_iface_get_bssid(iface);
-	if (!bssid) {
-		*has_peer = FALSE;
-		return FALSE;
-	}
-
-	*has_peer = TRUE;
-	return fst_iface_get_peer_mb_ie(iface, bssid) != NULL;
-}
-#endif /* HOSTAPD */
-
 
 static void fst_dump_mb_ies(const char *group_id, const char *ifname,
 			    struct wpabuf *mbies)
@@ -147,16 +131,6 @@ static struct wpabuf * fst_group_create_mb_ie(struct fst_group *g,
 	struct fst_iface *f;
 	unsigned int nof_mbies = 0;
 	unsigned int nof_ifaces_added = 0;
-#ifndef HOSTAPD
-	Boolean has_peer;
-	Boolean has_fst_peer;
-
-	foreach_fst_group_iface(g, f) {
-		has_fst_peer = fst_has_fst_peer(f, &has_peer);
-		if (has_peer && !has_fst_peer)
-			return NULL;
-	}
-#endif /* HOSTAPD */
 
 	foreach_fst_group_iface(g, f) {
 		if (f == i)
@@ -222,43 +196,35 @@ static const u8 * fst_mbie_get_peer_addr(const struct multi_band_ie *mbie)
 }
 
 
-static struct fst_iface *
-fst_group_get_new_iface_by_mbie_and_band_id(struct fst_group *g,
-					    const u8 *mb_ies_buff,
-					    size_t mb_ies_size,
-					    u8 band_id,
-					    u8 *iface_peer_addr)
+static const u8 * fst_mbie_get_peer_addr_for_band(const struct wpabuf *mbies,
+						  u8 band_id)
 {
-	while (mb_ies_size >= 2) {
+	const u8 *p = wpabuf_head(mbies);
+	size_t s = wpabuf_len(mbies);
+
+	while (s >= 2) {
 		const struct multi_band_ie *mbie =
-			(const struct multi_band_ie *) mb_ies_buff;
+			(const struct multi_band_ie *) p;
 
-		if (mbie->eid != WLAN_EID_MULTI_BAND ||
-		    (size_t) 2 + mbie->len < sizeof(*mbie))
-			break;
-
-		if (mbie->band_id == band_id) {
-			struct fst_iface *iface;
-
-			foreach_fst_group_iface(g, iface) {
-				const u8 *peer_addr =
-					fst_mbie_get_peer_addr(mbie);
-
-				if (peer_addr &&
-				    fst_iface_is_connected(iface, peer_addr) &&
-				    band_id == fst_iface_get_band_id(iface)) {
-					os_memcpy(iface_peer_addr, peer_addr,
-						  ETH_ALEN);
-					return iface;
-				}
-			}
-			break;
+		if (mbie->eid != WLAN_EID_MULTI_BAND) {
+			fst_printf(MSG_INFO, "unexpected eid %d", mbie->eid);
+			return NULL;
 		}
 
-		mb_ies_buff += 2 + mbie->len;
-		mb_ies_size -= 2 + mbie->len;
+		if (mbie->len < sizeof(*mbie) - 2 || mbie->len > s - 2) {
+			fst_printf(MSG_INFO, "invalid mbie len %d",
+				   mbie->len);
+			return NULL;
+		}
+
+		if (mbie->band_id == band_id)
+			return fst_mbie_get_peer_addr(mbie);
+
+		p += 2 + mbie->len;
+		s -= 2 + mbie->len;
 	}
 
+	fst_printf(MSG_INFO, "mbie doesn't contain band %d", band_id);
 	return NULL;
 }
 
@@ -295,78 +261,172 @@ u32 fst_group_assign_fsts_id(struct fst_group *g)
 }
 
 
-static Boolean
-fst_group_does_iface_appear_in_other_mbies(struct fst_group *g,
-					   struct fst_iface *iface,
-					   struct fst_iface *other,
-					   u8 *peer_addr)
+/**
+ * fst_group_get_peer_other_connection_1 - Find peer's "other" connection
+ * (iface, MAC tuple) by using peer's MB IE on iface.
+ *
+ * @iface: iface on which FST Setup Request was received
+ * @peer_addr: Peer address on iface
+ * @band_id: "other" connection band id
+ * @other_peer_addr (out): Peer's MAC address on the "other" connection (on the
+ *   "other" iface)
+ *
+ * This function parses peer's MB IE on iface. It looks for peer's MAC address
+ * on band_id (tmp_peer_addr). Next all interfaces are iterated to find an
+ * interface which correlates with band_id. If such interface is found, peer
+ * database is iterated to see if tmp_peer_addr is connected over it.
+ */
+static struct fst_iface *
+fst_group_get_peer_other_connection_1(struct fst_iface *iface,
+				      const u8 *peer_addr, u8 band_id,
+				      u8 *other_peer_addr)
 {
-	struct fst_get_peer_ctx *ctx;
-	const u8 *addr;
-	const u8 *iface_addr;
-	enum mb_band_id  iface_band_id;
+	const struct wpabuf *mbies;
+	struct fst_iface *other_iface;
+	const u8 *tmp_peer_addr;
 
-	WPA_ASSERT(g == fst_iface_get_group(iface));
-	WPA_ASSERT(g == fst_iface_get_group(other));
+	/* Get peer's MB IEs on iface */
+	mbies = fst_iface_get_peer_mb_ie(iface, peer_addr);
+	if (!mbies)
+		return NULL;
 
-	iface_addr = fst_iface_get_addr(iface);
-	iface_band_id = fst_iface_get_band_id(iface);
+	/* Get peer's MAC address on the "other" interface */
+	tmp_peer_addr = fst_mbie_get_peer_addr_for_band(mbies, band_id);
+	if (!tmp_peer_addr) {
+		fst_printf(MSG_INFO,
+			   "couldn't extract other peer addr from mbies");
+		return NULL;
+	}
 
-	addr = fst_iface_get_peer_first(other, &ctx, TRUE);
-	for (; addr; addr = fst_iface_get_peer_next(other, &ctx, TRUE)) {
-		const struct wpabuf *mbies;
-		u8 other_iface_peer_addr[ETH_ALEN];
-		struct fst_iface *other_new_iface;
+	fst_printf(MSG_DEBUG, "found other peer addr from mbies: " MACSTR,
+		   MAC2STR(tmp_peer_addr));
 
-		mbies = fst_iface_get_peer_mb_ie(other, addr);
-		if (!mbies)
+	foreach_fst_group_iface(fst_iface_get_group(iface), other_iface) {
+		if (other_iface == iface ||
+		    band_id != fst_iface_get_band_id(other_iface))
 			continue;
-
-		other_new_iface = fst_group_get_new_iface_by_mbie_and_band_id(
-			g, wpabuf_head(mbies), wpabuf_len(mbies),
-			iface_band_id, other_iface_peer_addr);
-		if (other_new_iface == iface &&
-		    os_memcmp(iface_addr, other_iface_peer_addr,
-			      ETH_ALEN) != 0) {
-			os_memcpy(peer_addr, addr, ETH_ALEN);
-			return TRUE;
+		if (fst_iface_is_connected(other_iface, tmp_peer_addr, FALSE)) {
+			os_memcpy(other_peer_addr, tmp_peer_addr, ETH_ALEN);
+			return other_iface;
 		}
 	}
 
-	return FALSE;
-}
-
-
-struct fst_iface *
-fst_group_find_new_iface_by_stie(struct fst_group *g,
-				 struct fst_iface *iface,
-				 const u8 *peer_addr,
-				 const struct session_transition_ie *stie,
-				 u8 *iface_peer_addr)
-{
-	struct fst_iface *i;
-
-	foreach_fst_group_iface(g, i) {
-		if (i == iface ||
-		    stie->new_band_id != fst_iface_get_band_id(i))
-			continue;
-		if (fst_group_does_iface_appear_in_other_mbies(g, iface, i,
-			iface_peer_addr))
-			return i;
-		break;
-	}
 	return NULL;
 }
 
 
-struct fst_iface *
-fst_group_get_new_iface_by_stie_and_mbie(
-	struct fst_group *g, const u8 *mb_ies_buff, size_t mb_ies_size,
-	const struct session_transition_ie *stie, u8 *iface_peer_addr)
+/**
+ * fst_group_get_peer_other_connection_2 - Find peer's "other" connection
+ * (iface, MAC tuple) by using MB IEs of other peers.
+ *
+ * @iface: iface on which FST Setup Request was received
+ * @peer_addr: Peer address on iface
+ * @band_id: "other" connection band id
+ * @other_peer_addr (out): Peer's MAC address on the "other" connection (on the
+ *   "other" iface)
+ *
+ * This function iterates all connection (other_iface, cur_peer_addr tuples).
+ * For each connection, MB IE (of cur_peer_addr on other_iface) is parsed and
+ * MAC address on iface's band_id is extracted (this_peer_addr).
+ * this_peer_addr is then compared to peer_addr. A match indicates we have
+ * found the "other" connection.
+ */
+static struct fst_iface *
+fst_group_get_peer_other_connection_2(struct fst_iface *iface,
+				      const u8 *peer_addr, u8 band_id,
+				      u8 *other_peer_addr)
 {
-	return fst_group_get_new_iface_by_mbie_and_band_id(
-		g, mb_ies_buff, mb_ies_size, stie->new_band_id,
-		iface_peer_addr);
+	u8 this_band_id = fst_iface_get_band_id(iface);
+	const u8 *cur_peer_addr, *this_peer_addr;
+	struct fst_get_peer_ctx *ctx;
+	struct fst_iface *other_iface;
+	const struct wpabuf *cur_mbie;
+
+	foreach_fst_group_iface(fst_iface_get_group(iface), other_iface) {
+		if (other_iface == iface ||
+		    band_id != fst_iface_get_band_id(other_iface))
+			continue;
+		cur_peer_addr = fst_iface_get_peer_first(other_iface, &ctx,
+							 TRUE);
+		for (; cur_peer_addr;
+		     cur_peer_addr = fst_iface_get_peer_next(other_iface, &ctx,
+							     TRUE)) {
+			cur_mbie = fst_iface_get_peer_mb_ie(other_iface,
+							    cur_peer_addr);
+			if (!cur_mbie)
+				continue;
+			this_peer_addr = fst_mbie_get_peer_addr_for_band(
+				cur_mbie, this_band_id);
+			if (!this_peer_addr)
+				continue;
+			if (os_memcmp(this_peer_addr, peer_addr, ETH_ALEN) ==
+			    0) {
+				os_memcpy(other_peer_addr, cur_peer_addr,
+					  ETH_ALEN);
+				return other_iface;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+
+/**
+ * fst_group_get_peer_other_connection - Find peer's "other" connection (iface,
+ * MAC tuple).
+ *
+ * @iface: iface on which FST Setup Request was received
+ * @peer_addr: Peer address on iface
+ * @band_id: "other" connection band id
+ * @other_peer_addr (out): Peer's MAC address on the "other" connection (on the
+ *   "other" iface)
+ *
+ * This function is called upon receiving FST Setup Request from some peer who
+ * has peer_addr on iface. It searches for another connection of the same peer
+ * on different interface which correlates with band_id. MB IEs received from
+ * peer (on the two different interfaces) are used to identify same peer.
+ */
+struct fst_iface *
+fst_group_get_peer_other_connection(struct fst_iface *iface,
+				    const u8 *peer_addr, u8 band_id,
+				    u8 *other_peer_addr)
+{
+	struct fst_iface *other_iface;
+
+	fst_printf(MSG_DEBUG, "%s: %s:" MACSTR ", %d", __func__,
+		   fst_iface_get_name(iface), MAC2STR(peer_addr), band_id);
+
+	/*
+	 * Two search methods are used:
+	 * 1. Use peer's MB IE on iface to extract peer's MAC address on
+	 *    "other" connection. Then check if such "other" connection exists.
+	 * 2. Iterate peer database, examine each MB IE to see if it points to
+	 *    (iface, peer_addr) tuple
+	 */
+
+	other_iface = fst_group_get_peer_other_connection_1(iface, peer_addr,
+							    band_id,
+							    other_peer_addr);
+	if (other_iface) {
+		fst_printf(MSG_DEBUG, "found by method #1. %s:" MACSTR,
+			   fst_iface_get_name(other_iface),
+			   MAC2STR(other_peer_addr));
+		return other_iface;
+	}
+
+	other_iface = fst_group_get_peer_other_connection_2(iface, peer_addr,
+							    band_id,
+							    other_peer_addr);
+	if (other_iface) {
+		fst_printf(MSG_DEBUG, "found by method #2. %s:" MACSTR,
+			   fst_iface_get_name(other_iface),
+			   MAC2STR(other_peer_addr));
+		return other_iface;
+	}
+
+	fst_printf(MSG_INFO, "%s: other connection not found", __func__);
+	return NULL;
 }
 
 

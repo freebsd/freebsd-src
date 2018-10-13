@@ -124,7 +124,7 @@ div.muxer-buttons {
     padding: 20px;
 }
 
-div.text, div.decoration, div.data, div.header, div.pad, div.item {
+div.text, div.decoration, div.data, div.header, div.pad, div.item, div.units {
     font-family: monospace;
     display: inline;
     vertical-align: middle;

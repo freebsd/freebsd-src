@@ -48,8 +48,6 @@ FILES=	INDEX.keymaps \
 	it.kbd \
 	jp.capsctrl.kbd \
 	jp.kbd \
-	jp.pc98.iso.kbd \
-	jp.pc98.kbd \
 	kz.io.kbd \
 	kz.kst.kbd \
 	latinamerican.acc.kbd \
@@ -69,6 +67,7 @@ FILES=	INDEX.keymaps \
 	se.kbd \
 	si.kbd \
 	sk.kbd \
+	tr.f.kbd \
 	tr.kbd \
 	ua.kbd \
 	ua.shift.alt.kbd \
@@ -84,6 +83,7 @@ FILES=	INDEX.keymaps \
 	us.dvorakx.kbd \
 	us.emacs.kbd \
 	us.kbd \
+	us.macbook.kbd \
 	us.unix.kbd \
 
 FILESDIR= ${SHAREDIR}/vt/keymaps

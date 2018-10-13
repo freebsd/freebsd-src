@@ -53,6 +53,7 @@ kern/link_elf_obj.c			standard
 kern/subr_busdma_bufalloc.c		standard
 kern/subr_dummy_vdso_tc.c		standard
 kern/subr_sfbuf.c			optional	mips | mipsel | mipsn32
+kern/subr_sfbuf.c			optional	mipshf | mipselhf
 
 # gcc/clang runtime
 libkern/ffsl.c				standard
@@ -60,11 +61,11 @@ libkern/ffsll.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
 libkern/flsll.c				standard
-libkern/memmove.c			standard
-libkern/cmpdi2.c			optional	mips | mipsel
-libkern/ucmpdi2.c			optional	mips | mipsel
+libkern/cmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
+libkern/ucmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
 libkern/ashldi3.c			standard
 libkern/ashrdi3.c			standard
+libkern/memcmp.c			standard
 
 # cfe support
 dev/cfe/cfe_api.c			optional	cfe
@@ -82,10 +83,13 @@ mips/mips/sc_machdep.c			optional	sc
 dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic
-crypto/blowfish/bf_enc.c		optional	crypto | ipsec 
-crypto/des/des_enc.c			optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c		optional	crypto | ipsec | \
+	ipsec_support
+crypto/des/des_enc.c			optional	crypto | ipsec | \
+	ipsec_support | netsmb
 
 # AP common nvram interface MIPS specific, but maybe should be more generic
+dev/nvram2env/nvram2env_mips.c		optional	nvram2env
 dev/nvram2env/nvram2env.c		optional	nvram2env
 
 # hwpmc support
@@ -96,8 +100,18 @@ dev/hwpmc/hwpmc_mips74k.c		optional	hwpmc_mips74k
 # ofw support
 dev/ofw/ofwpci.c			optional	fdt pci
 
+# INTRNG support code
+kern/msi_if.m				optional	intrng
+kern/pic_if.m				optional	intrng
+kern/subr_intr.c			optional	intrng
+# INTRNG compatible MIPS32 interrupt controller
+mips/mips/mips_pic.c			optional	intrng
+
 # DTrace
 cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
 cddl/dev/dtrace/mips/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/mips/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/mips/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

@@ -43,6 +43,7 @@
  * board setup code has to handle those things.
  */
 
+uint32_t imx_ccm_ecspi_hz(void);
 uint32_t imx_ccm_ipg_hz(void);
 uint32_t imx_ccm_perclk_hz(void);
 uint32_t imx_ccm_sdhci_hz(void);
@@ -54,6 +55,7 @@ void imx_ccm_usbphy_enable(device_t _phydev);
 void imx_ccm_ssi_configure(device_t _ssidev);
 void imx_ccm_hdmi_enable(void);
 void imx_ccm_ipu_enable(int ipu);
+int  imx6_ccm_sata_enable(void);
 
 /* Routines to get and set the arm clock root divisor register. */
 uint32_t imx_ccm_get_cacrr(void);

@@ -61,9 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/intr.h>
 #include <machine/smp.h>
-#ifdef VFP
-#include <machine/vfp.h>
-#endif
+#include <machine/sbi.h>
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
@@ -183,6 +181,7 @@ riscv64_cpu_attach(device_t dev)
 static void
 release_aps(void *dummy __unused)
 {
+	uintptr_t mask;
 	int cpu, i;
 
 	if (mp_ncpus == 1)
@@ -192,6 +191,14 @@ release_aps(void *dummy __unused)
 	riscv_setup_ipihandler(ipi_handler);
 
 	atomic_store_rel_int(&aps_ready, 1);
+
+	/* Wake up the other CPUs */
+	mask = 0;
+
+	for (i = 1; i < mp_ncpus; i++)
+		mask |= (1 << i);
+
+	sbi_send_ipi(&mask);
 
 	printf("Release APs\n");
 
@@ -219,6 +226,11 @@ init_secondary(uint64_t cpu)
 	pcpup = &__pcpu[cpu];
 	__asm __volatile("mv gp, %0" :: "r"(pcpup));
 
+	/* Workaround: make sure wfi doesn't halt the hart */
+	intr_disable();
+	csr_set(sie, SIE_SSIE);
+	csr_set(sip, SIE_SSIE);
+
 	/* Spin until the BSP releases the APs */
 	while (!aps_ready)
 		__asm __volatile("wfi");
@@ -241,12 +253,11 @@ init_secondary(uint64_t cpu)
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
-#ifdef VFP
-	/* TODO: init FPU */
-#endif
-
 	/* Enable interrupts */
 	intr_enable();
+
+	/* Enable external (PLIC) interrupts */
+	csr_set(sie, SIE_SEIE);
 
 	mtx_lock_spin(&ap_boot_mtx);
 
@@ -273,14 +284,7 @@ ipi_handler(void *arg)
 	u_int cpu, ipi;
 	int bit;
 
-	/*
-	 * We have shared interrupt line for both IPI and HTIF,
-	 * so we don't really need to clear pending bit here
-	 * as it will be cleared later in htif_intr.
-	 * But lets assume HTIF is optional part, so do clear
-	 * pending bit if there is no new entires in htif_ring.
-	 */
-	machine_command(ECALL_CLEAR_IPI, 0);
+	sbi_clear_ipi();
 
 	cpu = PCPU_GET(cpuid);
 
@@ -382,15 +386,12 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	/* We are already running on cpu 0 */
 	if (id == 0) {
-		pcpup->pc_reg = target_cpu;
 		return (1);
 	}
 
 	pcpu_init(pcpup, id, sizeof(struct pcpu));
-	pcpup->pc_reg = target_cpu;
 
-	dpcpu[id - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-	    M_WAITOK | M_ZERO);
+	dpcpu[id - 1] = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 	dpcpu_init(dpcpu[id - 1], id);
 
 	printf("Starting CPU %u (%lx)\n", id, target_cpu);

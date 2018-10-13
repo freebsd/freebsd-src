@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -277,6 +279,8 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					send_error(peer, ENOSPACE);
 				goto abort;
 			}
+			if (n_data != segsize)
+				write_close();
 		}
 
 send_ack:

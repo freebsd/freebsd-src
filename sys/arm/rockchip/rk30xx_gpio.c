@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2012 Luiz Otavio O Souza.
@@ -41,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
@@ -528,10 +528,8 @@ rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len)
 	if (sc == NULL)
 		return ENXIO;
 
-	if (OF_getprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
+	if (OF_getencprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
 		return (ENXIO);
-
-	gpio_cells = fdt32_to_cpu(gpio_cells);
 	if (gpio_cells != 2)
 		return (ENXIO);
 
@@ -548,9 +546,9 @@ rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len)
 	inc = sizeof(ihandle_t) / sizeof(pcell_t);
 	gpios += inc;
 	for (t = 0; t < tuples; t++) {
-		pin = fdt32_to_cpu(gpios[0]);
-		dir = fdt32_to_cpu(gpios[1]);
-		flags = fdt32_to_cpu(gpios[2]);
+		pin = gpios[0];
+		dir = gpios[1];
+		flags = gpios[2];
 
 		for (i = 0; i < sc->sc_gpio_npins; i++) {
 			if (sc->sc_gpio_pins[i].gp_pin == pin)
@@ -603,7 +601,7 @@ rk30_gpio_init(void)
 				return (ENXIO);
 
 			/* Get 'gpios' property. */
-			OF_getprop(child, "gpios", &gpios, len);
+			OF_getencprop(child, "gpios", gpios, len);
 
 			e = (struct gpio_ctrl_entry *)&gpio_controllers;
 
@@ -614,9 +612,9 @@ rk30_gpio_init(void)
 				 * contain a ref. to a node defining GPIO
 				 * controller.
 				 */
-				ctrl = OF_node_from_xref(fdt32_to_cpu(gpios[0]));
+				ctrl = OF_node_from_xref(gpios[0]);
 
-				if (fdt_is_compatible(ctrl, e->compat))
+				if (ofw_bus_node_is_compatible(ctrl, e->compat))
 					/* Call a handler. */
 					if ((rv = e->handler(ctrl,
 					    (pcell_t *)&gpios, len)))

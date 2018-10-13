@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2010, Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
@@ -27,8 +29,10 @@
  */
 
 /*
- *  http://home.eeti.com.tw/web20/drivers/Software%20Programming%20Guide_v2.0.pdf
+ *  http://www.eeti.com.tw/pdf/Software%20Programming%20Guide_v2.0.pdf
  */
+
+#include "opt_evdev.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -47,9 +51,14 @@
 #include <dev/usb/usbhid.h>
 #include "usbdevs.h"
 
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#else
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>
+#endif
 
 #define USB_DEBUG_VAR uep_debug
 #include <dev/usb/usb_debug.h>
@@ -88,11 +97,15 @@ struct uep_softc {
 	struct mtx mtx;
 
 	struct usb_xfer *xfer[UEP_N_TRANSFER];
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *evdev;
+#else
 	struct usb_fifo_sc fifo;
 
 	u_int		pollrate;
 	u_int		state;
 #define UEP_ENABLED	0x01
+#endif
 
 	/* Reassembling buffer. */
 	u_char		buf[UEP_PACKET_LEN_MAX];
@@ -104,6 +117,18 @@ static usb_callback_t uep_intr_callback;
 static device_probe_t	uep_probe;
 static device_attach_t	uep_attach;
 static device_detach_t	uep_detach;
+
+#ifdef EVDEV_SUPPORT
+
+static evdev_open_t	uep_ev_open;
+static evdev_close_t	uep_ev_close;
+
+static const struct evdev_methods uep_evdev_methods = {
+	.ev_open = &uep_ev_open,
+	.ev_close = &uep_ev_close,
+};
+
+#else /* !EVDEV_SUPPORT */
 
 static usb_fifo_cmd_t	uep_start_read;
 static usb_fifo_cmd_t	uep_stop_read;
@@ -119,6 +144,7 @@ static struct usb_fifo_methods uep_fifo_methods = {
 	.f_stop_read = &uep_stop_read,
 	.basename[0] = "uep",
 };
+#endif /* !EVDEV_SUPPORT */
 
 static int
 get_pkt_len(u_char *buf)
@@ -152,6 +178,9 @@ static void
 uep_process_pkt(struct uep_softc *sc, u_char *buf)
 {
 	int32_t x, y;
+#ifdef EVDEV_SUPPORT
+	int touch;
+#endif
 
 	if ((buf[0] & 0xFE) != 0x80) {
 		DPRINTF("bad input packet format 0x%.2x\n", buf[0]);
@@ -184,7 +213,17 @@ uep_process_pkt(struct uep_softc *sc, u_char *buf)
 
 	DPRINTFN(2, "x %u y %u\n", x, y);
 
+#ifdef EVDEV_SUPPORT
+	touch = buf[0] & (1 << 0);
+	if (touch) {
+		evdev_push_abs(sc->evdev, ABS_X, x);
+		evdev_push_abs(sc->evdev, ABS_Y, y);
+	}
+	evdev_push_key(sc->evdev, BTN_TOUCH, touch);
+	evdev_sync(sc->evdev);
+#else
 	uep_put_queue(sc, buf);
+#endif
 }
 
 static void
@@ -259,12 +298,13 @@ uep_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	    }
 	case USB_ST_SETUP:
 	tr_setup:
+#ifndef EVDEV_SUPPORT
 		/* check if we can put more data into the FIFO */
-		if (usb_fifo_put_bytes_max(sc->fifo.fp[USB_FIFO_RX]) != 0) {
-			usbd_xfer_set_frame_len(xfer, 0,
-			    usbd_xfer_max_len(xfer));
-			usbd_transfer_submit(xfer);
-                }
+		if (usb_fifo_put_bytes_max(sc->fifo.fp[USB_FIFO_RX]) == 0)
+			break;
+#endif
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:
@@ -328,6 +368,28 @@ uep_attach(device_t dev)
 		goto detach;
 	}
 
+#ifdef EVDEV_SUPPORT
+	sc->evdev = evdev_alloc();
+	evdev_set_name(sc->evdev, device_get_desc(dev));
+	evdev_set_phys(sc->evdev, device_get_nameunit(dev));
+	evdev_set_id(sc->evdev, BUS_USB, uaa->info.idVendor,
+	    uaa->info.idProduct, 0);
+	evdev_set_serial(sc->evdev, usb_get_serial(uaa->device));
+	evdev_set_methods(sc->evdev, sc, &uep_evdev_methods);
+	evdev_support_prop(sc->evdev, INPUT_PROP_DIRECT);
+	evdev_support_event(sc->evdev, EV_SYN);
+	evdev_support_event(sc->evdev, EV_ABS);
+	evdev_support_event(sc->evdev, EV_KEY);
+	evdev_support_key(sc->evdev, BTN_TOUCH);
+	evdev_support_abs(sc->evdev, ABS_X, 0, 0, UEP_MAX_X, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_Y, 0, 0, UEP_MAX_Y, 0, 0, 0);
+
+	error = evdev_register_mtx(sc->evdev, &sc->mtx);
+	if (error) {
+		DPRINTF("evdev_register_mtx error=%s\n", usbd_errstr(error));
+		goto detach;
+	}
+#else /* !EVDEV_SUPPORT */
 	error = usb_fifo_attach(uaa->device, sc, &sc->mtx, &uep_fifo_methods,
 	    &sc->fifo, device_get_unit(dev), -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
@@ -336,6 +398,7 @@ uep_attach(device_t dev)
 		DPRINTF("usb_fifo_attach error=%s\n", usbd_errstr(error));
                 goto detach;
         }
+#endif /* !EVDEV_SUPPORT */
 
 	sc->buf_len = 0;
 
@@ -352,7 +415,11 @@ uep_detach(device_t dev)
 {
 	struct uep_softc *sc = device_get_softc(dev);
 
+#ifdef EVDEV_SUPPORT
+	evdev_free(sc->evdev);
+#else
 	usb_fifo_detach(&sc->fifo);
+#endif
 
 	usbd_transfer_unsetup(sc->xfer, UEP_N_TRANSFER);
 
@@ -360,6 +427,32 @@ uep_detach(device_t dev)
 
 	return (0);
 }
+
+#ifdef EVDEV_SUPPORT
+
+static int
+uep_ev_close(struct evdev_dev *evdev)
+{
+	struct uep_softc *sc = evdev_get_softc(evdev);
+
+	mtx_assert(&sc->mtx, MA_OWNED);
+	usbd_transfer_stop(sc->xfer[UEP_INTR_DT]);
+
+	return (0);
+}
+
+static int
+uep_ev_open(struct evdev_dev *evdev)
+{
+	struct uep_softc *sc = evdev_get_softc(evdev);
+
+	mtx_assert(&sc->mtx, MA_OWNED);
+	usbd_transfer_start(sc->xfer[UEP_INTR_DT]);
+
+	return (0);
+}
+
+#else /* !EVDEV_SUPPORT */
 
 static void
 uep_start_read(struct usb_fifo *fifo)
@@ -422,6 +515,7 @@ uep_close(struct usb_fifo *fifo, int fflags)
 		usb_fifo_free_buffer(fifo);
 	}
 }
+#endif /* !EVDEV_SUPPORT */
 
 static devclass_t uep_devclass;
 
@@ -440,5 +534,8 @@ static driver_t uep_driver = {
 
 DRIVER_MODULE(uep, uhub, uep_driver, uep_devclass, NULL, NULL);
 MODULE_DEPEND(uep, usb, 1, 1, 1);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(uep, evdev, 1, 1, 1);
+#endif
 MODULE_VERSION(uep, 1);
 USB_PNP_HOST_INFO(uep_devs);

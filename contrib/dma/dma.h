@@ -49,7 +49,7 @@
 #define VERSION	"DragonFly Mail Agent " DMA_VERSION
 
 #define BUF_SIZE	2048
-#define ERRMSG_SIZE	200
+#define ERRMSG_SIZE	1024
 #define USERNAME_SIZE	50
 #define MIN_RETRY	300		/* 5 minutes */
 #define MAX_RETRY	(3*60*60)	/* retry at least every 3 hours */

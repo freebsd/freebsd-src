@@ -49,8 +49,6 @@
  */
 static int modes[] = {
 	M_VGA_CG640,
-	M_PC98_PEGC640x480,
-	M_PC98_PEGC640x400,
 	M_VGA_CG320,
 	-1
 };

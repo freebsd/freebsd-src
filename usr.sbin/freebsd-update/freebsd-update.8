@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2015
+.Dd June 14, 2017
 .Dt FREEBSD-UPDATE 8
 .Os FreeBSD
 .Sh NAME
@@ -56,13 +56,13 @@ by the
 .Fx
 Release Engineering Team, e.g.,
 .Fx
-9.3-RELEASE and
+10.3-RELEASE and
 .Fx
-10.1-RELEASE, but not
+11.0-RELEASE, but not
 .Fx
-9.3-STABLE or
+10.3-STABLE or
 .Fx
-11-CURRENT.
+12-CURRENT.
 .Sh OPTIONS
 The following options are supported:
 .Bl -tag -width "-r newrelease"
@@ -114,7 +114,7 @@ Please do not run
 from crontab or similar using this flag, see:
 .Nm Cm cron
 .It Fl -currently-running Ar release
-Don't detect the currently-running release; instead, assume that the
+Do not detect the currently-running release; instead, assume that the
 system is running the specified
 .Ar release .
 This is most likely to be useful when upgrading jails.

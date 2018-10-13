@@ -28,7 +28,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-.arch_extension virt /* For hvc */
+.arch_extension sec	/* For smc */
+.arch_extension virt	/* For hvc */
 
 /*
  * int psci_hvc_despatch(register_t psci_fnid, register_t...)
@@ -44,4 +45,4 @@ END(psci_hvc_despatch)
 ENTRY(psci_smc_despatch)
 	smc	#0
 	RET
-END(psci_hvc_despatch)
+END(psci_smc_despatch)

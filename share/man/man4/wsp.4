@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2014
+.Dd January 15, 2018
 .Dt WSP 4
 .Os
 .Sh NAME
@@ -63,6 +63,9 @@ through nodes under
 .Nm hw.usb.wsp .
 Pointer sensitivity can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.scale_factor .
+Tap to left-click can be controlled using the sysctl tunable
+.Nm hw.usb.wsp.enable_single_tap_clicks ,
+set to 0 to disable single tap clicks or 1 to enable them (default).
 .Sh FILES
 .Nm
 creates a blocking pseudo-device file,

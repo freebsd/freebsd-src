@@ -215,7 +215,7 @@ void cx_enable_receive (cx_chan_t *c, int on)
 }
 
 /*
- * Turn the transmiter on/off.
+ * Turn the transmitter on/off.
  */
 void cx_enable_transmit (cx_chan_t *c, int on)
 {
@@ -440,7 +440,7 @@ static int cx_receive_interrupt (cx_chan_t *c)
 	if (c->mode == M_ASYNC && (risr & RISA_TIMEOUT)) {
 		unsigned long rcbadr = (unsigned short) inw (RCBADRL(c->port)) |
 			(long) inw (RCBADRU(c->port)) << 16;
-		unsigned char *buf = 0;
+		unsigned char *buf = NULL;
 		port_t cnt_port = 0, sts_port = 0;
 
 		if (rcbadr >= c->brphys && rcbadr < c->brphys+DMABUFSZ) {

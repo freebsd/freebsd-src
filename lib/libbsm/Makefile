@@ -3,7 +3,7 @@
 #
 
 PACKAGE=	lib${LIB}
-OPENBSMDIR=		${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=		${SRCTOP}/contrib/openbsm
 _LIBBSMDIR=		${OPENBSMDIR}/libbsm
 
 LIB=		bsm
@@ -89,6 +89,7 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_control.3 getacflg.3						\
 	au_control.3 getacna.3						\
 	au_control.3 getacpol.3						\
+	au_control.3 getacqsize.3					\
 	au_control.3 au_poltostr.3					\
 	au_control.3 au_strtopol.3					\
 	au_domain.3 au_bsm_to_domain.3					\
@@ -180,3 +181,10 @@ MLINKS=	libbsm.3 bsm.3							\
 	setaudit.2 setaudit_addr.2
 
 .include <bsd.lib.mk>
+
+# Disable -Wcast-align.  Casting sa_local in au_to_socket_ex triggers this
+# warning, but it's ok because sa_local must've originally pointed to a
+# sockaddr_in or sockaddr_in6 anyway.
+# Better would be to disable this warning in just that one function, but GCC
+# 4.2 can't do that :( .
+CWARNFLAGS.bsm_token.c+=	-Wno-cast-align

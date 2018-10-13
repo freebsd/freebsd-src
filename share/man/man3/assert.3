@@ -28,7 +28,7 @@
 .\"     @(#)assert.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd January 26, 1999
+.Dd May 31, 2018
 .Dt ASSERT 3
 .Os
 .Sh NAME
@@ -44,8 +44,7 @@ macro tests the given
 .Ar expression
 and if it is false,
 the calling process is terminated.
-A
-diagnostic message is written to
+A diagnostic message is written to
 .Dv stderr
 and the function
 .Xr abort 3
@@ -68,15 +67,36 @@ as a macro
 .Xr cc 1
 option
 .Fl D Ns Dv NDEBUG ) .
+Unlike most other include files,
+.In assert.h
+may be included multiple times.
+Each time whether or not
+.Dv NDEBUG
+is defined determines the behavior of assert from that point forward
+until the end of the unit or another include of
+.In assert.h .
+.Pp
+The
+.Fn assert
+macro should only be used for ensuring the developer's expectations
+hold true.
+It is not appropriate for regular run-time error detection.
 .Sh EXAMPLES
 The assertion:
-.Pp
 .Dl "assert(1 == 0);"
-.Pp
 generates a diagnostic message similar to the following:
+.Dl "Assertion failed: (1 == 0), function main, file main.c, line 100."
 .Pp
-.Dl "Assertion failed: (1 == 0), function main, file assertion.c, line 100."
+The following assert tries to assert there was no partial read:
+.Dl "assert(read(fd, buf, nbytes) == nbytes);"
+However, there are two problems.
+First, it checks for normal conditions, rather than conditions that
+indicate a bug.
+Second, the code will disappear if
+.Dv NDEBUG
+is defined, changing the semantics of the program.
 .Sh SEE ALSO
+.Xr abort2 2 ,
 .Xr abort 3
 .Sh STANDARDS
 The
@@ -87,4 +107,4 @@ macro conforms to
 An
 .Nm
 macro appeared in
-.At v6 .
+.At v7 .

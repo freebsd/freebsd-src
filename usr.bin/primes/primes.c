@@ -61,6 +61,7 @@ static const char rcsid[] =
  * validation check: there are 664579 primes between 0 and 10^7
  */
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -70,6 +71,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <nl_types.h>
 #include <unistd.h>
 
 #include "primes.h"
@@ -99,6 +101,10 @@ main(int argc, char *argv[])
 	int ch;
 	char *p;
 
+	caph_cache_catpages();
+	if (caph_enter() < 0)
+		err(1, "cap_enter");
+
 	while ((ch = getopt(argc, argv, "h")) != -1)
 		switch (ch) {
 		case 'h':
@@ -112,7 +118,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	start = 0;
-	stop = SPSPMAX;
+	stop = (uint64_t)(-1);
 
 	/*
 	 * Convert low and high args.  Strtoumax(3) sets errno to
@@ -139,8 +145,6 @@ main(int argc, char *argv[])
 			err(1, "%s", argv[1]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[1]);
-		if (stop > SPSPMAX)
-			errx(1, "%s: stop value too large.", argv[1]);
 		break;
 	case 1:
 		/* Start on the command line. */

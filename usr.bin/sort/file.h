@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
  * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
@@ -64,7 +66,7 @@ struct file_reader;
  */
 struct file_list
 {
-	char			**fns;
+	const char *		*fns;
 	size_t			 count;
 	size_t			 sz;
 	bool			 tmp;
@@ -106,7 +108,7 @@ char *new_tmp_file_name(void);
 void tmp_file_atexit(const char *tmp_file);
 
 void file_list_init(struct file_list *fl, bool tmp);
-void file_list_add(struct file_list *fl, char *fn, bool allocate);
+void file_list_add(struct file_list *fl, const char *fn, bool allocate);
 void file_list_populate(struct file_list *fl, int argc, char **argv, bool allocate);
 void file_list_clean(struct file_list *fl);
 

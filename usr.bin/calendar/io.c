@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,11 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <pwd.h>
 #include <stdbool.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stringlist.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "pathnames.h"
@@ -118,7 +120,7 @@ cal_fopen(const char *file)
 		return (NULL);
 	}
 
-	for (i = 0; i < sizeof(calendarHomes)/sizeof(calendarHomes[0]) ; i++) {
+	for (i = 0; i < nitems(calendarHomes); i++) {
 		if (chdir(calendarHomes[i]) != 0)
 			continue;
 

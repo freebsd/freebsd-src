@@ -1,5 +1,7 @@
 #! /bin/sh
 #
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 #  Copyright (c) 2010 Gordon Tetlow
 #  All rights reserved.
 #
@@ -68,7 +70,23 @@ build_manpath() {
 
 	# If the user has set a manpath, who are we to argue.
 	if [ -n "$MANPATH" ]; then
-		return
+		case "$MANPATH" in
+		*:) PREPEND_MANPATH=${MANPATH} ;;
+		:*) APPEND_MANPATH=${MANPATH} ;;
+		*::*)
+			PREPEND_MANPATH=${MANPATH%%::*}
+			APPEND_MANPATH=${MANPATH#*::}
+			;;
+		*) return ;;
+		esac
+	fi
+
+	if [ -n "$PREPEND_MANPATH" ]; then
+		IFS=:
+		for path in $PREPEND_MANPATH; do
+			add_to_manpath "$path"
+		done
+		unset IFS
 	fi
 
 	search_path
@@ -82,6 +100,13 @@ build_manpath() {
 
 	parse_configs
 
+	if [ -n "$APPEND_MANPATH" ]; then
+		IFS=:
+		for path in $APPEND_MANPATH; do
+			add_to_manpath "$path"
+		done
+		unset IFS
+	fi
 	# Trim leading colon
 	MANPATH=${manpath#:}
 
@@ -176,7 +201,7 @@ find_file() {
 		catroot="$catroot/$3"
 	fi
 
-	if [ ! -d "$manroot" ]; then
+	if [ ! -d "$manroot" -a ! -d "$catroot" ]; then
 		return 1
 	fi
 	decho "  Searching directory $manroot" 2
@@ -238,10 +263,6 @@ manpath_usage() {
 # Usage: manpath_warnings
 # Display some warnings to stderr.
 manpath_warnings() {
-	if [ -z "$Lflag" -a -n "$MANPATH" ]; then
-		echo "(Warning: MANPATH environment variable set)" >&2
-	fi
-
 	if [ -n "$Lflag" -a -n "$MANLOCALES" ]; then
 		echo "(Warning: MANLOCALES environment variable set)" >&2
 	fi
@@ -255,6 +276,9 @@ man_check_for_so() {
 	local IFS line tstr
 
 	unset IFS
+	if [ -n "$catpage" ]; then
+		return 0
+	fi
 
 	# We need to loop to accommodate multiple .so directives.
 	while true
@@ -314,7 +338,7 @@ man_display_page() {
 	if [ -n "$use_width" ]; then
 		mandoc_args="-O width=${use_width}"
 	fi
-	testline="mandoc -Tlint -Wunsupp 2>/dev/null"
+	testline="mandoc -Tlint -Wunsupp >/dev/null 2>&1"
 	if [ -n "$tflag" ]; then
 		pipeline="mandoc -Tps $mandoc_args"
 	else
@@ -759,24 +783,19 @@ search_path() {
 
 	IFS=:
 	for path in $PATH; do
-		# Do a little special casing since the base manpages
-		# are in /usr/share/man instead of /usr/man or /man.
-		case "$path" in
-		/bin|/usr/bin)	add_to_manpath "/usr/share/man" ;;
-		*)	if add_to_manpath "$path/man"; then
-				:
-			elif add_to_manpath "$path/MAN"; then
-				:
-			else
-				case "$path" in
-				*/bin)	p="${path%/bin}/man"
-					add_to_manpath "$p"
-					;;
-				*)	;;
-				esac
-			fi
-			;;
-		esac
+		if add_to_manpath "$path/man"; then
+			:
+		elif add_to_manpath "$path/MAN"; then
+			:
+		else
+			case "$path" in
+			*/bin)	p="${path%/bin}/share/man"
+				add_to_manpath "$p"
+				p="${path%/bin}/man"
+				add_to_manpath "$p"
+				;;
+			esac
+		fi
 	done
 	unset IFS
 
@@ -882,7 +901,7 @@ setup_pager() {
 			if [ -n "$PAGER" ]; then
 				MANPAGER="$PAGER"
 			else
-				MANPAGER="more -s"
+				MANPAGER="less -s"
 			fi
 		fi
 	fi
@@ -986,7 +1005,7 @@ SYSCTL=/sbin/sysctl
 
 debug=0
 man_default_sections='1:8:2:3:n:4:5:6:7:9:l'
-man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/man'
+man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/share/man:/usr/local/man'
 cattool='/usr/bin/zcat -f'
 
 config_global='/etc/man.conf'

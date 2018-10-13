@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -167,11 +169,13 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 		 * realloc the maximum size.
 		 */
 		if (++nitems > arraysz) {
-			arraysz *= 2;
-			queue = (struct jobqueue **)realloc((char *)queue,
-			    arraysz * sizeof(struct jobqueue *));
-			if (queue == NULL)
+			queue = (struct jobqueue **)reallocarray((char *)queue,
+			    arraysz, 2 * sizeof(struct jobqueue *));
+			if (queue == NULL) {
+				free(q);
 				goto errdone;
+			}
+			arraysz *= 2;
 		}
 		queue[nitems-1] = q;
 	}

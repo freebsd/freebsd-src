@@ -2,7 +2,9 @@
 static const char rcsid[] = "$Id: res_findzonecut.c,v 1.10 2005/10/11 00:10:16 marka Exp $";
 #endif /* not lint */
 
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
  * Copyright (c) 1999 by Internet Software Consortium.
  *

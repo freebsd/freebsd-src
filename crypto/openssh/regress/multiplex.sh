@@ -1,7 +1,8 @@
-#	$OpenBSD: multiplex.sh,v 1.27 2014/12/22 06:14:29 djm Exp $
+#	$OpenBSD: multiplex.sh,v 1.28 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
-CTL=/tmp/openssh.regress.ctl-sock.$$
+make_tmpdir
+CTL=${SSH_REGRESS_TMP}/ctl-sock
 
 tid="connection multiplexing"
 
@@ -101,7 +102,7 @@ for s in 0 1 4 5 44; do
 	${SSH} -F $OBJ/ssh_config -S $CTL otherhost exit $s
 	r=$?
 	if [ $r -ne $s ]; then
-		fail "exit code mismatch for protocol $p: $r != $s"
+		fail "exit code mismatch: $r != $s"
 	fi
 
 	# same with early close of stdout/err
@@ -110,7 +111,7 @@ for s in 0 1 4 5 44; do
                 exec sh -c \'"sleep 2; exec > /dev/null 2>&1; sleep 3; exit $s"\'
 	r=$?
 	if [ $r -ne $s ]; then
-		fail "exit code (with sleep) mismatch for protocol $p: $r != $s"
+		fail "exit code (with sleep) mismatch: $r != $s"
 	fi
 done
 

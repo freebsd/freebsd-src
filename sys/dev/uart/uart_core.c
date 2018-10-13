@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Marcel Moolenaar
  * All rights reserved.
  *
@@ -97,15 +99,19 @@ uart_pps_print_mode(struct uart_softc *sc)
 {
 
 	device_printf(sc->sc_dev, "PPS capture mode: ");
-	switch(sc->sc_pps_mode) {
+	switch(sc->sc_pps_mode & UART_PPS_SIGNAL_MASK) {
 	case UART_PPS_DISABLED:
 		printf("disabled");
+		break;
 	case UART_PPS_CTS:
 		printf("CTS");
+		break;
 	case UART_PPS_DCD:
 		printf("DCD");
+		break;
 	default:
 		printf("invalid");
+		break;
 	}
 	if (sc->sc_pps_mode & UART_PPS_INVERT_PULSE)
 		printf("-Inverted");
@@ -250,6 +256,12 @@ u_int
 uart_getregshift(struct uart_class *uc)
 {
 	return ((uc != NULL) ? uc->uc_rshift : 0);
+}
+
+u_int
+uart_getregiowidth(struct uart_class *uc)
+{
+	return ((uc != NULL) ? uc->uc_riowidth : 0);
 }
 
 /*
@@ -481,7 +493,7 @@ uart_bus_sysdev(device_t dev)
 }
 
 int
-uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
+uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int chan, int quirks)
 {
 	struct uart_softc *sc;
 	struct uart_devinfo *sysdev;
@@ -539,7 +551,9 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 	sc->sc_bas.chan = chan;
 	sc->sc_bas.regshft = regshft;
+	sc->sc_bas.regiowidth = regiowidth;
 	sc->sc_bas.rclk = (rclk == 0) ? sc->sc_class->uc_rclk : rclk;
+	sc->sc_bas.busy_detect = !!(quirks & UART_F_BUSY_DETECT);
 
 	SLIST_FOREACH(sysdev, &uart_sysdevs, next) {
 		if (chan == sysdev->bas.chan &&
@@ -569,7 +583,7 @@ uart_bus_attach(device_t dev)
 	 * the device.
 	 */
 	sc0 = device_get_softc(dev);
-	if (sc0->sc_class->size > sizeof(*sc)) {
+	if (sc0->sc_class->size > device_get_driver(dev)->size) {
 		sc = malloc(sc0->sc_class->size, M_UART, M_WAITOK|M_ZERO);
 		bcopy(sc0, sc, sizeof(*sc));
 		device_set_softc(dev, sc);
@@ -673,7 +687,6 @@ uart_bus_attach(device_t dev)
 	 * safest thing to do.
 	 */
 	if (filt != FILTER_SCHEDULE_THREAD && !uart_force_poll) {
-		sc->sc_irid = 0;
 		sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &sc->sc_irid, RF_ACTIVE | RF_SHAREABLE);
 	}
@@ -777,11 +790,10 @@ uart_bus_detach(device_t dev)
 
 	mtx_destroy(&sc->sc_hwmtx_s);
 
-	if (sc->sc_class->size > sizeof(*sc)) {
+	if (sc->sc_class->size > device_get_driver(dev)->size) {
 		device_set_softc(dev, NULL);
 		free(sc, M_UART);
-	} else
-		device_set_softc(dev, NULL);
+	}
 
 	return (0);
 }

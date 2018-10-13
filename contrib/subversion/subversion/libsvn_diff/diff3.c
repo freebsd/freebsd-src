@@ -29,6 +29,7 @@
 #include "svn_pools.h"
 #include "svn_error.h"
 #include "svn_diff.h"
+#include "svn_sorts.h"
 #include "svn_types.h"
 
 #include "diff.h"
@@ -474,21 +475,23 @@ svn_diff_diff3_2(svn_diff_t **diff,
                           - (original_sync - lcs_om->position[0]->offset);
         latest_length = lcs_ol->length
                         - (original_sync - lcs_ol->position[0]->offset);
-        common_length = modified_length < latest_length
-                        ? modified_length : latest_length;
+        common_length = MIN(modified_length, latest_length);
 
-        (*diff_ref) = apr_palloc(pool, sizeof(**diff_ref));
+        if (common_length > 0)
+          {
+            (*diff_ref) = apr_palloc(pool, sizeof(**diff_ref));
 
-        (*diff_ref)->type = svn_diff__type_common;
-        (*diff_ref)->original_start = original_sync - 1;
-        (*diff_ref)->original_length = common_length;
-        (*diff_ref)->modified_start = modified_sync - 1;
-        (*diff_ref)->modified_length = common_length;
-        (*diff_ref)->latest_start = latest_sync - 1;
-        (*diff_ref)->latest_length = common_length;
-        (*diff_ref)->resolved_diff = NULL;
+            (*diff_ref)->type = svn_diff__type_common;
+            (*diff_ref)->original_start = original_sync - 1;
+            (*diff_ref)->original_length = common_length;
+            (*diff_ref)->modified_start = modified_sync - 1;
+            (*diff_ref)->modified_length = common_length;
+            (*diff_ref)->latest_start = latest_sync - 1;
+            (*diff_ref)->latest_length = common_length;
+            (*diff_ref)->resolved_diff = NULL;
 
-        diff_ref = &(*diff_ref)->next;
+            diff_ref = &(*diff_ref)->next;
+          }
 
         /* Set the new offsets */
         original_start = original_sync + common_length;

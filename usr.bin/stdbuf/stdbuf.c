@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Jeremie Le Hen <jlh@FreeBSD.org>
  * All rights reserved.
  *
@@ -40,7 +42,7 @@ static void
 usage(int s)
 {
 
-	fprintf(stderr, "Usage: %s [-e 0|L|<sz>] [-i 0|L|<sz>] [-o 0|L|<sz>] "
+	fprintf(stderr, "Usage: %s [-e 0|L|B|<sz>] [-i 0|L|B|<sz>] [-o 0|L|B|<sz>] "
 	    "<cmd> [args ...]\n", __progname);
 	exit(s);
 }

@@ -1,4 +1,4 @@
-/* dag.h : DAG-like interface filesystem, private to libsvn_fs
+/* dag.h : DAG-like interface filesystem
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS_DAG_H
-#define SVN_LIBSVN_FS_DAG_H
+#ifndef SVN_LIBSVN_FS_X_DAG_H
+#define SVN_LIBSVN_FS_X_DAG_H
 
 #include "svn_fs.h"
 #include "svn_delta.h"
@@ -82,28 +82,6 @@ dag_node_t *
 svn_fs_x__dag_dup(const dag_node_t *node,
                   apr_pool_t *result_pool);
 
-/* If NODE has been allocated in POOL, return NODE.  Otherwise, return
-   a copy created in RESULT_POOL with svn_fs_fs__dag_dup. */
-dag_node_t *
-svn_fs_x__dag_copy_into_pool(dag_node_t *node,
-                             apr_pool_t *result_pool);
-
-/* Serialize a DAG node, except don't try to preserve the 'fs' member.
-   Implements svn_cache__serialize_func_t */
-svn_error_t *
-svn_fs_x__dag_serialize(void **data,
-                        apr_size_t *data_len,
-                        void *in,
-                        apr_pool_t *pool);
-
-/* Deserialize a DAG node, leaving the 'fs' member as NULL.
-   Implements svn_cache__deserialize_func_t */
-svn_error_t *
-svn_fs_x__dag_deserialize(void **out,
-                          void *data,
-                          apr_size_t data_len,
-                          apr_pool_t *pool);
-
 /* Return the filesystem containing NODE.  */
 svn_fs_t *
 svn_fs_x__dag_get_fs(dag_node_t *node);
@@ -128,27 +106,23 @@ svn_fs_x__dag_get_id(const dag_node_t *node);
 
 /* Return the node ID of NODE.  The value returned is shared with NODE,
    and will be deallocated when NODE is.  */
-svn_error_t *
-svn_fs_x__dag_get_node_id(svn_fs_x__id_t *node_id,
-                          dag_node_t *node);
+const svn_fs_x__id_t *
+svn_fs_x__dag_get_node_id(dag_node_t *node);
 
 /* Return the copy ID of NODE.  The value returned is shared with NODE,
    and will be deallocated when NODE is.  */
-svn_error_t *
-svn_fs_x__dag_get_copy_id(svn_fs_x__id_t *copy_id,
-                          dag_node_t *node);
+const svn_fs_x__id_t *
+svn_fs_x__dag_get_copy_id(dag_node_t *node);
 
-/* Set *SAME to TRUE, if nodes LHS and RHS have the same node ID. */
-svn_error_t *
-svn_fs_x__dag_related_node(svn_boolean_t *same,
-                           dag_node_t *lhs,
+/* Return TRUE, iff nodes LHS and RHS have the same node ID. */
+svn_boolean_t
+svn_fs_x__dag_related_node(dag_node_t *lhs,
                            dag_node_t *rhs);
 
-/* Set *SAME to TRUE, if nodes LHS and RHS have the same node and copy IDs.
+/* Return TRUE, iff nodes LHS and RHS have the same node and copy IDs.
  */
-svn_error_t *
-svn_fs_x__dag_same_line_of_history(svn_boolean_t *same,
-                                   dag_node_t *lhs,
+svn_boolean_t
+svn_fs_x__dag_same_line_of_history(dag_node_t *lhs,
                                    dag_node_t *rhs);
 
 /* Return the created path of NODE.  The value returned is shared
@@ -157,41 +131,31 @@ const char *
 svn_fs_x__dag_get_created_path(dag_node_t *node);
 
 
-/* Set *ID_P to the node revision ID of NODE's immediate predecessor.
+/* Return the node revision ID of NODE's immediate predecessor.
  */
-svn_error_t *
-svn_fs_x__dag_get_predecessor_id(svn_fs_x__id_t *id_p,
-                                 dag_node_t *node);
+const svn_fs_x__id_t *
+svn_fs_x__dag_get_predecessor_id(dag_node_t *node);
 
-
-/* Set *COUNT to the number of predecessors NODE has (recursively).
+/* Return the number of predecessors NODE has (recursively).
  */
-/* ### This function is currently only used by 'verify'. */
-svn_error_t *
-svn_fs_x__dag_get_predecessor_count(int *count,
-                                    dag_node_t *node);
+int
+svn_fs_x__dag_get_predecessor_count(dag_node_t *node);
 
-/* Set *COUNT to the number of node under NODE (inclusive) with
-   svn:mergeinfo properties.
+/* Return the number of node under NODE (inclusive) with svn:mergeinfo
+   properties.
  */
-svn_error_t *
-svn_fs_x__dag_get_mergeinfo_count(apr_int64_t *count,
-                                  dag_node_t *node);
+apr_int64_t
+svn_fs_x__dag_get_mergeinfo_count(dag_node_t *node);
 
-/* Set *DO_THEY to a flag indicating whether or not NODE is a
-   directory with at least one descendant (not including itself) with
-   svn:mergeinfo.
+/* Return TRUE, iff NODE is a directory with at least one descendant (not
+   including itself) with svn:mergeinfo.
  */
-svn_error_t *
-svn_fs_x__dag_has_descendants_with_mergeinfo(svn_boolean_t *do_they,
-                                             dag_node_t *node);
+svn_boolean_t
+svn_fs_x__dag_has_descendants_with_mergeinfo(dag_node_t *node);
 
-/* Set *HAS_MERGEINFO to a flag indicating whether or not NODE itself
-   has svn:mergeinfo set on it.
- */
-svn_error_t *
-svn_fs_x__dag_has_mergeinfo(svn_boolean_t *has_mergeinfo,
-                            dag_node_t *node);
+/* Return TRUE, iff NODE itself has svn:mergeinfo set on it.  */
+svn_boolean_t
+svn_fs_x__dag_has_mergeinfo(dag_node_t *node);
 
 /* Return non-zero IFF NODE is currently mutable. */
 svn_boolean_t
@@ -252,25 +216,15 @@ svn_fs_x__dag_set_has_mergeinfo(dag_node_t *node,
 /* Revision and transaction roots.  */
 
 
-/* Open the root of revision REV of filesystem FS, allocating from
+/* Open the root of change set CHANGE_SET of filesystem FS, allocating from
    RESULT_POOL.  Set *NODE_P to the new node.  Use SCRATCH_POOL for
    temporary allocations.*/
 svn_error_t *
-svn_fs_x__dag_revision_root(dag_node_t **node_p,
-                            svn_fs_t *fs,
-                            svn_revnum_t rev,
-                            apr_pool_t *result_pool,
-                            apr_pool_t *scratch_pool);
-
-
-/* Set *NODE_P to the root of transaction TXN_ID in FS, allocating
-   from RESULT_POOL.  Use SCRATCH_POOL for temporary allocations. */
-svn_error_t *
-svn_fs_x__dag_txn_root(dag_node_t **node_p,
-                       svn_fs_t *fs,
-                       svn_fs_x__txn_id_t txn_id,
-                       apr_pool_t *result_pool,
-                       apr_pool_t *scratch_pool);
+svn_fs_x__dag_root(dag_node_t **node_p,
+                   svn_fs_t *fs,
+                   svn_fs_x__change_set_t change_set,
+                   apr_pool_t *result_pool,
+                   apr_pool_t *scratch_pool);
 
 
 /* Directories.  */
@@ -288,6 +242,14 @@ svn_fs_x__dag_open(dag_node_t **child_p,
                    apr_pool_t *result_pool,
                    apr_pool_t *scratch_pool);
 
+
+/* Set *ID_P to the noderev-id for entry NAME in PARENT.  If no such
+   entry exists, set *ID_P to "unused" but do not error. */
+svn_error_t *
+svn_fs_x__dir_entry_id(svn_fs_x__id_t *id_p,
+                       dag_node_t *parent,
+                       const char *name,
+                       apr_pool_t *scratch_pool);
 
 /* Set *ENTRIES_P to an array of NODE's entries, sorted by entry names,
    and the values are svn_fs_x__dirent_t. The returned table (and elements)
@@ -548,22 +510,20 @@ svn_fs_x__dag_things_different(svn_boolean_t *props_changed,
 /* Set *REV and *PATH to the copyroot revision and path of node NODE, or
    to SVN_INVALID_REVNUM and NULL if no copyroot exists.
  */
-svn_error_t *
+void
 svn_fs_x__dag_get_copyroot(svn_revnum_t *rev,
                            const char **path,
                            dag_node_t *node);
 
-/* Set *REV to the copyfrom revision associated with NODE.
+/* Return the copyfrom revision associated with NODE.
  */
-svn_error_t *
-svn_fs_x__dag_get_copyfrom_rev(svn_revnum_t *rev,
-                               dag_node_t *node);
+svn_revnum_t
+svn_fs_x__dag_get_copyfrom_rev(dag_node_t *node);
 
-/* Set *PATH to the copyfrom path associated with NODE.
+/* Return the copyfrom path associated with NODE.
  */
-svn_error_t *
-svn_fs_x__dag_get_copyfrom_path(const char **path,
-                                dag_node_t *node);
+const char *
+svn_fs_x__dag_get_copyfrom_path(dag_node_t *node);
 
 /* Update *TARGET so that SOURCE is it's predecessor.
 
@@ -577,4 +537,4 @@ svn_fs_x__dag_update_ancestry(dag_node_t *target,
 }
 #endif /* __cplusplus */
 
-#endif /* SVN_LIBSVN_FS_DAG_H */
+#endif /* SVN_LIBSVN_FS_X_DAG_H */

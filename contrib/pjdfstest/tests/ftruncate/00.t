@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/ftruncate/00.t 219439 2011-03-09 23:11:30Z pjd $
 
 desc="ftruncate descrease/increase file size"

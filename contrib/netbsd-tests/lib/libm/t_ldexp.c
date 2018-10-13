@@ -1,4 +1,4 @@
-/* $NetBSD: t_ldexp.c,v 1.14 2014/11/04 00:20:19 justin Exp $ */
+/* $NetBSD: t_ldexp.c,v 1.16 2016/08/25 00:32:31 maya Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_ldexp.c,v 1.14 2014/11/04 00:20:19 justin Exp $");
+__RCSID("$NetBSD: t_ldexp.c,v 1.16 2016/08/25 00:32:31 maya Exp $");
 
 #include <sys/param.h>
 
@@ -96,10 +96,12 @@ struct ldexp_test ldexp_overflow[] = {
 	{ 1.0,	1023,	1,	"                    inf" },
 	{ 1.0,	-1022,	2046,	"                    inf" },
 	{ 1.0,	1025,	SKIP,	"                    inf" },
+	{ 2.0,	INT_MAX,SKIP,	"                    inf" },
 	{ -1.0,	1024,	SKIP,	"                   -inf" },
 	{ -1.0,	1023,	1,	"                   -inf" },
 	{ -1.0,	-1022,	2046,	"                   -inf" },
 	{ -1.0,	1025,	SKIP,	"                   -inf" },
+	{ -2.0, INT_MAX,SKIP,	"                   -inf" },
 	{ 0,	0,	0,	NULL }
 };
 
@@ -170,10 +172,8 @@ run_test(struct ldexp_test *table)
 
 		v = ldexp(table->x, table->exp1);
 
-		if (table->exp2 == SKIP)
-			continue;
-
-		v = ldexp(v, table->exp2);
+		if (table->exp2 != SKIP)
+			v = ldexp(v, table->exp2);
 
 		(void)snprintf(outbuf, sizeof(outbuf), FORMAT, v);
 

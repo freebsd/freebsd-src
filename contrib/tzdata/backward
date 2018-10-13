@@ -23,6 +23,7 @@ Link	America/Argentina/Mendoza	America/Mendoza
 Link	America/Toronto		America/Montreal
 Link	America/Rio_Branco	America/Porto_Acre
 Link	America/Argentina/Cordoba	America/Rosario
+Link	America/Tijuana		America/Santa_Isabel
 Link	America/Denver		America/Shiprock
 Link	America/Port_of_Spain	America/Virgin
 Link	Pacific/Auckland	Antarctica/South_Pole
@@ -35,6 +36,7 @@ Link	Asia/Shanghai		Asia/Harbin
 Link	Asia/Urumqi		Asia/Kashgar
 Link	Asia/Kathmandu		Asia/Katmandu
 Link	Asia/Macau		Asia/Macao
+Link	Asia/Yangon		Asia/Rangoon
 Link	Asia/Ho_Chi_Minh	Asia/Saigon
 Link	Asia/Jerusalem		Asia/Tel_Aviv
 Link	Asia/Thimphu		Asia/Thimbu
@@ -59,7 +61,9 @@ Link	America/Sao_Paulo	Brazil/East
 Link	America/Manaus		Brazil/West
 Link	America/Halifax		Canada/Atlantic
 Link	America/Winnipeg	Canada/Central
-Link	America/Regina		Canada/East-Saskatchewan
+# This line is commented out, as the name exceeded the 14-character limit
+# and was an unused misnomer.
+#Link	America/Regina		Canada/East-Saskatchewan
 Link	America/Toronto		Canada/Eastern
 Link	America/Edmonton	Canada/Mountain
 Link	America/St_Johns	Canada/Newfoundland
@@ -94,6 +98,7 @@ Link	Pacific/Auckland	NZ
 Link	Pacific/Chatham		NZ-CHAT
 Link	America/Denver		Navajo
 Link	Asia/Shanghai		PRC
+Link	Pacific/Honolulu	Pacific/Johnston
 Link	Pacific/Pohnpei		Pacific/Ponape
 Link	Pacific/Pago_Pago	Pacific/Samoa
 Link	Pacific/Chuuk		Pacific/Truk

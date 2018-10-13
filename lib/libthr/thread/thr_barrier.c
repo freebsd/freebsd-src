@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
@@ -94,13 +96,13 @@ _pthread_barrier_destroy(pthread_barrier_t *barrier)
 }
 
 int
-_pthread_barrier_init(pthread_barrier_t *barrier,
-    const pthread_barrierattr_t *attr, unsigned count)
+_pthread_barrier_init(pthread_barrier_t * __restrict barrier,
+    const pthread_barrierattr_t * __restrict attr, unsigned count)
 {
 	pthread_barrier_t bar;
 	int pshared;
 
-	if (barrier == NULL || count <= 0)
+	if (barrier == NULL || count == 0 || count > INT_MAX)
 		return (EINVAL);
 
 	if (attr == NULL || *attr == NULL ||

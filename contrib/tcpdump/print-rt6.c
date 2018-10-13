@@ -19,22 +19,21 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IPv6 routing header printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef INET6
-
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "ip6.h"
-
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+#include "ip6.h"
 
 int
 rt6_print(netdissect_options *ndo, register const u_char *bp, const u_char *bp2 _U_)
@@ -44,33 +43,26 @@ rt6_print(netdissect_options *ndo, register const u_char *bp, const u_char *bp2 
 	register const u_char *ep;
 	int i, len;
 	register const struct in6_addr *addr;
-	const struct in6_addr *last_addr = NULL;
 
-	dp = (struct ip6_rthdr *)bp;
-	len = dp->ip6r_len;
+	dp = (const struct ip6_rthdr *)bp;
 
 	/* 'ep' points to the end of available data. */
 	ep = ndo->ndo_snapend;
 
 	ND_TCHECK(dp->ip6r_segleft);
 
+	len = dp->ip6r_len;
 	ND_PRINT((ndo, "srcrt (len=%d", dp->ip6r_len));	/*)*/
 	ND_PRINT((ndo, ", type=%d", dp->ip6r_type));
 	ND_PRINT((ndo, ", segleft=%d", dp->ip6r_segleft));
 
 	switch (dp->ip6r_type) {
-#ifndef IPV6_RTHDR_TYPE_0
-#define IPV6_RTHDR_TYPE_0 0
-#endif
-#ifndef IPV6_RTHDR_TYPE_2
-#define IPV6_RTHDR_TYPE_2 2
-#endif
 	case IPV6_RTHDR_TYPE_0:
 	case IPV6_RTHDR_TYPE_2:			/* Mobile IPv6 ID-20 */
-		dp0 = (struct ip6_rthdr0 *)dp;
+		dp0 = (const struct ip6_rthdr0 *)dp;
 
 		ND_TCHECK(dp0->ip6r0_reserved);
-		if (dp0->ip6r0_reserved || ndo->ndo_vflag) {
+		if (EXTRACT_32BITS(dp0->ip6r0_reserved) || ndo->ndo_vflag) {
 			ND_PRINT((ndo, ", rsv=0x%0x",
 			    EXTRACT_32BITS(&dp0->ip6r0_reserved)));
 		}
@@ -80,20 +72,11 @@ rt6_print(netdissect_options *ndo, register const u_char *bp, const u_char *bp2 
 		len >>= 1;
 		addr = &dp0->ip6r0_addr[0];
 		for (i = 0; i < len; i++) {
-			if ((u_char *)(addr + 1) > ep)
+			if ((const u_char *)(addr + 1) > ep)
 				goto trunc;
 
 			ND_PRINT((ndo, ", [%d]%s", i, ip6addr_string(ndo, addr)));
-			last_addr = addr;
 			addr++;
-		}
-		/*
-		 * the destination address used in the pseudo-header is that of the final
-		 * destination : the last address of the routing header
-		 */
-		if (last_addr != NULL) {
-			struct ip6_hdr *ip6 = (struct ip6_hdr *)bp2;
-			UNALIGNED_MEMCPY(&ip6->ip6_dst, last_addr, sizeof (struct in6_addr));
 		}
 		/*(*/
 		ND_PRINT((ndo, ") "));
@@ -108,4 +91,3 @@ rt6_print(netdissect_options *ndo, register const u_char *bp, const u_char *bp2 
 	ND_PRINT((ndo, "[|srcrt]"));
 	return -1;
 }
-#endif /* INET6 */

@@ -1,6 +1,12 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
+ * Copyright (c) 2018 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,27 +47,65 @@ __FBSDID("$FreeBSD$");
 
 __weak_reference(_pthread_set_name_np, pthread_set_name_np);
 
+static void
+thr_set_name_np(struct pthread *thread, const char *name)
+{
+
+	free(thread->name);
+	thread->name = strdup(name);
+}
+
 /* Set the thread name for debug. */
 void
 _pthread_set_name_np(pthread_t thread, const char *name)
 {
-	struct pthread *curthread = _get_curthread();
-	int ret = 0;
+	struct pthread *curthread;
 
+	curthread = _get_curthread();
 	if (curthread == thread) {
-		if (thr_set_name(thread->tid, name))
-			ret = errno;
+		THR_THREAD_LOCK(curthread, thread);
+		thr_set_name(thread->tid, name);
+		thr_set_name_np(thread, name);
+		THR_THREAD_UNLOCK(curthread, thread);
 	} else {
-		if ((ret=_thr_find_thread(curthread, thread, 0)) == 0) {
+		if (_thr_find_thread(curthread, thread, 0) == 0) {
 			if (thread->state != PS_DEAD) {
-				if (thr_set_name(thread->tid, name))
-					ret = errno;
+				thr_set_name(thread->tid, name);
+				thr_set_name_np(thread, name);
 			}
 			THR_THREAD_UNLOCK(curthread, thread);
 		}
 	}
-#if 0
-	/* XXX should return error code. */
-	return (ret);
-#endif
+}
+
+static void
+thr_get_name_np(struct pthread *thread, char *buf, size_t len)
+{
+
+	if (thread->name != NULL)
+		strlcpy(buf, thread->name, len);
+	else if (len > 0)
+		buf[0] = '\0';
+}
+
+__weak_reference(_pthread_get_name_np, pthread_get_name_np);
+
+void
+_pthread_get_name_np(pthread_t thread, char *buf, size_t len)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	if (curthread == thread) {
+		THR_THREAD_LOCK(curthread, thread);
+		thr_get_name_np(thread, buf, len);
+		THR_THREAD_UNLOCK(curthread, thread);
+	} else {
+		if (_thr_find_thread(curthread, thread, 0) == 0) {
+			if (thread->state != PS_DEAD)
+				thr_get_name_np(thread, buf, len);
+			THR_THREAD_UNLOCK(curthread, thread);
+		} else if (len > 0)
+			buf[0] = '\0';
+	}
 }

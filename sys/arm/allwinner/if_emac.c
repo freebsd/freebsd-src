@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
@@ -69,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -77,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 
 #include <arm/allwinner/if_emacreg.h>
+#include <arm/allwinner/aw_sid.h>
 
 #include <dev/extres/clk/clk.h>
 
@@ -146,7 +148,7 @@ emac_sys_setup(struct emac_softc *sc)
 	int error;
 
 	/* Activate EMAC clock. */
-	error = clk_get_by_ofw_index(sc->emac_dev, 0, &sc->emac_clk);
+	error = clk_get_by_ofw_index(sc->emac_dev, 0, 0, &sc->emac_clk);
 	if (error != 0) {
 		device_printf(sc->emac_dev, "cannot get clock\n");
 		return (error);
@@ -167,12 +169,18 @@ static void
 emac_get_hwaddr(struct emac_softc *sc, uint8_t *hwaddr)
 {
 	uint32_t val0, val1, rnd;
+	u_char rootkey[16];
+	size_t rootkey_size;
 
 	/*
 	 * Try to get MAC address from running hardware.
 	 * If there is something non-zero there just use it.
 	 *
 	 * Otherwise set the address to a convenient locally assigned address,
+	 * using the SID rootkey.
+	 * This is was uboot does so we end up with the same mac as if uboot
+	 * did set it.
+	 * If we can't get the root key, generate a random one,
 	 * 'bsd' + random 24 low-order bits. 'b' is 0x62, which has the locally
 	 * assigned bit set, and the broadcast/multicast bit clear.
 	 */
@@ -186,13 +194,25 @@ emac_get_hwaddr(struct emac_softc *sc, uint8_t *hwaddr)
 		hwaddr[4] = (val0 >> 8) & 0xff;
 		hwaddr[5] = (val0 >> 0) & 0xff;
 	} else {
-		rnd = arc4random() & 0x00ffffff;
-		hwaddr[0] = 'b';
-		hwaddr[1] = 's';
-		hwaddr[2] = 'd';
-		hwaddr[3] = (rnd >> 16) & 0xff;
-		hwaddr[4] = (rnd >> 8) & 0xff;
-		hwaddr[5] = (rnd >> 0) & 0xff;
+		rootkey_size = sizeof(rootkey);
+		if (aw_sid_get_fuse(AW_SID_FUSE_ROOTKEY, rootkey,
+		    &rootkey_size) == 0) {
+			hwaddr[0] = 0x2;
+			hwaddr[1] = rootkey[3];
+			hwaddr[2] = rootkey[12];
+			hwaddr[3] = rootkey[13];
+			hwaddr[4] = rootkey[14];
+			hwaddr[5] = rootkey[15];
+		}
+		else {
+			rnd = arc4random() & 0x00ffffff;
+			hwaddr[0] = 'b';
+			hwaddr[1] = 's';
+			hwaddr[2] = 'd';
+			hwaddr[3] = (rnd >> 16) & 0xff;
+			hwaddr[4] = (rnd >> 8) & 0xff;
+			hwaddr[5] = (rnd >> 0) & 0xff;
+		}
 	}
 	if (bootverbose)
 		printf("MAC address: %s\n", ether_sprintf(hwaddr));
@@ -223,7 +243,7 @@ emac_set_rx_mode(struct emac_softc *sc)
 		hashes[1] = 0xffffffff;
 	} else {
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &sc->emac_ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &sc->emac_ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -767,6 +787,9 @@ emac_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 emac_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-emac"))
 		return (ENXIO);

@@ -23,25 +23,28 @@ namespace llvm {
 
 class MCAssembler;
 struct MCFixupKindInfo;
-class Target;
 class MCObjectWriter;
+class MCRegisterInfo;
+class Target;
 
 class MipsAsmBackend : public MCAsmBackend {
-  Triple::OSType OSType;
+  Triple TheTriple;
   bool IsLittle; // Big or little endian
-  bool Is64Bit;  // 32 or 64 bit words
+  bool IsN32;
 
 public:
-  MipsAsmBackend(const Target &T, Triple::OSType OSType, bool IsLittle,
-                 bool Is64Bit)
-      : MCAsmBackend(), OSType(OSType), IsLittle(IsLittle), Is64Bit(Is64Bit) {}
+  MipsAsmBackend(const Target &T, const MCRegisterInfo &MRI, const Triple &TT,
+                 StringRef CPU, bool N32)
+      : TheTriple(TT), IsLittle(TT.isLittleEndian()), IsN32(N32) {}
 
-  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override;
+  std::unique_ptr<MCObjectWriter>
+  createObjectWriter(raw_pwrite_stream &OS) const override;
 
-  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                  uint64_t Value, bool IsPCRel) const override;
+  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                  const MCValue &Target, MutableArrayRef<char> Data,
+                  uint64_t Value, bool IsResolved) const override;
 
-  bool getFixupKind(StringRef Name, MCFixupKind &MappedKind) const override;
+  Optional<MCFixupKind> getFixupKind(StringRef Name) const override;
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
 
   unsigned getNumFixupKinds() const override {
@@ -75,16 +78,12 @@ public:
   /// \param Inst - The instruction to relax, which may be the same
   /// as the output.
   /// \param [out] Res On return, the relaxed instruction.
-  void relaxInstruction(const MCInst &Inst, MCInst &Res) const override {}
+  void relaxInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
+                        MCInst &Res) const override {}
 
   /// @}
 
   bool writeNopData(uint64_t Count, MCObjectWriter *OW) const override;
-
-  void processFixupValue(const MCAssembler &Asm, const MCAsmLayout &Layout,
-                         const MCFixup &Fixup, const MCFragment *DF,
-                         const MCValue &Target, uint64_t &Value,
-                         bool &IsResolved) override;
 
 }; // class MipsAsmBackend
 

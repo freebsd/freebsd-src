@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.100 2016/06/07 00:40:00 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.104 2018/02/12 21:38:09 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -346,6 +346,7 @@ typedef struct GNode {
  * once the makefile has been parsed. PARSE_WARNING means it can. Passed
  * as the first argument to Parse_Error.
  */
+#define PARSE_INFO	3
 #define PARSE_WARNING	2
 #define PARSE_FATAL	1
 
@@ -389,6 +390,7 @@ extern Boolean  beSilent;    	/* True if should print no commands */
 extern Boolean  noExecute;    	/* True if should execute nothing */
 extern Boolean  noRecursiveExecute;    	/* True if should execute nothing */
 extern Boolean  allPrecious;   	/* True if every target is precious */
+extern Boolean  deleteOnError;	/* True if failed targets should be deleted */
 extern Boolean  keepgoing;    	/* True if should continue on unaffected
 				 * portions of the graph when have an error
 				 * in one portion */
@@ -503,7 +505,7 @@ char * Check_Cwd_Cmd(const char *);
 void Check_Cwd(const char **);
 void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(Boolean);
-Boolean Main_SetObjdir(const char *);
+Boolean Main_SetObjdir(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 int mkTempFile(const char *, char **);
 int str2Lst_Append(Lst, char *, const char *);
 int cached_lstat(const char *, void *);
@@ -540,6 +542,12 @@ int cached_stat(const char *, void *);
 #endif
 #ifndef PATH_MAX
 #define PATH_MAX	MAXPATHLEN
+#endif
+
+#if defined(SYSV)
+#define KILLPG(pid, sig)	kill(-(pid), (sig))
+#else
+#define KILLPG(pid, sig)	killpg((pid), (sig))
 #endif
 
 #endif /* _MAKE_H_ */

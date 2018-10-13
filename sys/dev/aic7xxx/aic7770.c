@@ -2,6 +2,8 @@
  * Product specific probe and attach routines for:
  * 	27/284X and aic7770 motherboard SCSI controllers
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-1998, 2000, 2001 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -64,7 +66,7 @@ static int aic7770_suspend(struct ahc_softc *ahc);
 static int aic7770_resume(struct ahc_softc *ahc);
 static int aha2840_load_seeprom(struct ahc_softc *ahc);
 static ahc_device_setup_t ahc_aic7770_VL_setup;
-static ahc_device_setup_t ahc_aic7770_EISA_setup;
+static ahc_device_setup_t ahc_aic7770_EISA_setup;	/* Really just ISA */
 static ahc_device_setup_t ahc_aic7770_setup;
 
 struct aic7770_identity aic7770_ident_table[] =

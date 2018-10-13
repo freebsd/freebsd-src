@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -160,16 +156,23 @@ valid_key(char *key)
 void
 forcibly_timeout_mp(am_node *mp)
 {
-  mntfs *mf = mp->am_mnt;
+  mntfs *mf = mp->am_al->al_mnt;
   /*
    * Arrange to timeout this node
    */
   if (mf && ((mp->am_flags & AMF_ROOT) ||
 	     (mf->mf_flags & (MFF_MOUNTING | MFF_UNMOUNTING)))) {
+    /*
+     * We aren't going to schedule a timeout, so we need to notify the
+     * child here unless we are already unmounting, in which case that
+     * process is responsible for notifying the child.
+     */
     if (mf->mf_flags & MFF_UNMOUNTING)
       plog(XLOG_WARNING, "node %s is currently being unmounted, ignoring timeout request", mp->am_path);
-    else
+    else {
       plog(XLOG_WARNING, "ignoring timeout request for active node %s", mp->am_path);
+      notify_child(mp, AMQ_UMNT_FAILED, EBUSY, 0);
+    }
   } else {
     plog(XLOG_INFO, "\"%s\" forcibly timed out", mp->am_path);
     mp->am_flags &= ~AMF_NOTIMEOUT;
@@ -207,24 +210,11 @@ mf_mounted(mntfs *mf, bool_t call_free_opts)
       mf->mf_ops->mounted(mf);
 
     /*
-     * Be careful when calling free_ops and XFREE here.  Some pseudo file
-     * systems like nfsx call this function (mf_mounted), even though it
-     * would be called by the lower-level amd file system functions.  nfsx
-     * needs to call this function because of the other actions it takes.
-     * So we pass a boolean from the caller (yes, not so clean workaround)
-     * to determine if we should free or not.  If we're not freeing (often
-     * because we're called from a callback function), then just to be sure,
-     * we'll zero out the am_opts structure and set the pointer to NULL.
-     * The parent mntfs node owns this memory and is going to free it with a
-     * call to mf_mounted(mntfs,TRUE) (see comment in the am_mounted code).
+     * We used to free the mf_mo (options) here, however they're now stored
+     * and managed with the mntfs and do not need to be free'd here (this ensures
+     * that we use the same options to monitor/unmount the system as we used
+     * to mount it).
      */
-    if (call_free_opts) {
-      free_opts(mf->mf_fo);	/* this free is needed to prevent leaks */
-      XFREE(mf->mf_fo);		/* (also this one) */
-    } else {
-      memset(mf->mf_fo, 0, sizeof(am_opts));
-      mf->mf_fo = NULL;
-    }
   }
 
   if (mf->mf_flags & MFF_RESTART) {
@@ -249,7 +239,7 @@ void
 am_mounted(am_node *mp)
 {
   int notimeout = 0;		/* assume normal timeouts initially */
-  mntfs *mf = mp->am_mnt;
+  mntfs *mf = mp->am_al->al_mnt;
 
   /*
    * This is the parent mntfs which does the mf->mf_fo (am_opts type), and
@@ -266,7 +256,7 @@ am_mounted(am_node *mp)
   /*
    * Patch up path for direct mounts
    */
-  if (mp->am_parent && mp->am_parent->am_mnt->mf_fsflags & FS_DIRECT)
+  if (mp->am_parent && mp->am_parent->am_al->al_mnt->mf_fsflags & FS_DIRECT)
     mp->am_path = str3cat(mp->am_path, mp->am_parent->am_path, "/", ".");
 
   /*
@@ -277,6 +267,7 @@ am_mounted(am_node *mp)
   if (mf->mf_fsflags & FS_NOTIMEOUT)
     notimeout = 1;
   /* next, alter that decision by map flags */
+
   if (mf->mf_mopts) {
     mntent_t mnt;
     mnt.mnt_opts = mf->mf_mopts;
@@ -321,7 +312,7 @@ am_mounted(am_node *mp)
   /*
    * Update mtime of parent node (copying "struct nfstime" in '=' below)
    */
-  if (mp->am_parent && mp->am_parent->am_mnt)
+  if (mp->am_parent && mp->am_parent->am_al->al_mnt)
     mp->am_parent->am_fattr.na_mtime = mp->am_fattr.na_mtime;
 
   /*
@@ -360,21 +351,27 @@ assign_error_mntfs(am_node *mp)
 {
   int error;
   dlog("assign_error_mntfs");
+
+  if (mp->am_al == NULL) {
+    plog(XLOG_ERROR, "%s: Can't assign error", __func__);
+    return;
+  }
   /*
    * Save the old error code
    */
   error = mp->am_error;
   if (error <= 0)
-    error = mp->am_mnt->mf_error;
+    error = mp->am_al->al_mnt->mf_error;
   /*
    * Allocate a new error reference
    */
-  mp->am_mnt = new_mntfs();
+  free_loc(mp->am_al);
+  mp->am_al = new_loc();
   /*
    * Put back the error code
    */
-  mp->am_mnt->mf_error = error;
-  mp->am_mnt->mf_flags |= MFF_ERROR;
+  mp->am_al->al_mnt->mf_error = error;
+  mp->am_al->al_mnt->mf_flags |= MFF_ERROR;
   /*
    * Zero the error in the mount point
    */
@@ -397,7 +394,8 @@ amfs_mkcacheref(mntfs *mf)
     cache = "none";
   mf->mf_private = (opaque_t) mapc_find(mf->mf_info,
 					cache,
-					(mf->mf_fo ? mf->mf_fo->opt_maptype : NULL));
+					(mf->mf_fo ? mf->mf_fo->opt_maptype : NULL),
+					mf->mf_mount);
   mf->mf_prfree = mapc_free;
 }
 
@@ -418,7 +416,7 @@ next_nonerror_node(am_node *xp)
    * containing hung automounts.
    */
   while (xp &&
-	 (!(mf = xp->am_mnt) ||	/* No mounted filesystem */
+	 (!(mf = xp->am_al->al_mnt) ||	/* No mounted filesystem */
 	  mf->mf_error != 0 ||	/* There was a mntfs error */
 	  xp->am_error != 0 ||	/* There was a mount error */
 	  !(mf->mf_flags & MFF_MOUNTED) ||	/* The fs is not mounted */
@@ -453,8 +451,9 @@ amfs_mount(am_node *mp, mntfs *mf, char *opts)
   mntent_t mnt;
   MTYPE_TYPE type;
   int forced_unmount = 0;	/* are we using forced unmounts? */
+  u_long nfs_version = get_nfs_dispatcher_version(nfs_dispatcher);
 
-  memset((voidp) &mnt, 0, sizeof(mnt));
+  memset(&mnt, 0, sizeof(mnt));
   mnt.mnt_dir = dir;
   mnt.mnt_fsname = pid_fsname;
   mnt.mnt_opts = opts;
@@ -525,8 +524,7 @@ amfs_mount(am_node *mp, mntfs *mf, char *opts)
 again:
   if (!(mf->mf_flags & MFF_IS_AUTOFS)) {
     nfs_args_t nfs_args;
-    am_nfs_fh *fhp;
-    am_nfs_handle_t anh;
+    am_nfs_handle_t *fhp, anh;
 #ifndef HAVE_TRANSPORT_TYPE_TLI
     u_short port;
     struct sockaddr_in sin;
@@ -535,7 +533,7 @@ again:
     /*
      * get fhandle of remote path for automount point
      */
-    fhp = get_root_nfs_fh(dir);
+    fhp = get_root_nfs_fh(dir, &anh);
     if (!fhp) {
       plog(XLOG_FATAL, "Can't find root file handle for %s", dir);
       return EINVAL;
@@ -545,7 +543,7 @@ again:
     /*
      * Create sockaddr to point to the local machine.
      */
-    memset((voidp) &sin, 0, sizeof(sin));
+    memset(&sin, 0, sizeof(sin));
     /* as per POSIX, sin_len need not be set (used internally by kernel) */
     sin.sin_family = AF_INET;
     sin.sin_addr = myipaddr;
@@ -559,16 +557,15 @@ again:
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
 
     /* setup the many fields and flags within nfs_args */
-    memmove(&anh.v2, fhp, sizeof(*fhp));
 #ifdef HAVE_TRANSPORT_TYPE_TLI
     compute_nfs_args(&nfs_args,
 		     &mnt,
 		     genflags,
 		     nfsncp,
 		     NULL,	/* remote host IP addr is set below */
-		     NFS_VERSION,	/* version 2 */
+		     nfs_version,
 		     "udp",
-		     &anh,
+		     fhp,
 		     fs_hostname,
 		     pid_fsname);
     /*
@@ -587,9 +584,9 @@ again:
 		     genflags,
 		     NULL,
 		     &sin,
-		     NFS_VERSION,	/* version 2 */
+		     nfs_version,
 		     "udp",
-		     &anh,
+		     fhp,
 		     fs_hostname,
 		     pid_fsname);
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
@@ -656,10 +653,17 @@ again:
 void
 am_unmounted(am_node *mp)
 {
-  mntfs *mf = mp->am_mnt;
+  mntfs *mf = mp->am_al->al_mnt;
 
-  if (!foreground)		/* firewall - should never happen */
+  if (!foreground) {		/* firewall - should never happen */
+    /*
+     * This is a coding error.  Make sure we hear about it!
+     */
+    plog(XLOG_FATAL, "am_unmounted: illegal use in background (%s)",
+	mp->am_name);
+    notify_child(mp, AMQ_UMNT_OK, 0, 0);	/* XXX - be safe? */
     return;
+  }
 
   /*
    * Do unmounted callback
@@ -707,26 +711,37 @@ am_unmounted(am_node *mp)
   /*
    * Update mtime of parent node
    */
-  if (mp->am_parent && mp->am_parent->am_mnt)
+  if (mp->am_parent && mp->am_parent->am_al->al_mnt)
     clocktime(&mp->am_parent->am_fattr.na_mtime);
 
   if (mp->am_parent && (mp->am_flags & AMF_REMOUNT)) {
-    char *fname = strdup(mp->am_name);
+    char *fname = xstrdup(mp->am_name);
     am_node *mp_parent = mp->am_parent;
-    mntfs *mf_parent = mp_parent->am_mnt;
+    mntfs *mf_parent = mp_parent->am_al->al_mnt;
+    am_node fake_mp;
     int error = 0;
+
+    /*
+     * We need to use notify_child() after free_map(), so save enough
+     * to do that in fake_mp.
+     */
+    fake_mp.am_fd[1] = mp->am_fd[1];
+    mp->am_fd[1] = -1;
 
     free_map(mp);
     plog(XLOG_INFO, "am_unmounted: remounting %s", fname);
     mp = mf_parent->mf_ops->lookup_child(mp_parent, fname, &error, VLOOK_CREATE);
     if (mp && error < 0)
-      mp = mf_parent->mf_ops->mount_child(mp, &error);
+      (void)mf_parent->mf_ops->mount_child(mp, &error);
     if (error > 0) {
       errno = error;
       plog(XLOG_ERROR, "am_unmounted: could not remount %s: %m", fname);
+      notify_child(&fake_mp, AMQ_UMNT_OK, 0, 0);
+    } else {
+      notify_child(&fake_mp, AMQ_UMNT_FAILED, EBUSY, 0);
     }
     XFREE(fname);
-  } else
+  } else {
     /*
      * We have a race here.
      * If this node has a pending mount and amd is going down (unmounting
@@ -734,10 +749,12 @@ am_unmounted(am_node *mp)
      * while a struct continuation still has a reference to it. So when
      * amfs_cont is called, it blows up.
      * We avoid the race by refusing to free any nodes that have
-     * pending mounts (defined as having a non-NULL am_mfarray).
+     * pending mounts (defined as having a non-NULL am_alarray).
      */
-    if (!mp->am_mfarray)
+    notify_child(mp, AMQ_UMNT_OK, 0, 0);	/* do this regardless */
+    if (!mp->am_alarray)
       free_map(mp);
+  }
 }
 
 

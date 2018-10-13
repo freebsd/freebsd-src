@@ -77,7 +77,7 @@ struct red;
 	(((a)->tv_usec < (b)->tv_usec) && ((a)->tv_sec <= (b)->tv_sec)))
 
 #define	TV_DELTA(a, b, delta) { \
-	register int	xxs;	\
+	int	xxs;	\
 							\
 	delta = (a)->tv_usec - (b)->tv_usec; \
 	if ((xxs = (a)->tv_sec - (b)->tv_sec)) { \
@@ -98,7 +98,7 @@ struct red;
 }
 
 #define	TV_ADD_DELTA(a, delta, res) { \
-	register int xxus = (a)->tv_usec + (delta); \
+	int xxus = (a)->tv_usec + (delta); \
 	\
 	(res)->tv_sec = (a)->tv_sec; \
 	while (xxus >= 1000000) { \

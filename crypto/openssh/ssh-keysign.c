@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keysign.c,v 1.52 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: ssh-keysign.c,v 1.55 2018/07/27 05:34:42 dtucker Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -59,11 +59,6 @@
 #include "ssherr.h"
 
 struct ssh *active_state = NULL; /* XXX needed for linking */
-
-extern char *__progname;
-
-/* XXX readconf.c needs these */
-uid_t original_real_uid;
 
 extern char *__progname;
 
@@ -158,7 +153,7 @@ valid_request(struct passwd *pw, char *host, struct sshkey **ret,
 
 	debug3("%s: fail %d", __func__, fail);
 
-	if (fail && key != NULL)
+	if (fail)
 		sshkey_free(key);
 	else if (ret != NULL)
 		*ret = key;
@@ -171,7 +166,7 @@ main(int argc, char **argv)
 {
 	struct sshbuf *b;
 	Options options;
-#define NUM_KEYTYPES 4
+#define NUM_KEYTYPES 5
 	struct sshkey *keys[NUM_KEYTYPES], *key = NULL;
 	struct passwd *pw;
 	int r, key_fd[NUM_KEYTYPES], i, found, version = 2, fd;
@@ -198,10 +193,10 @@ main(int argc, char **argv)
 	key_fd[i++] = open(_PATH_HOST_DSA_KEY_FILE, O_RDONLY);
 	key_fd[i++] = open(_PATH_HOST_ECDSA_KEY_FILE, O_RDONLY);
 	key_fd[i++] = open(_PATH_HOST_ED25519_KEY_FILE, O_RDONLY);
+	key_fd[i++] = open(_PATH_HOST_XMSS_KEY_FILE, O_RDONLY);
 	key_fd[i++] = open(_PATH_HOST_RSA_KEY_FILE, O_RDONLY);
 
-	original_real_uid = getuid();	/* XXX readconf.c needs this */
-	if ((pw = getpwuid(original_real_uid)) == NULL)
+	if ((pw = getpwuid(getuid())) == NULL)
 		fatal("getpwuid failed");
 	pw = pwcopy(pw);
 

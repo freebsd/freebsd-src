@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-krb5.c,v 1.21 2016/01/27 06:44:58 djm Exp $ */
+/* $OpenBSD: auth-krb5.c,v 1.23 2018/07/09 21:35:50 markus Exp $ */
 /*
  *    Kerberos v5 authentication and ticket-passing routines.
  *
@@ -36,14 +36,13 @@
 
 #include "xmalloc.h"
 #include "ssh.h"
-#include "ssh1.h"
 #include "packet.h"
 #include "log.h"
-#include "buffer.h"
+#include "sshbuf.h"
+#include "sshkey.h"
 #include "misc.h"
 #include "servconf.h"
 #include "uidswap.h"
-#include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 

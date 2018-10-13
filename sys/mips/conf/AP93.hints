@@ -15,12 +15,14 @@ hint.argemdio.0.order=0
 hint.arge.0.phymask=0x10	# PHY 4
 # hint.arge.0.miimode=2		# MII
 hint.arge.0.mdio=mdioproxy1	# Hanging off the arswitch MDIO bus
+hint.arge.0.eeprommac=0x1fff0000
 
 # arge1: connected to the LAN switch MAC, at 1000BaseTX / GMII.
 hint.arge.1.phymask=0x0
 # hint.arge.1.miimode=1		# GMII
 hint.arge.1.media=1000		# Force to 1000BaseTX/full
 hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1fff0006
 
 #
 # AR7240 switch config
@@ -94,29 +96,15 @@ hint.map.1.readonly=1
 
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x00080000
-# hint.map.2.end=0x00380000
-hint.map.2.end=0x00780000
-# hint.map.2.name="spare-rootfs"
-hint.map.2.name="rootfs"
-hint.map.2.readonly=1
-
-#hint.map.3.at="flash/spi0"
-#hint.map.3.start=0x00380000
-#hint.map.3.end=0x00480000
-#hint.map.3.name="spare-uImage"
-#hint.map.3.readonly=1
-
-#hint.map.4.at="flash/spi0"
-#hint.map.4.start=0x00480000
-#hint.map.4.end=0x00780000
-#hint.map.4.name="rootfs"
-#hint.map.4.readonly=1
+hint.map.2.end="search:0x00080000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=0
 
 hint.map.3.at="flash/spi0"
-hint.map.3.start=0x00780000
+hint.map.3.start="search:0x00080000:0x10000:.!/bin/sh"
 hint.map.3.end=0x00880000
-hint.map.3.name="uImage"
-hint.map.3.readonly=1
+hint.map.3.name="rootfs"
+hint.map.3.readonly=0
 
 hint.map.4.at="flash/spi0"
 hint.map.4.start=0x00880000

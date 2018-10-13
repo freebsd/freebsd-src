@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpsnmpd.texi)
 #
-# It has been AutoGen-ed  June  2, 2016 at 07:39:15 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  August 14, 2018 at 08:30:14 AM by AutoGen 5.18.5
 # From the definitions    ntpsnmpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -47,22 +47,23 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p8
-Usage:  ntpsnmpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
+ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.7p245
+USAGE:  ntpsnmpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
   Flg Arg Option-Name    Description
    -n no  nofork         Do not fork
    -p no  syslog         Log to syslog()
       Str agentxsocket   The socket address ntpsnmpd uses to connect to net-snmpd
-      opt version        output version information and exit
-   -? no  help           display extended usage information and exit
-   -! no  more-help      extended usage information passed thru pager
-   -> opt save-opts      save the option state to a config file
-   -< Str load-opts      load options from a config file
-                                - disabled as '--no-load-opts'
+      opt version        Output version information and exit
+   -? no  help           Display extended usage information and exit
+   -! no  more-help      Extended usage information passed thru pager
+   -> opt save-opts      Save the option state to a config file
+   -< Str load-opts      Load options from a config file
+                                - disabled as --no-load-opts
                                 - may appear multiple times
 
 Options are specified by doubled hyphens and their name or by a single
 hyphen and the flag character.
+
 
 
 The following option preset mechanisms are supported:
@@ -70,7 +71,7 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named NTPSNMPD_*
 
-Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
+please send bug reports to:  http://bugs.ntp.org, bugs@@ntp.org
 @end example
 @exampleindent 4
 

@@ -1,12 +1,6 @@
 # $FreeBSD$
-files		"../mv/armada38x/files.armada38x"
-files		"../mv/files.mv"
+files		"../mv/files.arm7"
 cpu		CPU_CORTEXA
-machine		arm	armv6
+machine		arm	armv7
 
 makeoptions	CONF_CFLAGS="-march=armv7a"
-makeoptions	KERNVIRTADDR=0xc0000000
-
-options         KERNVIRTADDR=0xc0000000
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15

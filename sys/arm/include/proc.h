@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -53,8 +55,8 @@ struct mdthread {
 	int md_ptrace_addr;
 	int md_ptrace_instr_alt;
 	int md_ptrace_addr_alt;
-	register_t md_tp;
 #if __ARM_ARCH < 6
+	register_t md_tp;
 	void *md_ras_start;
 	void *md_ras_end;
 #endif

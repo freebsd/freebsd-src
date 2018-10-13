@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1996 Wolfgang Solfrank.
  * Copyright (C) 1996 TooLs GmbH.
  * All rights reserved.
@@ -72,6 +74,7 @@
 
 void    enable_fpu(struct thread *);
 void    save_fpu(struct thread *);
+void    save_fpu_nodrop(struct thread *);
 
 #endif /* _KERNEL */
 

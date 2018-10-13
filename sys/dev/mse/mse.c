@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 M. Warner Losh
  * All rights reserved.
  *
@@ -151,6 +153,8 @@ mse_common_attach(device_t dev)
 	sc->sc_ndev = make_dev(&mse_cdevsw, 1, UID_ROOT, GID_WHEEL, 0600,
 	    "nmse%d", unit);
 	sc->sc_ndev->si_drv1 = sc;
+	gone_in_dev(dev, 12, "mse(4) driver");
+
 	return 0;
 }
 
@@ -429,12 +433,6 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case MOUSE_READSTATE:
 	case MOUSE_READDATA:
 		return (ENODEV);
-
-#if (defined(MOUSE_GETVARS))
-	case MOUSE_GETVARS:
-	case MOUSE_SETVARS:
-		return (ENODEV);
-#endif
 
 	default:
 		return (ENOTTY);

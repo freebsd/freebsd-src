@@ -75,27 +75,6 @@ OpenSSH contains no GPL code.
     PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGES.
 
-2)
-    The 32-bit CRC compensation attack detector in deattack.c was
-    contributed by CORE SDI S.A. under a BSD-style license.
-
-     * Cryptographic attack detector for ssh - source code
-     *
-     * Copyright (c) 1998 CORE SDI S.A., Buenos Aires, Argentina.
-     *
-     * All rights reserved. Redistribution and use in source and binary
-     * forms, with or without modification, are permitted provided that
-     * this copyright notice is retained.
-     *
-     * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
-     * WARRANTIES ARE DISCLAIMED. IN NO EVENT SHALL CORE SDI S.A. BE
-     * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY OR
-     * CONSEQUENTIAL DAMAGES RESULTING FROM THE USE OR MISUSE OF THIS
-     * SOFTWARE.
-     *
-     * Ariel Futoransky <futo@core-sdi.com>
-     * <http://www.core-sdi.com>
-
 3)
     ssh-keyscan was contributed by David Mazieres under a BSD-style
     license.
@@ -337,4 +316,4 @@ OpenSSH contains no GPL code.
 
 
 ------
-$OpenBSD: LICENCE,v 1.19 2004/08/30 09:18:08 markus Exp $
+$OpenBSD: LICENCE,v 1.20 2017/04/30 23:26:16 djm Exp $

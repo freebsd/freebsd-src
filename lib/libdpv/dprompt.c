@@ -89,7 +89,7 @@ spin_char(void)
 {
 	char ch;
 
-	if (spin_cp == '\0')
+	if (*spin_cp == '\0')
 		spin_cp = spin;
 	ch = *spin_cp;
 

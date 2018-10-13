@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2016
+.Dd March 4, 2018
 .Dt SEMGET 2
 .Os
 .Sh NAME
@@ -34,8 +34,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
-.In sys/ipc.h
 .In sys/sem.h
 .Ft int
 .Fn semget "key_t key" "int nsems" "int flag"
@@ -77,23 +75,22 @@ may be used to generate a key from a pathname.
 .\" Likewise for this section, except SHM_* becomes SEM_*.
 .\"
 .Pp
-The mode of a newly created IPC object is determined by
-.Em OR Ns 'ing
-the following constants into the
+The mode of a newly created IPC object is determined by ORing these constants
+into the
 .Fa flag
 argument:
-.Bl -tag -width XSEM_WXX6XXX
-.It Dv SEM_R
+.Bl -tag -width 0000
+.It Dv 0400
 Read access for user.
-.It Dv SEM_A
+.It Dv 0200
 Alter access for user.
-.It Dv ( SEM_R>>3 )
+.It Dv 0040
 Read access for group.
-.It Dv ( SEM_A>>3 )
+.It Dv 0020
 Alter access for group.
-.It Dv ( SEM_R>>6 )
+.It Dv 0004
 Read access for other.
-.It Dv ( SEM_A>>6 )
+.It Dv 0002
 Alter access for other.
 .El
 .Pp

@@ -1,4 +1,4 @@
-//===- SampleProfWriter.h - Write LLVM sample profile data ----------------===//
+//===- SampleProfWriter.h - Write LLVM sample profile data ------*- C++ -*-===//
 //
 //                      The LLVM Compiler Infrastructure
 //
@@ -14,14 +14,18 @@
 #define LLVM_PROFILEDATA_SAMPLEPROFWRITER_H
 
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/ProfileSummary.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <system_error>
 
 namespace llvm {
-
 namespace sampleprof {
 
 enum SampleProfileFormat { SPF_None = 0, SPF_Text, SPF_Binary, SPF_GCC };
@@ -29,28 +33,17 @@ enum SampleProfileFormat { SPF_None = 0, SPF_Text, SPF_Binary, SPF_GCC };
 /// \brief Sample-based profile writer. Base class.
 class SampleProfileWriter {
 public:
-  virtual ~SampleProfileWriter() {}
+  virtual ~SampleProfileWriter() = default;
 
-  /// Write sample profiles in \p S for function \p FName.
+  /// Write sample profiles in \p S.
   ///
   /// \returns status code of the file update operation.
-  virtual std::error_code write(StringRef FName, const FunctionSamples &S) = 0;
+  virtual std::error_code write(const FunctionSamples &S) = 0;
 
   /// Write all the sample profiles in the given map of samples.
   ///
   /// \returns status code of the file update operation.
-  std::error_code write(const StringMap<FunctionSamples> &ProfileMap) {
-    if (std::error_code EC = writeHeader(ProfileMap))
-      return EC;
-
-    for (const auto &I : ProfileMap) {
-      StringRef FName = I.first();
-      const FunctionSamples &Profile = I.second;
-      if (std::error_code EC = write(FName, Profile))
-        return EC;
-    }
-    return sampleprof_error::success;
-  }
+  std::error_code write(const StringMap<FunctionSamples> &ProfileMap);
 
   raw_ostream &getOutputStream() { return *OutputStream; }
 
@@ -75,12 +68,18 @@ protected:
 
   /// \brief Output stream where to emit the profile to.
   std::unique_ptr<raw_ostream> OutputStream;
+
+  /// \brief Profile summary.
+  std::unique_ptr<ProfileSummary> Summary;
+
+  /// \brief Compute summary for this profile.
+  void computeSummary(const StringMap<FunctionSamples> &ProfileMap);
 };
 
 /// \brief Sample-based profile writer (text format).
 class SampleProfileWriterText : public SampleProfileWriter {
 public:
-  std::error_code write(StringRef FName, const FunctionSamples &S) override;
+  std::error_code write(const FunctionSamples &S) override;
 
 protected:
   SampleProfileWriterText(std::unique_ptr<raw_ostream> &OS)
@@ -105,16 +104,17 @@ private:
 /// \brief Sample-based profile writer (binary format).
 class SampleProfileWriterBinary : public SampleProfileWriter {
 public:
-  std::error_code write(StringRef F, const FunctionSamples &S) override;
+  std::error_code write(const FunctionSamples &S) override;
 
 protected:
   SampleProfileWriterBinary(std::unique_ptr<raw_ostream> &OS)
-      : SampleProfileWriter(OS), NameTable() {}
+      : SampleProfileWriter(OS) {}
 
   std::error_code
   writeHeader(const StringMap<FunctionSamples> &ProfileMap) override;
+  std::error_code writeSummary();
   std::error_code writeNameIdx(StringRef FName);
-  std::error_code writeBody(StringRef FName, const FunctionSamples &S);
+  std::error_code writeBody(const FunctionSamples &S);
 
 private:
   void addName(StringRef FName);
@@ -127,8 +127,7 @@ private:
                               SampleProfileFormat Format);
 };
 
-} // End namespace sampleprof
-
-} // End namespace llvm
+} // end namespace sampleprof
+} // end namespace llvm
 
 #endif // LLVM_PROFILEDATA_SAMPLEPROFWRITER_H

@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	col
+ATF_TESTS_SH=	col_test
 
 ${PACKAGE}FILES+=	\
 		rlf.in \

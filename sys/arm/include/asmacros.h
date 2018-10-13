@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Olivier Houchard <cognet@FreeBSD.org>
  * All rights reserved.
  *
@@ -35,7 +37,7 @@
 
 #ifdef LOCORE
 
-#ifdef _ARM_ARCH_6
+#if __ARM_ARCH >= 6
 #define GET_CURTHREAD_PTR(tmp) \
     	mrc	p15, 0, tmp, c13, c0, 4
 #else

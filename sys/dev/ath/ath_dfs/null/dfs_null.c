@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Adrian Chadd, Xenion Pty Ltd
  * All rights reserved.
  *
@@ -102,7 +104,7 @@ ath_dfs_detach(struct ath_softc *sc)
 int
 ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
-#if 0
+#if 1
 	HAL_PHYERR_PARAM pe;
 
 	/* Check if the hardware supports radar reporting */
@@ -155,7 +157,7 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 int
 ath_dfs_radar_disable(struct ath_softc *sc)
 {
-#if 0
+#if 1
 	HAL_PHYERR_PARAM pe;
 
 	(void) ath_hal_getdfsthresh(sc->sc_ah, &pe);

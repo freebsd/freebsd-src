@@ -170,7 +170,7 @@ atmif_check_carrier(struct atmif_priv *aif)
 		aif->pub.carrier = ATMIF_CARRIER_UNKNOWN;
 		return;
 	}
-	if (!ifmr.ifm_status & IFM_AVALID) {
+	if (!(ifmr.ifm_status & IFM_AVALID)) {
 		aif->pub.carrier = ATMIF_CARRIER_UNKNOWN;
 		return;
 	}

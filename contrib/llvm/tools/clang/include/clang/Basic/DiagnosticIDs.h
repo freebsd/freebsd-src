@@ -18,6 +18,7 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringRef.h"
+#include <vector>
 
 namespace clang {
   class DiagnosticsEngine;
@@ -25,19 +26,36 @@ namespace clang {
 
   // Import the diagnostic enums themselves.
   namespace diag {
+    // Size of each of the diagnostic categories.
+    enum {
+      DIAG_SIZE_COMMON        =  300,
+      DIAG_SIZE_DRIVER        =  200,
+      DIAG_SIZE_FRONTEND      =  100,
+      DIAG_SIZE_SERIALIZATION =  120,
+      DIAG_SIZE_LEX           =  400,
+      DIAG_SIZE_PARSE         =  500,
+      DIAG_SIZE_AST           =  150,
+      DIAG_SIZE_COMMENT       =  100,
+      DIAG_SIZE_CROSSTU       =  100,
+      DIAG_SIZE_SEMA          = 3500,
+      DIAG_SIZE_ANALYSIS      =  100,
+      DIAG_SIZE_REFACTORING   = 1000,
+    };
     // Start position for diagnostics.
     enum {
-      DIAG_START_COMMON        =                                 0,
-      DIAG_START_DRIVER        = DIAG_START_COMMON          +  300,
-      DIAG_START_FRONTEND      = DIAG_START_DRIVER          +  200,
-      DIAG_START_SERIALIZATION = DIAG_START_FRONTEND        +  100,
-      DIAG_START_LEX           = DIAG_START_SERIALIZATION   +  120,
-      DIAG_START_PARSE         = DIAG_START_LEX             +  300,
-      DIAG_START_AST           = DIAG_START_PARSE           +  500,
-      DIAG_START_COMMENT       = DIAG_START_AST             +  110,
-      DIAG_START_SEMA          = DIAG_START_COMMENT         +  100,
-      DIAG_START_ANALYSIS      = DIAG_START_SEMA            + 3000,
-      DIAG_UPPER_LIMIT         = DIAG_START_ANALYSIS        +  100
+      DIAG_START_COMMON        =                          0,
+      DIAG_START_DRIVER        = DIAG_START_COMMON        + DIAG_SIZE_COMMON,
+      DIAG_START_FRONTEND      = DIAG_START_DRIVER        + DIAG_SIZE_DRIVER,
+      DIAG_START_SERIALIZATION = DIAG_START_FRONTEND      + DIAG_SIZE_FRONTEND,
+      DIAG_START_LEX           = DIAG_START_SERIALIZATION + DIAG_SIZE_SERIALIZATION,
+      DIAG_START_PARSE         = DIAG_START_LEX           + DIAG_SIZE_LEX,
+      DIAG_START_AST           = DIAG_START_PARSE         + DIAG_SIZE_PARSE,
+      DIAG_START_COMMENT       = DIAG_START_AST           + DIAG_SIZE_AST,
+      DIAG_START_CROSSTU       = DIAG_START_COMMENT       + DIAG_SIZE_CROSSTU,
+      DIAG_START_SEMA          = DIAG_START_CROSSTU       + DIAG_SIZE_COMMENT,
+      DIAG_START_ANALYSIS      = DIAG_START_SEMA          + DIAG_SIZE_SEMA,
+      DIAG_START_REFACTORING   = DIAG_START_ANALYSIS      + DIAG_SIZE_ANALYSIS,
+      DIAG_UPPER_LIMIT         = DIAG_START_REFACTORING   + DIAG_SIZE_REFACTORING
     };
 
     class CustomDiagInfo;
@@ -84,6 +102,7 @@ class DiagnosticMapping {
   unsigned IsPragma : 1;
   unsigned HasNoWarningAsError : 1;
   unsigned HasNoErrorAsFatal : 1;
+  unsigned WasUpgradedFromWarning : 1;
 
 public:
   static DiagnosticMapping Make(diag::Severity Severity, bool IsUser,
@@ -94,6 +113,7 @@ public:
     Result.IsPragma = IsPragma;
     Result.HasNoWarningAsError = 0;
     Result.HasNoErrorAsFatal = 0;
+    Result.WasUpgradedFromWarning = 0;
     return Result;
   }
 
@@ -103,11 +123,39 @@ public:
   bool isUser() const { return IsUser; }
   bool isPragma() const { return IsPragma; }
 
+  bool isErrorOrFatal() const {
+    return getSeverity() == diag::Severity::Error ||
+           getSeverity() == diag::Severity::Fatal;
+  }
+
   bool hasNoWarningAsError() const { return HasNoWarningAsError; }
   void setNoWarningAsError(bool Value) { HasNoWarningAsError = Value; }
 
   bool hasNoErrorAsFatal() const { return HasNoErrorAsFatal; }
   void setNoErrorAsFatal(bool Value) { HasNoErrorAsFatal = Value; }
+
+  /// Whether this mapping attempted to map the diagnostic to a warning, but
+  /// was overruled because the diagnostic was already mapped to an error or
+  /// fatal error.
+  bool wasUpgradedFromWarning() const { return WasUpgradedFromWarning; }
+  void setUpgradedFromWarning(bool Value) { WasUpgradedFromWarning = Value; }
+
+  /// Serialize this mapping as a raw integer.
+  unsigned serialize() const {
+    return (IsUser << 7) | (IsPragma << 6) | (HasNoWarningAsError << 5) |
+           (HasNoErrorAsFatal << 4) | (WasUpgradedFromWarning << 3) | Severity;
+  }
+  /// Deserialize a mapping.
+  static DiagnosticMapping deserialize(unsigned Bits) {
+    DiagnosticMapping Result;
+    Result.IsUser = (Bits >> 7) & 1;
+    Result.IsPragma = (Bits >> 6) & 1;
+    Result.HasNoWarningAsError = (Bits >> 5) & 1;
+    Result.HasNoErrorAsFatal = (Bits >> 4) & 1;
+    Result.WasUpgradedFromWarning = (Bits >> 3) & 1;
+    Result.Severity = Bits & 0x7;
+    return Result;
+  }
 };
 
 /// \brief Used for handling and querying diagnostic IDs.
@@ -233,6 +281,13 @@ public:
   /// are not SFINAE errors.
   static SFINAEResponse getDiagnosticSFINAEResponse(unsigned DiagID);
 
+  /// \brief Get the string of all diagnostic flags.
+  ///
+  /// \returns A list of all diagnostics flags as they would be written in a
+  /// command line invocation including their `no-` variants. For example:
+  /// `{"-Wempty-body", "-Wno-empty-body", ...}`
+  static std::vector<std::string> getDiagnosticFlags();
+
   /// \brief Get the set of all diagnostic IDs in the group with the given name.
   ///
   /// \param[out] Diags - On return, the diagnostics in the group.
@@ -241,8 +296,8 @@ public:
                              SmallVectorImpl<diag::kind> &Diags) const;
 
   /// \brief Get the set of all diagnostic IDs.
-  void getAllDiagnostics(diag::Flavor Flavor,
-                         SmallVectorImpl<diag::kind> &Diags) const;
+  static void getAllDiagnostics(diag::Flavor Flavor,
+                                std::vector<diag::kind> &Diags);
 
   /// \brief Get the diagnostic option with the closest edit distance to the
   /// given group name.

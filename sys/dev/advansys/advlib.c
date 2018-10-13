@@ -1,6 +1,8 @@
 /*-
  * Low level routines for the Advanced Systems Inc. SCSI controllers chips
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996-1997, 1999-2000 Justin Gibbs.
  * All rights reserved.
  *
@@ -729,7 +731,7 @@ adv_execute_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 			panic("adv_execute_scsi_queue: "
 			      "Queue with too many segs.");
 
-		if ((adv->type & (ADV_ISA | ADV_VL | ADV_EISA)) != 0) {
+		if ((adv->type & (ADV_ISA | ADV_VL)) != 0) {
 			int i;
 
 			for (i = 0; i < sg_entry_cnt_minus_one; i++) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Sandvine Incorporated. All rights reserved.
  * Copyright (c) 2002-2011 Andre Albsmeier <andre@albsmeier.net>
  * All rights reserved.
@@ -263,7 +265,7 @@ static const struct fw_timeout_desc fw_timeout_desc_table[] = {
 static struct fw_vendor *fw_get_vendor(struct cam_device *cam_dev,
 				       struct ata_params *ident_buf);
 static int fw_get_timeout(struct cam_device *cam_dev, struct fw_vendor *vp,
-			  int retry_count, int timeout);
+			  int task_attr, int retry_count, int timeout);
 static int fw_validate_ibm(struct cam_device *dev, int retry_count,
 			   int timeout, int fd, char *buf,
 			    const char *fw_img_path, int quiet);
@@ -317,7 +319,7 @@ fw_get_vendor(struct cam_device *cam_dev, struct ata_params *ident_buf)
 
 static int
 fw_get_timeout(struct cam_device *cam_dev, struct fw_vendor *vp,
-	       int retry_count, int timeout)
+	       int task_attr, int retry_count, int timeout)
 {
 	struct scsi_report_supported_opcodes_one *one;
 	struct scsi_report_supported_opcodes_timeout *td;
@@ -349,6 +351,7 @@ fw_get_timeout(struct cam_device *cam_dev, struct fw_vendor *vp,
 				/*sa_set*/ 0,
 				/*service_action*/ 0,
 				/*timeout_desc*/ 1,
+				/*task_attr*/ task_attr,
 				/*retry_count*/ retry_count,
 				/*timeout*/ 10000,
 				/*verbose*/ 0,
@@ -549,8 +552,7 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 		fprintf(stdout, "Firmware file is valid for this drive.\n");
 	retval = 0;
 bailout:
-	if (ccb != NULL)
-		cam_freeccb(ccb);
+	cam_freeccb(ccb);
 
 	return (retval);
 }
@@ -752,8 +754,8 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 		goto bailout;
 	}
 bailout:
-	if (ccb != NULL)
-		cam_freeccb(ccb);
+	free(ptr);
+	cam_freeccb(ccb);
 
 	return (retval);
 }
@@ -912,15 +914,16 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 bailout:
 	if (quiet == 0)
 		progress_complete(&progress, size - img_size);
-	if (ccb != NULL)
-		cam_freeccb(ccb);
+	cam_freeccb(ccb);
 	return (retval);
 }
 
 int
 fwdownload(struct cam_device *device, int argc, char **argv,
-    char *combinedopt, int printerrors, int retry_count, int timeout)
+    char *combinedopt, int printerrors, int task_attr, int retry_count,
+    int timeout)
 {
+	union ccb *ccb = NULL;
 	struct fw_vendor *vp;
 	char *fw_img_path = NULL;
 	struct ata_params *ident_buf = NULL;
@@ -963,8 +966,6 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 
 	if ((devtype == CC_DT_ATA)
 	 || (devtype == CC_DT_ATA_BEHIND_SCSI)) {
-		union ccb *ccb;
-
 		ccb = cam_getccb(device);
 		if (ccb == NULL) {
 			warnx("couldn't allocate CCB");
@@ -974,7 +975,6 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 
 		if (ata_do_identify(device, retry_count, timeout, ccb,
 		    		    &ident_buf) != 0) {
-			cam_freeccb(ccb);
 			retval = 1;
 			goto bailout;
 		}
@@ -994,7 +994,7 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 	 && (devtype == CC_DT_SCSI))
 		errx(1, "Unsupported device");
 
-	retval = fw_get_timeout(device, vp, retry_count, timeout);
+	retval = fw_get_timeout(device, vp, task_attr, retry_count, timeout);
 	if (retval != 0) {
 		warnx("Unable to get a firmware download timeout value");
 		goto bailout;
@@ -1012,8 +1012,8 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 		    " into the following device:\n",
 		    fw_img_path);
 		if (devtype == CC_DT_SCSI) {
-			if (scsidoinquiry(device, argc, argv, combinedopt, 0,
-					  5000) != 0) {
+			if (scsidoinquiry(device, argc, argv, combinedopt,
+					  MSG_SIMPLE_Q_TAG, 0, 5000) != 0) {
 				warnx("Error sending inquiry");
 				retval = 1;
 				goto bailout;
@@ -1046,6 +1046,7 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 		fprintf(stdout, "Firmware download successful\n");
 
 bailout:
+	cam_freeccb(ccb);
 	free(buf);
 	return (retval);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2009 University of Zagreb
  * Copyright (c) 2006-2009 FreeBSD Foundation
  * All rights reserved.
@@ -91,6 +93,8 @@ struct vnet {
 
 #define	VNET_PCPUSTAT_DEFINE(type, name)	\
     VNET_DEFINE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+#define	VNET_PCPUSTAT_DEFINE_STATIC(type, name)	\
+    VNET_DEFINE_STATIC(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
 
 #define	VNET_PCPUSTAT_ALLOC(name, wait)	\
     COUNTER_ARRAY_ALLOC(VNET(name), \
@@ -111,8 +115,8 @@ vnet_##name##_init(const void *unused)	\
 {					\
 	VNET_PCPUSTAT_ALLOC(name, M_WAITOK);	\
 }					\
-VNET_SYSINIT(vnet_ ## name ## _init, SI_SUB_PROTO_IFATTACHDOMAIN,	\
-    SI_ORDER_ANY, vnet_ ## name ## _init, NULL)
+VNET_SYSINIT(vnet_ ## name ## _init, SI_SUB_INIT_IF,			\
+    SI_ORDER_FIRST, vnet_ ## name ## _init, NULL)
 
 #define	VNET_PCPUSTAT_SYSUNINIT(name)					\
 static void								\
@@ -120,8 +124,8 @@ vnet_##name##_uninit(const void *unused)				\
 {									\
 	VNET_PCPUSTAT_FREE(name);					\
 }									\
-VNET_SYSUNINIT(vnet_ ## name ## _uninit, SI_SUB_PROTO_IFATTACHDOMAIN,	\
-    SI_ORDER_ANY, vnet_ ## name ## _uninit, NULL)
+VNET_SYSUNINIT(vnet_ ## name ## _uninit, SI_SUB_INIT_IF,		\
+    SI_ORDER_FIRST, vnet_ ## name ## _uninit, NULL)
 
 #ifdef SYSCTL_OID
 #define	SYSCTL_VNET_PCPUSTAT(parent, nbr, name, type, array, desc)	\
@@ -266,7 +270,20 @@ extern struct sx vnet_sxlock;
  */
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
-#define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
+/* struct _hack is to stop this from being used with static data */
+#define	VNET_DEFINE(t, n)	\
+    struct _hack; t VNET_NAME(n) __section(VNET_SETNAME) __used
+#if defined(KLD_MODULE) && (defined(__aarch64__) || defined(__riscv))
+/*
+ * As with DPCPU_DEFINE_STATIC we are unable to mark this data as static
+ * in modules on some architectures.
+ */
+#define	VNET_DEFINE_STATIC(t, n) \
+    t VNET_NAME(n) __section(VNET_SETNAME) __used
+#else
+#define	VNET_DEFINE_STATIC(t, n) \
+    static t VNET_NAME(n) __section(VNET_SETNAME) __used
+#endif
 #define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
 				    ((b) + (uintptr_t)&VNET_NAME(n))
 
@@ -398,7 +415,8 @@ do {									\
  */
 #define	VNET_NAME(n)		n
 #define	VNET_DECLARE(t, n)	extern t n
-#define	VNET_DEFINE(t, n)	t n
+#define	VNET_DEFINE(t, n)	struct _hack; t n
+#define	VNET_DEFINE_STATIC(t, n)	static t n
 #define	_VNET_PTR(b, n)		&VNET_NAME(n)
 
 /*

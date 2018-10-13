@@ -53,7 +53,8 @@
 #include "atomicio.h"
 #include "pathnames.h"
 #include "log.h"
-#include "buffer.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 
 /*
  * Portable OpenSSH PRNG seeding:
@@ -108,7 +109,7 @@ get_random_bytes_prngd(unsigned char *buf, int len,
 		    strlen(socket_path) + 1;
 	}
 
-	old_sigpipe = mysignal(SIGPIPE, SIG_IGN);
+	old_sigpipe = signal(SIGPIPE, SIG_IGN);
 
 	errors = 0;
 	rval = -1;
@@ -158,7 +159,7 @@ reopen:
 
 	rval = 0;
 done:
-	mysignal(SIGPIPE, old_sigpipe);
+	signal(SIGPIPE, old_sigpipe);
 	if (fd != -1)
 		close(fd);
 	return rval;
@@ -181,29 +182,34 @@ seed_from_prngd(unsigned char *buf, size_t bytes)
 }
 
 void
-rexec_send_rng_seed(Buffer *m)
+rexec_send_rng_seed(struct sshbuf *m)
 {
 	u_char buf[RANDOM_SEED_SIZE];
+	size_t len = sizeof(buf);
+	int r;
 
 	if (RAND_bytes(buf, sizeof(buf)) <= 0) {
 		error("Couldn't obtain random bytes (error %ld)",
 		    ERR_get_error());
-		buffer_put_string(m, "", 0);
-	} else 
-		buffer_put_string(m, buf, sizeof(buf));
+		len = 0;
+	}
+	if ((r = sshbuf_put_string(m, buf, len)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	explicit_bzero(buf, sizeof(buf));
 }
 
 void
-rexec_recv_rng_seed(Buffer *m)
+rexec_recv_rng_seed(struct sshbuf *m)
 {
-	u_char *buf;
-	u_int len;
+	u_char *buf = NULL;
+	size_t len = 0;
+	int r;
 
-	buf = buffer_get_string_ret(m, &len);
-	if (buf != NULL) {
-		debug3("rexec_recv_rng_seed: seeding rng with %u bytes", len);
-		RAND_add(buf, len, len);
-	}
+	if ((r = sshbuf_get_string_direct(m, &buf, &len)) != 0
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	debug3("rexec_recv_rng_seed: seeding rng with %u bytes", len);
+	RAND_add(buf, len, len);
 }
 #endif /* OPENSSL_PRNG_ONLY */
 

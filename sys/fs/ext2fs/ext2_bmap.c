@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,14 +48,12 @@
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 
-#include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
-
-static int ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
 
 /*
  * Bmap converts the logical block number of a file to its physical block
@@ -89,55 +89,52 @@ ext2_bmap(struct vop_bmap_args *ap)
  * Convert the logical block number of a file to its physical block number
  * on the disk within ext4 extents.
  */
-static int
+int
 ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 {
 	struct inode *ip;
 	struct m_ext2fs *fs;
+	struct ext4_extent_header *ehp;
 	struct ext4_extent *ep;
-	struct ext4_extent_path path = { .ep_bp = NULL };
+	struct ext4_extent_path *path = NULL;
 	daddr_t lbn;
-	int error;
+	int error, depth;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
 	lbn = bn;
+	ehp = (struct ext4_extent_header *)ip->i_data;
+	depth = ehp->eh_depth;
 
+	*bnp = -1;
 	if (runp != NULL)
 		*runp = 0;
 	if (runb != NULL)
 		*runb = 0;
-	error = 0;
 
-	ext4_ext_find_extent(fs, ip, lbn, &path);
-	if (path.ep_is_sparse) {
-		*bnp = -1;
-		if (runp != NULL)
-			*runp = path.ep_sparse_ext.e_len -
-			    (lbn - path.ep_sparse_ext.e_blk) - 1;
-		if (runb != NULL)
-			*runb = lbn - path.ep_sparse_ext.e_blk;
-	} else {
-		if (path.ep_ext == NULL) {
-			error = EIO;
-			goto out;
+	error = ext4_ext_find_extent(ip, lbn, &path);
+	if (error)
+		return (error);
+
+	ep = path[depth].ep_ext;
+	if(ep) {
+		if (lbn < ep->e_blk) {
+			if (runp != NULL)
+				*runp = ep->e_blk - lbn - 1;
+		} else if (ep->e_blk <= lbn && lbn < ep->e_blk + ep->e_len) {
+			*bnp = fsbtodb(fs, lbn - ep->e_blk +
+			    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
+			if (runp != NULL)
+				*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+			if (runb != NULL)
+				*runb = lbn - ep->e_blk;
+		} else {
+			if (runb != NULL)
+				*runb = ep->e_blk + lbn - ep->e_len;
 		}
-		ep = path.ep_ext;
-		*bnp = fsbtodb(fs, lbn - ep->e_blk +
-		    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
-
-		if (*bnp == 0)
-			*bnp = -1;
-
-		if (runp != NULL)
-			*runp = ep->e_len - (lbn - ep->e_blk) - 1;
-		if (runb != NULL)
-			*runb = lbn - ep->e_blk;
 	}
 
-out:
-	if (path.ep_bp != NULL)
-		brelse(path.ep_bp);
+	ext4_ext_path_free(path);
 
 	return (error);
 }
@@ -163,7 +160,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	struct buf *bp;
 	struct ext2mount *ump;
 	struct mount *mp;
-	struct indir a[NIADDR+1], *ap;
+	struct indir a[EXT2_NIADDR + 1], *ap;
 	daddr_t daddr;
 	e2fs_lbn_t metalbn;
 	int error, num, maxrun = 0, bsize;
@@ -180,10 +177,8 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 		maxrun = mp->mnt_iosize_max / bsize - 1;
 		*runp = 0;
 	}
-
-	if (runb) {
+	if (runb)
 		*runb = 0;
-	}
 
 
 	ap = a;
@@ -199,7 +194,8 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 			*bnp = -1;
 		} else if (runp) {
 			daddr_t bnb = bn;
-			for (++bn; bn < NDADDR && *runp < maxrun &&
+
+			for (++bn; bn < EXT2_NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
 			    ++bn, ++*runp);
 			bn = bnb;
@@ -212,7 +208,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 		}
 		return (0);
 	}
-
 
 	/* Get disk address out of indirect block array */
 	daddr = ip->i_ib[ap->in_off];
@@ -290,7 +285,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	 * return a request for a zeroed out buffer if attempts are made
 	 * to read a BLK_NOCOPY or BLK_SNAP block.
 	 */
-	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc){
+	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc) {
 		*bnp = -1;
 		return (0);
 	}
@@ -327,17 +322,18 @@ ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 	if ((long)bn < 0)
 		bn = -(long)bn;
 
-	/* The first NDADDR blocks are direct blocks. */
-	if (bn < NDADDR)
+	/* The first EXT2_NDADDR blocks are direct blocks. */
+	if (bn < EXT2_NDADDR)
 		return (0);
 
 	/*
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
-	 * at the previous level of indirection, and NIADDR - i is the number
-	 * of levels of indirection needed to locate the requested block.
+	 * at the previous level of indirection, and EXT2_NIADDR - i is the
+	 * number of levels of indirection needed to locate the requested block.
 	 */
-	for (blockcnt = 1, i = NIADDR, bn -= NDADDR;; i--, bn -= blockcnt) {
+	for (blockcnt = 1, i = EXT2_NIADDR, bn -= EXT2_NDADDR; ;
+	    i--, bn -= blockcnt) {
 		if (i == 0)
 			return (EFBIG);
 		/*
@@ -353,9 +349,9 @@ ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 
 	/* Calculate the address of the first meta-block. */
 	if (realbn >= 0)
-		metalbn = -(realbn - bn + NIADDR - i);
+		metalbn = -(realbn - bn + EXT2_NIADDR - i);
 	else
-		metalbn = -(-realbn - bn + NIADDR - i);
+		metalbn = -(-realbn - bn + EXT2_NIADDR - i);
 
 	/*
 	 * At each iteration, off is the offset into the bap array which is
@@ -364,9 +360,9 @@ ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 	 * into the argument array.
 	 */
 	ap->in_lbn = metalbn;
-	ap->in_off = off = NIADDR - i;
+	ap->in_off = off = EXT2_NIADDR - i;
 	ap++;
-	for (++numlevels; i <= NIADDR; i++) {
+	for (++numlevels; i <= EXT2_NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
 		if (metalbn == realbn)
 			break;

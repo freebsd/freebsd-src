@@ -167,8 +167,7 @@ set_revision_mapping(apr_hash_t *rev_map,
                                          sizeof(svn_revnum_t) * 2);
   mapped_revs[0] = from_rev;
   mapped_revs[1] = to_rev;
-  apr_hash_set(rev_map, mapped_revs,
-               sizeof(svn_revnum_t), mapped_revs + 1);
+  apr_hash_set(rev_map, mapped_revs, sizeof(*mapped_revs), mapped_revs + 1);
 }
 
 /* Return the revision to which FROM_REV maps in REV_MAP, or
@@ -392,7 +391,7 @@ new_revision_record(void **revision_baton,
 {
   struct revision_baton *rb;
   struct parse_baton *pb;
-  apr_hash_index_t *hi;
+  const char *rev_str;
   svn_revnum_t head_rev;
 
   rb = apr_pcalloc(pool, sizeof(*rb));
@@ -401,14 +400,9 @@ new_revision_record(void **revision_baton,
   rb->pb = pb;
   rb->db = NULL;
 
-  for (hi = apr_hash_first(pool, headers); hi; hi = apr_hash_next(hi))
-    {
-      const char *hname = apr_hash_this_key(hi);
-      const char *hval = apr_hash_this_val(hi);
-
-      if (strcmp(hname, SVN_REPOS_DUMPFILE_REVISION_NUMBER) == 0)
-        rb->rev = atoi(hval);
-    }
+  rev_str = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER);
+  if (rev_str)
+    rb->rev = SVN_STR_TO_REV(rev_str);
 
   SVN_ERR(svn_ra_get_latest_revnum(pb->session, &head_rev, pool));
 
@@ -499,6 +493,7 @@ new_node_record(void **node_baton,
   const struct svn_delta_editor_t *commit_editor = rb->pb->commit_editor;
   void *commit_edit_baton = rb->pb->commit_edit_baton;
   struct node_baton *nb;
+  svn_revnum_t head_rev_before_commit = rb->rev - rb->rev_offset - 1;
   apr_hash_index_t *hi;
   void *child_baton;
   const char *nb_dirname;
@@ -537,7 +532,7 @@ new_node_record(void **node_baton,
       rb->pb->commit_edit_baton = commit_edit_baton;
 
       SVN_ERR(commit_editor->open_root(commit_edit_baton,
-                                       rb->rev - rb->rev_offset - 1,
+                                       head_rev_before_commit,
                                        rb->pool, &child_baton));
 
       /* child_baton corresponds to the root directory baton here */
@@ -570,7 +565,7 @@ new_node_record(void **node_baton,
       if (strcmp(hname, SVN_REPOS_DUMPFILE_TEXT_DELTA_BASE_MD5) == 0)
         nb->base_checksum = apr_pstrdup(rb->pool, hval);
       if (strcmp(hname, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV) == 0)
-        nb->copyfrom_rev = atoi(hval);
+        nb->copyfrom_rev = SVN_STR_TO_REV(hval);
       if (strcmp(hname, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH) == 0)
         nb->copyfrom_path = apr_pstrdup(rb->pool, hval);
     }
@@ -617,7 +612,7 @@ new_node_record(void **node_baton,
                              rb->pool);
           SVN_ERR(commit_editor->open_directory(relpath_compose,
                                                 rb->db->baton,
-                                                rb->rev - rb->rev_offset - 1,
+                                                head_rev_before_commit,
                                                 rb->pool, &child_baton));
           push_directory(rb, child_baton, relpath_compose, TRUE /*is_added*/,
                          NULL, SVN_INVALID_REVNUM);
@@ -660,7 +655,7 @@ new_node_record(void **node_baton,
     case svn_node_action_delete:
     case svn_node_action_replace:
       SVN_ERR(commit_editor->delete_entry(nb->path,
-                                          rb->rev - rb->rev_offset - 1,
+                                          head_rev_before_commit,
                                           rb->db->baton, rb->pool));
       if (nb->action == svn_node_action_delete)
         break;
@@ -698,7 +693,7 @@ new_node_record(void **node_baton,
           break;
         default:
           SVN_ERR(commit_editor->open_directory(nb->path, rb->db->baton,
-                                                rb->rev - rb->rev_offset - 1,
+                                                head_rev_before_commit,
                                                 rb->pool, &child_baton));
           push_directory(rb, child_baton, nb->path, FALSE /*is_added*/,
                          NULL, SVN_INVALID_REVNUM);
@@ -718,16 +713,15 @@ set_revision_property(void *baton,
 {
   struct revision_baton *rb = baton;
 
-  SVN_ERR(svn_rdump__normalize_prop(name, &value, rb->pool));
-
+  SVN_ERR(svn_repos__normalize_prop(&value, NULL, name, value,
+                                    rb->pool, rb->pool));
   SVN_ERR(svn_repos__validate_prop(name, value, rb->pool));
 
   if (rb->rev > 0)
     {
       if (! svn_hash_gets(rb->pb->skip_revprops, name))
         svn_hash_sets(rb->revprop_table,
-                      apr_pstrdup(rb->pool, name),
-                      svn_string_dup(value, rb->pool));
+                      apr_pstrdup(rb->pool, name), value);
     }
   else if (rb->rev_offset == -1
            && ! svn_hash_gets(rb->pb->skip_revprops, name))
@@ -742,9 +736,9 @@ set_revision_property(void *baton,
   /* Remember any datestamp/ author that passes through (see comment
      in close_revision). */
   if (!strcmp(name, SVN_PROP_REVISION_DATE))
-    rb->datestamp = svn_string_dup(value, rb->pool);
+    rb->datestamp = value;
   if (!strcmp(name, SVN_PROP_REVISION_AUTHOR))
-    rb->author = svn_string_dup(value, rb->pool);
+    rb->author = value;
 
   return SVN_NO_ERROR;
 }
@@ -781,13 +775,13 @@ set_node_property(void *baton,
       value = new_value;
     }
 
-  SVN_ERR(svn_rdump__normalize_prop(name, &value, pool));
+  SVN_ERR(svn_repos__normalize_prop(&value, NULL, name, value, pool, pool));
 
   SVN_ERR(svn_repos__validate_prop(name, value, pool));
 
   prop = apr_palloc(nb->rb->pool, sizeof (*prop));
   prop->name = apr_pstrdup(pool, name);
-  prop->value = svn_string_dup(value, pool);
+  prop->value = value;
   svn_hash_sets(nb->prop_changes, prop->name, prop);
 
   return SVN_NO_ERROR;
@@ -988,6 +982,7 @@ close_revision(void *baton)
     }
   else
     {
+      svn_revnum_t head_rev_before_commit = rb->rev - rb->rev_offset - 1;
       void *child_baton;
 
       /* Legitimate revision with no node information */
@@ -997,7 +992,7 @@ close_revision(void *baton)
                                         NULL, FALSE, rb->pool));
 
       SVN_ERR(commit_editor->open_root(commit_edit_baton,
-                                       rb->rev - rb->rev_offset - 1,
+                                       head_rev_before_commit,
                                        rb->pool, &child_baton));
 
       SVN_ERR(commit_editor->close_directory(child_baton, rb->pool));

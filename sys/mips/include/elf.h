@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2013 M. Warner Losh. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,8 +146,11 @@ __ElfType(Auxinfo);
 #define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
+#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
+#define	AT_HWCAP2	26	/* CPU feature flags 2. */
 
-#define	AT_COUNT	24	/* Count of defined aux entry types. */
+#define	AT_COUNT	27	/* Count of defined aux entry types. */
 
 #define	ET_DYN_LOAD_ADDR 0x0120000
 
@@ -237,25 +242,5 @@ __ElfType(Auxinfo);
 
 #define	R_MIPS_COPY		126
 #define	R_MIPS_JUMP_SLOT	127
-
-/*
- * ELF Flags
- */
-
-#define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
-#define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
-#define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
-#define	EF_MIPS_ARCH_4		0x30000000	/* -mips4 code */
-#define	EF_MIPS_ARCH_5		0x40000000	/* -mips5 code */
-#define	EF_MIPS_ARCH_32		0x50000000	/* -mips32 code */
-#define	EF_MIPS_ARCH_64		0x60000000	/* -mips64 code */
-#define	EF_MIPS_ARCH_32R2	0x70000000	/* -mips32r2 code */
-#define	EF_MIPS_ARCH_64R2	0x80000000	/* -mips64r2 code */
-
-#define	EF_MIPS_ABI		0x0000f000
-#define	EF_MIPS_ABI_O32		0x00001000
-#define	EF_MIPS_ABI_O64		0x00002000
-#define	EF_MIPS_ABI_EABI32	0x00003000
-#define	EF_MIPS_ABI_EABI64	0x00004000
 
 #endif /* __MIPS_ELF_H */

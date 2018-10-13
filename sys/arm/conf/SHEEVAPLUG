@@ -17,6 +17,7 @@ options 	HZ=1000
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	FFS			# Berkeley Fast Filesystem
 options 	NANDFS			# NAND Filesystem
 options 	NFSCL			# Network Filesystem Client
@@ -33,12 +34,6 @@ options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
-
-# Debugging for use in -current
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-options 	KDB			# Enable kernel debugger support
-options 	DDB			# Enable the kernel debugger
 
 # NFS root from boopt/dhcp
 options 	BOOTP
@@ -71,7 +66,6 @@ device		crypto
 device		cryptodev
 
 # USB
-options 	USB_DEBUG		# enable debug msgs
 device		usb
 device		ehci
 device		umass

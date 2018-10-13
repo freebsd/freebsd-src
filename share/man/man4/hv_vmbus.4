@@ -35,6 +35,7 @@ To compile this driver into the kernel, place the following lines in
 the system kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device hyperv"
+.Cd "device pci"
 .Ed
 .Sh DESCRIPTION
 The
@@ -73,7 +74,6 @@ the interface that facilitate high performance bi-directional communication
 between the VSCs and VSPs.
 All VSCs utilize the VMBus driver.
 .Sh SEE ALSO
-.Xr hv_ata_pci_disengage 4 ,
 .Xr hv_netvsc 4 ,
 .Xr hv_storvsc 4 ,
 .Xr hv_utils 4

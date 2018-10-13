@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -87,10 +88,8 @@ sf_buf_init(void *arg)
 	vm_offset_t sf_base;
 	int i;
 
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-	if (SFBUF_OPTIONAL_DIRECT_MAP)
+	if (PMAP_HAS_DMAP)
 		return;
-#endif
 
 	nsfbufs = NSFBUFS;
 	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
@@ -118,10 +117,8 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	struct sf_buf *sf;
 	int error;
 
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-	if (SFBUF_OPTIONAL_DIRECT_MAP)
+	if (PMAP_HAS_DMAP)
 		return ((struct sf_buf *)m);
-#endif
 
 	KASSERT(curthread->td_pinned > 0 || (flags & SFB_CPUPRIVATE) == 0,
 	    ("sf_buf_alloc(SFB_CPUPRIVATE): curthread not pinned"));
@@ -180,10 +177,8 @@ void
 sf_buf_free(struct sf_buf *sf)
 {
 
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-	if (SFBUF_OPTIONAL_DIRECT_MAP)
+	if (PMAP_HAS_DMAP)
 		return;
-#endif
 
 	mtx_lock(&sf_buf_lock);
 	sf->ref_count--;
@@ -204,10 +199,8 @@ void
 sf_buf_ref(struct sf_buf *sf)
 {
 
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-	if (SFBUF_OPTIONAL_DIRECT_MAP)
+	if (PMAP_HAS_DMAP)
 		return;
-#endif
 
 	mtx_lock(&sf_buf_lock);
 	KASSERT(sf->ref_count > 0, ("%s: sf %p not allocated", __func__, sf));

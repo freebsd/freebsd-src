@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/ow
+.PATH: ${SRCTOP}/sys/dev/ow
 
 KMOD=	ow
 SRCS=	ow.c

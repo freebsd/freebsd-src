@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rhosts.c,v 1.46 2014/12/23 22:42:48 djm Exp $ */
+/* $OpenBSD: auth-rhosts.c,v 1.49 2018/07/09 21:35:50 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -30,14 +30,15 @@
 #include <unistd.h>
 
 #include "packet.h"
-#include "buffer.h"
 #include "uidswap.h"
 #include "pathnames.h"
 #include "log.h"
 #include "misc.h"
+#include "sshbuf.h"
+#include "sshkey.h"
 #include "servconf.h"
 #include "canohost.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 
@@ -185,19 +186,8 @@ check_rhosts_file(const char *filename, const char *hostname,
  * true if authentication succeeds.  If ignore_rhosts is true, only
  * /etc/hosts.equiv will be considered (.rhosts and .shosts are ignored).
  */
-
 int
-auth_rhosts(struct passwd *pw, const char *client_user)
-{
-	const char *hostname, *ipaddr;
-
-	hostname = get_canonical_hostname(options.use_dns);
-	ipaddr = get_remote_ipaddr();
-	return auth_rhosts2(pw, client_user, hostname, ipaddr);
-}
-
-static int
-auth_rhosts2_raw(struct passwd *pw, const char *client_user, const char *hostname,
+auth_rhosts2(struct passwd *pw, const char *client_user, const char *hostname,
     const char *ipaddr)
 {
 	char buf[1024];
@@ -331,11 +321,4 @@ auth_rhosts2_raw(struct passwd *pw, const char *client_user, const char *hostnam
 	/* Restore the privileged uid. */
 	restore_uid();
 	return 0;
-}
-
-int
-auth_rhosts2(struct passwd *pw, const char *client_user, const char *hostname,
-    const char *ipaddr)
-{
-       return auth_rhosts2_raw(pw, client_user, hostname, ipaddr);
 }

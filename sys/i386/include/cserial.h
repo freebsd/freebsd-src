@@ -89,7 +89,7 @@ struct e3_statistics {
 #define ER_SCC_FRAMING	7		/* subchannel framing error */
 #define ER_SCC_OVERFLOW	8		/* subchannel receive buffer overflow */
 #define ER_SCC_OVERRUN	9		/* subchannel receiver overrun */
-#define ER_SCC_UNDERRUN	10		/* subchannel transmiter underrun */
+#define ER_SCC_UNDERRUN	10		/* subchannel transmitter underrun */
 #define ER_BUS		11		/* system bus is too busy (e.g PCI) */
 
 /*
@@ -117,7 +117,7 @@ struct e3_statistics {
 
 /*
  * Attach/detach the protocol to the channel.
- * The protocol is given by it's name, char[8].
+ * The protocol is given by its name, char[8].
  * For example "async", "hdlc", "cisco", "fr", "ppp".
  */
 #define SERIAL_GETPROTO		_IOR ('x', 1, char [8])

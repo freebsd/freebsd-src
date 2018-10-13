@@ -100,12 +100,6 @@ static int line_length(const char *l)
 }
 
 
-static int str_starts(const char *str, const char *start)
-{
-	return os_strncmp(str, start, os_strlen(start)) == 0;
-}
-
-
 /***************************************************************************
  * Advertisements.
  * These are multicast to the world to tell them we are here.

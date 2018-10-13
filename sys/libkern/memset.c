@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1992-2007 The FreeBSD Project. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,14 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 void *
-memset(void *b, int c, size_t len)
+(memset)(void *b, int c, size_t len)
 {
 	char *bb;
 
-	if (c == 0)
-		bzero(b, len);
-	else
-		for (bb = (char *)b; len--; )
-			*bb++ = c;
+	for (bb = (char *)b; len--; )
+		*bb++ = c;
 	return (b);
 }

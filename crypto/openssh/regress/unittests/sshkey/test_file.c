@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_file.c,v 1.5 2015/10/06 01:20:59 djm Exp $ */
+/* 	$OpenBSD: test_file.c,v 1.8 2018/09/13 09:03:20 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -51,55 +51,6 @@ sshkey_file_tests(void)
 	pw = load_text_file("pw");
 	TEST_DONE();
 
-#ifdef WITH_SSH1
-	TEST_START("parse RSA1 from private");
-	buf = load_file("rsa1_1");
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(k1, NULL);
-	a = load_bignum("rsa1_1.param.n");
-	ASSERT_BIGNUM_EQ(k1->rsa->n, a);
-	BN_free(a);
-	TEST_DONE();
-
-	TEST_START("parse RSA1 from private w/ passphrase");
-	buf = load_file("rsa1_1_pw");
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
-	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("load RSA1 from public");
-	ASSERT_INT_EQ(sshkey_load_public(test_data_file("rsa1_1.pub"), &k2,
-	    NULL), 0);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("RSA1 key hex fingerprint");
-	buf = load_text_file("rsa1_1.fp");
-	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA256, SSH_FP_BASE64);
-	ASSERT_PTR_NE(cp, NULL);
-	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
-	sshbuf_free(buf);
-	free(cp);
-	TEST_DONE();
-
-	TEST_START("RSA1 key bubblebabble fingerprint");
-	buf = load_text_file("rsa1_1.fp.bb");
-	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA1, SSH_FP_BUBBLEBABBLE);
-	ASSERT_PTR_NE(cp, NULL);
-	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
-	sshbuf_free(buf);
-	free(cp);
-	TEST_DONE();
-
-	sshkey_free(k1);
-#endif
 
 	TEST_START("parse RSA from private");
 	buf = load_file("rsa_1");
@@ -109,9 +60,9 @@ sshkey_file_tests(void)
 	a = load_bignum("rsa_1.param.n");
 	b = load_bignum("rsa_1.param.p");
 	c = load_bignum("rsa_1.param.q");
-	ASSERT_BIGNUM_EQ(k1->rsa->n, a);
-	ASSERT_BIGNUM_EQ(k1->rsa->p, b);
-	ASSERT_BIGNUM_EQ(k1->rsa->q, c);
+	ASSERT_BIGNUM_EQ(rsa_n(k1), a);
+	ASSERT_BIGNUM_EQ(rsa_p(k1), b);
+	ASSERT_BIGNUM_EQ(rsa_q(k1), c);
 	BN_free(a);
 	BN_free(b);
 	BN_free(c);
@@ -200,9 +151,9 @@ sshkey_file_tests(void)
 	a = load_bignum("dsa_1.param.g");
 	b = load_bignum("dsa_1.param.priv");
 	c = load_bignum("dsa_1.param.pub");
-	ASSERT_BIGNUM_EQ(k1->dsa->g, a);
-	ASSERT_BIGNUM_EQ(k1->dsa->priv_key, b);
-	ASSERT_BIGNUM_EQ(k1->dsa->pub_key, c);
+	ASSERT_BIGNUM_EQ(dsa_g(k1), a);
+	ASSERT_BIGNUM_EQ(dsa_priv_key(k1), b);
+	ASSERT_BIGNUM_EQ(dsa_pub_key(k1), c);
 	BN_free(a);
 	BN_free(b);
 	BN_free(c);

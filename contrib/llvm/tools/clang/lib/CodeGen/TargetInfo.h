@@ -15,9 +15,11 @@
 #ifndef LLVM_CLANG_LIB_CODEGEN_TARGETINFO_H
 #define LLVM_CLANG_LIB_CODEGEN_TARGETINFO_H
 
+#include "CodeGenModule.h"
 #include "CGValue.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/SyncScope.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -29,15 +31,14 @@ class Value;
 }
 
 namespace clang {
-class ABIInfo;
 class Decl;
 
 namespace CodeGen {
+class ABIInfo;
 class CallArgList;
-class CodeGenModule;
 class CodeGenFunction;
+class CGBlockInfo;
 class CGFunctionInfo;
-}
 
 /// TargetCodeGenInfo - This class organizes various target-specific
 /// codegeneration issues, like target-specific attributes, builtins and so
@@ -56,7 +57,8 @@ public:
   /// setTargetAttributes - Provides a convenient hook to handle extra
   /// target-specific attributes for the given global.
   virtual void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
-                                   CodeGen::CodeGenModule &M) const {}
+                                   CodeGen::CodeGenModule &M,
+                                   ForDefinition_t IsForDefinition) const {}
 
   /// emitTargetMD - Provides a convenient hook to handle extra
   /// target-specific metadata for the given global.
@@ -218,7 +220,86 @@ public:
   virtual void getDetectMismatchOption(llvm::StringRef Name,
                                        llvm::StringRef Value,
                                        llvm::SmallString<32> &Opt) const {}
+
+  /// Get LLVM calling convention for OpenCL kernel.
+  virtual unsigned getOpenCLKernelCallingConv() const;
+
+  /// Get target specific null pointer.
+  /// \param T is the LLVM type of the null pointer.
+  /// \param QT is the clang QualType of the null pointer.
+  /// \return ConstantPointerNull with the given type \p T.
+  /// Each target can override it to return its own desired constant value.
+  virtual llvm::Constant *getNullPointer(const CodeGen::CodeGenModule &CGM,
+      llvm::PointerType *T, QualType QT) const;
+
+  /// Get target favored AST address space of a global variable for languages
+  /// other than OpenCL and CUDA.
+  /// If \p D is nullptr, returns the default target favored address space
+  /// for global variable.
+  virtual LangAS getGlobalVarAddressSpace(CodeGenModule &CGM,
+                                          const VarDecl *D) const;
+
+  /// Get the AST address space for alloca.
+  virtual LangAS getASTAllocaAddressSpace() const { return LangAS::Default; }
+
+  /// Perform address space cast of an expression of pointer type.
+  /// \param V is the LLVM value to be casted to another address space.
+  /// \param SrcAddr is the language address space of \p V.
+  /// \param DestAddr is the targeted language address space.
+  /// \param DestTy is the destination LLVM pointer type.
+  /// \param IsNonNull is the flag indicating \p V is known to be non null.
+  virtual llvm::Value *performAddrSpaceCast(CodeGen::CodeGenFunction &CGF,
+                                            llvm::Value *V, LangAS SrcAddr,
+                                            LangAS DestAddr, llvm::Type *DestTy,
+                                            bool IsNonNull = false) const;
+
+  /// Perform address space cast of a constant expression of pointer type.
+  /// \param V is the LLVM constant to be casted to another address space.
+  /// \param SrcAddr is the language address space of \p V.
+  /// \param DestAddr is the targeted language address space.
+  /// \param DestTy is the destination LLVM pointer type.
+  virtual llvm::Constant *performAddrSpaceCast(CodeGenModule &CGM,
+                                               llvm::Constant *V,
+                                               LangAS SrcAddr, LangAS DestAddr,
+                                               llvm::Type *DestTy) const;
+
+  /// Get the syncscope used in LLVM IR.
+  virtual llvm::SyncScope::ID getLLVMSyncScopeID(SyncScope S,
+                                                 llvm::LLVMContext &C) const;
+
+  /// Inteface class for filling custom fields of a block literal for OpenCL.
+  class TargetOpenCLBlockHelper {
+  public:
+    typedef std::pair<llvm::Value *, StringRef> ValueTy;
+    TargetOpenCLBlockHelper() {}
+    virtual ~TargetOpenCLBlockHelper() {}
+    /// Get the custom field types for OpenCL blocks.
+    virtual llvm::SmallVector<llvm::Type *, 1> getCustomFieldTypes() = 0;
+    /// Get the custom field values for OpenCL blocks.
+    virtual llvm::SmallVector<ValueTy, 1>
+    getCustomFieldValues(CodeGenFunction &CGF, const CGBlockInfo &Info) = 0;
+    virtual bool areAllCustomFieldValuesConstant(const CGBlockInfo &Info) = 0;
+    /// Get the custom field values for OpenCL blocks if all values are LLVM
+    /// constants.
+    virtual llvm::SmallVector<llvm::Constant *, 1>
+    getCustomFieldValues(CodeGenModule &CGM, const CGBlockInfo &Info) = 0;
+  };
+  virtual TargetOpenCLBlockHelper *getTargetOpenCLBlockHelper() const {
+    return nullptr;
+  }
+
+  /// Create an OpenCL kernel for an enqueued block. The kernel function is
+  /// a wrapper for the block invoke function with target-specific calling
+  /// convention and ABI as an OpenCL kernel. The wrapper function accepts
+  /// block context and block arguments in target-specific way and calls
+  /// the original block invoke function.
+  virtual llvm::Function *
+  createEnqueuedBlockKernel(CodeGenFunction &CGF,
+                            llvm::Function *BlockInvokeFunc,
+                            llvm::Value *BlockLiteral) const;
 };
+
+} // namespace CodeGen
 } // namespace clang
 
 #endif // LLVM_CLANG_LIB_CODEGEN_TARGETINFO_H

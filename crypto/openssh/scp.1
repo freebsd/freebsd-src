@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.68 2015/09/25 18:19:54 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.80 2018/07/19 10:28:47 dtucker Exp $
 .\"
-.Dd $Mdocdate: September 25 2015 $
+.Dd $Mdocdate: July 19 2018 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -18,8 +18,7 @@
 .Nd secure copy (remote file copy program)
 .Sh SYNOPSIS
 .Nm scp
-.Bk -words
-.Op Fl 12346BCpqrv
+.Op Fl 346BCpqrv
 .Op Fl c Ar cipher
 .Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
@@ -27,20 +26,7 @@
 .Op Fl o Ar ssh_option
 .Op Fl P Ar port
 .Op Fl S Ar program
-.Sm off
-.Oo
-.Op Ar user No @
-.Ar host1 :
-.Oc Ar file1
-.Sm on
-.Ar ...
-.Sm off
-.Oo
-.Op Ar user No @
-.Ar host2 :
-.Oc Ar file2
-.Sm on
-.Ek
+.Ar source ... target
 .Sh DESCRIPTION
 .Nm
 copies files between hosts on a network.
@@ -53,26 +39,36 @@ same security as
 will ask for passwords or passphrases if they are needed for
 authentication.
 .Pp
-File names may contain a user and host specification to indicate
-that the file is to be copied to/from that host.
+The
+.Ar source
+and
+.Ar target
+may be specified as a local pathname, a remote host with optional path
+in the form
+.Sm off
+.Oo user @ Oc host : Op path ,
+.Sm on
+or a URI in the form
+.Sm off
+.No scp:// Oo user @ Oc host Oo : port Oc Op / path .
+.Sm on
 Local file names can be made explicit using absolute or relative pathnames
 to avoid
 .Nm
 treating file names containing
 .Sq :\&
 as host specifiers.
-Copies between two remote hosts are also permitted.
+.Pp
+When copying between two remote hosts, if the URI format is used, a
+.Ar port
+may only be specified on the
+.Ar target
+if the
+.Fl 3
+option is used.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl 1
-Forces
-.Nm
-to use protocol 1.
-.It Fl 2
-Forces
-.Nm
-to use protocol 2.
 .It Fl 3
 Copies between two remote hosts are transferred through the local host.
 Without this option the data is copied directly between the two remote
@@ -128,6 +124,7 @@ For full details of the options listed below, and their possible values, see
 .It AddressFamily
 .It BatchMode
 .It BindAddress
+.It BindInterface
 .It CanonicalDomains
 .It CanonicalizeFallbackLocal
 .It CanonicalizeHostname
@@ -136,10 +133,8 @@ For full details of the options listed below, and their possible values, see
 .It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
-.It Cipher
 .It Ciphers
 .It Compression
-.It CompressionLevel
 .It ConnectionAttempts
 .It ConnectTimeout
 .It ControlMaster
@@ -155,8 +150,9 @@ For full details of the options listed below, and their possible values, see
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
-.It IdentityFile
 .It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -169,20 +165,18 @@ For full details of the options listed below, and their possible values, see
 .It PKCS11Provider
 .It Port
 .It PreferredAuthentications
-.It Protocol
 .It ProxyCommand
+.It ProxyJump
 .It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
-.It RhostsRSAAuthentication
-.It RSAAuthentication
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
+.It SetEnv
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It UpdateHostKeys
-.It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS

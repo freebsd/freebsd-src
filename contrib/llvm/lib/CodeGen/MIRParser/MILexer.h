@@ -1,4 +1,4 @@
-//===- MILexer.h - Lexer for machine instructions -------------------------===//
+//===- MILexer.h - Lexer for machine instructions ---------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,9 +16,9 @@
 #define LLVM_LIB_CODEGEN_MIRPARSER_MILEXER_H
 
 #include "llvm/ADT/APSInt.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/STLExtras.h"
-#include <functional>
+#include "llvm/ADT/StringRef.h"
+#include <string>
 
 namespace llvm {
 
@@ -38,6 +38,7 @@ struct MIToken {
     underscore,
     colon,
     coloncolon,
+    dot,
     exclaim,
     lparen,
     rparen,
@@ -45,26 +46,40 @@ struct MIToken {
     rbrace,
     plus,
     minus,
+    less,
+    greater,
 
     // Keywords
     kw_implicit,
     kw_implicit_define,
     kw_def,
     kw_dead,
+    kw_dereferenceable,
     kw_killed,
     kw_undef,
     kw_internal,
     kw_early_clobber,
     kw_debug_use,
+    kw_renamable,
     kw_tied_def,
     kw_frame_setup,
     kw_debug_location,
     kw_cfi_same_value,
     kw_cfi_offset,
+    kw_cfi_rel_offset,
     kw_cfi_def_cfa_register,
     kw_cfi_def_cfa_offset,
+    kw_cfi_adjust_cfa_offset,
+    kw_cfi_escape,
     kw_cfi_def_cfa,
+    kw_cfi_register,
+    kw_cfi_remember_state,
+    kw_cfi_restore,
+    kw_cfi_restore_state,
+    kw_cfi_undefined,
+    kw_cfi_window_save,
     kw_blockaddress,
+    kw_intrinsic,
     kw_target_index,
     kw_half,
     kw_float,
@@ -87,12 +102,15 @@ struct MIToken {
     kw_landing_pad,
     kw_liveins,
     kw_successors,
+    kw_floatpred,
+    kw_intpred,
 
     // Named metadata keywords
     md_tbaa,
     md_alias_scope,
     md_noalias,
     md_range,
+    md_diexpr,
 
     // Identifier tokens
     Identifier,
@@ -100,6 +118,8 @@ struct MIToken {
     NamedRegister,
     MachineBasicBlockLabel,
     MachineBasicBlock,
+    PointerType,
+    ScalarType,
     StackObject,
     FixedStackObject,
     NamedGlobalValue,
@@ -109,6 +129,7 @@ struct MIToken {
     // Other tokens
     IntegerLiteral,
     FloatingPointLiteral,
+    HexLiteral,
     VirtualRegister,
     ConstantPoolItem,
     JumpTableIndex,
@@ -116,18 +137,20 @@ struct MIToken {
     IRBlock,
     NamedIRValue,
     IRValue,
-    QuotedIRValue // `<constant value>`
+    QuotedIRValue, // `<constant value>`
+    SubRegisterIndex,
+    StringConstant
   };
 
 private:
-  TokenKind Kind;
+  TokenKind Kind = Error;
   StringRef Range;
   StringRef StringValue;
   std::string StringValueStorage;
   APSInt IntVal;
 
 public:
-  MIToken() : Kind(Error) {}
+  MIToken() = default;
 
   MIToken &reset(TokenKind Kind, StringRef Range);
 
@@ -152,12 +175,14 @@ public:
     return Kind == kw_implicit || Kind == kw_implicit_define ||
            Kind == kw_def || Kind == kw_dead || Kind == kw_killed ||
            Kind == kw_undef || Kind == kw_internal ||
-           Kind == kw_early_clobber || Kind == kw_debug_use;
+           Kind == kw_early_clobber || Kind == kw_debug_use ||
+           Kind == kw_renamable;
   }
 
   bool isMemoryOperandFlag() const {
     return Kind == kw_volatile || Kind == kw_non_temporal ||
-           Kind == kw_invariant;
+           Kind == kw_dereferenceable || Kind == kw_invariant ||
+           Kind == StringConstant;
   }
 
   bool is(TokenKind K) const { return Kind == K; }
@@ -190,4 +215,4 @@ StringRef lexMIToken(
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_CODEGEN_MIRPARSER_MILEXER_H

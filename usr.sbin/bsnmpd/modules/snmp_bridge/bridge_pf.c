@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Shteryana Shopova <syrinx@FreeBSD.org>
  * All rights reserved.
  *
@@ -46,6 +48,7 @@
 #include <bsnmp/snmpmod.h>
 #include <bsnmp/snmp_mibII.h>
 
+#define	SNMPTREE_TYPES
 #include "bridge_tree.h"
 #include "bridge_snmp.h"
 

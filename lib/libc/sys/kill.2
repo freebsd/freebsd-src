@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2012
+.Dd December 1, 2017
 .Dt KILL 2
 .Os
 .Sh NAME
@@ -71,7 +71,7 @@ A single exception is the signal SIGCONT, which may always be sent
 to any process with the same session ID as the sender.
 In addition, if the
 .Va security.bsd.conservative_signals
-.Xr sysctl
+.Xr sysctl 9
 is set to 1, the user is not a super-user, and
 the receiver is set-uid, then
 only job control and terminal control signals may
@@ -150,7 +150,11 @@ The
 system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-The
+A version of the
 .Fn kill
 function appeared in
-.At v7 .
+.At v3 .
+The signal number was added to the
+.Fn kill
+function in
+.At v4 .

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -58,13 +60,14 @@
 #define	RW_LOCK_READ_WAITERS	0x02
 #define	RW_LOCK_WRITE_WAITERS	0x04
 #define	RW_LOCK_WRITE_SPINNER	0x08
+#define	RW_LOCK_WRITER_RECURSED	0x10
 #define	RW_LOCK_FLAGMASK						\
 	(RW_LOCK_READ | RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS |	\
-	RW_LOCK_WRITE_SPINNER)
+	RW_LOCK_WRITE_SPINNER | RW_LOCK_WRITER_RECURSED)
 #define	RW_LOCK_WAITERS		(RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS)
 
 #define	RW_OWNER(x)		((x) & ~RW_LOCK_FLAGMASK)
-#define	RW_READERS_SHIFT	4
+#define	RW_READERS_SHIFT	5
 #define	RW_READERS(x)		(RW_OWNER((x)) >> RW_READERS_SHIFT)
 #define	RW_READERS_LOCK(x)	((x) << RW_READERS_SHIFT | RW_LOCK_READ)
 #define	RW_ONE_READER		(1 << RW_READERS_SHIFT)
@@ -76,15 +79,23 @@
 
 #define	rw_recurse	lock_object.lo_data
 
+#define	RW_READ_VALUE(x)	((x)->rw_lock)
+
 /* Very simple operations on rw_lock. */
 
 /* Try to obtain a write lock once. */
 #define	_rw_write_lock(rw, tid)						\
 	atomic_cmpset_acq_ptr(&(rw)->rw_lock, RW_UNLOCKED, (tid))
 
+#define	_rw_write_lock_fetch(rw, vp, tid)				\
+	atomic_fcmpset_acq_ptr(&(rw)->rw_lock, vp, (tid))
+
 /* Release a write lock quickly if there are no waiters. */
 #define	_rw_write_unlock(rw, tid)					\
 	atomic_cmpset_rel_ptr(&(rw)->rw_lock, (tid), RW_UNLOCKED)
+
+#define	_rw_write_unlock_fetch(rw, tid)					\
+	atomic_fcmpset_rel_ptr(&(rw)->rw_lock, (tid), RW_UNLOCKED)
 
 /*
  * Full lock operations that are suitable to be inlined in non-debug
@@ -95,26 +106,20 @@
 /* Acquire a write lock. */
 #define	__rw_wlock(rw, tid, file, line) do {				\
 	uintptr_t _tid = (uintptr_t)(tid);				\
+	uintptr_t _v = RW_UNLOCKED;					\
 									\
-	if ((rw)->rw_lock != RW_UNLOCKED || !_rw_write_lock((rw), _tid))\
-		_rw_wlock_hard((rw), _tid, (file), (line));		\
-	else 								\
-		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw,	\
-		    0, 0, file, line, LOCKSTAT_WRITER);			\
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__acquire) ||	\
+	    !_rw_write_lock_fetch((rw), &_v, _tid)))			\
+		_rw_wlock_hard((rw), _v, (file), (line));		\
 } while (0)
 
 /* Release a write lock. */
 #define	__rw_wunlock(rw, tid, file, line) do {				\
-	uintptr_t _tid = (uintptr_t)(tid);				\
+	uintptr_t _v = (uintptr_t)(tid);				\
 									\
-	if ((rw)->rw_recurse)						\
-		(rw)->rw_recurse--;					\
-	else {								\
-		LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,	\
-		    LOCKSTAT_WRITER);					\
-		if ((rw)->rw_lock != _tid || !_rw_write_unlock((rw), _tid))\
-			_rw_wunlock_hard((rw), _tid, (file), (line));	\
-	}								\
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__release) ||	\
+	    !_rw_write_unlock_fetch((rw), &_v)))			\
+		_rw_wunlock_hard((rw), _v, (file), (line));		\
 } while (0)
 
 /*
@@ -128,16 +133,22 @@ void	rw_sysinit(void *arg);
 void	rw_sysinit_flags(void *arg);
 int	_rw_wowned(const volatile uintptr_t *c);
 void	_rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line);
+int	__rw_try_wlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 int	__rw_try_wlock(volatile uintptr_t *c, const char *file, int line);
 void	_rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line);
+void	__rw_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 void	__rw_rlock(volatile uintptr_t *c, const char *file, int line);
+int	__rw_try_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 int	__rw_try_rlock(volatile uintptr_t *c, const char *file, int line);
+void	_rw_runlock_cookie_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 void	_rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line);
-void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
-	    int line);
-void	__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid,
-	    const char *file, int line);
+void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t v
+	    LOCK_FILE_LINE_ARG_DEF);
+void	__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v
+	    LOCK_FILE_LINE_ARG_DEF);
+int	__rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 int	__rw_try_upgrade(volatile uintptr_t *c, const char *file, int line);
+void	__rw_downgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 void	__rw_downgrade(volatile uintptr_t *c, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
@@ -163,20 +174,38 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	__rw_try_wlock(&(rw)->rw_lock, f, l)
 #define	_rw_wunlock(rw, f, l)						\
 	_rw_wunlock_cookie(&(rw)->rw_lock, f, l)
-#define	_rw_rlock(rw, f, l)						\
-	__rw_rlock(&(rw)->rw_lock, f, l)
 #define	_rw_try_rlock(rw, f, l)						\
 	__rw_try_rlock(&(rw)->rw_lock, f, l)
+#if LOCK_DEBUG > 0
+#define	_rw_rlock(rw, f, l)						\
+	__rw_rlock(&(rw)->rw_lock, f, l)
 #define	_rw_runlock(rw, f, l)						\
 	_rw_runlock_cookie(&(rw)->rw_lock, f, l)
-#define	_rw_wlock_hard(rw, t, f, l)					\
-	__rw_wlock_hard(&(rw)->rw_lock, t, f, l)
-#define	_rw_wunlock_hard(rw, t, f, l)					\
-	__rw_wunlock_hard(&(rw)->rw_lock, t, f, l)
+#else
+#define	_rw_rlock(rw, f, l)						\
+	__rw_rlock_int((struct rwlock *)rw)
+#define	_rw_runlock(rw, f, l)						\
+	_rw_runlock_cookie_int((struct rwlock *)rw)
+#endif
+#if LOCK_DEBUG > 0
+#define	_rw_wlock_hard(rw, v, f, l)					\
+	__rw_wlock_hard(&(rw)->rw_lock, v, f, l)
+#define	_rw_wunlock_hard(rw, v, f, l)					\
+	__rw_wunlock_hard(&(rw)->rw_lock, v, f, l)
 #define	_rw_try_upgrade(rw, f, l)					\
 	__rw_try_upgrade(&(rw)->rw_lock, f, l)
 #define	_rw_downgrade(rw, f, l)						\
 	__rw_downgrade(&(rw)->rw_lock, f, l)
+#else
+#define	_rw_wlock_hard(rw, v, f, l)					\
+	__rw_wlock_hard(&(rw)->rw_lock, v)
+#define	_rw_wunlock_hard(rw, v, f, l)					\
+	__rw_wunlock_hard(&(rw)->rw_lock, v)
+#define	_rw_try_upgrade(rw, f, l)					\
+	__rw_try_upgrade_int(rw)
+#define	_rw_downgrade(rw, f, l)						\
+	__rw_downgrade_int(rw)
+#endif
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	_rw_assert(rw, w, f, l)						\
 	__rw_assert(&(rw)->rw_lock, w, f, l)
@@ -220,35 +249,21 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 struct rw_args {
 	void		*ra_rw;
 	const char 	*ra_desc;
-};
-
-struct rw_args_flags {
-	void		*ra_rw;
-	const char 	*ra_desc;
 	int		ra_flags;
 };
 
-#define	RW_SYSINIT(name, rw, desc)					\
+#define	RW_SYSINIT_FLAGS(name, rw, desc, flags)				\
 	static struct rw_args name##_args = {				\
 		(rw),							\
 		(desc),							\
+		(flags),						\
 	};								\
 	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_sysinit, &name##_args);					\
 	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    _rw_destroy, __DEVOLATILE(void *, &(rw)->rw_lock))
 
-
-#define	RW_SYSINIT_FLAGS(name, rw, desc, flags)				\
-	static struct rw_args_flags name##_args = {			\
-		(rw),							\
-		(desc),							\
-		(flags),						\
-	};								\
-	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    rw_sysinit_flags, &name##_args);				\
-	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    _rw_destroy, __DEVOLATILE(void *, &(rw)->rw_lock))
+#define	RW_SYSINIT(name, rw, desc)	RW_SYSINIT_FLAGS(name, rw, desc, 0)
 
 /*
  * Options passed to rw_init_flags().

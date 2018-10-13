@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2015
+.Dd July 29, 2017
 .Dt LIBPROCSTAT 3
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm procstat_freegroups ,
 .Nm procstat_freekstack ,
 .Nm procstat_freeprocs ,
+.Nm procstat_freeptlwpinfo ,
 .Nm procstat_freevmmap ,
 .Nm procstat_get_pipe_info ,
 .Nm procstat_get_pts_info ,
@@ -52,6 +53,7 @@
 .Nm procstat_getosrel ,
 .Nm procstat_getpathname ,
 .Nm procstat_getprocs ,
+.Nm procstat_getptlwpinfo ,
 .Nm procstat_getrlimit ,
 .Nm procstat_getumask ,
 .Nm procstat_getvmmap ,
@@ -64,6 +66,7 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/queue.h
+.In sys/socket.h
 .In libprocstat.h
 .Ft void
 .Fn procstat_close "struct procstat *procstat"
@@ -101,6 +104,11 @@
 .Fo procstat_freevmmap
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_vmentry *vmmap"
+.Fc
+.Ft void
+.Fo procstat_freeptlwpinfo
+.Fa "struct procstat *procstat"
+.Fa "struct ptrace_lwpinfo *pl"
 .Fc
 .Ft int
 .Fo procstat_get_pipe_info
@@ -149,7 +157,6 @@
 .Fa "struct procstat *procstat"
 .Fa "const struct kinfo_proc *kp"
 .Fa "size_t nchr"
-.Fa "char *errbuf"
 .Fc
 .Ft "Elf_Auxinfo *"
 .Fo procstat_getauxv
@@ -162,7 +169,6 @@
 .Fa "struct procstat *procstat"
 .Fa "const struct kinfo_proc *kp"
 .Fa "size_t nchr"
-.Fa "char *errbuf"
 .Fc
 .Ft "struct filestat_list *"
 .Fo procstat_getfiles
@@ -200,6 +206,11 @@
 .Fa "struct procstat *procstat"
 .Fa "int what"
 .Fa "int arg"
+.Fa "unsigned int *count"
+.Fc
+.Ft "struct ptrace_lwpinfo *"
+.Fo procstat_getptlwpinfo
+.Fa "struct procstat *procstat"
 .Fa "unsigned int *count"
 .Fc
 .Ft "int"
@@ -312,6 +323,20 @@ The caller is responsible to free the allocated memory with a subsequent
 function call.
 .Pp
 The
+.Fn procstat_getptlwpinfo
+function gets a pointer to the
+.Vt procstat
+structure from the
+.Fn procstat_open_core
+function and returns a dynamically allocated set of signals intercepted by a
+process in the process's core file.
+The number of processes found is returned in the reference parameter
+.Fa cnt .
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freeptlwpinfo
+function call.
+.Pp
+The
 .Fn procstat_getargv
 function gets a pointer to the
 .Vt procstat
@@ -352,7 +377,7 @@ function is similar to
 .Fn procstat_getargv
 but returns the vector of environment strings.
 The caller may free the allocated memory with a subsequent
-.Fn procstat_freeenv
+.Fn procstat_freeenvv
 function call.
 .Pp
 The

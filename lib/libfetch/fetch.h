@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998-2004 Dag-Erling Smørgrav
  * All rights reserved.
  *
@@ -47,6 +49,7 @@ struct url {
 	off_t		 offset;
 	size_t		 length;
 	time_t		 ims_time;
+	int		 netrcfd;
 };
 
 struct url_stat {

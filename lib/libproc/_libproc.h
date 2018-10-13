@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 John Birrell (jb@freebsd.org)
  * All rights reserved.
  *
@@ -26,28 +28,56 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-#include <sys/param.h>
+#ifndef __LIBPROC_H_
+#define	__LIBPROC_H_
+
 #include <sys/types.h>
-#include <sys/event.h>
 #include <sys/ptrace.h>
+
+#include <libelf.h>
 #include <rtld_db.h>
 
 #include "libproc.h"
 
+struct procstat;
+
+struct symtab {
+	Elf_Data *data;
+	u_int	nsyms;
+	u_int	*index;
+	u_long	stridx;
+};
+
+struct file_info {
+	Elf	*elf;
+	int	fd;
+	u_int	refs;
+	GElf_Ehdr ehdr;
+
+	/* Symbol tables, sorted by value. */
+	struct symtab dynsymtab;
+	struct symtab symtab;
+};
+
+struct map_info {
+	prmap_t	map;
+	struct file_info *file;
+};
+
 struct proc_handle {
-	pid_t	pid;			/* Process ID. */
-	int	kq;			/* Kernel event queue ID. */
+	struct proc_handle_public public; /* Public fields. */
 	int	flags;			/* Process flags. */
 	int	status;			/* Process status (PS_*). */
 	int	wstat;			/* Process wait status. */
+	int	model;			/* Process data model. */
 	rd_agent_t *rdap;		/* librtld_db agent */
-	rd_loadobj_t *rdobjs;
-	size_t	rdobjsz;
-	size_t	nobjs;
-	struct lwpstatus lwps;
-	rd_loadobj_t *rdexec;		/* rdobj index of program executable. */
-	char	execname[MAXPATHLEN];	/* Path to program executable. */
+	struct map_info *mappings;	/* File mappings for proc. */
+	size_t	maparrsz;		/* Map array size. */
+	size_t	nmappings;		/* Number of mappings. */
+	size_t	exec_map;		/* Executable text mapping index. */
+	lwpstatus_t lwps;		/* Process status. */
+	struct procstat *procstat;	/* libprocstat handle. */
+	char	execpath[PATH_MAX];	/* Path to program executable. */
 };
 
 #ifdef DEBUG
@@ -57,3 +87,5 @@ struct proc_handle {
 #define	DPRINTF(...)    do { } while (0)
 #define	DPRINTFX(...)   do { } while (0)
 #endif
+
+#endif /* __LIBPROC_H_ */

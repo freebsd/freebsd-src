@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994 Christos Zoulas
  * Copyright (c) 1995 Frank van der Linden
  * Copyright (c) 1995 Scott Bartram
@@ -31,8 +33,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -114,7 +114,7 @@ linux_driver_get_name_dev(device_t dev)
 	const char *device_name = device_get_name(dev);
 
 	if (device_name == NULL)
-		return NULL;
+		return (NULL);
 	TAILQ_FOREACH(de, &devices, list) {
 		if (strcmp(device_name, de->entry.bsd_driver_name) == 0)
 			return (de->entry.linux_driver_name);
@@ -127,23 +127,51 @@ int
 linux_driver_get_major_minor(const char *node, int *major, int *minor)
 {
 	struct device_element *de;
+	unsigned long devno;
+	size_t sz;
 
 	if (node == NULL || major == NULL || minor == NULL)
-		return 1;
+		return (1);
 
-	if (strlen(node) > strlen("pts/") &&
-	    strncmp(node, "pts/", strlen("pts/")) == 0) {
-		unsigned long devno;
-
+	sz = sizeof("pts/") - 1;
+	if (strncmp(node, "pts/", sz) == 0 && node[sz] != '\0') {
 		/*
 		 * Linux checks major and minors of the slave device
 		 * to make sure it's a pty device, so let's make him
 		 * believe it is.
 		 */
-		devno = strtoul(node + strlen("pts/"), NULL, 10);
+		devno = strtoul(node + sz, NULL, 10);
 		*major = 136 + (devno / 256);
 		*minor = devno % 256;
+		return (0);
+	}
 
+	sz = sizeof("dri/card") - 1;
+	if (strncmp(node, "dri/card", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
+		return (0);
+	}
+	sz = sizeof("dri/controlD") - 1;
+	if (strncmp(node, "dri/controlD", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
+		return (0);
+	}
+	sz = sizeof("dri/renderD") - 1;
+	if (strncmp(node, "dri/renderD", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
+		return (0);
+	}
+	sz = sizeof("drm/") - 1;
+	if (strncmp(node, "drm/", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
 		return (0);
 	}
 

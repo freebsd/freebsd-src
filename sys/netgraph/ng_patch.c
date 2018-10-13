@@ -1,5 +1,8 @@
 /*-
- * Copyright (C) 2010 by Maxim Ignatenko <gelraen.ua@gmail.com>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2010 Maxim Ignatenko <gelraen.ua@gmail.com>
+ * Copyright (c) 2015 Dmitry Vagin <daemon.hammer@ya.ru>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,11 +37,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+
+#include <net/bpf.h>
+#include <net/ethernet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
-#include <netgraph/ng_patch.h>
 #include <netgraph/netgraph.h>
 
+#include <netgraph/ng_patch.h>
+
+/* private data */
+struct ng_patch_priv {
+	hook_p		in;
+	hook_p		out;
+	uint8_t		dlt;	/* DLT_XXX from bpf.h */
+	struct ng_patch_stats stats;
+	struct ng_patch_config *conf;
+};
+
+typedef struct ng_patch_priv *priv_p;
+
+/* Netgraph methods */
 static ng_constructor_t	ng_patch_constructor;
 static ng_rcvmsg_t	ng_patch_rcvmsg;
 static ng_shutdown_t	ng_patch_shutdown;
@@ -46,48 +66,65 @@ static ng_newhook_t	ng_patch_newhook;
 static ng_rcvdata_t	ng_patch_rcvdata;
 static ng_disconnect_t	ng_patch_disconnect;
 
+#define ERROUT(x) { error = (x); goto done; }
+
 static int
 ng_patch_config_getlen(const struct ng_parse_type *type,
     const u_char *start, const u_char *buf)
 {
-	const struct ng_patch_config *p;
+	const struct ng_patch_config *conf;
 
-	p = (const struct ng_patch_config *)(buf -
+	conf = (const struct ng_patch_config *)(buf -
 	    offsetof(struct ng_patch_config, ops));
-	return (p->count);
+
+	return (conf->count);
 }
 
 static const struct ng_parse_struct_field ng_patch_op_type_fields[]
-	= NG_PATCH_OP_TYPE_INFO;
+	= NG_PATCH_OP_TYPE;
 static const struct ng_parse_type ng_patch_op_type = {
 	&ng_parse_struct_type,
 	&ng_patch_op_type_fields
 };
 
-static const struct ng_parse_array_info ng_patch_confarr_info = {
+static const struct ng_parse_array_info ng_patch_ops_array_info = {
 	&ng_patch_op_type,
 	&ng_patch_config_getlen
 };
-static const struct ng_parse_type ng_patch_confarr_type = {
+static const struct ng_parse_type ng_patch_ops_array_type = {
 	&ng_parse_array_type,
-	&ng_patch_confarr_info
+	&ng_patch_ops_array_info
 };
 
 static const struct ng_parse_struct_field ng_patch_config_type_fields[]
-	= NG_PATCH_CONFIG_TYPE_INFO;
+	= NG_PATCH_CONFIG_TYPE;
 static const struct ng_parse_type ng_patch_config_type = {
 	&ng_parse_struct_type,
 	&ng_patch_config_type_fields
 };
 
 static const struct ng_parse_struct_field ng_patch_stats_fields[]
-	= NG_PATCH_STATS_TYPE_INFO;
+	= NG_PATCH_STATS_TYPE;
 static const struct ng_parse_type ng_patch_stats_type = {
 	&ng_parse_struct_type,
 	&ng_patch_stats_fields
 };
 
 static const struct ng_cmdlist ng_patch_cmdlist[] = {
+	{
+		NGM_PATCH_COOKIE,
+		NGM_PATCH_GETDLT,
+		"getdlt",
+		NULL,
+		&ng_parse_uint8_type
+	},
+	{
+		NGM_PATCH_COOKIE,
+		NGM_PATCH_SETDLT,
+		"setdlt",
+		&ng_parse_uint8_type,
+		NULL
+	},
 	{
 		NGM_PATCH_COOKIE,
 		NGM_PATCH_GETCONFIG,
@@ -137,28 +174,8 @@ static struct ng_type typestruct = {
 	.disconnect =	ng_patch_disconnect,
 	.cmdlist =	ng_patch_cmdlist,
 };
+
 NETGRAPH_INIT(patch, &typestruct);
-
-union patch_val {
-	uint8_t		v1;
-	uint16_t	v2;
-	uint32_t	v4;
-	uint64_t	v8;
-};
-
-struct ng_patch_priv {
-	hook_p		in;
-	hook_p		out;
-	struct ng_patch_config *config;
-	union patch_val *val;
-	struct ng_patch_stats stats;
-};
-typedef struct ng_patch_priv *priv_p;
-
-#define	NG_PATCH_CONF_SIZE(count)	(sizeof(struct ng_patch_config) + \
-		(count) * sizeof(struct ng_patch_op))
-
-static void do_patch(priv_p conf, struct mbuf *m);
 
 static int
 ng_patch_constructor(node_p node)
@@ -166,10 +183,10 @@ ng_patch_constructor(node_p node)
 	priv_p privdata;
 
 	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
+	privdata->dlt = DLT_RAW;
+
 	NG_NODE_SET_PRIVATE(node, privdata);
-	privdata->in = NULL;
-	privdata->out = NULL;
-	privdata->config = NULL;
+
 	return (0);
 }
 
@@ -185,7 +202,8 @@ ng_patch_newhook(node_p node, hook_p hook, const char *name)
 		privp->out = hook;
 	} else
 		return (EINVAL);
-	return(0);
+
+	return (0);
 }
 
 static int
@@ -193,308 +211,341 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p privp = NG_NODE_PRIVATE(node);
 	struct ng_patch_config *conf, *newconf;
-	union patch_val *newval;
 	struct ng_mesg *msg;
-	struct ng_mesg *resp;
-	int i, clear, error;
+	struct ng_mesg *resp = NULL;
+	int i, error = 0;
 
-	clear = error = 0;
-	resp = NULL;
 	NGI_GET_MSG(item, msg);
-	switch (msg->header.typecookie) {
-	case NGM_PATCH_COOKIE:
-		switch (msg->header.cmd) {
+
+	if  (msg->header.typecookie != NGM_PATCH_COOKIE)
+		ERROUT(EINVAL);
+
+	switch (msg->header.cmd)
+	{
 		case NGM_PATCH_GETCONFIG:
-			if (privp->config == NULL)
-				break;
+			if (privp->conf == NULL)
+				ERROUT(0);
+
 			NG_MKRESPONSE(resp, msg,
-			    NG_PATCH_CONF_SIZE(privp->config->count),
-			    M_WAITOK);
-			bcopy(privp->config, resp->data,
-			    NG_PATCH_CONF_SIZE(privp->config->count));
-			break;
-		case NGM_PATCH_SETCONFIG:
-		    {
-			if (msg->header.arglen <
-			    sizeof(struct ng_patch_config)) {
-				error = EINVAL;
-				break;
-			}
+			    NG_PATCH_CONF_SIZE(privp->conf->count), M_WAITOK);
 
-			conf = (struct ng_patch_config *)msg->data;
-			if (msg->header.arglen <
-			    NG_PATCH_CONF_SIZE(conf->count)) {
-				error = EINVAL;
-				break;
-			}
+			if (resp == NULL)
+				ERROUT(ENOMEM);
 
-			for(i = 0; i < conf->count; i++) {
-				switch(conf->ops[i].length) {
-				case 1:
-				case 2:
-				case 4:
-				case 8:
-					break;
-				default:
-					error = EINVAL;
-					break;
-				}
-				if (error != 0)
-					break;
-			}
+			bcopy(privp->conf, resp->data,
+			    NG_PATCH_CONF_SIZE(privp->conf->count));
 
-			conf->csum_flags &= CSUM_IP | CSUM_TCP | CSUM_UDP |
-			    CSUM_SCTP;
+			conf = (struct ng_patch_config *) resp->data;
 
-			if (error == 0) {
-				newconf = malloc(
-				    NG_PATCH_CONF_SIZE(conf->count),
-				    M_NETGRAPH, M_WAITOK);
-				newval = malloc(conf->count *
-				    sizeof(union patch_val), M_NETGRAPH,
-				    M_WAITOK);
-				for(i = 0; i < conf->count; i++) {
-					switch (conf->ops[i].length) {
+			for (i = 0; i < conf->count; i++) {
+				switch (conf->ops[i].length)
+				{
 					case 1:
-						newval[i].v1 =
-						    conf->ops[i].value;
+						conf->ops[i].val.v8 = conf->ops[i].val.v1;
 						break;
 					case 2:
-						newval[i].v2 =
-						    conf->ops[i].value;
+						conf->ops[i].val.v8 = conf->ops[i].val.v2;
 						break;
 					case 4:
-						newval[i].v4 =
-						    conf->ops[i].value;
+						conf->ops[i].val.v8 = conf->ops[i].val.v4;
 						break;
 					case 8:
-						newval[i].v8 =
-						    conf->ops[i].value;
 						break;
-					}
 				}
-				bcopy(conf, newconf,
-				    NG_PATCH_CONF_SIZE(conf->count));
-				if (privp->val != NULL)
-					free(privp->val, M_NETGRAPH);
-				privp->val = newval;
-				if (privp->config != NULL)
-					free(privp->config, M_NETGRAPH);
-				privp->config = newconf;
 			}
+
 			break;
-		    }
-		case NGM_PATCH_GETCLR_STATS:
-			clear = 1;
-			/* FALLTHROUGH */
+
+		case NGM_PATCH_SETCONFIG:
+			conf = (struct ng_patch_config *) msg->data;
+
+			if (msg->header.arglen < sizeof(struct ng_patch_config) ||
+			    msg->header.arglen < NG_PATCH_CONF_SIZE(conf->count))
+				ERROUT(EINVAL);
+
+			for (i = 0; i < conf->count; i++) {
+				switch (conf->ops[i].length)
+				{
+					case 1:
+						conf->ops[i].val.v1 = (uint8_t) conf->ops[i].val.v8;
+						break;
+					case 2:
+						conf->ops[i].val.v2 = (uint16_t) conf->ops[i].val.v8;
+						break;
+					case 4:
+						conf->ops[i].val.v4 = (uint32_t) conf->ops[i].val.v8;
+						break;
+					case 8:
+						break;
+					default:
+						ERROUT(EINVAL);
+				}
+			}
+
+			conf->csum_flags &= NG_PATCH_CSUM_IPV4|NG_PATCH_CSUM_IPV6;
+			conf->relative_offset = !!conf->relative_offset;
+
+			newconf = malloc(NG_PATCH_CONF_SIZE(conf->count), M_NETGRAPH, M_WAITOK | M_ZERO);
+
+			bcopy(conf, newconf, NG_PATCH_CONF_SIZE(conf->count));
+
+			if (privp->conf)
+				free(privp->conf, M_NETGRAPH);
+
+			privp->conf = newconf;
+
+			break;
+
 		case NGM_PATCH_GET_STATS:
-			NG_MKRESPONSE(resp, msg, sizeof(struct ng_patch_stats),
-			    M_WAITOK);
-			bcopy(&(privp->stats), resp->data,
-			    sizeof(struct ng_patch_stats));
-			if (clear == 0)
-				break;
-			/* else FALLTHROUGH */
 		case NGM_PATCH_CLR_STATS:
-			bzero(&(privp->stats), sizeof(struct ng_patch_stats));
+		case NGM_PATCH_GETCLR_STATS:
+			if (msg->header.cmd != NGM_PATCH_CLR_STATS) {
+				NG_MKRESPONSE(resp, msg, sizeof(struct ng_patch_stats), M_WAITOK);
+
+				if (resp == NULL)
+					ERROUT(ENOMEM);
+
+				bcopy(&(privp->stats), resp->data, sizeof(struct ng_patch_stats));
+			}
+
+			if (msg->header.cmd != NGM_PATCH_GET_STATS)
+				bzero(&(privp->stats), sizeof(struct ng_patch_stats));
+
 			break;
+
+		case NGM_PATCH_GETDLT:
+			NG_MKRESPONSE(resp, msg, sizeof(uint8_t), M_WAITOK);
+
+			if (resp == NULL)
+				ERROUT(ENOMEM);
+
+			*((uint8_t *) resp->data) = privp->dlt;
+
+			break;
+
+		case NGM_PATCH_SETDLT:
+			if (msg->header.arglen != sizeof(uint8_t))
+				ERROUT(EINVAL);
+
+			switch (*(uint8_t *) msg->data)
+			{
+				case DLT_EN10MB:
+				case DLT_RAW:
+					privp->dlt = *(uint8_t *) msg->data;
+					break;
+
+				default:
+					ERROUT(EINVAL);
+			}
+
+			break;
+
 		default:
-			error = EINVAL;
-			break;
-		}
-		break;
-	default:
-		error = EINVAL;
-		break;
+			ERROUT(EINVAL);
 	}
 
+done:
 	NG_RESPOND_MSG(error, node, item, resp);
 	NG_FREE_MSG(msg);
-	return(error);
+
+	return (error);
 }
 
 static void
-do_patch(priv_p privp, struct mbuf *m)
+do_patch(priv_p privp, struct mbuf *m, int global_offset)
 {
-	struct ng_patch_config *conf;
-	uint64_t buf;
-	int i, patched;
+	int i, offset, patched = 0;
+	union ng_patch_op_val val;
 
-	conf = privp->config;
-	patched = 0;
-	for(i = 0; i < conf->count; i++) {
-		if (conf->ops[i].offset + conf->ops[i].length >
-		    m->m_pkthdr.len)
+	for (i = 0; i < privp->conf->count; i++) {
+		offset = global_offset + privp->conf->ops[i].offset;
+
+		if (offset + privp->conf->ops[i].length > m->m_pkthdr.len)
 			continue;
 
 		/* for "=" operation we don't need to copy data from mbuf */
-		if (conf->ops[i].mode != NG_PATCH_MODE_SET) {
-			m_copydata(m, conf->ops[i].offset,
-			    conf->ops[i].length, (caddr_t)&buf);
+		if (privp->conf->ops[i].mode != NG_PATCH_MODE_SET)
+			m_copydata(m, offset, privp->conf->ops[i].length, (caddr_t) &val);
+
+		switch (privp->conf->ops[i].length)
+		{
+			case 1:
+				switch (privp->conf->ops[i].mode)
+				{
+					case NG_PATCH_MODE_SET:
+						val.v1 = privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_ADD:
+						val.v1 += privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_SUB:
+						val.v1 -= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_MUL:
+						val.v1 *= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_DIV:
+						val.v1 /= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_NEG:
+						*((int8_t *) &val) = - *((int8_t *) &val);
+						break;
+					case NG_PATCH_MODE_AND:
+						val.v1 &= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_OR:
+						val.v1 |= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_XOR:
+						val.v1 ^= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_SHL:
+						val.v1 <<= privp->conf->ops[i].val.v1;
+						break;
+					case NG_PATCH_MODE_SHR:
+						val.v1 >>= privp->conf->ops[i].val.v1;
+						break;
+				}
+				break;
+
+			case 2:
+				val.v2 = ntohs(val.v2);
+
+				switch (privp->conf->ops[i].mode)
+				{
+					case NG_PATCH_MODE_SET:
+						val.v2 = privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_ADD:
+						val.v2 += privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_SUB:
+						val.v2 -= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_MUL:
+						val.v2 *= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_DIV:
+						val.v2 /= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_NEG:
+						*((int16_t *) &val) = - *((int16_t *) &val);
+						break;
+					case NG_PATCH_MODE_AND:
+						val.v2 &= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_OR:
+						val.v2 |= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_XOR:
+						val.v2 ^= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_SHL:
+						val.v2 <<= privp->conf->ops[i].val.v2;
+						break;
+					case NG_PATCH_MODE_SHR:
+						val.v2 >>= privp->conf->ops[i].val.v2;
+						break;
+				}
+
+				val.v2 = htons(val.v2);
+
+				break;
+
+			case 4:
+				val.v4 = ntohl(val.v4);
+
+				switch (privp->conf->ops[i].mode)
+				{
+					case NG_PATCH_MODE_SET:
+						val.v4 = privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_ADD:
+						val.v4 += privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_SUB:
+						val.v4 -= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_MUL:
+						val.v4 *= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_DIV:
+						val.v4 /= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_NEG:
+						*((int32_t *) &val) = - *((int32_t *) &val);
+						break;
+					case NG_PATCH_MODE_AND:
+						val.v4 &= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_OR:
+						val.v4 |= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_XOR:
+						val.v4 ^= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_SHL:
+						val.v4 <<= privp->conf->ops[i].val.v4;
+						break;
+					case NG_PATCH_MODE_SHR:
+						val.v4 >>= privp->conf->ops[i].val.v4;
+						break;
+				}
+
+				val.v4 = htonl(val.v4);
+
+				break;
+
+			case 8:
+				val.v8 = be64toh(val.v8);
+
+				switch (privp->conf->ops[i].mode)
+				{
+					case NG_PATCH_MODE_SET:
+						val.v8 = privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_ADD:
+						val.v8 += privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_SUB:
+						val.v8 -= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_MUL:
+						val.v8 *= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_DIV:
+						val.v8 /= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_NEG:
+						*((int64_t *) &val) = - *((int64_t *) &val);
+						break;
+					case NG_PATCH_MODE_AND:
+						val.v8 &= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_OR:
+						val.v8 |= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_XOR:
+						val.v8 ^= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_SHL:
+						val.v8 <<= privp->conf->ops[i].val.v8;
+						break;
+					case NG_PATCH_MODE_SHR:
+						val.v8 >>= privp->conf->ops[i].val.v8;
+						break;
+				}
+
+				val.v8 = htobe64(val.v8);
+
+				break;
 		}
 
-		switch (conf->ops[i].length) {
-		case 1:
-			switch (conf->ops[i].mode) {
-			case NG_PATCH_MODE_SET:
-				*((uint8_t *)&buf) = privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_ADD:
-				*((uint8_t *)&buf) += privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_SUB:
-				*((uint8_t *)&buf) -= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_MUL:
-				*((uint8_t *)&buf) *= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_DIV:
-				*((uint8_t *)&buf) /= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_NEG:
-				*((int8_t *)&buf) = - *((int8_t *)&buf);
-				break;
-			case NG_PATCH_MODE_AND:
-				*((uint8_t *)&buf) &= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_OR:
-				*((uint8_t *)&buf) |= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_XOR:
-				*((uint8_t *)&buf) ^= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_SHL:
-				*((uint8_t *)&buf) <<= privp->val[i].v1;
-				break;
-			case NG_PATCH_MODE_SHR:
-				*((uint8_t *)&buf) >>= privp->val[i].v1;
-				break;
-			}
-			break;
-		case 2:
-			*((int16_t *)&buf) =  ntohs(*((int16_t *)&buf));
-			switch (conf->ops[i].mode) {
-			case NG_PATCH_MODE_SET:
-				*((uint16_t *)&buf) = privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_ADD:
-				*((uint16_t *)&buf) += privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_SUB:
-				*((uint16_t *)&buf) -= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_MUL:
-				*((uint16_t *)&buf) *= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_DIV:
-				*((uint16_t *)&buf) /= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_NEG:
-				*((int16_t *)&buf) = - *((int16_t *)&buf);
-				break;
-			case NG_PATCH_MODE_AND:
-				*((uint16_t *)&buf) &= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_OR:
-				*((uint16_t *)&buf) |= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_XOR:
-				*((uint16_t *)&buf) ^= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_SHL:
-				*((uint16_t *)&buf) <<= privp->val[i].v2;
-				break;
-			case NG_PATCH_MODE_SHR:
-				*((uint16_t *)&buf) >>= privp->val[i].v2;
-				break;
-			}
-			*((int16_t *)&buf) =  htons(*((int16_t *)&buf));
-			break;
-		case 4:
-			*((int32_t *)&buf) =  ntohl(*((int32_t *)&buf));
-			switch (conf->ops[i].mode) {
-			case NG_PATCH_MODE_SET:
-				*((uint32_t *)&buf) = privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_ADD:
-				*((uint32_t *)&buf) += privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_SUB:
-				*((uint32_t *)&buf) -= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_MUL:
-				*((uint32_t *)&buf) *= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_DIV:
-				*((uint32_t *)&buf) /= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_NEG:
-				*((int32_t *)&buf) = - *((int32_t *)&buf);
-				break;
-			case NG_PATCH_MODE_AND:
-				*((uint32_t *)&buf) &= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_OR:
-				*((uint32_t *)&buf) |= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_XOR:
-				*((uint32_t *)&buf) ^= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_SHL:
-				*((uint32_t *)&buf) <<= privp->val[i].v4;
-				break;
-			case NG_PATCH_MODE_SHR:
-				*((uint32_t *)&buf) >>= privp->val[i].v4;
-				break;
-			}
-			*((int32_t *)&buf) =  htonl(*((int32_t *)&buf));
-			break;
-		case 8:
-			*((int64_t *)&buf) =  be64toh(*((int64_t *)&buf));
-			switch (conf->ops[i].mode) {
-			case NG_PATCH_MODE_SET:
-				*((uint64_t *)&buf) = privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_ADD:
-				*((uint64_t *)&buf) += privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_SUB:
-				*((uint64_t *)&buf) -= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_MUL:
-				*((uint64_t *)&buf) *= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_DIV:
-				*((uint64_t *)&buf) /= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_NEG:
-				*((int64_t *)&buf) = - *((int64_t *)&buf);
-				break;
-			case NG_PATCH_MODE_AND:
-				*((uint64_t *)&buf) &= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_OR:
-				*((uint64_t *)&buf) |= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_XOR:
-				*((uint64_t *)&buf) ^= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_SHL:
-				*((uint64_t *)&buf) <<= privp->val[i].v8;
-				break;
-			case NG_PATCH_MODE_SHR:
-				*((uint64_t *)&buf) >>= privp->val[i].v8;
-				break;
-			}
-			*((int64_t *)&buf) =  htobe64(*((int64_t *)&buf));
-			break;
-		}
-
-		m_copyback(m, conf->ops[i].offset, conf->ops[i].length,
-		    (caddr_t)&buf);
+		m_copyback(m, offset, privp->conf->ops[i].length, (caddr_t) &val);
 		patched = 1;
 	}
-	if (patched > 0)
+
+	if (patched)
 		privp->stats.patched++;
 }
 
@@ -503,41 +554,107 @@ ng_patch_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct mbuf *m;
-	hook_p target;
-	int error;
+	hook_p out;
+	int pullup_len = 0;
+	int error = 0;
 
 	priv->stats.received++;
+
 	NGI_GET_M(item, m);
-	if (priv->config != NULL && hook == priv->in &&
-	    (m->m_flags & M_PKTHDR) != 0) {
-		m = m_unshare(m,M_NOWAIT);
-		if (m == NULL) {
-			priv->stats.dropped++;
-			NG_FREE_ITEM(item);
-			return (ENOMEM);
+
+#define	PULLUP_CHECK(mbuf, length) do {					\
+	pullup_len += length;						\
+	if (((mbuf)->m_pkthdr.len < pullup_len) ||			\
+	    (pullup_len > MHLEN)) {					\
+		error = EINVAL;						\
+		goto bypass;						\
+	}								\
+	if ((mbuf)->m_len < pullup_len &&				\
+	    (((mbuf) = m_pullup((mbuf), pullup_len)) == NULL)) {	\
+		error = ENOBUFS;					\
+		goto drop;						\
+	}								\
+} while (0)
+
+	if (priv->conf && hook == priv->in &&
+	    m && (m->m_flags & M_PKTHDR)) {
+
+		m = m_unshare(m, M_NOWAIT);
+
+		if (m == NULL)
+			ERROUT(ENOMEM);
+
+		if (priv->conf->relative_offset) {
+			struct ether_header *eh;
+			struct ng_patch_vlan_header *vh;
+			uint16_t etype;
+
+			switch (priv->dlt)
+			{
+				case DLT_EN10MB:
+					PULLUP_CHECK(m, sizeof(struct ether_header));
+					eh = mtod(m, struct ether_header *);
+					etype = ntohs(eh->ether_type);
+
+					for (;;) {	/* QinQ support */
+						switch (etype)
+						{
+							case 0x8100:
+							case 0x88A8:
+							case 0x9100:
+								PULLUP_CHECK(m, sizeof(struct ng_patch_vlan_header));
+								vh = (struct ng_patch_vlan_header *) mtodo(m,
+								    pullup_len - sizeof(struct ng_patch_vlan_header));
+								etype = ntohs(vh->etype);
+								break;
+
+							default:
+								goto loopend;
+						}
+					}
+loopend:
+					break;
+
+				case DLT_RAW:
+					break;
+
+				default:
+					ERROUT(EINVAL);
+			}
 		}
-		do_patch(priv, m);
-		m->m_pkthdr.csum_flags |= priv->config->csum_flags;
+
+		do_patch(priv, m, pullup_len);
+
+		m->m_pkthdr.csum_flags |= priv->conf->csum_flags;
 	}
 
-	target = NULL;
+#undef	PULLUP_CHECK
+
+bypass:
+	out = NULL;
+
 	if (hook == priv->in) {
 		/* return frames on 'in' hook if 'out' not connected */
-		if (priv->out != NULL)
-			target = priv->out;
-		else
-			target = priv->in;
+		out = priv->out ? priv->out : priv->in;
+	} else if (hook == priv->out && priv->in) {
+		/* pass frames on 'out' hook if 'in' connected */
+		out = priv->in;
 	}
-	if (hook == priv->out && priv->in != NULL)
-		target = priv->in;
 
-	if (target == NULL) {
-		priv->stats.dropped++;
-		NG_FREE_ITEM(item);
-		NG_FREE_M(m);
-		return (0);
-	}
-	NG_FWD_NEW_DATA(error, item, target, m);
+	if (out == NULL)
+		ERROUT(0);
+
+	NG_FWD_NEW_DATA(error, item, out, m);
+
+	return (error);
+
+done:
+drop:
+	NG_FREE_ITEM(item);
+	NG_FREE_M(m);
+
+	priv->stats.dropped++;
+
 	return (error);
 }
 
@@ -546,13 +663,14 @@ ng_patch_shutdown(node_p node)
 {
 	const priv_p privdata = NG_NODE_PRIVATE(node);
 
-	if (privdata->val != NULL)
-		free(privdata->val, M_NETGRAPH);
-	if (privdata->config != NULL)
-		free(privdata->config, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
+
+	if (privdata->conf != NULL)
+		free(privdata->conf, M_NETGRAPH);
+
 	free(privdata, M_NETGRAPH);
+
 	return (0);
 }
 
@@ -562,15 +680,18 @@ ng_patch_disconnect(hook_p hook)
 	priv_p priv;
 
 	priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+
 	if (hook == priv->in) {
 		priv->in = NULL;
 	}
+
 	if (hook == priv->out) {
 		priv->out = NULL;
 	}
+
 	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0 &&
 	    NG_NODE_IS_VALID(NG_HOOK_NODE(hook))) /* already shutting down? */
 		ng_rmnode_self(NG_HOOK_NODE(hook));
+
 	return (0);
 }
-

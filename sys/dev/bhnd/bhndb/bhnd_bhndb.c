@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/bhnd_ids.h>
 #include <dev/bhnd/bhnd.h>
 
+#include "bhnd_pwrctl_hostb_if.h"
+
 #include "bhndbvar.h"
 
 /*
@@ -66,10 +72,121 @@ bhnd_bhndb_get_attach_type(device_t dev, device_t child)
 	return (BHND_ATTACH_ADAPTER);
 }
 
+
+static bool
+bhnd_bhndb_is_hw_disabled(device_t dev, device_t child)
+{
+	struct bhnd_core_info core = bhnd_get_core_info(child);
+
+	/* Delegate to parent bridge */
+	return (BHNDB_IS_CORE_DISABLED(device_get_parent(dev), dev, &core));
+}
+
+
+static device_t
+bhnd_bhndb_find_hostb_device(device_t dev)
+{
+	struct bhnd_core_info	 core;
+	struct bhnd_core_match	 md;
+	int			 error;
+
+	/* Ask the bridge for the hostb core info */
+	if ((error = BHNDB_GET_HOSTB_CORE(device_get_parent(dev), dev, &core)))
+		return (NULL);
+
+	/* Find the corresponding bus device */
+	md = bhnd_core_get_match_desc(&core);
+	return (bhnd_bus_match_child(dev, &md));
+}
+
+static int
+bhnd_bhndb_map_intr(device_t dev, device_t child, u_int intr, rman_res_t *irq)
+{
+	/* Delegate to parent bridge */
+	return (BHND_BUS_MAP_INTR(device_get_parent(dev), child, intr, irq));
+}
+
+static void
+bhnd_bhndb_unmap_intr(device_t dev, device_t child, rman_res_t irq)
+{
+	/* Delegate to parent bridge */
+	return (BHND_BUS_UNMAP_INTR(device_get_parent(dev), child, irq));
+}
+
+static bhnd_clksrc
+bhnd_bhndb_pwrctl_get_clksrc(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	/* Delegate to parent bridge */
+	return (BHND_PWRCTL_HOSTB_GET_CLKSRC(device_get_parent(dev), child,
+	    clock));
+}
+
+static int
+bhnd_bhndb_pwrctl_gate_clock(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	/* Delegate to parent bridge */
+	return (BHND_PWRCTL_HOSTB_GATE_CLOCK(device_get_parent(dev), child,
+	    clock));
+}
+
+static int
+bhnd_bhndb_pwrctl_ungate_clock(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	/* Delegate to parent bridge */
+	return (BHND_PWRCTL_HOSTB_UNGATE_CLOCK(device_get_parent(dev), child,
+	    clock));
+}
+
+static int
+bhnd_bhndb_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg,
+    void **cookiep)
+{
+	device_t	core, bus;
+	int		error;
+
+	/* Find the actual bus-attached child core */
+	core = child;
+	while ((bus = device_get_parent(core)) != NULL) {
+		if (bus == dev)
+			break;
+
+		core = bus;
+	}
+
+	KASSERT(core != NULL, ("%s is not a child of %s",
+	    device_get_nameunit(child), device_get_nameunit(dev)));
+
+	/* Ask our bridge to enable interrupt routing for the child core */
+	error = BHNDB_ROUTE_INTERRUPTS(device_get_parent(dev), core);
+	if (error)
+		return (error);
+
+	/* Delegate actual interrupt setup to the default bhnd bus
+	 * implementation */
+	return (bhnd_generic_setup_intr(dev, child, irq, flags, filter, intr,
+	    arg, cookiep));
+}
+
 static device_method_t bhnd_bhndb_methods[] = {
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,			bhnd_bhndb_setup_intr),
+
 	/* BHND interface */
-	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_bhndb_get_attach_type),
-	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bhndb_read_board_info),
+	DEVMETHOD(bhnd_bus_get_attach_type,		bhnd_bhndb_get_attach_type),
+	DEVMETHOD(bhnd_bus_is_hw_disabled,		bhnd_bhndb_is_hw_disabled),
+	DEVMETHOD(bhnd_bus_find_hostb_device,		bhnd_bhndb_find_hostb_device),
+	DEVMETHOD(bhnd_bus_read_board_info,		bhnd_bhndb_read_board_info),
+	DEVMETHOD(bhnd_bus_map_intr,			bhnd_bhndb_map_intr),
+	DEVMETHOD(bhnd_bus_unmap_intr,			bhnd_bhndb_unmap_intr),
+
+	/* BHND PWRCTL hostb interface */
+	DEVMETHOD(bhnd_pwrctl_hostb_get_clksrc,		bhnd_bhndb_pwrctl_get_clksrc),
+	DEVMETHOD(bhnd_pwrctl_hostb_gate_clock,		bhnd_bhndb_pwrctl_gate_clock),
+	DEVMETHOD(bhnd_pwrctl_hostb_ungate_clock,	bhnd_bhndb_pwrctl_ungate_clock),
 
 	DEVMETHOD_END
 };

@@ -24,14 +24,15 @@ Driver for running the tests on Windows.
 For a list of options, run this script with the --help option.
 """
 
-# $HeadURL: http://svn.apache.org/repos/asf/subversion/branches/1.9.x/win-tests.py $
-# $LastChangedRevision: 1718291 $
+# $HeadURL: https://svn.apache.org/repos/asf/subversion/branches/1.10.x/win-tests.py $
+# $LastChangedRevision: 1813897 $
 
 import os, sys, subprocess
 import filecmp
 import shutil
 import traceback
 import logging
+import re
 try:
   # Python >=3.0
   import configparser
@@ -83,6 +84,17 @@ def _usage_exit():
   print("  --disable-http-v2      : Do not advertise support for HTTPv2 on server")
   print("  --disable-bulk-updates : Disable bulk updates on HTTP server")
   print("  --ssl-cert             : Path to SSL server certificate to trust.")
+  print("  --https                : Run Apache httpd with an https setup.")
+  print("  --http2                : Enable http2 in Apache Httpd (>= 2.4.17).")
+  print("  --mod-deflate          : Enable mod_deflate in Apache Httpd.")
+  print("  --global-scheduler     : Enable global scheduler.")
+  print("  --exclusive-wc-locks   : Enable exclusive working copy locks")
+  print("  --memcached-dir=DIR    : Run memcached from dir")
+  print("  --memcached-server=    : Enable usage of the specified memcached server")
+  print("              <url:port>")
+  print("  --skip-c-tests         : Skip all C tests")
+  print("  --dump-load-cross-check: Run the dump load cross check after every test")
+
   print("  --javahl               : Run the javahl tests instead of the normal tests")
   print("  --swig=language        : Run the swig perl/python/ruby tests instead of")
   print("                           the normal tests")
@@ -101,6 +113,7 @@ def _usage_exit():
   print("  --config-file          : Configuration file for tests")
   print("  --fsfs-sharding        : Specify shard size (for fsfs)")
   print("  --fsfs-packing         : Run 'svnadmin pack' automatically")
+  print("  --fsfs-compression=VAL : Set compression type to VAL (for fsfs)")
   print("  -q, --quiet            : Deprecated; this is the default.")
   print("                           Use --set-log-level instead.")
 
@@ -122,19 +135,24 @@ gen_obj = gen_win_dependencies.GenDependenciesBase('build.conf', version_header,
 opts, args = my_getopt(sys.argv[1:], 'hrdvqct:pu:f:',
                        ['release', 'debug', 'verbose', 'quiet', 'cleanup',
                         'test=', 'url=', 'svnserve-args=', 'fs-type=', 'asp.net-hack',
-                        'httpd-dir=', 'httpd-port=', 'httpd-daemon',
+                        'httpd-dir=', 'httpd-port=', 'httpd-daemon', 'https',
                         'httpd-server', 'http-short-circuit', 'httpd-no-log',
                         'disable-http-v2', 'disable-bulk-updates', 'help',
                         'fsfs-packing', 'fsfs-sharding=', 'javahl', 'swig=',
-                        'list', 'enable-sasl', 'bin=', 'parallel',
+                        'list', 'enable-sasl', 'bin=', 'parallel', 'http2',
+                        'mod-deflate', 'global-scheduler',
                         'config-file=', 'server-minor-version=', 'log-level=',
                         'log-to-stdout', 'mode-filter=', 'milestone-filter=',
-                        'ssl-cert='])
+                        'ssl-cert=', 'exclusive-wc-locks', 'memcached-server=',
+                        'skip-c-tests', 'dump-load-cross-check', 'memcached-dir=',
+                        'fsfs-compression=',
+                        ])
 if len(args) > 1:
   print('Warning: non-option arguments after the first one will be ignored')
 
 # Interpret the options and set parameters
 base_url, fs_type, verbose, cleanup = None, None, None, None
+global_scheduler = None
 repo_loc = 'local repository.'
 objdir = 'Debug'
 log = 'tests.log'
@@ -145,6 +163,9 @@ run_httpd = None
 httpd_port = None
 httpd_service = None
 httpd_no_log = None
+use_ssl = False
+use_http2 = False
+use_mod_deflate = False
 http_short_circuit = False
 advertise_httpv2 = True
 http_bulk_updates = True
@@ -164,6 +185,14 @@ mode_filter=None
 tests_to_run = []
 log_level = None
 ssl_cert = None
+exclusive_wc_locks = None
+run_memcached = None
+memcached_server = None
+memcached_dir = None
+skip_c_tests = None
+dump_load_cross_check = None
+fsfs_compression = None
+fsfs_dir_deltification = None
 
 for opt, val in opts:
   if opt in ('-h', '--help'):
@@ -199,6 +228,12 @@ for opt, val in opts:
     httpd_service = 1
   elif opt == '--httpd-no-log':
     httpd_no_log = 1
+  elif opt == '--https':
+    use_ssl = 1
+  elif opt == '--http2':
+    use_http2 = 1
+  elif opt == '--mod-deflate':
+    use_mod_deflate = 1
   elif opt == '--http-short-circuit':
     http_short_circuit = True
   elif opt == '--disable-http-v2':
@@ -211,6 +246,8 @@ for opt, val in opts:
     fsfs_packing = 1
   elif opt == '--javahl':
     test_javahl = 1
+  elif opt == '--global-scheduler':
+    global_scheduler = 1
   elif opt == '--swig':
     if val not in ['perl', 'python', 'ruby']:
       sys.stderr.write('Running \'%s\' swig tests not supported (yet).\n'
@@ -239,6 +276,21 @@ for opt, val in opts:
     log_level = getattr(logging, val, None) or int(val)
   elif opt == '--ssl-cert':
     ssl_cert = val
+  elif opt == '--exclusive-wc-locks':
+    exclusive_wc_locks = 1
+  elif opt == '--memcached-server':
+    memcached_server = val
+  elif opt == '--skip-c-tests':
+    skip_c_tests = 1
+  elif opt == '--dump-load-cross-check':
+    dump_load_cross_check = 1
+  elif opt == '--memcached-dir':
+    memcached_dir = val
+    run_memcached = 1
+  elif opt == '--fsfs-compression':
+    fsfs_compression = val
+  elif opt == '--fsfs-dir-deltification':
+    fsfs_dir_deltification = val
 
 # Calculate the source and test directory names
 abs_srcdir = os.path.abspath("")
@@ -266,7 +318,12 @@ if run_httpd:
   if not httpd_port:
     httpd_port = random.randrange(1024, 30000)
   if not base_url:
-    base_url = 'http://localhost:' + str(httpd_port)
+    if use_ssl:
+      scheme = 'https'
+    else:
+      scheme = 'http'
+
+    base_url = '%s://localhost:%d' % (scheme, httpd_port)
 
 if base_url:
   repo_loc = 'remote repository ' + base_url + '.'
@@ -407,7 +464,9 @@ class Svnserve:
       args = [self.name] + self.args
     print('Starting %s %s' % (self.kind, self.name))
 
-    self.proc = subprocess.Popen([self.path] + args[1:])
+    env = os.environ.copy()
+    env['SVN_DBG_STACKTRACES_TO_STDERR'] = 'y'
+    self.proc = subprocess.Popen([self.path] + args[1:], env=env)
 
   def stop(self):
     if self.proc is not None:
@@ -423,8 +482,9 @@ class Svnserve:
 
 class Httpd:
   "Run httpd for DAV tests"
-  def __init__(self, abs_httpd_dir, abs_objdir, abs_builddir, httpd_port,
-               service, no_log, httpv2, short_circuit, bulk_updates):
+  def __init__(self, abs_httpd_dir, abs_objdir, abs_builddir, abs_srcdir,
+               httpd_port, service, use_ssl, use_http2, use_mod_deflate,
+               no_log, httpv2, short_circuit, bulk_updates):
     self.name = 'apache.exe'
     self.httpd_port = httpd_port
     self.httpd_dir = abs_httpd_dir
@@ -462,12 +522,19 @@ class Httpd:
     self.dontdothat_file = os.path.join(abs_builddir,
                                          CMDLINE_TEST_SCRIPT_NATIVE_PATH,
                                          'svn-test-work', 'dontdothat')
+    self.certfile = os.path.join(abs_builddir,
+                                 CMDLINE_TEST_SCRIPT_NATIVE_PATH,
+                                 'svn-test-work', 'cert.pem')
+    self.certkeyfile = os.path.join(abs_builddir,
+                                     CMDLINE_TEST_SCRIPT_NATIVE_PATH,
+                                     'svn-test-work', 'cert-key.pem')
     self.httpd_config = os.path.join(self.root, 'httpd.conf')
     self.httpd_users = os.path.join(self.root, 'users')
     self.httpd_mime_types = os.path.join(self.root, 'mime.types')
     self.httpd_groups = os.path.join(self.root, 'groups')
     self.abs_builddir = abs_builddir
     self.abs_objdir = abs_objdir
+    self.abs_srcdir = abs_srcdir
     self.service_name = 'svn-test-httpd-' + str(httpd_port)
 
     if self.service:
@@ -483,6 +550,9 @@ class Httpd:
     self._create_mime_types_file()
     self._create_dontdothat_file()
 
+    if use_ssl:
+      self._create_cert_files()
+
     # Obtain version.
     version_vals = gen_obj._libraries['httpd'].version.split('.')
     self.httpd_ver = float('%s.%s' % (version_vals[0], version_vals[1]))
@@ -491,9 +561,10 @@ class Httpd:
     fp = open(self.httpd_config, 'w')
 
     # Limit the number of threads (default = 64)
-    fp.write('<IfModule mpm_winnt.c>\n')
-    fp.write('ThreadsPerChild 16\n')
-    fp.write('</IfModule>\n')
+    if not use_http2:
+      fp.write('<IfModule mpm_winnt.c>\n')
+      fp.write('ThreadsPerChild 16\n')
+      fp.write('</IfModule>\n')
 
     # Global Environment
     fp.write('ServerRoot   ' + self._quote(self.root) + '\n')
@@ -511,6 +582,12 @@ class Httpd:
       fp.write('LogLevel     Crit\n')
 
     # Write LoadModule for minimal system module
+    if use_ssl:
+      fp.write(self._sys_module('ssl_module', 'mod_ssl.so'))
+    if use_http2:
+      fp.write(self._sys_module('http2_module', 'mod_http2.so'))
+    if use_mod_deflate:
+      fp.write(self._sys_module('deflate_module', 'mod_deflate.so'))
     fp.write(self._sys_module('dav_module', 'mod_dav.so'))
     if self.httpd_ver >= 2.3:
       fp.write(self._sys_module('access_compat_module', 'mod_access_compat.so'))
@@ -534,6 +611,21 @@ class Httpd:
 
     # And for mod_dontdothat
     fp.write(self._svn_module('dontdothat_module', 'mod_dontdothat.so'))
+
+    if use_ssl:
+      fp.write('SSLEngine on\n')
+      fp.write('SSLProtocol All -SSLv2 -SSLv3\n')
+      fp.write('SSLCertificateFile %s\n' % self._quote(self.certfile))
+      fp.write('SSLCertificateKeyFile %s\n' % self._quote(self.certkeyfile))
+
+    if use_ssl and use_http2:
+      fp.write('Protocols h2 http/1.1\n')
+    elif use_http2:
+      fp.write('Protocols h2c http/1.1\n')
+      fp.write('H2Direct on\n')
+
+    if use_mod_deflate:
+      fp.write('SetOutputFilter DEFLATE\n')
 
     # Don't handle .htaccess, symlinks, etc.
     fp.write('<Directory />\n')
@@ -576,6 +668,8 @@ class Httpd:
     os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
                                     'jconstant', 'rayjandom'])
     os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
+                                    '__dumpster__', '__loadster__'])
+    os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
                                     'JRANDOM', 'rayjandom'])
     os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
                                     'JCONSTANT', 'rayjandom'])
@@ -604,6 +698,34 @@ class Httpd:
     fp.write('[recursive-actions]\n')
     fp.write('/ = deny\n')
     fp.close()
+
+  def _create_cert_files(self):
+    "Create certificate files"
+    # The unix build uses certificates encoded in davautocheck.sh
+    # Let's just read them from there
+
+    sh_path = os.path.join(self.abs_srcdir, 'subversion', 'tests', 'cmdline',
+                           'davautocheck.sh')
+    sh = open(sh_path).readlines()
+
+    def cert_extract(lines, what):
+      r = []
+      pattern = r'cat\s*\>\s*' + re.escape(what) + r'\s*\<\<([A-Z_a-z0-9]+)'
+      exit_marker = None
+      for i in lines:
+        if exit_marker:
+          if i.startswith(exit_marker):
+            return r
+          r.append(i)
+        else:
+          m = re.match(pattern, i)
+          if m:
+            exit_marker = m.groups(1)
+
+    cert_file = cert_extract(sh, '"$SSL_CERTIFICATE_FILE"')
+    cert_key = cert_extract(sh, '"$SSL_CERTIFICATE_KEY_FILE"')
+    open(self.certfile, 'w').write(''.join(cert_file))
+    open(self.certkeyfile, 'w').write(''.join(cert_key))
 
   def _sys_module(self, name, path):
     full_path = os.path.join(self.httpd_dir, 'modules', path)
@@ -786,9 +908,9 @@ class Httpd:
       '  AuthzSendForbiddenOnFailure On' + '\n' \
       '  Satisfy All' + '\n' \
       '  <RequireAll>' + '\n' \
-      '  Require valid-user' + '\n' \
-      '  Require expr req(\'ALLOW\') == \'1\'' + '\n' \
-      '</RequireAll>' + '\n' \
+      '    Require valid-user' + '\n' \
+      '    Require expr req(\'ALLOW\') == \'1\'' + '\n' \
+      '  </RequireAll>' + '\n' \
       '  SVNPathAuthz ' + self.path_authz_option + '\n' \
       '</Location>' + '\n' \
       '</IfModule>' + '\n' \
@@ -798,6 +920,10 @@ class Httpd:
       self._start_service()
     else:
       self._start_daemon()
+
+    # Avoid output from starting and preparing between test results
+    sys.stderr.flush()
+    sys.stdout.flush()
 
   def stop(self):
     if self.service:
@@ -836,6 +962,45 @@ class Httpd:
         pass
     print('Httpd.stop_daemon not implemented')
 
+class Memcached:
+  "Run memcached for tests"
+  def __init__(self, abs_memcached_dir, memcached_server):
+    self.name = 'memcached.exe'
+
+    self.memcached_host, self.memcached_port = memcached_server.split(':')
+    self.memcached_dir = abs_memcached_dir
+
+    self.proc = None
+    self.path = os.path.join(self.memcached_dir, self.name)
+
+    self.memcached_args = [
+                            self.name,
+                            '-p', self.memcached_port,
+                            '-l', self.memcached_host
+                          ]
+
+  def __del__(self):
+    "Stop memcached when the object is deleted"
+    self.stop()
+
+  def start(self):
+    "Start memcached as daemon"
+    print('Starting %s as daemon' % self.name)
+    print(self.memcached_args)
+    self.proc = subprocess.Popen([self.path] + self.memcached_args)
+
+  def stop(self):
+    "Stop memcached"
+    if self.proc is not None:
+      try:
+        print('Stopping %s' % self.name)
+        self.proc.poll();
+        if self.proc.returncode is None:
+          self.proc.kill();
+        return
+      except AttributeError:
+        pass
+
 # Move the binaries to the test directory
 create_target_dir(abs_builddir)
 locate_libs()
@@ -855,19 +1020,28 @@ create_target_dir(CMDLINE_TEST_SCRIPT_NATIVE_PATH)
 # Ensure the tests directory is correctly cased
 abs_builddir = fix_case(abs_builddir)
 
+failed = None
 daemon = None
+memcached = None
 # Run the tests
 
 # No need to start any servers if we are only listing the tests.
 if not list_tests:
+  if run_memcached:
+    memcached = Memcached(memcached_dir, memcached_server)
+    memcached.start()
+
   if run_svnserve:
     daemon = Svnserve(svnserve_args, objdir, abs_objdir, abs_builddir)
 
   if run_httpd:
-    daemon = Httpd(abs_httpd_dir, abs_objdir, abs_builddir, httpd_port,
-                   httpd_service, httpd_no_log,
-                   advertise_httpv2, http_short_circuit,
-                   http_bulk_updates)
+    daemon = Httpd(abs_httpd_dir, abs_objdir, abs_builddir, abs_srcdir,
+                   httpd_port, httpd_service, use_ssl, use_http2,
+                   use_mod_deflate, httpd_no_log, advertise_httpv2,
+                   http_short_circuit, http_bulk_updates)
+
+    if use_ssl and not ssl_cert:
+      ssl_cert = daemon.certfile
 
   # Start service daemon, if any
   if daemon:
@@ -922,6 +1096,7 @@ if not test_javahl and not test_swig:
   opts, args = run_tests.create_parser().parse_args([])
   opts.url = base_url
   opts.fs_type = fs_type
+  opts.global_scheduler = global_scheduler
   opts.http_library = 'serf'
   opts.server_minor_version = server_minor_version
   opts.cleanup = cleanup
@@ -937,6 +1112,12 @@ if not test_javahl and not test_swig:
   opts.httpd_version = httpd_version
   opts.set_log_level = log_level
   opts.ssl_cert = ssl_cert
+  opts.exclusive_wc_locks = exclusive_wc_locks
+  opts.memcached_server = memcached_server
+  opts.skip_c_tests = skip_c_tests
+  opts.dump_load_cross_check = dump_load_cross_check
+  opts.fsfs_compression = fsfs_compression
+  opts.fsfs_dir_deltification = fsfs_dir_deltification
   th = run_tests.TestHarness(abs_srcdir, abs_builddir,
                              log_file, fail_log_file, opts)
   old_cwd = os.getcwd()
@@ -970,6 +1151,9 @@ elif test_javahl:
     args = (os.path.abspath(java_exe),)
     if (objdir == 'Debug'):
       args = args + ('-Xcheck:jni',)
+
+    if cleanup:
+      args = args + ('-Dtest.cleanup=1',)
 
     args = args + (
             '-Dtest.rootdir=' + os.path.join(abs_builddir, 'javahl'),
@@ -1151,9 +1335,16 @@ elif test_swig == 'ruby':
       print('[Test runner reported failure]')
       failed = True
 
+elif test_swig:
+  print('Unknown Swig binding type: ' + str(test_swig))
+  failed = True
+
 # Stop service daemon, if any
 if daemon:
   del daemon
+
+if memcached:
+  del memcached
 
 # Remove the execs again
 for tgt in copied_execs:

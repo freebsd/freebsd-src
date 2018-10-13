@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
+#include <atf-c.h>
+
 #include "test-utils.h"
 
 #pragma STDC FENV_ACCESS ON
@@ -63,9 +65,9 @@ __FBSDID("$FreeBSD$");
  */
 #define	test(func, x, result, exceptmask, excepts)	do {		\
 	volatile long double _d = x;					\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)(_d), (result)));				\
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
+	ATF_CHECK(fpequal((func)(_d), (result)));				\
+	ATF_CHECK(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 #define	testall(prefix, x, result, exceptmask, excepts)	do {		\
@@ -79,11 +81,14 @@ __FBSDID("$FreeBSD$");
 	test(prefix##f, x, (float)result, exceptmask, excepts);		\
 } while (0)
 
-/*
- * Test special cases in sin(), cos(), and tan().
- */
-static void
-run_special_tests(void)
+ATF_TC(special);
+ATF_TC_HEAD(special, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+ 	    "test special cases in sin(), cos(), and tan()");
+}
+ATF_TC_BODY(special, tc)
 {
 
 	/* Values at 0 should be exact. */
@@ -108,11 +113,15 @@ run_special_tests(void)
 	testall(cos, NAN, NAN, ALL_STD_EXCEPT, 0);
 }
 
-/*
- * Tests to ensure argument reduction for large arguments is accurate.
- */
-static void
-run_reduction_tests(void)
+#ifndef __i386__
+ATF_TC(reduction);
+ATF_TC_HEAD(reduction, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+ 	    "tests to ensure argument reduction for large arguments is accurate");
+}
+ATF_TC_BODY(reduction, tc)
 {
 	/* floats very close to odd multiples of pi */
 	static const float f_pi_odd[] = {
@@ -147,76 +156,75 @@ run_reduction_tests(void)
 		9.8477555741888350649e+4314L,
 		1.6061597222105160737e+4326L,
 	};
-#elif LDBL_MANT_DIG == 113
-	static const long double ld_pi_odd[] = {
-		/* XXX */
-	};
 #endif
 
-	int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(f_pi_odd); i++) {
-		assert(fabs(sinf(f_pi_odd[i])) < FLT_EPSILON);
-		assert(cosf(f_pi_odd[i]) == -1.0);
-		assert(fabs(tan(f_pi_odd[i])) < FLT_EPSILON);
+		ATF_CHECK(fabs(sinf(f_pi_odd[i])) < FLT_EPSILON);
+		ATF_CHECK(cosf(f_pi_odd[i]) == -1.0);
+		ATF_CHECK(fabs(tan(f_pi_odd[i])) < FLT_EPSILON);
 
-		assert(fabs(sinf(-f_pi_odd[i])) < FLT_EPSILON);
-		assert(cosf(-f_pi_odd[i]) == -1.0);
-		assert(fabs(tanf(-f_pi_odd[i])) < FLT_EPSILON);
+		ATF_CHECK(fabs(sinf(-f_pi_odd[i])) < FLT_EPSILON);
+		ATF_CHECK(cosf(-f_pi_odd[i]) == -1.0);
+		ATF_CHECK(fabs(tanf(-f_pi_odd[i])) < FLT_EPSILON);
 
-		assert(fabs(sinf(f_pi_odd[i] * 2)) < FLT_EPSILON);
-		assert(cosf(f_pi_odd[i] * 2) == 1.0);
-		assert(fabs(tanf(f_pi_odd[i] * 2)) < FLT_EPSILON);
+		ATF_CHECK(fabs(sinf(f_pi_odd[i] * 2)) < FLT_EPSILON);
+		ATF_CHECK(cosf(f_pi_odd[i] * 2) == 1.0);
+		ATF_CHECK(fabs(tanf(f_pi_odd[i] * 2)) < FLT_EPSILON);
 
-		assert(fabs(sinf(-f_pi_odd[i] * 2)) < FLT_EPSILON);
-		assert(cosf(-f_pi_odd[i] * 2) == 1.0);
-		assert(fabs(tanf(-f_pi_odd[i] * 2)) < FLT_EPSILON);
+		ATF_CHECK(fabs(sinf(-f_pi_odd[i] * 2)) < FLT_EPSILON);
+		ATF_CHECK(cosf(-f_pi_odd[i] * 2) == 1.0);
+		ATF_CHECK(fabs(tanf(-f_pi_odd[i] * 2)) < FLT_EPSILON);
 	}
 
 	for (i = 0; i < nitems(d_pi_odd); i++) {
-		assert(fabs(sin(d_pi_odd[i])) < 2 * DBL_EPSILON);
-		assert(cos(d_pi_odd[i]) == -1.0);
-		assert(fabs(tan(d_pi_odd[i])) < 2 * DBL_EPSILON);
+		ATF_CHECK(fabs(sin(d_pi_odd[i])) < 2 * DBL_EPSILON);
+		ATF_CHECK(cos(d_pi_odd[i]) == -1.0);
+		ATF_CHECK(fabs(tan(d_pi_odd[i])) < 2 * DBL_EPSILON);
 
-		assert(fabs(sin(-d_pi_odd[i])) < 2 * DBL_EPSILON);
-		assert(cos(-d_pi_odd[i]) == -1.0);
-		assert(fabs(tan(-d_pi_odd[i])) < 2 * DBL_EPSILON);
+		ATF_CHECK(fabs(sin(-d_pi_odd[i])) < 2 * DBL_EPSILON);
+		ATF_CHECK(cos(-d_pi_odd[i]) == -1.0);
+		ATF_CHECK(fabs(tan(-d_pi_odd[i])) < 2 * DBL_EPSILON);
 
-		assert(fabs(sin(d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
-		assert(cos(d_pi_odd[i] * 2) == 1.0);
-		assert(fabs(tan(d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
+		ATF_CHECK(fabs(sin(d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
+		ATF_CHECK(cos(d_pi_odd[i] * 2) == 1.0);
+		ATF_CHECK(fabs(tan(d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
 
-		assert(fabs(sin(-d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
-		assert(cos(-d_pi_odd[i] * 2) == 1.0);
-		assert(fabs(tan(-d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
+		ATF_CHECK(fabs(sin(-d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
+		ATF_CHECK(cos(-d_pi_odd[i] * 2) == 1.0);
+		ATF_CHECK(fabs(tan(-d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
 	}
 
-#if LDBL_MANT_DIG > 53
+#if LDBL_MANT_DIG == 64 /* XXX: || LDBL_MANT_DIG == 113 */
 	for (i = 0; i < nitems(ld_pi_odd); i++) {
-		assert(fabsl(sinl(ld_pi_odd[i])) < LDBL_EPSILON);
-		assert(cosl(ld_pi_odd[i]) == -1.0);
-		assert(fabsl(tanl(ld_pi_odd[i])) < LDBL_EPSILON);
+		ATF_CHECK(fabsl(sinl(ld_pi_odd[i])) < LDBL_EPSILON);
+		ATF_CHECK(cosl(ld_pi_odd[i]) == -1.0);
+		ATF_CHECK(fabsl(tanl(ld_pi_odd[i])) < LDBL_EPSILON);
 
-		assert(fabsl(sinl(-ld_pi_odd[i])) < LDBL_EPSILON);
-		assert(cosl(-ld_pi_odd[i]) == -1.0);
-		assert(fabsl(tanl(-ld_pi_odd[i])) < LDBL_EPSILON);
+		ATF_CHECK(fabsl(sinl(-ld_pi_odd[i])) < LDBL_EPSILON);
+		ATF_CHECK(cosl(-ld_pi_odd[i]) == -1.0);
+		ATF_CHECK(fabsl(tanl(-ld_pi_odd[i])) < LDBL_EPSILON);
 
-		assert(fabsl(sinl(ld_pi_odd[i] * 2)) < LDBL_EPSILON);
-		assert(cosl(ld_pi_odd[i] * 2) == 1.0);
-		assert(fabsl(tanl(ld_pi_odd[i] * 2)) < LDBL_EPSILON);
+		ATF_CHECK(fabsl(sinl(ld_pi_odd[i] * 2)) < LDBL_EPSILON);
+		ATF_CHECK(cosl(ld_pi_odd[i] * 2) == 1.0);
+		ATF_CHECK(fabsl(tanl(ld_pi_odd[i] * 2)) < LDBL_EPSILON);
 
-		assert(fabsl(sinl(-ld_pi_odd[i] * 2)) < LDBL_EPSILON);
-		assert(cosl(-ld_pi_odd[i] * 2) == 1.0);
-		assert(fabsl(tanl(-ld_pi_odd[i] * 2)) < LDBL_EPSILON);
+		ATF_CHECK(fabsl(sinl(-ld_pi_odd[i] * 2)) < LDBL_EPSILON);
+		ATF_CHECK(cosl(-ld_pi_odd[i] * 2) == 1.0);
+		ATF_CHECK(fabsl(tanl(-ld_pi_odd[i] * 2)) < LDBL_EPSILON);
 	}
 #endif
 }
 
-/*
- * Tests the accuracy of these functions over the primary range.
- */
-static void
-run_accuracy_tests(void)
+ATF_TC(accuracy);
+ATF_TC_HEAD(accuracy, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+	    "tests the accuracy of these functions over the primary range");
+}
+ATF_TC_BODY(accuracy, tc)
 {
 
 	/* For small args, sin(x) = tan(x) = x, and cos(x) = 1. */
@@ -256,25 +264,17 @@ run_accuracy_tests(void)
 	 * - tests for large numbers that get reduced to hi+lo with lo!=0
 	 */
 }
+#endif
 
-int
-main(int argc, char *argv[])
+ATF_TP_ADD_TCS(tp)
 {
 
-	printf("1..3\n");
-
-	run_special_tests();
-	printf("ok 1 - trig\n");
+	ATF_TP_ADD_TC(tp, special);
 
 #ifndef __i386__
-	run_reduction_tests();
+	ATF_TP_ADD_TC(tp, accuracy);
+	ATF_TP_ADD_TC(tp, reduction);
 #endif
-	printf("ok 2 - trig\n");
 
-#ifndef __i386__
-	run_accuracy_tests();
-#endif
-	printf("ok 3 - trig\n");
-
-	return (0);
+	return (atf_no_error());
 }

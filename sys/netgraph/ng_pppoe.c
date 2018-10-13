@@ -175,6 +175,20 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	  &ng_parse_uint16_type,
 	  NULL
 	},
+        {
+	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SEND_HURL,
+	  "send_hurl",
+	  &ngpppoe_init_data_state_type,
+	  NULL
+        },
+        {
+	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SEND_MOTM,
+	  "send_motm",
+	  &ngpppoe_init_data_state_type,
+	  NULL
+        },
 	{ 0 }
 };
 
@@ -226,9 +240,11 @@ struct sess_neg {
 	const struct pppoe_tag	*tags[NUMTAGS];
 	u_int			service_len;
 	u_int			ac_name_len;
+	u_int			host_uniq_len;
 
 	struct datatag		service;
 	struct datatag		ac_name;
+	struct datatag		host_uniq;
 };
 typedef struct sess_neg *negp;
 
@@ -589,18 +605,43 @@ static hook_p
 pppoe_finduniq(node_p node, const struct pppoe_tag *tag)
 {
 	hook_p	hook = NULL;
-	union uniq uniq;
+	sessp	sp;
 
-	bcopy(tag + 1, uniq.bytes, sizeof(void *));
 	/* Cycle through all known hooks. */
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		/* Skip any nonsession hook. */
 		if (NG_HOOK_PRIVATE(hook) == NULL)
 			continue;
-		if (uniq.pointer == NG_HOOK_PRIVATE(hook))
+		sp = NG_HOOK_PRIVATE(hook);
+		/* Skip already connected sessions. */
+		if (sp->neg == NULL)
+			continue;
+		if (sp->neg->host_uniq_len == ntohs(tag->tag_len) &&
+		    bcmp(sp->neg->host_uniq.data, (const char *)(tag + 1),
+		     sp->neg->host_uniq_len) == 0)
 			break;
 	}
-	CTR3(KTR_NET, "%20s: matched %p for %p", __func__, hook, uniq.pointer);
+	CTR3(KTR_NET, "%20s: matched %p for %p", __func__, hook, sp);
+
+	return (hook);
+}
+
+static hook_p
+pppoe_findcookie(node_p node, const struct pppoe_tag *tag)
+{
+	hook_p	hook = NULL;
+	union uniq cookie;
+
+	bcopy(tag + 1, cookie.bytes, sizeof(void *));
+	/* Cycle through all known hooks. */
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+		/* Skip any nonsession hook. */
+		if (NG_HOOK_PRIVATE(hook) == NULL)
+			continue;
+		if (cookie.pointer == NG_HOOK_PRIVATE(hook))
+			break;
+	}
+	CTR3(KTR_NET, "%20s: matched %p for %p", __func__, hook, cookie.pointer);
 
 	return (hook);
 }
@@ -744,17 +785,29 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_PPPOE_LISTEN:
 		case NGM_PPPOE_OFFER:
 		case NGM_PPPOE_SERVICE:
+		case NGM_PPPOE_SEND_HURL:
+		case NGM_PPPOE_SEND_MOTM:
 			ourmsg = (struct ngpppoe_init_data *)msg->data;
 			if (msg->header.arglen < sizeof(*ourmsg)) {
 				log(LOG_ERR, "ng_pppoe[%x]: init data too "
 				    "small\n", node->nd_ID);
 				LEAVE(EMSGSIZE);
 			}
-			if (msg->header.arglen - sizeof(*ourmsg) >
-			    PPPOE_SERVICE_NAME_SIZE) {
-				log(LOG_ERR, "ng_pppoe[%x]: service name "
-				    "too big\n", node->nd_ID);
-				LEAVE(EMSGSIZE);
+			if (msg->header.cmd == NGM_PPPOE_SEND_HURL ||
+			    msg->header.cmd == NGM_PPPOE_SEND_MOTM) {
+				if (msg->header.arglen - sizeof(*ourmsg) >
+				    PPPOE_PADM_VALUE_SIZE) {
+					log(LOG_ERR, "ng_pppoe[%x]: message "
+					    "too big\n", node->nd_ID);
+					LEAVE(EMSGSIZE);
+				}
+			} else {
+				if (msg->header.arglen - sizeof(*ourmsg) >
+				    PPPOE_SERVICE_NAME_SIZE) {
+					log(LOG_ERR, "ng_pppoe[%x]: service name "
+					    "too big\n", node->nd_ID);
+					LEAVE(EMSGSIZE);
+				}
 			}
 			if (msg->header.arglen - sizeof(*ourmsg) <
 			    ourmsg->data_len) {
@@ -793,6 +846,20 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 */
 			if (msg->header.cmd == NGM_PPPOE_SERVICE)
 				break;
+
+			/*
+			 * PADM messages are set up on active sessions.
+			 */
+			if (msg->header.cmd == NGM_PPPOE_SEND_HURL ||
+			    msg->header.cmd == NGM_PPPOE_SEND_MOTM) {
+				if (sp->state != PPPOE_NEWCONNECTED &&
+				    sp->state != PPPOE_CONNECTED) {
+					log(LOG_NOTICE, "ng_pppoe[%x]: session is not "
+					    "active\n", node->nd_ID);
+					LEAVE(EISCONN);
+				}
+				break;
+			}
 
 			if (sp->state != PPPOE_SNONE) {
 				log(LOG_NOTICE, "ng_pppoe[%x]: Session already "
@@ -848,12 +915,15 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * Check the hook exists and is Uninitialised.
 			 * Send a PADI request, and start the timeout logic.
 			 * Store the originator of this message so we can send
-			 * a success of fail message to them later.
+			 * a success or fail message to them later.
 			 * Move the session to SINIT.
 			 * Set up the session to the correct state and
 			 * start it.
 			 */
-			int	i, acnlen = 0, acnsep = 0, srvlen;
+			int	acnpos, acnlen = 0, acnsep = 0;
+			int	hupos, hulen = 0, husep = 0;
+			int	i, srvpos, srvlen;
+			acnpos = 0;
 			for (i = 0; i < ourmsg->data_len; i++) {
 				if (ourmsg->data[i] == '\\') {
 					acnlen = i;
@@ -861,15 +931,56 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 					break;
 				}
 			}
-			srvlen = ourmsg->data_len - acnlen - acnsep;
+			hupos = acnlen + acnsep;
+			for (i = hupos; i < ourmsg->data_len; i++) {
+				if (ourmsg->data[i] == '|') {
+					hulen = i - hupos;
+					husep = 1;
+					break;
+				}
+			}
+			srvpos = hupos + hulen + husep;
+			srvlen = ourmsg->data_len - srvpos;
 
-			bcopy(ourmsg->data, neg->ac_name.data, acnlen);
+			bcopy(ourmsg->data + acnpos, neg->ac_name.data, acnlen);
 			neg->ac_name_len = acnlen;
+
+			neg->host_uniq.hdr.tag_type = PTT_HOST_UNIQ;
+			if (hulen == 0) {
+				/* Not provided, generate one */
+				neg->host_uniq.hdr.tag_len = htons(sizeof(sp));
+				bcopy(&sp, neg->host_uniq.data, sizeof(sp));
+				neg->host_uniq_len = sizeof(sp);
+			} else if (hulen > 2 && ourmsg->data[hupos] == '0' &&
+			  ourmsg->data[hupos + 1] == 'x' && hulen % 2 == 0) {
+				/* Hex encoded */
+				static const char hexdig[16] = "0123456789abcdef";
+				int j;
+
+				neg->host_uniq.hdr.tag_len = htons((uint16_t)(hulen / 2 - 1));
+				for (i = 0; i < hulen - 2; i++) {
+					for (j = 0;
+					     j < 16 &&
+					     ourmsg->data[hupos + 2 + i] != hexdig[j];
+					     j++);
+					if (j == 16)
+						LEAVE(EINVAL);
+					if (i % 2 == 0)
+						neg->host_uniq.data[i / 2] = j << 4;
+					else
+						neg->host_uniq.data[i / 2] |= j;
+				}
+				neg->host_uniq_len = hulen / 2 - 1;
+			} else {
+				/* Plain string */
+				neg->host_uniq.hdr.tag_len = htons((uint16_t)hulen);
+				bcopy(ourmsg->data + hupos, neg->host_uniq.data, hulen);
+				neg->host_uniq_len = hulen;
+			}
 
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
 			neg->service.hdr.tag_len = htons((uint16_t)srvlen);
-			bcopy(ourmsg->data + acnlen + acnsep,
-			    neg->service.data, srvlen);
+			bcopy(ourmsg->data + srvpos, neg->service.data, srvlen);
 			neg->service_len = srvlen;
 			pppoe_start(sp);
 			break;
@@ -879,7 +990,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * Check the hook exists and is Uninitialised.
 			 * Install the service matching string.
 			 * Store the originator of this message so we can send
-			 * a success of fail message to them later.
+			 * a success or fail message to them later.
 			 * Move the hook to 'LISTENING'
 			 */
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
@@ -1019,6 +1130,92 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			privp->max_payload.hdr.tag_len = htons(sizeof(uint16_t));
 			privp->max_payload.data = htons(*((uint16_t *)msg->data));
 			break;
+		case NGM_PPPOE_SEND_HURL:
+		    {
+			struct mbuf *m;
+
+			/* Generate a packet of that type. */
+			m = m_gethdr(M_NOWAIT, MT_DATA);
+			if (m == NULL)
+				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
+				    "mbufs\n", node->nd_ID);
+			else {
+				struct pppoe_full_hdr *wh;
+				struct pppoe_tag *tag;
+				int     error = 0;
+
+				wh = mtod(m, struct pppoe_full_hdr *);
+				bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+
+				/* Revert the stored header to DISC/PADM mode. */
+				wh->ph.code = PADM_CODE;
+				/*
+				 * Configure ethertype depending on what
+				 * was used during sessions stage.
+				 */
+				if (wh->eh.ether_type ==
+				    ETHERTYPE_PPPOE_3COM_SESS)
+					wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
+				else
+					wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
+				/*
+				 * Add PADM message and adjust sizes.
+				 */
+				tag = (void *)(&wh->ph + 1);
+				tag->tag_type = PTT_HURL;
+				tag->tag_len = htons(ourmsg->data_len);
+				strncpy((char *)(tag + 1), ourmsg->data, ourmsg->data_len);
+				m->m_pkthdr.len = m->m_len = sizeof(*wh) + sizeof(*tag) +
+				    ourmsg->data_len;
+				wh->ph.length = htons(sizeof(*tag) + ourmsg->data_len);
+				NG_SEND_DATA_ONLY(error,
+				    privp->ethernet_hook, m);
+			}
+			break;
+		    }
+		case NGM_PPPOE_SEND_MOTM:
+		    {
+			struct mbuf *m;
+
+			/* Generate a packet of that type. */
+			m = m_gethdr(M_NOWAIT, MT_DATA);
+			if (m == NULL)
+				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
+				    "mbufs\n", node->nd_ID);
+			else {
+				struct pppoe_full_hdr *wh;
+				struct pppoe_tag *tag;
+				int     error = 0;
+
+				wh = mtod(m, struct pppoe_full_hdr *);
+				bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+
+				/* Revert the stored header to DISC/PADM mode. */
+				wh->ph.code = PADM_CODE;
+				/*
+				 * Configure ethertype depending on what
+				 * was used during sessions stage.
+				 */
+				if (wh->eh.ether_type ==
+				    ETHERTYPE_PPPOE_3COM_SESS)
+					wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
+				else
+					wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
+				/*
+				 * Add PADM message and adjust sizes.
+				 */
+				tag = (void *)(&wh->ph + 1);
+				tag->tag_type = PTT_MOTM;
+				tag->tag_len = htons(ourmsg->data_len);
+				strncpy((char *)(tag + 1), ourmsg->data, ourmsg->data_len);
+				m->m_pkthdr.len = m->m_len = sizeof(*wh) + sizeof(*tag) +
+				    ourmsg->data_len;
+				wh->ph.length = htons(sizeof(*tag) + ourmsg->data_len);
+				NG_SEND_DATA_ONLY(error,
+				    privp->ethernet_hook, m);
+			}
+			break;
+		    }
 		default:
 			LEAVE(EINVAL);
 		}
@@ -1061,10 +1258,6 @@ pppoe_start(sessp sp)
 	node_p	node = NG_HOOK_NODE(hook);
 	priv_p	privp = NG_NODE_PRIVATE(node);
 	negp	neg = sp->neg;
-	struct {
-		struct pppoe_tag hdr;
-		union	uniq	data;
-	} __packed uniqtag;
 	struct  mbuf *m0;
 	int	error;
 
@@ -1080,11 +1273,8 @@ pppoe_start(sessp sp)
 	memcpy((void *)&neg->pkt->pkt_header.eh, &privp->eh,
 	    sizeof(struct ether_header));
 	neg->pkt->pkt_header.ph.code = PADI_CODE;
-	uniqtag.hdr.tag_type = PTT_HOST_UNIQ;
-	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
-	uniqtag.data.pointer = sp;
 	init_tags(sp);
-	insert_tag(sp, &uniqtag.hdr);
+	insert_tag(sp, &neg->host_uniq.hdr);
 	insert_tag(sp, &neg->service.hdr);
 	if (privp->max_payload.data != 0)
 		insert_tag(sp, &privp->max_payload.hdr);
@@ -1158,6 +1348,52 @@ send_maxp(sessp sp, const struct pppoe_tag *tag)
 	maxp = (struct ngpppoe_maxp *)msg->data;
 	strncpy(maxp->hook, NG_HOOK_NAME(sp->hook), NG_HOOKSIZ);
 	maxp->data = ntohs(((const struct maxptag *)tag)->data);
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
+
+	return (error);
+}
+
+static int
+send_hurl(sessp sp, const struct pppoe_tag *tag)
+{
+	int error, tlen;
+	struct ng_mesg *msg;
+	struct ngpppoe_padm *padm;
+
+	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, NGM_PPPOE_HURL,
+	    sizeof(struct ngpppoe_padm), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	padm = (struct ngpppoe_padm *)msg->data;
+	tlen = min(PPPOE_PADM_VALUE_SIZE - 1, ntohs(tag->tag_len));
+	strncpy(padm->msg, (const char *)(tag + 1), tlen);
+	padm->msg[tlen] = '\0';
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
+
+	return (error);
+}
+
+static int
+send_motm(sessp sp, const struct pppoe_tag *tag)
+{
+	int error, tlen;
+	struct ng_mesg *msg;
+	struct ngpppoe_padm *padm;
+
+	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, NGM_PPPOE_MOTM,
+	    sizeof(struct ngpppoe_padm), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	padm = (struct ngpppoe_padm *)msg->data;
+	tlen = min(PPPOE_PADM_VALUE_SIZE - 1, ntohs(tag->tag_len));
+	strncpy(padm->msg, (const char *)(tag + 1), tlen);
+	padm->msg[tlen] = '\0';
 	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 
 	return (error);
@@ -1320,6 +1556,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 	const priv_p		privp = NG_NODE_PRIVATE(node);
 	sessp			sp;
 	const struct pppoe_tag	*utag = NULL, *tag = NULL;
+	const struct pppoe_tag	sntag = { PTT_SRV_NAME, 0 };
 	const struct pppoe_full_hdr *wh;
 	const struct pppoe_hdr	*ph;
 	negp			neg = NULL;
@@ -1409,11 +1646,8 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			 * processing.
 			 */
 			tag = get_tag(ph, PTT_SRV_NAME);
-			if (tag == NULL) {
-				CTR1(KTR_NET, "%20s: PADI w/o Service-Name",
-				    __func__);
-				LEAVE(ENETUNREACH);
-			}
+			if (tag == NULL)
+				tag = &sntag;
 
 			/*
 			 * First, try to match Service-Name against our 
@@ -1438,8 +1672,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			 * For now simply accept the first we receive.
 			 */
 			utag = get_tag(ph, PTT_HOST_UNIQ);
-			if ((utag == NULL) ||
-			    (ntohs(utag->tag_len) != sizeof(sp))) {
+			if (utag == NULL) {
 				log(LOG_NOTICE, "ng_pppoe[%x]: no host "
 				    "unique field\n", node->nd_ID);
 				LEAVE(ENETUNREACH);
@@ -1529,7 +1762,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 				LEAVE(ENETUNREACH);
 			}
 
-			sendhook = pppoe_finduniq(node, utag);
+			sendhook = pppoe_findcookie(node, utag);
 			if (sendhook == NULL)
 				LEAVE(ENETUNREACH);
 
@@ -1605,8 +1838,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			 * set us into Session mode.
 			 */
 			utag = get_tag(ph, PTT_HOST_UNIQ);
-			if ((utag == NULL) ||
-			    (ntohs(utag->tag_len) != sizeof(sp))) {
+			if (utag == NULL) {
 				LEAVE (ENETUNREACH);
 			}
 			sendhook = pppoe_finduniq(node, utag);
@@ -1658,6 +1890,19 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 				LEAVE(ENETUNREACH);
 			/* Disconnect that hook. */
 			ng_rmhook_self(sp->hook);
+			break;
+		case	PADM_CODE:
+			/*
+			 * We are a client:
+			 * find matching peer/session combination.
+			 */
+			sp = pppoe_findsession(privp, wh);
+			if (sp == NULL)
+				LEAVE (ENETUNREACH);
+			if ((tag = get_tag(ph, PTT_HURL)))
+				send_hurl(sp, tag);
+			if ((tag = get_tag(ph, PTT_MOTM)))
+				send_motm(sp, tag);
 			break;
 		default:
 			LEAVE(EPFNOSUPPORT);
@@ -1781,7 +2026,7 @@ ng_pppoe_disconnect(hook_p hook)
 			struct mbuf *m;
 
 			/* Generate a packet of that type. */
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (m == NULL)
 				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
 				    "mbufs\n", node->nd_ID);
@@ -1791,8 +2036,6 @@ ng_pppoe_disconnect(hook_p hook)
 				int	msglen = strlen(SIGNOFF);
 				int	error = 0;
 
-				m->m_pkthdr.rcvif = NULL;
-				m->m_pkthdr.len = m->m_len = sizeof(*wh);
 				wh = mtod(m, struct pppoe_full_hdr *);
 				bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
 
@@ -1815,8 +2058,8 @@ ng_pppoe_disconnect(hook_p hook)
 				tag->tag_type = PTT_GEN_ERR;
 				tag->tag_len = htons((u_int16_t)msglen);
 				strncpy((char *)(tag + 1), SIGNOFF, msglen);
-				m->m_pkthdr.len = (m->m_len += sizeof(*tag) +
-				    msglen);
+				m->m_pkthdr.len = m->m_len = sizeof(*wh) + sizeof(*tag) +
+				    msglen;
 				wh->ph.length = htons(sizeof(*tag) + msglen);
 				NG_SEND_DATA_ONLY(error,
 					privp->ethernet_hook, m);
@@ -1933,6 +2176,8 @@ scan_tags(sessp	sp, const struct pppoe_hdr* ph)
 		case	PTT_SYS_ERR:
 		case	PTT_GEN_ERR:
 		case	PTT_MAX_PAYL:
+		case	PTT_HURL:
+		case	PTT_MOTM:
 			break;
 		}
 		pt = (const struct pppoe_tag*)ptn;

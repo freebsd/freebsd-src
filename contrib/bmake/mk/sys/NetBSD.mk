@@ -105,8 +105,6 @@ LINTFLAGS?=	-chapbxzF
 
 LORDER?=	lorder
 
-MAKE?=		make
-
 NM?=		nm
 
 PC?=		pc

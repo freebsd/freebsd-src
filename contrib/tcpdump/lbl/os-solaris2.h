@@ -25,4 +25,3 @@ int	setlinebuf(FILE *);
 #endif
 char    *strerror(int);
 int	snprintf(char *, size_t, const char *, ...);
-int	strcasecmp(const char *, const char *);

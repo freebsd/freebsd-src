@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2012 Broadcom Corporation
  * All Rights Reserved
  *
@@ -77,9 +79,6 @@
 #define	XLP_SEC_MAX_AUTH_KEY_LENGTH	XLP_SEC_SHA512_BLOCK_SIZE
 #define	XLP_SEC_MAX_RC4_STATE_SIZE	264	/* char s[256], int i, int j */
 
-#define	XLP_SEC_SESSION(sid)	((sid) & 0x000007ff)
-#define	XLP_SEC_SID(crd,ses)	(((crd) << 28) | ((ses) & 0x7ff))
-
 #define	CRYPTO_ERROR(msg1)	((unsigned int)msg1)
 
 #define	NLM_CRYPTO_LEFT_REQS (CMS_DEFAULT_CREDIT/2)
@@ -91,7 +90,6 @@
 extern unsigned int creditleft;
 
 struct xlp_sec_command {
-	uint16_t session_num;
 	struct cryptop *crp;
 	struct cryptodesc *enccrd, *maccrd;
 	struct xlp_sec_session *ses;
@@ -117,8 +115,6 @@ struct xlp_sec_command {
 };
 
 struct xlp_sec_session {
-	uint32_t sessionid;
-	int hs_used;
 	int hs_mlen;
 	uint8_t ses_iv[EALG_MAX_BLOCK_LEN];
 	struct xlp_sec_command cmd;
@@ -131,8 +127,6 @@ struct xlp_sec_softc {
 	device_t sc_dev;	/* device backpointer */
 	uint64_t sec_base;
 	int32_t sc_cid;
-	struct xlp_sec_session *sc_sessions;
-	int sc_nsessions;
 	int sc_needwakeup;
 	uint32_t sec_vc_start;
 	uint32_t sec_vc_end;

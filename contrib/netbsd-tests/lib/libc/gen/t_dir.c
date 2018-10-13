@@ -1,4 +1,4 @@
-/* $NetBSD: t_dir.c,v 1.6 2013/10/19 17:45:00 christos Exp $ */
+/* $NetBSD: t_dir.c,v 1.10 2017/01/11 18:15:02 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -26,18 +26,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <atf-c.h>
-
+#include <sys/stat.h>
 #include <assert.h>
+#include <atf-c.h>
 #include <dirent.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/stat.h>
+
 
 ATF_TC(seekdir_basic);
 ATF_TC_HEAD(seekdir_basic, tc)
@@ -54,10 +55,19 @@ ATF_TC_BODY(seekdir_basic, tc)
 	struct dirent *entry;
 	long here;
 
-	mkdir("t", 0755);
-	creat("t/a", 0600);
-	creat("t/b", 0600);
-	creat("t/c", 0600);
+#define	CREAT(x, m)	do {						\
+		int _creat_fd;						\
+		ATF_REQUIRE_MSG((_creat_fd = creat((x), (m))) != -1,	\
+		    "creat(%s, %x) failed: %s", (x), (m),		\
+		    strerror(errno));					\
+		(void)close(_creat_fd);					\
+	} while(0);
+
+	ATF_REQUIRE_MSG(mkdir("t", 0755) == 0,
+	    "mkdir failed: %s", strerror(errno));
+	CREAT("t/a", 0600);
+	CREAT("t/b", 0600);
+	CREAT("t/c", 0600);
 
 	dp = opendir("t");
 	if ( dp == NULL)
@@ -65,27 +75,40 @@ ATF_TC_BODY(seekdir_basic, tc)
 
 	/* skip two for . and .. */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    ".", strerror(errno));
+
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "..", strerror(errno));
 
 	/* get first entry */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "first", strerror(errno));
+
 	here = telldir(dp);
+	ATF_REQUIRE_MSG(here != -1, "telldir failed: %s", strerror(errno));
 
 	/* get second entry */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "second", strerror(errno));
+
 	wasname = strdup(entry->d_name);
 	if (wasname == NULL)
 		atf_tc_fail("cannot allocate memory");
 
 	/* get third entry */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "third", strerror(errno));
 
 	/* try to return to the position after the first entry */
 	seekdir(dp, here);
 	entry = readdir(dp);
-
-	if (entry == NULL)
-		atf_tc_fail("entry 1 not found");
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "first[1]", strerror(errno));
 	if (strcmp(entry->d_name, wasname) != 0)
 		atf_tc_fail("1st seekdir found wrong name");
 
@@ -93,26 +116,26 @@ ATF_TC_BODY(seekdir_basic, tc)
 	seekdir(dp, here);
 	here = telldir(dp);
 	entry = readdir(dp);
-
-	if (entry == NULL)
-		atf_tc_fail("entry 2 not found");
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "second[1]", strerror(errno));
 	if (strcmp(entry->d_name, wasname) != 0)
 		atf_tc_fail("2nd seekdir found wrong name");
 
 	/* One more time, to make sure that telldir() doesn't affect result */
 	seekdir(dp, here);
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "third[1]", strerror(errno));
 
-	if (entry == NULL)
-		atf_tc_fail("entry 3 not found");
 	if (strcmp(entry->d_name, wasname) != 0)
 		atf_tc_fail("3rd seekdir found wrong name");
 
 	closedir(dp);
+	free(wasname);
 }
 
 /* There is no sbrk on AArch64 and RISC-V */
-#if !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__aarch64__) && !defined(__riscv)
 ATF_TC(telldir_leak);
 ATF_TC_HEAD(telldir_leak, tc)
 {
@@ -162,7 +185,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, seekdir_basic);
-#if !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__aarch64__) && !defined(__riscv)
 	ATF_TP_ADD_TC(tp, telldir_leak);
 #endif
 

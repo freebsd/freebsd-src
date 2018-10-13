@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
+#ifdef HAVE_DIALOG
 #include <dialog.h>
+#endif
 
 #define	_PATH_ZONETAB		"/usr/share/zoneinfo/zone.tab"
 #define	_PATH_ISO3166		"/usr/share/misc/iso3166"
@@ -72,6 +74,19 @@ __FBSDID("$FreeBSD$");
 #define DITEM_LEAVE_MENU        (1 << 16)
 #define DITEM_RECREATE          (1 << 18)
 
+static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
+		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN],
+		path_db[MAXPATHLEN], path_wall_cmos_clock[MAXPATHLEN];
+
+static int reallydoit = 1;
+static int reinstall = 0;
+static char *chrootenv = NULL;
+
+static void	usage(void);
+static int	install_zoneinfo(const char *zoneinfo);
+static int	install_zoneinfo_file(const char *zoneinfo_file);
+
+#ifdef HAVE_DIALOG
 /* for use in describing more exotic behaviors */
 typedef struct dialogMenuItem {
 	char *prompt;
@@ -92,7 +107,7 @@ xdialog_count_rows(const char *p)
 		rows++;
 	}
 
-	return rows ? rows : 1;
+	return (rows ? rows : 1);
 }
 
 static int
@@ -109,7 +124,7 @@ xdialog_count_columns(const char *p)
 
 	len = strlen(p);
 	max_len = MAX(max_len, len);
-	return max_len;
+	return (max_len);
 }
 
 static int
@@ -149,7 +164,8 @@ xdialog_menu(const char *title, const char *cprompt, int height, int width,
 				tag_x = MAX(tag_x, l + k + 2);
 			}
 		}
-		width = MAX(xdialog_count_columns(cprompt), title != NULL ? xdialog_count_columns(title) : 0);
+		width = MAX(xdialog_count_columns(cprompt), title != NULL ?
+		    xdialog_count_columns(title) : 0);
 		width = MAX(width, tag_x + 4) + 4;
 	}
 	width = MAX(width, 24);
@@ -184,23 +200,13 @@ again:
 
 	free(listitems);
 	dlg_restore_vars(&save_vars);
-	return result;
+	return (result);
 }
 
-static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
-		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN],
-		path_db[MAXPATHLEN], path_wall_cmos_clock[MAXPATHLEN];
-
-static int reallydoit = 1;
-static int reinstall = 0;
 static int usedialog = 1;
-static char *chrootenv = NULL;
 
-static void	usage(void);
 static int	confirm_zone(const char *filename);
 static int	continent_country_menu(dialogMenuItem *);
-static int	install_zoneinfo(const char *zoneinfo);
-static int	install_zoneinfo_file(const char *zoneinfo_file);
 static int	set_zone_multi(dialogMenuItem *);
 static int	set_zone_whole_country(dialogMenuItem *);
 static int	set_zone_menu(dialogMenuItem *);
@@ -264,7 +270,7 @@ continent_country_menu(dialogMenuItem *continent)
 	int		rv;
 
 	if (strcmp(continent->title, "UTC") == 0)
-	        return set_zone_utc();
+		return (set_zone_utc());
 
 	/* Short cut -- if there's only one country, don't post a menu. */
 	if (contp->nitems == 1)
@@ -475,7 +481,7 @@ read_zones(void)
 	char		contbuf[16];
 	FILE		*fp;
 	struct continent *cont;
-	size_t		len;
+	size_t		len, contlen;
 	char		*line, *tlc, *file, *descr, *p;
 	int		lineno;
 
@@ -498,12 +504,16 @@ read_zones(void)
 			    path_zonetab, lineno, tlc);
 		/* coord = */ strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
+		/* get continent portion from continent/country */
 		p = strchr(file, '/');
 		if (p == NULL)
 			errx(1, "%s:%d: invalid zone name `%s'", path_zonetab,
 			    lineno, file);
-		contbuf[0] = '\0';
-		strncat(contbuf, file, p - file);
+		contlen = p - file + 1;		/* trailing nul */
+		if (contlen > sizeof(contbuf))
+			errx(1, "%s:%d: continent name in zone name `%s' too long",
+			    path_zonetab, lineno, file);
+		strlcpy(contbuf, file, contlen);
 		cont = find_continent(contbuf);
 		if (!cont)
 			errx(1, "%s:%d: invalid region `%s'", path_zonetab,
@@ -637,222 +647,10 @@ set_zone_menu(dialogMenuItem *dmi)
 static int
 set_zone_utc(void)
 {
-	if (!confirm_zone(NULL))
+	if (!confirm_zone("UTC"))
 		return (DITEM_FAILURE | DITEM_RECREATE);
 
 	return (install_zoneinfo("UTC"));
-}
-
-static int
-install_zoneinfo_file(const char *zoneinfo_file)
-{
-	char		buf[1024];
-	char		title[64], prompt[SILLY_BUFFER_SIZE];
-	struct stat	sb;
-	ssize_t		len;
-	int		fd1, fd2, copymode;
-
-	if (lstat(path_localtime, &sb) < 0) {
-		/* Nothing there yet... */
-		copymode = 1;
-	} else if (S_ISLNK(sb.st_mode))
-		copymode = 0;
-	else
-		copymode = 1;
-
-#ifdef VERBOSE
-	snprintf(title, sizeof(title), "Info");
-	if (zoneinfo_file == NULL)
-		snprintf(prompt, sizeof(prompt),
-		    "Removing %s", path_localtime);
-	else if (copymode)
-		snprintf(prompt, sizeof(prompt),
-		    "Copying %s to %s", zoneinfo_file, path_localtime);
-	else
-		snprintf(prompt, sizeof(prompt),
-		    "Creating symbolic link %s to %s",
-		    path_localtime, zoneinfo_file);
-	if (usedialog)
-		dialog_msgbox(title, prompt, 8, 72, 1);
-	else
-		fprintf(stderr, "%s\n", prompt);
-#endif
-
-	if (reallydoit) {
-		if (zoneinfo_file == NULL) {
-			if (unlink(path_localtime) < 0 && errno != ENOENT) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				     "Could not delete %s: %s", path_localtime,
-				     strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-			if (unlink(path_db) < 0 && errno != ENOENT) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				     "Could not delete %s: %s", path_db,
-				     strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-#ifdef VERBOSE
-			snprintf(title, sizeof(title), "Done");
-			snprintf(prompt, sizeof(prompt),
-			    "Removed %s", path_localtime);
-			if (usedialog)
-				dialog_msgbox(title, prompt, 8, 72, 1);
-			else
-				fprintf(stderr, "%s\n", prompt);
-#endif
-			return (DITEM_LEAVE_MENU);
-		}
-
-		if (copymode) {
-			fd1 = open(zoneinfo_file, O_RDONLY, 0);
-			if (fd1 < 0) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Could not open %s: %s", zoneinfo_file,
-				    strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-
-			if (unlink(path_localtime) < 0 && errno != ENOENT) {
-				snprintf(prompt, sizeof(prompt),
-				    "Could not unlink %s: %s",
-				    path_localtime, strerror(errno));
-				if (usedialog) {
-					snprintf(title, sizeof(title), "Error");
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				} else
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-
-			fd2 = open(path_localtime, O_CREAT | O_EXCL | O_WRONLY,
-			    S_IRUSR | S_IRGRP | S_IROTH);
-			if (fd2 < 0) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Could not open %s: %s",
-				    path_localtime, strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-
-			while ((len = read(fd1, buf, sizeof(buf))) > 0)
-				if ((len = write(fd2, buf, len)) < 0)
-					break;
-
-			if (len == -1) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Error copying %s to %s %s", zoneinfo_file,
-				    path_localtime, strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-				/* Better to leave none than a corrupt one. */
-				unlink(path_localtime);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-			close(fd1);
-			close(fd2);
-		} else {
-			if (access(zoneinfo_file, R_OK) != 0) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Cannot access %s: %s", zoneinfo_file,
-				    strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-			if (unlink(path_localtime) < 0 && errno != ENOENT) {
-				snprintf(prompt, sizeof(prompt),
-				    "Could not unlink %s: %s",
-				    path_localtime, strerror(errno));
-				if (usedialog) {
-					snprintf(title, sizeof(title), "Error");
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				} else
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-			if (symlink(zoneinfo_file, path_localtime) < 0) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Cannot create symbolic link %s to %s: %s",
-				    path_localtime, zoneinfo_file,
-				    strerror(errno));
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-		}
-
-#ifdef VERBOSE
-		snprintf(title, sizeof(title), "Done");
-		if (copymode)
-			snprintf(prompt, sizeof(prompt),
-			    "Copied timezone file from %s to %s",
-			    zoneinfo_file, path_localtime);
-		else
-			snprintf(prompt, sizeof(prompt),
-			    "Created symbolic link from %s to %s",
-			    zoneinfo_file, path_localtime);
-		if (usedialog)
-			dialog_msgbox(title, prompt, 8, 72, 1);
-		else
-			fprintf(stderr, "%s\n", prompt);
-#endif
-	} /* reallydoit */
-
-	return (DITEM_LEAVE_MENU);
-}
-
-static int
-install_zoneinfo(const char *zoneinfo)
-{
-	int		rv;
-	FILE		*f;
-	char		path_zoneinfo_file[MAXPATHLEN];
-
-	if ((size_t)snprintf(path_zoneinfo_file, sizeof(path_zoneinfo_file),
-	    "%s/%s", path_zoneinfo, zoneinfo) >= sizeof(path_zoneinfo_file))
-		errx(1, "%s/%s name too long", path_zoneinfo, zoneinfo);
-	rv = install_zoneinfo_file(path_zoneinfo_file);
-
-	/* Save knowledge for later */
-	if (reallydoit && (rv & DITEM_FAILURE) == 0) {
-		if ((f = fopen(path_db, "w")) != NULL) {
-			fprintf(f, "%s\n", zoneinfo);
-			fclose(f);
-		}
-	}
-
-	return (rv);
 }
 
 static int
@@ -863,7 +661,7 @@ confirm_zone(const char *filename)
 	struct tm	*tm;
 	int		rv;
 
-	setenv("TZ", filename == NULL ? "" : filename, 1);
+	setenv("TZ", filename, 1);
 	tzset();
 	tm = localtime(&t);
 
@@ -900,6 +698,198 @@ set_zone_whole_country(dialogMenuItem *dmi)
 	return (rv);
 }
 
+#endif
+
+static int
+install_zoneinfo_file(const char *zoneinfo_file)
+{
+	char		buf[1024];
+	char		title[64], prompt[SILLY_BUFFER_SIZE];
+	struct stat	sb;
+	ssize_t		len;
+	int		fd1, fd2, copymode;
+
+	if (lstat(path_localtime, &sb) < 0) {
+		/* Nothing there yet... */
+		copymode = 1;
+	} else if (S_ISLNK(sb.st_mode))
+		copymode = 0;
+	else
+		copymode = 1;
+
+#ifdef VERBOSE
+	snprintf(title, sizeof(title), "Info");
+	if (copymode)
+		snprintf(prompt, sizeof(prompt),
+		    "Copying %s to %s", zoneinfo_file, path_localtime);
+	else
+		snprintf(prompt, sizeof(prompt),
+		    "Creating symbolic link %s to %s",
+		    path_localtime, zoneinfo_file);
+#ifdef HAVE_DIALOG
+	if (usedialog)
+		dialog_msgbox(title, prompt, 8, 72, 1);
+	else
+#endif
+		fprintf(stderr, "%s\n", prompt);
+#endif
+
+	if (reallydoit) {
+		if (copymode) {
+			fd1 = open(zoneinfo_file, O_RDONLY, 0);
+			if (fd1 < 0) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				    "Could not open %s: %s", zoneinfo_file,
+				    strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog)
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not delete %s: %s",
+				    path_localtime, strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog) {
+					snprintf(title, sizeof(title), "Error");
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				} else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
+			fd2 = open(path_localtime, O_CREAT | O_EXCL | O_WRONLY,
+			    S_IRUSR | S_IRGRP | S_IROTH);
+			if (fd2 < 0) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				    "Could not open %s: %s",
+				    path_localtime, strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog)
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
+			while ((len = read(fd1, buf, sizeof(buf))) > 0)
+				if ((len = write(fd2, buf, len)) < 0)
+					break;
+
+			if (len == -1) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				    "Error copying %s to %s %s", zoneinfo_file,
+				    path_localtime, strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog)
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				/* Better to leave none than a corrupt one. */
+				unlink(path_localtime);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			close(fd1);
+			close(fd2);
+		} else {
+			if (access(zoneinfo_file, R_OK) != 0) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				    "Cannot access %s: %s", zoneinfo_file,
+				    strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog)
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not delete %s: %s",
+				    path_localtime, strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog) {
+					snprintf(title, sizeof(title), "Error");
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				} else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			if (symlink(zoneinfo_file, path_localtime) < 0) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				    "Cannot create symbolic link %s to %s: %s",
+				    path_localtime, zoneinfo_file,
+				    strerror(errno));
+#ifdef HAVE_DIALOG
+				if (usedialog)
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				else
+#endif
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+		}
+
+#ifdef VERBOSE
+		snprintf(title, sizeof(title), "Done");
+		if (copymode)
+			snprintf(prompt, sizeof(prompt),
+			    "Copied timezone file from %s to %s",
+			    zoneinfo_file, path_localtime);
+		else
+			snprintf(prompt, sizeof(prompt),
+			    "Created symbolic link from %s to %s",
+			    zoneinfo_file, path_localtime);
+#ifdef HAVE_DIALOG
+		if (usedialog)
+			dialog_msgbox(title, prompt, 8, 72, 1);
+		else
+#endif
+			fprintf(stderr, "%s\n", prompt);
+#endif
+	} /* reallydoit */
+
+	return (DITEM_LEAVE_MENU);
+}
+
+static int
+install_zoneinfo(const char *zoneinfo)
+{
+	int		rv;
+	FILE		*f;
+	char		path_zoneinfo_file[MAXPATHLEN];
+
+	if ((size_t)snprintf(path_zoneinfo_file, sizeof(path_zoneinfo_file),
+	    "%s/%s", path_zoneinfo, zoneinfo) >= sizeof(path_zoneinfo_file))
+		errx(1, "%s/%s name too long", path_zoneinfo, zoneinfo);
+	rv = install_zoneinfo_file(path_zoneinfo_file);
+
+	/* Save knowledge for later */
+	if (reallydoit && (rv & DITEM_FAILURE) == 0) {
+		if ((f = fopen(path_db, "w")) != NULL) {
+			fprintf(f, "%s\n", zoneinfo);
+			fclose(f);
+		}
+	}
+
+	return (rv);
+}
+
 static void
 usage(void)
 {
@@ -912,8 +902,11 @@ usage(void)
 int
 main(int argc, char **argv)
 {
+#ifdef HAVE_DIALOG
 	char		title[64], prompt[128];
-	int		c, fd, rv, skiputc;
+	int		fd;
+#endif
+	int		c, rv, skiputc;
 	char		vm_guest[16] = "";
 	size_t		len = sizeof(vm_guest);
 
@@ -934,7 +927,9 @@ main(int argc, char **argv)
 			break;
 		case 'r':
 			reinstall = 1;
+#ifdef HAVE_DIALOG
 			usedialog = 0;
+#endif
 			break;
 		case 's':
 			skiputc = 1;
@@ -963,7 +958,6 @@ main(int argc, char **argv)
 		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
 		    _PATH_WALL_CMOS_CLOCK);
 	}
-
 
 	/* Override the user-supplied umask. */
 	(void)umask(S_IWGRP | S_IWOTH);
@@ -998,12 +992,15 @@ main(int argc, char **argv)
 		struct stat sb;
 
 		if (stat(argv[optind], &sb) != 0) {
+#ifdef HAVE_DIALOG
 			usedialog = 0;
+#endif
 			rv = install_zoneinfo(argv[optind]);
 			exit(rv & ~DITEM_LEAVE_MENU);
 		}
 		/* FALLTHROUGH */
 	}
+#ifdef HAVE_DIALOG
 
 	read_iso3166_table();
 	read_zones();
@@ -1064,5 +1061,8 @@ main(int argc, char **argv)
 
 	dlg_clear();
 	end_dialog();
+#else
+	usage();
+#endif
 	return (0);
 }

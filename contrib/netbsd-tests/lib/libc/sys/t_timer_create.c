@@ -1,4 +1,4 @@
-/*	$NetBSD: t_timer_create.c,v 1.4 2012/03/18 07:00:52 jruoho Exp $ */
+/*	$NetBSD: t_timer_create.c,v 1.5 2017/01/16 16:32:13 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -38,11 +38,7 @@ static timer_t t;
 static bool fail = true;
 
 static void
-#ifdef __FreeBSD__
 timer_signal_handler(int signo, siginfo_t *si, void *osi __unused)
-#else
-timer_signal_handler(int signo, siginfo_t *si, void *osi)
-#endif
 {
 	timer_t *tp;
 
@@ -115,6 +111,61 @@ timer_signal_create(clockid_t cid, bool expire)
 
 	ATF_REQUIRE(timer_delete(t) == 0);
 }
+
+#ifdef __FreeBSD__
+static void
+timer_callback(union sigval value)
+{
+	timer_t *tp;
+
+	tp = value.sival_ptr;
+
+	if (*tp == t)
+		fail = false;
+}
+
+static void
+timer_thread_create(clockid_t cid, bool expire)
+{
+	struct itimerspec tim;
+	struct sigevent evt;
+
+	t = 0;
+	fail = true;
+
+	(void)memset(&evt, 0, sizeof(struct sigevent));
+	(void)memset(&tim, 0, sizeof(struct itimerspec));
+
+	/*
+	 * Create the timer (SIGEV_THREAD).
+	 */
+	evt.sigev_notify_function = timer_callback;
+	evt.sigev_value.sival_ptr = &t;
+	evt.sigev_notify = SIGEV_THREAD;
+
+	ATF_REQUIRE(timer_create(cid, &evt, &t) == 0);
+
+	/*
+	 * Start the timer.
+	 */
+	tim.it_value.tv_sec = expire ? 5 : 1;
+	tim.it_value.tv_nsec = 0;
+
+	ATF_REQUIRE(timer_settime(t, 0, &tim, NULL) == 0);
+
+	(void)sleep(2);
+
+	if (expire) {
+		if (!fail)
+			atf_tc_fail("timer fired too soon");
+	} else {
+		if (fail)
+			atf_tc_fail("timer failed to fire");
+	}
+
+	ATF_REQUIRE(timer_delete(t) == 0);
+}
+#endif
 
 ATF_TC(timer_create_err);
 ATF_TC_HEAD(timer_create_err, tc)
@@ -198,6 +249,64 @@ ATF_TC_BODY(timer_create_mono_expire, tc)
 	timer_signal_create(CLOCK_MONOTONIC, true);
 }
 
+ATF_TC(timer_thread_create_real);
+ATF_TC_HEAD(timer_thread_create_real, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timer_create(2) with CLOCK_REALTIME and sigevent(3), "
+	    "SIGEV_THREAD");
+}
+
+#ifdef __FreeBSD__
+ATF_TC_BODY(timer_thread_create_real, tc)
+{
+	timer_thread_create(CLOCK_REALTIME, false);
+}
+
+ATF_TC(timer_thread_create_mono);
+ATF_TC_HEAD(timer_thread_create_mono, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timer_create(2) with CLOCK_MONOTONIC and sigevent(3), "
+	    "SIGEV_THREAD");
+}
+
+ATF_TC_BODY(timer_thread_create_mono, tc)
+{
+	timer_thread_create(CLOCK_MONOTONIC, false);
+}
+
+ATF_TC(timer_thread_create_real_expire);
+ATF_TC_HEAD(timer_thread_create_real_expire, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timer_create(2) with CLOCK_REALTIME and sigevent(3), "
+	    "SIGEV_THREAD, with expiration");
+}
+
+ATF_TC_BODY(timer_thread_create_real_expire, tc)
+{
+	timer_thread_create(CLOCK_REALTIME, true);
+}
+
+ATF_TC(timer_thread_create_mono_expire);
+ATF_TC_HEAD(timer_thread_create_mono_expire, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timer_create(2) with CLOCK_MONOTONIC and sigevent(3), "
+	    "SIGEV_THREAD, with expiration");
+}
+
+ATF_TC_BODY(timer_thread_create_mono_expire, tc)
+{
+	timer_thread_create(CLOCK_MONOTONIC, true);
+}
+#endif
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -206,6 +315,12 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, timer_create_mono);
 	ATF_TP_ADD_TC(tp, timer_create_real_expire);
 	ATF_TP_ADD_TC(tp, timer_create_mono_expire);
+#ifdef __FreeBSD__
+	ATF_TP_ADD_TC(tp, timer_thread_create_real);
+	ATF_TP_ADD_TC(tp, timer_thread_create_mono);
+	ATF_TP_ADD_TC(tp, timer_thread_create_real_expire);
+	ATF_TP_ADD_TC(tp, timer_thread_create_mono_expire);
+#endif
 
 	return atf_no_error();
 }

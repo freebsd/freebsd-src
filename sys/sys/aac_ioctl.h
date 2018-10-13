@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 Scott Long
  * Copyright (c) 2000 BSDi
@@ -172,6 +174,14 @@ struct get_adapter_fib_ioctl {
 	int	  	Wait;
 	caddr_t		AifFib;
 };
+
+#ifdef _KERNEL
+struct get_adapter_fib_ioctl32 {
+	u_int32_t	AdapterFibContext;
+	int	  	Wait;
+	u_int32_t	AifFib;
+};
+#endif
 
 struct aac_query_disk {
 	int32_t		ContainerNumber;

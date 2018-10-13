@@ -365,7 +365,7 @@ typedef struct fetch_ctx_t {
   /* The handler representing this particular fetch.  */
   svn_ra_serf__handler_t *handler;
 
-  svn_boolean_t using_compression;
+  svn_ra_serf__session_t *session;
 
   /* Stores the information for the file we want to fetch. */
   file_baton_t *file;
@@ -433,13 +433,11 @@ struct report_context_t {
   const svn_delta_editor_t *editor;
   void *editor_baton;
 
-  /* The file holding request body for the REPORT.
-   *
-   * ### todo: It will be better for performance to store small
-   * request bodies (like 4k) in memory and bigger bodies on disk.
-   */
+  /* Stream for collecting the request body. */
   svn_stream_t *body_template;
-  body_create_baton_t *body;
+
+  /* Buffer holding request body for the REPORT (can spill to disk). */
+  svn_ra_serf__request_body_t *body;
 
   /* number of pending GET requests */
   unsigned int num_active_fetches;
@@ -456,148 +454,6 @@ struct report_context_t {
   /* Did we close the root directory? */
   svn_boolean_t closed_root;
 };
-
-/* Baton for collecting REPORT body. Depending on the size this
-   work is backed by a memory buffer (via serf buckets) or by
-   a file */
-struct body_create_baton_t
-{
-  apr_pool_t *result_pool;
-  apr_size_t total_bytes;
-
-  apr_pool_t *scratch_pool;
-
-  serf_bucket_alloc_t *alloc;
-  serf_bucket_t *collect_bucket;
-
-  const void *all_data;
-  apr_file_t *file;
-};
-
-
-#define MAX_BODY_IN_RAM (256*1024)
-
-/* Fold all previously collected data in a single buffer allocated in
-   RESULT_POOL and clear all intermediate state */
-static const char *
-body_allocate_all(body_create_baton_t *body,
-                  apr_pool_t *result_pool)
-{
-  char *buffer = apr_pcalloc(result_pool, body->total_bytes);
-  const char *data;
-  apr_size_t sz;
-  apr_status_t s;
-  apr_size_t remaining = body->total_bytes;
-  char *next = buffer;
-
-  while (!(s = serf_bucket_read(body->collect_bucket, remaining, &data, &sz)))
-    {
-      memcpy(next, data, sz);
-      remaining -= sz;
-      next += sz;
-
-      if (! remaining)
-        break;
-    }
-
-  if (!SERF_BUCKET_READ_ERROR(s))
-    {
-      memcpy(next, data, sz);
-    }
-
-  serf_bucket_destroy(body->collect_bucket);
-  body->collect_bucket = NULL;
-
-  return (s != APR_EOF) ? NULL : buffer;
-}
-
-/* Noop function. Make serf take care of freeing in error situations */
-static void serf_free_no_error(void *unfreed_baton, void *block) {}
-
-/* Stream write function for body creation */
-static svn_error_t *
-body_write_fn(void *baton,
-              const char *data,
-              apr_size_t *len)
-{
-  body_create_baton_t *bcb = baton;
-
-  if (!bcb->scratch_pool)
-    bcb->scratch_pool = svn_pool_create(bcb->result_pool);
-
-  if (bcb->file)
-    {
-      SVN_ERR(svn_io_file_write_full(bcb->file, data, *len, NULL,
-                                     bcb->scratch_pool));
-      svn_pool_clear(bcb->scratch_pool);
-
-      bcb->total_bytes += *len;
-    }
-  else if (*len + bcb->total_bytes > MAX_BODY_IN_RAM)
-    {
-      SVN_ERR(svn_io_open_unique_file3(&bcb->file, NULL, NULL,
-                                       svn_io_file_del_on_pool_cleanup,
-                                       bcb->result_pool, bcb->scratch_pool));
-
-      if (bcb->total_bytes)
-        {
-          const char *all = body_allocate_all(bcb, bcb->scratch_pool);
-
-          SVN_ERR(svn_io_file_write_full(bcb->file, all, bcb->total_bytes,
-                                         NULL, bcb->scratch_pool));
-        }
-
-      SVN_ERR(svn_io_file_write_full(bcb->file, data, *len, NULL,
-                                     bcb->scratch_pool));
-      bcb->total_bytes += *len;
-    }
-  else
-    {
-      if (!bcb->alloc)
-        bcb->alloc = serf_bucket_allocator_create(bcb->scratch_pool,
-                                                  serf_free_no_error, NULL);
-
-      if (!bcb->collect_bucket)
-        bcb->collect_bucket = serf_bucket_aggregate_create(bcb->alloc);
-
-      serf_bucket_aggregate_append(bcb->collect_bucket,
-                                   serf_bucket_simple_copy_create(data, *len,
-                                                                  bcb->alloc));
-
-      bcb->total_bytes += *len;
-    }
-
-  return SVN_NO_ERROR;
-}
-
-/* Stream close function for collecting body */
-static svn_error_t *
-body_done_fn(void *baton)
-{
-  body_create_baton_t *bcb = baton;
-  if (bcb->file)
-    {
-      /* We need to flush the file, make it unbuffered (so that it can be
-        * zero-copied via mmap), and reset the position before attempting
-        * to deliver the file.
-        *
-        * N.B. If we have APR 1.3+, we can unbuffer the file to let us use
-        * mmap and zero-copy the PUT body.  However, on older APR versions,
-        * we can't check the buffer status; but serf will fall through and
-        * create a file bucket for us on the buffered handle.
-        */
-
-      SVN_ERR(svn_io_file_flush(bcb->file, bcb->scratch_pool));
-      apr_file_buffer_set(bcb->file, NULL, 0);
-    }
-  else if (bcb->collect_bucket)
-    bcb->all_data = body_allocate_all(bcb, bcb->result_pool);
-
-  if (bcb->scratch_pool)
-    svn_pool_destroy(bcb->scratch_pool);
-
-  return SVN_NO_ERROR;
-}
 
 static svn_error_t *
 create_dir_baton(dir_baton_t **new_dir,
@@ -941,10 +797,9 @@ headers_fetch(serf_bucket_t *headers,
     {
       serf_bucket_headers_setn(headers, SVN_DAV_DELTA_BASE_HEADER,
                                fetch_ctx->delta_base);
-      serf_bucket_headers_setn(headers, "Accept-Encoding",
-                               "svndiff1;q=0.9,svndiff;q=0.8");
+      svn_ra_serf__setup_svndiff_accept_encoding(headers, fetch_ctx->session);
     }
-  else if (fetch_ctx->using_compression)
+  else if (fetch_ctx->session->using_compression != svn_tristate_false)
     {
       serf_bucket_headers_setn(headers, "Accept-Encoding", "gzip");
     }
@@ -1422,7 +1277,7 @@ fetch_for_file(file_baton_t *file,
 
           fetch_ctx = apr_pcalloc(file->pool, sizeof(*fetch_ctx));
           fetch_ctx->file = file;
-          fetch_ctx->using_compression = ctx->sess->using_compression;
+          fetch_ctx->session = ctx->sess;
 
           /* Can we somehow get away with just obtaining a DIFF? */
           if (SVN_RA_SERF__HAVE_HTTPV2_SUPPORT(ctx->sess))
@@ -2304,37 +2159,6 @@ link_path(void *report_baton,
   return APR_SUCCESS;
 }
 
-/* Serf callback to create update request body bucket.
-   Implements svn_ra_serf__request_body_delegate_t */
-static svn_error_t *
-create_update_report_body(serf_bucket_t **body_bkt,
-                          void *baton,
-                          serf_bucket_alloc_t *alloc,
-                          apr_pool_t *pool /* request pool */,
-                          apr_pool_t *scratch_pool)
-{
-  report_context_t *report = baton;
-  body_create_baton_t *body = report->body;
-
-  if (body->file)
-    {
-      apr_off_t offset;
-
-      offset = 0;
-      SVN_ERR(svn_io_file_seek(body->file, APR_SET, &offset, pool));
-
-      *body_bkt = serf_bucket_file_create(report->body->file, alloc);
-    }
-  else
-    {
-      *body_bkt = serf_bucket_simple_create(body->all_data,
-                                            body->total_bytes,
-                                            NULL, NULL, alloc);
-    }
-
-  return SVN_NO_ERROR;
-}
-
 /* Serf callback to setup update request headers. */
 static svn_error_t *
 setup_update_report_headers(serf_bucket_t *headers,
@@ -2344,16 +2168,7 @@ setup_update_report_headers(serf_bucket_t *headers,
 {
   report_context_t *report = baton;
 
-  if (report->sess->using_compression)
-    {
-      serf_bucket_headers_setn(headers, "Accept-Encoding",
-                               "gzip,svndiff1;q=0.9,svndiff;q=0.8");
-    }
-  else
-    {
-      serf_bucket_headers_setn(headers, "Accept-Encoding",
-                               "svndiff1;q=0.9,svndiff;q=0.8");
-    }
+  svn_ra_serf__setup_svndiff_accept_encoding(headers, report->sess);
 
   return SVN_NO_ERROR;
 }
@@ -2674,10 +2489,11 @@ finish_report(void *report_baton,
   handler = svn_ra_serf__create_expat_handler(sess, xmlctx, NULL,
                                               scratch_pool);
 
+  svn_ra_serf__request_body_get_delegate(&handler->body_delegate,
+                                         &handler->body_delegate_baton,
+                                         report->body);
   handler->method = "REPORT";
   handler->path = report_target;
-  handler->body_delegate = create_update_report_body;
-  handler->body_delegate_baton = report;
   handler->body_type = "text/xml";
   handler->custom_accept_encoding = TRUE;
   handler->header_delegate = setup_update_report_headers;
@@ -2792,11 +2608,10 @@ make_update_reporter(svn_ra_session_t *ra_session,
   *reporter = &ra_serf_reporter;
   *report_baton = report;
 
-  report->body = apr_pcalloc(report->pool, sizeof(*report->body));
-  report->body->result_pool = report->pool;
-  report->body_template = svn_stream_create(report->body, report->pool);
-  svn_stream_set_write(report->body_template, body_write_fn);
-  svn_stream_set_close(report->body_template, body_done_fn);
+  report->body =
+    svn_ra_serf__request_body_create(SVN_RA_SERF__REQUEST_BODY_IN_MEM_SIZE,
+                                     report->pool);
+  report->body_template = svn_ra_serf__request_body_get_stream(report->body);
 
   if (sess->bulk_updates == svn_tristate_true)
     {

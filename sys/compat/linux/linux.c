@@ -128,7 +128,7 @@ int
 linux_to_bsd_signal(int sig)
 {
 
-	KASSERT(sig > 0 && sig <= LINUX_SIGRTMAX, ("Invalid Linux signal\n"));
+	KASSERT(sig > 0 && sig <= LINUX_SIGRTMAX, ("invalid Linux signal %d\n", sig));
 
 	if (sig < LINUX_SIGRTMIN)
 		return (linux_to_bsd_sigtbl[_SIG_IDX(sig)]);

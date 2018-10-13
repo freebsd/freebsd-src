@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2014
+.Dd April 13, 2017
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -183,8 +183,8 @@ for positive name cache entries.
 If this is set to 0 it disables positive name caching for the mount point.
 .It Cm negnametimeo Ns = Ns Aq Ar value
 Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
-for negative name cache entries. If this is set to 0 it disables negative
-name caching for the mount point.
+for negative name cache entries.
+If this is set to 0 it disables negative name caching for the mount point.
 .It Cm nfsv2
 Use the NFS Version 2 protocol (the default is to try version 3 first
 then version 2).
@@ -201,6 +201,14 @@ The only minor version currently supported is 1.
 This option is only meaningful when used with the
 .Cm nfsv4
 option.
+.It Cm oneopenown
+Make a minor version 1 of the NFS Version 4 protocol mount use a single OpenOwner
+for all Opens.
+This may be useful for a server with a very low limit on OpenOwners, such as
+AmazonEFS.
+It can only be used with an NFSv4.1 mount.
+It may not work correctly when Delegations are being issued by a server,
+but note that the AmazonEFS server does not issued delegations at this time.
 .It Cm pnfs
 Enable support for parallel NFS (pNFS) for minor version 1 of the
 NFS Version 4 protocol.
@@ -262,7 +270,7 @@ such that the dirty byte range becomes a superset of the bytes
 that are dirty.
 This reduces the number of writes significantly for software
 builds.
-The merging of byte ranges isn't done if the file has been file
+The merging of byte ranges is not done if the file has been file
 locked, since most applications modifying a file from multiple
 clients will use file locking.
 As such, this option could result in a corrupted file for the
@@ -271,8 +279,9 @@ clients concurrently without using file locking.
 .It Cm principal
 For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
 this option sets the name of the host based principal name expected
-by the server. This option overrides the default, which will be
-``nfs@<server-fqdn>'' and should normally be sufficient.
+by the server.
+This option overrides the default, which will be ``nfs@<server-fqdn>''
+and should normally be sufficient.
 .It Cm noresvport
 Do
 .Em not
@@ -515,6 +524,11 @@ Same as
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
 .Xr showmount 8
+.Sh HISTORY
+A version of the
+.Nm
+utility appeared in
+.Bx 4.4 .
 .Sh BUGS
 Since nfsv4 performs open/lock operations that have their ordering strictly
 enforced by the server, the options

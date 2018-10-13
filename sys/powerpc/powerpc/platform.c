@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Peter Grehan
  * Copyright (c) 2009 Nathan Whitehorn
  * All rights reserved.
@@ -154,10 +156,14 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 		}
 	}
 
-	*phys = pregions;
-	*avail = aregions;
-	*physsz = npregions;
-	*availsz = naregions;
+	if (phys != NULL)
+		*phys = pregions;
+	if (avail != NULL)
+		*avail = aregions;
+	if (physsz != NULL)
+		*physsz = npregions;
+	if (availsz != NULL)
+		*availsz = naregions;
 }
 
 int
@@ -253,17 +259,10 @@ cpu_reset()
         PLATFORM_RESET(plat_obj);
 }
 
-int
-cpu_idle_wakeup(int cpu)
-{
-	return (PLATFORM_IDLE_WAKEUP(plat_obj, cpu));
-}
-
-void
-platform_cpu_idle(int cpu)
+void platform_smp_timebase_sync(u_long tb, int ap)
 {
 
-	PLATFORM_IDLE(plat_obj, cpu);
+	PLATFORM_SMP_TIMEBASE_SYNC(plat_obj, tb, ap);
 }
 
 /*

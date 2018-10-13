@@ -32,10 +32,10 @@
 #include <sys/cpuvar_defs.h>
 #include <sys/dtrace.h>
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
+#include <machine/armreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
 void dtrace_membar_producer(void)

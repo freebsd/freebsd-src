@@ -9,11 +9,11 @@
 //
 // This file is a part of MemorySanitizer.
 //
-// Linux- and FreeBSD-specific code.
+// Linux-, NetBSD- and FreeBSD-specific code.
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_platform.h"
-#if SANITIZER_FREEBSD || SANITIZER_LINUX
+#if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD
 
 #include "msan.h"
 #include "msan_thread.h"
@@ -55,18 +55,19 @@ static bool CheckMemoryRangeAvailability(uptr beg, uptr size) {
 
 static bool ProtectMemoryRange(uptr beg, uptr size, const char *name) {
   if (size > 0) {
-    void *addr = MmapNoAccess(beg, size, name);
+    void *addr = MmapFixedNoAccess(beg, size, name);
     if (beg == 0 && addr) {
       // Depending on the kernel configuration, we may not be able to protect
       // the page at address zero.
       uptr gap = 16 * GetPageSizeCached();
       beg += gap;
       size -= gap;
-      addr = MmapNoAccess(beg, size, name);
+      addr = MmapFixedNoAccess(beg, size, name);
     }
     if ((uptr)addr != beg) {
       uptr end = beg + size - 1;
-      Printf("FATAL: Cannot protect memory range %p - %p.\n", beg, end);
+      Printf("FATAL: Cannot protect memory range %p - %p (%s).\n", beg, end,
+             name);
       return false;
     }
   }
@@ -119,7 +120,7 @@ bool InitShadow(bool init_origins) {
     return false;
   }
 
-  const uptr maxVirtualAddress = GetMaxVirtualAddress();
+  const uptr maxVirtualAddress = GetMaxUserVirtualAddress();
 
   for (unsigned i = 0; i < kMemoryLayoutSize; ++i) {
     uptr start = kMemoryLayout[i].start;
@@ -212,4 +213,4 @@ void MsanTSDDtor(void *tsd) {
 
 } // namespace __msan
 
-#endif // SANITIZER_FREEBSD || SANITIZER_LINUX
+#endif // SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD

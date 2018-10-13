@@ -10,8 +10,16 @@ GENDIRDEPS_FILTER+= \
 	Ngnu/lib/libssp/libssp_nonshared \
 	Ncddl/usr.bin/ctf* \
 	Nlib/libc_nonshared \
+	Ngnu/lib/libgcc \
+	Nlib/libgcc_eh \
+	Nlib/libgcc_s \
+	Nstand/libsa/* \
+	Nstand/libsa32/* \
 	Ntargets/pseudo/stage* \
 	Ntools/*
+
+# Clang has nested directories in its OBJDIR.
+GENDIRDEPS_FILTER+= C,(lib/clang/lib[^/]*)/.*,\1,
 
 # Exclude toolchain which is handled special.
 .if ${RELDIR:Mtargets*} == ""
@@ -22,7 +30,7 @@ GENDIRDEPS_FILTER.host+= \
 
 .endif
 GENDIRDEPS_FILTER_HOST_TOOLS+= \
-	Nlib/clang/include \
+	Nlib/clang/headers \
 	Nusr.bin/addr2line \
 	Nusr.bin/ar \
 	Nusr.bin/clang/clang \

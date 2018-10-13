@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../usr.sbin/ypserv
+.PATH: ${SRCTOP}/usr.sbin/ypserv
 
 PROG=	rpc.ypxfrd
 MAN=	rpc.ypxfrd.8
@@ -15,14 +15,14 @@ LIBADD=	rpcsvc
 
 CLEANFILES= ypxfrd_svc.c ypxfrd.h
 
-RPCDIR=	${.CURDIR}/../../include/rpcsvc
+RPCDIR=	${SRCTOP}/include/rpcsvc
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # ypxfrd_main.c can see it.
 ypxfrd_svc.c: ${RPCDIR}/ypxfrd.x
 	rm -f ${.TARGET}
-	${RPCGEN} -m ${RPCDIR}/ypxfrd.x | \
+	${RPCGEN} -m ${.ALLSRC} | \
 	sed s/"static int _rpcsvcstate"/"int _rpcsvcstate"/g > ${.TARGET}
 
 # ypxfrd_xdr.c: ${RPCDIR}/ypxfrd.x
@@ -31,6 +31,6 @@ ypxfrd_svc.c: ${RPCDIR}/ypxfrd.x
 
 ypxfrd.h: ${RPCDIR}/ypxfrd.x
 	rm -f ${.TARGET}
-	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/ypxfrd.x
+	${RPCGEN} -h -o ${.TARGET} ${.ALLSRC}
 
 .include <bsd.prog.mk>

@@ -1,5 +1,3 @@
-/* $Id: port-aix.h,v 1.32 2009/12/20 23:49:22 dtucker Exp $ */
-
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.
@@ -32,7 +30,7 @@
 # include <sys/socket.h>
 #endif
 
-#include "buffer.h"
+struct sshbuf;
 
 /* These should be in the system headers but are not. */
 int usrinfo(int, char *, int);
@@ -89,9 +87,10 @@ void aix_usrinfo(struct passwd *);
 #ifdef WITH_AIXAUTHENTICATE
 # define CUSTOM_SYS_AUTH_PASSWD 1
 # define CUSTOM_SYS_AUTH_ALLOWED_USER 1
-int sys_auth_allowed_user(struct passwd *, Buffer *);
+int sys_auth_allowed_user(struct passwd *, struct sshbuf *);
 # define CUSTOM_SYS_AUTH_RECORD_LOGIN 1
-int sys_auth_record_login(const char *, const char *, const char *, Buffer *);
+int sys_auth_record_login(const char *, const char *,
+    const char *, struct sshbuf *);
 # define CUSTOM_SYS_AUTH_GET_LASTLOGIN_MSG
 char *sys_auth_get_lastlogin_msg(const char *, uid_t);
 # define CUSTOM_FAILED_LOGIN 1

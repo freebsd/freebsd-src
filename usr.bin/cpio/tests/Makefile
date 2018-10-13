@@ -14,8 +14,9 @@ CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
 
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/cpio -I${_LIBARCHIVEDIR}/libarchive_fe
-CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/cpio -I${_LIBARCHIVEDIR}/cpio/test
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe -I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -42,8 +43,10 @@ TESTS_SRCS=	\
 	test_extract_cpio_lzma.c		\
 	test_extract_cpio_lzo.c			\
 	test_extract_cpio_xz.c			\
+	test_extract_cpio_zstd.c		\
 	test_format_newc.c			\
 	test_gcpio_compat.c			\
+	test_missing_file.c			\
 	test_option_0.c				\
 	test_option_B_upper.c			\
 	test_option_C_upper.c			\
@@ -71,17 +74,18 @@ TESTS_SRCS=	\
 	test_option_xz.c			\
 	test_option_y.c				\
 	test_option_z.c				\
+	test_option_zstd.c			\
 	test_owner_parse.c			\
 	test_passthrough_dotdot.c		\
 	test_passthrough_reverse.c
 
 SRCS.bsdcpio_test= list.h			\
 	${CPIO_SRCS}				\
-	${TESTS_SRCS}				\
-	main.c
+	${TESTS_SRCS}
 
 .PATH:	${_LIBARCHIVEDIR}/test_utils
-SRCS.bsdcpio_test+=	test_utils.c
+SRCS.bsdcpio_test+=	test_main.c		\
+			test_utils.c
 
 LIBADD.bsdcpio_test=	archive
 
@@ -102,6 +106,7 @@ ${PACKAGE}FILES+= test_extract.cpio.lz4.uu
 ${PACKAGE}FILES+= test_extract.cpio.lzma.uu
 ${PACKAGE}FILES+= test_extract.cpio.lzo.uu
 ${PACKAGE}FILES+= test_extract.cpio.xz.uu
+${PACKAGE}FILES+= test_extract.cpio.zst.uu
 ${PACKAGE}FILES+= test_gcpio_compat_ref.bin.uu
 ${PACKAGE}FILES+= test_gcpio_compat_ref.crc.uu
 ${PACKAGE}FILES+= test_gcpio_compat_ref.newc.uu

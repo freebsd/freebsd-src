@@ -126,7 +126,8 @@ drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist)
 			    device_get_nameunit(kdev), id_entry->name);
 			device_set_desc(kdev, id_entry->name);
 		}
-		return (0);
+		DRM_OBSOLETE(kdev);
+		return (-BUS_PROBE_GENERIC);
 	}
 
 	return (-ENXIO);
@@ -347,6 +348,7 @@ dmi_check_system(const struct dmi_system_id *sysid)
 	return (res);
 }
 
+#if __OS_HAS_MTRR
 int
 drm_mtrr_add(unsigned long offset, unsigned long size, unsigned int flags)
 {
@@ -375,6 +377,7 @@ drm_mtrr_del(int handle __unused, unsigned long offset, unsigned long size,
 	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return (-mem_range_attr_set(&mrdesc, &act));
 }
+#endif
 
 void
 drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
@@ -392,8 +395,8 @@ drm_clflush_virt_range(char *addr, unsigned long length)
 {
 
 #if defined(__i386__) || defined(__amd64__)
-	pmap_invalidate_cache_range((vm_offset_t)addr,
-	    (vm_offset_t)addr + length, TRUE);
+	pmap_force_invalidate_cache_range((vm_offset_t)addr,
+	    (vm_offset_t)addr + length);
 #else
 	DRM_ERROR("drm_clflush_virt_range not implemented on this architecture");
 #endif

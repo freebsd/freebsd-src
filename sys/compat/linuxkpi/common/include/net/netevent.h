@@ -39,8 +39,8 @@
 enum netevent_notif_type {
 	NETEVENT_NEIGH_UPDATE = 0,
 #if 0 /* Unsupported events. */
-        NETEVENT_PMTU_UPDATE,
-        NETEVENT_REDIRECT,
+	NETEVENT_PMTU_UPDATE,
+	NETEVENT_REDIRECT,
 #endif
 };
 

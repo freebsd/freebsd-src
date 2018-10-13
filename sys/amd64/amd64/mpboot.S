@@ -29,7 +29,7 @@
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.data				/* So we can modify it */
 
@@ -216,20 +216,42 @@ lgdt_desc:
 	.word	gdtend-gdt		/* Length */
 	.long	gdt-mptramp_start	/* Offset plus %ds << 4 */
 
-	.globl	mptramp_end
 mptramp_end:
+	/*
+	 * The size of the trampoline code that needs to be relocated
+	 * below the 1MiB boundary.
+	 */
+	.globl	bootMP_size
+bootMP_size:
+	.long	mptramp_end - mptramp_start
 
 	/*
 	 * From here on down is executed in the kernel .text section.
-	 *
-	 * Load a real %cr3 that has all the direct map stuff and switches
-	 * off the 1GB replicated mirror.  Load a stack pointer and jump
-	 * into AP startup code in C.
 	 */
 	.text
 	.code64
 	.p2align 4,0
 entry_64:
+	/*
+	 * If the BSP reported NXE support, enable EFER.NXE for all APs
+	 * prior to loading %cr3. This avoids page faults if the AP
+	 * encounters memory marked with the NX bit prior to detecting and
+	 * enabling NXE support.
+	 */
+	movq	pg_nx, %rbx
+	testq	%rbx, %rbx
+	je	1f
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	orl	$EFER_NXE, %eax
+	wrmsr
+
+1:
+	/*
+	 * Load a real %cr3 that has all the direct map stuff and switches
+	 * off the 1GB replicated mirror.  Load a stack pointer and jump
+	 * into AP startup code in C.
+	 */
 	movq	KPML4phys, %rax
 	movq	%rax, %cr3
 	movq	bootSTK, %rsp

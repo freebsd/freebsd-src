@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2010
+.Dd October 16, 2017
 .Dt LIBGEOM 3
 .Os
 .Sh NAME
@@ -46,6 +46,10 @@
 .Nm gctl_issue ,
 .Nm gctl_free ,
 .Nm gctl_dump ,
+.Nm geom_getxml ,
+.Nm geom_xml2tree ,
+.Nm geom_gettree ,
+.Nm geom_deletetree ,
 .Nm g_open ,
 .Nm g_close ,
 .Nm g_mediasize ,
@@ -63,6 +67,10 @@
 .Sh LIBRARY
 .Lb libgeom
 .Sh SYNOPSIS
+.Bd -literal
+/* stdio.h is only required for `gctl_dump` */
+.Ed
+.In stdio.h
 .In libgeom.h
 .Ss "Statistics Functions"
 .Ft void
@@ -95,6 +103,14 @@
 .Ft void
 .Fn gctl_dump "struct gctl_req *req" "FILE *f"
 .Ss "Utility Functions"
+.Ft "char *"
+.Fn geom_getxml void
+.Ft int
+.Fn geom_xml2tree "struct gmesh *gmp" "char *p"
+.Ft int
+.Fn geom_gettree "struct gmesh *gmp"
+.Ft void
+.Fn geom_deletetree "struct gmesh *gmp"
 .Ft int
 .Fn g_open "const char *name" "int dowrite"
 .Ft int
@@ -275,6 +291,46 @@ on success, or an error message corresponding to the
 first error which happened.
 .Ss "Utility Functions"
 The
+.Fn geom_getxml
+function is a wrapper around
+.Xr sysctl 3
+that fetches the
+.Ar kern.geom.confxml
+OID, and returns it's value.
+The allocated memory should be released with
+.Xr free 2
+after use.
+.Pp
+The
+.Fn geom_xml2tree
+function parses the XML representation of a GEOM topology passed as
+.Ar p ,
+allocates the needed data structures to access this information and fills in
+the passed
+.Ar gmp
+data structure.
+Memory allocated during this transformation should be released
+using
+.Fn geom_deletetree
+after use.
+.Pp
+The
+.Fn geom_gettree
+function is a wrapper around the
+.Fn geom_getxml
+and
+.Fn geom_xml2tree
+functions.
+Memory allocated during this operation should be released using
+.Fn geom_deletetree
+after use.
+.Pp
+The
+.Fn geom_deletetree
+function releases memory allocated for storing the data-structures referenced by
+.Ar gmp .
+.Pp
+The
 .Fn g_*
 functions are used to communicate with GEOM providers.
 .Pp
@@ -324,8 +380,8 @@ The
 .Fn g_device_path
 function returns the full path to a provider given a partial or full path to the
 device node.
-If the device can not be found or is not a valid geom provider, NULL is
-returned.
+.Dv NULL
+is returned if the device cannot be found or is not a valid geom provider.
 .Pp
 The
 .Fn g_get_ident
@@ -344,20 +400,19 @@ string.
 .Pp
 The
 .Fn g_open_by_ident
-function opens provider using its ident, unlike
+function opens provider using its identification, unlike
 .Fn g_open
-which uses provider's name.
-If the
+which uses the provider's name.
+The function will store the provider's name in the
 .Fa name
-argument is not
-.Dv NULL ,
-the function will store provider's name there.
+parameter if it is not
+.Dv NULL .
 .Pp
 The
 .Fn g_providername
 function returns the provider name of an open file descriptor.
-If the file descriptor does not point to a valid geom provider, NULL is
-returned.
+.Dv NULL
+is returned the file descriptor does not point to a valid geom provider.
 .Pp
 All functions except
 .Fn g_providername

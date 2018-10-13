@@ -1,4 +1,4 @@
-//===-- DWARFUnitIndex.h --------------------------------------------------===//
+//===- DWARFUnitIndex.h -----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,15 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_DEBUGINFO_DWARFUNITINDEX_H
-#define LLVM_LIB_DEBUGINFO_DWARFUNITINDEX_H
+#ifndef LLVM_DEBUGINFO_DWARF_DWARFUNITINDEX_H
+#define LLVM_DEBUGINFO_DWARF_DWARFUNITINDEX_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataExtractor.h"
-#include "llvm/Support/Format.h"
-#include "llvm/Support/raw_ostream.h"
 #include <cstdint>
+#include <memory>
 
 namespace llvm {
+
+class raw_ostream;
 
 enum DWARFSectionKind {
   DW_SECT_INFO = 1,
@@ -56,6 +59,12 @@ public:
   public:
     const SectionContribution *getOffset(DWARFSectionKind Sec) const;
     const SectionContribution *getOffset() const;
+
+    const SectionContribution *getOffsets() const {
+      return Contributions.get();
+    }
+
+    uint64_t getSignature() const { return Signature; }
   };
 
 private:
@@ -67,15 +76,30 @@ private:
   std::unique_ptr<Entry[]> Rows;
 
   static StringRef getColumnHeader(DWARFSectionKind DS);
+
   bool parseImpl(DataExtractor IndexData);
 
 public:
-  bool parse(DataExtractor IndexData);
   DWARFUnitIndex(DWARFSectionKind InfoColumnKind)
       : InfoColumnKind(InfoColumnKind) {}
-  void dump(raw_ostream &OS) const;
-  const Entry *getFromOffset(uint32_t Offset) const;
-};
-}
 
-#endif
+  explicit operator bool() const { return Header.NumBuckets; }
+
+  bool parse(DataExtractor IndexData);
+  void dump(raw_ostream &OS) const;
+
+  const Entry *getFromOffset(uint32_t Offset) const;
+  const Entry *getFromHash(uint64_t Offset) const;
+
+  ArrayRef<DWARFSectionKind> getColumnKinds() const {
+    return makeArrayRef(ColumnKinds.get(), Header.NumColumns);
+  }
+
+  ArrayRef<Entry> getRows() const {
+    return makeArrayRef(Rows.get(), Header.NumBuckets);
+  }
+};
+
+} // end namespace llvm
+
+#endif // LLVM_DEBUGINFO_DWARF_DWARFUNITINDEX_H

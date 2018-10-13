@@ -1,4 +1,4 @@
-/* $NetBSD: t_threadjmp.c,v 1.1 2011/04/21 18:58:20 martin Exp $ */
+/* $NetBSD: t_threadjmp.c,v 1.2 2017/01/14 21:08:17 christos Exp $ */
 
 /*-
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -63,7 +63,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_threadjmp.c,v 1.1 2011/04/21 18:58:20 martin Exp $");
+__RCSID("$NetBSD: t_threadjmp.c,v 1.2 2017/01/14 21:08:17 christos Exp $");
 
 #include <sys/types.h>
 

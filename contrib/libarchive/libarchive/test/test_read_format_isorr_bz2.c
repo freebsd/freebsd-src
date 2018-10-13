@@ -26,7 +26,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
-PLEASE use old cdrtools; mkisofs verion is 2.01.
+PLEASE use old cdrtools; mkisofs version is 2.01.
 This version mkisofs made wrong "SL" System Use Entry of RRIP.
 
 Execute the following command to rebuild the data for this program:

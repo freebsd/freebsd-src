@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1987, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,18 +58,19 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 static int getstathz(void);
 static void humantime(FILE *, long, long);
-static void showtime(FILE *, struct timeval *, struct timeval *,
+static void showtime(FILE *, struct timespec *, struct timespec *,
     struct rusage *);
 static void siginfo(int);
 static void usage(void);
 
 static sig_atomic_t siginfo_recvd;
 static char decimal_point;
-static struct timeval before_tv;
+static struct timespec before_ts;
 static int hflag, pflag;
 
 int
@@ -78,7 +81,7 @@ main(int argc, char **argv)
 	pid_t pid;
 	struct rlimit rl;
 	struct rusage ru;
-	struct timeval after;
+	struct timespec after;
 	char *ofn = NULL;
 	FILE *out = stderr;
 
@@ -118,7 +121,8 @@ main(int argc, char **argv)
 		setvbuf(out, (char *)NULL, _IONBF, (size_t)0);
 	}
 
-	(void)gettimeofday(&before_tv, NULL);
+	if (clock_gettime(CLOCK_MONOTONIC, &before_ts))
+		err(1, "clock_gettime");
 	switch(pid = fork()) {
 	case -1:			/* error */
 		err(1, "time");
@@ -137,16 +141,18 @@ main(int argc, char **argv)
 	while (wait4(pid, &status, 0, &ru) != pid) {
 		if (siginfo_recvd) {
 			siginfo_recvd = 0;
-			(void)gettimeofday(&after, NULL);
+			if (clock_gettime(CLOCK_MONOTONIC, &after))
+				err(1, "clock_gettime");
 			getrusage(RUSAGE_CHILDREN, &ru);
-			showtime(stdout, &before_tv, &after, &ru);
+			showtime(stdout, &before_ts, &after, &ru);
 		}
 	}
-	(void)gettimeofday(&after, NULL);
+	if (clock_gettime(CLOCK_MONOTONIC, &after))
+		err(1, "clock_gettime");
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
 	exitonsig = WIFSIGNALED(status) ? WTERMSIG(status) : 0;
-	showtime(out, &before_tv, &after, &ru);
+	showtime(out, &before_ts, &after, &ru);
 	if (lflag) {
 		int hz = getstathz();
 		u_long ticks;
@@ -235,7 +241,7 @@ getstathz(void)
 }
 
 static void
-humantime(FILE *out, long sec, long usec)
+humantime(FILE *out, long sec, long centisec)
 {
 	long days, hrs, mins;
 
@@ -253,18 +259,18 @@ humantime(FILE *out, long sec, long usec)
 		fprintf(out, "%ldh", hrs);
 	if (mins)
 		fprintf(out, "%ldm", mins);
-	fprintf(out, "%ld%c%02lds", sec, decimal_point, usec);
+	fprintf(out, "%ld%c%02lds", sec, decimal_point, centisec);
 }
 
 static void
-showtime(FILE *out, struct timeval *before, struct timeval *after,
+showtime(FILE *out, struct timespec *before, struct timespec *after,
     struct rusage *ru)
 {
 
 	after->tv_sec -= before->tv_sec;
-	after->tv_usec -= before->tv_usec;
-	if (after->tv_usec < 0)
-		after->tv_sec--, after->tv_usec += 1000000;
+	after->tv_nsec -= before->tv_nsec;
+	if (after->tv_nsec < 0)
+		after->tv_sec--, after->tv_nsec += 1000000000;
 
 	if (pflag) {
 		/* POSIX wants output that must look like
@@ -272,7 +278,7 @@ showtime(FILE *out, struct timeval *before, struct timeval *after,
 		at least two digits after the radix. */
 		fprintf(out, "real %jd%c%02ld\n",
 			(intmax_t)after->tv_sec, decimal_point,
-			after->tv_usec/10000);
+			after->tv_nsec/10000000);
 		fprintf(out, "user %jd%c%02ld\n",
 			(intmax_t)ru->ru_utime.tv_sec, decimal_point,
 			ru->ru_utime.tv_usec/10000);
@@ -280,7 +286,7 @@ showtime(FILE *out, struct timeval *before, struct timeval *after,
 			(intmax_t)ru->ru_stime.tv_sec, decimal_point,
 			ru->ru_stime.tv_usec/10000);
 	} else if (hflag) {
-		humantime(out, after->tv_sec, after->tv_usec/10000);
+		humantime(out, after->tv_sec, after->tv_nsec/10000000);
 		fprintf(out, " real\t");
 		humantime(out, ru->ru_utime.tv_sec, ru->ru_utime.tv_usec/10000);
 		fprintf(out, " user\t");
@@ -289,7 +295,7 @@ showtime(FILE *out, struct timeval *before, struct timeval *after,
 	} else {
 		fprintf(out, "%9jd%c%02ld real ",
 			(intmax_t)after->tv_sec, decimal_point,
-			after->tv_usec/10000);
+			after->tv_nsec/10000000);
 		fprintf(out, "%9jd%c%02ld user ",
 			(intmax_t)ru->ru_utime.tv_sec, decimal_point,
 			ru->ru_utime.tv_usec/10000);

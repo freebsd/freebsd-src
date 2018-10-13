@@ -1,44 +1,50 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PROG_CXX=	llvm-tblgen
 
-PROG_CXX=llvm-tblgen
+SRCDIR=		utils/TableGen
+SRCS+=		AsmMatcherEmitter.cpp
+SRCS+=		AsmWriterEmitter.cpp
+SRCS+=		AsmWriterInst.cpp
+SRCS+=		Attributes.cpp
+SRCS+=		CTagsEmitter.cpp
+SRCS+=		CallingConvEmitter.cpp
+SRCS+=		CodeEmitterGen.cpp
+SRCS+=		CodeGenDAGPatterns.cpp
+SRCS+=		CodeGenHwModes.cpp
+SRCS+=		CodeGenInstruction.cpp
+SRCS+=		CodeGenMapTable.cpp
+SRCS+=		CodeGenRegisters.cpp
+SRCS+=		CodeGenSchedule.cpp
+SRCS+=		CodeGenTarget.cpp
+SRCS+=		DAGISelEmitter.cpp
+SRCS+=		DAGISelMatcher.cpp
+SRCS+=		DAGISelMatcherEmitter.cpp
+SRCS+=		DAGISelMatcherGen.cpp
+SRCS+=		DAGISelMatcherOpt.cpp
+SRCS+=		DFAPacketizerEmitter.cpp
+SRCS+=		DisassemblerEmitter.cpp
+SRCS+=		FastISelEmitter.cpp
+SRCS+=		FixedLenDecoderEmitter.cpp
+SRCS+=		GlobalISelEmitter.cpp
+SRCS+=		InfoByHwMode.cpp
+SRCS+=		InstrDocsEmitter.cpp
+SRCS+=		InstrInfoEmitter.cpp
+SRCS+=		IntrinsicEmitter.cpp
+SRCS+=		OptParserEmitter.cpp
+SRCS+=		PseudoLoweringEmitter.cpp
+SRCS+=		RegisterBankEmitter.cpp
+SRCS+=		RegisterInfoEmitter.cpp
+SRCS+=		SDNodeProperties.cpp
+SRCS+=		SearchableTableEmitter.cpp
+SRCS+=		SubtargetEmitter.cpp
+SRCS+=		SubtargetFeatureInfo.cpp
+SRCS+=		TableGen.cpp
+SRCS+=		Types.cpp
+SRCS+=		X86DisassemblerTables.cpp
+SRCS+=		X86EVEX2VEXTablesEmitter.cpp
+SRCS+=		X86FoldTablesEmitter.cpp
+SRCS+=		X86ModRMFilters.cpp
+SRCS+=		X86RecognizableInstr.cpp
 
-SRCDIR=	utils/TableGen
-SRCS=	AsmMatcherEmitter.cpp \
-	AsmWriterEmitter.cpp \
-	AsmWriterInst.cpp \
-	Attributes.cpp \
-	CTagsEmitter.cpp \
-	CallingConvEmitter.cpp \
-	CodeEmitterGen.cpp \
-	CodeGenDAGPatterns.cpp \
-	CodeGenInstruction.cpp \
-	CodeGenMapTable.cpp \
-	CodeGenRegisters.cpp \
-	CodeGenSchedule.cpp \
-	CodeGenTarget.cpp \
-	DAGISelEmitter.cpp \
-	DAGISelMatcher.cpp \
-	DAGISelMatcherEmitter.cpp \
-	DAGISelMatcherGen.cpp \
-	DAGISelMatcherOpt.cpp \
-	DFAPacketizerEmitter.cpp \
-	DisassemblerEmitter.cpp \
-	FastISelEmitter.cpp \
-	FixedLenDecoderEmitter.cpp \
-	InstrInfoEmitter.cpp \
-	IntrinsicEmitter.cpp \
-	OptParserEmitter.cpp \
-	PseudoLoweringEmitter.cpp \
-	RegisterInfoEmitter.cpp \
-	SubtargetEmitter.cpp \
-	TableGen.cpp \
-	X86DisassemblerTables.cpp \
-	X86ModRMFilters.cpp \
-	X86RecognizableInstr.cpp
-
-LIBDEPS=llvmtablegen \
-	llvmsupport
-
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"

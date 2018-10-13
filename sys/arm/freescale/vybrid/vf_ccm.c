@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -412,12 +414,12 @@ ccm_fdt_set(struct ccm_softc *sc)
 			child = OF_child(child);
 		}
 
-		if (!fdt_is_enabled(child))
+		if (!ofw_bus_node_status_okay(child))
 			continue;
 
 		if ((len = OF_getproplen(child, "clock_names")) > 0) {
 			len = OF_getproplen(child, "clock_names");
-			OF_getprop_alloc(child, "clock_names", 1,
+			OF_getprop_alloc(child, "clock_names",
 			    (void **)&fdt_config);
 
 			while (len > 0) {

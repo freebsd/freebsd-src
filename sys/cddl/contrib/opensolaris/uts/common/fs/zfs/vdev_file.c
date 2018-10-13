@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -30,10 +30,26 @@
 #include <sys/zio.h>
 #include <sys/fs/zfs.h>
 #include <sys/fm/fs/zfs.h>
+#include <sys/abd.h>
 
 /*
  * Virtual device vector for files.
  */
+
+static taskq_t *vdev_file_taskq;
+
+void
+vdev_file_init(void)
+{
+	vdev_file_taskq = taskq_create("z_vdev_file", MAX(max_ncpus, 16),
+	    minclsyspri, max_ncpus, INT_MAX, 0);
+}
+
+void
+vdev_file_fini(void)
+{
+	taskq_destroy(vdev_file_taskq);
+}
 
 static void
 vdev_file_hold(vdev_t *vd)
@@ -156,27 +172,71 @@ vdev_file_close(vdev_t *vd)
 	vd->vdev_tsd = NULL;
 }
 
+/*
+ * Implements the interrupt side for file vdev types. This routine will be
+ * called when the I/O completes allowing us to transfer the I/O to the
+ * interrupt taskqs. For consistency, the code structure mimics disk vdev
+ * types.
+ */
 static void
-vdev_file_io_start(zio_t *zio)
+vdev_file_io_intr(zio_t *zio)
 {
+	zio_delay_interrupt(zio);
+}
+
+static void
+vdev_file_io_strategy(void *arg)
+{
+	zio_t *zio = arg;
 	vdev_t *vd = zio->io_vd;
 	vdev_file_t *vf;
 	vnode_t *vp;
+	void *addr;
 	ssize_t resid;
-
-	if (!vdev_readable(vd)) {
-		zio->io_error = SET_ERROR(ENXIO);
-		zio_interrupt(zio);
-		return;
-	}
 
 	vf = vd->vdev_tsd;
 	vp = vf->vf_vnode;
 
+	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
+	if (zio->io_type == ZIO_TYPE_READ) {
+		addr = abd_borrow_buf(zio->io_abd, zio->io_size);
+	} else {
+		addr = abd_borrow_buf_copy(zio->io_abd, zio->io_size);
+	}
+
+	zio->io_error = vn_rdwr(zio->io_type == ZIO_TYPE_READ ?
+	    UIO_READ : UIO_WRITE, vp, addr, zio->io_size,
+	    zio->io_offset, UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
+
+	if (zio->io_type == ZIO_TYPE_READ) {
+		abd_return_buf_copy(zio->io_abd, addr, zio->io_size);
+	} else {
+		abd_return_buf(zio->io_abd, addr, zio->io_size);
+	}
+
+	if (resid != 0 && zio->io_error == 0)
+		zio->io_error = ENOSPC;
+
+	vdev_file_io_intr(zio);
+}
+
+static void
+vdev_file_io_start(zio_t *zio)
+{
+	vdev_t *vd = zio->io_vd;
+	vdev_file_t *vf = vd->vdev_tsd;
+
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
+		/* XXPOLICY */
+		if (!vdev_readable(vd)) {
+			zio->io_error = SET_ERROR(ENXIO);
+			zio_interrupt(zio);
+			return;
+		}
+
 		switch (zio->io_cmd) {
 		case DKIOCFLUSHWRITECACHE:
-			zio->io_error = VOP_FSYNC(vp, FSYNC | FDSYNC,
+			zio->io_error = VOP_FSYNC(vf->vf_vnode, FSYNC | FDSYNC,
 			    kcred, NULL);
 			break;
 		default:
@@ -190,19 +250,8 @@ vdev_file_io_start(zio_t *zio)
 	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
 	zio->io_target_timestamp = zio_handle_io_delay(zio);
 
-	zio->io_error = vn_rdwr(zio->io_type == ZIO_TYPE_READ ?
-	    UIO_READ : UIO_WRITE, vp, zio->io_data, zio->io_size,
-	    zio->io_offset, UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
-
-	if (resid != 0 && zio->io_error == 0)
-		zio->io_error = ENOSPC;
-
-	zio_delay_interrupt(zio);
-
-#ifdef illumos
-	VERIFY3U(taskq_dispatch(system_taskq, vdev_file_io_strategy, bp,
+	VERIFY3U(taskq_dispatch(vdev_file_taskq, vdev_file_io_strategy, zio,
 	    TQ_SLEEP), !=, 0);
-#endif
 }
 
 /* ARGSUSED */
@@ -218,8 +267,11 @@ vdev_ops_t vdev_file_ops = {
 	vdev_file_io_start,
 	vdev_file_io_done,
 	NULL,
+	NULL,
 	vdev_file_hold,
 	vdev_file_rele,
+	NULL,
+	vdev_default_xlate,
 	VDEV_TYPE_FILE,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };
@@ -236,8 +288,11 @@ vdev_ops_t vdev_disk_ops = {
 	vdev_file_io_start,
 	vdev_file_io_done,
 	NULL,
+	NULL,
 	vdev_file_hold,
 	vdev_file_rele,
+	NULL,
+	vdev_default_xlate,
 	VDEV_TYPE_DISK,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };

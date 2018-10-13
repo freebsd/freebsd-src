@@ -12,9 +12,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/BlockFrequencyInfoImpl.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/SCCIterator.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Support/BlockFrequency.h"
+#include "llvm/Support/BranchProbability.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ScaledNumber.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <list>
 #include <numeric>
+#include <utility>
+#include <vector>
 
 using namespace llvm;
 using namespace llvm::bfi_detail;
@@ -27,7 +46,9 @@ ScaledNumber<uint64_t> BlockMass::toScaled() const {
   return ScaledNumber<uint64_t>(getMass() + 1, -64);
 }
 
-void BlockMass::dump() const { print(dbgs()); }
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void BlockMass::dump() const { print(dbgs()); }
+#endif
 
 static char getHexDigit(int N) {
   assert(N < 16);
@@ -35,6 +56,7 @@ static char getHexDigit(int N) {
     return '0' + N;
   return 'a' + N - 10;
 }
+
 raw_ostream &BlockMass::print(raw_ostream &OS) const {
   for (int Digits = 0; Digits < 16; ++Digits)
     OS << getHexDigit(Mass >> (60 - Digits * 4) & 0xf);
@@ -43,13 +65,13 @@ raw_ostream &BlockMass::print(raw_ostream &OS) const {
 
 namespace {
 
-typedef BlockFrequencyInfoImplBase::BlockNode BlockNode;
-typedef BlockFrequencyInfoImplBase::Distribution Distribution;
-typedef BlockFrequencyInfoImplBase::Distribution::WeightList WeightList;
-typedef BlockFrequencyInfoImplBase::Scaled64 Scaled64;
-typedef BlockFrequencyInfoImplBase::LoopData LoopData;
-typedef BlockFrequencyInfoImplBase::Weight Weight;
-typedef BlockFrequencyInfoImplBase::FrequencyData FrequencyData;
+using BlockNode = BlockFrequencyInfoImplBase::BlockNode;
+using Distribution = BlockFrequencyInfoImplBase::Distribution;
+using WeightList = BlockFrequencyInfoImplBase::Distribution::WeightList;
+using Scaled64 = BlockFrequencyInfoImplBase::Scaled64;
+using LoopData = BlockFrequencyInfoImplBase::LoopData;
+using Weight = BlockFrequencyInfoImplBase::Weight;
+using FrequencyData = BlockFrequencyInfoImplBase::FrequencyData;
 
 /// \brief Dithering mass distributer.
 ///
@@ -78,7 +100,7 @@ struct DitheringDistributer {
   BlockMass takeMass(uint32_t Weight);
 };
 
-} // end namespace
+} // end anonymous namespace
 
 DitheringDistributer::DitheringDistributer(Distribution &Dist,
                                            const BlockMass &Mass) {
@@ -130,6 +152,7 @@ static void combineWeight(Weight &W, const Weight &OtherW) {
   else
     W.Amount += OtherW.Amount;
 }
+
 static void combineWeightsBySorting(WeightList &Weights) {
   // Sort so edges to the same node are adjacent.
   std::sort(Weights.begin(), Weights.end(),
@@ -149,11 +172,12 @@ static void combineWeightsBySorting(WeightList &Weights) {
 
   // Erase extra entries.
   Weights.erase(O, Weights.end());
-  return;
 }
+
 static void combineWeightsByHashing(WeightList &Weights) {
   // Collect weights into a DenseMap.
-  typedef DenseMap<BlockNode::IndexType, Weight> HashTable;
+  using HashTable = DenseMap<BlockNode::IndexType, Weight>;
+
   HashTable Combined(NextPowerOf2(2 * Weights.size()));
   for (const Weight &W : Weights)
     combineWeight(Combined[W.TargetNode.Index], W);
@@ -168,6 +192,7 @@ static void combineWeightsByHashing(WeightList &Weights) {
   for (const auto &I : Combined)
     Weights.push_back(I.second);
 }
+
 static void combineWeights(WeightList &Weights) {
   // Use a hash table for many successors to keep this linear.
   if (Weights.size() > 128) {
@@ -177,6 +202,7 @@ static void combineWeights(WeightList &Weights) {
 
   combineWeightsBySorting(Weights);
 }
+
 static uint64_t shiftRightAndRound(uint64_t N, int Shift) {
   assert(Shift >= 0);
   assert(Shift < 64);
@@ -184,6 +210,7 @@ static uint64_t shiftRightAndRound(uint64_t N, int Shift) {
     return N;
   return (N >> Shift) + (UINT64_C(1) & N >> (Shift - 1));
 }
+
 void Distribution::normalize() {
   // Early exit for termination nodes.
   if (Weights.empty())
@@ -244,6 +271,7 @@ void BlockFrequencyInfoImplBase::clear() {
   // Swap with a default-constructed std::vector, since std::vector<>::clear()
   // does not actually clear heap storage.
   std::vector<FrequencyData>().swap(Freqs);
+  IsIrrLoopHeader.clear();
   std::vector<WorkingData>().swap(Working);
   Loops.clear();
 }
@@ -253,8 +281,10 @@ void BlockFrequencyInfoImplBase::clear() {
 /// Releases all memory not used downstream.  In particular, saves Freqs.
 static void cleanup(BlockFrequencyInfoImplBase &BFI) {
   std::vector<FrequencyData> SavedFreqs(std::move(BFI.Freqs));
+  SparseBitVector<> SavedIsIrrLoopHeader(std::move(BFI.IsIrrLoopHeader));
   BFI.clear();
   BFI.Freqs = std::move(SavedFreqs);
+  BFI.IsIrrLoopHeader = std::move(SavedIsIrrLoopHeader);
 }
 
 bool BlockFrequencyInfoImplBase::addToDist(Distribution &Dist,
@@ -345,7 +375,7 @@ void BlockFrequencyInfoImplBase::computeLoopScale(LoopData &Loop) {
   // replaced to be the maximum of all computed scales plus 1. This would
   // appropriately describe the loop as having a large scale, without skewing
   // the final frequency computation.
-  const Scaled64 InifiniteLoopScale(1, 12);
+  const Scaled64 InfiniteLoopScale(1, 12);
 
   // LoopScale == 1 / ExitMass
   // ExitMass == HeadMass - BackedgeMass
@@ -358,7 +388,7 @@ void BlockFrequencyInfoImplBase::computeLoopScale(LoopData &Loop) {
   // its exit mass will be zero. In this case, use an arbitrary scale for the
   // loop scale.
   Loop.Scale =
-      ExitMass.isEmpty() ? InifiniteLoopScale : ExitMass.toScaled().inverse();
+      ExitMass.isEmpty() ? InfiniteLoopScale : ExitMass.toScaled().inverse();
 
   DEBUG(dbgs() << " - exit-mass = " << ExitMass << " (" << BlockMass::getFull()
                << " - " << TotalBackedgeMass << ")\n"
@@ -523,6 +553,35 @@ BlockFrequencyInfoImplBase::getBlockFreq(const BlockNode &Node) const {
     return 0;
   return Freqs[Node.Index].Integer;
 }
+
+Optional<uint64_t>
+BlockFrequencyInfoImplBase::getBlockProfileCount(const Function &F,
+                                                 const BlockNode &Node) const {
+  return getProfileCountFromFreq(F, getBlockFreq(Node).getFrequency());
+}
+
+Optional<uint64_t>
+BlockFrequencyInfoImplBase::getProfileCountFromFreq(const Function &F,
+                                                    uint64_t Freq) const {
+  auto EntryCount = F.getEntryCount();
+  if (!EntryCount)
+    return None;
+  // Use 128 bit APInt to do the arithmetic to avoid overflow.
+  APInt BlockCount(128, EntryCount.getValue());
+  APInt BlockFreq(128, Freq);
+  APInt EntryFreq(128, getEntryFreq());
+  BlockCount *= BlockFreq;
+  BlockCount = BlockCount.udiv(EntryFreq);
+  return BlockCount.getLimitedValue();
+}
+
+bool
+BlockFrequencyInfoImplBase::isIrrLoopHeader(const BlockNode &Node) {
+  if (!Node.isValid())
+    return false;
+  return IsIrrLoopHeader.test(Node.Index);
+}
+
 Scaled64
 BlockFrequencyInfoImplBase::getFloatingBlockFreq(const BlockNode &Node) const {
   if (!Node.isValid())
@@ -539,8 +598,9 @@ void BlockFrequencyInfoImplBase::setBlockFreq(const BlockNode &Node,
 
 std::string
 BlockFrequencyInfoImplBase::getBlockName(const BlockNode &Node) const {
-  return std::string();
+  return {};
 }
+
 std::string
 BlockFrequencyInfoImplBase::getLoopName(const LoopData &Loop) const {
   return getBlockName(Loop.getHeader()) + (Loop.isIrreducible() ? "**" : "*");
@@ -568,6 +628,7 @@ void IrreducibleGraph::addNodesInLoop(const BFIBase::LoopData &OuterLoop) {
     addNode(N);
   indexNodes();
 }
+
 void IrreducibleGraph::addNodesInFunction() {
   Start = 0;
   for (uint32_t Index = 0; Index < BFI.Working.size(); ++Index)
@@ -575,10 +636,12 @@ void IrreducibleGraph::addNodesInFunction() {
       addNode(Index);
   indexNodes();
 }
+
 void IrreducibleGraph::indexNodes() {
   for (auto &I : Nodes)
     Lookup[I.Node.Index] = &I;
 }
+
 void IrreducibleGraph::addEdge(IrrNode &Irr, const BlockNode &Succ,
                                const BFIBase::LoopData *OuterLoop) {
   if (OuterLoop && OuterLoop->isHeader(Succ))
@@ -593,19 +656,18 @@ void IrreducibleGraph::addEdge(IrrNode &Irr, const BlockNode &Succ,
 }
 
 namespace llvm {
+
 template <> struct GraphTraits<IrreducibleGraph> {
-  typedef bfi_detail::IrreducibleGraph GraphT;
+  using GraphT = bfi_detail::IrreducibleGraph;
+  using NodeRef = const GraphT::IrrNode *;
+  using ChildIteratorType = GraphT::IrrNode::iterator;
 
-  typedef const GraphT::IrrNode NodeType;
-  typedef GraphT::IrrNode::iterator ChildIteratorType;
-
-  static const NodeType *getEntryNode(const GraphT &G) {
-    return G.StartIrr;
-  }
-  static ChildIteratorType child_begin(NodeType *N) { return N->succ_begin(); }
-  static ChildIteratorType child_end(NodeType *N) { return N->succ_end(); }
+  static NodeRef getEntryNode(const GraphT &G) { return G.StartIrr; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->succ_begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->succ_end(); }
 };
-}
+
+} // end namespace llvm
 
 /// \brief Find extra irreducible headers.
 ///
@@ -760,6 +822,17 @@ void BlockFrequencyInfoImplBase::adjustLoopHeaderMass(LoopData &Loop) {
 
   DEBUG(dbgs() << " Distribute loop mass " << LoopMass
                << " to headers using above weights\n");
+  for (const Weight &W : Dist.Weights) {
+    BlockMass Taken = D.takeMass(W.Amount);
+    assert(W.Type == Weight::Local && "all weights should be local");
+    Working[W.TargetNode.Index].getMass() = Taken;
+    DEBUG(debugAssign(*this, D, W.TargetNode, Taken, nullptr));
+  }
+}
+
+void BlockFrequencyInfoImplBase::distributeIrrLoopHeaderMass(Distribution &Dist) {
+  BlockMass LoopMass = BlockMass::getFull();
+  DitheringDistributer D(Dist, LoopMass);
   for (const Weight &W : Dist.Weights) {
     BlockMass Taken = D.takeMass(W.Amount);
     assert(W.Type == Weight::Local && "all weights should be local");

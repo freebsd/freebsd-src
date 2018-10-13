@@ -1,3 +1,276 @@
+2018-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180512
+	  Merge with NetBSD make, pick up
+	  o job.c: skip polling job token pipe
+
+2018-04-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180405
+	  Merge with NetBSD make, pick up
+	  o parse.c: be more cautious about detecting depenency line
+	    rather than sysV style include.
+
+2018-02-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180222
+	  Merge with NetBSD make, pick up
+	  o parse.c: avoid calling sysconf for every call to loadfile
+
+2018-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180218
+	  Merge with NetBSD make, pick up
+	  o var.c: Var_Set handle NULL value anytime.
+
+2018-02-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180212
+	  Merge with NetBSD make, pick up
+	  o parse.c: do not treat .info as warning with -W
+
+2017-12-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171207
+	  Merge with NetBSD make, pick up
+	  o var.c: Var_Append use Var_Set if var not previously set
+	    so that VAR_CMD is handled correctly.
+	    Add a suitable unit-test.
+
+2017-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20171126
+
+	* aclocal.m4: use AC_LINK_IFELSE for AC_C___ATTRIBUTE__
+	  since AC_TRY_COMPILE puts input inside main()
+	  which upsets modern compilers.
+
+2017-11-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171118
+	  Merge with NetBSD make, pick up
+	  o var.c: do not append to variable set on command line
+	    add unit-test to catch this.
+
+2017-10-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171028
+	  Merge with NetBSD make, pick up
+	  o main.c: ignore empty MAKEOBJDIR
+
+	* Makefile.config.in:
+	  make @prefix@ @machine*@ and @default_sys_path@ defaults.
+
+2017-10-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171005
+
+	* unit-tests/dotwait.mk: redirect stderr through pipe for more
+	  consistent result on some platforms.
+
+2017-08-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* machine.sh: entry for AIX
+
+2017-08-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION (_MAKE_VERSION): Move the setting of _MAKE_VERSION
+	  to a file that can be included by configure as well as make.
+	  This allows configure to set set _MAKE_VERSION in make-bootstrap.sh
+
+2017-08-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170810
+	  Merge with NetBSD make, pick up
+	  o meta.c: if target is in subdir we only need subdir name in
+	    meta_name.
+
+2017-07-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170720
+	  Merge with NetBSD make, pick up
+	  o compat.c: pass SIGINT etc onto child and wait for it to exit
+	    before we self-terminate.
+
+2017-07-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170711
+	  forgot to update after merge on 20170708 ;-)
+	  o main.c: refactor to reduce size of main function.
+	    add -v option to always fully expand values.
+	  o meta.c: ensure command output in meta file has ending newline
+	    even when filemon not being used.
+	    When matching ${.MAKE.META.IGNORE_PATTERNS} do not use
+	    pathname via ':L' since any ':' in pathname breaks that.
+	    Instead set a '${.p.}' to pathname in the target context and
+	    use that.
+
+2017-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170510
+	  Merge with NetBSD make, pick up
+	  o main.c: Main_SetObjdir: ensure buf2 is in scope
+
+2017-05-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170505
+	  see mk/ChangeLog
+
+2017-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* parse.c: not everyone has stdint.h
+
+2017-05-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170501
+	  see mk/ChangeLog
+
+2017-04-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170421
+	  Merge with NetBSD make, pick up
+	  o str.c: Str_Match: fix closure tests for [^] and add unit-test.
+
+2017-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170420
+	  Merge with NetBSD make, pick up
+	  o main.c: only use -C arg "as is" if it contains no 
+	    relative component.
+
+2017-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170418
+	  Merge with NetBSD make, pick up
+	  o main.c: fix Main_SetObjdir() for relative paths (eg obj).
+
+2017-04-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170417
+	  Merge with NetBSD make, pick up
+	  o fixes a number of coverity complaints
+	    - check return value of fseek, fcntl
+	    - plug memory leak in Dir_FindFile, Var_LoopExpand,
+	      JobPrintCommand, ParseTraditionalInclude
+	    - use bmake_malloc() where NULL is not tollerated
+	    - use MAKE_ATTR_UNUSED rather that kludges like 
+	      return(unused ? 0 : 0)
+	    - use purge_cached_realpaths() rather than abuse cached_realpath()
+
+2017-04-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170413
+	  Merge with NetBSD make, pick up
+	  o main.c: when setting .OBJDIR ignore '$' in paths.
+
+	* job.c: use MALLOC_OPTIONS to set malloc_options.
+
+2017-04-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170411
+	  Merge with NetBSD make, pick up
+	  o str.c: Str_Match: allow [^a-z] to behave as expected.
+
+2017-03-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170326
+	  Merge with NetBSD make, pick up
+	  o main.c: purge relative paths from realpath cache when .OBJDIR
+	    is changed.
+
+2017-03-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170311
+	  Merge with NetBSD make, pick up
+          o main.c: only use -C arg "as is" if it starts with '/'.
+
+2017-03-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170301
+	  Merge with NetBSD make, pick up
+	  o main.c: use -C arg "as is" rather than getcwd()
+	    if they identify the same directory.
+	  o parse.c: ensure loadfile buffer is \n terminated in non-mmap case
+
+2017-02-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170201
+	  Merge with NetBSD make, pick up
+	  o var.c: allow :_=var and avoid use of special context.
+
+2017-01-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170130
+	  Merge with NetBSD make, pick up
+	  o var.c: add :range and :_
+	  o main.c: partially initialize Dir_* before MainParseArgs()
+	    can be called.
+	    If -V, skip Main_ExportMAKEFLAGS()
+
+2017-01-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170114
+	  Merge with NetBSD make, pick up
+	  o var.c: allow specifying the utc value used by :{gm,local}time
+
+2016-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161212
+	  Merge with NetBSD make, pick up
+          o main.c: look for obj.${MACHINE}-${MACHINE_ARCH} too.
+
+2016-12-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161209
+	  Merge with NetBSD make, pick up
+	  o main.c: cleanup setting of .OBJDIR
+	  o parse.c: avoid coredump from (var)=val
+
+2016-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161126
+	  Merge with NetBSD make, pick up
+	  o make.c: Make_OODate: report src node name if path not set
+
+2016-09-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160926
+	  Merge with NetBSD make, pick up
+	  o support for .DELETE_ON_ERROR: (remove targets that fail)
+	
+2016-09-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile MAN: tweak .Dt to match ${PROG}
+
+2016-08-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160818
+	  its a neater number; pick up whitespace fixes to man page.
+
+2016-08-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160817
+	  Merge with NetBSD make, pick up
+	  o meta.c: move handling of .MAKE.META.IGNORE_* to meta_ignore()
+	    so we can call it before adding entries to missingFiles.
+	    Thus we do not track files we have been told to ignore.
+
+2016-08-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160815
+	  Merge with NetBSD make, pick up
+	  o meta_oodate: apply .MAKE.META.IGNORE_FILTER (if defined) to
+	    pathnames, and skip if the expansion is empty.
+	    Useful for dirdeps.mk when checking DIRDEPS_CACHE.
+
+2016-08-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160812
+	  Merge with NetBSD make, pick up
+	  o meta.c: remove all missingFiles entries that match a deleted
+	    dir.
+	  o main.c: set .ERROR_CMD if possible.
+	  
 2016-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160606

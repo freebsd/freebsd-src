@@ -26,6 +26,8 @@ __FBSDID("$FreeBSD$");
  * ZyDAS ZD1211/ZD1211B USB WLAN driver.
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -648,11 +650,12 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		{
 			struct zyd_notif_retry *retry =
 			    (struct zyd_notif_retry *)cmd->data;
+			uint16_t count = le16toh(retry->count);
 
 			DPRINTF(sc, ZYD_DEBUG_TX_PROC,
 			    "retry intr: rate=0x%x addr=%s count=%d (0x%x)\n",
 			    le16toh(retry->rate), ether_sprintf(retry->macaddr),
-			    le16toh(retry->count)&0xff, le16toh(retry->count));
+			    count & 0xff, count);
 
 			/*
 			 * Find the node to which the packet was sent and
@@ -662,15 +665,26 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			ni = ieee80211_find_txnode(vap, retry->macaddr);
 			if (ni != NULL) {
-				int retrycnt =
-				    (int)(le16toh(retry->count) & 0xff);
-				
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_FAILURE,
-				    &retrycnt, NULL);
+				struct ieee80211_ratectl_tx_status *txs =
+				    &sc->sc_txs;
+				int retrycnt = count & 0xff;
+
+				txs->flags =
+				    IEEE80211_RATECTL_STATUS_LONG_RETRY;
+				txs->long_retries = retrycnt;
+				if (count & 0x100) {
+					txs->status =
+					    IEEE80211_RATECTL_TX_FAIL_LONG;
+				} else {
+					txs->status =
+					    IEEE80211_RATECTL_TX_SUCCESS;
+				}
+
+
+				ieee80211_ratectl_tx_complete(ni, txs);
 				ieee80211_free_node(ni);
 			}
-			if (le16toh(retry->count) & 0x100)
+			if (count & 0x100)
 				/* too many retries */
 				if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS,
 				    1);
@@ -1986,7 +2000,7 @@ zyd_set_multi(struct zyd_softc *sc)
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 			ifp = vap->iv_ifp;
 			if_maddr_rlock(ifp);
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
 					continue;
 				v = ((uint8_t *)LLADDR((struct sockaddr_dl *)
@@ -2427,9 +2441,9 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct zyd_tx_desc *desc;
 	struct zyd_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
-	int rate, totlen;
+	int rate, totlen, type, ismcast;
 	static const uint8_t ratediv[] = ZYD_TX_RATEDIV;
 	uint8_t phy;
 	uint16_t pktlen;
@@ -2440,14 +2454,16 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m0->m_flags & M_EAPOL) != 0) {
 		rate = tp->mgmtrate;
 	} else {
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
 		/* for data frames */
-		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		if (ismcast)
 			rate = tp->mcastrate;
 		else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 			rate = tp->ucastrate;
@@ -2485,7 +2501,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc->len = htole16(totlen);
 
 	desc->flags = ZYD_TX_FLAG_BACKOFF;
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	if (!ismcast) {
 		/* multicast frames are not sent at OFDM rates in 802.11b/g */
 		if (totlen > vap->iv_rtsthreshold) {
 			desc->flags |= ZYD_TX_FLAG_RTS;
@@ -2570,10 +2586,10 @@ zyd_start(struct zyd_softc *sc)
 	while (sc->tx_nfree > 0 && (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		if (zyd_tx_start(sc, m, ni) != 0) {
-			ieee80211_free_node(ni);
 			m_freem(m);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 	}

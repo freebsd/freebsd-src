@@ -41,7 +41,7 @@ struct hapd_interfaces {
 
 	size_t count;
 	int global_ctrl_sock;
-	struct wpa_ctrl_dst *global_ctrl_dst;
+	struct dl_list global_ctrl_dst;
 	char *global_iface_path;
 	char *global_iface_name;
 #ifndef CONFIG_NATIVE_WINDOWS
@@ -53,6 +53,7 @@ struct hapd_interfaces {
 #ifndef CONFIG_NO_VLAN
 	struct dynamic_iface *vlan_priv;
 #endif /* CONFIG_NO_VLAN */
+	int eloop_initialized;
 };
 
 enum hostapd_chan_status {
@@ -99,6 +100,16 @@ struct wps_stat {
 	u8 peer_addr[ETH_ALEN];
 };
 
+struct hostapd_neighbor_entry {
+	struct dl_list list;
+	u8 bssid[ETH_ALEN];
+	struct wpa_ssid_value ssid;
+	struct wpabuf *nr;
+	struct wpabuf *lci;
+	struct wpabuf *civic;
+	/* LCI update time */
+	struct os_time lci_date;
+};
 
 /**
  * struct hostapd_data - hostapd per-BSS data structure
@@ -138,7 +149,7 @@ struct hostapd_data {
 	void *msg_ctx_parent; /* parent interface ctx for wpa_msg() calls */
 
 	struct radius_client_data *radius;
-	u32 acct_session_id_hi, acct_session_id_lo;
+	u64 acct_session_id;
 	struct radius_das_data *radius_das;
 
 	struct iapp_data *iapp;
@@ -155,7 +166,7 @@ struct hostapd_data {
 	int tkip_countermeasures;
 
 	int ctrl_sock;
-	struct wpa_ctrl_dst *ctrl_dst;
+	struct dl_list ctrl_dst;
 
 	void *ssl_ctx;
 	void *eap_sim_db_priv;
@@ -228,6 +239,8 @@ struct hostapd_data {
 	unsigned int cs_c_off_beacon;
 	unsigned int cs_c_off_proberesp;
 	int csa_in_progress;
+	unsigned int cs_c_off_ecsa_beacon;
+	unsigned int cs_c_off_ecsa_proberesp;
 
 	/* BSS Load */
 	unsigned int bss_load_update_timeout;
@@ -256,9 +269,11 @@ struct hostapd_data {
 #ifdef CONFIG_MESH
 	int num_plinks;
 	int max_plinks;
-	void (*mesh_sta_free_cb)(struct sta_info *sta);
+	void (*mesh_sta_free_cb)(struct hostapd_data *hapd,
+				 struct sta_info *sta);
 	struct wpabuf *mesh_pending_auth;
 	struct os_reltime mesh_pending_auth_time;
+	u8 mesh_required_peer[ETH_ALEN];
 #endif /* CONFIG_MESH */
 
 #ifdef CONFIG_SQLITE
@@ -278,6 +293,17 @@ struct hostapd_data {
 
 	struct l2_packet_data *l2_test;
 #endif /* CONFIG_TESTING_OPTIONS */
+
+#ifdef CONFIG_MBO
+	unsigned int mbo_assoc_disallow;
+#endif /* CONFIG_MBO */
+
+	struct dl_list nr_db;
+
+	u8 lci_req_token;
+	u8 range_req_token;
+	unsigned int lci_req_active:1;
+	unsigned int range_req_active:1;
 };
 
 
@@ -285,6 +311,9 @@ struct hostapd_sta_info {
 	struct dl_list list;
 	u8 addr[ETH_ALEN];
 	struct os_reltime last_seen;
+#ifdef CONFIG_TAXONOMY
+	struct wpabuf *probe_ie_taxonomy;
+#endif /* CONFIG_TAXONOMY */
 };
 
 /**
@@ -326,6 +355,15 @@ struct hostapd_iface {
 	 * teardown: delete global keys, station keys, and stations.
 	 */
 	unsigned int driver_ap_teardown:1;
+
+	/*
+	 * When set, indicates that this interface is part of list of
+	 * interfaces that need to be started together (synchronously).
+	 */
+	unsigned int need_to_start_in_sync:1;
+
+	/* Ready to start but waiting for other interfaces to become ready. */
+	unsigned int ready_to_start_in_sync:1;
 
 	int num_ap; /* number of entries in ap_list */
 	struct ap_info *ap_list; /* AP info list head */
@@ -402,6 +440,9 @@ struct hostapd_iface {
 	u64 last_channel_time_busy;
 	u8 channel_utilization;
 
+	/* eCSA IE will be added only if operating class is specified */
+	u8 cs_oper_class;
+
 	unsigned int dfs_cac_ms;
 	struct os_reltime dfs_cac_start;
 
@@ -433,6 +474,7 @@ int hostapd_setup_interface(struct hostapd_iface *iface);
 int hostapd_setup_interface_complete(struct hostapd_iface *iface, int err);
 void hostapd_interface_deinit(struct hostapd_iface *iface);
 void hostapd_interface_free(struct hostapd_iface *iface);
+struct hostapd_iface * hostapd_alloc_iface(void);
 struct hostapd_iface * hostapd_init(struct hapd_interfaces *interfaces,
 				    const char *config_file);
 struct hostapd_iface *
@@ -449,6 +491,7 @@ int hostapd_remove_iface(struct hapd_interfaces *ifaces, char *buf);
 void hostapd_channel_list_updated(struct hostapd_iface *iface, int initiator);
 void hostapd_set_state(struct hostapd_iface *iface, enum hostapd_iface_state s);
 const char * hostapd_state_text(enum hostapd_iface_state s);
+int hostapd_csa_in_progress(struct hostapd_iface *iface);
 int hostapd_switch_channel(struct hostapd_data *hapd,
 			   struct csa_settings *settings);
 void
@@ -478,6 +521,11 @@ int hostapd_probe_req_rx(struct hostapd_data *hapd, const u8 *sa, const u8 *da,
 			 int ssi_signal);
 void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
 			     int offset, int width, int cf1, int cf2);
+struct survey_results;
+void hostapd_event_get_survey(struct hostapd_iface *iface,
+			      struct survey_results *survey_results);
+void hostapd_acs_channel_selected(struct hostapd_data *hapd,
+				  struct acs_selected_channels *acs_res);
 
 const struct hostapd_eap_user *
 hostapd_get_eap_user(struct hostapd_data *hapd, const u8 *identity,

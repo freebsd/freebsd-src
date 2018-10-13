@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +77,7 @@ struct options {
 	uint8_t	got_power_on:1;
 	uint8_t	got_dump_device_quirks:1;
 	uint8_t	got_dump_quirk_names:1;
+	uint8_t	got_dump_all_desc:1;
 	uint8_t	got_dump_device_desc:1;
 	uint8_t	got_dump_curr_config:1;
 	uint8_t	got_dump_all_config:1;
@@ -110,6 +113,7 @@ enum {
 	T_SHOW_IFACE_DRIVER,
 	T_DUMP_QUIRK_NAMES,
 	T_DUMP_DEVICE_QUIRKS,
+	T_DUMP_ALL_DESC,
 	T_DUMP_DEVICE_DESC,
 	T_DUMP_CURR_CONFIG_DESC,
 	T_DUMP_ALL_CONFIG_DESC,
@@ -142,6 +146,7 @@ static const struct token token[] = {
 	{"remove_quirk", T_REMOVE_QUIRK, 1},
 	{"dump_quirk_names", T_DUMP_QUIRK_NAMES, 0},
 	{"dump_device_quirks", T_DUMP_DEVICE_QUIRKS, 0},
+	{"dump_all_desc", T_DUMP_ALL_DESC, 0},
 	{"dump_device_desc", T_DUMP_DEVICE_DESC, 0},
 	{"dump_curr_config_desc", T_DUMP_CURR_CONFIG_DESC, 0},
 	{"dump_all_config_desc", T_DUMP_ALL_CONFIG_DESC, 0},
@@ -281,6 +286,7 @@ usage(void)
 	    "  remove_quirk <quirk>" "\n"
 	    "  dump_quirk_names" "\n"
 	    "  dump_device_quirks" "\n"
+	    "  dump_all_desc" "\n"
 	    "  dump_device_desc" "\n"
 	    "  dump_curr_config_desc" "\n"
 	    "  dump_all_config_desc" "\n"
@@ -487,7 +493,8 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 			}
 		}
 		dump_any =
-		    (opt->got_dump_device_desc ||
+		    (opt->got_dump_all_desc ||
+		    opt->got_dump_device_desc ||
 		    opt->got_dump_curr_config ||
 		    opt->got_dump_all_config ||
 		    opt->got_dump_info);
@@ -506,6 +513,10 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		} else if (opt->got_dump_curr_config) {
 			printf("\n");
 			dump_config(pdev, 0);
+		} else if (opt->got_dump_all_desc) {
+			printf("\n");
+			dump_device_desc(pdev);
+			dump_config(pdev, 1);
 		}
 		if (dump_any) {
 			printf("\n");
@@ -694,6 +705,12 @@ main(int argc, char **argv)
 			opt->got_get_template = 1;
 			opt->got_any++;
 			break;
+		case T_DUMP_ALL_DESC:
+			if (opt->got_dump_all_desc)
+				duplicate_option(argv[n]);
+			opt->got_dump_all_desc = 1;
+			opt->got_any++;
+			break;
 		case T_DUMP_DEVICE_DESC:
 			if (opt->got_dump_device_desc)
 				duplicate_option(argv[n]);
@@ -803,6 +820,29 @@ main(int argc, char **argv)
 			opt->got_any++;
 			break;
 		default:
+			if (n == 1) {
+				ptr = argv[n];
+
+				if ((ptr[0] == 'u') &&
+				    (ptr[1] == 'g') &&
+				    (ptr[2] == 'e') &&
+				    (ptr[3] == 'n'))
+					ptr += 4;
+
+				if ((sscanf(ptr, "%d.%d",
+				    &unit, &addr) != 2) ||
+				    (unit < 0) || (unit > 65535) ||
+				    (addr < 0) || (addr > 65535)) {
+					usage();
+					break;
+				}
+
+				opt->bus = unit;
+				opt->addr = addr;
+				opt->got_bus = 1;
+				opt->got_addr = 1;
+				break;
+			}
 			usage();
 			break;
 		}

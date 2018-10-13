@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012-2013 The FreeBSD Foundation
  * Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -46,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include "libcasper.h"
 #include "libcasper_impl.h"
 
+#define	CASPER_VALID_FLAGS	(CASPER_NO_UNIQ)
+
 /*
  * Structure describing communication channel between two separated processes.
  */
@@ -60,6 +64,8 @@ struct cap_channel {
 	int	cch_sock;
 	/* Process descriptor for casper. */
 	int	cch_pd;
+	/* Flags to communicate with casper. */
+	int	cch_flags;
 };
 
 static bool
@@ -70,6 +76,13 @@ cap_add_pd(cap_channel_t *chan, int pd)
 		return (false);
 	chan->cch_pd = pd;
 	return (true);
+}
+
+int
+cap_channel_flags(const cap_channel_t *chan)
+{
+
+	return (chan->cch_flags);
 }
 
 cap_channel_t *
@@ -94,7 +107,7 @@ cap_init(void)
 	} else if (pid > 0) {
 		/* Child. */
 		close(sock[1]);
-		chan = cap_wrap(sock[0]);
+		chan = cap_wrap(sock[0], 0);
 		if (chan == NULL) {
 			serrno = errno;
 			close(sock[0]);
@@ -116,17 +129,21 @@ cap_init(void)
 }
 
 cap_channel_t *
-cap_wrap(int sock)
+cap_wrap(int sock, int flags)
 {
 	cap_channel_t *chan;
 
 	if (!fd_is_valid(sock))
 		return (NULL);
 
+	if ((flags & CASPER_VALID_FLAGS) != flags)
+		return (NULL);
+
 	chan = malloc(sizeof(*chan));
 	if (chan != NULL) {
 		chan->cch_sock = sock;
 		chan->cch_pd = -1;
+		chan->cch_flags = flags;
 		chan->cch_magic = CAP_CHANNEL_MAGIC;
 	}
 
@@ -134,7 +151,7 @@ cap_wrap(int sock)
 }
 
 int
-cap_unwrap(cap_channel_t *chan)
+cap_unwrap(cap_channel_t *chan, int *flags)
 {
 	int sock;
 
@@ -144,6 +161,8 @@ cap_unwrap(cap_channel_t *chan)
 	sock = chan->cch_sock;
 	if (chan->cch_pd != -1)
 		close(chan->cch_pd);
+	if (flags != NULL)
+		*flags = chan->cch_flags;
 	chan->cch_magic = 0;
 	free(chan);
 
@@ -160,9 +179,9 @@ cap_clone(const cap_channel_t *chan)
 	assert(chan != NULL);
 	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
 
-	nvl = nvlist_create(0);
+	nvl = nvlist_create(channel_nvlist_flags(chan));
 	nvlist_add_string(nvl, "cmd", "clone");
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL)
 		return (NULL);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -172,7 +191,7 @@ cap_clone(const cap_channel_t *chan)
 	}
 	newsock = nvlist_take_descriptor(nvl, "sock");
 	nvlist_destroy(nvl);
-	newchan = cap_wrap(newsock);
+	newchan = cap_wrap(newsock, chan->cch_flags);
 	if (newchan == NULL) {
 		int serrno;
 
@@ -214,10 +233,10 @@ cap_limit_set(const cap_channel_t *chan, nvlist_t *limits)
 	nvlist_t *nvlmsg;
 	int error;
 
-	nvlmsg = nvlist_create(0);
+	nvlmsg = nvlist_create(channel_nvlist_flags(chan));
 	nvlist_add_string(nvlmsg, "cmd", "limit_set");
 	nvlist_add_nvlist(nvlmsg, "limits", limits);
-	nvlmsg = cap_xfer_nvlist(chan, nvlmsg, 0);
+	nvlmsg = cap_xfer_nvlist(chan, nvlmsg);
 	if (nvlmsg == NULL) {
 		nvlist_destroy(limits);
 		return (-1);
@@ -238,9 +257,9 @@ cap_limit_get(const cap_channel_t *chan, nvlist_t **limitsp)
 	nvlist_t *nvlmsg;
 	int error;
 
-	nvlmsg = nvlist_create(0);
+	nvlmsg = nvlist_create(channel_nvlist_flags(chan));
 	nvlist_add_string(nvlmsg, "cmd", "limit_get");
-	nvlmsg = cap_xfer_nvlist(chan, nvlmsg, 0);
+	nvlmsg = cap_xfer_nvlist(chan, nvlmsg);
 	if (nvlmsg == NULL)
 		return (-1);
 	error = (int)nvlist_get_number(nvlmsg, "error");
@@ -268,23 +287,25 @@ cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl)
 }
 
 nvlist_t *
-cap_recv_nvlist(const cap_channel_t *chan, int flags)
+cap_recv_nvlist(const cap_channel_t *chan)
 {
 
 	assert(chan != NULL);
 	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
 
-	return (nvlist_recv(chan->cch_sock, flags));
+	return (nvlist_recv(chan->cch_sock,
+	    channel_nvlist_flags(chan)));
 }
 
 nvlist_t *
-cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags)
+cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl)
 {
 
 	assert(chan != NULL);
 	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
 
-	return (nvlist_xfer(chan->cch_sock, nvl, flags));
+	return (nvlist_xfer(chan->cch_sock, nvl,
+	    channel_nvlist_flags(chan)));
 }
 
 cap_channel_t *
@@ -293,13 +314,14 @@ cap_service_open(const cap_channel_t *chan, const char *name)
 	cap_channel_t *newchan;
 	nvlist_t *nvl;
 	int sock, error;
+	int flags;
 
 	sock = -1;
 
-	nvl = nvlist_create(0);
+	nvl = nvlist_create(channel_nvlist_flags(chan));
 	nvlist_add_string(nvl, "cmd", "open");
 	nvlist_add_string(nvl, "service", name);
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL)
 		return (NULL);
 	error = (int)nvlist_get_number(nvl, "error");
@@ -309,10 +331,11 @@ cap_service_open(const cap_channel_t *chan, const char *name)
 		return (NULL);
 	}
 	sock = nvlist_take_descriptor(nvl, "chanfd");
+	flags = nvlist_take_number(nvl, "chanflags");
 	assert(sock >= 0);
 	nvlist_destroy(nvl);
 	nvl = NULL;
-	newchan = cap_wrap(sock);
+	newchan = cap_wrap(sock, flags);
 	if (newchan == NULL)
 		goto fail;
 	return (newchan);
@@ -330,7 +353,7 @@ cap_service_limit(const cap_channel_t *chan, const char * const *names,
 	nvlist_t *limits;
 	unsigned int i;
 
-	limits = nvlist_create(0);
+	limits = nvlist_create(channel_nvlist_flags(chan));
 	for (i = 0; i < nnames; i++)
 		nvlist_add_null(limits, names[i]);
 	return (cap_limit_set(chan, limits));

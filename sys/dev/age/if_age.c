@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, Pyun YongHyeon <yongari@FreeBSD.org>
  * All rights reserved.
  *
@@ -181,6 +183,8 @@ static driver_t age_driver = {
 static devclass_t age_devclass;
 
 DRIVER_MODULE(age, pci, age_driver, age_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, age, age_devs,
+    nitems(age_devs));
 DRIVER_MODULE(miibus, age, miibus_driver, miibus_devclass, 0, 0);
 
 static struct resource_spec age_res_spec_mem[] = {
@@ -2161,11 +2165,6 @@ age_int_task(void *arg, int pending)
 	    sc->age_cdata.age_cmb_block_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-#if 0
-	printf("INTR: 0x%08x\n", status);
-	status &= ~INTR_DIS_DMA;
-	CSR_WRITE_4(sc, AGE_INTR_STATUS, status | INTR_DIS_INT);
-#endif
 	ifp = sc->age_ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		if ((status & INTR_CMB_RX) != 0)
@@ -3173,7 +3172,7 @@ age_rxfilter(struct age_softc *sc)
 	bzero(mchash, sizeof(mchash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->age_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->age_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

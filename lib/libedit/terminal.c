@@ -1,4 +1,4 @@
-/*	$NetBSD: terminal.c,v 1.14 2012/05/30 18:21:14 christos Exp $	*/
+/*	$NetBSD: terminal.c,v 1.24 2016/03/22 01:38:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #else
-__RCSID("$NetBSD: terminal.c,v 1.14 2012/05/30 18:21:14 christos Exp $");
+__RCSID("$NetBSD: terminal.c,v 1.24 2016/03/22 01:38:17 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -48,12 +48,14 @@ __FBSDID("$FreeBSD$");
  *	       We have to declare a static variable here, since the
  *	       termcap putchar routine does not take an argument!
  */
-#include <stdio.h>
-#include <signal.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
 #include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #ifdef HAVE_TERMCAP_H
 #include <termcap.h>
 #endif
@@ -67,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #if defined(HAVE_TERM_H) && !defined(__sun) && !defined(HAVE_TERMCAP_H)
 #include <term.h>
 #endif
- 
-#include <sys/types.h>
-#include <sys/ioctl.h>
 
 #ifdef _REENTRANT
 #include <pthread.h>
@@ -274,31 +273,45 @@ terminal_init(EditLine *el)
 	el->el_terminal.t_buf = el_malloc(TC_BUFSIZE *
 	    sizeof(*el->el_terminal.t_buf));
 	if (el->el_terminal.t_buf == NULL)
-		return -1;
+		goto fail1;
 	el->el_terminal.t_cap = el_malloc(TC_BUFSIZE *
 	    sizeof(*el->el_terminal.t_cap));
 	if (el->el_terminal.t_cap == NULL)
-		return -1;
+		goto fail2;
 	el->el_terminal.t_fkey = el_malloc(A_K_NKEYS *
 	    sizeof(*el->el_terminal.t_fkey));
 	if (el->el_terminal.t_fkey == NULL)
-		return -1;
+		goto fail3;
 	el->el_terminal.t_loc = 0;
 	el->el_terminal.t_str = el_malloc(T_str *
 	    sizeof(*el->el_terminal.t_str));
 	if (el->el_terminal.t_str == NULL)
-		return -1;
+		goto fail4;
 	(void) memset(el->el_terminal.t_str, 0, T_str *
 	    sizeof(*el->el_terminal.t_str));
 	el->el_terminal.t_val = el_malloc(T_val *
 	    sizeof(*el->el_terminal.t_val));
 	if (el->el_terminal.t_val == NULL)
-		return -1;
+		goto fail5;
 	(void) memset(el->el_terminal.t_val, 0, T_val *
 	    sizeof(*el->el_terminal.t_val));
 	(void) terminal_set(el, NULL);
 	terminal_init_arrow(el);
 	return 0;
+fail5:
+	free(el->el_terminal.t_str);
+	el->el_terminal.t_str = NULL;
+fail4:
+	free(el->el_terminal.t_fkey);
+	el->el_terminal.t_fkey = NULL;
+fail3:
+	free(el->el_terminal.t_cap);
+	el->el_terminal.t_cap = NULL;
+fail2:
+	free(el->el_terminal.t_buf);
+	el->el_terminal.t_buf = NULL;
+fail1:
+	return -1;
 }
 
 /* terminal_end():
@@ -367,7 +380,7 @@ terminal_alloc(EditLine *el, const struct termcapstr *t, const char *cap)
          */
 	tlen = 0;
 	for (tmp = tlist; tmp < &tlist[T_str]; tmp++)
-		if (*tmp != NULL && *tmp != '\0' && *tmp != *str) {
+		if (*tmp != NULL && **tmp != '\0' && *tmp != *str) {
 			char *ptr;
 
 			for (ptr = *tmp; *ptr != '\0'; termbuf[tlen++] = *ptr++)
@@ -420,14 +433,14 @@ terminal_alloc_display(EditLine *el)
 
 	b =  el_malloc(sizeof(*b) * (size_t)(c->v + 1));
 	if (b == NULL)
-		return -1;
+		goto done;
 	for (i = 0; i < c->v; i++) {
 		b[i] = el_malloc(sizeof(**b) * (size_t)(c->h + 1));
 		if (b[i] == NULL) {
 			while (--i >= 0)
 				el_free(b[i]);
 			el_free(b);
-			return -1;
+			goto done;
 		}
 	}
 	b[c->v] = NULL;
@@ -435,19 +448,22 @@ terminal_alloc_display(EditLine *el)
 
 	b = el_malloc(sizeof(*b) * (size_t)(c->v + 1));
 	if (b == NULL)
-		return -1;
+		goto done;
 	for (i = 0; i < c->v; i++) {
 		b[i] = el_malloc(sizeof(**b) * (size_t)(c->h + 1));
 		if (b[i] == NULL) {
 			while (--i >= 0)
 				el_free(b[i]);
 			el_free(b);
-			return -1;
+			goto done;
 		}
 	}
 	b[c->v] = NULL;
 	el->el_vdisplay = b;
 	return 0;
+done:
+	terminal_free_display(el);
+	return -1;
 }
 
 
@@ -479,7 +495,7 @@ terminal_free_display(EditLine *el)
 
 /* terminal_move_to_line():
  *	move to line <where> (first line == 0)
- * 	as efficiently as possible
+ *	as efficiently as possible
  */
 protected void
 terminal_move_to_line(EditLine *el, int where)
@@ -492,8 +508,7 @@ terminal_move_to_line(EditLine *el, int where)
 	if (where > el->el_terminal.t_size.v) {
 #ifdef DEBUG_SCREEN
 		(void) fprintf(el->el_errfile,
-		    "terminal_move_to_line: where is ridiculous: %d\r\n",
-		    where);
+		    "%s: where is ridiculous: %d\r\n", __func__, where);
 #endif /* DEBUG_SCREEN */
 		return;
 	}
@@ -559,8 +574,7 @@ mc_again:
 	if (where > el->el_terminal.t_size.h) {
 #ifdef DEBUG_SCREEN
 		(void) fprintf(el->el_errfile,
-		    "terminal_move_to_char: where is riduculous: %d\r\n",
-		    where);
+		    "%s: where is ridiculous: %d\r\n", __func__, where);
 #endif /* DEBUG_SCREEN */
 		return;
 	}
@@ -596,7 +610,7 @@ mc_again:
 						    i < (where & ~0x7);
 						    i += 8)
 							terminal__putc(el,
-							    '\t');	
+							    '\t');
 							/* then tab over */
 						el->el_cursor.h = where & ~0x7;
 					}
@@ -654,7 +668,7 @@ terminal_overwrite(EditLine *el, const Char *cp, size_t n)
 	if (n > (size_t)el->el_terminal.t_size.h) {
 #ifdef DEBUG_SCREEN
 		(void) fprintf(el->el_errfile,
-		    "terminal_overwrite: n is riduculous: %d\r\n", n);
+		    "%s: n is ridiculous: %zu\r\n", __func__, n);
 #endif /* DEBUG_SCREEN */
 		return;
 	}
@@ -710,7 +724,7 @@ terminal_deletechars(EditLine *el, int num)
 	if (num > el->el_terminal.t_size.h) {
 #ifdef DEBUG_SCREEN
 		(void) fprintf(el->el_errfile,
-		    "terminal_deletechars: num is riduculous: %d\r\n", num);
+		    "%s: num is ridiculous: %d\r\n", __func__, num);
 #endif /* DEBUG_SCREEN */
 		return;
 	}
@@ -751,7 +765,7 @@ terminal_insertwrite(EditLine *el, Char *cp, int num)
 	if (num > el->el_terminal.t_size.h) {
 #ifdef DEBUG_SCREEN
 		(void) fprintf(el->el_errfile,
-		    "StartInsert: num is riduculous: %d\r\n", num);
+		    "%s: num is ridiculous: %d\r\n", __func__, num);
 #endif /* DEBUG_SCREEN */
 		return;
 	}
@@ -1241,13 +1255,13 @@ terminal_tputs(EditLine *el, const char *cap, int affcnt)
  *	Add a character
  */
 protected int
-terminal__putc(EditLine *el, Int c)
+terminal__putc(EditLine *el, wint_t c)
 {
 	char buf[MB_LEN_MAX +1];
 	ssize_t i;
-	if (c == (Int)MB_FILL_CHAR)
+	if (c == (wint_t)MB_FILL_CHAR)
 		return 0;
-	i = ct_encode_char(buf, (size_t)MB_LEN_MAX, c);
+	i = ct_encode_char(buf, (size_t)MB_LEN_MAX, (Char)c);
 	if (i <= 0)
 		return (int)i;
 	buf[i] = '\0';
@@ -1268,10 +1282,10 @@ terminal__flush(EditLine *el)
  *	Write the given character out, in a human readable form
  */
 protected void
-terminal_writec(EditLine *el, Int c)
+terminal_writec(EditLine *el, wint_t c)
 {
 	Char visbuf[VISUAL_WIDTH_MAX +1];
-	ssize_t vcnt = ct_visual_char(visbuf, VISUAL_WIDTH_MAX, c);
+	ssize_t vcnt = ct_visual_char(visbuf, VISUAL_WIDTH_MAX, (Char)c);
 	if (vcnt < 0)
 		vcnt = 0;
 	visbuf[vcnt] = '\0';
@@ -1285,7 +1299,7 @@ terminal_writec(EditLine *el, Int c)
  */
 protected int
 /*ARGSUSED*/
-terminal_telltc(EditLine *el, int argc __attribute__((__unused__)), 
+terminal_telltc(EditLine *el, int argc __attribute__((__unused__)),
     const Char **argv __attribute__((__unused__)))
 {
 	const struct termcapstr *t;

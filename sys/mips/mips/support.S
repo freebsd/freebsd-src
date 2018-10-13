@@ -94,7 +94,7 @@
 #include <machine/cpuregs.h>
 #include <machine/pcb.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.set	noreorder		# Noreorder is default style!
 
@@ -103,38 +103,6 @@
  */
 
 	.text
-
-/*
- * See if access to addr with a len type instruction causes a machine check.
- * len is length of access (1=byte, 2=short, 4=int)
- *
- * badaddr(addr, len)
- *	char *addr;
- *	int len;
- */
-LEAF(badaddr)
-	PTR_LA	v0, baderr
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	bne	a1, 1, 2f
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	b	5f
-	lbu	v0, (a0)
-2:
-	bne	a1, 2, 4f
-	nop
-	b	5f
-	lhu	v0, (a0)
-4:
-	lw	v0, (a0)
-5:
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-	j	ra
-	move	v0, zero		# made it w/o errors
-baderr:
-	j	ra
-	li	v0, 1			# trap sends us here
-END(badaddr)
 
 /*
  * int copystr(void *kfaddr, void *kdaddr, size_t maxlen, size_t *lencopied)
@@ -192,34 +160,6 @@ NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	j	ra
 	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 END(copyinstr)
-
-/*
- * Copy a null terminated string from the kernel address space into
- * the user address space.
- *
- *	copyoutstr(fromaddr, toaddr, maxlength, &lencopied)
- *		caddr_t fromaddr;
- *		caddr_t toaddr;
- *		u_int maxlength;
- *		u_int *lencopied;
- */
-NESTED(copyoutstr, CALLFRAME_SIZ, ra)
-	PTR_SUBU	sp, sp, CALLFRAME_SIZ
-	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	PTR_LA	v0, copyerr
-	blt	a1, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	REG_S	ra, CALLFRAME_RA(sp)
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	jal	_C_LABEL(copystr)
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	REG_L	ra, CALLFRAME_RA(sp)
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-	j	ra
-	PTR_ADDU	sp, sp, CALLFRAME_SIZ
-END(copyoutstr)
 
 /*
  * Copy specified amount of data from user space into the kernel
@@ -281,14 +221,12 @@ LEAF(copyerr)
 END(copyerr)
 
 /*
- * {fu,su},{ibyte,isword,iword}, fetch or store a byte, short or word to
- * user text space.
  * {fu,su},{byte,sword,word}, fetch or store a byte, short or word to
- * user data space.
+ * user-space.
  */
 #ifdef __mips_n64
-LEAF(fuword64)
-XLEAF(fuword)
+LEAF(fueword64)
+XLEAF(fueword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -296,14 +234,16 @@ XLEAF(fuword)
 	PTR_L	v1, PC_CURPCB(v1)
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 	ld	v0, 0(a0)		# fetch word
-	j	ra
 	PTR_S	zero, U_PCB_ONFAULT(v1)
-END(fuword64)
+	sd	v0, 0(a1)		# store word
+	j	ra
+	li	v0, 0
+END(fueword64)
 #endif
 
-LEAF(fuword32)
+LEAF(fueword32)
 #ifndef __mips_n64
-XLEAF(fuword)
+XLEAF(fueword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
@@ -312,11 +252,13 @@ XLEAF(fuword)
 	PTR_L	v1, PC_CURPCB(v1)
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lw	v0, 0(a0)		# fetch word
-	j	ra
 	PTR_S	zero, U_PCB_ONFAULT(v1)
-END(fuword32)
+	sw	v0, 0(a1)		# store word
+	j	ra
+	li	v0, 0
+END(fueword32)
 
-LEAF(fusword)
+LEAF(fuesword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -324,9 +266,11 @@ LEAF(fusword)
 	PTR_L	v1, PC_CURPCB(v1)
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lhu	v0, 0(a0)		# fetch short
-	j	ra
 	PTR_S	zero, U_PCB_ONFAULT(v1)
-END(fusword)
+	sh	v0, 0(a1)		# store short
+	j	ra
+	li	v0, 0
+END(fuesword)
 
 LEAF(fubyte)
 	PTR_LA	v0, fswberr
@@ -373,17 +317,18 @@ END(suword64)
 #endif
 
 /*
- * casuword(9)
- * <v0>u_long casuword(<a0>u_long *p, <a1>u_long oldval, <a2>u_long newval)
+ * casueword(9)
+ * <v0>u_long casueword(<a0>u_long *p, <a1>u_long oldval, <a2>u_long *oldval_p,
+ *		       <a3>u_long newval)
  */
 /*
- * casuword32(9)
- * <v0>uint32_t casuword(<a0>uint32_t *p, <a1>uint32_t oldval, 
- *							<a2>uint32_t newval)
+ * casueword32(9)
+ * <v0>uint32_t casueword(<a0>uint32_t *p, <a1>uint32_t oldval,
+ *			 <a2>uint32_t newval)
  */
-LEAF(casuword32)
+LEAF(casueword32)
 #ifndef __mips_n64
-XLEAF(casuword)
+XLEAF(casueword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
@@ -392,26 +337,26 @@ XLEAF(casuword)
 	PTR_L	v1, PC_CURPCB(v1)
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 1:
-	move	t0, a2
-	ll	v0, 0(a0)
-	bne	a1, v0, 2f
+	move	t0, a3
+	ll	t1, 0(a0)
+	bne	a1, t1, 2f
 	nop
 	sc	t0, 0(a0)		# store word
 	beqz	t0, 1b
 	nop
 	j	3f
-	nop
+	li	v0, 0
 2:
 	li	v0, -1
 3:
 	PTR_S	zero, U_PCB_ONFAULT(v1)
 	jr	ra
-	nop
-END(casuword32)
+	sw	t1, 0(a2)		# unconditionally store old word
+END(casueword32)
 
 #ifdef __mips_n64
-LEAF(casuword64)
-XLEAF(casuword)
+LEAF(casueword64)
+XLEAF(casueword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -419,22 +364,22 @@ XLEAF(casuword)
 	PTR_L	v1, PC_CURPCB(v1)
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 1:
-	move	t0, a2
-	lld	v0, 0(a0)
-	bne	a1, v0, 2f
+	move	t0, a3
+	lld	t1, 0(a0)
+	bne	a1, t1, 2f
 	nop
 	scd	t0, 0(a0)		# store double word
 	beqz	t0, 1b
 	nop
 	j	3f
-	nop
+	li	v0, 0
 2:
 	li	v0, -1
 3:
 	PTR_S	zero, U_PCB_ONFAULT(v1)
 	jr	ra
-	nop
-END(casuword64)
+	sd	t1, 0(a2)		# unconditionally store old word
+END(casueword64)
 #endif
 
 /*
@@ -470,41 +415,6 @@ LEAF(fswberr)
 	j	ra
 	li	v0, -1
 END(fswberr)
-
-/*
- * fuswintr and suswintr are just like fusword and susword except that if
- * the page is not in memory or would cause a trap, then we return an error.
- * The important thing is to prevent sleep() and switch().
- */
-LEAF(fuswintr)
-	PTR_LA	v0, fswintrberr
-	blt	a0, zero, fswintrberr	# make sure address is in user space
-	nop
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	lhu	v0, 0(a0)		# fetch short
-	j	ra
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-END(fuswintr)
-
-LEAF(suswintr)
-	PTR_LA	v0, fswintrberr
-	blt	a0, zero, fswintrberr	# make sure address is in user space
-	nop
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	sh	a1, 0(a0)		# store short
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-	j	ra
-	move	v0, zero
-END(suswintr)
-
-LEAF(fswintrberr)
-	j	ra
-	li	v0, -1
-END(fswintrberr)
 
 /*
  * memset(void *s1, int c, int len)
@@ -839,74 +749,7 @@ LEAF(atomic_subtract_8)
 	nop
 END(atomic_subtract_8)
 
-/*
- *	atomic 64-bit register read/write assembly language support routines.
- */
-
 	.set	noreorder		# Noreorder is default style!
-
-#if !defined(__mips_n64) && !defined(__mips_n32)	
-	/*
-	 * I don't know if these routines have the right number of
-	 * NOPs in it for all processors.  XXX
-	 *
-	 * Maybe it would be better to just leave this undefined in that case.
-	 *
-	 * XXX These routines are not safe in the case of a TLB miss on a1 or
-	 *     a0 unless the trapframe is 64-bit, which it just isn't with O32.
-	 *     If we take any exception, not just an interrupt, the upper
-	 *     32-bits will be clobbered.  Use only N32 and N64 kernels if you
-	 *     want to use 64-bit registers while interrupts are enabled or
-	 *     with memory operations.  Since this isn't even using load-linked
-	 *     and store-conditional, perhaps it should just use two registers
-	 *     instead, as is right and good with the O32 ABI.
-	 */
-LEAF(atomic_store_64)
-	mfc0	t1, MIPS_COP_0_STATUS
-	and	t2, t1, ~MIPS_SR_INT_IE
-	mtc0	t2, MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	ld	t0, (a1)
-	nop
-	nop
-	sd	t0, (a0)
-	nop
-	nop
-	mtc0	t1,MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	j	ra
-	nop
-END(atomic_store_64)
-
-LEAF(atomic_load_64)
-	mfc0	t1, MIPS_COP_0_STATUS
-	and	t2, t1, ~MIPS_SR_INT_IE
-	mtc0	t2, MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	ld	t0, (a0)
-	nop
-	nop
-	sd	t0, (a1)
-	nop
-	nop
-	mtc0	t1,MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	j	ra
-	nop
-END(atomic_load_64)
-#endif
 
 #if defined(DDB) || defined(DEBUG)
 

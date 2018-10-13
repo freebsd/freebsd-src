@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
  *
@@ -96,8 +98,7 @@ static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
-	if (ah->dport == NULL || ah->dport == NULL || ah->lnk == NULL ||
-	    ah->maxpktsize == 0)
+	if (ah->dport == NULL || ah->lnk == NULL || ah->maxpktsize == 0)
 		return (-1);
 	if (ntohs(*ah->dport) == IRC_CONTROL_PORT_NUMBER_1
 	    || ntohs(*ah->dport) == IRC_CONTROL_PORT_NUMBER_2)

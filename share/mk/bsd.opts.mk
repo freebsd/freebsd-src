@@ -4,7 +4,7 @@
 #
 # Users define WITH_FOO and WITHOUT_FOO on the command line or in /etc/src.conf
 # and /etc/make.conf files. These translate in the build system to MK_FOO={yes,no}
-# with sensible (usually) defaults.
+# with (usually) sensible defaults.
 #
 # Makefiles must include bsd.opts.mk after defining specific MK_FOO options that
 # are applicable for that Makefile (typically there are none, but sometimes there
@@ -41,7 +41,7 @@ __<bsd.opts.mk>__:
 #
 
 # Only these options are used by bsd.*.mk. KERBEROS and OPENSSH are
-# unforutnately needed to support statically linking the entire
+# unfortunately needed to support statically linking the entire
 # tree. su(1) wouldn't link since it depends on PAM which depends on
 # ssh libraries when building with OPENSSH, and likewise for KERBEROS.
 
@@ -55,6 +55,7 @@ __DEFAULT_YES_OPTIONS = \
     INCLUDES \
     INSTALLLIB \
     KERBEROS \
+    MAKE_CHECK_USE_SANDBOX \
     MAN \
     MANCOMPRESS \
     NIS \
@@ -63,6 +64,7 @@ __DEFAULT_YES_OPTIONS = \
     PROFILE \
     SSP \
     SYMVER \
+    TESTS \
     TOOLCHAIN \
     WARNS
 
@@ -72,10 +74,11 @@ __DEFAULT_NO_OPTIONS = \
     INSTALL_AS_USER \
     STALE_STAGED
 
-# meta mode related
 __DEFAULT_DEPENDENT_OPTIONS = \
+    MAKE_CHECK_USE_SANDBOX/TESTS \
     STAGING_MAN/STAGING \
     STAGING_PROG/STAGING \
+    STALE_STAGED/STAGING \
 
 
 .include <bsd.mkopt.mk>
@@ -98,10 +101,6 @@ __DEFAULT_DEPENDENT_OPTIONS = \
 MK_${var}:=no
 .endif
 .endfor
-
-.if ${MK_STAGING} == "no"
-MK_STALE_STAGED= no
-.endif
 
 .include <bsd.cpu.mk>
 

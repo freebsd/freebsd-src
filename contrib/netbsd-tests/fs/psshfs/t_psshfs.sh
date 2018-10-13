@@ -1,4 +1,4 @@
-# $NetBSD: t_psshfs.sh,v 1.7 2013/03/16 07:54:04 jmmv Exp $
+# $NetBSD: t_psshfs.sh,v 1.8 2016/09/05 08:53:57 christos Exp $
 #
 # Copyright (c) 2007, 2008 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -262,6 +262,26 @@ setattr_cache_cleanup() {
 	stop_ssh
 }
 
+atf_test_case read_empty_file cleanup
+read_empty_file_head() {
+	atf_set "descr" "Checks whether an empty file can be read"
+	# This test is supposed to make sure psshfs does not hang
+	# when reading from an empty file, hence the timeout.
+	atf_set "timeout" 8
+}
+read_empty_file_body() {
+	require_puffs
+	start_ssh
+	atf_check mkdir root mnt
+	atf_check -x ': > root/empty'
+	mount_psshfs root mnt
+	atf_check cat mnt/empty
+}
+read_empty_file_cleanup() {
+	umount mnt
+	stop_ssh
+}
+
 # -------------------------------------------------------------------------
 # Initialization.
 # -------------------------------------------------------------------------
@@ -271,4 +291,5 @@ atf_init_test_cases() {
 	atf_add_test_case pwd
 	atf_add_test_case ls
 	#atf_add_test_case setattr_cache
+	atf_add_test_case read_empty_file
 }

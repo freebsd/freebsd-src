@@ -14,6 +14,33 @@
 		display0 = &hdmi0;
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
+	vmain: fixedregulator-vmain {
+		compatible = "regulator-fixed";
+		regulator-name = "vmain";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vsys_cobra: fixedregulator-vsys_cobra {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_cobra";
+		vin-supply = <&vmain>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vdds_1v8_main: fixedregulator-vdds_1v8_main {
+		compatible = "regulator-fixed";
+		regulator-name = "vdds_1v8_main";
+		vin-supply = <&smps7_reg>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	vmmcsd_fixed: fixedregulator-mmcsd {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
@@ -46,25 +73,17 @@
 		clocks = <&auxclk1_ck>;
 		clock-names = "main_clk";
 		clock-frequency = <19200000>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 3 */
 	hsusb3_phy: hsusb3_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* gpio3_79 ETH_NRESET */
+		#phy-cells = <0>;
 	};
 
-	leds {
-		compatible = "gpio-leds";
-		led@1 {
-			label = "omap5:blue:usr1";
-			gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>; /* gpio5_153 D1 LED */
-			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
-	};
-
-	tpd12s015: encoder@0 {
+	tpd12s015: encoder {
 		compatible = "ti,tpd12s015";
 
 		pinctrl-names = "default";
@@ -79,7 +98,7 @@
 			port@0 {
 				reg = <0>;
 
-				tpd12s015_in: endpoint@0 {
+				tpd12s015_in: endpoint {
 					remote-endpoint = <&hdmi_out>;
 				};
 			};
@@ -87,14 +106,14 @@
 			port@1 {
 				reg = <1>;
 
-				tpd12s015_out: endpoint@0 {
+				tpd12s015_out: endpoint {
 					remote-endpoint = <&hdmi_connector_in>;
 				};
 			};
 		};
 	};
 
-	hdmi0: connector@0 {
+	hdmi0: connector {
 		compatible = "hdmi-connector";
 		label = "hdmi";
 
@@ -111,6 +130,7 @@
 		compatible = "ti,abe-twl6040";
 		ti,model = "omap5-uevm";
 
+		ti,jack-detection;
 		ti,mclk-freq = <19200000>;
 
 		ti,mcpdm = <&mcpdm>;
@@ -127,6 +147,16 @@
 			"Headset Mic", "Headset Mic Bias",
 			"AFML", "Line In",
 			"AFMR", "Line In";
+	};
+};
+
+&gpio8 {
+	/* TI trees use GPIO instead of msecure, see also muxing */
+	p234 {
+		gpio-hog;
+		gpios = <10 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "gpio8_234/msecure";
 	};
 };
 
@@ -213,6 +243,13 @@
 		>;
 	};
 
+	/* TI trees use GPIO mode; msecure mode does not work reliably? */
+	palmas_msecure_pins: palmas_msecure_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x180, PIN_OUTPUT | MUX_MODE6) /* gpio8_234 */
+		>;
+	};
+
 	usbhost_pins: pinmux_usbhost_pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0c4, PIN_INPUT | MUX_MODE0) /* usbb2_hsic_strobe */
@@ -259,7 +296,7 @@
 
 	dss_hdmi_pins: pinmux_dss_hdmi_pins {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x13c, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
+			OMAP5_IOPAD(0x13c, PIN_INPUT | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
 			OMAP5_IOPAD(0x140, PIN_INPUT | MUX_MODE0)	/* hdmi_ddc_scl.hdmi_ddc_scl */
 			OMAP5_IOPAD(0x142, PIN_INPUT | MUX_MODE0)	/* hdmi_ddc_sda.hdmi_ddc_sda */
 		>;
@@ -278,6 +315,12 @@
 			&usbhost_wkup_pins
 	>;
 
+	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq1 */
+		>;
+	};
+
 	usbhost_wkup_pins: pinmux_usbhost_wkup_pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x05a, PIN_OUTPUT | MUX_MODE0) /* fref_clk1_out, USB hub clk */
@@ -286,7 +329,7 @@
 
 	wlcore_irq_pin: pinmux_wlcore_irq_pin {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x40, WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
+			OMAP5_IOPAD(0x40, PIN_INPUT | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
 		>;
 	};
 };
@@ -309,15 +352,17 @@
 	non-removable;
 	cap-power-off-card;
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins &wlcore_irq_pin>;
-	interrupts-extended = <&gic GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
-			       &omap5_pmx_core 0x168>;
+	pinctrl-0 = <&mmc3_pins>;
+	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
+			       &omap5_pmx_core 0x16a>;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1271";
 		reg = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlcore_irq_pin>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;	/* gpio 14 */
 		ref-clock-frequency = <26000000>;
@@ -345,12 +390,23 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		ti,system-power-controller;
+		ti,mux-pad1 = <0xa1>;
+		ti,mux-pad2 = <0x1b>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&palmas_sys_nirq_pins &palmas_msecure_pins>;
+
+		palmas_gpio: gpio {
+			compatible = "ti,palmas-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
 
 		extcon_usb3: palmas_usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
 			ti,enable-id-detection;
 			ti,wakeup;
+			id-gpios = <&palmas_gpio 0 GPIO_ACTIVE_HIGH>;
 		};
 
 		clk32kgaudio: palmas_clk32k@1 {
@@ -358,13 +414,51 @@
 			#clock-cells = <0>;
 		};
 
+		rtc {
+			compatible = "ti,palmas-rtc";
+			interrupt-parent = <&palmas>;
+			interrupts = <8 IRQ_TYPE_NONE>;
+			ti,backup-battery-chargeable;
+			ti,backup-battery-charge-high-current;
+		};
+
+		gpadc: gpadc {
+			compatible = "ti,palmas-gpadc";
+			interrupts = <18 0
+				      16 0
+				      17 0>;
+			#io-channel-cells = <1>;
+			ti,channel0-current-microamp = <5>;
+			ti,channel3-current-microamp = <10>;
+		};
+
 		palmas_pmic {
 			compatible = "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
 			interrupts = <14 IRQ_TYPE_NONE>;
-			interrupt-name = "short-irq";
+			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;
+
+			smps123-in-supply = <&vsys_cobra>;
+			smps45-in-supply = <&vsys_cobra>;
+			smps6-in-supply = <&vsys_cobra>;
+			smps7-in-supply = <&vsys_cobra>;
+			smps8-in-supply = <&vsys_cobra>;
+			smps9-in-supply = <&vsys_cobra>;
+			smps10_out2-in-supply = <&vsys_cobra>;
+			smps10_out1-in-supply = <&vsys_cobra>;
+			ldo1-in-supply = <&vsys_cobra>;
+			ldo2-in-supply = <&vsys_cobra>;
+			ldo3-in-supply = <&vdds_1v8_main>;
+			ldo4-in-supply = <&vdds_1v8_main>;
+			ldo5-in-supply = <&vsys_cobra>;
+			ldo6-in-supply = <&vdds_1v8_main>;
+			ldo7-in-supply = <&vsys_cobra>;
+			ldo8-in-supply = <&vsys_cobra>;
+			ldo9-in-supply = <&vmmcsd_fixed>;
+			ldoln-in-supply = <&vsys_cobra>;
+			ldousb-in-supply = <&vsys_cobra>;
 
 			regulators {
 				smps123_reg: smps123 {
@@ -388,8 +482,8 @@
 				smps6_reg: smps6 {
 					/* VDD_DDR3 - over VDD_SMPS6 */
 					regulator-name = "smps6";
-					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <1200000>;
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -439,7 +533,7 @@
 				ldo1_reg: ldo1 {
 					/* VDDAPHY_CAM: vdda_csiport */
 					regulator-name = "ldo1";
-					regulator-min-microvolt = <1500000>;
+					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
@@ -465,7 +559,7 @@
 				ldo4_reg: ldo4 {
 					/* VDDAPHY_DISP: vdda_dsiport/hdmi */
 					regulator-name = "ldo4";
-					regulator-min-microvolt = <1500000>;
+					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
@@ -551,26 +645,32 @@
 
 	twl6040: twl@4b {
 		compatible = "ti,twl6040";
+		#clock-cells = <0>;
 		reg = <0x4b>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&twl6040_pins>;
 
 		interrupts = <GIC_SPI 119 IRQ_TYPE_NONE>; /* IRQ_SYS_2N cascaded to gic */
-		ti,audpwron-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;  /* gpio line 141 */
+
+		/* audpwron gpio defined in the board specific dts */
 
 		vio-supply = <&smps7_reg>;
 		v2v1-supply = <&smps9_reg>;
 		enable-active-high;
 
-		clocks = <&clk32kgaudio>;
-		clock-names = "clk32k";
+		clocks = <&clk32kgaudio>, <&fref_xtal_ck>;
+		clock-names = "clk32k", "mclk";
 	};
 };
 
 &mcpdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+
+	clocks = <&twl6040>;
+	clock-names = "pdmclk";
+
 	status = "okay";
 };
 

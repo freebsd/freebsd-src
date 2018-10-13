@@ -565,7 +565,7 @@ int al_udma_s2m_pref_set(struct al_udma *udma,
 	reg &= ~UDMA_S2M_RD_DESC_PREF_CFG_3_MIN_BURST_ABOVE_THR_MASK;
 	reg |=(conf->min_burst_above_thr <<
 	       UDMA_S2M_RD_DESC_PREF_CFG_3_MIN_BURST_ABOVE_THR_SHIFT) &
-		UDMA_S2M_RD_DESC_PREF_CFG_3_MIN_BURST_BELOW_THR_MASK;
+		UDMA_S2M_RD_DESC_PREF_CFG_3_MIN_BURST_ABOVE_THR_MASK;
 
 	al_reg_write32(&udma->udma_regs->s2m.s2m_rd.desc_pref_cfg_3, reg);
 
@@ -1114,260 +1114,105 @@ int al_udma_s2m_q_comp_set(struct al_udma_q *udma_q,
 	return 0;
 }
 
-/* UDMA VMID control configuration */
-void al_udma_gen_vmid_conf_set(
+/* UDMA Target-ID control configuration per queue */
+void al_udma_gen_tgtid_conf_queue_set(
 	struct unit_regs		*unit_regs,
-	struct al_udma_gen_vmid_conf	*conf)
+	struct al_udma_gen_tgtid_conf	*conf,
+	uint32_t qid)
 {
+	uint32_t *tx_tgtid_reg, *rx_tgtid_reg, *tx_tgtaddr_reg, *rx_tgtaddr_reg;
 	unsigned int rev_id;
 
-	al_reg_write32_masked(
-		&unit_regs->gen.vmid.cfg_vmid_0,
-		UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_DESC_EN_MASK |
-		UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_QUEUE_EN_MASK |
-		UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_DESC_EN_MASK |
-		UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_QUEUE_EN_MASK,
-		(((conf->tx_q_conf[0].desc_en << 0) |
-		(conf->tx_q_conf[1].desc_en << 1) |
-		(conf->tx_q_conf[2].desc_en << 2) |
-		(conf->tx_q_conf[3].desc_en << 3)) <<
-		UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_DESC_EN_SHIFT) |
-		(((conf->tx_q_conf[0].queue_en << 0) |
-		(conf->tx_q_conf[1].queue_en << 1) |
-		(conf->tx_q_conf[2].queue_en << 2) |
-		(conf->tx_q_conf[3].queue_en << 3)) <<
-		UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_QUEUE_EN_SHIFT) |
-		(((conf->rx_q_conf[0].desc_en << 0) |
-		(conf->rx_q_conf[1].desc_en << 1) |
-		(conf->rx_q_conf[2].desc_en << 2) |
-		(conf->rx_q_conf[3].desc_en << 3)) <<
-		UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_DESC_EN_SHIFT) |
-		(((conf->rx_q_conf[0].queue_en << 0) |
-		(conf->rx_q_conf[1].queue_en << 1) |
-		(conf->rx_q_conf[2].queue_en << 2) |
-		(conf->rx_q_conf[3].queue_en << 3)) <<
-		UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_QUEUE_EN_SHIFT));
-
-	/* VMID per queue */
-	al_reg_write32(
-		&unit_regs->gen.vmid.cfg_vmid_1,
-		(conf->tx_q_conf[0].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_1_TX_Q_0_VMID_SHIFT) |
-		(conf->tx_q_conf[1].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_1_TX_Q_1_VMID_SHIFT));
-
-	al_reg_write32(
-		&unit_regs->gen.vmid.cfg_vmid_2,
-		(conf->tx_q_conf[2].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_2_TX_Q_2_VMID_SHIFT) |
-		(conf->tx_q_conf[3].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_2_TX_Q_3_VMID_SHIFT));
-
-	al_reg_write32(
-		&unit_regs->gen.vmid.cfg_vmid_3,
-		(conf->rx_q_conf[0].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_3_RX_Q_0_VMID_SHIFT) |
-		(conf->rx_q_conf[1].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_3_RX_Q_1_VMID_SHIFT));
-
-	al_reg_write32(
-		&unit_regs->gen.vmid.cfg_vmid_4,
-		(conf->rx_q_conf[2].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_4_RX_Q_2_VMID_SHIFT) |
-		(conf->rx_q_conf[3].vmid <<
-		UDMA_GEN_VMID_CFG_VMID_4_RX_Q_3_VMID_SHIFT));
-
-	/* VMADDR per queue */
+	al_assert(qid < DMA_MAX_Q);
 	rev_id = al_udma_get_revision(unit_regs);
+
+	/* Target-ID TX DESC EN */
+	al_reg_write32_masked(&unit_regs->gen.tgtid.cfg_tgtid_0,
+			(conf->tx_q_conf[qid].desc_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_DESC_EN_SHIFT,
+			(conf->tx_q_conf[qid].desc_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_DESC_EN_SHIFT);
+
+	/* Target-ID TX QUEUE EN */
+	al_reg_write32_masked(&unit_regs->gen.tgtid.cfg_tgtid_0,
+			(conf->tx_q_conf[qid].queue_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_QUEUE_EN_SHIFT,
+			(conf->tx_q_conf[qid].queue_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_QUEUE_EN_SHIFT);
+
+	/* Target-ID RX DESC EN */
+	al_reg_write32_masked(&unit_regs->gen.tgtid.cfg_tgtid_0,
+			(conf->rx_q_conf[qid].desc_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_DESC_EN_SHIFT,
+			(conf->rx_q_conf[qid].desc_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_DESC_EN_SHIFT);
+
+	/* Target-ID RX QUEUE EN */
+	al_reg_write32_masked(&unit_regs->gen.tgtid.cfg_tgtid_0,
+			(conf->rx_q_conf[qid].queue_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_QUEUE_EN_SHIFT,
+			(conf->rx_q_conf[qid].queue_en << qid) <<
+			UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_QUEUE_EN_SHIFT);
+
+	switch (qid) {
+	case 0:
+	case 1:
+		tx_tgtid_reg = &unit_regs->gen.tgtid.cfg_tgtid_1;
+		rx_tgtid_reg = &unit_regs->gen.tgtid.cfg_tgtid_3;
+		tx_tgtaddr_reg = &unit_regs->gen.tgtaddr.cfg_tgtaddr_0;
+		rx_tgtaddr_reg = &unit_regs->gen.tgtaddr.cfg_tgtaddr_2;
+		break;
+	case 2:
+	case 3:
+		tx_tgtid_reg = &unit_regs->gen.tgtid.cfg_tgtid_2;
+		rx_tgtid_reg = &unit_regs->gen.tgtid.cfg_tgtid_4;
+		tx_tgtaddr_reg = &unit_regs->gen.tgtaddr.cfg_tgtaddr_1;
+		rx_tgtaddr_reg = &unit_regs->gen.tgtaddr.cfg_tgtaddr_3;
+		break;
+	default:
+		al_assert(AL_FALSE);
+		return;
+	}
+
+	al_reg_write32_masked(tx_tgtid_reg,
+		UDMA_GEN_TGTID_CFG_TGTID_MASK(qid),
+		conf->tx_q_conf[qid].tgtid << UDMA_GEN_TGTID_CFG_TGTID_SHIFT(qid));
+
+	al_reg_write32_masked(rx_tgtid_reg,
+		UDMA_GEN_TGTID_CFG_TGTID_MASK(qid),
+		conf->rx_q_conf[qid].tgtid << UDMA_GEN_TGTID_CFG_TGTID_SHIFT(qid));
+
 	if (rev_id >= AL_UDMA_REV_ID_REV2) {
-		al_reg_write32(
-			&unit_regs->gen.vmaddr.cfg_vmaddr_0,
-			(conf->tx_q_conf[0].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_0_TX_Q_0_VMADDR_SHIFT) |
-			(conf->tx_q_conf[1].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_0_TX_Q_1_VMADDR_SHIFT));
+		al_reg_write32_masked(tx_tgtaddr_reg,
+			UDMA_GEN_TGTADDR_CFG_MASK(qid),
+			conf->tx_q_conf[qid].tgtaddr << UDMA_GEN_TGTADDR_CFG_SHIFT(qid));
 
-		al_reg_write32(
-			&unit_regs->gen.vmaddr.cfg_vmaddr_1,
-			(conf->tx_q_conf[2].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_1_TX_Q_2_VMADDR_SHIFT) |
-			(conf->tx_q_conf[3].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_1_TX_Q_3_VMADDR_SHIFT));
-
-		al_reg_write32(
-			&unit_regs->gen.vmaddr.cfg_vmaddr_2,
-			(conf->rx_q_conf[0].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_2_RX_Q_0_VMADDR_SHIFT) |
-			(conf->rx_q_conf[1].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_2_RX_Q_1_VMADDR_SHIFT));
-
-		al_reg_write32(
-			&unit_regs->gen.vmaddr.cfg_vmaddr_3,
-			(conf->rx_q_conf[2].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_3_RX_Q_2_VMADDR_SHIFT) |
-			(conf->rx_q_conf[3].vmaddr <<
-			UDMA_GEN_VMADDR_CFG_VMADDR_3_RX_Q_3_VMADDR_SHIFT));
+		al_reg_write32_masked(rx_tgtaddr_reg,
+			UDMA_GEN_TGTADDR_CFG_MASK(qid),
+			conf->rx_q_conf[qid].tgtaddr << UDMA_GEN_TGTADDR_CFG_SHIFT(qid));
 	}
 }
 
-/* UDMA VMID MSIX control configuration */
-void al_udma_gen_vmid_msix_conf_set(
+/* UDMA Target-ID control configuration */
+void al_udma_gen_tgtid_conf_set(
+	struct unit_regs		*unit_regs,
+	struct al_udma_gen_tgtid_conf	*conf)
+{
+	int i;
+
+	for (i = 0; i < DMA_MAX_Q; i++)
+		al_udma_gen_tgtid_conf_queue_set(unit_regs, conf, i);
+}
+
+/* UDMA Target-ID MSIX control configuration */
+void al_udma_gen_tgtid_msix_conf_set(
 	struct unit_regs			*unit_regs,
-	struct al_udma_gen_vmid_msix_conf	*conf)
+	struct al_udma_gen_tgtid_msix_conf	*conf)
 {
 	al_reg_write32_masked(
-		&unit_regs->gen.vmid.cfg_vmid_0,
-		UDMA_GEN_VMID_CFG_VMID_0_MSIX_VMID_ACCESS_EN |
-		UDMA_GEN_VMID_CFG_VMID_0_MSIX_VMID_SEL,
-		(conf->access_en ? UDMA_GEN_VMID_CFG_VMID_0_MSIX_VMID_ACCESS_EN : 0) |
-		(conf->sel ? UDMA_GEN_VMID_CFG_VMID_0_MSIX_VMID_SEL : 0));
+		&unit_regs->gen.tgtid.cfg_tgtid_0,
+		UDMA_GEN_TGTID_CFG_TGTID_0_MSIX_TGTID_ACCESS_EN |
+		UDMA_GEN_TGTID_CFG_TGTID_0_MSIX_TGTID_SEL,
+		(conf->access_en ? UDMA_GEN_TGTID_CFG_TGTID_0_MSIX_TGTID_ACCESS_EN : 0) |
+		(conf->sel ? UDMA_GEN_TGTID_CFG_TGTID_0_MSIX_TGTID_SEL : 0));
 }
-
-/* UDMA VMID control advanced Tx queue configuration */
-void al_udma_gen_vmid_advanced_tx_q_conf(
-	struct al_udma_q				*q,
-	struct al_udma_gen_vmid_advanced_tx_q_conf	*conf)
-{
-	struct udma_gen_regs *gen_regs = q->udma->gen_regs;
-	struct udma_gen_vmpr *vmpr = &gen_regs->vmpr[q->qid];
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_0,
-		UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_HISEL_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_DATA_VMID_EN |
-		UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_PREF_VMID_EN |
-		UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_CMPL_VMID_EN,
-		conf->tx_q_addr_hi_sel |
-		((conf->tx_q_data_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_DATA_VMID_EN : 0) |
-		((conf->tx_q_prefetch_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_PREF_VMID_EN : 0) |
-		((conf->tx_q_compl_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_CMPL_VMID_EN : 0));
-
-	al_reg_write32(
-		&vmpr->cfg_vmpr_1,
-		conf->tx_q_addr_hi);
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_2,
-		UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_PREF_VMID_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_CMPL_VMID_MASK,
-		(conf->tx_q_prefetch_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_PREF_VMID_SHIFT) |
-		(conf->tx_q_compl_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_CMPL_VMID_SHIFT));
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_3,
-		UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_SEL_MASK,
-		(conf->tx_q_data_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_SHIFT) |
-		(conf->tx_q_data_vmid_mask <<
-		 UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_SEL_SHIFT));
-}
-
-/** UDMA VMID control advanced Rx queue configuration */
-void al_udma_gen_vmid_advanced_rx_q_conf(
-	struct al_udma_q				*q,
-	struct al_udma_gen_vmid_advanced_rx_q_conf	*conf)
-{
-	struct udma_gen_regs *gen_regs = q->udma->gen_regs;
-	struct udma_gen_vmpr *vmpr = &gen_regs->vmpr[q->qid];
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_4,
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_HISEL_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_VMID_EN |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_HISEL_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_VMID_EN |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_HISEL_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_VMID_EN |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_PREF_VMID_EN |
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_CMPL_VMID_EN,
-		(conf->rx_q_addr_hi_sel <<
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_HISEL_SHIFT) |
-		((conf->rx_q_data_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_VMID_EN : 0) |
-		(conf->rx_q_data_buff2_addr_hi_sel <<
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_HISEL_SHIFT) |
-		((conf->rx_q_data_buff2_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_VMID_EN : 0) |
-		(conf->rx_q_ddp_addr_hi_sel <<
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_HISEL_SHIFT) |
-		((conf->rx_q_ddp_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_VMID_EN : 0) |
-		((conf->rx_q_prefetch_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_PREF_VMID_EN : 0) |
-		((conf->rx_q_compl_vmid_en == AL_TRUE) ?
-		 UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_CMPL_VMID_EN : 0));
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_6,
-		UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_PREF_VMID_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_CMPL_VMID_MASK,
-		(conf->rx_q_prefetch_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_PREF_VMID_SHIFT) |
-		(conf->rx_q_compl_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_CMPL_VMID_SHIFT));
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_7,
-		UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_SEL_MASK,
-		(conf->rx_q_data_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_SHIFT) |
-		(conf->rx_q_data_vmid_mask <<
-		 UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_SEL_SHIFT));
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_8,
-		UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_SEL_MASK,
-		(conf->rx_q_data_buff2_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_SHIFT) |
-		(conf->rx_q_data_buff2_mask <<
-		 UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_SEL_SHIFT));
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_9,
-		UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_MASK |
-		UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_SEL_MASK,
-		(conf->rx_q_ddp_vmid <<
-		 UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_SHIFT) |
-		(conf->rx_q_ddp_mask <<
-		 UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_SEL_SHIFT));
-
-	al_reg_write32(
-		&vmpr->cfg_vmpr_10,
-		conf->rx_q_addr_hi);
-
-	al_reg_write32(
-		&vmpr->cfg_vmpr_11,
-		conf->rx_q_data_buff2_addr_hi);
-
-	al_reg_write32(
-		&vmpr->cfg_vmpr_12,
-		conf->rx_q_ddp_addr_hi);
-}
-
-/* UDMA header split buffer 2 Rx queue configuration */
-void al_udma_gen_hdr_split_buff2_rx_q_conf(
-	struct al_udma_q				*q,
-	struct al_udma_gen_hdr_split_buff2_q_conf	*conf)
-{
-	struct udma_gen_regs *gen_regs = q->udma->gen_regs;
-	struct udma_gen_vmpr *vmpr = &gen_regs->vmpr[q->qid];
-
-	al_reg_write32_masked(
-		&vmpr->cfg_vmpr_4,
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_MSB_ADDR_SEL_MASK,
-		conf->add_msb_sel <<
-		UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_MSB_ADDR_SEL_SHIFT);
-
-	al_reg_write32(
-		&vmpr->cfg_vmpr_5,
-		conf->addr_msb);
-}
-

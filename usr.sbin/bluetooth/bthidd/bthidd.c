@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -67,14 +69,15 @@ main(int32_t argc, char *argv[])
 	struct sigaction	 sa;
 	char const		*pid_file = BTHIDD_PIDFILE;
 	char			*ep;
-	int32_t			 opt, detach, tval;
+	int32_t			 opt, detach, tval, uinput;
 
 	memset(&srv, 0, sizeof(srv));
 	memset(&srv.bdaddr, 0, sizeof(srv.bdaddr));
 	detach = 1;
 	tval = 10; /* sec */
+	uinput = 0;
 
-	while ((opt = getopt(argc, argv, "a:c:dH:hp:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "a:c:dH:hp:t:u")) != -1) {
 		switch (opt) {
 		case 'a': /* BDADDR */
 			if (!bt_aton(optarg, &srv.bdaddr)) {
@@ -107,6 +110,10 @@ main(int32_t argc, char *argv[])
 			tval = strtol(optarg, (char **) &ep, 10);
 			if (*ep != '\0' || tval <= 0)
 				usage();
+			break;
+
+		case 'u': /* enable evdev support */
+			uinput = 1;
 			break;
 
 		case 'h':
@@ -155,6 +162,8 @@ main(int32_t argc, char *argv[])
 	if (read_config_file() < 0 || read_hids_file() < 0 ||
 	    server_init(&srv) < 0 || write_pid_file(pid_file) < 0)
 		exit(1);
+
+	srv.uinput = uinput;
 
 	for (done = 0; !done; ) {
 		if (elapsed(tval))
@@ -261,6 +270,7 @@ usage(void)
 "	-h		display this message\n" \
 "	-p file		specify PID file name\n" \
 "	-t tval		specify client rescan interval (sec)\n" \
+"	-u		enable evdev protocol support\n" \
 "", BTHIDD_IDENT);
 	exit(255);
 }

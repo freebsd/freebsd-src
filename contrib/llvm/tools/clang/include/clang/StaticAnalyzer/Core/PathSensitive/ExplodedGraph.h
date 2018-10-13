@@ -20,18 +20,18 @@
 #define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_EXPLODEDGRAPH_H
 
 #include "clang/AST/Decl.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace clang {
@@ -121,10 +121,9 @@ class ExplodedNode : public llvm::FoldingSetNode {
   NodeGroup Succs;
 
 public:
-
   explicit ExplodedNode(const ProgramPoint &loc, ProgramStateRef state,
                         bool IsSink)
-    : Location(loc), State(state), Succs(IsSink) {
+      : Location(loc), State(std::move(state)), Succs(IsSink) {
     assert(isSink() == IsSink);
   }
 
@@ -295,6 +294,14 @@ public:
                         bool IsSink = false,
                         bool* IsNew = nullptr);
 
+  /// \brief Create a node for a (Location, State) pair,
+  ///  but don't store it for deduplication later.  This
+  ///  is useful when copying an already completed
+  ///  ExplodedGraph for further processing.
+  ExplodedNode *createUncachedNode(const ProgramPoint &L,
+    ProgramStateRef State,
+    bool IsSink = false);
+
   std::unique_ptr<ExplodedGraph> MakeEmptyGraph() const {
     return llvm::make_unique<ExplodedGraph>();
   }
@@ -320,6 +327,8 @@ public:
 
   bool empty() const { return NumNodes == 0; }
   unsigned size() const { return NumNodes; }
+
+  void reserve(unsigned NodeCount) { Nodes.reserve(NodeCount); }
 
   // Iterators.
   typedef ExplodedNode                        NodeTy;
@@ -395,7 +404,7 @@ private:
 };
 
 class ExplodedNodeSet {
-  typedef llvm::SmallPtrSet<ExplodedNode*,5> ImplTy;
+  typedef llvm::SmallSetVector<ExplodedNode*, 4> ImplTy;
   ImplTy Impl;
 
 public:
@@ -415,7 +424,7 @@ public:
 
   unsigned size() const { return Impl.size();  }
   bool empty()    const { return Impl.empty(); }
-  bool erase(ExplodedNode *N) { return Impl.erase(N); }
+  bool erase(ExplodedNode *N) { return Impl.remove(N); }
 
   void clear() { Impl.clear(); }
   void insert(const ExplodedNodeSet &S) {
@@ -441,55 +450,35 @@ public:
 
 namespace llvm {
   template<> struct GraphTraits<clang::ento::ExplodedNode*> {
-    typedef clang::ento::ExplodedNode NodeType;
-    typedef NodeType::succ_iterator  ChildIteratorType;
-    typedef llvm::df_iterator<NodeType*>      nodes_iterator;
+    typedef clang::ento::ExplodedNode *NodeRef;
+    typedef clang::ento::ExplodedNode::succ_iterator ChildIteratorType;
+    typedef llvm::df_iterator<NodeRef> nodes_iterator;
 
-    static inline NodeType* getEntryNode(NodeType* N) {
-      return N;
-    }
+    static NodeRef getEntryNode(NodeRef N) { return N; }
 
-    static inline ChildIteratorType child_begin(NodeType* N) {
-      return N->succ_begin();
-    }
+    static ChildIteratorType child_begin(NodeRef N) { return N->succ_begin(); }
 
-    static inline ChildIteratorType child_end(NodeType* N) {
-      return N->succ_end();
-    }
+    static ChildIteratorType child_end(NodeRef N) { return N->succ_end(); }
 
-    static inline nodes_iterator nodes_begin(NodeType* N) {
-      return df_begin(N);
-    }
+    static nodes_iterator nodes_begin(NodeRef N) { return df_begin(N); }
 
-    static inline nodes_iterator nodes_end(NodeType* N) {
-      return df_end(N);
-    }
+    static nodes_iterator nodes_end(NodeRef N) { return df_end(N); }
   };
 
   template<> struct GraphTraits<const clang::ento::ExplodedNode*> {
-    typedef const clang::ento::ExplodedNode NodeType;
-    typedef NodeType::const_succ_iterator   ChildIteratorType;
-    typedef llvm::df_iterator<NodeType*>       nodes_iterator;
+    typedef const clang::ento::ExplodedNode *NodeRef;
+    typedef clang::ento::ExplodedNode::const_succ_iterator ChildIteratorType;
+    typedef llvm::df_iterator<NodeRef> nodes_iterator;
 
-    static inline NodeType* getEntryNode(NodeType* N) {
-      return N;
-    }
+    static NodeRef getEntryNode(NodeRef N) { return N; }
 
-    static inline ChildIteratorType child_begin(NodeType* N) {
-      return N->succ_begin();
-    }
+    static ChildIteratorType child_begin(NodeRef N) { return N->succ_begin(); }
 
-    static inline ChildIteratorType child_end(NodeType* N) {
-      return N->succ_end();
-    }
+    static ChildIteratorType child_end(NodeRef N) { return N->succ_end(); }
 
-    static inline nodes_iterator nodes_begin(NodeType* N) {
-      return df_begin(N);
-    }
+    static nodes_iterator nodes_begin(NodeRef N) { return df_begin(N); }
 
-    static inline nodes_iterator nodes_end(NodeType* N) {
-      return df_end(N);
-    }
+    static nodes_iterator nodes_end(NodeRef N) { return df_end(N); }
   };
 
 } // end llvm namespace

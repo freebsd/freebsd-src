@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2003 M. Warner Losh.
  * All rights reserved.
  *
@@ -48,14 +50,17 @@ public:
 	 * no variable of %var is set, then %bogus will be returned.
 	 */
 	const std::string &get_variable(const std::string &var) const;
-	/** Is there a variable of %var set in thi stable?
+	/** Is there a variable of %var set in this table?
 	 */
 	bool is_set(const std::string &var) const;
 	/** A completely bogus string.
 	 */
 	static const std::string bogus;
 	static const std::string nothing;
+
 private:
+	std::string fix_value(const std::string &val) const;
+
 	std::map<std::string, std::string> _vars;
 };
 
@@ -167,7 +172,8 @@ protected:
 	void sort_vector(std::vector<event_proc *> &);
 	void parse_one_file(const char *fn);
 	void parse_files_in_dir(const char *dirname);
-	void expand_one(const char *&src, std::string &dst);
+	void expand_one(const char *&src, std::string &dst, bool is_shell);
+	std::string shell_quote(const std::string &s);
 	bool is_id_char(char) const;
 	bool chop_var(char *&buffer, char *&lhs, char *&rhs) const;
 private:

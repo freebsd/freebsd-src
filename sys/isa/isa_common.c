@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND MIT
+ *
  * Copyright (c) 1999 Doug Rabson
  * All rights reserved.
  *
@@ -66,10 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <machine/resource.h>
 
@@ -497,7 +501,7 @@ isa_probe_children(device_t dev)
 	struct isa_device *idev;
 	device_t *children, child;
 	struct isa_config *cfg;
-	int nchildren, i;
+	int nchildren, i, err;
 
 	/*
 	 * Create all the non-hinted children by calling drivers'
@@ -567,7 +571,12 @@ isa_probe_children(device_t dev)
 		    !TAILQ_EMPTY(&idev->id_configs))
 			continue;
 
-		device_probe_and_attach(child);
+		err = device_probe_and_attach(child);
+		if (err == 0 && idev->id_vendorid == 0 &&
+		    strcmp(kern_ident, "GENERIC") == 0 &&
+		    device_is_attached(child))
+			device_printf(child,
+			    "non-PNP ISA device will be removed from GENERIC in FreeBSD 12.\n");
 	}
 
 	/*
@@ -635,10 +644,8 @@ isa_print_all_resources(device_t dev)
 	retval += resource_list_print_type(rl, "drq", SYS_RES_DRQ, "%jd");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
-#ifdef ISAPNP
 	if (idev->id_vendorid)
 		retval += printf(" pnpid %s", pnp_eisaformat(idev->id_vendorid));
-#endif
 
 	return (retval);
 }
@@ -1028,13 +1035,11 @@ static int
 isa_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
-#ifdef ISAPNP
 	struct isa_device *idev = DEVTOISA(child);
 
 	if (idev->id_vendorid)
 		snprintf(buf, buflen, "pnpid=%s",
 		    pnp_eisaformat(idev->id_vendorid));
-#endif
 	return (0);
 }
 
@@ -1122,4 +1127,24 @@ isab_attach(device_t dev)
 	if (child != NULL)
 		return (bus_generic_attach(dev));
 	return (ENXIO);
+}
+
+char *
+pnp_eisaformat(uint32_t id)
+{
+	uint8_t *data;
+	static char idbuf[8];
+	const char  hextoascii[] = "0123456789abcdef";
+
+	id = htole32(id);
+	data = (uint8_t *)&id;
+	idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
+	idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
+	idbuf[2] = '@' + (data[1] & 0x1f);
+	idbuf[3] = hextoascii[(data[2] >> 4)];
+	idbuf[4] = hextoascii[(data[2] & 0xf)];
+	idbuf[5] = hextoascii[(data[3] >> 4)];
+	idbuf[6] = hextoascii[(data[3] & 0xf)];
+	idbuf[7] = 0;
+	return(idbuf);
 }

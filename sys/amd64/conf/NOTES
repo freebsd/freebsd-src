@@ -73,12 +73,6 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 # Options for CPU features.
 #
 
-#
-# PERFMON causes the driver for Pentium/Pentium Pro performance counters
-# to be compiled.  See perfmon(4) for more information.
-#
-#XXX#options 	PERFMON
-
 
 #####################################################################
 # NETWORKING OPTIONS
@@ -294,11 +288,9 @@ device		cpufreq
 
 # Direct Rendering modules for 3D acceleration.
 device		drm		# DRM core module required by DRM drivers
-device		i915drm		# Intel i830 through i915
 device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
 device		mgadrm		# AGP Matrox G200, G400, G450, G550
 device		r128drm		# ATI Rage 128
-device		radeondrm	# ATI Radeon
 device		savagedrm	# S3 Savage3D, Savage4
 device		sisdrm		# SiS 300/305, 540, 630
 device		tdfxdrm		# 3dfx Voodoo 3/4/5 and Banshee
@@ -321,11 +313,9 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
 #	802.11 network adapters
 #	Requires the iwn firmware module
-# ixl:	Intel XL710 40Gbe PCIE Ethernet
-# ixlv:	Intel XL710 40Gbe VF PCIE Ethernet
-# mlx4ib: Mellanox ConnectX HCA InfiniBand
-# mlxen: Mellanox ConnectX HCA Ethernet
 # mthca: Mellanox HCA InfiniBand
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlx4en: Mellanox ConnectX HCA Ethernet
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
@@ -340,11 +330,12 @@ options 	ED_SIC
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
-device		ixl		# Intel XL710 40Gbe PCIE Ethernet
-device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
-device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
-device  	mlxen		# Mellanox ConnectX HCA Ethernet
+device		ixl		# Intel 700 Series Physical Function
+device		iavf		# Intel Adaptive Virtual Function
 device  	mthca		# Mellanox HCA InfiniBand
+device  	mlx4		# Shared code module between IB and Ethernet
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlx4en		# Mellanox ConnectX HCA Ethernet
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		sfxge		# Solarflare SFC9000 10Gb Ethernet
 device		vmx		# VMware VMXNET3 Ethernet
@@ -401,9 +392,14 @@ device		iwn6000g2bfw
 device		iwn6050fw
 device		wpifw
 
-# Intel Non-Transparent Bridge (NTB) hardware
-device		ntb_hw	# Hardware Abstraction Layer for the NTB
-device		if_ntb	# Simulated ethernet device using the NTB
+#
+# Non-Transparent Bridge (NTB) drivers
+#
+device		if_ntb		# Virtual NTB network interface
+device		ntb_transport	# NTB packet transport driver
+device		ntb		# NTB hardware interface
+device		ntb_hw_intel	# Intel NTB hardware driver
+device		ntb_hw_plx	# PLX NTB hardware driver
 
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware
@@ -416,11 +412,17 @@ device		if_ntb	# Simulated ethernet device using the NTB
 device		arcmsr		# Areca SATA II RAID
 
 #
+# Microsemi smartpqi controllers.
+# These controllers have a SCSI-like interface, and require the
+# CAM infrastructure.
+#
+device		smartpqi
+
+#
 # 3ware 9000 series PATA/SATA RAID controller driver and options.
 # The driver is implemented as a SIM, and so, needs the CAM infrastructure.
 #
 options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
-options 	TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
 device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
@@ -468,6 +470,11 @@ device		hptiop
 #
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
+
+#
+# Intel integrated Memory Controller (iMC) SMBus controller
+#	Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+device		imcsmb
 
 #
 # Intel C600 (Patsburg) integrated SAS controller
@@ -542,7 +549,6 @@ hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
 device		asmc
-device		si
 device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
@@ -592,12 +598,20 @@ device		cpuctl
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 
 #
+# AMD System Management Network (SMN)
+#
+device		amdsmn
+
+#
 # Number of initial kernel page table pages used for early bootstrap.
 # This number should include enough pages to map the kernel and any
 # modules or other data loaded with the kernel by the loader.  Each
 # page table page maps 2MB.
 #
 options 	NKPT=31
+
+# EFI Runtime Services support
+options 	EFIRT
 
 
 #####################################################################
@@ -615,13 +629,19 @@ options 	COMPAT_FREEBSD32
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
 
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
+
+# Enable 32-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI32
+
 # Enable 64-bit runtime support for CloudABI binaries.
 options 	COMPAT_CLOUDABI64
 
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX
 
-# Enable 32-bit Linux ABI emulation (requires COMPAT_43 and COMPAT_FREEBSD32)
+# Enable 32-bit Linux ABI emulation (requires COMPAT_FREEBSD32).
 options 	COMPAT_LINUX32
 
 # Enable the linux-like proc filesystem support (requires COMPAT_LINUX32
@@ -632,27 +652,6 @@ options 	LINPROCFS
 # and PSEUDOFS)
 options 	LINSYSFS
 
-#
-# SysVR4 ABI emulation
-#
-# The svr4 ABI emulator can be statically compiled into the kernel or loaded as
-# a KLD module.
-# The STREAMS network emulation code can also be compiled statically or as a
-# module.  If loaded as a module, it must be loaded before the svr4 module
-# (the /usr/sbin/svr4 script does this for you).  If compiling statically,
-# the `streams' device must be configured into any kernel which also
-# specifies COMPAT_SVR4.  It is possible to have a statically-configured
-# STREAMS device and a dynamically loadable svr4 emulator;  the /usr/sbin/svr4
-# script understands that it doesn't need to load the `streams' module under
-# those circumstances.
-# Caveat:  At this time, `options KTRACE' is required for the svr4 emulator
-# (whether static or dynamic).
-#
-#XXX#options 	COMPAT_SVR4	# build emulator statically
-#XXX#options 	DEBUG_SVR4	# enable verbose debugging
-#XXX#device	streams		# STREAMS network driver (required for svr4).
-
-
 #####################################################################
 # VM OPTIONS
 

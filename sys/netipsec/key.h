@@ -2,6 +2,8 @@
 /*	$KAME: key.h,v 1.21 2001/07/27 03:51:30 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -37,7 +39,6 @@
 
 struct secpolicy;
 struct secpolicyindex;
-struct ipsecrequest;
 struct secasvar;
 struct sockaddr;
 struct socket;
@@ -45,61 +46,37 @@ struct sadb_msg;
 struct sadb_x_policy;
 struct secasindex;
 union sockaddr_union;
+struct xformsw;
 
-extern void key_addref(struct secpolicy *sp);
-extern	int key_havesp(u_int dir);
-extern struct secpolicy *key_allocsp(struct secpolicyindex *, u_int,
-	const char*, int);
-extern struct secpolicy *key_allocsp2(u_int32_t spi, union sockaddr_union *dst,
-	u_int8_t proto, u_int dir, const char*, int);
-extern struct secpolicy *key_newsp(const char*, int);
-#if 0
-extern struct secpolicy *key_gettunnel(const struct sockaddr *,
-	const struct sockaddr *, const struct sockaddr *,
-	const struct sockaddr *, const char*, int);
-#endif
-/* NB: prepend with _ for KAME IPv6 compatbility */
-extern void _key_freesp(struct secpolicy **, const char*, int);
+struct secpolicy *key_newsp(void);
+struct secpolicy *key_allocsp(struct secpolicyindex *, u_int);
+struct secpolicy *key_msg2sp(struct sadb_x_policy *, size_t, int *);
+int key_sp2msg(struct secpolicy *, void *, size_t *);
+void key_addref(struct secpolicy *);
+void key_freesp(struct secpolicy **);
+int key_spdacquire(struct secpolicy *);
+int key_havesp(u_int);
+void key_bumpspgen(void);
+uint32_t key_getspgen(void);
+uint32_t key_newreqid(void);
 
-#define	KEY_ALLOCSP(spidx, dir)					\
-	key_allocsp(spidx, dir, __FILE__, __LINE__)
-#define	KEY_ALLOCSP2(spi, dst, proto, dir)			\
-	key_allocsp2(spi, dst, proto, dir, __FILE__, __LINE__)
-#define	KEY_NEWSP()						\
-	key_newsp(__FILE__, __LINE__)
-#if 0
-#define	KEY_GETTUNNEL(osrc, odst, isrc, idst)			\
-	key_gettunnel(osrc, odst, isrc, idst, __FILE__, __LINE__)
-#endif
-#define	KEY_FREESP(spp)						\
-	_key_freesp(spp, __FILE__, __LINE__)
+struct secasvar *key_allocsa(union sockaddr_union *, uint8_t, uint32_t);
+struct secasvar *key_allocsa_tunnel(union sockaddr_union *,
+    union sockaddr_union *, uint8_t);
+struct secasvar *key_allocsa_policy(struct secpolicy *,
+    const struct secasindex *, int *);
+struct secasvar *key_allocsa_tcpmd5(struct secasindex *);
+void key_freesav(struct secasvar **);
 
-extern struct secasvar *key_allocsa(union sockaddr_union *, u_int, u_int32_t,
-	const char*, int);
-extern struct secasvar *key_allocsa_tunnel(union sockaddr_union *,
-    union sockaddr_union *, u_int, const char*, int);
-extern void key_addrefsa(struct secasvar *, const char*, int);
-extern void key_freesav(struct secasvar **, const char*, int);
+int key_sockaddrcmp(const struct sockaddr *, const struct sockaddr *, int);
+int key_sockaddrcmp_withmask(const struct sockaddr *, const struct sockaddr *,
+    size_t);
 
-#define	KEY_ALLOCSA(dst, proto, spi)				\
-	key_allocsa(dst, proto, spi, __FILE__, __LINE__)
-#define	KEY_ALLOCSA_TUNNEL(src, dst, proto)				\
-	key_allocsa_tunnel(src, dst, proto, __FILE__, __LINE__)
-#define	KEY_ADDREFSA(sav)					\
-	key_addrefsa(sav, __FILE__, __LINE__)
-#define	KEY_FREESAV(psav)					\
-	key_freesav(psav, __FILE__, __LINE__)
+int key_register_ifnet(struct secpolicy **, u_int);
+void key_unregister_ifnet(struct secpolicy **, u_int);
 
-extern void key_freeso(struct socket *);
-extern int key_checktunnelsanity(struct secasvar *, u_int,
-    caddr_t, caddr_t);
-extern int key_checkrequest(struct ipsecrequest *isr,
-    const struct secasindex *);
-extern struct secpolicy *key_msg2sp(struct sadb_x_policy *,
-    size_t, int *);
-extern struct mbuf *key_sp2msg(struct secpolicy *);
-extern int key_ismyaddr(struct sockaddr *);
-extern int key_spdacquire(struct secpolicy *);
+void key_delete_xform(const struct xformsw *);
+
 extern u_long key_random(void);
 extern void key_randomfill(void *, size_t);
 extern void key_freereg(struct socket *);
@@ -109,11 +86,8 @@ extern void key_init(void);
 extern void key_destroy(void);
 #endif
 extern void key_sa_recordxfer(struct secasvar *, struct mbuf *);
-#ifdef IPSEC_NAT_T
-u_int16_t key_portfromsaddr(struct sockaddr *);
-#define	KEY_PORTFROMSADDR(saddr)				\
-	key_portfromsaddr((struct sockaddr *)(saddr))
-#endif
+uint16_t key_portfromsaddr(struct sockaddr *);
+void key_porttosaddr(struct sockaddr *, uint16_t port);
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IPSEC_SA);

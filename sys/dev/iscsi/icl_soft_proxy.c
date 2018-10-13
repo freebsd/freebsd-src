@@ -42,7 +42,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -92,7 +92,6 @@ struct icl_listen_sock {
 	struct icl_listen		*ils_listen;
 	struct socket			*ils_socket;
 	bool				ils_running;
-	bool				ils_disconnecting;
 	int				ils_id;
 };
 
@@ -184,7 +183,9 @@ icl_listen_free(struct icl_listen *il)
 		while (ils->ils_running) {
 			ICL_DEBUG("waiting for accept thread to terminate");
 			sx_xunlock(&il->il_lock);
-			ils->ils_disconnecting = true;
+			SOLISTEN_LOCK(ils->ils_socket);
+			ils->ils_socket->so_error = ENOTCONN;
+			SOLISTEN_UNLOCK(ils->ils_socket);
 			wakeup(&ils->ils_socket->so_timeo);
 			pause("icl_unlisten", 1 * hz);
 			sx_xlock(&il->il_lock);
@@ -200,9 +201,9 @@ icl_listen_free(struct icl_listen *il)
 }
 
 /*
- * XXX: Doing accept in a separate thread in each socket might not be the best way
- * 	to do stuff, but it's pretty clean and debuggable - and you probably won't
- * 	have hundreds of listening sockets anyway.
+ * XXX: Doing accept in a separate thread in each socket might not be the
+ * best way to do stuff, but it's pretty clean and debuggable - and you
+ * probably won't have hundreds of listening sockets anyway.
  */
 static void
 icl_accept_thread(void *arg)
@@ -218,55 +219,22 @@ icl_accept_thread(void *arg)
 	ils->ils_running = true;
 
 	for (;;) {
-		ACCEPT_LOCK();
-		while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0 && ils->ils_disconnecting == false) {
-			if (head->so_rcv.sb_state & SBS_CANTRCVMORE) {
-				head->so_error = ECONNABORTED;
-				break;
-			}
-			error = msleep(&head->so_timeo, &accept_mtx, PSOCK | PCATCH,
-			    "accept", 0);
-			if (error) {
-				ACCEPT_UNLOCK();
-				ICL_WARN("msleep failed with error %d", error);
-				continue;
-			}
-			if (ils->ils_disconnecting) {
-				ACCEPT_UNLOCK();
-				ICL_DEBUG("terminating");
-				ils->ils_running = false;
-				kthread_exit();
-				return;
-			}
+		SOLISTEN_LOCK(head);
+		error = solisten_dequeue(head, &so, 0);
+		if (error == ENOTCONN) {
+			/*
+			 * XXXGL: ENOTCONN is our mark from icl_listen_free().
+			 * Neither socket code, nor msleep(9) may return it.
+			 */
+			ICL_DEBUG("terminating");
+			ils->ils_running = false;
+			kthread_exit();
+			return;
 		}
-		if (head->so_error) {
-			error = head->so_error;
-			head->so_error = 0;
-			ACCEPT_UNLOCK();
-			ICL_WARN("socket error %d", error);
+		if (error) {
+			ICL_WARN("solisten_dequeue error %d", error);
 			continue;
 		}
-		so = TAILQ_FIRST(&head->so_comp);
-		KASSERT(so != NULL, ("NULL so"));
-		KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
-		KASSERT(so->so_qstate & SQ_COMP, ("accept1: so not SQ_COMP"));
-
-		/*
-		 * Before changing the flags on the socket, we have to bump the
-		 * reference count.  Otherwise, if the protocol calls sofree(),
-		 * the socket will be released due to a zero refcount.
-		 */
-		SOCK_LOCK(so);			/* soref() and so_state update */
-		soref(so);			/* file descriptor reference */
-
-		TAILQ_REMOVE(&head->so_comp, so, so_list);
-		head->so_qlen--;
-		so->so_state |= (head->so_state & SS_NBIO);
-		so->so_qstate &= ~SQ_COMP;
-		so->so_head = NULL;
-
-		SOCK_UNLOCK(so);
-		ACCEPT_UNLOCK();
 
 		sa = NULL;
 		error = soaccept(so, &sa);

@@ -3,6 +3,8 @@
  */
 
 /*-
+ SPDX-License-Identifier: RSA-MD
+
  Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
 rights reserved.
 
@@ -44,9 +46,11 @@ typedef struct MD5Context {
 __BEGIN_DECLS
 void   MD5Init (MD5_CTX *);
 void   MD5Update (MD5_CTX *, const void *, unsigned int);
-void   MD5Final (unsigned char[static MD5_DIGEST_LENGTH], MD5_CTX *);
+void   MD5Final (unsigned char[__min_size(MD5_DIGEST_LENGTH)], MD5_CTX *);
 #ifndef _KERNEL
 char * MD5End(MD5_CTX *, char *);
+char * MD5Fd(int, char *);
+char * MD5FdChunk(int, char *, off_t, off_t);
 char * MD5File(const char *, char *);
 char * MD5FileChunk(const char *, char *, off_t, off_t);
 char * MD5Data(const void *, unsigned int, char *);

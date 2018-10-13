@@ -75,8 +75,7 @@ vn_is_readonly(vnode_t *vp)
 #define	vn_mountedvfs(vp)	((vp)->v_mountedhere)
 #define	vn_has_cached_data(vp)	\
 	((vp)->v_object != NULL && \
-	 ((vp)->v_object->resident_page_count > 0 || \
-	  !vm_object_cache_is_empty((vp)->v_object)))
+	 (vp)->v_object->resident_page_count > 0)
 #define	vn_exists(vp)		do { } while (0)
 #define	vn_invalid(vp)		do { } while (0)
 #define	vn_renamepath(tdvp, svp, tnm, lentnm)	do { } while (0)
@@ -86,8 +85,6 @@ vn_is_readonly(vnode_t *vp)
 #define	VN_HOLD(v)	vref(v)
 #define	VN_RELE(v)	vrele(v)
 #define	VN_URELE(v)	vput(v)
-
-#define	VOP_REALVP(vp, vpp, ct)	(*(vpp) = (vp), 0)
 
 #define	vnevent_create(vp, ct)			do { } while (0)
 #define	vnevent_link(vp, ct)			do { } while (0)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -432,10 +434,7 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#if 1 /* IPSEC */
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
-#endif /* IPSEC */
-
 				   /* 29; unused; was IPV6_FAITH */
 #if 1 /* IPV6FIREWALL */
 #define IPV6_FW_ADD		30 /* add a firewall rule to chain */
@@ -499,6 +498,9 @@ struct route_in6 {
 #define	IPV6_RSSBUCKETID	69 /* int; RSS bucket ID of given socket */
 #define	IPV6_RECVFLOWID		70 /* bool; receive IP6 flowid/flowtype w/ datagram */
 #define	IPV6_RECVRSSBUCKETID	71 /* bool; receive IP6 RSS bucket id w/ datagram */
+
+#define	IPV6_ORIGDSTADDR	72 /* bool: allow getting dstaddr /port info */
+#define	IPV6_RECVORIGDSTADDR	IPV6_ORIGDSTADDR
 
 /*
  * The following option is private; do not use it from user applications.
@@ -637,7 +639,12 @@ struct ip6_mtuinfo {
 					 * receiving IF. */
 #define	IPV6CTL_RFC6204W3	50	/* Accept defroute even when forwarding
 					   enabled */
-#define	IPV6CTL_MAXID		51
+#define	IPV6CTL_INTRQMAXLEN	51	/* max length of IPv6 netisr queue */
+#define	IPV6CTL_INTRDQMAXLEN	52	/* max length of direct IPv6 netisr
+					 * queue */
+#define	IPV6CTL_MAXFRAGSPERPACKET	53 /* Max fragments per packet */
+#define	IPV6CTL_MAXFRAGBUCKETSIZE	54 /* Max reassembly queues per bucket */
+#define	IPV6CTL_MAXID		55
 #endif /* __BSD_VISIBLE */
 
 /*
@@ -653,6 +660,7 @@ struct ip6_mtuinfo {
 #define	M_LOOP			M_PROTO6
 #define	M_AUTHIPDGM		M_PROTO7
 #define	M_RTALERT_MLD		M_PROTO8
+#define	M_FRAGMENTED		M_PROTO9	/* contained fragment header */
 
 #ifdef _KERNEL
 struct cmsghdr;

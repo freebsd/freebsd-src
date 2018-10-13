@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -254,8 +256,8 @@ wi_pci_resume(device_t dev)
 
 	WI_LOCK(sc);
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
-		return (0);
 		WI_UNLOCK(sc);
+		return (0);
 	}
 	if (ic->ic_nrunning > 0)
 		wi_init(sc);

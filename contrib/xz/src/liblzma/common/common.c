@@ -435,8 +435,10 @@ lzma_memlimit_set(lzma_stream *strm, uint64_t new_memlimit)
 			|| strm->internal->next.memconfig == NULL)
 		return LZMA_PROG_ERROR;
 
-	if (new_memlimit != 0 && new_memlimit < LZMA_MEMUSAGE_BASE)
-		return LZMA_MEMLIMIT_ERROR;
+	// Zero is a special value that cannot be used as an actual limit.
+	// If 0 was specified, use 1 instead.
+	if (new_memlimit == 0)
+		new_memlimit = 1;
 
 	return strm->internal->next.memconfig(strm->internal->next.coder,
 			&memusage, &old_memlimit, new_memlimit);

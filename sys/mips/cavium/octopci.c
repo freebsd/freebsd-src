@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2011 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
@@ -978,6 +980,7 @@ static device_method_t octopci_methods[] = {
 	DEVMETHOD(pcib_read_config,	octopci_read_config),
 	DEVMETHOD(pcib_write_config,	octopci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	octopci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

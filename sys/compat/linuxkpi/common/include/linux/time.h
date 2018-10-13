@@ -32,6 +32,11 @@
 #define	NSEC_PER_MSEC	1000000L
 #define	NSEC_PER_SEC	1000000000L
 
+#define	USEC_PER_MSEC	1000L
+#define	USEC_PER_SEC	1000000L
+
+#define	timespec64 timespec
+
 #include <sys/time.h>
 #include <sys/stdint.h>
 
@@ -71,9 +76,7 @@ timespec_sub(struct timespec lhs, struct timespec rhs)
 {
 	struct timespec ts;
 
-	ts.tv_sec = lhs.tv_sec;
-	ts.tv_nsec = lhs.tv_nsec;
-	timespecsub(&ts, &rhs);
+	timespecsub(&lhs, &rhs, &ts);
 
 	return ts;
 }

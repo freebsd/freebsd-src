@@ -14,7 +14,7 @@
 #ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_ENVIRONMENT_H
 #define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_ENVIRONMENT_H
 
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "llvm/ADT/ImmutableMap.h"
 
@@ -26,6 +26,7 @@ namespace ento {
 
 class EnvironmentManager;
 class SValBuilder;
+class SymbolReaper;
 
 /// An entry in the environment consists of a Stmt and an LocationContext.
 /// This allows the environment to manage context-sensitive bindings,

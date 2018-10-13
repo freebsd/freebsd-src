@@ -35,7 +35,7 @@
 
 ### Libucl 0.7.3
 
-- Fixed a bug with macroes that come after an empty object
+- Fixed a bug with macros that come after an empty object
 - Fixed a bug in include processing when an incorrect variable has been destroyed (use-after-free)
 
 ### Libucl 0.8.0

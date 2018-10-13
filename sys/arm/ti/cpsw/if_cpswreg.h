@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
  *
@@ -64,10 +66,13 @@
 #define	CPSW_CPDMA_RX_INTSTAT_MASKED	(CPSW_CPDMA_OFFSET + 0xA4)
 #define	CPSW_CPDMA_RX_INTMASK_SET	(CPSW_CPDMA_OFFSET + 0xA8)
 #define	CPSW_CPDMA_RX_INTMASK_CLEAR	(CPSW_CPDMA_OFFSET + 0xAc)
+#define	 CPSW_CPDMA_RX_INT_THRESH(_ch)	(1 << (8 + ((_ch) & 7)))
+#define	 CPSW_CPDMA_RX_INT(_ch)		(1 << (0 + ((_ch) & 7)))
 #define	CPSW_CPDMA_DMA_INTSTAT_RAW	(CPSW_CPDMA_OFFSET + 0xB0)
 #define	CPSW_CPDMA_DMA_INTSTAT_MASKED	(CPSW_CPDMA_OFFSET + 0xB4)
 #define	CPSW_CPDMA_DMA_INTMASK_SET	(CPSW_CPDMA_OFFSET + 0xB8)
 #define	CPSW_CPDMA_DMA_INTMASK_CLEAR	(CPSW_CPDMA_OFFSET + 0xBC)
+#define	CPSW_CPDMA_RX_PENDTHRESH(p)	(CPSW_CPDMA_OFFSET + 0x0c0 + ((p) * 0x04))
 #define	CPSW_CPDMA_RX_FREEBUFFER(p)	(CPSW_CPDMA_OFFSET + 0x0e0 + ((p) * 0x04))
 
 #define	CPSW_STATS_OFFSET		0x0900
@@ -103,6 +108,14 @@
 #define	 ALE_VLAN_UNTAG(_a)		((_a[0] >> 24) & 7)
 #define	 ALE_VLAN_MEMBERS(_a)		(_a[0] & 7)
 #define	CPSW_ALE_PORTCTL(p)		(CPSW_ALE_OFFSET + 0x40 + ((p) * 0x04))
+#define	 ALE_PORTCTL_NO_SA_UPDATE	(1 << 5)
+#define	 ALE_PORTCTL_NO_LEARN		(1 << 4)
+#define	 ALE_PORTCTL_INGRESS		(1 << 3)
+#define	 ALE_PORTCTL_DROP_UNTAGGED	(1 << 2)
+#define	 ALE_PORTCTL_FORWARD		3
+#define	 ALE_PORTCTL_LEARN		2
+#define	 ALE_PORTCTL_BLOCKED		1
+#define	 ALE_PORTCTL_DISABLED		0
 
 /* SL1 is at 0x0D80, SL2 is at 0x0DC0 */
 #define	CPSW_SL_OFFSET			0x0D80
@@ -138,6 +151,17 @@
 #define	CPSW_WR_SOFT_RESET		(CPSW_WR_OFFSET + 0x04)
 #define	CPSW_WR_CONTROL			(CPSW_WR_OFFSET + 0x08)
 #define	CPSW_WR_INT_CONTROL		(CPSW_WR_OFFSET + 0x0c)
+#define	 CPSW_WR_INT_C0_RX_PULSE	(1 << 16)
+#define	 CPSW_WR_INT_C0_TX_PULSE	(1 << 17)
+#define	 CPSW_WR_INT_C1_RX_PULSE	(1 << 18)
+#define	 CPSW_WR_INT_C1_TX_PULSE	(1 << 19)
+#define	 CPSW_WR_INT_C2_RX_PULSE	(1 << 20)
+#define	 CPSW_WR_INT_C2_TX_PULSE	(1 << 21)
+#define	 CPSW_WR_INT_PACE_EN						\
+	(CPSW_WR_INT_C0_RX_PULSE | CPSW_WR_INT_C0_TX_PULSE |		\
+	 CPSW_WR_INT_C1_RX_PULSE | CPSW_WR_INT_C1_TX_PULSE |		\
+	 CPSW_WR_INT_C2_RX_PULSE | CPSW_WR_INT_C2_TX_PULSE)
+#define	 CPSW_WR_INT_PRESCALE_MASK	0xfff
 #define	CPSW_WR_C_RX_THRESH_EN(p)	(CPSW_WR_OFFSET + (0x10 * (p)) + 0x10)
 #define	CPSW_WR_C_RX_EN(p)		(CPSW_WR_OFFSET + (0x10 * (p)) + 0x14)
 #define	CPSW_WR_C_TX_EN(p)		(CPSW_WR_OFFSET + (0x10 * (p)) + 0x18)
@@ -151,6 +175,13 @@
 #define	 CPSW_WR_C_MISC_HOST_PEND	(1 << 2)
 #define	 CPSW_WR_C_MISC_MDIOLINK	(1 << 1)
 #define	 CPSW_WR_C_MISC_MDIOUSER	(1 << 0)
+#define	CPSW_WR_C_RX_IMAX(p)		(CPSW_WR_OFFSET + (0x08 * (p)) + 0x70)
+#define	CPSW_WR_C_TX_IMAX(p)		(CPSW_WR_OFFSET + (0x08 * (p)) + 0x74)
+#define	 CPSW_WR_C_IMAX_MASK		0x3f
+#define	 CPSW_WR_C_IMAX_MAX		63
+#define	 CPSW_WR_C_IMAX_MIN		2
+#define	 CPSW_WR_C_IMAX_US_MAX		500
+#define	 CPSW_WR_C_IMAX_US_MIN		16
 
 #define	CPSW_CPPI_RAM_OFFSET		0x2000
 #define	CPSW_CPPI_RAM_SIZE		0x2000
@@ -162,6 +193,7 @@
 #define	 CPDMA_BD_OWNER			(1 << 13)
 #define	 CPDMA_BD_EOQ			(1 << 12)
 #define	 CPDMA_BD_TDOWNCMPLT		(1 << 11)
+#define	 CPDMA_BD_PASS_CRC		(1 << 10)
 #define	 CPDMA_BD_PKT_ERR_MASK		(3 << 4)
 #define	 CPDMA_BD_TO_PORT		(1 << 4)
 #define	 CPDMA_BD_PORT_MASK		3

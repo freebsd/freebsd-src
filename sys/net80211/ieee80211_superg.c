@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -94,10 +96,21 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"max hold time for fast-frame staging (ms)");
 
+static void
+ff_age_all(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/* XXX cache timer value somewhere (racy) */
+	ieee80211_ff_age_all(ic, ieee80211_ffagemax + 1);
+}
+
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
 {
 	struct ieee80211_superg *sg;
+
+	IEEE80211_FF_LOCK_INIT(ic, ic->ic_name);
 
 	sg = (struct ieee80211_superg *) IEEE80211_MALLOC(
 	     sizeof(struct ieee80211_superg), M_80211_VAP,
@@ -107,6 +120,7 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 		    __func__);
 		return;
 	}
+	TIMEOUT_TASK_INIT(ic->ic_tq, &sg->ff_qtimer, 0, ff_age_all, ic);
 	ic->ic_superg = sg;
 
 	/*
@@ -120,10 +134,16 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 void
 ieee80211_superg_detach(struct ieee80211com *ic)
 {
+
 	if (ic->ic_superg != NULL) {
+		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
+
+		while (taskqueue_cancel_timeout(ic->ic_tq, qtask, NULL) != 0)
+			taskqueue_drain_timeout(ic->ic_tq, qtask);
 		IEEE80211_FREE(ic->ic_superg, M_80211_VAP);
 		ic->ic_superg = NULL;
 	}
+	IEEE80211_FF_LOCK_DESTROY(ic);
 }
 
 void
@@ -575,19 +595,14 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	int error;
 
-	IEEE80211_TX_LOCK_ASSERT(vap->iv_ic);
+	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	/* encap and xmit */
 	m = ieee80211_encap(vap, ni, m);
-	if (m != NULL) {
-		struct ifnet *ifp = vap->iv_ifp;
-
-		error = ieee80211_parent_xmitpkt(ic, m);
-		if (!error)
-			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	} else
+	if (m != NULL)
+		(void) ieee80211_parent_xmitpkt(ic, m);
+	else
 		ieee80211_free_node(ni);
 }
 
@@ -620,14 +635,6 @@ ff_flush(struct mbuf *head, struct mbuf *last)
 
 /*
  * Age frames on the staging queue.
- *
- * This is called without the comlock held, but it does all its work
- * behind the comlock.  Because of this, it's possible that the
- * staging queue will be serviced between the function which called
- * it and now; thus simply checking that the queue has work in it
- * may fail.
- *
- * See PR kern/174283 for more details.
  */
 void
 ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
@@ -636,11 +643,14 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 	struct mbuf *m, *head;
 	struct ieee80211_node *ni;
 
-#if 0
-	KASSERT(sq->head != NULL, ("stageq empty"));
-#endif
+	IEEE80211_FF_LOCK(ic);
+	if (sq->depth == 0) {
+		IEEE80211_FF_UNLOCK(ic);
+		return;		/* nothing to do */
+	}
 
-	IEEE80211_LOCK(ic);
+	KASSERT(sq->head != NULL, ("stageq empty"));
+
 	head = sq->head;
 	while ((m = sq->head) != NULL && M_AGE_GET(m) < quanta) {
 		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
@@ -657,7 +667,7 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 		sq->tail = NULL;
 	else
 		M_AGE_SUB(m, quanta);
-	IEEE80211_UNLOCK(ic);
+	IEEE80211_FF_UNLOCK(ic);
 
 	IEEE80211_TX_LOCK(ic);
 	ff_flush(head, m);
@@ -669,13 +679,17 @@ stageq_add(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *m)
 {
 	int age = ieee80211_ffagemax;
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_FF_LOCK_ASSERT(ic);
 
 	if (sq->tail != NULL) {
 		sq->tail->m_nextpkt = m;
 		age -= M_AGE_GET(sq->head);
-	} else
+	} else {
 		sq->head = m;
+
+		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
+		taskqueue_enqueue_timeout(ic->ic_tq, qtask, age);
+	}
 	KASSERT(age >= 0, ("age %d", age));
 	M_AGE_SET(m, age);
 	m->m_nextpkt = NULL;
@@ -688,7 +702,7 @@ stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf 
 {
 	struct mbuf *m, *mprev;
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_FF_LOCK_ASSERT(ic);
 
 	mprev = NULL;
 	for (m = sq->head; m != NULL; m = m->m_nextpkt) {
@@ -767,6 +781,11 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 
 	IEEE80211_TX_UNLOCK_ASSERT(ic);
 
+	IEEE80211_LOCK(ic);
+	limit = IEEE80211_TXOP_TO_US(
+	    ic->ic_wme.wme_chanParams.cap_wmeParams[pri].wmep_txopLimit);
+	IEEE80211_UNLOCK(ic);
+
 	/*
 	 * Check if the supplied frame can be aggregated.
 	 *
@@ -774,7 +793,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 *     Do 802.1x EAPOL frames proceed in the clear? Then they couldn't
 	 *     be aggregated with other types of frames when encryption is on?
 	 */
-	IEEE80211_LOCK(ic);
+	IEEE80211_FF_LOCK(ic);
 	tap = &ni->ni_tx_ampdu[WME_AC_TO_TID(pri)];
 	mstaged = ni->ni_tx_superg[WME_AC_TO_TID(pri)];
 	/* XXX NOTE: reusing packet counter state from A-MPDU */
@@ -792,7 +811,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	if (vap->iv_opmode != IEEE80211_M_STA &&
 	    ETHER_IS_MULTICAST(mtod(m, struct ether_header *)->ether_dhost)) {
 		/* XXX flush staged frame? */
-		IEEE80211_UNLOCK(ic);
+		IEEE80211_FF_UNLOCK(ic);
 		return m;
 	}
 	/*
@@ -801,15 +820,13 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 */
 	if (mstaged == NULL &&
 	    ieee80211_txampdu_getpps(tap) < ieee80211_ffppsmin) {
-		IEEE80211_UNLOCK(ic);
+		IEEE80211_FF_UNLOCK(ic);
 		return m;
 	}
 	sq = &sg->ff_stageq[pri];
 	/*
 	 * Check the txop limit to insure the aggregate fits.
 	 */
-	limit = IEEE80211_TXOP_TO_US(
-		ic->ic_wme.wme_chanParams.cap_wmeParams[pri].wmep_txopLimit);
 	if (limit != 0 &&
 	    (txtime = ff_approx_txtime(ni, m, mstaged)) > limit) {
 		/*
@@ -824,7 +841,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		ni->ni_tx_superg[WME_AC_TO_TID(pri)] = NULL;
 		if (mstaged != NULL)
 			stageq_remove(ic, sq, mstaged);
-		IEEE80211_UNLOCK(ic);
+		IEEE80211_FF_UNLOCK(ic);
 
 		if (mstaged != NULL) {
 			IEEE80211_TX_LOCK(ic);
@@ -846,7 +863,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	if (mstaged != NULL) {
 		ni->ni_tx_superg[WME_AC_TO_TID(pri)] = NULL;
 		stageq_remove(ic, sq, mstaged);
-		IEEE80211_UNLOCK(ic);
+		IEEE80211_FF_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
 		    "%s: aggregate fast-frame", __func__);
@@ -862,13 +879,13 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		mstaged->m_nextpkt = m;
 		mstaged->m_flags |= M_FF; /* NB: mark for encap work */
 	} else {
-		KASSERT(ni->ni_tx_superg[WME_AC_TO_TID(pri)]== NULL,
+		KASSERT(ni->ni_tx_superg[WME_AC_TO_TID(pri)] == NULL,
 		    ("ni_tx_superg[]: %p",
 		    ni->ni_tx_superg[WME_AC_TO_TID(pri)]));
 		ni->ni_tx_superg[WME_AC_TO_TID(pri)] = m;
 
 		stageq_add(ic, sq, m);
-		IEEE80211_UNLOCK(ic);
+		IEEE80211_FF_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
 		    "%s: stage frame, %u queued", __func__, sq->depth);
@@ -920,7 +937,7 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 	struct mbuf *m, *next_m, *head;
 	int tid;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_FF_LOCK(ic);
 	head = NULL;
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		int ac = TID_TO_WME_AC(tid);
@@ -939,7 +956,7 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 			head = m;
 		}
 	}
-	IEEE80211_UNLOCK(ic);
+	IEEE80211_FF_UNLOCK(ic);
 
 	/*
 	 * Free mbufs, taking care to not dereference the mbuf after

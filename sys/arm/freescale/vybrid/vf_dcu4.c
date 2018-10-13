@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -50,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -246,37 +247,37 @@ get_panel_info(struct dcu_softc *sc, struct panel_info *panel)
 	/* panel size */
 	if ((len = OF_getproplen(node, "panel-size")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "panel-size", &dts_value, len);
-	panel->width = fdt32_to_cpu(dts_value[0]);
-	panel->height = fdt32_to_cpu(dts_value[1]);
+	OF_getencprop(node, "panel-size", dts_value, len);
+	panel->width = dts_value[0];
+	panel->height = dts_value[1];
 
 	/* hsync */
 	if ((len = OF_getproplen(node, "panel-hsync")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "panel-hsync", &dts_value, len);
-	panel->h_back_porch = fdt32_to_cpu(dts_value[0]);
-	panel->h_pulse_width = fdt32_to_cpu(dts_value[1]);
-	panel->h_front_porch = fdt32_to_cpu(dts_value[2]);
+	OF_getencprop(node, "panel-hsync", dts_value, len);
+	panel->h_back_porch = dts_value[0];
+	panel->h_pulse_width = dts_value[1];
+	panel->h_front_porch = dts_value[2];
 
 	/* vsync */
 	if ((len = OF_getproplen(node, "panel-vsync")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "panel-vsync", &dts_value, len);
-	panel->v_back_porch = fdt32_to_cpu(dts_value[0]);
-	panel->v_pulse_width = fdt32_to_cpu(dts_value[1]);
-	panel->v_front_porch = fdt32_to_cpu(dts_value[2]);
+	OF_getencprop(node, "panel-vsync", dts_value, len);
+	panel->v_back_porch = dts_value[0];
+	panel->v_pulse_width = dts_value[1];
+	panel->v_front_porch = dts_value[2];
 
 	/* clk divider */
 	if ((len = OF_getproplen(node, "panel-clk-div")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "panel-clk-div", &dts_value, len);
-	panel->clk_div = fdt32_to_cpu(dts_value[0]);
+	OF_getencprop(node, "panel-clk-div", dts_value, len);
+	panel->clk_div = dts_value[0];
 
 	/* backlight pin */
 	if ((len = OF_getproplen(node, "panel-backlight-pin")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "panel-backlight-pin", &dts_value, len);
-	panel->backlight_pin = fdt32_to_cpu(dts_value[0]);
+	OF_getencprop(node, "panel-backlight-pin", dts_value, len);
+	panel->backlight_pin = dts_value[0];
 
 	return (0);
 }

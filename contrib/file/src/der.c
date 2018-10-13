@@ -35,13 +35,11 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: der.c,v 1.6 2016/04/21 14:26:03 christos Exp $")
+FILE_RCSID("@(#)$File: der.c,v 1.13 2018/06/23 15:15:26 christos Exp $")
 #endif
 #endif
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -53,6 +51,8 @@ FILE_RCSID("@(#)$File: der.c,v 1.6 2016/04/21 14:26:03 christos Exp $")
 #include "magic.h"
 #include "der.h"
 #else
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <err.h>
 #endif
 
@@ -159,29 +159,49 @@ gettag(const uint8_t *c, size_t *p, size_t l)
 	return tag;
 }
 
+/*
+ * Read the length of a DER tag from the input.
+ *
+ * `c` is the input, `p` is an output parameter that specifies how much of the
+ * input we consumed, and `l` is the maximum input length.
+ *
+ * Returns the length, or DER_BAD if the end of the input is reached or the
+ * length exceeds the remaining input.
+ */
 static uint32_t
 getlength(const uint8_t *c, size_t *p, size_t l)
 {
 	uint8_t digits, i;
 	size_t len;
+	int is_onebyte_result;
 
 	if (*p >= l)
 		return DER_BAD;
 
-	digits = c[(*p)++];
-
-        if ((digits & 0x80) == 0)
-		return digits;
-
-        digits &= 0x7f;
-	len = 0;
-
+	/*
+	 * Digits can either be 0b0 followed by the result, or 0b1
+	 * followed by the number of digits of the result. In either case,
+	 * we verify that we can read so many bytes from the input.
+	 */
+	is_onebyte_result = (c[*p] & 0x80) == 0;
+	digits = c[(*p)++] & 0x7f;
 	if (*p + digits >= l)
 		return DER_BAD;
 
+	if (is_onebyte_result)
+		return digits;
+
+	/*
+	 * Decode len. We've already verified that we're allowed to read
+	 * `digits` bytes.
+	 */
+	len = 0;
 	for (i = 0; i < digits; i++)
 		len = (len << 8) | c[(*p)++];
-        return len;
+
+	if (len > UINT32_MAX - *p || *p + len >= l)
+		return DER_BAD;
+	return CAST(uint32_t, len);
 }
 
 static const char *
@@ -198,7 +218,7 @@ der_tag(char *buf, size_t len, uint32_t tag)
 static int
 der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 {
-	const uint8_t *d = q;
+	const uint8_t *d = CAST(const uint8_t *, q);
 	switch (tag) {
 	case DER_TAG_PRINTABLE_STRING:
 	case DER_TAG_UTF8_STRING:
@@ -220,8 +240,8 @@ der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 int32_t
 der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 {
-	const uint8_t *b = CAST(const void *, ms->search.s);
-	size_t offs = 0, len = ms->search.rm_len ? ms->search.rm_len : nbytes;
+	const uint8_t *b = RCAST(const uint8_t *, ms->search.s);
+	size_t offs = 0, len = ms->search.s_len ? ms->search.s_len : nbytes;
 
 	if (gettag(b, &offs, len) == DER_BAD)
 		return -1;
@@ -240,18 +260,18 @@ der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 #endif
 	if (m->cont_level != 0) {
 		if (offs + tlen > nbytes)
-			return DER_BAD;
-		ms->c.li[m->cont_level - 1].off = offs + tlen;
+			return -1;
+		ms->c.li[m->cont_level - 1].off = CAST(int, offs + tlen);
 		DPRINTF(("cont_level[%u] = %u\n", m->cont_level - 1,
 		    ms->c.li[m->cont_level - 1].off));
 	}
-	return offs;
+	return CAST(int32_t, offs);
 }
 
 int
 der_cmp(struct magic_set *ms, struct magic *m)
 {
-	const uint8_t *b = CAST(const void *, ms->search.s);
+	const uint8_t *b = RCAST(const uint8_t *, ms->search.s);
 	const char *s = m->value.s;
 	size_t offs = 0, len = ms->search.s_len;
 	uint32_t tag, tlen;

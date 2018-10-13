@@ -28,8 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
- * FreeBSD: src/include/rpc/rpc_msg.h,v 1.11.2.1 1999/08/29 14:39:07 peter Exp 
+ * $FreeBSD: projects/clang400-import/contrib/tcpdump/rpc_msg.h 276788 2015-01-07 19:55:18Z delphij $
  */
 
 /*

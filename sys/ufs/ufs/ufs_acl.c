@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999-2003 Robert N. M. Watson
  * All rights reserved.
  *
@@ -184,7 +186,7 @@ ufs_getacl_nfs4_internal(struct vnode *vp, struct acl *aclp, struct thread *td)
 		 */
 		printf("ufs_getacl_nfs4(): Loaded invalid ACL ("
 		    "%d bytes), inumber %ju on %s\n", len,
-		    (uintmax_t)ip->i_number, ip->i_fs->fs_fsmnt);
+		    (uintmax_t)ip->i_number, ITOFS(ip)->fs_fsmnt);
 
 		return (EPERM);
 	}
@@ -193,7 +195,7 @@ ufs_getacl_nfs4_internal(struct vnode *vp, struct acl *aclp, struct thread *td)
 	if (error) {
 		printf("ufs_getacl_nfs4(): Loaded invalid ACL "
 		    "(failed acl_nfs4_check), inumber %ju on %s\n",
-		    (uintmax_t)ip->i_number, ip->i_fs->fs_fsmnt);
+		    (uintmax_t)ip->i_number, ITOFS(ip)->fs_fsmnt);
 
 		return (EPERM);
 	}
@@ -261,7 +263,7 @@ ufs_get_oldacl(acl_type_t type, struct oldacl *old, struct vnode *vp,
 		 */
 		printf("ufs_get_oldacl(): Loaded invalid ACL "
 		    "(len = %d), inumber %ju on %s\n", len,
-		    (uintmax_t)ip->i_number, ip->i_fs->fs_fsmnt);
+		    (uintmax_t)ip->i_number, ITOFS(ip)->fs_fsmnt);
 		return (EPERM);
 	}
 

@@ -7,7 +7,17 @@ ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .PATH: ${SRCDIR}/ld
 
 PROG=	ld.bfd
+.if (!defined(TOOLS_PREFIX) && ${MK_LLD_IS_LD} == "no") || \
+    (defined(TOOLS_PREFIX) && ${MK_LLD_BOOTSTRAP} == "no")
 MAN=	ld.1
+LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
+.else
+MAN=	ld.bfd.1
+CLEANFILES+=	ld.bfd.1
+ld.bfd.1:	ld.1
+	${CP} ${.ALLSRC} ${.TARGET}
+.endif
+
 SCRIPTDIR= /usr/libdata/ldscripts
 SRCS+=	ldcref.c \
 	ldctor.c \
@@ -41,15 +51,14 @@ CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?= yes
 .endif
-DPADD=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
+DPADD=	${GNURELTOP}/libbfd/libbfd.a
+DPADD+=	${GNURELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed
 
 FILES=		${LDSCRIPTS:S|^|ldscripts/|}
 FILESDIR=	${SCRIPTDIR}
-LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
 
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"=/lib\":\"=/usr/lib\"

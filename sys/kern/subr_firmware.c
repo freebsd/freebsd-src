@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2008, Sam Leffler <sam@errno.com>
  * All rights reserved.
  *
@@ -229,7 +231,7 @@ firmware_unregister(const char *imagename)
 		/*
 		 * It is ok for the lookup to fail; this can happen
 		 * when a module is unloaded on last reference and the
-		 * module unload handler unregister's each of it's
+		 * module unload handler unregister's each of its
 		 * firmware images.
 		 */
 		err = 0;

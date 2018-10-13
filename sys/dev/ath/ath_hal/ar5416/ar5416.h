@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -24,12 +26,6 @@
 #include "ah_eeprom_v14.h"	/* for CAL_TARGET_POWER_* */
 
 #define	AR5416_MAGIC	0x20065416
-
-enum {
-	HAL_RESET_POWER_ON,
-	HAL_RESET_WARM,
-	HAL_RESET_COLD,
-};
 
 typedef struct {
 	uint16_t	synth_center;

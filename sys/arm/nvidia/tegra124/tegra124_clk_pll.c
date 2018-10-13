@@ -86,7 +86,7 @@ enum pll_type {
 #define	PLLRE_IDDQ_BIT		16
 #define	PLLSS_IDDQ_BIT		19
 
-#define	PLL_LOCK_TIMEOUT 1000
+#define	PLL_LOCK_TIMEOUT	5000
 
 /* Post divider <-> register value mapping. */
 struct pdiv_table {
@@ -203,6 +203,16 @@ static struct pdiv_table pllu_map[] = {
 	{1, 1},
 	{2, 0},
 	{0, 0}
+};
+
+static struct pdiv_table pllrefe_map[] = {
+	{1, 0},
+	{2, 1},
+	{3, 2},
+	{4, 3},
+	{5, 4},
+	{6, 5},
+	{0, 0},
 };
 
 static struct clk_pll_def pll_clks[] = {
@@ -342,6 +352,7 @@ static struct clk_pll_def pll_clks[] = {
 		.lock_enable = PLLRE_MISC_LOCK_ENABLE,
 		.iddq_reg = PLLRE_MISC,
 		.iddq_mask = 1 << PLLRE_IDDQ_BIT,
+		.pdiv_table = pllrefe_map,
 		.mnp_bits = {8, 8, 4, 16},
 	},
 /* PLLE: generate the 100 MHz reference clock for USB 3.0 (spread spectrum) */
@@ -433,14 +444,14 @@ pdiv_to_reg(struct pll_sc *sc, uint32_t p_div)
 
 	tbl = sc->pdiv_table;
 	if (tbl == NULL)
-		return (ffs(p_div));
+		return (ffs(p_div) - 1);
 
 	while (tbl->divider != 0) {
 		if (p_div <= tbl->divider)
 			return (tbl->value);
 		tbl++;
 	}
-	return ~0;
+	return (0xFFFFFFFF);
 }
 
 static uint32_t
@@ -449,15 +460,15 @@ reg_to_pdiv(struct pll_sc *sc, uint32_t reg)
 	struct pdiv_table *tbl;
 
 	tbl = sc->pdiv_table;
-	if (tbl != NULL) {
-		while (tbl->divider) {
-			if (reg == tbl->value)
-				return (tbl->divider);
-			tbl++;
-		}
-		return (0);
+	if (tbl == NULL)
+		return (1 << reg);
+
+	while (tbl->divider) {
+		if (reg == tbl->value)
+			return (tbl->divider);
+		tbl++;
 	}
-	return (1 << reg);
+	return (0);
 }
 
 static uint32_t
@@ -702,6 +713,7 @@ pll_set_std(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags,
 			return (ERANGE);
 
 		*fout = ((fin / m) * n) /p;
+
 		return (0);
 	}
 
@@ -760,7 +772,6 @@ pllc_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 {
 	uint32_t m, n, p;
 
-
 	p = 2;
 	m = 1;
 	n = (*fout * p * m + fin / 2)/ fin;
@@ -768,19 +779,88 @@ pllc_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 	return (pll_set_std( sc, fin, fout, flags, m, n, p));
 }
 
+/*
+ * PLLD2 is used as source for pixel clock for HDMI.
+ * We must be able to set it frequency very flexibly and
+ * precisely (within 5% tolerance limit allowed by HDMI specs).
+ *
+ * For this reason, it is necessary to search the full state space.
+ * Fortunately, thanks to early cycle terminations, performance
+ * is within acceptable limits.
+ */
+#define	PLLD2_PFD_MIN		  12000000 	/*  12 MHz */
+#define	PLLD2_PFD_MAX		  38000000	/*  38 MHz */
+#define	PLLD2_VCO_MIN	  	 600000000	/* 600 MHz */
+#define	PLLD2_VCO_MAX		1200000000	/* 1.2 GHz */
+
 static int
 plld2_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 {
 	uint32_t m, n, p;
+	uint32_t best_m, best_n, best_p;
+	uint64_t vco, pfd;
+	int64_t err, best_err;
+	struct mnp_bits *mnp_bits;
+	struct pdiv_table *tbl;
+	int p_idx, rv;
 
-	p = 2;
-	m = 1;
-	n = (*fout * p * m + fin / 2)/ fin;
-	dprintf("%s: m: %d, n: %d, p: %d\n", __func__, m, n, p);
-	return (pll_set_std(sc, fin, fout, flags, m, n, p));
+	mnp_bits = &sc->mnp_bits;
+	tbl = sc->pdiv_table;
+	best_err = INT64_MAX;
+
+	for (p_idx = 0; tbl[p_idx].divider != 0; p_idx++) {
+		p = tbl[p_idx].divider;
+
+		/* Check constraints */
+		vco = *fout * p;
+		if (vco < PLLD2_VCO_MIN)
+			continue;
+		if (vco > PLLD2_VCO_MAX)
+			break;
+
+		for (m = 1; m < (1 << mnp_bits->m_width); m++) {
+			n = (*fout * p * m + fin / 2) / fin;
+
+			/* Check constraints */
+			if (n == 0)
+				continue;
+			if (n >= (1 << mnp_bits->n_width))
+				break;
+			vco = (fin * n) / m;
+			if (vco > PLLD2_VCO_MAX || vco < PLLD2_VCO_MIN)
+				continue;
+			pfd = fin / m;
+			if (pfd > PLLD2_PFD_MAX || vco < PLLD2_PFD_MIN)
+				continue;
+
+			/* Constraints passed, save best result */
+			err = *fout - vco / p;
+			if (err < 0)
+				err = -err;
+			if (err < best_err) {
+				best_err = err;
+				best_p = p;
+				best_m = m;
+				best_n = n;
+			}
+			if (err == 0)
+				goto done;
+		}
+	}
+done:
+	/*
+	 * HDMI specification allows 5% pixel clock tolerance,
+	 * we will by a slightly stricter
+	 */
+	if (best_err > ((*fout * 100) / 4))
+		return (ERANGE);
+
+	if (flags & CLK_SET_DRYRUN)
+		return (0);
+	rv = pll_set_std(sc, fin, fout, flags, best_m, best_n, best_p);
+	/* XXXX Panic for rv == ERANGE ? */
+	return (rv);
 }
-
-
 
 static int
 pllrefe_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
@@ -790,6 +870,7 @@ pllrefe_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 	m = 1;
 	p = 1;
 	n = *fout * p * m / fin;
+	dprintf("%s: m: %d, n: %d, p: %d\n", __func__, m, n, p);
 	return (pll_set_std(sc, fin, fout, flags, m, n, p));
 }
 
@@ -871,8 +952,8 @@ tegra124_pll_set_freq(struct clknode *clknode, uint64_t fin, uint64_t *fout,
 	struct pll_sc *sc;
 
 	sc = clknode_get_softc(clknode);
-	dprintf("%s: Requested freq: %llu, input freq: %llu\n", __func__,
-	    *fout, fin);
+	dprintf("%s: %s requested freq: %llu, input freq: %llu\n", __func__,
+	   clknode_get_name(clknode), *fout, fin);
 	switch (sc->type) {
 	case PLL_A:
 		rv = plla_set_freq(sc, fin, fout, flags);
@@ -902,6 +983,7 @@ tegra124_pll_set_freq(struct clknode *clknode, uint64_t fin, uint64_t *fout,
 		rv = ENXIO;
 		break;
 	}
+
 	return (rv);
 }
 
@@ -919,6 +1001,11 @@ tegra124_pll_init(struct clknode *clk, device_t dev)
 	if (reg & PLL_BASE_ENABLE) {
 		RD4(sc, sc->misc_reg, &reg);
 		reg |= sc->lock_enable;
+		WR4(sc, sc->misc_reg, reg);
+	}
+	if (sc->type == PLL_REFE) {
+		RD4(sc, sc->misc_reg, &reg);
+		reg &= ~(1 << 29);	/* Diasble lock override */
 		WR4(sc, sc->misc_reg, reg);
 	}
 

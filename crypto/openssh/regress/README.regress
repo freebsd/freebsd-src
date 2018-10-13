@@ -100,5 +100,3 @@ Known Issues.
 - Recent GNU coreutils deprecate "head -[n]": this will cause the yes-head
   test to fail.  The old behaviour can be restored by setting (and
   exporting) _POSIX2_VERSION=199209 before running the tests.
-
-$Id: README.regress,v 1.12 2011/05/05 03:48:42 djm Exp $

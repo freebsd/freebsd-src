@@ -11,8 +11,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote 
- * products derived from this software without specific prior written 
+ * 3. The name of the author may not be used to endorse or promote
+ * products derived from this software without specific prior written
  * permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -30,16 +30,18 @@
  * bluetooth data struct
  * By Paolo Abeni <paolo.abeni@email.it>
  */
- 
-#ifndef _PCAP_BLUETOOTH_STRUCTS_H__
-#define _PCAP_BLUETOOTH_STRUCTS_H__
+
+#ifndef lib_pcap_bluetooth_h
+#define lib_pcap_bluetooth_h
+
+#include <pcap/pcap-inttypes.h>
 
 /*
  * Header prepended libpcap to each bluetooth h4 frame,
  * fields are in network byte order
  */
 typedef struct _pcap_bluetooth_h4_header {
-	u_int32_t direction; /* if first bit is set direction is incoming */
+	uint32_t direction; /* if first bit is set direction is incoming */
 } pcap_bluetooth_h4_header;
 
 /*
@@ -47,9 +49,8 @@ typedef struct _pcap_bluetooth_h4_header {
  * fields are in network byte order
  */
 typedef struct _pcap_bluetooth_linux_monitor_header {
-	u_int16_t adapter_id;
-	u_int16_t opcode;
+	uint16_t adapter_id;
+	uint16_t opcode;
 } pcap_bluetooth_linux_monitor_header;
-
 
 #endif

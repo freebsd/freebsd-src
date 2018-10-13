@@ -1,7 +1,9 @@
 /*	$FreeBSD$	*/
 /*	$KAME: config.c,v 1.84 2003/08/05 12:34:23 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
@@ -1395,7 +1397,6 @@ make_packet(struct rainfo *rai)
 	ra->nd_ra_code = 0;
 	ra->nd_ra_cksum = 0;
 	ra->nd_ra_curhoplimit = (uint8_t)(0xff & rai->rai_hoplimit);
-	ra->nd_ra_flags_reserved = 0; /* just in case */
 	/*
 	 * XXX: the router preference field, which is a 2-bit field, should be
 	 * initialized before other fields.

@@ -15,7 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -66,9 +65,7 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
                                           "UnifiedUnreachableBlock", &F);
     new UnreachableInst(F.getContext(), UnreachableBlock);
 
-    for (std::vector<BasicBlock*>::iterator I = UnreachableBlocks.begin(),
-           E = UnreachableBlocks.end(); I != E; ++I) {
-      BasicBlock *BB = *I;
+    for (BasicBlock *BB : UnreachableBlocks) {
       BB->getInstList().pop_back();  // Remove the unreachable inst.
       BranchInst::Create(UnreachableBlock, BB);
     }
@@ -104,10 +101,7 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
   // Loop over all of the blocks, replacing the return instruction with an
   // unconditional branch.
   //
-  for (std::vector<BasicBlock*>::iterator I = ReturningBlocks.begin(),
-         E = ReturningBlocks.end(); I != E; ++I) {
-    BasicBlock *BB = *I;
-
+  for (BasicBlock *BB : ReturningBlocks) {
     // Add an incoming element to the PHI node for every return instruction that
     // is merging into this new block...
     if (PN)

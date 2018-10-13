@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (c) 2004, 2007 Lukas Ertl
  *  Copyright (c) 2007, 2009 Ulf Lilleengen
  *  All rights reserved.
@@ -1046,3 +1048,4 @@ static struct g_class g_vinum_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_vinum_class, g_vinum);
+MODULE_VERSION(geom_vinum, 0);

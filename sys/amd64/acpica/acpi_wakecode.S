@@ -34,7 +34,7 @@
 #include <machine/specialreg.h>
 #include <machine/timerreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Resume entry point for real mode.
@@ -156,11 +156,12 @@ wakeup_32:
 	/*
 	 * Enable EFER.LME so that we get long mode when all the prereqs are
 	 * in place.  In this case, it turns on when CR0_PG is finally enabled.
-	 * Pick up a few other EFER bits that we'll use need we're here.
+	 * Also it picks up a few other EFER bits that we'll use need we're
+	 * here, like SYSCALL and NX enable.
 	 */
 	movl	$MSR_EFER, %ecx
-	rdmsr
-	orl	$EFER_LME | EFER_SCE, %eax
+	movl	wakeup_efer - wakeup_start(%ebx), %eax
+	movl	wakeup_efer + 4 - wakeup_start(%ebx), %edx
 	wrmsr
 
 	/*
@@ -275,6 +276,8 @@ bootgdtdesc:
 wakeup_pcb:
 	.quad	0
 wakeup_ret:
+	.quad	0
+wakeup_efer:
 	.quad	0
 wakeup_gdt:
 	.word	0

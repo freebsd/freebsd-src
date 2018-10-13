@@ -12,13 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ByteStreamer.h"
-#include "DwarfDebug.h"
-#include "DwarfExpression.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DIE.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -26,11 +25,8 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MachineLocation.h"
-#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
@@ -48,12 +44,19 @@ void AsmPrinter::EmitSLEB128(int64_t Value, const char *Desc) const {
 }
 
 /// EmitULEB128 - emit the specified unsigned leb128 value.
-void AsmPrinter::EmitULEB128(uint64_t Value, const char *Desc,
-                             unsigned PadTo) const {
+void AsmPrinter::EmitPaddedULEB128(uint64_t Value, unsigned PadTo,
+                                   const char *Desc) const {
   if (isVerbose() && Desc)
     OutStreamer->AddComment(Desc);
 
-  OutStreamer->EmitULEB128IntValue(Value, PadTo);
+  OutStreamer->EmitPaddedULEB128IntValue(Value, PadTo);
+}
+
+void AsmPrinter::EmitULEB128(uint64_t Value, const char *Desc) const {
+  if (isVerbose() && Desc)
+    OutStreamer->AddComment(Desc);
+
+  OutStreamer->EmitULEB128IntValue(Value);
 }
 
 static const char *DecodeDWARFEncoding(unsigned Encoding) {
@@ -138,8 +141,7 @@ void AsmPrinter::EmitTTypeReference(const GlobalValue *GV,
     const TargetLoweringObjectFile &TLOF = getObjFileLowering();
 
     const MCExpr *Exp =
-        TLOF.getTTypeGlobalReference(GV, Encoding, *Mang, TM, MMI,
-                                     *OutStreamer);
+        TLOF.getTTypeGlobalReference(GV, Encoding, TM, MMI, *OutStreamer);
     OutStreamer->EmitValue(Exp, GetSizeOfEncodedValue(Encoding));
   } else
     OutStreamer->EmitIntValue(0, GetSizeOfEncodedValue(Encoding));
@@ -150,7 +152,7 @@ void AsmPrinter::emitDwarfSymbolReference(const MCSymbol *Label,
   if (!ForceOffset) {
     // On COFF targets, we have to emit the special .secrel32 directive.
     if (MAI->needsDwarfSectionOffsetDirective()) {
-      OutStreamer->EmitCOFFSecRel32(Label);
+      OutStreamer->EmitCOFFSecRel32(Label, /*Offset=*/0);
       return;
     }
 
@@ -173,36 +175,6 @@ void AsmPrinter::emitDwarfStringOffset(DwarfStringPoolEntryRef S) const {
 
   // Just emit the offset directly; no need for symbol math.
   EmitInt32(S.getOffset());
-}
-
-/// EmitDwarfRegOp - Emit dwarf register operation.
-void AsmPrinter::EmitDwarfRegOp(ByteStreamer &Streamer,
-                                const MachineLocation &MLoc) const {
-  DebugLocDwarfExpression Expr(*MF->getSubtarget().getRegisterInfo(),
-                               getDwarfDebug()->getDwarfVersion(), Streamer);
-  const MCRegisterInfo *MRI = MMI->getContext().getRegisterInfo();
-  int Reg = MRI->getDwarfRegNum(MLoc.getReg(), false);
-  if (Reg < 0) {
-    // We assume that pointers are always in an addressable register.
-    if (MLoc.isIndirect())
-      // FIXME: We have no reasonable way of handling errors in here. The
-      // caller might be in the middle of a dwarf expression. We should
-      // probably assert that Reg >= 0 once debug info generation is more
-      // mature.
-      return Expr.EmitOp(dwarf::DW_OP_nop,
-                         "nop (could not find a dwarf register number)");
-
-    // Attempt to find a valid super- or sub-register.
-    if (!Expr.AddMachineRegPiece(MLoc.getReg()))
-      Expr.EmitOp(dwarf::DW_OP_nop,
-                  "nop (could not find a dwarf register number)");
-    return;
-  }
-
-  if (MLoc.isIndirect())
-    Expr.AddRegIndirect(Reg, MLoc.getOffset());
-  else
-    Expr.AddReg(Reg);
 }
 
 //===----------------------------------------------------------------------===//
@@ -242,6 +214,9 @@ void AsmPrinter::emitCFIInstruction(const MCCFIInstruction &Inst) const {
     break;
   case MCCFIInstruction::OpEscape:
     OutStreamer->EmitCFIEscape(Inst.getValues());
+    break;
+  case MCCFIInstruction::OpRestore:
+    OutStreamer->EmitCFIRestore(Inst.getRegister());
     break;
   }
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,9 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/vmmeter.h>
 
 #include <security/mac/mac_framework.h>
 
+#include <ufs/ufs/dir.h>
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/gjournal.h>
 #include <ufs/ufs/quota.h>
@@ -83,6 +87,8 @@ static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
 static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static int	ffs_sync_lazy(struct mount *mp);
+static int	ffs_use_bread(void *devfd, off_t loc, void **bufp, int size);
+static int	ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size);
 
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
@@ -147,7 +153,7 @@ ffs_mount(struct mount *mp)
 	struct ufsmount *ump = NULL;
 	struct fs *fs;
 	pid_t fsckpid = 0;
-	int error, flags;
+	int error, error1, flags;
 	uint64_t mntorflags;
 	accmode_t accmode;
 	struct nameidata ndp;
@@ -453,6 +459,11 @@ ffs_mount(struct mount *mp)
 		 */
 		if (mp->mnt_flag & MNT_SNAPSHOT)
 			return (ffs_snapshot(mp, fspec));
+
+		/*
+		 * Must not call namei() while owning busy ref.
+		 */
+		vfs_unbusy(mp);
 	}
 
 	/*
@@ -460,7 +471,18 @@ ffs_mount(struct mount *mp)
 	 * and verify that it refers to a sensible disk device.
 	 */
 	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
-	if ((error = namei(&ndp)) != 0)
+	error = namei(&ndp);
+	if ((mp->mnt_flag & MNT_UPDATE) != 0) {
+		/*
+		 * Unmount does not start if MNT_UPDATE is set.  Mount
+		 * update busies mp before setting MNT_UPDATE.  We
+		 * must be able to retain our busy ref succesfully,
+		 * without sleep.
+		 */
+		error1 = vfs_busy(mp, MBF_NOWAIT);
+		MPASS(error1 == 0);
+	}
+	if (error != 0)
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
@@ -573,11 +595,13 @@ ffs_cmount(struct mntarg *ma, void *data, uint64_t flags)
  *	2) re-read superblock from disk.
  *	3) re-read summary information from disk.
  *	4) invalidate all inactive vnodes.
- *	5) invalidate all cached file data.
- *	6) re-read inode data for all active vnodes.
+ *	5) clear MNTK_SUSPEND2 and MNTK_SUSPENDED flags, allowing secondary
+ *	   writers, if requested.
+ *	6) invalidate all cached file data.
+ *	7) re-read inode data for all active vnodes.
  */
 int
-ffs_reload(struct mount *mp, struct thread *td, int force)
+ffs_reload(struct mount *mp, struct thread *td, int flags)
 {
 	struct vnode *vp, *mvp, *devvp;
 	struct inode *ip;
@@ -586,13 +610,14 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 	struct fs *fs, *newfs;
 	struct ufsmount *ump;
 	ufs2_daddr_t sblockloc;
-	int i, blks, size, error;
+	int i, blks, error;
+	u_long size;
 	int32_t *lp;
 
 	ump = VFSTOUFS(mp);
 
 	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_RDONLY) == 0 && force == 0) {
+	if ((mp->mnt_flag & MNT_RDONLY) == 0 && (flags & FFSR_FORCE) == 0) {
 		MNT_IUNLOCK(mp);
 		return (EINVAL);
 	}
@@ -656,7 +681,7 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 		size += fs->fs_ncg * sizeof(int32_t);
 	size += fs->fs_ncg * sizeof(u_int8_t);
 	free(fs->fs_csp, M_UFSMNT);
-	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
+	space = malloc(size, M_UFSMNT, M_WAITOK);
 	fs->fs_csp = space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
@@ -682,6 +707,12 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 	size = fs->fs_ncg * sizeof(u_int8_t);
 	fs->fs_contigdirs = (u_int8_t *)space;
 	bzero(fs->fs_contigdirs, size);
+	if ((flags & FFSR_UNSUSPEND) != 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag &= ~(MNTK_SUSPENDED | MNTK_SUSPEND2);
+		wakeup(&mp->mnt_flag);
+		MNT_IUNLOCK(mp);
+	}
 
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
@@ -724,11 +755,6 @@ loop:
 }
 
 /*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-
-/*
  * Common code for mount and mountroot
  */
 static int
@@ -738,18 +764,15 @@ ffs_mountfs(devvp, mp, td)
 	struct thread *td;
 {
 	struct ufsmount *ump;
-	struct buf *bp;
 	struct fs *fs;
 	struct cdev *dev;
-	void *space;
-	ufs2_daddr_t sblockloc;
-	int error, i, blks, size, ronly;
-	int32_t *lp;
+	int error, i, len, ronly;
 	struct ucred *cred;
 	struct g_consumer *cp;
 	struct mount *nmp;
+	int candelete;
 
-	bp = NULL;
+	fs = NULL;
 	ump = NULL;
 	cred = td ? td->td_ucred : NOCRED;
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
@@ -776,41 +799,24 @@ ffs_mountfs(devvp, mp, td)
 		mp->mnt_iosize_max = dev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
-
-	fs = NULL;
-	sblockloc = 0;
-	/*
-	 * Try reading the superblock in each of its possible locations.
-	 */
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if ((SBLOCKSIZE % cp->provider->sectorsize) != 0) {
-			error = EINVAL;
-			vfs_mount_error(mp,
-			    "Invalid sectorsize %d for superblock size %d",
-			    cp->provider->sectorsize, SBLOCKSIZE);
-			goto out;
-		}
-		if ((error = bread(devvp, btodb(sblock_try[i]), SBLOCKSIZE,
-		    cred, &bp)) != 0)
-			goto out;
-		fs = (struct fs *)bp->b_data;
-		sblockloc = sblock_try[i];
-		if ((fs->fs_magic == FS_UFS1_MAGIC ||
-		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      (fs->fs_sblockloc == sblockloc ||
-		       (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0))) &&
-		    fs->fs_bsize <= MAXBSIZE &&
-		    fs->fs_bsize >= sizeof(struct fs))
-			break;
-		brelse(bp);
-		bp = NULL;
-	}
-	if (sblock_try[i] == -1) {
-		error = EINVAL;		/* XXX needs translation */
+	if ((SBLOCKSIZE % cp->provider->sectorsize) != 0) {
+		error = EINVAL;
+		vfs_mount_error(mp,
+		    "Invalid sectorsize %d for superblock size %d",
+		    cp->provider->sectorsize, SBLOCKSIZE);
 		goto out;
 	}
+	/* fetch the superblock and summary information */
+	if ((error = ffs_sbget(devvp, &fs, -1, M_UFSMNT, ffs_use_bread)) != 0)
+		goto out;
 	fs->fs_fmod = 0;
-	fs->fs_flags &= ~FS_INDEXDIRS;	/* no support for directory indices */
+	/* if we ran on a kernel without metadata check hashes, disable them */
+	if ((fs->fs_flags & FS_METACKHASH) == 0)
+		fs->fs_metackhash = 0;
+	/* none of these types of check-hashes are maintained by this kernel */
+	fs->fs_metackhash &= ~(CK_SUPERBLOCK | CK_INODE | CK_INDIR | CK_DIR);
+	/* no support for any undefined flags */
+	fs->fs_flags &= FS_SUPPORTED;
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
@@ -848,11 +854,11 @@ ffs_mountfs(devvp, mp, td)
 		/*
 		 * Get journal provider name.
 		 */
-		size = 1024;
-		mp->mnt_gjprovider = malloc(size, M_UFSMNT, M_WAITOK);
-		if (g_io_getattr("GJOURNAL::provider", cp, &size,
+		len = 1024;
+		mp->mnt_gjprovider = malloc((u_long)len, M_UFSMNT, M_WAITOK);
+		if (g_io_getattr("GJOURNAL::provider", cp, &len,
 		    mp->mnt_gjprovider) == 0) {
-			mp->mnt_gjprovider = realloc(mp->mnt_gjprovider, size,
+			mp->mnt_gjprovider = realloc(mp->mnt_gjprovider, len,
 			    M_UFSMNT, M_WAITOK);
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_GJOURNAL;
@@ -874,7 +880,7 @@ ffs_mountfs(devvp, mp, td)
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
 	ump->um_cp = cp;
 	ump->um_bo = &devvp->v_bufobj;
-	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT, M_WAITOK);
+	ump->um_fs = fs;
 	if (fs->fs_magic == FS_UFS1_MAGIC) {
 		ump->um_fstype = UFS1;
 		ump->um_balloc = ffs_balloc_ufs1;
@@ -891,44 +897,8 @@ ffs_mountfs(devvp, mp, td)
 	ump->um_rdonly = ffs_rdonly;
 	ump->um_snapgone = ffs_snapgone;
 	mtx_init(UFS_MTX(ump), "FFS", "FFS Lock", MTX_DEF);
-	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
-	if (fs->fs_sbsize < SBLOCKSIZE)
-		bp->b_flags |= B_INVAL | B_NOCACHE;
-	brelse(bp);
-	bp = NULL;
-	fs = ump->um_fs;
-	ffs_oldfscompat_read(fs, ump, sblockloc);
+	ffs_oldfscompat_read(fs, ump, fs->fs_sblockloc);
 	fs->fs_ronly = ronly;
-	size = fs->fs_cssize;
-	blks = howmany(size, fs->fs_fsize);
-	if (fs->fs_contigsumsize > 0)
-		size += fs->fs_ncg * sizeof(int32_t);
-	size += fs->fs_ncg * sizeof(u_int8_t);
-	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
-	fs->fs_csp = space;
-	for (i = 0; i < blks; i += fs->fs_frag) {
-		size = fs->fs_bsize;
-		if (i + fs->fs_frag > blks)
-			size = (blks - i) * fs->fs_fsize;
-		if ((error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
-		    cred, &bp)) != 0) {
-			free(fs->fs_csp, M_UFSMNT);
-			goto out;
-		}
-		bcopy(bp->b_data, space, (u_int)size);
-		space = (char *)space + size;
-		brelse(bp);
-		bp = NULL;
-	}
-	if (fs->fs_contigsumsize > 0) {
-		fs->fs_maxcluster = lp = space;
-		for (i = 0; i < fs->fs_ncg; i++)
-			*lp++ = fs->fs_contigsumsize;
-		space = lp;
-	}
-	size = fs->fs_ncg * sizeof(u_int8_t);
-	fs->fs_contigdirs = (u_int8_t *)space;
-	bzero(fs->fs_contigdirs, size);
 	fs->fs_active = NULL;
 	mp->mnt_data = ump;
 	mp->mnt_stat.f_fsid.val[0] = fs->fs_id[0];
@@ -989,10 +959,12 @@ ffs_mountfs(devvp, mp, td)
 #endif
 	}
 	if ((fs->fs_flags & FS_TRIM) != 0) {
-		size = sizeof(int);
-		if (g_io_getattr("GEOM::candelete", cp, &size,
-		    &ump->um_candelete) == 0) {
-			if (!ump->um_candelete)
+		len = sizeof(int);
+		if (g_io_getattr("GEOM::candelete", cp, &len,
+		    &candelete) == 0) {
+			if (candelete)
+				ump->um_flags |= UM_CANDELETE;
+			else
 				printf("WARNING: %s: TRIM flag on fs but disk "
 				    "does not support TRIM\n",
 				    mp->mnt_stat.f_mntonname);
@@ -1000,13 +972,14 @@ ffs_mountfs(devvp, mp, td)
 			printf("WARNING: %s: TRIM flag on fs but disk does "
 			    "not confirm that it supports TRIM\n",
 			    mp->mnt_stat.f_mntonname);
-			ump->um_candelete = 0;
 		}
-		if (ump->um_candelete) {
+		if (((ump->um_flags) & UM_CANDELETE) != 0) {
 			ump->um_trim_tq = taskqueue_create("trim", M_WAITOK,
 			    taskqueue_thread_enqueue, &ump->um_trim_tq);
 			taskqueue_start_threads(&ump->um_trim_tq, 1, PVFS,
 			    "%s trim", mp->mnt_stat.f_mntonname);
+			ump->um_trimhash = hashinit(MAXTRIMIO, M_TRIM,
+			    &ump->um_trimlisthashsize);
 		}
 	}
 
@@ -1041,7 +1014,6 @@ ffs_mountfs(devvp, mp, td)
 		fs->fs_mtime = time_second;
 		if ((fs->fs_flags & FS_DOSOFTDEP) &&
 		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
-			free(fs->fs_csp, M_UFSMNT);
 			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
@@ -1075,8 +1047,10 @@ ffs_mountfs(devvp, mp, td)
 #endif /* !UFS_EXTATTR */
 	return (0);
 out:
-	if (bp)
-		brelse(bp);
+	if (fs != NULL) {
+		free(fs->fs_csp, M_UFSMNT);
+		free(fs, M_UFSMNT);
+	}
 	if (cp != NULL) {
 		g_topology_lock();
 		g_vfs_close(cp);
@@ -1088,13 +1062,32 @@ out:
 			free(mp->mnt_gjprovider, M_UFSMNT);
 			mp->mnt_gjprovider = NULL;
 		}
-		free(ump->um_fs, M_UFSMNT);
 		free(ump, M_UFSMNT);
 		mp->mnt_data = NULL;
 	}
 	atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
 	dev_rel(dev);
 	return (error);
+}
+
+/*
+ * A read function for use by filesystem-layer routines.
+ */
+static int
+ffs_use_bread(void *devfd, off_t loc, void **bufp, int size)
+{
+	struct buf *bp;
+	int error;
+
+	KASSERT(*bufp == NULL, ("ffs_use_bread: non-NULL *bufp %p\n", *bufp));
+	*bufp = malloc(size, M_UFSMNT, M_WAITOK);
+	if ((error = bread((struct vnode *)devfd, btodb(loc), size, NOCRED,
+	    &bp)) != 0)
+		return (error);
+	bcopy(bp->b_data, *bufp, size);
+	bp->b_flags |= B_INVAL | B_NOCACHE;
+	brelse(bp);
+	return (0);
 }
 
 #include <sys/sysctl.h>
@@ -1265,6 +1258,7 @@ ffs_unmount(mp, mntflags)
 			pause("ufsutr", hz);
 		taskqueue_drain_all(ump->um_trim_tq);
 		taskqueue_free(ump->um_trim_tq);
+		free (ump->um_trimhash, M_TRIM);
 	}
 	g_topology_lock();
 	if (ump->um_fsckpid > 0) {
@@ -1291,6 +1285,10 @@ ffs_unmount(mp, mntflags)
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
+	if (td->td_su == mp) {
+		td->td_su = NULL;
+		vfs_rel(mp);
+	}
 	return (error);
 
 fail:
@@ -1405,10 +1403,10 @@ ffs_statfs(mp, sbp)
 	    fs->fs_cstotal.cs_nffree + dbtofsb(fs, fs->fs_pendingblocks);
 	sbp->f_bavail = freespace(fs, fs->fs_minfree) +
 	    dbtofsb(fs, fs->fs_pendingblocks);
-	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - ROOTINO;
+	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - UFS_ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
 	UFS_UNLOCK(ump);
-	sbp->f_namemax = NAME_MAX;
+	sbp->f_namemax = UFS_MAXNAMLEN;
 	return (0);
 }
 
@@ -1644,7 +1642,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	int error;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
@@ -1668,7 +1665,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 */
 
 	ump = VFSTOUFS(mp);
-	dev = ump->um_dev;
 	fs = ump->um_fs;
 	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
 
@@ -1689,11 +1685,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
 	ip->i_ump = ump;
-	ip->i_fs = fs;
-	ip->i_dev = dev;
 	ip->i_number = ino;
 	ip->i_ea_refs = 0;
 	ip->i_nextclustercg = -1;
+	ip->i_flag = fs->fs_magic == FS_UFS1_MAGIC ? 0 : IN_UFS2;
 #ifdef QUOTA
 	{
 		int i;
@@ -1730,7 +1725,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		*vpp = NULL;
 		return (error);
 	}
-	if (ip->i_ump->um_fstype == UFS1)
+	if (I_IS_UFS1(ip))
 		ip->i_din1 = uma_zalloc(uma_ufs1, M_WAITOK);
 	else
 		ip->i_din2 = uma_zalloc(uma_ufs2, M_WAITOK);
@@ -1745,10 +1740,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if (ip->i_ump->um_fstype == UFS1)
-		error = ufs_vinit(mp, &ffs_fifoops1, &vp);
-	else
-		error = ufs_vinit(mp, &ffs_fifoops2, &vp);
+	error = ufs_vinit(mp, I_IS_UFS1(ip) ? &ffs_fifoops1 : &ffs_fifoops2,
+	    &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;
@@ -1827,7 +1820,7 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	ino = ufhp->ufid_ino;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
-	if (ino < ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
+	if (ino < UFS_ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
 	/*
 	 * Need to check if inode is initialized because UFS2 does lazy
@@ -1836,12 +1829,9 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	if (fs->fs_magic != FS_UFS2_MAGIC)
 		return (ufs_fhtovp(mp, ufhp, flags, vpp));
 	cg = ino_to_cg(fs, ino);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		(int)fs->fs_cgsize, NOCRED, &bp);
-	if (error)
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0)
 		return (error);
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp) || ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
+	if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
 		brelse(bp);
 		return (ESTALE);
 	}
@@ -1878,6 +1868,18 @@ ffs_uninit(vfsp)
 }
 
 /*
+ * Structure used to pass information from ffs_sbupdate to its
+ * helper routine ffs_use_bwrite.
+ */
+struct devfd {
+	struct ufsmount	*ump;
+	struct buf	*sbbp;
+	int		 waitfor;
+	int		 suspended;
+	int		 error;
+};
+
+/*
  * Write a superblock and associated information back to disk.
  */
 int
@@ -1886,13 +1888,11 @@ ffs_sbupdate(ump, waitfor, suspended)
 	int waitfor;
 	int suspended;
 {
-	struct fs *fs = ump->um_fs;
+	struct fs *fs;
 	struct buf *sbbp;
-	struct buf *bp;
-	int blks;
-	void *space;
-	int i, size, error, allerror = 0;
+	struct devfd devfd;
 
+	fs = ump->um_fs;
 	if (fs->fs_ronly == 1 &&
 	    (ump->um_mountp->mnt_flag & (MNT_RDONLY | MNT_UPDATE)) !=
 	    (MNT_RDONLY | MNT_UPDATE) && ump->um_fsckpid == 0)
@@ -1903,35 +1903,53 @@ ffs_sbupdate(ump, waitfor, suspended)
 	sbbp = getblk(ump->um_devvp, btodb(fs->fs_sblockloc),
 	    (int)fs->fs_sbsize, 0, 0, 0);
 	/*
-	 * First write back the summary information.
+	 * Initialize info needed for write function.
 	 */
-	blks = howmany(fs->fs_cssize, fs->fs_fsize);
-	space = fs->fs_csp;
-	for (i = 0; i < blks; i += fs->fs_frag) {
-		size = fs->fs_bsize;
-		if (i + fs->fs_frag > blks)
-			size = (blks - i) * fs->fs_fsize;
-		bp = getblk(ump->um_devvp, fsbtodb(fs, fs->fs_csaddr + i),
-		    size, 0, 0, 0);
-		bcopy(space, bp->b_data, (u_int)size);
-		space = (char *)space + size;
-		if (suspended)
+	devfd.ump = ump;
+	devfd.sbbp = sbbp;
+	devfd.waitfor = waitfor;
+	devfd.suspended = suspended;
+	devfd.error = 0;
+	return (ffs_sbput(&devfd, fs, fs->fs_sblockloc, ffs_use_bwrite));
+}
+
+/*
+ * Write function for use by filesystem-layer routines.
+ */
+static int
+ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
+{
+	struct devfd *devfdp;
+	struct ufsmount *ump;
+	struct buf *bp;
+	struct fs *fs;
+	int error;
+
+	devfdp = devfd;
+	ump = devfdp->ump;
+	fs = ump->um_fs;
+	/*
+	 * Writing the superblock summary information.
+	 */
+	if (loc != fs->fs_sblockloc) {
+		bp = getblk(ump->um_devvp, btodb(loc), size, 0, 0, 0);
+		bcopy(buf, bp->b_data, (u_int)size);
+		if (devfdp->suspended)
 			bp->b_flags |= B_VALIDSUSPWRT;
-		if (waitfor != MNT_WAIT)
+		if (devfdp->waitfor != MNT_WAIT)
 			bawrite(bp);
 		else if ((error = bwrite(bp)) != 0)
-			allerror = error;
+			devfdp->error = error;
+		return (0);
 	}
 	/*
-	 * Now write back the superblock itself. If any errors occurred
-	 * up to this point, then fail so that the superblock avoids
-	 * being written out as clean.
+	 * Writing the superblock itself. We need to do special checks for it.
 	 */
-	if (allerror) {
-		brelse(sbbp);
-		return (allerror);
+	bp = devfdp->sbbp;
+	if (devfdp->error != 0) {
+		brelse(bp);
+		return (devfdp->error);
 	}
-	bp = sbbp;
 	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_sblockloc != SBLOCK_UFS1 &&
 	    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
 		printf("WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
@@ -1944,19 +1962,17 @@ ffs_sbupdate(ump, waitfor, suspended)
 		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
 		fs->fs_sblockloc = SBLOCK_UFS2;
 	}
-	fs->fs_fmod = 0;
-	fs->fs_time = time_second;
 	if (MOUNTEDSOFTDEP(ump->um_mountp))
 		softdep_setup_sbupdate(ump, (struct fs *)bp->b_data, bp);
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
 	ffs_oldfscompat_write((struct fs *)bp->b_data, ump);
-	if (suspended)
+	if (devfdp->suspended)
 		bp->b_flags |= B_VALIDSUSPWRT;
-	if (waitfor != MNT_WAIT)
+	if (devfdp->waitfor != MNT_WAIT)
 		bawrite(bp);
 	else if ((error = bwrite(bp)) != 0)
-		allerror = error;
-	return (allerror);
+		devfdp->error = error;
+	return (devfdp->error);
 }
 
 static int
@@ -2015,7 +2031,6 @@ ffs_backgroundwritedone(struct buf *bp)
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
-	pbrelvp(bp);
 	if (!LIST_EMPTY(&bp->b_dep) && (bp->b_ioflags & BIO_ERROR) == 0)
 		buf_complete(bp);
 #ifdef SOFTUPDATES
@@ -2028,6 +2043,7 @@ ffs_backgroundwritedone(struct buf *bp)
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_flags &= ~B_CACHE;
+	pbrelvp(bp);
 
 	/*
 	 * Prevent brelse() from trying to keep and re-dirtying bp on
@@ -2071,6 +2087,7 @@ static int
 ffs_bufwrite(struct buf *bp)
 {
 	struct buf *newbp;
+	struct cg *cgp;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
@@ -2126,7 +2143,8 @@ ffs_bufwrite(struct buf *bp)
 		BO_LOCK(bp->b_bufobj);
 		bp->b_vflags |= BV_BKGRDINPROG;
 		BO_UNLOCK(bp->b_bufobj);
-		newbp->b_xflags |= BX_BKGRDMARKER;
+		newbp->b_xflags |=
+		    (bp->b_xflags & BX_FSPRIV) | BX_BKGRDMARKER;
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_blkno = bp->b_blkno;
 		newbp->b_offset = bp->b_offset;
@@ -2151,8 +2169,16 @@ ffs_bufwrite(struct buf *bp)
 		/*
 		 * Initiate write on the copy, release the original.  The
 		 * BKGRDINPROG flag prevents it from going away until 
-		 * the background write completes.
+		 * the background write completes. We have to recalculate
+		 * its check hash in case the buffer gets freed and then
+		 * reconstituted from the buffer cache during a later read.
 		 */
+		if ((bp->b_xflags & BX_CYLGRP) != 0) {
+			cgp = (struct cg *)bp->b_data;
+			cgp->cg_ckhash = 0;
+			cgp->cg_ckhash =
+			    calculate_crc32c(~0L, bp->b_data, bp->b_bcount);
+		}
 		bqrelse(bp);
 		bp = newbp;
 	} else
@@ -2162,6 +2188,13 @@ ffs_bufwrite(struct buf *bp)
 
 	/* Let the normal bufwrite do the rest for us */
 normal_write:
+	/*
+	 * If we are writing a cylinder group, update its time.
+	 */
+	if ((bp->b_xflags & BX_CYLGRP) != 0) {
+		cgp = (struct cg *)bp->b_data;
+		cgp->cg_old_time = cgp->cg_time = time_second;
+	}
 	return (bufwrite(bp));
 }
 
@@ -2170,11 +2203,10 @@ static void
 ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 {
 	struct vnode *vp;
-	int error;
 	struct buf *tbp;
-	int nocopy;
+	int error, nocopy;
 
-	vp = bo->__bo_vnode;
+	vp = bo2vnode(bo);
 	if (bp->b_iocmd == BIO_WRITE) {
 		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
@@ -2223,6 +2255,32 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		}
 
 #endif
+		/*
+		 * Check for metadata that needs check-hashes and update them.
+		 */
+		switch (bp->b_xflags & BX_FSPRIV) {
+		case BX_CYLGRP:
+			((struct cg *)bp->b_data)->cg_ckhash = 0;
+			((struct cg *)bp->b_data)->cg_ckhash =
+			    calculate_crc32c(~0L, bp->b_data, bp->b_bcount);
+			break;
+
+		case BX_SUPERBLOCK:
+		case BX_INODE:
+		case BX_INDIR:
+		case BX_DIR:
+			printf("Check-hash write is unimplemented!!!\n");
+			break;
+
+		case 0:
+			break;
+
+		default:
+			printf("multiple buffer types 0x%b\n",
+			    (u_int)(bp->b_xflags & BX_FSPRIV),
+			    PRINT_UFS_BUF_XFLAGS);
+			break;
+		}
 	}
 	g_vfs_strategy(bo, bp);
 }

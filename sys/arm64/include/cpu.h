@@ -78,13 +78,26 @@
 #define	CPU_IMPL_MARVELL	0x56
 #define	CPU_IMPL_INTEL		0x69
 
-#define	CPU_PART_THUNDER	0x0A1
+/* ARM Part numbers */
 #define	CPU_PART_FOUNDATION	0xD00
+#define	CPU_PART_CORTEX_A35	0xD04
 #define	CPU_PART_CORTEX_A53	0xD03
+#define	CPU_PART_CORTEX_A55	0xD05
 #define	CPU_PART_CORTEX_A57	0xD07
+#define	CPU_PART_CORTEX_A72	0xD08
+#define	CPU_PART_CORTEX_A73	0xD09
+#define	CPU_PART_CORTEX_A75	0xD0A
 
-#define	CPU_REV_THUNDER_1_0	0x00
-#define	CPU_REV_THUNDER_1_1	0x01
+/* Cavium Part numbers */
+#define	CPU_PART_THUNDERX	0x0A1
+#define	CPU_PART_THUNDERX_81XX	0x0A2
+#define	CPU_PART_THUNDERX_83XX	0x0A3
+#define	CPU_PART_THUNDERX2	0x0AF
+
+#define	CPU_REV_THUNDERX_1_0	0x00
+#define	CPU_REV_THUNDERX_1_1	0x01
+
+#define	CPU_REV_THUNDERX2_0	0x00
 
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
@@ -126,13 +139,13 @@
  * Revision(s):	Pass 1.0, Pass 1.1
  */
 #ifdef THUNDERX_PASS_1_1_ERRATA
-#define	CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1				\
+#define	CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1				\
     (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_REV_MASK,		\
-    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, CPU_REV_THUNDER_1_0) ||	\
+    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, CPU_REV_THUNDERX_1_0) ||	\
     CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_REV_MASK,		\
-    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, CPU_REV_THUNDER_1_1))
+    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, CPU_REV_THUNDERX_1_1))
 #else
-#define	CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1	0
+#define	CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1	0
 #endif
 
 
@@ -145,6 +158,7 @@ void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	identify_cpu(void);
+void	install_cpu_errata(void);
 void	print_cpu_features(u_int);
 void	swi_vm(void *v);
 

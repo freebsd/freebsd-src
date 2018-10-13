@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -149,12 +151,12 @@ ata_intel_probe(device_t dev)
      { ATA_I82801JD_S2,  0, INTEL_6CH2, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JI_S1,  0, INTEL_6CH,  0, ATA_SA300, "ICH10" },
      { ATA_I82801JI_S2,  0, INTEL_6CH2, 0, ATA_SA300, "ICH10" },
-     { ATA_5Series_S1,   0, INTEL_6CH,  0, ATA_SA300, "5 Series/3400 Series PCH" },
-     { ATA_5Series_S2,   0, INTEL_6CH2, 0, ATA_SA300, "5 Series/3400 Series PCH" },
-     { ATA_5Series_S3,   0, INTEL_6CH2, 0, ATA_SA300, "5 Series/3400 Series PCH" },
-     { ATA_5Series_S4,   0, INTEL_6CH,  0, ATA_SA300, "5 Series/3400 Series PCH" },
-     { ATA_5Series_S5,   0, INTEL_6CH2, 0, ATA_SA300, "5 Series/3400 Series PCH" },
-     { ATA_5Series_S6,   0, INTEL_6CH,  0, ATA_SA300, "5 Series/3400 Series PCH" },
+     { ATA_IBP_S1,       0, INTEL_6CH,  0, ATA_SA300, "Ibex Peak" },
+     { ATA_IBP_S2,       0, INTEL_6CH2, 0, ATA_SA300, "Ibex Peak" },
+     { ATA_IBP_S3,       0, INTEL_6CH2, 0, ATA_SA300, "Ibex Peak" },
+     { ATA_IBP_S4,       0, INTEL_6CH,  0, ATA_SA300, "Ibex Peak-M" },
+     { ATA_IBP_S5,       0, INTEL_6CH2, 0, ATA_SA300, "Ibex Peak-M" },
+     { ATA_IBP_S6,       0, INTEL_6CH,  0, ATA_SA300, "Ibex Peak-M" },
      { ATA_CPT_S1,       0, INTEL_6CH,  0, ATA_SA600, "Cougar Point" },
      { ATA_CPT_S2,       0, INTEL_6CH,  0, ATA_SA600, "Cougar Point" },
      { ATA_CPT_S3,       0, INTEL_6CH2, 0, ATA_SA300, "Cougar Point" },

@@ -17,22 +17,29 @@ LC_ALL=C; export LC_ALL
 # XXX should we use an ANSI cpp?
 ioctl_includes=$(
 	cd $includedir
-	find -H -s * -name '*.h' | \
-	egrep -v '(.*disk.*|net/pfvar|net/if_pfsync)\.h' | \
+	set -e
+	# if /bin/sh is bash this will avoid further errors due to missing commands
+	if set -o | grep -q pipefail; then
+		set -o pipefail
+	fi
+
+	filter='tee'
+	if [ "${MK_PF}" = "no" ]; then
+		filter='egrep -v (net/pfvar|net/if_pfsync)\.h'
+	fi
+	# find -s would avoid the need to invoke sort but it is non-portable
+	find -L ./* -type f -name '*.h' | \
+		LC_ALL=C sort | \
+		$filter | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\n", $1)}'
 )
 
-: ${MACHINE=$(uname -m)}
-case "${MACHINE}" in
-*pc98*)
-	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
-	;;
-*)
-	ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
-	;;
-esac
+if [ -z "$ioctl_includes" ]; then
+	echo "Failed to build list of ioctl headers"
+	exit 1
+fi
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	$CPP -nostdinc -I$includedir -dM -DCOMPAT_43TTY - |
@@ -62,6 +69,7 @@ BEGIN {
 	print "#include <netinet6/ip6_mroute.h>"
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
+	print "#include <stdbool.h>"
 	print "#include <stddef.h>"
 	print "#include <stdint.h>"
 	print "#include <sysdecode.h>"

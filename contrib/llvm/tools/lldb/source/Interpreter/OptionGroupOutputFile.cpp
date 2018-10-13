@@ -13,73 +13,57 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Utility/Utils.h"
+#include "lldb/Host/OptionParser.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-OptionGroupOutputFile::OptionGroupOutputFile() :
-    m_file (),
-    m_append (false, false)
-{
-}
+OptionGroupOutputFile::OptionGroupOutputFile()
+    : m_file(), m_append(false, false) {}
 
-OptionGroupOutputFile::~OptionGroupOutputFile ()
-{
-}
+OptionGroupOutputFile::~OptionGroupOutputFile() {}
 
-static const uint32_t SHORT_OPTION_APND = 0x61706e64;   // 'apnd'
+static const uint32_t SHORT_OPTION_APND = 0x61706e64; // 'apnd'
 
-static OptionDefinition
-g_option_table[] =
-{
-    { LLDB_OPT_SET_1 , false, "outfile", 'o', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeFilename , "Specify a path for capturing command output."},
-    { LLDB_OPT_SET_1 , false, "append-outfile" , SHORT_OPTION_APND,
-      OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone ,
-      "Append to the file specified with '--outfile <path>'."},
+static OptionDefinition g_option_table[] = {
+    {LLDB_OPT_SET_1, false, "outfile", 'o', OptionParser::eRequiredArgument,
+     nullptr, nullptr, 0, eArgTypeFilename,
+     "Specify a path for capturing command output."},
+    {LLDB_OPT_SET_1, false, "append-outfile", SHORT_OPTION_APND,
+     OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone,
+     "Append to the file specified with '--outfile <path>'."},
 };
 
-uint32_t
-OptionGroupOutputFile::GetNumDefinitions ()
-{
-    return llvm::array_lengthof(g_option_table);
+llvm::ArrayRef<OptionDefinition> OptionGroupOutputFile::GetDefinitions() {
+  return llvm::makeArrayRef(g_option_table);
 }
 
-const OptionDefinition *
-OptionGroupOutputFile::GetDefinitions ()
-{
-    return g_option_table;
+Status
+OptionGroupOutputFile::SetOptionValue(uint32_t option_idx,
+                                      llvm::StringRef option_arg,
+                                      ExecutionContext *execution_context) {
+  Status error;
+  const int short_option = g_option_table[option_idx].short_option;
+
+  switch (short_option) {
+  case 'o':
+    error = m_file.SetValueFromString(option_arg);
+    break;
+
+  case SHORT_OPTION_APND:
+    m_append.SetCurrentValue(true);
+    break;
+
+  default:
+    error.SetErrorStringWithFormat("unrecognized option '%c'", short_option);
+    break;
+  }
+
+  return error;
 }
 
-Error
-OptionGroupOutputFile::SetOptionValue (CommandInterpreter &interpreter,
-                                       uint32_t option_idx,
-                                       const char *option_arg)
-{
-    Error error;
-    const int short_option = g_option_table[option_idx].short_option;
-
-    switch (short_option)
-    {
-        case 'o':
-            error = m_file.SetValueFromString (option_arg);
-            break;
-
-        case SHORT_OPTION_APND:
-            m_append.SetCurrentValue(true);
-            break;
-
-        default:
-            error.SetErrorStringWithFormat ("unrecognized option '%c'", short_option);
-            break;
-    }
-
-    return error;
-}
-
-void
-OptionGroupOutputFile::OptionParsingStarting (CommandInterpreter &interpreter)
-{
-    m_file.Clear();
-    m_append.Clear();
+void OptionGroupOutputFile::OptionParsingStarting(
+    ExecutionContext *execution_context) {
+  m_file.Clear();
+  m_append.Clear();
 }

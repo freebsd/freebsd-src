@@ -1,6 +1,8 @@
 /*	$NetBSD: rpcb_clnt.c,v 1.6 2000/07/16 06:41:43 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010, Oracle America, Inc.
  * All rights reserved.
  *
@@ -1287,6 +1289,11 @@ xdr_netbuf(XDR *xdrs, struct netbuf *objp)
 		return (FALSE);
 	}
 	pp = &objp->buf;
+
+	if (objp->maxlen > RPC_MAXDATASIZE) {
+		return (FALSE);
+	}
+
 	dummy = xdr_bytes(xdrs, (char **) pp,
 			(u_int *)&(objp->len), objp->maxlen);
 	return (dummy);

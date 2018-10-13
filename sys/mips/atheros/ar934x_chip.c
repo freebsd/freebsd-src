@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -314,6 +316,10 @@ ar934x_chip_reset_ethernet_switch(void)
 	ar71xx_device_stop(AR934X_RESET_ETH_SWITCH);
 	DELAY(100);
 	ar71xx_device_start(AR934X_RESET_ETH_SWITCH);
+	DELAY(100);
+	ar71xx_device_stop(AR934X_RESET_ETH_SWITCH_ANALOG);
+	DELAY(100);
+	ar71xx_device_start(AR934X_RESET_ETH_SWITCH_ANALOG);
 	DELAY(100);
 }
 

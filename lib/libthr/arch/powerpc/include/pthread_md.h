@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2004 by Peter Grehan. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,8 +81,6 @@ _tcb_get(void)
 
 	return ((struct tcb *)(_tp - TP_OFFSET));
 }
-
-extern struct pthread *_thr_initial;
 
 static __inline struct pthread *
 _get_curthread(void)

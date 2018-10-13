@@ -1,4 +1,4 @@
-/*	$NetBSD: t_basic.c,v 1.3 2010/06/09 08:37:16 pooka Exp $	*/
+/*	$NetBSD: t_basic.c,v 1.4 2017/01/13 21:30:40 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -18,7 +18,7 @@
 #include <miscfs/nullfs/null.h>
 #include <fs/tmpfs/tmpfs_args.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(basic);
 ATF_TC_HEAD(basic, tc)

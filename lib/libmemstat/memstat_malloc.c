@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
  *
@@ -277,15 +279,28 @@ kread_symbol(kvm_t *kvm, int index, void *address, size_t size,
 	return (0);
 }
 
+static int
+kread_zpcpu(kvm_t *kvm, u_long base, void *buf, size_t size, int cpu)
+{
+	ssize_t ret;
+
+	ret = kvm_read_zpcpu(kvm, base, buf, size, cpu);
+	if (ret < 0)
+		return (MEMSTAT_ERROR_KVM);
+	if ((size_t)ret != size)
+		return (MEMSTAT_ERROR_KVM_SHORTREAD);
+	return (0);
+}
+
 int
 memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 {
 	struct memory_type *mtp;
 	void *kmemstatistics;
-	int hint_dontsearch, j, mp_maxcpus, ret;
+	int hint_dontsearch, j, mp_maxcpus, mp_ncpus, ret;
 	char name[MEMTYPE_MAXNAME];
-	struct malloc_type_stats *mts, *mtsp;
-	struct malloc_type_internal *mtip;
+	struct malloc_type_stats mts;
+	struct malloc_type_internal mti, *mtip;
 	struct malloc_type type, *typep;
 	kvm_t *kvm;
 
@@ -318,17 +333,12 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 
-	mts = malloc(sizeof(struct malloc_type_stats) * mp_maxcpus);
-	if (mts == NULL) {
-		list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
-		return (-1);
-	}
+	mp_ncpus = kvm_getncpus(kvm);
 
 	for (typep = kmemstatistics; typep != NULL; typep = type.ks_next) {
 		ret = kread(kvm, typep, &type, sizeof(type), 0);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
-			free(mts);
 			list->mtl_error = ret;
 			return (-1);
 		}
@@ -336,7 +346,6 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		    MEMTYPE_MAXNAME);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
-			free(mts);
 			list->mtl_error = ret;
 			return (-1);
 		}
@@ -346,11 +355,9 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		 * kernel's, we populate our own array.
 		 */
 		mtip = type.ks_handle;
-		ret = kread(kvm, mtip->mti_stats, mts, mp_maxcpus *
-		    sizeof(struct malloc_type_stats), 0);
+		ret = kread(kvm, mtip, &mti, sizeof(mti), 0);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
-			free(mts);
 			list->mtl_error = ret;
 			return (-1);
 		}
@@ -364,7 +371,6 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 			    name, mp_maxcpus);
 		if (mtp == NULL) {
 			_memstat_mtl_empty(list);
-			free(mts);
 			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 			return (-1);
 		}
@@ -374,24 +380,34 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		 * be kept in sync.
 		 */
 		_memstat_mt_reset_stats(mtp, mp_maxcpus);
-		for (j = 0; j < mp_maxcpus; j++) {
-			mtsp = &mts[j];
-			mtp->mt_memalloced += mtsp->mts_memalloced;
-			mtp->mt_memfreed += mtsp->mts_memfreed;
-			mtp->mt_numallocs += mtsp->mts_numallocs;
-			mtp->mt_numfrees += mtsp->mts_numfrees;
-			mtp->mt_sizemask |= mtsp->mts_size;
+		for (j = 0; j < mp_ncpus; j++) {
+			ret = kread_zpcpu(kvm, (u_long)mti.mti_stats, &mts,
+			    sizeof(mts), j);
+			if (ret != 0) {
+				_memstat_mtl_empty(list);
+				list->mtl_error = ret;
+				return (-1);
+			}
+			mtp->mt_memalloced += mts.mts_memalloced;
+			mtp->mt_memfreed += mts.mts_memfreed;
+			mtp->mt_numallocs += mts.mts_numallocs;
+			mtp->mt_numfrees += mts.mts_numfrees;
+			mtp->mt_sizemask |= mts.mts_size;
 
 			mtp->mt_percpu_alloc[j].mtp_memalloced =
-			    mtsp->mts_memalloced;
+			    mts.mts_memalloced;
 			mtp->mt_percpu_alloc[j].mtp_memfreed =
-			    mtsp->mts_memfreed;
+			    mts.mts_memfreed;
 			mtp->mt_percpu_alloc[j].mtp_numallocs =
-			    mtsp->mts_numallocs;
+			    mts.mts_numallocs;
 			mtp->mt_percpu_alloc[j].mtp_numfrees =
-			    mtsp->mts_numfrees;
+			    mts.mts_numfrees;
 			mtp->mt_percpu_alloc[j].mtp_sizemask =
-			    mtsp->mts_size;
+			    mts.mts_size;
+		}
+		for (; j < mp_maxcpus; j++) {
+			bzero(&mtp->mt_percpu_alloc[j],
+			    sizeof(mtp->mt_percpu_alloc[0]));
 		}
 
 		mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;

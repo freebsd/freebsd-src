@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * Copyright (c) 2009-2010 The FreeBSD Foundation
  * All rights reserved.
@@ -109,8 +111,7 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 	wakeup(sc);
 	mtx_unlock(&sc->sc_queue_mtx);
 	gp = pp->geom;
-	pp->flags |= G_PF_WITHER;
-	g_orphan_provider(pp, ENXIO);
+	g_wither_provider(pp, ENXIO);
 	callout_drain(&sc->sc_callout);
 	bioq_init(&queue);
 	mtx_lock(&sc->sc_queue_mtx);
@@ -615,8 +616,8 @@ g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 			G_GATE_DEBUG(1, "Invalid media size.");
 			return (EINVAL);
 		}
-		/* TODO */
-		return (EOPNOTSUPP);
+		g_resize_provider(pp, ggio->gctl_mediasize);
+		return (0);
 	}
 
 	if ((ggio->gctl_modify & GG_MODIFY_INFO) != 0)
@@ -963,3 +964,4 @@ static moduledata_t g_gate_module = {
 };
 DECLARE_MODULE(geom_gate, g_gate_module, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 DECLARE_GEOM_CLASS(g_gate_class, g_gate);
+MODULE_VERSION(geom_gate, 0);

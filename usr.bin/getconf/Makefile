@@ -1,20 +1,24 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	getconf
 
-SRCS=	confstr.c getconf.c limits.c pathconf.c progenv.c sysconf.c
+SRCS=	confstr.c getconf.c limits.c pathconf.c progenv.c sysconf.c \
+	unsigned_limits.c
 CFLAGS+= -I${.CURDIR}
 CLEANFILES+=	confstr.c limits.c pathconf.c progenv.c sysconf.c \
 		confstr.names limits.names pathconf.names sysconf.names \
-		conflicting.names unique.names
+		conflicting.names unique.names unsigned_limits.names
 
 .SUFFIXES: .gperf .names
 .PHONY: conflicts
 
 all:	conflicts
 
-.gperf.c:
-	LC_ALL=C awk -f ${.CURDIR}/fake-gperf.awk ${.IMPSRC} >${.TARGET}
+FAKE_GPERF=	${.CURDIR}/fake-gperf.awk
+.gperf.c: ${FAKE_GPERF}
+	LC_ALL=C awk -f ${FAKE_GPERF} ${.IMPSRC} >${.TARGET}
 
 .gperf.names:
 	LC_ALL=C awk '/^[_A-Z]/ { print; }' ${.IMPSRC} | \
@@ -33,5 +37,8 @@ conflicting.names:	confstr.names limits.names sysconf.names
 
 unique.names:		conflicting.names
 	LC_ALL=C sort -u ${.ALLSRC} >${.TARGET}
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

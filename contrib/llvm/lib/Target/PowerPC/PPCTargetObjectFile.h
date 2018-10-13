@@ -10,8 +10,8 @@
 #ifndef LLVM_LIB_TARGET_POWERPC_PPCTARGETOBJECTFILE_H
 #define LLVM_LIB_TARGET_POWERPC_PPCTARGETOBJECTFILE_H
 
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -22,8 +22,7 @@ namespace llvm {
 
     void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
-    MCSection *SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                                      Mangler &Mang,
+    MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
                                       const TargetMachine &TM) const override;
 
     /// \brief Describe a TLS variable address within debug info.

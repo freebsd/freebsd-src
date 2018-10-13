@@ -1,4 +1,4 @@
-/*	$NetBSD: t_renamerace.c,v 1.13 2011/08/18 21:44:55 riastradh Exp $	*/
+/*	$NetBSD: t_renamerace.c,v 1.14 2017/01/13 21:30:40 christos Exp $	*/
 
 /*
  * Modified for rump and atf from a program supplied
@@ -23,7 +23,7 @@
 
 #include <fs/tmpfs/tmpfs_args.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(renamerace2);
 ATF_TC_HEAD(renamerace2, tc)

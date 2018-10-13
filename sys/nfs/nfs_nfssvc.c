@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,9 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/nfssvc.h>
 
-static int nfssvc_offset = SYS_nfssvc;
-static struct sysent nfssvc_prev_sysent;
-MAKE_SYSENT(nfssvc);
+static struct syscall_helper_data nfssvc_syscalls[] = {
+	SYSCALL_INIT_HELPER(nfssvc),
+	SYSCALL_INIT_LAST
+};
 
 /*
  * This tiny module simply handles the nfssvc() system call. The other
@@ -92,7 +95,7 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 	    nfsd_call_nfsserver != NULL)
 		error = (*nfsd_call_nfsserver)(td, uap);
 	else if ((uap->flag & (NFSSVC_CBADDSOCK | NFSSVC_NFSCBD |
-	    NFSSVC_DUMPMNTOPTS)) && nfsd_call_nfscl != NULL)
+	    NFSSVC_DUMPMNTOPTS | NFSSVC_FORCEDISM)) && nfsd_call_nfscl != NULL)
 		error = (*nfsd_call_nfscl)(td, uap);
 	else if ((uap->flag & (NFSSVC_IDNAME | NFSSVC_GETSTATS |
 	    NFSSVC_GSSDADDPORT | NFSSVC_GSSDADDFIRST | NFSSVC_GSSDDELETEALL |
@@ -103,7 +106,7 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 	    NFSSVC_PUBLICFH | NFSSVC_V4ROOTEXPORT | NFSSVC_NOPUBLICFH |
 	    NFSSVC_STABLERESTART | NFSSVC_ADMINREVOKE |
 	    NFSSVC_DUMPCLIENTS | NFSSVC_DUMPLOCKS | NFSSVC_BACKUPSTABLE |
-	    NFSSVC_SUSPENDNFSD | NFSSVC_RESUMENFSD)) &&
+	    NFSSVC_SUSPENDNFSD | NFSSVC_RESUMENFSD | NFSSVC_PNFSDS)) &&
 	    nfsd_call_nfsd != NULL)
 		error = (*nfsd_call_nfsd)(td, uap);
 	if (error == EINTR || error == ERESTART)
@@ -117,16 +120,12 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 static int
 nfssvc_modevent(module_t mod, int type, void *data)
 {
-	static int registered;
 	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		error = syscall_register(&nfssvc_offset, &nfssvc_sysent,
-		    &nfssvc_prev_sysent, SY_THR_STATIC_KLD);
-		if (error)
-			break;
-		registered = 1;
+		error = syscall_helper_register(nfssvc_syscalls,
+		    SY_THR_STATIC_KLD);
 		break;
 
 	case MOD_UNLOAD:
@@ -135,9 +134,7 @@ nfssvc_modevent(module_t mod, int type, void *data)
 			error = EBUSY;
 			break;
 		}
-		if (registered)
-			syscall_deregister(&nfssvc_offset, &nfssvc_prev_sysent);
-		registered = 0;
+		syscall_helper_unregister(nfssvc_syscalls);
 		break;
 	default:
 		error = EOPNOTSUPP;

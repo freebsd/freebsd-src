@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -299,7 +301,6 @@ fd_package_recv(int sock, int *fds, size_t nfds)
 	PJDLOG_ASSERT(nfds > 0);
 	PJDLOG_ASSERT(fds != NULL);
 
-	i = 0;
 	bzero(&msg, sizeof(msg));
 	bzero(&iov, sizeof(iov));
 

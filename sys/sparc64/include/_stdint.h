@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001, 2002 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.

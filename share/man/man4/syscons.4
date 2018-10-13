@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2014
+.Dd June 2, 2018
 .Dt SYSCONS 4
 .Os
 .Sh NAME
@@ -53,6 +53,7 @@
 .Cd "options SC_NORM_ATTR=_attribute_"
 .Cd "options SC_NORM_REV_ATTR=_attribute_"
 .Cd "options SC_KERNEL_CONS_ATTR=_attribute_"
+.Cd "options SC_KERNEL_CONS_ATTRS=_attributes_"
 .Cd "options SC_KERNEL_CONS_REV_ATTR=_attribute_"
 .Cd "options SC_DFLT_FONT"
 .Cd "makeoptions SC_DFLT_FONT=_font_name_"
@@ -341,6 +342,7 @@ above.
 .It Dv SC_NORM_ATTR=_attribute_
 .It Dv SC_NORM_REV_ATTR=_attribute_
 .It Dv SC_KERNEL_CONS_ATTR=_attribute_
+.It Dv SC_KERNEL_CONS_ATTRS=_attributes_
 .It Dv SC_KERNEL_CONS_REV_ATTR=_attribute_
 These options will set the default colors.
 Available colors are defined in
@@ -348,6 +350,11 @@ Available colors are defined in
 See
 .Sx EXAMPLES
 below.
+.Dv SC_KERNEL_CONS_ATTRS
+is a character string giving a sequence of attributes in binary format.
+The sequence will be repeated up to the number of CPUs.
+Beware that the string must not be null,
+since the kernel divides by its length.
 .It Dv SC_DFLT_FONT
 This option will specify the default font.
 Available fonts are: iso, iso2, koi8-r, koi8-u, cp437, cp850, cp865,
@@ -468,9 +475,11 @@ be selected by setting this variable to
 .Ql sc
 or
 .Ql vt .
-If not set,
-.Nm
-provides the default system console.
+The
+.Pa GENERIC
+kernel uses
+.Xr vt 4
+when this value is not set.
 .El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/xxxxyyyyzzz -compact
@@ -536,6 +545,23 @@ The reversed message will be black on red background.
 .Pp
 .Dl "options SC_KERNEL_CONS_ATTR=(FG_LIGHTRED|BG_BLACK)"
 .Dl "options SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)"
+.Pp
+Provided
+.Dv SC_KERNEL_CONS_ATTR
+is not set, or is set to its default of bright white on black,
+the following line will set 4 red-ish colors
+for printing kernel messages in colors depending on the CPU.
+.Pp
+.Dl options SC_KERNEL_CONS_ATTRS=\e"\ex0c\ex04\ex40\ex0e\e"
+.Pp
+The default scheme is probably better for up to 8 CPUs.
+Use a long string to get unique colors for more than 8 CPUs.
+.Pp
+To turn off all per-CPU coloring of kernel messages,
+set SC_KERNEL_CONS_ATTR to a non-default value,
+or use the default in a pattern of length 1.
+.Pp
+.Dl options SC_KERNEL_CONS_ATTRS=\e"\ex0f\e"
 .Pp
 The following example adds the font files
 .Pa cp850-8x16.fnt ,

@@ -118,12 +118,12 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 
 	if (kdb_frame == NULL)
 		return (0);
-        reg = (register_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
-        if (op == DB_VAR_GET)
-                *valuep = *reg;
-        else
-                *reg = *valuep;
-        return (1);
+	reg = (register_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
 }
 
 
@@ -215,12 +215,17 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			switch (tf->exc) {
 			case EXC_DSI:
 				/* XXX take advantage of the union. */
+#ifdef BOOKE
+				db_printf("DSI %s trap @ %#zx by ",
+				    (tf->cpu.booke.esr & ESR_ST) ? "write"
+				    : "read", tf->dar);
+#else
 				db_printf("DSI %s trap @ %#zx by ",
 				    (tf->cpu.aim.dsisr & DSISR_STORE) ? "write"
 				    : "read", tf->dar);
+#endif
 				goto print_trap;
 			case EXC_ALI:
-				/* XXX take advantage of the union. */
 				db_printf("ALI trap @ %#zx (xSR %#x) ",
 				    tf->dar, (uint32_t)tf->cpu.aim.dsisr);
 				goto print_trap;
@@ -237,8 +242,8 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			case EXC_SC: trapstr = "SC"; break;
 			case EXC_EXI: trapstr = "EXI"; break;
 			case EXC_MCHK: trapstr = "MCHK"; break;
-#if !defined(BOOKE)
 			case EXC_VEC: trapstr = "VEC"; break;
+#if !defined(BOOKE)
 			case EXC_FPA: trapstr = "FPA"; break;
 			case EXC_BPT: trapstr = "BPT"; break;
 			case EXC_TRC: trapstr = "TRC"; break;
@@ -296,8 +301,12 @@ db_trace_self(void)
 {
 	db_addr_t addr;
 
-	addr = (db_addr_t)__builtin_frame_address(1);
-	db_backtrace(curthread, addr, -1);
+	addr = (db_addr_t)__builtin_frame_address(0);
+	if (addr == 0) {
+		db_printf("Null frame address\n");
+		return;
+	}
+	db_backtrace(curthread, *(db_addr_t *)addr, -1);
 }
 
 int

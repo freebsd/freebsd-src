@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2010 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
@@ -132,8 +134,10 @@ typedef	pt_entry_t *pd_entry_t;
  * 		it is matched.
  */
 #define	PTE_C(attr)		((attr & 0x07) << 3)
+#define	PTE_C_MASK		(PTE_C(0x07))
 #define	PTE_C_UNCACHED		(PTE_C(MIPS_CCA_UNCACHED))
 #define	PTE_C_CACHE		(PTE_C(MIPS_CCA_CACHED))
+#define	PTE_C_WC		(PTE_C(MIPS_CCA_WC))
 #define	PTE_D			0x04
 #define	PTE_V			0x02
 #define	PTE_G			0x01
@@ -158,6 +162,7 @@ typedef	pt_entry_t *pd_entry_t;
 #define	pte_clear(pte, bit)	(*(pte) &= ~(bit))
 #define	pte_set(pte, bit)	(*(pte) |= (bit))
 #define	pte_test(pte, bit)	((*(pte) & (bit)) == (bit))
+#define	pte_cache_bits(pte)	((*(pte) >> 3) & 0x07)
 
 /* Assembly support for PTE access*/
 #ifdef LOCORE

@@ -1,4 +1,4 @@
-//===-- llvm/CodeGen/MachineInstr.h - MachineInstr class --------*- C++ -*-===//
+//===- llvm/CodeGen/MachineInstr.h - MachineInstr class ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,30 +16,39 @@
 #ifndef LLVM_CODEGEN_MACHINEINSTR_H
 #define LLVM_CODEGEN_MACHINEINSTR_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMapInfo.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/IR/DebugInfo.h"
+#include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Support/ArrayRecycler.h"
-#include "llvm/Target/TargetOpcodes.h"
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <utility>
 
 namespace llvm {
 
+template <typename T> class ArrayRef;
+class DIExpression;
+class DILocalVariable;
+class MachineBasicBlock;
+class MachineFunction;
+class MachineMemOperand;
+class MachineRegisterInfo;
+class ModuleSlotTracker;
+class raw_ostream;
 template <typename T> class SmallVectorImpl;
+class SmallBitVector;
+class StringRef;
 class TargetInstrInfo;
 class TargetRegisterClass;
 class TargetRegisterInfo;
-class MachineFunction;
-class MachineMemOperand;
 
 //===----------------------------------------------------------------------===//
 /// Representation of each machine instruction.
@@ -49,16 +58,19 @@ class MachineMemOperand;
 /// without having their destructor called.
 ///
 class MachineInstr
-    : public ilist_node_with_parent<MachineInstr, MachineBasicBlock> {
+    : public ilist_node_with_parent<MachineInstr, MachineBasicBlock,
+                                    ilist_sentinel_tracking<true>> {
 public:
-  typedef MachineMemOperand **mmo_iterator;
+  using mmo_iterator = MachineMemOperand **;
 
   /// Flags to specify different kinds of comments to output in
   /// assembly code.  These flags carry semantic information not
   /// otherwise easily derivable from the IR text.
   ///
   enum CommentFlag {
-    ReloadReuse = 0x1
+    ReloadReuse = 0x1,    // higher bits are reserved for target dep comments.
+    NoSchedComment = 0x2,
+    TAsmComments = 0x4    // Target Asm comments should start from this value.
   };
 
   enum MIFlag {
@@ -70,46 +82,42 @@ public:
     BundledPred  = 1 << 2,              // Instruction has bundled predecessors.
     BundledSucc  = 1 << 3               // Instruction has bundled successors.
   };
+
 private:
   const MCInstrDesc *MCID;              // Instruction descriptor.
-  MachineBasicBlock *Parent;            // Pointer to the owning basic block.
+  MachineBasicBlock *Parent = nullptr;  // Pointer to the owning basic block.
 
   // Operands are allocated by an ArrayRecycler.
-  MachineOperand *Operands;             // Pointer to the first operand.
-  unsigned NumOperands;                 // Number of operands on instruction.
-  typedef ArrayRecycler<MachineOperand>::Capacity OperandCapacity;
+  MachineOperand *Operands = nullptr;   // Pointer to the first operand.
+  unsigned NumOperands = 0;             // Number of operands on instruction.
+  using OperandCapacity = ArrayRecycler<MachineOperand>::Capacity;
   OperandCapacity CapOperands;          // Capacity of the Operands array.
 
-  uint8_t Flags;                        // Various bits of additional
+  uint8_t Flags = 0;                    // Various bits of additional
                                         // information about machine
                                         // instruction.
 
-  uint8_t AsmPrinterFlags;              // Various bits of information used by
+  uint8_t AsmPrinterFlags = 0;          // Various bits of information used by
                                         // the AsmPrinter to emit helpful
                                         // comments.  This is *not* semantic
                                         // information.  Do not use this for
                                         // anything other than to convey comment
                                         // information to AsmPrinter.
 
-  uint8_t NumMemRefs;                   // Information on memory references.
+  uint8_t NumMemRefs = 0;               // Information on memory references.
   // Note that MemRefs == nullptr,  means 'don't know', not 'no memory access'.
   // Calling code must treat missing information conservatively.  If the number
   // of memory operands required to be precise exceeds the maximum value of
   // NumMemRefs - currently 256 - we remove the operands entirely. Note also
   // that this is a non-owning reference to a shared copy on write buffer owned
   // by the MachineFunction and created via MF.allocateMemRefsArray.
-  mmo_iterator MemRefs;
+  mmo_iterator MemRefs = nullptr;
 
   DebugLoc debugLoc;                    // Source line information.
 
-  MachineInstr(const MachineInstr&) = delete;
-  void operator=(const MachineInstr&) = delete;
-  // Use MachineFunction::DeleteMachineInstr() instead.
-  ~MachineInstr() = delete;
-
   // Intrusive list support
   friend struct ilist_traits<MachineInstr>;
-  friend struct ilist_traits<MachineBasicBlock>;
+  friend struct ilist_callback_traits<MachineBasicBlock>;
   void setParent(MachineBasicBlock *P) { Parent = P; }
 
   /// This constructor creates a copy of the given
@@ -126,8 +134,24 @@ private:
   friend class MachineFunction;
 
 public:
+  MachineInstr(const MachineInstr &) = delete;
+  MachineInstr &operator=(const MachineInstr &) = delete;
+  // Use MachineFunction::DeleteMachineInstr() instead.
+  ~MachineInstr() = delete;
+
   const MachineBasicBlock* getParent() const { return Parent; }
   MachineBasicBlock* getParent() { return Parent; }
+
+  /// Return the function that contains the basic block that this instruction
+  /// belongs to.
+  ///
+  /// Note: this is undefined behaviour if the instruction does not have a
+  /// parent.
+  const MachineFunction *getMF() const;
+  MachineFunction *getMF() {
+    return const_cast<MachineFunction *>(
+        static_cast<const MachineInstr *>(this)->getMF());
+  }
 
   /// Return the asm printer flags bitvector.
   uint8_t getAsmPrinterFlags() const { return AsmPrinterFlags; }
@@ -141,8 +165,8 @@ public:
   }
 
   /// Set a flag for the AsmPrinter.
-  void setAsmPrinterFlag(CommentFlag Flag) {
-    AsmPrinterFlags |= (uint8_t)Flag;
+  void setAsmPrinterFlag(uint8_t Flag) {
+    AsmPrinterFlags |= Flag;
   }
 
   /// Clear specific AsmPrinter flags.
@@ -248,17 +272,11 @@ public:
 
   /// Return the debug variable referenced by
   /// this DBG_VALUE instruction.
-  const DILocalVariable *getDebugVariable() const {
-    assert(isDebugValue() && "not a DBG_VALUE");
-    return cast<DILocalVariable>(getOperand(2).getMetadata());
-  }
+  const DILocalVariable *getDebugVariable() const;
 
   /// Return the complex address expression referenced by
   /// this DBG_VALUE instruction.
-  const DIExpression *getDebugExpression() const {
-    assert(isDebugValue() && "not a DBG_VALUE");
-    return cast<DIExpression>(getOperand(3).getMetadata());
-  }
+  const DIExpression *getDebugExpression() const;
 
   /// Emit an error referring to the source location of this instruction.
   /// This should only be used for inline assembly that is somehow
@@ -266,7 +284,6 @@ public:
   /// earlier.
   ///
   /// If this method returns, the caller should try to recover from the error.
-  ///
   void emitError(StringRef Msg) const;
 
   /// Returns the target instruction descriptor of this MachineInstr.
@@ -276,7 +293,6 @@ public:
   unsigned getOpcode() const { return MCID->Opcode; }
 
   /// Access to explicit operands of the instruction.
-  ///
   unsigned getNumOperands() const { return NumOperands; }
 
   const MachineOperand& getOperand(unsigned i) const {
@@ -288,12 +304,27 @@ public:
     return Operands[i];
   }
 
+  /// Return true if operand \p OpIdx is a subregister index.
+  bool isOperandSubregIdx(unsigned OpIdx) const {
+    assert(getOperand(OpIdx).getType() == MachineOperand::MO_Immediate &&
+           "Expected MO_Immediate operand type.");
+    if (isExtractSubreg() && OpIdx == 2)
+      return true;
+    if (isInsertSubreg() && OpIdx == 3)
+      return true;
+    if (isRegSequence() && OpIdx > 1 && (OpIdx % 2) == 0)
+      return true;
+    if (isSubregToReg() && OpIdx == 3)
+      return true;
+    return false;
+  }
+
   /// Returns the number of non-implicit operands.
   unsigned getNumExplicitOperands() const;
 
   /// iterator/begin/end - Iterate over all operands of a machine instruction.
-  typedef MachineOperand *mop_iterator;
-  typedef const MachineOperand *const_mop_iterator;
+  using mop_iterator = MachineOperand *;
+  using const_mop_iterator = const MachineOperand *;
 
   mop_iterator operands_begin() { return Operands; }
   mop_iterator operands_end() { return Operands + NumOperands; }
@@ -343,6 +374,14 @@ public:
     return make_range(operands_begin() + getDesc().getNumDefs(),
                       operands_end());
   }
+  iterator_range<mop_iterator> explicit_uses() {
+    return make_range(operands_begin() + getDesc().getNumDefs(),
+                      operands_begin() + getNumExplicitOperands() );
+  }
+  iterator_range<const_mop_iterator> explicit_uses() const {
+    return make_range(operands_begin() + getDesc().getNumDefs(),
+                      operands_begin() + getNumExplicitOperands() );
+  }
 
   /// Returns the number of the operand iterator \p I points to.
   unsigned getOperandNo(const_mop_iterator I) const {
@@ -369,6 +408,9 @@ public:
     return NumMemRefs == 1;
   }
 
+  /// Return the number of memory operands.
+  unsigned getNumMemOperands() const { return NumMemRefs; }
+
   /// API for querying MachineInstr properties. They are the same as MCInstrDesc
   /// queries but they are bundle aware.
 
@@ -386,10 +428,10 @@ public:
   bool hasProperty(unsigned MCFlag, QueryType Type = AnyInBundle) const {
     // Inline the fast path for unbundled or bundle-internal instructions.
     if (Type == IgnoreBundle || !isBundled() || isBundledWithPred())
-      return getDesc().getFlags() & (1 << MCFlag);
+      return getDesc().getFlags() & (1ULL << MCFlag);
 
     // If this is the first instruction in a bundle, take the slow path.
-    return hasPropertyInBundle(1 << MCFlag, Type);
+    return hasPropertyInBundle(1ULL << MCFlag, Type);
   }
 
   /// Return true if this instruction can have a variable number of operands.
@@ -508,6 +550,11 @@ public:
   /// Convergent instructions can not be made control-dependent on any
   /// additional values.
   bool isConvergent(QueryType Type = AnyInBundle) const {
+    if (isInlineAsm()) {
+      unsigned ExtraInfo = getOperand(InlineAsm::MIOp_ExtraInfo).getImm();
+      if (ExtraInfo & InlineAsm::Extra_IsConvergent)
+        return true;
+    }
     return hasProperty(MCID::Convergent, Type);
   }
 
@@ -703,7 +750,6 @@ public:
     return hasProperty(MCID::ExtraDefRegAllocReq, Type);
   }
 
-
   enum MICheckType {
     CheckDefs,      // Check all operands for equality
     CheckKillDead,  // Check all operands including kill / dead markers
@@ -711,9 +757,12 @@ public:
     IgnoreVRegDefs  // Ignore virtual register definitions
   };
 
-  /// Return true if this instruction is identical to (same
-  /// opcode and same operands as) the specified instruction.
-  bool isIdenticalTo(const MachineInstr *Other,
+  /// Return true if this instruction is identical to \p Other.
+  /// Two instructions are identical if they have the same opcode and all their
+  /// operands are identical (with respect to MachineOperand::isIdenticalTo()).
+  /// Note that this means liveness related flags (dead, undef, kill) do not
+  /// affect the notion of identical.
+  bool isIdenticalTo(const MachineInstr &Other,
                      MICheckType Check = CheckDefs) const;
 
   /// Unlink 'this' from the containing basic block, and return it without
@@ -751,9 +800,15 @@ public:
 
   bool isEHLabel() const { return getOpcode() == TargetOpcode::EH_LABEL; }
   bool isGCLabel() const { return getOpcode() == TargetOpcode::GC_LABEL; }
+  bool isAnnotationLabel() const {
+    return getOpcode() == TargetOpcode::ANNOTATION_LABEL;
+  }
 
   /// Returns true if the MachineInstr represents a label.
-  bool isLabel() const { return isEHLabel() || isGCLabel(); }
+  bool isLabel() const {
+    return isEHLabel() || isGCLabel() || isAnnotationLabel();
+  }
+
   bool isCFIInstruction() const {
     return getOpcode() == TargetOpcode::CFI_INSTRUCTION;
   }
@@ -762,6 +817,7 @@ public:
   bool isPosition() const { return isLabel() || isCFIInstruction(); }
 
   bool isDebugValue() const { return getOpcode() == TargetOpcode::DBG_VALUE; }
+
   /// A DBG_VALUE is indirect iff the first operand is a register and
   /// the second operand is an immediate.
   bool isIndirectDebugValue() const {
@@ -770,33 +826,45 @@ public:
       && getOperand(1).isImm();
   }
 
-  bool isPHI() const { return getOpcode() == TargetOpcode::PHI; }
+  bool isPHI() const {
+    return getOpcode() == TargetOpcode::PHI ||
+           getOpcode() == TargetOpcode::G_PHI;
+  }
   bool isKill() const { return getOpcode() == TargetOpcode::KILL; }
   bool isImplicitDef() const { return getOpcode()==TargetOpcode::IMPLICIT_DEF; }
   bool isInlineAsm() const { return getOpcode() == TargetOpcode::INLINEASM; }
+
   bool isMSInlineAsm() const {
     return getOpcode() == TargetOpcode::INLINEASM && getInlineAsmDialect();
   }
+
   bool isStackAligningInlineAsm() const;
   InlineAsm::AsmDialect getInlineAsmDialect() const;
+
   bool isInsertSubreg() const {
     return getOpcode() == TargetOpcode::INSERT_SUBREG;
   }
+
   bool isSubregToReg() const {
     return getOpcode() == TargetOpcode::SUBREG_TO_REG;
   }
+
   bool isRegSequence() const {
     return getOpcode() == TargetOpcode::REG_SEQUENCE;
   }
+
   bool isBundle() const {
     return getOpcode() == TargetOpcode::BUNDLE;
   }
+
   bool isCopy() const {
     return getOpcode() == TargetOpcode::COPY;
   }
+
   bool isFullCopy() const {
     return isCopy() && !getOperand(0).getSubReg() && !getOperand(1).getSubReg();
   }
+
   bool isExtractSubreg() const {
     return getOpcode() == TargetOpcode::EXTRACT_SUBREG;
   }
@@ -813,26 +881,36 @@ public:
       getOperand(0).getSubReg() == getOperand(1).getSubReg();
   }
 
-  /// Return true if this is a transient instruction that is
-  /// either very likely to be eliminated during register allocation (such as
-  /// copy-like instructions), or if this instruction doesn't have an
-  /// execution-time cost.
-  bool isTransient() const {
-    switch(getOpcode()) {
-    default: return false;
-    // Copy-like instructions are usually eliminated during register allocation.
-    case TargetOpcode::PHI:
-    case TargetOpcode::COPY:
-    case TargetOpcode::INSERT_SUBREG:
-    case TargetOpcode::SUBREG_TO_REG:
-    case TargetOpcode::REG_SEQUENCE:
-    // Pseudo-instructions that don't produce any real output.
+  /// Return true if this instruction doesn't produce any output in the form of
+  /// executable instructions.
+  bool isMetaInstruction() const {
+    switch (getOpcode()) {
+    default:
+      return false;
     case TargetOpcode::IMPLICIT_DEF:
     case TargetOpcode::KILL:
     case TargetOpcode::CFI_INSTRUCTION:
     case TargetOpcode::EH_LABEL:
     case TargetOpcode::GC_LABEL:
     case TargetOpcode::DBG_VALUE:
+      return true;
+    }
+  }
+
+  /// Return true if this is a transient instruction that is either very likely
+  /// to be eliminated during register allocation (such as copy-like
+  /// instructions), or if this instruction doesn't have an execution-time cost.
+  bool isTransient() const {
+    switch (getOpcode()) {
+    default:
+      return isMetaInstruction();
+    // Copy-like instructions are usually eliminated during register allocation.
+    case TargetOpcode::PHI:
+    case TargetOpcode::G_PHI:
+    case TargetOpcode::COPY:
+    case TargetOpcode::INSERT_SUBREG:
+    case TargetOpcode::SUBREG_TO_REG:
+    case TargetOpcode::REG_SEQUENCE:
       return true;
     }
   }
@@ -899,6 +977,10 @@ public:
     return findRegisterDefOperandIdx(Reg, true, false, TRI) != -1;
   }
 
+  /// Returns true if the MachineInstr has an implicit-use operand of exactly
+  /// the given register (not considering sub/super-registers).
+  bool hasRegisterImplicitUseOperand(unsigned Reg) const;
+
   /// Returns the operand index that is a use of the specific register or -1
   /// if it is not found. It further tightens the search criteria to a use
   /// that kills the register if isKill is true.
@@ -952,7 +1034,6 @@ public:
   ///
   /// The flag operand is an immediate that can be decoded with methods like
   /// InlineAsm::hasRegClassConstraint().
-  ///
   int findInlineAsmFlagIdx(unsigned OpIdx, unsigned *GroupNo = nullptr) const;
 
   /// Compute the static register class constraint for operand OpIdx.
@@ -961,7 +1042,6 @@ public:
   ///
   /// Returns NULL if the static register class constraint cannot be
   /// determined.
-  ///
   const TargetRegisterClass*
   getRegClassConstraint(unsigned OpIdx,
                         const TargetInstrInfo *TII,
@@ -1054,8 +1134,8 @@ public:
                          const TargetRegisterInfo *RegInfo,
                          bool AddIfNotFound = false);
 
-  /// Clear all kill flags affecting Reg.  If RegInfo is
-  /// provided, this includes super-register kills.
+  /// Clear all kill flags affecting Reg.  If RegInfo is provided, this includes
+  /// all aliasing registers.
   void clearRegisterKills(unsigned Reg, const TargetRegisterInfo *RegInfo);
 
   /// We have determined MI defined a register without a use.
@@ -1091,18 +1171,32 @@ public:
   /// the instruction's location and its intended destination.
   bool isSafeToMove(AliasAnalysis *AA, bool &SawStore) const;
 
+  /// Returns true if this instruction's memory access aliases the memory
+  /// access of Other.
+  //
+  /// Assumes any physical registers used to compute addresses
+  /// have the same value for both instructions.  Returns false if neither
+  /// instruction writes to memory.
+  ///
+  /// @param AA Optional alias analysis, used to compare memory operands.
+  /// @param Other MachineInstr to check aliasing against.
+  /// @param UseTBAA Whether to pass TBAA information to alias analysis.
+  bool mayAlias(AliasAnalysis *AA, MachineInstr &Other, bool UseTBAA);
+
   /// Return true if this instruction may have an ordered
   /// or volatile memory reference, or if the information describing the memory
   /// reference is not available. Return false if it is known to have no
   /// ordered or volatile memory references.
   bool hasOrderedMemoryRef() const;
 
-  /// Return true if this instruction is loading from a
-  /// location whose value is invariant across the function.  For example,
-  /// loading a value from the constant pool or from the argument area of
-  /// a function if it does not change.  This should only return true of *all*
-  /// loads the instruction does are invariant (if it does multiple loads).
-  bool isInvariantLoad(AliasAnalysis *AA) const;
+  /// Return true if this load instruction never traps and points to a memory
+  /// location whose value doesn't change during the execution of this function.
+  ///
+  /// Examples include loading a value from the constant pool or from the
+  /// argument area of a function (if it does not change).  If the instruction
+  /// does multiple loads, this returns true only if all of the loads are
+  /// dereferenceable and invariant.
+  bool isDereferenceableInvariantLoad(AliasAnalysis *AA) const;
 
   /// If the specified instruction is a PHI that always merges together the
   /// same virtual register, return the register, otherwise return 0.
@@ -1125,15 +1219,32 @@ public:
 
   /// Copy implicit register operands from specified
   /// instruction to this instruction.
-  void copyImplicitOps(MachineFunction &MF, const MachineInstr *MI);
+  void copyImplicitOps(MachineFunction &MF, const MachineInstr &MI);
 
-  //
-  // Debugging support
-  //
-  void print(raw_ostream &OS, bool SkipOpers = false) const;
-  void print(raw_ostream &OS, ModuleSlotTracker &MST,
-             bool SkipOpers = false) const;
+  /// Debugging support
+  /// @{
+  /// Determine the generic type to be printed (if needed) on uses and defs.
+  LLT getTypeToPrint(unsigned OpIdx, SmallBitVector &PrintedTypes,
+                     const MachineRegisterInfo &MRI) const;
+
+  /// Return true when an instruction has tied register that can't be determined
+  /// by the instruction's descriptor. This is useful for MIR printing, to
+  /// determine whether we need to print the ties or not.
+  bool hasComplexRegisterTies() const;
+
+  /// Print this MI to \p OS.
+  /// Only print the defs and the opcode if \p SkipOpers is true.
+  /// Otherwise, also print operands if \p SkipDebugLoc is true.
+  /// Otherwise, also print the debug loc, with a terminating newline.
+  /// \p TII is used to print the opcode name.  If it's not present, but the
+  /// MI is in a function, the opcode will be printed using the function's TII.
+  void print(raw_ostream &OS, bool SkipOpers = false, bool SkipDebugLoc = false,
+             const TargetInstrInfo *TII = nullptr) const;
+  void print(raw_ostream &OS, ModuleSlotTracker &MST, bool SkipOpers = false,
+             bool SkipDebugLoc = false,
+             const TargetInstrInfo *TII = nullptr) const;
   void dump() const;
+  /// @}
 
   //===--------------------------------------------------------------------===//
   // Accessors used to build up machine instructions.
@@ -1168,7 +1279,7 @@ public:
     assert(debugLoc.hasTrivialDestructor() && "Expected trivial destructor");
   }
 
-  /// Erase an operand  from an instruction, leaving it with one
+  /// Erase an operand from an instruction, leaving it with one
   /// fewer operand than it started with.
   void RemoveOperand(unsigned i);
 
@@ -1268,7 +1379,7 @@ struct MachineInstrExpressionTrait : DenseMapInfo<MachineInstr*> {
     if (RHS == getEmptyKey() || RHS == getTombstoneKey() ||
         LHS == getEmptyKey() || LHS == getTombstoneKey())
       return LHS == RHS;
-    return LHS->isIdenticalTo(RHS, MachineInstr::IgnoreVRegDefs);
+    return LHS->isIdenticalTo(*RHS, MachineInstr::IgnoreVRegDefs);
   }
 };
 
@@ -1280,6 +1391,6 @@ inline raw_ostream& operator<<(raw_ostream &OS, const MachineInstr &MI) {
   return OS;
 }
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_CODEGEN_MACHINEINSTR_H

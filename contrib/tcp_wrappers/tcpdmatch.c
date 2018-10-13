@@ -31,6 +31,7 @@ static char sccsid[] = "@(#) tcpdmatch.c 1.5 96/02/11 17:01:36";
 #include <syslog.h>
 #include <setjmp.h>
 #include <string.h>
+#include <unistd.h>
 
 extern void exit();
 extern int optind;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
  * All rights reserved.
  *
@@ -62,28 +64,26 @@
 #define	CHIPC_SPI_FLASHDATA			0x08
 
 struct chipc_spi_softc {
-	device_t		 dev;
+	device_t		 sc_dev;
+	struct resource		*sc_res;	/**< SPI registers */
+	int			 sc_rid;
 
-	/* SPI registers */
-	struct resource		*sc_mem_res;
-
-	/* MMIO flash */
-	struct resource		*sc_res;
+	struct resource		*sc_flash_res;	/**< flash shadow */
+	int			 sc_flash_rid;
 };
 
 /* register space access macros */
-#define	SPI_BARRIER_WRITE(sc)	bus_barrier((sc)->sc_mem_res, 0, 0, 	\
+#define	SPI_BARRIER_WRITE(sc)	bus_barrier((sc)->sc_res, 0, 0, 	\
 				    BUS_SPACE_BARRIER_WRITE)
-#define	SPI_BARRIER_READ(sc)	bus_barrier((sc)->sc_mem_res, 0, 0, 	\
+#define	SPI_BARRIER_READ(sc)	bus_barrier((sc)->sc_res, 0, 0, 	\
 				    BUS_SPACE_BARRIER_READ)
-#define	SPI_BARRIER_RW(sc)	bus_barrier((sc)->sc_mem_res, 0, 0, 	\
-			            BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
+#define	SPI_BARRIER_RW(sc)	bus_barrier((sc)->sc_res, 0, 0, 	\
+			            BUS_SPACE_BARRIER_READ |		\
+			            BUS_SPACE_BARRIER_WRITE)
 
-#define SPI_WRITE(sc, reg, val) do {					\
-		bus_write_4(sc->sc_mem_res, (reg), (val));		\
-	} while (0)
+#define SPI_WRITE(sc, reg, val)	bus_write_4(sc->sc_res, (reg), (val));
 
-#define	SPI_READ(sc, reg)	bus_read_4(sc->sc_mem_res, (reg))
+#define	SPI_READ(sc, reg)	bus_read_4(sc->sc_res, (reg))
 
 #define	SPI_SET_BITS(sc, reg, bits)					\
 	SPI_WRITE(sc, reg, SPI_READ(sc, (reg)) | (bits))

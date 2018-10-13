@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
@@ -39,25 +41,23 @@
 #include "sigev_thread.h"
 #include "un-namespace.h"
 
-__weak_reference(__aio_read, _aio_read);
 __weak_reference(__aio_read, aio_read);
-__weak_reference(__aio_write, _aio_write);
 __weak_reference(__aio_write, aio_write);
-__weak_reference(__aio_return, _aio_return);
 __weak_reference(__aio_return, aio_return);
-__weak_reference(__aio_waitcomplete, _aio_waitcomplete);
 __weak_reference(__aio_waitcomplete, aio_waitcomplete);
-__weak_reference(__aio_fsync, _aio_fsync);
 __weak_reference(__aio_fsync, aio_fsync);
+__weak_reference(__lio_listio, lio_listio);
 
 typedef void (*aio_func)(union sigval val, struct aiocb *iocb);
 
 extern int __sys_aio_read(struct aiocb *iocb);
 extern int __sys_aio_write(struct aiocb *iocb);
-extern int __sys_aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout);
-extern int __sys_aio_return(struct aiocb *iocb);
+extern ssize_t __sys_aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout);
+extern ssize_t __sys_aio_return(struct aiocb *iocb);
 extern int __sys_aio_error(struct aiocb *iocb);
 extern int __sys_aio_fsync(int op, struct aiocb *iocb);
+extern int __sys_lio_listio(int mode, struct aiocb * const list[], int nent,
+    struct sigevent *sig);
 
 static void
 aio_dispatch(struct sigev_node *sn)
@@ -68,8 +68,8 @@ aio_dispatch(struct sigev_node *sn)
 }
 
 static int
-aio_sigev_alloc(struct aiocb *iocb, struct sigev_node **sn,
-	struct sigevent *saved_ev)
+aio_sigev_alloc(sigev_id_t id, struct sigevent *sigevent,
+    struct sigev_node **sn, struct sigevent *saved_ev)
 {
 	if (__sigev_check_init()) {
 		/* This might be that thread library is not enabled. */
@@ -77,15 +77,15 @@ aio_sigev_alloc(struct aiocb *iocb, struct sigev_node **sn,
 		return (-1);
 	}
 
-	*sn = __sigev_alloc(SI_ASYNCIO, &iocb->aio_sigevent, NULL, 1);
+	*sn = __sigev_alloc(SI_ASYNCIO, sigevent, NULL, 1);
 	if (*sn == NULL) {
 		errno = EAGAIN;
 		return (-1);
 	}
 	
-	*saved_ev = iocb->aio_sigevent;
-	(*sn)->sn_id = (sigev_id_t)iocb;
-	__sigev_get_sigevent(*sn, &iocb->aio_sigevent, (*sn)->sn_id);
+	*saved_ev = *sigevent;
+	(*sn)->sn_id = id;
+	__sigev_get_sigevent(*sn, sigevent, (*sn)->sn_id);
 	(*sn)->sn_dispatch = aio_dispatch;
 
 	__sigev_list_lock();
@@ -107,7 +107,8 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 		return (ret);
 	}
 
-	ret = aio_sigev_alloc(iocb, &sn, &saved_ev);
+	ret = aio_sigev_alloc((sigev_id_t)iocb, &iocb->aio_sigevent, &sn,
+			      &saved_ev);
 	if (ret)
 		return (ret);
 	ret = sysfunc(iocb);
@@ -136,12 +137,13 @@ __aio_write(struct aiocb *iocb)
 	return aio_io(iocb, &__sys_aio_write);
 }
 
-int
+ssize_t
 __aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout)
 {
+	ssize_t ret;
 	int err;
-	int ret = __sys_aio_waitcomplete(iocbp, timeout);
 
+	ret = __sys_aio_waitcomplete(iocbp, timeout);
 	if (*iocbp) {
 		if ((*iocbp)->aio_sigevent.sigev_notify == SIGEV_THREAD) {
 			err = errno;
@@ -155,13 +157,20 @@ __aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout)
 	return (ret);
 }
 
-int
+ssize_t
 __aio_return(struct aiocb *iocb)
 {
 
 	if (iocb->aio_sigevent.sigev_notify == SIGEV_THREAD) {
-		if (__sys_aio_error(iocb) == EINPROGRESS)
-			return (EINPROGRESS);
+		if (__sys_aio_error(iocb) == EINPROGRESS) {
+			/*
+			 * Fail with EINVAL to match the semantics of
+			 * __sys_aio_return() for an in-progress
+			 * request.
+			 */
+			errno = EINVAL;
+			return (-1);
+		}
 		__sigev_list_lock();
 		__sigev_delete(SI_ASYNCIO, (sigev_id_t)iocb);
 		__sigev_list_unlock();
@@ -180,11 +189,38 @@ __aio_fsync(int op, struct aiocb *iocb)
 	if (iocb->aio_sigevent.sigev_notify != SIGEV_THREAD)
 		return __sys_aio_fsync(op, iocb);
 
-	ret = aio_sigev_alloc(iocb, &sn, &saved_ev);
+	ret = aio_sigev_alloc((sigev_id_t)iocb, &iocb->aio_sigevent, &sn,
+			      &saved_ev);
 	if (ret)
 		return (ret);
 	ret = __sys_aio_fsync(op, iocb);
 	iocb->aio_sigevent = saved_ev;
+	if (ret != 0) {
+		err = errno;
+		__sigev_list_lock();
+		__sigev_delete_node(sn);
+		__sigev_list_unlock();
+		errno = err;
+	}
+	return (ret);
+}
+
+int
+__lio_listio(int mode, struct aiocb * const list[], int nent,
+    struct sigevent *sig)
+{
+	struct sigev_node *sn;
+	struct sigevent saved_ev;
+	int ret, err;
+
+	if (sig == NULL || sig->sigev_notify != SIGEV_THREAD)
+		return (__sys_lio_listio(mode, list, nent, sig));
+
+	ret = aio_sigev_alloc((sigev_id_t)list, sig, &sn, &saved_ev);
+	if (ret)
+		return (ret);
+	ret = __sys_lio_listio(mode, list, nent, sig);
+	*sig = saved_ev;
 	if (ret != 0) {
 		err = errno;
 		__sigev_list_lock();

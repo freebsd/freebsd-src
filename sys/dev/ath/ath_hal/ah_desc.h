@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -20,21 +22,6 @@
 #ifndef _DEV_ATH_DESC_H
 #define _DEV_ATH_DESC_H
 
-#include "opt_ah.h"		/* NB: required for AH_SUPPORT_AR5416 */
-
-/*
- * For now, define this for the structure definitions.
- * Because of how the HAL / driver module currently builds,
- * it's not very feasible to build the module without
- * this defined.  The rest of the code (eg in the driver
- * body) can work fine with these fields being uninitialised;
- * they'll be initialised to 0 anyway.
- */
-
-#ifndef	AH_SUPPORT_AR5416
-#define	AH_SUPPORT_AR5416	1
-#endif
-
 /*
  * Transmit descriptor status.  This structure is filled
  * in only after the tx descriptor process method finds a
@@ -46,7 +33,8 @@
  */
 struct ath_tx_status {
 	uint16_t	ts_seqnum;	/* h/w assigned sequence number */
-	uint16_t	ts_tstamp;	/* h/w assigned timestamp */
+	uint16_t	ts_pad1[1];
+	uint32_t	ts_tstamp;	/* h/w assigned timestamp */
 	uint8_t		ts_status;	/* frame status, 0 => xmit ok */
 	uint8_t		ts_rate;	/* h/w transmit rate index */
 	int8_t		ts_rssi;	/* tx ack RSSI */
@@ -55,7 +43,6 @@ struct ath_tx_status {
 	uint8_t		ts_virtcol;	/* virtual collision count */
 	uint8_t		ts_antenna;	/* antenna information */
 	uint8_t		ts_finaltsi;	/* final transmit series index */
-#ifdef AH_SUPPORT_AR5416
 					/* 802.11n status */
 	uint8_t		ts_flags;	/* misc flags */
 	uint8_t		ts_queue_id;	/* AR9300: TX queue id */
@@ -70,7 +57,6 @@ struct ath_tx_status {
 	int8_t		ts_rssi_ctl[3];	/* tx ack RSSI [ctl, chain 0-2] */
 	int8_t		ts_rssi_ext[3];	/* tx ack RSSI [ext, chain 0-2] */
 	uint8_t		ts_pad[2];
-#endif /* AH_SUPPORT_AR5416 */
 };
 
 /* bits found in ts_status */
@@ -86,6 +72,7 @@ struct ath_tx_status {
 #define	HAL_TX_DESC_CFG_ERR	0x10	/* Error in 20/40 desc config */
 #define	HAL_TX_DATA_UNDERRUN	0x20	/* Tx buffer underrun */
 #define	HAL_TX_DELIM_UNDERRUN	0x40	/* Tx delimiter underrun */
+#define	HAL_TX_FAST_TS		0x80	/* Tx locationing timestamp */
 
 /*
  * Receive descriptor status.  This structure is filled
@@ -119,7 +106,6 @@ struct ath_rx_status {
 	uint8_t		rs_more;	/* more descriptors follow */
 	uint32_t	rs_tstamp;	/* h/w assigned timestamp */
 	uint32_t	rs_antenna;	/* antenna information */
-#ifdef AH_SUPPORT_AR5416
 					/* 802.11n status */
 	int8_t		rs_rssi_ctl[3];	/* rx frame RSSI [ctl, chain 0-2] */
 	int8_t		rs_rssi_ext[3];	/* rx frame RSSI [ext, chain 0-2] */
@@ -128,12 +114,14 @@ struct ath_rx_status {
 	uint16_t	rs_flags;	/* misc flags */
 	uint8_t		rs_num_delims;	/* number of delims in aggr */
 	uint8_t		rs_spare0;	/* padding */
+	uint8_t		rs_ness;	/* number of extension spatial streams */
+	uint8_t		rs_hw_upload_data_type;	/* hw upload format */
+	uint16_t	rs_spare1;
 	uint32_t	rs_evm0;	/* evm bytes */
 	uint32_t	rs_evm1;
 	uint32_t	rs_evm2;
 	uint32_t	rs_evm3;	/* needed for ar9300 and later */
 	uint32_t	rs_evm4;	/* needed for ar9300 and later */
-#endif /* AH_SUPPORT_AR5416 */
 };
 
 /* bits found in rs_status */
@@ -156,6 +144,11 @@ struct ath_rx_status {
 #define	HAL_RX_HI_RX_CHAIN	0x0080	/* SM power save: hi Rx chain control */
 #define	HAL_RX_IS_APSD		0x0100	/* Is ASPD trigger frame */
 #define	HAL_RX_STBC		0x0200	/* Is an STBC frame */
+#define	HAL_RX_LOC_INFO		0x0400	/* RX locationing information */
+
+#define	HAL_RX_HW_UPLOAD_DATA	0x1000	/* This is a hardware data frame */
+#define	HAL_RX_HW_SOUNDING	0x2000	/* Rx sounding frame (TxBF, positioning) */
+#define	HAL_RX_UPLOAD_VALID	0x4000	/* This hardware data frame is valid */
 
 /*
  * This is the format of RSSI[2] on the AR9285/AR9485.
@@ -231,11 +224,7 @@ enum {
  * to complete the work.  Status for completed frames is returned
  * in a device-independent format.
  */
-#ifdef AH_SUPPORT_AR5416
 #define	HAL_DESC_HW_SIZE	20
-#else
-#define	HAL_DESC_HW_SIZE	4
-#endif /* AH_SUPPORT_AR5416 */
 
 struct ath_desc {
 	/*
@@ -282,6 +271,7 @@ struct ath_desc_status {
 #define	HAL_TXDESC_LOWRXCHAIN	0x0400	/* switch to low RX chain */
 #define	HAL_TXDESC_LDPC		0x1000	/* Set LDPC TX for all rates */
 #define	HAL_TXDESC_HWTS		0x2000	/* Request Azimuth Timestamp in TX payload */
+#define	HAL_TXDESC_POS		0x4000	/* Request ToD/ToA locationing */
 
 /* flags passed to rx descriptor setup methods */
 #define	HAL_RXDESC_INTREQ	0x0020	/* enable per-descriptor interrupt */

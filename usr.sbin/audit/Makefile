@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
 .PATH: ${OPENBSMDIR}/bin/audit
 
 CFLAGS+=	-I${OPENBSMDIR}

@@ -11,10 +11,12 @@ BINMODE=4555
 WARNS?=	3
 LIBADD=	m
 
-.if ${MK_CASPER} != "no" && !defined(RESCUE)
+.if ${MK_DYNAMICROOT} == "no"
+.warning ${PROG} built without libcasper support
+.elif ${MK_CASPER} != "no" && !defined(RESCUE)
 LIBADD+=	casper
 LIBADD+=	cap_dns
-CFLAGS+=-DHAVE_LIBCASPER
+CFLAGS+=-DWITH_CASPER
 .endif
 
 .if !defined(RELEASE_CRUNCH)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
@@ -162,7 +164,7 @@ kinfo_kstack_sort(struct kinfo_kstack *kkstp, int count)
 
 
 void
-procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
+procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp)
 {
 	struct kinfo_kstack *kkstp, *kkstp_free;
 	struct kinfo_proc *kip, *kip_free;
@@ -170,8 +172,8 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 	unsigned int i, j;
 	unsigned int kip_count, kstk_count;
 
-	if (!hflag)
-		xo_emit("{T:/%5s %6s %-16s %-16s %-29s}\n", "PID", "TID", "COMM",
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
+		xo_emit("{T:/%5s %6s %-19s %-19s %-29s}\n", "PID", "TID", "COMM",
 		    "TDNAME", "KSTACK");
 
 	kkstp = kkstp_free = procstat_getkstack(procstat, kipp, &kstk_count);
@@ -208,10 +210,9 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 
 		xo_emit("{k:process_id/%5d/%d} ", kipp->ki_pid);
 		xo_emit("{:thread_id/%6d/%d} ", kkstp->kkst_tid);
-		xo_emit("{:command/%-16s/%s} ", kipp->ki_comm);
-		xo_emit("{:thread_name/%-16s/%s} ", (strlen(kipp->ki_tdname) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
-		    kipp->ki_tdname : "-");
+		xo_emit("{:command/%-19s/%s} ", kipp->ki_comm);
+		xo_emit("{:thread_name/%-19s/%s} ",
+                    kinfo_proc_thread_name(kipp));
 
 		switch (kkstp->kkst_state) {
 		case KKST_STATE_RUNNING:
@@ -235,9 +236,11 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 		 * entries, but for a more compact view, we convert carriage
 		 * returns to spaces.
 		 */
-		kstack_cleanup(kkstp->kkst_trace, trace, kflag);
+		kstack_cleanup(kkstp->kkst_trace, trace,
+		    (procstat_opts & PS_OPT_VERBOSE) != 0 ? 2 : 1);
 		xo_open_list("trace");
-		kstack_cleanup_encoded(kkstp->kkst_trace, encoded_trace, kflag);
+		kstack_cleanup_encoded(kkstp->kkst_trace, encoded_trace,
+		    (procstat_opts & PS_OPT_VERBOSE) != 0 ? 2 : 1);
 		xo_close_list("trace");
 		xo_emit("{d:trace/%-29s}\n", trace);
 	}

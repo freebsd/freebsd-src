@@ -38,6 +38,10 @@
 
  @Description   QM & Portal implementation
 *//***************************************************************************/
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <machine/atomic.h>
+
 #include "error_ext.h"
 #include "std_ext.h"
 #include "string_ext.h"
@@ -45,6 +49,7 @@
 #include "qm.h"
 #include "qman_low.h"
 
+#include <machine/vmparam.h>
 
 /****************************************/
 /*       static functions               */
@@ -53,6 +58,40 @@
 #define SLOW_POLL_IDLE   1000
 #define SLOW_POLL_BUSY   10
 
+/*
+ * Context entries are 32-bit.  The qman driver uses the pointer to the queue as
+ * its context, and the pointer is 64-byte aligned, per the XX_MallocSmart()
+ * call.  Take advantage of this fact to shove a 64-bit kernel pointer into a
+ * 32-bit context integer, and back.
+ *
+ * XXX: This depends on the fact that VM_MAX_KERNEL_ADDRESS is less than 38-bit
+ * count from VM_MIN_KERNEL_ADDRESS.  If this ever changes, this needs to be
+ * updated.
+ */
+CTASSERT((VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) < (1ULL << 35));
+static inline uint32_t
+aligned_int_from_ptr(const void *p)
+{
+	uintptr_t ctx;
+
+	ctx = (uintptr_t)p;
+	KASSERT(ctx >= VM_MIN_KERNEL_ADDRESS, ("%p is too low!\n", p));
+	ctx -= VM_MIN_KERNEL_ADDRESS;
+	KASSERT((ctx & 0x07) == 0, ("Pointer %p is not 8-byte aligned!\n", p));
+
+	return (ctx >> 3);
+}
+
+static inline void *
+ptr_from_aligned_int(uint32_t ctx)
+{
+	uintptr_t p;
+
+	p = ctx;
+	p = VM_MIN_KERNEL_ADDRESS + (p << 3);
+
+	return ((void *)p);
+}
 
 static t_Error qman_volatile_dequeue(t_QmPortal     *p_QmPortal,
                                      struct qman_fq *p_Fq,
@@ -259,7 +298,7 @@ static t_Error qman_retire_fq(t_QmPortal        *p_QmPortal,
     p_Mcc = qm_mc_start(p_QmPortal->p_LowQmPortal);
     p_Mcc->alterfq.fqid = p_Fq->fqid;
     if (drain)
-        p_Mcc->alterfq.context_b = (uint32_t)PTR_TO_UINT(p_Fq);
+        p_Mcc->alterfq.context_b = aligned_int_from_ptr(p_Fq);
     qm_mc_commit(p_QmPortal->p_LowQmPortal,
                  (uint8_t)((drain)?QM_MCC_VERB_ALTER_RETIRE_CTXB:QM_MCC_VERB_ALTER_RETIRE));
     while (!(p_Mcr = qm_mc_result(p_QmPortal->p_LowQmPortal))) ;
@@ -568,8 +607,8 @@ mr_loop:
         qmPortalMrPvbUpdate(p_QmPortal->p_LowQmPortal);
         p_Msg = qm_mr_current(p_QmPortal->p_LowQmPortal);
         if (p_Msg) {
-            struct qman_fq  *p_FqFqs  = (void *)p_Msg->fq.contextB;
-            struct qman_fq  *p_FqErn  = (void *)p_Msg->ern.tag;
+            struct qman_fq  *p_FqFqs  = ptr_from_aligned_int(p_Msg->fq.contextB);
+            struct qman_fq  *p_FqErn  = ptr_from_aligned_int(p_Msg->ern.tag);
             uint8_t         verb    =(uint8_t)(p_Msg->verb & QM_MR_VERB_TYPE_MASK);
             t_QmRejectedFrameInfo   rejectedFrameInfo;
 
@@ -646,7 +685,7 @@ static void LoopDequeueRing(t_Handle h_QmPortal)
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             break;
-        p_Fq = (void *)p_Dq->contextB;
+	p_Fq = ptr_from_aligned_int(p_Dq->contextB);
         if (p_Dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
             /* We only set QMAN_FQ_STATE_NE when retiring, so we only need
              * to check for clearing it when doing volatile dequeues. It's
@@ -728,7 +767,7 @@ static void LoopDequeueRingDcaOptimized(t_Handle h_QmPortal)
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             break;
-        p_Fq = (void *)p_Dq->contextB;
+	p_Fq = ptr_from_aligned_int(p_Dq->contextB);
         if (p_Dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
             /* We only set QMAN_FQ_STATE_NE when retiring, so we only need
              * to check for clearing it when doing volatile dequeues. It's
@@ -802,7 +841,7 @@ static void LoopDequeueRingOptimized(t_Handle h_QmPortal)
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             break;
-        p_Fq = (void *)p_Dq->contextB;
+	p_Fq = ptr_from_aligned_int(p_Dq->contextB);
         if (p_Dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
             /* We only set QMAN_FQ_STATE_NE when retiring, so we only need
              * to check for clearing it when doing volatile dequeues. It's
@@ -1023,13 +1062,8 @@ static t_Error qm_new_fq(t_QmPortal                         *p_QmPortal,
     /* If this FQ will not be used for tx, we can use contextB field */
     if (fq_opts.fqd.dest.channel < e_QM_FQ_CHANNEL_FMAN0_SP0)
     {
-        if (sizeof(p_Fqs[0]) <= sizeof(fq_opts.fqd.context_b))
-        {
             fq_opts.we_mask |= QM_INITFQ_WE_CONTEXTB;
-            fq_opts.fqd.context_b = (uint32_t)PTR_TO_UINT(p_Fqs[0]);
-        }
-        else
-            RETURN_ERROR(MAJOR, E_NOT_SUPPORTED, ("64 bit pointer (virtual) not supported yet!!!"));
+            fq_opts.fqd.context_b = aligned_int_from_ptr(p_Fqs[0]);
     }
     else if (p_ContextB) /* Tx-Queue */
     {
@@ -1102,7 +1136,7 @@ static t_Error qm_free_fq(t_QmPortal *p_QmPortal, struct qman_fq *p_Fq)
 {
     uint32_t flags=0;
 
-    if (qman_retire_fq(p_QmPortal, p_Fq, &flags, FALSE) != E_OK)
+    if (qman_retire_fq(p_QmPortal, p_Fq, &flags, false) != E_OK)
         RETURN_ERROR(MAJOR, E_INVALID_STATE, ("qman_retire_fq() failed!"));
 
     if (flags & QMAN_FQ_STATE_CHANGING)
@@ -1471,7 +1505,7 @@ static t_Error QmPortalPullFrame(t_Handle h_QmPortal, uint32_t pdqcr, t_DpaaFD *
     NCSW_PLOCK(p_QmPortal);
 
     qm_dqrr_pdqcr_set(p_QmPortal->p_LowQmPortal, pdqcr);
-    CORE_MemoryBarrier();
+    mb();
     while (qm_dqrr_pdqcr_get(p_QmPortal->p_LowQmPortal)) ;
 
     prefetch = !(p_QmPortal->options & QMAN_PORTAL_FLAG_RSTASH);
@@ -1483,7 +1517,7 @@ static t_Error QmPortalPullFrame(t_Handle h_QmPortal, uint32_t pdqcr, t_DpaaFD *
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             continue;
-        p_Fq = (void *)p_Dq->contextB;
+        p_Fq = ptr_from_aligned_int(p_Dq->contextB);
         ASSERT_COND(p_Dq->fqid);
         p_Dst = (uint32_t *)p_Frame;
         p_Src = (uint32_t *)&p_Dq->fd;
@@ -1495,7 +1529,7 @@ static t_Error QmPortalPullFrame(t_Handle h_QmPortal, uint32_t pdqcr, t_DpaaFD *
         {
             qmPortalDqrrDcaConsume1ptr(p_QmPortal->p_LowQmPortal,
                                        p_Dq,
-                                       FALSE);
+                                       false);
             qm_dqrr_next(p_QmPortal->p_LowQmPortal);
         }
         else
@@ -1811,7 +1845,7 @@ t_Error QM_PORTAL_PollFrame(t_Handle h_QmPortal, t_QmPortalFrameInfo *p_frameInf
         PUNLOCK(p_QmPortal);
         return ERROR_CODE(E_EMPTY);
     }
-    p_Fq = (void *)p_Dq->contextB;
+    p_Fq = ptr_from_aligned_int(p_Dq->contextB);
     ASSERT_COND(p_Dq->fqid);
     if (p_Fq)
     {
@@ -1830,7 +1864,7 @@ t_Error QM_PORTAL_PollFrame(t_Handle h_QmPortal, t_QmPortalFrameInfo *p_frameInf
     if (p_QmPortal->options & QMAN_PORTAL_FLAG_DCA) {
         qmPortalDqrrDcaConsume1ptr(p_QmPortal->p_LowQmPortal,
                                    p_Dq,
-                                   FALSE);
+                                   false);
         qm_dqrr_next(p_QmPortal->p_LowQmPortal);
     } else {
         qm_dqrr_next(p_QmPortal->p_LowQmPortal);
@@ -2064,7 +2098,7 @@ t_Error  QM_FQR_FreeWDrain(t_Handle                     h_QmFqr,
 
     for (i=0;i<p_QmFqr->numOfFqids;i++)
     {
-        if (qman_retire_fq(p_QmFqr->h_QmPortal, p_QmFqr->p_Fqs[i], 0, TRUE) != E_OK)
+        if (qman_retire_fq(p_QmFqr->h_QmPortal, p_QmFqr->p_Fqs[i], 0, true) != E_OK)
             RETURN_ERROR(MAJOR, E_INVALID_STATE, ("qman_retire_fq() failed!"));
 
         if (p_QmFqr->p_Fqs[i]->flags & QMAN_FQ_STATE_CHANGING)
@@ -2141,7 +2175,7 @@ t_Error QM_FQR_Enqueue(t_Handle h_QmFqr, t_Handle h_QmPortal, uint32_t fqidOffse
     }
 
     p_Eq->fqid = p_Fq->fqid;
-    p_Eq->tag = (uint32_t)p_Fq;
+    p_Eq->tag = aligned_int_from_ptr(p_Fq);
     /* gcc does a dreadful job of the following;
      *  eq->fd = *fd;
      * It causes the entire function to save/restore a wider range of

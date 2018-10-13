@@ -16,11 +16,10 @@ MLINKS=	pkill.1 pgrep.1
 # keep in mind that pkill is installed to /usr/bin in other
 # OS types, e.g., NetBSD, OpenBSD, Solaris, and Linux.
 #
-SYMLINKS=	${BINDIR}/pkill /usr/bin/pkill
-SYMLINKS+=	${BINDIR}/pgrep /usr/bin/pgrep
+SYMLINKS=	../..${BINDIR}/pkill /usr/bin/pkill
+SYMLINKS+=	../..${BINDIR}/pgrep /usr/bin/pgrep
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

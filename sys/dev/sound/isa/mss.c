@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 George Reid <greid@ukug.uk.freebsd.org>
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * Copyright (c) 1997,1998 Luigi Rizzo
@@ -96,9 +98,7 @@ static driver_intr_t 	mss_intr;
 
 /* prototypes for local functions */
 static int 		mss_detect(device_t dev, struct mss_info *mss);
-#ifndef PC98
 static int		opti_detect(device_t dev, struct mss_info *mss);
-#endif
 static char 		*ymf_test(device_t dev, struct mss_info *mss);
 static void		ad_unmute(struct mss_info *mss);
 
@@ -117,9 +117,7 @@ static void             ad_leave_MCE(struct mss_info *mss);
 /* OPTi-specific functions */
 static void		opti_write(struct mss_info *mss, u_char reg,
 				   u_char data);
-#ifndef PC98
 static u_char		opti_read(struct mss_info *mss, u_char reg);
-#endif
 static int		opti_init(device_t dev, struct mss_info *mss);
 
 /* io primitives */
@@ -1330,11 +1328,7 @@ mss_probe(device_t dev)
 		     	rman_get_start(mss->io_base), tmpx));
 		goto no;
     	}
-#ifdef PC98
-    	if (irq > 12) {
-#else
     	if (irq > 11) {
-#endif
 		printf("MSS: Bad IRQ %d\n", irq);
 		goto no;
     	}
@@ -1381,7 +1375,6 @@ mss_detect(device_t dev, struct mss_info *mss)
     	name = "AD1848";
     	mss->bd_id = MD_AD1848; /* AD1848 or CS4248 */
 
-#ifndef PC98
 	if (opti_detect(dev, mss)) {
 		switch (mss->bd_id) {
 			case MD_OPTI924:
@@ -1394,7 +1387,6 @@ mss_detect(device_t dev, struct mss_info *mss)
 		printf("Found OPTi device %s\n", name);
 		if (opti_init(dev, mss) == 0) goto gotit;
 	}
-#endif
 
    	/*
      	* Check that the I/O address is in use.
@@ -1601,7 +1593,6 @@ no:
     	return ENXIO;
 }
 
-#ifndef PC98
 static int
 opti_detect(device_t dev, struct mss_info *mss)
 {
@@ -1647,7 +1638,6 @@ opti_detect(device_t dev, struct mss_info *mss)
 	}
 	return 0;
 }
-#endif
 
 static char *
 ymf_test(device_t dev, struct mss_info *mss)
@@ -1682,10 +1672,6 @@ ymf_test(device_t dev, struct mss_info *mss)
 		if (!j) {
 	    		bus_release_resource(dev, SYS_RES_IOPORT,
 			 		     mss->conf_rid, mss->conf_base);
-#ifdef PC98
-			/* PC98 need this. I don't know reason why. */
-			bus_delete_resource(dev, SYS_RES_IOPORT, mss->conf_rid);
-#endif
 	    		mss->conf_base = NULL;
 	    		continue;
 		}
@@ -1709,23 +1695,16 @@ mss_doattach(device_t dev, struct mss_info *mss)
 	rdma = rman_get_start(mss->drq2);
     	if (flags & DV_F_TRUE_MSS) {
 		/* has IRQ/DMA registers, set IRQ and DMA addr */
-#ifdef PC98 /* CS423[12] in PC98 can use IRQ3,5,10,12 */
-		static char     interrupt_bits[13] =
-	        {-1, -1, -1, 0x08, -1, 0x10, -1, -1, -1, -1, 0x18, -1, 0x20};
-#else
 		static char     interrupt_bits[12] =
 	    	{-1, -1, -1, -1, -1, 0x28, -1, 0x08, -1, 0x10, 0x18, 0x20};
-#endif
 		static char     pdma_bits[4] =  {1, 2, -1, 3};
 		static char	valid_rdma[4] = {1, 0, -1, 0};
 		char		bits;
 
 		if (!mss->irq || (bits = interrupt_bits[rman_get_start(mss->irq)]) == -1)
 			goto no;
-#ifndef PC98 /* CS423[12] in PC98 don't support this. */
 		io_wr(mss, 0, bits | 0x40);	/* config port */
 		if ((io_rd(mss, 3) & 0x40) == 0) device_printf(dev, "IRQ Conflict?\n");
-#endif
 		/* Write IRQ+DMA setup */
 		if (pdma_bits[pdma] == -1) goto no;
 		bits |= pdma_bits[pdma];
@@ -2184,7 +2163,6 @@ opti_write(struct mss_info *mss, u_char reg, u_char val)
 	}
 }
 
-#ifndef PC98
 u_char
 opti_read(struct mss_info *mss, u_char reg)
 {
@@ -2208,7 +2186,6 @@ opti_read(struct mss_info *mss, u_char reg)
 	}
 	return -1;
 }
-#endif
 
 static device_method_t pnpmss_methods[] = {
 	/* Device interface */
@@ -2316,5 +2293,4 @@ static driver_t guspcm_driver = {
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_guspcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_guspcm, 1);
-
-
+ISA_PNP_INFO(pnpmss_ids);

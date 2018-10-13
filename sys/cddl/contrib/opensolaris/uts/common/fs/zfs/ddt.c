@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -36,6 +36,7 @@
 #include <sys/zio_checksum.h>
 #include <sys/zio_compress.h>
 #include <sys/dsl_scan.h>
+#include <sys/abd.h>
 
 /*
  * Enable/disable prefetching of dedup-ed blocks which are going to be freed.
@@ -664,9 +665,8 @@ ddt_free(ddt_entry_t *dde)
 	for (int p = 0; p < DDT_PHYS_TYPES; p++)
 		ASSERT(dde->dde_lead_zio[p] == NULL);
 
-	if (dde->dde_repair_data != NULL)
-		zio_buf_free(dde->dde_repair_data,
-		    DDK_GET_PSIZE(&dde->dde_key));
+	if (dde->dde_repair_abd != NULL)
+		abd_free(dde->dde_repair_abd);
 
 	cv_destroy(&dde->dde_cv);
 	kmem_free(dde, sizeof (*dde));
@@ -717,14 +717,14 @@ ddt_lookup(ddt_t *ddt, const blkptr_t *bp, boolean_t add)
 	for (type = 0; type < DDT_TYPES; type++) {
 		for (class = 0; class < DDT_CLASSES; class++) {
 			error = ddt_object_lookup(ddt, type, class, dde);
-			if (error != ENOENT)
+			if (error != ENOENT) {
+				ASSERT0(error);
 				break;
+			}
 		}
 		if (error != ENOENT)
 			break;
 	}
-
-	ASSERT(error == 0 || error == ENOENT);
 
 	ddt_enter(ddt);
 
@@ -930,7 +930,7 @@ ddt_repair_done(ddt_t *ddt, ddt_entry_t *dde)
 
 	ddt_enter(ddt);
 
-	if (dde->dde_repair_data != NULL && spa_writeable(ddt->ddt_spa) &&
+	if (dde->dde_repair_abd != NULL && spa_writeable(ddt->ddt_spa) &&
 	    avl_find(&ddt->ddt_repair_tree, dde, &where) == NULL)
 		avl_insert(&ddt->ddt_repair_tree, dde, where);
 	else
@@ -967,7 +967,7 @@ ddt_repair_entry(ddt_t *ddt, ddt_entry_t *dde, ddt_entry_t *rdde, zio_t *rio)
 			continue;
 		ddt_bp_create(ddt->ddt_checksum, ddk, ddp, &blk);
 		zio_nowait(zio_rewrite(zio, zio->io_spa, 0, &blk,
-		    rdde->dde_repair_data, DDK_GET_PSIZE(rddk), NULL, NULL,
+		    rdde->dde_repair_abd, DDK_GET_PSIZE(rddk), NULL, NULL,
 		    ZIO_PRIORITY_SYNC_WRITE, ZIO_DDT_CHILD_FLAGS(zio), NULL));
 	}
 
@@ -1112,13 +1112,25 @@ ddt_sync_table(ddt_t *ddt, dmu_tx_t *tx, uint64_t txg)
 void
 ddt_sync(spa_t *spa, uint64_t txg)
 {
+	dsl_scan_t *scn = spa->spa_dsl_pool->dp_scan;
 	dmu_tx_t *tx;
-	zio_t *rio = zio_root(spa, NULL, NULL,
-	    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE);
+	zio_t *rio;
 
 	ASSERT(spa_syncing_txg(spa) == txg);
 
 	tx = dmu_tx_create_assigned(spa->spa_dsl_pool, txg);
+
+	rio = zio_root(spa, NULL, NULL,
+	    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE | ZIO_FLAG_SELF_HEAL);
+
+	/*
+	 * This function may cause an immediate scan of ddt blocks (see
+	 * the comment above dsl_scan_ddt() for details). We set the
+	 * scan's root zio here so that we can wait for any scan IOs in
+	 * addition to the regular ddt IOs.
+	 */
+	ASSERT3P(scn->scn_zio_root, ==, NULL);
+	scn->scn_zio_root = rio;
 
 	for (enum zio_checksum c = 0; c < ZIO_CHECKSUM_FUNCTIONS; c++) {
 		ddt_t *ddt = spa->spa_ddt[c];
@@ -1129,6 +1141,7 @@ ddt_sync(spa_t *spa, uint64_t txg)
 	}
 
 	(void) zio_wait(rio);
+	scn->scn_zio_root = NULL;
 
 	dmu_tx_commit(tx);
 }

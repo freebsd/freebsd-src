@@ -274,11 +274,11 @@ extern "C" {
 #define AL_ADPTR_GEN_CTL_13_SATA_ARUSER_VAL_SHIFT	0
 #define AL_ADPTR_GEN_CTL_13_SATA_ARUSER_SEL_MASK	AL_FIELD_MASK(31, 16)
 #define AL_ADPTR_GEN_CTL_13_SATA_ARUSER_SEL_SHIFT	16
-/* Central VMID enabler. If set, then each entry will be used as programmed */
-#define AL_ADPTR_GEN_CTL_14_SATA_MSIX_VMID_SEL		AL_BIT(0)
-/* Allow access to store VMID values per entry */
-#define AL_ADPTR_GEN_CTL_14_SATA_MSIX_VMID_ACCESS_EN	AL_BIT(1)
-/* VMID Address select */
+/* Central Target-ID enabler. If set, then each entry will be used as programmed */
+#define AL_ADPTR_GEN_CTL_14_SATA_MSIX_TGTID_SEL		AL_BIT(0)
+/* Allow access to store Target-ID values per entry */
+#define AL_ADPTR_GEN_CTL_14_SATA_MSIX_TGTID_ACCESS_EN	AL_BIT(1)
+/* Target-ID Address select */
 /* Tx */
 #define AL_ADPTR_GEN_CTL_14_SATA_VM_ARADDR_SEL_MASK	AL_FIELD_MASK(13, 8)
 #define AL_ADPTR_GEN_CTL_14_SATA_VM_ARADDR_SEL_SHIFT	8
@@ -294,13 +294,13 @@ extern "C" {
 /*
  * ROB registers
  */
-/* Read ROB_Enable, when disabled the read ROB is bypassed */
+/* Read ROB Enable, when disabled the read ROB is bypassed */
 #define AL_ADPTR_GEN_CTL_19_READ_ROB_EN			AL_BIT(0)
 /* Read force in-order of every read transaction */
 #define AL_ADPTR_GEN_CTL_19_READ_ROB_FORCE_INORDER	AL_BIT(1)
 /* Read software reset */
 #define AL_ADPTR_GEN_CTL_19_READ_ROB_SW_RESET		AL_BIT(15)
-/* Write ROB_Enable, when disabled_the_Write ROB is bypassed */
+/* Write ROB Enable, when disabled the Write ROB is bypassed */
 #define AL_ADPTR_GEN_CTL_19_WRITE_ROB_EN		AL_BIT(16)
 /* Write force in-order of every write transaction */
 #define AL_ADPTR_GEN_CTL_19_WRITE_ROB_FORCE_INORDER	AL_BIT(17)

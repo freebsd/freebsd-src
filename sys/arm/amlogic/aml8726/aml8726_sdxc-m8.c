@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -47,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -798,7 +796,7 @@ aml8726_sdxc_attach(device_t dev)
 	}
 
 	len = OF_getprop_alloc(node, "mmc-voltages",
-	    sizeof(char), (void **)&voltages);
+	    (void **)&voltages);
 
 	if (len < 0) {
 		device_printf(dev, "missing mmc-voltages attribute in FDT\n");
@@ -1375,7 +1373,6 @@ static driver_t aml8726_sdxc_driver = {
 static devclass_t aml8726_sdxc_devclass;
 
 DRIVER_MODULE(aml8726_sdxc, simplebus, aml8726_sdxc_driver,
-    aml8726_sdxc_devclass, 0, 0);
+    aml8726_sdxc_devclass, NULL, NULL);
 MODULE_DEPEND(aml8726_sdxc, aml8726_gpio, 1, 1, 1);
-DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(aml8726_sdxc, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(aml8726_sdxc);

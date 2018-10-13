@@ -20,8 +20,48 @@
  */
 
 /*
- * Macros to extract possibly-unaligned big-endian integral values.
+ * For 8-bit values; provided for the sake of completeness.  Byte order
+ * isn't relevant, and alignment isn't an issue.
  */
+#define EXTRACT_8BITS(p)	(*(p))
+#define EXTRACT_LE_8BITS(p)	(*(p))
+
+/*
+ * Inline functions or macros to extract possibly-unaligned big-endian
+ * integral values.
+ */
+#include "funcattrs.h"
+
+/*
+ * If we have versions of GCC or Clang that support an __attribute__
+ * to say "if we're building with unsigned behavior sanitization,
+ * don't complain about undefined behavior in this function", we
+ * label these functions with that attribute - we *know* it's undefined
+ * in the C standard, but we *also* know it does what we want with
+ * the ISA we're targeting and the compiler we're using.
+ *
+ * For GCC 4.9.0 and later, we use __attribute__((no_sanitize_undefined));
+ * pre-5.0 GCC doesn't have __has_attribute, and I'm not sure whether
+ * GCC or Clang first had __attribute__((no_sanitize(XXX)).
+ *
+ * For Clang, we check for __attribute__((no_sanitize(XXX)) with
+ * __has_attribute, as there are versions of Clang that support
+ * __attribute__((no_sanitize("undefined")) but don't support
+ * __attribute__((no_sanitize_undefined)).
+ *
+ * We define this here, rather than in funcattrs.h, because we
+ * only want it used here, we don't want it to be broadly used.
+ * (Any printer will get this defined, but this should at least
+ * make it harder for people to find.)
+ */
+#if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 409)
+#define UNALIGNED_OK	__attribute__((no_sanitize_undefined))
+#elif __has_attribute(no_sanitize)
+#define UNALIGNED_OK	__attribute__((no_sanitize("undefined")))
+#else
+#define UNALIGNED_OK
+#endif
+
 #ifdef LBL_ALIGN
 /*
  * The processor doesn't natively handle unaligned loads.
@@ -31,7 +71,7 @@
      defined(__mips) || defined(__mips__))
 
 /*
- * This is a GCC-compatible compiler and we have __attribute__, which
+* This is a GCC-compatible compiler and we have __attribute__, which
  * we assume that mean we have __attribute__((packed)), and this is
  * MIPS or Alpha, which has instructions that can help when doing
  * unaligned loads.
@@ -88,22 +128,22 @@ typedef struct {
 	uint32_t	val;
 } __attribute__((packed)) unaligned_uint32_t;
 
-static inline uint16_t
+UNALIGNED_OK static inline uint16_t
 EXTRACT_16BITS(const void *p)
 {
 	return ((uint16_t)ntohs(((const unaligned_uint16_t *)(p))->val));
 }
 
-static inline uint32_t
+UNALIGNED_OK static inline uint32_t
 EXTRACT_32BITS(const void *p)
 {
 	return ((uint32_t)ntohl(((const unaligned_uint32_t *)(p))->val));
 }
 
-static inline uint64_t
+UNALIGNED_OK static inline uint64_t
 EXTRACT_64BITS(const void *p)
 {
-	return ((uint64_t)(((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 0)->val)) << 32 | \
+	return ((uint64_t)(((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 0)->val)) << 32 |
 		((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 1)->val)) << 0));
 }
 
@@ -138,22 +178,22 @@ EXTRACT_64BITS(const void *p)
  * The processor natively handles unaligned loads, so we can just
  * cast the pointer and fetch through it.
  */
-static inline uint16_t
+static inline uint16_t UNALIGNED_OK
 EXTRACT_16BITS(const void *p)
 {
 	return ((uint16_t)ntohs(*(const uint16_t *)(p)));
 }
 
-static inline uint32_t
+static inline uint32_t UNALIGNED_OK
 EXTRACT_32BITS(const void *p)
 {
 	return ((uint32_t)ntohl(*(const uint32_t *)(p)));
 }
 
-static inline uint64_t
+static inline uint64_t UNALIGNED_OK
 EXTRACT_64BITS(const void *p)
 {
-	return ((uint64_t)(((uint64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 | \
+	return ((uint64_t)(((uint64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 |
 		((uint64_t)ntohl(*((const uint32_t *)(p) + 1))) << 0));
 
 }
@@ -193,7 +233,6 @@ EXTRACT_64BITS(const void *p)
  * Macros to extract possibly-unaligned little-endian integral values.
  * XXX - do loads on little-endian machines that support unaligned loads?
  */
-#define EXTRACT_LE_8BITS(p) (*(p))
 #define EXTRACT_LE_16BITS(p) \
 	((uint16_t)(((uint16_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint16_t)(*((const uint8_t *)(p) + 0)) << 0)))
@@ -215,3 +254,33 @@ EXTRACT_64BITS(const void *p)
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
+
+/*
+ * Macros to check the presence of the values in question.
+ */
+#define ND_TTEST_8BITS(p) ND_TTEST2(*(p), 1)
+#define ND_TCHECK_8BITS(p) ND_TCHECK2(*(p), 1)
+
+#define ND_TTEST_16BITS(p) ND_TTEST2(*(p), 2)
+#define ND_TCHECK_16BITS(p) ND_TCHECK2(*(p), 2)
+
+#define ND_TTEST_24BITS(p) ND_TTEST2(*(p), 3)
+#define ND_TCHECK_24BITS(p) ND_TCHECK2(*(p), 3)
+
+#define ND_TTEST_32BITS(p) ND_TTEST2(*(p), 4)
+#define ND_TCHECK_32BITS(p) ND_TCHECK2(*(p), 4)
+
+#define ND_TTEST_40BITS(p) ND_TTEST2(*(p), 5)
+#define ND_TCHECK_40BITS(p) ND_TCHECK2(*(p), 5)
+
+#define ND_TTEST_48BITS(p) ND_TTEST2(*(p), 6)
+#define ND_TCHECK_48BITS(p) ND_TCHECK2(*(p), 6)
+
+#define ND_TTEST_56BITS(p) ND_TTEST2(*(p), 7)
+#define ND_TCHECK_56BITS(p) ND_TCHECK2(*(p), 7)
+
+#define ND_TTEST_64BITS(p) ND_TTEST2(*(p), 8)
+#define ND_TCHECK_64BITS(p) ND_TCHECK2(*(p), 8)
+
+#define ND_TTEST_128BITS(p) ND_TTEST2(*(p), 16)
+#define ND_TCHECK_128BITS(p) ND_TCHECK2(*(p), 16)

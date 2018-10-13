@@ -16,6 +16,8 @@
 
 #include "llvm/Support/DataTypes.h"
 
+#include <memory>
+
 namespace llvm {
 class MCAsmBackend;
 class MCCodeEmitter;
@@ -24,23 +26,26 @@ class MCInstrInfo;
 class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
+class MCTargetOptions;
 class Target;
 class Triple;
 class StringRef;
 class raw_pwrite_stream;
 class raw_ostream;
 
-extern Target TheSparcTarget;
-extern Target TheSparcV9Target;
-extern Target TheSparcelTarget;
+Target &getTheSparcTarget();
+Target &getTheSparcV9Target();
+Target &getTheSparcelTarget();
 
 MCCodeEmitter *createSparcMCCodeEmitter(const MCInstrInfo &MCII,
                                         const MCRegisterInfo &MRI,
                                         MCContext &Ctx);
-MCAsmBackend *createSparcAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                    const Triple &TT, StringRef CPU);
-MCObjectWriter *createSparcELFObjectWriter(raw_pwrite_stream &OS, bool Is64Bit,
-                                           bool IsLIttleEndian, uint8_t OSABI);
+MCAsmBackend *createSparcAsmBackend(const Target &T, const MCSubtargetInfo &STI,
+                                    const MCRegisterInfo &MRI,
+                                    const MCTargetOptions &Options);
+std::unique_ptr<MCObjectWriter>
+createSparcELFObjectWriter(raw_pwrite_stream &OS, bool Is64Bit,
+                           bool IsLIttleEndian, uint8_t OSABI);
 } // End llvm namespace
 
 // Defines symbolic names for Sparc registers.  This defines a mapping from

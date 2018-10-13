@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2005-2006 Atheros Communications, Inc.
  * All rights reserved.
@@ -426,6 +428,10 @@ addchan(struct ath_hal *ah, struct ieee80211_channel chans[],
 	if (*nchans >= maxchans)
 		return (HAL_ENOMEM);
 
+	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+	    "%s: %d: freq=%d, flags=0x%08x\n",
+	    __func__, *nchans, (int) freq, flags);
+
 	c = &chans[(*nchans)++];
 	c->ic_freq = freq;
 	c->ic_flags = flags;
@@ -439,7 +445,7 @@ addchan(struct ath_hal *ah, struct ieee80211_channel chans[],
 
 static int
 copychan_prev(struct ath_hal *ah, struct ieee80211_channel chans[],
-    u_int maxchans, int *nchans, uint16_t freq)
+    u_int maxchans, int *nchans, uint16_t freq, uint32_t flags)
 {
 	struct ieee80211_channel *c;
 
@@ -448,6 +454,10 @@ copychan_prev(struct ath_hal *ah, struct ieee80211_channel chans[],
 
 	if (*nchans >= maxchans)
 		return (HAL_ENOMEM);
+
+	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+	    "%s: %d: freq=%d, flags=0x%08x\n",
+	    __func__, *nchans, (int) freq, flags);
 
 	c = &chans[(*nchans)++];
 	c[0] = c[-1];
@@ -469,9 +479,13 @@ add_chanlist_band(struct ath_hal *ah, struct ieee80211_channel chans[],
 	if (freq_hi < freq_lo)
 		return (0);
 
+	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+	    "%s: freq=%d..%d, flags=0x%08x, step=%d\n", __func__,
+	    (int) freq_lo, (int) freq_hi, flags, step);
+
 	error = addchan(ah, chans, maxchans, nchans, freq, flags, fband, rd);
 	for (freq += step; freq <= freq_hi && error == 0; freq += step)
-		error = copychan_prev(ah, chans, maxchans, nchans, freq);
+		error = copychan_prev(ah, chans, maxchans, nchans, freq, flags);
 
 	return (error);
 }
@@ -548,12 +562,60 @@ add_chanlist_mode(struct ath_hal *ah, struct ieee80211_channel chans[],
 			continue;
 		}
 #endif
+		/*
+		 * XXX TODO: handle REG_EXT_FCC_CH_144.
+		 *
+		 * Figure out which instances/uses cause us to not
+		 * be allowed to use channel 144 (pri or sec overlap.)
+		 */
+
 		bfreq_lo = MAX(fband->lowChannel + low_adj, freq_lo);
 		bfreq_hi = MIN(fband->highChannel + hi_adj, freq_hi);
+
+		/*
+		 * Don't start the 5GHz channel list at 5120MHz.
+		 *
+		 * Unfortunately (sigh) the HT40 channel creation
+		 * logic will create HT40U channels at 5120, 5160, 5200.
+		 * This means that 36 (5180) isn't considered as a
+		 * HT40 channel, and everything goes messed up from there.
+		 */
+		if ((cm->flags & IEEE80211_CHAN_5GHZ) &&
+		    (cm->flags & IEEE80211_CHAN_HT40U)) {
+			if (bfreq_lo < 5180)
+				bfreq_lo = 5180;
+		}
+
+		/*
+		 * Same with HT40D - need to start at 5200 or the low
+		 * channels are all wrong again.
+		 */
+		if ((cm->flags & IEEE80211_CHAN_5GHZ) &&
+		    (cm->flags & IEEE80211_CHAN_HT40D)) {
+			if (bfreq_lo < 5200)
+				bfreq_lo = 5200;
+		}
+
 		if (fband->channelSep >= channelSep)
 			step = fband->channelSep;
 		else
 			step = roundup(channelSep, fband->channelSep);
+
+		HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+		    "%s: freq_lo=%d, freq_hi=%d, low_adj=%d, hi_adj=%d, "
+		    "bandlo=%d, bandhi=%d, bfreqlo=%d, bfreqhi=%d, step=%d, "
+		    "flags=0x%08x\n",
+		    __func__,
+		    (int) freq_lo,
+		    (int) freq_hi,
+		    (int) low_adj,
+		    (int) hi_adj,
+		    (int) fband->lowChannel,
+		    (int) fband->highChannel,
+		    (int) bfreq_lo,
+		    (int) bfreq_hi,
+		    step,
+		    (int) cm->flags);
 
 		error = add_chanlist_band(ah, chans, maxchans, nchans,
 		    bfreq_lo, bfreq_hi, step, cm->flags, fband, rd);

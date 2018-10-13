@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/sound/chip.h>
 #include <mixer_if.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 	bus_space_write_4(_sc->bst, _sc->bsh, _reg, _val)
 
 #define	SSI_NCHANNELS	1
+#define	DMAS_TOTAL	8
 
 /* i.MX6 SSI registers */
 
@@ -188,8 +188,8 @@ struct sc_info {
 	struct sdma_conf	*conf;
 	struct ssi_rate		*sr;
 	struct sdma_softc	*sdma_sc;
-	int			sdma_ev_rx;
-	int			sdma_ev_tx;
+	uint32_t		sdma_ev_rx;
+	uint32_t		sdma_ev_tx;
 	int			sdma_channel;
 };
 
@@ -438,7 +438,7 @@ find_sdma_controller(struct sc_info *sc)
 	struct sdma_softc *sdma_sc;
 	phandle_t node, sdma_node;
 	device_t sdma_dev;
-	int dts_value[8];
+	pcell_t dts_value[DMAS_TOTAL];
 	int len;
 
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
@@ -447,12 +447,19 @@ find_sdma_controller(struct sc_info *sc)
 	if ((len = OF_getproplen(node, "dmas")) <= 0)
 		return (ENXIO);
 
-	OF_getprop(node, "dmas", &dts_value, len);
+	if (len != sizeof(dts_value)) {
+		device_printf(sc->dev,
+		    "\"dmas\" property length is invalid: %d (expected %d)",
+		    len, sizeof(dts_value));
+		return (ENXIO);
+	}
 
-	sc->sdma_ev_rx = fdt32_to_cpu(dts_value[1]);
-	sc->sdma_ev_tx = fdt32_to_cpu(dts_value[5]);
+	OF_getencprop(node, "dmas", dts_value, sizeof(dts_value));
 
-	sdma_node = OF_node_from_xref(fdt32_to_cpu(dts_value[0]));
+	sc->sdma_ev_rx = dts_value[1];
+	sc->sdma_ev_tx = dts_value[5];
+
+	sdma_node = OF_node_from_xref(dts_value[0]);
 
 	sdma_sc = NULL;
 
@@ -851,4 +858,5 @@ static driver_t ssi_pcm_driver = {
 
 DRIVER_MODULE(ssi, simplebus, ssi_pcm_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(ssi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(ssi, sdma, 0, 0, 0);
 MODULE_VERSION(ssi, 1);

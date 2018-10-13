@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -207,7 +209,7 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 int
 vga_pci_repost(device_t dev)
 {
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 	x86regs_t regs;
 
 	if (!vga_pci_is_boot_display(dev))
@@ -278,6 +280,17 @@ vga_pci_suspend(device_t dev)
 {
 
 	return (bus_generic_suspend(dev));
+}
+
+static int
+vga_pci_detach(device_t dev)
+{
+	int error; 
+
+	error = bus_generic_detach(dev);
+	if (error == 0)
+		error = device_delete_children(dev);
+	return (error);
 }
 
 static int
@@ -495,6 +508,14 @@ vga_pci_find_cap(device_t dev, device_t child, int capability,
 }
 
 static int
+vga_pci_find_next_cap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_cap(dev, capability, start, capreg));
+}
+
+static int
 vga_pci_find_extcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
@@ -503,11 +524,27 @@ vga_pci_find_extcap(device_t dev, device_t child, int capability,
 }
 
 static int
+vga_pci_find_next_extcap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_extcap(dev, capability, start, capreg));
+}
+
+static int
 vga_pci_find_htcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
 
 	return (pci_find_htcap(dev, capability, capreg));
+}
+
+static int
+vga_pci_find_next_htcap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_htcap(dev, capability, start, capreg));
 }
 
 static int
@@ -594,6 +631,7 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(device_attach,	vga_pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	vga_pci_suspend),
+	DEVMETHOD(device_detach,	vga_pci_detach),
 	DEVMETHOD(device_resume,	vga_pci_resume),
 
 	/* Bus interface */
@@ -620,8 +658,11 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(pci_set_powerstate,	vga_pci_set_powerstate),
 	DEVMETHOD(pci_assign_interrupt,	vga_pci_assign_interrupt),
 	DEVMETHOD(pci_find_cap,		vga_pci_find_cap),
+	DEVMETHOD(pci_find_next_cap,	vga_pci_find_next_cap),
 	DEVMETHOD(pci_find_extcap,	vga_pci_find_extcap),
+	DEVMETHOD(pci_find_next_extcap,	vga_pci_find_next_extcap),
 	DEVMETHOD(pci_find_htcap,	vga_pci_find_htcap),
+	DEVMETHOD(pci_find_next_htcap,	vga_pci_find_next_htcap),
 	DEVMETHOD(pci_alloc_msi,	vga_pci_alloc_msi),
 	DEVMETHOD(pci_alloc_msix,	vga_pci_alloc_msix),
 	DEVMETHOD(pci_remap_msix,	vga_pci_remap_msix),

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2012 Konstantin Belousov <kib@FreeBSD.ORG>.
  * All rights reserved.
  *
@@ -31,5 +33,7 @@
 #define	VDSO_TIMEHANDS_MD			\
 	uint32_t	th_physical;		\
 	uint32_t	th_res[7];
+
+#define	VDSO_TH_ALGO_ARM_GENTIM	VDSO_TH_ALGO_1
 
 #endif

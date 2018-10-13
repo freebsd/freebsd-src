@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#elif defined(_STANDALONE)
+#include "stand.h"
 #else
 #include <stdint.h>
 #include <string.h>
@@ -47,7 +49,7 @@ void
 g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
     size_t hkeylen)
 {
-	u_char k_ipad[128], key[128];
+	u_char k_ipad[128], k_opad[128], key[128];
 	SHA512_CTX lctx;
 	u_int i;
 
@@ -66,13 +68,17 @@ g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
 	/* XOR key with ipad and opad values. */
 	for (i = 0; i < sizeof(key); i++) {
 		k_ipad[i] = key[i] ^ 0x36;
-		ctx->k_opad[i] = key[i] ^ 0x5c;
+		k_opad[i] = key[i] ^ 0x5c;
 	}
-	bzero(key, sizeof(key));
-	/* Perform inner SHA512. */
-	SHA512_Init(&ctx->shactx);
-	SHA512_Update(&ctx->shactx, k_ipad, sizeof(k_ipad));
-	bzero(k_ipad, sizeof(k_ipad));
+	explicit_bzero(key, sizeof(key));
+	/* Start inner SHA512. */
+	SHA512_Init(&ctx->innerctx);
+	SHA512_Update(&ctx->innerctx, k_ipad, sizeof(k_ipad));
+	explicit_bzero(k_ipad, sizeof(k_ipad));
+	/* Start outer SHA512. */
+	SHA512_Init(&ctx->outerctx);
+	SHA512_Update(&ctx->outerctx, k_opad, sizeof(k_opad));
+	explicit_bzero(k_opad, sizeof(k_opad));
 }
 
 void
@@ -80,28 +86,27 @@ g_eli_crypto_hmac_update(struct hmac_ctx *ctx, const uint8_t *data,
     size_t datasize)
 {
 
-	SHA512_Update(&ctx->shactx, data, datasize);
+	SHA512_Update(&ctx->innerctx, data, datasize);
 }
 
 void
 g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
 {
 	u_char digest[SHA512_MDLEN];
-	SHA512_CTX lctx;
 
-	SHA512_Final(digest, &ctx->shactx);
-	/* Perform outer SHA512. */
-	SHA512_Init(&lctx);
-	SHA512_Update(&lctx, ctx->k_opad, sizeof(ctx->k_opad));
-	bzero(ctx, sizeof(*ctx));
-	SHA512_Update(&lctx, digest, sizeof(digest));
-	SHA512_Final(digest, &lctx);
-	bzero(&lctx, sizeof(lctx));
+	/* Complete inner hash */
+	SHA512_Final(digest, &ctx->innerctx);
+	
+	/* Complete outer hash */
+	SHA512_Update(&ctx->outerctx, digest, sizeof(digest));
+	SHA512_Final(digest, &ctx->outerctx);
+	
+	explicit_bzero(ctx, sizeof(*ctx));
 	/* mdsize == 0 means "Give me the whole hash!" */
 	if (mdsize == 0)
 		mdsize = SHA512_MDLEN;
 	bcopy(digest, md, mdsize);
-	bzero(digest, sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 }
 
 void

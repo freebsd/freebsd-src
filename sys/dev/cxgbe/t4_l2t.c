@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -106,32 +108,77 @@ found:
 	return (e);
 }
 
+static struct l2t_entry *
+find_or_alloc_l2e(struct l2t_data *d, uint16_t vlan, uint8_t port, uint8_t *dmac)
+{
+	struct l2t_entry *end, *e, **p;
+	struct l2t_entry *first_free = NULL;
+
+	for (e = &d->l2tab[0], end = &d->l2tab[d->l2t_size]; e != end; ++e) {
+		if (atomic_load_acq_int(&e->refcnt) == 0) {
+			if (!first_free)
+				first_free = e;
+		} else if (e->state == L2T_STATE_SWITCHING &&
+		    memcmp(e->dmac, dmac, ETHER_ADDR_LEN) == 0 &&
+		    e->vlan == vlan && e->lport == port)
+			return (e);	/* Found existing entry that matches. */
+	}
+
+	if (first_free == NULL)
+		return (NULL);	/* No match and no room for a new entry. */
+
+	/*
+	 * The entry we found may be an inactive entry that is
+	 * presently in the hash table.  We need to remove it.
+	 */
+	e = first_free;
+	if (e->state < L2T_STATE_SWITCHING) {
+		for (p = &d->l2tab[e->hash].first; *p; p = &(*p)->next) {
+			if (*p == e) {
+				*p = e->next;
+				e->next = NULL;
+				break;
+			}
+		}
+	}
+	e->state = L2T_STATE_UNUSED;
+	return (e);
+}
+
+
 /*
  * Write an L2T entry.  Must be called with the entry locked.
  * The write may be synchronous or asynchronous.
  */
 int
-t4_write_l2e(struct adapter *sc, struct l2t_entry *e, int sync)
+t4_write_l2e(struct l2t_entry *e, int sync)
 {
+	struct sge_wrq *wrq;
+	struct adapter *sc;
 	struct wrq_cookie cookie;
 	struct cpl_l2t_write_req *req;
-	int idx = e->idx + sc->vres.l2t.start;
+	int idx;
 
 	mtx_assert(&e->lock, MA_OWNED);
+	MPASS(e->wrq != NULL);
 
-	req = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*req), 16), &cookie);
+	wrq = e->wrq;
+	sc = wrq->adapter;
+
+	req = start_wrq_wr(wrq, howmany(sizeof(*req), 16), &cookie);
 	if (req == NULL)
 		return (ENOMEM);
 
+	idx = e->idx + sc->vres.l2t.start;
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, idx |
-	    V_SYNC_WR(sync) | V_TID_QID(sc->sge.fwq.abs_id)));
+	    V_SYNC_WR(sync) | V_TID_QID(e->iqid)));
 	req->params = htons(V_L2T_W_PORT(e->lport) | V_L2T_W_NOREPLY(!sync));
 	req->l2t_idx = htons(idx);
 	req->vlan = htons(e->vlan);
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
-	commit_wrq_wr(&sc->sge.mgmtq, req, &cookie);
+	commit_wrq_wr(wrq, req, &cookie);
 
 	if (sync && e->state != L2T_STATE_SWITCHING)
 		e->state = L2T_STATE_SYNC_WRITE;
@@ -145,39 +192,38 @@ t4_write_l2e(struct adapter *sc, struct l2t_entry *e, int sync)
  * address resolution updates do not see them.
  */
 struct l2t_entry *
-t4_l2t_alloc_switching(struct l2t_data *d)
+t4_l2t_alloc_switching(struct adapter *sc, uint16_t vlan, uint8_t port,
+    uint8_t *eth_addr)
 {
+	struct l2t_data *d = sc->l2t;
 	struct l2t_entry *e;
-
-	rw_wlock(&d->lock);
-	e = t4_alloc_l2e(d);
-	if (e) {
-		mtx_lock(&e->lock);          /* avoid race with t4_l2t_free */
-		e->state = L2T_STATE_SWITCHING;
-		atomic_store_rel_int(&e->refcnt, 1);
-		mtx_unlock(&e->lock);
-	}
-	rw_wunlock(&d->lock);
-	return e;
-}
-
-/*
- * Sets/updates the contents of a switching L2T entry that has been allocated
- * with an earlier call to @t4_l2t_alloc_switching.
- */
-int
-t4_l2t_set_switching(struct adapter *sc, struct l2t_entry *e, uint16_t vlan,
-    uint8_t port, uint8_t *eth_addr)
-{
 	int rc;
 
-	e->vlan = vlan;
-	e->lport = port;
-	memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
-	mtx_lock(&e->lock);
-	rc = t4_write_l2e(sc, e, 0);
-	mtx_unlock(&e->lock);
-	return (rc);
+	rw_wlock(&d->lock);
+	e = find_or_alloc_l2e(d, vlan, port, eth_addr);
+	if (e) {
+		if (atomic_load_acq_int(&e->refcnt) == 0) {
+			mtx_lock(&e->lock);    /* avoid race with t4_l2t_free */
+			e->wrq = &sc->sge.ctrlq[0];
+			e->iqid = sc->sge.fwq.abs_id;
+			e->state = L2T_STATE_SWITCHING;
+			e->vlan = vlan;
+			e->lport = port;
+			memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
+			atomic_store_rel_int(&e->refcnt, 1);
+			atomic_subtract_int(&d->nfree, 1);
+			rc = t4_write_l2e(e, 0);
+			mtx_unlock(&e->lock);
+			if (rc != 0)
+				e = NULL;
+		} else {
+			MPASS(e->vlan == vlan);
+			MPASS(e->lport == port);
+			atomic_add_int(&e->refcnt, 1);
+		}
+	}
+	rw_wunlock(&d->lock);
+	return (e);
 }
 
 int
@@ -211,7 +257,6 @@ t4_init_l2t(struct adapter *sc, int flags)
 	}
 
 	sc->l2t = d;
-	t4_register_cpl_handler(sc, CPL_L2T_WRITE_RPL, do_l2t_write_rpl);
 
 	return (0);
 }
@@ -247,7 +292,6 @@ do_l2t_write_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	return (0);
 }
 
-#ifdef SBUF_DRAIN
 static inline unsigned int
 vlan_prio(const struct l2t_entry *e)
 {
@@ -307,7 +351,6 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 		}
 
 		/*
-		 * XXX: e->ifp may not be around.
 		 * XXX: IPv6 addresses may not align properly in the output.
 		 */
 		sbuf_printf(sb, "\n%4u %-15s %02x:%02x:%02x:%02x:%02x:%02x %4d"
@@ -316,7 +359,7 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 			   e->dmac[3], e->dmac[4], e->dmac[5],
 			   e->vlan & 0xfff, vlan_prio(e), e->lport,
 			   l2e_state(e), atomic_load_acq_int(&e->refcnt),
-			   e->ifp->if_xname);
+			   e->ifp ? e->ifp->if_xname : "-");
 skip:
 		mtx_unlock(&e->lock);
 	}
@@ -326,4 +369,3 @@ skip:
 
 	return (rc);
 }
-#endif

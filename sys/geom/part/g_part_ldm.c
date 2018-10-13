@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
@@ -361,19 +363,21 @@ static struct g_part_scheme g_part_ldm_scheme = {
 	.gps_entrysz = sizeof(struct g_part_ldm_entry)
 };
 G_PART_SCHEME_DECLARE(g_part_ldm);
+MODULE_VERSION(geom_part_ldm, 0);
 
 static struct g_part_ldm_alias {
 	u_char		typ;
 	int		alias;
 } ldm_alias_match[] = {
-	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
-	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
 	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_FAT32LBA,	G_PART_ALIAS_MS_FAT32LBA },
 	{ DOSPTYP_LDM,		G_PART_ALIAS_MS_LDM_DATA },
-	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
-	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
 	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
 	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
+	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
+	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
 };
 
 static u_char*

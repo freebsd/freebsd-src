@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519s.c,v 1.10 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: kexc25519s.c,v 1.11 2017/05/31 04:19:28 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -41,7 +41,7 @@
 #include "sshbuf.h"
 #include "ssherr.h"
 
-static int input_kex_c25519_init(int, u_int32_t, void *);
+static int input_kex_c25519_init(int, u_int32_t, struct ssh *);
 
 int
 kexc25519_server(struct ssh *ssh)
@@ -52,9 +52,8 @@ kexc25519_server(struct ssh *ssh)
 }
 
 static int
-input_kex_c25519_init(int type, u_int32_t seq, void *ctxt)
+input_kex_c25519_init(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	struct sshkey *server_host_private, *server_host_public;
 	struct sshbuf *shared_secret = NULL;

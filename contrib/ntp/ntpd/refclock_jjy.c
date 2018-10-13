@@ -106,6 +106,15 @@
 /*  2015/05/15							      */
 /*    [Add]    Support the SEIKO TIME SYSTEMS TDC-300		      */
 /*								      */
+/*  2016/05/08							      */
+/*    [Fix]    C-DEX JST2000                                          */
+/*             Thanks to Mr. Kuramatsu for the report and the patch.  */
+/*								      */
+/*  2017/04/30							      */
+/*    [Change] Avoid a wrong report of the coverity static analysis   */
+/*             tool. ( The code is harmless and has no bug. )	      */
+/*             teljjy_conn_send()				      */
+/*								      */
 /**********************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -389,6 +398,7 @@ struct	refclock refclock_jjy = {
 #define	JJY_CLOCKSTATS_MARK_ATTENTION	5
 #define	JJY_CLOCKSTATS_MARK_WARNING	6
 #define	JJY_CLOCKSTATS_MARK_ERROR	7
+#define	JJY_CLOCKSTATS_MARK_BUG 	8
 
 /* Local constants definition for the clockstats messages */
 
@@ -588,7 +598,7 @@ jjy_receive ( struct recvbuf *rbufp )
 	l_fp	tRecvTimestamp;		/* arrival timestamp */
 	int 	rc ;
 	char	*pBuf, sLogText [ MAX_LOGTEXT ] ;
-	int 	iLen, iCopyLen ;
+	size_t 	iLen, iCopyLen ;
 	int 	i, j, iReadRawBuf, iBreakPosition ;
 
 	/*
@@ -740,8 +750,8 @@ jjy_receive ( struct recvbuf *rbufp )
 		}
 
 		iCopyLen = ( iLen <= sizeof(sLogText)-1 ? iLen : sizeof(sLogText)-1 ) ;
-		strncpy( sLogText, pBuf, iCopyLen ) ;
-		sLogText[iCopyLen] = 0 ;
+		memcpy( sLogText, pBuf, iCopyLen ) ;
+		sLogText[iCopyLen] = '\0' ;
 		jjy_write_clockstats( peer, JJY_CLOCKSTATS_MARK_RECEIVE, sLogText ) ;
 
 		switch ( up->unittype ) {
@@ -1499,9 +1509,9 @@ jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 		return JJY_RECEIVE_ERROR ;
 	}
 
-	/* JYYMMDD HHMMSSS */
+	/* JYYMMDDWHHMMSSS */
 
-	rc = sscanf ( pBuf, "J%2d%2d%2d %2d%2d%2d%1d",
+	rc = sscanf ( pBuf, "J%2d%2d%2d%*1d%2d%2d%2d%1d",
 		      &up->year, &up->month, &up->day,
 		      &up->hour, &up->minute, &up->second,
 		      &up->msecond ) ;
@@ -2684,8 +2694,9 @@ jjy_start_telephone ( int unit, struct peer *peer, struct jjyunit *up )
 {
 
 	char	sLog [ 80 ], sFirstThreeDigits [ 4 ] ;
-	int	i, iNumberOfDigitsOfPhoneNumber, iCommaCount, iCommaPosition ;
-	int	iFirstThreeDigitsCount ;
+	int	iNumberOfDigitsOfPhoneNumber, iCommaCount, iCommaPosition ;
+	size_t  i ;
+	size_t	iFirstThreeDigitsCount ;
 
 	jjy_write_clockstats( peer, JJY_CLOCKSTATS_MARK_JJY, "Refclock: Telephone JJY" ) ;
 
@@ -3294,6 +3305,7 @@ teljjy_conn_send ( struct peer *peer, struct refclockproc *pp, struct jjyunit *u
 
 	const char *	pCmd ;
 	int		i, iLen, iNextClockState ;
+	char	sLog [ 120 ] ;
 
 	DEBUG_TELJJY_PRINTF( "teljjy_conn_send" ) ;
 
@@ -3322,8 +3334,8 @@ teljjy_conn_send ( struct peer *peer, struct refclockproc *pp, struct jjyunit *u
 		/* Loopback character comes */
 #ifdef DEBUG
 		if ( debug ) {
-			printf( "refclock_jjy.c : teljjy_conn_send : iLoopbackCount=%d\n",
-				 up->iLoopbackCount ) ;
+			printf( "refclock_jjy.c : teljjy_conn_send : iClockCommandSeq=%d iLoopbackCount=%d\n",
+				 up->iClockCommandSeq, up->iLoopbackCount ) ;
 		}
 #endif
 
@@ -3346,8 +3358,18 @@ teljjy_conn_send ( struct peer *peer, struct refclockproc *pp, struct jjyunit *u
 
 		if ( teljjy_command_sequence[up->iClockCommandSeq].iExpectedReplyType == TELJJY_REPLY_LOOPBACK ) {
 			/* Loopback character and timestamp */
-			gettimeofday( &(up->sendTime[up->iLoopbackCount]), NULL ) ;
-			up->bLoopbackMode = TRUE ;
+			if ( up->iLoopbackCount < MAX_LOOPBACK ) {
+				gettimeofday( &(up->sendTime[up->iLoopbackCount]), NULL ) ;
+				up->bLoopbackMode = TRUE ;
+			} else {
+				/* This else-block is never come. */
+				/* This code avoid wrong report of the coverity static analysis scan tool. */
+				snprintf( sLog, sizeof(sLog)-1, "refclock_jjy.c ; teljjy_conn_send ; iClockCommandSeq=%d iLoopbackCount=%d MAX_LOOPBACK=%d",
+					  up->iClockCommandSeq, up->iLoopbackCount, MAX_LOOPBACK ) ;
+				jjy_write_clockstats( peer, JJY_CLOCKSTATS_MARK_BUG, sLog ) ;
+				msyslog ( LOG_ERR, "%s", sLog ) ;
+				up->bLoopbackMode = FALSE ;
+			}
 		} else {
 			/* Regular command */
 			up->bLoopbackMode = FALSE ;
@@ -3819,7 +3841,7 @@ modem_receive ( struct recvbuf *rbufp )
 	struct	jjyunit		*up;
 	struct	refclockproc	*pp;
 	char	*pBuf ;
-	int	iLen ;
+	size_t	iLen ;
 
 #ifdef DEBUG
 	static const char *sFunctionName = "modem_receive" ;
@@ -3853,11 +3875,11 @@ modem_receive ( struct recvbuf *rbufp )
 #ifdef DEBUG
 	if ( debug ) {
 		char	sResp [ 40 ] ;
-		int	iCopyLen ;
+		size_t	iCopyLen ;
 		iCopyLen = ( iLen <= sizeof(sResp)-1 ? iLen : sizeof(sResp)-1 ) ;
 		strncpy( sResp, pBuf, iLen <= sizeof(sResp)-1 ? iLen : sizeof(sResp)-1 ) ;
 		sResp[iCopyLen] = 0 ;
-		printf ( "refclock_jjy.c : modem_receive : iLen=%d pBuf=[%s] iModemEvent=%d\n", iCopyLen, sResp, up->iModemEvent ) ;
+		printf ( "refclock_jjy.c : modem_receive : iLen=%zu pBuf=[%s] iModemEvent=%d\n", iCopyLen, sResp, up->iModemEvent ) ;
 	}
 #endif
 	modem_control ( peer, pp, up ) ;
@@ -4377,6 +4399,9 @@ jjy_write_clockstats ( struct peer *peer, int iMark, const char *pData )
 		break ;
 	case JJY_CLOCKSTATS_MARK_ERROR :
 		pMark = "-X- " ;
+		break ;
+	case JJY_CLOCKSTATS_MARK_BUG :
+		pMark = "!!! " ;
 		break ;
 	default :
 		pMark = "" ;

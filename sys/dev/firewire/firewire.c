@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Hidetoshi Shimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
@@ -1098,6 +1100,7 @@ fw_xfer_alloc(struct malloc_type *type)
 		return xfer;
 
 	xfer->malloc = type;
+	xfer->tl = -1;
 
 	return xfer;
 }

@@ -55,8 +55,52 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 	zfs_cmd_zcmd_t *zcmd_c;
 	zfs_cmd_edbp_t *edbp_c;
 	zfs_cmd_resume_t *resume_c;
+	zfs_cmd_inlanes_t *inlanes_c;
 
 	switch (cflag) {
+	case ZFS_CMD_COMPAT_INLANES:
+		inlanes_c = (void *)addr;
+		/* zc */
+		strlcpy(zc->zc_name, inlanes_c->zc_name, MAXPATHLEN);
+		strlcpy(zc->zc_value, inlanes_c->zc_value, MAXPATHLEN * 2);
+		strlcpy(zc->zc_string, inlanes_c->zc_string, MAXPATHLEN);
+
+#define FIELD_COPY(field) zc->field = inlanes_c->field
+		FIELD_COPY(zc_nvlist_src);
+		FIELD_COPY(zc_nvlist_src_size);
+		FIELD_COPY(zc_nvlist_dst);
+		FIELD_COPY(zc_nvlist_dst_size);
+		FIELD_COPY(zc_nvlist_dst_filled);
+		FIELD_COPY(zc_pad2);
+		FIELD_COPY(zc_history);
+		FIELD_COPY(zc_guid);
+		FIELD_COPY(zc_nvlist_conf);
+		FIELD_COPY(zc_nvlist_conf_size);
+		FIELD_COPY(zc_cookie);
+		FIELD_COPY(zc_objset_type);
+		FIELD_COPY(zc_perm_action);
+		FIELD_COPY(zc_history_len);
+		FIELD_COPY(zc_history_offset);
+		FIELD_COPY(zc_obj);
+		FIELD_COPY(zc_iflags);
+		FIELD_COPY(zc_share);
+		FIELD_COPY(zc_jailid);
+		FIELD_COPY(zc_objset_stats);
+		FIELD_COPY(zc_begin_record);
+		FIELD_COPY(zc_inject_record);
+		FIELD_COPY(zc_defer_destroy);
+		FIELD_COPY(zc_flags);
+		FIELD_COPY(zc_action_handle);
+		FIELD_COPY(zc_cleanup_fd);
+		FIELD_COPY(zc_simple);
+		FIELD_COPY(zc_resumable);
+		FIELD_COPY(zc_sendobj);
+		FIELD_COPY(zc_fromobj);
+		FIELD_COPY(zc_createtxg);
+		FIELD_COPY(zc_stat);
+#undef FIELD_COPY
+		break;
+
 	case ZFS_CMD_COMPAT_RESUME:
 		resume_c = (void *)addr;
 		/* zc */
@@ -434,8 +478,50 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
 	zfs_cmd_zcmd_t *zcmd_c;
 	zfs_cmd_edbp_t *edbp_c;
 	zfs_cmd_resume_t *resume_c;
+	zfs_cmd_inlanes_t *inlanes_c;
 
 	switch (cflag) {
+	case ZFS_CMD_COMPAT_INLANES:
+		inlanes_c = (void *)addr;
+		strlcpy(inlanes_c->zc_name, zc->zc_name, MAXPATHLEN);
+		strlcpy(inlanes_c->zc_value, zc->zc_value, MAXPATHLEN * 2);
+		strlcpy(inlanes_c->zc_string, zc->zc_string, MAXPATHLEN);
+
+#define FIELD_COPY(field) inlanes_c->field = zc->field
+		FIELD_COPY(zc_nvlist_src);
+		FIELD_COPY(zc_nvlist_src_size);
+		FIELD_COPY(zc_nvlist_dst);
+		FIELD_COPY(zc_nvlist_dst_size);
+		FIELD_COPY(zc_nvlist_dst_filled);
+		FIELD_COPY(zc_pad2);
+		FIELD_COPY(zc_history);
+		FIELD_COPY(zc_guid);
+		FIELD_COPY(zc_nvlist_conf);
+		FIELD_COPY(zc_nvlist_conf_size);
+		FIELD_COPY(zc_cookie);
+		FIELD_COPY(zc_objset_type);
+		FIELD_COPY(zc_perm_action);
+		FIELD_COPY(zc_history_len);
+		FIELD_COPY(zc_history_offset);
+		FIELD_COPY(zc_obj);
+		FIELD_COPY(zc_iflags);
+		FIELD_COPY(zc_share);
+		FIELD_COPY(zc_jailid);
+		FIELD_COPY(zc_objset_stats);
+		FIELD_COPY(zc_begin_record);
+		FIELD_COPY(zc_inject_record);
+		FIELD_COPY(zc_defer_destroy);
+		FIELD_COPY(zc_flags);
+		FIELD_COPY(zc_action_handle);
+		FIELD_COPY(zc_cleanup_fd);
+		FIELD_COPY(zc_simple);
+		FIELD_COPY(zc_sendobj);
+		FIELD_COPY(zc_fromobj);
+		FIELD_COPY(zc_createtxg);
+		FIELD_COPY(zc_stat);
+#undef FIELD_COPY
+		break;
+
 	case ZFS_CMD_COMPAT_RESUME:
 		resume_c = (void *)addr;
 		strlcpy(resume_c->zc_name, zc->zc_name, MAXPATHLEN);
@@ -987,6 +1073,12 @@ zcmd_ioctl_compat(int fd, int request, zfs_cmd_t *zc, const int cflag)
 		zp.zfs_cmd_size = sizeof(zfs_cmd_t);
 		zp.zfs_ioctl_version = ZFS_IOCVER_CURRENT;
 		return (ioctl(fd, ncmd, &zp));
+	case ZFS_CMD_COMPAT_INLANES:
+		ncmd = _IOWR('Z', request, struct zfs_iocparm);
+		zp.zfs_cmd = (uint64_t)zc;
+		zp.zfs_cmd_size = sizeof(zfs_cmd_inlanes_t);
+		zp.zfs_ioctl_version = ZFS_IOCVER_INLANES;
+		return (ioctl(fd, ncmd, &zp));
 	case ZFS_CMD_COMPAT_RESUME:
 		ncmd = _IOWR('Z', request, struct zfs_iocparm);
 		zp.zfs_cmd = (uint64_t)zc;
@@ -1104,7 +1196,7 @@ zfs_ioctl_compat_innvl(zfs_cmd_t *zc, nvlist_t * innvl, const int vec,
 
 	if (cflag == ZFS_CMD_COMPAT_NONE || cflag == ZFS_CMD_COMPAT_LZC ||
 	    cflag == ZFS_CMD_COMPAT_ZCMD || cflag == ZFS_CMD_COMPAT_EDBP ||
-	    cflag == ZFS_CMD_COMPAT_RESUME)
+	    cflag == ZFS_CMD_COMPAT_RESUME || cflag == ZFS_CMD_COMPAT_INLANES)
 		goto out;
 
 	switch (vec) {
@@ -1257,7 +1349,7 @@ zfs_ioctl_compat_outnvl(zfs_cmd_t *zc, nvlist_t * outnvl, const int vec,
 
 	if (cflag == ZFS_CMD_COMPAT_NONE || cflag == ZFS_CMD_COMPAT_LZC ||
 	    cflag == ZFS_CMD_COMPAT_ZCMD || cflag == ZFS_CMD_COMPAT_EDBP ||
-	    cflag == ZFS_CMD_COMPAT_RESUME)
+	    cflag == ZFS_CMD_COMPAT_RESUME || cflag == ZFS_CMD_COMPAT_INLANES)
 		return (outnvl);
 
 	switch (vec) {

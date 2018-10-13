@@ -1,6 +1,8 @@
 /*	$NetBSD: miivar.h,v 1.8 1999/04/23 04:24:32 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -154,6 +156,42 @@ typedef struct mii_softc mii_softc_t;
  */
 #define	MII_OFFSET_ANY		-1
 #define	MII_PHY_ANY		-1
+
+/*
+ * Constants used to describe the type of attachment between MAC and PHY.
+ */
+enum mii_contype {
+	MII_CONTYPE_UNKNOWN,	/* Must be have value 0. */
+
+	MII_CONTYPE_MII,
+	MII_CONTYPE_GMII,
+	MII_CONTYPE_SGMII,
+	MII_CONTYPE_QSGMII,
+	MII_CONTYPE_TBI,
+	MII_CONTYPE_REVMII,	/* Reverse MII */
+	MII_CONTYPE_RMII,
+	MII_CONTYPE_RGMII,	/* Delays provided by MAC or PCB */
+	MII_CONTYPE_RGMII_ID,	/* Rx and tx delays provided by PHY */
+	MII_CONTYPE_RGMII_RXID,	/* Only rx delay provided by PHY */
+	MII_CONTYPE_RGMII_TXID,	/* Only tx delay provided by PHY */
+	MII_CONTYPE_RTBI,
+	MII_CONTYPE_SMII,
+	MII_CONTYPE_XGMII,
+	MII_CONTYPE_TRGMII,
+	MII_CONTYPE_2000BX,
+	MII_CONTYPE_2500BX,
+	MII_CONTYPE_RXAUI,
+
+	MII_CONTYPE_COUNT	/* Add new types before this line. */
+};
+typedef enum mii_contype mii_contype_t;
+
+static inline bool
+mii_contype_is_rgmii(mii_contype_t con)
+{
+
+	return (con >= MII_CONTYPE_RGMII && con <= MII_CONTYPE_RGMII_TXID);
+}
 
 /*
  * Used to attach a PHY to a parent.

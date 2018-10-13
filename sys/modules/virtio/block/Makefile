@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/block
+.PATH: ${SRCTOP}/sys/dev/virtio/block
 
 KMOD=	virtio_blk
 SRCS=	virtio_blk.c

@@ -189,15 +189,13 @@ PLIST(mux_pll_srcs) = {"osc_div_clk", NULL, "pllP_out0", NULL}; /* FIXME */
 PLIST(mux_plle_src1) = {"osc_div_clk", "pllP_out0"};
 PLIST(mux_plle_src) = {"pllE_src1", "pllREFE_out"};
 PLIST(mux_plld_out0_plld2_out0) = {"pllD_out0", "pllD2_out0"};
-PLIST(mux_pllmcp_clkm) = {"pllM_out0", "pllC_out0", "pllP_out0", "clk_m",
-    "pllM_UD", "pllC2_out0", "pllC3_out0", "pllC_UD"};
-PLIST(mux_xusb_hs) = {"pc_xusb_ss", "pllU_60"};
+PLIST(mux_xusb_hs) = {"xusb_ss_div2", "pllU_60"};
 PLIST(mux_xusb_ss) = {"pc_xusb_ss", "osc_div_clk"};
 
 
 /* Clocks ajusted online. */
 static struct clk_fixed_def fixed_clk_m =
-	FRATE(0, "clk_m", 12000000);
+	FRATE(TEGRA124_CLK_CLK_M, "clk_m", 12000000);
 static struct clk_fixed_def fixed_osc_div_clk =
 	FACT(0, "osc_div_clk", "clk_m", 1, 1);
 
@@ -222,6 +220,10 @@ static struct clk_fixed_def tegra124_fixed_clks[] = {
 	FRATE(0, "audio3", 10000000),
 	FRATE(0, "audio4", 10000000),
 	FRATE(0, "ext_vimclk", 10000000),
+
+	/* XUSB */
+	FACT(TEGRA124_CLK_XUSB_SS_DIV2, "xusb_ss_div2", "xusb_ss", 1, 2),
+
 };
 
 
@@ -236,10 +238,9 @@ static struct clk_mux_def tegra124_mux_clks[] = {
 	/* Base peripheral clocks. */
 	MUX(0, "dsia_mux", mux_plld_out0_plld2_out0, PLLD_BASE, 25, 1),
 	MUX(0, "dsib_mux", mux_plld_out0_plld2_out0, PLLD2_BASE, 25, 1),
-	MUX(0, "emc_mux", mux_pllmcp_clkm, CLK_SOURCE_EMC, 29, 3),
 
 	/* USB. */
-	MUX(0, "xusb_hs", mux_xusb_hs, CLK_SOURCE_XUSB_SS, 25, 1),
+	MUX(TEGRA124_CLK_XUSB_HS_SRC, "xusb_hs", mux_xusb_hs, CLK_SOURCE_XUSB_SS, 25, 1),
 	MUX(0, "xusb_ss_mux", mux_xusb_ss, CLK_SOURCE_XUSB_SS, 24, 1),
 
 };
@@ -249,7 +250,7 @@ static struct clk_gate_def tegra124_gate_clks[] = {
 	/* Core clocks. */
 	GATE_PLL(0, "pllC_out1", "pllC_out1_div", PLLC_OUT, 0),
 	GATE_PLL(0, "pllM_out1", "pllM_out1_div", PLLM_OUT, 0),
-	GATE_PLL(0, "pllU_480", "pllU_out", PLLU_BASE, 22),
+	GATE_PLL(TEGRA124_CLK_PLL_U_480M, "pllU_480", "pllU_out", PLLU_BASE, 22),
 	GATE_PLL(0, "pllP_outX0", "pllP_outX0_div", PLLP_RESHIFT, 0),
 	GATE_PLL(0, "pllP_out1", "pllP_out1_div", PLLP_OUTA, 0),
 	GATE_PLL(0, "pllP_out2", "pllP_out2_div", PLLP_OUTA, 16),
@@ -602,12 +603,7 @@ static device_method_t tegra124_car_methods[] = {
 };
 
 static devclass_t tegra124_car_devclass;
-
-static driver_t tegra124_car_driver = {
-	"tegra124_car",
-	tegra124_car_methods,
-	sizeof(struct tegra124_car_softc),
-};
-
+static DEFINE_CLASS_0(car, tegra124_car_driver, tegra124_car_methods,
+    sizeof(struct tegra124_car_softc));
 EARLY_DRIVER_MODULE(tegra124_car, simplebus, tegra124_car_driver,
-    tegra124_car_devclass, 0, 0, BUS_PASS_TIMER);
+    tegra124_car_devclass, NULL, NULL, BUS_PASS_TIMER);

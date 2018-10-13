@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *
@@ -50,10 +52,6 @@ struct pim6stat {
 	uint64_t pim6s_rcv_badregisters; /* received invalid registers	*/
 	uint64_t pim6s_snd_registers;	/* sent registers		*/
 };
-
-#if (defined(KERNEL)) || (defined(_KERNEL))
-int pim6_input(struct mbuf **, int*, int);
-#endif /* KERNEL */
 
 /*
  * Identifiers for PIM sysctl nodes

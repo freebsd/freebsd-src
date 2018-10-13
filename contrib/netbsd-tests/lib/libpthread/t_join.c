@@ -37,10 +37,6 @@ __RCSID("$NetBSD: t_join.c,v 1.8 2012/03/12 20:17:16 joerg Exp $");
 
 #include <atf-c.h>
 
-#ifdef __FreeBSD__
-#include <pthread_np.h>
-#endif
-
 #include "h_common.h"
 
 #ifdef CHECK_STACK_ALIGNMENT

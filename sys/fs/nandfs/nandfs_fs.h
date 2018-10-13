@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2012 Semihalf
  * Copyright (c) 2008, 2009 Reinoud Zandijk
  * All rights reserved.
@@ -56,8 +58,8 @@
 #define	NANDFS_SYS_NODE(ino) \
 	(((ino) >= NANDFS_DAT_INO) && ((ino) <= NANDFS_GC_INO))
 
-#define	NDADDR		12		/* Direct addresses in inode. */
-#define	NIADDR		3		/* Indirect addresses in inode. */
+#define	NANDFS_NDADDR		12	/* Direct addresses in inode. */
+#define	NANDFS_NIADDR		3	/* Indirect addresses in inode. */
 
 typedef	int64_t		nandfs_daddr_t;
 typedef	int64_t		nandfs_lbn_t;
@@ -75,8 +77,8 @@ struct nandfs_inode {
 	uint16_t	i_links_count;	/* 50: number of references to the inode*/
 	uint32_t	i_flags;	/* 52: NANDFS_*_FL flags		*/
 	nandfs_daddr_t	i_special;	/* 56: special				*/
-	nandfs_daddr_t	i_db[NDADDR];	/* 64: Direct disk blocks.		*/
-	nandfs_daddr_t	i_ib[NIADDR];	/* 160: Indirect disk blocks.		*/
+	nandfs_daddr_t	i_db[NANDFS_NDADDR]; /* 64: Direct disk blocks.		*/
+	nandfs_daddr_t	i_ib[NANDFS_NIADDR]; /* 160: Indirect disk blocks.	*/
 	uint64_t	i_xattr;	/* 184: reserved for extended attributes*/
 	uint32_t	i_generation;	/* 192: file generation for NFS		*/
 	uint32_t	i_pad[15];	/* 196: make it 64 bits aligned		*/
@@ -537,7 +539,7 @@ struct nandfs_bdesc {
 
 #ifndef _KERNEL
 #ifndef	MNAMELEN
-#define	MNAMELEN	88
+#define	MNAMELEN	1024
 #endif
 #endif
 

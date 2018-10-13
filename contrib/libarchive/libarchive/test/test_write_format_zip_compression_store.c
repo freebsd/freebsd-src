@@ -108,8 +108,19 @@ static void verify_write_uncompressed(struct archive *a)
 }
 
 /* Quick and dirty: Read 2-byte and 4-byte integers from Zip file. */
-static int i2(const char *p) { return ((p[0] & 0xff) | ((p[1] & 0xff) << 8)); }
-static int i4(const char *p) { return (i2(p) | (i2(p + 2) << 16)); }
+static unsigned int
+i2(const void *p_)
+{
+	const unsigned char *p = p_;
+	return (p[0] | (p[1] << 8));
+}
+
+static unsigned int
+i4(const void *p_)
+{
+	const unsigned char *p = p_;
+	return (i2(p) | (i2(p + 2) << 16));
+}
 
 static void verify_uncompressed_contents(const char *buff, size_t used)
 {

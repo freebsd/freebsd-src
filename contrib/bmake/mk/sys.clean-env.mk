@@ -1,4 +1,4 @@
-# $Id: sys.clean-env.mk,v 1.21 2016/02/18 21:16:40 sjg Exp $
+# $Id: sys.clean-env.mk,v 1.22 2017/10/25 23:44:20 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -97,7 +97,7 @@ _objroot := ${OBJROOT:U${SB_OBJROOT:U${SB}/${SB_OBJPREFIX}}}
 .if ${MAKE_VERSION} < 20160218
 _objtop := ${OBJTOP:U${_objroot}${MACHINE}}
 # Take care of ${MACHINE}
-.if ${MACHINE} == "host" || ${OBJTOP} == ${HOST_OBJTOP:Uno}
+.if ${MACHINE:Nhost*} == "" || ${OBJTOP} == ${HOST_OBJTOP:Uno}
 OBJTOP = ${_objtop:S,${HOST_TARGET}$,\${MACHINE},}
 .else
 OBJTOP = ${_objtop:S,${MACHINE}$,\${MACHINE},}

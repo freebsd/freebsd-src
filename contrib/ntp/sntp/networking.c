@@ -135,6 +135,8 @@ process_pkt (
 			func_name, pkt_len);
 		return PACKET_UNUSEABLE;
 	}
+
+	/* HMS: the following needs a bit of work */
 	/* Note: pkt_len must be a multiple of 4 at this point! */
 	packet_end = (void*)((char*)rpkt + pkt_len);
 	exten_end = skip_efields(rpkt->exten, packet_end);
@@ -144,18 +146,20 @@ process_pkt (
 			func_name);
 		return PACKET_UNUSEABLE;
 	}
+
 	/* get size of MAC in cells; can be zero */
 	exten_len = (u_int)(packet_end - exten_end);
 
 	/* deduce action required from remaining length */
 	switch (exten_len) {
 
-	case 0:	/* no MAC at all */
+	case 0:	/* no Legacy MAC */
 		break;
 
 	case 1:	/* crypto NAK */		
+		/* Only if the keyID is 0 and there were no EFs */
 		key_id = ntohl(*exten_end);
-		printf("Crypto NAK = 0x%08x\n", key_id);
+		printf("Crypto NAK = 0x%08x from %s\n", key_id, stoa(sender));
 		break;
 
 	case 3: /* key ID + 3DES MAC -- unsupported! */

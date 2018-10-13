@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -84,7 +86,11 @@ struct ieee80211_nodestats {
 	uint32_t	ns_tx_deauth_code;	/* last deauth reason */
 	uint32_t	ns_tx_disassoc;		/* disassociations */
 	uint32_t	ns_tx_disassoc_code;	/* last disassociation reason */
-	uint32_t	ns_spare[8];
+
+	/* Hardware A-MSDU decode */
+	uint32_t	ns_rx_amsdu_more;	/* RX decap A-MSDU, more coming from A-MSDU */
+	uint32_t	ns_rx_amsdu_more_end;	/* RX decap A-MSDU (or any other frame), no more coming */
+	uint32_t	ns_spare[6];
 };
 
 /*
@@ -556,6 +562,7 @@ struct ieee80211_devcaps_req {
 	uint32_t	dc_drivercaps;		/* general driver caps */
 	uint32_t	dc_cryptocaps;		/* hardware crypto support */
 	uint32_t	dc_htcaps;		/* HT/802.11n support */
+	uint32_t	dc_vhtcaps;		/* VHT/802.11ac capabilities */
 	struct ieee80211req_chaninfo dc_chaninfo;
 };
 #define	IEEE80211_DEVCAPS_SIZE(_nchan) \
@@ -703,6 +710,9 @@ struct ieee80211req {
 #define	IEEE80211_IOC_GREENFIELD	112	/* Greenfield (on, off) */
 #define	IEEE80211_IOC_STBC		113	/* STBC Tx/RX (on, off) */
 #define	IEEE80211_IOC_LDPC		114	/* LDPC Tx/RX (on, off) */
+
+/* VHT */
+#define	IEEE80211_IOC_VHTCONF		130	/* VHT config (off, on; widths) */
 
 #define	IEEE80211_IOC_MESH_ID		170	/* mesh identifier */
 #define	IEEE80211_IOC_MESH_AP		171	/* accepting peerings */

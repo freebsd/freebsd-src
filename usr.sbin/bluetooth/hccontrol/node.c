@@ -1,5 +1,7 @@
-/*
+/*-
  * node.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -208,12 +210,59 @@ hci_flush_neighbor_cache(int s, int argc, char **argv)
 	return (OK);
 } /* hci_flush_neighbor_cache */
 
+#define MIN(a,b) (((a)>(b)) ? (b) :(a) )
+
+static int  hci_dump_adv(uint8_t *data, int length)
+{
+	int elemlen;
+	int type;
+	int i;
+
+	while(length>0){
+		elemlen = *data;
+		data++;
+		length --;
+		elemlen--;
+		if(length<=0)
+			break;
+		type = *data;
+		data++;
+		length --;
+		elemlen--;
+		if(length<=0)
+			break;
+		switch(type){
+		case 0x1:
+			printf("NDflag:%x\n", *data);
+			break;
+		case 0x9:
+			printf("LocalName:");
+			for(i = 0; i < MIN(length,elemlen); i++){
+				putchar(data[i]);
+			}
+			printf("\n");
+			break;
+		default:
+			printf("Type%d:", type);
+			for(i=0; i < MIN(length,elemlen); i++){
+				printf("%02x ",data[i]);
+			}
+			printf("\n");
+			break;
+		}
+		data += elemlen;
+		length -= elemlen;
+	}
+	return 0;
+}
+#undef MIN
 /* Send Read_Neighbor_Cache command to the node */
 static int
 hci_read_neighbor_cache(int s, int argc, char **argv)
 {
 	struct ng_btsocket_hci_raw_node_neighbor_cache	r;
 	int						n, error = OK;
+	const char  *addrtype2str[] = {"B", "P", "R", "E"};
 
 	memset(&r, 0, sizeof(r));
 	r.num_entries = NG_HCI_MAX_NEIGHBOR_NUM;
@@ -231,6 +280,7 @@ hci_read_neighbor_cache(int s, int argc, char **argv)
 	}
 
 	fprintf(stdout,
+"T " \
 "BD_ADDR           " \
 "Features                " \
 "Clock offset " \
@@ -238,12 +288,16 @@ hci_read_neighbor_cache(int s, int argc, char **argv)
 "Rep. scan\n");
 
 	for (n = 0; n < r.num_entries; n++) {
+	        uint8_t addrtype = r.entries[n].addrtype;
+		if(addrtype >= sizeof(addrtype2str)/sizeof(addrtype2str[0]))
+			addrtype = sizeof(addrtype2str)/sizeof(addrtype2str[0]) - 1;
 		fprintf(stdout, 
-"%-17.17s " \
+"%1s %-17.17s " \
 "%02x %02x %02x %02x %02x %02x %02x %02x " \
 "%#12x " \
 "%#9x " \
 "%#9x\n",
+			addrtype2str[addrtype],
 			hci_bdaddr2str(&r.entries[n].bdaddr),
 			r.entries[n].features[0], r.entries[n].features[1],
 			r.entries[n].features[2], r.entries[n].features[3],
@@ -251,6 +305,9 @@ hci_read_neighbor_cache(int s, int argc, char **argv)
 			r.entries[n].features[6], r.entries[n].features[7],
 			r.entries[n].clock_offset, r.entries[n].page_scan_mode,
 			r.entries[n].page_scan_rep_mode);
+		hci_dump_adv(r.entries[n].extinq_data,
+			     r.entries[n].extinq_size);
+		fprintf(stdout,"\n");
 	}
 out:
 	free(r.entries);

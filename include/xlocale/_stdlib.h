@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -55,5 +57,5 @@ size_t			 wcstombs_l(char * __restrict,
 int			 wctomb_l(char *, wchar_t, locale_t);
 
 int			 ___mb_cur_max_l(locale_t);
-#define MB_CUR_MAX_L(x) (___mb_cur_max_l(x))
+#define MB_CUR_MAX_L(x) ((size_t)___mb_cur_max_l(x))
 

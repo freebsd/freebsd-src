@@ -141,7 +141,7 @@ ldns_status ldns_dnssec_rrs_add_rr(ldns_dnssec_rrs *rrs, ldns_rr *rr);
  * \param[in] out the file descriptor to print to
  * \param[in] rrs the list of RRs to print
  */
-void ldns_dnssec_rrs_print(FILE *out, ldns_dnssec_rrs *rrs);
+void ldns_dnssec_rrs_print(FILE *out, const ldns_dnssec_rrs *rrs);
 
 /**
  * Prints the given rrs to the file descriptor
@@ -151,7 +151,7 @@ void ldns_dnssec_rrs_print(FILE *out, ldns_dnssec_rrs *rrs);
  * \param[in] rrs the list of RRs to print
  */
 void ldns_dnssec_rrs_print_fmt(FILE *out, 
-		const ldns_output_format *fmt, ldns_dnssec_rrs *rrs);
+		const ldns_output_format *fmt, const ldns_dnssec_rrs *rrs);
 
 /**
  * Creates a new list (entry) of RRsets
@@ -181,7 +181,7 @@ void ldns_dnssec_rrsets_deep_free(ldns_dnssec_rrsets *rrsets);
  * \param[in] rrsets the rrset to get the type of
  * \return the rr type
  */
-ldns_rr_type ldns_dnssec_rrsets_type(ldns_dnssec_rrsets *rrsets);
+ldns_rr_type ldns_dnssec_rrsets_type(const ldns_dnssec_rrsets *rrsets);
 
 /**
  * Sets the RR type of the rrset (that is head of the given list)
@@ -211,7 +211,7 @@ ldns_status ldns_dnssec_rrsets_add_rr(ldns_dnssec_rrsets *rrsets, ldns_rr *rr);
  * \param[in] follow if set to false, only print the first RRset
  */ 
 void ldns_dnssec_rrsets_print(FILE *out,
-		ldns_dnssec_rrsets *rrsets,
+		const ldns_dnssec_rrsets *rrsets,
 		bool follow);
 
 /**
@@ -224,7 +224,7 @@ void ldns_dnssec_rrsets_print(FILE *out,
  */ 
 void ldns_dnssec_rrsets_print_fmt(FILE *out,
 		const ldns_output_format *fmt,
-		ldns_dnssec_rrsets *rrsets,
+		const ldns_dnssec_rrsets *rrsets,
 		bool follow);
 
 
@@ -263,7 +263,7 @@ void ldns_dnssec_name_deep_free(ldns_dnssec_name *name);
  * \param[in] name the dnssec name to get the domain name from
  * \return the domain name
  */
-ldns_rdf *ldns_dnssec_name_name(ldns_dnssec_name *name);
+ldns_rdf *ldns_dnssec_name_name(const ldns_dnssec_name *name);
 
 
 /**
@@ -285,7 +285,7 @@ void ldns_dnssec_name_set_name(ldns_dnssec_name *name,
  * \param[in] name the dnssec name to get the domain name from
  * \return true if the structure is marked as glue, false otherwise.
  */
-bool ldns_dnssec_name_is_glue(ldns_dnssec_name *name);
+bool ldns_dnssec_name_is_glue(const ldns_dnssec_name *name);
 
 /**
  * Sets the NSEC(3) RR of the given dnssec_name structure
@@ -325,7 +325,7 @@ ldns_status ldns_dnssec_name_add_rr(ldns_dnssec_name *name,
  * \param[in] type the type of the RRset to find
  * \return the RRset, or NULL if not present
  */
-ldns_dnssec_rrsets *ldns_dnssec_name_find_rrset(ldns_dnssec_name *name,
+ldns_dnssec_rrsets *ldns_dnssec_name_find_rrset(const ldns_dnssec_name *name,
 									   ldns_rr_type type);
 
 /**
@@ -336,8 +336,8 @@ ldns_dnssec_rrsets *ldns_dnssec_name_find_rrset(ldns_dnssec_name *name,
  * \param[in] type the type of the RRset to find
  * \return the RRset, or NULL if not present
  */
-ldns_dnssec_rrsets *ldns_dnssec_zone_find_rrset(ldns_dnssec_zone *zone,
-									   ldns_rdf *dname,
+ldns_dnssec_rrsets *ldns_dnssec_zone_find_rrset(const ldns_dnssec_zone *zone,
+									   const ldns_rdf *dname,
 									   ldns_rr_type type);
 
 /**
@@ -347,7 +347,7 @@ ldns_dnssec_rrsets *ldns_dnssec_zone_find_rrset(ldns_dnssec_zone *zone,
  * \param[in] out the file descriptor to print to
  * \param[in] name the name structure to print the contents of
  */
-void ldns_dnssec_name_print(FILE *out, ldns_dnssec_name *name);
+void ldns_dnssec_name_print(FILE *out, const ldns_dnssec_name *name);
 
 /**
  * Prints the RRs in the  dnssec name structure to the given
@@ -358,7 +358,7 @@ void ldns_dnssec_name_print(FILE *out, ldns_dnssec_name *name);
  * \param[in] name the name structure to print the contents of
  */
 void ldns_dnssec_name_print_fmt(FILE *out, 
-		const ldns_output_format *fmt, ldns_dnssec_name *name);
+		const ldns_output_format *fmt, const ldns_dnssec_name *name);
 
 /**
  * Creates a new dnssec_zone structure
@@ -377,7 +377,7 @@ ldns_dnssec_zone *ldns_dnssec_zone_new(void);
  * \return ldns_status mesg with an error or LDNS_STATUS_OK
  */
 ldns_status ldns_dnssec_zone_new_frm_fp(ldns_dnssec_zone** z, FILE* fp,
-		ldns_rdf* origin, uint32_t ttl, ldns_rr_class c);
+		const ldns_rdf* origin, uint32_t ttl, ldns_rr_class c);
 
 /**
  * Create a new dnssec zone from a file, keep track of the line numbering
@@ -391,7 +391,7 @@ ldns_status ldns_dnssec_zone_new_frm_fp(ldns_dnssec_zone** z, FILE* fp,
  * \return ldns_status mesg with an error or LDNS_STATUS_OK
  */
 ldns_status ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp,
-		ldns_rdf* origin, uint32_t ttl, ldns_rr_class c, int* line_nr);
+		const ldns_rdf* origin, uint32_t ttl, ldns_rr_class c, int* line_nr);
 
 /**
  * Frees the given zone structure, and its rbtree of dnssec_names
@@ -427,7 +427,7 @@ ldns_status ldns_dnssec_zone_add_rr(ldns_dnssec_zone *zone,
  * \param[in] tree the tree of ldns_dnssec_name structures to print
  * \param[in] print_soa if true, print SOA records, if false, skip them
  */
-void ldns_dnssec_zone_names_print(FILE *out, ldns_rbtree_t *tree, bool print_soa);
+void ldns_dnssec_zone_names_print(FILE *out, const ldns_rbtree_t *tree, bool print_soa);
 
 /**
  * Prints the rbtree of ldns_dnssec_name structures to the file descriptor
@@ -438,7 +438,7 @@ void ldns_dnssec_zone_names_print(FILE *out, ldns_rbtree_t *tree, bool print_soa
  * \param[in] print_soa if true, print SOA records, if false, skip them
  */
 void ldns_dnssec_zone_names_print_fmt(FILE *out, const ldns_output_format *fmt,
-		ldns_rbtree_t *tree, bool print_soa);
+		const ldns_rbtree_t *tree, bool print_soa);
 
 /**
  * Prints the complete zone to the given file descriptor
@@ -446,7 +446,7 @@ void ldns_dnssec_zone_names_print_fmt(FILE *out, const ldns_output_format *fmt,
  * \param[in] out the file descriptor to print to
  * \param[in] zone the dnssec_zone to print
  */
-void ldns_dnssec_zone_print(FILE *out, ldns_dnssec_zone *zone);
+void ldns_dnssec_zone_print(FILE *out, const ldns_dnssec_zone *zone);
 
 /**
  * Prints the complete zone to the given file descriptor
@@ -456,7 +456,7 @@ void ldns_dnssec_zone_print(FILE *out, ldns_dnssec_zone *zone);
  * \param[in] zone the dnssec_zone to print
  */
 void ldns_dnssec_zone_print_fmt(FILE *out, 
-		const ldns_output_format *fmt, ldns_dnssec_zone *zone);
+		const ldns_output_format *fmt, const ldns_dnssec_zone *zone);
 
 /**
  * Adds explicit dnssec_name structures for the empty nonterminals
@@ -474,7 +474,7 @@ ldns_status ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone);
  * \param[in] zone the zone to check for nsec3 optout records
  * return true when the zone has at least one nsec3 optout record.
  */
-bool ldns_dnssec_zone_is_nsec3_optout(ldns_dnssec_zone* zone);
+bool ldns_dnssec_zone_is_nsec3_optout(const ldns_dnssec_zone* zone);
 
 #ifdef __cplusplus
 }

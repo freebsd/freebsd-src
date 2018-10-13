@@ -29,10 +29,7 @@
 
 SUBDIR=		libatf-c \
 		libatf-c++ \
-                ${_tests}
 
-.if ${MK_TESTS} != "no"
-_tests= 	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.subdir.mk>

@@ -18,7 +18,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
@@ -27,7 +27,14 @@
 		display0 = &lcd;
 	};
 
-	tv: connector@1 {
+	/* fixed 26MHz oscillator */
+	hfclk_26m: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
+
+	tv: connector {
 		compatible = "connector-analog-tv";
 		label = "tv";
 
@@ -45,28 +52,28 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins>;
 
-		led@1 {
+		led1 {
 			label = "pandora::sd1";
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;	/* GPIO_128 */
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "pandora::sd2";
 			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;	/* GPIO_129 */
 			linux,default-trigger = "mmc1";
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "pandora::bluetooth";
 			gpios = <&gpio5 30 GPIO_ACTIVE_HIGH>;	/* GPIO_158 */
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
-		led@4 {
+		led4 {
 			label = "pandora::wifi";
 			gpios = <&gpio5 31 GPIO_ACTIVE_HIGH>;	/* GPIO_159 */
 			linux,default-trigger = "mmc2";
@@ -205,6 +212,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
 		vcc-supply = <&vaux2>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host VBUS supply
@@ -355,6 +363,9 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+
+		clocks = <&hfclk_26m>;
+		clock-names = "fck";
 
 		twl_power: power {
 			compatible = "ti,twl4030-power-reset";
@@ -546,7 +557,11 @@
 	ranges = <0 0 0x30000000 0x1000000>; /* CS0: 16MB for NAND */
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "sw";
 
@@ -606,7 +621,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&penirq_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <30 0>;	/* GPIO_94 */
+		interrupts = <30 IRQ_TYPE_NONE>;	/* GPIO_94 */
 		pendown-gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&vaux4>;
 
@@ -622,7 +637,7 @@
 
 	lcd: lcd@1 {
 		reg = <1>;	/* CS1 */
-		compatible =	"omapdss,tpo,td043mtea1";
+		compatible =	"tpo,td043mtea1";
 		spi-max-frequency = <100000>;
 		spi-cpol;
 		spi-cpha;

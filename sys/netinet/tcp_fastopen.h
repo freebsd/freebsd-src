@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Patrick Kelsey
+ * Copyright (c) 2015-2017 Patrick Kelsey
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,17 +31,78 @@
 
 #ifdef _KERNEL
 
-#define	TCP_FASTOPEN_COOKIE_LEN	8	/* tied to SipHash24 64-bit output */
+#include "opt_inet.h"
 
-VNET_DECLARE(unsigned int, tcp_fastopen_enabled);
-#define	V_tcp_fastopen_enabled	VNET(tcp_fastopen_enabled)
+#define	TCP_FASTOPEN_COOKIE_LEN		8	/* SipHash24 64-bit output */
 
+#ifdef TCP_RFC7413
+VNET_DECLARE(unsigned int, tcp_fastopen_client_enable);
+#define	V_tcp_fastopen_client_enable	VNET(tcp_fastopen_client_enable)
+
+VNET_DECLARE(unsigned int, tcp_fastopen_server_enable);
+#define	V_tcp_fastopen_server_enable	VNET(tcp_fastopen_server_enable)
+#else
+#define	V_tcp_fastopen_client_enable	0
+#define	V_tcp_fastopen_server_enable	0
+#endif  /* TCP_RFC7413 */
+
+union tcp_fastopen_ip_addr {
+	struct in_addr v4;
+	struct in6_addr v6;
+};
+
+struct tcp_fastopen_ccache_entry {
+	TAILQ_ENTRY(tcp_fastopen_ccache_entry) cce_link;
+	union tcp_fastopen_ip_addr cce_client_ip;	/* network byte order */
+	union tcp_fastopen_ip_addr cce_server_ip;	/* network byte order */
+	uint16_t server_port;				/* network byte order */
+	uint16_t server_mss;				/* host byte order */
+	uint8_t af;
+	uint8_t cookie_len;
+	uint8_t cookie[TCP_FASTOPEN_MAX_COOKIE_LEN];
+	sbintime_t disable_time; /* non-zero value means path is disabled */
+};
+
+struct tcp_fastopen_ccache;
+
+struct tcp_fastopen_ccache_bucket {
+	struct mtx	ccb_mtx;
+	TAILQ_HEAD(bucket_entries, tcp_fastopen_ccache_entry) ccb_entries;
+	int		ccb_num_entries;
+	struct tcp_fastopen_ccache *ccb_ccache;
+};
+
+struct tcp_fastopen_ccache {
+	uma_zone_t 	zone;
+	struct tcp_fastopen_ccache_bucket *base;
+	unsigned int 	bucket_limit;
+	unsigned int 	buckets;
+	unsigned int 	mask;
+	uint32_t 	secret;
+};
+
+#ifdef TCP_RFC7413
 void	tcp_fastopen_init(void);
 void	tcp_fastopen_destroy(void);
 unsigned int *tcp_fastopen_alloc_counter(void);
-void	tcp_fastopen_decrement_counter(unsigned int *counter);
-int	tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
-	    unsigned int len, uint64_t *latest_cookie);
+void	tcp_fastopen_decrement_counter(unsigned int *);
+int	tcp_fastopen_check_cookie(struct in_conninfo *, uint8_t *, unsigned int,
+	    uint64_t *);
+void	tcp_fastopen_connect(struct tcpcb *);
+void	tcp_fastopen_disable_path(struct tcpcb *);
+void	tcp_fastopen_update_cache(struct tcpcb *, uint16_t, uint8_t,
+	    uint8_t *);
+#else
+#define tcp_fastopen_init()			((void)0)
+#define tcp_fastopen_destroy()			((void)0)
+#define tcp_fastopen_alloc_counter()		NULL
+#define tcp_fastopen_decrement_counter(c)	((void)0)
+#define tcp_fastopen_check_cookie(i, c, l, lc)	(-1)
+#define tcp_fastopen_connect(t)			((void)0)
+#define tcp_fastopen_disable_path(t)		((void)0)
+#define tcp_fastopen_update_cache(t, m, l, c)	((void)0)
+#endif /* TCP_RFC7413 */
+
 #endif /* _KERNEL */
 
 #endif /* _TCP_FASTOPEN_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -19,11 +21,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -34,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #include <net/pfvar.h>
 
+#ifdef INET6
 #include <netinet/ip6.h>
+#endif
 
 static MALLOC_DEFINE(M_PFOSFP, "pf_osfp", "pf(4) operating system fingerprints");
 #define	DPFPRINTF(format, x...)		\
@@ -42,7 +47,7 @@ static MALLOC_DEFINE(M_PFOSFP, "pf_osfp", "pf(4) operating system fingerprints")
 		printf(format , ##x)
 
 SLIST_HEAD(pf_osfp_list, pf_os_fingerprint);
-static VNET_DEFINE(struct pf_osfp_list,	pf_osfp_list) =
+VNET_DEFINE_STATIC(struct pf_osfp_list,	pf_osfp_list) =
 	SLIST_HEAD_INITIALIZER();
 #define	V_pf_osfp_list			VNET(pf_osfp_list)
 
@@ -94,7 +99,11 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 	struct pf_os_fingerprint fp, *fpresult;
 	int cnt, optlen = 0;
 	const u_int8_t *optp;
-	char srcname[128];
+#ifdef INET6
+	char srcname[INET6_ADDRSTRLEN];
+#else
+	char srcname[INET_ADDRSTRLEN];
+#endif
 
 	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN)
 		return (NULL);
@@ -110,7 +119,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 		fp.fp_ttl = ip->ip_ttl;
 		if (ip->ip_off & htons(IP_DF))
 			fp.fp_flags |= PF_OSFP_DF;
-		strlcpy(srcname, inet_ntoa(ip->ip_src), sizeof(srcname));
+		inet_ntoa_r(ip->ip_src, srcname);
 	}
 #ifdef INET6
 	else if (ip6) {
@@ -119,8 +128,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 		fp.fp_ttl = ip6->ip6_hlim;
 		fp.fp_flags |= PF_OSFP_DF;
 		fp.fp_flags |= PF_OSFP_INET6;
-		strlcpy(srcname, ip6_sprintf((struct in6_addr *)&ip6->ip6_src),
-		    sizeof(srcname));
+		ip6_sprintf(srcname, (const struct in6_addr *)&ip6->ip6_src);
 	}
 #endif
 	else

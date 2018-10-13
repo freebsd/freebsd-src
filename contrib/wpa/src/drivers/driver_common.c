@@ -80,6 +80,7 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(NEW_PEER_CANDIDATE);
 	E2S(ACS_CHANNEL_SELECTED);
 	E2S(DFS_CAC_STARTED);
+	E2S(P2P_LO_STOP);
 	}
 
 	return "UNKNOWN";
@@ -183,12 +184,12 @@ wpa_get_wowlan_triggers(const char *wowlan_triggers,
 
 	start = buf;
 	while (*start != '\0') {
-		while (isblank(*start))
+		while (isblank((unsigned char) *start))
 			start++;
 		if (*start == '\0')
 			break;
 		end = start;
-		while (!isblank(*end) && *end != '\0')
+		while (!isblank((unsigned char) *end) && *end != '\0')
 			end++;
 		last = *end == '\0';
 		*end = '\0';
@@ -217,4 +218,56 @@ wpa_get_wowlan_triggers(const char *wowlan_triggers,
 out:
 	os_free(buf);
 	return triggers;
+}
+
+
+const char * driver_flag_to_string(u64 flag)
+{
+#define DF2S(x) case WPA_DRIVER_FLAGS_ ## x: return #x
+	switch (flag) {
+	DF2S(DRIVER_IE);
+	DF2S(SET_KEYS_AFTER_ASSOC);
+	DF2S(DFS_OFFLOAD);
+	DF2S(4WAY_HANDSHAKE);
+	DF2S(WIRED);
+	DF2S(SME);
+	DF2S(AP);
+	DF2S(SET_KEYS_AFTER_ASSOC_DONE);
+	DF2S(HT_2040_COEX);
+	DF2S(P2P_CONCURRENT);
+	DF2S(P2P_DEDICATED_INTERFACE);
+	DF2S(P2P_CAPABLE);
+	DF2S(AP_TEARDOWN_SUPPORT);
+	DF2S(P2P_MGMT_AND_NON_P2P);
+	DF2S(SANE_ERROR_CODES);
+	DF2S(OFFCHANNEL_TX);
+	DF2S(EAPOL_TX_STATUS);
+	DF2S(DEAUTH_TX_STATUS);
+	DF2S(BSS_SELECTION);
+	DF2S(TDLS_SUPPORT);
+	DF2S(TDLS_EXTERNAL_SETUP);
+	DF2S(PROBE_RESP_OFFLOAD);
+	DF2S(AP_UAPSD);
+	DF2S(INACTIVITY_TIMER);
+	DF2S(AP_MLME);
+	DF2S(SAE);
+	DF2S(OBSS_SCAN);
+	DF2S(IBSS);
+	DF2S(RADAR);
+	DF2S(DEDICATED_P2P_DEVICE);
+	DF2S(QOS_MAPPING);
+	DF2S(AP_CSA);
+	DF2S(MESH);
+	DF2S(ACS_OFFLOAD);
+	DF2S(KEY_MGMT_OFFLOAD);
+	DF2S(TDLS_CHANNEL_SWITCH);
+	DF2S(HT_IBSS);
+	DF2S(VHT_IBSS);
+	DF2S(SUPPORT_HW_MODE_ANY);
+	DF2S(OFFCHANNEL_SIMULTANEOUS);
+	DF2S(FULL_AP_CLIENT_STATE);
+	DF2S(P2P_LISTEN_OFFLOAD);
+	}
+	return "UNKNOWN";
+#undef DF2S
 }

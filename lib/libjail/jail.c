@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 James Gritton.
  * All rights reserved.
  *
@@ -30,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/jail.h>
+#include <sys/linker.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -57,6 +60,7 @@ __FBSDID("$FreeBSD$");
 static int jailparam_import_enum(const char **values, int nvalues,
     const char *valstr, size_t valsize, int *value);
 static int jailparam_type(struct jailparam *jp);
+static int kldload_param(const char *name);
 static char *noname(const char *name);
 static char *nononame(const char *name);
 
@@ -200,7 +204,7 @@ jailparam_all(struct jailparam **jpp)
 {
 	struct jailparam *jp, *tjp;
 	size_t mlen1, mlen2, buflen;
-	int njp, nlist;
+	unsigned njp, nlist;
 	int mib1[CTL_MAXNAME], mib2[CTL_MAXNAME - 2];
 	char buf[MAXPATHLEN];
 
@@ -223,11 +227,16 @@ jailparam_all(struct jailparam **jpp)
 		/* Get the next parameter. */
 		mlen2 = sizeof(mib2);
 		if (sysctl(mib1, mlen1 + 2, mib2, &mlen2, NULL, 0) < 0) {
+			if (errno == ENOENT) {
+				/* No more entries. */
+				break;
+			}
 			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 			    "sysctl(0.2): %s", strerror(errno));
 			goto error;
 		}
-		if (mib2[0] != mib1[2] || mib2[1] != mib1[3] ||
+		if (mib2[0] != mib1[2] ||
+		    mib2[1] != mib1[3] ||
 		    mib2[2] != mib1[4])
 			break;
 		/* Convert it to an ascii name. */
@@ -245,7 +254,7 @@ jailparam_all(struct jailparam **jpp)
 		/* Add the parameter to the list */
 		if (njp >= nlist) {
 			nlist *= 2;
-			tjp = realloc(jp, nlist * sizeof(*jp));
+			tjp = reallocarray(jp, nlist, sizeof(*jp));
 			if (tjp == NULL)
 				goto error;
 			jp = tjp;
@@ -254,7 +263,7 @@ jailparam_all(struct jailparam **jpp)
 			goto error;
 		mib1[1] = 2;
 	}
-	jp = realloc(jp, njp * sizeof(*jp));
+	jp = reallocarray(jp, njp, sizeof(*jp));
 	*jpp = jp;
 	return (njp);
 
@@ -885,6 +894,9 @@ jailparam_type(struct jailparam *jp)
 			    "sysctl(0.3.%s): %s", name, strerror(errno));
 			return (-1);
 		}
+		if (kldload_param(name) >= 0 && sysctl(mib, 2, mib + 2, &miblen,
+		    desc.s, strlen(desc.s)) >= 0)
+			goto mib_desc;
 		/*
 		 * The parameter probably doesn't exist.  But it might be
 		 * the "no" counterpart to a boolean.
@@ -1021,6 +1033,39 @@ jailparam_type(struct jailparam *jp)
 		jp->jp_valuelen = 0;
 	}
 	return (0);
+}
+
+/*
+ * Attempt to load a kernel module matching an otherwise nonexistent parameter.
+ */
+static int
+kldload_param(const char *name)
+{
+	int kl;
+
+	if (strcmp(name, "linux") == 0 || strncmp(name, "linux.", 6) == 0)
+		kl = kldload("linux");
+	else if (strcmp(name, "sysvmsg") == 0 || strcmp(name, "sysvsem") == 0 ||
+	    strcmp(name, "sysvshm") == 0)
+		kl = kldload(name);
+	else if (strncmp(name, "allow.mount.", 12) == 0) {
+		/* Load the matching filesystem */
+		kl = kldload(name + 12);
+		if (kl < 0 && errno == ENOENT &&
+		    strncmp(name + 12, "no", 2) == 0)
+			kl = kldload(name + 14);
+	} else {
+		errno = ENOENT;
+		return (-1);
+	}
+	if (kl < 0 && errno == EEXIST) {
+		/*
+		 * In the module is already loaded, then it must not contain
+		 * the parameter.
+		 */
+		errno = ENOENT;
+	}
+	return kl;
 }
 
 /*

@@ -800,8 +800,8 @@ DEFINE_TEST(test_archive_string_conversion)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert((fp = fopen(testdata, "w")) != NULL);
 	while ((size = archive_read_data(a, buff, 512)) > 0)
-		fwrite(buff, 1, size, fp);
-	fclose(fp);
+		assertEqualInt(size, fwrite(buff, 1, size, fp));
+	assertEqualInt(0, fclose(fp));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	test_archive_string_normalization_nfc(testdata);

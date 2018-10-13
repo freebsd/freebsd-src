@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,8 +77,8 @@ struct vpollinfo {
  *
  * Lock reference:
  *	c - namecache mutex
- *	f - freelist mutex
  *	i - interlock
+ *	l - mp mnt_listmtx or freelist mutex
  *	I - updated with atomics, 0->1 and 1->0 transitions with interlock held
  *	m - mount point interlock
  *	p - pollinfo lock
@@ -112,14 +114,13 @@ struct vnode {
 
 	/*
 	 * Type specific fields, only one applies to any given vnode.
-	 * See #defines below for renaming to v_* namespace.
 	 */
 	union {
-		struct mount	*vu_mount;	/* v ptr to mountpoint (VDIR) */
-		struct socket	*vu_socket;	/* v unix domain net (VSOCK) */
-		struct cdev	*vu_cdev; 	/* v device (VCHR, VBLK) */
-		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
-	} v_un;
+		struct mount	*v_mountedhere;	/* v ptr to mountpoint (VDIR) */
+		struct unpcb	*v_unpcb;	/* v unix domain net (VSOCK) */
+		struct cdev	*v_rdev; 	/* v device (VCHR, VBLK) */
+		struct fifoinfo	*v_fifoinfo;	/* v fifo (VFIFO) */
+	};
 
 	/*
 	 * vfs_hash: (mount + inode) -> vnode hash.  The hash value
@@ -144,7 +145,7 @@ struct vnode {
 	/*
 	 * The machinery of being a vnode
 	 */
-	TAILQ_ENTRY(vnode) v_actfreelist;	/* f vnode active/free lists */
+	TAILQ_ENTRY(vnode) v_actfreelist;	/* l vnode active/free lists */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
 	/*
@@ -167,6 +168,7 @@ struct vnode {
 	u_int	v_usecount;			/* I ref count of users */
 	u_int	v_iflag;			/* i vnode flags (see below) */
 	u_int	v_vflag;			/* v vnode flags */
+	u_int	v_mflag;			/* l mnt-specific vnode flags */
 	int	v_writecount;			/* v ref count of writers */
 	u_int	v_hash;
 	enum	vtype v_type;			/* u vnode type */
@@ -174,10 +176,7 @@ struct vnode {
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 
-#define	v_mountedhere	v_un.vu_mount
-#define	v_socket	v_un.vu_socket
-#define	v_rdev		v_un.vu_cdev
-#define	v_fifoinfo	v_un.vu_fifoinfo
+#define	bo2vnode(bo)	__containerof((bo), struct vnode, v_bufobj)
 
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
@@ -197,7 +196,7 @@ struct xvnode {
 	long	xv_numoutput;			/* num of writes in progress */
 	enum	vtype xv_type;			/* vnode type */
 	union {
-		void	*xvu_socket;		/* socket, if VSOCK */
+		void	*xvu_socket;		/* unpcb, if VSOCK */
 		void	*xvu_fifo;		/* fifo, if VFIFO */
 		dev_t	xvu_rdev;		/* maj/min, if VBLK/VCHR */
 		struct {
@@ -253,6 +252,9 @@ struct xvnode {
 #define	VV_DELETED	0x0400	/* should be removed */
 #define	VV_MD		0x0800	/* vnode backs the md device */
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
+#define	VV_READLINK	0x2000	/* fdescfs linux vnode */
+
+#define	VMP_TMPMNTFREELIST	0x0001	/* Vnode is on mnt's tmp free list */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -261,11 +263,12 @@ struct xvnode {
 struct vattr {
 	enum vtype	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
-	short		va_nlink;	/* number of references to file */
+	u_short		va_padding0;
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
+	nlink_t		va_nlink;	/* number of references to file */
 	dev_t		va_fsid;	/* filesystem id */
-	long		va_fileid;	/* file id */
+	ino_t		va_fileid;	/* file id */
 	u_quad_t	va_size;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */
 	struct timespec	va_atime;	/* time of last access */
@@ -302,6 +305,7 @@ struct vattr {
 #define	IO_INVAL	0x0040		/* invalidate after I/O */
 #define	IO_SYNC		0x0080		/* do I/O synchronously */
 #define	IO_DIRECT	0x0100		/* attempt to bypass buffer cache */
+#define	IO_NOREUSE	0x0200		/* VMIO data won't be reused */
 #define	IO_EXT		0x0400		/* operate on external attributes */
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
@@ -396,6 +400,8 @@ extern int		vttoif_tab[];
 #define	V_ALT		0x0002	/* vinvalbuf: invalidate only alternate bufs */
 #define	V_NORMAL	0x0004	/* vinvalbuf: invalidate only regular bufs */
 #define	V_CLEANONLY	0x0008	/* vinvalbuf: invalidate only clean bufs */
+#define	V_VMIO		0x0010	/* vinvalbuf: called during pageout */
+#define	V_ALLOWCLEAN	0x0020	/* vinvalbuf: allow clean buffers after flush */
 #define	REVOKEALL	0x0001	/* vop_revoke: revoke all aliases */
 #define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
@@ -517,25 +523,13 @@ extern struct vnodeop_desc *vnodeop_descs[];
 void	assert_vi_locked(struct vnode *vp, const char *str);
 void	assert_vi_unlocked(struct vnode *vp, const char *str);
 void	assert_vop_elocked(struct vnode *vp, const char *str);
-#if 0
-void	assert_vop_elocked_other(struct vnode *vp, const char *str);
-#endif
 void	assert_vop_locked(struct vnode *vp, const char *str);
-#if 0
-voi0	assert_vop_slocked(struct vnode *vp, const char *str);
-#endif
 void	assert_vop_unlocked(struct vnode *vp, const char *str);
 
 #define	ASSERT_VI_LOCKED(vp, str)	assert_vi_locked((vp), (str))
 #define	ASSERT_VI_UNLOCKED(vp, str)	assert_vi_unlocked((vp), (str))
 #define	ASSERT_VOP_ELOCKED(vp, str)	assert_vop_elocked((vp), (str))
-#if 0
-#define	ASSERT_VOP_ELOCKED_OTHER(vp, str) assert_vop_locked_other((vp), (str))
-#endif
 #define	ASSERT_VOP_LOCKED(vp, str)	assert_vop_locked((vp), (str))
-#if 0
-#define	ASSERT_VOP_SLOCKED(vp, str)	assert_vop_slocked((vp), (str))
-#endif
 #define	ASSERT_VOP_UNLOCKED(vp, str)	assert_vop_unlocked((vp), (str))
 
 #else /* !DEBUG_VFS_LOCKS */
@@ -543,13 +537,7 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 #define	ASSERT_VI_LOCKED(vp, str)	((void)0)
 #define	ASSERT_VI_UNLOCKED(vp, str)	((void)0)
 #define	ASSERT_VOP_ELOCKED(vp, str)	((void)0)
-#if 0
-#define	ASSERT_VOP_ELOCKED_OTHER(vp, str)
-#endif
 #define	ASSERT_VOP_LOCKED(vp, str)	((void)0)
-#if 0
-#define	ASSERT_VOP_SLOCKED(vp, str)
-#endif
 #define	ASSERT_VOP_UNLOCKED(vp, str)	((void)0)
 #endif /* DEBUG_VFS_LOCKS */
 
@@ -596,6 +584,7 @@ struct file;
 struct mount;
 struct nameidata;
 struct ostat;
+struct freebsd11_stat;
 struct thread;
 struct proc;
 struct stat;
@@ -603,6 +592,7 @@ struct nstat;
 struct ucred;
 struct uio;
 struct vattr;
+struct vfsops;
 struct vnode;
 
 typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
@@ -620,10 +610,11 @@ int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
-void	cache_purgevfs(struct mount *mp);
+void	cache_purgevfs(struct mount *mp, bool force);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
-void	cvtnstat(struct stat *sb, struct nstat *nsb);
+void	freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb);
+int	freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost);
 int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
 void	getnewvnode_reserve(u_int count);
@@ -635,8 +626,6 @@ u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
 int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
 	    u_int *buflen);
-#define textvp_fullpath(p, rb, rfb) \
-	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
@@ -672,8 +661,8 @@ int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
 	    int blksize);
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
-#define vprint(label, vp) vn_printf((vp), "%s\n", (label))
 int	vrecycle(struct vnode *vp);
+int	vrecyclel(struct vnode *vp);
 int	vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off,
 	    struct ucred *cred);
 int	vn_close(struct vnode *vp,
@@ -738,7 +727,9 @@ void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp, int flags);
 int	vfs_write_suspend_umnt(struct mount *mp);
+void	vnlru_free(int, struct vfsops *);
 int	vop_stdbmap(struct vop_bmap_args *);
+int	vop_stdfdatasync_buf(struct vop_fdatasync_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);
 int	vop_stdgetpages(struct vop_getpages_args *);
@@ -779,8 +770,6 @@ void	vop_close_post(void *a, int rc);
 void	vop_create_post(void *a, int rc);
 void	vop_deleteextattr_post(void *a, int rc);
 void	vop_link_post(void *a, int rc);
-void	vop_lock_pre(void *a);
-void	vop_lock_post(void *a, int rc);
 void	vop_lookup_post(void *a, int rc);
 void	vop_lookup_pre(void *a);
 void	vop_mkdir_post(void *a, int rc);
@@ -795,10 +784,21 @@ void	vop_rename_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
 void	vop_setextattr_post(void *a, int rc);
-void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
+
+#ifdef DEBUG_VFS_LOCKS
+void	vop_strategy_pre(void *a);
+void	vop_lock_pre(void *a);
+void	vop_lock_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
+#else
+#define	vop_strategy_pre(x)	do { } while (0)
+#define	vop_lock_pre(x)		do { } while (0)
+#define	vop_lock_post(x, y)	do { } while (0)
+#define	vop_unlock_post(x, y)	do { } while (0)
+#define	vop_unlock_pre(x)	do { } while (0)
+#endif
 
 void	vop_rename_fail(struct vop_rename_args *ap);
 
@@ -830,6 +830,7 @@ void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 void	vrefl(struct vnode *vp);
+void	vrefact(struct vnode *vp);
 int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 
@@ -881,6 +882,8 @@ int vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
     struct thread *td);
 int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
     struct thread *td);
+
+void vn_fsid(struct vnode *vp, struct vattr *va);
 
 #endif /* _KERNEL */
 

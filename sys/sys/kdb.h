@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -59,7 +61,7 @@ struct kdb_dbbe {
 	};						\
 	DATA_SET(kdb_dbbe_set, name##_dbbe)
 
-extern int kdb_active;			/* Non-zero while in debugger. */
+extern u_char kdb_active;		/* Non-zero while in debugger. */
 extern int debugger_on_panic;		/* enter the debugger on panic. */
 extern struct kdb_dbbe *kdb_dbbe;	/* Default debugger backend or NULL. */
 extern struct trapframe *kdb_frame;	/* Frame to kdb_trap(). */
@@ -78,6 +80,7 @@ void *	kdb_jmpbuf(jmp_buf);
 void	kdb_panic(const char *);
 void	kdb_reboot(void);
 void	kdb_reenter(void);
+void	kdb_reenter_silent(void);
 struct pcb *kdb_thr_ctx(struct thread *);
 struct thread *kdb_thr_first(void);
 struct thread *kdb_thr_from_pid(pid_t);
@@ -98,6 +101,7 @@ extern const char * volatile kdb_why;
 #define	KDB_WHY_UNSET		NULL		/* No reason set. */
 #define	KDB_WHY_PANIC		"panic"		/* panic() was called. */
 #define	KDB_WHY_KASSERT		"kassert"	/* kassert failed. */
+#define	KDB_WHY_TRAP		"trap"		/* Fatal trap. */
 #define	KDB_WHY_SYSCTL		"sysctl"	/* Sysctl entered debugger. */
 #define	KDB_WHY_BOOTFLAGS	"bootflags"	/* Boot flags were set. */
 #define	KDB_WHY_WITNESS		"witness"	/* Witness entered debugger. */

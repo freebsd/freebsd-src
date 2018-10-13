@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2001 - 2003 by Thomas Moestl <tmm@FreeBSD.org>
  * Copyright (c) 2009 by Marius Strobl <marius@FreeBSD.org>
@@ -73,6 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/pci/firereg.h>
@@ -152,6 +155,7 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(pcib_alloc_msix,	fire_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	fire_release_msix),
 	DEVMETHOD(pcib_map_msi,		fire_map_msi),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),
@@ -740,11 +744,11 @@ fire_attach(device_t dev)
 	    "DLU/TLU correctable errors");
 	FIRE_SYSCTL_ADD_UINT("tlu_oe_non_fatal",
 	    &sc->sc_stats_tlu_oe_non_fatal,
-	    "DLU/TLU other event non-fatal errors summary"),
+	    "DLU/TLU other event non-fatal errors summary");
 	FIRE_SYSCTL_ADD_UINT("tlu_oe_rx_err", &sc->sc_stats_tlu_oe_rx_err,
-	    "DLU/TLU receive other event errors"),
+	    "DLU/TLU receive other event errors");
 	FIRE_SYSCTL_ADD_UINT("tlu_oe_tx_err", &sc->sc_stats_tlu_oe_tx_err,
-	    "DLU/TLU transmit other event errors"),
+	    "DLU/TLU transmit other event errors");
 	FIRE_SYSCTL_ADD_UINT("ubc_dmardue", &sc->sc_stats_ubc_dmardue,
 	    "UBC DMARDUE erros");
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -205,3 +207,4 @@ static driver_t ata_isa_driver = {
 
 DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
+ISA_PNP_INFO(ata_ids);

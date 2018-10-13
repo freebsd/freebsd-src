@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -107,10 +109,22 @@ usage(bool cpu_intel)
 	"       [--desc-access=<ACCESS>]\n"
 	"       [--set-cr0=<CR0>]\n"
 	"       [--get-cr0]\n"
+	"       [--set-cr2=<CR2>]\n"
+	"       [--get-cr2]\n"
 	"       [--set-cr3=<CR3>]\n"
 	"       [--get-cr3]\n"
 	"       [--set-cr4=<CR4>]\n"
 	"       [--get-cr4]\n"
+	"       [--set-dr0=<DR0>]\n"
+	"       [--get-dr0]\n"
+	"       [--set-dr1=<DR1>]\n"
+	"       [--get-dr1]\n"
+	"       [--set-dr2=<DR2>]\n"
+	"       [--get-dr2]\n"
+	"       [--set-dr3=<DR3>]\n"
+	"       [--get-dr3]\n"
+	"       [--set-dr6=<DR6>]\n"
+	"       [--get-dr6]\n"
 	"       [--set-dr7=<DR7>]\n"
 	"       [--get-dr7]\n"
 	"       [--set-rsp=<RSP>]\n"
@@ -177,7 +191,8 @@ usage(bool cpu_intel)
 	"       [--get-msr-bitmap]\n"
 	"       [--get-msr-bitmap-address]\n"
 	"       [--get-guest-sysenter]\n"
-	"       [--get-exit-reason]\n",
+	"       [--get-exit-reason]\n"
+	"       [--get-cpu-topology]\n",
 	progname);
 
 	if (cpu_intel) {
@@ -242,8 +257,14 @@ static int create, destroy, get_memmap, get_memseg;
 static int get_intinfo;
 static int get_active_cpus, get_suspended_cpus;
 static uint64_t memsize;
-static int set_cr0, get_cr0, set_cr3, get_cr3, set_cr4, get_cr4;
+static int set_cr0, get_cr0, set_cr2, get_cr2, set_cr3, get_cr3;
+static int set_cr4, get_cr4;
 static int set_efer, get_efer;
+static int set_dr0, get_dr0;
+static int set_dr1, get_dr1;
+static int set_dr2, get_dr2;
+static int set_dr3, get_dr3;
+static int set_dr6, get_dr6;
 static int set_dr7, get_dr7;
 static int set_rsp, get_rsp, set_rip, get_rip, set_rflags, get_rflags;
 static int set_rax, get_rax;
@@ -265,6 +286,7 @@ static int set_x2apic_state, get_x2apic_state;
 enum x2apic_state x2apic_state;
 static int unassign_pptdev, bus, slot, func;
 static int run;
+static int get_cpu_topology;
 
 /*
  * VMCB specific.
@@ -534,8 +556,14 @@ enum {
 	SET_MEM,
 	SET_EFER,
 	SET_CR0,
+	SET_CR2,
 	SET_CR3,
 	SET_CR4,
+	SET_DR0,
+	SET_DR1,
+	SET_DR2,
+	SET_DR3,
+	SET_DR6,
 	SET_DR7,
 	SET_RSP,
 	SET_RIP,
@@ -640,7 +668,8 @@ cpu_vendor_intel(void)
 static int
 get_all_registers(struct vmctx *ctx, int vcpu)
 {
-	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer;
+	uint64_t cr0, cr2, cr3, cr4, dr0, dr1, dr2, dr3, dr6, dr7;
+	uint64_t rsp, rip, rflags, efer;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
 	uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
 	int error = 0;
@@ -657,6 +686,12 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 			printf("cr0[%d]\t\t0x%016lx\n", vcpu, cr0);
 	}
 
+	if (!error && (get_cr2 || get_all)) {
+		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_CR2, &cr2);
+		if (error == 0)
+			printf("cr2[%d]\t\t0x%016lx\n", vcpu, cr2);
+	}
+
 	if (!error && (get_cr3 || get_all)) {
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_CR3, &cr3);
 		if (error == 0)
@@ -667,6 +702,36 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_CR4, &cr4);
 		if (error == 0)
 			printf("cr4[%d]\t\t0x%016lx\n", vcpu, cr4);
+	}
+
+	if (!error && (get_dr0 || get_all)) {
+		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_DR0, &dr0);
+		if (error == 0)
+			printf("dr0[%d]\t\t0x%016lx\n", vcpu, dr0);
+	}
+
+	if (!error && (get_dr1 || get_all)) {
+		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_DR1, &dr1);
+		if (error == 0)
+			printf("dr1[%d]\t\t0x%016lx\n", vcpu, dr1);
+	}
+
+	if (!error && (get_dr2 || get_all)) {
+		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_DR2, &dr2);
+		if (error == 0)
+			printf("dr2[%d]\t\t0x%016lx\n", vcpu, dr2);
+	}
+
+	if (!error && (get_dr3 || get_all)) {
+		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_DR3, &dr3);
+		if (error == 0)
+			printf("dr3[%d]\t\t0x%016lx\n", vcpu, dr3);
+	}
+
+	if (!error && (get_dr6 || get_all)) {
+		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_DR6, &dr6);
+		if (error == 0)
+			printf("dr6[%d]\t\t0x%016lx\n", vcpu, dr6);
 	}
 
 	if (!error && (get_dr7 || get_all)) {
@@ -783,7 +848,7 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 		if (error == 0)
 			printf("rflags[%d]\t0x%016lx\n", vcpu, rflags);
 	}
-	
+
 	return (error);
 }
 
@@ -1050,7 +1115,7 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, u64);
 		}
 	}
-	
+
 	if (!error && (get_tpr_threshold || get_all)) {
 		uint64_t threshold;
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_TPR_THRESHOLD,
@@ -1068,7 +1133,7 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, insterr);
 		}
 	}
-	
+
 	if (!error && (get_exit_ctls || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_CTLS, &ctl);
 		if (error == 0)
@@ -1116,7 +1181,7 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 		if (error == 0)
 			printf("host_rsp[%d]\t\t0x%016lx\n", vcpu, rsp);
 	}
-	
+
 	if (!error && (get_vmcs_link || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_LINK_POINTER, &addr);
 		if (error == 0)
@@ -1269,8 +1334,14 @@ setup_options(bool cpu_intel)
 		{ "set-mem",	REQ_ARG,	0,	SET_MEM },
 		{ "set-efer",	REQ_ARG,	0,	SET_EFER },
 		{ "set-cr0",	REQ_ARG,	0,	SET_CR0 },
+		{ "set-cr2",	REQ_ARG,	0,	SET_CR2 },
 		{ "set-cr3",	REQ_ARG,	0,	SET_CR3 },
 		{ "set-cr4",	REQ_ARG,	0,	SET_CR4 },
+		{ "set-dr0",	REQ_ARG,	0,	SET_DR0 },
+		{ "set-dr1",	REQ_ARG,	0,	SET_DR1 },
+		{ "set-dr2",	REQ_ARG,	0,	SET_DR2 },
+		{ "set-dr3",	REQ_ARG,	0,	SET_DR3 },
+		{ "set-dr6",	REQ_ARG,	0,	SET_DR6 },
 		{ "set-dr7",	REQ_ARG,	0,	SET_DR7 },
 		{ "set-rsp",	REQ_ARG,	0,	SET_RSP },
 		{ "set-rip",	REQ_ARG,	0,	SET_RIP },
@@ -1326,8 +1397,14 @@ setup_options(bool cpu_intel)
 		{ "get-memseg", NO_ARG,		&get_memseg,	1 },
 		{ "get-efer",	NO_ARG,		&get_efer,	1 },
 		{ "get-cr0",	NO_ARG,		&get_cr0,	1 },
+		{ "get-cr2",	NO_ARG,		&get_cr2,	1 },
 		{ "get-cr3",	NO_ARG,		&get_cr3,	1 },
 		{ "get-cr4",	NO_ARG,		&get_cr4,	1 },
+		{ "get-dr0",	NO_ARG,		&get_dr0,	1 },
+		{ "get-dr1",	NO_ARG,		&get_dr1,	1 },
+		{ "get-dr2",	NO_ARG,		&get_dr2,	1 },
+		{ "get-dr3",	NO_ARG,		&get_dr3,	1 },
+		{ "get-dr6",	NO_ARG,		&get_dr6,	1 },
 		{ "get-dr7",	NO_ARG,		&get_dr7,	1 },
 		{ "get-rsp",	NO_ARG,		&get_rsp,	1 },
 		{ "get-rip",	NO_ARG,		&get_rip,	1 },
@@ -1381,6 +1458,7 @@ setup_options(bool cpu_intel)
 		{ "get-active-cpus", 	NO_ARG,	&get_active_cpus, 	1 },
 		{ "get-suspended-cpus", NO_ARG,	&get_suspended_cpus, 	1 },
 		{ "get-intinfo", 	NO_ARG,	&get_intinfo,		1 },
+		{ "get-cpu-topology",	NO_ARG, &get_cpu_topology,	1 },
 	};
 
 	const struct option intel_opts[] = {
@@ -1605,7 +1683,8 @@ main(int argc, char *argv[])
 	int error, ch, vcpu, ptenum;
 	vm_paddr_t gpa_pmap;
 	struct vm_exit vmexit;
-	uint64_t rax, cr0, cr3, cr4, dr7, rsp, rip, rflags, efer, pat;
+	uint64_t rax, cr0, cr2, cr3, cr4, dr0, dr1, dr2, dr3, dr6, dr7;
+	uint64_t rsp, rip, rflags, efer, pat;
 	uint64_t eptp, bm, addr, u64, pteval[4], *pte, info[2];
 	struct vmctx *ctx;
 	cpuset_t cpus;
@@ -1644,6 +1723,10 @@ main(int argc, char *argv[])
 			cr0 = strtoul(optarg, NULL, 0);
 			set_cr0 = 1;
 			break;
+		case SET_CR2:
+			cr2 = strtoul(optarg, NULL, 0);
+			set_cr2 = 1;
+			break;
 		case SET_CR3:
 			cr3 = strtoul(optarg, NULL, 0);
 			set_cr3 = 1;
@@ -1651,6 +1734,26 @@ main(int argc, char *argv[])
 		case SET_CR4:
 			cr4 = strtoul(optarg, NULL, 0);
 			set_cr4 = 1;
+			break;
+		case SET_DR0:
+			dr0 = strtoul(optarg, NULL, 0);
+			set_dr0 = 1;
+			break;
+		case SET_DR1:
+			dr1 = strtoul(optarg, NULL, 0);
+			set_dr1 = 1;
+			break;
+		case SET_DR2:
+			dr2 = strtoul(optarg, NULL, 0);
+			set_dr2 = 1;
+			break;
+		case SET_DR3:
+			dr3 = strtoul(optarg, NULL, 0);
+			set_dr3 = 1;
+			break;
+		case SET_DR6:
+			dr6 = strtoul(optarg, NULL, 0);
+			set_dr6 = 1;
 			break;
 		case SET_DR7:
 			dr7 = strtoul(optarg, NULL, 0);
@@ -1787,11 +1890,29 @@ main(int argc, char *argv[])
 	if (!error && set_cr0)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_CR0, cr0);
 
+	if (!error && set_cr2)
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_CR2, cr2);
+
 	if (!error && set_cr3)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_CR3, cr3);
 
 	if (!error && set_cr4)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_CR4, cr4);
+
+	if (!error && set_dr0)
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_DR0, dr0);
+
+	if (!error && set_dr1)
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_DR1, dr1);
+
+	if (!error && set_dr2)
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_DR2, dr2);
+
+	if (!error && set_dr3)
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_DR3, dr3);
+
+	if (!error && set_dr6)
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_DR6, dr6);
 
 	if (!error && set_dr7)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_DR7, dr7);
@@ -2192,6 +2313,14 @@ main(int argc, char *argv[])
 				printf("%-40s\t%ld\n", desc, stats[i]);
 			}
 		}
+	}
+
+	if (!error && (get_cpu_topology || get_all)) {
+		uint16_t sockets, cores, threads, maxcpus;
+
+		vm_get_topology(ctx, &sockets, &cores, &threads, &maxcpus);
+		printf("cpu_topology:\tsockets=%hu, cores=%hu, threads=%hu, "
+		    "maxcpus=%hu\n", sockets, cores, threads, maxcpus);
 	}
 
 	if (!error && run) {

@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.120 2016/03/31 17:51:12 christos Exp $
-.Dd March 13, 2016
+.\" $File: file.man,v 1.131 2018/07/24 21:33:56 christos Exp $
+.Dd July 25, 2018
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl bcEhiklLNnprsvzZ0
+.Op Fl bcdEhiklLNnprsSvzZ0
 .Op Fl Fl apple
 .Op Fl Fl extension
 .Op Fl Fl mime-encoding
@@ -168,7 +168,8 @@ in any of the character sets listed above is simply said to be
 .Bl -tag -width indent
 .It Fl Fl apple
 Causes the file command to output the file type and creator code as
-used by older MacOS versions. The code consists of eight letters,
+used by older MacOS versions.
+The code consists of eight letters,
 the first describing the file type, the latter the creator.
 .It Fl b , Fl Fl brief
 Do not prepend filenames to output lines (brief mode).
@@ -181,6 +182,8 @@ Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with the
 .Fl m
 flag to debug a new magic file before installing it.
+.It Fl d
+Prints internal debugging information to stderr.
 .It Fl E
 On filesystem errors (file not found etc), instead of handling the error
 as regular output as POSIX mandates and keep going, issue an error message
@@ -208,13 +211,19 @@ Prints details of Compound Document Files.
 .It compress
 Checks for, and looks inside, compressed files.
 .It elf
-Prints ELF file details.
+Prints ELF file details, provided soft magic tests are enabled and the
+elf magic is found.
 .It soft
 Consults magic files.
 .It tar
-Examines tar files.
+Examines tar files by verifying the checksum of the 512 byte tar header.
+Excluding this test can provide more detailed content description by using
+the soft magic method.
+.It text
+A synonym for
+.Sq ascii .
 .El
-.It Fl Fl extension 
+.It Fl Fl extension
 Print a slash-separated list of valid extensions for the file type found.
 .It Fl F , Fl Fl separator Ar separator
 Use the specified string as the separator between the filename and the
@@ -232,8 +241,8 @@ or at least one filename argument must be present;
 to test the standard input, use
 .Sq -
 as a filename argument.
-Please note that 
-.Ar namefile 
+Please note that
+.Ar namefile
 is unwrapped and the enclosed filenames are processed when this option is
 encountered and before any further options processing is done.
 This allows one to process multiple lists of files with different command line
@@ -309,7 +318,7 @@ attempt to preserve the access time of files analyzed, to pretend that
 never read them.
 .It Fl P , Fl Fl parameter Ar name=value
 Set various parameter limits.
-.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
+.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
 .It Sy "Name" Ta Sy "Default" Ta Sy "Explanation"
 .It Li indir Ta 15 Ta recursion limit for indirect magic
 .It Li name Ta 30 Ta use count limit for name/use magic
@@ -344,6 +353,16 @@ This option also causes
 to disregard the file size as reported by
 .Xr stat 2
 since on some systems it reports a zero size for raw disk partitions.
+.It Fl S , Fl Fl no-sandbox
+On systems where libseccomp
+.Pa ( https://github.com/seccomp/libseccomp )
+is available, the
+.Fl S
+flag disables sandboxing which is enabled by default.
+This option is needed for file to execute external descompressing programs,
+i.e. when the
+.Fl z
+flag is specified and the built-in decompressors are not available.
 .It Fl v , Fl Fl version
 Print the version of the program and exit.
 .It Fl z , Fl Fl uncompress
@@ -360,19 +379,12 @@ Nice to
 the output.
 This does not affect the separator, which is still printed.
 .Pp
-If this option is repeated more than once, then 
+If this option is repeated more than once, then
 .Nm
 prints just the filename followed by a NUL followed by the description
 (or ERROR: text) followed by a second NUL for each entry.
 .It Fl -help
 Print a help message and exit.
-.El
-.Sh FILES
-.Bl -tag -width __MAGIC__.mgc -compact
-.It Pa __MAGIC__.mgc
-Default compiled list of magic.
-.It Pa __MAGIC__
-Directory containing default magic files.
 .El
 .Sh ENVIRONMENT
 The environment variable
@@ -386,11 +398,6 @@ will not attempt to open
 adds
 .Dq Pa .mgc
 to the value of this variable as appropriate.
-However,
-.Pa file
-has to exist in order for
-.Pa file.mime
-to be considered.
 The environment variable
 .Ev POSIXLY_CORRECT
 controls (on systems that support symbolic links), whether
@@ -404,11 +411,70 @@ This is also controlled by the
 and
 .Fl h
 options.
+.Sh FILES
+.Bl -tag -width __MAGIC__.mgc -compact
+.It Pa __MAGIC__.mgc
+Default compiled list of magic.
+.It Pa __MAGIC__
+Directory containing default magic files.
+.El
+.Sh EXIT STATUS
+.Nm
+will exit with
+.Dv 0
+if the operation was successful or
+.Dv >0
+if an error was encountered.
+The following errors cause diagnostic messages, but don't affect the program
+exit code (as POSIX requires), unless
+.Fl E
+is specified:
+.Bl -bullet -compact -offset indent
+.It
+A file cannot be found
+.It
+There is no permission to read a file
+.It
+The file type cannot be determined
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+$ file file.c file /dev/{wd0a,hda}
+file.c:   C program text
+file:     ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
+          dynamically linked (uses shared libs), stripped
+/dev/wd0a: block special (0/0)
+/dev/hda: block special (3/0)
+
+$ file -s /dev/wd0{b,d}
+/dev/wd0b: data
+/dev/wd0d: x86 boot sector
+
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
+/dev/hda:   x86 boot sector
+/dev/hda1:  Linux/i386 ext2 filesystem
+/dev/hda2:  x86 boot sector
+/dev/hda3:  x86 boot sector, extended partition table
+/dev/hda4:  Linux/i386 ext2 filesystem
+/dev/hda5:  Linux/i386 swap file
+/dev/hda6:  Linux/i386 swap file
+/dev/hda7:  Linux/i386 swap file
+/dev/hda8:  Linux/i386 swap file
+/dev/hda9:  empty
+/dev/hda10: empty
+
+$ file -i file.c file /dev/{wd0a,hda}
+file.c:      text/x-c
+file:        application/x-executable
+/dev/hda:    application/x-not-regular-file
+/dev/wd0a:   application/x-not-regular-file
+
+.Ed
 .Sh SEE ALSO
-.Xr magic __FSECTION__ ,
 .Xr hexdump 1 ,
 .Xr od 1 ,
 .Xr strings 1 ,
+.Xr magic __FSECTION__ ,
 .Xr fstyp 8
 .Sh STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
@@ -456,6 +522,23 @@ for example,
 .Bd -literal -offset indent
 \*[Gt]16	long\*[Am]0x7fffffff	\*[Gt]0		not stripped
 .Ed
+.Sh SECURITY
+On systems where libseccomp
+.Pa ( https://github.com/seccomp/libseccomp )
+is available,
+.Nm
+is enforces limiting system calls to only the ones necessary for the
+operation of the program.
+This enforcement does not provide any security benefit when
+.Nm
+is asked to decompress input files running external programs with
+the
+.Fl z
+option.
+To enable execution of external decompressors, one needs to disable
+sandboxing using the
+.Fl S
+flag.
 .Sh MAGIC DIRECTORY
 The magic file entries have been collected from various sources,
 mainly USENET, and contributed by various authors.
@@ -473,39 +556,6 @@ command uses a magic file,
 keep the old magic file around for comparison purposes
 (rename it to
 .Pa __MAGIC__.orig ) .
-.Sh EXAMPLES
-.Bd -literal -offset indent
-$ file file.c file /dev/{wd0a,hda}
-file.c:   C program text
-file:     ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
-          dynamically linked (uses shared libs), stripped
-/dev/wd0a: block special (0/0)
-/dev/hda: block special (3/0)
-
-$ file -s /dev/wd0{b,d}
-/dev/wd0b: data
-/dev/wd0d: x86 boot sector
-
-$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
-/dev/hda:   x86 boot sector
-/dev/hda1:  Linux/i386 ext2 filesystem
-/dev/hda2:  x86 boot sector
-/dev/hda3:  x86 boot sector, extended partition table
-/dev/hda4:  Linux/i386 ext2 filesystem
-/dev/hda5:  Linux/i386 swap file
-/dev/hda6:  Linux/i386 swap file
-/dev/hda7:  Linux/i386 swap file
-/dev/hda8:  Linux/i386 swap file
-/dev/hda9:  empty
-/dev/hda10: empty
-
-$ file -i file.c file /dev/{wd0a,hda}
-file.c:      text/x-c
-file:        application/x-executable
-/dev/hda:    application/x-not-regular-file
-/dev/wd0a:   application/x-not-regular-file
-
-.Ed
 .Sh HISTORY
 There has been a
 .Nm
@@ -525,16 +575,15 @@ John Gilmore revised the code extensively, making it better than
 the first version.
 Geoff Collyer found several inadequacies
 and provided some magic file entries.
-Contributions by the
+Contributions of the
 .Sq \*[Am]
-operator by Rob McMahon, 
+operator by Rob McMahon,
 .Aq cudcv@warwick.ac.uk ,
 1989.
 .Pp
-Guy Harris, 
+Guy Harris,
 .Aq guy@netapp.com ,
 made many changes from 1993 to the present.
-1989.
 .Pp
 Primary development and maintenance from 1990 to the present by
 Christos Zoulas
@@ -578,20 +627,15 @@ and
 were written by John Gilmore from his public-domain
 .Xr tar 1
 program, and are not covered by the above license.
-.Sh RETURN CODE
-.Nm
-returns 0 on success, and non-zero on error.
 .Sh BUGS
-.Pp
 Please report bugs and send patches to the bug tracker at
-.Pa http://bugs.gw.com/
+.Pa http://bugs.astron.com/
 or the mailing list at
-.Aq file@mx.gw.com
+.Aq file@astron.com
 (visit
-.Pa http://mx.gw.com/mailman/listinfo/file
+.Pa http://mailman.astron.com/mailman/listinfo/file
 first to subscribe).
 .Sh TODO
-.Pp
 Fix output so that tests for MIME and APPLE flags are not needed all
 over the place, and actual output is only done in one place.
 This needs a design.
@@ -640,16 +684,16 @@ Fix
 .Dq name
 and
 .Dq use
-to check for consistency at compile time (duplicate 
+to check for consistency at compile time (duplicate
 .Dq name ,
 .Dq use
 pointing to undefined
 .Dq name
 ).
-Make 
+Make
 .Dq name
 /
-.Dq use 
+.Dq use
 more efficient by keeping a sorted list of names.
 Special-case ^ to flip endianness in the parser so that it does not
 have to be escaped, and document it.

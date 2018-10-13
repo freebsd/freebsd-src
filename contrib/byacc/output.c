@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.74 2014/10/05 23:21:09 tom Exp $ */
+/* $Id: output.c,v 1.81 2017/04/30 23:23:32 tom Exp $ */
 
 #include "defs.h"
 
@@ -54,7 +54,7 @@ puts_code(FILE * fp, const char *s)
 }
 
 static void
-puts_param_types(FILE * fp, param * list, int more)
+puts_param_types(FILE * fp, param *list, int more)
 {
     param *p;
 
@@ -79,7 +79,7 @@ puts_param_types(FILE * fp, param * list, int more)
 }
 
 static void
-puts_param_names(FILE * fp, param * list, int more)
+puts_param_names(FILE * fp, param *list, int more)
 {
     param *p;
 
@@ -235,6 +235,43 @@ end_table(void)
 }
 
 static void
+output_stype(FILE * fp)
+{
+    if (!unionized && ntags == 0)
+    {
+	putc_code(fp, '\n');
+	putl_code(fp, "#if "
+		  "! defined(YYSTYPE) && "
+		  "! defined(YYSTYPE_IS_DECLARED)\n");
+	putl_code(fp, "/* Default: YYSTYPE is the semantic value type. */\n");
+	putl_code(fp, "typedef int YYSTYPE;\n");
+	putl_code(fp, "# define YYSTYPE_IS_DECLARED 1\n");
+	putl_code(fp, "#endif\n");
+    }
+}
+
+#if defined(YYBTYACC)
+static void
+output_ltype(FILE * fp)
+{
+    putc_code(fp, '\n');
+    putl_code(fp, "#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED\n");
+    putl_code(fp, "/* Default: YYLTYPE is the text position type. */\n");
+    putl_code(fp, "typedef struct YYLTYPE\n");
+    putl_code(fp, "{\n");
+    putl_code(fp, "    int first_line;\n");
+    putl_code(fp, "    int first_column;\n");
+    putl_code(fp, "    int last_line;\n");
+    putl_code(fp, "    int last_column;\n");
+    putl_code(fp, "    unsigned source;\n");
+    putl_code(fp, "} YYLTYPE;\n");
+    putl_code(fp, "#define YYLTYPE_IS_DECLARED 1\n");
+    putl_code(fp, "#endif\n");
+    putl_code(fp, "#define YYRHSLOC(rhs, k) ((rhs)[k])\n");
+}
+#endif
+
+static void
 output_YYINT_typedef(FILE * fp)
 {
     /* generate the type used to index the various parser tables */
@@ -329,6 +366,8 @@ output_accessing_symbols(void)
 	    translate[i] = symbol_pval[gsymb];
 	}
 
+	putl_code(output_file,
+		  "#if defined(YYDESTRUCT_CALL) || defined(YYSTYPE_TOSTRING)\n");
 	/* yystos[] may be unused, depending on compile-time defines */
 	start_int_table("stos", translate[0]);
 
@@ -348,6 +387,8 @@ output_accessing_symbols(void)
 
 	end_table();
 	FREE(translate);
+	putl_code(output_file,
+		  "#endif /* YYDESTRUCT_CALL || YYSTYPE_TOSTRING */\n");
     }
 }
 
@@ -366,7 +407,7 @@ find_conflict_base(int cbase)
 	if (j + cbase >= nconflicts)
 	    break;
     }
-    return (Value_t) i;
+    return (Value_t)i;
 }
 #endif
 
@@ -412,7 +453,7 @@ token_actions(void)
 			conflictcount++;
 			conflicts[nconflicts++] = -1;
 			j = find_conflict_base(cbase);
-			actionrow[csym + 2 * ntokens] = (Value_t) (j + 1);
+			actionrow[csym + 2 * ntokens] = (Value_t)(j + 1);
 			if (j == cbase)
 			{
 			    cbase = nconflicts;
@@ -457,7 +498,7 @@ token_actions(void)
 			    else
 				conflicts[nconflicts++] = -1;
 			}
-			conflicts[nconflicts++] = (Value_t) (p->number - 2);
+			conflicts[nconflicts++] = (Value_t)(p->number - 2);
 		    }
 		}
 #endif
@@ -468,7 +509,7 @@ token_actions(void)
 		conflictcount++;
 		conflicts[nconflicts++] = -1;
 		j = find_conflict_base(cbase);
-		actionrow[csym + 2 * ntokens] = (Value_t) (j + 1);
+		actionrow[csym + 2 * ntokens] = (Value_t)(j + 1);
 		if (j == cbase)
 		{
 		    cbase = nconflicts;
@@ -512,7 +553,7 @@ token_actions(void)
 			*s++ = actionrow[j];
 		    }
 		}
-		width[i] = (Value_t) (max - min + 1);
+		width[i] = (Value_t)(max - min + 1);
 	    }
 	    if (reducecount > 0)
 	    {
@@ -529,10 +570,10 @@ token_actions(void)
 			if (max < symbol_value[j])
 			    max = symbol_value[j];
 			*r++ = symbol_value[j];
-			*s++ = (Value_t) (actionrow[ntokens + j] - 2);
+			*s++ = (Value_t)(actionrow[ntokens + j] - 2);
 		    }
 		}
-		width[nstates + i] = (Value_t) (max - min + 1);
+		width[nstates + i] = (Value_t)(max - min + 1);
 	    }
 #if defined(YYBTYACC)
 	    if (backtrack && conflictcount > 0)
@@ -550,10 +591,10 @@ token_actions(void)
 			if (max < symbol_value[j])
 			    max = symbol_value[j];
 			*r++ = symbol_value[j];
-			*s++ = (Value_t) (actionrow[2 * ntokens + j] - 1);
+			*s++ = (Value_t)(actionrow[2 * ntokens + j] - 1);
 		    }
 		}
-		width[2 * nstates + i] = (Value_t) (max - min + 1);
+		width[2 * nstates + i] = (Value_t)(max - min + 1);
 	    }
 #endif
 	}
@@ -635,7 +676,7 @@ save_column(int symbol, int default_state)
     }
 
     tally[symno] = count;
-    width[symno] = (Value_t) (sp1[-1] - sp[0] + 1);
+    width[symno] = (Value_t)(sp1[-1] - sp[0] + 1);
 }
 
 static void
@@ -871,7 +912,7 @@ pack_table(void)
 	state = matching_vector(i);
 
 	if (state < 0)
-	    place = (Value_t) pack_vector(i);
+	    place = (Value_t)pack_vector(i);
 	else
 	    place = base[state];
 
@@ -1198,6 +1239,16 @@ output_defines(FILE * fp)
     if (fp != defines_file || iflag)
 	fprintf(fp, "#define YYERRCODE %d\n", symbol_value[1]);
 
+    if (token_table && rflag && fp != externs_file)
+    {
+	if (fp == code_file)
+	    ++outline;
+	fputs("#undef yytname\n", fp);
+	if (fp == code_file)
+	    ++outline;
+	fputs("#define yytname yyname\n", fp);
+    }
+
     if (fp == defines_file || (iflag && !dflag))
     {
 	if (unionized)
@@ -1210,6 +1261,10 @@ output_defines(FILE * fp)
 	    }
 	    fprintf(fp, "extern YYSTYPE %slval;\n", symbol_prefix);
 	}
+#if defined(YYBTYACC)
+	if (locations)
+	    output_ltype(fp);
+#endif
     }
 }
 
@@ -1307,8 +1362,11 @@ output_debug(void)
      */
     if (token_table)
     {
-	output_line("#undef yytname");
-	output_line("#define yytname yyname");
+	if (!rflag)
+	{
+	    output_line("#undef yytname");
+	    output_line("#define yytname yyname");
+	}
     }
     else
     {
@@ -1526,38 +1584,16 @@ output_pure_parser(FILE * fp)
     putc_code(fp, '\n');
 }
 
+#if defined(YY_NO_LEAKS)
 static void
-output_stype(FILE * fp)
-{
-    if (!unionized && ntags == 0)
-    {
-	putc_code(fp, '\n');
-	putl_code(fp, "#if "
-		  "! defined(YYSTYPE) && "
-		  "! defined(YYSTYPE_IS_DECLARED)\n");
-	putl_code(fp, "/* Default: YYSTYPE is the semantic value type. */\n");
-	putl_code(fp, "typedef int YYSTYPE;\n");
-	putl_code(fp, "# define YYSTYPE_IS_DECLARED 1\n");
-	putl_code(fp, "#endif\n");
-    }
-}
-
-#if defined(YYBTYACC)
-static void
-output_ltype(FILE * fp)
+output_no_leaks(FILE * fp)
 {
     putc_code(fp, '\n');
-    putl_code(fp, "#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED\n");
-    putl_code(fp, "/* Default: YYLTYPE is the text position type. */\n");
-    putl_code(fp, "typedef struct YYLTYPE\n");
-    putl_code(fp, "{\n");
-    putl_code(fp, "    int first_line;\n");
-    putl_code(fp, "    int first_column;\n");
-    putl_code(fp, "    int last_line;\n");
-    putl_code(fp, "    int last_column;\n");
-    putl_code(fp, "} YYLTYPE;\n");
-    putl_code(fp, "#define YYLTYPE_IS_DECLARED 1\n");
-    putl_code(fp, "#endif\n");
+
+    if (fp == code_file)
+	++outline;
+    fputs("#define YY_NO_LEAKS 1\n", fp);
+    putc_code(fp, '\n');
 }
 #endif
 
@@ -1768,7 +1804,7 @@ output_error_decl(FILE * fp)
     puts_code(fp, "#define YYERROR_DECL() yyerror(");
 #if defined(YYBTYACC)
     if (locations)
-	puts_code(fp, "YYLTYPE loc, ");
+	puts_code(fp, "YYLTYPE *loc, ");
 #endif
     puts_param_types(fp, parse_param, 1);
     putl_code(fp, "const char *s)\n");
@@ -1779,7 +1815,7 @@ output_error_decl(FILE * fp)
     puts_code(fp, "#define YYERROR_CALL(msg) yyerror(");
 #if defined(YYBTYACC)
     if (locations)
-	puts_code(fp, "yylloc, ");
+	puts_code(fp, "&yylloc, ");
 #endif
     puts_param_names(fp, parse_param, 1);
     putl_code(fp, "msg)\n");
@@ -1830,6 +1866,13 @@ output_yydestruct_decl(FILE * fp)
     putl_code(fp, ")\n");
 
     putl_code(fp, "#endif\n");
+}
+
+static void
+output_initial_action(void)
+{
+    if (initial_action)
+	fprintf(code_file, "%s\n", initial_action);
 }
 
 static void
@@ -1955,6 +1998,9 @@ output(void)
 
     output_prefix(fp);
     output_pure_parser(fp);
+#if defined(YY_NO_LEAKS)
+    output_no_leaks(fp);
+#endif
     output_stored_text(fp);
     output_stype(fp);
 #if defined(YYBTYACC)
@@ -2038,6 +2084,15 @@ output(void)
 	write_section(code_file, body_vars);
     }
     write_section(code_file, body_2);
+    if (pure_parser)
+    {
+	write_section(code_file, init_vars);
+    }
+#if defined(YYBTYACC)
+    if (initial_action)
+	output_initial_action();
+#endif
+    write_section(code_file, body_3);
     output_semantic_actions();
     write_section(code_file, trailer);
 }

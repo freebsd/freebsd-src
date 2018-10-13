@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2008-2009 Apple Inc.
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -255,7 +261,8 @@ auditd_set_host(void)
 	struct auditinfo_addr aia;
 	int error, ret = ADE_NOERR;
 
-	if (getachost(auditd_host, sizeof(auditd_host)) != 0) {
+	if ((getachost(auditd_host, sizeof(auditd_host)) != 0) ||
+	    ((auditd_hostlen = strlen(auditd_host)) == 0)) {
 		ret = ADE_PARSE;
 
 		/*
@@ -272,7 +279,6 @@ auditd_set_host(void)
 			ret = ADE_AUDITON;
 		return (ret);
 	}
-	auditd_hostlen = strlen(auditd_host);
 	error = getaddrinfo(auditd_host, NULL, NULL, &res);
 	if (error)
 		return (ADE_GETADDR);
@@ -675,12 +681,18 @@ auditd_close_dirs(void)
  * set that mapping into the kernel. Return:
  *	 n	number of event mappings that were successfully processed,
  *   ADE_NOMEM	if there was an error allocating memory.
+ *
+ * Historically, this code only set up the in-kernel class mapping.  On
+ * systems with an in-kernel event-to-name mapping, it also now installs that,
+ * as it is iterating over the event list anyway.  Failures there will be
+ * ignored as not all kernels support the feature.
  */
 int
 auditd_set_evcmap(void)
 {
 	au_event_ent_t ev, *evp;
 	au_evclass_map_t evc_map;
+	au_evname_map_t evn_map;
 	int ctr = 0;
 
 	/*
@@ -704,6 +716,20 @@ auditd_set_evcmap(void)
 	evp = &ev;
 	setauevent();
 	while ((evp = getauevent_r(evp)) != NULL) {
+		/*
+		 * Set the event-to-name mapping entry.  If there's not room
+		 * in the in-kernel string, then we skip the entry.  Possibly
+		 * better than truncating...?
+		 */
+		if (strlcpy(evn_map.en_name, evp->ae_name,
+		    sizeof(evn_map.en_name)) < sizeof(evn_map.en_name)) {
+			evn_map.en_number = evp->ae_number;
+			(void)audit_set_event(&evn_map, sizeof(evn_map));
+		}
+
+		/*
+		 * Set the event-to-class mapping entry.
+		 */
 		evc_map.ec_number = evp->ae_number;
 		evc_map.ec_class = evp->ae_class;
 		if (audit_set_class(&evc_map, sizeof(evc_map)) == 0)
@@ -788,6 +814,34 @@ auditd_set_fsize(void)
 	bzero(&au_fstat, sizeof(au_fstat));
 	au_fstat.af_filesz = filesz;
 	if (audit_set_fsize(&au_fstat, sizeof(au_fstat)) != 0)
+		return (ADE_AUDITON);
+
+	return (ADE_NOERR);
+}
+
+/*
+ * Set trail rotation size.  Return:
+ *	ADE_NOERR	on success,
+ *	ADE_PARSE	error parsing audit_control(5),
+ *	ADE_AUDITON	error setting queue size using auditon(2).
+ */
+int
+auditd_set_qsize(void)
+{
+	int qsz;
+	au_qctrl_t au_qctrl;
+
+	/*
+	 * Set trail rotation size.
+	 */
+	if (getacqsize(&qsz) != 0)
+		return (ADE_PARSE);
+
+	if (audit_get_qctrl(&au_qctrl, sizeof(au_qctrl)) != 0)
+		return (ADE_AUDITON);
+	if (qsz != USE_DEFAULT_QSZ)
+		au_qctrl.aq_hiwater = qsz;
+	if (audit_set_qctrl(&au_qctrl, sizeof(au_qctrl)) != 0)
 		return (ADE_AUDITON);
 
 	return (ADE_NOERR);

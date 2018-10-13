@@ -1,6 +1,8 @@
 /*-
  * Common functions for SCSI Interface Modules (SIMs).
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -46,6 +48,9 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_CAMSIM, "CAM SIM", "CAM SIM buffers");
 
+static struct mtx cam_sim_free_mtx;
+MTX_SYSINIT(cam_sim_free_init, &cam_sim_free_mtx, "CAM SIM free lock", MTX_DEF);
+
 struct cam_devq *
 cam_simq_alloc(u_int32_t max_sim_transactions)
 {
@@ -65,9 +70,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	      int max_tagged_dev_transactions, struct cam_devq *queue)
 {
 	struct cam_sim *sim;
-
-	if (mtx == NULL)
-		return (NULL);
 
 	sim = (struct cam_sim *)malloc(sizeof(struct cam_sim),
 	    M_CAMSIM, M_ZERO | M_NOWAIT);
@@ -101,16 +103,23 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 void
 cam_sim_free(struct cam_sim *sim, int free_devq)
 {
+	struct mtx *mtx = sim->mtx;
 	int error;
 
-	mtx_assert(sim->mtx, MA_OWNED);
+	if (mtx) {
+		mtx_assert(mtx, MA_OWNED);
+	} else {
+		mtx = &cam_sim_free_mtx;
+		mtx_lock(mtx);
+	}
 	sim->refcount--;
 	if (sim->refcount > 0) {
-		error = msleep(sim, sim->mtx, PRIBIO, "simfree", 0);
+		error = msleep(sim, mtx, PRIBIO, "simfree", 0);
 		KASSERT(error == 0, ("invalid error value for msleep(9)"));
 	}
-
 	KASSERT(sim->refcount == 0, ("sim->refcount == 0"));
+	if (sim->mtx == NULL)
+		mtx_unlock(mtx);
 
 	if (free_devq)
 		cam_simq_free(sim->devq);
@@ -120,31 +129,43 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 void
 cam_sim_release(struct cam_sim *sim)
 {
-	int lock;
+	struct mtx *mtx = sim->mtx;
 
-	lock = (mtx_owned(sim->mtx) == 0);
-	if (lock)
-		CAM_SIM_LOCK(sim);
+	if (mtx) {
+		if (!mtx_owned(mtx))
+			mtx_lock(mtx);
+		else
+			mtx = NULL;
+	} else {
+		mtx = &cam_sim_free_mtx;
+		mtx_lock(mtx);
+	}
 	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
 	sim->refcount--;
 	if (sim->refcount == 0)
 		wakeup(sim);
-	if (lock)
-		CAM_SIM_UNLOCK(sim);
+	if (mtx)
+		mtx_unlock(mtx);
 }
 
 void
 cam_sim_hold(struct cam_sim *sim)
 {
-	int lock;
+	struct mtx *mtx = sim->mtx;
 
-	lock = (mtx_owned(sim->mtx) == 0);
-	if (lock)
-		CAM_SIM_LOCK(sim);
+	if (mtx) {
+		if (!mtx_owned(mtx))
+			mtx_lock(mtx);
+		else
+			mtx = NULL;
+	} else {
+		mtx = &cam_sim_free_mtx;
+		mtx_lock(mtx);
+	}
 	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
 	sim->refcount++;
-	if (lock)
-		CAM_SIM_UNLOCK(sim);
+	if (mtx)
+		mtx_unlock(mtx);
 }
 
 void

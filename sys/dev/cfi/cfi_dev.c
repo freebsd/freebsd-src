@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007, Juniper Networks, Inc.
  * Copyright (c) 2012-2013, SRI International
  * All rights reserved.

@@ -36,12 +36,16 @@ DEFINE_TEST(test_read_filter_lzop_multiple_parts)
 	assert((a = archive_read_new()) != NULL);
 	r = archive_read_support_filter_lzop(a);
 	if (r != ARCHIVE_OK) {
-		if (r == ARCHIVE_WARN && !canLzop()) {
-			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		if (!canLzop()) {
 			skipping("lzop compression is not supported "
 			    "on this platform");
+		} else if (r == ARCHIVE_WARN) {
+			skipping("lzop multiple parts decoding is not "
+			    "supported via external program");
+
 		} else
 			assertEqualIntA(a, ARCHIVE_OK, r);
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));

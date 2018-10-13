@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 The FreeBSD Project.
  * All rights reserved.
  *
@@ -33,6 +35,7 @@
 struct ipsec_ctx_data {
 	struct mbuf	**mp;
 	struct secasvar	*sav;
+	struct inpcb	*inp;
 	uint8_t		af;
 #define	IPSEC_ENC_BEFORE	0x01
 #define	IPSEC_ENC_AFTER		0x02

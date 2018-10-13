@@ -53,6 +53,7 @@ prec::Level getBinOpPrecedence(tok::TokenKind Kind, bool GreaterThanIsOperator,
   case tok::pipeequal:            return prec::Assignment;
   case tok::question:             return prec::Conditional;
   case tok::pipepipe:             return prec::LogicalOr;
+  case tok::caretcaret:
   case tok::ampamp:               return prec::LogicalAnd;
   case tok::pipe:                 return prec::InclusiveOr;
   case tok::caret:                return prec::ExclusiveOr;
@@ -62,6 +63,7 @@ prec::Level getBinOpPrecedence(tok::TokenKind Kind, bool GreaterThanIsOperator,
   case tok::lessequal:
   case tok::less:
   case tok::greaterequal:         return prec::Relational;
+  case tok::spaceship:            return prec::Spaceship;
   case tok::lessless:             return prec::Shift;
   case tok::plus:
   case tok::minus:                return prec::Additive;

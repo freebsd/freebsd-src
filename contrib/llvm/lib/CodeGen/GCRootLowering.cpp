@@ -18,17 +18,16 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -45,7 +44,7 @@ public:
   static char ID;
 
   LowerIntrinsics();
-  const char *getPassName() const override;
+  StringRef getPassName() const override;
   void getAnalysisUsage(AnalysisUsage &AU) const override;
 
   bool doInitialization(Module &M) override;
@@ -64,7 +63,7 @@ class GCMachineCodeAnalysis : public MachineFunctionPass {
   void FindSafePoints(MachineFunction &MF);
   void VisitCallPoint(MachineBasicBlock::iterator MI);
   MCSymbol *InsertLabel(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-                        DebugLoc DL) const;
+                        const DebugLoc &DL) const;
 
   void FindStackOffsets(MachineFunction &MF);
 
@@ -93,7 +92,7 @@ LowerIntrinsics::LowerIntrinsics() : FunctionPass(ID) {
   initializeLowerIntrinsicsPass(*PassRegistry::getPassRegistry());
 }
 
-const char *LowerIntrinsics::getPassName() const {
+StringRef LowerIntrinsics::getPassName() const {
   return "Lower Garbage Collection Instructions";
 }
 
@@ -170,8 +169,7 @@ static bool InsertRootInitializers(Function &F, AllocaInst **Roots,
   for (AllocaInst **I = Roots, **E = Roots + Count; I != E; ++I)
     if (!InitedRoots.count(*I)) {
       StoreInst *SI = new StoreInst(
-          ConstantPointerNull::get(cast<PointerType>(
-              cast<PointerType>((*I)->getType())->getElementType())),
+          ConstantPointerNull::get(cast<PointerType>((*I)->getAllocatedType())),
           *I);
       SI->insertAfter(*I);
       MadeChange = true;
@@ -271,7 +269,7 @@ void GCMachineCodeAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 
 MCSymbol *GCMachineCodeAnalysis::InsertLabel(MachineBasicBlock &MBB,
                                              MachineBasicBlock::iterator MI,
-                                             DebugLoc DL) const {
+                                             const DebugLoc &DL) const {
   MCSymbol *Label = MBB.getParent()->getContext().createTempSymbol();
   BuildMI(MBB, MI, DL, TII->get(TargetOpcode::GC_LABEL)).addSym(Label);
   return Label;
@@ -317,7 +315,7 @@ void GCMachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
   for (GCFunctionInfo::roots_iterator RI = FI->roots_begin();
        RI != FI->roots_end();) {
     // If the root references a dead object, no need to keep it.
-    if (MF.getFrameInfo()->isDeadObjectIndex(RI->Num)) {
+    if (MF.getFrameInfo().isDeadObjectIndex(RI->Num)) {
       RI = FI->removeStackRoot(RI);
     } else {
       unsigned FrameReg; // FIXME: surely GCRoot ought to store the
@@ -330,20 +328,20 @@ void GCMachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
 
 bool GCMachineCodeAnalysis::runOnMachineFunction(MachineFunction &MF) {
   // Quick exit for functions that do not use GC.
-  if (!MF.getFunction()->hasGC())
+  if (!MF.getFunction().hasGC())
     return false;
 
-  FI = &getAnalysis<GCModuleInfo>().getFunctionInfo(*MF.getFunction());
+  FI = &getAnalysis<GCModuleInfo>().getFunctionInfo(MF.getFunction());
   MMI = &getAnalysis<MachineModuleInfo>();
   TII = MF.getSubtarget().getInstrInfo();
 
   // Find the size of the stack frame.  There may be no correct static frame
   // size, we use UINT64_MAX to represent this.
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
-  const bool DynamicFrameSize = MFI->hasVarSizedObjects() ||
+  const bool DynamicFrameSize = MFI.hasVarSizedObjects() ||
     RegInfo->needsStackRealignment(MF);
-  FI->setFrameSize(DynamicFrameSize ? UINT64_MAX : MFI->getStackSize());
+  FI->setFrameSize(DynamicFrameSize ? UINT64_MAX : MFI.getStackSize());
 
   // Find all safe points.
   if (FI->getStrategy().needsSafePoints())

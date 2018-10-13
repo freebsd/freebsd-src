@@ -212,7 +212,7 @@ host_dns(const char *s, struct ypldap_addr_list *hn)
 	struct sockaddr_in6	*sa_in6;
 	struct ypldap_addr	*h;
 
-	bzero(&hints, sizeof(hints));
+	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM; /* DUMMY */
 	error = getaddrinfo(s, NULL, &hints, &res0);

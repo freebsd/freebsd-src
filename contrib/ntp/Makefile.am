@@ -5,10 +5,10 @@ NULL =
 # moved sntp first to get libtool and libevent built.
 
 SUBDIRS =		\
-	sntp		\
 	scripts		\
 	include		\
 	libntp		\
+	sntp		\
 	libparse	\
 	ntpd		\
 	ntpdate		\

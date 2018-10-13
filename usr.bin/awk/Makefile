@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-AWKSRC=	${.CURDIR}/../../contrib/one-true-awk
+.include <src.opts.mk>
+
+AWKSRC=	${SRCTOP}/contrib/one-true-awk
 .PATH: ${AWKSRC}
 
 PROG=	awk
@@ -17,13 +19,19 @@ MLINKS=	awk.1 nawk.1
 
 CLEANFILES= maketab proctab.c ytab.h
 
-ytab.h: awkgram.h .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
+# XXX: awkgram.c isn't really needed here but it is added to keep
+# awkgram.h: .NOMETA respected.
+ytab.h: awkgram.c awkgram.h .NOMETA
+	ln -sf ${.ALLSRC:M*.h} ${.TARGET}
 
 proctab.c: maketab
 	${BTOOLSPATH:U.}/maketab > proctab.c
 
 build-tools: maketab
-maketab: ytab.h ${AWKSRC}/maketab.c ${BUILD_TOOLS_META}
+maketab: ytab.h maketab.c ${BUILD_TOOLS_META}
+
+# awk needs some work before we can connect these tests to the build
+#HAS_TESTS=
+#SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

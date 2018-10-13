@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
+ * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,135 +44,134 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/bhnd/bhndvar.h>
-/*
- * SPI BUS interface
- */
+
 #include <dev/spibus/spi.h>
+
+#include "bhnd_chipc_if.h"
 
 #include "spibus_if.h"
 
 #include "chipcreg.h"
 #include "chipcvar.h"
-#include "chipc_spi.h"
-#include "bhnd_chipc_if.h"
-
-/*
- * Flash slicer
- */
 #include "chipc_slicer.h"
 
-/*
- * **************************** PROTOTYPES ****************************
- */
+#include "chipc_spi.h"
 
-static void	chipc_spi_identify(driver_t *driver, device_t parent);
 static int	chipc_spi_probe(device_t dev);
 static int	chipc_spi_attach(device_t dev);
+static int	chipc_spi_detach(device_t dev);
 static int	chipc_spi_transfer(device_t dev, device_t child,
 		    struct spi_command *cmd);
 static int	chipc_spi_txrx(struct chipc_spi_softc *sc, uint8_t in,
 		    uint8_t* out);
 static int	chipc_spi_wait(struct chipc_spi_softc *sc);
 
-/*
- * **************************** IMPLEMENTATION ************************
- */
-
-static void
-chipc_spi_identify(driver_t *driver, device_t parent)
-{
-	struct chipc_caps	*caps;
-	device_t	 	 spidev;
-	device_t	 	 spibus;
-	device_t 		 flash;
-	char*		 	 flash_name;
-	int		 	 err;
-
-	flash_name = NULL;
-
-	if (device_find_child(parent, "spi", -1) != NULL)
-		return;
-
-	caps = BHND_CHIPC_GET_CAPS(parent);
-	if (caps == NULL) {
-		BHND_ERROR_DEV(parent, "can't retrieve ChipCommon capabilities");
-		return;
-	}
-
-	switch (caps->flash_type) {
-	case CHIPC_SFLASH_AT:
-		flash_name = "at45d";
-		break;
-	case CHIPC_SFLASH_ST:
-		flash_name = "mx25l";
-		break;
-	default:
-		return;
-	}
-
-	spidev = BUS_ADD_CHILD(parent, 0, "spi", -1);
-	if (spidev == NULL) {
-		BHND_ERROR_DEV(parent, "can't add chipc_spi to ChipCommon");
-		return;
-	}
-
-	err = device_probe_and_attach(spidev);
-	if (err) {
-		BHND_ERROR_DEV(spidev, "failed attach chipc_spi: %d", err);
-		return;
-	}
-
-	spibus = device_find_child(spidev, "spibus", -1);
-	if (spibus == NULL) {
-		BHND_ERROR_DEV(spidev, "can't find spibus under chipc_spi");
-		return;
-	}
-
-	flash = BUS_ADD_CHILD(spibus, 0, flash_name, -1);
-	if (flash == NULL) {
-		BHND_ERROR_DEV(spibus, "can't add %s to spibus", flash_name);
-		return;
-	}
-
-	err = device_probe_and_attach(flash);
-	if (err)
-		BHND_ERROR_DEV(flash, "failed attach flash %s: %d", flash_name,
-		    err);
-
-	return;
-}
-
 static int
 chipc_spi_probe(device_t dev)
 {
-	device_set_desc(dev, "ChipCommon SPI");
-	return (BUS_PROBE_DEFAULT);
+	device_set_desc(dev, "Broadcom ChipCommon SPI");
+	return (BUS_PROBE_NOWILDCARD);
 }
-
-struct resource_spec	spec_mem[] = {
-		{SYS_RES_MEMORY, 0, RF_ACTIVE},
-		{SYS_RES_MEMORY, 1, RF_ACTIVE},
-		{ -1, -1, 0 }
-	};
 
 static int
 chipc_spi_attach(device_t dev)
 {
-	int 			 err;
 	struct chipc_spi_softc	*sc;
-	struct resource		*mem[2];
+	struct chipc_caps	*ccaps;
+	device_t		 flash_dev;
+	device_t		 spibus;
+	const char		*flash_name;
+	int			 error;
 
 	sc = device_get_softc(dev);
-	err = bus_alloc_resources(dev, spec_mem, mem);
-	if (err != 0)
+
+	/* Allocate SPI controller registers */
+	sc->sc_rid = 1;
+	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+	    RF_ACTIVE);
+	if (sc->sc_res == NULL) {
+		device_printf(dev, "failed to allocate device registers\n");
 		return (ENXIO);
+	}
 
-	sc->sc_res = mem[0];
-	sc->sc_mem_res = mem[1];
+	/* Allocate flash shadow region */
+	sc->sc_flash_rid = 0;
+	sc->sc_flash_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_flash_rid, RF_ACTIVE);
+	if (sc->sc_flash_res == NULL) {
+		device_printf(dev, "failed to allocate flash region\n");
+		error = ENXIO;
+		goto failed;
+	}
 
-	flash_register_slicer(chipc_slicer_spi);
-	device_add_child(dev, "spibus", 0);
-	return (bus_generic_attach(dev));
+	/* 
+	 * Add flash device
+	 * 
+	 * XXX: This should be replaced with a DEVICE_IDENTIFY implementation
+	 * in chipc-specific subclasses of the mx25l and at45d drivers.
+	 */
+	if ((spibus = device_add_child(dev, "spibus", -1)) == NULL) {
+		device_printf(dev, "failed to add spibus\n");
+		error = ENXIO;
+		goto failed;
+	}
+
+	/* Let spibus perform full attach before we try to call
+	 * BUS_ADD_CHILD() */
+	if ((error = bus_generic_attach(dev)))
+		goto failed;
+
+	/* Determine flash type and add the flash child */
+	ccaps = BHND_CHIPC_GET_CAPS(device_get_parent(dev));
+	flash_name = chipc_sflash_device_name(ccaps->flash_type);
+	if (flash_name != NULL) {
+		flash_dev = BUS_ADD_CHILD(spibus, 0, flash_name, -1);
+		if (flash_dev == NULL) {
+			device_printf(dev, "failed to add %s\n", flash_name);
+			error = ENXIO;
+			goto failed;
+		}
+
+		chipc_register_slicer(ccaps->flash_type);
+
+		if ((error = device_probe_and_attach(flash_dev))) {
+			device_printf(dev, "failed to attach %s: %d\n",
+			    flash_name, error);
+			goto failed;
+		}
+	}
+
+	return (0);
+
+failed:
+	device_delete_children(dev);
+
+	if (sc->sc_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid,
+		    sc->sc_res);
+
+	if (sc->sc_flash_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_flash_rid,
+		    sc->sc_flash_res);
+
+	return (error);
+}
+
+static int
+chipc_spi_detach(device_t dev)
+{
+	struct chipc_spi_softc	*sc;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	if ((error = bus_generic_detach(dev)))
+		return (error);
+
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_flash_rid,
+	    sc->sc_flash_res);
+	return (0);
 }
 
 static int
@@ -184,7 +186,9 @@ chipc_spi_wait(struct chipc_spi_softc *sc)
 	if (i > 0)
 		return (0);
 
-	BHND_DEBUG_DEV(sc->dev, "busy");
+	BHND_WARN_DEV(sc->sc_dev, "busy: CTL=0x%x DATA=0x%x",
+	    SPI_READ(sc, CHIPC_SPI_FLASHCTL),
+	    SPI_READ(sc, CHIPC_SPI_FLASHDATA));
 	return (-1);
 }
 
@@ -256,13 +260,11 @@ chipc_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	return (0);
 }
 
-/*
- * **************************** METADATA ************************
- */
 static device_method_t chipc_spi_methods[] = {
-		DEVMETHOD(device_identify,	chipc_spi_identify),
 		DEVMETHOD(device_probe,		chipc_spi_probe),
 		DEVMETHOD(device_attach,	chipc_spi_attach),
+		DEVMETHOD(device_detach,	chipc_spi_detach),
+
 		/* SPI */
 		DEVMETHOD(spibus_transfer,	chipc_spi_transfer),
 		DEVMETHOD_END
@@ -277,4 +279,4 @@ static driver_t chipc_spi_driver = {
 static devclass_t chipc_spi_devclass;
 
 DRIVER_MODULE(chipc_spi, bhnd_chipc, chipc_spi_driver, chipc_spi_devclass,
-		0, 0);
+    0, 0);

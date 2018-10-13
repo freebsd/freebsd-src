@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -417,6 +419,16 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	struct ether_header *eh;
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
+	int is_hw_decrypted = 0;
+	int has_decrypted = 0;
+
+	/*
+	 * Some devices do hardware decryption all the way through
+	 * to pretending the frame wasn't encrypted in the first place.
+	 * So, tag it appropriately so it isn't discarded inappropriately.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED))
+		is_hw_decrypted = 1;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -494,7 +506,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
 		    TID_TO_WME_AC(tid) >= WME_AC_VI)
 			ic->ic_wme.wme_hipri_traffic++;
-		if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1))
+		if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1, rxs))
 			goto out;
 	}
 	switch (type) {
@@ -530,7 +542,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * and we should do nothing more with it.
 		 */
 		if ((m->m_flags & M_AMPDU) &&
-		    ieee80211_ampdu_reorder(ni, m) != 0) {
+		    ieee80211_ampdu_reorder(ni, m, rxs) != 0) {
 			m = NULL;
 			goto out;
 		}
@@ -544,7 +556,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		if (is_hw_decrypted || wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -555,14 +567,14 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 				IEEE80211_NODE_STAT(ni, rx_noprivacy);
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				IEEE80211_NODE_STAT(ni, rx_wepfail);
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
+			has_decrypted = 1;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -593,7 +605,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Next strip any MSDU crypto bits.
 		 */
-		if (key != NULL && !ieee80211_crypto_demic(vap, key, m, 0)) {
+		if (!ieee80211_crypto_demic(vap, key, m, 0)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    ni->ni_macaddr, "data", "%s", "demic error");
 			vap->iv_stats.is_rx_demicfail++;
@@ -647,7 +659,8 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 			 * any non-PAE frames received without encryption.
 			 */
 			if ((vap->iv_flags & IEEE80211_F_DROPUNENC) &&
-			    (key == NULL && (m->m_flags & M_WEP) == 0) &&
+			    ((has_decrypted == 0) && (m->m_flags & M_WEP) == 0) &&
+			    (is_hw_decrypted == 0) &&
 			    eh->ether_type != htons(ETHERTYPE_PAE)) {
 				/*
 				 * Drop unencrypted frames.

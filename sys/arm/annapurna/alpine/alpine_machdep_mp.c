@@ -43,10 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/cpu-v6.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_cpu.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <arm/annapurna/alpine/alpine_mp.h>
 
 #define AL_CPU_RESUME_WATERMARK_REG		0x00
 #define AL_CPU_RESUME_FLAGS_REG			0x04
@@ -68,28 +72,20 @@ __FBSDID("$FreeBSD$");
 #define AL_NB_INIT_CONTROL		(0x8)
 #define AL_NB_CONFIG_STATUS_PWR_CTRL(cpu)	(0x2020 + (cpu)*0x100)
 
-#define SERDES_NUM_GROUPS	4
-#define SERDES_GROUP_SIZE	0x400
-
 extern bus_addr_t al_devmap_pa;
 extern bus_addr_t al_devmap_size;
 
 extern void mpentry(void);
 
-int alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag,
-    bus_addr_t *baddr);
 static int platform_mp_get_core_cnt(void);
 static int alpine_get_cpu_resume_base(u_long *pbase, u_long *psize);
 static int alpine_get_nb_base(u_long *pbase, u_long *psize);
-static int alpine_get_serdes_base(u_long *pbase, u_long *psize);
-int alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag,
-    bus_addr_t *baddr);
 static boolean_t alpine_validate_cpu(u_int, phandle_t, u_int, pcell_t *);
 
 static boolean_t
 alpine_validate_cpu(u_int id, phandle_t child, u_int addr_cell, pcell_t *reg)
 {
-	return fdt_is_compatible(child, "arm,cortex-a15");
+	return ofw_bus_node_is_compatible(child, "arm,cortex-a15");
 }
 
 static int
@@ -119,7 +115,7 @@ platform_mp_get_core_cnt(void)
 }
 
 void
-platform_mp_setmaxid(void)
+alpine_mp_setmaxid(platform_t plat)
 {
 
 	mp_ncpus = platform_mp_get_core_cnt();
@@ -179,7 +175,7 @@ alpine_get_nb_base(u_long *pbase, u_long *psize)
 }
 
 void
-platform_mp_start_ap(void)
+alpine_mp_start_ap(platform_t plat)
 {
 	uint32_t physaddr;
 	vm_offset_t vaddr;
@@ -253,61 +249,4 @@ platform_mp_start_ap(void)
 
 	bus_space_unmap(fdtbus_bs_tag, nb_baddr, nb_size);
 	bus_space_unmap(fdtbus_bs_tag, cpu_resume_baddr, cpu_resume_size);
-}
-
-static int
-alpine_get_serdes_base(u_long *pbase, u_long *psize)
-{
-	phandle_t node;
-	u_long base = 0;
-	u_long size = 0;
-
-	if (pbase == NULL || psize == NULL)
-		return (EINVAL);
-
-	if ((node = OF_finddevice("/")) == -1)
-		return (EFAULT);
-
-	if ((node =
-	    ofw_bus_find_compatible(node, "annapurna-labs,al-serdes")) == 0)
-		return (EFAULT);
-
-	if (fdt_regsize(node, &base, &size))
-		return (EFAULT);
-
-	*pbase = base;
-	*psize = size;
-
-	return (0);
-}
-
-int
-alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag, bus_addr_t *baddr)
-{
-	u_long serdes_base, serdes_size;
-	int ret;
-	static bus_addr_t baddr_mapped[SERDES_NUM_GROUPS];
-
-	if (group >= SERDES_NUM_GROUPS)
-		return (EINVAL);
-
-	if (baddr_mapped[group]) {
-		*tag = fdtbus_bs_tag;
-		*baddr = baddr_mapped[group];
-		return (0);
-	}
-
-	ret = alpine_get_serdes_base(&serdes_base, &serdes_size);
-	if (ret)
-		return (ret);
-
-	ret = bus_space_map(fdtbus_bs_tag,
-	    al_devmap_pa + serdes_base + group * SERDES_GROUP_SIZE,
-	    (SERDES_NUM_GROUPS - group) * SERDES_GROUP_SIZE, 0, baddr);
-	if (ret)
-		return (ret);
-
-	baddr_mapped[group] = *baddr;
-
-	return (0);
 }

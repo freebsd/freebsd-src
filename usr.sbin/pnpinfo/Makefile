@@ -1,15 +1,11 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/pnpinfo
+.PATH: ${SRCTOP}/contrib/pnpinfo
 
 PROG=	pnpinfo
 MAN=	pnpinfo.8
 
-CFLAGS+= -I${.CURDIR}/../../sys
-
-.if ${MACHINE} == "pc98"
-CFLAGS+= -DPC98
-.endif
+CFLAGS+= -I${SRCTOP}/sys
 
 WARNS?=	2
 

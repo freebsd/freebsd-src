@@ -63,7 +63,6 @@ main(int argc, char **argv)
 	char *env, *eq, *val;
 	int ch, error;
 
-	error = 0;
 	val = NULL;
 	env = NULL;
 	while ((ch = getopt(argc, argv, "hNquv")) != -1) {
@@ -128,7 +127,7 @@ main(int argc, char **argv)
 static int
 kdumpenv(void)
 {
-	char *buf, *cp;
+	char *buf, *bp, *cp;
 	int buflen, envlen;
 
 	envlen = kenv(KENV_DUMP, NULL, NULL, 0);
@@ -136,10 +135,9 @@ kdumpenv(void)
 		return (-1);
 	for (;;) {
 		buflen = envlen * 120 / 100;
-		buf = malloc(buflen + 1);
+		buf = calloc(1, buflen + 1);
 		if (buf == NULL)
 			return (-1);
-		memset(buf, 0, buflen + 1);	/* Be defensive */
 		envlen = kenv(KENV_DUMP, NULL, buf, buflen);
 		if (envlen < 0) {
 			free(buf);
@@ -151,21 +149,23 @@ kdumpenv(void)
 			break;
 	}
 
-	for (; *buf != '\0'; buf += strlen(buf) + 1) {
+	for (bp = buf; *bp != '\0'; bp += strlen(bp) + 1) {
 		if (hflag) {
-			if (strncmp(buf, "hint.", 5) != 0)
+			if (strncmp(bp, "hint.", 5) != 0)
 				continue;
 		}
-		cp = strchr(buf, '=');
+		cp = strchr(bp, '=');
 		if (cp == NULL)
 			continue;
 		*cp++ = '\0';
 		if (Nflag)
-			printf("%s\n", buf);
+			printf("%s\n", bp);
 		else
-			printf("%s=\"%s\"\n", buf, cp);
-		buf = cp;
+			printf("%s=\"%s\"\n", bp, cp);
+		bp = cp;
 	}
+
+	free(buf);
 	return (0);
 }
 
@@ -190,7 +190,7 @@ ksetenv(const char *env, char *val)
 {
 	int ret;
 
-	ret = kenv(KENV_SET, env, val, strlen(val)+1);
+	ret = kenv(KENV_SET, env, val, strlen(val) + 1);
 	if (ret == 0)
 		printf("%s=\"%s\"\n", env, val);
 	return (ret);
@@ -200,7 +200,7 @@ static int
 kunsetenv(const char *env)
 {
 	int ret;
-	
+
 	ret = kenv(KENV_UNSET, env, NULL, 0);
 	return (ret);
 }

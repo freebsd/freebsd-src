@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * Copyright (c) 2013-2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -51,7 +53,7 @@ typedef struct nvpair nvpair_t;
 
 #ifdef _KERNEL
 #define	nv_malloc(size)			malloc((size), M_NVLIST, M_WAITOK)
-#define	nv_calloc(n, size)		malloc((n) * (size), M_NVLIST, \
+#define	nv_calloc(n, size)		mallocarray((n), (size), M_NVLIST, \
 					    M_WAITOK | M_ZERO)
 #define	nv_realloc(buf, size)		realloc((buf), (size), M_NVLIST, \
 					    M_WAITOK)
@@ -140,6 +142,12 @@ nvpair_t *nvpair_move_nvlist_array(const char *name, nvlist_t **value, size_t ni
 nvpair_t *nvpair_move_descriptor_array(const char *name, int *value, size_t nitems);
 nvpair_t *nvpair_move_number_array(const char *name, uint64_t *value, size_t nitems);
 nvpair_t *nvpair_move_string_array(const char *name, char **value, size_t nitems);
+
+int nvpair_append_bool_array(nvpair_t *nvp, const bool value);
+int nvpair_append_number_array(nvpair_t *nvp, const uint64_t value);
+int nvpair_append_string_array(nvpair_t *nvp, const char *value);
+int nvpair_append_nvlist_array(nvpair_t *nvp, const nvlist_t *value);
+int nvpair_append_descriptor_array(nvpair_t *nvp, const int value);
 
 bool			 nvpair_get_bool(const nvpair_t *nvp);
 uint64_t		 nvpair_get_number(const nvpair_t *nvp);

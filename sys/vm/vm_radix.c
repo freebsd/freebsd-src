@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -110,7 +112,7 @@ vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
 {
 	struct vm_radix_node *rnode;
 
-	rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO);
+	rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT);
 	if (rnode == NULL)
 		return (NULL);
 	rnode->rn_owner = owner;
@@ -281,7 +283,18 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
 }
 #endif
 
+static int
+vm_radix_node_zone_init(void *mem, int size __unused, int flags __unused)
+{
+	struct vm_radix_node *rnode;
+
+	rnode = mem;
+	bzero(rnode, sizeof(*rnode));
+	return (0);
+}
+
 #ifndef UMA_MD_SMALL_ALLOC
+void vm_radix_reserve_kva(void);
 /*
  * Reserve the KVA necessary to satisfy the node allocation.
  * This is mandatory in architectures not supporting direct
@@ -289,8 +302,8 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
  * every node allocation, resulting into deadlocks for consumers already
  * working with kernel maps.
  */
-static void
-vm_radix_reserve_kva(void *arg __unused)
+void
+vm_radix_reserve_kva(void)
 {
 
 	/*
@@ -302,17 +315,13 @@ vm_radix_reserve_kva(void *arg __unused)
 	    sizeof(struct vm_radix_node))))
 		panic("%s: unable to reserve KVA", __func__);
 }
-SYSINIT(vm_radix_reserve_kva, SI_SUB_KMEM, SI_ORDER_THIRD,
-    vm_radix_reserve_kva, NULL);
 #endif
 
 /*
  * Initialize the UMA slab zone.
- * Until vm_radix_prealloc() is called, the zone will be served by the
- * UMA boot-time pre-allocated pool of pages.
  */
 void
-vm_radix_init(void)
+vm_radix_zinit(void)
 {
 
 	vm_radix_node_zone = uma_zcreate("RADIX NODE",
@@ -322,7 +331,7 @@ vm_radix_init(void)
 #else
 	    NULL,
 #endif
-	    NULL, NULL, VM_RADIX_PAD, UMA_ZONE_VM);
+	    vm_radix_node_zone_init, NULL, VM_RADIX_PAD, UMA_ZONE_VM);
 }
 
 /*
@@ -341,8 +350,6 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 
 	index = page->pindex;
 
-restart:
-
 	/*
 	 * The owner of record for root is not really important because it
 	 * will never be used.
@@ -360,32 +367,10 @@ restart:
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
 			clev = vm_radix_keydiff(m->pindex, index);
-
-			/*
-			 * During node allocation the trie that is being
-			 * walked can be modified because of recursing radix
-			 * trie operations.
-			 * If this is the case, the recursing functions signal
-			 * such situation and the insert operation must
-			 * start from scratch again.
-			 * The freed radix node will then be in the UMA
-			 * caches very likely to avoid the same situation
-			 * to happen.
-			 */
-			rtree->rt_flags |= RT_INSERT_INPROG;
 			tmp = vm_radix_node_get(vm_radix_trimkey(index,
 			    clev + 1), 2, clev);
-			rtree->rt_flags &= ~RT_INSERT_INPROG;
-			if (tmp == NULL) {
-				rtree->rt_flags &= ~RT_TRIE_MODIFIED;
+			if (tmp == NULL)
 				return (ENOMEM);
-			}
-			if ((rtree->rt_flags & RT_TRIE_MODIFIED) != 0) {
-				rtree->rt_flags &= ~RT_TRIE_MODIFIED;
-				tmp->rn_count = 0;
-				vm_radix_node_put(tmp);
-				goto restart;
-			}
 			*parentp = tmp;
 			vm_radix_addpage(tmp, index, clev, page);
 			vm_radix_addpage(tmp, m->pindex, clev, m);
@@ -409,21 +394,9 @@ restart:
 	 */
 	newind = rnode->rn_owner;
 	clev = vm_radix_keydiff(newind, index);
-
-	/* See the comments above. */
-	rtree->rt_flags |= RT_INSERT_INPROG;
 	tmp = vm_radix_node_get(vm_radix_trimkey(index, clev + 1), 2, clev);
-	rtree->rt_flags &= ~RT_INSERT_INPROG;
-	if (tmp == NULL) {
-		rtree->rt_flags &= ~RT_TRIE_MODIFIED;
+	if (tmp == NULL)
 		return (ENOMEM);
-	}
-	if ((rtree->rt_flags & RT_TRIE_MODIFIED) != 0) {
-		rtree->rt_flags &= ~RT_TRIE_MODIFIED;
-		tmp->rn_count = 0;
-		vm_radix_node_put(tmp);
-		goto restart;
-	}
 	*parentp = tmp;
 	vm_radix_addpage(tmp, index, clev, page);
 	slot = vm_radix_slot(newind, clev);
@@ -698,51 +671,37 @@ descend:
 }
 
 /*
- * Remove the specified index from the tree.
- * Panics if the key is not present.
+ * Remove the specified index from the trie, and return the value stored at
+ * that index.  If the index is not present, return NULL.
  */
-void
+vm_page_t
 vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *rnode, *parent;
 	vm_page_t m;
 	int i, slot;
 
-	/*
-	 * Detect if a page is going to be removed from a trie which is
-	 * already undergoing another trie operation.
-	 * Right now this is only possible for vm_radix_remove() recursing
-	 * into vm_radix_insert().
-	 * If this is the case, the caller must be notified about this
-	 * situation.  It will also takecare to update the RT_TRIE_MODIFIED
-	 * accordingly.
-	 * The RT_TRIE_MODIFIED bit is set here because the remove operation
-	 * will always succeed.
-	 */
-	if ((rtree->rt_flags & RT_INSERT_INPROG) != 0)
-		rtree->rt_flags |= RT_TRIE_MODIFIED;
-
 	rnode = vm_radix_getroot(rtree);
 	if (vm_radix_isleaf(rnode)) {
 		m = vm_radix_topage(rnode);
 		if (m->pindex != index)
-			panic("%s: invalid key found", __func__);
+			return (NULL);
 		vm_radix_setroot(rtree, NULL);
-		return;
+		return (m);
 	}
 	parent = NULL;
 	for (;;) {
 		if (rnode == NULL)
-			panic("vm_radix_remove: impossible to locate the key");
+			return (NULL);
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		if (vm_radix_isleaf(rnode->rn_child[slot])) {
 			m = vm_radix_topage(rnode->rn_child[slot]);
 			if (m->pindex != index)
-				panic("%s: invalid key found", __func__);
+				return (NULL);
 			rnode->rn_child[slot] = NULL;
 			rnode->rn_count--;
 			if (rnode->rn_count > 1)
-				break;
+				return (m);
 			for (i = 0; i < VM_RADIX_COUNT; i++)
 				if (rnode->rn_child[i] != NULL)
 					break;
@@ -759,7 +718,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			rnode->rn_count--;
 			rnode->rn_child[i] = NULL;
 			vm_radix_node_put(rnode);
-			break;
+			return (m);
 		}
 		parent = rnode;
 		rnode = rnode->rn_child[slot];
@@ -775,9 +734,6 @@ void
 vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 {
 	struct vm_radix_node *root;
-
-	KASSERT((rtree->rt_flags & RT_INSERT_INPROG) == 0,
-	    ("vm_radix_reclaim_allnodes: unexpected trie recursion"));
 
 	root = vm_radix_getroot(rtree);
 	if (root == NULL)
@@ -828,6 +784,12 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 		rnode = rnode->rn_child[slot];
 	}
 	panic("%s: original replacing page not found", __func__);
+}
+
+void
+vm_radix_wait(void)
+{
+	uma_zwait(vm_radix_node_zone);
 }
 
 #ifdef DDB

@@ -1035,6 +1035,20 @@ is attempting to comply with.
 This is a read-only variable.
 
 ---
+kern.powercycle_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try to power cycle instead of rebooting.
+
+---
+kern.poweroff_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try to power off instead of rebooting.
+
+---
 kern.proc.all
 
 ---
@@ -1106,21 +1120,6 @@ kern.random.sys.harvest.swi
 
 ---
 kern.random.sys.seeded
-
----
-kern.random.yarrow.bins
-
----
-kern.random.yarrow.fastthresh
-
----
-kern.random.yarrow.gengateinterval
-
----
-kern.random.yarrow.slowoverthresh
-
----
-kern.random.yarrow.slowthresh
 
 ---
 kern.randompid
@@ -2183,9 +2182,6 @@ occurs when writing large sequential files.
 This is turned on by default, but under certain
 circumstances may stall processes and can therefore
 be turned off.
-
----
-vm.defer_swapspace_pageouts
 
 ---
 vm.disable_swapspace_pageouts

@@ -1,4 +1,4 @@
-//===-- DeclarationName.h - Representation of declaration names -*- C++ -*-===//
+//===- DeclarationName.h - Representation of declaration names --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,33 +10,42 @@
 // This file declares the DeclarationName and DeclarationNameTable classes.
 //
 //===----------------------------------------------------------------------===//
+
 #ifndef LLVM_CLANG_AST_DECLARATIONNAME_H
 #define LLVM_CLANG_AST_DECLARATIONNAME_H
 
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/PartialDiagnostic.h"
+#include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/Support/Compiler.h"
-
-namespace llvm {
-  template <typename T> struct DenseMapInfo;
-}
+#include "llvm/Support/type_traits.h"
+#include <cassert>
+#include <cstdint>
+#include <cstring>
+#include <string>
 
 namespace clang {
-  class ASTContext;
-  class CXXLiteralOperatorIdName;
-  class CXXOperatorIdName;
-  class CXXSpecialName;
-  class DeclarationNameExtra;
-  class IdentifierInfo;
-  class MultiKeywordSelector;
-  enum OverloadedOperatorKind : int;
-  class QualType;
-  class Type;
-  class TypeSourceInfo;
-  class UsingDirectiveDecl;
 
-  template <typename> class CanQual;
-  typedef CanQual<Type> CanQualType;
+class ASTContext;
+template <typename> class CanQual;
+class CXXDeductionGuideNameExtra;
+class CXXLiteralOperatorIdName;
+class CXXOperatorIdName;
+class CXXSpecialName;
+class DeclarationNameExtra;
+class IdentifierInfo;
+class MultiKeywordSelector;
+enum OverloadedOperatorKind : int;
+struct PrintingPolicy;
+class QualType;
+class TemplateDecl;
+class Type;
+class TypeSourceInfo;
+class UsingDirectiveDecl;
+
+using CanQualType = CanQual<Type>;
 
 /// DeclarationName - The name of a declaration. In the common case,
 /// this just stores an IdentifierInfo pointer to a normal
@@ -55,13 +64,18 @@ public:
     CXXConstructorName,
     CXXDestructorName,
     CXXConversionFunctionName,
+    CXXDeductionGuideName,
     CXXOperatorName,
     CXXLiteralOperatorName,
     CXXUsingDirective
   };
+
   static const unsigned NumNameKinds = CXXUsingDirective + 1;
 
 private:
+  friend class DeclarationNameTable;
+  friend class NamedDecl;
+
   /// StoredNameKind - The kind of name that is actually stored in the
   /// upper bits of the Ptr field. This is only used internally.
   ///
@@ -95,7 +109,18 @@ private:
   ///   DeclarationNameExtra structure, whose first value will tell us
   ///   whether this is an Objective-C selector, C++ operator-id name,
   ///   or special C++ name.
-  uintptr_t Ptr;
+  uintptr_t Ptr = 0;
+
+  // Construct a declaration name from the name of a C++ constructor,
+  // destructor, or conversion function.
+  DeclarationName(DeclarationNameExtra *Name)
+      : Ptr(reinterpret_cast<uintptr_t>(Name)) {
+    assert((Ptr & PtrMask) == 0 && "Improperly aligned DeclarationNameExtra");
+    Ptr |= StoredDeclarationNameExtra;
+  }
+
+  /// Construct a declaration name from a raw pointer.
+  DeclarationName(uintptr_t Ptr) : Ptr(Ptr) {}
 
   /// getStoredNameKind - Return the kind of object that is stored in
   /// Ptr.
@@ -117,50 +142,30 @@ private:
   CXXSpecialName *getAsCXXSpecialName() const {
     NameKind Kind = getNameKind();
     if (Kind >= CXXConstructorName && Kind <= CXXConversionFunctionName)
-      return reinterpret_cast<CXXSpecialName *>(Ptr & ~PtrMask);
+      return reinterpret_cast<CXXSpecialName *>(getExtra());
+    return nullptr;
+  }
+
+  /// If the stored pointer is actually a CXXDeductionGuideNameExtra, returns a
+  /// pointer to it. Otherwise, returns a NULL pointer.
+  CXXDeductionGuideNameExtra *getAsCXXDeductionGuideNameExtra() const {
+    if (getNameKind() == CXXDeductionGuideName)
+      return reinterpret_cast<CXXDeductionGuideNameExtra *>(getExtra());
     return nullptr;
   }
 
   /// getAsCXXOperatorIdName
   CXXOperatorIdName *getAsCXXOperatorIdName() const {
     if (getNameKind() == CXXOperatorName)
-      return reinterpret_cast<CXXOperatorIdName *>(Ptr & ~PtrMask);
+      return reinterpret_cast<CXXOperatorIdName *>(getExtra());
     return nullptr;
   }
 
   CXXLiteralOperatorIdName *getAsCXXLiteralOperatorIdName() const {
     if (getNameKind() == CXXLiteralOperatorName)
-      return reinterpret_cast<CXXLiteralOperatorIdName *>(Ptr & ~PtrMask);
+      return reinterpret_cast<CXXLiteralOperatorIdName *>(getExtra());
     return nullptr;
   }
-
-  // Construct a declaration name from the name of a C++ constructor,
-  // destructor, or conversion function.
-  DeclarationName(CXXSpecialName *Name)
-    : Ptr(reinterpret_cast<uintptr_t>(Name)) {
-    assert((Ptr & PtrMask) == 0 && "Improperly aligned CXXSpecialName");
-    Ptr |= StoredDeclarationNameExtra;
-  }
-
-  // Construct a declaration name from the name of a C++ overloaded
-  // operator.
-  DeclarationName(CXXOperatorIdName *Name)
-    : Ptr(reinterpret_cast<uintptr_t>(Name)) {
-    assert((Ptr & PtrMask) == 0 && "Improperly aligned CXXOperatorId");
-    Ptr |= StoredDeclarationNameExtra;
-  }
-
-  DeclarationName(CXXLiteralOperatorIdName *Name)
-    : Ptr(reinterpret_cast<uintptr_t>(Name)) {
-    assert((Ptr & PtrMask) == 0 && "Improperly aligned CXXLiteralOperatorId");
-    Ptr |= StoredDeclarationNameExtra;
-  }
-
-  /// Construct a declaration name from a raw pointer.
-  DeclarationName(uintptr_t Ptr) : Ptr(Ptr) { }
-
-  friend class DeclarationNameTable;
-  friend class NamedDecl;
 
   /// getFETokenInfoAsVoidSlow - Retrieves the front end-specified pointer
   /// for this name as a void pointer if it's not an identifier.
@@ -168,16 +173,16 @@ private:
 
 public:
   /// DeclarationName - Used to create an empty selector.
-  DeclarationName() : Ptr(0) { }
+  DeclarationName() = default;
 
   // Construct a declaration name from an IdentifierInfo *.
   DeclarationName(const IdentifierInfo *II)
-    : Ptr(reinterpret_cast<uintptr_t>(II)) {
+      : Ptr(reinterpret_cast<uintptr_t>(II)) {
     assert((Ptr & PtrMask) == 0 && "Improperly aligned IdentifierInfo");
   }
 
   // Construct a declaration name from an Objective-C selector.
-  DeclarationName(Selector Sel) : Ptr(Sel.InfoPtr) { }
+  DeclarationName(Selector Sel) : Ptr(Sel.InfoPtr) {}
 
   /// getUsingDirectiveName - Return name for all using-directives.
   static DeclarationName getUsingDirectiveName();
@@ -251,6 +256,10 @@ public:
   /// type associated with that name.
   QualType getCXXNameType() const;
 
+  /// If this name is the name of a C++ deduction guide, return the
+  /// template associated with that name.
+  TemplateDecl *getCXXDeductionGuideTemplate() const;
+
   /// getCXXOverloadedOperator - If this name is the name of an
   /// overloadable operator in C++ (e.g., @c operator+), retrieve the
   /// kind of overloaded operator.
@@ -302,7 +311,9 @@ public:
   }
 
   static int compare(DeclarationName LHS, DeclarationName RHS);
-  
+
+  void print(raw_ostream &OS, const PrintingPolicy &Policy);
+
   void dump() const;
 };
 
@@ -340,15 +351,24 @@ inline bool operator>=(DeclarationName LHS, DeclarationName RHS) {
 /// getCXXConstructorName).
 class DeclarationNameTable {
   const ASTContext &Ctx;
-  void *CXXSpecialNamesImpl; // Actually a FoldingSet<CXXSpecialName> *
-  CXXOperatorIdName *CXXOperatorNames; // Operator names
-  void *CXXLiteralOperatorNames; // Actually a CXXOperatorIdName*
 
-  DeclarationNameTable(const DeclarationNameTable&) = delete;
-  void operator=(const DeclarationNameTable&) = delete;
+  // Actually a FoldingSet<CXXSpecialName> *
+  void *CXXSpecialNamesImpl;
+
+  // Operator names
+  CXXOperatorIdName *CXXOperatorNames;
+
+  // Actually a CXXOperatorIdName*
+  void *CXXLiteralOperatorNames;
+
+  // FoldingSet<CXXDeductionGuideNameExtra> *
+  void *CXXDeductionGuideNames;
 
 public:
   DeclarationNameTable(const ASTContext &C);
+  DeclarationNameTable(const DeclarationNameTable &) = delete;
+  DeclarationNameTable &operator=(const DeclarationNameTable &) = delete;
+
   ~DeclarationNameTable();
 
   /// getIdentifier - Create a declaration name that is a simple
@@ -364,6 +384,9 @@ public:
   /// getCXXDestructorName - Returns the name of a C++ destructor
   /// for the given Type.
   DeclarationName getCXXDestructorName(CanQualType Ty);
+
+  /// Returns the name of a C++ deduction guide for the given template.
+  DeclarationName getCXXDeductionGuideName(TemplateDecl *TD);
 
   /// getCXXConversionFunctionName - Returns the name of a C++
   /// conversion function for the given Type.
@@ -420,10 +443,10 @@ struct DeclarationNameLoc {
   };
 
   DeclarationNameLoc(DeclarationName Name);
+
   // FIXME: this should go away once all DNLocs are properly initialized.
   DeclarationNameLoc() { memset((void*) this, 0, sizeof(*this)); }
-}; // struct DeclarationNameLoc
-
+};
 
 /// DeclarationNameInfo - A collector data type for bundling together
 /// a DeclarationName and the correspnding source/type location info.
@@ -431,29 +454,33 @@ struct DeclarationNameInfo {
 private:
   /// Name - The declaration name, also encoding name kind.
   DeclarationName Name;
+
   /// Loc - The main source location for the declaration name.
   SourceLocation NameLoc;
+
   /// Info - Further source/type location info for special kinds of names.
   DeclarationNameLoc LocInfo;
 
 public:
   // FIXME: remove it.
-  DeclarationNameInfo() {}
+  DeclarationNameInfo() = default;
 
   DeclarationNameInfo(DeclarationName Name, SourceLocation NameLoc)
-    : Name(Name), NameLoc(NameLoc), LocInfo(Name) {}
+      : Name(Name), NameLoc(NameLoc), LocInfo(Name) {}
 
   DeclarationNameInfo(DeclarationName Name, SourceLocation NameLoc,
                       DeclarationNameLoc LocInfo)
-    : Name(Name), NameLoc(NameLoc), LocInfo(LocInfo) {}
+      : Name(Name), NameLoc(NameLoc), LocInfo(LocInfo) {}
 
   /// getName - Returns the embedded declaration name.
   DeclarationName getName() const { return Name; }
+
   /// setName - Sets the embedded declaration name.
   void setName(DeclarationName N) { Name = N; }
 
   /// getLoc - Returns the main location of the declaration name.
   SourceLocation getLoc() const { return NameLoc; }
+
   /// setLoc - Sets the main location of the declaration name.
   void setLoc(SourceLocation L) { NameLoc = L; }
 
@@ -469,6 +496,7 @@ public:
            Name.getNameKind() == DeclarationName::CXXConversionFunctionName);
     return LocInfo.NamedType.TInfo;
   }
+
   /// setNamedTypeInfo - Sets the source type info associated to
   /// the name. Assumes it is a constructor, destructor or conversion.
   void setNamedTypeInfo(TypeSourceInfo *TInfo) {
@@ -487,6 +515,7 @@ public:
      SourceLocation::getFromRawEncoding(LocInfo.CXXOperatorName.EndOpNameLoc)
                        );
   }
+
   /// setCXXOperatorNameRange - Sets the range of the operator name
   /// (without the operator keyword). Assumes it is a C++ operator.
   void setCXXOperatorNameRange(SourceRange R) {
@@ -503,6 +532,7 @@ public:
     return SourceLocation::
       getFromRawEncoding(LocInfo.CXXLiteralOperatorName.OpNameLoc);
   }
+
   /// setCXXLiteralOperatorNameLoc - Sets the location of the literal
   /// operator name (not the operator keyword).
   /// Assumes it is a literal operator.
@@ -526,15 +556,19 @@ public:
 
   /// getBeginLoc - Retrieve the location of the first token.
   SourceLocation getBeginLoc() const { return NameLoc; }
+
   /// getEndLoc - Retrieve the location of the last token.
   SourceLocation getEndLoc() const;
+
   /// getSourceRange - The range of the declaration name.
   SourceRange getSourceRange() const LLVM_READONLY {
     return SourceRange(getLocStart(), getLocEnd());
   }
+
   SourceLocation getLocStart() const LLVM_READONLY {
     return getBeginLoc();
   }
+
   SourceLocation getLocEnd() const LLVM_READONLY {
     SourceLocation EndLoc = getEndLoc();
     return EndLoc.isValid() ? EndLoc : getLocStart();
@@ -565,9 +599,10 @@ inline raw_ostream &operator<<(raw_ostream &OS,
   return OS;
 }
 
-}  // end namespace clang
+} // namespace clang
 
 namespace llvm {
+
 /// Define DenseMapInfo so that DeclarationNames can be used as keys
 /// in DenseMap and DenseSets.
 template<>
@@ -593,6 +628,6 @@ struct DenseMapInfo<clang::DeclarationName> {
 template <>
 struct isPodLike<clang::DeclarationName> { static const bool value = true; };
 
-}  // end namespace llvm
+} // namespace llvm
 
-#endif
+#endif // LLVM_CLANG_AST_DECLARATIONNAME_H

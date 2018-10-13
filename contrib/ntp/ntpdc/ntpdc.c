@@ -226,15 +226,27 @@ static	const char *chosts[MAXHOSTS];
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
 /*
- * Jump buffer for longjumping back to the command level
+ * Jump buffer for longjumping back to the command level.
+ *
+ * See ntpq/ntpq.c for an explanation why 'sig{set,long}jmp()' is used
+ * when available.
  */
-static	jmp_buf interrupt_buf;
-static  volatile int jump = 0;
+#if HAVE_DECL_SIGSETJMP && HAVE_DECL_SIGLONGJMP
+# define JMP_BUF	sigjmp_buf
+# define SETJMP(x)	sigsetjmp((x), 1)
+# define LONGJMP(x, v)	siglongjmp((x),(v))
+#else
+# define JMP_BUF	jmp_buf
+# define SETJMP(x)	setjmp((x))
+# define LONGJMP(x, v)	longjmp((x),(v))
+#endif
+static	JMP_BUF		interrupt_buf;
+static	volatile int	jump = 0;
 
 /*
  * Pointer to current output unit
  */
-static	FILE *current_output;
+static	FILE *current_output = NULL;
 
 /*
  * Command table imported from ntpdc_ops.c
@@ -275,7 +287,6 @@ ntpdcmain(
 	char *argv[]
 	)
 {
-
 	delay_time.l_ui = 0;
 	delay_time.l_uf = DEFDELAY;
 
@@ -352,7 +363,7 @@ ntpdcmain(
 
 #ifndef SYS_WINNT /* Under NT cannot handle SIGINT, WIN32 spawns a handler */
 	if (interactive)
-	    (void) signal_no_reset(SIGINT, abortcmd);
+		(void) signal_no_reset(SIGINT, abortcmd);
 #endif /* SYS_WINNT */
 
 	/*
@@ -393,31 +404,28 @@ openhost(
 	)
 {
 	char temphost[LENHOSTNAME];
-	int a_info, i;
+	int a_info;
 	struct addrinfo hints, *ai = NULL;
 	sockaddr_u addr;
 	size_t octets;
-	register const char *cp;
+	const char *cp;
 	char name[LENHOSTNAME];
 	char service[5];
 
 	/*
 	 * We need to get by the [] if they were entered 
 	 */
-	
-	cp = hname;
-	
-	if (*cp == '[') {
-		cp++;	
-		for (i = 0; *cp && *cp != ']'; cp++, i++)
-			name[i] = *cp;
-		if (*cp == ']') {
-			name[i] = '\0';
-			hname = name;
-		} else {
+	if (*hname == '[') {
+		cp = strchr(hname + 1, ']');
+		if (!cp || (octets = (size_t)(cp - hname) - 1) >= sizeof(name)) {
+			errno = EINVAL;
+			warning("%s", "bad hostname/address");
 			return 0;
 		}
-	}	
+		memcpy(name, hname + 1, octets);
+		name[octets] = '\0';
+		hname = name;
+	}
 
 	/*
 	 * First try to resolve it as an ip address and if that fails,
@@ -499,7 +507,7 @@ openhost(
 		int optionValue = SO_SYNCHRONOUS_NONALERT;
 		int err;
 
-		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (char *)&optionValue, sizeof(optionValue));
+		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (void *)&optionValue, sizeof(optionValue));
 		if (err != NO_ERROR) {
 			(void) fprintf(stderr, "cannot open nonoverlapped sockets\n");
 			exit(1);
@@ -519,7 +527,7 @@ openhost(
 		int rbufsize = INITDATASIZE + 2048; /* 2K for slop */
 
 		if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
-			       &rbufsize, sizeof(int)) == -1)
+			       (void *)&rbufsize, sizeof(int)) == -1)
 		    error("setsockopt");
 	}
 # endif
@@ -649,7 +657,7 @@ getresponse(
 	todiff = (((uint32_t)time(NULL)) - tobase) & 0x7FFFFFFFu;
 	if ((n > 0) && (todiff > tospan)) {
 		n = recv(sockfd, (char *)&rpkt, sizeof(rpkt), 0);
-		n = 0; /* faked timeout return from 'select()'*/
+		n -= n; /* faked timeout return from 'select()'*/
 	}
 	
 	if (n == 0) {
@@ -944,7 +952,7 @@ sendrequest(
 	if (!maclen) {  
 		fprintf(stderr, "Key not found\n");
 		return 1;
-	} else if (maclen != (int)(info_auth_hashlen + sizeof(keyid_t))) {
+	} else if (maclen != (size_t)(info_auth_hashlen + sizeof(keyid_t))) {
 		fprintf(stderr,
 			"%zu octet MAC, %zu expected with %zu octet digest\n",
 			maclen, (info_auth_hashlen + sizeof(keyid_t)),
@@ -1118,12 +1126,14 @@ abortcmd(
 	int sig
 	)
 {
-
 	if (current_output == stdout)
-	    (void) fflush(stdout);
+		(void)fflush(stdout);
 	putc('\n', stderr);
-	(void) fflush(stderr);
-	if (jump) longjmp(interrupt_buf, 1);
+	(void)fflush(stderr);
+	if (jump) {
+		jump = 0;
+		LONGJMP(interrupt_buf, 1);
+	}
 }
 #endif /* SYS_WINNT */
 
@@ -1235,14 +1245,22 @@ docmd(
 		current_output = stdout;
 	}
 
-	if (interactive && setjmp(interrupt_buf)) {
-		return;
+	if (interactive) {
+		if ( ! SETJMP(interrupt_buf)) {
+			jump = 1;
+			(xcmd->handler)(&pcmd, current_output);
+			jump = 0;
+		} else {
+			fflush(current_output);
+			fputs("\n >>> command aborted <<<\n", stderr);
+			fflush(stderr);
+		}
 	} else {
-		jump = 1;
-		(xcmd->handler)(&pcmd, current_output);
 		jump = 0;
-		if (current_output != stdout)
-			(void) fclose(current_output);
+		(xcmd->handler)(&pcmd, current_output);
+	}
+	if ((NULL != current_output) && (stdout != current_output)) {
+		(void)fclose(current_output);
 		current_output = NULL;
 	}
 }

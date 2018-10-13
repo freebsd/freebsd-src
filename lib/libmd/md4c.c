@@ -4,7 +4,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
+/*-
+   SPDX-License-Identifier: RSA-MD
+
+   Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
 
    License to copy and use this software is granted provided that it
    is identified as the "RSA Data Security, Inc. MD4 Message-Digest
@@ -180,7 +183,7 @@ MD4_CTX *context;                                        /* context */
 
   /* Zeroize sensitive information.
    */
-  memset ((POINTER)context, 0, sizeof (*context));
+  explicit_bzero(context, sizeof(*context));
 }
 
 /* MD4 basic transformation. Transforms state based on block.

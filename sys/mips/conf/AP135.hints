@@ -106,22 +106,12 @@ hint.arge.1.pll_1000=0x03000101
 # MAC for arge1 is the second 6 bytes of the ART
 hint.arge.1.eeprommac=0x1fff0006
 
-# ath0: Where the ART is - last 64k in the flash
-hint.ath.0.eepromaddr=0x1fff0000
-hint.ath.0.eepromsize=16384
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
 
-# ath1: it's different; it's a PCIe attached device, so
-# we instead need to teach the PCIe bridge code about it
-# (ie, the 'early pci fixup' stuff that programs the PCIe
-# host registers on the NIC) and then we teach ath where
-# to find it.
-
-# ath1 hint - pcie slot 0
-# hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
-# hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
-
-# ath0 - eeprom comes from here
-# hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
 
 # flash layout:
 #

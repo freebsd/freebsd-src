@@ -18,8 +18,9 @@ SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmopcode.c	\
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsdebug.c dsfield.c dsinit.c	\
-	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dsutils.c	\
-	dswexec.c dswload.c dswload2.c dswscope.c dswstate.c
+	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dspkginit.c	\
+	dsutils.c dswexec.c dswload.c dswload2.c dswscope.c	\
+	dswstate.c
 
 # components/events
 SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\
@@ -31,8 +32,8 @@ SRCS+=	exconcat.c exconfig.c exconvrt.c excreate.c exdebug.c	\
 	exdump.c exfield.c exfldio.c exmisc.c exmutex.c		\
 	exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c	\
 	exprep.c exregion.c exresnte.c exresolv.c exresop.c	\
-	exstore.c exstoren.c exstorob.c exsystem.c extrace.c	\
-	exutils.c
+	exserial.c exstore.c exstoren.c exstorob.c exsystem.c	\
+	extrace.c exutils.c
 
 # components/hardware
 SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c	\
@@ -64,17 +65,28 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	utcopy.c utdebug.c utdecode.c utdelete.c uterror.c	\
 	uteval.c utexcep.c utglobal.c uthex.c utids.c utinit.c	\
 	utlock.c utmath.c utmisc.c utmutex.c utnonansi.c	\
-	utobject.c utosi.c utownerid.c utpredef.c utprint.c	\
-	utresrc.c utstate.c utstring.c uttrack.c utuuid.c	\
-	utxface.c utxferror.c utxfinit.c
+	utobject.c utosi.c utownerid.c utpredef.c utresdecode.c	\
+	utresrc.c utstate.c utstring.c utstrsuppt.c		\
+	utstrtoul64.c uttrack.c utuuid.c utxface.c utxferror.c	\
+	utxfinit.c
 
 # os_specific/service_layers
-SRCS+=	oslibcfs.c osunixxf.c
+SRCS+=	osgendbg.c osunixxf.c
 
 MAN=	acpidb.8
 WARNS?=	3
 
-CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
+CFLAGS+= -DACPI_DB_APP -DACPI_EXEC_APP -fno-strict-aliasing
 LIBADD=	pthread
 
 .include <bsd.prog.mk>
+
+# clang 6.0.0 and higher warn about the ACPI_ROOT_OBJECT and
+# ACPI_TO_POINTER macros from sys/contrib/dev/acpica/include/actypes.h,
+# that they use arithmetic on a null pointer treated as a cast from
+# integer to pointer, which is a GNU extension.
+#
+# Turn off the warning, because this is in contributed code.
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 60000
+CWARNFLAGS+=	-Wno-null-pointer-arithmetic
+.endif

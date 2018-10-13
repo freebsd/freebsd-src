@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008-2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
@@ -42,13 +44,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/vmparam.h>
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
 
 #ifndef INTRNG
 static int
@@ -56,7 +55,7 @@ fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
 
-	if (!fdt_is_compatible(node, "arm,versatile-vic"))
+	if (!ofw_bus_node_is_compatible(node, "arm,versatile-vic"))
 		return (ENXIO);
 
 	*interrupt = fdt32_to_cpu(intr[0]);

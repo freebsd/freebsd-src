@@ -33,7 +33,9 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -227,6 +229,20 @@ __thr_fsync(int fd)
 	return (ret);
 }
 
+static int
+__thr_fdatasync(int fd)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter2(curthread, 0);
+	ret = __sys_fdatasync(fd);
+	_thr_cancel_leave(curthread, 1);
+
+	return (ret);
+}
+
 /*
  * Cancellation behavior:
  *   Thread may be canceled after system call.
@@ -240,6 +256,22 @@ __thr_msync(void *addr, size_t len, int flags)
 	curthread = _get_curthread();
 	_thr_cancel_enter2(curthread, 0);
 	ret = __sys_msync(addr, len, flags);
+	_thr_cancel_leave(curthread, 1);
+
+	return (ret);
+}
+
+static int
+__thr_clock_nanosleep(clockid_t clock_id, int flags,
+    const struct timespec *time_to_sleep, struct timespec *time_remaining)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_clock_nanosleep(clock_id, flags, time_to_sleep,
+	    time_remaining);
 	_thr_cancel_leave(curthread, 1);
 
 	return (ret);
@@ -653,6 +685,8 @@ __thr_interpose_libc(void)
 	SLOT(wait6);
 	SLOT(ppoll);
 	SLOT(map_stacks_exec);
+	SLOT(fdatasync);
+	SLOT(clock_nanosleep);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =

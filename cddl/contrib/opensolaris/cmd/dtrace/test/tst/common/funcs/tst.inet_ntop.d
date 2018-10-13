@@ -28,9 +28,6 @@
 
 #pragma D option quiet
 
-inline int AF_INET = 2;
-inline int AF_INET6 = 28;
-
 in_addr_t *ip4a;
 in_addr_t *ip4b;
 in_addr_t *ip4c;

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1999-2013 Philip Hands <phil@hands.com>
+# Copyright (c) 1999-2016 Philip Hands <phil@hands.com>
 #               2013 Martin Kletzander <mkletzan@redhat.com>
 #               2010 Adeodato =?iso-8859-1?Q?Sim=F3?= <asp16@alu.ua.es>
 #               2010 Eric Moret <eric.moret@gmail.com>
@@ -56,7 +56,8 @@ then
   fi
 fi
 
-DEFAULT_PUB_ID_FILE="$HOME/$(cd "$HOME" ; ls -t .ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)"
+most_recent_id="$(cd "$HOME" ; ls -t .ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)"
+DEFAULT_PUB_ID_FILE="${most_recent_id:+$HOME/}$most_recent_id"
 
 usage () {
   printf 'Usage: %s [-h|-?|-f|-n] [-i [identity_file]] [-p port] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
@@ -73,6 +74,11 @@ quote() {
 
 use_id_file() {
   local L_ID_FILE="$1"
+
+  if [ -z "$L_ID_FILE" ] ; then
+    printf "%s: ERROR: no ID file found\n" "$0"
+    exit 1
+  fi
 
   if expr "$L_ID_FILE" : ".*\.pub$" >/dev/null ; then
     PUB_ID_FILE="$L_ID_FILE"
@@ -233,17 +239,17 @@ populate_new_ids() {
             -o ControlPath=none \
             -o LogLevel=INFO \
             -o PreferredAuthentications=publickey \
-            -o IdentitiesOnly=yes "$@" exit 2>$L_TMP_ID_FILE.stderr </dev/null
+            -o IdentitiesOnly=yes "$@" exit 2>"$L_TMP_ID_FILE.stderr" </dev/null
         if [ "$?" = "$L_SUCCESS" ] ; then
-          : > $L_TMP_ID_FILE
+          : > "$L_TMP_ID_FILE"
         else
-          grep 'Permission denied' $L_TMP_ID_FILE.stderr >/dev/null || {
-            sed -e 's/^/ERROR: /' <$L_TMP_ID_FILE.stderr >$L_TMP_ID_FILE
+          grep 'Permission denied' "$L_TMP_ID_FILE.stderr" >/dev/null || {
+            sed -e 's/^/ERROR: /' <"$L_TMP_ID_FILE.stderr" >"$L_TMP_ID_FILE"
             cat >/dev/null #consume the other keys, causing loop to end
           }
         fi
 
-        cat $L_TMP_ID_FILE
+        cat "$L_TMP_ID_FILE"
       done
     }
   )
@@ -287,9 +293,10 @@ case "$REMOTE_VERSION" in
   *)
     # Assuming that the remote host treats ~/.ssh/authorized_keys as one might expect
     populate_new_ids 0
-    # in ssh below - to defend against quirky remote shells: use 'exec sh -c' to get POSIX; 'cd' to be at $HOME; and all on one line, because tcsh.
+    # in ssh below - to defend against quirky remote shells: use 'exec sh -c' to get POSIX;
+    #     'cd' to be at $HOME; add a newline if it's missing; and all on one line, because tcsh.
     [ "$DRY_RUN" ] || printf '%s\n' "$NEW_IDS" | \
-      ssh "$@" "exec sh -c 'cd ; umask 077 ; mkdir -p .ssh && cat >> .ssh/authorized_keys || exit 1 ; if type restorecon >/dev/null 2>&1 ; then restorecon -F .ssh .ssh/authorized_keys ; fi'" \
+      ssh "$@" "exec sh -c 'cd ; umask 077 ; mkdir -p .ssh && { [ -z "'`tail -1c .ssh/authorized_keys 2>/dev/null`'" ] || echo >> .ssh/authorized_keys ; } && cat >> .ssh/authorized_keys || exit 1 ; if type restorecon >/dev/null 2>&1 ; then restorecon -F .ssh .ssh/authorized_keys ; fi'" \
       || exit 1
     ADDED=$(printf '%s\n' "$NEW_IDS" | wc -l)
     ;;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -40,12 +42,6 @@
 #ifndef	_CTL_IO_H_
 #define	_CTL_IO_H_
 
-#ifdef _CTL_C
-#define EXTERN(__var,__val) __var = __val
-#else
-#define EXTERN(__var,__val) extern __var
-#endif
-
 #define	CTL_MAX_CDBLEN	32
 /*
  * Uncomment this next line to enable printing out times for I/Os
@@ -55,7 +51,6 @@
 #define	CTL_TIME_IO
 #ifdef  CTL_TIME_IO
 #define	CTL_TIME_IO_DEFAULT_SECS	90
-EXTERN(int ctl_time_io_secs, CTL_TIME_IO_DEFAULT_SECS);
 #endif
 
 /*
@@ -137,15 +132,17 @@ struct ctl_lba_len_flags {
 };
 
 struct ctl_ptr_len_flags {
-	uint8_t *ptr;
-	uint32_t len;
-	uint32_t flags;
+	uint8_t		*ptr;
+	uint32_t	len;
+	uint32_t	flags;
 };
 
 union ctl_priv {
 	uint8_t		bytes[sizeof(uint64_t) * 2];
 	uint64_t	integer;
+	uint64_t	integers[2];
 	void		*ptr;
+	void		*ptrs[2];
 };
 
 /*
@@ -163,6 +160,12 @@ union ctl_priv {
 #define	CTL_PRIV_BACKEND_LUN	3	/* Backend LUN pointer */
 #define	CTL_PRIV_FRONTEND	4	/* Frontend storage */
 #define	CTL_PRIV_FRONTEND2	5	/* Another frontend storage */
+
+#define CTL_LUN(io)	((io)->io_hdr.ctl_private[CTL_PRIV_LUN].ptrs[0])
+#define CTL_SOFTC(io)	((io)->io_hdr.ctl_private[CTL_PRIV_LUN].ptrs[1])
+#define CTL_BACKEND_LUN(io)	((io)->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptrs[0])
+#define CTL_PORT(io)	(((struct ctl_softc *)CTL_SOFTC(io))->	\
+    ctl_ports[(io)->io_hdr.nexus.targ_port])
 
 #define CTL_INVALID_PORTNAME 0xFF
 #define CTL_UNMAPPED_IID     0xFF
@@ -312,7 +315,7 @@ struct ctl_scsiio {
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
 	uint8_t	   sense_residual;	/* Unused. */
-	uint32_t   residual;		/* data residual length */
+	uint32_t   residual;		/* Unused */
 	uint32_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
@@ -365,7 +368,7 @@ struct ctl_taskio {
 /*
  * HA link messages.
  */
-#define	CTL_HA_VERSION		1
+#define	CTL_HA_VERSION		3
 
 /*
  * Used for CTL_MSG_LOGIN.
@@ -397,10 +400,10 @@ typedef enum {
  * structure.
  */
 struct ctl_pr_info {
-	ctl_pr_action        action;
-	uint8_t              sa_res_key[8];
-	uint8_t              res_type;
-	uint32_t             residx;
+	ctl_pr_action		action;
+	uint8_t			sa_res_key[8];
+	uint8_t			res_type;
+	uint32_t		residx;
 };
 
 struct ctl_ha_msg_hdr {
@@ -461,7 +464,8 @@ struct ctl_ha_msg_dt {
 };
 
 /*
- * Used for CTL_MSG_SERIALIZE, CTL_MSG_FINISH_IO, CTL_MSG_BAD_JUJU.
+ * Used for CTL_MSG_SERIALIZE, CTL_MSG_FINISH_IO, CTL_MSG_BAD_JUJU,
+ * and CTL_MSG_DATAMOVE_DONE.
  */
 struct ctl_ha_msg_scsi {
 	struct ctl_ha_msg_hdr	hdr;
@@ -471,10 +475,9 @@ struct ctl_ha_msg_scsi {
 	uint8_t			cdb_len;	/* CDB length */
 	uint8_t			scsi_status; /* SCSI status byte */
 	uint8_t			sense_len;   /* Returned sense length */
-	uint8_t			sense_residual;	/* sense residual length */
-	uint32_t		residual;    /* data residual length */
-	uint32_t		fetd_status; /* trans status, set by FETD,
+	uint32_t		port_status; /* trans status, set by FETD,
 						0 = good*/
+	uint32_t		kern_data_resid; /* for DATAMOVE_DONE */
 	struct scsi_sense_data	sense_data;  /* sense data */
 };
 
@@ -561,15 +564,15 @@ union ctl_ha_msg {
 };
 
 struct ctl_prio {
-	struct ctl_io_hdr  io_hdr;
-	struct ctl_ha_msg_pr pr_msg;
+	struct ctl_io_hdr	io_hdr;
+	struct ctl_ha_msg_pr	pr_msg;
 };
 
 union ctl_io {
-	struct ctl_io_hdr io_hdr;	/* common to all I/O types */
-	struct ctl_scsiio scsiio;	/* Normal SCSI commands */
-	struct ctl_taskio taskio;	/* SCSI task management/reset */
-	struct ctl_prio   presio;	/* update per. res info on other SC */
+	struct ctl_io_hdr	io_hdr;	/* common to all I/O types */
+	struct ctl_scsiio	scsiio;	/* Normal SCSI commands */
+	struct ctl_taskio	taskio;	/* SCSI task management/reset */
+	struct ctl_prio		presio;	/* update per. res info on other SC */
 };
 
 #ifdef _KERNEL

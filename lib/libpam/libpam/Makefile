@@ -36,7 +36,7 @@
 # $FreeBSD$
 
 PACKAGE=lib${LIB}
-OPENPAM=	${.CURDIR}/../../../contrib/openpam
+OPENPAM=	${SRCTOP}/contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 # static_libpam will build libpam.a
@@ -179,9 +179,5 @@ INCS?=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
 
 .include <src.opts.mk>
-
-.if ${MK_TESTS} != "no"
-SUBDIR+=        tests
-.endif
 
 .include <bsd.lib.mk>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007, Juniper Networks, Inc.
  * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
@@ -145,6 +147,17 @@ cfi_write(struct cfi_softc *sc, u_int ofs, u_int val)
 	}
 }
 
+/*
+ * This is same workaound as NetBSD sys/dev/nor/cfi.c cfi_reset_default()
+ */
+static void
+cfi_reset_default(struct cfi_softc *sc)
+{
+
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY2);
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+}
+
 uint8_t
 cfi_read_qry(struct cfi_softc *sc, u_int ofs)
 {
@@ -152,7 +165,7 @@ cfi_read_qry(struct cfi_softc *sc, u_int ofs)
  
 	cfi_write(sc, CFI_QRY_CMD_ADDR * sc->sc_width, CFI_QRY_CMD_DATA); 
 	val = cfi_read(sc, ofs * sc->sc_width);
-	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	cfi_reset_default(sc);
 	return (val);
 } 
 
@@ -745,7 +758,7 @@ cfi_write_block(struct cfi_softc *sc)
 	/* error is 0. */
 
  out:
-	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	cfi_reset_default(sc);
 
 	/* Relock Intel flash */
 	switch (sc->sc_cmdset) {

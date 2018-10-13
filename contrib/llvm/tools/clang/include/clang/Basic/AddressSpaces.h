@@ -16,36 +16,59 @@
 #ifndef LLVM_CLANG_BASIC_ADDRESSSPACES_H
 #define LLVM_CLANG_BASIC_ADDRESSSPACES_H
 
+#include <assert.h>
+
 namespace clang {
 
-namespace LangAS {
-
-/// \brief Defines the set of possible language-specific address spaces.
+/// \brief Defines the address space values used by the address space qualifier
+/// of QualType.
 ///
-/// This uses a high starting offset so as not to conflict with any address
-/// space used by a target.
-enum ID {
-  Offset = 0xFFFF00,
+enum class LangAS : unsigned {
+  // The default value 0 is the value used in QualType for the the situation
+  // where there is no address space qualifier.
+  Default = 0,
 
-  opencl_global = Offset,
+  // OpenCL specific address spaces.
+  // In OpenCL each l-value must have certain non-default address space, each
+  // r-value must have no address space (i.e. the default address space). The
+  // pointee of a pointer must have non-default address space.
+  opencl_global,
   opencl_local,
   opencl_constant,
+  opencl_private,
   opencl_generic,
 
+  // CUDA specific address spaces.
   cuda_device,
   cuda_constant,
   cuda_shared,
 
-  Last,
-  Count = Last-Offset
+  // This denotes the count of language-specific address spaces and also
+  // the offset added to the target-specific address spaces, which are usually
+  // specified by address space attributes __attribute__(address_space(n))).
+  FirstTargetAddressSpace
 };
 
 /// The type of a lookup table which maps from language-specific address spaces
 /// to target-specific ones.
-typedef unsigned Map[Count];
+typedef unsigned LangASMap[(unsigned)LangAS::FirstTargetAddressSpace];
 
+/// \return whether \p AS is a target-specific address space rather than a
+/// clang AST address space
+inline bool isTargetAddressSpace(LangAS AS) {
+  return (unsigned)AS >= (unsigned)LangAS::FirstTargetAddressSpace;
 }
 
+inline unsigned toTargetAddressSpace(LangAS AS) {
+  assert(isTargetAddressSpace(AS));
+  return (unsigned)AS - (unsigned)LangAS::FirstTargetAddressSpace;
 }
+
+inline LangAS getLangASFromTargetAS(unsigned TargetAS) {
+  return static_cast<LangAS>((TargetAS) +
+                             (unsigned)LangAS::FirstTargetAddressSpace);
+}
+
+} // namespace clang
 
 #endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Scott Long
  * All rights reserved.
  *
@@ -29,6 +31,6 @@
 #ifndef _AMD64_BUS_DMA_H_
 #define _AMD64_BUS_DMA_H_
 
-#include <sys/bus_dma.h>
+#include <x86/bus_dma.h> 
 
 #endif /* _AMD64_BUS_DMA_H_ */

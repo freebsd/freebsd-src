@@ -55,7 +55,15 @@ END(.rtld_start)
  * x17 = &_rtld_bind_start
  */
 ENTRY(_rtld_bind_start)
+	.cfi_startproc
 	mov	x17, sp
+	
+	/* Save frame pointer and SP */
+	stp	x29, x30, [sp, #-16]!
+	mov	x29, sp
+	.cfi_def_cfa x29, 16
+	.cfi_offset x30, -8
+	.cfi_offset x29, -16
 
 	/* Save the arguments */
 	stp	x0, x1, [sp, #-16]!
@@ -84,9 +92,6 @@ ENTRY(_rtld_bind_start)
 	/* Call into rtld */
 	bl	_rtld_bind
 
-	/* Restore the registers saved by the plt code */
-	ldp	xzr, x30, [sp, #(5 * 16 + 4 * 32)]
-
 	/* Backup the address to branch to */
 	mov	x16, x0
 
@@ -100,11 +105,16 @@ ENTRY(_rtld_bind_start)
 	ldp	x4, x5, [sp], #16
 	ldp	x2, x3, [sp], #16
 	ldp	x0, x1, [sp], #16
-	/* And the part of the stack the plt entry handled */
-	add	sp, sp, #16
+
+	/* Restore frame pointer */
+	ldp	x29, xzr, [sp], #16
+
+	 /* Restore link register saved by the plt code */
+	ldp	xzr, x30, [sp], #16
 
 	/* Call into the correct function */
 	br	x16
+	.cfi_endproc
 END(_rtld_bind_start)
 
 /*

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Anish Gupta (akgupt3@gmail.com)
  * All rights reserved.
  *
@@ -246,8 +248,8 @@ struct vmcb_ctrl {
 	uint8_t :3;
 	uint8_t	v_intr_masking:1; /* Guest and host sharing of RFLAGS. */
 	uint8_t	:7;
-	uint8_t	v_intr_vector;	/* 0x65: Vector for virtual interrupt. */
-	uint8_t pad3[3];	/* Bit64-40 Reserved. */
+	uint8_t	v_intr_vector;	/* 0x64: Vector for virtual interrupt. */
+	uint8_t pad3[3];	/* 0x65-0x67 Reserved. */
 	uint64_t intr_shadow:1; /* 0x68: Interrupt shadow, section15.2.1 APM2 */
 	uint64_t :63;
 	uint64_t exitcode;	/* 0x70, Exitcode */

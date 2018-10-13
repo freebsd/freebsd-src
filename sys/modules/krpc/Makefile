@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../rpc ${.CURDIR}/../../xdr
+.PATH: ${SRCTOP}/sys/rpc ${SRCTOP}/sys/xdr
 KMOD=	krpc
 SRCS=	auth_none.c \
 	auth_unix.c \

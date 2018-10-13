@@ -19,6 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "pcap/funcattrs.h"
+
 /*
  * ATM support:
  *
@@ -52,10 +54,6 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef HAVE___ATTRIBUTE__
-#define __attribute__(x)
-#endif /* HAVE___ATTRIBUTE__ */
 
 /* Address qualifiers. */
 
@@ -161,7 +159,7 @@
 #define A_CONNECTACK	44	/* Connect Ack message */
 #define A_RELEASE	45	/* Release message */
 #define A_RELEASE_DONE	46	/* Release message */
- 
+
 /* ATM field types */
 #define A_VPI		51
 #define A_VCI		52
@@ -268,6 +266,11 @@ struct block {
 	int val[N_ATOMS];
 };
 
+/*
+ * A value of 0 for val[i] means the value is unknown.
+ */
+#define VAL_UNKNOWN	0
+
 struct arth {
 	struct block *b;	/* protocol checks */
 	struct slist *s;	/* stmt list */
@@ -281,83 +284,126 @@ struct qual {
 	unsigned char pad;
 };
 
-struct arth *gen_loadi(int);
-struct arth *gen_load(int, struct arth *, int);
-struct arth *gen_loadlen(void);
-struct arth *gen_neg(struct arth *);
-struct arth *gen_arth(int, struct arth *, struct arth *);
+struct _compiler_state;
+
+typedef struct _compiler_state compiler_state_t;
+
+struct arth *gen_loadi(compiler_state_t *, int);
+struct arth *gen_load(compiler_state_t *, int, struct arth *, int);
+struct arth *gen_loadlen(compiler_state_t *);
+struct arth *gen_neg(compiler_state_t *, struct arth *);
+struct arth *gen_arth(compiler_state_t *, int, struct arth *, struct arth *);
 
 void gen_and(struct block *, struct block *);
 void gen_or(struct block *, struct block *);
 void gen_not(struct block *);
 
-struct block *gen_scode(const char *, struct qual);
-struct block *gen_ecode(const u_char *, struct qual);
-struct block *gen_acode(const u_char *, struct qual);
-struct block *gen_mcode(const char *, const char *, int, struct qual);
+struct block *gen_scode(compiler_state_t *, const char *, struct qual);
+struct block *gen_ecode(compiler_state_t *, const u_char *, struct qual);
+struct block *gen_acode(compiler_state_t *, const u_char *, struct qual);
+struct block *gen_mcode(compiler_state_t *, const char *, const char *,
+    unsigned int, struct qual);
 #ifdef INET6
-struct block *gen_mcode6(const char *, const char *, int, struct qual);
+struct block *gen_mcode6(compiler_state_t *, const char *, const char *,
+    unsigned int, struct qual);
 #endif
-struct block *gen_ncode(const char *, bpf_u_int32, struct qual);
-struct block *gen_proto_abbrev(int);
-struct block *gen_relation(int, struct arth *, struct arth *, int);
-struct block *gen_less(int);
-struct block *gen_greater(int);
-struct block *gen_byteop(int, int, int);
-struct block *gen_broadcast(int);
-struct block *gen_multicast(int);
-struct block *gen_inbound(int);
+struct block *gen_ncode(compiler_state_t *, const char *, bpf_u_int32,
+    struct qual);
+struct block *gen_proto_abbrev(compiler_state_t *, int);
+struct block *gen_relation(compiler_state_t *, int, struct arth *,
+    struct arth *, int);
+struct block *gen_less(compiler_state_t *, int);
+struct block *gen_greater(compiler_state_t *, int);
+struct block *gen_byteop(compiler_state_t *, int, int, int);
+struct block *gen_broadcast(compiler_state_t *, int);
+struct block *gen_multicast(compiler_state_t *, int);
+struct block *gen_inbound(compiler_state_t *, int);
 
-struct block *gen_llc(void);
-struct block *gen_llc_i(void);
-struct block *gen_llc_s(void);
-struct block *gen_llc_u(void);
-struct block *gen_llc_s_subtype(bpf_u_int32);
-struct block *gen_llc_u_subtype(bpf_u_int32);
+struct block *gen_llc(compiler_state_t *);
+struct block *gen_llc_i(compiler_state_t *);
+struct block *gen_llc_s(compiler_state_t *);
+struct block *gen_llc_u(compiler_state_t *);
+struct block *gen_llc_s_subtype(compiler_state_t *, bpf_u_int32);
+struct block *gen_llc_u_subtype(compiler_state_t *, bpf_u_int32);
 
-struct block *gen_vlan(int);
-struct block *gen_mpls(int);
+struct block *gen_vlan(compiler_state_t *, int);
+struct block *gen_mpls(compiler_state_t *, int);
 
-struct block *gen_pppoed(void);
-struct block *gen_pppoes(int);
+struct block *gen_pppoed(compiler_state_t *);
+struct block *gen_pppoes(compiler_state_t *, int);
 
-struct block *gen_atmfield_code(int atmfield, bpf_int32 jvalue, bpf_u_int32 jtype, int reverse);
-struct block *gen_atmtype_abbrev(int type);
-struct block *gen_atmmulti_abbrev(int type);
+struct block *gen_geneve(compiler_state_t *, int);
 
-struct block *gen_mtp2type_abbrev(int type);
-struct block *gen_mtp3field_code(int mtp3field, bpf_u_int32 jvalue, bpf_u_int32 jtype, int reverse);
+struct block *gen_atmfield_code(compiler_state_t *, int, bpf_int32,
+    bpf_u_int32, int);
+struct block *gen_atmtype_abbrev(compiler_state_t *, int type);
+struct block *gen_atmmulti_abbrev(compiler_state_t *, int type);
 
-struct block *gen_pf_ifname(const char *);
-struct block *gen_pf_rnr(int);
-struct block *gen_pf_srnr(int);
-struct block *gen_pf_ruleset(char *);
-struct block *gen_pf_reason(int);
-struct block *gen_pf_action(int);
-struct block *gen_pf_dir(int);
+struct block *gen_mtp2type_abbrev(compiler_state_t *, int type);
+struct block *gen_mtp3field_code(compiler_state_t *, int, bpf_u_int32,
+    bpf_u_int32, int);
 
-struct block *gen_p80211_type(int, int);
-struct block *gen_p80211_fcdir(int);
+#ifndef HAVE_NET_PFVAR_H
+PCAP_NORETURN
+#endif
+struct block *gen_pf_ifname(compiler_state_t *, const char *);
+#ifndef HAVE_NET_PFVAR_H
+PCAP_NORETURN
+#endif
+struct block *gen_pf_rnr(compiler_state_t *, int);
+#ifndef HAVE_NET_PFVAR_H
+PCAP_NORETURN
+#endif
+struct block *gen_pf_srnr(compiler_state_t *, int);
+#ifndef HAVE_NET_PFVAR_H
+PCAP_NORETURN
+#endif
+struct block *gen_pf_ruleset(compiler_state_t *, char *);
+#ifndef HAVE_NET_PFVAR_H
+PCAP_NORETURN
+#endif
+struct block *gen_pf_reason(compiler_state_t *, int);
+#ifndef HAVE_NET_PFVAR_H
+PCAP_NORETURN
+#endif
+struct block *gen_pf_action(compiler_state_t *, int);
 
-void bpf_optimize(struct block **);
-void bpf_error(const char *, ...)
-    __attribute__((noreturn))
-#ifdef __ATTRIBUTE___FORMAT_OK
-    __attribute__((format (printf, 1, 2)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-    ;
+struct block *gen_p80211_type(compiler_state_t *, int, int);
+struct block *gen_p80211_fcdir(compiler_state_t *, int);
 
-void finish_parse(struct block *);
-char *sdup(const char *);
+/*
+ * Representation of a program as a tree of blocks, plus current mark.
+ * A block is marked if only if its mark equals the current mark.
+ * Rather than traverse the code array, marking each item, 'cur_mark'
+ * is incremented.  This automatically makes each element unmarked.
+ */
+#define isMarked(icp, p) ((p)->mark == (icp)->cur_mark)
+#define unMarkAll(icp) (icp)->cur_mark += 1
+#define Mark(icp, p) ((p)->mark = (icp)->cur_mark)
 
-struct bpf_insn *icode_to_fcode(struct block *, u_int *);
-int pcap_parse(void);
-void lex_init(const char *);
-void lex_cleanup(void);
+struct icode {
+	struct block *root;
+	int cur_mark;
+};
+
+void bpf_optimize(compiler_state_t *, struct icode *ic);
+void PCAP_NORETURN bpf_syntax_error(compiler_state_t *, const char *);
+void PCAP_NORETURN bpf_error(compiler_state_t *, const char *, ...)
+    PCAP_PRINTFLIKE(2, 3);
+
+void finish_parse(compiler_state_t *, struct block *);
+char *sdup(compiler_state_t *, const char *);
+
+struct bpf_insn *icode_to_fcode(compiler_state_t *, struct icode *,
+    struct block *, u_int *);
 void sappend(struct slist *, struct slist *);
+
+/*
+ * Older versions of Bison don't put this declaration in
+ * grammar.h.
+ */
+int pcap_parse(void *, compiler_state_t *);
 
 /* XXX */
 #define JT(b)  ((b)->et.succ)
 #define JF(b)  ((b)->ef.succ)
-
-extern int no_optimize;

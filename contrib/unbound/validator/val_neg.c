@@ -111,7 +111,7 @@ size_t val_neg_get_mem(struct val_neg_cache* neg)
 
 /** clear datas on cache deletion */
 static void
-neg_clear_datas(rbnode_t* n, void* ATTR_UNUSED(arg))
+neg_clear_datas(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct val_neg_data* d = (struct val_neg_data*)n;
 	free(d->name);
@@ -120,7 +120,7 @@ neg_clear_datas(rbnode_t* n, void* ATTR_UNUSED(arg))
 
 /** clear zones on cache deletion */
 static void
-neg_clear_zones(rbnode_t* n, void* ATTR_UNUSED(arg))
+neg_clear_zones(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct val_neg_zone* z = (struct val_neg_zone*)n;
 	/* delete all the rrset entries in the tree */
@@ -371,7 +371,7 @@ static struct val_neg_zone* neg_closest_zone_parent(struct val_neg_cache* neg,
 {
 	struct val_neg_zone key;
 	struct val_neg_zone* result;
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	key.node.key = &key;
 	key.name = nm;
 	key.len = nm_len;
@@ -411,7 +411,7 @@ static struct val_neg_data* neg_closest_data_parent(
 {
 	struct val_neg_data key;
 	struct val_neg_data* result;
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	key.node.key = &key;
 	key.name = nm;
 	key.len = nm_len;
@@ -677,7 +677,7 @@ static void wipeout(struct val_neg_cache* neg, struct val_neg_zone* zone,
 	uint8_t* end;
 	size_t end_len;
 	int end_labs, m;
-	rbnode_t* walk, *next;
+	rbnode_type* walk, *next;
 	struct val_neg_data* cur;
 	uint8_t buf[257];
 	/* get endpoint */
@@ -847,34 +847,71 @@ void neg_insert_data(struct val_neg_cache* neg,
 	wipeout(neg, zone, el, nsec);
 }
 
+/** see if the reply has signed NSEC records and return the signer */
+static uint8_t* reply_nsec_signer(struct reply_info* rep, size_t* signer_len,
+	uint16_t* dclass)
+{
+	size_t i;
+	struct packed_rrset_data* d;
+	uint8_t* s;
+	for(i=rep->an_numrrsets; i< rep->an_numrrsets+rep->ns_numrrsets; i++){
+		if(ntohs(rep->rrsets[i]->rk.type) == LDNS_RR_TYPE_NSEC ||
+			ntohs(rep->rrsets[i]->rk.type) == LDNS_RR_TYPE_NSEC3) {
+			d = (struct packed_rrset_data*)rep->rrsets[i]->
+				entry.data;
+			/* return first signer name of first NSEC */
+			if(d->rrsig_count != 0) {
+				val_find_rrset_signer(rep->rrsets[i],
+					&s, signer_len);
+				if(s && *signer_len) {
+					*dclass = ntohs(rep->rrsets[i]->
+						rk.rrset_class);
+					return s;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 void val_neg_addreply(struct val_neg_cache* neg, struct reply_info* rep)
 {
 	size_t i, need;
 	struct ub_packed_rrset_key* soa;
+	uint8_t* dname = NULL;
+	size_t dname_len;
+	uint16_t rrset_class;
 	struct val_neg_zone* zone;
 	/* see if secure nsecs inside */
 	if(!reply_has_nsec(rep))
 		return;
 	/* find the zone name in message */
-	soa = reply_find_soa(rep);
-	if(!soa)
-		return;
+	if((soa = reply_find_soa(rep))) {
+		dname = soa->rk.dname;
+		dname_len = soa->rk.dname_len;
+		rrset_class = ntohs(soa->rk.rrset_class);
+	}
+	else {
+		/* No SOA in positive (wildcard) answer. Use signer from the 
+		 * validated answer RRsets' signature. */
+		if(!(dname = reply_nsec_signer(rep, &dname_len, &rrset_class)))
+			return;
+	}
 
 	log_nametypeclass(VERB_ALGO, "negcache insert for zone",
-		soa->rk.dname, LDNS_RR_TYPE_SOA, ntohs(soa->rk.rrset_class));
+		dname, LDNS_RR_TYPE_SOA, rrset_class);
 	
 	/* ask for enough space to store all of it */
 	need = calc_data_need(rep) + 
-		calc_zone_need(soa->rk.dname, soa->rk.dname_len);
+		calc_zone_need(dname, dname_len);
 	lock_basic_lock(&neg->lock);
 	neg_make_space(neg, need);
 
 	/* find or create the zone entry */
-	zone = neg_find_zone(neg, soa->rk.dname, soa->rk.dname_len,
-		ntohs(soa->rk.rrset_class));
+	zone = neg_find_zone(neg, dname, dname_len, rrset_class);
 	if(!zone) {
-		if(!(zone = neg_create_zone(neg, soa->rk.dname, 
-			soa->rk.dname_len, ntohs(soa->rk.rrset_class)))) {
+		if(!(zone = neg_create_zone(neg, dname, dname_len,
+			rrset_class))) {
 			lock_basic_unlock(&neg->lock);
 			log_err("out of memory adding negative zone");
 			return;
@@ -911,7 +948,7 @@ static int neg_closest_data(struct val_neg_zone* zone,
 	uint8_t* qname, size_t len, int labs, struct val_neg_data** data)
 {
 	struct val_neg_data key;
-	rbnode_t* r;
+	rbnode_type* r;
 	key.node.key = &key;
 	key.name = qname;
 	key.len = len;
@@ -1007,6 +1044,7 @@ int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
 	qinfo.qname = qname;
 	qinfo.qtype = LDNS_RR_TYPE_DLV;
 	qinfo.qclass = qclass;
+	qinfo.local_alias = NULL;
 	if(!nsec_proves_nodata(nsec, &qinfo, &wc) &&
 		!val_nsec_proves_name_error(nsec, qname)) {
 		/* the NSEC is not a denial for the DLV */
@@ -1026,33 +1064,6 @@ int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
 	lock_basic_unlock(&neg->lock);
 	verbose(VERB_ALGO, "negcache DLV denial proven");
 	return 1;
-}
-
-/** see if the reply has signed NSEC records and return the signer */
-static uint8_t* reply_nsec_signer(struct reply_info* rep, size_t* signer_len,
-	uint16_t* dclass)
-{
-	size_t i;
-	struct packed_rrset_data* d;
-	uint8_t* s;
-	for(i=rep->an_numrrsets; i< rep->an_numrrsets+rep->ns_numrrsets; i++){
-		if(ntohs(rep->rrsets[i]->rk.type) == LDNS_RR_TYPE_NSEC ||
-			ntohs(rep->rrsets[i]->rk.type) == LDNS_RR_TYPE_NSEC3) {
-			d = (struct packed_rrset_data*)rep->rrsets[i]->
-				entry.data;
-			/* return first signer name of first NSEC */
-			if(d->rrsig_count != 0) {
-				val_find_rrset_signer(rep->rrsets[i],
-					&s, signer_len);
-				if(s && *signer_len) {
-					*dclass = ntohs(rep->rrsets[i]->
-						rk.rrset_class);
-					return s;
-				}
-			}
-		}
-	}
-	return 0;
 }
 
 void val_neg_addreferral(struct val_neg_cache* neg, struct reply_info* rep,
@@ -1180,6 +1191,73 @@ grab_nsec(struct rrset_cache* rrset_cache, uint8_t* qname, size_t qname_len,
 	/* if it failed, we return the NULL */
 	lock_rw_unlock(&k->entry.lock);
 	return r;
+}
+
+/**
+ * Get best NSEC record for qname. Might be matching, covering or totally
+ * useless.
+ * @param neg_cache: neg cache
+ * @param qname: to lookup rrset name
+ * @param qname_len: length of qname.
+ * @param qclass: class of rrset to lookup, host order
+ * @param rrset_cache: rrset cache
+ * @param now: to check ttl against
+ * @param region: where to alloc result
+ * @return rrset or NULL
+ */
+static struct ub_packed_rrset_key*
+neg_find_nsec(struct val_neg_cache* neg_cache, uint8_t* qname, size_t qname_len,
+	uint16_t qclass, struct rrset_cache* rrset_cache, time_t now,
+	struct regional* region)
+{
+	int labs;
+	uint32_t flags;
+	struct val_neg_zone* zone;
+	struct val_neg_data* data;
+	struct ub_packed_rrset_key* nsec;
+
+	labs = dname_count_labels(qname);
+	lock_basic_lock(&neg_cache->lock);
+	zone = neg_closest_zone_parent(neg_cache, qname, qname_len, labs,
+		qclass);
+	while(zone && !zone->in_use)
+		zone = zone->parent;
+	if(!zone) {
+		lock_basic_unlock(&neg_cache->lock);
+		return NULL;
+	}
+
+	/* NSEC only for now */
+	if(zone->nsec3_hash) {
+		lock_basic_unlock(&neg_cache->lock);
+		return NULL;
+	}
+
+	/* ignore return value, don't care if it is an exact or smaller match */
+	(void)neg_closest_data(zone, qname, qname_len, labs, &data);
+	if(!data) {
+		lock_basic_unlock(&neg_cache->lock);
+		return NULL;
+	}
+
+	/* ENT nodes are not in use, try the previous node. If the previous node
+	 * is not in use, we don't have an useful NSEC and give up. */
+	if(!data->in_use) {
+		data = (struct val_neg_data*)rbtree_previous((rbnode_type*)data);
+		if((rbnode_type*)data == RBTREE_NULL || !data->in_use) {
+			lock_basic_unlock(&neg_cache->lock);
+			return NULL;
+		}
+	}
+
+	flags = 0;
+	if(query_dname_compare(data->name, zone->name) == 0)
+		flags = PACKED_RRSET_NSEC_AT_APEX;
+
+	nsec = grab_nsec(rrset_cache, data->name, data->len, LDNS_RR_TYPE_NSEC,
+		zone->dclass, flags, region, 0, 0, now);
+	lock_basic_unlock(&neg_cache->lock);
+	return nsec;
 }
 
 /** find nsec3 closest encloser in neg cache */
@@ -1399,41 +1477,144 @@ static int add_soa(struct rrset_cache* rrset_cache, time_t now,
 struct dns_msg* 
 val_neg_getmsg(struct val_neg_cache* neg, struct query_info* qinfo, 
 	struct regional* region, struct rrset_cache* rrset_cache, 
-	sldns_buffer* buf, time_t now, int addsoa, uint8_t* topname)
+	sldns_buffer* buf, time_t now, int addsoa, uint8_t* topname,
+	struct config_file* cfg)
 {
 	struct dns_msg* msg;
-	struct ub_packed_rrset_key* rrset;
+	struct ub_packed_rrset_key* nsec; /* qname matching/covering nsec */
+	struct ub_packed_rrset_key* wcrr; /* wildcard record or nsec */
+	uint8_t* nodata_wc = NULL;
+	uint8_t* ce = NULL;
+	size_t ce_len;
+	uint8_t wc_ce[LDNS_MAX_DOMAINLEN+3];
+	struct query_info wc_qinfo;
+	struct ub_packed_rrset_key* cache_wc;
+	struct packed_rrset_data* wcrr_data;
+	int rcode = LDNS_RCODE_NOERROR;
 	uint8_t* zname;
 	size_t zname_len;
 	int zname_labs;
 	struct val_neg_zone* zone;
 
-	/* only for DS queries */
-	if(qinfo->qtype != LDNS_RR_TYPE_DS)
+	/* only for DS queries when aggressive use of NSEC is disabled */
+	if(qinfo->qtype != LDNS_RR_TYPE_DS && !cfg->aggressive_nsec)
 		return NULL;
 	log_assert(!topname || dname_subdomain_c(qinfo->qname, topname));
 
-	/* see if info from neg cache is available 
-	 * For NSECs, because there is no optout; a DS next to a delegation
-	 * always has exactly an NSEC for it itself; check its DS bit.
-	 * flags=0 (not the zone apex).
-	 */
-	rrset = grab_nsec(rrset_cache, qinfo->qname, qinfo->qname_len,
-		LDNS_RR_TYPE_NSEC, qinfo->qclass, 0, region, 1, 
-		qinfo->qtype, now);
-	if(rrset) {
-		/* return msg with that rrset */
+	/* Get best available NSEC for qname */
+	nsec = neg_find_nsec(neg, qinfo->qname, qinfo->qname_len, qinfo->qclass,
+		rrset_cache, now, region);
+
+	/* Matching NSEC, use to generate No Data answer. Not creating answers
+	 * yet for No Data proven using wildcard. */
+	if(nsec && nsec_proves_nodata(nsec, qinfo, &nodata_wc) && !nodata_wc) {
 		if(!(msg = dns_msg_create(qinfo->qname, qinfo->qname_len, 
 			qinfo->qtype, qinfo->qclass, region, 2))) 
 			return NULL;
-		/* TTL already subtracted in grab_nsec */
-		if(!dns_msg_authadd(msg, region, rrset, 0)) 
+		if(!dns_msg_authadd(msg, region, nsec, 0)) 
 			return NULL;
 		if(addsoa && !add_soa(rrset_cache, now, region, msg, NULL))
 			return NULL;
+
+		lock_basic_lock(&neg->lock);
+		neg->num_neg_cache_noerror++;
+		lock_basic_unlock(&neg->lock);
+		return msg;
+	} else if(nsec && val_nsec_proves_name_error(nsec, qinfo->qname)) {
+		if(!(msg = dns_msg_create(qinfo->qname, qinfo->qname_len, 
+			qinfo->qtype, qinfo->qclass, region, 3))) 
+			return NULL;
+		if(!(ce = nsec_closest_encloser(qinfo->qname, nsec)))
+			return NULL;
+		dname_count_size_labels(ce, &ce_len);
+
+		/* No extra extra NSEC required if both nameerror qname and
+		 * nodata *.ce. are proven already. */
+		if(!nodata_wc || query_dname_compare(nodata_wc, ce) != 0) {
+			/* Qname proven non existing, get wildcard record for
+			 * QTYPE or NSEC covering or matching wildcard. */
+
+			/* Num labels in ce is always smaller than in qname,
+			 * therefore adding the wildcard label cannot overflow
+			 * buffer. */
+			wc_ce[0] = 1;
+			wc_ce[1] = (uint8_t)'*';
+			memmove(wc_ce+2, ce, ce_len);
+			wc_qinfo.qname = wc_ce;
+			wc_qinfo.qname_len = ce_len + 2;
+			wc_qinfo.qtype = qinfo->qtype;
+
+
+			if((cache_wc = rrset_cache_lookup(rrset_cache, wc_qinfo.qname,
+				wc_qinfo.qname_len, wc_qinfo.qtype,
+				qinfo->qclass, 0/*flags*/, now, 0/*read only*/))) {
+				/* Synthesize wildcard answer */
+				wcrr_data = (struct packed_rrset_data*)cache_wc->entry.data;
+				if(!(wcrr_data->security == sec_status_secure ||
+					(wcrr_data->security == sec_status_unchecked &&
+					wcrr_data->rrsig_count > 0))) {
+					lock_rw_unlock(&cache_wc->entry.lock);
+					return NULL;
+				}
+				if(!(wcrr = packed_rrset_copy_region(cache_wc,
+					region, now))) {
+					lock_rw_unlock(&cache_wc->entry.lock);
+					return NULL;
+				};
+				lock_rw_unlock(&cache_wc->entry.lock);
+				wcrr->rk.dname = qinfo->qname;
+				wcrr->rk.dname_len = qinfo->qname_len;
+				if(!dns_msg_ansadd(msg, region, wcrr, 0))
+					return NULL;
+				/* No SOA needed for wildcard synthesised
+				 * answer. */
+				addsoa = 0;
+			} else {
+				/* Get wildcard NSEC for possible non existence
+				 * proof */
+				if(!(wcrr = neg_find_nsec(neg, wc_qinfo.qname,
+					wc_qinfo.qname_len, qinfo->qclass,
+					rrset_cache, now, region)))
+					return NULL;
+
+				nodata_wc = NULL;
+				if(val_nsec_proves_name_error(wcrr, wc_ce))
+					rcode = LDNS_RCODE_NXDOMAIN;
+				else if(!nsec_proves_nodata(wcrr, &wc_qinfo,
+					&nodata_wc) || nodata_wc)
+					/* &nodata_wc shouldn't be set, wc_qinfo
+					 * already contains wildcard domain. */
+					/* NSEC doesn't prove anything for
+					 * wildcard. */
+					return NULL;
+				if(query_dname_compare(wcrr->rk.dname,
+					nsec->rk.dname) != 0)
+					if(!dns_msg_authadd(msg, region, wcrr, 0))
+						return NULL;
+			}
+		}
+
+		if(!dns_msg_authadd(msg, region, nsec, 0))
+			return NULL;
+		if(addsoa && !add_soa(rrset_cache, now, region, msg, NULL))
+			return NULL;
+
+		/* Increment statistic counters */
+		lock_basic_lock(&neg->lock);
+		if(rcode == LDNS_RCODE_NOERROR)
+			neg->num_neg_cache_noerror++;
+		else if(rcode == LDNS_RCODE_NXDOMAIN)
+			neg->num_neg_cache_nxdomain++;
+		lock_basic_unlock(&neg->lock);
+
+		FLAGS_SET_RCODE(msg->rep->flags, rcode);
 		return msg;
 	}
 
+	/* No aggressive use of NSEC3 for now, only proceed for DS types. */
+	if(qinfo->qtype != LDNS_RR_TYPE_DS){
+		return NULL;
+	}
 	/* check NSEC3 neg cache for type DS */
 	/* need to look one zone higher for DS type */
 	zname = qinfo->qname;

@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: pe.c 3477 2016-05-25 20:00:42Z kaiwang27 $");
+ELFTC_VCSID("$Id: pe.c 3508 2016-12-27 06:19:39Z kaiwang27 $");
 
 /* Convert ELF object to Portable Executable (PE). */
 void
@@ -54,6 +54,7 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 	PE_Buffer *pb;
 	const char *name;
 	size_t indx;
+	time_t timestamp;
 	int elferr;
 
 	if (ecp->otf == ETF_EFI || ecp->oem == EM_X86_64)
@@ -69,7 +70,7 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		errx(EXIT_FAILURE, "gelf_getehdr() failed: %s",
 		    elf_errmsg(-1));
 
-	if (elf_getshstrndx(ecp->ein, &indx) == 0)
+	if (elf_getshstrndx(e, &indx) == 0)
 		errx(EXIT_FAILURE, "elf_getshstrndx() failed: %s",
 		    elf_errmsg(-1));
 
@@ -89,7 +90,9 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		pch.ch_machine = IMAGE_FILE_MACHINE_UNKNOWN;
 		break;
 	}
-	pch.ch_timestamp = (uint32_t) time(NULL);
+	if (elftc_timestamp(&timestamp) != 0)
+		err(EXIT_FAILURE, "elftc_timestamp");
+	pch.ch_timestamp = (uint32_t) timestamp;
 	if (pe_update_coff_header(pe, &pch) < 0)
 		err(EXIT_FAILURE, "pe_update_coff_header() failed");
 
@@ -121,7 +124,7 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 			(void) elf_errno();
 			continue;
 		}
-		if ((name = elf_strptr(ecp->ein, indx, sh.sh_name)) ==
+		if ((name = elf_strptr(e, indx, sh.sh_name)) ==
 		    NULL) {
 			warnx("elf_strptr() failed: %s", elf_errmsg(-1));
 			(void) elf_errno();
@@ -207,12 +210,14 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		}
 		pb->pb_align = 1;
 		pb->pb_off = 0;
-		pb->pb_size = roundup(sh.sh_size, poh.oh_filealign);
-		if ((pb->pb_buf = calloc(1, pb->pb_size)) == NULL) {
-			warn("calloc failed");
-			continue;
+		if (sh.sh_type != SHT_NOBITS) {
+			pb->pb_size = roundup(sh.sh_size, poh.oh_filealign);
+			if ((pb->pb_buf = calloc(1, pb->pb_size)) == NULL) {
+				warn("calloc failed");
+				continue;
+			}
+			memcpy(pb->pb_buf, d->d_buf, sh.sh_size);
 		}
-		memcpy(pb->pb_buf, d->d_buf, sh.sh_size);
 	}
 	elferr = elf_errno();
 	if (elferr != 0)

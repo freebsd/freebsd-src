@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/sysent.h>
 
+#include <machine/asm.h>
 #include <machine/db_machdep.h>
 #include <machine/md_var.h>
 #include <machine/mips_opcode.h>
@@ -78,60 +81,8 @@ extern char edata[];
 					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
 #endif
 
-/*
- * Functions ``special'' enough to print by name
- */
-#ifdef __STDC__
-#define	Name(_fn)  { (void*)_fn, # _fn }
-#else
-#define	Name(_fn) { _fn, "_fn"}
-#endif
-static struct {
-	void *addr;
-	char *name;
-}      names[] = {
-
-	Name(trap),
-	Name(MipsKernGenException),
-	Name(MipsUserGenException),
-	Name(MipsKernIntr),
-	Name(MipsUserIntr),
-	Name(cpu_switch),
-	{
-		0, 0
-	}
-};
-
-/*
- * Map a function address to a string name, if known; or a hex string.
- */
-static char *
-fn_name(uintptr_t addr)
-{
-	static char buf[17];
-	int i = 0;
-
-	db_expr_t diff;
-	c_db_sym_t sym;
-	char *symname;
-
-	diff = 0;
-	symname = NULL;
-	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, (const char **)&symname, (db_expr_t *)0);
-	if (symname && diff == 0)
-		return (symname);
-
-	for (i = 0; names[i].name; i++)
-		if (names[i].addr == (void *)addr)
-			return (names[i].name);
-	sprintf(buf, "%jx", (uintmax_t)addr);
-	return (buf);
-}
-
-void
-stacktrace_subr(register_t pc, register_t sp, register_t ra,
-	int (*printfn) (const char *,...))
+static void
+stacktrace_subr(register_t pc, register_t sp, register_t ra)
 {
 	InstFmt i;
 	/*
@@ -139,11 +90,13 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	 * of these registers is valid, e.g. obtained from the stack
 	 */
 	int valid_args[4];
-	uintptr_t args[4];
-	uintptr_t va, subr;
+	register_t args[4];
+	register_t va, subr, cause, badvaddr;
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
+	register_t	next_ra;
+	bool trapframe;
 
 /* Jump here when done with a frame, to start a new one */
 loop:
@@ -155,18 +108,18 @@ loop:
 	valid_args[1] = 0;
 	valid_args[2] = 0;
 	valid_args[3] = 0;
-/* Jump here after a nonstandard (interrupt handler) frame */
+	next_ra = 0;
 	stksize = 0;
 	subr = 0;
+	trapframe = false;
 	if (frames++ > 100) {
-		(*printfn) ("\nstackframe count exceeded\n");
-		/* return breaks stackframe-size heuristics with gcc -O2 */
-		goto finish;	/* XXX */
+		db_printf("\nstackframe count exceeded\n");
+		return;
 	}
-	/* check for bad SP: could foul up next frame */
-	/*XXX MIPS64 bad: this hard-coded SP is lame */
+
+	/* Check for bad SP: could foul up next frame. */
 	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
-		(*printfn) ("SP 0x%jx: not in kernel\n", sp);
+		db_printf("SP 0x%jx: not in kernel\n", (uintmax_t)sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -181,17 +134,21 @@ loop:
 	 * preceding "j ra" at the tail of the preceding function. Depends
 	 * on relative ordering of functions in exception.S, swtch.S.
 	 */
-	if (pcBetween(MipsKernGenException, MipsUserGenException))
+	if (pcBetween(MipsKernGenException, MipsUserGenException)) {
 		subr = (uintptr_t)MipsKernGenException;
-	else if (pcBetween(MipsUserGenException, MipsKernIntr))
+		trapframe = true;
+	} else if (pcBetween(MipsUserGenException, MipsKernIntr))
 		subr = (uintptr_t)MipsUserGenException;
-	else if (pcBetween(MipsKernIntr, MipsUserIntr))
+	else if (pcBetween(MipsKernIntr, MipsUserIntr)) {
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
+		trapframe = true;
+	} else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
+	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException)) {
 		subr = (uintptr_t)MipsTLBInvalidException;
-	else if (pcBetween(fork_trampoline, savectx))
+		if (pc == (uintptr_t)MipsKStackOverflow)
+			trapframe = true;
+	} else if (pcBetween(fork_trampoline, savectx))
 		subr = (uintptr_t)fork_trampoline;
 	else if (pcBetween(savectx, cpu_throw))
 		subr = (uintptr_t)savectx;
@@ -204,13 +161,22 @@ loop:
 		ra = 0;
 		goto done;
 	}
-	/* check for bad PC */
-	/*XXX MIPS64 bad: These hard coded constants are lame */
+
+	/* Check for bad PC. */
 	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
-		(*printfn) ("PC 0x%jx: not in kernel\n", pc);
+		db_printf("PC 0x%jx: not in kernel\n", (uintmax_t)pc);
 		ra = 0;
 		goto done;
 	}
+
+	/*
+	 * For a trapframe, skip to the output and afterwards pull the
+	 * previous registers out of the trapframe instead of decoding
+	 * the function prologue.
+	 */
+	if (trapframe)
+		goto done;
+
 	/*
 	 * Find the beginning of the current subroutine by scanning
 	 * backwards from the current PC for the end of the previous
@@ -288,9 +254,17 @@ loop:
 			/* look for saved registers on the stack */
 			if (i.IType.rs != 29)
 				break;
-			/* only restore the first one */
-			if (mask & (1 << i.IType.rt))
+			/*
+			 * only restore the first one except RA for
+			 * MipsKernGenException case
+			 */
+			if (mask & (1 << i.IType.rt)) {
+				if (subr == (uintptr_t)MipsKernGenException &&
+				    i.IType.rt == 31)
+					next_ra = kdbpeek((int *)(sp +
+					    (short)i.IType.imm));
 				break;
+			}
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
@@ -364,33 +338,50 @@ loop:
 	}
 
 done:
-	(*printfn) ("%s+%x (", fn_name(subr), pc - subr);
+	db_printsym(pc, DB_STGY_PROC);
+	db_printf(" (");
 	for (j = 0; j < 4; j ++) {
 		if (j > 0)
-			(*printfn)(",");
+			db_printf(",");
 		if (valid_args[j])
-			(*printfn)("%x", args[j]);
+			db_printf("%jx", (uintmax_t)(u_register_t)args[j]);
 		else
-			(*printfn)("?");
+			db_printf("?");
 	}
 
-	(*printfn) (") ra %jx sp %jx sz %d\n", ra, sp, stksize);
+	db_printf(") ra %jx sp %jx sz %d\n",
+	    (uintmax_t)(u_register_t) ra,
+	    (uintmax_t)(u_register_t) sp,
+	    stksize);
 
-	if (ra) {
+	if (trapframe) {
+#define	TF_REG(base, reg)	((base) + CALLFRAME_SIZ + ((reg) * SZREG))
+#if defined(__mips_n64) || defined(__mips_n32)
+		pc = kdbpeekd((int *)TF_REG(sp, PC));
+		ra = kdbpeekd((int *)TF_REG(sp, RA));
+		sp = kdbpeekd((int *)TF_REG(sp, SP));
+		cause = kdbpeekd((int *)TF_REG(sp, CAUSE));
+		badvaddr = kdbpeekd((int *)TF_REG(sp, BADVADDR));
+#else
+		pc = kdbpeek((int *)TF_REG(sp, PC));
+		ra = kdbpeek((int *)TF_REG(sp, RA));
+		sp = kdbpeek((int *)TF_REG(sp, SP));
+		cause = kdbpeek((int *)TF_REG(sp, CAUSE));
+		badvaddr = kdbpeek((int *)TF_REG(sp, BADVADDR));
+#endif
+#undef TF_REG
+		db_printf("--- exception, cause %jx badvaddr %jx ---\n",
+		    (uintmax_t)cause, (uintmax_t)badvaddr);
+		goto loop;
+	} else if (ra) {
 		if (pc == ra && stksize == 0)
-			(*printfn) ("stacktrace: loop!\n");
+			db_printf("stacktrace: loop!\n");
 		else {
 			pc = ra;
 			sp += stksize;
-			ra = 0;
+			ra = next_ra;
 			goto loop;
 		}
-	} else {
-finish:
-		if (curproc)
-			(*printfn) ("pid %d\n", curproc->p_pid);
-		else
-			(*printfn) ("curproc NULL\n");
 	}
 }
 
@@ -419,7 +410,20 @@ db_md_list_watchpoints()
 void
 db_trace_self(void)
 {
-	db_trace_thread (curthread, -1);
+	register_t pc, ra, sp;
+
+	sp = (register_t)(intptr_t)__builtin_frame_address(0);
+	ra = (register_t)(intptr_t)__builtin_return_address(0);
+
+	__asm __volatile(
+		"jal 99f\n"
+		"nop\n"
+		"99:\n"
+		 "move %0, $31\n" /* get ra */
+		 "move $31, %1\n" /* restore ra */
+		 : "=r" (pc)
+		 : "r" (ra));
+	stacktrace_subr(pc, sp, ra);
 	return;
 }
 
@@ -429,28 +433,11 @@ db_trace_thread(struct thread *thr, int count)
 	register_t pc, ra, sp;
 	struct pcb *ctx;
 
-	if (thr == curthread) {
-		sp = (register_t)(intptr_t)__builtin_frame_address(0);
-		ra = (register_t)(intptr_t)__builtin_return_address(0);
-
-        	__asm __volatile(
-			"jal 99f\n"
-			"nop\n"
-			"99:\n"
-                         "move %0, $31\n" /* get ra */
-                         "move $31, %1\n" /* restore ra */
-                         : "=r" (pc)
-			 : "r" (ra));
-
-	} else {
-		ctx = kdb_thr_ctx(thr);
-		sp = (register_t)ctx->pcb_context[PCB_REG_SP];
-		pc = (register_t)ctx->pcb_context[PCB_REG_PC];
-		ra = (register_t)ctx->pcb_context[PCB_REG_RA];
-	}
-
-	stacktrace_subr(pc, sp, ra,
-	    (int (*) (const char *, ...))db_printf);
+	ctx = kdb_thr_ctx(thr);
+	sp = (register_t)ctx->pcb_context[PCB_REG_SP];
+	pc = (register_t)ctx->pcb_context[PCB_REG_PC];
+	ra = (register_t)ctx->pcb_context[PCB_REG_RA];
+	stacktrace_subr(pc, sp, ra);
 
 	return (0);
 }

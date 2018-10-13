@@ -197,7 +197,7 @@ static void futex_queue_requeue(struct futex_queue *, struct futex_queue *,
     unsigned int);
 static int futex_queue_sleep(struct futex_queue *, struct futex_lock *,
     struct futex_waiter *, struct thread *, cloudabi_clockid_t,
-    cloudabi_timestamp_t, cloudabi_timestamp_t);
+    cloudabi_timestamp_t, cloudabi_timestamp_t, bool);
 static cloudabi_tid_t futex_queue_tid_best(const struct futex_queue *);
 static void futex_queue_wake_up_all(struct futex_queue *);
 static void futex_queue_wake_up_best(struct futex_queue *);
@@ -427,7 +427,7 @@ futex_lock_lookup_locked(struct futex_address *fa)
 static int
 futex_lock_rdlock(struct futex_lock *fl, struct thread *td,
     cloudabi_lock_t *lock, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision)
+    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision, bool abstime)
 {
 	struct futex_waiter fw;
 	int error;
@@ -438,7 +438,7 @@ futex_lock_rdlock(struct futex_lock *fl, struct thread *td,
 		KASSERT(fl->fl_owner != LOCK_UNMANAGED,
 		    ("Attempted to sleep on an unmanaged lock"));
 		error = futex_queue_sleep(&fl->fl_readers, fl, &fw, td,
-		    clock_id, timeout, precision);
+		    clock_id, timeout, precision, abstime);
 		KASSERT((error == 0) == fw.fw_locked,
 		    ("Should have locked write lock on success"));
 		KASSERT(futex_queue_count(&fw.fw_donated) == 0,
@@ -707,7 +707,7 @@ futex_lock_wake_up_next(struct futex_lock *fl, cloudabi_lock_t *lock)
 static int
 futex_lock_wrlock(struct futex_lock *fl, struct thread *td,
     cloudabi_lock_t *lock, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision,
+    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision, bool abstime,
     struct futex_queue *donated)
 {
 	struct futex_waiter fw;
@@ -735,7 +735,7 @@ futex_lock_wrlock(struct futex_lock *fl, struct thread *td,
 		KASSERT(fl->fl_owner != LOCK_UNMANAGED,
 		    ("Attempted to sleep on an unmanaged lock"));
 		error = futex_queue_sleep(&fl->fl_writers, fl, &fw, td,
-		    clock_id, timeout, precision);
+		    clock_id, timeout, precision, abstime);
 		KASSERT((error == 0) == fw.fw_locked,
 		    ("Should have locked write lock on success"));
 		KASSERT(futex_queue_count(&fw.fw_donated) == 0,
@@ -789,16 +789,18 @@ futex_queue_convert_timestamp_relative(cloudabi_timestamp_t ts)
 static int
 futex_queue_convert_timestamp(struct thread *td, cloudabi_clockid_t clock_id,
     cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision,
-    sbintime_t *sbttimeout, sbintime_t *sbtprecision)
+    sbintime_t *sbttimeout, sbintime_t *sbtprecision, bool abstime)
 {
 	cloudabi_timestamp_t now;
 	int error;
 
-	/* Make the time relative. */
-	error = cloudabi_clock_time_get(td, clock_id, &now);
-	if (error != 0)
-		return (error);
-	timeout = timeout < now ? 0 : timeout - now;
+	if (abstime) {
+		/* Make the time relative. */
+		error = cloudabi_clock_time_get(td, clock_id, &now);
+		if (error != 0)
+			return (error);
+		timeout = timeout < now ? 0 : timeout - now;
+	}
 
 	*sbttimeout = futex_queue_convert_timestamp_relative(timeout);
 	*sbtprecision = futex_queue_convert_timestamp_relative(precision);
@@ -808,7 +810,7 @@ futex_queue_convert_timestamp(struct thread *td, cloudabi_clockid_t clock_id,
 static int
 futex_queue_sleep(struct futex_queue *fq, struct futex_lock *fl,
     struct futex_waiter *fw, struct thread *td, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision)
+    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision, bool abstime)
 {
 	sbintime_t sbttimeout, sbtprecision;
 	int error;
@@ -821,7 +823,7 @@ futex_queue_sleep(struct futex_queue *fq, struct futex_lock *fl,
 	if (timeout != UINT64_MAX) {
 		/* Convert timeout duration. */
 		error = futex_queue_convert_timestamp(td, clock_id, timeout,
-		    precision, &sbttimeout, &sbtprecision);
+		    precision, &sbttimeout, &sbtprecision, abstime);
 		if (error != 0)
 			return (error);
 	}
@@ -976,7 +978,7 @@ int
 cloudabi_futex_condvar_wait(struct thread *td, cloudabi_condvar_t *condvar,
     cloudabi_scope_t condvar_scope, cloudabi_lock_t *lock,
     cloudabi_scope_t lock_scope, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision)
+    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision, bool abstime)
 {
 	struct futex_condvar *fc;
 	struct futex_lock *fl;
@@ -1012,7 +1014,7 @@ cloudabi_futex_condvar_wait(struct thread *td, cloudabi_condvar_t *condvar,
 	/* Go to sleep. */
 	++fc->fc_waitcount;
 	error = futex_queue_sleep(&fc->fc_waiters, fc->fc_lock, &fw, td,
-	    clock_id, timeout, precision);
+	    clock_id, timeout, precision, abstime);
 	if (fw.fw_locked) {
 		/* Waited and got the lock assigned to us. */
 		KASSERT(futex_queue_count(&fw.fw_donated) == 0,
@@ -1031,7 +1033,8 @@ cloudabi_futex_condvar_wait(struct thread *td, cloudabi_condvar_t *condvar,
 		 *    responsible for reacquiring the userspace lock.
 		 */
 		error2 = futex_lock_wrlock(fl, td, lock,
-		    CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, &fw.fw_donated);
+		    CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, abstime,
+		    &fw.fw_donated);
 		if (error2 != 0)
 			error = error2;
 	} else {
@@ -1048,7 +1051,7 @@ cloudabi_futex_condvar_wait(struct thread *td, cloudabi_condvar_t *condvar,
 int
 cloudabi_futex_lock_rdlock(struct thread *td, cloudabi_lock_t *lock,
     cloudabi_scope_t scope, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision)
+    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision, bool abstime)
 {
 	struct futex_lock *fl;
 	int error;
@@ -1059,7 +1062,7 @@ cloudabi_futex_lock_rdlock(struct thread *td, cloudabi_lock_t *lock,
 		return (error);
 
 	error = futex_lock_rdlock(fl, td, lock, clock_id, timeout,
-	    precision);
+	    precision, abstime);
 	futex_lock_release(fl);
 	return (error);
 }
@@ -1067,7 +1070,7 @@ cloudabi_futex_lock_rdlock(struct thread *td, cloudabi_lock_t *lock,
 int
 cloudabi_futex_lock_wrlock(struct thread *td, cloudabi_lock_t *lock,
     cloudabi_scope_t scope, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision)
+    cloudabi_timestamp_t timeout, cloudabi_timestamp_t precision, bool abstime)
 {
 	struct futex_lock *fl;
 	struct futex_queue fq;
@@ -1080,7 +1083,7 @@ cloudabi_futex_lock_wrlock(struct thread *td, cloudabi_lock_t *lock,
 
 	futex_queue_init(&fq);
 	error = futex_lock_wrlock(fl, td, lock, clock_id, timeout,
-	    precision, &fq);
+	    precision, abstime, &fq);
 	futex_lock_release(fl);
 	return (error);
 }

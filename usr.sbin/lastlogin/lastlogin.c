@@ -1,5 +1,8 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 John M. Vinopal
+ * Copyright (c) 2018 Philip Paeps
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +47,8 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #include <unistd.h>
 #include <utmpx.h>
 
+#include <libxo/xo.h>
+
 	int	main(int, char **);
 static	void	output(struct utmpx *);
 static	void	usage(void);
@@ -77,6 +82,10 @@ main(int argc, char *argv[])
 	int	ch, i, ulistsize;
 	struct utmpx *u, *ulist;
 
+	argc = xo_parse_args(argc, argv);
+	if (argc < 0)
+		exit(1);
+
 	while ((ch = getopt(argc, argv, "f:rt")) != -1) {
 		switch (ch) {
 		case 'f':
@@ -95,13 +104,16 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	xo_open_container("lastlogin-information");
+	xo_open_list("lastlogin");
+
 	if (argc > 0) {
 		/* Process usernames given on the command line. */
 		for (i = 0; i < argc; i++) {
 			if (setutxdb(UTXDB_LASTLOGIN, file) != 0)
-				err(1, "failed to open lastlog database");
+				xo_err(1, "failed to open lastlog database");
 			if ((u = getutxuser(argv[i])) == NULL) {
-				warnx("user '%s' not found", argv[i]);
+				xo_warnx("user '%s' not found", argv[i]);
 				continue;
 			}
 			output(u);
@@ -110,7 +122,7 @@ main(int argc, char *argv[])
 	} else {
 		/* Read all lastlog entries, looking for active ones. */
 		if (setutxdb(UTXDB_LASTLOGIN, file) != 0)
-			err(1, "failed to open lastlog database");
+			xo_err(1, "failed to open lastlog database");
 		ulist = NULL;
 		ulistsize = 0;
 		while ((u = getutxent()) != NULL) {
@@ -120,7 +132,7 @@ main(int argc, char *argv[])
 				ulist = realloc(ulist,
 				    (ulistsize + 16) * sizeof(struct utmpx));
 				if (ulist == NULL)
-					err(1, "malloc");
+					xo_err(1, "malloc");
 			}
 			ulist[ulistsize++] = *u;
 		}
@@ -131,6 +143,10 @@ main(int argc, char *argv[])
 			output(&ulist[i]);
 	}
 
+	xo_close_list("lastlogin");
+	xo_close_container("lastlogin-information");
+	xo_finish();
+
 	exit(0);
 }
 
@@ -140,13 +156,18 @@ output(struct utmpx *u)
 {
 	time_t t = u->ut_tv.tv_sec;
 
-	printf("%-10s %-8s %-22.22s %s",
-		u->ut_user, u->ut_line, u->ut_host, ctime(&t));
+	xo_open_instance("lastlogin");
+	xo_emit("{:user/%-10s/%s} {:tty/%-8s/%s} {:from/%-22.22s/%s}",
+		u->ut_user, u->ut_line, u->ut_host);
+	xo_attr("seconds", "%lu", (unsigned long)t);
+	xo_emit(" {:login-time/%.24s/%.24s}\n", ctime(&t));
+	xo_close_instance("lastlogin");
 }
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: lastlogin [-f file] [-rt] [user ...]\n");
+	xo_error("usage: lastlogin [-f file] [-rt] [user ...]\n");
+	xo_finish();
 	exit(1);
 }

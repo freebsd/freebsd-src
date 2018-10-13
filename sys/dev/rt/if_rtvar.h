@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2011 Aleksandr Rybalko <ray@ddteam.net>
  * Copyright (c) 2009-2010 Alexander Egorenkov <egorenar@gmail.com>
  * Copyright (c) 2009 Damien Bergamini <damien.bergamini@free.fr>
@@ -283,6 +285,7 @@ struct rt_softc
         uint32_t        fe_int_enable;
         uint32_t        pdma_glo_cfg;
         uint32_t        pdma_rst_idx;
+	uint32_t	gdma1_base;
         uint32_t        tx_base_ptr[RT_SOFTC_TX_RING_COUNT];
         uint32_t        tx_max_cnt[RT_SOFTC_TX_RING_COUNT];
         uint32_t        tx_ctx_idx[RT_SOFTC_TX_RING_COUNT];

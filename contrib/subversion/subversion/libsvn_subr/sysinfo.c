@@ -127,7 +127,8 @@ const apr_array_header_t *
 svn_sysinfo__linked_libs(apr_pool_t *pool)
 {
   svn_version_ext_linked_lib_t *lib;
-  apr_array_header_t *array = apr_array_make(pool, 6, sizeof(*lib));
+  apr_array_header_t *array = apr_array_make(pool, 7, sizeof(*lib));
+  int lz4_version = svn_lz4__runtime_version();
 
   lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
   lib->name = "APR";
@@ -166,6 +167,15 @@ svn_sysinfo__linked_libs(apr_pool_t *pool)
   lib->name = "ZLib";
   lib->compiled_version = apr_pstrdup(pool, svn_zlib__compiled_version());
   lib->runtime_version = apr_pstrdup(pool, svn_zlib__runtime_version());
+
+  lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
+  lib->name = "LZ4";
+  lib->compiled_version = apr_pstrdup(pool, svn_lz4__compiled_version());
+
+  lib->runtime_version = apr_psprintf(pool, "%d.%d.%d",
+                                      lz4_version / 100 / 100,
+                                      (lz4_version / 100) % 100,
+                                      lz4_version % 100);
 
   return array;
 }
@@ -666,7 +676,7 @@ system_info(SYSTEM_INFO *sysinfo,
             SYSTEM_INFO *local_sysinfo)
 {
   FNGETNATIVESYSTEMINFO GetNativeSystemInfo_ = (FNGETNATIVESYSTEMINFO)
-    GetProcAddress(GetModuleHandleA("kernel32.dll"), "GetNativeSystemInfo");
+    GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetNativeSystemInfo");
 
   memset(sysinfo, 0, sizeof *sysinfo);
   if (local_sysinfo)
@@ -875,12 +885,12 @@ enum_loaded_modules(apr_pool_t *pool)
   DWORD size;
   FNENUMPROCESSMODULES EnumProcessModules_;
 
-  psapi_dll = GetModuleHandleA("psapi.dll");
+  psapi_dll = GetModuleHandleW(L"psapi.dll");
 
   if (!psapi_dll)
     {
       /* Load and never unload, just like static linking */
-      psapi_dll = LoadLibraryA("psapi.dll");
+      psapi_dll = LoadLibraryW(L"psapi.dll");
     }
 
   if (!psapi_dll)
@@ -1143,6 +1153,9 @@ release_name_from_version(const char *osver)
     case  8: return "Mountain Lion";
     case  9: return "Mavericks";
     case 10: return "Yosemite";
+    case 11: return "El Capitan";
+    case 12: return "Sierra";
+    case 13: return "High Sierra";
     }
 
   return NULL;

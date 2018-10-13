@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -27,8 +29,6 @@
  *
  *      $FreeBSD$
  */
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/lock.h>

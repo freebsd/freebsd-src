@@ -47,40 +47,40 @@ collating-symbol <X050A>
 collating-symbol <X050E>
 collating-symbol <X0600>
 collating-symbol <X0722>
-collating-symbol <X072C>
-collating-symbol <X0750>
-collating-symbol <X0758>
+collating-symbol <X072E>
+collating-symbol <X0752>
+collating-symbol <X075A>
 collating-symbol <X0800>
 collating-symbol <X0900>
-collating-symbol <X0968>
-collating-symbol <X0976>
-collating-symbol <X098C>
-collating-symbol <X098E>
-collating-symbol <X0990>
-collating-symbol <X0992>
-collating-symbol <X0994>
-collating-symbol <X0996>
-collating-symbol <X0A7A>
-collating-symbol <X0A7C>
-collating-symbol <X0A86>
-collating-symbol <X0A88>
-collating-symbol <X0A8A>
-collating-symbol <X0A8E>
-collating-symbol <X0A90>
+collating-symbol <X0969>
+collating-symbol <X0977>
+collating-symbol <X098D>
+collating-symbol <X098F>
+collating-symbol <X0991>
+collating-symbol <X0993>
+collating-symbol <X0995>
+collating-symbol <X0997>
+collating-symbol <X0A7B>
+collating-symbol <X0A7D>
+collating-symbol <X0A87>
+collating-symbol <X0A89>
+collating-symbol <X0A8B>
+collating-symbol <X0A8F>
+collating-symbol <X0A91>
 collating-symbol <X0C04>
 collating-symbol <X0C06>
 collating-symbol <X0C0A>
 collating-symbol <X0C10>
 collating-symbol <X0C16>
 collating-symbol <X0C1A>
-collating-symbol <X0C61>
-collating-symbol <X0C63>
-collating-symbol <X0C6B>
-collating-symbol <X0C6D>
-collating-symbol <X0C6F>
-collating-symbol <X0C73>
-collating-symbol <X0C77>
-collating-symbol <X0D26>
+collating-symbol <X0C72>
+collating-symbol <X0C76>
+collating-symbol <X0C7E>
+collating-symbol <X0C80>
+collating-symbol <X0C82>
+collating-symbol <X0C86>
+collating-symbol <X0C8A>
+collating-symbol <X0D76>
 collating-symbol <X1000>
 collating-symbol <X1200>
 collating-symbol <X1400>
@@ -164,7 +164,6 @@ collating-symbol <X5F58>
 collating-symbol <X5F5A>
 collating-symbol <X5F5C>
 collating-symbol <X5F5E>
-collating-symbol <XC700>
 
 order_start forward;forward;forward;forward
 
@@ -207,40 +206,40 @@ order_start forward;forward;forward;forward
 <X050E>
 <X0600>
 <X0722>
-<X072C>
-<X0750>
-<X0758>
+<X072E>
+<X0752>
+<X075A>
 <X0800>
 <X0900>
-<X0968>
-<X0976>
-<X098C>
-<X098E>
-<X0990>
-<X0992>
-<X0994>
-<X0996>
-<X0A7A>
-<X0A7C>
-<X0A86>
-<X0A88>
-<X0A8A>
-<X0A8E>
-<X0A90>
+<X0969>
+<X0977>
+<X098D>
+<X098F>
+<X0991>
+<X0993>
+<X0995>
+<X0997>
+<X0A7B>
+<X0A7D>
+<X0A87>
+<X0A89>
+<X0A8B>
+<X0A8F>
+<X0A91>
 <X0C04>
 <X0C06>
 <X0C0A>
 <X0C10>
 <X0C16>
 <X0C1A>
-<X0C61>
-<X0C63>
-<X0C6B>
-<X0C6D>
-<X0C6F>
-<X0C73>
-<X0C77>
-<X0D26>
+<X0C72>
+<X0C76>
+<X0C7E>
+<X0C80>
+<X0C82>
+<X0C86>
+<X0C8A>
+<X0D76>
 <X1000>
 <X1200>
 <X1400>
@@ -324,7 +323,6 @@ order_start forward;forward;forward;forward
 <X5F5A>
 <X5F5C>
 <X5F5E>
-<XC700>
 
 * assignment of characters to weights
 
@@ -367,25 +365,25 @@ order_start forward;forward;forward;forward
 <HYPHEN-MINUS> <X050E>;<X05>;<X05>;<HYPHEN-MINUS>
 <COMMA> <X0600>;<X05>;<X05>;<COMMA>
 <SEMICOLON> <X0722>;<X05>;<X05>;<SEMICOLON>
-<COLON> <X072C>;<X05>;<X05>;<COLON>
-<EXCLAMATION_MARK> <X0750>;<X05>;<X05>;<EXCLAMATION_MARK>
-<QUESTION_MARK> <X0758>;<X05>;<X05>;<QUESTION_MARK>
+<COLON> <X072E>;<X05>;<X05>;<COLON>
+<EXCLAMATION_MARK> <X0752>;<X05>;<X05>;<EXCLAMATION_MARK>
+<QUESTION_MARK> <X075A>;<X05>;<X05>;<QUESTION_MARK>
 <FULL_STOP> <X0800>;<X05>;<X05>;<FULL_STOP>
-<APOSTROPHE> <X0968>;<X05>;<X05>;<APOSTROPHE>
-<QUOTATION_MARK> <X0976>;<X05>;<X05>;<QUOTATION_MARK>
-<LEFT_PARENTHESIS> <X098C>;<X05>;<X05>;<LEFT_PARENTHESIS>
-<RIGHT_PARENTHESIS> <X098E>;<X05>;<X05>;<RIGHT_PARENTHESIS>
-<LEFT_SQUARE_BRACKET> <X0990>;<X05>;<X05>;<LEFT_SQUARE_BRACKET>
-<RIGHT_SQUARE_BRACKET> <X0992>;<X05>;<X05>;<RIGHT_SQUARE_BRACKET>
-<LEFT_CURLY_BRACKET> <X0994>;<X05>;<X05>;<LEFT_CURLY_BRACKET>
-<RIGHT_CURLY_BRACKET> <X0996>;<X05>;<X05>;<RIGHT_CURLY_BRACKET>
-<COMMERCIAL_AT> <X0A7A>;<X05>;<X05>;<COMMERCIAL_AT>
-<ASTERISK> <X0A7C>;<X05>;<X05>;<ASTERISK>
-<SOLIDUS> <X0A86>;<X05>;<X05>;<SOLIDUS>
-<REVERSE_SOLIDUS> <X0A88>;<X05>;<X05>;<REVERSE_SOLIDUS>
-<AMPERSAND> <X0A8A>;<X05>;<X05>;<AMPERSAND>
-<NUMBER_SIGN> <X0A8E>;<X05>;<X05>;<NUMBER_SIGN>
-<PERCENT_SIGN> <X0A90>;<X05>;<X05>;<PERCENT_SIGN>
+<APOSTROPHE> <X0969>;<X05>;<X05>;<APOSTROPHE>
+<QUOTATION_MARK> <X0977>;<X05>;<X05>;<QUOTATION_MARK>
+<LEFT_PARENTHESIS> <X098D>;<X05>;<X05>;<LEFT_PARENTHESIS>
+<RIGHT_PARENTHESIS> <X098F>;<X05>;<X05>;<RIGHT_PARENTHESIS>
+<LEFT_SQUARE_BRACKET> <X0991>;<X05>;<X05>;<LEFT_SQUARE_BRACKET>
+<RIGHT_SQUARE_BRACKET> <X0993>;<X05>;<X05>;<RIGHT_SQUARE_BRACKET>
+<LEFT_CURLY_BRACKET> <X0995>;<X05>;<X05>;<LEFT_CURLY_BRACKET>
+<RIGHT_CURLY_BRACKET> <X0997>;<X05>;<X05>;<RIGHT_CURLY_BRACKET>
+<COMMERCIAL_AT> <X0A7B>;<X05>;<X05>;<COMMERCIAL_AT>
+<ASTERISK> <X0A7D>;<X05>;<X05>;<ASTERISK>
+<SOLIDUS> <X0A87>;<X05>;<X05>;<SOLIDUS>
+<REVERSE_SOLIDUS> <X0A89>;<X05>;<X05>;<REVERSE_SOLIDUS>
+<AMPERSAND> <X0A8B>;<X05>;<X05>;<AMPERSAND>
+<NUMBER_SIGN> <X0A8F>;<X05>;<X05>;<NUMBER_SIGN>
+<PERCENT_SIGN> <X0A91>;<X05>;<X05>;<PERCENT_SIGN>
 <GRAVE_ACCENT> <X0C04>;<X05>;<X05>;<GRAVE_ACCENT>
 <GREEK_VARIA> <X0C04>;<X05>;<X05>;<GREEK_VARIA>
 <GREEK_OXIA> <X0C06>;<X05>;<X05>;<GREEK_OXIA>
@@ -405,14 +403,14 @@ order_start forward;forward;forward;forward
 <GREEK_DASIA_AND_PERISPOMENI> "<X0C16><X1000>";"<X05><X94>";"<X05><XC0><X05>";<GREEK_DASIA_AND_PERISPOMENI>
 <GREEK_PERISPOMENI> "<X0C16><X1700>";<X05>;"<X05><XC0>";<GREEK_PERISPOMENI>
 <GREEK_LOWER_NUMERAL_SIGN> <X0C1A>;<X05>;<X05>;<GREEK_LOWER_NUMERAL_SIGN>
-<GREEK_REVERSED_LUNATE_EPSILON_SYMBOL> "<X0C61><XC700>";<X05>;"<X05><XC0>";<GREEK_REVERSED_LUNATE_EPSILON_SYMBOL>
-<PLUS_SIGN> <X0C63>;<X05>;<X05>;<PLUS_SIGN>
-<LESS-THAN_SIGN> <X0C6B>;<X05>;<X05>;<LESS-THAN_SIGN>
-<EQUALS_SIGN> <X0C6D>;<X05>;<X05>;<EQUALS_SIGN>
-<GREATER-THAN_SIGN> <X0C6F>;<X05>;<X05>;<GREATER-THAN_SIGN>
-<VERTICAL_LINE> <X0C73>;<X05>;<X05>;<VERTICAL_LINE>
-<TILDE> <X0C77>;<X05>;<X05>;<TILDE>
-<DOLLAR_SIGN> <X0D26>;<X05>;<X05>;<DOLLAR_SIGN>
+<GREEK_REVERSED_LUNATE_EPSILON_SYMBOL> "<X0C72><X1E00>";<X05>;"<X05><XC0>";<GREEK_REVERSED_LUNATE_EPSILON_SYMBOL>
+<PLUS_SIGN> <X0C76>;<X05>;<X05>;<PLUS_SIGN>
+<LESS-THAN_SIGN> <X0C7E>;<X05>;<X05>;<LESS-THAN_SIGN>
+<EQUALS_SIGN> <X0C80>;<X05>;<X05>;<EQUALS_SIGN>
+<GREATER-THAN_SIGN> <X0C82>;<X05>;<X05>;<GREATER-THAN_SIGN>
+<VERTICAL_LINE> <X0C86>;<X05>;<X05>;<VERTICAL_LINE>
+<TILDE> <X0C8A>;<X05>;<X05>;<TILDE>
+<DOLLAR_SIGN> <X0D76>;<X05>;<X05>;<DOLLAR_SIGN>
 <zero> <X1200>;<X05>;<X05>;<zero>
 <one> <X1400>;<X05>;<X05>;<one>
 <two> <X1600>;<X05>;<X05>;<two>
@@ -423,58 +421,6 @@ order_start forward;forward;forward;forward
 <seven> <X2000>;<X05>;<X05>;<seven>
 <eight> <X2200>;<X05>;<X05>;<eight>
 <nine> <X2400>;<X05>;<X05>;<nine>
-<a> <X2900>;<X05>;<X05>;<a>
-<A> <X2900>;<X05>;<X9C>;<A>
-<b> <X2B00>;<X05>;<X05>;<b>
-<B> <X2B00>;<X05>;<X9C>;<B>
-<c> <X2D00>;<X05>;<X05>;<c>
-<C> <X2D00>;<X05>;<X9C>;<C>
-<d> <X2F00>;<X05>;<X05>;<d>
-<D> <X2F00>;<X05>;<X9C>;<D>
-<e> <X3100>;<X05>;<X05>;<e>
-<E> <X3100>;<X05>;<X9C>;<E>
-<f> <X3300>;<X05>;<X05>;<f>
-<F> <X3300>;<X05>;<X9C>;<F>
-<g> <X3500>;<X05>;<X05>;<g>
-<G> <X3500>;<X05>;<X9C>;<G>
-<h> <X3700>;<X05>;<X05>;<h>
-<H> <X3700>;<X05>;<X9C>;<H>
-<i> <X3900>;<X05>;<X05>;<i>
-<I> <X3900>;<X05>;<X9C>;<I>
-<j> <X3B00>;<X05>;<X05>;<j>
-<J> <X3B00>;<X05>;<X9C>;<J>
-<k> <X3D00>;<X05>;<X05>;<k>
-<K> <X3D00>;<X05>;<X9C>;<K>
-<l> <X3F00>;<X05>;<X05>;<l>
-<L> <X3F00>;<X05>;<X9C>;<L>
-<m> <X4100>;<X05>;<X05>;<m>
-<M> <X4100>;<X05>;<X9C>;<M>
-<n> <X4300>;<X05>;<X05>;<n>
-<N> <X4300>;<X05>;<X9C>;<N>
-<o> <X4500>;<X05>;<X05>;<o>
-<O> <X4500>;<X05>;<X9C>;<O>
-<p> <X4700>;<X05>;<X05>;<p>
-<P> <X4700>;<X05>;<X9C>;<P>
-<q> <X4900>;<X05>;<X05>;<q>
-<Q> <X4900>;<X05>;<XA0>;<Q>
-<r> <X4B00>;<X05>;<X05>;<r>
-<R> <X4B00>;<X05>;<X9C>;<R>
-<s> <X4D00>;<X05>;<X05>;<s>
-<S> <X4D00>;<X05>;<X9C>;<S>
-<t> <X4F00>;<X05>;<X05>;<t>
-<T> <X4F00>;<X05>;<X9C>;<T>
-<u> <X5100>;<X05>;<X05>;<u>
-<U> <X5100>;<X05>;<X9C>;<U>
-<v> <X5300>;<X05>;<X05>;<v>
-<V> <X5300>;<X05>;<X9C>;<V>
-<w> <X5500>;<X05>;<X05>;<w>
-<W> <X5500>;<X05>;<XA0>;<W>
-<x> <X5700>;<X05>;<X05>;<x>
-<X> <X5700>;<X05>;<X9C>;<X>
-<y> <X5900>;<X05>;<X05>;<y>
-<Y> <X5900>;<X05>;<X9C>;<Y>
-<z> <X5B00>;<X05>;<X05>;<z>
-<Z> <X5B00>;<X05>;<X9C>;<Z>
 <GREEK_SMALL_LETTER_ALPHA> <X5F06>;<X05>;<X05>;<GREEK_SMALL_LETTER_ALPHA>
 <GREEK_CAPITAL_LETTER_ALPHA> <X5F06>;<X05>;<XA6>;<GREEK_CAPITAL_LETTER_ALPHA>
 <GREEK_SMALL_LETTER_ALPHA_WITH_PSILI> <X5F06>;"<X05><X84>";"<X05><X05>";<GREEK_SMALL_LETTER_ALPHA_WITH_PSILI>
@@ -826,6 +772,58 @@ order_start forward;forward;forward;forward
 <GREEK_CAPITAL_LETTER_ARCHAIC_SAMPI> <X5F5C>;<X05>;<XA0>;<GREEK_CAPITAL_LETTER_ARCHAIC_SAMPI>
 <GREEK_SMALL_LETTER_SHO> <X5F5E>;<X05>;<X05>;<GREEK_SMALL_LETTER_SHO>
 <GREEK_CAPITAL_LETTER_SHO> <X5F5E>;<X05>;<XA0>;<GREEK_CAPITAL_LETTER_SHO>
+<a> <X2900>;<X05>;<X05>;<a>
+<A> <X2900>;<X05>;<X9C>;<A>
+<b> <X2B00>;<X05>;<X05>;<b>
+<B> <X2B00>;<X05>;<X9C>;<B>
+<c> <X2D00>;<X05>;<X05>;<c>
+<C> <X2D00>;<X05>;<X9C>;<C>
+<d> <X2F00>;<X05>;<X05>;<d>
+<D> <X2F00>;<X05>;<X9C>;<D>
+<e> <X3100>;<X05>;<X05>;<e>
+<E> <X3100>;<X05>;<X9C>;<E>
+<f> <X3300>;<X05>;<X05>;<f>
+<F> <X3300>;<X05>;<X9C>;<F>
+<g> <X3500>;<X05>;<X05>;<g>
+<G> <X3500>;<X05>;<X9C>;<G>
+<h> <X3700>;<X05>;<X05>;<h>
+<H> <X3700>;<X05>;<X9C>;<H>
+<i> <X3900>;<X05>;<X05>;<i>
+<I> <X3900>;<X05>;<X9C>;<I>
+<j> <X3B00>;<X05>;<X05>;<j>
+<J> <X3B00>;<X05>;<X9C>;<J>
+<k> <X3D00>;<X05>;<X05>;<k>
+<K> <X3D00>;<X05>;<X9C>;<K>
+<l> <X3F00>;<X05>;<X05>;<l>
+<L> <X3F00>;<X05>;<X9C>;<L>
+<m> <X4100>;<X05>;<X05>;<m>
+<M> <X4100>;<X05>;<X9C>;<M>
+<n> <X4300>;<X05>;<X05>;<n>
+<N> <X4300>;<X05>;<X9C>;<N>
+<o> <X4500>;<X05>;<X05>;<o>
+<O> <X4500>;<X05>;<X9C>;<O>
+<p> <X4700>;<X05>;<X05>;<p>
+<P> <X4700>;<X05>;<X9C>;<P>
+<q> <X4900>;<X05>;<X05>;<q>
+<Q> <X4900>;<X05>;<XA0>;<Q>
+<r> <X4B00>;<X05>;<X05>;<r>
+<R> <X4B00>;<X05>;<X9C>;<R>
+<s> <X4D00>;<X05>;<X05>;<s>
+<S> <X4D00>;<X05>;<X9C>;<S>
+<t> <X4F00>;<X05>;<X05>;<t>
+<T> <X4F00>;<X05>;<X9C>;<T>
+<u> <X5100>;<X05>;<X05>;<u>
+<U> <X5100>;<X05>;<X9C>;<U>
+<v> <X5300>;<X05>;<X05>;<v>
+<V> <X5300>;<X05>;<X9C>;<V>
+<w> <X5500>;<X05>;<X05>;<w>
+<W> <X5500>;<X05>;<XA0>;<W>
+<x> <X5700>;<X05>;<X05>;<x>
+<X> <X5700>;<X05>;<X9C>;<X>
+<y> <X5900>;<X05>;<X05>;<y>
+<Y> <X5900>;<X05>;<X9C>;<Y>
+<z> <X5B00>;<X05>;<X05>;<z>
+<Z> <X5B00>;<X05>;<X9C>;<Z>
 UNDEFINED IGNORE;IGNORE;IGNORE;...
 
 order_end

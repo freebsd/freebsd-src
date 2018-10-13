@@ -1,4 +1,4 @@
-//===-------- SplitKit.h - Toolkit for splitting live ranges ----*- C++ -*-===//
+//===- SplitKit.h - Toolkit for splitting live ranges -----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,25 +17,66 @@
 
 #include "LiveRangeCalc.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/IntervalMap.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/LiveInterval.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/MC/LaneBitmask.h"
+#include "llvm/Support/Compiler.h"
+#include <utility>
 
 namespace llvm {
 
-class ConnectedVNInfoEqClasses;
-class LiveInterval;
 class LiveIntervals;
 class LiveRangeEdit;
 class MachineBlockFrequencyInfo;
-class MachineInstr;
+class MachineDominatorTree;
 class MachineLoopInfo;
 class MachineRegisterInfo;
 class TargetInstrInfo;
 class TargetRegisterInfo;
 class VirtRegMap;
-class VNInfo;
-class raw_ostream;
+
+/// Determines the latest safe point in a block in which we can insert a split,
+/// spill or other instruction related with CurLI.
+class LLVM_LIBRARY_VISIBILITY InsertPointAnalysis {
+private:
+  const LiveIntervals &LIS;
+
+  /// Last legal insert point in each basic block in the current function.
+  /// The first entry is the first terminator, the second entry is the
+  /// last valid point to insert a split or spill for a variable that is
+  /// live into a landing pad successor.
+  SmallVector<std::pair<SlotIndex, SlotIndex>, 8> LastInsertPoint;
+
+  SlotIndex computeLastInsertPoint(const LiveInterval &CurLI,
+                                   const MachineBasicBlock &MBB);
+
+public:
+  InsertPointAnalysis(const LiveIntervals &lis, unsigned BBNum);
+
+  /// Return the base index of the last valid insert point for \pCurLI in \pMBB.
+  SlotIndex getLastInsertPoint(const LiveInterval &CurLI,
+                               const MachineBasicBlock &MBB) {
+    unsigned Num = MBB.getNumber();
+    // Inline the common simple case.
+    if (LastInsertPoint[Num].first.isValid() &&
+        !LastInsertPoint[Num].second.isValid())
+      return LastInsertPoint[Num].first;
+    return computeLastInsertPoint(CurLI, MBB);
+  }
+
+  /// Returns the last insert point as an iterator for \pCurLI in \pMBB.
+  MachineBasicBlock::iterator getLastInsertPointIter(const LiveInterval &CurLI,
+                                                     MachineBasicBlock &MBB);
+};
 
 /// SplitAnalysis - Analyze a LiveInterval, looking for live range splitting
 /// opportunities.
@@ -81,16 +122,13 @@ public:
 
 private:
   // Current live interval.
-  const LiveInterval *CurLI;
+  const LiveInterval *CurLI = nullptr;
+
+  /// Insert Point Analysis.
+  InsertPointAnalysis IPA;
 
   // Sorted slot indexes of using instructions.
   SmallVector<SlotIndex, 8> UseSlots;
-
-  /// LastSplitPoint - Last legal split point in each basic block in the current
-  /// function. The first entry is the first terminator, the second entry is the
-  /// last valid split point for a variable that is live in to a landing pad
-  /// successor.
-  SmallVector<std::pair<SlotIndex, SlotIndex>, 8> LastSplitPoint;
 
   /// UseBlocks - Blocks where CurLI has uses.
   SmallVector<BlockInfo, 8> UseBlocks;
@@ -107,8 +145,6 @@ private:
 
   /// DidRepairRange - analyze was forced to shrinkToUses().
   bool DidRepairRange;
-
-  SlotIndex computeLastSplitPoint(unsigned Num);
 
   // Sumarize statistics by counting instructions using CurLI.
   void analyzeUses();
@@ -135,19 +171,6 @@ public:
 
   /// getParent - Return the last analyzed interval.
   const LiveInterval &getParent() const { return *CurLI; }
-
-  /// getLastSplitPoint - Return the base index of the last valid split point
-  /// in the basic block numbered Num.
-  SlotIndex getLastSplitPoint(unsigned Num) {
-    // Inline the common simple case.
-    if (LastSplitPoint[Num].first.isValid() &&
-        !LastSplitPoint[Num].second.isValid())
-      return LastSplitPoint[Num].first;
-    return computeLastSplitPoint(Num);
-  }
-
-  /// getLastSplitPointIter - Returns the last split point as an iterator.
-  MachineBasicBlock::iterator getLastSplitPointIter(MachineBasicBlock*);
 
   /// isOriginalEndpoint - Return true if the original live range was killed or
   /// (re-)defined at Idx. Idx should be the 'def' slot for a normal kill/def,
@@ -183,7 +206,7 @@ public:
   /// analyze(li).
   unsigned countLiveBlocks(const LiveInterval *li) const;
 
-  typedef SmallPtrSet<const MachineBasicBlock*, 16> BlockPtrSet;
+  using BlockPtrSet = SmallPtrSet<const MachineBasicBlock *, 16>;
 
   /// shouldSplitSingleBlock - Returns true if it would help to create a local
   /// live range for the instructions in BI. There is normally no benefit to
@@ -194,8 +217,15 @@ public:
   /// @param BI           The block to be isolated.
   /// @param SingleInstrs True when single instructions should be isolated.
   bool shouldSplitSingleBlock(const BlockInfo &BI, bool SingleInstrs) const;
-};
 
+  SlotIndex getLastSplitPoint(unsigned Num) {
+    return IPA.getLastInsertPoint(*CurLI, *MF.getBlockNumbered(Num));
+  }
+
+  MachineBasicBlock::iterator getLastSplitPointIter(MachineBasicBlock *BB) {
+    return IPA.getLastInsertPointIter(*CurLI, *BB);
+  }
+};
 
 /// SplitEditor - Edit machine code and LiveIntervals for live range
 /// splitting.
@@ -210,6 +240,7 @@ public:
 ///
 class LLVM_LIBRARY_VISIBILITY SplitEditor {
   SplitAnalysis &SA;
+  AliasAnalysis &AA;
   LiveIntervals &LIS;
   VirtRegMap &VRM;
   MachineRegisterInfo &MRI;
@@ -219,7 +250,6 @@ class LLVM_LIBRARY_VISIBILITY SplitEditor {
   const MachineBlockFrequencyInfo &MBFI;
 
 public:
-
   /// ComplementSpillMode - Select how the complement live range should be
   /// created.  SplitEditor automatically creates interval 0 to contain
   /// anything that isn't added to another interval.  This complement interval
@@ -247,19 +277,18 @@ public:
   };
 
 private:
-
   /// Edit - The current parent register and new intervals created.
-  LiveRangeEdit *Edit;
+  LiveRangeEdit *Edit = nullptr;
 
   /// Index into Edit of the currently open interval.
   /// The index 0 is used for the complement, so the first interval started by
   /// openIntv will be 1.
-  unsigned OpenIdx;
+  unsigned OpenIdx = 0;
 
   /// The current spill mode, selected by reset().
-  ComplementSpillMode SpillMode;
+  ComplementSpillMode SpillMode = SM_Partition;
 
-  typedef IntervalMap<SlotIndex, unsigned> RegAssignMap;
+  using RegAssignMap = IntervalMap<SlotIndex, unsigned>;
 
   /// Allocator for the interval map. This will eventually be shared with
   /// SlotIndexes and LiveIntervals.
@@ -270,8 +299,8 @@ private:
   /// Idx.
   RegAssignMap RegAssign;
 
-  typedef PointerIntPair<VNInfo*, 1> ValueForcePair;
-  typedef DenseMap<std::pair<unsigned, unsigned>, ValueForcePair> ValueMap;
+  using ValueForcePair = PointerIntPair<VNInfo *, 1>;
+  using ValueMap = DenseMap<std::pair<unsigned, unsigned>, ValueForcePair>;
 
   /// Values - keep track of the mapping from parent values to values in the new
   /// intervals. Given a pair (RegIdx, ParentVNI->id), Values contains:
@@ -299,18 +328,40 @@ private:
     return LRCalc[SpillMode != SM_Partition && RegIdx != 0];
   }
 
+  /// Find a subrange corresponding to the lane mask @p LM in the live
+  /// interval @p LI. The interval @p LI is assumed to contain such a subrange.
+  /// This function is used to find corresponding subranges between the
+  /// original interval and the new intervals.
+  LiveInterval::SubRange &getSubRangeForMask(LaneBitmask LM, LiveInterval &LI);
+
+  /// Add a segment to the interval LI for the value number VNI. If LI has
+  /// subranges, corresponding segments will be added to them as well, but
+  /// with newly created value numbers. If Original is true, dead def will
+  /// only be added a subrange of LI if the corresponding subrange of the
+  /// original interval has a def at this index. Otherwise, all subranges
+  /// of LI will be updated.
+  void addDeadDef(LiveInterval &LI, VNInfo *VNI, bool Original);
+
   /// defValue - define a value in RegIdx from ParentVNI at Idx.
   /// Idx does not have to be ParentVNI->def, but it must be contained within
   /// ParentVNI's live range in ParentLI. The new value is added to the value
-  /// map.
+  /// map. The value being defined may either come from rematerialization
+  /// (or an inserted copy), or it may be coming from the original interval.
+  /// The parameter Original should be true in the latter case, otherwise
+  /// it should be false.
   /// Return the new LI value.
-  VNInfo *defValue(unsigned RegIdx, const VNInfo *ParentVNI, SlotIndex Idx);
+  VNInfo *defValue(unsigned RegIdx, const VNInfo *ParentVNI, SlotIndex Idx,
+                   bool Original);
 
   /// forceRecompute - Force the live range of ParentVNI in RegIdx to be
   /// recomputed by LiveRangeCalc::extend regardless of the number of defs.
   /// This is used for values whose live range doesn't match RegAssign exactly.
   /// They could have rematerialized, or back-copies may have been moved.
-  void forceRecompute(unsigned RegIdx, const VNInfo *ParentVNI);
+  void forceRecompute(unsigned RegIdx, const VNInfo &ParentVNI);
+
+  /// Calls forceRecompute() on any affected regidx and on ParentVNI
+  /// predecessors in case of a phi definition.
+  void forceRecomputeVNI(const VNInfo &ParentVNI);
 
   /// defFromParent - Define Reg from ParentVNI at UseIdx using either
   /// rematerialization or a COPY from parent. Return the new value.
@@ -329,13 +380,27 @@ private:
   MachineBasicBlock *findShallowDominator(MachineBasicBlock *MBB,
                                           MachineBasicBlock *DefMBB);
 
-  /// hoistCopiesForSize - Hoist back-copies to the complement interval in a
-  /// way that minimizes code size. This implements the SM_Size spill mode.
-  void hoistCopiesForSize();
+  /// Find out all the backCopies dominated by others.
+  void computeRedundantBackCopies(DenseSet<unsigned> &NotToHoistSet,
+                                  SmallVectorImpl<VNInfo *> &BackCopies);
+
+  /// Hoist back-copies to the complement interval. It tries to hoist all
+  /// the back-copies to one BB if it is beneficial, or else simply remove
+  /// redundant backcopies dominated by others.
+  void hoistCopies();
 
   /// transferValues - Transfer values to the new ranges.
   /// Return true if any ranges were skipped.
   bool transferValues();
+
+  /// Live range @p LR corresponding to the lane Mask @p LM has a live
+  /// PHI def at the beginning of block @p B. Extend the range @p LR of
+  /// all predecessor values that reach this def. If @p LR is a subrange,
+  /// the array @p Undefs is the set of all locations where it is undefined
+  /// via <def,read-undef> in other subranges for the same register.
+  void extendPHIRange(MachineBasicBlock &B, LiveRangeCalc &LRC,
+                      LiveRange &LR, LaneBitmask LM,
+                      ArrayRef<SlotIndex> Undefs);
 
   /// extendPHIKillRanges - Extend the ranges of all values killed by original
   /// parent PHIDefs.
@@ -347,11 +412,23 @@ private:
   /// deleteRematVictims - Delete defs that are dead after rematerializing.
   void deleteRematVictims();
 
+  /// Add a copy instruction copying \p FromReg to \p ToReg before
+  /// \p InsertBefore. This can be invoked with a \p LaneMask which may make it
+  /// necessary to construct a sequence of copies to cover it exactly.
+  SlotIndex buildCopy(unsigned FromReg, unsigned ToReg, LaneBitmask LaneMask,
+      MachineBasicBlock &MBB, MachineBasicBlock::iterator InsertBefore,
+      bool Late, unsigned RegIdx);
+
+  SlotIndex buildSingleSubRegCopy(unsigned FromReg, unsigned ToReg,
+      MachineBasicBlock &MB, MachineBasicBlock::iterator InsertBefore,
+      unsigned SubIdx, LiveInterval &DestLI, bool Late, SlotIndex PrevCopy);
+
 public:
   /// Create a new SplitEditor for editing the LiveInterval analyzed by SA.
   /// Newly created intervals will be appended to newIntervals.
-  SplitEditor(SplitAnalysis &SA, LiveIntervals&, VirtRegMap&,
-              MachineDominatorTree&, MachineBlockFrequencyInfo &);
+  SplitEditor(SplitAnalysis &sa, AliasAnalysis &aa, LiveIntervals &lis,
+              VirtRegMap &vrm, MachineDominatorTree &mdt,
+              MachineBlockFrequencyInfo &mbfi);
 
   /// reset - Prepare for a new split.
   void reset(LiveRangeEdit&, ComplementSpillMode = SM_Partition);
@@ -466,6 +543,6 @@ public:
                         unsigned IntvOut, SlotIndex EnterAfter);
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_CODEGEN_SPLITKIT_H

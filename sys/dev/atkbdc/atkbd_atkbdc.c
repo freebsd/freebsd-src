@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -28,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kbd.h"
+#include "opt_evdev.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -169,3 +172,6 @@ atkbdintr(void *arg)
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(atkbd, evdev, 1, 1, 1);
+#endif

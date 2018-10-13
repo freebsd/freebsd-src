@@ -12,7 +12,7 @@
  *
  * Functions for signature and digest verification.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
 /* for netdissect_options */
@@ -21,7 +21,9 @@
 /* signature checking result codes */
 #define SIGNATURE_VALID		0
 #define SIGNATURE_INVALID	1
-#define CANT_CHECK_SIGNATURE	2
+#define CANT_ALLOCATE_COPY	2
+#define CANT_CHECK_SIGNATURE	3
 
 extern const struct tok signature_check_values[];
-extern int signature_verify(netdissect_options *, const u_char *, u_int, u_char *);
+extern int signature_verify(netdissect_options *, const u_char *, u_int,
+                            const u_char *, void (*)(void *), const void *);

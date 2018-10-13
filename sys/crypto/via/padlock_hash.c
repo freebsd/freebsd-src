@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/endian.h>
 #include <sys/pcpu.h>
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -81,19 +81,27 @@ static void padlock_sha1_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
 static void padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
 
 static struct auth_hash padlock_hmac_sha1 = {
-	CRYPTO_SHA1_HMAC, "HMAC-SHA1",
-	20, SHA1_HASH_LEN, SHA1_HMAC_BLOCK_LEN, sizeof(struct padlock_sha_ctx),
-        (void (*)(void *))padlock_sha_init, NULL, NULL,
-	(int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
-	(void (*)(uint8_t *, void *))padlock_sha1_final
+	.type = CRYPTO_SHA1_HMAC,
+	.name = "HMAC-SHA1",
+	.keysize = SHA1_BLOCK_LEN,
+	.hashsize = SHA1_HASH_LEN,
+	.ctxsize = sizeof(struct padlock_sha_ctx),
+	.blocksize = SHA1_BLOCK_LEN,
+        .Init = (void (*)(void *))padlock_sha_init,
+	.Update = (int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
+	.Final = (void (*)(uint8_t *, void *))padlock_sha1_final,
 };
 
 static struct auth_hash padlock_hmac_sha256 = {
-	CRYPTO_SHA2_256_HMAC, "HMAC-SHA2-256",
-	32, SHA2_256_HASH_LEN, SHA2_256_HMAC_BLOCK_LEN, sizeof(struct padlock_sha_ctx),
-        (void (*)(void *))padlock_sha_init, NULL, NULL,
-	(int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
-	(void (*)(uint8_t *, void *))padlock_sha256_final
+	.type = CRYPTO_SHA2_256_HMAC,
+	.name = "HMAC-SHA2-256",
+	.keysize = SHA2_256_BLOCK_LEN,
+	.hashsize = SHA2_256_HASH_LEN,
+	.ctxsize = sizeof(struct padlock_sha_ctx),
+	.blocksize = SHA2_256_BLOCK_LEN,
+        .Init = (void (*)(void *))padlock_sha_init,
+	.Update = (int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
+	.Final = (void (*)(uint8_t *, void *))padlock_sha256_final,
 };
 
 MALLOC_DECLARE(M_PADLOCK);
@@ -369,10 +377,7 @@ padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
 	int error;
 
 	td = curthread;
-	error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
-	    FPU_KERN_KTHR);
-	if (error != 0)
-		return (error);
+	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
 	if ((maccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0)
 		padlock_hash_key_setup(ses, maccrd->crd_key, maccrd->crd_klen);
 

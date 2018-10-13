@@ -1,4 +1,4 @@
-#	$OpenBSD: limit-keytype.sh,v 1.4 2015/10/29 08:05:17 djm Exp $
+#	$OpenBSD: limit-keytype.sh,v 1.5 2018/03/12 00:52:57 djm Exp $
 #	Placed in the Public Domain.
 
 tid="restrict pubkey type"
@@ -60,7 +60,8 @@ ${SSH} $opts -i $OBJ/user_key2 proxy true || fatal "key2 failed"
 
 # Allow plain Ed25519 and RSA. The certificate should fail.
 verbose "allow rsa,ed25519"
-prepare_config "PubkeyAcceptedKeyTypes ssh-rsa,ssh-ed25519"
+prepare_config \
+	"PubkeyAcceptedKeyTypes rsa-sha2-256,rsa-sha2-512,ssh-rsa,ssh-ed25519"
 ${SSH} $certopts proxy true && fatal "cert succeeded"
 ${SSH} $opts -i $OBJ/user_key1 proxy true || fatal "key1 failed"
 ${SSH} $opts -i $OBJ/user_key2 proxy true || fatal "key2 failed"
@@ -74,14 +75,14 @@ ${SSH} $opts -i $OBJ/user_key2 proxy true && fatal "key2 succeeded"
 
 # Allow all certs. Plain keys should fail.
 verbose "allow cert only"
-prepare_config "PubkeyAcceptedKeyTypes ssh-*-cert-v01@openssh.com"
+prepare_config "PubkeyAcceptedKeyTypes *-cert-v01@openssh.com"
 ${SSH} $certopts proxy true || fatal "cert failed"
 ${SSH} $opts -i $OBJ/user_key1 proxy true && fatal "key1 succeeded"
 ${SSH} $opts -i $OBJ/user_key2 proxy true && fatal "key2 succeeded"
 
 # Allow RSA in main config, Ed25519 for non-existent user.
 verbose "match w/ no match"
-prepare_config "PubkeyAcceptedKeyTypes ssh-rsa" \
+prepare_config "PubkeyAcceptedKeyTypes rsa-sha2-256,rsa-sha2-512,ssh-rsa" \
 	"Match user x$USER" "PubkeyAcceptedKeyTypes +ssh-ed25519"
 ${SSH} $certopts proxy true && fatal "cert succeeded"
 ${SSH} $opts -i $OBJ/user_key1 proxy true && fatal "key1 succeeded"

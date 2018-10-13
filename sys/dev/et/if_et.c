@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Sepherosa Ziehau.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
@@ -186,6 +188,8 @@ static driver_t et_driver = {
 static devclass_t et_devclass;
 
 DRIVER_MODULE(et, pci, et_driver, et_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, et, et_devices,
+    nitems(et_devices) - 1);
 DRIVER_MODULE(miibus, et, miibus_driver, miibus_devclass, 0, 0);
 
 static int	et_rx_intr_npkts = 32;
@@ -1579,7 +1583,7 @@ et_setmulti(struct et_softc *sc)
 
 	count = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		uint32_t *hp, h;
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)

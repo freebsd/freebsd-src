@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2014
+.Dd April 30, 2018
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd "generate the password databases"
 .Sh SYNOPSIS
 .Nm
-.Op Fl BCilLNp
+.Op Fl BCiLNp
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
 .Op Fl u Ar username
@@ -112,26 +112,8 @@ encrypted password and the insecure version has an asterisk (``*'')
 The databases are used by the C library password routines (see
 .Xr getpwent 3 ) .
 .Pp
-By default,
-the
-.Nm
-utility generates new,
-machine independent format
-.Pq v4
-entries only.
-For compatibility with
-.Fx 5.0
-and earlier releases,
-the
-.Fl l
-option may be specified,
-which enables generation of legacy format
-.Pq v3
-entries.
-The legacy format entries are endianness dependent.
-.Pp
-The following options may be specified and will affect the
-generation of legacy entries.
+The following options affected the generation of legacy entries,
+and are now deprecated.
 .Bl -tag -width flag
 .It Fl B
 Store data in big-endian format.

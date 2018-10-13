@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +32,7 @@
 
 #define	XHCI_MAX_DEVICES	MIN(USB_MAX_DEVICES, 128)
 #define	XHCI_MAX_ENDPOINTS	32	/* hardcoded - do not change */
-#define	XHCI_MAX_SCRATCHPADS	32
+#define	XHCI_MAX_SCRATCHPADS	256	/* theoretical max is 1023 */
 #define	XHCI_MAX_EVENTS		(16 * 13)
 #define	XHCI_MAX_COMMANDS	(16 * 1)
 #define	XHCI_MAX_RSEG		1
@@ -496,16 +498,19 @@ struct xhci_softc {
 	uint16_t		sc_command_idx;
 	uint16_t		sc_imod_default;
 
+	/* number of scratch pages */
+	uint16_t		sc_noscratch;
+
 	uint8_t			sc_event_ccs;
 	uint8_t			sc_command_ccs;
 	/* number of XHCI device slots */
 	uint8_t			sc_noslot;
 	/* number of ports on root HUB */
 	uint8_t			sc_noport;
-	/* number of scratch pages */
-	uint8_t			sc_noscratch;
 	/* root HUB device configuration */
 	uint8_t			sc_conf;
+	/* step status stage of all control transfers */
+	uint8_t			sc_ctlstep;
 	/* root HUB port event bitmap, max 256 ports */
 	uint8_t			sc_hub_idata[32];
 
@@ -524,6 +529,7 @@ struct xhci_softc {
 
 uint8_t 	xhci_use_polling(void);
 usb_error_t xhci_halt_controller(struct xhci_softc *);
+usb_error_t xhci_reset_controller(struct xhci_softc *);
 usb_error_t xhci_init(struct xhci_softc *, device_t, uint8_t);
 usb_error_t xhci_start_controller(struct xhci_softc *);
 void	xhci_interrupt(struct xhci_softc *);

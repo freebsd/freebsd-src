@@ -1,6 +1,8 @@
 /*-
  * DEVD (Device action daemon)
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 M. Warner Losh <imp@freebsd.org>.
  * All rights reserved.
  *
@@ -50,6 +52,7 @@ void set_variable(const char *, const char *);
 void yyerror(const char *s);
 int  yylex(void);
 int  yyparse(void);
+extern int lineno;
 __END_DECLS
 
 #define PATH_DEVCTL	"/dev/devctl"

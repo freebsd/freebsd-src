@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2015
+.Dd May 5, 2017
 .Dt SA 4
 .Os
 .Sh NAME
@@ -242,6 +242,87 @@ These devices include the QIC family of devices.
 block devices.
 This has not been determined yet, and they are treated
 as separate behaviors by the driver at this time.)
+.Sh PARAMETERS
+The
+.Nm
+driver supports a number of parameters.
+The user can query parameters using
+.Dq mt param -l
+(which uses the
+.Dv MTIOCPARAMGET
+ioctl) and the user can set parameters using
+.Dq mt param -s 
+(which uses the
+.Dv MTIOCPARAMSET
+ioctl).
+See
+.Xr mt 1
+and
+.Xr mtio 4
+for more details on the interface.
+.Pp
+Supported parameters:
+.Bl -tag -width 5n
+.It sili
+The default is 0.
+When set to 1, it sets the Suppress Incorrect Length Indicator (SILI) bit
+on tape reads.
+Tape drives normally return sense data (which contains the residual) when the
+application reads a block that is not the same length as the amount of data
+requested.
+The SILI bit suppresses that notification in most cases.
+See the SSC-5 spec (available at t10.org), specifically the section on the
+READ(6) command, for more information.
+.It eot_warn
+The default is 0.
+By default, the
+.Nm
+driver reports entering Programmable Early Warning, Early Warning and End
+of Media conditions by returning a write with 0 bytes written, and
+.Dv errno
+set to 0.
+If 
+.Va eot_warn
+is set to 1, the
+.Nm
+driver will set
+.Dv errno
+to 
+.Dv ENOSPC
+when it enters any of the out of space conditions.
+.It protection.protection_supported
+This is a read-only parameter, and is set to 1 if the tape drive supports
+protection information.
+.It protection.prot_method
+If protection is supported, set this to the desired protection method
+supported by the tape drive.
+As of SSC-5r03 (available at t10.org), the protection method values are:
+.Bl -tag -width 3n
+.It 0
+No protection.
+.It 1
+Reed-Solomon CRC, 4 bytes in length.
+.It 2
+CRC32C, 4 bytes in length.
+.El
+.It protection.pi_length
+Length of the protection information, see above for lengths.
+.It protection.lbp_w
+If set to 1, enable logical block protection on writes.
+The CRC must be appended to the end of the block written to the tape driver.
+The tape drive will verify the CRC when it receives the block.
+.It protection.lbp_r
+If set to 1, enable logical block protection on reads.
+The CRC will be appended to the end of the block read from the tape driver.
+The application should verify the CRC when it receives the block.
+.It protection.rdbp
+If set to 1, enable logical block protection on the RECOVER BUFFERED DATA
+command.
+The
+.Nm
+driver does not currently use the
+RECOVER BUFFERED DATA command.
+.El
 .Sh IOCTLS
 The
 .Nm
@@ -262,7 +343,26 @@ Control mode device (to examine state while another program is
 accessing the device, e.g.).
 .El
 .Sh DIAGNOSTICS
-None.
+The
+.Nm
+driver supports injecting End Of Media (EOM) notification to aid
+application development and testing.
+EOM is indicated to the application by returning the read or write with 0
+bytes written.
+In addition, when EOM is injected, the tape position status will be updated
+to temporarily show Beyond of the Programmable Early Warning (BPEW) status.
+To see BPEW status, use the
+.Dv MTIOCEXTGET
+ioctl, which is used by the 
+.Dq mt status 
+command.
+To inject an EOM notification, set the 
+.Pp
+.Va kern.cam.sa.%d.inject_eom
+.Pp
+sysctl variable to 1.
+One EOM notification will be sent, BPEW status will be set for one position
+query, and then the driver state will be reset to normal.
 .Sh SEE ALSO
 .Xr mt 1 ,
 .Xr cam 4

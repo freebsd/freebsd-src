@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Joerg Wunsch
  *
  * All rights reserved.
@@ -184,6 +186,7 @@ doread(int fd, FILE *of, const char *_devname)
 		if (rv == 0) {
 			/* EOF? */
 			warnx("premature EOF after %u bytes", nbytes);
+			free(trackbuf);
 			return (EX_OK);
 		}
 		if ((unsigned)rv == tracksize) {
@@ -215,6 +218,7 @@ doread(int fd, FILE *of, const char *_devname)
 						if (!quiet)
 							putc('\n', stderr);
 						perror("non-IO error");
+						free(trackbuf);
 						return (EX_OSERR);
 					}
 					if (ioctl(fd, FD_GSTAT, &fdcs) == -1)
@@ -233,6 +237,7 @@ doread(int fd, FILE *of, const char *_devname)
 					if (!recover) {
 						if (!quiet)
 							putc('\n', stderr);
+						free(trackbuf);
 						return (EX_IOERR);
 					}
 					memset(trackbuf, fillbyte, secsize);
@@ -284,6 +289,7 @@ doread(int fd, FILE *of, const char *_devname)
 			continue;
 		}
 	}
+	free(trackbuf);
 	if (!quiet) {
 		putc('\n', stderr);
 		if (nerrs)

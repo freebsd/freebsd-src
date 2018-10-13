@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -30,7 +32,7 @@
 #define _SYS_TASKQUEUE_H_
 
 #ifndef _KERNEL
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 #include <sys/queue.h>
@@ -79,6 +81,10 @@ int	taskqueue_start_threads_cpuset(struct taskqueue **tqp, int count,
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
 int	taskqueue_enqueue_timeout(struct taskqueue *queue,
 	    struct timeout_task *timeout_task, int ticks);
+int	taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
+	    struct timeout_task *timeout_task, sbintime_t sbt, sbintime_t pr,
+	    int flags);
+int	taskqueue_poll_is_busy(struct taskqueue *queue, struct task *task);
 int	taskqueue_cancel(struct taskqueue *queue, struct task *task,
 	    u_int *pendp);
 int	taskqueue_cancel_timeout(struct taskqueue *queue,
@@ -145,7 +151,7 @@ taskqueue_define_##name(void *arg)					\
 	init;								\
 }									\
 									\
-SYSINIT(taskqueue_##name, SI_SUB_INIT_IF, SI_ORDER_SECOND,		\
+SYSINIT(taskqueue_##name, SI_SUB_TASKQ, SI_ORDER_SECOND,		\
 	taskqueue_define_##name, NULL);					\
 									\
 struct __hack
@@ -170,7 +176,7 @@ taskqueue_define_##name(void *arg)					\
 	init;								\
 }									\
 									\
-SYSINIT(taskqueue_##name, SI_SUB_INIT_IF, SI_ORDER_SECOND,		\
+SYSINIT(taskqueue_##name, SI_SUB_TASKQ, SI_ORDER_SECOND,		\
 	taskqueue_define_##name, NULL);					\
 									\
 struct __hack
@@ -203,79 +209,5 @@ TASKQUEUE_DECLARE(fast);
 struct taskqueue *taskqueue_create_fast(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);
-
-/*
- * Taskqueue groups.  Manages dynamic thread groups and irq binding for
- * device and other tasks.
- */
-int grouptaskqueue_enqueue(struct taskqueue *queue, struct task *task);
-void	taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
-	    void *uniq, int irq, char *name);
-int		taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
-		void *uniq, int cpu, int irq, char *name);
-void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
-struct taskqgroup *taskqgroup_create(char *name);
-void	taskqgroup_destroy(struct taskqgroup *qgroup);
-int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
-
-#define TASK_SKIP_WAKEUP		0x1
-
-#define GTASK_INIT(task, priority, func, context) do {	\
-	(task)->ta_pending = 0;				\
-	(task)->ta_priority = (priority);		\
-	(task)->ta_func = (func);			\
-	(task)->ta_context = (context);			\
-} while (0)
-
-#define	GROUPTASK_INIT(gtask, priority, func, context)	\
-	GTASK_INIT(&(gtask)->gt_task, priority, func, context)
-
-#define	GROUPTASK_ENQUEUE(gtask)			\
-	grouptaskqueue_enqueue((gtask)->gt_taskqueue, &(gtask)->gt_task)
-
-#define TASKQGROUP_DECLARE(name)			\
-extern struct taskqgroup *qgroup_##name
-
-#ifdef EARLY_AP_STARTUP
-#define TASKQGROUP_DEFINE(name, cnt, stride)				\
-									\
-struct taskqgroup *qgroup_##name;					\
-									\
-static void								\
-taskqgroup_define_##name(void *arg)					\
-{									\
-	qgroup_##name = taskqgroup_create(#name);			\
-	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
-}									\
-									\
-SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
-	taskqgroup_define_##name, NULL)
-#else
-#define TASKQGROUP_DEFINE(name, cnt, stride)				\
-									\
-struct taskqgroup *qgroup_##name;					\
-									\
-static void								\
-taskqgroup_define_##name(void *arg)					\
-{									\
-	qgroup_##name = taskqgroup_create(#name);			\
-}									\
-									\
-SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
-	taskqgroup_define_##name, NULL);				\
-									\
-static void								\
-taskqgroup_adjust_##name(void *arg)					\
-{									\
-	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
-}									\
-									\
-SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
-	taskqgroup_adjust_##name, NULL);				\
-									\
-struct __hack
-#endif
-
-TASKQGROUP_DECLARE(net);
 
 #endif /* !_SYS_TASKQUEUE_H_ */

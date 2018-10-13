@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2004
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -572,7 +574,7 @@ vge_rxfilter(struct vge_softc *sc)
 	vge_cam_clear(sc);
 	/* Now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		error = vge_cam_set(sc,
@@ -585,7 +587,7 @@ vge_rxfilter(struct vge_softc *sc)
 	if (error) {
 		vge_cam_clear(sc);
 
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)

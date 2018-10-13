@@ -25,7 +25,7 @@ There are presently two scripts.
 One for making a real device driver for ISA devices, and 
 one for making a device driver for pseudo devices (e.g. /dev/null).
 Hopefully they will be joined by similar scripts for creating
-skeletons for PCI and EISA devices as well.
+skeletons for PCI devices as well.
 
 Give them a single argument: the name of the driver.
 They will use this given name in many places within the driver,

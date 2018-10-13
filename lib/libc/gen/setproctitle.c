@@ -23,10 +23,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -59,8 +55,8 @@ struct old_ps_strings {
 
 #define SPT_BUFSIZE 2048	/* from other parts of sendmail */
 
-void
-setproctitle(const char *fmt, ...)
+static char *
+setproctitle_internal(const char *fmt, va_list ap)
 {
 	static struct ps_strings *ps_strings;
 	static char *buf = NULL;
@@ -71,26 +67,22 @@ setproctitle(const char *fmt, ...)
 	char **nargvp;
 	int nargc;
 	int i;
-	va_list ap;
 	size_t len;
 	unsigned long ul_ps_strings;
-	int oid[4];
 
 	if (buf == NULL) {
 		buf = malloc(SPT_BUFSIZE);
-		if (buf == NULL) 
-			return;
+		if (buf == NULL)
+			return (NULL);
 		nargv[0] = buf;
 	}
 
 	if (obuf == NULL ) {
 		obuf = malloc(SPT_BUFSIZE);
 		if (obuf == NULL)
-			return;
+			return (NULL);
 		*obuf = '\0';
 	}
-
-	va_start(ap, fmt);
 
 	if (fmt) {
 		buf[SPT_BUFSIZE - 1] = '\0';
@@ -106,34 +98,25 @@ setproctitle(const char *fmt, ...)
 		}
 
 		/* print the argument string */
-		(void) vsnprintf(buf + len, SPT_BUFSIZE - len, fmt, ap);
+		(void)vsnprintf(buf + len, SPT_BUFSIZE - len, fmt, ap);
 
 		nargvp = nargv;
 		nargc = 1;
 		kbuf = buf;
 	} else if (*obuf != '\0') {
-  		/* Idea from NetBSD - reset the title on fmt == NULL */
+		/* Idea from NetBSD - reset the title on fmt == NULL */
 		nargvp = oargv;
 		nargc = oargc;
 		kbuf = obuf;
 	} else
 		/* Nothing to restore */
-		return;
-
-	va_end(ap);
-
-	/* Set the title into the kernel cached command line */
-	oid[0] = CTL_KERN;
-	oid[1] = KERN_PROC;
-	oid[2] = KERN_PROC_ARGS;
-	oid[3] = getpid();
-	sysctl(oid, 4, 0, 0, kbuf, strlen(kbuf) + 1);
+		return (NULL);
 
 	if (ps_strings == NULL) {
 		len = sizeof(ul_ps_strings);
 		if (sysctlbyname("kern.ps_strings", &ul_ps_strings, &len, NULL,
 		    0) == -1)
-			return;
+			return (NULL);
 		ps_strings = (struct ps_strings *)ul_ps_strings;
 	}
 
@@ -142,7 +125,7 @@ setproctitle(const char *fmt, ...)
 	 * Should not happen.
 	 */
 	if (ps_strings->ps_argvstr == NULL)
-		return;
+		return (NULL);
 
 	/* style #3 */
 	if (oargc == -1) {
@@ -171,4 +154,52 @@ setproctitle(const char *fmt, ...)
 	}
 	ps_strings->ps_nargvstr = nargc;
 	ps_strings->ps_argvstr = nargvp;
+
+	return (nargvp[0]);
+}
+
+static int fast_update = 0;
+
+void
+setproctitle_fast(const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int oid[4];
+
+	va_start(ap, fmt);
+	buf = setproctitle_internal(fmt, ap);
+	va_end(ap);
+
+	if (buf && !fast_update) {
+		/* Tell the kernel to start looking in user-space */
+		oid[0] = CTL_KERN;
+		oid[1] = KERN_PROC;
+		oid[2] = KERN_PROC_ARGS;
+		oid[3] = getpid();
+		sysctl(oid, 4, 0, 0, "", 0);
+		fast_update = 1;
+	}
+}
+
+void
+setproctitle(const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int oid[4];
+
+	va_start(ap, fmt);
+	buf = setproctitle_internal(fmt, ap);
+	va_end(ap);
+
+	if (buf != NULL) {
+		/* Set the title into the kernel cached command line */
+		oid[0] = CTL_KERN;
+		oid[1] = KERN_PROC;
+		oid[2] = KERN_PROC_ARGS;
+		oid[3] = getpid();
+		sysctl(oid, 4, 0, 0, buf, strlen(buf) + 1);
+		fast_update = 0;
+	}
 }

@@ -33,21 +33,35 @@
 #ifndef _MPRVAR_H
 #define _MPRVAR_H
 
-#define MPR_DRIVER_VERSION	"13.00.00.00-fbsd"
+#define MPR_DRIVER_VERSION	"18.03.00.00-fbsd"
 
 #define MPR_DB_MAX_WAIT		2500
 
-#define MPR_REQ_FRAMES		1024
+#define MPR_REQ_FRAMES		2048
+#define MPR_PRI_REQ_FRAMES	128
 #define MPR_EVT_REPLY_FRAMES	32
 #define MPR_REPLY_FRAMES	MPR_REQ_FRAMES
-#define MPR_CHAIN_FRAMES	2048
+#define MPR_CHAIN_FRAMES	16384
+#define MPR_MAXIO_PAGES		(-1)
 #define MPR_SENSE_LEN		SSD_FULL_SIZE
-#define MPR_MSI_COUNT		1
+#define MPR_MSI_MAX		1
+#define MPR_MSIX_MAX		96
 #define MPR_SGE64_SIZE		12
 #define MPR_SGE32_SIZE		8
 #define MPR_SGC_SIZE		8
 #define MPR_DEFAULT_CHAIN_SEG_SIZE	8
 #define MPR_MAX_CHAIN_ELEMENT_SIZE	16
+
+/*
+ * PCIe NVMe Specific defines
+ */
+//SLM-for now just use the same value as a SAS disk
+#define NVME_QDEPTH			MPR_REQ_FRAMES
+#define PRP_ENTRY_SIZE			8
+#define NVME_CMD_PRP1_OFFSET		24	/* PRP1 offset in NVMe cmd */
+#define NVME_CMD_PRP2_OFFSET		32	/* PRP2 offset in NVMe cmd */
+#define NVME_ERROR_RESPONSE_SIZE	16	/* Max NVME Error Response */
+#define HOST_PAGE_SIZE_4K		12
 
 #define MPR_FUNCTRACE(sc)			\
 	mpr_dprint((sc), MPR_TRACE, "%s\n", __func__)
@@ -57,11 +71,11 @@
 
 #define MPR_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
 #define MPR_ATA_ID_TIMEOUT	5	/* 5 second timeout for SATA ID cmd */
+#define MPR_MISSING_CHECK_DELAY	10	/* 10 seconds between missing check */
 
 #define	IFAULT_IOP_OVER_TEMP_THRESHOLD_EXCEEDED	0x2810
 
 #define MPR_SCSI_RI_INVALID_FRAME	(0x00000002)
-#define MPR_STRING_LENGTH               64
 
 #define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
@@ -76,7 +90,6 @@
 #define MPR_MAX_MISSING_COUNT	0x0F
 #define MPR_DEV_RESERVED	0x20000000
 #define MPR_MAP_IN_USE		0x10000000
-#define MPR_RAID_CHANNEL	1
 #define MPR_MAP_BAD_ID		0xFFFFFFFF
 
 typedef uint8_t u8;
@@ -91,7 +104,6 @@ typedef uint64_t u64;
  * @phy_bits: bitfields indicating controller phys
  * @dpm_entry_num: index of this device in device persistent map table
  * @dev_handle: device handle for the device pointed by this entry
- * @channel: target channel
  * @id: target id
  * @missing_count: number of times the device not detected by driver
  * @hide_flag: Hide this physical disk/not (foreign configuration)
@@ -104,8 +116,7 @@ struct dev_mapping_table {
 	u32	phy_bits;
 	u16	dpm_entry_num;
 	u16	dev_handle;
-	u8	reserved1;
-	u8	channel;
+	u16	reserved1;
 	u16	id;
 	u8	missing_count;
 	u8	init_complete;
@@ -183,6 +194,12 @@ struct mpr_chain {
 	uint64_t			chain_busaddr;
 };
 
+struct mpr_prp_page {
+	TAILQ_ENTRY(mpr_prp_page)	prp_page_link;
+	uint64_t			*prp_page;
+	uint64_t			prp_page_busaddr;
+};
+
 /*
  * This needs to be at least 2 to support SMP passthrough.
  */
@@ -226,11 +243,14 @@ struct mpr_command {
 #define MPR_CM_STATE_FREE		0
 #define MPR_CM_STATE_BUSY		1
 #define MPR_CM_STATE_TIMEDOUT		2
+#define MPR_CM_STATE_INQUEUE		3
 	bus_dmamap_t			cm_dmamap;
 	struct scsi_sense_data		*cm_sense;
+	uint64_t			*nvme_error_response;
 	TAILQ_HEAD(, mpr_chain)		cm_chain_list;
+ 	TAILQ_HEAD(, mpr_prp_page)	cm_prp_page_list;
 	uint32_t			cm_req_busaddr;
-	uint32_t			cm_sense_busaddr;
+	bus_addr_t			cm_sense_busaddr;
 	struct callout			cm_callout;
 };
 
@@ -246,6 +266,36 @@ struct mpr_event_handle {
 	uint8_t				mask[16];
 };
 
+struct mpr_busdma_context {
+	int				completed;
+	int				abandoned;
+	int				error;
+	bus_addr_t			*addr;
+	struct mpr_softc		*softc;
+	bus_dmamap_t			buffer_dmamap;
+	bus_dma_tag_t			buffer_dmat;
+};
+
+struct mpr_queue {
+	struct mpr_softc		*sc;
+	int				qnum;
+	MPI2_REPLY_DESCRIPTORS_UNION	*post_queue;
+	int				replypostindex;
+#ifdef notyet
+	ck_ring_buffer_t		*ringmem;
+	ck_ring_buffer_t		*chainmem;
+	ck_ring_t			req_ring;
+	ck_ring_t			chain_ring;
+#endif
+	bus_dma_tag_t			buffer_dmat;
+	int				io_cmds_highwater;
+	int				chain_free_lowwater;
+	int				chain_alloc_fail;
+	struct resource			*irq;
+	void				*intrhand;
+	int				irq_rid;
+};
+
 struct mpr_softc {
 	device_t			mpr_dev;
 	struct cdev			*mpr_cdev;
@@ -256,32 +306,45 @@ struct mpr_softc {
 #define MPR_FLAGS_SHUTDOWN	(1 << 3)
 #define MPR_FLAGS_DIAGRESET	(1 << 4)
 #define	MPR_FLAGS_ATTACH_DONE	(1 << 5)
+#define	MPR_FLAGS_GEN35_IOC	(1 << 6)
+#define	MPR_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mpr_debug;
-	u_int				disable_msix;
-	u_int				disable_msi;
+	int				msi_msgs;
+	u_int				reqframesz;
+	u_int				replyframesz;
+	u_int				atomic_desc_capable;
 	int				tm_cmds_active;
 	int				io_cmds_active;
 	int				io_cmds_highwater;
 	int				chain_free;
 	int				max_chains;
+	int				max_io_pages;
+	u_int				maxio;
 	int				chain_free_lowwater;
 	uint32_t			chain_frame_size;
-	uint16_t			chain_seg_size;
+	int				prp_buffer_size;
+	int				prp_pages_free;
+	int				prp_pages_free_lowwater;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
+	int				use_phynum;
 	uint64_t			chain_alloc_fail;
+	uint64_t			prp_page_alloc_fail;
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
 	struct mpr_command		*commands;
 	struct mpr_chain		*chains;
+	struct mpr_prp_page		*prps;
 	struct callout			periodic;
+	struct callout			device_check_callout;
+	struct mpr_queue		*queues;
 
 	struct mprsas_softc		*sassc;
-	char            tmp_string[MPR_STRING_LENGTH];
 	TAILQ_HEAD(, mpr_command)	req_list;
 	TAILQ_HEAD(, mpr_command)	high_priority_req_list;
 	TAILQ_HEAD(, mpr_chain)		chain_list;
+	TAILQ_HEAD(, mpr_prp_page)	prp_page_list;
 	TAILQ_HEAD(, mpr_command)	tm_list;
 	int				replypostindex;
 	int				replyfreeindex;
@@ -296,7 +359,9 @@ struct mpr_softc {
 
 	MPI2_IOC_FACTS_REPLY		*facts;
 	int				num_reqs;
+	int				num_prireqs;
 	int				num_replies;
+	int				num_chains;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
 
@@ -306,9 +371,6 @@ struct mpr_softc {
 
 	struct mtx			mpr_mtx;
 	struct intr_config_hook		mpr_ich;
-	struct resource			*mpr_irq[MPR_MSI_COUNT];
-	void				*mpr_intrhand[MPR_MSI_COUNT];
-	int				mpr_irq_rid[MPR_MSI_COUNT];
 
 	uint8_t				*req_frames;
 	bus_addr_t			req_busaddr;
@@ -326,9 +388,13 @@ struct mpr_softc {
 	bus_dmamap_t			sense_map;
 
 	uint8_t				*chain_frames;
-	bus_addr_t			chain_busaddr;
 	bus_dma_tag_t			chain_dmat;
 	bus_dmamap_t			chain_map;
+
+	uint8_t				*prp_pages;
+	bus_addr_t			prp_page_busaddr;
+	bus_dma_tag_t			prp_page_dmat;
+	bus_dmamap_t			prp_page_map;
 
 	MPI2_REPLY_DESCRIPTORS_UNION	*post_queue;
 	bus_addr_t			post_busaddr;
@@ -361,13 +427,10 @@ struct mpr_softc {
 	uint8_t				max_volumes;
 	uint8_t				num_enc_table_entries;
 	uint8_t				num_rsvd_entries;
-	uint8_t				num_channels;
 	uint16_t			max_dpm_entries;
 	uint8_t				is_dpm_enable;
 	uint8_t				track_mapping_events;
 	uint32_t			pending_map_events;
-	uint8_t				mt_full_retry;
-	uint8_t				mt_add_device_failed;
 
 	/* FW diag Buffer List */
 	mpr_fw_diagnostic_buffer_t
@@ -396,7 +459,16 @@ struct mpr_softc {
 	uint32_t			SSU_refcount;
 	uint8_t				SSU_started;
 
+	/* Configuration tunables */
+	u_int				disable_msix;
+	u_int				disable_msi;
+	u_int				max_msix;
+	u_int				max_reqframes;
+	u_int				max_prireqframes;
+	u_int				max_replyframes;
+	u_int				max_evtframes;
 	char				exclude_ids[80];
+
 	struct timeval			lastfail;
 };
 
@@ -468,10 +540,35 @@ mpr_free_chain(struct mpr_softc *sc, struct mpr_chain *chain)
 	TAILQ_INSERT_TAIL(&sc->chain_list, chain, chain_link);
 }
 
+static __inline struct mpr_prp_page *
+mpr_alloc_prp_page(struct mpr_softc *sc)
+{
+	struct mpr_prp_page *prp_page;
+
+	if ((prp_page = TAILQ_FIRST(&sc->prp_page_list)) != NULL) {
+		TAILQ_REMOVE(&sc->prp_page_list, prp_page, prp_page_link);
+		sc->prp_pages_free--;
+		if (sc->prp_pages_free < sc->prp_pages_free_lowwater)
+			sc->prp_pages_free_lowwater = sc->prp_pages_free;
+	} else
+		sc->prp_page_alloc_fail++;
+	return (prp_page);
+}
+
+static __inline void
+mpr_free_prp_page(struct mpr_softc *sc, struct mpr_prp_page *prp_page)
+{
+	sc->prp_pages_free++;
+	TAILQ_INSERT_TAIL(&sc->prp_page_list, prp_page, prp_page_link);
+}
+
 static __inline void
 mpr_free_command(struct mpr_softc *sc, struct mpr_command *cm)
 {
 	struct mpr_chain *chain, *chain_temp;
+	struct mpr_prp_page *prp_page, *prp_page_temp;
+
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
 
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
@@ -494,6 +591,11 @@ mpr_free_command(struct mpr_softc *sc, struct mpr_command *cm)
 		TAILQ_REMOVE(&cm->cm_chain_list, chain, chain_link);
 		mpr_free_chain(sc, chain);
 	}
+	TAILQ_FOREACH_SAFE(prp_page, &cm->cm_prp_page_list, prp_page_link,
+	    prp_page_temp) {
+		TAILQ_REMOVE(&cm->cm_prp_page_list, prp_page, prp_page_link);
+		mpr_free_prp_page(sc, prp_page);
+	}
 	TAILQ_INSERT_TAIL(&sc->req_list, cm, cm_link);
 }
 
@@ -506,8 +608,10 @@ mpr_alloc_command(struct mpr_softc *sc)
 	if (cm == NULL)
 		return (NULL);
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
+	    ("mpr: Allocating busy command\n"));
+
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
-	KASSERT(cm->cm_state == MPR_CM_STATE_FREE, ("mpr: Allocating busy command\n"));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	return (cm);
 }
@@ -516,6 +620,8 @@ static __inline void
 mpr_free_high_priority_command(struct mpr_softc *sc, struct mpr_command *cm)
 {
 	struct mpr_chain *chain, *chain_temp;
+
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
 
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
@@ -543,8 +649,10 @@ mpr_alloc_high_priority_command(struct mpr_softc *sc)
 	if (cm == NULL)
 		return (NULL);
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
+	    ("mpr: Allocating busy command\n"));
+
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
-	KASSERT(cm->cm_state == MPR_CM_STATE_FREE, ("mpr: Allocating busy command\n"));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	return (cm);
 }
@@ -581,6 +689,9 @@ mpr_unlock(struct mpr_softc *sc)
 #define mpr_printf(sc, args...)				\
 	device_printf((sc)->mpr_dev, ##args)
 
+#define mpr_print_field(sc, msg, args...)		\
+	printf("\t" msg, ##args)
+
 #define mpr_vprintf(sc, args...)			\
 do {							\
 	if (bootverbose)				\
@@ -593,25 +704,13 @@ do {							\
 		device_printf((sc)->mpr_dev, msg, ##args);	\
 } while (0)
 
-#define mpr_dprint_field(sc, level, msg, args...)		\
-do {								\
-	if ((sc)->mpr_debug & (level))				\
-		printf("\t" msg, ##args);			\
-} while (0)
-
 #define MPR_PRINTFIELD_START(sc, tag...)	\
-	mpr_dprint((sc), MPR_INFO, ##tag);	\
-	mpr_dprint_field((sc), MPR_INFO, ":\n")
+	mpr_printf((sc), ##tag);		\
+	mpr_print_field((sc), ":\n")
 #define MPR_PRINTFIELD_END(sc, tag)		\
-	mpr_dprint((sc), MPR_INFO, tag "\n")
+	mpr_printf((sc), tag "\n")
 #define MPR_PRINTFIELD(sc, facts, attr, fmt)	\
-	mpr_dprint_field((sc), MPR_INFO, #attr ": " #fmt "\n", (facts)->attr)
-
-#define MPR_EVENTFIELD_START(sc, tag...)	\
-	mpr_dprint((sc), MPR_EVENT, ##tag);	\
-	mpr_dprint_field((sc), MPR_EVENT, ":\n")
-#define MPR_EVENTFIELD(sc, facts, attr, fmt)	\
-	mpr_dprint_field((sc), MPR_EVENT, #attr ": " #fmt "\n", (facts)->attr)
+	mpr_print_field((sc), #attr ": " #fmt "\n", (facts)->attr)
 
 static __inline void
 mpr_from_u64(uint64_t data, U64 *mpr)
@@ -647,8 +746,10 @@ mpr_unmask_intr(struct mpr_softc *sc)
 }
 
 int mpr_pci_setup_interrupts(struct mpr_softc *sc);
+void mpr_pci_free_interrupts(struct mpr_softc *sc);
 int mpr_pci_restore(struct mpr_softc *sc);
 
+void mpr_get_tunables(struct mpr_softc *sc);
 int mpr_attach(struct mpr_softc *sc);
 int mpr_free(struct mpr_softc *sc);
 void mpr_intr(void *);
@@ -659,6 +760,9 @@ int mpr_register_events(struct mpr_softc *, uint8_t *, mpr_evt_callback_t *,
 int mpr_restart(struct mpr_softc *);
 int mpr_update_events(struct mpr_softc *, struct mpr_event_handle *, uint8_t *);
 int mpr_deregister_events(struct mpr_softc *, struct mpr_event_handle *);
+void mpr_build_nvme_prp(struct mpr_softc *sc, struct mpr_command *cm,
+    Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request, void *data,
+    uint32_t data_in_sz, uint32_t data_out_sz);
 int mpr_push_sge(struct mpr_command *, MPI2_SGE_SIMPLE64 *, size_t, int);
 int mpr_push_ieee_sge(struct mpr_command *, void *, int);
 int mpr_add_dmaseg(struct mpr_command *, vm_paddr_t, size_t, u_int, int);
@@ -667,6 +771,7 @@ int mpr_detach_sas(struct mpr_softc *sc);
 int mpr_read_config_page(struct mpr_softc *, struct mpr_config_params *);
 int mpr_write_config_page(struct mpr_softc *, struct mpr_config_params *);
 void mpr_memaddr_cb(void *, bus_dma_segment_t *, int , int );
+void mpr_memaddr_wait_cb(void *, bus_dma_segment_t *, int , int );
 void mpr_init_sge(struct mpr_command *cm, void *req, void *sge);
 int mpr_attach_user(struct mpr_softc *);
 void mpr_detach_user(struct mpr_softc *);
@@ -674,9 +779,9 @@ void mprsas_record_event(struct mpr_softc *sc,
     MPI2_EVENT_NOTIFICATION_REPLY *event_reply);
 
 int mpr_map_command(struct mpr_softc *sc, struct mpr_command *cm);
-int mpr_wait_command(struct mpr_softc *sc, struct mpr_command *cm, int timeout,
+int mpr_wait_command(struct mpr_softc *sc, struct mpr_command **cm, int timeout,
     int sleep_flag);
-int mpr_request_polled(struct mpr_softc *sc, struct mpr_command *cm);
+int mpr_request_polled(struct mpr_softc *sc, struct mpr_command **cm);
 
 int mpr_config_get_bios_pg3(struct mpr_softc *sc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2BiosPage3_t *config_page);
@@ -688,6 +793,10 @@ int mpr_config_get_iounit_pg8(struct mpr_softc *sc,
     Mpi2ConfigReply_t *mpi_reply, Mpi2IOUnitPage8_t *config_page);
 int mpr_config_get_sas_device_pg0(struct mpr_softc *, Mpi2ConfigReply_t *,
     Mpi2SasDevicePage0_t *, u32 , u16 );
+int mpr_config_get_pcie_device_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t
+    *mpi_reply, Mpi26PCIeDevicePage0_t *config_page, u32 form, u16 handle);
+int mpr_config_get_pcie_device_pg2(struct mpr_softc *sc, Mpi2ConfigReply_t
+    *mpi_reply, Mpi26PCIeDevicePage2_t *config_page, u32 form, u16 handle);
 int mpr_config_get_dpm_pg0(struct mpr_softc *, Mpi2ConfigReply_t *,
     Mpi2DriverMappingPage0_t *, u16 );
 int mpr_config_get_raid_volume_pg1(struct mpr_softc *sc,
@@ -698,7 +807,7 @@ int mpr_config_get_volume_wwid(struct mpr_softc *sc, u16 volume_handle,
 int mpr_config_get_raid_pd_pg0(struct mpr_softc *sc,
     Mpi2ConfigReply_t *mpi_reply, Mpi2RaidPhysDiskPage0_t *config_page,
     u32 page_address);
-void mprsas_ir_shutdown(struct mpr_softc *sc);
+void mprsas_ir_shutdown(struct mpr_softc *sc, int howto);
 
 int mpr_reinit(struct mpr_softc *sc);
 void mprsas_handle_reinit(struct mpr_softc *sc);
@@ -708,19 +817,20 @@ void mpr_base_static_config_pages(struct mpr_softc *sc);
 int mpr_mapping_initialize(struct mpr_softc *);
 void mpr_mapping_topology_change_event(struct mpr_softc *,
     Mpi2EventDataSasTopologyChangeList_t *);
-int mpr_mapping_is_reinit_required(struct mpr_softc *);
+void mpr_mapping_pcie_topology_change_event(struct mpr_softc *sc,
+    Mpi26EventDataPCIeTopologyChangeList_t *event_data);
 void mpr_mapping_free_memory(struct mpr_softc *sc);
 int mpr_config_set_dpm_pg0(struct mpr_softc *, Mpi2ConfigReply_t *,
     Mpi2DriverMappingPage0_t *, u16 );
 void mpr_mapping_exit(struct mpr_softc *);
-void mpr_mapping_check_devices(struct mpr_softc *, int);
+void mpr_mapping_check_devices(void *);
 int mpr_mapping_allocate_memory(struct mpr_softc *sc);
-unsigned int mpr_mapping_get_sas_id(struct mpr_softc *, uint64_t , u16);
-unsigned int mpr_mapping_get_sas_id_from_handle(struct mpr_softc *sc,
+unsigned int mpr_mapping_get_tid(struct mpr_softc *, uint64_t , u16);
+unsigned int mpr_mapping_get_tid_from_handle(struct mpr_softc *sc,
     u16 handle);
-unsigned int mpr_mapping_get_raid_id(struct mpr_softc *sc, u64 wwid,
-    u16 handle);
-unsigned int mpr_mapping_get_raid_id_from_handle(struct mpr_softc *sc,
+unsigned int mpr_mapping_get_raid_tid(struct mpr_softc *sc, u64 wwid,
+    u16 volHandle);
+unsigned int mpr_mapping_get_raid_tid_from_handle(struct mpr_softc *sc,
     u16 volHandle);
 void mpr_mapping_enclosure_dev_status_change_event(struct mpr_softc *,
     Mpi2EventDataSasEnclDevStatusChange_t *event_data);
@@ -774,6 +884,53 @@ SYSCTL_DECL(_hw_mpr);
 
 #define CAM_PRIORITY_NORMAL CAM_PRIORITY_NONE
 #endif
+
+/* Definitions for SCSI unmap translation to NVMe DSM command */
+
+/* UNMAP block descriptor structure */
+struct unmap_blk_desc {
+	uint64_t slba;
+	uint32_t nlb;
+	uint32_t resv;
+};
+
+/* UNMAP command's data */
+struct unmap_parm_list {
+	uint16_t unmap_data_len;
+	uint16_t unmap_blk_desc_data_len;
+	uint32_t resv;
+	struct unmap_blk_desc desc[0];
+};
+
+/* SCSI ADDITIONAL SENSE Codes */
+#define FIXED_SENSE_DATA                                0x70
+#define SCSI_ASC_NO_SENSE                               0x00
+#define SCSI_ASC_PERIPHERAL_DEV_WRITE_FAULT             0x03
+#define SCSI_ASC_LUN_NOT_READY                          0x04
+#define SCSI_ASC_WARNING                                0x0B
+#define SCSI_ASC_LOG_BLOCK_GUARD_CHECK_FAILED           0x10
+#define SCSI_ASC_LOG_BLOCK_APPTAG_CHECK_FAILED          0x10
+#define SCSI_ASC_LOG_BLOCK_REFTAG_CHECK_FAILED          0x10
+#define SCSI_ASC_UNRECOVERED_READ_ERROR                 0x11
+#define SCSI_ASC_MISCOMPARE_DURING_VERIFY               0x1D
+#define SCSI_ASC_ACCESS_DENIED_INVALID_LUN_ID           0x20
+#define SCSI_ASC_ILLEGAL_COMMAND                        0x20
+#define SCSI_ASC_ILLEGAL_BLOCK                          0x21
+#define SCSI_ASC_INVALID_CDB                            0x24
+#define SCSI_ASC_INVALID_LUN                            0x25
+#define SCSI_ASC_INVALID_PARAMETER                      0x26
+#define SCSI_ASC_FORMAT_COMMAND_FAILED                  0x31
+#define SCSI_ASC_INTERNAL_TARGET_FAILURE                0x44
+                
+/* SCSI ADDITIONAL SENSE Code Qualifiers */ 
+#define SCSI_ASCQ_CAUSE_NOT_REPORTABLE                  0x00
+#define SCSI_ASCQ_FORMAT_COMMAND_FAILED                 0x01
+#define SCSI_ASCQ_LOG_BLOCK_GUARD_CHECK_FAILED          0x01
+#define SCSI_ASCQ_LOG_BLOCK_APPTAG_CHECK_FAILED         0x02
+#define SCSI_ASCQ_LOG_BLOCK_REFTAG_CHECK_FAILED         0x03
+#define SCSI_ASCQ_FORMAT_IN_PROGRESS                    0x04
+#define SCSI_ASCQ_POWER_LOSS_EXPECTED                   0x08
+#define SCSI_ASCQ_INVALID_LUN_ID                        0x09
 
 #endif
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 John D. Polstra
  * Copyright (c) 1999,2001 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
@@ -54,17 +56,15 @@
  * Private macros, not to be used outside this header file.
  */
 #ifdef __GNUCLIKE___SECTION
-#define __MAKE_SET(set, sym)				\
+#define __MAKE_SET_QV(set, sym, qv)			\
 	__GLOBL(__CONCAT(__start_set_,set));		\
 	__GLOBL(__CONCAT(__stop_set_,set));		\
-	static void const * __MAKE_SET_CONST		\
+	static void const * qv				\
 	__set_##set##_sym_##sym __section("set_" #set)	\
 	__used = &(sym)
+#define __MAKE_SET(set, sym)	__MAKE_SET_QV(set, sym, __MAKE_SET_CONST)
 #else /* !__GNUCLIKE___SECTION */
-#ifndef lint
 #error this file needs to be ported to your compiler
-#endif /* lint */
-#define __MAKE_SET(set, sym)	extern void const * const (__set_##set##_sym_##sym)
 #endif /* __GNUCLIKE___SECTION */
 
 /*
@@ -72,6 +72,7 @@
  */
 #define TEXT_SET(set, sym)	__MAKE_SET(set, sym)
 #define DATA_SET(set, sym)	__MAKE_SET(set, sym)
+#define DATA_WSET(set, sym)	__MAKE_SET_QV(set, sym, )
 #define BSS_SET(set, sym)	__MAKE_SET(set, sym)
 #define ABS_SET(set, sym)	__MAKE_SET(set, sym)
 #define SET_ENTRY(set, sym)	__MAKE_SET(set, sym)

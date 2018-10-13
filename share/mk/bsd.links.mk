@@ -15,10 +15,8 @@ afterinstall: _installlinks
 .ORDER: realinstall _installlinks
 _installlinks:
 .for s t in ${LINKS}
-	@${ECHO} "${t} -> ${s}" ;\
 	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}${s} ${DESTDIR}${t}
 .endfor
 .for s t in ${SYMLINKS}
-	@${ECHO} "${t} -> ${s}" ;\
-	${INSTALL_SYMLINK} ${TAG_ARGS} ${s} ${DESTDIR}/${t}
+	${INSTALL_SYMLINK} ${TAG_ARGS} ${s} ${DESTDIR}${t}
 .endfor

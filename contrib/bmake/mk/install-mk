@@ -55,7 +55,7 @@
 #       Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: install-mk,v 1.128 2016/06/03 17:22:32 sjg Exp $
+#	$Id: install-mk,v 1.156 2018/04/22 04:42:47 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -70,7 +70,7 @@
 #	sjg@crufty.net
 #
 
-MK_VERSION=20160602
+MK_VERSION=20180420
 OWNER=
 GROUP=
 MODE=444
@@ -176,7 +176,7 @@ $SKIP_MKFILES Do chmod $BINMODE $mk_scripts
 [ "$OWNER" ] && $SKIP_MKFILES Do chown $OWNER $mk_files $sys_mk_files
 # if this is a BSD system the bsd.*.mk should exist and be used.
 if [ -z "$SKIP_BSD_MK" ]; then
-	for f in dep doc init lib links man nls obj own prog subdir
+	for f in dep doc files inc init lib links man nls obj own prog subdir
 	do
 		b=bsd.$f.mk
 		[ -s $b ] || Do ln -s $f.mk $b

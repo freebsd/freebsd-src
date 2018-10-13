@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -30,6 +32,9 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 #include <assert.h>
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
@@ -37,6 +42,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #undef	MIN
@@ -44,6 +50,7 @@
 
 static int    bt_devany_cb(int s, struct bt_devinfo const *di, void *xdevname);
 static char * bt_dev2node (char const *devname, char *nodename, int nnlen);
+static time_t bt_get_default_hci_command_timeout(void);
 
 int
 bt_devopen(char const *devname)
@@ -532,6 +539,63 @@ wait_for_more:
 	return (i - *ii);
 }
 
+char *
+bt_devremote_name(char const *devname, const bdaddr_t *remote, time_t to,
+    uint16_t clk_off, uint8_t ps_rep_mode, uint8_t ps_mode)
+{
+	char				 _devname[HCI_DEVNAME_SIZE];
+	struct bt_devreq		 r;
+	ng_hci_remote_name_req_cp	 cp;
+	ng_hci_remote_name_req_compl_ep	 ep;
+	int				 s;
+	char				*remote_name = NULL;
+
+	if (remote == NULL || to < 0) {
+		errno = EINVAL;
+		goto out;
+	}
+
+	if (to == 0) {
+		to = bt_get_default_hci_command_timeout();
+		if (to < 0)
+			goto out;
+	}
+	to++;
+
+	if (devname == NULL) {
+		memset(_devname, 0, sizeof(_devname));
+		devname = _devname;
+		if (bt_devenum(bt_devany_cb, _devname) <= 0)
+			goto out;
+        }
+
+	memset(&r, 0, sizeof(r));
+	memset(&cp, 0, sizeof(cp));
+	memset(&ep, 0, sizeof(ep));
+	cp.clock_offset = htole16(clk_off);
+	cp.page_scan_rep_mode = ps_rep_mode;
+	cp.page_scan_mode = ps_mode;
+	bdaddr_copy(&cp.bdaddr, remote);
+	r.opcode = NG_HCI_OPCODE(NG_HCI_OGF_LINK_CONTROL,
+				 NG_HCI_OCF_REMOTE_NAME_REQ);
+	r.event = NG_HCI_EVENT_REMOTE_NAME_REQ_COMPL;
+	r.cparam = &cp;
+	r.clen = sizeof(cp);
+	r.rparam = &ep;
+	r.rlen = sizeof(ep);
+
+	s = bt_devopen(devname);
+	if (s < 0)
+		goto out;
+
+	if (bt_devreq(s, &r, to) == 0 || ep.status == 0x00)
+		remote_name = strndup((const char *)&ep.name, sizeof(ep.name));
+
+	bt_devclose(s);
+out:
+	return (remote_name);
+}
+
 int
 bt_devinfo(struct bt_devinfo *di)
 {
@@ -733,3 +797,21 @@ bt_dev2node(char const *devname, char *nodename, int nnlen)
 	return (NULL);
 }
 
+static time_t
+bt_get_default_hci_command_timeout(void)
+{
+	int	to;
+	size_t	to_size = sizeof(to);
+
+	if (sysctlbyname("net.bluetooth.hci.command_timeout",
+			 &to, &to_size, NULL, 0) < 0)
+		return (-1);
+
+	/* Should not happen */
+	if (to <= 0) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	return ((time_t)to);
+}

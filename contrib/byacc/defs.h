@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.51 2014/10/02 22:38:13 tom Exp $ */
+/* $Id: defs.h,v 1.57 2017/04/30 23:29:11 tom Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -118,10 +118,13 @@
 #define LEX_PARAM 14
 #define POSIX_YACC 15
 #define TOKEN_TABLE 16
+#define ERROR_VERBOSE 17
+#define XXXDEBUG 18
 
 #if defined(YYBTYACC)
-#define LOCATIONS 17
-#define DESTRUCTOR 18
+#define LOCATIONS 19
+#define DESTRUCTOR 20
+#define INITIAL_ACTION 21
 #endif
 
 /*  symbol classes  */
@@ -198,7 +201,7 @@ struct bucket
 #if defined(YYBTYACC)
     char **argnames;
     char **argtags;
-    int  args;
+    int args;
     char *destructor;
 #endif
     Value_t value;
@@ -287,10 +290,12 @@ extern int outline;
 extern int exit_code;
 extern int pure_parser;
 extern int token_table;
+extern int error_verbose;
 #if defined(YYBTYACC)
 extern int locations;
 extern int backtrack;
 extern int destructor;
+extern char *initial_action;
 #endif
 
 extern const char *const banner[];
@@ -302,11 +307,14 @@ extern const char *const hdr_defs[];
 extern const char *const hdr_vars[];
 extern const char *const body_1[];
 extern const char *const body_vars[];
+extern const char *const init_vars[];
 extern const char *const body_2[];
+extern const char *const body_3[];
 extern const char *const trailer[];
 
 extern char *code_file_name;
 extern char *input_file_name;
+extern size_t input_file_name_len;
 extern char *defines_file_name;
 extern char *externs_file_name;
 
@@ -412,22 +420,29 @@ extern param *parse_param;
 #endif
 
 #ifndef GCC_PRINTFLIKE
-#define GCC_PRINTFLIKE(fmt,var) /*nothing*/
+#define GCC_PRINTFLIKE(fmt,var)	/*nothing */
 #endif
 
 /* closure.c */
-extern void closure(Value_t * nucleus, int n);
+extern void closure(Value_t *nucleus, int n);
 extern void finalize_closure(void);
 extern void set_first_derives(void);
 
 /* error.c */
+struct ainfo
+{
+    int a_lineno;
+    char *a_line;
+    char *a_cptr;
+};
+
 extern void arg_number_disagree_warning(int a_lineno, char *a_name);
 extern void arg_type_disagree_warning(int a_lineno, int i, char *a_name);
 extern void at_error(int a_lineno, char *a_line, char *a_cptr) GCC_NORETURN;
 extern void at_warning(int a_lineno, int i);
 extern void bad_formals(void) GCC_NORETURN;
-extern void default_action_warning(void);
-extern void destructor_redeclared_warning(int a_lineno, char *a_line, char *a_cptr);
+extern void default_action_warning(char *s);
+extern void destructor_redeclared_warning(const struct ainfo *);
 extern void dollar_error(int a_lineno, char *a_line, char *a_cptr) GCC_NORETURN;
 extern void dollar_warning(int a_lineno, int i);
 extern void fatal(const char *msg) GCC_NORETURN;
@@ -454,16 +469,16 @@ extern void unexpected_EOF(void) GCC_NORETURN;
 extern void unknown_arg_warning(int d_lineno, const char *dlr_opt, const char *d_arg, const char *d_line, const char *d_cptr);
 extern void unknown_rhs(int i) GCC_NORETURN;
 extern void unsupported_flag_warning(const char *flag, const char *details);
-extern void unterminated_action(int a_lineno, char *a_line, char *a_cptr) GCC_NORETURN;
-extern void unterminated_comment(int c_lineno, char *c_line, char *c_cptr) GCC_NORETURN;
-extern void unterminated_string(int s_lineno, char *s_line, char *s_cptr) GCC_NORETURN;
-extern void unterminated_text(int t_lineno, char *t_line, char *t_cptr) GCC_NORETURN;
-extern void unterminated_union(int u_lineno, char *u_line, char *u_cptr) GCC_NORETURN;
+extern void unterminated_action(const struct ainfo *) GCC_NORETURN;
+extern void unterminated_comment(const struct ainfo *) GCC_NORETURN;
+extern void unterminated_string(const struct ainfo *) GCC_NORETURN;
+extern void unterminated_text(const struct ainfo *) GCC_NORETURN;
+extern void unterminated_union(const struct ainfo *) GCC_NORETURN;
 extern void untyped_arg_warning(int a_lineno, const char *dlr_opt, const char *a_name);
 extern void untyped_lhs(void) GCC_NORETURN;
 extern void untyped_rhs(int i, char *s) GCC_NORETURN;
 extern void used_reserved(char *s) GCC_NORETURN;
-extern void unterminated_arglist(int a_lineno, char *a_line, char *a_cptr) GCC_NORETURN;
+extern void unterminated_arglist(const struct ainfo *) GCC_NORETURN;
 extern void wrong_number_args_warning(const char *which, const char *a_name);
 extern void wrong_type_for_arg_warning(int i, char *a_name);
 

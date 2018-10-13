@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -110,43 +112,3 @@ ar71xx_pci_slot_create_eeprom_firmware(device_t dev, u_int bus, u_int slot,
 	}
 	device_printf(dev, "device EEPROM '%s' registered\n", buf);
 }
-
-#if 0
-static void
-ar71xx_pci_slot_fixup(device_t dev, u_int bus, u_int slot, u_int func)
-{
-	long int flash_addr;
-	char buf[64];
-	int size;
-
-	/*
-	 * Check whether the given slot has a hint to poke.
-	 */
-	if (bootverbose)
-	device_printf(dev, "%s: checking dev %s, %d/%d/%d\n",
-	    __func__, device_get_nameunit(dev), bus, slot, func);
-
-	snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_addr",
-	    bus, slot, func);
-
-	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
-	    buf, &flash_addr) == 0) {
-		snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_size",
-		    bus, slot, func);
-		if (resource_int_value(device_get_name(dev),
-		    device_get_unit(dev), buf, &size) != 0) {
-			device_printf(dev,
-			    "%s: missing hint '%s', aborting EEPROM\n",
-			    __func__, buf);
-			return;
-		}
-
-
-		device_printf(dev, "found EEPROM at 0x%lx on %d.%d.%d\n",
-		    flash_addr, bus, slot, func);
-		ar71xx_pci_fixup(dev, bus, slot, func, flash_addr, size);
-		ar71xx_pci_slot_create_eeprom_firmware(dev, bus, slot, func,
-		    flash_addr, size);
-	}
-}
-#endif /* 0 */

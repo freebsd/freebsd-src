@@ -42,6 +42,8 @@
 #include <dev/mps/mpi/mpi2_cnfg.h>
 #include <dev/mps/mpi/mpi2_raid.h>
 #include <dev/mps/mpi/mpi2_ioc.h>
+#include <dev/mps/mpi/mpi2_init.h>
+#include <dev/mps/mpi/mpi2_tool.h>
 
 #define MPSUTIL_VERSION	"1.0.0"
 
@@ -102,6 +104,7 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define	HD_OMIT_HEX	(1 << 17)
 #define	HD_OMIT_CHARS	(1 << 18)
 #define HD_REVERSED	(1 << 19)
+int	mps_parse_flags(uintmax_t, const char *, char *, int);
 
 int	mps_open(int unit);
 int	mps_table_handler(struct mpsutil_command **start,
@@ -140,6 +143,13 @@ mps_read_ioc_page(int fd, U8 PageNumber, U16 *IOCStatus)
 
 	return (mps_read_config_page(fd, MPI2_CONFIG_PAGETYPE_IOC, PageNumber,
 	    0, IOCStatus));
+}
+
+static __inline uint64_t
+mps_to_u64(U64 *data)
+{
+
+	return (((uint64_t)(data->High) << 32 ) | data->Low);
 }
 
 MPI2_IOC_FACTS_REPLY * mps_get_iocfacts(int fd);

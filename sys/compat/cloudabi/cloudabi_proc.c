@@ -53,8 +53,8 @@ cloudabi_sys_proc_exec(struct thread *td,
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_data_fds(td, &args, uap->data, uap->datalen,
-	    uap->fds, uap->fdslen);
+	error = exec_copyin_data_fds(td, &args, uap->data, uap->data_len,
+	    uap->fds, uap->fds_len);
 	if (error == 0) {
 		args.fd = uap->fd;
 		error = kern_execve(td, &args, NULL);

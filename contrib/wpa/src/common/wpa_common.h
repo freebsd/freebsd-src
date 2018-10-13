@@ -12,6 +12,8 @@
 /* IEEE 802.11i */
 #define PMKID_LEN 16
 #define PMK_LEN 32
+#define PMK_LEN_SUITE_B_192 48
+#define PMK_LEN_MAX 48
 #define WPA_REPLAY_COUNTER_LEN 8
 #define WPA_NONCE_LEN 32
 #define WPA_KEY_RSC_LEN 8
@@ -213,8 +215,20 @@ struct wpa_ptk {
 	size_t kck_len;
 	size_t kek_len;
 	size_t tk_len;
+	int installed; /* 1 if key has already been installed to driver */
 };
 
+struct wpa_gtk {
+	u8 gtk[WPA_GTK_MAX_LEN];
+	size_t gtk_len;
+};
+
+#ifdef CONFIG_IEEE80211W
+struct wpa_igtk {
+	u8 igtk[WPA_IGTK_MAX_LEN];
+	size_t igtk_len;
+};
+#endif /* CONFIG_IEEE80211W */
 
 /* WPA IE version 1
  * 00-50-f2:1 (OUI:OUI type)
@@ -407,7 +421,7 @@ u32 wpa_akm_to_suite(int akm);
 int wpa_compare_rsn_ie(int ft_initial_assoc,
 		       const u8 *ie1, size_t ie1len,
 		       const u8 *ie2, size_t ie2len);
-int wpa_insert_pmkid(u8 *ies, size_t ies_len, const u8 *pmkid);
+int wpa_insert_pmkid(u8 *ies, size_t *ies_len, const u8 *pmkid);
 
 struct wpa_ft_ies {
 	const u8 *mdie;

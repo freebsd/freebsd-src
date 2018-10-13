@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010, LSI Corp.
  * All rights reserved.
  * Author : Manjunath Ranganathaiah
@@ -606,21 +608,9 @@ tws_init(struct tws_softc *sc)
 
     sc->reqs = malloc(sizeof(struct tws_request) * tws_queue_depth, M_TWS,
                       M_WAITOK | M_ZERO);
-    if ( sc->reqs == NULL ) {
-        TWS_TRACE_DEBUG(sc, "malloc failed", 0, sc->is64bit);
-        return(ENOMEM);
-    }
     sc->sense_bufs = malloc(sizeof(struct tws_sense) * tws_queue_depth, M_TWS,
                       M_WAITOK | M_ZERO);
-    if ( sc->sense_bufs == NULL ) {
-        TWS_TRACE_DEBUG(sc, "sense malloc failed", 0, sc->is64bit);
-        return(ENOMEM);
-    }
     sc->scan_ccb = malloc(sizeof(union ccb), M_TWS, M_WAITOK | M_ZERO);
-    if ( sc->scan_ccb == NULL ) {
-        TWS_TRACE_DEBUG(sc, "ccb malloc failed", 0, sc->is64bit);
-        return(ENOMEM);
-    }
     if (bus_dmamem_alloc(sc->data_tag, (void **)&sc->ioctl_data_mem,
             (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &sc->ioctl_data_map)) {
         device_printf(sc->tws_dev, "Cannot allocate ioctl data mem\n");
@@ -668,8 +658,6 @@ tws_init_aen_q(struct tws_softc *sc)
     sc->aen_q.overflow=0;
     sc->aen_q.q = malloc(sizeof(struct tws_event_packet)*sc->aen_q.depth, 
                               M_TWS, M_WAITOK | M_ZERO);
-    if ( ! sc->aen_q.q )
-        return(FAILURE);
     return(SUCCESS);
 }
 
@@ -682,8 +670,6 @@ tws_init_trace_q(struct tws_softc *sc)
     sc->trace_q.overflow=0;
     sc->trace_q.q = malloc(sizeof(struct tws_trace_rec)*sc->trace_q.depth,
                               M_TWS, M_WAITOK | M_ZERO);
-    if ( ! sc->trace_q.q )
-        return(FAILURE);
     return(SUCCESS);
 }
 

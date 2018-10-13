@@ -10,136 +10,101 @@
 #include <inttypes.h>
 
 #include "lldb/Interpreter/CommandHistory.h"
-#include "lldb/Host/StringConvert.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
+CommandHistory::CommandHistory() : m_mutex(), m_history() {}
 
-CommandHistory::CommandHistory () :
-    m_mutex(Mutex::eMutexTypeRecursive),
-    m_history()
-{}
+CommandHistory::~CommandHistory() {}
 
-CommandHistory::~CommandHistory ()
-{}
-
-size_t
-CommandHistory::GetSize () const
-{
-    Mutex::Locker locker(m_mutex);
-    return m_history.size();
+size_t CommandHistory::GetSize() const {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  return m_history.size();
 }
 
-bool
-CommandHistory::IsEmpty () const
-{
-    Mutex::Locker locker(m_mutex);
-    return m_history.empty();
+bool CommandHistory::IsEmpty() const {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  return m_history.empty();
 }
 
-const char*
-CommandHistory::FindString (const char* input_str) const
-{
-    Mutex::Locker locker(m_mutex);
-    if (!input_str)
-        return nullptr;
-    if (input_str[0] != g_repeat_char)
-        return nullptr;
-    if (input_str[1] == '-')
-    {
-        bool success;
-        size_t idx = StringConvert::ToUInt32 (input_str+2, 0, 0, &success);
-        if (!success)
-            return nullptr;
-        if (idx > m_history.size())
-            return nullptr;
-        idx = m_history.size() - idx;
-        return m_history[idx].c_str();
-        
-    }
-    else if (input_str[1] == g_repeat_char)
-    {
-        if (m_history.empty())
-            return nullptr;
-        else
-            return m_history.back().c_str();
-    }
-    else
-    {
-        bool success;
-        uint32_t idx = StringConvert::ToUInt32 (input_str+1, 0, 0, &success);
-        if (!success)
-            return nullptr;
-        if (idx >= m_history.size())
-            return nullptr;
-        return m_history[idx].c_str();
-    }
-}
+llvm::Optional<llvm::StringRef>
+CommandHistory::FindString(llvm::StringRef input_str) const {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  if (input_str.size() < 2)
+    return llvm::None;
 
-const char*
-CommandHistory::GetStringAtIndex (size_t idx) const
-{
-    Mutex::Locker locker(m_mutex);
-    if (idx < m_history.size())
-        return m_history[idx].c_str();
-    return nullptr;
-}
+  if (input_str[0] != g_repeat_char)
+    return llvm::None;
 
-const char*
-CommandHistory::operator [] (size_t idx) const
-{
-    return GetStringAtIndex(idx);
-}
-
-const char*
-CommandHistory::GetRecentmostString () const
-{
-    Mutex::Locker locker(m_mutex);
+  if (input_str[1] == g_repeat_char) {
     if (m_history.empty())
-        return nullptr;
-    return m_history.back().c_str();
+      return llvm::None;
+    return llvm::StringRef(m_history.back());
+  }
+
+  input_str = input_str.drop_front();
+
+  size_t idx = 0;
+  if (input_str.front() == '-') {
+    if (input_str.drop_front(1).getAsInteger(0, idx))
+      return llvm::None;
+    if (idx >= m_history.size())
+      return llvm::None;
+    idx = m_history.size() - idx;
+  } else {
+    if (input_str.getAsInteger(0, idx))
+      return llvm::None;
+    if (idx >= m_history.size())
+      return llvm::None;
+  }
+
+  return llvm::StringRef(m_history[idx]);
 }
 
-void
-CommandHistory::AppendString (const std::string& str,
-                              bool reject_if_dupe)
-{
-    Mutex::Locker locker(m_mutex);
-    if (reject_if_dupe)
-    {
-        if (!m_history.empty())
-        {
-            if (str == m_history.back())
-                return;
-        }
+llvm::StringRef CommandHistory::GetStringAtIndex(size_t idx) const {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  if (idx < m_history.size())
+    return m_history[idx];
+  return "";
+}
+
+llvm::StringRef CommandHistory::operator[](size_t idx) const {
+  return GetStringAtIndex(idx);
+}
+
+llvm::StringRef CommandHistory::GetRecentmostString() const {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  if (m_history.empty())
+    return "";
+  return m_history.back();
+}
+
+void CommandHistory::AppendString(llvm::StringRef str, bool reject_if_dupe) {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  if (reject_if_dupe) {
+    if (!m_history.empty()) {
+      if (str == m_history.back())
+        return;
     }
-    m_history.push_back(std::string(str));
+  }
+  m_history.push_back(str);
 }
 
-void
-CommandHistory::Clear ()
-{
-    Mutex::Locker locker(m_mutex);
-    m_history.clear();
+void CommandHistory::Clear() {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  m_history.clear();
 }
 
-void
-CommandHistory::Dump (Stream& stream,
-                      size_t start_idx,
-                      size_t stop_idx) const
-{
-    Mutex::Locker locker(m_mutex);
-    stop_idx = std::min(stop_idx + 1, m_history.size());
-    for (size_t counter = start_idx;
-         counter < stop_idx;
-         counter++)
-    {
-        const std::string hist_item = m_history[counter];
-        if (!hist_item.empty())
-        {
-            stream.Indent();
-            stream.Printf("%4" PRIu64 ": %s\n", (uint64_t)counter, hist_item.c_str());
-        }
+void CommandHistory::Dump(Stream &stream, size_t start_idx,
+                          size_t stop_idx) const {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  stop_idx = std::min(stop_idx + 1, m_history.size());
+  for (size_t counter = start_idx; counter < stop_idx; counter++) {
+    const std::string hist_item = m_history[counter];
+    if (!hist_item.empty()) {
+      stream.Indent();
+      stream.Printf("%4" PRIu64 ": %s\n", (uint64_t)counter, hist_item.c_str());
     }
+  }
 }

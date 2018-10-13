@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -85,22 +87,21 @@ char *
 fgetln(FILE *fp, size_t *lenp)
 {
 	unsigned char *p;
+	char *ret;
 	size_t len;
 	size_t off;
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	/* make sure there is input */
 	if (fp->_r <= 0 && __srefill(fp)) {
 		*lenp = 0;
-		FUNLOCKFILE(fp);
-		return (NULL);
+		ret = NULL;
+		goto end;
 	}
 
 	/* look for a newline in the input */
 	if ((p = memchr((void *)fp->_p, '\n', (size_t)fp->_r)) != NULL) {
-		char *ret;
-
 		/*
 		 * Found one.  Flag buffer as modified to keep fseek from
 		 * `optimising' a backward seek, in case the user stomps on
@@ -112,8 +113,7 @@ fgetln(FILE *fp, size_t *lenp)
 		fp->_flags |= __SMOD;
 		fp->_r -= len;
 		fp->_p = p;
-		FUNLOCKFILE(fp);
-		return (ret);
+		goto end;
 	}
 
 	/*
@@ -139,8 +139,11 @@ fgetln(FILE *fp, size_t *lenp)
 		(void)memcpy((void *)(fp->_lb._base + off), (void *)fp->_p,
 		    len - off);
 		off = len;
-		if (__srefill(fp))
-			break;	/* EOF or error: return partial line */
+		if (__srefill(fp)) {
+			if (__sfeof(fp))
+				break;
+			goto error;
+		}
 		if ((p = memchr((void *)fp->_p, '\n', (size_t)fp->_r)) == NULL)
 			continue;
 
@@ -160,12 +163,14 @@ fgetln(FILE *fp, size_t *lenp)
 #ifdef notdef
 	fp->_lb._base[len] = '\0';
 #endif
-	FUNLOCKFILE(fp);
-	return ((char *)fp->_lb._base);
+	ret = (char *)fp->_lb._base;
+end:
+	FUNLOCKFILE_CANCELSAFE();
+	return (ret);
 
 error:
 	*lenp = 0;		/* ??? */
 	fp->_flags |= __SERR;
-	FUNLOCKFILE(fp);
-	return (NULL);		/* ??? */
+	ret = NULL;
+	goto end;
 }

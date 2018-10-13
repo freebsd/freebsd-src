@@ -55,6 +55,32 @@ inline int TCPS_FIN_WAIT_2 =	9;
 #pragma D binding "1.6.3" TCPS_TIME_WAIT
 inline int TCPS_TIME_WAIT =	10;
 
+/*
+ * For compatibility also provide the names used by Solaris.
+ */
+#pragma D binding "1.13" TCP_STATE_CLOSED
+inline int TCP_STATE_CLOSED =		TCPS_CLOSED;
+#pragma D binding "1.13" TCP_STATE_LISTEN
+inline int TCP_STATE_LISTEN =		TCPS_LISTEN;
+#pragma D binding "1.13" TCP_STATE_SYN_SENT
+inline int TCP_STATE_SYN_SENT =		TCPS_SYN_SENT;
+#pragma D binding "1.13" TCP_STATE_SYN_RECEIVED
+inline int TCP_STATE_SYN_RECEIVED =	TCPS_SYN_RECEIVED;
+#pragma D binding "1.13" TCP_STATE_ESTABLISHED
+inline int TCP_STATE_ESTABLISHED =	TCPS_ESTABLISHED;
+#pragma D binding "1.13" TCP_STATE_CLOSE_WAIT
+inline int TCP_STATE_CLOSE_WAIT =	TCPS_CLOSE_WAIT;
+#pragma D binding "1.13" TCP_STATE_FIN_WAIT_1
+inline int TCP_STATE_FIN_WAIT_1 =	TCPS_FIN_WAIT_1;
+#pragma D binding "1.13" TCP_STATE_CLOSING
+inline int TCP_STATE_CLOSING =		TCPS_CLOSING;
+#pragma D binding "1.13" TCP_STATE_LAST_ACK
+inline int TCP_STATE_LAST_ACK =		TCPS_LAST_ACK;
+#pragma D binding "1.13" TCP_STATE_FIN_WAIT_2
+inline int TCP_STATE_FIN_WAIT_2 =	TCPS_FIN_WAIT_2;
+#pragma D binding "1.13" TCP_STATE_TIME_WAIT
+inline int TCP_STATE_TIME_WAIT =	TCPS_TIME_WAIT;
+
 /* TCP segment flags. */
 #pragma D binding "1.6.3" TH_FIN
 inline uint8_t TH_FIN =		0x01;
@@ -118,17 +144,18 @@ typedef struct tcpsinfo {
 	int32_t tcps_rcv_ws;		/* receive window scaling */
 	u_long tcps_cwnd;		/* congestion window */
 	u_long tcps_cwnd_ssthresh;	/* threshold for congestion avoidance */
-	uint32_t tcps_srecover;	/* for use in NewReno Fast Recovery */
+	uint32_t tcps_srecover;		/* for use in NewReno Fast Recovery */
 	uint32_t tcps_sack_fack;	/* SACK sequence # we have acked */
 	uint32_t tcps_sack_snxt;	/* next SACK seq # for retransmission */
 	uint32_t tcps_rto;		/* round-trip timeout, msec */
 	uint32_t tcps_mss;		/* max segment size */
 	int tcps_retransmit;		/* retransmit send event, boolean */
 	int tcps_srtt;			/* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
-	int tcps_debug;		/* socket has SO_DEBUG set */
-	int32_t tcps_dupacks;	/* consecutive dup acks received */
-	uint32_t tcps_rtttime;	/* RTT measurement start time */
-	uint32_t tcps_rtseq;	/* sequence # being timed */
+	int tcps_debug;			/* socket has SO_DEBUG set */
+	int tcps_cookie;		/* expose the socket's SO_USER_COOKIE */
+	int32_t tcps_dupacks;		/* consecutive dup acks received */
+	uint32_t tcps_rtttime;		/* RTT measurement start time */
+	uint32_t tcps_rtseq;		/* sequence # being timed */
 	uint32_t tcps_ts_recent;	/* timestamp echo data */
 } tcpsinfo_t;
 
@@ -189,14 +216,14 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_active =		-1; /* XXX */
 	tcps_lport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_lport);
 	tcps_rport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_fport);
-	tcps_laddr =		p == NULL ? 0 :
+	tcps_laddr =		p == NULL ? "<unknown>" :
 	    p->t_inpcb->inp_vflag == INP_IPV4 ?
-	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.ie46_local.ia46_addr4.s_addr) :
-	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.ie6_local);
-	tcps_raddr =		p == NULL ? 0 :
+	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.id6_addr);
+	tcps_raddr =		p == NULL ? "<unknown>" :
 	    p->t_inpcb->inp_vflag == INP_IPV4 ?
-	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.ie46_foreign.ia46_addr4.s_addr) :
-	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.ie6_foreign);
+	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.id6_addr);
 	tcps_state =		p == NULL ? -1 : p->t_state;
 	tcps_iss =		p == NULL ? 0  : p->iss;
 	tcps_irs =		p == NULL ? 0  : p->irs;
@@ -205,29 +232,31 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_snxt =		p == NULL ? 0  : p->snd_nxt;
 	tcps_rack =		p == NULL ? 0  : p->last_ack_sent;
 	tcps_rnxt =		p == NULL ? 0  : p->rcv_nxt;
-	tcps_swnd =		p == NULL ? -1  : p->snd_wnd;
-	tcps_snd_ws =		p == NULL ? -1  : p->snd_scale;
-	tcps_swl1 =		p == NULL ? -1  : p->snd_wl1;
-	tcps_swl2 = 		p == NULL ? -1  : p->snd_wl2;
-	tcps_radv =		p == NULL ? -1  : p->rcv_adv;
-	tcps_rwnd =		p == NULL ? -1  : p->rcv_wnd;
-	tcps_rup =		p == NULL ? -1  : p->rcv_up;
-	tcps_rcv_ws =		p == NULL ? -1  : p->rcv_scale;
-	tcps_cwnd =		p == NULL ? -1  : p->snd_cwnd;
-	tcps_cwnd_ssthresh =	p == NULL ? -1  : p->snd_ssthresh;
-	tcps_srecover =		p == NULL ? -1  : p->snd_recover;
+	tcps_swnd =		p == NULL ? -1 : p->snd_wnd;
+	tcps_snd_ws =		p == NULL ? -1 : p->snd_scale;
+	tcps_swl1 =		p == NULL ? -1 : p->snd_wl1;
+	tcps_swl2 = 		p == NULL ? -1 : p->snd_wl2;
+	tcps_radv =		p == NULL ? -1 : p->rcv_adv;
+	tcps_rwnd =		p == NULL ? -1 : p->rcv_wnd;
+	tcps_rup =		p == NULL ? -1 : p->rcv_up;
+	tcps_rcv_ws =		p == NULL ? -1 : p->rcv_scale;
+	tcps_cwnd =		p == NULL ? -1 : p->snd_cwnd;
+	tcps_cwnd_ssthresh =	p == NULL ? -1 : p->snd_ssthresh;
+	tcps_srecover =		p == NULL ? -1 : p->snd_recover;
 	tcps_sack_fack =	p == NULL ? 0  : p->snd_fack;
 	tcps_sack_snxt =	p == NULL ? 0  : p->sack_newdata;
 	tcps_rto =		p == NULL ? -1 : (p->t_rxtcur * 1000) / `hz;
-	tcps_mss =		p == NULL ? -1  : p->t_maxseg;
+	tcps_mss =		p == NULL ? -1 : p->t_maxseg;
 	tcps_retransmit =	p == NULL ? -1 : p->t_rxtshift > 0 ? 1 : 0;
-	tcps_srtt =             p == NULL ? -1  : p->t_srtt;   /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
+	tcps_srtt =		p == NULL ? -1 : p->t_srtt;   /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 	tcps_debug =		p == NULL ? 0 :
 	    p->t_inpcb->inp_socket->so_options & 1;
-	tcps_dupacks =		p == NULL ? -1  : p->t_dupacks;
-	tcps_rtttime =		p == NULL ? -1  : p->t_rtttime;
-	tcps_rtseq =		p == NULL ? -1  : p->t_rtseq;
-	tcps_ts_recent =	p == NULL ? -1  : p->ts_recent;
+	tcps_cookie =		p == NULL ? -1 :
+	    p->t_inpcb->inp_socket->so_user_cookie;
+	tcps_dupacks =		p == NULL ? -1 : p->t_dupacks;
+	tcps_rtttime =		p == NULL ? -1 : p->t_rtttime;
+	tcps_rtseq =		p == NULL ? -1 : p->t_rtseq;
+	tcps_ts_recent =	p == NULL ? -1 : p->ts_recent;
 };
 
 #pragma D binding "1.6.3" translator
@@ -257,7 +286,7 @@ translator tcpinfoh_t < struct tcphdr *p > {
 	tcp_ack =	p == NULL ? -1 : p->th_ack;
 	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
 	tcp_flags =	p == NULL ? 0  : p->th_flags;
-	tcp_window =	p == NULL ? 0  : (p->th_win);
+	tcp_window =	p == NULL ? 0  : p->th_win;
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
 	tcp_urgent =	p == NULL ? 0  : p->th_urp;
 	tcp_hdr =	(struct tcphdr *)p;
@@ -316,74 +345,74 @@ inline int PRU_LISTEN		= 3;
 #pragma D binding "1.12.1" PRU_CONNECT
 inline int PRU_CONNECT		= 4;
 #pragma D binding "1.12.1" PRU_ACCEPT
-inline int PRU_ACCEPT	 = 5 ;
+inline int PRU_ACCEPT		= 5 ;
 #pragma D binding "1.12.1" PRU_DISCONNECT
-inline int PRU_DISCONNECT=  6;
+inline int PRU_DISCONNECT	= 6;
 #pragma D binding "1.12.1" PRU_SHUTDOWN
-inline int PRU_SHUTDOWN	 =  7;
+inline int PRU_SHUTDOWN		= 7;
 #pragma D binding "1.12.1" PRU_RCVD
-inline int PRU_RCVD	 =  8;
+inline int PRU_RCVD		= 8;
 #pragma D binding "1.12.1" PRU_SEND
-inline int PRU_SEND	 =  9;
+inline int PRU_SEND		= 9;
 #pragma D binding "1.12.1" PRU_ABORT
-inline int PRU_ABORT	  = 10;
+inline int PRU_ABORT		= 10;
 #pragma D binding "1.12.1" PRU_CONTROL
-inline int PRU_CONTROL	  = 11;
+inline int PRU_CONTROL		= 11;
 #pragma D binding "1.12.1" PRU_SENSE
-inline int PRU_SENSE	  = 12;
+inline int PRU_SENSE		= 12;
 #pragma D binding "1.12.1" PRU_RCVOOB
-inline int PRU_RCVOOB	  = 13;
+inline int PRU_RCVOOB		= 13;
 #pragma D binding "1.12.1" PRU_SENDOOB
-inline int PRU_SENDOOB	  = 14;
+inline int PRU_SENDOOB		= 14;
 #pragma D binding "1.12.1" PRU_SOCKADDR
-inline int PRU_SOCKADDR	  = 15;
+inline int PRU_SOCKADDR		= 15;
 #pragma D binding "1.12.1" PRU_PEERADDR
-inline int PRU_PEERADDR	  = 16;
+inline int PRU_PEERADDR		= 16;
 #pragma D binding "1.12.1" PRU_CONNECT2
-inline int PRU_CONNECT2	  = 17;
+inline int PRU_CONNECT2		= 17;
 #pragma D binding "1.12.1" PRU_FASTTIMO
-inline int PRU_FASTTIMO	  = 18;
+inline int PRU_FASTTIMO		= 18;
 #pragma D binding "1.12.1" PRU_SLOWTIMO
-inline int PRU_SLOWTIMO	  = 19;
+inline int PRU_SLOWTIMO		= 19;
 #pragma D binding "1.12.1" PRU_PROTORCV
-inline int PRU_PROTORCV	  = 20;
+inline int PRU_PROTORCV		= 20;
 #pragma D binding "1.12.1" PRU_PROTOSEND
-inline int PRU_PROTOSEND  = 21;
+inline int PRU_PROTOSEND	= 21;
 #pragma D binding "1.12.1" PRU_SEND_EOF
-inline int PRU_SEND_EOF	  = 22;
+inline int PRU_SEND_EOF		= 22;
 #pragma D binding "1.12.1" PRU_SOSETLABEL
-inline int PRU_SOSETLABEL = 23;
+inline int PRU_SOSETLABEL	= 23;
 #pragma D binding "1.12.1" PRU_CLOSE
-inline int PRU_CLOSE	  = 24;
+inline int PRU_CLOSE		= 24;
 #pragma D binding "1.12.1" PRU_FLUSH
-inline int PRU_FLUSH	  = 25;
+inline int PRU_FLUSH		= 25;
 
 #pragma D binding "1.12.1" prureq_string
 inline string prureq_string[uint8_t req] =
-	req == PRU_ATTACH ? "ATTACH" :
-	req == PRU_DETACH ? "DETACH" :
-	req == PRU_BIND ? "BIND" :
-	req == PRU_LISTEN ? "LISTEN" :
-	req == PRU_CONNECT ? "CONNECT" :
-	req == PRU_ACCEPT ? "ACCEPT" :
-	req == PRU_DISCONNECT ? "DISCONNECT" :
-	req == PRU_SHUTDOWN ? "SHUTDOWN" :
-	req == PRU_RCVD ? "RCVD" :
-	req == PRU_SEND ? "SEND" :
-	req == PRU_ABORT ? "ABORT" :
-	req == PRU_CONTROL ? "CONTROL" :
-	req == PRU_SENSE ? "SENSE" :
-	req == PRU_RCVOOB ? "RCVOOB" :
-	req == PRU_SENDOOB ? "SENDOOB" :
-	req == PRU_SOCKADDR ? "SOCKADDR" :
-	req == PRU_PEERADDR ? "PEERADDR" :
-	req == PRU_CONNECT2 ? "CONNECT2" :
-	req == PRU_FASTTIMO ? "FASTTIMO" :
-	req == PRU_SLOWTIMO ? "SLOWTIMO" :
-	req == PRU_PROTORCV ? "PROTORCV" :
-	req == PRU_PROTOSEND ? "PROTOSEND" :
-	req == PRU_SEND ? "SEND_EOF" :
-	req == PRU_SOSETLABEL ? "SOSETLABEL" :
-	req == PRU_CLOSE ? "CLOSE" :
-	req == PRU_FLUSH ? "FLUSE" :
+	req == PRU_ATTACH ?	"ATTACH" :
+	req == PRU_DETACH ?	"DETACH" :
+	req == PRU_BIND ?	"BIND" :
+	req == PRU_LISTEN ?	"LISTEN" :
+	req == PRU_CONNECT ?	"CONNECT" :
+	req == PRU_ACCEPT ?	"ACCEPT" :
+	req == PRU_DISCONNECT ?	"DISCONNECT" :
+	req == PRU_SHUTDOWN ?	"SHUTDOWN" :
+	req == PRU_RCVD ?	"RCVD" :
+	req == PRU_SEND ?	"SEND" :
+	req == PRU_ABORT ?	"ABORT" :
+	req == PRU_CONTROL ?	"CONTROL" :
+	req == PRU_SENSE ?	"SENSE" :
+	req == PRU_RCVOOB ?	"RCVOOB" :
+	req == PRU_SENDOOB ?	"SENDOOB" :
+	req == PRU_SOCKADDR ?	"SOCKADDR" :
+	req == PRU_PEERADDR ?	"PEERADDR" :
+	req == PRU_CONNECT2 ?	"CONNECT2" :
+	req == PRU_FASTTIMO ?	"FASTTIMO" :
+	req == PRU_SLOWTIMO ?	"SLOWTIMO" :
+	req == PRU_PROTORCV ?	"PROTORCV" :
+	req == PRU_PROTOSEND ?	"PROTOSEND" :
+	req == PRU_SEND ?	"SEND_EOF" :
+	req == PRU_SOSETLABEL ?	"SOSETLABEL" :
+	req == PRU_CLOSE ?	"CLOSE" :
+	req == PRU_FLUSH ?	"FLUSE" :
 	"unknown" ;

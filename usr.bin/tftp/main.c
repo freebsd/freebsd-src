@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,7 +115,7 @@ static void	setoptions(int, char **);
 static void	setrollover(int, char **);
 static void	setpacketdrop(int, char **);
 
-static void command(void) __dead2;
+static void command(bool, EditLine *, History *, HistEvent *) __dead2;
 static const char *command_prompt(void);
 
 static void urihandling(char *URI);
@@ -174,11 +177,28 @@ static struct	modes {
 int
 main(int argc, char *argv[])
 {
+	HistEvent he;
+	static EditLine *el;
+	static History *hist;
+	bool interactive;
 
 	acting_as_client = 1;
 	peer = -1;
-	strcpy(mode, "netascii");
+	strcpy(mode, "octet");
 	signal(SIGINT, intr);
+
+	interactive = isatty(STDIN_FILENO);
+	if (interactive) {
+		el = el_init("tftp", stdin, stdout, stderr);
+		hist = history_init();
+		history(hist, &he, H_SETSIZE, 100);
+		el_set(el, EL_HIST, history, hist);
+		el_set(el, EL_EDITOR, "emacs");
+		el_set(el, EL_PROMPT, command_prompt);
+		el_set(el, EL_SIGNAL, 1);
+		el_source(el, NULL);
+	}
+
 	if (argc > 1) {
 		if (setjmp(toplevel) != 0)
 			exit(txrx_error);
@@ -190,11 +210,15 @@ main(int argc, char *argv[])
 
 		setpeer(argc, argv);
 	}
-	if (setjmp(toplevel) != 0)
+
+	if (setjmp(toplevel) != 0) {
+		if (interactive)
+			el_reset(el);
 		(void)putchar('\n');
+	}
 
 	init_options();
-	command();
+	command(interactive, el, hist, &he);
 }
 
 /*
@@ -405,7 +429,7 @@ static void
 settftpmode(const char *newmode)
 {
 
-	strcpy(mode, newmode);
+	strlcpy(mode, newmode, sizeof(mode));
 	if (verbose)
 		printf("mode set to %s\n", mode);
 }
@@ -451,7 +475,7 @@ put(int argc, char *argv[])
 			lcp[strlen(lcp) - 1] = '\0';
 			lcp++;
 		}
-		setpeer0(lcp, NULL);		
+		setpeer0(lcp, NULL);
 	}
 	if (!connected) {
 		printf("No target machine specified.\n");
@@ -465,13 +489,17 @@ put(int argc, char *argv[])
 			return;
 		}
 
-		stat(cp, &sb);
+		if (fstat(fd, &sb) < 0) {
+			warn("%s", cp);
+			return;
+		}
 		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
 
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
 			    cp, hostname, targ, mode);
 		xmitfile(peer, port, fd, targ, mode);
+		close(fd);
 		return;
 	}
 				/* this assumes the target is a directory */
@@ -486,7 +514,10 @@ put(int argc, char *argv[])
 			continue;
 		}
 
-		stat(cp, &sb);
+		if (fstat(fd, &sb) < 0) {
+			warn("%s", argv[n]);
+			continue;
+		}
 		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
 
 		if (verbose)
@@ -701,36 +732,22 @@ command_prompt(void)
  * Command parser.
  */
 static void
-command(void)
+command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 {
-	HistEvent he;
 	struct cmd *c;
-	static EditLine *el;
-	static History *hist;
 	const char *bp;
 	char *cp;
-	int len, num, vrbose;
+	int len, num;
 	char	line[MAXLINE];
 
-	vrbose = isatty(0);
-	if (vrbose) {
-		el = el_init("tftp", stdin, stdout, stderr);
-		hist = history_init();
-		history(hist, &he, H_SETSIZE, 100);
-		el_set(el, EL_HIST, history, hist);
-		el_set(el, EL_EDITOR, "emacs");
-		el_set(el, EL_PROMPT, command_prompt);
-		el_set(el, EL_SIGNAL, 1);
-		el_source(el, NULL);
-	}
 	for (;;) {
-		if (vrbose) {
-                        if ((bp = el_gets(el, &num)) == NULL || num == 0)
-                                exit(0);
-                        len = MIN(MAXLINE, num);
-                        memcpy(line, bp, len);
-                        line[len] = '\0';
-                        history(hist, &he, H_ENTER, bp);
+		if (interactive) {
+			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+				exit(0);
+			len = MIN(MAXLINE, num);
+			memcpy(line, bp, len);
+			line[len] = '\0';
+			history(hist, hep, H_ENTER, bp);
 		} else {
 			line[0] = 0;
 			if (fgets(line, sizeof line , stdin) == NULL) {

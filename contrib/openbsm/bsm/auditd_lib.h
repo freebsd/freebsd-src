@@ -95,6 +95,7 @@ int auditd_set_evcmap(void);
 int auditd_set_namask(void);
 int auditd_set_policy(void);
 int auditd_set_fsize(void);
+int auditd_set_qsize(void);
 int auditd_set_host(void);
 int auditd_swap_trail(char *TS, char **newfile, gid_t gid,
     int (*warn_getacdir)(char *));

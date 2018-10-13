@@ -17,26 +17,23 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Format and print AppleTalk packets.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: AppleTalk printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "ethertype.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
 #include "appletalk.h"
 
 static const char tstr[] = "[|atalk]";
@@ -80,7 +77,14 @@ u_int
 ltalk_if_print(netdissect_options *ndo,
                const struct pcap_pkthdr *h, const u_char *p)
 {
-	return (llap_print(ndo, p, h->caplen));
+	u_int hdrlen;
+
+	hdrlen = llap_print(ndo, p, h->len);
+	if (hdrlen == 0) {
+		/* Cut short by the snapshot length. */
+		return (h->caplen);
+	}
+	return (hdrlen);
 }
 
 /*
@@ -100,6 +104,10 @@ llap_print(netdissect_options *ndo,
 		ND_PRINT((ndo, " [|llap %u]", length));
 		return (length);
 	}
+	if (!ND_TTEST2(*bp, sizeof(*lp))) {
+		ND_PRINT((ndo, " [|llap]"));
+		return (0);	/* cut short by the snapshot length */
+	}
 	lp = (const struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
@@ -110,6 +118,10 @@ llap_print(netdissect_options *ndo,
 		if (length < ddpSSize) {
 			ND_PRINT((ndo, " [|sddp %u]", length));
 			return (length);
+		}
+		if (!ND_TTEST2(*bp, ddpSSize)) {
+			ND_PRINT((ndo, " [|sddp]"));
+			return (0);	/* cut short by the snapshot length */
 		}
 		sdp = (const struct atShortDDP *)bp;
 		ND_PRINT((ndo, "%s.%s",
@@ -126,6 +138,10 @@ llap_print(netdissect_options *ndo,
 		if (length < ddpSize) {
 			ND_PRINT((ndo, " [|ddp %u]", length));
 			return (length);
+		}
+		if (!ND_TTEST2(*bp, ddpSize)) {
+			ND_PRINT((ndo, " [|ddp]"));
+			return (0);	/* cut short by the snapshot length */
 		}
 		dp = (const struct atDDP *)bp;
 		snet = EXTRACT_16BITS(&dp->srcNet);
@@ -173,6 +189,10 @@ atalk_print(netdissect_options *ndo,
 		ND_PRINT((ndo, " [|ddp %u]", length));
 		return;
 	}
+	if (!ND_TTEST2(*bp, ddpSize)) {
+		ND_PRINT((ndo, " [|ddp]"));
+		return;
+	}
 	dp = (const struct atDDP *)bp;
 	snet = EXTRACT_16BITS(&dp->srcNet);
 	ND_PRINT((ndo, "%s.%s", ataddr_string(ndo, snet, dp->srcNode),
@@ -196,6 +216,15 @@ aarp_print(netdissect_options *ndo,
 
 	ND_PRINT((ndo, "aarp "));
 	ap = (const struct aarp *)bp;
+	if (!ND_TTEST(*ap)) {
+		/* Just bail if we don't have the whole chunk. */
+		ND_PRINT((ndo, " [|aarp]"));
+		return;
+	}
+	if (length < sizeof(*ap)) {
+		ND_PRINT((ndo, " [|aarp %u]", length));
+		return;
+	}
 	if (EXTRACT_16BITS(&ap->htype) == 1 &&
 	    EXTRACT_16BITS(&ap->ptype) == ETHERTYPE_ATALK &&
 	    ap->halen == 6 && ap->palen == 4 )
@@ -382,7 +411,7 @@ nbp_print(netdissect_options *ndo,
           register u_char snode, register u_char skt)
 {
 	register const struct atNBPtuple *tp =
-		(const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
+		(const struct atNBPtuple *)((const u_char *)np + nbpHeaderSize);
 	int i;
 	const u_char *ep;
 
@@ -569,8 +598,11 @@ ataddr_string(netdissect_options *ndo,
 			     tp->nxt; tp = tp->nxt)
 				;
 			tp->addr = i2;
-			tp->nxt = newhnamemem();
+			tp->nxt = newhnamemem(ndo);
 			tp->name = strdup(nambuf);
+			if (tp->name == NULL)
+				(*ndo->ndo_error)(ndo,
+						  "ataddr_string: strdup(nambuf)");
 		}
 		fclose(fp);
 	}
@@ -584,20 +616,25 @@ ataddr_string(netdissect_options *ndo,
 	for (tp2 = &hnametable[i & (HASHNAMESIZE-1)]; tp2->nxt; tp2 = tp2->nxt)
 		if (tp2->addr == i) {
 			tp->addr = (atnet << 8) | athost;
-			tp->nxt = newhnamemem();
+			tp->nxt = newhnamemem(ndo);
 			(void)snprintf(nambuf, sizeof(nambuf), "%s.%d",
 			    tp2->name, athost);
 			tp->name = strdup(nambuf);
+			if (tp->name == NULL)
+				(*ndo->ndo_error)(ndo,
+						  "ataddr_string: strdup(nambuf)");
 			return (tp->name);
 		}
 
 	tp->addr = (atnet << 8) | athost;
-	tp->nxt = newhnamemem();
+	tp->nxt = newhnamemem(ndo);
 	if (athost != 255)
 		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d", atnet, athost);
 	else
 		(void)snprintf(nambuf, sizeof(nambuf), "%d", atnet);
 	tp->name = strdup(nambuf);
+	if (tp->name == NULL)
+		(*ndo->ndo_error)(ndo, "ataddr_string: strdup(nambuf)");
 
 	return (tp->name);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -14,6 +16,7 @@
 #define	_SYS_DISK_H_
 
 #include <sys/ioccom.h>
+#include <sys/kerneldump.h>
 #include <sys/types.h>
 #include <sys/disk_zone.h>
 
@@ -54,7 +57,7 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * disk label formats.  Don't use it unless you have to.
 	 */
 
-#define	DIOCSKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
+#define	DIOCSKERNELDUMP_FREEBSD11 _IOW('d', 133, u_int)
 	/*
 	 * Enable/Disable (the argument is boolean) the device for kernel
 	 * core dumps.
@@ -133,10 +136,24 @@ struct diocgattr_arg {
 		char str[DISK_IDENT_SIZE];
 		off_t off;
 		int i;
+		uint16_t u16;
 	} value;
 };
 #define	DIOCGATTR _IOWR('d', 142, struct diocgattr_arg)
 
 #define	DIOCZONECMD	_IOWR('d', 143, struct disk_zone_args)
+
+struct diocskerneldump_arg {
+	uint8_t		 kda_enable;
+	uint8_t		 kda_compression;
+	uint8_t		 kda_encryption;
+	uint8_t		 kda_key[KERNELDUMP_KEY_MAX_SIZE];
+	uint32_t	 kda_encryptedkeysize;
+	uint8_t		*kda_encryptedkey;
+};
+#define	DIOCSKERNELDUMP _IOW('d', 144, struct diocskerneldump_arg)
+	/*
+	 * Enable/Disable the device for kernel core dumps.
+	 */
 
 #endif /* _SYS_DISK_H_ */

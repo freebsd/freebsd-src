@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arpa/tftp.h>
 
+#include <assert.h>
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -83,6 +86,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	if (port == NULL) {
 		struct servent *se;
 		se = getservbyname("tftp", "udp");
+		assert(se != NULL);
 		((struct sockaddr_in *)&peer_sock)->sin_port = se->s_port;
 	} else
 		((struct sockaddr_in *)&peer_sock)->sin_port =
@@ -182,6 +186,7 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 	if (port == NULL) {
 		struct servent *se;
 		se = getservbyname("tftp", "udp");
+		assert(se != NULL);
 		((struct sockaddr_in *)&peer_sock)->sin_port = se->s_port;
 	} else
 		((struct sockaddr_in *)&peer_sock)->sin_port =
@@ -263,7 +268,6 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		tftp_receive(peer, &block, &tftp_stats, rp, n);
 	}
 
-	write_close();
 	if (tftp_stats.amount > 0)
 		printstats("Received", verbose, &tftp_stats);
 	return;

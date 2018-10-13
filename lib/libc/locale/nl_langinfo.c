@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001, 2003 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *

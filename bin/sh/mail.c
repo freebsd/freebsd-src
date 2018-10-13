@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "shell.h"
-#include "exec.h"	/* defines padvance() */
 #include "mail.h"
 #include "var.h"
 #include "output.h"
@@ -72,9 +71,9 @@ void
 chkmail(int silent)
 {
 	int i;
-	const char *mpath;
+	char *mpath;
 	char *p;
-	char *q;
+	char *msg;
 	struct stackmark smark;
 	struct stat statb;
 
@@ -83,22 +82,25 @@ chkmail(int silent)
 	if (nmboxes == 0)
 		return;
 	setstackmark(&smark);
-	mpath = mpathset()? mpathval() : mailval();
+	mpath = stsavestr(mpathset()? mpathval() : mailval());
 	for (i = 0 ; i < nmboxes ; i++) {
-		p = padvance(&mpath, "");
-		if (p == NULL)
-			break;
+		p = mpath;
 		if (*p == '\0')
-			continue;
-		for (q = p ; *q ; q++);
-		if (q[-1] != '/')
-			abort();
-		q[-1] = '\0';			/* delete trailing '/' */
+			break;
+		mpath = strchrnul(mpath, ':');
+		if (*mpath != '\0') {
+			*mpath++ = '\0';
+			if (p == mpath - 1)
+				continue;
+		}
+		msg = strchr(p, '%');
+		if (msg != NULL)
+			*msg++ = '\0';
 #ifdef notdef /* this is what the System V shell claims to do (it lies) */
 		if (stat(p, &statb) < 0)
 			statb.st_mtime = 0;
 		if (statb.st_mtime > mailtime[i] && ! silent) {
-			out2str(pathopt? pathopt : "you have mail");
+			out2str(msg? msg : "you have mail");
 			out2c('\n');
 		}
 		mailtime[i] = statb.st_mtime;
@@ -106,7 +108,7 @@ chkmail(int silent)
 		if (stat(p, &statb) < 0)
 			statb.st_size = 0;
 		if (statb.st_size > mailtime[i] && ! silent) {
-			out2str(pathopt? pathopt : "you have mail");
+			out2str(msg? msg : "you have mail");
 			out2c('\n');
 		}
 		mailtime[i] = statb.st_size;

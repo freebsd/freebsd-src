@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Olivier Houchard.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte-v4.h>
 #include <machine/cpufunc.h>
 #include <machine/armreg.h>
+#include <machine/cpu.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
+#if __ARM_ARCH >= 6
+#error "elf_trampline is not supported on ARMv6/v7 platforms"
+#endif
 extern char kernel_start[];
 extern char kernel_end[];
 
@@ -47,88 +54,27 @@ extern void *_end;
 
 void _start(void);
 void __start(void);
-void __startC(void);
+void __startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3);
 
-extern unsigned int cpu_ident(void);
-extern void armv6_idcache_wbinv_all(void);
-extern void armv7_idcache_wbinv_all(void);
 extern void do_call(void *, void *, void *, int);
 
 #define GZ_HEAD	0xa
 
-#if defined(CPU_ARM9)
-#define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
-extern void arm9_idcache_wbinv_all(void);
-#elif defined(CPU_FA526)
-#define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
-extern void fa526_idcache_wbinv_all(void);
-#elif defined(CPU_ARM9E)
+#if defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
-#elif defined(CPU_ARM1176)
-#define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
-#define cpu_idcache_wbinv_all	xscale_cache_purgeID
-extern void xscale_cache_purgeID(void);
-#elif defined(CPU_XSCALE_81342)
-#define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
-extern void xscalec3_cache_purgeID(void);
-#elif defined(CPU_MV_PJ4B)
-#if !defined(SOC_MV_ARMADAXP)
-#define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-extern void armv6_idcache_wbinv_all(void);
-#else
-#define cpu_idcache_wbinv_all()	armadaxp_idcache_wbinv_all
 #endif
-#endif /* CPU_MV_PJ4B */
-#ifdef CPU_XSCALE_81342
-#define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
-extern void xscalec3_l2cache_purge(void);
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
 extern void sheeva_l2cache_wbinv_all(void);
-#elif defined(CPU_CORTEXA) || defined(CPU_KRAIT)
-#define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
-#define cpu_l2cache_wbinv_all()
 #else
 #define cpu_l2cache_wbinv_all()
 #endif
 
-static void armadaxp_idcache_wbinv_all(void);
-
-int     arm_picache_size;
-int     arm_picache_line_size;
-int     arm_picache_ways;
-
-int     arm_pdcache_size;       /* and unified */
-int     arm_pdcache_line_size = 32;
-int     arm_pdcache_ways;
-
-int     arm_pcache_type;
-int     arm_pcache_unified;
-
-int     arm_dcache_align;
-int     arm_dcache_align_mask;
-
-int     arm_dcache_min_line_size = 32;
-int     arm_icache_min_line_size = 32;
-int     arm_idcache_min_line_size = 32;
-
-u_int	arm_cache_level;
-u_int	arm_cache_type[14];
-u_int	arm_cache_loc;
-
-/* Additional cache information local to this file.  Log2 of some of the
-      above numbers.  */
-static int      arm_dcache_l2_nsets;
-static int      arm_dcache_l2_assoc;
-static int      arm_dcache_l2_linesize;
-
-
-extern int arm9_dcache_sets_inc;
-extern int arm9_dcache_sets_max;
-extern int arm9_dcache_index_max;
-extern int arm9_dcache_index_inc;
+/*
+ * Boot parameters
+ */
+static struct arm_boot_params s_boot_params;
 
 static __inline void *
 memcpy(void *dst, const void *src, int len)
@@ -169,15 +115,18 @@ bzero(void *addr, int count)
 	}
 }
 
-static void arm9_setup(void);
-
 void
-_startC(void)
+_startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3)
 {
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
 	unsigned int pc, kernphysaddr;
 
+	s_boot_params.abp_r0 = r0;
+	s_boot_params.abp_r1 = r1;
+	s_boot_params.abp_r2 = r2;
+	s_boot_params.abp_r3 = r3;
+        
 	/*
 	 * Figure out the physical address the kernel was loaded at.  This
 	 * assumes the entry point (this code right here) is in the first page,
@@ -211,8 +160,15 @@ _startC(void)
 		/* Temporary set the sp and jump to the new location. */
 		__asm __volatile(
 		    "mov sp, %1\n"
+		    "mov r0, %2\n"
+		    "mov r1, %3\n"
+		    "mov r2, %4\n"
+		    "mov r3, %5\n"
 		    "mov pc, %0\n"
-		    : : "r" (target_addr), "r" (tmp_sp));
+		    : : "r" (target_addr), "r" (tmp_sp),
+		    "r" (s_boot_params.abp_r0), "r" (s_boot_params.abp_r1),
+		    "r" (s_boot_params.abp_r2), "r" (s_boot_params.abp_r3)
+		    : "r0", "r1", "r2", "r3");
 
 	}
 #endif
@@ -242,148 +198,9 @@ _startC(void)
 			 "2: nop\n"
 			 "mov sp, %2\n"
 			 : "=r" (tmp1), "+r" (kernphysaddr), "+r" (sp));
-#ifndef KZIP
-#ifdef CPU_ARM9
-	/* So that idcache_wbinv works; */
-	if ((cpu_ident() & 0x0000f000) == 0x00009000)
-		arm9_setup();
-#endif
-#endif
 	__start();
 }
 
-static void
-get_cachetype_cp15()
-{
-	u_int ctype, isize, dsize, cpuid;
-	u_int clevel, csize, i, sel;
-	u_int multiplier;
-	u_char type;
-
-	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
-		: "=r" (ctype));
-
-	cpuid = cpu_ident();
-	/*
-	 * ...and thus spake the ARM ARM:
-	 *
-	 * If an <opcode2> value corresponding to an unimplemented or
-	 * reserved ID register is encountered, the System Control
-	 * processor returns the value of the main ID register.
-	 */
-	if (ctype == cpuid)
-		goto out;
-
-	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
-		/* Resolve minimal cache line sizes */
-		arm_dcache_min_line_size = 1 << (CPU_CT_DMINLINE(ctype) + 2);
-		arm_icache_min_line_size = 1 << (CPU_CT_IMINLINE(ctype) + 2);
-		arm_idcache_min_line_size =
-		    (arm_dcache_min_line_size > arm_icache_min_line_size ?
-		    arm_icache_min_line_size : arm_dcache_min_line_size);
-
-		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
-		    : "=r" (clevel));
-		arm_cache_level = clevel;
-		arm_cache_loc = CPU_CLIDR_LOC(arm_cache_level) + 1;
-		i = 0;
-		while ((type = (clevel & 0x7)) && i < 7) {
-			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
-			    type == CACHE_SEP_CACHE) {
-				sel = i << 1;
-				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
-				    : : "r" (sel));
-				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
-				    : "=r" (csize));
-				arm_cache_type[sel] = csize;
-			}
-			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
-				sel = (i << 1) | 1;
-				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
-				    : : "r" (sel));
-				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
-				    : "=r" (csize));
-				arm_cache_type[sel] = csize;
-			}
-			i++;
-			clevel >>= 3;
-		}
-	} else {
-		if ((ctype & CPU_CT_S) == 0)
-			arm_pcache_unified = 1;
-
-		/*
-		 * If you want to know how this code works, go read the ARM ARM.
-		 */
-
-		arm_pcache_type = CPU_CT_CTYPE(ctype);
-
-		if (arm_pcache_unified == 0) {
-			isize = CPU_CT_ISIZE(ctype);
-			multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
-			arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
-			if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
-				if (isize & CPU_CT_xSIZE_M)
-					arm_picache_line_size = 0; /* not present */
-				else
-					arm_picache_ways = 1;
-			} else {
-				arm_picache_ways = multiplier <<
-				    (CPU_CT_xSIZE_ASSOC(isize) - 1);
-			}
-			arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
-		}
-
-		dsize = CPU_CT_DSIZE(ctype);
-		multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
-		arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
-		if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
-			if (dsize & CPU_CT_xSIZE_M)
-				arm_pdcache_line_size = 0; /* not present */
-			else
-				arm_pdcache_ways = 1;
-		} else {
-			arm_pdcache_ways = multiplier <<
-			    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
-		}
-		arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
-
-		arm_dcache_align = arm_pdcache_line_size;
-
-		arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
-		arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
-		arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
-		    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
-
-	out:
-		arm_dcache_align_mask = arm_dcache_align - 1;
-	}
-}
-
-static void
-arm9_setup(void)
-{
-
-	get_cachetype_cp15();
-	arm9_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
-	arm9_dcache_sets_max = (1U << (arm_dcache_l2_linesize +
-	    arm_dcache_l2_nsets)) - arm9_dcache_sets_inc;
-	arm9_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
-	arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
-}
-
-static void
-armadaxp_idcache_wbinv_all(void)
-{
-	uint32_t feat;
-
-	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (feat));
-	if (feat & ARM_PFR0_THUMBEE_MASK)
-		armv7_idcache_wbinv_all();
-	else
-		armv6_idcache_wbinv_all();
-
-}
 #ifdef KZIP
 static  unsigned char *orig_input, *i_input, *i_output;
 
@@ -487,6 +304,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	vm_offset_t lastaddr = 0;
 	Elf_Addr ssym = 0;
 	Elf_Dyn *dp;
+	struct arm_boot_params local_boot_params;
 
 	eh = (Elf32_Ehdr *)kstart;
 	ssym = 0;
@@ -555,6 +373,12 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	if (!d)
 		return ((void *)lastaddr);
 
+	/*
+	 * Now the stack is fixed, copy boot params
+	 * before it's overrided
+	 */
+	memcpy(&local_boot_params, &s_boot_params, sizeof(local_boot_params));
+
 	j = eh->e_phnum;
 	for (i = 0; i < j; i++) {
 		volatile char c;
@@ -604,7 +428,10 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	    "mcr p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 	    : "=r" (ssym));
 	/* Jump to the entry point. */
-	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
+	((void(*)(unsigned, unsigned, unsigned, unsigned))
+	(entry_point - KERNVIRTADDR + curaddr))
+	(local_boot_params.abp_r0, local_boot_params.abp_r1,
+	local_boot_params.abp_r2, local_boot_params.abp_r3);
 	__asm __volatile(".globl func_end\n"
 	    "func_end:");
 
@@ -678,11 +505,6 @@ __start(void)
 		pt_addr = L1_TABLE_SIZE +
 		    rounddown2((int)&_end + KERNSIZE + 0x100, L1_TABLE_SIZE);
 
-#ifdef CPU_ARM9
-		/* So that idcache_wbinv works; */
-		if ((cpu_ident() & 0x0000f000) == 0x00009000)
-			arm9_setup();
-#endif
 		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
 		    (vm_paddr_t)curaddr + 0x10000000, 1);
 		/* Gzipped kernel */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,8 +58,7 @@ __FBSDID("$FreeBSD$");
  * both frompcindex and frompc.  Any reasonable, modern compiler will
  * perform this optimization.
  */
-_MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	uintfptr_t frompc, selfpc;
+_MCOUNT_DECL(uintfptr_t frompc, uintfptr_t selfpc)	/* _mcount; may be static, inline, etc */
 {
 #ifdef GUPROF
 	int delta;
@@ -87,13 +88,28 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 #endif
 
 #ifdef _KERNEL
+	/* De-relocate any addresses in a (single) trampoline. */
+#ifdef MCOUNT_DETRAMP
+	MCOUNT_DETRAMP(frompc);
+	MCOUNT_DETRAMP(selfpc);
+#endif
 	/*
 	 * When we are called from an exception handler, frompc may be
 	 * a user address.  Convert such frompc's to some representation
 	 * in kernel address space.
 	 */
+#ifdef MCOUNT_FROMPC_USER
 	frompc = MCOUNT_FROMPC_USER(frompc);
+#elif defined(MCOUNT_USERPC)
+	/*
+	 * For separate address spaces, we can only guess that addresses
+	 * in the range known to us are actually kernel addresses.  Outside
+	 * of this range, conerting to the user address is fail-safe.
+	 */
+	if (frompc < p->lowpc || frompc - p->lowpc >= p->textsize)
+		frompc = MCOUNT_USERPC;
 #endif
+#endif /* _KERNEL */
 
 	frompci = frompc - p->lowpc;
 	if (frompci >= p->textsize)
@@ -245,13 +261,15 @@ MCOUNT
 
 #ifdef GUPROF
 void
-mexitcount(selfpc)
-	uintfptr_t selfpc;
+mexitcount(uintfptr_t selfpc)
 {
 	struct gmonparam *p;
 	uintfptr_t selfpcdiff;
 
 	p = &_gmonparam;
+#ifdef MCOUNT_DETRAMP
+	MCOUNT_DETRAMP(selfpc);
+#endif
 	selfpcdiff = selfpc - (uintfptr_t)p->lowpc;
 	if (selfpcdiff < p->textsize) {
 		int delta;

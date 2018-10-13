@@ -132,8 +132,8 @@ struct wps_data {
 void wps_kdf(const u8 *key, const u8 *label_prefix, size_t label_prefix_len,
 	     const char *label, u8 *res, size_t res_len);
 int wps_derive_keys(struct wps_data *wps);
-void wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
-		    size_t dev_passwd_len);
+int wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
+		   size_t dev_passwd_len);
 struct wpabuf * wps_decrypt_encr_settings(struct wps_data *wps, const u8 *encr,
 					  size_t encr_len);
 void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg,

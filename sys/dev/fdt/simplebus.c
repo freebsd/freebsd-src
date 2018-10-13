@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Nathan Whitehorn
  * All rights reserved.
  *
@@ -125,7 +127,7 @@ simplebus_probe(device_t dev)
 
 	/*
 	 * FDT data puts a "simple-bus" compatible string on many things that
-	 * have children but aren't really busses in our world.  Without a
+	 * have children but aren't really buses in our world.  Without a
 	 * ranges property we will fail to attach, so just fail to probe too.
 	 */
 	if (!(ofw_bus_is_compatible(dev, "simple-bus") &&
@@ -251,9 +253,7 @@ simplebus_setup_dinfo(device_t dev, phandle_t node,
 
 	resource_list_init(&ndi->rl);
 	ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells, &ndi->rl);
-#ifndef INTRNG
 	ofw_bus_intr_to_rl(dev, node, &ndi->rl, NULL);
-#endif
 
 	return (ndi);
 }

@@ -53,9 +53,8 @@ static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
-static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name,
-    uint32_t set, uint16_t uidx);
 
+static int table_destroy_one(ipfw_xtable_info *i, void *arg);
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
 static int table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh);
@@ -134,7 +133,7 @@ lookup_host (char *host, struct in_addr *ipaddr)
  * This one handles all table-related commands
  * 	ipfw table NAME create ...
  * 	ipfw table NAME modify ...
- * 	ipfw table NAME destroy
+ * 	ipfw table {NAME | all} destroy
  * 	ipfw table NAME swap NAME
  * 	ipfw table NAME lock
  * 	ipfw table NAME unlock
@@ -155,7 +154,7 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_xtable_info i;
 	ipfw_obj_header oh;
 	char *tablename;
-	uint32_t set;
+	uint8_t set;
 	void *arg;
 
 	memset(&oh, 0, sizeof(oh));
@@ -202,6 +201,7 @@ ipfw_table_handler(int ac, char *av[])
 	case TOK_INFO:
 	case TOK_DETAIL:
 	case TOK_FLUSH:
+	case TOK_DESTROY:
 		break;
 	default:
 		if (is_all != 0)
@@ -225,18 +225,38 @@ ipfw_table_handler(int ac, char *av[])
 		table_modify(&oh, ac, av);
 		break;
 	case TOK_DESTROY:
-		if (table_destroy(&oh) != 0)
-			err(EX_OSERR, "failed to destroy table %s", tablename);
+		if (is_all == 0) {
+			if (table_destroy(&oh) == 0)
+				break;
+			if (errno != ESRCH)
+				err(EX_OSERR, "failed to destroy table %s",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to destroy table %s", tablename);
+		} else {
+			error = tables_foreach(table_destroy_one, &oh, 1);
+			if (error != 0)
+				err(EX_OSERR,
+				    "failed to destroy tables list");
+		}
 		break;
 	case TOK_FLUSH:
 		if (is_all == 0) {
-			if ((error = table_flush(&oh)) != 0)
+			if ((error = table_flush(&oh)) == 0)
+				break;
+			if (errno != ESRCH)
 				err(EX_OSERR, "failed to flush table %s info",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to flush table %s info",
 				    tablename);
 		} else {
 			error = tables_foreach(table_flush_one, &oh, 1);
 			if (error != 0)
 				err(EX_OSERR, "failed to flush tables list");
+			/* XXX: we ignore errors here */
 		}
 		break;
 	case TOK_SWAP:
@@ -280,8 +300,8 @@ ipfw_table_handler(int ac, char *av[])
 	}
 }
 
-static void
-table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint32_t set,
+void
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint8_t set,
     uint16_t uidx)
 {
 
@@ -496,7 +516,7 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 			ac--; av++;
 			break;
 		default:
-			errx(EX_USAGE, "cmd is not supported for modificatiob");
+			errx(EX_USAGE, "cmd is not supported for modification");
 		}
 	}
 
@@ -557,6 +577,22 @@ table_destroy(ipfw_obj_header *oh)
 	return (0);
 }
 
+static int
+table_destroy_one(ipfw_xtable_info *i, void *arg)
+{
+	ipfw_obj_header *oh;
+
+	oh = (ipfw_obj_header *)arg;
+	table_fill_ntlv(&oh->ntlv, i->tablename, i->set, 1);
+	if (table_destroy(oh) != 0) {
+		if (co.do_quiet == 0)
+			warn("failed to destroy table(%s) in set %u",
+			    i->tablename, i->set);
+		return (-1);
+	}
+	return (0);
+}
+
 /*
  * Flushes given table specified by @oh->ntlv.
  * Returns 0 on success.
@@ -593,14 +629,14 @@ table_do_swap(ipfw_obj_header *oh, char *second)
 static int
 table_swap(ipfw_obj_header *oh, char *second)
 {
-	int error;
 
 	if (table_check_name(second) != 0)
 		errx(EX_USAGE, "table name %s is invalid", second);
 
-	error = table_do_swap(oh, second);
+	if (table_do_swap(oh, second) == 0)
+		return (0);
 
-	switch (error) {
+	switch (errno) {
 	case EINVAL:
 		errx(EX_USAGE, "Unable to swap table: check types");
 	case EFBIG:
@@ -849,6 +885,8 @@ table_do_modify_record(int cmd, ipfw_obj_header *oh,
 
 	sz += sizeof(*oh);
 	error = do_get3(cmd, &oh->opheader, &sz);
+	if (error != 0)
+		error = errno;
 	tent = (ipfw_obj_tentry *)(ctlv + 1);
 	/* Copy result back to provided buffer */
 	memcpy(tent_base, ctlv + 1, sizeof(*tent) * count);
@@ -914,9 +952,10 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 			xi.vmask = vmask;
 			strlcpy(xi.tablename, oh->ntlv.name,
 			    sizeof(xi.tablename));
-			fprintf(stderr, "DEPRECATED: inserting data into "
-			    "non-existent table %s. (auto-created)\n",
-			    xi.tablename);
+			if (quiet == 0)
+				warnx("DEPRECATED: inserting data into "
+				    "non-existent table %s. (auto-created)",
+				    xi.tablename);
 			table_do_create(oh, &xi);
 		}
 	
@@ -936,8 +975,6 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	}
 
 	error = table_do_modify_record(cmd, oh, tent_buf, count, atomic);
-
-	quiet = 0;
 
 	/*
 	 * Compatibility stuff: do not yell on duplicate keys or
@@ -1225,16 +1262,14 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
-			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+			port = htons(strtol(arg, &pp, 10));
+			if (*pp != '\0') {
 				if ((sent = getservbyname(arg, NULL)) == NULL)
 					errx(EX_DATAERR, "Unknown service: %s",
 					    arg);
-				else
-					key = sent->s_port;
+				port = sent->s_port;
 			}
-			
 			tfe->sport = port;
-
 			arg = p;
 		}
 
@@ -1269,16 +1304,14 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
-			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+			port = htons(strtol(arg, &pp, 10));
+			if (*pp != '\0') {
 				if ((sent = getservbyname(arg, NULL)) == NULL)
 					errx(EX_DATAERR, "Unknown service: %s",
 					    arg);
-				else
-					key = sent->s_port;
+				port = sent->s_port;
 			}
-			
 			tfe->dport = port;
-
 			arg = p;
 		}
 
@@ -1438,6 +1471,7 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 	uint32_t i;
 	int dval;
 	char *comma, *e, *etype, *n, *p;
+	struct in_addr ipaddr;
 
 	v = &tent->v.value;
 
@@ -1454,8 +1488,8 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 			return;
 		}
 		/* Try hostname */
-		if (lookup_host(arg, (struct in_addr *)&val) == 0) {
-			set_legacy_value(val, v);
+		if (lookup_host(arg, &ipaddr) == 0) {
+			set_legacy_value(ntohl(ipaddr.s_addr), v);
 			return;
 		}
 		errx(EX_OSERR, "Unable to parse value %s", arg);
@@ -1524,8 +1558,10 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 				v->nh4 = ntohl(a4);
 				break;
 			}
-			if (lookup_host(n, (struct in_addr *)&v->nh4) == 0)
+			if (lookup_host(n, &ipaddr) == 0) {
+				v->nh4 = ntohl(ipaddr.s_addr);
 				break;
+			}
 			etype = "ipv4";
 			break;
 		case IPFW_VTYPE_DSCP:
@@ -1619,18 +1655,19 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 		}
 
 		if (sort != 0)
-			qsort(olh + 1, olh->count, olh->objsize, tablename_cmp);
+			qsort(olh + 1, olh->count, olh->objsize,
+			    tablename_cmp);
 
 		info = (ipfw_xtable_info *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			error = f(info, arg); /* Ignore errors for now */
-			info = (ipfw_xtable_info *)((caddr_t)info + olh->objsize);
+			if (co.use_set == 0 || info->set == co.use_set - 1)
+				error = f(info, arg);
+			info = (ipfw_xtable_info *)((caddr_t)info +
+			    olh->objsize);
 		}
-
 		free(olh);
 		break;
 	}
-
 	return (0);
 }
 

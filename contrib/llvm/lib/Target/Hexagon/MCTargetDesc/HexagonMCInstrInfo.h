@@ -14,27 +14,56 @@
 #ifndef LLVM_LIB_TARGET_HEXAGON_MCTARGETDESC_HEXAGONMCINSTRINFO_H
 #define LLVM_LIB_TARGET_HEXAGON_MCTARGETDESC_HEXAGONMCINSTRINFO_H
 
-#include "HexagonMCExpr.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/Support/MathExtras.h"
+#include <cstddef>
+#include <cstdint>
 
 namespace llvm {
+
 class HexagonMCChecker;
 class MCContext;
+class MCExpr;
 class MCInstrDesc;
 class MCInstrInfo;
-class MCInst;
-class MCOperand;
 class MCSubtargetInfo;
-namespace HexagonII {
-enum class MemAccessSize;
-}
+
 class DuplexCandidate {
 public:
   unsigned packetIndexI, packetIndexJ, iClass;
+
   DuplexCandidate(unsigned i, unsigned j, unsigned iClass)
       : packetIndexI(i), packetIndexJ(j), iClass(iClass) {}
 };
+
+namespace Hexagon {
+
+class PacketIterator {
+  MCInstrInfo const &MCII;
+  MCInst::const_iterator BundleCurrent;
+  MCInst::const_iterator BundleEnd;
+  MCInst::const_iterator DuplexCurrent;
+  MCInst::const_iterator DuplexEnd;
+
+public:
+  PacketIterator(MCInstrInfo const &MCII, MCInst const &Inst);
+  PacketIterator(MCInstrInfo const &MCII, MCInst const &Inst, std::nullptr_t);
+
+  PacketIterator &operator++();
+  MCInst const &operator*() const;
+  bool operator==(PacketIterator const &Other) const;
+  bool operator!=(PacketIterator const &Other) const {
+    return !(*this == Other);
+  }
+};
+
+} // end namespace Hexagon
+
 namespace HexagonMCInstrInfo {
+
 size_t const innerLoopOffset = 0;
 int64_t const innerLoopMask = 1 << innerLoopOffset;
 
@@ -46,10 +75,6 @@ int64_t const outerLoopMask = 1 << outerLoopOffset;
 size_t const memReorderDisabledOffset = 2;
 int64_t const memReorderDisabledMask = 1 << memReorderDisabledOffset;
 
-// allow re-ordering of memory stores by default stores cannot be re-ordered
-size_t const memStoreReorderEnabledOffset = 3;
-int64_t const memStoreReorderEnabledMask = 1 << memStoreReorderEnabledOffset;
-
 size_t const bundleInstructionsOffset = 1;
 
 void addConstant(MCInst &MI, uint64_t Value, MCContext &Context);
@@ -57,6 +82,8 @@ void addConstExtender(MCContext &Context, MCInstrInfo const &MCII, MCInst &MCB,
                       MCInst const &MCI);
 
 // Returns a iterator range of instructions in this bundle
+iterator_range<Hexagon::PacketIterator>
+bundleInstructions(MCInstrInfo const &MCII, MCInst const &MCI);
 iterator_range<MCInst::const_iterator> bundleInstructions(MCInst const &MCI);
 
 // Returns the number of instructions in the bundle
@@ -67,16 +94,6 @@ bool canonicalizePacket(MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
                         MCContext &Context, MCInst &MCB,
                         HexagonMCChecker *Checker);
 
-// Clamp off upper 26 bits of extendable operand for emission
-void clampExtended(MCInstrInfo const &MCII, MCContext &Context, MCInst &MCI);
-
-MCInst createBundle();
-
-// Return the extender for instruction at Index or nullptr if none
-MCInst const *extenderForIndex(MCInst const &MCB, size_t Index);
-void extendIfNeeded(MCContext &Context, MCInstrInfo const &MCII, MCInst &MCB,
-                    MCInst const &MCI, bool MustExtend);
-
 // Create a duplex instruction given the two subinsts
 MCInst *deriveDuplex(MCContext &Context, unsigned iClass, MCInst const &inst0,
                      MCInst const &inst1);
@@ -86,18 +103,19 @@ MCInst deriveExtender(MCInstrInfo const &MCII, MCInst const &Inst,
 // Convert this instruction in to a duplex subinst
 MCInst deriveSubInst(MCInst const &Inst);
 
+// Clamp off upper 26 bits of extendable operand for emission
+void clampExtended(MCInstrInfo const &MCII, MCContext &Context, MCInst &MCI);
+
 // Return the extender for instruction at Index or nullptr if none
 MCInst const *extenderForIndex(MCInst const &MCB, size_t Index);
+void extendIfNeeded(MCContext &Context, MCInstrInfo const &MCII, MCInst &MCB,
+                    MCInst const &MCI);
+
+// Return memory access size in bytes
+unsigned getMemAccessSize(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Return memory access size
-HexagonII::MemAccessSize getAccessSize(MCInstrInfo const &MCII,
-                                       MCInst const &MCI);
-
-// Return number of bits in the constant extended operand.
-unsigned getBitCount(MCInstrInfo const &MCII, MCInst const &MCI);
-
-// Return constant extended operand number.
-unsigned short getCExtOpNum(MCInstrInfo const &MCII, MCInst const &MCI);
+unsigned getAddrMode(MCInstrInfo const &MCII, MCInst const &MCI);
 
 MCInstrDesc const &getDesc(MCInstrInfo const &MCII, MCInst const &MCI);
 
@@ -105,8 +123,12 @@ MCInstrDesc const &getDesc(MCInstrInfo const &MCII, MCInst const &MCI);
 unsigned getDuplexCandidateGroup(MCInst const &MI);
 
 // Return a list of all possible instruction duplex combinations
-SmallVector<DuplexCandidate, 8> getDuplexPossibilties(MCInstrInfo const &MCII,
-                                                      MCInst const &MCB);
+SmallVector<DuplexCandidate, 8>
+getDuplexPossibilties(MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
+                      MCInst const &MCB);
+unsigned getDuplexRegisterNumbering(unsigned Reg);
+
+MCExpr const &getExpr(MCExpr const &Expr);
 
 // Return the index of the extendable operand
 unsigned short getExtendableOp(MCInstrInfo const &MCII, MCInst const &MCI);
@@ -130,7 +152,7 @@ int getMaxValue(MCInstrInfo const &MCII, MCInst const &MCI);
 int getMinValue(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Return instruction name
-char const *getName(MCInstrInfo const &MCII, MCInst const &MCI);
+StringRef getName(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Return the operand index for the new value.
 unsigned short getNewValueOp(MCInstrInfo const &MCII, MCInst const &MCI);
@@ -141,14 +163,15 @@ unsigned short getNewValueOp2(MCInstrInfo const &MCII, MCInst const &MCI);
 MCOperand const &getNewValueOperand2(MCInstrInfo const &MCII,
                                      MCInst const &MCI);
 
-int getSubTarget(MCInstrInfo const &MCII, MCInst const &MCI);
-
 // Return the Hexagon ISA class for the insn.
 unsigned getType(MCInstrInfo const &MCII, MCInst const &MCI);
 
 /// Return the slots used by the insn.
 unsigned getUnits(MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
                   MCInst const &MCI);
+unsigned getOtherReservedSlots(MCInstrInfo const &MCII,
+                               MCSubtargetInfo const &STI, MCInst const &MCI);
+bool hasDuplex(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Does the packet have an extender for the instruction at Index
 bool hasExtenderForIndex(MCInst const &MCB, size_t Index);
@@ -158,18 +181,7 @@ bool hasImmExt(MCInst const &MCI);
 // Return whether the instruction is a legal new-value producer.
 bool hasNewValue(MCInstrInfo const &MCII, MCInst const &MCI);
 bool hasNewValue2(MCInstrInfo const &MCII, MCInst const &MCI);
-
-// Return the instruction at Index
-MCInst const &instruction(MCInst const &MCB, size_t Index);
-
-// Returns whether this MCInst is a wellformed bundle
-bool isBundle(MCInst const &MCI);
-
-// Return whether the insn is an actual insn.
-bool isCanon(MCInstrInfo const &MCII, MCInst const &MCI);
-bool isCompound(MCInstrInfo const &MCII, MCInst const &MCI);
-
-// Return the duplex iclass given the two duplex classes
+bool hasTmpDst(MCInstrInfo const &MCII, MCInst const &MCI);
 unsigned iClassOfDuplexPair(unsigned Ga, unsigned Gb);
 
 int64_t minConstant(MCInst const &MCI, size_t Index);
@@ -185,8 +197,23 @@ template <unsigned N> bool inRange(MCInst const &MCI, size_t Index) {
   return isUInt<N>(minConstant(MCI, Index));
 }
 
+// Return the instruction at Index
+MCInst const &instruction(MCInst const &MCB, size_t Index);
+bool isAccumulator(MCInstrInfo const &MCII, MCInst const &MCI);
+
+// Returns whether this MCInst is a wellformed bundle
+bool isBundle(MCInst const &MCI);
+
+// Return whether the insn is an actual insn.
+bool isCanon(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isCofMax1(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isCofRelax1(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isCofRelax2(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isCompound(MCInstrInfo const &MCII, MCInst const &MCI);
+
 // Return whether the instruction needs to be constant extended.
 bool isConstExtended(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isCVINew(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Is this double register suitable for use in a duplex subinst
 bool isDblRegForSubInst(unsigned Reg);
@@ -209,6 +236,8 @@ bool isExtended(MCInstrInfo const &MCII, MCInst const &MCI);
 /// Return whether it is a floating-point insn.
 bool isFloat(MCInstrInfo const &MCII, MCInst const &MCI);
 
+bool isHVX(MCInstrInfo const &MCII, MCInst const &MCI);
+
 // Returns whether this instruction is an immediate extender
 bool isImmext(MCInst const &MCI);
 
@@ -221,19 +250,15 @@ bool isIntReg(unsigned Reg);
 // Is this register suitable for use in a duplex subinst
 bool isIntRegForSubInst(unsigned Reg);
 bool isMemReorderDisabled(MCInst const &MCI);
-bool isMemStoreReorderEnabled(MCInst const &MCI);
 
 // Return whether the insn is a new-value consumer.
 bool isNewValue(MCInstrInfo const &MCII, MCInst const &MCI);
-
-// Return true if the operand can be constant extended.
-bool isOperandExtended(MCInstrInfo const &MCII, MCInst const &MCI,
-                       unsigned short OperandNum);
+bool isOpExtendable(MCInstrInfo const &MCII, MCInst const &MCI, unsigned short);
 
 // Can these two instructions be duplexed
 bool isOrderedDuplexPair(MCInstrInfo const &MCII, MCInst const &MIa,
                          bool ExtendedA, MCInst const &MIb, bool ExtendedB,
-                         bool bisReversable);
+                         bool bisReversable, MCSubtargetInfo const &STI);
 
 // Returns whether this bundle is an endloop1
 bool isOuterLoop(MCInst const &MCI);
@@ -259,31 +284,53 @@ bool isSolo(MCInstrInfo const &MCII, MCInst const &MCI);
 bool isSoloAX(MCInstrInfo const &MCII, MCInst const &MCI);
 
 /// Return whether the insn can be packaged only with an A-type insn in slot #1.
-bool isSoloAin1(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isRestrictSlot1AOK(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isRestrictNoSlot1Store(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isSubInstruction(MCInst const &MCI);
 bool isVector(MCInstrInfo const &MCII, MCInst const &MCI);
+bool mustExtend(MCExpr const &Expr);
+bool mustNotExtend(MCExpr const &Expr);
 
 // Pad the bundle with nops to satisfy endloop requirements
-void padEndloop(MCContext &Context, MCInst &MCI);
-
+void padEndloop(MCInst &MCI, MCContext &Context);
+class PredicateInfo {
+public:
+  PredicateInfo() : Register(0), Operand(0), PredicatedTrue(false) {}
+  PredicateInfo(unsigned Register, unsigned Operand, bool PredicatedTrue)
+      : Register(Register), Operand(Operand), PredicatedTrue(PredicatedTrue) {}
+  bool isPredicated() const;
+  unsigned Register;
+  unsigned Operand;
+  bool PredicatedTrue;
+};
+PredicateInfo predicateInfo(MCInstrInfo const &MCII, MCInst const &MCI);
 bool prefersSlot3(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Replace the instructions inside MCB, represented by Candidate
-void replaceDuplex(MCContext &Context, MCInst &MCB, DuplexCandidate Candidate);
+void replaceDuplex(MCContext &Context, MCInst &MCI, DuplexCandidate Candidate);
 
+bool s27_2_reloc(MCExpr const &Expr);
 // Marks a bundle as endloop0
 void setInnerLoop(MCInst &MCI);
 void setMemReorderDisabled(MCInst &MCI);
-void setMemStoreReorderEnabled(MCInst &MCI);
+void setMustExtend(MCExpr const &Expr, bool Val = true);
+void setMustNotExtend(MCExpr const &Expr, bool Val = true);
+void setS27_2_reloc(MCExpr const &Expr, bool Val = true);
 
 // Marks a bundle as endloop1
 void setOuterLoop(MCInst &MCI);
 
 // Would duplexing this instruction create a requirement to extend
 bool subInstWouldBeExtended(MCInst const &potentialDuplex);
+unsigned SubregisterBit(unsigned Consumer, unsigned Producer,
+                        unsigned Producer2);
 
 // Attempt to find and replace compound pairs
-void tryCompound(MCInstrInfo const &MCII, MCContext &Context, MCInst &MCI);
-}
-}
+void tryCompound(MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
+                 MCContext &Context, MCInst &MCI);
+
+} // end namespace HexagonMCInstrInfo
+
+} // end namespace llvm
 
 #endif // LLVM_LIB_TARGET_HEXAGON_MCTARGETDESC_HEXAGONMCINSTRINFO_H

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2012
+.Dd October 24, 2016
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -95,7 +95,7 @@ requests to be logged.
 Allow non-root mount requests to be served.
 This should only be specified if there are clients such as PC's,
 that require it.
-It will automatically clear the vfs.nfsrv.nfs_privport sysctl flag, which
+It will automatically clear the vfs.nfsd.nfs_privport sysctl flag, which
 controls if the kernel will accept NFS requests from reserved ports only.
 .It Fl p Ar port
 Force

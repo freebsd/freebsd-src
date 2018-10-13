@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/extres/clk/clk.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -219,7 +218,7 @@ tegra_rtc_attach(device_t dev)
 	}
 
 	/* OFW resources. */
-	rv = clk_get_by_ofw_index(dev, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get i2c clock: %d\n", rv);
 		goto fail;
@@ -297,7 +296,8 @@ static device_method_t tegra_rtc_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(tegra_rtc, tegra_rtc_driver, tegra_rtc_methods,
-    sizeof(struct tegra_rtc_softc));
 static devclass_t tegra_rtc_devclass;
-DRIVER_MODULE(tegra_rtc, simplebus, tegra_rtc_driver, tegra_rtc_devclass, 0, 0);
+static DEFINE_CLASS_0(rtc, tegra_rtc_driver, tegra_rtc_methods,
+    sizeof(struct tegra_rtc_softc));
+DRIVER_MODULE(tegra_rtc, simplebus, tegra_rtc_driver, tegra_rtc_devclass,
+    NULL, NULL);

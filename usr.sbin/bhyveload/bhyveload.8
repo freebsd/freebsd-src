@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2016
+.Dd June 24, 2016
 .Dt BHYVELOAD 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ guest inside a bhyve virtual machine
 .Op Fl e Ar name=value
 .Op Fl h Ar host-path
 .Op Fl l Ar os-loader
-.Op Fl m Ar mem-size
+.Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Ar vmname
 .Sh DESCRIPTION
 .Nm
@@ -103,16 +103,12 @@ will use
 which presents a standard
 .Fx
 loader.
-.It Fl m Ar mem-size Xo
-.Sm off
-.Op Cm K | k | M | m | G | g | T | t
-.Xc
-.Sm on
-.Ar mem-size
+.It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
+.Ar memsize
 is the amount of memory allocated to the guest.
 .Pp
 The
-.Ar mem-size
+.Ar memsize
 argument may be suffixed with one of
 .Cm K ,
 .Cm M ,
@@ -123,9 +119,8 @@ or
 Kilobytes, Megabytes, Gigabytes or Terabytes
 respectively.
 .Pp
-The default value of
-.Ar mem-size
-is 256M.
+.Ar memsize
+defaults to 256M.
 .It Fl C
 Include guest memory in the core file when
 .Nm

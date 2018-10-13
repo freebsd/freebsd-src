@@ -1,4 +1,4 @@
-//===-- llvm/MC/MCAsmParser.h - Abstract Asm Parser Interface ---*- C++ -*-===//
+//===- llvm/MC/MCAsmParser.h - Abstract Asm Parser Interface ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,14 +10,21 @@
 #ifndef LLVM_MC_MCPARSER_MCASMPARSER_H
 #define LLVM_MC_MCPARSER_MCASMPARSER_H
 
-#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/MC/MCParser/AsmLexer.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/MC/MCParser/MCAsmLexer.h"
+#include "llvm/Support/SMLoc.h"
+#include <cstdint>
+#include <string>
+#include <utility>
 
 namespace llvm {
+
 class MCAsmInfo;
-class MCAsmLexer;
 class MCAsmParserExtension;
 class MCContext;
 class MCExpr;
@@ -25,36 +32,75 @@ class MCInstPrinter;
 class MCInstrInfo;
 class MCStreamer;
 class MCTargetAsmParser;
-class SMLoc;
-class SMRange;
 class SourceMgr;
-class Twine;
 
-class InlineAsmIdentifierInfo {
-public:
-  void *OpDecl;
-  bool IsVarDecl;
-  unsigned Length, Size, Type;
-
-  void clear() {
-    OpDecl = nullptr;
-    IsVarDecl = false;
-    Length = 1;
-    Size = 0;
-    Type = 0;
+struct InlineAsmIdentifierInfo {
+  enum IdKind {
+    IK_Invalid,  // Initial state. Unexpected after a successful parsing.
+    IK_Label,    // Function/Label reference.
+    IK_EnumVal,  // Value of enumeration type.
+    IK_Var       // Variable.
+  };
+  // Represents an Enum value
+  struct EnumIdentifier {
+    int64_t EnumVal;
+  };
+  // Represents a label/function reference
+  struct LabelIdentifier {
+    void *Decl;
+  };
+  // Represents a variable
+  struct VariableIdentifier {
+    void *Decl;
+    bool IsGlobalLV;
+    unsigned Length;
+    unsigned Size;
+    unsigned Type;
+  };
+  // An InlineAsm identifier can only be one of those
+  union {
+    EnumIdentifier Enum;
+    LabelIdentifier Label;
+    VariableIdentifier Var;
+  };
+  bool isKind(IdKind kind) const { return Kind == kind; }
+  // Initializers
+  void setEnum(int64_t enumVal) {
+    assert(isKind(IK_Invalid) && "should be initialized only once");
+    Kind = IK_EnumVal;
+    Enum.EnumVal = enumVal;
   }
+  void setLabel(void *decl) {
+    assert(isKind(IK_Invalid) && "should be initialized only once");
+    Kind = IK_Label;
+    Label.Decl = decl;
+  }
+  void setVar(void *decl, bool isGlobalLV, unsigned size, unsigned type) {
+    assert(isKind(IK_Invalid) && "should be initialized only once");
+    Kind = IK_Var;
+    Var.Decl = decl;
+    Var.IsGlobalLV = isGlobalLV;
+    Var.Size = size;
+    Var.Type = type;
+    Var.Length = size / type;
+  }
+  InlineAsmIdentifierInfo() : Kind(IK_Invalid) {}
+
+private:
+  // Discriminate using the current kind.
+  IdKind Kind;
 };
 
 /// \brief Generic Sema callback for assembly parser.
 class MCAsmParserSemaCallback {
 public:
   virtual ~MCAsmParserSemaCallback();
-  virtual void *LookupInlineAsmIdentifier(StringRef &LineBuf,
-                                          InlineAsmIdentifierInfo &Info,
-                                          bool IsUnevaluatedContext) = 0;
+
+  virtual void LookupInlineAsmIdentifier(StringRef &LineBuf,
+                                         InlineAsmIdentifierInfo &Info,
+                                         bool IsUnevaluatedContext) = 0;
   virtual StringRef LookupInlineAsmLabel(StringRef Identifier, SourceMgr &SM,
                                          SMLoc Location, bool Create) = 0;
-
   virtual bool LookupInlineAsmField(StringRef Base, StringRef Member,
                                     unsigned &Offset) = 0;
 };
@@ -63,22 +109,34 @@ public:
 /// assembly parsers.
 class MCAsmParser {
 public:
-  typedef bool (*DirectiveHandler)(MCAsmParserExtension*, StringRef, SMLoc);
-  typedef std::pair<MCAsmParserExtension*, DirectiveHandler>
-    ExtensionDirectiveHandler;
+  using DirectiveHandler = bool (*)(MCAsmParserExtension*, StringRef, SMLoc);
+  using ExtensionDirectiveHandler =
+      std::pair<MCAsmParserExtension*, DirectiveHandler>;
+
+  struct MCPendingError {
+    SMLoc Loc;
+    SmallString<64> Msg;
+    SMRange Range;
+  };
 
 private:
-  MCAsmParser(const MCAsmParser &) = delete;
-  void operator=(const MCAsmParser &) = delete;
-
-  MCTargetAsmParser *TargetParser;
+  MCTargetAsmParser *TargetParser = nullptr;
 
   unsigned ShowParsedOperands : 1;
 
 protected: // Can only create subclasses.
   MCAsmParser();
 
+  /// Flag tracking whether any errors have been encountered.
+  bool HadError = false;
+  /// Enable print [latency:throughput] in output file.
+  bool EnablePrintSchedInfo = false;
+
+  SmallVector<MCPendingError, 1> PendingErrors;
+
 public:
+  MCAsmParser(const MCAsmParser &) = delete;
+  MCAsmParser &operator=(const MCAsmParser &) = delete;
   virtual ~MCAsmParser();
 
   virtual void addDirectiveHandler(StringRef Directive,
@@ -107,6 +165,9 @@ public:
   bool getShowParsedOperands() const { return ShowParsedOperands; }
   void setShowParsedOperands(bool Value) { ShowParsedOperands = Value; }
 
+  void setEnablePrintSchedInfo(bool Value) { EnablePrintSchedInfo = Value; }
+  bool shouldPrintSchedInfo() { return EnablePrintSchedInfo; }
+
   /// \brief Run the parser on the input source buffer.
   virtual bool Run(bool NoInitialTextSection, bool NoFinalize = false) = 0;
 
@@ -122,21 +183,38 @@ public:
       const MCInstPrinter *IP, MCAsmParserSemaCallback &SI) = 0;
 
   /// \brief Emit a note at the location \p L, with the message \p Msg.
-  virtual void Note(SMLoc L, const Twine &Msg,
-                    ArrayRef<SMRange> Ranges = None) = 0;
+  virtual void Note(SMLoc L, const Twine &Msg, SMRange Range = None) = 0;
 
   /// \brief Emit a warning at the location \p L, with the message \p Msg.
   ///
   /// \return The return value is true, if warnings are fatal.
-  virtual bool Warning(SMLoc L, const Twine &Msg,
-                       ArrayRef<SMRange> Ranges = None) = 0;
+  virtual bool Warning(SMLoc L, const Twine &Msg, SMRange Range = None) = 0;
+
+  /// \brief Return an error at the location \p L, with the message \p Msg. This
+  /// may be modified before being emitted.
+  ///
+  /// \return The return value is always true, as an idiomatic convenience to
+  /// clients.
+  bool Error(SMLoc L, const Twine &Msg, SMRange Range = None);
 
   /// \brief Emit an error at the location \p L, with the message \p Msg.
   ///
   /// \return The return value is always true, as an idiomatic convenience to
   /// clients.
-  virtual bool Error(SMLoc L, const Twine &Msg,
-                     ArrayRef<SMRange> Ranges = None) = 0;
+  virtual bool printError(SMLoc L, const Twine &Msg, SMRange Range = None) = 0;
+
+  bool hasPendingError() { return !PendingErrors.empty(); }
+
+  bool printPendingErrors() {
+    bool rv = !PendingErrors.empty();
+    for (auto Err : PendingErrors) {
+      printError(Err.Loc, Twine(Err.Msg), Err.Range);
+    }
+    PendingErrors.clear();
+    return rv;
+  }
+
+  bool addErrorSuffix(const Twine &Suffix);
 
   /// \brief Get the next AsmToken in the stream, possibly handling file
   /// inclusion first.
@@ -146,7 +224,22 @@ public:
   const AsmToken &getTok() const;
 
   /// \brief Report an error at the current lexer location.
-  bool TokError(const Twine &Msg, ArrayRef<SMRange> Ranges = None);
+  bool TokError(const Twine &Msg, SMRange Range = None);
+
+  bool parseTokenLoc(SMLoc &Loc);
+  bool parseToken(AsmToken::TokenKind T, const Twine &Msg = "unexpected token");
+  /// \brief Attempt to parse and consume token, returning true on
+  /// success.
+  bool parseOptionalToken(AsmToken::TokenKind T);
+
+  bool parseEOL(const Twine &ErrMsg);
+
+  bool parseMany(function_ref<bool()> parseOne, bool hasComma = true);
+
+  bool parseIntToken(int64_t &V, const Twine &ErrMsg);
+
+  bool check(bool P, const Twine &Msg);
+  bool check(bool P, SMLoc Loc, const Twine &Msg);
 
   /// \brief Parse an identifier or string (as a quoted identifier) and set \p
   /// Res to the identifier contents.
@@ -196,7 +289,8 @@ public:
 
   /// \brief Ensure that we have a valid section set in the streamer. Otherwise,
   /// report an error and switch to .text.
-  virtual void checkForValidSection() = 0;
+  /// \return - False on success.
+  virtual bool checkForValidSection() = 0;
 
   /// \brief Parse an arbitrary expression of a specified parenthesis depth,
   /// assuming that the initial '(' characters have already been consumed.
@@ -212,8 +306,8 @@ public:
 
 /// \brief Create an MCAsmParser instance.
 MCAsmParser *createMCAsmParser(SourceMgr &, MCContext &, MCStreamer &,
-                               const MCAsmInfo &);
+                               const MCAsmInfo &, unsigned CB = 0);
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCPARSER_MCASMPARSER_H

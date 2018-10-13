@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_SEMA_SCOPE_H
 #define LLVM_CLANG_SEMA_SCOPE_H
 
+#include "clang/AST/Decl.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -123,6 +124,12 @@ public:
 
     /// We are currently in the filter expression of an SEH except block.
     SEHFilterScope = 0x200000,
+
+    /// This is a compound statement scope.
+    CompoundStmtScope = 0x400000,
+
+    /// We are between inheritance colon and the real class/struct definition scope.
+    ClassInheritanceScope = 0x800000,
   };
 private:
   /// The parent scope for this scope.  This is null for the translation-unit
@@ -196,6 +203,8 @@ private:
   /// this scope, or over-defined. The bit is true when over-defined.
   llvm::PointerIntPair<VarDecl *, 1, bool> NRVO;
 
+  void setFlags(Scope *Parent, unsigned F);
+
 public:
   Scope(Scope *Parent, unsigned ScopeFlags, DiagnosticsEngine &Diag)
     : ErrorTrap(Diag) {
@@ -205,7 +214,7 @@ public:
   /// getFlags - Return the flags for this scope.
   ///
   unsigned getFlags() const { return Flags; }
-  void setFlags(unsigned F) { Flags = F; }
+  void setFlags(unsigned F) { setFlags(getParent(), F); }
 
   /// isBlockScope - Return true if this scope correspond to a closure.
   bool isBlockScope() const { return Flags & BlockScope; }
@@ -425,6 +434,11 @@ public:
 
   /// \brief Determine whether this scope is a SEH '__except' block.
   bool isSEHExceptScope() const { return getFlags() & Scope::SEHExceptScope; }
+
+  /// \brief Determine whether this scope is a compound statement scope.
+  bool isCompoundStmtScope() const {
+    return getFlags() & Scope::CompoundStmtScope;
+  }
 
   /// \brief Returns if rhs has a higher scope depth than this.
   ///

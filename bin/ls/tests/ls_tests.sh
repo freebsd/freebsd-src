@@ -84,6 +84,14 @@ create_test_inputs2()
 {
 	create_test_dir
 
+	if ! getconf MIN_HOLE_SIZE "$(pwd)"; then
+	    echo "getconf MIN_HOLE_SIZE $(pwd) failed; sparse files probably" \
+	         "not supported by file system"
+	    mount
+	    atf_skip "Test's work directory does not support sparse files;" \
+	             "try with a different TMPDIR?"
+	fi
+
 	for filesize in 1 512 $(( 2 * $KB )) $(( 10 * $KB )) $(( 512 * $KB )); \
 	do
 		atf_check -e ignore -o empty -s exit:0 \
@@ -689,7 +697,6 @@ atf_test_case o_flag
 o_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -o prints out the chflag values or '-' if none are set"
-	atf_set "require.user" "root"
 }
 
 o_flag_body()
@@ -703,6 +710,7 @@ o_flag_body()
 	atf_check -e ignore -o empty -s exit:0 dd if=/dev/zero of=b.file \
 	    bs=$size count=1
 	atf_check -e empty -o empty -s exit:0 chflags uarch a.file
+	atf_check -e empty -o empty -s exit:0 chflags 0 b.file
 
 	atf_check -e empty -o match:"[[:space:]]+uarch[[:space:]]$size+.+a\\.file" \
 	    -s exit:0 ls -lo a.file

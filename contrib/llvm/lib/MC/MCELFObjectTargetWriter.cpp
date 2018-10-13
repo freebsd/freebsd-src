@@ -7,22 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/MC/MCELFObjectWriter.h"
-#include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCValue.h"
 
 using namespace llvm;
 
-MCELFObjectTargetWriter::MCELFObjectTargetWriter(bool Is64Bit_,
-                                                 uint8_t OSABI_,
+MCELFObjectTargetWriter::MCELFObjectTargetWriter(bool Is64Bit_, uint8_t OSABI_,
                                                  uint16_t EMachine_,
-                                                 bool HasRelocationAddend_,
-                                                 bool IsN64_)
-  : OSABI(OSABI_), EMachine(EMachine_),
-    HasRelocationAddend(HasRelocationAddend_), Is64Bit(Is64Bit_),
-    IsN64(IsN64_){
-}
+                                                 bool HasRelocationAddend_)
+    : OSABI(OSABI_), EMachine(EMachine_),
+      HasRelocationAddend(HasRelocationAddend_), Is64Bit(Is64Bit_) {}
 
 bool MCELFObjectTargetWriter::needsRelocateWithSymbol(const MCSymbol &Sym,
                                                       unsigned Type) const {

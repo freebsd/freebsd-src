@@ -1,4 +1,4 @@
-/* $NetBSD: t_pipe.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $ */
+/* $NetBSD: t_pipe.c,v 1.2 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_pipe.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
+__RCSID("$NetBSD: t_pipe.c,v 1.2 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/event.h>
 
@@ -41,7 +41,7 @@ __RCSID("$NetBSD: t_pipe.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
 
 #include <atf-c.h>
 
-#include "../../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(pipe);
 ATF_TC_HEAD(pipe, tc)
@@ -67,7 +67,11 @@ ATF_TC_BODY(pipe, tc)
 
 	RL(n = kevent(kq, NULL, 0, event, 1, NULL));
 	(void)printf("kevent num %d flags: %#x, fflags: %#x, data: "
+#ifdef __FreeBSD__
+	    "%" PRIdPTR "\n", n, event[0].flags, event[0].fflags, event[0].data);
+#else
 	    "%" PRId64 "\n", n, event[0].flags, event[0].fflags, event[0].data);
+#endif
 
 	RL(n = read(fds[0], buffer, event[0].data));
 	buffer[n] = '\0';

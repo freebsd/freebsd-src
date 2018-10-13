@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,12 +35,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
-#endif
-#endif /* LIBC_SCCS and not lint */
+__SCCSID("@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93");
 
 /*
  * AMD64 machine dependent routines for kvm.  Hopefully, the forthcoming
@@ -51,6 +48,7 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vm/vm.h>
 #include <kvm.h>
 
 #include <limits.h>
@@ -316,7 +314,7 @@ _amd64_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 }
 
 int
-_amd64_native(kvm_t *kd)
+_amd64_native(kvm_t *kd __unused)
 {
 
 #ifdef __amd64__
@@ -326,7 +324,7 @@ _amd64_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_amd64 = {
+static struct kvm_arch kvm_amd64 = {
 	.ka_probe = _amd64_probe,
 	.ka_initvtop = _amd64_initvtop,
 	.ka_freevtop = _amd64_freevtop,

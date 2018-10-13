@@ -98,9 +98,9 @@ struct wpabuf * eap_fast_tlv_eap_payload(struct wpabuf *buf);
 void eap_fast_derive_master_secret(const u8 *pac_key, const u8 *server_random,
 				   const u8 *client_random, u8 *master_secret);
 u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
-			 const char *label, size_t len);
-void eap_fast_derive_eap_msk(const u8 *simck, u8 *msk);
-void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk);
+			 size_t len);
+int eap_fast_derive_eap_msk(const u8 *simck, u8 *msk);
+int eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk);
 int eap_fast_parse_tlv(struct eap_fast_tlv_parse *tlv,
 		       int tlv_type, u8 *pos, size_t len);
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Paolo Pisati
  * All rights reserved.
  *
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/pfil.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -104,6 +107,10 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 
 	KASSERT(curvnet == ifp->if_vnet,
 	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
+
+	if (V_ipfw_vnet_ready == 0 || V_ipfw_nat_ready == 0)
+		return;
+
 	chain = &V_layer3_chain;
 	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
@@ -112,7 +119,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) != 0)
 			continue;
 		if_addr_rlock(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
@@ -1145,12 +1152,12 @@ vnet_ipfw_nat_uninit(const void *arg __unused)
 
 	chain = &V_layer3_chain;
 	IPFW_WLOCK(chain);
+	V_ipfw_nat_ready = 0;
 	LIST_FOREACH_SAFE(ptr, &chain->nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
 		free_nat_instance(ptr);
 	}
 	flush_nat_ptrs(chain, -1 /* flush all */);
-	V_ipfw_nat_ready = 0;
 	IPFW_WUNLOCK(chain);
 	return (0);
 }
@@ -1213,7 +1220,7 @@ static moduledata_t ipfw_nat_mod = {
 };
 
 /* Define startup order. */
-#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
 #define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 128) /* after ipfw */
 #define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
 #define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)

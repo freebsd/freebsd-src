@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Alex Nash
  * All rights reserved.
  *
@@ -49,27 +51,42 @@ __weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
 __weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
 __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
 
-#define CHECK_AND_INIT_RWLOCK							\
-	if (*rwlock == THR_PSHARED_PTR) {					\
-		prwlock = __thr_pshared_offpage(rwlock, 0);			\
-		if (prwlock == NULL)						\
-			return (EINVAL);					\
-	} else if (__predict_false((prwlock = (*rwlock)) <=			\
-	    THR_RWLOCK_DESTROYED)) {						\
-		if (prwlock == THR_RWLOCK_INITIALIZER) {			\
-			int ret;						\
-			ret = init_static(_get_curthread(), rwlock);		\
-			if (ret)						\
-				return (ret);					\
-		} else if (prwlock == THR_RWLOCK_DESTROYED) {			\
-			return (EINVAL);					\
-		}								\
-		prwlock = *rwlock;						\
-	}
+static int init_static(struct pthread *thread, pthread_rwlock_t *rwlock);
+static int init_rwlock(pthread_rwlock_t *rwlock, pthread_rwlock_t *rwlock_out);
 
-/*
- * Prototypes
- */
+static int __always_inline
+check_and_init_rwlock(pthread_rwlock_t *rwlock, pthread_rwlock_t *rwlock_out)
+{
+	if (__predict_false(*rwlock == THR_PSHARED_PTR ||
+	    *rwlock <= THR_RWLOCK_DESTROYED))
+		return (init_rwlock(rwlock, rwlock_out));
+	*rwlock_out = *rwlock;
+	return (0);
+}
+
+static int __noinline
+init_rwlock(pthread_rwlock_t *rwlock, pthread_rwlock_t *rwlock_out)
+{
+	pthread_rwlock_t prwlock;
+	int ret;
+
+	if (*rwlock == THR_PSHARED_PTR) {
+		prwlock = __thr_pshared_offpage(rwlock, 0);
+		if (prwlock == NULL)
+			return (EINVAL);
+	} else if ((prwlock = *rwlock) <= THR_RWLOCK_DESTROYED) {
+		if (prwlock == THR_RWLOCK_INITIALIZER) {
+			ret = init_static(_get_curthread(), rwlock);
+			if (ret != 0)
+				return (ret);
+		} else if (prwlock == THR_RWLOCK_DESTROYED) {
+			return (EINVAL);
+		}
+		prwlock = *rwlock;
+	}
+	*rwlock_out = prwlock;
+	return (0);
+}
 
 static int
 rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
@@ -148,7 +165,9 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 	int flags;
 	int ret;
 
-	CHECK_AND_INIT_RWLOCK
+	ret = check_and_init_rwlock(rwlock, &prwlock);
+	if (ret != 0)
+		return (ret);
 
 	if (curthread->rdlock_count) {
 		/*
@@ -206,8 +225,8 @@ _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 }
 
 int
-_pthread_rwlock_timedrdlock (pthread_rwlock_t *rwlock,
-	 const struct timespec *abstime)
+_pthread_rwlock_timedrdlock(pthread_rwlock_t * __restrict rwlock,
+    const struct timespec * __restrict abstime)
 {
 	return (rwlock_rdlock_common(rwlock, abstime));
 }
@@ -220,7 +239,9 @@ _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 	int flags;
 	int ret;
 
-	CHECK_AND_INIT_RWLOCK
+	ret = check_and_init_rwlock(rwlock, &prwlock);
+	if (ret != 0)
+		return (ret);
 
 	if (curthread->rdlock_count) {
 		/*
@@ -253,7 +274,9 @@ _pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 	pthread_rwlock_t prwlock;
 	int ret;
 
-	CHECK_AND_INIT_RWLOCK
+	ret = check_and_init_rwlock(rwlock, &prwlock);
+	if (ret != 0)
+		return (ret);
 
 	ret = _thr_rwlock_trywrlock(&prwlock->lock);
 	if (ret == 0)
@@ -268,7 +291,9 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 	pthread_rwlock_t prwlock;
 	int ret;
 
-	CHECK_AND_INIT_RWLOCK
+	ret = check_and_init_rwlock(rwlock, &prwlock);
+	if (ret != 0)
+		return (ret);
 
 	/*
 	 * POSIX said the validity of the abstimeout parameter need
@@ -312,8 +337,8 @@ _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 }
 
 int
-_pthread_rwlock_timedwrlock (pthread_rwlock_t *rwlock,
-    const struct timespec *abstime)
+_pthread_rwlock_timedwrlock(pthread_rwlock_t * __restrict rwlock,
+    const struct timespec * __restrict abstime)
 {
 	return (rwlock_wrlock_common (rwlock, abstime));
 }

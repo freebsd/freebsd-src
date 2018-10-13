@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2015
+.Dd January 18, 2018
 .Dt VMSTAT 8
 .Os
 .Sh NAME
@@ -248,31 +248,39 @@ By default,
 displays the following information:
 .Bl -tag -width indent
 .It procs
-Information about the numbers of processes in various states.
+Information about the number of threads in various states:
 .Pp
 .Bl -tag -width indent -compact
 .It r
-in run queue
+running or in run queue
 .It b
 blocked for resources (i/o, paging, etc.)
 .It w
-runnable or short sleeper (< 20 secs) but swapped
+swapped out
 .El
 .It memory
 Information about the usage of virtual and real memory.
-Virtual pages (reported in units of 1024 bytes) are considered active if
-they belong to processes which are running or have run in the last 20
-seconds.
+.Pp
+Mapped virtual memory is a sum of all of the virtual pages belonging
+to mapped virtual memory objects.
+Note that the entire memory object's size is considered mapped even if
+only a subset of the object's pages are currently mapped.
+This statistic is not related to the active page queue which is used to track
+real memory.
 .Pp
 .Bl -tag -width indent -compact
 .It avm
-active virtual pages
+mapped virtual memory
+.Po previously called active in
+.Nm
+output
+.Pc
 .It fre
 size of the free list
 .El
 .It page
 Information about page faults and paging activity.
-These are averaged each five seconds, and given in units per second.
+These are given in units per second.
 .Pp
 .Bl -tag -width indent -compact
 .It flt
@@ -286,11 +294,11 @@ pages paged in
 .It po
 pages paged out
 .It fr
-pages freed per second
+pages freed
 .\" .It de
 .\" anticipated short term memory shortfall
 .It sr
-pages scanned by clock algorithm, per-second
+pages scanned by page daemon
 .El
 .It disks
 Disk operations per second (this field is system dependent).
@@ -319,15 +327,15 @@ matching pattern is specified (see above),
 will only display the given devices or the devices matching the pattern,
 and will not randomly select other devices in the system.
 .It faults
-Trap/interrupt rate averages per second over last 5 seconds.
+Trap/interrupt rates per second.
 .Pp
 .Bl -tag -width indent -compact
 .It in
-device interrupts per interval (including clock interrupts)
+device interrupts (including clock interrupts)
 .It sy
-system calls per interval
+system calls
 .It cs
-cpu context switch rate (switches/interval)
+cpu context switches
 .El
 .It cpu
 Breakdown of percentage usage of CPU time.
@@ -336,7 +344,7 @@ Breakdown of percentage usage of CPU time.
 .It us
 user time for normal and low priority processes
 .It sy
-system time
+system and interrupt time
 .It id
 cpu idle
 .El
@@ -352,10 +360,7 @@ default memory file
 The command:
 .Dl vmstat -w 5
 will print what the system is doing every five
-seconds; this is a good choice of printing interval since this is how often
-some of the statistics are sampled in the system.
-Others vary every second and running the output for a while will make it
-apparent which are recomputed every second.
+seconds.
 .Pp
 The command:
 .Dl vmstat -p da -p cd -w 1

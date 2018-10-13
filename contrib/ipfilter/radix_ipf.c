@@ -1192,7 +1192,7 @@ buildtab(void)
 		if (lines == 1)
 			tab = malloc(sizeof(*tab) * 2);
 		else
-			tab = realloc(tab, (lines + 1) * sizeof(*tab));
+			tab = reallocarray(tab, lines + 1, sizeof(*tab));
 		tab[lines - 1].host = strdup(line);
 		s = strchr(tab[lines - 1].host, '/');
 		*s++ = '\0';

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -40,7 +42,6 @@
 #define	DEFAULT_IQN			"iqn.1994-09.org.freebsd:"
 
 #define	MAX_NAME_LEN			223
-#define	MAX_DATA_SEGMENT_LENGTH		65536
 
 #define	AUTH_METHOD_UNSPECIFIED		0
 #define	AUTH_METHOD_NONE		1
@@ -88,23 +89,6 @@ struct conf {
 	TAILQ_HEAD(, target)	conf_targets;
 };
 
-#define	CONN_SESSION_TYPE_NONE		0
-#define	CONN_SESSION_TYPE_DISCOVERY	1
-#define	CONN_SESSION_TYPE_NORMAL	2
-
-struct connection {
-	struct target		*conn_target;
-	int			conn_socket;
-	int			conn_session_type;
-	uint32_t		conn_cmdsn;
-	uint32_t		conn_statsn;
-	size_t			conn_max_data_segment_length;
-	size_t			conn_max_burst_length;
-	size_t			conn_max_outstanding_r2t;
-	int			conn_header_digest;
-	int			conn_data_digest;
-};
-
 struct conf	*conf_new(void);
 struct conf	*conf_new_from_file(const char *path);
 void		conf_delete(struct conf *conf);
@@ -116,7 +100,6 @@ void		target_delete(struct target *ic);
 
 void		print_periphs(int session_id);
 
-char		*checked_strdup(const char *);
 bool		valid_iscsi_name(const char *name);
 int		parse_enable(const char *enable);
 

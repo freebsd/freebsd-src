@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -57,6 +59,7 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 	siena_mac_loopback_set,			/* emo_loopback_set */
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
+	siena_mac_stats_get_mask,		/* emo_stats_get_mask */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	siena_mac_stats_update			/* emo_stats_update */
@@ -80,6 +83,7 @@ static const efx_mac_ops_t	__efx_ef10_mac_ops = {
 	ef10_mac_loopback_set,			/* emo_loopback_set */
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
+	ef10_mac_stats_get_mask,		/* emo_stats_get_mask */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	ef10_mac_stats_update			/* emo_stats_update */
@@ -515,8 +519,8 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock 054d43a31d2d7a45 */
-static const char 	*__efx_mac_stat_name[] = {
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock c11b91b42f922516 */
+static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
 	"rx_unicst_pkts",
@@ -614,6 +618,105 @@ efx_mac_stat_name(
 }
 
 #endif	/* EFSYS_OPT_NAMES */
+
+static					efx_rc_t
+efx_mac_stats_mask_add_range(
+	__inout_bcount(mask_size)	uint32_t *maskp,
+	__in				size_t mask_size,
+	__in				const struct efx_mac_stats_range *rngp)
+{
+	unsigned int mask_npages = mask_size / sizeof (*maskp);
+	unsigned int el;
+	unsigned int el_min;
+	unsigned int el_max;
+	unsigned int low;
+	unsigned int high;
+	unsigned int width;
+	efx_rc_t rc;
+
+	if ((mask_npages * EFX_MAC_STATS_MASK_BITS_PER_PAGE) <=
+	    (unsigned int)rngp->last) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	EFSYS_ASSERT3U(rngp->first, <=, rngp->last);
+	EFSYS_ASSERT3U(rngp->last, <, EFX_MAC_NSTATS);
+
+	for (el = 0; el < mask_npages; ++el) {
+		el_min = el * EFX_MAC_STATS_MASK_BITS_PER_PAGE;
+		el_max =
+		    el_min + (EFX_MAC_STATS_MASK_BITS_PER_PAGE - 1);
+		if ((unsigned int)rngp->first > el_max ||
+		    (unsigned int)rngp->last < el_min)
+			continue;
+		low = MAX((unsigned int)rngp->first, el_min);
+		high = MIN((unsigned int)rngp->last, el_max);
+		width = high - low + 1;
+		maskp[el] |=
+		    (width == EFX_MAC_STATS_MASK_BITS_PER_PAGE) ?
+		    (~0ULL) : (((1ULL << width) - 1) << (low - el_min));
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+					efx_rc_t
+efx_mac_stats_mask_add_ranges(
+	__inout_bcount(mask_size)	uint32_t *maskp,
+	__in				size_t mask_size,
+	__in_ecount(rng_count)		const struct efx_mac_stats_range *rngp,
+	__in				unsigned int rng_count)
+{
+	unsigned int i;
+	efx_rc_t rc;
+
+	for (i = 0; i < rng_count; ++i) {
+		if ((rc = efx_mac_stats_mask_add_range(maskp, mask_size,
+		    &rngp[i])) != 0)
+			goto fail1;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn			efx_rc_t
+efx_mac_stats_get_mask(
+	__in				efx_nic_t *enp,
+	__out_bcount(mask_size)		uint32_t *maskp,
+	__in				size_t mask_size)
+{
+	efx_port_t *epp = &(enp->en_port);
+	const efx_mac_ops_t *emop = epp->ep_emop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
+	EFSYS_ASSERT(maskp != NULL);
+	EFSYS_ASSERT(mask_size % sizeof (maskp[0]) == 0);
+
+	(void) memset(maskp, 0, mask_size);
+
+	if ((rc = emop->emo_stats_get_mask(enp, maskp, mask_size)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 	__checkReturn			efx_rc_t
 efx_mac_stats_upload(

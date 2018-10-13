@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -47,7 +49,7 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp,
     struct sctp_scoping *scope,
     struct mbuf *m_at,
     int cnt_inits_to,
-    uint16_t * padding_len, uint16_t * chunk_len);
+    uint16_t *padding_len, uint16_t *chunk_len);
 
 
 int sctp_is_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
@@ -64,15 +66,15 @@ int
 struct sctp_ifa *
 sctp_source_address_selection(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
-    sctp_route_t * ro, struct sctp_nets *net,
+    sctp_route_t *ro, struct sctp_nets *net,
     int non_asoc_addr_ok, uint32_t vrf_id);
 
 int
-    sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t * ro);
+    sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t *ro);
 int
-    sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t * ro);
+    sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t *ro);
 
-void 
+void
 sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -86,7 +88,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_init_chunk *,
     uint8_t, uint32_t,
-    uint32_t, uint16_t, int);
+    uint32_t, uint16_t);
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,
@@ -115,7 +117,7 @@ void sctp_send_shutdown_ack(struct sctp_tcb *, struct sctp_nets *);
 
 void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *, int);
 
-void 
+void
 sctp_send_shutdown_complete2(struct sockaddr *, struct sockaddr *,
     struct sctphdr *,
     uint8_t, uint32_t, uint16_t,
@@ -135,17 +137,22 @@ void sctp_fix_ecn_echo(struct sctp_association *);
 
 void sctp_move_chunks_from_net(struct sctp_tcb *stcb, struct sctp_nets *net);
 
+
+#define SCTP_DATA_CHUNK_OVERHEAD(stcb) ((stcb)->asoc.idata_supported ? \
+					sizeof(struct sctp_idata_chunk) : \
+					sizeof(struct sctp_data_chunk))
+
 int
 sctp_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct thread *, int);
 
-void 
+void
 sctp_chunk_output(struct sctp_inpcb *, struct sctp_tcb *, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
 );
-void 
+void
 sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -194,7 +201,7 @@ sctp_send_abort(struct mbuf *, int, struct sockaddr *, struct sockaddr *,
     uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
-void 
+void
 sctp_send_operr_to(struct sockaddr *, struct sockaddr *,
     struct sctphdr *, uint32_t, struct mbuf *,
     uint8_t, uint32_t, uint16_t,

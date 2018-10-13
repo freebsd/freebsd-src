@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.259 2016/06/03 07:07:37 wiz Exp $
+.\"	$NetBSD: make.1,v 1.272 2018/04/02 04:26:17 dholland Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 2, 2016
+.Dd September 27, 2018
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl m Ar directory
 .Op Fl T Ar file
 .Op Fl V Ar variable
+.Op Fl v Ar variable
 .Op Ar variable=value
 .Op Ar target ...
 .Sh DESCRIPTION
@@ -206,7 +207,9 @@ Print debugging information about target list maintenance.
 .It Ar V
 Force the
 .Fl V
-option to print raw values of variables.
+option to print raw values of variables, overriding the default behavior
+set via
+.Va .MAKE.EXPAND_VARIABLES .
 .It Ar v
 Print debugging information about variable assignment.
 .It Ar x
@@ -334,20 +337,39 @@ for each job started and completed.
 Rather than re-building a target as specified in the makefile, create it
 or update its modification time to make it appear up-to-date.
 .It Fl V Ar variable
-Print
-.Nm Ns 's
-idea of the value of
-.Ar variable ,
-in the global context.
+Print the value of
+.Ar variable .
 Do not build any targets.
 Multiple instances of this option may be specified;
 the variables will be printed one per line,
 with a blank line for each null or undefined variable.
+The value printed is extracted from the global context after all
+makefiles have been read.
+By default, the raw variable contents (which may
+include additional unexpanded variable references) are shown.
 If
 .Ar variable
 contains a
 .Ql \&$
-then the value will be expanded before printing.
+then the value will be recursively expanded to its complete resultant
+text before printing.
+The expanded value will also be printed if
+.Va .MAKE.EXPAND_VARIABLES
+is set to true and
+the
+.Fl dV
+option has not been used to override it.
+Note that loop-local and target-local variables, as well as values
+taken temporarily by global variables during makefile processing, are
+not accessible via this option.
+The
+.Fl dv
+debug mode can be used to see these at the cost of generating
+substantial extraneous output.
+.It Fl v Ar variable
+Like
+.Fl V
+but the variable is always expanded to its complete value.
 .It Fl W
 Treat any warnings during makefile parsing as errors.
 .It Fl w
@@ -657,7 +679,7 @@ The seven local variables are as follows:
 .Bl -tag -width ".ARCHIVE" -offset indent
 .It Va .ALLSRC
 The list of all sources for this target; also known as
-.Ql Va \&\*[Gt] .
+.Ql Va \&> .
 .It Va .ARCHIVE
 The name of the archive file; also known as
 .Ql Va \&! .
@@ -666,7 +688,7 @@ In suffix-transformation rules, the name/path of the source from which the
 target is to be transformed (the
 .Dq implied
 source); also known as
-.Ql Va \&\*[Lt] .
+.Ql Va \&< .
 It is not defined in explicit rules.
 .It Va .MEMBER
 The name of the archive member; also known as
@@ -691,9 +713,9 @@ in archive member rules.
 .El
 .Pp
 The shorter forms
-.Ql ( Va \*[Gt] ,
+.Ql ( Va > ,
 .Ql Va \&! ,
-.Ql Va \*[Lt] ,
+.Ql Va < ,
 .Ql Va % ,
 .Ql Va \&? ,
 .Ql Va * ,
@@ -774,7 +796,7 @@ Tells
 whether to pass the descriptors of the job token queue
 even if the target is not tagged with
 .Ic .MAKE
-The default is 
+The default is
 .Ql Pa yes
 for backwards compatability with
 .Fx 9.0
@@ -787,6 +809,10 @@ from which generated dependencies are read.
 A boolean that controls the default behavior of the
 .Fl V
 option.
+If true, variable values printed with
+.Fl V
+are fully expanded; if false, the raw variable contents (which may
+include additional unexpanded variable references) are shown.
 .It Va .MAKE.EXPORTED
 The list of variables exported by
 .Nm .
@@ -938,6 +964,9 @@ The default list includes:
 .It Va .MAKE.META.IGNORE_PATTERNS
 Provides a list of patterns to match against pathnames.
 Ignore any that match.
+.It Va .MAKE.META.IGNORE_FILTER
+Provides a list of variable modifiers to apply to each pathname.
+Ignore if the expansion is an empty string.
 .It Va .MAKE.META.PREFIX
 Defines the message printed for each meta file updated in "meta verbose" mode.
 The default value is:
@@ -985,7 +1014,19 @@ per normal evaluation rules.
 .It Va MAKE_PRINT_VAR_ON_ERROR
 When
 .Nm
-stops due to an error, it prints its name and the value of
+stops due to an error, it sets
+.Ql Va .ERROR_TARGET
+to the name of the target that failed,
+.Ql Va .ERROR_CMD
+to the commands of the failed target,
+and in "meta" mode, it also sets
+.Ql Va .ERROR_CWD
+to the
+.Xr getcwd 3 ,
+and
+.Ql Va .ERROR_META_FILE
+to the path of the meta file (if any) describing the failed target.
+It then prints its name and the value of
 .Ql Va .CURDIR
 as well as the value of any variables named in
 .Ql Va MAKE_PRINT_VAR_ON_ERROR .
@@ -1201,18 +1242,28 @@ safely through recursive invocations of
 .Nm .
 .It Cm \&:R
 Replaces each word in the variable with everything but its suffix.
-.It Cm \&:gmtime
+.It Cm \&:range[=count]
+The value is an integer sequence representing the words of the original
+value, or the supplied
+.Va count .
+.It Cm \&:gmtime[=utc]
 The value is a format string for
 .Xr strftime 3 ,
-using the current
+using
 .Xr gmtime 3 .
+If a
+.Va utc
+value is not provided or is 0, the current time is used.
 .It Cm \&:hash
 Compute a 32-bit hash of the value and encode it as hex digits.
-.It Cm \&:localtime
+.It Cm \&:localtime[=utc]
 The value is a format string for
 .Xr strftime 3 ,
-using the current
+using
 .Xr localtime 3 .
+If a
+.Va utc
+value is not provided or is 0, the current time is used.
 .It Cm \&:tA
 Attempt to convert variable to an absolute path using
 .Xr realpath 3 ,
@@ -1273,7 +1324,7 @@ it is anchored at the end of each word.
 Inside
 .Ar new_string ,
 an ampersand
-.Pq Ql \*[Am]
+.Pq Ql &
 is replaced by
 .Ar old_string
 (without any
@@ -1412,6 +1463,27 @@ For example.
 .Pp
 However a single character variable is often more readable:
 .Dl ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
+.It Cm \&:_[=var]
+Save the current variable value in
+.Ql $_
+or the named
+.Va var
+for later reference.
+Example usage:
+.Bd -literal -offset indent
+M_cmpv.units = 1 1000 1000000
+M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \&\\
+\\* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
+
+.Dv .if ${VERSION:${M_cmpv}} < ${3.1.12:L:${M_cmpv}}
+
+.Ed
+Here
+.Ql $_
+is used to save the result of the
+.Ql :S
+modifier which is later referenced using the index values from
+.Ql :range .
 .It Cm \&:U Ns Ar newval
 If the variable is undefined
 .Ar newval
@@ -1716,7 +1788,7 @@ may be any one of the following:
 .Bl -tag -width "Cm XX"
 .It Cm \&|\&|
 Logical OR.
-.It Cm \&\*[Am]\*[Am]
+.It Cm \&&&
 Logical
 .Tn AND ;
 of higher precedence than
@@ -1733,7 +1805,7 @@ The boolean operator
 may be used to logically negate an entire
 conditional.
 It is of higher precedence than
-.Ql Ic \&\*[Am]\*[Am] .
+.Ql Ic \&&& .
 .Pp
 The value of
 .Ar expression
@@ -1804,7 +1876,8 @@ expression is applied.
 Similarly, if the form is
 .Ql Ic .ifmake
 or
-.Ql Ic .ifnmake , the
+.Ql Ic .ifnmake ,
+the
 .Dq make
 expression is applied.
 .Pp
@@ -2007,6 +2080,14 @@ variable of a target that inherits
 .Ic .DEFAULT Ns 's
 commands is set
 to the target's own name.
+.It Ic .DELETE_ON_ERROR
+If this target is present in the makefile, it globally causes make to
+delete targets whose commands fail.
+(By default, only targets whose commands are interrupted during
+execution are deleted.
+This is the historical behavior.)
+This setting can be used to help prevent half-finished or malformed
+targets from being left around and corrupting future rebuilds.
 .It Ic .END
 Any command lines attached to this target are executed after everything
 else is done.
@@ -2304,7 +2385,8 @@ Basic use of suffix rules (for files only in the current directory,
 not trying to chain transformations together, etc.) is also reasonably
 portable.
 .Sh SEE ALSO
-.Xr mkdep 1
+.Xr mkdep 1 ,
+.Xr style.Makefile 5
 .Sh HISTORY
 A
 .Nm

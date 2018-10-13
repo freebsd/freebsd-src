@@ -33,7 +33,6 @@
 # include "ntp_syscall.h"
 #endif
 
-
 /*
  * Structure to hold request procedure information
  */
@@ -120,14 +119,14 @@ static const struct ctl_proc control_codes[] = {
 	{ CTL_OP_READVAR,		NOAUTH,	read_variables },
 	{ CTL_OP_WRITEVAR,		AUTH,	write_variables },
 	{ CTL_OP_READCLOCK,		NOAUTH,	read_clockstatus },
-	{ CTL_OP_WRITECLOCK,		NOAUTH,	write_clockstatus },
-	{ CTL_OP_SETTRAP,		NOAUTH,	set_trap },
+	{ CTL_OP_WRITECLOCK,		AUTH,	write_clockstatus },
+	{ CTL_OP_SETTRAP,		AUTH,	set_trap },
 	{ CTL_OP_CONFIGURE,		AUTH,	configure },
 	{ CTL_OP_SAVECONFIG,		AUTH,	save_config },
 	{ CTL_OP_READ_MRU,		NOAUTH,	read_mru_list },
 	{ CTL_OP_READ_ORDLIST_A,	AUTH,	read_ordlist },
 	{ CTL_OP_REQ_NONCE,		NOAUTH,	req_nonce },
-	{ CTL_OP_UNSETTRAP,		NOAUTH,	unset_trap },
+	{ CTL_OP_UNSETTRAP,		AUTH,	unset_trap },
 	{ NO_REQUEST,			0,	NULL }
 };
 
@@ -177,56 +176,58 @@ static const struct ctl_proc control_codes[] = {
 #define	CS_SS_LIMITED		41
 #define	CS_SS_KODSENT		42
 #define	CS_SS_PROCESSED		43
-#define	CS_PEERADR		44
-#define	CS_PEERMODE		45
-#define	CS_BCASTDELAY		46
-#define	CS_AUTHDELAY		47
-#define	CS_AUTHKEYS		48
-#define	CS_AUTHFREEK		49
-#define	CS_AUTHKLOOKUPS		50
-#define	CS_AUTHKNOTFOUND	51
-#define	CS_AUTHKUNCACHED	52
-#define	CS_AUTHKEXPIRED		53
-#define	CS_AUTHENCRYPTS		54
-#define	CS_AUTHDECRYPTS		55
-#define	CS_AUTHRESET		56
-#define	CS_K_OFFSET		57
-#define	CS_K_FREQ		58
-#define	CS_K_MAXERR		59
-#define	CS_K_ESTERR		60
-#define	CS_K_STFLAGS		61
-#define	CS_K_TIMECONST		62
-#define	CS_K_PRECISION		63
-#define	CS_K_FREQTOL		64
-#define	CS_K_PPS_FREQ		65
-#define	CS_K_PPS_STABIL		66
-#define	CS_K_PPS_JITTER		67
-#define	CS_K_PPS_CALIBDUR	68
-#define	CS_K_PPS_CALIBS		69
-#define	CS_K_PPS_CALIBERRS	70
-#define	CS_K_PPS_JITEXC		71
-#define	CS_K_PPS_STBEXC		72
+#define	CS_SS_LAMPORT		44
+#define	CS_SS_TSROUNDING	45
+#define	CS_PEERADR		46
+#define	CS_PEERMODE		47
+#define	CS_BCASTDELAY		48
+#define	CS_AUTHDELAY		49
+#define	CS_AUTHKEYS		50
+#define	CS_AUTHFREEK		51
+#define	CS_AUTHKLOOKUPS		52
+#define	CS_AUTHKNOTFOUND	53
+#define	CS_AUTHKUNCACHED	54
+#define	CS_AUTHKEXPIRED		55
+#define	CS_AUTHENCRYPTS		56
+#define	CS_AUTHDECRYPTS		57
+#define	CS_AUTHRESET		58
+#define	CS_K_OFFSET		59
+#define	CS_K_FREQ		60
+#define	CS_K_MAXERR		61
+#define	CS_K_ESTERR		62
+#define	CS_K_STFLAGS		63
+#define	CS_K_TIMECONST		64
+#define	CS_K_PRECISION		65
+#define	CS_K_FREQTOL		66
+#define	CS_K_PPS_FREQ		67
+#define	CS_K_PPS_STABIL		68
+#define	CS_K_PPS_JITTER		69
+#define	CS_K_PPS_CALIBDUR	70
+#define	CS_K_PPS_CALIBS		71
+#define	CS_K_PPS_CALIBERRS	72
+#define	CS_K_PPS_JITEXC		73
+#define	CS_K_PPS_STBEXC		74
 #define	CS_KERN_FIRST		CS_K_OFFSET
 #define	CS_KERN_LAST		CS_K_PPS_STBEXC
-#define	CS_IOSTATS_RESET	73
-#define	CS_TOTAL_RBUF		74
-#define	CS_FREE_RBUF		75
-#define	CS_USED_RBUF		76
-#define	CS_RBUF_LOWATER		77
-#define	CS_IO_DROPPED		78
-#define	CS_IO_IGNORED		79
-#define	CS_IO_RECEIVED		80
-#define	CS_IO_SENT		81
-#define	CS_IO_SENDFAILED	82
-#define	CS_IO_WAKEUPS		83
-#define	CS_IO_GOODWAKEUPS	84
-#define	CS_TIMERSTATS_RESET	85
-#define	CS_TIMER_OVERRUNS	86
-#define	CS_TIMER_XMTS		87
-#define	CS_FUZZ			88
-#define	CS_WANDER_THRESH	89
-#define	CS_LEAPSMEARINTV	90
-#define	CS_LEAPSMEAROFFS	91
+#define	CS_IOSTATS_RESET	75
+#define	CS_TOTAL_RBUF		76
+#define	CS_FREE_RBUF		77
+#define	CS_USED_RBUF		78
+#define	CS_RBUF_LOWATER		79
+#define	CS_IO_DROPPED		80
+#define	CS_IO_IGNORED		81
+#define	CS_IO_RECEIVED		82
+#define	CS_IO_SENT		83
+#define	CS_IO_SENDFAILED	84
+#define	CS_IO_WAKEUPS		85
+#define	CS_IO_GOODWAKEUPS	86
+#define	CS_TIMERSTATS_RESET	87
+#define	CS_TIMER_OVERRUNS	88
+#define	CS_TIMER_XMTS		89
+#define	CS_FUZZ			90
+#define	CS_WANDER_THRESH	91
+#define	CS_LEAPSMEARINTV	92
+#define	CS_LEAPSMEAROFFS	93
 #define	CS_MAX_NOAUTOKEY	CS_LEAPSMEAROFFS
 #ifdef AUTOKEY
 #define	CS_FLAGS		(1 + CS_MAX_NOAUTOKEY)
@@ -377,55 +378,57 @@ static const struct ctl_var sys_var[] = {
 	{ CS_SS_LIMITED,	RO, "ss_limited" },	/* 41 */
 	{ CS_SS_KODSENT,	RO, "ss_kodsent" },	/* 42 */
 	{ CS_SS_PROCESSED,	RO, "ss_processed" },	/* 43 */
-	{ CS_PEERADR,		RO, "peeradr" },	/* 44 */
-	{ CS_PEERMODE,		RO, "peermode" },	/* 45 */
-	{ CS_BCASTDELAY,	RO, "bcastdelay" },	/* 46 */
-	{ CS_AUTHDELAY,		RO, "authdelay" },	/* 47 */
-	{ CS_AUTHKEYS,		RO, "authkeys" },	/* 48 */
-	{ CS_AUTHFREEK,		RO, "authfreek" },	/* 49 */
-	{ CS_AUTHKLOOKUPS,	RO, "authklookups" },	/* 50 */
-	{ CS_AUTHKNOTFOUND,	RO, "authknotfound" },	/* 51 */
-	{ CS_AUTHKUNCACHED,	RO, "authkuncached" },	/* 52 */
-	{ CS_AUTHKEXPIRED,	RO, "authkexpired" },	/* 53 */
-	{ CS_AUTHENCRYPTS,	RO, "authencrypts" },	/* 54 */
-	{ CS_AUTHDECRYPTS,	RO, "authdecrypts" },	/* 55 */
-	{ CS_AUTHRESET,		RO, "authreset" },	/* 56 */
-	{ CS_K_OFFSET,		RO, "koffset" },	/* 57 */
-	{ CS_K_FREQ,		RO, "kfreq" },		/* 58 */
-	{ CS_K_MAXERR,		RO, "kmaxerr" },	/* 59 */
-	{ CS_K_ESTERR,		RO, "kesterr" },	/* 60 */
-	{ CS_K_STFLAGS,		RO, "kstflags" },	/* 61 */
-	{ CS_K_TIMECONST,	RO, "ktimeconst" },	/* 62 */
-	{ CS_K_PRECISION,	RO, "kprecis" },	/* 63 */
-	{ CS_K_FREQTOL,		RO, "kfreqtol" },	/* 64 */
-	{ CS_K_PPS_FREQ,	RO, "kppsfreq" },	/* 65 */
-	{ CS_K_PPS_STABIL,	RO, "kppsstab" },	/* 66 */
-	{ CS_K_PPS_JITTER,	RO, "kppsjitter" },	/* 67 */
-	{ CS_K_PPS_CALIBDUR,	RO, "kppscalibdur" },	/* 68 */
-	{ CS_K_PPS_CALIBS,	RO, "kppscalibs" },	/* 69 */
-	{ CS_K_PPS_CALIBERRS,	RO, "kppscaliberrs" },	/* 70 */
-	{ CS_K_PPS_JITEXC,	RO, "kppsjitexc" },	/* 71 */
-	{ CS_K_PPS_STBEXC,	RO, "kppsstbexc" },	/* 72 */
-	{ CS_IOSTATS_RESET,	RO, "iostats_reset" },	/* 73 */
-	{ CS_TOTAL_RBUF,	RO, "total_rbuf" },	/* 74 */
-	{ CS_FREE_RBUF,		RO, "free_rbuf" },	/* 75 */
-	{ CS_USED_RBUF,		RO, "used_rbuf" },	/* 76 */
-	{ CS_RBUF_LOWATER,	RO, "rbuf_lowater" },	/* 77 */
-	{ CS_IO_DROPPED,	RO, "io_dropped" },	/* 78 */
-	{ CS_IO_IGNORED,	RO, "io_ignored" },	/* 79 */
-	{ CS_IO_RECEIVED,	RO, "io_received" },	/* 80 */
-	{ CS_IO_SENT,		RO, "io_sent" },	/* 81 */
-	{ CS_IO_SENDFAILED,	RO, "io_sendfailed" },	/* 82 */
-	{ CS_IO_WAKEUPS,	RO, "io_wakeups" },	/* 83 */
-	{ CS_IO_GOODWAKEUPS,	RO, "io_goodwakeups" },	/* 84 */
-	{ CS_TIMERSTATS_RESET,	RO, "timerstats_reset" },/* 85 */
-	{ CS_TIMER_OVERRUNS,	RO, "timer_overruns" },	/* 86 */
-	{ CS_TIMER_XMTS,	RO, "timer_xmts" },	/* 87 */
-	{ CS_FUZZ,		RO, "fuzz" },		/* 88 */
-	{ CS_WANDER_THRESH,	RO, "clk_wander_threshold" }, /* 89 */
+	{ CS_SS_LAMPORT,	RO, "ss_lamport" },	/* 44 */
+	{ CS_SS_TSROUNDING,	RO, "ss_tsrounding" },	/* 45 */
+	{ CS_PEERADR,		RO, "peeradr" },	/* 46 */
+	{ CS_PEERMODE,		RO, "peermode" },	/* 47 */
+	{ CS_BCASTDELAY,	RO, "bcastdelay" },	/* 48 */
+	{ CS_AUTHDELAY,		RO, "authdelay" },	/* 49 */
+	{ CS_AUTHKEYS,		RO, "authkeys" },	/* 50 */
+	{ CS_AUTHFREEK,		RO, "authfreek" },	/* 51 */
+	{ CS_AUTHKLOOKUPS,	RO, "authklookups" },	/* 52 */
+	{ CS_AUTHKNOTFOUND,	RO, "authknotfound" },	/* 53 */
+	{ CS_AUTHKUNCACHED,	RO, "authkuncached" },	/* 54 */
+	{ CS_AUTHKEXPIRED,	RO, "authkexpired" },	/* 55 */
+	{ CS_AUTHENCRYPTS,	RO, "authencrypts" },	/* 56 */
+	{ CS_AUTHDECRYPTS,	RO, "authdecrypts" },	/* 57 */
+	{ CS_AUTHRESET,		RO, "authreset" },	/* 58 */
+	{ CS_K_OFFSET,		RO, "koffset" },	/* 59 */
+	{ CS_K_FREQ,		RO, "kfreq" },		/* 60 */
+	{ CS_K_MAXERR,		RO, "kmaxerr" },	/* 61 */
+	{ CS_K_ESTERR,		RO, "kesterr" },	/* 62 */
+	{ CS_K_STFLAGS,		RO, "kstflags" },	/* 63 */
+	{ CS_K_TIMECONST,	RO, "ktimeconst" },	/* 64 */
+	{ CS_K_PRECISION,	RO, "kprecis" },	/* 65 */
+	{ CS_K_FREQTOL,		RO, "kfreqtol" },	/* 66 */
+	{ CS_K_PPS_FREQ,	RO, "kppsfreq" },	/* 67 */
+	{ CS_K_PPS_STABIL,	RO, "kppsstab" },	/* 68 */
+	{ CS_K_PPS_JITTER,	RO, "kppsjitter" },	/* 69 */
+	{ CS_K_PPS_CALIBDUR,	RO, "kppscalibdur" },	/* 70 */
+	{ CS_K_PPS_CALIBS,	RO, "kppscalibs" },	/* 71 */
+	{ CS_K_PPS_CALIBERRS,	RO, "kppscaliberrs" },	/* 72 */
+	{ CS_K_PPS_JITEXC,	RO, "kppsjitexc" },	/* 73 */
+	{ CS_K_PPS_STBEXC,	RO, "kppsstbexc" },	/* 74 */
+	{ CS_IOSTATS_RESET,	RO, "iostats_reset" },	/* 75 */
+	{ CS_TOTAL_RBUF,	RO, "total_rbuf" },	/* 76 */
+	{ CS_FREE_RBUF,		RO, "free_rbuf" },	/* 77 */
+	{ CS_USED_RBUF,		RO, "used_rbuf" },	/* 78 */
+	{ CS_RBUF_LOWATER,	RO, "rbuf_lowater" },	/* 79 */
+	{ CS_IO_DROPPED,	RO, "io_dropped" },	/* 80 */
+	{ CS_IO_IGNORED,	RO, "io_ignored" },	/* 81 */
+	{ CS_IO_RECEIVED,	RO, "io_received" },	/* 82 */
+	{ CS_IO_SENT,		RO, "io_sent" },	/* 83 */
+	{ CS_IO_SENDFAILED,	RO, "io_sendfailed" },	/* 84 */
+	{ CS_IO_WAKEUPS,	RO, "io_wakeups" },	/* 85 */
+	{ CS_IO_GOODWAKEUPS,	RO, "io_goodwakeups" },	/* 86 */
+	{ CS_TIMERSTATS_RESET,	RO, "timerstats_reset" },/* 87 */
+	{ CS_TIMER_OVERRUNS,	RO, "timer_overruns" },	/* 88 */
+	{ CS_TIMER_XMTS,	RO, "timer_xmts" },	/* 89 */
+	{ CS_FUZZ,		RO, "fuzz" },		/* 90 */
+	{ CS_WANDER_THRESH,	RO, "clk_wander_threshold" }, /* 91 */
 
-	{ CS_LEAPSMEARINTV,	RO, "leapsmearinterval" },    /* 90 */
-	{ CS_LEAPSMEAROFFS,	RO, "leapsmearoffset" },      /* 91 */
+	{ CS_LEAPSMEARINTV,	RO, "leapsmearinterval" },    /* 92 */
+	{ CS_LEAPSMEAROFFS,	RO, "leapsmearoffset" },      /* 93 */
 
 #ifdef AUTOKEY
 	{ CS_FLAGS,	RO, "flags" },		/* 1 + CS_MAX_NOAUTOKEY */
@@ -437,7 +440,7 @@ static const struct ctl_var sys_var[] = {
 	{ CS_IDENT,	RO, "ident" },		/* 7 + CS_MAX_NOAUTOKEY */
 	{ CS_DIGEST,	RO, "digest" },		/* 8 + CS_MAX_NOAUTOKEY */
 #endif	/* AUTOKEY */
-	{ 0,		EOV, "" }		/* 87/95 */
+	{ 0,		EOV, "" }		/* 94/102 */
 };
 
 static struct ctl_var *ext_sys_var = NULL;
@@ -913,7 +916,7 @@ is_safe_filename(const char * name)
 	u_int widx, bidx, mask;
 	if ( ! (name && *name))
 		return FALSE;
-	
+
 	mask = 1u;
 	while (0 != (widx = (u_char)*name++)) {
 		bidx = (widx & 15) << 1;
@@ -952,7 +955,7 @@ save_config(
 	 * level.  On POSIX systems we could allow '\\' but such
 	 * filenames are tricky to manipulate from a shell, so just
 	 * reject both types of slashes on all platforms.
-	 */	
+	 */
 	/* TALOS-CAN-0062: block directory traversal for VMS, too */
 	static const char * illegal_in_filename =
 #if defined(VMS)
@@ -980,8 +983,8 @@ save_config(
 #  if defined(_O_TEXT)		/* windows, again */
 	    | _O_TEXT
 #endif
-	    ; 
-	
+	    ;
+
 	char filespec[128];
 	char filename[128];
 	char fullpath[512];
@@ -1043,7 +1046,7 @@ save_config(
 	/* copy data directly as we exactly know the size */
 	memcpy(filespec, reqpt, reqlen);
 	filespec[reqlen] = '\0';
-	
+
 	/*
 	 * allow timestamping of the saved config filename with
 	 * strftime() format such as:
@@ -1107,7 +1110,7 @@ save_config(
 	 */
 	prc = snprintf(fullpath, sizeof(fullpath), "%s%s",
 		       saveconfigdir, filename);
-	if (prc < 0 || prc >= sizeof(fullpath)) {
+	if (prc < 0 || (size_t)prc >= sizeof(fullpath)) {
 		ctl_printf("saveconfig exceeded maximum path length (%u)",
 			   (u_int)sizeof(fullpath));
 		ctl_flushpkt(0);
@@ -1124,8 +1127,8 @@ save_config(
 		fptr = fdopen(fd, "w");
 
 	if (NULL == fptr || -1 == dump_all_config_trees(fptr, 1)) {
-		ctl_printf("Unable to save configuration to file '%s': %m",
-			   filename);
+		ctl_printf("Unable to save configuration to file '%s': %s",
+			   filename, strerror(errno));
 		msyslog(LOG_ERR,
 			"saveconfig %s from %s failed", filename,
 			stoa(&rbufp->recv_srcadr));
@@ -1151,7 +1154,7 @@ save_config(
 #else	/* !SAVECONFIG follows */
 	ctl_printf("%s",
 		   "saveconfig unavailable, configured with --disable-saveconfig");
-#endif	
+#endif
 	ctl_flushpkt(0);
 }
 
@@ -1265,7 +1268,7 @@ process_control(
 			    rbufp->recv_length, properlen, res_keyid,
 			    maclen));
 
-		if (!authistrusted(res_keyid))
+		if (!authistrustedip(res_keyid, &rbufp->recv_srcadr))
 			DPRINTF(3, ("invalid keyid %08x\n", res_keyid));
 		else if (authdecrypt(res_keyid, (u_int32 *)pkt,
 				     rbufp->recv_length - maclen,
@@ -1473,6 +1476,89 @@ ctl_flushpkt(
 }
 
 
+/* --------------------------------------------------------------------
+ * block transfer API -- stream string/data fragments into xmit buffer
+ * without additional copying
+ */
+
+/* buffer descriptor: address & size of fragment
+ * 'buf' may only be NULL when 'len' is zero!
+ */
+typedef struct {
+	const void  *buf;
+	size_t       len;
+} CtlMemBufT;
+
+/* put ctl data in a gather-style operation */
+static void
+ctl_putdata_ex(
+	const CtlMemBufT * argv,
+	size_t             argc,
+	int/*BOOL*/        bin		/* set to 1 when data is binary */
+	)
+{
+	const char * src_ptr;
+	size_t       src_len, cur_len, add_len, argi;
+
+	/* text / binary preprocessing, possibly create new linefeed */
+	if (bin) {
+		add_len = 0;
+	} else {
+		datanotbinflag = TRUE;
+		add_len = 3;
+
+		if (datasent) {
+			*datapt++ = ',';
+			datalinelen++;
+
+			/* sum up total length */
+			for (argi = 0, src_len = 0; argi < argc; ++argi)
+				src_len += argv[argi].len;
+			/* possibly start a new line, assume no size_t overflow */
+			if ((src_len + datalinelen + 1) >= MAXDATALINELEN) {
+				*datapt++ = '\r';
+				*datapt++ = '\n';
+				datalinelen = 0;
+			} else {
+				*datapt++ = ' ';
+				datalinelen++;
+			}
+		}
+	}
+
+	/* now stream out all buffers */
+	for (argi = 0; argi < argc; ++argi) {
+		src_ptr = argv[argi].buf;
+		src_len = argv[argi].len;
+
+		if ( ! (src_ptr && src_len))
+			continue;
+
+		cur_len = (size_t)(dataend - datapt);
+		while ((src_len + add_len) > cur_len) {
+			/* Not enough room in this one, flush it out. */
+			if (src_len < cur_len)
+				cur_len = src_len;
+
+			memcpy(datapt, src_ptr, cur_len);
+			datapt      += cur_len;
+			datalinelen += cur_len;
+
+			src_ptr     += cur_len;
+			src_len     -= cur_len;
+
+			ctl_flushpkt(CTL_MORE);
+			cur_len = (size_t)(dataend - datapt);
+		}
+
+		memcpy(datapt, src_ptr, src_len);
+		datapt      += src_len;
+		datalinelen += src_len;
+
+		datasent = TRUE;
+	}
+}
+
 /*
  * ctl_putdata - write data into the packet, fragmenting and starting
  * another if this one is full.
@@ -1484,52 +1570,12 @@ ctl_putdata(
 	int bin			/* set to 1 when data is binary */
 	)
 {
-	int overhead;
-	unsigned int currentlen;
+	CtlMemBufT args[1];
 
-	overhead = 0;
-	if (!bin) {
-		datanotbinflag = TRUE;
-		overhead = 3;
-		if (datasent) {
-			*datapt++ = ',';
-			datalinelen++;
-			if ((dlen + datalinelen + 1) >= MAXDATALINELEN) {
-				*datapt++ = '\r';
-				*datapt++ = '\n';
-				datalinelen = 0;
-			} else {
-				*datapt++ = ' ';
-				datalinelen++;
-			}
-		}
-	}
-
-	/*
-	 * Save room for trailing junk
-	 */
-	while (dlen + overhead + datapt > dataend) {
-		/*
-		 * Not enough room in this one, flush it out.
-		 */
-		currentlen = MIN(dlen, (unsigned int)(dataend - datapt));
-
-		memcpy(datapt, dp, currentlen);
-
-		datapt += currentlen;
-		dp += currentlen;
-		dlen -= currentlen;
-		datalinelen += currentlen;
-
-		ctl_flushpkt(CTL_MORE);
-	}
-
-	memcpy(datapt, dp, dlen);
-	datapt += dlen;
-	datalinelen += dlen;
-	datasent = TRUE;
+	args[0].buf = dp;
+	args[0].len = dlen;
+	ctl_putdata_ex(args, 1, bin);
 }
-
 
 /*
  * ctl_putstr - write a tagged string into the response packet
@@ -1547,22 +1593,23 @@ ctl_putstr(
 	size_t		len
 	)
 {
-	char buffer[512];
-	char *cp;
-	size_t tl;
+	CtlMemBufT args[4];
 
-	tl = strlen(tag);
-	memcpy(buffer, tag, tl);
-	cp = buffer + tl;
-	if (len > 0) {
-		INSIST(tl + 3 + len <= sizeof(buffer));
-		*cp++ = '=';
-		*cp++ = '"';
-		memcpy(cp, data, len);
-		cp += len;
-		*cp++ = '"';
+	args[0].buf = tag;
+	args[0].len = strlen(tag);
+	if (data && len) {
+	    args[1].buf = "=\"";
+	    args[1].len = 2;
+	    args[2].buf = data;
+	    args[2].len = len;
+	    args[3].buf = "\"";
+	    args[3].len = 1;
+	    ctl_putdata_ex(args, 4, FALSE);
+	} else {
+	    args[1].buf = "=\"\"";
+	    args[1].len = 3;
+	    ctl_putdata_ex(args, 2, FALSE);
 	}
-	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
 }
 
 
@@ -1582,20 +1629,19 @@ ctl_putunqstr(
 	size_t		len
 	)
 {
-	char buffer[512];
-	char *cp;
-	size_t tl;
+	CtlMemBufT args[3];
 
-	tl = strlen(tag);
-	memcpy(buffer, tag, tl);
-	cp = buffer + tl;
-	if (len > 0) {
-		INSIST(tl + 1 + len <= sizeof(buffer));
-		*cp++ = '=';
-		memcpy(cp, data, len);
-		cp += len;
+	args[0].buf = tag;
+	args[0].len = strlen(tag);
+	args[1].buf = "=";
+	args[1].len = 1;
+	if (data && len) {
+		args[2].buf = data;
+		args[2].len = len;
+		ctl_putdata_ex(args, 3, FALSE);
+	} else {
+		ctl_putdata_ex(args, 2, FALSE);
 	}
-	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
 }
 
 
@@ -1610,20 +1656,14 @@ ctl_putdblf(
 	double		d
 	)
 {
-	char *cp;
-	const char *cq;
-	char buffer[200];
+	char buffer[40];
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-	*cp++ = '=';
-	INSIST((size_t)(cp - buffer) < sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), use_f ? "%.*f" : "%.*g",
-	    precision, d);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	rc = snprintf(buffer, sizeof(buffer),
+		      (use_f ? "%.*f" : "%.*g"),
+		      precision, d);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
 
 /*
@@ -1635,48 +1675,37 @@ ctl_putuint(
 	u_long uval
 	)
 {
-	register char *cp;
-	register const char *cq;
-	char buffer[200];
+	char buffer[24]; /* needs to fit for 64 bits! */
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%lu", uval);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	rc = snprintf(buffer, sizeof(buffer), "%lu", uval);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
 
 /*
- * ctl_putcal - write a decoded calendar data into the response
+ * ctl_putcal - write a decoded calendar data into the response.
+ * only used with AUTOKEY currently, so compiled conditional
  */
+#ifdef AUTOKEY
 static void
 ctl_putcal(
 	const char *tag,
 	const struct calendar *pcal
 	)
 {
-	char buffer[100];
-	unsigned numch;
+	char buffer[16];
+	int  rc;
 
-	numch = snprintf(buffer, sizeof(buffer),
-			"%s=%04d%02d%02d%02d%02d",
-			tag,
-			pcal->year,
-			pcal->month,
-			pcal->monthday,
-			pcal->hour,
-			pcal->minute
-			);
-	INSIST(numch < sizeof(buffer));
-	ctl_putdata(buffer, numch, 0);
-
-	return;
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%04d%02d%02d%02d%02d",
+		      pcal->year, pcal->month, pcal->monthday,
+		      pcal->hour, pcal->minute
+		);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
+#endif
 
 /*
  * ctl_putfs - write a decoded filestamp into the response
@@ -1687,28 +1716,21 @@ ctl_putfs(
 	tstamp_t uval
 	)
 {
-	register char *cp;
-	register const char *cq;
-	char buffer[200];
-	struct tm *tm = NULL;
-	time_t fstamp;
+	char buffer[16];
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
+	time_t fstamp = (time_t)uval - JAN_1970;
+	struct tm *tm = gmtime(&fstamp);
 
-	*cp++ = '=';
-	fstamp = uval - JAN_1970;
-	tm = gmtime(&fstamp);
-	if (NULL ==  tm)
+	if (NULL == tm)
 		return;
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer),
-		 "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
-		 tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%04d%02d%02d%02d%02d",
+		      tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+		      tm->tm_hour, tm->tm_min);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
 
 
@@ -1722,20 +1744,12 @@ ctl_puthex(
 	u_long uval
 	)
 {
-	register char *cp;
-	register const char *cq;
-	char buffer[200];
+	char buffer[24];	/* must fit 64bit int! */
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%lx", uval);
-	cp += strlen(cp);
-	ctl_putdata(buffer,(unsigned)( cp - buffer ), 0);
+	rc = snprintf(buffer, sizeof(buffer), "0x%lx", uval);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
 
 
@@ -1748,20 +1762,12 @@ ctl_putint(
 	long ival
 	)
 {
-	register char *cp;
-	register const char *cq;
-	char buffer[200];
+	char buffer[24];	/*must fit 64bit int */
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%ld", ival);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	rc = snprintf(buffer, sizeof(buffer), "%ld", ival);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
 
 
@@ -1774,21 +1780,14 @@ ctl_putts(
 	l_fp *ts
 	)
 {
-	register char *cp;
-	register const char *cq;
-	char buffer[200];
+	char buffer[24];
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((size_t)(cp - buffer) < sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%08x.%08x",
-		 (u_int)ts->l_ui, (u_int)ts->l_uf);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	rc = snprintf(buffer, sizeof(buffer),
+		      "0x%08lx.%08lx",
+		      (u_long)ts->l_ui, (u_long)ts->l_uf);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putunqstr(tag, buffer, rc);
 }
 
 
@@ -1802,24 +1801,13 @@ ctl_putadr(
 	sockaddr_u *addr
 	)
 {
-	register char *cp;
-	register const char *cq;
-	char buffer[200];
+	const char *cq;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
 	if (NULL == addr)
 		cq = numtoa(addr32);
 	else
 		cq = stoa(addr);
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%s", cq);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	ctl_putunqstr(tag, cq, strlen(cq));
 }
 
 
@@ -1832,34 +1820,20 @@ ctl_putrefid(
 	u_int32		refid
 	)
 {
-	char	output[16];
-	char *	optr;
-	char *	oplim;
-	char *	iptr;
-	char *	iplim;
-	char *	past_eq;
+	size_t nc;
 
-	optr = output;
-	oplim = output + sizeof(output);
-	while (optr < oplim && '\0' != *tag)
-		*optr++ = *tag++;
-	if (optr < oplim) {
-		*optr++ = '=';
-		past_eq = optr;
-	}
-	if (!(optr < oplim))
-		return;
-	iptr = (char *)&refid;
-	iplim = iptr + sizeof(refid);
-	for ( ; optr < oplim && iptr < iplim && '\0' != *iptr;
-	     iptr++, optr++)
-		if (isprint((int)*iptr))
-			*optr = *iptr;
-		else
-			*optr = '.';
-	if (!(optr <= oplim))
-		optr = past_eq;
-	ctl_putdata(output, (u_int)(optr - output), FALSE);
+	union {
+		uint32_t w;
+		uint8_t  b[sizeof(uint32_t)];
+	} bytes;
+
+	bytes.w = refid;
+	for (nc = 0; nc < sizeof(bytes.b) && bytes.b[nc]; ++nc)
+		if (  !isprint(bytes.b[nc])
+		    || isspace(bytes.b[nc])
+		    || bytes.b[nc] == ','  )
+			bytes.b[nc] = '.';
+	ctl_putunqstr(tag, (const char*)bytes.b, nc);
 }
 
 
@@ -1873,26 +1847,22 @@ ctl_putarray(
 	int start
 	)
 {
-	register char *cp;
-	register const char *cq;
+	char *cp, *ep;
 	char buffer[200];
-	int i;
+	int  i, rc;
+
 	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-	*cp++ = '=';
-	i = start;
+	ep = buffer + sizeof(buffer);
+	i  = start;
 	do {
 		if (i == 0)
 			i = NTP_SHIFT;
 		i--;
-		INSIST((cp - buffer) < (int)sizeof(buffer));
-		snprintf(cp, sizeof(buffer) - (cp - buffer),
-			 " %.2f", arr[i] * 1e3);
-		cp += strlen(cp);
+		rc = snprintf(cp, (size_t)(ep - cp), " %.2f", arr[i] * 1e3);
+		INSIST(rc >= 0 && (size_t)rc < (size_t)(ep - cp));
+		cp += rc;
 	} while (i != start);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	ctl_putunqstr(tag, buffer, (size_t)(cp - buffer));
 }
 
 /*
@@ -1908,11 +1878,11 @@ ctl_printf(
 	va_list va;
 	char    fmtbuf[128];
 	int     rc;
-	
+
 	va_start(va, fmt);
 	rc = vsnprintf(fmtbuf, sizeof(fmtbuf), fmt, va);
 	va_end(va);
-	if (rc < 0 || rc >= sizeof(fmtbuf))
+	if (rc < 0 || (size_t)rc >= sizeof(fmtbuf))
 		strcpy(fmtbuf + sizeof(fmtbuf) - strlen(ellipsis) - 1,
 		       ellipsis);
 	ctl_putdata(fmtbuf, strlen(fmtbuf), 0);
@@ -1985,10 +1955,10 @@ ctl_putsys(
 		break;
 
 	case CS_REFID:
-		if (sys_stratum > 1 && sys_stratum < STRATUM_UNSPEC)
-			ctl_putadr(sys_var[varid].text, sys_refid, NULL);
-		else
+		if (REFID_ISTEXT(sys_stratum))
 			ctl_putrefid(sys_var[varid].text, sys_refid);
+		else
+			ctl_putadr(sys_var[varid].text, sys_refid, NULL);
 		break;
 
 	case CS_REFTIME:
@@ -2086,7 +2056,7 @@ ctl_putsys(
 
 		buffp = buf;
 		buffend = buf + sizeof(buf);
-		if (buffp + strlen(sys_var[CS_VARLIST].text) + 4 > buffend)
+		if (strlen(sys_var[CS_VARLIST].text) > (sizeof(buf) - 4))
 			break;	/* really long var name */
 
 		snprintf(buffp, sizeof(buf), "%s=\"",sys_var[CS_VARLIST].text);
@@ -2096,7 +2066,7 @@ ctl_putsys(
 			if (k->flags & PADDING)
 				continue;
 			len = strlen(k->text);
-			if (buffp + len + 1 >= buffend)
+			if (len + 1 >= buffend - buffp)
 				break;
 			if (!firstVarName)
 				*buffp++ = ',';
@@ -2116,7 +2086,7 @@ ctl_putsys(
 				len = strlen(k->text);
 			else
 				len = ss1 - k->text;
-			if (buffp + len + 1 >= buffend)
+			if (len + 1 >= buffend - buffp)
 				break;
 			if (firstVarName) {
 				*buffp++ = ',';
@@ -2125,7 +2095,7 @@ ctl_putsys(
 			memcpy(buffp, k->text,(unsigned)len);
 			buffp += len;
 		}
-		if (buffp + 2 >= buffend)
+		if (2 >= buffend - buffp)
 			break;
 
 		*buffp++ = '"';
@@ -2254,6 +2224,14 @@ ctl_putsys(
 
 	case CS_SS_LIMITED:
 		ctl_putuint(sys_var[varid].text, sys_limitrejected);
+		break;
+
+	case CS_SS_LAMPORT:
+		ctl_putuint(sys_var[varid].text, sys_lamport);
+		break;
+
+	case CS_SS_TSROUNDING:
+		ctl_putuint(sys_var[varid].text, sys_tsrounding);
 		break;
 
 	case CS_SS_KODSENT:
@@ -2704,11 +2682,10 @@ ctl_putpeer(
 			break;
 		}
 #endif
-		if (p->stratum > 1 && p->stratum < STRATUM_UNSPEC)
-			ctl_putadr(peer_var[id].text, p->refid,
-				   NULL);
-		else
+		if (REFID_ISTEXT(p->stratum))
 			ctl_putrefid(peer_var[id].text, p->refid);
+		else
+			ctl_putadr(peer_var[id].text, p->refid, NULL);
 		break;
 
 	case CP_REFTIME:
@@ -3087,7 +3064,7 @@ ctl_getitem(
 	 * packet; If it's EOV, it will never be NULL again until the
 	 * variable is found and processed in a given 'var_list'. (That
 	 * is, a result is returned that is neither NULL nor EOV).
-	 */ 
+	 */
 	static const struct ctl_var eol = { 0, EOV, NULL };
 	static char buf[128];
 	static u_long quiet_until;
@@ -3127,7 +3104,7 @@ ctl_getitem(
 			++plhead;
 		while (plhead != pltail && isspace((u_char)pltail[-1]))
 			--pltail;
-		
+
 		/* check payload size, terminate packet on overflow */
 		plsize = (size_t)(pltail - plhead);
 		if (plsize >= sizeof(buf))
@@ -3152,21 +3129,29 @@ ctl_getitem(
 	 * variable lists after an EoV was returned.  (Such a behavior
 	 * actually caused Bug 3008.)
 	 */
-	
+
 	if (NULL == var_list)
 		return &eol;
 
 	for (v = var_list; !(EOV & v->flags); ++v)
 		if (!(PADDING & v->flags)) {
-			/* check if the var name matches the buffer */
+			/* Check if the var name matches the buffer. The
+			 * name is bracketed by [reqpt..tp] and not NUL
+			 * terminated, and it contains no '=' char. The
+			 * lookup value IS NUL-terminated but might
+			 * include a '='... We have to look out for
+			 * that!
+			 */
 			const char *sp1 = reqpt;
 			const char *sp2 = v->text;
-			
-			while ((sp1 != tp) && *sp2 && (*sp1 == *sp2)) {
+
+			/* [Bug 3412] do not compare past NUL byte in name */
+			while (   (sp1 != tp)
+			       && ('\0' != *sp2) && (*sp1 == *sp2)) {
 				++sp1;
 				++sp2;
 			}
-			if (sp1 == tp && !*sp2)
+			if (sp1 == tp && (*sp2 == '\0' || *sp2 == '='))
 				break;
 		}
 
@@ -3649,7 +3634,7 @@ static u_int32 derive_nonce(
 		u_char	digest[EVP_MAX_MD_SIZE];
 		u_int32 extract;
 	}		d;
-	EVP_MD_CTX	ctx;
+	EVP_MD_CTX	*ctx;
 	u_int		len;
 
 	while (!salt[0] || current_time - last_salt_update >= 3600) {
@@ -3660,19 +3645,27 @@ static u_int32 derive_nonce(
 		last_salt_update = current_time;
 	}
 
-	EVP_DigestInit(&ctx, EVP_get_digestbynid(NID_md5));
-	EVP_DigestUpdate(&ctx, salt, sizeof(salt));
-	EVP_DigestUpdate(&ctx, &ts_i, sizeof(ts_i));
-	EVP_DigestUpdate(&ctx, &ts_f, sizeof(ts_f));
+	ctx = EVP_MD_CTX_new();
+#   if defined(OPENSSL) && defined(EVP_MD_CTX_FLAG_NON_FIPS_ALLOW)
+	/* [Bug 3457] set flags and don't kill them again */
+	EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
+	EVP_DigestInit_ex(ctx, EVP_get_digestbynid(NID_md5), NULL);
+#   else
+	EVP_DigestInit(ctx, EVP_get_digestbynid(NID_md5));
+#   endif
+	EVP_DigestUpdate(ctx, salt, sizeof(salt));
+	EVP_DigestUpdate(ctx, &ts_i, sizeof(ts_i));
+	EVP_DigestUpdate(ctx, &ts_f, sizeof(ts_f));
 	if (IS_IPV4(addr))
-		EVP_DigestUpdate(&ctx, &SOCK_ADDR4(addr),
+		EVP_DigestUpdate(ctx, &SOCK_ADDR4(addr),
 			         sizeof(SOCK_ADDR4(addr)));
 	else
-		EVP_DigestUpdate(&ctx, &SOCK_ADDR6(addr),
+		EVP_DigestUpdate(ctx, &SOCK_ADDR6(addr),
 			         sizeof(SOCK_ADDR6(addr)));
-	EVP_DigestUpdate(&ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
-	EVP_DigestUpdate(&ctx, salt, sizeof(salt));
-	EVP_DigestFinal(&ctx, d.digest, &len);
+	EVP_DigestUpdate(ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
+	EVP_DigestUpdate(ctx, salt, sizeof(salt));
+	EVP_DigestFinal(ctx, d.digest, &len);
+	EVP_MD_CTX_free(ctx);
 
 	return d.extract;
 }
@@ -3954,15 +3947,17 @@ static void read_mru_list(
 	int restrict_mask
 	)
 {
-	const char		nonce_text[] =		"nonce";
-	const char		frags_text[] =		"frags";
-	const char		limit_text[] =		"limit";
-	const char		mincount_text[] =	"mincount";
-	const char		resall_text[] =		"resall";
-	const char		resany_text[] =		"resany";
-	const char		maxlstint_text[] =	"maxlstint";
-	const char		laddr_text[] =		"laddr";
-	const char		resaxx_fmt[] =		"0x%hx";
+	static const char	nulltxt[1] = 		{ '\0' };
+	static const char	nonce_text[] =		"nonce";
+	static const char	frags_text[] =		"frags";
+	static const char	limit_text[] =		"limit";
+	static const char	mincount_text[] =	"mincount";
+	static const char	resall_text[] =		"resall";
+	static const char	resany_text[] =		"resany";
+	static const char	maxlstint_text[] =	"maxlstint";
+	static const char	laddr_text[] =		"laddr";
+	static const char	resaxx_fmt[] =		"0x%hx";
+
 	u_int			limit;
 	u_short			frags;
 	u_short			resall;
@@ -3979,7 +3974,7 @@ static void read_mru_list(
 	char			buf[128];
 	struct ctl_var *	in_parms;
 	const struct ctl_var *	v;
-	char *			val;
+	const char *		val;
 	const char *		pch;
 	char *			pnonce;
 	int			nonce_valid;
@@ -4031,46 +4026,68 @@ static void read_mru_list(
 	ZERO(last);
 	ZERO(addr);
 
-	while (NULL != (v = ctl_getitem(in_parms, &val)) &&
+	/* have to go through '(void*)' to drop 'const' property from pointer.
+	 * ctl_getitem()' needs some cleanup, too.... perlinger@ntp.org
+	 */
+	while (NULL != (v = ctl_getitem(in_parms, (void*)&val)) &&
 	       !(EOV & v->flags)) {
 		int si;
 
+		if (NULL == val)
+			val = nulltxt;
+
 		if (!strcmp(nonce_text, v->text)) {
-			if (NULL != pnonce)
-				free(pnonce);
-			pnonce = estrdup(val);
+			free(pnonce);
+			pnonce = (*val) ? estrdup(val) : NULL;
 		} else if (!strcmp(frags_text, v->text)) {
-			sscanf(val, "%hu", &frags);
+			if (1 != sscanf(val, "%hu", &frags))
+				goto blooper;
 		} else if (!strcmp(limit_text, v->text)) {
-			sscanf(val, "%u", &limit);
+			if (1 != sscanf(val, "%u", &limit))
+				goto blooper;
 		} else if (!strcmp(mincount_text, v->text)) {
-			if (1 != sscanf(val, "%d", &mincount) ||
-			    mincount < 0)
+			if (1 != sscanf(val, "%d", &mincount))
+				goto blooper;
+			if (mincount < 0)
 				mincount = 0;
 		} else if (!strcmp(resall_text, v->text)) {
-			sscanf(val, resaxx_fmt, &resall);
+			if (1 != sscanf(val, resaxx_fmt, &resall))
+				goto blooper;
 		} else if (!strcmp(resany_text, v->text)) {
-			sscanf(val, resaxx_fmt, &resany);
+			if (1 != sscanf(val, resaxx_fmt, &resany))
+				goto blooper;
 		} else if (!strcmp(maxlstint_text, v->text)) {
-			sscanf(val, "%u", &maxlstint);
+			if (1 != sscanf(val, "%u", &maxlstint))
+				goto blooper;
 		} else if (!strcmp(laddr_text, v->text)) {
-			if (decodenetnum(val, &laddr))
-				lcladr = getinterface(&laddr, 0);
+			if (!decodenetnum(val, &laddr))
+				goto blooper;
+			lcladr = getinterface(&laddr, 0);
 		} else if (1 == sscanf(v->text, last_fmt, &si) &&
 			   (size_t)si < COUNTOF(last)) {
-			if (2 == sscanf(val, "0x%08x.%08x", &ui, &uf)) {
-				last[si].l_ui = ui;
-				last[si].l_uf = uf;
-				if (!SOCK_UNSPEC(&addr[si]) &&
-				    si == priors)
-					priors++;
-			}
+			if (2 != sscanf(val, "0x%08x.%08x", &ui, &uf))
+				goto blooper;
+			last[si].l_ui = ui;
+			last[si].l_uf = uf;
+			if (!SOCK_UNSPEC(&addr[si]) && si == priors)
+				priors++;
 		} else if (1 == sscanf(v->text, addr_fmt, &si) &&
 			   (size_t)si < COUNTOF(addr)) {
-			if (decodenetnum(val, &addr[si])
-			    && last[si].l_ui && last[si].l_uf &&
-			    si == priors)
+			if (!decodenetnum(val, &addr[si]))
+				goto blooper;
+			if (last[si].l_ui && last[si].l_uf && si == priors)
 				priors++;
+		} else {
+			DPRINTF(1, ("read_mru_list: invalid key item: '%s' (ignored)\n",
+				    v->text));
+			continue;
+
+		blooper:
+			DPRINTF(1, ("read_mru_list: invalid param for '%s': '%s' (bailing)\n",
+				    v->text, val));
+			free(pnonce);
+			pnonce = NULL;
+			break;
 		}
 	}
 	free_varlist(in_parms);
@@ -4414,6 +4431,7 @@ send_restrict_entry(
 		while (sent[which])
 			which = (which + 1) % COUNTOF(sent);
 
+		/* XXX: Numbers?  Really? */
 		switch (which) {
 
 		case 0:
@@ -4436,7 +4454,7 @@ send_restrict_entry(
 		case 3:
 			snprintf(tag, sizeof(tag), flags_fmt, idx);
 			match_str = res_match_flags(pres->mflags);
-			access_str = res_access_flags(pres->flags);
+			access_str = res_access_flags(pres->rflags);
 			if ('\0' == match_str[0]) {
 				pch = access_str;
 			} else {
@@ -4962,7 +4980,7 @@ report_event(
 		u_char		errlast;
 
 		errlast = (u_char)err & ~PEER_EVENT;
-		if (peer->last_event == errlast)
+		if (peer->last_event != errlast)
 			peer->num_events = 0;
 		if (peer->num_events >= CTL_PEER_MAXEVENTS)
 			return;
@@ -4997,6 +5015,22 @@ report_event(
 	if (num_ctl_traps <= 0)
 		return;
 
+	/* [Bug 3119]
+	 * Peer Events should be associated with a peer -- hence the
+	 * name. But there are instances where this function is called
+	 * *without* a valid peer. This happens e.g. with an unsolicited
+	 * CryptoNAK, or when a leap second alarm is going off while
+	 * currently without a system peer.
+	 *
+	 * The most sensible approach to this seems to bail out here if
+	 * this happens. Avoiding to call this function would also
+	 * bypass the log reporting in the first part of this function,
+	 * and this is probably not the best of all options.
+	 *   -*-perlinger@ntp.org-*-
+	 */
+	if ((err & PEER_EVENT) && !peer)
+		return;
+
 	/*
 	 * Set up the outgoing packet variables
 	 */
@@ -5013,15 +5047,14 @@ report_event(
 		/* Include the core system variables and the list. */
 		for (i = 1; i <= CS_VARLIST; i++)
 			ctl_putsys(i);
-	} else {
-		INSIST(peer != NULL);
+	} else if (NULL != peer) { /* paranoia -- skip output */
 		rpkt.associd = htons(peer->associd);
 		rpkt.status = htons(ctlpeerstatus(peer));
 
 		/* Dump it all. Later, maybe less. */
 		for (i = 1; i <= CP_MAX_NOAUTOKEY; i++)
 			ctl_putpeer(i, peer);
-#ifdef REFCLOCK
+#	    ifdef REFCLOCK
 		/*
 		 * for clock exception events: add clock variables to
 		 * reflect info on exception
@@ -5047,7 +5080,7 @@ report_event(
 						    FALSE);
 			free_varlist(cs.kv_list);
 		}
-#endif /* REFCLOCK */
+#	    endif /* REFCLOCK */
 	}
 
 	/*

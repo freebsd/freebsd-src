@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: (ISC AND BSD-3-Clause)
+ *
  * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1996-2003  Internet Software Consortium.
  *
@@ -27,7 +29,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *

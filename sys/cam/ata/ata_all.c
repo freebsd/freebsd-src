@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #ifdef _KERNEL
-#include <opt_scsi.h>
+#include "opt_scsi.h"
 
 #include <sys/systm.h>
 #include <sys/libkern.h>
@@ -88,6 +90,7 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return "DSM";
 	case 0x08: return ("DEVICE_RESET");
+	case 0x0b: return ("REQUEST_SENSE_DATA_EXT");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
 	case 0x25: return ("READ_DMA48");
@@ -120,6 +123,12 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x47: return ("READ_LOG_DMA_EXT");
 	case 0x4a: return ("ZAC_MANAGEMENT_IN");
 	case 0x51: return ("CONFIGURE_STREAM");
+	case 0x57: return ("WRITE_LOG_DMA_EXT");
+	case 0x5b: return ("TRUSTED_NON_DATA");
+	case 0x5c: return ("TRUSTED_RECEIVE");
+	case 0x5d: return ("TRUSTED_RECEIVE_DMA");
+	case 0x5e: return ("TRUSTED_SEND");
+	case 0x5f: return ("TRUSTED_SEND_DMA");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
 	case 0x63:
@@ -160,9 +169,12 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return ("SEP_ATTN");
 	case 0x70: return ("SEEK");
+	case 0x77: return ("SET_DATE_TIME_EXT");
+	case 0x78: return ("ACCESSIBLE_MAX_ADDRESS_CONFIGURATION");
 	case 0x87: return ("CFA_TRANSLATE_SECTOR");
 	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
 	case 0x92: return ("DOWNLOAD_MICROCODE");
+	case 0x93: return ("DOWNLOAD_MICROCODE_DMA");
 	case 0x9a: return ("ZAC_MANAGEMENT_OUT");
 	case 0xa0: return ("PACKET");
 	case 0xa1: return ("ATAPI_IDENTIFY");
@@ -180,6 +192,7 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return ("SMART");
 	case 0xb1: return ("DEVICE CONFIGURATION");
+	case 0xb4: return ("SANITIZE_DEVICE");
 	case 0xc0: return ("CFA_ERASE");
 	case 0xc4: return ("READ_MUL");
 	case 0xc5: return ("WRITE_MUL");
@@ -371,12 +384,10 @@ void
 ata_print_ident(struct ata_params *ident_data)
 {
 	const char *proto;
-	char product[48], revision[16], ata[12], sata[12];
+	char ata[12], sata[12];
 
-	cam_strvis(product, ident_data->model, sizeof(ident_data->model),
-		   sizeof(product));
-	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
-		   sizeof(revision));
+	ata_print_ident_short(ident_data);
+
 	proto = (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
 		(ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA";
 	if (ata_version(ident_data->version_major) == 0) {
@@ -401,7 +412,55 @@ ata_print_ident(struct ata_params *ident_data)
 			snprintf(sata, sizeof(sata), " SATA");
 	} else
 		sata[0] = 0;
-	printf("<%s %s> %s%s device\n", product, revision, ata, sata);
+	printf(" %s%s device\n", ata, sata);
+}
+
+void
+ata_print_ident_sbuf(struct ata_params *ident_data, struct sbuf *sb)
+{
+	const char *proto, *sata;
+	int version;
+
+	ata_print_ident_short_sbuf(ident_data, sb);
+	sbuf_printf(sb, " ");
+
+	proto = (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
+		(ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA";
+	version = ata_version(ident_data->version_major);
+
+	switch (version) {
+	case 0:
+		sbuf_printf(sb, "%s", proto);
+		break;
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		sbuf_printf(sb, "%s-%d", proto, version);
+		break;
+	case 8:
+		sbuf_printf(sb, "%s8-ACS", proto);
+		break;
+	default:
+		sbuf_printf(sb, "ACS-%d %s", version - 7, proto);
+		break;
+	}
+
+	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
+		if (ident_data->satacapabilities & ATA_SATA_GEN3)
+			sata = " SATA 3.x";
+		else if (ident_data->satacapabilities & ATA_SATA_GEN2)
+			sata = " SATA 2.x";
+		else if (ident_data->satacapabilities & ATA_SATA_GEN1)
+			sata = " SATA 1.x";
+		else
+			sata = " SATA";
+	} else
+		sata = "";
+	sbuf_printf(sb, "%s device\n", sata);
 }
 
 void
@@ -417,18 +476,38 @@ ata_print_ident_short(struct ata_params *ident_data)
 }
 
 void
+ata_print_ident_short_sbuf(struct ata_params *ident_data, struct sbuf *sb)
+{
+
+	sbuf_printf(sb, "<");
+	cam_strvis_sbuf(sb, ident_data->model, sizeof(ident_data->model), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, ident_data->revision, sizeof(ident_data->revision), 0);
+	sbuf_printf(sb, ">");
+}
+
+void
 semb_print_ident(struct sep_identify_data *ident_data)
 {
-	char vendor[9], product[17], revision[5], fw[5], in[7], ins[5];
+	char in[7], ins[5];
 
-	cam_strvis(vendor, ident_data->vendor_id, 8, sizeof(vendor));
-	cam_strvis(product, ident_data->product_id, 16, sizeof(product));
-	cam_strvis(revision, ident_data->product_rev, 4, sizeof(revision));
-	cam_strvis(fw, ident_data->firmware_rev, 4, sizeof(fw));
+	semb_print_ident_short(ident_data);
 	cam_strvis(in, ident_data->interface_id, 6, sizeof(in));
 	cam_strvis(ins, ident_data->interface_rev, 4, sizeof(ins));
-	printf("<%s %s %s %s> SEMB %s %s device\n",
-	    vendor, product, revision, fw, in, ins);
+	printf(" SEMB %s %s device\n", in, ins);
+}
+
+void
+semb_print_ident_sbuf(struct sep_identify_data *ident_data, struct sbuf *sb)
+{
+
+	semb_print_ident_short_sbuf(ident_data, sb);
+
+	sbuf_printf(sb, " SEMB ");
+	cam_strvis_sbuf(sb, ident_data->interface_id, 6, 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, ident_data->interface_rev, 4, 0);
+	sbuf_printf(sb, " device\n");
 }
 
 void
@@ -441,6 +520,21 @@ semb_print_ident_short(struct sep_identify_data *ident_data)
 	cam_strvis(revision, ident_data->product_rev, 4, sizeof(revision));
 	cam_strvis(fw, ident_data->firmware_rev, 4, sizeof(fw));
 	printf("<%s %s %s %s>", vendor, product, revision, fw);
+}
+
+void
+semb_print_ident_short_sbuf(struct sep_identify_data *ident_data, struct sbuf *sb)
+{
+
+	sbuf_printf(sb, "<");
+	cam_strvis_sbuf(sb, ident_data->vendor_id, 8, 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, ident_data->product_id, 16, 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, ident_data->product_rev, 4, 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, ident_data->firmware_rev, 4, 0);
+	sbuf_printf(sb, ">");
 }
 
 uint32_t
@@ -1075,7 +1169,7 @@ ata_zac_mgmt_in(struct ccb_ataio *ataio, uint32_t retries,
 	} else {
 		command_out = ATA_RECV_FPDMA_QUEUED;
 		sectors_out = ATA_RFPDMA_ZAC_MGMT_IN << 8;
-		auxiliary = (zm_action & 0xf) | (zone_flags << 8),
+		auxiliary = (zm_action & 0xf) | (zone_flags << 8);
 		ata_flags = CAM_ATAIO_FPDMA;
 		/*
 		 * For RECEIVE FPDMA QUEUED, the transfer length is

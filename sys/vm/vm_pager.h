@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,6 +58,8 @@ typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int *, int *,
     pgo_getpages_iodone_t, void *);
 typedef void pgo_putpages_t(vm_object_t, vm_page_t *, int, int, int *);
 typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
+typedef int pgo_populate_t(vm_object_t, vm_pindex_t, int, vm_prot_t,
+    vm_pindex_t *, vm_pindex_t *);
 typedef void pgo_pageunswapped_t(vm_page_t);
 
 struct pagerops {
@@ -66,6 +70,7 @@ struct pagerops {
 	pgo_getpages_async_t	*pgo_getpages_async;	/* Get page asyncly. */
 	pgo_putpages_t		*pgo_putpages;		/* Put (write) page. */
 	pgo_haspage_t		*pgo_haspage;		/* Query page. */
+	pgo_populate_t		*pgo_populate;		/* Bulk spec pagein. */
 	pgo_pageunswapped_t	*pgo_pageunswapped;
 };
 
@@ -95,6 +100,7 @@ extern struct pagerops mgtdevicepagerops;
 
 #define	VM_PAGER_PUT_SYNC		0x0001
 #define	VM_PAGER_PUT_INVAL		0x0002
+#define	VM_PAGER_PUT_NOREUSE		0x0004
 #define VM_PAGER_CLUSTER_OK		0x0008
 
 #ifdef _KERNEL
@@ -109,7 +115,6 @@ void vm_pager_deallocate(vm_object_t);
 int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int *, int *);
 int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int, int *, int *,
     pgo_getpages_iodone_t, void *);
-static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
 
@@ -152,6 +157,19 @@ vm_pager_has_page(
 	return (ret);
 } 
 
+static __inline int
+vm_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
+    vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
+{
+
+	MPASS((object->flags & OBJ_POPULATE) != 0);
+	MPASS(pidx < object->size);
+	MPASS(object->paging_in_progress > 0);
+	return ((*pagertab[object->type]->pgo_populate)(object, pidx,
+	    fault_type, max_prot, first, last));
+}
+
+
 /* 
  *      vm_pager_page_unswapped
  * 
@@ -177,6 +195,9 @@ vm_pager_page_unswapped(vm_page_t m)
 struct cdev_pager_ops {
 	int (*cdev_pg_fault)(vm_object_t vm_obj, vm_ooffset_t offset,
 	    int prot, vm_page_t *mres);
+	int (*cdev_pg_populate)(vm_object_t vm_obj, vm_pindex_t pidx,
+	    int fault_type, vm_prot_t max_prot, vm_pindex_t *first,
+	    vm_pindex_t *last);
 	int (*cdev_pg_ctor)(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	    vm_ooffset_t foff, struct ucred *cred, u_short *color);
 	void (*cdev_pg_dtor)(void *handle);

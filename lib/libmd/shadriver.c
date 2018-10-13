@@ -1,6 +1,9 @@
 /* SHADRIVER.C - test driver for SHA-1 (and SHA-2) */
 
-/* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All rights
+/*-
+ * SPDX-License-Identifier: RSA-MD
+ *
+ * Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All rights
  * reserved.
  * 
  * RSA Data Security, Inc. makes no representations concerning either the
@@ -21,6 +24,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "sha.h"
+#include "sha224.h"
 #include "sha256.h"
 #include "sha384.h"
 #include "sha512.h"
@@ -35,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #if SHA == 1
 #undef SHA_Data
 #define SHA_Data SHA1_Data
+#elif SHA == 224
+#undef SHA_Data
+#define SHA_Data SHA224_Data
 #elif SHA == 256
 #undef SHA_Data
 #define SHA_Data SHA256_Data

@@ -10,11 +10,14 @@ export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
 export PKGCMD="/usr/sbin/pkg -d"
+export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="archivers/unzip
 devel/subversion
 devel/subversion-static
 emulators/linux_base-c6
+graphics/drm-legacy-kmod
+graphics/drm-stable-kmod
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -24,16 +27,17 @@ shells/bash
 shells/zsh
 security/sudo
 sysutils/screen
+sysutils/tmux
 www/firefox
 www/links
 x11-drivers/xf86-video-vmware
 x11/gnome3
-x11/kde4
+x11/kde5
 x11/xorg"
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).
-if [ ! -f /usr/ports/Makefile ]; then
-	echo "*** /usr/ports is missing!    ***"
+if [ ! -f ${PORTSDIR}/Makefile ]; then
+	echo "*** ${PORTSDIR} is missing!    ***"
 	echo "*** Skipping pkg-stage.sh     ***"
 	echo "*** Unset NOPORTS to fix this ***"
 	exit 0
@@ -41,7 +45,7 @@ fi
 
 if [ ! -x /usr/local/sbin/pkg ]; then
 	/etc/rc.d/ldconfig restart
-	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
+	/usr/bin/make -C ${PORTSDIR}/ports-mgmt/pkg install clean
 fi
 
 export DVD_DIR="dvd/packages"
@@ -57,7 +61,7 @@ fi
 # Ensure the ports listed in _DVD_PACKAGES exist to sanitize the
 # final list.
 for _P in ${_DVD_PACKAGES}; do
-	if [ -d "/usr/ports/${_P}" ]; then
+	if [ -d "${PORTSDIR}/${_P}" ]; then
 		DVD_PACKAGES="${DVD_PACKAGES} ${_P}"
 	else
 		echo "*** Skipping nonexistent port: ${_P}"

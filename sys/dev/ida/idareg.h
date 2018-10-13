@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999,2000 Jonathan Lemon
  * All rights reserved.
  *
@@ -29,23 +31,6 @@
 /*
  * #defines and software structures for the Compaq RAID card
  */
-
-/*
- * defines for older EISA controllers (IDA, IDA-2, IAES, SMART)
- */
-#define	R_EISA_INT_MASK			0x01
-#define	R_EISA_LOCAL_MASK		0x04
-#define	R_EISA_LOCAL_DOORBELL		0x05
-#define	R_EISA_SYSTEM_MASK		0x06
-#define	R_EISA_SYSTEM_DOORBELL		0x07
-#define	R_EISA_LIST_ADDR		0x08
-#define	R_EISA_LIST_LEN			0x0c
-#define	R_EISA_TAG			0x0f
-#define	R_EISA_COMPLETE_ADDR		0x10
-#define	R_EISA_LIST_STATUS		0x16
-
-#define	EISA_CHANNEL_BUSY		0x01
-#define	EISA_CHANNEL_CLEAR		0x02
 
 /*
  * board register offsets for SMART-2 controllers

@@ -42,7 +42,9 @@
 .Nm archive_write_add_filter_none ,
 .Nm archive_write_add_filter_program ,
 .Nm archive_write_add_filter_uuencode ,
-.Nm archive_write_add_filter_xz
+.Nm archive_write_add_filter_xz ,
+.Nm archive_write_add_filter_zstd ,
+.Nd functions enabling output filters
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
 .Sh SYNOPSIS
@@ -75,6 +77,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_write_add_filter_uuencode "struct archive *"
 .Ft int
 .Fn archive_write_add_filter_xz "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_zstd "struct archive *"
 .Sh DESCRIPTION
 .Bl -tag -width indent
 .It Xo
@@ -88,6 +92,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_write_add_filter_lzma ,
 .Fn archive_write_add_filter_lzop ,
 .Fn archive_write_add_filter_xz ,
+.Fn archive_write_add_filter_zstd ,
 .Xc
 The resulting archive will be compressed as specified.
 Note that the compressed output is always properly blocked.

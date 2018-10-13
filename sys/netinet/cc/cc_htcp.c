@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008
  * 	Swinburne University of Technology, Melbourne, Australia
  * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
@@ -168,8 +170,8 @@ static int htcp_rtt_ref;
 static int htcp_max_diff = INT_MAX / ((1 << HTCP_ALPHA_INC_SHIFT) * 10);
 
 /* Per-netstack vars. */
-static VNET_DEFINE(u_int, htcp_adaptive_backoff) = 0;
-static VNET_DEFINE(u_int, htcp_rtt_scaling) = 0;
+VNET_DEFINE_STATIC(u_int, htcp_adaptive_backoff) = 0;
+VNET_DEFINE_STATIC(u_int, htcp_rtt_scaling) = 0;
 #define	V_htcp_adaptive_backoff    VNET(htcp_adaptive_backoff)
 #define	V_htcp_rtt_scaling    VNET(htcp_rtt_scaling)
 
@@ -236,9 +238,7 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 static void
 htcp_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_HTCP);
+	free(ccv->cc_data, M_HTCP);
 }
 
 static int
@@ -504,12 +504,12 @@ htcp_ssthresh_update(struct cc_var *ccv)
 	 * subsequent congestion events, set it to cwnd * beta.
 	 */
 	if (CCV(ccv, snd_ssthresh) == TCP_MAXWIN << TCP_MAX_WINSHIFT)
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * HTCP_MINBETA)
-		    >> HTCP_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    HTCP_MINBETA) >> HTCP_SHIFT;
 	else {
 		htcp_recalc_beta(ccv);
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * htcp_data->beta)
-		    >> HTCP_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    htcp_data->beta) >> HTCP_SHIFT;
 	}
 }
 

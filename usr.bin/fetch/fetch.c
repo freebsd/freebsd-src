@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000-2014 Dag-Erling Smørgrav
  * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
@@ -83,6 +85,7 @@ static int	 t_flag;	/*!   -t: workaround TCP bug */
 static int	 U_flag;	/*    -U: do not use high ports */
 static int	 v_level = 1;	/*    -v: verbosity level */
 static int	 v_tty;		/*        stdout is a tty */
+static int	 v_progress;	/*        whether to display progress */
 static pid_t	 pgrp;		/*        our process group */
 static long	 w_secs;	/*    -w: retry delay */
 static int	 family = PF_UNSPEC;	/* -[46]: address family to use */
@@ -197,12 +200,33 @@ struct xferstat {
 };
 
 /*
+ * Format a number of seconds as either XXdYYh, XXhYYm, XXmYYs, or XXs
+ * depending on its magnitude
+ */
+static void
+stat_seconds(char *str, size_t strsz, long seconds)
+{
+
+	if (seconds > 86400)
+		snprintf(str, strsz, "%02ldd%02ldh",
+		    seconds / 86400, (seconds % 86400) / 3600);
+	else if (seconds > 3600)
+		snprintf(str, strsz, "%02ldh%02ldm",
+		    seconds / 3600, (seconds % 3600) / 60);
+	else if (seconds > 60)
+		snprintf(str, strsz, "%02ldm%02lds",
+		    seconds / 60, seconds % 60);
+	else
+		snprintf(str, strsz, "   %02lds",
+		    seconds);
+}
+
+/*
  * Compute and display ETA
  */
-static const char *
-stat_eta(struct xferstat *xs)
+static void
+stat_eta(char *str, size_t strsz, const struct xferstat *xs)
 {
-	static char str[16];
 	long elapsed, eta;
 	off_t received, expected;
 
@@ -210,55 +234,47 @@ stat_eta(struct xferstat *xs)
 	received = xs->rcvd - xs->offset;
 	expected = xs->size - xs->rcvd;
 	eta = (long)((double)elapsed * expected / received);
-	if (eta > 3600)
-		snprintf(str, sizeof str, "%02ldh%02ldm",
-		    eta / 3600, (eta % 3600) / 60);
-	else if (eta > 0)
-		snprintf(str, sizeof str, "%02ldm%02lds",
-		    eta / 60, eta % 60);
+	if (eta > 0)
+		stat_seconds(str, strsz, eta);
 	else
-		snprintf(str, sizeof str, "%02ldm%02lds",
-		    elapsed / 60, elapsed % 60);
-	return (str);
+		stat_seconds(str, strsz, elapsed);
 }
 
 /*
  * Format a number as "xxxx YB" where Y is ' ', 'k', 'M'...
  */
 static const char *prefixes = " kMGTP";
-static const char *
-stat_bytes(off_t bytes)
+static void
+stat_bytes(char *str, size_t strsz, off_t bytes)
 {
-	static char str[16];
 	const char *prefix = prefixes;
 
 	while (bytes > 9999 && prefix[1] != '\0') {
 		bytes /= 1024;
 		prefix++;
 	}
-	snprintf(str, sizeof str, "%4jd %cB", (intmax_t)bytes, *prefix);
-	return (str);
+	snprintf(str, strsz, "%4ju %cB", (uintmax_t)bytes, *prefix);
 }
 
 /*
  * Compute and display transfer rate
  */
-static const char *
-stat_bps(struct xferstat *xs)
+static void
+stat_bps(char *str, size_t strsz, struct xferstat *xs)
 {
-	static char str[16];
+	char bytes[16];
 	double delta, bps;
 
-	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
-	    - (xs->last2.tv_sec + (xs->last2.tv_usec / 1.e6));
+	delta = ((double)xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
+	    - ((double)xs->last2.tv_sec + (xs->last2.tv_usec / 1.e6));
 
 	if (delta == 0.0) {
-		snprintf(str, sizeof str, "?? Bps");
+		snprintf(str, strsz, "?? Bps");
 	} else {
 		bps = (xs->rcvd - xs->lastrcvd) / delta;
-		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
+		stat_bytes(bytes, sizeof bytes, (off_t)bps);
+		snprintf(str, strsz, "%sps", bytes);
 	}
-	return (str);
 }
 
 /*
@@ -267,11 +283,12 @@ stat_bps(struct xferstat *xs)
 static void
 stat_display(struct xferstat *xs, int force)
 {
+	char bytes[16], bps[16], eta[16];
 	struct timeval now;
 	int ctty_pgrp;
 
 	/* check if we're the foreground process */
-	if (ioctl(STDERR_FILENO, TIOCGPGRP, &ctty_pgrp) == -1 ||
+	if (ioctl(STDERR_FILENO, TIOCGPGRP, &ctty_pgrp) != 0 ||
 	    (pid_t)ctty_pgrp != pgrp)
 		return;
 
@@ -282,26 +299,31 @@ stat_display(struct xferstat *xs, int force)
 	xs->last = now;
 
 	fprintf(stderr, "\r%-46.46s", xs->name);
-	if (xs->size <= 0) {
-		setproctitle("%s [%s]", xs->name, stat_bytes(xs->rcvd));
-		fprintf(stderr, "        %s", stat_bytes(xs->rcvd));
+	if (xs->rcvd >= xs->size) {
+		stat_bytes(bytes, sizeof bytes, xs->rcvd);
+		setproctitle("%s [%s]", xs->name, bytes);
+		fprintf(stderr, "        %s", bytes);
 	} else {
+		stat_bytes(bytes, sizeof bytes, xs->size);
 		setproctitle("%s [%d%% of %s]", xs->name,
 		    (int)((100.0 * xs->rcvd) / xs->size),
-		    stat_bytes(xs->size));
+		    bytes);
 		fprintf(stderr, "%3d%% of %s",
 		    (int)((100.0 * xs->rcvd) / xs->size),
-		    stat_bytes(xs->size));
+		    bytes);
 	}
 	if (force == 2) {
 		xs->lastrcvd = xs->offset;
 		xs->last2 = xs->start;
 	}
-	fprintf(stderr, " %s", stat_bps(xs));
+	stat_bps(bps, sizeof bps, xs);
+	fprintf(stderr, " %s", bps);
 	if ((xs->size > 0 && xs->rcvd > 0 &&
 	     xs->last.tv_sec >= xs->start.tv_sec + 3) ||
-	    force == 2)
-		fprintf(stderr, " %s", stat_eta(xs));
+	    force == 2) {
+		stat_eta(eta, sizeof eta, xs);
+		fprintf(stderr, " %s", eta);
+	}
 	xs->lastrcvd = xs->rcvd;
 }
 
@@ -311,14 +333,16 @@ stat_display(struct xferstat *xs, int force)
 static void
 stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 {
+
+	memset(xs, 0, sizeof *xs);
 	snprintf(xs->name, sizeof xs->name, "%s", name);
 	gettimeofday(&xs->start, NULL);
-	xs->last.tv_sec = xs->last.tv_usec = 0;
+	xs->last2 = xs->last = xs->start;
 	xs->size = size;
 	xs->offset = offset;
 	xs->rcvd = offset;
 	xs->lastrcvd = offset;
-	if (v_tty && v_level > 0)
+	if (v_progress)
 		stat_display(xs, 1);
 	else if (v_level > 0)
 		fprintf(stderr, "%-46s", xs->name);
@@ -330,8 +354,9 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 static void
 stat_update(struct xferstat *xs, off_t rcvd)
 {
+
 	xs->rcvd = rcvd;
-	if (v_tty && v_level > 0)
+	if (v_progress)
 		stat_display(xs, 0);
 }
 
@@ -341,13 +366,17 @@ stat_update(struct xferstat *xs, off_t rcvd)
 static void
 stat_end(struct xferstat *xs)
 {
+	char bytes[16], bps[16], eta[16];
+
 	gettimeofday(&xs->last, NULL);
-	if (v_tty && v_level > 0) {
+	if (v_progress) {
 		stat_display(xs, 2);
 		putc('\n', stderr);
 	} else if (v_level > 0) {
-		fprintf(stderr, "        %s %s\n",
-		    stat_bytes(xs->size), stat_bps(xs));
+		stat_bytes(bytes, sizeof bytes, xs->rcvd);
+		stat_bps(bps, sizeof bps, xs);
+		stat_eta(eta, sizeof eta, xs);
+		fprintf(stderr, "        %s %s %s\n", bytes, bps, eta);
 	}
 }
 
@@ -550,9 +579,10 @@ fetch(char *URL, const char *path)
 		goto signal;
 	if (f == NULL) {
 		warnx("%s: %s", URL, fetchLastErrString);
-		if (i_flag && strcmp(url->scheme, SCHEME_HTTP) == 0
-		    && fetchLastErrCode == FETCH_OK
-		    && strcmp(fetchLastErrString, "Not Modified") == 0) {
+		if (i_flag && (strcmp(url->scheme, SCHEME_HTTP) == 0 ||
+		    strcmp(url->scheme, SCHEME_HTTPS) == 0) &&
+		    fetchLastErrCode == FETCH_OK &&
+		    strcmp(fetchLastErrString, "Not Modified") == 0) {
 			/* HTTP Not Modified Response, return OK. */
 			r = 0;
 			goto done;
@@ -1107,7 +1137,8 @@ main(int argc, char *argv[])
 
 	/* check if output is to a tty (for progress report) */
 	v_tty = isatty(STDERR_FILENO);
-	if (v_tty)
+	v_progress = v_tty && v_level > 0;
+	if (v_progress)
 		pgrp = getpgrp();
 
 	r = 0;

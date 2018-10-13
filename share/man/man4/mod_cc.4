@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2016
+.Dd March 19, 2018
 .Dt MOD_CC 4
 .Os
 .Sh NAME
@@ -73,7 +73,7 @@ The framework exposes the following variables in the
 branch of the
 .Xr sysctl 3
 MIB:
-.Bl -tag -width ".Va available"
+.Bl -tag -width ".Va abe_frlossreduce"
 .It Va available
 Read-only list of currently available congestion control algorithms by name.
 .It Va algorithm
@@ -83,6 +83,15 @@ When attempting to change the default algorithm, this variable should be set to
 one of the names listed by the
 .Va net.inet.tcp.cc.available
 MIB variable.
+.It Va abe
+Enable support for draft-ietf-tcpm-alternativebackoff-ecn,
+which alters the window decrease factor applied to the congestion window in
+response to an ECN congestion signal.
+Refer to individual congestion control man pages to determine if they implement
+support for ABE and for configuration details.
+.It Va abe_frlossreduce
+If non-zero, apply standard beta instead of ABE-beta during ECN-signalled
+congestion recovery episodes if loss also needs to be repaired.
 .El
 .Sh SEE ALSO
 .Xr cc_cdg 4 ,

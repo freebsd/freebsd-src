@@ -28,7 +28,7 @@
  * Use is subject to license terms.
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #define _ASM
 
@@ -67,7 +67,13 @@ dtrace_icookie_t dtrace_interrupt_disable(void)
 */
 ASENTRY_NOPROF(dtrace_interrupt_disable)
 	mfmsr	%r3
-	andi.	%r0,%r3,~PSL_EE@l
+#ifdef __powerpc64__
+	/* Two-instruction sequence to clear EE flag */
+	rldicl	%r0,%r3,48,1
+	rotldi	%r0,%r0,16
+#else
+	rlwinm	%r0,%r3,0,~PSL_EE /* Clear EE flag */
+#endif
 	mtmsr	%r0
 	blr
 END(dtrace_interrupt_disable)

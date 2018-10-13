@@ -26,40 +26,17 @@ options 	DDB
 options 	KDB
 options 	ALQ
 options 	BREAK_TO_DEBUGGER
-options 	ALT_BREAK_TO_DEBUGGER
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 #options 	INET6			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 #options 	NFSCL			#Network Filesystem Client
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
-# Don't include the SCSI/CAM strings in the default build
-options 	SCSI_NO_SENSE_STRINGS
-options 	SCSI_NO_OP_STRINGS
-
-# .. And no sysctl strings
-options 	NO_SYSCTL_DESCR
-
-# For small memory footprints
-options		VM_KMEM_SIZE_SCALE=1
-
-# Limit IO size
-options 	NBUF=128
-
-# Limit UMTX hash size
-# options 	UMTX_NUM_CHAINS=64
-
-#options	UMA_DEBUG_ALLOC
-
 # PMC
 options 	HWPMC_HOOKS
-#options 	HWPMC_MIPS_BACKTRACE
-device		hwpmc
-device		hwpmc_mips24k
-
-options		ARGE_DEBUG
 
 # options 	NFS_LEGACYRPC
 # Debugging for use in -current
@@ -73,66 +50,30 @@ options 	FFS                     #Berkeley Fast Filesystem
 #options 	UFS_DIRHASH             #Improve performance on big directories
 options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
 
-options		IPFIREWALL_DEFAULT_TO_ACCEPT
+include		"std.AR_MIPS_BASE"
+makeoptions 	MODULES_OVERRIDE+="hwpmc_mips24k"
 
-# Wireless NIC cards
-options 	IEEE80211_DEBUG
-options 	IEEE80211_SUPPORT_MESH
-options 	IEEE80211_SUPPORT_TDMA
-options 	IEEE80211_SUPPORT_SUPERG
-options 	IEEE80211_ALQ	# 802.11 ALQ logging support
-device		wlan            # 802.11 support
-device		wlan_wep        # 802.11 WEP support
-device		wlan_ccmp       # 802.11 CCMP support
-device		wlan_tkip       # 802.11 TKIP support
-device		wlan_xauth	# 802.11 hostap support
+# EEPROM caldata for AHB connected device
+options 	AR71XX_ATH_EEPROM
+device 		ar71xx_caldata
+device 		firmware
 
-# ath(4)
-device		ath             # Atheros network device
-device		ath_rate_sample
-device		ath_ahb		# Atheros host bus glue
-options 	ATH_DEBUG
-options 	ATH_DIAGAPI
-option		ATH_ENABLE_11N
-option 		AH_DEBUG_ALQ
+# Support QCA9530 in the HAL
+options 	AH_SUPPORT_QCA9530	# Chipset support
 
-#device		ath_hal
-device		ath_ar9300		# AR9330 HAL; no need for the others
-option		AH_DEBUG
-option		AH_SUPPORT_AR5416	# 11n HAL support
-option		AH_SUPPORT_QCA9530	# Chipset support
-option		AH_AR5416_INTERRUPT_MITIGATION
-
-device		mii
-device		arge
+# Support EEPROM caldata in AHB devices
+options 	ATH_EEPROM_FIRMWARE
 
 device		usb
-options 	USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
-options 	USB_DEBUG
-options 	USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
 device		ehci
 
 device		scbus
 device		umass
 device		da
 
-device		spibus
-device		ar71xx_spi
-device		mx25l
-device		ar71xx_wdog
-
 # Handle 25MHz refclock by allowing a higher baudrate error tolerance.
-device		uart
 device		uart_ar71xx
 options		UART_DEV_TOLERANCE_PCT=50
 
 device		ar71xx_apb
 
-device		loop
-device		ether
-device		md
-device		bpf
-device		random
-device		if_bridge
-device		gpio
-device		gpioled

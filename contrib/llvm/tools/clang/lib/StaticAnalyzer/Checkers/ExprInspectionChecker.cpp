@@ -8,34 +8,58 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/SValExplainer.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/IssueHash.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/ScopedPrinter.h"
 
 using namespace clang;
 using namespace ento;
 
 namespace {
-class ExprInspectionChecker : public Checker<eval::Call, check::DeadSymbols> {
+class ExprInspectionChecker : public Checker<eval::Call, check::DeadSymbols,
+                                             check::EndAnalysis> {
   mutable std::unique_ptr<BugType> BT;
+
+  // These stats are per-analysis, not per-branch, hence they shouldn't
+  // stay inside the program state.
+  struct ReachedStat {
+    ExplodedNode *ExampleNode;
+    unsigned NumTimesReached;
+  };
+  mutable llvm::DenseMap<const CallExpr *, ReachedStat> ReachedStats;
 
   void analyzerEval(const CallExpr *CE, CheckerContext &C) const;
   void analyzerCheckInlined(const CallExpr *CE, CheckerContext &C) const;
   void analyzerWarnIfReached(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerNumTimesReached(const CallExpr *CE, CheckerContext &C) const;
   void analyzerCrash(const CallExpr *CE, CheckerContext &C) const;
   void analyzerWarnOnDeadSymbol(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerDump(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerExplain(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerPrintState(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerGetExtent(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerHashDump(const CallExpr *CE, CheckerContext &C) const;
 
   typedef void (ExprInspectionChecker::*FnCheck)(const CallExpr *,
                                                  CheckerContext &C) const;
 
+  ExplodedNode *reportBug(llvm::StringRef Msg, CheckerContext &C) const;
+  ExplodedNode *reportBug(llvm::StringRef Msg, BugReporter &BR,
+                          ExplodedNode *N) const;
+
 public:
   bool evalCall(const CallExpr *CE, CheckerContext &C) const;
   void checkDeadSymbols(SymbolReaper &SymReaper, CheckerContext &C) const;
+  void checkEndAnalysis(ExplodedGraph &G, BugReporter &BR,
+                        ExprEngine &Eng) const;
 };
 }
 
-REGISTER_SET_WITH_PROGRAMSTATE(MarkedSymbols, const void *)
+REGISTER_SET_WITH_PROGRAMSTATE(MarkedSymbols, SymbolRef)
 
 bool ExprInspectionChecker::evalCall(const CallExpr *CE,
                                      CheckerContext &C) const {
@@ -50,6 +74,14 @@ bool ExprInspectionChecker::evalCall(const CallExpr *CE,
           &ExprInspectionChecker::analyzerWarnIfReached)
     .Case("clang_analyzer_warnOnDeadSymbol",
           &ExprInspectionChecker::analyzerWarnOnDeadSymbol)
+    .StartsWith("clang_analyzer_explain", &ExprInspectionChecker::analyzerExplain)
+    .StartsWith("clang_analyzer_dump", &ExprInspectionChecker::analyzerDump)
+    .Case("clang_analyzer_getExtent", &ExprInspectionChecker::analyzerGetExtent)
+    .Case("clang_analyzer_printState",
+          &ExprInspectionChecker::analyzerPrintState)
+    .Case("clang_analyzer_numTimesReached",
+          &ExprInspectionChecker::analyzerNumTimesReached)
+    .Case("clang_analyzer_hashDump", &ExprInspectionChecker::analyzerHashDump)
     .Default(nullptr);
 
   if (!Handler)
@@ -91,6 +123,26 @@ static const char *getArgumentValueString(const CallExpr *CE,
   }
 }
 
+ExplodedNode *ExprInspectionChecker::reportBug(llvm::StringRef Msg,
+                                               CheckerContext &C) const {
+  ExplodedNode *N = C.generateNonFatalErrorNode();
+  reportBug(Msg, C.getBugReporter(), N);
+  return N;
+}
+
+ExplodedNode *ExprInspectionChecker::reportBug(llvm::StringRef Msg,
+                                               BugReporter &BR,
+                                               ExplodedNode *N) const {
+  if (!N)
+    return nullptr;
+
+  if (!BT)
+    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
+
+  BR.emitReport(llvm::make_unique<BugReport>(*BT, Msg, N));
+  return N;
+}
+
 void ExprInspectionChecker::analyzerEval(const CallExpr *CE,
                                          CheckerContext &C) const {
   const LocationContext *LC = C.getPredecessor()->getLocationContext();
@@ -100,26 +152,21 @@ void ExprInspectionChecker::analyzerEval(const CallExpr *CE,
   if (LC->getCurrentStackFrame()->getParent() != nullptr)
     return;
 
-  if (!BT)
-    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
-
-  ExplodedNode *N = C.generateNonFatalErrorNode();
-  if (!N)
-    return;
-  C.emitReport(
-      llvm::make_unique<BugReport>(*BT, getArgumentValueString(CE, C), N));
+  reportBug(getArgumentValueString(CE, C), C);
 }
 
 void ExprInspectionChecker::analyzerWarnIfReached(const CallExpr *CE,
                                                   CheckerContext &C) const {
+  reportBug("REACHABLE", C);
+}
 
-  if (!BT)
-    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
-
-  ExplodedNode *N = C.generateNonFatalErrorNode();
-  if (!N)
-    return;
-  C.emitReport(llvm::make_unique<BugReport>(*BT, "REACHABLE", N));
+void ExprInspectionChecker::analyzerNumTimesReached(const CallExpr *CE,
+                                                    CheckerContext &C) const {
+  ++ReachedStats[CE].NumTimesReached;
+  if (!ReachedStats[CE].ExampleNode) {
+    // Later, in checkEndAnalysis, we'd throw a report against it.
+    ReachedStats[CE].ExampleNode = C.generateNonFatalErrorNode();
+  }
 }
 
 void ExprInspectionChecker::analyzerCheckInlined(const CallExpr *CE,
@@ -134,14 +181,58 @@ void ExprInspectionChecker::analyzerCheckInlined(const CallExpr *CE,
   if (LC->getCurrentStackFrame()->getParent() == nullptr)
     return;
 
-  if (!BT)
-    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
+  reportBug(getArgumentValueString(CE, C), C);
+}
 
-  ExplodedNode *N = C.generateNonFatalErrorNode();
-  if (!N)
+void ExprInspectionChecker::analyzerExplain(const CallExpr *CE,
+                                            CheckerContext &C) const {
+  if (CE->getNumArgs() == 0) {
+    reportBug("Missing argument for explaining", C);
     return;
-  C.emitReport(
-      llvm::make_unique<BugReport>(*BT, getArgumentValueString(CE, C), N));
+  }
+
+  SVal V = C.getSVal(CE->getArg(0));
+  SValExplainer Ex(C.getASTContext());
+  reportBug(Ex.Visit(V), C);
+}
+
+void ExprInspectionChecker::analyzerDump(const CallExpr *CE,
+                                         CheckerContext &C) const {
+  if (CE->getNumArgs() == 0) {
+    reportBug("Missing argument for dumping", C);
+    return;
+  }
+
+  SVal V = C.getSVal(CE->getArg(0));
+
+  llvm::SmallString<32> Str;
+  llvm::raw_svector_ostream OS(Str);
+  V.dumpToStream(OS);
+  reportBug(OS.str(), C);
+}
+
+void ExprInspectionChecker::analyzerGetExtent(const CallExpr *CE,
+                                              CheckerContext &C) const {
+  if (CE->getNumArgs() == 0) {
+    reportBug("Missing region for obtaining extent", C);
+    return;
+  }
+
+  auto MR = dyn_cast_or_null<SubRegion>(C.getSVal(CE->getArg(0)).getAsRegion());
+  if (!MR) {
+    reportBug("Obtaining extent of a non-region", C);
+    return;
+  }
+
+  ProgramStateRef State = C.getState();
+  State = State->BindExpr(CE, C.getLocationContext(),
+                          MR->getExtent(C.getSValBuilder()));
+  C.addTransition(State);
+}
+
+void ExprInspectionChecker::analyzerPrintState(const CallExpr *CE,
+                                               CheckerContext &C) const {
+  C.getState()->dump();
 }
 
 void ExprInspectionChecker::analyzerWarnOnDeadSymbol(const CallExpr *CE,
@@ -162,21 +253,29 @@ void ExprInspectionChecker::checkDeadSymbols(SymbolReaper &SymReaper,
                                              CheckerContext &C) const {
   ProgramStateRef State = C.getState();
   const MarkedSymbolsTy &Syms = State->get<MarkedSymbols>();
+  ExplodedNode *N = C.getPredecessor();
   for (auto I = Syms.begin(), E = Syms.end(); I != E; ++I) {
-    SymbolRef Sym = static_cast<SymbolRef>(*I);
+    SymbolRef Sym = *I;
     if (!SymReaper.isDead(Sym))
       continue;
 
-    if (!BT)
-      BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
-
-    ExplodedNode *N = C.generateNonFatalErrorNode();
-    if (!N)
-      return;
-
-    C.emitReport(llvm::make_unique<BugReport>(*BT, "SYMBOL DEAD", N));
-    C.addTransition(State->remove<MarkedSymbols>(Sym), N);
+    // The non-fatal error node should be the same for all reports.
+    if (ExplodedNode *BugNode = reportBug("SYMBOL DEAD", C))
+      N = BugNode;
+    State = State->remove<MarkedSymbols>(Sym);
   }
+  C.addTransition(State, N);
+}
+
+void ExprInspectionChecker::checkEndAnalysis(ExplodedGraph &G, BugReporter &BR,
+                                             ExprEngine &Eng) const {
+  for (auto Item: ReachedStats) {
+    unsigned NumTimesReached = Item.second.NumTimesReached;
+    ExplodedNode *N = Item.second.ExampleNode;
+
+    reportBug(llvm::to_string(NumTimesReached), BR, N);
+  }
+  ReachedStats.clear();
 }
 
 void ExprInspectionChecker::analyzerCrash(const CallExpr *CE,
@@ -184,7 +283,18 @@ void ExprInspectionChecker::analyzerCrash(const CallExpr *CE,
   LLVM_BUILTIN_TRAP;
 }
 
+void ExprInspectionChecker::analyzerHashDump(const CallExpr *CE,
+                                             CheckerContext &C) const {
+  const LangOptions &Opts = C.getLangOpts();
+  const SourceManager &SM = C.getSourceManager();
+  FullSourceLoc FL(CE->getArg(0)->getLocStart(), SM);
+  std::string HashContent =
+      GetIssueString(SM, FL, getCheckName().getName(), "Category",
+                     C.getLocationContext()->getDecl(), Opts);
+
+  reportBug(HashContent, C);
+}
+
 void ento::registerExprInspectionChecker(CheckerManager &Mgr) {
   Mgr.registerChecker<ExprInspectionChecker>();
 }
-

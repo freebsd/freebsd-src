@@ -4,6 +4,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -61,6 +63,8 @@
 #define	EOL	"\n"
 #endif /* ndef BTHIDCONTROL */
 
+#define	NAMELESS_DEVICE	"No Name"
+
 #include "bthid_config.h"
 
 	int	yylex		(void);
@@ -83,12 +87,17 @@ static	LIST_HEAD(, hid_device)	 hid_devices;
 %union {
 	bdaddr_t	bdaddr;
 	int32_t		num;
+	char		*string;
 }
 
 %token <bdaddr> T_BDADDRSTRING
 %token <num>	T_HEXBYTE
-%token T_DEVICE T_BDADDR T_CONTROL_PSM T_INTERRUPT_PSM T_RECONNECT_INITIATE
-%token T_BATTERY_POWER T_NORMALLY_CONNECTABLE T_HID_DESCRIPTOR
+%token <num>	T_HEXWORD
+%token <string>	T_STRING
+%token T_NAME
+%token T_DEVICE T_BDADDR T_VENDOR_ID T_PRODUCT_ID T_VERSION T_CONTROL_PSM
+%token T_INTERRUPT_PSM T_RECONNECT_INITIATE T_BATTERY_POWER
+%token T_NORMALLY_CONNECTABLE T_HID_DESCRIPTOR
 %token T_TRUE T_FALSE T_ERROR
 
 %%
@@ -124,6 +133,10 @@ options:	option ';'
 		;
 
 option:		bdaddr
+		| name
+		| vendor_id
+		| product_id
+		| version
 		| control_psm
 		| interrupt_psm
 		| reconnect_initiate
@@ -136,6 +149,42 @@ option:		bdaddr
 bdaddr:		T_BDADDR T_BDADDRSTRING
 			{
 			memcpy(&hid_device->bdaddr, &$2, sizeof(hid_device->bdaddr));
+			}
+		;
+
+name:		T_NAME T_STRING
+			{
+			if (hid_device->name != NULL) {
+                                free(hid_device->name);
+                                hid_device->name = NULL;
+			}
+
+			if (strcmp($2, NAMELESS_DEVICE)) {
+				hid_device->name = strdup($2);
+				if (hid_device->name == NULL) {
+					SYSLOG(LOGCRIT, "Could not allocate new " \
+							"device name" EOL);
+					YYABORT;
+				}
+			}
+			}
+		;
+
+vendor_id:	T_VENDOR_ID T_HEXWORD
+			{
+			hid_device->vendor_id = $2;
+			}
+		;
+
+product_id:	T_PRODUCT_ID T_HEXWORD
+			{
+			hid_device->product_id = $2;
+			}
+		;
+
+version:	T_VERSION T_HEXWORD
+			{
+			hid_device->version = $2;
 			}
 		;
 
@@ -307,6 +356,10 @@ print_hid_device(hid_device_p d, FILE *f)
 	fprintf(f,
 "device {\n"					\
 "	bdaddr			%s;\n"		\
+"	name			\"%s\";\n"	\
+"	vendor_id		0x%04x;\n"	\
+"	product_id		0x%04x;\n"	\
+"	version			0x%04x;\n"	\
 "	control_psm		0x%x;\n"	\
 "	interrupt_psm		0x%x;\n"	\
 "	reconnect_initiate	%s;\n"		\
@@ -314,6 +367,8 @@ print_hid_device(hid_device_p d, FILE *f)
 "	normally_connectable	%s;\n"		\
 "	hid_descriptor		{",
 		bt_ntoa(&d->bdaddr, NULL),
+		(d->name != NULL)? d->name : NAMELESS_DEVICE,
+		d->vendor_id, d->product_id, d->version,
 		d->control_psm, d->interrupt_psm,
                 d->reconnect_initiate? "true" : "false",
                 d->battery_power? "true" : "false",
@@ -338,7 +393,7 @@ check_hid_device(hid_device_p d)
 {
 	hid_data_t	hd;
 	hid_item_t	hi;
-	int32_t		page;
+	int32_t		page, mdepth;
 
 	if (get_hid_device(&d->bdaddr) != NULL) {
 		SYSLOG(LOGERR, "Ignoring duplicated entry for bdaddr %s" EOL,
@@ -361,11 +416,23 @@ check_hid_device(hid_device_p d)
 		return (0);
 	}
 
+	mdepth = 0;
+
 	/* XXX somehow need to make sure descriptor is valid */
 	for (hd = hid_start_parse(d->desc, ~0, -1); hid_get_item(hd, &hi) > 0; ) {
 		switch (hi.kind) {
 		case hid_collection:
+			if (mdepth != 0)
+				mdepth++;
+			else if (hi.collection == 1 &&
+			     hi.usage ==
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
+				mdepth++;
+			break;
 		case hid_endcollection:
+			if (mdepth != 0)
+				mdepth--;
+			break;
 		case hid_output:
 		case hid_feature:
 			break;
@@ -375,6 +442,28 @@ check_hid_device(hid_device_p d)
 			page = HID_PAGE(hi.usage);
 			if (page == HUP_KEYBOARD)
 				d->keyboard = 1;
+			if (page == HUP_CONSUMER &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == 0)
+				d->has_cons = 1;
+			/* Check if the device may send relative motion events */
+			if (mdepth == 0)
+				break;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->mouse = 1;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->mouse = 1;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_WHEEL) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->has_wheel = 1;
+			if (hi.usage ==
+			    HID_USAGE2(HUP_CONSUMER, HUC_AC_PAN) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->has_hwheel = 1;
 			break;
 		}
 	}
@@ -390,6 +479,7 @@ free_hid_device(hid_device_p d)
 	if (d->desc != NULL)
 		hid_dispose_report_desc(d->desc);
 
+	free(d->name);
 	memset(d, 0, sizeof(*d));
 	free(d);
 }

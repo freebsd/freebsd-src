@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
  * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
@@ -225,7 +227,7 @@ file_list_init(struct file_list *fl, bool tmp)
  * Add a file name to the list
  */
 void
-file_list_add(struct file_list *fl, char *fn, bool allocate)
+file_list_add(struct file_list *fl, const char *fn, bool allocate)
 {
 
 	if (fl && fn) {
@@ -631,7 +633,6 @@ file_reader_init(const char *fsrc)
 			int fd, flags;
 
 			flags = MAP_NOCORE | MAP_NOSYNC;
-			addr = MAP_FAILED;
 
 			fd = open(fsrc, O_RDONLY);
 			if (fd < 0)
@@ -1114,7 +1115,7 @@ file_headers_merge(size_t fnum, struct file_header **fh, FILE *f_out)
  * stdout.
  */
 static void
-merge_files_array(size_t argc, char **argv, const char *fn_out)
+merge_files_array(size_t argc, const char **argv, const char *fn_out)
 {
 
 	if (argv && fn_out) {

@@ -3,23 +3,22 @@
 MAN=
 
 .include <src.opts.mk>
-.include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../../contrib/ntp/ntpq
+.PATH: ${SRCTOP}/contrib/ntp/ntpq
 
 BINDIR=	/usr/bin
 
 PROG=	ntpq
 SRCS= 	ntpq.c ntpq-opts.c ntpq-subs.c version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/${NTP_ATOMIC}/include \
-	-I${.CURDIR}/../../../contrib/ntp/sntp/libopts \
-	-I${.CURDIR}/../
+CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/${NTP_ATOMIC}/include \
+	-I${SRCTOP}/contrib/ntp/sntp/libopts \
+	-I${.CURDIR:H}
 
 LIBADD+=	edit ntp opts m pthread
 
@@ -30,11 +29,11 @@ LIBADD+=	md
 .endif
 
 CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
-		-I${DESTDIR}/${INCLUDEDIR}/edit
+		-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
 
 CLEANFILES+= .version version.c
 
 version.c:
-	sh -e ${.CURDIR}/../scripts/mkver ntpq
+	sh -e ${.CURDIR:H}/scripts/mkver ntpq
 
 .include <bsd.prog.mk>

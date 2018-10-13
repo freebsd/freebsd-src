@@ -1,31 +1,32 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2017, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -33,9 +34,7 @@
 /*$FreeBSD$*/
 
 
-#include "ixgbe_api.h"
-#include "ixgbe_type.h"
-#include "ixgbe_vf.h"
+#include "ixgbe.h"
 
 #ifndef IXGBE_VFWRITE_REG
 #define IXGBE_VFWRITE_REG IXGBE_WRITE_REG
@@ -65,6 +64,7 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 	hw->mac.ops.get_mac_addr = ixgbe_get_mac_addr_vf;
 	hw->mac.ops.stop_adapter = ixgbe_stop_adapter_vf;
 	hw->mac.ops.get_bus_info = NULL;
+	hw->mac.ops.negotiate_api_version = ixgbevf_negotiate_api_version;
 
 	/* Link */
 	hw->mac.ops.setup_link = ixgbe_setup_mac_link_vf;
@@ -76,10 +76,12 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 	hw->mac.ops.set_uc_addr = ixgbevf_set_uc_addr_vf;
 	hw->mac.ops.init_rx_addrs = NULL;
 	hw->mac.ops.update_mc_addr_list = ixgbe_update_mc_addr_list_vf;
+	hw->mac.ops.update_xcast_mode = ixgbevf_update_xcast_mode;
 	hw->mac.ops.enable_mc = NULL;
 	hw->mac.ops.disable_mc = NULL;
 	hw->mac.ops.clear_vfta = NULL;
 	hw->mac.ops.set_vfta = ixgbe_set_vfta_vf;
+	hw->mac.ops.set_rlpml = ixgbevf_rlpml_set_vf;
 
 	hw->mac.max_tx_queues = 1;
 	hw->mac.max_rx_queues = 1;
@@ -229,7 +231,9 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
-	memcpy(hw->mac.perm_addr, addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	if (msgbuf[0] == (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK))
+		memcpy(hw->mac.perm_addr, addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+
 	hw->mac.mc_filter_type = msgbuf[IXGBE_VF_MC_TYPE_WORD];
 
 	return ret_val;
@@ -321,15 +325,16 @@ static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
 	return vector;
 }
 
-static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
-					u32 *msg, u16 size)
+static s32 ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw, u32 *msg,
+				      u32 *retmsg, u16 size)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	u32 retmsg[IXGBE_VFMAILBOX_SIZE];
 	s32 retval = mbx->ops.write_posted(hw, msg, size, 0);
 
-	if (!retval)
-		mbx->ops.read_posted(hw, retmsg, size, 0);
+	if (retval)
+		return retval;
+
+	return mbx->ops.read_posted(hw, retmsg, size, 0);
 }
 
 /**
@@ -343,7 +348,6 @@ static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
 s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 		     u32 enable_addr)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[3];
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
@@ -352,17 +356,16 @@ s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 	memset(msgbuf, 0, 12);
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
 	memcpy(msg_addr, addr, 6);
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 3, 0);
-
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 3);
 
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 	/* if nacked the address was rejected, use "perm_addr" */
 	if (!ret_val &&
-	    (msgbuf[0] == (IXGBE_VF_SET_MAC_ADDR | IXGBE_VT_MSGTYPE_NACK)))
+	    (msgbuf[0] == (IXGBE_VF_SET_MAC_ADDR | IXGBE_VT_MSGTYPE_NACK))) {
 		ixgbe_get_mac_addr_vf(hw, hw->mac.addr);
+		return IXGBE_ERR_MBX;
+	}
 
 	return ret_val;
 }
@@ -373,6 +376,7 @@ s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
  *  @next: caller supplied function to return next address in list
+ *  @clear: unused
  *
  *  Updates the Multicast Table Array.
  **/
@@ -416,28 +420,65 @@ s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 }
 
 /**
+ *  ixgbevf_update_xcast_mode - Update Multicast mode
+ *  @hw: pointer to the HW structure
+ *  @xcast_mode: new multicast mode
+ *
+ *  Updates the Multicast Mode of VF.
+ **/
+s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
+{
+	u32 msgbuf[2];
+	s32 err;
+
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_12:
+		/* New modes were introduced in 1.3 version */
+		if (xcast_mode > IXGBEVF_XCAST_MODE_ALLMULTI)
+			return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
+		/* Fall through */
+	case ixgbe_mbox_api_13:
+		break;
+	default:
+		return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
+	}
+
+	msgbuf[0] = IXGBE_VF_UPDATE_XCAST_MODE;
+	msgbuf[1] = xcast_mode;
+
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	if (err)
+		return err;
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+	if (msgbuf[0] == (IXGBE_VF_UPDATE_XCAST_MODE | IXGBE_VT_MSGTYPE_NACK))
+		return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
+	return IXGBE_SUCCESS;
+}
+
+/**
  *  ixgbe_set_vfta_vf - Set/Unset vlan filter table address
  *  @hw: pointer to the HW structure
  *  @vlan: 12 bit VLAN ID
  *  @vind: unused by VF drivers
  *  @vlan_on: if TRUE then set bit, else clear bit
+ *  @vlvf_bypass: boolean flag indicating updating default pool is okay
+ *
+ *  Turn on/off specified VLAN in the VLAN filter table.
  **/
-s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
+s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
+		      bool vlan_on, bool vlvf_bypass)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 	s32 ret_val;
-	UNREFERENCED_1PARAMETER(vind);
+	UNREFERENCED_2PARAMETER(vind, vlvf_bypass);
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
 	msgbuf[1] = vlan;
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 2, 0);
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 1, 0);
-
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 	if (!ret_val && (msgbuf[0] & IXGBE_VT_MSGTYPE_ACK))
 		return IXGBE_SUCCESS;
 
@@ -469,8 +510,9 @@ u32 ixgbe_get_num_of_rx_queues_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_mac_addr_vf - Read device MAC address
- *  @hw: pointer to the HW structure
+ * ixgbe_get_mac_addr_vf - Read device MAC address
+ * @hw: pointer to the HW structure
+ * @mac_addr: the MAC address
  **/
 s32 ixgbe_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 {
@@ -484,8 +526,7 @@ s32 ixgbe_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 
 s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	u32 msgbuf[3];
+	u32 msgbuf[3], msgbuf_chk;
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
 
@@ -498,18 +539,17 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	 */
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
+	msgbuf_chk = msgbuf[0];
 	if (addr)
 		memcpy(msg_addr, addr, 6);
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 3, 0);
 
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 3);
+	if (!ret_val) {
+		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
-	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
-
-	if (!ret_val)
-		if (msgbuf[0] == (IXGBE_VF_SET_MACVLAN | IXGBE_VT_MSGTYPE_NACK))
-			ret_val = IXGBE_ERR_OUT_OF_MEM;
+		if (msgbuf[0] == (msgbuf_chk | IXGBE_VT_MSGTYPE_NACK))
+			return IXGBE_ERR_OUT_OF_MEM;
+	}
 
 	return ret_val;
 }
@@ -518,7 +558,6 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
  *  ixgbe_setup_mac_link_vf - Setup MAC link settings
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: TRUE if autonegotiation enabled
  *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
@@ -579,13 +618,29 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
+		if (hw->mac.type >= ixgbe_mac_X550) {
+			if (links_reg & IXGBE_LINKS_SPEED_NON_STD)
+				*speed = IXGBE_LINK_SPEED_2_5GB_FULL;
+		}
 		break;
 	case IXGBE_LINKS_SPEED_1G_82599:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 		break;
 	case IXGBE_LINKS_SPEED_100_82599:
 		*speed = IXGBE_LINK_SPEED_100_FULL;
+		if (hw->mac.type == ixgbe_mac_X550) {
+			if (links_reg & IXGBE_LINKS_SPEED_NON_STD)
+				*speed = IXGBE_LINK_SPEED_5GB_FULL;
+		}
 		break;
+	case IXGBE_LINKS_SPEED_10_X550EM_A:
+		*speed = IXGBE_LINK_SPEED_UNKNOWN;
+		/* Since Reserved in older MAC's */
+		if (hw->mac.type >= ixgbe_mac_X550)
+			*speed = IXGBE_LINK_SPEED_10_FULL;
+		break;
+	default:
+		*speed = IXGBE_LINK_SPEED_UNKNOWN;
 	}
 
 	/* if the read failed it could just be a mailbox collision, best wait
@@ -622,13 +677,22 @@ out:
  *  @hw: pointer to the HW structure
  *  @max_size: value to assign to max frame size
  **/
-void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
+s32 ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 msgbuf[2];
+	s32 retval;
 
 	msgbuf[0] = IXGBE_VF_SET_LPE;
 	msgbuf[1] = max_size;
-	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+
+	retval = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	if (retval)
+		return retval;
+	if ((msgbuf[0] & IXGBE_VF_SET_LPE) &&
+	    (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK))
+		return IXGBE_ERR_MBX;
+
+	return 0;
 }
 
 /**
@@ -645,11 +709,8 @@ int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
 	msg[0] = IXGBE_VF_API_NEGOTIATE;
 	msg[1] = api;
 	msg[2] = 0;
-	err = hw->mbx.ops.write_posted(hw, msg, 3, 0);
 
-	if (!err)
-		err = hw->mbx.ops.read_posted(hw, msg, 3, 0);
-
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 3);
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -674,6 +735,8 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	/* do nothing if API doesn't support ixgbevf_get_queues */
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_11:
+	case ixgbe_mbox_api_12:
+	case ixgbe_mbox_api_13:
 		break;
 	default:
 		return 0;
@@ -682,11 +745,8 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	/* Fetch queue configuration from the PF */
 	msg[0] = IXGBE_VF_GET_QUEUES;
 	msg[1] = msg[2] = msg[3] = msg[4] = 0;
-	err = hw->mbx.ops.write_posted(hw, msg, 5, 0);
 
-	if (!err)
-		err = hw->mbx.ops.read_posted(hw, msg, 5, 0);
-
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 5);
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 

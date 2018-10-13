@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,6 +71,7 @@
 typedef struct nfs_private {
   u_short np_mountd;		/* Mount daemon port number */
   char np_mountd_inval;		/* Port *may* be invalid */
+  				/* 'Y' invalid, 'N' valid, 'P' permanent */
   int np_ping;			/* Number of failed ping attempts */
   time_t np_ttl;		/* Time when server is thought dead */
   int np_xid;			/* RPC transaction id for pings */
@@ -88,7 +85,9 @@ qelem nfs_srvr_list = {&nfs_srvr_list, &nfs_srvr_list};
 static int global_xid;		/* For NFS pings */
 #define	XID_ALLOC()		(++global_xid)
 
-#ifdef HAVE_FS_NFS3
+#if defined(HAVE_FS_NFS4)
+# define NUM_NFS_VERS 3
+#elif defined(HAVE_FS_NFS3)
 # define NUM_NFS_VERS 2
 #else  /* not HAVE_FS_NFS3 */
 # define NUM_NFS_VERS 1
@@ -124,8 +123,8 @@ flush_srvr_nfs_cache(fserver *fs)
   ITER(fs2, fserver, &nfs_srvr_list) {
     if (fs == NULL || fs == fs2) {
       nfs_private *np = (nfs_private *) fs2->fs_private;
-      if (np) {
-	np->np_mountd_inval = TRUE;
+      if (np && np->np_mountd_inval != 'P') {
+	np->np_mountd_inval = 'Y';
 	np->np_error = -1;
       }
     }
@@ -147,9 +146,9 @@ create_ping_payload(u_long nfs_version)
    */
   if (nfs_version == 0) {
     nfs_version = NFS_VERSION;
-    plog(XLOG_WARNING, "create_ping_payload: nfs_version = 0, changed to 2");
+    plog(XLOG_WARNING, "%s: nfs_version = 0, changed to 2", __func__);
   } else
-    plog(XLOG_INFO, "create_ping_payload: nfs_version: %d", (int) nfs_version);
+    plog(XLOG_INFO, "%s: nfs_version: %d", __func__, (int) nfs_version);
 
   rpc_msg_init(&ping_msg, NFS_PROGRAM, nfs_version, NFSPROC_NULL);
 
@@ -164,6 +163,7 @@ create_ping_payload(u_long nfs_version)
   if (!xdr_callmsg(&ping_xdr, &ping_msg)) {
     plog(XLOG_ERROR, "Couldn't create ping RPC message");
     going_down(3);
+    return;
   }
   /*
    * Find out how long it is
@@ -184,7 +184,7 @@ static void
 got_portmap(voidp pkt, int len, struct sockaddr_in *sa, struct sockaddr_in *ia, voidp idv, int done)
 {
   fserver *fs2 = (fserver *) idv;
-  fserver *fs = 0;
+  fserver *fs = NULL;
 
   /*
    * Find which fileserver we are talking about
@@ -207,7 +207,7 @@ got_portmap(voidp pkt, int len, struct sockaddr_in *sa, struct sockaddr_in *ia, 
        * network ordering.
        */
       np->np_mountd = htons((u_short) port);
-      np->np_mountd_inval = FALSE;
+      np->np_mountd_inval = 'N';
       np->np_error = 0;
     } else {
       dlog("Error fetching port for mountd on %s", fs->fs_host);
@@ -291,9 +291,9 @@ recompute_portmap(fserver *fs)
   }
 
   if (fs->fs_version == 0)
-    plog(XLOG_WARNING, "recompute_portmap: nfs_version = 0 fixed");
+    plog(XLOG_WARNING, "%s: nfs_version = 0 fixed", __func__);
 
-  plog(XLOG_INFO, "recompute_portmap: NFS version %d on %s",
+  plog(XLOG_INFO, "%s: NFS version %d on %s", __func__,
        (int) fs->fs_version, fs->fs_host);
 #ifdef HAVE_FS_NFS3
   if (fs->fs_version == NFS_VERSION3)
@@ -311,6 +311,7 @@ int
 get_mountd_port(fserver *fs, u_short *port, wchan_t wchan)
 {
   int error = -1;
+
   if (FSRV_ISDOWN(fs))
     return EWOULDBLOCK;
 
@@ -329,10 +330,18 @@ get_mountd_port(fserver *fs, u_short *port, wchan_t wchan)
      * indication that the mountd may be invalid, not
      * that it is known to be invalid.
      */
-    if (np->np_mountd_inval)
+    switch (np->np_mountd_inval) {
+    case 'Y':
       recompute_portmap(fs);
-    else
-      np->np_mountd_inval = TRUE;
+      break;
+    case 'N':
+      np->np_mountd_inval = 'Y';
+      break;
+    case 'P':
+      break;
+    default:
+      abort();
+    }
   }
   if (error < 0 && wchan && !(fs->fs_flags & FSF_WANT)) {
     /*
@@ -425,7 +434,7 @@ nfs_keepalive_callback(voidp pkt, int len, struct sockaddr_in *sp, struct sockad
       /*
        * Recompute portmap information if not known
        */
-      if (np->np_mountd_inval)
+      if (np->np_mountd_inval == 'Y')
 	recompute_portmap(fs);
 
       found_map++;
@@ -454,7 +463,7 @@ check_fs_addr_change(fserver *fs)
 	     sizeof(fs->fs_ip->sin_addr)) == 0)
     return;
   /* if got here: downed server changed IP address */
-  old_ipaddr = strdup(inet_ntoa(fs->fs_ip->sin_addr));
+  old_ipaddr = xstrdup(inet_ntoa(fs->fs_ip->sin_addr));
   memmove((voidp) &ia, (voidp) hp->h_addr, sizeof(struct in_addr));
   new_ipaddr = inet_ntoa(ia);	/* ntoa uses static buf */
   plog(XLOG_WARNING, "EZK: down fileserver %s changed ip: %s -> %s",
@@ -474,7 +483,7 @@ check_fs_addr_change(fserver *fs)
 #if 0
   flush_nfs_fhandle_cache(fs);	/* done in caller: nfs_keepalive_timeout */
   /* XXX: need to purge nfs_private so that somehow it will get re-initialized? */
-#endif
+#endif /* 0 */
 }
 
 
@@ -562,22 +571,24 @@ nfs_keepalive(voidp v)
   int error;
   nfs_private *np = (nfs_private *) fs->fs_private;
   int fstimeo = -1;
+  int fs_version = nfs_valid_version(gopt.nfs_vers_ping) &&
+    gopt.nfs_vers_ping < fs->fs_version ? gopt.nfs_vers_ping : fs->fs_version;
 
   /*
    * Send an NFS ping to this node
    */
 
-  if (ping_len[fs->fs_version - NFS_VERSION] == 0)
-    create_ping_payload(fs->fs_version);
+  if (ping_len[fs_version - NFS_VERSION] == 0)
+    create_ping_payload(fs_version);
 
   /*
    * Queue the packet...
    */
   error = fwd_packet(MK_RPC_XID(RPC_XID_NFSPING, np->np_xid),
-		     ping_buf[fs->fs_version - NFS_VERSION],
-		     ping_len[fs->fs_version - NFS_VERSION],
+		     ping_buf[fs_version - NFS_VERSION],
+		     ping_len[fs_version - NFS_VERSION],
 		     fs->fs_ip,
-		     (struct sockaddr_in *) 0,
+		     (struct sockaddr_in *) NULL,
 		     (voidp) ((long) np->np_xid), /* cast needed for 64-bit archs */
 		     nfs_keepalive_callback);
 
@@ -673,7 +684,7 @@ start_nfs_pings(fserver *fs, int pingval)
 fserver *
 find_nfs_srvr(mntfs *mf)
 {
-  char *host = mf->mf_fo->opt_rhost;
+  char *host;
   fserver *fs;
   int pingval;
   mntent_t mnt;
@@ -687,6 +698,11 @@ find_nfs_srvr(mntfs *mf)
   int nfs_port_opt = 0;
   int fserver_is_down = 0;
 
+  if (mf->mf_fo == NULL) {
+    plog(XLOG_ERROR, "%s: NULL mf_fo", __func__);
+    return NULL;
+  }
+  host = mf->mf_fo->opt_rhost;
   /*
    * Get ping interval from mount options.
    * Current only used to decide whether pings
@@ -702,7 +718,8 @@ find_nfs_srvr(mntfs *mf)
      */
     nfs_version = NFS_VERSION;
     nfs_proto = "udp";
-    plog(XLOG_WARNING, "find_nfs_srvr: NFS mount failed, trying again with NFSv2/UDP");
+    plog(XLOG_WARNING, "%s: NFS mount failed, trying again with NFSv2/UDP",
+      __func__);
     mf->mf_flags &= ~MFF_NFS_SCALEDOWN;
   } else {
     /*
@@ -742,12 +759,13 @@ find_nfs_srvr(mntfs *mf)
     /* check if we've globally overridden the NFS version/protocol */
     if (gopt.nfs_vers) {
       nfs_version = gopt.nfs_vers;
-      plog(XLOG_INFO, "find_nfs_srvr: force NFS version to %d",
+      plog(XLOG_INFO, "%s: force NFS version to %d", __func__,
 	   (int) nfs_version);
     }
     if (gopt.nfs_proto) {
       nfs_proto = gopt.nfs_proto;
-      plog(XLOG_INFO, "find_nfs_srvr: force NFS protocol transport to %s", nfs_proto);
+      plog(XLOG_INFO, "%s: force NFS protocol transport to %s", __func__,
+	nfs_proto);
     }
   }
 
@@ -769,7 +787,7 @@ find_nfs_srvr(mntfs *mf)
   if (hp) {
     switch (hp->h_addrtype) {
     case AF_INET:
-      ip = ALLOC(struct sockaddr_in);
+      ip = CALLOC(struct sockaddr_in);
       memset((voidp) ip, 0, sizeof(*ip));
       /* as per POSIX, sin_len need not be set (used internally by kernel) */
       ip->sin_family = AF_INET;
@@ -795,8 +813,7 @@ find_nfs_srvr(mntfs *mf)
 	STREQ(host, fs->fs_host)) {
       plog(XLOG_WARNING, "fileserver %s is already hung - not running NFS proto/version discovery", host);
       fs->fs_refc++;
-      if (ip)
-	XFREE(ip);
+      XFREE(ip);
       return fs;
     }
   }
@@ -821,10 +838,12 @@ find_nfs_srvr(mntfs *mf)
     plog(XLOG_INFO, "%s option used, NOT contacting the portmapper on %s",
 	 MNTTAB_OPT_PUBLIC, host);
     /*
-     * Prefer NFSv3/tcp if the client supports it (cf. RFC 2054, 7).
+     * Prefer NFSv4/tcp if the client supports it (cf. RFC 2054, 7).
      */
     if (!nfs_version) {
-#ifdef HAVE_FS_NFS3
+#if defined(HAVE_FS_NFS4)
+      nfs_version = NFS_VERSION4;
+#elif defined(HAVE_FS_NFS3)
       nfs_version = NFS_VERSION3;
 #else /* not HAVE_FS_NFS3 */
       nfs_version = NFS_VERSION;
@@ -833,11 +852,11 @@ find_nfs_srvr(mntfs *mf)
 	   (int) nfs_version);
     }
     if (!nfs_proto) {
-#if defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3)
+#if defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3) || defined(HAVE_FS_NFS4)
       nfs_proto = "tcp";
-#else /* not defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3) */
+#else /* not defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3) || defined(HAVE_FS_NFS4) */
       nfs_proto = "udp";
-#endif /* not defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3) */
+#endif /* not defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3) || defined(HAVE_FS_NFS4) */
       plog(XLOG_INFO, "No NFS protocol transport specified, will use %s",
 	   nfs_proto);
     }
@@ -849,7 +868,8 @@ find_nfs_srvr(mntfs *mf)
      */
     if (check_pmap_up(host, ip)) {
       if (nfs_proto) {
-	best_nfs_version = get_nfs_version(host, ip, nfs_version, nfs_proto);
+	best_nfs_version = get_nfs_version(host, ip, nfs_version, nfs_proto,
+	  gopt.nfs_vers);
 	nfs_port = ip->sin_port;
       }
 #ifdef MNTTAB_OPT_PROTO
@@ -858,8 +878,8 @@ find_nfs_srvr(mntfs *mf)
 	char **p;
 
 	for (p = protocols; *p; p++) {
-	  proto_nfs_version = get_nfs_version(host, ip, nfs_version, *p);
-
+	  proto_nfs_version = get_nfs_version(host, ip, nfs_version, *p,
+	    gopt.nfs_vers);
 	  if (proto_nfs_version > best_nfs_version) {
 	    best_nfs_version = proto_nfs_version;
 	    nfs_proto = *p;
@@ -908,8 +928,8 @@ find_nfs_srvr(mntfs *mf)
   if (!nfs_port)
     nfs_port = htons(NFS_PORT);
 
-  dlog("find_nfs_srvr: using port %d for nfs on %s",
-       (int) ntohs(nfs_port), host);
+  dlog("%s: using port %d for nfs on %s", __func__,
+    (int) ntohs(nfs_port), host);
   ip->sin_port = nfs_port;
 
 no_dns:
@@ -935,7 +955,7 @@ no_dns:
 		 sizeof(fs->fs_ip->sin_addr)) != 0) {
 	struct in_addr ia;
 	char *old_ipaddr, *new_ipaddr;
-	old_ipaddr = strdup(inet_ntoa(fs->fs_ip->sin_addr));
+	old_ipaddr = xstrdup(inet_ntoa(fs->fs_ip->sin_addr));
 	memmove((voidp) &ia, (voidp) hp->h_addr, sizeof(struct in_addr));
 	new_ipaddr = inet_ntoa(ia);	/* ntoa uses static buf */
 	plog(XLOG_WARNING, "fileserver %s changed ip: %s -> %s",
@@ -962,24 +982,28 @@ no_dns:
        */
       if (!(fs->fs_flags & FSF_PINGING)) {
 	np = (nfs_private *) fs->fs_private;
-	np->np_mountd_inval = TRUE;
-	np->np_xid = XID_ALLOC();
-	np->np_error = -1;
-	np->np_ping = 0;
-	/*
-	 * Initially the server will be deemed dead
-	 * after MAX_ALLOWED_PINGS of the fast variety
-	 * have failed.
-	 */
-	np->np_ttl = MAX_ALLOWED_PINGS * FAST_NFS_PING + clocktime(NULL) - 1;
-	start_nfs_pings(fs, pingval);
-	if (fserver_is_down)
-	  fs->fs_flags |= FSF_VALID | FSF_DOWN;
+	if (np->np_mountd_inval != 'P') {
+	  np->np_mountd_inval = TRUE;
+	  np->np_xid = XID_ALLOC();
+	  np->np_error = -1;
+	  np->np_ping = 0;
+	  /*
+	   * Initially the server will be deemed dead
+	   * after MAX_ALLOWED_PINGS of the fast variety
+	   * have failed.
+	   */
+	  np->np_ttl = MAX_ALLOWED_PINGS * FAST_NFS_PING + clocktime(NULL) - 1;
+	  start_nfs_pings(fs, pingval);
+	  if (fserver_is_down)
+	    fs->fs_flags |= FSF_VALID | FSF_DOWN;
+	} else {
+	  fs->fs_flags = FSF_VALID;
+	}
+
       }
 
       fs->fs_refc++;
-      if (ip)
-	XFREE(ip);
+      XFREE(ip);
       return fs;
     }
   }
@@ -993,7 +1017,7 @@ no_dns:
    */
   fs = ALLOC(struct fserver);
   fs->fs_refc = 1;
-  fs->fs_host = strdup(hp ? hp->h_name : "unknown_hostname");
+  fs->fs_host = xstrdup(hp ? hp->h_name : "unknown_hostname");
   if (gopt.flags & CFM_NORMALIZE_HOSTNAMES)
     host_normalize(&fs->fs_host);
   fs->fs_ip = ip;
@@ -1014,9 +1038,18 @@ no_dns:
   fs->fs_flags |= FSF_PING_UNINIT; /* pinger hasn't been initialized */
   np = ALLOC(struct nfs_private);
   memset((voidp) np, 0, sizeof(*np));
-  np->np_mountd_inval = TRUE;
-  np->np_xid = XID_ALLOC();
-  np->np_error = -1;
+  np->np_mountd = htons(hasmntval(&mnt, "mountport"));
+  if (np->np_mountd == 0) {
+    np->np_mountd_inval = 'Y';
+    np->np_xid = XID_ALLOC();
+    np->np_error = -1;
+  } else {
+    plog(XLOG_INFO, "%s: using mountport: %d", __func__,
+      (int) ntohs(np->np_mountd));
+    np->np_mountd_inval = 'P';
+    np->np_xid = 0;
+    np->np_error = 0;
+  }
 
   /*
    * Initially the server will be deemed dead after

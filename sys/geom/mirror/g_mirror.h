@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -60,6 +62,8 @@
 #define	G_MIRROR_DISK_FLAG_HARDCODED		0x0000000000000010ULL
 #define	G_MIRROR_DISK_FLAG_BROKEN		0x0000000000000020ULL
 #define	G_MIRROR_DISK_FLAG_CANDELETE		0x0000000000000040ULL
+
+/* Per-disk flags which are recorded in on-disk metadata. */
 #define	G_MIRROR_DISK_FLAG_MASK		(G_MIRROR_DISK_FLAG_DIRTY |	\
 					 G_MIRROR_DISK_FLAG_SYNCHRONIZING | \
 					 G_MIRROR_DISK_FLAG_FORCE_SYNC | \
@@ -68,11 +72,13 @@
 
 #define	G_MIRROR_DEVICE_FLAG_NOAUTOSYNC	0x0000000000000001ULL
 #define	G_MIRROR_DEVICE_FLAG_NOFAILSYNC	0x0000000000000002ULL
+
+/* Mirror flags which are recorded in on-disk metadata. */
 #define	G_MIRROR_DEVICE_FLAG_MASK	(G_MIRROR_DEVICE_FLAG_NOAUTOSYNC | \
 					 G_MIRROR_DEVICE_FLAG_NOFAILSYNC)
 
 #ifdef _KERNEL
-extern u_int g_mirror_debug;
+extern int g_mirror_debug;
 
 #define	G_MIRROR_DEBUG(lvl, ...)	do {				\
 	if (g_mirror_debug >= (lvl)) {					\
@@ -108,6 +114,7 @@ struct g_mirror_disk_sync {
 	off_t		  ds_offset;	/* Offset of next request to send. */
 	off_t		  ds_offset_done; /* Offset of already synchronized
 					   region. */
+	time_t		  ds_update_ts; /* Time of last metadata update. */
 	u_int		  ds_syncid;	/* Disk's synchronization ID. */
 	u_int		  ds_inflight;	/* Number of in-flight sync requests. */
 	struct bio	**ds_bios;	/* BIOs for synchronization I/O. */
@@ -157,19 +164,25 @@ struct g_mirror_event {
 };
 
 #define	G_MIRROR_DEVICE_FLAG_DESTROY	0x0100000000000000ULL
-#define	G_MIRROR_DEVICE_FLAG_WAIT	0x0200000000000000ULL
-#define	G_MIRROR_DEVICE_FLAG_DESTROYING	0x0400000000000000ULL
+#define	G_MIRROR_DEVICE_FLAG_DRAIN	0x0200000000000000ULL
+#define	G_MIRROR_DEVICE_FLAG_CLOSEWAIT	0x0400000000000000ULL
 #define	G_MIRROR_DEVICE_FLAG_TASTING	0x0800000000000000ULL
 #define	G_MIRROR_DEVICE_FLAG_WIPE	0x1000000000000000ULL
 
 #define	G_MIRROR_DEVICE_STATE_STARTING		0
 #define	G_MIRROR_DEVICE_STATE_RUNNING		1
 
+#define	G_MIRROR_TYPE_MANUAL	0
+#define	G_MIRROR_TYPE_AUTOMATIC	1
+
 /* Bump syncid on first write. */
-#define	G_MIRROR_BUMP_SYNCID	0x1
+#define	G_MIRROR_BUMP_SYNCID		0x1
 /* Bump genid immediately. */
-#define	G_MIRROR_BUMP_GENID	0x2
+#define	G_MIRROR_BUMP_GENID		0x2
+/* Bump syncid immediately. */
+#define	G_MIRROR_BUMP_SYNCID_NOW	0x4
 struct g_mirror_softc {
+	u_int		sc_type;	/* Device type (manual/automatic). */
 	u_int		sc_state;	/* Device state. */
 	uint32_t	sc_slice;	/* Slice size. */
 	uint8_t		sc_balance;	/* Balance algorithm. */
@@ -179,21 +192,19 @@ struct g_mirror_softc {
 
 	struct g_geom	*sc_geom;
 	struct g_provider *sc_provider;
+	int		sc_provider_open;
 
 	uint32_t	sc_id;		/* Mirror unique ID. */
 
 	struct sx	 sc_lock;
-	struct bio_queue_head sc_queue;
+	struct bio_queue sc_queue;
 	struct mtx	 sc_queue_mtx;
 	struct proc	*sc_worker;
-	struct bio_queue_head sc_regular_delayed; /* Delayed I/O requests due
-						     collision with sync
-						     requests. */
-	struct bio_queue_head sc_inflight; /* In-flight regular write
-					      requests. */
-	struct bio_queue_head sc_sync_delayed; /* Delayed sync requests due
-						  collision with regular
-						  requests. */
+	struct bio_queue sc_inflight; /* In-flight regular write requests. */
+	struct bio_queue sc_regular_delayed; /* Delayed I/O requests due to
+						collision with sync requests. */
+	struct bio_queue sc_sync_delayed; /* Delayed sync requests due to
+					     collision with regular requests. */
 
 	LIST_HEAD(, g_mirror_disk) sc_disks;
 	u_int		sc_ndisks;	/* Number of disks. */
@@ -206,6 +217,7 @@ struct g_mirror_softc {
 	int		sc_idle;	/* DIRTY flags removed. */
 	time_t		sc_last_write;
 	u_int		sc_writes;
+	u_int		sc_refcnt;	/* Number of softc references */
 
 	TAILQ_HEAD(, g_mirror_event) sc_events;
 	struct mtx	sc_events_mtx;
@@ -218,7 +230,11 @@ struct g_mirror_softc {
 };
 #define	sc_name	sc_geom->name
 
+struct g_mirror_metadata;
+
 u_int g_mirror_ndisks(struct g_mirror_softc *sc, int state);
+struct g_geom * g_mirror_create(struct g_class *mp,
+    const struct g_mirror_metadata *md, u_int type);
 #define	G_MIRROR_DESTROY_SOFT		0
 #define	G_MIRROR_DESTROY_DELAYED	1
 #define	G_MIRROR_DESTROY_HARD		2

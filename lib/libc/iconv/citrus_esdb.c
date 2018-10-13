@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_esdb.c,v 1.5 2008/02/09 14:56:20 junyoung Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -263,8 +265,6 @@ _citrus_esdb_get_list(char ***rlist, size_t *rnum, bool sorted)
 	size_t num;
 	int ret;
 
-	num = 0;
-
 	ret = _lookup_seq_open(&cla, _PATH_ESDB "/" ESDB_ALIAS,
 	    _LOOKUP_CASE_IGNORE);
 	if (ret)
@@ -349,7 +349,7 @@ _citrus_esdb_get_list(char ***rlist, size_t *rnum, bool sorted)
 	ret = 0;
 	/* XXX: why reallocing the list space posteriorly?
 	    shouldn't be done earlier? */
-	q = realloc(list, num * sizeof(char *));
+	q = reallocarray(list, num, sizeof(char *));
 	if (!q) {
 		ret = ENOMEM;
 		goto quit3;

@@ -1,7 +1,13 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,25 +43,8 @@ __FBSDID("$FreeBSD$");
  * With the exception of some very early chipsets, the ChipCommon core
  * has been included in all HND SoCs and chipsets based on the siba(4) 
  * and bcma(4) interconnects, providing a common interface to chipset 
- * identification, bus enumeration, UARTs, clocks, watchdog interrupts, GPIO, 
- * flash, etc.
- *
- * The purpose of this driver is memory resource management for ChipCommon drivers
- * like UART, PMU, flash. ChipCommon core has several memory regions.
- *
- * ChipCommon driver has memory resource manager. Driver
- * gets information about BHND core ports/regions and map them
- * into drivers' resources.
- *
- * Here is overview of mapping:
- *
- * ------------------------------------------------------
- * | Port.Region| Purpose				|
- * ------------------------------------------------------
- * |	0.0	| PMU, SPI(0x40), UART(0x300)           |
- * |	1.0	| ?					|
- * |	1.1	| MMIO flash (SPI & CFI)		|
- * ------------------------------------------------------
+ * identification, bus enumeration, UARTs, clocks, watchdog interrupts,
+ * GPIO, flash, etc.
  */
 
 #include <sys/param.h>
@@ -76,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include "chipcreg.h"
 #include "chipcvar.h"
+
 #include "chipc_private.h"
 
 devclass_t bhnd_chipc_devclass;	/**< bhnd(4) chipcommon device class */
@@ -85,6 +75,7 @@ static struct bhnd_device_quirk chipc_quirks[];
 /* Supported device identifiers */
 static const struct bhnd_device chipc_devices[] = {
 	BHND_DEVICE(BCM, CC, NULL, chipc_quirks),
+	BHND_DEVICE(BCM, 4706_CC, NULL, chipc_quirks),
 	BHND_DEVICE_END
 };
 
@@ -123,62 +114,27 @@ static struct bhnd_device_quirk chipc_quirks[] = {
 	BHND_DEVICE_QUIRK_END
 };
 
+static int		 chipc_add_children(struct chipc_softc *sc);
 
-/*
- * Here is resource configuration hints for child devices
- *
- * [Flash] There are 2 flash resources:
- *  - resource ID (rid) = 0: memory-mapped flash memory
- *  - resource ID (rid) = 1: memory-mapped flash registers (i.e for SPI)
- *
- * [UART] Uses IRQ and memory resources:
- *  - resource ID (rid) = 0: memory-mapped registers
- *  - IRQ resource ID (rid) = 0: shared IRQ line for Tx/Rx.
- */
+static bhnd_nvram_src	 chipc_find_nvram_src(struct chipc_softc *sc,
+			     struct chipc_caps *caps);
+static int		 chipc_read_caps(struct chipc_softc *sc,
+			     struct chipc_caps *caps);
 
-static const struct chipc_hint {
-	const char	*name;
-	int		 unit;
-	int		 type;
-	int		 rid;
-	rman_res_t	 base;		/* relative to parent resource */
-	rman_res_t	 size;
-	u_int		 port;		/* ignored if SYS_RES_IRQ */
-	u_int		 region;
-} chipc_hints[] = {
-	// FIXME: cfg/spi port1.1 mapping on siba(4) SoCs
-	// FIXME: IRQ shouldn't be hardcoded
-	/* device	unit	type		rid	base			size			port,region */
-	{ "bhnd_nvram",	0, SYS_RES_MEMORY,	0,	CHIPC_SPROM_OTP,	CHIPC_SPROM_OTP_SIZE,	0,0 },
-	{ "uart",	0, SYS_RES_MEMORY,	0,	CHIPC_UART0_BASE,	CHIPC_UART_SIZE,	0,0 },
-	{ "uart",	0, SYS_RES_IRQ,		0,	2,			1 },
-	{ "uart",	1, SYS_RES_MEMORY,	0,	CHIPC_UART1_BASE,	CHIPC_UART_SIZE,	0,0 },
-	{ "uart",	1, SYS_RES_IRQ,		0,	2,			1 },
-	{ "spi",	0, SYS_RES_MEMORY,	0,	0,			RM_MAX_END,		1,1 },
-	{ "spi",	0, SYS_RES_MEMORY,	1,	CHIPC_SFLASH_BASE,	CHIPC_SFLASH_SIZE,	0,0 },
-	{ "cfi",	0, SYS_RES_MEMORY,	0,	0,			RM_MAX_END,		1,1},
-	{ "cfi",	0, SYS_RES_MEMORY, 	1,	CHIPC_SFLASH_BASE,	CHIPC_SFLASH_SIZE,	0,0 },
-	{ NULL }
-};
+static bool		 chipc_should_enable_muxed_sprom(
+			     struct chipc_softc *sc);
+static int		 chipc_enable_otp_power(struct chipc_softc *sc);
+static void		 chipc_disable_otp_power(struct chipc_softc *sc);
+static int		 chipc_enable_sprom_pins(struct chipc_softc *sc);
+static void		 chipc_disable_sprom_pins(struct chipc_softc *sc);
 
+static int		 chipc_try_activate_resource(struct chipc_softc *sc,
+			     device_t child, int type, int rid,
+			     struct resource *r, bool req_direct);
 
-static int			 chipc_try_activate_resource(
-				    struct chipc_softc *sc, device_t child,
-				    int type, int rid, struct resource *r,
-				    bool req_direct);
-
-static bhnd_nvram_src		 chipc_find_nvram_src(struct chipc_softc *sc,
-				     struct chipc_caps *caps);
-static int			 chipc_read_caps(struct chipc_softc *sc,
-				     struct chipc_caps *caps);
-
-static bool			 chipc_should_enable_sprom(
-				     struct chipc_softc *sc);
-
-static int			 chipc_init_rman(struct chipc_softc *sc);
-static void			 chipc_free_rman(struct chipc_softc *sc);
-static struct rman		*chipc_get_rman(struct chipc_softc *sc,
-				     int type);
+static int		 chipc_init_rman(struct chipc_softc *sc);
+static void		 chipc_free_rman(struct chipc_softc *sc);
+static struct rman	*chipc_get_rman(struct chipc_softc *sc, int type);
 
 /* quirk and capability flag convenience macros */
 #define	CHIPC_QUIRK(_sc, _name)	\
@@ -210,9 +166,6 @@ static int
 chipc_attach(device_t dev)
 {
 	struct chipc_softc		*sc;
-	bhnd_addr_t			 enum_addr;
-	uint32_t			 ccid_reg;
-	uint8_t				 chip_type;
 	int				 error;
 
 	sc = device_get_softc(dev);
@@ -231,7 +184,7 @@ chipc_attach(device_t dev)
 		goto failed;
 	}
 
-	/* Allocate the region containing our core registers */
+	/* Allocate the region containing the chipc register block */
 	if ((sc->core_region = chipc_find_region_by_rid(sc, 0)) == NULL) {
 		error = ENXIO;
 		goto failed;
@@ -242,30 +195,10 @@ chipc_attach(device_t dev)
 	if (error) {
 		sc->core_region = NULL;
 		goto failed;
-	} else {
-		sc->core = sc->core_region->cr_res;
 	}
 
-	/* Fetch our chipset identification data */
-	ccid_reg = bhnd_bus_read_4(sc->core, CHIPC_ID);
-	chip_type = CHIPC_GET_BITS(ccid_reg, CHIPC_ID_BUS);
-
-	switch (chip_type) {
-	case BHND_CHIPTYPE_SIBA:
-		/* enumeration space starts at the ChipCommon register base. */
-		enum_addr = rman_get_start(sc->core->res);
-		break;
-	case BHND_CHIPTYPE_BCMA:
-	case BHND_CHIPTYPE_BCMA_ALT:
-		enum_addr = bhnd_bus_read_4(sc->core, CHIPC_EROMPTR);
-		break;
-	default:
-		device_printf(dev, "unsupported chip type %hhu\n", chip_type);
-		error = ENODEV;
-		goto failed;
-	}
-
-	sc->ccid = bhnd_parse_chipid(ccid_reg, enum_addr);
+	/* Save a direct reference to our chipc registers */
+	sc->core = sc->core_region->cr_res;
 
 	/* Fetch and parse capability register(s) */
 	if ((error = chipc_read_caps(sc, &sc->caps)))
@@ -274,14 +207,28 @@ chipc_attach(device_t dev)
 	if (bootverbose)
 		chipc_print_caps(sc->dev, &sc->caps);
 
-	/* Probe and attach children */
-	bus_generic_probe(dev);
+	/* Attach all supported child devices */
+	if ((error = chipc_add_children(sc)))
+		goto failed;
+
+	/*
+	 * Register ourselves with the bus; we're fully initialized and can
+	 * response to ChipCommin API requests.
+	 * 
+	 * Since our children may need access to ChipCommon, this must be done
+	 * before attaching our children below (via bus_generic_attach).
+	 */
+	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
+		goto failed;
+
 	if ((error = bus_generic_attach(dev)))
 		goto failed;
 
 	return (0);
 	
 failed:
+	device_delete_children(sc->dev);
+
 	if (sc->core_region != NULL) {
 		chipc_release_region(sc, sc->core_region,
 		    RF_ALLOCATED|RF_ACTIVE);
@@ -303,10 +250,148 @@ chipc_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
+	if ((error = device_delete_children(dev)))
+		return (error);
+
+	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
+		return (error);
+
 	chipc_release_region(sc, sc->core_region, RF_ALLOCATED|RF_ACTIVE);
 	chipc_free_rman(sc);
 
 	CHIPC_LOCK_DESTROY(sc);
+
+	return (0);
+}
+
+static int
+chipc_add_children(struct chipc_softc *sc)
+{
+	device_t	 child;
+	const char	*flash_bus;
+	int		 error;
+
+	/* SPROM/OTP */
+	if (sc->caps.nvram_src == BHND_NVRAM_SRC_SPROM ||
+	    sc->caps.nvram_src == BHND_NVRAM_SRC_OTP)
+	{
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_nvram", -1);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add nvram device\n");
+			return (ENXIO);
+		}
+
+		/* Both OTP and external SPROM are mapped at CHIPC_SPROM_OTP */
+		error = chipc_set_mem_resource(sc, child, 0, CHIPC_SPROM_OTP,
+		    CHIPC_SPROM_OTP_SIZE, 0, 0);
+		if (error) {
+			device_printf(sc->dev, "failed to set OTP memory "
+			    "resource: %d\n", error);
+			return (error);
+		}
+	}
+
+	/*
+	 * PMU/PWR_CTRL
+	 * 
+	 * On AOB ("Always on Bus") devices, the PMU core (if it exists) is
+	 * attached directly to the bhnd(4) bus -- not chipc.
+	 */
+	if (sc->caps.pmu && !sc->caps.aob) {
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", -1);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add pmu\n");
+			return (ENXIO);
+		}
+	} else if (sc->caps.pwr_ctrl) {
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pwrctl", -1);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add pwrctl\n");
+			return (ENXIO);
+		}
+	}
+
+	/* GPIO */
+	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", -1);
+	if (child == NULL) {
+		device_printf(sc->dev, "failed to add gpio\n");
+		return (ENXIO);
+	}
+
+	error = chipc_set_mem_resource(sc, child, 0, 0, RM_MAX_END, 0, 0);
+	if (error) {
+		device_printf(sc->dev, "failed to set gpio memory resource: "
+		    "%d\n", error);
+		return (error);
+	}
+
+	/* All remaining devices are SoC-only */
+	if (bhnd_get_attach_type(sc->dev) != BHND_ATTACH_NATIVE)
+		return (0);
+
+	/* UARTs */
+	for (u_int i = 0; i < min(sc->caps.num_uarts, CHIPC_UART_MAX); i++) {
+		int irq_rid, mem_rid;
+
+		irq_rid = 0;
+		mem_rid = 0;
+
+		child = BUS_ADD_CHILD(sc->dev, 0, "uart", -1);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add uart%u\n", i);
+			return (ENXIO);
+		}
+
+		/* Shared IRQ */
+		error = chipc_set_irq_resource(sc, child, irq_rid, 0);
+		if (error) {
+			device_printf(sc->dev, "failed to set uart%u irq %u\n",
+			    i, 0);
+			return (error);
+		}
+
+		/* UART registers are mapped sequentially */
+		error = chipc_set_mem_resource(sc, child, mem_rid,
+		    CHIPC_UART(i), CHIPC_UART_SIZE, 0, 0);
+		if (error) {
+			device_printf(sc->dev, "failed to set uart%u memory "
+			    "resource: %d\n", i, error);
+			return (error);
+		}
+	}
+
+	/* Flash */
+	flash_bus = chipc_flash_bus_name(sc->caps.flash_type);
+	if (flash_bus != NULL) {
+		int rid;
+
+		child = BUS_ADD_CHILD(sc->dev, 0, flash_bus, -1);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add %s device\n",
+			    flash_bus);
+			return (ENXIO);
+		}
+
+		/* flash memory mapping */
+		rid = 0;
+		error = chipc_set_mem_resource(sc, child, rid, 0, RM_MAX_END, 1,
+		    1);
+		if (error) {
+			device_printf(sc->dev, "failed to set flash memory "
+			    "resource %d: %d\n", rid, error);
+			return (error);
+		}
+
+		/* flashctrl registers */
+		rid++;
+		error = chipc_set_mem_resource(sc, child, rid,
+		    CHIPC_SFLASH_BASE, CHIPC_SFLASH_SIZE, 0, 0);
+		if (error) {
+			device_printf(sc->dev, "failed to set flash memory "
+			    "resource %d: %d\n", rid, error);
+			return (error);
+		}
+	}
 
 	return (0);
 }
@@ -325,19 +410,11 @@ chipc_find_nvram_src(struct chipc_softc *sc, struct chipc_caps *caps)
 {
 	uint32_t		 otp_st, srom_ctrl;
 
-	/* Very early devices vend SPROM/OTP/CIS (if at all) via the
-	 * host bridge interface instead of ChipCommon. */
-	if (!CHIPC_QUIRK(sc, SUPPORTS_SPROM))
-		return (BHND_NVRAM_SRC_UNKNOWN);
-
 	/*
-	 * Later chipset revisions standardized the SPROM capability flags and
-	 * register interfaces.
-	 * 
 	 * We check for hardware presence in order of precedence. For example,
 	 * SPROM is is always used in preference to internal OTP if found.
 	 */
-	if (caps->sprom) {
+	if (CHIPC_QUIRK(sc, SUPPORTS_SPROM) && caps->sprom) {
 		srom_ctrl = bhnd_bus_read_4(sc->core, CHIPC_SPROM_CTRL);
 		if (srom_ctrl & CHIPC_SRC_PRESENT)
 			return (BHND_NVRAM_SRC_SPROM);
@@ -386,7 +463,7 @@ chipc_read_caps(struct chipc_softc *sc, struct chipc_caps *caps)
 	caps->uart_clock	= CHIPC_GET_BITS(cap_reg, CHIPC_CAP_UCLKSEL);
 
 	caps->extbus_type	= CHIPC_GET_BITS(cap_reg, CHIPC_CAP_EXTBUS);
-	caps->power_control	= CHIPC_GET_FLAG(cap_reg, CHIPC_CAP_PWR_CTL);
+	caps->pwr_ctrl		= CHIPC_GET_FLAG(cap_reg, CHIPC_CAP_PWR_CTL);
 	caps->jtag_master	= CHIPC_GET_FLAG(cap_reg, CHIPC_CAP_JTAGP);
 
 	caps->pll_type		= CHIPC_GET_BITS(cap_reg, CHIPC_CAP_PLL);
@@ -409,7 +486,6 @@ chipc_read_caps(struct chipc_softc *sc, struct chipc_caps *caps)
 
 	/* Determine flash type and parameters */
 	caps->cfi_width = 0;
-
 	switch (CHIPC_GET_BITS(cap_reg, CHIPC_CAP_FLASH)) {
 	case CHIPC_CAP_SFLASH_ST:
 		caps->flash_type = CHIPC_SFLASH_ST;
@@ -418,6 +494,7 @@ chipc_read_caps(struct chipc_softc *sc, struct chipc_caps *caps)
 		caps->flash_type = CHIPC_SFLASH_AT;
 		break;
 	case CHIPC_CAP_NFLASH:
+		/* unimplemented */
 		caps->flash_type = CHIPC_NFLASH;
 		break;
 	case CHIPC_CAP_PFLASH:
@@ -546,32 +623,15 @@ chipc_child_location_str(device_t dev, device_t child, char *buf,
 static device_t
 chipc_add_child(device_t dev, u_int order, const char *name, int unit)
 {
+	struct chipc_softc	*sc;
 	struct chipc_devinfo	*dinfo;
-	const struct chipc_hint	*hint;
 	device_t		 child;
-	devclass_t		 child_dc;
-	int			 error;
-	int 			 busrel_unit;
+
+	sc = device_get_softc(dev);
 
 	child = device_add_child_ordered(dev, order, name, unit);
 	if (child == NULL)
 		return (NULL);
-
-	/* system-wide device unit */
-	unit = device_get_unit(child);
-	child_dc = device_get_devclass(child);
-
-	busrel_unit = 0;
-	for (int i = 0; i < unit; i++) {
-		device_t	tmp;
-
-		tmp = devclass_get_device(child_dc, i);
-		if (tmp != NULL && (device_get_parent(tmp) == dev))
-	                busrel_unit++;
-	}
-
-	/* bus-wide device unit (override unit for further hint matching) */
-	unit = busrel_unit;
 
 	dinfo = malloc(sizeof(struct chipc_devinfo), M_BHND, M_NOWAIT);
 	if (dinfo == NULL) {
@@ -580,95 +640,10 @@ chipc_add_child(device_t dev, u_int order, const char *name, int unit)
 	}
 
 	resource_list_init(&dinfo->resources);
+	dinfo->irq_mapped = false;
 	device_set_ivars(child, dinfo);
 
-	/* Hint matching requires a device name */
-	if (name == NULL)
-		return (child);
-
-	/* Use hint table to set child resources */
-	for (hint = chipc_hints; hint->name != NULL; hint++) {
-		bhnd_addr_t	region_addr;
-		bhnd_size_t	region_size;
-
-		/* Check device name */
-		if (strcmp(hint->name, name) != 0)
-			continue;
-
-		/* Check device unit */
-		if (hint->unit >= 0 && unit != hint->unit)
-			continue;
-
-		switch (hint->type) {
-		case SYS_RES_IRQ:
-			/* Add child resource */
-			error = bus_set_resource(child, hint->type, hint->rid,
-			    hint->base, hint->size);
-			if (error) {
-				device_printf(dev,
-				    "bus_set_resource() failed for %s: %d\n",
-				    device_get_nameunit(child), error);
-				goto failed;
-			}
-			break;
-
-		case SYS_RES_MEMORY:
-			/* Fetch region address and size */
-			error = bhnd_get_region_addr(dev, BHND_PORT_DEVICE,
-			    hint->port, hint->region, &region_addr,
-			    &region_size);
-			if (error) {
-				device_printf(dev,
-				    "lookup of %s%u.%u failed: %d\n",
-				    bhnd_port_type_name(BHND_PORT_DEVICE),
-				    hint->port, hint->region, error);
-				goto failed;
-			}
-
-			/* Verify requested range is mappable */
-			if (hint->base > region_size ||
-			    (hint->size != RM_MAX_END &&
-				(hint->size > region_size ||
-				 region_size - hint->base < hint->size )))
-			{
-				device_printf(dev,
-				    "%s%u.%u region cannot map requested range "
-				        "%#jx+%#jx\n",
-				    bhnd_port_type_name(BHND_PORT_DEVICE),
-				    hint->port, hint->region, hint->base,
-				    hint->size);
-			}
-
-			/*
-			 * Add child resource. If hint doesn't define the end
-			 * of resource window (RX_MAX_END), use end of region.
-			 */
-
-			error = bus_set_resource(child,
-				    hint->type,
-				    hint->rid, region_addr + hint->base,
-				    (hint->size == RM_MAX_END) ?
-					    region_size - hint->base :
-					    hint->size);
-			if (error) {
-				device_printf(dev,
-				    "bus_set_resource() failed for %s: %d\n",
-				    device_get_nameunit(child), error);
-				goto failed;
-			}
-			break;
-		default:
-			device_printf(child, "unknown hint resource type: %d\n",
-			    hint->type);
-			break;
-		}
-	}
-
 	return (child);
-
-failed:
-	device_delete_child(dev, child);
-	return (NULL);
 }
 
 static void
@@ -677,7 +652,15 @@ chipc_child_deleted(device_t dev, device_t child)
 	struct chipc_devinfo *dinfo = device_get_ivars(child);
 
 	if (dinfo != NULL) {
+		/* Free the child's resource list */
 		resource_list_free(&dinfo->resources);
+
+		/* Unmap the child's IRQ */
+		if (dinfo->irq_mapped) {
+			bhnd_unmap_intr(dev, dinfo->irq);
+			dinfo->irq_mapped = false;
+		}
+
 		free(dinfo, M_BHND);
 	}
 
@@ -703,7 +686,7 @@ chipc_rman_init_regions (struct chipc_softc *sc, bhnd_port_type type,
 	u_int			 num_regions;
 	int			 error;
 
-	num_regions = bhnd_get_region_count(sc->dev, port, port);
+	num_regions = bhnd_get_region_count(sc->dev, type, port);
 	for (u_int region = 0; region < num_regions; region++) {
 		/* Allocate new region record */
 		cr = chipc_alloc_region(sc, type, port, region);
@@ -805,8 +788,7 @@ chipc_get_rman(struct chipc_softc *sc, int type)
 		return (&sc->mem_rman);
 
 	case SYS_RES_IRQ:
-		/* IRQs can be used with RF_SHAREABLE, so we don't perform
-		 * any local proxying of resource requests. */
+		/* We delegate IRQ resource management to the parent bus */
 		return (NULL);
 
 	default:
@@ -877,11 +859,28 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 		return (rv);
 	}
 
-	/* Try to retain a region reference */
-	if ((error = chipc_retain_region(sc, cr, RF_ALLOCATED))) {
-		CHIPC_UNLOCK(sc);
-		return (NULL);
+	/*
+	 * As a special case, children that map the complete ChipCommon register
+	 * block are delegated to our parent.
+	 *
+	 * The rman API does not support sharing resources that are not
+	 * identical in size; since we allocate subregions to various children,
+	 * any children that need to map the entire register block (e.g. because
+	 * they require access to discontiguous register ranges) must make the
+	 * allocation through our parent, where we hold a compatible
+	 * RF_SHAREABLE allocation.
+	 */
+	if (cr == sc->core_region && cr->cr_addr == start &&
+	    cr->cr_end == end && cr->cr_count == count)
+	{
+		rv = bus_generic_rl_alloc_resource(dev, child, type, rid,
+		    start, end, count, flags);
+		return (rv);
 	}
+
+	/* Try to retain a region reference */
+	if ((error = chipc_retain_region(sc, cr, RF_ALLOCATED)))
+		return (NULL);
 
 	/* Make our rman reservation */
 	rv = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
@@ -1158,7 +1157,7 @@ chipc_deactivate_resource(device_t dev, device_t child, int type,
  * @param sc chipc driver state.
  */
 static bool
-chipc_should_enable_sprom(struct chipc_softc *sc)
+chipc_should_enable_muxed_sprom(struct chipc_softc *sc)
 {
 	device_t	*devs;
 	device_t	 hostb;
@@ -1167,17 +1166,19 @@ chipc_should_enable_sprom(struct chipc_softc *sc)
 	int		 error;
 	bool		 result;
 
-	mtx_assert(&Giant, MA_OWNED);	/* for newbus */
-
 	/* Nothing to do? */
 	if (!CHIPC_QUIRK(sc, MUX_SPROM))
 		return (true);
 
-	parent = device_get_parent(sc->dev);
-	hostb = bhnd_find_hostb_device(parent);
+	mtx_lock(&Giant);	/* for newbus */
 
-	if ((error = device_get_children(parent, &devs, &devcount)))
+	parent = device_get_parent(sc->dev);
+	hostb = bhnd_bus_find_hostb_device(parent);
+
+	if ((error = device_get_children(parent, &devs, &devcount))) {
+		mtx_unlock(&Giant);
 		return (false);
+	}
 
 	/* Reject any active devices other than ChipCommon, or the
 	 * host bridge (if any). */
@@ -1198,7 +1199,90 @@ chipc_should_enable_sprom(struct chipc_softc *sc)
 	}
 
 	free(devs, M_TEMP);
+	mtx_unlock(&Giant);
 	return (result);
+}
+
+static int
+chipc_enable_sprom(device_t dev)
+{
+	struct chipc_softc	*sc;
+	int			 error;
+
+	sc = device_get_softc(dev);
+	CHIPC_LOCK(sc);
+
+	/* Already enabled? */
+	if (sc->sprom_refcnt >= 1) {
+		sc->sprom_refcnt++;
+		CHIPC_UNLOCK(sc);
+
+		return (0);
+	}
+
+	switch (sc->caps.nvram_src) {
+	case BHND_NVRAM_SRC_SPROM:
+		error = chipc_enable_sprom_pins(sc);
+		break;
+	case BHND_NVRAM_SRC_OTP:
+		error = chipc_enable_otp_power(sc);
+		break;
+	default:
+		error = 0;
+		break;
+	}
+
+	/* Bump the reference count */
+	if (error == 0)
+		sc->sprom_refcnt++;
+
+	CHIPC_UNLOCK(sc);
+	return (error);
+}
+
+static void
+chipc_disable_sprom(device_t dev)
+{
+	struct chipc_softc	*sc;
+
+	sc = device_get_softc(dev);
+	CHIPC_LOCK(sc);
+
+	/* Check reference count, skip disable if in-use. */
+	KASSERT(sc->sprom_refcnt > 0, ("sprom refcnt overrelease"));
+	sc->sprom_refcnt--;
+	if (sc->sprom_refcnt > 0) {
+		CHIPC_UNLOCK(sc);
+		return;
+	}
+
+	switch (sc->caps.nvram_src) {
+	case BHND_NVRAM_SRC_SPROM:
+		chipc_disable_sprom_pins(sc);
+		break;
+	case BHND_NVRAM_SRC_OTP:
+		chipc_disable_otp_power(sc);
+		break;
+	default:
+		break;
+	}
+
+
+	CHIPC_UNLOCK(sc);
+}
+
+static int
+chipc_enable_otp_power(struct chipc_softc *sc)
+{
+	// TODO: Enable OTP resource via PMU, and wait up to 100 usec for
+	// OTPS_READY to be set in `optstatus`.
+	return (0);
+}
+
+static void
+chipc_disable_otp_power(struct chipc_softc *sc)
+{
+	// TODO: Disable OTP resource via PMU
 }
 
 /**
@@ -1207,33 +1291,20 @@ chipc_should_enable_sprom(struct chipc_softc *sc)
  * @param sc chipc driver state.
  */
 static int
-chipc_enable_sprom_pins(device_t dev)
+chipc_enable_sprom_pins(struct chipc_softc *sc)
 {
-	struct chipc_softc	*sc;
 	uint32_t		 cctrl;
-	int			 error;
 
-	sc = device_get_softc(dev);
+	CHIPC_LOCK_ASSERT(sc, MA_OWNED);
+	KASSERT(sc->sprom_refcnt == 0, ("sprom pins already enabled"));
 
 	/* Nothing to do? */
 	if (!CHIPC_QUIRK(sc, MUX_SPROM))
 		return (0);
 
-	/* Make sure we're holding Giant for newbus */
-	mtx_lock(&Giant);
-	CHIPC_LOCK(sc);
-
-	/* Already enabled? */
-	if (sc->sprom_refcnt >= 1) {
-		error = 0;
-		goto finished;
-	}
-
 	/* Check whether bus is busy */
-	if (!chipc_should_enable_sprom(sc)) {
-		error = EBUSY;
-		goto finished;
-	}
+	if (!chipc_should_enable_muxed_sprom(sc))
+		return (EBUSY);
 
 	cctrl = bhnd_bus_read_4(sc->core, CHIPC_CHIPCTRL);
 
@@ -1248,8 +1319,7 @@ chipc_enable_sprom_pins(device_t dev)
 			cctrl &= ~CHIPC_CCTRL4331_EXTPA_EN2;
 
 		bhnd_bus_write_4(sc->core, CHIPC_CHIPCTRL, cctrl);
-		error = 0;
-		goto finished;
+		return (0);
 	}
 
 	/* 4360 devices */
@@ -1259,17 +1329,7 @@ chipc_enable_sprom_pins(device_t dev)
 
 	/* Refuse to proceed on unsupported devices with muxed SPROM pins */
 	device_printf(sc->dev, "muxed sprom lines on unrecognized device\n");
-	error = ENXIO;
-
-finished:
-	/* Bump the reference count */
-	if (error == 0)
-		sc->sprom_refcnt++;
-
-	CHIPC_UNLOCK(sc);
-	mtx_unlock(&Giant);
-
-	return (error);
+	return (ENXIO);
 }
 
 /**
@@ -1279,24 +1339,16 @@ finished:
  * @param sc chipc driver state.
  */
 static void
-chipc_disable_sprom_pins(device_t dev)
+chipc_disable_sprom_pins(struct chipc_softc *sc)
 {
-	struct chipc_softc	*sc;
 	uint32_t		 cctrl;
-
-	sc = device_get_softc(dev);
 
 	/* Nothing to do? */
 	if (!CHIPC_QUIRK(sc, MUX_SPROM))
 		return;
 
-	CHIPC_LOCK(sc);
-
-	/* Check reference count, skip disable if in-use. */
-	KASSERT(sc->sprom_refcnt > 0, ("sprom refcnt overrelease"));
-	sc->sprom_refcnt--;
-	if (sc->sprom_refcnt > 0)
-		goto finished;
+	CHIPC_LOCK_ASSERT(sc, MA_OWNED);
+	KASSERT(sc->sprom_refcnt == 0, ("sprom pins in use"));
 
 	cctrl = bhnd_bus_read_4(sc->core, CHIPC_CHIPCTRL);
 
@@ -1311,16 +1363,20 @@ chipc_disable_sprom_pins(device_t dev)
 			cctrl |= CHIPC_CCTRL4331_EXTPA_EN2;
 
 		bhnd_bus_write_4(sc->core, CHIPC_CHIPCTRL, cctrl);
-		goto finished;
+		return;
 	}
 
 	/* 4360 devices */
 	if (CHIPC_QUIRK(sc, 4360_FEM_MUX_SPROM)) {
 		/* Unimplemented */
 	}
+}
 
-finished:
-	CHIPC_UNLOCK(sc);
+static uint32_t
+chipc_read_chipst(device_t dev)
+{
+	struct chipc_softc *sc = device_get_softc(dev);
+	return (bhnd_bus_read_4(sc->core, CHIPC_CHIPST));
 }
 
 static void
@@ -1347,15 +1403,6 @@ chipc_get_caps(device_t dev)
 
 	sc = device_get_softc(dev);
 	return (&sc->caps);
-}
-
-static uint32_t
-chipc_get_flash_cfg(device_t dev)
-{
-	struct chipc_softc	*sc;
-
-	sc = device_get_softc(dev);
-	return (bhnd_bus_read_4(sc->core, CHIPC_FLASH_CFG));
 }
 
 static device_method_t chipc_methods[] = {
@@ -1395,17 +1442,17 @@ static device_method_t chipc_methods[] = {
 	DEVMETHOD(bhnd_bus_activate_resource,	chipc_activate_bhnd_resource),
 
 	/* ChipCommon interface */
+	DEVMETHOD(bhnd_chipc_read_chipst,	chipc_read_chipst),
 	DEVMETHOD(bhnd_chipc_write_chipctrl,	chipc_write_chipctrl),
-	DEVMETHOD(bhnd_chipc_enable_sprom,	chipc_enable_sprom_pins),
-	DEVMETHOD(bhnd_chipc_disable_sprom,	chipc_disable_sprom_pins),
+	DEVMETHOD(bhnd_chipc_enable_sprom,	chipc_enable_sprom),
+	DEVMETHOD(bhnd_chipc_disable_sprom,	chipc_disable_sprom),
 	DEVMETHOD(bhnd_chipc_get_caps,		chipc_get_caps),
-	DEVMETHOD(bhnd_chipc_get_flash_cfg,	chipc_get_flash_cfg),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(bhnd_chipc, chipc_driver, chipc_methods, sizeof(struct chipc_softc));
-EARLY_DRIVER_MODULE(bhnd_chipc, bhnd, chipc_driver, bhnd_chipc_devclass, 0, 0,
+DEFINE_CLASS_0(bhnd_chipc, bhnd_chipc_driver, chipc_methods, sizeof(struct chipc_softc));
+EARLY_DRIVER_MODULE(bhnd_chipc, bhnd, bhnd_chipc_driver, bhnd_chipc_devclass, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_DEPEND(bhnd_chipc, bhnd, 1, 1, 1);
 MODULE_VERSION(bhnd_chipc, 1);

@@ -6,6 +6,6 @@ SRCS=		op.me
 MACROS=		-me
 USE_PIC=
 USE_EQN=
-SRCDIR=		${.CURDIR}/../../../../contrib/sendmail/doc/op
+SRCDIR=		${SRCTOP}/contrib/sendmail/doc/op
 
 .include <bsd.doc.mk>

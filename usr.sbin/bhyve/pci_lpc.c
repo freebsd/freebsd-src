@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
@@ -110,6 +112,16 @@ done:
 		free(cpy);
 
 	return (error);
+}
+
+void
+lpc_print_supported_devices()
+{
+	size_t i;
+
+	printf("bootrom\n");
+	for (i = 0; i < LPC_UART_NUM; i++)
+		printf("%s\n", lpc_uart_names[i]);
 }
 
 const char *

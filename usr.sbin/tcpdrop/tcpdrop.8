@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2013
+.Dd September 15, 2017
 .Dt TCPDROP 8
 .Os
 .Sh NAME
@@ -32,6 +32,16 @@
 .Nm tcpdrop
 .Op Fl l
 .Fl a
+.Nm tcpdrop
+.Op Fl l
+.Fl S Ar stack
+.Nm tcpdrop
+.Op Fl l
+.Fl s Ar state
+.Nm tcpdrop
+.Op Fl l
+.Fl S Ar stack
+.Fl s Ar state
 .Sh DESCRIPTION
 The
 .Nm
@@ -41,15 +51,69 @@ If
 .Fl a
 is specified then
 .Nm
-will attempt to drop all active connections.
-The
-.Fl l
-flag may be given to list the tcpdrop invocation to drop all active
-connections one at a time.
+will attempt to drop all TCP connections.
 .Pp
 If
-.Fl a
-is not specified then only the connection between the given local
+.Fl S Ar stack
+is specified then
+.Nm
+will attempt to drop all connections using the TCP stack
+.Ar stack .
+.Pp
+If
+.Fl s Ar state
+is specified then
+.Nm
+will attempt to drop all TCP connections being in the state
+.Ar state .
+.Ar state
+is one of
+.Dv SYN_SENT ,
+.Dv SYN_RCVD ,
+.Dv ESTABLISHED ,
+.Dv CLOSE_WAIT ,
+.Dv FIN_WAIT_1 ,
+.Dv CLOSING ,
+.Dv LAST_ACK ,
+.Dv FIN_WAIT_2 , or
+.Dv TIME_WAIT .
+.Pp
+If
+.Fl S Ar stack
+and
+.Fl s Ar state
+are specified,
+.Nm
+will attempt to drop all TCP connections being in the state
+.Ar state
+and using the TCP stack
+.Ar stack .
+Since TCP connections in the
+.Dv TIME_WAIT
+state are not tied to any TCP stack, using the option
+.Fl s Dv TIME_WAIT
+in combination with the
+.Fl S Ar stack
+option results in
+.Nm
+not dropping any TCP connection.
+.Pp
+The
+.Fl l
+flag may be given in addition to the
+.Fl a ,
+.Fl S ,
+or
+.Fl s
+options to list the tcpdrop invocation to drop all corresponding TCP
+connections one at a time.
+.Pp
+If none of the
+.Fl a ,
+.Fl S ,
+or
+.Fl s
+options are specified then only the connection between the given local
 address
 .Ar local-address ,
 port
@@ -89,9 +153,28 @@ port 22, the port used by
 .Bd -literal -offset indent
 # tcpdrop -l -a | grep -vw 22 | sh
 .Ed
+.Pp
+The following command will drop all connections using the TCP stack
+fastack:
+.Bd -literal -offset indent
+# tcpdrop -S fastack
+.Ed
+.Pp
+To drop all TCP connections in the LAST_ACK state use:
+.Bd -literal -offset indent
+# tcpdrop -s LAST_ACK
+.Ed
+.Pp
+To drop all TCP connections using the TCP stack fastack and being in the
+LAST_ACK state use:
+.Bd -literal -offset indent
+# tcpdrop -S fastack -s LAST_ACK
+.Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
-.Xr sockstat 1
+.Xr sockstat 1 ,
+.Xr tcp 4 ,
+.Xr tcp_functions 9
 .Sh AUTHORS
 .An Markus Friedl Aq Mt markus@openbsd.org
 .An Juli Mallett Aq Mt jmallett@FreeBSD.org

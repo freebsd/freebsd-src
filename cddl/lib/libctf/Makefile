@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/common/ctf
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libctf/common
-.PATH:		${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/ctf
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/common/ctf
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libctf/common
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/ctf
 
 LIB=		ctf
 SRCS=		ctf_create.c \
@@ -18,11 +18,11 @@ SRCS=		ctf_create.c \
 		ctf_util.c
 MAN=		ctf.5
 
-WARNS?=		0
+WARNS?=		2
 CFLAGS+=	-DCTF_OLD_VERSIONS
 
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
 		-I${OPENSOLARIS_USR_DISTDIR}/common/ctf \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common \

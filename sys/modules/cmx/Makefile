@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-.PATH:	${.CURDIR}/../../dev/cmx
+.PATH:	${SRCTOP}/sys/dev/cmx
 
 KMOD=	cmx
 SRCS=	cmx.c cmxvar.h cmxreg.h \

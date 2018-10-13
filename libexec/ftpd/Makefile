@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+CONFS=	ftpusers
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5
 SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c
@@ -18,10 +19,9 @@ LIBADD=	crypt xo util
 # XXX Kluge! Conversation mechanism needs to be fixed.
 LIBADD+=	opie md
 
-LSDIR=	../../bin/ls
-.PATH:	${.CURDIR}/${LSDIR}
+.PATH:	${SRCTOP}/bin/ls
 SRCS+=	ls.c cmp.c print.c util.c
-CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
+CFLAGS+=-Dmain=ls_main -I${SRCTOP}/bin/ls
 LIBADD+=	m
 
 .if ${MK_BLACKLIST_SUPPORT} != "no"

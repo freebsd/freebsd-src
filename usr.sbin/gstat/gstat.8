@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2014
+.Dd August 21, 2018
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl abcdop
+.Op Fl abBcdops
 .Op Fl f Ar filter
 .Op Fl I Ar interval
 .Sh DESCRIPTION
@@ -50,6 +50,10 @@ Only display providers that are at least 0.1% busy.
 Batch mode.
 Collect numbers, print and exit.
 Default if stdout is not a tty.
+.It Fl B
+Endless batch mode.
+Same as batch mode, but does not exit after collecting
+the first set of data.
 .It Fl c
 Enable display of
 .Xr geom 4
@@ -57,6 +61,10 @@ consumers too.
 The default is to show statistics only for
 .Xr geom 4
 producers.
+.It Fl C
+CSV output mode.
+Implies endless batch mode, but output is in the form of comma-separated
+values, with ISO 8601-like timestamps.
 .It Fl d
 Enable display of statistics for delete
 .Pq Dv BIO_DELETE
@@ -72,6 +80,8 @@ The format of the regular expression is described in
 .It Fl o
 Enable display of statistics for other operations
 .Pq Dv BIO_FLUSH .
+.It Fl s
+Enable blocks' size statistics.
 .It Fl I Ar interval
 Refresh the
 .Nm

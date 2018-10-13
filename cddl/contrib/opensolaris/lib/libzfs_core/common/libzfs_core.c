@@ -20,9 +20,10 @@
  */
 
 /*
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2017 RackTop Systems.
  */
 
 /*
@@ -93,7 +94,7 @@
 extern int zfs_ioctl_version;
 #endif
 
-static int g_fd;
+static int g_fd = -1;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static int g_refcount;
 
@@ -119,9 +120,14 @@ libzfs_core_fini(void)
 {
 	(void) pthread_mutex_lock(&g_lock);
 	ASSERT3S(g_refcount, >, 0);
-	g_refcount--;
-	if (g_refcount == 0)
+
+	if (g_refcount > 0)
+		g_refcount--;
+
+	if (g_refcount == 0 && g_fd != -1) {
 		(void) close(g_fd);
+		g_fd = -1;
+	}
 	(void) pthread_mutex_unlock(&g_lock);
 }
 
@@ -138,6 +144,7 @@ lzc_ioctl(zfs_ioc_t ioc, const char *name,
 	size_t size;
 
 	ASSERT3S(g_refcount, >, 0);
+	VERIFY3S(g_fd, !=, -1);
 
 	(void) strlcpy(zc.zc_name, name, sizeof (zc.zc_name));
 
@@ -159,7 +166,12 @@ lzc_ioctl(zfs_ioc_t ioc, const char *name,
 
 	if (resultp != NULL) {
 		*resultp = NULL;
-		zc.zc_nvlist_dst_size = MAX(size * 2, 128 * 1024);
+		if (ioc == ZFS_IOC_CHANNEL_PROGRAM) {
+			zc.zc_nvlist_dst_size = fnvlist_lookup_uint64(source,
+			    ZCP_ARG_MEMLIMIT);
+		} else {
+			zc.zc_nvlist_dst_size = MAX(size * 2, 128 * 1024);
+		}
 		zc.zc_nvlist_dst = (uint64_t)(uintptr_t)
 		    malloc(zc.zc_nvlist_dst_size);
 #ifdef illumos
@@ -173,7 +185,15 @@ lzc_ioctl(zfs_ioc_t ioc, const char *name,
 	}
 
 	while (ioctl(g_fd, ioc, &zc) != 0) {
-		if (errno == ENOMEM && resultp != NULL) {
+		/*
+		 * If ioctl exited with ENOMEM, we retry the ioctl after
+		 * increasing the size of the destination nvlist.
+		 *
+		 * Channel programs that exit with ENOMEM ran over the
+		 * lua memory sandbox; they should not be retried.
+		 */
+		if (errno == ENOMEM && resultp != NULL &&
+		    ioc != ZFS_IOC_CHANNEL_PROGRAM) {
 			free((void *)(uintptr_t)zc.zc_nvlist_dst);
 			zc.zc_nvlist_dst_size *= 2;
 			zc.zc_nvlist_dst = (uint64_t)(uintptr_t)
@@ -244,6 +264,38 @@ lzc_clone(const char *fsname, const char *origin,
 	return (error);
 }
 
+int
+lzc_promote(const char *fsname, char *snapnamebuf, int snapnamelen)
+{
+	/*
+	 * The promote ioctl is still legacy, so we need to construct our
+	 * own zfs_cmd_t rather than using lzc_ioctl().
+	 */
+	zfs_cmd_t zc = { 0 };
+
+	ASSERT3S(g_refcount, >, 0);
+	VERIFY3S(g_fd, !=, -1);
+
+	(void) strlcpy(zc.zc_name, fsname, sizeof (zc.zc_name));
+	if (ioctl(g_fd, ZFS_IOC_PROMOTE, &zc) != 0) {
+		int error = errno;
+		if (error == EEXIST && snapnamebuf != NULL)
+			(void) strlcpy(snapnamebuf, zc.zc_string, snapnamelen);
+		return (error);
+	}
+	return (0);
+}
+
+int
+lzc_remap(const char *fsname)
+{
+	int error;
+	nvlist_t *args = fnvlist_alloc();
+	error = lzc_ioctl(ZFS_IOC_REMAP, fsname, args, NULL);
+	nvlist_free(args);
+	return (error);
+}
+
 /*
  * Creates snapshots.
  *
@@ -265,7 +317,7 @@ lzc_snapshot(nvlist_t *snaps, nvlist_t *props, nvlist_t **errlist)
 	nvpair_t *elem;
 	nvlist_t *args;
 	int error;
-	char pool[MAXNAMELEN];
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
 
 	*errlist = NULL;
 
@@ -317,7 +369,7 @@ lzc_destroy_snaps(nvlist_t *snaps, boolean_t defer, nvlist_t **errlist)
 	nvpair_t *elem;
 	nvlist_t *args;
 	int error;
-	char pool[MAXNAMELEN];
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
 
 	/* determine the pool name */
 	elem = nvlist_next_nvpair(snaps, NULL);
@@ -344,7 +396,7 @@ lzc_snaprange_space(const char *firstsnap, const char *lastsnap,
 	nvlist_t *args;
 	nvlist_t *result;
 	int err;
-	char fs[MAXNAMELEN];
+	char fs[ZFS_MAX_DATASET_NAME_LEN];
 	char *atp;
 
 	/* determine the fs name */
@@ -371,9 +423,12 @@ lzc_exists(const char *dataset)
 {
 	/*
 	 * The objset_stats ioctl is still legacy, so we need to construct our
-	 * own zfs_cmd_t rather than using zfsc_ioctl().
+	 * own zfs_cmd_t rather than using lzc_ioctl().
 	 */
 	zfs_cmd_t zc = { 0 };
+
+	ASSERT3S(g_refcount, >, 0);
+	VERIFY3S(g_fd, !=, -1);
 
 	(void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name));
 	return (ioctl(g_fd, ZFS_IOC_OBJSET_STATS, &zc) == 0);
@@ -409,7 +464,7 @@ lzc_exists(const char *dataset)
 int
 lzc_hold(nvlist_t *holds, int cleanup_fd, nvlist_t **errlist)
 {
-	char pool[MAXNAMELEN];
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
 	nvlist_t *args;
 	nvpair_t *elem;
 	int error;
@@ -456,7 +511,7 @@ lzc_hold(nvlist_t *holds, int cleanup_fd, nvlist_t **errlist)
 int
 lzc_release(nvlist_t *holds, nvlist_t **errlist)
 {
-	char pool[MAXNAMELEN];
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
 	nvpair_t *elem;
 
 	/* determine the pool name */
@@ -534,6 +589,8 @@ lzc_send_resume(const char *snapname, const char *from, int fd,
 		fnvlist_add_boolean(args, "largeblockok");
 	if (flags & LZC_SEND_FLAG_EMBED_DATA)
 		fnvlist_add_boolean(args, "embedok");
+	if (flags & LZC_SEND_FLAG_COMPRESS)
+		fnvlist_add_boolean(args, "compressok");
 	if (resumeobj != 0 || resumeoff != 0) {
 		fnvlist_add_uint64(args, "resume_object", resumeobj);
 		fnvlist_add_uint64(args, "resume_offset", resumeoff);
@@ -559,7 +616,8 @@ lzc_send_resume(const char *snapname, const char *from, int fd,
  * an equivalent snapshot.
  */
 int
-lzc_send_space(const char *snapname, const char *from, uint64_t *spacep)
+lzc_send_space(const char *snapname, const char *from,
+    enum lzc_send_flags flags, uint64_t *spacep)
 {
 	nvlist_t *args;
 	nvlist_t *result;
@@ -568,6 +626,12 @@ lzc_send_space(const char *snapname, const char *from, uint64_t *spacep)
 	args = fnvlist_alloc();
 	if (from != NULL)
 		fnvlist_add_string(args, "from", from);
+	if (flags & LZC_SEND_FLAG_LARGE_BLOCK)
+		fnvlist_add_boolean(args, "largeblockok");
+	if (flags & LZC_SEND_FLAG_EMBED_DATA)
+		fnvlist_add_boolean(args, "embedok");
+	if (flags & LZC_SEND_FLAG_COMPRESS)
+		fnvlist_add_boolean(args, "compressok");
 	err = lzc_ioctl(ZFS_IOC_SEND_SPACE, snapname, args, &result);
 	nvlist_free(args);
 	if (err == 0)
@@ -596,8 +660,9 @@ recv_read(int fd, void *buf, int ilen)
 }
 
 static int
-lzc_receive_impl(const char *snapname, nvlist_t *props, const char *origin,
-    boolean_t force, boolean_t resumable, int fd)
+recv_impl(const char *snapname, nvlist_t *props, const char *origin,
+    boolean_t force, boolean_t resumable, int fd,
+    const dmu_replay_record_t *begin_record)
 {
 	/*
 	 * The receive ioctl is still legacy, so we need to construct our own
@@ -610,6 +675,7 @@ lzc_receive_impl(const char *snapname, nvlist_t *props, const char *origin,
 	int error;
 
 	ASSERT3S(g_refcount, >, 0);
+	VERIFY3S(g_fd, !=, -1);
 
 	/* zc_name is name of containing filesystem */
 	(void) strlcpy(zc.zc_name, snapname, sizeof (zc.zc_name));
@@ -642,9 +708,14 @@ lzc_receive_impl(const char *snapname, nvlist_t *props, const char *origin,
 		(void) strlcpy(zc.zc_string, origin, sizeof (zc.zc_string));
 
 	/* zc_begin_record is non-byteswapped BEGIN record */
-	error = recv_read(fd, &zc.zc_begin_record, sizeof (zc.zc_begin_record));
-	if (error != 0)
-		goto out;
+	if (begin_record == NULL) {
+		error = recv_read(fd, &zc.zc_begin_record,
+		    sizeof (zc.zc_begin_record));
+		if (error != 0)
+			goto out;
+	} else {
+		zc.zc_begin_record = *begin_record;
+	}
 
 	/* zc_cookie is fd to read from */
 	zc.zc_cookie = fd;
@@ -685,7 +756,7 @@ int
 lzc_receive(const char *snapname, nvlist_t *props, const char *origin,
     boolean_t force, int fd)
 {
-	return (lzc_receive_impl(snapname, props, origin, force, B_FALSE, fd));
+	return (recv_impl(snapname, props, origin, force, B_FALSE, fd, NULL));
 }
 
 /*
@@ -698,13 +769,38 @@ int
 lzc_receive_resumable(const char *snapname, nvlist_t *props, const char *origin,
     boolean_t force, int fd)
 {
-	return (lzc_receive_impl(snapname, props, origin, force, B_TRUE, fd));
+	return (recv_impl(snapname, props, origin, force, B_TRUE, fd, NULL));
+}
+
+/*
+ * Like lzc_receive, but allows the caller to read the begin record and then to
+ * pass it in.  That could be useful if the caller wants to derive, for example,
+ * the snapname or the origin parameters based on the information contained in
+ * the begin record.
+ * The begin record must be in its original form as read from the stream,
+ * in other words, it should not be byteswapped.
+ *
+ * The 'resumable' parameter allows to obtain the same behavior as with
+ * lzc_receive_resumable.
+ */
+int
+lzc_receive_with_header(const char *snapname, nvlist_t *props,
+    const char *origin, boolean_t force, boolean_t resumable, int fd,
+    const dmu_replay_record_t *begin_record)
+{
+	if (begin_record == NULL)
+		return (EINVAL);
+	return (recv_impl(snapname, props, origin, force, resumable, fd,
+	    begin_record));
 }
 
 /*
  * Roll back this filesystem or volume to its most recent snapshot.
  * If snapnamebuf is not NULL, it will be filled in with the name
  * of the most recent snapshot.
+ * Note that the latest snapshot may change if a new one is concurrently
+ * created or the current one is destroyed.  lzc_rollback_to can be used
+ * to roll back to a specific latest snapshot.
  *
  * Return 0 on success or an errno on failure.
  */
@@ -722,6 +818,29 @@ lzc_rollback(const char *fsname, char *snapnamebuf, int snapnamelen)
 		const char *snapname = fnvlist_lookup_string(result, "target");
 		(void) strlcpy(snapnamebuf, snapname, snapnamelen);
 	}
+	nvlist_free(result);
+
+	return (err);
+}
+
+/*
+ * Roll back this filesystem or volume to the specified snapshot,
+ * if possible.
+ *
+ * Return 0 on success or an errno on failure.
+ */
+int
+lzc_rollback_to(const char *fsname, const char *snapname)
+{
+	nvlist_t *args;
+	nvlist_t *result;
+	int err;
+
+	args = fnvlist_alloc();
+	fnvlist_add_string(args, "target", snapname);
+	err = lzc_ioctl(ZFS_IOC_ROLLBACK, fsname, args, &result);
+	nvlist_free(args);
+	nvlist_free(result);
 	return (err);
 }
 
@@ -743,7 +862,7 @@ lzc_bookmark(nvlist_t *bookmarks, nvlist_t **errlist)
 {
 	nvpair_t *elem;
 	int error;
-	char pool[MAXNAMELEN];
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
 
 	/* determine the pool name */
 	elem = nvlist_next_nvpair(bookmarks, NULL);
@@ -805,7 +924,7 @@ lzc_destroy_bookmarks(nvlist_t *bmarks, nvlist_t **errlist)
 {
 	nvpair_t *elem;
 	int error;
-	char pool[MAXNAMELEN];
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
 
 	/* determine the pool name */
 	elem = nvlist_next_nvpair(bmarks, NULL);
@@ -815,6 +934,191 @@ lzc_destroy_bookmarks(nvlist_t *bmarks, nvlist_t **errlist)
 	pool[strcspn(pool, "/#")] = '\0';
 
 	error = lzc_ioctl(ZFS_IOC_DESTROY_BOOKMARKS, pool, bmarks, errlist);
+
+	return (error);
+}
+
+static int
+lzc_channel_program_impl(const char *pool, const char *program, boolean_t sync,
+    uint64_t instrlimit, uint64_t memlimit, nvlist_t *argnvl, nvlist_t **outnvl)
+{
+	int error;
+	nvlist_t *args;
+
+	args = fnvlist_alloc();
+	fnvlist_add_string(args, ZCP_ARG_PROGRAM, program);
+	fnvlist_add_nvlist(args, ZCP_ARG_ARGLIST, argnvl);
+	fnvlist_add_boolean_value(args, ZCP_ARG_SYNC, sync);
+	fnvlist_add_uint64(args, ZCP_ARG_INSTRLIMIT, instrlimit);
+	fnvlist_add_uint64(args, ZCP_ARG_MEMLIMIT, memlimit);
+	error = lzc_ioctl(ZFS_IOC_CHANNEL_PROGRAM, pool, args, outnvl);
+	fnvlist_free(args);
+
+	return (error);
+}
+
+/*
+ * Executes a channel program.
+ *
+ * If this function returns 0 the channel program was successfully loaded and
+ * ran without failing. Note that individual commands the channel program ran
+ * may have failed and the channel program is responsible for reporting such
+ * errors through outnvl if they are important.
+ *
+ * This method may also return:
+ *
+ * EINVAL   The program contains syntax errors, or an invalid memory or time
+ *          limit was given. No part of the channel program was executed.
+ *          If caused by syntax errors, 'outnvl' contains information about the
+ *          errors.
+ *
+ * EDOM     The program was executed, but encountered a runtime error, such as
+ *          calling a function with incorrect arguments, invoking the error()
+ *          function directly, failing an assert() command, etc. Some portion
+ *          of the channel program may have executed and committed changes.
+ *          Information about the failure can be found in 'outnvl'.
+ *
+ * ENOMEM   The program fully executed, but the output buffer was not large
+ *          enough to store the returned value. No output is returned through
+ *          'outnvl'.
+ *
+ * ENOSPC   The program was terminated because it exceeded its memory usage
+ *          limit. Some portion of the channel program may have executed and
+ *          committed changes to disk. No output is returned through 'outnvl'.
+ *
+ * ETIMEDOUT The program was terminated because it exceeded its Lua instruction
+ *           limit. Some portion of the channel program may have executed and
+ *           committed changes to disk. No output is returned through 'outnvl'.
+ */
+int
+lzc_channel_program(const char *pool, const char *program, uint64_t instrlimit,
+    uint64_t memlimit, nvlist_t *argnvl, nvlist_t **outnvl)
+{
+	return (lzc_channel_program_impl(pool, program, B_TRUE, instrlimit,
+	    memlimit, argnvl, outnvl));
+}
+
+/*
+ * Creates a checkpoint for the specified pool.
+ *
+ * If this function returns 0 the pool was successfully checkpointed.
+ *
+ * This method may also return:
+ *
+ * ZFS_ERR_CHECKPOINT_EXISTS
+ *	The pool already has a checkpoint. A pools can only have one
+ *	checkpoint at most, at any given time.
+ *
+ * ZFS_ERR_DISCARDING_CHECKPOINT
+ * 	ZFS is in the middle of discarding a checkpoint for this pool.
+ * 	The pool can be checkpointed again once the discard is done.
+ *
+ * ZFS_DEVRM_IN_PROGRESS
+ * 	A vdev is currently being removed. The pool cannot be
+ * 	checkpointed until the device removal is done.
+ *
+ * ZFS_VDEV_TOO_BIG
+ * 	One or more top-level vdevs exceed the maximum vdev size
+ * 	supported for this feature.
+ */
+int
+lzc_pool_checkpoint(const char *pool)
+{
+	int error;
+
+	nvlist_t *result = NULL;
+	nvlist_t *args = fnvlist_alloc();
+
+	error = lzc_ioctl(ZFS_IOC_POOL_CHECKPOINT, pool, args, &result);
+
+	fnvlist_free(args);
+	fnvlist_free(result);
+
+	return (error);
+}
+
+/*
+ * Discard the checkpoint from the specified pool.
+ *
+ * If this function returns 0 the checkpoint was successfully discarded.
+ *
+ * This method may also return:
+ *
+ * ZFS_ERR_NO_CHECKPOINT
+ * 	The pool does not have a checkpoint.
+ *
+ * ZFS_ERR_DISCARDING_CHECKPOINT
+ * 	ZFS is already in the middle of discarding the checkpoint.
+ */
+int
+lzc_pool_checkpoint_discard(const char *pool)
+{
+	int error;
+
+	nvlist_t *result = NULL;
+	nvlist_t *args = fnvlist_alloc();
+
+	error = lzc_ioctl(ZFS_IOC_POOL_DISCARD_CHECKPOINT, pool, args, &result);
+
+	fnvlist_free(args);
+	fnvlist_free(result);
+
+	return (error);
+}
+
+/*
+ * Executes a read-only channel program.
+ *
+ * A read-only channel program works programmatically the same way as a
+ * normal channel program executed with lzc_channel_program(). The only
+ * difference is it runs exclusively in open-context and therefore can
+ * return faster. The downside to that, is that the program cannot change
+ * on-disk state by calling functions from the zfs.sync submodule.
+ *
+ * The return values of this function (and their meaning) are exactly the
+ * same as the ones described in lzc_channel_program().
+ */
+int
+lzc_channel_program_nosync(const char *pool, const char *program,
+    uint64_t timeout, uint64_t memlimit, nvlist_t *argnvl, nvlist_t **outnvl)
+{
+	return (lzc_channel_program_impl(pool, program, B_FALSE, timeout,
+	    memlimit, argnvl, outnvl));
+}
+
+/*
+ * Changes initializing state.
+ *
+ * vdevs should be a list of (<key>, guid) where guid is a uint64 vdev GUID.
+ * The key is ignored.
+ *
+ * If there are errors related to vdev arguments, per-vdev errors are returned
+ * in an nvlist with the key "vdevs". Each error is a (guid, errno) pair where
+ * guid is stringified with PRIu64, and errno is one of the following as
+ * an int64_t:
+ *	- ENODEV if the device was not found
+ *	- EINVAL if the devices is not a leaf or is not concrete (e.g. missing)
+ *	- EROFS if the device is not writeable
+ *	- EBUSY start requested but the device is already being initialized
+ *	- ESRCH cancel/suspend requested but device is not being initialized
+ *
+ * If the errlist is empty, then return value will be:
+ *	- EINVAL if one or more arguments was invalid
+ *	- Other spa_open failures
+ *	- 0 if the operation succeeded
+ */
+int
+lzc_initialize(const char *poolname, pool_initialize_func_t cmd_type,
+    nvlist_t *vdevs, nvlist_t **errlist)
+{
+	int error;
+	nvlist_t *args = fnvlist_alloc();
+	fnvlist_add_uint64(args, ZPOOL_INITIALIZE_COMMAND, (uint64_t)cmd_type);
+	fnvlist_add_nvlist(args, ZPOOL_INITIALIZE_VDEVS, vdevs);
+
+	error = lzc_ioctl(ZFS_IOC_POOL_INITIALIZE, poolname, args, errlist);
+
+	fnvlist_free(args);
 
 	return (error);
 }

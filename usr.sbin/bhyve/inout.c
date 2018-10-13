@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -66,21 +68,21 @@ static int
 default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
               uint32_t *eax, void *arg)
 {
-        if (in) {
-                switch (bytes) {
-                case 4:
-                        *eax = 0xffffffff;
-                        break;
-                case 2:
-                        *eax = 0xffff;
-                        break;
-                case 1:
-                        *eax = 0xff;
-                        break;
-                }
-        }
-        
-        return (0);
+	if (in) {
+		switch (bytes) {
+		case 4:
+			*eax = 0xffffffff;
+			break;
+		case 2:
+			*eax = 0xffff;
+			break;
+		case 1:
+			*eax = 0xff;
+			break;
+		}
+	}
+
+	return (0);
 }
 
 static void 

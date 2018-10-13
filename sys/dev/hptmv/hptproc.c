@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -427,7 +429,7 @@ static void
 hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
 {
 	int i;
-	char *sType=0, *sStatus=0;
+	char *sType = NULL, *sStatus = NULL;
 	char buf[32];
     PVDevice pTmpArray;
 

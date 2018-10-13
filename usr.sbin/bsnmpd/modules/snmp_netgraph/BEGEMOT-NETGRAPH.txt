@@ -59,6 +59,19 @@ begemotNg MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The MIB for the NetGraph access module for SNMP."
+    REVISION "200311140000Z"
+    DESCRIPTION
+	    "The maximum width of the following OCTET STRINGs was increased
+	    from 15 to 31:
+
+	    - NgTypeName
+	    - NgNodeName
+	    - NgNodeNameOrEmpty
+	    - NgHookName
+	    "
+    REVISION "200201310000Z"
+    DESCRIPTION
+	    "Initial revision."
     ::= { begemot 2 }
 
 begemotNgObjects	OBJECT IDENTIFIER ::= { begemotNg 1 }

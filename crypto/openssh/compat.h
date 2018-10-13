@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.48 2015/05/26 23:23:40 dtucker Exp $ */
+/* $OpenBSD: compat.h,v 1.54 2018/08/13 02:41:05 djm Exp $ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -32,46 +32,42 @@
 #define	SSH_PROTO_1_PREFERRED	0x02
 #define	SSH_PROTO_2		0x04
 
-#define SSH_BUG_SIGBLOB		0x00000001
-#define SSH_BUG_PKSERVICE	0x00000002
-#define SSH_BUG_HMAC		0x00000004
-#define SSH_BUG_X11FWD		0x00000008
+#define SSH_BUG_UTF8TTYMODE	0x00000001
+#define SSH_BUG_SIGTYPE		0x00000002
+/* #define unused		0x00000004 */
+/* #define unused		0x00000008 */
 #define SSH_OLD_SESSIONID	0x00000010
-#define SSH_BUG_PKAUTH		0x00000020
+/* #define unused		0x00000020 */
 #define SSH_BUG_DEBUG		0x00000040
-#define SSH_BUG_BANNER		0x00000080
+/* #define unused		0x00000080 */
 #define SSH_BUG_IGNOREMSG	0x00000100
-#define SSH_BUG_PKOK		0x00000200
+/* #define unused		0x00000200 */
 #define SSH_BUG_PASSWORDPAD	0x00000400
 #define SSH_BUG_SCANNER		0x00000800
 #define SSH_BUG_BIGENDIANAES	0x00001000
 #define SSH_BUG_RSASIGMD5	0x00002000
 #define SSH_OLD_DHGEX		0x00004000
 #define SSH_BUG_NOREKEY		0x00008000
-#define SSH_BUG_HBSERVICE	0x00010000
-#define SSH_BUG_OPENFAILURE	0x00020000
-#define SSH_BUG_DERIVEKEY	0x00040000
-#define SSH_BUG_DUMMYCHAN	0x00100000
+/* #define unused		0x00010000 */
+/* #define unused		0x00020000 */
+/* #define unused		0x00040000 */
+/* #define unused		0x00100000 */
 #define SSH_BUG_EXTEOF		0x00200000
 #define SSH_BUG_PROBE		0x00400000
-#define SSH_BUG_FIRSTKEX	0x00800000
+/* #define unused		0x00800000 */
 #define SSH_OLD_FORWARD_ADDR	0x01000000
-#define SSH_BUG_RFWD_ADDR	0x02000000
+/* #define unused		0x02000000 */
 #define SSH_NEW_OPENSSH		0x04000000
 #define SSH_BUG_DYNAMIC_RPORT	0x08000000
 #define SSH_BUG_CURVE25519PAD	0x10000000
 #define SSH_BUG_HOSTKEYS	0x20000000
 #define SSH_BUG_DHGEX_LARGE	0x40000000
 
-void     enable_compat13(void);
-void     enable_compat20(void);
 u_int    compat_datafellows(const char *);
 int	 proto_spec(const char *);
 char	*compat_cipher_proposal(char *);
 char	*compat_pkalg_proposal(char *);
 char	*compat_kex_proposal(char *);
 
-extern int compat13;
-extern int compat20;
 extern int datafellows;
 #endif

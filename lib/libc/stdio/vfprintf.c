@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -274,14 +276,14 @@ vfprintf_l(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0,
 	int ret;
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
 	    fp->_file >= 0)
 		ret = __sbprintf(fp, locale, fmt0, ap);
 	else
 		ret = __vfprintf(fp, locale, fmt0, ap);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 int
@@ -315,6 +317,7 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 	int ret;		/* return value accumulator */
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format; <0 for N/A */
+	int saved_errno;
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	struct grouping_state gs; /* thousands' grouping info */
 
@@ -364,6 +367,7 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 	int nextarg;            /* 1-based argument index */
 	va_list orgap;          /* original argument pointer */
 	char *convbuf;		/* wide to multibyte conversion result */
+	int savserr;
 
 	static const char xdigs_lower[16] = "0123456789abcdef";
 	static const char xdigs_upper[16] = "0123456789ABCDEF";
@@ -460,6 +464,10 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 		return (EOF);
 	}
 
+	savserr = fp->_flags & __SERR;
+	fp->_flags &= ~__SERR;
+
+	saved_errno = errno;
 	convbuf = NULL;
 	fmt = (char *)fmt0;
 	argtable = NULL;
@@ -770,6 +778,11 @@ fp_common:
 			}
 			break;
 #endif /* !NO_FLOATING_POINT */
+		case 'm':
+			cp = strerror(saved_errno);
+			size = (prec >= 0) ? strnlen(cp, prec) : strlen(cp);
+			sign = '\0';
+			break;
 		case 'n':
 			/*
 			 * Assignment-like behavior is specified if the
@@ -1031,6 +1044,8 @@ error:
 		free(convbuf);
 	if (__sferror(fp))
 		ret = EOF;
+	else
+		fp->_flags |= savserr;
 	if ((argtable != NULL) && (argtable != statargtable))
 		free (argtable);
 	return (ret);

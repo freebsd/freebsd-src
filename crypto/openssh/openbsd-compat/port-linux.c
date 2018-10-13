@@ -1,5 +1,3 @@
-/* $Id: port-linux.c,v 1.18 2013/06/01 22:07:32 dtucker Exp $ */
-
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
  * Copyright (c) 2006 Damien Miller <djm@openbsd.org>
@@ -35,7 +33,6 @@
 
 #ifdef WITH_SELINUX
 #include <selinux/selinux.h>
-#include <selinux/flask.h>
 #include <selinux/get_context_list.h>
 
 #ifndef SSH_SELINUX_UNCONFINED_TYPE
@@ -141,6 +138,7 @@ ssh_selinux_setup_pty(char *pwname, const char *tty)
 	security_context_t new_tty_ctx = NULL;
 	security_context_t user_ctx = NULL;
 	security_context_t old_tty_ctx = NULL;
+	security_class_t chrclass;
 
 	if (!ssh_selinux_enabled())
 		return;
@@ -155,9 +153,12 @@ ssh_selinux_setup_pty(char *pwname, const char *tty)
 		error("%s: getfilecon: %s", __func__, strerror(errno));
 		goto out;
 	}
-
+	if ((chrclass = string_to_security_class("chr_file")) == 0) {
+		error("%s: couldn't get security class for chr_file", __func__);
+		goto out;
+	}
 	if (security_compute_relabel(user_ctx, old_tty_ctx,
-	    SECCLASS_CHR_FILE, &new_tty_ctx) != 0) {
+	    chrclass, &new_tty_ctx) != 0) {
 		error("%s: security_compute_relabel: %s",
 		    __func__, strerror(errno));
 		goto out;

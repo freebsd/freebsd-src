@@ -41,6 +41,7 @@ verify_basic(struct archive *a, int seek_checks)
 	int64_t o;
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 1.0 (uncompressed)", archive_format_name(a));
 	assertEqualString("dir/", archive_entry_pathname(ae));
 	assertEqualInt(1179604249, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_size(ae));
@@ -53,6 +54,7 @@ verify_basic(struct archive *a, int seek_checks)
 	assertEqualInt((int)s, 0);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 2.0 (deflation)", archive_format_name(a));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
 	if (seek_checks)
@@ -72,6 +74,7 @@ verify_basic(struct archive *a, int seek_checks)
 	}
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 2.0 (deflation)", archive_format_name(a));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
@@ -93,6 +96,7 @@ verify_basic(struct archive *a, int seek_checks)
 		assert(archive_errno(a) != 0);
 	}
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 2.0 (deflation)", archive_format_name(a));
 	/* Verify the number of files read. */
 	failure("the archive file has three files");
 	assertEqualInt(3, archive_file_count(a));
@@ -126,6 +130,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
 	verify_basic(a, 0);
+	free(p);
 }
 
 /*
@@ -195,6 +200,7 @@ test_info_zip_ux(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 108));
 	verify_info_zip_ux(a, 0);
+	free(p);
 }
 
 /*
@@ -258,6 +264,7 @@ test_extract_length_at_end(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 108));
 	verify_extract_length_at_end(a, 0);
+	free(p);
 }
 
 static void
@@ -294,6 +301,8 @@ test_symlink(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	free(p);
 }
 
 DEFINE_TEST(test_read_format_zip)

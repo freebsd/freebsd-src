@@ -1,4 +1,4 @@
-//===- ADCE.h - Aggressive dead code elimination --------------------------===//
+//===- ADCE.h - Aggressive dead code elimination ----------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,10 +17,11 @@
 #ifndef LLVM_TRANSFORMS_SCALAR_ADCE_H
 #define LLVM_TRANSFORMS_SCALAR_ADCE_H
 
-#include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
+
+class Function;
 
 /// A DCE pass that assumes instructions are dead until proven otherwise.
 ///
@@ -28,11 +29,10 @@ namespace llvm {
 /// instructions are dead until proven otherwise. This allows it to eliminate
 /// dead computations that other DCE passes do not catch, particularly involving
 /// loop computations.
-class ADCEPass {
-public:
-  static StringRef name() { return "ADCEPass"; }
-  PreservedAnalyses run(Function &F);
+struct ADCEPass : PassInfoMixin<ADCEPass> {
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &);
 };
-}
+
+} // end namespace llvm
 
 #endif // LLVM_TRANSFORMS_SCALAR_ADCE_H

@@ -27,7 +27,7 @@
  */
 
 /*
- * Allwinner RSB (Reduced Serial Bus)
+ * Allwinner RSB (Reduced Serial Bus) and P2WI (Push-Pull Two Wire Interface)
  */
 
 #include <sys/cdefs.h>
@@ -92,8 +92,12 @@ __FBSDID("$FreeBSD$");
 #define	RSB_ADDR_PMIC_SECONDARY	0x745
 #define	RSB_ADDR_PERIPH_IC	0xe89
 
+#define	A31_P2WI	1
+#define	A23_RSB		2
+
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun8i-a23-rsb",		1 },
+	{ "allwinner,sun6i-a31-p2wi",		A31_P2WI },
+	{ "allwinner,sun8i-a23-rsb",		A23_RSB },
 	{ NULL,					0 }
 };
 
@@ -131,6 +135,7 @@ struct rsb_softc {
 	int		busy;
 	uint32_t	status;
 	uint16_t	cur_addr;
+	int		type;
 
 	struct iic_msg	*msg;
 };
@@ -270,8 +275,8 @@ rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	sc = device_get_softc(dev);
 
 	/*
-	 * RSB is not really an I2C or SMBus controller, so there are some
-	 * restrictions imposed by the driver.
+	 * P2WI and RSB are not really I2C or SMBus controllers, so there are
+	 * some restrictions imposed by the driver.
 	 *
 	 * Transfers must contain exactly two messages. The first is always
 	 * a write, containing a single data byte offset. Data will either
@@ -284,34 +289,36 @@ rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	    msgs[0].len != 1 || msgs[1].len > RSB_MAXLEN)
 		return (EINVAL);
 
-	/* The controller can read or write 1, 2, or 4 bytes at a time. */
-	if ((msgs[1].flags & IIC_M_RD) != 0) {
-		switch (msgs[1].len) {
-		case 1:
-			cmd = CMD_RD8;
-			break;
-		case 2:
-			cmd = CMD_RD16;
-			break;
-		case 4:
-			cmd = CMD_RD32;
-			break;
-		default:
-			return (EINVAL);
-		}
-	} else {
-		switch (msgs[1].len) {
-		case 1:
-			cmd = CMD_WR8;
-			break;
-		case 2:
-			cmd = CMD_WR16;
-			break;
-		case 4:	
-			cmd = CMD_WR32;
-			break;
-		default:
-			return (EINVAL);
+	/* The RSB controller can read or write 1, 2, or 4 bytes at a time. */
+	if (sc->type == A23_RSB) {
+		if ((msgs[1].flags & IIC_M_RD) != 0) {
+			switch (msgs[1].len) {
+			case 1:
+				cmd = CMD_RD8;
+				break;
+			case 2:
+				cmd = CMD_RD16;
+				break;
+			case 4:
+				cmd = CMD_RD32;
+				break;
+			default:
+				return (EINVAL);
+			}
+		} else {
+			switch (msgs[1].len) {
+			case 1:
+				cmd = CMD_WR8;
+				break;
+			case 2:
+				cmd = CMD_WR16;
+				break;
+			case 4:
+				cmd = CMD_WR32;
+				break;
+			default:
+				return (EINVAL);
+			}
 		}
 	}
 
@@ -322,13 +329,15 @@ rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	sc->status = 0;
 
 	/* Select current run-time address if necessary */
-	device_addr = msgs[0].slave >> 1;
-	if (sc->cur_addr != device_addr) {
-		error = rsb_set_rta(dev, device_addr);
-		if (error != 0)
-			goto done;
-		sc->cur_addr = device_addr;
-		sc->status = 0;
+	if (sc->type == A23_RSB) {
+		device_addr = msgs[0].slave >> 1;
+		if (sc->cur_addr != device_addr) {
+			error = rsb_set_rta(dev, device_addr);
+			if (error != 0)
+				goto done;
+			sc->cur_addr = device_addr;
+			sc->status = 0;
+		}
 	}
 
 	/* Clear interrupt status */
@@ -344,8 +353,9 @@ rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		RSB_WRITE(sc, RSB_DATA0, data[0]);
 	}
 
-	/* Set command type */
-	RSB_WRITE(sc, RSB_CMD, cmd);
+	/* Set command type for RSB */
+	if (sc->type == A23_RSB)
+		RSB_WRITE(sc, RSB_CMD, cmd);
 
 	/* Program data length register and transfer direction */
 	dlen = msgs[0].len - 1;
@@ -379,10 +389,17 @@ rsb_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+	case A23_RSB:
+		device_set_desc(dev, "Allwinner RSB");
+		break;
+	case A31_P2WI:
+		device_set_desc(dev, "Allwinner P2WI");
+		break;
+	default:
 		return (ENXIO);
+	}
 
-	device_set_desc(dev, "Allwinner RSB");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -395,14 +412,16 @@ rsb_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "rsb", MTX_DEF);
 
-	if (clk_get_by_ofw_index(dev, 0, &sc->clk) == 0) {
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+
+	if (clk_get_by_ofw_index(dev, 0, 0, &sc->clk) == 0) {
 		error = clk_enable(sc->clk);
 		if (error != 0) {
 			device_printf(dev, "cannot enable clock\n");
 			goto fail;
 		}
 	}
-	if (hwreset_get_by_ofw_idx(dev, 0, &sc->rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
 		error = hwreset_deassert(sc->rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -472,6 +491,8 @@ static driver_t rsb_driver = {
 
 static devclass_t rsb_devclass;
 
-DRIVER_MODULE(iicbus, rsb, iicbus_driver, iicbus_devclass, 0, 0);
-DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0);
+EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, iicbus_devclass, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rsb, 1);

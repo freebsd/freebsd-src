@@ -62,6 +62,11 @@ then add a terminating
 The string
 .Fa s
 must have sufficient space to hold the result.
+If
+.Fa s
+and
+.Fa append
+overlap, the results are undefined.
 .Pp
 The
 .Fn strncat
@@ -72,6 +77,11 @@ characters from
 .Fa append ,
 and then adds a terminating
 .Ql \e0 .
+If
+.Fa s
+and
+.Fa append
+overlap, the results are undefined.
 .Sh RETURN VALUES
 The
 .Fn strcat

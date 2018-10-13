@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Jake Burkholder <jake@FreeBSD.org>
  * All rights reserved.
  *
@@ -150,24 +152,37 @@ SYSCTL_PROC(_kern_sched_stats, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_WR, NULL,
 /*
  * Select the thread that will be run next.
  */
-struct thread *
-choosethread(void)
-{
-	struct thread *td;
 
-retry:
-	td = sched_choose();
+static __noinline struct thread *
+choosethread_panic(struct thread *td)
+{
 
 	/*
 	 * If we are in panic, only allow system threads,
 	 * plus the one we are running in, to be run.
 	 */
-	if (panicstr && ((td->td_proc->p_flag & P_SYSTEM) == 0 &&
+retry:
+	if (((td->td_proc->p_flag & P_SYSTEM) == 0 &&
 	    (td->td_flags & TDF_INPANIC) == 0)) {
 		/* note that it is no longer on the run queue */
 		TD_SET_CAN_RUN(td);
+		td = sched_choose();
 		goto retry;
 	}
+
+	TD_SET_RUNNING(td);
+	return (td);
+}
+
+struct thread *
+choosethread(void)
+{
+	struct thread *td;
+
+	td = sched_choose();
+
+	if (__predict_false(panicstr != NULL))
+		return (choosethread_panic(td));
 
 	TD_SET_RUNNING(td);
 	return (td);
@@ -184,43 +199,58 @@ retry:
  * the function call itself, for most cases.
  */
 void
-critical_enter(void)
+critical_enter_KBI(void)
 {
-	struct thread *td;
-
-	td = curthread;
-	td->td_critnest++;
+#ifdef KTR
+	struct thread *td = curthread;
+#endif
+	critical_enter();
 	CTR4(KTR_CRITICAL, "critical_enter by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }
 
-void
-critical_exit(void)
+void __noinline
+critical_exit_preempt(void)
 {
 	struct thread *td;
 	int flags;
 
+	/*
+	 * If td_critnest is 0, it is possible that we are going to get
+	 * preempted again before reaching the code below. This happens
+	 * rarely and is harmless. However, this means td_owepreempt may
+	 * now be unset.
+	 */
 	td = curthread;
-	KASSERT(td->td_critnest != 0,
-	    ("critical_exit: td_critnest == 0"));
+	if (td->td_critnest != 0)
+		return;
+	if (kdb_active)
+		return;
 
-	if (td->td_critnest == 1) {
-		td->td_critnest = 0;
-		if (td->td_owepreempt && !kdb_active) {
-			td->td_critnest = 1;
-			thread_lock(td);
-			td->td_critnest--;
-			flags = SW_INVOL | SW_PREEMPT;
-			if (TD_IS_IDLETHREAD(td))
-				flags |= SWT_IDLE;
-			else
-				flags |= SWT_OWEPREEMPT;
-			mi_switch(flags, NULL);
-			thread_unlock(td);
-		}
-	} else
-		td->td_critnest--;
+	/*
+	 * Microoptimization: we committed to switch,
+	 * disable preemption in interrupt handlers
+	 * while spinning for the thread lock.
+	 */
+	td->td_critnest = 1;
+	thread_lock(td);
+	td->td_critnest--;
+	flags = SW_INVOL | SW_PREEMPT;
+	if (TD_IS_IDLETHREAD(td))
+		flags |= SWT_IDLE;
+	else
+		flags |= SWT_OWEPREEMPT;
+	mi_switch(flags, NULL);
+	thread_unlock(td);
+}
 
+void
+critical_exit_KBI(void)
+{
+#ifdef KTR
+	struct thread *td = curthread;
+#endif
+	critical_exit();
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }

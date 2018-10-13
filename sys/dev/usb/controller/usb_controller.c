@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +131,6 @@ DRIVER_MODULE(usbus, ehci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
 
 /* Device Only Drivers */
-DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820dci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, octusb, usb_driver, usb_devclass, 0, 0);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2008 Poul-Henning Kamp
  * Copyright (c) 2000-2008 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
@@ -73,6 +75,8 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 #define	SBUF_ISSECTION(s)	((s)->s_flags & SBUF_INSECTION)
 #define	SBUF_NULINCLUDED(s)	((s)->s_flags & SBUF_INCLUDENUL)
+#define	SBUF_ISDRAINTOEOR(s)	((s)->s_flags & SBUF_DRAINTOEOR)
+#define	SBUF_DODRAINTOEOR(s)	(SBUF_ISSECTION(s) && SBUF_ISDRAINTOEOR(s))
 
 /*
  * Set / clear flags
@@ -104,7 +108,7 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
-        if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
+	if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
 		KASSERT(s->s_len <= s->s_size,
 		    ("wrote past end of sbuf (%jd >= %jd)",
 		    (intmax_t)s->s_len, (intmax_t)s->s_size));
@@ -308,6 +312,7 @@ sbuf_clear(struct sbuf *s)
 	SBUF_CLEARFLAG(s, SBUF_FINISHED);
 	s->s_error = 0;
 	s->s_len = 0;
+	s->s_rec_off = 0;
 	s->s_sect_len = 0;
 }
 
@@ -362,14 +367,18 @@ sbuf_drain(struct sbuf *s)
 
 	KASSERT(s->s_len > 0, ("Shouldn't drain empty sbuf %p", s));
 	KASSERT(s->s_error == 0, ("Called %s with error on %p", __func__, s));
-	len = s->s_drain_func(s->s_drain_arg, s->s_buf, s->s_len);
-	if (len < 0) {
-		s->s_error = -len;
+	if (SBUF_DODRAINTOEOR(s) && s->s_rec_off == 0)
+		return (s->s_error = EDEADLK);
+	len = s->s_drain_func(s->s_drain_arg, s->s_buf,
+	    SBUF_DODRAINTOEOR(s) ? s->s_rec_off : s->s_len);
+	if (len <= 0) {
+		s->s_error = len ? -len : EDEADLK;
 		return (s->s_error);
 	}
 	KASSERT(len > 0 && len <= s->s_len,
 	    ("Bad drain amount %d for sbuf %p", len, s));
 	s->s_len -= len;
+	s->s_rec_off -= len;
 	/*
 	 * Fast path for the expected case where all the data was
 	 * drained.
@@ -633,9 +642,9 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 			break;
 		/* Cannot print with the current available space. */
 		if (s->s_drain_func != NULL && s->s_len > 0)
-			error = sbuf_drain(s);
-		else
-			error = sbuf_extend(s, len - SBUF_FREESPACE(s));
+			error = sbuf_drain(s); /* sbuf_drain() sets s_error. */
+		else if (sbuf_extend(s, len - SBUF_FREESPACE(s)) != 0)
+			s->s_error = error = ENOMEM;
 	} while (error == 0);
 
 	/*
@@ -652,8 +661,6 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	s->s_len += len;
 	if (SBUF_ISSECTION(s))
 		s->s_sect_len += len;
-	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
-		s->s_error = ENOMEM;
 
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
@@ -835,6 +842,7 @@ sbuf_start_section(struct sbuf *s, ssize_t *old_lenp)
 		    ("s_sect_len != 0 when starting a section"));
 		if (old_lenp != NULL)
 			*old_lenp = -1;
+		s->s_rec_off = s->s_len;
 		SBUF_SETFLAG(s, SBUF_INSECTION);
 	} else {
 		KASSERT(old_lenp != NULL,
@@ -865,7 +873,7 @@ sbuf_end_section(struct sbuf *s, ssize_t old_len, size_t pad, int c)
 	}
 	len = s->s_sect_len;
 	if (old_len == -1) {
-		s->s_sect_len = 0;
+		s->s_rec_off = s->s_sect_len = 0;
 		SBUF_CLEARFLAG(s, SBUF_INSECTION);
 	} else {
 		s->s_sect_len += old_len;

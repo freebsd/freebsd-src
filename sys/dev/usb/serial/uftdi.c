@@ -1,6 +1,8 @@
 /*	$NetBSD: uftdi.c,v 1.13 2002/09/23 05:51:23 simonb Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -439,7 +441,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, IPLUS2, 0),
 	UFTDI_DEV(FTDI, IRTRANS, 0),
 	UFTDI_DEV(FTDI, KBS, 0),
-	UFTDI_DEV(FTDI, KTLINK, 0),
+	UFTDI_DEV(FTDI, KTLINK, UFTDI_JTAG_IFACE(0)),
 	UFTDI_DEV(FTDI, LENZ_LIUSB, 0),
 	UFTDI_DEV(FTDI, LK202, 0),
 	UFTDI_DEV(FTDI, LK204, 0),
@@ -520,6 +522,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, TERATRONIK_D2XX, 0),
 	UFTDI_DEV(FTDI, TERATRONIK_VCP, 0),
 	UFTDI_DEV(FTDI, THORLABS, 0),
+	UFTDI_DEV(FTDI, TIAO, 0),
 	UFTDI_DEV(FTDI, TNC_X, 0),
 	UFTDI_DEV(FTDI, TTUSB, 0),
 	UFTDI_DEV(FTDI, TURTELIZER2, UFTDI_JTAG_IFACE(0)),
@@ -1123,6 +1126,9 @@ uftdi_attach(device_t dev)
 	    FTDI_SIO_SET_DATA_PARITY_NONE |
 	    FTDI_SIO_SET_DATA_BITS(8));
 
+	/* Indicate tx bits in sc_lsr can be used to determine busy vs idle. */
+	ucom_use_lsr_txbits(&sc->sc_ucom);
+
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uftdi_callback, &sc->sc_mtx);
 	if (error) {
@@ -1279,16 +1285,20 @@ uftdi_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		offset = 0;
 		/*
 		 * Extract packet headers and payload bytes from the buffer.
-		 * Feed payload bytes to ucom/tty layer; OR-accumulate header
-		 * status bits which are transient and could toggle with each
-		 * packet. After processing all packets in the buffer, process
-		 * the accumulated transient MSR and LSR values along with the
+		 * Feed payload bytes to ucom/tty layer; OR-accumulate the
+		 * receiver-related header status bits which are transient and
+		 * could toggle with each packet, but for transmitter-related
+		 * bits keep only the ones from the last packet.
+		 *
+		 * After processing all packets in the buffer, process the
+		 * accumulated transient MSR and LSR values along with the
 		 * non-transient bits from the last packet header.
 		 */
 		while (buflen >= UFTDI_IHDRSIZE) {
 			usbd_copy_out(pc, offset, buf, UFTDI_IHDRSIZE);
 			offset += UFTDI_IHDRSIZE;
 			buflen -= UFTDI_IHDRSIZE;
+			lsr &= ~(ULSR_TXRDY | ULSR_TSRE);
 			lsr |= FTDI_GET_LSR(buf);
 			if (FTDI_GET_MSR(buf) & FTDI_SIO_RI_MASK)
 				msr |= SER_RI;
@@ -1311,8 +1321,7 @@ uftdi_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (ftdi_msr & FTDI_SIO_RLSD_MASK)
 			msr |= SER_DCD;
 
-		if ((sc->sc_msr != msr) ||
-		    ((sc->sc_lsr & FTDI_LSR_MASK) != (lsr & FTDI_LSR_MASK))) {
+		if (sc->sc_msr != msr || sc->sc_lsr != lsr) {
 			DPRINTF("status change msr=0x%02x (0x%02x) "
 			    "lsr=0x%02x (0x%02x)\n", msr, sc->sc_msr,
 			    lsr, sc->sc_lsr);

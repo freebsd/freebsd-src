@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -50,6 +52,9 @@ rm_r(int rootfd, const char *path, uid_t uid)
 		path++;
 
 	dirfd = openat(rootfd, path, O_DIRECTORY);
+	if (dirfd == -1) {
+		return;
+	}
 
 	d = fdopendir(dirfd);
 	while ((e = readdir(d)) != NULL) {

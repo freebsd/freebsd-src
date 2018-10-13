@@ -15,15 +15,14 @@
 #define LLVM_CLANG_LIB_CODEGEN_CODEGENTYPES_H
 
 #include "CGCall.h"
-#include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/ABI.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/Module.h"
-#include <vector>
 
 namespace llvm {
 class FunctionType;
-class Module;
 class DataLayout;
 class Type;
 class LLVMContext;
@@ -31,7 +30,6 @@ class StructType;
 }
 
 namespace clang {
-class ABIInfo;
 class ASTContext;
 template <typename> class CanQual;
 class CXXConstructorDecl;
@@ -49,8 +47,10 @@ class TagDecl;
 class TargetInfo;
 class Type;
 typedef CanQual<Type> CanQualType;
+class GlobalDecl;
 
 namespace CodeGen {
+class ABIInfo;
 class CGCXXABI;
 class CGRecordLayout;
 class CodeGenModule;
@@ -162,6 +162,8 @@ class CodeGenTypes {
   /// corresponding llvm::Type.
   llvm::DenseMap<const Type *, llvm::Type *> TypeCache;
 
+  llvm::SmallSet<const Type *, 8> RecordsWithOpaqueMemberPointers;
+
 public:
   CodeGenTypes(CodeGenModule &cgm);
   ~CodeGenTypes();
@@ -174,6 +176,10 @@ public:
   const TargetInfo &getTarget() const { return Target; }
   CGCXXABI &getCXXABI() const { return TheCXXABI; }
   llvm::LLVMContext &getLLVMContext() { return TheModule.getContext(); }
+  const CodeGenOptions &getCodeGenOpts() const;
+
+  /// Convert clang calling convention to LLVM callilng convention.
+  unsigned ClangCallConvToLLVMCallConv(CallingConv CC);
 
   /// ConvertType - Convert type T into a llvm::Type.
   llvm::Type *ConvertType(QualType T);
@@ -203,6 +209,11 @@ public:
   bool isFuncTypeConvertible(const FunctionType *FT);
   bool isFuncParamTypeConvertible(QualType Ty);
 
+  /// Determine if a C++ inheriting constructor should have parameters matching
+  /// those of its inherited constructor.
+  bool inheritingCtorHasParams(const InheritedConstructor &Inherited,
+                               CXXCtorType Type);
+
   /// GetFunctionTypeForVTable - Get the LLVM function type for use in a vtable,
   /// given a CXXMethodDecl. If the method to has an incomplete return type,
   /// and/or incomplete argument types, this will return the opaque type.
@@ -214,9 +225,9 @@ public:
   /// replace the 'opaque' type we previously made for it if applicable.
   void UpdateCompletedType(const TagDecl *TD);
 
-  /// getNullaryFunctionInfo - Get the function info for a void()
-  /// function with standard CC.
-  const CGFunctionInfo &arrangeNullaryFunction();
+  /// \brief Remove stale types from the type cache when an inheritance model
+  /// gets assigned to a class.
+  void RefreshTypeCacheForClass(const CXXRecordDecl *RD);
 
   // The arrangement methods are split into three families:
   //   - those meant to drive the signature and prologue/epilogue
@@ -239,42 +250,72 @@ public:
   //   this for compatibility reasons.
 
   const CGFunctionInfo &arrangeGlobalDeclaration(GlobalDecl GD);
-  const CGFunctionInfo &arrangeFunctionDeclaration(const FunctionDecl *FD);
-  const CGFunctionInfo &
-  arrangeFreeFunctionDeclaration(QualType ResTy, const FunctionArgList &Args,
-                                 const FunctionType::ExtInfo &Info,
-                                 bool isVariadic);
 
+  /// Given a function info for a declaration, return the function info
+  /// for a call with the given arguments.
+  ///
+  /// Often this will be able to simply return the declaration info.
+  const CGFunctionInfo &arrangeCall(const CGFunctionInfo &declFI,
+                                    const CallArgList &args);
+
+  /// Free functions are functions that are compatible with an ordinary
+  /// C function pointer type.
+  const CGFunctionInfo &arrangeFunctionDeclaration(const FunctionDecl *FD);
+  const CGFunctionInfo &arrangeFreeFunctionCall(const CallArgList &Args,
+                                                const FunctionType *Ty,
+                                                bool ChainCall);
+  const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionProtoType> Ty,
+                                                const FunctionDecl *FD);
+  const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionNoProtoType> Ty);
+
+  /// A nullary function is a freestanding function of type 'void ()'.
+  /// This method works for both calls and declarations.
+  const CGFunctionInfo &arrangeNullaryFunction();
+
+  /// A builtin function is a freestanding function using the default
+  /// C conventions.
+  const CGFunctionInfo &
+  arrangeBuiltinFunctionDeclaration(QualType resultType,
+                                    const FunctionArgList &args);
+  const CGFunctionInfo &
+  arrangeBuiltinFunctionDeclaration(CanQualType resultType,
+                                    ArrayRef<CanQualType> argTypes);
+  const CGFunctionInfo &arrangeBuiltinFunctionCall(QualType resultType,
+                                                   const CallArgList &args);
+
+  /// Objective-C methods are C functions with some implicit parameters.
   const CGFunctionInfo &arrangeObjCMethodDeclaration(const ObjCMethodDecl *MD);
   const CGFunctionInfo &arrangeObjCMessageSendSignature(const ObjCMethodDecl *MD,
                                                         QualType receiverType);
+  const CGFunctionInfo &arrangeUnprototypedObjCMessageSend(
+                                                     QualType returnType,
+                                                     const CallArgList &args);
 
+  /// Block invocation functions are C functions with an implicit parameter.
+  const CGFunctionInfo &arrangeBlockFunctionDeclaration(
+                                                 const FunctionProtoType *type,
+                                                 const FunctionArgList &args);
+  const CGFunctionInfo &arrangeBlockFunctionCall(const CallArgList &args,
+                                                 const FunctionType *type);
+
+  /// C++ methods have some special rules and also have implicit parameters.
   const CGFunctionInfo &arrangeCXXMethodDeclaration(const CXXMethodDecl *MD);
   const CGFunctionInfo &arrangeCXXStructorDeclaration(const CXXMethodDecl *MD,
                                                       StructorType Type);
   const CGFunctionInfo &arrangeCXXConstructorCall(const CallArgList &Args,
                                                   const CXXConstructorDecl *D,
                                                   CXXCtorType CtorKind,
-                                                  unsigned ExtraArgs);
-  const CGFunctionInfo &arrangeFreeFunctionCall(const CallArgList &Args,
-                                                const FunctionType *Ty,
-                                                bool ChainCall);
-  const CGFunctionInfo &arrangeFreeFunctionCall(QualType ResTy,
-                                                const CallArgList &args,
-                                                FunctionType::ExtInfo info,
-                                                RequiredArgs required);
-  const CGFunctionInfo &arrangeBlockFunctionCall(const CallArgList &args,
-                                                 const FunctionType *type);
+                                                  unsigned ExtraPrefixArgs,
+                                                  unsigned ExtraSuffixArgs,
+                                                  bool PassProtoArgs = true);
 
   const CGFunctionInfo &arrangeCXXMethodCall(const CallArgList &args,
                                              const FunctionProtoType *type,
-                                             RequiredArgs required);
+                                             RequiredArgs required,
+                                             unsigned numPrefixArgs);
   const CGFunctionInfo &arrangeMSMemberPointerThunk(const CXXMethodDecl *MD);
   const CGFunctionInfo &arrangeMSCtorClosure(const CXXConstructorDecl *CD,
                                                  CXXCtorType CT);
-  const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionProtoType> Ty,
-                                                const FunctionDecl *FD);
-  const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionNoProtoType> Ty);
   const CGFunctionInfo &arrangeCXXMethodType(const CXXRecordDecl *RD,
                                              const FunctionProtoType *FTP,
                                              const CXXMethodDecl *MD);
@@ -290,6 +331,7 @@ public:
                                                 bool chainCall,
                                                 ArrayRef<CanQualType> argTypes,
                                                 FunctionType::ExtInfo info,
+                    ArrayRef<FunctionProtoType::ExtParameterInfo> paramInfos,
                                                 RequiredArgs args);
 
   /// \brief Compute a new LLVM record layout object for the given record.
@@ -314,6 +356,10 @@ public:  // These are internal details of CGT that shouldn't be used externally.
   /// IsZeroInitializable - Return whether a type can be
   /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.
   bool isZeroInitializable(QualType T);
+
+  /// Check if the pointer type can be zero-initialized (in the C++ sense)
+  /// with an LLVM zeroinitializer.
+  bool isPointerZeroInitializable(QualType T);
 
   /// IsZeroInitializable - Return whether a record type can be
   /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.

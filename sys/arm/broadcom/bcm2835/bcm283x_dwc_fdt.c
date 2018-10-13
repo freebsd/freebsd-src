@@ -51,6 +51,13 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-usb",	1},
+	{"brcm,bcm2835-usb",		1},
+	{"brcm,bcm2708-usb",		1},
+	{NULL,				0}
+};
+
 static device_probe_t bcm283x_dwc_otg_probe;
 static device_attach_t bcm283x_dwc_otg_attach;
 
@@ -61,7 +68,7 @@ bcm283x_dwc_otg_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-usb"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller (bcm283x)");

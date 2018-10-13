@@ -5,6 +5,7 @@
      added #ifdef VALGRIND to remove 298,384,660 'unused variable k8' warnings.
      added include of lookup3.h to check definitions match declarations.
      removed include of stdint - config.h takes care of platform independence.
+     added fallthrough comments for new gcc warning suppression.
   url http://burtleburtle.net/bob/hash/index.html.
 */
 /*
@@ -235,7 +236,9 @@ uint32_t        initval)         /* the previous hash, or an arbitrary value */
   switch(length)                     /* all the case statements fall through */
   { 
   case 3 : c+=k[2];
+  	/* fallthrough */
   case 2 : b+=k[1];
+  	/* fallthrough */
   case 1 : a+=k[0];
     final(a,b,c);
   case 0:     /* case 0: nothing left to add */
@@ -473,16 +476,27 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
     switch(length)                   /* all the case statements fall through */
     {
     case 12: c+=((uint32_t)k[11])<<24;
+  	/* fallthrough */
     case 11: c+=((uint32_t)k[10])<<16;
+  	/* fallthrough */
     case 10: c+=((uint32_t)k[9])<<8;
+  	/* fallthrough */
     case 9 : c+=k[8];
+  	/* fallthrough */
     case 8 : b+=((uint32_t)k[7])<<24;
+  	/* fallthrough */
     case 7 : b+=((uint32_t)k[6])<<16;
+  	/* fallthrough */
     case 6 : b+=((uint32_t)k[5])<<8;
+  	/* fallthrough */
     case 5 : b+=k[4];
+  	/* fallthrough */
     case 4 : a+=((uint32_t)k[3])<<24;
+  	/* fallthrough */
     case 3 : a+=((uint32_t)k[2])<<16;
+  	/* fallthrough */
     case 2 : a+=((uint32_t)k[1])<<8;
+  	/* fallthrough */
     case 1 : a+=k[0];
              break;
     case 0 : return c;
@@ -820,7 +834,7 @@ uint32_t hashbig( const void *key, size_t length, uint32_t initval)
 #ifdef SELF_TEST
 
 /* used for timings */
-void driver1()
+void driver1(void)
 {
   uint8_t buf[256];
   uint32_t i;
@@ -842,7 +856,7 @@ void driver1()
 #define HASHLEN   1
 #define MAXPAIR 60
 #define MAXLEN  70
-void driver2()
+void driver2(void)
 {
   uint8_t qa[MAXLEN+1], qb[MAXLEN+2], *a = &qa[0], *b = &qb[1];
   uint32_t c[HASHSTATE], d[HASHSTATE], i=0, j=0, k, l, m=0, z;
@@ -912,7 +926,7 @@ void driver2()
 }
 
 /* Check for reading beyond the end of the buffer and alignment problems */
-void driver3()
+void driver3(void)
 {
   uint8_t buf[MAXLEN+20], *b;
   uint32_t len;
@@ -1003,7 +1017,7 @@ void driver3()
 }
 
 /* check for problems with nulls */
- void driver4()
+ void driver4(void)
 {
   uint8_t buf[1];
   uint32_t h,i,state[HASHSTATE];
@@ -1020,7 +1034,7 @@ void driver3()
 }
 
 
-int main()
+int main(void)
 {
   driver1();   /* test that the key is hashed: used for timings */
   driver2();   /* test that whole key is hashed thoroughly */

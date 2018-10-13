@@ -33,13 +33,18 @@
 .Sh SYNOPSIS
 This driver is a mandatory part of i386/amd64 kernels.
 .Pp
-The following tunable is settable from the
+The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
 .It Va hint.atrtc. Ns Ar X Ns Va .clock
 controls event timers functionality support.
 Setting to 0, disables it.
 Default value is 1.
+.It Va hw.atrtc.enable
+Forces enabling or disabling of the device(s).
+Setting to 0 disables it, setting to 1 enables it, bypassing any platform
+configuration hints.
+Default value is -1 (autodetect).
 .El
 .Sh DESCRIPTION
 This driver uses RTC hardware to supply kernel with time-of-day clock

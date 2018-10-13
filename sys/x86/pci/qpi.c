@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
@@ -26,9 +28,9 @@
  */
 
 /*
- * This driver provides a psuedo-bus to enumerate the PCI buses
- * present on a sytem using a QPI chipset.  It creates a qpi0 bus that
- * is a child of nexus0 and then creates two Host-PCI bridges as a
+ * This driver provides a pseudo-bus to enumerate the PCI buses
+ * present on a system using a QPI chipset.  It creates a qpi0 bus that
+ * is a child of nexus0 and then creates Host-PCI bridges as a
  * child of that.
  */
 
@@ -63,16 +65,22 @@ static MALLOC_DEFINE(M_QPI, "qpidrv", "qpi system device");
 static void
 qpi_identify(driver_t *driver, device_t parent)
 {
+	int do_qpi;
 
-        /* Check CPUID to ensure this is an i7 CPU of some sort. */
-        if (!(cpu_vendor_id == CPU_VENDOR_INTEL &&
-	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-	    (CPUID_TO_MODEL(cpu_id) == 0x1a || CPUID_TO_MODEL(cpu_id) == 0x2c)))
-                return;
+	/* Check CPUID to ensure this is an i7 CPU of some sort. */
+	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
+	    CPUID_TO_FAMILY(cpu_id) != 0x6)
+		return;
 
-        /* PCI config register access is required. */
-        if (pci_cfgregopen() == 0)
-                return;
+	/* Only discover buses with configuration devices if allowed by user */
+	do_qpi = 0;
+	TUNABLE_INT_FETCH("hw.attach_intel_csr_pci", &do_qpi);
+	if (!do_qpi)
+		return;
+
+	/* PCI config register access is required. */
+	if (pci_cfgregopen() == 0)
+		return;
 
 	/* Add a qpi bus device. */
 	if (BUS_ADD_CHILD(parent, 20, "qpi", -1) == NULL)
@@ -97,6 +105,7 @@ qpi_probe_pcib(device_t dev, int bus)
 	struct qpi_device *qdev;
 	device_t child;
 	uint32_t devid;
+	int s;
 
 	/*
 	 * If a PCI bus already exists for this bus number, then
@@ -106,18 +115,23 @@ qpi_probe_pcib(device_t dev, int bus)
 		return (EEXIST);
 
 	/*
-	 * Attempt to read the device id for device 0, function 0 on
-	 * the bus.  A value of 0xffffffff means that the bus is not
-	 * present.
+	 * Attempt to read the device id for every slot, function 0 on
+	 * the bus.  If all read values are 0xffffffff this means that
+	 * the bus is not present.
 	 */
-	devid = pci_cfgregread(bus, 0, 0, PCIR_DEVVENDOR, 4);
+	for (s = 0; s <= PCI_SLOTMAX; s++) {
+		devid = pci_cfgregread(bus, s, 0, PCIR_DEVVENDOR, 4);
+		if (devid != 0xffffffff)
+			break;
+	}
 	if (devid == 0xffffffff)
 		return (ENOENT);
 
 	if ((devid & 0xffff) != 0x8086) {
-		device_printf(dev,
-		    "Device at pci%d.0.0 has non-Intel vendor 0x%x\n", bus,
-		    devid & 0xffff);
+		if (bootverbose)
+			device_printf(dev,
+			    "Device at pci%d.%d.0 has non-Intel vendor 0x%x\n",
+			    bus, s, devid & 0xffff);
 		return (ENXIO);
 	}
 
@@ -137,12 +151,12 @@ qpi_attach(device_t dev)
 	int bus;
 
 	/*
-	 * Each processor socket has a dedicated PCI bus counting down from
-	 * 255.  We keep probing buses until one fails.
+	 * Each processor socket has a dedicated PCI bus, sometimes
+	 * not enumerated by ACPI.  Probe all unattached buses from 0
+	 * to 255.
 	 */
-	for (bus = 255;; bus--)
-		if (qpi_probe_pcib(dev, bus) != 0)
-			break;
+	for (bus = PCI_BUSMAX; bus >= 0; bus--)
+		qpi_probe_pcib(dev, bus);
 
 	return (bus_generic_attach(dev));
 }
@@ -219,7 +233,7 @@ qpi_pcib_attach(device_t dev)
 {
 
 	device_add_child(dev, "pci", -1);
-        return (bus_generic_attach(dev));
+	return (bus_generic_attach(dev));
 }
 
 static int

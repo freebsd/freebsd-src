@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -29,7 +29,7 @@
 .\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2016
+.Dd November 3, 2017
 .Dt MT 1
 .Os
 .Sh NAME
@@ -273,17 +273,20 @@ status command, this will be the same XML output via
 .Do
 .Nm
 status
-.Fl x 
+.Fl x
 .Dc
 .El
 .It Cm param
 Display or set parameters.
-One of 
+One of
 .Fl l ,
 .Fl s ,
 or
 .Fl x
 must be specified to indicate which operation to perform.
+See
+.Xr sa 4
+for more detailed information on the parameters.
 .Bl -tag -width 8n
 .It Fl l
 List parameters, values and descriptions.
@@ -293,7 +296,7 @@ To display a specific parameter, specify the parameter with
 .It Fl p Ar name
 Specify the parameter name to list (with
 .Fl l )
-or set (with 
+or set (with
 .Fl s ) .
 .It Fl q
 Enable quiet mode for parameter listing.
@@ -330,7 +333,7 @@ The default protection method used is Reed-Solomon CRC (protection method
 1), as specified in ECMA-319.
 The default protection information length used with Reed-Solomon CRC is
 4 bytes.
-To enable all settings except one more more settings, specify the
+To enable all settings except one more setting, specify the
 .Fl e
 argument and then explicitly disable settings that you do not wish to
 enable.
@@ -361,11 +364,11 @@ The drive will verify the checksum before writing the block to tape.
 .El
 .It Cm locate
 Set the tape drive's logical position.
-One of 
+One of
 .Fl b ,
 .Fl e ,
 .Fl f ,
-or 
+or
 .Fl s
 must be specified to indicate the type of position.
 If the partition number is specified, the drive will first relocate to the
@@ -460,7 +463,7 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x01   12.7  (0.5)    9         32     (800)  NRZI  R   X3.22-1983   2
 0x02   12.7  (0.5)    9         63   (1,600)  PE    R   X3.39-1986   2
 0x03   12.7  (0.5)    9        246   (6,250)  GCR   R   X3.54-1986   2
-0x05    6.3  (0.25)  4/9       315   (8,000)  GCR   C   X3.136-1986  1
+0x05    6.3  (0.25)  4/9       315   (8,000)  GCR   C   X3.136-1986  1,3
 0x06   12.7  (0.5)    9        126   (3,200)  PE    R   X3.157-1987  2
 0x07    6.3  (0.25)   4        252   (6,400)  IMFM  C   X3.116-1986  1
 0x08    3.81 (0.15)   4        315   (8,000)  GCR   CS  X3.158-1987  1
@@ -506,23 +509,27 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x47    3.81 (0.25)   ?      6,417  (163,000)       CS  DAT-72
 0x48   12.7  (0.5)  448      5,236  (133,000) PRML  C   SDLTapeI(110) 6,8,13
 0x49   12.7  (0.5)  448      7,598  (193,000) PRML  C   SDLTapeI(160) 6,8
-0x4A   12.7  (0.5)  768          ?                  C   T10000A      10
-0x4B   12.7  (0.5) 1152          ?                  C   T10000B      10
-0x4C   12.7  (0.5) 3584          ?                  C   T10000C      10
-0x4D   12.7  (0.5) 4608          ?                  C   T10000D      10
+0x4A   12.7  (0.5)  768          ?            PRML  C   T10000A      10
+0x4B   12.7  (0.5) 1152          ?            PRML  C   T10000B      10
+0x4C   12.7  (0.5) 3584          ?            PRML  C   T10000C      10
+0x4D   12.7  (0.5) 4608          ?            PRML  C   T10000D      10
 0x51   12.7  (0.5)  512      11,800 (299,720)       C   3592A1 (unencrypted)
 0x52   12.7  (0.5)  896      11,800 (299,720)       C   3592A2 (unencrypted)
 0x53   12.7  (0.5) 1152      13,452 (341,681)       C   3592A3 (unencrypted)
 0x54   12.7  (0.5) 2560      19,686 (500,024)       C   3592A4 (unencrypted)
 0x55   12.7  (0.5) 5120      20,670 (525,018)       C   3592A5 (unencrypted)
+0x56   12.7  (0.5) 7680      20,670 (525,018)       C   3592B5 (unencrypted)
 0x58   12.7  (0.5) 1280      15,142 (384,607)       C   LTO-5
 0x5A   12.7  (0.5) 2176      15,142 (384,607)       C   LTO-6
 0x5C   12.7  (0.5) 3584      19,107 (485,318)       C   LTO-7
+0x5D   12.7  (0.5) 5376      19,107 (485,318)       C   LTO-M8       14
+0x5E   12.7  (0.5) 6656      20,669 (524,993)       C   LTO-8
 0x71   12.7  (0.5)  512      11,800 (299,720)       C   3592A1 (encrypted)
 0x72   12.7  (0.5)  896      11,800 (299,720)       C   3592A2 (encrypted)
 0x73   12.7  (0.5) 1152      13,452 (341,681)       C   3592A3 (encrypted)
 0x74   12.7  (0.5) 2560      19,686 (500,024)       C   3592A4 (encrypted)
 0x75   12.7  (0.5) 5120      20,670 (525,018)       C   3592A5 (encrypted)
+0x76   12.7  (0.5) 7680      20,670 (525,018)       C   3592B5 (encrypted)
 0x8c    8.0  (0.315)  1      1,789  (45,434)  RLL   CS  EXB-8500c    5,9
 0x90    8.0  (0.315)  1      1,703  (43,245)  RLL   CS  EXB-8200c    5,9
 .Ed
@@ -559,7 +566,65 @@ NOTES
 12. This is Exabyte 8500 uncompressed format.  The compressed format
     density code is 0x8c.
 13. This density code (0x48) was also used for DAT-160.
+14. Officially known as LTO-8 Type M, abbreviated M8.  This is a pristine
+    LTO-7 cartridge initialized with a higher density format by an LTO-8
+    drive.  It cannot be read by an LTO-7 drive.  Uncompressed capacity
+    is 9TB, compared to 6TB for LTO-7 and 12TB for LTO-8.
 .Ed
+.Bd -literal -offset 2n
+NOTE ON QIC STREAMERS
+
+The following is a table of Data Cartridge types as used in the 1/4 inch
+tape drives such as the Archive Viper 150, Wangtek 5525ES, and Tandberg
+TDC4220 tape drives:
+
+Value Reference     Format    Cartridge Type  Capacity   Tracks  Length
+----- ---------     ------    --------------  --------   ------  ------
+
+0x05                QIC-11    DC300           15MB       4        300ft
+0x05                QIC-11    DC300XL/P       20MB       4        450ft
+0x05                QIC-11    DC600           27MB       4        600ft
+0x05  X3.136-1986   QIC-24    DC615A          15MB       9        150ft
+0x05  X3.136-1986   QIC-24    DC300XL/P       45MB       9        450ft
+0x05  X3.136-1986   QIC-24    DC600A          60MB       9        600ft
+0x0F  QIC-120       QIC-120   DC600A/DC6150   120MB      15       620ft
+0x10  QIC-150       QIC-150   DC600XTD/DC6150 150MB      18       620ft
+0x10  QIC-150       QIC-150   DC6250          250MB      18     1,020ft
+0x11  QIC-320       QIC-525   DC6320          320MB      26       620ft
+0x11  QIC-320       QIC-525   DC6525          525MB      26     1,020ft
+0x1E  QIC-1000C     QIC-1000  DC9100/DL9135   1.0GB      30       760ft
+0x1E  QIC-1000C     QIC-1000  DC9150          1.2GB      30       950ft
+0x22  QIC-2GB(C)    QIC-2GB   DC9200          2.0GB      42       950ft
+0x22  QIC-2GB(C)    QIC-2GB   DC9250          2.5GB      42     1,200ft
+.Ed
+.Pp
+Notes:
+.Pp
+QIC-24, QIC-120, QIC-150 use fixed blocksize of 512 bytes, QIC-525, QIC-1000
+and QIC-2GB can use blocksize of 1,024 bytes.
+DDS (DAT) drives generally use variable blocks.
+.Pp
+QIC-02 and QIC-36 are interface standards for tape drives.
+The QIC-02 and QIC-36 streamers such as the Wangtek 5250EQ are otherwise
+identical to their SCSI versions (i.e.: Wangtek 5250ES).
+.Pp
+It seems that the 150MB and larger streamers cannot write QIC-24 9 track
+formats, only read them.
+.Pp
+DC600A cartridges marked "10,000ftpi" can only be used as QIC-11, QIC-24,
+and QIC-120 format.
+DC600A cartridges marked 12,500ftpi can be used as both QIC-120 and QIC-150
+format.
+.Pp
+Some manufacturers do not use "DC" on their cartridges.
+Verbatim uses DL, Maxell uses MC, Sony uses QD, Quill uses DQ.
+.Pp
+3M/Imation & Fuji use DC.
+Thus a DL6250, MC-6250, QD6250, DQ6250 are all identical media to a DC6250.
+.Pp
+QIC tape media is not "connected" to the take up reels and will de-spool
+if the tape drive has dust covering the light sensor that looks for the end
+of tape holes in the media.
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev TAPE"
 .It Ev TAPE

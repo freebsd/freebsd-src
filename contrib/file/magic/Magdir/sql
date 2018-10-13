@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.18 2015/12/04 20:38:43 christos Exp $
+# $File: sql,v 1.21 2017/03/17 21:35:28 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -10,28 +10,70 @@
 #
 0	beshort			0xfe01		MySQL table definition file
 >2	byte			x		Version %d
-0	belong&0xffffff00	0xfefe0700	MySQL MyISAM index file
->3	byte			x		Version %d
-0	belong&0xffffff00	0xfefe0800	MySQL MyISAM compressed data file
->3	byte			x		Version %d
-0	belong&0xffffff00	0xfefe0900	MySQL Maria index file
->3	byte			x		Version %d
-0	belong&0xffffff00	0xfefe0A00	MySQL Maria compressed data file
->3	byte			x		Version %d
+>3	byte			0		\b, type UNKNOWN
+>3	byte			1		\b, type DIAM_ISAM
+>3	byte			2		\b, type HASH
+>3	byte			3		\b, type MISAM
+>3	byte			4		\b, type PISAM
+>3	byte			5		\b, type RMS_ISAM
+>3	byte			6		\b, type HEAP
+>3	byte			7		\b, type ISAM
+>3	byte			8		\b, type MRG_ISAM
+>3	byte			9		\b, type MYISAM
+>3	byte			10		\b, type MRG_MYISAM
+>3	byte			11		\b, type BERKELEY_DB
+>3	byte			12		\b, type INNODB
+>3	byte			13		\b, type GEMINI
+>3	byte			14		\b, type NDBCLUSTER
+>3	byte			15		\b, type EXAMPLE_DB
+>3	byte			16		\b, type CSV_DB
+>3	byte			17		\b, type FEDERATED_DB
+>3	byte			18		\b, type BLACKHOLE_DB
+>3	byte			19		\b, type PARTITION_DB
+>3	byte			20		\b, type BINLOG
+>3	byte			21		\b, type SOLID
+>3	byte			22		\b, type PBXT
+>3	byte			23		\b, type TABLE_FUNCTION
+>3	byte			24		\b, type MEMCACHE
+>3	byte			25		\b, type FALCON
+>3	byte			26		\b, type MARIA
+>3	byte			27		\b, type PERFORMANCE_SCHEMA
+>3	byte			127		\b, type DEFAULT
+>0x0033	ulong			x		\b, MySQL version %d
 0	belong&0xffffff00	0xfefe0500	MySQL ISAM index file
 >3	byte			x		Version %d
 0	belong&0xffffff00	0xfefe0600	MySQL ISAM compressed data file
 >3	byte			x		Version %d
-0	string			\376bin		MySQL replication log
-0	belong&0xffffff00	0xfefe0b00
->4	string			MARIALOG	MySQL Maria transaction log file
->>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0700	MySQL MyISAM index file
+>3	byte			x		Version %d
+>14	beshort			x		\b, %d key parts
+>16	beshort			x		\b, %d unique key parts
+>18	byte			x		\b, %d keys
+>28	bequad			x		\b, %lld records
+>36	bequad			x		\b, %lld deleted records
+0	belong&0xffffff00	0xfefe0800	MySQL MyISAM compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0900	MySQL Maria index file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0a00	MySQL Maria compressed data file
+>3	byte			x		Version %d
 0	belong&0xffffff00	0xfefe0c00
 >4	string			MACF		MySQL Maria control file
 >>3	byte			x		Version %d
+0	string			\376bin	MySQL replication log,
+>9	long			x		server id %d
+>8	byte			1
+>>13	long			69		\b, MySQL V3.2.3
+>>>19	string			x		\b, server version %s
+>>13	long			75		\b, MySQL V4.0.2-V4.1
+>>>25	string			x		\b, server version %s
+>8	byte			15		MySQL V5+,
+>>25	string			x		server version %s
+>4	string			MARIALOG	MySQL Maria transaction log file
+>>3	byte			x		Version %d
 
 #------------------------------------------------------------------------------
-# iRiver H Series database file 
+# iRiver H Series database file
 # From Ken Guest <ken@linux.ie>
 # As observed from iRivNavi.iDB and unencoded firmware
 #
@@ -91,6 +133,9 @@
 0	string		PSDB\0			Panasonic channel list DataBase
 !:ext db/bin
 #!:mime	application/x-db-svl-panasonic
->126	string		SQLite\ format\ 3	
+>126	string		SQLite\ format\ 3
 #!:mime	application/x-panasonic-sqlite3
->>&-15	indirect	x			\b; contains 
+>>&-15	indirect	x			\b; contains
+
+# H2 Database from http://www.h2database.com/
+0	string		--\ H2\ 0.5/B\ --\ \n	H2 Database file

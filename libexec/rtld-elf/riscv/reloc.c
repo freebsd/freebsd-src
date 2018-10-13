@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -62,7 +62,7 @@ set_gp(Obj_Entry *obj)
 
 	__asm __volatile("mv    %0, gp" : "=r"(old));
 
-	symlook_init(&req, "_gp");
+	symlook_init(&req, "__global_pointer$");
 	req.ventry = NULL;
 	req.flags = SYMLOOK_EARLY;
 	res = symlook_obj(&req, obj);
@@ -226,10 +226,9 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 
 	assert(ELF_R_TYPE(rel->r_info) == R_RISCV_JUMP_SLOT);
 
-	if (*where != target)
+	if (*where != target && !ld_bind_not)
 		*where = target;
-
-	return target;
+	return (target);
 }
 
 /*
@@ -364,6 +363,18 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	}
 
 	return (0);
+}
+
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+
+}
+
+void
+pre_init(void)
+{
+
 }
 
 void

@@ -1,7 +1,11 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * All rights reserved.
+ * Copyright (c) 2015-2018 The University of Oslo
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -57,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define PAM_OPT_TEMPLATE_USER	"template_user"
 #define PAM_OPT_NAS_ID		"nas_id"
 #define PAM_OPT_NAS_IPADDR	"nas_ipaddr"
+#define PAM_OPT_NO_REPLYMSG	"no_reply_message"
 
 #define	MAX_CHALLENGE_MSGS	10
 #define	PASSWORD_PROMPT		"RADIUS Password:"
@@ -147,15 +152,23 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 	char *s;
 
 	while ((attrtype = rad_get_attr(radh, &attrval, &attrlen)) > 0) {
-		if (attrtype == RAD_USER_NAME) {
-			s = rad_cvt_string(attrval, attrlen);
-			if (s == NULL) {
-				syslog(LOG_CRIT,
-				    "rad_cvt_string: out of memory");
-				return (-1);
-			}
+		switch (attrtype) {
+		case RAD_USER_NAME:
+			if ((s = rad_cvt_string(attrval, attrlen)) == NULL)
+				goto enomem;
 			pam_set_item(pamh, PAM_USER, s);
 			free(s);
+			break;
+		case RAD_REPLY_MESSAGE:
+			if ((s = rad_cvt_string(attrval, attrlen)) == NULL)
+				goto enomem;
+			if (!openpam_get_option(pamh, PAM_OPT_NO_REPLYMSG))
+				pam_info(pamh, "%s", s);
+			free(s);
+			break;
+		default:
+			PAM_LOG("%s(): ignoring RADIUS attribute %d",
+			    __func__, attrtype);
 		}
 	}
 	if (attrtype == -1) {
@@ -163,6 +176,41 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 		return (-1);
 	}
 	return (0);
+enomem:
+	syslog(LOG_CRIT, "%s(): out of memory", __func__);
+	return (-1);
+}
+
+static int
+do_reject(pam_handle_t *pamh, struct rad_handle *radh)
+{
+	int attrtype;
+	const void *attrval;
+	size_t attrlen;
+	char *s;
+
+	while ((attrtype = rad_get_attr(radh, &attrval, &attrlen)) > 0) {
+		switch (attrtype) {
+		case RAD_REPLY_MESSAGE:
+			if ((s = rad_cvt_string(attrval, attrlen)) == NULL)
+				goto enomem;
+			if (!openpam_get_option(pamh, PAM_OPT_NO_REPLYMSG))
+				pam_error(pamh, "%s", s);
+			free(s);
+			break;
+		default:
+			PAM_LOG("%s(): ignoring RADIUS attribute %d",
+			    __func__, attrtype);
+		}
+	}
+	if (attrtype < 0) {
+		syslog(LOG_CRIT, "rad_get_attr: %s", rad_strerror(radh));
+		return (-1);
+	}
+	return (0);
+enomem:
+	syslog(LOG_CRIT, "%s(): out of memory", __func__);
+	return (-1);
 }
 
 static int
@@ -330,6 +378,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			return (PAM_SUCCESS);
 
 		case RAD_ACCESS_REJECT:
+			retval = do_reject(pamh, radh);
 			rad_close(radh);
 			PAM_VERBOSE_ERROR("Radius rejection");
 			return (PAM_AUTH_ERR);

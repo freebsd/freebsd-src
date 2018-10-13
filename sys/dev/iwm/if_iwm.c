@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_iwm.c,v 1.39 2015/03/23 00:35:19 jsg Exp $	*/
+/*	$OpenBSD: if_iwm.c,v 1.167 2017/04/04 00:40:52 claudio Exp $	*/
 
 /*
  * Copyright (c) 2014 genua mbh <info@genua.de>
@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -152,7 +153,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_config.h>
 #include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_notif_wait.h>
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_binding.h>
 #include <dev/iwm/if_iwm_phy_db.h>
@@ -161,9 +164,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_time_event.h>
 #include <dev/iwm/if_iwm_power.h>
 #include <dev/iwm/if_iwm_scan.h>
+#include <dev/iwm/if_iwm_sf.h>
+#include <dev/iwm/if_iwm_sta.h>
 
 #include <dev/iwm/if_iwm_pcie_trans.h>
 #include <dev/iwm/if_iwm_led.h>
+#include <dev/iwm/if_iwm_fw.h>
+
+/* From DragonflyBSD */
+#define mtodoff(m, t, off)      ((t)((m)->m_data + (off)))
 
 const uint8_t iwm_nvm_channels[] = {
 	/* 2.4 GHz */
@@ -173,10 +182,22 @@ const uint8_t iwm_nvm_channels[] = {
 	100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
 	149, 153, 157, 161, 165
 };
-#define IWM_NUM_2GHZ_CHANNELS	14
-
 _Static_assert(nitems(iwm_nvm_channels) <= IWM_NUM_CHANNELS,
     "IWM_NUM_CHANNELS is too small");
+
+const uint8_t iwm_nvm_channels_8000[] = {
+	/* 2.4 GHz */
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+	/* 5 GHz */
+	36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92,
+	96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
+	149, 153, 157, 161, 165, 169, 173, 177, 181
+};
+_Static_assert(nitems(iwm_nvm_channels_8000) <= IWM_NUM_CHANNELS_8000,
+    "IWM_NUM_CHANNELS_8000 is too small");
+
+#define IWM_NUM_2GHZ_CHANNELS	14
+#define IWM_N_HW_ADDR_MASK	0xF
 
 /*
  * XXX For now, there's simply a fixed set of rate table entries
@@ -205,6 +226,19 @@ const struct iwm_rate {
 #define IWM_RIDX_IS_CCK(_i_) ((_i_) < IWM_RIDX_OFDM)
 #define IWM_RIDX_IS_OFDM(_i_) ((_i_) >= IWM_RIDX_OFDM)
 
+struct iwm_nvm_section {
+	uint16_t length;
+	uint8_t *data;
+};
+
+#define IWM_MVM_UCODE_ALIVE_TIMEOUT	hz
+#define IWM_MVM_UCODE_CALIB_TIMEOUT	(2*hz)
+
+struct iwm_mvm_alive_data {
+	int valid;
+	uint32_t scd_base_addr;
+};
+
 static int	iwm_store_cscheme(struct iwm_softc *, const uint8_t *, size_t);
 static int	iwm_firmware_store_section(struct iwm_softc *,
                                            enum iwm_ucode_type,
@@ -212,20 +246,11 @@ static int	iwm_firmware_store_section(struct iwm_softc *,
 static int	iwm_set_default_calib(struct iwm_softc *, const void *);
 static void	iwm_fw_info_free(struct iwm_fw_info *);
 static int	iwm_read_firmware(struct iwm_softc *, enum iwm_ucode_type);
-static void	iwm_dma_map_addr(void *, bus_dma_segment_t *, int, int);
-static int	iwm_dma_contig_alloc(bus_dma_tag_t, struct iwm_dma_info *,
-                                     bus_size_t, bus_size_t);
-static void	iwm_dma_contig_free(struct iwm_dma_info *);
 static int	iwm_alloc_fwmem(struct iwm_softc *);
-static void	iwm_free_fwmem(struct iwm_softc *);
 static int	iwm_alloc_sched(struct iwm_softc *);
-static void	iwm_free_sched(struct iwm_softc *);
 static int	iwm_alloc_kw(struct iwm_softc *);
-static void	iwm_free_kw(struct iwm_softc *);
 static int	iwm_alloc_ict(struct iwm_softc *);
-static void	iwm_free_ict(struct iwm_softc *);
 static int	iwm_alloc_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
-static void	iwm_disable_rx_dma(struct iwm_softc *);
 static void	iwm_reset_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static void	iwm_free_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static int	iwm_alloc_tx_ring(struct iwm_softc *, struct iwm_tx_ring *,
@@ -242,49 +267,74 @@ static void	iwm_mvm_nic_config(struct iwm_softc *);
 static int	iwm_nic_rx_init(struct iwm_softc *);
 static int	iwm_nic_tx_init(struct iwm_softc *);
 static int	iwm_nic_init(struct iwm_softc *);
-static void	iwm_enable_txq(struct iwm_softc *, int, int);
-static int	iwm_post_alive(struct iwm_softc *);
+static int	iwm_trans_pcie_fw_alive(struct iwm_softc *, uint32_t);
 static int	iwm_nvm_read_chunk(struct iwm_softc *, uint16_t, uint16_t,
                                    uint16_t, uint8_t *, uint16_t *);
 static int	iwm_nvm_read_section(struct iwm_softc *, uint16_t, uint8_t *,
-				     uint16_t *);
+				     uint16_t *, uint32_t);
 static uint32_t	iwm_eeprom_channel_flags(uint16_t);
 static void	iwm_add_channel_band(struct iwm_softc *,
-		    struct ieee80211_channel[], int, int *, int, int,
+		    struct ieee80211_channel[], int, int *, int, size_t,
 		    const uint8_t[]);
 static void	iwm_init_channel_map(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel[]);
-static int	iwm_parse_nvm_data(struct iwm_softc *, const uint16_t *,
-			           const uint16_t *, const uint16_t *, uint8_t,
-				   uint8_t);
-struct iwm_nvm_section;
-static int	iwm_parse_nvm_sections(struct iwm_softc *,
-                                       struct iwm_nvm_section *);
+static struct iwm_nvm_data *
+	iwm_parse_nvm_data(struct iwm_softc *, const uint16_t *,
+			   const uint16_t *, const uint16_t *,
+			   const uint16_t *, const uint16_t *,
+			   const uint16_t *);
+static void	iwm_free_nvm_data(struct iwm_nvm_data *);
+static void	iwm_set_hw_address_family_8000(struct iwm_softc *,
+					       struct iwm_nvm_data *,
+					       const uint16_t *,
+					       const uint16_t *);
+static int	iwm_get_sku(const struct iwm_softc *, const uint16_t *,
+			    const uint16_t *);
+static int	iwm_get_nvm_version(const struct iwm_softc *, const uint16_t *);
+static int	iwm_get_radio_cfg(const struct iwm_softc *, const uint16_t *,
+				  const uint16_t *);
+static int	iwm_get_n_hw_addrs(const struct iwm_softc *,
+				   const uint16_t *);
+static void	iwm_set_radio_cfg(const struct iwm_softc *,
+				  struct iwm_nvm_data *, uint32_t);
+static struct iwm_nvm_data *
+	iwm_parse_nvm_sections(struct iwm_softc *, struct iwm_nvm_section *);
 static int	iwm_nvm_init(struct iwm_softc *);
-static int	iwm_firmware_load_chunk(struct iwm_softc *, uint32_t,
-                                        const uint8_t *, uint32_t);
-static int	iwm_load_firmware(struct iwm_softc *, enum iwm_ucode_type);
-static int	iwm_start_fw(struct iwm_softc *, enum iwm_ucode_type);
+static int	iwm_pcie_load_section(struct iwm_softc *, uint8_t,
+				      const struct iwm_fw_desc *);
+static int	iwm_pcie_load_firmware_chunk(struct iwm_softc *, uint32_t,
+					     bus_addr_t, uint32_t);
+static int	iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
+						const struct iwm_fw_sects *,
+						int, int *);
+static int	iwm_pcie_load_cpu_sections(struct iwm_softc *,
+					   const struct iwm_fw_sects *,
+					   int, int *);
+static int	iwm_pcie_load_given_ucode_8000(struct iwm_softc *,
+					       const struct iwm_fw_sects *);
+static int	iwm_pcie_load_given_ucode(struct iwm_softc *,
+					  const struct iwm_fw_sects *);
+static int	iwm_start_fw(struct iwm_softc *, const struct iwm_fw_sects *);
 static int	iwm_send_tx_ant_cfg(struct iwm_softc *, uint8_t);
 static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
 static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
                                               enum iwm_ucode_type);
 static int	iwm_run_init_mvm_ucode(struct iwm_softc *, int);
 static int	iwm_rx_addbuf(struct iwm_softc *, int, int);
-static int	iwm_mvm_calc_rssi(struct iwm_softc *, struct iwm_rx_phy_info *);
 static int	iwm_mvm_get_signal_strength(struct iwm_softc *,
 					    struct iwm_rx_phy_info *);
 static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
-                                      struct iwm_rx_packet *,
-                                      struct iwm_rx_data *);
-static int	iwm_get_noise(const struct iwm_mvm_statistics_rx_non_phy *);
-static void	iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct iwm_rx_packet *,
-                                   struct iwm_rx_data *);
+                                      struct iwm_rx_packet *);
+static int	iwm_get_noise(struct iwm_softc *,
+		    const struct iwm_mvm_statistics_rx_non_phy *);
+static void	iwm_mvm_handle_rx_statistics(struct iwm_softc *,
+		    struct iwm_rx_packet *);
+static boolean_t iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct mbuf *,
+				    uint32_t, boolean_t);
 static int	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
                                          struct iwm_rx_packet *,
 				         struct iwm_node *);
-static void	iwm_mvm_rx_tx_cmd(struct iwm_softc *, struct iwm_rx_packet *,
-                                  struct iwm_rx_data *);
+static void	iwm_mvm_rx_tx_cmd(struct iwm_softc *, struct iwm_rx_packet *);
 static void	iwm_cmd_done(struct iwm_softc *, struct iwm_rx_packet *);
 #if 0
 static void	iwm_update_sched(struct iwm_softc *, int, int, uint8_t,
@@ -292,27 +342,13 @@ static void	iwm_update_sched(struct iwm_softc *, int, int, uint8_t,
 #endif
 static const struct iwm_rate *
 	iwm_tx_fill_cmd(struct iwm_softc *, struct iwm_node *,
-			struct ieee80211_frame *, struct iwm_tx_cmd *);
+			struct mbuf *, struct iwm_tx_cmd *);
 static int	iwm_tx(struct iwm_softc *, struct mbuf *,
                        struct ieee80211_node *, int);
 static int	iwm_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			     const struct ieee80211_bpf_params *);
-static void	iwm_mvm_add_sta_cmd_v6_to_v5(struct iwm_mvm_add_sta_cmd_v6 *,
-					     struct iwm_mvm_add_sta_cmd_v5 *);
-static int	iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *,
-					        struct iwm_mvm_add_sta_cmd_v6 *,
-                                                int *);
-static int	iwm_mvm_sta_send_to_fw(struct iwm_softc *, struct iwm_node *,
-                                       int);
-static int	iwm_mvm_add_sta(struct iwm_softc *, struct iwm_node *);
-static int	iwm_mvm_update_sta(struct iwm_softc *, struct iwm_node *);
-static int	iwm_mvm_add_int_sta_common(struct iwm_softc *,
-                                           struct iwm_int_sta *,
-				           const uint8_t *, uint16_t, uint16_t);
-static int	iwm_mvm_add_aux_sta(struct iwm_softc *);
-static int	iwm_mvm_update_quotas(struct iwm_softc *, struct iwm_node *);
+static int	iwm_mvm_update_quotas(struct iwm_softc *, struct iwm_vap *);
 static int	iwm_auth(struct ieee80211vap *, struct iwm_softc *);
-static int	iwm_assoc(struct ieee80211vap *, struct iwm_softc *);
 static int	iwm_release(struct iwm_softc *, struct iwm_node *);
 static struct ieee80211_node *
 		iwm_node_alloc(struct ieee80211vap *,
@@ -321,6 +357,11 @@ static void	iwm_setrates(struct iwm_softc *, struct iwm_node *);
 static int	iwm_media_change(struct ifnet *);
 static int	iwm_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwm_endscan_cb(void *, int);
+static int	iwm_send_bt_init_conf(struct iwm_softc *);
+static boolean_t iwm_mvm_is_lar_supported(struct iwm_softc *);
+static boolean_t iwm_mvm_is_wifi_mcc_supported(struct iwm_softc *);
+static int	iwm_send_update_mcc_cmd(struct iwm_softc *, const char *);
+static void	iwm_mvm_tt_tx_backoff(struct iwm_softc *, uint32_t);
 static int	iwm_init_hw(struct iwm_softc *);
 static void	iwm_init(struct iwm_softc *);
 static void	iwm_start(struct iwm_softc *);
@@ -331,10 +372,13 @@ static void	iwm_parent(struct ieee80211com *);
 static const char *
 		iwm_desc_lookup(uint32_t);
 static void	iwm_nic_error(struct iwm_softc *);
+static void	iwm_nic_umac_error(struct iwm_softc *);
 #endif
+static void	iwm_handle_rxb(struct iwm_softc *, struct mbuf *);
 static void	iwm_notif_intr(struct iwm_softc *);
 static void	iwm_intr(void *);
 static int	iwm_attach(device_t);
+static int	iwm_is_valid_ether_addr(uint8_t *);
 static void	iwm_preinit(void *);
 static int	iwm_detach_local(struct iwm_softc *sc, int);
 static void	iwm_init_task(void *);
@@ -346,6 +390,7 @@ static struct ieee80211vap *
 		               const uint8_t [IEEE80211_ADDR_LEN],
 		               const uint8_t [IEEE80211_ADDR_LEN]);
 static void	iwm_vap_delete(struct ieee80211vap *);
+static void	iwm_xmit_queue_drain(struct iwm_softc *);
 static void	iwm_scan_start(struct ieee80211com *);
 static void	iwm_scan_end(struct ieee80211com *);
 static void	iwm_update_mcast(struct ieee80211com *);
@@ -353,6 +398,9 @@ static void	iwm_set_channel(struct ieee80211com *);
 static void	iwm_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	iwm_scan_mindwell(struct ieee80211_scan_state *);
 static int	iwm_detach(device_t);
+
+static int	iwm_lar_disable = 0;
+TUNABLE_INT("hw.iwm.lar.disable", &iwm_lar_disable);
 
 /*
  * Firmware parser.
@@ -377,7 +425,7 @@ iwm_firmware_store_section(struct iwm_softc *sc,
     enum iwm_ucode_type type, const uint8_t *data, size_t dlen)
 {
 	struct iwm_fw_sects *fws;
-	struct iwm_fw_onesect *fwone;
+	struct iwm_fw_desc *fwone;
 
 	if (type >= IWM_UCODE_TYPE_MAX)
 		return EINVAL;
@@ -385,23 +433,24 @@ iwm_firmware_store_section(struct iwm_softc *sc,
 		return EINVAL;
 
 	fws = &sc->sc_fw.fw_sects[type];
-	if (fws->fw_count >= IWM_UCODE_SECT_MAX)
+	if (fws->fw_count >= IWM_UCODE_SECTION_MAX)
 		return EINVAL;
 
 	fwone = &fws->fw_sect[fws->fw_count];
 
 	/* first 32bit are device load offset */
-	memcpy(&fwone->fws_devoff, data, sizeof(uint32_t));
+	memcpy(&fwone->offset, data, sizeof(uint32_t));
 
 	/* rest is data */
-	fwone->fws_data = data + sizeof(uint32_t);
-	fwone->fws_len = dlen - sizeof(uint32_t);
+	fwone->data = data + sizeof(uint32_t);
+	fwone->len = dlen - sizeof(uint32_t);
 
 	fws->fw_count++;
-	fws->fw_totlen += fwone->fws_len;
 
 	return 0;
 }
+
+#define IWM_DEFAULT_SCAN_CHANNELS 40
 
 /* iwlwifi: iwl-drv.c */
 struct iwm_tlv_calib_data {
@@ -430,6 +479,56 @@ iwm_set_default_calib(struct iwm_softc *sc, const void *data)
 	return 0;
 }
 
+static int
+iwm_set_ucode_api_flags(struct iwm_softc *sc, const uint8_t *data,
+			struct iwm_ucode_capabilities *capa)
+{
+	const struct iwm_ucode_api *ucode_api = (const void *)data;
+	uint32_t api_index = le32toh(ucode_api->api_index);
+	uint32_t api_flags = le32toh(ucode_api->api_flags);
+	int i;
+
+	if (api_index >= howmany(IWM_NUM_UCODE_TLV_API, 32)) {
+		device_printf(sc->sc_dev,
+		    "api flags index %d larger than supported by driver\n",
+		    api_index);
+		/* don't return an error so we can load FW that has more bits */
+		return 0;
+	}
+
+	for (i = 0; i < 32; i++) {
+		if (api_flags & (1U << i))
+			setbit(capa->enabled_api, i + 32 * api_index);
+	}
+
+	return 0;
+}
+
+static int
+iwm_set_ucode_capabilities(struct iwm_softc *sc, const uint8_t *data,
+			   struct iwm_ucode_capabilities *capa)
+{
+	const struct iwm_ucode_capa *ucode_capa = (const void *)data;
+	uint32_t api_index = le32toh(ucode_capa->api_index);
+	uint32_t api_flags = le32toh(ucode_capa->api_capa);
+	int i;
+
+	if (api_index >= howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
+		device_printf(sc->sc_dev,
+		    "capa flags index %d larger than supported by driver\n",
+		    api_index);
+		/* don't return an error so we can load FW that has more bits */
+		return 0;
+	}
+
+	for (i = 0; i < 32; i++) {
+		if (api_flags & (1U << i))
+			setbit(capa->enabled_capa, i + 32 * api_index);
+	}
+
+	return 0;
+}
+
 static void
 iwm_fw_info_free(struct iwm_fw_info *fw)
 {
@@ -444,15 +543,21 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 {
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	const struct iwm_tlv_ucode_header *uhdr;
-	struct iwm_ucode_tlv tlv;
+	const struct iwm_ucode_tlv *tlv;
+	struct iwm_ucode_capabilities *capa = &sc->ucode_capa;
 	enum iwm_ucode_tlv_type tlv_type;
 	const struct firmware *fwp;
 	const uint8_t *data;
+	uint32_t tlv_len;
+	uint32_t usniffer_img;
+	const uint8_t *tlv_data;
+	uint32_t paging_mem_size;
+	int num_of_cpus;
 	int error = 0;
 	size_t len;
 
 	if (fw->fw_status == IWM_FW_STATUS_DONE &&
-	    ucode_type != IWM_UCODE_TYPE_INIT)
+	    ucode_type != IWM_UCODE_INIT)
 		return 0;
 
 	while (fw->fw_status == IWM_FW_STATUS_INPROGRESS)
@@ -467,15 +572,23 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	 * fw_fp will be set.
 	 */
 	IWM_UNLOCK(sc);
-	fwp = firmware_get(sc->sc_fwname);
+	fwp = firmware_get(sc->cfg->fw_name);
 	IWM_LOCK(sc);
 	if (fwp == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not read firmware %s (error %d)\n",
-		    sc->sc_fwname, error);
+		    sc->cfg->fw_name, error);
 		goto out;
 	}
 	fw->fw_fp = fwp;
+
+	/* (Re-)Initialize default values. */
+	capa->flags = 0;
+	capa->max_probe_length = IWM_DEFAULT_MAX_PROBE_LENGTH;
+	capa->n_scan_channels = IWM_DEFAULT_SCAN_CHANNELS;
+	memset(capa->enabled_capa, 0, sizeof(capa->enabled_capa));
+	memset(capa->enabled_api, 0, sizeof(capa->enabled_api));
+	memset(sc->sc_fw_mcc, 0, sizeof(sc->sc_fw_mcc));
 
 	/*
 	 * Parse firmware contents
@@ -485,26 +598,25 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	if (*(const uint32_t *)fw->fw_fp->data != 0
 	    || le32toh(uhdr->magic) != IWM_TLV_UCODE_MAGIC) {
 		device_printf(sc->sc_dev, "invalid firmware %s\n",
-		    sc->sc_fwname);
+		    sc->cfg->fw_name);
 		error = EINVAL;
 		goto out;
 	}
 
-	sc->sc_fwver = le32toh(uhdr->ver);
+	snprintf(sc->sc_fwver, sizeof(sc->sc_fwver), "%u.%u (API ver %u)",
+	    IWM_UCODE_MAJOR(le32toh(uhdr->ver)),
+	    IWM_UCODE_MINOR(le32toh(uhdr->ver)),
+	    IWM_UCODE_API(le32toh(uhdr->ver)));
 	data = uhdr->data;
 	len = fw->fw_fp->datasize - sizeof(*uhdr);
 
-	while (len >= sizeof(tlv)) {
-		size_t tlv_len;
-		const void *tlv_data;
+	while (len >= sizeof(*tlv)) {
+		len -= sizeof(*tlv);
+		tlv = (const void *)data;
 
-		memcpy(&tlv, data, sizeof(tlv));
-		tlv_len = le32toh(tlv.length);
-		tlv_type = le32toh(tlv.type);
-
-		len -= sizeof(tlv);
-		data += sizeof(tlv);
-		tlv_data = data;
+		tlv_len = le32toh(tlv->length);
+		tlv_type = le32toh(tlv->type);
+		tlv_data = tlv->data;
 
 		if (len < tlv_len) {
 			device_printf(sc->sc_dev,
@@ -513,21 +625,24 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			error = EINVAL;
 			goto parse_out;
 		}
+		len -= roundup2(tlv_len, 4);
+		data += sizeof(tlv) + roundup2(tlv_len, 4);
 
 		switch ((int)tlv_type) {
 		case IWM_UCODE_TLV_PROBE_MAX_LEN:
-			if (tlv_len < sizeof(uint32_t)) {
+			if (tlv_len != sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: PROBE_MAX_LEN (%d) < sizeof(uint32_t)\n",
+				    "%s: PROBE_MAX_LEN (%d) != sizeof(uint32_t)\n",
 				    __func__,
 				    (int) tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
-			sc->sc_capa_max_probe_len
-			    = le32toh(*(const uint32_t *)tlv_data);
+			capa->max_probe_length =
+			    le32_to_cpup((const uint32_t *)tlv_data);
 			/* limit it to something sensible */
-			if (sc->sc_capa_max_probe_len > (1<<16)) {
+			if (capa->max_probe_length >
+			    IWM_SCAN_OFFLOAD_PROBE_REQ_SIZE) {
 				IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
 				    "%s: IWM_UCODE_TLV_PROBE_MAX_LEN "
 				    "ridiculous\n", __func__);
@@ -544,12 +659,20 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
-			sc->sc_capaflags |= IWM_UCODE_TLV_FLAGS_PAN;
+			capa->flags |= IWM_UCODE_TLV_FLAGS_PAN;
 			break;
 		case IWM_UCODE_TLV_FLAGS:
 			if (tlv_len < sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
 				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%d) < sizeof(uint32_t)\n",
+				    __func__,
+				    (int) tlv_len);
+				error = EINVAL;
+				goto parse_out;
+			}
+			if (tlv_len % sizeof(uint32_t)) {
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%d) %% sizeof(uint32_t)\n",
 				    __func__,
 				    (int) tlv_len);
 				error = EINVAL;
@@ -566,7 +689,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			 *  2) TLV_FLAGS contains TLV_FLAGS_PAN
 			 * ==> this resets TLV_PAN to itself... hnnnk
 			 */
-			sc->sc_capaflags = le32toh(*(const uint32_t *)tlv_data);
+			capa->flags = le32_to_cpup((const uint32_t *)tlv_data);
 			break;
 		case IWM_UCODE_TLV_CSCHEME:
 			if ((error = iwm_store_cscheme(sc,
@@ -581,16 +704,23 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		case IWM_UCODE_TLV_NUM_OF_CPU:
 			if (tlv_len != sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_NUM_OF_CPU: tlv_len (%d) < sizeof(uint32_t)\n",
+				    "%s: IWM_UCODE_TLV_NUM_OF_CPU: tlv_len (%d) != sizeof(uint32_t)\n",
 				    __func__,
 				    (int) tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
-			if (le32toh(*(const uint32_t*)tlv_data) != 1) {
+			num_of_cpus = le32_to_cpup((const uint32_t *)tlv_data);
+			if (num_of_cpus == 2) {
+				fw->fw_sects[IWM_UCODE_REGULAR].is_dual_cpus =
+					TRUE;
+				fw->fw_sects[IWM_UCODE_INIT].is_dual_cpus =
+					TRUE;
+				fw->fw_sects[IWM_UCODE_WOWLAN].is_dual_cpus =
+					TRUE;
+			} else if ((num_of_cpus > 2) || (num_of_cpus < 1)) {
 				device_printf(sc->sc_dev,
-				    "%s: driver supports "
-				    "only TLV_NUM_OF_CPU == 1",
+				    "%s: Driver supports only 1 or 2 CPUs\n",
 				    __func__);
 				error = EINVAL;
 				goto parse_out;
@@ -598,9 +728,9 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			break;
 		case IWM_UCODE_TLV_SEC_RT:
 			if ((error = iwm_firmware_store_section(sc,
-			    IWM_UCODE_TYPE_REGULAR, tlv_data, tlv_len)) != 0) {
+			    IWM_UCODE_REGULAR, tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TYPE_REGULAR: iwm_firmware_store_section() failed; %d\n",
+				    "%s: IWM_UCODE_REGULAR: iwm_firmware_store_section() failed; %d\n",
 				    __func__,
 				    error);
 				goto parse_out;
@@ -608,9 +738,9 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			break;
 		case IWM_UCODE_TLV_SEC_INIT:
 			if ((error = iwm_firmware_store_section(sc,
-			    IWM_UCODE_TYPE_INIT, tlv_data, tlv_len)) != 0) {
+			    IWM_UCODE_INIT, tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TYPE_INIT: iwm_firmware_store_section() failed; %d\n",
+				    "%s: IWM_UCODE_INIT: iwm_firmware_store_section() failed; %d\n",
 				    __func__,
 				    error);
 				goto parse_out;
@@ -618,9 +748,9 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			break;
 		case IWM_UCODE_TLV_SEC_WOWLAN:
 			if ((error = iwm_firmware_store_section(sc,
-			    IWM_UCODE_TYPE_WOW, tlv_data, tlv_len)) != 0) {
+			    IWM_UCODE_WOWLAN, tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TYPE_WOW: iwm_firmware_store_section() failed; %d\n",
+				    "%s: IWM_UCODE_WOWLAN: iwm_firmware_store_section() failed; %d\n",
 				    __func__,
 				    error);
 				goto parse_out;
@@ -653,13 +783,107 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				    (int) tlv_len);
 				goto parse_out;
 			}
-			sc->sc_fw_phy_config =
-			    le32toh(*(const uint32_t *)tlv_data);
+			sc->sc_fw.phy_config =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			sc->sc_fw.valid_tx_ant = (sc->sc_fw.phy_config &
+						  IWM_FW_PHY_CFG_TX_CHAIN) >>
+						  IWM_FW_PHY_CFG_TX_CHAIN_POS;
+			sc->sc_fw.valid_rx_ant = (sc->sc_fw.phy_config &
+						  IWM_FW_PHY_CFG_RX_CHAIN) >>
+						  IWM_FW_PHY_CFG_RX_CHAIN_POS;
 			break;
 
-		case IWM_UCODE_TLV_API_CHANGES_SET:
-		case IWM_UCODE_TLV_ENABLED_CAPABILITIES:
+		case IWM_UCODE_TLV_API_CHANGES_SET: {
+			if (tlv_len != sizeof(struct iwm_ucode_api)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			if (iwm_set_ucode_api_flags(sc, tlv_data, capa)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			break;
+		}
+
+		case IWM_UCODE_TLV_ENABLED_CAPABILITIES: {
+			if (tlv_len != sizeof(struct iwm_ucode_capa)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			if (iwm_set_ucode_capabilities(sc, tlv_data, capa)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			break;
+		}
+
+		case 48: /* undocumented TLV */
+		case IWM_UCODE_TLV_SDIO_ADMA_ADDR:
+		case IWM_UCODE_TLV_FW_GSCAN_CAPA:
 			/* ignore, not used by current driver */
+			break;
+
+		case IWM_UCODE_TLV_SEC_RT_USNIFFER:
+			if ((error = iwm_firmware_store_section(sc,
+			    IWM_UCODE_REGULAR_USNIFFER, tlv_data,
+			    tlv_len)) != 0)
+				goto parse_out;
+			break;
+
+		case IWM_UCODE_TLV_PAGING:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			paging_mem_size = le32_to_cpup((const uint32_t *)tlv_data);
+
+			IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
+			    "%s: Paging: paging enabled (size = %u bytes)\n",
+			    __func__, paging_mem_size);
+			if (paging_mem_size > IWM_MAX_PAGING_IMAGE_SIZE) {
+				device_printf(sc->sc_dev,
+					"%s: Paging: driver supports up to %u bytes for paging image\n",
+					__func__, IWM_MAX_PAGING_IMAGE_SIZE);
+				error = EINVAL;
+				goto out;
+			}
+			if (paging_mem_size & (IWM_FW_PAGING_SIZE - 1)) {
+				device_printf(sc->sc_dev,
+				    "%s: Paging: image isn't multiple %u\n",
+				    __func__, IWM_FW_PAGING_SIZE);
+				error = EINVAL;
+				goto out;
+			}
+
+			sc->sc_fw.fw_sects[IWM_UCODE_REGULAR].paging_mem_size =
+			    paging_mem_size;
+			usniffer_img = IWM_UCODE_REGULAR_USNIFFER;
+			sc->sc_fw.fw_sects[usniffer_img].paging_mem_size =
+			    paging_mem_size;
+			break;
+
+		case IWM_UCODE_TLV_N_SCAN_CHANNELS:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			capa->n_scan_channels =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
+		case IWM_UCODE_TLV_FW_VERSION:
+			if (tlv_len != sizeof(uint32_t) * 3) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			snprintf(sc->sc_fwver, sizeof(sc->sc_fwver),
+			    "%d.%d.%d",
+			    le32toh(((const uint32_t *)tlv_data)[0]),
+			    le32toh(((const uint32_t *)tlv_data)[1]),
+			    le32toh(((const uint32_t *)tlv_data)[2]));
+			break;
+
+		case IWM_UCODE_TLV_FW_MEM_SEG:
 			break;
 
 		default:
@@ -669,9 +893,6 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			error = EINVAL;
 			goto parse_out;
 		}
-
-		len -= roundup(tlv_len, 4);
-		data += roundup(tlv_len, 4);
 	}
 
 	KASSERT(error == 0, ("unhandled error"));
@@ -680,12 +901,6 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	if (error) {
 		device_printf(sc->sc_dev, "firmware parse error %d, "
 		    "section type %d\n", error, tlv_type);
-	}
-
-	if (!(sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)) {
-		device_printf(sc->sc_dev,
-		    "device uses unsupported power ops\n");
-		error = ENOTSUP;
 	}
 
  out:
@@ -704,100 +919,22 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
  * DMA resource routines
  */
 
-static void
-iwm_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{
-        if (error != 0)
-                return;
-	KASSERT(nsegs == 1, ("too many DMA segments, %d should be 1", nsegs));
-        *(bus_addr_t *)arg = segs[0].ds_addr;
-}
-
-static int
-iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
-    bus_size_t size, bus_size_t alignment)
-{
-	int error;
-
-	dma->tag = NULL;
-	dma->size = size;
-
-	error = bus_dma_tag_create(tag, alignment,
-            0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-            1, size, 0, NULL, NULL, &dma->tag);
-        if (error != 0)
-                goto fail;
-
-        error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
-            BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &dma->map);
-        if (error != 0)
-                goto fail;
-
-        error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
-            iwm_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
-        if (error != 0)
-                goto fail;
-
-	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
-
-	return 0;
-
-fail:	iwm_dma_contig_free(dma);
-	return error;
-}
-
-static void
-iwm_dma_contig_free(struct iwm_dma_info *dma)
-{
-	if (dma->map != NULL) {
-		if (dma->vaddr != NULL) {
-			bus_dmamap_sync(dma->tag, dma->map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(dma->tag, dma->map);
-			bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
-			dma->vaddr = NULL;
-		}
-		bus_dmamap_destroy(dma->tag, dma->map);
-		dma->map = NULL;
-	}
-	if (dma->tag != NULL) {
-		bus_dma_tag_destroy(dma->tag);
-		dma->tag = NULL;
-	}
-
-}
-
 /* fwmem is used to load firmware onto the card */
 static int
 iwm_alloc_fwmem(struct iwm_softc *sc)
 {
 	/* Must be aligned on a 16-byte boundary. */
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->fw_dma,
-	    sc->sc_fwdmasegsz, 16);
-}
-
-static void
-iwm_free_fwmem(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->fw_dma);
+	    IWM_FH_MEM_TB_MAX_LENGTH, 16);
 }
 
 /* tx scheduler rings.  not used? */
 static int
 iwm_alloc_sched(struct iwm_softc *sc)
 {
-	int rv;
-
 	/* TX scheduler rings must be aligned on a 1KB boundary. */
-	rv = iwm_dma_contig_alloc(sc->sc_dmat, &sc->sched_dma,
+	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->sched_dma,
 	    nitems(sc->txq) * sizeof(struct iwm_agn_scd_bc_tbl), 1024);
-	return rv;
-}
-
-static void
-iwm_free_sched(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->sched_dma);
 }
 
 /* keep-warm page is used internally by the card.  see iwl-fh.h for more info */
@@ -807,24 +944,12 @@ iwm_alloc_kw(struct iwm_softc *sc)
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->kw_dma, 4096, 4096);
 }
 
-static void
-iwm_free_kw(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->kw_dma);
-}
-
 /* interrupt cause table */
 static int
 iwm_alloc_ict(struct iwm_softc *sc)
 {
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->ict_dma,
 	    IWM_ICT_SIZE, 1<<IWM_ICT_PADDR_SHIFT);
-}
-
-static void
-iwm_free_ict(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->ict_dma);
 }
 
 static int
@@ -866,10 +991,28 @@ iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
                 goto fail;
         }
 
+	/* Allocate spare bus_dmamap_t for iwm_rx_addbuf() */
+	error = bus_dmamap_create(ring->data_dmat, 0, &ring->spare_map);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not create RX buf DMA map, error %d\n",
+		    __func__, error);
+		goto fail;
+	}
 	/*
 	 * Allocate and map RX buffers.
 	 */
 	for (i = 0; i < IWM_RX_RING_COUNT; i++) {
+		struct iwm_rx_data *data = &ring->data[i];
+		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not create RX buf DMA map, error %d\n",
+			    __func__, error);
+			goto fail;
+		}
+		data->m = NULL;
+
 		if ((error = iwm_rx_addbuf(sc, IWM_RBUF_SIZE, i)) != 0) {
 			goto fail;
 		}
@@ -881,22 +1024,15 @@ fail:	iwm_free_rx_ring(sc, ring);
 }
 
 static void
-iwm_disable_rx_dma(struct iwm_softc *sc)
-{
-
-	/* XXX print out if we can't lock the NIC? */
-	if (iwm_nic_lock(sc)) {
-		/* XXX handle if RX stop doesn't finish? */
-		(void) iwm_pcie_rx_stop(sc);
-		iwm_nic_unlock(sc);
-	}
-}
-
-static void
 iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 {
 	/* Reset the ring state */
 	ring->cur = 0;
+
+	/*
+	 * The hw rx ring index in shared memory must also be cleared,
+	 * otherwise the discrepancy can cause reprocessing chaos.
+	 */
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 }
 
@@ -923,6 +1059,10 @@ iwm_free_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 			data->map = NULL;
 		}
 	}
+	if (ring->spare_map != NULL) {
+		bus_dmamap_destroy(ring->data_dmat, ring->spare_map);
+		ring->spare_map = NULL;
+	}
 	if (ring->data_dmat != NULL) {
 		bus_dma_tag_destroy(ring->data_dmat);
 		ring->data_dmat = NULL;
@@ -934,6 +1074,8 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 {
 	bus_addr_t paddr;
 	bus_size_t size;
+	size_t maxsize;
+	int nsegments;
 	int i, error;
 
 	ring->qid = qid;
@@ -966,9 +1108,18 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	}
 	ring->cmd = ring->cmd_dma.vaddr;
 
+	/* FW commands may require more mapped space than packets. */
+	if (qid == IWM_MVM_CMD_QUEUE) {
+		maxsize = IWM_RBUF_SIZE;
+		nsegments = 1;
+	} else {
+		maxsize = MCLBYTES;
+		nsegments = IWM_MAX_SCATTER - 2;
+	}
+
 	error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-            IWM_MAX_SCATTER - 2, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, maxsize,
+            nsegments, maxsize, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create TX buf DMA tag\n");
 		goto fail;
@@ -1021,6 +1172,9 @@ iwm_reset_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 	sc->qfullmsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
+
+	if (ring->qid == IWM_MVM_CMD_QUEUE && sc->cmd_hold_nic_awake)
+		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
 static void
@@ -1092,6 +1246,7 @@ iwm_ict_reset(struct iwm_softc *sc)
 	/* Set physical address of ICT table (4KB aligned). */
 	IWM_WRITE(sc, IWM_CSR_DRAM_INT_TBL_REG,
 	    IWM_CSR_DRAM_INT_TBL_ENABLE
+	    | IWM_CSR_DRAM_INIT_TBL_WRITE_POINTER
 	    | IWM_CSR_DRAM_INIT_TBL_WRAP_CHECK
 	    | sc->ict_dma.paddr >> IWM_ICT_PADDR_SHIFT);
 
@@ -1117,8 +1272,8 @@ iwm_stop_device(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	int chnl, ntries;
-	int qid;
+	int chnl, qid;
+	uint32_t mask = 0;
 
 	/* tell the device to stop sending interrupts */
 	iwm_disable_interrupts(sc);
@@ -1130,6 +1285,7 @@ iwm_stop_device(struct iwm_softc *sc)
 	 */
 	if (vap) {
 		struct iwm_vap *iv = IWM_VAP(vap);
+		iv->phy_ctxt = NULL;
 		iv->is_uploaded = 0;
 	}
 
@@ -1138,26 +1294,26 @@ iwm_stop_device(struct iwm_softc *sc)
 
 	/* stop tx and rx.  tx and rx bits, as usual, are from if_iwn */
 
-	iwm_write_prph(sc, IWM_SCD_TXFACT, 0);
-
-	/* Stop all DMA channels. */
 	if (iwm_nic_lock(sc)) {
+		iwm_write_prph(sc, IWM_SCD_TXFACT, 0);
+
+		/* Stop each Tx DMA channel */
 		for (chnl = 0; chnl < IWM_FH_TCSR_CHNL_NUM; chnl++) {
 			IWM_WRITE(sc,
 			    IWM_FH_TCSR_CHNL_TX_CONFIG_REG(chnl), 0);
-			for (ntries = 0; ntries < 200; ntries++) {
-				uint32_t r;
+			mask |= IWM_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(chnl);
+		}
 
-				r = IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG);
-				if (r & IWM_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(
-				    chnl))
-					break;
-				DELAY(20);
-			}
+		/* Wait for DMA channels to be idle */
+		if (!iwm_poll_bit(sc, IWM_FH_TSSR_TX_STATUS_REG, mask, mask,
+		    5000)) {
+			device_printf(sc->sc_dev,
+			    "Failing on timeout while stopping DMA channel: [0x%08x]\n",
+			    IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG));
 		}
 		iwm_nic_unlock(sc);
 	}
-	iwm_disable_rx_dma(sc);
+	iwm_pcie_rx_stop(sc);
 
 	/* Stop RX ring. */
 	iwm_reset_rx_ring(sc, &sc->rxq);
@@ -1166,11 +1322,15 @@ iwm_stop_device(struct iwm_softc *sc)
 	for (qid = 0; qid < nitems(sc->txq); qid++)
 		iwm_reset_tx_ring(sc, &sc->txq[qid]);
 
-	/*
-	 * Power-down device's busmaster DMA clocks
-	 */
-	iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG, IWM_APMG_CLK_VAL_DMA_CLK_RQT);
-	DELAY(5);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
+		/* Power-down device's busmaster DMA clocks */
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG,
+			    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+			iwm_nic_unlock(sc);
+		}
+		DELAY(5);
+	}
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
@@ -1184,7 +1344,7 @@ iwm_stop_device(struct iwm_softc *sc)
 	 */
 	iwm_disable_interrupts(sc);
 	/* stop and reset the on-board processor */
-	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_NEVO_RESET);
+	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
 
 	/*
 	 * Even if we stop the HW, we still want the RF kill
@@ -1200,12 +1360,13 @@ iwm_mvm_nic_config(struct iwm_softc *sc)
 {
 	uint8_t radio_cfg_type, radio_cfg_step, radio_cfg_dash;
 	uint32_t reg_val = 0;
+	uint32_t phy_config = iwm_mvm_get_phy_config(sc);
 
-	radio_cfg_type = (sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RADIO_TYPE) >>
+	radio_cfg_type = (phy_config & IWM_FW_PHY_CFG_RADIO_TYPE) >>
 	    IWM_FW_PHY_CFG_RADIO_TYPE_POS;
-	radio_cfg_step = (sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RADIO_STEP) >>
+	radio_cfg_step = (phy_config & IWM_FW_PHY_CFG_RADIO_STEP) >>
 	    IWM_FW_PHY_CFG_RADIO_STEP_POS;
-	radio_cfg_dash = (sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RADIO_DASH) >>
+	radio_cfg_dash = (phy_config & IWM_FW_PHY_CFG_RADIO_DASH) >>
 	    IWM_FW_PHY_CFG_RADIO_DASH_POS;
 
 	/* SKU control */
@@ -1230,24 +1391,28 @@ iwm_mvm_nic_config(struct iwm_softc *sc)
 	 * (PCIe power is lost before PERST# is asserted), causing ME FW
 	 * to lose ownership and not being able to obtain it back.
 	 */
-	iwm_set_bits_mask_prph(sc, IWM_APMG_PS_CTRL_REG,
-	    IWM_APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
-	    ~IWM_APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
+		iwm_set_bits_mask_prph(sc, IWM_APMG_PS_CTRL_REG,
+		    IWM_APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+		    ~IWM_APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+	}
 }
 
 static int
 iwm_nic_rx_init(struct iwm_softc *sc)
 {
-	if (!iwm_nic_lock(sc))
-		return EBUSY;
-
 	/*
 	 * Initialize RX ring.  This is from the iwn driver.
 	 */
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 
-	/* stop DMA */
-	iwm_disable_rx_dma(sc);
+	/* Stop Rx DMA */
+	iwm_pcie_rx_stop(sc);
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
+
+	/* reset and flush pointers */
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_RBDCB_WPTR, 0);
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_FLUSH_RB_REQ, 0);
 	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_RDPTR, 0);
@@ -1261,31 +1426,34 @@ iwm_nic_rx_init(struct iwm_softc *sc)
 	IWM_WRITE(sc,
 	    IWM_FH_RSCSR_CHNL0_STTS_WPTR_REG, sc->rxq.stat_dma.paddr >> 4);
 
-	/* Enable RX. */
-	/*
-	 * Note: Linux driver also sets this:
-	 *  (IWM_RX_RB_TIMEOUT << IWM_FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS) |
-	 *
-	 * It causes weird behavior.  YMMV.
+	/* Enable Rx DMA
+	 * XXX 5000 HW isn't supported by the iwm(4) driver.
+	 * IWM_FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
+	 *      the credit mechanism in 5000 HW RX FIFO
+	 * Direct rx interrupts to hosts
+	 * Rx buffer size 4 or 8k or 12k
+	 * RB timeout 0x10
+	 * 256 RBDs
 	 */
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG,
 	    IWM_FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL		|
 	    IWM_FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY		|  /* HW bug */
 	    IWM_FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL	|
 	    IWM_FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K		|
+	    (IWM_RX_RB_TIMEOUT << IWM_FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS) |
 	    IWM_RX_QUEUE_SIZE_LOG << IWM_FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS);
 
 	IWM_WRITE_1(sc, IWM_CSR_INT_COALESCING, IWM_HOST_INT_TIMEOUT_DEF);
 
 	/* W/A for interrupt coalescing bug in 7260 and 3160 */
-	if (sc->host_interrupt_operation_mode)
+	if (sc->cfg->host_interrupt_operation_mode)
 		IWM_SETBITS(sc, IWM_CSR_INT_COALESCING, IWM_HOST_INT_OPER_MODE);
 
 	/*
 	 * Thus sayeth el jefe (iwlwifi) via a comment:
 	 *
 	 * This value should initially be 0 (before preparing any
- 	 * RBs), should be 8 after preparing the first 8 RBs (for example)
+	 * RBs), should be 8 after preparing the first 8 RBs (for example)
 	 */
 	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_WPTR, 8);
 
@@ -1321,6 +1489,9 @@ iwm_nic_tx_init(struct iwm_softc *sc)
 		    qid, txq->desc,
 		    (unsigned long) (txq->desc_dma.paddr >> 8));
 	}
+
+	iwm_write_prph(sc, IWM_SCD_GP_CTRL, IWM_SCD_GP_CTRL_AUTO_ACTIVE_MODE);
+
 	iwm_nic_unlock(sc);
 
 	return 0;
@@ -1332,7 +1503,8 @@ iwm_nic_init(struct iwm_softc *sc)
 	int error;
 
 	iwm_apm_init(sc);
-	iwm_set_pwr(sc);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000)
+		iwm_set_pwr(sc);
 
 	iwm_mvm_nic_config(sc);
 
@@ -1352,97 +1524,141 @@ iwm_nic_init(struct iwm_softc *sc)
 	return 0;
 }
 
-const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
-	IWM_MVM_TX_FIFO_VO,
-	IWM_MVM_TX_FIFO_VI,
-	IWM_MVM_TX_FIFO_BE,
-	IWM_MVM_TX_FIFO_BK,
-};
-
-static void
-iwm_enable_txq(struct iwm_softc *sc, int qid, int fifo)
+int
+iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 {
 	if (!iwm_nic_lock(sc)) {
 		device_printf(sc->sc_dev,
 		    "%s: cannot enable txq %d\n",
 		    __func__,
 		    qid);
-		return; /* XXX return EBUSY */
+		return EBUSY;
 	}
-
-	/* unactivate before configuration */
-	iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
-	    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE)
-	    | (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
-
-	if (qid != IWM_MVM_CMD_QUEUE) {
-		iwm_set_bits_prph(sc, IWM_SCD_QUEUECHAIN_SEL, (1 << qid));
-	}
-
-	iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
 
 	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
-	iwm_write_prph(sc, IWM_SCD_QUEUE_RDPTR(qid), 0);
 
-	iwm_write_mem32(sc, sc->sched_base + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
-	/* Set scheduler window size and frame limit. */
-	iwm_write_mem32(sc,
-	    sc->sched_base + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
-	    sizeof(uint32_t),
-	    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-	    IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
-	    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-	    IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+	if (qid == IWM_MVM_CMD_QUEUE) {
+		/* unactivate before configuration */
+		iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
+		    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE)
+		    | (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 
-	iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
-	    (1 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-	    (fifo << IWM_SCD_QUEUE_STTS_REG_POS_TXF) |
-	    (1 << IWM_SCD_QUEUE_STTS_REG_POS_WSL) |
-	    IWM_SCD_QUEUE_STTS_REG_MSK);
+		iwm_nic_unlock(sc);
+
+		iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
+
+		if (!iwm_nic_lock(sc)) {
+			device_printf(sc->sc_dev,
+			    "%s: cannot enable txq %d\n", __func__, qid);
+			return EBUSY;
+		}
+		iwm_write_prph(sc, IWM_SCD_QUEUE_RDPTR(qid), 0);
+		iwm_nic_unlock(sc);
+
+		iwm_write_mem32(sc, sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
+		/* Set scheduler window size and frame limit. */
+		iwm_write_mem32(sc,
+		    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
+		    sizeof(uint32_t),
+		    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+		    IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+		    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+		    IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+
+		if (!iwm_nic_lock(sc)) {
+			device_printf(sc->sc_dev,
+			    "%s: cannot enable txq %d\n", __func__, qid);
+			return EBUSY;
+		}
+		iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
+		    (1 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+		    (fifo << IWM_SCD_QUEUE_STTS_REG_POS_TXF) |
+		    (1 << IWM_SCD_QUEUE_STTS_REG_POS_WSL) |
+		    IWM_SCD_QUEUE_STTS_REG_MSK);
+	} else {
+		struct iwm_scd_txq_cfg_cmd cmd;
+		int error;
+
+		iwm_nic_unlock(sc);
+
+		memset(&cmd, 0, sizeof(cmd));
+		cmd.scd_queue = qid;
+		cmd.enable = 1;
+		cmd.sta_id = sta_id;
+		cmd.tx_fifo = fifo;
+		cmd.aggregate = 0;
+		cmd.window = IWM_FRAME_LIMIT;
+
+		error = iwm_mvm_send_cmd_pdu(sc, IWM_SCD_QUEUE_CFG, IWM_CMD_SYNC,
+		    sizeof(cmd), &cmd);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "cannot enable txq %d\n", qid);
+			return error;
+		}
+
+		if (!iwm_nic_lock(sc))
+			return EBUSY;
+	}
+
+	iwm_write_prph(sc, IWM_SCD_EN_CTRL,
+	    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | qid);
 
 	iwm_nic_unlock(sc);
 
-	IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
-	    "%s: enabled txq %d FIFO %d\n",
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT, "%s: enabled txq %d FIFO %d\n",
 	    __func__, qid, fifo);
+
+	return 0;
 }
 
 static int
-iwm_post_alive(struct iwm_softc *sc)
+iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 {
-	int nwords;
 	int error, chnl;
+
+	int clear_dwords = (IWM_SCD_TRANS_TBL_MEM_UPPER_BOUND -
+	    IWM_SCD_CONTEXT_MEM_LOWER_BOUND) / sizeof(uint32_t);
 
 	if (!iwm_nic_lock(sc))
 		return EBUSY;
 
-	if (sc->sched_base != iwm_read_prph(sc, IWM_SCD_SRAM_BASE_ADDR)) {
-		device_printf(sc->sc_dev,
-		    "%s: sched addr mismatch",
-		    __func__);
-		error = EINVAL;
-		goto out;
-	}
-
 	iwm_ict_reset(sc);
 
-	/* Clear TX scheduler state in SRAM. */
-	nwords = (IWM_SCD_TRANS_TBL_MEM_UPPER_BOUND -
-	    IWM_SCD_CONTEXT_MEM_LOWER_BOUND)
-	    / sizeof(uint32_t);
+	sc->scd_base_addr = iwm_read_prph(sc, IWM_SCD_SRAM_BASE_ADDR);
+	if (scd_base_addr != 0 &&
+	    scd_base_addr != sc->scd_base_addr) {
+		device_printf(sc->sc_dev,
+		    "%s: sched addr mismatch: alive: 0x%x prph: 0x%x\n",
+		    __func__, sc->scd_base_addr, scd_base_addr);
+	}
+
+	iwm_nic_unlock(sc);
+
+	/* reset context data, TX status and translation data */
 	error = iwm_write_mem(sc,
-	    sc->sched_base + IWM_SCD_CONTEXT_MEM_LOWER_BOUND,
-	    NULL, nwords);
+	    sc->scd_base_addr + IWM_SCD_CONTEXT_MEM_LOWER_BOUND,
+	    NULL, clear_dwords);
 	if (error)
-		goto out;
+		return EBUSY;
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
 
 	/* Set physical address of TX scheduler rings (1KB aligned). */
 	iwm_write_prph(sc, IWM_SCD_DRAM_BASE_ADDR, sc->sched_dma.paddr >> 10);
 
 	iwm_write_prph(sc, IWM_SCD_CHAINEXT_EN, 0);
 
+	iwm_nic_unlock(sc);
+
 	/* enable command channel */
-	iwm_enable_txq(sc, IWM_MVM_CMD_QUEUE, 7);
+	error = iwm_enable_txq(sc, 0 /* unused */, IWM_MVM_CMD_QUEUE, 7);
+	if (error)
+		return error;
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
 
 	iwm_write_prph(sc, IWM_SCD_TXFACT, 0xff);
 
@@ -1456,12 +1672,14 @@ iwm_post_alive(struct iwm_softc *sc)
 	IWM_SETBITS(sc, IWM_FH_TX_CHICKEN_BITS_REG,
 	    IWM_FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
-	/* Enable L1-Active */
-	iwm_clear_bits_prph(sc, IWM_APMG_PCIDEV_STT_REG,
-	    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+	iwm_nic_unlock(sc);
 
- out:
- 	iwm_nic_unlock(sc);
+	/* Enable L1-Active */
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+		iwm_clear_bits_prph(sc, IWM_APMG_PCIDEV_STT_REG,
+		    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+	}
+
 	return error;
 }
 
@@ -1471,26 +1689,22 @@ iwm_post_alive(struct iwm_softc *sc)
  * iwlwifi/mvm/nvm.c
  */
 
-/* list of NVM sections we are allowed/need to read */
-const int nvm_to_read[] = {
-	IWM_NVM_SECTION_TYPE_HW,
-	IWM_NVM_SECTION_TYPE_SW,
-	IWM_NVM_SECTION_TYPE_CALIBRATION,
-	IWM_NVM_SECTION_TYPE_PRODUCTION,
-};
-
 /* Default NVM size to read */
-#define IWM_NVM_DEFAULT_CHUNK_SIZE (2*1024)
-#define IWM_MAX_NVM_SECTION_SIZE 7000
+#define IWM_NVM_DEFAULT_CHUNK_SIZE	(2*1024)
 
 #define IWM_NVM_WRITE_OPCODE 1
 #define IWM_NVM_READ_OPCODE 0
+
+/* load nvm chunk response */
+enum {
+	IWM_READ_NVM_CHUNK_SUCCEED = 0,
+	IWM_READ_NVM_CHUNK_NOT_VALID_ADDRESS = 1
+};
 
 static int
 iwm_nvm_read_chunk(struct iwm_softc *sc, uint16_t section,
 	uint16_t offset, uint16_t length, uint8_t *data, uint16_t *len)
 {
-	offset = 0;
 	struct iwm_nvm_access_cmd nvm_access_cmd = {
 		.offset = htole16(offset),
 		.length = htole16(length),
@@ -1501,8 +1715,7 @@ iwm_nvm_read_chunk(struct iwm_softc *sc, uint16_t section,
 	struct iwm_rx_packet *pkt;
 	struct iwm_host_cmd cmd = {
 		.id = IWM_NVM_ACCESS_CMD,
-		.flags = IWM_CMD_SYNC | IWM_CMD_WANT_SKB |
-		    IWM_CMD_SEND_IN_RFKILL,
+		.flags = IWM_CMD_WANT_SKB | IWM_CMD_SEND_IN_RFKILL,
 		.data = { &nvm_access_cmd, },
 	};
 	int ret, bytes_read, offset_read;
@@ -1511,41 +1724,62 @@ iwm_nvm_read_chunk(struct iwm_softc *sc, uint16_t section,
 	cmd.len[0] = sizeof(struct iwm_nvm_access_cmd);
 
 	ret = iwm_send_cmd(sc, &cmd);
-	if (ret)
+	if (ret) {
+		device_printf(sc->sc_dev,
+		    "Could not send NVM_ACCESS command (error=%d)\n", ret);
 		return ret;
+	}
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWM_CMD_FAILED_MSK) {
-		device_printf(sc->sc_dev,
-		    "%s: Bad return from IWM_NVM_ACCES_COMMAND (0x%08X)\n",
-		    __func__, pkt->hdr.flags);
-		ret = EIO;
-		goto exit;
-	}
 
 	/* Extract NVM response */
 	nvm_resp = (void *)pkt->data;
-
 	ret = le16toh(nvm_resp->status);
 	bytes_read = le16toh(nvm_resp->length);
 	offset_read = le16toh(nvm_resp->offset);
 	resp_data = nvm_resp->data;
 	if (ret) {
-		device_printf(sc->sc_dev,
-		    "%s: NVM access command failed with status %d\n",
-		    __func__, ret);
-		ret = EINVAL;
+		if ((offset != 0) &&
+		    (ret == IWM_READ_NVM_CHUNK_NOT_VALID_ADDRESS)) {
+			/*
+			 * meaning of NOT_VALID_ADDRESS:
+			 * driver try to read chunk from address that is
+			 * multiple of 2K and got an error since addr is empty.
+			 * meaning of (offset != 0): driver already
+			 * read valid data from another chunk so this case
+			 * is not an error.
+			 */
+			IWM_DPRINTF(sc, IWM_DEBUG_EEPROM | IWM_DEBUG_RESET,
+				    "NVM access command failed on offset 0x%x since that section size is multiple 2K\n",
+				    offset);
+			*len = 0;
+			ret = 0;
+		} else {
+			IWM_DPRINTF(sc, IWM_DEBUG_EEPROM | IWM_DEBUG_RESET,
+				    "NVM access command failed with status %d\n", ret);
+			ret = EIO;
+		}
 		goto exit;
 	}
 
 	if (offset_read != offset) {
 		device_printf(sc->sc_dev,
-		    "%s: NVM ACCESS response with invalid offset %d\n",
-		    __func__, offset_read);
+		    "NVM ACCESS response with invalid offset %d\n",
+		    offset_read);
 		ret = EINVAL;
 		goto exit;
 	}
 
+	if (bytes_read > length) {
+		device_printf(sc->sc_dev,
+		    "NVM ACCESS response with too much data "
+		    "(%d bytes requested, %d bytes received)\n",
+		    length, bytes_read);
+		ret = EINVAL;
+		goto exit;
+	}
+
+	/* Write data to NVM */
 	memcpy(data + offset, resp_data, bytes_read);
 	*len = bytes_read;
 
@@ -1556,7 +1790,7 @@ iwm_nvm_read_chunk(struct iwm_softc *sc, uint16_t section,
 
 /*
  * Reads an NVM section completely.
- * NICs prior to 7000 family doesn't have a real NVM, but just read
+ * NICs prior to 7000 family don't have a real NVM, but just read
  * section 0 which is the EEPROM. Because the EEPROM reading is unlimited
  * by uCode, we need to manually check in this case that we don't
  * overflow and try to read more than the EEPROM size.
@@ -1566,31 +1800,39 @@ iwm_nvm_read_chunk(struct iwm_softc *sc, uint16_t section,
  */
 static int
 iwm_nvm_read_section(struct iwm_softc *sc,
-	uint16_t section, uint8_t *data, uint16_t *len)
+	uint16_t section, uint8_t *data, uint16_t *len, uint32_t size_read)
 {
-	uint16_t length, seglen;
-	int error;
+	uint16_t seglen, length, offset = 0;
+	int ret;
 
 	/* Set nvm section read length */
-	length = seglen = IWM_NVM_DEFAULT_CHUNK_SIZE;
-	*len = 0;
+	length = IWM_NVM_DEFAULT_CHUNK_SIZE;
+
+	seglen = length;
 
 	/* Read the NVM until exhausted (reading less than requested) */
 	while (seglen == length) {
-		error = iwm_nvm_read_chunk(sc,
-		    section, *len, length, data, &seglen);
-		if (error) {
+		/* Check no memory assumptions fail and cause an overflow */
+		if ((size_read + offset + length) >
+		    sc->cfg->eeprom_size) {
 			device_printf(sc->sc_dev,
-			    "Cannot read NVM from section "
-			    "%d offset %d, length %d\n",
-			    section, *len, length);
-			return error;
+			    "EEPROM size is too small for NVM\n");
+			return ENOBUFS;
 		}
-		*len += seglen;
+
+		ret = iwm_nvm_read_chunk(sc, section, offset, length, data, &seglen);
+		if (ret) {
+			IWM_DPRINTF(sc, IWM_DEBUG_EEPROM | IWM_DEBUG_RESET,
+				    "Cannot read NVM from section %d offset %d, length %d\n",
+				    section, offset, length);
+			return ret;
+		}
+		offset += seglen;
 	}
 
-	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-	    "NVM section %d read completed\n", section);
+	IWM_DPRINTF(sc, IWM_DEBUG_EEPROM | IWM_DEBUG_RESET,
+		    "NVM section %d read completed\n", section);
+	*len = offset;
 	return 0;
 }
 
@@ -1601,7 +1843,7 @@ iwm_nvm_read_section(struct iwm_softc *sc,
 /* iwlwifi/iwl-nvm-parse.c */
 
 /* NVM offsets (in words) definitions */
-enum wkp_nvm_offsets {
+enum iwm_nvm_offsets {
 	/* NVM HW-Section offset (in words) definitions */
 	IWM_HW_ADDR = 0x15,
 
@@ -1616,6 +1858,32 @@ enum wkp_nvm_offsets {
 /* NVM calibration section offset (in words) definitions */
 	IWM_NVM_CALIB_SECTION = 0x2B8,
 	IWM_XTAL_CALIB = 0x316 - IWM_NVM_CALIB_SECTION
+};
+
+enum iwm_8000_nvm_offsets {
+	/* NVM HW-Section offset (in words) definitions */
+	IWM_HW_ADDR0_WFPM_8000 = 0x12,
+	IWM_HW_ADDR1_WFPM_8000 = 0x16,
+	IWM_HW_ADDR0_PCIE_8000 = 0x8A,
+	IWM_HW_ADDR1_PCIE_8000 = 0x8E,
+	IWM_MAC_ADDRESS_OVERRIDE_8000 = 1,
+
+	/* NVM SW-Section offset (in words) definitions */
+	IWM_NVM_SW_SECTION_8000 = 0x1C0,
+	IWM_NVM_VERSION_8000 = 0,
+	IWM_RADIO_CFG_8000 = 0,
+	IWM_SKU_8000 = 2,
+	IWM_N_HW_ADDRS_8000 = 3,
+
+	/* NVM REGULATORY -Section offset (in words) definitions */
+	IWM_NVM_CHANNELS_8000 = 0,
+	IWM_NVM_LAR_OFFSET_8000_OLD = 0x4C7,
+	IWM_NVM_LAR_OFFSET_8000 = 0x507,
+	IWM_NVM_LAR_ENABLED_8000 = 0x7,
+
+	/* NVM calibration section offset (in words) definitions */
+	IWM_NVM_CALIB_SECTION_8000 = 0x2B8,
+	IWM_XTAL_CALIB_8000 = 0x316 - IWM_NVM_CALIB_SECTION_8000
 };
 
 /* SKU Capabilities (actual values from NVM definition) */
@@ -1634,6 +1902,13 @@ enum nvm_sku_bits {
 #define IWM_NVM_RF_CFG_TX_ANT_MSK(x) ((x >> 8)  & 0xF) /* bits 8-11  */
 #define IWM_NVM_RF_CFG_RX_ANT_MSK(x) ((x >> 12) & 0xF) /* bits 12-15 */
 
+#define IWM_NVM_RF_CFG_FLAVOR_MSK_8000(x)	(x & 0xF)
+#define IWM_NVM_RF_CFG_DASH_MSK_8000(x)		((x >> 4) & 0xF)
+#define IWM_NVM_RF_CFG_STEP_MSK_8000(x)		((x >> 8) & 0xF)
+#define IWM_NVM_RF_CFG_TYPE_MSK_8000(x)		((x >> 12) & 0xFFF)
+#define IWM_NVM_RF_CFG_TX_ANT_MSK_8000(x)	((x >> 24) & 0xF)
+#define IWM_NVM_RF_CFG_RX_ANT_MSK_8000(x)	((x >> 28) & 0xF)
+
 #define DEFAULT_MAX_TX_POWER 16
 
 /**
@@ -1642,7 +1917,7 @@ enum nvm_sku_bits {
  * @IWM_NVM_CHANNEL_IBSS: usable as an IBSS channel
  * @IWM_NVM_CHANNEL_ACTIVE: active scanning allowed
  * @IWM_NVM_CHANNEL_RADAR: radar detection required
- * XXX cannot find this (DFS) flag in iwl-nvm-parse.c
+ * XXX cannot find this (DFS) flag in iwm-nvm-parse.c
  * @IWM_NVM_CHANNEL_DFS: dynamic freq selection candidate
  * @IWM_NVM_CHANNEL_WIDE: 20 MHz channel okay (?)
  * @IWM_NVM_CHANNEL_40MHZ: 40 MHz channel okay (?)
@@ -1685,9 +1960,10 @@ iwm_eeprom_channel_flags(uint16_t ch_flags)
 
 static void
 iwm_add_channel_band(struct iwm_softc *sc, struct ieee80211_channel chans[],
-    int maxchans, int *nchans, int ch_idx, int ch_num, const uint8_t bands[])
+    int maxchans, int *nchans, int ch_idx, size_t ch_num,
+    const uint8_t bands[])
 {
-	const uint16_t * const nvm_ch_flags = sc->sc_nvm.nvm_ch_flags;
+	const uint16_t * const nvm_ch_flags = sc->nvm_data->nvm_ch_flags;
 	uint32_t nflags;
 	uint16_t ch_flags;
 	uint8_t ieee;
@@ -1695,7 +1971,10 @@ iwm_add_channel_band(struct iwm_softc *sc, struct ieee80211_channel chans[],
 
 	for (; ch_idx < ch_num; ch_idx++) {
 		ch_flags = le16_to_cpup(nvm_ch_flags + ch_idx);
-		ieee = iwm_nvm_channels[ch_idx];
+		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000)
+			ieee = iwm_nvm_channels[ch_idx];
+		else
+			ieee = iwm_nvm_channels_8000[ch_idx];
 
 		if (!(ch_flags & IWM_NVM_CHANNEL_VALID)) {
 			IWM_DPRINTF(sc, IWM_DEBUG_EEPROM,
@@ -1725,8 +2004,9 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
     struct ieee80211_channel chans[])
 {
 	struct iwm_softc *sc = ic->ic_softc;
-	struct iwm_nvm_data *data = &sc->sc_nvm;
+	struct iwm_nvm_data *data = sc->nvm_data;
 	uint8_t bands[IEEE80211_MODE_BYTES];
+	size_t ch_num;
 
 	memset(bands, 0, sizeof(bands));
 	/* 1-13: 11b/g channels. */
@@ -1741,166 +2021,433 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 	    IWM_NUM_2GHZ_CHANNELS - 1, IWM_NUM_2GHZ_CHANNELS, bands);
 
 	if (data->sku_cap_band_52GHz_enable) {
+		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000)
+			ch_num = nitems(iwm_nvm_channels);
+		else
+			ch_num = nitems(iwm_nvm_channels_8000);
 		memset(bands, 0, sizeof(bands));
 		setbit(bands, IEEE80211_MODE_11A);
 		iwm_add_channel_band(sc, chans, maxchans, nchans,
-		    IWM_NUM_2GHZ_CHANNELS, nitems(iwm_nvm_channels), bands);
+		    IWM_NUM_2GHZ_CHANNELS, ch_num, bands);
 	}
 }
 
-static int
-iwm_parse_nvm_data(struct iwm_softc *sc,
-	const uint16_t *nvm_hw, const uint16_t *nvm_sw,
-	const uint16_t *nvm_calib, uint8_t tx_chains, uint8_t rx_chains)
+static void
+iwm_set_hw_address_family_8000(struct iwm_softc *sc, struct iwm_nvm_data *data,
+	const uint16_t *mac_override, const uint16_t *nvm_hw)
 {
-	struct iwm_nvm_data *data = &sc->sc_nvm;
-	uint8_t hw_addr[IEEE80211_ADDR_LEN];
-	uint16_t radio_cfg, sku;
+	const uint8_t *hw_addr;
 
-	data->nvm_version = le16_to_cpup(nvm_sw + IWM_NVM_VERSION);
+	if (mac_override) {
+		static const uint8_t reserved_mac[] = {
+			0x02, 0xcc, 0xaa, 0xff, 0xee, 0x00
+		};
 
-	radio_cfg = le16_to_cpup(nvm_sw + IWM_RADIO_CFG);
-	data->radio_cfg_type = IWM_NVM_RF_CFG_TYPE_MSK(radio_cfg);
-	data->radio_cfg_step = IWM_NVM_RF_CFG_STEP_MSK(radio_cfg);
-	data->radio_cfg_dash = IWM_NVM_RF_CFG_DASH_MSK(radio_cfg);
-	data->radio_cfg_pnum = IWM_NVM_RF_CFG_PNUM_MSK(radio_cfg);
+		hw_addr = (const uint8_t *)(mac_override +
+				 IWM_MAC_ADDRESS_OVERRIDE_8000);
 
-	sku = le16_to_cpup(nvm_sw + IWM_SKU);
-	data->sku_cap_band_24GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_24GHZ;
-	data->sku_cap_band_52GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_52GHZ;
-	data->sku_cap_11n_enable = 0;
+		/*
+		 * Store the MAC address from MAO section.
+		 * No byte swapping is required in MAO section
+		 */
+		IEEE80211_ADDR_COPY(data->hw_addr, hw_addr);
 
-	data->n_hw_addrs = le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
+		/*
+		 * Force the use of the OTP MAC address in case of reserved MAC
+		 * address in the NVM, or if address is given but invalid.
+		 */
+		if (!IEEE80211_ADDR_EQ(reserved_mac, hw_addr) &&
+		    !IEEE80211_ADDR_EQ(ieee80211broadcastaddr, data->hw_addr) &&
+		    iwm_is_valid_ether_addr(data->hw_addr) &&
+		    !IEEE80211_IS_MULTICAST(data->hw_addr))
+			return;
 
-	data->xtal_calib[0] = *(nvm_calib + IWM_XTAL_CALIB);
-	data->xtal_calib[1] = *(nvm_calib + IWM_XTAL_CALIB + 1);
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+		    "%s: mac address from nvm override section invalid\n",
+		    __func__);
+	}
 
-	/* The byte order is little endian 16 bit, meaning 214365 */
-	IEEE80211_ADDR_COPY(hw_addr, nvm_hw + IWM_HW_ADDR);
-	data->hw_addr[0] = hw_addr[1];
-	data->hw_addr[1] = hw_addr[0];
-	data->hw_addr[2] = hw_addr[3];
-	data->hw_addr[3] = hw_addr[2];
-	data->hw_addr[4] = hw_addr[5];
-	data->hw_addr[5] = hw_addr[4];
+	if (nvm_hw) {
+		/* read the mac address from WFMP registers */
+		uint32_t mac_addr0 =
+		    htole32(iwm_read_prph(sc, IWM_WFMP_MAC_ADDR_0));
+		uint32_t mac_addr1 =
+		    htole32(iwm_read_prph(sc, IWM_WFMP_MAC_ADDR_1));
 
-	memcpy(data->nvm_ch_flags, &nvm_sw[IWM_NVM_CHANNELS],
-	    sizeof(data->nvm_ch_flags));
-	data->calib_version = 255;   /* TODO:
-					this value will prevent some checks from
-					failing, we need to check if this
-					field is still needed, and if it does,
-					where is it in the NVM */
+		hw_addr = (const uint8_t *)&mac_addr0;
+		data->hw_addr[0] = hw_addr[3];
+		data->hw_addr[1] = hw_addr[2];
+		data->hw_addr[2] = hw_addr[1];
+		data->hw_addr[3] = hw_addr[0];
+
+		hw_addr = (const uint8_t *)&mac_addr1;
+		data->hw_addr[4] = hw_addr[1];
+		data->hw_addr[5] = hw_addr[0];
+
+		return;
+	}
+
+	device_printf(sc->sc_dev, "%s: mac address not found\n", __func__);
+	memset(data->hw_addr, 0, sizeof(data->hw_addr));
+}
+
+static int
+iwm_get_sku(const struct iwm_softc *sc, const uint16_t *nvm_sw,
+	    const uint16_t *phy_sku)
+{
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+		return le16_to_cpup(nvm_sw + IWM_SKU);
+
+	return le32_to_cpup((const uint32_t *)(phy_sku + IWM_SKU_8000));
+}
+
+static int
+iwm_get_nvm_version(const struct iwm_softc *sc, const uint16_t *nvm_sw)
+{
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+		return le16_to_cpup(nvm_sw + IWM_NVM_VERSION);
+	else
+		return le32_to_cpup((const uint32_t *)(nvm_sw +
+						IWM_NVM_VERSION_8000));
+}
+
+static int
+iwm_get_radio_cfg(const struct iwm_softc *sc, const uint16_t *nvm_sw,
+		  const uint16_t *phy_sku)
+{
+        if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+                return le16_to_cpup(nvm_sw + IWM_RADIO_CFG);
+
+        return le32_to_cpup((const uint32_t *)(phy_sku + IWM_RADIO_CFG_8000));
+}
+
+static int
+iwm_get_n_hw_addrs(const struct iwm_softc *sc, const uint16_t *nvm_sw)
+{
+	int n_hw_addr;
+
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+		return le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
+
+	n_hw_addr = le32_to_cpup((const uint32_t *)(nvm_sw + IWM_N_HW_ADDRS_8000));
+
+        return n_hw_addr & IWM_N_HW_ADDR_MASK;
+}
+
+static void
+iwm_set_radio_cfg(const struct iwm_softc *sc, struct iwm_nvm_data *data,
+		  uint32_t radio_cfg)
+{
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+		data->radio_cfg_type = IWM_NVM_RF_CFG_TYPE_MSK(radio_cfg);
+		data->radio_cfg_step = IWM_NVM_RF_CFG_STEP_MSK(radio_cfg);
+		data->radio_cfg_dash = IWM_NVM_RF_CFG_DASH_MSK(radio_cfg);
+		data->radio_cfg_pnum = IWM_NVM_RF_CFG_PNUM_MSK(radio_cfg);
+		return;
+	}
+
+	/* set the radio configuration for family 8000 */
+	data->radio_cfg_type = IWM_NVM_RF_CFG_TYPE_MSK_8000(radio_cfg);
+	data->radio_cfg_step = IWM_NVM_RF_CFG_STEP_MSK_8000(radio_cfg);
+	data->radio_cfg_dash = IWM_NVM_RF_CFG_DASH_MSK_8000(radio_cfg);
+	data->radio_cfg_pnum = IWM_NVM_RF_CFG_FLAVOR_MSK_8000(radio_cfg);
+	data->valid_tx_ant = IWM_NVM_RF_CFG_TX_ANT_MSK_8000(radio_cfg);
+	data->valid_rx_ant = IWM_NVM_RF_CFG_RX_ANT_MSK_8000(radio_cfg);
+}
+
+static int
+iwm_set_hw_address(struct iwm_softc *sc, struct iwm_nvm_data *data,
+		   const uint16_t *nvm_hw, const uint16_t *mac_override)
+{
+#ifdef notyet /* for FAMILY 9000 */
+	if (cfg->mac_addr_from_csr) {
+		iwm_set_hw_address_from_csr(sc, data);
+        } else
+#endif
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+		const uint8_t *hw_addr = (const uint8_t *)(nvm_hw + IWM_HW_ADDR);
+
+		/* The byte order is little endian 16 bit, meaning 214365 */
+		data->hw_addr[0] = hw_addr[1];
+		data->hw_addr[1] = hw_addr[0];
+		data->hw_addr[2] = hw_addr[3];
+		data->hw_addr[3] = hw_addr[2];
+		data->hw_addr[4] = hw_addr[5];
+		data->hw_addr[5] = hw_addr[4];
+	} else {
+		iwm_set_hw_address_family_8000(sc, data, mac_override, nvm_hw);
+	}
+
+	if (!iwm_is_valid_ether_addr(data->hw_addr)) {
+		device_printf(sc->sc_dev, "no valid mac address was found\n");
+		return EINVAL;
+	}
 
 	return 0;
 }
 
-/*
- * END NVM PARSE
- */
-
-struct iwm_nvm_section {
-	uint16_t length;
-	const uint8_t *data;
-};
-
-static int
-iwm_parse_nvm_sections(struct iwm_softc *sc, struct iwm_nvm_section *sections)
+static struct iwm_nvm_data *
+iwm_parse_nvm_data(struct iwm_softc *sc,
+		   const uint16_t *nvm_hw, const uint16_t *nvm_sw,
+		   const uint16_t *nvm_calib, const uint16_t *mac_override,
+		   const uint16_t *phy_sku, const uint16_t *regulatory)
 {
-	const uint16_t *hw, *sw, *calib;
+	struct iwm_nvm_data *data;
+	uint32_t sku, radio_cfg;
+	uint16_t lar_config;
 
-	/* Checking for required sections */
-	if (!sections[IWM_NVM_SECTION_TYPE_SW].data ||
-	    !sections[IWM_NVM_SECTION_TYPE_HW].data) {
-		device_printf(sc->sc_dev,
-		    "%s: Can't parse empty NVM sections\n",
-		    __func__);
-		return ENOENT;
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+		data = malloc(sizeof(*data) +
+		    IWM_NUM_CHANNELS * sizeof(uint16_t),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+	} else {
+		data = malloc(sizeof(*data) +
+		    IWM_NUM_CHANNELS_8000 * sizeof(uint16_t),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+	}
+	if (!data)
+		return NULL;
+
+	data->nvm_version = iwm_get_nvm_version(sc, nvm_sw);
+
+	radio_cfg = iwm_get_radio_cfg(sc, nvm_sw, phy_sku);
+	iwm_set_radio_cfg(sc, data, radio_cfg);
+
+	sku = iwm_get_sku(sc, nvm_sw, phy_sku);
+	data->sku_cap_band_24GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_24GHZ;
+	data->sku_cap_band_52GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_52GHZ;
+	data->sku_cap_11n_enable = 0;
+
+	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
+
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+		uint16_t lar_offset = data->nvm_version < 0xE39 ?
+				       IWM_NVM_LAR_OFFSET_8000_OLD :
+				       IWM_NVM_LAR_OFFSET_8000;
+
+		lar_config = le16_to_cpup(regulatory + lar_offset);
+		data->lar_enabled = !!(lar_config &
+				       IWM_NVM_LAR_ENABLED_8000);
 	}
 
-	hw = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_HW].data;
+	/* If no valid mac address was found - bail out */
+	if (iwm_set_hw_address(sc, data, nvm_hw, mac_override)) {
+		free(data, M_DEVBUF);
+		return NULL;
+	}
+
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
+		memcpy(data->nvm_ch_flags, &nvm_sw[IWM_NVM_CHANNELS],
+		    IWM_NUM_CHANNELS * sizeof(uint16_t));
+	} else {
+		memcpy(data->nvm_ch_flags, &regulatory[IWM_NVM_CHANNELS_8000],
+		    IWM_NUM_CHANNELS_8000 * sizeof(uint16_t));
+	}
+
+	return data;
+}
+
+static void
+iwm_free_nvm_data(struct iwm_nvm_data *data)
+{
+	if (data != NULL)
+		free(data, M_DEVBUF);
+}
+
+static struct iwm_nvm_data *
+iwm_parse_nvm_sections(struct iwm_softc *sc, struct iwm_nvm_section *sections)
+{
+	const uint16_t *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
+
+	/* Checking for required sections */
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
+		if (!sections[IWM_NVM_SECTION_TYPE_SW].data ||
+		    !sections[sc->cfg->nvm_hw_section_num].data) {
+			device_printf(sc->sc_dev,
+			    "Can't parse empty OTP/NVM sections\n");
+			return NULL;
+		}
+	} else if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+		/* SW and REGULATORY sections are mandatory */
+		if (!sections[IWM_NVM_SECTION_TYPE_SW].data ||
+		    !sections[IWM_NVM_SECTION_TYPE_REGULATORY].data) {
+			device_printf(sc->sc_dev,
+			    "Can't parse empty OTP/NVM sections\n");
+			return NULL;
+		}
+		/* MAC_OVERRIDE or at least HW section must exist */
+		if (!sections[sc->cfg->nvm_hw_section_num].data &&
+		    !sections[IWM_NVM_SECTION_TYPE_MAC_OVERRIDE].data) {
+			device_printf(sc->sc_dev,
+			    "Can't parse mac_address, empty sections\n");
+			return NULL;
+		}
+
+		/* PHY_SKU section is mandatory in B0 */
+		if (!sections[IWM_NVM_SECTION_TYPE_PHY_SKU].data) {
+			device_printf(sc->sc_dev,
+			    "Can't parse phy_sku in B0, empty sections\n");
+			return NULL;
+		}
+	} else {
+		panic("unknown device family %d\n", sc->cfg->device_family);
+	}
+
+	hw = (const uint16_t *) sections[sc->cfg->nvm_hw_section_num].data;
 	sw = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_SW].data;
-	calib = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_CALIBRATION].data;
-	return iwm_parse_nvm_data(sc, hw, sw, calib,
-	    IWM_FW_VALID_TX_ANT(sc), IWM_FW_VALID_RX_ANT(sc));
+	calib = (const uint16_t *)
+	    sections[IWM_NVM_SECTION_TYPE_CALIBRATION].data;
+	regulatory = (const uint16_t *)
+	    sections[IWM_NVM_SECTION_TYPE_REGULATORY].data;
+	mac_override = (const uint16_t *)
+	    sections[IWM_NVM_SECTION_TYPE_MAC_OVERRIDE].data;
+	phy_sku = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_PHY_SKU].data;
+
+	return iwm_parse_nvm_data(sc, hw, sw, calib, mac_override,
+	    phy_sku, regulatory);
 }
 
 static int
 iwm_nvm_init(struct iwm_softc *sc)
 {
-	struct iwm_nvm_section nvm_sections[IWM_NVM_NUM_OF_SECTIONS];
-	int i, section, error;
-	uint16_t len;
+	struct iwm_nvm_section nvm_sections[IWM_NVM_MAX_NUM_SECTIONS];
+	int i, ret, section;
+	uint32_t size_read = 0;
 	uint8_t *nvm_buffer, *temp;
+	uint16_t len;
 
+	memset(nvm_sections, 0, sizeof(nvm_sections));
+
+	if (sc->cfg->nvm_hw_section_num >= IWM_NVM_MAX_NUM_SECTIONS)
+		return EINVAL;
+
+	/* load NVM values from nic */
 	/* Read From FW NVM */
-	IWM_DPRINTF(sc, IWM_DEBUG_EEPROM,
-	    "%s: Read NVM\n",
-	    __func__);
+	IWM_DPRINTF(sc, IWM_DEBUG_EEPROM, "Read from NVM\n");
 
-	/* TODO: find correct NVM max size for a section */
-	nvm_buffer = malloc(IWM_OTP_LOW_IMAGE_SIZE, M_DEVBUF, M_NOWAIT);
-	if (nvm_buffer == NULL)
-		return (ENOMEM);
-	for (i = 0; i < nitems(nvm_to_read); i++) {
-		section = nvm_to_read[i];
-		KASSERT(section <= nitems(nvm_sections),
-		    ("too many sections"));
-
-		error = iwm_nvm_read_section(sc, section, nvm_buffer, &len);
-		if (error)
-			break;
-
+	nvm_buffer = malloc(sc->cfg->eeprom_size, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (!nvm_buffer)
+		return ENOMEM;
+	for (section = 0; section < IWM_NVM_MAX_NUM_SECTIONS; section++) {
+		/* we override the constness for initial read */
+		ret = iwm_nvm_read_section(sc, section, nvm_buffer,
+					   &len, size_read);
+		if (ret)
+			continue;
+		size_read += len;
 		temp = malloc(len, M_DEVBUF, M_NOWAIT);
-		if (temp == NULL) {
-			error = ENOMEM;
+		if (!temp) {
+			ret = ENOMEM;
 			break;
 		}
 		memcpy(temp, nvm_buffer, len);
+
 		nvm_sections[section].data = temp;
 		nvm_sections[section].length = len;
 	}
+	if (!size_read)
+		device_printf(sc->sc_dev, "OTP is blank\n");
 	free(nvm_buffer, M_DEVBUF);
-	if (error)
-		return error;
 
-	return iwm_parse_nvm_sections(sc, nvm_sections);
+	sc->nvm_data = iwm_parse_nvm_sections(sc, nvm_sections);
+	if (!sc->nvm_data)
+		return EINVAL;
+	IWM_DPRINTF(sc, IWM_DEBUG_EEPROM | IWM_DEBUG_RESET,
+		    "nvm version = %x\n", sc->nvm_data->nvm_version);
+
+	for (i = 0; i < IWM_NVM_MAX_NUM_SECTIONS; i++) {
+		if (nvm_sections[i].data != NULL)
+			free(nvm_sections[i].data, M_DEVBUF);
+	}
+
+	return 0;
+}
+
+static int
+iwm_pcie_load_section(struct iwm_softc *sc, uint8_t section_num,
+	const struct iwm_fw_desc *section)
+{
+	struct iwm_dma_info *dma = &sc->fw_dma;
+	uint8_t *v_addr;
+	bus_addr_t p_addr;
+	uint32_t offset, chunk_sz = MIN(IWM_FH_MEM_TB_MAX_LENGTH, section->len);
+	int ret = 0;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+		    "%s: [%d] uCode section being loaded...\n",
+		    __func__, section_num);
+
+	v_addr = dma->vaddr;
+	p_addr = dma->paddr;
+
+	for (offset = 0; offset < section->len; offset += chunk_sz) {
+		uint32_t copy_size, dst_addr;
+		int extended_addr = FALSE;
+
+		copy_size = MIN(chunk_sz, section->len - offset);
+		dst_addr = section->offset + offset;
+
+		if (dst_addr >= IWM_FW_MEM_EXTENDED_START &&
+		    dst_addr <= IWM_FW_MEM_EXTENDED_END)
+			extended_addr = TRUE;
+
+		if (extended_addr)
+			iwm_set_bits_prph(sc, IWM_LMPM_CHICK,
+					  IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE);
+
+		memcpy(v_addr, (const uint8_t *)section->data + offset,
+		    copy_size);
+		bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+		ret = iwm_pcie_load_firmware_chunk(sc, dst_addr, p_addr,
+						   copy_size);
+
+		if (extended_addr)
+			iwm_clear_bits_prph(sc, IWM_LMPM_CHICK,
+					    IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE);
+
+		if (ret) {
+			device_printf(sc->sc_dev,
+			    "%s: Could not load the [%d] uCode section\n",
+			    __func__, section_num);
+			break;
+		}
+	}
+
+	return ret;
 }
 
 /*
- * Firmware loading gunk.  This is kind of a weird hybrid between the
- * iwn driver and the Linux iwlwifi driver.
+ * ucode
  */
-
 static int
-iwm_firmware_load_chunk(struct iwm_softc *sc, uint32_t dst_addr,
-	const uint8_t *section, uint32_t byte_cnt)
+iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
+			     bus_addr_t phy_addr, uint32_t byte_cnt)
 {
-	struct iwm_dma_info *dma = &sc->fw_dma;
-	int error;
+	int ret;
 
-	/* Copy firmware section into pre-allocated DMA-safe memory. */
-	memcpy(dma->vaddr, section, byte_cnt);
-	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+	sc->sc_fw_chunk_done = 0;
 
 	if (!iwm_nic_lock(sc))
 		return EBUSY;
 
-	sc->sc_fw_chunk_done = 0;
-
 	IWM_WRITE(sc, IWM_FH_TCSR_CHNL_TX_CONFIG_REG(IWM_FH_SRVC_CHNL),
 	    IWM_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
+
 	IWM_WRITE(sc, IWM_FH_SRVC_CHNL_SRAM_ADDR_REG(IWM_FH_SRVC_CHNL),
 	    dst_addr);
+
 	IWM_WRITE(sc, IWM_FH_TFDIB_CTRL0_REG(IWM_FH_SRVC_CHNL),
-	    dma->paddr & IWM_FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+	    phy_addr & IWM_FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+
 	IWM_WRITE(sc, IWM_FH_TFDIB_CTRL1_REG(IWM_FH_SRVC_CHNL),
-	    (iwm_get_dma_hi_addr(dma->paddr)
-	      << IWM_FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+	    (iwm_get_dma_hi_addr(phy_addr)
+	     << IWM_FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+
 	IWM_WRITE(sc, IWM_FH_TCSR_CHNL_TX_BUF_STS_REG(IWM_FH_SRVC_CHNL),
 	    1 << IWM_FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
 	    1 << IWM_FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
 	    IWM_FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
+
 	IWM_WRITE(sc, IWM_FH_TCSR_CHNL_TX_CONFIG_REG(IWM_FH_SRVC_CHNL),
 	    IWM_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE    |
 	    IWM_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE |
@@ -1908,64 +2455,226 @@ iwm_firmware_load_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 
 	iwm_nic_unlock(sc);
 
-	/* wait 1s for this segment to load */
-	while (!sc->sc_fw_chunk_done)
-		if ((error = msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz)) != 0)
+	/* wait up to 5s for this segment to load */
+	ret = 0;
+	while (!sc->sc_fw_chunk_done) {
+		ret = msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz);
+		if (ret)
 			break;
+	}
 
-	return error;
+	if (ret != 0) {
+		device_printf(sc->sc_dev,
+		    "fw chunk addr 0x%x len %d failed to load\n",
+		    dst_addr, byte_cnt);
+		return ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static int
-iwm_load_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image, int cpu, int *first_ucode_section)
 {
-	struct iwm_fw_sects *fws;
-	int error, i, w;
-	const void *data;
-	uint32_t dlen;
-	uint32_t offset;
+	int shift_param;
+	int i, ret = 0, sec_num = 0x1;
+	uint32_t val, last_read_idx = 0;
 
-	sc->sc_uc.uc_intr = 0;
+	if (cpu == 1) {
+		shift_param = 0;
+		*first_ucode_section = 0;
+	} else {
+		shift_param = 16;
+		(*first_ucode_section)++;
+	}
 
-	fws = &sc->sc_fw.fw_sects[ucode_type];
-	for (i = 0; i < fws->fw_count; i++) {
-		data = fws->fw_sect[i].fws_data;
-		dlen = fws->fw_sect[i].fws_len;
-		offset = fws->fw_sect[i].fws_devoff;
-		IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
-		    "LOAD FIRMWARE type %d offset %u len %d\n",
-		    ucode_type, offset, dlen);
-		error = iwm_firmware_load_chunk(sc, offset, data, dlen);
-		if (error) {
-			device_printf(sc->sc_dev,
-			    "%s: chunk %u of %u returned error %02d\n",
-			    __func__, i, fws->fw_count, error);
-			return error;
+	for (i = *first_ucode_section; i < IWM_UCODE_SECTION_MAX; i++) {
+		last_read_idx = i;
+
+		/*
+		 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between
+		 * CPU1 to CPU2.
+		 * PAGING_SEPARATOR_SECTION delimiter - separate between
+		 * CPU2 non paged to CPU2 paging sec.
+		 */
+		if (!image->fw_sect[i].data ||
+		    image->fw_sect[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->fw_sect[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
+			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+				    "Break since Data not valid or Empty section, sec = %d\n",
+				    i);
+			break;
+		}
+		ret = iwm_pcie_load_section(sc, i, &image->fw_sect[i]);
+		if (ret)
+			return ret;
+
+		/* Notify the ucode of the loaded section number and status */
+		if (iwm_nic_lock(sc)) {
+			val = IWM_READ(sc, IWM_FH_UCODE_LOAD_STATUS);
+			val = val | (sec_num << shift_param);
+			IWM_WRITE(sc, IWM_FH_UCODE_LOAD_STATUS, val);
+			sec_num = (sec_num << 1) | 0x1;
+			iwm_nic_unlock(sc);
 		}
 	}
 
-	/* wait for the firmware to load */
-	IWM_WRITE(sc, IWM_CSR_RESET, 0);
+	*first_ucode_section = last_read_idx;
 
-	for (w = 0; !sc->sc_uc.uc_intr && w < 10; w++) {
-		error = msleep(&sc->sc_uc, &sc->sc_mtx, 0, "iwmuc", hz/10);
+	iwm_enable_interrupts(sc);
+
+	if (iwm_nic_lock(sc)) {
+		if (cpu == 1)
+			IWM_WRITE(sc, IWM_FH_UCODE_LOAD_STATUS, 0xFFFF);
+		else
+			IWM_WRITE(sc, IWM_FH_UCODE_LOAD_STATUS, 0xFFFFFFFF);
+		iwm_nic_unlock(sc);
 	}
 
-	return error;
+	return 0;
 }
 
-/* iwlwifi: pcie/trans.c */
 static int
-iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image, int cpu, int *first_ucode_section)
 {
-	int error;
+	int shift_param;
+	int i, ret = 0;
+	uint32_t last_read_idx = 0;
 
-	IWM_WRITE(sc, IWM_CSR_INT, ~0);
-
-	if ((error = iwm_nic_init(sc)) != 0) {
-		device_printf(sc->sc_dev, "unable to init nic\n");
-		return error;
+	if (cpu == 1) {
+		shift_param = 0;
+		*first_ucode_section = 0;
+	} else {
+		shift_param = 16;
+		(*first_ucode_section)++;
 	}
+
+	for (i = *first_ucode_section; i < IWM_UCODE_SECTION_MAX; i++) {
+		last_read_idx = i;
+
+		/*
+		 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between
+		 * CPU1 to CPU2.
+		 * PAGING_SEPARATOR_SECTION delimiter - separate between
+		 * CPU2 non paged to CPU2 paging sec.
+		 */
+		if (!image->fw_sect[i].data ||
+		    image->fw_sect[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->fw_sect[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
+			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+				    "Break since Data not valid or Empty section, sec = %d\n",
+				     i);
+			break;
+		}
+
+		ret = iwm_pcie_load_section(sc, i, &image->fw_sect[i]);
+		if (ret)
+			return ret;
+	}
+
+	*first_ucode_section = last_read_idx;
+
+	return 0;
+
+}
+
+static int
+iwm_pcie_load_given_ucode(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image)
+{
+	int ret = 0;
+	int first_ucode_section;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "working with %s CPU\n",
+		     image->is_dual_cpus ? "Dual" : "Single");
+
+	/* load to FW the binary non secured sections of CPU1 */
+	ret = iwm_pcie_load_cpu_sections(sc, image, 1, &first_ucode_section);
+	if (ret)
+		return ret;
+
+	if (image->is_dual_cpus) {
+		/* set CPU2 header address */
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc,
+				       IWM_LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
+				       IWM_LMPM_SECURE_CPU2_HDR_MEM_SPACE);
+			iwm_nic_unlock(sc);
+		}
+
+		/* load to FW the binary sections of CPU2 */
+		ret = iwm_pcie_load_cpu_sections(sc, image, 2,
+						 &first_ucode_section);
+		if (ret)
+			return ret;
+	}
+
+	iwm_enable_interrupts(sc);
+
+	/* release CPU reset */
+	IWM_WRITE(sc, IWM_CSR_RESET, 0);
+
+	return 0;
+}
+
+int
+iwm_pcie_load_given_ucode_8000(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image)
+{
+	int ret = 0;
+	int first_ucode_section;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "working with %s CPU\n",
+		    image->is_dual_cpus ? "Dual" : "Single");
+
+	/* configure the ucode to be ready to get the secured image */
+	/* release CPU reset */
+	if (iwm_nic_lock(sc)) {
+		iwm_write_prph(sc, IWM_RELEASE_CPU_RESET,
+		    IWM_RELEASE_CPU_RESET_BIT);
+		iwm_nic_unlock(sc);
+	}
+
+	/* load to FW the binary Secured sections of CPU1 */
+	ret = iwm_pcie_load_cpu_sections_8000(sc, image, 1,
+	    &first_ucode_section);
+	if (ret)
+		return ret;
+
+	/* load to FW the binary sections of CPU2 */
+	return iwm_pcie_load_cpu_sections_8000(sc, image, 2,
+	    &first_ucode_section);
+}
+
+/* XXX Get rid of this definition */
+static inline void
+iwm_enable_fw_load_int(struct iwm_softc *sc)
+{
+	IWM_DPRINTF(sc, IWM_DEBUG_INTR, "Enabling FW load interrupt\n");
+	sc->sc_intmask = IWM_CSR_INT_BIT_FH_TX;
+	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+}
+
+/* XXX Add proper rfkill support code */
+static int
+iwm_start_fw(struct iwm_softc *sc,
+	const struct iwm_fw_sects *fw)
+{
+	int ret;
+
+	/* This may fail if AMT took ownership of the device */
+	if (iwm_prepare_card_hw(sc)) {
+		device_printf(sc->sc_dev,
+		    "%s: Exit HW not ready\n", __func__);
+		ret = EIO;
+		goto out;
+	}
+
+	IWM_WRITE(sc, IWM_CSR_INT, 0xFFFFFFFF);
+
+	iwm_disable_interrupts(sc);
 
 	/* make sure rfkill handshake bits are cleared */
 	IWM_WRITE(sc, IWM_CSR_UCODE_DRV_GP1_CLR, IWM_CSR_UCODE_SW_BIT_RFKILL);
@@ -1973,8 +2682,22 @@ iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	    IWM_CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	/* clear (again), then enable host interrupts */
-	IWM_WRITE(sc, IWM_CSR_INT, ~0);
-	iwm_enable_interrupts(sc);
+	IWM_WRITE(sc, IWM_CSR_INT, 0xFFFFFFFF);
+
+	ret = iwm_nic_init(sc);
+	if (ret) {
+		device_printf(sc->sc_dev, "%s: Unable to init nic\n", __func__);
+		goto out;
+	}
+
+	/*
+	 * Now, we load the firmware and don't want to be interrupted, even
+	 * by the RF-Kill interrupt (hence mask all the interrupt besides the
+	 * FH_TX interrupt which is needed to load the firmware). If the
+	 * RF-Kill switch is toggled, we will find out after having loaded
+	 * the firmware and return the proper value to the caller.
+	 */
+	iwm_enable_fw_load_int(sc);
 
 	/* really make sure rfkill handshake bits are cleared */
 	/* maybe we should write a few times more?  just to make sure */
@@ -1982,7 +2705,15 @@ iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	IWM_WRITE(sc, IWM_CSR_UCODE_DRV_GP1_CLR, IWM_CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	return iwm_load_firmware(sc, ucode_type);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+		ret = iwm_pcie_load_given_ucode_8000(sc, fw);
+	else
+		ret = iwm_pcie_load_given_ucode(sc, fw);
+
+	/* XXX re-check RF-Kill state */
+
+out:
+	return ret;
 }
 
 static int
@@ -2001,10 +2732,10 @@ static int
 iwm_send_phy_cfg_cmd(struct iwm_softc *sc)
 {
 	struct iwm_phy_cfg_cmd phy_cfg_cmd;
-	enum iwm_ucode_type ucode_type = sc->sc_uc_current;
+	enum iwm_ucode_type ucode_type = sc->cur_ucode;
 
 	/* Set parameters */
-	phy_cfg_cmd.phy_cfg = htole32(sc->sc_fw_phy_config);
+	phy_cfg_cmd.phy_cfg = htole32(iwm_mvm_get_phy_config(sc));
 	phy_cfg_cmd.calib_control.event_trigger =
 	    sc->sc_default_calib[ucode_type].event_trigger;
 	phy_cfg_cmd.calib_control.flow_trigger =
@@ -2017,23 +2748,196 @@ iwm_send_phy_cfg_cmd(struct iwm_softc *sc)
 }
 
 static int
+iwm_alive_fn(struct iwm_softc *sc, struct iwm_rx_packet *pkt, void *data)
+{
+	struct iwm_mvm_alive_data *alive_data = data;
+	struct iwm_mvm_alive_resp_ver1 *palive1;
+	struct iwm_mvm_alive_resp_ver2 *palive2;
+	struct iwm_mvm_alive_resp *palive;
+
+	if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive1)) {
+		palive1 = (void *)pkt->data;
+
+		sc->support_umac_log = FALSE;
+                sc->error_event_table =
+                        le32toh(palive1->error_event_table_ptr);
+                sc->log_event_table =
+                        le32toh(palive1->log_event_table_ptr);
+                alive_data->scd_base_addr = le32toh(palive1->scd_base_ptr);
+
+                alive_data->valid = le16toh(palive1->status) ==
+                                    IWM_ALIVE_STATUS_OK;
+                IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "Alive VER1 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			     le16toh(palive1->status), palive1->ver_type,
+                             palive1->ver_subtype, palive1->flags);
+	} else if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive2)) {
+		palive2 = (void *)pkt->data;
+		sc->error_event_table =
+			le32toh(palive2->error_event_table_ptr);
+		sc->log_event_table =
+			le32toh(palive2->log_event_table_ptr);
+		alive_data->scd_base_addr = le32toh(palive2->scd_base_ptr);
+		sc->umac_error_event_table =
+                        le32toh(palive2->error_info_addr);
+
+		alive_data->valid = le16toh(palive2->status) ==
+				    IWM_ALIVE_STATUS_OK;
+		if (sc->umac_error_event_table)
+			sc->support_umac_log = TRUE;
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			    le16toh(palive2->status), palive2->ver_type,
+			    palive2->ver_subtype, palive2->flags);
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+			    palive2->umac_major, palive2->umac_minor);
+	} else if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+		palive = (void *)pkt->data;
+
+		sc->error_event_table =
+			le32toh(palive->error_event_table_ptr);
+		sc->log_event_table =
+			le32toh(palive->log_event_table_ptr);
+		alive_data->scd_base_addr = le32toh(palive->scd_base_ptr);
+		sc->umac_error_event_table =
+			le32toh(palive->error_info_addr);
+
+		alive_data->valid = le16toh(palive->status) ==
+				    IWM_ALIVE_STATUS_OK;
+		if (sc->umac_error_event_table)
+			sc->support_umac_log = TRUE;
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "Alive VER3 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			    le16toh(palive->status), palive->ver_type,
+			    palive->ver_subtype, palive->flags);
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+			    le32toh(palive->umac_major),
+			    le32toh(palive->umac_minor));
+	}
+
+	return TRUE;
+}
+
+static int
+iwm_wait_phy_db_entry(struct iwm_softc *sc,
+	struct iwm_rx_packet *pkt, void *data)
+{
+	struct iwm_phy_db *phy_db = data;
+
+	if (pkt->hdr.code != IWM_CALIB_RES_NOTIF_PHY_DB) {
+		if(pkt->hdr.code != IWM_INIT_COMPLETE_NOTIF) {
+			device_printf(sc->sc_dev, "%s: Unexpected cmd: %d\n",
+			    __func__, pkt->hdr.code);
+		}
+		return TRUE;
+	}
+
+	if (iwm_phy_db_set_section(phy_db, pkt)) {
+		device_printf(sc->sc_dev,
+		    "%s: iwm_phy_db_set_section failed\n", __func__);
+	}
+
+	return FALSE;
+}
+
+static int
 iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 	enum iwm_ucode_type ucode_type)
 {
-	enum iwm_ucode_type old_type = sc->sc_uc_current;
+	struct iwm_notification_wait alive_wait;
+	struct iwm_mvm_alive_data alive_data;
+	const struct iwm_fw_sects *fw;
+	enum iwm_ucode_type old_type = sc->cur_ucode;
 	int error;
+	static const uint16_t alive_cmd[] = { IWM_MVM_ALIVE };
 
-	if ((error = iwm_read_firmware(sc, ucode_type)) != 0)
+	if ((error = iwm_read_firmware(sc, ucode_type)) != 0) {
+		device_printf(sc->sc_dev, "iwm_read_firmware: failed %d\n",
+			error);
 		return error;
+	}
+	fw = &sc->sc_fw.fw_sects[ucode_type];
+	sc->cur_ucode = ucode_type;
+	sc->ucode_loaded = FALSE;
 
-	sc->sc_uc_current = ucode_type;
-	error = iwm_start_fw(sc, ucode_type);
+	memset(&alive_data, 0, sizeof(alive_data));
+	iwm_init_notification_wait(sc->sc_notif_wait, &alive_wait,
+				   alive_cmd, nitems(alive_cmd),
+				   iwm_alive_fn, &alive_data);
+
+	error = iwm_start_fw(sc, fw);
 	if (error) {
-		sc->sc_uc_current = old_type;
+		device_printf(sc->sc_dev, "iwm_start_fw: failed %d\n", error);
+		sc->cur_ucode = old_type;
+		iwm_remove_notification(sc->sc_notif_wait, &alive_wait);
 		return error;
 	}
 
-	return iwm_post_alive(sc);
+	/*
+	 * Some things may run in the background now, but we
+	 * just wait for the ALIVE notification here.
+	 */
+	IWM_UNLOCK(sc);
+	error = iwm_wait_notification(sc->sc_notif_wait, &alive_wait,
+				      IWM_MVM_UCODE_ALIVE_TIMEOUT);
+	IWM_LOCK(sc);
+	if (error) {
+		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+			uint32_t a = 0x5a5a5a5a, b = 0x5a5a5a5a;
+			if (iwm_nic_lock(sc)) {
+				a = iwm_read_prph(sc, IWM_SB_CPU_1_STATUS);
+				b = iwm_read_prph(sc, IWM_SB_CPU_2_STATUS);
+				iwm_nic_unlock(sc);
+			}
+			device_printf(sc->sc_dev,
+			    "SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+			    a, b);
+		}
+		sc->cur_ucode = old_type;
+		return error;
+	}
+
+	if (!alive_data.valid) {
+		device_printf(sc->sc_dev, "%s: Loaded ucode is not valid\n",
+		    __func__);
+		sc->cur_ucode = old_type;
+		return EIO;
+	}
+
+	iwm_trans_pcie_fw_alive(sc, alive_data.scd_base_addr);
+
+	/*
+	 * configure and operate fw paging mechanism.
+	 * driver configures the paging flow only once, CPU2 paging image
+	 * included in the IWM_UCODE_INIT image.
+	 */
+	if (fw->paging_mem_size) {
+		error = iwm_save_fw_paging(sc, fw);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to save the FW paging image\n",
+			    __func__);
+			return error;
+		}
+
+		error = iwm_send_paging_cmd(sc, fw);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to send the paging cmd\n", __func__);
+			iwm_free_fw_paging(sc);
+			return error;
+		}
+	}
+
+	if (!error)
+		sc->ucode_loaded = TRUE;
+	return error;
 }
 
 /*
@@ -2046,7 +2950,12 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 static int
 iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 {
-	int error;
+	struct iwm_notification_wait calib_wait;
+	static const uint16_t init_complete[] = {
+		IWM_INIT_COMPLETE_NOTIF,
+		IWM_CALIB_RES_NOTIF_PHY_DB
+	};
+	int ret;
 
 	/* do not operate with rfkill switch turned on */
 	if ((sc->sc_flags & IWM_FLAG_RFKILL) && !justnvm) {
@@ -2055,57 +2964,75 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 		return EPERM;
 	}
 
-	sc->sc_init_complete = 0;
-	if ((error = iwm_mvm_load_ucode_wait_alive(sc,
-	    IWM_UCODE_TYPE_INIT)) != 0) {
-		device_printf(sc->sc_dev, "failed to load init firmware\n");
-		return error;
+	iwm_init_notification_wait(sc->sc_notif_wait,
+				   &calib_wait,
+				   init_complete,
+				   nitems(init_complete),
+				   iwm_wait_phy_db_entry,
+				   sc->sc_phy_db);
+
+	/* Will also start the device */
+	ret = iwm_mvm_load_ucode_wait_alive(sc, IWM_UCODE_INIT);
+	if (ret) {
+		device_printf(sc->sc_dev, "Failed to start INIT ucode: %d\n",
+		    ret);
+		goto error;
 	}
 
 	if (justnvm) {
-		if ((error = iwm_nvm_init(sc)) != 0) {
+		/* Read nvm */
+		ret = iwm_nvm_init(sc);
+		if (ret) {
 			device_printf(sc->sc_dev, "failed to read nvm\n");
-			return error;
+			goto error;
 		}
-		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->sc_nvm.hw_addr);
+		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->nvm_data->hw_addr);
+		goto error;
+	}
 
-		sc->sc_scan_cmd_len = sizeof(struct iwm_scan_cmd)
-		    + sc->sc_capa_max_probe_len
-		    + IWM_MAX_NUM_SCAN_CHANNELS
-		    * sizeof(struct iwm_scan_channel);
-		sc->sc_scan_cmd = malloc(sc->sc_scan_cmd_len, M_DEVBUF,
-		    M_NOWAIT);
-		if (sc->sc_scan_cmd == NULL)
-			return (ENOMEM);
-
-		return 0;
+	ret = iwm_send_bt_init_conf(sc);
+	if (ret) {
+		device_printf(sc->sc_dev,
+		    "failed to send bt coex configuration: %d\n", ret);
+		goto error;
 	}
 
 	/* Send TX valid antennas before triggering calibrations */
-	if ((error = iwm_send_tx_ant_cfg(sc, IWM_FW_VALID_TX_ANT(sc))) != 0)
-		return error;
+	ret = iwm_send_tx_ant_cfg(sc, iwm_mvm_get_valid_tx_ant(sc));
+	if (ret) {
+		device_printf(sc->sc_dev,
+		    "failed to send antennas before calibration: %d\n", ret);
+		goto error;
+	}
 
 	/*
-	* Send phy configurations command to init uCode
-	* to start the 16.0 uCode init image internal calibrations.
-	*/
-	if ((error = iwm_send_phy_cfg_cmd(sc)) != 0 ) {
+	 * Send phy configurations command to init uCode
+	 * to start the 16.0 uCode init image internal calibrations.
+	 */
+	ret = iwm_send_phy_cfg_cmd(sc);
+	if (ret) {
 		device_printf(sc->sc_dev,
-		    "%s: failed to run internal calibration: %d\n",
-		    __func__, error);
-		return error;
+		    "%s: Failed to run INIT calibrations: %d\n",
+		    __func__, ret);
+		goto error;
 	}
 
 	/*
 	 * Nothing to do but wait for the init complete notification
-	 * from the firmware
+	 * from the firmware.
 	 */
-	while (!sc->sc_init_complete)
-		if ((error = msleep(&sc->sc_init_complete, &sc->sc_mtx,
-		    0, "iwminit", 2*hz)) != 0)
-			break;
+	IWM_UNLOCK(sc);
+	ret = iwm_wait_notification(sc->sc_notif_wait, &calib_wait,
+	    IWM_MVM_UCODE_CALIB_TIMEOUT);
+	IWM_LOCK(sc);
 
-	return error;
+
+	goto out;
+
+error:
+	iwm_remove_notification(sc->sc_notif_wait, &calib_wait);
+out:
+	return ret;
 }
 
 /*
@@ -2119,76 +3046,42 @@ iwm_rx_addbuf(struct iwm_softc *sc, int size, int idx)
 	struct iwm_rx_ring *ring = &sc->rxq;
 	struct iwm_rx_data *data = &ring->data[idx];
 	struct mbuf *m;
-	int error;
-	bus_addr_t paddr;
+	bus_dmamap_t dmamap;
+	bus_dma_segment_t seg;
+	int nsegs, error;
 
 	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, IWM_RBUF_SIZE);
 	if (m == NULL)
 		return ENOBUFS;
 
+	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+	error = bus_dmamap_load_mbuf_sg(ring->data_dmat, ring->spare_map, m,
+	    &seg, &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: can't map mbuf, error %d\n", __func__, error);
+		m_freem(m);
+		return error;
+	}
+
 	if (data->m != NULL)
 		bus_dmamap_unload(ring->data_dmat, data->map);
 
-	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
-	error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not create RX buf DMA map, error %d\n",
-		    __func__, error);
-		goto fail;
-	}
-	data->m = m;
-	error = bus_dmamap_load(ring->data_dmat, data->map,
-	    mtod(data->m, void *), IWM_RBUF_SIZE, iwm_dma_map_addr,
-	    &paddr, BUS_DMA_NOWAIT);
-	if (error != 0 && error != EFBIG) {
-		device_printf(sc->sc_dev,
-		    "%s: can't not map mbuf, error %d\n", __func__,
-		    error);
-		goto fail;
-	}
+	/* Swap ring->spare_map with data->map */
+	dmamap = data->map;
+	data->map = ring->spare_map;
+	ring->spare_map = dmamap;
+
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREREAD);
+	data->m = m;
 
 	/* Update RX descriptor. */
-	ring->desc[idx] = htole32(paddr >> 8);
+	KASSERT((seg.ds_addr & 255) == 0, ("seg.ds_addr not aligned"));
+	ring->desc[idx] = htole32(seg.ds_addr >> 8);
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 
 	return 0;
-fail:
-	return error;
-}
-
-/* iwlwifi: mvm/rx.c */
-#define IWM_RSSI_OFFSET 50
-static int
-iwm_mvm_calc_rssi(struct iwm_softc *sc, struct iwm_rx_phy_info *phy_info)
-{
-	int rssi_a, rssi_b, rssi_a_dbm, rssi_b_dbm, max_rssi_dbm;
-	uint32_t agc_a, agc_b;
-	uint32_t val;
-
-	val = le32toh(phy_info->non_cfg_phy[IWM_RX_INFO_AGC_IDX]);
-	agc_a = (val & IWM_OFDM_AGC_A_MSK) >> IWM_OFDM_AGC_A_POS;
-	agc_b = (val & IWM_OFDM_AGC_B_MSK) >> IWM_OFDM_AGC_B_POS;
-
-	val = le32toh(phy_info->non_cfg_phy[IWM_RX_INFO_RSSI_AB_IDX]);
-	rssi_a = (val & IWM_OFDM_RSSI_INBAND_A_MSK) >> IWM_OFDM_RSSI_A_POS;
-	rssi_b = (val & IWM_OFDM_RSSI_INBAND_B_MSK) >> IWM_OFDM_RSSI_B_POS;
-
-	/*
-	 * dBm = rssi dB - agc dB - constant.
-	 * Higher AGC (higher radio gain) means lower signal.
-	 */
-	rssi_a_dbm = rssi_a - IWM_RSSI_OFFSET - agc_a;
-	rssi_b_dbm = rssi_b - IWM_RSSI_OFFSET - agc_b;
-	max_rssi_dbm = MAX(rssi_a_dbm, rssi_b_dbm);
-
-	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
-	    "Rssi In A %d B %d Max %d AGCA %d AGCB %d\n",
-	    rssi_a_dbm, rssi_b_dbm, max_rssi_dbm, agc_a, agc_b);
-
-	return max_rssi_dbm;
 }
 
 /* iwlwifi: mvm/rx.c */
@@ -2225,13 +3118,11 @@ iwm_mvm_get_signal_strength(struct iwm_softc *sc, struct iwm_rx_phy_info *phy_in
 }
 
 static void
-iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *sc,
-	struct iwm_rx_packet *pkt, struct iwm_rx_data *data)
+iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 {
 	struct iwm_rx_phy_info *phy_info = (void *)pkt->data;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RECV, "received PHY stats\n");
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	memcpy(&sc->sc_last_phy_info, phy_info, sizeof(sc->sc_last_phy_info));
 }
@@ -2240,21 +3131,43 @@ iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *sc,
  * Retrieve the average noise (in dBm) among receivers.
  */
 static int
-iwm_get_noise(const struct iwm_mvm_statistics_rx_non_phy *stats)
+iwm_get_noise(struct iwm_softc *sc,
+    const struct iwm_mvm_statistics_rx_non_phy *stats)
 {
 	int i, total, nbant, noise;
 
 	total = nbant = noise = 0;
 	for (i = 0; i < 3; i++) {
 		noise = le32toh(stats->beacon_silence_rssi[i]) & 0xff;
+		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "%s: i=%d, noise=%d\n",
+		    __func__,
+		    i,
+		    noise);
+
 		if (noise) {
 			total += noise;
 			nbant++;
 		}
 	}
 
+	IWM_DPRINTF(sc, IWM_DEBUG_RECV, "%s: nbant=%d, total=%d\n",
+	    __func__, nbant, total);
+#if 0
 	/* There should be at least one antenna but check anyway. */
 	return (nbant == 0) ? -127 : (total / nbant) - 107;
+#else
+	/* For now, just hard-code it to -96 to be safe */
+	return (-96);
+#endif
+}
+
+static void
+iwm_mvm_handle_rx_statistics(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
+{
+	struct iwm_notif_statistics_v10 *stats = (void *)&pkt->data;
+
+	memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
+	sc->sc_noise = iwm_get_noise(sc, &stats->rx.general);
 }
 
 /*
@@ -2262,23 +3175,21 @@ iwm_get_noise(const struct iwm_mvm_statistics_rx_non_phy *stats)
  *
  * Handles the actual data of the Rx packet from the fw
  */
-static void
-iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
-	struct iwm_rx_packet *pkt, struct iwm_rx_data *data)
+static boolean_t
+iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
+	boolean_t stolen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct ieee80211_rx_stats rxs;
-	struct mbuf *m;
 	struct iwm_rx_phy_info *phy_info;
 	struct iwm_rx_mpdu_res_start *rx_res;
+	struct iwm_rx_packet *pkt = mtodoff(m, struct iwm_rx_packet *, offset);
 	uint32_t len;
 	uint32_t rx_pkt_status;
 	int rssi;
-
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	phy_info = &sc->sc_last_phy_info;
 	rx_res = (struct iwm_rx_mpdu_res_start *)pkt->data;
@@ -2286,38 +3197,37 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	len = le16toh(rx_res->byte_count);
 	rx_pkt_status = le32toh(*(uint32_t *)(pkt->data + sizeof(*rx_res) + len));
 
-	m = data->m;
-	m->m_data = pkt->data + sizeof(*rx_res);
-	m->m_pkthdr.len = m->m_len = len;
-
 	if (__predict_false(phy_info->cfg_phy_cnt > 20)) {
 		device_printf(sc->sc_dev,
 		    "dsp size out of range [0,20]: %d\n",
 		    phy_info->cfg_phy_cnt);
-		return;
+		goto fail;
 	}
 
 	if (!(rx_pkt_status & IWM_RX_MPDU_RES_STATUS_CRC_OK) ||
 	    !(rx_pkt_status & IWM_RX_MPDU_RES_STATUS_OVERRUN_OK)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV,
 		    "Bad CRC or FIFO: 0x%08X.\n", rx_pkt_status);
-		return; /* drop */
+		goto fail;
 	}
 
-	if (sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_RX_ENERGY_API) {
-		rssi = iwm_mvm_get_signal_strength(sc, phy_info);
-	} else {
-		rssi = iwm_mvm_calc_rssi(sc, phy_info);
-	}
-	rssi = (0 - IWM_MIN_DBM) + rssi;	/* normalize */
-	rssi = MIN(rssi, sc->sc_max_rssi);	/* clip to max. 100% */
+	rssi = iwm_mvm_get_signal_strength(sc, phy_info);
+
+	/* Map it to relative value */
+	rssi = rssi - sc->sc_noise;
 
 	/* replenish ring for the buffer we're going to feed to the sharks */
-	if (iwm_rx_addbuf(sc, IWM_RBUF_SIZE, sc->rxq.cur) != 0) {
+	if (!stolen && iwm_rx_addbuf(sc, IWM_RBUF_SIZE, sc->rxq.cur) != 0) {
 		device_printf(sc->sc_dev, "%s: unable to add more buffers\n",
 		    __func__);
-		return;
+		goto fail;
 	}
+
+	m->m_data = pkt->data + sizeof(*rx_res);
+	m->m_pkthdr.len = m->m_len = len;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
+	    "%s: rssi=%d, noise=%d\n", __func__, rssi, sc->sc_noise);
 
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
@@ -2339,8 +3249,15 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	} else {
 		rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_5GHZ);
 	}
-	rxs.rssi = rssi - sc->sc_noise;
-	rxs.nf = sc->sc_noise;
+
+	/* rssi is in 1/2db units */
+	rxs.c_rssi = rssi * 2;
+	rxs.c_nf = sc->sc_noise;
+	if (ieee80211_add_rx_params(m, &rxs) == 0) {
+		if (ni)
+			ieee80211_free_node(ni);
+		goto fail;
+	}
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwm_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -2377,13 +3294,19 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	IWM_UNLOCK(sc);
 	if (ni != NULL) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "input m %p\n", m);
-		ieee80211_input_mimo(ni, m, &rxs);
+		ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
 	} else {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "inputall m %p\n", m);
-		ieee80211_input_mimo_all(ic, m, &rxs);
+		ieee80211_input_mimo_all(ic, m);
 	}
 	IWM_LOCK(sc);
+
+	return TRUE;
+
+fail:
+	counter_u64_add(ic->ic_ierrors, 1);
+	return FALSE;
 }
 
 static int
@@ -2391,10 +3314,9 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	struct iwm_node *in)
 {
 	struct iwm_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct ieee80211_node *ni = &in->in_ni;
-	struct ieee80211vap *vap = ni->ni_vap;
 	int status = le16toh(tx_resp->status.status) & IWM_TX_STATUS_MSK;
-	int failack = tx_resp->failure_frame;
 
 	KASSERT(tx_resp->frame_count == 1, ("too many frames"));
 
@@ -2410,21 +3332,36 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	    le32toh(tx_resp->initial_rate),
 	    (int) le16toh(tx_resp->wireless_media_time));
 
+	txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
+		     IEEE80211_RATECTL_STATUS_LONG_RETRY;
+	txs->short_retries = tx_resp->failure_rts;
+	txs->long_retries = tx_resp->failure_frame;
 	if (status != IWM_TX_STATUS_SUCCESS &&
 	    status != IWM_TX_STATUS_DIRECT_DONE) {
-		ieee80211_ratectl_tx_complete(vap, ni,
-		    IEEE80211_RATECTL_TX_FAILURE, &failack, NULL);
-		return (1);
+		switch (status) {
+		case IWM_TX_STATUS_FAIL_SHORT_LIMIT:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_SHORT;
+			break;
+		case IWM_TX_STATUS_FAIL_LONG_LIMIT:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			break;
+		case IWM_TX_STATUS_FAIL_LIFE_EXPIRE:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_EXPIRED;
+			break;
+		default:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			break;
+		}
 	} else {
-		ieee80211_ratectl_tx_complete(vap, ni,
-		    IEEE80211_RATECTL_TX_SUCCESS, &failack, NULL);
-		return (0);
+		txs->status = IEEE80211_RATECTL_TX_SUCCESS;
 	}
+	ieee80211_ratectl_tx_complete(ni, txs);
+
+	return (txs->status != IEEE80211_RATECTL_TX_SUCCESS);
 }
 
 static void
-iwm_mvm_rx_tx_cmd(struct iwm_softc *sc,
-	struct iwm_rx_packet *pkt, struct iwm_rx_data *data)
+iwm_mvm_rx_tx_cmd(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 {
 	struct iwm_cmd_header *cmd_hdr = &pkt->hdr;
 	int idx = cmd_hdr->idx;
@@ -2438,8 +3375,6 @@ iwm_mvm_rx_tx_cmd(struct iwm_softc *sc,
 	KASSERT(txd->done == 0, ("txd not done"));
 	KASSERT(txd->in != NULL, ("txd without node"));
 	KASSERT(txd->m != NULL, ("txd without mbuf"));
-
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	sc->sc_tx_timer = 0;
 
@@ -2460,11 +3395,6 @@ iwm_mvm_rx_tx_cmd(struct iwm_softc *sc,
 	if (--ring->queued < IWM_TX_RING_LOMARK) {
 		sc->qfullmsk &= ~(1 << ring->qid);
 		if (sc->qfullmsk == 0) {
-			/*
-			 * Well, we're in interrupt context, but then again
-			 * I guess net80211 does all sorts of stunts in
-			 * interrupt context, so maybe this is no biggie.
-			 */
 			iwm_start(sc);
 		}
 	}
@@ -2489,6 +3419,11 @@ iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 		return;	/* Not a command ack. */
 	}
 
+	/* XXX wide commands? */
+	IWM_DPRINTF(sc, IWM_DEBUG_CMD,
+	    "cmd notification type 0x%x qid %d idx %d\n",
+	    pkt->hdr.code, pkt->hdr.qid, pkt->hdr.idx);
+
 	data = &ring->data[pkt->hdr.idx];
 
 	/* If the command was mapped in an mbuf, free it. */
@@ -2500,6 +3435,18 @@ iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 		data->m = NULL;
 	}
 	wakeup(&ring->desc[pkt->hdr.idx]);
+
+	if (((pkt->hdr.idx + ring->queued) % IWM_TX_RING_COUNT) != ring->cur) {
+		device_printf(sc->sc_dev,
+		    "%s: Some HCMDs skipped?: idx=%d queued=%d cur=%d\n",
+		    __func__, pkt->hdr.idx, ring->queued, ring->cur);
+		/* XXX call iwm_force_nmi() */
+	}
+
+	KASSERT(ring->queued > 0, ("ring->queued is empty?"));
+	ring->queued--;
+	if (ring->queued == 0)
+		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
 #if 0
@@ -2516,8 +3463,7 @@ iwm_update_sched(struct iwm_softc *sc, int qid, int idx, uint8_t sta_id,
 	scd_bc_tbl = sc->sched_dma.vaddr;
 
 	len += 8; /* magic numbers came naturally from paris */
-	if (sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_DW_BC_TABLE)
-		len = roundup(len, 4) / 4;
+	len = roundup(len, 4) / 4;
 
 	w_val = htole16(sta_id << 12 | len);
 
@@ -2555,8 +3501,31 @@ iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
 		if (rate == r)
 			return (i);
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: couldn't find an entry for rate=%d\n",
+	    __func__,
+	    rate);
+
 	/* XXX Return the first */
 	/* XXX TODO: have it return the /lowest/ */
+	return (0);
+}
+
+static int
+iwm_tx_rateidx_global_lookup(struct iwm_softc *sc, uint8_t rate)
+{
+	int i;
+
+	for (i = 0; i < nitems(iwm_rates); i++) {
+		if (iwm_rates[i].rate == rate)
+			return (i);
+	}
+	/* XXX error? */
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: couldn't find an entry for rate=%d\n",
+	    __func__,
+	    rate);
 	return (0);
 }
 
@@ -2565,24 +3534,41 @@ iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
  */
 static const struct iwm_rate *
 iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
-	struct ieee80211_frame *wh, struct iwm_tx_cmd *tx)
+	struct mbuf *m, struct iwm_tx_cmd *tx)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = &in->in_ni;
+	struct ieee80211_frame *wh;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	const struct iwm_rate *rinfo;
-	int type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	int type;
 	int ridx, rate_flags;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	tx->rts_retry_limit = IWM_RTS_DFAULT_RETRY_LIMIT;
 	tx->data_retry_limit = IWM_DEFAULT_TX_RETRY;
 
-	/*
-	 * XXX TODO: everything about the rate selection here is terrible!
-	 */
-
-	if (type == IEEE80211_FC0_TYPE_DATA) {
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m->m_flags & M_EAPOL) != 0) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: MGT (%d)\n", __func__, tp->mgmtrate);
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mcastrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: MCAST (%d)\n", __func__, tp->mcastrate);
+	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->ucastrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: FIXED_RATE (%d)\n", __func__, tp->ucastrate);
+	} else {
 		int i;
+
 		/* for data frames, use RS table */
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DATA\n", __func__);
+		/* XXX pass pktlen */
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		i = iwm_tx_rateidx_lookup(sc, in, ni->ni_txrate);
 		ridx = in->in_ridx[i];
@@ -2590,32 +3576,15 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		/* This is the index into the programmed table */
 		tx->initial_rate_index = i;
 		tx->tx_flags |= htole32(IWM_TX_CMD_FLG_STA_RATE);
+
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
 		    "%s: start with i=%d, txrate %d\n",
 		    __func__, i, iwm_rates[ridx].rate);
-	} else {
-		/*
-		 * For non-data, use the lowest supported rate for the given
-		 * operational mode.
-		 *
-		 * Note: there may not be any rate control information available.
-		 * This driver currently assumes if we're transmitting data
-		 * frames, use the rate control table.  Grr.
-		 *
-		 * XXX TODO: use the configured rate for the traffic type!
-		 * XXX TODO: this should be per-vap, not curmode; as we later
-		 * on we'll want to handle off-channel stuff (eg TDLS).
-		 */
-		if (ic->ic_curmode == IEEE80211_MODE_11A) {
-			/*
-			 * XXX this assumes the mode is either 11a or not 11a;
-			 * definitely won't work for 11n.
-			 */
-			ridx = IWM_RIDX_OFDM;
-		} else {
-			ridx = IWM_RIDX_CCK;
-		}
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: frame type=%d txrate %d\n",
+	        __func__, type, iwm_rates[ridx].rate);
 
 	rinfo = &iwm_rates[ridx];
 
@@ -2676,7 +3645,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	tx = (void *)cmd->data;
 	memset(tx, 0, sizeof(*tx));
 
-	rinfo = iwm_tx_fill_cmd(sc, in, wh, tx);
+	rinfo = iwm_tx_fill_cmd(sc, in, m, tx);
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -2710,7 +3679,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		flags |= IWM_TX_CMD_FLG_ACK;
 	}
 
-	if (type != IEEE80211_FC0_TYPE_DATA
+	if (type == IEEE80211_FC0_TYPE_DATA
 	    && (totlen + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
 	    && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= IWM_TX_CMD_FLG_PROT_REQUIRE;
@@ -2726,12 +3695,15 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
-		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
-			tx->pm_frame_timeout = htole16(3);
-		else
-			tx->pm_frame_timeout = htole16(2);
+		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ) {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_ASSOC);
+		} else if (subtype == IEEE80211_FC0_SUBTYPE_ACTION) {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_NONE);
+		} else {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_MGMT);
+		}
 	} else {
-		tx->pm_frame_timeout = htole16(0);
+		tx->pm_frame_timeout = htole16(IWM_PM_FRAME_NONE);
 	}
 
 	if (hdrlen & 3) {
@@ -2799,11 +3771,11 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	KASSERT(data->in != NULL, ("node is NULL"));
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
-	    "sending data: qid=%d idx=%d len=%d nsegs=%d txflags=0x%08x rate_n_flags=0x%08x rateidx=%d\n",
+	    "sending data: qid=%d idx=%d len=%d nsegs=%d txflags=0x%08x rate_n_flags=0x%08x rateidx=%u\n",
 	    ring->qid, ring->cur, totlen, nsegs,
 	    le32toh(tx->tx_flags),
 	    le32toh(tx->rate_n_flags),
-	    (int) tx->initial_rate_index
+	    tx->initial_rate_index
 	    );
 
 	/* Fill TX descriptor. */
@@ -2884,7 +3856,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * mvm/tx.c
  */
 
-#if 0
 /*
  * Note that there are transports that buffer frames before they reach
  * the firmware. This means that after flush_tx_path is called, the
@@ -2894,182 +3865,28 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * 3) wait for the transport queues to be empty
  */
 int
-iwm_mvm_flush_tx_path(struct iwm_softc *sc, int tfd_msk, int sync)
+iwm_mvm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk, uint32_t flags)
 {
+	int ret;
 	struct iwm_tx_path_flush_cmd flush_cmd = {
 		.queues_ctl = htole32(tfd_msk),
 		.flush_ctl = htole16(IWM_DUMP_TX_FIFO_FLUSH),
 	};
-	int ret;
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TXPATH_FLUSH,
-	    sync ? IWM_CMD_SYNC : IWM_CMD_ASYNC,
+	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TXPATH_FLUSH, flags,
 	    sizeof(flush_cmd), &flush_cmd);
 	if (ret)
                 device_printf(sc->sc_dev,
 		    "Flushing tx queue failed: %d\n", ret);
 	return ret;
 }
-#endif
-
-/*
- * BEGIN mvm/sta.c
- */
-
-static void
-iwm_mvm_add_sta_cmd_v6_to_v5(struct iwm_mvm_add_sta_cmd_v6 *cmd_v6,
-	struct iwm_mvm_add_sta_cmd_v5 *cmd_v5)
-{
-	memset(cmd_v5, 0, sizeof(*cmd_v5));
-
-	cmd_v5->add_modify = cmd_v6->add_modify;
-	cmd_v5->tid_disable_tx = cmd_v6->tid_disable_tx;
-	cmd_v5->mac_id_n_color = cmd_v6->mac_id_n_color;
-	IEEE80211_ADDR_COPY(cmd_v5->addr, cmd_v6->addr);
-	cmd_v5->sta_id = cmd_v6->sta_id;
-	cmd_v5->modify_mask = cmd_v6->modify_mask;
-	cmd_v5->station_flags = cmd_v6->station_flags;
-	cmd_v5->station_flags_msk = cmd_v6->station_flags_msk;
-	cmd_v5->add_immediate_ba_tid = cmd_v6->add_immediate_ba_tid;
-	cmd_v5->remove_immediate_ba_tid = cmd_v6->remove_immediate_ba_tid;
-	cmd_v5->add_immediate_ba_ssn = cmd_v6->add_immediate_ba_ssn;
-	cmd_v5->sleep_tx_count = cmd_v6->sleep_tx_count;
-	cmd_v5->sleep_state_flags = cmd_v6->sleep_state_flags;
-	cmd_v5->assoc_id = cmd_v6->assoc_id;
-	cmd_v5->beamform_flags = cmd_v6->beamform_flags;
-	cmd_v5->tfd_queue_msk = cmd_v6->tfd_queue_msk;
-}
-
-static int
-iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *sc,
-	struct iwm_mvm_add_sta_cmd_v6 *cmd, int *status)
-{
-	struct iwm_mvm_add_sta_cmd_v5 cmd_v5;
-
-	if (sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_STA_KEY_CMD) {
-		return iwm_mvm_send_cmd_pdu_status(sc, IWM_ADD_STA,
-		    sizeof(*cmd), cmd, status);
-	}
-
-	iwm_mvm_add_sta_cmd_v6_to_v5(cmd, &cmd_v5);
-
-	return iwm_mvm_send_cmd_pdu_status(sc, IWM_ADD_STA, sizeof(cmd_v5),
-	    &cmd_v5, status);
-}
-
-/* send station add/update command to firmware */
-static int
-iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
-{
-	struct iwm_mvm_add_sta_cmd_v6 add_sta_cmd;
-	int ret;
-	uint32_t status;
-
-	memset(&add_sta_cmd, 0, sizeof(add_sta_cmd));
-
-	add_sta_cmd.sta_id = IWM_STATION_ID;
-	add_sta_cmd.mac_id_n_color
-	    = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	        IWM_DEFAULT_COLOR));
-	if (!update) {
-		add_sta_cmd.tfd_queue_msk = htole32(0xf);
-		IEEE80211_ADDR_COPY(&add_sta_cmd.addr, in->in_ni.ni_bssid);
-	}
-	add_sta_cmd.add_modify = update ? 1 : 0;
-	add_sta_cmd.station_flags_msk
-	    |= htole32(IWM_STA_FLG_FAT_EN_MSK | IWM_STA_FLG_MIMO_EN_MSK);
-
-	status = IWM_ADD_STA_SUCCESS;
-	ret = iwm_mvm_send_add_sta_cmd_status(sc, &add_sta_cmd, &status);
-	if (ret)
-		return ret;
-
-	switch (status) {
-	case IWM_ADD_STA_SUCCESS:
-		break;
-	default:
-		ret = EIO;
-		device_printf(sc->sc_dev, "IWM_ADD_STA failed\n");
-		break;
-	}
-
-	return ret;
-}
-
-static int
-iwm_mvm_add_sta(struct iwm_softc *sc, struct iwm_node *in)
-{
-	return iwm_mvm_sta_send_to_fw(sc, in, 0);
-}
-
-static int
-iwm_mvm_update_sta(struct iwm_softc *sc, struct iwm_node *in)
-{
-	return iwm_mvm_sta_send_to_fw(sc, in, 1);
-}
-
-static int
-iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
-	const uint8_t *addr, uint16_t mac_id, uint16_t color)
-{
-	struct iwm_mvm_add_sta_cmd_v6 cmd;
-	int ret;
-	uint32_t status;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.sta_id = sta->sta_id;
-	cmd.mac_id_n_color = htole32(IWM_FW_CMD_ID_AND_COLOR(mac_id, color));
-
-	cmd.tfd_queue_msk = htole32(sta->tfd_queue_msk);
-
-	if (addr)
-		IEEE80211_ADDR_COPY(cmd.addr, addr);
-
-	ret = iwm_mvm_send_add_sta_cmd_status(sc, &cmd, &status);
-	if (ret)
-		return ret;
-
-	switch (status) {
-	case IWM_ADD_STA_SUCCESS:
-		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-		    "%s: Internal station added.\n", __func__);
-		return 0;
-	default:
-		device_printf(sc->sc_dev,
-		    "%s: Add internal station failed, status=0x%x\n",
-		    __func__, status);
-		ret = EIO;
-		break;
-	}
-	return ret;
-}
-
-static int
-iwm_mvm_add_aux_sta(struct iwm_softc *sc)
-{
-	int ret;
-
-	sc->sc_aux_sta.sta_id = 3;
-	sc->sc_aux_sta.tfd_queue_msk = 0;
-
-	ret = iwm_mvm_add_int_sta_common(sc,
-	    &sc->sc_aux_sta, NULL, IWM_MAC_INDEX_AUX, 0);
-
-	if (ret)
-		memset(&sc->sc_aux_sta, 0, sizeof(sc->sc_aux_sta));
-	return ret;
-}
-
-/*
- * END mvm/sta.c
- */
 
 /*
  * BEGIN mvm/quota.c
  */
 
 static int
-iwm_mvm_update_quotas(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_update_quotas(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_time_quota_cmd cmd;
 	int i, idx, ret, num_active_macs, quota, quota_rem;
@@ -3080,10 +3897,10 @@ iwm_mvm_update_quotas(struct iwm_softc *sc, struct iwm_node *in)
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* currently, PHY ID == binding ID */
-	if (in) {
-		id = in->in_phyctxt->id;
+	if (ivp) {
+		id = ivp->phy_ctxt->id;
 		KASSERT(id < IWM_MAX_BINDINGS, ("invalid id"));
-		colors[id] = in->in_phyctxt->color;
+		colors[id] = ivp->phy_ctxt->color;
 
 		if (1)
 			n_ifs[id] = 1;
@@ -3170,6 +3987,21 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 
 	in->in_assoc = 0;
 
+	/*
+	 * Firmware bug - it'll crash if the beacon interval is less
+	 * than 16. We can't avoid connecting at all, so refuse the
+	 * station state change, this will cause net80211 to abandon
+	 * attempts to connect to this AP, and eventually wpa_s will
+	 * blacklist the AP...
+	 */
+	if (ni->ni_intval < 16) {
+		device_printf(sc->sc_dev,
+		    "AP %s beacon interval is %d, refusing due to firmware bug!\n",
+		    ether_sprintf(ni->ni_bssid), ni->ni_intval);
+		error = EINVAL;
+		goto out;
+	}
+
 	error = iwm_allow_mcast(vap, sc);
 	if (error) {
 		device_printf(sc->sc_dev,
@@ -3182,7 +4014,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	 *
 	 * Linux iwlwifi doesn't reset the nic each time, nor does it
 	 * call ctxt_add() here.  Instead, it adds it during vap creation,
-	 * and always does does a mac_ctx_changed().
+	 * and always does a mac_ctx_changed().
 	 *
 	 * The openbsd port doesn't attempt to do that - it reset things
 	 * at odd states and does the add here.
@@ -3198,49 +4030,45 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: failed to update MAC\n", __func__);
 			goto out;
 		}
-		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
-		    in->in_ni.ni_chan, 1, 1)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed update phy ctxt\n", __func__);
-			goto out;
-		}
-		in->in_phyctxt = &sc->sc_phyctxt[0];
-
-		if ((error = iwm_mvm_binding_update(sc, in)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: binding update cmd\n", __func__);
-			goto out;
-		}
-		if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to update sta\n", __func__);
-			goto out;
-		}
 	} else {
 		if ((error = iwm_mvm_mac_ctxt_add(sc, vap)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: failed to add MAC\n", __func__);
 			goto out;
 		}
-		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
-		    in->in_ni.ni_chan, 1, 1)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed add phy ctxt!\n", __func__);
-			error = ETIMEDOUT;
-			goto out;
-		}
-		in->in_phyctxt = &sc->sc_phyctxt[0];
+	}
 
-		if ((error = iwm_mvm_binding_add_vif(sc, in)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: binding add cmd\n", __func__);
-			goto out;
-		}
-		if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to add sta\n", __func__);
-			goto out;
-		}
+	if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
+	    in->in_ni.ni_chan, 1, 1)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed update phy ctxt\n", __func__);
+		goto out;
+	}
+	iv->phy_ctxt = &sc->sc_phyctxt[0];
+
+	if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: binding update cmd\n", __func__);
+		goto out;
+	}
+	/*
+	 * Authentication becomes unreliable when powersaving is left enabled
+	 * here. Powersaving will be activated again when association has
+	 * finished or is aborted.
+	 */
+	iv->ps_disabled = TRUE;
+	error = iwm_mvm_power_update_mac(sc);
+	iv->ps_disabled = FALSE;
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to update power management\n",
+		    __func__);
+		goto out;
+	}
+	if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to add sta\n", __func__);
+		goto out;
 	}
 
 	/*
@@ -3249,7 +4077,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	 */
 	/* XXX duration is in units of TU, not MS */
 	duration = IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
-	iwm_mvm_protect_session(sc, in, duration, 500 /* XXX magic number */);
+	iwm_mvm_protect_session(sc, iv, duration, 500 /* XXX magic number */);
 	DELAY(100);
 
 	error = 0;
@@ -3259,40 +4087,20 @@ out:
 }
 
 static int
-iwm_assoc(struct ieee80211vap *vap, struct iwm_softc *sc)
-{
-	struct iwm_node *in = IWM_NODE(vap->iv_bss);
-	int error;
-
-	if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: failed to update STA\n", __func__);
-		return error;
-	}
-
-	in->in_assoc = 1;
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: failed to update MAC\n", __func__);
-		return error;
-	}
-
-	return 0;
-}
-
-static int
 iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 {
+	uint32_t tfd_msk;
+
 	/*
 	 * Ok, so *technically* the proper set of calls for going
 	 * from RUN back to SCAN is:
 	 *
 	 * iwm_mvm_power_mac_disable(sc, in);
-	 * iwm_mvm_mac_ctxt_changed(sc, in);
+	 * iwm_mvm_mac_ctxt_changed(sc, vap);
 	 * iwm_mvm_rm_sta(sc, in);
 	 * iwm_mvm_update_quotas(sc, NULL);
 	 * iwm_mvm_mac_ctxt_changed(sc, in);
-	 * iwm_mvm_binding_remove_vif(sc, in);
+	 * iwm_mvm_binding_remove_vif(sc, IWM_VAP(in->in_ni.ni_vap));
 	 * iwm_mvm_mac_ctxt_remove(sc, in);
 	 *
 	 * However, that freezes the device not matter which permutations
@@ -3302,7 +4110,18 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	 * back to nothing anyway, we'll just do a complete device reset.
 	 * Up your's, device!
 	 */
-	//iwm_mvm_flush_tx_path(sc, 0xf, 1);
+	/*
+	 * Just using 0xf for the queues mask is fine as long as we only
+	 * get here from RUN state.
+	 */
+	tfd_msk = 0xf;
+	iwm_xmit_queue_drain(sc);
+	iwm_mvm_flush_tx_path(sc, tfd_msk, IWM_CMD_SYNC);
+	/*
+	 * We seem to get away with just synchronously sending the
+	 * IWM_TXPATH_FLUSH command.
+	 */
+//	iwm_trans_wait_tx_queue_empty(sc, tfd_msk);
 	iwm_stop_device(sc);
 	iwm_init_hw(sc);
 	if (in)
@@ -3314,7 +4133,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 
 	iwm_mvm_power_mac_disable(sc, in);
 
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, in)) != 0) {
+	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
 		device_printf(sc->sc_dev, "mac ctxt change fail 1 %d\n", error);
 		return error;
 	}
@@ -3326,11 +4145,11 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	error = iwm_mvm_rm_sta(sc, in);
 	in->in_assoc = 0;
 	iwm_mvm_update_quotas(sc, NULL);
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, in)) != 0) {
+	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
 		device_printf(sc->sc_dev, "mac ctxt change fail 2 %d\n", error);
 		return error;
 	}
-	iwm_mvm_binding_remove_vif(sc, in);
+	iwm_mvm_binding_remove_vif(sc, IWM_VAP(in->in_ni.ni_vap));
 
 	iwm_mvm_mac_ctxt_remove(sc, in);
 
@@ -3345,6 +4164,21 @@ iwm_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	    M_NOWAIT | M_ZERO);
 }
 
+uint8_t
+iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx)
+{
+	int i;
+	uint8_t rval;
+
+	for (i = 0; i < rs->rs_nrates; i++) {
+		rval = (rs->rs_rates[i] & IEEE80211_RATE_VAL);
+		if (rval == iwm_rates[ridx].rate)
+			return rs->rs_rates[i];
+	}
+
+	return 0;
+}
+
 static void
 iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 {
@@ -3352,7 +4186,7 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	struct iwm_lq_cmd *lq = &in->in_lq;
 	int nrates = ni->ni_rates.rs_nrates;
 	int i, ridx, tab = 0;
-	int txant = 0;
+//	int txant = 0;
 
 	if (nrates > nitems(lq->rs_table)) {
 		device_printf(sc->sc_dev,
@@ -3408,6 +4242,10 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	memset(lq, 0, sizeof(*lq));
 	lq->sta_id = IWM_STATION_ID;
 
+	/* For HT, always enable RTS/CTS to avoid excessive retries. */
+	if (ni->ni_flags & IEEE80211_NODE_HT)
+		lq->flags |= IWM_LQ_FLAG_USE_RTS_MSK;
+
 	/*
 	 * are these used? (we don't do SISO or MIMO)
 	 * need to set them to non-zero, though, or we get an error.
@@ -3430,11 +4268,14 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	for (i = 0; i < nrates; i++) {
 		int nextant;
 
+#if 0
 		if (txant == 0)
-			txant = IWM_FW_VALID_TX_ANT(sc);
+			txant = iwm_mvm_get_valid_tx_ant(sc);
 		nextant = 1<<(ffs(txant)-1);
 		txant &= ~nextant;
-
+#else
+		nextant = iwm_mvm_get_valid_tx_ant(sc);
+#endif
 		/*
 		 * Map the rate id into a rate index into
 		 * our hardware table containing the
@@ -3505,7 +4346,17 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
 
-		iwm_release(sc, NULL);
+		if (nstate == IEEE80211_S_INIT) {
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			error = ivp->iv_newstate(vap, nstate, arg);
+			IEEE80211_UNLOCK(ic);
+			IWM_LOCK(sc);
+			iwm_release(sc, NULL);
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return error;
+		}
 
 		/*
 		 * It's impossible to directly go RUN->SCAN. If we iwm_release()
@@ -3527,7 +4378,12 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    "Force transition to INIT; MGT=%d\n", arg);
 			IWM_UNLOCK(sc);
 			IEEE80211_LOCK(ic);
-			vap->iv_newstate(vap, IEEE80211_S_INIT, arg);
+			/* Always pass arg as -1 since we can't Tx right now. */
+			/*
+			 * XXX arg is just ignored anyway when transitioning
+			 *     to IEEE80211_S_INIT.
+			 */
+			vap->iv_newstate(vap, IEEE80211_S_INIT, -1);
 			IWM_DPRINTF(sc, IWM_DEBUG_STATE,
 			    "Going INIT->SCAN\n");
 			nstate = IEEE80211_S_SCAN;
@@ -3538,7 +4394,44 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
-		sc->sc_scanband = 0;
+	case IEEE80211_S_SCAN:
+		if (vap->iv_state == IEEE80211_S_AUTH ||
+		    vap->iv_state == IEEE80211_S_ASSOC) {
+			int myerr;
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			myerr = ivp->iv_newstate(vap, nstate, arg);
+			IEEE80211_UNLOCK(ic);
+			IWM_LOCK(sc);
+			error = iwm_mvm_rm_sta(sc, vap, FALSE);
+                        if (error) {
+                                device_printf(sc->sc_dev,
+				    "%s: Failed to remove station: %d\n",
+				    __func__, error);
+			}
+			error = iwm_mvm_mac_ctxt_changed(sc, vap);
+                        if (error) {
+                                device_printf(sc->sc_dev,
+                                    "%s: Failed to change mac context: %d\n",
+                                    __func__, error);
+                        }
+                        error = iwm_mvm_binding_remove_vif(sc, ivp);
+                        if (error) {
+                                device_printf(sc->sc_dev,
+                                    "%s: Failed to remove channel ctx: %d\n",
+                                    __func__, error);
+                        }
+			ivp->phy_ctxt = NULL;
+			error = iwm_mvm_power_update_mac(sc);
+			if (error != 0) {
+				device_printf(sc->sc_dev,
+				    "%s: failed to update power management\n",
+				    __func__);
+			}
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return myerr;
+		}
 		break;
 
 	case IEEE80211_S_AUTH:
@@ -3546,52 +4439,49 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			device_printf(sc->sc_dev,
 			    "%s: could not move to auth state: %d\n",
 			    __func__, error);
-			break;
 		}
 		break;
 
 	case IEEE80211_S_ASSOC:
-		if ((error = iwm_assoc(vap, sc)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to associate: %d\n", __func__,
-			    error);
-			break;
-		}
+		/*
+		 * EBS may be disabled due to previous failures reported by FW.
+		 * Reset EBS status here assuming environment has been changed.
+		 */
+		sc->last_ebs_successful = TRUE;
 		break;
 
 	case IEEE80211_S_RUN:
-	{
-		struct iwm_host_cmd cmd = {
-			.id = IWM_LQ_CMD,
-			.len = { sizeof(in->in_lq), },
-			.flags = IWM_CMD_SYNC,
-		};
-
+		in = IWM_NODE(vap->iv_bss);
 		/* Update the association state, now we have it all */
 		/* (eg associd comes in at this point */
-		error = iwm_assoc(vap, sc);
+		error = iwm_mvm_update_sta(sc, in);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: failed to update association state: %d\n",
-			    __func__,
-			    error);
-			break;
+			    "%s: failed to update STA\n", __func__);
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return error;
+		}
+		in->in_assoc = 1;
+		error = iwm_mvm_mac_ctxt_changed(sc, vap);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update MAC: %d\n", __func__, error);
 		}
 
-		in = IWM_NODE(vap->iv_bss);
-		iwm_mvm_power_mac_update_mode(sc, in);
-		iwm_mvm_enable_beacon_filter(sc, in);
-		iwm_mvm_update_quotas(sc, in);
+		iwm_mvm_sf_update(sc, vap, FALSE);
+		iwm_mvm_enable_beacon_filter(sc, ivp);
+		iwm_mvm_power_update_mac(sc);
+		iwm_mvm_update_quotas(sc, ivp);
 		iwm_setrates(sc, in);
 
-		cmd.data[0] = &in->in_lq;
-		if ((error = iwm_send_cmd(sc, &cmd)) != 0) {
+		if ((error = iwm_mvm_send_lq_cmd(sc, &in->in_lq, TRUE)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: IWM_LQ_CMD failed\n", __func__);
+			    "%s: IWM_LQ_CMD failed: %d\n", __func__, error);
 		}
 
+		iwm_mvm_led_enable(sc);
 		break;
-	}
 
 	default:
 		break;
@@ -3607,46 +4497,158 @@ iwm_endscan_cb(void *arg, int pending)
 {
 	struct iwm_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
-	int done;
-	int error;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_SCAN | IWM_DEBUG_TRACE,
 	    "%s: scan ended\n",
 	    __func__);
 
-	IWM_LOCK(sc);
-	if (sc->sc_scanband == IEEE80211_CHAN_2GHZ &&
-	    sc->sc_nvm.sku_cap_band_52GHz_enable) {
-		done = 0;
-		if ((error = iwm_mvm_scan_request(sc,
-		    IEEE80211_CHAN_5GHZ, 0, NULL, 0)) != 0) {
-			device_printf(sc->sc_dev,
-			    "could not initiate 5 GHz scan\n");
-			done = 1;
-		}
-	} else {
-		done = 1;
+	ieee80211_scan_done(TAILQ_FIRST(&ic->ic_vaps));
+}
+
+static int
+iwm_send_bt_init_conf(struct iwm_softc *sc)
+{
+	struct iwm_bt_coex_cmd bt_cmd;
+
+	bt_cmd.mode = htole32(IWM_BT_COEX_WIFI);
+	bt_cmd.enabled_modules = htole32(IWM_BT_COEX_HIGH_BAND_RET);
+
+	return iwm_mvm_send_cmd_pdu(sc, IWM_BT_CONFIG, 0, sizeof(bt_cmd),
+	    &bt_cmd);
+}
+
+static boolean_t
+iwm_mvm_is_lar_supported(struct iwm_softc *sc)
+{
+	boolean_t nvm_lar = sc->nvm_data->lar_enabled;
+	boolean_t tlv_lar = fw_has_capa(&sc->ucode_capa,
+					IWM_UCODE_TLV_CAPA_LAR_SUPPORT);
+
+	if (iwm_lar_disable)
+		return FALSE;
+
+	/*
+	 * Enable LAR only if it is supported by the FW (TLV) &&
+	 * enabled in the NVM
+	 */
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+		return nvm_lar && tlv_lar;
+	else
+		return tlv_lar;
+}
+
+static boolean_t
+iwm_mvm_is_wifi_mcc_supported(struct iwm_softc *sc)
+{
+	return fw_has_api(&sc->ucode_capa,
+			  IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
+	       fw_has_capa(&sc->ucode_capa,
+			   IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC);
+}
+
+static int
+iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
+{
+	struct iwm_mcc_update_cmd mcc_cmd;
+	struct iwm_host_cmd hcmd = {
+		.id = IWM_MCC_UPDATE_CMD,
+		.flags = (IWM_CMD_SYNC | IWM_CMD_WANT_SKB),
+		.data = { &mcc_cmd },
+	};
+	int ret;
+#ifdef IWM_DEBUG
+	struct iwm_rx_packet *pkt;
+	struct iwm_mcc_update_resp_v1 *mcc_resp_v1 = NULL;
+	struct iwm_mcc_update_resp *mcc_resp;
+	int n_channels;
+	uint16_t mcc;
+#endif
+	int resp_v2 = fw_has_capa(&sc->ucode_capa,
+	    IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
+
+	if (!iwm_mvm_is_lar_supported(sc)) {
+		IWM_DPRINTF(sc, IWM_DEBUG_LAR, "%s: no LAR support\n",
+		    __func__);
+		return 0;
 	}
 
-	if (done) {
-		IWM_UNLOCK(sc);
-		ieee80211_scan_done(TAILQ_FIRST(&ic->ic_vaps));
-		IWM_LOCK(sc);
-		sc->sc_scanband = 0;
+	memset(&mcc_cmd, 0, sizeof(mcc_cmd));
+	mcc_cmd.mcc = htole16(alpha2[0] << 8 | alpha2[1]);
+	if (iwm_mvm_is_wifi_mcc_supported(sc))
+		mcc_cmd.source_id = IWM_MCC_SOURCE_GET_CURRENT;
+	else
+		mcc_cmd.source_id = IWM_MCC_SOURCE_OLD_FW;
+
+	if (resp_v2)
+		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd);
+	else
+		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd_v1);
+
+	IWM_DPRINTF(sc, IWM_DEBUG_LAR,
+	    "send MCC update to FW with '%c%c' src = %d\n",
+	    alpha2[0], alpha2[1], mcc_cmd.source_id);
+
+	ret = iwm_send_cmd(sc, &hcmd);
+	if (ret)
+		return ret;
+
+#ifdef IWM_DEBUG
+	pkt = hcmd.resp_pkt;
+
+	/* Extract MCC response */
+	if (resp_v2) {
+		mcc_resp = (void *)pkt->data;
+		mcc = mcc_resp->mcc;
+		n_channels =  le32toh(mcc_resp->n_channels);
+	} else {
+		mcc_resp_v1 = (void *)pkt->data;
+		mcc = mcc_resp_v1->mcc;
+		n_channels =  le32toh(mcc_resp_v1->n_channels);
 	}
-	IWM_UNLOCK(sc);
+
+	/* W/A for a FW/NVM issue - returns 0x00 for the world domain */
+	if (mcc == 0)
+		mcc = 0x3030;  /* "00" - world */
+
+	IWM_DPRINTF(sc, IWM_DEBUG_LAR,
+	    "regulatory domain '%c%c' (%d channels available)\n",
+	    mcc >> 8, mcc & 0xff, n_channels);
+#endif
+	iwm_free_resp(sc, &hcmd);
+
+	return 0;
+}
+
+static void
+iwm_mvm_tt_tx_backoff(struct iwm_softc *sc, uint32_t backoff)
+{
+	struct iwm_host_cmd cmd = {
+		.id = IWM_REPLY_THERMAL_MNG_BACKOFF,
+		.len = { sizeof(uint32_t), },
+		.data = { &backoff, },
+	};
+
+	if (iwm_send_cmd(sc, &cmd) != 0) {
+		device_printf(sc->sc_dev,
+		    "failed to change thermal tx backoff\n");
+	}
 }
 
 static int
 iwm_init_hw(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	int error, i, qid;
+	int error, i, ac;
 
-	if ((error = iwm_start_hw(sc)) != 0)
+	sc->sf_state = IWM_SF_UNINIT;
+
+	if ((error = iwm_start_hw(sc)) != 0) {
+		printf("iwm_start_hw: failed %d\n", error);
 		return error;
+	}
 
 	if ((error = iwm_run_init_mvm_ucode(sc, 0)) != 0) {
+		printf("iwm_run_init_mvm_ucode: failed %d\n", error);
 		return error;
 	}
 
@@ -3655,31 +4657,48 @@ iwm_init_hw(struct iwm_softc *sc)
 	 * image just loaded
 	 */
 	iwm_stop_device(sc);
+	sc->sc_ps_disabled = FALSE;
 	if ((error = iwm_start_hw(sc)) != 0) {
 		device_printf(sc->sc_dev, "could not initialize hardware\n");
 		return error;
 	}
 
 	/* omstart, this time with the regular firmware */
-	error = iwm_mvm_load_ucode_wait_alive(sc, IWM_UCODE_TYPE_REGULAR);
+	error = iwm_mvm_load_ucode_wait_alive(sc, IWM_UCODE_REGULAR);
 	if (error) {
 		device_printf(sc->sc_dev, "could not load firmware\n");
 		goto error;
 	}
 
-	if ((error = iwm_send_tx_ant_cfg(sc, IWM_FW_VALID_TX_ANT(sc))) != 0)
+	error = iwm_mvm_sf_update(sc, NULL, FALSE);
+	if (error)
+		device_printf(sc->sc_dev, "Failed to initialize Smart Fifo\n");
+
+	if ((error = iwm_send_bt_init_conf(sc)) != 0) {
+		device_printf(sc->sc_dev, "bt init conf failed\n");
+		goto error;
+	}
+
+	error = iwm_send_tx_ant_cfg(sc, iwm_mvm_get_valid_tx_ant(sc));
+	if (error != 0) {
+		device_printf(sc->sc_dev, "antenna config failed\n");
+		goto error;
+	}
+
+	/* Send phy db control command and then phy db calibration */
+	if ((error = iwm_send_phy_db_data(sc->sc_phy_db)) != 0)
 		goto error;
 
-	/* Send phy db control command and then phy db calibration*/
-	if ((error = iwm_send_phy_db_data(sc)) != 0)
+	if ((error = iwm_send_phy_cfg_cmd(sc)) != 0) {
+		device_printf(sc->sc_dev, "phy_cfg_cmd failed\n");
 		goto error;
-
-	if ((error = iwm_send_phy_cfg_cmd(sc)) != 0)
-		goto error;
+	}
 
 	/* Add auxiliary station for scanning */
-	if ((error = iwm_mvm_add_aux_sta(sc)) != 0)
+	if ((error = iwm_mvm_add_aux_sta(sc)) != 0) {
+		device_printf(sc->sc_dev, "add_aux_sta failed\n");
 		goto error;
+	}
 
 	for (i = 0; i < IWM_NUM_PHY_CTX; i++) {
 		/*
@@ -3692,13 +4711,33 @@ iwm_init_hw(struct iwm_softc *sc)
 			goto error;
 	}
 
+	/* Initialize tx backoffs to the minimum. */
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000)
+		iwm_mvm_tt_tx_backoff(sc, 0);
+
 	error = iwm_mvm_power_update_device(sc);
 	if (error)
 		goto error;
 
-	/* Mark TX rings as active. */
-	for (qid = 0; qid < 4; qid++) {
-		iwm_enable_txq(sc, qid, qid);
+	if ((error = iwm_send_update_mcc_cmd(sc, "ZZ")) != 0)
+		goto error;
+
+	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		if ((error = iwm_mvm_config_umac_scan(sc)) != 0)
+			goto error;
+	}
+
+	/* Enable Tx queues. */
+	for (ac = 0; ac < WME_NUM_AC; ac++) {
+		error = iwm_enable_txq(sc, IWM_STATION_ID, ac,
+		    iwm_mvm_ac_to_tx_fifo[ac]);
+		if (error)
+			goto error;
+	}
+
+	if ((error = iwm_mvm_disable_beacon_filter(sc)) != 0) {
+		device_printf(sc->sc_dev, "failed to disable beacon filter\n");
+		goto error;
 	}
 
 	return 0;
@@ -3734,6 +4773,10 @@ iwm_allow_mcast(struct ieee80211vap *vap, struct iwm_softc *sc)
 	return (error);
 }
 
+/*
+ * ifnet interfaces
+ */
+
 static void
 iwm_init(struct iwm_softc *sc)
 {
@@ -3746,12 +4789,13 @@ iwm_init(struct iwm_softc *sc)
 	sc->sc_flags &= ~IWM_FLAG_STOPPED;
 
 	if ((error = iwm_init_hw(sc)) != 0) {
+		printf("iwm_init_hw failed %d\n", error);
 		iwm_stop(sc);
 		return;
 	}
 
 	/*
- 	 * Ok, firmware loaded and we are jogging
+	 * Ok, firmware loaded and we are jogging
 	 */
 	sc->sc_flags |= IWM_FLAG_HW_INITED;
 	callout_reset(&sc->sc_watchdog_to, hz, iwm_watchdog, sc);
@@ -3812,10 +4856,10 @@ iwm_stop(struct iwm_softc *sc)
 	sc->sc_flags &= ~IWM_FLAG_HW_INITED;
 	sc->sc_flags |= IWM_FLAG_STOPPED;
 	sc->sc_generation++;
-	sc->sc_scanband = 0;
 	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
+	sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
 }
 
 static void
@@ -3831,7 +4875,7 @@ iwm_watchdog(void *arg)
 			iwm_nic_error(sc);
 #endif
 			ieee80211_restart_all(ic);
-			counter_u64_add(ic->ic_oerrors, 1);
+			counter_u64_add(sc->sc_ic.ic_oerrors, 1);
 			return;
 		}
 	}
@@ -3874,8 +4918,8 @@ iwm_parent(struct ieee80211com *ic)
 struct iwm_error_event_table {
 	uint32_t valid;		/* (nonzero) valid, (0) log is empty */
 	uint32_t error_id;		/* type of error */
-	uint32_t pc;			/* program counter */
-	uint32_t blink1;		/* branch link */
+	uint32_t trm_hw_status0;	/* TRM HW status */
+	uint32_t trm_hw_status1;	/* TRM HW status */
 	uint32_t blink2;		/* branch link */
 	uint32_t ilink1;		/* interrupt link */
 	uint32_t ilink2;		/* interrupt link */
@@ -3887,8 +4931,9 @@ struct iwm_error_event_table {
 	uint32_t tsf_hi;		/* network timestamp function timer */
 	uint32_t gp1;		/* GP1 timer register */
 	uint32_t gp2;		/* GP2 timer register */
-	uint32_t gp3;		/* GP3 timer register */
-	uint32_t ucode_ver;		/* uCode version */
+	uint32_t fw_rev_type;	/* firmware revision type */
+	uint32_t major;		/* uCode version major */
+	uint32_t minor;		/* uCode version minor */
 	uint32_t hw_ver;		/* HW Silicon version */
 	uint32_t brd_ver;		/* HW board version */
 	uint32_t log_pc;		/* log program counter */
@@ -3905,7 +4950,7 @@ struct iwm_error_event_table {
 				 * time_flag */
 	uint32_t isr4;		/* isr status register LMPM_NIC_ISR4:
 				 * wico interrupt */
-	uint32_t isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
+	uint32_t last_cmd_id;	/* last HCMD id handled by the firmware */
 	uint32_t wait_event;		/* wait event() caller address */
 	uint32_t l2p_control;	/* L2pControlField */
 	uint32_t l2p_duration;	/* L2pDurationField */
@@ -3916,6 +4961,31 @@ struct iwm_error_event_table {
 	uint32_t u_timestamp;	/* indicate when the date and time of the
 				 * compilation */
 	uint32_t flow_handler;	/* FH read/write pointers, RX credit */
+} __packed /* LOG_ERROR_TABLE_API_S_VER_3 */;
+
+/*
+ * UMAC error struct - relevant starting from family 8000 chip.
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwm_umac_error_event_table {
+	uint32_t valid;		/* (nonzero) valid, (0) log is empty */
+	uint32_t error_id;	/* type of error */
+	uint32_t blink1;	/* branch link */
+	uint32_t blink2;	/* branch link */
+	uint32_t ilink1;	/* interrupt link */
+	uint32_t ilink2;	/* interrupt link */
+	uint32_t data1;		/* error-specific data */
+	uint32_t data2;		/* error-specific data */
+	uint32_t data3;		/* error-specific data */
+	uint32_t umac_major;
+	uint32_t umac_minor;
+	uint32_t frame_pointer;	/* core register 27*/
+	uint32_t stack_pointer;	/* core register 28 */
+	uint32_t cmd_header;	/* latest host cmd sent to UMAC */
+	uint32_t nic_isr_pref;	/* ISR status register */
 } __packed;
 
 #define ERROR_START_OFFSET  (1 * sizeof(uint32_t))
@@ -3957,6 +5027,53 @@ iwm_desc_lookup(uint32_t num)
 	return advanced_lookup[i].name;
 }
 
+static void
+iwm_nic_umac_error(struct iwm_softc *sc)
+{
+	struct iwm_umac_error_event_table table;
+	uint32_t base;
+
+	base = sc->umac_error_event_table;
+
+	if (base < 0x800000) {
+		device_printf(sc->sc_dev, "Invalid error log pointer 0x%08x\n",
+		    base);
+		return;
+	}
+
+	if (iwm_read_mem(sc, base, &table, sizeof(table)/sizeof(uint32_t))) {
+		device_printf(sc->sc_dev, "reading errlog failed\n");
+		return;
+	}
+
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
+		device_printf(sc->sc_dev, "Start UMAC Error Log Dump:\n");
+		device_printf(sc->sc_dev, "Status: 0x%x, count: %d\n",
+		    sc->sc_flags, table.valid);
+	}
+
+	device_printf(sc->sc_dev, "0x%08X | %s\n", table.error_id,
+		iwm_desc_lookup(table.error_id));
+	device_printf(sc->sc_dev, "0x%08X | umac branchlink1\n", table.blink1);
+	device_printf(sc->sc_dev, "0x%08X | umac branchlink2\n", table.blink2);
+	device_printf(sc->sc_dev, "0x%08X | umac interruptlink1\n",
+	    table.ilink1);
+	device_printf(sc->sc_dev, "0x%08X | umac interruptlink2\n",
+	    table.ilink2);
+	device_printf(sc->sc_dev, "0x%08X | umac data1\n", table.data1);
+	device_printf(sc->sc_dev, "0x%08X | umac data2\n", table.data2);
+	device_printf(sc->sc_dev, "0x%08X | umac data3\n", table.data3);
+	device_printf(sc->sc_dev, "0x%08X | umac major\n", table.umac_major);
+	device_printf(sc->sc_dev, "0x%08X | umac minor\n", table.umac_minor);
+	device_printf(sc->sc_dev, "0x%08X | frame pointer\n",
+	    table.frame_pointer);
+	device_printf(sc->sc_dev, "0x%08X | stack pointer\n",
+	    table.stack_pointer);
+	device_printf(sc->sc_dev, "0x%08X | last host cmd\n", table.cmd_header);
+	device_printf(sc->sc_dev, "0x%08X | isr status reg\n",
+	    table.nic_isr_pref);
+}
+
 /*
  * Support for dumping the error log seemed like a good idea ...
  * but it's mostly hex junk and the only sensible thing is the
@@ -3971,14 +5088,14 @@ iwm_nic_error(struct iwm_softc *sc)
 	uint32_t base;
 
 	device_printf(sc->sc_dev, "dumping device error log\n");
-	base = sc->sc_uc.uc_error_event_table;
-	if (base < 0x800000 || base >= 0x80C000) {
+	base = sc->error_event_table;
+	if (base < 0x800000) {
 		device_printf(sc->sc_dev,
-		    "Not valid error log pointer 0x%08x\n", base);
+		    "Invalid error log pointer 0x%08x\n", base);
 		return;
 	}
 
-	if (iwm_read_mem(sc, base, &table, sizeof(table)/sizeof(uint32_t)) != 0) {
+	if (iwm_read_mem(sc, base, &table, sizeof(table)/sizeof(uint32_t))) {
 		device_printf(sc->sc_dev, "reading errlog failed\n");
 		return;
 	}
@@ -3989,15 +5106,17 @@ iwm_nic_error(struct iwm_softc *sc)
 	}
 
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
-		device_printf(sc->sc_dev, "Start IWL Error Log Dump:\n");
+		device_printf(sc->sc_dev, "Start Error Log Dump:\n");
 		device_printf(sc->sc_dev, "Status: 0x%x, count: %d\n",
 		    sc->sc_flags, table.valid);
 	}
 
 	device_printf(sc->sc_dev, "0x%08X | %-28s\n", table.error_id,
-		iwm_desc_lookup(table.error_id));
-	device_printf(sc->sc_dev, "%08X | uPc\n", table.pc);
-	device_printf(sc->sc_dev, "%08X | branchlink1\n", table.blink1);
+	    iwm_desc_lookup(table.error_id));
+	device_printf(sc->sc_dev, "%08X | trm_hw_status0\n",
+	    table.trm_hw_status0);
+	device_printf(sc->sc_dev, "%08X | trm_hw_status1\n",
+	    table.trm_hw_status1);
 	device_printf(sc->sc_dev, "%08X | branchlink2\n", table.blink2);
 	device_printf(sc->sc_dev, "%08X | interruptlink1\n", table.ilink1);
 	device_printf(sc->sc_dev, "%08X | interruptlink2\n", table.ilink2);
@@ -4009,8 +5128,10 @@ iwm_nic_error(struct iwm_softc *sc)
 	device_printf(sc->sc_dev, "%08X | tsf hi\n", table.tsf_hi);
 	device_printf(sc->sc_dev, "%08X | time gp1\n", table.gp1);
 	device_printf(sc->sc_dev, "%08X | time gp2\n", table.gp2);
-	device_printf(sc->sc_dev, "%08X | time gp3\n", table.gp3);
-	device_printf(sc->sc_dev, "%08X | uCode version\n", table.ucode_ver);
+	device_printf(sc->sc_dev, "%08X | uCode revision type\n",
+	    table.fw_rev_type);
+	device_printf(sc->sc_dev, "%08X | uCode version major\n", table.major);
+	device_printf(sc->sc_dev, "%08X | uCode version minor\n", table.minor);
 	device_printf(sc->sc_dev, "%08X | hw version\n", table.hw_ver);
 	device_printf(sc->sc_dev, "%08X | board version\n", table.brd_ver);
 	device_printf(sc->sc_dev, "%08X | hcmd\n", table.hcmd);
@@ -4019,7 +5140,7 @@ iwm_nic_error(struct iwm_softc *sc)
 	device_printf(sc->sc_dev, "%08X | isr2\n", table.isr2);
 	device_printf(sc->sc_dev, "%08X | isr3\n", table.isr3);
 	device_printf(sc->sc_dev, "%08X | isr4\n", table.isr4);
-	device_printf(sc->sc_dev, "%08X | isr_pref\n", table.isr_pref);
+	device_printf(sc->sc_dev, "%08X | last cmd Id\n", table.last_cmd_id);
 	device_printf(sc->sc_dev, "%08X | wait_event\n", table.wait_event);
 	device_printf(sc->sc_dev, "%08X | l2p_control\n", table.l2p_control);
 	device_printf(sc->sc_dev, "%08X | l2p_duration\n", table.l2p_duration);
@@ -4028,76 +5149,101 @@ iwm_nic_error(struct iwm_softc *sc)
 	device_printf(sc->sc_dev, "%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
 	device_printf(sc->sc_dev, "%08X | timestamp\n", table.u_timestamp);
 	device_printf(sc->sc_dev, "%08X | flow_handler\n", table.flow_handler);
+
+	if (sc->umac_error_event_table)
+		iwm_nic_umac_error(sc);
 }
 #endif
 
-#define SYNC_RESP_STRUCT(_var_, _pkt_)					\
-do {									\
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);\
-	_var_ = (void *)((_pkt_)+1);					\
-} while (/*CONSTCOND*/0)
-
-#define SYNC_RESP_PTR(_ptr_, _len_, _pkt_)				\
-do {									\
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);\
-	_ptr_ = (void *)((_pkt_)+1);					\
-} while (/*CONSTCOND*/0)
-
-#define ADVANCE_RXQ(sc) (sc->rxq.cur = (sc->rxq.cur + 1) % IWM_RX_RING_COUNT);
-
-/*
- * Process an IWM_CSR_INT_BIT_FH_RX or IWM_CSR_INT_BIT_SW_RX interrupt.
- * Basic structure from if_iwn
- */
 static void
-iwm_notif_intr(struct iwm_softc *sc)
+iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 {
-	uint16_t hw;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct iwm_cmd_response *cresp;
+	struct mbuf *m1;
+	uint32_t offset = 0;
+	uint32_t maxoff = IWM_RBUF_SIZE;
+	uint32_t nextoff;
+	boolean_t stolen = FALSE;
 
-	bus_dmamap_sync(sc->rxq.stat_dma.tag, sc->rxq.stat_dma.map,
-	    BUS_DMASYNC_POSTREAD);
+#define HAVEROOM(a)	\
+    ((a) + sizeof(uint32_t) + sizeof(struct iwm_cmd_header) < maxoff)
 
-	hw = le16toh(sc->rxq.stat->closed_rb_num) & 0xfff;
-	while (sc->rxq.cur != hw) {
-		struct iwm_rx_ring *ring = &sc->rxq;
-		struct iwm_rx_data *data = &sc->rxq.data[sc->rxq.cur];
-		struct iwm_rx_packet *pkt;
-		struct iwm_cmd_response *cresp;
-		int qid, idx;
+	while (HAVEROOM(offset)) {
+		struct iwm_rx_packet *pkt = mtodoff(m, struct iwm_rx_packet *,
+		    offset);
+		int qid, idx, code, len;
 
-		bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-		    BUS_DMASYNC_POSTREAD);
-		pkt = mtod(data->m, struct iwm_rx_packet *);
-
-		qid = pkt->hdr.qid & ~0x80;
+		qid = pkt->hdr.qid;
 		idx = pkt->hdr.idx;
 
-		IWM_DPRINTF(sc, IWM_DEBUG_INTR,
-		    "rx packet qid=%d idx=%d flags=%x type=%x %d %d\n",
-		    pkt->hdr.qid & ~0x80, pkt->hdr.idx, pkt->hdr.flags,
-		    pkt->hdr.code, sc->rxq.cur, hw);
+		code = IWM_WIDE_ID(pkt->hdr.flags, pkt->hdr.code);
 
 		/*
 		 * randomly get these from the firmware, no idea why.
 		 * they at least seem harmless, so just ignore them for now
 		 */
-		if (__predict_false((pkt->hdr.code == 0 && qid == 0 && idx == 0)
-		    || pkt->len_n_flags == htole32(0x55550000))) {
-			ADVANCE_RXQ(sc);
-			continue;
+		if ((pkt->hdr.code == 0 && (qid & ~0x80) == 0 && idx == 0) ||
+		    pkt->len_n_flags == htole32(IWM_FH_RSCSR_FRAME_INVALID)) {
+			break;
 		}
 
-		switch (pkt->hdr.code) {
+		IWM_DPRINTF(sc, IWM_DEBUG_INTR,
+		    "rx packet qid=%d idx=%d type=%x\n",
+		    qid & ~0x80, pkt->hdr.idx, code);
+
+		len = iwm_rx_packet_len(pkt);
+		len += sizeof(uint32_t); /* account for status word */
+		nextoff = offset + roundup2(len, IWM_FH_RSCSR_FRAME_ALIGN);
+
+		iwm_notification_wait_notify(sc->sc_notif_wait, code, pkt);
+
+		switch (code) {
 		case IWM_REPLY_RX_PHY_CMD:
-			iwm_mvm_rx_rx_phy_cmd(sc, pkt, data);
+			iwm_mvm_rx_rx_phy_cmd(sc, pkt);
 			break;
 
-		case IWM_REPLY_RX_MPDU_CMD:
-			iwm_mvm_rx_rx_mpdu(sc, pkt, data);
+		case IWM_REPLY_RX_MPDU_CMD: {
+			/*
+			 * If this is the last frame in the RX buffer, we
+			 * can directly feed the mbuf to the sharks here.
+			 */
+			struct iwm_rx_packet *nextpkt = mtodoff(m,
+			    struct iwm_rx_packet *, nextoff);
+			if (!HAVEROOM(nextoff) ||
+			    (nextpkt->hdr.code == 0 &&
+			     (nextpkt->hdr.qid & ~0x80) == 0 &&
+			     nextpkt->hdr.idx == 0) ||
+			    (nextpkt->len_n_flags ==
+			     htole32(IWM_FH_RSCSR_FRAME_INVALID))) {
+				if (iwm_mvm_rx_rx_mpdu(sc, m, offset, stolen)) {
+					stolen = FALSE;
+					/* Make sure we abort the loop */
+					nextoff = maxoff;
+				}
+				break;
+			}
+
+			/*
+			 * Use m_copym instead of m_split, because that
+			 * makes it easier to keep a valid rx buffer in
+			 * the ring, when iwm_mvm_rx_rx_mpdu() fails.
+			 *
+			 * We need to start m_copym() at offset 0, to get the
+			 * M_PKTHDR flag preserved.
+			 */
+			m1 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+			if (m1) {
+				if (iwm_mvm_rx_rx_mpdu(sc, m1, offset, stolen))
+					stolen = TRUE;
+				else
+					m_freem(m1);
+			}
 			break;
+		}
 
 		case IWM_TX_CMD:
-			iwm_mvm_rx_tx_cmd(sc, pkt, data);
+			iwm_mvm_rx_tx_cmd(sc, pkt);
 			break;
 
 		case IWM_MISSED_BEACONS_NOTIFICATION: {
@@ -4105,10 +5251,9 @@ iwm_notif_intr(struct iwm_softc *sc)
 			int missed;
 
 			/* XXX look at mac_id to determine interface ID */
-			struct ieee80211com *ic = &sc->sc_ic;
 			struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-			SYNC_RESP_STRUCT(resp, pkt);
+			resp = (void *)pkt->data;
 			missed = le32toh(resp->consec_missed_beacons);
 
 			IWM_DPRINTF(sc, IWM_DEBUG_BEACON | IWM_DEBUG_STATE,
@@ -4137,46 +5282,59 @@ iwm_notif_intr(struct iwm_softc *sc)
 				}
 			}
 
-			break; }
+			break;
+		}
 
-		case IWM_MVM_ALIVE: {
-			struct iwm_mvm_alive_resp *resp;
-			SYNC_RESP_STRUCT(resp, pkt);
+		case IWM_MFUART_LOAD_NOTIFICATION:
+			break;
 
-			sc->sc_uc.uc_error_event_table
-			    = le32toh(resp->error_event_table_ptr);
-			sc->sc_uc.uc_log_event_table
-			    = le32toh(resp->log_event_table_ptr);
-			sc->sched_base = le32toh(resp->scd_base_ptr);
-			sc->sc_uc.uc_ok = resp->status == IWM_ALIVE_STATUS_OK;
+		case IWM_MVM_ALIVE:
+			break;
 
-			sc->sc_uc.uc_intr = 1;
-			wakeup(&sc->sc_uc);
-			break; }
+		case IWM_CALIB_RES_NOTIF_PHY_DB:
+			break;
 
-		case IWM_CALIB_RES_NOTIF_PHY_DB: {
-			struct iwm_calib_res_notif_phy_db *phy_db_notif;
-			SYNC_RESP_STRUCT(phy_db_notif, pkt);
-
-			iwm_phy_db_set_section(sc, phy_db_notif);
-
-			break; }
-
-		case IWM_STATISTICS_NOTIFICATION: {
-			struct iwm_notif_statistics *stats;
-			SYNC_RESP_STRUCT(stats, pkt);
-			memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
-			sc->sc_noise = iwm_get_noise(&stats->rx.general);
-			break; }
+		case IWM_STATISTICS_NOTIFICATION:
+			iwm_mvm_handle_rx_statistics(sc, pkt);
+			break;
 
 		case IWM_NVM_ACCESS_CMD:
-			if (sc->sc_wantresp == ((qid << 16) | idx)) {
-				bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-				    BUS_DMASYNC_POSTREAD);
+		case IWM_MCC_UPDATE_CMD:
+			if (sc->sc_wantresp == (((qid & ~0x80) << 16) | idx)) {
 				memcpy(sc->sc_cmd_resp,
 				    pkt, sizeof(sc->sc_cmd_resp));
 			}
 			break;
+
+		case IWM_MCC_CHUB_UPDATE_CMD: {
+			struct iwm_mcc_chub_notif *notif;
+			notif = (void *)pkt->data;
+
+			sc->sc_fw_mcc[0] = (notif->mcc & 0xff00) >> 8;
+			sc->sc_fw_mcc[1] = notif->mcc & 0xff;
+			sc->sc_fw_mcc[2] = '\0';
+			IWM_DPRINTF(sc, IWM_DEBUG_LAR,
+			    "fw source %d sent CC '%s'\n",
+			    notif->source_id, sc->sc_fw_mcc);
+			break;
+		}
+
+		case IWM_DTS_MEASUREMENT_NOTIFICATION:
+		case IWM_WIDE_ID(IWM_PHY_OPS_GROUP,
+				 IWM_DTS_MEASUREMENT_NOTIF_WIDE): {
+			struct iwm_dts_measurement_notif_v1 *notif;
+
+			if (iwm_rx_packet_payload_len(pkt) < sizeof(*notif)) {
+				device_printf(sc->sc_dev,
+				    "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
+				break;
+			}
+			notif = (void *)pkt->data;
+			IWM_DPRINTF(sc, IWM_DEBUG_TEMP,
+			    "IWM_DTS_MEASUREMENT_NOTIFICATION - %d\n",
+			    notif->temp);
+			break;
+		}
 
 		case IWM_PHY_CONFIGURATION_CMD:
 		case IWM_TX_ANT_CONFIGURATION_CMD:
@@ -4187,61 +5345,114 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_PHY_CONTEXT_CMD:
 		case IWM_BINDING_CONTEXT_CMD:
 		case IWM_TIME_EVENT_CMD:
-		case IWM_SCAN_REQUEST_CMD:
+		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_CFG_CMD):
+		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_REQ_UMAC):
+		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_ABORT_UMAC):
+		case IWM_SCAN_OFFLOAD_REQUEST_CMD:
+		case IWM_SCAN_OFFLOAD_ABORT_CMD:
 		case IWM_REPLY_BEACON_FILTERING_CMD:
 		case IWM_MAC_PM_POWER_TABLE:
 		case IWM_TIME_QUOTA_CMD:
 		case IWM_REMOVE_STA:
 		case IWM_TXPATH_FLUSH:
 		case IWM_LQ_CMD:
-			SYNC_RESP_STRUCT(cresp, pkt);
-			if (sc->sc_wantresp == ((qid << 16) | idx)) {
+		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP,
+				 IWM_FW_PAGING_BLOCK_CMD):
+		case IWM_BT_CONFIG:
+		case IWM_REPLY_THERMAL_MNG_BACKOFF:
+			cresp = (void *)pkt->data;
+			if (sc->sc_wantresp == (((qid & ~0x80) << 16) | idx)) {
 				memcpy(sc->sc_cmd_resp,
 				    pkt, sizeof(*pkt)+sizeof(*cresp));
 			}
 			break;
 
 		/* ignore */
-		case 0x6c: /* IWM_PHY_DB_CMD, no idea why it's not in fw-api.h */
+		case IWM_PHY_DB_CMD:
 			break;
 
 		case IWM_INIT_COMPLETE_NOTIF:
-			sc->sc_init_complete = 1;
-			wakeup(&sc->sc_init_complete);
 			break;
 
-		case IWM_SCAN_COMPLETE_NOTIFICATION: {
-			struct iwm_scan_complete_notif *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_es_task);
-			break; }
+		case IWM_SCAN_OFFLOAD_COMPLETE:
+			iwm_mvm_rx_lmac_scan_complete_notif(sc, pkt);
+			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+				ieee80211_runtask(ic, &sc->sc_es_task);
+			}
+			break;
+
+		case IWM_SCAN_ITERATION_COMPLETE: {
+			struct iwm_lmac_scan_complete_notif *notif;
+			notif = (void *)pkt->data;
+			break;
+		}
+
+		case IWM_SCAN_COMPLETE_UMAC:
+			iwm_mvm_rx_umac_scan_complete_notif(sc, pkt);
+			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+				ieee80211_runtask(ic, &sc->sc_es_task);
+			}
+			break;
+
+		case IWM_SCAN_ITERATION_COMPLETE_UMAC: {
+			struct iwm_umac_scan_iter_complete_notif *notif;
+			notif = (void *)pkt->data;
+
+			IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "UMAC scan iteration "
+			    "complete, status=0x%x, %d channels scanned\n",
+			    notif->status, notif->scanned_channels);
+			break;
+		}
 
 		case IWM_REPLY_ERROR: {
 			struct iwm_error_resp *resp;
-			SYNC_RESP_STRUCT(resp, pkt);
+			resp = (void *)pkt->data;
 
 			device_printf(sc->sc_dev,
 			    "firmware error 0x%x, cmd 0x%x\n",
 			    le32toh(resp->error_type),
 			    resp->cmd_id);
-			break; }
+			break;
+		}
 
 		case IWM_TIME_EVENT_NOTIFICATION: {
 			struct iwm_time_event_notif *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 
 			IWM_DPRINTF(sc, IWM_DEBUG_INTR,
 			    "TE notif status = 0x%x action = 0x%x\n",
-			        notif->status, notif->action);
-			break; }
+			    notif->status, notif->action);
+			break;
+		}
+
+		/*
+		 * Firmware versions 21 and 22 generate some DEBUG_LOG_MSG
+		 * messages. Just ignore them for now.
+		 */
+		case IWM_DEBUG_LOG_MSG:
+			break;
 
 		case IWM_MCAST_FILTER_CMD:
 			break;
 
+		case IWM_SCD_QUEUE_CFG: {
+			struct iwm_scd_txq_cfg_rsp *rsp;
+			rsp = (void *)pkt->data;
+
+			IWM_DPRINTF(sc, IWM_DEBUG_CMD,
+			    "queue cfg token=0x%x sta_id=%d "
+			    "tid=%d scd_queue=%d\n",
+			    rsp->token, rsp->sta_id, rsp->tid,
+			    rsp->scd_queue);
+			break;
+		}
+
 		default:
 			device_printf(sc->sc_dev,
 			    "frame %d/%d %x UNHANDLED (this should "
-			    "not happen)\n", qid, idx,
+			    "not happen)\n", qid & ~0x80, idx,
 			    pkt->len_n_flags);
 			break;
 		}
@@ -4260,23 +5471,55 @@ iwm_notif_intr(struct iwm_softc *sc)
 		 * uses a slightly different format for pkt->hdr, and "qid"
 		 * is actually the upper byte of a two-byte field.
 		 */
-		if (!(pkt->hdr.qid & (1 << 7))) {
+		if (!(qid & (1 << 7)))
 			iwm_cmd_done(sc, pkt);
-		}
 
-		ADVANCE_RXQ(sc);
+		offset = nextoff;
 	}
+	if (stolen)
+		m_freem(m);
+#undef HAVEROOM
+}
 
-	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+/*
+ * Process an IWM_CSR_INT_BIT_FH_RX or IWM_CSR_INT_BIT_SW_RX interrupt.
+ * Basic structure from if_iwn
+ */
+static void
+iwm_notif_intr(struct iwm_softc *sc)
+{
+	uint16_t hw;
+
+	bus_dmamap_sync(sc->rxq.stat_dma.tag, sc->rxq.stat_dma.map,
+	    BUS_DMASYNC_POSTREAD);
+
+	hw = le16toh(sc->rxq.stat->closed_rb_num) & 0xfff;
 
 	/*
-	 * Tell the firmware what we have processed.
+	 * Process responses
+	 */
+	while (sc->rxq.cur != hw) {
+		struct iwm_rx_ring *ring = &sc->rxq;
+		struct iwm_rx_data *data = &ring->data[ring->cur];
+
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_POSTREAD);
+
+		IWM_DPRINTF(sc, IWM_DEBUG_INTR,
+		    "%s: hw = %d cur = %d\n", __func__, hw, ring->cur);
+		iwm_handle_rxb(sc, data->m);
+
+		ring->cur = (ring->cur + 1) % IWM_RX_RING_COUNT;
+	}
+
+	/*
+	 * Tell the firmware that it can reuse the ring entries that
+	 * we have just processed.
 	 * Seems like the hardware gets upset unless we align
 	 * the write by 8??
 	 */
 	hw = (hw == 0) ? IWM_RX_RING_COUNT - 1 : hw - 1;
-	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_WPTR, hw & ~7);
+	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_WPTR, rounddown2(hw, 8));
 }
 
 static void
@@ -4330,8 +5573,8 @@ iwm_intr(void *arg)
 
 	IWM_WRITE(sc, IWM_CSR_INT, r1 | ~sc->sc_intmask);
 
-	/* ignored */
-	handled |= (r1 & (IWM_CSR_INT_BIT_ALIVE /*| IWM_CSR_INT_BIT_SCD*/));
+	/* Safely ignore these bits for debug checks below */
+	r1 &= ~(IWM_CSR_INT_BIT_ALIVE | IWM_CSR_INT_BIT_SCD);
 
 	if (r1 & IWM_CSR_INT_BIT_SW_ERR) {
 		int i;
@@ -4366,7 +5609,6 @@ iwm_intr(void *arg)
 		device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
 		    "restarting\n", __func__, vap->iv_state);
 
-		/* XXX TODO: turn this into a callout/taskqueue */
 		ieee80211_restart_all(ic);
 		return;
 	}
@@ -4440,21 +5682,33 @@ iwm_intr(void *arg)
 #define	PCI_VENDOR_INTEL		0x8086
 #define	PCI_PRODUCT_INTEL_WL_3160_1	0x08b3
 #define	PCI_PRODUCT_INTEL_WL_3160_2	0x08b4
+#define	PCI_PRODUCT_INTEL_WL_3165_1	0x3165
+#define	PCI_PRODUCT_INTEL_WL_3165_2	0x3166
+#define	PCI_PRODUCT_INTEL_WL_3168_1	0x24fb
 #define	PCI_PRODUCT_INTEL_WL_7260_1	0x08b1
 #define	PCI_PRODUCT_INTEL_WL_7260_2	0x08b2
 #define	PCI_PRODUCT_INTEL_WL_7265_1	0x095a
 #define	PCI_PRODUCT_INTEL_WL_7265_2	0x095b
+#define	PCI_PRODUCT_INTEL_WL_8260_1	0x24f3
+#define	PCI_PRODUCT_INTEL_WL_8260_2	0x24f4
+#define	PCI_PRODUCT_INTEL_WL_8265_1	0x24fd
 
 static const struct iwm_devices {
-	uint16_t	device;
-	const char	*name;
+	uint16_t		device;
+	const struct iwm_cfg	*cfg;
 } iwm_devices[] = {
-	{ PCI_PRODUCT_INTEL_WL_3160_1, "Intel Dual Band Wireless AC 3160" },
-	{ PCI_PRODUCT_INTEL_WL_3160_2, "Intel Dual Band Wireless AC 3160" },
-	{ PCI_PRODUCT_INTEL_WL_7260_1, "Intel Dual Band Wireless AC 7260" },
-	{ PCI_PRODUCT_INTEL_WL_7260_2, "Intel Dual Band Wireless AC 7260" },
-	{ PCI_PRODUCT_INTEL_WL_7265_1, "Intel Dual Band Wireless AC 7265" },
-	{ PCI_PRODUCT_INTEL_WL_7265_2, "Intel Dual Band Wireless AC 7265" },
+	{ PCI_PRODUCT_INTEL_WL_3160_1, &iwm3160_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3160_2, &iwm3160_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3165_1, &iwm3165_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3165_2, &iwm3165_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3168_1, &iwm3168_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7260_1, &iwm7260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7260_2, &iwm7260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7265_1, &iwm7265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7265_2, &iwm7265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8260_1, &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8260_2, &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8265_1, &iwm8265_cfg },
 };
 
 static int
@@ -4462,12 +5716,13 @@ iwm_probe(device_t dev)
 {
 	int i;
 
-	for (i = 0; i < nitems(iwm_devices); i++)
+	for (i = 0; i < nitems(iwm_devices); i++) {
 		if (pci_get_vendor(dev) == PCI_VENDOR_INTEL &&
 		    pci_get_device(dev) == iwm_devices[i].device) {
-			device_set_desc(dev, iwm_devices[i].name);
+			device_set_desc(dev, iwm_devices[i].cfg->name);
 			return (BUS_PROBE_DEFAULT);
 		}
+	}
 
 	return (ENXIO);
 }
@@ -4476,30 +5731,24 @@ static int
 iwm_dev_check(device_t dev)
 {
 	struct iwm_softc *sc;
+	uint16_t devid;
+	int i;
 
 	sc = device_get_softc(dev);
 
-	switch (pci_get_device(dev)) {
-	case PCI_PRODUCT_INTEL_WL_3160_1:
-	case PCI_PRODUCT_INTEL_WL_3160_2:
-		sc->sc_fwname = "iwm3160fw";
-		sc->host_interrupt_operation_mode = 1;
-		return (0);
-	case PCI_PRODUCT_INTEL_WL_7260_1:
-	case PCI_PRODUCT_INTEL_WL_7260_2:
-		sc->sc_fwname = "iwm7260fw";
-		sc->host_interrupt_operation_mode = 1;
-		return (0);
-	case PCI_PRODUCT_INTEL_WL_7265_1:
-	case PCI_PRODUCT_INTEL_WL_7265_2:
-		sc->sc_fwname = "iwm7265fw";
-		sc->host_interrupt_operation_mode = 0;
-		return (0);
-	default:
-		device_printf(dev, "unknown adapter type\n");
-		return ENXIO;
+	devid = pci_get_device(dev);
+	for (i = 0; i < nitems(iwm_devices); i++) {
+		if (iwm_devices[i].device == devid) {
+			sc->cfg = iwm_devices[i].cfg;
+			return (0);
+		}
 	}
+	device_printf(dev, "unknown adapter type\n");
+	return ENXIO;
 }
+
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
 
 static int
 iwm_pci_attach(device_t dev)
@@ -4510,9 +5759,9 @@ iwm_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* Clear device-specific "PCI retry timeout" register (41h). */
-	reg = pci_read_config(dev, 0x40, sizeof(reg));
-	pci_write_config(dev, 0x40, reg & ~0xff00, sizeof(reg));
+	/* We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state */
+	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 
 	/* Enable bus-mastering and hardware bug workaround. */
 	pci_enable_busmaster(dev);
@@ -4582,19 +5831,30 @@ iwm_attach(device_t dev)
 	int txq_i, i;
 
 	sc->sc_dev = dev;
+	sc->sc_attached = 1;
 	IWM_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
-	sc->sc_tq = taskqueue_create("iwm_taskq", M_WAITOK,
-            taskqueue_thread_enqueue, &sc->sc_tq);
-        error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "iwm_taskq");
-        if (error != 0) {
-                device_printf(dev, "can't start threads, error %d\n",
-		    error);
+
+	sc->sc_notif_wait = iwm_notification_wait_init(sc);
+	if (sc->sc_notif_wait == NULL) {
+		device_printf(dev, "failed to init notification wait struct\n");
 		goto fail;
-        }
+	}
+
+	sc->sf_state = IWM_SF_UNINIT;
+
+	/* Init phy db */
+	sc->sc_phy_db = iwm_phy_db_init(sc);
+	if (!sc->sc_phy_db) {
+		device_printf(dev, "Cannot init phy_db\n");
+		goto fail;
+	}
+
+	/* Set EBS as successful as long as not stated otherwise by the FW. */
+	sc->last_ebs_successful = TRUE;
 
 	/* PCI attach */
 	error = iwm_pci_attach(dev);
@@ -4608,15 +5868,64 @@ iwm_attach(device_t dev)
 	if (error != 0)
 		goto fail;
 
-	sc->sc_fwdmasegsz = IWM_FWDMASEGSZ;
-
-	/*
-	 * We now start fiddling with the hardware
-	 */
 	sc->sc_hw_rev = IWM_READ(sc, IWM_CSR_HW_REV);
+	/*
+	 * In the 8000 HW family the format of the 4 bytes of CSR_HW_REV have
+	 * changed, and now the revision step also includes bit 0-1 (no more
+	 * "dash" value). To keep hw_rev backwards compatible - we'll store it
+	 * in the old format.
+	 */
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+		sc->sc_hw_rev = (sc->sc_hw_rev & 0xfff0) |
+				(IWM_CSR_HW_REV_STEP(sc->sc_hw_rev << 2) << 2);
+
 	if (iwm_prepare_card_hw(sc) != 0) {
 		device_printf(dev, "could not initialize hardware\n");
 		goto fail;
+	}
+
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+		int ret;
+		uint32_t hw_step;
+
+		/*
+		 * In order to recognize C step the driver should read the
+		 * chip version id located at the AUX bus MISC address.
+		 */
+		IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
+			    IWM_CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		DELAY(2);
+
+		ret = iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
+				   IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   25000);
+		if (!ret) {
+			device_printf(sc->sc_dev,
+			    "Failed to wake up the nic\n");
+			goto fail;
+		}
+
+		if (iwm_nic_lock(sc)) {
+			hw_step = iwm_read_prph(sc, IWM_WFPM_CTRL_REG);
+			hw_step |= IWM_ENABLE_WFPM;
+			iwm_write_prph(sc, IWM_WFPM_CTRL_REG, hw_step);
+			hw_step = iwm_read_prph(sc, IWM_AUX_MISC_REG);
+			hw_step = (hw_step >> IWM_HW_STEP_LOCATION_BITS) & 0xF;
+			if (hw_step == 0x3)
+				sc->sc_hw_rev = (sc->sc_hw_rev & 0xFFFFFFF3) |
+						(IWM_SILICON_C_STEP << 2);
+			iwm_nic_unlock(sc);
+		} else {
+			device_printf(sc->sc_dev, "Failed to lock the nic\n");
+			goto fail;
+		}
+	}
+
+	/* special-case 7265D, it has the same PCI IDs. */
+	if (sc->cfg == &iwm7265_cfg &&
+	    (sc->sc_hw_rev & IWM_CSR_HW_REV_TYPE_MSK) == IWM_CSR_HW_REV_TYPE_7265D) {
+		sc->cfg = &iwm7265d_cfg;
 	}
 
 	/* Allocate DMA memory for firmware transfers. */
@@ -4673,10 +5982,13 @@ iwm_attach(device_t dev)
 	    IEEE80211_C_STA |
 	    IEEE80211_C_WPA |		/* WPA/RSN */
 	    IEEE80211_C_WME |
+	    IEEE80211_C_PMGT |
 	    IEEE80211_C_SHSLOT |	/* short slot time supported */
 	    IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 //	    IEEE80211_C_BGSCAN		/* capable of bg scanning */
 	    ;
+	/* Advertise full-offload scanning */
+	ic->ic_flags_ext = IEEE80211_FEXT_SCAN_OFFLOAD;
 	for (i = 0; i < nitems(sc->sc_phyctxt); i++) {
 		sc->sc_phyctxt[i].id = i;
 		sc->sc_phyctxt[i].color = 0;
@@ -4684,8 +5996,12 @@ iwm_attach(device_t dev)
 		sc->sc_phyctxt[i].channel = NULL;
 	}
 
+	/* Default noise floor */
+	sc->sc_noise = -96;
+
 	/* Max RSSI */
 	sc->sc_max_rssi = IWM_MAX_DBM - IWM_MIN_DBM;
+
 	sc->sc_preinit_hook.ich_func = iwm_preinit;
 	sc->sc_preinit_hook.ich_arg = sc;
 	if (config_intrhook_establish(&sc->sc_preinit_hook) != 0) {
@@ -4712,12 +6028,61 @@ fail:
 }
 
 static int
-iwm_update_edca(struct ieee80211com *ic)
+iwm_is_valid_ether_addr(uint8_t *addr)
 {
-	struct iwm_softc *sc = ic->ic_softc;
+	char zero_addr[IEEE80211_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	if ((addr[0] & 1) || IEEE80211_ADDR_EQ(zero_addr, addr))
+		return (FALSE);
+
+	return (TRUE);
+}
+
+static int
+iwm_wme_update(struct ieee80211com *ic)
+{
+#define IWM_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
+	struct iwm_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct iwm_vap *ivp = IWM_VAP(vap);
+	struct iwm_node *in;
+	struct wmeParams tmp[WME_NUM_AC];
+	int aci, error;
+
+	if (vap == NULL)
+		return (0);
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+
+	IEEE80211_LOCK(ic);
+	for (aci = 0; aci < WME_NUM_AC; aci++)
+		tmp[aci] = chp.cap_wmeParams[aci];
+	IEEE80211_UNLOCK(ic);
+
+	IWM_LOCK(sc);
+	for (aci = 0; aci < WME_NUM_AC; aci++) {
+		const struct wmeParams *ac = &tmp[aci];
+		ivp->queue_params[aci].aifsn = ac->wmep_aifsn;
+		ivp->queue_params[aci].cw_min = IWM_EXP2(ac->wmep_logcwmin);
+		ivp->queue_params[aci].cw_max = IWM_EXP2(ac->wmep_logcwmax);
+		ivp->queue_params[aci].edca_txop =
+		    IEEE80211_TXOP_TO_US(ac->wmep_txopLimit);
+	}
+	ivp->have_wme = TRUE;
+	if (ivp->is_uploaded && vap->iv_bss != NULL) {
+		in = IWM_NODE(vap->iv_bss);
+		if (in->in_assoc) {
+			if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
+				device_printf(sc->sc_dev,
+				    "%s: failed to update MAC\n", __func__);
+			}
+		}
+	}
+	IWM_UNLOCK(sc);
+
 	return (0);
+#undef IWM_EXP2
 }
 
 static void
@@ -4745,14 +6110,12 @@ iwm_preinit(void *arg)
 		goto fail;
 	}
 	device_printf(dev,
-	    "revision: 0x%x, firmware %d.%d (API ver. %d)\n",
+	    "hw rev 0x%x, fw ver %s, address %s\n",
 	    sc->sc_hw_rev & IWM_CSR_HW_REV_TYPE_MSK,
-	    IWM_UCODE_MAJOR(sc->sc_fwver),
-	    IWM_UCODE_MINOR(sc->sc_fwver),
-	    IWM_UCODE_API(sc->sc_fwver));
+	    sc->sc_fwver, ether_sprintf(sc->nvm_data->hw_addr));
 
 	/* not all hardware can do 5GHz band */
-	if (!sc->sc_nvm.sku_cap_band_52GHz_enable)
+	if (!sc->nvm_data->sku_cap_band_52GHz_enable)
 		memset(&ic->ic_sup_rates[IEEE80211_MODE_11A], 0,
 		    sizeof(ic->ic_sup_rates[IEEE80211_MODE_11A]));
 	IWM_UNLOCK(sc);
@@ -4776,7 +6139,7 @@ iwm_preinit(void *arg)
 	ic->ic_set_channel = iwm_set_channel;
 	ic->ic_scan_curchan = iwm_scan_curchan;
 	ic->ic_scan_mindwell = iwm_scan_mindwell;
-	ic->ic_wme.wme_update = iwm_update_edca;
+	ic->ic_wme.wme_update = iwm_wme_update;
 	ic->ic_parent = iwm_parent;
 	ic->ic_transmit = iwm_transmit;
 	iwm_radiotap_attach(sc);
@@ -4831,6 +6194,12 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	ivp->iv_newstate = vap->iv_newstate;
 	vap->iv_newstate = iwm_newstate;
 
+	ivp->id = IWM_DEFAULT_MACID;
+	ivp->color = IWM_DEFAULT_COLOR;
+
+	ivp->have_wme = FALSE;
+	ivp->ps_disabled = FALSE;
+
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
 	ieee80211_vap_attach(vap, iwm_media_change, ieee80211_media_status,
@@ -4851,22 +6220,41 @@ iwm_vap_delete(struct ieee80211vap *vap)
 }
 
 static void
+iwm_xmit_queue_drain(struct iwm_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
+}
+
+static void
 iwm_scan_start(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-        struct iwm_softc *sc = ic->ic_softc;
+	struct iwm_softc *sc = ic->ic_softc;
 	int error;
 
-	if (sc->sc_scanband)
-		return;
 	IWM_LOCK(sc);
-	error = iwm_mvm_scan_request(sc, IEEE80211_CHAN_2GHZ, 0, NULL, 0);
-	if (error) {
-		device_printf(sc->sc_dev, "could not initiate 2 GHz scan\n");
+	if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+		/* This should not be possible */
+		device_printf(sc->sc_dev,
+		    "%s: Previous scan not completed yet\n", __func__);
+	}
+	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+		error = iwm_mvm_umac_scan(sc);
+	else
+		error = iwm_mvm_lmac_scan(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not initiate scan\n");
 		IWM_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
-		sc->sc_scanband = 0;
 	} else {
+		sc->sc_flags |= IWM_FLAG_SCAN_RUNNING;
 		iwm_led_blink_start(sc);
 		IWM_UNLOCK(sc);
 	}
@@ -4882,7 +6270,23 @@ iwm_scan_end(struct ieee80211com *ic)
 	iwm_led_blink_stop(sc);
 	if (vap->iv_state == IEEE80211_S_RUN)
 		iwm_mvm_led_enable(sc);
+	if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+		/*
+		 * Removing IWM_FLAG_SCAN_RUNNING now, is fine because
+		 * both iwm_scan_end and iwm_scan_start run in the ic->ic_tq
+		 * taskqueue.
+		 */
+		sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+		iwm_mvm_scan_stop_wait(sc);
+	}
 	IWM_UNLOCK(sc);
+
+	/*
+	 * Make sure we don't race, if sc_es_task is still enqueued here.
+	 * This is to make sure that it won't call ieee80211_scan_done
+	 * when we have already started the next scan.
+	 */
+	taskqueue_cancel(ic->ic_tq, &sc->sc_es_task, NULL);
 }
 
 static void
@@ -4928,16 +6332,17 @@ iwm_resume(device_t dev)
 {
 	struct iwm_softc *sc = device_get_softc(dev);
 	int do_reinit = 0;
-	uint16_t reg;
 
-	/* Clear device-specific "PCI retry timeout" register (41h). */
-	reg = pci_read_config(dev, 0x40, sizeof(reg));
-	pci_write_config(dev, 0x40, reg & ~0xff00, sizeof(reg));
+	/*
+	 * We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 	iwm_init_task(device_get_softc(dev));
 
 	IWM_LOCK(sc);
-	if (sc->sc_flags & IWM_FLAG_DORESUME) {
-		sc->sc_flags &= ~IWM_FLAG_DORESUME;
+	if (sc->sc_flags & IWM_FLAG_SCANNING) {
+		sc->sc_flags &= ~IWM_FLAG_SCANNING;
 		do_reinit = 1;
 	}
 	IWM_UNLOCK(sc);
@@ -4961,7 +6366,7 @@ iwm_suspend(device_t dev)
 	if (do_stop) {
 		IWM_LOCK(sc);
 		iwm_stop(sc);
-		sc->sc_flags |= IWM_FLAG_DORESUME;
+		sc->sc_flags |= IWM_FLAG_SCANNING;
 		IWM_UNLOCK(sc);
 	}
 
@@ -4975,17 +6380,30 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	device_t dev = sc->sc_dev;
 	int i;
 
-	if (sc->sc_tq) {
-		taskqueue_drain_all(sc->sc_tq);
-		taskqueue_free(sc->sc_tq);
-	}
+	if (!sc->sc_attached)
+		return 0;
+	sc->sc_attached = 0;
+
+	if (do_net80211)
+		ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
+
 	callout_drain(&sc->sc_led_blink_to);
 	callout_drain(&sc->sc_watchdog_to);
 	iwm_stop_device(sc);
-	if (do_net80211)
+	if (do_net80211) {
+		IWM_LOCK(sc);
+		iwm_xmit_queue_drain(sc);
+		IWM_UNLOCK(sc);
 		ieee80211_ifdetach(&sc->sc_ic);
+	}
+
+	iwm_phy_db_free(sc->sc_phy_db);
+	sc->sc_phy_db = NULL;
+
+	iwm_free_nvm_data(sc->nvm_data);
 
 	/* Free descriptor rings */
+	iwm_free_rx_ring(sc, &sc->rxq);
 	for (i = 0; i < nitems(sc->txq); i++)
 		iwm_free_tx_ring(sc, &sc->txq[i]);
 
@@ -4994,18 +6412,21 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		iwm_fw_info_free(fw);
 
 	/* Free scheduler */
-	iwm_free_sched(sc);
-	if (sc->ict_dma.vaddr != NULL)
-		iwm_free_ict(sc);
-	if (sc->kw_dma.vaddr != NULL)
-		iwm_free_kw(sc);
-	if (sc->fw_dma.vaddr != NULL)
-		iwm_free_fwmem(sc);
+	iwm_dma_contig_free(&sc->sched_dma);
+	iwm_dma_contig_free(&sc->ict_dma);
+	iwm_dma_contig_free(&sc->kw_dma);
+	iwm_dma_contig_free(&sc->fw_dma);
+
+	iwm_free_fw_paging(sc);
 
 	/* Finished with the hardware - detach things */
 	iwm_pci_detach(dev);
 
-	mbufq_drain(&sc->sc_snd);
+	if (sc->sc_notif_wait != NULL) {
+		iwm_notification_wait_free(sc->sc_notif_wait);
+		sc->sc_notif_wait = NULL;
+	}
+
 	IWM_LOCK_DESTROY(sc);
 
 	return (0);
@@ -5039,6 +6460,8 @@ static driver_t iwm_pci_driver = {
 static devclass_t iwm_devclass;
 
 DRIVER_MODULE(iwm, pci, iwm_pci_driver, iwm_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:device;P:#;T:vendor=0x8086", pci, iwm_pci_driver,
+    iwm_devices, nitems(iwm_devices));
 MODULE_DEPEND(iwm, firmware, 1, 1, 1);
 MODULE_DEPEND(iwm, pci, 1, 1, 1);
 MODULE_DEPEND(iwm, wlan, 1, 1, 1);

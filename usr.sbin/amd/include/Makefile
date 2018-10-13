@@ -17,7 +17,7 @@ CLEANFILES=	${SRCS}
 
 all depend: ${SRCS}
 
-config_local.h: newvers.sh ${.CURDIR}/../../../sys/conf/newvers.sh
+config_local.h: newvers.sh ${SRCTOP}/sys/conf/newvers.sh
 	@rm -f ${.TARGET}
 	sh ${.ALLSRC} > ${.TARGET}
 

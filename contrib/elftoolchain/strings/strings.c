@@ -46,13 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3446 2016-05-03 01:31:17Z emaste $");
-
-enum return_code {
-	RETURN_OK,
-	RETURN_NOINPUT,
-	RETURN_SOFTWARE
-};
+ELFTC_VCSID("$Id: strings.c 3571 2017-09-14 02:04:50Z emaste $");
 
 enum radix_style {
 	RADIX_DECIMAL,
@@ -107,7 +101,7 @@ main(int argc, char **argv)
 {
 	int ch, rc;
 
-	rc = RETURN_OK;
+	rc = 0;
 	min_len = 0;
 	encoding_size = 1;
 	if (elf_version(EV_CURRENT) == EV_NONE)
@@ -195,9 +189,10 @@ main(int argc, char **argv)
 	if (!min_len)
 		min_len = 4;
 	if (!*argv)
-		rc = handle_file("{standard input}");
+		rc = find_strings("{standard input}", 0, 0);
 	else while (*argv) {
-		rc = handle_file(*argv);
+		if (handle_file(*argv) != 0)
+			rc = 1;
 		argv++;
 	}
 	return (rc);
@@ -209,19 +204,15 @@ handle_file(const char *name)
 	int fd, rt;
 
 	if (name == NULL)
-		return (RETURN_NOINPUT);
-	if (strcmp("{standard input}", name) != 0) {
-		if (freopen(name, "rb", stdin) == NULL) {
-			warnx("'%s': %s", name, strerror(errno));
-			return (RETURN_NOINPUT);
-		}
-	} else {
-		return (find_strings(name, (off_t)0, (off_t)0));
+		return (1);
+	if (freopen(name, "rb", stdin) == NULL) {
+		warnx("'%s': %s", name, strerror(errno));
+		return (1);
 	}
 
 	fd = fileno(stdin);
 	if (fd < 0)
-		return (RETURN_NOINPUT);
+		return (1);
 	rt = handle_elf(name, fd);
 	return (rt);
 }
@@ -239,7 +230,7 @@ handle_binary(const char *name, int fd)
 	(void) lseek(fd, (off_t)0, SEEK_SET);
 	if (!fstat(fd, &buf))
 		return (find_strings(name, (off_t)0, buf.st_size));
-	return (RETURN_SOFTWARE);
+	return (1);
 }
 
 /*
@@ -257,7 +248,7 @@ handle_elf(const char *name, int fd)
 	Elf_Scn *scn;
 	int rc;
 
-	rc = RETURN_OK;
+	rc = 0;
 	/* If entire file is chosen, treat it as a binary file */
 	if (entire_file)
 		return (handle_binary(name, fd));
@@ -272,7 +263,7 @@ handle_elf(const char *name, int fd)
 	if (gelf_getehdr(elf, &elfhdr) == NULL) {
 		(void) elf_end(elf);
 		warnx("%s: ELF file could not be processed", name);
-		return (RETURN_SOFTWARE);
+		return (1);
 	}
 
 	if (elfhdr.e_shnum == 0 && elfhdr.e_type == ET_CORE) {
@@ -352,7 +343,7 @@ find_strings(const char *name, off_t offset, off_t size)
 	if ((obuf = (char*)calloc(1, min_len + 1)) == NULL) {
 		(void) fprintf(stderr, "Unable to allocate memory: %s\n",
 		     strerror(errno));
-		return (RETURN_SOFTWARE);
+		return (1);
 	}
 
 	(void) fseeko(stdin, offset, SEEK_SET);
@@ -426,7 +417,7 @@ find_strings(const char *name, off_t offset, off_t size)
 	}
 _exit1:
 	free(obuf);
-	return (RETURN_OK);
+	return (0);
 }
 
 #define	USAGE_MESSAGE	"\

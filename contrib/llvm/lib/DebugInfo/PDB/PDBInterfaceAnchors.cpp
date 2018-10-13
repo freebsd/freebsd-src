@@ -15,14 +15,17 @@
 #include "llvm/DebugInfo/PDB/IPDBLineNumber.h"
 #include "llvm/DebugInfo/PDB/IPDBRawSymbol.h"
 #include "llvm/DebugInfo/PDB/IPDBSession.h"
-#include "llvm/DebugInfo/PDB/IPDBRawSymbol.h"
+#include "llvm/DebugInfo/PDB/IPDBTable.h"
 
 using namespace llvm;
+using namespace llvm::pdb;
 
-IPDBSession::~IPDBSession() {}
+IPDBSession::~IPDBSession() = default;
 
-IPDBDataStream::~IPDBDataStream() {}
+IPDBDataStream::~IPDBDataStream() = default;
 
-IPDBRawSymbol::~IPDBRawSymbol() {}
+IPDBRawSymbol::~IPDBRawSymbol() = default;
 
-IPDBLineNumber::~IPDBLineNumber() {}
+IPDBLineNumber::~IPDBLineNumber() = default;
+
+IPDBTable::~IPDBTable() = default;

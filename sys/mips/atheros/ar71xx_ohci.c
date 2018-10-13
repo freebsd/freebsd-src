@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -156,13 +158,7 @@ static int
 ar71xx_ohci_detach(device_t dev)
 {
 	struct ar71xx_ohci_softc *sc = device_get_softc(dev);
-	device_t bdev;
 
-	if (sc->sc_ohci.sc_bus.bdev) {
-		bdev = sc->sc_ohci.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 

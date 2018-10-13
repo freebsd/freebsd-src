@@ -38,7 +38,7 @@ extern "C" {
 #define LDNS_KEY_REVOKE_KEY 0x0080 /* used to revoke KSK, rfc 5011 */
 
 /* The first fields are contiguous and can be referenced instantly */
-#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 258
+#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 259
 
 /** lookuptable for rr classes  */
 extern struct sldns_struct_lookup_table* sldns_rr_classes;
@@ -182,9 +182,7 @@ enum sldns_enum_rr_type
 	LDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	LDNS_RR_TYPE_NSEC3PARAMS = 51,
 	LDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
-	LDNS_RR_TYPE_SMIMEA = 53, /* draft-ietf-dane-smime, TLSA-like but may
-				     be extended */
-
+	LDNS_RR_TYPE_SMIMEA = 53, /* RFC 8162 */
 	LDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
 
 	/** draft-reid-dnsext-zs */
@@ -195,7 +193,7 @@ enum sldns_enum_rr_type
         LDNS_RR_TYPE_TALINK = 58,
 	LDNS_RR_TYPE_CDS = 59, /** RFC 7344 */
 	LDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
-	LDNS_RR_TYPE_OPENPGPKEY = 61, /* draft-ietf-dane-openpgpkey */
+	LDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	LDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
@@ -226,6 +224,7 @@ enum sldns_enum_rr_type
 	LDNS_RR_TYPE_ANY = 255,
 	LDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	LDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
+	LDNS_RR_TYPE_AVC = 258,
 
 	/** DNSSEC Trust Authorities */
 	LDNS_RR_TYPE_TA = 32768,
@@ -330,13 +329,13 @@ enum sldns_enum_rdf_type
         LDNS_RDF_TYPE_NSEC3_NEXT_OWNER,
 
         /** 4 shorts represented as 4 * 16 bit hex numbers
-         *  seperated by colons. For NID and L64.
+         *  separated by colons. For NID and L64.
          */
         LDNS_RDF_TYPE_ILNP64,
 
-        /** 6 * 8 bit hex numbers seperated by dashes. For EUI48. */
+        /** 6 * 8 bit hex numbers separated by dashes. For EUI48. */
         LDNS_RDF_TYPE_EUI48,
-        /** 8 * 8 bit hex numbers seperated by dashes. For EUI64. */
+        /** 8 * 8 bit hex numbers separated by dashes. For EUI64. */
         LDNS_RDF_TYPE_EUI64,
 
         /** A non-zero sequence of US-ASCII letters and numbers in lower case.
@@ -349,6 +348,9 @@ enum sldns_enum_rdf_type
          * For CAA, URI.
          */
         LDNS_RDF_TYPE_LONG_STR,
+
+	/** TSIG extended 16bit error value */
+	LDNS_RDF_TYPE_TSIGERROR,
 
         /* Aliases */
         LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC
@@ -372,6 +374,8 @@ enum sldns_enum_algorithm
         LDNS_ECC_GOST           = 12,  /* RFC 5933 */
         LDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
         LDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+	LDNS_ED25519		= 15,  /* RFC 8080 */
+	LDNS_ED448		= 16,  /* RFC 8080 */
         LDNS_INDIRECT           = 252,
         LDNS_PRIVATEDNS         = 253,
         LDNS_PRIVATEOID         = 254
@@ -420,11 +424,22 @@ enum sldns_enum_edns_option
 	LDNS_EDNS_DAU = 5, /* RFC6975 */
 	LDNS_EDNS_DHU = 6, /* RFC6975 */
 	LDNS_EDNS_N3U = 7, /* RFC6975 */
-	LDNS_EDNS_CLIENT_SUBNET = 8 /* draft-vandergaast-edns-client-subnet */
+	LDNS_EDNS_CLIENT_SUBNET = 8, /* RFC7871 */
+	LDNS_EDNS_KEEPALIVE = 11, /* draft-ietf-dnsop-edns-tcp-keepalive*/
+	LDNS_EDNS_PADDING = 12 /* RFC7830 */
 };
 typedef enum sldns_enum_edns_option sldns_edns_option;
 
 #define LDNS_EDNS_MASK_DO_BIT 0x8000
+
+/** TSIG and TKEY extended rcodes (16bit), 0-15 are the normal rcodes. */
+#define LDNS_TSIG_ERROR_NOERROR  0
+#define LDNS_TSIG_ERROR_BADSIG   16
+#define LDNS_TSIG_ERROR_BADKEY   17
+#define LDNS_TSIG_ERROR_BADTIME  18
+#define LDNS_TSIG_ERROR_BADMODE  19
+#define LDNS_TSIG_ERROR_BADNAME  20
+#define LDNS_TSIG_ERROR_BADALG   21
 
 /**
  * Contains all information about resource record types.

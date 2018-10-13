@@ -1,6 +1,8 @@
 /*	$NetBSD: intr.c,v 1.12 2003/07/15 00:24:41 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2004 Olivier Houchard.
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * All rights reserved.
@@ -53,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -167,7 +170,7 @@ arm_remove_irqhandler(int irq, void *cookie)
 
 	error = intr_event_remove_handler(cookie);
 
-	if (!TAILQ_EMPTY(&event->ie_handlers))
+	if (!CK_SLIST_EMPTY(&event->ie_handlers))
 		arm_unmask_irq(irq);
 	return (error);
 }
@@ -184,7 +187,7 @@ intr_irq_handler(struct trapframe *frame)
 	struct intr_event *event;
 	int i;
 
-	PCPU_INC(cnt.v_intr);
+	VM_CNT_INC(v_intr);
 	i = -1;
 	while ((i = arm_get_next_irq(i)) != -1) {
 		intrcnt[i]++;

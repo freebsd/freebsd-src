@@ -41,12 +41,6 @@
 /// of all of the caller-callee relationships, which is useful for
 /// transformations.
 ///
-/// The CallGraph class also attempts to figure out what the root of the
-/// CallGraph is, which it currently does by looking for a function named
-/// 'main'. If no function named 'main' is found, the external node is used as
-/// the entry node, reflecting the fact that any function without internal
-/// linkage could be called into (which is common for libraries).
-///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ANALYSIS_CALLGRAPH_H
@@ -57,15 +51,20 @@
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
+#include <cassert>
 #include <map>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace llvm {
 
-class Function;
-class Module;
 class CallGraphNode;
+class Module;
+class raw_ostream;
 
 /// \brief The basic data container for the call graph of a \c Module of IR.
 ///
@@ -75,15 +74,11 @@ class CallGraphNode;
 class CallGraph {
   Module &M;
 
-  typedef std::map<const Function *, std::unique_ptr<CallGraphNode>>
-      FunctionMapTy;
+  using FunctionMapTy =
+      std::map<const Function *, std::unique_ptr<CallGraphNode>>;
 
   /// \brief A map from \c Function* to \c CallGraphNode*.
   FunctionMapTy FunctionMap;
-
-  /// \brief Root is root of the call graph, or the external node if a 'main'
-  /// function couldn't be found.
-  CallGraphNode *Root;
 
   /// \brief This node has edges to all external functions and those internal
   /// functions that have their address taken.
@@ -112,8 +107,8 @@ public:
   void print(raw_ostream &OS) const;
   void dump() const;
 
-  typedef FunctionMapTy::iterator iterator;
-  typedef FunctionMapTy::const_iterator const_iterator;
+  using iterator = FunctionMapTy::iterator;
+  using const_iterator = FunctionMapTy::const_iterator;
 
   /// \brief Returns the module the call graph corresponds to.
   Module &getModule() const { return M; }
@@ -171,20 +166,23 @@ class CallGraphNode {
 public:
   /// \brief A pair of the calling instruction (a call or invoke)
   /// and the call graph node being called.
-  typedef std::pair<WeakVH, CallGraphNode *> CallRecord;
+  using CallRecord = std::pair<WeakTrackingVH, CallGraphNode *>;
 
 public:
-  typedef std::vector<CallRecord> CalledFunctionsVector;
+  using CalledFunctionsVector = std::vector<CallRecord>;
 
   /// \brief Creates a node for the specified function.
-  inline CallGraphNode(Function *F) : F(F), NumReferences(0) {}
+  inline CallGraphNode(Function *F) : F(F) {}
+
+  CallGraphNode(const CallGraphNode &) = delete;
+  CallGraphNode &operator=(const CallGraphNode &) = delete;
 
   ~CallGraphNode() {
     assert(NumReferences == 0 && "Node deleted while references remain");
   }
 
-  typedef std::vector<CallRecord>::iterator iterator;
-  typedef std::vector<CallRecord>::const_iterator const_iterator;
+  using iterator = std::vector<CallRecord>::iterator;
+  using const_iterator = std::vector<CallRecord>::const_iterator;
 
   /// \brief Returns the function that this call graph node represents.
   Function *getFunction() const { return F; }
@@ -271,16 +269,13 @@ public:
 private:
   friend class CallGraph;
 
-  AssertingVH<Function> F;
+  Function *F;
 
   std::vector<CallRecord> CalledFunctions;
 
   /// \brief The number of times that this CallGraphNode occurs in the
   /// CalledFunctions array of this or other CallGraphNodes.
-  unsigned NumReferences;
-
-  CallGraphNode(const CallGraphNode &) = delete;
-  void operator=(const CallGraphNode &) = delete;
+  unsigned NumReferences = 0;
 
   void DropRef() { --NumReferences; }
   void AddRef() { ++NumReferences; }
@@ -294,20 +289,29 @@ private:
 /// This class implements the concept of an analysis pass used by the \c
 /// ModuleAnalysisManager to run an analysis over a module and cache the
 /// resulting data.
-class CallGraphAnalysis {
-public:
-  /// \brief A formulaic typedef to inform clients of the result type.
-  typedef CallGraph Result;
+class CallGraphAnalysis : public AnalysisInfoMixin<CallGraphAnalysis> {
+  friend AnalysisInfoMixin<CallGraphAnalysis>;
 
-  static void *ID() { return (void *)&PassID; }
+  static AnalysisKey Key;
+
+public:
+  /// \brief A formulaic type to inform clients of the result type.
+  using Result = CallGraph;
 
   /// \brief Compute the \c CallGraph for the module \c M.
   ///
   /// The real work here is done in the \c CallGraph constructor.
-  CallGraph run(Module *M) { return CallGraph(*M); }
+  CallGraph run(Module &M, ModuleAnalysisManager &) { return CallGraph(M); }
+};
 
-private:
-  static char PassID;
+/// \brief Printer pass for the \c CallGraphAnalysis results.
+class CallGraphPrinterPass : public PassInfoMixin<CallGraphPrinterPass> {
+  raw_ostream &OS;
+
+public:
+  explicit CallGraphPrinterPass(raw_ostream &OS) : OS(OS) {}
+
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 /// \brief The \c ModulePass which wraps up a \c CallGraph and the logic to
@@ -331,8 +335,8 @@ public:
   const CallGraph &getCallGraph() const { return *G; }
   CallGraph &getCallGraph() { return *G; }
 
-  typedef CallGraph::iterator iterator;
-  typedef CallGraph::const_iterator const_iterator;
+  using iterator = CallGraph::iterator;
+  using const_iterator = CallGraph::const_iterator;
 
   /// \brief Returns the module the call graph corresponds to.
   Module &getModule() const { return G->getModule(); }
@@ -401,95 +405,96 @@ public:
 // Provide graph traits for tranversing call graphs using standard graph
 // traversals.
 template <> struct GraphTraits<CallGraphNode *> {
-  typedef CallGraphNode NodeType;
+  using NodeRef = CallGraphNode *;
+  using CGNPairTy = CallGraphNode::CallRecord;
 
-  typedef CallGraphNode::CallRecord CGNPairTy;
-  typedef std::pointer_to_unary_function<CGNPairTy, CallGraphNode *>
-  CGNDerefFun;
+  static NodeRef getEntryNode(CallGraphNode *CGN) { return CGN; }
+  static CallGraphNode *CGNGetValue(CGNPairTy P) { return P.second; }
 
-  static NodeType *getEntryNode(CallGraphNode *CGN) { return CGN; }
+  using ChildIteratorType =
+      mapped_iterator<CallGraphNode::iterator, decltype(&CGNGetValue)>;
 
-  typedef mapped_iterator<NodeType::iterator, CGNDerefFun> ChildIteratorType;
-
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return map_iterator(N->begin(), CGNDerefFun(CGNDeref));
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return map_iterator(N->end(), CGNDerefFun(CGNDeref));
+  static ChildIteratorType child_begin(NodeRef N) {
+    return ChildIteratorType(N->begin(), &CGNGetValue);
   }
 
-  static CallGraphNode *CGNDeref(CGNPairTy P) { return P.second; }
+  static ChildIteratorType child_end(NodeRef N) {
+    return ChildIteratorType(N->end(), &CGNGetValue);
+  }
 };
 
 template <> struct GraphTraits<const CallGraphNode *> {
-  typedef const CallGraphNode NodeType;
+  using NodeRef = const CallGraphNode *;
+  using CGNPairTy = CallGraphNode::CallRecord;
 
-  typedef CallGraphNode::CallRecord CGNPairTy;
-  typedef std::pointer_to_unary_function<CGNPairTy, const CallGraphNode *>
-      CGNDerefFun;
+  static NodeRef getEntryNode(const CallGraphNode *CGN) { return CGN; }
+  static const CallGraphNode *CGNGetValue(CGNPairTy P) { return P.second; }
 
-  static NodeType *getEntryNode(const CallGraphNode *CGN) { return CGN; }
+  using ChildIteratorType =
+      mapped_iterator<CallGraphNode::const_iterator, decltype(&CGNGetValue)>;
 
-  typedef mapped_iterator<NodeType::const_iterator, CGNDerefFun>
-      ChildIteratorType;
-
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return map_iterator(N->begin(), CGNDerefFun(CGNDeref));
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return map_iterator(N->end(), CGNDerefFun(CGNDeref));
+  static ChildIteratorType child_begin(NodeRef N) {
+    return ChildIteratorType(N->begin(), &CGNGetValue);
   }
 
-  static const CallGraphNode *CGNDeref(CGNPairTy P) { return P.second; }
+  static ChildIteratorType child_end(NodeRef N) {
+    return ChildIteratorType(N->end(), &CGNGetValue);
+  }
 };
 
 template <>
 struct GraphTraits<CallGraph *> : public GraphTraits<CallGraphNode *> {
-  static NodeType *getEntryNode(CallGraph *CGN) {
+  using PairTy =
+      std::pair<const Function *const, std::unique_ptr<CallGraphNode>>;
+
+  static NodeRef getEntryNode(CallGraph *CGN) {
     return CGN->getExternalCallingNode(); // Start at the external node!
   }
-  typedef std::pair<const Function *const, std::unique_ptr<CallGraphNode>>
-      PairTy;
-  typedef std::pointer_to_unary_function<const PairTy &, CallGraphNode &>
-      DerefFun;
+
+  static CallGraphNode *CGGetValuePtr(const PairTy &P) {
+    return P.second.get();
+  }
 
   // nodes_iterator/begin/end - Allow iteration over all nodes in the graph
-  typedef mapped_iterator<CallGraph::iterator, DerefFun> nodes_iterator;
+  using nodes_iterator =
+      mapped_iterator<CallGraph::iterator, decltype(&CGGetValuePtr)>;
+
   static nodes_iterator nodes_begin(CallGraph *CG) {
-    return map_iterator(CG->begin(), DerefFun(CGdereference));
-  }
-  static nodes_iterator nodes_end(CallGraph *CG) {
-    return map_iterator(CG->end(), DerefFun(CGdereference));
+    return nodes_iterator(CG->begin(), &CGGetValuePtr);
   }
 
-  static CallGraphNode &CGdereference(const PairTy &P) { return *P.second; }
+  static nodes_iterator nodes_end(CallGraph *CG) {
+    return nodes_iterator(CG->end(), &CGGetValuePtr);
+  }
 };
 
 template <>
 struct GraphTraits<const CallGraph *> : public GraphTraits<
                                             const CallGraphNode *> {
-  static NodeType *getEntryNode(const CallGraph *CGN) {
+  using PairTy =
+      std::pair<const Function *const, std::unique_ptr<CallGraphNode>>;
+
+  static NodeRef getEntryNode(const CallGraph *CGN) {
     return CGN->getExternalCallingNode(); // Start at the external node!
   }
-  typedef std::pair<const Function *const, std::unique_ptr<CallGraphNode>>
-      PairTy;
-  typedef std::pointer_to_unary_function<const PairTy &, const CallGraphNode &>
-      DerefFun;
+
+  static const CallGraphNode *CGGetValuePtr(const PairTy &P) {
+    return P.second.get();
+  }
 
   // nodes_iterator/begin/end - Allow iteration over all nodes in the graph
-  typedef mapped_iterator<CallGraph::const_iterator, DerefFun> nodes_iterator;
+  using nodes_iterator =
+      mapped_iterator<CallGraph::const_iterator, decltype(&CGGetValuePtr)>;
+
   static nodes_iterator nodes_begin(const CallGraph *CG) {
-    return map_iterator(CG->begin(), DerefFun(CGdereference));
-  }
-  static nodes_iterator nodes_end(const CallGraph *CG) {
-    return map_iterator(CG->end(), DerefFun(CGdereference));
+    return nodes_iterator(CG->begin(), &CGGetValuePtr);
   }
 
-  static const CallGraphNode &CGdereference(const PairTy &P) {
-    return *P.second;
+  static nodes_iterator nodes_end(const CallGraph *CG) {
+    return nodes_iterator(CG->end(), &CGGetValuePtr);
   }
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ANALYSIS_CALLGRAPH_H

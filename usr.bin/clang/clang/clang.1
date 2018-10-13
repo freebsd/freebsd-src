@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
-.TH "CLANG" "1" "March 04, 2016" "3.8" "Clang"
+.TH "CLANG" "1" "Apr 11, 2018" "6" "Clang"
 .SH NAME
 clang \- the Clang C, C++, and Objective-C compiler
 .
@@ -128,14 +128,275 @@ Treat subsequent input files as having type language.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-std=<language>
+.B \-std=<standard>
 Specify the language standard to compile for.
+.sp
+Supported values for the C language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBc89\fP
+\fBc90\fP
+\fBiso9899:1990\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1990
+.UNINDENT
+.UNINDENT
+.nf
+\fBiso9899:199409\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1990 with amendment 1
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu89\fP
+\fBgnu90\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1990 with GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc99\fP
+\fBiso9899:1999\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1999
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu99\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1999 with GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc11\fP
+\fBiso9899:2011\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2011
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu11\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2011 with GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc17\fP
+\fBiso9899:2017\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2017
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu17\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2017 with GNU extensions
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default C language standard is \fBgnu11\fP, except on PS4, where it is
+\fBgnu99\fP\&.
+.sp
+Supported values for the C++ language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBc++98\fP
+\fBc++03\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 1998 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++98\fP
+\fBgnu++03\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 1998 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++11\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2011 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++11\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2011 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++14\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2014 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++14\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2014 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++17\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2017 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++17\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2017 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++2a\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+Working draft for ISO C++ 2020
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++2a\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+Working draft for ISO C++ 2020 with GNU extensions
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default C++ language standard is \fBgnu++14\fP\&.
+.sp
+Supported values for the OpenCL language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBcl1.0\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 1.0
+.UNINDENT
+.UNINDENT
+.nf
+\fBcl1.1\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 1.1
+.UNINDENT
+.UNINDENT
+.nf
+\fBcl1.2\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 1.2
+.UNINDENT
+.UNINDENT
+.nf
+\fBcl2.0\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 2.0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default OpenCL language standard is \fBcl1.0\fP\&.
+.sp
+Supported values for the CUDA language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBcuda\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+NVIDIA CUDA(tm)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-stdlib=<library>
 Specify the C++ standard library to use; supported options are libstdc++ and
-libc++.
+libc++. If not specified, platform default will be used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-rtlib=<library>
+Specify the compiler runtime library to use; supported options are libgcc and
+compiler\-rt. If not specified, platform default will be used.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -207,18 +468,6 @@ Enable the "Blocks" language feature.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-fobjc\-gc\-only
-Indicate that Objective\-C code should be compiled in GC\-only mode, which only
-works when Objective\-C Garbage Collection is enabled.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-fobjc\-gc
-Indicate that Objective\-C code should be compiled in hybrid\-GC mode, which
-works with both GC and non\-GC mode.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B \-fobjc\-abi\-version=version
 Select the Objective\-C ABI version to use. Available versions are 1 (legacy
 "fragile" ABI), 2 (non\-fragile ABI 1), and 3 (non\-fragile ABI 2).
@@ -233,9 +482,9 @@ default).
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-fobjc\-nonfragile\-abi
+.B \-fobjc\-nonfragile\-abi, \-fno\-objc\-nonfragile\-abi
 Enable use of the Objective\-C non\-fragile ABI. On platforms for which this is
-the default ABI, it can be disabled with \fB\-fno\-objc\-nonfragile\-abi\fP\&.
+the default ABI, it can be disabled with \fI\%\-fno\-objc\-nonfragile\-abi\fP\&.
 .UNINDENT
 .SS Target Selection Options
 .sp
@@ -270,7 +519,7 @@ but which may not exist on earlier ones.
 .SS Code Generation Options
 .INDENT 0.0
 .TP
-.B \-O0, \-O1, \-O2, \-O3, \-Ofast, \-Os, \-Oz, \-O, \-O4
+.B \-O0, \-O1, \-O2, \-O3, \-Ofast, \-Os, \-Oz, \-Og, \-O, \-O4
 Specify which optimization level to use:
 .INDENT 7.0
 .INDENT 3.5
@@ -296,6 +545,9 @@ size.
 \fI\%\-Oz\fP Like \fI\%\-Os\fP (and thus \fI\%\-O2\fP), but reduces code
 size further.
 .sp
+\fI\%\-Og\fP Like \fI\%\-O1\fP\&. In future versions, this option might
+disable different optimizations in order to improve debuggability.
+.sp
 \fI\%\-O\fP Equivalent to \fI\%\-O2\fP\&.
 .sp
 \fI\%\-O4\fP and higher
@@ -309,21 +561,33 @@ Currently equivalent to \fI\%\-O3\fP
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-g
-Generate debug information.  Note that Clang debug information works best at \-O0.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-gmodules
-Generate debug information that contains external references to
-types defined in clang modules or precompiled headers instead of
-emitting redundant debug type information into every object file.
-This option implies \fB\-fmodule\-format=obj\fP\&.
+.B \-g, \-gline\-tables\-only, \-gmodules
+Control debug information output.  Note that Clang debug information works
+best at \fI\%\-O0\fP\&.  When more than one option starting with \fI\-g\fP is
+specified, the last one wins:
+.INDENT 7.0
+.INDENT 3.5
+\fB\-g\fP Generate debug information.
+.sp
+\fB\-gline\-tables\-only\fP Generate only line table debug information. This
+allows for symbolicated backtraces with inlining information, but does not
+include any information about variables, their locations or types.
+.sp
+\fI\%\-gmodules\fP Generate debug information that contains external
+references to types defined in Clang modules or precompiled headers instead
+of emitting redundant debug type information into every object file.  This
+option transparently switches the Clang module format to object file
+containers that hold the Clang module together with the debug information.
+When compiling a program that uses Clang modules or precompiled headers,
+this option produces complete debug information with faster compile
+times and much smaller object files.
 .sp
 This option should not be used when building static libraries for
 distribution to other machines because the debug info will contain
-references to the module cache on the machine the object files in
-the library were built on.
+references to the module cache on the machine the object files in the
+library were built on.
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -362,9 +626,9 @@ This flag sets the default visibility level.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-fcommon
+.B \-fcommon, \-fno\-common
 This flag specifies that variables without initializers get common linkage.
-It can be disabled with \fB\-fno\-common\fP\&.
+It can be disabled with \fI\%\-fno\-common\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -377,11 +641,17 @@ to choose a more efficient model if possible.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-flto, \-emit\-llvm
+.B \-flto, \-flto=full, \-flto=thin, \-emit\-llvm
 Generate output files in LLVM formats, suitable for link time optimization.
 When used with \fI\%\-S\fP this generates LLVM intermediate language
 assembly files, otherwise this generates LLVM bitcode format object files
 (which may be passed to the linker depending on the stage selection options).
+.sp
+The default for \fI\%\-flto\fP is "full", in which the
+LLVM bitcode is suitable for monolithic Link Time Optimization (LTO), where
+the linker merges all such modules into a single combined module for
+optimization. With "thin", ThinLTO
+compilation is invoked instead.
 .UNINDENT
 .SS Driver Options
 .INDENT 0.0
@@ -447,7 +717,8 @@ Print the full library path of file.
 .INDENT 0.0
 .TP
 .B \-print\-libgcc\-file\-name
-Print the library path for "libgcc.a".
+Print the library path for the currently used compiler runtime library
+("libgcc.a" or "libclang_rt.builtins.*.a").
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -463,6 +734,13 @@ Print the paths used for finding libraries and programs.
 .TP
 .B \-save\-temps
 Save intermediate compilation results.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-save\-stats, \-save\-stats=cwd, \-save\-stats=obj
+Save internal code generation (LLVM) statistics to a file in the current
+directory (\fI\%\-save\-stats\fP/"\-save\-stats=cwd") or the directory
+of the output file ("\-save\-state=obj").
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -575,10 +853,10 @@ include preprocessed source files (use the \fI\%\-E\fP option) and the full
 output of the compiler, along with information to reproduce.
 .SH SEE ALSO
 .sp
-\fIas(1)\fP, \fIld(1)\fP
+\fBas(1)\fP, \fBld(1)\fP
 .SH AUTHOR
 Maintained by the Clang / LLVM Team (<http://clang.llvm.org>)
 .SH COPYRIGHT
-2007-2016, The Clang Team
+2007-2018, The Clang Team
 .\" Generated by docutils manpage writer.
 .

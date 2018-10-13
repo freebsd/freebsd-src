@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-.PATH:	${.CURDIR}/../../../../sbin/hastd
+.PATH:	${SRCTOP}/sbin/hastd
 
 MOD=	hast
 SRCS=	ebuf.c
@@ -18,7 +18,7 @@ MAN=	snmp_hast.3
 NO_WFORMAT=
 NO_WCAST_ALIGN=
 NO_WMISSING_VARIABLE_DECLARATIONS=
-CFLAGS+=-I${.CURDIR}/../../../../sbin/hastd
+CFLAGS+=-I${SRCTOP}/sbin/hastd
 CFLAGS+=-DHAVE_CAPSICUM
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
@@ -27,7 +27,6 @@ CFLAGS+=-DINET6
 # This is needed to have WARNS > 1.
 CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
-CFLAGS+= -DSNMPTREE_TYPES
 
 LIBADD=	util
 

@@ -109,9 +109,8 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_crosscompile.m4 \
 	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/m4/ntp_facilitynames.m4 \
-	$(top_srcdir)/m4/ntp_googletest.m4 \
-	$(top_srcdir)/m4/ntp_ipv6.m4 $(top_srcdir)/m4/ntp_lib_m.m4 \
-	$(top_srcdir)/m4/ntp_libevent.m4 \
+	$(top_srcdir)/m4/ntp_harden.m4 $(top_srcdir)/m4/ntp_ipv6.m4 \
+	$(top_srcdir)/m4/ntp_lib_m.m4 $(top_srcdir)/m4/ntp_libevent.m4 \
 	$(top_srcdir)/m4/ntp_libntp.m4 \
 	$(top_srcdir)/m4/ntp_lineeditlibs.m4 \
 	$(top_srcdir)/m4/ntp_locinfo.m4 \
@@ -520,10 +519,6 @@ CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
 CPPFLAGS_NTP = @CPPFLAGS_NTP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
-CXXDEPMODE = @CXXDEPMODE@
-CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -538,11 +533,6 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
-GTEST_CONFIG = @GTEST_CONFIG@
-GTEST_CPPFLAGS = @GTEST_CPPFLAGS@
-GTEST_CXXFLAGS = @GTEST_CXXFLAGS@
-GTEST_LDFLAGS = @GTEST_LDFLAGS@
-GTEST_LIBS = @GTEST_LIBS@
 HAVE_INLINE = @HAVE_INLINE@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -570,6 +560,7 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MANTAGFMT = @MANTAGFMT@
@@ -622,6 +613,9 @@ NTPTRACE_DS = @NTPTRACE_DS@
 NTPTRACE_MS = @NTPTRACE_MS@
 NTPTRACE_NI = @NTPTRACE_NI@
 NTP_FORCE_LIBEVENT_DIST = @NTP_FORCE_LIBEVENT_DIST@
+NTP_HARD_CFLAGS = @NTP_HARD_CFLAGS@
+NTP_HARD_CPPFLAGS = @NTP_HARD_CPPFLAGS@
+NTP_HARD_LDFLAGS = @NTP_HARD_LDFLAGS@
 NTP_KEYGEN_DB = @NTP_KEYGEN_DB@
 NTP_KEYGEN_DL = @NTP_KEYGEN_DL@
 NTP_KEYGEN_DS = @NTP_KEYGEN_DS@
@@ -683,7 +677,6 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
-ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
@@ -756,10 +749,11 @@ DISTCLEANFILES = \
 	$(NULL)
 
 std_unity_list = \
-	$(srcdir)/../unity/auto/generate_test_runner.rb	\
+	$(abs_top_srcdir)/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml				\
 	$(NULL)
 
-run_unity = cd $(srcdir) && ruby ../unity/auto/generate_test_runner.rb
+run_unity = ruby $(std_unity_list)
 noinst_HEADERS = \
 	sntptest.h		\
 	$(NULL)
@@ -779,6 +773,7 @@ EXTRA_DIST = \
 	data/kod-test-blanks		\
 	data/kod-test-correct		\
 	data/kod-test-empty		\
+	testconf.yml			\
 	$(NULL)
 
 
@@ -798,12 +793,13 @@ LDADD = \
 	$(LIBM)					\
 	$(NULL)
 
-AM_CFLAGS = $(CFLAGS_NTP)
+AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
 #AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
 AM_CPPFLAGS = $(SNTP_INCS) -I$(srcdir)/.. -I$(top_srcdir)/../tests \
 	$(LIBOPTS_CFLAGS) $(CPPFLAGS_LIBEVENT) $(CPPFLAGS_NTP) \
-	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/unity
-AM_LDFLAGS = $(LDFLAGS_NTP)
+	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/unity \
+	$(NTP_HARD_CPPFLAGS)
+AM_LDFLAGS = $(LDFLAGS_NTP) $(NTP_HARD_LDFLAGS)
 test_networking_SOURCES = \
 	networking.c			\
 	run-networking.c		\
@@ -1505,31 +1501,31 @@ uninstall-am:
 
 
 $(srcdir)/run-kodFile.c: $(srcdir)/kodFile.c $(std_unity_list)
-	$(run_unity) kodFile.c run-kodFile.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-keyFile.c: $(srcdir)/keyFile.c $(std_unity_list)
-	$(run_unity) keyFile.c run-keyFile.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-kodDatabase.c: $(srcdir)/kodDatabase.c $(std_unity_list)
-	$(run_unity) kodDatabase.c run-kodDatabase.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-networking.c: $(srcdir)/networking.c $(std_unity_list)
-	$(run_unity) networking.c run-networking.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-packetProcessing.c: $(srcdir)/packetProcessing.c $(std_unity_list)
-	$(run_unity) packetProcessing.c run-packetProcessing.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-packetHandling.c: $(srcdir)/packetHandling.c $(std_unity_list)
-	$(run_unity) packetHandling.c run-packetHandling.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-utilities.c: $(srcdir)/utilities.c $(std_unity_list)
-	$(run_unity) utilities.c run-utilities.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-crypto.c: $(srcdir)/crypto.c $(std_unity_list)
-	$(run_unity) crypto.c run-crypto.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-t-log.c: $(srcdir)/t-log.c $(std_unity_list)
-	$(run_unity) t-log.c run-t-log.c
+	$(run_unity) $< $@
 
 check-libsntp: ../libsntp.a
 	@echo stamp > $@

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2008
+.Dd August 3, 2017
 .Dt MAKEDEV 3
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Sh DESCRIPTION
 The
 .Fn makedev
-macro allows a unique device number to be generated based on its
+macro returns a device number created from the provided
 .Fa major
 and
 .Fa minor
@@ -52,13 +52,26 @@ The
 .Fn major
 and
 .Fn minor
-macros can be used to obtain the original numbers from the device number
+macros return the original numbers from the device number
 .Fa dev .
+In other words, for a value
+.Va dev
+of the type
+.Vt dev_t ,
+and values
+.Va ma , mi
+of the type
+.Vt int ,
+the assertions
+.Dl dev == makedev(major(dev), minor(dev))
+.Dl ma == major(makedev(ma, mi))
+.Dl mi == minor(makedev(ma, mi))
+are valid.
 .Pp
 In previous implementations of
 .Fx
 all block and character devices were uniquely identified by a pair of
-major and minor numbers.
+stable major and minor numbers.
 The major number referred to a certain device class (e.g. disks, TTYs)
 while the minor number identified an instance within the device class.
 Later versions of
@@ -66,7 +79,8 @@ Later versions of
 automatically generate a unique device number for each character device
 visible in
 .Pa /dev/ .
-These numbers are not divided in device classes.
+These numbers are not divided in device classes and are not guaranteed
+to be stable upon reboot or driver reload.
 .Pp
 On
 .Fx
@@ -78,11 +92,9 @@ conventional way.
 .Sh RETURN VALUES
 The
 .Fn major
-macro returns a device major number that has a value between 0 and 255.
-The
+and
 .Fn minor
-macro returns a device minor number whose value can span the complete
-range of an
+macros return numbers whose value can span the complete range of an
 .Vt int .
 .Sh SEE ALSO
 .Xr mknod 2 ,

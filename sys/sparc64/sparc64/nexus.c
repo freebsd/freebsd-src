@@ -545,7 +545,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 		return (NULL);
 	}
 	resource_list_init(&ndi->ndi_rl);
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    ndi->ndi_obdinfo.obd_name);
@@ -561,7 +561,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	}
 	OF_prop_free(reg);
 
-	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intr),
+	nintr = OF_getprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
 		if (OF_getprop(node, PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?

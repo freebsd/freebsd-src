@@ -9,12 +9,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPUMCAsmInfo.h"
+#include "llvm/ADT/Triple.h"
 
 using namespace llvm;
+
 AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(const Triple &TT) : MCAsmInfoELF() {
+  CodePointerSize = (TT.getArch() == Triple::amdgcn) ? 8 : 4;
+  StackGrowsUp = true;
   HasSingleParameterDotFile = false;
   //===------------------------------------------------------------------===//
-  MaxInstLength = 16;
+  MinInstAlignment = 4;
+  MaxInstLength = (TT.getArch() == Triple::amdgcn) ? 8 : 16;
   SeparatorString = "\n";
   CommentString = ";";
   PrivateLabelPrefix = "";

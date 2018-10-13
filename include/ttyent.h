@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -38,6 +40,7 @@
 #define	_TTYS_OFF	"off"
 #define	_TTYS_ON	"on"
 #define	_TTYS_ONIFCONSOLE "onifconsole"
+#define	_TTYS_ONIFEXISTS "onifexists"
 #define	_TTYS_SECURE	"secure"
 #define	_TTYS_INSECURE	"insecure"
 #define	_TTYS_WINDOW	"window"
@@ -54,6 +57,8 @@ struct ttyent {
 #define	TTY_SECURE	0x02	/* allow uid of 0 to login */
 #define	TTY_DIALUP	0x04	/* is a dialup tty */
 #define	TTY_NETWORK	0x08	/* is a network tty */
+#define	TTY_IFEXISTS	0x10	/* configured as "onifexists" */
+#define	TTY_IFCONSOLE	0x20	/* configured as "onifconsole" */
 	int	ty_status;	/* status flags */
 	char 	*ty_window;	/* command to start up window manager */
 	char	*ty_comment;	/* comment field */

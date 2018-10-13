@@ -85,7 +85,7 @@ driver offloads both encryption and decryption of data frames to the
 hardware for the CCMP cipher.
 .Pp
 This driver requires the firmware built with the
-.Nm wpifw
+.Nm wpifw 4
 module to work.
 .Pp
 The
@@ -144,7 +144,7 @@ The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
 Verify the
-.Xr wpifw
+.Xr wpifw 4
 firmware module is installed.
 .It "wpi%d: %s: timeout waiting for adapter to initialize, error %d"
 The onboard microcontroller failed to initialize in time.

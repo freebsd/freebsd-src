@@ -1,6 +1,12 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -135,13 +141,13 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 		BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN },
 
 	/* Apple BCM4322 boards that require 700mV SerDes TX drive strength. */
-	{{ BHND_CHIP_ID(BCM4322),
+	{{ BHND_MATCH_CHIP_ID(BCM4322),
 	   BHND_MATCH_BOARD(PCI_VENDOR_APPLE, BCM94322X9), },
 		BHND_PCIE_QUIRK_SERDES_TXDRV_700MV },
 
 	/* Apple BCM4331 board-specific quirks */
 #define	BHND_A4331_QUIRK(_board, ...)	\
-	{{ BHND_CHIP_ID(BCM4331),		\
+	{{ BHND_MATCH_CHIP_ID(BCM4331),		\
 	    BHND_MATCH_BOARD(PCI_VENDOR_APPLE, _board) }, __VA_ARGS__ }
 
 	BHND_A4331_QUIRK(BCM94331X19,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX |
@@ -561,7 +567,7 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 		bus_size_t	reg;
 		
 		bhnd = device_get_parent(sc->dev);
-		chipc = bhnd_find_child(bhnd, BHND_DEVCLASS_CC, 0);
+		chipc = bhnd_bus_find_child(bhnd, BHND_DEVCLASS_CC, 0);
 		KASSERT(chipc != NULL, ("missing chipcommon device"));
 
 		/* Write SerDes PLL disable flag to the ChipCommon core */

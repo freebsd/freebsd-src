@@ -91,11 +91,17 @@ The file can contain lines of the form
 .Pp
 .Dl name = "value"  # this is a comment
 .Pp
-where whitespace around name and '=', and
-everything after a '#' character, are ignored.  Almost any printable
-character except '=' is acceptable as part of a name.  Quotes
-are optional and necessary only if the value contains
-whitespace.
+where whitespace around
+.Sq name
+and
+.Sq = ,
+and everything after a
+.Sq #
+character, are ignored.
+Almost any printable character except
+.Sq =
+is acceptable as part of a name.
+Quotes are optional and necessary only if the value contains whitespace.
 .Sh SEE ALSO
 .Xr kenv 2 ,
 .Xr config 5 ,

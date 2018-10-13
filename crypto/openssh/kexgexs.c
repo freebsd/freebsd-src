@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.26 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.33 2018/04/10 00:10:49 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -28,7 +28,6 @@
 
 #ifdef WITH_OPENSSL
 
-#include <sys/param.h>	/* MIN MAX */
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -36,6 +35,8 @@
 #include <signal.h>
 
 #include <openssl/dh.h>
+
+#include "openbsd-compat/openssl-compat.h"
 
 #include "sshkey.h"
 #include "cipher.h"
@@ -53,9 +54,10 @@
 #include "dispatch.h"
 #include "ssherr.h"
 #include "sshbuf.h"
+#include "misc.h"
 
-static int input_kex_dh_gex_request(int, u_int32_t, void *);
-static int input_kex_dh_gex_init(int, u_int32_t, void *);
+static int input_kex_dh_gex_request(int, u_int32_t, struct ssh *);
+static int input_kex_dh_gex_init(int, u_int32_t, struct ssh *);
 
 int
 kexgex_server(struct ssh *ssh)
@@ -67,12 +69,12 @@ kexgex_server(struct ssh *ssh)
 }
 
 static int
-input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
+input_kex_dh_gex_request(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	int r;
 	u_int min = 0, max = 0, nbits = 0;
+	const BIGNUM *dh_p, *dh_g;
 
 	debug("SSH2_MSG_KEX_DH_GEX_REQUEST received");
 	if ((r = sshpkt_get_u32(ssh, &min)) != 0 ||
@@ -83,13 +85,13 @@ input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
 	kex->nbits = nbits;
 	kex->min = min;
 	kex->max = max;
-	min = MAX(DH_GRP_MIN, min);
-	max = MIN(DH_GRP_MAX, max);
-	nbits = MAX(DH_GRP_MIN, nbits);
-	nbits = MIN(DH_GRP_MAX, nbits);
+	min = MAXIMUM(DH_GRP_MIN, min);
+	max = MINIMUM(DH_GRP_MAX, max);
+	nbits = MAXIMUM(DH_GRP_MIN, nbits);
+	nbits = MINIMUM(DH_GRP_MAX, nbits);
 
 	if (kex->max < kex->min || kex->nbits < kex->min ||
-	    kex->max < kex->nbits) {
+	    kex->max < kex->nbits || kex->max < DH_GRP_MIN) {
 		r = SSH_ERR_DH_GEX_OUT_OF_RANGE;
 		goto out;
 	}
@@ -102,9 +104,10 @@ input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
 		goto out;
 	}
 	debug("SSH2_MSG_KEX_DH_GEX_GROUP sent");
+	DH_get0_pqg(kex->dh, &dh_p, NULL, &dh_g);
 	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_GROUP)) != 0 ||
-	    (r = sshpkt_put_bignum2(ssh, kex->dh->p)) != 0 ||
-	    (r = sshpkt_put_bignum2(ssh, kex->dh->g)) != 0 ||
+	    (r = sshpkt_put_bignum2(ssh, dh_p)) != 0 ||
+	    (r = sshpkt_put_bignum2(ssh, dh_g)) != 0 ||
 	    (r = sshpkt_send(ssh)) != 0)
 		goto out;
 
@@ -120,11 +123,11 @@ input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
 }
 
 static int
-input_kex_dh_gex_init(int type, u_int32_t seq, void *ctxt)
+input_kex_dh_gex_init(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	BIGNUM *shared_secret = NULL, *dh_client_pub = NULL;
+	const BIGNUM *pub_key, *dh_p, *dh_g;
 	struct sshkey *server_host_public, *server_host_private;
 	u_char *kbuf = NULL, *signature = NULL, *server_host_key_blob = NULL;
 	u_char hash[SSH_DIGEST_MAX_LENGTH];
@@ -155,17 +158,17 @@ input_kex_dh_gex_init(int type, u_int32_t seq, void *ctxt)
 	    (r = sshpkt_get_end(ssh)) != 0)
 		goto out;
 
+	DH_get0_key(kex->dh, &pub_key, NULL);
+	DH_get0_pqg(kex->dh, &dh_p, NULL, &dh_g);
+
 #ifdef DEBUG_KEXDH
 	fprintf(stderr, "dh_client_pub= ");
 	BN_print_fp(stderr, dh_client_pub);
 	fprintf(stderr, "\n");
 	debug("bits %d", BN_num_bits(dh_client_pub));
-#endif
-
-#ifdef DEBUG_KEXDH
 	DHparams_print_fp(stderr, kex->dh);
 	fprintf(stderr, "pub= ");
-	BN_print_fp(stderr, kex->dh->pub_key);
+	BN_print_fp(stderr, pub_key);
 	fprintf(stderr, "\n");
 #endif
 	if (!dh_pub_is_valid(kex->dh, dh_client_pub)) {
@@ -201,9 +204,9 @@ input_kex_dh_gex_init(int type, u_int32_t seq, void *ctxt)
 	    sshbuf_ptr(kex->my), sshbuf_len(kex->my),
 	    server_host_key_blob, sbloblen,
 	    kex->min, kex->nbits, kex->max,
-	    kex->dh->p, kex->dh->g,
+	    dh_p, dh_g,
 	    dh_client_pub,
-	    kex->dh->pub_key,
+	    pub_key,
 	    shared_secret,
 	    hash, &hashlen)) != 0)
 		goto out;
@@ -226,10 +229,10 @@ input_kex_dh_gex_init(int type, u_int32_t seq, void *ctxt)
 
 	/* destroy_sensitive_data(); */
 
-	/* send server hostkey, DH pubkey 'f' and singed H */
+	/* send server hostkey, DH pubkey 'f' and signed H */
 	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_REPLY)) != 0 ||
 	    (r = sshpkt_put_string(ssh, server_host_key_blob, sbloblen)) != 0 ||
-	    (r = sshpkt_put_bignum2(ssh, kex->dh->pub_key)) != 0 ||     /* f */
+	    (r = sshpkt_put_bignum2(ssh, pub_key)) != 0 ||     /* f */
 	    (r = sshpkt_put_string(ssh, signature, slen)) != 0 ||
 	    (r = sshpkt_send(ssh)) != 0)
 		goto out;
@@ -239,14 +242,12 @@ input_kex_dh_gex_init(int type, u_int32_t seq, void *ctxt)
  out:
 	DH_free(kex->dh);
 	kex->dh = NULL;
-	if (dh_client_pub)
-		BN_clear_free(dh_client_pub);
+	BN_clear_free(dh_client_pub);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	free(server_host_key_blob);
 	free(signature);
 	return r;

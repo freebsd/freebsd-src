@@ -123,6 +123,10 @@ start_element(void *data, const char *name, const char **attr)
 			mt->curband = &mt->rd->bands_11ng;
 		else if (iseq(mode, "11na"))
 			mt->curband = &mt->rd->bands_11na;
+		else if (iseq(mode, "11ac"))
+			mt->curband = &mt->rd->bands_11ac;
+		else if (iseq(mode, "11acg"))
+			mt->curband = &mt->rd->bands_11acg;
 		else
 			warnx("unknown mode \"%s\" at line %ld",
 			    __DECONST(char *, mode),
@@ -184,6 +188,14 @@ decode_flag(struct mystate *mt, const char *p, int len)
 		FLAG(IEEE80211_CHAN_G),
 		FLAG(IEEE80211_CHAN_HT20),
 		FLAG(IEEE80211_CHAN_HT40),
+		FLAG(IEEE80211_CHAN_VHT20),
+		FLAG(IEEE80211_CHAN_VHT40),
+		FLAG(IEEE80211_CHAN_VHT80),
+		/*
+		 * XXX VHT80_80? This likely should be done by
+		 * 80MHz chan logic in net80211 / ifconfig.
+		 */
+		FLAG(IEEE80211_CHAN_VHT160),
 		FLAG(IEEE80211_CHAN_ST),
 		FLAG(IEEE80211_CHAN_TURBO),
 		FLAG(IEEE80211_CHAN_PASSIVE),
@@ -515,6 +527,24 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 			}
 			nb->band = id;
 		}
+		LIST_FOREACH(nb, &dp->bands_11ac, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11ac band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
+		LIST_FOREACH(nb, &dp->bands_11acg, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11acg band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
 	}
 	LIST_FOREACH(cp, &rdp->countries, next) {
 		id = cp->rd;
@@ -539,6 +569,7 @@ cleanup_bands(netband_head *head)
 		nb = LIST_FIRST(head);
 		if (nb == NULL)
 			break;
+		LIST_REMOVE(nb, next);
 		free(nb);
 	}
 }
@@ -562,6 +593,8 @@ lib80211_regdomain_cleanup(struct regdata *rdp)
 		cleanup_bands(&dp->bands_11a);
 		cleanup_bands(&dp->bands_11ng);
 		cleanup_bands(&dp->bands_11na);
+		cleanup_bands(&dp->bands_11ac);
+		cleanup_bands(&dp->bands_11acg);
 		if (dp->name != NULL)
 			free(__DECONST(char *, dp->name));
 	}

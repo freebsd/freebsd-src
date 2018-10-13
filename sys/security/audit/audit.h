@@ -1,6 +1,14 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2005 Apple Inc.
+ * Copyright (c) 2016-2018 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by BAE Systems, the University of Cambridge
+ * Computer Laboratory, and Memorial University under DARPA/AFRL contract
+ * FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent Computing
+ * (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,14 +55,23 @@
 #include <sys/sysctl.h>
 
 /*
- * Audit subsystem condition flags.  The audit_enabled flag is set and
+ * Audit subsystem condition flags.  The audit_trail_enabled flag is set and
  * removed automatically as a result of configuring log files, and can be
  * observed but should not be directly manipulated.  The audit suspension
  * flag permits audit to be temporarily disabled without reconfiguring the
  * audit target.
+ *
+ * As DTrace can also request system-call auditing, a further
+ * audit_syscalls_enabled flag tracks whether newly entering system calls
+ * should be considered for auditing or not.
+ *
+ * XXXRW: Move trail flags to audit_private.h, as they no longer need to be
+ * visible outside the audit code...?
  */
-extern int	audit_enabled;
-extern int	audit_suspended;
+extern u_int	audit_dtrace_enabled;
+extern int	audit_trail_enabled;
+extern int	audit_trail_suspended;
+extern int	audit_syscalls_enabled;
 
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
@@ -100,7 +117,9 @@ void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
 void	 audit_arg_auditinfo_addr(struct auditinfo_addr *au_info);
 void	 audit_arg_upath1(struct thread *td, int dirfd, char *upath);
+void	 audit_arg_upath1_canon(char *upath);
 void	 audit_arg_upath2(struct thread *td, int dirfd, char *upath);
+void	 audit_arg_upath2_canon(char *upath);
 void	 audit_arg_vnode1(struct vnode *vp);
 void	 audit_arg_vnode2(struct vnode *vp);
 void	 audit_arg_text(char *text);
@@ -109,6 +128,7 @@ void	 audit_arg_svipc_cmd(int cmd);
 void	 audit_arg_svipc_perm(struct ipc_perm *perm);
 void	 audit_arg_svipc_id(int id);
 void	 audit_arg_svipc_addr(void *addr);
+void	 audit_arg_svipc_which(int which);
 void	 audit_arg_posix_ipc_perm(uid_t uid, gid_t gid, mode_t mode);
 void	 audit_arg_auditon(union auditon_udata *udata);
 void	 audit_arg_file(struct proc *p, struct file *fp);
@@ -128,7 +148,7 @@ void	 audit_thread_free(struct thread *td);
 
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
- * audit_enabled flag before performing the actual call.
+ * audit_syscalls_enabled flag before performing the actual call.
  */
 #define	AUDITING_TD(td)		((td)->td_pflags & TDP_AUDITREC)
 
@@ -212,6 +232,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_groupset((gidset), (gidset_size));		\
 } while (0)
 
+#define	AUDIT_ARG_LOGIN(login) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_login((login));				\
+} while (0)
+
 #define	AUDIT_ARG_MODE(mode) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_mode((mode));					\
@@ -225,6 +250,11 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_PID(pid) do {						\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_pid((pid));					\
+} while (0)
+
+#define	AUDIT_ARG_POSIX_IPC_PERM(uid, gid, mode) do {			\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_posix_ipc_perm((uid), (gid), (mod));		\
 } while (0)
 
 #define	AUDIT_ARG_PROCESS(p) do {					\
@@ -277,6 +307,31 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_suid((suid));					\
 } while (0)
 
+#define	AUDIT_ARG_SVIPC_CMD(cmd) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_cmd((cmd));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_PERM(perm) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_perm((perm));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_ID(id) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_id((id));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_ADDR(addr) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_addr((addr));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_WHICH(which) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_which((which));				\
+} while (0)
+
 #define	AUDIT_ARG_TEXT(text) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_text((text));					\
@@ -292,9 +347,19 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_upath1((td), (dirfd), (upath));		\
 } while (0)
 
+#define	AUDIT_ARG_UPATH1_CANON(upath) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_upath1_canon((upath));			\
+} while (0)
+
 #define	AUDIT_ARG_UPATH2(td, dirfd, upath) do {				\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_upath2((td), (dirfd), (upath));		\
+} while (0)
+
+#define	AUDIT_ARG_UPATH2_CANON(upath) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_upath2_canon((upath));			\
 } while (0)
 
 #define	AUDIT_ARG_VALUE(value) do {					\
@@ -313,7 +378,7 @@ void	 audit_thread_free(struct thread *td);
 } while (0)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
-	if (audit_enabled) {						\
+	if (audit_syscalls_enabled) {					\
 		audit_syscall_enter(code, td);				\
 	}								\
 } while (0)
@@ -321,7 +386,7 @@ void	 audit_thread_free(struct thread *td);
 /*
  * Wrap the audit_syscall_exit() function so that it is called only when
  * we have a audit record on the thread.  Audit records can persist after
- * auditing is disabled, so we don't just check audit_enabled here.
+ * auditing is disabled, so we don't just check audit_syscalls_enabled here.
  */
 #define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
 	if (td->td_pflags & TDP_AUDITREC)				\
@@ -354,9 +419,11 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_FFLAGS(fflags)
 #define	AUDIT_ARG_GID(gid)
 #define	AUDIT_ARG_GROUPSET(gidset, gidset_size)
+#define	AUDIT_ARG_LOGIN(login)
 #define	AUDIT_ARG_MODE(mode)
 #define	AUDIT_ARG_OWNER(uid, gid)
 #define	AUDIT_ARG_PID(pid)
+#define	AUDIT_ARG_POSIX_IPC_PERM(uid, gid, mode)
 #define	AUDIT_ARG_PROCESS(p)
 #define	AUDIT_ARG_RGID(rgid)
 #define	AUDIT_ARG_RIGHTS(rights)
@@ -367,10 +434,17 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_SOCKET(sodomain, sotype, soprotocol)
 #define	AUDIT_ARG_SOCKADDR(td, dirfd, sa)
 #define	AUDIT_ARG_SUID(suid)
+#define	AUDIT_ARG_SVIPC_CMD(cmd)
+#define	AUDIT_ARG_SVIPC_PERM(perm)
+#define	AUDIT_ARG_SVIPC_ID(id)
+#define	AUDIT_ARG_SVIPC_ADDR(addr)
+#define	AUDIT_ARG_SVIPC_WHICH(which)
 #define	AUDIT_ARG_TEXT(text)
 #define	AUDIT_ARG_UID(uid)
 #define	AUDIT_ARG_UPATH1(td, dirfd, upath)
+#define	AUDIT_ARG_UPATH1_CANON(upath)
 #define	AUDIT_ARG_UPATH2(td, dirfd, upath)
+#define	AUDIT_ARG_UPATH2_CANON(upath)
 #define	AUDIT_ARG_VALUE(value)
 #define	AUDIT_ARG_VNODE1(vp)
 #define	AUDIT_ARG_VNODE2(vp)

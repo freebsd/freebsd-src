@@ -1,4 +1,4 @@
-//===-- llvm/CallingConv.h - LLVM Calling Conventions -----------*- C++ -*-===//
+//===- llvm/CallingConv.h - LLVM Calling Conventions ------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,8 +20,9 @@ namespace llvm {
 /// the well-known calling conventions.
 ///
 namespace CallingConv {
+
   /// LLVM IR allows to use arbitrary numbers as calling convention identifiers.
-  typedef unsigned ID;
+  using ID = unsigned;
 
   /// A set of enums which specify the assigned numeric values for known llvm
   /// calling conventions.
@@ -142,11 +143,15 @@ namespace CallingConv {
     /// System V ABI, used on most non-Windows systems.
     X86_64_SysV = 78,
 
-    /// \brief The C convention as implemented on Windows/x86-64. This
-    /// convention differs from the more common \c X86_64_SysV convention
-    /// in a number of ways, most notably in that XMM registers used to pass
-    /// arguments are shadowed by GPRs, and vice versa.
-    X86_64_Win64 = 79,
+    /// \brief The C convention as implemented on Windows/x86-64 and
+    /// AArch64. This convention differs from the more common
+    /// \c X86_64_SysV convention in a number of ways, most notably in
+    /// that XMM registers used to pass arguments are shadowed by GPRs,
+    /// and vice versa.
+    /// On AArch64, this is identical to the normal C (AAPCS) calling
+    /// convention for normal functions, but floats are passed in integer
+    /// registers to variadic functions.
+    Win64 = 79,
 
     /// \brief MSVC calling convention that passes vectors and vector aggregates
     /// in SSE registers.
@@ -168,11 +173,59 @@ namespace CallingConv {
     /// subtargets.
     X86_INTR = 83,
 
+    /// Used for AVR interrupt routines.
+    AVR_INTR = 84,
+
+    /// Calling convention used for AVR signal routines.
+    AVR_SIGNAL = 85,
+
+    /// Calling convention used for special AVR rtlib functions
+    /// which have an "optimized" convention to preserve registers.
+    AVR_BUILTIN = 86,
+
+    /// Calling convention used for Mesa vertex shaders, or AMDPAL last shader
+    /// stage before rasterization (vertex shader if tessellation and geometry
+    /// are not in use, or otherwise copy shader if one is needed).
+    AMDGPU_VS = 87,
+
+    /// Calling convention used for Mesa/AMDPAL geometry shaders.
+    AMDGPU_GS = 88,
+
+    /// Calling convention used for Mesa/AMDPAL pixel shaders.
+    AMDGPU_PS = 89,
+
+    /// Calling convention used for Mesa/AMDPAL compute shaders.
+    AMDGPU_CS = 90,
+
+    /// Calling convention for AMDGPU code object kernels.
+    AMDGPU_KERNEL = 91,
+
+    /// Register calling convention used for parameters transfer optimization
+    X86_RegCall = 92,
+
+    /// Calling convention used for Mesa/AMDPAL hull shaders (= tessellation
+    /// control shaders).
+    AMDGPU_HS = 93,
+
+    /// Calling convention used for special MSP430 rtlib functions
+    /// which have an "optimized" convention using additional registers.
+    MSP430_BUILTIN = 94,
+
+    /// Calling convention used for AMDPAL vertex shader if tessellation is in
+    /// use.
+    AMDGPU_LS = 95,
+
+    /// Calling convention used for AMDPAL shader stage before geometry shader
+    /// if geometry is in use. So either the domain (= tessellation evaluation)
+    /// shader if tessellation is in use, or otherwise the vertex shader.
+    AMDGPU_ES = 96,
+
     /// The highest possible calling convention ID. Must be some 2^k - 1.
     MaxID = 1023
   };
-} // End CallingConv namespace
 
-} // End llvm namespace
+} // end namespace CallingConv
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_IR_CALLINGCONV_H

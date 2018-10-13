@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,10 +43,10 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_RADIX, "radix", "Linux radix compat");
 
-static inline int
+static inline unsigned long
 radix_max(struct radix_tree_root *root)
 {
-	return (1 << (root->height * RADIX_TREE_MAP_SHIFT)) - 1;
+	return ((1UL << (root->height * RADIX_TREE_MAP_SHIFT)) - 1UL);
 }
 
 static inline int
@@ -74,6 +74,45 @@ radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
 
 out:
 	return (item);
+}
+
+bool
+radix_tree_iter_find(struct radix_tree_root *root, struct radix_tree_iter *iter,
+    void ***pppslot)
+{
+	struct radix_tree_node *node;
+	unsigned long index = iter->index;
+	int height;
+
+restart:
+	node = root->rnode;
+	if (node == NULL)
+		return (false);
+	height = root->height - 1;
+	if (height == -1 || index > radix_max(root))
+		return (false);
+	do {
+		unsigned long mask = RADIX_TREE_MAP_MASK << (RADIX_TREE_MAP_SHIFT * height);
+		unsigned long step = 1UL << (RADIX_TREE_MAP_SHIFT * height);
+		int pos = radix_pos(index, height);
+		struct radix_tree_node *next;
+
+		/* track last slot */
+		*pppslot = node->slots + pos;
+
+		next = node->slots[pos];
+		if (next == NULL) {
+			index += step;
+			index &= -step;
+			if ((index & mask) == 0)
+				goto restart;
+		} else {
+			node = next;
+			height--;
+		}
+	} while (height != -1);
+	iter->index = index;
+	return (true);
 }
 
 void *
@@ -121,6 +160,13 @@ radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 		}
 out:
 	return (item);
+}
+
+void
+radix_tree_iter_delete(struct radix_tree_root *root,
+    struct radix_tree_iter *iter, void **slot)
+{
+	radix_tree_delete(root, iter->index);
 }
 
 int
@@ -213,6 +259,6 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 		return (-EEXIST);
 	node->slots[idx] = item;
 	node->count++;
-	
+
 	return (0);
 }

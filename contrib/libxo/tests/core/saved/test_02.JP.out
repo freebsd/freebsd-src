@@ -34,7 +34,7 @@
       "unknown": 1010,
       "min": 15,
       "cur": 20,
-      "max": 30,
+      "max": 125,
       "min": 15,
       "cur": 20,
       "max": 125,
@@ -67,7 +67,7 @@
         "message": "two more errors"
       },
       "__warning": {
-        "message": this is an warning
+        "message": "this is an warning"
       },
       "__warning": {
         "message": "two more warnings"

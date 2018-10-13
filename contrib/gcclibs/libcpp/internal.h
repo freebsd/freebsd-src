@@ -458,7 +458,8 @@ struct cpp_reader
      of precompiled headers.  */
   struct cpp_savedstate *savedstate;
 
-  unsigned int nextcounter;
+  /* Next value of __COUNTER__ macro. */
+  unsigned int counter;
 };
 
 /* Character classes.  Based on the more primitive macros in safe-ctype.h.

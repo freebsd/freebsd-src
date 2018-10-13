@@ -127,7 +127,7 @@ svn_wc__db_util_open_db(svn_sqlite__db_t **sdb,
     {
       svn_node_kind_t kind;
 
-      /* A file stat is much cheaper then a failed database open handled
+      /* A file stat is much cheaper than a failed database open handled
          by SQLite. */
       SVN_ERR(svn_io_check_path(sdb_abspath, &kind, scratch_pool));
 

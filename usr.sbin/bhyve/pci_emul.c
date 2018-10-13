@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -31,9 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
-#include <sys/errno.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -233,6 +235,17 @@ done:
 		free(str);
 
 	return (error);
+}
+
+void
+pci_print_supported_devices()
+{
+	struct pci_devemu **pdpp, *pdp;
+
+	SET_FOREACH(pdpp, pci_devemu_set) {
+		pdp = *pdpp;
+		printf("%s\n", pdp->pe_emu);
+	}
 }
 
 static int
@@ -760,8 +773,6 @@ pci_populate_msicap(struct msicap *msicap, int msgnum, int nextptr)
 {
 	int mmc;
 
-	CTASSERT(sizeof(struct msicap) == 14);
-
 	/* Number of msi messages must be a power of 2 between 1 and 32 */
 	assert((msgnum & (msgnum - 1)) == 0 && msgnum >= 1 && msgnum <= 32);
 	mmc = ffs(msgnum) - 1;
@@ -786,7 +797,6 @@ static void
 pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
 		     uint32_t msix_tab_size)
 {
-	CTASSERT(sizeof(struct msixcap) == 12);
 
 	assert(msix_tab_size % 4096 == 0);
 
@@ -864,7 +874,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 {
 	uint16_t msgctrl, rwmask;
 	int off;
-	
+
 	off = offset - capoff;
 	/* Message Control Register */
 	if (off == 2 && bytes == 2) {
@@ -877,8 +887,8 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
 		pci_lintr_update(pi);
-	} 
-	
+	}
+
 	CFGWRITE(pi, offset, val, bytes);
 }
 
@@ -936,8 +946,6 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 {
 	int err;
 	struct pciecap pciecap;
-
-	CTASSERT(sizeof(struct pciecap) == 60);
 
 	if (type != PCIEM_TYPE_ROOT_PORT)
 		return (-1);
@@ -1339,11 +1347,11 @@ pci_bus_write_dsdt(int bus)
 		dsdt_line("Name (PPRT, Package ()");
 		dsdt_line("{");
 		pci_walk_lintr(bus, pci_pirq_prt_entry, NULL);
- 		dsdt_line("})");
+		dsdt_line("})");
 		dsdt_line("Name (APRT, Package ()");
 		dsdt_line("{");
 		pci_walk_lintr(bus, pci_apic_prt_entry, NULL);
- 		dsdt_line("})");
+		dsdt_line("})");
 		dsdt_line("Method (_PRT, 0, NotSerialized)");
 		dsdt_line("{");
 		dsdt_line("  If (PICM)");
@@ -1509,7 +1517,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * is not yet assigned.
 	 */
 	if (ii->ii_ioapic_irq == 0)
-		ii->ii_ioapic_irq = ioapic_pci_alloc_irq();
+		ii->ii_ioapic_irq = ioapic_pci_alloc_irq(pi);
 	assert(ii->ii_ioapic_irq > 0);
 
 	/*
@@ -1517,7 +1525,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * not yet assigned.
 	 */
 	if (ii->ii_pirq_pin == 0)
-		ii->ii_pirq_pin = pirq_alloc_pin(pi->pi_vmctx);
+		ii->ii_pirq_pin = pirq_alloc_pin(pi);
 	assert(ii->ii_pirq_pin > 0);
 
 	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
@@ -1729,7 +1737,7 @@ pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 	 * interrupt.
 	 */
 	pci_lintr_update(pi);
-}	
+}
 
 static void
 pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,

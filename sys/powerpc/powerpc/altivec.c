@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1996 Wolfgang Solfrank.
  * Copyright (C) 1996 TooLs GmbH.
  * All rights reserved.
@@ -56,7 +58,6 @@ save_vec_int(struct thread *td)
 	 */
 	msr = mfmsr();
 	mtmsr(msr | PSL_VEC);
-	isync();
 
 	/*
 	 * Save the vector registers and VSCR to the PCB
@@ -118,7 +119,6 @@ enable_vec(struct thread *td)
 	 */
 	msr = mfmsr();
 	mtmsr(msr | PSL_VEC);
-	isync();
 
 	/*
 	 * Restore VSCR by first loading it into a vector and then into VSCR.

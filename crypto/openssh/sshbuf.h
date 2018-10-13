@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.6 2015/12/10 07:01:35 mmcc Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.11 2018/07/09 21:56:06 markus Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -49,15 +49,6 @@ struct sshbuf {
 	u_int refcount;		/* Tracks self and number of child buffers */
 	struct sshbuf *parent;	/* If child, pointer to parent */
 };
-
-#ifndef SSHBUF_NO_DEPREACTED
-/*
- * NB. Please do not use sshbuf_init() in new code. Please use sshbuf_new()
- * instead. sshbuf_init() is deprectated and will go away soon (it is
- * only included to allow compat with buffer_* in OpenSSH)
- */
-void sshbuf_init(struct sshbuf *buf);
-#endif
 
 /*
  * Create a new sshbuf buffer.
@@ -139,6 +130,14 @@ u_char *sshbuf_mutable_ptr(const struct sshbuf *buf);
 int	sshbuf_check_reserve(const struct sshbuf *buf, size_t len);
 
 /*
+ * Preallocates len additional bytes in buf.
+ * Useful for cases where the caller knows how many bytes will ultimately be
+ * required to avoid realloc in the buffer code.
+ * Returns 0 on success, or a negative SSH_ERR_* error code on failure.
+ */
+int	sshbuf_allocate(struct sshbuf *buf, size_t len);
+
+/*
  * Reserve len bytes in buf.
  * Returns 0 on success and a pointer to the first reserved byte via the
  * optional dpp parameter or a negative * SSH_ERR_* error code on failure.
@@ -177,6 +176,14 @@ int	sshbuf_put_u32(struct sshbuf *buf, u_int32_t val);
 int	sshbuf_put_u16(struct sshbuf *buf, u_int16_t val);
 int	sshbuf_put_u8(struct sshbuf *buf, u_char val);
 
+#if defined(__FreeBSD__) && defined(__i386__)
+#define sshbuf_get_time(b, vp) sshbuf_get_u32((b), (u_int32_t *)(vp))
+#define sshbuf_put_time(b, v) sshbuf_put_u32((b), (u_int32_t)(v))
+#else
+#define sshbuf_get_time(b, vp) sshbuf_get_u64((b), (u_int64_t *)(vp))
+#define sshbuf_put_time(b, v) sshbuf_put_u64((b), (u_int64_t)(v))
+#endif
+
 /*
  * Functions to extract or store SSH wire encoded strings (u32 len || data)
  * The "cstring" variants admit no \0 characters in the string contents.
@@ -203,6 +210,7 @@ int	sshbuf_get_string_direct(struct sshbuf *buf, const u_char **valp,
 /* Another variant: "peeks" into the buffer without modifying it */
 int	sshbuf_peek_string_direct(const struct sshbuf *buf, const u_char **valp,
 	    size_t *lenp);
+/* XXX peek_u8 / peek_u32 */
 
 /*
  * Functions to extract or store SSH wire encoded bignums and elliptic
@@ -238,6 +246,28 @@ char	*sshbuf_dtob64(struct sshbuf *buf);
 
 /* Decode base64 data and append it to the buffer */
 int	sshbuf_b64tod(struct sshbuf *buf, const char *b64);
+
+/*
+ * Duplicate the contents of a buffer to a string (caller to free).
+ * Returns NULL on buffer error, or if the buffer contains a premature
+ * nul character.
+ */
+char *sshbuf_dup_string(struct sshbuf *buf);
+
+/*
+ * store struct pwd
+ */
+int sshbuf_put_passwd(struct sshbuf *buf, const struct passwd *pwent);
+
+/*
+ * extract struct pwd
+ */
+struct passwd *sshbuf_get_passwd(struct sshbuf *buf);
+
+/*
+ * free struct passwd obtained from sshbuf_get_passwd.
+ */
+void sshbuf_free_passwd(struct passwd *pwent);
 
 /* Macros for decoding/encoding integers */
 #define PEEK_U64(p) \

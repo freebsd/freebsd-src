@@ -1,4 +1,6 @@
 /***********************license start***************
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
  *  reserved.
  *
@@ -682,7 +684,8 @@ static void cf_attach_geom (void *arg, int flag)
 	cf_priv = (struct cf_priv *) arg;
 	cf_priv->cf_geom = g_new_geomf(&g_cf_class, "cf%d", device_get_unit(cf_priv->dev));
 	cf_priv->cf_geom->softc = cf_priv;
-	cf_priv->cf_provider = g_new_providerf(cf_priv->cf_geom, cf_priv->cf_geom->name);
+	cf_priv->cf_provider = g_new_providerf(cf_priv->cf_geom, "%s",
+	    cf_priv->cf_geom->name);
 	cf_priv->cf_provider->sectorsize = cf_priv->drive_param.sector_size;
 	cf_priv->cf_provider->mediasize = cf_priv->drive_param.nr_sectors * cf_priv->cf_provider->sectorsize;
         g_error_provider(cf_priv->cf_provider, 0);

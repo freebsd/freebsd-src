@@ -80,7 +80,7 @@ archive_entry_strmode(struct archive_entry *entry)
 		if (mode & 0001) bp[9] = 't';
 		else bp[9] = 'T';
 	}
-	if (archive_entry_acl_count(entry, ARCHIVE_ENTRY_ACL_TYPE_ACCESS))
+	if (archive_entry_acl_types(entry) != 0)
 		bp[10] = '+';
 
 	return (bp);

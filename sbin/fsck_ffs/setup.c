@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +38,7 @@ static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <sys/stat.h>
 #define FSTYPENAMES
 #include <sys/disklabel.h>
@@ -51,14 +54,18 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+#include <libufs.h>
 
 #include "fsck.h"
 
+struct uufsd disk;
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-static void badsb(int listerr, const char *s);
+static int calcsb(char *dev, int devfd, struct fs *fs);
+static void saverecovery(int readfd, int writefd);
+static int chkrecovery(int devfd);
 
 /*
  * Read in a superblock finding an alternate if necessary.
@@ -119,7 +126,8 @@ setup(char *dev)
 			}
 		}
 	}
-	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
+	if ((fsreadfd = open(dev, O_RDONLY)) < 0 ||
+	    ufs_disk_fillout(&disk, dev) < 0) {
 		if (bkgrdflag) {
 			unlink(snapname);
 			bkgrdflag = 0;
@@ -163,7 +171,8 @@ setup(char *dev)
 	if (preen == 0)
 		printf("** %s", dev);
 	if (bkgrdflag == 0 &&
-	    (nflag || (fswritefd = open(dev, O_WRONLY)) < 0)) {
+	    (nflag || ufs_disk_write(&disk) < 0 ||
+	     (fswritefd = dup(disk.d_fd)) < 0)) {
 		fswritefd = -1;
 		if (preen)
 			pfatal("NO WRITE ACCESS");
@@ -176,7 +185,7 @@ setup(char *dev)
 	 */
 	if (readsb(1) == 0) {
 		skipclean = 0;
-		if (bflag || preen)
+		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
 			return(0);
 		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
 			return (0);
@@ -196,7 +205,7 @@ setup(char *dev)
 			bflag = 0;
 			return(0);
 		}
-		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
+		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
 		bflag = 0;
 	}
 	if (skipclean && ckclean && sblock.fs_clean) {
@@ -234,6 +243,10 @@ setup(char *dev)
 		memmove(&altsblock, &sblock, (size_t)sblock.fs_sbsize);
 		flush(fswritefd, &asblk);
 	}
+	if (preen == 0 && yflag == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
+	    fswritefd != -1 && chkrecovery(fsreadfd) == 0 &&
+	    reply("SAVE DATA TO FIND ALTERNATE SUPERBLOCKS") != 0)
+		saverecovery(fsreadfd, fswritefd);
 	/*
 	 * read in the summary info.
 	 */
@@ -268,8 +281,7 @@ setup(char *dev)
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	inostathead = Calloc((unsigned)(sblock.fs_ncg),
-	    sizeof(struct inostatlist));
+	inostathead = Calloc(sblock.fs_ncg, sizeof(struct inostatlist));
 	if (inostathead == NULL) {
 		printf("cannot alloc %u bytes for inostathead\n",
 		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
@@ -279,10 +291,8 @@ setup(char *dev)
 	dirhash = numdirs;
 	inplast = 0;
 	listmax = numdirs + 10;
-	inpsort = (struct inoinfo **)Calloc((unsigned)listmax,
-	    sizeof(struct inoinfo *));
-	inphead = (struct inoinfo **)Calloc((unsigned)numdirs,
-	    sizeof(struct inoinfo *));
+	inpsort = (struct inoinfo **)Calloc(listmax, sizeof(struct inoinfo *));
+	inphead = (struct inoinfo **)Calloc(numdirs, sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
 		printf("cannot alloc %ju bytes for inphead\n",
 		    (uintmax_t)numdirs * sizeof(struct inoinfo *));
@@ -301,104 +311,99 @@ badsb:
 }
 
 /*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-
-#define BAD_MAGIC_MSG \
-"The previous newfs operation on this volume did not complete.\n" \
-"You must complete newfs before mounting this volume.\n"
-
-/*
  * Read in the super block and its summary info.
  */
 int
 readsb(int listerr)
 {
-	ufs2_daddr_t super;
-	int i;
+	off_t super;
+	int bad, ret;
+	struct fs *fs;
 
-	if (bflag) {
-		super = bflag;
-		readcnt[sblk.b_type]++;
-		if ((blread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
-			return (0);
-		if (sblock.fs_magic == FS_BAD_MAGIC) {
-			fprintf(stderr, BAD_MAGIC_MSG);
+	super = bflag ? bflag * dev_bsize : -1;
+	readcnt[sblk.b_type]++;
+	if ((ret = sbget(fsreadfd, &fs, super)) != 0) {
+		switch (ret) {
+		case EINVAL:
+			fprintf(stderr, "The previous newfs operation "
+			    "on this volume did not complete.\nYou must "
+			    "complete newfs before using this volume.\n");
 			exit(11);
-		}
-		if (sblock.fs_magic != FS_UFS1_MAGIC &&
-		    sblock.fs_magic != FS_UFS2_MAGIC) {
-			fprintf(stderr, "%d is not a file system superblock\n",
-			    bflag);
+		case ENOENT:
+			if (bflag)
+				fprintf(stderr, "%jd is not a file system "
+				    "superblock\n", super / dev_bsize);
+			else
+				fprintf(stderr, "Cannot find file system "
+				    "superblock\n");
 			return (0);
-		}
-	} else {
-		for (i = 0; sblock_try[i] != -1; i++) {
-			super = sblock_try[i] / dev_bsize;
-			readcnt[sblk.b_type]++;
-			if ((blread(fsreadfd, (char *)&sblock, super,
-			    (long)SBLOCKSIZE)))
-				return (0);
-			if (sblock.fs_magic == FS_BAD_MAGIC) {
-				fprintf(stderr, BAD_MAGIC_MSG);
-				exit(11);
-			}
-			if ((sblock.fs_magic == FS_UFS1_MAGIC ||
-			     (sblock.fs_magic == FS_UFS2_MAGIC &&
-			      sblock.fs_sblockloc == sblock_try[i])) &&
-			    sblock.fs_ncg >= 1 &&
-			    sblock.fs_bsize >= MINBSIZE &&
-			    sblock.fs_sbsize >= roundup(sizeof(struct fs), dev_bsize))
-				break;
-		}
-		if (sblock_try[i] == -1) {
-			fprintf(stderr, "Cannot find file system superblock\n");
+		case EIO:
+		default:
+			fprintf(stderr, "I/O error reading %jd\n",
+			    super / dev_bsize);
 			return (0);
 		}
 	}
+	memcpy(&sblock, fs, fs->fs_sbsize);
+	free(fs);
 	/*
 	 * Compute block size that the file system is based on,
 	 * according to fsbtodb, and adjust superblock block number
 	 * so we can tell if this is an alternate later.
 	 */
-	super *= dev_bsize;
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
-	sblk.b_bno = super / dev_bsize;
+	sblk.b_bno = sblock.fs_sblockactualloc / dev_bsize;
 	sblk.b_size = SBLOCKSIZE;
-	if (bflag)
-		goto out;
 	/*
 	 * Compare all fields that should not differ in alternate super block.
 	 * When an alternate super-block is specified this check is skipped.
 	 */
+	if (bflag)
+		goto out;
 	getblk(&asblk, cgsblock(&sblock, sblock.fs_ncg - 1), sblock.fs_sbsize);
 	if (asblk.b_errs)
 		return (0);
-	if (altsblock.fs_sblkno != sblock.fs_sblkno ||
-	    altsblock.fs_cblkno != sblock.fs_cblkno ||
-	    altsblock.fs_iblkno != sblock.fs_iblkno ||
-	    altsblock.fs_dblkno != sblock.fs_dblkno ||
-	    altsblock.fs_ncg != sblock.fs_ncg ||
-	    altsblock.fs_bsize != sblock.fs_bsize ||
-	    altsblock.fs_fsize != sblock.fs_fsize ||
-	    altsblock.fs_frag != sblock.fs_frag ||
-	    altsblock.fs_bmask != sblock.fs_bmask ||
-	    altsblock.fs_fmask != sblock.fs_fmask ||
-	    altsblock.fs_bshift != sblock.fs_bshift ||
-	    altsblock.fs_fshift != sblock.fs_fshift ||
-	    altsblock.fs_fragshift != sblock.fs_fragshift ||
-	    altsblock.fs_fsbtodb != sblock.fs_fsbtodb ||
-	    altsblock.fs_sbsize != sblock.fs_sbsize ||
-	    altsblock.fs_nindir != sblock.fs_nindir ||
-	    altsblock.fs_inopb != sblock.fs_inopb ||
-	    altsblock.fs_cssize != sblock.fs_cssize ||
-	    altsblock.fs_ipg != sblock.fs_ipg ||
-	    altsblock.fs_fpg != sblock.fs_fpg ||
-	    altsblock.fs_magic != sblock.fs_magic) {
-		badsb(listerr,
-		"VALUES IN SUPER BLOCK DISAGREE WITH THOSE IN FIRST ALTERNATE");
-		return (0);
+	bad = 0;
+#define CHK(x, y)				\
+	if (altsblock.x != sblock.x) {		\
+		bad++;				\
+		if (listerr && debug)		\
+			printf("SUPER BLOCK VS ALTERNATE MISMATCH %s: " y " vs " y "\n", \
+			    #x, (intmax_t)sblock.x, (intmax_t)altsblock.x); \
+	}
+	CHK(fs_sblkno, "%jd");
+	CHK(fs_cblkno, "%jd");
+	CHK(fs_iblkno, "%jd");
+	CHK(fs_dblkno, "%jd");
+	CHK(fs_ncg, "%jd");
+	CHK(fs_bsize, "%jd");
+	CHK(fs_fsize, "%jd");
+	CHK(fs_frag, "%jd");
+	CHK(fs_bmask, "%#jx");
+	CHK(fs_fmask, "%#jx");
+	CHK(fs_bshift, "%jd");
+	CHK(fs_fshift, "%jd");
+	CHK(fs_fragshift, "%jd");
+	CHK(fs_fsbtodb, "%jd");
+	CHK(fs_sbsize, "%jd");
+	CHK(fs_nindir, "%jd");
+	CHK(fs_inopb, "%jd");
+	CHK(fs_cssize, "%jd");
+	CHK(fs_ipg, "%jd");
+	CHK(fs_fpg, "%jd");
+	CHK(fs_magic, "%#jx");
+#undef CHK
+	if (bad) {
+		if (listerr == 0)
+			return (0);
+		if (preen)
+			printf("%s: ", cdevname);
+		printf(
+		    "VALUES IN SUPER BLOCK LSB=%jd DISAGREE WITH THOSE IN\n"
+		    "LAST ALTERNATE LSB=%jd\n",
+		    sblk.b_bno, asblk.b_bno);
+		if (reply("IGNORE ALTERNATE SUPER BLOCK") == 0)
+			return (0);
 	}
 out:
 	/*
@@ -420,17 +425,6 @@ out:
 	return (1);
 }
 
-static void
-badsb(int listerr, const char *s)
-{
-
-	if (!listerr)
-		return;
-	if (preen)
-		printf("%s: ", cdevname);
-	pfatal("BAD SUPER BLOCK: %s\n", s);
-}
-
 void
 sblock_init(void)
 {
@@ -445,4 +439,113 @@ sblock_init(void)
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	dev_bsize = secsize = DEV_BSIZE;
+}
+
+/*
+ * Calculate a prototype superblock based on information in the boot area.
+ * When done the cgsblock macro can be calculated and the fs_ncg field
+ * can be used. Do NOT attempt to use other macros without verifying that
+ * their needed information is available!
+ */
+static int
+calcsb(char *dev, int devfd, struct fs *fs)
+{
+	struct fsrecovery *fsr;
+	char *fsrbuf;
+	u_int secsize;
+
+	/*
+	 * We need fragments-per-group and the partition-size.
+	 *
+	 * Newfs stores these details at the end of the boot block area
+	 * at the start of the filesystem partition. If they have been
+	 * overwritten by a boot block, we fail. But usually they are
+	 * there and we can use them.
+	 */
+	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1)
+		return (0);
+	fsrbuf = Malloc(secsize);
+	if (fsrbuf == NULL)
+		errx(EEXIT, "calcsb: cannot allocate recovery buffer");
+	if (blread(devfd, fsrbuf,
+	    (SBLOCK_UFS2 - secsize) / dev_bsize, secsize) != 0)
+		return (0);
+	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
+	if (fsr->fsr_magic != FS_UFS2_MAGIC)
+		return (0);
+	memset(fs, 0, sizeof(struct fs));
+	fs->fs_fpg = fsr->fsr_fpg;
+	fs->fs_fsbtodb = fsr->fsr_fsbtodb;
+	fs->fs_sblkno = fsr->fsr_sblkno;
+	fs->fs_magic = fsr->fsr_magic;
+	fs->fs_ncg = fsr->fsr_ncg;
+	free(fsrbuf);
+	return (1);
+}
+
+/*
+ * Check to see if recovery information exists.
+ * Return 1 if it exists or cannot be created.
+ * Return 0 if it does not exist and can be created.
+ */
+static int
+chkrecovery(int devfd)
+{
+	struct fsrecovery *fsr;
+	char *fsrbuf;
+	u_int secsize;
+
+	/*
+	 * Could not determine if backup material exists, so do not
+	 * offer to create it.
+	 */
+	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1 ||
+	    (fsrbuf = Malloc(secsize)) == NULL ||
+	    blread(devfd, fsrbuf, (SBLOCK_UFS2 - secsize) / dev_bsize,
+	      secsize) != 0)
+		return (1);
+	/*
+	 * Recovery material has already been created, so do not
+	 * need to create it again.
+	 */
+	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
+	if (fsr->fsr_magic == FS_UFS2_MAGIC) {
+		free(fsrbuf);
+		return (1);
+	}
+	/*
+	 * Recovery material has not been created and can be if desired.
+	 */
+	free(fsrbuf);
+	return (0);
+}
+
+/*
+ * Read the last sector of the boot block, replace the last
+ * 20 bytes with the recovery information, then write it back.
+ * The recovery information only works for UFS2 filesystems.
+ */
+static void
+saverecovery(int readfd, int writefd)
+{
+	struct fsrecovery *fsr;
+	char *fsrbuf;
+	u_int secsize;
+
+	if (sblock.fs_magic != FS_UFS2_MAGIC ||
+	    ioctl(readfd, DIOCGSECTORSIZE, &secsize) == -1 ||
+	    (fsrbuf = Malloc(secsize)) == NULL ||
+	    blread(readfd, fsrbuf, (SBLOCK_UFS2 - secsize) / dev_bsize,
+	      secsize) != 0) {
+		printf("RECOVERY DATA COULD NOT BE CREATED\n");
+		return;
+	}
+	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
+	fsr->fsr_magic = sblock.fs_magic;
+	fsr->fsr_fpg = sblock.fs_fpg;
+	fsr->fsr_fsbtodb = sblock.fs_fsbtodb;
+	fsr->fsr_sblkno = sblock.fs_sblkno;
+	fsr->fsr_ncg = sblock.fs_ncg;
+	blwrite(writefd, fsrbuf, (SBLOCK_UFS2 - secsize) / secsize, secsize);
+	free(fsrbuf);
 }

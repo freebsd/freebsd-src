@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2004, 2005 Silicon Graphics International Corp.
  * All rights reserved.
@@ -65,7 +67,7 @@ struct tpcl_softc {
 static struct tpcl_softc tpcl_softc;
 
 static int tpcl_init(void);
-static void tpcl_shutdown(void);
+static int tpcl_shutdown(void);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
@@ -84,7 +86,7 @@ tpcl_init(void)
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 	struct ctl_port *port;
 	struct scsi_transportid_spi *tid;
-	int len;
+	int error, len;
 
 	memset(tsoftc, 0, sizeof(*tsoftc));
 
@@ -95,14 +97,12 @@ tpcl_init(void)
 	port->port_name = "tpc";
 	port->fe_datamove = tpcl_datamove;
 	port->fe_done = tpcl_done;
-	port->max_targets = 1;
-	port->max_target_id = 0;
 	port->targ_port = -1;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0) {
-		printf("%s: ctl_port_register() failed with error\n", __func__);
-		return (0);
+	if ((error = ctl_port_register(port)) != 0) {
+		printf("%s: tpc port registration failed\n", __func__);
+		return (error);
 	}
 
 	len = sizeof(struct scsi_transportid_spi);
@@ -118,16 +118,17 @@ tpcl_init(void)
 	return (0);
 }
 
-void
+static int
 tpcl_shutdown(void)
 {
 	struct tpcl_softc *tsoftc = &tpcl_softc;
-	struct ctl_port *port;
+	struct ctl_port *port = &tsoftc->port;
+	int error;
 
-	port = &tsoftc->port;
 	ctl_port_offline(port);
-	if (ctl_port_deregister(&tsoftc->port) != 0)
-		printf("%s: ctl_frontend_deregister() failed\n", __func__);
+	if ((error = ctl_port_deregister(port)) != 0)
+		printf("%s: tpc port deregistration failed\n", __func__);
+	return (error);
 }
 
 static void
@@ -137,7 +138,7 @@ tpcl_datamove(union ctl_io *io)
 	struct ctl_sg_entry ext_entry, kern_entry;
 	int ext_sg_entries, kern_sg_entries;
 	int ext_sg_start, ext_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int kern_watermark, ext_watermark;
 	struct ctl_scsiio *ctsio;
 	int i, j;
@@ -196,7 +197,6 @@ tpcl_datamove(union ctl_io *io)
 
 	kern_watermark = 0;
 	ext_watermark = ext_offset;
-	len_copied = 0;
 	for (i = ext_sg_start, j = 0;
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
@@ -218,9 +218,6 @@ tpcl_datamove(union ctl_io *io)
 			kern_ptr = (uint8_t *)kern_sglist[j].addr;
 		kern_ptr = kern_ptr + kern_watermark;
 
-		kern_watermark += len_to_copy;
-		ext_watermark += len_to_copy;
-		
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes to user\n",
@@ -236,27 +233,27 @@ tpcl_datamove(union ctl_io *io)
 			memcpy(kern_ptr, ext_ptr, len_to_copy);
 		}
 
-		len_copied += len_to_copy;
+		ctsio->ext_data_filled += len_to_copy;
+		ctsio->kern_data_resid -= len_to_copy;
 
+		ext_watermark += len_to_copy;
 		if (ext_sglist[i].len == ext_watermark) {
 			i++;
 			ext_watermark = 0;
 		}
 
+		kern_watermark += len_to_copy;
 		if (kern_sglist[j].len == kern_watermark) {
 			j++;
 			kern_watermark = 0;
 		}
 	}
 
-	ctsio->ext_data_filled += len_copied;
-
 	CTL_DEBUG_PRINT(("%s: ext_sg_entries: %d, kern_sg_entries: %d\n",
 			 __func__, ext_sg_entries, kern_sg_entries));
 	CTL_DEBUG_PRINT(("%s: ext_data_len = %d, kern_data_len = %d\n",
 			 __func__, ctsio->ext_data_len, ctsio->kern_data_len));
 
-	/* XXX KDM set residual?? */
 bailout:
 	io->scsiio.be_move_done(io);
 }
@@ -290,7 +287,7 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 		port = NULL;
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		if (port != NULL &&
-		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		if (lun->lun_devid == NULL)
 			continue;

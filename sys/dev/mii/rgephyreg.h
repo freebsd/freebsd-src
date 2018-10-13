@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -198,5 +200,8 @@
 #define	RGEPHY_F_MMD_EEELPAR	0x3D	/* EEE link partner abilities */
 #define	EEELPAR_1000T		0x0004	/* link partner 1000baseT EEE capable */
 #define	EEELPAR_100TX		0x0002	/* link partner 100baseTX EEE capable */
+
+/* RTL8153 */
+#define	URE_GMEDIASTAT		0xe908	/* media status register */
 
 #endif /* _DEV_RGEPHY_MIIREG_H_ */

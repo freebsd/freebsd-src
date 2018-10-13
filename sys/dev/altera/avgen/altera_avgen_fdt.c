@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012-2013, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -75,7 +77,7 @@ static int
 altera_avgen_fdt_attach(device_t dev)
 {
 	struct altera_avgen_softc *sc;
-	char *str_fileio, *str_mmapio;
+	char *str_fileio, *str_geomio, *str_mmapio;
 	char *str_devname;
 	phandle_t node;
 	pcell_t cell;
@@ -90,6 +92,7 @@ altera_avgen_fdt_attach(device_t dev)
 	 * expose the device via /dev.
 	 */
 	str_fileio = NULL;
+	str_geomio = NULL;
 	str_mmapio = NULL;
 	str_devname = NULL;
 	devunit = -1;
@@ -97,11 +100,13 @@ altera_avgen_fdt_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	if (OF_getprop(node, "sri-cambridge,width", &cell, sizeof(cell)) > 0)
 		sc->avg_width = cell;
-	(void)OF_getprop_alloc(node, "sri-cambridge,fileio", sizeof(char),
+	(void)OF_getprop_alloc(node, "sri-cambridge,fileio",
 	    (void **)&str_fileio);
-	(void)OF_getprop_alloc(node, "sri-cambridge,mmapio", sizeof(char),
+	(void)OF_getprop_alloc(node, "sri-cambridge,geomio",
+	    (void **)&str_geomio);
+	(void)OF_getprop_alloc(node, "sri-cambridge,mmapio",
 	    (void **)&str_mmapio);
-	(void)OF_getprop_alloc(node,  "sri-cambridge,devname", sizeof(char),
+	(void)OF_getprop_alloc(node,  "sri-cambridge,devname",
 	    (void **)&str_devname);
 	if (OF_getprop(node, "sri-cambridge,devunit", &cell, sizeof(cell)) > 0)
 		devunit = cell;
@@ -114,13 +119,15 @@ altera_avgen_fdt_attach(device_t dev)
 		device_printf(dev, "couldn't map memory\n");
 		return (ENXIO);
 	}
-	error = altera_avgen_attach(sc, str_fileio, str_mmapio, str_devname,
-	    devunit);
+	error = altera_avgen_attach(sc, str_fileio, str_geomio, str_mmapio,
+	    str_devname, devunit);
 	if (error != 0)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->avg_rid,
 		    sc->avg_res);
 	if (str_fileio != NULL)
 		OF_prop_free(str_fileio);
+	if (str_geomio != NULL)
+		OF_prop_free(str_geomio);
 	if (str_mmapio != NULL)
 		OF_prop_free(str_mmapio);
 	if (str_devname != NULL)

@@ -1,6 +1,12 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +40,8 @@
 
 #include <sys/types.h>
 
+#include "nvram/bhnd_nvram.h"
+
 /** bhnd(4) device classes. */
 typedef enum {
 	BHND_DEVCLASS_CC,		/**< chipcommon i/o controller */
@@ -55,11 +63,25 @@ typedef enum {
 	BHND_DEVCLASS_SOC_BRIDGE,	/**< interconnect host bridge */
 	BHND_DEVCLASS_EROM,		/**< bus device enumeration ROM */
 	BHND_DEVCLASS_NVRAM,		/**< nvram/flash controller */
-	BHND_DEVCLASS_OTHER,		/**< other / unknown */
+	BHND_DEVCLASS_USB_HOST,		/**< USB host controller */
+	BHND_DEVCLASS_USB_DEV,		/**< USB device controller */
+	BHND_DEVCLASS_USB_DUAL,		/**< USB host/device controller */
+	BHND_DEVCLASS_SOFTMODEM,	/**< analog/PSTN softmodem codec */
 
+	BHND_DEVCLASS_OTHER	= 1000,	/**< other / unknown */
 	BHND_DEVCLASS_INVALID		/**< no/invalid class */
 } bhnd_devclass_t;
 
+/** bhnd(4) platform services. */
+typedef enum {
+	BHND_SERVICE_CHIPC,		/**< chipcommon service; implements the bhnd_chipc interface */
+	BHND_SERVICE_PWRCTL,		/**< legacy pwrctl service; implements the bhnd_pwrctl interface */
+	BHND_SERVICE_PMU,		/**< pmu service; implements the bhnd_pmu interface */
+	BHND_SERVICE_NVRAM,		/**< nvram service; implements the bhnd_nvram interface */
+	BHND_SERVICE_GPIO,		/**< gpio service; implements the standard gpio interface */
+
+	BHND_SERVICE_ANY = 1000,	/**< match on any service type */
+} bhnd_service_t;
 
 /**
  * bhnd(4) port types.
@@ -82,6 +104,66 @@ typedef enum {
 					  *  the primary or secondary bus of an embedded
 					  *  SoC */
 } bhnd_attach_type;
+
+/**
+ * bhnd(4) clock types.
+ */
+typedef enum {
+	/**
+	 * Dynamically select an appropriate clock source based on all
+	 * outstanding clock requests.
+	 */
+	BHND_CLOCK_DYN		= (1 << 0),
+
+	/**
+	 * Idle Low-Power (ILP).
+	 * 
+	 * No register access is required, or long request latency is
+	 * acceptable.
+	 */
+	BHND_CLOCK_ILP		= (1 << 1),
+	
+	/**
+	 * Active Low-Power (ALP).
+	 * 
+	 * Low-latency register access and low-rate DMA.
+	 */
+	BHND_CLOCK_ALP		= (1 << 2),
+	
+	/**
+	 * High Throughput (HT).
+	 * 
+	 * High bus throughput and lowest-latency register access.
+	 */
+	BHND_CLOCK_HT		= (1 << 3)
+} bhnd_clock;
+
+/**
+ * Given two clock types, return the type with the highest precedence. 
+ */
+static inline bhnd_clock
+bhnd_clock_max(bhnd_clock a, bhnd_clock b) {
+	return (a > b ? a : b);
+}
+
+/**
+ * bhnd(4) clock sources.
+ */
+typedef enum {
+	/**
+	 * Clock is provided by the PCI bus clock
+	 */
+	BHND_CLKSRC_PCI		= 0,
+
+	/** Clock is provided by a crystal. */
+	BHND_CLKSRC_XTAL	= 1,
+
+	/** Clock is provided by a low power oscillator. */
+	BHND_CLKSRC_LPO		= 2,
+
+	/** Clock source is unknown */
+	BHND_CLKSRC_UNKNOWN	= 3
+} bhnd_clksrc;
 
 /** Evaluates to true if @p cls is a device class that can be configured
  *  as a host bridge device. */

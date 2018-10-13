@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -948,6 +950,9 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: invalid listenTime\n",
 		    __func__);
 		ar5416AniRestart(ah, aniState);
+
+		/* Don't do any further processing */
+		return;
 	}
 	/* XXX beware of overflow? */
 	aniState->listenTime += listenTime;

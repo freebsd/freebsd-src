@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  * The latter two convert to float or double, respectively, and test csqrtf()
  * and csqrt() with the same arguments.
  */
-long double complex (*t_csqrt)(long double complex);
+static long double complex (*t_csqrt)(long double complex);
 
 static long double complex
 _csqrtf(long double complex d)
@@ -82,7 +82,7 @@ assert_equal(long double complex d1, long double complex d2)
  * exceptions.)
  */
 static void
-test_finite()
+test_finite(void)
 {
 	static const double tests[] = {
 	     /* csqrt(a + bI) = x + yI */
@@ -125,7 +125,7 @@ test_finite()
 
 	double a, b;
 	double x, y;
-	int i, j;
+	unsigned i, j;
 
 	for (i = 0; i < nitems(tests); i += 4) {
 		for (j = 0; j < nitems(mults); j++) {
@@ -143,7 +143,7 @@ test_finite()
  * Test the handling of +/- 0.
  */
 static void
-test_zeros()
+test_zeros(void)
 {
 
 	assert_equal(t_csqrt(CMPLXL(0.0, 0.0)), CMPLXL(0.0, 0.0));
@@ -156,7 +156,7 @@ test_zeros()
  * Test the handling of infinities when the other argument is not NaN.
  */
 static void
-test_infinities()
+test_infinities(void)
 {
 	static const double vals[] = {
 		0.0,
@@ -167,7 +167,7 @@ test_infinities()
 		-INFINITY,
 	};
 
-	int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(vals); i++) {
 		if (isfinite(vals[i])) {
@@ -187,7 +187,7 @@ test_infinities()
  * Test the handling of NaNs.
  */
 static void
-test_nans()
+test_nans(void)
 {
 
 	assert(creall(t_csqrt(CMPLXL(INFINITY, NAN))) == INFINITY);
@@ -214,28 +214,94 @@ test_nans()
 
 /*
  * Test whether csqrt(a + bi) works for inputs that are large enough to
- * cause overflow in hypot(a, b) + a. In this case we are using
- *	csqrt(115 + 252*I) == 14 + 9*I
- * scaled up to near MAX_EXP.
+ * cause overflow in hypot(a, b) + a.  Each of the tests is scaled up to
+ * near MAX_EXP.
  */
 static void
 test_overflow(int maxexp)
 {
 	long double a, b;
 	long double complex result;
+	int exp, i;
 
-	a = ldexpl(115 * 0x1p-8, maxexp);
-	b = ldexpl(252 * 0x1p-8, maxexp);
-	result = t_csqrt(CMPLXL(a, b));
-	assert(creall(result) == ldexpl(14 * 0x1p-4, maxexp / 2));
-	assert(cimagl(result) == ldexpl(9 * 0x1p-4, maxexp / 2));
+	assert(maxexp > 0 && maxexp % 2 == 0);
+
+	for (i = 0; i < 4; i++) {
+		exp = maxexp - 2 * i;
+
+		/* csqrt(115 + 252*I) == 14 + 9*I */
+		a = ldexpl(115 * 0x1p-8, exp);
+		b = ldexpl(252 * 0x1p-8, exp);
+		result = t_csqrt(CMPLXL(a, b));
+		assert(creall(result) == ldexpl(14 * 0x1p-4, exp / 2));
+		assert(cimagl(result) == ldexpl(9 * 0x1p-4, exp / 2));
+
+		/* csqrt(-11 + 60*I) = 5 + 6*I */
+		a = ldexpl(-11 * 0x1p-6, exp);
+		b = ldexpl(60 * 0x1p-6, exp);
+		result = t_csqrt(CMPLXL(a, b));
+		assert(creall(result) == ldexpl(5 * 0x1p-3, exp / 2));
+		assert(cimagl(result) == ldexpl(6 * 0x1p-3, exp / 2));
+
+		/* csqrt(225 + 0*I) == 15 + 0*I */
+		a = ldexpl(225 * 0x1p-8, exp);
+		b = 0;
+		result = t_csqrt(CMPLXL(a, b));
+		assert(creall(result) == ldexpl(15 * 0x1p-4, exp / 2));
+		assert(cimagl(result) == 0);
+	}
+}
+
+/*
+ * Test that precision is maintained for some large squares.  Set all or
+ * some bits in the lower mantdig/2 bits, square the number, and try to
+ * recover the sqrt.  Note:
+ * 	(x + xI)**2 = 2xxI
+ */
+static void
+test_precision(int maxexp, int mantdig)
+{
+	long double b, x;
+	long double complex result;
+	uint64_t mantbits, sq_mantbits;
+	int exp, i;
+
+	assert(maxexp > 0 && maxexp % 2 == 0);
+	assert(mantdig <= 64);
+	mantdig = rounddown(mantdig, 2);
+
+	for (exp = 0; exp <= maxexp; exp += 2) {
+		mantbits = ((uint64_t)1 << (mantdig / 2 )) - 1;
+		for (i = 0;
+		     i < 100 && mantbits > ((uint64_t)1 << (mantdig / 2 - 1));
+		     i++, mantbits--) {
+			sq_mantbits = mantbits * mantbits;
+			/*
+			 * sq_mantibts is a mantdig-bit number.  Divide by
+			 * 2**mantdig to normalize it to [0.5, 1), where,
+			 * note, the binary power will be -1.  Raise it by
+			 * 2**exp for the test.  exp is even.  Lower it by
+			 * one to reach a final binary power which is also
+			 * even.  The result should be exactly
+			 * representable, given that mantdig is less than or
+			 * equal to the available precision.
+			 */
+			b = ldexpl((long double)sq_mantbits,
+			    exp - 1 - mantdig);
+			x = ldexpl(mantbits, (exp - 2 - mantdig) / 2);
+			assert(b == x * x * 2);
+			result = t_csqrt(CMPLXL(0, b));
+			assert(creall(result) == x);
+			assert(cimagl(result) == x);
+		}
+	}
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
-	printf("1..15\n");
+	printf("1..18\n");
 
 	/* Test csqrt() */
 	t_csqrt = _csqrt;
@@ -255,41 +321,56 @@ main(int argc, char *argv[])
 	test_overflow(DBL_MAX_EXP);
 	printf("ok 5 - csqrt\n");
 
+	test_precision(DBL_MAX_EXP, DBL_MANT_DIG);
+	printf("ok 6 - csqrt\n");
+
 	/* Now test csqrtf() */
 	t_csqrt = _csqrtf;
 
 	test_finite();
-	printf("ok 6 - csqrt\n");
-
-	test_zeros();
 	printf("ok 7 - csqrt\n");
 
-	test_infinities();
+	test_zeros();
 	printf("ok 8 - csqrt\n");
 
-	test_nans();
+	test_infinities();
 	printf("ok 9 - csqrt\n");
 
-	test_overflow(FLT_MAX_EXP);
+	test_nans();
 	printf("ok 10 - csqrt\n");
+
+	test_overflow(FLT_MAX_EXP);
+	printf("ok 11 - csqrt\n");
+
+	test_precision(FLT_MAX_EXP, FLT_MANT_DIG);
+	printf("ok 12 - csqrt\n");
 
 	/* Now test csqrtl() */
 	t_csqrt = csqrtl;
 
 	test_finite();
-	printf("ok 11 - csqrt\n");
-
-	test_zeros();
-	printf("ok 12 - csqrt\n");
-
-	test_infinities();
 	printf("ok 13 - csqrt\n");
 
-	test_nans();
+	test_zeros();
 	printf("ok 14 - csqrt\n");
 
-	test_overflow(LDBL_MAX_EXP);
+	test_infinities();
 	printf("ok 15 - csqrt\n");
+
+	test_nans();
+	printf("ok 16 - csqrt\n");
+
+	test_overflow(LDBL_MAX_EXP);
+	printf("ok 17 - csqrt\n");
+
+	test_precision(LDBL_MAX_EXP,
+#ifndef __i386__
+	    LDBL_MANT_DIG
+#else
+	    DBL_MANT_DIG
+#endif
+	    );
+	printf("ok 18 - csqrt\n");
 
 	return (0);
 }

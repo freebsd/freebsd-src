@@ -1,6 +1,6 @@
 \input texinfo          @c -*-texinfo-*-
 @c
-@c Copyright (c) 1997-2006 Erez Zadok
+@c Copyright (c) 1997-2014 Erez Zadok
 @c Copyright (c) 1989 Jan-Simon Pendry
 @c Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 @c Copyright (c) 1989 The Regents of the University of California.
@@ -17,11 +17,7 @@
 @c 2. Redistributions in binary form must reproduce the above copyright
 @c    notice, this list of conditions and the following disclaimer in the
 @c    documentation and/or other materials provided with the distribution.
-@c 3. All advertising materials mentioning features or use of this software
-@c    must display the following acknowledgment:
-@c      This product includes software developed by the University of
-@c      California, Berkeley and its contributors.
-@c 4. Neither the name of the University nor the names of its contributors
+@c 3. Neither the name of the University nor the names of its contributors
 @c    may be used to endorse or promote products derived from this software
 @c    without specific prior written permission.
 @c
@@ -60,14 +56,14 @@
 (Originally by Jan-Simon Pendry and Nick Williams)
 
 @page
-Copyright @copyright{} 1997-2006 Erez Zadok
+Copyright @copyright{} 1997-2014 Erez Zadok
 @*
 Copyright @copyright{} 1989 Jan-Simon Pendry
 @*
 Copyright @copyright{} 1989 Imperial College of Science, Technology & Medicine
 @*
 Copyright @copyright{} 1989 The Regents of the University of California.
-@sp
+@sp 1
 All Rights Reserved.
 @vskip 1ex
 Permission to copy this document, or any portion of it, as
@@ -93,7 +89,7 @@ For version @value{VERSION}, @value{UPDATED}
 @*
 (Originally by Jan-Simon Pendry and Nick Williams)
 
-Copyright @copyright{} 1997-2006 Erez Zadok
+Copyright @copyright{} 1997-2014 Erez Zadok
 @*
 Copyright @copyright{} 1989 Jan-Simon Pendry
 @*
@@ -179,16 +175,6 @@ notice, this list of conditions and the following disclaimer in the
 documentation and/or other materials provided with the distribution.
 
 @item
-All advertising materials mentioning features or use of this software
-must display the following acknowledgment:
-
-@cartouche
-``This product includes software developed by the University of
-California, Berkeley and its contributors, as well as the Trustees of
-Columbia University.''
-@end cartouche
-
-@item
 Neither the name of the University nor the names of its contributors may
 be used to endorse or promote products derived from this software
 without specific prior written permission.
@@ -234,7 +220,7 @@ Revision 5.3bsdnet, a late alpha version of 5.3, was part
 of the BSD network version 2 distribution
 
 Revision 6.0 was made independently by
-@email{ezk@@cs.columbia.edu,Erez Zadok} at the Computer Science
+Erez Zadok at the Computer Science
 Department of @uref{http://www.cs.columbia.edu/,Columbia University},
 as part of his
 @uref{http://www.fsl.cs.sunysb.edu/docs/zadok-thesis-proposal/,PhD
@@ -262,7 +248,8 @@ If you find a problem and hopefully you can reproduce it, please
 describe it in detail and
 @uref{https://bugzilla.filesystems.org/,submit a bug report} via
 @uref{http://www.bugzilla.org/,Bugzilla}.  Alternatively, you can send
-your bug report to @email{am-utils@@am-utils.org} quoting the details
+your bug report to the ``am-utils'' list (see
+@url{http://www.am-utils.org/} under ``Mailing Lists'') quoting the details
 of the release and your configuration.  These details can be obtained
 by running the command @samp{amd -v}.  It would greatly help if you
 could provide a reproducible procedure for detecting the bug you are
@@ -297,11 +284,10 @@ discussions of new features for am-utils
 implementation and porting issues
 @end itemize
 
-To subscribe, visit
-@url{http://lists.am-utils.org/mailman/listinfo/am-utils}.  After
-subscribing, you can post a message to this list at
-@email{am-utils@@am-utils.org}.  To avoid as much spam as
-possible, only subscribers to this list may post to it.
+To subscribe, visit @url{http://www.am-utils.org/} under ``Mailing
+Lists.''  After subscribing, you can post a message to this list.  To
+avoid as much spam as possible, only subscribers to this list may post
+to it.
 
 Subscribers of @samp{am-utils} are most helpful if they have the time
 and resources to test new and development versions of amd, on as many
@@ -318,7 +304,7 @@ before January 1st, 2004.  Please use the new name, @samp{am-utils}.
 @item
 The announcements mailing list, @samp{am-utils-announce} is for
 announcements only (mostly new releases).  To subscribe, visit
-@url{http://lists.am-utils.org/mailman/listinfo/am-utils-announce}.
+@url{http://www.am-utils.org/} under ``Mailing Lists.''
 This list is read-only: only am-utils developers may post to it.
 
 @item
@@ -326,17 +312,18 @@ We distribute nightly CVS snapshots in
 @url{ftp://ftp.am-utils.org/pub/am-utils/snapshots/daily/}.  If you
 like to get email notices of commits to the am-utils CVS repository,
 subscribe to the CVS logs mailing list, @samp{am-utils-cvs} at
-@url{http://lists.am-utils.org/mailman/listinfo/am-utils-cvs}.
+@url{http://www.am-utils.org/} under ``Mailing Lists.''
 
 @item
 The older list which was used to user discussions, @samp{amd-workers},
 is defunct as of January 2004.  (Its last address was
-@email{amd-workers@@majordomo.glue.umd.edu}.)  Don't use
+@email{amd-workers AT majordomo.glue.umd.edu}.)  Don't use
 @samp{amd-workers}: use the newer, more active @samp{am-utils} list.
 
 @item
 For completeness, there's a developers-only closed list called
-@samp{am-utils-developers@@am-utils.org}.
+@samp{am-utils-developers} (see @url{http://www.am-utils.org/} under
+``Mailing Lists'').
 
 @end enumerate
 
@@ -346,7 +333,7 @@ For completeness, there's a developers-only closed list called
 @cindex Automounter book
 @cindex book
 
-@email{ezk@@cs.sunysb.edu,Erez Zadok} wrote a
+@uref{http://www.cs.sunysb.edu/~ezk,Erez Zadok} wrote a
 @uref{http://www.fsl.cs.sunysb.edu/docs/amd-book/,book}, titled @i{Linux NFS and
 Automounter Administration}, ISBN 0-7821-2739-8, (Sybex, 2001).  The
 book is full of details and examples that go beyond what this manual
@@ -389,7 +376,7 @@ numerous flavors of Unix.
 The @i{Amd} package has been without an official maintainer since 1992.
 Several people have stepped in to maintain it unofficially.  Most
 notable were the `upl' (Unofficial Patch Level) releases of @i{Amd},
-created by me (@email{ezk@@cs.sunysb.edu,Erez Zadok}), and available from
+created by me (@uref{http://www.cs.sunysb.edu/~ezk,Erez Zadok}), and available from
 @url{ftp://ftp.am-utils.org/pub/amd/}.  The last such unofficial
 release was `upl102'.
 
@@ -428,7 +415,7 @@ end-user, aside from the fact that @code{/bin/pwd} now always returns
 the correct amd-ified path.  The administrator can easily switch
 between NFS and autofs mounts by changing one parameter in
 @code{amd.conf}.  Autofs support and maintenance was developed in
-conjunction with @email{ionut@@badula.org,Ion Badulescu}.
+conjunction with @email{ionut AT badula.org,Ion Badulescu}.
 
 @c ################################################################
 @node Overview, Supported Platforms, History, Top
@@ -1040,7 +1027,7 @@ Similarly, if the password file entry was
 the map entry used by @i{Amd} would be
 
 @example
-rfs:=/home/sugar;rhost:=sugar.cc;sublink:=jsp
+rfs:=/home/sugar;rhost:=sugar.cc;sublink:=mhj
 @end example
 
 @c ----------------------------------------------------------------
@@ -1795,8 +1782,8 @@ Always evaluates to false.  @i{ARG} is ignored.
 The argument @i{ARG} of this selector is a netgroup name followed
 optionally by a comma and a host name.  If the host name is not
 specified, it defaults to @code{$@{host@}}.  If the host name (short
-name) is a member of the netgroup, this selector evaluates to
-true. Otherwise it evaluates to false.
+name) is a member of the netgroup, this selector evaluates to true.
+Otherwise it evaluates to false.
 
 For example, suppose you have a netgroup @samp{ppp-hosts}, and for
 reasons of performance, these have a local @file{/home} partition,
@@ -2098,6 +2085,10 @@ Ignore this mount by @b{df}(1).
 @cindex Mount flags; cache
 Allow data to be cached from a remote server for this mount.
 
+@item closesession
+@cindex Mount flags; closesession
+For UDF mounts, close the session when unmounting.
+
 @item compress
 @cindex Mount flags; compress
 Use NFS compression protocol.
@@ -2137,10 +2128,16 @@ Set ID of filesystem.
 Enable generations in ISO-9660 file systems.  Generations allow you to
 see all versions of a given file.
 
+@item gmtoff=@var{n}
+@cindex Mount flags; gmtoff
+For UDF mounts, set the time zone offset from UTC to @var{n} seconds,
+with positive values indicating east of the Prime Meridian.  If not
+set, the user's current time zone will be used.
+
 @item group=@var{n}
 @cindex Mount flags; group
-For PCFS mounts, set the group of the files in the file system to
-@var{n} (which can either be a group name or a GID number).  The
+For PCFS and UDF mounts, set the group of the files in the file system
+to @var{n} (which can either be a group name or a GID number).  The
 default group is the group of the directory on which the file system
 is being mounted.
 
@@ -2199,6 +2196,11 @@ is used.
 Do not allow data to be cached from a remote server for this
 mount.
 
+@item nocasetrans
+@cindex Mount flags; nocasetrans
+Don't do case translation. Useful for CD-ROMS formatted as
+ISO-9660.
+
 @item noconn
 @cindex Mount flags; noconn
 Don't make a connection on datagram transports.
@@ -2225,6 +2227,10 @@ Don't allow program execution.
 @item noint
 @cindex Mount flags; noint
 Do not allow keyboard interrupts for this mount
+
+@item nojoliet
+@cindex Mount flags; nojoliet
+Turn off the Joliet extensions.  Useful for CD-ROMS formatted as ISO-9660.
 
 @item nolock
 @cindex Mount flags; nolock
@@ -2320,6 +2326,11 @@ trying}.
 @cindex Mount flags; retry
 Set the NFS retry counter.
 
+@item rrcaseins
+@cindex Mount flags; rrcaseins
+Enable the Rock Ridge Interchange Protocol (RRIP) case insensitive extensions.
+Useful for CD-ROMS formatted as ISO-9660.
+
 @item rrip
 @cindex Mount flags; rrip
 Uses the Rock Ridge Interchange Protocol (RRIP) extensions to ISO-9660.
@@ -2332,6 +2343,10 @@ NFS/UDP through a gateway or a slow link.
 @item rw
 @cindex Mount flags; rw
 Allow reads and writes on this filesystem.
+
+@item sessionnr=@var{n}
+@cindex Mount Flags; sessionnr
+For multisession UDF mounts, use session number @var{n} when mounting.
 
 @item shortname
 @cindex Mount Flags; longname
@@ -2368,8 +2383,8 @@ The NFS timeout, in tenth-seconds, before a request is retransmitted.
 
 @item user=@var{n}
 @cindex Mount flags; user
-For PCFS mounts, set the owner of the files in the file system to
-@var{n} (which can either be a user name or a UID number).  The
+For PCFS and UDF mounts, set the owner of the files in the file system
+to @var{n} (which can either be a user name or a UID number).  The
 default owner is the owner of the directory on which the file system
 is being mounted.
 
@@ -2824,13 +2839,13 @@ Copyright (c) 1990 Jan-Simon Pendry
 Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 Copyright (c) 1990 The Regents of the University of California.
 am-utils version 6.0a15 (build 61).
-Built by ezk@@cs.columbia.edu on date Wed Oct 22 15:21:03 EDT 1997.
+Built by ezk@@example.com on date Wed Oct 22 15:21:03 EDT 1997.
 cpu=sparc (big-endian), arch=sun4, karch=sun4u.
 full_os=solaris2.5.1, os=sos5, osver=5.5.1, vendor=sun.
 Map support for: root, passwd, union, nisplus, nis, ndbm, file, error.
 AMFS: nfs, link, nfsx, nfsl, host, linkx, program, union, inherit,
       ufs, lofs, hsfs, pcfs, auto, direct, toplvl, error.
-FS: autofs, cachefs, cdfs, lofs, nfs, nfs3, pcfs, tfs, tmpfs, ufs.
+FS: autofs, cachefs, cdfs, lofs, nfs, nfs3, pcfs, tfs, tmpfs, udf, ufs.
 Network 1: wire="mcl-lab-net.cs.columbia.edu" (netnumber=128.59.13).
 Network 2: wire="14-net.cs.columbia.edu" (netnumber=128.59.14).
 Network 3: wire="old-net.cs.columbia.edu" (netnumber=128.59.16).
@@ -2879,9 +2894,9 @@ a comma separated list selected from the following options:
 
 @table @code
 @item fatal
-Fatal errors
+Fatal errors (cannot be turned off)
 @item error
-Non-fatal errors
+Non-fatal errors (cannot be turned off)
 @item user
 Non-fatal user errors
 @item warn
@@ -2896,10 +2911,15 @@ Mount map usage
 Additional statistics
 @item all
 All of the above
+@item defaults
+An alias for "fatal,error,user,warning,info".
 @end table
 
 Initially a set of default logging flags is enabled.  This is as if
-@samp{-x all,nomap,nostats} had been selected.  The command line is
+@samp{-x defaults}
+or
+@samp{-x fatal,error,user,warning,info}
+had been selected.  The command line is
 parsed and logging is controlled by the @code{-x} option.  The very first
 set of logging flags is saved and can not be subsequently disabled using
 @i{Amq}.  This default set of options is useful for general production
@@ -2931,7 +2951,6 @@ of the message types.@refill
 @item stats
 @samp{LOG_INFO}
 @end table
-
 
 The options can be prefixed by the string @samp{no} to indicate
 that this option should be turned off.  For example, to obtain all
@@ -3011,13 +3030,17 @@ can be prefixed with @samp{no} to turn it off.
 
 @table @code
 @item all
-all ``reasonable'' options (currently trace|str|full|mem|info|readdir)
+all options (excluding hrtime and mtab)
+@item defaults
+``sensible'' default options (all--excluding hrtime, mtab, and xdrtrace)
+@item test
+full debug options plus mtab,nodaemon,nofork,noamq
 @item amq
-do not register for amq
+register @i{Amd} with the RPC portmapper, for @i{Amq}
 @item daemon
-do not enter daemon mode
+enter daemon mode
 @item fork
-do not fork child worker (hlfsd only)
+fork child worker (hlfsd only)
 @item full
 program trace
 @item hrtime
@@ -3028,16 +3051,14 @@ print high resolution time stamps (only if @b{syslog}(3) is not used)
 info service specific debugging (hesiod, nis, etc.)  In the case of
 hesiod maps, turns on the hesiod RES_DEBUG internal debugging option.
 @item mem
-trace memory allocations. Needs to be explicitly enabled at compile
+trace memory allocations.  Needs to be explicitly enabled at compile
 time with --enable-debug=mem.
 @item mtab
-use local @file{./mtab} file
+use local mount-table file (defaults to @file{/tmp/mtab}, @pxref{debug_mtab_file Parameter})
 @item readdir
 show readdir progress
 @item str
 debug string munging
-@item test
-full debug but no daemon
 @item trace
 trace RPC protocol and NFS mount arguments
 @item xdrtrace
@@ -3150,6 +3171,7 @@ effect visible to the user.@refill
 * Unix Filesystem::             Native disk filesystem.
 * Caching Filesystem::          Caching from remote server filesystem.
 * CD-ROM Filesystem::           ISO9660 CD ROM.
+* UDF Filesystem::              Universal Disk Format filesystem.
 * Loopback Filesystem::         Local loopback-mount filesystem.
 * Memory/RAM Filesystem::       A memory or RAM-based filesystem.
 * Null Filesystem::             4.4BSD's loopback-mount filesystem.
@@ -3475,7 +3497,7 @@ inconsistent, requiring running the command @file{fsck -F cachefs
 @end enumerate
 
 @c ----------------------------------------------------------------
-@node CD-ROM Filesystem, Loopback Filesystem, Caching Filesystem, Filesystem Types
+@node CD-ROM Filesystem, UDF Filesystem, Caching Filesystem, Filesystem Types
 @comment  node-name,  next,  previous,  up
 @section CD-ROM Filesystem (@samp{cdfs})
 @cindex CD-ROM Filesystem
@@ -3504,7 +3526,36 @@ cdfs      os==sunos4;type:=cdfs;dev:=/dev/sr0 \
 @end example
 
 @c ----------------------------------------------------------------
-@node Loopback Filesystem, Memory/RAM Filesystem, CD-ROM Filesystem, Filesystem Types
+@node UDF Filesystem, Loopback Filesystem, CD-ROM Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section CD-ROM Filesystem (@samp{udf})
+@cindex CD-ROM Filesystem
+@cindex udf, filesystem type
+@cindex Filesystem type; udf
+
+The @dfn{udf} (@samp{type:=udf}) filesystem mounts media with a
+Universal Disk Format (UDF) filesystem on it, e.g., a video DVD.
+
+@noindent
+The following option must be specified:
+
+@table @code
+@cindex dev, mount option
+@cindex Mount option; dev
+@item dev
+the block special device to be mounted.
+@end table
+
+Some operating systems will fail to mount read-only media unless the
+@samp{ro} option is specified.  A udf entry might be:
+
+@example
+udf      os==sunos4;type:=udf;dev:=/dev/sr0 \
+         os==sunos5;addopts:=ro;type:=udf;dev:=/dev/dsk/c0t6d0s2
+@end example
+
+@c ----------------------------------------------------------------
+@node Loopback Filesystem, Memory/RAM Filesystem, UDF Filesystem, Filesystem Types
 @comment  node-name,  next,  previous,  up
 @section Loopback Filesystem (@samp{lofs})
 @cindex Loopback Filesystem
@@ -4203,6 +4254,7 @@ sections that follow.
 * mount_type Parameter::
 * search_path Parameter::
 * selectors_in_defaults Parameter::
+* sun_map_syntax Parameter::
 @end menu
 
 @c ----------------------------------------------------------------
@@ -4326,7 +4378,7 @@ sites can allow for local map customizations and overrides, and can
 distributed maps in several locations as needed.
 
 @c ----------------------------------------------------------------
-@node selectors_in_defaults Parameter, , search_path Parameter, Common Parameters
+@node selectors_in_defaults Parameter, sun_map_syntax Parameter, search_path Parameter, Common Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{selectors_in_defaults} Parameter
 @cindex selectors_in_defaults Parameter
@@ -4345,6 +4397,15 @@ performance over slow slip-based networks as follows:
 @end example
 
 Deprecated form: selectors_on_default.
+
+@c ----------------------------------------------------------------
+@node sun_map_syntax Parameter, , selectors_in_defaults Parameter, Common Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{sun_map_syntax} Parameter
+@cindex sun_map_syntax Parameter
+
+(type=boolean, default=@samp{no}).  If @samp{yes}, then @i{Amd} will
+parse the map according to the Sun Automount syntax.
 
 
 @c ================================================================
@@ -4527,14 +4588,14 @@ remain in the cache.
 (type=string, default no cluster).  Same as the @code{-C} option to
 @i{Amd}.  Specifies the alternate HP-UX cluster to use.
 
-@c ---------------------------------------------------------------- 
-@node debug_mtab_file Parameter, debug_options Parameter, cluster Parameter, Global Parameters 
-@comment  node-name,  next,  previous,  up 
-@subsection @t{debug_mtab_file} Parameter 
-@cindex debug_mtab_file Parameter 
+@c ----------------------------------------------------------------
+@node debug_mtab_file Parameter, debug_options Parameter, cluster Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{debug_mtab_file} Parameter
+@cindex debug_mtab_file Parameter
 
-(type=string, default="/tmp/mnttab").  Path to mtab file that is used 
-by @i{Amd} to store a list of mounted file systems during debug-mtab mode.  
+(type=string, default="/tmp/mtab").  Path to mtab file that is used
+by @i{Amd} to store a list of mounted file systems during debug-mtab mode.
 This option only applies to systems that store mtab information on disk.
 
 @c ----------------------------------------------------------------
@@ -4774,7 +4835,7 @@ is generally a bad idea to use those reserved for other services such as
 @subsection @t{log_options} Parameter
 @cindex log_options Parameter
 
-(type=string, default no logging options).  Same as the @code{-x}
+(type=string, default=``defaults'').  Same as the @code{-x}
 option to @i{Amd}.  Specify any logging options for @i{Amd}.  Options
 are comma delimited, and can be preceded by the string @samp{no} to
 negate their meaning.  The @samp{debug} logging option is only available
@@ -4785,12 +4846,14 @@ values are:
 @table @samp
 @item all
 all messages
+@item defaults
+an alias for "fatal,error,user,warning,info"
 @item debug
 debug messages
 @item error
-non-fatal system errors
+non-fatal system errors (cannot be turned off)
 @item fatal
-fatal errors
+fatal errors (cannot be turned off)
 @item info
 information
 @item map
@@ -5271,7 +5334,7 @@ restart_mounts =         yes
 auto_dir =               /n
 log_file =               /var/log/amd
 log_options =            all
-#debug_options =         all
+#debug_options =         defaults
 plock =                  no
 selectors_in_defaults =  yes
 # config.guess picks up "sunos5" and I don't want to edit my maps yet
@@ -5436,6 +5499,7 @@ mount point.
 * Amq -m option::     Obtaining mount statistics.
 * Amq -p option::     Getting Amd's process ID.
 * Amq -P option::     Contacting alternate Amd processes.
+* Amq -q option::     Suppress synchronous unmounting errors.
 * Amq -s option::     Obtaining global statistics.
 * Amq -T option::     Use TCP transport.
 * Amq -U option::     Use UDP transport.
@@ -5641,7 +5705,7 @@ rather not have to search through the process table.  This option is
 used in the @file{ctl-amd} script.
 
 @c ----------------------------------------------------------------
-@node Amq -P option, Amq -s option, Amq -p option, Controlling Amd
+@node Amq -P option, Amq -q option, Amq -p option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-P} option
 @cindex Multiple Amd processes
@@ -5664,7 +5728,16 @@ kill `amq -p -P 300020`
 @end example
 
 @c ----------------------------------------------------------------
-@node Amq -s option, Amq -T option, Amq -P option, Controlling Amd
+@node Amq -q option, Amq -s option, Amq -P option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} @code{-q} option
+@cindex Unmounting a filesystem
+
+Suppress any error messages produced when a synchronous unmount fails.
+See @ref{Amq -u option}.
+
+@c ----------------------------------------------------------------
+@node Amq -s option, Amq -T option, Amq -q option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-s} option
 @cindex Global statistics
@@ -5729,11 +5802,19 @@ and if that failed, will try UDP.
 @cindex Forcing filesystem to time out
 @cindex Unmounting a filesystem
 
-The @code{-u} option causes the time-to-live interval of the named mount
-points to be expired, thus causing an unmount attempt.  This is the only
-safe way to unmount an automounted filesystem.  It is not possible to
-unmount a filesystem which has been mounted with the @samp{nounmount}
-flag.
+The @code{-u} option causes the time-to-live interval of the named
+mount points to be expired, thus causing an unmount attempt.  This is
+the only safe way to unmount an automounted filesystem.  If @code{-u}
+is repeated, then @i{Amd} will attempt to unmount the filesystem
+synchronously.  This makes things like
+
+@example
+amq -uu /t/cd0d && eject cd0
+@end example
+
+@noindent
+work as expected.  Any error messages this might produce can be
+suppressed with the @code{-q} option.  See @ref{Amq -q option}.
 
 @c The @code{-H} option informs @i{Amd} that the specified mount point
 @c has hung - as if its keepalive timer had expired.
@@ -5769,11 +5850,10 @@ as a whole, rather than any particular filesystem.  The @code{-x} and
 @code{-D} options have exactly the same effect as @i{Amd}'s corresponding
 command line options.
 
-When @i{Amd} receives a @code{-x} flag it limits the log options being
-modified to those which were not enabled at startup.  This prevents a
-user turning @emph{off} any logging option which was specified at
-startup, though any which have been turned on since then can still be
-turned off.  The @code{-D} option has a similar behavior.
+When @i{Amd} receives the @code{-x} flag, it disallows turning off the
+@samp{fatal} or @samp{error} flags.  Both are on by default.  They are
+mandatory so that @i{Amd} could report important errors, including
+errors relating to turning flags on/off.
 
 @c ################################################################
 @node FSinfo, Hlfsd, Run-time Administration, Top
@@ -6904,8 +6984,8 @@ symbolic link to subdirectory within a user's home directory, depending
 on the user which accessed that link.  It was primarily designed to
 redirect incoming mail to users' home directories, so that it can be read
 from anywhere.  It was designed and implemented by
-@email{ezk@@cs.columbia.edu,Erez Zadok} and
-@email{dupuy@@cs.columbia.edu,Alexander Dupuy}, at the
+@uref{http://www.cs.sunysb.edu/~ezk,Erez Zadok} and
+@email{dupuy AT cs.columbia.edu,Alexander Dupuy}, at the
 @uref{http://www.cs.columbia.edu/,Computer Science Department} of
 @uref{http://www.columbia.edu/,Columbia University}.  A
 @uref{http://www.fsl.cs.sunysb.edu/docs/hlfsd/hlfsd.html,paper}
@@ -7522,7 +7602,6 @@ am-utils, and get installed.
 * automount2amd::
 * ctl-amd::
 * ctl-hlfsd::
-* expn::
 * fix-amd-map::
 * fixmount::
 * fixrmtab::
@@ -7649,7 +7728,7 @@ then start a new process --- only if the previous one died cleanly.
 @xref{Run-time Administration}, for more details.
 
 @c ----------------------------------------------------------------
-@node ctl-hlfsd, expn, ctl-amd, Assorted Tools
+@node ctl-hlfsd, fix-amd-map, ctl-amd, Assorted Tools
 @comment  node-name,  next,  previous,  up
 @section ctl-hlfsd
 @pindex ctl-hlfsd
@@ -7671,27 +7750,7 @@ died cleanly.
 @xref{Hlfsd}, for more details.
 
 @c ----------------------------------------------------------------
-@node expn, fix-amd-map, ctl-hlfsd, Assorted Tools
-@comment  node-name,  next,  previous,  up
-@section expn
-@pindex expn
-
-A script to expand email addresses into their full name.  It is
-generally useful when using with the @file{lostaltmail} script, but is a
-useful tools otherwise.
-
-@example
-$ expn -v ezk@@cs.columbia.edu
-ezk@@cs.columbia.edu ->
-        ezk@@shekel.mcl.cs.columbia.edu
-ezk@@shekel.mcl.cs.columbia.edu ->
-        Erez Zadok <"| /usr/local/mh/lib/slocal -user ezk || exit 75>
-        Erez Zadok <\ezk>
-        Erez Zadok </u/zing/ezk/.mailspool/backup>
-@end example
-
-@c ----------------------------------------------------------------
-@node fix-amd-map, fixmount, expn, Assorted Tools
+@node fix-amd-map, fixmount, ctl-hlfsd, Assorted Tools
 @comment  node-name,  next,  previous,  up
 @section fix-amd-map
 @pindex fix-amd-map
@@ -8581,7 +8640,7 @@ XXX: This section needs to be updated
 @comment  node-name,  next,  previous,  up
 @unnumbered Acknowledgments & Trademarks
 
-Many thanks to the @email{am-utils@@am-utils.org,Am-Utils Users}
+Many thanks to the Am-Utils Users
 mailing list through the months developing am-utils.  These members
 have contributed to the discussions, ideas, code and documentation,
 and subjected their systems to alpha quality code.  Special thanks go
@@ -8589,10 +8648,10 @@ to those @uref{http://www.am-utils.org/docs/am-utils/AUTHORS.txt,authors} who ha
 submitted patches, and especially to the maintainers:
 
 @itemize @bullet
-@item @email{ezk@@cs.sunysb.edu,Erez Zadok}
-@item @email{ib42@@cs.columbia.edu,Ion Badulescu}
-@item @email{ro@@techfak.uni-bielefeld.de,Rainer Orth}
-@item @email{nick.williams@@morganstanley.com,Nick Williams}
+@item @uref{http://www.cs.sunysb.edu/~ezk,Erez Zadok}
+@item @email{ionut AT badula.org,Ion Badulescu}
+@item @email{ro AT techfak.uni-bielefeld.de,Rainer Orth}
+@item @email{nick.williams AT morganstanley.com,Nick Williams}
 @end itemize
 
 Thanks to the Formal Methods Group at Imperial College for suffering
@@ -8602,7 +8661,7 @@ Thanks to the many people who have helped with the development of
 @i{Amd}, especially Piete Brooks at the Cambridge University Computing
 Lab for many hours of testing, experimentation and discussion.
 
-Thanks to the older @email{amd-workers@@majordomo.glue.umd.edu,Amd
+Thanks to the older @email{amd-workers AT majordomo.glue.umd.edu,Amd
 Workers} mailing list (now defunct) members for many suggestions and
 bug reports to @i{Amd}.
 

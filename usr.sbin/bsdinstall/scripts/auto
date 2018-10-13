@@ -182,7 +182,7 @@ if f_interactive; then
 	case "$sys_maker" in
 	"LENOVO")
 		case "$sys_version" in
-		"ThinkPad X220"|"ThinkPad T420"|"ThinkPad T520")
+		"ThinkPad X220"|"ThinkPad T420"|"ThinkPad T520"|"ThinkPad W520"|"ThinkPad X1")
 			dialog_workaround "$msg_lenovo_fix"
 			retval=$?
 			f_dprintf "lenovofix_prompt=[%s]" "$retval"
@@ -195,7 +195,7 @@ if f_interactive; then
 		;;
 	"Dell Inc.")
 		case "$sys_model" in
-		"Latitude E7440"|"Latitude E7240"|"Precision Tower 5810")
+		"Latitude E6330"|"Latitude E7440"|"Latitude E7240"|"Precision Tower 5810")
 			dialog_workaround "$msg_gpt_active_fix"
 			retval=$?
 			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
@@ -260,7 +260,7 @@ Shell \"Open a shell and partition by hand\""
 
 CURARCH=$( uname -m )
 case $CURARCH in
-	amd64|i386)	# Booting ZFS Supported
+	amd64|arm64|i386)	# Booting ZFS Supported
 		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS\""
 		;;
 	*)		# Booting ZFS Unspported
@@ -319,7 +319,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 		export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
 		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
 	fi
-		
+
 	export FTP_PASSIVE_MODE=YES
 	# Iterate through the distribution list and set a flag if debugging
 	# distributions have been selected.
@@ -377,6 +377,10 @@ fi
 
 bsdinstall checksum || error "Distribution checksum failed"
 bsdinstall distextract || error "Distribution extract failed"
+
+# Set up boot loader
+bsdinstall bootconfig || error "Failed to configure bootloader"
+
 bsdinstall rootpass || error "Could not set root password"
 
 trap true SIGINT	# This section is optional
@@ -385,6 +389,7 @@ if [ "$NETCONFIG_DONE" != yes ]; then
 fi
 bsdinstall time
 bsdinstall services
+bsdinstall hardening
 
 dialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
     "Would you like to add users to the installed system now?" 0 0 && \
@@ -401,6 +406,7 @@ finalconfig() {
 		"Hostname" "Set system hostname" \
 		"Network" "Networking configuration" \
 		"Services" "Set daemons to run on startup" \
+		"System Hardening" "Set security options" \
 		"Time Zone" "Set system timezone" \
 		"Handbook" "Install FreeBSD Handbook (requires network)" 2>&1 1>&3)
 	exec 3>&-
@@ -411,7 +417,7 @@ finalconfig() {
 		finalconfig
 		;;
 	"Root Password")
-		bsdinstall rootpass 
+		bsdinstall rootpass
 		finalconfig
 		;;
 	"Hostname")
@@ -424,6 +430,10 @@ finalconfig() {
 		;;
 	"Services")
 		bsdinstall services
+		finalconfig
+		;;
+	"System Hardening")
+		bsdinstall hardening
 		finalconfig
 		;;
 	"Time Zone")
@@ -443,9 +453,11 @@ finalconfig
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
 
+if [ -n "$DISTDIR_IS_UNIONFS" ]; then
+	umount -f $BSDINSTALL_DISTDIR
+fi
+
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
-	[ "$BSDINSTALL_FETCHDEST" != "$BSDINSTALL_DISTDIR" ] && \
-	    umount "$BSDINSTALL_DISTDIR"
 	rm -rf "$BSDINSTALL_FETCHDEST"
 fi
 
@@ -454,7 +466,6 @@ dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
    "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 if [ $? -eq 0 ]; then
 	clear
-	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	echo This shell is operating in a chroot in the new system. \
 	    When finished making configuration changes, type \"exit\".
 	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1

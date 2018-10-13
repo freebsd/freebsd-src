@@ -397,7 +397,7 @@ static void
 tui_rl_display_match_list (char **matches, int len, int max)
 {
   typedef int QSFUNC (const void *, const void *);
-  extern int _rl_qsort_string_compare (const void*, const void*);
+  extern int _rl_qsort_string_compare (char **, char **);
   extern int _rl_print_completions_horizontally;
   
   int count, limit, printed_len;

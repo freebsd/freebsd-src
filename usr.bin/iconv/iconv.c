@@ -2,6 +2,8 @@
 /* $NetBSD: iconv.c,v 1.16 2009/02/20 15:28:21 yamt Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -28,7 +30,9 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/capsicum.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
@@ -41,7 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static int		do_conv(FILE *, const char *, const char *, bool, bool);
+static int		do_conv(FILE *, iconv_t, bool, bool);
 static int		do_list(unsigned int, const char * const *, void *);
 static void		usage(void) __dead2;
 
@@ -67,23 +71,16 @@ usage(void)
 #define INBUFSIZE 1024
 #define OUTBUFSIZE (INBUFSIZE * 2)
 static int
-do_conv(FILE *fp, const char *from, const char *to, bool silent,
-    bool hide_invalid)
+do_conv(FILE *fp, iconv_t cd, bool silent, bool hide_invalid)
 {
-	iconv_t cd;
 	char inbuf[INBUFSIZE], outbuf[OUTBUFSIZE], *in, *out;
 	unsigned long long invalids;
 	size_t inbytes, outbytes, ret;
 
-	if ((cd = iconv_open(to, from)) == (iconv_t)-1)
-		err(EXIT_FAILURE, "iconv_open(%s, %s)", to, from);
+	int arg = (int)hide_invalid;
+	if (iconvctl(cd, ICONV_SET_DISCARD_ILSEQ, (void *)&arg) == -1)
+		err(EXIT_FAILURE, "iconvctl(DISCARD_ILSEQ, %d)", arg);
 
-	if (hide_invalid) {
-		int arg = 1;
-
-		if (iconvctl(cd, ICONV_SET_DISCARD_ILSEQ, (void *)&arg) == -1)
-			err(EXIT_FAILURE, NULL);
-	}
 	invalids = 0;
 	while ((inbytes = fread(inbuf, 1, INBUFSIZE, fp)) > 0) {
 		in = inbuf;
@@ -133,7 +130,6 @@ do_conv(FILE *fp, const char *from, const char *to, bool silent,
 	if (invalids > 0 && !silent)
 		warnx("warning: invalid characters: %llu", invalids);
 
-	iconv_close(cd);
 	return (invalids > 0);
 }
 
@@ -155,6 +151,7 @@ do_list(unsigned int n, const char * const *list, void *data __unused)
 int
 main(int argc, char **argv)
 {
+	iconv_t cd;
 	FILE *fp;
 	const char *opt_f, *opt_t;
 	int ch, i, res;
@@ -201,9 +198,28 @@ main(int argc, char **argv)
 	argv += optind;
 	if ((strcmp(opt_f, "") == 0) && (strcmp(opt_t, "") == 0))
 		usage();
-	if (argc == 0)
-		res = do_conv(stdin, opt_f, opt_t, opt_s, opt_c);
-	else {
+
+	if (caph_limit_stdio() < 0)
+		err(EXIT_FAILURE, "capsicum");
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	/*
+	 * Cache iconv conversion handle before entering sandbox.
+	 */
+	cd = iconv_open(opt_t, opt_f);
+	if (cd == (iconv_t)-1)
+		err(EXIT_FAILURE, "iconv_open(%s, %s)", opt_t, opt_f);
+
+	if (argc == 0) {
+		if (caph_enter() < 0)
+			err(EXIT_FAILURE, "unable to enter capability mode");
+		res = do_conv(stdin, cd, opt_s, opt_c);
+	} else {
 		res = 0;
 		for (i = 0; i < argc; i++) {
 			fp = (strcmp(argv[i], "-") != 0) ?
@@ -211,9 +227,17 @@ main(int argc, char **argv)
 			if (fp == NULL)
 				err(EXIT_FAILURE, "Cannot open `%s'",
 				    argv[i]);
-			res |= do_conv(fp, opt_f, opt_t, opt_s, opt_c);
+			/* Enter Capsicum sandbox for final input file. */
+			if (i + 1 == argc && caph_enter() < 0)
+				err(EXIT_FAILURE,
+				    "unable to enter capability mode");
+			res |= do_conv(fp, cd, opt_s, opt_c);
 			(void)fclose(fp);
+
+			/* Reset iconv descriptor state. */
+			(void)iconv(cd, NULL, NULL, NULL, NULL);
 		}
 	}
+	iconv_close(cd);
 	return (res == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }

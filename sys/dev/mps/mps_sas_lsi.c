@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2015 LSI Corp.
  * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
@@ -46,10 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/sbuf.h>
+#include <sys/reboot.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -124,7 +128,7 @@ int mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
 static int mpssas_volume_add(struct mps_softc *sc,
     u16 handle);
-static void mpssas_SSU_to_SATA_devices(struct mps_softc *sc);
+static void mpssas_SSU_to_SATA_devices(struct mps_softc *sc, int howto);
 static void mpssas_stop_unit_done(struct cam_periph *periph,
     union ccb *done_ccb);
 
@@ -136,7 +140,7 @@ mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
 	u16 sz;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
-	mps_print_evt_sas(sc, event);
+	MPS_DPRINT_EVENT(sc, sas, event);
 	mpssas_record_event(sc, event);
 
 	fw_event = malloc(sizeof(struct mps_fw_event_work), M_MPT2,
@@ -217,9 +221,11 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			switch (phy->PhyStatus & MPI2_EVENT_SAS_TOPO_RC_MASK) {
 			case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
 				if (mpssas_add_device(sc,
-				    le16toh(phy->AttachedDevHandle), phy->LinkRate)){
-					printf("%s: failed to add device with "
-					    "handle 0x%x\n", __func__,
+				    le16toh(phy->AttachedDevHandle),
+				    phy->LinkRate)){
+					mps_dprint(sc, MPS_ERROR, "%s: "
+					    "failed to add device with handle "
+					    "0x%x\n", __func__,
 					    le16toh(phy->AttachedDevHandle));
 					mpssas_prepare_remove(sassc, le16toh(
 						phy->AttachedDevHandle));
@@ -283,8 +289,8 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 
 		element =
 		    (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
-		id = mps_mapping_get_raid_id_from_handle
-		    (sc, element->VolDevHandle);
+		id = mps_mapping_get_raid_tid_from_handle(sc,
+		    element->VolDevHandle);
 
 		mps_mapping_ir_config_change_event(sc, event_data);
 
@@ -293,7 +299,8 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			case MPI2_EVENT_IR_CHANGE_RC_VOLUME_CREATED:
 			case MPI2_EVENT_IR_CHANGE_RC_ADDED:
 				if (!foreign_config) {
-					if (mpssas_volume_add(sc, le16toh(element->VolDevHandle))){
+					if (mpssas_volume_add(sc,
+					    le16toh(element->VolDevHandle))){
 						printf("%s: failed to add RAID "
 						    "volume with handle 0x%x\n",
 						    __func__, le16toh(element->
@@ -333,12 +340,16 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				 * Phys Disk of a volume has been created.  Hide
 				 * it from the OS.
 				 */
-				targ = mpssas_find_target_by_handle(sassc, 0, element->PhysDiskDevHandle);
+				targ = mpssas_find_target_by_handle(sassc, 0,
+				    element->PhysDiskDevHandle);
 				if (targ == NULL) 
 					break;
 				
-				/* Set raid component flags only if it is not WD.
-				 * OR WrapDrive with WD_HIDE_ALWAYS/WD_HIDE_IF_VOLUME is set in NVRAM
+				/*
+				 * Set raid component flags only if it is not
+				 * WD. OR WrapDrive with
+				 * WD_HIDE_ALWAYS/WD_HIDE_IF_VOLUME is set in
+				 * NVRAM
 				 */
 				if((!sc->WD_available) ||
 				((sc->WD_available && 
@@ -621,9 +632,11 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 
 	sassc = sc->sassc;
 	mpssas_startup_increment(sassc);
-	if ((mps_config_get_sas_device_pg0(sc, &mpi_reply, &config_page,
-	     MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
-		printf("%s: error reading SAS device page0\n", __func__);
+	if (mps_config_get_sas_device_pg0(sc, &mpi_reply, &config_page,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle) != 0) {
+		mps_dprint(sc, MPS_INFO|MPS_MAPPING|MPS_FAULT,
+		    "Error reading SAS device %#x page0, iocstatus= 0x%x\n",
+		    handle, mpi_reply.IOCStatus);
 		error = ENXIO;
 		goto out;
 	}
@@ -635,11 +648,14 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 		Mpi2ConfigReply_t tmp_mpi_reply;
 		Mpi2SasDevicePage0_t parent_config_page;
 
-		if ((mps_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
-		     &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
-		     le16toh(config_page.ParentDevHandle)))) {
-			printf("%s: error reading SAS device %#x page0\n",
-			       __func__, le16toh(config_page.ParentDevHandle));
+		if (mps_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
+		    &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
+		    le16toh(config_page.ParentDevHandle)) != 0) {
+			mps_dprint(sc, MPS_MAPPING|MPS_FAULT,
+			    "Error reading parent SAS device %#x page0, "
+			    "iocstatus= 0x%x\n",
+			    le16toh(config_page.ParentDevHandle),
+			    tmp_mpi_reply.IOCStatus);
 		} else {
 			parent_sas_address = parent_config_page.SASAddress.High;
 			parent_sas_address = (parent_sas_address << 32) |
@@ -650,6 +666,8 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	/* TODO Check proper endianness */
 	sas_address = config_page.SASAddress.High;
 	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
+        mps_dprint(sc, MPS_MAPPING, "Handle 0x%04x SAS Address from SAS device "
+            "page0 = %jx\n", handle, sas_address);
 
 	/*
 	 * Always get SATA Identify information because this is used to
@@ -660,33 +678,69 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 		ret = mpssas_get_sas_address_for_sata_disk(sc, &sas_address,
 		    handle, device_info, &is_SATA_SSD);
 		if (ret) {
-			mps_dprint(sc, MPS_INFO, "%s: failed to get disk type "
-			    "(SSD or HDD) for SATA device with handle 0x%04x\n",
+			mps_dprint(sc, MPS_MAPPING|MPS_ERROR,
+			    "%s: failed to get disk type (SSD or HDD) for SATA "
+			    "device with handle 0x%04x\n",
 			    __func__, handle);
 		} else {
-			mps_dprint(sc, MPS_INFO, "SAS Address from SATA "
-			    "device = %jx\n", sas_address);
+			mps_dprint(sc, MPS_MAPPING, "Handle 0x%04x SAS Address "
+			    "from SATA device = %jx\n", handle, sas_address);
 		}
 	}
 
-	id = mps_mapping_get_sas_id(sc, sas_address, handle);
+	/*
+	 * use_phynum:
+	 *  1 - use the PhyNum field as a fallback to the mapping logic
+	 *  0 - never use the PhyNum field
+	 * -1 - only use the PhyNum field
+	 *
+	 * Note that using the Phy number to map a device can cause device adds
+	 * to fail if multiple enclosures/expanders are in the topology. For
+	 * example, if two devices are in the same slot number in two different
+	 * enclosures within the topology, only one of those devices will be
+	 * added. PhyNum mapping should not be used if multiple enclosures are
+	 * in the topology.
+	 */
+	id = MPS_MAP_BAD_ID;
+	if (sc->use_phynum != -1) 
+		id = mps_mapping_get_tid(sc, sas_address, handle);
 	if (id == MPS_MAP_BAD_ID) {
-		printf("failure at %s:%d/%s()! Could not get ID for device "
-		    "with handle 0x%04x\n", __FILE__, __LINE__, __func__,
-		    handle);
-		error = ENXIO;
-		goto out;
+		if ((sc->use_phynum == 0)
+		 || ((id = config_page.PhyNum) > sassc->maxtargets)) {
+			mps_dprint(sc, MPS_INFO, "failure at %s:%d/%s()! "
+			    "Could not get ID for device with handle 0x%04x\n",
+			    __FILE__, __LINE__, __func__, handle);
+			error = ENXIO;
+			goto out;
+		}
 	}
+	mps_dprint(sc, MPS_MAPPING, "%s: Target ID for added device is %d.\n",
+	    __func__, id);
 
-	if (mpssas_check_id(sassc, id) != 0) {
-		device_printf(sc->mps_dev, "Excluding target id %d\n", id);
-		error = ENXIO;
-		goto out;
-	}
-
-	mps_dprint(sc, MPS_MAPPING, "SAS Address from SAS device page0 = %jx\n",
-	    sas_address);
+	/*
+	 * Only do the ID check and reuse check if the target is not from a
+	 * RAID Component. For Physical Disks of a Volume, the ID will be reused
+	 * when a volume is deleted because the mapping entry for the PD will
+	 * still be in the mapping table. The ID check should not be done here
+	 * either since this PD is already being used.
+	 */
 	targ = &sassc->targets[id];
+	if (!(targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT)) {
+		if (mpssas_check_id(sassc, id) != 0) {
+			mps_dprint(sc, MPS_MAPPING|MPS_INFO,
+			    "Excluding target id %d\n", id);
+			error = ENXIO;
+			goto out;
+		}
+
+		if (targ->handle != 0x0) {
+			mps_dprint(sc, MPS_MAPPING, "Attempting to reuse "
+			    "target id %d handle 0x%04x\n", id, targ->handle);
+			error = ENXIO;
+			goto out;
+		}
+	}
+
 	targ->devinfo = device_info;
 	targ->devname = le32toh(config_page.DeviceName.High);
 	targ->devname = (targ->devname << 32) | 
@@ -769,7 +823,6 @@ out:
 	}
 	mpssas_startup_decrement(sassc);
 	return (error);
-	
 }
 	
 int
@@ -872,7 +925,7 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz, u32 devinfo)
 {
 	Mpi2SataPassthroughRequest_t *mpi_request;
-	Mpi2SataPassthroughReply_t *reply;
+	Mpi2SataPassthroughReply_t *reply = NULL;
 	struct mps_command *cm;
 	char *buffer;
 	int error = 0;
@@ -914,20 +967,23 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	    "command\n", __func__);
 	callout_reset(&cm->cm_callout, MPS_ATA_ID_TIMEOUT * hz,
 	    mpssas_ata_id_timeout, cm);
-	error = mps_wait_command(sc, cm, 60, CAN_SLEEP);
+	error = mps_wait_command(sc, &cm, 60, CAN_SLEEP);
 	mps_dprint(sc, MPS_XINFO, "%s stop timeout counter for SATA ID "
 	    "command\n", __func__);
+	/* XXX KDM need to fix the case where this command is destroyed */
 	callout_stop(&cm->cm_callout);
 
-	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
+	if (cm != NULL)
+		reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
  		/*
  		 * If the request returns an error then we need to do a diag
  		 * reset
  		 */ 
- 		printf("%s: request for page completed with error %d",
-		    __func__, error);
+ 		mps_dprint(sc, MPS_INFO|MPS_FAULT|MPS_MAPPING,
+		    "Request for SATA PASSTHROUGH page completed with error %d",
+		    error);
 		error = ENXIO;
 		goto out;
 	}
@@ -935,8 +991,9 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	bcopy(reply, mpi_reply, sizeof(Mpi2SataPassthroughReply_t));
 	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) {
-		printf("%s: error reading SATA PASSTHRU; iocstatus = 0x%x\n",
-		    __func__, reply->IOCStatus);
+		mps_dprint(sc, MPS_INFO|MPS_MAPPING|MPS_FAULT,
+		    "Error reading device %#x SATA PASSTHRU; iocstatus= 0x%x\n",
+		    handle, reply->IOCStatus);
 		error = ENXIO;
 		goto out;
 	}
@@ -946,7 +1003,8 @@ out:
 	 * it.  The command will be freed after sending a target reset TM. If
 	 * the command did timeout, use EWOULDBLOCK.
 	 */
-	if ((cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0)
+	if ((cm != NULL)
+	 && (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0)
 		mps_free_command(sc, cm);
 	else if (error == 0)
 		error = EWOULDBLOCK;
@@ -1022,7 +1080,7 @@ mpssas_volume_add(struct mps_softc *sc, u16 handle)
 		goto out;
 	}
 
-	id = mps_mapping_get_raid_id(sc, wwid, handle);
+	id = mps_mapping_get_raid_tid(sc, wwid, handle);
 	if (id == MPS_MAP_BAD_ID) {
 		printf("%s: could not get ID for volume with handle 0x%04x and "
 		    "WWID 0x%016llx\n", __func__, handle,
@@ -1057,6 +1115,7 @@ out:
 /**
  * mpssas_SSU_to_SATA_devices 
  * @sc: per adapter object
+ * @howto: mast of RB_* bits for how we're rebooting
  *
  * Looks through the target list and issues a StartStopUnit SCSI command to each
  * SATA direct-access device.  This helps to ensure that data corruption is
@@ -1066,7 +1125,7 @@ out:
  * Return nothing.
  */
 static void
-mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
+mpssas_SSU_to_SATA_devices(struct mps_softc *sc, int howto)
 {
 	struct mpssas_softc *sassc = sc->sassc;
 	union ccb *ccb;
@@ -1074,14 +1133,14 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
 	target_id_t targetid;
 	struct mpssas_target *target;
 	char path_str[64];
-	struct timeval cur_time, start_time;
+	int timeout;
 
 	/*
 	 * For each target, issue a StartStopUnit command to stop the device.
 	 */
 	sc->SSU_started = TRUE;
 	sc->SSU_refcount = 0;
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
@@ -1137,17 +1196,25 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
 	}
 
 	/*
-	 * Wait until all of the SSU commands have completed or time has
-	 * expired (60 seconds).  Pause for 100ms each time through.  If any
-	 * command times out, the target will be reset in the SCSI command
-	 * timeout routine.
+	 * Timeout after 60 seconds by default or 10 seconds if howto has
+	 * RB_NOSYNC set which indicates we're likely handling a panic.
 	 */
-	getmicrotime(&start_time);
-	while (sc->SSU_refcount) {
+	timeout = 600;
+	if (howto & RB_NOSYNC)
+		timeout = 100;
+
+	/*
+	 * Wait until all of the SSU commands have completed or timeout has
+	 * expired.  Pause for 100ms each time through.  If any command
+	 * times out, the target will be reset in the SCSI command timeout
+	 * routine.
+	 */
+	while (sc->SSU_refcount > 0) {
 		pause("mpswait", hz/10);
-		
-		getmicrotime(&cur_time);
-		if ((cur_time.tv_sec - start_time.tv_sec) > 60) {
+		if (SCHEDULER_STOPPED())
+			xpt_sim_poll(sassc->sim);
+
+		if (--timeout == 0) {
 			mps_dprint(sc, MPS_FAULT, "Time has expired waiting "
 			    "for SSU commands to complete.\n");
 			break;
@@ -1161,14 +1228,14 @@ mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
 	struct mpssas_softc *sassc;
 	char path_str[64];
 
+	if (done_ccb == NULL)
+		return;
+
 	sassc = (struct mpssas_softc *)done_ccb->ccb_h.ppriv_ptr1;
 
 	xpt_path_string(done_ccb->ccb_h.path, path_str, sizeof(path_str));
 	mps_dprint(sassc->sc, MPS_INFO, "Completing stop unit for %s\n",
 	    path_str);
-
-	if (done_ccb == NULL)
-		return;
 
 	/*
 	 * Nothing more to do except free the CCB and path.  If the command
@@ -1182,6 +1249,7 @@ mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
 /**
  * mpssas_ir_shutdown - IR shutdown notification
  * @sc: per adapter object
+ * @howto: mast of RB_* bits for how we're rebooting
  *
  * Sending RAID Action to alert the Integrated RAID subsystem of the IOC that
  * the host system is shutting down.
@@ -1189,7 +1257,7 @@ mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
  * Return nothing.
  */
 void
-mpssas_ir_shutdown(struct mps_softc *sc)
+mpssas_ir_shutdown(struct mps_softc *sc, int howto)
 {
 	u16 volume_mapping_flags;
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
@@ -1242,7 +1310,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mps_lock(sc);
-	mps_wait_command(sc, cm, 5, CAN_SLEEP);
+	mps_wait_command(sc, &cm, 5, CAN_SLEEP);
 	mps_unlock(sc);
 
 	/*
@@ -1263,7 +1331,7 @@ out:
 	 * 3: enable to SSD and HDD
 	 * anything else will default to 1.
 	 */
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sc->sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
@@ -1294,5 +1362,5 @@ out:
 			}
 		}
 	}
-	mpssas_SSU_to_SATA_devices(sc);
+	mpssas_SSU_to_SATA_devices(sc, howto);
 }

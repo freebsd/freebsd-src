@@ -2,25 +2,25 @@
 
 .PATH: ${LIBC_SRCTOP}/stdlib/jemalloc
 
-JEMALLOCSRCS:= jemalloc.c arena.c atomic.c base.c bitmap.c chunk.c \
-	chunk_dss.c chunk_mmap.c ckh.c ctl.c extent.c hash.c huge.c mb.c \
-	mutex.c nstime.c pages.c prng.c prof.c quarantine.c rtree.c stats.c \
-	tcache.c ticker.c tsd.c util.c witness.c
+JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bin.c bitmap.c \
+	ckh.c ctl.c div.c extent.c extent_dss.c extent_mmap.c hash.c hooks.c \
+	large.c log.c malloc_io.c mutex.c mutex_pool.c nstime.c pages.c \
+	prng.c prof.c rtree.c stats.c sz.c tcache.c ticker.c tsd.c witness.c
 
 SYM_MAPS+=${LIBC_SRCTOP}/stdlib/jemalloc/Symbol.map
 
-CFLAGS+=-I${LIBC_SRCTOP}/../../contrib/jemalloc/include
+CFLAGS+=-I${SRCTOP}/contrib/jemalloc/include
 
 .for src in ${JEMALLOCSRCS}
 MISRCS+=jemalloc_${src}
 CLEANFILES+=jemalloc_${src}
-jemalloc_${src}: ${LIBC_SRCTOP}/../../contrib/jemalloc/src/${src} .NOMETA
+jemalloc_${src}: ${SRCTOP}/contrib/jemalloc/src/${src} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
 MAN+=jemalloc.3
 CLEANFILES+=jemalloc.3
-jemalloc.3: ${LIBC_SRCTOP}/../../contrib/jemalloc/doc/jemalloc.3 .NOMETA
+jemalloc.3: ${SRCTOP}/contrib/jemalloc/doc/jemalloc.3 .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 MLINKS+= \

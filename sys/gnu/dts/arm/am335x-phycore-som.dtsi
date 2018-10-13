@@ -8,6 +8,7 @@
  */
 
 #include "am33xx.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Phytec AM335x phyCORE";
@@ -24,7 +25,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -32,7 +33,7 @@
 	regulators {
 		compatible = "simple-bus";
 
-		vcc5v: fixedregulator@0 {
+		vcc5v: fixedregulator0 {
 			compatible = "regulator-fixed";
 			regulator-name = "vcc5v";
 			regulator-min-microvolt = <5000000>;
@@ -77,7 +78,7 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&phy0>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <1>;
 };
@@ -86,6 +87,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
 	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &mac {
@@ -119,6 +124,12 @@
 		reg = <0x2d>;
 	};
 
+	i2c_tmp102: temp@4b {
+		compatible = "ti,tmp102";
+		reg = <0x4b>;
+		status = "disabled";
+	};
+
 	i2c_eeprom: eeprom@52 {
 		compatible = "atmel,24c32";
 		pagesize = <32>;
@@ -127,7 +138,7 @@
 	};
 
 	i2c_rtc: rtc@68 {
-		compatible = "rv4162";
+		compatible = "microcrystal,rv4162";
 		reg = <0x68>;
 		status = "disabled";
 	};
@@ -165,7 +176,12 @@
 	pinctrl-0 = <&nandflash_pins>;
 	ranges = <0 0 0x08000000 0x1000000>;   /* CS0: NAND */
 	nandflash: nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
 		gpmc,device-nand = "true";
@@ -184,57 +200,17 @@
 		gpmc,access-ns = <30>;
 		gpmc,rd-cycle-ns = <30>;
 		gpmc,wr-cycle-ns = <30>;
-		gpmc,wait-on-read = "true";
-		gpmc,wait-on-write = "true";
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <50>;
 		gpmc,cycle2cycle-diffcsen;
 		gpmc,clk-activation-ns = <0>;
-		gpmc,wait-monitoring-ns = <0>;
 		gpmc,wr-access-ns = <30>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 
-		elm_id = <&elm>;
+		ti,elm-id = <&elm>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		partition@0 {
-			label = "xload";
-			reg = <0x0 0x20000>;
-		};
-		partition@1 {
-			label = "xload_backup1";
-			reg = <0x20000 0x20000>;
-		};
-		partition@2 {
-			label = "xload_backup2";
-			reg = <0x40000 0x20000>;
-		};
-		partition@3 {
-			label = "xload_backup3";
-			reg = <0x60000 0x20000>;
-		};
-		partition@4 {
-			label = "barebox";
-			reg = <0x80000 0x80000>;
-		};
-		partition@5 {
-			label = "bareboxenv";
-			reg = <0x100000 0x40000>;
-		};
-		partition@6 {
-			label = "oftree";
-			reg = <0x140000 0x40000>;
-		};
-		partition@7 {
-			label = "kernel";
-			reg = <0x180000 0x800000>;
-		};
-		partition@8 {
-			label = "root";
-			reg = <0x980000 0x0>;
-		};
 	};
 };
 
@@ -338,33 +314,12 @@
 	status = "okay";
 
 	serial_flash: m25p80@0 {
-		compatible = "m25p80";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <48000000>;
 		reg = <0x0>;
 		m25p,fast-read;
 		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		partition@0 {
-			label = "xload";
-			reg = <0x0 0x20000>;
-		};
-		partition@1 {
-			label = "barebox";
-			reg = <0x20000 0x80000>;
-		};
-		partition@2 {
-			label = "bareboxenv";
-			reg = <0xa0000 0x20000>;
-		};
-		partition@3 {
-			label = "oftree";
-			reg = <0xc0000 0x20000>;
-		};
-		partition@4 {
-			label = "kernel";
-			reg = <0xe0000 0x0>;
-		};
 	};
 };

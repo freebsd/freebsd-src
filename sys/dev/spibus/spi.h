@@ -40,3 +40,7 @@ struct spi_command {
 #define	SPI_COMMAND_INITIALIZER	{ 0 }
 
 #define	SPI_CHIP_SELECT_HIGH	0x1		/* Chip select high (else low) */
+
+#define SPIBUS_PNP_DESCR "Z:compat;P:#;"
+#define SPIBUS_PNP_INFO(t) \
+	MODULE_PNP_INFO(SPIBUS_PNP_DESCR, spibus, t, t, sizeof(t) / sizeof(t[0]));

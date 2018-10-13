@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from crypt586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from crypt586.pl. */
 #ifdef PIC
-.file	"crypt586.S"
 .text
 .globl	fcrypt_body
 .type	fcrypt_body,@function
@@ -881,7 +880,6 @@ fcrypt_body:
 	ret
 .size	fcrypt_body,.-.L_fcrypt_body_begin
 #else
-.file	"crypt586.S"
 .text
 .globl	fcrypt_body
 .type	fcrypt_body,@function

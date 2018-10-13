@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd April 14, 2016
+.Dd July 20, 2018
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -242,11 +242,11 @@ Variables for other classes of events are dependent on those events.
 .It Ic Variable
 .Ic Description
 .It Li *
-The entire message from the current event
+The entire message from the current event.
 .It Li _
-The entire message from the current event, after the initial type character
+The entire message from the current event, after the initial type character.
 .It Li timestamp
-The time this event was processed, in seconds since 1970 dot fraction
+The time this event was processed, in seconds since 1970 dot fraction.
 .It Li bus
 Device name of parent bus.
 .It Li cdev
@@ -259,50 +259,54 @@ CIS-product.
 CIS-vendor.
 .It Li class
 Device class.
+.It Li comm
+Executable name (kernel).
+.It Li core
+Path to core file (kernel).
 .It Li device
 Device ID.
 .It Li devclass
-Device Class (USB)
+Device Class (USB).
 .It Li devsubclass
-Device Sub-class (USB)
+Device Sub-class (USB).
 .It Li device-name
 Name of attached/detached device.
 .It Li endpoints
-Endpoint count (USB)
+Endpoint count (USB).
 .It Li function
 Card functions.
 .It Li interface
-Interface ID (USB)
+Interface ID (USB).
 .It Li intclass
-Interface Class (USB)
+Interface Class (USB).
 .It Li intprotocol
-Interface Protocol  (USB)
+Interface Protocol (USB).
 .It Li intsubclass
-Interface Sub-class (USB)
+Interface Sub-class (USB).
 .It Li jail
-Jail name for the process triggering the rule (RCTL)
+Jail name for the process triggering the rule (RCTL).
 .It Li manufacturer
 Manufacturer ID (pccard).
 .It Li mode
-Peripheral mode (USB)
+Peripheral mode (USB).
 .It Li notify
 Match the value of the
 .Dq Li notify
 variable.
 .It Li parent
-Parent device
+Parent device.
 .It Li pid
-PID of the process triggering the rule (RCTL)
+PID of the process triggering the rule (RCTL).
 .It Li port
-Hub port number (USB)
+Hub port number (USB).
 .It Li product
 Product ID (pccard/USB).
 .It Li release
-Hardware revision (USB)
+Hardware revision (USB).
 .It Li ruid
-Real UID of the process triggering the rule (RCTL)
+Real UID of the process triggering the rule (RCTL).
 .It Li rule
-Rule (RCTL)
+Rule (RCTL).
 .It Li sernum
 Serial Number (USB).
 .It Li slot
@@ -496,11 +500,22 @@ Events related to the kernel.
 .Bl -tag -width ".Sy Subsystem" -compact
 .It Sy Subsystem
 .It Li power
-Information about the state of the system.
 .Bl -tag -width ".li resume" -compact
 .It Sy Type
 .It Li resume
 Notification that the system has woken from the suspended state.
+.El
+.El
+.Pp
+.It Li kernel
+More events related to the kernel.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li signal
+.Bl -tag -width ".li resume" -compact
+.It Sy Type
+.It Li coredump
+Notification that a process has crashed and dumped core.
 .El
 .El
 .Pp
@@ -646,8 +661,8 @@ The installed
 .Pa /etc/devd.conf
 has many additional examples.
 .Sh SEE ALSO
+.Xr cam 4 ,
 .Xr coretemp 4 ,
 .Xr devfs 5 ,
 .Xr re_format 7 ,
-.Xr devd 8 ,
-.Xr cam 4
+.Xr devd 8

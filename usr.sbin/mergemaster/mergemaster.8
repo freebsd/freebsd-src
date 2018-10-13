@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2015
+.Dd August 8, 2018
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -226,9 +226,10 @@ destination directory.
 .It Fl p
 Pre-buildworld mode.
 Compares only files known to be essential to the success of
-{build|install}world,
-including
-.Pa /etc/make.conf .
+{build|install}world, i.e.,
+.Pa /etc/group
+and
+.Pa /etc/master.passwd .
 .It Fl F
 If the files differ only by VCS Id ($FreeBSD)
 install the new file.
@@ -298,7 +299,7 @@ utility uses the
 .Ev PAGER
 environment variable if set.
 Otherwise it uses
-.Xr more 1 .
+.Xr less 1 .
 If
 .Ev PAGER
 specifies a program outside
@@ -450,13 +451,13 @@ comparison, use:
 .Sh SEE ALSO
 .Xr diff 1 ,
 .Xr make 1 ,
-.Xr more 1 ,
+.Xr less 1 ,
 .Xr sdiff 1 ,
 .Xr pwd_mkdb 8
 .Pp
 .Pa /usr/src/etc/Makefile
 .Rs
-.%U http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 .%T The Cutting Edge (using make world)
 .%A Nik Clayton
 .Re

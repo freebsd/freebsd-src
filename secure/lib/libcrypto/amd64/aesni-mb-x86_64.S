@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from aesni-mb-x86_64.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from aesni-mb-x86_64.pl. */
 .text	
 
 
@@ -8,6 +8,7 @@
 .type	aesni_multi_cbc_encrypt,@function
 .align	32
 aesni_multi_cbc_encrypt:
+.cfi_startproc	
 	cmpl	$2,%edx
 	jb	.Lenc_non_avx
 	movl	OPENSSL_ia32cap_P+4(%rip),%ecx
@@ -17,12 +18,19 @@ aesni_multi_cbc_encrypt:
 .align	16
 .Lenc_non_avx:
 	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 
 
 
@@ -32,6 +40,7 @@ aesni_multi_cbc_encrypt:
 	subq	$48,%rsp
 	andq	$-64,%rsp
 	movq	%rax,16(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x10,0x06,0x23,0x08
 
 .Lenc4x_body:
 	movdqu	(%rsi),%xmm12
@@ -241,6 +250,7 @@ aesni_multi_cbc_encrypt:
 	jnz	.Loop_enc4x
 
 	movq	16(%rsp),%rax
+.cfi_def_cfa	%rax,8
 	movl	24(%rsp),%edx
 
 
@@ -258,20 +268,29 @@ aesni_multi_cbc_encrypt:
 
 .Lenc4x_done:
 	movq	-48(%rax),%r15
+.cfi_restore	%r15
 	movq	-40(%rax),%r14
+.cfi_restore	%r14
 	movq	-32(%rax),%r13
+.cfi_restore	%r13
 	movq	-24(%rax),%r12
+.cfi_restore	%r12
 	movq	-16(%rax),%rbp
+.cfi_restore	%rbp
 	movq	-8(%rax),%rbx
+.cfi_restore	%rbx
 	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lenc4x_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_multi_cbc_encrypt,.-aesni_multi_cbc_encrypt
 
 .globl	aesni_multi_cbc_decrypt
 .type	aesni_multi_cbc_decrypt,@function
 .align	32
 aesni_multi_cbc_decrypt:
+.cfi_startproc	
 	cmpl	$2,%edx
 	jb	.Ldec_non_avx
 	movl	OPENSSL_ia32cap_P+4(%rip),%ecx
@@ -281,12 +300,19 @@ aesni_multi_cbc_decrypt:
 .align	16
 .Ldec_non_avx:
 	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 
 
 
@@ -296,6 +322,7 @@ aesni_multi_cbc_decrypt:
 	subq	$48,%rsp
 	andq	$-64,%rsp
 	movq	%rax,16(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x10,0x06,0x23,0x08
 
 .Ldec4x_body:
 	movdqu	(%rsi),%xmm12
@@ -505,6 +532,7 @@ aesni_multi_cbc_decrypt:
 	jnz	.Loop_dec4x
 
 	movq	16(%rsp),%rax
+.cfi_def_cfa	%rax,8
 	movl	24(%rsp),%edx
 
 	leaq	160(%rdi),%rdi
@@ -513,26 +541,42 @@ aesni_multi_cbc_decrypt:
 
 .Ldec4x_done:
 	movq	-48(%rax),%r15
+.cfi_restore	%r15
 	movq	-40(%rax),%r14
+.cfi_restore	%r14
 	movq	-32(%rax),%r13
+.cfi_restore	%r13
 	movq	-24(%rax),%r12
+.cfi_restore	%r12
 	movq	-16(%rax),%rbp
+.cfi_restore	%rbp
 	movq	-8(%rax),%rbx
+.cfi_restore	%rbx
 	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Ldec4x_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_multi_cbc_decrypt,.-aesni_multi_cbc_decrypt
 .type	aesni_multi_cbc_encrypt_avx,@function
 .align	32
 aesni_multi_cbc_encrypt_avx:
+.cfi_startproc	
 _avx_cbc_enc_shortcut:
 	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 
 
 
@@ -544,6 +588,7 @@ _avx_cbc_enc_shortcut:
 	subq	$192,%rsp
 	andq	$-128,%rsp
 	movq	%rax,16(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x10,0x06,0x23,0x08
 
 .Lenc8x_body:
 	vzeroupper
@@ -941,6 +986,7 @@ _avx_cbc_enc_shortcut:
 	jnz	.Loop_enc8x
 
 	movq	16(%rsp),%rax
+.cfi_def_cfa	%rax,8
 
 
 
@@ -949,27 +995,43 @@ _avx_cbc_enc_shortcut:
 .Lenc8x_done:
 	vzeroupper
 	movq	-48(%rax),%r15
+.cfi_restore	%r15
 	movq	-40(%rax),%r14
+.cfi_restore	%r14
 	movq	-32(%rax),%r13
+.cfi_restore	%r13
 	movq	-24(%rax),%r12
+.cfi_restore	%r12
 	movq	-16(%rax),%rbp
+.cfi_restore	%rbp
 	movq	-8(%rax),%rbx
+.cfi_restore	%rbx
 	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lenc8x_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_multi_cbc_encrypt_avx,.-aesni_multi_cbc_encrypt_avx
 
 .type	aesni_multi_cbc_decrypt_avx,@function
 .align	32
 aesni_multi_cbc_decrypt_avx:
+.cfi_startproc	
 _avx_cbc_dec_shortcut:
 	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 
 
 
@@ -983,6 +1045,7 @@ _avx_cbc_dec_shortcut:
 	andq	$-256,%rsp
 	subq	$192,%rsp
 	movq	%rax,16(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x10,0x06,0x23,0x08
 
 .Ldec8x_body:
 	vzeroupper
@@ -1418,6 +1481,7 @@ _avx_cbc_dec_shortcut:
 	jnz	.Loop_dec8x
 
 	movq	16(%rsp),%rax
+.cfi_def_cfa	%rax,8
 
 
 
@@ -1426,12 +1490,20 @@ _avx_cbc_dec_shortcut:
 .Ldec8x_done:
 	vzeroupper
 	movq	-48(%rax),%r15
+.cfi_restore	%r15
 	movq	-40(%rax),%r14
+.cfi_restore	%r14
 	movq	-32(%rax),%r13
+.cfi_restore	%r13
 	movq	-24(%rax),%r12
+.cfi_restore	%r12
 	movq	-16(%rax),%rbp
+.cfi_restore	%rbp
 	movq	-8(%rax),%rbx
+.cfi_restore	%rbx
 	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Ldec8x_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_multi_cbc_decrypt_avx,.-aesni_multi_cbc_decrypt_avx

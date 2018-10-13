@@ -23,7 +23,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: inp.c,v 1.36 2012/04/10 14:46:34 ajacoutot Exp $
+ * $OpenBSD: inp.c,v 1.44 2015/07/26 14:32:19 millert Exp $
  * $FreeBSD$
  */
 
@@ -118,7 +118,7 @@ reallocate_lines(size_t *lines_allocated)
 	size_t	new_size;
 
 	new_size = *lines_allocated * 3 / 2;
-	p = realloc(i_ptr, (new_size + 2) * sizeof(char *));
+	p = reallocarray(i_ptr, new_size + 2, sizeof(char *));
 	if (p == NULL) {	/* shucks, it was a near thing */
 		munmap(i_womp, i_size);
 		i_womp = NULL;
@@ -213,8 +213,11 @@ plan_a(const char *filename)
 	/* now scan the buffer and build pointer array */
 	iline = 1;
 	i_ptr[iline] = i_womp;
-	/* test for NUL too, to maintain the behavior of the original code */
-	for (s = i_womp, i = 0; i < i_size && *s != '\0'; s++, i++) {
+	/*
+	 * Testing for NUL here actively breaks files that innocently use NUL
+	 * for other reasons. mmap(2) succeeded, just scan the whole buffer.
+	 */
+	for (s = i_womp, i = 0; i < i_size; s++, i++) {
 		if (*s == '\n') {
 			if (iline == lines_allocated) {
 				if (!reallocate_lines(&lines_allocated))

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -89,7 +91,7 @@ typedef u_long	fptrdiff_t;
 	__asm__("ldmfd	sp!, {r0-r3, lr}");				\
 	/*								\
 	 * Return to the caller. Loading lr and pc in one instruction	\
-	 * is deprecated on ARMv7 so we need this on it's own.		\
+	 * is deprecated on ARMv7 so we need this on its own.		\
 	 */								\
 	__asm__("ldmfd	sp!, {pc}");
 void bintr(void);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
  *		at Electronni Visti IA, Kiev, Ukraine.
@@ -128,8 +130,8 @@ int	__collate_load_tables(const char *);
 int	__collate_equiv_value(locale_t, const wchar_t *, size_t);
 void	_collate_lookup(struct xlocale_collate *,const wchar_t *, int *, int *,
 	int, const int **);
-int	__collate_range_cmp(struct xlocale_collate *, char, char);
-int	__wcollate_range_cmp(struct xlocale_collate *, wchar_t, wchar_t);
+int	__collate_range_cmp(char, char);
+int	__wcollate_range_cmp(wchar_t, wchar_t);
 size_t	_collate_wxfrm(struct xlocale_collate *, const wchar_t *, wchar_t *,
 	size_t);
 size_t	_collate_sxfrm(struct xlocale_collate *, const wchar_t *, char *,

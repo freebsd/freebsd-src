@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-1-Clause)
+ *
  * Copyright (c) 2006 Sam Leffler, Errno Consulting
  * Copyright (c) 2008-2009 Weongyo Jeong <weongyo@freebsd.org>
  * All rights reserved.
@@ -65,6 +67,9 @@ __FBSDID("$FreeBSD$");
  * for these devices does not work in this way and so does not work
  * with this driver.
  */
+
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -2201,17 +2206,19 @@ uath_sysctl_node(struct uath_softc *sc)
 
 #undef UATH_SYSCTL_STAT_ADD32
 
+CTASSERT(sizeof(u_int) >= sizeof(uint32_t));
+
 static void
 uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 {
 	struct uath_cmd_hdr *hdr;
-	int dlen;
+	uint32_t dlen;
 
 	hdr = (struct uath_cmd_hdr *)cmd->buf;
 	/* NB: msgid is passed thru w/o byte swapping */
 #ifdef UATH_DEBUG
 	if (sc->sc_debug & UATH_DEBUG_CMDS) {
-		int len = be32toh(hdr->len);
+		uint32_t len = be32toh(hdr->len);
 		printf("%s: %s [ix %u] len %u status %u\n",
 		    __func__, uath_codename(be32toh(hdr->code)),
 		    hdr->msgid, len, be32toh(hdr->magic));
@@ -2227,15 +2234,9 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 	switch (hdr->code & 0xff) {
 	/* reply to a read command */
 	default:
-		dlen = hdr->len - sizeof(*hdr);
-		if (dlen < 0) {
-			device_printf(sc->sc_dev,
-			    "Invalid header length %d\n", dlen);
-			return;
-		}
 		DPRINTF(sc, UATH_DEBUG_RX_PROC | UATH_DEBUG_RECV_ALL,
-		    "%s: code %d data len %u\n",
-		    __func__, hdr->code & 0xff, dlen);
+		    "%s: code %d hdr len %u\n",
+		    __func__, hdr->code & 0xff, hdr->len);
 		/*
 		 * The first response from the target after the
 		 * HOST_AVAILABLE has an invalid msgid so we must
@@ -2245,8 +2246,8 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			uint32_t *rp = (uint32_t *)(hdr+1);
 			u_int olen;
 
-			if (!(sizeof(*hdr) <= hdr->len &&
-			      hdr->len < UATH_MAX_CMDSZ)) {
+			if (sizeof(*hdr) > hdr->len ||
+			    hdr->len >= UATH_MAX_CMDSZ) {
 				device_printf(sc->sc_dev,
 				    "%s: invalid WDC msg length %u; "
 				    "msg ignored\n", __func__, hdr->len);
@@ -2258,7 +2259,8 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			 * number of bytes--unless it's 0 in which
 			 * case a single 32-bit word should be present.
 			 */
-			if (dlen >= (int)sizeof(uint32_t)) {
+			dlen = hdr->len - sizeof(*hdr);
+			if (dlen >= sizeof(uint32_t)) {
 				olen = be32toh(rp[0]);
 				dlen -= sizeof(uint32_t);
 				if (olen == 0) {
@@ -2278,7 +2280,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 					    cmd->olen);
 					olen = cmd->olen;
 				}
-				if (olen > (u_int)dlen) {
+				if (olen > dlen) {
 					/* XXX complain, shouldn't happen */
 					device_printf(sc->sc_dev,
 					    "%s: cmd 0x%x olen %u dlen %u\n",
@@ -2300,8 +2302,10 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			return;
 		}
 		dlen = hdr->len - sizeof(*hdr);
-		if (dlen != (int)sizeof(uint32_t)) {
-			/* XXX something wrong */
+		if (dlen != sizeof(uint32_t)) {
+			device_printf(sc->sc_dev,
+			    "%s: dlen (%u) != %zu!\n",
+			    __func__, dlen, sizeof(uint32_t));
 			return;
 		}
 		/* XXX have submitter do this */
@@ -2330,6 +2334,7 @@ uath_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct uath_cmd *cmd;
+	struct uath_cmd_hdr *hdr;
 	struct usb_page_cache *pc;
 	int actlen;
 
@@ -2347,10 +2352,25 @@ uath_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		STAILQ_INSERT_TAIL(&sc->sc_cmd_inactive, cmd, next);
 		UATH_STAT_INC(sc, st_cmd_inactive);
 
-		KASSERT(actlen >= (int)sizeof(struct uath_cmd_hdr),
-		    ("short xfer error"));
+		if (actlen < sizeof(struct uath_cmd_hdr)) {
+			device_printf(sc->sc_dev,
+			    "%s: short xfer error (actlen %d)\n",
+			    __func__, actlen);
+			goto setup;
+		}
+
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, cmd->buf, actlen);
+
+		hdr = (struct uath_cmd_hdr *)cmd->buf;
+		hdr->len = be32toh(hdr->len);
+		if (hdr->len > (uint32_t)actlen) {
+			device_printf(sc->sc_dev,
+			    "%s: truncated xfer (len %u, actlen %d)\n",
+			    __func__, hdr->len, actlen);
+			goto setup;
+		}
+
 		uath_cmdeof(sc, cmd);
 	case USB_ST_SETUP:
 setup:
@@ -2451,6 +2471,8 @@ uath_update_rxstat(struct uath_softc *sc, uint32_t status)
 	}
 }
 
+CTASSERT(UATH_MIN_RXBUFSZ >= sizeof(struct uath_chunk));
+
 static struct mbuf *
 uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
     struct uath_rx_desc **pdesc)
@@ -2473,9 +2495,20 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	}
 
 	chunk = (struct uath_chunk *)data->buf;
-	if (chunk->seqnum == 0 && chunk->flags == 0 && chunk->length == 0) {
+	chunklen = be16toh(chunk->length);
+	if (chunk->seqnum == 0 && chunk->flags == 0 && chunklen == 0) {
 		device_printf(sc->sc_dev, "%s: strange response\n", __func__);
 		counter_u64_add(ic->ic_ierrors, 1);
+		UATH_RESET_INTRX(sc);
+		return (NULL);
+	}
+
+	if (chunklen > actlen) {
+		device_printf(sc->sc_dev,
+		    "%s: invalid chunk length (len %u > actlen %d)\n",
+		    __func__, chunklen, actlen);
+		counter_u64_add(ic->ic_ierrors, 1);
+		/* XXX cleanup? */
 		UATH_RESET_INTRX(sc);
 		return (NULL);
 	}
@@ -2496,9 +2529,19 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	    chunk->flags & UATH_CFLAGS_RXMSG)
 		UATH_STAT_INC(sc, st_multichunk);
 
-	chunklen = be16toh(chunk->length);
-	if (chunk->flags & UATH_CFLAGS_FINAL)
+	if (chunk->flags & UATH_CFLAGS_FINAL) {
+		if (chunklen < sizeof(struct uath_rx_desc)) {
+			device_printf(sc->sc_dev,
+			    "%s: invalid chunk length %d\n",
+			    __func__, chunklen);
+			counter_u64_add(ic->ic_ierrors, 1);
+			if (sc->sc_intrx_head != NULL)
+				m_freem(sc->sc_intrx_head);
+			UATH_RESET_INTRX(sc);
+			return (NULL);
+		}
 		chunklen -= sizeof(struct uath_rx_desc);
+	}
 
 	if (chunklen > 0 &&
 	    (!(chunk->flags & UATH_CFLAGS_FINAL) || !(chunk->seqnum == 0))) {
@@ -2559,6 +2602,19 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 		(struct uath_rx_desc *)(((uint8_t *)chunk) + 
 		    sizeof(struct uath_chunk) + be16toh(chunk->length) -
 		    sizeof(struct uath_rx_desc));
+	if ((uint8_t *)chunk + actlen - sizeof(struct uath_rx_desc) <
+	    (uint8_t *)desc) {
+		device_printf(sc->sc_dev,
+		    "%s: wrong Rx descriptor pointer "
+		    "(desc %p chunk %p actlen %d)\n",
+		    __func__, desc, chunk, actlen);
+		counter_u64_add(ic->ic_ierrors, 1);
+		if (sc->sc_intrx_head != NULL)
+			m_freem(sc->sc_intrx_head);
+		UATH_RESET_INTRX(sc);
+		return (NULL);
+	}
+
 	*pdesc = desc;
 
 	DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
@@ -2586,8 +2642,33 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 
 	/* finalize mbuf */
 	if (sc->sc_intrx_head == NULL) {
-		m->m_pkthdr.len = m->m_len =
-			be32toh(desc->framelen) - UATH_RX_DUMMYSIZE;
+		uint32_t framelen;
+
+		if (be32toh(desc->framelen) < UATH_RX_DUMMYSIZE) {
+			device_printf(sc->sc_dev,
+			    "%s: framelen too small (%u)\n",
+			    __func__, be32toh(desc->framelen));
+			counter_u64_add(ic->ic_ierrors, 1);
+			if (sc->sc_intrx_head != NULL)
+				m_freem(sc->sc_intrx_head);
+			UATH_RESET_INTRX(sc);
+			return (NULL);
+		}
+
+		framelen = be32toh(desc->framelen) - UATH_RX_DUMMYSIZE;
+		if (framelen > actlen - sizeof(struct uath_chunk) ||
+		    framelen < sizeof(struct ieee80211_frame_ack)) {
+			device_printf(sc->sc_dev,
+			    "%s: wrong frame length (%u, actlen %d)!\n",
+			    __func__, framelen, actlen);
+			counter_u64_add(ic->ic_ierrors, 1);
+			if (sc->sc_intrx_head != NULL)
+				m_freem(sc->sc_intrx_head);
+			UATH_RESET_INTRX(sc);
+			return (NULL);
+		}
+
+		m->m_pkthdr.len = m->m_len = framelen;
 		m->m_data += sizeof(struct uath_chunk);
 	} else {
 		mp = sc->sc_intrx_head;

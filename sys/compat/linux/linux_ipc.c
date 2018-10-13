@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -6,24 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -38,20 +38,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 
 #include "opt_compat.h"
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
-#include <machine/../linux32/linux32_ipc64.h>
 #else
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
-#include <machine/../linux/linux_ipc64.h>
 #endif
 #include <compat/linux/linux_ipc.h>
+#include <compat/linux/linux_ipc64.h>
 #include <compat/linux/linux_util.h>
+
+/*
+ * old, pre 2.4 kernel
+ */
+struct l_ipc_perm {
+	l_key_t		key;
+	l_uid16_t	uid;
+	l_gid16_t	gid;
+	l_uid16_t	cuid;
+	l_gid16_t	cgid;
+	l_ushort	mode;
+	l_ushort	seq;
+};
 
 struct l_seminfo {
 	l_int semmap;
@@ -95,7 +108,7 @@ struct l_msginfo {
 };
 
 static void
-bsd_to_linux_shminfo( struct shminfo *bpp, struct l_shminfo *lpp)
+bsd_to_linux_shminfo( struct shminfo *bpp, struct l_shminfo64 *lpp)
 {
 
 	lpp->shmmax = bpp->shmmax;
@@ -109,16 +122,16 @@ static void
 bsd_to_linux_shm_info( struct shm_info *bpp, struct l_shm_info *lpp)
 {
 
-	lpp->used_ids = bpp->used_ids ;
-	lpp->shm_tot = bpp->shm_tot ;
-	lpp->shm_rss = bpp->shm_rss ;
-	lpp->shm_swp = bpp->shm_swp ;
-	lpp->swap_attempts = bpp->swap_attempts ;
-	lpp->swap_successes = bpp->swap_successes ;
+	lpp->used_ids = bpp->used_ids;
+	lpp->shm_tot = bpp->shm_tot;
+	lpp->shm_rss = bpp->shm_rss;
+	lpp->shm_swp = bpp->shm_swp;
+	lpp->swap_attempts = bpp->swap_attempts;
+	lpp->swap_successes = bpp->swap_successes;
 }
 
 static void
-linux_to_bsd_ipc_perm(struct l_ipc_perm *lpp, struct ipc_perm *bpp)
+linux_to_bsd_ipc_perm(struct l_ipc64_perm *lpp, struct ipc_perm *bpp)
 {
 
 	bpp->key = lpp->key;
@@ -130,9 +143,8 @@ linux_to_bsd_ipc_perm(struct l_ipc_perm *lpp, struct ipc_perm *bpp)
 	bpp->seq = lpp->seq;
 }
 
-
 static void
-bsd_to_linux_ipc_perm(struct ipc_perm *bpp, struct l_ipc_perm *lpp)
+bsd_to_linux_ipc_perm(struct ipc_perm *bpp, struct l_ipc64_perm *lpp)
 {
 
 	lpp->key = bpp->key;
@@ -140,7 +152,7 @@ bsd_to_linux_ipc_perm(struct ipc_perm *bpp, struct l_ipc_perm *lpp)
 	lpp->gid = bpp->gid;
 	lpp->cuid = bpp->cuid;
 	lpp->cgid = bpp->cgid;
-	lpp->mode = bpp->mode;
+	lpp->mode = bpp->mode & (S_IRWXU|S_IRWXG|S_IRWXO);
 	lpp->seq = bpp->seq;
 }
 
@@ -158,11 +170,7 @@ struct l_msqid_ds {
 	l_ushort		msg_qbytes;	/* max number of bytes on queue */
 	l_pid_t			msg_lspid;	/* pid of last msgsnd */
 	l_pid_t			msg_lrpid;	/* last receive pid */
-}
-#if defined(__amd64__) && defined(COMPAT_LINUX32)
-__packed
-#endif
-;
+};
 
 struct l_semid_ds {
 	struct l_ipc_perm	sem_perm;
@@ -173,11 +181,7 @@ struct l_semid_ds {
 	l_uintptr_t		sem_pending_last;
 	l_uintptr_t		undo;
 	l_ushort		sem_nsems;
-}
-#if defined(__amd64__) && defined(COMPAT_LINUX32)
-__packed
-#endif
-;
+};
 
 struct l_shmid_ds {
 	struct l_ipc_perm	shm_perm;
@@ -194,29 +198,27 @@ struct l_shmid_ds {
 };
 
 static void
-linux_to_bsd_semid_ds(struct l_semid_ds *lsp, struct semid_ds *bsp)
+linux_to_bsd_semid_ds(struct l_semid64_ds *lsp, struct semid_ds *bsp)
 {
 
 	linux_to_bsd_ipc_perm(&lsp->sem_perm, &bsp->sem_perm);
 	bsp->sem_otime = lsp->sem_otime;
 	bsp->sem_ctime = lsp->sem_ctime;
 	bsp->sem_nsems = lsp->sem_nsems;
-	bsp->sem_base = PTRIN(lsp->sem_base);
 }
 
 static void
-bsd_to_linux_semid_ds(struct semid_ds *bsp, struct l_semid_ds *lsp)
+bsd_to_linux_semid_ds(struct semid_ds *bsp, struct l_semid64_ds *lsp)
 {
 
 	bsd_to_linux_ipc_perm(&bsp->sem_perm, &lsp->sem_perm);
 	lsp->sem_otime = bsp->sem_otime;
 	lsp->sem_ctime = bsp->sem_ctime;
 	lsp->sem_nsems = bsp->sem_nsems;
-	lsp->sem_base = PTROUT(bsp->sem_base);
 }
 
 static void
-linux_to_bsd_shmid_ds(struct l_shmid_ds *lsp, struct shmid_ds *bsp)
+linux_to_bsd_shmid_ds(struct l_shmid64_ds *lsp, struct shmid_ds *bsp)
 {
 
 	linux_to_bsd_ipc_perm(&lsp->shm_perm, &bsp->shm_perm);
@@ -230,28 +232,21 @@ linux_to_bsd_shmid_ds(struct l_shmid_ds *lsp, struct shmid_ds *bsp)
 }
 
 static void
-bsd_to_linux_shmid_ds(struct shmid_ds *bsp, struct l_shmid_ds *lsp)
+bsd_to_linux_shmid_ds(struct shmid_ds *bsp, struct l_shmid64_ds *lsp)
 {
 
 	bsd_to_linux_ipc_perm(&bsp->shm_perm, &lsp->shm_perm);
-	if (bsp->shm_segsz > INT_MAX)
-		lsp->shm_segsz = INT_MAX;
-	else
-		lsp->shm_segsz = bsp->shm_segsz;
+	lsp->shm_segsz = bsp->shm_segsz;
 	lsp->shm_lpid = bsp->shm_lpid;
 	lsp->shm_cpid = bsp->shm_cpid;
-	if (bsp->shm_nattch > SHRT_MAX)
-		lsp->shm_nattch = SHRT_MAX;
-	else
-		lsp->shm_nattch = bsp->shm_nattch;
+	lsp->shm_nattch = bsp->shm_nattch;
 	lsp->shm_atime = bsp->shm_atime;
 	lsp->shm_dtime = bsp->shm_dtime;
 	lsp->shm_ctime = bsp->shm_ctime;
-	lsp->private3 = 0;
 }
 
 static void
-linux_to_bsd_msqid_ds(struct l_msqid_ds *lsp, struct msqid_ds *bsp)
+linux_to_bsd_msqid_ds(struct l_msqid64_ds *lsp, struct msqid_ds *bsp)
 {
 
 	linux_to_bsd_ipc_perm(&lsp->msg_perm, &bsp->msg_perm);
@@ -266,7 +261,7 @@ linux_to_bsd_msqid_ds(struct l_msqid_ds *lsp, struct msqid_ds *bsp)
 }
 
 static void
-bsd_to_linux_msqid_ds(struct msqid_ds *bsp, struct l_msqid_ds *lsp)
+bsd_to_linux_msqid_ds(struct msqid_ds *bsp, struct l_msqid64_ds *lsp)
 {
 
 	bsd_to_linux_ipc_perm(&bsp->msg_perm, &lsp->msg_perm);
@@ -280,11 +275,10 @@ bsd_to_linux_msqid_ds(struct msqid_ds *bsp, struct l_msqid_ds *lsp)
 	lsp->msg_ctime = bsp->msg_ctime;
 }
 
-static void
-linux_ipc_perm_to_ipc64_perm(struct l_ipc_perm *in, struct l_ipc64_perm *out)
+static int
+linux_ipc64_perm_to_ipc_perm(struct l_ipc64_perm *in, struct l_ipc_perm *out)
 {
 
-	/* XXX: do we really need to do something here? */
 	out->key = in->key;
 	out->uid = in->uid;
 	out->gid = in->gid;
@@ -292,186 +286,222 @@ linux_ipc_perm_to_ipc64_perm(struct l_ipc_perm *in, struct l_ipc64_perm *out)
 	out->cgid = in->cgid;
 	out->mode = in->mode;
 	out->seq = in->seq;
+
+	/* Linux does not check overflow */
+	if (out->uid != in->uid || out->gid != in->gid ||
+	    out->cuid != in->cuid || out->cgid != in->cgid ||
+	    out->mode != in->mode)
+		return (EOVERFLOW);
+	else
+		return (0);
 }
 
 static int
-linux_msqid_pullup(l_int ver, struct l_msqid_ds *linux_msqid, caddr_t uaddr)
+linux_msqid_pullup(l_int ver, struct l_msqid64_ds *linux_msqid64, caddr_t uaddr)
 {
-	struct l_msqid64_ds linux_msqid64;
+	struct l_msqid_ds linux_msqid;
 	int error;
 
-	if (ver == LINUX_IPC_64) {
-		error = copyin(uaddr, &linux_msqid64, sizeof(linux_msqid64));
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyin(uaddr, linux_msqid64, sizeof(*linux_msqid64)));
+	else {
+		error = copyin(uaddr, &linux_msqid, sizeof(linux_msqid));
 		if (error != 0)
 			return (error);
 
-		bzero(linux_msqid, sizeof(*linux_msqid));
+		bzero(linux_msqid64, sizeof(*linux_msqid64));
 
-		linux_msqid->msg_perm.uid = linux_msqid64.msg_perm.uid;
-		linux_msqid->msg_perm.gid = linux_msqid64.msg_perm.gid;
-		linux_msqid->msg_perm.mode = linux_msqid64.msg_perm.mode;
-
-		if (linux_msqid64.msg_qbytes > USHRT_MAX)
-			linux_msqid->msg_lqbytes = linux_msqid64.msg_qbytes;
+		linux_msqid64->msg_perm.uid = linux_msqid.msg_perm.uid;
+		linux_msqid64->msg_perm.gid = linux_msqid.msg_perm.gid;
+		linux_msqid64->msg_perm.mode = linux_msqid.msg_perm.mode;
+		if (linux_msqid.msg_qbytes == 0)
+			linux_msqid64->msg_qbytes = linux_msqid.msg_lqbytes;
 		else
-			linux_msqid->msg_qbytes = linux_msqid64.msg_qbytes;
-	} else
-		error = copyin(uaddr, linux_msqid, sizeof(*linux_msqid));
-
-	return (error);
+			linux_msqid64->msg_qbytes = linux_msqid.msg_qbytes;
+		return (0);
+	}
 }
 
 static int
-linux_msqid_pushdown(l_int ver, struct l_msqid_ds *linux_msqid, caddr_t uaddr)
+linux_msqid_pushdown(l_int ver, struct l_msqid64_ds *linux_msqid64, caddr_t uaddr)
 {
-	struct l_msqid64_ds linux_msqid64;
-
-	if (ver == LINUX_IPC_64) {
-		bzero(&linux_msqid64, sizeof(linux_msqid64));
-
-		linux_ipc_perm_to_ipc64_perm(&linux_msqid->msg_perm,
-		    &linux_msqid64.msg_perm);
-
-		linux_msqid64.msg_stime = linux_msqid->msg_stime;
-		linux_msqid64.msg_rtime = linux_msqid->msg_rtime;
-		linux_msqid64.msg_ctime = linux_msqid->msg_ctime;
-
-		if (linux_msqid->msg_cbytes == 0)
-			linux_msqid64.msg_cbytes = linux_msqid->msg_lcbytes;
-		else
-			linux_msqid64.msg_cbytes = linux_msqid->msg_cbytes;
-
-		linux_msqid64.msg_qnum = linux_msqid->msg_qnum;
-
-		if (linux_msqid->msg_qbytes == 0)
-			linux_msqid64.msg_qbytes = linux_msqid->msg_lqbytes;
-		else
-			linux_msqid64.msg_qbytes = linux_msqid->msg_qbytes;
-
-		linux_msqid64.msg_lspid = linux_msqid->msg_lspid;
-		linux_msqid64.msg_lrpid = linux_msqid->msg_lrpid;
-
-		return (copyout(&linux_msqid64, uaddr, sizeof(linux_msqid64)));
-	} else
-		return (copyout(linux_msqid, uaddr, sizeof(*linux_msqid)));
-}
-
-static int
-linux_semid_pullup(l_int ver, struct l_semid_ds *linux_semid, caddr_t uaddr)
-{
-	struct l_semid64_ds linux_semid64;
+	struct l_msqid_ds linux_msqid;
 	int error;
 
-	if (ver == LINUX_IPC_64) {
-		error = copyin(uaddr, &linux_semid64, sizeof(linux_semid64));
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyout(linux_msqid64, uaddr, sizeof(*linux_msqid64)));
+	else {
+		bzero(&linux_msqid, sizeof(linux_msqid));
+
+		error = linux_ipc64_perm_to_ipc_perm(&linux_msqid64->msg_perm,
+		    &linux_msqid.msg_perm);
 		if (error != 0)
 			return (error);
 
-		bzero(linux_semid, sizeof(*linux_semid));
+		linux_msqid.msg_stime = linux_msqid64->msg_stime;
+		linux_msqid.msg_rtime = linux_msqid64->msg_rtime;
+		linux_msqid.msg_ctime = linux_msqid64->msg_ctime;
 
-		linux_semid->sem_perm.uid = linux_semid64.sem_perm.uid;
-		linux_semid->sem_perm.gid = linux_semid64.sem_perm.gid;
-		linux_semid->sem_perm.mode = linux_semid64.sem_perm.mode;
-	} else
-		error = copyin(uaddr, linux_semid, sizeof(*linux_semid));
+		if (linux_msqid64->msg_cbytes > USHRT_MAX)
+			linux_msqid.msg_cbytes = USHRT_MAX;
+		else
+			linux_msqid.msg_cbytes = linux_msqid64->msg_cbytes;
+		linux_msqid.msg_lcbytes = linux_msqid64->msg_cbytes;
+		if (linux_msqid64->msg_qnum > USHRT_MAX)
+			linux_msqid.msg_qnum = USHRT_MAX;
+		else
+			linux_msqid.msg_qnum = linux_msqid64->msg_qnum;
+		if (linux_msqid64->msg_qbytes > USHRT_MAX)
+			linux_msqid.msg_qbytes = USHRT_MAX;
+		else
+			linux_msqid.msg_qbytes = linux_msqid64->msg_qbytes;
+		linux_msqid.msg_lqbytes = linux_msqid64->msg_qbytes;
+		linux_msqid.msg_lspid = linux_msqid64->msg_lspid;
+		linux_msqid.msg_lrpid = linux_msqid64->msg_lrpid;
 
-	return (error);
+		/* Linux does not check overflow */
+		if (linux_msqid.msg_stime != linux_msqid64->msg_stime ||
+		    linux_msqid.msg_rtime != linux_msqid64->msg_rtime ||
+		    linux_msqid.msg_ctime != linux_msqid64->msg_ctime)
+			return (EOVERFLOW);
+
+		return (copyout(&linux_msqid, uaddr, sizeof(linux_msqid)));
+	}
 }
 
 static int
-linux_semid_pushdown(l_int ver, struct l_semid_ds *linux_semid, caddr_t uaddr)
+linux_semid_pullup(l_int ver, struct l_semid64_ds *linux_semid64, caddr_t uaddr)
 {
-	struct l_semid64_ds linux_semid64;
-
-	if (ver == LINUX_IPC_64) {
-		bzero(&linux_semid64, sizeof(linux_semid64));
-
-		linux_ipc_perm_to_ipc64_perm(&linux_semid->sem_perm,
-		    &linux_semid64.sem_perm);
-
-		linux_semid64.sem_otime = linux_semid->sem_otime;
-		linux_semid64.sem_ctime = linux_semid->sem_ctime;
-		linux_semid64.sem_nsems = linux_semid->sem_nsems;
-
-		return (copyout(&linux_semid64, uaddr, sizeof(linux_semid64)));
-	} else
-		return (copyout(linux_semid, uaddr, sizeof(*linux_semid)));
-}
-
-static int
-linux_shmid_pullup(l_int ver, struct l_shmid_ds *linux_shmid, caddr_t uaddr)
-{
-	struct l_shmid64_ds linux_shmid64;
+	struct l_semid_ds linux_semid;
 	int error;
 
-	if (ver == LINUX_IPC_64) {
-		error = copyin(uaddr, &linux_shmid64, sizeof(linux_shmid64));
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyin(uaddr, linux_semid64, sizeof(*linux_semid64)));
+	else {
+		error = copyin(uaddr, &linux_semid, sizeof(linux_semid));
 		if (error != 0)
 			return (error);
 
-		bzero(linux_shmid, sizeof(*linux_shmid));
+		bzero(linux_semid64, sizeof(*linux_semid64));
 
-		linux_shmid->shm_perm.uid = linux_shmid64.shm_perm.uid;
-		linux_shmid->shm_perm.gid = linux_shmid64.shm_perm.gid;
-		linux_shmid->shm_perm.mode = linux_shmid64.shm_perm.mode;
-	} else
-		error = copyin(uaddr, linux_shmid, sizeof(*linux_shmid));
-
-	return (error);
+		linux_semid64->sem_perm.uid = linux_semid.sem_perm.uid;
+		linux_semid64->sem_perm.gid = linux_semid.sem_perm.gid;
+		linux_semid64->sem_perm.mode = linux_semid.sem_perm.mode;
+		return (0);
+	}
 }
 
 static int
-linux_shmid_pushdown(l_int ver, struct l_shmid_ds *linux_shmid, caddr_t uaddr)
+linux_semid_pushdown(l_int ver, struct l_semid64_ds *linux_semid64, caddr_t uaddr)
 {
-	struct l_shmid64_ds linux_shmid64;
+	struct l_semid_ds linux_semid;
+	int error;
 
-	/*
-	 * XXX: This is backwards and loses information in shm_nattch
-	 * and shm_segsz.  We should probably either expose the BSD
-	 * shmid structure directly and convert it to either the
-	 * non-64 or 64 variant directly or the code should always
-	 * convert to the 64 variant and then truncate values into the
-	 * non-64 variant if needed since the 64 variant has more
-	 * precision.
-	 */
-	if (ver == LINUX_IPC_64) {
-		bzero(&linux_shmid64, sizeof(linux_shmid64));
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyout(linux_semid64, uaddr, sizeof(*linux_semid64)));
+	else {
+		bzero(&linux_semid, sizeof(linux_semid));
 
-		linux_ipc_perm_to_ipc64_perm(&linux_shmid->shm_perm,
-		    &linux_shmid64.shm_perm);
+		error = linux_ipc64_perm_to_ipc_perm(&linux_semid64->sem_perm,
+		    &linux_semid.sem_perm);
+		if (error != 0)
+			return (error);
 
-		linux_shmid64.shm_segsz = linux_shmid->shm_segsz;
-		linux_shmid64.shm_atime = linux_shmid->shm_atime;
-		linux_shmid64.shm_dtime = linux_shmid->shm_dtime;
-		linux_shmid64.shm_ctime = linux_shmid->shm_ctime;
-		linux_shmid64.shm_cpid = linux_shmid->shm_cpid;
-		linux_shmid64.shm_lpid = linux_shmid->shm_lpid;
-		linux_shmid64.shm_nattch = linux_shmid->shm_nattch;
+		linux_semid.sem_otime = linux_semid64->sem_otime;
+		linux_semid.sem_ctime = linux_semid64->sem_ctime;
+		linux_semid.sem_nsems = linux_semid64->sem_nsems;
 
-		return (copyout(&linux_shmid64, uaddr, sizeof(linux_shmid64)));
-	} else
-		return (copyout(linux_shmid, uaddr, sizeof(*linux_shmid)));
+		/* Linux does not check overflow */
+		if (linux_semid.sem_otime != linux_semid64->sem_otime ||
+		    linux_semid.sem_ctime != linux_semid64->sem_ctime ||
+		    linux_semid.sem_nsems != linux_semid64->sem_nsems)
+			return (EOVERFLOW);
+
+		return (copyout(&linux_semid, uaddr, sizeof(linux_semid)));
+	}
 }
 
 static int
-linux_shminfo_pushdown(l_int ver, struct l_shminfo *linux_shminfo,
+linux_shmid_pullup(l_int ver, struct l_shmid64_ds *linux_shmid64, caddr_t uaddr)
+{
+	struct l_shmid_ds linux_shmid;
+	int error;
+
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyin(uaddr, linux_shmid64, sizeof(*linux_shmid64)));
+	else {
+		error = copyin(uaddr, &linux_shmid, sizeof(linux_shmid));
+		if (error != 0)
+			return (error);
+
+		bzero(linux_shmid64, sizeof(*linux_shmid64));
+
+		linux_shmid64->shm_perm.uid = linux_shmid.shm_perm.uid;
+		linux_shmid64->shm_perm.gid = linux_shmid.shm_perm.gid;
+		linux_shmid64->shm_perm.mode = linux_shmid.shm_perm.mode;
+		return (0);
+	}
+}
+
+static int
+linux_shmid_pushdown(l_int ver, struct l_shmid64_ds *linux_shmid64, caddr_t uaddr)
+{
+	struct l_shmid_ds linux_shmid;
+	int error;
+
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyout(linux_shmid64, uaddr, sizeof(*linux_shmid64)));
+	else {
+		bzero(&linux_shmid, sizeof(linux_shmid));
+
+		error = linux_ipc64_perm_to_ipc_perm(&linux_shmid64->shm_perm,
+		    &linux_shmid.shm_perm);
+		if (error != 0)
+			return (error);
+
+		linux_shmid.shm_segsz = linux_shmid64->shm_segsz;
+		linux_shmid.shm_atime = linux_shmid64->shm_atime;
+		linux_shmid.shm_dtime = linux_shmid64->shm_dtime;
+		linux_shmid.shm_ctime = linux_shmid64->shm_ctime;
+		linux_shmid.shm_cpid = linux_shmid64->shm_cpid;
+		linux_shmid.shm_lpid = linux_shmid64->shm_lpid;
+		linux_shmid.shm_nattch = linux_shmid64->shm_nattch;
+
+		/* Linux does not check overflow */
+		if (linux_shmid.shm_segsz != linux_shmid64->shm_segsz ||
+		    linux_shmid.shm_atime != linux_shmid64->shm_atime ||
+		    linux_shmid.shm_dtime != linux_shmid64->shm_dtime ||
+		    linux_shmid.shm_ctime != linux_shmid64->shm_ctime ||
+		    linux_shmid.shm_cpid != linux_shmid64->shm_cpid ||
+		    linux_shmid.shm_lpid != linux_shmid64->shm_lpid ||
+		    linux_shmid.shm_nattch != linux_shmid64->shm_nattch)
+			return (EOVERFLOW);
+
+		return (copyout(&linux_shmid, uaddr, sizeof(linux_shmid)));
+	}
+}
+
+static int
+linux_shminfo_pushdown(l_int ver, struct l_shminfo64 *linux_shminfo64,
     caddr_t uaddr)
 {
-	struct l_shminfo64 linux_shminfo64;
+	struct l_shminfo linux_shminfo;
 
-	if (ver == LINUX_IPC_64) {
-		bzero(&linux_shminfo64, sizeof(linux_shminfo64));
+	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
+		return (copyout(linux_shminfo64, uaddr,
+		    sizeof(*linux_shminfo64)));
+	else {
+		bzero(&linux_shminfo, sizeof(linux_shminfo));
 
-		linux_shminfo64.shmmax = linux_shminfo->shmmax;
-		linux_shminfo64.shmmin = linux_shminfo->shmmin;
-		linux_shminfo64.shmmni = linux_shminfo->shmmni;
-		linux_shminfo64.shmseg = linux_shminfo->shmseg;
-		linux_shminfo64.shmall = linux_shminfo->shmall;
+		linux_shminfo.shmmax = linux_shminfo64->shmmax;
+		linux_shminfo.shmmin = linux_shminfo64->shmmin;
+		linux_shminfo.shmmni = linux_shminfo64->shmmni;
+		linux_shminfo.shmseg = linux_shminfo64->shmseg;
+		linux_shminfo.shmall = linux_shminfo64->shmall;
 
-		return (copyout(&linux_shminfo64, uaddr,
-		    sizeof(linux_shminfo64)));
-	} else
-		return (copyout(linux_shminfo, uaddr, sizeof(*linux_shminfo)));
+		return (copyout(&linux_shminfo, uaddr,
+		    sizeof(linux_shminfo)));
+	}
 }
 
 int
@@ -483,6 +513,8 @@ linux_semop(struct thread *td, struct linux_semop_args *args)
 	int		nsops;
 	} */ bsd_args;
 
+	if (args->nsops < 1 || args->semid < 0)
+		return (EINVAL);
 	bsd_args.semid = args->semid;
 	bsd_args.sops = PTRIN(args->tsops);
 	bsd_args.nsops = args->nsops;
@@ -509,12 +541,15 @@ linux_semget(struct thread *td, struct linux_semget_args *args)
 int
 linux_semctl(struct thread *td, struct linux_semctl_args *args)
 {
-	struct l_semid_ds linux_semid;
+	struct l_semid64_ds linux_semid64;
 	struct l_seminfo linux_seminfo;
 	struct semid_ds semid;
 	union semun semun;
 	register_t rval;
 	int cmd, error;
+
+	memset(&linux_seminfo, 0, sizeof(linux_seminfo));
+	memset(&linux_semid64, 0, sizeof(linux_semid64));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
 	case LINUX_IPC_RMID:
@@ -539,29 +574,35 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	case LINUX_IPC_SET:
 		cmd = IPC_SET;
 		error = linux_semid_pullup(args->cmd & LINUX_IPC_64,
-		    &linux_semid, PTRIN(args->arg.buf));
-		if (error)
+		    &linux_semid64, PTRIN(args->arg.buf));
+		if (error != 0)
 			return (error);
-		linux_to_bsd_semid_ds(&linux_semid, &semid);
+		linux_to_bsd_semid_ds(&linux_semid64, &semid);
 		semun.buf = &semid;
 		return (kern_semctl(td, args->semid, args->semnum, cmd, &semun,
 		    td->td_retval));
 	case LINUX_IPC_STAT:
-	case LINUX_SEM_STAT:
-		if ((args->cmd & ~LINUX_IPC_64) == LINUX_IPC_STAT)
-			cmd = IPC_STAT;
-		else
-			cmd = SEM_STAT;
+		cmd = IPC_STAT;
 		semun.buf = &semid;
 		error = kern_semctl(td, args->semid, args->semnum, cmd, &semun,
 		    &rval);
-		if (error)
+		if (error != 0)
 			return (error);
-		bsd_to_linux_semid_ds(&semid, &linux_semid);
+		bsd_to_linux_semid_ds(&semid, &linux_semid64);
+		return (linux_semid_pushdown(args->cmd & LINUX_IPC_64,
+		    &linux_semid64, PTRIN(args->arg.buf)));
+	case LINUX_SEM_STAT:
+		cmd = SEM_STAT;
+		semun.buf = &semid;
+		error = kern_semctl(td, args->semid, args->semnum, cmd, &semun,
+		    &rval);
+		if (error != 0)
+			return (error);
+		bsd_to_linux_semid_ds(&semid, &linux_semid64);
 		error = linux_semid_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_semid, PTRIN(args->arg.buf));
+		    &linux_semid64, PTRIN(args->arg.buf));
 		if (error == 0)
-			td->td_retval[0] = (cmd == SEM_STAT) ? rval : 0;
+			td->td_retval[0] = rval;
 		return (error);
 	case LINUX_IPC_INFO:
 	case LINUX_SEM_INFO:
@@ -582,17 +623,20 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 */
 		error = copyout(&linux_seminfo,
 		    PTRIN(args->arg.buf), sizeof(linux_seminfo));
-		if (error)
+		if (error != 0)
 			return (error);
+		/*
+		 * TODO: Linux return the last assigned id, not the semmni.
+		 */
 		td->td_retval[0] = seminfo.semmni;
-		return (0);			/* No need for __semctl call */
+		return (0);
 	case LINUX_GETALL:
 		cmd = GETALL;
-		semun.val = args->arg.val;
+		semun.array = PTRIN(args->arg.array);
 		break;
 	case LINUX_SETALL:
 		cmd = SETALL;
-		semun.val = args->arg.val;
+		semun.array = PTRIN(args->arg.array);
 		break;
 	default:
 		linux_msg(td, "ipc type %d is not implemented",
@@ -658,8 +702,10 @@ int
 linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 {
 	int error, bsd_cmd;
-	struct l_msqid_ds linux_msqid;
+	struct l_msqid64_ds linux_msqid64;
 	struct msqid_ds bsd_msqid;
+
+	memset(&linux_msqid64, 0, sizeof(linux_msqid64));
 
 	bsd_cmd = args->cmd & ~LINUX_IPC_64;
 	switch (bsd_cmd) {
@@ -667,6 +713,7 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	case LINUX_MSG_INFO: {
 		struct l_msginfo linux_msginfo;
 
+		memset(&linux_msginfo, 0, sizeof(linux_msginfo));
 		/*
 		 * XXX MSG_INFO uses the same data structure but returns different
 		 * dynamic counters in msgpool, msgmap, and msgtql fields.
@@ -688,8 +735,8 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 		return (error);
 	}
 
-	/* 
-	 * TODO: implement this 
+	/*
+	 * TODO: implement this
 	 * case LINUX_MSG_STAT:
 	 */
 	case LINUX_IPC_STAT:
@@ -698,10 +745,10 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 
 	case LINUX_IPC_SET:
 		error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
-		    &linux_msqid, PTRIN(args->buf));
-		if (error)
+		    &linux_msqid64, PTRIN(args->buf));
+		if (error != 0)
 			return (error);
-		linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
+		linux_to_bsd_msqid_ds(&linux_msqid64, &bsd_msqid);
 		break;
 
 	case LINUX_IPC_RMID:
@@ -714,14 +761,17 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	}
 
 	error = kern_msgctl(td, args->msqid, bsd_cmd, &bsd_msqid);
-	if (error != 0)
+	if (error != 0) {
+		if (bsd_cmd == LINUX_IPC_RMID && error == EACCES)
+			return (EPERM);
 		if (bsd_cmd != LINUX_IPC_RMID || error != EINVAL)
 			return (error);
+	}
 
 	if (bsd_cmd == LINUX_IPC_STAT) {
-		bsd_to_linux_msqid_ds(&bsd_msqid, &linux_msqid);
+		bsd_to_linux_msqid_ds(&bsd_msqid, &linux_msqid64);
 		return (linux_msqid_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_msqid, PTRIN(args->buf)));
+		    &linux_msqid64, PTRIN(args->buf)));
 	}
 
 	return (0);
@@ -783,11 +833,15 @@ linux_shmget(struct thread *td, struct linux_shmget_args *args)
 int
 linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 {
-	struct l_shmid_ds linux_shmid;
-	struct l_shminfo linux_shminfo;
+	struct l_shmid64_ds linux_shmid64;
+	struct l_shminfo64 linux_shminfo64;
 	struct l_shm_info linux_shm_info;
 	struct shmid_ds bsd_shmid;
 	int error;
+
+	memset(&linux_shm_info, 0, sizeof(linux_shm_info));
+	memset(&linux_shmid64, 0, sizeof(linux_shmid64));
+	memset(&linux_shminfo64, 0, sizeof(linux_shminfo64));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
 
@@ -797,13 +851,13 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, IPC_INFO,
 		    (void *)&bsd_shminfo, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
 
-		bsd_to_linux_shminfo(&bsd_shminfo, &linux_shminfo);
+		bsd_to_linux_shminfo(&bsd_shminfo, &linux_shminfo64);
 
 		return (linux_shminfo_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_shminfo, PTRIN(args->buf)));
+		    &linux_shminfo64, PTRIN(args->buf)));
 	}
 
 	case LINUX_SHM_INFO: {
@@ -812,7 +866,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, SHM_INFO,
 		    (void *)&bsd_shm_info, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
 
 		bsd_to_linux_shm_info(&bsd_shm_info, &linux_shm_info);
@@ -825,33 +879,33 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, IPC_STAT,
 		    (void *)&bsd_shmid, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
-		
-		bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
+
+		bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid64);
 
 		return (linux_shmid_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_shmid, PTRIN(args->buf)));
+		    &linux_shmid64, PTRIN(args->buf)));
 
 	case LINUX_SHM_STAT:
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, IPC_STAT,
 		    (void *)&bsd_shmid, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
-		
-		bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
+
+		bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid64);
 
 		return (linux_shmid_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_shmid, PTRIN(args->buf)));
+		    &linux_shmid64, PTRIN(args->buf)));
 
 	case LINUX_IPC_SET:
 		error = linux_shmid_pullup(args->cmd & LINUX_IPC_64,
-		    &linux_shmid, PTRIN(args->buf));
-		if (error)
+		    &linux_shmid64, PTRIN(args->buf));
+		if (error != 0)
 			return (error);
 
-		linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
+		linux_to_bsd_shmid_ds(&linux_shmid64, &bsd_shmid);
 
 		/* Perform shmctl wanting removed segments lookup */
 		return (kern_shmctl(td, args->shmid, IPC_SET,
@@ -864,10 +918,10 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 			buf = NULL;
 		else {
 			error = linux_shmid_pullup(args->cmd & LINUX_IPC_64,
-			    &linux_shmid, PTRIN(args->buf));
-			if (error)
+			    &linux_shmid64, PTRIN(args->buf));
+			if (error != 0)
 				return (error);
-			linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
+			linux_to_bsd_shmid_ds(&linux_shmid64, &bsd_shmid);
 			buf = (void *)&bsd_shmid;
 		}
 		return (kern_shmctl(td, args->shmid, IPC_RMID, buf, NULL));

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,10 @@
  *
  * $FreeBSD$
  */
-#ifndef _FBSD_PRINTK_H_
-#define	_FBSD_PRINTK_H_
+#ifndef _LINUX_PRINTK_H_
+#define	_LINUX_PRINTK_H_
+
+#include <linux/kernel.h>
 
 /* GID printing macros */
 #define	GID_PRINT_FMT			"%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x"
@@ -38,4 +40,85 @@
 					htons(((u16 *)gid_raw)[4]), htons(((u16 *)gid_raw)[5]),\
 					htons(((u16 *)gid_raw)[6]), htons(((u16 *)gid_raw)[7])
 
-#endif					/* _FBSD_PRINTK_H */
+enum {
+	DUMP_PREFIX_NONE,
+	DUMP_PREFIX_ADDRESS,
+	DUMP_PREFIX_OFFSET
+};
+
+static inline void
+print_hex_dump(const char *level, const char *prefix_str,
+    const int prefix_type, const int rowsize, const int groupsize,
+    const void *buf, size_t len, const bool ascii)
+{
+	typedef const struct { long long value; } __packed *print_64p_t;
+	typedef const struct { uint32_t value; } __packed *print_32p_t;
+	typedef const struct { uint16_t value; } __packed *print_16p_t;
+	const void *buf_old = buf;
+	int row;
+
+	while (len > 0) {
+		if (level != NULL)
+			printf("%s", level);
+		if (prefix_str != NULL)
+			printf("%s ", prefix_str);
+
+		switch (prefix_type) {
+		case DUMP_PREFIX_ADDRESS:
+			printf("[%p] ", buf);
+			break;
+		case DUMP_PREFIX_OFFSET:
+			printf("[%p] ", (const char *)((const char *)buf -
+			    (const char *)buf_old));
+			break;
+		default:
+			break;
+		}
+		for (row = 0; row != rowsize; row++) {
+			if (groupsize == 8 && len > 7) {
+				printf("%016llx ", ((print_64p_t)buf)->value);
+				buf = (const uint8_t *)buf + 8;
+				len -= 8;
+			} else if (groupsize == 4 && len > 3) {
+				printf("%08x ", ((print_32p_t)buf)->value);
+				buf = (const uint8_t *)buf + 4;
+				len -= 4;
+			} else if (groupsize == 2 && len > 1) {
+				printf("%04x ", ((print_16p_t)buf)->value);
+				buf = (const uint8_t *)buf + 2;
+				len -= 2;
+			} else if (len > 0) {
+				printf("%02x ", *(const uint8_t *)buf);
+				buf = (const uint8_t *)buf + 1;
+				len--;
+			} else {
+				break;
+			}
+		}
+		printf("\n");
+	}
+}
+
+static inline void
+print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
+    const void *buf, size_t len)
+{
+	print_hex_dump(NULL, prefix_str, prefix_type, 16, 1, buf, len, 0);
+}
+
+#define	printk_ratelimit() ({			\
+	static linux_ratelimit_t __ratelimited;	\
+	linux_ratelimited(&__ratelimited);	\
+})
+
+#define	printk_ratelimited(...) ({		\
+	bool __retval = printk_ratelimit();	\
+	if (__retval)				\
+		printk(__VA_ARGS__);		\
+	__retval;				\
+})
+
+#define	pr_err_ratelimited(fmt, ...) \
+	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
+
+#endif					/* _LINUX_PRINTK_H_ */

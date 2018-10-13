@@ -851,12 +851,13 @@ rt2661_eeprom_read(struct rt2661_softc *sc, uint8_t addr)
 static void
 rt2661_tx_intr(struct rt2661_softc *sc)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct rt2661_tx_ring *txq;
 	struct rt2661_tx_data *data;
 	uint32_t val;
-	int error, qid, retrycnt;
-	struct ieee80211vap *vap;
+	int error, qid;
 
+	txs->flags = IEEE80211_RATECTL_TX_FAIL_LONG;
 	for (;;) {
 		struct ieee80211_node *ni;
 		struct mbuf *m;
@@ -879,31 +880,27 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 		/* if no frame has been sent, ignore */
 		if (ni == NULL)
 			continue;
-		else
-			vap = ni->ni_vap;
 
 		switch (RT2661_TX_RESULT(val)) {
 		case RT2661_TX_SUCCESS:
-			retrycnt = RT2661_TX_RETRYCNT(val);
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			txs->long_retries = RT2661_TX_RETRYCNT(val);
 
 			DPRINTFN(sc, 10, "data frame sent successfully after "
-			    "%d retries\n", retrycnt);
+			    "%d retries\n", txs->long_retries);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_SUCCESS,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			error = 0;
 			break;
 
 		case RT2661_TX_RETRY_FAIL:
-			retrycnt = RT2661_TX_RETRYCNT(val);
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			txs->long_retries = RT2661_TX_RETRYCNT(val);
 
 			DPRINTFN(sc, 9, "%s\n",
 			    "sending data frame failed (too much retries)");
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_FAILURE,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			error = 1;
 			break;
 
@@ -1289,7 +1286,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 	desc = &sc->mgtq.desc[sc->mgtq.cur];
 	data = &sc->mgtq.data[sc->mgtq.cur];
 
-	rate = vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)].mgmtrate;
+	rate = ni->ni_txparms->mgmtrate;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
@@ -1364,38 +1361,18 @@ rt2661_sendprot(struct rt2661_softc *sc, int ac,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct rt2661_tx_ring *txq = &sc->txq[ac];
-	const struct ieee80211_frame *wh;
 	struct rt2661_tx_desc *desc;
 	struct rt2661_tx_data *data;
 	struct mbuf *mprot;
-	int protrate, ackrate, pktlen, flags, isshort, error;
-	uint16_t dur;
+	int protrate, flags, error;
 	bus_dma_segment_t segs[RT2661_MAX_SCATTER];
 	int nsegs;
 
-	KASSERT(prot == IEEE80211_PROT_RTSCTS || prot == IEEE80211_PROT_CTSONLY,
-	    ("protection %d", prot));
-
-	wh = mtod(m, const struct ieee80211_frame *);
-	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
-
-	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
-	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
-
-	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-	flags = RT2661_TX_MORE_FRAG;
-	if (prot == IEEE80211_PROT_RTSCTS) {
-		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-		flags |= RT2661_TX_NEED_ACK;
-		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
-	} else {
-		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
-	}
+	mprot = ieee80211_alloc_prot(ni, m, rate, prot);
 	if (mprot == NULL) {
-		/* XXX stat + msg */
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		device_printf(sc->sc_dev,
+		    "could not allocate mbuf for protection mode %d\n", prot);
 		return ENOBUFS;
 	}
 
@@ -1415,6 +1392,11 @@ rt2661_sendprot(struct rt2661_softc *sc, int ac,
 	data->ni = ieee80211_ref_node(ni);
 	/* ctl frames are not taken into account for amrr */
 	data->rix = IEEE80211_FIXED_RATE_NONE;
+
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	flags = RT2661_TX_MORE_FRAG;
+	if (prot == IEEE80211_PROT_RTSCTS)
+		flags |= RT2661_TX_NEED_ACK;
 
 	rt2661_setup_tx_desc(sc, desc, flags, 0, mprot->m_pkthdr.len,
 	    protrate, segs, 1, ac);
@@ -1438,9 +1420,8 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	struct rt2661_tx_desc *desc;
 	struct rt2661_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
-	const struct chanAccParams *cap;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[RT2661_MAX_SCATTER];
 	uint16_t dur;
@@ -1449,11 +1430,10 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		rate = tp->mcastrate;
-	} else if (m0->m_flags & M_EAPOL) {
+	if (m0->m_flags & M_EAPOL) {
 		rate = tp->mgmtrate;
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		rate = tp->mcastrate;
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = tp->ucastrate;
 	} else {
@@ -1462,10 +1442,8 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	}
 	rate &= IEEE80211_RATE_VAL;
 
-	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
-		cap = &ic->ic_wme.wme_chanParams;
-		noack = cap->cap_wmeParams[ac].wmep_noackPolicy;
-	}
+	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS)
+		noack = !! ieee80211_wme_vap_ac_is_noack(vap, ac);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -1619,9 +1597,9 @@ rt2661_start(struct rt2661_softc *sc)
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (rt2661_tx_data(sc, m, ni, ac) != 0) {
-			ieee80211_free_node(ni);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 		sc->sc_tx_timer = 5;
@@ -2049,9 +2027,12 @@ static int
 rt2661_wme_update(struct ieee80211com *ic)
 {
 	struct rt2661_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
 	const struct wmeParams *wmep;
 
-	wmep = ic->ic_wme.wme_chanParams.cap_wmeParams;
+	ieee80211_wme_ic_getparams(ic, &chp);
+
+	wmep = chp.cap_wmeParams;
 
 	/* XXX: not sure about shifts. */
 	/* XXX: the reference driver plays with AC_VI settings too. */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 James Gritton
  * All rights reserved.
  *
@@ -395,6 +397,14 @@ requeue(struct cfjail *j, struct cfjails *queue)
 		TAILQ_INSERT_TAIL(queue, j, tq);
 		j->queue = queue;
 	}
+}
+
+void
+requeue_head(struct cfjail *j, struct cfjails *queue)
+{
+    TAILQ_REMOVE(j->queue, j, tq);
+    TAILQ_INSERT_HEAD(queue, j, tq);
+    j->queue = queue;
 }
 
 /*

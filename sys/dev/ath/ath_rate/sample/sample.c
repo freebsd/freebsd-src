@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005 John Bicket
  * All rights reserved.
  *
@@ -775,6 +777,10 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	 * XXX Don't mark the higher bit rates as also having failed; as this
 	 * unfortunately stops those rates from being tasted when trying to
 	 * TX. This happens with 11n aggregation.
+	 *
+	 * This is valid for higher CCK rates, higher OFDM rates, and higher
+	 * HT rates within the current number of streams (eg MCS0..7, 8..15,
+	 * etc.)
 	 */
 	if (nframes == nbad) {
 #if 0

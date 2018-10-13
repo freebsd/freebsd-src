@@ -97,8 +97,7 @@ zfs_sa_symlink(znode_t *zp, char *link, int len, dmu_tx_t *tx)
 	dmu_buf_t *db = sa_get_db(zp->z_sa_hdl);
 
 	if (ZFS_OLD_ZNODE_PHYS_SIZE + len <= dmu_bonus_max()) {
-		VERIFY(dmu_set_bonus(db,
-		    len + ZFS_OLD_ZNODE_PHYS_SIZE, tx) == 0);
+		VERIFY0(dmu_set_bonus(db, len + ZFS_OLD_ZNODE_PHYS_SIZE, tx));
 		if (len) {
 			bcopy(link, (caddr_t)db->db_data +
 			    ZFS_OLD_ZNODE_PHYS_SIZE, len);
@@ -124,7 +123,7 @@ zfs_sa_get_scanstamp(znode_t *zp, xvattr_t *xvap)
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	xoptattr_t *xoap;
 
-	ASSERT(MUTEX_HELD(&zp->z_lock));
+	ASSERT_VOP_LOCKED(ZTOV(zp), __func__);
 	VERIFY((xoap = xva_getxoptattr(xvap)) != NULL);
 	if (zp->z_is_sa) {
 		if (sa_lookup(zp->z_sa_hdl, SA_ZPL_SCANSTAMP(zfsvfs),
@@ -158,7 +157,7 @@ zfs_sa_set_scanstamp(znode_t *zp, xvattr_t *xvap, dmu_tx_t *tx)
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	xoptattr_t *xoap;
 
-	ASSERT(MUTEX_HELD(&zp->z_lock));
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 	VERIFY((xoap = xva_getxoptattr(xvap)) != NULL);
 	if (zp->z_is_sa)
 		VERIFY(0 == sa_update(zp->z_sa_hdl, SA_ZPL_SCANSTAMP(zfsvfs),
@@ -205,7 +204,6 @@ zfs_sa_upgrade(sa_handle_t *hdl, dmu_tx_t *tx)
 	uint64_t crtime[2], mtime[2], ctime[2];
 	zfs_acl_phys_t znode_acl;
 	char scanstamp[AV_SCANSTAMP_SZ];
-	boolean_t drop_lock = B_FALSE;
 
 	/*
 	 * No upgrade if ACL isn't cached
@@ -217,20 +215,16 @@ zfs_sa_upgrade(sa_handle_t *hdl, dmu_tx_t *tx)
 		return;
 
 	/*
-	 * If the z_lock is held and we aren't the owner
-	 * the just return since we don't want to deadlock
+	 * If the vnode lock is held and we aren't the owner
+	 * then just return since we don't want to deadlock
 	 * trying to update the status of z_is_sa.  This
 	 * file can then be upgraded at a later time.
 	 *
 	 * Otherwise, we know we are doing the
 	 * sa_update() that caused us to enter this function.
 	 */
-	if (mutex_owner(&zp->z_lock) != curthread) {
-		if (mutex_tryenter(&zp->z_lock) == 0)
+	if (vn_lock(ZTOV(zp), LK_EXCLUSIVE | LK_NOWAIT) != 0)
 			return;
-		else
-			drop_lock = B_TRUE;
-	}
 
 	/* First do a bulk query of the attributes that aren't cached */
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_MTIME(zfsvfs), NULL, &mtime, 16);
@@ -311,8 +305,7 @@ zfs_sa_upgrade(sa_handle_t *hdl, dmu_tx_t *tx)
 
 	zp->z_is_sa = B_TRUE;
 done:
-	if (drop_lock)
-		mutex_exit(&zp->z_lock);
+	VOP_UNLOCK(ZTOV(zp), 0);
 }
 
 void

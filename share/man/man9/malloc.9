@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2015
+.Dd June 13, 2018
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -44,13 +44,19 @@
 .In sys/types.h
 .In sys/malloc.h
 .Ft void *
-.Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn malloc "size_t size" "struct malloc_type *type" "int flags"
+.Ft void *
+.Fn malloc_domain "size_t size" "struct malloc_type *type" "int domain" "int flags"
+.Ft void *
+.Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
+.Ft void
+.Fn free_domain "void *addr" "struct malloc_type *type"
 .Ft void *
-.Fn realloc "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
-.Fn reallocf "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn reallocf "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Fn MALLOC_DECLARE type
 .In sys/param.h
 .In sys/malloc.h
@@ -61,6 +67,22 @@ The
 .Fn malloc
 function allocates uninitialized memory in kernel address space for an
 object whose size is specified by
+.Fa size .
+.Pp
+The
+.Fn malloc_domain
+variant allocates the object from the specified memory domain.  Memory allocated
+with this function should be returned with
+.Fn free_domain .
+See
+.Xr numa 9 for more details.
+.Pp
+The
+.Fn mallocarray
+function allocates uninitialized memory in kernel address space for an
+array of
+.Fa nmemb
+entries whose size is specified by
 .Fa size .
 .Pp
 The
@@ -144,6 +166,7 @@ If the request cannot be immediately fulfilled, the current process is put
 to sleep to wait for resources to be released by other processes.
 The
 .Fn malloc ,
+.Fn mallocarray ,
 .Fn realloc ,
 and
 .Fn reallocf
@@ -152,6 +175,13 @@ functions cannot return
 if
 .Dv M_WAITOK
 is specified.
+If the multiplication of
+.Fa nmemb
+and
+.Fa size
+would cause an integer overflow, the
+.Fn mallocarray
+function induces a panic.
 .It Dv M_USE_RESERVE
 Indicates that the system can use its reserve of memory to satisfy the
 request.
@@ -159,6 +189,11 @@ This option should only be used in combination with
 .Dv M_NOWAIT
 when an allocation failure cannot be tolerated by the caller without
 catastrophic effects on the system.
+.It Dv M_EXEC
+Indicates that the system should allocate executable memory.
+If this flag is not set, the system will not allocate executable memory.
+Not all platforms enforce a distinction between executable and
+non-executable memory.
 .El
 .Pp
 Exactly one of either

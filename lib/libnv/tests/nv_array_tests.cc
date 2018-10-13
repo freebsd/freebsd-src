@@ -312,6 +312,7 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__basic)
 	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE_EQ(nvlist_error(result[i]), 0);
 		ATF_REQUIRE(nvlist_get_array_next(result[i]) == NULL);
+		ATF_REQUIRE(nvlist_get_parent(result[i], NULL) == NULL);
 		ATF_REQUIRE(nvlist_get_array_next(const_result[i]) == NULL);
 		ATF_REQUIRE(!nvlist_in_array(const_result[i]));
 	}

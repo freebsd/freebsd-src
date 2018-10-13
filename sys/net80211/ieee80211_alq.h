@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Adrian Chadd, Xenion Lty Ltd
  * All rights reserved.
  *
@@ -27,7 +29,7 @@
 #ifndef	__IEEE80211_ALQ_H__
 #define	__IEEE80211_ALQ_H__
 
-#define	IEEE80211_ALQ_PAYLOAD_SIZE	24
+#define	IEEE80211_ALQ_MAX_PAYLOAD	1024
 
 /*
  * timestamp
@@ -36,18 +38,24 @@
  * sub-operation
  * rest of structure - operation specific
  */
+
+#define	IEEE80211_ALQ_SRC_NET80211	0x0001
+/* Drivers define their own numbers above 0xff */
+
 struct ieee80211_alq_rec {
-	uint32_t	r_timestamp;	/* XXX may wrap! */
+	uint64_t	r_timestamp;	/* XXX may wrap! */
 	uint32_t	r_threadid;	/* current thread id */
 	uint16_t	r_wlan;		/* wlan interface number */
-	uint8_t		r_version;	/* version */
-	uint8_t		r_op;		/* top-level operation id */
-	u_char		r_payload[IEEE80211_ALQ_PAYLOAD_SIZE];
-					/* operation-specific payload */
+	uint16_t	r_src;		/* source - driver, net80211 */
+	uint32_t	r_flags;	/* flags */
+	uint32_t	r_op;		/* top-level operation id */
+	uint32_t	r_len;		/* length of hdr + payload */
+	/* Operation payload follows here */
 };
 
 /* General logging function */
-extern	void ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op,
-	    u_char *p, int l);
+extern	int ieee80211_alq_log(struct ieee80211com *ic,
+	    struct ieee80211vap *vap, uint32_t op, uint32_t flags,
+	    uint16_t srcid, const uint8_t *src, size_t len);
 
 #endif	/* __IEEE80211_ALQ_H__ */

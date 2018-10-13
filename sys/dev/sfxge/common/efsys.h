@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -266,7 +268,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_BOOTCFG 0
 
 #define	EFSYS_OPT_DIAG 0
-#define	EFSYS_OPT_WOL 1
 #define	EFSYS_OPT_RX_SCALE 1
 #define	EFSYS_OPT_QSTATS 1
 #define	EFSYS_OPT_FILTER 1
@@ -1094,6 +1095,8 @@ typedef struct efsys_lock_s {
 	mtx_unlock(&(_eslp)->lock)
 #define	SFXGE_EFSYS_LOCK_ASSERT_OWNED(_eslp)				\
 	mtx_assert(&(_eslp)->lock, MA_OWNED)
+
+typedef int efsys_lock_state_t;
 
 #define	EFSYS_LOCK_MAGIC	0x000010c4
 

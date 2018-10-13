@@ -60,12 +60,14 @@ ENTRY(bcopy)
 	subq	%rsi,%r8
 	cmpq	%rcx,%r8	/* overlapping? */
 	jb	1f
-	cld			/* nope, copy forwards. */
 	shrq	$3,%rcx		/* copy by words */
 	rep
 	movsq
 	movq	%rdx,%rcx
 	andq	$7,%rcx		/* any bytes left? */
+	jne	2f
+	ret
+2:
 	rep
 	movsb
 	ret
@@ -73,11 +75,13 @@ ENTRY(bcopy)
 	addq	%rcx,%rdi	/* copy backwards. */
 	addq	%rcx,%rsi
 	std
-	andq	$7,%rcx		/* any fractional bytes? */
 	decq	%rdi
 	decq	%rsi
+	andq	$7,%rcx		/* any fractional bytes? */
+	je	3f
 	rep
 	movsb
+3:
 	movq	%rdx,%rcx	/* copy remainder by words */
 	shrq	$3,%rcx
 	subq	$7,%rsi

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -77,6 +73,7 @@ struct _func_map {
 static int gopt_arch(const char *val);
 static int gopt_auto_attrcache(const char *val);
 static int gopt_auto_dir(const char *val);
+static int gopt_auto_nfs_version(const char *val);
 static int gopt_autofs_use_lofs(const char *val);
 static int gopt_browsable_dirs(const char *val);
 static int gopt_cache_duration(const char *val);
@@ -120,6 +117,7 @@ static int gopt_nfs_retry_interval_udp(const char *val);
 static int gopt_nfs_retry_interval_tcp(const char *val);
 static int gopt_nfs_retry_interval_toplvl(const char *val);
 static int gopt_nfs_vers(const char *val);
+static int gopt_nfs_vers_ping(const char *val);
 static int gopt_nis_domain(const char *val);
 static int gopt_normalize_hostnames(const char *val);
 static int gopt_normalize_slashes(const char *val);
@@ -132,6 +130,7 @@ static int gopt_restart_mounts(const char *val);
 static int gopt_search_path(const char *val);
 static int gopt_selectors_in_defaults(const char *val);
 static int gopt_show_statfs_entries(const char *val);
+static int gopt_sun_map_syntax(const char *val);
 static int gopt_truncate_log(const char *val);
 static int gopt_unmount_on_exit(const char *val);
 static int gopt_use_tcpwrappers(const char *val);
@@ -146,6 +145,7 @@ static int ropt_map_options(const char *val, cf_map_t *cfm);
 static int ropt_map_type(const char *val, cf_map_t *cfm);
 static int ropt_mount_type(const char *val, cf_map_t *cfm);
 static int ropt_search_path(const char *val, cf_map_t *cfm);
+static int ropt_sun_map_syntax(const char *val, cf_map_t *cfm);
 static int ropt_tag(const char *val, cf_map_t *cfm);
 static void init_cf_map(cf_map_t *cfm);
 
@@ -159,6 +159,7 @@ static struct _func_map glob_functable[] = {
   {"arch",			gopt_arch},
   {"auto_attrcache",		gopt_auto_attrcache},
   {"auto_dir",			gopt_auto_dir},
+  {"auto_nfs_version",		gopt_auto_nfs_version},
   {"autofs_use_lofs",		gopt_autofs_use_lofs},
   {"browsable_dirs",		gopt_browsable_dirs},
   {"cache_duration",		gopt_cache_duration},
@@ -202,6 +203,7 @@ static struct _func_map glob_functable[] = {
   {"nfs_retry_interval_tcp",	gopt_nfs_retry_interval_tcp},
   {"nfs_retry_interval_toplvl",	gopt_nfs_retry_interval_toplvl},
   {"nfs_vers",			gopt_nfs_vers},
+  {"nfs_vers_ping",		gopt_nfs_vers_ping},
   {"nis_domain",		gopt_nis_domain},
   {"normalize_hostnames",	gopt_normalize_hostnames},
   {"normalize_slashes",		gopt_normalize_slashes},
@@ -215,6 +217,7 @@ static struct _func_map glob_functable[] = {
   {"selectors_on_default",	gopt_selectors_in_defaults},
   {"selectors_in_defaults",	gopt_selectors_in_defaults},
   {"show_statfs_entries",	gopt_show_statfs_entries},
+  {"sun_map_syntax",		gopt_sun_map_syntax},
   {"truncate_log",		gopt_truncate_log},
   {"unmount_on_exit",		gopt_unmount_on_exit},
   {"use_tcpwrappers",		gopt_use_tcpwrappers},
@@ -255,12 +258,14 @@ init_cf_map(cf_map_t *cfm)
   cfm->cfm_search_path = gopt.search_path;
 
   /*
-   * Initialize flags that are common both to [global] and a local map.
+   * Initialize flags that are common both to [global] and a local map
+   * (that is, they could be inherited from the global section).
    */
   cfm->cfm_flags = gopt.flags & (CFM_BROWSABLE_DIRS |
 				 CFM_BROWSABLE_DIRS_FULL |
 				 CFM_MOUNT_TYPE_AUTOFS |
-				 CFM_SELECTORS_IN_DEFAULTS);
+				 CFM_SELECTORS_IN_DEFAULTS |
+				 CFM_SUN_MAP_SYNTAX );
 }
 
 
@@ -366,7 +371,7 @@ process_global_option(const char *key, const char *val)
 static int
 gopt_arch(const char *val)
 {
-  gopt.arch = strdup((char *)val);
+  gopt.arch = xstrdup(val);
   return 0;
 }
 
@@ -386,10 +391,23 @@ gopt_auto_attrcache(const char *val)
 static int
 gopt_auto_dir(const char *val)
 {
-  gopt.auto_dir = strdup((char *)val);
+  gopt.auto_dir = xstrdup(val);
   return 0;
 }
 
+static int
+gopt_auto_nfs_version(const char *val)
+{
+  if (strcmp(val, "2") == 0)
+    nfs_dispatcher = nfs_program_2;
+  else if (strcmp(val, "3") == 0)
+    nfs_dispatcher = nfs_program_3;
+  else {
+    fprintf(stderr, "conf: bad auto nfs version : \"%s\"\n", val);
+    return 1;
+  }
+  return 0;
+}
 
 static int
 gopt_autofs_use_lofs(const char *val)
@@ -439,7 +457,7 @@ gopt_cache_duration(const char *val)
 static int
 gopt_cluster(const char *val)
 {
-  gopt.cluster = strdup((char *)val);
+  gopt.cluster = xstrdup(val);
   return 0;
 }
 
@@ -447,7 +465,7 @@ gopt_cluster(const char *val)
 static int
 gopt_debug_mtab_file(const char *val)
 {
-  gopt.debug_mtab_file = strdup((char*)val);
+  gopt.debug_mtab_file = xstrdup(val);
   return 0;
 }
 
@@ -547,7 +565,7 @@ gopt_forced_unmounts(const char *val)
 static int
 gopt_full_os(const char *val)
 {
-  gopt.op_sys_full = strdup((char *)val);
+  gopt.op_sys_full = xstrdup(val);
   return 0;
 }
 
@@ -572,7 +590,7 @@ static int
 gopt_hesiod_base(const char *val)
 {
 #ifdef HAVE_MAP_HESIOD
-  gopt.hesiod_base = strdup((char *)val);
+  gopt.hesiod_base = xstrdup(val);
   return 0;
 #else /* not HAVE_MAP_HESIOD */
   fprintf(stderr, "conf: hesiod_base option ignored.  No Hesiod support available.\n");
@@ -584,7 +602,7 @@ gopt_hesiod_base(const char *val)
 static int
 gopt_karch(const char *val)
 {
-  gopt.karch = strdup((char *)val);
+  gopt.karch = xstrdup(val);
   return 0;
 }
 
@@ -592,7 +610,7 @@ gopt_karch(const char *val)
 static int
 gopt_pid_file(const char *val)
 {
-  gopt.pid_file = strdup((char *)val);
+  gopt.pid_file = xstrdup(val);
   return 0;
 }
 
@@ -600,7 +618,7 @@ gopt_pid_file(const char *val)
 static int
 gopt_local_domain(const char *val)
 {
-  gopt.sub_domain = strdup((char *)val);
+  gopt.sub_domain = xstrdup(val);
   return 0;
 }
 
@@ -608,7 +626,7 @@ gopt_local_domain(const char *val)
 static int
 gopt_localhost_address(const char *val)
 {
-  gopt.localhost_address = strdup((char *)val);
+  gopt.localhost_address = xstrdup(val);
   return 0;
 }
 
@@ -617,7 +635,7 @@ static int
 gopt_ldap_base(const char *val)
 {
 #ifdef HAVE_MAP_LDAP
-  gopt.ldap_base = strdup((char *)val);
+  gopt.ldap_base = xstrdup(val);
   return 0;
 #else /* not HAVE_MAP_LDAP */
   fprintf(stderr, "conf: ldap_base option ignored.  No LDAP support available.\n");
@@ -668,7 +686,7 @@ static int
 gopt_ldap_hostports(const char *val)
 {
 #ifdef HAVE_MAP_LDAP
-  gopt.ldap_hostports = strdup((char *)val);
+  gopt.ldap_hostports = xstrdup(val);
   return 0;
 #else /* not HAVE_MAP_LDAP */
   fprintf(stderr, "conf: ldap_hostports option ignored.  No LDAP support available.\n");
@@ -719,7 +737,7 @@ gopt_ldap_proto_version(const char *val)
 static int
 gopt_log_file(const char *val)
 {
-  gopt.logfile = strdup((char *)val);
+  gopt.logfile = xstrdup(val);
   return 0;
 }
 
@@ -735,7 +753,7 @@ gopt_log_options(const char *val)
 static int
 gopt_map_defaults(const char *val)
 {
-  gopt.map_defaults = strdup((char *)val);
+  gopt.map_defaults = xstrdup(val);
   return 0;
 }
 
@@ -743,7 +761,7 @@ gopt_map_defaults(const char *val)
 static int
 gopt_map_options(const char *val)
 {
-  gopt.map_options = strdup((char *)val);
+  gopt.map_options = xstrdup(val);
   return 0;
 }
 
@@ -766,7 +784,7 @@ gopt_map_type(const char *val)
     fprintf(stderr, "conf: no such map type \"%s\"\n", val);
     return 1;
   }
-  gopt.map_type = strdup((char *)val);
+  gopt.map_type = xstrdup(val);
   return 0;
 }
 
@@ -863,7 +881,7 @@ static int
 gopt_nfs_proto(const char *val)
 {
   if (STREQ(val, "udp") || STREQ(val, "tcp")) {
-    gopt.nfs_proto = strdup((char *)val);
+    gopt.nfs_proto = xstrdup(val);
     return 0;
   }
   fprintf(stderr, "conf: illegal nfs_proto \"%s\"\n", val);
@@ -946,7 +964,7 @@ gopt_nfs_vers(const char *val)
 {
   int i = atoi(val);
 
-  if (i == 2 || i == 3) {
+  if (i == 2 || i == 3 || i == 4) {
     gopt.nfs_vers = i;
     return 0;
   }
@@ -956,10 +974,23 @@ gopt_nfs_vers(const char *val)
 
 
 static int
+gopt_nfs_vers_ping(const char *val)
+{
+  int i = atoi(val);
+
+  if (i == 2 || i == 3 || i == 4) {
+    gopt.nfs_vers_ping = i;
+    return 0;
+  }
+  fprintf(stderr, "conf: illegal nfs_vers_ping \"%s\"\n", val);
+  return 1;
+}
+
+static int
 gopt_nis_domain(const char *val)
 {
 #ifdef HAVE_MAP_NIS
-  gopt.nis_domain = strdup((char *)val);
+  gopt.nis_domain = xstrdup(val);
   return 0;
 #else /* not HAVE_MAP_NIS */
   fprintf(stderr, "conf: nis_domain option ignored.  No NIS support available.\n");
@@ -1003,7 +1034,7 @@ gopt_normalize_slashes(const char *val)
 static int
 gopt_os(const char *val)
 {
-  gopt.op_sys = strdup((char *)val);
+  gopt.op_sys = xstrdup(val);
   return 0;
 }
 
@@ -1011,7 +1042,7 @@ gopt_os(const char *val)
 static int
 gopt_osver(const char *val)
 {
-  gopt.op_sys_ver = strdup((char *)val);
+  gopt.op_sys_ver = xstrdup(val);
   return 0;
 }
 
@@ -1084,7 +1115,7 @@ gopt_restart_mounts(const char *val)
 static int
 gopt_search_path(const char *val)
 {
-  gopt.search_path = strdup((char *)val);
+  gopt.search_path = xstrdup(val);
   return 0;
 }
 
@@ -1117,6 +1148,22 @@ gopt_show_statfs_entries(const char *val)
   }
 
   fprintf(stderr, "conf: unknown value to show_statfs_entries \"%s\"\n", val);
+  return 1;			/* unknown value */
+}
+
+
+static int
+gopt_sun_map_syntax(const char *val)
+{
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_SUN_MAP_SYNTAX;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_SUN_MAP_SYNTAX;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to sun_map_syntax \"%s\"\n", val);
   return 1;			/* unknown value */
 }
 
@@ -1177,7 +1224,7 @@ gopt_use_tcpwrappers(const char *val)
 static int
 gopt_vendor(const char *val)
 {
-  gopt.op_sys_vendor = strdup((char *)val);
+  gopt.op_sys_vendor = xstrdup(val);
   return 0;
 }
 
@@ -1199,7 +1246,7 @@ process_regular_option(const char *section, const char *key, const char *val, cf
 
   /* check if initializing a new map */
   if (!cfm->cfm_dir)
-    cfm->cfm_dir = strdup((char *)section);
+    cfm->cfm_dir = xstrdup(section);
 
   /* check for each possible field */
   if (STREQ(key, "browsable_dirs"))
@@ -1222,6 +1269,9 @@ process_regular_option(const char *section, const char *key, const char *val, cf
 
   if (STREQ(key, "search_path"))
     return ropt_search_path(val, cfm);
+
+  if (STREQ(key, "sun_map_syntax"))
+    return ropt_sun_map_syntax(val, cfm);
 
   if (STREQ(key, "tag"))
     return ropt_tag(val, cfm);
@@ -1254,7 +1304,7 @@ ropt_browsable_dirs(const char *val, cf_map_t *cfm)
 static int
 ropt_map_name(const char *val, cf_map_t *cfm)
 {
-  cfm->cfm_name = strdup((char *)val);
+  cfm->cfm_name = xstrdup(val);
   return 0;
 }
 
@@ -1262,7 +1312,7 @@ ropt_map_name(const char *val, cf_map_t *cfm)
 static int
 ropt_map_defaults(const char *val, cf_map_t *cfm)
 {
-  cfm->cfm_defaults = strdup((char *)val);
+  cfm->cfm_defaults = xstrdup(val);
   return 0;
 }
 
@@ -1270,7 +1320,7 @@ ropt_map_defaults(const char *val, cf_map_t *cfm)
 static int
 ropt_map_options(const char *val, cf_map_t *cfm)
 {
-  cfm->cfm_opts = strdup((char *)val);
+  cfm->cfm_opts = xstrdup(val);
   return 0;
 }
 
@@ -1283,7 +1333,7 @@ ropt_map_type(const char *val, cf_map_t *cfm)
     fprintf(stderr, "conf: no such map type \"%s\"\n", val);
     return 1;
   }
-  cfm->cfm_type = strdup((char *)val);
+  cfm->cfm_type = xstrdup(val);
   return 0;
 }
 
@@ -1313,15 +1363,32 @@ ropt_mount_type(const char *val, cf_map_t *cfm)
 static int
 ropt_search_path(const char *val, cf_map_t *cfm)
 {
-  cfm->cfm_search_path = strdup((char *)val);
+  cfm->cfm_search_path = xstrdup(val);
   return 0;
+}
+
+
+static int
+ropt_sun_map_syntax(const char *val, cf_map_t *cfm)
+{
+  if (STREQ(val, "yes")) {
+    cfm->cfm_flags |= CFM_SUN_MAP_SYNTAX;
+    return 0;
+
+  } else if (STREQ(val, "no")) {
+    cfm->cfm_flags &= ~CFM_SUN_MAP_SYNTAX;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to sun_map_syntax \"%s\"\n", val);
+  return 1;			/* unknown value */
 }
 
 
 static int
 ropt_tag(const char *val, cf_map_t *cfm)
 {
-  cfm->cfm_tag = strdup((char *)val);
+  cfm->cfm_tag = xstrdup(val);
   return 0;
 }
 
@@ -1397,7 +1464,7 @@ find_cf_map(const char *name)
     return NULL;
 
   while (tmp_map) {
-    if (STREQ(tmp_map->cfm_dir,name)) {
+    if (STREQ(tmp_map->cfm_dir, name)) {
       return tmp_map;
     }
     tmp_map = tmp_map->cfm_next;

@@ -1,6 +1,8 @@
 /*	$NetBSD: cache_mipsNN.h,v 1.4 2003/02/17 11:35:02 simonb Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

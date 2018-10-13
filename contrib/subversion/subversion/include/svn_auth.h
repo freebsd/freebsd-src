@@ -1012,11 +1012,13 @@ typedef svn_error_t *(*svn_auth_gnome_keyring_unlock_prompt_func_t)(
 
 /** @brief The pointer to function which prompts user for GNOME Keyring
  * password.
- * The type of this pointer should be svn_auth_gnome_keyring_unlock_prompt_func_t. */
+ * The type of this pointer should be svn_auth_gnome_keyring_unlock_prompt_func_t.
+ * @deprecated Only used by old libgnome-keyring implementation. */
 #define SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC "gnome-keyring-unlock-prompt-func"
 
 /** @brief The baton which is passed to
- * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC. */
+ * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC.
+ * @deprecated Only used by old libgnome-keyring implementation. */
 #define SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_BATON "gnome-keyring-unlock-prompt-baton"
 
 #if (!defined(DARWIN) && !defined(WIN32)) || defined(DOXYGEN)
@@ -1037,7 +1039,7 @@ svn_auth_gnome_keyring_version(void);
  * This is like svn_client_get_simple_provider(), except that the
  * password is stored in GNOME Keyring.
  *
- * If the GNOME Keyring is locked the provider calls
+ * If the GNOME Keyring is locked the old libgnome-keyring provider calls
  * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC in order to unlock
  * the keyring.
  *

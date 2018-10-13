@@ -1,4 +1,4 @@
-/*	$NetBSD: t_socket.c,v 1.3 2013/10/19 17:45:00 christos Exp $	*/
+/*	$NetBSD: t_socket.c,v 1.5 2017/01/13 21:30:41 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <util.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(cmsg_sendfd_bounds);
 ATF_TC_HEAD(cmsg_sendfd_bounds, tc)
@@ -74,7 +74,7 @@ ATF_TC(cmsg_sendfd);
 ATF_TC_HEAD(cmsg_sendfd, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks that fd passing works");
-	atf_tc_set_md_var(tc, "timeout", "2");
+	atf_tc_set_md_var(tc, "timeout", "10");
 }
 
 ATF_TC_BODY(cmsg_sendfd, tc)

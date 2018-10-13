@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <dev/mlx5/driver.h>
+#include <dev/mlx5/port.h>
 #include <dev/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
 
@@ -80,20 +80,18 @@ struct cre_des_eq {
 /*Function prototype*/
 static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 				   struct mlx5_eqe *eqe);
+static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
+						 struct mlx5_eqe *eqe);
 
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
-	u32 in[MLX5_ST_SZ_DW(destroy_eq_in)];
-	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(destroy_eq_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)] = {0};
 
 	MLX5_SET(destroy_eq_in, in, opcode, MLX5_CMD_OP_DESTROY_EQ);
 	MLX5_SET(destroy_eq_in, in, eq_number, eqn);
 
-	memset(out, 0, sizeof(out));
-	return mlx5_cmd_exec_check_status(dev, in,  sizeof(in),
-					       out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
@@ -155,6 +153,10 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_PAGE_REQUEST";
 	case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
 		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
+	case MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT:
+		return "MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT";
+	case MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT:
+		return "MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT";
 	default:
 		return "Unrecognized event";
 	}
@@ -177,6 +179,21 @@ static enum mlx5_dev_event port_subtype_event(u8 subtype)
 		return MLX5_DEV_EVENT_GUID_CHANGE;
 	case MLX5_PORT_CHANGE_SUBTYPE_CLIENT_REREG:
 		return MLX5_DEV_EVENT_CLIENT_REREG;
+	}
+	return -1;
+}
+
+static enum mlx5_dev_event dcbx_subevent(u8 subtype)
+{
+	switch (subtype) {
+	case MLX5_DCBX_EVENT_SUBTYPE_ERROR_STATE_DCBX:
+		return MLX5_DEV_EVENT_ERROR_STATE_DCBX;
+	case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_CHANGE:
+		return MLX5_DEV_EVENT_REMOTE_CONFIG_CHANGE;
+	case MLX5_DCBX_EVENT_SUBTYPE_LOCAL_OPER_CHANGE:
+		return MLX5_DEV_EVENT_LOCAL_OPER_CHANGE;
+	case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_APP_PRIORITY_CHANGE:
+		return MLX5_DEV_EVENT_REMOTE_CONFIG_APPLICATION_PRIORITY_CHANGE;
 	}
 	return -1;
 }
@@ -237,7 +254,8 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			break;
 
 		case MLX5_EVENT_TYPE_CMD:
-			mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector));
+			if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+				mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector));
 			break;
 
 		case MLX5_EVENT_TYPE_PORT_CHANGE:
@@ -259,6 +277,30 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 					       port, eqe->sub_type);
 			}
 			break;
+
+		case MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT:
+			port = (eqe->data.port.port >> 4) & 0xf;
+			switch (eqe->sub_type) {
+			case MLX5_DCBX_EVENT_SUBTYPE_ERROR_STATE_DCBX:
+			case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_CHANGE:
+			case MLX5_DCBX_EVENT_SUBTYPE_LOCAL_OPER_CHANGE:
+			case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_APP_PRIORITY_CHANGE:
+				if (dev->event)
+					dev->event(dev,
+						   dcbx_subevent(eqe->sub_type),
+						   0);
+				break;
+			default:
+				mlx5_core_warn(dev,
+					       "dcbx event with unrecognized subtype: port %d, sub_type %d\n",
+					       port, eqe->sub_type);
+			}
+			break;
+
+		case MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT:
+			mlx5_port_general_notification_event(dev, eqe);
+			break;
+
 		case MLX5_EVENT_TYPE_CQ_ERROR:
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
 			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrom 0x%x\n",
@@ -346,13 +388,16 @@ static void init_eq_buf(struct mlx5_eq *eq)
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name, struct mlx5_uar *uar)
 {
+	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_create_eq_mbox_in *in;
-	struct mlx5_create_eq_mbox_out out;
-	int err;
+	__be64 *pas;
+	void *eqc;
 	int inlen;
+	u32 *in;
+	int err;
 
 	eq->nent = roundup_pow_of_two(nent + MLX5_NUM_SPARE_EQE);
+	eq->cons_index = 0;
 	err = mlx5_buf_alloc(dev, eq->nent * MLX5_EQE_SIZE, 2 * PAGE_SIZE,
 			     &eq->buf);
 	if (err)
@@ -360,32 +405,32 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 
 	init_eq_buf(eq);
 
-	inlen = sizeof(*in) + sizeof(in->pas[0]) * eq->buf.npages;
+	inlen = MLX5_ST_SZ_BYTES(create_eq_in) +
+		MLX5_FLD_SZ_BYTES(create_eq_in, pas[0]) * eq->buf.npages;
 	in = mlx5_vzalloc(inlen);
 	if (!in) {
 		err = -ENOMEM;
 		goto err_buf;
 	}
-	memset(&out, 0, sizeof(out));
 
-	mlx5_fill_page_array(&eq->buf, in->pas);
+	pas = (__be64 *)MLX5_ADDR_OF(create_eq_in, in, pas);
+	mlx5_fill_page_array(&eq->buf, pas);
 
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_EQ);
-	in->ctx.log_sz_usr_page = cpu_to_be32(ilog2(eq->nent) << 24 | uar->index);
-	in->ctx.intr = vecidx;
-	in->ctx.log_page_size = eq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
-	in->events_mask = cpu_to_be64(mask);
+	MLX5_SET(create_eq_in, in, opcode, MLX5_CMD_OP_CREATE_EQ);
+	MLX5_SET64(create_eq_in, in, event_bitmask, mask);
 
-	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
+	eqc = MLX5_ADDR_OF(create_eq_in, in, eq_context_entry);
+	MLX5_SET(eqc, eqc, log_eq_size, ilog2(eq->nent));
+	MLX5_SET(eqc, eqc, uar_page, uar->index);
+	MLX5_SET(eqc, eqc, intr, vecidx);
+	MLX5_SET(eqc, eqc, log_page_size,
+		 eq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 	if (err)
 		goto err_in;
 
-	if (out.hdr.status) {
-		err = mlx5_cmd_status_to_err(&out.hdr);
-		goto err_in;
-	}
-
-	eq->eqn = out.eq_number;
+	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
 	eq->irqn = vecidx;
 	eq->dev = dev;
 	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
@@ -465,7 +510,7 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev)
 int mlx5_start_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	u32 async_event_mask = MLX5_ASYNC_EVENT_MASK;
+	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
 	if (MLX5_CAP_GEN(dev, port_module_event))
@@ -475,6 +520,10 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, nic_vport_change_event))
 		async_event_mask |= (1ull <<
 				     MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
+
+	if (MLX5_CAP_GEN(dev, dcbx))
+		async_event_mask |= (1ull <<
+				     MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
@@ -535,25 +584,16 @@ int mlx5_stop_eqs(struct mlx5_core_dev *dev)
 }
 
 int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		       struct mlx5_query_eq_mbox_out *out, int outlen)
+		       u32 *out, int outlen)
 {
-	struct mlx5_query_eq_mbox_in in;
-	int err;
+	u32 in[MLX5_ST_SZ_DW(query_eq_in)] = {0};
 
-	memset(&in, 0, sizeof(in));
 	memset(out, 0, outlen);
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_QUERY_EQ);
-	in.eqn = eq->eqn;
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), out, outlen);
-	if (err)
-		return err;
+	MLX5_SET(query_eq_in, in, opcode, MLX5_CMD_OP_QUERY_EQ);
+	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
 
-	if (out->hdr.status)
-		err = mlx5_cmd_status_to_err(&out->hdr);
-
-	return err;
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
-
 EXPORT_SYMBOL_GPL(mlx5_core_eq_query);
 
 static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
@@ -569,10 +609,12 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 		return "No EEPROM/retry timeout";
 	case MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST:
 		return "Enforce part number list";
-	case MLX5_MODULE_EVENT_ERROR_UNKNOWN_IDENTIFIER:
-		return "Unknown identifier";
+	case MLX5_MODULE_EVENT_ERROR_UNSUPPORTED_CABLE:
+		return "Unsupported Cable";
 	case MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE:
 		return "High Temperature";
+	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
+		return "Cable is shorted";
 
 	default:
 		return "Unknown error type";
@@ -604,23 +646,48 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 		     PORT_MODULE_EVENT_ERROR_TYPE_MASK;
 
 	switch (module_status) {
-	case MLX5_MODULE_STATUS_PLUGGED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged", module_num);
+	case MLX5_MODULE_STATUS_PLUGGED_ENABLED:
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged and enabled\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_UNPLUGGED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: unplugged", module_num);
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: unplugged\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_ERROR:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: error, %s", module_num, mlx5_port_module_event_error_type_to_string(error_type));
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: error, %s\n", module_num, mlx5_port_module_event_error_type_to_string(error_type));
+		break;
+
+	case MLX5_MODULE_STATUS_PLUGGED_DISABLED:
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged but disabled\n", module_num);
 		break;
 
 	default:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status", module_num);
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status\n", module_num);
 	}
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)
 		dev->module_status[module_num] = module_status;
+}
+
+static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
+						 struct mlx5_eqe *eqe)
+{
+	u8 port = (eqe->data.port.port >> 4) & 0xf;
+	u32 rqn = 0;
+	struct mlx5_eqe_general_notification_event *general_event = NULL;
+
+	switch (eqe->sub_type) {
+	case MLX5_GEN_EVENT_SUBTYPE_DELAY_DROP_TIMEOUT:
+		general_event = &eqe->data.general_notifications;
+		rqn = be32_to_cpu(general_event->rq_user_index_delay_drop) &
+			  0xffffff;
+		break;
+	default:
+		mlx5_core_warn(dev,
+			       "general event with unrecognized subtype: port %d, sub_type %d\n",
+			       port, eqe->sub_type);
+		break;
+	}
 }
 

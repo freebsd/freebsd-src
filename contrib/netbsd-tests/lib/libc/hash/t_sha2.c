@@ -36,22 +36,8 @@ __RCSID("$NetBSD: t_sha2.c,v 1.3 2012/09/26 22:23:30 joerg Exp $");
 
 #include <atf-c.h>
 #include <sys/types.h>
-#ifdef __NetBSD__
 #include <sha2.h>
-#endif
 #include <string.h>
-
-#ifdef __FreeBSD__
-#include <openssl/sha.h>
-typedef SHA512_CTX SHA384_CTX;
-/* From /usr/src/crypto/openssh/openbsd-compat/sha2.h */
-#define SHA256_DIGEST_LENGTH		32
-#define SHA256_DIGEST_STRING_LENGTH	(SHA256_DIGEST_LENGTH * 2 + 1)
-#define SHA384_DIGEST_LENGTH		48
-#define SHA384_DIGEST_STRING_LENGTH	(SHA384_DIGEST_LENGTH * 2 + 1)
-#define SHA512_DIGEST_LENGTH		64
-#define SHA512_DIGEST_STRING_LENGTH	(SHA512_DIGEST_LENGTH * 2 + 1)
-#endif
 
 ATF_TC(t_sha256);
 ATF_TC(t_sha384);

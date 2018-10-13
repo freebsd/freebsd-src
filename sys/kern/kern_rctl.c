@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -1954,12 +1956,15 @@ rctl_proc_ucred_changed(struct proc *p, struct ucred *newcred)
 	struct prison_racct *newprr;
 	int rulecnt, i;
 
-	ASSERT_RACCT_ENABLED();
+	if (!racct_enable)
+		return;
+
+	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 
 	newuip = newcred->cr_ruidinfo;
 	newlc = newcred->cr_loginclass;
 	newprr = newcred->cr_prison->pr_prison_racct;
-	
+
 	LIST_INIT(&newrules);
 
 again:

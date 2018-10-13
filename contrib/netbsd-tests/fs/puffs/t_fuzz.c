@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fuzz.c,v 1.5 2012/04/21 01:03:46 manu Exp $	*/
+/*	$NetBSD: t_fuzz.c,v 1.6 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -56,7 +56,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define ITERATIONS 100
 

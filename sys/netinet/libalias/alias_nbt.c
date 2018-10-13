@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Written by Atsushi Murai <amurai@spec.co.jp>
  * Copyright (c) 1998, System Planning and Engineering Co.
  * All rights reserved.
@@ -344,6 +346,9 @@ AliasHandleUdpNbt(
 	NbtDataHeader *ndh;
 	u_char *p = NULL;
 	char *pmax;
+#ifdef LIBALIAS_DEBUG
+	char addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	(void)la;
 	(void)lnk;
@@ -379,7 +384,8 @@ AliasHandleUdpNbt(
 	if (p == NULL || (char *)p > pmax)
 		p = NULL;
 #ifdef LIBALIAS_DEBUG
-	printf("%s:%d-->", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port));
+	printf("%s:%d-->", inet_ntoa_r(ndh->source_ip, INET_NTOA_BUF(addrbuf)),
+	    ntohs(ndh->source_port));
 #endif
 	/* Doing an IP address and Port number Translation */
 	if (uh->uh_sum != 0) {
@@ -399,7 +405,8 @@ AliasHandleUdpNbt(
 	ndh->source_ip = *alias_address;
 	ndh->source_port = alias_port;
 #ifdef LIBALIAS_DEBUG
-	printf("%s:%d\n", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port));
+	printf("%s:%d\n", inet_ntoa_r(ndh->source_ip, INET_NTOA_BUF(addrbuf)),
+	    ntohs(ndh->source_port));
 	fflush(stdout);
 #endif
 	return ((p == NULL) ? -1 : 0);
@@ -480,6 +487,10 @@ AliasHandleResourceNB(
 {
 	NBTNsRNB *nb;
 	u_short bcount;
+#ifdef LIBALIAS_DEBUG
+	char oldbuf[INET_ADDRSTRLEN];
+	char newbuf[INET_ADDRSTRLEN];
+#endif
 
 	if (q == NULL || (char *)(q + 1) > pmax)
 		return (NULL);
@@ -491,8 +502,10 @@ AliasHandleResourceNB(
 
 	/* Processing all in_addr array */
 #ifdef LIBALIAS_DEBUG
-	printf("NB rec[%s", inet_ntoa(nbtarg->oldaddr));
-	printf("->%s, %dbytes] ", inet_ntoa(nbtarg->newaddr), bcount);
+	printf("NB rec[%s->%s, %dbytes] ",
+	    inet_ntoa_r(nbtarg->oldaddr, INET_NTOA_BUF(oldbuf)),
+	    inet_ntoa_r(nbtarg->newaddr, INET_NTOA_BUF(newbuf)),
+	    bcount);
 #endif
 	while (nb != NULL && bcount != 0) {
 		if ((char *)(nb + 1) > pmax) {
@@ -500,7 +513,7 @@ AliasHandleResourceNB(
 			break;
 		}
 #ifdef LIBALIAS_DEBUG
-		printf("<%s>", inet_ntoa(nb->addr));
+		printf("<%s>", inet_ntoa_r(nb->addr, INET_NTOA_BUF(newbuf)));
 #endif
 		if (!bcmp(&nbtarg->oldaddr, &nb->addr, sizeof(struct in_addr))) {
 			if (*nbtarg->uh_sum != 0) {
@@ -547,6 +560,10 @@ AliasHandleResourceA(
 {
 	NBTNsResourceA *a;
 	u_short bcount;
+#ifdef LIBALIAS_DEBUG
+	char oldbuf[INET_ADDRSTRLEN];
+	char newbuf[INET_ADDRSTRLEN];
+#endif
 
 	if (q == NULL || (char *)(q + 1) > pmax)
 		return (NULL);
@@ -559,14 +576,15 @@ AliasHandleResourceA(
 
 	/* Processing all in_addr array */
 #ifdef LIBALIAS_DEBUG
-	printf("Arec [%s", inet_ntoa(nbtarg->oldaddr));
-	printf("->%s]", inet_ntoa(nbtarg->newaddr));
+	printf("Arec [%s->%s]",
+	    inet_ntoa_r(nbtarg->oldaddr, INET_NTOA_BUF(oldbuf)),
+	    inet_ntoa_r(nbtarg->newaddr, INET_NTOA_BUF(newbuf)));
 #endif
 	while (bcount != 0) {
 		if (a == NULL || (char *)(a + 1) > pmax)
 			return (NULL);
 #ifdef LIBALIAS_DEBUG
-		printf("..%s", inet_ntoa(a->addr));
+		printf("..%s", inet_ntoa_r(a->addr, INET_NTOA_BUF(newbuf)));
 #endif
 		if (!bcmp(&nbtarg->oldaddr, &a->addr, sizeof(struct in_addr))) {
 			if (*nbtarg->uh_sum != 0) {

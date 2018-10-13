@@ -12,7 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2016
+.Dd March 27, 2017
 .Dt SED 1
 .Os
 .Sh NAME
@@ -586,6 +586,36 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Replace
+.Ql bar
+with
+.Ql baz
+when piped from another command:
+.Bd -literal -offset indent
+echo "An alternate word, like bar, is sometimes used in examples." | sed 's/bar/baz/'
+.Ed
+.Pp
+Using backlashes can sometimes be hard to read and follow:
+.Bd -literal -offset indent
+echo "/home/example" | sed  's/\\/home\\/example/\\/usr\\/local\\/example/'
+.Ed
+.Pp
+Using a different separator can be handy when working with paths:
+.Bd -literal -offset indent
+echo "/home/example" | sed 's#/home/example#/usr/local/example#'
+.Ed
+.Pp
+Replace all occurances of
+.Ql foo
+with
+.Ql bar
+in the file
+.Pa test.txt ,
+without creating a backup of the file:
+.Bd -literal -offset indent
+sed -i '' -e 's/foo/bar/g' test.txt
+.Ed
 .Sh SEE ALSO
 .Xr awk 1 ,
 .Xr ed 1 ,

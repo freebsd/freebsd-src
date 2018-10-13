@@ -95,6 +95,11 @@ static void mrsas_freeze_simq(struct mrsas_mpt_cmd *cmd, struct cam_sim *sim);
 static void mrsas_cam_poll(struct cam_sim *sim);
 static void mrsas_action(struct cam_sim *sim, union ccb *ccb);
 static void mrsas_scsiio_timeout(void *data);
+static int mrsas_track_scsiio(struct mrsas_softc *sc, target_id_t id, u_int32_t bus_id);
+static void mrsas_tm_response_code(struct mrsas_softc *sc,
+    MPI2_SCSI_TASK_MANAGE_REPLY *mpi_reply);
+static int mrsas_issue_tm(struct mrsas_softc *sc,
+    MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc);
 static void
 mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs,
     int nseg, int error);
@@ -105,10 +110,13 @@ struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
 MRSAS_REQUEST_DESCRIPTOR_UNION *
 	mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index);
 
+extern void
+mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status,
+    u_int8_t extStatus);
+extern int mrsas_reset_targets(struct mrsas_softc *sc);
 extern u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 extern u_int32_t
-MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map,
-    struct mrsas_softc *sc);
+MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 extern void mrsas_isr(void *arg);
 extern void mrsas_aen_handler(struct mrsas_softc *sc);
 extern u_int8_t
@@ -125,6 +133,9 @@ extern u_int8_t
 megasas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
     u_int64_t block, u_int32_t count);
 extern int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
+extern MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
+extern void mrsas_disable_intr(struct mrsas_softc *sc);
+extern void mrsas_enable_intr(struct mrsas_softc *sc);
 
 
 /*
@@ -260,6 +271,17 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
 	u_int32_t device_id;
 
+	/*
+     * Check if the system going down
+     * or the adapter is in unrecoverable critical error
+     */
+    if (sc->remove_in_progress ||
+        (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR)) {
+        ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+        xpt_done(ccb);
+        return;
+    }
+
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 		{
@@ -333,9 +355,9 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->cpi.bus_id = cam_sim_bus(sim);
 			ccb->cpi.initiator_id = MRSAS_SCSI_INITIATOR_ID;
 			ccb->cpi.base_transfer_speed = 150000;
-			strncpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
-			strncpy(ccb->cpi.hba_vid, "AVAGO", HBA_IDLEN);
-			strncpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
+			strlcpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
+			strlcpy(ccb->cpi.hba_vid, "AVAGO", HBA_IDLEN);
+			strlcpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
 			ccb->cpi.transport = XPORT_SPI;
 			ccb->cpi.transport_version = 2;
 			ccb->cpi.protocol = PROTO_SCSI;
@@ -375,6 +397,10 @@ mrsas_scsiio_timeout(void *data)
 {
 	struct mrsas_mpt_cmd *cmd;
 	struct mrsas_softc *sc;
+	u_int32_t target_id;
+
+	if (!data)
+		return;
 
 	cmd = (struct mrsas_mpt_cmd *)data;
 	sc = cmd->sc;
@@ -383,6 +409,7 @@ mrsas_scsiio_timeout(void *data)
 		printf("command timeout with NULL ccb\n");
 		return;
 	}
+
 	/*
 	 * Below callout is dummy entry so that it will be cancelled from
 	 * mrsas_cmd_done(). Now Controller will go to OCR/Kill Adapter based
@@ -390,15 +417,25 @@ mrsas_scsiio_timeout(void *data)
 	 * context.
 	 */
 #if (__FreeBSD_version >= 1000510)
-	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
+	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 180, 0,
 	    mrsas_scsiio_timeout, cmd, 0);
 #else
-	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
+	callout_reset(&cmd->cm_callout, (180000 * hz) / 1000,
 	    mrsas_scsiio_timeout, cmd);
 #endif
-	sc->do_timedout_reset = SCSIIO_TIMEOUT_OCR;
-	if (sc->ocr_thread_active)
-		wakeup(&sc->ocr_chan);
+
+	if (cmd->ccb_ptr->cpi.bus_id == 0)
+		target_id = cmd->ccb_ptr->ccb_h.target_id;
+	else
+		target_id = (cmd->ccb_ptr->ccb_h.target_id + (MRSAS_MAX_PD - 1));
+
+	/* Save the cmd to be processed for TM, if it is not there in the array */
+	if (sc->target_reset_pool[target_id] == NULL) {
+		sc->target_reset_pool[target_id] = cmd;
+		mrsas_atomic_inc(&sc->target_reset_outstanding);
+	}
+
+	return;
 }
 
 /*
@@ -421,7 +458,8 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u_int8_t cmd_type;
 
-	if ((csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE) {
+	if ((csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE &&
+		(!sc->fw_sync_cache_support)) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		return (0);
@@ -585,10 +623,10 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	 * Start timer for IO timeout. Default timeout value is 90 second.
 	 */
 #if (__FreeBSD_version >= 1000510)
-	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
+	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 180, 0,
 	    mrsas_scsiio_timeout, cmd, 0);
 #else
-	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
+	callout_reset(&cmd->cm_callout, (180000 * hz) / 1000,
 	    mrsas_scsiio_timeout, cmd);
 #endif
 	mrsas_atomic_inc(&sc->fw_outstanding);
@@ -679,7 +717,7 @@ mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd)
 
 	mtx_lock(&sc->mpt_cmd_pool_lock);
 	cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
-	TAILQ_INSERT_TAIL(&(sc->mrsas_mpt_cmd_list_head), cmd, next);
+	TAILQ_INSERT_HEAD(&(sc->mrsas_mpt_cmd_list_head), cmd, next);
 	mtx_unlock(&sc->mpt_cmd_pool_lock);
 
 	return;
@@ -777,8 +815,9 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	struct ccb_scsiio *csio = &(ccb->csio);
 	struct IO_REQUEST_INFO io_info;
 	MR_DRV_RAID_MAP_ALL *map_ptr;
+	MR_LD_RAID *raid;
 	u_int8_t fp_possible;
-	u_int32_t start_lba_hi, start_lba_lo, ld_block_size;
+	u_int32_t start_lba_hi, start_lba_lo, ld_block_size, ld;
 	u_int32_t datalength = 0;
 
 	start_lba_lo = 0;
@@ -855,16 +894,20 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	}
 
 	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
-	ld_block_size = MR_LdBlockSizeGet(device_id, map_ptr, sc);
+	ld_block_size = MR_LdBlockSizeGet(device_id, map_ptr);
 
-	if ((MR_TargetIdToLdGet(device_id, map_ptr) >= MAX_LOGICAL_DRIVES_EXT) ||
-	    (!sc->fast_path_io)) {
+	ld = MR_TargetIdToLdGet(device_id, map_ptr);
+	if ((ld >= MAX_LOGICAL_DRIVES_EXT) || (!sc->fast_path_io)) {
 		io_request->RaidContext.regLockFlags = 0;
 		fp_possible = 0;
 	} else {
 		if (MR_BuildRaidContext(sc, &io_info, &io_request->RaidContext, map_ptr))
 			fp_possible = io_info.fpOkForIo;
 	}
+
+	raid = MR_LdRaidGet(ld, map_ptr);
+	/* Store the TM capability value in cmd */
+	cmd->tmCapable = raid->capability.tmCapable;
 
 	cmd->request_desc->SCSIIO.MSIxIndex =
 	    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
@@ -875,14 +918,9 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		    start_lba_lo, ld_block_size);
 		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 		cmd->request_desc->SCSIIO.RequestFlags =
-		    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+		    (MPI2_REQ_DESCRIPT_FLAGS_FP_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		if ((sc->device_id == MRSAS_INVADER) ||
-		    (sc->device_id == MRSAS_FURY) ||
-		    (sc->device_id == MRSAS_INTRUDER) ||
-		    (sc->device_id == MRSAS_INTRUDER_24) ||
-		    (sc->device_id == MRSAS_CUTLASS_52) ||
-		    (sc->device_id == MRSAS_CUTLASS_53)) {
+		if (sc->mrsas_gen3_ctrl) {
 			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
@@ -911,12 +949,7 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MRSAS_REQ_DESCRIPT_FLAGS_LD_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		if ((sc->device_id == MRSAS_INVADER) ||
-		    (sc->device_id == MRSAS_FURY) ||
-		    (sc->device_id == MRSAS_INTRUDER) ||
-		    (sc->device_id == MRSAS_INTRUDER_24) ||
-		    (sc->device_id == MRSAS_CUTLASS_52) ||
-		    (sc->device_id == MRSAS_CUTLASS_53)) {
+		if (sc->mrsas_gen3_ctrl) {
 			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
@@ -947,11 +980,19 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb)
 {
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
-	u_int32_t device_id;
+	u_int32_t device_id, ld;
+	MR_DRV_RAID_MAP_ALL *map_ptr;
+	MR_LD_RAID *raid;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
 
 	io_request = cmd->io_request;
 	device_id = ccb_h->target_id;
+
+	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
+	ld = MR_TargetIdToLdGet(device_id, map_ptr);
+	raid = MR_LdRaidGet(ld, map_ptr);
+	/* Store the TM capability value in cmd */
+	cmd->tmCapable = raid->capability.tmCapable;
 
 	/* FW path for LD Non-RW (SCSI management commands) */
 	io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
@@ -1002,8 +1043,6 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
 	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
 
-	pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id - 1) & 1];
-
 	io_request = cmd->io_request;
 	device_id = ccb_h->target_id;
 	local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
@@ -1017,6 +1056,8 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	if (sc->use_seqnum_jbod_fp &&
 	    sc->pd_list[device_id].driveType == 0x00) {
 		//printf("Using Drv seq num\n");
+		pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id - 1) & 1];
+		cmd->tmCapable = pd_sync->seq[device_id].capability.tmCapable;
 		io_request->RaidContext.VirtualDiskTgtId = device_id + 255;
 		io_request->RaidContext.configSeqNum = pd_sync->seq[device_id].seqNum;
 		io_request->DevHandle = pd_sync->seq[device_id].devHandle;
@@ -1065,7 +1106,7 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
 
 		cmd->request_desc->SCSIIO.RequestFlags =
-		    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+		    (MPI2_REQ_DESCRIPT_FLAGS_FP_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 
@@ -1192,12 +1233,7 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	io_request = cmd->io_request;
 	sgl_ptr = (pMpi25IeeeSgeChain64_t)&io_request->SGL;
 
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53)) {
+	if (sc->mrsas_gen3_ctrl) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = sgl_ptr;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
@@ -1208,12 +1244,7 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			sgl_ptr->Address = segs[i].ds_addr;
 			sgl_ptr->Length = segs[i].ds_len;
 			sgl_ptr->Flags = 0;
-			if ((sc->device_id == MRSAS_INVADER) ||
-			    (sc->device_id == MRSAS_FURY) ||
-			    (sc->device_id == MRSAS_INTRUDER) ||
-			    (sc->device_id == MRSAS_INTRUDER_24) ||
-			    (sc->device_id == MRSAS_CUTLASS_52) ||
-			    (sc->device_id == MRSAS_CUTLASS_53)) {
+			if (sc->mrsas_gen3_ctrl) {
 				if (i == nseg - 1)
 					sgl_ptr->Flags = IEEE_SGE_FLAGS_END_OF_LIST;
 			}
@@ -1223,12 +1254,7 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			    (nseg > sc->max_sge_in_main_msg)) {
 				pMpi25IeeeSgeChain64_t sg_chain;
 
-				if ((sc->device_id == MRSAS_INVADER) ||
-				    (sc->device_id == MRSAS_FURY) ||
-				    (sc->device_id == MRSAS_INTRUDER) ||
-				    (sc->device_id == MRSAS_INTRUDER_24) ||
-				    (sc->device_id == MRSAS_CUTLASS_52) ||
-				    (sc->device_id == MRSAS_CUTLASS_53)) {
+				if (sc->mrsas_gen3_ctrl) {
 					if ((cmd->io_request->IoFlags & MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 					    != MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 						cmd->io_request->ChainOffset = sc->chain_offset_io_request;
@@ -1237,12 +1263,7 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 				} else
 					cmd->io_request->ChainOffset = sc->chain_offset_io_request;
 				sg_chain = sgl_ptr;
-				if ((sc->device_id == MRSAS_INVADER) ||
-				    (sc->device_id == MRSAS_FURY) ||
-				    (sc->device_id == MRSAS_INTRUDER) ||
-				    (sc->device_id == MRSAS_INTRUDER_24) ||
-				    (sc->device_id == MRSAS_CUTLASS_52) ||
-				    (sc->device_id == MRSAS_CUTLASS_53))
+				if (sc->mrsas_gen3_ctrl)
 					sg_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT;
 				else
 					sg_chain->Flags = (IEEE_SGE_FLAGS_CHAIN_ELEMENT | MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);
@@ -1295,9 +1316,10 @@ mrsas_xpt_release(struct mrsas_softc *sc)
 void
 mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 {
-	callout_stop(&cmd->cm_callout);
 	mrsas_unmap_request(sc, cmd);
+	
 	mtx_lock(&sc->sim_lock);
+	callout_stop(&cmd->cm_callout);
 	xpt_done(cmd->ccb_ptr);
 	cmd->ccb_ptr = NULL;
 	mtx_unlock(&sc->sim_lock);
@@ -1395,3 +1417,269 @@ mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim)
 
 	return (0);
 }
+
+/*
+ * mrsas_track_scsiio:  Track IOs for a given target in the mpt_cmd_list
+ * input:           Adapter instance soft state
+ *                  Target ID of target
+ *                  Bus ID of the target
+ *
+ * This function checks for any pending IO in the whole mpt_cmd_list pool
+ * with the bus_id and target_id passed in arguments. If some IO is found
+ * that means target reset is not successfully completed.
+ *
+ * Returns FAIL if IOs pending to the target device, else return SUCCESS
+ */
+static int
+mrsas_track_scsiio(struct mrsas_softc *sc, target_id_t tgt_id, u_int32_t bus_id)
+{
+	int i;
+	struct mrsas_mpt_cmd *mpt_cmd = NULL;
+
+	for (i = 0 ; i < sc->max_fw_cmds; i++) {
+		mpt_cmd = sc->mpt_cmd_list[i];
+
+	/*
+	 * Check if the target_id and bus_id is same as the timeout IO
+	 */
+	if (mpt_cmd->ccb_ptr) {
+		/* bus_id = 1 denotes a VD */
+		if (bus_id == 1)
+			tgt_id = (mpt_cmd->ccb_ptr->ccb_h.target_id - (MRSAS_MAX_PD - 1));
+
+			if (mpt_cmd->ccb_ptr->cpi.bus_id == bus_id &&
+			    mpt_cmd->ccb_ptr->ccb_h.target_id == tgt_id) {
+				device_printf(sc->mrsas_dev,
+				    "IO commands pending to target id %d\n", tgt_id);
+				return FAIL;
+			}
+		}
+	}
+
+	return SUCCESS;
+}
+
+#if TM_DEBUG
+/*
+ * mrsas_tm_response_code: Prints TM response code received from FW
+ * input:           Adapter instance soft state
+ *                  MPI reply returned from firmware
+ *
+ * Returns nothing.
+ */
+static void
+mrsas_tm_response_code(struct mrsas_softc *sc,
+	MPI2_SCSI_TASK_MANAGE_REPLY *mpi_reply)
+{
+	char *desc;
+
+	switch (mpi_reply->ResponseCode) {
+	case MPI2_SCSITASKMGMT_RSP_TM_COMPLETE:
+		desc = "task management request completed";
+		break;
+	case MPI2_SCSITASKMGMT_RSP_INVALID_FRAME:
+		desc = "invalid frame";
+		break;
+	case MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED:
+		desc = "task management request not supported";
+		break;
+	case MPI2_SCSITASKMGMT_RSP_TM_FAILED:
+		desc = "task management request failed";
+		break;
+	case MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED:
+		desc = "task management request succeeded";
+		break;
+	case MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN:
+		desc = "invalid lun";
+		break;
+	case 0xA:
+		desc = "overlapped tag attempted";
+		break;
+	case MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC:
+		desc = "task queued, however not sent to target";
+		break;
+	default:
+		desc = "unknown";
+		break;
+	}
+	device_printf(sc->mrsas_dev, "response_code(%01x): %s\n",
+	    mpi_reply->ResponseCode, desc);
+	device_printf(sc->mrsas_dev,
+	    "TerminationCount/DevHandle/Function/TaskType/IOCStat/IOCLoginfo\n"
+	    "0x%x/0x%x/0x%x/0x%x/0x%x/0x%x\n",
+	    mpi_reply->TerminationCount, mpi_reply->DevHandle,
+	    mpi_reply->Function, mpi_reply->TaskType,
+	    mpi_reply->IOCStatus, mpi_reply->IOCLogInfo);
+}
+#endif
+
+/*
+ * mrsas_issue_tm:  Fires the TM command to FW and waits for completion
+ * input:           Adapter instance soft state
+ *                  reqest descriptor compiled by mrsas_reset_targets
+ *
+ * Returns FAIL if TM command TIMEDOUT from FW else SUCCESS.
+ */
+static int
+mrsas_issue_tm(struct mrsas_softc *sc,
+	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc)
+{
+	int sleep_stat;
+
+	mrsas_fire_cmd(sc, req_desc->addr.u.low, req_desc->addr.u.high);
+	sleep_stat = msleep(&sc->ocr_chan, &sc->sim_lock, PRIBIO, "tm_sleep", 50*hz);
+
+	if (sleep_stat == EWOULDBLOCK) {
+		device_printf(sc->mrsas_dev, "tm cmd TIMEDOUT\n");
+		return FAIL;
+	}
+
+	return SUCCESS;
+}
+
+/*
+ * mrsas_reset_targets : Gathers info to fire a target reset command
+ * input:           Adapter instance soft state
+ *
+ * This function compiles data for a target reset command to be fired to the FW
+ * and then traverse the target_reset_pool to see targets with TIMEDOUT IOs.
+ *
+ * Returns SUCCESS or FAIL
+ */
+int mrsas_reset_targets(struct mrsas_softc *sc)
+{
+	struct mrsas_mpt_cmd *tm_mpt_cmd = NULL;
+	struct mrsas_mpt_cmd *tgt_mpt_cmd = NULL;
+	MR_TASK_MANAGE_REQUEST *mr_request;
+	MPI2_SCSI_TASK_MANAGE_REQUEST *tm_mpi_request;
+	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	int retCode = FAIL, count, i, outstanding;
+	u_int32_t MSIxIndex, bus_id;
+	target_id_t tgt_id;
+#if TM_DEBUG
+	MPI2_SCSI_TASK_MANAGE_REPLY *mpi_reply;
+#endif
+
+	outstanding = mrsas_atomic_read(&sc->fw_outstanding);
+
+	if (!outstanding) {
+		device_printf(sc->mrsas_dev, "NO IOs pending...\n");
+		mrsas_atomic_set(&sc->target_reset_outstanding, 0);
+		retCode = SUCCESS;
+		goto return_status;
+	} else if (sc->adprecovery != MRSAS_HBA_OPERATIONAL) {
+		device_printf(sc->mrsas_dev, "Controller is not operational\n");
+		goto return_status;
+	} else {
+		/* Some more error checks will be added in future */
+	}
+
+	/* Get an mpt frame and an index to fire the TM cmd */
+	tm_mpt_cmd = mrsas_get_mpt_cmd(sc);
+	if (!tm_mpt_cmd) {
+		retCode = FAIL;
+		goto return_status;
+	}
+
+	req_desc = mrsas_get_request_desc(sc, (tm_mpt_cmd->index) - 1);
+	if (!req_desc) {
+		device_printf(sc->mrsas_dev, "Cannot get request_descriptor for tm.\n");
+		retCode = FAIL;
+		goto release_mpt;
+	}
+	memset(req_desc, 0, sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION));
+
+	req_desc->HighPriority.SMID = tm_mpt_cmd->index;
+	req_desc->HighPriority.RequestFlags =
+	    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+	    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+	req_desc->HighPriority.MSIxIndex =  0;
+	req_desc->HighPriority.LMID = 0;
+	req_desc->HighPriority.Reserved1 = 0;
+	tm_mpt_cmd->request_desc = req_desc;
+
+	mr_request = (MR_TASK_MANAGE_REQUEST *) tm_mpt_cmd->io_request;
+	memset(mr_request, 0, sizeof(MR_TASK_MANAGE_REQUEST));
+
+	tm_mpi_request = (MPI2_SCSI_TASK_MANAGE_REQUEST *) &mr_request->TmRequest;
+	tm_mpi_request->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
+	tm_mpi_request->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
+	tm_mpi_request->TaskMID = 0; /* smid task */
+	tm_mpi_request->LUN[1] = 0;
+
+	/* Traverse the tm_mpt pool to get valid entries */
+	for (i = 0 ; i < MRSAS_MAX_TM_TARGETS; i++) {
+		if(!sc->target_reset_pool[i]) {
+			continue;
+		} else {
+			tgt_mpt_cmd = sc->target_reset_pool[i];
+		}
+
+		tgt_id = i;
+
+		/* See if the target is tm capable or NOT */
+		if (!tgt_mpt_cmd->tmCapable) {
+			device_printf(sc->mrsas_dev, "Task management NOT SUPPORTED for "
+			    "CAM target:%d\n", tgt_id);
+
+			retCode = FAIL;
+			goto release_mpt;
+		}
+
+		tm_mpi_request->DevHandle = tgt_mpt_cmd->io_request->DevHandle;
+
+		if (i < (MRSAS_MAX_PD - 1)) {
+			mr_request->uTmReqReply.tmReqFlags.isTMForPD = 1;
+			bus_id = 0;
+		} else {
+			mr_request->uTmReqReply.tmReqFlags.isTMForLD = 1;
+			bus_id = 1;
+		}
+
+		device_printf(sc->mrsas_dev, "TM will be fired for "
+		    "CAM target:%d and bus_id %d\n", tgt_id, bus_id);
+
+		sc->ocr_chan = (void *)&tm_mpt_cmd;
+		retCode = mrsas_issue_tm(sc, req_desc);
+		if (retCode == FAIL)
+			goto release_mpt;
+
+#if TM_DEBUG
+		mpi_reply =
+		    (MPI2_SCSI_TASK_MANAGE_REPLY *) &mr_request->uTmReqReply.TMReply;
+		mrsas_tm_response_code(sc, mpi_reply);
+#endif
+		mrsas_atomic_dec(&sc->target_reset_outstanding);
+		sc->target_reset_pool[i] = NULL;
+
+		/* Check for pending cmds in the mpt_cmd_pool with the tgt_id */
+		mrsas_disable_intr(sc);
+		/* Wait for 1 second to complete parallel ISR calling same
+		 * mrsas_complete_cmd()
+		 */
+		msleep(&sc->ocr_chan, &sc->sim_lock, PRIBIO, "mrsas_reset_wakeup",
+		   1 * hz);
+		count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+		mtx_unlock(&sc->sim_lock);
+		for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
+		    mrsas_complete_cmd(sc, MSIxIndex);
+		mtx_lock(&sc->sim_lock);
+		retCode = mrsas_track_scsiio(sc, tgt_id, bus_id);
+		mrsas_enable_intr(sc);
+
+		if (retCode == FAIL)
+			goto release_mpt;
+	}
+
+	device_printf(sc->mrsas_dev, "Number of targets outstanding "
+	    "after reset: %d\n", mrsas_atomic_read(&sc->target_reset_outstanding));
+
+release_mpt:
+	mrsas_release_mpt_cmd(tm_mpt_cmd);
+return_status:
+	device_printf(sc->mrsas_dev, "target reset %s!!\n",
+		(retCode == SUCCESS) ? "SUCCESS" : "FAIL");
+
+	return retCode;
+}
+

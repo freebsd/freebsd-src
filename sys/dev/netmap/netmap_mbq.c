@@ -1,5 +1,8 @@
-/*
- * Copyright (C) 2013-2014 Vincenzo Maffione. All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (C) 2013-2014 Vincenzo Maffione
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,6 +33,8 @@
 
 #ifdef linux
 #include "bsd_glue.h"
+#elif defined (_WIN32)
+#include "win_glue.h"
 #else   /* __FreeBSD__ */
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -152,12 +157,12 @@ void mbq_safe_purge(struct mbq *q)
 }
 
 
-void mbq_safe_destroy(struct mbq *q)
+void mbq_safe_fini(struct mbq *q)
 {
     mtx_destroy(&q->lock);
 }
 
 
-void mbq_destroy(struct mbq *q)
+void mbq_fini(struct mbq *q)
 {
 }

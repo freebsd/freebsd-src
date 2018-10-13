@@ -4,7 +4,7 @@
 --	All rights reserved.
 --
 -- Author: Harti Brandt <harti@freebsd.org>
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions
 -- are met:
@@ -13,7 +13,7 @@
 -- 2. Redistributions in binary form must reproduce the above copyright
 --    notice, this list of conditions and the following disclaimer in the
 --    documentation and/or other materials provided with the distribution.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 -- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -44,7 +44,7 @@ IMPORTS
 	FROM BEGEMOT-MIB;
 
 begemotSnmpd MODULE-IDENTITY
-    LAST-UPDATED "200212040000Z"
+    LAST-UPDATED "201801190000Z"
     ORGANIZATION "Fraunhofer FOKUS, CATS"
     CONTACT-INFO
 	    "		Hartmut Brandt
@@ -274,7 +274,8 @@ BegemotSnmpdCommunityEntry ::= SEQUENCE {
     begemotSnmpdCommunityModule	SectionName,
     begemotSnmpdCommunityIndex	Unsigned32,
     begemotSnmpdCommunityString	OCTET STRING,
-    begemotSnmpdCommunityDescr	OCTET STRING
+    begemotSnmpdCommunityDescr	OCTET STRING,
+    begemotSnmpdCommunityPermission INTEGER
 }
 
 begemotSnmpdCommunityModule OBJECT-TYPE
@@ -309,6 +310,14 @@ begemotSnmpdCommunityDescr OBJECT-TYPE
     DESCRIPTION
 	    "A description what this community is good for."
     ::= { begemotSnmpdCommunityEntry 4 }
+
+begemotSnmpdCommunityPermission OBJECT-TYPE
+    SYNTAX	INTEGER (1..4294967295)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The numerical value of access rights granted to the community."
+    ::= { begemotSnmpdCommunityEntry 5 }
 
 --
 -- Module table

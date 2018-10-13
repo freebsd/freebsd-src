@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -156,7 +158,7 @@ g_shsec_remove_disk(struct g_consumer *cp)
 
 	sc->sc_disks[no] = NULL;
 	if (sc->sc_provider != NULL) {
-		g_orphan_provider(sc->sc_provider, ENXIO);
+		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
 		G_SHSEC_DEBUG(0, "Device %s removed.", sc->sc_name);
 	}
@@ -834,3 +836,4 @@ g_shsec_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_shsec_class, g_shsec);
+MODULE_VERSION(geom_shsec, 0);

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2012
+.Dd July 30, 2016
 .Dt GETLINE 3
 .Os
 .Sh NAME
@@ -34,7 +34,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd "#define _WITH_GETLINE"
 .In stdio.h
 .Ft ssize_t
 .Fn getdelim "char ** restrict linep" "size_t * restrict linecapp" "int delimiter" " FILE * restrict stream"
@@ -97,34 +96,6 @@ while ((linelen = getline(&line, &linecap, fp)) > 0)
 	fwrite(line, linelen, 1, stdout);
 free(line);
 .Ed
-.Sh COMPATIBILITY
-Many application writers used the name
-.Va getline
-before the
-.Fn getline
-function was introduced in
-.St -p1003.1 ,
-so a prototype is not provided by default in order to avoid
-compatibility problems.
-Applications that wish to use the
-.Fn getline
-function described herein should either request a strict
-.St -p1003.1-2008
-environment by defining the macro
-.Dv _POSIX_C_SOURCE
-to the value 200809 or greater, or by defining the macro
-.Dv _WITH_GETLINE ,
-prior to the inclusion of
-.In stdio.h .
-For compatibility with GNU libc, defining either
-.Dv _BSD_SOURCE
-or
-.Dv _GNU_SOURCE
-prior to the inclusion of
-.In stdio.h
-will also make
-.Fn getline
-available.
 .Sh ERRORS
 These functions may fail if:
 .Bl -tag -width Er

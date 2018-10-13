@@ -322,7 +322,7 @@ struct iso9660 {
 
 	struct archive_string pathname;
 	char	seenRockridge;	/* Set true if RR extensions are used. */
-	char	seenSUSP;	/* Set true if SUSP is beging used. */
+	char	seenSUSP;	/* Set true if SUSP is being used. */
 	char	seenJoliet;
 
 	unsigned char	suspOffset;
@@ -374,7 +374,7 @@ struct iso9660 {
 	size_t		 utf16be_path_len;
 	unsigned char *utf16be_previous_path;
 	size_t		 utf16be_previous_path_len;
-	/* Null buufer used in bidder to improve its performance. */
+	/* Null buffer used in bidder to improve its performance. */
 	unsigned char	 null[2048];
 };
 
@@ -409,7 +409,8 @@ static int	next_entry_seek(struct archive_read *, struct iso9660 *,
 		    struct file_info **);
 static struct file_info *
 		parse_file_info(struct archive_read *a,
-		    struct file_info *parent, const unsigned char *isodirrec);
+		    struct file_info *parent, const unsigned char *isodirrec,
+		    size_t reclen);
 static int	parse_rockridge(struct archive_read *a,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
@@ -1022,7 +1023,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 			if (*(p + DR_name_len_offset) == 1
 			    && *(p + DR_name_offset) == '\001')
 				continue;
-			child = parse_file_info(a, parent, p);
+			child = parse_file_info(a, parent, p, b - p);
 			if (child == NULL) {
 				__archive_read_consume(a, skip_size);
 				return (ARCHIVE_FATAL);
@@ -1091,7 +1092,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 		/* This condition is unlikely; by way of caution. */
 		vd = &(iso9660->joliet);
 
-	skipsize = LOGICAL_BLOCK_SIZE * vd->location;
+	skipsize = LOGICAL_BLOCK_SIZE * (int64_t)vd->location;
 	skipsize = __archive_read_consume(a, skipsize);
 	if (skipsize < 0)
 		return ((int)skipsize);
@@ -1112,7 +1113,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 	 */
 	seenJoliet = iso9660->seenJoliet;/* Save flag. */
 	iso9660->seenJoliet = 0;
-	file = parse_file_info(a, NULL, block);
+	file = parse_file_info(a, NULL, block, vd->size);
 	if (file == NULL)
 		return (ARCHIVE_FATAL);
 	iso9660->seenJoliet = seenJoliet;
@@ -1129,7 +1130,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 	    && iso9660->seenJoliet) {
 		/* Switch reading data from primary to joliet. */
 		vd = &(iso9660->joliet);
-		skipsize = LOGICAL_BLOCK_SIZE * vd->location;
+		skipsize = LOGICAL_BLOCK_SIZE * (int64_t)vd->location;
 		skipsize -= iso9660->current_position;
 		skipsize = __archive_read_consume(a, skipsize);
 		if (skipsize < 0)
@@ -1144,7 +1145,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 			return (ARCHIVE_FATAL);
 		}
 		iso9660->seenJoliet = 0;
-		file = parse_file_info(a, NULL, block);
+		file = parse_file_info(a, NULL, block, vd->size);
 		if (file == NULL)
 			return (ARCHIVE_FATAL);
 		iso9660->seenJoliet = seenJoliet;
@@ -1199,7 +1200,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			    archive_string_conversion_from_charset(
 				&(a->archive), "UTF-16BE", 1);
 			if (iso9660->sconv_utf16be == NULL)
-				/* Coundn't allocate memory */
+				/* Couldn't allocate memory */
 				return (ARCHIVE_FATAL);
 		}
 		if (iso9660->utf16be_path == NULL) {
@@ -1749,7 +1750,7 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
  */
 static struct file_info *
 parse_file_info(struct archive_read *a, struct file_info *parent,
-    const unsigned char *isodirrec)
+    const unsigned char *isodirrec, size_t reclen)
 {
 	struct iso9660 *iso9660;
 	struct file_info *file, *filep;
@@ -1763,16 +1764,20 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
-	dr_len = (size_t)isodirrec[DR_length_offset];
+	if (reclen != 0)
+		dr_len = (size_t)isodirrec[DR_length_offset];
+	/*
+	 * Sanity check that reclen is not zero and dr_len is greater than
+	 * reclen but at least 34
+	 */
+	if (reclen == 0 || reclen < dr_len || dr_len < 34) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Invalid length of directory record");
+		return (NULL);
+	}
 	name_len = (size_t)isodirrec[DR_name_len_offset];
 	location = archive_le32dec(isodirrec + DR_extent_offset);
 	fsize = toi(isodirrec + DR_size_offset, DR_size_size);
-	/* Sanity check that dr_len needs at least 34. */
-	if (dr_len < 34) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid length of directory record");
-		return (NULL);
-	}
 	/* Sanity check that name_len doesn't exceed dr_len. */
 	if (dr_len - 33 < name_len || name_len == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1864,7 +1869,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		if ((file->utf16be_name = malloc(name_len)) == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for file name");
-			return (NULL);
+			goto fail;
 		}
 		memcpy(file->utf16be_name, p, name_len);
 		file->utf16be_bytes = name_len;
@@ -1943,10 +1948,8 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			file->symlink_continues = 0;
 			rr_start += iso9660->suspOffset;
 			r = parse_rockridge(a, file, rr_start, rr_end);
-			if (r != ARCHIVE_OK) {
-				free(file);
-				return (NULL);
-			}
+			if (r != ARCHIVE_OK)
+				goto fail;
 			/*
 			 * A file size of symbolic link files in ISO images
 			 * made by makefs is not zero and its location is
@@ -1990,7 +1993,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge RE");
-				return (NULL);
+				goto fail;
 			}
 			/*
 			 * Sanity check: file does not have "CL" extension.
@@ -1999,7 +2002,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge RE and CL");
-				return (NULL);
+				goto fail;
 			}
 			/*
 			 * Sanity check: The file type must be a directory.
@@ -2008,7 +2011,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge RE");
-				return (NULL);
+				goto fail;
 			}
 		} else if (parent != NULL && parent->rr_moved)
 			file->rr_moved_has_re_only = 0;
@@ -2022,7 +2025,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge CL");
-				return (NULL);
+				goto fail;
 			}
 			/*
 			 * Sanity check: The file type must be a regular file.
@@ -2031,7 +2034,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge CL");
-				return (NULL);
+				goto fail;
 			}
 			parent->subdirs++;
 			/* Overwrite an offset and a number of this "CL" entry
@@ -2049,7 +2052,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 					archive_set_error(&a->archive,
 					    ARCHIVE_ERRNO_MISC,
 					    "Invalid Rockridge CL");
-					return (NULL);
+					goto fail;
 				}
 			}
 			if (file->cl_offset == file->offset ||
@@ -2057,7 +2060,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge CL");
-				return (NULL);
+				goto fail;
 			}
 		}
 	}
@@ -2088,6 +2091,10 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 #endif
 	register_file(iso9660, file);
 	return (file);
+fail:
+	archive_string_free(&file->name);
+	free(file);
+	return (NULL);
 }
 
 static int
@@ -2407,7 +2414,7 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 				return (ARCHIVE_FATAL);
 		} while (heap->cnt &&
 		    heap->reqs[0].offset == iso9660->current_position);
-		/* NOTE: Do not move this consume's code to fron of
+		/* NOTE: Do not move this consume's code to front of
 		 * do-while loop. Registration of nested CE extension
 		 * might cause error because of current position. */
 		__archive_read_consume(a, step);
@@ -2729,7 +2736,7 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 		if (file == NULL) {
 			/*
 			 * If directory entries all which are descendant of
-			 * rr_moved are stil remaning, expose their. 
+			 * rr_moved are still remaining, expose their.
 			 */
 			if (iso9660->re_files.first != NULL && 
 			    iso9660->rr_moved != NULL &&
@@ -2852,7 +2859,7 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 	empty_files.last = &empty_files.first;
 	/* Collect files which has the same file serial number.
 	 * Peek pending_files so that file which number is different
-	 * is not put bak. */
+	 * is not put back. */
 	while (iso9660->pending_files.used > 0 &&
 	    (iso9660->pending_files.files[0]->number == -1 ||
 	     iso9660->pending_files.files[0]->number == number)) {
@@ -2860,7 +2867,7 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 			/* This file has the same offset
 			 * but it's wrong offset which empty files
 			 * and symlink files have.
-			 * NOTE: This wrong offse was recorded by
+			 * NOTE: This wrong offset was recorded by
 			 * old mkisofs utility. If ISO images is
 			 * created by latest mkisofs, this does not
 			 * happen.
@@ -3019,8 +3026,9 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
-		memcpy(new_pending_files, heap->files,
-		    heap->allocated * sizeof(new_pending_files[0]));
+		if (heap->allocated)
+			memcpy(new_pending_files, heap->files,
+			    heap->allocated * sizeof(new_pending_files[0]));
 		if (heap->files != NULL)
 			free(heap->files);
 		heap->files = new_pending_files;

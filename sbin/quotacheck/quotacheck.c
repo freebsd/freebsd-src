@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fstab.h>
 #include <grp.h>
+#include <libufs.h>
 #include <libutil.h>
 #include <pwd.h>
 #include <stdint.h>
@@ -71,9 +74,9 @@ __FBSDID("$FreeBSD$");
 
 #include "quotacheck.h"
 
-char *qfname = QUOTAFILENAME;
-char *qfextension[] = INITQFNAMES;
-char *quotagroup = QUOTAGROUP;
+const char *qfname = QUOTAFILENAME;
+const char *qfextension[] = INITQFNAMES;
+const char *quotagroup = QUOTAGROUP;
 
 union {
 	struct	fs	sblk;
@@ -119,7 +122,7 @@ int	fi;			/* open disk file descriptor */
 
 struct fileusage *
 	 addid(u_long, int, char *, const char *);
-void	 bread(ufs2_daddr_t, char *, long);
+void	 blkread(ufs2_daddr_t, char *, long);
 void	 freeinodebuf(void);
 union dinode *
 	 getnextinode(ino_t);
@@ -242,11 +245,6 @@ usage(void)
 }
 
 /*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-
-/*
  * Scan the specified file system to check quota(s) present on it.
  */
 int
@@ -254,8 +252,10 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 {
 	struct fileusage *fup;
 	union dinode *dp;
-	int cg, i, mode, errs = 0;
-	ino_t ino, inosused, userino = 0, groupino = 0;
+	struct fs *fs;
+	int i, ret, mode, errs = 0;
+	u_int32_t cg;
+	ino_t curino, ino, inosused, userino = 0, groupino = 0;
 	dev_t dev, userdev = 0, groupdev = 0;
 	struct stat sb;
 	const char *mntpt;
@@ -321,26 +321,24 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 		}
 	}
 	sync();
-	dev_bsize = 1;
-	for (i = 0; sblock_try[i] != -1; i++) {
-		bread(sblock_try[i], (char *)&sblock, (long)SBLOCKSIZE);
-		if ((sblock.fs_magic == FS_UFS1_MAGIC ||
-		     (sblock.fs_magic == FS_UFS2_MAGIC &&
-		      sblock.fs_sblockloc == sblock_try[i])) &&
-		    sblock.fs_bsize <= MAXBSIZE &&
-		    sblock.fs_bsize >= sizeof(struct fs))
-			break;
+	if ((ret = sbget(fi, &fs, -1)) != 0) {
+		switch (ret) {
+		case ENOENT:
+			warn("Cannot find file system superblock");
+			return (1);
+		default:
+			warn("Unable to read file system superblock");
+			return (1);
+		}
 	}
-	if (sblock_try[i] == -1) {
-		warn("Cannot find file system superblock");
-		return (1);
-	}
+	bcopy(fs, &sblock, fs->fs_sbsize);
+	free(fs);
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
 		ino = cg * sblock.fs_ipg;
 		setinodebuf(ino);
-		bread(fsbtodb(&sblock, cgtod(&sblock, cg)), (char *)(&cgblk),
+		blkread(fsbtodb(&sblock, cgtod(&sblock, cg)), (char *)(&cgblk),
 		    sblock.fs_cgsize);
 		if (sblock.fs_magic == FS_UFS2_MAGIC)
 			inosused = cgblk.cg_initediblk;
@@ -370,8 +368,9 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 			if (inosused <= 0)
 				continue;
 		}
-		for (i = 0; i < inosused; i++, ino++) {
-			if ((dp = getnextinode(ino)) == NULL || ino < ROOTINO ||
+		for (curino = 0; curino < inosused; curino++, ino++) {
+			if ((dp = getnextinode(ino)) == NULL ||
+			    ino < UFS_ROOTINO ||
 			    (mode = DIP(dp, di_mode) & IFMT) == 0)
 				continue;
 			/*
@@ -405,7 +404,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 				continue;
 			if (qfg) {
 				fup = addid((u_long)DIP(dp, di_gid), GRPQUOTA,
-				    (char *)0, mntpt);
+				    NULL, mntpt);
 				fup->fu_curinodes++;
 				if (mode == IFREG || mode == IFDIR ||
 				    mode == IFLNK)
@@ -413,7 +412,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 			}
 			if (qfu) {
 				fup = addid((u_long)DIP(dp, di_uid), USRQUOTA,
-				    (char *)0, mntpt);
+				    NULL, mntpt);
 				fup->fu_curinodes++;
 				if (mode == IFREG || mode == IFDIR ||
 				    mode == IFLNK)
@@ -500,7 +499,7 @@ update(const char *fsname, struct quotafile *qf, int type)
 	 */
 	if (highid < lastid &&
 	    stat(quota_qfname(qf), &sb) == 0 &&
-	    sb.st_size > (((off_t)highid + 2) * sizeof(struct dqblk)))
+	    sb.st_size > (off_t)((highid + 2) * sizeof(struct dqblk)))
 		truncate(quota_qfname(qf),
 		    (((off_t)highid + 2) * sizeof(struct dqblk)));
 	return (0);
@@ -615,10 +614,10 @@ getnextinode(ino_t inumber)
 			lastinum += fullcnt;
 		}
 		/*
-		 * If bread returns an error, it will already have zeroed
+		 * If blkread returns an error, it will already have zeroed
 		 * out the buffer, so we do not need to do so here.
 		 */
-		bread(dblk, inodebuf, size);
+		blkread(dblk, inodebuf, size);
 		nextinop = inodebuf;
 	}
 	dp = (union dinode *)nextinop;
@@ -677,12 +676,12 @@ freeinodebuf(void)
  * Read specified disk blocks.
  */
 void
-bread(ufs2_daddr_t bno, char *buf, long cnt)
+blkread(ufs2_daddr_t bno, char *buf, long cnt)
 {
 
 	if (lseek(fi, (off_t)bno * dev_bsize, SEEK_SET) < 0 ||
 	    read(fi, buf, cnt) != cnt)
-		errx(1, "bread failed on block %ld", (long)bno);
+		errx(1, "blkread failed on block %ld", (long)bno);
 }
 
 /*

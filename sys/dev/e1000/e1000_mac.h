@@ -1,4 +1,5 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
@@ -60,7 +61,6 @@ s32  e1000_get_bus_info_pci_generic(struct e1000_hw *hw);
 s32  e1000_get_bus_info_pcie_generic(struct e1000_hw *hw);
 void e1000_set_lan_id_single_port(struct e1000_hw *hw);
 void e1000_set_lan_id_multi_port_pci(struct e1000_hw *hw);
-s32  e1000_get_hw_semaphore_generic(struct e1000_hw *hw);
 s32  e1000_get_speed_and_duplex_copper_generic(struct e1000_hw *hw, u16 *speed,
 					       u16 *duplex);
 s32  e1000_get_speed_and_duplex_fiber_serdes_generic(struct e1000_hw *hw,
@@ -85,11 +85,15 @@ void e1000_clear_hw_cntrs_base_generic(struct e1000_hw *hw);
 void e1000_clear_vfta_generic(struct e1000_hw *hw);
 void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count);
 void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw);
-void e1000_put_hw_semaphore_generic(struct e1000_hw *hw);
 s32  e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 void e1000_reset_adaptive_generic(struct e1000_hw *hw);
 void e1000_set_pcie_no_snoop_generic(struct e1000_hw *hw, u32 no_snoop);
 void e1000_update_adaptive_generic(struct e1000_hw *hw);
 void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
+
+s32  e1000_get_hw_semaphore(struct e1000_hw *hw);
+void e1000_put_hw_semaphore(struct e1000_hw *hw);
+s32 e1000_acquire_swfw_sync(struct e1000_hw *hw, u16 mask);
+void e1000_release_swfw_sync(struct e1000_hw *hw, u16 mask);
 
 #endif

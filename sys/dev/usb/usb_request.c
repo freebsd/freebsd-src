@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
@@ -455,21 +457,14 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		return (USB_ERR_INVAL);
 #endif
 	if ((mtx != NULL) && (mtx != &Giant)) {
-		mtx_unlock(mtx);
-		mtx_assert(mtx, MA_NOTOWNED);
+		USB_MTX_UNLOCK(mtx);
+		USB_MTX_ASSERT(mtx, MA_NOTOWNED);
 	}
 
 	/*
-	 * Grab the USB device enumeration SX-lock serialization is
-	 * achieved when multiple threads are involved:
+	 * Serialize access to this function:
 	 */
-	do_unlock = usbd_enum_lock(udev);
-
-	/*
-	 * We need to allow suspend and resume at this point, else the
-	 * control transfer will timeout if the device is suspended!
-	 */
-	usbd_sr_unlock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	hr_func = usbd_get_hr_func(udev);
 
@@ -713,13 +708,11 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	USB_XFER_UNLOCK(xfer);
 
 done:
-	usbd_sr_lock(udev);
-
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 
 	if ((mtx != NULL) && (mtx != &Giant))
-		mtx_lock(mtx);
+		USB_MTX_LOCK(mtx);
 
 	switch (err) {
 	case USB_ERR_NORMAL_COMPLETION:
@@ -997,7 +990,7 @@ usbd_req_get_desc(struct usb_device *udev,
     uint8_t retries)
 {
 	struct usb_device_request req;
-	uint8_t *buf;
+	uint8_t *buf = desc;
 	usb_error_t err;
 
 	DPRINTFN(4, "id=%d, type=%d, index=%d, max_len=%d\n",
@@ -1019,6 +1012,32 @@ usbd_req_get_desc(struct usb_device *udev,
 		err = usbd_do_request_flags(udev, mtx, &req,
 		    desc, 0, NULL, 500 /* ms */);
 
+		if (err != 0 && err != USB_ERR_TIMEOUT &&
+		    min_len != max_len) {
+			/* clear descriptor data */
+			memset(desc, 0, max_len);
+
+			/* try to read full descriptor length */
+			USETW(req.wLength, max_len);
+
+			err = usbd_do_request_flags(udev, mtx, &req,
+			    desc, USB_SHORT_XFER_OK, NULL, 500 /* ms */);
+
+			if (err == 0) {
+				/* verify length */
+				if (buf[0] > max_len)
+					buf[0] = max_len;
+				else if (buf[0] < 2)
+					err = USB_ERR_INVAL;
+
+				min_len = buf[0];
+
+				/* enforce descriptor type */
+				buf[1] = type;
+				goto done;
+			}
+		}
+
 		if (err) {
 			if (!retries) {
 				goto done;
@@ -1029,7 +1048,6 @@ usbd_req_get_desc(struct usb_device *udev,
 
 			continue;
 		}
-		buf = desc;
 
 		if (min_len == max_len) {
 
@@ -1162,7 +1180,11 @@ usbd_req_get_string_any(struct usb_device *udev, struct mtx *mtx, char *buf,
 		    *s == '+' ||
 		    *s == ' ' ||
 		    *s == '.' ||
-		    *s == ',') {
+		    *s == ',' ||
+		    *s == ':' ||
+		    *s == '/' ||
+		    *s == '(' ||
+		    *s == ')') {
 			/* allowed */
 			s++;
 		}

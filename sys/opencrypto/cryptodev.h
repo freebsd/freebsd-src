@@ -63,6 +63,11 @@
 #define _CRYPTO_CRYPTO_H_
 
 #include <sys/ioccom.h>
+#include <sys/_task.h>
+
+#ifdef _KERNEL
+#include <opencrypto/_cryptodev.h>
+#endif
 
 /* Some initial values */
 #define CRYPTO_DRIVERS_INITIAL	4
@@ -73,38 +78,37 @@
 #define	MD5_HASH_LEN		16
 #define	SHA1_HASH_LEN		20
 #define	RIPEMD160_HASH_LEN	20
+#define	SHA2_224_HASH_LEN	28
 #define	SHA2_256_HASH_LEN	32
 #define	SHA2_384_HASH_LEN	48
 #define	SHA2_512_HASH_LEN	64
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
 #define	AES_GMAC_HASH_LEN	16
+#define	POLY1305_HASH_LEN	16
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
+#define	MD5_BLOCK_LEN		64
+#define	SHA1_BLOCK_LEN		64
+#define	RIPEMD160_BLOCK_LEN	64
+#define	SHA2_224_BLOCK_LEN	64
+#define	SHA2_256_BLOCK_LEN	64
+#define	SHA2_384_BLOCK_LEN	128
+#define	SHA2_512_BLOCK_LEN	128
+
 /* HMAC values */
 #define	NULL_HMAC_BLOCK_LEN		64
-#define	MD5_HMAC_BLOCK_LEN		64
-#define	SHA1_HMAC_BLOCK_LEN		64
-#define	RIPEMD160_HMAC_BLOCK_LEN	64
-#define	SHA2_256_HMAC_BLOCK_LEN	64
-#define	SHA2_384_HMAC_BLOCK_LEN	128
-#define	SHA2_512_HMAC_BLOCK_LEN	128
 /* Maximum HMAC block length */
-#define	HMAC_MAX_BLOCK_LEN	SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
+#define	HMAC_MAX_BLOCK_LEN	SHA2_512_BLOCK_LEN /* Keep this updated */
 #define	HMAC_IPAD_VAL			0x36
 #define	HMAC_OPAD_VAL			0x5C
 /* HMAC Key Length */
-#define	NULL_HMAC_KEY_LEN		0
-#define	MD5_HMAC_KEY_LEN		16
-#define	SHA1_HMAC_KEY_LEN		20
-#define	RIPEMD160_HMAC_KEY_LEN		20
-#define	SHA2_256_HMAC_KEY_LEN		32
-#define	SHA2_384_HMAC_KEY_LEN		48
-#define	SHA2_512_HMAC_KEY_LEN		64
 #define	AES_128_GMAC_KEY_LEN		16
 #define	AES_192_GMAC_KEY_LEN		24
 #define	AES_256_GMAC_KEY_LEN		32
+
+#define	POLY1305_KEY_LEN		32
 
 /* Encryption algorithm block sizes */
 #define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
@@ -118,7 +122,8 @@
 #define	AES_ICM_BLOCK_LEN	1
 #define	ARC4_BLOCK_LEN		1
 #define	CAMELLIA_BLOCK_LEN	16
-#define	EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
+#define	CHACHA20_NATIVE_BLOCK_LEN	64
+#define	EALG_MAX_BLOCK_LEN	CHACHA20_NATIVE_BLOCK_LEN /* Keep this updated */
 
 /* IV Lengths */
 
@@ -184,7 +189,17 @@
 #define	CRYPTO_AES_128_NIST_GMAC 26 /* auth side */
 #define	CRYPTO_AES_192_NIST_GMAC 27 /* auth side */
 #define	CRYPTO_AES_256_NIST_GMAC 28 /* auth side */
-#define	CRYPTO_ALGORITHM_MAX	28 /* Keep updated - see below */
+#define	CRYPTO_BLAKE2B		29 /* Blake2b hash */
+#define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
+#define	CRYPTO_CHACHA20		31 /* Chacha20 stream cipher */
+#define	CRYPTO_SHA2_224_HMAC	32
+#define	CRYPTO_RIPEMD160	33
+#define	CRYPTO_SHA2_224		34
+#define	CRYPTO_SHA2_256		35
+#define	CRYPTO_SHA2_384		36
+#define	CRYPTO_SHA2_512		37
+#define	CRYPTO_POLY1305		38
+#define	CRYPTO_ALGORITHM_MAX	38 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
@@ -211,21 +226,26 @@ struct session_op {
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
 
 	u_int32_t	keylen;		/* cipher key */
-	caddr_t		key;
+	c_caddr_t	key;
 	int		mackeylen;	/* mac key */
-	caddr_t		mackey;
+	c_caddr_t	mackey;
 
   	u_int32_t	ses;		/* returns: session # */ 
 };
 
+/*
+ * session and crypt _op structs are used by userspace programs to interact
+ * with /dev/crypto.  Confusingly, the internal kernel interface is named
+ * "cryptop" (no underscore).
+ */
 struct session2_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
 
 	u_int32_t	keylen;		/* cipher key */
-	caddr_t		key;
+	c_caddr_t	key;
 	int		mackeylen;	/* mac key */
-	caddr_t		mackey;
+	c_caddr_t	mackey;
 
   	u_int32_t	ses;		/* returns: session # */ 
 	int		crid;		/* driver id + flags (rw) */
@@ -238,11 +258,13 @@ struct crypt_op {
 #define COP_ENCRYPT	1
 #define COP_DECRYPT	2
 	u_int16_t	flags;
-#define	COP_F_BATCH	0x0008		/* Batch op if possible */
+#define	COP_F_CIPHER_FIRST	0x0001	/* Cipher before MAC. */
+#define	COP_F_BATCH		0x0008	/* Batch op if possible */
 	u_int		len;
-	caddr_t		src, dst;	/* become iov[] inside kernel */
+	c_caddr_t	src;		/* become iov[] inside kernel */
+	caddr_t		dst;
 	caddr_t		mac;		/* must be big enough for chosen MAC */
-	caddr_t		iv;
+	c_caddr_t	iv;
 };
 
 /* op and flags the same as crypt_op */
@@ -253,10 +275,11 @@ struct crypt_aead {
 	u_int		len;
 	u_int		aadlen;
 	u_int		ivlen;
-	caddr_t		src, dst;	/* become iov[] inside kernel */
-	caddr_t		aad;		/* additional authenticated data */
+	c_caddr_t	src;		/* become iov[] inside kernel */
+	caddr_t		dst;
+	c_caddr_t	aad;		/* additional authenticated data */
 	caddr_t		tag;		/* must fit for chosen TAG length */
-	caddr_t		iv;
+	c_caddr_t	iv;
 };
 
 /*
@@ -349,10 +372,11 @@ struct cryptostats {
 #ifdef _KERNEL
 
 #if 0
-#define CRYPTDEB(s)	do { printf("%s:%d: %s\n", __FILE__, __LINE__, s); \
-			} while (0)
+#define CRYPTDEB(s, ...) do {						\
+	printf("%s:%d: " s "\n", __FILE__, __LINE__, ## __VA_ARGS__);	\
+} while (0)
 #else
-#define CRYPTDEB(s)	do { } while (0)
+#define CRYPTDEB(...)	do { } while (0)
 #endif
 
 /* Standard initialization structure beginning */
@@ -395,7 +419,9 @@ struct cryptodesc {
 struct cryptop {
 	TAILQ_ENTRY(cryptop) crp_next;
 
-	u_int64_t	crp_sid;	/* Session ID */
+	struct task	crp_task;
+
+	crypto_session_t crp_session;	/* Session */
 	int		crp_ilen;	/* Input data total length */
 	int		crp_olen;	/* Result total length */
 
@@ -404,7 +430,7 @@ struct cryptop {
 					 * All error codes except EAGAIN
 					 * indicate possible data corruption (as in,
 					 * the data have been touched). On all
-					 * errors, the crp_sid may have changed
+					 * errors, the crp_session may have changed
 					 * (reset to a new one), so the caller
 					 * should always check and use the new
 					 * value on future requests.
@@ -417,15 +443,39 @@ struct cryptop {
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
 #define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
+#define	CRYPTO_F_ASYNC		0x0080	/* Dispatch crypto jobs on several threads
+					 * if op is synchronous
+					 */
+#define	CRYPTO_F_ASYNC_KEEPORDER	0x0100	/*
+					 * Dispatch the crypto jobs in the same
+					 * order there are submitted. Applied only
+					 * if CRYPTO_F_ASYNC flags is set
+					 */
 
-	caddr_t		crp_buf;	/* Data to be processed */
-	caddr_t		crp_opaque;	/* Opaque pointer, passed along */
+	union {
+		caddr_t		crp_buf;	/* Data to be processed */
+		struct mbuf	*crp_mbuf;
+		struct uio	*crp_uio;
+	};
+	void *		crp_opaque;	/* Opaque pointer, passed along */
 	struct cryptodesc *crp_desc;	/* Linked list of processing descriptors */
 
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
 	struct bintime	crp_tstamp;	/* performance time stamp */
+	uint32_t	crp_seq;	/* used for ordered dispatch */
+	uint32_t	crp_retw_id;	/*
+					 * the return worker to be used,
+					 *  used for ordered dispatch
+					 */
 };
+
+#define	CRYPTOP_ASYNC(crp) \
+	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
+	crypto_ses2caps((crp)->crp_session) & CRYPTOCAP_F_SYNC)
+#define	CRYPTOP_ASYNC_KEEPORDER(crp) \
+	(CRYPTOP_ASYNC(crp) && \
+	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
 
 #define	CRYPTO_BUF_CONTIG	0x0
 #define	CRYPTO_BUF_IOV		0x1
@@ -452,25 +502,19 @@ struct cryptkop {
 	int		(*krp_callback)(struct cryptkop *);
 };
 
-/*
- * Session ids are 64 bits.  The lower 32 bits contain a "local id" which
- * is a driver-private session identifier.  The upper 32 bits contain a
- * "hardware id" used by the core crypto code to identify the driver and
- * a copy of the driver's capabilities that can be used by client code to
- * optimize operation.
- */
-#define	CRYPTO_SESID2HID(_sid)	(((_sid) >> 32) & 0x00ffffff)
-#define	CRYPTO_SESID2CAPS(_sid)	(((_sid) >> 32) & 0xff000000)
-#define	CRYPTO_SESID2LID(_sid)	(((u_int32_t) (_sid)) & 0xffffffff)
+uint32_t crypto_ses2hid(crypto_session_t crypto_session);
+uint32_t crypto_ses2caps(crypto_session_t crypto_session);
+void *crypto_get_driver_session(crypto_session_t crypto_session);
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 
-extern	int crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard);
-extern	int crypto_freesession(u_int64_t sid);
+extern	int crypto_newsession(crypto_session_t *cses, struct cryptoini *cri, int hard);
+extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
-extern	int32_t crypto_get_driverid(device_t dev, int flags);
+extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
+    int flags);
 extern	int crypto_find_driver(const char *);
 extern	device_t crypto_find_device_byhid(int hid);
 extern	int crypto_getcaps(int hid);
@@ -503,7 +547,7 @@ extern	int crypto_devallowsoft;	/* only use hardware crypto */
  */
 struct uio;
 extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
-extern	void cuio_copyback(struct uio* uio, int off, int len, caddr_t cp);
+extern	void cuio_copyback(struct uio* uio, int off, int len, c_caddr_t cp);
 extern	int cuio_getptr(struct uio *uio, int loc, int *off);
 extern	int cuio_apply(struct uio *uio, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
@@ -514,10 +558,11 @@ extern	int crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr,
 	    int *cnt, int *allocated);
 
 extern	void crypto_copyback(int flags, caddr_t buf, int off, int size,
-	    caddr_t in);
+	    c_caddr_t in);
 extern	void crypto_copydata(int flags, caddr_t buf, int off, int size,
 	    caddr_t out);
 extern	int crypto_apply(int flags, caddr_t buf, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
+
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */

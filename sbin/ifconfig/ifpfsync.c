@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Ryan McBride. All rights reserved.
  * Copyright (c) 2004 Max Laier. All rights reserved.
  *
@@ -120,6 +122,7 @@ setpfsync_syncpeer(const char *val, int d, int s, const struct afswtch *rafp)
 
 	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETPFSYNC");
+	freeaddrinfo(peerres);
 }
 
 /* ARGSUSED */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm
  * Copyright (c) 1999 Marcel Moolenaar
  * All rights reserved.
@@ -94,7 +96,7 @@ typedef struct __mcontext {
 
 #ifdef __amd64__
 /*
- * mc_trapno bits. Shall be in sync with TF_XXX.
+ * mc_flags bits. Shall be in sync with TF_XXX.
  */
 #define	_MC_HASSEGS	0x1
 #define	_MC_HASBASES	0x2
@@ -161,10 +163,5 @@ typedef struct __mcontext {
 	long	mc_spare[4];
 } mcontext_t;
 #endif /* __amd64__ */
-
-#ifdef __LINT__
-typedef struct __mcontext {
-} mcontext_t;
-#endif /* __LINT__ */
 
 #endif /* !_X86_UCONTEXT_H_ */

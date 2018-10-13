@@ -4,11 +4,11 @@
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -25,13 +25,17 @@ makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 # makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 # FIXME: linker error. "--relax and -r may not be used together"
-makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw urtwnfw"
+makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw"
+# makeoptions	NO_MODULES
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	IPSEC			# IP (v4/v6) security
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
@@ -40,7 +44,6 @@ options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	QUOTA			# Enable disk quotas for UFS
-options 	MD_ROOT			# MD is a potential root device
 options 	NFSCL			# Network Filesystem Client
 options 	NFSD			# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
@@ -68,17 +71,45 @@ options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
-# options 	VFP			# Floating-point support
+options 	FPE			# Floating-point extension support
 options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
+options 	INTRNG
+
+# RISC-V SBI console
+device		rcons
+
+# VirtIO support
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_pci		# VirtIO PCI device
+device		vtnet			# VirtIO Ethernet device
+device		virtio_blk		# VirtIO Block device
+device		virtio_mmio		# VirtIO MMIO bus
+
+# DTrace support
+# device	dtrace
+# device	dtrace_profile
+# device	dtrace_sdt
+# device	dtrace_fbt
+# device	dtrace_systrace
+# device	dtrace_prototype
+# device	dtraceall
+
+# Serial (COM) ports
+device		uart		# Generic UART driver
+device		uart_lowrisc	# lowRISC UART driver
+device		uart_ns8250	# ns8250-type UART driver
 
 # Uncomment for memory disk
 # options 	MD_ROOT
-# options 	MD_ROOT_SIZE=8192	# 8MB ram disk
+# options 	MD_ROOT_SIZE=32768	# 32MB ram disk
 # makeoptions	MFS_IMAGE=/path/to/img
 # options 	ROOTDEVNAME=\"ufs:/dev/md0\"
+
+# Uncomment for virtio block device
+# options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -93,8 +124,13 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 # options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 # options 	EARLY_PRINTF
+# options 	VERBOSE_SYSINIT
+
+# Kernel dump features.
+options		ZSTDIO			# zstd-compressed kernel and user dumps
 
 # Pseudo devices.
+device		crypto		# core crypto support
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-4-Clause)
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
@@ -25,12 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Derived from the NetBSD SCSI changer driver.
- *
- *	$NetBSD: ch.c,v 1.32 1998/01/12 09:49:12 thorpej Exp $
- *
- */
 /*-
  * Copyright (c) 1996, 1997 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
@@ -65,6 +61,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $NetBSD: ch.c,v 1.34 1998/08/31 22:28:06 cgd Exp $
  */
 
 #include <sys/cdefs.h>
@@ -402,10 +400,7 @@ chregister(struct cam_periph *periph, void *arg)
 	if (cgd->inq_data.version <= SCSI_REV_2)
 		softc->quirks |= CH_Q_NO_DVCID;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * Changers don't have a blocksize, and obviously don't support
@@ -424,7 +419,7 @@ chregister(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -472,7 +467,7 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	softc = (struct ch_softc *)periph->softc;
@@ -586,7 +581,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 				/* tag_action */ MSG_SIMPLE_Q_TAG,
 				/* dbd */ (softc->quirks & CH_Q_NO_DBD) ?
 					FALSE : TRUE,
-				/* page_code */ SMS_PAGE_CTRL_CURRENT,
+				/* pc */ SMS_PAGE_CTRL_CURRENT,
 				/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
 				/* param_buf */ (u_int8_t *)mode_buffer,
 				/* param_len */ mode_buffer_len,
@@ -750,8 +745,7 @@ cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct ch_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cam_flags, sense_flags,
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static int
@@ -1204,13 +1198,14 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 	struct read_element_status_descriptor *desc;
 	caddr_t data = NULL;
 	size_t size, desclen;
-	int avail, i, error = 0;
+	u_int avail, i;
 	int curdata, dvcid, sense_flags;
 	int try_no_dvcid = 0;
 	struct changer_element_status *user_data = NULL;
 	struct ch_softc *softc;
 	union ccb *ccb;
 	int chet = cesr->cesr_element_type;
+	int error = 0;
 	int want_voltags = (cesr->cesr_flags & CESR_VOLTAGS) ? 1 : 0;
 
 	softc = (struct ch_softc *)periph->softc;
@@ -1569,6 +1564,7 @@ chgetparams(struct cam_periph *periph)
 
 	if (mode_buffer == NULL) {
 		printf("chgetparams: couldn't malloc mode sense data\n");
+		xpt_release_ccb(ccb);
 		return(ENOSPC);
 	}
 
@@ -1587,7 +1583,7 @@ chgetparams(struct cam_periph *periph)
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ SMS_PAGE_CTRL_CURRENT,
+			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
 			/* param_buf */ (u_int8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,
@@ -1650,7 +1646,7 @@ chgetparams(struct cam_periph *periph)
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ SMS_PAGE_CTRL_CURRENT,
+			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_DEVICE_CAP_PAGE,
 			/* param_buf */ (u_int8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,

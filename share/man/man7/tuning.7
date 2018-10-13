@@ -1,4 +1,5 @@
 .\" Copyright (C) 2001 Matthew Dillon. All rights reserved.
+.\" Copyright (C) 2012 Eitan Adler.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2016
+.Dd October 30, 2017
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -41,8 +42,7 @@ Configuring too little swap can lead
 to inefficiencies in the VM page scanning code as well as create issues
 later on if you add more memory to your machine.
 On larger systems
-with multiple SCSI disks (or multiple IDE disks operating on different
-controllers), configure swap on each drive.
+with multiple disks, configure swap on each drive.
 The swap partitions on the drives should be approximately the same size.
 The kernel can handle arbitrary sizes but
 internal data structures scale to 4 times the largest swap partition.
@@ -176,11 +176,6 @@ This
 means you want to use a large off-center stripe size such as 1152 sectors
 so sequential I/O does not seek both disks and so meta-data is distributed
 across both disks rather than concentrated on a single disk.
-If
-you really need to get sophisticated, we recommend using a real hardware
-RAID controller from the list of
-.Fx
-supported controllers.
 .Sh SYSCTL TUNING
 .Xr sysctl 8
 variables permit system behavior to be monitored and controlled at
@@ -347,9 +342,6 @@ is adhered to.
 .Pp
 There are various other buffer-cache and VM page cache related sysctls.
 We do not recommend modifying these values.
-As of
-.Fx 4.3 ,
-the VM system does an extremely good job tuning itself.
 .Pp
 The
 .Va net.inet.tcp.sendspace
@@ -547,30 +539,12 @@ and reboot the system.
 .Va kern.maxusers
 controls the scaling of a number of static system tables, including defaults
 for the maximum number of open files, sizing of network memory resources, etc.
-As of
-.Fx 4.5 ,
 .Va kern.maxusers
 is automatically sized at boot based on the amount of memory available in
 the system, and may be determined at run-time by inspecting the value of the
 read-only
 .Va kern.maxusers
 sysctl.
-Some sites will require larger or smaller values of
-.Va kern.maxusers
-and may set it as a loader tunable; values of 64, 128, and 256 are not
-uncommon.
-We do not recommend going above 256 unless you need a huge number
-of file descriptors; many of the tunable values set to their defaults by
-.Va kern.maxusers
-may be individually overridden at boot-time or run-time as described
-elsewhere in this document.
-Systems older than
-.Fx 4.4
-must set this value via the kernel
-.Xr config 8
-option
-.Cd maxusers
-instead.
 .Pp
 The
 .Va kern.dfldsiz
@@ -619,14 +593,6 @@ The
 option to
 .Xr netstat 1
 may be used to observe network cluster use.
-Older versions of
-.Fx
-do not have this tunable and require that the
-kernel
-.Xr config 8
-option
-.Dv NMBCLUSTERS
-be set instead.
 .Pp
 More and more programs are using the
 .Xr sendfile 2
@@ -705,11 +671,6 @@ can be used to monitor this.
 There are many solutions to saturated disks:
 increasing memory for caching, mirroring disks, distributing operations across
 several machines, and so forth.
-If disk performance is an issue and you
-are using IDE drives, switching to SCSI can help a great deal.
-While modern
-IDE drives compare with SCSI in raw sequential bandwidth, the moment you
-start seeking around the disk SCSI drives usually win.
 .Pp
 Finally, you might run out of network suds.
 Optimize the network path
@@ -718,10 +679,7 @@ For example, in
 .Xr firewall 7
 we describe a firewall protecting internal hosts with a topology where
 the externally visible hosts are not routed through it.
-Use 1000BaseT rather
-than 100BaseT, depending on your needs.
-Most bottlenecks occur at the WAN link (e.g.,\&
-modem, T1, DSL, whatever).
+Most bottlenecks occur at the WAN link.
 If expanding the link is not an option it may be possible to use the
 .Xr dummynet 4
 feature to implement peak shaving or other forms of traffic shaping to
@@ -737,8 +695,8 @@ over services you export from your box (web services, email).
 .Xr systat 1 ,
 .Xr sendfile 2 ,
 .Xr ata 4 ,
-.Xr eventtimers 4 ,
 .Xr dummynet 4 ,
+.Xr eventtimers 4 ,
 .Xr login.conf 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,

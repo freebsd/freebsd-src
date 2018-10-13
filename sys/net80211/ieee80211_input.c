@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -83,24 +85,20 @@ ieee80211_process_mimo(struct ieee80211_node *ni, struct ieee80211_rx_stats *rx)
 }
 
 int
-ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m,
-    struct ieee80211_rx_stats *rx)
+ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211_rx_stats rxs;
 
-	if (rx) {
-		memcpy(&rxs, rx, sizeof(*rx));
-	} else {
-		/* try to read from mbuf */
-		bzero(&rxs, sizeof(rxs));
-		ieee80211_get_rx_params(m, &rxs);
-	}
+	/* try to read stats from mbuf */
+	bzero(&rxs, sizeof(rxs));
+	if (ieee80211_get_rx_params(m, &rxs) != 0)
+		return (-1);
 
 	/* XXX should assert IEEE80211_R_NF and IEEE80211_R_RSSI are set */
 	ieee80211_process_mimo(ni, &rxs);
 
 	//return ieee80211_input(ni, m, rx->rssi, rx->nf);
-	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.rssi, rxs.nf);
+	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.c_rssi, rxs.c_nf);
 }
 
 int
@@ -109,28 +107,22 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 	struct ieee80211_rx_stats rx;
 
 	rx.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rx.nf = nf;
-	rx.rssi = rssi;
-	return ieee80211_input_mimo_all(ic, m, &rx);
+	rx.c_nf = nf;
+	rx.c_rssi = rssi;
+
+	if (!ieee80211_add_rx_params(m, &rx))
+		return (-1);
+
+	return ieee80211_input_mimo_all(ic, m);
 }
 
 int
-ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
-    struct ieee80211_rx_stats *rx)
+ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m)
 {
-	struct ieee80211_rx_stats rxs;
 	struct ieee80211vap *vap;
 	int type = -1;
 
 	m->m_flags |= M_BCAST;		/* NB: mark for bpf tap'ing */
-
-	if (rx) {
-		memcpy(&rxs, rx, sizeof(*rx));
-	} else {
-		/* try to read from mbuf */
-		bzero(&rxs, sizeof(rxs));
-		ieee80211_get_rx_params(m, &rxs);
-	}
 
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
@@ -152,6 +144,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
 			/*
 			 * Packet contents are changed by ieee80211_decap
 			 * so do a deep copy of the packet.
+			 * NB: tags are copied too.
 			 */
 			mcopy = m_dup(m, M_NOWAIT);
 			if (mcopy == NULL) {
@@ -163,7 +156,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
 			m = NULL;
 		}
 		ni = ieee80211_ref_node(vap->iv_bss);
-		type = ieee80211_input_mimo(ni, mcopy, &rxs);
+		type = ieee80211_input_mimo(ni, mcopy);
 		ieee80211_free_node(ni);
 	}
 	if (m != NULL)			/* no vaps, reclaim mbuf */
@@ -283,7 +276,10 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	IEEE80211_NODE_STAT(ni, rx_data);
 	IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-		m->m_flags |= M_MCAST;		/* XXX M_BCAST? */
+		if (ETHER_IS_BROADCAST(eh->ether_dhost))
+			m->m_flags |= M_BCAST;
+		else
+			m->m_flags |= M_MCAST;
 		IEEE80211_NODE_STAT(ni, rx_mcast);
 	} else
 		IEEE80211_NODE_STAT(ni, rx_ucast);
@@ -500,6 +496,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	scan->status = 0;
 	/*
 	 * beacon/probe response frame format
+	 *
+	 * XXX Update from 802.11-2012 - eg where HT is
 	 *	[8] time stamp
 	 *	[2] beacon interval
 	 *	[2] capability information
@@ -514,6 +512,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] WPA or RSN
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
+	 *	[tlv] VHT capabilities
+	 *	[tlv] VHT information
 	 *	[tlv] Atheros capabilities
 	 *	[tlv] Mesh ID
 	 *	[tlv] Mesh Configuration
@@ -590,6 +590,12 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_HTCAP:
 			scan->htcap = frm;
+			break;
+		case IEEE80211_ELEMID_VHT_CAP:
+			scan->vhtcap = frm;
+			break;
+		case IEEE80211_ELEMID_VHT_OPMODE:
+			scan->vhtopmode = frm;
 			break;
 		case IEEE80211_ELEMID_RSN:
 			scan->rsn = frm;
@@ -724,6 +730,19 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			 sizeof(struct ieee80211_ie_htinfo)-2,
 		     scan->htinfo = NULL);
 	}
+
+	/* Process VHT IEs */
+	if (scan->vhtcap != NULL) {
+		IEEE80211_VERIFY_LENGTH(scan->vhtcap[1],
+		    sizeof(struct ieee80211_ie_vhtcap) - 2,
+		    scan->vhtcap = NULL);
+	}
+	if (scan->vhtopmode != NULL) {
+		IEEE80211_VERIFY_LENGTH(scan->vhtopmode[1],
+		    sizeof(struct ieee80211_ie_vht_operation) - 2,
+		    scan->vhtopmode = NULL);
+	}
+
 	return scan->status;
 }
 
@@ -844,6 +863,9 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 		}
 		break;
 #endif
+	case IEEE80211_ACTION_CAT_VHT:
+		printf("%s: TODO: VHT handling!\n", __func__);
+		break;
 	}
 	return 0;
 }

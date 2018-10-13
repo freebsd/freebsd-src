@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -237,7 +239,7 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 			if (error != 0)
 				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 					  sizeof(addr_buf));
-			printf(" --> %s ", addr_buf);
+			printf(" --> %s", addr_buf);
 		}
 	}
 
@@ -349,12 +351,14 @@ in6_getaddr(const char *s, int which)
 		bzero(&hints, sizeof(struct addrinfo));
 		hints.ai_family = AF_INET6;
 		error = getaddrinfo(s, NULL, &hints, &res);
+		if (error != 0) {
+			if (inet_pton(AF_INET6, s, &sin->sin6_addr) != 1)
+				errx(1, "%s: bad value", s);
+		} else {
+			bcopy(res->ai_addr, sin, res->ai_addrlen);
+			freeaddrinfo(res);
+		}
 	}
-	if (error != 0) {
-		if (inet_pton(AF_INET6, s, &sin->sin6_addr) != 1)
-			errx(1, "%s: bad value", s);
-	} else
-		bcopy(res->ai_addr, sin, res->ai_addrlen);
 }
 
 static int

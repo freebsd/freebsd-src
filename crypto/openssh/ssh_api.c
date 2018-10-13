@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh_api.c,v 1.5 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: ssh_api.c,v 1.8 2017/04/30 23:13:25 djm Exp $ */
 /*
  * Copyright (c) 2012 Markus Friedl.  All rights reserved.
  *
@@ -17,14 +17,12 @@
 
 #include "includes.h"
 
-#include "ssh1.h" /* For SSH_MSG_NONE */
 #include "ssh_api.h"
 #include "compat.h"
 #include "log.h"
 #include "authfile.h"
 #include "sshkey.h"
 #include "misc.h"
-#include "ssh1.h"
 #include "ssh2.h"
 #include "version.h"
 #include "myproposal.h"
@@ -103,6 +101,9 @@ ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 #ifdef WITH_OPENSSL
 		ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
 		ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
+		ssh->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_server;
+		ssh->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_server;
+		ssh->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_server;
 		ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 		ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
 # ifdef OPENSSL_HAS_ECC
@@ -117,6 +118,9 @@ ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 #ifdef WITH_OPENSSL
 		ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
 		ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
+		ssh->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_client;
+		ssh->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_client;
+		ssh->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_client;
 		ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 		ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 # ifdef OPENSSL_HAS_ECC
@@ -367,7 +371,6 @@ _ssh_read_banner(struct ssh *ssh, char **bannerp)
 	}
 	if (remote_major != 2)
 		return SSH_ERR_PROTOCOL_MISMATCH;
-	enable_compat20();
 	chop(buf);
 	debug("Remote version string %.100s", buf);
 	if ((*bannerp = strdup(buf)) == NULL)

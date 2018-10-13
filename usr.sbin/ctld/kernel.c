@@ -1,7 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, 2004 Silicon Graphics International Corp.
  * Copyright (c) 1997-2007 Kenneth D. Merry
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2017 Jakub Wojciech Klama <jceel@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
@@ -37,15 +40,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <sys/linker.h>
-#include <sys/queue.h>
-#include <sys/callout.h>
-#include <sys/sbuf.h>
 #include <sys/capsicum.h>
+#include <sys/callout.h>
+#include <sys/ioctl.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/queue.h>
+#include <sys/sbuf.h>
+#include <sys/nv.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <bsdxml.h>
 #include <ctype.h>
@@ -71,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #endif
 
+#define	NVLIST_BUFSIZE	1024
+
 extern bool proxy_mode;
 
 static int	ctl_fd = 0;
@@ -91,6 +97,14 @@ kernel_init(void)
 	}
 	if (ctl_fd < 0)
 		log_err(1, "failed to open %s", CTL_DEFAULT_DEV);
+#ifdef	WANT_ISCSI
+	else {
+		saved_errno = errno;
+		if (modfind("cfiscsi") == -1 && kldload("cfiscsi") == -1)
+			log_warn("couldn't load cfiscsi");
+		errno = saved_errno;
+	}
+#endif
 }
 
 /*
@@ -642,23 +656,12 @@ retry_port:
 	return (conf);
 }
 
-static void
-str_arg(struct ctl_be_arg *arg, const char *name, const char *value)
-{
-
-	arg->namelen = strlen(name) + 1;
-	arg->name = __DECONST(char *, name);
-	arg->vallen = strlen(value) + 1;
-	arg->value = __DECONST(char *, value);
-	arg->flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
-}
-
 int
 kernel_lun_add(struct lun *lun)
 {
 	struct option *o;
 	struct ctl_lun_req req;
-	int error, i, num_options;
+	int error;
 
 	bzero(&req, sizeof(req));
 
@@ -714,29 +717,26 @@ kernel_lun_add(struct lun *lun)
 		assert(o != NULL);
 	}
 
-	num_options = 0;
-	TAILQ_FOREACH(o, &lun->l_options, o_next)
-		num_options++;
-
-	req.num_be_args = num_options;
-	if (num_options > 0) {
-		req.be_args = malloc(num_options * sizeof(*req.be_args));
-		if (req.be_args == NULL) {
-			log_warn("error allocating %zd bytes",
-			    num_options * sizeof(*req.be_args));
+	if (!TAILQ_EMPTY(&lun->l_options)) {
+		req.args_nvl = nvlist_create(0);
+		if (req.args_nvl == NULL) {
+			log_warn("error allocating nvlist");
 			return (1);
 		}
 
-		i = 0;
-		TAILQ_FOREACH(o, &lun->l_options, o_next) {
-			str_arg(&req.be_args[i], o->o_name, o->o_value);
-			i++;
+		TAILQ_FOREACH(o, &lun->l_options, o_next)
+			nvlist_add_string(req.args_nvl, o->o_name, o->o_value);
+
+		req.args = nvlist_pack(req.args_nvl, &req.args_len);
+		if (req.args == NULL) {
+			log_warn("error packing nvlist");
+			return (1);
 		}
-		assert(i == num_options);
 	}
 
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
-	free(req.be_args);
+	nvlist_destroy(req.args_nvl);
+
 	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
 		return (1);
@@ -766,7 +766,7 @@ kernel_lun_modify(struct lun *lun)
 {
 	struct option *o;
 	struct ctl_lun_req req;
-	int error, i, num_options;
+	int error;
 
 	bzero(&req, sizeof(req));
 
@@ -776,29 +776,26 @@ kernel_lun_modify(struct lun *lun)
 	req.reqdata.modify.lun_id = lun->l_ctl_lun;
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
-	num_options = 0;
-	TAILQ_FOREACH(o, &lun->l_options, o_next)
-		num_options++;
-
-	req.num_be_args = num_options;
-	if (num_options > 0) {
-		req.be_args = malloc(num_options * sizeof(*req.be_args));
-		if (req.be_args == NULL) {
-			log_warn("error allocating %zd bytes",
-			    num_options * sizeof(*req.be_args));
+	if (!TAILQ_EMPTY(&lun->l_options)) {
+		req.args_nvl = nvlist_create(0);
+		if (req.args_nvl == NULL) {
+			log_warn("error allocating nvlist");
 			return (1);
 		}
 
-		i = 0;
-		TAILQ_FOREACH(o, &lun->l_options, o_next) {
-			str_arg(&req.be_args[i], o->o_name, o->o_value);
-			i++;
+		TAILQ_FOREACH(o, &lun->l_options, o_next)
+			nvlist_add_string(req.args_nvl, o->o_name, o->o_value);
+
+		req.args = nvlist_pack(req.args_nvl, &req.args_len);
+		if (req.args == NULL) {
+			log_warn("error packing nvlist");
+			return (1);
 		}
-		assert(i == num_options);
 	}
 
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
-	free(req.be_args);
+	nvlist_destroy(req.args_nvl);
+
 	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
 		return (1);
@@ -898,7 +895,9 @@ kernel_handoff(struct connection *conn)
 	req.data.handoff.cmdsn = conn->conn_cmdsn;
 	req.data.handoff.statsn = conn->conn_statsn;
 	req.data.handoff.max_recv_data_segment_length =
-	    conn->conn_max_data_segment_length;
+	    conn->conn_max_recv_data_segment_length;
+	req.data.handoff.max_send_data_segment_length =
+	    conn->conn_max_send_data_segment_length;
 	req.data.handoff.max_burst_length = conn->conn_max_burst_length;
 	req.data.handoff.first_burst_length = conn->conn_first_burst_length;
 	req.data.handoff.immediate_data = conn->conn_immediate_data;
@@ -915,16 +914,18 @@ kernel_handoff(struct connection *conn)
 }
 
 void
-kernel_limits(const char *offload, size_t *max_data_segment_length)
+kernel_limits(const char *offload, int *max_recv_dsl, int *max_send_dsl,
+    int *max_burst_length, int *first_burst_length)
 {
 	struct ctl_iscsi req;
+	struct ctl_iscsi_limits_params *cilp;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_LIMITS;
+	cilp = (struct ctl_iscsi_limits_params *)&(req.data.limits);
 	if (offload != NULL) {
-		strlcpy(req.data.limits.offload, offload,
-		    sizeof(req.data.limits.offload));
+		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
 	}
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
@@ -937,13 +938,31 @@ kernel_limits(const char *offload, size_t *max_data_segment_length)
 		    "%s; dropping connection", req.error_str);
 	}
 
-	*max_data_segment_length = req.data.limits.data_segment_limit;
+	if (cilp->max_recv_data_segment_length != 0) {
+		*max_recv_dsl = cilp->max_recv_data_segment_length;
+		*max_send_dsl = cilp->max_recv_data_segment_length;
+	}
+	if (cilp->max_send_data_segment_length != 0)
+		*max_send_dsl = cilp->max_send_data_segment_length;
+	if (cilp->max_burst_length != 0)
+		*max_burst_length = cilp->max_burst_length;
+	if (cilp->first_burst_length != 0)
+		*first_burst_length = cilp->first_burst_length;
+	if (*max_burst_length < *first_burst_length)
+		*first_burst_length = *max_burst_length;
+
 	if (offload != NULL) {
-		log_debugx("MaxRecvDataSegment kernel limit for offload "
-		    "\"%s\" is %zd", offload, *max_data_segment_length);
+		log_debugx("Kernel limits for offload \"%s\" are "
+		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+		    "MaxBurstLength=%d, FirstBurstLength=%d",
+		    offload, *max_recv_dsl, *max_send_dsl, *max_burst_length,
+		    *first_burst_length);
 	} else {
-		log_debugx("MaxRecvDataSegment kernel limit is %zd",
-		    *max_data_segment_length);
+		log_debugx("Kernel limits are "
+		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+		    "MaxBurstLength=%d, FirstBurstLength=%d",
+		    *max_recv_dsl, *max_send_dsl, *max_burst_length,
+		    *first_burst_length);
 	}
 }
 
@@ -956,37 +975,54 @@ kernel_port_add(struct port *port)
 	struct ctl_lun_map lm;
 	struct target *targ = port->p_target;
 	struct portal_group *pg = port->p_portal_group;
-	char tagstr[16];
-	int error, i, n;
+	char result_buf[NVLIST_BUFSIZE];
+	int error, i;
 
 	/* Create iSCSI port. */
-	if (port->p_portal_group) {
+	if (port->p_portal_group || port->p_ioctl_port) {
 		bzero(&req, sizeof(req));
-		strlcpy(req.driver, "iscsi", sizeof(req.driver));
 		req.reqtype = CTL_REQ_CREATE;
-		req.num_args = 5;
-		TAILQ_FOREACH(o, &pg->pg_options, o_next)
-			req.num_args++;
-		req.args = malloc(req.num_args * sizeof(*req.args));
-		if (req.args == NULL)
-			log_err(1, "malloc");
-		n = 0;
-		req.args[n].namelen = sizeof("port_id");
-		req.args[n].name = __DECONST(char *, "port_id");
-		req.args[n].vallen = sizeof(port->p_ctl_port);
-		req.args[n].value = &port->p_ctl_port;
-		req.args[n++].flags = CTL_BEARG_WR;
-		str_arg(&req.args[n++], "cfiscsi_target", targ->t_name);
-		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
-		str_arg(&req.args[n++], "cfiscsi_portal_group_tag", tagstr);
-		if (targ->t_alias)
-			str_arg(&req.args[n++], "cfiscsi_target_alias", targ->t_alias);
-		str_arg(&req.args[n++], "ctld_portal_group_name", pg->pg_name);
-		TAILQ_FOREACH(o, &pg->pg_options, o_next)
-			str_arg(&req.args[n++], o->o_name, o->o_value);
-		req.num_args = n;
+
+		if (port->p_portal_group) {
+			strlcpy(req.driver, "iscsi", sizeof(req.driver));
+			req.args_nvl = nvlist_create(0);
+			nvlist_add_string(req.args_nvl, "cfiscsi_target",
+			    targ->t_name);
+			nvlist_add_string(req.args_nvl,
+			    "ctld_portal_group_name", pg->pg_name);
+			nvlist_add_stringf(req.args_nvl,
+			    "cfiscsi_portal_group_tag", "%u", pg->pg_tag);
+
+			if (targ->t_alias) {
+				nvlist_add_string(req.args_nvl,
+				    "cfiscsi_target_alias", targ->t_alias);
+			}
+
+			TAILQ_FOREACH(o, &pg->pg_options, o_next)
+				nvlist_add_string(req.args_nvl, o->o_name,
+				    o->o_value);
+		}
+
+		if (port->p_ioctl_port) {
+			strlcpy(req.driver, "ioctl", sizeof(req.driver));
+			req.args_nvl = nvlist_create(0);
+			nvlist_add_stringf(req.args_nvl, "pp", "%d",
+			    port->p_ioctl_pp);
+			nvlist_add_stringf(req.args_nvl, "vp", "%d",
+			    port->p_ioctl_vp);
+		}
+
+		req.args = nvlist_pack(req.args_nvl, &req.args_len);
+		if (req.args == NULL) {
+			log_warn("error packing nvlist");
+			return (1);
+		}
+
+		req.result = result_buf;
+		req.result_len = sizeof(result_buf);
 		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
-		free(req.args);
+		nvlist_destroy(req.args_nvl);
+
 		if (error != 0) {
 			log_warn("error issuing CTL_PORT_REQ ioctl");
 			return (1);
@@ -1001,6 +1037,15 @@ kernel_port_add(struct port *port)
 			    req.status);
 			return (1);
 		}
+
+		req.result_nvl = nvlist_unpack(result_buf, req.result_len, 0);
+		if (req.result_nvl == NULL) {
+			log_warnx("error unpacking result nvlist");
+			return (1);
+		}
+
+		port->p_ctl_port = nvlist_get_number(req.result_nvl, "port_id");
+		nvlist_destroy(req.result_nvl);
 	} else if (port->p_pport) {
 		port->p_ctl_port = port->p_pport->pp_ctl_port;
 
@@ -1084,7 +1129,6 @@ kernel_port_remove(struct port *port)
 	struct ctl_port_entry entry;
 	struct ctl_lun_map lm;
 	struct ctl_req req;
-	char tagstr[16];
 	struct target *targ = port->p_target;
 	struct portal_group *pg = port->p_portal_group;
 	int error;
@@ -1098,20 +1142,35 @@ kernel_port_remove(struct port *port)
 		return (-1);
 	}
 
-	/* Remove iSCSI port. */
-	if (port->p_portal_group) {
+	/* Remove iSCSI or ioctl port. */
+	if (port->p_portal_group || port->p_ioctl_port) {
 		bzero(&req, sizeof(req));
-		strlcpy(req.driver, "iscsi", sizeof(req.driver));
+		strlcpy(req.driver, port->p_ioctl_port ? "ioctl" : "iscsi",
+		    sizeof(req.driver));
 		req.reqtype = CTL_REQ_REMOVE;
-		req.num_args = 2;
-		req.args = malloc(req.num_args * sizeof(*req.args));
-		if (req.args == NULL)
-			log_err(1, "malloc");
-		str_arg(&req.args[0], "cfiscsi_target", targ->t_name);
-		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
-		str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
+		req.args_nvl = nvlist_create(0);
+		if (req.args_nvl == NULL)
+			log_err(1, "nvlist_create");
+
+		if (port->p_ioctl_port)
+			nvlist_add_stringf(req.args_nvl, "port_id", "%d",
+			    port->p_ctl_port);
+		else {
+			nvlist_add_string(req.args_nvl, "cfiscsi_target",
+			    targ->t_name);
+			nvlist_add_stringf(req.args_nvl,
+			    "cfiscsi_portal_group_tag", "%u", pg->pg_tag);
+		}
+
+		req.args = nvlist_pack(req.args_nvl, &req.args_len);
+		if (req.args == NULL) {
+			log_warn("error packing nvlist");
+			return (1);
+		}
+
 		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
-		free(req.args);
+		nvlist_destroy(req.args_nvl);
+
 		if (error != 0) {
 			log_warn("error issuing CTL_PORT_REQ ioctl");
 			return (1);
@@ -1217,18 +1276,21 @@ kernel_send(struct pdu *pdu)
 void
 kernel_receive(struct pdu *pdu)
 {
+	struct connection *conn;
 	struct ctl_iscsi req;
 
-	pdu->pdu_data = malloc(MAX_DATA_SEGMENT_LENGTH);
+	conn = pdu->pdu_connection;
+	pdu->pdu_data = malloc(conn->conn_max_recv_data_segment_length);
 	if (pdu->pdu_data == NULL)
 		log_err(1, "malloc");
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_RECEIVE;
-	req.data.receive.connection_id = pdu->pdu_connection->conn_socket;
+	req.data.receive.connection_id = conn->conn_socket;
 	req.data.receive.bhs = pdu->pdu_bhs;
-	req.data.receive.data_segment_len = MAX_DATA_SEGMENT_LENGTH;
+	req.data.receive.data_segment_len =
+	    conn->conn_max_recv_data_segment_length;
 	req.data.receive.data_segment = pdu->pdu_data;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
@@ -1260,8 +1322,8 @@ kernel_capsicate(void)
 	if (error != 0 && errno != ENOSYS)
 		log_err(1, "cap_rights_limit");
 
-	error = cap_ioctls_limit(ctl_fd, cmds,
-	    sizeof(cmds) / sizeof(cmds[0]));
+	error = cap_ioctls_limit(ctl_fd, cmds, nitems(cmds));
+
 	if (error != 0 && errno != ENOSYS)
 		log_err(1, "cap_ioctls_limit");
 

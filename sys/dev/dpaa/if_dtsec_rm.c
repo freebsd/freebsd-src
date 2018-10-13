@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
+#include <contrib/ncsw/inc/Peripherals/fm_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
 #include <contrib/ncsw/inc/xx_ext.h>
@@ -115,7 +117,7 @@ dtsec_rm_fi_pool_init(struct dtsec_softc *sc)
 
 	sc->sc_fi_zone = uma_zcreate(sc->sc_fi_zname,
 	    sizeof(struct dtsec_rm_frame_info), NULL, NULL, NULL, NULL,
-	    sizeof(void *), 0);
+	    UMA_ALIGN_PTR, 0);
 	if (sc->sc_fi_zone == NULL)
 		return (EIO);
 
@@ -136,7 +138,6 @@ static void
 dtsec_rm_fi_free(struct dtsec_softc *sc, struct dtsec_rm_frame_info *fi)
 {
 
-	XX_UntrackAddress(fi);
 	uma_zfree(sc->sc_fi_zone, fi);
 }
 /** @} */
@@ -151,7 +152,7 @@ dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit)
 {
 	t_FmPortParams params;
 	t_FmPortRxParams *rx_params;
-	t_FmPortExtPools *pool_params;
+	t_FmExtPools *pool_params;
 	t_Error error;
 
 	memset(&params, 0, sizeof(params));
@@ -160,7 +161,7 @@ dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit)
 	params.h_Fm = sc->sc_fmh;
 	params.portType = dtsec_fm_port_rx_type(sc->sc_eth_dev_type);
 	params.portId = sc->sc_eth_id;
-	params.independentModeEnable = FALSE;
+	params.independentModeEnable = false;
 	params.liodnBase = FM_PORT_LIODN_BASE;
 	params.f_Exception = dtsec_fm_port_rx_exception_callback;
 	params.h_App = sc;
@@ -208,7 +209,7 @@ dtsec_rm_fm_port_tx_init(struct dtsec_softc *sc, int unit)
 	params.h_Fm = sc->sc_fmh;
 	params.portType = dtsec_fm_port_tx_type(sc->sc_eth_dev_type);
 	params.portId = sc->sc_eth_id;
-	params.independentModeEnable = FALSE;
+	params.independentModeEnable = false;
 	params.liodnBase = FM_PORT_LIODN_BASE;
 	params.f_Exception = dtsec_fm_port_tx_exception_callback;
 	params.h_App = sc;
@@ -313,7 +314,7 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
 	    device_get_nameunit(sc->sc_dev));
 
 	sc->sc_rx_zone = uma_zcreate(sc->sc_rx_zname, FM_PORT_BUFFER_SIZE, NULL,
-	    NULL, NULL, NULL, FM_PORT_BUFFER_SIZE, 0);
+	    NULL, NULL, NULL, FM_PORT_BUFFER_SIZE - 1, 0);
 	if (sc->sc_rx_zone == NULL)
 		return (EIO);
 
@@ -323,6 +324,7 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
 	    DTSEC_RM_POOL_RX_HIGH_MARK, 0, 0, dtsec_rm_pool_rx_depleted, sc, NULL,
 	    NULL);
 	if (sc->sc_rx_pool == NULL) {
+		device_printf(sc->sc_dev, "NULL rx pool  somehow\n");
 		dtsec_rm_pool_rx_free(sc);
 		return (EIO);
 	}
@@ -337,15 +339,17 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
  * @{
  */
 static void
-dtsec_rm_fqr_mext_free(struct mbuf *m, void *buffer, void *arg)
+dtsec_rm_fqr_mext_free(struct mbuf *m)
 {
 	struct dtsec_softc *sc;
+	void *buffer;
 
-	sc = arg;
+	buffer = m->m_ext.ext_arg1;
+	sc = m->m_ext.ext_arg2;
 	if (bman_count(sc->sc_rx_pool) <= DTSEC_RM_POOL_RX_MAX_SIZE)
 		bman_put_buffer(sc->sc_rx_pool, buffer);
 	else
-		dtsec_rm_pool_rx_put_buffer(arg, buffer, NULL);
+		dtsec_rm_pool_rx_put_buffer(sc, buffer, NULL);
 }
 
 static e_RxStoreResponse
@@ -354,10 +358,12 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 {
 	struct dtsec_softc *sc;
 	struct mbuf *m;
+	void *frame_va;
 
 	m = NULL;
 	sc = app;
 
+	frame_va = DPAA_FD_GET_ADDR(frame);
 	KASSERT(DPAA_FD_GET_FORMAT(frame) == e_DPAA_FD_FORMAT_TYPE_SHORT_SBSF,
 	    ("%s(): Got unsupported frame format 0x%02X!", __func__,
 	    DPAA_FD_GET_FORMAT(frame)));
@@ -375,8 +381,8 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 	if (m == NULL)
 		goto err;
 
-	m_extadd(m, DPAA_FD_GET_ADDR(frame), FM_PORT_BUFFER_SIZE,
-	    dtsec_rm_fqr_mext_free, DPAA_FD_GET_ADDR(frame), sc, 0,
+	m_extadd(m, frame_va, FM_PORT_BUFFER_SIZE,
+	    dtsec_rm_fqr_mext_free, frame_va, sc, 0,
 	    EXT_NET_DRV);
 
 	m->m_pkthdr.rcvif = sc->sc_ifnet;
@@ -388,7 +394,7 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 	return (e_RX_STORE_RESPONSE_CONTINUE);
 
 err:
-	bman_put_buffer(sc->sc_rx_pool, DPAA_FD_GET_ADDR(frame));
+	bman_put_buffer(sc->sc_rx_pool, frame_va);
 	if (m != NULL)
 		m_freem(m);
 
@@ -454,7 +460,7 @@ dtsec_rm_fqr_rx_init(struct dtsec_softc *sc)
 
 	/* Default Frame Queue */
 	fqr = qman_fqr_create(1, DTSEC_RM_FQR_RX_CHANNEL, DTSEC_RM_FQR_RX_WQ,
-	    FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0, 0);
+	    false, 0, false, false, true, false, 0, 0, 0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create default RX queue"
 		    "\n");
@@ -493,7 +499,7 @@ dtsec_rm_fqr_tx_init(struct dtsec_softc *sc)
 
 	/* TX Frame Queue */
 	fqr = qman_fqr_create(1, sc->sc_port_tx_qman_chan,
-	    DTSEC_RM_FQR_TX_WQ, FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0, 0);
+	    DTSEC_RM_FQR_TX_WQ, false, 0, false, false, true, false, 0, 0, 0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create default TX queue"
 		    "\n");
@@ -504,7 +510,7 @@ dtsec_rm_fqr_tx_init(struct dtsec_softc *sc)
 
 	/* TX Confirmation Frame Queue */
 	fqr = qman_fqr_create(1, DTSEC_RM_FQR_TX_CONF_CHANNEL,
-	    DTSEC_RM_FQR_TX_CONF_WQ, FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0,
+	    DTSEC_RM_FQR_TX_CONF_WQ, false, 0, false, false, true, false, 0, 0,
 	    0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create TX confirmation "
@@ -541,7 +547,6 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 	unsigned int qlen, i;
 	struct mbuf *m0, *m;
 	vm_offset_t vaddr;
-	vm_paddr_t paddr;
 	t_DpaaFD fd;
 
 	DTSEC_LOCK_ASSERT(sc);
@@ -598,8 +603,7 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 			dsize = m->m_len;
 			vaddr = (vm_offset_t)m->m_data;
 			while (dsize > 0 && i < DPAA_NUM_OF_SG_TABLE_ENTRY) {
-				paddr = XX_VirtToPhys((void *)vaddr);
-				ssize = PAGE_SIZE - (paddr & PAGE_MASK);
+				ssize = PAGE_SIZE - (vaddr & PAGE_MASK);
 				if (m->m_len < ssize)
 					ssize = m->m_len;
 
@@ -637,9 +641,9 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 		DPAA_FD_SET_LENGTH(&fd, psize);
 		DPAA_FD_SET_FORMAT(&fd, e_DPAA_FD_FORMAT_TYPE_SHORT_MBSF);
 
-		DPAA_FD_SET_DD(&fd, 0);
-		DPAA_FD_SET_PID(&fd, 0);
-		DPAA_FD_SET_BPID(&fd, 0);
+		fd.liodn = 0;
+		fd.bpid = 0;
+		fd.elion = 0;
 		DPAA_FD_SET_OFFSET(&fd, 0);
 		DPAA_FD_SET_STATUS(&fd, 0);
 

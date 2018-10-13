@@ -36,6 +36,7 @@
 #include <sys/types.h>
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
@@ -70,28 +71,35 @@ __raw_writeq(uint64_t b, volatile void *addr)
 static inline void
 writel(uint32_t b, void *addr)
 {
-        *(volatile uint32_t *)addr = b;
+	*(volatile uint32_t *)addr = b;
+}
+
+#undef writel_relaxed
+static inline void
+writel_relaxed(uint32_t b, void *addr)
+{
+	*(volatile uint32_t *)addr = b;
 }
 
 #undef writeq
 static inline void
 writeq(uint64_t b, void *addr)
 {
-        *(volatile uint64_t *)addr = b;
+	*(volatile uint64_t *)addr = b;
 }
 
 #undef writeb
 static inline void
 writeb(uint8_t b, void *addr)
 {
-        *(volatile uint8_t *)addr = b;
+	*(volatile uint8_t *)addr = b;
 }
 
 #undef writew
 static inline void
 writew(uint16_t b, void *addr)
 {
-        *(volatile uint16_t *)addr = b;
+	*(volatile uint16_t *)addr = b;
 }
 
 #undef ioread8
@@ -106,6 +114,13 @@ static inline uint16_t
 ioread16(const volatile void *addr)
 {
 	return *(const volatile uint16_t *)addr;
+}
+
+#undef ioread16be
+static inline uint16_t
+ioread16be(const volatile void *addr)
+{
+	return be16toh(*(const volatile uint16_t *)addr);
 }
 
 #undef ioread32
@@ -179,7 +194,7 @@ _outb(u_char data, u_int port)
 }
 #endif
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #else
 #define	_ioremap_attr(...) NULL

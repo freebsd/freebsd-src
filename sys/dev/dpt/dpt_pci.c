@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Matthew N. Dodd <winter@jurai.net>
  * All rights reserved.
  *
@@ -155,6 +157,7 @@ dpt_pci_attach (device_t dev)
 		error = ENXIO;
 		goto bad;
 	}
+	gone_in_dev(dev, 12, "dpt(4) driver");
 
 	return (error);
 

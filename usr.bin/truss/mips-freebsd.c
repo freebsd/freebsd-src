@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/reg.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
@@ -133,7 +136,9 @@ static struct procabi mips_freebsd = {
 #endif
 	SYSDECODE_ABI_FREEBSD,
 	mips_fetch_args,
-	mips_fetch_retval
+	mips_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(mips_freebsd.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(mips_freebsd);

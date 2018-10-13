@@ -128,6 +128,13 @@ __FBSDID("$FreeBSD$");
 # include <crtdbg.h>
 #endif
 
+mode_t umasked(mode_t expected_mode)
+{
+	mode_t mode = umask(0);
+	umask(mode);
+	return expected_mode & ~mode;
+}
+
 /* Path to working directory for current test */
 const char *testworkdir;
 #ifdef PROGRAM
@@ -209,6 +216,12 @@ invalid_parameter_handler(const wchar_t * expression,
     unsigned int line, uintptr_t pReserved)
 {
 	/* nop */
+	// Silence unused-parameter compiler warnings.
+	(void)expression;
+	(void)function;
+	(void)file;
+	(void)line;
+	(void)pReserved;
 }
 #endif
 
@@ -512,7 +525,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		return (0); /* Standard:  return 0 for end-of-string. */
 	cnt = utf8_count[ch];
 
-	/* Invalide sequence or there are not plenty bytes. */
+	/* Invalid sequence or there are not plenty bytes. */
 	if (n < (size_t)cnt)
 		return (-1);
 
@@ -551,7 +564,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		return (-1);
 	}
 
-	/* The code point larger than 0x10FFFF is not leagal
+	/* The code point larger than 0x10FFFF is not legal
 	 * Unicode values. */
 	if (wc > 0x10FFFF)
 		return (-1);
@@ -1155,6 +1168,35 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	return (0);
 }
 
+/* Verify that a text file does not contains the specified strings */
+int
+assertion_file_contains_no_invalid_strings(const char *file, int line,
+    const char *pathname, const char *strings[])
+{
+	char *buff;
+	int i;
+
+	buff = slurpfile(NULL, "%s", pathname);
+	if (buff == NULL) {
+		failure_start(file, line, "Can't read file: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	for (i = 0; strings[i] != NULL; ++i) {
+		if (strstr(buff, strings[i]) != NULL) {
+			failure_start(file, line, "Invalid string in %s: %s", pathname,
+			    strings[i]);
+			failure_finish(NULL);
+			free(buff);
+			return(0);
+		}
+	}
+
+	free(buff);
+	return (0);
+}
+
 /* Test that two paths point to the same file. */
 /* As a side-effect, asserts that both files exist. */
 static int
@@ -1292,6 +1334,11 @@ assertion_file_time(const char *file, int line,
 	switch (type) {
 	case 'a': filet_nsec = st.st_atimespec.tv_nsec; break;
 	case 'b': filet = st.st_birthtime;
+		/* FreeBSD filesystems that don't support birthtime
+		 * (e.g., UFS1) always return -1 here. */
+		if (filet == -1) {
+			return (1);
+		}
 		filet_nsec = st.st_birthtimespec.tv_nsec; break;
 	case 'm': filet_nsec = st.st_mtimespec.tv_nsec; break;
 	default: fprintf(stderr, "INTERNAL: Bad type %c for file time", type);
@@ -1359,6 +1406,35 @@ assertion_file_birthtime_recent(const char *file, int line,
 	return assertion_file_time(file, line, pathname, 0, 0, 'b', 1);
 }
 
+/* Verify mode of 'pathname'. */
+int
+assertion_file_mode(const char *file, int line, const char *pathname, int expected_mode)
+{
+	int mode;
+	int r;
+
+	assertion_count(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+	(void)mode; /* UNUSED */
+	(void)r; /* UNUSED */
+	(void)pathname; /* UNUSED */
+	(void)expected_mode; /* UNUSED */
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		mode = (int)(st.st_mode & 0777);
+	}
+	if (r == 0 && mode == expected_mode)
+			return (1);
+	failure_start(file, line, "File %s has mode %o, expected %o",
+	    pathname, mode, expected_mode);
+#endif
+	failure_finish(NULL);
+	return (0);
+}
+
 /* Verify mtime of 'pathname'. */
 int
 assertion_file_mtime(const char *file, int line,
@@ -1398,7 +1474,7 @@ assertion_file_nlinks(const char *file, int line,
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r == 0 && (int)st.st_nlink == nlinks)
-			return (1);
+		return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
 	    pathname, st.st_nlink, nlinks);
 	failure_finish(NULL);
@@ -1577,8 +1653,12 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 	if (0 == _mkdir(dirname))
 		return (1);
 #else
-	if (0 == mkdir(dirname, mode))
-		return (1);
+	if (0 == mkdir(dirname, mode)) {
+		if (0 == chmod(dirname, mode)) {
+			assertion_file_mode(file, line, dirname, mode);
+			return (1);
+		}
+	}
 #endif
 	failure_start(file, line, "Could not create directory %s", dirname);
 	failure_finish(NULL);
@@ -1627,6 +1707,12 @@ assertion_make_file(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
+	if (0 != chmod(path, mode)) {
+		failure_start(file, line, "Could not chmod %s", path);
+		failure_finish(NULL);
+		close(fd);
+		return (0);
+	}
 	if (contents != NULL) {
 		ssize_t wsize;
 
@@ -1639,10 +1725,12 @@ assertion_make_file(const char *file, int line,
 			failure_start(file, line,
 			    "Could not write to %s", path);
 			failure_finish(NULL);
+			close(fd);
 			return (0);
 		}
 	}
 	close(fd);
+	assertion_file_mode(file, line, path, mode);
 	return (1);
 #endif
 }
@@ -2341,6 +2429,132 @@ extract_reference_files(const char **names)
 		extract_reference_file(*names++);
 }
 
+/* Set ACLs */
+void
+archive_test_set_acls(struct archive_entry *ae,
+    struct archive_test_acl_t *acls, int n)
+{
+	int i;
+
+	archive_entry_acl_clear(ae);
+	for (i = 0; i < n; i++) {
+		failure("type=%#010x, permset=%#010x, tag=%d, qual=%d name=%s",
+		    acls[i].type, acls[i].permset, acls[i].tag,
+		    acls[i].qual, acls[i].name);
+		assertEqualInt(ARCHIVE_OK,
+		    archive_entry_acl_add_entry(ae,
+			acls[i].type, acls[i].permset, acls[i].tag,
+			acls[i].qual, acls[i].name));
+	}
+}
+
+static int
+archive_test_acl_match(struct archive_test_acl_t *acl, int type, int permset,
+    int tag, int qual, const char *name)
+{
+	if (type != acl->type)
+		return (0);
+	if (permset != acl->permset)
+		return (0);
+	if (tag != acl->tag)
+		return (0);
+	if (tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_EVERYONE)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_OTHER)
+		return (1);
+	if (qual != acl->qual)
+		return (0);
+	if (name == NULL) {
+		if (acl->name == NULL || acl->name[0] == '\0')
+			return (1);
+		return (0);
+	}
+	if (acl->name == NULL) {
+		if (name[0] == '\0')
+			return (1);
+		return (0);
+	}
+	return (0 == strcmp(name, acl->name));
+}
+
+/* Compare ACLs */
+void
+archive_test_compare_acls(struct archive_entry *ae,
+    struct archive_test_acl_t *acls, int cnt, int want_type, int mode)
+{
+	int *marker;
+	int i, r, n;
+	int type, permset, tag, qual;
+	int matched;
+	const char *name;
+
+	n = 0;
+	marker = malloc(sizeof(marker[0]) * cnt);
+
+	for (i = 0; i < cnt; i++) {
+		if ((acls[i].type & want_type) != 0) {
+			marker[n] = i;
+			n++;
+		}
+	}
+
+	failure("No ACL's to compare, type mask: %d", want_type);
+	assert(n > 0);
+	if (n == 0)
+		return;
+
+	while (0 == (r = archive_entry_acl_next(ae, want_type,
+			 &type, &permset, &tag, &qual, &name))) {
+		for (i = 0, matched = 0; i < n && !matched; i++) {
+			if (archive_test_acl_match(&acls[marker[i]], type,
+			    permset, tag, qual, name)) {
+				/* We found a match; remove it. */
+				marker[i] = marker[n - 1];
+				n--;
+				matched = 1;
+			}
+		}
+		if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_USER_OBJ) {
+			if (!matched) printf("No match for user_obj perm\n");
+			failure("USER_OBJ permset (%02o) != user mode (%02o)",
+			    permset, 07 & (mode >> 6));
+			assert((permset << 6) == (mode & 0700));
+		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ) {
+			if (!matched) printf("No match for group_obj perm\n");
+			failure("GROUP_OBJ permset %02o != group mode %02o",
+			    permset, 07 & (mode >> 3));
+			assert((permset << 3) == (mode & 0070));
+		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_OTHER) {
+			if (!matched) printf("No match for other perm\n");
+			failure("OTHER permset (%02o) != other mode (%02o)",
+			    permset, mode & 07);
+			assert((permset << 0) == (mode & 0007));
+		} else {
+			failure("Could not find match for ACL "
+			    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,"
+			    "name=``%s'')", type, permset, tag, qual, name);
+			assert(matched == 1);
+		}
+	}
+	assertEqualInt(ARCHIVE_EOF, r);
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)
+		assert((mode_t)(mode & 0777) == (archive_entry_mode(ae)
+		    & 0777));
+	failure("Could not find match for ACL "
+	    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
+	    acls[marker[0]].type, acls[marker[0]].permset,
+	    acls[marker[0]].tag, acls[marker[0]].qual, acls[marker[0]].name);
+	assert(n == 0); /* Number of ACLs not matched should == 0 */
+	free(marker);
+}
+
 /*
  *
  * TEST management
@@ -2533,18 +2747,36 @@ usage(const char *program)
 static char *
 get_refdir(const char *d)
 {
-	char tried[512] = { '\0' };
-	char buff[128];
-	char *pwd, *p;
+	size_t tried_size, buff_size;
+	char *buff, *tried, *pwd = NULL, *p = NULL;
+
+#ifdef PATH_MAX
+	buff_size = PATH_MAX;
+#else
+	buff_size = 8192;
+#endif
+	buff = calloc(buff_size, 1);
+	if (buff == NULL) {
+		fprintf(stderr, "Unable to allocate memory\n");
+		exit(1);
+	}
+
+	/* Allocate a buffer to hold the various directories we checked. */
+	tried_size = buff_size * 2;
+	tried = calloc(tried_size, 1);
+	if (tried == NULL) {
+		fprintf(stderr, "Unable to allocate memory\n");
+		exit(1);
+	}
 
 	/* If a dir was specified, try that */
 	if (d != NULL) {
 		pwd = NULL;
-		snprintf(buff, sizeof(buff), "%s", d);
+		snprintf(buff, buff_size, "%s", d);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 		goto failure;
 	}
 
@@ -2558,48 +2790,48 @@ get_refdir(const char *d)
 		pwd[strlen(pwd) - 1] = '\0';
 
 	/* Look for a known file. */
-	snprintf(buff, sizeof(buff), "%s", pwd);
+	snprintf(buff, buff_size, "%s", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
-	snprintf(buff, sizeof(buff), "%s/test", pwd);
+	snprintf(buff, buff_size, "%s/test", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
 #if defined(LIBRARY)
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, LIBRARY);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, LIBRARY);
 #else
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, PROGRAM);
 #endif
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
 #if defined(PROGRAM_ALIAS)
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, PROGRAM_ALIAS);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 #endif
 
 	if (memcmp(pwd, "/usr/obj", 8) == 0) {
-		snprintf(buff, sizeof(buff), "%s", pwd + 8);
+		snprintf(buff, buff_size, "%s", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
-		snprintf(buff, sizeof(buff), "%s/test", pwd + 8);
+		snprintf(buff, buff_size, "%s/test", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 	}
 
 failure:
@@ -2614,7 +2846,12 @@ failure:
 success:
 	free(p);
 	free(pwd);
-	return strdup(buff);
+	free(tried);
+
+	/* Copy result into a fresh buffer to reduce memory usage. */
+	p = strdup(buff);
+	free(buff);
+	return p;
 }
 
 int

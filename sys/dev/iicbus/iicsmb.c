@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
@@ -57,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 
+#include <dev/smbus/smb.h>
 #include <dev/smbus/smbconf.h>
 
 #include "iicbus_if.h"
@@ -130,8 +133,6 @@ static driver_t iicsmb_driver = {
 	iicsmb_methods,
 	sizeof(struct iicsmb_softc),
 };
-
-#define IICBUS_TIMEOUT	100	/* us */
 
 static void
 iicsmb_identify(driver_t *driver, device_t parent)
@@ -276,237 +277,202 @@ iicsmb_callback(device_t dev, int index, void *data)
 }
 
 static int
+iic2smb_error(int error)
+{
+	switch (error) {
+	case IIC_NOERR:
+		return (SMB_ENOERR);
+	case IIC_EBUSERR:
+		return (SMB_EBUSERR);
+	case IIC_ENOACK:
+		return (SMB_ENOACK);
+	case IIC_ETIMEOUT:
+		return (SMB_ETIMEOUT);
+	case IIC_EBUSBSY:
+		return (SMB_EBUSY);
+	case IIC_ESTATUS:
+		return (SMB_EBUSERR);
+	case IIC_EUNDERFLOW:
+		return (SMB_EBUSERR);
+	case IIC_EOVERFLOW:
+		return (SMB_EBUSERR);
+	case IIC_ENOTSUPP:
+		return (SMB_ENOTSUPP);
+	case IIC_ENOADDR:
+		return (SMB_EBUSERR);
+	case IIC_ERESOURCE:
+		return (SMB_EBUSERR);
+	default:
+		return (SMB_EBUSERR);
+	}
+}
+
+#define	TRANSFER_MSGS(dev, msgs)	iicbus_transfer(dev, msgs, nitems(msgs))
+
+static int
 iicsmb_quick(device_t dev, u_char slave, int how)
 {
-	device_t parent = device_get_parent(dev);
+	struct iic_msg msgs[] = {
+	     { slave, how == SMB_QWRITE ? IIC_M_WR : IIC_M_RD, 0, NULL },
+	};
 	int error;
 
 	switch (how) {
 	case SMB_QWRITE:
-		error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT);
-		break;
-
 	case SMB_QREAD:
-		error = iicbus_start(parent, slave | LSB, IICBUS_TIMEOUT);
 		break;
-
 	default:
-		error = EINVAL;
-		break;
+		return (SMB_EINVAL);
 	}
 
-	if (!error)
-		error = iicbus_stop(parent);
-		
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_sendb(device_t dev, u_char slave, char byte)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent;
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR, 1, &byte },
+	};
+	int error;
 
-	error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT);
-
-	if (!error) {
-		error = iicbus_write(parent, &byte, 1, &sent, IICBUS_TIMEOUT);
-
-		iicbus_stop(parent);
-	}
-
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_recvb(device_t dev, u_char slave, char *byte)
 {
-	device_t parent = device_get_parent(dev);
-	int error, read;
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_RD, 1, byte },
+	};
+	int error;
 
-	error = iicbus_start(parent, slave | LSB, 0);
-
-	if (!error) {
-		error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, IICBUS_TIMEOUT);
-
-		iicbus_stop(parent);
-	}
-
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent;
+	uint8_t bytes[] = { cmd, byte };
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR, nitems(bytes), bytes },
+	};
+	int error;
 
-	error = iicbus_start(parent, slave & ~LSB, 0);
-
-	if (!error) {
-		if (!(error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-			error = iicbus_write(parent, &byte, 1, &sent, IICBUS_TIMEOUT);
-
-		iicbus_stop(parent);
-	}
-
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_writew(device_t dev, u_char slave, char cmd, short word)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent;
+	uint8_t bytes[] = { cmd, word & 0xff, word >> 8 };
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR, nitems(bytes), bytes },
+	};
+	int error;
 
-	char low = (char)(word & 0xff);
-	char high = (char)((word & 0xff00) >> 8);
-
-	error = iicbus_start(parent, slave & ~LSB, 0);
-
-	if (!error) {
-		if (!(error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-		  if (!(error = iicbus_write(parent, &low, 1, &sent, IICBUS_TIMEOUT)))
-		    error = iicbus_write(parent, &high, 1, &sent, IICBUS_TIMEOUT);
-
-		iicbus_stop(parent);
-	}
-
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent, read;
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR | IIC_M_NOSTOP, 1, &cmd },
+	     { slave, IIC_M_RD, 1, byte },
+	};
+	int error;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, IICBUS_TIMEOUT)))
-		goto error;
-
-error:
-	iicbus_stop(parent);
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
-
-#define BUF2SHORT(low,high) \
-	((short)(((high) & 0xff) << 8) | (short)((low) & 0xff))
 
 static int
 iicsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent, read;
-	char buf[2];
+	uint8_t buf[2];
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR | IIC_M_NOSTOP, 1, &cmd },
+	     { slave, IIC_M_RD, nitems(buf), buf },
+	};
+	int error;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, IICBUS_TIMEOUT)))
-		goto error;
-
-	/* first, receive low, then high byte */
-	*word = BUF2SHORT(buf[0], buf[1]);
-
-error:
-	iicbus_stop(parent);
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	if (error == 0)
+		*word = ((uint16_t)buf[1] << 8) | buf[0];
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent, read;
-	char buf[2];
+	uint8_t in[3] = { cmd, sdata & 0xff, sdata >> 8 };
+	uint8_t out[2];
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR | IIC_M_NOSTOP, nitems(in), in },
+	     { slave, IIC_M_RD, nitems(out), out },
+	};
+	int error;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	/* first, send low, then high byte */
-	buf[0] = (char)(sdata & 0xff);
-	buf[1] = (char)((sdata & 0xff00) >> 8);
-
-	if ((error = iicbus_write(parent, buf, 2, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, IICBUS_TIMEOUT)))
-		goto error;
-
-	/* first, receive low, then high byte */
-	*rdata = BUF2SHORT(buf[0], buf[1]);
-
-error:
-	iicbus_stop(parent);
-	return (error);
+	error = TRANSFER_MSGS(dev, msgs);
+	if (error == 0)
+		*rdata = ((uint16_t)out[1] << 8) | out[0];
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
-	device_t parent = device_get_parent(dev);
-	int error, sent;
+	uint8_t bytes[2] = { cmd, count };
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR | IIC_M_NOSTOP, nitems(bytes), bytes },
+	     { slave, IIC_M_WR | IIC_M_NOSTART, count, buf },
+	};
+	int error;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_write(parent, buf, (int)count, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_stop(parent)))
-		goto error;
-
-error:
-	return (error);
+	if (count > SMB_MAXBLOCKSIZE || count == 0)
+		return (SMB_EINVAL);
+	error = TRANSFER_MSGS(dev, msgs);
+	return (iic2smb_error(error));
 }
 
 static int
 iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
+	struct iic_msg msgs[] = {
+	     { slave, IIC_M_WR | IIC_M_NOSTOP, 1, &cmd },
+	     { slave, IIC_M_RD | IIC_M_NOSTOP, 1, count },
+	};
+	struct iic_msg block_msg[] = {
+	     { slave, IIC_M_RD | IIC_M_NOSTART, 0, buf },
+	};
 	device_t parent = device_get_parent(dev);
-	int error, sent, read;
+	int error;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
-		goto error;
-
-	if ((error = iicbus_read(parent, buf, (int)*count, &read,
-						IIC_LAST_READ, IICBUS_TIMEOUT)))
-		goto error;
-	*count = read;
-
-error:
-	iicbus_stop(parent);
-	return (error);
+	/* Have to do this because the command is split in two transfers. */
+	error = iicbus_request_bus(parent, dev, IIC_WAIT);
+	if (error == 0)
+		error = TRANSFER_MSGS(dev, msgs);
+	if (error == 0) {
+		/*
+		 * If the slave offers an empty or a too long reply,
+		 * read one byte to generate the stop or abort.
+		 */
+		if (*count > SMB_MAXBLOCKSIZE || *count == 0)
+			block_msg[0].len = 1;
+		else
+			block_msg[0].len = *count;
+		error = TRANSFER_MSGS(dev, block_msg);
+		if (*count > SMB_MAXBLOCKSIZE || *count == 0)
+			error = SMB_EINVAL;
+	}
+	(void)iicbus_release_bus(parent, dev);
+	return (iic2smb_error(error));
 }
 
 DRIVER_MODULE(iicsmb, iicbus, iicsmb_driver, iicsmb_devclass, 0, 0);

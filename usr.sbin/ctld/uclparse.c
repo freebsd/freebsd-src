@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 iXsystems Inc.
  * All rights reserved.
  *
@@ -183,18 +185,25 @@ static int
 uclparse_target_lun(struct target *target, const ucl_object_t *obj)
 {
 	struct lun *lun;
+	uint64_t tmp;
 
 	if (obj->type == UCL_INT) {
 		char *name;
 
-		asprintf(&name, "%s,lun,%ju", target->t_name,
-		    ucl_object_toint(obj));
+		tmp = ucl_object_toint(obj);
+		if (tmp >= MAX_LUNS) {
+			log_warnx("LU number %ju in target \"%s\" is too big",
+			    tmp, target->t_name);
+			return (1);
+		}
+
+		asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
 		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
 
 		lun_set_scsiname(lun, name);
-		target->t_luns[ucl_object_toint(obj)] = lun;
+		target->t_luns[tmp] = lun;
 		return (0);
 	}
 
@@ -205,6 +214,12 @@ uclparse_target_lun(struct target *target, const ucl_object_t *obj)
 		if (num == NULL || num->type != UCL_INT) {
 			log_warnx("lun section in target \"%s\" is missing "
 			    "\"number\" integer property", target->t_name);
+			return (1);
+		}
+		tmp = ucl_object_toint(num);
+		if (tmp >= MAX_LUNS) {
+			log_warnx("LU number %ju in target \"%s\" is too big",
+			    tmp, target->t_name);
 			return (1);
 		}
 
@@ -218,7 +233,7 @@ uclparse_target_lun(struct target *target, const ucl_object_t *obj)
 		if (lun == NULL)
 			return (1);
 
-		target->t_luns[ucl_object_toint(num)] = lun;
+		target->t_luns[tmp] = lun;
 	}
 
 	return (0);
@@ -606,6 +621,8 @@ uclparse_target(const char *name, const ucl_object_t *top)
 	const char *key;
 
 	target = target_new(conf, name);
+	if (target == NULL)
+		return (1);
 
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
@@ -741,6 +758,19 @@ uclparse_target(const char *name, const ucl_object_t *top)
 			struct pport *pp;
 			struct port *tp;
 			const char *value = ucl_object_tostring(obj);
+			int ret, i_pp, i_vp = 0;
+
+			ret = sscanf(value, "ioctl/%d/%d", &i_pp, &i_vp);
+			if (ret > 0) {
+				tp = port_new_ioctl(conf, target, i_pp, i_vp);
+				if (tp == NULL) {
+					log_warnx("can't create new ioctl port "
+					    "for target \"%s\"", target->t_name);
+					return (1);
+				}
+
+				return (0);
+			}
 
 			pp = pport_find(conf, value);
 			if (pp == NULL) {
@@ -794,6 +824,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 	const char *key;
 
 	lun = lun_new(conf, name);
+	if (lun == NULL)
+		return (1);
 
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);

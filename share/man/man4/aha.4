@@ -54,14 +54,9 @@ In
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI
-bus connected to the Adaptec AHA-154x and AHA-1640 SCSI host adapters.
+bus connected to the Adaptec AHA-154x SCSI host adapters.
 x is 0 for controllers without a floppy drive and 2 for controllers
 that have them.
-For optimum
-performance, Adaptec AHA-174x controllers should be configured in
-enhanced mode and attached via the
-.Xr ahb 4
-driver.
 .Pp
 One device hint entry for every card to be attached by the system is
 required.
@@ -74,10 +69,6 @@ locations and attaches to the first unattached card it finds.
 The possible
 port addresses for this card are 0x330, 0x334, 0x230, 0x234, 0x130, and
 0x134.
-.Pp
-The AHA-1640 is an MCA bus card.
-Since the MCA bus is a self-identifying bus, no setting of hints is
-required.
 .Sh HARDWARE
 The
 .Nm
@@ -93,16 +84,11 @@ Adaptec AHA-154xCF
 .It
 Adaptec AHA-154xCP
 .It
-Adaptec AHA-1640
-.It
-Adaptec AHA-174x in 154x emulation mode
-.It
 DTC 3290 SCSI controller in 1542 emulation mode
 .It
 Tekram SCSI controllers in 154x emulation mode
 .El
 .Sh SEE ALSO
-.Xr ahb 4 ,
 .Xr ahc 4 ,
 .Xr aic 4 ,
 .Xr cd 4 ,

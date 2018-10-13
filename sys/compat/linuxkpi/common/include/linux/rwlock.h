@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/libkern.h>
 
 typedef struct {
 	struct rwlock rw;
@@ -47,9 +48,9 @@ typedef struct {
 #define	read_unlock_irq(lock)	read_unlock((lock))
 #define	write_lock_irq(lock)	write_lock((lock))
 #define	write_unlock_irq(lock)	write_unlock((lock))
-#define	read_lock_irqsave(lock, flags)   				\
+#define	read_lock_irqsave(lock, flags)					\
     do {(flags) = 0; read_lock(lock); } while (0)
-#define	write_lock_irqsave(lock, flags)   				\
+#define	write_lock_irqsave(lock, flags)					\
     do {(flags) = 0; write_lock(lock); } while (0)
 #define	read_unlock_irqrestore(lock, flags)				\
     do { read_unlock(lock); } while (0)

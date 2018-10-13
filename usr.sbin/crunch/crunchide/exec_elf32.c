@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -191,6 +193,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 #define	EM_RISCV	243
 #endif
 	case EM_RISCV: break;
+	case EM_S390: break;
 	case EM_SPARCV9: break;
 	case EM_X86_64: break;
 /*        ELFDEFNNAME(MACHDEP_ID_CASES) */
@@ -278,6 +281,10 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	if (shstrtabshdr == NULL) {
 		weird = 1;
 		weirdreason = "section header string table does not exist";
+	}
+	if (strtabshdr == shstrtabshdr) {
+		weird = 1;
+		weirdreason = "combined strtab and shstrtab not supported";
 	}
 	if (weirdreason == NULL)
 		weirdreason = "unsupported";

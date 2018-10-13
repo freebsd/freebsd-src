@@ -32,15 +32,12 @@ int broadcast;
 char cln[MAX_MACHINE_NAME+1];
 char dmn[MAX_MACHINE_NAME+1];
 char path[MAX_PATH_LEN+1];
-extern char *inet_ntoa();
 static void usage(void);
 int printgetfile(bp_getfile_res *);
 int printwhoami(bp_whoami_res *);
 
-bool_t
-eachres_whoami(resultp, raddr)
-bp_whoami_res *resultp;
-struct sockaddr_in *raddr;
+static bool_t
+eachres_whoami(bp_whoami_res *resultp, struct sockaddr_in *raddr)
 {
   struct hostent *he;
 
@@ -51,10 +48,8 @@ struct sockaddr_in *raddr;
   return(0);
 }
 
-bool_t
-eachres_getfile(resultp, raddr)
-bp_getfile_res *resultp;
-struct sockaddr_in *raddr;
+static bool_t
+eachres_getfile(bp_getfile_res *resultp, struct sockaddr_in *raddr)
 {
   struct hostent *he;
 
@@ -67,9 +62,7 @@ struct sockaddr_in *raddr;
 
 
 int
-main(argc, argv)
-int argc;
-char **argv;
+main(int argc, char **argv)
 {
   char *server;
 

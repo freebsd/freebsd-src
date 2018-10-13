@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2015
+.Dd September 24, 2018
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Op Fl bdehiNnoRTtqx
 .Op Fl B Ar bufsize
 .Op Fl f Ar filename
-.Ar name Ns Op = Ns Ar value
+.Ar name Ns Op = Ns Ar value Ns Op , Ns Ar value
 .Ar ...
 .Nm
 .Op Fl bdehNnoRTtqx
@@ -214,7 +214,7 @@ String and integer values can be set using
 .It "kern.filedelay	integer	yes"
 .It "kern.dirdelay	integer	yes"
 .It "kern.metadelay	integer	yes"
-.It "kern.osreldate	string	no"
+.It "kern.osreldate	integer	no"
 .It "kern.bootfile	string	yes"
 .It "kern.corefile	string	yes"
 .It "kern.logsigexit	integer	yes"
@@ -276,6 +276,8 @@ definitions for fourth level ICMP identifiers
 .It In netinet/udp_var.h
 definitions for fourth level UDP identifiers
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 For example, to retrieve the maximum number of processes allowed
 in the system, one would use the following request:

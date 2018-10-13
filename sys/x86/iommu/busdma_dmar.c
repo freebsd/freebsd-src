@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -74,14 +76,34 @@ static bool
 dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
 {
 	char str[128], *env;
+	int default_bounce;
+	bool ret;
+	static const char bounce_str[] = "bounce";
+	static const char dmar_str[] = "dmar";
 
-	snprintf(str, sizeof(str), "hw.busdma.pci%d.%d.%d.%d.bounce",
+	default_bounce = 0;
+	env = kern_getenv("hw.busdma.default");
+	if (env != NULL) {
+		if (strcmp(env, bounce_str) == 0)
+			default_bounce = 1;
+		else if (strcmp(env, dmar_str) == 0)
+			default_bounce = 0;
+		freeenv(env);
+	}
+
+	snprintf(str, sizeof(str), "hw.busdma.pci%d.%d.%d.%d",
 	    domain, bus, slot, func);
 	env = kern_getenv(str);
 	if (env == NULL)
-		return (false);
+		return (default_bounce != 0);
+	if (strcmp(env, bounce_str) == 0)
+		ret = true;
+	else if (strcmp(env, dmar_str) == 0)
+		ret = false;
+	else
+		ret = default_bounce != 0;
 	freeenv(env);
-	return (true);
+	return (ret);
 }
 
 /*
@@ -304,6 +326,13 @@ out:
 }
 
 static int
+dmar_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
+{
+
+	return (0);
+}
+
+static int
 dmar_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
 	struct bus_dma_tag_dmar *dmat, *dmat_copy, *parent;
@@ -323,7 +352,7 @@ dmar_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 			    1) {
 				if (dmat == &dmat->ctx->ctx_tag)
 					dmar_free_ctx(dmat->ctx);
-				free(dmat->segments, M_DMAR_DMAMAP);
+				free_domain(dmat->segments, M_DMAR_DMAMAP);
 				free(dmat, M_DEVBUF);
 				dmat = parent;
 			} else
@@ -341,17 +370,21 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s", __func__);
+
 	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = malloc(sizeof(*map), M_DMAR_DMAMAP, M_NOWAIT | M_ZERO);
+	map = malloc_domain(sizeof(*map), M_DMAR_DMAMAP,
+	    tag->common.domain, M_NOWAIT | M_ZERO);
 	if (map == NULL) {
 		*mapp = NULL;
 		return (ENOMEM);
 	}
 	if (tag->segments == NULL) {
-		tag->segments = malloc(sizeof(bus_dma_segment_t) *
-		    tag->common.nsegments, M_DMAR_DMAMAP, M_NOWAIT);
+		tag->segments = malloc_domain(sizeof(bus_dma_segment_t) *
+		    tag->common.nsegments, M_DMAR_DMAMAP,
+		    tag->common.domain, M_NOWAIT);
 		if (tag->segments == NULL) {
-			free(map, M_DMAR_DMAMAP);
+			free_domain(map, M_DMAR_DMAMAP);
 			*mapp = NULL;
 			return (ENOMEM);
 		}
@@ -383,7 +416,7 @@ dmar_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
 			return (EBUSY);
 		}
 		DMAR_DOMAIN_UNLOCK(domain);
-		free(map, M_DMAR_DMAMAP);
+		free_domain(map, M_DMAR_DMAMAP);
 	}
 	tag->map_count--;
 	return (0);
@@ -414,10 +447,11 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (tag->common.maxsize < PAGE_SIZE &&
 	    tag->common.alignment <= tag->common.maxsize &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		*vaddr = malloc(tag->common.maxsize, M_DEVBUF, mflags);
+		*vaddr = malloc_domain(tag->common.maxsize, M_DEVBUF,
+		    tag->common.domain, mflags);
 		map->flags |= BUS_DMAMAP_DMAR_MALLOC;
 	} else {
-		*vaddr = (void *)kmem_alloc_attr(kernel_arena,
+		*vaddr = (void *)kmem_alloc_attr_domain(tag->common.domain,
 		    tag->common.maxsize, mflags, 0ul, BUS_SPACE_MAXADDR,
 		    attr);
 		map->flags |= BUS_DMAMAP_DMAR_KMEM_ALLOC;
@@ -440,12 +474,12 @@ dmar_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map1)
 	map = (struct bus_dmamap_dmar *)map1;
 
 	if ((map->flags & BUS_DMAMAP_DMAR_MALLOC) != 0) {
-		free(vaddr, M_DEVBUF);
+		free_domain(vaddr, M_DEVBUF);
 		map->flags &= ~BUS_DMAMAP_DMAR_MALLOC;
 	} else {
 		KASSERT((map->flags & BUS_DMAMAP_DMAR_KMEM_ALLOC) != 0,
 		    ("dmar_bus_dmamem_free for non alloced map %p", map));
-		kmem_free(kernel_arena, (vm_offset_t)vaddr, tag->common.maxsize);
+		kmem_free((vm_offset_t)vaddr, tag->common.maxsize);
 		map->flags &= ~BUS_DMAMAP_DMAR_KMEM_ALLOC;
 	}
 
@@ -808,6 +842,7 @@ dmar_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 struct bus_dma_impl bus_dma_dmar_impl = {
 	.tag_create = dmar_bus_dma_tag_create,
 	.tag_destroy = dmar_bus_dma_tag_destroy,
+	.tag_set_domain = dmar_bus_dma_tag_set_domain,
 	.map_create = dmar_bus_dmamap_create,
 	.map_destroy = dmar_bus_dmamap_destroy,
 	.mem_alloc = dmar_bus_dmamem_alloc,
@@ -818,7 +853,7 @@ struct bus_dma_impl bus_dma_dmar_impl = {
 	.map_waitok = dmar_bus_dmamap_waitok,
 	.map_complete = dmar_bus_dmamap_complete,
 	.map_unload = dmar_bus_dmamap_unload,
-	.map_sync = dmar_bus_dmamap_sync
+	.map_sync = dmar_bus_dmamap_sync,
 };
 
 static void

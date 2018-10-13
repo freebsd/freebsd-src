@@ -112,12 +112,12 @@ svn_spillbuf__get_size(const svn_spillbuf_t *buf);
 svn_filesize_t
 svn_spillbuf__get_memory_size(const svn_spillbuf_t *buf);
 
-/* Retrieve the name of the spill file. The returned value can be NULL
-   if the file has not been created yet. */
+/* Retrieve the name of the spill file. The returned value will be
+   NULL if the file has not been created yet. */
 const char *
 svn_spillbuf__get_filename(const svn_spillbuf_t *buf);
 
-/* Retrieve the handle of the spill file. The returned value can be
+/* Retrieve the handle of the spill file. The returned value will be
    NULL if the file has not been created yet. */
 apr_file_t *
 svn_spillbuf__get_file(const svn_spillbuf_t *buf);
@@ -133,8 +133,8 @@ svn_spillbuf__write(svn_spillbuf_t *buf,
 /* Read a block of memory from the spill buffer. @a *data will be set to
    NULL if no content remains. Otherwise, @a data and @a len will point to
    data that must be fully-consumed by the caller. This data will remain
-   valid until another call to svn_spillbuf_write(), svn_spillbuf_read(),
-   or svn_spillbuf_process(), or if the spill buffer's pool is cleared.  */
+   valid until another call to svn_spillbuf__write(), svn_spillbuf__read(),
+   or svn_spillbuf__process(), or if the spill buffer's pool is cleared.  */
 svn_error_t *
 svn_spillbuf__read(const char **data,
                    apr_size_t *len,
@@ -143,7 +143,7 @@ svn_spillbuf__read(const char **data,
 
 
 /* Callback for reading content out of the spill buffer. Set @a stop if
-   you want to stop the processing (and will call svn_spillbuf_process
+   you want to stop the processing (and will call svn_spillbuf__process
    again, at a later time).  */
 typedef svn_error_t * (*svn_spillbuf_read_t)(svn_boolean_t *stop,
                                              void *baton,
@@ -472,7 +472,7 @@ svn_version__parse_version_string(svn_version_t **version,
  * @since New in 1.8.
  */
 svn_boolean_t
-svn_version__at_least(svn_version_t *version,
+svn_version__at_least(const svn_version_t *version,
                       int major,
                       int minor,
                       int patch);
@@ -525,6 +525,16 @@ svn_version__at_least(svn_version_t *version,
 unsigned char *
 svn__encode_uint(unsigned char *p, apr_uint64_t val);
 
+/* Wrapper around svn__encode_uint using the LSB to store the sign:
+ *
+ * If VAL >= 0
+ *   UINT_VAL = 2 * VAL
+ * else
+ *   UINT_VAL = (- 2 * VAL) - 1
+ */
+unsigned char *
+svn__encode_int(unsigned char *p, apr_int64_t val);
+
 /* Decode an unsigned 7b/8b-encoded integer into *VAL and return a pointer
    to the byte after the integer.  The bytes to be decoded live in the
    range [P..END-1].  If these bytes do not contain a whole encoded
@@ -537,22 +547,49 @@ svn__decode_uint(apr_uint64_t *val,
                  const unsigned char *p,
                  const unsigned char *end);
 
-/* Get the data from IN, compress it according to the specified
- * COMPRESSION_METHOD and write the result to OUT.
+/* Wrapper around svn__decode_uint, reversing the transformation performed
+ * by svn__encode_int.
+ */
+const unsigned char *
+svn__decode_int(apr_int64_t *val,
+                const unsigned char *p,
+                const unsigned char *end);
+
+/* Compress the data from DATA with length LEN, it according to the
+ * specified COMPRESSION_METHOD and write the result to OUT.
  * SVN__COMPRESSION_NONE is valid for COMPRESSION_METHOD.
  */
 svn_error_t *
-svn__compress(svn_stringbuf_t *in,
-              svn_stringbuf_t *out,
-              int compression_method);
+svn__compress_zlib(const void *data, apr_size_t len,
+                   svn_stringbuf_t *out,
+                   int compression_method);
 
-/* Get the compressed data from IN, decompress it and write the result to
- * OUT.  Return an error if the decompressed size is larger than LIMIT.
+/* Decompress the compressed data from DATA with length LEN and write the
+ * result to OUT.  Return an error if the decompressed size is larger than
+ * LIMIT.
  */
 svn_error_t *
-svn__decompress(svn_stringbuf_t *in,
-                svn_stringbuf_t *out,
-                apr_size_t limit);
+svn__decompress_zlib(const void *data, apr_size_t len,
+                     svn_stringbuf_t *out,
+                     apr_size_t limit);
+
+/* Same as svn__compress_zlib(), but use LZ4 compression.  Note that
+ * while the declaration of this function uses apr_size_t, it expects
+ * blocks of size not exceeding LZ4_MAX_INPUT_SIZE.  The caller should
+ * ensure that the proper size is passed to this function.
+ */
+svn_error_t *
+svn__compress_lz4(const void *data, apr_size_t len,
+                  svn_stringbuf_t *out);
+
+/* Same as svn__decompress_zlib(), but use LZ4 compression.  The caller
+ * should ensure that the size and limit passed to this function do not
+ * exceed INT_MAX.
+ */
+svn_error_t *
+svn__decompress_lz4(const void *data, apr_size_t len,
+                    svn_stringbuf_t *out,
+                    apr_size_t limit);
 
 /** @} */
 
@@ -700,6 +737,14 @@ const char *svn_zlib__compiled_version(void);
 
 /* Return the zlib version we run against. */
 const char *svn_zlib__runtime_version(void);
+
+/* Return the lz4 version we compiled against. */
+const char *svn_lz4__compiled_version(void);
+
+/* Return the lz4 version we run against as a composed value:
+ * major * 100 * 100 + minor * 100 + release
+ */
+int svn_lz4__runtime_version(void);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -68,6 +70,7 @@ struct kt {
 	{ "nodevice",	NODEVICE },
 	{ "nodevices",	NODEVICE },
 	{ "env",	ENV },
+	{ "envvar",	ENVVAR },
 	{ "hints",	HINTS },
 	{ "ident",	IDENT },
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
@@ -103,7 +106,13 @@ int yyerror(const char *);
 ID	[A-Za-z_][-A-Za-z_0-9]*
 PATH	[./][-/.%^A-Za-z_0-9]+
 %START TOEOL
+%START ENVC
 %%
+<ENVC>[^#\n]*	{
+			BEGIN 0;
+			yylval.str = strdup(yytext);
+			return ENVLINE;
+		}
 {ID}		{
 			int i;
 
@@ -113,9 +122,12 @@ PATH	[./][-/.%^A-Za-z_0-9]+
 				yylval.str = strdup(yytext);
 				return ID;
 			}
+			/* We'll glom onto the rest of an envvar line */
+			if (i == ENVVAR)
+				BEGIN ENVC;
 			return i;
 		}
-\\\"[^"]+\\\"	{
+\\\"[^"]*\\\"	{
 			BEGIN 0;
 			yytext[yyleng-2] = '"';
 			yytext[yyleng-1] = '\0';

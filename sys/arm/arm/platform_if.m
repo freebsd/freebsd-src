@@ -27,9 +27,10 @@
 #
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/devmap.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
 
 #include <machine/machdep.h>
@@ -56,6 +57,11 @@ CODE {
 	static void platform_null_attach(platform_t plat)
 	{
 		return;
+	}
+
+	static vm_offset_t platform_default_lastaddr(platform_t plat)
+	{
+		return (devmap_lastaddr());
 	}
 
 	static void platform_default_mp_setmaxid(platform_t plat)
@@ -100,7 +106,7 @@ METHOD int devmap_init {
  */
 METHOD vm_offset_t lastaddr {
 	platform_t	_plat;
-};
+} DEFAULT platform_default_lastaddr;
 
 /**
  * @brief Called after the static device mappings are established and just
@@ -131,5 +137,12 @@ METHOD void mp_setmaxid {
  * @brief Called by cpu_mp_start to start the secondary processors.
  */
 METHOD void mp_start_ap {
+	platform_t	_plat;
+};
+
+/**
+ * @brief Called by cpu_reset to reboot.
+ */
+METHOD void cpu_reset {
 	platform_t	_plat;
 };

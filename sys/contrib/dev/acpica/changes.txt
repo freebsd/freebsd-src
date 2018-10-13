@@ -1,7 +1,1583 @@
 ----------------------------------------
-27 May 2016. Summary of changes for version 20160527:
+03 October 2018. Summary of changes for version 20181003:
 
-This release is available at https://acpica.org/downloads
+
+2) iASL Compiler/Disassembler and Tools:
+
+Fixed a regression introduced in version 20180927 that could cause the 
+compiler to fault, especially with NamePaths containing one or more 
+carats (^). Such as: ^^_SB_PCI0
+
+Added a new remark for the Sleep() operator when the sleep time operand 
+is larger than one second. This is a very long time for the ASL/BIOS code 
+and may not be what was intended by the ASL writer.
+
+----------------------------------------
+27 September 2018. Summary of changes for version 20180927:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated the GPE support to clear the status of all ACPI events when 
+entering any/all sleep states in order to avoid premature wakeups. In 
+theory, this may cause some wakeup events to be missed, but the 
+likelihood of this is small. This change restores the original behavior 
+of the ACPICA code in order to fix a regression seen from the previous 
+"Stop unconditionally clearing ACPI IRQs during suspend/resume" change. 
+This regression could cause some systems to incorrectly wake immediately.
+
+Updated the execution of the _REG methods during initialization and 
+namespace loading to bring the behavior into closer conformance to the 
+ACPI specification and other ACPI implementations:
+
+From the ACPI specification 6.2A, section 6.5.4 "_REG (Region):
+    "Control methods must assume all operation regions are inaccessible 
+until the _REG(RegionSpace, 1) method is executed"
+
+    "The exceptions to this rule are:
+1.  OSPM must guarantee that the following operation regions are always 
+accessible:
+    SystemIO operation regions.
+    SystemMemory operation regions when accessing memory returned by the 
+System Address Map reporting interfaces."
+
+Since the state of both the SystemIO and SystemMemory address spaces are 
+defined by the specification to never change, this ACPICA change ensures 
+that now _REG is never called on them. This solves some problems seen in 
+the field and provides compatibility with other ACPI implementations. An 
+update to the upcoming new version of the ACPI specification will help 
+clarify this behavior.
+
+Updated the implementation of support for the Generic Serial Bus. For the 
+"bidirectional" protocols, the internal implementation now automatically 
+creates a return data buffer of the maximum size (255). This handles the 
+worst-case for data that is returned from the serial bus handler, and 
+fixes some problems seen in the field. This new buffer is directly 
+returned to the ASL. As such, there is no true "bidirectional" buffer, 
+which matches the ACPI specification. This is the reason for the "double 
+store" seen in the example ASL code in the specification, shown below:
+
+Word Process Call (AttribProcessCall):
+    OperationRegion(TOP1, GenericSerialBus, 0x00, 0x100)
+    Field(TOP1, BufferAcc, NoLock, Preserve)
+    {
+        FLD1, 8, // Virtual register at command value 1.
+    }
+
+    Name(BUFF, Buffer(20){}) // Create GenericSerialBus data buffer
+                             // as BUFF
+    CreateWordField(BUFF, 0x02, DATA) // DATA = Data (Word)
+
+    Store(0x5416, DATA)               // Save 0x5416 into the data buffer
+    Store(Store(BUFF, FLD1), BUFF)    // Invoke a write/read Process Call 
+transaction
+                           // This is the "double store". The write to
+                           // FLD1 returns a new buffer, which is stored
+                           // back into BUFF with the second Store.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented detection of extraneous/redundant uses of the Offset() 
+operator within a Field Unit list. A remark is now issued for these. For 
+example, the first two of the Offset() operators below are extraneous. 
+Because both the compiler and the interpreter track the offsets 
+automatically, these Offsets simply refer to the current offset and are 
+unnecessary. Note, when optimization is enabled, the iASL compiler will 
+in fact remove the redundant Offset operators and will not emit any AML 
+code for them.
+
+    OperationRegion (OPR1, SystemMemory, 0x100, 0x100)
+    Field (OPR1)
+    {
+        Offset (0),     // Never needed
+        FLD1, 32,
+        Offset (4),     // Redundant, offset is already 4 (bytes)
+        FLD2, 8,
+        Offset (64),    // OK use of Offset.
+        FLD3, 16,
+    }
+dsdt.asl     14:         Offset (0),
+Remark   2158 -                 ^ Unnecessary/redundant use of Offset 
+operator
+
+dsdt.asl     16:         Offset (4),
+Remark   2158 -                 ^ Unnecessary/redundant use of Offset 
+operator
+
+----------------------------------------
+10 August 2018. Summary of changes for version 20180810:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Initial ACPI table loading: Attempt to continue loading ACPI tables 
+regardless of malformed AML. Since migrating table initialization to the 
+new module-level code support, the AML interpreter rejected tables upon 
+any ACPI error encountered during table load. This is a problem because 
+non-serious ACPI errors during table load do not necessarily mean that 
+the entire definition block (DSDT or SSDT) is invalid. This change 
+improves the table loading by ignoring some types of errors that can be 
+generated by incorrect AML. This can range from object type errors, scope 
+errors, and index errors.
+
+Suspend/Resume support: Update to stop unconditionally clearing ACPI IRQs 
+during suspend/resume. The status of ACPI events is no longer cleared 
+when entering the ACPI S5 system state (power off) which caused some 
+systems to power up immediately after turning off power in certain 
+situations. This was a functional regression. It was fixed by clearing 
+the status of all ACPI events again when entering S5 (for system-wide 
+suspend or hibernation the clearing of the status of all events is not 
+desirable, as it might cause the kernel to miss wakeup events sometimes). 
+Rafael Wysocki.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiExec: Enhanced the -fi option (Namespace initialization file). Field 
+elements listed in the initialization file were previously initialized 
+after the table load and before executing module-level code blocks. 
+Recent changes in the module-level code support means that the table load 
+becomes a large control method execution. If fields are used within 
+module-level code and we are executing with the -fi option, the 
+initialization values were used to initialize the namespace object(s) 
+only after the table was finished loading. This change Provides an early 
+initialization of objects specified in the initialization file so that 
+field unit values are populated during the table load (not after the 
+load).
+
+AcpiExec: Fixed a small memory leak regression that could result in 
+warnings during exit of the utility. These warnings were similar to 
+these:
+    0002D690 Length 0x0006 nsnames-0502 [Not a Descriptor - too small]
+    0002CD70 Length 0x002C utcache-0453 [Operand] Integer RefCount 0x0001
+
+----------------------------------------
+29 June 2018. Summary of changes for version 20180629:
+
+
+1) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a regression related to the use of the ASL External 
+statement. Error checking for the use of the External() statement has 
+been relaxed. Previously, a restriction on the use of External meant that 
+the referenced named object was required to be defined in a different 
+table (an SSDT). Thus it would be an error to declare an object as an 
+external and then define the same named object in the same table. For 
+example:
+    DefinitionBlock (...)
+    {
+        External (DEV1)
+        Device (DEV1){...} // This was an error
+    }
+However, this behavior has caused regressions in some existing ASL code, 
+because there is code that depends on named objects and externals (with 
+the same name) being declared in the same table. This change will allow 
+the ASL code above to compile without errors or warnings.
+
+iASL: Implemented ASL language extensions for four operators to make some 
+of their arguments optional instead of required:
+    1) Field (RegionName, AccessType, LockRule, UpdateRule)
+    2) BankField (RegionName, BankName, BankValue,
+                AccessType, LockRule, UpdateRule)
+    3) IndexField (IndexName, DataName,
+                AccessType, LockRule, UpdateRule)
+For the Field operators above, the AccessType, LockRule, and UpdateRule 
+are now optional arguments. The default values are:
+        AccessType: AnyAcc
+        LockRule:   NoLock
+        UpdateRule: Preserve
+    4) Mutex (MutexName, SyncLevel)
+For this operator, the SyncLevel argument is now optional. This argument 
+is rarely used in any meaningful way by ASL code, and thus it makes sense 
+to make it optional. The default value is:
+        SyncLevel:  0
+
+iASL: Attempted use of the ASL Unload() operator now results in the 
+following warning:
+    "Unload is not supported by all operating systems"
+This is in fact very true, and the Unload operator may be completely 
+deprecated in the near future.
+
+AcpiExec: Fixed a regression for the -fi option (Namespace initialization 
+file. Recent changes in the ACPICA module-level code support altered the 
+table load/initialization sequence . This means that the table load has 
+become a large method execution of the table itself. If Operation Region 
+Fields are used within any module-level code and the -fi option was 
+specified, the initialization values were populated only after the table 
+had completely finished loading (and thus the module-level code had 
+already been executed). This change moves the initialization of objects 
+listed in the initialization file to before the table is executed as a 
+method. Field unit values are now initialized before the table execution 
+is performed.
+
+----------------------------------------
+31 May 2018. Summary of changes for version 20180531:
+
+
+1) ACPICA kernel-resident Subsystem:
+
+Implemented additional support to help ensure that a DSDT or SSDT is 
+fully loaded even if errors are incurred during the load. The majority of 
+the problems that are seen is the failure of individual AML operators 
+that occur during execution of any module-level code (MLC) existing in 
+the table. This support adds a mechanism to abort the current ASL 
+statement (AML opcode), emit an error message, and to simply move on to 
+the next opcode -- instead of aborting the entire table load. This is 
+different than the execution of a control method where the entire method 
+is aborted upon any error. The goal is to perform a very "best effort" to 
+load the ACPI tables. The most common MLC errors that have been seen in 
+the field are direct references to unresolved ASL/AML symbols (referenced 
+directly without the use of the CondRefOf operator to validate the 
+symbol). This new ACPICA behavior is now compatible with other ACPI 
+implementations.
+
+Interpreter: The Unload AML operator is no longer supported for the 
+reasons below. An AE_NOT_IMPLEMENTED exception is returned.
+1) A correct implementation on at least some hosts may not be possible.
+2) Other ACPI implementations do not correctly/fully support it.
+3) It requires host device driver support which is not known to exist.
+    (To properly support namespace unload out from underneath.)
+4) This AML operator has never been seen in the field.
+
+Parser: Added a debug option to dump AML parse sub-trees as they are 
+being executed. Used with ACPI_DEBUG_PRINT, the enabling debug level is 
+ACPI_DB_PARSE_TREES.
+
+Debugger: Reduced the verbosity for errors incurred during table load and 
+module-level code execution.
+
+Completed an investigation into adding a namespace node "owner list" 
+instead of the current "owner ID" associated with namespace nodes. This 
+list would link together all nodes that are owned by an individual 
+control method. The purpose would be to enhance control method execution 
+by speeding up cleanup during method exit (all namespace nodes created by 
+a method are deleted upon method termination.) Currently, the entire 
+namespace must be searched for matching owner IDs if (and only if) the 
+method creates named objects outside of the local scope. However, by far 
+the most common case is that methods create objects locally, not outside 
+the method scope. There is already an ACPICA optimization in place that 
+only searches the entire namespace in the rare case of a method creating 
+objects elsewhere in the namespace. Therefore, it is felt that the 
+overhead of adding an additional pointer to each namespace node to 
+implement the owner list makes this feature unnecessary.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL, Disassembler, and Template generator: Implemented support for 
+Revision D of the IORT table. Adds a new subtable that is used to specify 
+SMMUv3 PMCGs. rmurphy-arm.
+
+Disassembler: Restored correct table header validation for the "special" 
+ACPI tables -- RSDP and FACS. These tables do not contain a standard ACPI 
+table header and must be special-cased. This was a regression that has 
+been present for apparently a long time.
+
+AcpiExec: Reduced verbosity of the local exception handler implemented 
+within acpiexec. This handler is invoked by ACPICA upon any exceptions 
+generated during control method execution. A new option was added: -vh 
+restores the original verbosity level if desired.
+
+AcpiExec: Changed the default base from decimal to hex for the -x option 
+(set debug level). This simplifies the use of this option and matches the 
+behavior of the corresponding iASL -x option.
+
+AcpiExec: Restored a force-exit on multiple control-c (sigint) 
+interrupts. This allows program termination even if other issues cause 
+the control-c to fail.
+
+ASL test suite (ASLTS): Added tests for the recently implemented package 
+element resolution mechanism that allows forward references to named 
+objects from individual package elements (this mechanism provides 
+compatibility with other ACPI implementations.)
+
+
+----------------------------------------
+8 May 2018. Summary of changes for version 20180508:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Completed the new (recently deployed) package resolution mechanism for 
+the Load and LoadTable ASL/AML operators. This fixes a regression that 
+was introduced in version 20180209 that could result in an 
+AE_AML_INTERNAL exception during the loading of a dynamic ACPI/AML table 
+(SSDT) that contains package objects.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiDump and AcpiXtract: Implemented support for ACPI tables larger than 
+1 MB. This change allows for table offsets within the acpidump file to be 
+up to 8 characters. These changes are backwards compatible with existing 
+acpidump files.
+
+
+----------------------------------------
+27 April 2018. Summary of changes for version 20180427: 
+
+
+1) ACPICA kernel-resident subsystem:
+
+Debugger: Added support for Package objects in the "Test Objects" 
+command. This command walks the entire namespace and evaluates all named 
+data objects (Integers, Strings, Buffers, and now Packages).
+
+Improved error messages for the namespace root node. Originally, the root 
+was referred to by the confusing string "\___". This has been replaced by 
+"Namespace Root" for clarification.
+
+Fixed a potential infinite loop in the AcpiRsDumpByteList function. Colin 
+Ian King <colin.king@canonical.com>.
+
+
+2) iASL Compiler/Disassembler and Tools: 
+
+iASL: Implemented support to detect and flag illegal forward references. 
+For compatibility with other ACPI implementations, these references are 
+now illegal at the root level of the DSDT or SSDTs. Forward references 
+have always been illegal within control methods. This change should not 
+affect existing ASL/AML code because of the fact that these references 
+have always been illegal in the other ACPI implementation.
+
+iASL: Added error messages for the case where a table OEM ID and OEM 
+TABLE ID strings are longer than the ACPI-defined length. Previously, 
+these strings were simply silently truncated.
+
+iASL: Enhanced the -tc option (which creates an AML hex file in C, 
+suitable for import into a firmware project):
+  1) Create a unique name for the table, to simplify use of multiple 
+SSDTs.
+  2) Add a protection #ifdef in the file, similar to a .h header file.
+With assistance from Sami Mujawar, sami.mujawar@arm.com and Evan Lloyd, 
+evan.lloyd@arm.com
+
+AcpiExec: Added a new option, -df, to disable the local fault handler. 
+This is useful during debugging, where it may be desired to drop into a 
+debugger on a fault.
+
+----------------------------------------
+13 March 2018. Summary of changes for version 20180313:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented various improvements to the GPE support:
+
+1) Dispatch all active GPEs at initialization time so that no GPEs are 
+lost.
+2) Enable runtime GPEs earlier. Some systems expect GPEs to be enabled 
+before devices are enumerated.
+3) Don't unconditionally clear ACPI IRQs during suspend/resume, so that 
+IRQs are not lost.
+4) Add parallel GPE handling to eliminate the possibility of dispatching 
+the same GPE twice.
+5) Dispatch any pending GPEs after enabling for the first time.
+
+AcpiGetObjectInfo - removed support for the _STA method. This was causing 
+problems on some platforms.
+
+Added a new _OSI string, "Windows 2017.2".
+
+Cleaned up and simplified the module-level code support. These changes 
+are in preparation for the eventual removal of the legacy MLC support 
+(deferred execution), replaced by the new MLC architecture which executes 
+the MLC as a table is loaded (DSDT/SSDTs).
+
+Changed a compile-time option to a runtime option. Changes the option to 
+ignore ACPI table load-time package resolution errors into a runtime 
+option. Used only for platforms that generate many AE_NOT_FOUND errors 
+during boot. AcpiGbl_IgnorePackageResolutionErrors.
+
+Fixed the ACPI_ERROR_NAMESPACE macro. This change involves putting some 
+ACPI_ERROR_NAMESPACE parameters inside macros. By doing so, we avoid 
+compilation errors from unused variables (seen with some compilers).
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+ASLTS: parallelized execution in order to achieve an (approximately) 2X 
+performance increase.
+
+ASLTS: Updated to use the iASL __LINE__ and __METHOD__ macros. Improves 
+error reporting.
+
+----------------------------------------
+09 February 2018. Summary of changes for version 20180209:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Completed the final integration of the recent changes to Package Object 
+handling and the module-level AML code support. This allows forward 
+references from individual package elements when the package object is 
+declared from within module-level code blocks. Provides compatibility 
+with other ACPI implementations.
+
+The new architecture for the AML module-level code has been completed and 
+is now the default for the ACPICA code. This new architecture executes 
+the module-level code in-line as the ACPI table is loaded/parsed instead 
+of the previous architecture which deferred this code until after the 
+table was fully loaded. This solves some ASL code ordering issues and 
+provides compatibility with other ACPI implementations. At this time, 
+there is an option to fallback to the earlier architecture, but this 
+support is deprecated and is planned to be completely removed later this 
+year.
+
+Added a compile-time option to ignore AE_NOT_FOUND exceptions during 
+resolution of named reference elements within Package objects. Although 
+this is potentially a serious problem, it can generate a lot of 
+noise/errors on platforms whose firmware carries around a bunch of unused 
+Package objects. To disable these errors, define 
+ACPI_IGNORE_PACKAGE_RESOLUTION_ERRORS in the OS-specific header. All 
+errors are always reported for ACPICA applications such as AcpiExec.
+
+Fixed a regression related to the explicit type-conversion AML operators 
+(ToXXXX). The regression was introduced early in 2017 but was not seen 
+until recently because these operators are not fully supported by other 
+ACPI implementations and are thus rarely used by firmware developers. The 
+operators are defined by the ACPI specification to not implement the 
+"implicit result object conversion". The regression incorrectly 
+introduced this object conversion for the following explicit conversion 
+operators:
+    ToInteger
+    ToString
+    ToBuffer
+    ToDecimalString
+    ToHexString
+    ToBCD
+    FromBCD
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem with the compiler constant folding feature as 
+related to the ToXXXX explicit conversion operators. These operators do 
+not support the "implicit result object conversion" by definition. Thus, 
+ASL expressions that use these operators cannot be folded to a simple 
+Store operator because Store implements the implicit conversion. This 
+change uses the CopyObject operator for the ToXXXX operator folding 
+instead. CopyObject is defined to not implement implicit result 
+conversions and is thus appropriate for folding the ToXXXX operators.
+
+iASL: Changed the severity of an error condition to a simple warning for 
+the case where a symbol is declared both locally and as an external 
+symbol. This accommodates existing ASL code.
+
+AcpiExec: The -ep option to enable the new architecture for module-level 
+code has been removed. It is replaced by the -dp option which instead has 
+the opposite effect: it disables the new architecture (the default) and 
+enables the legacy architecture. When the legacy code is removed in the 
+future, the -dp option will be removed also.
+
+----------------------------------------
+05 January 2018. Summary of changes for version 20180105:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2018. This affects all source code modules.
+
+Fixed a possible build error caused by an unresolved reference to the 
+AcpiUtSafeStrncpy function.
+
+Removed NULL pointer arithmetic in the various pointer manipulation 
+macros. All "(void *) NULL" constructs are converted to "(void *) 0". 
+This eliminates warnings/errors in newer C compilers. Jung-uk Kim.
+
+Added support for A32 ABI compilation, which uses the ILP32 model. Anuj 
+Mittal.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+ASLTS: Updated all copyrights to 2018.
+
+Tools: Updated all signon copyrights to 2018.
+
+AcpiXtract: Fixed a regression related to ACPI table signatures where the 
+signature was truncated to 3 characters (instead of 4).
+
+AcpiExec: Restore the original terminal mode after the use of the -v and 
+-vd options.
+
+ASLTS: Deployed the iASL __METHOD__ macro across the test suite.
+
+----------------------------------------
+14 December 2017. Summary of changes for version 20171214:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression in the external (public) AcpiEvaluateObjectTyped 
+interface where the optional "pathname" argument had inadvertently become 
+a required argument returning an error if omitted (NULL pointer 
+argument).
+
+Fixed two possible memory leaks related to the recently developed "late 
+resolution" of reference objects within ASL Package Object definitions.
+
+Added two recently defined _OSI strings: "Windows 2016" and "Windows 
+2017". Mario Limonciello.
+
+Implemented and deployed a safer version of the C library function 
+strncpy:  AcpiUtSafeStrncpy. The intent is to at least prevent the 
+creation of unterminated strings as a possible result of a standard 
+strncpy.
+
+Cleaned up and restructured the global variable file (acglobal.h). There 
+are many changes, but no functional changes.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL Table Compiler: Fixed a problem with the DBG2 ACPI table where the 
+optional OemData field at the end of the table was incorrectly required 
+for proper compilation. It is now correctly an optional field.
+
+ASLTS: The entire suite was converted from standard ASL to the ASL+ 
+language, using the ASL-to-ASL+ converter which is integrated into the 
+iASL compiler. A binary compare of all output files has verified the 
+correctness of the conversion.
+
+iASL: Fixed the source code build for platforms where "char" is unsigned. 
+This affected the iASL lexer only. Jung-uk Kim.
+
+----------------------------------------
+10 November 2017. Summary of changes for version 20171110:
+
+
+1) ACPICA kernel-resident subsystem:
+
+This release implements full support for ACPI 6.2A:
+    NFIT - Added a new subtable, "Platform Capabilities Structure"
+No other changes to ACPICA were required, since ACPI 6.2A is primarily an 
+errata release of the specification.
+
+Other ACPI table changes:
+    IORT: Added the SMMUv3 Device ID mapping index. Hanjun Guo
+    PPTT: Added cache attribute flag definitions to actbl1.h. Jeremy 
+Linton
+
+Utilities: Modified the string/integer conversion functions to use 
+internal 64-bit divide support instead of a native divide. On 32-bit 
+platforms, a 64-bit divide typically requires a library function which 
+may not be present in the build (kernel or otherwise).
+
+Implemented a targeted error message for timeouts returned from the 
+Embedded Controller device driver. This is seen frequently enough to 
+special-case an AE_TIME returned from an EC operation region access:
+    "Timeout from EC hardware or EC device driver"
+
+Changed the "ACPI Exception" message prefix to "ACPI Error" so that all 
+runtime error messages have the identical prefix.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiXtract: Fixed a problem with table header detection within the 
+acpidump file. Processing a table could be ended early if a 0x40 (@) 
+appears in the original binary table, resulting in the @ symbol appearing 
+in the decoded ASCII field at the end of the acpidump text line. The 
+symbol caused acpixtract to incorrectly think it had reached the end of 
+the current table and the beginning of a new table.
+
+AcpiXtract: Added an option (-f) to ignore some errors during table 
+extraction. This initial implementation ignores non-ASCII and non-
+printable characters found in the acpidump text file.
+
+TestSuite(ASLTS)/AcpiExec: Fixed and restored the memory usage statistics 
+for ASLTS. This feature is used to track memory allocations from 
+different memory caches within the ACPICA code. At the end of an ASLTS 
+run, these memory statistics are recorded and stored in a log file.
+
+Debugger (user-space version): Implemented a simple "Background" command. 
+Creates a new thread to execute a control method in the background, while 
+control returns to the debugger prompt to allow additional commands.
+    Syntax: Background <Namepath> [Arguments]
+
+----------------------------------------
+29 September 2017. Summary of changes for version 20170929:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Redesigned and implemented an improved ASL While() loop timeout 
+mechanism. This mechanism is used to prevent infinite loops in the kernel 
+AML interpreter caused by either non-responsive hardware or incorrect AML 
+code. The new implementation uses AcpiOsGetTimer instead of a simple 
+maximum loop count, and is thus more accurate and constant across 
+different machines. The default timeout is currently 30 seconds, but this 
+may be adjusted later.
+
+Renamed the ACPI_AML_INFINITE_LOOP exception to AE_AML_LOOP_TIMEOUT to 
+better reflect the new implementation of the loop timeout mechanism.
+
+Updated the AcpiGetTimerDuration interface to cleanup the 64-bit support 
+and to fix an off-by-one error. Jung-uk Kim.
+
+Fixed an EFI build problem by updating the makefiles to for a new file 
+that was added, utstrsuppt.c
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Implemented full support for the PDTT, SDEV, and TPM2 ACPI tables. This 
+includes support in the table disassembler, compiler, and template 
+generator.
+
+iASL: Added an exception for an illegal type of recursive method 
+invocation. If a method creates named objects, the first recursive call 
+will fail at runtime. This change adds an error detection at compile time 
+to catch the problem up front. Note: Marking such a method as 
+"serialized" will not help with this problem, because the same thread can 
+acquire the method mutex more than once. Example compiler and runtime 
+output:
+
+    Method (MTH1)
+    {
+        Name (INT1, 1)
+        MTH1 ()
+    }
+
+    dsdt.asl     22: MTH1 ()
+    Error    6152 -  ^ Illegal recursive call to method
+                       that creates named objects (MTH1)
+
+Previous runtime exception:
+    ACPI Error: [INT1] Namespace lookup failure,
+    AE_ALREADY_EXISTS (20170831/dswload2-465)
+
+iASL: Updated support for External() opcodes to improve namespace 
+management and error detection. These changes are related to issues seen 
+with multiple-segment namespace pathnames within External declarations, 
+such as below:
+
+    External(\_SB.PCI0.GFX0, DeviceObj)
+    External(\_SB.PCI0.GFX0.ALSI)
+
+iASL: Implemented support for multi-line error/warning messages. This 
+enables more detailed and helpful error messages as below, from the 
+initial deployment for the duplicate names error:
+
+    DSDT.iiii   1692:       Device(PEG2) {
+    Error    6074 -                  ^ Name already exists in scope 
+(PEG2)
+
+        Original name creation/declaration below:
+        DSDT.iiii     93:   External(\_SB.PCI0.PEG2, DeviceObj)
+
+AcpiXtract: Added additional flexibility to support differing input hex 
+dump formats. Specifically, hex dumps that contain partial disassembly 
+and/or comments within the ACPI table data definition. There exist some 
+dump utilities seen in the field that create this type of hex dump (such 
+as Simics). For example:
+
+    DSDT @ 0xdfffd0c0 (10999 bytes)
+        Signature DSDT
+        Length 10999
+        Revision 1
+        Checksum 0xf3 (Ok)
+        OEM_ID BXPC
+        OEM_table_id BXDSDT
+        OEM_revision 1
+        Creator_id 1280593481
+        Creator_revision 537399345
+      0000: 44 53 44 54 f7 2a 00 00 01 f3 42 58 50 43 00 00
+      ...
+      2af0: 5f 4c 30 46 00 a4 01
+
+Test suite: Miscellaneous changes/fixes:
+    More cleanup and simplification of makefiles
+    Continue compilation of test cases after a compile failure
+    Do not perform binary compare unless both files actually exist
+
+iASL: Performed some code/module restructuring. Moved all memory 
+allocation functions to new modules. Two new files, aslallocate.c and 
+aslcache.c
+
+----------------------------------------
+31 August 2017. Summary of changes for version 20170831:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented internal support for full 64-bit addresses that appear in all 
+Generic Address Structure (GAS) structures. Previously, only the lower 32 
+bits were used. Affects the use of GAS structures in the FADT and other 
+tables, as well as the GAS structures passed to the AcpiRead and 
+AcpiWrite public external interfaces that are used by drivers. Lv Zheng.
+
+Added header support for the PDTT ACPI table (Processor Debug Trigger 
+Table). Full support in the iASL Data Table Compiler and disassembler is 
+forthcoming.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: Fixed a problem with the PPTT ACPI table (Processor 
+Properties Topology Table) where a flag bit was specified in the wrong 
+bit position ("Line Size Valid", bit 6).
+
+iASL: Implemented support for Octal integer constants as defined by the 
+ASL language grammar, per the ACPI specification. Any integer constant 
+that starts with a zero is an octal constant. For example,
+    Store (037777, Local0) /* Octal constant */
+    Store (0x3FFF, Local0) /* Hex equivalent */
+    Store (16383,  Local0) /* Decimal equivalent */
+
+iASL: Improved overflow detection for 64-bit string conversions during 
+compilation of integer constants. "Overflow" in this case means a string 
+that represents an integer that is too large to fit into a 64-bit value. 
+Any 64-bit constants within a 32-bit DSDT or SSDT are still truncated to 
+the low-order 32 bits with a warning, as previously implemented. Several 
+new exceptions are defined that indicate a 64-bit overflow, as well as 
+the base (radix) that was used during the attempted conversion. Examples:
+    Local0 = 0xAAAABBBBCCCCDDDDEEEEFFFF        // AE_HEX_OVERFLOW
+    Local0 = 01111222233334444555566667777     // AE_OCTAL_OVERFLOW
+    Local0 = 11112222333344445555666677778888  // AE_DECIMAL_OVERFLOW
+
+iASL: Added a warning for the case where a ResourceTemplate is declared 
+with no ResourceDescriptor entries (coded as "ResourceTemplate(){}"). In 
+this case, the resulting template is created with a single END_TAG 
+descriptor, which is essentially useless.
+
+iASL: Expanded the -vw option (ignore specific warnings/remarks) to 
+include compilation error codes as well.
+
+----------------------------------------
+28 July 2017. Summary of changes for version 20170728:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression seen with small resource descriptors that could cause 
+an inadvertent AE_AML_NO_RESOURCE_END_TAG exception.
+
+AML interpreter: Implemented a new feature that allows forward references 
+from individual named references within package objects that are 
+contained within blocks of "module-level code". This provides 
+compatibility with other ACPI implementations and supports existing 
+firmware that depends on this feature. Example:
+
+    Name (ABCD, 1)
+    If (ABCD)                       /* An If() at module-level */
+    {
+        Name (PKG1, Package()
+        {
+            INT1                    /* Forward reference to object INT1 
+*/
+        })
+        Name (INT1, 0x1234)
+    }
+
+AML Interpreter: Fixed a problem with the Alias() operator where aliases 
+to some ASL objects were not handled properly. Objects affected are: 
+Mutex, Event, and OperationRegion.
+
+AML Debugger: Enhanced to properly handle AML Alias objects. These 
+objects have one level of indirection which was not fully supported by 
+the debugger.
+
+Table Manager: Added support to detect and ignore duplicate SSDTs within 
+the XSDT/RSDT. This error in the XSDT has been seen in the field.
+
+EFI and EDK2 support:
+    Enabled /WX flag for MSVC builds
+    Added support for AcpiOsStall, AcpiOsSleep, and AcpiOsGetTimer
+    Added local support for 64-bit multiply and shift operations
+    Added support to compile acpidump.efi on Windows
+    Added OSL function stubs for interfaces not used under EFI
+
+Added additional support for the _DMA predefined name. _DMA returns a 
+buffer containing a resource template. This change add support within the 
+resource manager (AcpiWalkResourceBuffer) to walk and parse this list of 
+resource descriptors. Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem where the internal input line buffer(s) could 
+overflow if there are very long lines in the input ASL source code file. 
+Implemented buffer management that automatically increases the size of 
+the buffers as necessary.
+
+iASL: Added an option (-vx) to "expect" particular remarks, warnings and 
+errors. If the specified exception is not raised during compilation, the 
+compiler emits an error. This is intended to support the ASL test suite, 
+but may be useful in other contexts.
+
+iASL: Implemented a new predefined macro, __METHOD__, which returns a 
+string containing the name of the current control method that is being 
+compiled.
+
+iASL: Implemented debugger and table compiler support for the SDEI ACPI 
+table (Software Delegated Exception Interface). James Morse 
+<james.morse@arm.com>
+
+Unix/Linux makefiles: Added an option to disable compile optimizations. 
+The disable occurs when the NOOPT flag is set to TRUE. 
+theracermaster@gmail.com
+
+Acpidump: Added support for multiple DSDT and FACS tables. This can occur 
+when there are different tables for 32-bit versus 64-bit.
+
+Enhanced error reporting for the ASL test suite (ASLTS) by removing 
+unnecessary/verbose text, and emit the actual line number where an error 
+has occurred. These changes are intended to improve the usefulness of the 
+test suite.
+
+----------------------------------------
+29 June 2017. Summary of changes for version 20170629:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Tables: Implemented a deferred ACPI table verification. This is useful 
+for operating systems where the tables cannot be verified in the early 
+initialization stage due to early memory mapping limitations on some 
+architectures. Lv Zheng.
+
+Tables: Removed the signature validation for dynamically loaded tables. 
+Provides compatibility with other ACPI implementations. Previously, only 
+SSDT tables were allowed, as per the ACPI specification. Now, any table 
+signature can be used via the Load() operator. Lv Zheng.
+
+Tables: Fixed several mutex issues that could cause errors during table 
+acquisition. Lv Zheng.
+
+Tables: Fixed a problem where an ACPI warning could be generated if a 
+null pointer was passed to the AcpiPutTable interface. Lv Zheng.
+
+Tables: Added a mechanism to handle imbalances for the AcpiGetTable and 
+AcpiPutTable interfaces. This applies to the "late stage" table loading 
+when the use of AcpiPutTable is no longer required (since the system 
+memory manager is fully running and available). Lv Zheng.
+
+Fixed/Reverted a regression during processing of resource descriptors 
+that contain only a single EndTag. Fixes an AE_AML_NO_RESOURCE_END_TAG 
+exception in this case.
+
+Headers: IORT/SMMU support: Updated the SMMU models for Revision C of the 
+I/O Remapping specification. Robin Murphy <robin.murphy@arm.com>
+
+Interpreter: Fixed a possible fault if an Alias operator with an invalid 
+or duplicate target is encountered during Alias creation in 
+AcpiExCreateAlias. Alex James <theracermaster@gmail.com>
+
+Added an option to use designated initializers for function pointers. 
+Kees Cook <keescook@google.com>
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Allow compilation of External declarations with target pathnames 
+that refer to existing named objects within the table. Erik Schmauss.
+
+iASL: Fixed a regression when compiling FieldUnits. Fixes an error if a 
+FieldUnit name also is declared via External in the same table. Erik 
+Schmauss.
+
+iASL: Allow existing scope names within pathnames used in External 
+statements. For example:
+    External (ABCD.EFGH) // ABCD exists, but EFGH is truly external
+    Device (ABCD)
+
+iASL: IORT ACPI table: Implemented changes required to decode the new 
+Proximity Domain for the SMMUv3 IORT. Disassembler and Data Table 
+compiler. Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
+
+Disassembler: Don't abort disassembly on errors from External() 
+statements. Erik Schmauss.
+
+Disassembler: fixed a possible fault when one of the Create*Field 
+operators references a Resource Template. ACPICA Bugzilla 1396.
+
+iASL: In the source code, resolved some naming inconsistences across the 
+parsing support. Fixes confusion between "Parse Op" and "Parse Node". 
+Adds a new file, aslparseop.c
+
+----------------------------------------
+31 May 2017. Summary of changes for version 20170531:
+
+
+0) ACPI 6.2 support:
+
+The ACPI specification version 6.2 has been released and is available at
+http://uefi.org/specifications
+
+This version of ACPICA fully supports the ACPI 6.2 specification. Changes 
+are summarized below.
+
+New ACPI tables (Table Compiler/Disassembler/Templates):
+    HMAT (Heterogeneous Memory Attributes Table)
+    WSMT (Windows SMM Security Mitigation Table)
+    PPTT (Processor Properties Topology Table)
+
+New subtables for existing ACPI tables:
+    HEST (New subtable, Arch-deferred machine check)
+    SRAT (New subtable, Arch-specific affinity structure)
+    PCCT (New subtables, Extended PCC subspaces (types 3 and 4))
+
+Simple updates for existing ACPI tables:
+    BGRT (two new flag bits)
+    HEST (New bit defined for several subtables, GHES_ASSIST)
+
+New Resource Descriptors and Resource macros (Compiler/Disassembler):
+    PinConfig()
+    PinFunction()
+    PinGroup()
+    PinGroupConfig()
+    PinGroupFunction()
+    New type for hardware error notification (section 18.3.2.9)
+
+New predefined names/methods (Compiler/Interpreter):
+    _HMA (Heterogeneous Memory Attributes)
+    _LSI (Label Storage Information)
+    _LSR (Label Storage Read)
+    _LSW (Label Storage Write)
+
+ASL grammar/macro changes (Compiler):
+    For() ASL macro, implemented with the AML while operator
+    Extensions to Concatenate operator
+    Support for multiple definition blocks in same ASL file
+    Clarification for Buffer operator
+    Allow executable AML code underneath all scopes (Devices, etc.)
+    Clarification/change for the _OSI return value
+    ASL grammar update for reference operators
+    Allow a zero-length string for AML filename in DefinitionBlock
+
+Miscellaneous:
+    New device object notification value
+    Remove a notify value (0x0C) for graceful shutdown
+    New UUIDs for processor/cache properties and
+        physical package property
+    New _HID, ACPI0014 (Wireless Power Calibration Device)
+
+
+1) ACPICA kernel-resident subsystem:
+
+Added support to disable ACPI events on hardware-reduced platforms. 
+Eliminates error messages of the form "Could not enable fixed event". Lv 
+Zheng
+
+Fixed a problem using Device/Thermal objects with the ObjectType and 
+DerefOf ASL operators. This support had not been fully/properly 
+implemented.
+
+Fixed a problem where if a Buffer object containing a resource template 
+was longer than the actual resource template, an error was generated -- 
+even though the AML is legal. This case has been seen in the field.
+
+Fixed a problem with the header definition of the MADT PCAT_COMPAT flag. 
+The values for DUAL_PIC and MULTIPLE_APIC were reversed.
+
+Added header file changes for the TPM2 ACPI table. Update to new version 
+of the TCG specification. Adds a new TPM2 subtable for ARM SMC.
+
+Exported the external interfaces AcpiAcquireMutex and AcpiReleaseMutex. 
+These interfaces are intended to be used only in conjunction with the 
+predefined _DLM method (Device Lock Method). "This object appears in a 
+device scope when AML access to the device must be synchronized with the 
+OS environment".
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 143.1K Code, 60.0K Data, 203.1K Total
+    Debug Version:     204.0K Code, 84.3K Data, 288.3K Total
+  Previous Release:
+    Non-Debug Version: 141.7K Code, 58.5K Data, 200.2K Total
+    Debug Version:     207.5K Code, 82.7K Data, 290.2K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem where an External() declaration could not refer to 
+a Field Unit. Erik Schmauss.
+
+Disassembler: Improved support for the Switch/Case operators. This 
+feature will disassemble AML code back to the original Switch operators 
+when possible, instead of an If..Else sequence. David Box
+
+iASL and disassembler: Improved the handling of multiple extraneous 
+parentheses for both ASL input and disassembled ASL output.
+
+Improved the behavior of the iASL compiler and disassembler to detect 
+improper use of external declarations
+
+Disassembler: Now aborts immediately upon detection of an unknown AML 
+opcode. The AML parser has no real way to recover from this, and can 
+result in the creation of an ill-formed parse tree that causes errors 
+later during the disassembly.
+
+All tools: Fixed a problem where the Unix application OSL did not handle 
+control-c correctly. For example, a control-c could incorrectly wake the 
+debugger.
+
+AcpiExec: Improved the Control-C handling and added a handler for 
+segmentation faults (SIGSEGV). Supports both Windows and Unix-like 
+environments.
+
+Reduced the verbosity of the generic unix makefiles. Previously, each 
+compilation displayed the full set of compiler options. This has been 
+eliminated as the options are easily inspected within the makefiles. Each 
+compilation now results in a single line of output.
+
+----------------------------------------
+03 March 2017. Summary of changes for version 20170303:
+
+
+0) ACPICA licensing:
+
+The licensing information at the start of each source code module has 
+been updated. In addition to the Intel license, the dual GPLv2/BSD 
+license has been added for completeness. Now, a single version of the 
+source code should be suitable for all ACPICA customers. This is the 
+major change for this release since it affects all source code modules.
+
+
+1) ACPICA kernel-resident subsystem: 
+
+Fixed two issues with the common asltypes.h header that could cause 
+problems in some environments: (Kim Jung-uk)
+    Removed typedef for YY_BUFFER_STATE ?
+       Fixes an error with earlier versions of Flex.
+    Removed use of FILE typedef (which is only defined in stdio.h)
+
+
+2) iASL Compiler/Disassembler and Tools: 
+
+Disassembler: fixed a regression introduced in 20170224. A fix for a 
+memory leak related to resource descriptor tags (names) could fault when 
+the disassembler was generated with 64-bit compilers.
+
+The ASLTS test suite has been updated to implement a new testing 
+architecture. During generation of the suite from ASL source, both the 
+ASL and ASL+ compilers are now validated, as well as the disassembler 
+itself (Erik Schmauss). The architecture executes as follows:
+
+    For every ASL source module:
+        Compile (legacy ASL compilation)
+        Disassemble the resulting AML to ASL+ source code
+        Compile the new ASL+ module
+        Perform a binary compare on the legacy AML and the new ASL+ AML
+    The ASLTS suite then executes normally using the AML binaries.
+
+----------------------------------------
+24 February 2017. Summary of changes for version 20170224:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Interpreter: Fixed two issues with the control method return value auto-
+repair feature, where an attempt to double-delete an internal object 
+could result in an ACPICA warning (for _CID repair and others). No fault 
+occurs, however, because the attempted deletion (actually a release to an 
+internal cache) is detected and ignored via object poisoning.
+
+Debugger: Fixed an AML interpreter mutex issue during the single stepping 
+of control methods. If certain debugger commands are executed during 
+stepping, a mutex aquire/release error could occur. Lv Zheng.
+
+Fixed some issues generating ACPICA with the Intel C compiler by 
+restoring the original behavior and compiler-specific include file in 
+acenv.h. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 141.7K Code, 58.5K Data, 200.2K Total
+    Debug Version:     207.5K Code, 82.7K Data, 290.2K Total
+  Previous Release:
+    Non-Debug Version: 137.4K Code, 52.6K Data, 190.0K Total
+    Debug Version:     201.5K Code, 82.2K Data, 283.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: A preliminary version of a new ASL-to-ASL+ conversion 
+tool has been designed, implemented, and included in this release. The 
+key feature of this utility is that the original comments within the 
+input ASL file are preserved during the conversion process, and included 
+within the converted ASL+ file -- thus creating a transparent conversion 
+of existing ASL files to ASL+ (ASL 2.0). Erik Schmauss.
+
+    Usage: iasl -ca <ASL-filename>  // Output is a .dsl file with 
+converted code
+
+iASL/Disassembler: Improved the detection and correct disassembly of 
+Switch/Case operators. This feature detects sequences of if/elseif/else 
+operators that originated from ASL Switch/Case/Default operators and 
+emits the original operators. David Box.
+
+iASL: Improved the IORT ACPI table support in the following areas. Lv 
+Zheng:
+    Clear MappingOffset if the MappingCount is zero.
+    Fix the disassembly of the SMMU GSU interrupt offset.
+    Update the template file for the IORT table.
+
+Disassembler: Enhanced the detection and disassembly of resource 
+template/descriptor within a Buffer object. An EndTag descriptor is now 
+required to have a zero second byte, since all known ASL compilers emit 
+this. This helps eliminate incorrect decisions when a buffer is 
+disassembled (false positives on resource templates).
+
+----------------------------------------
+19 January 2017. Summary of changes for version 20170119:
+
+
+1) General ACPICA software:
+
+Entire source code base: Added the 2017 copyright to all source code 
+legal/licensing module headers and utility/tool signons. This includes 
+the standard Linux dual-license header. This affects virtually every file 
+in the ACPICA core subsystem, iASL compiler, all ACPICA utilities, and 
+the ACPICA test suite.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Removed/fixed an inadvertent remark when a method argument 
+containing a reference is used as a target operand within the method (and 
+never used as a simple argument), as in the example below. Jeffrey Hugo.
+
+    dsdt.asl   1507:    Store(0x1, Arg0)
+    Remark   2146 -                ^ Method Argument is never used (Arg0)
+
+All tools: Removed the bit width of the compiler that generated the tool 
+from the common signon for all user space tools. This proved to be 
+confusing and unnecessary. This includes similar removal of HARDWARE_NAME 
+from the generic makefiles (Thomas Petazzoni). Example below.
+
+    Old:
+    ASL+ Optimizing Compiler version 20170119-32
+    ASL+ Optimizing Compiler version 20170119-64
+
+    New:
+    ASL+ Optimizing Compiler version 20170119
+
+----------------------------------------
+22 December 2016. Summary of changes for version 20161222:
+
+
+1) ACPICA kernel-resident subsystem:
+
+AML Debugger: Implemented a new mechanism to simplify and enhance 
+debugger integration into all environments, including kernel debuggers 
+and user-space utilities, as well as remote debug services. This 
+mechanism essentially consists of new OSL interfaces to support debugger 
+initialization/termination, as well as wait/notify interfaces to perform 
+the debugger handshake with the host. Lv Zheng.
+
+    New OSL interfaces:
+        AcpiOsInitializeDebugger (void)
+        AcpiOsTerminateDebugger (void)
+        AcpiOsWaitCommandReady (void)
+        AcpiOsNotifyCommandComplete (void)
+
+    New OS services layer:
+        osgendbg.c -- Example implementation, and used for AcpiExec
+
+Update for Generic Address Space (GAS) support: Although the AccessWidth 
+and/or BitOffset fields of the GAS are not often used, this change now 
+fully supports these fields. This affects the internal support for FADT 
+registers, registers in other ACPI data tables, and the AcpiRead and 
+AcpiWrite public interfaces. Lv Zheng.
+
+Sleep support: In order to simplify integration of ACPI sleep for the 
+various host operating systems, a new OSL interface has been introduced. 
+AcpiOsEnterSleep allows the host to perform any required operations 
+before the final write to the sleep control register(s) is performed by 
+ACPICA. Lv Zheng.
+
+    New OSL interface:
+        AcpiOsEnterSleep(SleepState, RegisterAValue, RegisterBValue)
+
+    Called from these internal interfaces:
+        AcpiHwLegacySleep
+        AcpiHwExtendedSleep
+
+EFI support: Added a very small EFI/ACPICA example application. Provides 
+a simple demo for EFI integration, as well as assisting with resolution 
+of issues related to customer ACPICA/EFI integration. Lv Zheng. See:
+
+    source/tools/efihello/efihello.c
+
+Local C library: Implemented several new functions to enhance ACPICA 
+portability, for environments where these clib functions are not 
+available (such as EFI). Lv Zheng:
+    putchar
+    getchar
+    strpbrk
+    strtok
+    memmove
+
+Fixed a regression where occasionally a valid resource descriptor was 
+incorrectly detected as invalid at runtime, and a 
+AE_AML_NO_RESOURCE_END_TAG was returned.
+
+Fixed a problem with the recently implemented support that enables 
+control method invocations as Target operands to many ASL operators. 
+Warnings of this form: "Needed type [Reference], found [Processor]" were 
+seen at runtime for some method invocations.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 141.5K Code, 58.5K Data, 200.0K Total
+    Debug Version:     201.7K Code, 82.7K Data, 284.4K Total
+  Previous Release:
+    Non-Debug Version: 140.5K Code, 58.5K Data, 198.9K Total
+    Debug Version:     201.3K Code, 82.7K Data, 284.0K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Enhanced output by adding the capability to detect and 
+disassemble ASL Switch/Case statements back to the original ASL source 
+code instead of if/else blocks. David Box.
+
+AcpiHelp: Split a large file into separate files based upon 
+functionality/purpose. New files are:
+    ahaml.c
+    ahasl.c
+
+----------------------------------------
+17 November 2016. Summary of changes for version 20161117:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Table Manager: Fixed a regression introduced in 20160729, "FADT support 
+cleanup". This was an attempt to remove all references in the source to 
+the FADT version 2, which never was a legal version number. It was 
+skipped because it was an early version of 64-bit support that was 
+eventually abandoned for the current 64-bit support.
+
+Interpreter: Fixed a problem where runtime implicit conversion was 
+incorrectly disabled for the ASL operators below. This brings the 
+behavior into compliance with the ACPI specification:
+    FromBCD
+    ToBCD
+    ToDecimalString
+    ToHexString
+    ToInteger
+    ToBuffer
+
+Table Manager: Added a new public interface, AcpiPutTable, used to 
+release and free an ACPI table returned by AcpiGetTable and related 
+interfaces. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.5K Code, 58.5K Data, 198.9K Total
+    Debug Version:     201.3K Code, 82.7K Data, 284.0K Total
+  Previous Release:
+    Non-Debug Version: 140.4K Code, 58.1K Data, 198.5K Total
+    Debug Version:     200.7K Code, 82.1K Data, 282.8K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a regression for disassembly of Resource Template. 
+Detection of templates in the AML stream missed some types of templates.
+
+iASL: Fixed a problem where an Access Size error was returned for the PCC 
+address space when the AccessSize of the GAS register is greater than a 
+DWORD. Hoan Tran.
+
+iASL: Implemented several grammar changes for the operators below. These 
+changes are slated for the next version of the ACPI specification:
+    RefOf        - Disallow method invocation as an operand
+    CondRefOf    - Disallow method invocation as an operand
+    DerefOf      - Disallow operands that use the result from operators 
+that
+                   do not return a reference (Changed TermArg to 
+SuperName).
+
+iASL: Control method invocations are now allowed for Target operands, as 
+per the ACPI specification. Removed error for using a control method 
+invocation as a Target operand.
+
+Disassembler: Improved detection of Resource Templates, Unicode, and 
+Strings within Buffer objects. These subtypes do not contain a specific 
+opcode to indicate the originating ASL code, and they must be detected by 
+other means within the disassembler. 
+
+iASL: Implemented an optimization improvement for 32-bit ACPI tables 
+(DSDT/SSDT). For the 32-bit case only, compute the optimum integer opcode 
+only after 64-bit to 32-bit truncation. A truncation warning message is 
+still emitted, however.
+
+AcpiXtract: Implemented handling for both types of line terminators (LF 
+or CR/LF) so that it can accept AcpiDump output files from any system. 
+Peter Wu.
+
+AcpiBin: Added two new options for comparing AML files:
+    -a: compare and display ALL mismatches
+    -o: start compare at this offset into the second file
+
+----------------------------------------
+30 September 2016. Summary of changes for version 20160930:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression in the internal AcpiTbFindTable function where a non 
+AE_OK exception could inadvertently be returned even if the function did 
+not fail. This problem affects the following operators:
+    DataTableRegion
+    LoadTable
+
+Fixed a regression in the LoadTable operator where a load to any 
+namespace location other than the root no longer worked properly.
+
+Increased the maximum loop count value that will result in the 
+AE_AML_INFINITE_LOOP exception. This is a mechanism that is intended to 
+prevent infinite loops within the AML interpreter and thus the host OS 
+kernel. The value is increased from 0xFFFF to 0xFFFFF loops (65,535 to 
+1,048,575).
+
+Moved the AcpiGbl_MaxLoopIterations configuration variable to the public 
+acpixf.h file. This allows hosts to easily configure the maximum loop 
+count at runtime.
+
+Removed an illegal character in the strtoul64.c file. This character 
+caused errors with some C compilers.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.4K Code, 58.1K Data, 198.5K Total
+    Debug Version:     200.7K Code, 82.1K Data, 282.8K Total
+  Previous Release:
+    Non-Debug Version: 140.0K Code, 58.1K Data, 198.1K Total
+    Debug Version:     200.3K Code, 82.1K Data, 282.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem with the conversion of Else{If{ blocks into 
+the simpler ASL ElseIf keyword. During the conversion, a trailing If 
+block could be lost and missing from the disassembled output.
+
+iASL: Fixed a missing parser rule for the ObjectType operator. For ASL+, 
+the missing rule caused a parse error when using the Index operator as an 
+operand to ObjectType. This construct now compiles properly. Example:
+    ObjectType(PKG1[4]).
+
+iASL: Correctly handle unresolved symbols in the hardware map file (-lm 
+option). Previously, unresolved symbols could cause a protection fault. 
+Such symbols are now marked as unresolved in the map file.
+
+iASL: Implemented support to allow control method invocations as an 
+operand to the ASL DeRefOf operator. Example:
+    DeRefOf(MTH1(Local0))
+
+Disassembler: Improved support for the ToPLD ASL macro. Detection of a 
+possible _PLD buffer now includes examination of both the normal buffer 
+length (16 or 20) as well as the surrounding AML package length.
+
+Disassembler: Fixed a problem with the decoding of complex expressions 
+within the Divide operator for ASL+. For the case where both the quotient 
+and remainder targets are specified, the entire statement cannot be 
+disassembled. Previously, the output incorrectly contained a mix of ASL- 
+and ASL+ operators. This mixed statement causes a syntax error when 
+compiled. Example:
+    Divide (Add (INT1, 6), 128, RSLT, QUOT)  // was incorrectly 
+disassembled to:
+    Divide (INT1 + 6, 128, RSLT, QUOT)
+
+iASL/Tools: Added support to process AML and non-AML ACPI tables 
+consistently. For the disassembler and AcpiExec, allow all types of ACPI 
+tables (AML and data tables). For the iASL -e option, allow only AML 
+tables (DSDT/SSDT).
+
+----------------------------------------
+31 August 2016. Summary of changes for version 20160831:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Improve support for the so-called "module-level code", which is defined 
+to be math, logical and control AML opcodes that appear outside of any 
+control method. This change improves the support by adding more opcodes 
+that can be executed in the manner. Some other issues have been solved, 
+and the ASL grammar changes to support such code under all scope 
+operators (Device, etc.) are complete. Lv Zheng.
+
+UEFI support: these OSL functions have been implemented. This is an 
+additional step toward supporting the AcpiExec utility natively (with 
+full hardware access) under UEFI. Marcelo Ferreira.
+    AcpiOsReadPciConfiguration
+    AcpiOsWritePciConfiguration
+
+Fixed a possible mutex error during control method auto-serialization. Lv 
+Zheng. 
+
+Updated support for the Generic Address Structure by fully implementing 
+all GAS fields when a 32-bit address is expanded to a 64-bit GAS. Lv 
+Zheng.
+
+Updated the return value for the internal _OSI method. Instead of 
+0xFFFFFFFF, the "Ones" value is now returned, which is 0xFFFFFFFFFFFFFFFF 
+for 64-bit ACPI tables. This fixes an incompatibility with other ACPI 
+implementations, and will be reflected and clarified in the next version 
+of the ACPI specification.
+
+Implemented two new table events that can be passed to an ACPICA table 
+handler. These events are used to indicate a table installation or 
+uninstallation. These events are used in addition to existed table load 
+and unload events. Lv Zheng.
+
+Implemented a cleanup for all internal string-to-integer conversions. 
+Consolidate multiple versions of this functionality and limit possible 
+bases to either 10 or 16 to simplify the code. Adds a new file, 
+utstrtoul64.
+
+Cleanup the inclusion order of the various compiler-specific headers. 
+This simplifies build configuration management. The compiler-specific 
+headers are now split out from the host-specific headers. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.1K Code, 58.1K Data, 198.1K Total
+    Debug Version:     200.3K Code, 82.1K Data, 282.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/AcpiExec: Added a command line option to display the build date/time 
+of the tool (-vd). This can be useful to verify that the correct version 
+of the tools are being used.
+
+AML Debugger: Implemented a new subcommand ("execute predef") to execute 
+all predefined control methods and names within the current namespace. 
+This can be useful for debugging problems with ACPI tables and the ACPI 
+namespace.
+
+----------------------------------------
+29 July 2016. Summary of changes for version 20160729:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented basic UEFI support for the various ACPICA tools. This 
+includes:
+1) An OSL to implement the various AcpiOs* interfaces on UEFI.
+2) Support to obtain the ACPI tables on UEFI.
+3) Local implementation of required C library functions not available on 
+UEFI.
+4) A front-end (main) function for the tools for UEFI-related 
+initialization.
+
+The initial deployment of this support is the AcpiDump utility executing 
+as an UEFI application via EDK2 (EDKII, "UEFI Firmware Development Kit"). 
+Current environments supported are Linux/Unix. MSVC generation is not 
+supported at this time. See the generate/efi/README file for build 
+instructions. Lv Zheng.
+
+Future plans include porting the AcpiExec utility to execute natively on 
+the platform with I/O and memory access. This will allow viewing/dump of 
+the platform namespace and native execution of ACPI control methods that 
+access the actual hardware. To fully implement this support, the OSL 
+functions below must be implemented with UEFI interfaces. Any community 
+help in the implementation of these functions would be appreciated:
+    AcpiOsReadPort
+    AcpiOsWritePort
+    AcpiOsReadMemory
+    AcpiOsWriteMemory
+    AcpiOsReadPciConfiguration
+    AcpiOsWritePciConfiguration
+
+Restructured and standardized the C library configuration for ACPICA, 
+resulting in the various configuration options below. This includes a 
+global restructuring of the compiler-dependent and platform-dependent 
+include files. These changes may affect the existing platform-dependent 
+configuration files on some hosts. Lv Zheng. 
+
+The current C library configuration options appear below. For any issues, 
+it may be helpful to examine the existing compiler-dependent and 
+platform-dependent files as examples. Lv Zheng. 
+
+1) Linux kernel:
+    ACPI_USE_STANDARD_HEADERS=n in order not to use system-provided C 
+library.
+    ACPI_USE_SYSTEM_CLIBRARY=y in order not to use ACPICA mini C library.
+2) Unix/Windows/BSD applications:
+    ACPI_USE_STANDARD_HEADERS=y in order to use system-provided C 
+library.
+    ACPI_USE_SYSTEM_CLIBRARY=y in order not to use ACPICA mini C library.
+3) UEFI applications:
+    ACPI_USE_STANDARD_HEADERS=n in order not to use system-provided C 
+library.
+    ACPI_USE_SYSTEM_CLIBRARY=n in order to use ACPICA mini C library.
+4) UEFI applications (EDK2/StdLib):
+    ACPI_USE_STANDARD_HEADERS=y in order to use EDK2 StdLib C library.
+    ACPI_USE_SYSTEM_CLIBRARY=y in order to use EDK2 StdLib C library.
+
+
+AML interpreter: "module-level code" support. Allows for execution of so-
+called "executable" AML code (math/logical operations, etc.) outside of 
+control methods not just at the module level (top level) but also within 
+any scope declared outside of a control method - Scope{}, Device{}, 
+Processor{}, PowerResource{}, and ThermalZone{}. Lv Zheng. 
+
+Simplified the configuration of the "maximum AML loops" global option by 
+adding a global public variable, "AcpiGbl_MaxLoopIterations" which can be 
+modified at runtime.
+
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 139.1K Code, 22.9K Data, 162.0K Total
+    Debug Version:     199.0K Code, 81.8K Data, 280.8K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Add full support for the RASF ACPI table (RAS Features Table). 
+Includes disassembler, data table compiler, and header support.
+
+iASL Expand "module-level code" support. Allows for 
+compilation/disassembly of so-called "executable" AML code (math/logical 
+operations, etc.) outside of control methods not just at the module level 
+(top level) but also within any scope declared outside of a control 
+method - Scope{}, Device{}, Processor{}, PowerResource{}, and 
+ThermalZone{}.
+
+AcpiDump: Added support for dumping all SSDTs on newer versions of 
+Windows. These tables are now easily available -- SSDTs are not available 
+through the registry on older versions.
+
+----------------------------------------
+27 May 2016. Summary of changes for version 20160527:
 
 
 1) ACPICA kernel-resident subsystem:

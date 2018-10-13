@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-S=     ${.CURDIR}/../../..
+S=     ${SRCTOP}/sys
 
 .PATH: $S/dev/usb/template
 
@@ -41,6 +41,7 @@ SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
 	usb_template_mtp.c \
 	usb_template_phone.c \
 	usb_template_serialnet.c \
-	usb_template_midi.c
+	usb_template_midi.c \
+	usb_template_multi.c
 
 .include <bsd.kmod.mk>

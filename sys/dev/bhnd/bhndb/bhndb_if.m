@@ -1,6 +1,10 @@
 #-
-# Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+# Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+# Copyright (c) 2017 The FreeBSD Foundation
 # All rights reserved.
+#
+# Portions of this software were developed by Landon Fuller
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -40,6 +44,7 @@
 INTERFACE bhndb;
 
 HEADER {
+	struct bhndb_intr_isrc;
 	struct bhndb_regwin;
 	struct bhndb_hw;
 	struct bhndb_hw_priority;
@@ -63,16 +68,17 @@ CODE {
 	}
 
 	static int
-	bhndb_null_init_full_config(device_t dev, device_t child,
-	    const struct bhndb_hw_priority *priority_table)
+	bhndb_null_is_core_disabled(device_t dev, device_t child,
+	    struct bhnd_core_info *core)
 	{
-		panic("bhndb_init_full_config unimplemented");
+		panic("bhndb_is_core_disabled unimplemented");
 	}
-	
-	static device_t
-	bhndb_null_find_hostb_device(device_t dev, device_t child)
+
+	static int
+	bhndb_null_get_hostb_core(device_t dev, device_t child,
+	    struct bhnd_core_info *core)
 	{
-		panic("bhndb_find_hostb_device unimplemented");
+		panic("bhndb_get_hostb_core unimplemented");
 	}
 	
 	static void
@@ -90,10 +96,23 @@ CODE {
 	}
 
 	static int
+	bhndb_null_route_interrupts(device_t dev, device_t child)
+	{
+		panic("bhndb_route_interrupts unimplemented");
+	}
+
+	static int
 	bhndb_null_set_window_addr(device_t dev,
 	    const struct bhndb_regwin *rw, bhnd_addr_t addr)
 	{
 		panic("bhndb_set_window_addr unimplemented");
+	}
+
+	static int
+	bhndb_null_map_intr_isrc(device_t dev, struct resource *irq,
+	    struct bhndb_intr_isrc **isrc)
+	{
+		panic("bhndb_map_intr_isrc unimplemented");
 	}
 }
 
@@ -124,39 +143,41 @@ METHOD int populate_board_info {
 } DEFAULT bhndb_null_populate_board_info;
 
 /**
- * Perform final bridge hardware configuration after @p child has fully
- * enumerated its children.
+ * Return true if the hardware required by @p core is unpopulated or
+ * otherwise unusable.
  *
- * This must be called by any bhndb-attached bus device; this allows the
- * bridge to perform final configuration based on the hardware information
- * enumerated by the child bus.
+ * In some cases, the core's pins may be left floating, or the hardware
+ * may otherwise be non-functional; this method allows the parent device
+ * to explicitly specify whether @p core should be disabled.
  *
- * When calling this method:
- * - Any bus resources previously allocated by @p child must be deallocated.
- * - The @p child bus must have performed initial enumeration -- but not
- *   probe or attachment -- of its children.
- *
- * @param dev The bridge device.
- * @param child The bhnd bus device attached to @p dev.
- * @param hw_priority The hardware priority table to be used when determining
- * the bridge resource allocation strategy.
+ * @param dev The parent device of @p child.
+ * @param child The attached bhnd device.
+ * @param core A core discovered on @p child.
  */
-METHOD int init_full_config {
+METHOD bool is_core_disabled {
 	device_t dev;
 	device_t child;
-	const struct bhndb_hw_priority *priority_table;
-} DEFAULT bhndb_null_init_full_config;
+	struct bhnd_core_info *core;
+} DEFAULT bhndb_null_is_core_disabled;
 
 /**
- * Locate the active host bridge core for the attached bhnd bus.
+ * Get the host bridge core info for the attached bhnd bus.
  *
- * @param dev The bridge device.
- * @param child The bhnd bus device attached to @p dev.
+ * @param	dev	The bridge device.
+ * @param	child	The bhnd bus device attached to @p dev.
+ * @param[out]	core	Will be populated with the host bridge core info, if
+ *			found.
+ *
+ * @retval 0		success
+ * @retval ENOENT	No host bridge core found.
+ * @retval non-zero	If locating the host bridge core otherwise fails, a
+ *			regular UNIX error code should be returned.
  */
-METHOD device_t find_hostb_device {
+METHOD int get_hostb_core {
 	device_t dev;
 	device_t child;
-} DEFAULT bhndb_null_find_hostb_device;
+	struct bhnd_core_info *core;
+} DEFAULT bhndb_null_get_hostb_core;
 
 /**
  * Mark a resource as 'suspended', gauranteeing to the bridge that no
@@ -205,6 +226,17 @@ METHOD int resume_resource {
 } DEFAULT bhndb_null_resume_resource;
 
 /**
+ * Enable bridge-level interrupt routing for @p child.
+ *
+ * @param dev The bridge device.
+ * @param child The bhnd child device for which interrupts should be routed.
+ */
+METHOD int route_interrupts {
+	device_t dev;
+	device_t child;
+} DEFAULT bhndb_null_route_interrupts;
+
+/**
  * Set a given register window's base address.
  *
  * @param dev The bridge device.
@@ -221,3 +253,22 @@ METHOD int set_window_addr {
 	const struct bhndb_regwin *win;
 	bhnd_addr_t addr;
 } DEFAULT bhndb_null_set_window_addr;
+
+/**
+ * Map a bridged interrupt resource to its corresponding host interrupt source,
+ * if any.
+ *
+ * @param dev The bridge device.
+ * @param irq The bridged interrupt resource.
+ * @param[out] isrc The host interrupt source to which the bridged interrupt
+ * is routed.
+ *
+ * @retval 0 success
+ * @retval non-zero if mapping @p irq otherwise fails, a regular unix error code
+ * will be returned.
+ */
+METHOD int map_intr_isrc {
+	device_t dev;
+	struct resource *irq;
+	struct bhndb_intr_isrc **isrc;
+} DEFAULT bhndb_null_map_intr_isrc;

@@ -280,7 +280,6 @@ isc_netaddr_masktoprefixlen(const isc_netaddr_t *s, unsigned int *lenp) {
 	for (; i < ipbytes; i++) {
 		if (p[i] != 0)
 			return (ISC_R_MASKNONCONTIG);
-		i++;
 	}
 	*lenp = nbytes * 8 + nbits;
 	return (ISC_R_SUCCESS);

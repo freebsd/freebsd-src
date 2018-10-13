@@ -24,13 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2016
+.Dd November 11, 2017
 .Dt RWLOCK 9
 .Os
 .Sh NAME
 .Nm rwlock ,
 .Nm rw_init ,
-.Nm rw_init_flags,
+.Nm rw_init_flags ,
 .Nm rw_destroy ,
 .Nm rw_rlock ,
 .Nm rw_wlock ,
@@ -45,7 +45,8 @@
 .Nm rw_initialized ,
 .Nm rw_wowned ,
 .Nm rw_assert ,
-.Nm RW_SYSINIT
+.Nm RW_SYSINIT ,
+.Nm RW_SYSINIT_FLAGS
 .Nd kernel reader/writer lock
 .Sh SYNOPSIS
 .In sys/param.h
@@ -88,6 +89,7 @@
 .Fn rw_assert "const struct rwlock *rw" "int what"
 .In sys/kernel.h
 .Fn RW_SYSINIT "name" "struct rwlock *rw" "const char *desc"
+.Fn RW_SYSINIT_FLAGS "name" "struct rwlock *rw" "const char *desc" "int flags"
 .Sh DESCRIPTION
 Reader/writer locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.

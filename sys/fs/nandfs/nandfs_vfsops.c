@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2012 Semihalf
  * Copyright (c) 2008, 2009 Reinoud Zandijk
  * All rights reserved.
@@ -559,7 +561,7 @@ nandfs_read_structures(struct nandfs_device *fsdev)
 {
 	struct nandfs_fsdata *fsdata, *fsdatat;
 	struct nandfs_super_block *sblocks, *ssblock;
-	int nsbs, nfsds, i;
+	u_int nsbs, nfsds, i;
 	int error = 0;
 	int nrsbs;
 

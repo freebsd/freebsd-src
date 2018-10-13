@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -75,7 +75,7 @@ extern int screen_trashed;
 	public void
 clr_linenum()
 {
-	register struct linenum_info *p;
+	struct linenum_info *p;
 
 	/*
 	 * Put all the entries on the free list.
@@ -102,7 +102,7 @@ clr_linenum()
  */
 	static void
 calcgap(p)
-	register struct linenum_info *p;
+	struct linenum_info *p;
 {
 	/*
 	 * Don't bother to compute a gap for the anchor.
@@ -125,11 +125,11 @@ add_lnum(linenum, pos)
 	LINENUM linenum;
 	POSITION pos;
 {
-	register struct linenum_info *p;
-	register struct linenum_info *new;
-	register struct linenum_info *nextp;
-	register struct linenum_info *prevp;
-	register POSITION mingap;
+	struct linenum_info *p;
+	struct linenum_info *new;
+	struct linenum_info *nextp;
+	struct linenum_info *prevp;
+	POSITION mingap;
 
 	/*
 	 * Find the proper place in the list for the new one.
@@ -265,8 +265,8 @@ abort_long()
 find_linenum(pos)
 	POSITION pos;
 {
-	register struct linenum_info *p;
-	register LINENUM linenum;
+	struct linenum_info *p;
+	LINENUM linenum;
 	POSITION cpos;
 
 	if (!linenums)
@@ -380,7 +380,7 @@ find_linenum(pos)
 find_pos(linenum)
 	LINENUM linenum;
 {
-	register struct linenum_info *p;
+	struct linenum_info *p;
 	POSITION cpos;
 	LINENUM clinenum;
 

@@ -1,26 +1,28 @@
 # $FreeBSD$
 
+# The LINT files need to end up in the kernel source directory.
+.OBJDIR: ${.CURDIR}
+
 all:
 	@echo "make LINT only"
 
 clean:
 	rm -f LINT
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
-	rm -f LINT-VIMAGE LINT-NOINET LINT-NOINET6 LINT-NOIP
+	rm -f LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
 
-NOTES=	../../conf/NOTES NOTES
-LINT: ${NOTES} ../../conf/makeLINT.sed
-	cat ${NOTES} | sed -E -n -f ../../conf/makeLINT.sed > ${.TARGET}
+NOTES=	${.CURDIR}/../../conf/NOTES ${.CURDIR}/NOTES
+MAKELINT_SED= ${.CURDIR}/../../conf/makeLINT.sed
+LINT: ${NOTES} ${MAKELINT_SED}
+	cat ${NOTES} | sed -E -n -f ${MAKELINT_SED} > ${.TARGET}
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
-	echo "include ${.TARGET}"	>  ${.TARGET}-VIMAGE
-	echo "ident ${.TARGET}-VIMAGE"	>> ${.TARGET}-VIMAGE
-	echo "options VIMAGE"		>> ${.TARGET}-VIMAGE
 	echo "include ${.TARGET}"	>  ${.TARGET}-NOINET
 	echo "ident ${.TARGET}-NOINET"	>> ${.TARGET}-NOINET
 	echo 'makeoptions MKMODULESENV+="WITHOUT_INET_SUPPORT="'  >> ${.TARGET}-NOINET
 	echo "nooptions INET"		>> ${.TARGET}-NOINET
 	echo "nodevice gre"		>> ${.TARGET}-NOINET
+	echo "nodevice netmap"		>> ${.TARGET}-NOINET
 	echo "include ${.TARGET}"	>  ${.TARGET}-NOINET6
 	echo "ident ${.TARGET}-NOINET6"	>> ${.TARGET}-NOINET6
 	echo 'makeoptions MKMODULESENV+="WITHOUT_INET6_SUPPORT="' >> ${.TARGET}-NOINET6
@@ -37,14 +39,13 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	echo "nodevice bxe"		>> ${.TARGET}-NOIP
 	echo "nodevice em"		>> ${.TARGET}-NOIP
 	echo "nodevice fxp"		>> ${.TARGET}-NOIP
-	echo "nodevice igb"		>> ${.TARGET}-NOIP
 	echo "nodevice jme"		>> ${.TARGET}-NOIP
 	echo "nodevice msk"		>> ${.TARGET}-NOIP
 	echo "nodevice mxge"		>> ${.TARGET}-NOIP
 	echo "nodevice sge"		>> ${.TARGET}-NOIP
 	echo "nodevice sk"		>> ${.TARGET}-NOIP
 	echo "nodevice txp"		>> ${.TARGET}-NOIP
-	echo "nodevice vxge"		>> ${.TARGET}-NOIP
+	echo "nodevice netmap"		>> ${.TARGET}-NOIP
 .endif
 .if ${TARGET} == "mips"
 	echo "machine	${TARGET} ${TARGET_ARCH}" >> ${.TARGET}
@@ -54,4 +55,8 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	cat ${.TARGET} > ${.TARGET}64
 	echo "machine	${TARGET} powerpc" >> ${.TARGET}
 	echo "machine	${TARGET} powerpc64" >> ${.TARGET}64
+# mlx5 needs 64-bit atomics, so exclude from 32-bit PPC
+	echo "nodevice mlx5" >> ${.TARGET}
+	echo "nodevice mlx5en" >> ${.TARGET}
+	echo "nodevice mlx5ib" >> ${.TARGET}
 .endif

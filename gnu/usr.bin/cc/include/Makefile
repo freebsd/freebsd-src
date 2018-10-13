@@ -6,7 +6,7 @@
 
 INCSDIR=${INCLUDEDIR}/gcc/${GCCVER}
 
-.PATH: ${GCCDIR}/config/${GCC_CPU} ${.CURDIR}/../../../../contrib/llvm/tools/clang/lib/Headers
+.PATH: ${GCCDIR}/config/${GCC_CPU} ${SRCTOP}/contrib/llvm/tools/clang/lib/Headers
 
 .if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
 INCS=	ammintrin.h emmintrin.h mmintrin.h mm3dnow.h pmmintrin.h \
@@ -14,7 +14,8 @@ INCS=	ammintrin.h emmintrin.h mmintrin.h mm3dnow.h pmmintrin.h \
 INCS+=	wmmintrin.h __wmmintrin_aes.h __wmmintrin_pclmul.h
 .elif ${TARGET_ARCH} == "arm"
 INCS=	mmintrin.h
-.elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"
+.elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64" || \
+    ${TARGET_ARCH} == "powerpcspe"
 INCS=	ppc-asm.h altivec.h spe.h
 .endif
 

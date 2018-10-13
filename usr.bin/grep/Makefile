@@ -6,88 +6,66 @@
 
 .if ${MK_BSD_GREP} == "yes"
 PROG=	grep
+MAN1=	grep.1 zgrep.1
 .else
 PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
+MAN1=	grep.1 zgrep.1
 
 bsdgrep.1: grep.1
 	${CP} ${.ALLSRC} ${.TARGET}
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
-# Extra files ported backported form some regex improvements
-.PATH: ${.CURDIR}/regex
-SRCS+=	fastmatch.c hashtable.c tre-compile.c tre-fastmatch.c xmalloc.c
-CFLAGS+=-I${.CURDIR}/regex
+SCRIPTS=	zgrep.sh
+LINKS=		${BINDIR}/zgrep ${BINDIR}/zfgrep \
+		${BINDIR}/zgrep ${BINDIR}/zegrep \
+		${BINDIR}/zgrep ${BINDIR}/bzgrep \
+		${BINDIR}/zgrep ${BINDIR}/bzegrep \
+		${BINDIR}/zgrep ${BINDIR}/bzfgrep \
+		${BINDIR}/zgrep ${BINDIR}/lzgrep \
+		${BINDIR}/zgrep ${BINDIR}/lzegrep \
+		${BINDIR}/zgrep ${BINDIR}/lzfgrep \
+		${BINDIR}/zgrep ${BINDIR}/xzgrep \
+		${BINDIR}/zgrep ${BINDIR}/xzegrep \
+		${BINDIR}/zgrep ${BINDIR}/xzfgrep \
+		${BINDIR}/zgrep ${BINDIR}/zstdgrep \
+		${BINDIR}/zgrep ${BINDIR}/zstdegrep \
+		${BINDIR}/zgrep ${BINDIR}/zstdegrep
+
+MLINKS=		zgrep.1 zfgrep.1 \
+		zgrep.1 zegrep.1 \
+		zgrep.1 bzgrep.1 \
+		zgrep.1 bzegrep.1 \
+		zgrep.1 bzfgrep.1 \
+		zgrep.1 lzgrep.1 \
+		zgrep.1 lzegrep.1 \
+		zgrep.1 lzfgrep.1 \
+		zgrep.1 xzgrep.1 \
+		zgrep.1 xzegrep.1 \
+		zgrep.1 xzfgrep.1 \
+		zgrep.1 zstdgrep.1 \
+		zgrep.1 zstdegrep.1 \
+		zgrep.1 zstdfgrep.1
 
 CFLAGS.gcc+= --param max-inline-insns-single=500
 
 .if ${MK_BSD_GREP} == "yes"
-LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
+LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep \
-	${BINDIR}/grep ${BINDIR}/zgrep \
-	${BINDIR}/grep ${BINDIR}/zegrep \
-	${BINDIR}/grep ${BINDIR}/zfgrep
+	${BINDIR}/grep ${BINDIR}/rgrep \
 
-MLINKS= grep.1 egrep.1 \
+MLINKS+= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
-	grep.1 zgrep.1 \
-	grep.1 zegrep.1 \
-	grep.1 zfgrep.1
-.endif
-
-LIBADD=	z
-
-.if ${MK_LZMA_SUPPORT} != "no"
-LIBADD+=	lzma
-
-.if ${MK_BSD_GREP} == "yes"
-LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
-	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
-	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
-	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
-	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
-	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
-
-MLINKS+= grep.1 xzgrep.1 \
-	 grep.1 xzegrep.1 \
-	 grep.1 xzfgrep.1 \
-	 grep.1 lzgrep.1 \
-	 grep.1 lzegrep.1 \
-	 grep.1 lzfgrep.1
-.endif
-.else
-CFLAGS+= -DWITHOUT_LZMA
-.endif
-
-.if ${MK_BZIP2_SUPPORT} != "no"
-LIBADD+=	bz2
-
-.if ${MK_BSD_GREP} == "yes"
-LINKS+= ${BINDIR}/grep ${BINDIR}/bzgrep \
-	${BINDIR}/grep ${BINDIR}/bzegrep \
-	${BINDIR}/grep ${BINDIR}/bzfgrep
-MLINKS+= grep.1 bzgrep.1 \
-	 grep.1 bzegrep.1 \
-	 grep.1 bzfgrep.1
-.endif
-.else
-CFLAGS+= -DWITHOUT_BZIP2
+	grep.1 rgrep.1
 .endif
 
 .if ${MK_GNU_GREP_COMPAT} != "no"
-CFLAGS+= -I${DESTDIR}/usr/include/gnu
+CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DWITH_GNU
 LIBADD+=	gnuregex
 .endif
 
-.if ${MK_NLS} != "no"
-.include "${.CURDIR}/nls/Makefile.inc"
-.else
-CFLAGS+= -DWITHOUT_NLS
-.endif
-
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

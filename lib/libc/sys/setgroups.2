@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)setgroups.2	8.2 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd April 16, 1994
+.Dd January 19, 2018
 .Dt SETGROUPS 2
 .Os
 .Sh NAME
@@ -56,6 +56,23 @@ more than
 .Dv {NGROUPS_MAX}+1 .
 .Pp
 Only the super-user may set a new group list.
+.Pp
+The first entry of the group array
+.Pq Va gidset[0]
+is used as the effective group-ID for the process.
+This entry is over-written when a setgid program is run.
+To avoid losing access to the privileges of the
+.Va gidset[0]
+entry, it should be duplicated later in the group array.
+By convention,
+this happens because the group value indicated
+in the password file also appears in
+.Pa /etc/group .
+The group value in the password file is placed in
+.Va gidset[0]
+and that value then gets added a second time when the
+.Pa /etc/group
+file is scanned to create the group set.
 .Sh RETURN VALUES
 .Rv -std setgroups
 .Sh ERRORS

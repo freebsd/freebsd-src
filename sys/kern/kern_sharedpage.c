@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010, 2012 Konstantin Belousov <kib@FreeBSD.org>
  * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
@@ -31,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>

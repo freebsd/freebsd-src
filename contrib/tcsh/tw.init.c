@@ -125,9 +125,8 @@ tw_str_add(stringlist_t *sl, size_t len)
 	sl->buff = xrealloc(sl->buff, sl->tbuff * sizeof(Char));
 	/* Re-thread the new pointer list, if changed */
 	if (ptr != NULL && ptr != sl->buff) {
-	    intptr_t offs = sl->buff - ptr;
 	    for (i = 0; i < sl->nlist; i++)
-		sl->list[i] += offs;
+		sl->list[i] = sl->buff + (sl->list[i] - ptr);
 	}
 	disabled_cleanup(&pintr_disabled);
     }

@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2002
+.Dd January 31, 2018
 .Dt MAKECONTEXT 3
 .Os
 .Sh NAME
@@ -68,11 +68,16 @@ with the arguments provided.
 The
 .Fa argc
 argument
-must be equal to the number of additional arguments provided to
+must be equal to the number of additional arguments of type
+.Vt int
+provided to
 .Fn makecontext
-and also equal to the number of arguments to
-.Fn func ,
-or else the behavior is undefined.
+and also equal to the number of arguments of type
+.Vt int
+to
+.Fn func ;
+otherwise ,
+the behavior is undefined.
 .Pp
 The
 .Fa "ucp->uc_link"

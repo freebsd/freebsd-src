@@ -29,7 +29,7 @@
 
 # A note on specs:
 # - A copy of the ISO-9660 spec can be found here:
-#   http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
+#   https://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
 # - Any references to `rockridge` are referring to the `Rock Ridge` extensions
 #   of the ISO-9660 spec. A copy of the draft `IEEE-P1282` spec can be found
 #   here:
@@ -59,6 +59,11 @@ check_base_iso9660_image_contents()
 
 	atf_check -e empty -o empty -s exit:0 test -L $TEST_INPUTS_DIR/c
 	atf_check -e empty -o empty -s exit:0 test -f $TEST_MOUNT_DIR/c
+}
+
+check_cd9660_support() {
+	kldstat -m cd9660 || \
+		atf_skip "Requires cd9660 filesystem support to be present in the kernel"
 }
 
 atf_test_case D_flag cleanup
@@ -99,6 +104,7 @@ F_flag_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -119,6 +125,7 @@ from_mtree_spec_file_body()
 	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
 	cd -
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -141,6 +148,7 @@ from_multiple_dirs_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR $test_inputs_dir2
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents -d $test_inputs_dir2
 }
@@ -157,6 +165,7 @@ from_single_dir_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -177,6 +186,7 @@ o_flag_allow_deep_trees_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o allow-deep-trees $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -200,6 +210,7 @@ o_flag_allow_max_name_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o allow-max-name $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -218,6 +229,7 @@ o_flag_isolevel_1_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o isolevel=1 $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -234,6 +246,7 @@ o_flag_isolevel_2_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o isolevel=2 $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -254,6 +267,8 @@ o_flag_isolevel_3_body()
 	else
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
+
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 	fi
@@ -264,6 +279,10 @@ o_flag_isolevel_3_cleanup()
 }
 
 atf_test_case o_flag_preparer
+o_flag_preparer_head()
+{
+	atf_set "require.progs" "strings"
+}
 o_flag_preparer_body()
 {
 	create_test_dirs
@@ -279,6 +298,10 @@ o_flag_preparer_body()
 }
 
 atf_test_case o_flag_publisher
+o_flag_publisher_head()
+{
+	atf_set "require.progs" "strings"
+}
 o_flag_publisher_body()
 {
 	create_test_dirs
@@ -313,6 +336,7 @@ o_flag_rockridge_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_image_contents -X .rr_moved
 
@@ -344,6 +368,7 @@ o_flag_rockridge_dev_nodes_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_image_contents
 }

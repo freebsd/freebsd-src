@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)getrlimit.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2015
+.Dd September 30, 2016
 .Dt GETRLIMIT 2
 .Os
 .Sh NAME
@@ -137,7 +137,7 @@ For example, if the RSS hard limit is exceeded, nothing happens.
 .Pp
 The
 .Vt rlimit
-structure is used to specify the hard and soft limits on a resource,
+structure is used to specify the hard and soft limits on a resource.
 .Bd -literal -offset indent
 struct rlimit {
 	rlim_t	rlim_cur;	/* current (soft) limit */
@@ -183,9 +183,9 @@ soft limit will cause the write to fail and a signal
 to be
 generated; this normally terminates the process, but may be caught.
 When
-the soft cpu time limit is exceeded, a signal
+the soft cpu time limit is exceeded, a
 .Dv SIGXCPU
-is sent to the
+signal is sent to the
 offending process.
 .Pp
 When most operations would allocate more virtual memory than allowed by the
@@ -198,7 +198,9 @@ A notable exception is stack extension, described above.
 If stack extension would allocate more virtual memory than allowed by the soft
 limit of
 .Dv RLIMIT_AS ,
-the signal SIGSEGV will be delivered.
+a
+.Dv SIGSEGV
+signal will be delivered.
 The caller is free to raise the soft address space limit up to the hard limit
 and retry the allocation.
 .Sh RETURN VALUES

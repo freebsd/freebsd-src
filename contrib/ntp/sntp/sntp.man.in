@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH sntp @SNTP_MS@ "02 Jun 2016" "4.2.8p8" "User Commands"
+.TH sntp @SNTP_MS@ "14 Aug 2018" "4.2.8p12" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-5CayKq/ag-fDaqJq)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-7ray4x/ag-hsaq3x)
 .\"
-.\" It has been AutoGen-ed June 2, 2016 at 07:19:39 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed August 14, 2018 at 08:27:33 AM by AutoGen 5.18.5
 .\" From the definitions sntp-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -162,6 +162,11 @@ warning message will be displayed.  The file will not be created.
 .TP
 .NOP \f\*[B-Font]\-k\f[] \f\*[I-Font]file\-name\f[], \f\*[B-Font]\-\-keyfile\f[]=\f\*[I-Font]file\-name\f[]
 Look in this file for the key specified with \fB-a\fP.
+The default
+\f\*[I-Font]file\-name\f[]
+for this option is:
+.ti +4
+ /etc/ntp.keys
 .sp
 This option specifies the keyfile.
 \fBsntp\fP will search for the key specified with \fB-a\fP
@@ -348,7 +353,7 @@ it to autogen-users@lists.sourceforge.net.  Thank you.
 .NOP  "Dave Hart" 
 .br
 .SH "COPYRIGHT"
-Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org

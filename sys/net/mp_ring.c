@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <machine/cpu.h>
 
-#if defined(__powerpc__) || defined(__mips__)
+#if defined(__powerpc__) || defined(__mips__) || defined(__i386__)
 #define NO_64BIT_ATOMICS
 #endif
 
@@ -327,7 +327,7 @@ ifmp_ring_free(struct ifmp_ring *r)
  */
 #ifdef NO_64BIT_ATOMICS
 int
-ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
+ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
 {
 	union ring_state os, ns;
 	uint16_t pidx_start, pidx_stop;
@@ -345,6 +345,7 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 	if (n >= space_available(r, os)) {
 		counter_u64_add(r->drops, n);
 		MPASS(os.flags != IDLE);
+		mtx_unlock(&r->lock);
 		if (os.flags == STALLED)
 			ifmp_ring_check_drainage(r, 0);
 		return (ENOBUFS);
@@ -379,16 +380,24 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 	 */
 	os.state = ns.state = r->state;
 	ns.pidx_tail = pidx_stop;
-	ns.flags = BUSY;
+	if (abdicate) {
+		if (os.flags == IDLE)
+			ns.flags = ABDICATED;
+	}
+	else {
+		ns.flags = BUSY;
+	}
 	r->state = ns.state;
 	counter_u64_add(r->enqueues, n);
 
-	/*
-	 * Turn into a consumer if some other thread isn't active as a consumer
-	 * already.
-	 */
-	if (os.flags != BUSY)
-		drain_ring_locked(r, ns, os.flags, budget);
+	if (!abdicate) {
+		/*
+		 * Turn into a consumer if some other thread isn't active as a consumer
+		 * already.
+		 */
+		if (os.flags != BUSY)
+			drain_ring_locked(r, ns, os.flags, budget);
+	}
 
 	mtx_unlock(&r->lock);
 	return (0);
@@ -396,7 +405,7 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 
 #else
 int
-ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
+ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
 {
 	union ring_state os, ns;
 	uint16_t pidx_start, pidx_stop;
@@ -454,17 +463,25 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 	do {
 		os.state = ns.state = r->state;
 		ns.pidx_tail = pidx_stop;
-		ns.flags = BUSY;
+		if (abdicate) {
+			if (os.flags == IDLE)
+				ns.flags = ABDICATED;
+		}
+		else {
+			ns.flags = BUSY;
+		}
 	} while (atomic_cmpset_rel_64(&r->state, os.state, ns.state) == 0);
 	critical_exit();
 	counter_u64_add(r->enqueues, n);
 
-	/*
-	 * Turn into a consumer if some other thread isn't active as a consumer
-	 * already.
-	 */
-	if (os.flags != BUSY)
-		drain_ring_lockless(r, ns, os.flags, budget);
+	if (!abdicate) {
+		/*
+		 * Turn into a consumer if some other thread isn't active as a consumer
+		 * already.
+		 */
+		if (os.flags != BUSY)
+			drain_ring_lockless(r, ns, os.flags, budget);
+	}
 
 	return (0);
 }
@@ -476,7 +493,9 @@ ifmp_ring_check_drainage(struct ifmp_ring *r, int budget)
 	union ring_state os, ns;
 
 	os.state = r->state;
-	if (os.flags != STALLED || os.pidx_head != os.pidx_tail || r->can_drain(r) == 0)
+	if ((os.flags != STALLED && os.flags != ABDICATED) ||	// Only continue in STALLED and ABDICATED
+	    os.pidx_head != os.pidx_tail ||			// Require work to be available
+	    (os.flags != ABDICATED && r->can_drain(r) == 0))	// Can either drain, or everyone left
 		return;
 
 	MPASS(os.cidx != os.pidx_tail);	/* implied by STALLED */

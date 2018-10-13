@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
- * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.org>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,20 +43,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
-#ifdef INTRNG
 #include <sys/sched.h>
-#endif
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
 
 /**
  * Interrupt controller registers
@@ -97,12 +92,10 @@ __FBSDID("$FreeBSD$");
 #define	SW_INT_ENABLE_REG(_b)		(0x40 + ((_b) * 4))
 #define	SW_INT_MASK_REG(_b)		(0x50 + ((_b) * 4))
 
-#ifdef INTRNG
 struct a10_intr_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
 };
-#endif
 
 struct a10_aintc_softc {
 	device_t		sc_dev;
@@ -110,9 +103,7 @@ struct a10_aintc_softc {
 	bus_space_tag_t		aintc_bst;
 	bus_space_handle_t	aintc_bsh;
 	struct mtx		mtx;
-#ifdef INTRNG
 	struct a10_intr_irqsrc	isrcs[A10_INTR_MAX_NIRQS];
-#endif
 };
 
 #define	aintc_read_4(sc, reg)						\
@@ -188,31 +179,6 @@ a10_pending_irq(struct a10_aintc_softc *sc)
 
 	return (-1);
 }
-
-#ifndef INTRNG
-
-static struct a10_aintc_softc *a10_aintc_sc = NULL;
-
-int
-arm_get_next_irq(int last_irq)
-{
-	return (a10_pending_irq(a10_aintc_sc));
-}
-
-void
-arm_mask_irq(uintptr_t irq)
-{
-	a10_intr_mask(a10_aintc_sc, irq);
-}
-
-void
-arm_unmask_irq(uintptr_t irq)
-{
-	a10_intr_unmask(a10_aintc_sc, irq);
-	a10_intr_eoi(a10_aintc_sc, irq);
-}
-
-#else /* INTRNG */
 
 static int
 a10_intr(void *arg)
@@ -340,8 +306,6 @@ a10_intr_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	a10_intr_eoi(sc, irq);
 }
 
-#endif /* INTRNG */
-
 static int
 a10_aintc_probe(device_t dev)
 {
@@ -362,13 +326,6 @@ a10_aintc_attach(device_t dev)
 	int rid = 0;
 	int i;
 	sc->sc_dev = dev;
-
-#ifndef INTRNG
-	if (a10_aintc_sc)
-		goto error;
-
-	a10_aintc_sc = sc;
-#endif
 
 	sc->aintc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE);
@@ -393,12 +350,10 @@ a10_aintc_attach(device_t dev)
 	/* config the external interrupt source type*/
 	aintc_write_4(sc, SW_INT_NMI_CTRL_REG, 0x00);
 
-#ifdef INTRNG
 	if (a10_intr_pic_attach(sc) != 0) {
 		device_printf(dev, "could not attach PIC\n");
 		return (ENXIO);
 	}
-#endif
 
 	return (0);
 
@@ -411,7 +366,7 @@ error:
 static device_method_t a10_aintc_methods[] = {
 	DEVMETHOD(device_probe,		a10_aintc_probe),
 	DEVMETHOD(device_attach,	a10_aintc_attach),
-#ifdef INTRNG
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	a10_intr_disable_intr),
 	DEVMETHOD(pic_enable_intr,	a10_intr_enable_intr),
@@ -419,7 +374,7 @@ static device_method_t a10_aintc_methods[] = {
 	DEVMETHOD(pic_post_filter,	a10_intr_post_filter),
 	DEVMETHOD(pic_post_ithread,	a10_intr_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	a10_intr_pre_ithread),
-#endif
+
 	{ 0, 0 }
 };
 

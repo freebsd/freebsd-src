@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -527,7 +529,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	{
 		struct ifi2creq i2c;
 
-		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error != 0)
 			break;
 
@@ -542,7 +544,8 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 						&i2c.data[0]);
 		SFXGE_ADAPTER_UNLOCK(sc);
 		if (error == 0)
-			error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+			error = copyout(&i2c, ifr_data_get_ptr(ifr),
+			    sizeof(i2c));
 		break;
 	}
 #endif
@@ -550,12 +553,13 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error != 0)
 			break;
-		error = copyin(ifr->ifr_data, &ioc, sizeof(ioc));
+		error = copyin(ifr_data_get_ptr(ifr), &ioc, sizeof(ioc));
 		if (error != 0)
 			return (error);
 		error = sfxge_private_ioctl(sc, &ioc);
 		if (error == 0) {
-			error = copyout(&ioc, ifr->ifr_data, sizeof(ioc));
+			error = copyout(&ioc, ifr_data_get_ptr(ifr),
+			    sizeof(ioc));
 		}
 		break;
 	default:
@@ -737,6 +741,16 @@ sfxge_create(struct sfxge_softc *sc)
 		goto fail3;
 	sc->enp = enp;
 
+	/* Initialize MCDI to talk to the microcontroller. */
+	DBGPRINT(sc->dev, "mcdi_init...");
+	if ((error = sfxge_mcdi_init(sc)) != 0)
+		goto fail4;
+
+	/* Probe the NIC and build the configuration data area. */
+	DBGPRINT(sc->dev, "nic_probe...");
+	if ((error = efx_nic_probe(enp)) != 0)
+		goto fail5;
+
 	if (!ISP2(sfxge_rx_ring_entries) ||
 	    (sfxge_rx_ring_entries < EFX_RXQ_MINNDESCS) ||
 	    (sfxge_rx_ring_entries > EFX_RXQ_MAXNDESCS)) {
@@ -758,16 +772,6 @@ sfxge_create(struct sfxge_softc *sc)
 		goto fail_tx_ring_entries;
 	}
 	sc->txq_entries = sfxge_tx_ring_entries;
-
-	/* Initialize MCDI to talk to the microcontroller. */
-	DBGPRINT(sc->dev, "mcdi_init...");
-	if ((error = sfxge_mcdi_init(sc)) != 0)
-		goto fail4;
-
-	/* Probe the NIC and build the configuration data area. */
-	DBGPRINT(sc->dev, "nic_probe...");
-	if ((error = efx_nic_probe(enp)) != 0)
-		goto fail5;
 
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 			  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -861,14 +865,14 @@ fail7:
 	efx_nvram_fini(enp);
 
 fail6:
+fail_tx_ring_entries:
+fail_rx_ring_entries:
 	efx_nic_unprobe(enp);
 
 fail5:
 	sfxge_mcdi_fini(sc);
 
 fail4:
-fail_tx_ring_entries:
-fail_rx_ring_entries:
 	sc->enp = NULL;
 	efx_nic_destroy(enp);
 	SFXGE_EFSYS_LOCK_DESTROY(&sc->enp_lock);

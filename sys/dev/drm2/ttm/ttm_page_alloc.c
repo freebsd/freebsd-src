@@ -136,7 +136,7 @@ ttm_vm_page_free(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("ttm got unmanaged %p", m));
 	m->flags &= ~PG_FICTITIOUS;
 	m->oflags |= VPO_UNMANAGED;
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
 
@@ -168,7 +168,7 @@ ttm_vm_page_alloc_dma32(int req, vm_memattr_t memattr)
 			return (p);
 		if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
 		    PAGE_SIZE, 0))
-			VM_WAIT;
+			vm_wait(NULL);
 	}
 }
 
@@ -181,7 +181,7 @@ ttm_vm_page_alloc_any(int req, vm_memattr_t memattr)
 		p = vm_page_alloc(NULL, 0, req);
 		if (p != NULL)
 			break;
-		VM_WAIT;
+		vm_wait(NULL);
 	}
 	pmap_page_set_memattr(p, memattr);
 	return (p);

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Hiroki Sato.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,8 +59,7 @@ static const char rcsid[] =
 #define	MAX_SYSCTL_TRY	5
 #define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
 		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
-		"\007NO_RADR\010NO_PREFER_IFACE\011IGNORELOOP\012NO_DAD" \
-		"\020DEFAULTIF"
+		"\007NO_RADR\010NO_PREFER_IFACE\011NO_DAD\020DEFAULTIF"
 
 static int isnd6defif(int);
 void setnd6flags(const char *, int, int, const struct afswtch *);

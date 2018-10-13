@@ -60,9 +60,7 @@ typedef union
     }s;
 } udwords;
 
-/* MIPS64 issue: PR 20098 */
-#if (defined(__LP64__) || defined(__wasm__)) && \
-    !(defined(__mips__) && defined(__clang__))
+#if (defined(__LP64__) || defined(__wasm__) || defined(__mips64))
 #define CRT_HAS_128BIT
 #endif
 
@@ -116,6 +114,7 @@ static __inline tu_int make_tu(du_int h, du_int l) {
 
 #endif /* CRT_HAS_128BIT */
 
+#ifndef _STANDALONE
 typedef union
 {
     su_int u;
@@ -127,6 +126,7 @@ typedef union
     udwords u;
     double  f;
 } double_bits;
+#endif
 
 typedef struct
 {
@@ -139,6 +139,7 @@ typedef struct
 #endif /* _YUGA_LITTLE_ENDIAN */
 } uqwords;
 
+#ifndef _STANDALONE
 typedef union
 {
     uqwords     u;
@@ -161,6 +162,7 @@ typedef struct { long double real, imaginary; } Lcomplex;
 
 #define COMPLEX_REAL(x) (x).real
 #define COMPLEX_IMAGINARY(x) (x).imaginary
+#endif
 #endif
 #endif /* INT_TYPES_H */
 

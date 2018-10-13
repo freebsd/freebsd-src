@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd April 3, 2017
 .Dt ARCHIVE_READ_DISK 3
 .Os
 .Sh NAME
 .Nm archive_read_disk_new ,
+.Nm archive_read_disk_set_behavior ,
 .Nm archive_read_disk_set_symlink_logical ,
 .Nm archive_read_disk_set_symlink_physical ,
 .Nm archive_read_disk_set_symlink_hybrid ,
@@ -37,10 +38,7 @@
 .Nm archive_read_disk_uname ,
 .Nm archive_read_disk_set_uname_lookup ,
 .Nm archive_read_disk_set_gname_lookup ,
-.Nm archive_read_disk_set_standard_lookup ,
-.Nm archive_read_close ,
-.Nm archive_read_finish ,
-.Nm archive_read_free
+.Nm archive_read_disk_set_standard_lookup
 .Nd functions for reading objects from disk
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -49,14 +47,16 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft struct archive *
 .Fn archive_read_disk_new "void"
 .Ft int
+.Fn archive_read_disk_set_behavior "struct archive *" "int"
+.Ft int
 .Fn archive_read_disk_set_symlink_logical "struct archive *"
 .Ft int
 .Fn archive_read_disk_set_symlink_physical "struct archive *"
 .Ft int
 .Fn archive_read_disk_set_symlink_hybrid "struct archive *"
-.Ft int
+.Ft const char *
 .Fn archive_read_disk_gname "struct archive *" "gid_t"
-.Ft int
+.Ft const char *
 .Fn archive_read_disk_uname "struct archive *" "uid_t"
 .Ft int
 .Fo archive_read_disk_set_gname_lookup
@@ -81,12 +81,6 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "int fd"
 .Fa "const struct stat *"
 .Fc
-.Ft int
-.Fn archive_read_close "struct archive *"
-.Ft int
-.Fn archive_read_finish "struct archive *"
-.Ft int
-.Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide an API for reading information about
 objects on disk.
@@ -98,6 +92,51 @@ objects.
 Allocates and initializes a
 .Tn struct archive
 object suitable for reading object information from disk.
+.It Fn archive_read_disk_set_behavior
+Configures various behavior options when reading entries from disk.
+The flags field consists of a bitwise OR of one or more of the
+following values:
+.Bl -tag -compact -width "indent"
+.It Cm ARCHIVE_READDISK_HONOR_NODUMP
+Skip files and directories with the nodump file attribute (file flag) set.
+By default, the nodump file atrribute is ignored.
+.It Cm ARCHIVE_READDISK_MAC_COPYFILE
+Mac OS X specific. Read metadata (ACLs and extended attributes) with
+.Xr copyfile 3 .
+By default, metadata is read using
+.Xr copyfile 3 .
+.It Cm ARCHIVE_READDISK_NO_ACL
+Do not read Access Control Lists.
+By default, ACLs are read from disk.
+.It Cm ARCHIVE_READDISK_NO_FFLAGS
+Do not read file attributes (file flags).
+By default, file attributes are read from disk.
+See
+.Xr chattr 1
+.Pq Linux
+or
+.Xr chflags 1
+.Pq FreeBSD, Mac OS X
+for more information on file attributes.
+.It Cm ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS
+Do not traverse mount points.
+By defaut, moint points are traversed.
+.It Cm ARCHIVE_READDISK_NO_XATTR
+Do not read extended file attributes (xattrs).
+By default, extended file attributes are read from disk.
+See
+.Xr xattr 7
+.Pq Linux ,
+.Xr xattr 2
+.Pq Mac OS X ,
+or
+.Xr getextattr 8
+.Pq FreeBSD
+for more information on extended file attributes.
+.It Cm ARCHIVE_READDISK_RESTORE_ATIME
+Restore access time of traversed files.
+By default, access time of traversed files is not restored.
+.El
 .It Xo
 .Fn archive_read_disk_set_symlink_logical ,
 .Fn archive_read_disk_set_symlink_physical ,
@@ -181,17 +220,6 @@ using the currently registered lookup functions above.
 This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
-.It Fn archive_read_close
-Does nothing for
-.Tn archive_read_disk
-handles.
-.It Fn archive_read_finish
-This is a deprecated synonym for
-.Fn archive_read_free .
-.It Fn archive_read_free
-Invokes
-.Fn archive_read_close
-if it was not invoked manually, then releases all resources.
 .El
 More information about the
 .Va struct archive

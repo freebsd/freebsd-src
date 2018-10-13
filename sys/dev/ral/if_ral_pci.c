@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -177,6 +178,8 @@ static driver_t ral_pci_driver = {
 static devclass_t ral_devclass;
 
 DRIVER_MODULE(ral, pci, ral_pci_driver, ral_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ral, ral_pci_ids,
+    nitems(ral_pci_ids) - 1);
 
 static int
 ral_pci_probe(device_t dev)

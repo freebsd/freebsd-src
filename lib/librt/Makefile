@@ -5,7 +5,7 @@
 PACKAGE=lib${LIB}
 LIB=rt
 SHLIB_MAJOR= 1
-CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}
+CFLAGS+=-I${SRCTOP}/lib/libc/include -I${.CURDIR}
 .ifndef NO_THREAD_STACK_UNWIND
 CFLAGS+=-fexceptions
 .endif
@@ -18,11 +18,10 @@ SRCS+= aio.c mq.c sigev_thread.c timer.c
 
 PRECIOUSLIB=
 
-VERSION_DEF=${.CURDIR}/../libc/Versions.def
+VERSION_DEF=${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=${.CURDIR}/Symbol.map
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

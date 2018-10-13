@@ -1683,7 +1683,7 @@ reslist(
 	const char *mask;
 	struct resflags *rf;
 	u_int32 count;
-	u_short flags;
+	u_short rflags;
 	u_short mflags;
 	char flagstr[300];
 	static const char *comma = ", ";
@@ -1730,7 +1730,7 @@ again:
 		    ((pcmd->argval->ival == 4) && (rl->v6_flag == 0)))
 			skip = 0;
 		count = ntohl(rl->count);
-		flags = ntohs(rl->flags);
+		rflags = ntohs(rl->rflags);
 		mflags = ntohs(rl->mflags);
 		flagstr[0] = '\0';
 
@@ -1753,7 +1753,7 @@ again:
 			 : &resflagsV3[0];
 
 		while (rf->bit != 0) {
-			if (flags & rf->bit) {
+			if (rflags & rf->bit) {
 				if (!res)
 					strlcat(flagstr, comma,
 						sizeof(flagstr));
@@ -2108,7 +2108,7 @@ reset(
 		if (sreset[i].flag == 0) {
 			fprintf(fp, "Flag %s unknown\n",
 				pcmd->argval[res].string);
-			err++;
+			err = 1;
 		} else {
 			rflags.flags |= sreset[i].flag;
 		}

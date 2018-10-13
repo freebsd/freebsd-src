@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * HighPoint RR3xxx/4xxx RAID Driver for FreeBSD
  * Copyright (C) 2007-2012 HighPoint Technologies, Inc. All Rights Reserved.
  *
@@ -330,7 +332,7 @@ static void hptiop_request_callback_itl(struct hpt_iop_hba * hba,
 							u_int32_t index)
 {
 	struct hpt_iop_srb *srb;
-	struct hpt_iop_request_scsi_command *req=0;
+	struct hpt_iop_request_scsi_command *req=NULL;
 	union ccb *ccb;
 	u_int8_t *cdb;
 	u_int32_t result, temp, dxfer;
@@ -2365,9 +2367,9 @@ static void hptiop_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = hba->max_devices;
 		cpi->base_transfer_speed = 3300;
 
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;

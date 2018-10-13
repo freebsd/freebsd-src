@@ -7,7 +7,7 @@
 .include <src.opts.mk>
 
 PROG=	m4
-CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/../../lib/libopenbsd
+CFLAGS+=-DEXTENDED -I${.CURDIR} -I${SRCTOP}/lib/libopenbsd
 LIBADD=	y l m openbsd
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
@@ -20,8 +20,7 @@ tokenizer.o: parser.h
 
 CLEANFILES+=	parser.c parser.h tokenizer.o
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
@@ -72,6 +74,19 @@ gdb_cpu_query(void)
 {
 
 	return (0);
+}
+
+static __inline void *
+gdb_begin_write(void)
+{
+
+	return (NULL);
+}
+
+static __inline void
+gdb_end_write(void *arg __unused)
+{
+
 }
 
 void *gdb_cpu_getreg(int, size_t *);

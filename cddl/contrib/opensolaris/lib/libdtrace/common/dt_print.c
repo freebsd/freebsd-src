@@ -377,7 +377,7 @@ dt_print_array(ctf_id_t base, ulong_t off, dt_printarg_t *pap)
 	ctf_id_t rtype;
 
 	if (ctf_array_info(ctfp, base, &car) == CTF_ERR) {
-		(void) fprintf(fp, "0x%p", (void *)addr);
+		(void) fprintf(fp, "%p", (void *)addr);
 		return;
 	}
 

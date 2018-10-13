@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,14 +46,14 @@ int vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m,
     int count, int *rbehind, int *rahead, vop_getpages_iodone_t iodone,
     void *arg);
 int vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *m,
-					  int count, boolean_t sync,
-					  int *rtvals);
+    int count, int flags, int *rtvals);
 int vnode_pager_local_getpages(struct vop_getpages_args *ap);
 int vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap);
-
+int vnode_pager_putpages_ioflags(int pager_flags);
 void vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end);
-void vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written);
+void vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written,
+    off_t eof, int lpos);
 void vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end);
 

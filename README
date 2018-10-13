@@ -2,34 +2,24 @@ This is the top level of the FreeBSD source directory.  This file
 was last revised on:
 $FreeBSD$
 
+FreeBSD is an operating system used to power modern servers,
+desktops, and embedded platforms. A large community has
+continually developed it for more than thirty years. Its
+advanced networking, security, and storage features have
+made FreeBSD the platform of choice for many of the
+busiest web sites and most pervasive embedded networking
+and storage devices.
+
 For copyright information, please see the file COPYRIGHT in this
-directory (additional copyright information also exists for some
+directory. Additional copyright information also exists for some
 sources in this tree - please see the specific source directories for
-more information).
+more information.
 
 The Makefile in this directory supports a number of targets for
-building components (or all) of the FreeBSD source tree.  See build(7)
-and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+building components (or all) of the FreeBSD source tree.  See build(7), config(8),
+https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html, and
+https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
 for more information, including setting make(1) variables.
-
-The `buildkernel` and `installkernel` targets build and install
-the kernel and the modules (see below).  Please see the top of
-the Makefile in this directory for more information on the
-standard build targets and compile-time flags.
-
-Building a kernel is a somewhat more involved process.  See build(7), config(8),
-and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
-for more information.
-
-Note: If you want to build and install the kernel with the
-`buildkernel` and `installkernel` targets, you might need to build
-world before.  More information is available in the handbook.
-
-The kernel configuration files reside in the sys/<arch>/conf
-sub-directory.  GENERIC is the default configuration used in release builds.
-NOTES contains entries and documentation for all possible
-devices, not just those commonly used.
-
 
 Source Roadmap:
 ---------------
@@ -66,7 +56,13 @@ secure		Cryptographic libraries and commands.
 
 share		Shared resources.
 
+stand		Boot loader sources.
+
 sys		Kernel sources.
+
+sys/<arch>/conf Kernel configuration files. GENERIC is the configuration
+		used in release builds. NOTES contains documentation of
+		all possible entries.
 
 tests		Regression tests which can be run by Kyua.  See tests/README
 		for additional information.
@@ -81,4 +77,4 @@ usr.sbin	System administration commands.
 For information on synchronizing your source tree with one or more of
 the FreeBSD Project's development branches, please see:
 
-  http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/synching.html
+  https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html

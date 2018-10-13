@@ -121,7 +121,9 @@ dt_msg_init(const struct dt_env *env,
 struct dt_env *
 dt_create(const char *socket_path, unsigned num_workers)
 {
+#ifdef UNBOUND_DEBUG
 	fstrm_res res;
+#endif
 	struct dt_env *env;
 	struct fstrm_iothr_options *fopt;
 	struct fstrm_unix_writer_options *fuwopt;
@@ -138,7 +140,12 @@ dt_create(const char *socket_path, unsigned num_workers)
 		return NULL;
 
 	fwopt = fstrm_writer_options_init();
-	res = fstrm_writer_options_add_content_type(fwopt,
+#ifdef UNBOUND_DEBUG
+	res = 
+#else
+	(void)
+#endif
+	    fstrm_writer_options_add_content_type(fwopt,
 		DNSTAP_CONTENT_TYPE, sizeof(DNSTAP_CONTENT_TYPE) - 1);
 	log_assert(res == fstrm_res_success);
 
@@ -475,7 +482,7 @@ dt_msg_send_outside_response(struct dt_env *env,
 			return;
 		dt_msg_init(env, &dm, DNSTAP__MESSAGE__TYPE__FORWARDER_RESPONSE);
 	} else {
-		if (!env->log_resolver_query_messages)
+		if (!env->log_resolver_response_messages)
 			return;
 		dt_msg_init(env, &dm, DNSTAP__MESSAGE__TYPE__RESOLVER_RESPONSE);
 	}

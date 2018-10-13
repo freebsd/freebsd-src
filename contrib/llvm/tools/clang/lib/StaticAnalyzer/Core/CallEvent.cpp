@@ -21,6 +21,9 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
+
+#define DEBUG_TYPE "static-analyzer-call-event"
 
 using namespace clang;
 using namespace ento;
@@ -97,9 +100,6 @@ bool CallEvent::hasNonNullArgumentsWithType(bool (*Condition)(QualType)) const {
   for (CallEvent::param_type_iterator I = param_type_begin(),
                                       E = param_type_end();
        I != E && Idx < NumOfArgs; ++I, ++Idx) {
-    if (NumOfArgs <= Idx)
-      break;
-
     // If the parameter is 0, it's harmless.
     if (getArgSVal(Idx).isZeroConstant())
       continue;
@@ -177,7 +177,7 @@ ProgramStateRef CallEvent::invalidateRegions(unsigned BlockCount,
     // below for efficiency.
     if (PreserveArgs.count(Idx))
       if (const MemRegion *MR = getArgSVal(Idx).getAsRegion())
-        ETraits.setTrait(MR->StripCasts(),
+        ETraits.setTrait(MR->getBaseRegion(),
                         RegionAndSymbolInvalidationTraits::TK_PreserveContents);
         // TODO: Factor this out + handle the lower level const pointers.
 
@@ -208,6 +208,21 @@ ProgramPoint CallEvent::getProgramPoint(bool IsPreVisit,
   if (IsPreVisit)
     return PreImplicitCall(D, Loc, getLocationContext(), Tag);
   return PostImplicitCall(D, Loc, getLocationContext(), Tag);
+}
+
+bool CallEvent::isCalled(const CallDescription &CD) const {
+  // FIXME: Add ObjC Message support.
+  if (getKind() == CE_ObjCMessage)
+    return false;
+  if (!CD.IsLookupDone) {
+    CD.IsLookupDone = true;
+    CD.II = &getState()->getStateManager().getContext().Idents.get(CD.FuncName);
+  }
+  const IdentifierInfo *II = getCalleeIdentifier();
+  if (!II || II != CD.II)
+    return false;
+  return (CD.RequiredArgs == CallDescription::NoArgRequirement ||
+          CD.RequiredArgs == getNumArgs());
 }
 
 SVal CallEvent::getArgSVal(unsigned Index) const {
@@ -333,6 +348,30 @@ ArrayRef<ParmVarDecl*> AnyFunctionCall::parameters() const {
   return D->parameters();
 }
 
+RuntimeDefinition AnyFunctionCall::getRuntimeDefinition() const {
+  const FunctionDecl *FD = getDecl();
+  // Note that the AnalysisDeclContext will have the FunctionDecl with
+  // the definition (if one exists).
+  if (FD) {
+    AnalysisDeclContext *AD =
+      getLocationContext()->getAnalysisDeclContext()->
+      getManager()->getContext(FD);
+    bool IsAutosynthesized;
+    Stmt* Body = AD->getBody(IsAutosynthesized);
+    DEBUG({
+        if (IsAutosynthesized)
+          llvm::dbgs() << "Using autosynthesized body for " << FD->getName()
+                       << "\n";
+    });
+    if (Body) {
+      const Decl* Decl = AD->getDecl();
+      return RuntimeDefinition(Decl);
+    }
+  }
+
+  return RuntimeDefinition();
+}
+
 void AnyFunctionCall::getInitialStackFrameContents(
                                         const StackFrameContext *CalleeCtx,
                                         BindingsTy &Bindings) const {
@@ -370,6 +409,11 @@ bool AnyFunctionCall::argumentsMayEscape() const {
 
   // - funopen - sets a buffer for future IO calls.
   if (II->isStr("funopen"))
+    return true;
+
+  // - __cxa_demangle - can reallocate memory and can return the pointer to
+  // the input buffer.
+  if (II->isStr("__cxa_demangle"))
     return true;
 
   StringRef FName = II->getName();
@@ -542,7 +586,7 @@ void CXXInstanceCall::getInitialStackFrameContents(
 
       // FIXME: CallEvent maybe shouldn't be directly accessing StoreManager.
       bool Failed;
-      ThisVal = StateMgr.getStoreManager().evalDynamicCast(ThisVal, Ty, Failed);
+      ThisVal = StateMgr.getStoreManager().attemptDownCast(ThisVal, Ty, Failed);
       assert(!Failed && "Calling an incorrectly devirtualized method");
     }
 
@@ -668,9 +712,28 @@ ArrayRef<ParmVarDecl*> ObjCMethodCall::parameters() const {
   return D->parameters();
 }
 
-void
-ObjCMethodCall::getExtraInvalidatedValues(ValueList &Values,
-                  RegionAndSymbolInvalidationTraits *ETraits) const {
+void ObjCMethodCall::getExtraInvalidatedValues(
+    ValueList &Values, RegionAndSymbolInvalidationTraits *ETraits) const {
+
+  // If the method call is a setter for property known to be backed by
+  // an instance variable, don't invalidate the entire receiver, just
+  // the storage for that instance variable.
+  if (const ObjCPropertyDecl *PropDecl = getAccessedProperty()) {
+    if (const ObjCIvarDecl *PropIvar = PropDecl->getPropertyIvarDecl()) {
+      SVal IvarLVal = getState()->getLValue(PropIvar, getReceiverSVal());
+      if (const MemRegion *IvarRegion = IvarLVal.getAsRegion()) {
+        ETraits->setTrait(
+          IvarRegion,
+          RegionAndSymbolInvalidationTraits::TK_DoNotInvalidateSuperRegion);
+        ETraits->setTrait(
+          IvarRegion,
+          RegionAndSymbolInvalidationTraits::TK_SuppressEscape);
+        Values.push_back(IvarLVal);
+      }
+      return;
+    }
+  }
+
   Values.push_back(getReceiverSVal());
 }
 
@@ -730,6 +793,18 @@ const PseudoObjectExpr *ObjCMethodCall::getContainingPseudoObjectExpr() const {
   return ObjCMessageDataTy::getFromOpaqueValue(Data).getPointer();
 }
 
+static const Expr *
+getSyntacticFromForPseudoObjectExpr(const PseudoObjectExpr *POE) {
+  const Expr *Syntactic = POE->getSyntacticForm();
+
+  // This handles the funny case of assigning to the result of a getter.
+  // This can happen if the getter returns a non-const reference.
+  if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(Syntactic))
+    Syntactic = BO->getLHS();
+
+  return Syntactic;
+}
+
 ObjCMessageKind ObjCMethodCall::getMessageKind() const {
   if (!Data) {
 
@@ -739,12 +814,7 @@ ObjCMessageKind ObjCMethodCall::getMessageKind() const {
 
     // Check if parent is a PseudoObjectExpr.
     if (const PseudoObjectExpr *POE = dyn_cast_or_null<PseudoObjectExpr>(S)) {
-      const Expr *Syntactic = POE->getSyntacticForm();
-
-      // This handles the funny case of assigning to the result of a getter.
-      // This can happen if the getter returns a non-const reference.
-      if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(Syntactic))
-        Syntactic = BO->getLHS();
+      const Expr *Syntactic = getSyntacticFromForPseudoObjectExpr(POE);
 
       ObjCMessageKind K;
       switch (Syntactic->getStmtClass()) {
@@ -780,6 +850,27 @@ ObjCMessageKind ObjCMethodCall::getMessageKind() const {
   return static_cast<ObjCMessageKind>(Info.getInt());
 }
 
+const ObjCPropertyDecl *ObjCMethodCall::getAccessedProperty() const {
+  // Look for properties accessed with property syntax (foo.bar = ...)
+  if ( getMessageKind() == OCM_PropertyAccess) {
+    const PseudoObjectExpr *POE = getContainingPseudoObjectExpr();
+    assert(POE && "Property access without PseudoObjectExpr?");
+
+    const Expr *Syntactic = getSyntacticFromForPseudoObjectExpr(POE);
+    auto *RefExpr = cast<ObjCPropertyRefExpr>(Syntactic);
+
+    if (RefExpr->isExplicitProperty())
+      return RefExpr->getExplicitProperty();
+  }
+
+  // Look for properties accessed with method syntax ([foo setBar:...]).
+  const ObjCMethodDecl *MD = getDecl();
+  if (!MD || !MD->isPropertyAccessor())
+    return nullptr;
+
+  // Note: This is potentially quite slow.
+  return MD->findPropertyDecl();
+}
 
 bool ObjCMethodCall::canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,
                                              Selector Sel) const {
@@ -836,6 +927,38 @@ bool ObjCMethodCall::canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,
   llvm_unreachable("The while loop should always terminate.");
 }
 
+static const ObjCMethodDecl *findDefiningRedecl(const ObjCMethodDecl *MD) {
+  if (!MD)
+    return MD;
+
+  // Find the redeclaration that defines the method.
+  if (!MD->hasBody()) {
+    for (auto I : MD->redecls())
+      if (I->hasBody())
+        MD = cast<ObjCMethodDecl>(I);
+  }
+  return MD;
+}
+
+static bool isCallToSelfClass(const ObjCMessageExpr *ME) {
+  const Expr* InstRec = ME->getInstanceReceiver();
+  if (!InstRec)
+    return false;
+  const auto *InstRecIg = dyn_cast<DeclRefExpr>(InstRec->IgnoreParenImpCasts());
+
+  // Check that receiver is called 'self'.
+  if (!InstRecIg || !InstRecIg->getFoundDecl() ||
+      !InstRecIg->getFoundDecl()->getName().equals("self"))
+    return false;
+
+  // Check that the method name is 'class'.
+  if (ME->getSelector().getNumArgs() != 0 ||
+      !ME->getSelector().getNameForSlot(0).equals("class"))
+    return false;
+
+  return true;
+}
+
 RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
   const ObjCMessageExpr *E = getOriginExpr();
   assert(E);
@@ -850,6 +973,7 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
     const MemRegion *Receiver = nullptr;
 
     if (!SupersType.isNull()) {
+      // The receiver is guaranteed to be 'super' in this case.
       // Super always means the type of immediate predecessor to the method
       // where the call occurs.
       ReceiverT = cast<ObjCObjectPointerType>(SupersType);
@@ -859,9 +983,15 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
         return RuntimeDefinition();
 
       DynamicTypeInfo DTI = getDynamicTypeInfo(getState(), Receiver);
+      if (!DTI.isValid()) {
+        assert(isa<AllocaRegion>(Receiver) &&
+               "Unhandled untyped region class!");
+        return RuntimeDefinition();
+      }
+
       QualType DynType = DTI.getType();
       CanBeSubClassed = DTI.canBeASubClass();
-      ReceiverT = dyn_cast<ObjCObjectPointerType>(DynType);
+      ReceiverT = dyn_cast<ObjCObjectPointerType>(DynType.getCanonicalType());
 
       if (ReceiverT && CanBeSubClassed)
         if (ObjCInterfaceDecl *IDecl = ReceiverT->getInterfaceDecl())
@@ -869,7 +999,32 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
             CanBeSubClassed = false;
     }
 
-    // Lookup the method implementation.
+    // Handle special cases of '[self classMethod]' and
+    // '[[self class] classMethod]', which are treated by the compiler as
+    // instance (not class) messages. We will statically dispatch to those.
+    if (auto *PT = dyn_cast_or_null<ObjCObjectPointerType>(ReceiverT)) {
+      // For [self classMethod], return the compiler visible declaration.
+      if (PT->getObjectType()->isObjCClass() &&
+          Receiver == getSelfSVal().getAsRegion())
+        return RuntimeDefinition(findDefiningRedecl(E->getMethodDecl()));
+
+      // Similarly, handle [[self class] classMethod].
+      // TODO: We are currently doing a syntactic match for this pattern with is
+      // limiting as the test cases in Analysis/inlining/InlineObjCClassMethod.m
+      // shows. A better way would be to associate the meta type with the symbol
+      // using the dynamic type info tracking and use it here. We can add a new
+      // SVal for ObjC 'Class' values that know what interface declaration they
+      // come from. Then 'self' in a class method would be filled in with
+      // something meaningful in ObjCMethodCall::getReceiverSVal() and we could
+      // do proper dynamic dispatch for class methods just like we do for
+      // instance methods now.
+      if (E->getInstanceReceiver())
+        if (const auto *M = dyn_cast<ObjCMessageExpr>(E->getInstanceReceiver()))
+          if (isCallToSelfClass(M))
+            return RuntimeDefinition(findDefiningRedecl(E->getMethodDecl()));
+    }
+
+    // Lookup the instance method implementation.
     if (ReceiverT)
       if (ObjCInterfaceDecl *IDecl = ReceiverT->getInterfaceDecl()) {
         // Repeatedly calling lookupPrivateMethod() is expensive, especially
@@ -903,8 +1058,30 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
           // even if we don't actually have an implementation.
           if (!*Val)
             if (const ObjCMethodDecl *CompileTimeMD = E->getMethodDecl())
-              if (CompileTimeMD->isPropertyAccessor())
-                Val = IDecl->lookupInstanceMethod(Sel);
+              if (CompileTimeMD->isPropertyAccessor()) {
+                if (!CompileTimeMD->getSelfDecl() &&
+                    isa<ObjCCategoryDecl>(CompileTimeMD->getDeclContext())) {
+                  // If the method is an accessor in a category, and it doesn't
+                  // have a self declaration, first
+                  // try to find the method in a class extension. This
+                  // works around a bug in Sema where multiple accessors
+                  // are synthesized for properties in class
+                  // extensions that are redeclared in a category and the
+                  // the implicit parameters are not filled in for
+                  // the method on the category.
+                  // This ensures we find the accessor in the extension, which
+                  // has the implicit parameters filled in.
+                  auto *ID = CompileTimeMD->getClassInterface();
+                  for (auto *CatDecl : ID->visible_extensions()) {
+                    Val = CatDecl->getMethod(Sel,
+                                             CompileTimeMD->isInstanceMethod());
+                    if (*Val)
+                      break;
+                  }
+                }
+                if (!*Val)
+                  Val = IDecl->lookupInstanceMethod(Sel);
+              }
         }
 
         const ObjCMethodDecl *MD = Val.getValue();

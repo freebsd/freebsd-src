@@ -2,6 +2,8 @@
 /*	$OpenBSD: hifn7751var.h,v 1.42 2002/04/08 17:49:42 jason Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Invertex AEON / Hifn 7751 driver
  * Copyright (c) 1999 Invertex Inc. All rights reserved.
  * Copyright (c) 1999 Theo de Raadt
@@ -103,9 +105,8 @@ struct hifn_dma {
 
 
 struct hifn_session {
-	int hs_used;
-	int hs_mlen;
 	u_int8_t hs_iv[HIFN_MAX_IV_LENGTH];
+	int hs_mlen;
 };
 
 #define	HIFN_RING_SYNC(sc, r, i, f)					\
@@ -160,8 +161,6 @@ struct hifn_softc {
 
 	int32_t			sc_cid;
 	int			sc_maxses;
-	int			sc_nsessions;
-	struct hifn_session	*sc_sessions;
 	int			sc_ramsize;
 	int			sc_flags;
 #define	HIFN_HAS_RNG		0x1	/* includes random number generator */
@@ -268,7 +267,7 @@ struct hifn_operand {
 	bus_dma_segment_t segs[MAX_SCATTER];
 };
 struct hifn_command {
-	u_int16_t session_num;
+	struct hifn_session *session;
 	u_int16_t base_masks, cry_masks, mac_masks;
 	u_int8_t iv[HIFN_MAX_IV_LENGTH], *ck, mac[HIFN_MAC_KEY_LENGTH];
 	int cklen;
@@ -327,14 +326,6 @@ struct hifn_command {
  *                              behaviour was requested.
  *
  *************************************************************************/
-
-/*
- * Convert back and forth from 'sid' to 'card' and 'session'
- */
-#define HIFN_CARD(sid)		(((sid) & 0xf0000000) >> 28)
-#define HIFN_SESSION(sid)	((sid) & 0x000007ff)
-#define HIFN_SID(crd,ses)	(((crd) << 28) | ((ses) & 0x7ff))
-
 #endif /* _KERNEL */
 
 struct hifn_stats {

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2000 Christoph Herrmann, Thomas-Henning von Kamptz
  * Copyright (c) 1980, 1989, 1993 The Regents of the University of California.
  * All rights reserved.
@@ -694,11 +696,11 @@ dbg_dump_ufs1_ino(struct fs *sb, const char *comment, struct ufs1_dinode *ino)
 	    ino->di_ctimensec);
 
 	remaining_blocks = howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
-	for (ictr = 0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
+	for (ictr = 0; ictr < MIN(UFS_NDADDR, remaining_blocks); ictr++) {
 		fprintf(dbg_log, "db         ufs_daddr_t[%x] 0x%08x\n", ictr,
 		    ino->di_db[ictr]);
 	}
-	remaining_blocks -= NDADDR;
+	remaining_blocks -= UFS_NDADDR;
 	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs_daddr_t[0] 0x%08x\n",
 		    ino->di_ib[0]);
@@ -768,14 +770,14 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 	fprintf(dbg_log, "flags      u_int32_t      0x%08x\n", ino->di_flags);
 	fprintf(dbg_log, "extsize    u_int32_t      0x%08x\n", ino->di_extsize);
 
-	/* XXX: What do we do with di_extb[NXADDR]? */
+	/* XXX: What do we do with di_extb[UFS_NXADDR]? */
 
 	remaining_blocks = howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
-	for (ictr = 0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
+	for (ictr = 0; ictr < MIN(UFS_NDADDR, remaining_blocks); ictr++) {
 		fprintf(dbg_log, "db         ufs2_daddr_t[%x] 0x%16jx\n", ictr,
 		    ino->di_db[ictr]);
 	}
-	remaining_blocks -= NDADDR;
+	remaining_blocks -= UFS_NDADDR;
 	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs2_daddr_t[0] 0x%16jx\n",
 		    ino->di_ib[0]);

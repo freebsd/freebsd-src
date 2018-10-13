@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /*
- * Read a message from standard output and return a read file to it
+ * Read a message from standard input and return a read file to it
  * or NULL on error.
  */
 
@@ -131,7 +133,6 @@ collect(struct header *hp, int printheaders)
 		escape = ESCAPE;
 	eofcount = 0;
 	hadintr = 0;
-	lastlong = 0;
 	longline = 0;
 
 	if (!setjmp(colljmp)) {
@@ -339,9 +340,9 @@ cont:
 				int nullfd, tempfd, rc;
 				char tempname2[PATHSIZE];
 
-				if ((nullfd = open("/dev/null", O_RDONLY, 0))
+				if ((nullfd = open(_PATH_DEVNULL, O_RDONLY, 0))
 				    == -1) {
-					warn("/dev/null");
+					warn(_PATH_DEVNULL);
 					break;
 				}
 

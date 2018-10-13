@@ -1,4 +1,4 @@
-.TH "unbound" "8" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
+.TH "unbound" "8" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" unbound.8 -- unbound manual
 .\"
@@ -9,11 +9,12 @@
 .\"
 .SH "NAME"
 .B unbound
-\- Unbound DNS validating resolver 1.5.8.
+\- Unbound DNS validating resolver 1.8.1.
 .SH "SYNOPSIS"
 .B unbound
 .RB [ \-h ]
 .RB [ \-d ]
+.RB [ \-p ]
 .RB [ \-v ]
 .RB [ \-c
 .IR cfgfile ]
@@ -66,6 +67,11 @@ the console.  This flag will also delay writing to the log file until
 the thread\-spawn time, so that most config and setup errors appear on
 stderr. If given twice or more, logging does not switch to the log file
 or to syslog, but the log messages are printed to stderr all the time.
+.TP
+.B \-p
+Don't use a pidfile.  This argument should only be used by supervision
+systems which can ensure that only one instance of unbound will run
+concurrently.
 .TP
 .B \-v
 Increase verbosity. If given multiple times, more information is logged.

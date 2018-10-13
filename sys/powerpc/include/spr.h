@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -95,6 +97,7 @@
 #define	SPR_RTCL_R		0x005	/* .6. 601 RTC Lower - Read */
 #define	SPR_LR			0x008	/* 468 Link Register */
 #define	SPR_CTR			0x009	/* 468 Count Register */
+#define	SPR_DSCR		0x011   /* Data Stream Control Register */
 #define	SPR_DSISR		0x012	/* .68 DSI exception source */
 #define	  DSISR_DIRECT		  0x80000000 /* Direct-store error exception */
 #define	  DSISR_NOTFOUND	  0x40000000 /* Translation not found */
@@ -118,6 +121,20 @@
 #define	SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
 #define	SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
 #define	SPR_NRI			0x052	/* ..8 Exception Interrupt ??? */
+#define	SPR_FSCR		0x099	/* Facility Status and Control Register */
+#define FSCR_IC_MASK		  0xFF00000000000000ULL	/* FSCR[0:7] is Interrupt Cause */
+#define FSCR_IC_FP		  0x0000000000000000ULL	/* FP unavailable */
+#define FSCR_IC_VSX		  0x0100000000000000ULL	/* VSX unavailable */
+#define FSCR_IC_DSCR		  0x0200000000000000ULL	/* Access to the DSCR at SPRs 3 or 17 */
+#define FSCR_IC_PM		  0x0300000000000000ULL	/* Read or write access of a Performance Monitor SPR in group A */
+#define FSCR_IC_BHRB		  0x0400000000000000ULL	/* Execution of a BHRB Instruction */
+#define FSCR_IC_HTM		  0x0500000000000000ULL	/* Access to a Transactional Memory */
+/* Reserved 0x0600000000000000ULL */
+#define FSCR_IC_EBB		  0x0700000000000000ULL	/* Access to Event-Based Branch */
+#define FSCR_IC_TAR		  0x0800000000000000ULL	/* Access to Target Address Register */
+#define FSCR_IC_STOP		  0x0900000000000000ULL	/* Access to the 'stop' instruction in privileged non-hypervisor state */
+#define FSCR_IC_MSG		  0x0A00000000000000ULL	/* Access to 'msgsndp' or 'msgclrp' instructions */
+#define FSCR_IC_SCV		  0x0C00000000000000ULL	/* Execution of a 'scv' instruction */
 #define	SPR_USPRG0		0x100	/* 4.. User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
 #define	SPR_SPRG0		0x110	/* 468 SPR General 0 */
@@ -168,9 +185,11 @@
 #define	  IBMPOWER3PLUS		  0x0041
 #define	  IBM970MP		  0x0044
 #define	  IBM970GX		  0x0045
+#define	  IBMPOWERPCA2		  0x0049
 #define	  IBMPOWER7PLUS		  0x004a
 #define	  IBMPOWER8E		  0x004b
 #define	  IBMPOWER8		  0x004d
+#define	  IBMPOWER9		  0x004e
 #define	  MPC860		  0x0050
 #define	  IBMCELLBE		  0x0070
 #define	  MPC8240		  0x0081
@@ -191,8 +210,41 @@
 #define	  FSL_E500mc		  0x8023
 #define	  FSL_E5500		  0x8024
 #define	  FSL_E6500		  0x8040
+#define	  FSL_E300C1		  0x8083
+#define	  FSL_E300C2		  0x8084
+#define	  FSL_E300C3		  0x8085
+#define	  FSL_E300C4		  0x8086
 
-#define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
+#define   LPCR_PECE_WAKESET     (LPCR_PECE_EXT | LPCR_PECE_DECR | LPCR_PECE_ME)
+ 
+#define	SPR_EPCR		0x133
+#define	  EPCR_EXTGS		  0x80000000
+#define	  EPCR_DTLBGS		  0x40000000
+#define	  EPCR_ITLBGS		  0x20000000
+#define	  EPCR_DSIGS		  0x10000000
+#define	  EPCR_ISIGS		  0x08000000
+#define	  EPCR_DUVGS		  0x04000000
+#define	  EPCR_ICM		  0x02000000
+#define	  EPCR_GICMGS		  0x01000000
+#define	  EPCR_DGTMI		  0x00800000
+#define	  EPCR_DMIUH		  0x00400000
+#define	  EPCR_PMGS		  0x00200000
+
+#define	SPR_HSRR0		0x13a
+#define	SPR_HSRR1		0x13b
+#define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
+#define	  LPCR_LPES		  0x008	/* Bit 60 */
+#define	  LPCR_HVICE		  0x002	/* Hypervisor Virtualization Interrupt (Arch 3.0) */
+#define	  LPCR_PECE_DRBL          (1ULL << 16) /* Directed Privileged Doorbell */
+#define	  LPCR_PECE_HDRBL         (1ULL << 15) /* Directed Hypervisor Doorbell */
+#define	  LPCR_PECE_EXT           (1ULL << 14) /* External exceptions */
+#define	  LPCR_PECE_DECR          (1ULL << 13) /* Decrementer exceptions */
+#define	  LPCR_PECE_ME            (1ULL << 12) /* Machine Check and Hypervisor */
+                                               /* Maintenance exceptions */
+#define	SPR_LPID		0x13f	/* Logical Partitioning Control */
+
+#define	SPR_PTCR		0x1d0	/* Partition Table Control Register */
+#define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
 #define	SPR_IBAT1U		0x212	/* .6. Instruction BAT Reg 1 Upper */
@@ -258,6 +310,7 @@
 #define	SPR_DBAT6L		0x23d	/* .6. Data BAT Reg 6 Lower */
 #define	SPR_DBAT7U		0x23e	/* .6. Data BAT Reg 7 Upper */
 #define	SPR_DBAT7L		0x23f	/* .6. Data BAT Reg 7 Lower */
+#define	SPR_SPRG8		0x25c	/* ..8 SPR General 8 */
 #define	SPR_MI_CTR		0x310	/* ..8 IMMU control */
 #define	  Mx_CTR_GPM		0x80000000 /* Group Protection Mode */
 #define	  Mx_CTR_PPM		0x40000000 /* Page Protection Mode */
@@ -329,6 +382,8 @@
 #define	SPR_MD_CAM		0x338	/* ..8 IMMU CAM entry read */
 #define	SPR_MD_RAM0		0x339	/* ..8 IMMU RAM entry read reg 0 */
 #define	SPR_MD_RAM1		0x33a	/* ..8 IMMU RAM entry read reg 1 */
+#define	SPR_PSSCR		0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
+#define	SPR_PMCR                0x374   /* Processor Management Control Register */
 #define	SPR_UMMCR2		0x3a0	/* .6. User Monitor Mode Control Register 2 */
 #define	SPR_UMMCR0		0x3a8	/* .6. User Monitor Mode Control Register 0 */
 #define	SPR_USIA		0x3ab	/* .6. User Sampled Instruction Address */
@@ -638,19 +693,7 @@
 #define	PMC970N_CYCLES		0xf /* Processor cycles */
 #define	PMC970N_ICOMP		0x9 /* Instructions completed */
 
-#if defined(AIM)
-
-#define	SPR_ESR			0x3d4	/* 4.. Exception Syndrome Register */
-#define	  ESR_MCI		  0x80000000 /* Machine check - instruction */
-#define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
-#define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
-#define	  ESR_PTR		  0x02000000 /* Program interrupt - trap */
-#define	  ESR_ST		  0x01000000 /* Store operation */
-#define	  ESR_DST		  0x00800000 /* Data storage interrupt - store fault */
-#define	  ESR_DIZ		  0x00800000 /* Data/instruction storage interrupt - zone fault */
-#define	  ESR_U0F		  0x00008000 /* Data storage interrupt - U0 fault */
-
-#elif defined(BOOKE)
+#if defined(BOOKE)
 
 #define	SPR_MCARU		0x239	/* ..8 Machine Check Address register upper bits */
 #define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
@@ -670,6 +713,8 @@
 #define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
 #define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+#define	SPR_DSRR0		0x23e	/* ..8 574 Debug SRR0<E.ED> */
+#define	SPR_DSRR1		0x23f	/* ..8 575 Debug SRR1<E.ED> */
 
 #define	SPR_MMUCR		0x3b2	/* 4.. MMU Control Register */
 #define	  MMUCR_SWOA		(0x80000000 >> 7)
@@ -697,8 +742,12 @@
 #define	  SVR_MPC8572E		  0x80e8
 #define	  SVR_P1011		  0x80e5
 #define	  SVR_P1011E		  0x80ed
+#define	  SVR_P1013		  0x80e7
+#define	  SVR_P1013E		  0x80ef
 #define	  SVR_P1020		  0x80e4
 #define	  SVR_P1020E		  0x80ec
+#define	  SVR_P1022		  0x80e6
+#define	  SVR_P1022E		  0x80ee
 #define	  SVR_P2010		  0x80e3
 #define	  SVR_P2010E		  0x80eb
 #define	  SVR_P2020		  0x80e2
@@ -711,8 +760,14 @@
 #define	  SVR_P4040E		  0x8208
 #define	  SVR_P4080		  0x8201
 #define	  SVR_P4080E		  0x8209
+#define	  SVR_P5010		  0x8221
+#define	  SVR_P5010E		  0x8229
 #define	  SVR_P5020		  0x8220
 #define	  SVR_P5020E		  0x8228
+#define	  SVR_P5021		  0x8205
+#define	  SVR_P5021E		  0x820d
+#define	  SVR_P5040		  0x8204
+#define	  SVR_P5040E		  0x820c
 #define	SVR_VER(svr)		(((svr) >> 16) & 0xffff)
 
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */

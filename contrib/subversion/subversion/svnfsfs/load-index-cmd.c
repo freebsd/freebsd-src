@@ -186,7 +186,7 @@ subcommand__load_index(apr_getopt_t *os, void *baton, apr_pool_t *pool)
   svnfsfs__opt_state *opt_state = baton;
   svn_stream_t *input;
 
-  SVN_ERR(svn_stream_for_stdin(&input, pool));
+  SVN_ERR(svn_stream_for_stdin2(&input, TRUE, pool));
   SVN_ERR(load_index(opt_state->repository_path, input, pool));
 
   return SVN_NO_ERROR;

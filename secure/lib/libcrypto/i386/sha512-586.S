@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from sha512-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from sha512-586.pl. */
 #ifdef PIC
-.file	"sha512-586.S"
 .text
 .globl	sha512_block_data_order
 .type	sha512_block_data_order,@function
@@ -2831,7 +2830,6 @@ sha512_block_data_order:
 .byte	62,0
 .comm	OPENSSL_ia32cap_P,16,4
 #else
-.file	"sha512-586.S"
 .text
 .globl	sha512_block_data_order
 .type	sha512_block_data_order,@function

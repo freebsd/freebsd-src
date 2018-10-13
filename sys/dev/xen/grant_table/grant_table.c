@@ -245,6 +245,7 @@ gnttab_end_foreign_access_references(u_int count, grant_ref_t *refs)
 		gnttab_free_count += count;
 		gnttab_entry(tail) = gnttab_free_head;
 		gnttab_free_head = head;
+		check_free_callbacks();
 		mtx_unlock(&gnttab_list_lock);
 	}
 }
@@ -584,7 +585,7 @@ gnttab_expand(unsigned int req_entries)
 	return (error);
 }
 
-MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF); 
+MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF | MTX_RECURSE);
 
 /*------------------ Private Device Attachment Functions  --------------------*/
 /**

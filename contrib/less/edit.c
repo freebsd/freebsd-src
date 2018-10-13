@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -9,8 +9,12 @@
 
 
 #include "less.h"
+#include "position.h"
 #if HAVE_STAT
 #include <sys/stat.h>
+#endif
+#if OS2
+#include <signal.h>
 #endif
 
 public int fd0 = 0;
@@ -26,7 +30,7 @@ extern int sigs;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 extern struct scrpos initial_scrpos;
-extern void constant *ml_examine;
+extern void *ml_examine;
 #if SPACES_IN_FILENAMES
 extern char openquote;
 extern char closequote;
@@ -42,9 +46,6 @@ extern char *namelogfile;
 public dev_t curr_dev;
 public ino_t curr_ino;
 #endif
-
-char *curr_altfilename = NULL;
-static void *curr_altpipe;
 
 
 /*
@@ -149,12 +150,33 @@ back_textlist(tlist, prev)
 }
 
 /*
+ * Close a pipe opened via popen.
+ */
+	static void
+close_pipe(FILE *pipefd)
+{
+	if (pipefd == NULL)
+		return;
+#if OS2
+	/*
+	 * The pclose function of OS/2 emx sometimes fails.
+	 * Send SIGINT to the piped process before closing it.
+	 */
+	kill(pipefd->_pid, SIGINT);
+#endif
+	pclose(pipefd);
+}
+
+/*
  * Close the current input file.
  */
 	static void
 close_file()
 {
 	struct scrpos scrpos;
+	int chflags;
+	FILE *altpipe;
+	char *altfilename;
 	
 	if (curr_ifile == NULL_IFILE)
 		return;
@@ -163,7 +185,7 @@ close_file()
 	 * Save the current position so that we can return to
 	 * the same position if we edit this file again.
 	 */
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, TOP);
 	if (scrpos.pos != NULL_POSITION)
 	{
 		store_pos(curr_ifile, &scrpos);
@@ -172,17 +194,23 @@ close_file()
 	/*
 	 * Close the file descriptor, unless it is a pipe.
 	 */
+	chflags = ch_getflags();
 	ch_close();
 	/*
 	 * If we opened a file using an alternate name,
 	 * do special stuff to close it.
 	 */
-	if (curr_altfilename != NULL)
+	altfilename = get_altfilename(curr_ifile);
+	if (altfilename != NULL)
 	{
-		close_altfile(curr_altfilename, get_filename(curr_ifile),
-				curr_altpipe);
-		free(curr_altfilename);
-		curr_altfilename = NULL;
+		altpipe = get_altpipe(curr_ifile);
+		if (altpipe != NULL && !(chflags & CH_KEEPOPEN))
+		{
+			close_pipe(altpipe);
+			set_altpipe(curr_ifile, NULL);
+		}
+		close_altfile(altfilename, get_filename(curr_ifile));
+		set_altfilename(curr_ifile, NULL);
 	}
 	curr_ifile = NULL_IFILE;
 #if HAVE_STAT_INO
@@ -218,9 +246,8 @@ edit_ifile(ifile)
 	int chflags;
 	char *filename;
 	char *open_filename;
-	char *qopen_filename;
 	char *alt_filename;
-	void *alt_pipe;
+	void *altpipe;
 	IFILE was_curr_ifile;
 	PARG parg;
 		
@@ -270,107 +297,129 @@ edit_ifile(ifile)
 	}
 
 	filename = save(get_filename(ifile));
+
 	/*
 	 * See if LESSOPEN specifies an "alternate" file to open.
 	 */
-	alt_pipe = NULL;
-	alt_filename = open_altfile(filename, &f, &alt_pipe);
-	open_filename = (alt_filename != NULL) ? alt_filename : filename;
-	qopen_filename = shell_unquote(open_filename);
+	altpipe = get_altpipe(ifile);
+	if (altpipe != NULL)
+	{
+		/*
+		 * File is already open.
+		 * chflags and f are not used by ch_init if ifile has 
+		 * filestate which should be the case if we're here. 
+		 * Set them here to avoid uninitialized variable warnings.
+		 */
+		chflags = 0; 
+		f = -1;
+		alt_filename = get_altfilename(ifile);
+		open_filename = (alt_filename != NULL) ? alt_filename : filename;
+	} else
+	{
+		if (strcmp(filename, FAKE_HELPFILE) == 0 ||
+			 strcmp(filename, FAKE_EMPTYFILE) == 0)
+			alt_filename = NULL;
+		else
+			alt_filename = open_altfile(filename, &f, &altpipe);
 
-	chflags = 0;
-	if (alt_pipe != NULL)
-	{
-		/*
-		 * The alternate "file" is actually a pipe.
-		 * f has already been set to the file descriptor of the pipe
-		 * in the call to open_altfile above.
-		 * Keep the file descriptor open because it was opened 
-		 * via popen(), and pclose() wants to close it.
-		 */
-		chflags |= CH_POPENED;
-	} else if (strcmp(open_filename, "-") == 0)
-	{
-		/* 
-		 * Use standard input.
-		 * Keep the file descriptor open because we can't reopen it.
-		 */
-		f = fd0;
-		chflags |= CH_KEEPOPEN;
-		/*
-		 * Must switch stdin to BINARY mode.
-		 */
-		SET_BINARY(f);
+		open_filename = (alt_filename != NULL) ? alt_filename : filename;
+
+		chflags = 0;
+		if (altpipe != NULL)
+		{
+			/*
+			 * The alternate "file" is actually a pipe.
+			 * f has already been set to the file descriptor of the pipe
+			 * in the call to open_altfile above.
+			 * Keep the file descriptor open because it was opened 
+			 * via popen(), and pclose() wants to close it.
+			 */
+			chflags |= CH_POPENED;
+			if (strcmp(filename, "-") == 0)
+				chflags |= CH_KEEPOPEN;
+		} else if (strcmp(filename, "-") == 0)
+		{
+			/* 
+			 * Use standard input.
+			 * Keep the file descriptor open because we can't reopen it.
+			 */
+			f = fd0;
+			chflags |= CH_KEEPOPEN;
+			/*
+			 * Must switch stdin to BINARY mode.
+			 */
+			SET_BINARY(f);
 #if MSDOS_COMPILER==DJGPPC
-		/*
-		 * Setting stdin to binary by default causes
-		 * Ctrl-C to not raise SIGINT.  We must undo
-		 * that side-effect.
-		 */
-		__djgpp_set_ctrl_c(1);
+			/*
+			 * Setting stdin to binary by default causes
+			 * Ctrl-C to not raise SIGINT.  We must undo
+			 * that side-effect.
+			 */
+			__djgpp_set_ctrl_c(1);
 #endif
-	} else if (strcmp(open_filename, FAKE_EMPTYFILE) == 0)
-	{
-		f = -1;
-		chflags |= CH_NODATA;
-	} else if (strcmp(open_filename, FAKE_HELPFILE) == 0)
-	{
-		f = -1;
-		chflags |= CH_HELPFILE;
-	} else if ((parg.p_string = bad_file(open_filename)) != NULL)
-	{
-		/*
-		 * It looks like a bad file.  Don't try to open it.
-		 */
-		error("%s", &parg);
-		free(parg.p_string);
-	    err1:
-		if (alt_filename != NULL)
+		} else if (strcmp(open_filename, FAKE_EMPTYFILE) == 0)
 		{
-			close_altfile(alt_filename, filename, alt_pipe);
-			free(alt_filename);
-		}
-		del_ifile(ifile);
-		free(qopen_filename);
-		free(filename);
-		/*
-		 * Re-open the current file.
-		 */
-		if (was_curr_ifile == ifile)
+			f = -1;
+			chflags |= CH_NODATA;
+		} else if (strcmp(open_filename, FAKE_HELPFILE) == 0)
+		{
+			f = -1;
+			chflags |= CH_HELPFILE;
+		} else if ((parg.p_string = bad_file(open_filename)) != NULL)
 		{
 			/*
-			 * Whoops.  The "current" ifile is the one we just deleted.
-			 * Just give up.
+			 * It looks like a bad file.  Don't try to open it.
 			 */
-			quit(QUIT_ERROR);
-		}
-		reedit_ifile(was_curr_ifile);
-		return (1);
-	} else if ((f = open(qopen_filename, OPEN_READ)) < 0)
-	{
-		/*
-		 * Got an error trying to open it.
-		 */
-		parg.p_string = errno_message(filename);
-		error("%s", &parg);
-		free(parg.p_string);
-	    	goto err1;
-	} else 
-	{
-		chflags |= CH_CANSEEK;
-		if (!force_open && !opened(ifile) && bin_file(f))
-		{
-			/*
-			 * Looks like a binary file.  
-			 * Ask user if we should proceed.
-			 */
-			parg.p_string = filename;
-			answer = query("\"%s\" may be a binary file.  See it anyway? ",
-				&parg);
-			if (answer != 'y' && answer != 'Y')
+			error("%s", &parg);
+			free(parg.p_string);
+			err1:
+			if (alt_filename != NULL)
 			{
-				close(f);
+				close_pipe(altpipe);
+				close_altfile(alt_filename, filename);
+				free(alt_filename);
+			}
+			del_ifile(ifile);
+			free(filename);
+			/*
+			 * Re-open the current file.
+			 */
+			if (was_curr_ifile == ifile)
+			{
+				/*
+				 * Whoops.  The "current" ifile is the one we just deleted.
+				 * Just give up.
+				 */
+				quit(QUIT_ERROR);
+			}
+			reedit_ifile(was_curr_ifile);
+			return (1);
+		} else if ((f = open(open_filename, OPEN_READ)) < 0)
+		{
+			/*
+			 * Got an error trying to open it.
+			 */
+			parg.p_string = errno_message(filename);
+			error("%s", &parg);
+			free(parg.p_string);
 				goto err1;
+		} else 
+		{
+			chflags |= CH_CANSEEK;
+			if (!force_open && !opened(ifile) && bin_file(f))
+			{
+				/*
+				 * Looks like a binary file.  
+				 * Ask user if we should proceed.
+				 */
+				parg.p_string = filename;
+				answer = query("\"%s\" may be a binary file.  See it anyway? ",
+					&parg);
+				if (answer != 'y' && answer != 'Y')
+				{
+					close(f);
+					goto err1;
+				}
 			}
 		}
 	}
@@ -385,8 +434,8 @@ edit_ifile(ifile)
 		unsave_ifile(was_curr_ifile);
 	}
 	curr_ifile = ifile;
-	curr_altfilename = alt_filename;
-	curr_altpipe = alt_pipe;
+	set_altfilename(curr_ifile, alt_filename);
+	set_altpipe(curr_ifile, altpipe);
 	set_open(curr_ifile); /* File has been opened */
 	get_pos(curr_ifile, &initial_scrpos);
 	new_file = TRUE;
@@ -400,9 +449,10 @@ edit_ifile(ifile)
 #endif
 #if HAVE_STAT_INO
 		/* Remember the i-number and device of the opened file. */
+		if (strcmp(open_filename, "-") != 0)
 		{
 			struct stat statbuf;
-			int r = stat(qopen_filename, &statbuf);
+			int r = stat(open_filename, &statbuf);
 			if (r == 0)
 			{
 				curr_ino = statbuf.st_ino;
@@ -417,7 +467,6 @@ edit_ifile(ifile)
 		}
 	}
 
-	free(qopen_filename);
 	no_display = !any_display;
 	flush();
 	any_display = TRUE;
@@ -468,6 +517,7 @@ edit_list(filelist)
 	char *filename;
 	char *gfilelist;
 	char *gfilename;
+	char *qfilename;
 	struct textlist tl_files;
 	struct textlist tl_gfiles;
 
@@ -489,8 +539,10 @@ edit_list(filelist)
 		gfilename = NULL;
 		while ((gfilename = forw_textlist(&tl_gfiles, gfilename)) != NULL)
 		{
-			if (edit(gfilename) == 0 && good_filename == NULL)
+			qfilename = shell_unquote(gfilename);
+			if (edit(qfilename) == 0 && good_filename == NULL)
 				good_filename = get_filename(curr_ifile);
+			free(qfilename);
 		}
 		free(gfilelist);
 	}
@@ -716,7 +768,7 @@ edit_stdin()
 	public void
 cat_file()
 {
-	register int c;
+	int c;
 
 	while ((c = ch_forw_get()) != EOI)
 		putchr(c);
@@ -734,8 +786,8 @@ cat_file()
 use_logfile(filename)
 	char *filename;
 {
-	register int exists;
-	register int answer;
+	int exists;
+	int answer;
 	PARG parg;
 
 	if (ch_getflags() & CH_CANSEEK)
@@ -747,7 +799,6 @@ use_logfile(filename)
 	/*
 	 * {{ We could use access() here. }}
 	 */
-	filename = shell_unquote(filename);
 	exists = open(filename, OPEN_READ);
 	if (exists >= 0)
 		close(exists);
@@ -816,10 +867,8 @@ loop:
 		 */
 		parg.p_string = filename;
 		error("Cannot write to \"%s\"", &parg);
-		free(filename);
 		return;
 	}
-	free(filename);
 	SET_BINARY(logfile);
 }
 

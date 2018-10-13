@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2013 Intel Corporation
  * Copyright (C) 1997 Justin T. Gibbs
  * All rights reserved.

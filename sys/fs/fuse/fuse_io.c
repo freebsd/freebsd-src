@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc.
  * All rights reserved.
  *
@@ -108,7 +110,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
 static int 
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh);
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
@@ -156,7 +158,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		if (directio) {
 			FS_DEBUG("direct write of vnode %ju via file handle %ju\n",
 			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
-			err = fuse_write_directbackend(vp, uio, cred, fufh);
+			err = fuse_write_directbackend(vp, uio, cred, fufh, ioflag);
 		} else {
 			FS_DEBUG("buffered write of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
@@ -318,7 +320,7 @@ out:
 
 static int
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh)
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_write_in *fwi;
@@ -327,8 +329,10 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	int diff;
 	int err = 0;
 
-	if (!uio->uio_resid)
+	if (uio->uio_resid == 0)
 		return (0);
+	if (ioflag & IO_APPEND)
+		uio_setoffset(uio, fvdat->filesize);
 
 	fdisp_init(&fdi, 0);
 
@@ -705,7 +709,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 			uiop->uio_rw = UIO_WRITE;
 
-			error = fuse_write_directbackend(vp, uiop, cred, fufh);
+			error = fuse_write_directbackend(vp, uiop, cred, fufh, 0);
 
 			if (error == EINTR || error == ETIMEDOUT
 			    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {

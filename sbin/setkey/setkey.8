@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2015
+.Dd April 9, 2017
 .Dt SETKEY 8
 .Os
 .\"
@@ -45,7 +45,7 @@
 .Op Fl v
 .Fl f Ar filename
 .Nm
-.Op Fl aPlv
+.Op Fl Pgltv
 .Fl D
 .Nm
 .Op Fl Pv
@@ -81,18 +81,21 @@ Flush the SAD entries.
 If with
 .Fl P ,
 the SPD entries are flushed.
-.It Fl a
-The
-.Nm
-utility
-usually does not display dead SAD entries with
-.Fl D .
-If with
-.Fl a ,
-the dead SAD entries will be displayed as well.
-A dead SAD entry means that
-it has been expired but remains in the system
-because it is referenced by some SPD entries.
+.It Fl g
+Only SPD entries with global scope are dumped with
+.Fl D
+and
+.Fl P
+flags.
+.It Fl t
+Only SPD entries with ifnet scope are dumped with
+.Fl D
+and
+.Fl P
+flags.
+Such SPD entries are linked to the corresponding
+.Xr if_ipsec 4
+virtual tunneling interface.
 .It Fl h
 Add hexadecimal dump on
 .Fl x
@@ -270,8 +273,6 @@ must be a decimal number, or a hexadecimal number with
 prefix.
 SPI values between 0 and 255 are reserved for future use by IANA
 and they cannot be used.
-TCP-MD5 associations must use 0x1000 and therefore only have per-host
-granularity at this time.
 .\"
 .Pp
 .It Ar extensions
@@ -289,12 +290,13 @@ The default value is
 .Li any .
 .\"
 .It Fl r Ar size
-Specify window size of bytes for replay prevention.
+Specify the bitmap size in octets of the anti-replay window.
 .Ar size
-must be decimal number in 32-bit word.
+is a 32-bit unsigned integer, and its value is one eighth of the
+anti-replay window size in packets.
 If
 .Ar size
-is zero or not specified, replay check does not take place.
+is zero or not specified, an anti-replay check does not take place.
 .\"
 .It Fl u Ar id
 Specify the identifier of the policy entry in SPD.
@@ -595,12 +597,11 @@ keyed-md5	128		ah: 96bit ICV (no document)
 keyed-sha1	160		ah: 96bit ICV (no document)
 		160		ah-old: 128bit ICV (no document)
 null		0 to 2048	for debugging
-hmac-sha2-256	256		ah: 96bit ICV
-				(draft-ietf-ipsec-ciph-sha-256-00)
+hmac-sha2-256	256		ah: 128bit ICV (RFC4868)
 		256		ah-old: 128bit ICV (no document)
-hmac-sha2-384	384		ah: 96bit ICV (no document)
+hmac-sha2-384	384		ah: 192bit ICV (RFC4868)
 		384		ah-old: 128bit ICV (no document)
-hmac-sha2-512	512		ah: 96bit ICV (no document)
+hmac-sha2-512	512		ah: 256bit ICV (RFC4868)
 		512		ah-old: 128bit ICV (no document)
 hmac-ripemd160	160		ah: 96bit ICV (RFC2857)
 				ah-old: 128bit ICV (no document)
@@ -696,10 +697,12 @@ spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 Use TCP MD5 between two numerically specified hosts:
 .Bd -literal -offset indent
 add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
+add 10.1.10.36 10.1.10.34 tcp 0x1001 -A tcp-md5 "TCP-MD5 BGP secret" ;
 .Ed
 .\"
 .Sh SEE ALSO
 .Xr ipsec_set_policy 3 ,
+.Xr if_ipsec 4 ,
 .Xr racoon 8 ,
 .Xr sysctl 8
 .Rs
@@ -713,6 +716,8 @@ The
 .Nm
 utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 The utility was completely re-designed in June 1998.
+It first appeared in
+.Fx 4.0 .
 .\"
 .Sh BUGS
 The

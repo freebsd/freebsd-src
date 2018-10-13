@@ -14,6 +14,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/ParentMap.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
@@ -65,7 +66,7 @@ void ExprEngine::performTrivialCopy(NodeBuilder &Bldr, ExplodedNode *Pred,
   if (Optional<Loc> L = V.getAs<Loc>())
     V = Pred->getState()->getSVal(*L);
   else
-    assert(V.isUnknown());
+    assert(V.isUnknownOrUndef());
 
   const Expr *CallExpr = Call.getOriginExpr();
   evalBind(Dst, CallExpr, Pred, ThisVal, V, true);
@@ -267,6 +268,23 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
     }
     // FALLTHROUGH
   case CXXConstructExpr::CK_NonVirtualBase:
+    // In C++17, classes with non-virtual bases may be aggregates, so they would
+    // be initialized as aggregates without a constructor call, so we may have
+    // a base class constructed directly into an initializer list without
+    // having the derived-class constructor call on the previous stack frame.
+    // Initializer lists may be nested into more initializer lists that
+    // correspond to surrounding aggregate initializations.
+    // FIXME: For now this code essentially bails out. We need to find the
+    // correct target region and set it.
+    // FIXME: Instead of relying on the ParentMap, we should have the
+    // trigger-statement (InitListExpr in this case) passed down from CFG or
+    // otherwise always available during construction.
+    if (dyn_cast_or_null<InitListExpr>(LCtx->getParentMap().getParent(CE))) {
+      MemRegionManager &MRMgr = getSValBuilder().getRegionManager();
+      Target = MRMgr.getCXXTempObjectRegion(CE, LCtx);
+      break;
+    }
+    // FALLTHROUGH
   case CXXConstructExpr::CK_Delegating: {
     const CXXMethodDecl *CurCtor = cast<CXXMethodDecl>(LCtx->getDecl());
     Loc ThisPtr = getSValBuilder().getCXXThis(CurCtor,
@@ -317,7 +335,7 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
         // actually make things worse. Placement new makes this tricky as well,
         // since it's then possible to be initializing one part of a multi-
         // dimensional array.
-        State = State->bindDefault(loc::MemRegionVal(Target), ZeroVal);
+        State = State->bindDefault(loc::MemRegionVal(Target), ZeroVal, LCtx);
         Bldr.generateNode(CE, *I, State, /*tag=*/nullptr,
                           ProgramPoint::PreStmtKind);
       }
@@ -345,6 +363,30 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
          I != E; ++I)
       defaultEvalCall(Bldr, *I, *Call);
   }
+
+  // If the CFG was contructed without elements for temporary destructors
+  // and the just-called constructor created a temporary object then
+  // stop exploration if the temporary object has a noreturn constructor.
+  // This can lose coverage because the destructor, if it were present
+  // in the CFG, would be called at the end of the full expression or
+  // later (for life-time extended temporaries) -- but avoids infeasible
+  // paths when no-return temporary destructors are used for assertions.
+  const AnalysisDeclContext *ADC = LCtx->getAnalysisDeclContext();
+  if (!ADC->getCFGBuildOptions().AddTemporaryDtors) {
+      const MemRegion *Target = Call->getCXXThisVal().getAsRegion();
+      if (Target && isa<CXXTempObjectRegion>(Target) &&
+          Call->getDecl()->getParent()->isAnyDestructorNoReturn()) {
+
+      for (ExplodedNode *N : DstEvaluated) {
+        Bldr.generateSink(CE, N, N->getState());
+      }
+
+      // There is no need to run the PostCall and PostStmtchecker
+      // callbacks because we just generated sinks on all nodes in th
+      // frontier.
+      return;
+    }
+ }
 
   ExplodedNodeSet DstPostCall;
   getCheckerManager().runCheckersForPostCall(DstPostCall, DstEvaluated,
@@ -488,7 +530,8 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   if (CNE->isArray()) {
     // FIXME: allocating an array requires simulating the constructors.
     // For now, just return a symbolicated region.
-    const MemRegion *NewReg = symVal.castAs<loc::MemRegionVal>().getRegion();
+    const SubRegion *NewReg =
+        symVal.castAs<loc::MemRegionVal>().getRegionAs<SubRegion>();
     QualType ObjTy = CNE->getType()->getAs<PointerType>()->getPointeeType();
     const ElementRegion *EleReg =
       getStoreManager().GetElementZeroRegion(NewReg, ObjTy);
@@ -548,7 +591,7 @@ void ExprEngine::VisitCXXCatchStmt(const CXXCatchStmt *CS,
   SVal V = svalBuilder.conjureSymbolVal(CS, LCtx, VD->getType(),
                                         currBldrCtx->blockCount());
   ProgramStateRef state = Pred->getState();
-  state = state->bindLoc(state->getLValue(VD, LCtx), V);
+  state = state->bindLoc(state->getLValue(VD, LCtx), V, LCtx);
 
   StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   Bldr.generateNode(CS, Pred, state);
@@ -578,9 +621,9 @@ void ExprEngine::VisitLambdaExpr(const LambdaExpr *LE, ExplodedNode *Pred,
   const MemRegion *R = svalBuilder.getRegionManager().getCXXTempObjectRegion(
       LE, LocCtxt);
   SVal V = loc::MemRegionVal(R);
-  
+
   ProgramStateRef State = Pred->getState();
-  
+
   // If we created a new MemRegion for the lambda, we should explicitly bind
   // the captures.
   CXXRecordDecl::field_iterator CurField = LE->getLambdaClass()->field_begin();
@@ -603,7 +646,7 @@ void ExprEngine::VisitLambdaExpr(const LambdaExpr *LE, ExplodedNode *Pred,
       InitVal = State->getSVal(SizeExpr, LocCtxt);
     }
 
-    State = State->bindLoc(FieldLoc, InitVal);
+    State = State->bindLoc(FieldLoc, InitVal, LocCtxt);
   }
 
   // Decay the Loc into an RValue, because there might be a

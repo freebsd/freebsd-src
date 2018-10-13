@@ -28,7 +28,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd August 19, 2018
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -119,12 +119,12 @@ of a
 or
 .Xr sendto 2
 must be writable.
-.Sh PASSING FILE DESCRIPTORS
+.Sh CONTROL MESSAGES
 The
 .Ux Ns -domain
 sockets support the communication of
 .Ux
-file descriptors through the use of the
+file descriptors and process credentials through the use of the
 .Va msg_control
 field in the
 .Fa msg
@@ -132,13 +132,12 @@ argument to
 .Xr sendmsg 2
 and
 .Xr recvmsg 2 .
-.Pp
-Any valid descriptor may be sent in a message.
-The file descriptor(s) to be passed are described using a
+The items to be passed are described using a
 .Vt "struct cmsghdr"
 that is defined in the include file
 .In sys/socket.h .
-The type of the message is
+.Pp
+To send file descriptors, the type of the message is
 .Dv SCM_RIGHTS ,
 and the data portion of the messages is an array of integers
 representing the file descriptors to be passed.
@@ -161,6 +160,39 @@ call.
 Descriptors that are awaiting delivery, or that are
 purposely not received, are automatically closed by the system
 when the destination socket is closed.
+.Pp
+Credentials of the sending process can be transmitted explicitly using a
+control message of type
+.Dv SCM_CREDS
+with a data portion of type
+.Vt "struct cmsgcred" ,
+defined in
+.In sys/socket.h
+as follows:
+.Bd -literal
+struct cmsgcred {
+  pid_t	cmcred_pid;		/* PID of sending process */
+  uid_t	cmcred_uid;		/* real UID of sending process */
+  uid_t	cmcred_euid;		/* effective UID of sending process */
+  gid_t	cmcred_gid;		/* real GID of sending process */
+  short	cmcred_ngroups;		/* number of groups */
+  gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
+};
+.Ed
+.Pp
+The sender should pass a zeroed buffer which will be filled in by the system.
+.Pp
+The group list is truncated to at most
+.Dv CMGROUP_MAX
+GIDs.
+.Pp
+The process ID
+.Fa cmcred_pid
+should not be looked up (such as via the
+.Dv KERN_PROC_PID
+sysctl) for making security decisions.
+The sending process could have exited and its process ID already been
+reused for a new process.
 .Sh SOCKET OPTIONS
 .Tn UNIX
 domain sockets support a number of socket options which can be set with
@@ -176,7 +208,13 @@ or a
 .Dv SOCK_STREAM
 socket.
 This option provides a mechanism for the receiver to
-receive the credentials of the process as a
+receive the credentials of the process calling
+.Xr write 2 ,
+.Xr send 2 ,
+.Xr sendto 2
+or
+.Xr sendmsg 2
+as a
 .Xr recvmsg 2
 control message.
 The
@@ -201,6 +239,10 @@ struct sockcred {
 };
 .Ed
 .Pp
+The current implementation truncates the group list to at most
+.Dv CMGROUP_MAX
+groups.
+.Pp
 The
 .Fn SOCKCREDSIZE
 macro computes the size of the
@@ -221,7 +263,28 @@ On
 and
 .Dv SOCK_SEQPACKET
 sockets credentials are passed only on the first read from a socket,
-then system clears the option on socket.
+then the system clears the option on the socket.
+.Pp
+This option and the above explicit
+.Vt "struct cmsgcred"
+both use the same value
+.Dv SCM_CREDS
+but incompatible control messages.
+If this option is enabled and the sender attached a
+.Dv SCM_CREDS
+control message with a
+.Vt "struct cmsgcred" ,
+it will be discarded and a
+.Vt "struct sockcred"
+will be included.
+.Pp
+Many setuid programs will
+.Xr write 2
+data at least partially controlled by the invoker,
+such as error messages.
+Therefore, a message accompanied by a particular
+.Fa sc_euid
+value should not be trusted as being from that user.
 .It Dv LOCAL_CONNWAIT
 Used with
 .Dv SOCK_STREAM
@@ -287,6 +350,7 @@ socket option.
 .Xr sendto 2 ,
 .Xr setsockopt 2 ,
 .Xr socket 2 ,
+.Xr CMSG_DATA 3 ,
 .Xr intro 4
 .Rs
 .%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Implementation of Utility functions for all SCSI device types.
  *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,7 @@ a10_twsi_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(dev, 0, &rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst) == 0) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "could not de-assert reset\n");
@@ -104,7 +104,7 @@ a10_twsi_attach(device_t dev)
 	}
 
 	/* Activate clock */
-	error = clk_get_by_ofw_index(dev, 0, &clk);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk);
 	if (error != 0) {
 		device_printf(dev, "could not find clock\n");
 		return (error);

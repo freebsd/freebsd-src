@@ -1,4 +1,4 @@
-/* $OpenBSD: atomicio.c,v 1.27 2015/01/16 06:40:12 deraadt Exp $ */
+/* $OpenBSD: atomicio.c,v 1.28 2016/07/27 23:18:12 djm Exp $ */
 /*
  * Copyright (c) 2006 Damien Miller. All rights reserved.
  * Copyright (c) 2005 Anil Madhavapeddy. All rights reserved.
@@ -107,12 +107,12 @@ atomiciov6(ssize_t (*f) (int, const struct iovec *, int), int fd,
 	struct iovec iov_array[IOV_MAX], *iov = iov_array;
 	struct pollfd pfd;
 
-	if (iovcnt > IOV_MAX) {
+	if (iovcnt < 0 || iovcnt > IOV_MAX) {
 		errno = EINVAL;
 		return 0;
 	}
 	/* Make a copy of the iov array because we may modify it below */
-	memcpy(iov, _iov, iovcnt * sizeof(*_iov));
+	memcpy(iov, _iov, (size_t)iovcnt * sizeof(*_iov));
 
 #ifndef BROKEN_READV_COMPARISON
 	pfd.fd = fd;

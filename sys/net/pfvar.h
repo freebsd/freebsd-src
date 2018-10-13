@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
  *
@@ -36,8 +38,11 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/counter.h>
+#include <sys/cpuset.h>
 #include <sys/malloc.h>
 #include <sys/refcount.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/tree.h>
 #include <vm/uma.h>
 
@@ -145,14 +150,17 @@ extern struct mtx pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_LOCK()	mtx_lock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
 
-extern struct rwlock pf_rules_lock;
-#define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
-#define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
-#define	PF_RULES_WLOCK()	rw_wlock(&pf_rules_lock)
-#define	PF_RULES_WUNLOCK()	rw_wunlock(&pf_rules_lock)
-#define	PF_RULES_ASSERT()	rw_assert(&pf_rules_lock, RA_LOCKED)
-#define	PF_RULES_RASSERT()	rw_assert(&pf_rules_lock, RA_RLOCKED)
-#define	PF_RULES_WASSERT()	rw_assert(&pf_rules_lock, RA_WLOCKED)
+extern struct rmlock pf_rules_lock;
+#define	PF_RULES_RLOCK_TRACKER	struct rm_priotracker _pf_rules_tracker
+#define	PF_RULES_RLOCK()	rm_rlock(&pf_rules_lock, &_pf_rules_tracker)
+#define	PF_RULES_RUNLOCK()	rm_runlock(&pf_rules_lock, &_pf_rules_tracker)
+#define	PF_RULES_WLOCK()	rm_wlock(&pf_rules_lock)
+#define	PF_RULES_WUNLOCK()	rm_wunlock(&pf_rules_lock)
+#define	PF_RULES_ASSERT()	rm_assert(&pf_rules_lock, RA_LOCKED)
+#define	PF_RULES_RASSERT()	rm_assert(&pf_rules_lock, RA_RLOCKED)
+#define	PF_RULES_WASSERT()	rm_assert(&pf_rules_lock, RA_WLOCKED)
+
+extern struct sx pf_end_lock;
 
 #define	PF_MODVER	1
 #define	PFLOG_MODVER	1
@@ -540,7 +548,7 @@ struct pf_rule {
 	u_int16_t		 max_mss;
 	u_int16_t		 tag;
 	u_int16_t		 match_tag;
-	u_int16_t		 spare2;			/* netgraph */
+	u_int16_t		 scrub_flags;
 
 	struct pf_rule_uid	 uid;
 	struct pf_rule_gid	 gid;
@@ -577,6 +585,10 @@ struct pf_rule {
 #define PF_FLUSH		0x01
 #define PF_FLUSH_GLOBAL		0x02
 	u_int8_t		 flush;
+#define PF_PRIO_ZERO		0xff		/* match "prio 0" packets */
+#define PF_PRIO_MAX		7
+	u_int8_t		 prio;
+	u_int8_t		 set_prio[2];
 
 	struct {
 		struct pf_addr		addr;
@@ -609,9 +621,9 @@ struct pf_rule {
 #define PFRULE_IFBOUND		0x00010000	/* if-bound */
 #define PFRULE_STATESLOPPY	0x00020000	/* sloppy state tracking */
 
-#define PFSTATE_HIWAT		10000	/* default state table size */
-#define PFSTATE_ADAPT_START	6000	/* default adaptive timeout start */
-#define PFSTATE_ADAPT_END	12000	/* default adaptive timeout end */
+#define PFSTATE_HIWAT		100000	/* default state table size */
+#define PFSTATE_ADAPT_START	60000	/* default adaptive timeout start */
+#define PFSTATE_ADAPT_END	120000	/* default adaptive timeout end */
 
 
 struct pf_threshold {
@@ -739,6 +751,8 @@ struct pf_state {
 /*  was	PFSTATE_PFLOW		0x04 */
 #define	PFSTATE_NOSYNC		0x08
 #define	PFSTATE_ACK		0x10
+#define	PFSTATE_SETPRIO		0x0200
+#define	PFSTATE_SETMASK   (PFSTATE_SETPRIO)
 	u_int8_t		 timeout;
 	u_int8_t		 sync_state; /* PFSYNC_S_x */
 
@@ -829,7 +843,6 @@ typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     struct pf_ruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
 
-#define	V_pf_end_threads	VNET(pf_end_threads)
 #endif /* _KERNEL */
 
 #define	PFSYNC_FLAG_SRCNODE	0x04
@@ -1287,20 +1300,55 @@ struct pfioc_limit {
 	unsigned	 limit;
 };
 
-struct pfioc_altq {
+struct pfioc_altq_v0 {
 	u_int32_t	 action;
 	u_int32_t	 ticket;
 	u_int32_t	 nr;
-	struct pf_altq	 altq;
+	struct pf_altq_v0 altq;
 };
 
-struct pfioc_qstats {
+struct pfioc_altq_v1 {
+	u_int32_t	 action;
+	u_int32_t	 ticket;
+	u_int32_t	 nr;
+	/*
+	 * Placed here so code that only uses the above parameters can be
+	 * written entirely in terms of the v0 or v1 type.
+	 */
+	u_int32_t	 version;
+	struct pf_altq_v1 altq;
+};
+
+/*
+ * Latest version of struct pfioc_altq_vX.  This must move in lock-step with
+ * the latest version of struct pf_altq_vX as it has that struct as a
+ * member.
+ */
+#define PFIOC_ALTQ_VERSION	PF_ALTQ_VERSION
+
+struct pfioc_qstats_v0 {
 	u_int32_t	 ticket;
 	u_int32_t	 nr;
 	void		*buf;
 	int		 nbytes;
 	u_int8_t	 scheduler;
 };
+
+struct pfioc_qstats_v1 {
+	u_int32_t	 ticket;
+	u_int32_t	 nr;
+	void		*buf;
+	int		 nbytes;
+	u_int8_t	 scheduler;
+	/*
+	 * Placed here so code that only uses the above parameters can be
+	 * written entirely in terms of the v0 or v1 type.
+	 */
+	u_int32_t	 version;  /* Requested version of stats struct */
+};
+
+/* Latest version of struct pfioc_qstats_vX */
+#define PFIOC_QSTATS_VERSION	1
 
 struct pfioc_ruleset {
 	u_int32_t	 nr;
@@ -1390,11 +1438,16 @@ struct pfioc_iface {
 #define DIOCKILLSTATES	_IOWR('D', 41, struct pfioc_state_kill)
 #define DIOCSTARTALTQ	_IO  ('D', 42)
 #define DIOCSTOPALTQ	_IO  ('D', 43)
-#define DIOCADDALTQ	_IOWR('D', 45, struct pfioc_altq)
-#define DIOCGETALTQS	_IOWR('D', 47, struct pfioc_altq)
-#define DIOCGETALTQ	_IOWR('D', 48, struct pfioc_altq)
-#define DIOCCHANGEALTQ	_IOWR('D', 49, struct pfioc_altq)
-#define DIOCGETQSTATS	_IOWR('D', 50, struct pfioc_qstats)
+#define DIOCADDALTQV0	_IOWR('D', 45, struct pfioc_altq_v0)
+#define DIOCADDALTQV1	_IOWR('D', 45, struct pfioc_altq_v1)
+#define DIOCGETALTQSV0	_IOWR('D', 47, struct pfioc_altq_v0)
+#define DIOCGETALTQSV1	_IOWR('D', 47, struct pfioc_altq_v1)
+#define DIOCGETALTQV0	_IOWR('D', 48, struct pfioc_altq_v0)
+#define DIOCGETALTQV1	_IOWR('D', 48, struct pfioc_altq_v1)
+#define DIOCCHANGEALTQV0 _IOWR('D', 49, struct pfioc_altq_v0)
+#define DIOCCHANGEALTQV1 _IOWR('D', 49, struct pfioc_altq_v1)
+#define DIOCGETQSTATSV0	_IOWR('D', 50, struct pfioc_qstats_v0)
+#define DIOCGETQSTATSV1	_IOWR('D', 50, struct pfioc_qstats_v1)
 #define DIOCBEGINADDRS	_IOWR('D', 51, struct pfioc_pooladdr)
 #define DIOCADDADDR	_IOWR('D', 52, struct pfioc_pooladdr)
 #define DIOCGETADDRS	_IOWR('D', 53, struct pfioc_pooladdr)
@@ -1432,11 +1485,63 @@ struct pfioc_iface {
 #define	DIOCSETIFFLAG	_IOWR('D', 89, struct pfioc_iface)
 #define	DIOCCLRIFFLAG	_IOWR('D', 90, struct pfioc_iface)
 #define	DIOCKILLSRCNODES	_IOWR('D', 91, struct pfioc_src_node_kill)
-struct pf_ifspeed {
+struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];
 	u_int32_t		baudrate;
 };
-#define	DIOCGIFSPEED	_IOWR('D', 92, struct pf_ifspeed)
+
+struct pf_ifspeed_v1 {
+	char			ifname[IFNAMSIZ];
+	u_int32_t		baudrate32;
+	/* layout identical to struct pf_ifspeed_v0 up to this point */
+	u_int64_t		baudrate;
+};
+
+/* Latest version of struct pf_ifspeed_vX */
+#define PF_IFSPEED_VERSION	1
+
+#define	DIOCGIFSPEEDV0	_IOWR('D', 92, struct pf_ifspeed_v0)
+#define	DIOCGIFSPEEDV1	_IOWR('D', 92, struct pf_ifspeed_v1)
+
+/*
+ * Compatibility and convenience macros
+ */
+#ifndef _KERNEL
+#ifdef PFIOC_USE_LATEST
+/*
+ * Maintaining in-tree consumers of the ioctl interface is easier when that
+ * code can be written in terms old names that refer to the latest interface
+ * version as that reduces the required changes in the consumers to those
+ * that are functionally necessary to accommodate a new interface version.
+ */
+#define	pfioc_altq	__CONCAT(pfioc_altq_v, PFIOC_ALTQ_VERSION)
+#define	pfioc_qstats	__CONCAT(pfioc_qstats_v, PFIOC_QSTATS_VERSION)
+#define	pf_ifspeed	__CONCAT(pf_ifspeed_v, PF_IFSPEED_VERSION)
+
+#define	DIOCADDALTQ	__CONCAT(DIOCADDALTQV, PFIOC_ALTQ_VERSION)
+#define	DIOCGETALTQS	__CONCAT(DIOCGETALTQSV, PFIOC_ALTQ_VERSION)
+#define	DIOCGETALTQ	__CONCAT(DIOCGETALTQV, PFIOC_ALTQ_VERSION)
+#define	DIOCCHANGEALTQ	__CONCAT(DIOCCHANGEALTQV, PFIOC_ALTQ_VERSION)
+#define	DIOCGETQSTATS	__CONCAT(DIOCGETQSTATSV, PFIOC_QSTATS_VERSION)
+#define	DIOCGIFSPEED	__CONCAT(DIOCGIFSPEEDV, PF_IFSPEED_VERSION)
+#else
+/*
+ * When building out-of-tree code that is written for the old interface,
+ * such as may exist in ports for example, resolve the old struct tags and
+ * ioctl command names to the v0 versions.
+ */
+#define	pfioc_altq	__CONCAT(pfioc_altq_v, 0)
+#define	pfioc_qstats	__CONCAT(pfioc_qstats_v, 0)
+#define	pf_ifspeed	__CONCAT(pf_ifspeed_v, 0)
+
+#define	DIOCADDALTQ	__CONCAT(DIOCADDALTQV, 0)
+#define	DIOCGETALTQS	__CONCAT(DIOCGETALTQSV, 0)
+#define	DIOCGETALTQ	__CONCAT(DIOCGETALTQV, 0)
+#define	DIOCCHANGEALTQ	__CONCAT(DIOCCHANGEALTQV, 0)
+#define	DIOCGETQSTATS	__CONCAT(DIOCGETQSTATSV, 0)
+#define	DIOCGIFSPEED	__CONCAT(DIOCGIFSPEEDV, 0)
+#endif /* PFIOC_USE_LATEST */
+#endif /* _KERNEL */
 
 #ifdef _KERNEL
 LIST_HEAD(pf_src_node_list, pf_src_node);
@@ -1457,7 +1562,8 @@ struct pf_idhash {
 
 extern u_long		pf_hashmask;
 extern u_long		pf_srchashmask;
-#define	PF_HASHSIZ	(32768)
+#define	PF_HASHSIZ	(131072)
+#define	PF_SRCHASHSIZ	(PF_HASHSIZ/4)
 VNET_DECLARE(struct pf_keyhash *, pf_keyhash);
 VNET_DECLARE(struct pf_idhash *, pf_idhash);
 #define V_pf_keyhash	VNET(pf_keyhash)
@@ -1514,6 +1620,7 @@ VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
 #define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
 
 extern void			 pf_purge_thread(void *);
+extern void			 pf_unload_vnet_purge(void);
 extern void			 pf_intr(void *);
 extern void			 pf_purge_expired_src_nodes(void);
 
@@ -1567,13 +1674,13 @@ extern void			 pf_addrcpy(struct pf_addr *, struct pf_addr *,
 void				pf_free_rule(struct pf_rule *);
 
 #ifdef INET
-int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_test(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
 	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
-int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_test6(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
 	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
@@ -1609,6 +1716,7 @@ int	pf_normalize_tcp_stateful(struct mbuf *, int, struct pf_pdesc *,
 u_int32_t
 	pf_state_expires(const struct pf_state *);
 void	pf_purge_expired_fragments(void);
+void	pf_purge_fragments(uint32_t);
 int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
 	    int);
 int	pf_socket_lookup(int, struct pf_pdesc *, struct mbuf *);
@@ -1626,6 +1734,7 @@ void	pfr_detach_table(struct pfr_ktable *);
 int	pfr_clr_tables(struct pfr_table *, int *, int);
 int	pfr_add_tables(struct pfr_table *, int, int *, int);
 int	pfr_del_tables(struct pfr_table *, int, int *, int);
+int	pfr_table_count(struct pfr_table *, int);
 int	pfr_get_tables(struct pfr_table *, struct pfr_table *, int *, int);
 int	pfr_get_tstats(struct pfr_table *, struct pfr_tstats *, int *, int);
 int	pfr_clr_tstats(struct pfr_table *, int, int *, int);
@@ -1655,7 +1764,9 @@ VNET_DECLARE(struct pfi_kif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
 void		 pfi_initialize(void);
+void		 pfi_initialize_vnet(void);
 void		 pfi_cleanup(void);
+void		 pfi_cleanup_vnet(void);
 void		 pfi_kif_ref(struct pfi_kif *);
 void		 pfi_kif_unref(struct pfi_kif *);
 struct pfi_kif	*pfi_kif_find(const char *);

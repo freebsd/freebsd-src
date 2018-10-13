@@ -2,12 +2,12 @@
 # BERI_SOCKIT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
 # RISC Implementation) FPGA soft core, as configured in its Terasic SoCKit
 # reference configuration.  This kernel configration must be further
-# specialized to to include a root filesystem specification.
+# specialized to include a root filesystem specification.
 #
 # $FreeBSD$
 #
 
-include "BERI_TEMPLATE"
+include "std.BERI"
 
 ident		BERI_SOCKIT
 

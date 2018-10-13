@@ -492,6 +492,7 @@ read_format(int *pformat,
       svn_error_clear(err);
       *pformat = 1;
       *max_files_per_dir = 0;
+      *use_log_addressing = FALSE;
 
       return SVN_NO_ERROR;
     }
@@ -622,8 +623,9 @@ svn_fs_fs__write_format(svn_fs_t *fs,
     }
   else
     {
-      SVN_ERR(svn_io_write_atomic(path, sb->data, sb->len,
-                                  NULL /* copy_perms_path */, pool));
+      SVN_ERR(svn_io_write_atomic2(path, sb->data, sb->len,
+                                   NULL /* copy_perms_path */,
+                                   ffd->flush_to_disk, pool));
     }
 
   /* And set the perms to make it read only */
@@ -681,6 +683,60 @@ verify_block_size(apr_int64_t block_size,
   return SVN_NO_ERROR;
 }
 
+static svn_error_t *
+parse_compression_option(compression_type_t *compression_type_p,
+                         int *compression_level_p,
+                         const char *value)
+{
+  compression_type_t type;
+  int level;
+  svn_boolean_t is_valid = TRUE;
+
+  /* compression = none | lz4 | zlib | zlib-1 ... zlib-9 */
+  if (strcmp(value, "none") == 0)
+    {
+      type = compression_type_none;
+      level = SVN_DELTA_COMPRESSION_LEVEL_NONE;
+    }
+  else if (strcmp(value, "lz4") == 0)
+    {
+      type = compression_type_lz4;
+      level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
+    }
+  else if (strncmp(value, "zlib", 4) == 0)
+    {
+      const char *p = value + 4;
+
+      type = compression_type_zlib;
+      if (*p == 0)
+        {
+          level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
+        }
+      else if (*p == '-')
+        {
+          p++;
+          SVN_ERR(svn_cstring_atoi(&level, p));
+          if (level < 1 || level > 9)
+            is_valid = FALSE;
+        }
+      else
+        is_valid = FALSE;
+    }
+  else
+    {
+      is_valid = FALSE;
+    }
+
+  if (!is_valid)
+    return svn_error_createf(SVN_ERR_BAD_CONFIG_VALUE, NULL,
+                           _("Invalid 'compression' value '%s' in the config"),
+                             value);
+
+  *compression_type_p = type;
+  *compression_level_p = level;
+  return SVN_NO_ERROR;
+}
+
 /* Read the configuration information of the file system at FS_PATH
  * and set the respective values in FFD.  Use pools as usual.
  */
@@ -707,8 +763,6 @@ read_config(fs_fs_data_t *ffd,
   /* Initialize deltification settings in ffd. */
   if (ffd->format >= SVN_FS_FS__MIN_DELTIFICATION_FORMAT)
     {
-      apr_int64_t compression_level;
-
       SVN_ERR(svn_config_get_bool(config, &ffd->deltify_directories,
                                   CONFIG_SECTION_DELTIFICATION,
                                   CONFIG_OPTION_ENABLE_DIR_DELTIFICATION,
@@ -725,14 +779,6 @@ read_config(fs_fs_data_t *ffd,
                                    CONFIG_SECTION_DELTIFICATION,
                                    CONFIG_OPTION_MAX_LINEAR_DELTIFICATION,
                                    SVN_FS_FS_MAX_LINEAR_DELTIFICATION));
-
-      SVN_ERR(svn_config_get_int64(config, &compression_level,
-                                   CONFIG_SECTION_DELTIFICATION,
-                                   CONFIG_OPTION_COMPRESSION_LEVEL,
-                                   SVN_DELTA_COMPRESSION_LEVEL_DEFAULT));
-      ffd->delta_compression_level
-        = (int)MIN(MAX(SVN_DELTA_COMPRESSION_LEVEL_NONE, compression_level),
-                   SVN_DELTA_COMPRESSION_LEVEL_MAX);
     }
   else
     {
@@ -740,7 +786,6 @@ read_config(fs_fs_data_t *ffd,
       ffd->deltify_properties = FALSE;
       ffd->max_deltification_walk = SVN_FS_FS_MAX_DELTIFICATION_WALK;
       ffd->max_linear_deltification = SVN_FS_FS_MAX_LINEAR_DELTIFICATION;
-      ffd->delta_compression_level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
     }
 
   /* Initialize revprop packing settings in ffd. */
@@ -754,8 +799,8 @@ read_config(fs_fs_data_t *ffd,
                                    CONFIG_SECTION_PACKED_REVPROPS,
                                    CONFIG_OPTION_REVPROP_PACK_SIZE,
                                    ffd->compress_packed_revprops
-                                       ? 0x10
-                                       : 0x4));
+                                       ? 0x40
+                                       : 0x10));
 
       ffd->revprop_pack_size *= 1024;
     }
@@ -814,6 +859,83 @@ read_config(fs_fs_data_t *ffd,
     {
       ffd->pack_after_commit = FALSE;
     }
+
+  /* Initialize compression settings in ffd. */
+  if (ffd->format >= SVN_FS_FS__MIN_DELTIFICATION_FORMAT)
+    {
+      const char *compression_val;
+      const char *compression_level_val;
+
+      svn_config_get(config, &compression_val,
+                     CONFIG_SECTION_DELTIFICATION,
+                     CONFIG_OPTION_COMPRESSION, NULL);
+      svn_config_get(config, &compression_level_val,
+                     CONFIG_SECTION_DELTIFICATION,
+                     CONFIG_OPTION_COMPRESSION_LEVEL, NULL);
+      if (compression_val && compression_level_val)
+        {
+          return svn_error_create(SVN_ERR_BAD_CONFIG_VALUE, NULL,
+                                  _("The 'compression' and 'compression-level' "
+                                    "config options are mutually exclusive"));
+        }
+      else if (compression_val)
+        {
+          SVN_ERR(parse_compression_option(&ffd->delta_compression_type,
+                                           &ffd->delta_compression_level,
+                                           compression_val));
+          if (ffd->delta_compression_type == compression_type_lz4 &&
+              ffd->format < SVN_FS_FS__MIN_SVNDIFF2_FORMAT)
+            {
+              return svn_error_create(SVN_ERR_BAD_CONFIG_VALUE, NULL,
+                                      _("Compression type 'lz4' requires "
+                                        "filesystem format 8 or higher"));
+            }
+        }
+      else if (compression_level_val)
+        {
+          /* Handle the deprecated 'compression-level' option. */
+          ffd->delta_compression_type = compression_type_zlib;
+          SVN_ERR(svn_cstring_atoi(&ffd->delta_compression_level,
+                                   compression_level_val));
+          ffd->delta_compression_level =
+            MIN(MAX(SVN_DELTA_COMPRESSION_LEVEL_NONE,
+                    ffd->delta_compression_level),
+                SVN_DELTA_COMPRESSION_LEVEL_MAX);
+        }
+      else
+        {
+          /* Nothing specified explicitly, use the default settings:
+           * LZ4 compression for formats supporting it and zlib otherwise. */
+          if (ffd->format >= SVN_FS_FS__MIN_SVNDIFF2_FORMAT)
+            ffd->delta_compression_type = compression_type_lz4;
+          else
+            ffd->delta_compression_type = compression_type_zlib;
+
+          ffd->delta_compression_level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
+        }
+    }
+  else if (ffd->format >= SVN_FS_FS__MIN_SVNDIFF1_FORMAT)
+    {
+      ffd->delta_compression_type = compression_type_zlib;
+      ffd->delta_compression_level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
+    }
+  else
+    {
+      ffd->delta_compression_type = compression_type_none;
+      ffd->delta_compression_level = SVN_DELTA_COMPRESSION_LEVEL_NONE;
+    }
+
+#ifdef SVN_DEBUG
+  SVN_ERR(svn_config_get_bool(config, &ffd->verify_before_commit,
+                              CONFIG_SECTION_DEBUG,
+                              CONFIG_OPTION_VERIFY_BEFORE_COMMIT,
+                              TRUE));
+#else
+  SVN_ERR(svn_config_get_bool(config, &ffd->verify_before_commit,
+                              CONFIG_SECTION_DEBUG,
+                              CONFIG_OPTION_VERIFY_BEFORE_COMMIT,
+                              FALSE));
+#endif
 
   /* memcached configuration */
   SVN_ERR(svn_cache__make_memcache_from_config(&ffd->memcache, config,
@@ -933,23 +1055,30 @@ write_config(svn_fs_t *fs,
 "### For 1.8, the default value is 16; earlier versions use 1."              NL
 "# " CONFIG_OPTION_MAX_LINEAR_DELTIFICATION " = 16"                          NL
 "###"                                                                        NL
-"### After deltification, we compress the data through zlib to minimize on-" NL
-"### disk size.  That can be an expensive and ineffective process.  This"    NL
-"### setting controls the usage of zlib in future revisions."                NL
-"### Revisions with highly compressible data in them may shrink in size"     NL
-"### if the setting is increased but may take much longer to commit.  The"   NL
-"### time taken to uncompress that data again is widely independent of the"  NL
-"### compression level."                                                     NL
-"### Compression will be ineffective if the incoming content is already"     NL
-"### highly compressed.  In that case, disabling the compression entirely"   NL
-"### will speed up commits as well as reading the data.  Repositories with"  NL
-"### many small compressible files (source code) but also a high percentage" NL
-"### of large incompressible ones (artwork) may benefit from compression"    NL
-"### levels lowered to e.g. 1."                                              NL
-"### Valid values are 0 to 9 with 9 providing the highest compression ratio" NL
-"### and 0 disabling it altogether."                                         NL
-"### The default value is 5."                                                NL
-"# " CONFIG_OPTION_COMPRESSION_LEVEL " = 5"                                  NL
+"### After deltification, we compress the data to minimize on-disk size."    NL
+"### This setting controls the compression algorithm, which will be used in" NL
+"### future revisions.  It can be used to either disable compression or to"  NL
+"### select between available algorithms (zlib, lz4).  zlib is a general-"   NL
+"### purpose compression algorithm.  lz4 is a fast compression algorithm"    NL
+"### which should be preferred for repositories with large and, possibly,"   NL
+"### incompressible files.  Note that the compression ratio of lz4 is"       NL
+"### usually lower than the one provided by zlib, but using it can"          NL
+"### significantly speed up commits as well as reading the data."            NL
+"### lz4 compression algorithm is supported, starting from format 8"         NL
+"### repositories, available in Subversion 1.10 and higher."                 NL
+"### The syntax of this option is:"                                          NL
+"###   " CONFIG_OPTION_COMPRESSION " = none | lz4 | zlib | zlib-1 ... zlib-9" NL
+"### Versions prior to Subversion 1.10 will ignore this option."             NL
+"### The default value is 'lz4' if supported by the repository format and"   NL
+"### 'zlib' otherwise.  'zlib' is currently equivalent to 'zlib-5'."         NL
+"# " CONFIG_OPTION_COMPRESSION " = lz4"                                      NL
+"###"                                                                        NL
+"### DEPRECATED: The new '" CONFIG_OPTION_COMPRESSION "' option deprecates previously used" NL
+"### '" CONFIG_OPTION_COMPRESSION_LEVEL "' option, which was used to configure zlib compression." NL
+"### For compatibility with previous versions of Subversion, this option can"NL
+"### still be used (and it will result in zlib compression with the"         NL
+"### corresponding compression level)."                                      NL
+"###   " CONFIG_OPTION_COMPRESSION_LEVEL " = 0 ... 9 (default is 5)"         NL
 ""                                                                           NL
 "[" CONFIG_SECTION_PACKED_REVPROPS "]"                                       NL
 "### This parameter controls the size (in kBytes) of packed revprop files."  NL
@@ -962,9 +1091,9 @@ write_config(svn_fs_t *fs,
 "### latency and CPU usage reading and changing individual revprops."        NL
 "### Values smaller than 4 kByte will not improve latency any further and "  NL
 "### quickly render revprop packing ineffective."                            NL
-"### revprop-pack-size is 4 kBytes by default for non-compressed revprop"    NL
-"### pack files and 16 kBytes when compression has been enabled."            NL
-"# " CONFIG_OPTION_REVPROP_PACK_SIZE " = 4"                                  NL
+"### revprop-pack-size is 16 kBytes by default for non-compressed revprop"   NL
+"### pack files and 64 kBytes when compression has been enabled."            NL
+"# " CONFIG_OPTION_REVPROP_PACK_SIZE " = 16"                                 NL
 "###"                                                                        NL
 "### To save disk space, packed revprop files may be compressed.  Standard"  NL
 "### revprops tend to allow for very effective compression.  Reading and"    NL
@@ -1018,6 +1147,13 @@ write_config(svn_fs_t *fs,
 "### Must be a power of 2."                                                  NL
 "### p2l-page-size is given in kBytes and with a default of 1024 kBytes."    NL
 "# " CONFIG_OPTION_P2L_PAGE_SIZE " = 1024"                                   NL
+""                                                                           NL
+"[" CONFIG_SECTION_DEBUG "]"                                                 NL
+"###"                                                                        NL
+"### Whether to verify each new revision immediately before finalizing"      NL
+"### the commit.  This is disabled by default except in maintainer-mode"     NL
+"### builds."                                                                NL
+"# " CONFIG_OPTION_VERIFY_BEFORE_COMMIT " = false"                           NL
 ;
 #undef NL
   return svn_io_file_create(svn_dirent_join(fs->path, PATH_CONFIG, pool),
@@ -1031,13 +1167,12 @@ read_global_config(svn_fs_t *fs)
 {
   fs_fs_data_t *ffd = fs->fsap_data;
 
-  /* Providing a config hash is optional. */
-  if (fs->config)
-    ffd->use_block_read = svn_hash__get_bool(fs->config,
-                                             SVN_FS_CONFIG_FSFS_BLOCK_READ,
-                                             FALSE);
-  else
-    ffd->use_block_read = FALSE;
+  ffd->use_block_read = svn_hash__get_bool(fs->config,
+                                           SVN_FS_CONFIG_FSFS_BLOCK_READ,
+                                           FALSE);
+  ffd->flush_to_disk = !svn_hash__get_bool(fs->config,
+                                           SVN_FS_CONFIG_NO_FLUSH_TO_DISK,
+                                           FALSE);
 
   /* Ignore the user-specified larger block size if we don't use block-read.
      Defaulting to 4k gives us the same access granularity in format 7 as in
@@ -1126,7 +1261,9 @@ svn_fs_fs__open(svn_fs_t *fs, const char *path, apr_pool_t *pool)
   /* Global configuration options. */
   SVN_ERR(read_global_config(fs));
 
-  return get_youngest(&(ffd->youngest_rev_cache), fs, pool);
+  ffd->youngest_rev_cache = 0;
+
+  return SVN_NO_ERROR;
 }
 
 /* Wrapper around svn_io_file_create which ignores EEXIST. */
@@ -1333,7 +1470,10 @@ svn_fs_fs__min_unpacked_rev(svn_revnum_t *min_unpacked,
 {
   fs_fs_data_t *ffd = fs->fsap_data;
 
-  SVN_ERR(svn_fs_fs__update_min_unpacked_rev(fs, pool));
+  /* Calling this for pre-v4 repos is illegal. */
+  if (ffd->format >= SVN_FS_FS__MIN_PACKED_FORMAT)
+    SVN_ERR(svn_fs_fs__update_min_unpacked_rev(fs, pool));
+
   *min_unpacked = ffd->min_unpacked_rev;
 
   return SVN_NO_ERROR;
@@ -1377,38 +1517,9 @@ svn_fs_fs__file_length(svn_filesize_t *length,
       /* Treat "no representation" as "empty file". */
       *length = 0;
     }
-  else if (data_rep->expanded_size)
-    {
-      /* Standard case: a non-empty file. */
-      *length = data_rep->expanded_size;
-    }
   else
     {
-      /* Work around a FSFS format quirk (see issue #4554).
-
-         A plain representation may specify its EXPANDED LENGTH as "0"
-         in which case, the SIZE value is what we want.
-
-         Because EXPANDED_LENGTH will also be 0 for empty files, while
-         SIZE is non-null, we need to check wether the content is
-         actually empty.  We simply compare with the MD5 checksum of
-         empty content (sha-1 is not always available).
-       */
-      svn_checksum_t *empty_md5
-        = svn_checksum_empty_checksum(svn_checksum_md5, pool);
-
-      if (memcmp(empty_md5->digest, data_rep->md5_digest,
-                 sizeof(data_rep->md5_digest)))
-        {
-          /* Contents is not empty, i.e. EXPANDED_LENGTH cannot be the
-             actual file length. */
-          *length = data_rep->size;
-        }
-      else
-        {
-          /* Contents is empty. */
-          *length = 0;
-        }
+      *length = data_rep->expanded_size;
     }
 
   return SVN_NO_ERROR;
@@ -1443,8 +1554,8 @@ svn_fs_fs__file_text_rep_equal(svn_boolean_t *equal,
   svn_stream_t *contents_a, *contents_b;
   representation_t *rep_a = a->data_rep;
   representation_t *rep_b = b->data_rep;
-  svn_boolean_t a_empty = !rep_a;
-  svn_boolean_t b_empty = !rep_b;
+  svn_boolean_t a_empty = !rep_a || rep_a->expanded_size == 0;
+  svn_boolean_t b_empty = !rep_b || rep_b->expanded_size == 0;
 
   /* This makes sure that neither rep will be NULL later on */
   if (a_empty && b_empty)
@@ -1453,35 +1564,33 @@ svn_fs_fs__file_text_rep_equal(svn_boolean_t *equal,
       return SVN_NO_ERROR;
     }
 
+  if (a_empty != b_empty)
+    {
+      *equal = FALSE;
+      return SVN_NO_ERROR;
+    }
+
+  /* File text representations always know their checksums - even in a txn. */
+  if (memcmp(rep_a->md5_digest, rep_b->md5_digest, sizeof(rep_a->md5_digest)))
+    {
+      *equal = FALSE;
+      return SVN_NO_ERROR;
+    }
+
+  /* Paranoia. Compare SHA1 checksums because that's the level of
+     confidence we require for e.g. the working copy. */
+  if (rep_a->has_sha1 && rep_b->has_sha1)
+    {
+      *equal = memcmp(rep_a->sha1_digest, rep_b->sha1_digest,
+                      sizeof(rep_a->sha1_digest)) == 0;
+      return SVN_NO_ERROR;
+    }
+
   /* Same path in same rev or txn? */
   if (svn_fs_fs__id_eq(a->id, b->id))
     {
       *equal = TRUE;
       return SVN_NO_ERROR;
-    }
-
-  /* Beware of the combination NULL rep and possibly empty rep.
-   * Due to EXPANDED_SIZE not being reliable, we can't easily detect empty
-   * reps. So, we can only take further shortcuts if both reps are given. */
-  if (!a_empty && !b_empty)
-    {
-      /* File text representations always know their checksums -
-       * even in a txn. */
-      if (memcmp(rep_a->md5_digest, rep_b->md5_digest,
-                 sizeof(rep_a->md5_digest)))
-        {
-          *equal = FALSE;
-          return SVN_NO_ERROR;
-        }
-
-      /* Paranoia. Compare SHA1 checksums because that's the level of
-         confidence we require for e.g. the working copy. */
-      if (rep_a->has_sha1 && rep_b->has_sha1)
-        {
-          *equal = memcmp(rep_a->sha1_digest, rep_b->sha1_digest,
-                          sizeof(rep_a->sha1_digest)) == 0;
-          return SVN_NO_ERROR;
-        }
     }
 
   SVN_ERR(svn_fs_fs__get_contents(&contents_a, fs, rep_a, TRUE,
@@ -1518,14 +1627,27 @@ svn_fs_fs__prop_rep_equal(svn_boolean_t *equal,
       && !svn_fs_fs__id_txn_used(&rep_a->txn_id)
       && !svn_fs_fs__id_txn_used(&rep_b->txn_id))
     {
-      /* MD5 must be given. Having the same checksum is good enough for
-         accepting the prop lists as equal. */
-      *equal = memcmp(rep_a->md5_digest, rep_b->md5_digest,
-                      sizeof(rep_a->md5_digest)) == 0;
-      return SVN_NO_ERROR;
+      /* Same representation? */
+      if (   (rep_a->revision == rep_b->revision)
+          && (rep_a->item_index == rep_b->item_index))
+        {
+          *equal = TRUE;
+          return SVN_NO_ERROR;
+        }
+
+      /* Known different content? MD5 must be given. */
+      if (memcmp(rep_a->md5_digest, rep_b->md5_digest,
+                 sizeof(rep_a->md5_digest)))
+        {
+          *equal = FALSE;
+          return SVN_NO_ERROR;
+        }
     }
 
-  /* Same path in same txn? */
+  /* Same path in same txn?
+   *
+   * For committed reps, IDs cannot be the same here b/c we already know
+   * that they point to different representations. */
   if (svn_fs_fs__id_eq(a->id, b->id))
     {
       *equal = TRUE;
@@ -1826,6 +1948,8 @@ svn_fs_fs__create(svn_fs_t *fs,
 
           case 8: format = 6;
                   break;
+          case 9: format = 7;
+                  break;
 
           default:format = SVN_FS_FS__FORMAT_NUMBER;
         }
@@ -1882,9 +2006,9 @@ svn_fs_fs__set_uuid(svn_fs_t *fs,
 
   /* We use the permissions of the 'current' file, because the 'uuid'
      file does not exist during repository creation. */
-  SVN_ERR(svn_io_write_atomic(uuid_path, contents->data, contents->len,
-                              svn_fs_fs__path_current(fs, pool) /* perms */,
-                              pool));
+  SVN_ERR(svn_io_write_atomic2(uuid_path, contents->data, contents->len,
+                               svn_fs_fs__path_current(fs, pool) /* perms */,
+                               ffd->flush_to_disk, pool));
 
   fs->uuid = apr_pstrdup(fs->pool, uuid);
 
@@ -2035,7 +2159,7 @@ set_node_origins_for_file(svn_fs_t *fs,
   SVN_ERR(svn_stream_close(stream));
 
   /* Rename the temp file as the real destination */
-  return svn_io_file_rename(path_tmp, node_origins_path, pool);
+  return svn_io_file_rename2(path_tmp, node_origins_path, FALSE, pool);
 }
 
 
@@ -2070,14 +2194,17 @@ svn_fs_fs__revision_prop(svn_string_t **value_p,
                          svn_fs_t *fs,
                          svn_revnum_t rev,
                          const char *propname,
-                         apr_pool_t *pool)
+                         svn_boolean_t refresh,
+                         apr_pool_t *result_pool,
+                         apr_pool_t *scratch_pool)
 {
   apr_hash_t *table;
 
   SVN_ERR(svn_fs__check_fs(fs, TRUE));
-  SVN_ERR(svn_fs_fs__get_revision_proplist(&table, fs, rev, pool));
+  SVN_ERR(svn_fs_fs__get_revision_proplist(&table, fs, rev, refresh,
+                                           scratch_pool, scratch_pool));
 
-  *value_p = svn_hash_gets(table, propname);
+  *value_p = svn_string_dup(svn_hash_gets(table, propname), result_pool);
 
   return SVN_NO_ERROR;
 }
@@ -2100,13 +2227,17 @@ change_rev_prop_body(void *baton, apr_pool_t *pool)
 {
   struct change_rev_prop_baton *cb = baton;
   apr_hash_t *table;
+  const svn_string_t *present_value;
 
-  SVN_ERR(svn_fs_fs__get_revision_proplist(&table, cb->fs, cb->rev, pool));
+  /* We always need to read the current revprops from disk.
+   * Hence, always "refresh" here. */
+  SVN_ERR(svn_fs_fs__get_revision_proplist(&table, cb->fs, cb->rev, TRUE,
+                                           pool, pool));
+  present_value = svn_hash_gets(table, cb->name);
 
   if (cb->old_value_p)
     {
       const svn_string_t *wanted_value = *cb->old_value_p;
-      const svn_string_t *present_value = svn_hash_gets(table, cb->name);
       if ((!wanted_value != !present_value)
           || (wanted_value && present_value
               && !svn_string_compare(wanted_value, present_value)))
@@ -2119,6 +2250,13 @@ change_rev_prop_body(void *baton, apr_pool_t *pool)
         }
       /* Fall through. */
     }
+
+  /* If the prop-set is a no-op, skip the actual write. */
+  if ((!present_value && !cb->value)
+      || (present_value && cb->value
+          && svn_string_compare(present_value, cb->value)))
+    return SVN_NO_ERROR;
+
   svn_hash_sets(table, cb->name, cb->value);
 
   return svn_fs_fs__set_revision_proplist(cb->fs, cb->rev, table, pool);
@@ -2181,8 +2319,11 @@ svn_fs_fs__info_format(int *fs_format,
     case 7:
       (*supports_version)->minor = 9;
       break;
+    case 8:
+      (*supports_version)->minor = 10;
+      break;
 #ifdef SVN_DEBUG
-# if SVN_FS_FS__FORMAT_NUMBER != 7
+# if SVN_FS_FS__FORMAT_NUMBER != 8
 #  error "Need to add a 'case' statement here"
 # endif
 #endif

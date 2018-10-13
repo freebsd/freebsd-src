@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #ifndef __ACRESTYP_H__
 #define __ACRESTYP_H__
@@ -326,6 +434,13 @@ typedef union acpi_resource_attribute
     UINT8                           TypeSpecific;
 
 } ACPI_RESOURCE_ATTRIBUTE;
+
+typedef struct acpi_resource_label
+{
+    UINT16                          StringLength;
+    char                            *StringPtr;
+
+} ACPI_RESOURCE_LABEL;
 
 typedef struct acpi_resource_source
 {
@@ -617,6 +732,90 @@ typedef struct acpi_resource_uart_serialbus
 #define ACPI_UART_CLEAR_TO_SEND                 (1<<6)
 #define ACPI_UART_REQUEST_TO_SEND               (1<<7)
 
+typedef struct acpi_resource_pin_function
+{
+    UINT8                           RevisionId;
+    UINT8                           PinConfig;
+    UINT8                           Sharable;           /* For values, see Interrupt Attributes above */
+    UINT16                          FunctionNumber;
+    UINT16                          PinTableLength;
+    UINT16                          VendorLength;
+    ACPI_RESOURCE_SOURCE            ResourceSource;
+    UINT16                          *PinTable;
+    UINT8                           *VendorData;
+
+} ACPI_RESOURCE_PIN_FUNCTION;
+
+typedef struct acpi_resource_pin_config
+{
+    UINT8                           RevisionId;
+    UINT8                           ProducerConsumer;   /* For values, see Producer/Consumer above */
+    UINT8                           Sharable;           /* For values, see Interrupt Attributes above */
+    UINT8                           PinConfigType;
+    UINT32                          PinConfigValue;
+    UINT16                          PinTableLength;
+    UINT16                          VendorLength;
+    ACPI_RESOURCE_SOURCE            ResourceSource;
+    UINT16                          *PinTable;
+    UINT8                           *VendorData;
+
+} ACPI_RESOURCE_PIN_CONFIG;
+
+/* Values for PinConfigType field above */
+
+#define ACPI_PIN_CONFIG_DEFAULT                 0
+#define ACPI_PIN_CONFIG_BIAS_PULL_UP            1
+#define ACPI_PIN_CONFIG_BIAS_PULL_DOWN          2
+#define ACPI_PIN_CONFIG_BIAS_DEFAULT            3
+#define ACPI_PIN_CONFIG_BIAS_DISABLE            4
+#define ACPI_PIN_CONFIG_BIAS_HIGH_IMPEDANCE     5
+#define ACPI_PIN_CONFIG_BIAS_BUS_HOLD           6
+#define ACPI_PIN_CONFIG_DRIVE_OPEN_DRAIN        7
+#define ACPI_PIN_CONFIG_DRIVE_OPEN_SOURCE       8
+#define ACPI_PIN_CONFIG_DRIVE_PUSH_PULL         9
+#define ACPI_PIN_CONFIG_DRIVE_STRENGTH          10
+#define ACPI_PIN_CONFIG_SLEW_RATE               11
+#define ACPI_PIN_CONFIG_INPUT_DEBOUNCE          12
+#define ACPI_PIN_CONFIG_INPUT_SCHMITT_TRIGGER   13
+
+typedef struct acpi_resource_pin_group
+{
+    UINT8                           RevisionId;
+    UINT8                           ProducerConsumer;   /* For values, see Producer/Consumer above */
+    UINT16                          PinTableLength;
+    UINT16                          VendorLength;
+    UINT16                          *PinTable;
+    ACPI_RESOURCE_LABEL             ResourceLabel;
+    UINT8                           *VendorData;
+
+} ACPI_RESOURCE_PIN_GROUP;
+
+typedef struct acpi_resource_pin_group_function
+{
+    UINT8                           RevisionId;
+    UINT8                           ProducerConsumer;   /* For values, see Producer/Consumer above */
+    UINT8                           Sharable;           /* For values, see Interrupt Attributes above */
+    UINT16                          FunctionNumber;
+    UINT16                          VendorLength;
+    ACPI_RESOURCE_SOURCE            ResourceSource;
+    ACPI_RESOURCE_LABEL             ResourceSourceLabel;
+    UINT8                           *VendorData;
+
+} ACPI_RESOURCE_PIN_GROUP_FUNCTION;
+
+typedef struct acpi_resource_pin_group_config
+{
+    UINT8                           RevisionId;
+    UINT8                           ProducerConsumer;   /* For values, see Producer/Consumer above */
+    UINT8                           Sharable;           /* For values, see Interrupt Attributes above */
+    UINT8                           PinConfigType;      /* For values, see PinConfigType above */
+    UINT32                          PinConfigValue;
+    UINT16                          VendorLength;
+    ACPI_RESOURCE_SOURCE            ResourceSource;
+    ACPI_RESOURCE_LABEL             ResourceSourceLabel;
+    UINT8                           *VendorData;
+
+} ACPI_RESOURCE_PIN_GROUP_CONFIG;
 
 /* ACPI_RESOURCE_TYPEs */
 
@@ -640,7 +839,12 @@ typedef struct acpi_resource_uart_serialbus
 #define ACPI_RESOURCE_TYPE_GPIO                 17  /* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_FIXED_DMA            18  /* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_SERIAL_BUS           19  /* ACPI 5.0 */
-#define ACPI_RESOURCE_TYPE_MAX                  19
+#define ACPI_RESOURCE_TYPE_PIN_FUNCTION         20  /* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_CONFIG           21  /* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_GROUP            22  /* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION   23  /* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG     24  /* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_MAX                  24
 
 /* Master union for resource descriptors */
 
@@ -669,6 +873,11 @@ typedef union acpi_resource_data
     ACPI_RESOURCE_SPI_SERIALBUS             SpiSerialBus;
     ACPI_RESOURCE_UART_SERIALBUS            UartSerialBus;
     ACPI_RESOURCE_COMMON_SERIALBUS          CommonSerialBus;
+    ACPI_RESOURCE_PIN_FUNCTION              PinFunction;
+    ACPI_RESOURCE_PIN_CONFIG                PinConfig;
+    ACPI_RESOURCE_PIN_GROUP                 PinGroup;
+    ACPI_RESOURCE_PIN_GROUP_FUNCTION        PinGroupFunction;
+    ACPI_RESOURCE_PIN_GROUP_CONFIG          PinGroupConfig;
 
     /* Common fields */
 

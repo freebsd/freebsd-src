@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -434,7 +436,7 @@ gr_addgid(gid_t gid, gid_t *groups, int maxgrp, int *grpcnt)
 {
 	int     ret, dupc;
 
-	for (dupc = 0; dupc < MIN(maxgrp, *grpcnt); dupc++) {
+	for (dupc = 1; dupc < MIN(maxgrp, *grpcnt); dupc++) {
 		if (groups[dupc] == gid)
 			return 1;
 	}
@@ -533,12 +535,10 @@ out:
 	return (rv);
 }
 
-/* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
-int				
+void
 setgrent(void)
 {
 	(void)_nsdispatch(NULL, setgrent_dtab, NSDB_GROUP, "setgrent", defaultsrc, 0);
-	return (1);
 }
 
 

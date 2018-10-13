@@ -1,4 +1,4 @@
-//===-- llvm-stress.cpp - Generate random LL files to stress-test LLVM ----===//
+//===- llvm-stress.cpp - Generate random LL files to stress-test LLVM -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,45 +12,69 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/CallGraphSCCPass.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassNameParser.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Verifier.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
-#include <set>
-#include <sstream>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <system_error>
 #include <vector>
 
 namespace llvm {
 
 static cl::opt<unsigned> SeedCL("seed",
   cl::desc("Seed used for randomness"), cl::init(0));
+
 static cl::opt<unsigned> SizeCL("size",
   cl::desc("The estimated size of the generated function (# of instrs)"),
   cl::init(100));
+
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Override output filename"),
                cl::value_desc("filename"));
 
+static LLVMContext Context;
+
 namespace cl {
+
 template <> class parser<Type*> final : public basic_parser<Type*> {
 public:
   parser(Option &O) : basic_parser(O) {}
 
   // Parse options as IR types. Return true on error.
   bool parse(Option &O, StringRef, StringRef Arg, Type *&Value) {
-    auto &Context = getGlobalContext();
     if      (Arg == "half")      Value = Type::getHalfTy(Context);
     else if (Arg == "fp128")     Value = Type::getFP128Ty(Context);
     else if (Arg == "x86_fp80")  Value = Type::getX86_FP80Ty(Context);
@@ -68,16 +92,17 @@ public:
     return false;
   }
 
-  const char *getValueName() const override { return "IR scalar type"; }
+  StringRef getValueName() const override { return "IR scalar type"; }
 };
-}
 
+} // end namespace cl
 
 static cl::list<Type*> AdditionalScalarTypes("types", cl::CommaSeparated,
   cl::desc("Additional IR scalar types "
            "(always includes i1, i8, i16, i32, i64, float and double)"));
 
 namespace {
+
 /// A utility class to provide a pseudo-random number generator which is
 /// the same across all platforms. This is somewhat close to the libc
 /// implementation. Note: This is not a cryptographically secure pseudorandom
@@ -96,22 +121,30 @@ public:
     return Seed & 0x7ffff;
   }
 
-  /// Return a random 32 bit integer.
-  uint32_t Rand32() {
-    uint32_t Val = Rand();
-    Val &= 0xffff;
-    return Val | (Rand() << 16);
-  }
-
   /// Return a random 64 bit integer.
   uint64_t Rand64() {
-    uint64_t Val = Rand32();
-    return Val | (uint64_t(Rand32()) << 32);
+    uint64_t Val = Rand() & 0xffff;
+    Val |= uint64_t(Rand() & 0xffff) << 16;
+    Val |= uint64_t(Rand() & 0xffff) << 32;
+    Val |= uint64_t(Rand() & 0xffff) << 48;
+    return Val;
   }
 
   /// Rand operator for STL algorithms.
   ptrdiff_t operator()(ptrdiff_t y) {
     return  Rand64() % y;
+  }
+
+  /// Make this like a C++11 random device
+  using result_type = uint32_t ;
+
+  static constexpr result_type min() { return 0; }
+  static constexpr result_type max() { return 0x7ffff; }
+
+  uint32_t operator()() {
+    uint32_t Val = Rand();
+    assert(Val <= max() && "Random value out of range");
+    return Val;
   }
 
 private:
@@ -143,18 +176,19 @@ Function *GenEmptyFunction(Module *M) {
 /// modifying and adding new random instructions.
 struct Modifier {
   /// Used to store the randomly generated values.
-  typedef std::vector<Value*> PieceTable;
+  using PieceTable = std::vector<Value *>;
 
 public:
   /// C'tor
-  Modifier(BasicBlock *Block, PieceTable *PT, Random *R):
-    BB(Block),PT(PT),Ran(R),Context(BB->getContext()) {}
+  Modifier(BasicBlock *Block, PieceTable *PT, Random *R)
+      : BB(Block), PT(PT), Ran(R), Context(BB->getContext()) {}
 
   /// virtual D'tor to silence warnings.
-  virtual ~Modifier() {}
+  virtual ~Modifier() = default;
 
   /// Add a new instruction.
   virtual void Act() = 0;
+
   /// Add N new instructions,
   virtual void ActN(unsigned n) {
     for (unsigned i=0; i<n; ++i)
@@ -162,19 +196,24 @@ public:
   }
 
 protected:
+  /// Return a random integer.
+  uint32_t getRandom() {
+    return Ran->Rand();
+  }
+
   /// Return a random value from the list of known values.
   Value *getRandomVal() {
     assert(PT->size());
-    return PT->at(Ran->Rand() % PT->size());
+    return PT->at(getRandom() % PT->size());
   }
 
   Constant *getRandomConstant(Type *Tp) {
     if (Tp->isIntegerTy()) {
-      if (Ran->Rand() & 1)
+      if (getRandom() & 1)
         return ConstantInt::getAllOnesValue(Tp);
       return ConstantInt::getNullValue(Tp);
     } else if (Tp->isFloatingPointTy()) {
-      if (Ran->Rand() & 1)
+      if (getRandom() & 1)
         return ConstantFP::getAllOnesValue(Tp);
       return ConstantFP::getNullValue(Tp);
     }
@@ -183,7 +222,7 @@ protected:
 
   /// Return a random value with a known type.
   Value *getRandomValue(Type *Tp) {
-    unsigned index = Ran->Rand();
+    unsigned index = getRandom();
     for (unsigned i=0; i<PT->size(); ++i) {
       Value *V = PT->at((index + i) % PT->size());
       if (V->getType() == Tp)
@@ -192,11 +231,11 @@ protected:
 
     // If the requested type was not found, generate a constant value.
     if (Tp->isIntegerTy()) {
-      if (Ran->Rand() & 1)
+      if (getRandom() & 1)
         return ConstantInt::getAllOnesValue(Tp);
       return ConstantInt::getNullValue(Tp);
     } else if (Tp->isFloatingPointTy()) {
-      if (Ran->Rand() & 1)
+      if (getRandom() & 1)
         return ConstantFP::getAllOnesValue(Tp);
       return ConstantFP::getNullValue(Tp);
     } else if (Tp->isVectorTy()) {
@@ -216,7 +255,7 @@ protected:
 
   /// Return a random value of any pointer type.
   Value *getRandomPointerValue() {
-    unsigned index = Ran->Rand();
+    unsigned index = getRandom();
     for (unsigned i=0; i<PT->size(); ++i) {
       Value *V = PT->at((index + i) % PT->size());
       if (V->getType()->isPointerTy())
@@ -227,7 +266,7 @@ protected:
 
   /// Return a random value of any vector type.
   Value *getRandomVectorValue() {
-    unsigned index = Ran->Rand();
+    unsigned index = getRandom();
     for (unsigned i=0; i<PT->size(); ++i) {
       Value *V = PT->at((index + i) % PT->size());
       if (V->getType()->isVectorTy())
@@ -238,7 +277,7 @@ protected:
 
   /// Pick a random type.
   Type *pickType() {
-    return (Ran->Rand() & 1 ? pickVectorType() : pickScalarType());
+    return (getRandom() & 1 ? pickVectorType() : pickScalarType());
   }
 
   /// Pick a random pointer type.
@@ -252,7 +291,7 @@ protected:
     // Pick a random vector width in the range 2**0 to 2**4.
     // by adding two randoms we are generating a normal-like distribution
     // around 2**3.
-    unsigned width = 1<<((Ran->Rand() % 3) + (Ran->Rand() % 3));
+    unsigned width = 1<<((getRandom() % 3) + (getRandom() % 3));
     Type *Ty;
 
     // Vectors of x86mmx are illegal; keep trying till we get something else.
@@ -282,21 +321,26 @@ protected:
         AdditionalScalarTypes.begin(), AdditionalScalarTypes.end());
     }
 
-    return ScalarTypes[Ran->Rand() % ScalarTypes.size()];
+    return ScalarTypes[getRandom() % ScalarTypes.size()];
   }
 
   /// Basic block to populate
   BasicBlock *BB;
+
   /// Value table
   PieceTable *PT;
+
   /// Random number generator
   Random *Ran;
+
   /// Context
   LLVMContext &Context;
 };
 
 struct LoadModifier: public Modifier {
-  LoadModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
+  LoadModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
+
   void Act() override {
     // Try to use predefined pointers. If non-exist, use undef pointer value;
     Value *Ptr = getRandomPointerValue();
@@ -306,7 +350,9 @@ struct LoadModifier: public Modifier {
 };
 
 struct StoreModifier: public Modifier {
-  StoreModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
+  StoreModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
+
   void Act() override {
     // Try to use predefined pointers. If non-exist, use undef pointer value;
     Value *Ptr = getRandomPointerValue();
@@ -324,7 +370,8 @@ struct StoreModifier: public Modifier {
 };
 
 struct BinModifier: public Modifier {
-  BinModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
+  BinModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
   void Act() override {
     Value *Val0 = getRandomVal();
@@ -339,10 +386,9 @@ struct BinModifier: public Modifier {
     if (Val0->getType()->getScalarSizeInBits() == 1)
       return;
 
-
     bool isFloat = Val0->getType()->getScalarType()->isFloatingPointTy();
     Instruction* Term = BB->getTerminator();
-    unsigned R = Ran->Rand() % (isFloat ? 7 : 13);
+    unsigned R = getRandom() % (isFloat ? 7 : 13);
     Instruction::BinaryOps Op;
 
     switch (R) {
@@ -368,15 +414,18 @@ struct BinModifier: public Modifier {
 
 /// Generate constant values.
 struct ConstModifier: public Modifier {
-  ConstModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
+  ConstModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
+
   void Act() override {
     Type *Ty = pickType();
 
     if (Ty->isVectorTy()) {
-      switch (Ran->Rand() % 2) {
-      case 0: if (Ty->getScalarType()->isIntegerTy())
+      switch (getRandom() % 2) {
+      case 0: if (Ty->isIntOrIntVectorTy())
                 return PT->push_back(ConstantVector::getAllOnesValue(Ty));
-      case 1: if (Ty->getScalarType()->isIntegerTy())
+              break;
+      case 1: if (Ty->isIntOrIntVectorTy())
                 return PT->push_back(ConstantVector::getNullValue(Ty));
       }
     }
@@ -391,55 +440,61 @@ struct ConstModifier: public Modifier {
       APInt RandomInt(Ty->getPrimitiveSizeInBits(), makeArrayRef(RandomBits));
       APFloat RandomFloat(Ty->getFltSemantics(), RandomInt);
 
-      if (Ran->Rand() & 1)
+      if (getRandom() & 1)
         return PT->push_back(ConstantFP::getNullValue(Ty));
       return PT->push_back(ConstantFP::get(Ty->getContext(), RandomFloat));
     }
 
     if (Ty->isIntegerTy()) {
-      switch (Ran->Rand() % 7) {
-      case 0: if (Ty->isIntegerTy())
-                return PT->push_back(ConstantInt::get(Ty,
-                  APInt::getAllOnesValue(Ty->getPrimitiveSizeInBits())));
-      case 1: if (Ty->isIntegerTy())
-                return PT->push_back(ConstantInt::get(Ty,
-                  APInt::getNullValue(Ty->getPrimitiveSizeInBits())));
-      case 2: case 3: case 4: case 5:
-      case 6: if (Ty->isIntegerTy())
-                PT->push_back(ConstantInt::get(Ty, Ran->Rand()));
+      switch (getRandom() % 7) {
+      case 0:
+        return PT->push_back(ConstantInt::get(
+            Ty, APInt::getAllOnesValue(Ty->getPrimitiveSizeInBits())));
+      case 1:
+        return PT->push_back(ConstantInt::get(
+            Ty, APInt::getNullValue(Ty->getPrimitiveSizeInBits())));
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+        PT->push_back(ConstantInt::get(Ty, getRandom()));
       }
     }
-
   }
 };
 
 struct AllocaModifier: public Modifier {
-  AllocaModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R){}
+  AllocaModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
   void Act() override {
     Type *Tp = pickType();
-    PT->push_back(new AllocaInst(Tp, "A", BB->getFirstNonPHI()));
+    const DataLayout &DL = BB->getModule()->getDataLayout();
+    PT->push_back(new AllocaInst(Tp, DL.getAllocaAddrSpace(),
+                                 "A", BB->getFirstNonPHI()));
   }
 };
 
 struct ExtractElementModifier: public Modifier {
-  ExtractElementModifier(BasicBlock *BB, PieceTable *PT, Random *R):
-    Modifier(BB, PT, R) {}
+  ExtractElementModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
   void Act() override {
     Value *Val0 = getRandomVectorValue();
     Value *V = ExtractElementInst::Create(Val0,
              ConstantInt::get(Type::getInt32Ty(BB->getContext()),
-             Ran->Rand() % cast<VectorType>(Val0->getType())->getNumElements()),
+             getRandom() % cast<VectorType>(Val0->getType())->getNumElements()),
              "E", BB->getTerminator());
     return PT->push_back(V);
   }
 };
 
 struct ShuffModifier: public Modifier {
-  ShuffModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  void Act() override {
+  ShuffModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
+  void Act() override {
     Value *Val0 = getRandomVectorValue();
     Value *Val1 = getRandomValue(Val0->getType());
 
@@ -448,9 +503,9 @@ struct ShuffModifier: public Modifier {
 
     Type *I32 = Type::getInt32Ty(BB->getContext());
     for (unsigned i=0; i<Width; ++i) {
-      Constant *CI = ConstantInt::get(I32, Ran->Rand() % (Width*2));
+      Constant *CI = ConstantInt::get(I32, getRandom() % (Width*2));
       // Pick some undef values.
-      if (!(Ran->Rand() % 5))
+      if (!(getRandom() % 5))
         CI = UndefValue::get(I32);
       Idxs.push_back(CI);
     }
@@ -464,8 +519,8 @@ struct ShuffModifier: public Modifier {
 };
 
 struct InsertElementModifier: public Modifier {
-  InsertElementModifier(BasicBlock *BB, PieceTable *PT, Random *R):
-    Modifier(BB, PT, R) {}
+  InsertElementModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
   void Act() override {
     Value *Val0 = getRandomVectorValue();
@@ -473,17 +528,17 @@ struct InsertElementModifier: public Modifier {
 
     Value *V = InsertElementInst::Create(Val0, Val1,
               ConstantInt::get(Type::getInt32Ty(BB->getContext()),
-              Ran->Rand() % cast<VectorType>(Val0->getType())->getNumElements()),
+              getRandom() % cast<VectorType>(Val0->getType())->getNumElements()),
               "I",  BB->getTerminator());
     return PT->push_back(V);
   }
-
 };
 
 struct CastModifier: public Modifier {
-  CastModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  void Act() override {
+  CastModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
+  void Act() override {
     Value *V = getRandomVal();
     Type *VTy = V->getType();
     Type *DestTy = pickScalarType();
@@ -509,20 +564,19 @@ struct CastModifier: public Modifier {
     unsigned DestSize = DestTy->getScalarType()->getPrimitiveSizeInBits();
 
     // Generate lots of bitcasts.
-    if ((Ran->Rand() & 1) && VSize == DestSize) {
+    if ((getRandom() & 1) && VSize == DestSize) {
       return PT->push_back(
         new BitCastInst(V, DestTy, "BC", BB->getTerminator()));
     }
 
     // Both types are integers:
-    if (VTy->getScalarType()->isIntegerTy() &&
-        DestTy->getScalarType()->isIntegerTy()) {
+    if (VTy->isIntOrIntVectorTy() && DestTy->isIntOrIntVectorTy()) {
       if (VSize > DestSize) {
         return PT->push_back(
           new TruncInst(V, DestTy, "Tr", BB->getTerminator()));
       } else {
         assert(VSize < DestSize && "Different int types with the same size?");
-        if (Ran->Rand() & 1)
+        if (getRandom() & 1)
           return PT->push_back(
             new ZExtInst(V, DestTy, "ZE", BB->getTerminator()));
         return PT->push_back(new SExtInst(V, DestTy, "Se", BB->getTerminator()));
@@ -530,27 +584,23 @@ struct CastModifier: public Modifier {
     }
 
     // Fp to int.
-    if (VTy->getScalarType()->isFloatingPointTy() &&
-        DestTy->getScalarType()->isIntegerTy()) {
-      if (Ran->Rand() & 1)
+    if (VTy->isFPOrFPVectorTy() && DestTy->isIntOrIntVectorTy()) {
+      if (getRandom() & 1)
         return PT->push_back(
           new FPToSIInst(V, DestTy, "FC", BB->getTerminator()));
       return PT->push_back(new FPToUIInst(V, DestTy, "FC", BB->getTerminator()));
     }
 
     // Int to fp.
-    if (VTy->getScalarType()->isIntegerTy() &&
-        DestTy->getScalarType()->isFloatingPointTy()) {
-      if (Ran->Rand() & 1)
+    if (VTy->isIntOrIntVectorTy() && DestTy->isFPOrFPVectorTy()) {
+      if (getRandom() & 1)
         return PT->push_back(
           new SIToFPInst(V, DestTy, "FC", BB->getTerminator()));
       return PT->push_back(new UIToFPInst(V, DestTy, "FC", BB->getTerminator()));
-
     }
 
     // Both floats.
-    if (VTy->getScalarType()->isFloatingPointTy() &&
-        DestTy->getScalarType()->isFloatingPointTy()) {
+    if (VTy->isFPOrFPVectorTy() && DestTy->isFPOrFPVectorTy()) {
       if (VSize > DestSize) {
         return PT->push_back(
           new FPTruncInst(V, DestTy, "Tr", BB->getTerminator()));
@@ -562,38 +612,37 @@ struct CastModifier: public Modifier {
       // for which there is no defined conversion. So do nothing.
     }
   }
-
 };
 
 struct SelectModifier: public Modifier {
-  SelectModifier(BasicBlock *BB, PieceTable *PT, Random *R):
-    Modifier(BB, PT, R) {}
+  SelectModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
   void Act() override {
     // Try a bunch of different select configuration until a valid one is found.
-      Value *Val0 = getRandomVal();
-      Value *Val1 = getRandomValue(Val0->getType());
+    Value *Val0 = getRandomVal();
+    Value *Val1 = getRandomValue(Val0->getType());
 
-      Type *CondTy = Type::getInt1Ty(Context);
+    Type *CondTy = Type::getInt1Ty(Context);
 
-      // If the value type is a vector, and we allow vector select, then in 50%
-      // of the cases generate a vector select.
-      if (Val0->getType()->isVectorTy() && (Ran->Rand() % 1)) {
-        unsigned NumElem = cast<VectorType>(Val0->getType())->getNumElements();
-        CondTy = VectorType::get(CondTy, NumElem);
-      }
+    // If the value type is a vector, and we allow vector select, then in 50%
+    // of the cases generate a vector select.
+    if (Val0->getType()->isVectorTy() && (getRandom() % 1)) {
+      unsigned NumElem = cast<VectorType>(Val0->getType())->getNumElements();
+      CondTy = VectorType::get(CondTy, NumElem);
+    }
 
-      Value *Cond = getRandomValue(CondTy);
-      Value *V = SelectInst::Create(Cond, Val0, Val1, "Sl", BB->getTerminator());
-      return PT->push_back(V);
+    Value *Cond = getRandomValue(CondTy);
+    Value *V = SelectInst::Create(Cond, Val0, Val1, "Sl", BB->getTerminator());
+    return PT->push_back(V);
   }
 };
 
-
 struct CmpModifier: public Modifier {
-  CmpModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  void Act() override {
+  CmpModifier(BasicBlock *BB, PieceTable *PT, Random *R)
+      : Modifier(BB, PT, R) {}
 
+  void Act() override {
     Value *Val0 = getRandomVal();
     Value *Val1 = getRandomValue(Val0->getType());
 
@@ -602,11 +651,11 @@ struct CmpModifier: public Modifier {
 
     int op;
     if (fp) {
-      op = Ran->Rand() %
+      op = getRandom() %
       (CmpInst::LAST_FCMP_PREDICATE - CmpInst::FIRST_FCMP_PREDICATE) +
        CmpInst::FIRST_FCMP_PREDICATE;
     } else {
-      op = Ran->Rand() %
+      op = getRandom() %
       (CmpInst::LAST_ICMP_PREDICATE - CmpInst::FIRST_ICMP_PREDICATE) +
        CmpInst::FIRST_ICMP_PREDICATE;
     }
@@ -663,7 +712,7 @@ static void IntroduceControlFlow(Function *F, Random &R) {
       BoolInst.push_back(&Instr);
   }
 
-  std::random_shuffle(BoolInst.begin(), BoolInst.end(), R);
+  std::shuffle(BoolInst.begin(), BoolInst.end(), R);
 
   for (auto *Instr : BoolInst) {
     BasicBlock *Curr = Instr->getParent();
@@ -677,7 +726,7 @@ static void IntroduceControlFlow(Function *F, Random &R) {
   }
 }
 
-}
+} // end namespace llvm
 
 int main(int argc, char **argv) {
   using namespace llvm;
@@ -687,7 +736,7 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "llvm codegen stress-tester\n");
   llvm_shutdown_obj Y;
 
-  auto M = make_unique<Module>("/tmp/autogen.bc", getGlobalContext());
+  auto M = llvm::make_unique<Module>("/tmp/autogen.bc", Context);
   Function *F = GenEmptyFunction(M.get());
 
   // Pick an initial seed value
@@ -698,13 +747,13 @@ int main(int argc, char **argv) {
   IntroduceControlFlow(F, R);
 
   // Figure out what stream we are supposed to write to...
-  std::unique_ptr<tool_output_file> Out;
+  std::unique_ptr<ToolOutputFile> Out;
   // Default to standard output.
   if (OutputFilename.empty())
     OutputFilename = "-";
 
   std::error_code EC;
-  Out.reset(new tool_output_file(OutputFilename, EC, sys::fs::F_None));
+  Out.reset(new ToolOutputFile(OutputFilename, EC, sys::fs::F_None));
   if (EC) {
     errs() << EC.message() << '\n';
     return 1;

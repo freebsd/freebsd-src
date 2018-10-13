@@ -15,20 +15,19 @@ WARNS?=		3
 # Ignore warnings about Solaris specific pragmas.
 IGNORE_PRAGMA=  YES
 
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzpool/common
-INCFLAGS+= -I${SRCDIR}/cddl/compat/opensolaris/include
-INCFLAGS+= -I${SRCDIR}/cddl/compat/opensolaris/lib/libumem
-INCFLAGS+= -I${SRCDIR}/sys/cddl/compat/opensolaris
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/head
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libuutil/common
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libumem/common
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzfs_core/common
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzfs/common
-INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libnvpair
-INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/common/zfs
-INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common
-INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common/sys
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
+INCFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
+INCFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
+INCFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libumem/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs_core/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
+INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
+INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
+INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 
 CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 

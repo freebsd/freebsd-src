@@ -57,7 +57,7 @@ linuxulator*:::return
 
 	@stats[probeprov, execname, probefunc] = quantize(this->timediff);
 	@longest[probeprov, probefunc] = max(this->timediff);
-	
+
 	self->time[probefunc] = 0;
 }
 

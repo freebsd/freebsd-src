@@ -20,4 +20,7 @@ extern int vflag; /* verbose flag */
 extern unsigned char *packetp;
 extern unsigned char *snapend;
 
-extern char *ipaddr_string(struct in_addr *);
+void	 bootp_print(struct bootp *bp, int length, u_short sport,
+	    u_short dport);
+char	*ipaddr_string(struct in_addr *);
+int	 printfn(u_char *s, u_char *ep);

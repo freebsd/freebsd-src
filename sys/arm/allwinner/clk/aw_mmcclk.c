@@ -77,6 +77,20 @@ struct aw_mmcclk_sc {
 	bus_addr_t	reg;
 };
 
+struct phase_clk {
+	uint64_t	freq;
+	int		parent_idx;
+	uint32_t	ophase;
+	uint32_t	phase;
+	uint32_t	n;
+};
+
+static struct phase_clk aw_mmcclk_phase[] = {
+	{400000, CLK_SRC_SEL_OSC24M, 0, 0, 2},
+	{25000000, CLK_SRC_SEL_PLL6, 0, 5, 2},
+	{52000000, CLK_SRC_SEL_PLL6, 3, 5, 0},
+};
+
 #define	MODCLK_READ(sc, val)	CLKDEV_READ_4((sc)->clkdev, (sc)->reg, (val))
 #define	MODCLK_WRITE(sc, val)	CLKDEV_WRITE_4((sc)->clkdev, (sc)->reg, (val))
 #define	DEVICE_LOCK(sc)		CLKDEV_DEVICE_LOCK((sc)->clkdev)
@@ -166,8 +180,10 @@ aw_mmcclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
     int flags, int *stop)
 {
 	struct aw_mmcclk_sc *sc;
-	uint32_t val, m, n, phase, ophase;
-	int parent_idx, error;
+	struct clknode *parent_clk;
+	const char **parent_names;
+	uint32_t val, m;
+	int parent_idx, error, phase;
 
 	sc = clknode_get_softc(clk);
 
@@ -175,51 +191,48 @@ aw_mmcclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	 * The ophase/phase values should be set by the MMC driver, but
 	 * there is currently no way to do this with the clk API
 	 */
-	if (*fout <= 400000) {
-		parent_idx = CLK_SRC_SEL_OSC24M;
-		ophase = 0;
-		phase = 0;
-		n = 2;
-	} else if (*fout <= 25000000) {
-		parent_idx = CLK_SRC_SEL_PLL6;
-		ophase = 0;
-		phase = 5;
-		n = 2;
-	} else if (*fout <= 50000000) {
-		parent_idx = CLK_SRC_SEL_PLL6;
-		ophase = 3;
-		phase = 5;
-		n = 0;
-	} else
-		return (ERANGE);
-
-	/* Switch parent clock, if necessary */
-	if (parent_idx != clknode_get_parent_idx(clk)) {
-		error = clknode_set_parent_by_idx(clk, parent_idx);
-		if (error != 0)
-			return (error);
-
-		/* Fetch new input frequency */
-		error = clknode_get_freq(clknode_get_parent(clk), &fin);
-		if (error != 0)
-			return (error);
+	for (phase = 0; phase < nitems(aw_mmcclk_phase); phase++) {
+		if (*fout <= aw_mmcclk_phase[phase].freq)
+			break;
 	}
 
-	m = ((fin / (1 << n)) / *fout) - 1;
+	if (phase == nitems(aw_mmcclk_phase))
+		return (ERANGE);
+
+	parent_names = clknode_get_parent_names(clk);
+	parent_idx = aw_mmcclk_phase[phase].parent_idx;
+	parent_clk = clknode_find_by_name(parent_names[parent_idx]);
+
+	if (parent_clk == NULL)
+		return (ERANGE);
+
+	error = clknode_get_freq(parent_clk, &fin);
+	if (error != 0)
+		return (error);
+
+	m = ((fin / (1 << aw_mmcclk_phase[phase].n)) / *fout) - 1;
+
+	*fout = fin / (1 << aw_mmcclk_phase[phase].n) / (m + 1);
+	*stop = 1;
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
+	/* Switch to the correct parent if needed */
+	error = clknode_set_parent_by_idx(clk, parent_idx);
+	if (error != 0)
+		return (error);
 
 	DEVICE_LOCK(sc);
 	MODCLK_READ(sc, &val);
 	val &= ~(CLK_RATIO_N | CLK_RATIO_M | CLK_PHASE_CTR |
 	    OUTPUT_CLK_PHASE_CTR);
-	val |= (n << CLK_RATIO_N_SHIFT);
+	val |= (aw_mmcclk_phase[phase].n << CLK_RATIO_N_SHIFT);
 	val |= (m << CLK_RATIO_M_SHIFT);
-	val |= (phase << CLK_PHASE_CTR_SHIFT);
-	val |= (ophase << OUTPUT_CLK_PHASE_CTR_SHIFT);
+	val |= (aw_mmcclk_phase[phase].phase << CLK_PHASE_CTR_SHIFT);
+	val |= (aw_mmcclk_phase[phase].ophase << OUTPUT_CLK_PHASE_CTR_SHIFT);
 	MODCLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
-
-	*fout = fin / (1 << n) / (m + 1);
-	*stop = 1;
 
 	return (0);
 }
@@ -292,7 +305,7 @@ aw_mmcclk_attach(device_t dev)
 	def.id = 0;
 	def.parent_names = malloc(sizeof(char *) * ncells, M_OFWPROP, M_WAITOK);
 	for (i = 0; i < ncells; i++) {
-		error = clk_get_by_ofw_index(dev, i, &clk_parent);
+		error = clk_get_by_ofw_index(dev, 0, i, &clk_parent);
 		if (error != 0) {
 			device_printf(dev, "cannot get clock %d\n", i);
 			goto fail;

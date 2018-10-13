@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
  * Copyright (c) 2006 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 2008-2012 Alexander Motin <mav@FreeBSD.org>
@@ -408,6 +410,15 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC298 && subid == DELL_XPS9560_SUBVENDOR) {
+		switch (nid) {
+		case 24:
+			config  = 0x01a1913c;
+			break;
+		case 26:
+			config  = 0x01a1913d;
+			break;
+		}
 	}
 
 	if (patch != NULL)
@@ -738,6 +749,12 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		/* Don't bypass mixer. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));
+		break;
+	case HDA_CODEC_ALC1150:
+		if (subid == 0xd9781462) {
+			/* Too low volume on MSI H170 GAMING M3. */
+			hdaa_write_coef(dev, 0x20, 0x07, 0x7cb);
+		}
 		break;
 	}
 	if (subid == APPLE_INTEL_MAC)

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,28 +131,27 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #define _DECLARE_PR_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 /*
  * TBDs:
@@ -107,7 +214,7 @@ PrDoIncludeFile (
  * Supported preprocessor directives
  * Each entry is of the form "Name, ArgumentCount"
  */
-static const PR_DIRECTIVE_INFO      Gbl_DirectiveInfo[] =
+static const PR_DIRECTIVE_INFO      AslGbl_DirectiveInfo[] =
 {
     {"define",          1},
     {"elif",            0}, /* Converted to #else..#if internally */
@@ -168,7 +275,7 @@ PrInitializePreprocessor (
     /* Init globals and the list of #defines */
 
     PrInitializeGlobals ();
-    Gbl_DefineList = NULL;
+    AslGbl_DefineList = NULL;
 }
 
 
@@ -192,16 +299,16 @@ PrInitializeGlobals (
 {
     /* Init globals */
 
-    Gbl_InputFileList = NULL;
-    Gbl_CurrentLineNumber = 1;
-    Gbl_PreprocessorLineNumber = 1;
-    Gbl_PreprocessorError = FALSE;
+    AslGbl_InputFileList = NULL;
+    AslGbl_CurrentLineNumber = 1;
+    AslGbl_PreprocessorLineNumber = 1;
+    AslGbl_PreprocessorError = FALSE;
 
     /* These are used to track #if/#else blocks (possibly nested) */
 
-    Gbl_IfDepth = 0;
-    Gbl_IgnoringThisCodeBlock = FALSE;
-    Gbl_DirectiveStack = NULL;
+    AslGbl_IfDepth = 0;
+    AslGbl_IgnoringThisCodeBlock = FALSE;
+    AslGbl_DirectiveStack = NULL;
 }
 
 
@@ -230,10 +337,10 @@ PrTerminatePreprocessor (
      * The persistent defines (created on the command line) are always at the
      * end of the list. We save them.
      */
-    while ((Gbl_DefineList) && (!Gbl_DefineList->Persist))
+    while ((AslGbl_DefineList) && (!AslGbl_DefineList->Persist))
     {
-        DefineInfo = Gbl_DefineList;
-        Gbl_DefineList = DefineInfo->Next;
+        DefineInfo = AslGbl_DefineList;
+        AslGbl_DefineList = DefineInfo->Next;
 
         ACPI_FREE (DefineInfo->Replacement);
         ACPI_FREE (DefineInfo->Identifier);
@@ -281,15 +388,15 @@ PrDoPreprocess (
     /* Point compiler input to the new preprocessor output file (.pre) */
 
     FlCloseFile (ASL_FILE_INPUT);
-    Gbl_Files[ASL_FILE_INPUT].Handle = Gbl_Files[ASL_FILE_PREPROCESSOR].Handle;
-    AslCompilerin = Gbl_Files[ASL_FILE_INPUT].Handle;
+    AslGbl_Files[ASL_FILE_INPUT].Handle = AslGbl_Files[ASL_FILE_PREPROCESSOR].Handle;
+    AslCompilerin = AslGbl_Files[ASL_FILE_INPUT].Handle;
 
     /* Reset globals to allow compiler to run */
 
     FlSeekFile (ASL_FILE_INPUT, 0);
-    if (!Gbl_PreprocessOnly)
+    if (!AslGbl_PreprocessOnly)
     {
-        Gbl_CurrentLineNumber = 0;
+        AslGbl_CurrentLineNumber = 0;
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT, "Preprocessing phase complete \n\n");
@@ -329,10 +436,10 @@ PrPreprocessInputFile (
 
     /* Scan source line-by-line and process directives. Then write the .i file */
 
-    while ((Status = PrGetNextLine (Gbl_Files[ASL_FILE_INPUT].Handle)) != ASL_EOF)
+    while ((Status = PrGetNextLine (AslGbl_Files[ASL_FILE_INPUT].Handle)) != ASL_EOF)
     {
-        Gbl_CurrentLineNumber++;
-        Gbl_LogicalLineNumber++;
+        AslGbl_CurrentLineNumber++;
+        AslGbl_LogicalLineNumber++;
 
         if (Status == ASL_IGNORE_LINE)
         {
@@ -341,8 +448,8 @@ PrPreprocessInputFile (
 
         /* Need a copy of the input line for strok() */
 
-        strcpy (Gbl_MainTokenBuffer, Gbl_CurrentLineBuffer);
-        Token = PrGetNextToken (Gbl_MainTokenBuffer, PR_TOKEN_SEPARATORS, &Next);
+        strcpy (AslGbl_MainTokenBuffer, AslGbl_CurrentLineBuffer);
+        Token = PrGetNextToken (AslGbl_MainTokenBuffer, PR_TOKEN_SEPARATORS, &Next);
         OffsetAdjust = 0;
 
         /* All preprocessor directives must begin with '#' */
@@ -369,7 +476,7 @@ PrPreprocessInputFile (
          * FALSE, ignore the line and do not write it to the output file.
          * This continues until an #else or #endif is encountered.
          */
-        if (Gbl_IgnoringThisCodeBlock)
+        if (AslGbl_IgnoringThisCodeBlock)
         {
             continue;
         }
@@ -387,10 +494,10 @@ PrPreprocessInputFile (
 
                     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                         "Matched Macro: %s->%s\n",
-                        Gbl_CurrentLineNumber, DefineInfo->Identifier,
+                        AslGbl_CurrentLineNumber, DefineInfo->Identifier,
                         DefineInfo->Replacement);
 
-                    PrDoMacroInvocation (Gbl_MainTokenBuffer, Token,
+                    PrDoMacroInvocation (AslGbl_MainTokenBuffer, Token,
                         DefineInfo, &Next);
                 }
                 else
@@ -399,9 +506,9 @@ PrPreprocessInputFile (
 
                     /* Replace the name in the original line buffer */
 
-                    TokenOffset = Token - Gbl_MainTokenBuffer + OffsetAdjust;
+                    TokenOffset = Token - AslGbl_MainTokenBuffer + OffsetAdjust;
                     PrReplaceData (
-                        &Gbl_CurrentLineBuffer[TokenOffset], strlen (Token),
+                        &AslGbl_CurrentLineBuffer[TokenOffset], strlen (Token),
                         ReplaceString, strlen (ReplaceString));
 
                     /* Adjust for length difference between old and new name length */
@@ -410,7 +517,7 @@ PrPreprocessInputFile (
 
                     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                         "Matched #define: %s->%s\n",
-                        Gbl_CurrentLineNumber, Token,
+                        AslGbl_CurrentLineNumber, Token,
                         *ReplaceString ? ReplaceString : "(NULL STRING)");
                 }
             }
@@ -418,7 +525,7 @@ PrPreprocessInputFile (
             Token = PrGetNextToken (NULL, PR_TOKEN_SEPARATORS, &Next);
         }
 
-        Gbl_PreprocessorLineNumber++;
+        AslGbl_PreprocessorLineNumber++;
 
 
 WriteEntireLine:
@@ -426,8 +533,8 @@ WriteEntireLine:
          * Now we can write the possibly modified source line to the
          * preprocessor file(s).
          */
-        FlWriteFile (ASL_FILE_PREPROCESSOR, Gbl_CurrentLineBuffer,
-            strlen (Gbl_CurrentLineBuffer));
+        FlWriteFile (ASL_FILE_PREPROCESSOR, AslGbl_CurrentLineBuffer,
+            strlen (AslGbl_CurrentLineBuffer));
     }
 }
 
@@ -450,7 +557,7 @@ PrDoDirective (
     char                    *DirectiveToken,
     char                    **Next)
 {
-    char                    *Token = Gbl_MainTokenBuffer;
+    char                    *Token = AslGbl_MainTokenBuffer;
     char                    *Token2 = NULL;
     char                    *End;
     UINT64                  Value;
@@ -472,7 +579,7 @@ PrDoDirective (
 
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
             "#%s: Unknown directive\n",
-            Gbl_CurrentLineNumber, DirectiveToken);
+            AslGbl_CurrentLineNumber, DirectiveToken);
         return;
     }
 
@@ -483,25 +590,25 @@ PrDoDirective (
      * original source file.
      */
     FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\" // #%s\n",
-        Gbl_CurrentLineNumber, Gbl_Files[ASL_FILE_INPUT].Filename,
-        Gbl_DirectiveInfo[Directive].Name);
+        AslGbl_CurrentLineNumber, AslGbl_Files[ASL_FILE_INPUT].Filename,
+        AslGbl_DirectiveInfo[Directive].Name);
 
     /*
      * If we are currently ignoring this block and we encounter a #else or
      * #elif, we must ignore their blocks also if the parent block is also
      * being ignored.
      */
-    if (Gbl_IgnoringThisCodeBlock)
+    if (AslGbl_IgnoringThisCodeBlock)
     {
         switch (Directive)
         {
         case PR_DIRECTIVE_ELSE:
         case PR_DIRECTIVE_ELIF:
 
-            if (Gbl_DirectiveStack &&
-                Gbl_DirectiveStack->IgnoringThisCodeBlock)
+            if (AslGbl_DirectiveStack &&
+                AslGbl_DirectiveStack->IgnoringThisCodeBlock)
             {
-                PrDbgPrint ("Ignoring", Gbl_DirectiveInfo[Directive].Name);
+                PrDbgPrint ("Ignoring", AslGbl_DirectiveInfo[Directive].Name);
                 return;
             }
             break;
@@ -520,16 +627,16 @@ PrDoDirective (
     {
     case PR_DIRECTIVE_ELSE:
 
-        Gbl_IgnoringThisCodeBlock = !(Gbl_IgnoringThisCodeBlock);
+        AslGbl_IgnoringThisCodeBlock = !(AslGbl_IgnoringThisCodeBlock);
         PrDbgPrint ("Executing", "else block");
         return;
 
     case PR_DIRECTIVE_ELIF:
 
-        Gbl_IgnoringThisCodeBlock = !(Gbl_IgnoringThisCodeBlock);
+        AslGbl_IgnoringThisCodeBlock = !(AslGbl_IgnoringThisCodeBlock);
         Directive = PR_DIRECTIVE_IF;
 
-        if (Gbl_IgnoringThisCodeBlock == TRUE)
+        if (AslGbl_IgnoringThisCodeBlock == TRUE)
         {
             /* Not executing the ELSE part -- all done here */
             PrDbgPrint ("Ignoring", "elif block");
@@ -568,7 +675,7 @@ PrDoDirective (
 
     /* Most directives have at least one argument */
 
-    if (Gbl_DirectiveInfo[Directive].ArgCount >= 1)
+    if (AslGbl_DirectiveInfo[Directive].ArgCount >= 1)
     {
         Token = PrGetNextToken (NULL, PR_TOKEN_SEPARATORS, Next);
         if (!Token)
@@ -577,7 +684,7 @@ PrDoDirective (
         }
     }
 
-    if (Gbl_DirectiveInfo[Directive].ArgCount >= 2)
+    if (AslGbl_DirectiveInfo[Directive].ArgCount >= 2)
     {
         Token2 = PrGetNextToken (NULL, PR_TOKEN_SEPARATORS, Next);
         if (!Token2)
@@ -592,7 +699,7 @@ PrDoDirective (
      * For "if" style directives, open/push a new block anyway. We
      * must do this to keep track of #endif directives
      */
-    if (Gbl_IgnoringThisCodeBlock)
+    if (AslGbl_IgnoringThisCodeBlock)
     {
         switch (Directive)
         {
@@ -601,7 +708,7 @@ PrDoDirective (
         case PR_DIRECTIVE_IFNDEF:
 
             PrPushDirective (Directive, Token);
-            PrDbgPrint ("Ignoring", Gbl_DirectiveInfo[Directive].Name);
+            PrDbgPrint ("Ignoring", AslGbl_DirectiveInfo[Directive].Name);
             break;
 
         default:
@@ -614,18 +721,18 @@ PrDoDirective (
     /*
      * Execute the directive
      */
-    PrDbgPrint ("Begin execution", Gbl_DirectiveInfo[Directive].Name);
+    PrDbgPrint ("Begin execution", AslGbl_DirectiveInfo[Directive].Name);
 
     switch (Directive)
     {
     case PR_DIRECTIVE_IF:
 
-        TokenOffset = Token - Gbl_MainTokenBuffer;
+        TokenOffset = Token - AslGbl_MainTokenBuffer;
 
         /* Need to expand #define macros in the expression string first */
 
         Status = PrResolveIntegerExpression (
-            &Gbl_CurrentLineBuffer[TokenOffset-1], &Value);
+            &AslGbl_CurrentLineBuffer[TokenOffset-1], &Value);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -634,13 +741,13 @@ PrDoDirective (
         PrPushDirective (Directive, Token);
         if (!Value)
         {
-            Gbl_IgnoringThisCodeBlock = TRUE;
+            AslGbl_IgnoringThisCodeBlock = TRUE;
         }
 
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
             "Resolved #if: %8.8X%8.8X %s\n",
-            Gbl_CurrentLineNumber, ACPI_FORMAT_UINT64 (Value),
-            Gbl_IgnoringThisCodeBlock ? "<Skipping Block>" : "<Executing Block>");
+            AslGbl_CurrentLineNumber, ACPI_FORMAT_UINT64 (Value),
+            AslGbl_IgnoringThisCodeBlock ? "<Skipping Block>" : "<Executing Block>");
         break;
 
     case PR_DIRECTIVE_IFDEF:
@@ -648,7 +755,7 @@ PrDoDirective (
         PrPushDirective (Directive, Token);
         if (!PrMatchDefine (Token))
         {
-            Gbl_IgnoringThisCodeBlock = TRUE;
+            AslGbl_IgnoringThisCodeBlock = TRUE;
         }
 
         PrDbgPrint ("Evaluated", "ifdef");
@@ -659,7 +766,7 @@ PrDoDirective (
         PrPushDirective (Directive, Token);
         if (PrMatchDefine (Token))
         {
-            Gbl_IgnoringThisCodeBlock = TRUE;
+            AslGbl_IgnoringThisCodeBlock = TRUE;
         }
 
         PrDbgPrint ("Evaluated", "ifndef");
@@ -670,13 +777,13 @@ PrDoDirective (
          * By definition, if first char after the name is a paren,
          * this is a function macro.
          */
-        TokenOffset = Token - Gbl_MainTokenBuffer + strlen (Token);
-        if (*(&Gbl_CurrentLineBuffer[TokenOffset]) == '(')
+        TokenOffset = Token - AslGbl_MainTokenBuffer + strlen (Token);
+        if (*(&AslGbl_CurrentLineBuffer[TokenOffset]) == '(')
         {
 #ifndef MACROS_SUPPORTED
             AcpiOsPrintf (
                 "%s ERROR - line %u: #define macros are not supported yet\n",
-                Gbl_CurrentLineBuffer, Gbl_LogicalLineNumber);
+                AslGbl_CurrentLineBuffer, AslGbl_LogicalLineNumber);
             exit(1);
 #else
             PrAddMacro (Token, Next);
@@ -715,7 +822,7 @@ PrDoDirective (
 #endif
             DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
                 "New #define: %s->%s\n",
-                Gbl_LogicalLineNumber, Token, Token2);
+                AslGbl_LogicalLineNumber, Token, Token2);
 
             PrAddDefine (Token, Token2, FALSE);
         }
@@ -728,8 +835,8 @@ PrDoDirective (
         PrError (ASL_ERROR, ASL_MSG_ERROR_DIRECTIVE,
             THIS_TOKEN_OFFSET (Token));
 
-        Gbl_SourceLine = 0;
-        Gbl_NextError = Gbl_ErrorLog;
+        AslGbl_SourceLine = 0;
+        AslGbl_NextError = AslGbl_ErrorLog;
         CmCleanupAndExit ();
         exit(1);
 
@@ -742,8 +849,8 @@ PrDoDirective (
         }
 
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
-            "Start #include file \"%s\"\n", Gbl_CurrentLineNumber,
-            Token, Gbl_CurrentLineNumber);
+            "Start #include file \"%s\"\n", AslGbl_CurrentLineNumber,
+            Token, AslGbl_CurrentLineNumber);
 
         PrDoIncludeFile (Token);
         break;
@@ -764,32 +871,32 @@ PrDoDirective (
 
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
             "Start #includebuffer input from file \"%s\", buffer name %s\n",
-            Gbl_CurrentLineNumber, Token, Token2);
+            AslGbl_CurrentLineNumber, Token, Token2);
 
         PrDoIncludeBuffer (Token, Token2);
         break;
 
     case PR_DIRECTIVE_LINE:
 
-        TokenOffset = Token - Gbl_MainTokenBuffer;
+        TokenOffset = Token - AslGbl_MainTokenBuffer;
 
         Status = PrResolveIntegerExpression (
-            &Gbl_CurrentLineBuffer[TokenOffset-1], &Value);
+            &AslGbl_CurrentLineBuffer[TokenOffset-1], &Value);
         if (ACPI_FAILURE (Status))
         {
             return;
         }
 
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
-            "User #line invocation %s\n", Gbl_CurrentLineNumber,
+            "User #line invocation %s\n", AslGbl_CurrentLineNumber,
             Token);
 
-        Gbl_CurrentLineNumber = (UINT32) Value;
+        AslGbl_CurrentLineNumber = (UINT32) Value;
 
         /* Emit #line into the preprocessor file */
 
         FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n",
-            Gbl_CurrentLineNumber, Gbl_Files[ASL_FILE_INPUT].Filename);
+            AslGbl_CurrentLineNumber, AslGbl_Files[ASL_FILE_INPUT].Filename);
         break;
 
     case PR_DIRECTIVE_PRAGMA:
@@ -802,8 +909,8 @@ PrDoDirective (
                 goto SyntaxError;
             }
 
-            TokenOffset = Token - Gbl_MainTokenBuffer;
-            AslDisableException (&Gbl_CurrentLineBuffer[TokenOffset]);
+            TokenOffset = Token - AslGbl_MainTokenBuffer;
+            AslDisableException (&AslGbl_CurrentLineBuffer[TokenOffset]);
         }
         else if (!strcmp (Token, "message"))
         {
@@ -813,8 +920,8 @@ PrDoDirective (
                 goto SyntaxError;
             }
 
-            TokenOffset = Token - Gbl_MainTokenBuffer;
-            AcpiOsPrintf ("%s\n", &Gbl_CurrentLineBuffer[TokenOffset]);
+            TokenOffset = Token - AslGbl_MainTokenBuffer;
+            AcpiOsPrintf ("%s\n", &AslGbl_CurrentLineBuffer[TokenOffset]);
         }
         else
         {
@@ -828,7 +935,7 @@ PrDoDirective (
     case PR_DIRECTIVE_UNDEF:
 
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
-            "#undef: %s\n", Gbl_CurrentLineNumber, Token);
+            "#undef: %s\n", AslGbl_CurrentLineNumber, Token);
 
         PrRemoveDefine (Token);
         break;
@@ -838,8 +945,8 @@ PrDoDirective (
         PrError (ASL_WARNING, ASL_MSG_WARNING_DIRECTIVE,
             THIS_TOKEN_OFFSET (Token));
 
-        Gbl_SourceLine = 0;
-        Gbl_NextError = Gbl_ErrorLog;
+        AslGbl_SourceLine = 0;
+        AslGbl_NextError = AslGbl_ErrorLog;
         break;
 
     default:
@@ -847,7 +954,7 @@ PrDoDirective (
         /* Should never get here */
         DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
             "Unrecognized directive: %u\n",
-            Gbl_CurrentLineNumber, Directive);
+            AslGbl_CurrentLineNumber, Directive);
         break;
     }
 
@@ -903,14 +1010,14 @@ PrGetNextLine (
 
     /* Always clear the global line buffer */
 
-    memset (Gbl_CurrentLineBuffer, 0, Gbl_LineBufferSize);
+    memset (AslGbl_CurrentLineBuffer, 0, AslGbl_LineBufferSize);
     for (i = 0; ;)
     {
         /*
          * If line is too long, expand the line buffers. Also increases
-         * Gbl_LineBufferSize.
+         * AslGbl_LineBufferSize.
          */
-        if (i >= Gbl_LineBufferSize)
+        if (i >= AslGbl_LineBufferSize)
         {
             UtExpandLineBuffers ();
         }
@@ -926,7 +1033,7 @@ PrGetNextLine (
              */
             if (i > 0)
             {
-                Gbl_CurrentLineBuffer[i] = '\n';
+                AslGbl_CurrentLineBuffer[i] = '\n';
                 return (AE_OK);
             }
 
@@ -986,7 +1093,7 @@ PrGetNextLine (
 
         /* Always copy the character into line buffer */
 
-        Gbl_CurrentLineBuffer[i] = (char) c;
+        AslGbl_CurrentLineBuffer[i] = (char) c;
         i++;
 
         /* Always exit on end-of-line */
@@ -1045,9 +1152,9 @@ PrMatchDirective (
         return (ASL_DIRECTIVE_NOT_FOUND);
     }
 
-    for (i = 0; Gbl_DirectiveInfo[i].Name; i++)
+    for (i = 0; AslGbl_DirectiveInfo[i].Name; i++)
     {
-        if (!strcmp (Gbl_DirectiveInfo[i].Name, Directive))
+        if (!strcmp (AslGbl_DirectiveInfo[i].Name, Directive))
         {
             return (i);
         }
@@ -1084,25 +1191,26 @@ PrPushDirective (
 
     /* Allocate and populate a stack info item */
 
-    Info = ACPI_ALLOCATE (sizeof (DIRECTIVE_INFO));
+    Info = ACPI_CAST_PTR (DIRECTIVE_INFO,
+        UtLocalCacheCalloc (sizeof (DIRECTIVE_INFO)));
 
-    Info->Next = Gbl_DirectiveStack;
+    Info->Next = AslGbl_DirectiveStack;
     Info->Directive = Directive;
-    Info->IgnoringThisCodeBlock = Gbl_IgnoringThisCodeBlock;
-    strncpy (Info->Argument, Argument, MAX_ARGUMENT_LENGTH);
+    Info->IgnoringThisCodeBlock = AslGbl_IgnoringThisCodeBlock;
+    AcpiUtSafeStrncpy (Info->Argument, Argument, MAX_ARGUMENT_LENGTH);
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "Pr(%.4u) - [%u %s] %*s Pushed [#%s %s]: IgnoreFlag = %s\n",
-        Gbl_CurrentLineNumber, Gbl_IfDepth,
-        Gbl_IgnoringThisCodeBlock ? "I" : "E",
-        Gbl_IfDepth * 4, " ",
-        Gbl_DirectiveInfo[Directive].Name,
-        Argument, Gbl_IgnoringThisCodeBlock ? "TRUE" : "FALSE");
+        AslGbl_CurrentLineNumber, AslGbl_IfDepth,
+        AslGbl_IgnoringThisCodeBlock ? "I" : "E",
+        AslGbl_IfDepth * 4, " ",
+        AslGbl_DirectiveInfo[Directive].Name,
+        Argument, AslGbl_IgnoringThisCodeBlock ? "TRUE" : "FALSE");
 
     /* Push new item */
 
-    Gbl_DirectiveStack = Info;
-    Gbl_IfDepth++;
+    AslGbl_DirectiveStack = Info;
+    AslGbl_IfDepth++;
 }
 
 
@@ -1131,7 +1239,7 @@ PrPopDirective (
 
     /* Check for empty stack */
 
-    Info = Gbl_DirectiveStack;
+    Info = AslGbl_DirectiveStack;
     if (!Info)
     {
         return (AE_ERROR);
@@ -1139,17 +1247,17 @@ PrPopDirective (
 
     /* Pop one item, keep globals up-to-date */
 
-    Gbl_IfDepth--;
-    Gbl_IgnoringThisCodeBlock = Info->IgnoringThisCodeBlock;
-    Gbl_DirectiveStack = Info->Next;
+    AslGbl_IfDepth--;
+    AslGbl_IgnoringThisCodeBlock = Info->IgnoringThisCodeBlock;
+    AslGbl_DirectiveStack = Info->Next;
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "Pr(%.4u) - [%u %s] %*s Popped [#%s %s]: IgnoreFlag now = %s\n",
-        Gbl_CurrentLineNumber, Gbl_IfDepth,
-        Gbl_IgnoringThisCodeBlock ? "I" : "E",
-        Gbl_IfDepth * 4, " ",
-        Gbl_DirectiveInfo[Info->Directive].Name,
-        Info->Argument, Gbl_IgnoringThisCodeBlock ? "TRUE" : "FALSE");
+        AslGbl_CurrentLineNumber, AslGbl_IfDepth,
+        AslGbl_IgnoringThisCodeBlock ? "I" : "E",
+        AslGbl_IfDepth * 4, " ",
+        AslGbl_DirectiveInfo[Info->Directive].Name,
+        Info->Argument, AslGbl_IgnoringThisCodeBlock ? "TRUE" : "FALSE");
 
     ACPI_FREE (Info);
     return (AE_OK);
@@ -1177,10 +1285,10 @@ PrDbgPrint (
 
     DbgPrint (ASL_DEBUG_OUTPUT, "Pr(%.4u) - [%u %s] "
         "%*s %s #%s, IfDepth %u\n",
-        Gbl_CurrentLineNumber, Gbl_IfDepth,
-        Gbl_IgnoringThisCodeBlock ? "I" : "E",
-        Gbl_IfDepth * 4, " ",
-        Action, DirectiveName, Gbl_IfDepth);
+        AslGbl_CurrentLineNumber, AslGbl_IfDepth,
+        AslGbl_IgnoringThisCodeBlock ? "I" : "E",
+        AslGbl_IfDepth * 4, " ",
+        Action, DirectiveName, AslGbl_IfDepth);
 }
 
 
@@ -1258,7 +1366,7 @@ PrDoIncludeBuffer (
 
     DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
         "#includebuffer: read %u bytes from %s\n",
-        Gbl_CurrentLineNumber, i, FullPathname);
+        AslGbl_CurrentLineNumber, i, FullPathname);
 
     /* Close the Name() operator */
 

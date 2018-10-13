@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * Copyright (c) 2013 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/smp.h>
+#include <machine/md_var.h>
 
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
@@ -50,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/vcpu.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <dev/acpica/acpivar.h>
@@ -64,11 +68,11 @@ static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
 
 static struct apic_enumerator xenpv_enumerator = {
-	"Xen PV",
-	xenpv_probe,
-	xenpv_probe_cpus,
-	xenpv_setup_local,
-	xenpv_setup_io
+	.apic_name = "Xen PV",
+	.apic_probe = xenpv_probe,
+	.apic_probe_cpus = xenpv_probe_cpus,
+	.apic_setup_local = xenpv_setup_local,
+	.apic_setup_io = xenpv_setup_io
 };
 
 /*--------------------- Helper functions to parse MADT -----------------------*/
@@ -150,11 +154,12 @@ xenpv_probe_cpus(void)
 #ifdef SMP
 	int i, ret;
 
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i < MAXCPU && (i * 2) < MAX_APIC_ID; i++) {
 		ret = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
-		if (ret >= 0)
-			lapic_create((i * 2), (i == 0));
+		mp_ncpus = min(mp_ncpus + 1, MAXCPU);
 	}
+	mp_maxid = mp_ncpus - 1;
+	max_apic_id = mp_ncpus * 2;
 #endif
 	return (0);
 }
@@ -165,6 +170,16 @@ xenpv_probe_cpus(void)
 static int
 xenpv_setup_local(void)
 {
+#ifdef SMP
+	int i, ret;
+
+	for (i = 0; i < MAXCPU && (i * 2) < MAX_APIC_ID; i++) {
+		ret = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
+		if (ret >= 0)
+			lapic_create((i * 2), (i == 0));
+	}
+#endif
+
 	PCPU_SET(vcpu_id, 0);
 	lapic_init(0);
 	return (0);
@@ -178,52 +193,65 @@ xenpv_setup_io(void)
 {
 
 	if (xen_initial_domain()) {
-		int i, ret;
-
-		/* Map MADT */
-		madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
-		madt = acpi_map_table(madt_physaddr, ACPI_SIG_MADT);
-		madt_length = madt->Header.Length;
-
-		/* Try to initialize ACPI so that we can access the FADT. */
-		i = acpi_Startup();
-		if (ACPI_FAILURE(i)) {
-			printf("MADT: ACPI Startup failed with %s\n",
-			    AcpiFormatException(i));
-			printf("Try disabling either ACPI or apic support.\n");
-			panic("Using MADT but ACPI doesn't work");
-		}
-
-		/* Run through the table to see if there are any overrides. */
-		madt_walk_table(madt_parse_ints, NULL);
-
 		/*
-		 * If there was not an explicit override entry for the SCI,
-		 * force it to use level trigger and active-low polarity.
+		 * NB: we could iterate over the MADT IOAPIC entries in order
+		 * to figure out the exact number of IOAPIC interrupts, but
+		 * this is legacy code so just keep using the previous
+		 * behaviour and assume a maximum of 256 interrupts.
 		 */
-		if (!madt_found_sci_override) {
-			printf(
-	"MADT: Forcing active-low polarity and level trigger for SCI\n");
-			ret = xen_register_pirq(AcpiGbl_FADT.SciInterrupt,
-			    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
-			if (ret != 0)
-				panic("Unable to register SCI IRQ");
-		}
-
-		/* Register legacy ISA IRQs */
-		for (i = 1; i < 16; i++) {
-			if (intr_lookup_source(i) != NULL)
-				continue;
-			ret = xen_register_pirq(i, INTR_TRIGGER_EDGE,
-			    INTR_POLARITY_LOW);
-			if (ret != 0 && bootverbose)
-				printf("Unable to register legacy IRQ#%d: %d\n",
-				    i, ret);
-		}
+		num_io_irqs = max(MINIMUM_MSI_INT - 1, num_io_irqs);
 
 		acpi_SetDefaultIntrModel(ACPI_INTR_APIC);
 	}
 	return (0);
+}
+
+void
+xenpv_register_pirqs(struct pic *pic __unused)
+{
+	unsigned int i;
+	int ret;
+
+	/* Map MADT */
+	madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
+	madt = acpi_map_table(madt_physaddr, ACPI_SIG_MADT);
+	madt_length = madt->Header.Length;
+
+	/* Try to initialize ACPI so that we can access the FADT. */
+	ret = acpi_Startup();
+	if (ACPI_FAILURE(ret)) {
+		printf("MADT: ACPI Startup failed with %s\n",
+		    AcpiFormatException(ret));
+		printf("Try disabling either ACPI or apic support.\n");
+		panic("Using MADT but ACPI doesn't work");
+	}
+
+	/* Run through the table to see if there are any overrides. */
+	madt_walk_table(madt_parse_ints, NULL);
+
+	/*
+	 * If there was not an explicit override entry for the SCI,
+	 * force it to use level trigger and active-low polarity.
+	 */
+	if (!madt_found_sci_override) {
+		printf(
+"MADT: Forcing active-low polarity and level trigger for SCI\n");
+		ret = xen_register_pirq(AcpiGbl_FADT.SciInterrupt,
+		    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
+		if (ret != 0)
+			panic("Unable to register SCI IRQ");
+	}
+
+	/* Register legacy ISA IRQs */
+	for (i = 1; i < 16; i++) {
+		if (intr_lookup_source(i) != NULL)
+			continue;
+		ret = xen_register_pirq(i, INTR_TRIGGER_EDGE,
+		    INTR_POLARITY_LOW);
+		if (ret != 0 && bootverbose)
+			printf("Unable to register legacy IRQ#%u: %d\n", i,
+			    ret);
+	}
 }
 
 static void
@@ -234,19 +262,3 @@ xenpv_register(void *dummy __unused)
 	}
 }
 SYSINIT(xenpv_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, xenpv_register, NULL);
-
-/*
- * Setup per-CPU vCPU IDs
- */
-static void
-xenpv_set_ids(void *dummy)
-{
-	struct pcpu *pc;
-	int i;
-
-	CPU_FOREACH(i) {
-		pc = pcpu_find(i);
-		pc->pc_vcpu_id = i;
-	}
-}
-SYSINIT(xenpv_set_ids, SI_SUB_CPU, SI_ORDER_MIDDLE, xenpv_set_ids, NULL);

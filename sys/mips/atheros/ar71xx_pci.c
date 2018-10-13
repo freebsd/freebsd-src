@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -628,7 +630,7 @@ ar71xx_pci_intr(void *arg)
 	for (irq = AR71XX_PCI_IRQ_START; irq <= AR71XX_PCI_IRQ_END; irq++) {
 		if (reg & (1 << irq)) {
 			event = sc->sc_eventstab[irq];
-			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+			if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 				/* Ignore timer interrupts */
 				if (irq != 0)
 					printf("Stray IRQ %d\n", irq);
@@ -689,6 +691,7 @@ static device_method_t ar71xx_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,	ar71xx_pci_read_config),
 	DEVMETHOD(pcib_write_config,	ar71xx_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ar71xx_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

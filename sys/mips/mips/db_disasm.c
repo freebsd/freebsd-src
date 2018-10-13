@@ -1,5 +1,7 @@
 /*	$OpenBSD: db_disasm.c,v 1.1 1998/03/16 09:03:24 pefo Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -104,7 +106,11 @@ static char *fmt_name[16] = {
 
 static char *reg_name[32] = {
 	"zero",	"at",	"v0",	"v1",	"a0",	"a1",	"a2",	"a3",
+#if defined(__mips_n32) || defined(__mips_n64)
+	"a4",	"a5",	"a6",	"a7",	"t0",	"t1",	"t2",	"t3",
+#else
 	"t0",	"t1",	"t2",	"t3",	"t4",	"t5",	"t6",	"t7",
+#endif
 	"s0",	"s1",	"s2",	"s3",	"s4",	"s5",	"s6",	"s7",
 	"t8",	"t9",	"k0",	"k1",	"gp",	"sp",	"s8",	"ra"
 };

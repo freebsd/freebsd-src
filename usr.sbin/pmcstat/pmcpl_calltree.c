@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, Fabien Thomas
  * All rights reserved.
  *
@@ -57,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "pmcstat_log.h"
 #include "pmcstat_top.h"
 #include "pmcpl_calltree.h"
+
+#define	min(A,B)		((A) < (B) ? (A) : (B))
+#define	max(A,B)		((A) > (B) ? (A) : (B))
 
 #define	PMCPL_CT_GROWSIZE	4
 
@@ -185,7 +190,7 @@ pmcpl_ct_samples_free(struct pmcpl_ct_sample *samples)
 static void
 pmcpl_ct_samples_grow(struct pmcpl_ct_sample *samples)
 {
-	int npmcs;
+	unsigned int npmcs;
 
 	/* Enough storage. */
 	if (pmcstat_npmcs <= samples->npmcs)
@@ -193,7 +198,7 @@ pmcpl_ct_samples_grow(struct pmcpl_ct_sample *samples)
 
 	npmcs = samples->npmcs +
 	    max(pmcstat_npmcs - samples->npmcs, PMCPL_CT_GROWSIZE);
-	samples->sb = realloc(samples->sb, npmcs * sizeof(unsigned));
+	samples->sb = reallocarray(samples->sb, npmcs, sizeof(unsigned));
 	if (samples->sb == NULL)
 		errx(EX_SOFTWARE, "ERROR: out of memory");
 	bzero((char *)samples->sb + samples->npmcs * sizeof(unsigned),
@@ -226,13 +231,13 @@ pmcpl_ct_samples_root(struct pmcpl_ct_sample *samples)
 static void
 pmcpl_ct_arc_grow(int cursize, int *maxsize, struct pmcpl_ct_arc **items)
 {
-	int nmaxsize;
+	unsigned int nmaxsize;
 
 	if (cursize < *maxsize)
 		return;
 
 	nmaxsize = *maxsize + max(cursize + 1 - *maxsize, PMCPL_CT_GROWSIZE);
-	*items = realloc(*items, nmaxsize * sizeof(struct pmcpl_ct_arc));
+	*items = reallocarray(*items, nmaxsize, sizeof(struct pmcpl_ct_arc));
 	if (*items == NULL)
 		errx(EX_SOFTWARE, "ERROR: out of memory");
 	bzero((char *)*items + *maxsize * sizeof(struct pmcpl_ct_arc),
@@ -247,13 +252,13 @@ pmcpl_ct_arc_grow(int cursize, int *maxsize, struct pmcpl_ct_arc **items)
 static void
 pmcpl_ct_instr_grow(int cursize, int *maxsize, struct pmcpl_ct_instr **items)
 {
-	int nmaxsize;
+	unsigned int nmaxsize;
 
 	if (cursize < *maxsize)
 		return;
 
 	nmaxsize = *maxsize + max(cursize + 1 - *maxsize, PMCPL_CT_GROWSIZE);
-	*items = realloc(*items, nmaxsize * sizeof(struct pmcpl_ct_instr));
+	*items = reallocarray(*items, nmaxsize, sizeof(struct pmcpl_ct_instr));
 	if (*items == NULL)
 		errx(EX_SOFTWARE, "ERROR: out of memory");
 	bzero((char *)*items + *maxsize * sizeof(struct pmcpl_ct_instr),
@@ -581,8 +586,11 @@ pmcpl_ct_topdisplay(void)
  */
 
 int
-pmcpl_ct_topkeypress(int c, WINDOW *w)
+pmcpl_ct_topkeypress(int c, void *arg)
 {
+	WINDOW *w;
+
+	w = (WINDOW *)arg;
 
 	switch (c) {
 	case 'f':

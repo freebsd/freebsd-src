@@ -34,7 +34,7 @@
 #define KMALLOC(size, type, flags)	malloc(size, type, flags)
 #define KFREE(ptr, type)		free(ptr, type)
 #else /* not _KERNEL */
-#ifdef _STAND
+#ifdef _STANDALONE
 #include <stand.h>
 #else /* !_STAND */
 #include <stdlib.h>

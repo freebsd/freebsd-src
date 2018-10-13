@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Nicolas Souchu
  * All rights reserved.
  *
@@ -57,13 +59,13 @@ __FBSDID("$FreeBSD$");
  * Wait for the peripherial up to 40ms
  */
 static int
-do_1284_wait(device_t bus, char mask, char status)
+do_1284_wait(device_t bus, uint8_t mask, uint8_t status)
 {
 	return (ppb_poll_bus(bus, 4, mask, status, PPB_NOINTR | PPB_POLL));
 }
 
 static int
-do_peripheral_wait(device_t bus, char mask, char status)
+do_peripheral_wait(device_t bus, uint8_t mask, uint8_t status)
 {
 	return (ppb_poll_bus(bus, 100, mask, status, PPB_NOINTR | PPB_POLL));
 }

@@ -34,6 +34,7 @@
 #include "svn_editor.h"
 #include "svn_config.h"
 
+#include "private/svn_object_pool.h"
 #include "private/svn_string_private.h"
 
 #ifdef __cplusplus
@@ -73,6 +74,30 @@ svn_error_t *
 svn_repos__validate_prop(const char *name,
                          const svn_string_t *value,
                          apr_pool_t *pool);
+
+/* Attempt to normalize a Subversion property if it "needs translation"
+ * (according to svn_prop_needs_translation(), currently all svn:* props).
+ *
+ * At this time, the only performed normalization is translation of
+ * the line endings of the property value so that it would only contain
+ * LF (\n) characters. "\r" characters found mid-line are replaced with "\n".
+ * "\r\n" sequences are replaced with "\n".
+ *
+ * NAME is used to check that VALUE should be normalized, and if this
+ * is the case, VALUE is then normalized, allocated from RESULT_POOL.
+ * If no normalization is required, VALUE will be copied to RESULT_POOL
+ * unchanged.  If NORMALIZED_P is not NULL, and the normalization
+ * happened, set *NORMALIZED_P to non-zero.  If the property is returned
+ * unchanged and NORMALIZED_P is not NULL, then *NORMALIZED_P will be
+ * set to zero.  SCRATCH_POOL will be used for temporary allocations.
+ */
+svn_error_t *
+svn_repos__normalize_prop(const svn_string_t **result_p,
+                          svn_boolean_t *normalized_p,
+                          const char *name,
+                          const svn_string_t *value,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool);
 
 /**
  * Given the error @a err from svn_repos_fs_commit_txn(), return an
@@ -127,26 +152,27 @@ svn_repos__replay_ev2(svn_fs_root_t *root,
                       void *authz_read_baton,
                       apr_pool_t *scratch_pool);
 
-/* Given a PATH which might be a relative repo URL (^/), an absolute
- * local repo URL (file://), an absolute path outside of the repo
- * or a location in the Windows registry.
+/**
+ * Non-deprecated alias for svn_repos_get_logs4.
  *
- * Retrieve the configuration data that PATH points at and parse it into
- * CFG_P allocated in POOL.
- *
- * If PATH cannot be parsed as a config file then an error is returned.  The
- * contents of CFG_P is then undefined.  If MUST_EXIST is TRUE, a missing
- * authz file is also an error.  The CASE_SENSITIVE controls the lookup
- * behavior for section and option names alike.
- *
- * REPOS_ROOT points at the root of the repos you are
- * going to apply the authz against, can be NULL if you are sure that you
- * don't have a repos relative URL in PATH. */
+ * Since the mapping of log5 to ra_get_log is would basically duplicate the
+ * log5->log4 adapter, we provide this log4 wrapper that does not create a
+ * deprecation warning.
+ */
 svn_error_t *
-svn_repos__retrieve_config(svn_config_t **cfg_p,
-                           const char *path,
-                           svn_boolean_t must_exist,
-                           svn_boolean_t case_sensitive,
+svn_repos__get_logs_compat(svn_repos_t *repos,
+                           const apr_array_header_t *paths,
+                           svn_revnum_t start,
+                           svn_revnum_t end,
+                           int limit,
+                           svn_boolean_t discover_changed_paths,
+                           svn_boolean_t strict_node_history,
+                           svn_boolean_t include_merged_revisions,
+                           const apr_array_header_t *revprops,
+                           svn_repos_authz_func_t authz_read_func,
+                           void *authz_read_baton,
+                           svn_log_entry_receiver_t receiver,
+                           void *receiver_baton,
                            apr_pool_t *pool);
 
 /**
@@ -160,7 +186,7 @@ svn_repos__retrieve_config(svn_config_t **cfg_p,
  * from multiple threads.  Configuration objects no longer referenced by
  * any user may linger for a while before being cleaned up.
  */
-typedef struct svn_repos__config_pool_t svn_repos__config_pool_t;
+typedef svn_object_pool__t svn_repos__config_pool_t;
 
 /* Create a new configuration pool object with a lifetime determined by
  * POOL and return it in *CONFIG_POOL.
@@ -177,11 +203,10 @@ svn_repos__config_pool_create(svn_repos__config_pool_t **config_pool,
  * configuration specified by PATH.  If the latter is a URL, we read the
  * data from a local repository.  CONFIG_POOL will store the configuration
  * and make further callers use the same instance if the content matches.
- * If KEY is not NULL, *KEY will be set to a unique ID - if available.
+ * Section and option names will be case-insensitive.
  *
  * If MUST_EXIST is TRUE, a missing config file is also an error, *CFG
- * is otherwise simply NULL.  The CASE_SENSITIVE controls the lookup
- * behavior for section and option names alike.
+ * is otherwise simply NULL.
  *
  * PREFERRED_REPOS is only used if it is not NULL and PATH is a URL.
  * If it matches the URL, access the repository through this object
@@ -194,69 +219,11 @@ svn_repos__config_pool_create(svn_repos__config_pool_t **config_pool,
  */
 svn_error_t *
 svn_repos__config_pool_get(svn_config_t **cfg,
-                           svn_membuf_t **key,
                            svn_repos__config_pool_t *config_pool,
                            const char *path,
                            svn_boolean_t must_exist,
-                           svn_boolean_t case_sensitive,
                            svn_repos_t *preferred_repos,
                            apr_pool_t *pool);
-
-/** @} */
-
-/**
- * @defgroup svn_authz_pool Authz object pool API
- * @{
- */
-
-/* Opaque thread-safe factory and container for authorization objects.
- *
- * Instances handed out are read-only and may be given to multiple callers
- * from multiple threads.  Authorization objects no longer referenced by
- * any user may linger for a while before being cleaned up.
- */
-typedef struct svn_repos__authz_pool_t svn_repos__authz_pool_t;
-
-/* Create a new authorization pool object with a lifetime determined by
- * POOL and return it in *AUTHZ_POOL.  CONFIG_POOL will be the common
- * source for the configuration data underlying the authz objects and must
- * remain valid at least until POOL cleanup.
- *
- * The THREAD_SAFE flag indicates whether the pool actually needs to be
- * thread-safe and POOL must be also be thread-safe if this flag is set.
- */
-svn_error_t *
-svn_repos__authz_pool_create(svn_repos__authz_pool_t **authz_pool,
-                             svn_repos__config_pool_t *config_pool,
-                             svn_boolean_t thread_safe,
-                             apr_pool_t *pool);
-
-/* Set *AUTHZ_P to a read-only reference to the current contents of the
- * authorization specified by PATH and GROUPS_PATH.  If these are URLs,
- * we read the data from a local repository (see #svn_repos_authz_read2).
- * AUTHZ_POOL will store the authz data and make further callers use the
- * same instance if the content matches.
- *
- * If MUST_EXIST is TRUE, a missing config file is also an error, *AUTHZ_P
- * is otherwise simply NULL.
- *
- * PREFERRED_REPOS is only used if it is not NULL and PATH is a URL.
- * If it matches the URL, access the repository through this object
- * instead of creating a new repo instance.  Note that this might not
- * return the latest content.
- *
- * POOL determines the minimum lifetime of *AUTHZ_P (may remain cached
- * after release) but must not exceed the lifetime of the pool provided to
- * svn_repos__authz_pool_create.
- */
-svn_error_t *
-svn_repos__authz_pool_get(svn_authz_t **authz_p,
-                          svn_repos__authz_pool_t *authz_pool,
-                          const char *path,
-                          const char *groups_path,
-                          svn_boolean_t must_exist,
-                          svn_repos_t *preferred_repos,
-                          apr_pool_t *pool);
 
 /** @} */
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2006-2014 QLogic Corporation
  *
  * Redistribution and use in source and binary forms, with or without
@@ -527,7 +529,8 @@ MODULE_DEPEND(bce, miibus, 1, 1, 1);
 
 DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, NULL, NULL);
 DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, NULL, NULL);
-
+MODULE_PNP_INFO("U16:vendor;U16:device;U16:#;U16:#;D:#", pci, bce,
+    bce_devs, nitems(bce_devs) - 1);
 
 /****************************************************************************/
 /* Tunable device values                                                    */
@@ -2800,7 +2803,7 @@ bce_nvram_write(struct bce_softc *sc, u32 offset, u8 *data_buf,
 
 	if (align_start || align_end) {
 		buf = malloc(len32, M_DEVBUF, M_NOWAIT);
-		if (buf == 0) {
+		if (buf == NULL) {
 			rc = ENOMEM;
 			goto bce_nvram_write_exit;
 		}
@@ -8114,7 +8117,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling selective multicast mode.\n");
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)

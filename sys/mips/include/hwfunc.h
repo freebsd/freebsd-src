@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2004 Juli Mallett.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,7 +69,15 @@ void platform_init_ap(int processor_id);
  * This hardware interrupt is used to deliver IPIs exclusively and must
  * not be used for any other interrupt source.
  */
-int platform_ipi_intrnum(void);
+int platform_ipi_hardintr_num(void);
+int platform_ipi_softintr_num(void);
+
+#ifdef PLATFORM_INIT_SECONDARY
+/*
+ * Set up IPIs for this CPU.
+ */
+void platform_init_secondary(int cpuid);
+#endif
 
 /*
  * Trigger a IPI interrupt on 'cpuid'.

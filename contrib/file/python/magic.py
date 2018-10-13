@@ -117,30 +117,43 @@ class Magic(object):
         """
         _close(self._magic_t)
 
+    @staticmethod
+    def __tostr(s):
+        if s is None:
+            return None
+        if isinstance(s, str):
+            return s
+        try:  # keep Python 2 compatibility
+            return str(s, 'utf-8')
+        except TypeError:
+            return str(s)
+
+    @staticmethod
+    def __tobytes(b):
+        if b is None:
+            return None
+        if isinstance(b, bytes):
+            return b
+        try:  # keep Python 2 compatibility
+            return bytes(b, 'utf-8')
+        except TypeError:
+            return bytes(b)
+
     def file(self, filename):
         """
         Returns a textual description of the contents of the argument passed
         as a filename or None if an error occurred and the MAGIC_ERROR flag
-        is set.  A call to errno() will return the numeric error code.
+        is set. A call to errno() will return the numeric error code.
         """
-        if isinstance(filename, bytes):
-            bi = filename
-        else:
-            try:  # keep Python 2 compatibility
-                bi = bytes(filename, 'utf-8')
-            except TypeError:
-                bi = bytes(filename)
-        r = _file(self._magic_t, bi)
-        if isinstance(r, str):
-            return r
-        else:
-            return str(r).encode('utf-8')
+        return Magic.__tostr(_file(self._magic_t, Magic.__tobytes(filename)))
 
     def descriptor(self, fd):
         """
-        Like the file method, but the argument is a file descriptor.
+        Returns a textual description of the contents of the argument passed
+        as a file descriptor or None if an error occurred and the MAGIC_ERROR
+        flag is set. A call to errno() will return the numeric error code.
         """
-        return _descriptor(self._magic_t, fd)
+        return Magic.__tostr(_descriptor(self._magic_t, fd))
 
     def buffer(self, buf):
         """
@@ -148,22 +161,14 @@ class Magic(object):
         as a buffer or None if an error occurred and the MAGIC_ERROR flag
         is set. A call to errno() will return the numeric error code.
         """
-        r = _buffer(self._magic_t, buf, len(buf))
-        if isinstance(r, str):
-            return r
-        else:
-            return str(r).encode('utf-8')
+        return Magic.__tostr(_buffer(self._magic_t, buf, len(buf)))
 
     def error(self):
         """
         Returns a textual explanation of the last error or None
         if there was no error.
         """
-        e = _error(self._magic_t)
-        if isinstance(e, str):
-            return e
-        else:
-            return str(e).encode('utf-8')
+        return Magic.__tostr(_error(self._magic_t))
 
     def setflags(self, flags):
         """
@@ -184,35 +189,38 @@ class Magic(object):
 
         Returns 0 on success and -1 on failure.
         """
-        return _load(self._magic_t, filename)
+        return _load(self._magic_t, Magic.__tobytes(filename))
 
     def compile(self, dbs):
         """
         Compile entries in the colon separated list of database files
         passed as argument or the default database file if no argument.
-        Returns 0 on success and -1 on failure.
         The compiled files created are named from the basename(1) of each file
         argument with ".mgc" appended to it.
+
+        Returns 0 on success and -1 on failure.
         """
-        return _compile(self._magic_t, dbs)
+        return _compile(self._magic_t, Magic.__tobytes(dbs))
 
     def check(self, dbs):
         """
         Check the validity of entries in the colon separated list of
         database files passed as argument or the default database file
         if no argument.
+
         Returns 0 on success and -1 on failure.
         """
-        return _check(self._magic_t, dbs)
+        return _check(self._magic_t, Magic.__tobytes(dbs))
 
     def list(self, dbs):
         """
         Check the validity of entries in the colon separated list of
         database files passed as argument or the default database file
         if no argument.
+
         Returns 0 on success and -1 on failure.
         """
-        return _list(self._magic_t, dbs)
+        return _list(self._magic_t, Magic.__tobytes(dbs))
 
     def errno(self):
         """
@@ -240,7 +248,10 @@ none_magic.load()
 
 
 def _create_filemagic(mime_detected, type_detected):
-    mime_type, mime_encoding = mime_detected.split('; ')
+    try:
+        mime_type, mime_encoding = mime_detected.split('; ')
+    except ValueError:
+        raise ValueError(mime_detected)
 
     return FileMagic(name=type_detected, mime_type=mime_type,
                      encoding=mime_encoding.replace('charset=', ''))

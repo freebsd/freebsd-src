@@ -1,6 +1,12 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,8 +64,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/cores/pmu/bhnd_pmu.h>
+
+#include "bhnd_chipc_if.h"
+#include "bhnd_nvram_if.h"
+
 #include "bhnd.h"
+#include "bhndreg.h"
 #include "bhndvar.h"
+
+#include "bhnd_private.h"
 
 MALLOC_DEFINE(M_BHND, "bhnd", "bhnd bus data structures");
 
@@ -80,10 +94,7 @@ static const struct bhnd_nomatch {
 	{ BHND_MFGID_INVALID,	BHND_COREID_INVALID,		false	}
 };
 
-static int	compare_ascending_probe_order(const void *lhs,
-		    const void *rhs);
-static int	compare_descending_probe_order(const void *lhs,
-		    const void *rhs);
+static int			 bhnd_delete_children(struct bhnd_softc *sc);
 
 /**
  * Default bhnd(4) bus driver implementation of DEVICE_ATTACH().
@@ -94,24 +105,52 @@ static int	compare_descending_probe_order(const void *lhs,
 int
 bhnd_generic_attach(device_t dev)
 {
-	device_t	*devs;
-	int		 ndevs;
-	int		 error;
+	struct bhnd_softc	*sc;
+	int			 error;
 
 	if (device_is_attached(dev))
 		return (EBUSY);
 
-	if ((error = device_get_children(dev, &devs, &ndevs)))
-		return (error);
+	sc = device_get_softc(dev);
+	sc->dev = dev;
 
-	qsort(devs, ndevs, sizeof(*devs), compare_ascending_probe_order);
-	for (int i = 0; i < ndevs; i++) {
-		device_t child = devs[i];
-		device_probe_and_attach(child);
+	/* Probe and attach all children */
+	if ((error = bhnd_bus_probe_children(dev))) {
+		bhnd_delete_children(sc);
+		return (error);
 	}
 
-	free(devs, M_TEMP);
 	return (0);
+}
+
+/**
+ * Detach and delete all children, in reverse of their attach order.
+ */
+static int
+bhnd_delete_children(struct bhnd_softc *sc)
+{
+	device_t		*devs;
+	int			 ndevs;
+	int			 error;
+
+	/* Fetch children in detach order */
+	error = bhnd_bus_get_children(sc->dev, &devs, &ndevs,
+	    BHND_DEVICE_ORDER_DETACH);
+	if (error)
+		return (error);
+
+	/* Perform detach */
+	for (int i = 0; i < ndevs; i++) {
+		device_t child = devs[i];
+
+		/* Terminate on first error */
+		if ((error = device_delete_child(sc->dev, child)))
+			goto cleanup;
+	}
+
+cleanup:
+	bhnd_bus_free_children(devs);
+	return (error);
 }
 
 /**
@@ -124,29 +163,18 @@ bhnd_generic_attach(device_t dev)
 int
 bhnd_generic_detach(device_t dev)
 {
-	device_t	*devs;
-	int		 ndevs;
-	int		 error;
+	struct bhnd_softc	*sc;
+	int			 error;
 
 	if (!device_is_attached(dev))
 		return (EBUSY);
 
-	if ((error = device_get_children(dev, &devs, &ndevs)))
+	sc = device_get_softc(dev);
+
+	if ((error = bhnd_delete_children(sc)))
 		return (error);
 
-	/* Detach in the reverse of attach order */
-	qsort(devs, ndevs, sizeof(*devs), compare_descending_probe_order);
-	for (int i = 0; i < ndevs; i++) {
-		device_t child = devs[i];
-
-		/* Terminate on first error */
-		if ((error = device_detach(child)))
-			goto cleanup;
-	}
-
-cleanup:
-	free(devs, M_TEMP);
-	return (error);
+	return (0);
 }
 
 /**
@@ -166,11 +194,13 @@ bhnd_generic_shutdown(device_t dev)
 	if (!device_is_attached(dev))
 		return (EBUSY);
 
-	if ((error = device_get_children(dev, &devs, &ndevs)))
+	/* Fetch children in detach order */
+	error = bhnd_bus_get_children(dev, &devs, &ndevs,
+	    BHND_DEVICE_ORDER_DETACH);
+	if (error)
 		return (error);
 
-	/* Shutdown in the reverse of attach order */
-	qsort(devs, ndevs, sizeof(*devs), compare_descending_probe_order);
+	/* Perform shutdown */
 	for (int i = 0; i < ndevs; i++) {
 		device_t child = devs[i];
 
@@ -180,7 +210,7 @@ bhnd_generic_shutdown(device_t dev)
 	}
 
 cleanup:
-	free(devs, M_TEMP);
+	bhnd_bus_free_children(devs);
 	return (error);
 }
 
@@ -201,10 +231,13 @@ bhnd_generic_resume(device_t dev)
 	if (!device_is_attached(dev))
 		return (EBUSY);
 
-	if ((error = device_get_children(dev, &devs, &ndevs)))
+	/* Fetch children in attach order */
+	error = bhnd_bus_get_children(dev, &devs, &ndevs,
+	    BHND_DEVICE_ORDER_ATTACH);
+	if (error)
 		return (error);
 
-	qsort(devs, ndevs, sizeof(*devs), compare_ascending_probe_order);
+	/* Perform resume */
 	for (int i = 0; i < ndevs; i++) {
 		device_t child = devs[i];
 
@@ -214,7 +247,7 @@ bhnd_generic_resume(device_t dev)
 	}
 
 cleanup:
-	free(devs, M_TEMP);
+	bhnd_bus_free_children(devs);
 	return (error);
 }
 
@@ -237,11 +270,13 @@ bhnd_generic_suspend(device_t dev)
 	if (!device_is_attached(dev))
 		return (EBUSY);
 
-	if ((error = device_get_children(dev, &devs, &ndevs)))
+	/* Fetch children in detach order */
+	error = bhnd_bus_get_children(dev, &devs, &ndevs,
+	    BHND_DEVICE_ORDER_DETACH);
+	if (error)
 		return (error);
 
-	/* Suspend in the reverse of attach order */
-	qsort(devs, ndevs, sizeof(*devs), compare_descending_probe_order);
+	/* Perform suspend */
 	for (int i = 0; i < ndevs; i++) {
 		device_t child = devs[i];
 		error = BUS_SUSPEND_CHILD(device_get_parent(child), child);
@@ -258,41 +293,8 @@ bhnd_generic_suspend(device_t dev)
 	}
 
 cleanup:
-	free(devs, M_TEMP);
+	bhnd_bus_free_children(devs);
 	return (error);
-}
-
-/*
- * Ascending comparison of bhnd device's probe order.
- */
-static int
-compare_ascending_probe_order(const void *lhs, const void *rhs)
-{
-	device_t	ldev, rdev;
-	int		lorder, rorder;
-
-	ldev = (*(const device_t *) lhs);
-	rdev = (*(const device_t *) rhs);
-
-	lorder = BHND_BUS_GET_PROBE_ORDER(device_get_parent(ldev), ldev);
-	rorder = BHND_BUS_GET_PROBE_ORDER(device_get_parent(rdev), rdev);
-
-	if (lorder < rorder) {
-		return (-1);
-	} else if (lorder > rorder) {
-		return (1);
-	} else {
-		return (0);
-	}
-}
-
-/*
- * Descending comparison of bhnd device's probe order.
- */
-static int
-compare_descending_probe_order(const void *lhs, const void *rhs)
-{
-	return (compare_ascending_probe_order(rhs, lhs));
 }
 
 /**
@@ -345,13 +347,431 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 	case BHND_DEVCLASS_EROM:
 	case BHND_DEVCLASS_OTHER:
 	case BHND_DEVCLASS_INVALID:
-		if (bhnd_find_hostb_device(dev) == child)
+		if (bhnd_bus_find_hostb_device(dev) == child)
 			return (BHND_PROBE_ROOT + BHND_PROBE_ORDER_EARLY);
 
 		return (BHND_PROBE_DEFAULT);
 	default:
 		return (BHND_PROBE_DEFAULT);
 	}
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_ALLOC_PMU().
+ */
+int
+bhnd_generic_alloc_pmu(device_t dev, device_t child)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_resource		*r;
+	struct bhnd_core_clkctl		*clkctl;
+	struct resource_list		*rl;
+	struct resource_list_entry	*rle;
+	device_t			 pmu_dev;
+	bhnd_addr_t			 r_addr;
+	bhnd_size_t			 r_size;
+	bus_size_t			 pmu_regs;
+	u_int				 max_latency;
+	int				 error;
+
+	GIANT_REQUIRED;	/* for newbus */
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+	clkctl = bhnd_get_pmu_info(child);
+	pmu_regs = BHND_CLK_CTL_ST;
+
+	/* already allocated? */
+	if (clkctl != NULL) {
+		panic("duplicate PMU allocation for %s",
+		    device_get_nameunit(child));
+	}
+
+	/* Determine address+size of the core's PMU register block */
+	error = bhnd_get_region_addr(child, BHND_PORT_DEVICE, 0, 0, &r_addr,
+	    &r_size);
+	if (error) {
+		device_printf(sc->dev, "error fetching register block info for "
+		    "%s: %d\n", device_get_nameunit(child), error);
+		return (error);
+	}
+
+	if (r_size < (pmu_regs + sizeof(uint32_t))) {
+		device_printf(sc->dev, "pmu offset %#jx would overrun %s "
+		    "register block\n", (uintmax_t)pmu_regs,
+		    device_get_nameunit(child));
+		return (ENODEV);
+	}
+
+	/* Locate actual resource containing the core's register block */
+	if ((rl = BUS_GET_RESOURCE_LIST(dev, child)) == NULL) {
+		device_printf(dev, "NULL resource list returned for %s\n",
+		    device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	if ((rle = resource_list_find(rl, SYS_RES_MEMORY, 0)) == NULL) {
+		device_printf(dev, "cannot locate core register resource "
+		    "for %s\n", device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	if (rle->res == NULL) {
+		device_printf(dev, "core register resource unallocated for "
+		    "%s\n", device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	if (r_addr+pmu_regs < rman_get_start(rle->res) ||
+	    r_addr+pmu_regs >= rman_get_end(rle->res))
+	{
+		device_printf(dev, "core register resource does not map PMU "
+		    "registers at %#jx\n for %s\n", r_addr+pmu_regs,
+		    device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	/* Adjust PMU register offset relative to the actual start address
+	 * of the core's register block allocation.
+	 * 
+	 * XXX: The saved offset will be invalid if bus_adjust_resource is
+	 * used to modify the resource's start address.
+	 */
+	if (rman_get_start(rle->res) > r_addr)
+		pmu_regs -= rman_get_start(rle->res) - r_addr;
+	else
+		pmu_regs -= r_addr - rman_get_start(rle->res);
+
+	/* Retain a PMU reference for the clkctl instance state */
+	pmu_dev = bhnd_retain_provider(child, BHND_SERVICE_PMU);
+	if (pmu_dev == NULL) {
+		device_printf(sc->dev, "PMU not found\n");
+		return (ENXIO);
+	}
+
+	/* Fetch the maximum transition latency from our PMU */
+	max_latency = bhnd_pmu_get_max_transition_latency(pmu_dev);
+
+	/* Allocate a new bhnd_resource wrapping the standard resource we
+	 * fetched from the resource list; we'll free this in
+	 * bhnd_generic_release_pmu() */
+	r = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
+	if (r == NULL) {
+		bhnd_release_provider(child, pmu_dev, BHND_SERVICE_PMU);
+		return (ENOMEM);
+	}
+
+	r->res = rle->res;
+	r->direct = ((rman_get_flags(rle->res) & RF_ACTIVE) != 0);
+
+	/* Allocate the clkctl instance */
+	clkctl = bhnd_alloc_core_clkctl(child, pmu_dev, r, pmu_regs,
+	    max_latency);
+	if (clkctl == NULL) {
+		free(r, M_BHND);
+		bhnd_release_provider(child, pmu_dev, BHND_SERVICE_PMU);
+		return (ENOMEM);
+	}
+
+	bhnd_set_pmu_info(child, clkctl);
+	return (0);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_RELEASE_PMU().
+ */
+int
+bhnd_generic_release_pmu(device_t dev, device_t child)
+{
+	struct bhnd_softc	*sc;
+	struct bhnd_core_clkctl	*clkctl;
+	struct bhnd_resource	*r;
+	device_t		 pmu_dev;
+
+	GIANT_REQUIRED;	/* for newbus */
+	
+	sc = device_get_softc(dev);
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	clkctl = bhnd_get_pmu_info(child);
+	if (clkctl == NULL)
+		panic("pmu over-release for %s", device_get_nameunit(child));
+
+	/* Clear all FORCE, AREQ, and ERSRC flags, unless we're already in
+	 * RESET. Suspending a core clears clkctl automatically (and attempting
+	 * to access the PMU registers in a suspended core will trigger a
+	 * system livelock). */
+	if (!bhnd_is_hw_suspended(clkctl->cc_dev)) {
+		BHND_CLKCTL_LOCK(clkctl);
+
+		/* Clear all FORCE, AREQ, and ERSRC flags */
+		BHND_CLKCTL_SET_4(clkctl, 0x0, BHND_CCS_FORCE_MASK |
+		    BHND_CCS_AREQ_MASK | BHND_CCS_ERSRC_REQ_MASK);
+
+		BHND_CLKCTL_UNLOCK(clkctl);
+	}
+
+	/* Clear child's PMU info reference */
+	bhnd_set_pmu_info(child, NULL);
+
+	/* Before freeing the clkctl instance, save a pointer to resources we
+	 * need to clean up manually */
+	r = clkctl->cc_res;
+	pmu_dev = clkctl->cc_pmu_dev;
+
+	/* Free the clkctl instance */
+	bhnd_free_core_clkctl(clkctl);
+
+	/* Free the child's bhnd resource wrapper */
+	free(r, M_BHND);
+
+	/* Release the child's PMU provider reference */
+	bhnd_release_provider(child, pmu_dev, BHND_SERVICE_PMU);
+
+	return (0);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_GET_CLOCK_LATENCY().
+ */
+int
+bhnd_generic_get_clock_latency(device_t dev, device_t child, bhnd_clock clock,
+    u_int *latency)
+{
+	struct bhnd_core_clkctl *clkctl;
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
+		panic("no active PMU allocation");
+
+	return (bhnd_pmu_get_clock_latency(clkctl->cc_pmu_dev, clock, latency));
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_GET_CLOCK_FREQ().
+ */
+int
+bhnd_generic_get_clock_freq(device_t dev, device_t child, bhnd_clock clock,
+    u_int *freq)
+{
+	struct bhnd_core_clkctl *clkctl;
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
+		panic("no active PMU allocation");
+
+	return (bhnd_pmu_get_clock_freq(clkctl->cc_pmu_dev, clock, freq));
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_REQUEST_CLOCK().
+ */
+int
+bhnd_generic_request_clock(device_t dev, device_t child, bhnd_clock clock)
+{
+	struct bhnd_softc	*sc;
+	struct bhnd_core_clkctl	*clkctl;
+	uint32_t		 avail;
+	uint32_t		 req;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
+		panic("no active PMU allocation");
+
+	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
+
+	avail = 0x0;
+	req = 0x0;
+
+	switch (clock) {
+	case BHND_CLOCK_DYN:
+		break;
+	case BHND_CLOCK_ILP:
+		req |= BHND_CCS_FORCEILP;
+		break;
+	case BHND_CLOCK_ALP:
+		req |= BHND_CCS_FORCEALP;
+		avail |= BHND_CCS_ALPAVAIL;
+		break;
+	case BHND_CLOCK_HT:
+		req |= BHND_CCS_FORCEHT;
+		avail |= BHND_CCS_HTAVAIL;
+		break;
+	default:
+		device_printf(dev, "%s requested unknown clock: %#x\n",
+		    device_get_nameunit(clkctl->cc_dev), clock);
+		return (ENODEV);
+	}
+
+	BHND_CLKCTL_LOCK(clkctl);
+
+	/* Issue request */
+	BHND_CLKCTL_SET_4(clkctl, req, BHND_CCS_FORCE_MASK);
+
+	/* Wait for clock availability */
+	error = bhnd_core_clkctl_wait(clkctl, avail, avail);
+
+	BHND_CLKCTL_UNLOCK(clkctl);
+
+	return (error);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_ENABLE_CLOCKS().
+ */
+int
+bhnd_generic_enable_clocks(device_t dev, device_t child, uint32_t clocks)
+{
+	struct bhnd_softc	*sc;
+	struct bhnd_core_clkctl	*clkctl;
+	uint32_t		 avail;
+	uint32_t		 req;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
+		panic("no active PMU allocation");
+
+	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
+
+	sc = device_get_softc(dev);
+
+	avail = 0x0;
+	req = 0x0;
+
+	/* Build clock request flags */
+	if (clocks & BHND_CLOCK_DYN)		/* nothing to enable */
+		clocks &= ~BHND_CLOCK_DYN;
+
+	if (clocks & BHND_CLOCK_ILP)		/* nothing to enable */
+		clocks &= ~BHND_CLOCK_ILP;
+
+	if (clocks & BHND_CLOCK_ALP) {
+		req |= BHND_CCS_ALPAREQ;
+		avail |= BHND_CCS_ALPAVAIL;
+		clocks &= ~BHND_CLOCK_ALP;
+	}
+
+	if (clocks & BHND_CLOCK_HT) {
+		req |= BHND_CCS_HTAREQ;
+		avail |= BHND_CCS_HTAVAIL;
+		clocks &= ~BHND_CLOCK_HT;
+	}
+
+	/* Check for unknown clock values */
+	if (clocks != 0x0) {
+		device_printf(dev, "%s requested unknown clocks: %#x\n",
+		    device_get_nameunit(clkctl->cc_dev), clocks);
+		return (ENODEV);
+	}
+
+	BHND_CLKCTL_LOCK(clkctl);
+
+	/* Issue request */
+	BHND_CLKCTL_SET_4(clkctl, req, BHND_CCS_AREQ_MASK);
+
+	/* Wait for clock availability */
+	error = bhnd_core_clkctl_wait(clkctl, avail, avail);
+
+	BHND_CLKCTL_UNLOCK(clkctl);
+
+	return (error);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_REQUEST_EXT_RSRC().
+ */
+int
+bhnd_generic_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
+{
+	struct bhnd_softc	*sc;
+	struct bhnd_core_clkctl	*clkctl;
+	uint32_t		 req;
+	uint32_t		 avail;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
+		panic("no active PMU allocation");
+
+	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
+
+	sc = device_get_softc(dev);
+
+	if (rsrc > BHND_CCS_ERSRC_MAX)
+		return (EINVAL);
+
+	req = BHND_CCS_SET_BITS((1<<rsrc), BHND_CCS_ERSRC_REQ);
+	avail = BHND_CCS_SET_BITS((1<<rsrc), BHND_CCS_ERSRC_STS);
+
+	BHND_CLKCTL_LOCK(clkctl);
+
+	/* Write request */
+	BHND_CLKCTL_SET_4(clkctl, req, req);
+
+	/* Wait for resource availability */
+	error = bhnd_core_clkctl_wait(clkctl, avail, avail);
+
+	BHND_CLKCTL_UNLOCK(clkctl);
+
+	return (error);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_RELEASE_EXT_RSRC().
+ */
+int
+bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
+{
+	struct bhnd_softc	*sc;
+	struct bhnd_core_clkctl	*clkctl;
+	uint32_t		 mask;
+
+	sc = device_get_softc(dev);
+
+	if (device_get_parent(child) != dev)
+		return (EINVAL);
+
+	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
+		panic("no active PMU allocation");
+
+
+	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
+
+	sc = device_get_softc(dev);
+
+	if (rsrc > BHND_CCS_ERSRC_MAX)
+		return (EINVAL);
+
+	mask = BHND_CCS_SET_BITS((1<<rsrc), BHND_CCS_ERSRC_REQ);
+
+	/* Clear request */
+	BHND_CLKCTL_LOCK(clkctl);
+	BHND_CLKCTL_SET_4(clkctl, 0x0, mask);
+	BHND_CLKCTL_UNLOCK(clkctl);
+
+	return (0);
 }
 
 /**
@@ -376,6 +796,40 @@ bhnd_generic_is_region_valid(device_t dev, device_t child,
 }
 
 /**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_GET_NVRAM_VAR().
+ * 
+ * This implementation searches @p dev for a registered NVRAM child device.
+ * 
+ * If no NVRAM device is registered with @p dev, the request is delegated to
+ * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
+ */
+int
+bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
+    void *buf, size_t *size, bhnd_nvram_type type)
+{
+	struct bhnd_softc	*sc;
+	device_t		 nvram, parent;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	/* If a NVRAM device is available, consult it first */
+	nvram = bhnd_retain_provider(child, BHND_SERVICE_NVRAM);
+	if (nvram != NULL) {
+		error = BHND_NVRAM_GETVAR(nvram, name, buf, size, type);
+		bhnd_release_provider(child, nvram, BHND_SERVICE_NVRAM);
+		return (error);
+	}
+
+	/* Otherwise, try to delegate to parent */
+	if ((parent = device_get_parent(dev)) == NULL)
+		return (ENODEV);
+
+	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
+	    name, buf, size, type));
+}
+
+/**
  * Default bhnd(4) bus driver implementation of BUS_PRINT_CHILD().
  * 
  * This implementation requests the device's struct resource_list via
@@ -390,9 +844,14 @@ bhnd_generic_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
+	
+	
 	if (rl != NULL) {
 		retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
 		    "%#jx");
+
+		retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ,
+		    "%#jd");
 	}
 
 	retval += printf(" at core %u", bhnd_get_core_index(child));
@@ -435,12 +894,14 @@ bhnd_generic_probe_nomatch(device_t dev, device_t child)
 		return;
 
 	/* Print the non-matched device info */
-	device_printf(dev, "<%s %s>", bhnd_get_vendor_name(child),
-		bhnd_get_device_name(child));
+	device_printf(dev, "<%s %s, rev %hhu>", bhnd_get_vendor_name(child),
+		bhnd_get_device_name(child), bhnd_get_hwrev(child));
 
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
-	if (rl != NULL)
+	if (rl != NULL) {
 		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%#jd");
+	}
 
 	printf(" at core %u (no driver attached)\n",
 	    bhnd_get_core_index(child));
@@ -493,6 +954,29 @@ bhnd_child_location_str(device_t dev, device_t child, char *buf,
 }
 
 /**
+ * Default bhnd(4) bus driver implementation of BUS_CHILD_DELETED().
+ * 
+ * This implementation manages internal bhnd(4) state, and must be called
+ * by subclassing drivers.
+ */
+void
+bhnd_generic_child_deleted(device_t dev, device_t child)
+{
+	struct bhnd_softc	*sc;
+
+	sc = device_get_softc(dev);
+
+	/* Free device info */
+	if (bhnd_get_pmu_info(child) != NULL) {
+		/* Releasing PMU requests automatically would be nice,
+		 * but we can't reference per-core PMU register
+		 * resource after driver detach */
+		panic("%s leaked device pmu state\n",
+		    device_get_nameunit(child));
+	}
+}
+
+/**
  * Helper function for implementing BUS_SUSPEND_CHILD().
  *
  * TODO: Power management
@@ -524,6 +1008,22 @@ bhnd_generic_resume_child(device_t dev, device_t child)
 		BUS_RESUME_CHILD(device_get_parent(dev), child);
 
 	return bus_generic_resume_child(dev, child);
+}
+
+
+/**
+ * Default bhnd(4) bus driver implementation of BUS_SETUP_INTR().
+ *
+ * This implementation of BUS_SETUP_INTR() will delegate interrupt setup
+ * to the parent of @p dev, if any.
+ */
+int
+bhnd_generic_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg,
+    void **cookiep)
+{
+	return (bus_generic_setup_intr(dev, child, irq, flags, filter, intr,
+	    arg, cookiep));
 }
 
 /*
@@ -611,6 +1111,7 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(device_resume,		bhnd_generic_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,		bhnd_generic_child_deleted),
 	DEVMETHOD(bus_probe_nomatch,		bhnd_generic_probe_nomatch),
 	DEVMETHOD(bus_print_child,		bhnd_generic_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str,	bhnd_child_pnpinfo_str),
@@ -628,7 +1129,7 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 
-	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_setup_intr,		bhnd_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 	DEVMETHOD(bus_config_intr,		bus_generic_config_intr),
 	DEVMETHOD(bus_bind_intr,		bus_generic_bind_intr),
@@ -638,10 +1139,21 @@ static device_method_t bhnd_methods[] = {
 
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_bus_generic_get_chipid),
-	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
-	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
-	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
+
+	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
+
+	DEVMETHOD(bhnd_bus_alloc_pmu,		bhnd_generic_alloc_pmu),
+	DEVMETHOD(bhnd_bus_release_pmu,		bhnd_generic_release_pmu),
+	DEVMETHOD(bhnd_bus_request_clock,	bhnd_generic_request_clock),
+	DEVMETHOD(bhnd_bus_enable_clocks,	bhnd_generic_enable_clocks),
+	DEVMETHOD(bhnd_bus_request_ext_rsrc,	bhnd_generic_request_ext_rsrc),
+	DEVMETHOD(bhnd_bus_release_ext_rsrc,	bhnd_generic_release_ext_rsrc),
+	DEVMETHOD(bhnd_bus_get_clock_latency,	bhnd_generic_get_clock_latency),
+	DEVMETHOD(bhnd_bus_get_clock_freq,	bhnd_generic_get_clock_freq),
+
+	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
+	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_generic_get_nvram_var),
 
 	/* BHND interface (bus I/O) */
 	DEVMETHOD(bhnd_bus_read_1,		bhnd_read_1),

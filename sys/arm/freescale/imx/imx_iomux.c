@@ -59,11 +59,10 @@
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include <arm/freescale/imx/imx_iomuxvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
@@ -71,7 +70,7 @@
 struct iomux_softc {
 	device_t	dev;
 	struct resource	*mem_res;
-	u_int		last_gpreg;
+	u_int		last_gpregaddr;
 };
 
 static struct iomux_softc *iomux_sc;
@@ -80,6 +79,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx6dl-iomuxc",	true},
 	{"fsl,imx6q-iomuxc",	true},
 	{"fsl,imx6sl-iomuxc",	true},
+	{"fsl,imx6ul-iomuxc",	true},
 	{"fsl,imx6sx-iomuxc",	true},
 	{"fsl,imx53-iomuxc",	true},
 	{"fsl,imx51-iomuxc",	true},
@@ -153,8 +153,8 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
-	ntuples = OF_getencprop_alloc(cfgnode, "fsl,pins", sizeof(*cfgtuples),
-	    (void **)&cfgtuples);
+	ntuples = OF_getencprop_alloc_multi(cfgnode, "fsl,pins",
+	    sizeof(*cfgtuples), (void **)&cfgtuples);
 	if (ntuples < 0)
 		return (ENOENT);
 	if (ntuples == 0)
@@ -213,16 +213,19 @@ iomux_attach(device_t dev)
 
 	switch (imx_soc_type()) {
 	case IMXSOC_51:
-		sc->last_gpreg = 1;
+		sc->last_gpregaddr = 1 * sizeof(uint32_t);
 		break;
 	case IMXSOC_53:
-		sc->last_gpreg = 2;
+		sc->last_gpregaddr = 2 * sizeof(uint32_t);
 		break;
 	case IMXSOC_6DL:
 	case IMXSOC_6S:
 	case IMXSOC_6SL:
 	case IMXSOC_6Q:
-		sc->last_gpreg = 13;
+		sc->last_gpregaddr = 13 * sizeof(uint32_t);
+		break;
+	case IMXSOC_6UL:
+		sc->last_gpregaddr = 14 * sizeof(uint32_t);
 		break;
 	default:
 		device_printf(dev, "Unknown SoC type\n");
@@ -258,45 +261,48 @@ iomux_attach(device_t dev)
 }
 
 uint32_t
-imx_iomux_gpr_get(u_int regnum)
+imx_iomux_gpr_get(u_int regaddr)
 {
 	struct iomux_softc * sc;
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
-	KASSERT(regnum >= 0 && regnum <= sc->last_gpreg, 
-	    ("%s bad regnum %u, max %u", __FUNCTION__, regnum, sc->last_gpreg));
+	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr, 
+	    ("%s bad regaddr %u, max %u", __FUNCTION__, regaddr,
+	    sc->last_gpregaddr));
 
-	return (RD4(iomux_sc, regnum * 4));
+	return (RD4(iomux_sc, regaddr));
 }
 
 void
-imx_iomux_gpr_set(u_int regnum, uint32_t val)
+imx_iomux_gpr_set(u_int regaddr, uint32_t val)
 {
 	struct iomux_softc * sc;
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
-	KASSERT(regnum >= 0 && regnum <= sc->last_gpreg, 
-	    ("%s bad regnum %u, max %u", __FUNCTION__, regnum, sc->last_gpreg));
+	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr, 
+	    ("%s bad regaddr %u, max %u", __FUNCTION__, regaddr,
+	    sc->last_gpregaddr));
 
-	WR4(iomux_sc, regnum * 4, val);
+	WR4(iomux_sc, regaddr, val);
 }
 
 void
-imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits)
+imx_iomux_gpr_set_masked(u_int regaddr, uint32_t clrbits, uint32_t setbits)
 {
 	struct iomux_softc * sc;
 	uint32_t val;
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
-	KASSERT(regnum >= 0 && regnum <= sc->last_gpreg, 
-	    ("%s bad regnum %u, max %u", __FUNCTION__, regnum, sc->last_gpreg));
+	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr, 
+	    ("%s bad regaddr %u, max %u", __FUNCTION__, regaddr,
+	    sc->last_gpregaddr));
 
-	val = RD4(iomux_sc, regnum * 4);
+	val = RD4(iomux_sc, regaddr * 4);
 	val = (val & ~clrbits) | setbits;
-	WR4(iomux_sc, regnum * 4, val);
+	WR4(iomux_sc, regaddr, val);
 }
 
 static device_method_t imx_iomux_methods[] = {

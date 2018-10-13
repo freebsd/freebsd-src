@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2015
+.Dd April 30, 2018
 .Dt RIGHTS 4
 .Os
 .Sh NAME
@@ -94,8 +94,15 @@ Permit
 and
 .Xr acl_set_fd_np 3 .
 .It Dv CAP_BIND
-Permit
-.Xr bind 2 .
+When not in capabilities mode, permit
+.Xr bind 2
+and
+.Xr bindat 2
+with special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter.
 Note that sockets can also become bound implicitly as a result of
 .Xr connect 2
 or
@@ -116,9 +123,16 @@ An alias to
 and
 .Dv CAP_LOOKUP .
 .It Dv CAP_CONNECT
-Permit
-.Xr connect 2 ;
-also required for
+When not in capabilities mode, permit
+.Xr connect 2
+and
+.Xr connectat 2
+with special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter.
+This right is also required for
 .Xr sendto 2
 with a non-NULL destination address.
 .It Dv CAP_CONNECTAT
@@ -212,7 +226,7 @@ with the
 .Dv O_EXEC
 flag;
 .Dv CAP_READ
-is also be required.
+is also required.
 .It Dv CAP_FLOCK
 Permit
 .Xr flock 2 ,
@@ -254,6 +268,7 @@ Permit
 .It Dv CAP_FSYNC
 Permit
 .Xr aio_fsync 2 ,
+.Xr fdatasync 2 ,
 .Xr fsync 2
 and
 .Xr openat 2

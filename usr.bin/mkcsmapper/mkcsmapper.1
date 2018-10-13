@@ -29,12 +29,12 @@
 .\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
 .\" event of any discrepancy between this version and the original IEEE and
 .\" The Open Group Standard, the original IEEE and The Open Group Standard is
-.\" the referee document.  The original Standard can be obtained online at
-.\"     http://www.opengroup.org/unix/online.html.
+.\" the referee document.  The original Standard can be obtained at
+.\"     http://www.opengroup.org/standards/unix.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 6, 2009
+.Dd July 9, 2016
 .Dt MKCSMAPPER 1
 .Os
 .Sh NAME
@@ -43,10 +43,10 @@
 .Xr iconv 3
 .Sh SYNOPSIS
 .Nm
-.Op Fl mpd
-.Fl o
-.Ar outfile
-.Ar infile
+.Op Fl d
+.Op Fl m | Fl p
+.Op Fl o Ar outfile
+.Op Ar infile
 .Sh DESCRIPTION
 The
 .Nm
@@ -60,7 +60,7 @@ A pivot file, which the possible source and destination encoding
 pairs or the set of mappings to use for a compound encoding.
 .Pp
 The following options are available:
-.Bl -tag -width 0123
+.Bl -tag -width XoXoutfileXX
 .It Fl d
 Turns on debug mode.
 .It Fl m
@@ -82,7 +82,8 @@ Generate pivot data from
 .Sh HISTORY
 .Nm
 first appeared in
-.Nx 2.0 , and made its appearance in
+.Nx 2.0 ,
+and made its appearance in
 .Fx 9.0 .
 .Sh AUTHORS
 This manual page was written by

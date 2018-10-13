@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_arp.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -58,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
 #include <contrib/ncsw/inc/xx_ext.h>
@@ -67,6 +67,10 @@ __FBSDID("$FreeBSD$");
 #include "if_dtsec_im.h"
 #include "if_dtsec_rm.h"
 
+#define	DTSEC_MIN_FRAME_SIZE	64
+#define	DTSEC_MAX_FRAME_SIZE	9600
+
+#define	DTSEC_REG_MAXFRM	0x110
 
 /**
  * @group dTSEC private defines.
@@ -79,13 +83,6 @@ struct dtsec_fm_mac_ex_str {
 	const int num;
 	const char *str;
 };
-
-/* XXX: Handle to FM_MAC instance of dTSEC0 */
-/* From QorIQ Data Path Acceleration Architecture Reference Manual, Rev 2, page
- * 3-37, "The MII management hardware is shared by all dTSECs... only through
- * the MIIM registers of dTSEC1 can external PHY's be accessed and configured."
- */
-static t_Handle dtsec_mdio_mac_handle;
 /** @} */
 
 
@@ -195,7 +192,7 @@ dtsec_fm_mac_init(struct dtsec_softc *sc, uint8_t *mac)
 	memset(&params, 0, sizeof(params));
 	memcpy(&params.addr, mac, sizeof(params.addr));
 
-	params.baseAddr = sc->sc_fm_base + sc->sc_mac_mem_offset;
+	params.baseAddr = rman_get_bushandle(sc->sc_mem);
 	params.enetMode = sc->sc_mac_enet_mode;
 	params.macId = sc->sc_eth_id;
 	params.mdioIrq = sc->sc_mac_mdio_irq;
@@ -205,8 +202,6 @@ dtsec_fm_mac_init(struct dtsec_softc *sc, uint8_t *mac)
 	params.h_Fm = sc->sc_fmh;
 
 	sc->sc_mach = FM_MAC_Config(&params);
-	if (sc->sc_hidden)
-		return (0);
 	if (sc->sc_mach == NULL) {
 		device_printf(sc->sc_dev, "couldn't configure FM_MAC module.\n"
 		    );
@@ -330,6 +325,22 @@ dtsec_fm_port_free_both(struct dtsec_softc *sc)
  * @{
  */
 static int
+dtsec_set_mtu(struct dtsec_softc *sc, unsigned int mtu)
+{
+
+	mtu += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
+
+	DTSEC_LOCK_ASSERT(sc);
+
+	if (mtu >= DTSEC_MIN_FRAME_SIZE && mtu <= DTSEC_MAX_FRAME_SIZE) {
+		bus_write_4(sc->sc_mem, DTSEC_REG_MAXFRM, mtu);
+		return (mtu);
+	}
+
+	return (0);
+}
+
+static int
 dtsec_if_enable_locked(struct dtsec_softc *sc)
 {
 	int error;
@@ -393,6 +404,14 @@ dtsec_if_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	/* Basic functionality to achieve media status reports */
 	switch (command) {
+	case SIOCSIFMTU:
+		DTSEC_LOCK(sc);
+		if (dtsec_set_mtu(sc, ifr->ifr_mtu))
+			ifp->if_mtu = ifr->ifr_mtu;
+		else
+			error = EINVAL;
+		DTSEC_UNLOCK(sc);
+		break;
 	case SIOCSIFFLAGS:
 		DTSEC_LOCK(sc);
 
@@ -578,21 +597,19 @@ int
 dtsec_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
+	device_t parent;
 	int error;
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 
+	parent = device_get_parent(dev);
 	sc->sc_dev = dev;
 	sc->sc_mac_mdio_irq = NO_IRQ;
-	sc->sc_eth_id = device_get_unit(dev);
-
 
 	/* Check if MallocSmart allocator is ready */
 	if (XX_MallocSmartInit() != E_OK)
 		return (ENXIO);
-
-	XX_TrackInit();
 
 	/* Init locks */
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev),
@@ -605,13 +622,13 @@ dtsec_attach(device_t dev)
 	callout_init(&sc->sc_tick_callout, CALLOUT_MPSAFE);
 
 	/* Read configuraton */
-	if ((error = fman_get_handle(&sc->sc_fmh)) != 0)
+	if ((error = fman_get_handle(parent, &sc->sc_fmh)) != 0)
 		return (error);
 
-	if ((error = fman_get_muram_handle(&sc->sc_muramh)) != 0)
+	if ((error = fman_get_muram_handle(parent, &sc->sc_muramh)) != 0)
 		return (error);
 
-	if ((error = fman_get_bushandle(&sc->sc_fm_base)) != 0)
+	if ((error = fman_get_bushandle(parent, &sc->sc_fm_base)) != 0)
 		return (error);
 
 	/* Configure working mode */
@@ -646,20 +663,6 @@ dtsec_attach(device_t dev)
 		dtsec_detach(dev);
 		return (ENXIO);
 	}
-
-	/*
-	 * XXX: All phys are connected to MDIO interface of the first dTSEC
-	 * device (dTSEC0). We have to save handle to the FM_MAC instance of
-	 * dTSEC0, which is used later during phy's registers accesses. Another
-	 * option would be adding new property to DTS pointing to correct dTSEC
-	 * instance, of which FM_MAC handle has to be used for phy's registers
-	 * accesses. We did not want to add new properties to DTS, thus this
-	 * quite ugly hack.
-	 */
-	if (sc->sc_eth_id == 0)
-		dtsec_mdio_mac_handle = sc->sc_mach;
-	if (sc->sc_hidden)
-		return (0);
 
 	/* Init FMan TX port */
 	error = sc->sc_port_tx_init(sc, device_get_unit(sc->sc_dev));
@@ -703,7 +706,7 @@ dtsec_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = TSEC_TX_NUM_DESC - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 #endif
-	ifp->if_capabilities = 0; /* TODO: Check */
+	ifp->if_capabilities = IFCAP_JUMBO_MTU; /* TODO: HWCSUM */
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Attach PHY(s) */
@@ -797,47 +800,21 @@ int
 dtsec_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct dtsec_softc *sc;
-	uint16_t data;
-	t_Error error;
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->sc_phy_addr)
-		return (0xFFFF);
-
-	DTSEC_MII_LOCK(sc);
-	error = FM_MAC_MII_ReadPhyReg(dtsec_mdio_mac_handle, phy, reg, &data);
-	DTSEC_MII_UNLOCK(sc);
-	if (error != E_OK) {
-		device_printf(dev, "Error while reading from PHY (NetCommSw "
-		    "error: %d)\n", error);
-		return (0xFFFF);
-	}
-
-	return ((int)data);
+	return (MIIBUS_READREG(sc->sc_mdio, phy, reg));
 }
 
 int
 dtsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
+
 	struct dtsec_softc *sc;
-	t_Error error;
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->sc_phy_addr)
-		return (EINVAL);
-
-	DTSEC_MII_LOCK(sc);
-	error = FM_MAC_MII_WritePhyReg(dtsec_mdio_mac_handle, phy, reg, value);
-	DTSEC_MII_UNLOCK(sc);
-	if (error != E_OK) {
-		device_printf(dev, "Error while writing to PHY (NetCommSw "
-		    "error: %d).\n", error);
-		return (EIO);
-	}
-
-	return (0);
+	return (MIIBUS_WRITEREG(sc->sc_mdio, phy, reg, value));
 }
 
 void

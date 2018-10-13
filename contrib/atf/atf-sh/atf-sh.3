@@ -22,7 +22,7 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd October 13, 2014
+.Dd March 6, 2017
 .Dt ATF-SH 3
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nm atf_fail ,
 .Nm atf_get ,
 .Nm atf_get_srcdir ,
+.Nm atf_init_test_cases ,
 .Nm atf_pass ,
 .Nm atf_require_prog ,
 .Nm atf_set ,
@@ -82,6 +83,8 @@
 .Nm atf_get
 .Qq var_name
 .Nm atf_get_srcdir
+.Nm atf_init_test_cases
+.Qq name
 .Nm atf_pass
 .Nm atf_require_prog
 .Qq prog_name
@@ -129,7 +132,7 @@ tc2_cleanup() {
     ... second test case's cleanup ...
 }
 
-.Ns ... additional test cases ...
+\&... additional test cases ...
 
 atf_init_test_cases() {
     atf_add_test_case tc1
@@ -144,7 +147,7 @@ described in
 .Xr atf-test-case 4 .
 To define test cases, one can use the
 .Nm atf_test_case
-function, which takes a first parameter specifiying the test case's
+function, which takes a first parameter specifying the test case's
 name and instructs the library to set things up to accept it as a valid
 test case.
 The second parameter is optional and, if provided, must be
@@ -334,7 +337,7 @@ atf_init_test_cases() {
 This other example shows how to include a file with extra helper functions
 in the test program:
 .Bd -literal -offset indent
-.Ns ... definition of test cases ...
+\&... definition of test cases ...
 
 atf_init_test_cases() {
     . $(atf_get_srcdir)/helper_functions.sh

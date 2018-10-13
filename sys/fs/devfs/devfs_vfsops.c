@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1992, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2000
@@ -80,9 +82,6 @@ devfs_mount(struct mount *mp)
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_DEVFS))
-		return (EPERM);
 
 	rsnum = 0;
 	injail = jailed(td->td_ucred);

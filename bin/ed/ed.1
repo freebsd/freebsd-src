@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd July 3, 2004
+.Dd February 5, 2017
 .Dt ED 1
 .Os
 .Sh NAME
@@ -871,9 +871,6 @@ writes.
 If a newline alone is entered as the key, then encryption is
 turned off.
 Otherwise, echoing is disabled while a key is read.
-Encryption/decryption is done using the
-.Xr bdes 1
-algorithm.
 .It Pf (.+1)z n
 Scroll
 .Ar n
@@ -962,7 +959,6 @@ results in an error.
 If the command is entered a second time, it succeeds,
 but any changes to the buffer are lost.
 .Sh SEE ALSO
-.Xr bdes 1 ,
 .Xr sed 1 ,
 .Xr sh 1 ,
 .Xr vi 1 ,
@@ -998,7 +994,7 @@ per line overhead: 4 ints
 An
 .Nm
 command appeared in
-Version 1 AT&T UNIX.
+.At v1 .
 .Sh BUGS
 The
 .Nm

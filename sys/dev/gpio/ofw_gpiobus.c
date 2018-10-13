@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Nathan Whitehorn <nwhitehorn@FreeBSD.org>
  * Copyright (c) 2013, Luiz Otavio O Souza <loos@FreeBSD.org>
  * Copyright (c) 2013 The FreeBSD Foundation
@@ -41,6 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include "gpiobus_if.h"
 
+#define	GPIO_ACTIVE_LOW		1
+
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
 	device_t, phandle_t);
 static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);
@@ -55,8 +59,8 @@ static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
  * tree consumers.
  *
  */
-static int
-gpio_pin_get_by_ofw_impl(device_t consumer, phandle_t cnode,
+int
+gpio_pin_get_by_ofw_propidx(device_t consumer, phandle_t cnode,
     char *prop_name, int idx, gpio_pin_t *out_pin)
 {
 	phandle_t xref;
@@ -110,7 +114,7 @@ gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
     int idx, gpio_pin_t *pin)
 {
 
-	return (gpio_pin_get_by_ofw_impl(consumer, node, "gpios", idx, pin));
+	return (gpio_pin_get_by_ofw_propidx(consumer, node, "gpios", idx, pin));
 }
 
 int
@@ -118,7 +122,7 @@ gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
     char *name, gpio_pin_t *pin)
 {
 
-	return (gpio_pin_get_by_ofw_impl(consumer, node, name, 0, pin));
+	return (gpio_pin_get_by_ofw_propidx(consumer, node, name, 0, pin));
 }
 
 int
@@ -176,9 +180,10 @@ gpio_pin_is_active(gpio_pin_t pin, bool *active)
 		return (rv);
 	}
 
-	*active = tmp != 0;
 	if (pin->flags & GPIO_ACTIVE_LOW)
-		*active = !(*active);
+		*active = tmp == 0;
+	else
+		*active = tmp != 0;
 	return (0);
 }
 
@@ -321,13 +326,11 @@ ofw_gpiobus_setup_devinfo(device_t bus, device_t child, phandle_t node)
 		devi->pins[i] = pins[i].pin;
 	}
 	free(pins, M_DEVBUF);
-#ifndef INTRNG
 	/* Parse the interrupt resources. */
 	if (ofw_bus_intr_to_rl(bus, node, &dinfo->opd_dinfo.rl, NULL) != 0) {
 		ofw_gpiobus_destroy_devinfo(bus, dinfo);
 		return (NULL);
 	}
-#endif
 	device_set_ivars(child, dinfo);
 
 	return (dinfo);
@@ -361,7 +364,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 	pcell_t *gpios;
 	phandle_t gpio;
 
-	ncells = OF_getencprop_alloc(cnode, pname, sizeof(*gpios),
+	ncells = OF_getencprop_alloc_multi(cnode, pname, sizeof(*gpios),
             (void **)&gpios);
 	if (ncells == -1) {
 		device_printf(consumer,

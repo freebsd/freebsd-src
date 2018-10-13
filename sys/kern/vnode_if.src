@@ -10,7 +10,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -40,14 +40,10 @@
 #
 # The locking value can take the following values:
 # L: locked; not converted to type of lock.
-# A: any lock type.
-# S: locked with shared lock.
 # E: locked with exclusive lock for this process.
-# O: locked with exclusive lock for other process.
 # U: unlocked.
 # -: not applicable.  vnode does not yet (or no longer) exists.
 # =: the same on input and output, may be either L or U.
-# X: locked if not nil.
 #
 # The paramater named "vpp" is assumed to be always used with double
 # indirection (**vpp) and that name is hard-coded in vnode_if.awk !
@@ -63,6 +59,7 @@ vop_islocked {
 	IN struct vnode *vp;
 };
 
+
 %% lookup	dvp	L L L
 %% lookup	vpp	- L -
 
@@ -76,6 +73,7 @@ vop_lookup {
 	IN struct componentname *cnp;
 };
 
+
 %% cachedlookup	dvp	L L L
 %% cachedlookup	vpp	- L -
 
@@ -86,6 +84,7 @@ vop_cachedlookup {
 	INOUT struct vnode **vpp;
 	IN struct componentname *cnp;
 };
+
 
 %% create	dvp	E E E
 %% create	vpp	- L -
@@ -181,11 +180,13 @@ vop_setattr {
 	IN struct ucred *cred;
 };
 
+
 %% markatime	vp	L L L
 
 vop_markatime {
 	IN struct vnode *vp;
 };
+
 
 %% read		vp	L L L
 %! read		post	vop_read_post
@@ -428,7 +429,7 @@ vop_print {
 vop_pathconf {
 	IN struct vnode *vp;
 	IN int name;
-	OUT register_t *retval;
+	OUT long *retval;
 };
 
 
@@ -646,6 +647,7 @@ vop_allocate {
 	INOUT off_t *len;
 };
 
+
 %% advise	vp	U U U
 
 vop_advise {
@@ -655,19 +657,22 @@ vop_advise {
 	IN int advice;
 };
 
+
 %% unp_bind	vp	E E E
 
 vop_unp_bind {
 	IN struct vnode *vp;
-	IN struct socket *socket;
+	IN struct unpcb *unpcb;
 };
+
 
 %% unp_connect	vp	L L L
 
 vop_unp_connect {
 	IN struct vnode *vp;
-	OUT struct socket **socket;
+	OUT struct unpcb **unpcb;
 };
+
 
 %% unp_detach	vp	= = =
 
@@ -675,11 +680,13 @@ vop_unp_detach {
 	IN struct vnode *vp;
 };
 
+
 %% is_text	vp	L L L
 
 vop_is_text {
 	IN struct vnode *vp;
 };
+
 
 %% set_text	vp	E E E
 
@@ -687,11 +694,13 @@ vop_set_text {
 	IN struct vnode *vp;
 };
 
+
 %% vop_unset_text	vp	E E E
 
 vop_unset_text {
 	IN struct vnode *vp;
 };
+
 
 %% get_writecount	vp	L L L
 
@@ -700,12 +709,22 @@ vop_get_writecount {
 	OUT int *writecount;
 };
 
+
 %% add_writecount	vp	E E E
 
 vop_add_writecount {
 	IN struct vnode *vp;
 	IN int inc;
 };
+
+
+%% fdatasync	vp	L L L
+
+vop_fdatasync {
+	IN struct vnode *vp;
+	IN struct thread *td;
+};
+
 
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should

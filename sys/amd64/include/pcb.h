@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -83,13 +85,14 @@ struct pcb {
 #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
 #define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
+#define	PCB_FPUNOSAVE	0x80	/* no save area for current FPU ctx */
 
 	uint16_t	pcb_initial_fpucw;
 
 	/* copyin/out fault recovery */
 	caddr_t		pcb_onfault;
 
-	uint64_t	pcb_pad0;
+	uint64_t	pcb_saved_ucr3;
 
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
@@ -118,40 +121,15 @@ struct susppcb {
 #ifdef _KERNEL
 struct trapframe;
 
-/*
- * The pcb_flags is only modified by current thread, or by other threads
- * when current thread is stopped.  However, current thread may change it
- * from the interrupt context in cpu_switch(), or in the trap handler.
- * When we read-modify-write pcb_flags from C sources, compiler may generate
- * code that is not atomic regarding the interrupt handler.  If a trap or
- * interrupt happens and any flag is modified from the handler, it can be
- * clobbered with the cached value later.  Therefore, we implement setting
- * and clearing flags with single-instruction functions, which do not race
- * with possible modification of the flags from the trap or interrupt context,
- * because traps and interrupts are executed only on instruction boundary.
- */
-static __inline void
-set_pcb_flags(struct pcb *pcb, const u_int flags)
-{
-
-	__asm __volatile("orl %1,%0"
-	    : "=m" (pcb->pcb_flags) : "ir" (flags), "m" (pcb->pcb_flags)
-	    : "cc");
-}
-
-static __inline void
-clear_pcb_flags(struct pcb *pcb, const u_int flags)
-{
-
-	__asm __volatile("andl %1,%0"
-	    : "=m" (pcb->pcb_flags) : "ir" (~flags), "m" (pcb->pcb_flags)
-	    : "cc");
-}
-
+void	clear_pcb_flags(struct pcb *pcb, const u_int flags);
 void	makectx(struct trapframe *, struct pcb *);
+void	set_pcb_flags(struct pcb *pcb, const u_int flags);
+void	set_pcb_flags_raw(struct pcb *pcb, const u_int flags);
 int	savectx(struct pcb *) __returns_twice;
 void	resumectx(struct pcb *);
 
+/* Ensure that pcb_gsbase and pcb_fsbase are up to date */
+#define	update_pcb_bases(pcb)	set_pcb_flags((pcb), PCB_FULL_IRET)
 #endif
 
 #endif /* _AMD64_PCB_H_ */

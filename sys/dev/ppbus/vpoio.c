@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 1999 Nicolas Souchu
  * Copyright (c) 2000 Alcove - Nicolas Souchu
  * All rights reserved.
@@ -680,10 +682,10 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int *ret)
 {
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	register char r;
+	char r;
 	char l, h = 0;
 	int len, error = 0;
-	register int k;
+	int k;
 
 	/*
 	 * enter disk state, allocate the ppbus

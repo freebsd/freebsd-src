@@ -25,6 +25,7 @@ Options:
     --yes    -y            Answer all questions with "yes" automatically.
     --no     -n            Answer all questions with "no" automatically.
     --cygwin -c <options>  Use "options" as value for CYGWIN environment var.
+    --name   -N <name>     sshd windows service name.
     --port   -p <n>        sshd listens on port n.
     --user   -u <account>  privileged user for service, default 'cyg_server'.
     --pwd    -w <passwd>   Use "pwd" as password for privileged user.

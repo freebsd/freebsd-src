@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Doug Rabson
  * Copyright (c) 1997 Luigi Rizzo
  * All rights reserved.
@@ -181,7 +183,7 @@ typedef struct mixer_def mixer_tab[32][2];
  * The AD1848 codec has generic input lines called Line, Aux1 and Aux2.
  * Soundcard manufacturers have connected actual inputs (CD, synth, line,
  * etc) to these inputs in different order. Therefore it's difficult
- * to assign mixer channels to to these inputs correctly. The following
+ * to assign mixer channels to these inputs correctly. The following
  * contains two alternative mappings. The first one is for GUS MAX and
  * the second is just a generic one (line1, line2 and line3).
  * (Actually this is not a mapping but rather some kind of interleaving
@@ -215,20 +217,12 @@ mixer_ent mix_devices[32][2] = {
 MIX_NONE(SOUND_MIXER_VOLUME),
 MIX_NONE(SOUND_MIXER_BASS),
 MIX_NONE(SOUND_MIXER_TREBLE),
-#ifdef PC98	/* PC98's synth is assigned to AUX#2 */
-MIX_ENT(SOUND_MIXER_SYNTH,	 4, 1, 0, 5,	 5, 1, 0, 5),
-#else		/* AT386's synth is assigned to AUX#1 */
 MIX_ENT(SOUND_MIXER_SYNTH,	 2, 1, 0, 5,	 3, 1, 0, 5),
-#endif
 MIX_ENT(SOUND_MIXER_PCM,	 6, 1, 0, 6,	 7, 1, 0, 6),
 MIX_ENT(SOUND_MIXER_SPEAKER,	26, 1, 0, 4,	 0, 0, 0, 0),
 MIX_ENT(SOUND_MIXER_LINE,	18, 1, 0, 5,	19, 1, 0, 5),
 MIX_ENT(SOUND_MIXER_MIC,	 0, 0, 5, 1,	 1, 0, 5, 1),
-#ifdef PC98	/* PC98's cd-audio is assigned to AUX#1 */
-MIX_ENT(SOUND_MIXER_CD,	 	 2, 1, 0, 5,	 3, 1, 0, 5),
-#else		/* AT386's cd-audio is assigned to AUX#2 */
 MIX_ENT(SOUND_MIXER_CD,	 	 4, 1, 0, 5,	 5, 1, 0, 5),
-#endif
 MIX_ENT(SOUND_MIXER_IMIX,	13, 1, 2, 6,	 0, 0, 0, 0),
 MIX_NONE(SOUND_MIXER_ALTPCM),
 MIX_NONE(SOUND_MIXER_RECLEV),

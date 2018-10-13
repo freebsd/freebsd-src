@@ -21,6 +21,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -31,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -50,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #define is_sc_null(sc)	(((sc) == NULL) || ((sc)->m1 == 0 && (sc)->m2 == 0))
 
-TAILQ_HEAD(altqs, pf_altq) altqs = TAILQ_HEAD_INITIALIZER(altqs);
-LIST_HEAD(gen_sc, segment) rtsc, lssc;
+static TAILQ_HEAD(altqs, pf_altq) altqs = TAILQ_HEAD_INITIALIZER(altqs);
+static LIST_HEAD(gen_sc, segment) rtsc, lssc;
 
 struct pf_altq	*qname_to_pfaltq(const char *, const char *);
 u_int32_t	 qname_to_qid(const char *);
@@ -88,14 +91,14 @@ static int		 gsc_add_seg(struct gen_sc *, double, double, double,
 static double		 sc_x2y(struct service_curve *, double);
 
 #ifdef __FreeBSD__
-u_int32_t	getifspeed(int, char *);
+u_int64_t	getifspeed(int, char *);
 #else
 u_int32_t	 getifspeed(char *);
 #endif
 u_long		 getifmtu(char *);
 int		 eval_queue_opts(struct pf_altq *, struct node_queue_opt *,
-		     u_int32_t);
-u_int32_t	 eval_bwspec(struct node_queue_bw *, u_int32_t);
+		     u_int64_t);
+u_int64_t	 eval_bwspec(struct node_queue_bw *, u_int64_t);
 void		 print_hfsc_sc(const char *, u_int, u_int, u_int,
 		     const struct node_hfsc_sc *);
 void		 print_fairq_sc(const char *, u_int, u_int, u_int,
@@ -258,7 +261,8 @@ int
 eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
     struct node_queue_opt *opts)
 {
-	u_int	rate, size, errors = 0;
+	u_int64_t	rate;
+	u_int		size, errors = 0;
 
 	if (bw->bw_absolute > 0)
 		pa->ifbandwidth = bw->bw_absolute;
@@ -275,6 +279,15 @@ eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 		} else if ((pa->ifbandwidth = eval_bwspec(bw, rate)) == 0)
 			pa->ifbandwidth = rate;
 
+	/*
+	 * Limit bandwidth to UINT_MAX for schedulers that aren't 64-bit ready.
+	 */
+	if ((pa->scheduler != ALTQT_HFSC) && (pa->ifbandwidth > UINT_MAX)) {
+		pa->ifbandwidth = UINT_MAX;
+		warnx("interface %s bandwidth limited to %" PRIu64 " bps "
+		    "because selected scheduler is 32-bit limited\n", pa->ifname,
+		    pa->ifbandwidth);
+	}
 	errors += eval_queue_opts(pa, opts, pa->ifbandwidth);
 
 	/* if tbrsize is not specified, use heuristics */
@@ -286,11 +299,11 @@ eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 			size = 4;
 		else if (rate <= 200 * 1000 * 1000)
 			size = 8;
-		else
+		else if (rate <= 2500 * 1000 * 1000ULL)
 			size = 24;
+		else
+			size = 128;
 		size = size * getifmtu(pa->ifname);
-		if (size > 0xffff)
-			size = 0xffff;
 		pa->tbrsize = size;
 	}
 	return (errors);
@@ -338,7 +351,7 @@ eval_pfqueue(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 {
 	/* should be merged with expand_queue */
 	struct pf_altq	*if_pa, *parent, *altq;
-	u_int32_t	 bwsum;
+	u_int64_t	 bwsum;
 	int		 error = 0;
 
 	/* find the corresponding interface and copy fields used by queues */
@@ -372,7 +385,7 @@ eval_pfqueue(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 	if (pa->scheduler == ALTQT_CBQ || pa->scheduler == ALTQT_HFSC ||
 		pa->scheduler == ALTQT_FAIRQ) {
 		pa->bandwidth = eval_bwspec(bw,
-		    parent == NULL ? 0 : parent->bandwidth);
+		    parent == NULL ? pa->ifbandwidth : parent->bandwidth);
 
 		if (pa->bandwidth > pa->ifbandwidth) {
 			fprintf(stderr, "bandwidth for %s higher than "
@@ -403,7 +416,8 @@ eval_pfqueue(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 		}
 	}
 
-	if (eval_queue_opts(pa, opts, parent == NULL? 0 : parent->bandwidth))
+	if (eval_queue_opts(pa, opts,
+		parent == NULL ? pa->ifbandwidth : parent->bandwidth))
 		return (1);
 
 	switch (pa->scheduler) {
@@ -497,12 +511,13 @@ cbq_compute_idletime(struct pfctl *pf, struct pf_altq *pa)
 		 * this causes integer overflow in kernel!
 		 * (bandwidth < 6Kbps when max_pkt_size=1500)
 		 */
-		if (pa->bandwidth != 0 && (pf->opts & PF_OPT_QUIET) == 0)
+		if (pa->bandwidth != 0 && (pf->opts & PF_OPT_QUIET) == 0) {
 			warnx("queue bandwidth must be larger than %s",
 			    rate2str(ifnsPerByte * (double)opts->maxpktsize /
 			    (double)INT_MAX * (double)pa->ifbandwidth));
 			fprintf(stderr, "cbq: queue %s is too slow!\n",
 			    pa->qname);
+		}
 		nsPerByte = (double)(INT_MAX / opts->maxpktsize);
 	}
 
@@ -708,7 +723,7 @@ static int
 eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa)
 {
 	struct pf_altq		*altq, *parent;
-	struct hfsc_opts	*opts;
+	struct hfsc_opts_v1	*opts;
 	struct service_curve	 sc;
 
 	opts = &pa->pq_u.hfsc_opts;
@@ -1000,7 +1015,7 @@ check_commit_fairq(int dev __unused, int opts __unused, struct pf_altq *pa)
 static int
 print_hfsc_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
 {
-	const struct hfsc_opts		*opts;
+	const struct hfsc_opts_v1	*opts;
 	const struct node_hfsc_sc	*rtsc, *lssc, *ulsc;
 
 	opts = &a->pq_u.hfsc_opts;
@@ -1315,7 +1330,7 @@ rate2str(double rate)
  * FreeBSD does not have SIOCGIFDATA.
  * To emulate this, DIOCGIFSPEED ioctl added to pf.
  */
-u_int32_t
+u_int64_t
 getifspeed(int pfdev, char *ifname)
 {
 	struct pf_ifspeed io;
@@ -1326,7 +1341,7 @@ getifspeed(int pfdev, char *ifname)
 		errx(1, "getifspeed: strlcpy");
 	if (ioctl(pfdev, DIOCGIFSPEED, &io) == -1)
 		err(1, "DIOCGIFSPEED");
-	return ((u_int32_t)io.baudrate);
+	return (io.baudrate);
 }
 #else
 u_int32_t
@@ -1381,7 +1396,7 @@ getifmtu(char *ifname)
 
 int
 eval_queue_opts(struct pf_altq *pa, struct node_queue_opt *opts,
-    u_int32_t ref_bw)
+    u_int64_t ref_bw)
 {
 	int	errors = 0;
 
@@ -1457,11 +1472,21 @@ eval_queue_opts(struct pf_altq *pa, struct node_queue_opt *opts,
 	return (errors);
 }
 
-u_int32_t
-eval_bwspec(struct node_queue_bw *bw, u_int32_t ref_bw)
+/*
+ * If absolute bandwidth if set, return the lesser of that value and the
+ * reference bandwidth.  Limiting to the reference bandwidth allows simple
+ * limiting of configured bandwidth parameters for schedulers that are
+ * 32-bit limited, as the root/interface bandwidth (top-level reference
+ * bandwidth) will be properly limited in that case.
+ *
+ * Otherwise, if the absolute bandwidth is not set, return given percentage
+ * of reference bandwidth.
+ */
+u_int64_t
+eval_bwspec(struct node_queue_bw *bw, u_int64_t ref_bw)
 {
 	if (bw->bw_absolute > 0)
-		return (bw->bw_absolute);
+		return (MIN(bw->bw_absolute, ref_bw));
 
 	if (bw->bw_percent > 0)
 		return (ref_bw / 100 * bw->bw_percent);

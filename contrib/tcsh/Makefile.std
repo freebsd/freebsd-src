@@ -1,4 +1,4 @@
-# $tcsh: Makefile.std,v 1.97 2006/03/02 18:46:44 christos Exp $
+# $tcsh: Makefile.std,v 1.100 2015/08/24 20:09:04 kim Exp $
 #	Makefile.std	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -287,14 +287,14 @@ ASSRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
 	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
 	sh.lex.c sh.misc.c sh.parse.c sh.print.c sh.proc.c sh.sem.c \
 	sh.set.c sh.time.c sh.char.h sh.dir.h sh.proc.h sh.h 
-PSSRCS= sh.decls.h glob.c glob.h mi.termios.c mi.wait.h mi.varargs.h ma.setp.c \
+PSSRCS= sh.decls.h glob.c glob.h dotlock.c dotlock.h mi.termios.c mi.wait.h mi.varargs.h ma.setp.c \
 	vms.termcap.c
 SHSRCS= ${ASSRCS} ${PSSRCS}
 SHOBJS=	sh.${SUF} sh.dir.${SUF} sh.dol.${SUF} sh.err.${SUF} sh.exec.${SUF} \
 	sh.char.${SUF} sh.exp.${SUF} sh.file.${SUF} sh.func.${SUF} \
 	sh.glob.${SUF} sh.hist.${SUF} sh.init.${SUF} sh.lex.${SUF} \
 	sh.misc.${SUF} sh.parse.${SUF} sh.print.${SUF} sh.proc.${SUF} \
-	sh.sem.${SUF} sh.set.${SUF} sh.time.${SUF} glob.${SUF} \
+	sh.sem.${SUF} sh.set.${SUF} sh.time.${SUF} glob.${SUF} dotlock.${SUF} \
 	mi.termios.${SUF} ma.setp.${SUF} vms.termcap.${SUF}
 
 TWSRCS= tw.decls.h tw.h tw.help.c tw.init.c tw.parse.c tw.spell.c \
@@ -321,7 +321,8 @@ AVSRCS= Fixes MAKEDIFFS MAKESHAR NewThings README FAQ \
 	WishList config_f.h eight-bit.me glob.3 patchlevel.h \
 	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
 	README.imake complete.tcsh vmsreadme.txt termcap.vms snames.h \
-	host.defs gethost.c tcsh.man2html configure.in configure config.h.in
+	host.defs gethost.c tcsh.man2html configure.ac configure config.h.in \
+	aclocal.m4
 
 VHSRCS=${PVSRCS} ${AVSRCS}
 
@@ -424,7 +425,7 @@ tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h
 	${CPP} $(INCLUDES) ${DFLAGS} ${EXTRAFLAGS} -D_h_tc_const\
 	    $(srcdir)/tc.const.c | grep 'Char STR' | \
 	    sed -e 's/Char \([a-zA-Z0-9_]*\) *\[ *\].*/extern Char \1[];/' | \
-	    sort >> $@
+	    LC_COLLATE=C sort >> $@
 	@echo '#endif /* _h_tc_const */' >> $@
 
 csh.prof: ${OBJS} sh.prof.${SUF} mcrt0.${SUF}
@@ -584,11 +585,11 @@ ftp: tcsh-${VERSION}.tar.Z tcsh.tahoe-${VERSION}.tar.Z
 
 autoconfigure: $(srcdir)/configure $(srcdir)/config.h.in
 
-$(srcdir)/configure: $(srcdir)/configure.in
+$(srcdir)/configure: $(srcdir)/configure.ac
 	cd $(srcdir) && autoconf
 
 $(srcdir)/config.h.in: $(srcdir)/stamp-h.in
-$(srcdir)/stamp-h.in: $(srcdir)/configure.in
+$(srcdir)/stamp-h.in: $(srcdir)/configure.ac
 	cd $(srcdir) && autoheader
 	@echo timestamp > $(srcdir)/stamp-h.in
 
@@ -619,6 +620,9 @@ ${TWOBJS} ${TWINC}: ${TWH}
 
 # glob.h
 glob.${SUF} sh.glob.${SUF}: glob.h
+
+# dotlock.h
+dotlock.${SUF}: dotlock.h
 
 # ed.defns.h
 EDDINC=tc.bind.${SUF} tc.func.${SUF} tc.os.${SUF}

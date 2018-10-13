@@ -64,6 +64,7 @@
 #include <sys/dtrace_bsd.h>
 #include <sys/eventhandler.h>
 #include <sys/rmlock.h>
+#include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/u8_textprep.h>
 #include <sys/user.h>
@@ -600,8 +601,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	pid_t ppid = p->p_pid;
 	int i;
 
-#ifdef illumos
 	ASSERT(curproc == p);
+#ifdef illumos
 	ASSERT(p->p_proc_flag & P_PR_LOCK);
 #else
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -609,26 +610,15 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 #ifdef illumos
 	ASSERT(p->p_dtrace_count > 0);
 #else
-	if (p->p_dtrace_helpers) {
-		/*
-		 * dtrace_helpers_duplicate() allocates memory.
-		 */
-		_PHOLD(cp);
-		PROC_UNLOCK(p);
-		PROC_UNLOCK(cp);
-		dtrace_helpers_duplicate(p, cp);
-		PROC_LOCK(cp);
-		PROC_LOCK(p);
-		_PRELE(cp);
-	}
 	/*
 	 * This check is purposely here instead of in kern_fork.c because,
 	 * for legal resons, we cannot include the dtrace_cddl.h header
 	 * inside kern_fork.c and insert if-clause there.
 	 */
-	if (p->p_dtrace_count == 0)
+	if (p->p_dtrace_count == 0 && p->p_dtrace_helpers == NULL)
 		return;
 #endif
+
 	ASSERT(cp->p_dtrace_count == 0);
 
 	/*
@@ -657,6 +647,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	_PHOLD(cp);
 	PROC_UNLOCK(cp);
 	PROC_UNLOCK(p);
+	if (p->p_dtrace_count == 0)
+		goto dup_helpers;
 #endif
 
 	/*
@@ -710,6 +702,9 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	mutex_enter(&cp->p_lock);
 	sprunlock(cp);
 #else
+dup_helpers:
+	if (p->p_dtrace_helpers != NULL)
+		dtrace_helpers_duplicate(p, cp);
 	PROC_LOCK(p);
 	PROC_LOCK(cp);
 	_PRELE(cp);
@@ -929,6 +924,13 @@ again:
 	default:
 		ASSERT(0);
 	}
+
+#ifdef __FreeBSD__
+	if (SV_PROC_FLAG(p, SV_LP64))
+		p->p_model = DATAMODEL_LP64;
+	else
+		p->p_model = DATAMODEL_ILP32;
+#endif
 
 	/*
 	 * If the ISA-dependent initialization goes to plan, go back to the
@@ -1238,7 +1240,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	ASSERT(!(p->p_flag & SVFORK));
 	mutex_exit(&p->p_lock);
 #else
-	if ((p = pfind(probe->ftp_pid)) == NULL)
+	if (pget(probe->ftp_pid, PGET_HOLD | PGET_NOTWEXIT, &p) != 0)
 		return;
 #endif
 
@@ -1247,13 +1249,6 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 * the chance to execute the trap instruction we're about to place
 	 * in their process's text.
 	 */
-#ifdef __FreeBSD__
-	/*
-	 * pfind() returns a locked process.
-	 */
-	_PHOLD(p);
-	PROC_UNLOCK(p);
-#endif
 	fasttrap_enable_callbacks();
 
 	/*
@@ -1325,17 +1320,8 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 	 * provider lock as a point of mutual exclusion to prevent other
 	 * DTrace consumers from disabling this probe.
 	 */
-	if ((p = pfind(probe->ftp_pid)) != NULL) {
-#ifdef __FreeBSD__
-		if (p->p_flag & P_WEXIT) {
-			PROC_UNLOCK(p);
-			p = NULL;
-		} else {
-			_PHOLD(p);
-			PROC_UNLOCK(p);
-		}
-#endif
-	}
+	if (pget(probe->ftp_pid, PGET_HOLD | PGET_NOTWEXIT, &p) != 0)
+		p = NULL;
 
 	/*
 	 * Disable all the associated tracepoints (for fully enabled probes).
@@ -1463,29 +1449,29 @@ static const dtrace_pattr_t pid_attr = {
 };
 
 static dtrace_pops_t pid_pops = {
-	fasttrap_pid_provide,
-	NULL,
-	fasttrap_pid_enable,
-	fasttrap_pid_disable,
-	NULL,
-	NULL,
-	fasttrap_pid_getargdesc,
-	fasttrap_pid_getarg,
-	NULL,
-	fasttrap_pid_destroy
+	.dtps_provide =		fasttrap_pid_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		fasttrap_pid_enable,
+	.dtps_disable =		fasttrap_pid_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	fasttrap_pid_getargdesc,
+	.dtps_getargval =	fasttrap_pid_getarg,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		fasttrap_pid_destroy
 };
 
 static dtrace_pops_t usdt_pops = {
-	fasttrap_pid_provide,
-	NULL,
-	fasttrap_pid_enable,
-	fasttrap_pid_disable,
-	NULL,
-	NULL,
-	fasttrap_pid_getargdesc,
-	fasttrap_usdt_getarg,
-	NULL,
-	fasttrap_pid_destroy
+	.dtps_provide =		fasttrap_pid_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		fasttrap_pid_enable,
+	.dtps_disable =		fasttrap_pid_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	fasttrap_pid_getargdesc,
+	.dtps_getargval =	fasttrap_usdt_getarg,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		fasttrap_pid_destroy
 };
 
 static fasttrap_proc_t *
@@ -2259,9 +2245,9 @@ fasttrap_meta_remove(void *arg, dtrace_helper_provdesc_t *dhpv, pid_t pid)
 }
 
 static dtrace_mops_t fasttrap_mops = {
-	fasttrap_meta_create_probe,
-	fasttrap_meta_provide,
-	fasttrap_meta_remove
+	.dtms_create_probe =	fasttrap_meta_create_probe,
+	.dtms_provide_pid =	fasttrap_meta_provide,
+	.dtms_remove_pid =	fasttrap_meta_remove
 };
 
 /*ARGSUSED*/
@@ -2277,10 +2263,6 @@ static int
 fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
     struct thread *td)
 {
-#ifdef notyet
-	struct kinfo_proc kp;
-	const cred_t *cr = td->td_ucred;
-#endif
 	if (!dtrace_attached())
 		return (EAGAIN);
 
@@ -2336,47 +2318,24 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 			proc_t *p;
 			pid_t pid = probe->ftps_pid;
 
-#ifdef illumos
 			mutex_enter(&pidlock);
-#endif
 			/*
 			 * Report an error if the process doesn't exist
 			 * or is actively being birthed.
 			 */
-			sx_slock(&proctree_lock);
-			p = pfind(pid);
-			if (p)
-				fill_kinfo_proc(p, &kp);
-			sx_sunlock(&proctree_lock);
-			if (p == NULL || kp.ki_stat == SIDL) {
-#ifdef illumos
+			if ((p = pfind(pid)) == NULL || p->p_stat == SIDL) {
 				mutex_exit(&pidlock);
-#endif
 				return (ESRCH);
 			}
-#ifdef illumos
 			mutex_enter(&p->p_lock);
 			mutex_exit(&pidlock);
-#else
-			PROC_LOCK_ASSERT(p, MA_OWNED);
-#endif
 
-#ifdef notyet
 			if ((ret = priv_proc_cred_perm(cr, p, NULL,
 			    VREAD | VWRITE)) != 0) {
-#ifdef illumos
 				mutex_exit(&p->p_lock);
-#else
-				PROC_UNLOCK(p);
-#endif
 				return (ret);
 			}
-#endif /* notyet */
-#ifdef illumos
 			mutex_exit(&p->p_lock);
-#else
-			PROC_UNLOCK(p);
-#endif
 		}
 #endif /* notyet */
 
@@ -2390,7 +2349,7 @@ err:
 		fasttrap_instr_query_t instr;
 		fasttrap_tracepoint_t *tp;
 		uint_t index;
-#ifdef illumos
+#ifdef notyet
 		int ret;
 #endif
 
@@ -2404,48 +2363,25 @@ err:
 			proc_t *p;
 			pid_t pid = instr.ftiq_pid;
 
-#ifdef illumos
 			mutex_enter(&pidlock);
-#endif
 			/*
 			 * Report an error if the process doesn't exist
 			 * or is actively being birthed.
 			 */
-			sx_slock(&proctree_lock);
-			p = pfind(pid);
-			if (p)
-				fill_kinfo_proc(p, &kp);
-			sx_sunlock(&proctree_lock);
-			if (p == NULL || kp.ki_stat == SIDL) {
-#ifdef illumos
+			if ((p == pfind(pid)) == NULL || p->p_stat == SIDL) {
 				mutex_exit(&pidlock);
-#endif
 				return (ESRCH);
 			}
-#ifdef illumos
 			mutex_enter(&p->p_lock);
 			mutex_exit(&pidlock);
-#else
-			PROC_LOCK_ASSERT(p, MA_OWNED);
-#endif
 
-#ifdef notyet
 			if ((ret = priv_proc_cred_perm(cr, p, NULL,
 			    VREAD)) != 0) {
-#ifdef illumos
 				mutex_exit(&p->p_lock);
-#else
-				PROC_UNLOCK(p);
-#endif
 				return (ret);
 			}
-#endif /* notyet */
 
-#ifdef illumos
 			mutex_exit(&p->p_lock);
-#else
-			PROC_UNLOCK(p);
-#endif
 		}
 #endif /* notyet */
 

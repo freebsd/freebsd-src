@@ -35,6 +35,45 @@ CODE {
 	{
 		return (0);
 	}
+
+	static int
+	null_etherswitch_flush_all(device_t dev)
+	{
+
+		return (ENXIO);
+	}
+
+	static int
+	null_etherswitch_flush_port(device_t dev, int port)
+	{
+
+		return (ENXIO);
+	}
+
+	static int
+	null_etherswitch_flush_mac(device_t dev,
+	    etherswitch_atu_flush_macentry_t *e)
+	{
+
+		return (ENXIO);
+	}
+
+	static int
+	null_etherswitch_fetch_table(device_t dev,
+	    etherswitch_atu_table_t *table)
+	{
+
+		table->es_nitems = 0;
+		return (ENXIO);
+	}
+
+	static int
+	null_etherswitch_fetch_entry(device_t dev,
+	    etherswitch_atu_entry_t *e)
+	{
+
+		return (ENXIO);
+	}
 };
 
 #
@@ -141,3 +180,42 @@ METHOD int setconf {
 	device_t	dev;
 	etherswitch_conf_t	*conf;
 } DEFAULT null_etherswitch_setconf;
+
+#
+# Flush all of the programmed/learnt MAC addresses
+#
+METHOD int flush_all {
+	device_t dev;
+} DEFAULT null_etherswitch_flush_all;
+
+#
+# Flush a single MAC address entry
+#
+METHOD int flush_mac {
+	device_t dev;
+	etherswitch_atu_flush_macentry_t *entry;
+} DEFAULT null_etherswitch_flush_mac;
+
+#
+# Flush all of the dynamic MAC addresses on a given port
+#
+METHOD int flush_port {
+	device_t dev;
+	int port;
+} DEFAULT null_etherswitch_flush_port;
+
+#
+# Fetch the address table from the ethernet switch.
+#
+METHOD int fetch_table {
+	device_t dev;
+	etherswitch_atu_table_t *table;
+} DEFAULT null_etherswitch_fetch_table;
+
+#
+# Fetch a single entry from the ethernet switch table.
+#
+METHOD int fetch_table_entry {
+	device_t dev;
+	etherswitch_atu_entry_t *entry;
+} DEFAULT null_etherswitch_fetch_entry;

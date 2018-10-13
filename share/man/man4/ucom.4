@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2015
+.Dd April 25, 2018
 .Dt UCOM 4
 .Os
 .Sh NAME
@@ -63,6 +63,24 @@ This means that normal programs such as
 or
 .Xr ppp 8
 can be used to access the device.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ucom.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.It Va hw.usb.ucom.device_mode_console
+When set to 1, the
+.Nm
+driver will mark terminals as console devices when operating in device mode.
+Default is 1.
+.It Va hw.usb.ucom.pps_mode
+Enables and configure PPS capture mode as described below.
 .Sh Pulse Per Second (PPS) Timing Interface
 The
 .Nm
@@ -92,15 +110,31 @@ Capture pulses on the CTS line.
 Capture pulses on the DCD line.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /dev/cuaU?"
-.It Pa /dev/cuaU?
-.It Pa /dev/ttyU?
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
 .El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr uark 4 ,
+.Xr ubsa 4 ,
+.Xr ubser 4 ,
 .Xr uchcom 4 ,
+.Xr ucycom 4 ,
+.Xr ufoma 4 ,
 .Xr uftdi 4 ,
+.Xr uhso 4 ,
+.\".Xr ugensa 4 ,
+.Xr uipaq 4 ,
 .Xr umcs 4 ,
 .Xr umct 4 ,
 .Xr umodem 4 ,

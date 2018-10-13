@@ -3,6 +3,8 @@
  * Sub-Lexical Analyzer for macro invokation in 
  * the Aic7xxx SCSI Host adapter sequencer assembler.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Adaptec Inc.
  * All rights reserved.
  *

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
+ * Copyright (c) 2016-2017 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,33 +33,37 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/types.h>
 
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
+
 #include <arm/allwinner/allwinner_pinctrl.h>
 
-#ifdef SOC_ALLWINNER_H3
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 
 const static struct allwinner_pins h3_pins[] = {
-	{"PA0",  0, 0,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "eint", NULL}},
-	{"PA1",  0, 1,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "eint", NULL}},
-	{"PA2",  0, 2,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "eint", NULL}},
-	{"PA3",  0, 3,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "eint", NULL}},
-	{"PA4",  0, 4,  {"gpio_in", "gpio_out", "uart0", NULL, NULL, NULL, "eint", NULL}},
-	{"PA5",  0, 5,  {"gpio_in", "gpio_out", "uart0", "pwm0", NULL, NULL, "eint", NULL}},
-	{"PA6",  0, 6,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "eint", NULL}},
-	{"PA7",  0, 7,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "eint", NULL}},
-	{"PA8",  0, 8,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "eint", NULL}},
-	{"PA9",  0, 9,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "eint", NULL}},
-	{"PA10", 0, 10, {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "eint", NULL}},
-	{"PA11", 0, 11, {"gpio_in", "gpio_out", "i2c0", "di", NULL, NULL, "eint", NULL}},
-	{"PA12", 0, 12, {"gpio_in", "gpio_out", "i2c0", "di", NULL, NULL, "eint", NULL}},
-	{"PA13", 0, 13, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "eint", NULL}},
-	{"PA14", 0, 14, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "eint", NULL}},
-	{"PA15", 0, 15, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "eint", NULL}},
-	{"PA16", 0, 16, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "eint", NULL}},
-	{"PA17", 0, 17, {"gpio_in", "gpio_out", "spdif", NULL, NULL, NULL, "eint", NULL}},
-	{"PA18", 0, 18, {"gpio_in", "gpio_out", "i2s0", "i2c1", NULL, NULL, "eint", NULL}},
-	{"PA19", 0, 19, {"gpio_in", "gpio_out", "i2s0", "i2c1", NULL, NULL, "eint", NULL}},
-	{"PA20", 0, 20, {"gpio_in", "gpio_out", "i2s0", "sim", NULL, NULL, "eint", NULL}},
-	{"PA21", 0, 21, {"gpio_in", "gpio_out", "i2s0", "sim", NULL, NULL, "eint", NULL}},
+	{"PA0",  0, 0,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "pa_eint0", NULL}, 6, 0},
+	{"PA1",  0, 1,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "pa_eint1", NULL}, 6, 1},
+	{"PA2",  0, 2,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "pa_eint2", NULL}, 6, 2},
+	{"PA3",  0, 3,  {"gpio_in", "gpio_out", "uart2", "jtag", NULL, NULL, "pa_eint3", NULL}, 6, 3},
+	{"PA4",  0, 4,  {"gpio_in", "gpio_out", "uart0", NULL, NULL, NULL, "pa_eint4", NULL}, 6, 4},
+	{"PA5",  0, 5,  {"gpio_in", "gpio_out", "uart0", "pwm0", NULL, NULL, "pa_eint5", NULL}, 6, 5},
+	{"PA6",  0, 6,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "pa_eint6", NULL}, 6, 6},
+	{"PA7",  0, 7,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "pa_eint7", NULL}, 6, 7},
+	{"PA8",  0, 8,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "pa_eint8", NULL}, 6, 8},
+	{"PA9",  0, 9,  {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "pa_eint9", NULL}, 6, 9},
+	{"PA10", 0, 10, {"gpio_in", "gpio_out", "sim", NULL, NULL, NULL, "pa_eint10", NULL}, 6, 10},
+	{"PA11", 0, 11, {"gpio_in", "gpio_out", "i2c0", "di", NULL, NULL, "pa_eint11", NULL}, 6, 11},
+	{"PA12", 0, 12, {"gpio_in", "gpio_out", "i2c0", "di", NULL, NULL, "pa_eint12", NULL}, 6, 12},
+	{"PA13", 0, 13, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "pa_eint13", NULL}, 6, 13},
+	{"PA14", 0, 14, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "pa_eint14", NULL}, 6, 14},
+	{"PA15", 0, 15, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "pa_eint15", NULL}, 6, 15},
+	{"PA16", 0, 16, {"gpio_in", "gpio_out", "spi1", "uart3", NULL, NULL, "pa_eint16", NULL}, 6, 16},
+	{"PA17", 0, 17, {"gpio_in", "gpio_out", "spdif", NULL, NULL, NULL, "pa_eint17", NULL}, 6, 17},
+	{"PA18", 0, 18, {"gpio_in", "gpio_out", "i2s0", "i2c1", NULL, NULL, "pa_eint18", NULL}, 6, 18},
+	{"PA19", 0, 19, {"gpio_in", "gpio_out", "i2s0", "i2c1", NULL, NULL, "pa_eint19", NULL}, 6, 19},
+	{"PA20", 0, 20, {"gpio_in", "gpio_out", "i2s0", "sim", NULL, NULL, "pa_eint20", NULL}, 6, 20},
+	{"PA21", 0, 21, {"gpio_in", "gpio_out", "i2s0", "sim", NULL, NULL, "pa_eint21", NULL}, 6, 21},
 
 	{"PC0",  2, 0,  {"gpio_in", "gpio_out", "nand", "spi0", NULL, NULL, NULL, NULL}},
 	{"PC1",  2, 1,  {"gpio_in", "gpio_out", "nand", "spi0", NULL, NULL, NULL, NULL}},
@@ -123,20 +127,20 @@ const static struct allwinner_pins h3_pins[] = {
 	{"PF5",  5, 5,  {"gpio_in", "gpio_out", "mmc0", "jtag", NULL, NULL, NULL, NULL}},
 	{"PF6",  5, 6,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
 
-	{"PG0",  6, 0,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG1",  6, 1,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG2",  6, 2,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG3",  6, 3,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG4",  6, 4,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG5",  6, 5,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG6",  6, 6,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG7",  6, 7,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG8",  6, 8,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG9",  6, 9,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG10", 6, 10, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG11", 6, 11, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG12", 6, 11, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, NULL, "eint"}},
-	{"PG13", 6, 11, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, NULL, "eint"}},
+	{"PG0",  6, 0,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, "pg_eint0", NULL}, 6, 0},
+	{"PG1",  6, 1,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, "pg_eint1", NULL}, 6, 1},
+	{"PG2",  6, 2,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, "pg_eint2", NULL}, 6, 2},
+	{"PG3",  6, 3,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, "pg_eint3", NULL}, 6, 3},
+	{"PG4",  6, 4,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, "pg_eint4", NULL}, 6, 4},
+	{"PG5",  6, 5,  {"gpio_in", "gpio_out", "mmc1", NULL, NULL, NULL, "pg_eint5", NULL}, 6, 5},
+	{"PG6",  6, 6,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, "pg_eint6", NULL}, 6, 6},
+	{"PG7",  6, 7,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, "pg_eint7", NULL}, 6, 7},
+	{"PG8",  6, 8,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, "pg_eint8", NULL}, 6, 8},
+	{"PG9",  6, 9,  {"gpio_in", "gpio_out", "uart1", NULL, NULL, NULL, "pg_eint9", NULL}, 6, 9},
+	{"PG10", 6, 10, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, "pg_eint10", NULL}, 6, 10},
+	{"PG11", 6, 11, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, "pg_eint11", NULL}, 6, 11},
+	{"PG12", 6, 12, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, "pg_eint12", NULL}, 6, 12},
+	{"PG13", 6, 13, {"gpio_in", "gpio_out", "i2s1", NULL, NULL, NULL, "pg_eint13", NULL}, 6, 13},
 };
 
 const struct allwinner_padconf h3_padconf = {

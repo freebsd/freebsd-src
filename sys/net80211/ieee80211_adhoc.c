@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -120,9 +122,9 @@ adhoc_vattach(struct ieee80211vap *vap)
 static void
 sta_leave(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni != vap->iv_bss)
+	if (ni != vap->iv_bss)
 		ieee80211_node_leave(ni);
 }
 
@@ -164,7 +166,8 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_RUN:		/* beacon miss */
 			/* purge station table; entries are stale */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_leave, NULL);
 			/* fall thru... */
 		case IEEE80211_S_INIT:
 			if (vap->iv_des_chan != IEEE80211_CHAN_ANYC &&
@@ -215,6 +218,19 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* XXX validate prerequisites */
 		}
 		switch (ostate) {
+		case IEEE80211_S_INIT:
+			/*
+			 * Already have a channel; bypass the
+			 * scan and startup immediately.
+			 * Note that ieee80211_create_ibss will call
+			 * back to do a RUN->RUN state change.
+			 */
+			ieee80211_create_ibss(vap,
+			    ieee80211_ht_adjust_channel(ic,
+				ic->ic_curchan, vap->iv_flags_ht));
+			/* NB: iv_bss is changed on return */
+			ni = vap->iv_bss;
+			break;
 		case IEEE80211_S_SCAN:
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_debug(vap)) {
@@ -302,6 +318,16 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */	
 	uint8_t dir, type, subtype, qos;
 	uint8_t *bssid;
+	int is_hw_decrypted = 0;
+	int has_decrypted = 0;
+
+	/*
+	 * Some devices do hardware decryption all the way through
+	 * to pretending the frame wasn't encrypted in the first place.
+	 * So, tag it appropriately so it isn't discarded inappropriately.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED))
+		is_hw_decrypted = 1;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -371,7 +397,10 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Validate the bssid.
 		 */
-		if (!IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
+		if (!(type == IEEE80211_FC0_TYPE_MGT &&
+		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
+		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) &&
+		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
 		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
 			/* not interested in */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
@@ -400,8 +429,12 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 				goto err;
 			}
 			/*
-			 * Fake up a node for this newly
-			 * discovered member of the IBSS.
+			 * Fake up a node for this newly discovered member
+			 * of the IBSS.
+			 *
+			 * Note: This doesn't "upgrade" the node to 11n;
+			 * that will happen after a probe request/response
+			 * exchange.
 			 */
 			ni = ieee80211_fakeup_adhoc_node(vap, wh->i_addr2);
 			if (ni == NULL) {
@@ -417,7 +450,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			if (! ieee80211_check_rxseq(ni, wh, bssid))
+			if (! ieee80211_check_rxseq(ni, wh, bssid, rxs))
 				goto out;
 		}
 	}
@@ -448,7 +481,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * and we should do nothing more with it.
 		 */
 		if ((m->m_flags & M_AMPDU) &&
-		    ieee80211_ampdu_reorder(ni, m) != 0) {
+		    ieee80211_ampdu_reorder(ni, m, rxs) != 0) {
 			m = NULL;
 			goto out;
 		}
@@ -462,7 +495,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		if (is_hw_decrypted || wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -473,14 +506,14 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 				IEEE80211_NODE_STAT(ni, rx_noprivacy);
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				IEEE80211_NODE_STAT(ni, rx_wepfail);
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
+			has_decrypted = 1;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -511,7 +544,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Next strip any MSDU crypto bits.
 		 */
-		if (key != NULL && !ieee80211_crypto_demic(vap, key, m, 0)) {
+		if (!ieee80211_crypto_demic(vap, key, m, 0)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    ni->ni_macaddr, "data", "%s", "demic error");
 			vap->iv_stats.is_rx_demicfail++;
@@ -565,7 +598,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			 * any non-PAE frames received without encryption.
 			 */
 			if ((vap->iv_flags & IEEE80211_F_DROPUNENC) &&
-			    (key == NULL && (m->m_flags & M_WEP) == 0) &&
+			    ((has_decrypted == 0) && (m->m_flags & M_WEP) == 0) &&
+			    (is_hw_decrypted == 0) &&
 			    eh->ether_type != htons(ETHERTYPE_PAE)) {
 				/*
 				 * Drop unencrypted frames.
@@ -731,14 +765,48 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			if (!IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 				/*
 				 * Create a new entry in the neighbor table.
+				 *
+				 * XXX TODO:
+				 *
+				 * Here we're not scanning; so if we have an
+				 * SSID then make sure it matches our SSID.
+				 * Otherwise this code will match on all IBSS
+				 * beacons/probe requests for all SSIDs,
+				 * filling the node table with nodes that
+				 * aren't ours.
 				 */
-				ni = ieee80211_add_neighbor(vap, wh, &scan);
+				if (ieee80211_ibss_node_check_new(ni, &scan)) {
+					ni = ieee80211_add_neighbor(vap, wh, &scan);
+					/*
+					 * Send a probe request so we announce 11n
+					 * capabilities.
+					 */
+					ieee80211_send_probereq(ni, /* node */
+					    vap->iv_myaddr, /* SA */
+					    ni->ni_macaddr, /* DA */
+					    vap->iv_bss->ni_bssid, /* BSSID */
+					    vap->iv_bss->ni_essid,
+					    vap->iv_bss->ni_esslen); /* SSID */
+				} else
+					ni = NULL;
+
 			} else if (ni->ni_capinfo == 0) {
 				/*
 				 * Update faked node created on transmit.
 				 * Note this also updates the tsf.
 				 */
 				ieee80211_init_neighbor(ni, wh, &scan);
+
+				/*
+				 * Send a probe request so we announce 11n
+				 * capabilities.
+				 */
+				ieee80211_send_probereq(ni, /* node */
+					vap->iv_myaddr, /* SA */
+					ni->ni_macaddr, /* DA */
+					vap->iv_bss->ni_bssid, /* BSSID */
+					vap->iv_bss->ni_essid,
+					vap->iv_bss->ni_esslen); /* SSID */
 			} else {
 				/*
 				 * Record tsf for potential resync.
@@ -756,10 +824,14 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #if 0
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
 			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
-				if (ieee80211_ht_updateparams(ni,
+				ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo));
+				if (ieee80211_ht_updateparams_final(ni,
 				    scan.htcap, scan.htinfo))
 					ht_state_change = 1;
 			}
+
+			/* XXX same for VHT? */
 #endif
 			if (ni != NULL) {
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
@@ -849,6 +921,12 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 */
 		ieee80211_send_proberesp(vap, wh->i_addr2,
 		    is11bclient(rates, xrates) ? IEEE80211_SEND_LEGACY_11B : 0);
+
+		/*
+		 * Note: we don't benefit from stashing the probe request
+		 * IEs away to use for IBSS negotiation, because we
+		 * typically don't get all of the IEs.
+		 */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:

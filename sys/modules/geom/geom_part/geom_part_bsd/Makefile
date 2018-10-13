@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../geom/part ${.CURDIR}/../../../../geom
+.PATH: ${SRCTOP}/sys/geom/part ${SRCTOP}/sys/geom
 
 KMOD=	geom_part_bsd
 SRCS=	g_part_bsd.c geom_bsd_enc.c

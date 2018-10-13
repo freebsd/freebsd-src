@@ -1,9 +1,9 @@
-#	$OpenBSD: keys-command.sh,v 1.3 2015/05/21 06:40:02 djm Exp $
+#	$OpenBSD: keys-command.sh,v 1.4 2016/09/26 21:34:38 bluhm Exp $
 #	Placed in the Public Domain.
 
 tid="authorized keys from command"
 
-if test -z "$SUDO" ; then
+if [ -z "$SUDO" -a ! -w /var/run ]; then
 	echo "skipped (SUDO not set)"
 	echo "need SUDO to create file in /var/run, test won't work without"
 	exit 0

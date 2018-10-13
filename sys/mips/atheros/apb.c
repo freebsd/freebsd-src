@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -380,13 +382,13 @@ apb_filter(void *arg)
 			event = sc->sc_eventstab[irq];
 			/* always count interrupts; spurious or otherwise */
 			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
-			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+			if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 				if (irq == APB_INTR_PMC) {
 					td = PCPU_GET(curthread);
 					tf = td->td_intr_frame;
 
 					if (pmc_intr)
-						(*pmc_intr)(PCPU_GET(cpuid), tf);
+						(*pmc_intr)(tf);
 					continue;
 				}
 				/* Ignore timer interrupts */

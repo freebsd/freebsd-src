@@ -8,12 +8,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/CallSite.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cassert>
+
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -21,23 +29,18 @@ using namespace llvm;
 //
 
 CallGraph::CallGraph(Module &M)
-    : M(M), Root(nullptr), ExternalCallingNode(getOrInsertFunction(nullptr)),
+    : M(M), ExternalCallingNode(getOrInsertFunction(nullptr)),
       CallsExternalNode(llvm::make_unique<CallGraphNode>(nullptr)) {
   // Add every function to the call graph.
   for (Function &F : M)
     addToCallGraph(&F);
-
-  // If we didn't find a main function, use the external call graph node
-  if (!Root)
-    Root = ExternalCallingNode;
 }
 
 CallGraph::CallGraph(CallGraph &&Arg)
-    : M(Arg.M), FunctionMap(std::move(Arg.FunctionMap)), Root(Arg.Root),
+    : M(Arg.M), FunctionMap(std::move(Arg.FunctionMap)),
       ExternalCallingNode(Arg.ExternalCallingNode),
       CallsExternalNode(std::move(Arg.CallsExternalNode)) {
   Arg.FunctionMap.clear();
-  Arg.Root = nullptr;
   Arg.ExternalCallingNode = nullptr;
 }
 
@@ -57,21 +60,9 @@ CallGraph::~CallGraph() {
 void CallGraph::addToCallGraph(Function *F) {
   CallGraphNode *Node = getOrInsertFunction(F);
 
-  // If this function has external linkage, anything could call it.
-  if (!F->hasLocalLinkage()) {
-    ExternalCallingNode->addCalledFunction(CallSite(), Node);
-
-    // Found the entry point?
-    if (F->getName() == "main") {
-      if (Root) // Found multiple external mains?  Don't pick one.
-        Root = ExternalCallingNode;
-      else
-        Root = Node; // Found a main, keep track of it!
-    }
-  }
-
-  // If this function has its address taken, anything could call it.
-  if (F->hasAddressTaken())
+  // If this function has external linkage or has its address taken, anything
+  // could call it.
+  if (!F->hasLocalLinkage() || F->hasAddressTaken())
     ExternalCallingNode->addCalledFunction(CallSite(), Node);
 
   // If this function is not defined in this translation unit, it could call
@@ -80,11 +71,9 @@ void CallGraph::addToCallGraph(Function *F) {
     Node->addCalledFunction(CallSite(), CallsExternalNode.get());
 
   // Look for calls by this function.
-  for (Function::iterator BB = F->begin(), BBE = F->end(); BB != BBE; ++BB)
-    for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE;
-         ++II) {
-      CallSite CS(cast<Value>(II));
-      if (CS) {
+  for (BasicBlock &BB : *F)
+    for (Instruction &I : BB) {
+      if (auto CS = CallSite(&I)) {
         const Function *Callee = CS.getCalledFunction();
         if (!Callee || !Intrinsic::isLeaf(Callee->getIntrinsicID()))
           // Indirect calls of intrinsics are not allowed so no need to check.
@@ -98,21 +87,14 @@ void CallGraph::addToCallGraph(Function *F) {
 }
 
 void CallGraph::print(raw_ostream &OS) const {
-  OS << "CallGraph Root is: ";
-  if (Function *F = Root->getFunction())
-    OS << F->getName() << "\n";
-  else {
-    OS << "<<null function: 0x" << Root << ">>\n";
-  }
-
   // Print in a deterministic order by sorting CallGraphNodes by name.  We do
   // this here to avoid slowing down the non-printing fast path.
 
   SmallVector<CallGraphNode *, 16> Nodes;
   Nodes.reserve(FunctionMap.size());
 
-  for (auto I = begin(), E = end(); I != E; ++I)
-    Nodes.push_back(I->second.get());
+  for (const auto &I : *this)
+    Nodes.push_back(I.second.get());
 
   std::sort(Nodes.begin(), Nodes.end(),
             [](CallGraphNode *LHS, CallGraphNode *RHS) {
@@ -127,8 +109,9 @@ void CallGraph::print(raw_ostream &OS) const {
     CN->print(OS);
 }
 
-LLVM_DUMP_METHOD
-void CallGraph::dump() const { print(dbgs()); }
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void CallGraph::dump() const { print(dbgs()); }
+#endif
 
 // removeFunctionFromModule - Unlink the function from this module, returning
 // it.  Because this removes the function from the module, the call graph node
@@ -150,7 +133,6 @@ Function *CallGraph::removeFunctionFromModule(CallGraphNode *CGN) {
 /// This does not rescan the body of the function, so it is suitable when
 /// splicing the body of the old function to the new while also updating all
 /// callers from old to new.
-///
 void CallGraph::spliceFunction(const Function *From, const Function *To) {
   assert(FunctionMap.count(From) && "No CallGraphNode for function!");
   assert(!FunctionMap.count(To) &&
@@ -186,9 +168,9 @@ void CallGraphNode::print(raw_ostream &OS) const {
   
   OS << "<<" << this << ">>  #uses=" << getNumReferences() << '\n';
 
-  for (const_iterator I = begin(), E = end(); I != E; ++I) {
-    OS << "  CS<" << I->first << "> calls ";
-    if (Function *FI = I->second->getFunction())
+  for (const auto &I : *this) {
+    OS << "  CS<" << I.first << "> calls ";
+    if (Function *FI = I.second->getFunction())
       OS << "function '" << FI->getName() <<"'\n";
     else
       OS << "external node\n";
@@ -196,8 +178,9 @@ void CallGraphNode::print(raw_ostream &OS) const {
   OS << '\n';
 }
 
-LLVM_DUMP_METHOD
-void CallGraphNode::dump() const { print(dbgs()); }
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void CallGraphNode::dump() const { print(dbgs()); }
+#endif
 
 /// removeCallEdgeFor - This method removes the edge in the node for the
 /// specified call site.  Note that this method takes linear time, so it
@@ -259,11 +242,18 @@ void CallGraphNode::replaceCallEdge(CallSite CS,
   }
 }
 
+// Provide an explicit template instantiation for the static ID.
+AnalysisKey CallGraphAnalysis::Key;
+
+PreservedAnalyses CallGraphPrinterPass::run(Module &M,
+                                            ModuleAnalysisManager &AM) {
+  AM.getResult<CallGraphAnalysis>(M).print(OS);
+  return PreservedAnalyses::all();
+}
+
 //===----------------------------------------------------------------------===//
 // Out-of-line definitions of CallGraphAnalysis class members.
 //
-
-char CallGraphAnalysis::PassID;
 
 //===----------------------------------------------------------------------===//
 // Implementations of the CallGraphWrapperPass class methods.
@@ -273,7 +263,7 @@ CallGraphWrapperPass::CallGraphWrapperPass() : ModulePass(ID) {
   initializeCallGraphWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
-CallGraphWrapperPass::~CallGraphWrapperPass() {}
+CallGraphWrapperPass::~CallGraphWrapperPass() = default;
 
 void CallGraphWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
@@ -302,5 +292,37 @@ void CallGraphWrapperPass::print(raw_ostream &OS, const Module *) const {
   G->print(OS);
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD
 void CallGraphWrapperPass::dump() const { print(dbgs(), nullptr); }
+#endif
+
+namespace {
+
+struct CallGraphPrinterLegacyPass : public ModulePass {
+  static char ID; // Pass ID, replacement for typeid
+
+  CallGraphPrinterLegacyPass() : ModulePass(ID) {
+    initializeCallGraphPrinterLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesAll();
+    AU.addRequiredTransitive<CallGraphWrapperPass>();
+  }
+
+  bool runOnModule(Module &M) override {
+    getAnalysis<CallGraphWrapperPass>().print(errs(), &M);
+    return false;
+  }
+};
+
+} // end anonymous namespace
+
+char CallGraphPrinterLegacyPass::ID = 0;
+
+INITIALIZE_PASS_BEGIN(CallGraphPrinterLegacyPass, "print-callgraph",
+                      "Print a call graph", true, true)
+INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
+INITIALIZE_PASS_END(CallGraphPrinterLegacyPass, "print-callgraph",
+                    "Print a call graph", true, true)

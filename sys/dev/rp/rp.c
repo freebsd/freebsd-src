@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) Comtrol Corporation <support@comtrol.com>
  * All rights reserved.
  *
@@ -37,8 +39,6 @@ __FBSDID("$FreeBSD$");
 /* 
  * rp.c - for RocketPort FreeBSD
  */
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

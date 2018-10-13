@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2013 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -342,16 +344,49 @@ am335x_mode_is_valid(const struct videomode *mode)
 static void
 am335x_read_hdmi_property(device_t dev)
 {
-	phandle_t node;
+	phandle_t node, xref;
+	phandle_t endpoint;
 	phandle_t hdmi_xref;
 	struct am335x_lcd_softc *sc;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
-	if (OF_getencprop(node, "hdmi", &hdmi_xref, sizeof(hdmi_xref)) == -1)
-		sc->sc_hdmi_framer = 0;
-	else
-		sc->sc_hdmi_framer = hdmi_xref; 
+	sc->sc_hdmi_framer = 0;
+
+	/*
+	 * Old FreeBSD way of referencing to HDMI framer
+	 */
+	if (OF_getencprop(node, "hdmi", &hdmi_xref, sizeof(hdmi_xref)) != -1) {
+		sc->sc_hdmi_framer = hdmi_xref;
+		return;
+	}
+
+	/*
+	 * Use bindings described in Linux docs:
+	 * bindings/media/video-interfaces.txt
+	 * We assume that the only endpoint in LCDC node
+	 * is HDMI framer.
+	 */
+	node = ofw_bus_find_child(node, "port");
+
+	/* No media bindings */
+	if (node == 0)
+		return;
+
+	for (endpoint = OF_child(node); endpoint != 0; endpoint = OF_peer(endpoint)) {
+		if (OF_getencprop(endpoint, "remote-endpoint", &xref, sizeof(xref)) != -1) {
+			/* port/port@0/endpoint@0 */
+			node = OF_node_from_xref(xref);
+			/* port/port@0 */
+			node = OF_parent(node);
+			/* port */
+			node = OF_parent(node);
+			/* actual owner of port, in our case HDMI framer */
+			sc->sc_hdmi_framer = OF_xref_from_node(OF_parent(node));
+			if (sc->sc_hdmi_framer != 0)
+				return;
+		}
+	}
 }
 
 static int
@@ -359,13 +394,13 @@ am335x_read_property(device_t dev, phandle_t node, const char *name, uint32_t *v
 {
 	pcell_t cell;
 
-	if ((OF_getprop(node, name, &cell, sizeof(cell))) <= 0) {
+	if ((OF_getencprop(node, name, &cell, sizeof(cell))) <= 0) {
 		device_printf(dev, "missing '%s' attribute in LCD panel info\n",
 		    name);
 		return (ENXIO);
 	}
 
-	*val = fdt32_to_cpu(cell);
+	*val = cell;
 
 	return (0);
 }
@@ -926,7 +961,7 @@ am335x_lcd_attach(device_t dev)
 	am335x_read_hdmi_property(dev);
 
 	root = OF_finddevice("/");
-	if (root == 0) {
+	if (root == -1) {
 		device_printf(dev, "failed to get FDT root node\n");
 		return (ENXIO);
 	}

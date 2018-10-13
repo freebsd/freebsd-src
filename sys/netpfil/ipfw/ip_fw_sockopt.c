@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  * Copyright (c) 2014 Yandex LLC
  * Copyright (c) 2014 Alexander V. Chernikov
@@ -58,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/fnv_hash.h>
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/vnet.h>
 #include <vm/vm.h>
@@ -180,7 +183,7 @@ static size_t ctl3_rsize;
  * static variables followed by global ones
  */
 
-static VNET_DEFINE(uma_zone_t, ipfw_cntr_zone);
+VNET_DEFINE_STATIC(uma_zone_t, ipfw_cntr_zone);
 #define	V_ipfw_cntr_zone		VNET(ipfw_cntr_zone)
 
 void
@@ -205,7 +208,7 @@ ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize)
 	struct ip_fw *rule;
 
 	rule = malloc(rulesize, M_IPFW, M_WAITOK | M_ZERO);
-	rule->cntr = uma_zalloc(V_ipfw_cntr_zone, M_WAITOK | M_ZERO);
+	rule->cntr = uma_zalloc_pcpu(V_ipfw_cntr_zone, M_WAITOK | M_ZERO);
 
 	return (rule);
 }
@@ -214,7 +217,7 @@ static void
 free_rule(struct ip_fw *rule)
 {
 
-	uma_zfree(V_ipfw_cntr_zone, rule->cntr);
+	uma_zfree_pcpu(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
 
@@ -298,10 +301,8 @@ ipfw_init_skipto_cache(struct ip_fw_chain *chain)
 {
 	int *idxmap, *idxmap_back;
 
-	idxmap = malloc(65536 * sizeof(uint32_t *), M_IPFW,
-	    M_WAITOK | M_ZERO);
-	idxmap_back = malloc(65536 * sizeof(uint32_t *), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	idxmap = malloc(65536 * sizeof(int), M_IPFW, M_WAITOK | M_ZERO);
+	idxmap_back = malloc(65536 * sizeof(int), M_IPFW, M_WAITOK);
 
 	/*
 	 * Note we may be called at any time after initialization,
@@ -352,7 +353,7 @@ get_map(struct ip_fw_chain *chain, int extra, int locked)
 
 	for (;;) {
 		struct ip_fw **map;
-		int i, mflags;
+		u_int i, mflags;
 
 		mflags = M_ZERO | ((locked != 0) ? M_NOWAIT : M_WAITOK);
 
@@ -395,6 +396,7 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
 static void
 export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 {
+	struct timeval boottime;
 
 	cntr->size = sizeof(*cntr);
 
@@ -403,21 +405,26 @@ export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
 		cntr->timestamp = krule->timestamp;
 	}
-	if (cntr->timestamp > 0)
+	if (cntr->timestamp > 0) {
+		getboottime(&boottime);
 		cntr->timestamp += boottime.tv_sec;
+	}
 }
 
 static void
 export_cntr0_base(struct ip_fw *krule, struct ip_fw_bcounter0 *cntr)
 {
+	struct timeval boottime;
 
 	if (krule->cntr != NULL) {
 		cntr->pcnt = counter_u64_fetch(krule->cntr);
 		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
 		cntr->timestamp = krule->timestamp;
 	}
-	if (cntr->timestamp > 0)
+	if (cntr->timestamp > 0) {
+		getboottime(&boottime);
 		cntr->timestamp += boottime.tv_sec;
+	}
 }
 
 /*
@@ -524,9 +531,11 @@ import_rule0(struct rule_check_info *ci)
 
 	/*
 	 * Alter opcodes:
-	 * 1) convert tablearg value from 65335 to 0
-	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room for targ).
+	 * 1) convert tablearg value from 65535 to 0
+	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room
+	 *    for targ).
 	 * 3) convert table number in iface opcodes to u16
+	 * 4) convert old `nat global` into new 65535
 	 */
 	l = krule->cmd_len;
 	cmd = krule->cmd;
@@ -548,19 +557,21 @@ import_rule0(struct rule_check_info *ci)
 		case O_NETGRAPH:
 		case O_NGTEE:
 		case O_NAT:
-			if (cmd->arg1 == 65535)
+			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
+			else if (cmd->arg1 == 0)
+				cmd->arg1 = IP_FW_NAT44_GLOBAL;
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
-			if (cmd->arg1 == 65535)
+			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
 			else
 				cmd->arg1 |= 0x8000;
 			break;
 		case O_LIMIT:
 			lcmd = (ipfw_insn_limit *)cmd;
-			if (lcmd->conn_limit == 65535)
+			if (lcmd->conn_limit == IP_FW_TABLEARG)
 				lcmd->conn_limit = IP_FW_TARG;
 			break;
 		/* Interface tables */
@@ -606,7 +617,7 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 
 	/*
 	 * Alter opcodes:
-	 * 1) convert tablearg value from 0 to 65335
+	 * 1) convert tablearg value from 0 to 65535
 	 * 2) Remove highest bit from O_SETFIB/O_SETDSCP values.
 	 * 3) convert table number in iface opcodes to int
 	 */
@@ -631,19 +642,21 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 		case O_NGTEE:
 		case O_NAT:
 			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = 65535;
+				cmd->arg1 = IP_FW_TABLEARG;
+			else if (cmd->arg1 == IP_FW_NAT44_GLOBAL)
+				cmd->arg1 = 0;
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
 			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = 65535;
+				cmd->arg1 = IP_FW_TABLEARG;
 			else
 				cmd->arg1 &= ~0x8000;
 			break;
 		case O_LIMIT:
 			lcmd = (ipfw_insn_limit *)cmd;
 			if (lcmd->conn_limit == IP_FW_TARG)
-				lcmd->conn_limit = 65535;
+				lcmd->conn_limit = IP_FW_TABLEARG;
 			break;
 		/* Interface tables */
 		case O_XMIT:
@@ -774,6 +787,30 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 	IPFW_UH_WUNLOCK(chain);
 	if (map)
 		free(map, M_IPFW);
+	return (0);
+}
+
+int
+ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
+    int locked)
+{
+	struct ip_fw **map;
+
+	map = get_map(chain, 1, locked);
+	if (map == NULL)
+		return (ENOMEM);
+	if (chain->n_rules > 0)
+		bcopy(chain->map, map,
+		    chain->n_rules * sizeof(struct ip_fw *));
+	map[chain->n_rules] = rule;
+	rule->rulenum = IPFW_DEFAULT_RULE;
+	rule->set = RESVD_SET;
+	rule->id = chain->id + 1;
+	/* We add rule in the end of chain, no need to update skipto cache */
+	map = swap_map(chain, map, chain->n_rules + 1);
+	chain->static_len += RULEUSIZE0(rule);
+	IPFW_UH_WUNLOCK(chain);
+	free(map, M_IPFW);
 	return (0);
 }
 
@@ -984,10 +1021,9 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 	if ((rt->flags & IPFW_RCFLAG_RANGE) != 0) {
 		start = ipfw_find_rule(chain, rt->start_rule, 0);
 
-		end = ipfw_find_rule(chain, rt->end_rule, 0);
-		if (rt->end_rule != IPFW_DEFAULT_RULE)
-			while (chain->map[end]->rulenum == rt->end_rule)
-				end++;
+		if (rt->end_rule >= IPFW_DEFAULT_RULE)
+			rt->end_rule = IPFW_DEFAULT_RULE - 1;
+		end = ipfw_find_rule(chain, rt->end_rule, UINT32_MAX);
 	}
 
 	/* Allocate new map of the same size */
@@ -1024,7 +1060,7 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 	map = swap_map(chain, map, chain->n_rules - n);
 	/* 6. Remove all dynamic states originated by deleted rules */
 	if (ndyn > 0)
-		ipfw_expire_dyn_rules(chain, rt);
+		ipfw_expire_dyn_states(chain, rt);
 	/* 7. now remove the rules deleted from the old map */
 	for (i = start; i < end; i++) {
 		rule = map[i];
@@ -1408,8 +1444,10 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	if (rh->range.head.length != sizeof(ipfw_range_tlv))
 		return (1);
-	if (rh->range.set >= IPFW_MAX_SETS ||
-	    rh->range.new_set >= IPFW_MAX_SETS)
+	/* enable_sets() expects bitmasks. */
+	if (op3->opcode != IP_FW_SET_ENABLE &&
+	    (rh->range.set >= IPFW_MAX_SETS ||
+	    rh->range.new_set >= IPFW_MAX_SETS))
 		return (EINVAL);
 
 	ret = 0;
@@ -1679,6 +1717,10 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		switch (cmd->opcode) {
 		case O_PROBE_STATE:
 		case O_KEEP_STATE:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn))
+				goto bad_size;
+			ci->object_opcodes++;
+			break;
 		case O_PROTO:
 		case O_IP_SRC_ME:
 		case O_IP_DST_ME:
@@ -1706,6 +1748,7 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 #endif
 		case O_IP4:
 		case O_TAG:
+		case O_SKIP_ACTION:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -1718,11 +1761,16 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 				return (EINVAL);
 			}
 			ci->object_opcodes++;
-			/* Do we have O_EXTERNAL_INSTANCE opcode? */
+			/*
+			 * Do we have O_EXTERNAL_INSTANCE or O_EXTERNAL_DATA
+			 * opcode?
+			 */
 			if (l != cmdlen) {
 				l -= cmdlen;
 				cmd += cmdlen;
 				cmdlen = F_LEN(cmd);
+				if (cmd->opcode == O_EXTERNAL_DATA)
+					goto check_action;
 				if (cmd->opcode != O_EXTERNAL_INSTANCE) {
 					printf("ipfw: invalid opcode "
 					    "next to external action %u\n",
@@ -1776,6 +1824,7 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		case O_LIMIT:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_limit))
 				goto bad_size;
+			ci->object_opcodes++;
 			break;
 
 		case O_LOG:
@@ -1807,6 +1856,8 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			break;
 
 		case O_IP_SRC_LOOKUP:
+			if (cmdlen > F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
 		case O_IP_DST_LOOKUP:
 			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",
@@ -1906,8 +1957,10 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
  			goto check_action;
-		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
+			ci->object_opcodes++;
+			/* FALLTHROUGH */
+		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_COUNT:
 		case O_ACCEPT:
 		case O_DENY:
@@ -2048,11 +2101,13 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	char *ep = bp + space;
 	struct ip_fw *rule;
 	struct ip_fw_rule0 *dst;
+	struct timeval boottime;
 	int error, i, l, warnflag;
 	time_t	boot_seconds;
 
 	warnflag = 0;
 
+	getboottime(&boottime);
         boot_seconds = boottime.tv_sec;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
@@ -2346,9 +2401,9 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		if ((rnum = hdr->start_rule) > IPFW_DEFAULT_RULE)
 			rnum = IPFW_DEFAULT_RULE;
 		da.b = ipfw_find_rule(chain, rnum, 0);
-		rnum = hdr->end_rule;
-		rnum = (rnum < IPFW_DEFAULT_RULE) ? rnum+1 : IPFW_DEFAULT_RULE;
-		da.e = ipfw_find_rule(chain, rnum, 0) + 1;
+		rnum = (hdr->end_rule < IPFW_DEFAULT_RULE) ?
+		    hdr->end_rule + 1: IPFW_DEFAULT_RULE;
+		da.e = ipfw_find_rule(chain, rnum, UINT32_MAX) + 1;
 	}
 
 	if (hdr->flags & IPFW_CFG_GET_STATIC) {
@@ -2593,11 +2648,11 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 			continue;
 		no = rw->find_bykidx(ch, kidx);
 
-		KASSERT(no != NULL, ("table id %d not found", kidx));
+		KASSERT(no != NULL, ("object id %d not found", kidx));
 		KASSERT(no->subtype == subtype,
-		    ("wrong type %d (%d) for table id %d",
+		    ("wrong type %d (%d) for object id %d",
 		    no->subtype, subtype, kidx));
-		KASSERT(no->refcnt > 0, ("refcount for table %d is %d",
+		KASSERT(no->refcnt > 0, ("refcount for object %d is %d",
 		    kidx, no->refcnt));
 
 		if (no->refcnt == 1 && rw->destroy_object != NULL)
@@ -2646,7 +2701,14 @@ ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
 		return (0);
 	}
 
-	/* Found. Bump refcount and update kidx. */
+	/*
+	 * Object is already exist.
+	 * Its subtype should match with expected value.
+	 */
+	if (ti->type != no->subtype)
+		return (EINVAL);
+
+	/* Bump refcount and update kidx. */
 	no->refcnt++;
 	rw->update(cmd, no->kidx);
 	return (0);
@@ -3112,7 +3174,7 @@ int
 classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx)
 {
 
-	if (find_op_rw(cmd, puidx, NULL) == 0)
+	if (find_op_rw(cmd, puidx, NULL) == NULL)
 		return (1);
 	return (0);
 }

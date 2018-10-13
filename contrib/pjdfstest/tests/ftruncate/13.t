@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/truncate/13.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="ftruncate returns EINVAL if the length argument was less than 0"

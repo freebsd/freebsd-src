@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
@@ -39,83 +41,21 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "nvmecontrol.h"
-
-static void
-print_controller(struct nvme_controller_data *cdata)
-{
-	uint8_t str[128];
-
-	printf("Controller Capabilities/Features\n");
-	printf("================================\n");
-	printf("Vendor ID:                  %04x\n", cdata->vid);
-	printf("Subsystem Vendor ID:        %04x\n", cdata->ssvid);
-	nvme_strvis(str, cdata->sn, sizeof(str), NVME_SERIAL_NUMBER_LENGTH);
-	printf("Serial Number:              %s\n", str);
-	nvme_strvis(str, cdata->mn, sizeof(str), NVME_MODEL_NUMBER_LENGTH);
-	printf("Model Number:               %s\n", str);
-	nvme_strvis(str, cdata->fr, sizeof(str), NVME_FIRMWARE_REVISION_LENGTH);
-	printf("Firmware Version:           %s\n", str);
-	printf("Recommended Arb Burst:      %d\n", cdata->rab);
-	printf("IEEE OUI Identifier:        %02x %02x %02x\n",
-		cdata->ieee[0], cdata->ieee[1], cdata->ieee[2]);
-	printf("Multi-Interface Cap:        %02x\n", cdata->mic);
-	/* TODO: Use CAP.MPSMIN to determine true memory page size. */
-	printf("Max Data Transfer Size:     ");
-	if (cdata->mdts == 0)
-		printf("Unlimited\n");
-	else
-		printf("%d\n", PAGE_SIZE * (1 << cdata->mdts));
-	printf("\n");
-
-	printf("Admin Command Set Attributes\n");
-	printf("============================\n");
-	printf("Security Send/Receive:       %s\n",
-		cdata->oacs.security ? "Supported" : "Not Supported");
-	printf("Format NVM:                  %s\n",
-		cdata->oacs.format ? "Supported" : "Not Supported");
-	printf("Firmware Activate/Download:  %s\n",
-		cdata->oacs.firmware ? "Supported" : "Not Supported");
-	printf("Abort Command Limit:         %d\n", cdata->acl+1);
-	printf("Async Event Request Limit:   %d\n", cdata->aerl+1);
-	printf("Number of Firmware Slots:    ");
-	if (cdata->oacs.firmware != 0)
-		printf("%d\n", cdata->frmw.num_slots);
-	else
-		printf("N/A\n");
-	printf("Firmware Slot 1 Read-Only:   ");
-	if (cdata->oacs.firmware != 0)
-		printf("%s\n", cdata->frmw.slot1_ro ? "Yes" : "No");
-	else
-		printf("N/A\n");
-	printf("Per-Namespace SMART Log:     %s\n",
-		cdata->lpa.ns_smart ? "Yes" : "No");
-	printf("Error Log Page Entries:      %d\n", cdata->elpe+1);
-	printf("Number of Power States:      %d\n", cdata->npss+1);
-	printf("\n");
-
-	printf("NVM Command Set Attributes\n");
-	printf("==========================\n");
-	printf("Submission Queue Entry Size\n");
-	printf("  Max:                       %d\n", 1 << cdata->sqes.max);
-	printf("  Min:                       %d\n", 1 << cdata->sqes.min);
-	printf("Completion Queue Entry Size\n");
-	printf("  Max:                       %d\n", 1 << cdata->cqes.max);
-	printf("  Min:                       %d\n", 1 << cdata->cqes.min);
-	printf("Number of Namespaces:        %d\n", cdata->nn);
-	printf("Compare Command:             %s\n",
-		cdata->oncs.compare ? "Supported" : "Not Supported");
-	printf("Write Uncorrectable Command: %s\n",
-		cdata->oncs.write_unc ? "Supported" : "Not Supported");
-	printf("Dataset Management Command:  %s\n",
-		cdata->oncs.dsm ? "Supported" : "Not Supported");
-	printf("Volatile Write Cache:        %s\n",
-		cdata->vwc.present ? "Present" : "Not Present");
-}
+#include "nvmecontrol_ext.h"
 
 static void
 print_namespace(struct nvme_namespace_data *nsdata)
 {
 	uint32_t	i;
+	uint32_t	lbaf, lbads, ms, rp;
+	uint8_t		thin_prov, ptype;
+	uint8_t		flbas_fmt;
+
+	thin_prov = (nsdata->nsfeat >> NVME_NS_DATA_NSFEAT_THIN_PROV_SHIFT) &
+		NVME_NS_DATA_NSFEAT_THIN_PROV_MASK;
+
+	flbas_fmt = (nsdata->flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
+		NVME_NS_DATA_FLBAS_FORMAT_MASK;
 
 	printf("Size (in LBAs):              %lld (%lldM)\n",
 		(long long)nsdata->nsze,
@@ -127,13 +67,83 @@ print_namespace(struct nvme_namespace_data *nsdata)
 		(long long)nsdata->nuse,
 		(long long)nsdata->nuse / 1024 / 1024);
 	printf("Thin Provisioning:           %s\n",
-		nsdata->nsfeat.thin_prov ? "Supported" : "Not Supported");
+		thin_prov ? "Supported" : "Not Supported");
 	printf("Number of LBA Formats:       %d\n", nsdata->nlbaf+1);
-	printf("Current LBA Format:          LBA Format #%02d\n",
-		nsdata->flbas.format);
-	for (i = 0; i <= nsdata->nlbaf; i++)
-		printf("LBA Format #%02d: Data Size: %5d  Metadata Size: %5d\n",
-		    i, 1 << nsdata->lbaf[i].lbads, nsdata->lbaf[i].ms);
+	printf("Current LBA Format:          LBA Format #%02d\n", flbas_fmt);
+	printf("Data Protection Caps:        %s%s%s%s%s%s\n",
+	    (nsdata->dpc == 0) ? "Not Supported" : "",
+	    ((nsdata->dpc >> NVME_NS_DATA_DPC_MD_END_SHIFT) &
+	     NVME_NS_DATA_DPC_MD_END_MASK) ? "Last Bytes, " : "",
+	    ((nsdata->dpc >> NVME_NS_DATA_DPC_MD_START_SHIFT) &
+	     NVME_NS_DATA_DPC_MD_START_MASK) ? "First Bytes, " : "",
+	    ((nsdata->dpc >> NVME_NS_DATA_DPC_PIT3_SHIFT) &
+	     NVME_NS_DATA_DPC_PIT3_MASK) ? "Type 3, " : "",
+	    ((nsdata->dpc >> NVME_NS_DATA_DPC_PIT2_SHIFT) &
+	     NVME_NS_DATA_DPC_PIT2_MASK) ? "Type 2, " : "",
+	    ((nsdata->dpc >> NVME_NS_DATA_DPC_PIT2_MASK) &
+	     NVME_NS_DATA_DPC_PIT1_MASK) ? "Type 1" : "");
+	printf("Data Protection Settings:    ");
+	ptype = (nsdata->dps >> NVME_NS_DATA_DPS_PIT_SHIFT) &
+	    NVME_NS_DATA_DPS_PIT_MASK;
+	if (ptype) {
+		printf("Type %d, %s Bytes\n", ptype,
+		    ((nsdata->dps >> NVME_NS_DATA_DPS_MD_START_SHIFT) &
+		     NVME_NS_DATA_DPS_MD_START_MASK) ? "First" : "Last");
+	} else {
+		printf("Not Enabled\n");
+	}
+	printf("Multi-Path I/O Capabilities: %s%s\n",
+	    (nsdata->nmic == 0) ? "Not Supported" : "",
+	    ((nsdata->nmic >> NVME_NS_DATA_NMIC_MAY_BE_SHARED_SHIFT) &
+	     NVME_NS_DATA_NMIC_MAY_BE_SHARED_MASK) ? "May be shared" : "");
+	printf("Reservation Capabilities:    %s%s%s%s%s%s%s%s%s\n",
+	    (nsdata->rescap == 0) ? "Not Supported" : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_IEKEY13_SHIFT) &
+	     NVME_NS_DATA_RESCAP_IEKEY13_MASK) ? "IEKEY13, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_EX_AC_AR_SHIFT) &
+	     NVME_NS_DATA_RESCAP_EX_AC_AR_MASK) ? "EX_AC_AR, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_WR_EX_AR_SHIFT) &
+	     NVME_NS_DATA_RESCAP_WR_EX_AR_MASK) ? "WR_EX_AR, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_EX_AC_RO_SHIFT) &
+	     NVME_NS_DATA_RESCAP_EX_AC_RO_MASK) ? "EX_AC_RO, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_WR_EX_RO_SHIFT) &
+	     NVME_NS_DATA_RESCAP_WR_EX_RO_MASK) ? "WR_EX_RO, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_EX_AC_SHIFT) &
+	     NVME_NS_DATA_RESCAP_EX_AC_MASK) ? "EX_AC, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_WR_EX_SHIFT) &
+	     NVME_NS_DATA_RESCAP_WR_EX_MASK) ? "WR_EX, " : "",
+	    ((nsdata->rescap >> NVME_NS_DATA_RESCAP_PTPL_SHIFT) &
+	     NVME_NS_DATA_RESCAP_PTPL_MASK) ? "PTPL" : "");
+	printf("Format Progress Indicator:   ");
+	if ((nsdata->fpi >> NVME_NS_DATA_FPI_SUPP_SHIFT) &
+	    NVME_NS_DATA_FPI_SUPP_MASK) {
+		printf("%u%% remains\n",
+		    (nsdata->fpi >> NVME_NS_DATA_FPI_PERC_SHIFT) &
+		    NVME_NS_DATA_FPI_PERC_MASK);
+	} else
+		printf("Not Supported\n");
+	printf("Optimal I/O Boundary (LBAs): %u\n", nsdata->noiob);
+	printf("Globally Unique Identifier:  ");
+	for (i = 0; i < sizeof(nsdata->nguid); i++)
+		printf("%02x", nsdata->nguid[i]);
+	printf("\n");
+	printf("IEEE EUI64:                  ");
+	for (i = 0; i < sizeof(nsdata->eui64); i++)
+		printf("%02x", nsdata->eui64[i]);
+	printf("\n");
+	for (i = 0; i <= nsdata->nlbaf; i++) {
+		lbaf = nsdata->lbaf[i];
+		lbads = (lbaf >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
+			NVME_NS_DATA_LBAF_LBADS_MASK;
+		ms = (lbaf >> NVME_NS_DATA_LBAF_MS_SHIFT) &
+			NVME_NS_DATA_LBAF_MS_MASK;
+		rp = (lbaf >> NVME_NS_DATA_LBAF_RP_SHIFT) &
+			NVME_NS_DATA_LBAF_RP_MASK;
+		printf("LBA Format #%02d: Data Size: %5d  Metadata Size: %5d"
+		    "  Performance: %s\n",
+		    i, 1 << lbads, ms, (rp == 0) ? "Best" :
+		    (rp == 1) ? "Better" : (rp == 2) ? "Good" : "Degraded");
+	}
 }
 
 static void
@@ -177,7 +187,7 @@ identify_ctrlr(int argc, char *argv[])
 			hexlength = sizeof(struct nvme_controller_data);
 		else
 			hexlength = offsetof(struct nvme_controller_data,
-			    reserved5);
+			    reserved8);
 		print_hex(&cdata, hexlength);
 		exit(0);
 	}
@@ -187,7 +197,7 @@ identify_ctrlr(int argc, char *argv[])
 		identify_usage();
 	}
 
-	print_controller(&cdata);
+	nvme_print_controller(&cdata);
 	exit(0);
 }
 
@@ -196,8 +206,9 @@ identify_ns(int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
-	int				ch, fd, hexflag = 0, hexlength, nsid;
+	int				ch, fd, hexflag = 0, hexlength;
 	int				verboseflag = 0;
+	uint32_t			nsid;
 
 	while ((ch = getopt(argc, argv, "vx")) != -1) {
 		switch ((char)ch) {

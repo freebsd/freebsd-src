@@ -36,5 +36,7 @@ struct mkuz_cfg {
     int en_dedup;
     int nworkers;
     int blksz;
+    const char *iname;
+    off_t isize;
     const struct mkuz_format *handler;
 };

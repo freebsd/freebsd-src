@@ -2,7 +2,7 @@
 
 MAN=
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "${.CURDIR:H}/Makefile.inc"
 
 .PATH:	${SVNDIR}/svnrdump
 
@@ -10,11 +10,11 @@ PROG=	svn${SVNLITE}rdump
 
 SRCS=	dump_editor.c load_editor.c svnrdump.c util.c
 
-CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
-	-I${.CURDIR}/../lib/libapr \
+CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR:H} \
+	-I${.CURDIR:H}/lib/libapr \
 	-I${APR}/include/arch/unix \
 	-I${APR}/include \
-	-I${.CURDIR}/../lib/libapr_util \
+	-I${.CURDIR:H}/lib/libapr_util \
 	-I${APRU}/include/private \
 	-I${APRU}/include
 

@@ -19,12 +19,13 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: DECnet printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 struct mbuf;
 struct rtentry;
@@ -38,12 +39,12 @@ struct rtentry;
 #include <string.h>
 
 #include "extract.h"
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 
 static const char tstr[] = "[|decnet]";
 
-#ifndef WIN32
+#ifndef _WIN32
 typedef uint8_t byte[1];		/* single byte field */
 #else
 /*
@@ -51,7 +52,7 @@ typedef uint8_t byte[1];		/* single byte field */
  */
 typedef unsigned char Byte[1];		/* single byte field */
 #define byte Byte
-#endif /* WIN32 */
+#endif /* _WIN32 */
 typedef uint8_t word[2];		/* 2 byte field */
 typedef uint8_t longword[4];		/* 4 bytes field */
 
@@ -325,7 +326,6 @@ union controlmsg
 #define COS_NONE 0			/* no flow control */
 #define COS_SEGMENT 04			/* segment flow control */
 #define COS_MESSAGE 010			/* message flow control */
-#define COS_CRYPTSER 020		/* cryptographic services requested */
 #define COS_DEFAULT 1			/* default value for field */
 
 #define COI_MASK 3			/* mask for version field */
@@ -491,9 +491,6 @@ static void print_i_info(netdissect_options *, int);
 static int print_elist(const char *, u_int);
 static int print_nsp(netdissect_options *, const u_char *, u_int);
 static void print_reason(netdissect_options *, int);
-#ifdef	PRINT_NSPDATA
-static void pdata(netdissect_options *, u_char *, u_int);
-#endif
 
 #ifndef HAVE_NETDNET_DNETDB_H_DNET_HTOA
 extern char *dnet_htoa(struct dn_naddr *);
@@ -545,6 +542,7 @@ decnet_print(netdissect_options *ndo,
 	    length -= padlen;
 	    caplen -= padlen;
 	    rhp = (const union routehdr *)&(ap[sizeof(short)]);
+	    ND_TCHECK(rhp->rh_short.sh_flags);
 	    mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
 	}
 
@@ -586,7 +584,7 @@ decnet_print(netdissect_options *ndo,
 	    break;
 	default:
 	    ND_PRINT((ndo, "unknown message flags under mask"));
-	    ND_DEFAULTPRINT((u_char *)ap, min(length, caplen));
+	    ND_DEFAULTPRINT((const u_char *)ap, min(length, caplen));
 	    return;
 	}
 
@@ -616,12 +614,13 @@ print_decnet_ctlmsg(netdissect_options *ndo,
                     register const union routehdr *rhp, u_int length,
                     u_int caplen)
 {
+	/* Our caller has already checked for mflags */
 	int mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
-	register union controlmsg *cmp = (union controlmsg *)rhp;
+	register const union controlmsg *cmp = (const union controlmsg *)rhp;
 	int src, dst, info, blksize, eco, ueco, hello, other, vers;
 	etheraddr srcea, rtea;
 	int priority;
-	char *rhpx = (char *)rhp;
+	const char *rhpx = (const char *)rhp;
 	int ret;
 
 	switch (mflags & RMF_CTLMASK) {
@@ -692,7 +691,7 @@ print_decnet_ctlmsg(netdissect_options *ndo,
 	    vers = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_vers);
 	    eco = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_eco);
 	    ueco = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_ueco);
-	    memcpy((char *)&srcea, (char *)&(cmp->cm_rhello.rh_src),
+	    memcpy((char *)&srcea, (const char *)&(cmp->cm_rhello.rh_src),
 		sizeof(srcea));
 	    src = EXTRACT_LE_16BITS(srcea.dne_remote.dne_nodeaddr);
 	    info = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_info);
@@ -715,13 +714,13 @@ print_decnet_ctlmsg(netdissect_options *ndo,
 	    vers = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_vers);
 	    eco = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_eco);
 	    ueco = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_ueco);
-	    memcpy((char *)&srcea, (char *)&(cmp->cm_ehello.eh_src),
+	    memcpy((char *)&srcea, (const char *)&(cmp->cm_ehello.eh_src),
 		sizeof(srcea));
 	    src = EXTRACT_LE_16BITS(srcea.dne_remote.dne_nodeaddr);
 	    info = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_info);
 	    blksize = EXTRACT_LE_16BITS(cmp->cm_ehello.eh_blksize);
 	    /*seed*/
-	    memcpy((char *)&rtea, (char *)&(cmp->cm_ehello.eh_router),
+	    memcpy((char *)&rtea, (const char *)&(cmp->cm_ehello.eh_router),
 		sizeof(rtea));
 	    dst = EXTRACT_LE_16BITS(rtea.dne_remote.dne_nodeaddr);
 	    hello = EXTRACT_LE_16BITS(cmp->cm_ehello.eh_hello);
@@ -736,7 +735,7 @@ print_decnet_ctlmsg(netdissect_options *ndo,
 
 	default:
 	    ND_PRINT((ndo, "unknown control message"));
-	    ND_DEFAULTPRINT((u_char *)rhp, min(length, caplen));
+	    ND_DEFAULTPRINT((const u_char *)rhp, min(length, caplen));
 	    ret = 1;
 	    break;
 	}
@@ -855,7 +854,7 @@ static int
 print_nsp(netdissect_options *ndo,
           const u_char *nspp, u_int nsplen)
 {
-	const struct nsphdr *nsphp = (struct nsphdr *)nspp;
+	const struct nsphdr *nsphp = (const struct nsphdr *)nspp;
 	int dst, src, flags;
 
 	if (nsplen < sizeof(struct nsphdr))
@@ -874,11 +873,8 @@ print_nsp(netdissect_options *ndo,
 	    case MFS_BOM+MFS_EOM:
 		ND_PRINT((ndo, "data %d>%d ", src, dst));
 		{
-		    struct seghdr *shp = (struct seghdr *)nspp;
+		    const struct seghdr *shp = (const struct seghdr *)nspp;
 		    int ack;
-#ifdef	PRINT_NSPDATA
-		    u_char *dp;
-#endif
 		    u_int data_off = sizeof(struct minseghdr);
 
 		    if (nsplen < data_off)
@@ -908,23 +904,13 @@ print_nsp(netdissect_options *ndo,
 			}
 		    }
 		    ND_PRINT((ndo, "seg %d ", ack & SGQ_MASK));
-#ifdef	PRINT_NSPDATA
-		    if (nsplen > data_off) {
-			dp = &(nspp[data_off]);
-			ND_TCHECK2(*dp, nsplen - data_off);
-			pdata(ndo, dp, nsplen - data_off);
-		    }
-#endif
 		}
 		break;
 	    case MFS_ILS+MFS_INT:
 		ND_PRINT((ndo, "intr "));
 		{
-		    struct seghdr *shp = (struct seghdr *)nspp;
+		    const struct seghdr *shp = (const struct seghdr *)nspp;
 		    int ack;
-#ifdef	PRINT_NSPDATA
-		    u_char *dp;
-#endif
 		    u_int data_off = sizeof(struct minseghdr);
 
 		    if (nsplen < data_off)
@@ -954,21 +940,14 @@ print_nsp(netdissect_options *ndo,
 			}
 		    }
 		    ND_PRINT((ndo, "seg %d ", ack & SGQ_MASK));
-#ifdef	PRINT_NSPDATA
-		    if (nsplen > data_off) {
-			dp = &(nspp[data_off]);
-			ND_TCHECK2(*dp, nsplen - data_off);
-			pdata(ndo, dp, nsplen - data_off);
-		    }
-#endif
 		}
 		break;
 	    case MFS_ILS:
 		ND_PRINT((ndo, "link-service %d>%d ", src, dst));
 		{
-		    struct seghdr *shp = (struct seghdr *)nspp;
-		    struct lsmsg *lsmp =
-			(struct lsmsg *)&(nspp[sizeof(struct seghdr)]);
+		    const struct seghdr *shp = (const struct seghdr *)nspp;
+		    const struct lsmsg *lsmp =
+			(const struct lsmsg *)&(nspp[sizeof(struct seghdr)]);
 		    int ack;
 		    int lsflags, fcval;
 
@@ -1032,7 +1011,7 @@ print_nsp(netdissect_options *ndo,
 	    case MFS_DACK:
 		ND_PRINT((ndo, "data-ack %d>%d ", src, dst));
 		{
-		    struct ackmsg *amp = (struct ackmsg *)nspp;
+		    const struct ackmsg *amp = (const struct ackmsg *)nspp;
 		    int ack;
 
 		    if (nsplen < sizeof(struct ackmsg))
@@ -1057,7 +1036,7 @@ print_nsp(netdissect_options *ndo,
 	    case MFS_IACK:
 		ND_PRINT((ndo, "ils-ack %d>%d ", src, dst));
 		{
-		    struct ackmsg *amp = (struct ackmsg *)nspp;
+		    const struct ackmsg *amp = (const struct ackmsg *)nspp;
 		    int ack;
 
 		    if (nsplen < sizeof(struct ackmsg))
@@ -1098,11 +1077,8 @@ print_nsp(netdissect_options *ndo,
 		    ND_PRINT((ndo, "retrans-conn-initiate "));
 		ND_PRINT((ndo, "%d>%d ", src, dst));
 		{
-		    struct cimsg *cimp = (struct cimsg *)nspp;
+		    const struct cimsg *cimp = (const struct cimsg *)nspp;
 		    int services, info, segsize;
-#ifdef	PRINT_NSPDATA
-		    u_char *dp;
-#endif
 
 		    if (nsplen < sizeof(struct cimsg))
 			goto trunc;
@@ -1120,9 +1096,6 @@ print_nsp(netdissect_options *ndo,
 		    case COS_MESSAGE:
 			ND_PRINT((ndo, "msg "));
 			break;
-		    case COS_CRYPTSER:
-			ND_PRINT((ndo, "crypt "));
-			break;
 		    }
 		    switch (info & COI_MASK) {
 		    case COI_32:
@@ -1139,24 +1112,14 @@ print_nsp(netdissect_options *ndo,
 			break;
 		    }
 		    ND_PRINT((ndo, "segsize %d ", segsize));
-#ifdef	PRINT_NSPDATA
-		    if (nsplen > sizeof(struct cimsg)) {
-			dp = &(nspp[sizeof(struct cimsg)]);
-			ND_TCHECK2(*dp, nsplen - sizeof(struct cimsg));
-			pdata(ndo, dp, nsplen - sizeof(struct cimsg));
-		    }
-#endif
 		}
 		break;
 	    case MFS_CC:
 		ND_PRINT((ndo, "conn-confirm %d>%d ", src, dst));
 		{
-		    struct ccmsg *ccmp = (struct ccmsg *)nspp;
+		    const struct ccmsg *ccmp = (const struct ccmsg *)nspp;
 		    int services, info;
 		    u_int segsize, optlen;
-#ifdef	PRINT_NSPDATA
-		    u_char *dp;
-#endif
 
 		    if (nsplen < sizeof(struct ccmsg))
 			goto trunc;
@@ -1175,9 +1138,6 @@ print_nsp(netdissect_options *ndo,
 		    case COS_MESSAGE:
 			ND_PRINT((ndo, "msg "));
 			break;
-		    case COS_CRYPTSER:
-			ND_PRINT((ndo, "crypt "));
-			break;
 		    }
 		    switch (info & COI_MASK) {
 		    case COI_32:
@@ -1196,25 +1156,15 @@ print_nsp(netdissect_options *ndo,
 		    ND_PRINT((ndo, "segsize %d ", segsize));
 		    if (optlen) {
 			ND_PRINT((ndo, "optlen %d ", optlen));
-#ifdef	PRINT_NSPDATA
-			if (optlen > nsplen - sizeof(struct ccmsg))
-			    goto trunc;
-			dp = &(nspp[sizeof(struct ccmsg)]);
-			ND_TCHECK2(*dp, optlen);
-			pdata(ndo, dp, optlen);
-#endif
 		    }
 		}
 		break;
 	    case MFS_DI:
 		ND_PRINT((ndo, "disconn-initiate %d>%d ", src, dst));
 		{
-		    struct dimsg *dimp = (struct dimsg *)nspp;
+		    const struct dimsg *dimp = (const struct dimsg *)nspp;
 		    int reason;
 		    u_int optlen;
-#ifdef	PRINT_NSPDATA
-		    u_char *dp;
-#endif
 
 		    if (nsplen < sizeof(struct dimsg))
 			goto trunc;
@@ -1225,20 +1175,13 @@ print_nsp(netdissect_options *ndo,
 		    print_reason(ndo, reason);
 		    if (optlen) {
 			ND_PRINT((ndo, "optlen %d ", optlen));
-#ifdef	PRINT_NSPDATA
-			if (optlen > nsplen - sizeof(struct dimsg))
-			    goto trunc;
-			dp = &(nspp[sizeof(struct dimsg)]);
-			ND_TCHECK2(*dp, optlen);
-			pdata(ndo, dp, optlen);
-#endif
 		    }
 		}
 		break;
 	    case MFS_DC:
 		ND_PRINT((ndo, "disconn-confirm %d>%d ", src, dst));
 		{
-		    struct dcmsg *dcmp = (struct dcmsg *)nspp;
+		    const struct dcmsg *dcmp = (const struct dcmsg *)nspp;
 		    int reason;
 
 		    ND_TCHECK(*dcmp);
@@ -1296,7 +1239,7 @@ print_reason(netdissect_options *ndo,
 }
 
 const char *
-dnnum_string(u_short dnaddr)
+dnnum_string(netdissect_options *ndo, u_short dnaddr)
 {
 	char *str;
 	size_t siz;
@@ -1305,13 +1248,13 @@ dnnum_string(u_short dnaddr)
 
 	str = (char *)malloc(siz = sizeof("00.0000"));
 	if (str == NULL)
-		error("dnnum_string: malloc");
+		(*ndo->ndo_error)(ndo, "dnnum_string: malloc");
 	snprintf(str, siz, "%d.%d", area, node);
 	return(str);
 }
 
 const char *
-dnname_string(u_short dnaddr)
+dnname_string(netdissect_options *ndo, u_short dnaddr)
 {
 #ifdef HAVE_DNET_HTOA
 	struct dn_naddr dna;
@@ -1323,23 +1266,8 @@ dnname_string(u_short dnaddr)
 	if(dnname != NULL)
 		return (strdup(dnname));
 	else
-		return(dnnum_string(dnaddr));
+		return(dnnum_string(ndo, dnaddr));
 #else
-	return(dnnum_string(dnaddr));	/* punt */
+	return(dnnum_string(ndo, dnaddr));	/* punt */
 #endif
 }
-
-#ifdef	PRINT_NSPDATA
-static void
-pdata(netdissect_options *ndo,
-      u_char *dp, u_int maxlen)
-{
-	char c;
-	u_int x = maxlen;
-
-	while (x-- > 0) {
-	    c = *dp++;
-	    safeputchar(ndo, c);
-	}
-}
-#endif

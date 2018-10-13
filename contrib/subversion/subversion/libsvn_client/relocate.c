@@ -141,6 +141,8 @@ svn_client_relocate2(const char *wcroot_dir,
   apr_hash_index_t *hi;
   apr_pool_t *iterpool = NULL;
   const char *old_repos_root_url, *new_repos_root_url;
+  char *sig_from_prefix, *sig_to_prefix;
+  apr_size_t index_from, index_to;
 
   /* Populate our validator callback baton, and call the relocate code. */
   vb.ctx = ctx;
@@ -183,6 +185,21 @@ svn_client_relocate2(const char *wcroot_dir,
   if (! apr_hash_count(externals_hash))
     return SVN_NO_ERROR;
 
+  /* A valid prefix for the main working copy may be too long to be
+     valid for an external.  Trim any common trailing characters to
+     leave the significant part that changes. */
+  sig_from_prefix = apr_pstrdup(pool, from_prefix);
+  sig_to_prefix = apr_pstrdup(pool, to_prefix);
+  index_from = strlen(sig_from_prefix);
+  index_to = strlen(sig_to_prefix);
+  while (index_from && index_to
+         && sig_from_prefix[index_from] == sig_to_prefix[index_to])
+    {
+      sig_from_prefix[index_from] = sig_to_prefix[index_to] = '\0';
+      --index_from;
+      --index_to;
+    }
+
   iterpool = svn_pool_create(pool);
 
   for (hi = apr_hash_first(pool, externals_hash);
@@ -218,7 +235,8 @@ svn_client_relocate2(const char *wcroot_dir,
           SVN_ERR(err);
 
           if (strcmp(old_repos_root_url, this_repos_root_url) == 0)
-            SVN_ERR(svn_client_relocate2(this_abspath, from_prefix, to_prefix,
+            SVN_ERR(svn_client_relocate2(this_abspath,
+                                         sig_from_prefix, sig_to_prefix,
                                          FALSE /* ignore_externals */,
                                          ctx, iterpool));
         }

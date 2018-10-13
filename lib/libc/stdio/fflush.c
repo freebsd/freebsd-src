@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -56,7 +58,7 @@ fflush(FILE *fp)
 
 	if (fp == NULL)
 		return (_fwalk(sflush_locked));
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 
 	/*
 	 * There is disagreement about the correct behaviour of fflush()
@@ -76,7 +78,7 @@ fflush(FILE *fp)
 		retval = 0;
 	else
 		retval = __sflush(fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }
 
@@ -143,8 +145,8 @@ sflush_locked(FILE *fp)
 {
 	int	ret;
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ret = __sflush(fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }

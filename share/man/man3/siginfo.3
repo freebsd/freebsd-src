@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2012
+.Dd April 24, 2018
 .Dt SIGINFO 3
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ In either case, the system returns the information in a structure of type
 .Vt siginfo_t ,
 which includes the following information:
 .Bl -column ".Vt union signal" ".Va si_overrun"
-.It Sy "Type	Member	Description"
+.It Sy Type Ta Sy Member Ta Sy Description
 .It Vt int Ta Va si_signo Ta
 signal number
 .It Vt int Ta Va si_errno Ta
@@ -107,7 +107,7 @@ for use as values of
 that are signal-specific or non-signal-specific reasons why the signal was
 generated:
 .Bl -column ".Dv SIGPOLL" ".Dv CLD_CONTINUED"
-.It Sy "Signal	Code	Reason"
+.It Sy Signal Ta Sy Code Ta Sy Reason
 .It Dv SIGILL Ta Dv ILL_ILLOPC Ta
 illegal opcode
 .It Ta Dv ILL_ILLOPN Ta
@@ -156,6 +156,8 @@ process breakpoint
 process trace trap
 .It Ta Dv TRAP_DTRACE Ta
 DTrace induced trap
+.It Ta Dv TRAP_CAP Ta
+capabilities protective trap
 .It Dv SIGCHLD Ta Dv CLD_EXITED Ta
 child has exited
 .It Ta Dv CLD_KILLED Ta
@@ -206,7 +208,7 @@ signal sent by
 .Pp
 In addition, the following signal-specific information is available:
 .Bl -column ".Dv SIGPOLL" ".Dv CLD_CONTINUED"
-.It Sy "Signal	Member	Value"
+.It Sy Signal Ta Sy Member Ta Sy Value
 .It Dv SIGILL Ta Va si_addr Ta
 address of faulting instruction
 .It Ta Va si_trapno Ta
@@ -240,8 +242,8 @@ or
 .El
 .Pp
 Finally, the following code-specific information is available:
-.Bl -column ".Dv SI_QUEUE" ".Va si_overrun"
-.It Sy "Code	Member	Value"
+.Bl -column ".Dv SI_ASYNCIO" ".Va si_overrun"
+.It Sy Code Ta Sy Member Ta Sy Value
 .It Dv SI_USER Ta Va si_pid Ta
 the process ID that sent the signal
 .It Ta Va si_uid Ta

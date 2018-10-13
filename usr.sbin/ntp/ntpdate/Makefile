@@ -2,17 +2,17 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../../contrib/ntp/ntpdate
+.PATH: ${SRCTOP}/contrib/ntp/ntpdate
 
 PROG=	ntpdate
 MAN=
 SRCS=	ntpdate.c version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include/ \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include/ \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
-	-I${.CURDIR}/../
+CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/include/ \
+	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include/ \
+	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
+	-I${.CURDIR:H}
 
 LIBADD=	ntp m pthread
 
@@ -24,7 +24,7 @@ LIBADD+=	md
 
 CLEANFILES+= .version version.c
 
-version.c: 
-	sh -e ${.CURDIR}/../scripts/mkver ntpdate
+version.c:
+	sh -e ${.CURDIR:H}/scripts/mkver ntpdate
 
 .include <bsd.prog.mk>

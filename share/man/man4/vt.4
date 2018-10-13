@@ -24,8 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2016
-.Dt "VIRTUAL TERMINALS" 4
+.Dd December 28, 2017
+.Dt "VT" 4
 .Os
 .Sh NAME
 .Nm vt
@@ -36,15 +36,17 @@
 .Cd "options VT_MAXWINDOWS=N"
 .Cd "options VT_ALT_TO_ESC_HACK=1"
 .Cd "options VT_TWOBUTTON_MOUSE"
-.Cd "options VT_FB_DEFAULT_WIDTH=X"
-.Cd "options VT_FB_DEFAULT_HEIGHT=Y"
+.Cd "options VT_FB_MAX_WIDTH=X"
+.Cd "options VT_FB_MAX_HEIGHT=Y"
 .Cd "options SC_NO_CUTPASTE"
 .Cd "device vt"
 .Pp
 In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
+.Cd hw.vga.acpi_ignore_no_vga=1
 .Cd kern.vty=vt
+.Cd kern.vt.color.<colornum>.rgb="<colorspec>"
 .Cd kern.vt.fb.default_mode="<X>x<Y>"
 .Cd kern.vt.fb.modes.<connector>="<X>x<Y>"
 .Pp
@@ -195,17 +197,31 @@ prompt or in
 Set to 1 to use virtual terminals in text mode instead of graphics mode.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
+.It Va hw.vga.acpi_ignore_no_vga
+Set to 1 to force the usage of the VGA driver regardless of whether
+ACPI IAPC_BOOT_ARCH signals no VGA support.
+Can be used to workaround firmware bugs in the ACPI tables.
 .It Va kern.vty
 Set this value to
 .Ql vt
 or
 .Ql sc
-to override the default driver used for the system console.
-By default,
-.Xr sc 4
-is used on computers that boot from BIOS, and
+to choose a specific system console, overriding the default.
+The
+.Pa GENERIC
+kernel uses
 .Nm
-is used on computers that boot from UEFI.
+when this value is not set.
+.It Va kern.vt.color. Ns Ar colornum Ns Va .rgb
+Set this value to override default palette entry for color
+.Pa colornum
+which should be in a range from 0 to 15 inclusive.
+The value should be either a comma-separated triplet of
+red, green, and blue values in a range from 0 to 255 or
+HTML-like hex triplet.
+See
+.Sx EXAMPLES
+below.
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
@@ -250,7 +266,7 @@ command.
 Enable halt keyboard combination.
 .It Va kern.vt.kbd_poweroff
 Enable power off key combination.
-.It Va kern.vt.kbd_reboot.
+.It Va kern.vt.kbd_reboot
 Enable reboot key combination, usually Ctrl+Alt+Del.
 .It Va kern.vt.kbd_debug
 Enable debug request key combination, usually Ctrl+Alt+Esc.
@@ -310,6 +326,11 @@ The connector name was found in
 .Dl info: [drm] Connector LVDS-1: get mode from tunables:
 .Dl info: [drm]   - kern.vt.fb.modes.LVDS-1
 .Dl info: [drm]   - kern.vt.fb.default_mode
+.Pp
+To set black and white colors of console palette
+.Pp
+.Dl kern.vt.color.0.rgb="10,10,10"
+.Dl kern.vt.color.15.rgb="#f0f0f0"
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr login 1 ,

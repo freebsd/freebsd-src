@@ -44,7 +44,7 @@
 #define FST_LLT_MS_DEFAULT 50
 #define FST_ACTION_MAX_SUPPORTED   FST_ACTION_ON_CHANNEL_TUNNEL
 
-const char * const fst_action_names[] = {
+static const char * const fst_action_names[] = {
 	[FST_ACTION_SETUP_REQUEST]     = "Setup Request",
 	[FST_ACTION_SETUP_RESPONSE]    = "Setup Response",
 	[FST_ACTION_TEAR_DOWN]         = "Tear Down",
@@ -181,7 +181,8 @@ static void fst_session_timeout_handler(void *eloop_data, void *user_ctx)
 
 static void fst_session_stt_arm(struct fst_session *s)
 {
-	eloop_register_timeout(0, TU_TO_US(FST_DEFAULT_SESSION_TIMEOUT_TU),
+	/* Action frames sometimes get delayed. Use relaxed timeout (2*) */
+	eloop_register_timeout(0, 2 * TU_TO_US(FST_DEFAULT_SESSION_TIMEOUT_TU),
 			       fst_session_timeout_handler, NULL, s);
 	s->stt_armed = TRUE;
 }
@@ -363,7 +364,6 @@ static void fst_session_handle_setup_request(struct fst_iface *iface,
 	struct fst_iface *new_iface = NULL;
 	struct fst_group *g;
 	u8 new_iface_peer_addr[ETH_ALEN];
-	const struct wpabuf *peer_mbies;
 	size_t plen;
 
 	if (frame_len < IEEE80211_HDRLEN + 1 + sizeof(*req))  {
@@ -399,36 +399,18 @@ static void fst_session_handle_setup_request(struct fst_iface *iface,
 				 MAC2STR(mgmt->sa));
 	}
 
-	peer_mbies = fst_iface_get_peer_mb_ie(iface, mgmt->sa);
-	if (peer_mbies) {
-		new_iface = fst_group_get_new_iface_by_stie_and_mbie(
-			g, wpabuf_head(peer_mbies), wpabuf_len(peer_mbies),
-			&req->stie, new_iface_peer_addr);
-		if (new_iface)
-			fst_printf_iface(iface, MSG_INFO,
-					 "FST Request: new iface (%s:" MACSTR
-					 ") found by MB IEs",
-					 fst_iface_get_name(new_iface),
-					 MAC2STR(new_iface_peer_addr));
-	}
-
-	if (!new_iface) {
-		new_iface = fst_group_find_new_iface_by_stie(
-			g, iface, mgmt->sa, &req->stie,
-			new_iface_peer_addr);
-		if (new_iface)
-			fst_printf_iface(iface, MSG_INFO,
-					 "FST Request: new iface (%s:" MACSTR
-					 ") found by others",
-					 fst_iface_get_name(new_iface),
-					 MAC2STR(new_iface_peer_addr));
-	}
-
+	new_iface = fst_group_get_peer_other_connection(iface, mgmt->sa,
+							req->stie.new_band_id,
+							new_iface_peer_addr);
 	if (!new_iface) {
 		fst_printf_iface(iface, MSG_WARNING,
 				 "FST Request dropped: new iface not found");
 		return;
 	}
+	fst_printf_iface(iface, MSG_INFO,
+			 "FST Request: new iface (%s:" MACSTR ") found",
+			 fst_iface_get_name(new_iface),
+			 MAC2STR(new_iface_peer_addr));
 
 	s = fst_find_session_in_progress(mgmt->sa, g);
 	if (s) {
@@ -447,7 +429,9 @@ static void fst_session_handle_setup_request(struct fst_iface *iface,
 		 * the initiator’s MAC address, in which case, the responder
 		 * shall delete the received FST Setup Request.
 		 */
-		if (os_memcmp(mgmt->da, mgmt->sa, ETH_ALEN) > 0) {
+		if (fst_session_is_ready_pending(s) &&
+		    /* waiting for Setup Response */
+		    os_memcmp(mgmt->da, mgmt->sa, ETH_ALEN) > 0) {
 			fst_printf_session(s, MSG_WARNING,
 					   "FST Request dropped due to MAC comparison (our MAC is "
 					   MACSTR ")",
@@ -455,23 +439,26 @@ static void fst_session_handle_setup_request(struct fst_iface *iface,
 			return;
 		}
 
-		if (!fst_session_is_ready_pending(s)) {
-			fst_printf_session(s, MSG_WARNING,
-					   "FST Request from " MACSTR
-					   " dropped due to inappropriate state %s",
-					   MAC2STR(mgmt->da),
-					   fst_session_state_name(s->state));
-			return;
-		}
+		/*
+		 * State is SETUP_COMPLETION (either in transition or not) or
+		 * TRANSITION_DONE (in transition).
+		 * Setup Request arriving in this state could mean:
+		 * 1. peer sent it before receiving our Setup Request (race
+		 *    condition)
+		 * 2. peer didn't receive our Setup Response. Peer is retrying
+		 *    after STT timeout
+		 * 3. peer's FST state machines are out of sync due to some
+		 *    other reason
+		 *
+		 * We will reset our session and create a new one instead.
+		 */
 
+		fst_printf_session(s, MSG_WARNING,
+			"resetting due to FST request");
 
 		/*
 		 * If FST Setup Request arrived with the same FSTS ID as one we
-		 * initialized before, it means the other side either didn't
-		 * receive our FST Request or skipped it for some reason (for
-		 * example, due to numerical MAC comparison).
-		 *
-		 * In this case, there's no need to tear down the session.
+		 * initialized before, there's no need to tear down the session.
 		 * Moreover, as FSTS ID is the same, the other side will
 		 * associate this tear down with the session it initiated that
 		 * will break the sync.
@@ -483,7 +470,6 @@ static void fst_session_handle_setup_request(struct fst_iface *iface,
 					   "Skipping TearDown as the FST request has the same FSTS ID as initiated");
 		fst_session_set_state(s, FST_SESSION_STATE_INITIAL, &evext);
 		fst_session_stt_disarm(s);
-		fst_printf_session(s, MSG_WARNING, "reset due to FST request");
 	}
 
 	s = fst_session_create(g);
@@ -521,7 +507,9 @@ static void fst_session_handle_setup_response(struct fst_session *s,
 	enum hostapd_hw_mode hw_mode;
 	u8 channel;
 	union fst_session_state_switch_extra evext = {
-		.to_initial = {0},
+		.to_initial = {
+			.reject_code = 0,
+		},
 	};
 
 	if (iface != s->data.old_iface) {
@@ -863,13 +851,15 @@ int fst_session_initiate_setup(struct fst_session *s)
 		return -EINVAL;
 	}
 
-	if (!fst_iface_is_connected(s->data.old_iface, s->data.old_peer_addr)) {
+	if (!fst_iface_is_connected(s->data.old_iface, s->data.old_peer_addr,
+				    FALSE)) {
 		fst_printf_session(s, MSG_ERROR,
 				   "The preset old peer address is not connected");
 		return -EINVAL;
 	}
 
-	if (!fst_iface_is_connected(s->data.new_iface, s->data.new_peer_addr)) {
+	if (!fst_iface_is_connected(s->data.new_iface, s->data.new_peer_addr,
+				    FALSE)) {
 		fst_printf_session(s, MSG_ERROR,
 				   "The preset new peer address is not connected");
 		return -EINVAL;
@@ -966,7 +956,8 @@ int fst_session_respond(struct fst_session *s, u8 status_code)
 		return -EINVAL;
 	}
 
-	if (!fst_iface_is_connected(s->data.old_iface, s->data.old_peer_addr)) {
+	if (!fst_iface_is_connected(s->data.old_iface,
+				    s->data.old_peer_addr, FALSE)) {
 		fst_printf_session(s, MSG_ERROR,
 				   "The preset peer address is not in the peer list");
 		return -EINVAL;
@@ -984,7 +975,7 @@ int fst_session_respond(struct fst_session *s, u8 status_code)
 	res.stie.length = sizeof(res.stie) - 2;
 
 	if (status_code == WLAN_STATUS_SUCCESS) {
-		res.stie.fsts_id = s->data.fsts_id;
+		res.stie.fsts_id = host_to_le32(s->data.fsts_id);
 		res.stie.session_control = SESSION_CONTROL(SESSION_TYPE_BSS, 0);
 
 		fst_iface_get_channel_info(s->data.new_iface, &hw_mode,
@@ -1458,7 +1449,7 @@ int fst_test_req_send_fst_response(const char *params)
 	res.stie.length = sizeof(res.stie) - 2;
 
 	if (res.status_code == WLAN_STATUS_SUCCESS) {
-		res.stie.fsts_id = fsts_id;
+		res.stie.fsts_id = host_to_le32(fsts_id);
 		res.stie.session_control = SESSION_CONTROL(SESSION_TYPE_BSS, 0);
 
 		fst_iface_get_channel_info(s.data.new_iface, &hw_mode,
@@ -1507,7 +1498,7 @@ int fst_test_req_send_ack_request(const char *params)
 	os_memset(&req, 0, sizeof(req));
 	req.action = FST_ACTION_ACK_REQUEST;
 	req.dialog_token = g->dialog_token;
-	req.fsts_id = fsts_id;
+	req.fsts_id = host_to_le32(fsts_id);
 
 	return fst_session_send_action(&s, FALSE, &req, sizeof(req), NULL);
 }
@@ -1535,7 +1526,7 @@ int fst_test_req_send_ack_response(const char *params)
 	os_memset(&res, 0, sizeof(res));
 	res.action = FST_ACTION_ACK_RESPONSE;
 	res.dialog_token = g->dialog_token;
-	res.fsts_id = fsts_id;
+	res.fsts_id = host_to_le32(fsts_id);
 
 	return fst_session_send_action(&s, FALSE, &res, sizeof(res), NULL);
 }
@@ -1562,7 +1553,7 @@ int fst_test_req_send_tear_down(const char *params)
 
 	os_memset(&td, 0, sizeof(td));
 	td.action = FST_ACTION_TEAR_DOWN;
-	td.fsts_id = fsts_id;
+	td.fsts_id = host_to_le32(fsts_id);
 
 	return fst_session_send_action(&s, TRUE, &td, sizeof(td), NULL);
 }

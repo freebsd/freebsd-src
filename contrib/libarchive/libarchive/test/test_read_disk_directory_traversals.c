@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Test if the current filesytem is mounted with noatime option.
+ * Test if the current filesystem is mounted with noatime option.
  */
 static int
 atimeIsUpdated(void)
@@ -500,8 +500,8 @@ test_basic(void)
 
 	/*
 	 * We should be on the initial directory where we performed
-	 * archive_read_disk_new() after we perfome archive_read_free()
-	 *  even if we broke off the directory traversals.
+	 * archive_read_disk_new() after we perform archive_read_free()
+	 * even if we broke off the directory traversals.
 	 */
 
 	/* Save current working directory. */
@@ -1228,11 +1228,11 @@ test_restore_atime(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 	/*
-	 * Test4: Traversals with archive_read_disk_set_atime_restored() and
-	 * archive_read_disk_honor_nodump().
+	 * Test4: Traversals with ARCHIVE_READDISK_RESTORE_ATIME and
+	 * ARCHIVE_READDISK_HONOR_NODUMP
 	 */
-	assertNodump("at/f1");
-	assertNodump("at/f2");
+	assertSetNodump("at/f1");
+	assertSetNodump("at/f2");
 	assertUtimes("at/f1", 886600, 0, 886600, 0);
 	assertUtimes("at/f2", 886611, 0, 886611, 0);
 	assertUtimes("at/fe", 886611, 0, 886611, 0);
@@ -1320,13 +1320,16 @@ test_callbacks(void)
 	assertUtimes("cb", 886622, 0, 886622, 0);
 
 	assert((ae = archive_entry_new()) != NULL);
-	if (assert((a = archive_read_disk_new()) != NULL)) {
+	assert((a = archive_read_disk_new()) != NULL);
+	if (a == NULL) {
 		archive_entry_free(ae);
 		return;
 	}
-	if (assert((m = archive_match_new()) != NULL)) {
+	assert((m = archive_match_new()) != NULL);
+	if (m == NULL) {
 		archive_entry_free(ae);
 		archive_read_free(a);
+		archive_match_free(m);
 		return;
 	}
 
@@ -1376,6 +1379,10 @@ test_callbacks(void)
 	/* Close the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
+	/* Reset name filter */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_set_matching(a, NULL, NULL, NULL));
+
 	/*
 	 * Test2: Traversals with a metadata filter.
 	 */
@@ -1393,7 +1400,7 @@ test_callbacks(void)
 	while (file_count--) {
 		archive_entry_clear(ae);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
-		failure("File 'cb/f1' should be exclueded");
+		failure("File 'cb/f1' should be excluded");
 		assert(strcmp(archive_entry_pathname(ae), "cb/f1") != 0);
 		if (strcmp(archive_entry_pathname(ae), "cb") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
@@ -1443,7 +1450,7 @@ test_nodump(void)
 	assertMakeFile("nd/f1", 0644, "0123456789");
 	assertMakeFile("nd/f2", 0644, "hello world");
 	assertMakeFile("nd/fe", 0644, NULL);
-	assertNodump("nd/f2");
+	assertSetNodump("nd/f2");
 	assertUtimes("nd/f1", 886600, 0, 886600, 0);
 	assertUtimes("nd/f2", 886611, 0, 886611, 0);
 	assertUtimes("nd/fe", 886611, 0, 886611, 0);
@@ -1453,7 +1460,7 @@ test_nodump(void)
 	assert((a = archive_read_disk_new()) != NULL);
 
 	/*
-	 * Test1: Traversals without archive_read_disk_honor_nodump().
+	 * Test1: Traversals without ARCHIVE_READDISK_HONOR_NODUMP
 	 */
 	failure("Directory traversals should work as well");
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "nd"));
@@ -1506,7 +1513,7 @@ test_nodump(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 	/*
-	 * Test2: Traversals with archive_read_disk_honor_nodump().
+	 * Test2: Traversals with ARCHIVE_READDISK_HONOR_NODUMP
 	 */
 	assertUtimes("nd/f1", 886600, 0, 886600, 0);
 	assertUtimes("nd/f2", 886611, 0, 886611, 0);
@@ -1564,11 +1571,11 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	/* Basic test. */
 	test_basic();
-	/* Test hybird mode; follow symlink initially, then not. */
+	/* Test hybrid mode; follow symlink initially, then not. */
 	test_symlink_hybrid();
-	/* Test logcal mode; follow all symlinks. */
+	/* Test logical mode; follow all symlinks. */
 	test_symlink_logical();
-	/* Test logcal mode; prevent loop in symlinks. */ 
+	/* Test logical mode; prevent loop in symlinks. */
 	test_symlink_logical_loop();
 	/* Test to restore atime. */
 	test_restore_atime();

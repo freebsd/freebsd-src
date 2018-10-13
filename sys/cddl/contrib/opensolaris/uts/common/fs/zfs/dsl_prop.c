@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright 2015, Joyent, Inc.
  */
 
@@ -54,6 +54,8 @@ dodefault(zfs_prop_t prop, int intsz, int numints, void *buf)
 		return (SET_ERROR(ENOENT));
 
 	if (zfs_prop_get_type(prop) == PROP_TYPE_STRING) {
+		if (zfs_prop_default_string(prop) == NULL)
+			return (SET_ERROR(ENOENT));
 		if (intsz != 1)
 			return (SET_ERROR(EOVERFLOW));
 		(void) strncpy(buf, zfs_prop_default_string(prop),
@@ -854,11 +856,15 @@ dsl_props_set_sync_impl(dsl_dataset_t *ds, zprop_source_t source,
 
 	while ((elem = nvlist_next_nvpair(props, elem)) != NULL) {
 		nvpair_t *pair = elem;
+		const char *name = nvpair_name(pair);
 
 		if (nvpair_type(pair) == DATA_TYPE_NVLIST) {
 			/*
-			 * dsl_prop_get_all_impl() returns properties in this
-			 * format.
+			 * This usually happens when we reuse the nvlist_t data
+			 * returned by the counterpart dsl_prop_get_all_impl().
+			 * For instance we do this to restore the original
+			 * received properties when an error occurs in the
+			 * zfs_ioc_recv() codepath.
 			 */
 			nvlist_t *attrs = fnvpair_value_nvlist(pair);
 			pair = fnvlist_lookup_nvpair(attrs, ZPROP_VALUE);
@@ -866,14 +872,14 @@ dsl_props_set_sync_impl(dsl_dataset_t *ds, zprop_source_t source,
 
 		if (nvpair_type(pair) == DATA_TYPE_STRING) {
 			const char *value = fnvpair_value_string(pair);
-			dsl_prop_set_sync_impl(ds, nvpair_name(pair),
+			dsl_prop_set_sync_impl(ds, name,
 			    source, 1, strlen(value) + 1, value, tx);
 		} else if (nvpair_type(pair) == DATA_TYPE_UINT64) {
 			uint64_t intval = fnvpair_value_uint64(pair);
-			dsl_prop_set_sync_impl(ds, nvpair_name(pair),
+			dsl_prop_set_sync_impl(ds, name,
 			    source, sizeof (intval), 1, &intval, tx);
 		} else if (nvpair_type(pair) == DATA_TYPE_BOOLEAN) {
-			dsl_prop_set_sync_impl(ds, nvpair_name(pair),
+			dsl_prop_set_sync_impl(ds, name,
 			    source, 0, 0, NULL, tx);
 		} else {
 			panic("invalid nvpair type");
@@ -1057,7 +1063,7 @@ dsl_prop_get_all_ds(dsl_dataset_t *ds, nvlist_t **nvp,
 	dsl_pool_t *dp = dd->dd_pool;
 	objset_t *mos = dp->dp_meta_objset;
 	int err = 0;
-	char setpoint[MAXNAMELEN];
+	char setpoint[ZFS_MAX_DATASET_NAME_LEN];
 
 	VERIFY(nvlist_alloc(nvp, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 

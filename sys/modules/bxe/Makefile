@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR	?= ${.CURDIR}/../..
+SYSDIR	?= ${SRCTOP}/sys
 
 BXE	= ${SYSDIR}/dev/bxe
 .PATH:	${BXE}
@@ -19,3 +19,4 @@ SRCS	+= bxe.c               \
 CFLAGS += -I${BXE}
 
 .include <bsd.kmod.mk>
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}

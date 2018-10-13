@@ -14,9 +14,9 @@
 #ifndef LLVM_CLANG_SEMA_OWNERSHIP_H
 #define LLVM_CLANG_SEMA_OWNERSHIP_H
 
+#include "clang/AST/Expr.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/PointerIntPair.h"
 
 //===----------------------------------------------------------------------===//
 // OpaquePtr
@@ -43,13 +43,13 @@ namespace clang {
   /// compatible with "Type" pointers for example.
   template <class PtrTy>
   class OpaquePtr {
-    void *Ptr;
+    void *Ptr = nullptr;
     explicit OpaquePtr(void *Ptr) : Ptr(Ptr) {}
 
     typedef llvm::PointerLikeTypeTraits<PtrTy> Traits;
 
   public:
-    OpaquePtr() : Ptr(nullptr) {}
+    OpaquePtr(std::nullptr_t = nullptr) {}
 
     static OpaquePtr make(PtrTy P) { OpaquePtr OP; OP.set(P); return OP; }
 
@@ -107,8 +107,7 @@ namespace clang {
 
 namespace llvm {
   template <class T>
-  class PointerLikeTypeTraits<clang::OpaquePtr<T> > {
-  public:
+  struct PointerLikeTypeTraits<clang::OpaquePtr<T> > {
     static inline void *getAsVoidPointer(clang::OpaquePtr<T> P) {
       // FIXME: Doesn't work? return P.getAs< void >();
       return P.getAsOpaquePtr();
@@ -153,8 +152,8 @@ namespace clang {
     ActionResult(const DiagnosticBuilder &) : Val(PtrTy()), Invalid(true) {}
 
     // These two overloads prevent void* -> bool conversions.
-    ActionResult(const void *);
-    ActionResult(volatile void *);
+    ActionResult(const void *) = delete;
+    ActionResult(volatile void *) = delete;
 
     bool isInvalid() const { return Invalid; }
     bool isUsable() const { return !Invalid && Val; }
@@ -192,8 +191,8 @@ namespace clang {
     ActionResult(const DiagnosticBuilder &) : PtrWithInvalid(0x01) { }
 
     // These two overloads prevent void* -> bool conversions.
-    ActionResult(const void *);
-    ActionResult(volatile void *);
+    ActionResult(const void *) = delete;
+    ActionResult(volatile void *) = delete;
 
     bool isInvalid() const { return PtrWithInvalid & 0x01; }
     bool isUsable() const { return PtrWithInvalid > 0x01; }
@@ -257,6 +256,7 @@ namespace clang {
 
   typedef ActionResult<Decl*> DeclResult;
   typedef OpaquePtr<TemplateName> ParsedTemplateTy;
+  typedef UnionOpaquePtr<TemplateName> UnionParsedTemplateTy;
 
   typedef MutableArrayRef<Expr*> MultiExprArg;
   typedef MutableArrayRef<Stmt*> MultiStmtArg;

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2015
+.Dd October 29, 2017
 .Dt IWM 4
 .Os
 .Sh NAME
@@ -46,8 +46,11 @@ You also need to select a firmware for your device.
 Choose one from:
 .Bd -ragged -offset indent
 .Cd "device iwm3160fw"
+.Cd "device iwm3168fw"
 .Cd "device iwm7260fw"
 .Cd "device iwm7265fw"
+.Cd "device iwm8000Cfw"
+.Cd "device iwm8265fw"
 .Ed
 .Pp
 Or you can use
@@ -63,8 +66,11 @@ module at boot time, place the following lines in
 .Bd -literal -offset indent
 if_iwm_load="YES"
 iwm3160fw_load="YES"
+iwm3168fw_load="YES"
 iwm7260fw_load="YES"
 iwm7265fw_load="YES"
+iwm8000Cfw_load="YES"
+iwm8265fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -73,8 +79,11 @@ driver provides support for:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
 .It Intel Dual Band Wireless AC 3160
+.It Intel Dual Band Wireless AC 3165
+.It Intel Dual Band Wireless AC 3168
 .It Intel Dual Band Wireless AC 7260
 .It Intel Dual Band Wireless AC 7265
+.It Intel Dual Band Wireless AC 8260
 .El
 .Pp
 .Nm

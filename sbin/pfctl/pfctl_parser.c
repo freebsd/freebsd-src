@@ -1,6 +1,8 @@
 /*	$OpenBSD: pfctl_parser.c,v 1.240 2008/06/10 20:55:02 mcbride Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002,2003 Henning Brauer
  * All rights reserved.
@@ -76,7 +78,7 @@ struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
 struct node_host	*host_dns(const char *, int, int);
 
-const char *tcpflags = "FSRPAUEW";
+const char * const tcpflags = "FSRPAUEW";
 
 static const struct icmptypeent icmp_type[] = {
 	{ "echoreq",	ICMP_ECHO },
@@ -473,10 +475,10 @@ print_pool(struct pf_pool *pool, u_int16_t p1, u_int16_t p2,
 		printf(" static-port");
 }
 
-const char	*pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-const char	*pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
-const char	*pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-const char	*pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	* const pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
+const char	* const pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
+const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
 
 void
 print_status(struct pf_status *s, int opts)
@@ -610,6 +612,12 @@ print_status(struct pf_status *s, int opts)
 				printf("%14s\n", "");
 		}
 	}
+}
+
+void
+print_running(struct pf_status *status)
+{
+	printf("%s\n", status->running ? "Enabled" : "Disabled");
 }
 
 void
@@ -778,12 +786,8 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 			printf(" reply-to");
 		else if (r->rt == PF_DUPTO)
 			printf(" dup-to");
-		else if (r->rt == PF_FASTROUTE)
-			printf(" fastroute");
-		if (r->rt != PF_FASTROUTE) {
-			printf(" ");
-			print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
-		}
+		printf(" ");
+		print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)
@@ -841,6 +845,21 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 	}
 	if (r->tos)
 		printf(" tos 0x%2.2x", r->tos);
+	if (r->prio)
+		printf(" prio %u", r->prio == PF_PRIO_ZERO ? 0 : r->prio);
+	if (r->scrub_flags & PFSTATE_SETMASK) {
+		char *comma = "";
+		printf(" set (");
+		if (r->scrub_flags & PFSTATE_SETPRIO) {
+			if (r->set_prio[0] == r->set_prio[1])
+				printf("%s prio %u", comma, r->set_prio[0]);
+			else
+				printf("%s prio(%u, %u)", comma, r->set_prio[0],
+				    r->set_prio[1]);
+			comma = ",";
+		}
+		printf(" )");
+	}
 	if (!r->keep_state && r->action == PF_PASS && !anchor_call[0])
 		printf(" no state");
 	else if (r->keep_state == PF_STATE_NORMAL)
@@ -1132,7 +1151,7 @@ check_netmask(struct node_host *h, sa_family_t af)
 
 /* interface lookup routines */
 
-struct node_host	*iftab;
+static struct node_host	*iftab;
 
 void
 ifa_load(void)

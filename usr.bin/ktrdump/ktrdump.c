@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Jake Burkholder
  * Copyright (c) 2004 Robert Watson
  * All rights reserved.
@@ -29,11 +31,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/ktr.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -70,6 +75,7 @@ static int hflag;
 
 static char corefile[PATH_MAX];
 static char execfile[PATH_MAX];
+static char outfile[PATH_MAX] = "stdout";
 
 static char desc[SBUFLEN];
 static char errbuf[_POSIX2_LINE_MAX];
@@ -87,12 +93,14 @@ main(int ac, char **av)
 	struct ktr_entry *buf;
 	uintmax_t tlast, tnow;
 	unsigned long bufptr;
+	cap_rights_t rights;
 	struct stat sb;
 	kvm_t *kd;
 	FILE *out;
 	char *p;
 	int version;
 	int entries;
+	int count;
 	int index, index2;
 	int parm;
 	int in;
@@ -122,6 +130,11 @@ main(int ac, char **av)
 			iflag = 1;
 			if ((in = open(optarg, O_RDONLY)) == -1)
 				err(1, "%s", optarg);
+			cap_rights_init(&rights, CAP_FSTAT, CAP_MMAP_R);
+			if (cap_rights_limit(in, &rights) < 0 &&
+			    errno != ENOSYS)
+				err(1, "unable to limit rights for %s",
+				    optarg);
 			break;
 		case 'M':
 		case 'm':
@@ -133,6 +146,7 @@ main(int ac, char **av)
 		case 'o':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			strlcpy(outfile, optarg, sizeof(outfile));
 			break;
 		case 'q':
 			qflag++;
@@ -155,6 +169,10 @@ main(int ac, char **av)
 	if (ac != 0)
 		usage();
 
+	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
+	if (cap_rights_limit(fileno(out), &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for %s", outfile);
+
 	/*
 	 * Open our execfile and corefile, resolve needed symbols and read in
 	 * the trace buffer.
@@ -162,11 +180,32 @@ main(int ac, char **av)
 	if ((kd = kvm_openfiles(Nflag ? execfile : NULL,
 	    Mflag ? corefile : NULL, NULL, O_RDONLY, errbuf)) == NULL)
 		errx(1, "%s", errbuf);
-	if (kvm_nlist(kd, nl) != 0 ||
-	    kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	count = kvm_nlist(kd, nl);
+	if (count == -1)
+		errx(1, "%s", kvm_geterr(kd));
+	if (count > 0)
+		errx(1, "failed to resolve ktr symbols");
+	if (kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
 		errx(1, "%s", kvm_geterr(kd));
 	if (version != KTR_VERSION)
 		errx(1, "ktr version mismatch");
+
+	/*
+	 * Enter Capsicum sandbox.
+	 *
+	 * kvm_nlist() above uses kldsym(2) for native kernels, and that isn't
+	 * allowed in the sandbox.
+	 */
+	if (caph_enter() < 0)
+		err(1, "unable to enter capability mode");
+
 	if (iflag) {
 		if (fstat(in, &sb) == -1)
 			errx(1, "stat");

@@ -97,7 +97,7 @@ dma_supported(struct device *dev, u64 mask)
 	/* XXX busdma takes care of this elsewhere. */
 	return (1);
 }
- 
+
 static inline int
 dma_set_mask(struct device *dev, u64 dma_mask)
 {
@@ -127,13 +127,15 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	size_t align;
 	void *mem;
 
-	if (dev->dma_mask)
+	if (dev != NULL && dev->dma_mask)
 		high = *dev->dma_mask;
-	else
+	else if (flag & GFP_DMA32)
 		high = BUS_SPACE_MAXADDR_32BIT;
+	else
+		high = BUS_SPACE_MAXADDR;
 	align = PAGE_SIZE << get_order(size);
-	mem = (void *)kmem_alloc_contig(kmem_arena, size, flag, 0, high, align,
-	    0, VM_MEMATTR_DEFAULT);
+	mem = (void *)kmem_alloc_contig(size, flag, 0, high, align, 0,
+	    VM_MEMATTR_DEFAULT);
 	if (mem)
 		*dma_handle = vtophys(mem);
 	else
@@ -148,13 +150,13 @@ dma_zalloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	return (dma_alloc_coherent(dev, size, dma_handle, flag | __GFP_ZERO));
 }
-                       
+
 static inline void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
     dma_addr_t dma_handle)
 {
 
-	kmem_free(kmem_arena, (vm_offset_t)cpu_addr, size);
+	kmem_free((vm_offset_t)cpu_addr, size);
 }
 
 /* XXX This only works with no iommu. */
@@ -178,7 +180,7 @@ dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 {
 	struct scatterlist *sg;
 	int i;
-	
+
 	for_each_sg(sgl, sg, nents, i)
 		sg_dma_address(sg) = sg_phys(sg);
 
@@ -190,7 +192,7 @@ dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 }
- 
+
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
     unsigned long offset, size_t size, enum dma_data_direction direction)
@@ -256,9 +258,9 @@ dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 }
 
 static inline unsigned int dma_set_max_seg_size(struct device *dev,
-                                                 unsigned int size)
+    unsigned int size)
 {
-        return (0);
+	return (0);
 }
 
 

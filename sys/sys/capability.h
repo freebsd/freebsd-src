@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
@@ -38,6 +40,7 @@
 #ifndef _SYS_CAPABILITY_H_
 #define	_SYS_CAPABILITY_H_
 
+#warning this file includes <sys/capability.h> which is deprecated
 #include <sys/capsicum.h>
 
 #endif /* !_SYS_CAPABILITY_H_ */

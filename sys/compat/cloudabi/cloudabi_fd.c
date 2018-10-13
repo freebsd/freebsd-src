@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 	MAPPING(CLOUDABI_RIGHT_FILE_ALLOCATE, CAP_WRITE)		\
 	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY, CAP_MKDIRAT)	\
 	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_FILE, CAP_CREATE)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_FIFO, CAP_MKFIFOAT)		\
 	MAPPING(CLOUDABI_RIGHT_FILE_LINK_SOURCE, CAP_LINKAT_SOURCE)	\
 	MAPPING(CLOUDABI_RIGHT_FILE_LINK_TARGET, CAP_LINKAT_TARGET)	\
 	MAPPING(CLOUDABI_RIGHT_FILE_OPEN, CAP_LOOKUP)			\
@@ -74,19 +73,9 @@ __FBSDID("$FreeBSD$");
 	MAPPING(CLOUDABI_RIGHT_MEM_MAP, CAP_MMAP)			\
 	MAPPING(CLOUDABI_RIGHT_MEM_MAP_EXEC, CAP_MMAP_X)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_FD_READWRITE, CAP_EVENT)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_MODIFY, CAP_KQUEUE_CHANGE)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_PROC_TERMINATE, CAP_EVENT)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_WAIT, CAP_KQUEUE_EVENT)		\
 	MAPPING(CLOUDABI_RIGHT_PROC_EXEC, CAP_FEXECVE)			\
-	MAPPING(CLOUDABI_RIGHT_SOCK_ACCEPT, CAP_ACCEPT)			\
-	MAPPING(CLOUDABI_RIGHT_SOCK_BIND_DIRECTORY, CAP_BINDAT)		\
-	MAPPING(CLOUDABI_RIGHT_SOCK_BIND_SOCKET, CAP_BIND)		\
-	MAPPING(CLOUDABI_RIGHT_SOCK_CONNECT_DIRECTORY, CAP_CONNECTAT)	\
-	MAPPING(CLOUDABI_RIGHT_SOCK_CONNECT_SOCKET, CAP_CONNECT)	\
-	MAPPING(CLOUDABI_RIGHT_SOCK_LISTEN, CAP_LISTEN)			\
 	MAPPING(CLOUDABI_RIGHT_SOCK_SHUTDOWN, CAP_SHUTDOWN)		\
-	MAPPING(CLOUDABI_RIGHT_SOCK_STAT_GET, CAP_GETPEERNAME,		\
-	    CAP_GETSOCKNAME, CAP_GETSOCKOPT)
 
 int
 cloudabi_sys_fd_close(struct thread *td, struct cloudabi_sys_fd_close_args *uap)
@@ -100,27 +89,12 @@ cloudabi_sys_fd_create1(struct thread *td,
     struct cloudabi_sys_fd_create1_args *uap)
 {
 	struct filecaps fcaps = {};
-	struct socket_args socket_args = {
-		.domain = AF_UNIX,
-	};
 
 	switch (uap->type) {
-	case CLOUDABI_FILETYPE_POLL:
-		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_KQUEUE);
-		return (kern_kqueue(td, 0, &fcaps));
 	case CLOUDABI_FILETYPE_SHARED_MEMORY:
 		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE,
 		    CAP_MMAP_RWX);
 		return (kern_shm_open(td, SHM_ANON, O_RDWR, 0, &fcaps));
-	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
-		socket_args.type = SOCK_DGRAM;
-		return (sys_socket(td, &socket_args));
-	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
-		socket_args.type = SOCK_SEQPACKET;
-		return (sys_socket(td, &socket_args));
-	case CLOUDABI_FILETYPE_SOCKET_STREAM:
-		socket_args.type = SOCK_STREAM;
-		return (sys_socket(td, &socket_args));
 	default:
 		return (EINVAL);
 	}
@@ -130,37 +104,21 @@ int
 cloudabi_sys_fd_create2(struct thread *td,
     struct cloudabi_sys_fd_create2_args *uap)
 {
-	struct filecaps fcaps1 = {}, fcaps2 = {};
 	int fds[2];
-	int error;
+	int error, type;
 
 	switch (uap->type) {
-	case CLOUDABI_FILETYPE_FIFO:
-		/*
-		 * CloudABI pipes are unidirectional. Restrict rights on
-		 * the pipe to simulate this.
-		 */
-		cap_rights_init(&fcaps1.fc_rights, CAP_EVENT, CAP_FCNTL,
-		    CAP_FSTAT, CAP_READ);
-		fcaps1.fc_fcntls = CAP_FCNTL_SETFL;
-		cap_rights_init(&fcaps2.fc_rights, CAP_EVENT, CAP_FCNTL,
-		    CAP_FSTAT, CAP_WRITE);
-		fcaps2.fc_fcntls = CAP_FCNTL_SETFL;
-		error = kern_pipe(td, fds, 0, &fcaps1, &fcaps2);
-		break;
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
-		error = kern_socketpair(td, AF_UNIX, SOCK_DGRAM, 0, fds);
-		break;
-	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
-		error = kern_socketpair(td, AF_UNIX, SOCK_SEQPACKET, 0, fds);
+		type = SOCK_DGRAM;
 		break;
 	case CLOUDABI_FILETYPE_SOCKET_STREAM:
-		error = kern_socketpair(td, AF_UNIX, SOCK_STREAM, 0, fds);
+		type = SOCK_STREAM;
 		break;
 	default:
 		return (EINVAL);
 	}
 
+	error = kern_socketpair(td, AF_UNIX, type, 0, fds);
 	if (error == 0) {
 		td->td_retval[0] = fds[0];
 		td->td_retval[1] = fds[1];
@@ -172,12 +130,8 @@ int
 cloudabi_sys_fd_datasync(struct thread *td,
     struct cloudabi_sys_fd_datasync_args *uap)
 {
-	struct fsync_args fsync_args = {
-		.fd = uap->fd
-	};
 
-	/* Call into fsync(), as FreeBSD lacks fdatasync(). */
-	return (sys_fsync(td, &fsync_args));
+	return (kern_fsync(td, uap->fd, false));
 }
 
 int
@@ -213,26 +167,23 @@ cloudabi_sys_fd_replace(struct thread *td,
 int
 cloudabi_sys_fd_seek(struct thread *td, struct cloudabi_sys_fd_seek_args *uap)
 {
-	struct lseek_args lseek_args = {
-		.fd	= uap->fd,
-		.offset	= uap->offset
-	};
+	int whence;
 
 	switch (uap->whence) {
 	case CLOUDABI_WHENCE_CUR:
-		lseek_args.whence = SEEK_CUR;
+		whence = SEEK_CUR;
 		break;
 	case CLOUDABI_WHENCE_END:
-		lseek_args.whence = SEEK_END;
+		whence = SEEK_END;
 		break;
 	case CLOUDABI_WHENCE_SET:
-		lseek_args.whence = SEEK_SET;
+		whence = SEEK_SET;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	return (sys_lseek(td, &lseek_args));
+	return (kern_lseek(td, uap->fd, uap->offset, whence));
 }
 
 /* Converts a file descriptor to a CloudABI file descriptor type. */
@@ -244,11 +195,9 @@ cloudabi_convert_filetype(const struct file *fp)
 
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
-		return (CLOUDABI_FILETYPE_FIFO);
-	case DTYPE_KQUEUE:
-		return (CLOUDABI_FILETYPE_POLL);
+		return (CLOUDABI_FILETYPE_SOCKET_STREAM);
 	case DTYPE_PIPE:
-		return (CLOUDABI_FILETYPE_FIFO);
+		return (CLOUDABI_FILETYPE_SOCKET_STREAM);
 	case DTYPE_PROCDESC:
 		return (CLOUDABI_FILETYPE_PROCESS);
 	case DTYPE_SHM:
@@ -258,8 +207,6 @@ cloudabi_convert_filetype(const struct file *fp)
 		switch (so->so_type) {
 		case SOCK_DGRAM:
 			return (CLOUDABI_FILETYPE_SOCKET_DGRAM);
-		case SOCK_SEQPACKET:
-			return (CLOUDABI_FILETYPE_SOCKET_SEQPACKET);
 		case SOCK_STREAM:
 			return (CLOUDABI_FILETYPE_SOCKET_STREAM);
 		default:
@@ -275,7 +222,7 @@ cloudabi_convert_filetype(const struct file *fp)
 		case VDIR:
 			return (CLOUDABI_FILETYPE_DIRECTORY);
 		case VFIFO:
-			return (CLOUDABI_FILETYPE_FIFO);
+			return (CLOUDABI_FILETYPE_SOCKET_STREAM);
 		case VLNK:
 			return (CLOUDABI_FILETYPE_SYMBOLIC_LINK);
 		case VREG:
@@ -318,7 +265,6 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_FD_SYNC | CLOUDABI_RIGHT_FILE_ADVISE |
 		    CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY |
 		    CLOUDABI_RIGHT_FILE_CREATE_FILE |
-		    CLOUDABI_RIGHT_FILE_CREATE_FIFO |
 		    CLOUDABI_RIGHT_FILE_LINK_SOURCE |
 		    CLOUDABI_RIGHT_FILE_LINK_TARGET |
 		    CLOUDABI_RIGHT_FILE_OPEN |
@@ -332,9 +278,7 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_FILE_STAT_PUT_TIMES |
 		    CLOUDABI_RIGHT_FILE_SYMLINK |
 		    CLOUDABI_RIGHT_FILE_UNLINK |
-		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
-		    CLOUDABI_RIGHT_SOCK_BIND_DIRECTORY |
-		    CLOUDABI_RIGHT_SOCK_CONNECT_DIRECTORY;
+		    CLOUDABI_RIGHT_POLL_FD_READWRITE;
 		*inheriting &= CLOUDABI_RIGHT_FD_DATASYNC |
 		    CLOUDABI_RIGHT_FD_READ |
 		    CLOUDABI_RIGHT_FD_SEEK |
@@ -346,7 +290,6 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_FILE_ALLOCATE |
 		    CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY |
 		    CLOUDABI_RIGHT_FILE_CREATE_FILE |
-		    CLOUDABI_RIGHT_FILE_CREATE_FIFO |
 		    CLOUDABI_RIGHT_FILE_LINK_SOURCE |
 		    CLOUDABI_RIGHT_FILE_LINK_TARGET |
 		    CLOUDABI_RIGHT_FILE_OPEN |
@@ -364,21 +307,7 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_MEM_MAP |
 		    CLOUDABI_RIGHT_MEM_MAP_EXEC |
 		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
-		    CLOUDABI_RIGHT_PROC_EXEC |
-		    CLOUDABI_RIGHT_SOCK_BIND_DIRECTORY |
-		    CLOUDABI_RIGHT_SOCK_CONNECT_DIRECTORY;
-		break;
-	case CLOUDABI_FILETYPE_FIFO:
-		*base &= CLOUDABI_RIGHT_FD_READ |
-		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |
-		    CLOUDABI_RIGHT_FD_WRITE |
-		    CLOUDABI_RIGHT_FILE_STAT_FGET |
-		    CLOUDABI_RIGHT_POLL_FD_READWRITE;
-		*inheriting = 0;
-		break;
-	case CLOUDABI_FILETYPE_POLL:
-		*base &= ~CLOUDABI_RIGHT_FILE_ADVISE;
-		*inheriting = 0;
+		    CLOUDABI_RIGHT_PROC_EXEC;
 		break;
 	case CLOUDABI_FILETYPE_PROCESS:
 		*base &= ~(CLOUDABI_RIGHT_FILE_ADVISE |
@@ -413,19 +342,13 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
-	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
 	case CLOUDABI_FILETYPE_SOCKET_STREAM:
 		*base &= CLOUDABI_RIGHT_FD_READ |
 		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |
 		    CLOUDABI_RIGHT_FD_WRITE |
 		    CLOUDABI_RIGHT_FILE_STAT_FGET |
 		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
-		    CLOUDABI_RIGHT_SOCK_ACCEPT |
-		    CLOUDABI_RIGHT_SOCK_BIND_SOCKET |
-		    CLOUDABI_RIGHT_SOCK_CONNECT_SOCKET |
-		    CLOUDABI_RIGHT_SOCK_LISTEN |
-		    CLOUDABI_RIGHT_SOCK_SHUTDOWN |
-		    CLOUDABI_RIGHT_SOCK_STAT_GET;
+		    CLOUDABI_RIGHT_SOCK_SHUTDOWN;
 		break;
 	default:
 		*inheriting = 0;
@@ -459,33 +382,20 @@ int
 cloudabi_sys_fd_stat_get(struct thread *td,
     struct cloudabi_sys_fd_stat_get_args *uap)
 {
-	cloudabi_fdstat_t fsb = {};
-	struct filedesc *fdp;
+	cloudabi_fdstat_t fsb = {0};
 	struct file *fp;
-	seq_t seq;
 	cap_rights_t rights;
+	struct filecaps fcaps;
 	int error, oflags;
-	bool modified;
 
 	/* Obtain file descriptor properties. */
-	fdp = td->td_proc->p_fd;
-	do {
-		error = fget_unlocked(fdp, uap->fd, cap_rights_init(&rights),
-		    &fp, &seq);
-		if (error != 0)
-			return (error);
-		if (fp->f_ops == &badfileops) {
-			fdrop(fp, td);
-			return (EBADF);
-		}
-
-		rights = *cap_rights(fdp, uap->fd);
-		oflags = OFLAGS(fp->f_flag);
-		fsb.fs_filetype = cloudabi_convert_filetype(fp);
-
-		modified = fd_modified(fdp, uap->fd, seq);
-		fdrop(fp, td);
-	} while (modified);
+	error = fget_cap(td, uap->fd, cap_rights_init(&rights), &fp,
+	    &fcaps);
+	if (error != 0)
+		return (error);
+	oflags = OFLAGS(fp->f_flag);
+	fsb.fs_filetype = cloudabi_convert_filetype(fp);
+	fdrop(fp, td);
 
 	/* Convert file descriptor flags. */
 	if (oflags & O_APPEND)
@@ -496,8 +406,9 @@ cloudabi_sys_fd_stat_get(struct thread *td,
 		fsb.fs_flags |= CLOUDABI_FDFLAG_SYNC;
 
 	/* Convert capabilities to CloudABI rights. */
-	convert_capabilities(&rights, fsb.fs_filetype,
+	convert_capabilities(&fcaps.fc_rights, fsb.fs_filetype,
 	    &fsb.fs_rights_base, &fsb.fs_rights_inheriting);
+	filecaps_free(&fcaps);
 	return (copyout(&fsb, (void *)uap->buf, sizeof(fsb)));
 }
 
@@ -557,9 +468,6 @@ cloudabi_sys_fd_stat_put(struct thread *td,
 int
 cloudabi_sys_fd_sync(struct thread *td, struct cloudabi_sys_fd_sync_args *uap)
 {
-	struct fsync_args fsync_args = {
-		.fd = uap->fd
-	};
 
-	return (sys_fsync(td, &fsync_args));
+	return (kern_fsync(td, uap->fd, true));
 }

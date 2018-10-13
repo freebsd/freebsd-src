@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2014
+.Dd December 8, 2017
 .Dt LGAMMA 3
 .Os
 .Sh NAME
@@ -43,7 +43,8 @@
 .Nm gammaf ,
 .Nm gammaf_r ,
 .Nm tgamma ,
-.Nm tgammaf
+.Nm tgammaf ,
+.Nm tgammal ,
 .Nd log gamma functions, gamma function
 .Sh LIBRARY
 .Lb libm
@@ -76,6 +77,8 @@
 .Fn tgamma "double x"
 .Ft float
 .Fn tgammaf "float x"
+.Ft "long double"
+.Fn tgammal "long double x"
 .Sh DESCRIPTION
 .Fn lgamma x ,
 .Fn lgammaf x ,
@@ -106,9 +109,10 @@ and
 but the caller must provide an integer to store the sign of \(*G(x).
 .Pp
 The
-.Fn tgamma x
+.Fn tgamma x ,
+.Fn tgammaf x ,
 and
-.Fn tgammaf x
+.Fn tgammal x
 functions return \(*G(x), with no effect on
 .Fa signgam .
 .Pp
@@ -166,6 +170,15 @@ non-positive integers.
 For large non-integer negative values,
 .Fn tgamma
 will underflow.
+.Sh BUGS
+To conform with newer C/C++ standards, a stub implementation for
+.Nm tgammal
+was committed to the math library, where
+.Nm tgammal
+is mapped to
+.Nm tgamma .
+Thus, the numerical accuracy is at most that of the 53-bit double
+precision implementation.
 .Sh SEE ALSO
 .Xr math 3
 .Sh STANDARDS
@@ -174,8 +187,9 @@ The
 .Fn lgammaf ,
 .Fn lgammal ,
 .Fn tgamma ,
+.Fn tgammaf ,
 and
-.Fn tgammaf
+.Fn tgammal
 functions are expected to conform to
 .St -isoC-99 .
 .Sh HISTORY

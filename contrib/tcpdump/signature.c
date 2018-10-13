@@ -12,19 +12,19 @@
  *
  * Functions for signature and digest verification.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
+#include <stdlib.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "signature.h"
 
 #ifdef HAVE_LIBCRYPTO
@@ -34,6 +34,7 @@
 const struct tok signature_check_values[] = {
     { SIGNATURE_VALID, "valid"},
     { SIGNATURE_INVALID, "invalid"},
+    { CANT_ALLOCATE_COPY, "can't allocate memory"},
     { CANT_CHECK_SIGNATURE, "unchecked"},
     { 0, NULL }
 };
@@ -108,45 +109,100 @@ signature_compute_hmac_md5(const uint8_t *text, int text_len, unsigned char *key
     MD5_Final(digest, &context);          /* finish up 2nd pass */
 }
 USES_APPLE_RST
-#endif
 
-#ifdef HAVE_LIBCRYPTO
 /*
  * Verify a cryptographic signature of the packet.
  * Currently only MD5 is supported.
  */
 int
-signature_verify(netdissect_options *ndo,
-                 const u_char *pptr, u_int plen, u_char *sig_ptr)
+signature_verify(netdissect_options *ndo, const u_char *pptr, u_int plen,
+                 const u_char *sig_ptr, void (*clear_rtn)(void *),
+                 const void *clear_arg)
 {
-    uint8_t rcvsig[16];
+    uint8_t *packet_copy, *sig_copy;
     uint8_t sig[16];
     unsigned int i;
-
-    /*
-     * Save the signature before clearing it.
-     */
-    memcpy(rcvsig, sig_ptr, sizeof(rcvsig));
-    memset(sig_ptr, 0, sizeof(rcvsig));
 
     if (!ndo->ndo_sigsecret) {
         return (CANT_CHECK_SIGNATURE);
     }
 
-    signature_compute_hmac_md5(pptr, plen, (unsigned char *)ndo->ndo_sigsecret,
+    /*
+     * Do we have all the packet data to be checked?
+     */
+    if (!ND_TTEST2(pptr, plen)) {
+        /* No. */
+        return (CANT_CHECK_SIGNATURE);
+    }
+
+    /*
+     * Do we have the entire signature to check?
+     */
+    if (!ND_TTEST2(sig_ptr, sizeof(sig))) {
+        /* No. */
+        return (CANT_CHECK_SIGNATURE);
+    }
+    if (sig_ptr + sizeof(sig) > pptr + plen) {
+        /* No. */
+        return (CANT_CHECK_SIGNATURE);
+    }
+
+    /*
+     * Make a copy of the packet, so we don't overwrite the original.
+     */
+    packet_copy = malloc(plen);
+    if (packet_copy == NULL) {
+        return (CANT_ALLOCATE_COPY);
+    }
+
+    memcpy(packet_copy, pptr, plen);
+
+    /*
+     * Clear the signature in the copy.
+     */
+    sig_copy = packet_copy + (sig_ptr - pptr);
+    memset(sig_copy, 0, sizeof(sig));
+
+    /*
+     * Clear anything else that needs to be cleared in the copy.
+     * Our caller is assumed to have vetted the clear_arg pointer.
+     */
+    (*clear_rtn)((void *)(packet_copy + ((const uint8_t *)clear_arg - pptr)));
+
+    /*
+     * Compute the signature.
+     */
+    signature_compute_hmac_md5(packet_copy, plen,
+                               (unsigned char *)ndo->ndo_sigsecret,
                                strlen(ndo->ndo_sigsecret), sig);
 
-    if (memcmp(rcvsig, sig, sizeof(sig)) == 0) {
+    /*
+     * Free the copy.
+     */
+    free(packet_copy);
+
+    /*
+     * Does the computed signature match the signature in the packet?
+     */
+    if (memcmp(sig_ptr, sig, sizeof(sig)) == 0) {
+        /* Yes. */
         return (SIGNATURE_VALID);
-
     } else {
-
+        /* No - print the computed signature. */
         for (i = 0; i < sizeof(sig); ++i) {
             ND_PRINT((ndo, "%02x", sig[i]));
         }
 
         return (SIGNATURE_INVALID);
     }
+}
+#else
+int
+signature_verify(netdissect_options *ndo _U_, const u_char *pptr _U_,
+                 u_int plen _U_, const u_char *sig_ptr _U_,
+                 void (*clear_rtn)(void *) _U_, const void *clear_arg _U_)
+{
+    return (CANT_CHECK_SIGNATURE);
 }
 #endif
 

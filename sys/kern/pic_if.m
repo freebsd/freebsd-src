@@ -43,7 +43,7 @@ CODE {
 	}
 
 	static int
-	null_pic_alloc_intr(device_t dev, struct intr_irqsrc *isrc,
+	null_pic_activate_intr(device_t dev, struct intr_irqsrc *isrc,
 	    struct resource *res, struct intr_map_data *data)
 	{
 
@@ -51,7 +51,7 @@ CODE {
 	}
 
 	static int
-	null_pic_release_intr(device_t dev, struct intr_irqsrc *isrc,
+	null_pic_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
 	    struct resource *res, struct intr_map_data *data)
 	{
 
@@ -92,12 +92,12 @@ CODE {
 	}
 };
 
-METHOD int alloc_intr {
+METHOD int activate_intr {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
 	struct resource		*res;
 	struct intr_map_data	*data;
-} DEFAULT null_pic_alloc_intr;
+} DEFAULT null_pic_activate_intr;
 
 METHOD int bind_intr {
 	device_t		dev;
@@ -120,12 +120,12 @@ METHOD int map_intr {
 	struct intr_irqsrc	**isrcp;
 };
 
-METHOD int release_intr {
+METHOD int deactivate_intr {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
 	struct resource		*res;
 	struct intr_map_data	*data;
-} DEFAULT null_pic_release_intr;
+} DEFAULT null_pic_deactivate_intr;
 
 METHOD int setup_intr {
 	device_t		dev;

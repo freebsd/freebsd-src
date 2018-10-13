@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-agent.sh,v 1.6 2015/07/10 06:23:25 markus Exp $
+#	$OpenBSD: hostkey-agent.sh,v 1.7 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey agent"
@@ -40,7 +40,7 @@ for ps in no yes; do
 		cp $OBJ/known_hosts.orig $OBJ/known_hosts
 		SSH_CONNECTION=`${SSH} $opts host 'echo $SSH_CONNECTION'`
 		if [ $? -ne 0 ]; then
-			fail "protocol $p privsep=$ps failed"
+			fail "privsep=$ps failed"
 		fi
 		if [ "$SSH_CONNECTION" != "UNKNOWN 65535 UNKNOWN 65535" ]; then
 			fail "bad SSH_CONNECTION key type $k privsep=$ps"

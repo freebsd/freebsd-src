@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2006
+.Dd February 15, 2017
 .Dt BT 4
 .Os
 .Sh NAME
@@ -66,9 +66,6 @@ BT-946C	PCI	100	Fast SCSI-2
 BT-956C	PCI	100	Wide Fast SCSI-2
 BT-956CD	PCI	100	Wide Differential Fast SCSI-2
 BT-445C	VLB	100	Fast SCSI-2
-BT-747C	EISA	100	Fast SCSI-2
-BT-757C	EISA	100	Wide Fast SCSI-2
-BT-757CD	EISA	100	Wide Differential Fast SCSI-2
 BT-545C	ISA	50	Fast SCSI-2
 BT-540CF	ISA	50	Fast SCSI-2
 .El
@@ -77,20 +74,14 @@ MultiMaster "S" Series Host Adapters:
 .Bl -column "BT-956CD " "ISA " "Commands " "Description"
 .Em "Adapter" Ta Em "Bus" Ta Em "Commands" Ta Em "Description"
 BT-445S	VLB	30	Fast SCSI-2
-BT-747S	EISA	30	Fast SCSI-2
-BT-747D	EISA	30	Differential Fast SCSI-2
-BT-757S	EISA	30	Wide Fast SCSI-2
-BT-757D	EISA	30	Wide Differential Fast SCSI-2
 BT-545S	ISA	30	Fast SCSI-2
 BT-542D	ISA	30	Differential Fast SCSI-2
-BT-742A	EISA	30	SCSI-2 (742A revision H)
 BT-542B	ISA	30	SCSI-2 (542B revision H)
 .El
 .Pp
 MultiMaster "A" Series Host Adapters:
 .Bl -column "BT-956CD " "ISA " "Commands " "Description"
 .Em "Adapter" Ta Em "Bus" Ta Em "Commands" Ta Em "Description"
-BT-742A	EISA	30	SCSI-2 (742A revisions A - G)
 BT-542B	ISA	30	SCSI-2 (542B revisions A - G)
 .El
 .Ed
@@ -135,24 +126,6 @@ BusLogic BT-545S
 .It
 BusLogic/BusTek BT-640
 .It
-BusLogic BT-742A
-.It
-BusLogic BT-742A
-.It
-BusLogic BT-747C
-.It
-BusLogic BT-747D
-.It
-BusLogic BT-747S
-.It
-BusLogic BT-757C
-.It
-BusLogic BT-757CD
-.It
-BusLogic BT-757D
-.It
-BusLogic BT-757S
-.It
 BusLogic BT-946C
 .It
 BusLogic BT-948
@@ -167,11 +140,6 @@ BusLogic BT-958D
 .It
 Storage Dimensions SDC3211B / SDC3211F
 .El
-.Pp
-AMI FastDisk Host Adapters that are true BusLogic MultiMaster clones
-are also supported by the
-.Nm
-driver.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr da 4 ,

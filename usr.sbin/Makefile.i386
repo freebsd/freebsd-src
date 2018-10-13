@@ -1,14 +1,20 @@
 # $FreeBSD$
 
+.if ${MK_ACPI} != "no"
+SUBDIR+=	acpi
+.endif
 .if ${MK_APM} != "no"
 SUBDIR+=	apm
 SUBDIR+=	apmd
 .endif
-SUBDIR+=	asf
+SUBDIR+=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	btxld
 .endif
 SUBDIR+=	cpucontrol
+.if ${MK_HYPERV} != "no"
+SUBDIR+=	hyperv
+.endif
 SUBDIR+=	kgmon
 SUBDIR+=	kgzip
 SUBDIR+=	lptcontrol
@@ -17,22 +23,5 @@ SUBDIR+=	mptable
 SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	pnpinfo
-SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz
-
-# Differentiate between FreeBSD/i386 and FreeBSD/pc98
-.if ${MACHINE} == "i386"
-.if ${MK_ACPI} != "no"
-SUBDIR+=	acpi
-.endif
-SUBDIR+=	boot0cfg
-.if ${MK_HYPERV} != "no"
-SUBDIR+=	hyperv
-.endif
-.if ${MK_WIRELESS} != "no"
-SUBDIR+=	wlconfig
-.endif
-.elif ${MACHINE} == "pc98"
-SUBDIR+=	boot98cfg
-.endif

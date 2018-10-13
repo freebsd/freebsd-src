@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -876,7 +878,7 @@ usb_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	struct usb_fs_privdata* pd = (struct usb_fs_privdata*)dev->si_drv1;
 	struct usb_cdev_refdata refs;
 	struct usb_cdev_privdata *cpd;
-	int err, ep;
+	int err;
 
 	DPRINTFN(2, "%s fflags=0x%08x\n", devtoname(dev), fflags);
 
@@ -888,7 +890,6 @@ usb_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	}
 
 	cpd = malloc(sizeof(*cpd), M_USBDEV, M_WAITOK | M_ZERO);
-	ep = cpd->ep_addr = pd->ep_addr;
 
 	usb_loc_fill(pd, cpd);
 	err = usb_ref_device(cpd, &refs, 1);
@@ -1159,7 +1160,7 @@ usb_filter_write(struct knote *kn, long hint)
 
 	f = kn->kn_hook;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	cpd = f->curr_cpd;
 	if (cpd == NULL) {
@@ -1200,7 +1201,7 @@ usb_filter_read(struct knote *kn, long hint)
 
 	f = kn->kn_hook;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	cpd = f->curr_cpd;
 	if (cpd == NULL) {
@@ -1410,8 +1411,6 @@ usb_read(struct cdev *dev, struct uio *uio, int ioflag)
 	struct usb_cdev_privdata* cpd;
 	struct usb_fifo *f;
 	struct usb_mbuf *m;
-	int fflags;
-	int resid;
 	int io_len;
 	int err;
 	uint8_t tr_data = 0;
@@ -1424,16 +1423,12 @@ usb_read(struct cdev *dev, struct uio *uio, int ioflag)
 	if (err)
 		return (ENXIO);
 
-	fflags = cpd->fflags;
-
 	f = refs.rxfifo;
 	if (f == NULL) {
 		/* should not happen */
 		usb_unref_device(cpd, &refs);
 		return (EPERM);
 	}
-
-	resid = uio->uio_resid;
 
 	mtx_lock(f->priv_mtx);
 
@@ -1534,8 +1529,6 @@ usb_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct usb_fifo *f;
 	struct usb_mbuf *m;
 	uint8_t *pdata;
-	int fflags;
-	int resid;
 	int io_len;
 	int err;
 	uint8_t tr_data = 0;
@@ -1550,15 +1543,12 @@ usb_write(struct cdev *dev, struct uio *uio, int ioflag)
 	if (err)
 		return (ENXIO);
 
-	fflags = cpd->fflags;
-
 	f = refs.txfifo;
 	if (f == NULL) {
 		/* should not happen */
 		usb_unref_device(cpd, &refs);
 		return (EPERM);
 	}
-	resid = uio->uio_resid;
 
 	mtx_lock(f->priv_mtx);
 
@@ -1730,7 +1720,7 @@ usb_fifo_wait(struct usb_fifo *f)
 {
 	int err;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	if (f->flag_iserror) {
 		/* we are gone */

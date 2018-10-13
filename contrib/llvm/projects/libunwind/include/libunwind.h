@@ -6,7 +6,7 @@
 // Source Licenses. See LICENSE.TXT for details.
 //
 //
-// Compatible with libuwind API documented at:
+// Compatible with libunwind API documented at:
 //   http://www.nongnu.org/libunwind/man/libunwind(3).html
 //
 //===----------------------------------------------------------------------===//
@@ -46,12 +46,12 @@ enum {
 };
 
 struct unw_context_t {
-  uint64_t data[128];
+  uint64_t data[_LIBUNWIND_CONTEXT_SIZE];
 };
 typedef struct unw_context_t unw_context_t;
 
 struct unw_cursor_t {
-  uint64_t data[140];
+  uint64_t data[_LIBUNWIND_CURSOR_SIZE];
 };
 typedef struct unw_cursor_t unw_cursor_t;
 
@@ -120,7 +120,7 @@ extern int unw_init_remote_thread(unw_cursor_t *, unw_addr_space_t, thread_t *);
 #endif /* UNW_REMOTE */
 
 /*
- * traditional libuwind "remote" API
+ * traditional libunwind "remote" API
  *   NOT IMPLEMENTED on Mac OS X
  *
  * extern int               unw_init_remote(unw_cursor_t*, unw_addr_space_t,
@@ -151,8 +151,8 @@ enum {
   UNW_X86_ECX = 1,
   UNW_X86_EDX = 2,
   UNW_X86_EBX = 3,
-  UNW_X86_EBP = 4,
-  UNW_X86_ESP = 5,
+  UNW_X86_ESP = 4,
+  UNW_X86_EBP = 5,
   UNW_X86_ESI = 6,
   UNW_X86_EDI = 7
 };
@@ -293,77 +293,6 @@ enum {
   UNW_PPC_VSCR    = 110,
   UNW_PPC_SPE_ACC = 111,
   UNW_PPC_SPEFSCR = 112
-};
-
-// 64-bit RISC-V registers
-enum {
-  UNW_RISCV_X0  = 0,
-  UNW_RISCV_X1  = 1,
-  UNW_RISCV_RA  = 1,
-  UNW_RISCV_X2  = 2,
-  UNW_RISCV_SP  = 2,
-  UNW_RISCV_X3  = 3,
-  UNW_RISCV_X4  = 4,
-  UNW_RISCV_X5  = 5,
-  UNW_RISCV_X6  = 6,
-  UNW_RISCV_X7  = 7,
-  UNW_RISCV_X8  = 8,
-  UNW_RISCV_X9  = 9,
-  UNW_RISCV_X10 = 10,
-  UNW_RISCV_X11 = 11,
-  UNW_RISCV_X12 = 12,
-  UNW_RISCV_X13 = 13,
-  UNW_RISCV_X14 = 14,
-  UNW_RISCV_X15 = 15,
-  UNW_RISCV_X16 = 16,
-  UNW_RISCV_X17 = 17,
-  UNW_RISCV_X18 = 18,
-  UNW_RISCV_X19 = 19,
-  UNW_RISCV_X20 = 20,
-  UNW_RISCV_X21 = 21,
-  UNW_RISCV_X22 = 22,
-  UNW_RISCV_X23 = 23,
-  UNW_RISCV_X24 = 24,
-  UNW_RISCV_X25 = 25,
-  UNW_RISCV_X26 = 26,
-  UNW_RISCV_X27 = 27,
-  UNW_RISCV_X28 = 28,
-  UNW_RISCV_X29 = 29,
-  UNW_RISCV_X30 = 30,
-  UNW_RISCV_X31 = 31,
-  // reserved block
-  UNW_RISCV_D0  = 64,
-  UNW_RISCV_D1  = 65,
-  UNW_RISCV_D2  = 66,
-  UNW_RISCV_D3  = 67,
-  UNW_RISCV_D4  = 68,
-  UNW_RISCV_D5  = 69,
-  UNW_RISCV_D6  = 70,
-  UNW_RISCV_D7  = 71,
-  UNW_RISCV_D8  = 72,
-  UNW_RISCV_D9  = 73,
-  UNW_RISCV_D10 = 74,
-  UNW_RISCV_D11 = 75,
-  UNW_RISCV_D12 = 76,
-  UNW_RISCV_D13 = 77,
-  UNW_RISCV_D14 = 78,
-  UNW_RISCV_D15 = 79,
-  UNW_RISCV_D16 = 80,
-  UNW_RISCV_D17 = 81,
-  UNW_RISCV_D18 = 82,
-  UNW_RISCV_D19 = 83,
-  UNW_RISCV_D20 = 84,
-  UNW_RISCV_D21 = 85,
-  UNW_RISCV_D22 = 86,
-  UNW_RISCV_D23 = 87,
-  UNW_RISCV_D24 = 88,
-  UNW_RISCV_D25 = 89,
-  UNW_RISCV_D26 = 90,
-  UNW_RISCV_D27 = 91,
-  UNW_RISCV_D28 = 92,
-  UNW_RISCV_D29 = 93,
-  UNW_RISCV_D30 = 94,
-  UNW_RISCV_D31 = 95,
 };
 
 // 64-bit ARM64 registers
@@ -602,6 +531,147 @@ enum {
   UNW_OR1K_R29 = 29,
   UNW_OR1K_R30 = 30,
   UNW_OR1K_R31 = 31,
+};
+
+// 64-bit RISC-V registers
+enum {
+  UNW_RISCV_X0  = 0,
+  UNW_RISCV_X1  = 1,
+  UNW_RISCV_RA  = 1,
+  UNW_RISCV_X2  = 2,
+  UNW_RISCV_SP  = 2,
+  UNW_RISCV_X3  = 3,
+  UNW_RISCV_X4  = 4,
+  UNW_RISCV_X5  = 5,
+  UNW_RISCV_X6  = 6,
+  UNW_RISCV_X7  = 7,
+  UNW_RISCV_X8  = 8,
+  UNW_RISCV_X9  = 9,
+  UNW_RISCV_X10 = 10,
+  UNW_RISCV_X11 = 11,
+  UNW_RISCV_X12 = 12,
+  UNW_RISCV_X13 = 13,
+  UNW_RISCV_X14 = 14,
+  UNW_RISCV_X15 = 15,
+  UNW_RISCV_X16 = 16,
+  UNW_RISCV_X17 = 17,
+  UNW_RISCV_X18 = 18,
+  UNW_RISCV_X19 = 19,
+  UNW_RISCV_X20 = 20,
+  UNW_RISCV_X21 = 21,
+  UNW_RISCV_X22 = 22,
+  UNW_RISCV_X23 = 23,
+  UNW_RISCV_X24 = 24,
+  UNW_RISCV_X25 = 25,
+  UNW_RISCV_X26 = 26,
+  UNW_RISCV_X27 = 27,
+  UNW_RISCV_X28 = 28,
+  UNW_RISCV_X29 = 29,
+  UNW_RISCV_X30 = 30,
+  UNW_RISCV_X31 = 31,
+  // reserved block
+  UNW_RISCV_D0  = 64,
+  UNW_RISCV_D1  = 65,
+  UNW_RISCV_D2  = 66,
+  UNW_RISCV_D3  = 67,
+  UNW_RISCV_D4  = 68,
+  UNW_RISCV_D5  = 69,
+  UNW_RISCV_D6  = 70,
+  UNW_RISCV_D7  = 71,
+  UNW_RISCV_D8  = 72,
+  UNW_RISCV_D9  = 73,
+  UNW_RISCV_D10 = 74,
+  UNW_RISCV_D11 = 75,
+  UNW_RISCV_D12 = 76,
+  UNW_RISCV_D13 = 77,
+  UNW_RISCV_D14 = 78,
+  UNW_RISCV_D15 = 79,
+  UNW_RISCV_D16 = 80,
+  UNW_RISCV_D17 = 81,
+  UNW_RISCV_D18 = 82,
+  UNW_RISCV_D19 = 83,
+  UNW_RISCV_D20 = 84,
+  UNW_RISCV_D21 = 85,
+  UNW_RISCV_D22 = 86,
+  UNW_RISCV_D23 = 87,
+  UNW_RISCV_D24 = 88,
+  UNW_RISCV_D25 = 89,
+  UNW_RISCV_D26 = 90,
+  UNW_RISCV_D27 = 91,
+  UNW_RISCV_D28 = 92,
+  UNW_RISCV_D29 = 93,
+  UNW_RISCV_D30 = 94,
+  UNW_RISCV_D31 = 95,
+};
+
+// MIPS registers
+enum {
+  UNW_MIPS_R0  = 0,
+  UNW_MIPS_R1  = 1,
+  UNW_MIPS_R2  = 2,
+  UNW_MIPS_R3  = 3,
+  UNW_MIPS_R4  = 4,
+  UNW_MIPS_R5  = 5,
+  UNW_MIPS_R6  = 6,
+  UNW_MIPS_R7  = 7,
+  UNW_MIPS_R8  = 8,
+  UNW_MIPS_R9  = 9,
+  UNW_MIPS_R10 = 10,
+  UNW_MIPS_R11 = 11,
+  UNW_MIPS_R12 = 12,
+  UNW_MIPS_R13 = 13,
+  UNW_MIPS_R14 = 14,
+  UNW_MIPS_R15 = 15,
+  UNW_MIPS_R16 = 16,
+  UNW_MIPS_R17 = 17,
+  UNW_MIPS_R18 = 18,
+  UNW_MIPS_R19 = 19,
+  UNW_MIPS_R20 = 20,
+  UNW_MIPS_R21 = 21,
+  UNW_MIPS_R22 = 22,
+  UNW_MIPS_R23 = 23,
+  UNW_MIPS_R24 = 24,
+  UNW_MIPS_R25 = 25,
+  UNW_MIPS_R26 = 26,
+  UNW_MIPS_R27 = 27,
+  UNW_MIPS_R28 = 28,
+  UNW_MIPS_R29 = 29,
+  UNW_MIPS_R30 = 30,
+  UNW_MIPS_R31 = 31,
+  UNW_MIPS_F0  = 32,
+  UNW_MIPS_F1  = 33,
+  UNW_MIPS_F2  = 34,
+  UNW_MIPS_F3  = 35,
+  UNW_MIPS_F4  = 36,
+  UNW_MIPS_F5  = 37,
+  UNW_MIPS_F6  = 38,
+  UNW_MIPS_F7  = 39,
+  UNW_MIPS_F8  = 40,
+  UNW_MIPS_F9  = 41,
+  UNW_MIPS_F10 = 42,
+  UNW_MIPS_F11 = 43,
+  UNW_MIPS_F12 = 44,
+  UNW_MIPS_F13 = 45,
+  UNW_MIPS_F14 = 46,
+  UNW_MIPS_F15 = 47,
+  UNW_MIPS_F16 = 48,
+  UNW_MIPS_F17 = 49,
+  UNW_MIPS_F18 = 50,
+  UNW_MIPS_F19 = 51,
+  UNW_MIPS_F20 = 52,
+  UNW_MIPS_F21 = 53,
+  UNW_MIPS_F22 = 54,
+  UNW_MIPS_F23 = 55,
+  UNW_MIPS_F24 = 56,
+  UNW_MIPS_F25 = 57,
+  UNW_MIPS_F26 = 58,
+  UNW_MIPS_F27 = 59,
+  UNW_MIPS_F28 = 60,
+  UNW_MIPS_F29 = 61,
+  UNW_MIPS_F30 = 62,
+  UNW_MIPS_F31 = 63,
+  UNW_MIPS_HI = 64,
+  UNW_MIPS_LO = 65,
 };
 
 #endif

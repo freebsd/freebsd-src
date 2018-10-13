@@ -27,16 +27,17 @@
  * SUCH DAMAGE.
  */
 
+/* \summary: Cisco Hot Standby Router Protocol (HSRP) printer */
+
 /* Cisco Hot Standby Router Protocol (HSRP). */
 
-#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 
 /* HSRP op code types. */
@@ -94,7 +95,7 @@ struct hsrp {
 void
 hsrp_print(netdissect_options *ndo, register const uint8_t *bp, register u_int len)
 {
-	struct hsrp *hp = (struct hsrp *) bp;
+	const struct hsrp *hp = (const struct hsrp *) bp;
 
 	ND_TCHECK(hp->hsrp_version);
 	ND_PRINT((ndo, "HSRPv%d", hp->hsrp_version));
@@ -116,9 +117,9 @@ hsrp_print(netdissect_options *ndo, register const uint8_t *bp, register u_int l
 	ND_PRINT((ndo, "addr=%s", ipaddr_string(ndo, &hp->hsrp_virtaddr)));
 	if (ndo->ndo_vflag) {
 		ND_PRINT((ndo, " hellotime="));
-		relts_print(ndo, hp->hsrp_hellotime);
+		unsigned_relts_print(ndo, hp->hsrp_hellotime);
 		ND_PRINT((ndo, " holdtime="));
-		relts_print(ndo, hp->hsrp_holdtime);
+		unsigned_relts_print(ndo, hp->hsrp_holdtime);
 		ND_PRINT((ndo, " priority=%d", hp->hsrp_priority));
 		ND_PRINT((ndo, " auth=\""));
 		if (fn_printn(ndo, hp->hsrp_authdata, sizeof(hp->hsrp_authdata),

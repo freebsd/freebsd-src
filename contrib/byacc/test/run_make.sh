@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: run_make.sh,v 1.14 2014/04/06 17:50:57 tom Exp $
+# $Id: run_make.sh,v 1.15 2016/06/01 22:56:37 Tom.Shields Exp $
 # vi:ts=4 sw=4:
 
 # do a test-compile on each of the ".c" files in the test-directory
@@ -43,7 +43,8 @@ echo "** test-files in $REF_DIR"
 for input in ${REF_DIR}/*.c
 do
 	case $input in #(vi
-	${REF_DIR}/err_*)
+	${REF_DIR}/err_*|\
+	${REF_DIR}/test-err_*)
 		continue
 		;;
 	esac
@@ -72,11 +73,17 @@ then
 	do
 		test -f "$input" || continue
 		case $input in
-		${TEST_DIR}/err_*)
+		${TEST_DIR}/err_*|\
+		${TEST_DIR}/test-err_*)
+			continue
+			;;
+		${TEST_DIR}/ok_syntax*|\
+		${TEST_DIR}/varsyntax*)
+			# Bison does not support all byacc legacy syntax
 			continue
 			;;
 		${TEST_DIR}/btyacc_*)
-			# Bison does not support the btyacc []-action extension.
+			# Bison does not support the btyacc []-action & inherited attribute extensions.
 			continue
 			;;
 		esac
@@ -99,7 +106,7 @@ then
 
 		sed -e '/^%expect/s,%expect.*,,' $input >>run_make.y
 
-		bison -y run_make.y
+		bison -Wno-other -Wno-conflicts-sr -Wconflicts-rr -y run_make.y
 		if test -f "y.tab.c"
 		then
 			sed -e '/^#line/s,"run_make.y","'$input'",' y.tab.c >run_make.c

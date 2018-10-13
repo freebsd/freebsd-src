@@ -21,7 +21,7 @@
 #include "NVPTXTargetMachine.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/BasicTTIImpl.h"
-#include "llvm/Target/TargetLowering.h"
+#include "llvm/CodeGen/TargetLowering.h"
 
 namespace llvm {
 
@@ -41,25 +41,44 @@ public:
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl()),
         TLI(ST->getTargetLowering()) {}
 
-  // Provide value semantics. MSVC requires that we spell all of these out.
-  NVPTXTTIImpl(const NVPTXTTIImpl &Arg)
-      : BaseT(static_cast<const BaseT &>(Arg)), ST(Arg.ST), TLI(Arg.TLI) {}
-  NVPTXTTIImpl(NVPTXTTIImpl &&Arg)
-      : BaseT(std::move(static_cast<BaseT &>(Arg))), ST(std::move(Arg.ST)),
-        TLI(std::move(Arg.TLI)) {}
-
   bool hasBranchDivergence() { return true; }
 
   bool isSourceOfDivergence(const Value *V);
+
+  unsigned getFlatAddressSpace() const {
+    return AddressSpace::ADDRESS_SPACE_GENERIC;
+  }
+
+  // Increase the inlining cost threshold by a factor of 5, reflecting that
+  // calls are particularly expensive in NVPTX.
+  unsigned getInliningThresholdMultiplier() { return 5; }
 
   int getArithmeticInstrCost(
       unsigned Opcode, Type *Ty,
       TTI::OperandValueKind Opd1Info = TTI::OK_AnyValue,
       TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
       TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
-      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None);
+      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
+      ArrayRef<const Value *> Args = ArrayRef<const Value *>());
 
-  void getUnrollingPreferences(Loop *L, TTI::UnrollingPreferences &UP);
+  void getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
+                               TTI::UnrollingPreferences &UP);
+  bool hasVolatileVariant(Instruction *I, unsigned AddrSpace) {
+    // Volatile loads/stores are only supported for shared and global address
+    // spaces, or for generic AS that maps to them.
+    if (!(AddrSpace == llvm::ADDRESS_SPACE_GENERIC ||
+          AddrSpace == llvm::ADDRESS_SPACE_GLOBAL ||
+          AddrSpace == llvm::ADDRESS_SPACE_SHARED))
+      return false;
+
+    switch(I->getOpcode()){
+    default:
+      return false;
+    case Instruction::Load:
+    case Instruction::Store:
+      return true;
+    }
+  }
 };
 
 } // end namespace llvm

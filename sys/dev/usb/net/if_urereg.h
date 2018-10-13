@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Kevin Lo <kevlo@FreeBSD.org>
+ * Copyright (c) 2015-2016 Kevin Lo <kevlo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@
 #define	URE_PLA_OCP_GPHY_BASE	0xe86c
 #define	URE_PLA_TELLYCNT	0xe890
 #define	URE_PLA_SFF_STS_7	0xe8de
-#define	URE_PLA_PHYSTATUS	0xe908
+#define	URE_GMEDIASTAT		0xe908
 
 #define	URE_USB_USB2PHY		0xb41e
 #define	URE_USB_SSPHYLINK2	0xb428
@@ -424,10 +424,15 @@ struct ure_softc {
 
 	u_int			sc_flags;
 #define	URE_FLAG_LINK		0x0001
+#define	URE_FLAG_8152		0x1000	/* RTL8152 */
 
 	u_int			sc_chip;
 #define	URE_CHIP_VER_4C00	0x01
 #define	URE_CHIP_VER_4C10	0x02
+#define	URE_CHIP_VER_5C00	0x04
+#define	URE_CHIP_VER_5C10	0x08
+#define	URE_CHIP_VER_5C20	0x10
+#define	URE_CHIP_VER_5C30	0x20
 };
 
 #define	URE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
  * All rights reserved.
  *
@@ -69,8 +71,6 @@
 #define _BHND_BHND_DEBUG_H_
 
 #include <sys/systm.h>
-
-#include "opt_global.h"
 
 #define	BHND_ERROR_LEVEL	0x00
 #define	BHND_ERROR_MSG		"ERROR"

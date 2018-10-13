@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2015
+.Dd August 22, 2018
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
@@ -44,7 +44,12 @@ services plus support manage-gids for all NFS versions
 .Sh DESCRIPTION
 .Nm
 loads user and group information into the kernel for NFSv4.
-It must be running for NFSv4 to function correctly, either client or server.
+For Kerberized NFSv4 mounts, it must be running on both client(s) and
+server for correct operation.
+For non-Kerberized NFSv4 mounts, this daemon must be running unless all
+client(s) plus the server are configured to put uid/gid numbers in the
+owner and owner_group strings.
+.Pp
 It also provides support for manage-gids and must be running on the server if
 this is being used for any version of NFS.
 .Pp
@@ -64,8 +69,8 @@ if that name is not a fully qualified host name, the canonical name as
 reported by
 .Xr getaddrinfo 3 .
 .It Fl usertimeout Ar minutes
-Overrides the default timeout for cache entries, in minutes. If the
-timeout is specified as 0, cache entries never time out. The longer the
+Overrides the default timeout for cache entries, in minutes.
+The longer the
 time out, the better the performance, but the longer it takes for replaced
 entries to be seen. If your user/group database management system almost
 never re-uses the same names or id numbers, a large timeout is recommended.
@@ -126,3 +131,9 @@ those requests fail and the library functions don't return. See
 and
 .Xr passwd 5
 for more information on how the databases are accessed.
+.Pp
+Since the kernel communicates with the
+.Nm
+daemon via an upcall that uses the IP address 127.0.0.1, it does not work correctly when
+.Xr jail 8
+are used and can crash the system.

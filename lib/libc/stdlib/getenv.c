@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sean C. Farley <scf@FreeBSD.org>
  * All rights reserved.
  *
@@ -272,8 +274,8 @@ __rebuild_environ(int newEnvironSize)
 	/* Resize environ. */
 	if (newEnvironSize > environSize) {
 		tmpEnvironSize = newEnvironSize * 2;
-		tmpEnviron = realloc(intEnviron, sizeof (*intEnviron) *
-		    (tmpEnvironSize + 1));
+		tmpEnviron = reallocarray(intEnviron, tmpEnvironSize + 1,
+		    sizeof(*intEnviron));
 		if (tmpEnviron == NULL)
 			return (-1);
 		environSize = tmpEnvironSize;
@@ -306,8 +308,8 @@ __enlarge_env(void)
 	envVarsTotal++;
 	if (envVarsTotal > envVarsSize) {
 		newEnvVarsSize = envVarsTotal * 2;
-		tmpEnvVars = realloc(envVars, sizeof (*envVars) *
-		    newEnvVarsSize);
+		tmpEnvVars = reallocarray(envVars, newEnvVarsSize,
+		    sizeof(*envVars));
 		if (tmpEnvVars == NULL) {
 			envVarsTotal--;
 			return (false);
@@ -342,7 +344,7 @@ __build_env(void)
 	envVarsSize = envVarsTotal * 2;
 
 	/* Create new environment. */
-	envVars = calloc(1, sizeof (*envVars) * envVarsSize);
+	envVars = calloc(envVarsSize, sizeof(*envVars));
 	if (envVars == NULL)
 		goto Failure;
 

@@ -288,14 +288,8 @@ static int
 exynos_xhci_detach(device_t dev)
 {
 	struct exynos_xhci_softc *esc = device_get_softc(dev);
-	device_t bdev;
 	int err;
 
-	if (esc->base.sc_bus.bdev != NULL) {
-		bdev = esc->base.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	/* During module unload there are lots of children leftover */
 	device_delete_children(dev);
 

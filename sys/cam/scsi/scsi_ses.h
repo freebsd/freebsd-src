@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD OR GPL-2.0)
+ *
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
  *
@@ -2413,7 +2415,8 @@ int ses_elm_addlstatus_invalid(struct ses_elm_addlstatus_base_hdr *);
 
 struct ses_elm_addlstatus_eip_hdr {
 	struct ses_elm_addlstatus_base_hdr base;
-	uint8_t reserved;
+	uint8_t byte2;
+#define	SES_ADDL_EIP_EIIOE	1
 	uint8_t element_index;
 	/* NB: This define (currently) applies to all eip=1 headers */
 #define	SES_EIP_HDR_EXTRA_LEN	2

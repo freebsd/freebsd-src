@@ -500,6 +500,13 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 }
 
 int
+bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
+{
+
+	return (0);
+}
+
+int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
 	bus_dma_tag_t dmat_copy;
@@ -736,14 +743,15 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
 	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr)) {
 		*vaddr = uma_zalloc(bufzone->umazone, mflags);
-	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
-	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
-		*vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
-		    mflags, 0, dmat->lowaddr, memattr);
+	} else if (dmat->nsegments >=
+	    howmany(dmat->maxsize, MIN(dmat->maxsegsz, PAGE_SIZE)) &&
+	    dmat->alignment <= PAGE_SIZE &&
+	    (dmat->boundary % PAGE_SIZE) == 0) {
+		*vaddr = (void *)kmem_alloc_attr(dmat->maxsize, mflags, 0,
+		    dmat->lowaddr, memattr);
 	} else {
-		*vaddr = (void *)kmem_alloc_contig(kernel_arena, dmat->maxsize,
-		    mflags, 0, dmat->lowaddr, dmat->alignment, dmat->boundary,
-		    memattr);
+		*vaddr = (void *)kmem_alloc_contig(dmat->maxsize, mflags, 0,
+		    dmat->lowaddr, dmat->alignment, dmat->boundary, memattr);
 	}
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -784,7 +792,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
 		uma_zfree(bufzone->umazone, vaddr);
 	else
-		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
+		kmem_free((vm_offset_t)vaddr, dmat->maxsize);
 
 	dmat->map_count--;
 	if (map->flags & DMAMAP_COHERENT)
@@ -1006,7 +1014,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 	 * Did we fit?
 	 */
 	if (buflen != 0) {
-		_bus_dmamap_unload(dmat, map);
+		bus_dmamap_unload(dmat, map);
 		return (EFBIG); /* XXX better return value here? */
 	}
 	return (0);
@@ -1127,14 +1135,14 @@ cleanup:
 	 * Did we fit?
 	 */
 	if (buflen != 0) {
-		_bus_dmamap_unload(dmat, map);
+		bus_dmamap_unload(dmat, map);
 		return (EFBIG); /* XXX better return value here? */
 	}
 	return (0);
 }
 
 void
-__bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map, struct memdesc *mem,
+_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map, struct memdesc *mem,
     bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
@@ -1159,7 +1167,7 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
  * Release the mapping held by map.
  */
 void
-_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bounce_page *bpage;
 	struct bounce_zone *bz;
@@ -1332,7 +1340,7 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 }
 
 void
-_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct sync_list *sl, *end;
 	int bufaligned;

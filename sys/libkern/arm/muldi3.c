@@ -1,6 +1,8 @@
 /*	$NetBSD: muldi3.c,v 1.8 2003/08/07 16:32:09 agc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

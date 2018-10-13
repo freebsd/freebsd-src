@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2006
+.Dd October 4, 2017
 .Dt GETHOSTBYNAME 3
 .Os
 .Sh NAME
@@ -189,19 +189,20 @@ function
 may be used to request the use of a connected
 .Tn TCP
 socket for queries.
+Queries will by default use
+.Tn UDP
+datagrams.
 If the
 .Fa stayopen
-flag is non-zero,
-this sets the option to send all queries to the name server using
+flag is non-zero, a
 .Tn TCP
-and to retain the connection after each call to
+connection to the name server will be used.
+It will remain open after calls to
 .Fn gethostbyname ,
 .Fn gethostbyname2
 or
-.Fn gethostbyaddr .
-Otherwise, queries are performed using
-.Tn UDP
-datagrams.
+.Fn gethostbyaddr
+have completed.
 .Pp
 The
 .Fn endhostent

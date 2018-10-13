@@ -1,5 +1,5 @@
-%define ver 7.2p2
-%define rel 1
+%define ver 7.8p1
+%define rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
 %define sshd_uid    74
@@ -23,8 +23,19 @@
 # Use GTK2 instead of GNOME in gnome-ssh-askpass
 %define gtk2 1
 
-# Is this build for RHL 6.x?
+# Use build6x options for older RHEL builds
+# RHEL 7 not yet supported
+%if 0%{?rhel} > 6
 %define build6x 0
+%else
+%define build6x 1
+%endif
+
+%if 0%{?fedora} >= 26
+%define compat_openssl 1
+%else
+%define compat_openssl 0
+%endif
 
 # Do we want kerberos5 support (1=yes 0=no)
 %define kerberos5 1
@@ -64,7 +75,7 @@
 %define kerberos5 0
 %endif
 
-Summary: The OpenSSH implementation of SSH protocol versions 1 and 2.
+Summary: The OpenSSH implementation of SSH protocol version 2.
 Name: openssh
 Version: %{ver}
 %if %{rescue}
@@ -72,11 +83,9 @@ Release: %{rel}rescue
 %else
 Release: %{rel}
 %endif
-URL: http://www.openssh.com/portable.html
-Source0: ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
-%if ! %{no_x11_askpass}
+URL: https://www.openssh.com/portable.html
+Source0: https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
 Source1: http://www.jmknoble.net/software/x11-ssh-askpass/x11-ssh-askpass-%{aversion}.tar.gz
-%endif
 License: BSD
 Group: Applications/Internet
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
@@ -86,7 +95,13 @@ PreReq: initscripts >= 5.00
 %else
 Requires: initscripts >= 5.20
 %endif
-BuildRequires: perl, openssl-devel
+BuildRequires: perl
+%if %{compat_openssl}
+BuildRequires: compat-openssl10-devel
+%else
+BuildRequires: openssl-devel >= 1.0.1
+BuildRequires: openssl-devel < 1.1
+%endif
 BuildRequires: /bin/login
 %if ! %{build6x}
 BuildRequires: glibc-devel, pam
@@ -95,6 +110,12 @@ BuildRequires: /usr/include/security/pam_appl.h
 %endif
 %if ! %{no_x11_askpass}
 BuildRequires: /usr/include/X11/Xlib.h
+# Xt development tools
+BuildRequires: libXt-devel
+# Provides xmkmf
+BuildRequires: imake
+# Rely on relatively recent gtk
+BuildRequires: gtk2-devel
 %endif
 %if ! %{no_gnome_askpass}
 BuildRequires: pkgconfig
@@ -183,11 +204,6 @@ environment.
 CFLAGS="$RPM_OPT_FLAGS -Os"; export CFLAGS
 %endif
 
-%if %{kerberos5}
-K5DIR=`rpm -ql krb5-devel | grep 'include/krb5\.h' | sed 's,\/include\/krb5.h,,'`
-echo K5DIR=$K5DIR
-%endif
-
 %configure \
 	--sysconfdir=%{_sysconfdir}/ssh \
 	--libexecdir=%{_libexecdir}/openssh \
@@ -196,6 +212,9 @@ echo K5DIR=$K5DIR
 	--with-superuser-path=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin \
 	--with-privsep-path=%{_var}/empty/sshd \
 	--with-md5-passwords \
+	--mandir=%{_mandir} \
+	--with-mantype=man \
+	--disable-strip \
 %if %{scard}
 	--with-smartcard \
 %endif
@@ -262,12 +281,12 @@ install -m644 contrib/redhat/sshd.pam     $RPM_BUILD_ROOT/etc/pam.d/sshd
 install -m755 contrib/redhat/sshd.init $RPM_BUILD_ROOT/etc/rc.d/init.d/sshd
 
 %if ! %{no_x11_askpass}
-install -s x11-ssh-askpass-%{aversion}/x11-ssh-askpass $RPM_BUILD_ROOT%{_libexecdir}/openssh/x11-ssh-askpass
+install x11-ssh-askpass-%{aversion}/x11-ssh-askpass $RPM_BUILD_ROOT%{_libexecdir}/openssh/x11-ssh-askpass
 ln -s x11-ssh-askpass $RPM_BUILD_ROOT%{_libexecdir}/openssh/ssh-askpass
 %endif
 
 %if ! %{no_gnome_askpass}
-install -s contrib/gnome-ssh-askpass $RPM_BUILD_ROOT%{_libexecdir}/openssh/gnome-ssh-askpass
+install contrib/gnome-ssh-askpass $RPM_BUILD_ROOT%{_libexecdir}/openssh/gnome-ssh-askpass
 %endif
 
 %if ! %{scard}
@@ -358,8 +377,6 @@ fi
 %attr(0644,root,root) %{_mandir}/man1/ssh.1*
 %attr(0644,root,root) %{_mandir}/man5/ssh_config.5*
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/ssh/ssh_config
-%attr(-,root,root) %{_bindir}/slogin
-%attr(-,root,root) %{_mandir}/man1/slogin.1*
 %if ! %{rescue}
 %attr(2755,root,nobody) %{_bindir}/ssh-agent
 %attr(0755,root,root) %{_bindir}/ssh-add
@@ -393,7 +410,7 @@ fi
 %doc x11-ssh-askpass-%{aversion}/README
 %doc x11-ssh-askpass-%{aversion}/ChangeLog
 %doc x11-ssh-askpass-%{aversion}/SshAskpass*.ad
-%attr(0755,root,root) %{_libexecdir}/openssh/ssh-askpass
+%{_libexecdir}/openssh/ssh-askpass
 %attr(0755,root,root) %{_libexecdir}/openssh/x11-ssh-askpass
 %endif
 
@@ -405,6 +422,22 @@ fi
 %endif
 
 %changelog
+* Sat Feb 10 2018 Darren Tucker <dtucker@dtucker.net>
+- Update openssl-devel dependency to match current requirements.
+- Handle Fedora >=6 openssl 1.0 compat libs.
+- Remove SSH1 from description.
+- Don't strip binaries at build time so that debuginfo package can be
+  created.
+
+* Sun Nov 16 2014 Nico Kadel-Garcia <nakdel@gmail.com>
+- Add '--mandir' and '--with-mantype' for RHEL 5 compatibility
+- Add 'dist' option to 'ver' so package names reflect OS at build time
+- Always include x11-ssh-askpass tarball in SRPM
+- Add openssh-x11-aspass BuildRequires for libXT-devel, imake, gtk2-devel
+- Discard 'K5DIR' reporting, not usable inside 'mock' for RHEL 5 compatibility
+- Discard obsolete '--with-rsh' configure option
+- Update openssl-devel dependency to 0.9.8f, as found in autoconf
+
 * Wed Jul 14 2010 Tim Rice <tim@multitalents.net>
 - test for skip_x11_askpass (line 77) should have been for no_x11_askpass
 
@@ -416,7 +449,7 @@ fi
 - Don't install profile.d scripts when not building with GNOME/GTK askpass
   (patch from bet@rahul.net)
 
-* Wed Oct 01 2002 Damien Miller <djm@mindrot.org>
+* Tue Oct 01 2002 Damien Miller <djm@mindrot.org>
 - Install ssh-agent setgid nobody to prevent ptrace() key theft attacks
 
 * Mon Sep 30 2002 Damien Miller <djm@mindrot.org>
@@ -462,7 +495,7 @@ fi
 - remove dependency on db1-devel, which has just been swallowed up whole
   by gnome-libs-devel
 
-* Sun Dec 29 2001 Nalin Dahyabhai <nalin@redhat.com>
+* Sat Dec 29 2001 Nalin Dahyabhai <nalin@redhat.com>
 - adjust build dependencies so that build6x actually works right (fix
   from Hugo van der Kooij)
 

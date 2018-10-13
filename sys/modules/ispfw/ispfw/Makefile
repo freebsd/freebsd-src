@@ -26,7 +26,7 @@
 
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/ispfw
+.PATH: ${SRCTOP}/sys/dev/ispfw
 
 KMOD=	ispfw
 SRCS=	ispfw.c

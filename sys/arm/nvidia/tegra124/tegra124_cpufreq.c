@@ -141,7 +141,7 @@ static struct speedo_entry tegra124_speedo_pllx_tbl[] =
 
 static struct cpu_volt_def tegra124_cpu_volt_pllx_def =
 {
-	.min_uvolt =  900000,		/* 0.9 V */
+	.min_uvolt = 1000000,		/* XXX 0.9 V doesn't work on all boards */
 	.max_uvolt = 1260000,		/* 1.26 */
 	.step_uvolt =  10000,		/* 10 mV */
 	.speedo_scale = 100,
@@ -171,7 +171,6 @@ static uint64_t cpu_freq_tbl[] = {
 	2014000000ULL,
 	2116000000ULL,
 	2218000000ULL,
-	2320000000ULL,
 	2320000000ULL,
 	2422000000ULL,
 	2524000000ULL,
@@ -432,36 +431,36 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 	device_t parent_dev;
 
 	parent_dev =  device_get_parent(sc->dev);
-	rv = regulator_get_by_ofw_property(parent_dev, "vdd-cpu-supply",
+	rv = regulator_get_by_ofw_property(parent_dev, 0, "vdd-cpu-supply",
 	    &sc->supply_vdd_cpu);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'vdd-cpu' regulator\n");
 		return (rv);
 	}
 
-	rv = clk_get_by_ofw_name(parent_dev, "cpu_g", &sc->clk_cpu_g);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "cpu_g", &sc->clk_cpu_g);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cpu_g' clock: %d\n", rv);
 		return (ENXIO);
 	}
 
-	rv = clk_get_by_ofw_name(parent_dev, "cpu_lp", &sc->clk_cpu_lp);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "cpu_lp", &sc->clk_cpu_lp);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cpu_lp' clock\n");
 		return (ENXIO);
 	}
 
-	rv = clk_get_by_ofw_name(parent_dev, "pll_x", &sc->clk_pll_x);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "pll_x", &sc->clk_pll_x);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll_x' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(parent_dev, "pll_p", &sc->clk_pll_p);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "pll_p", &sc->clk_pll_p);
 	if (rv != 0) {
 		device_printf(parent_dev, "Cannot get 'pll_p' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(parent_dev, "dfll", &sc->clk_dfll);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "dfll", &sc->clk_dfll);
 	if (rv != 0) {
 		/* XXX DPLL is not implemented yet */
 /*
@@ -475,7 +474,14 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 static void
 tegra124_cpufreq_identify(driver_t *driver, device_t parent)
 {
+	phandle_t root;
 
+	root = OF_finddevice("/");
+	if (!ofw_bus_node_is_compatible(root, "nvidia,tegra124"))
+		return;
+
+	if (device_get_unit(parent) != 0)
+		return;
 	if (device_find_child(parent, "tegra124_cpufreq", -1) != NULL)
 		return;
 	if (BUS_ADD_CHILD(parent, 0, "tegra124_cpufreq", -1) == NULL)
@@ -486,8 +492,6 @@ static int
 tegra124_cpufreq_probe(device_t dev)
 {
 
-	if (device_get_unit(dev) != 0)
-		return (ENXIO);
 	device_set_desc(dev, "CPU Frequency Control");
 
 	return (0);
@@ -588,11 +592,7 @@ static device_method_t tegra124_cpufreq_methods[] = {
 };
 
 static devclass_t tegra124_cpufreq_devclass;
-static driver_t tegra124_cpufreq_driver = {
-	"tegra124_cpufreq",
-	tegra124_cpufreq_methods,
-	sizeof(struct tegra124_cpufreq_softc),
-};
-
+static DEFINE_CLASS_0(tegra124_cpufreq, tegra124_cpufreq_driver,
+    tegra124_cpufreq_methods, sizeof(struct tegra124_cpufreq_softc));
 DRIVER_MODULE(tegra124_cpufreq, cpu, tegra124_cpufreq_driver,
-    tegra124_cpufreq_devclass, 0, 0);
+    tegra124_cpufreq_devclass, NULL, NULL);

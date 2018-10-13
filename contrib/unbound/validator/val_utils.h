@@ -42,10 +42,12 @@
 #ifndef VALIDATOR_VAL_UTILS_H
 #define VALIDATOR_VAL_UTILS_H
 #include "util/data/packed_rrset.h"
+#include "sldns/pkthdr.h"
 struct query_info;
 struct reply_info;
 struct val_env;
 struct module_env;
+struct module_qstate;
 struct ub_packed_rrset_key;
 struct key_entry_key;
 struct regional;
@@ -70,7 +72,7 @@ enum val_classification {
 	/** A NXDOMAIN response. */
 	VAL_CLASS_NAMEERROR,
 	/** A CNAME/DNAME chain, and the offset is at the end of it,
-	 * but there is no answer here, it can be NAMERROR or NODATA. */
+	 * but there is no answer here, it can be NAMEERROR or NODATA. */
 	VAL_CLASS_CNAMENOANSWER,
 	/** A referral, from cache with a nonRD query. */
 	VAL_CLASS_REFERRAL,
@@ -120,11 +122,14 @@ void val_find_signer(enum val_classification subtype,
  * @param sigalg: if nonNULL provide downgrade protection otherwise one
  *   algorithm is enough.  Algo list is constructed in here.
  * @param reason: reason of failure. Fixed string or alloced in scratch.
+ * @param section: section of packet where this rrset comes from.
+ * @param qstate: qstate with region.
  * @return security status of verification.
  */
 enum sec_status val_verify_rrset(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* keys,
-	uint8_t* sigalg, char** reason);
+	uint8_t* sigalg, char** reason, sldns_pkt_section section,
+	struct module_qstate* qstate);
 
 /**
  * Verify RRset with keys from a keyset.
@@ -133,11 +138,14 @@ enum sec_status val_verify_rrset(struct module_env* env, struct val_env* ve,
  * @param rrset: what to verify
  * @param kkey: key_entry to verify with.
  * @param reason: reason of failure. Fixed string or alloced in scratch.
+ * @param section: section of packet where this rrset comes from.
+ * @param qstate: qstate with region.
  * @return security status of verification.
  */
 enum sec_status val_verify_rrset_entry(struct module_env* env, 
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
-	struct key_entry_key* kkey, char** reason);
+	struct key_entry_key* kkey, char** reason, sldns_pkt_section section,
+	struct module_qstate* qstate);
 
 /**
  * Verify DNSKEYs with DS rrset. Like val_verify_new_DNSKEYs but
@@ -150,13 +158,15 @@ enum sec_status val_verify_rrset_entry(struct module_env* env,
  *   algorithm is enough.  The list of signalled algorithms is returned,
  *   must have enough space for ALGO_NEEDS_MAX+1.
  * @param reason: reason of failure. Fixed string or alloced in scratch.
+ * @param qstate: qstate with region.
  * @return: sec_status_secure if a DS matches.
  *     sec_status_insecure if end of trust (i.e., unknown algorithms).
  *     sec_status_bogus if it fails.
  */
 enum sec_status val_verify_DNSKEY_with_DS(struct module_env* env, 
 	struct val_env* ve, struct ub_packed_rrset_key* dnskey_rrset, 
-	struct ub_packed_rrset_key* ds_rrset, uint8_t* sigalg, char** reason);
+	struct ub_packed_rrset_key* ds_rrset, uint8_t* sigalg, char** reason,
+	struct module_qstate* qstate);
 
 /**
  * Verify DNSKEYs with DS and DNSKEY rrset.  Like val_verify_DNSKEY_with_DS
@@ -170,6 +180,7 @@ enum sec_status val_verify_DNSKEY_with_DS(struct module_env* env,
  *   algorithm is enough.  The list of signalled algorithms is returned,
  *   must have enough space for ALGO_NEEDS_MAX+1.
  * @param reason: reason of failure. Fixed string or alloced in scratch.
+ * @param qstate: qstate with region.
  * @return: sec_status_secure if a DS matches.
  *     sec_status_insecure if end of trust (i.e., unknown algorithms).
  *     sec_status_bogus if it fails.
@@ -177,7 +188,8 @@ enum sec_status val_verify_DNSKEY_with_DS(struct module_env* env,
 enum sec_status val_verify_DNSKEY_with_TA(struct module_env* env, 
 	struct val_env* ve, struct ub_packed_rrset_key* dnskey_rrset, 
 	struct ub_packed_rrset_key* ta_ds,
-	struct ub_packed_rrset_key* ta_dnskey, uint8_t* sigalg, char** reason);
+	struct ub_packed_rrset_key* ta_dnskey, uint8_t* sigalg, char** reason,
+	struct module_qstate* qstate);
 
 /**
  * Verify new DNSKEYs with DS rrset. The DS contains hash values that should
@@ -192,6 +204,7 @@ enum sec_status val_verify_DNSKEY_with_TA(struct module_env* env,
  * @param downprot: if true provide downgrade protection otherwise one
  *   algorithm is enough.
  * @param reason: reason of failure. Fixed string or alloced in scratch.
+ * @param qstate: qstate with region.
  * @return a KeyEntry. This will either contain the now trusted
  *         dnskey_rrset, a "null" key entry indicating that this DS
  *         rrset/DNSKEY pair indicate an secure end to the island of trust
@@ -205,7 +218,8 @@ enum sec_status val_verify_DNSKEY_with_TA(struct module_env* env,
 struct key_entry_key* val_verify_new_DNSKEYs(struct regional* region, 
 	struct module_env* env, struct val_env* ve, 
 	struct ub_packed_rrset_key* dnskey_rrset, 
-	struct ub_packed_rrset_key* ds_rrset, int downprot, char** reason);
+	struct ub_packed_rrset_key* ds_rrset, int downprot, char** reason,
+	struct module_qstate* qstate);
 
 
 /**
@@ -220,6 +234,7 @@ struct key_entry_key* val_verify_new_DNSKEYs(struct regional* region,
  * @param downprot: if true provide downgrade protection otherwise one
  *   algorithm is enough.
  * @param reason: reason of failure. Fixed string or alloced in scratch.
+ * @param qstate: qstate with region.
  * @return a KeyEntry. This will either contain the now trusted
  *         dnskey_rrset, a "null" key entry indicating that this DS
  *         rrset/DNSKEY pair indicate an secure end to the island of trust
@@ -235,7 +250,7 @@ struct key_entry_key* val_verify_new_DNSKEYs_with_ta(struct regional* region,
 	struct ub_packed_rrset_key* dnskey_rrset, 
 	struct ub_packed_rrset_key* ta_ds_rrset, 
 	struct ub_packed_rrset_key* ta_dnskey_rrset,
-	int downprot, char** reason);
+	int downprot, char** reason, struct module_qstate* qstate);
 
 /**
  * Determine if DS rrset is usable for validator or not.
@@ -252,10 +267,11 @@ int val_dsset_isusable(struct ub_packed_rrset_key* ds_rrset);
  * the result of a wildcard expansion. If so, return the name of the
  * generating wildcard.
  * 
- * @param rrset The rrset to chedck.
+ * @param rrset The rrset to check.
  * @param wc: the wildcard name, if the rrset was synthesized from a wildcard.
  *         unchanged if not.  The wildcard name, without "*." in front, is 
  *         returned. This is a pointer into the rrset owner name.
+ * @param wc_len: the length of the returned wildcard name.
  * @return false if the signatures are inconsistent in indicating the 
  * 	wildcard status; possible spoofing of wildcard response for other
  * 	responses is being tried. We lost the status which rrsig was verified
@@ -264,7 +280,8 @@ int val_dsset_isusable(struct ub_packed_rrset_key* ds_rrset);
  * 	of service; but in that you could also have removed the real 
  * 	signature anyway.
  */
-int val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc);
+int val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc,
+	size_t* wc_len);
 
 /**
  * Chase the cname to the next query name.
@@ -306,10 +323,10 @@ void val_reply_remove_auth(struct reply_info* rep, size_t index);
  * So that unsigned data does not get let through to clients, when we have
  * found the data to be secure.
  *
- * @param ve: validator environment with cleaning options.
+ * @param env: environment with cleaning options.
  * @param rep: reply to dump all nonsecure stuff out of.
  */
-void val_check_nonsecure(struct val_env* ve, struct reply_info* rep);
+void val_check_nonsecure(struct module_env* env, struct reply_info* rep);
 
 /**
  * Mark all unchecked rrset entries not below a trust anchor as indeterminate.

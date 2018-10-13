@@ -1,4 +1,4 @@
-/* $NetBSD: t_truncate.c,v 1.2 2011/08/18 19:48:03 dholland Exp $ */
+/* $NetBSD: t_truncate.c,v 1.3 2017/01/13 20:03:51 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,20 +29,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_truncate.c,v 1.2 2011/08/18 19:48:03 dholland Exp $");
+__RCSID("$NetBSD: t_truncate.c,v 1.3 2017/01/13 20:03:51 christos Exp $");
 
 #include <sys/stat.h>
 
 #include <atf-c.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __FreeBSD__
-#include <limits.h>
-#endif
 
 static const char path[] = "truncate";
 static const size_t sizes[] = { 8, 16, 512, 1024, 2048, 4094, 3000, 30 };
@@ -153,9 +150,7 @@ ATF_TC_HEAD(truncate_err, tc)
 
 ATF_TC_BODY(truncate_err, tc)
 {
-#ifndef __NetBSD__
 	char buf[PATH_MAX];
-#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EFAULT, truncate((void *)-1, 999) == -1);
@@ -167,13 +162,9 @@ ATF_TC_BODY(truncate_err, tc)
 	ATF_REQUIRE_ERRNO(ENOENT, truncate("/a/b/c/d/e/f/g", 999) == -1);
 
 	errno = 0;
-#ifdef __NetBSD__
-	ATF_REQUIRE_ERRNO(EACCES, truncate("/usr/bin/fpr", 999) == -1);
-#else
 	snprintf(buf, sizeof(buf), "%s/truncate_test.root_owned",
 	    atf_tc_get_config_var(tc, "srcdir"));
 	ATF_REQUIRE_ERRNO(EACCES, truncate(buf, 999) == -1);
-#endif
 }
 
 ATF_TP_ADD_TCS(tp)

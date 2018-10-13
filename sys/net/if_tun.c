@@ -466,7 +466,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		mtx_unlock(&tp->tun_mtx);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			/* deal w/IPv4 PtP destination; unlocked read */
 			if (ifa->ifa_addr->sa_family == AF_INET) {
 				rtinit(ifa, (int)RTM_DELETE,
@@ -508,7 +508,7 @@ tuninit(struct ifnet *ifp)
 
 #ifdef INET
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *si;
 
@@ -662,23 +662,29 @@ static	int
 tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
-	int		error;
+	struct ifreq ifr;
 	struct tun_softc *tp = dev->si_drv1;
 	struct tuninfo *tunp;
+	int error;
 
 	switch (cmd) {
 	case TUNSIFINFO:
 		tunp = (struct tuninfo *)data;
-		if (tunp->mtu < IF_MINMTU)
-			return (EINVAL);
-		if (TUN2IFP(tp)->if_mtu != tunp->mtu) {
-			error = priv_check(td, PRIV_NET_SETIFMTU);
-			if (error)
-				return (error);
-		}
+		if (TUN2IFP(tp)->if_type != tunp->type)
+			return (EPROTOTYPE);
 		mtx_lock(&tp->tun_mtx);
-		TUN2IFP(tp)->if_mtu = tunp->mtu;
-		TUN2IFP(tp)->if_type = tunp->type;
+		if (TUN2IFP(tp)->if_mtu != tunp->mtu) {
+			strlcpy(ifr.ifr_name, if_name(TUN2IFP(tp)), IFNAMSIZ);
+			ifr.ifr_mtu = tunp->mtu;
+			CURVNET_SET(TUN2IFP(tp)->if_vnet);
+			error = ifhwioctl(SIOCSIFMTU, TUN2IFP(tp),
+			    (caddr_t)&ifr, td);
+			CURVNET_RESTORE();
+			if (error) {
+				mtx_unlock(&tp->tun_mtx);
+				return (error);
+			}
+		}
 		TUN2IFP(tp)->if_baudrate = tunp->baudrate;
 		mtx_unlock(&tp->tun_mtx);
 		break;
@@ -909,7 +915,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_TUN);
+	random_harvest_queue(m, sizeof(*m), RANDOM_NET_TUN);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	CURVNET_SET(ifp->if_vnet);

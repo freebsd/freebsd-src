@@ -45,8 +45,8 @@
 #define	CPU		curcpu
 #define	minclsyspri	PRIBIO
 #define	maxclsyspri	PVM
-#define	max_ncpus	mp_ncpus
-#define	boot_max_ncpus	mp_ncpus
+#define	max_ncpus	(mp_maxid + 1)
+#define	boot_max_ncpus	(mp_maxid + 1)
 
 #define	TS_RUN	0
 
@@ -91,6 +91,9 @@ do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 #define	thread_create(stk, stksize, proc, arg, len, pp, state, pri) \
 	do_thread_create(stk, stksize, proc, arg, len, pp, state, pri)
 #define	thread_exit()	kthread_exit()
+
+int	uread(proc_t *, void *, size_t, uintptr_t);
+int	uwrite(proc_t *, void *, size_t, uintptr_t);
 
 #endif	/* _KERNEL */
 

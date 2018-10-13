@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
  * Copyright (c) Peter Wemm <peter@netplex.com.au>
  * All rights reserved.
@@ -43,31 +45,30 @@ struct pvo_entry;
 	struct pmap	*pc_curpmap;		/* current pmap */	\
 	struct thread	*pc_fputhread;		/* current fpu user */  \
 	struct thread	*pc_vecthread;		/* current vec user */  \
+	struct thread	*pc_htmthread;		/* current htm user */  \
 	uintptr_t	pc_hwref;					\
-	uint32_t	pc_pir;						\
 	int		pc_bsp;						\
 	volatile int	pc_awake;					\
 	uint32_t	pc_ipimask;					\
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];				\
-	void		*pc_restore;
+	void		*pc_restore;					\
+	vm_offset_t	pc_qmap_addr;
 
 #define PCPU_MD_AIM32_FIELDS						\
-	vm_offset_t	pc_qmap_addr;					\
-	struct pvo_entry *pc_qmap_pvo;					\
-	struct mtx	pc_qmap_lock;					\
-	/* char		__pad[0] */
+	struct pvo_entry *qmap_pvo;					\
+	struct mtx	qmap_lock;					\
+	char		__pad[128];
 
 #define PCPU_MD_AIM64_FIELDS						\
-	struct slb	pc_slb[64];					\
-	struct slb	**pc_userslb;					\
-	register_t	pc_slbsave[18];					\
-	uint8_t		pc_slbstack[1024];				\
-	vm_offset_t	pc_qmap_addr;					\
-	struct pvo_entry *pc_qmap_pvo;					\
-	struct mtx	pc_qmap_lock;					\
-	char		__pad[1121 - sizeof(struct mtx)]
+	struct slb	slb[64];					\
+	struct slb	**userslb;					\
+	register_t	slbsave[18];					\
+	uint8_t		slbstack[1024];				\
+	struct pvo_entry *qmap_pvo;					\
+	struct mtx	qmap_lock;					\
+	char		__pad[1345];
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
@@ -80,15 +81,19 @@ struct pvo_entry;
 #define	BOOKE_TLB_SAVELEN	16
 #define	BOOKE_TLBSAVE_LEN	(BOOKE_TLB_SAVELEN * BOOKE_TLB_MAXNEST)
 
+#ifdef __powerpc64__
+#define	BOOKE_PCPU_PAD	901
+#else
+#define	BOOKE_PCPU_PAD	429
+#endif
 #define PCPU_MD_BOOKE_FIELDS						\
-	register_t	pc_booke_critsave[BOOKE_CRITSAVE_LEN];		\
-	register_t	pc_booke_mchksave[CPUSAVE_LEN];			\
-	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
-	register_t	pc_booke_tlb_level;				\
-	vm_offset_t	pc_qmap_addr;					\
-	uint32_t	*pc_booke_tlb_lock;				\
-	int		pc_tid_next;					\
-	char		__pad[165]
+	register_t	critsave[BOOKE_CRITSAVE_LEN];		\
+	register_t	mchksave[CPUSAVE_LEN];			\
+	register_t	tlbsave[BOOKE_TLBSAVE_LEN];		\
+	register_t	tlb_level;				\
+	uintptr_t	*tlb_lock;				\
+	int		tid_next;					\
+	char		__pad[BOOKE_PCPU_PAD];
 
 /* Definitions for register offsets within the exception tmp save areas */
 #define	CPUSAVE_R27	0		/* where r27 gets saved */
@@ -102,6 +107,8 @@ struct pvo_entry;
 #define	CPUSAVE_BOOKE_ESR	6	/* where SPR_ESR gets saved */
 #define	CPUSAVE_SRR0	7		/* where SRR0 gets saved */
 #define	CPUSAVE_SRR1	8		/* where SRR1 gets saved */
+#define	BOOKE_CRITSAVE_SRR0	9	/* where real SRR0 gets saved (critical) */
+#define	BOOKE_CRITSAVE_SRR1	10	/* where real SRR0 gets saved (critical) */
 
 /* Book-E TLBSAVE is more elaborate */
 #define TLBSAVE_BOOKE_LR	0
@@ -121,28 +128,20 @@ struct pvo_entry;
 #define TLBSAVE_BOOKE_R30	14
 #define TLBSAVE_BOOKE_R31	15
 
-#ifdef AIM
 #define	PCPU_MD_FIELDS		\
 	PCPU_MD_COMMON_FIELDS	\
-	PCPU_MD_AIM_FIELDS
-#endif
-#if defined(BOOKE)
-#define	PCPU_MD_FIELDS		\
-	PCPU_MD_COMMON_FIELDS	\
-	PCPU_MD_BOOKE_FIELDS
-#endif
-
-/*
- * Catch-all for ports (e.g. lsof, used by gtop)
- */
-#ifndef PCPU_MD_FIELDS
-#define	PCPU_MD_FIELDS							\
-	int		pc_md_placeholder[32]
-#endif
+	union {			\
+	    struct {		\
+		PCPU_MD_AIM_FIELDS	\
+	    } pc_aim;		\
+	    struct {		\
+		PCPU_MD_BOOKE_FIELDS	\
+	    } pc_booke;		\
+	}
 
 #ifdef _KERNEL
 
-#define pcpup	((struct pcpu *) powerpc_get_pcpup())
+#define pcpup	(get_pcpu())
 
 static __inline __pure2 struct thread *
 __curthread(void)

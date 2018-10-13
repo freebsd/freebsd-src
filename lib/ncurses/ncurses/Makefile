@@ -10,7 +10,7 @@ MK_MAN=no
 
 .include <src.opts.mk>
 
-.include "${.CURDIR}/../config.mk"
+.include "${.CURDIR:H}/config.mk"
 
 LIB=		ncurses${LIB_SUFFIX}
 SHLIB_MAJOR=	8
@@ -391,10 +391,10 @@ keys.list: MKkeys_list.sh Caps
 build-tools: make_hash make_keys
 
 make_keys: make_keys.c names.c ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
-	${CC} -o $@ ${CFLAGS} ${NCURSES_DIR}/ncurses/tinfo/make_keys.c
+	${CC:N${CCACHE_BIN}} -o $@ ${CFLAGS} ${NCURSES_DIR}/ncurses/tinfo/make_keys.c
 
 make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
-	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
+	${CC:N${CCACHE_BIN}} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES_DIR}/ncurses/tinfo/make_hash.c
 
 # ./configure generated

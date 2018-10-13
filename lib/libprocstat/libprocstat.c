@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
+ * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
  * Copyright (c) 1988, 1993
  *      The Regents of the University of California.  All rights reserved.
@@ -47,10 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/un.h>
+#define	_WANT_UNPCB
 #include <sys/unpcb.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
@@ -62,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ksem.h>
 #include <sys/mman.h>
 #include <sys/capsicum.h>
+#include <sys/ptrace.h>
 #define	_KERNEL
 #include <sys/mount.h>
 #include <sys/pipe.h>
@@ -82,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#define	_WANT_INPCB
 #include <netinet/in_pcb.h>
 
 #include <assert.h>
@@ -282,7 +289,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		name[1] = KERN_PROC;
 		name[2] = what;
 		name[3] = arg;
-		error = sysctl(name, 4, NULL, &len, NULL, 0);
+		error = sysctl(name, nitems(name), NULL, &len, NULL, 0);
 		if (error < 0 && errno != EPERM) {
 			warn("sysctl(kern.proc)");
 			goto fail;
@@ -299,7 +306,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 				goto fail;
 			}
 			olen = len;
-			error = sysctl(name, 4, p, &len, NULL, 0);
+			error = sysctl(name, nitems(name), p, &len, NULL, 0);
 		} while (error < 0 && errno == ENOMEM && olen == len);
 		if (error < 0 && errno != EPERM) {
 			warn("sysctl(kern.proc)");
@@ -577,6 +584,10 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 			type = PS_FST_TYPE_SHM;
 			data = file.f_data;
 			break;
+		case DTYPE_PROCDESC:
+			type = PS_FST_TYPE_PROCDESC;
+			data = file.f_data;
+			break;
 		default:
 			continue;
 		}
@@ -660,6 +671,7 @@ kinfo_type2fst(int kftype)
 		int	kf_type;
 		int	fst_type;
 	} kftypes2fst[] = {
+		{ KF_TYPE_PROCDESC, PS_FST_TYPE_PROCDESC },
 		{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
 		{ KF_TYPE_FIFO, PS_FST_TYPE_FIFO },
 		{ KF_TYPE_KQUEUE, PS_FST_TYPE_KQUEUE },
@@ -1334,12 +1346,12 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 	struct statfs stbuf;
 	struct kinfo_file *kif;
 	struct kinfo_vmentry *kve;
+	char *name, *path;
 	uint64_t fileid;
 	uint64_t size;
-	char *name, *path;
-	uint32_t fsid;
+	uint64_t fsid;
+	uint64_t rdev;
 	uint16_t mode;
-	uint32_t rdev;
 	int vntype;
 	int status;
 
@@ -1494,6 +1506,8 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 				} else
 					sock->inp_ppcb =
 					    (uintptr_t)inpcb.inp_ppcb;
+				sock->sendq = s.so_snd.sb_ccc;
+				sock->recvq = s.so_rcv.sb_ccc;
 			}
 		}
 		break;
@@ -1507,6 +1521,8 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 				sock->so_rcv_sb_state = s.so_rcv.sb_state;
 				sock->so_snd_sb_state = s.so_snd.sb_state;
 				sock->unp_conn = (uintptr_t)unpcb.unp_conn;
+				sock->sendq = s.so_snd.sb_ccc;
+				sock->recvq = s.so_rcv.sb_ccc;
 			}
 		}
 		break;
@@ -1542,8 +1558,10 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	sock->dom_family = kif->kf_sock_domain;
 	sock->so_pcb = kif->kf_un.kf_sock.kf_sock_pcb;
 	strlcpy(sock->dname, kif->kf_path, sizeof(sock->dname));
-	bcopy(&kif->kf_sa_local, &sock->sa_local, kif->kf_sa_local.ss_len);
-	bcopy(&kif->kf_sa_peer, &sock->sa_peer, kif->kf_sa_peer.ss_len);
+	bcopy(&kif->kf_un.kf_sock.kf_sa_local, &sock->sa_local,
+	    kif->kf_un.kf_sock.kf_sa_local.ss_len);
+	bcopy(&kif->kf_un.kf_sock.kf_sa_peer, &sock->sa_peer,
+	    kif->kf_un.kf_sock.kf_sa_peer.ss_len);
 
 	/*
 	 * Protocol specific data.
@@ -1551,17 +1569,22 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	switch(sock->dom_family) {
 	case AF_INET:
 	case AF_INET6:
-		if (sock->proto == IPPROTO_TCP)
+		if (sock->proto == IPPROTO_TCP) {
 			sock->inp_ppcb = kif->kf_un.kf_sock.kf_sock_inpcb;
+			sock->sendq = kif->kf_un.kf_sock.kf_sock_sendq;
+			sock->recvq = kif->kf_un.kf_sock.kf_sock_recvq;
+		}
 		break;
 	case AF_UNIX:
 		if (kif->kf_un.kf_sock.kf_sock_unpconn != 0) {
-				sock->so_rcv_sb_state =
-				    kif->kf_un.kf_sock.kf_sock_rcv_sb_state;
-				sock->so_snd_sb_state =
-				    kif->kf_un.kf_sock.kf_sock_snd_sb_state;
-				sock->unp_conn =
-				    kif->kf_un.kf_sock.kf_sock_unpconn;
+			sock->so_rcv_sb_state =
+			    kif->kf_un.kf_sock.kf_sock_rcv_sb_state;
+			sock->so_snd_sb_state =
+			    kif->kf_un.kf_sock.kf_sock_snd_sb_state;
+			sock->unp_conn =
+			    kif->kf_un.kf_sock.kf_sock_unpconn;
+			sock->sendq = kif->kf_un.kf_sock.kf_sock_sendq;
+			sock->recvq = kif->kf_un.kf_sock.kf_sock_recvq;
 		}
 		break;
 	default:
@@ -1760,7 +1783,7 @@ getargv(struct procstat *procstat, struct kinfo_proc *kp, size_t nchr, int env)
 		name[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
 		name[3] = kp->ki_pid;
 		len = nchr;
-		error = sysctl(name, 4, av->buf, &len, NULL, 0);
+		error = sysctl(name, nitems(name), av->buf, &len, NULL, 0);
 		if (error != 0 && errno != ESRCH && errno != EPERM)
 			warn("sysctl(kern.proc.%s)", env ? "env" : "args");
 		if (error != 0 || len == 0)
@@ -1983,7 +2006,7 @@ procstat_getgroups_sysctl(pid_t pid, unsigned int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(mib, 4, groups, &len, NULL, 0) == -1) {
+	if (sysctl(mib, nitems(mib), groups, &len, NULL, 0) == -1) {
 		warn("sysctl: kern.proc.groups: %d", pid);
 		free(groups);
 		return (NULL);
@@ -2059,7 +2082,7 @@ procstat_getumask_sysctl(pid_t pid, unsigned short *maskp)
 	mib[2] = KERN_PROC_UMASK;
 	mib[3] = pid;
 	len = sizeof(*maskp);
-	error = sysctl(mib, 4, maskp, &len, NULL, 0);
+	error = sysctl(mib, nitems(mib), maskp, &len, NULL, 0);
 	if (error != 0 && errno != ESRCH && errno != EPERM)
 		warn("sysctl: kern.proc.umask: %d", pid);
 	return (error);
@@ -2139,7 +2162,7 @@ procstat_getrlimit_sysctl(pid_t pid, int which, struct rlimit* rlimit)
 	name[3] = pid;
 	name[4] = which;
 	len = sizeof(struct rlimit);
-	error = sysctl(name, 5, rlimit, &len, NULL, 0);
+	error = sysctl(name, nitems(name), rlimit, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH) {
 		warn("sysctl: kern.proc.rlimit: %d", pid);
 		return (-1);
@@ -2169,6 +2192,7 @@ procstat_getrlimit_core(struct procstat_core *core, int which,
 		return (-1);
 	}
 	*rlimit = rlimits[which];
+	free(rlimits);
 	return (0);
 }
 
@@ -2201,7 +2225,7 @@ procstat_getpathname_sysctl(pid_t pid, char *pathname, size_t maxlen)
 	name[2] = KERN_PROC_PATHNAME;
 	name[3] = pid;
 	len = maxlen;
-	error = sysctl(name, 4, pathname, &len, NULL, 0);
+	error = sysctl(name, nitems(name), pathname, &len, NULL, 0);
 	if (error != 0 && errno != ESRCH)
 		warn("sysctl: kern.proc.pathname: %d", pid);
 	if (len == 0)
@@ -2281,7 +2305,7 @@ procstat_getosrel_sysctl(pid_t pid, int *osrelp)
 	name[2] = KERN_PROC_OSREL;
 	name[3] = pid;
 	len = sizeof(*osrelp);
-	error = sysctl(name, 4, osrelp, &len, NULL, 0);
+	error = sysctl(name, nitems(name), osrelp, &len, NULL, 0);
 	if (error != 0 && errno != ESRCH)
 		warn("sysctl: kern.proc.osrel: %d", pid);
 	return (error);
@@ -2341,7 +2365,7 @@ is_elf32_sysctl(pid_t pid)
 	name[2] = KERN_PROC_SV_NAME;
 	name[3] = pid;
 	len = sizeof(sv_name);
-	error = sysctl(name, 4, sv_name, &len, NULL, 0);
+	error = sysctl(name, nitems(name), sv_name, &len, NULL, 0);
 	if (error != 0 || len == 0)
 		return (0);
 	for (i = 0; i < sizeof(elf32_sv_names) / sizeof(*elf32_sv_names); i++) {
@@ -2372,7 +2396,7 @@ procstat_getauxv32_sysctl(pid_t pid, unsigned int *cntp)
 		warn("malloc(%zu)", len);
 		goto out;
 	}
-	if (sysctl(name, 4, auxv32, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), auxv32, &len, NULL, 0) == -1) {
 		if (errno != ESRCH && errno != EPERM)
 			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		goto out;
@@ -2421,7 +2445,7 @@ procstat_getauxv_sysctl(pid_t pid, unsigned int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(name, 4, auxv, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), auxv, &len, NULL, 0) == -1) {
 		if (errno != ESRCH && errno != EPERM)
 			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		free(auxv);
@@ -2469,6 +2493,54 @@ procstat_freeauxv(struct procstat *procstat __unused, Elf_Auxinfo *auxv)
 	free(auxv);
 }
 
+static struct ptrace_lwpinfo *
+procstat_getptlwpinfo_core(struct procstat_core *core, unsigned int *cntp)
+{
+	void *buf;
+	struct ptrace_lwpinfo *pl;
+	unsigned int cnt;
+	size_t len;
+
+	cnt = procstat_core_note_count(core, PSC_TYPE_PTLWPINFO);
+	if (cnt == 0)
+		return (NULL);
+
+	len = cnt * sizeof(*pl);
+	buf = calloc(1, len);
+	pl = procstat_core_get(core, PSC_TYPE_PTLWPINFO, buf, &len);
+	if (pl == NULL) {
+		free(buf);
+		return (NULL);
+	}
+	*cntp = len / sizeof(*pl);
+	return (pl);
+}
+
+struct ptrace_lwpinfo *
+procstat_getptlwpinfo(struct procstat *procstat, unsigned int *cntp)
+{
+	switch (procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		warnx("sysctl method is not supported");
+		return (NULL);
+	case PROCSTAT_CORE:
+	 	return (procstat_getptlwpinfo_core(procstat->core, cntp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freeptlwpinfo(struct procstat *procstat __unused,
+    struct ptrace_lwpinfo *pl)
+{
+	free(pl);
+}
+
 static struct kinfo_kstack *
 procstat_getkstack_sysctl(pid_t pid, int *cntp)
 {
@@ -2482,7 +2554,7 @@ procstat_getkstack_sysctl(pid_t pid, int *cntp)
 	name[3] = pid;
 
 	len = 0;
-	error = sysctl(name, 4, NULL, &len, NULL, 0);
+	error = sysctl(name, nitems(name), NULL, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH && errno != EPERM && errno != ENOENT) {
 		warn("sysctl: kern.proc.kstack: %d", pid);
 		return (NULL);
@@ -2499,7 +2571,7 @@ procstat_getkstack_sysctl(pid_t pid, int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(name, 4, kkstp, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), kkstp, &len, NULL, 0) == -1) {
 		warn("sysctl: kern.proc.pid: %d", pid);
 		free(kkstp);
 		return (NULL);

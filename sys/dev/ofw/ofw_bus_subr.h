@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
@@ -32,7 +34,9 @@
 #define	_DEV_OFW_OFW_BUS_SUBR_H_
 
 #include <sys/bus.h>
-
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 #include <dev/ofw/openfirm.h>
 
 #include "ofw_bus_if.h"
@@ -52,16 +56,18 @@ struct ofw_compat_data {
 	uintptr_t	 ocd_data;
 };
 
+#ifdef INTRNG
 struct intr_map_data_fdt {
 	struct intr_map_data	hdr;
 	phandle_t		iparent;
 	u_int			ncells;
-	pcell_t			*cells;
+	pcell_t			cells[];
 };
+#endif
 
-#define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
+#define SIMPLEBUS_PNP_DESCR "Z:compat;P:#;"
 #define SIMPLEBUS_PNP_INFO(t) \
-	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
+	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t) / sizeof(t[0]));
 
 /* Generic implementation of ofw_bus_if.m methods and helper routines */
 int	ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *, phandle_t);
@@ -89,15 +95,16 @@ int ofw_bus_msimap(phandle_t, uint16_t, phandle_t *, uint32_t *);
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
-#ifndef INTRNG
+int ofw_bus_assigned_addresses_to_rl(device_t, phandle_t, pcell_t, pcell_t,
+    struct resource_list *);
 int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *, int *);
-#endif
 int ofw_bus_intr_by_rid(device_t, phandle_t, int, phandle_t *, int *,
     pcell_t **);
 
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);
 int ofw_bus_status_okay(device_t dev);
+int ofw_bus_node_status_okay(phandle_t node);
 
 /* Helper to get node's interrupt parent */
 phandle_t ofw_bus_find_iparent(phandle_t);
@@ -105,6 +112,7 @@ phandle_t ofw_bus_find_iparent(phandle_t);
 /* Helper routine for checking compat prop */
 int ofw_bus_is_compatible(device_t, const char *);
 int ofw_bus_is_compatible_strict(device_t, const char *);
+int ofw_bus_node_is_compatible(phandle_t, const char *);
 
 /* 
  * Helper routine to search a list of compat properties.  The table is

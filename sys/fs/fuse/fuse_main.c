@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc.
  * All rights reserved.
  *
@@ -89,7 +91,7 @@ static struct vfsconf fuse_vfsconf = {
 	.vfc_name = "fusefs",
 	.vfc_vfsops = &fuse_vfsops,
 	.vfc_typenum = -1,
-	.vfc_flags = VFCF_SYNTHETIC
+	.vfc_flags = VFCF_JAIL | VFCF_SYNTHETIC
 };
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, kernelabi_major, CTLFLAG_RD,

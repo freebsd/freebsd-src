@@ -22,64 +22,65 @@
  */
 struct codestring {
 	int code;
-	const char * const string;
+	const char * const string1;
+	const char * const string0;
 };
 
 /*
  * Leap status (leap)
  */
 static const struct codestring leap_codes[] = {
-	{ LEAP_NOWARNING,	"leap_none" },
-	{ LEAP_ADDSECOND,	"leap_add_sec" },
-	{ LEAP_DELSECOND,	"leap_del_sec" },
-	{ LEAP_NOTINSYNC,	"leap_alarm" },
-	{ -1,			"leap" }
+	{ LEAP_NOWARNING,	"leap_none",	0 },
+	{ LEAP_ADDSECOND,	"leap_add_sec",	0 },
+	{ LEAP_DELSECOND,	"leap_del_sec",	0 },
+	{ LEAP_NOTINSYNC,	"leap_alarm",	0 },
+	{ -1,			"leap",		0 }
 };
 
 /*
  * Clock source status (sync)
  */
 static const struct codestring sync_codes[] = {
-	{ CTL_SST_TS_UNSPEC,	"sync_unspec" },
-	{ CTL_SST_TS_ATOM,	"sync_pps" },
-	{ CTL_SST_TS_LF,	"sync_lf_radio" },
-	{ CTL_SST_TS_HF,	"sync_hf_radio" },
-	{ CTL_SST_TS_UHF,	"sync_uhf_radio" },
-	{ CTL_SST_TS_LOCAL,	"sync_local" },
-	{ CTL_SST_TS_NTP,	"sync_ntp" },
-	{ CTL_SST_TS_UDPTIME,	"sync_other" },
-	{ CTL_SST_TS_WRSTWTCH,	"sync_wristwatch" },
-	{ CTL_SST_TS_TELEPHONE,	"sync_telephone" },
-	{ -1,			"sync" }
+	{ CTL_SST_TS_UNSPEC,	"sync_unspec",		0 },
+	{ CTL_SST_TS_ATOM,	"sync_pps",		0 },
+	{ CTL_SST_TS_LF,	"sync_lf_radio",	0 },
+	{ CTL_SST_TS_HF,	"sync_hf_radio",	0 },
+	{ CTL_SST_TS_UHF,	"sync_uhf_radio",	0 },
+	{ CTL_SST_TS_LOCAL,	"sync_local",		0 },
+	{ CTL_SST_TS_NTP,	"sync_ntp",		0 },
+	{ CTL_SST_TS_UDPTIME,	"sync_other",		0 },
+	{ CTL_SST_TS_WRSTWTCH,	"sync_wristwatch",	0 },
+	{ CTL_SST_TS_TELEPHONE,	"sync_telephone",	0 },
+	{ -1,			"sync",			0 }
 };
 
 /*
  * Peer selection status (sel)
  */
 static const struct codestring select_codes[] = {
-	{ CTL_PST_SEL_REJECT,	"sel_reject" },
-	{ CTL_PST_SEL_SANE,	"sel_falsetick" },
-	{ CTL_PST_SEL_CORRECT,	"sel_excess" },
-	{ CTL_PST_SEL_SELCAND,	"sel_outlier" },
-	{ CTL_PST_SEL_SYNCCAND,	"sel_candidate" },
-	{ CTL_PST_SEL_EXCESS,	"sel_backup" },
-	{ CTL_PST_SEL_SYSPEER,	"sel_sys.peer" },
-	{ CTL_PST_SEL_PPS,	"sel_pps.peer" },
-	{ -1,			"sel" }
+	{ CTL_PST_SEL_REJECT,	"sel_reject",		0 },
+	{ CTL_PST_SEL_SANE,	"sel_falsetick",	0 },
+	{ CTL_PST_SEL_CORRECT,	"sel_excess",		0 },
+	{ CTL_PST_SEL_SELCAND,	"sel_outlier",		0 },
+	{ CTL_PST_SEL_SYNCCAND,	"sel_candidate",	0 },
+	{ CTL_PST_SEL_EXCESS,	"sel_backup",		0 },
+	{ CTL_PST_SEL_SYSPEER,	"sel_sys.peer",		0 },
+	{ CTL_PST_SEL_PPS,	"sel_pps.peer",		0 },
+	{ -1,			"sel",			0 }
 };
 
 /*
  * Clock status (clk)
  */
 static const struct codestring clock_codes[] = {
-	{ CTL_CLK_OKAY,		"clk_unspec" },
-	{ CTL_CLK_NOREPLY,	"clk_no_reply" },
-	{ CTL_CLK_BADFORMAT,	"clk_bad_format" },
-	{ CTL_CLK_FAULT,	"clk_fault" },
-	{ CTL_CLK_PROPAGATION,	"clk_bad_signal" },
-	{ CTL_CLK_BADDATE,	"clk_bad_date" },
-	{ CTL_CLK_BADTIME,	"clk_bad_time" },
-	{ -1,			"clk" }
+	{ CTL_CLK_OKAY,		"clk_unspec",		0 },
+	{ CTL_CLK_NOREPLY,	"clk_no_reply",		0 },
+	{ CTL_CLK_BADFORMAT,	"clk_bad_format",	0 },
+	{ CTL_CLK_FAULT,	"clk_fault",		0 },
+	{ CTL_CLK_PROPAGATION,	"clk_bad_signal",	0 },
+	{ CTL_CLK_BADDATE,	"clk_bad_date",		0 },
+	{ CTL_CLK_BADTIME,	"clk_bad_time",		0 },
+	{ -1,			"clk",			0 }
 };
 
 
@@ -88,20 +89,20 @@ static const struct codestring clock_codes[] = {
  * Flash bits -- see ntpq.c tstflags & tstflagnames
  */
 static const struct codestring flash_codes[] = {
-	{ TEST1,		"pkt_dup" },
-	{ TEST2,		"pkt_bogus" },
-	{ TEST3,		"pkt_unsync" },
-	{ TEST4,		"pkt_denied" },
-	{ TEST5,		"pkt_auth" },
-	{ TEST6,		"pkt_stratum" },
-	{ TEST7,		"pkt_header" },
-	{ TEST8,		"pkt_autokey" },
-	{ TEST9,		"pkt_crypto" },
-	{ TEST10,		"peer_stratum" },
-	{ TEST11,		"peer_dist" },
-	{ TEST12,		"peer_loop" },
-	{ TEST13,		"peer_unreach" },
-	{ -1,			"flash" }
+	{ TEST1,		"pkt_dup",	0 },
+	{ TEST2,		"pkt_bogus",	0 },
+	{ TEST3,		"pkt_unsync",	0 },
+	{ TEST4,		"pkt_denied",	0 },
+	{ TEST5,		"pkt_auth",	0 },
+	{ TEST6,		"pkt_stratum",	0 },
+	{ TEST7,		"pkt_header",	0 },
+	{ TEST8,		"pkt_autokey",	0 },
+	{ TEST9,		"pkt_crypto",	0 },
+	{ TEST10,		"peer_stratum",	0 },
+	{ TEST11,		"peer_dist",	0 },
+	{ TEST12,		"peer_loop",	0 },
+	{ TEST13,		"peer_unreach",	0 },
+	{ -1,			"flash",	0 }
 };
 #endif
 
@@ -110,56 +111,56 @@ static const struct codestring flash_codes[] = {
  * System events (sys)
  */
 static const struct codestring sys_codes[] = {
-	{ EVNT_UNSPEC,		"unspecified" },
-	{ EVNT_NSET,		"freq_not_set" },
-	{ EVNT_FSET,		"freq_set" },
-	{ EVNT_SPIK,		"spike_detect" },
-	{ EVNT_FREQ,		"freq_mode" },
-	{ EVNT_SYNC,		"clock_sync" },
-	{ EVNT_SYSRESTART,	"restart" },
-	{ EVNT_SYSFAULT,	"panic_stop" },
-	{ EVNT_NOPEER,		"no_sys_peer" },
-	{ EVNT_ARMED,		"leap_armed" },
-	{ EVNT_DISARMED,	"leap_disarmed" },
-	{ EVNT_LEAP,		"leap_event" },
-	{ EVNT_CLOCKRESET,	"clock_step" },
-	{ EVNT_KERN,		"kern" },
-	{ EVNT_TAI,		"TAI" },
-	{ EVNT_LEAPVAL,		"stale_leapsecond_values" },
-	{ -1,			"" }
+	{ EVNT_UNSPEC,		"unspecified",			0 },
+	{ EVNT_NSET,		"freq_not_set",			0 },
+	{ EVNT_FSET,		"freq_set",			0 },
+	{ EVNT_SPIK,		"spike_detect",			0 },
+	{ EVNT_FREQ,		"freq_mode",			0 },
+	{ EVNT_SYNC,		"clock_sync",			0 },
+	{ EVNT_SYSRESTART,	"restart",			0 },
+	{ EVNT_SYSFAULT,	"panic_stop",			0 },
+	{ EVNT_NOPEER,		"no_sys_peer",			0 },
+	{ EVNT_ARMED,		"leap_armed",			0 },
+	{ EVNT_DISARMED,	"leap_disarmed",		0 },
+	{ EVNT_LEAP,		"leap_event",			0 },
+	{ EVNT_CLOCKRESET,	"clock_step",			0 },
+	{ EVNT_KERN,		"kern",				0 },
+	{ EVNT_TAI,		"TAI",				0 },
+	{ EVNT_LEAPVAL,		"stale_leapsecond_values",	0 },
+	{ -1,			"",				0 }
 };
 
 /*
  * Peer events (peer)
  */
 static const struct codestring peer_codes[] = {
-	{ PEVNT_MOBIL & ~PEER_EVENT,	"mobilize" },
-	{ PEVNT_DEMOBIL & ~PEER_EVENT,	"demobilize" },
-	{ PEVNT_UNREACH & ~PEER_EVENT,	"unreachable" },
-	{ PEVNT_REACH & ~PEER_EVENT,	"reachable" },
-	{ PEVNT_RESTART & ~PEER_EVENT,	"restart" },
-	{ PEVNT_REPLY & ~PEER_EVENT,	"no_reply" },
-	{ PEVNT_RATE & ~PEER_EVENT,	"rate_exceeded" },
-	{ PEVNT_DENY & ~PEER_EVENT,	"access_denied" },
-	{ PEVNT_ARMED & ~PEER_EVENT,	"leap_armed" },
-	{ PEVNT_NEWPEER & ~PEER_EVENT,	"sys_peer" },
-	{ PEVNT_CLOCK & ~PEER_EVENT,	"clock_event" },
-	{ PEVNT_AUTH & ~PEER_EVENT,	"bad_auth" },
-	{ PEVNT_POPCORN & ~PEER_EVENT,	"popcorn" },
-	{ PEVNT_XLEAVE & ~PEER_EVENT,	"interleave_mode" },
-	{ PEVNT_XERR & ~PEER_EVENT,	"interleave_error" },
-	{ -1,				"" }
+	{ PEVNT_MOBIL & ~PEER_EVENT,	"mobilize",		0 },
+	{ PEVNT_DEMOBIL & ~PEER_EVENT,	"demobilize",		0 },
+	{ PEVNT_UNREACH & ~PEER_EVENT,	"unreachable",		0 },
+	{ PEVNT_REACH & ~PEER_EVENT,	"reachable",		0 },
+	{ PEVNT_RESTART & ~PEER_EVENT,	"restart",		0 },
+	{ PEVNT_REPLY & ~PEER_EVENT,	"no_reply",		0 },
+	{ PEVNT_RATE & ~PEER_EVENT,	"rate_exceeded",	0 },
+	{ PEVNT_DENY & ~PEER_EVENT,	"access_denied",	0 },
+	{ PEVNT_ARMED & ~PEER_EVENT,	"leap_armed",		0 },
+	{ PEVNT_NEWPEER & ~PEER_EVENT,	"sys_peer",		0 },
+	{ PEVNT_CLOCK & ~PEER_EVENT,	"clock_event",		0 },
+	{ PEVNT_AUTH & ~PEER_EVENT,	"bad_auth",		0 },
+	{ PEVNT_POPCORN & ~PEER_EVENT,	"popcorn",		0 },
+	{ PEVNT_XLEAVE & ~PEER_EVENT,	"interleave_mode",	0 },
+	{ PEVNT_XERR & ~PEER_EVENT,	"interleave_error",	0 },
+	{ -1,				"",			0 }
 };
 
 /*
  * Peer status bits
  */
 static const struct codestring peer_st_bits[] = {
-	{ CTL_PST_CONFIG,		"conf" },
-	{ CTL_PST_AUTHENABLE,		"authenb" },
-	{ CTL_PST_AUTHENTIC,		"auth" },
-	{ CTL_PST_REACH,		"reach" },
-	{ CTL_PST_BCAST,		"bcast" },
+	{ CTL_PST_CONFIG,		"conf",		0 },
+	{ CTL_PST_AUTHENABLE,		"authenb",	0 },
+	{ CTL_PST_AUTHENTIC,		"auth",		0 },
+	{ CTL_PST_REACH,		"reach",	0 },
+	{ CTL_PST_BCAST,		"bcast",	0 },
 	/* not used with getcode(), no terminating entry needed */
 };
 
@@ -167,9 +168,9 @@ static const struct codestring peer_st_bits[] = {
  * Restriction match bits
  */
 static const struct codestring res_match_bits[] = {
-	{ RESM_NTPONLY,			"ntpport" },
-	{ RESM_INTERFACE,		"interface" },
-	{ RESM_SOURCE,			"source" },
+	{ RESM_NTPONLY,			"ntpport",	0 },
+	{ RESM_INTERFACE,		"interface",	0 },
+	{ RESM_SOURCE,			"source",	0 },
 	/* not used with getcode(), no terminating entry needed */
 };
 
@@ -177,18 +178,19 @@ static const struct codestring res_match_bits[] = {
  * Restriction access bits
  */
 static const struct codestring res_access_bits[] = {
-	{ RES_IGNORE,			"ignore" },
-	{ RES_DONTSERVE,		"noserve" },
-	{ RES_DONTTRUST,		"notrust" },
-	{ RES_NOQUERY,			"noquery" },
-	{ RES_NOMODIFY,			"nomodify" },
-	{ RES_NOPEER,			"nopeer" },
-	{ RES_NOTRAP,			"notrap" },
-	{ RES_LPTRAP,			"lptrap" },
-	{ RES_LIMITED,			"limited" },
-	{ RES_VERSION,			"version" },
-	{ RES_KOD,			"kod" },
-	{ RES_FLAKE,			"flake" },
+	{ RES_IGNORE,			"ignore",	0 },
+	{ RES_DONTSERVE,		"noserve",	"serve" },
+	{ RES_DONTTRUST,		"notrust",	"trust" },
+	{ RES_NOQUERY,			"noquery",	"query" },
+	{ RES_NOMODIFY,			"nomodify",	0 },
+	{ RES_NOPEER,			"nopeer",	"peer" },
+	{ RES_NOEPEER,			"noepeer",	"epeer" },
+	{ RES_NOTRAP,			"notrap",	"trap" },
+	{ RES_LPTRAP,			"lptrap",	0 },
+	{ RES_LIMITED,			"limited",	0 },
+	{ RES_VERSION,			"version",	0 },
+	{ RES_KOD,			"kod",		0 },
+	{ RES_FLAKE,			"flake",	0 },
 	/* not used with getcode(), no terminating entry needed */
 };
 
@@ -197,23 +199,23 @@ static const struct codestring res_access_bits[] = {
  * Crypto events (cryp)
  */
 static const struct codestring crypto_codes[] = {
-	{ XEVNT_OK & ~CRPT_EVENT,	"success" },
-	{ XEVNT_LEN & ~CRPT_EVENT,	"bad_field_format_or_length" },
-	{ XEVNT_TSP & ~CRPT_EVENT,	"bad_timestamp" },
-	{ XEVNT_FSP & ~CRPT_EVENT,	"bad_filestamp" },
-	{ XEVNT_PUB & ~CRPT_EVENT,	"bad_or_missing_public_key" },
-	{ XEVNT_MD & ~CRPT_EVENT,	"unsupported_digest_type" },
-	{ XEVNT_KEY & ~CRPT_EVENT,	"unsupported_identity_type" },
-	{ XEVNT_SGL & ~CRPT_EVENT,	"bad_signature_length" },
-	{ XEVNT_SIG & ~CRPT_EVENT,	"signature_not_verified" },
-	{ XEVNT_VFY & ~CRPT_EVENT,	"certificate_not_verified" },
-	{ XEVNT_PER & ~CRPT_EVENT,	"host_certificate_expired" },
-	{ XEVNT_CKY & ~CRPT_EVENT,	"bad_or_missing_cookie" },
-	{ XEVNT_DAT & ~CRPT_EVENT,	"bad_or_missing_leapseconds" },
-	{ XEVNT_CRT & ~CRPT_EVENT,	"bad_or_missing_certificate" },	
-	{ XEVNT_ID & ~CRPT_EVENT,	"bad_or_missing_group key" },
-	{ XEVNT_ERR & ~CRPT_EVENT,	"protocol_error" },
-	{ -1,				"" }
+	{ XEVNT_OK & ~CRPT_EVENT,	"success",			0 },
+	{ XEVNT_LEN & ~CRPT_EVENT,	"bad_field_format_or_length",	0 },
+	{ XEVNT_TSP & ~CRPT_EVENT,	"bad_timestamp",		0 },
+	{ XEVNT_FSP & ~CRPT_EVENT,	"bad_filestamp",		0 },
+	{ XEVNT_PUB & ~CRPT_EVENT,	"bad_or_missing_public_key",	0 },
+	{ XEVNT_MD & ~CRPT_EVENT,	"unsupported_digest_type",	0 },
+	{ XEVNT_KEY & ~CRPT_EVENT,	"unsupported_identity_type",	0 },
+	{ XEVNT_SGL & ~CRPT_EVENT,	"bad_signature_length",		0 },
+	{ XEVNT_SIG & ~CRPT_EVENT,	"signature_not_verified",	0 },
+	{ XEVNT_VFY & ~CRPT_EVENT,	"certificate_not_verified",	0 },
+	{ XEVNT_PER & ~CRPT_EVENT,	"host_certificate_expired",	0 },
+	{ XEVNT_CKY & ~CRPT_EVENT,	"bad_or_missing_cookie",	0 },
+	{ XEVNT_DAT & ~CRPT_EVENT,	"bad_or_missing_leapseconds",	0 },
+	{ XEVNT_CRT & ~CRPT_EVENT,	"bad_or_missing_certificate",	0 },	
+	{ XEVNT_ID & ~CRPT_EVENT,	"bad_or_missing_group key",	0 },
+	{ XEVNT_ERR & ~CRPT_EVENT,	"protocol_error",		0 },
+	{ -1,				"",				0 }
 };
 #endif	/* AUTOKEY */
 
@@ -223,52 +225,52 @@ static const struct codestring crypto_codes[] = {
  */
 static const struct codestring k_st_bits[] = {
 # ifdef STA_PLL
-	{ STA_PLL,			"pll" },
+	{ STA_PLL,			"pll",		0 },
 # endif
 # ifdef STA_PPSFREQ
-	{ STA_PPSFREQ,			"ppsfreq" },
+	{ STA_PPSFREQ,			"ppsfreq",	0 },
 # endif
 # ifdef STA_PPSTIME
-	{ STA_PPSTIME,			"ppstime" },
+	{ STA_PPSTIME,			"ppstime",	0 },
 # endif
 # ifdef STA_FLL
-	{ STA_FLL,			"fll" },
+	{ STA_FLL,			"fll",		0 },
 # endif
 # ifdef STA_INS
-	{ STA_INS,			"ins" },
+	{ STA_INS,			"ins",		0 },
 # endif
 # ifdef STA_DEL
-	{ STA_DEL,			"del" },
+	{ STA_DEL,			"del",		0 },
 # endif
 # ifdef STA_UNSYNC
-	{ STA_UNSYNC,			"unsync" },
+	{ STA_UNSYNC,			"unsync",	0 },
 # endif
 # ifdef STA_FREQHOLD
-	{ STA_FREQHOLD,			"freqhold" },
+	{ STA_FREQHOLD,			"freqhold",	0 },
 # endif
 # ifdef STA_PPSSIGNAL
-	{ STA_PPSSIGNAL,		"ppssignal" },
+	{ STA_PPSSIGNAL,		"ppssignal",	0 },
 # endif
 # ifdef STA_PPSJITTER
-	{ STA_PPSJITTER,		"ppsjitter" },
+	{ STA_PPSJITTER,		"ppsjitter",	0 },
 # endif
 # ifdef STA_PPSWANDER
-	{ STA_PPSWANDER,		"ppswander" },
+	{ STA_PPSWANDER,		"ppswander",	0 },
 # endif
 # ifdef STA_PPSERROR
-	{ STA_PPSERROR,			"ppserror" },
+	{ STA_PPSERROR,			"ppserror",	0 },
 # endif
 # ifdef STA_CLOCKERR
-	{ STA_CLOCKERR,			"clockerr" },
+	{ STA_CLOCKERR,			"clockerr",	0 },
 # endif
 # ifdef STA_NANO
-	{ STA_NANO,			"nano" },
+	{ STA_NANO,			"nano",		0 },
 # endif
 # ifdef STA_MODE
-	{ STA_MODE,			"mode=fll" },
+	{ STA_MODE,			"mode=fll",	0 },
 # endif
 # ifdef STA_CLK
-	{ STA_CLK,			"src=B" },
+	{ STA_CLK,			"src=B",	0 },
 # endif
 	/* not used with getcode(), no terminating entry needed */
 };
@@ -292,12 +294,12 @@ getcode(
 
 	while (codetab->code != -1) {
 		if (codetab->code == code)
-			return codetab->string;
+			return codetab->string1;
 		codetab++;
 	}
 
 	LIB_GETBUF(buf);
-	snprintf(buf, LIB_BUFLENGTH, "%s_%d", codetab->string, code);
+	snprintf(buf, LIB_BUFLENGTH, "%s_%d", codetab->string1, code);
 
 	return buf;
 }
@@ -354,14 +356,21 @@ decode_bitflags(
 	sep = "";
 
 	for (b = 0; b < tab_ct; b++) {
+		const char * flagstr;
+
 		if (tab[b].code & bits) {
-			rc = snprintf(pch, (lim - pch), "%s%s", sep,
-				      tab[b].string);
-			if (rc < 0)
+			flagstr = tab[b].string1;
+		} else {
+			flagstr = tab[b].string0;
+		}
+
+		if (flagstr) {
+			size_t avail = lim - pch;
+			rc = snprintf(pch, avail, "%s%s", sep,
+				      flagstr);
+			if ((size_t)rc >= avail)
 				goto toosmall;
-			pch += (u_int)rc;
-			if (pch >= lim)
-				goto toosmall;
+			pch += rc;
 			sep = sep2;
 		}
 	}

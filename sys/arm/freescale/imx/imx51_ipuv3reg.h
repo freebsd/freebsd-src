@@ -1,5 +1,7 @@
 /*	$NetBSD: imx51_ipuv3reg.h,v 1.1 2012/04/17 10:19:57 bsh Exp $	*/
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, 2012  Genetec Corporation.  All rights reserved.
  * Written by Hashimoto Kenichi for Genetec Corporation.
  *

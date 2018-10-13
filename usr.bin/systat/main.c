@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -258,10 +260,11 @@ labels(void)
 void
 display(void)
 {
+	uint64_t arc_stat;
 	int i, j;
 
 	/* Get the load average over the last minute. */
-	(void) getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	(*curcmd->c_fetch)();
 	if (curcmd->c_flags & CF_LOADAV) {
 		j = 5.0*avenrun[0] + 0.5;
@@ -291,9 +294,13 @@ display(void)
 		    GETSYSCTL("vfs.zfs.anon_size", arc[3]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc[4]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
-		    GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc[6]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.bonus_size", arc[6]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.dnode_size", arc_stat);
+		    arc[6] += arc_stat;
+		    GETSYSCTL("kstat.zfs.misc.arcstats.dbuf_size", arc_stat);
+		    arc[6] += arc_stat;
 		    wmove(wload, 0, 0); wclrtoeol(wload);
-		    for (i = 0 ; i < sizeof(arc) / sizeof(arc[0]) ; i++) {
+		    for (i = 0 ; i < nitems(arc); i++) {
 			if (arc[i] > 10llu * 1024 * 1024 * 1024 ) {
 				wprintw(wload, "%7lluG", arc[i] >> 30);
 			}
@@ -318,7 +325,7 @@ void
 load(void)
 {
 
-	(void) getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	mvprintw(CMDLINE, 0, "%4.1f %4.1f %4.1f",
 	    avenrun[0], avenrun[1], avenrun[2]);
 	clrtoeol();

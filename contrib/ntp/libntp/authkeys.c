@@ -114,13 +114,16 @@ KeyAccT *cache_keyacclist;	/* key access list */
 KeyAccT*
 keyacc_new_push(
 	KeyAccT          * head,
-	const sockaddr_u * addr
+	const sockaddr_u * addr,
+	unsigned int	   subnetbits
 	)
 {
 	KeyAccT *	node = emalloc(sizeof(KeyAccT));
 	
 	memcpy(&node->addr, addr, sizeof(sockaddr_u));
+	node->subnetbits = subnetbits;
 	node->next = head;
+
 	return node;
 }
 
@@ -165,7 +168,8 @@ keyacc_contains(
 {
 	if (head) {
 		do {
-			if (SOCK_EQ(&head->addr, addr))
+			if (keyacc_amatch(&head->addr, addr,
+					  head->subnetbits))
 				return TRUE;
 		} while (NULL != (head = head->next));
 		return FALSE;
@@ -174,6 +178,98 @@ keyacc_contains(
 	}
 }
 
+#if CHAR_BIT != 8
+# error "don't know how to handle bytes with that bit size"
+#endif
+
+/* ----------------------------------------------------------------- */
+/* check two addresses for a match, taking a prefix length into account
+ * when doing the compare.
+ *
+ * The ISC lib contains a similar function with not entirely specified
+ * semantics, so it seemed somewhat cleaner to do this from scratch.
+ *
+ * Note 1: It *is* assumed that the addresses are stored in network byte
+ * order, that is, most significant byte first!
+ *
+ * Note 2: "no address" compares unequal to all other addresses, even to
+ * itself. This has the same semantics as NaNs have for floats: *any*
+ * relational or equality operation involving a NaN returns FALSE, even
+ * equality with itself. "no address" is either a NULL pointer argument
+ * or an address of type AF_UNSPEC.
+ */
+int/*BOOL*/
+keyacc_amatch(
+	const sockaddr_u *	a1,
+	const sockaddr_u *	a2,
+	unsigned int		mbits
+	)
+{
+	const uint8_t * pm1;
+	const uint8_t * pm2;
+	uint8_t         msk;
+	unsigned int    len;
+
+	/* 1st check: If any address is not an address, it's inequal. */
+	if ( !a1 || (AF_UNSPEC == AF(a1)) ||
+	     !a2 || (AF_UNSPEC == AF(a2))  )
+		return FALSE;
+
+	/* We could check pointers for equality here and shortcut the
+	 * other checks if we find object identity. But that use case is
+	 * too rare to care for it.
+	 */
+	
+	/* 2nd check: Address families must be the same. */
+	if (AF(a1) != AF(a2))
+		return FALSE;
+
+	/* type check: address family determines buffer & size */
+	switch (AF(a1)) {
+	case AF_INET:
+		/* IPv4 is easy: clamp size, get byte pointers */
+		if (mbits > sizeof(NSRCADR(a1)) * 8)
+			mbits = sizeof(NSRCADR(a1)) * 8;
+		pm1 = (const void*)&NSRCADR(a1);
+		pm2 = (const void*)&NSRCADR(a2);
+		break;
+
+	case AF_INET6:
+		/* IPv6 is slightly different: Both scopes must match,
+		 * too, before we even consider doing a match!
+		 */
+		if ( ! SCOPE_EQ(a1, a2))
+			return FALSE;
+		if (mbits > sizeof(NSRCADR6(a1)) * 8)
+			mbits = sizeof(NSRCADR6(a1)) * 8;
+		pm1 = (const void*)&NSRCADR6(a1);
+		pm2 = (const void*)&NSRCADR6(a2);
+		break;
+
+	default:
+		/* don't know how to compare that!?! */
+		return FALSE;
+	}
+
+	/* Split bit length into byte length and partial byte mask.
+	 * Note that the byte mask extends from the MSB of a byte down,
+	 * and that zero shift (--> mbits % 8 == 0) results in an
+	 * all-zero mask.
+	 */
+	msk = 0xFFu ^ (0xFFu >> (mbits & 7));
+	len = mbits >> 3;
+
+	/* 3rd check: Do memcmp() over full bytes, if any */
+	if (len && memcmp(pm1, pm2, len))
+		return FALSE;
+
+	/* 4th check: compare last incomplete byte, if any */
+	if (msk && ((pm1[len] ^ pm2[len]) & msk))
+		return FALSE;
+
+	/* If none of the above failed, we're successfully through. */
+	return TRUE;
+}
 
 /*
  * init_auth - initialize internal data
@@ -250,7 +346,7 @@ auth_moremem(
 	i = (keycount > 0)
 		? keycount
 		: MEMINC;
-	sk = emalloc_zero(i * sizeof(*sk) + MOREMEM_EXTRA_ALLOC);
+	sk = eallocarrayxz(i, sizeof(*sk), MOREMEM_EXTRA_ALLOC);
 #ifdef DEBUG
 	base = sk;
 #endif
@@ -315,6 +411,10 @@ auth_log2(size_t x)
 	}
 	return (u_short)r;
 }
+
+int/*BOOL*/
+ipaddr_match_masked(const sockaddr_u *,const sockaddr_u *,
+		    unsigned int mbits);
 
 static void
 authcache_flush_id(
@@ -617,20 +717,19 @@ authistrusted(
 {
 	symkey *	sk;
 
-	/* That specific key was already used to authenticate the
-	 * packet. Therefore, the key *must* exist...  There's a chance
-	 * that is not trusted, though.
-	 */
 	if (keyno == cache_keyid) {
 		return (KEY_TRUSTED & cache_flags) &&
 		    keyacc_contains(cache_keyacclist, sau, TRUE);
-	} else {
+	}
+
+	if (NULL != (sk = auth_findkey(keyno))) {
 		authkeyuncached++;
-		sk = auth_findkey(keyno);
-		INSIST(NULL != sk);
 		return (KEY_TRUSTED & sk->flags) &&
 		    keyacc_contains(sk->keyacclist, sau, TRUE);
 	}
+	
+	authkeynotfound++;
+	return FALSE;    
 }
 
 /* Note: There are two locations below where 'strncpy()' is used. While
@@ -795,7 +894,9 @@ authencrypt(
 		return 0;
 	}
 
-	return MD5authencrypt(cache_type, cache_secret, pkt, length);
+	return MD5authencrypt(cache_type,
+			      cache_secret, cache_secretsize,
+			      pkt, length);
 }
 
 
@@ -822,6 +923,7 @@ authdecrypt(
 		return FALSE;
 	}
 
-	return MD5authdecrypt(cache_type, cache_secret, pkt, length,
-			      size);
+	return MD5authdecrypt(cache_type,
+			      cache_secret, cache_secretsize,
+			      pkt, length, size);
 }

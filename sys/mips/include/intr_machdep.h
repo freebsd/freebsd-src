@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
@@ -29,6 +31,7 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#include <sys/vmmeter.h>
 #include <machine/atomic.h>
 
 #if defined(CPU_RMI) || defined(CPU_NLM)
@@ -70,6 +73,6 @@ mips_intrcnt_inc(mips_intrcnt_t counter)
 {
 	if (counter)
 		atomic_add_long(counter, 1);
-	PCPU_INC(cnt.v_intr);
+	VM_CNT_INC(v_intr);
 }
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */

@@ -5,7 +5,7 @@
 
 .include <src.opts.mk>
 
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/telnetd
 
 PROG=		telnetd
@@ -26,8 +26,6 @@ CFLAGS+=	-DINET6
 
 CFLAGS+=	-I${TELNETDIR}
 CFLAGS+=	-I${TELNETDIR}/telnet
-
-LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
 LIBADD=		telnet util ncursesw
 

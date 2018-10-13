@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000 Assar Westerlund
  * All rights reserved.
  *
@@ -141,147 +143,28 @@ struct l_ucred {
 };
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-
-struct linux_sendto_args {
-	int s;
-	l_uintptr_t msg;
-	int len;
-	int flags;
-	l_uintptr_t to;
-	int tolen;
-};
-
-struct linux_socket_args {
-	int domain;
-	int type;
-	int protocol;
-};
-
-struct linux_bind_args {
-	int s;
-	l_uintptr_t name;
-	int namelen;
-};
-
-struct linux_connect_args {
-	int s;
-	l_uintptr_t name;
-	int namelen;
-};
-
-struct linux_listen_args {
-	int s;
-	int backlog;
-};
-
 struct linux_accept_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
+	register_t s;
+	register_t addr;
+	register_t namelen;
 };
 
-struct linux_accept4_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
-	int flags;
-};
-
-struct linux_getsockname_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
-};
-
-struct linux_getpeername_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
-};
-
-struct linux_socketpair_args {
-	int domain;
-	int type;
-	int protocol;
-	l_uintptr_t rsv;
-};
-
-struct linux_recvfrom_args {
-	int s;
-	l_uintptr_t buf;
-	int len;
-	int flags;
-	l_uintptr_t from;
-	l_uintptr_t fromlen;
-};
-
-struct linux_sendmsg_args {
-	int s;
-	l_uintptr_t msg;
-	int flags;
-};
-
-struct linux_recvmsg_args {
-	int s;
-	l_uintptr_t msg;
-	int flags;
-};
-
-struct linux_shutdown_args {
-	int s;
-	int how;
-};
-
-struct linux_setsockopt_args {
-	int s;
-	int level;
-	int optname;
-	l_uintptr_t optval;
-	int optlen;
-};
-
-struct linux_getsockopt_args {
-	int s;
-	int level;
-	int optname;
-	l_uintptr_t optval;
-	l_uintptr_t optlen;
-};
-
-int linux_socket(struct thread *td, struct linux_socket_args *args);
-int linux_bind(struct thread *td, struct linux_bind_args *args);
-int linux_connect(struct thread *, struct linux_connect_args *);
-int linux_listen(struct thread *td, struct linux_listen_args *args);
 int linux_accept(struct thread *td, struct linux_accept_args *args);
-int linux_accept4(struct thread *td, struct linux_accept4_args *args);
-int linux_getsockname(struct thread *td, struct linux_getsockname_args *args);
-int linux_getpeername(struct thread *td, struct linux_getpeername_args *args);
-int linux_socketpair(struct thread *td, struct linux_socketpair_args *args);
-int linux_sendto(struct thread *td, struct linux_sendto_args *args);
-int linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args);
-int linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args);
-int linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args);
-int linux_shutdown(struct thread *td, struct linux_shutdown_args *args);
-int linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args);
-int linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args);
-
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 /* Operations for socketcall */
-
-#define	LINUX_SOCKET 		1
+#define	LINUX_SOCKET		1
 #define	LINUX_BIND		2
-#define	LINUX_CONNECT 		3
-#define	LINUX_LISTEN 		4
-#define	LINUX_ACCEPT 		5
+#define	LINUX_CONNECT		3
+#define	LINUX_LISTEN		4
+#define	LINUX_ACCEPT		5
 #define	LINUX_GETSOCKNAME	6
 #define	LINUX_GETPEERNAME	7
 #define	LINUX_SOCKETPAIR	8
 #define	LINUX_SEND		9
 #define	LINUX_RECV		10
-#define	LINUX_SENDTO 		11
-#define	LINUX_RECVFROM 		12
-#define	LINUX_SHUTDOWN 		13
+#define	LINUX_SENDTO		11
+#define	LINUX_RECVFROM		12
+#define	LINUX_SHUTDOWN		13
 #define	LINUX_SETSOCKOPT	14
 #define	LINUX_GETSOCKOPT	15
 #define	LINUX_SENDMSG		16
@@ -289,6 +172,40 @@ int linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args);
 #define	LINUX_ACCEPT4		18
 #define	LINUX_RECVMMSG		19
 #define	LINUX_SENDMMSG		20
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
+/* Socket defines */
+#define	LINUX_SOL_SOCKET	1
+#define	LINUX_SOL_IP		0
+#define	LINUX_SOL_TCP		6
+#define	LINUX_SOL_UDP		17
+#define	LINUX_SOL_IPV6		41
+#define	LINUX_SOL_IPX		256
+#define	LINUX_SOL_AX25		257
+
+#define	LINUX_SO_DEBUG		1
+#define	LINUX_SO_REUSEADDR	2
+#define	LINUX_SO_TYPE		3
+#define	LINUX_SO_ERROR		4
+#define	LINUX_SO_DONTROUTE	5
+#define	LINUX_SO_BROADCAST	6
+#define	LINUX_SO_SNDBUF		7
+#define	LINUX_SO_RCVBUF		8
+#define	LINUX_SO_KEEPALIVE	9
+#define	LINUX_SO_OOBINLINE	10
+#define	LINUX_SO_NO_CHECK	11
+#define	LINUX_SO_PRIORITY	12
+#define	LINUX_SO_LINGER		13
+#ifndef LINUX_SO_PASSCRED	/* powerpc differs */
+#define	LINUX_SO_PASSCRED	16
+#define	LINUX_SO_PEERCRED	17
+#define	LINUX_SO_RCVLOWAT	18
+#define	LINUX_SO_SNDLOWAT	19
+#define	LINUX_SO_RCVTIMEO	20
+#define	LINUX_SO_SNDTIMEO	21
+#endif
+#define	LINUX_SO_TIMESTAMP	29
+#define	LINUX_SO_ACCEPTCONN	30
 
 /* Socket options */
 #define	LINUX_IP_TOS		1

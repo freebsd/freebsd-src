@@ -417,8 +417,8 @@ svn_fs_x__reps_add_base(svn_fs_x__reps_builder_t *builder,
   apr_size_t idx;
   SVN_ERR(svn_fs_x__get_contents(&stream, builder->fs, rep, FALSE,
                                  scratch_pool));
-  SVN_ERR(svn_string_from_stream(&contents, stream, scratch_pool,
-                                 scratch_pool));
+  SVN_ERR(svn_string_from_stream2(&contents, stream, SVN__STREAM_CHUNK_SIZE,
+                                  scratch_pool));
   SVN_ERR(svn_fs_x__reps_add(&idx, builder, contents));
 
   base.revision = svn_fs_x__get_revnum(rep->id.change_set);
@@ -641,16 +641,17 @@ svn_fs_x__reps_get(svn_fs_x__rep_extractor_t **extractor,
                    svn_fs_t *fs,
                    const svn_fs_x__reps_t *container,
                    apr_size_t idx,
-                   apr_pool_t *pool)
+                   apr_pool_t *result_pool)
 {
   apr_uint32_t first = container->first_instructions[idx];
   apr_uint32_t last = container->first_instructions[idx + 1];
 
   /* create the extractor object */
-  svn_fs_x__rep_extractor_t *result = apr_pcalloc(pool, sizeof(*result));
+  svn_fs_x__rep_extractor_t *result = apr_pcalloc(result_pool,
+                                                  sizeof(*result));
   result->fs = fs;
-  result->result = svn_stringbuf_create_empty(pool);
-  result->pool = pool;
+  result->result = svn_stringbuf_create_empty(result_pool);
+  result->pool = result_pool;
 
   /* fill all the bits of the result that we can, i.e. all but bits coming
    * from base representations */
@@ -900,7 +901,7 @@ svn_error_t *
 svn_fs_x__deserialize_reps_container(void **out,
                                      void *data,
                                      apr_size_t data_len,
-                                     apr_pool_t *pool)
+                                     apr_pool_t *result_pool)
 {
   svn_fs_x__reps_t *reps = (svn_fs_x__reps_t *)data;
 

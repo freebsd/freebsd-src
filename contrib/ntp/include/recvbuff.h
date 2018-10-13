@@ -39,9 +39,10 @@ extern HANDLE	get_recv_buff_event(void);
 /*
  *  the maximum length NTP packet contains the NTP header, one Autokey
  *  request, one Autokey response and the MAC. Assuming certificates don't
- *  get too big, the maximum packet length is set arbitrarily at 1000.
+ *  get too big, the maximum packet length is set arbitrarily at 1200.
+ *  (was 1000, but that bumps on 2048 RSA keys)
  */   
-#define	RX_BUFF_SIZE	1000		/* hail Mary */
+#define	RX_BUFF_SIZE	1200		/* hail Mary */
 
 
 typedef struct recvbuf recvbuf_t;

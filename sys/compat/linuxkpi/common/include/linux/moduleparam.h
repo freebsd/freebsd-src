@@ -125,6 +125,9 @@
 #define	MODULE_PARM_DESC(name, desc) \
 	const char LINUXKPI_PARAM_DESC(name)[] = { desc }
 
+#define	kernel_param_lock(...) do {} while (0)
+#define	kernel_param_unlock(...) do {} while (0)
+
 SYSCTL_DECL(_compat_linuxkpi);
 
 #endif					/* _LINUX_MODULEPARAM_H_ */

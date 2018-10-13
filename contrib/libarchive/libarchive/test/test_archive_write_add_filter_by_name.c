@@ -207,3 +207,8 @@ DEFINE_TEST(test_archive_write_add_filter_by_name_xz)
 {
 	test_filter_by_name("xz", ARCHIVE_FILTER_XZ, cannot);
 }
+
+DEFINE_TEST(test_archive_write_add_filter_by_name_zstd)
+{
+	test_filter_by_name("zstd", ARCHIVE_FILTER_ZSTD, canZstd);
+}

@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 
 /* A table that maps names to functions. */
-static
+static const
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
 	{ "b64encode",		archive_write_add_filter_b64encode },
@@ -57,6 +57,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "lzop",		archive_write_add_filter_lzop },
 	{ "uuencode",		archive_write_add_filter_uuencode },
 	{ "xz",			archive_write_add_filter_xz },
+	{ "zstd",		archive_write_add_filter_zstd },
 	{ NULL,			NULL }
 };
 

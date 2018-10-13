@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  *
@@ -393,7 +395,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				/* Disable interrupts */
 				fc->set_intr(fc, 0);
 				ifp->if_capenable |= IFCAP_POLLING;
-				ifp->if_capenable |= IFCAP_POLLING_NOCOUNT;
 				return (error);
 			}
 			if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
@@ -402,7 +403,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				/* Enable interrupts. */
 				fc->set_intr(fc, 1);
 				ifp->if_capenable &= ~IFCAP_POLLING;
-				ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 				return (error);
 			}
 		    }

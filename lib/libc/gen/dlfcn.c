@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 John D. Polstra
  * All rights reserved.
  *
@@ -26,6 +28,8 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#if !defined(IN_LIBDL) || defined(PIC)
 
 /*
  * Linkage to services provided by the dynamic linker.
@@ -57,95 +61,107 @@ void _rtld_atfork_post(int *);
 
 #pragma weak _rtld_error
 void
-_rtld_error(const char *fmt, ...)
+_rtld_error(const char *fmt __unused, ...)
 {
 }
 
 #pragma weak dladdr
 int
-dladdr(const void *addr, Dl_info *dlip)
+dladdr(const void *addr __unused, Dl_info *dlip __unused)
 {
+
 	_rtld_error(sorry);
-	return 0;
+	return (0);
 }
 
 #pragma weak dlclose
 int
-dlclose(void *handle)
+dlclose(void *handle __unused)
 {
+
 	_rtld_error(sorry);
-	return -1;
+	return (-1);
 }
 
 #pragma weak dlerror
 char *
 dlerror(void)
 {
-	return sorry;
+
+	return (sorry);
 }
 
 #pragma weak dllockinit
 void
 dllockinit(void *context,
-	   void *(*lock_create)(void *context),
-	   void (*rlock_acquire)(void *lock),
-	   void (*wlock_acquire)(void *lock),
-	   void (*lock_release)(void *lock),
-	   void (*lock_destroy)(void *lock),
-	   void (*context_destroy)(void *context))
+    void *(*lock_create)(void *context) __unused,
+    void (*rlock_acquire)(void *lock) __unused,
+    void (*wlock_acquire)(void *lock) __unused,
+    void (*lock_release)(void *lock) __unused,
+    void (*lock_destroy)(void *lock) __unused,
+    void (*context_destroy)(void *context) __unused)
 {
+
 	if (context_destroy != NULL)
 		context_destroy(context);
 }
 
 #pragma weak dlopen
 void *
-dlopen(const char *name, int mode)
+dlopen(const char *name __unused, int mode __unused)
 {
+
 	_rtld_error(sorry);
-	return NULL;
+	return (NULL);
 }
 
 #pragma weak dlsym
 void *
-dlsym(void * __restrict handle, const char * __restrict name)
+dlsym(void * __restrict handle __unused, const char * __restrict name __unused)
 {
+
 	_rtld_error(sorry);
-	return NULL;
+	return (NULL);
 }
 
 #pragma weak dlfunc
 dlfunc_t
-dlfunc(void * __restrict handle, const char * __restrict name)
+dlfunc(void * __restrict handle __unused, const char * __restrict name __unused)
 {
+
 	_rtld_error(sorry);
-	return NULL;
+	return (NULL);
 }
 
 #pragma weak dlvsym
 void *
-dlvsym(void * __restrict handle, const char * __restrict name,
-    const char * __restrict version)
+dlvsym(void * __restrict handle __unused, const char * __restrict name __unused,
+    const char * __restrict version __unused)
 {
+
 	_rtld_error(sorry);
-	return NULL;
+	return (NULL);
 }
 
 #pragma weak dlinfo
 int
-dlinfo(void * __restrict handle, int request, void * __restrict p)
+dlinfo(void * __restrict handle __unused, int request __unused,
+    void * __restrict p __unused)
 {
+
 	_rtld_error(sorry);
-	return 0;
+	return (0);
 }
 
 #pragma weak _rtld_thread_init
 void
-_rtld_thread_init(void * li)
+_rtld_thread_init(void *li __unused)
 {
+
 	_rtld_error(sorry);
 }
 
+#ifndef IN_LIBDL
 static pthread_once_t dl_phdr_info_once = PTHREAD_ONCE_INIT;
 static struct dl_phdr_info phdr_info;
 
@@ -181,44 +197,50 @@ dl_init_phdr_info(void)
 	}
 	phdr_info.dlpi_adds = 1;
 }
+#endif
 
 #pragma weak dl_iterate_phdr
 int
-dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
-    void *data)
+dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
+    void *data __unused)
 {
 
+#ifndef IN_LIBDL
 	__init_elf_aux_vector();
 	if (__elf_aux_vector == NULL)
 		return (1);
 	_once(&dl_phdr_info_once, dl_init_phdr_info);
 	return (callback(&phdr_info, sizeof(phdr_info), data));
+#else
+	return (0);
+#endif
 }
 
 #pragma weak fdlopen
 void *
-fdlopen(int fd, int mode)
+fdlopen(int fd __unused, int mode __unused)
 {
 
 	_rtld_error(sorry);
-	return NULL;
+	return (NULL);
 }
 
 #pragma weak _rtld_atfork_pre
 void
-_rtld_atfork_pre(int *locks)
+_rtld_atfork_pre(int *locks __unused)
 {
 }
 
 #pragma weak _rtld_atfork_post
 void
-_rtld_atfork_post(int *locks)
+_rtld_atfork_post(int *locks __unused)
 {
 }
 
 #pragma weak _rtld_addr_phdr
 int
-_rtld_addr_phdr(const void *addr, struct dl_phdr_info *phdr_info)
+_rtld_addr_phdr(const void *addr __unused,
+    struct dl_phdr_info *phdr_info_a __unused)
 {
 
 	return (0);
@@ -234,8 +256,10 @@ _rtld_get_stack_prot(void)
 
 #pragma weak _rtld_is_dlopened
 int
-_rtld_is_dlopened(void *arg)
+_rtld_is_dlopened(void *arg __unused)
 {
 
 	return (0);
 }
+
+#endif /* !defined(IN_LIBDL) || defined(PIC) */

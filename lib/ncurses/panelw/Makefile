@@ -2,4 +2,4 @@
 
 ENABLE_WIDEC=
 
-.include "${.CURDIR}/../panel/Makefile"
+.include "${.CURDIR:H}/panel/Makefile"

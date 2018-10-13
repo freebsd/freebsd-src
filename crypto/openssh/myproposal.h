@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.50 2016/02/09 05:30:04 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.56 2018/07/03 11:39:54 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -68,45 +68,54 @@
 #endif
 
 #ifdef HAVE_EVP_SHA256
-# define KEX_SHA256_METHODS \
-	"diffie-hellman-group-exchange-sha256,"
+# define KEX_SHA2_METHODS \
+	"diffie-hellman-group-exchange-sha256," \
+	"diffie-hellman-group16-sha512," \
+	"diffie-hellman-group18-sha512,"
+# define KEX_SHA2_GROUP14 \
+	"diffie-hellman-group14-sha256,"
 #define	SHA2_HMAC_MODES \
 	"hmac-sha2-256," \
 	"hmac-sha2-512,"
 #else
-# define KEX_SHA256_METHODS
+# define KEX_SHA2_METHODS
+# define KEX_SHA2_GROUP14
 # define SHA2_HMAC_MODES
 #endif
 
 #ifdef WITH_OPENSSL
 # ifdef HAVE_EVP_SHA256
-#  define KEX_CURVE25519_METHODS "curve25519-sha256@libssh.org,"
+#  define KEX_CURVE25519_METHODS \
+	"curve25519-sha256," \
+	"curve25519-sha256@libssh.org,"
 # else
 #  define KEX_CURVE25519_METHODS ""
 # endif
 #define KEX_COMMON_KEX \
 	KEX_CURVE25519_METHODS \
 	KEX_ECDH_METHODS \
-	KEX_SHA256_METHODS
+	KEX_SHA2_METHODS
 
 #define KEX_SERVER_KEX KEX_COMMON_KEX \
+	KEX_SHA2_GROUP14 \
 	"diffie-hellman-group14-sha1" \
 
 #define KEX_CLIENT_KEX KEX_COMMON_KEX \
 	"diffie-hellman-group-exchange-sha1," \
+	KEX_SHA2_GROUP14 \
 	"diffie-hellman-group14-sha1"
 
 #define	KEX_DEFAULT_PK_ALG	\
 	HOSTKEY_ECDSA_CERT_METHODS \
 	"ssh-ed25519-cert-v01@openssh.com," \
+	"rsa-sha2-512-cert-v01@openssh.com," \
+	"rsa-sha2-256-cert-v01@openssh.com," \
 	"ssh-rsa-cert-v01@openssh.com," \
-	"ssh-dss-cert-v01@openssh.com," \
 	HOSTKEY_ECDSA_METHODS \
 	"ssh-ed25519," \
 	"rsa-sha2-512," \
 	"rsa-sha2-256," \
-	"ssh-rsa," \
-	"ssh-dss"
+	"ssh-rsa"
 
 /* the actual algorithms */
 
@@ -116,8 +125,7 @@
 	AESGCM_CIPHER_MODES \
 	",aes128-cbc,aes192-cbc,aes256-cbc"
 
-#define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT "," \
-	"3des-cbc"
+#define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT
 
 #define KEX_SERVER_MAC \
 	"umac-64-etm@openssh.com," \
@@ -136,6 +144,7 @@
 #else /* WITH_OPENSSL */
 
 #define KEX_SERVER_KEX		\
+	"curve25519-sha256," \
 	"curve25519-sha256@libssh.org"
 #define	KEX_DEFAULT_PK_ALG	\
 	"ssh-ed25519-cert-v01@openssh.com," \
@@ -161,7 +170,7 @@
 
 #endif /* WITH_OPENSSL */
 
-#define	KEX_DEFAULT_COMP	"none,zlib@openssh.com,zlib"
+#define	KEX_DEFAULT_COMP	"none,zlib@openssh.com"
 #define	KEX_DEFAULT_LANG	""
 
 #define KEX_CLIENT \

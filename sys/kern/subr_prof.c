@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -137,8 +139,7 @@ kmupetext(uintfptr_t nhighpc)
 }
 
 static void
-kmstartup(dummy)
-	void *dummy;
+kmstartup(void *dummy)
 {
 	char *cp;
 	struct gmonparam *p = &_gmonparam;
@@ -445,10 +446,9 @@ sys_profil(struct thread *td, struct profil_args *uap)
 /*
  * Collect user-level profiling statistics; called on a profiling tick,
  * when a process is running in user-mode.  This routine may be called
- * from an interrupt context.  We try to update the user profiling buffers
- * cheaply with fuswintr() and suswintr().  If that fails, we revert to
- * an AST that will vector us to trap() with a context in which copyin
- * and copyout will work.  Trap will then call addupc_task().
+ * from an interrupt context.  We perform the update with an AST
+ * that will vector us to trap() with a context in which copyin and
+ * copyout will work.  Trap will then call addupc_task().
  *
  * Note that we may (rarely) not get around to the AST soon enough, and
  * lose profile ticks when the next tick overwrites this one, but in this
@@ -459,35 +459,28 @@ void
 addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 {
 	struct uprof *prof;
-	caddr_t addr;
-	u_int i;
-	int v;
 
 	if (ticks == 0)
 		return;
 	prof = &td->td_proc->p_stats->p_prof;
 	PROC_PROFLOCK(td->td_proc);
-	if (pc < prof->pr_off ||
-	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
+	if (pc < prof->pr_off || PC_TO_INDEX(pc, prof) >= prof->pr_size) {
 		PROC_PROFUNLOCK(td->td_proc);
 		return;			/* out of range; ignore */
 	}
 
-	addr = prof->pr_base + i;
 	PROC_PROFUNLOCK(td->td_proc);
-	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
-		td->td_profil_addr = pc;
-		td->td_profil_ticks = ticks;
-		td->td_pflags |= TDP_OWEUPC;
-		thread_lock(td);
-		td->td_flags |= TDF_ASTPENDING;
-		thread_unlock(td);
-	}
+	td->td_profil_addr = pc;
+	td->td_profil_ticks = ticks;
+	td->td_pflags |= TDP_OWEUPC;
+	thread_lock(td);
+	td->td_flags |= TDF_ASTPENDING;
+	thread_unlock(td);
 }
 
 /*
- * Much like before, but we can afford to take faults here.  If the
- * update fails, we simply turn off profiling.
+ * Actually update the profiling statistics.  If the update fails, we
+ * simply turn off profiling.
  */
 void
 addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)

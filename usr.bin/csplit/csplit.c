@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Tim J. Robbins.
  * All rights reserved.
  *
@@ -195,7 +197,7 @@ main(int argc, char *argv[])
 	/* Copy the rest into a new file. */
 	if (!feof(infile)) {
 		ofp = newfile();
-		while ((p = get_line()) != NULL && fputs(p, ofp) == 0)
+		while ((p = get_line()) != NULL && fputs(p, ofp) != EOF)
 			;
 		if (!sflag)
 			printf("%jd\n", (intmax_t)ftello(ofp));
@@ -392,15 +394,17 @@ do_rexp(const char *expr)
 	/* Read and output lines until we get a match. */
 	first = 1;
 	while ((p = get_line()) != NULL) {
-		if (fputs(p, ofp) != 0)
+		if (fputs(p, ofp) == EOF)
 			break;
 		if (!first && regexec(&cre, p, 0, NULL, 0) == 0)
 			break;
 		first = 0;
 	}
 
-	if (p == NULL)
+	if (p == NULL) {
+		toomuch(NULL, 0);
 		errx(1, "%s: no match", re);
+	}
 
 	if (ofs <= 0) {
 		/*
@@ -453,7 +457,7 @@ do_lineno(const char *expr)
 		while (lineno + 1 != lastline) {
 			if ((p = get_line()) == NULL)
 				errx(1, "%ld: out of range", lastline);
-			if (fputs(p, ofp) != 0)
+			if (fputs(p, ofp) == EOF)
 				break;
 		}
 		if (!sflag)

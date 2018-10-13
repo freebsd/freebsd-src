@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
@@ -441,7 +443,7 @@ g_raid_md_nvidia_start_disk(struct g_raid_disk *disk)
 	pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 	olddisk = NULL;
 
-	/* Find disk position in metadata by it's serial. */
+	/* Find disk position in metadata by its serial. */
 	if (pd->pd_meta != NULL) {
 		disk_pos = pd->pd_meta->disk_number;
 		if (disk_pos >= meta->total_disks || mdi->mdio_started)

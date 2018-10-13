@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
+#ifdef FDT
+#include <dev/pci/pci_host_generic_fdt.h>
+#endif
 
 #include "thunder_pcie_common.h"
 
@@ -156,7 +159,7 @@ thunder_pcie_identify_ecam(device_t dev, int *ecam)
 
 	/* Check if we're running on Cavium ThunderX */
 	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-	    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0))
+	    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0))
 		return (EINVAL);
 
 	start = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
@@ -201,7 +204,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		end = start + count - 1;
 	}
 
-	return (pci_host_generic_alloc_resource(dev, child, type, rid, start,
-	    end, count, flags));
+	return (pci_host_generic_core_alloc_resource(dev, child, type, rid,
+	    start, end, count, flags));
 }
 #endif

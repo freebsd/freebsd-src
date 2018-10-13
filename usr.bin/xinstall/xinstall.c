@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012, 2013 SRI International
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -149,6 +151,7 @@ main(int argc, char *argv[])
 	char *p;
 	const char *to_name;
 
+	fset = 0;
 	iflags = 0;
 	group = owner = NULL;
 	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv")) !=
@@ -530,10 +533,14 @@ do_link(const char *from_name, const char *to_name,
 				unlink(tmpl);
 				err(EX_OSERR, "%s", to_name);
 			}
+#if HAVE_STRUCT_STAT_ST_FLAGS
 			if (target_sb->st_flags & NOCHANGEBITS)
 				(void)chflags(to_name, target_sb->st_flags &
 				     ~NOCHANGEBITS);
-			unlink(to_name);
+#endif
+			if (verbose)
+				printf("install: link %s -> %s\n",
+				    from_name, to_name);
 			ret = rename(tmpl, to_name);
 			/*
 			 * If rename has posix semantics, then the temporary
@@ -543,8 +550,12 @@ do_link(const char *from_name, const char *to_name,
 			(void)unlink(tmpl);
 		}
 		return (ret);
-	} else
+	} else {
+		if (verbose)
+			printf("install: link %s -> %s\n",
+			    from_name, to_name);
 		return (link(from_name, to_name));
+	}
 }
 
 /*
@@ -570,17 +581,23 @@ do_symlink(const char *from_name, const char *to_name,
 			(void)unlink(tmpl);
 			err(EX_OSERR, "%s", to_name);
 		}
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		if (target_sb->st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, target_sb->st_flags &
 			     ~NOCHANGEBITS);
-		unlink(to_name);
-
+#endif
+		if (verbose)
+			printf("install: symlink %s -> %s\n",
+			    from_name, to_name);
 		if (rename(tmpl, to_name) == -1) {
 			/* Remove temporary link before exiting. */
 			(void)unlink(tmpl);
 			err(EX_OSERR, "%s: rename", to_name);
 		}
 	} else {
+		if (verbose)
+			printf("install: symlink %s -> %s\n",
+			    from_name, to_name);
 		if (symlink(from_name, to_name) == -1)
 			err(EX_OSERR, "symlink %s -> %s", from_name, to_name);
 	}
@@ -656,7 +673,7 @@ makelink(const char *from_name, const char *to_name,
 	}
 
 	if (dolink & LN_RELATIVE) {
-		char *cp, *d, *s;
+		char *to_name_copy, *cp, *d, *s;
 
 		if (*from_name != '/') {
 			/* this is already a relative link */
@@ -674,7 +691,10 @@ makelink(const char *from_name, const char *to_name,
 		 * The last component of to_name may be a symlink,
 		 * so use realpath to resolve only the directory.
 		 */
-		cp = dirname(to_name);
+		to_name_copy = strdup(to_name);
+		if (to_name_copy == NULL)
+			err(EX_OSERR, "%s: strdup", to_name);
+		cp = dirname(to_name_copy);
 		if (realpath(cp, dst) == NULL)
 			err(EX_OSERR, "%s: realpath", cp);
 		/* .. and add the last component. */
@@ -682,9 +702,11 @@ makelink(const char *from_name, const char *to_name,
 			if (strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
 				errx(1, "resolved pathname too long");
 		}
-		cp = basename(to_name);
+		strcpy(to_name_copy, to_name);
+		cp = basename(to_name_copy);
 		if (strlcat(dst, cp, sizeof(dst)) > sizeof(dst))
 			errx(1, "resolved pathname too long");
+		free(to_name_copy);
 
 		/* Trim common path components. */
 		for (s = src, d = dst; *s == *d; s++, d++)
@@ -744,8 +766,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		}
 		/* Build the target path. */
 		if (flags & DIRECTORY) {
-			(void)snprintf(pathbuf, sizeof(pathbuf), "%s/%s",
+			(void)snprintf(pathbuf, sizeof(pathbuf), "%s%s%s",
 			    to_name,
+			    to_name[strlen(to_name) - 1] == '/' ? "" : "/",
 			    (p = strrchr(from_name, '/')) ? ++p : from_name);
 			to_name = pathbuf;
 		}
@@ -760,9 +783,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (target && !safecopy) {
 			if (to_sb.st_mode & S_IFDIR && rmdir(to_name) == -1)
 				err(EX_OSERR, "%s", to_name);
+#if HAVE_STRUCT_STAT_ST_FLAGS
 			if (to_sb.st_flags & NOCHANGEBITS)
 				(void)chflags(to_name,
 				    to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 			unlink(to_name);
 		}
 		makelink(from_name, to_name, target ? &to_sb : NULL);
@@ -874,9 +899,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * and the files are different (or just not compared).
 	 */
 	if (tempcopy && !files_match) {
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
 			    suffix) != strlen(to_name) + strlen(suffix)) {
@@ -886,11 +913,25 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 			if (verbose)
 				(void)printf("install: %s -> %s\n", to_name, backup);
-			if (rename(to_name, backup) < 0) {
+			if (unlink(backup) < 0 && errno != ENOENT) {
 				serrno = errno;
+#if HAVE_STRUCT_STAT_ST_FLAGS
+				if (to_sb.st_flags & NOCHANGEBITS)
+					(void)chflags(to_name, to_sb.st_flags);
+#endif
 				unlink(tempfile);
 				errno = serrno;
-				err(EX_OSERR, "rename: %s to %s", to_name,
+				err(EX_OSERR, "unlink: %s", backup);
+			}
+			if (link(to_name, backup) < 0) {
+				serrno = errno;
+				unlink(tempfile);
+#if HAVE_STRUCT_STAT_ST_FLAGS
+				if (to_sb.st_flags & NOCHANGEBITS)
+					(void)chflags(to_name, to_sb.st_flags);
+#endif
+				errno = serrno;
+				err(EX_OSERR, "link: %s to %s", to_name,
 				     backup);
 			}
 		}
@@ -933,9 +974,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (!dounpriv && ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
 	    (uid != (uid_t)-1 && uid != to_sb.st_uid) ||
 	    (mode != (to_sb.st_mode & ALLPERMS)))) {
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)fchflags(to_fd, to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 	}
 
 	if (!dounpriv & 
@@ -957,7 +1000,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			err(EX_OSERR, "%s: chmod", to_name);
 		}
 	}
-
+#if HAVE_STRUCT_STAT_ST_FLAGS
 	/*
 	 * If provided a set of flags, set them, otherwise, preserve the
 	 * flags, except for the dump flag.
@@ -980,6 +1023,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 		}
 	}
+#endif
 
 	(void)close(to_fd);
 	if (!devnull)
@@ -1106,21 +1150,37 @@ create_newfile(const char *path, int target, struct stat *sbp)
 		 * off the append/immutable bits -- if we fail, go ahead,
 		 * it might work.
 		 */
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		if (sbp->st_flags & NOCHANGEBITS)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
+#endif
 
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix) != strlen(path) + strlen(suffix))
+			    path, suffix) != strlen(path) + strlen(suffix)) {
+				saved_errno = errno;
+#if HAVE_STRUCT_STAT_ST_FLAGS
+				if (sbp->st_flags & NOCHANGEBITS)
+					(void)chflags(path, sbp->st_flags);
+#endif
+				errno = saved_errno;
 				errx(EX_OSERR, "%s: backup filename too long",
 				    path);
+			}
 			(void)snprintf(backup, MAXPATHLEN, "%s%s",
 			    path, suffix);
 			if (verbose)
 				(void)printf("install: %s -> %s\n",
 				    path, backup);
-			if (rename(path, backup) < 0)
+			if (rename(path, backup) < 0) {
+				saved_errno = errno;
+#if HAVE_STRUCT_STAT_ST_FLAGS
+				if (sbp->st_flags & NOCHANGEBITS)
+					(void)chflags(path, sbp->st_flags);
+#endif
+				errno = saved_errno;
 				err(EX_OSERR, "rename: %s to %s", path, backup);
+			}
 		} else
 			if (unlink(path) < 0)
 				saved_errno = errno;
@@ -1205,6 +1265,12 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			err(EX_OSERR, "%s", from_name);
 		}
 	}
+	if (safecopy && fsync(to_fd) == -1) {
+		serrno = errno;
+		(void)unlink(to_name);
+		errno = serrno;
+		err(EX_OSERR, "fsync failed for %s", to_name);
+	}
 	return (digest_end(&ctx, NULL));
 }
 
@@ -1255,17 +1321,19 @@ install_dir(char *path)
 {
 	char *p;
 	struct stat sb;
-	int ch;
+	int ch, tried_mkdir;
 
 	for (p = path;; ++p)
 		if (!*p || (p != path && *p  == '/')) {
+			tried_mkdir = 0;
 			ch = *p;
 			*p = '\0';
 again:
 			if (stat(path, &sb) < 0) {
-				if (errno != ENOENT)
+				if (errno != ENOENT || tried_mkdir)
 					err(EX_OSERR, "stat %s", path);
 				if (mkdir(path, 0755) < 0) {
+					tried_mkdir = 1;
 					if (errno == EEXIST)
 						goto again;
 					err(EX_OSERR, "mkdir %s", path);

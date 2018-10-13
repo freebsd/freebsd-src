@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -60,7 +62,7 @@ int init_config(void)
 
 const char driver_name[] = "hpt27xx";
 const char driver_name_long[] = "RocketRAID 27xx controller driver";
-const char driver_ver[] = "v1.2.7";
+const char driver_ver[] = "v1.2.8";
 int  osm_max_targets = 0xff;
 
 

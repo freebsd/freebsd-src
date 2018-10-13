@@ -65,12 +65,15 @@ ntp_ripe_ncc_ok=${ntp_parse_ok=no}
 ntp_jupiter_ok=${ntp_jupiter_ok=no}
 
 NTP_PROG_CC
-AC_PROG_CPP
-# Do we need CXX for anything besides google test?
-AC_PROG_CXX
+NTP_COMPILER
+
+dnl # Do we need CXX for anything besides google test?
+dnl AC_PROG_CXX
 AC_PROG_YACC
-AC_PROG_CC_C_O
+dnl AC_PROG_CC_C_O 	# called by NTP_COMPILER
 AX_C99_STRUCT_INIT
+
+NTP_HARDEN([sntp])
 
 NTP_VPATH_HACK		dnl used only by ntpd/Makefile.am
 
@@ -169,7 +172,6 @@ case "$ans" in
     ;;
 esac
 PROG_NET_SNMP_CONFIG=$ans
-AC_MSG_CHECKING([for net-snmp-config path])
 case "$PROG_NET_SNMP_CONFIG" in
  no) ;;
  /*)
@@ -180,6 +182,7 @@ case "$PROG_NET_SNMP_CONFIG" in
     AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
 ;;
 esac
+AC_MSG_CHECKING([for net-snmp-config path])
 AC_MSG_RESULT([$PATH_NET_SNMP_CONFIG])
 
 case "$PATH_NET_SNMP_CONFIG" in
@@ -524,6 +527,8 @@ AC_CHECK_HEADERS([sys/timex.h], [], [], [
     # include <sys/time.h>
     #endif
 ])
+
+NTP_AF_UNSPEC
 
 AC_TYPE_SIGNAL
 AC_TYPE_OFF_T
@@ -3009,6 +3014,17 @@ AC_MSG_RESULT([$ans])
 
 NTP_OPENSSL
 
+AC_MSG_CHECKING([if we want to enable CMAC support])
+case "$ac_cv_header_openssl_cmac_h" in
+ yes)
+    AC_DEFINE([ENABLE_CMAC], [1], [Enable CMAC support?])
+    ans="yes"
+    ;;
+ *) ans="no"
+    ;;
+esac
+AC_MSG_RESULT([$ans])
+
 NTP_CRYPTO_RAND
 
 # if we are using OpenSSL (--with-crypto), by default Autokey is enabled
@@ -4372,6 +4388,10 @@ dnl  can't be conditionalized.
 NTP_GOOGLETEST
 
 NTP_PROBLEM_TESTS
+
+###
+
+AC_CHECK_DECLS([sigsetjmp,siglongjmp], [], [], [[#include <setjmp.h>]])
 
 ###
 

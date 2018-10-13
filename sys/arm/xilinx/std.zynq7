@@ -4,13 +4,7 @@
 # $FreeBSD$
 
 cpu		CPU_CORTEXA
-machine		arm	armv6
+machine		arm	armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 files		"../xilinx/files.zynq7"
-
-options		KERNVIRTADDR=0xc0100000		# Used in ldscript.arm
-makeoptions	KERNVIRTADDR=0xc0100000
-
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15

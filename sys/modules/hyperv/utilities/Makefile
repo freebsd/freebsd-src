@@ -1,12 +1,17 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/hyperv/utilities
+.PATH:	${SRCTOP}/sys/dev/hyperv/utilities
 
 KMOD=	hv_utils
-SRCS=	hv_util.c hv_kvp.c hv_timesync.c hv_shutdown.c hv_heartbeat.c
-SRCS+=	bus_if.h device_if.h
+SRCS=	vmbus_ic.c
+SRCS+=	hv_kvp.c
+SRCS+=	hv_snapshot.c
+SRCS+=	vmbus_heartbeat.c
+SRCS+=	vmbus_shutdown.c
+SRCS+=	vmbus_timesync.c
+SRCS+=	bus_if.h device_if.h vmbus_if.h
 
-CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/include \
-	 -I${.CURDIR}/../../../dev/hyperv/vmbus
+CFLAGS+= -I${SRCTOP}/sys/dev/hyperv/include \
+	 -I${SRCTOP}/sys/dev/hyperv/vmbus
 
 .include <bsd.kmod.mk>

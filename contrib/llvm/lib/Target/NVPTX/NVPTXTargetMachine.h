@@ -16,9 +16,9 @@
 
 #include "ManagedStringPool.h"
 #include "NVPTXSubtarget.h"
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/SelectionDAGTargetInfo.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetSelectionDAGInfo.h"
 
 namespace llvm {
 
@@ -36,8 +36,8 @@ class NVPTXTargetMachine : public LLVMTargetMachine {
 public:
   NVPTXTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                      StringRef FS, const TargetOptions &Options,
-                     Reloc::Model RM, CodeModel::Model CM, CodeGenOpt::Level OP,
-                     bool is64bit);
+                     Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                     CodeGenOpt::Level OP, bool is64bit);
 
   ~NVPTXTargetMachine() override;
   const NVPTXSubtarget *getSubtargetImpl(const Function &) const override {
@@ -61,8 +61,13 @@ public:
     return TLOF.get();
   }
 
-  TargetIRAnalysis getTargetIRAnalysis() override;
+  void adjustPassManager(PassManagerBuilder &) override;
 
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+
+  bool isMachineVerifierClean() const override {
+    return false;
+  }
 }; // NVPTXTargetMachine.
 
 class NVPTXTargetMachine32 : public NVPTXTargetMachine {
@@ -70,8 +75,8 @@ class NVPTXTargetMachine32 : public NVPTXTargetMachine {
 public:
   NVPTXTargetMachine32(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
-                       Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL);
+                       Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                       CodeGenOpt::Level OL, bool JIT);
 };
 
 class NVPTXTargetMachine64 : public NVPTXTargetMachine {
@@ -79,8 +84,8 @@ class NVPTXTargetMachine64 : public NVPTXTargetMachine {
 public:
   NVPTXTargetMachine64(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
-                       Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL);
+                       Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                       CodeGenOpt::Level OL, bool JIT);
 };
 
 } // end namespace llvm

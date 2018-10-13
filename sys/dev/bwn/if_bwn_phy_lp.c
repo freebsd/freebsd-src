@@ -65,15 +65,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_ratectl.h>
+
+#include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhnd_ids.h>
+
+#include <dev/bhnd/cores/pmu/bhnd_pmu.h>
 
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
@@ -84,7 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwn_phy_common.h>
 #include <dev/bwn/if_bwn_phy_lp.h>
 
-static void	bwn_phy_lp_readsprom(struct bwn_mac *);
+#include "bhnd_nvram_map.h"
+
+static int	bwn_phy_lp_readsprom(struct bwn_mac *);
 static void	bwn_phy_lp_bbinit(struct bwn_mac *);
 static void	bwn_phy_lp_txpctl_init(struct bwn_mac *);
 static void	bwn_phy_lp_calib(struct bwn_mac *);
@@ -100,10 +104,10 @@ static void	bwn_phy_lp_digflt_restore(struct bwn_mac *);
 static void	bwn_phy_lp_tblinit(struct bwn_mac *);
 static void	bwn_phy_lp_bbinit_r2(struct bwn_mac *);
 static void	bwn_phy_lp_bbinit_r01(struct bwn_mac *);
-static void	bwn_phy_lp_b2062_init(struct bwn_mac *);
-static void	bwn_phy_lp_b2063_init(struct bwn_mac *);
-static void	bwn_phy_lp_rxcal_r2(struct bwn_mac *);
-static void	bwn_phy_lp_rccal_r12(struct bwn_mac *);
+static int	bwn_phy_lp_b2062_init(struct bwn_mac *);
+static int	bwn_phy_lp_b2063_init(struct bwn_mac *);
+static int	bwn_phy_lp_rxcal_r2(struct bwn_mac *);
+static int	bwn_phy_lp_rccal_r12(struct bwn_mac *);
 static void	bwn_phy_lp_set_rccap(struct bwn_mac *);
 static uint32_t	bwn_phy_lp_roundup(uint32_t, uint32_t, uint8_t);
 static void	bwn_phy_lp_b2062_reset_pllbias(struct bwn_mac *);
@@ -410,7 +414,16 @@ bwn_phy_lp_init(struct bwn_mac *mac)
 	int i, error;
 	uint16_t tmp;
 
-	bwn_phy_lp_readsprom(mac);	/* XXX bad place */
+	/* All LP-PHY devices have a PMU */
+	if (sc->sc_pmu == NULL) {
+		device_printf(sc->sc_dev, "no PMU; cannot configure PAREF "
+		    "LDO\n");
+		return (ENXIO);
+	}
+
+	if ((error = bwn_phy_lp_readsprom(mac)))
+		return (error);
+
 	bwn_phy_lp_bbinit(mac);
 
 	/* initialize RF */
@@ -419,10 +432,12 @@ bwn_phy_lp_init(struct bwn_mac *mac)
 	BWN_PHY_MASK(mac, BWN_PHY_4WIRECTL, 0xfffd);
 	DELAY(1);
 
-	if (mac->mac_phy.rf_ver == 0x2062)
-		bwn_phy_lp_b2062_init(mac);
-	else {
-		bwn_phy_lp_b2063_init(mac);
+	if (mac->mac_phy.rf_ver == 0x2062) {
+		if ((error = bwn_phy_lp_b2062_init(mac)))
+			return (error);
+	} else {
+		if ((error = bwn_phy_lp_b2063_init(mac)))
+			return (error);
 
 		/* synchronize stx table. */
 		for (i = 0; i < N(tables); i++) {
@@ -440,11 +455,14 @@ bwn_phy_lp_init(struct bwn_mac *mac)
 	}
 
 	/* calibrate RC */
-	if (mac->mac_phy.rev >= 2)
-		bwn_phy_lp_rxcal_r2(mac);
-	else if (!plp->plp_rccap) {
-		if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
-			bwn_phy_lp_rccal_r12(mac);
+	if (mac->mac_phy.rev >= 2) {
+		if ((error = bwn_phy_lp_rxcal_r2(mac)))
+			return (error);
+	} else if (!plp->plp_rccap) {
+		if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan)) {
+			if ((error = bwn_phy_lp_rccal_r12(mac)))
+				return (error);
+		}
 	} else
 		bwn_phy_lp_set_rccap(mac);
 
@@ -587,31 +605,62 @@ bwn_phy_lp_task_60s(struct bwn_mac *mac)
 	bwn_phy_lp_calib(mac);
 }
 
-static void
+static int
 bwn_phy_lp_readsprom(struct bwn_mac *mac)
 {
 	struct bwn_phy_lp *plp = &mac->mac_phy.phy_lp;
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
 
+#define	BWN_PHY_LP_READVAR(_dev, _type, _name, _result)		\
+do {									\
+	int error;							\
+									\
+	error = bhnd_nvram_getvar_ ##_type((_dev), (_name), (_result));	\
+	if (error) {							\
+		device_printf((_dev), "NVRAM variable %s unreadable: "	\
+		    "%d\n", (_name), error);				\
+		return (error);						\
+	}								\
+} while(0)
+
 	if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan)) {
-		plp->plp_txisoband_m = siba_sprom_get_tri2g(sc->sc_dev);
-		plp->plp_bxarch = siba_sprom_get_bxa2g(sc->sc_dev);
-		plp->plp_rxpwroffset = siba_sprom_get_rxpo2g(sc->sc_dev);
-		plp->plp_rssivf = siba_sprom_get_rssismf2g(sc->sc_dev);
-		plp->plp_rssivc = siba_sprom_get_rssismc2g(sc->sc_dev);
-		plp->plp_rssigs = siba_sprom_get_rssisav2g(sc->sc_dev);
-		return;
+		BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_TRI2G,
+		    &plp->plp_txisoband_m);
+		BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_BXA2G,
+		    &plp->plp_bxarch);
+		BWN_PHY_LP_READVAR(sc->sc_dev, int8, BHND_NVAR_RXPO2G,
+		    &plp->plp_rxpwroffset);
+		BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_RSSISMF2G,
+		    &plp->plp_rssivf);
+		BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_RSSISMC2G,
+		    &plp->plp_rssivc);
+		BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_RSSISAV2G,
+		    &plp->plp_rssigs);
+
+		return (0);
 	}
 
-	plp->plp_txisoband_l = siba_sprom_get_tri5gl(sc->sc_dev);
-	plp->plp_txisoband_m = siba_sprom_get_tri5g(sc->sc_dev);
-	plp->plp_txisoband_h = siba_sprom_get_tri5gh(sc->sc_dev);
-	plp->plp_bxarch = siba_sprom_get_bxa5g(sc->sc_dev);
-	plp->plp_rxpwroffset = siba_sprom_get_rxpo5g(sc->sc_dev);
-	plp->plp_rssivf = siba_sprom_get_rssismf5g(sc->sc_dev);
-	plp->plp_rssivc = siba_sprom_get_rssismc5g(sc->sc_dev);
-	plp->plp_rssigs = siba_sprom_get_rssisav5g(sc->sc_dev);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_TRI5GL,
+	    &plp->plp_txisoband_l);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_TRI5G,
+	    &plp->plp_txisoband_m);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_TRI5GH,
+	    &plp->plp_txisoband_h);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_BXA5G,
+	    &plp->plp_bxarch);
+	BWN_PHY_LP_READVAR(sc->sc_dev, int8, BHND_NVAR_RXPO5G,
+	    &plp->plp_rxpwroffset);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_RSSISMF5G,
+	    &plp->plp_rssivf);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_RSSISMC5G,
+	    &plp->plp_rssivc);
+	BWN_PHY_LP_READVAR(sc->sc_dev, uint8, BHND_NVAR_RSSISAV5G,
+	    &plp->plp_rssigs);
+
+#undef	BWN_PHY_LP_READVAR
+
+	return (0);
 }
 
 static void
@@ -687,7 +736,7 @@ bwn_phy_lp_calib(struct bwn_mac *mac)
 		bwn_phy_lp_digflt_restore(mac);
 
 	/* do RX IQ Calculation; assumes that noise is true. */
-	if (siba_get_chipid(sc->sc_dev) == 0x5354) {
+	if (sc->sc_cid.chip_id == BHND_CHIPID_BCM5354) {
 		for (i = 0; i < N(bwn_rxcompco_5354); i++) {
 			if (bwn_rxcompco_5354[i].rc_chan == plp->plp_chan)
 				rc = &bwn_rxcompco_5354[i];
@@ -767,10 +816,11 @@ bwn_phy_lp_b2063_switch_channel(struct bwn_mac *mac, uint8_t chan)
 {
 	static const struct bwn_b206x_chan *bc = NULL;
 	struct bwn_softc *sc = mac->mac_sc;
-	uint32_t count, freqref, freqvco, freqxtal, val[3], timeout, timeoutref,
+	uint32_t count, freqref, freqvco, val[3], timeout, timeoutref,
 	    tmp[6];
 	uint16_t old, scale, tmp16;
-	int i, div;
+	u_int freqxtal;
+	int error, i, div;
 
 	for (i = 0; i < N(bwn_b2063_chantable); i++) {
 		if (bwn_b2063_chantable[i].bc_chan == chan) {
@@ -780,6 +830,13 @@ bwn_phy_lp_b2063_switch_channel(struct bwn_mac *mac, uint8_t chan)
 	}
 	if (bc == NULL)
 		return (EINVAL);
+
+	error = bhnd_get_clock_freq(sc->sc_dev, BHND_CLOCK_ALP, &freqxtal);
+	if (error) {
+		device_printf(sc->sc_dev, "failed to fetch clock frequency: %d",
+		    error);
+		return (error);
+	}
 
 	BWN_RF_WRITE(mac, BWN_B2063_LOGEN_VCOBUF1, bc->bc_data[0]);
 	BWN_RF_WRITE(mac, BWN_B2063_LOGEN_MIXER2, bc->bc_data[1]);
@@ -797,7 +854,6 @@ bwn_phy_lp_b2063_switch_channel(struct bwn_mac *mac, uint8_t chan)
 	old = BWN_RF_READ(mac, BWN_B2063_COM15);
 	BWN_RF_SET(mac, BWN_B2063_COM15, 0x1e);
 
-	freqxtal = siba_get_cc_pmufreq(sc->sc_dev) * 1000;
 	freqvco = bc->bc_freq << ((bc->bc_freq > 4000) ? 1 : 2);
 	freqref = freqxtal * 3;
 	div = (freqxtal <= 26000000 ? 1 : 2);
@@ -898,9 +954,9 @@ bwn_phy_lp_b2062_switch_channel(struct bwn_mac *mac, uint8_t chan)
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy_lp *plp = &mac->mac_phy.phy_lp;
 	const struct bwn_b206x_chan *bc = NULL;
-	uint32_t freqxtal = siba_get_cc_pmufreq(sc->sc_dev) * 1000;
 	uint32_t tmp[9];
-	int i;
+	u_int freqxtal;
+	int error, i;
 
 	for (i = 0; i < N(bwn_b2062_chantable); i++) {
 		if (bwn_b2062_chantable[i].bc_chan == chan) {
@@ -911,6 +967,13 @@ bwn_phy_lp_b2062_switch_channel(struct bwn_mac *mac, uint8_t chan)
 
 	if (bc == NULL)
 		return (EINVAL);
+
+	error = bhnd_get_clock_freq(sc->sc_dev, BHND_CLOCK_ALP, &freqxtal);
+	if (error) {
+		device_printf(sc->sc_dev, "failed to fetch clock frequency: %d",
+		    error);
+		return (error);
+	}
 
 	BWN_RF_SET(mac, BWN_B2062_S_RFPLLCTL14, 0x04);
 	BWN_RF_WRITE(mac, BWN_B2062_N_LGENATUNE0, bc->bc_data[0]);
@@ -1302,7 +1365,7 @@ bwn_phy_lp_bbinit_r2(struct bwn_mac *mac)
 	BWN_PHY_MASK(mac, BWN_PHY_CRSGAIN_CTL, ~0x4000);
 	BWN_PHY_MASK(mac, BWN_PHY_CRSGAIN_CTL, ~0x2000);
 	BWN_PHY_SET(mac, BWN_PHY_OFDM(0x10a), 0x1);
-	if (siba_get_pci_revid(sc->sc_dev) >= 0x18) {
+	if (sc->sc_board_info.board_rev >= 0x18) {
 		bwn_tab_write(mac, BWN_TAB_4(17, 65), 0xec);
 		BWN_PHY_SETMASK(mac, BWN_PHY_OFDM(0x10a), 0xff01, 0x14);
 	} else {
@@ -1319,8 +1382,8 @@ bwn_phy_lp_bbinit_r2(struct bwn_mac *mac)
 	BWN_PHY_SETMASK(mac, BWN_PHY_CLIPCTRTHRESH, 0xfc1f, 0xa0);
 	BWN_PHY_SETMASK(mac, BWN_PHY_GAINDIRECTMISMATCH, 0xe0ff, 0x300);
 	BWN_PHY_SETMASK(mac, BWN_PHY_HIGAINDB, 0x00ff, 0x2a00);
-	if ((siba_get_chipid(sc->sc_dev) == 0x4325) &&
-	    (siba_get_chiprev(sc->sc_dev) == 0)) {
+	if (sc->sc_cid.chip_id == BHND_CHIPID_BCM4325 &&
+	    sc->sc_cid.chip_pkg == 0) {
 		BWN_PHY_SETMASK(mac, BWN_PHY_LOWGAINDB, 0x00ff, 0x2100);
 		BWN_PHY_SETMASK(mac, BWN_PHY_VERYLOWGAINDB, 0xff00, 0xa);
 	} else {
@@ -1329,8 +1392,8 @@ bwn_phy_lp_bbinit_r2(struct bwn_mac *mac)
 	}
 	for (i = 0; i < N(v3); i++)
 		BWN_PHY_SETMASK(mac, v3[i].offset, v3[i].mask, v3[i].set);
-	if ((siba_get_chipid(sc->sc_dev) == 0x4325) &&
-	    (siba_get_chiprev(sc->sc_dev) == 0)) {
+	if (sc->sc_cid.chip_id == BHND_CHIPID_BCM4325 &&
+	    sc->sc_cid.chip_pkg == 0) {
 		bwn_tab_write(mac, BWN_TAB_2(0x08, 0x14), 0);
 		bwn_tab_write(mac, BWN_TAB_2(0x08, 0x12), 0x40);
 	}
@@ -1355,8 +1418,8 @@ bwn_phy_lp_bbinit_r2(struct bwn_mac *mac)
 	    0x2000 | ((uint16_t)plp->plp_rssigs << 10) |
 	    ((uint16_t)plp->plp_rssivc << 4) | plp->plp_rssivf);
 
-	if ((siba_get_chipid(sc->sc_dev) == 0x4325) &&
-	    (siba_get_chiprev(sc->sc_dev) == 0)) {
+	if (sc->sc_cid.chip_id == BHND_CHIPID_BCM4325 &&
+	    sc->sc_cid.chip_pkg == 0) {
 		BWN_PHY_SET(mac, BWN_PHY_AFE_ADC_CTL_0, 0x1c);
 		BWN_PHY_SETMASK(mac, BWN_PHY_AFE_CTL, 0x00ff, 0x8800);
 		BWN_PHY_SETMASK(mac, BWN_PHY_AFE_ADC_CTL_1, 0xfc3c, 0x0400);
@@ -1428,7 +1491,7 @@ bwn_phy_lp_bbinit_r01(struct bwn_mac *mac)
 		{ BWN_PHY_TR_LOOKUP_4, 0xffc0, 0x0006 },
 		{ BWN_PHY_TR_LOOKUP_4, 0xc0ff, 0x0700 }
 	};
-	int i;
+	int error, i;
 	uint16_t tmp, tmp2;
 
 	BWN_PHY_MASK(mac, BWN_PHY_AFE_DAC_CTL, 0xf7ff);
@@ -1450,23 +1513,38 @@ bwn_phy_lp_bbinit_r01(struct bwn_mac *mac)
 		BWN_PHY_SETMASK(mac, v1[i].offset, v1[i].mask, v1[i].set);
 	BWN_PHY_SETMASK(mac, BWN_PHY_INPUT_PWRDB,
 	    0xff00, plp->plp_rxpwroffset);
-	if ((siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_FEM) &&
+	if ((sc->sc_board_info.board_flags & BHND_BFL_FEM) &&
 	    ((IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) ||
-	   (siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_LDO_PAREF))) {
-		siba_cc_pmu_set_ldovolt(sc->sc_dev, SIBA_LDO_PAREF, 0x28);
-		siba_cc_pmu_set_ldoparef(sc->sc_dev, 1);
+	   (sc->sc_board_info.board_flags & BHND_BFL_PAREF))) {
+		error = bhnd_pmu_set_voltage_raw(sc->sc_pmu,
+		    BHND_REGULATOR_PAREF_LDO, 0x28);
+		if (error)
+			device_printf(sc->sc_dev, "failed to set PAREF LDO "
+			    "voltage: %d\n", error);
+
+		error = bhnd_pmu_enable_regulator(sc->sc_pmu,
+		    BHND_REGULATOR_PAREF_LDO);
+		if (error)
+			device_printf(sc->sc_dev, "failed to enable PAREF LDO "
+			    "regulator: %d\n", error);
+
 		if (mac->mac_phy.rev == 0)
 			BWN_PHY_SETMASK(mac, BWN_PHY_LP_RF_SIGNAL_LUT,
 			    0xffcf, 0x0010);
 		bwn_tab_write(mac, BWN_TAB_2(11, 7), 60);
 	} else {
-		siba_cc_pmu_set_ldoparef(sc->sc_dev, 0);
+		error = bhnd_pmu_disable_regulator(sc->sc_pmu,
+		    BHND_REGULATOR_PAREF_LDO);
+		if (error)
+			device_printf(sc->sc_dev, "failed to disable PAREF LDO "
+			    "regulator: %d\n", error);
+
 		BWN_PHY_SETMASK(mac, BWN_PHY_LP_RF_SIGNAL_LUT, 0xffcf, 0x0020);
 		bwn_tab_write(mac, BWN_TAB_2(11, 7), 100);
 	}
 	tmp = plp->plp_rssivf | plp->plp_rssivc << 4 | 0xa000;
 	BWN_PHY_WRITE(mac, BWN_PHY_AFE_RSSI_CTL_0, tmp);
-	if (siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_RSSIINV)
+	if (sc->sc_board_info.board_flags & BHND_BFL_RSSIINV)
 		BWN_PHY_SETMASK(mac, BWN_PHY_AFE_RSSI_CTL_1, 0xf000, 0x0aaa);
 	else
 		BWN_PHY_SETMASK(mac, BWN_PHY_AFE_RSSI_CTL_1, 0xf000, 0x02aa);
@@ -1474,19 +1552,19 @@ bwn_phy_lp_bbinit_r01(struct bwn_mac *mac)
 	BWN_PHY_SETMASK(mac, BWN_PHY_RX_RADIO_CTL,
 	    0xfff9, (plp->plp_bxarch << 1));
 	if (mac->mac_phy.rev == 1 &&
-	    (siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_FEM_BT)) {
+	    (sc->sc_board_info.board_flags & BHND_BFL_FEM_BT)) {
 		for (i = 0; i < N(v2); i++)
 			BWN_PHY_SETMASK(mac, v2[i].offset, v2[i].mask,
 			    v2[i].set);
 	} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ||
-	    (siba_get_pci_subdevice(sc->sc_dev) == 0x048a) ||
+	    (sc->sc_board_info.board_type == 0x048a) ||
 	    ((mac->mac_phy.rev == 0) &&
-	     (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_FEM))) {
+	     (sc->sc_board_info.board_flags & BHND_BFL_FEM))) {
 		for (i = 0; i < N(v3); i++)
 			BWN_PHY_SETMASK(mac, v3[i].offset, v3[i].mask,
 			    v3[i].set);
 	} else if (mac->mac_phy.rev == 1 ||
-		  (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_FEM)) {
+		  (sc->sc_board_info.board_flags & BHND_BFL_FEM)) {
 		for (i = 0; i < N(v4); i++)
 			BWN_PHY_SETMASK(mac, v4[i].offset, v4[i].mask,
 			    v4[i].set);
@@ -1496,15 +1574,15 @@ bwn_phy_lp_bbinit_r01(struct bwn_mac *mac)
 			    v5[i].set);
 	}
 	if (mac->mac_phy.rev == 1 &&
-	    (siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_LDO_PAREF)) {
+	    (sc->sc_board_info.board_flags & BHND_BFL_PAREF)) {
 		BWN_PHY_COPY(mac, BWN_PHY_TR_LOOKUP_5, BWN_PHY_TR_LOOKUP_1);
 		BWN_PHY_COPY(mac, BWN_PHY_TR_LOOKUP_6, BWN_PHY_TR_LOOKUP_2);
 		BWN_PHY_COPY(mac, BWN_PHY_TR_LOOKUP_7, BWN_PHY_TR_LOOKUP_3);
 		BWN_PHY_COPY(mac, BWN_PHY_TR_LOOKUP_8, BWN_PHY_TR_LOOKUP_4);
 	}
-	if ((siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_FEM_BT) &&
-	    (siba_get_chipid(sc->sc_dev) == 0x5354) &&
-	    (siba_get_chippkg(sc->sc_dev) == SIBA_CHIPPACK_BCM4712S)) {
+	if ((sc->sc_board_info.board_flags & BHND_BFL_FEM_BT) &&
+	    (sc->sc_cid.chip_id == BHND_CHIPID_BCM5354) &&
+	    (sc->sc_cid.chip_pkg == BHND_PKGID_BCM4712SMALL)) {
 		BWN_PHY_SET(mac, BWN_PHY_CRSGAIN_CTL, 0x0006);
 		BWN_PHY_WRITE(mac, BWN_PHY_GPIO_SELECT, 0x0005);
 		BWN_PHY_WRITE(mac, BWN_PHY_GPIO_OUTEN, 0xffff);
@@ -1544,7 +1622,7 @@ struct bwn_b2062_freq {
 	uint8_t			value[6];
 };
 
-static void
+static int
 bwn_phy_lp_b2062_init(struct bwn_mac *mac)
 {
 #define	CALC_CTL7(freq, div)						\
@@ -1575,8 +1653,17 @@ bwn_phy_lp_b2062_init(struct bwn_mac *mac)
 		{ BWN_B2062_N_CALIB_TS, 0 }
 	};
 	const struct bwn_b2062_freq *f = NULL;
-	uint32_t xtalfreq, ref;
+	uint32_t ref;
+	u_int xtalfreq;
 	unsigned int i;
+	int error;
+
+	error = bhnd_get_clock_freq(sc->sc_dev, BHND_CLOCK_ALP, &xtalfreq);
+	if (error) {
+		device_printf(sc->sc_dev, "failed to fetch clock frequency: %d",
+		    error);
+		return (error);
+	}
 
 	bwn_phy_lp_b2062_tblinit(mac);
 
@@ -1589,11 +1676,6 @@ bwn_phy_lp_b2062_init(struct bwn_mac *mac)
 		BWN_RF_SET(mac, BWN_B2062_N_TSSI_CTL0, 0x1);
 	else
 		BWN_RF_MASK(mac, BWN_B2062_N_TSSI_CTL0, ~0x1);
-
-	KASSERT(siba_get_cc_caps(sc->sc_dev) & SIBA_CC_CAPS_PMU,
-	    ("%s:%d: fail", __func__, __LINE__));
-	xtalfreq = siba_get_cc_pmufreq(sc->sc_dev) * 1000;
-	KASSERT(xtalfreq != 0, ("%s:%d: fail", __func__, __LINE__));
 
 	if (xtalfreq <= 30000000) {
 		plp->plp_div = 1;
@@ -1626,12 +1708,14 @@ bwn_phy_lp_b2062_init(struct bwn_mac *mac)
 	    ((uint16_t)(f->value[3]) << 4) | f->value[2]);
 	BWN_RF_WRITE(mac, BWN_B2062_S_RFPLLCTL10, f->value[4]);
 	BWN_RF_WRITE(mac, BWN_B2062_S_RFPLLCTL11, f->value[5]);
+
+	return (0);
 #undef CALC_CTL7
 #undef CALC_CTL18
 #undef CALC_CTL19
 }
 
-static void
+static int
 bwn_phy_lp_b2063_init(struct bwn_mac *mac)
 {
 
@@ -1651,9 +1735,11 @@ bwn_phy_lp_b2063_init(struct bwn_mac *mac)
 		BWN_RF_WRITE(mac, BWN_B2063_PA_SP3, 0x20);
 		BWN_RF_WRITE(mac, BWN_B2063_PA_SP2, 0x20);
 	}
+
+	return (0);
 }
 
-static void
+static int
 bwn_phy_lp_rxcal_r2(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
@@ -1674,9 +1760,16 @@ bwn_phy_lp_rxcal_r2(struct bwn_mac *mac)
 		{ BWN_B2063_RC_CALIB_CTL2, 0x55 },
 		{ BWN_B2063_RC_CALIB_CTL3, 0x76 }
 	};
-	uint32_t freqxtal = siba_get_cc_pmufreq(sc->sc_dev) * 1000;
-	int i;
+	u_int freqxtal;
+	int error, i;
 	uint8_t tmp;
+
+	error = bhnd_get_clock_freq(sc->sc_dev, BHND_CLOCK_ALP, &freqxtal);
+	if (error) {
+		device_printf(sc->sc_dev, "failed to fetch clock frequency: %d",
+		    error);
+		return (error);
+	}
 
 	tmp = BWN_RF_READ(mac, BWN_B2063_RX_BB_SP8) & 0xff;
 
@@ -1714,9 +1807,11 @@ bwn_phy_lp_rxcal_r2(struct bwn_mac *mac)
 	if (!(BWN_RF_READ(mac, BWN_B2063_RC_CALIB_CTL6) & 0x2))
 		BWN_RF_WRITE(mac, BWN_B2063_TX_BB_SP3, tmp);
 	BWN_RF_WRITE(mac, BWN_B2063_RC_CALIB_CTL1, 0x7e);
+
+	return (0);
 }
 
-static void
+static int
 bwn_phy_lp_rccal_r12(struct bwn_mac *mac)
 {
 	struct bwn_phy_lp *plp = &mac->mac_phy.phy_lp;
@@ -1832,6 +1927,8 @@ done:
 	bwn_phy_lp_set_txpctlmode(mac, txpctlmode);
 	if (plp->plp_rccap)
 		bwn_phy_lp_set_rccap(mac);
+
+	return (0);
 }
 
 static void
@@ -1877,7 +1974,7 @@ bwn_phy_lp_b2062_reset_pllbias(struct bwn_mac *mac)
 
 	BWN_RF_WRITE(mac, BWN_B2062_S_RFPLLCTL2, 0xff);
 	DELAY(20);
-	if (siba_get_chipid(sc->sc_dev) == 0x5354) {
+	if (sc->sc_cid.chip_id == BHND_CHIPID_BCM5354) {
 		BWN_RF_WRITE(mac, BWN_B2062_N_COM1, 4);
 		BWN_RF_WRITE(mac, BWN_B2062_S_RFPLLCTL2, 4);
 	} else {
@@ -2736,8 +2833,8 @@ bwn_phy_lp_tblinit_r2(struct bwn_mac *mac)
 	bwn_tab_write_multi(mac, BWN_TAB_4(9, 0), N(papdeps), papdeps);
 	bwn_tab_write_multi(mac, BWN_TAB_4(10, 0), N(papdmult), papdmult);
 
-	if ((siba_get_chipid(sc->sc_dev) == 0x4325) &&
-	    (siba_get_chiprev(sc->sc_dev) == 0)) {
+	if (sc->sc_cid.chip_id == BHND_CHIPID_BCM4325 &&
+	    sc->sc_cid.chip_pkg == 0) {
 		bwn_tab_write_multi(mac, BWN_TAB_4(13, 0), N(gainidx_a0),
 		    gainidx_a0);
 		bwn_tab_write_multi(mac, BWN_TAB_2(14, 0), N(auxgainidx_a0),
@@ -3354,7 +3451,7 @@ bwn_phy_lp_tblinit_txgain(struct bwn_mac *mac)
 	};
 
 	if (mac->mac_phy.rev != 0 && mac->mac_phy.rev != 1) {
-		if (siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_NOPA)
+		if (sc->sc_board_info.board_flags & BHND_BFL_NOPA)
 			bwn_phy_lp_gaintbl_write_multi(mac, 0, 128, txgain_r2);
 		else if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 			bwn_phy_lp_gaintbl_write_multi(mac, 0, 128,
@@ -3366,8 +3463,8 @@ bwn_phy_lp_tblinit_txgain(struct bwn_mac *mac)
 	}
 
 	if (mac->mac_phy.rev == 0) {
-		if ((siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_NOPA) ||
-		    (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_HGPA))
+		if ((sc->sc_board_info.board_flags & BHND_BFL_NOPA) ||
+		    (sc->sc_board_info.board_flags & BHND_BFL_HGPA))
 			bwn_phy_lp_gaintbl_write_multi(mac, 0, 128, txgain_r0);
 		else if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 			bwn_phy_lp_gaintbl_write_multi(mac, 0, 128,
@@ -3378,8 +3475,8 @@ bwn_phy_lp_tblinit_txgain(struct bwn_mac *mac)
 		return;
 	}
 
-	if ((siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_NOPA) ||
-	    (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_HGPA))
+	if ((sc->sc_board_info.board_flags & BHND_BFL_NOPA) ||
+	    (sc->sc_board_info.board_flags & BHND_BFL_HGPA))
 		bwn_phy_lp_gaintbl_write_multi(mac, 0, 128, txgain_r1);
 	else if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 		bwn_phy_lp_gaintbl_write_multi(mac, 0, 128, txgain_2ghz_r1);

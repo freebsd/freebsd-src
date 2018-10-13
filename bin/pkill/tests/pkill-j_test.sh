@@ -20,7 +20,7 @@ sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 
 name="pkill -j <jid>"
-sleep_amount=5
+sleep_amount=15
 jail -c path=/ name=${base}_1_1 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_1_1.pid $sleep $sleep_amount &
 
@@ -54,7 +54,7 @@ fi 2>/dev/null
 wait
 
 name="pkill -j any"
-sleep_amount=6
+sleep_amount=16
 jail -c path=/ name=${base}_2_1 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_2_1.pid $sleep $sleep_amount &
 
@@ -76,7 +76,7 @@ fi 2>/dev/null
 wait
 
 name="pkill -j none"
-sleep_amount=7
+sleep_amount=17
 daemon -p ${PWD}/${base}_3_1.pid $sleep $sleep_amount
 jail -c path=/ name=${base}_3_2 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_3_2.pid $sleep $sleep_amount &
@@ -94,7 +94,7 @@ wait
 
 # test 4 is like test 1 except with jname instead of jid.
 name="pkill -j <jname>"
-sleep_amount=8
+sleep_amount=18
 jail -c path=/ name=${base}_4_1 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_4_1.pid $sleep $sleep_amount &
 

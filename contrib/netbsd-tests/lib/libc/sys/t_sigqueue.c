@@ -1,4 +1,4 @@
-/* $NetBSD: t_sigqueue.c,v 1.4 2011/07/07 16:31:11 jruoho Exp $ */
+/* $NetBSD: t_sigqueue.c,v 1.7 2017/01/13 20:44:10 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -30,12 +30,13 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_sigqueue.c,v 1.4 2011/07/07 16:31:11 jruoho Exp $");
-
+__RCSID("$NetBSD: t_sigqueue.c,v 1.7 2017/01/13 20:44:10 christos Exp $");
 
 #include <atf-c.h>
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
 #include <unistd.h>
@@ -46,11 +47,7 @@ static void	handler(int, siginfo_t *, void *);
 static int value;
 
 static void
-#ifdef __FreeBSD__
-handler(int signo __unused, siginfo_t *info __unused, void *data __unused)
-#else
-handler(int signo, siginfo_t *info, void *data)
-#endif
+handler(int signo __unused, siginfo_t *info, void *data __unused)
 {
 	value = info->si_value.sival_int;
 	kill(0, SIGINFO);
@@ -77,7 +74,7 @@ ATF_TC_BODY(sigqueue_basic, tc)
 	sv.sival_int = VALUE;
 
 #ifdef __FreeBSD__
-	/* 
+	/*
 	 * From kern_sig.c:
 	 * Specification says sigqueue can only send signal to single process.
 	 */
@@ -99,10 +96,137 @@ ATF_TC_HEAD(sigqueue_err, tc)
 
 ATF_TC_BODY(sigqueue_err, tc)
 {
-	union sigval sv;
+	static union sigval sv;
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EINVAL, sigqueue(getpid(), -1, sv) == -1);
+}
+
+static int signals[] = {
+	SIGINT, SIGRTMIN + 1, SIGINT, SIGRTMIN + 0, SIGRTMIN + 2,
+	SIGQUIT, SIGRTMIN + 1
+};
+#ifdef __arraycount
+#define CNT	__arraycount(signals)
+#else
+#define CNT	(sizeof(signals) / sizeof(signals[0]))
+#endif
+
+static sig_atomic_t count = 0;
+static int delivered[CNT];
+
+static void
+myhandler(int signo, siginfo_t *info, void *context __unused)
+{
+	delivered[count++] = signo;
+	printf("Signal #%zu: signo: %d\n", (size_t)count, signo);
+}
+
+static int
+asc(const void *a, const void *b)
+{
+	const int *ia = a, *ib = b;
+	return *ib - *ia;
+}
+
+/*
+ * given a array of signals to be delivered in tosend of size len
+ * place in ordered the signals to be delivered in delivery order
+ * and return the number of signals that should be delivered
+ */
+static size_t
+sigorder(int *ordered, const int *tosend, size_t len)
+{
+	memcpy(ordered, tosend, len * sizeof(*tosend));
+	qsort(ordered, len, sizeof(*ordered), asc);
+	if (len == 1)
+		return len;
+
+#ifdef __FreeBSD__
+	/*
+	 * Don't dedupe signal numbers (bug 212173)
+	 *
+	 * Per kib's comment..
+	 *
+	 * "
+	 * OTOH, FreeBSD behaviour is to treat all signals as realtime while
+	 * there is no mem shortage and siginfo can be allocated.  In
+	 * particular, signals < SIGRTMIN are not collapsed when queued more
+	 * than once.
+	 * "
+	 */
+
+	return len;
+#else
+
+	size_t i, j;
+	for (i = 0, j = 0; i < len - 1; i++) {
+		if (ordered[i] >= SIGRTMIN)
+			continue;
+		if (j == 0)
+			j = i + 1;
+		while (ordered[i] == ordered[j] && j < len)
+			j++;
+		if (j == len)
+			break;
+		ordered[i + 1] = ordered[j];
+	}
+	return i + 1;
+#endif
+}
+
+ATF_TC(sigqueue_rt);
+ATF_TC_HEAD(sigqueue_rt, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test queuing of real-time signals");
+}
+
+ATF_TC_BODY(sigqueue_rt, tc)
+{
+	pid_t pid;
+	union sigval val;
+	struct sigaction act;
+	int ordered[CNT];
+	struct sigaction oact[CNT];
+	size_t ndelivered;
+
+	ndelivered = sigorder(ordered, signals, CNT);
+
+	act.sa_flags = SA_SIGINFO;
+	act.sa_sigaction = myhandler;
+	sigemptyset(&act.sa_mask);
+	for (size_t i = 0; i < ndelivered; i++)
+		ATF_REQUIRE(sigaction(ordered[i], &act, &oact[i]) != -1);
+
+	val.sival_int = 0;
+	pid = getpid();
+
+	sigset_t mask, orig;
+	sigemptyset(&mask);
+	for (size_t i = 0; i < CNT; i++)
+		if (sigaddset(&mask, signals[i]) == -1)
+			warn("sigaddset");
+
+	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &mask, &orig) != -1);
+	
+	for (size_t i = 0; i < CNT; i++)
+		ATF_REQUIRE(sigqueue(pid, signals[i], val) != -1);
+	
+	ATF_REQUIRE(sigprocmask(SIG_UNBLOCK, &mask, &orig) != -1);
+	sleep(1);
+	ATF_CHECK_MSG((size_t)count == ndelivered,
+	    "count %zu != ndelivered %zu", (size_t)count, ndelivered);
+	for (size_t i = 0; i < ndelivered; i++)
+		ATF_REQUIRE_MSG(ordered[i] == delivered[i],
+		    "%zu: ordered %d != delivered %d",
+		    i, ordered[i], delivered[i]);
+
+	if ((size_t)count > ndelivered)
+		for (size_t i = ndelivered; i < (size_t)count; i++)
+			printf("Undelivered signal #%zu: %d\n", i, ordered[i]);
+
+	for (size_t i = 0; i < ndelivered; i++)
+		ATF_REQUIRE(sigaction(signals[i], &oact[i], NULL) != -1);
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -110,6 +234,7 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, sigqueue_basic);
 	ATF_TP_ADD_TC(tp, sigqueue_err);
+	ATF_TP_ADD_TC(tp, sigqueue_rt);
 
 	return atf_no_error();
 }

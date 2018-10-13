@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2015 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -67,7 +69,9 @@ typedef	struct dmar_ctx_entry {
 #define	DMAR_CTX2_AW_4LVL	2		/* 4-level page tables */
 #define	DMAR_CTX2_AW_5LVL	3		/* 5-level page tables */
 #define	DMAR_CTX2_AW_6LVL	4		/* 6-level page tables */
+#define	DMAR_CTX2_DID_MASK	0xffff0
 #define	DMAR_CTX2_DID(x)	((x) << 8)	/* Domain Identifier */
+#define	DMAR_CTX2_GET_DID(ctx2)	(((ctx2) & DMAR_CTX2_DID_MASK) >> 8)
 
 typedef struct dmar_pte {
 	uint64_t pte;
@@ -214,6 +218,8 @@ typedef struct dmar_irte {
 
 /* Root-Entry Table Address register */
 #define	DMAR_RTADDR_REG	0x20
+#define	DMAR_RTADDR_RTT	(1 << 11)	/* Root Table Type */
+#define	DMAR_RTADDR_RTA_MASK	0xfffffffffffff000
 
 /* Context Command register */
 #define	DMAR_CCMD_REG	0x28

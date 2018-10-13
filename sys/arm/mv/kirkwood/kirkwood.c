@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
@@ -78,4 +80,11 @@ get_tclk(void)
 		return (TCLK_200MHZ);
 
 	return (TCLK_166MHZ);
+}
+
+uint32_t
+get_cpu_freq(void)
+{
+
+	return (0);
 }

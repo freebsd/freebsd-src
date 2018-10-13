@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_capsicum.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -56,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
+#include <sys/uio.h>
+#include <sys/un.h>
+#include <sys/unpcb.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -67,13 +71,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
-
-/*
- * Flags for accept1() and kern_accept4(), in addition to SOCK_CLOEXEC
- * and SOCK_NONBLOCK.
- */
-#define	ACCEPT4_INHERIT	0x1
-#define	ACCEPT4_COMPAT	0x2
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
@@ -89,20 +86,23 @@ static int sockargs(struct mbuf **, char *, socklen_t, int);
 /*
  * Convert a user file descriptor to a kernel file entry and check if required
  * capability rights are present.
+ * If required copy of current set of capability rights is returned.
  * A reference on the file entry is held upon returning.
  */
 int
 getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
-    struct file **fpp, u_int *fflagp)
+    struct file **fpp, u_int *fflagp, struct filecaps *havecapsp)
 {
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(td->td_proc->p_fd, fd, rightsp, &fp, NULL);
+	error = fget_cap(td, fd, rightsp, &fp, havecapsp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
 		fdrop(fp, td);
+		if (havecapsp != NULL)
+			filecaps_free(havecapsp);
 		return (ENOTSOCK);
 	}
 	if (fflagp != NULL)
@@ -119,21 +119,21 @@ getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 #endif
 
 int
-sys_socket(td, uap)
-	struct thread *td;
-	struct socket_args /* {
-		int	domain;
-		int	type;
-		int	protocol;
-	} */ *uap;
+sys_socket(struct thread *td, struct socket_args *uap)
+{
+
+	return (kern_socket(td, uap->domain, uap->type, uap->protocol));
+}
+
+int
+kern_socket(struct thread *td, int domain, int type, int protocol)
 {
 	struct socket *so;
 	struct file *fp;
-	int fd, error, type, oflag, fflag;
+	int fd, error, oflag, fflag;
 
-	AUDIT_ARG_SOCKET(uap->domain, uap->type, uap->protocol);
+	AUDIT_ARG_SOCKET(domain, type, protocol);
 
-	type = uap->type;
 	oflag = 0;
 	fflag = 0;
 	if ((type & SOCK_CLOEXEC) != 0) {
@@ -146,8 +146,7 @@ sys_socket(td, uap)
 	}
 
 #ifdef MAC
-	error = mac_socket_check_create(td->td_ucred, uap->domain, type,
-	    uap->protocol);
+	error = mac_socket_check_create(td->td_ucred, domain, type, protocol);
 	if (error != 0)
 		return (error);
 #endif
@@ -155,8 +154,7 @@ sys_socket(td, uap)
 	if (error != 0)
 		return (error);
 	/* An extra reference on `fp' has been held for us by falloc(). */
-	error = socreate(uap->domain, &so, type, uap->protocol,
-	    td->td_ucred, td);
+	error = socreate(domain, &so, type, protocol, td->td_ucred, td);
 	if (error != 0) {
 		fdclose(td, fp, fd);
 	} else {
@@ -169,15 +167,8 @@ sys_socket(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_bind(td, uap)
-	struct thread *td;
-	struct bind_args /* {
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_bind(struct thread *td, struct bind_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -195,13 +186,17 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
+
+#ifdef CAPABILITY_MODE
+	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
+		return (ECAPMODE);
+#endif
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
-	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_BIND),
-	    &fp, NULL);
+	error = getsock_cap(td, fd, &cap_bind_rights,
+	    &fp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -224,16 +219,8 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_bindat(td, uap)
-	struct thread *td;
-	struct bindat_args /* {
-		int	fd;
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_bindat(struct thread *td, struct bindat_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -246,33 +233,33 @@ sys_bindat(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_listen(td, uap)
-	struct thread *td;
-	struct listen_args /* {
-		int	s;
-		int	backlog;
-	} */ *uap;
+sys_listen(struct thread *td, struct listen_args *uap)
+{
+
+	return (kern_listen(td, uap->s, uap->backlog));
+}
+
+int
+kern_listen(struct thread *td, int s, int backlog)
 {
 	struct socket *so;
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->s);
-	error = getsock_cap(td, uap->s, cap_rights_init(&rights, CAP_LISTEN),
-	    &fp, NULL);
+	AUDIT_ARG_FD(s);
+	error = getsock_cap(td, s, &cap_listen_rights,
+	    &fp, NULL, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 #ifdef MAC
 		error = mac_socket_check_listen(td->td_ucred, so);
 		if (error == 0)
 #endif
-			error = solisten(so, uap->backlog, td);
+			error = solisten(so, backlog, td);
 		fdrop(fp, td);
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -335,7 +322,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	struct file *headfp, *nfp = NULL;
 	struct sockaddr *sa = NULL;
 	struct socket *head, *so;
-	cap_rights_t rights;
+	struct filecaps fcaps;
 	u_int fflag;
 	pid_t pgid;
 	int error, fd, tmp;
@@ -344,8 +331,8 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 		*name = NULL;
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_ACCEPT),
-	    &headfp, &fflag);
+	error = getsock_cap(td, s, &cap_accept_rights,
+	    &headfp, &fflag, &fcaps);
 	if (error != 0)
 		return (error);
 	head = headfp->f_data;
@@ -358,62 +345,26 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	if (error != 0)
 		goto done;
 #endif
-	error = falloc(td, &nfp, &fd, (flags & SOCK_CLOEXEC) ? O_CLOEXEC : 0);
+	error = falloc_caps(td, &nfp, &fd,
+	    (flags & SOCK_CLOEXEC) ? O_CLOEXEC : 0, &fcaps);
 	if (error != 0)
 		goto done;
-	ACCEPT_LOCK();
-	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
-		ACCEPT_UNLOCK();
-		error = EWOULDBLOCK;
+	SOCK_LOCK(head);
+	if (!SOLISTENING(head)) {
+		SOCK_UNLOCK(head);
+		error = EINVAL;
 		goto noconnection;
 	}
-	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
-		if (head->so_rcv.sb_state & SBS_CANTRCVMORE) {
-			head->so_error = ECONNABORTED;
-			break;
-		}
-		error = msleep(&head->so_timeo, &accept_mtx, PSOCK | PCATCH,
-		    "accept", 0);
-		if (error != 0) {
-			ACCEPT_UNLOCK();
-			goto noconnection;
-		}
-	}
-	if (head->so_error) {
-		error = head->so_error;
-		head->so_error = 0;
-		ACCEPT_UNLOCK();
+
+	error = solisten_dequeue(head, &so, flags);
+	if (error != 0)
 		goto noconnection;
-	}
-	so = TAILQ_FIRST(&head->so_comp);
-	KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
-	KASSERT(so->so_qstate & SQ_COMP, ("accept1: so not SQ_COMP"));
-
-	/*
-	 * Before changing the flags on the socket, we have to bump the
-	 * reference count.  Otherwise, if the protocol calls sofree(),
-	 * the socket will be released due to a zero refcount.
-	 */
-	SOCK_LOCK(so);			/* soref() and so_state update */
-	soref(so);			/* file descriptor reference */
-
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	if (flags & ACCEPT4_INHERIT)
-		so->so_state |= (head->so_state & SS_NBIO);
-	else
-		so->so_state |= (flags & SOCK_NONBLOCK) ? SS_NBIO : 0;
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
 
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	td->td_retval[0] = fd;
 
-	/* connection has been removed from the listen queue */
-	KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0);
+	/* Connection has been removed from the listen queue. */
+	KNOTE_UNLOCKED(&head->so_rdsel.si_note, 0);
 
 	if (flags & ACCEPT4_INHERIT) {
 		pgid = fgetown(&head->so_sigio);
@@ -431,7 +382,6 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	(void) fo_ioctl(nfp, FIONBIO, &tmp, td->td_ucred, td);
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
-	sa = NULL;
 	error = soaccept(so, &sa);
 	if (error != 0)
 		goto noconnection;
@@ -467,6 +417,8 @@ noconnection:
 	 * a reference on nfp to the caller on success if they request it.
 	 */
 done:
+	if (nfp == NULL)
+		filecaps_free(&fcaps);
 	if (fp != NULL) {
 		if (error == 0) {
 			*fp = nfp;
@@ -513,15 +465,8 @@ oaccept(td, uap)
 }
 #endif /* COMPAT_OLDSOCK */
 
-/* ARGSUSED */
 int
-sys_connect(td, uap)
-	struct thread *td;
-	struct connect_args /* {
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_connect(struct thread *td, struct connect_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -539,13 +484,17 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
-	cap_rights_t rights;
 	int error, interrupted = 0;
+
+#ifdef CAPABILITY_MODE
+	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
+		return (ECAPMODE);
+#endif
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
-	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_CONNECT),
-	    &fp, NULL);
+	error = getsock_cap(td, fd, &cap_connect_rights,
+	    &fp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -574,7 +523,7 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	}
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		error = msleep(&so->so_timeo, SOCK_MTX(so), PSOCK | PCATCH,
+		error = msleep(&so->so_timeo, &so->so_lock, PSOCK | PCATCH,
 		    "connec", 0);
 		if (error != 0) {
 			if (error == EINTR || error == ERESTART)
@@ -597,16 +546,8 @@ done1:
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_connectat(td, uap)
-	struct thread *td;
-	struct connectat_args /* {
-		int	fd;
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_connectat(struct thread *td, struct connectat_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -673,6 +614,15 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 		 error = soconnect2(so2, so1);
 		 if (error != 0)
 			goto free4;
+	} else if (so1->so_proto->pr_flags & PR_CONNREQUIRED) {
+		struct unpcb *unp, *unp2;
+		unp = sotounpcb(so1);
+		unp2 = sotounpcb(so2);
+		/* 
+		 * No need to lock the unps, because the sockets are brand-new.
+		 * No other threads can be using them yet
+		 */
+		unp_copy_peercred(td, unp, unp2, unp);
 	}
 	finit(fp1, FREAD | FWRITE | fflag, DTYPE_SOCKET, fp1->f_data,
 	    &socketops);
@@ -718,11 +668,7 @@ sys_socketpair(struct thread *td, struct socketpair_args *uap)
 }
 
 static int
-sendit(td, s, mp, flags)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	int flags;
+sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 {
 	struct mbuf *control;
 	struct sockaddr *to;
@@ -780,19 +726,14 @@ bad:
 }
 
 int
-kern_sendit(td, s, mp, flags, control, segflg)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	int flags;
-	struct mbuf *control;
-	enum uio_seg segflg;
+kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
+    struct mbuf *control, enum uio_seg segflg)
 {
 	struct file *fp;
 	struct uio auio;
 	struct iovec *iov;
 	struct socket *so;
-	cap_rights_t rights;
+	cap_rights_t *rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -800,14 +741,16 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	int i, error;
 
 	AUDIT_ARG_FD(s);
-	cap_rights_init(&rights, CAP_SEND);
+	rights = &cap_send_rights;
 	if (mp->msg_name != NULL) {
 		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
-		cap_rights_set(&rights, CAP_CONNECT);
+		rights = &cap_send_connect_rights;
 	}
-	error = getsock_cap(td, s, &rights, &fp, NULL);
-	if (error != 0)
+	error = getsock_cap(td, s, rights, &fp, NULL, NULL);
+	if (error != 0) {
+		m_freem(control);
 		return (error);
+	}
 	so = (struct socket *)fp->f_data;
 
 #ifdef KTRACE
@@ -818,12 +761,16 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	if (mp->msg_name != NULL) {
 		error = mac_socket_check_connect(td->td_ucred, so,
 		    mp->msg_name);
-		if (error != 0)
+		if (error != 0) {
+			m_freem(control);
 			goto bad;
+		}
 	}
 	error = mac_socket_check_send(td->td_ucred, so);
-	if (error != 0)
+	if (error != 0) {
+		m_freem(control);
 		goto bad;
+	}
 #endif
 
 	auio.uio_iov = mp->msg_iov;
@@ -837,6 +784,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
 			error = EINVAL;
+			m_freem(control);
 			goto bad;
 		}
 	}
@@ -872,16 +820,7 @@ bad:
 }
 
 int
-sys_sendto(td, uap)
-	struct thread *td;
-	struct sendto_args /* {
-		int	s;
-		caddr_t	buf;
-		size_t	len;
-		int	flags;
-		caddr_t	to;
-		int	tolen;
-	} */ *uap;
+sys_sendto(struct thread *td, struct sendto_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -901,14 +840,7 @@ sys_sendto(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-osend(td, uap)
-	struct thread *td;
-	struct osend_args /* {
-		int	s;
-		caddr_t	buf;
-		int	len;
-		int	flags;
-	} */ *uap;
+osend(struct thread *td, struct osend_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -925,13 +857,7 @@ osend(td, uap)
 }
 
 int
-osendmsg(td, uap)
-	struct thread *td;
-	struct osendmsg_args /* {
-		int	s;
-		caddr_t	msg;
-		int	flags;
-	} */ *uap;
+osendmsg(struct thread *td, struct osendmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -952,13 +878,7 @@ osendmsg(td, uap)
 #endif
 
 int
-sys_sendmsg(td, uap)
-	struct thread *td;
-	struct sendmsg_args /* {
-		int	s;
-		caddr_t	msg;
-		int	flags;
-	} */ *uap;
+sys_sendmsg(struct thread *td, struct sendmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -980,21 +900,16 @@ sys_sendmsg(td, uap)
 }
 
 int
-kern_recvit(td, s, mp, fromseg, controlp)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	enum uio_seg fromseg;
-	struct mbuf **controlp;
+kern_recvit(struct thread *td, int s, struct msghdr *mp, enum uio_seg fromseg,
+    struct mbuf **controlp)
 {
 	struct uio auio;
 	struct iovec *iov;
-	struct mbuf *m, *control = NULL;
+	struct mbuf *control, *m;
 	caddr_t ctlbuf;
 	struct file *fp;
 	struct socket *so;
 	struct sockaddr *fromsa = NULL;
-	cap_rights_t rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -1005,8 +920,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_RECV),
-	    &fp, NULL);
+	error = getsock_cap(td, s, &cap_recv_rights,
+	    &fp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -1037,6 +952,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	if (KTRPOINT(td, KTR_GENIO))
 		ktruio = cloneuio(&auio);
 #endif
+	control = NULL;
 	len = auio.uio_resid;
 	error = soreceive(so, &fromsa, &auio, NULL,
 	    (mp->msg_control || controlp) ? &control : NULL,
@@ -1100,30 +1016,22 @@ kern_recvit(td, s, mp, fromseg, controlp)
 			control->m_data += sizeof (struct cmsghdr);
 		}
 #endif
-		len = mp->msg_controllen;
-		m = control;
-		mp->msg_controllen = 0;
 		ctlbuf = mp->msg_control;
-
-		while (m && len > 0) {
-			unsigned int tocopy;
-
-			if (len >= m->m_len)
-				tocopy = m->m_len;
-			else {
-				mp->msg_flags |= MSG_CTRUNC;
-				tocopy = len;
-			}
-
-			if ((error = copyout(mtod(m, caddr_t),
-					ctlbuf, tocopy)) != 0)
+		len = mp->msg_controllen;
+		mp->msg_controllen = 0;
+		for (m = control; m != NULL && len >= m->m_len; m = m->m_next) {
+			if ((error = copyout(mtod(m, caddr_t), ctlbuf,
+			    m->m_len)) != 0)
 				goto out;
 
-			ctlbuf += tocopy;
-			len -= tocopy;
-			m = m->m_next;
+			ctlbuf += m->m_len;
+			len -= m->m_len;
+			mp->msg_controllen += m->m_len;
 		}
-		mp->msg_controllen = ctlbuf - (caddr_t)mp->msg_control;
+		if (m != NULL) {
+			mp->msg_flags |= MSG_CTRUNC;
+			m_dispose_extcontrolm(m);
+		}
 	}
 out:
 	fdrop(fp, td);
@@ -1135,18 +1043,17 @@ out:
 
 	if (error == 0 && controlp != NULL)
 		*controlp = control;
-	else  if (control)
+	else if (control != NULL) {
+		if (error != 0)
+			m_dispose_extcontrolm(control);
 		m_freem(control);
+	}
 
 	return (error);
 }
 
 static int
-recvit(td, s, mp, namelenp)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	void *namelenp;
+recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp)
 {
 	int error;
 
@@ -1164,16 +1071,7 @@ recvit(td, s, mp, namelenp)
 }
 
 int
-sys_recvfrom(td, uap)
-	struct thread *td;
-	struct recvfrom_args /* {
-		int	s;
-		caddr_t	buf;
-		size_t	len;
-		int	flags;
-		struct sockaddr * __restrict	from;
-		socklen_t * __restrict fromlenaddr;
-	} */ *uap;
+sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -1201,9 +1099,7 @@ done2:
 
 #ifdef COMPAT_OLDSOCK
 int
-orecvfrom(td, uap)
-	struct thread *td;
-	struct recvfrom_args *uap;
+orecvfrom(struct thread *td, struct recvfrom_args *uap)
 {
 
 	uap->flags |= MSG_COMPAT;
@@ -1213,14 +1109,7 @@ orecvfrom(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-orecv(td, uap)
-	struct thread *td;
-	struct orecv_args /* {
-		int	s;
-		caddr_t	buf;
-		int	len;
-		int	flags;
-	} */ *uap;
+orecv(struct thread *td, struct orecv_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -1242,13 +1131,7 @@ orecv(td, uap)
  * rights where the control fields are now.
  */
 int
-orecvmsg(td, uap)
-	struct thread *td;
-	struct orecvmsg_args /* {
-		int	s;
-		struct	omsghdr *msg;
-		int	flags;
-	} */ *uap;
+orecvmsg(struct thread *td, struct orecvmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -1272,13 +1155,7 @@ orecvmsg(td, uap)
 #endif
 
 int
-sys_recvmsg(td, uap)
-	struct thread *td;
-	struct recvmsg_args /* {
-		int	s;
-		struct	msghdr *msg;
-		int	flags;
-	} */ *uap;
+sys_recvmsg(struct thread *td, struct recvmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *uiov, *iov;
@@ -1305,26 +1182,26 @@ sys_recvmsg(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_shutdown(td, uap)
-	struct thread *td;
-	struct shutdown_args /* {
-		int	s;
-		int	how;
-	} */ *uap;
+sys_shutdown(struct thread *td, struct shutdown_args *uap)
+{
+
+	return (kern_shutdown(td, uap->s, uap->how));
+}
+
+int
+kern_shutdown(struct thread *td, int s, int how)
 {
 	struct socket *so;
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->s);
-	error = getsock_cap(td, uap->s, cap_rights_init(&rights, CAP_SHUTDOWN),
-	    &fp, NULL);
+	AUDIT_ARG_FD(s);
+	error = getsock_cap(td, s, &cap_shutdown_rights,
+	    &fp, NULL, NULL);
 	if (error == 0) {
 		so = fp->f_data;
-		error = soshutdown(so, uap->how);
+		error = soshutdown(so, how);
 		/*
 		 * Previous versions did not return ENOTCONN, but 0 in
 		 * case the socket was not connected. Some important
@@ -1339,17 +1216,8 @@ sys_shutdown(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_setsockopt(td, uap)
-	struct thread *td;
-	struct setsockopt_args /* {
-		int	s;
-		int	level;
-		int	name;
-		caddr_t	val;
-		int	valsize;
-	} */ *uap;
+sys_setsockopt(struct thread *td, struct setsockopt_args *uap)
 {
 
 	return (kern_setsockopt(td, uap->s, uap->level, uap->name,
@@ -1357,19 +1225,12 @@ sys_setsockopt(td, uap)
 }
 
 int
-kern_setsockopt(td, s, level, name, val, valseg, valsize)
-	struct thread *td;
-	int s;
-	int level;
-	int name;
-	void *val;
-	enum uio_seg valseg;
-	socklen_t valsize;
+kern_setsockopt(struct thread *td, int s, int level, int name, void *val,
+    enum uio_seg valseg, socklen_t valsize)
 {
 	struct socket *so;
 	struct file *fp;
 	struct sockopt sopt;
-	cap_rights_t rights;
 	int error;
 
 	if (val == NULL && valsize != 0)
@@ -1394,8 +1255,8 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_SETSOCKOPT),
-	    &fp, NULL);
+	error = getsock_cap(td, s, &cap_setsockopt_rights,
+	    &fp, NULL, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sosetopt(so, &sopt);
@@ -1404,17 +1265,8 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	return(error);
 }
 
-/* ARGSUSED */
 int
-sys_getsockopt(td, uap)
-	struct thread *td;
-	struct getsockopt_args /* {
-		int	s;
-		int	level;
-		int	name;
-		void * __restrict	val;
-		socklen_t * __restrict avalsize;
-	} */ *uap;
+sys_getsockopt(struct thread *td, struct getsockopt_args *uap)
 {
 	socklen_t valsize;
 	int error;
@@ -1438,19 +1290,12 @@ sys_getsockopt(td, uap)
  * optval can be a userland or userspace. optlen is always a kernel pointer.
  */
 int
-kern_getsockopt(td, s, level, name, val, valseg, valsize)
-	struct thread *td;
-	int s;
-	int level;
-	int name;
-	void *val;
-	enum uio_seg valseg;
-	socklen_t *valsize;
+kern_getsockopt(struct thread *td, int s, int level, int name, void *val,
+    enum uio_seg valseg, socklen_t *valsize)
 {
 	struct socket *so;
 	struct file *fp;
 	struct sockopt sopt;
-	cap_rights_t rights;
 	int error;
 
 	if (val == NULL)
@@ -1475,8 +1320,8 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_GETSOCKOPT),
-	    &fp, NULL);
+	error = getsock_cap(td, s, &cap_getsockopt_rights,
+	    &fp, NULL, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sogetopt(so, &sopt);
@@ -1489,16 +1334,8 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 /*
  * getsockname1() - Get socket name.
  */
-/* ARGSUSED */
 static int
-getsockname1(td, uap, compat)
-	struct thread *td;
-	struct getsockname_args /* {
-		int	fdes;
-		struct sockaddr * __restrict asa;
-		socklen_t * __restrict alen;
-	} */ *uap;
-	int compat;
+getsockname1(struct thread *td, struct getsockname_args *uap, int compat)
 {
 	struct sockaddr *sa;
 	socklen_t len;
@@ -1531,13 +1368,12 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 {
 	struct socket *so;
 	struct file *fp;
-	cap_rights_t rights;
 	socklen_t len;
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_GETSOCKNAME),
-	    &fp, NULL);
+	error = getsock_cap(td, fd, &cap_getsockname_rights,
+	    &fp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -1566,9 +1402,7 @@ bad:
 }
 
 int
-sys_getsockname(td, uap)
-	struct thread *td;
-	struct getsockname_args *uap;
+sys_getsockname(struct thread *td, struct getsockname_args *uap)
 {
 
 	return (getsockname1(td, uap, 0));
@@ -1576,9 +1410,7 @@ sys_getsockname(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-ogetsockname(td, uap)
-	struct thread *td;
-	struct getsockname_args *uap;
+ogetsockname(struct thread *td, struct getsockname_args *uap)
 {
 
 	return (getsockname1(td, uap, 1));
@@ -1588,16 +1420,8 @@ ogetsockname(td, uap)
 /*
  * getpeername1() - Get name of peer for connected socket.
  */
-/* ARGSUSED */
 static int
-getpeername1(td, uap, compat)
-	struct thread *td;
-	struct getpeername_args /* {
-		int	fdes;
-		struct sockaddr * __restrict	asa;
-		socklen_t * __restrict	alen;
-	} */ *uap;
-	int compat;
+getpeername1(struct thread *td, struct getpeername_args *uap, int compat)
 {
 	struct sockaddr *sa;
 	socklen_t len;
@@ -1630,13 +1454,12 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 {
 	struct socket *so;
 	struct file *fp;
-	cap_rights_t rights;
 	socklen_t len;
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_GETPEERNAME),
-	    &fp, NULL);
+	error = getsock_cap(td, fd, &cap_getpeername_rights,
+	    &fp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -1670,9 +1493,7 @@ done:
 }
 
 int
-sys_getpeername(td, uap)
-	struct thread *td;
-	struct getpeername_args *uap;
+sys_getpeername(struct thread *td, struct getpeername_args *uap)
 {
 
 	return (getpeername1(td, uap, 0));
@@ -1680,9 +1501,7 @@ sys_getpeername(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-ogetpeername(td, uap)
-	struct thread *td;
-	struct ogetpeername_args *uap;
+ogetpeername(struct thread *td, struct ogetpeername_args *uap)
 {
 
 	/* XXX uap should have type `getpeername_args *' to begin with. */
@@ -1727,10 +1546,7 @@ sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type)
 }
 
 int
-getsockaddr(namp, uaddr, len)
-	struct sockaddr **namp;
-	caddr_t uaddr;
-	size_t len;
+getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len)
 {
 	struct sockaddr *sa;
 	int error;
@@ -1752,4 +1568,52 @@ getsockaddr(namp, uaddr, len)
 		*namp = sa;
 	}
 	return (error);
+}
+
+/*
+ * Dispose of externalized rights from an SCM_RIGHTS message.  This function
+ * should be used in error or truncation cases to avoid leaking file descriptors
+ * into the recipient's (the current thread's) table.
+ */
+void
+m_dispose_extcontrolm(struct mbuf *m)
+{
+	struct cmsghdr *cm;
+	struct file *fp;
+	struct thread *td;
+	socklen_t clen, datalen;
+	int error, fd, *fds, nfd;
+
+	td = curthread;
+	for (; m != NULL; m = m->m_next) {
+		if (m->m_type != MT_EXTCONTROL)
+			continue;
+		cm = mtod(m, struct cmsghdr *);
+		clen = m->m_len;
+		while (clen > 0) {
+			if (clen < sizeof(*cm))
+				panic("%s: truncated mbuf %p", __func__, m);
+			datalen = CMSG_SPACE(cm->cmsg_len - CMSG_SPACE(0));
+			if (clen < datalen)
+				panic("%s: truncated mbuf %p", __func__, m);
+
+			if (cm->cmsg_level == SOL_SOCKET &&
+			    cm->cmsg_type == SCM_RIGHTS) {
+				fds = (int *)CMSG_DATA(cm);
+				nfd = (cm->cmsg_len - CMSG_SPACE(0)) /
+				    sizeof(int);
+
+				while (nfd-- > 0) {
+					fd = *fds++;
+					error = fget(td, fd, &cap_no_rights,
+					    &fp);
+					if (error == 0)
+						fdclose(td, fp, fd);
+				}
+			}
+			clen -= datalen;
+			cm = (struct cmsghdr *)((uint8_t *)cm + datalen);
+		}
+		m_chtype(m, MT_CONTROL);
+	}
 }

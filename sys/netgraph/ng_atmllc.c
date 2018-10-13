@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2004 Benno Rice <benno@eloquent.com.au>
  * All Rights Reserved.
  *
@@ -40,7 +42,6 @@
 
 #include <net/if.h>
 #include <net/ethernet.h>	/* for M_HASFCS and ETHER_HDR_LEN */
-#include <net/if_atm.h>		/* for struct atmllc */
 
 #define	NG_ATMLLC_HEADER		"\252\252\3\0\200\302"
 #define	NG_ATMLLC_HEADER_LEN		(sizeof(struct atmllc))
@@ -54,6 +55,18 @@ struct ng_atmllc_priv {
 	hook_p		ether;
 	hook_p		fddi;
 };
+
+struct atmllc {
+	uint8_t		llchdr[6];	/* aa.aa.03.00.00.00 */
+	uint8_t		type[2];	/* "ethernet" type */
+};
+
+/* ATM_LLC macros: note type code in host byte order */
+#define	ATM_LLC_TYPE(X) (((X)->type[0] << 8) | ((X)->type[1]))
+#define	ATM_LLC_SETTYPE(X, V) do {		\
+	(X)->type[0] = ((V) >> 8) & 0xff;	\
+	(X)->type[1] = ((V) & 0xff);		\
+    } while (0)
 
 /* Netgraph methods. */
 static ng_constructor_t		ng_atmllc_constructor;
@@ -158,7 +171,7 @@ ng_atmllc_rcvdata(hook_p hook, item_p item)
 	padding = 0;
 
 	if (hook == priv->atm) {
-		/* Ditch the psuedoheader. */
+		/* Ditch the pseudoheader. */
 		hdr = mtod(m, struct atmllc *);
 		/* m_adj(m, sizeof(struct atm_pseudohdr)); */
 

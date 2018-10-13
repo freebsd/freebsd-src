@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Semihalf.
  * All rights reserved.
  *
@@ -27,26 +29,38 @@
  */
 
 #ifndef _FLASH_SLICER_H_
-#define _FLASH_SLICER_H_
+#define	_FLASH_SLICER_H_
 
 #include <sys/types.h>
 
-#define FLASH_SLICES_MAX_NUM		8
-#define FLASH_SLICES_MAX_NAME_LEN	(32 + 1)
+#define	FLASH_SLICES_MAX_NUM		8
+#define	FLASH_SLICES_MAX_NAME_LEN	(32 + 1)
 
 #define	FLASH_SLICES_FLAG_NONE		0
 #define	FLASH_SLICES_FLAG_RO		1	/* Read only */
 
+#define	FLASH_SLICES_FMT		"%ss.%s"
+
 struct flash_slice {
 	off_t		base;
 	off_t		size;
-	char		*label;
+	const char	*label;
 	unsigned int	flags;
 };
 
 #ifdef _KERNEL
-int fdt_flash_fill_slices(device_t, struct flash_slice *, int *) __weak_symbol;
-void flash_register_slicer(int (*)(device_t, struct flash_slice *, int *));
+
+typedef int (*flash_slicer_t)(device_t dev, const char *provider,
+    struct flash_slice *slices, int *slices_num);
+
+#define	FLASH_SLICES_TYPE_NAND		0
+#define	FLASH_SLICES_TYPE_CFI		1
+#define	FLASH_SLICES_TYPE_SPI		2
+#define	FLASH_SLICES_TYPE_MMC		3
+
+/* Use NULL for deregistering a slicer */
+void flash_register_slicer(flash_slicer_t slicer, u_int type, bool force);
+
 #endif /* _KERNEL */
 
 #endif /* _FLASH_SLICER_H_ */

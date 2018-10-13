@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Luigi Rizzo, Riccardo Panicucci, Universita` di Pisa
  * All rights reserved
  *
@@ -367,6 +369,24 @@ enum {
 	DN_QHT_IS_Q	= 0x0100, /* in flowset, qht is a single queue */
 };
 
+/*
+ * Packets processed by dummynet have an mbuf tag associated with
+ * them that carries their dummynet state.
+ * Outside dummynet, only the 'rule' field is relevant, and it must
+ * be at the beginning of the structure.
+ */
+struct dn_pkt_tag {
+	struct ipfw_rule_ref rule;	/* matching rule	*/
+
+	/* second part, dummynet specific */
+	int dn_dir;		/* action when packet comes out.*/
+				/* see ip_fw_private.h		*/
+	uint64_t output_time;	/* when the pkt is due for delivery*/
+	struct ifnet *ifp;	/* interface, for ip_output	*/
+	struct _ip6dn_args ip6opt;	/* XXX ipv6 options	*/
+	uint16_t iphdr_off;	/* IP header offset for mtodo()	*/
+};
+
 extern struct dn_parms dn_cfg;
 //VNET_DECLARE(struct dn_parms, _base_dn_cfg);
 //#define dn_cfg	VNET(_base_dn_cfg)
@@ -374,6 +394,7 @@ extern struct dn_parms dn_cfg;
 int dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 void dummynet_task(void *context, int pending);
 void dn_reschedule(void);
+struct dn_pkt_tag * dn_tag_get(struct mbuf *m);
 
 struct dn_queue *ipdn_q_find(struct dn_fsk *, struct dn_sch_inst *,
         struct ipfw_flow_id *);

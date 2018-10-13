@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd March 17, 2018
 .Dt SAVECORE 8
 .Os
 .Sh NAME
@@ -96,8 +96,12 @@ the counter will restart from
 Print out some additional debugging information.
 Specify twice for more information.
 .It Fl z
-Compress the core dump and kernel (see
+Compress the dump (see
 .Xr gzip 1 ) .
+The dump may already be compressed if the kernel was configured to
+do so by
+.Xr dumpon 8 .
+In this case, the option has no effect.
 .El
 .Pp
 The
@@ -119,6 +123,10 @@ If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
 and information about the core in
 .Ar directory Ns Pa /info.# .
+If the core is encrypted, it saves the dump key in
+.Ar directory Ns Pa /key.# .
+The core can be later decrypted using
+.Xr decryptcore 8 .
 For kernel textdumps generated with the
 .Xr textdump 4
 facility, output will be stored in the
@@ -166,6 +174,8 @@ is meant to be called near the end of the initialization file
 .Xr xo_parse_args 3 ,
 .Xr textdump 4 ,
 .Xr tar 5 ,
+.Xr crashinfo 8 ,
+.Xr decryptcore 8 ,
 .Xr dumpon 8 ,
 .Xr syslogd 8
 .Sh HISTORY

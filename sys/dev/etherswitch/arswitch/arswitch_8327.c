@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2014 Adrian Chadd.
  * All rights reserved.
@@ -74,6 +76,36 @@
  * which means both CPU ports can see each other and that will quickly
  * lead to traffic storms/loops.
  */
+
+/* Map port+led to register+shift */
+struct ar8327_led_mapping ar8327_led_mapping[AR8327_NUM_PHYS][ETHERSWITCH_PORT_MAX_LEDS] =
+{
+	{	/* PHY0 */
+		{AR8327_REG_LED_CTRL0, 14 },
+		{AR8327_REG_LED_CTRL1, 14 },
+		{AR8327_REG_LED_CTRL2, 14 }
+	},
+	{	/* PHY1 */
+		{AR8327_REG_LED_CTRL3, 8  },
+		{AR8327_REG_LED_CTRL3, 10 },
+		{AR8327_REG_LED_CTRL3, 12 }
+	},
+	{	/* PHY2 */
+		{AR8327_REG_LED_CTRL3, 14 },
+		{AR8327_REG_LED_CTRL3, 16 },
+		{AR8327_REG_LED_CTRL3, 18 }
+	},
+	{	/* PHY3 */
+		{AR8327_REG_LED_CTRL3, 20 },
+		{AR8327_REG_LED_CTRL3, 22 },
+		{AR8327_REG_LED_CTRL3, 24 }
+	},
+	{	/* PHY4 */
+		{AR8327_REG_LED_CTRL0, 30 },
+		{AR8327_REG_LED_CTRL1, 30 },
+		{AR8327_REG_LED_CTRL2, 30 }
+	}
+};
 
 static int
 ar8327_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
@@ -670,6 +702,14 @@ ar8327_hw_setup(struct arswitch_softc *sc)
 	return (0);
 }
 
+static int
+ar8327_atu_learn_default(struct arswitch_softc *sc)
+{
+
+	device_printf(sc->sc_dev, "%s: TODO!\n", __func__);
+	return (0);
+}
+
 /*
  * Initialise other global values, for the AR8327.
  */
@@ -677,6 +717,8 @@ static int
 ar8327_hw_global_setup(struct arswitch_softc *sc)
 {
 	uint32_t t;
+
+	ARSWITCH_LOCK(sc);
 
 	/* enable CPU port and disable mirror port */
 	t = AR8327_FWD_CTRL0_CPU_PORT_EN |
@@ -711,6 +753,7 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 	/* GMAC0 (CPU), GMAC1..5 (PHYs), GMAC6 (CPU) */
 	sc->info.es_nports = 7;
 
+	ARSWITCH_UNLOCK(sc);
 	return (0);
 }
 
@@ -1002,9 +1045,8 @@ ar8327_set_pvid(struct arswitch_softc *sc, int port, int pvid)
 }
 
 static int
-ar8327_atu_flush(struct arswitch_softc *sc)
+ar8327_atu_wait_ready(struct arswitch_softc *sc)
 {
-
 	int ret;
 
 	ret = arswitch_waitreg(sc->sc_dev,
@@ -1013,16 +1055,123 @@ ar8327_atu_flush(struct arswitch_softc *sc)
 	    0,
 	    1000);
 
+	return (ret);
+}
+
+static int
+ar8327_atu_flush(struct arswitch_softc *sc)
+{
+
+	int ret;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	ret = ar8327_atu_wait_ready(sc);
 	if (ret)
 		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
 
 	if (!ret)
 		arswitch_writereg(sc->sc_dev,
 		    AR8327_REG_ATU_FUNC,
-		    AR8327_ATU_FUNC_OP_FLUSH);
+		    AR8327_ATU_FUNC_OP_FLUSH | AR8327_ATU_FUNC_BUSY);
 	return (ret);
 }
 
+static int
+ar8327_atu_flush_port(struct arswitch_softc *sc, int port)
+{
+	int ret;
+	uint32_t val;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	ret = ar8327_atu_wait_ready(sc);
+	if (ret)
+		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
+
+	val = AR8327_ATU_FUNC_OP_FLUSH_UNICAST;
+	val |= SM(port, AR8327_ATU_FUNC_PORT_NUM);
+
+	if (!ret)
+		arswitch_writereg(sc->sc_dev,
+		    AR8327_REG_ATU_FUNC,
+		    val | AR8327_ATU_FUNC_BUSY);
+
+	return (ret);
+}
+
+/*
+ * Fetch a single entry from the ATU.
+ */
+static int
+ar8327_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
+    int atu_fetch_op)
+{
+	uint32_t ret0, ret1, ret2, val;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	switch (atu_fetch_op) {
+	case 0:
+		/* Initialise things for the first fetch */
+
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: initializing\n", __func__);
+		(void) ar8327_atu_wait_ready(sc);
+
+		arswitch_writereg(sc->sc_dev,
+		    AR8327_REG_ATU_FUNC, AR8327_ATU_FUNC_OP_GET_NEXT);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_DATA0, 0);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_DATA1, 0);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_DATA2, 0);
+
+		return (0);
+	case 1:
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: reading next\n", __func__);
+		/*
+		 * Attempt to read the next address entry; don't modify what
+		 * is there in these registers as its used for the next fetch
+		 */
+		(void) ar8327_atu_wait_ready(sc);
+
+		/* Begin the next read event; not modifying anything */
+		val = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_FUNC);
+		val |= AR8327_ATU_FUNC_BUSY;
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_FUNC, val);
+
+		/* Wait for it to complete */
+		(void) ar8327_atu_wait_ready(sc);
+
+		/* Fetch the ethernet address and ATU status */
+		ret0 = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_DATA0);
+		ret1 = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_DATA1);
+		ret2 = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_DATA2);
+
+		/* If the status is zero, then we're done */
+		if (MS(ret2, AR8327_ATU_FUNC_DATA2_STATUS) == 0)
+			return (-1);
+
+		/* MAC address */
+		e->es_macaddr[5] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR3);
+		e->es_macaddr[4] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR2);
+		e->es_macaddr[3] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR1);
+		e->es_macaddr[2] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR0);
+		e->es_macaddr[0] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR5);
+		e->es_macaddr[1] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR4);
+
+		/* Bitmask of ports this entry is for */
+		e->es_portmask = MS(ret1, AR8327_ATU_DATA1_DEST_PORT);
+
+		/* TODO: other flags that are interesting */
+
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: MAC %6D portmask 0x%08x\n",
+		    __func__,
+		    e->es_macaddr, ":", e->es_portmask);
+		return (0);
+	default:
+		return (-1);
+	}
+	return (-1);
+}
 static int
 ar8327_flush_dot1q_vlan(struct arswitch_softc *sc)
 {
@@ -1056,7 +1205,7 @@ ar8327_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports,
 	}
 
 	reg = arswitch_readreg(sc->sc_dev, AR8327_REG_VTU_FUNC0);
-	DPRINTF(sc->sc_dev, "%s: %d: reg=0x%08x\n", __func__, vid, reg);
+	DPRINTF(sc, ARSWITCH_DBG_REGIO, "%s: %d: reg=0x%08x\n", __func__, vid, reg);
 
 	/*
 	 * If any of the bits are set, update the port mask.
@@ -1088,7 +1237,7 @@ ar8327_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports,
 	op = AR8327_VTU_FUNC1_OP_LOAD;
 	vid &= 0xfff;
 
-	DPRINTF(sc->sc_dev,
+	DPRINTF(sc, ARSWITCH_DBG_VLAN,
 	    "%s: vid: %d, ports=0x%08x, untagged_ports=0x%08x\n",
 	    __func__,
 	    vid,
@@ -1140,7 +1289,10 @@ ar8327_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_get_port_vlan = ar8327_vlan_get_port;
 	sc->hal.arswitch_set_port_vlan = ar8327_vlan_set_port;
 
+	sc->hal.arswitch_atu_learn_default = ar8327_atu_learn_default;
 	sc->hal.arswitch_atu_flush = ar8327_atu_flush;
+	sc->hal.arswitch_atu_flush_port = ar8327_atu_flush_port;
+	sc->hal.arswitch_atu_fetch_table = ar8327_atu_fetch_table;
 
 	/*
 	 * Reading the PHY via the MDIO interface currently doesn't

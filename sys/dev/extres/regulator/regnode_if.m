@@ -31,6 +31,15 @@ HEADER {
 	struct regnode;
 }
 
+CODE {
+	static int
+	regnode_default_stop(struct regnode *regnode, int *udelay)
+	{
+
+		return(REGNODE_ENABLE(regnode, false, udelay));
+	}
+}
+
 #
 # Initialize regulator
 # Returns 0 on success or a standard errno value.
@@ -80,3 +89,12 @@ METHOD int get_voltage {
 	struct regnode	*regnode;
 	int		*uvolt;
 };
+
+#
+# Stop (shutdown) regulator
+# Returns 0 on success or a standard errno value.
+#
+METHOD int stop {
+	struct regnode	*regnode;
+	int		*udelay;
+} DEFAULT regnode_default_stop;

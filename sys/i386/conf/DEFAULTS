@@ -9,9 +9,6 @@ machine		i386
 device		isa
 options 	ISAPNP
 
-# Floating point support.
-device		npx
-
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
 device		io		# I/O device
@@ -24,6 +21,7 @@ options 	GEOM_PART_BSD
 options 	GEOM_PART_EBR
 options 	GEOM_PART_EBR_COMPAT
 options 	GEOM_PART_MBR
+options 	GEOM_PART_GPT
 
 # enable support for native hardware
 device		atpic

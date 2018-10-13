@@ -58,26 +58,7 @@ FBSDprivate_1.0 {
 	__sys_vfork;
 	_vfork;
 	_brk;
-	_end;
 	_sbrk;
-
-	/* softfloat */
-	__addsf3;
-	__adddf3;
-	__subsf3;
-	__subdf3;
-	__mulsf3;
-	__muldf3;
-	__divsf3;
-	__divdf3;
-	__floatsisf;
-	__floatsidf;
-	__fixsfsi;
-	__fixdfsi;
-	__fixunssfsi;
-	__fixunsdfsi;
-	__extendsfdf2;
-	__truncdfsf2;
 
 	_libc_arm_fpu_present;
 };

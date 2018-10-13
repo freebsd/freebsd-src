@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -232,32 +234,33 @@ sc_draw_mouse_image(scr_stat *scp)
 void
 sc_remove_mouse_image(scr_stat *scp)
 {
-    int size;
-    int i;
+    int cols, i, rows;
 
     if (ISGRAPHSC(scp))
 	return;
 
     SC_VIDEO_LOCK(scp->sc);
-    (*scp->rndr->draw_mouse)(scp,
-			     (scp->mouse_oldpos%scp->xsize + scp->xoff)
-			         * scp->font_width,
-			     (scp->mouse_oldpos/scp->xsize + scp->yoff)
-				 * scp->font_size,
+    (*scp->rndr->draw_mouse)(scp, scp->mouse_oldxpos, scp->mouse_oldypos,
 			     FALSE);
-    size = scp->xsize*scp->ysize;
+    /*
+     * To simplify the renderer and ensure undrawing with correct
+     * attributes, mark for update a region containing the cursor
+     * (usually 2x2 character cells joined by almost a full line o
+     * character cells).
+     *
+     * The renderer should only undraw any pixels outside of the text
+     * window (e.g., ones in borders and hardware cursors).
+     */
     i = scp->mouse_oldpos;
     mark_for_update(scp, i);
     mark_for_update(scp, i);
-#ifndef PC98
-    if (i + scp->xsize + 1 < size) {
-	mark_for_update(scp, i + scp->xsize + 1);
-    } else if (i + scp->xsize < size) {
-	mark_for_update(scp, i + scp->xsize);
-    } else if (i + 1 < size) {
-	mark_for_update(scp, i + 1);
-    }
-#endif /* PC98 */
+    cols = 1 + howmany(10 - 1, scp->font_width); /* up to VGA cursor width 9 */
+    cols = imax(cols, 2);	/* in case it is text mode 2x2 char cells */
+    cols = imin(cols, scp->xsize - i % scp->xsize);
+    rows = 1 + howmany(16 - 1, scp->font_size);	/* up to VGA cursor height 16 */
+    rows = imax(rows, 2);	/* don't bother reducing 3 to 2 if text */
+    rows = imin(rows, scp->ysize - i / scp->xsize);
+    mark_for_update(scp, i + (rows - 1) * scp->xsize + cols - 1);
     scp->status &= ~MOUSE_VISIBLE;
     SC_VIDEO_UNLOCK(scp->sc);
 }
@@ -666,7 +669,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 
 	mouse = (mouse_info_t*)data;
 
-	random_harvest_queue(mouse, sizeof(mouse_info_t), 2, RANDOM_MOUSE);
+	random_harvest_queue(mouse, sizeof(mouse_info_t), RANDOM_MOUSE);
 
 	if (cmd == OLD_CONS_MOUSECTL) {
 	    static u_char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };

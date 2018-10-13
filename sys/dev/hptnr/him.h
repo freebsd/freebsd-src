@@ -1,5 +1,7 @@
 /* $Id: him.h,v 1.57 2011/02/21 06:03:21 zsf Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2016
+.Dd December 1, 2017
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ The
 .Fn lstat
 system call is like
 .Fn stat
-except in the case where the named file is a symbolic link,
+except when the named file is a symbolic link,
 in which case
 .Fn lstat
 returns information about the link,
@@ -82,7 +82,7 @@ system call is equivalent to
 .Fn stat
 and
 .Fn lstat
-except in the case where the
+except when the
 .Fa path
 specifies a relative path.
 In this case the status is retrieved from a file relative to
@@ -92,7 +92,7 @@ instead of the current working directory.
 .Pp
 The values for the
 .Fa flag
-are constructed by a bitwise-inclusive OR of flags from the following list,
+are constructed by a bitwise-inclusive OR of flags from this list,
 defined in
 .In fcntl.h :
 .Bl -tag -width indent
@@ -129,14 +129,19 @@ and into which information is placed concerning the file.
 .Pp
 The fields of
 .Vt "struct stat"
-related to the file system are as follows:
+related to the file system are:
 .Bl -tag -width ".Va st_nlink"
 .It Va st_dev
-The numeric ID of the device containing the file.
+Numeric ID of the device containing the file.
 .It Va st_ino
 The file's inode number.
 .It Va st_nlink
-The number of hard links to the file.
+Number of hard links to the file.
+.It Va st_flags
+Flags enabled for the file.
+See
+.Xr chflags 2
+for the list of flags and their description.
 .El
 .Pp
 The
@@ -147,10 +152,10 @@ fields together identify the file uniquely within the system.
 .Pp
 The time-related fields of
 .Vt "struct stat"
-are as follows:
+are:
 .Bl -tag -width ".Va st_birthtim"
 .It Va st_atim
-Time when file data last accessed.
+Time when file data was last accessed.
 Changed by the
 .Xr mknod 2 ,
 .Xr utimes 2 ,
@@ -159,7 +164,7 @@ and
 .Xr readv 2
 system calls.
 .It Va st_mtim
-Time when file data last modified.
+Time when file data was last modified.
 Changed by the
 .Xr mkdir 2 ,
 .Xr mkfifo 2 ,
@@ -194,7 +199,7 @@ system calls.
 Time when the inode was created.
 .El
 .Pp
-The following time-related macros are defined for compatibility:
+These time-related macros are defined for compatibility:
 .Bd -literal
 #define	st_atime		st_atim.tv_sec
 #define	st_mtime		st_mtim.tv_sec
@@ -211,35 +216,35 @@ The following time-related macros are defined for compatibility:
 #endif
 .Ed
 .Pp
-The size-related fields of the
+Size-related fields of the
 .Vt "struct stat"
-are as follows:
+are:
 .Bl -tag -width ".Va st_blksize"
 .It Va st_size
-The file size in bytes.
+File size in bytes.
 .It Va st_blksize
-The optimal I/O block size for the file.
+Optimal I/O block size for the file.
 .It Va st_blocks
-The actual number of blocks allocated for the file in 512-byte units.
+Actual number of blocks allocated for the file in 512-byte units.
 As short symbolic links are stored in the inode, this number may
 be zero.
 .El
 .Pp
 The access-related fields of
 .Vt "struct stat"
-are as follows:
+are:
 .Bl -tag -width ".Va st_mode"
 .It Va st_uid
-The user ID of the file's owner.
+User ID of the file's owner.
 .It Va st_gid
-The group ID of the file.
+Group ID of the file.
 .It Va st_mode
 Status of the file (see below).
 .El
 .Pp
 The status information word
 .Fa st_mode
-has the following bits:
+has these bits:
 .Bd -literal
 #define S_IFMT   0170000  /* type of file mask */
 #define S_IFIFO  0010000  /* named pipe (fifo) */
@@ -272,7 +277,7 @@ For a list of access modes, see
 .Xr access 2
 and
 .Xr chmod 2 .
-The following macros are available to test whether a
+These macros are available to test whether a
 .Va st_mode
 value passed in the
 .Fa m
@@ -418,7 +423,7 @@ The
 and
 .Fn fstat
 system calls appeared in
-.At v7 .
+.At v1 .
 The
 .Fn lstat
 system call appeared in

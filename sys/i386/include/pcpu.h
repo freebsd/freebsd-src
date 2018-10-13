@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Peter Wemm
  * All rights reserved.
  *
@@ -36,44 +38,53 @@
 #include <machine/segments.h>
 #include <machine/tss.h>
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 /*
- * The SMP parts are setup in pmap.c and locore.s for the BSP, and
- * mp_machdep.c sets up the data for the AP's to "see" when they awake.
- * The reason for doing it via a struct is so that an array of pointers
- * to each CPU's data can be set up for things like "check curproc on all
- * other processors"
+ * The SMP parts are setup in pmap.c and machdep.c for the BSP, and
+ * pmap.c and mp_machdep.c sets up the data for the AP's to "see" when
+ * they awake.  The reason for doing it via a struct is so that an
+ * array of pointers to each CPU's data can be set up for things like
+ * "check curproc on all other processors"
  */
 
 #define	PCPU_MD_FIELDS							\
 	char	pc_monitorbuf[128] __aligned(128); /* cache line */	\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	struct	pmap *pc_curpmap;					\
-	struct	i386tss pc_common_tss;					\
 	struct	segment_descriptor pc_common_tssd;			\
 	struct	segment_descriptor *pc_tss_gdt;				\
 	struct	segment_descriptor *pc_fsgs_gdt;			\
+	struct	i386tss *pc_common_tssp;				\
+	u_int	pc_kesp0;						\
+	u_int	pc_trampstk;						\
 	int	pc_currentldt;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	u_int	pc_apic_id;						\
 	int	pc_private_tss;		/* Flag indicating private tss*/\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
+	struct	mtx pc_cmap_lock;					\
+	void	*pc_cmap_pte1;						\
+	void	*pc_cmap_pte2;						\
+	caddr_t	pc_cmap_addr1;						\
+	caddr_t	pc_cmap_addr2;						\
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
-	char	__pad[229]
+	vm_offset_t pc_copyout_maddr;					\
+	vm_offset_t pc_copyout_saddr;					\
+	struct	mtx pc_copyout_mlock;					\
+	struct	sx pc_copyout_slock;					\
+	char	*pc_copyout_buf;					\
+	vm_offset_t pc_pmap_eh_va;					\
+	caddr_t pc_pmap_eh_ptep;						\
+	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
+	uint32_t pc_ibpb_set;						\
+	char	__pad[3610]
 
 #ifdef _KERNEL
 
-#ifdef lint
-
-extern struct pcpu *pcpup;
-
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_ADD(member, val)	(pcpup->pc_ ## member += (val))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member, val)	(pcpup->pc_ ## member = (val))
-
-#elif defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
+#if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
@@ -187,6 +198,15 @@ extern struct pcpu *pcpup;
 	}								\
 } while (0)
 
+#define	get_pcpu() __extension__ ({					\
+	struct pcpu *__pc;						\
+									\
+	__asm __volatile("movl %%fs:%1,%0"				\
+	    : "=r" (__pc)						\
+	    : "m" (*(struct pcpu *)(__pcpu_offset(pc_prvspace))));	\
+	__pc;								\
+})
+
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
 #define	PCPU_INC(member)	__PCPU_INC(pc_ ## member)
@@ -223,11 +243,13 @@ __curpcb(void)
 }
 #define	curpcb		(__curpcb())
 
-#else /* !lint || defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
+#define	IS_BSP()	(PCPU_GET(cpuid) == 0)
+
+#else /* defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
 
 #error "this file needs to be ported to your compiler"
 
-#endif /* lint, etc. */
+#endif /* __GNUCLIKE_ASM etc. */
 
 #endif /* _KERNEL */
 

@@ -19,26 +19,26 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Transparent Inter-Process Communication (TIPC) protocol printer */
+
+/*
+ * specification:
+ *	http://tipc.sourceforge.net/doc/draft-spec-tipc-07.html
+ *	http://tipc.sourceforge.net/doc/tipc_message_formats.html
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "ether.h"
 #include "ethertype.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
 
 static const char tstr[] = "[|TIPC]";
-
-/*
- * Transparent Inter-Process Communication (TIPC) protocol.
- *
- *	http://tipc.sourceforge.net/doc/draft-spec-tipc-07.html
- *	http://tipc.sourceforge.net/doc/tipc_message_formats.html
- */
 
 #define TIPC_USER_LOW_IMPORTANCE	0
 #define TIPC_USER_MEDIUM_IMPORTANCE	1
@@ -342,7 +342,7 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
 	uint32_t w0;
 	u_int user;
 
-	ap = (struct tipc_pkthdr *)bp;
+	ap = (const struct tipc_pkthdr *)bp;
 	ND_TCHECK(ap->w0);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
@@ -355,11 +355,11 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
 		case TIPC_USER_CRITICAL_IMPORTANCE:
 		case TIPC_USER_NAME_DISTRIBUTOR:
 		case TIPC_USER_CONN_MANAGER:
-			print_payload(ndo, (struct payload_tipc_pkthdr *)bp);
+			print_payload(ndo, (const struct payload_tipc_pkthdr *)bp);
 			break;
 
 		case TIPC_USER_LINK_CONFIG:
-			print_link_conf(ndo, (struct link_conf_tipc_pkthdr *)bp);
+			print_link_conf(ndo, (const struct link_conf_tipc_pkthdr *)bp);
 			break;
 
 		case TIPC_USER_BCAST_PROTOCOL:
@@ -367,7 +367,7 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
 		case TIPC_USER_LINK_PROTOCOL:
 		case TIPC_USER_CHANGEOVER_PROTOCOL:
 		case TIPC_USER_MSG_FRAGMENTER:
-			print_internal(ndo, (struct internal_tipc_pkthdr *)bp);
+			print_internal(ndo, (const struct internal_tipc_pkthdr *)bp);
 			break;
 
 	}

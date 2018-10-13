@@ -1,4 +1,4 @@
-.\" $NetBSD: blacklistd.8,v 1.15 2016/03/11 17:16:40 christos Exp $
+.\" $NetBSD: blacklistd.8,v 1.18 2016/07/30 06:09:29 dholland Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 7, 2016
+.Dd October 5, 2018
 .Dt BLACKLISTD 8
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 .Nm
 is a daemon similar to
 .Xr syslogd 8
-that listens to a sockets at paths specified in the
+that listens to sockets at paths specified in the
 .Ar sockpathsfile
 for notifications from other daemons about successful or failed connection
 attempts.
@@ -178,7 +178,7 @@ Specify the default rule name for the packet filter rules, usually
 .It Fl r
 Re-read the firewall rules from the internal database, then
 remove and re-add them.
-This helps for packet filters that don't retain state across reboots.
+This helps for packet filters that do not retain state across reboots.
 .It Fl s Ar sockpath
 Add
 .Ar sockpath
@@ -197,6 +197,27 @@ diagnostic messages to
 .Dv stdout
 instead of
 .Xr syslogd 8 .
+.El
+.Sh SIGNAL HANDLING
+.Nm
+deals with the following signals:
+.Bl -tag -width "USR2"
+.It HUP
+Receipt of this signal causes
+.Nm
+to re-read the configuration file.
+.It INT, TERM & QUIT
+These signals tell
+.Nm
+to exit in an orderly fashion.
+.It USR1
+This signal tells
+.Nm
+to increase the internal debugging level by 1.
+.It USR2
+This signal tells
+.Nm
+to decrease the internal debugging level by 1.
 .El
 .Sh FILES
 .Bl -tag -width /usr/libexec/blacklistd-helper -compact
@@ -218,7 +239,8 @@ Socket to receive connection notifications.
 .Nm
 first appeared in
 .Nx 7 .
-.Fx support for
+.Fx
+support for
 .Nm
 was implemented in
 .Fx 11 .

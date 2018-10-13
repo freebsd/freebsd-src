@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
@@ -224,6 +224,17 @@ zpool_feature_init(void)
 	    ZFEATURE_FLAG_MOS | ZFEATURE_FLAG_ACTIVATE_ON_ENABLE,
 	    NULL);
 
+	zfeature_register(SPA_FEATURE_POOL_CHECKPOINT,
+	    "com.delphix:zpool_checkpoint", "zpool_checkpoint",
+	    "Pool state can be checkpointed, allowing rewind later.",
+	    ZFEATURE_FLAG_READONLY_COMPAT, NULL);
+
+	zfeature_register(SPA_FEATURE_SPACEMAP_V2,
+	    "com.delphix:spacemap_v2", "spacemap_v2",
+	    "Space maps representing large segments are more efficient.",
+	    ZFEATURE_FLAG_READONLY_COMPAT | ZFEATURE_FLAG_ACTIVATE_ON_ENABLE,
+	    NULL);
+
 	static const spa_feature_t large_blocks_deps[] = {
 		SPA_FEATURE_EXTENSIBLE_DATASET,
 		SPA_FEATURE_NONE
@@ -232,6 +243,18 @@ zpool_feature_init(void)
 	    "org.open-zfs:large_blocks", "large_blocks",
 	    "Support for blocks larger than 128KB.",
 	    ZFEATURE_FLAG_PER_DATASET, large_blocks_deps);
+
+	{
+	static const spa_feature_t large_dnode_deps[] = {
+		SPA_FEATURE_EXTENSIBLE_DATASET,
+		SPA_FEATURE_NONE
+	};
+	zfeature_register(SPA_FEATURE_LARGE_DNODE,
+	    "org.zfsonlinux:large_dnode", "large_dnode",
+	    "Variable on-disk size of dnodes.",
+	    ZFEATURE_FLAG_PER_DATASET, large_dnode_deps);
+	}
+
 	zfeature_register(SPA_FEATURE_SHA512,
 	    "org.illumos:sha512", "sha512",
 	    "SHA-512/256 hash algorithm.",
@@ -247,4 +270,20 @@ zpool_feature_init(void)
 	    "Edon-R hash algorithm.",
 	    ZFEATURE_FLAG_PER_DATASET, NULL);
 #endif
+
+	zfeature_register(SPA_FEATURE_DEVICE_REMOVAL,
+	    "com.delphix:device_removal", "device_removal",
+	    "Top-level vdevs can be removed, reducing logical pool size.",
+	    ZFEATURE_FLAG_MOS, NULL);
+
+	static const spa_feature_t obsolete_counts_deps[] = {
+		SPA_FEATURE_EXTENSIBLE_DATASET,
+		SPA_FEATURE_DEVICE_REMOVAL,
+		SPA_FEATURE_NONE
+	};
+	zfeature_register(SPA_FEATURE_OBSOLETE_COUNTS,
+	    "com.delphix:obsolete_counts", "obsolete_counts",
+	    "Reduce memory used by removed devices when their blocks are "
+	    "freed or remapped.",
+	    ZFEATURE_FLAG_READONLY_COMPAT, obsolete_counts_deps);
 }

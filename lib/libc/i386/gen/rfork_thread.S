@@ -98,11 +98,7 @@ ENTRY(rfork_thread)
 	 */
 	pushl	%eax
 	pushl	$0
-#ifdef SYS_exit
 	movl	$SYS_exit, %eax
-#else
-	movl	$SYS_sys_exit, %eax
-#endif
 	KERNCALL
 
 	/*

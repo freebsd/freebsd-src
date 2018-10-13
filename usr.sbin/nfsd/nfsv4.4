@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2013
+.Dd July 19, 2017
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -34,7 +34,8 @@
 The NFS client and server provides support for the
 .Tn NFSv4
 specification; see
-.%T "Network File System (NFS) Version 4 Protocol RFC 3530" .
+.%T "Network File System (NFS) Version 4 Protocol RFC 7530" and
+.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" .
 The protocol is somewhat similar to NFS Version 3, but differs in significant
 ways.
 It uses a single compound RPC that concatenates operations to-gether.
@@ -74,6 +75,7 @@ It provides several optional features not present in NFS Version 3:
 - Referrals, which redirect subtrees to other servers
   (not yet implemented)
 - Delegations, which allow a client to operate on a file locally
+- pNFS, where I/O operations are separated from Metadata operations
 .Ed
 .Pp
 The
@@ -115,8 +117,8 @@ multiple server file systems, although not all clients are capable of doing
 this.
 .Pp
 .Nm
-uses names for users and groups instead of numbers.
-On the wire, they
+uses strings for users and groups instead of numbers.
+On the wire, these strings can either have the numbers in the string or
 take the form:
 .sp
 .Bd -literal -offset indent -compact
@@ -136,15 +138,37 @@ Under FreeBSD, the mapping daemon is called
 .Xr nfsuserd 8
 and has a command line option that overrides the domain component of the
 machine's hostname.
-For use of
+For use of this form of string on
 .Nm ,
 either client or server, this daemon must be running.
-If this ``<dns.domain>'' is not set correctly or the daemon is not running, ``ls -l'' will typically
+.Pp
+The form where the numbers are in the strings can only be used for AUTH_SYS.
+To configure your systems this way, the
+.Xr nfsuserd 8
+daemon does not need to be running on the server, but the following sysctls need to be
+set to 1 on the server.
+.sp
+.Bd -literal -offset indent -compact
+vfs.nfs.enable_uidtostring
+vfs.nfsd.enable_stringtouid
+.Ed
+.sp
+On the client, the sysctl
+.sp
+.Bd -literal -offset indent -compact
+vfs.nfs.enable_uidtostring
+.Ed
+.sp
+must be set to 1 and the
+.Xr nfsuserd 8
+daemon does not need to be running.
+.Pp
+If these strings are not configured correctly, ``ls -l'' will typically
 report a lot of ``nobody'' and ``nogroup'' ownerships.
 .Pp
 Although uid/gid numbers are no longer used in the
 .Nm
-protocol, they will still be in the RPC authentication fields when
+protocol except optionally in the above strings, they will still be in the RPC authentication fields when
 using AUTH_SYS (sec=sys), which is the default.
 As such, in this case both the user/group name and number spaces must
 be consistent between the client and server.
@@ -156,24 +180,24 @@ will go on the wire.
 .Sh SERVER SETUP
 To set up the NFS server that supports
 .Nm ,
-you will need to either set the variables in
+you will need to set the variables in
 .Xr rc.conf 5
 as follows:
 .sp
 .Bd -literal -offset indent -compact
 nfs_server_enable="YES"
 nfsv4_server_enable="YES"
+.Ed
+.sp
+plus
+.sp
+.Bd -literal -offset indent -compact
 nfsuserd_enable="YES"
 .Ed
 .sp
-or start
-.Xr mountd 8
-and
-.Xr nfsd 8
-without the ``-o'' option, which would force use of the old server.
-The
-.Xr nfsuserd 8
-daemon must also be running.
+if the server is using the ``<user>@<domain>'' form of user/group strings or
+is using the ``-manage-gids'' option for
+.Xr nfsuserd 8 .
 .Pp
 You will also need to add at least one ``V4:'' line to the
 .Xr exports 5
@@ -232,7 +256,7 @@ plus set ``tcp'' and
 .Pp
 The
 .Xr nfsuserd 8
-must be running, as above.
+must be running if name<->uid/gid mapping is being used, as above.
 Also, since an
 .Nm
 mount uses the host uuid to identify the client uniquely to the server,
@@ -255,7 +279,7 @@ daemon to handle client side callbacks.
 This will occur if
 .sp
 .Bd -literal -offset indent -compact
-nfsuserd_enable="YES"
+nfsuserd_enable="YES"	<-- If name<->uid/gid mapping is being used.
 nfscbd_enable="YES"
 .Ed
 .sp
@@ -265,7 +289,7 @@ are set in
 Without a functioning callback path, a server will never issue Delegations
 to a client.
 .sp
-By default, the callback address will be set to the IP address acquired via
+For NFSv4.0, by default, the callback address will be set to the IP address acquired via
 rtalloc() in the kernel and port# 7745.
 To override the default port#, a command line option for
 .Xr nfscbd 8
@@ -281,6 +305,10 @@ N.N.N.N.N.N
 .sp
 where the first 4 Ns are the host IP address and the last two are the
 port# in network byte order (all decimal #s in the range 0-255).
+.Pp
+For NFSv4.1, the callback path (called a backchannel) uses the same TCP connection as the mount,
+so none of the above applies and should work through gateways without
+any issues.
 .Pp
 To build a kernel with the client that supports
 .Nm

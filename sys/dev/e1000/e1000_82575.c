@@ -1,4 +1,5 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
@@ -79,11 +80,9 @@ static s32  e1000_valid_led_default_82575(struct e1000_hw *hw, u16 *data);
 static s32  e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw,
 					    u32 offset, u16 data);
 static void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw);
-static s32  e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static s32  e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 						 u16 *speed, u16 *duplex);
 static s32  e1000_get_phy_id_82575(struct e1000_hw *hw);
-static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static bool e1000_sgmii_active_82575(struct e1000_hw *hw);
 static s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
 static s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
@@ -101,7 +100,6 @@ static s32 e1000_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
 						   u16 offset);
 static s32 e1000_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 e1000_update_nvm_checksum_i350(struct e1000_hw *hw);
-static void e1000_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value);
 static void e1000_clear_vfta_i350(struct e1000_hw *hw);
 
 static void e1000_i2c_start(struct e1000_hw *hw);
@@ -512,12 +510,8 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	/* link info */
 	mac->ops.get_link_up_info = e1000_get_link_up_info_82575;
 	/* acquire SW_FW sync */
-	mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync_82575;
-	mac->ops.release_swfw_sync = e1000_release_swfw_sync_82575;
-	if (mac->type >= e1000_i210) {
-		mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync_i210;
-		mac->ops.release_swfw_sync = e1000_release_swfw_sync_i210;
-	}
+	mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync;
+	mac->ops.release_swfw_sync = e1000_release_swfw_sync;
 
 	/* set lan id for port to determine which phy lock to use */
 	hw->mac.ops.set_lan_id(hw);
@@ -989,7 +983,7 @@ static s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_acquire_nvm_82575");
 
-	ret_val = e1000_acquire_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
+	ret_val = e1000_acquire_swfw_sync(hw, E1000_SWFW_EEP_SM);
 	if (ret_val)
 		goto out;
 
@@ -1020,7 +1014,7 @@ static s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
 
 	ret_val = e1000_acquire_nvm_generic(hw);
 	if (ret_val)
-		e1000_release_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
+		e1000_release_swfw_sync(hw, E1000_SWFW_EEP_SM);
 
 out:
 	return ret_val;
@@ -1039,83 +1033,7 @@ static void e1000_release_nvm_82575(struct e1000_hw *hw)
 
 	e1000_release_nvm_generic(hw);
 
-	e1000_release_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
-}
-
-/**
- *  e1000_acquire_swfw_sync_82575 - Acquire SW/FW semaphore
- *  @hw: pointer to the HW structure
- *  @mask: specifies which semaphore to acquire
- *
- *  Acquire the SW/FW semaphore to access the PHY or NVM.  The mask
- *  will also specify which port we're acquiring the lock for.
- **/
-static s32 e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
-{
-	u32 swfw_sync;
-	u32 swmask = mask;
-	u32 fwmask = mask << 16;
-	s32 ret_val = E1000_SUCCESS;
-	s32 i = 0, timeout = 200;
-
-	DEBUGFUNC("e1000_acquire_swfw_sync_82575");
-
-	while (i < timeout) {
-		if (e1000_get_hw_semaphore_generic(hw)) {
-			ret_val = -E1000_ERR_SWFW_SYNC;
-			goto out;
-		}
-
-		swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-		if (!(swfw_sync & (fwmask | swmask)))
-			break;
-
-		/*
-		 * Firmware currently using resource (fwmask)
-		 * or other software thread using resource (swmask)
-		 */
-		e1000_put_hw_semaphore_generic(hw);
-		msec_delay_irq(5);
-		i++;
-	}
-
-	if (i == timeout) {
-		DEBUGOUT("Driver can't access resource, SW_FW_SYNC timeout.\n");
-		ret_val = -E1000_ERR_SWFW_SYNC;
-		goto out;
-	}
-
-	swfw_sync |= swmask;
-	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
-
-	e1000_put_hw_semaphore_generic(hw);
-
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_release_swfw_sync_82575 - Release SW/FW semaphore
- *  @hw: pointer to the HW structure
- *  @mask: specifies which semaphore to acquire
- *
- *  Release the SW/FW semaphore used to access the PHY or NVM.  The mask
- *  will also specify which port we're releasing the lock for.
- **/
-static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
-{
-	u32 swfw_sync;
-
-	DEBUGFUNC("e1000_release_swfw_sync_82575");
-
-	while (e1000_get_hw_semaphore_generic(hw) != E1000_SUCCESS)
-		; /* Empty */
-
-	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-	swfw_sync &= ~mask;
-	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
-
-	e1000_put_hw_semaphore_generic(hw);
+	e1000_release_swfw_sync(hw, E1000_SWFW_EEP_SM);
 }
 
 /**
@@ -1679,7 +1597,7 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = FALSE;
-		/* fall through to default case */
+		/* FALLTHROUGH */
 	default:
 		if (hw->mac.type == e1000_82575 ||
 		    hw->mac.type == e1000_82576) {
@@ -1806,6 +1724,7 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 			break;
 		}
 		/* fall through for I2C based SGMII */
+		/* FALLTHROUGH */
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		/* read media type from SFP EEPROM */
 		ret_val = e1000_set_sfp_media_type_82575(hw);

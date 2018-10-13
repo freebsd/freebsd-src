@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 23, 2017
 .Dt CAP_ENTER 2
 .Os
 .Sh NAME
@@ -69,6 +69,34 @@ appropriately-crafted applications or application components may be run.
 .Fn cap_getmode
 returns a flag indicating whether or not the process is in a capability mode
 sandbox.
+.Sh RUN-TIME SETTINGS
+If the
+.Dv kern.trap_enotcap
+sysctl MIB is set to a non-zero value, then for any process executing in a
+capability mode sandbox, any syscall which results in either an
+.Er ENOTCAPABLE
+or
+.Er ECAPMODE
+error also generates the synchronous
+.Dv SIGTRAP
+signal to the thread on the syscall return.
+On signal delivery, the
+.Va si_errno
+member of the
+.Fa siginfo
+signal handler parameter is set to the syscall error value,
+and the
+.Va si_code
+member is set to
+.Dv TRAP_CAP .
+.Pp
+See also the
+.Dv PROC_TRAPCAP_CTL
+and
+.Dv PROC_TRAPCAP_STATUS
+operations of the
+.Xr procctl 2
+function for similar per-process functionality.
 .Sh CAVEAT
 Creating effective process sandboxes is a tricky process that involves
 identifying the least possible rights required by the process and then
@@ -84,6 +112,11 @@ to create a runtime environment inside the sandbox that has as few implicitly
 acquired rights as possible.
 .Sh RETURN VALUES
 .Rv -std cap_enter cap_getmode
+.Pp
+When the process is in capability mode,
+.Fn cap_getmode
+sets the flag to a non-zero value.
+A zero value means the process is not in capability mode.
 .Sh ERRORS
 The
 .Fn cap_enter
@@ -112,8 +145,10 @@ points outside the process's allocated address space.
 .Xr cap_ioctls_limit 2 ,
 .Xr cap_rights_limit 2 ,
 .Xr fexecve 2 ,
+.Xr procctl 2 ,
 .Xr cap_sandboxed 3 ,
-.Xr capsicum 4
+.Xr capsicum 4 ,
+.Xr sysctl 9
 .Sh HISTORY
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD

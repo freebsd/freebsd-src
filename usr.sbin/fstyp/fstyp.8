@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2016
+.Dd April 26, 2017
 .Dt FSTYP 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 The
 .Nm
 utility is used to determine the filesystem type on a given device.
-It can recognize ISO-9660, Ext2, FAT, NTFS, and UFS filesystems.
+It can recognize ISO-9660, exFAT, Ext2, FAT, NTFS, and UFS filesystems.
 When the
 .Fl u
 flag is specified,
@@ -51,15 +51,18 @@ flag is specified,
 also recognizes certain additional metadata formats that cannot be
 handled using
 .Xr mount 8 ,
-such as ZFS pools and
+such as
 .Xr geli 8
-providers.
+providers, and
+ZFS pools.
 .Pp
 The filesystem name is printed to the standard output
 as, respectively:
 .Bl -item -offset indent -compact
 .It
 cd9660
+.It
+exfat
 .It
 ext2fs
 .It
@@ -118,10 +121,11 @@ The
 command appeared in
 .Fx 10.2 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was developed by
 .An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
 under sponsorship from the FreeBSD Foundation.
 ZFS and GELI support was added by
-.An Allan Jude Aq Mt allanjude@FreeBSD.org
+.An Allan Jude Aq Mt allanjude@FreeBSD.org .

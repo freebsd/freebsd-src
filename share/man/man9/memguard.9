@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2016
+.Dd March 22, 2017
 .Dt MEMGUARD 9
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ can take over
 and
 .Fn uma_free
 for a single
-.Xr uma
+.Xr uma 9
 zone.
 Also
 .Nm
@@ -172,7 +172,7 @@ has the 2 bit set.
 This option is off by default.
 By default
 .Nm
-doesn't guard those
+does not guard
 .Xr uma 9
 zones that have been initialized with the
 .Dv UMA_ZONE_NOFREE

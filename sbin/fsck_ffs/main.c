@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,6 +43,7 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define	IN_RTLD			/* So we pickup the P_OSREL defines */
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/mount.h>
@@ -57,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
+#include <inttypes.h>
 #include <mntopts.h>
 #include <paths.h>
 #include <stdint.h>
@@ -68,7 +72,7 @@ __FBSDID("$FreeBSD$");
 int	restarts;
 
 static void usage(void) __dead2;
-static int argtoi(int flag, const char *req, const char *str, int base);
+static intmax_t argtoimax(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
 static int chkdoreload(struct statfs *mntp);
 static struct statfs *getmntpt(const char *);
@@ -79,6 +83,7 @@ main(int argc, char *argv[])
 	int ch;
 	struct rlimit rlimit;
 	struct itimerval itimerval;
+	int fsret;
 	int ret = 0;
 
 	sync();
@@ -88,8 +93,8 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
-			bflag = argtoi('b', "number", optarg, 10);
-			printf("Alternate super block location: %d\n", bflag);
+			bflag = argtoimax('b', "number", optarg, 10);
+			printf("Alternate super block location: %jd\n", bflag);
 			break;
 
 		case 'B':
@@ -98,7 +103,8 @@ main(int argc, char *argv[])
 
 		case 'c':
 			skipclean = 0;
-			cvtlevel = argtoi('c', "conversion level", optarg, 10);
+			cvtlevel = argtoimax('c', "conversion level", optarg,
+			    10);
 			if (cvtlevel < 3)
 				errx(EEXIT, "cannot do level %d conversion",
 				    cvtlevel);
@@ -121,7 +127,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'm':
-			lfmode = argtoi('m', "mode", optarg, 8);
+			lfmode = argtoimax('m', "mode", optarg, 8);
 			if (lfmode &~ 07777)
 				errx(EEXIT, "bad mode to -m: %o", lfmode);
 			printf("** lost+found creation mode %o\n", lfmode);
@@ -192,8 +198,9 @@ main(int argc, char *argv[])
 		(void)setrlimit(RLIMIT_DATA, &rlimit);
 	}
 	while (argc > 0) {
-		if (checkfilesys(*argv) == ERESTART)
+		if ((fsret = checkfilesys(*argv)) == ERESTART)
 			continue;
+		ret |= fsret;
 		argc--;
 		argv++;
 	}
@@ -203,13 +210,13 @@ main(int argc, char *argv[])
 	exit(ret);
 }
 
-static int
-argtoi(int flag, const char *req, const char *str, int base)
+static intmax_t
+argtoimax(int flag, const char *req, const char *str, int base)
 {
 	char *cp;
-	int ret;
+	intmax_t ret;
 
-	ret = (int)strtol(str, &cp, base);
+	ret = strtoimax(str, &cp, base);
 	if (cp == str || *cp)
 		errx(EEXIT, "-%c flag requires a %s", flag, req);
 	return (ret);
@@ -229,6 +236,7 @@ checkfilesys(char *filesys)
 	struct group *grp;
 	struct iovec *iov;
 	char errmsg[255];
+	int ofsmodified;
 	int iovlen;
 	int cylno;
 	intmax_t blks, files;
@@ -423,12 +431,56 @@ checkfilesys(char *filesys)
 		}
 		/*
 		 * Write the superblock so we don't try to recover the
-		 * journal on another pass.
+		 * journal on another pass. If this is the only change
+		 * to the filesystem, we do not want it to be called
+		 * out as modified.
 		 */
 		sblock.fs_mtime = time(NULL);
 		sbdirty();
+		ofsmodified = fsmodified;
+		flush(fswritefd, &sblk);
+		fsmodified = ofsmodified;
 	}
-
+	/*
+	 * If the filesystem was run on an old kernel that did not
+	 * support check hashes, clear the check-hash flags so that
+	 * we do not try to verify them.
+	 */
+	if ((sblock.fs_flags & FS_METACKHASH) == 0)
+		sblock.fs_metackhash = 0;
+	/*
+	 * If we are running on a kernel that can provide check hashes
+	 * that are not yet enabled for the filesystem and we are
+	 * running manually without the -y flag, offer to add any
+	 * supported check hashes that are not already enabled.
+	 */
+	ckhashadd = 0;
+	if (preen == 0 && yflag == 0 && sblock.fs_magic != FS_UFS1_MAGIC &&
+	    fswritefd != -1 && getosreldate() >= P_OSREL_CK_CYLGRP) {
+		if ((sblock.fs_metackhash & CK_CYLGRP) == 0 &&
+		    reply("ADD CYLINDER GROUP CHECK-HASH PROTECTION") != 0)
+			ckhashadd |= CK_CYLGRP;
+#ifdef notyet
+		if ((sblock.fs_metackhash & CK_SUPERBLOCK) == 0 &&
+		    getosreldate() >= P_OSREL_CK_SUPERBLOCK &&
+		    reply("ADD SUPERBLOCK CHECK-HASH PROTECTION") != 0)
+			ckhashadd |= CK_SUPERBLOCK;
+		if ((sblock.fs_metackhash & CK_INODE) == 0 &&
+		    getosreldate() >= P_OSREL_CK_INODE &&
+		    reply("ADD INODE CHECK-HASH PROTECTION") != 0)
+			ckhashadd |= CK_INODE;
+		if ((sblock.fs_metackhash & CK_INDIR) == 0 &&
+		    getosreldate() >= P_OSREL_CK_INDIR &&
+		    reply("ADD INDIRECT BLOCK CHECK-HASH PROTECTION") != 0)
+			ckhashadd |= CK_INDIR;
+		if ((sblock.fs_metackhash & CK_DIR) == 0 &&
+		    getosreldate() >= P_OSREL_CK_DIR &&
+		    reply("ADD DIRECTORY CHECK-HASH PROTECTION") != 0)
+			ckhashadd |= CK_DIR;
+#endif /* notyet */
+		if (ckhashadd != 0)
+			sblock.fs_flags |= FS_METACKHASH;
+	}
 	/*
 	 * Cleared if any questions answered no. Used to decide if
 	 * the superblock should be marked clean.
@@ -498,7 +550,7 @@ checkfilesys(char *filesys)
 	 */
 	n_ffree = sblock.fs_cstotal.cs_nffree;
 	n_bfree = sblock.fs_cstotal.cs_nbfree;
-	files = maxino - ROOTINO - sblock.fs_cstotal.cs_nifree - n_files;
+	files = maxino - UFS_ROOTINO - sblock.fs_cstotal.cs_nifree - n_files;
 	blks = n_blks +
 	    sblock.fs_ncg * (cgdmin(&sblock, 0) - cgsblock(&sblock, 0));
 	blks += cgsblock(&sblock, 0) - cgbase(&sblock, 0);
@@ -575,7 +627,7 @@ checkfilesys(char *filesys)
 		sync();
 		return (4);
 	}
-	return (0);
+	return (rerun ? ERERUN : 0);
 }
 
 static int
@@ -668,7 +720,7 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-"usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] filesystem ...\n",
+"usage: %s [-BCdEFfnpRrSyZ] [-b block] [-c level] [-m mode] filesystem ...\n",
 	    getprogname());
 	exit(1);
 }

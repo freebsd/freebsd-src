@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Bruce D. Evans.
  * All rights reserved.
  *
@@ -38,17 +40,14 @@ extern char sigcode[];
 extern int szsigcode;
 extern uint32_t *vm_page_dump;
 extern int vm_page_dump_size;
+extern u_long elf_hwcap;
+extern u_long elf_hwcap2;
 
 extern int (*_arm_memcpy)(void *, void *, int, int);
 extern int (*_arm_bzero)(void *, int, int);
 
 extern int _min_memcpy_size;
 extern int _min_bzero_size;
-
-struct vdso_timehands;
-struct timecounter;
-extern uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
 
 #define DST_IS_USER	0x1
 #define SRC_IS_USER	0x2

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -93,8 +95,6 @@ static const ns_src defaultsrc[] = {
 int	__pw_match_entry(const char *, size_t, enum nss_lookup_type,
 	    const char *, uid_t);
 int	__pw_parse_entry(char *, size_t, struct passwd *, int, int *errnop);
-
-static	void	 pwd_init(struct passwd *);
 
 union key {
 	const char	*name;
@@ -525,7 +525,7 @@ getpwent_r(struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
-	pwd_init(pwd);
+	__pw_initpwd(pwd);
 	ret_errno = 0;
 	*result = NULL;
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwent_r", defaultsrc,
@@ -564,7 +564,7 @@ getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
-	pwd_init(pwd);
+	__pw_initpwd(pwd);
 	ret_errno = 0;
 	*result = NULL;
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwnam_r", defaultsrc,
@@ -603,7 +603,7 @@ getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
-	pwd_init(pwd);
+	__pw_initpwd(pwd);
 	ret_errno = 0;
 	*result = NULL;
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwuid_r", defaultsrc,
@@ -612,23 +612,6 @@ getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
 		return (0);
 	else
 		return (ret_errno);
-}
-
-
-static void
-pwd_init(struct passwd *pwd)
-{
-	static char nul[] = "";
-
-	memset(pwd, 0, sizeof(*pwd));
-	pwd->pw_uid = (uid_t)-1;  /* Considered least likely to lead to */
-	pwd->pw_gid = (gid_t)-1;  /* a security issue.                  */
-	pwd->pw_name = nul;
-	pwd->pw_passwd = nul;
-	pwd->pw_class = nul;
-	pwd->pw_gecos = nul;
-	pwd->pw_dir = nul;
-	pwd->pw_shell = nul;
 }
 
 
@@ -1612,7 +1595,7 @@ compat_redispatch(struct compat_state *st, enum nss_lookup_type how,
 	for (i = 0; i < (int)(nitems(dtab) - 1); i++)
 		dtab[i].mdata = (void *)lookup_how;
 more:
-	pwd_init(pwd);
+	__pw_initpwd(pwd);
 	switch (lookup_how) {
 	case nss_lt_all:
 		rv = _nsdispatch(&discard, dtab, NSDB_PASSWD_COMPAT,

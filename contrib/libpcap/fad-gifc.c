@@ -33,7 +33,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <sys/param.h>
@@ -56,6 +56,12 @@ struct rtentry;		/* declarations in <net/if.h> */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#else
+#define INT_MAX		2147483647
+#endif
 
 #include "pcap-int.h"
 
@@ -89,11 +95,11 @@ struct rtentry;		/* declarations in <net/if.h> */
  * address in an entry returned by SIOCGIFCONF.
  */
 #ifndef SA_LEN
-#ifdef HAVE_SOCKADDR_SA_LEN
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
 #define SA_LEN(addr)	((addr)->sa_len)
-#else /* HAVE_SOCKADDR_SA_LEN */
+#else /* HAVE_STRUCT_SOCKADDR_SA_LEN */
 #define SA_LEN(addr)	(sizeof (struct sockaddr))
-#endif /* HAVE_SOCKADDR_SA_LEN */
+#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
 #endif /* SA_LEN */
 
 /*
@@ -132,12 +138,12 @@ struct rtentry;		/* declarations in <net/if.h> */
  * we already have that.
  */
 int
-pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
+pcap_findalldevs_interfaces(pcap_if_list_t *devlistp, char *errbuf,
+    int (*check_usable)(const char *), get_if_flags_func get_flags_func)
 {
-	pcap_if_t *devlist = NULL;
 	register int fd;
 	register struct ifreq *ifrp, *ifend, *ifnext;
-	int n;
+	size_t n;
 	struct ifconf ifc;
 	char *buf = NULL;
 	unsigned buf_size;
@@ -154,8 +160,8 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 	 */
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
-		(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-		    "socket: %s", pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "socket");
 		return (-1);
 	}
 
@@ -168,10 +174,20 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 	 */
 	buf_size = 8192;
 	for (;;) {
+		/*
+		 * Don't let the buffer size get bigger than INT_MAX.
+		 */
+		if (buf_size > INT_MAX) {
+			(void)pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			    "interface information requires more than %u bytes",
+			    INT_MAX);
+			(void)close(fd);
+			return (-1);
+		}
 		buf = malloc(buf_size);
 		if (buf == NULL) {
-			(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-			    "malloc: %s", pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "malloc");
 			(void)close(fd);
 			return (-1);
 		}
@@ -181,13 +197,13 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 		memset(buf, 0, buf_size);
 		if (ioctl(fd, SIOCGIFCONF, (char *)&ifc) < 0
 		    && errno != EINVAL) {
-			(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-			    "SIOCGIFCONF: %s", pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "SIOCGIFCONF");
 			(void)close(fd);
 			free(buf);
 			return (-1);
 		}
-		if (ifc.ifc_len < buf_size &&
+		if (ifc.ifc_len < (int)buf_size &&
 		    (buf_size - ifc.ifc_len) > sizeof(ifrp->ifr_name) + MAX_SA_LEN)
 			break;
 		free(buf);
@@ -217,12 +233,12 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 		/*
 		 * XXX - The 32-bit compatibility layer for Linux on IA-64
 		 * is slightly broken. It correctly converts the structures
-		 * to and from kernel land from 64 bit to 32 bit but 
-		 * doesn't update ifc.ifc_len, leaving it larger than the 
-		 * amount really used. This means we read off the end 
-		 * of the buffer and encounter an interface with an 
-		 * "empty" name. Since this is highly unlikely to ever 
-		 * occur in a valid case we can just finish looking for 
+		 * to and from kernel land from 64 bit to 32 bit but
+		 * doesn't update ifc.ifc_len, leaving it larger than the
+		 * amount really used. This means we read off the end
+		 * of the buffer and encounter an interface with an
+		 * "empty" name. Since this is highly unlikely to ever
+		 * occur in a valid case we can just finish looking for
 		 * interfaces if we see an empty name.
 		 */
 		if (!(*ifrp->ifr_name))
@@ -237,6 +253,16 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 			continue;
 
 		/*
+		 * Can we capture on this device?
+		 */
+		if (!(*check_usable)(ifrp->ifr_name)) {
+			/*
+			 * No.
+			 */
+			continue;
+		}
+
+		/*
 		 * Get the flags for this interface.
 		 */
 		strncpy(ifrflags.ifr_name, ifrp->ifr_name,
@@ -244,11 +270,10 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 		if (ioctl(fd, SIOCGIFFLAGS, (char *)&ifrflags) < 0) {
 			if (errno == ENXIO)
 				continue;
-			(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-			    "SIOCGIFFLAGS: %.*s: %s",
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "SIOCGIFFLAGS: %.*s",
 			    (int)sizeof(ifrflags.ifr_name),
-			    ifrflags.ifr_name,
-			    pcap_strerror(errno));
+			    ifrflags.ifr_name);
 			ret = -1;
 			break;
 		}
@@ -268,11 +293,11 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 				netmask = NULL;
 				netmask_size = 0;
 			} else {
-				(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-				    "SIOCGIFNETMASK: %.*s: %s",
+				pcap_fmt_errmsg_for_errno(errbuf,
+				    PCAP_ERRBUF_SIZE, errno,
+				    "SIOCGIFNETMASK: %.*s",
 				    (int)sizeof(ifrnetmask.ifr_name),
-				    ifrnetmask.ifr_name,
-				    pcap_strerror(errno));
+				    ifrnetmask.ifr_name);
 				ret = -1;
 				break;
 			}
@@ -299,11 +324,11 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 					broadaddr = NULL;
 					broadaddr_size = 0;
 				} else {
-					(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-					    "SIOCGIFBRDADDR: %.*s: %s",
+					pcap_fmt_errmsg_for_errno(errbuf,
+					    PCAP_ERRBUF_SIZE, errno,
+					    "SIOCGIFBRDADDR: %.*s",
 					    (int)sizeof(ifrbroadaddr.ifr_name),
-					    ifrbroadaddr.ifr_name,
-					    pcap_strerror(errno));
+					    ifrbroadaddr.ifr_name);
 					ret = -1;
 					break;
 				}
@@ -338,11 +363,11 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 					dstaddr = NULL;
 					dstaddr_size = 0;
 				} else {
-					(void)snprintf(errbuf, PCAP_ERRBUF_SIZE,
-					    "SIOCGIFDSTADDR: %.*s: %s",
+					pcap_fmt_errmsg_for_errno(errbuf,
+					    PCAP_ERRBUF_SIZE, errno,
+					    "SIOCGIFDSTADDR: %.*s",
 					    (int)sizeof(ifrdstaddr.ifr_name),
-					    ifrdstaddr.ifr_name,
-					    pcap_strerror(errno));
+					    ifrdstaddr.ifr_name);
 					ret = -1;
 					break;
 				}
@@ -390,11 +415,11 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 		/*
 		 * Add information for this address to the list.
 		 */
-		if (add_addr_to_iflist(&devlist, ifrp->ifr_name,
-		    ifrflags.ifr_flags, &ifrp->ifr_addr,
-		    SA_LEN(&ifrp->ifr_addr), netmask, netmask_size,
-		    broadaddr, broadaddr_size, dstaddr, dstaddr_size,
-		    errbuf) < 0) {
+		if (add_addr_to_if(devlistp, ifrp->ifr_name,
+		    ifrflags.ifr_flags, get_flags_func,
+		    &ifrp->ifr_addr, SA_LEN(&ifrp->ifr_addr),
+		    netmask, netmask_size, broadaddr, broadaddr_size,
+		    dstaddr, dstaddr_size, errbuf) < 0) {
 			ret = -1;
 			break;
 		}
@@ -402,16 +427,5 @@ pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 	free(buf);
 	(void)close(fd);
 
-	if (ret == -1) {
-		/*
-		 * We had an error; free the list we've been constructing.
-		 */
-		if (devlist != NULL) {
-			pcap_freealldevs(devlist);
-			devlist = NULL;
-		}
-	}
-
-	*alldevsp = devlist;
 	return (ret);
 }

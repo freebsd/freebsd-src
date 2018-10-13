@@ -1,6 +1,8 @@
 /*	$OpenBSD: if_sk.c,v 2.33 2003/08/12 05:23:06 nate Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -55,14 +57,14 @@ __FBSDID("$FreeBSD$");
  * the SK-984x series adapters, both single port and dual port.
  * References:
  * 	The XaQti XMAC II datasheet,
- *  http://www.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
+ *  https://www.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
  *	The SysKonnect GEnesis manual, http://www.syskonnect.com
  *
  * Note: XaQti has been acquired by Vitesse, and Vitesse does not have the
  * XMAC II datasheet online. I have put my copy at people.freebsd.org as a
  * convenience to others until Vitesse corrects this problem:
  *
- * http://people.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
+ * https://people.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
  *
  * Written by Bill Paul <wpaul@ee.columbia.edu>
  * Department of Electrical Engineering
@@ -747,7 +749,8 @@ sk_rxfilter_genesis(sc_if)
 	} else {
 		i = 1;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead,
+		/* XXX want to maintain reverse semantics */
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs,
 		    ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -799,7 +802,7 @@ sk_rxfilter_yukon(sc_if)
 	} else {
 		mode |= YU_RCR_UFLEN;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

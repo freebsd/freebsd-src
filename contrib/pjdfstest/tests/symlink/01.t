@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/symlink/01.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="symlink returns ENOTDIR if a component of the name2 path prefix is not a directory"

@@ -32,14 +32,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2016
+.Dd June 17, 2017
 .Dt PDFORK 2
 .Os
 .Sh NAME
 .Nm pdfork ,
 .Nm pdgetpid ,
-.Nm pdkill ,
-.Nm pdwait4
+.Nm pdkill
 .Nd System calls to manage process descriptors
 .Sh LIBRARY
 .Lb libc
@@ -51,8 +50,6 @@
 .Fn pdgetpid "int fd" "pid_t *pidp"
 .Ft int
 .Fn pdkill "int fd" "int signum"
-.Ft int
-.Fn pdwait4 "int fd" "int *status" "int options" "struct rusage *rusage"
 .Sh DESCRIPTION
 Process descriptors are special file descriptors that represent processes,
 and are created using
@@ -95,11 +92,6 @@ is functionally identical to
 except that it accepts a process descriptor,
 .Fa fd ,
 rather than a PID.
-.Pp
-.Fn pdwait4
-behaves identically to
-.Xr wait4 2 ,
-but operates with respect to a process descriptor argument rather than a PID.
 .Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
@@ -146,9 +138,6 @@ does.
 and
 .Fn pdkill
 return 0 on success and -1 on failure.
-.Pp
-.Fn pdwait4
-returns a PID on success and -1 on failure.
 .Sh ERRORS
 These functions may return the same error numbers as their PID-based equivalents
 (e.g.
@@ -180,9 +169,8 @@ for
 The
 .Fn pdfork ,
 .Fn pdgetpid ,
-.Fn pdkill
 and
-.Fn pdwait4
+.Fn pdkill
 system calls first appeared in
 .Fx 9.0 .
 .Pp
@@ -197,6 +185,3 @@ and
 .An Jonathan Anderson Aq Mt jonathan@FreeBSD.org
 at the University of Cambridge Computer Laboratory with support from a grant
 from Google, Inc.
-.Sh BUGS
-.Fn pdwait4
-has not yet been implemented.

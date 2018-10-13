@@ -1,4 +1,4 @@
-//===-- RegAllocBase.cpp - Register Allocator Base Class ------------------===//
+//===- RegAllocBase.cpp - Register Allocator Base Class -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,23 +14,22 @@
 
 #include "RegAllocBase.h"
 #include "Spiller.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
-#include "llvm/CodeGen/LiveRangeEdit.h"
+#include "llvm/CodeGen/LiveInterval.h"
+#include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveRegMatrix.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#ifndef NDEBUG
-#include "llvm/ADT/SparseBitVector.h"
-#endif
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
 
 using namespace llvm;
 
@@ -41,10 +40,11 @@ STATISTIC(NumNewQueued    , "Number of new live ranges queued");
 // Temporary verification option until we can put verification inside
 // MachineVerifier.
 static cl::opt<bool, true>
-VerifyRegAlloc("verify-regalloc", cl::location(RegAllocBase::VerifyEnabled),
-               cl::desc("Verify during register allocation"));
+    VerifyRegAlloc("verify-regalloc", cl::location(RegAllocBase::VerifyEnabled),
+                   cl::Hidden, cl::desc("Verify during register allocation"));
 
-const char RegAllocBase::TimerGroupName[] = "Register Allocation";
+const char RegAllocBase::TimerGroupName[] = "regalloc";
+const char RegAllocBase::TimerGroupDescription[] = "Register Allocation";
 bool RegAllocBase::VerifyEnabled = false;
 
 //===----------------------------------------------------------------------===//
@@ -70,7 +70,8 @@ void RegAllocBase::init(VirtRegMap &vrm,
 // register, unify them with the corresponding LiveIntervalUnion, otherwise push
 // them on the priority queue for later assignment.
 void RegAllocBase::seedLiveRegs() {
-  NamedRegionTimer T("Seed Live Regs", TimerGroupName, TimePassesIsEnabled);
+  NamedRegionTimer T("seed", "Seed Live Regs", TimerGroupName,
+                     TimerGroupDescription, TimePassesIsEnabled);
   for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
     if (MRI->reg_nodbg_empty(Reg))
@@ -105,7 +106,9 @@ void RegAllocBase::allocatePhysRegs() {
     DEBUG(dbgs() << "\nselectOrSplit "
           << TRI->getRegClassName(MRI->getRegClass(VirtReg->reg))
           << ':' << *VirtReg << " w=" << VirtReg->weight << '\n');
-    typedef SmallVector<unsigned, 4> VirtRegVec;
+
+    using VirtRegVec = SmallVector<unsigned, 4>;
+
     VirtRegVec SplitVRegs;
     unsigned AvailablePhysReg = selectOrSplit(*VirtReg, SplitVRegs);
 
@@ -135,11 +138,13 @@ void RegAllocBase::allocatePhysRegs() {
     if (AvailablePhysReg)
       Matrix->assign(*VirtReg, AvailablePhysReg);
 
-    for (VirtRegVec::iterator I = SplitVRegs.begin(), E = SplitVRegs.end();
-         I != E; ++I) {
-      LiveInterval *SplitVirtReg = &LIS->getInterval(*I);
+    for (unsigned Reg : SplitVRegs) {
+      assert(LIS->hasInterval(Reg));
+
+      LiveInterval *SplitVirtReg = &LIS->getInterval(Reg);
       assert(!VRM->hasPhys(SplitVirtReg->reg) && "Register already assigned");
       if (MRI->reg_nodbg_empty(SplitVirtReg->reg)) {
+        assert(SplitVirtReg->empty() && "Non-empty but used interval");
         DEBUG(dbgs() << "not queueing unused  " << *SplitVirtReg << '\n');
         aboutToRemoveInterval(*SplitVirtReg);
         LIS->removeInterval(SplitVirtReg->reg);
@@ -152,4 +157,13 @@ void RegAllocBase::allocatePhysRegs() {
       ++NumNewQueued;
     }
   }
+}
+
+void RegAllocBase::postOptimization() {
+  spiller().postOptimization();
+  for (auto DeadInst : DeadRemats) {
+    LIS->RemoveMachineInstrFromMaps(*DeadInst);
+    DeadInst->eraseFromParent();
+  }
+  DeadRemats.clear();
 }

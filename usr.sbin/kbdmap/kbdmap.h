@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Jonathan Belson <jon@witchspace.com>
  * All rights reserved.
  *

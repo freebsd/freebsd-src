@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998 Daniel Eischen <eischen@vigrid.com>.
  * All rights reserved.
  *
@@ -45,8 +47,8 @@ __FBSDID("$FreeBSD$");
 __weak_reference(_pthread_getschedparam, pthread_getschedparam);
 
 int
-_pthread_getschedparam(pthread_t pthread, int *policy, 
-	struct sched_param *param)
+_pthread_getschedparam(pthread_t pthread, int * __restrict policy, 
+    struct sched_param * __restrict param)
 {
 	struct pthread *curthread = _get_curthread();
 	int ret = 0;

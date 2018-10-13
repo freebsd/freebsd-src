@@ -22,11 +22,11 @@
 // This peephole pass optimizes these cases, for example
 //
 // It will transform the following pattern
-//    %vreg0<def> = LEA_ADDRi64 %VRFrame, 4
-//    %vreg1<def> = cvta_to_local_yes_64 %vreg0
+//    %0 = LEA_ADDRi64 %VRFrame, 4
+//    %1 = cvta_to_local_yes_64 %0
 //
 // into
-//    %vreg1<def> = LEA_ADDRi64 %VRFrameLocal, 4
+//    %1 = LEA_ADDRi64 %VRFrameLocal, 4
 //
 // %VRFrameLocal is the virtual register name of %SPL
 //
@@ -36,8 +36,8 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 using namespace llvm;
 
@@ -57,7 +57,7 @@ struct NVPTXPeephole : public MachineFunctionPass {
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "NVPTX optimize redundant cvta.to.local instruction";
   }
 
@@ -113,7 +113,7 @@ static void CombineCVTAToLocal(MachineInstr &Root) {
       BuildMI(MF, Root.getDebugLoc(), TII->get(Prev.getOpcode()),
               Root.getOperand(0).getReg())
           .addReg(NVPTX::VRFrameLocal)
-          .addOperand(Prev.getOperand(2));
+          .add(Prev.getOperand(2));
 
   MBB.insert((MachineBasicBlock::iterator)&Root, MIB);
 
@@ -125,6 +125,9 @@ static void CombineCVTAToLocal(MachineInstr &Root) {
 }
 
 bool NVPTXPeephole::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(MF.getFunction()))
+    return false;
+
   bool Changed = false;
   // Loop over all of the basic blocks.
   for (auto &MBB : MF) {

@@ -416,7 +416,7 @@ svn_tristate__from_word(const char * word);
  *  2. Creating a new textual name similar to
  *     SVN_SUBST__SPECIAL_LINK_STR in libsvn_subr/subst.c.
  *  3. Handling the translation/detranslation case for the new type in
- *     create_special_file and detranslate_special_file, using the
+ *     create_special_file_from_stream and detranslate_special_file, using the
  *     routines from 1.
  */
 
@@ -652,7 +652,7 @@ typedef struct svn_dirent_t
   /** node kind */
   svn_node_kind_t kind;
 
-  /** length of file text, or 0 for directories */
+  /** length of file text, otherwise SVN_INVALID_FILESIZE */
   svn_filesize_t size;
 
   /** does the node have props? */
@@ -1077,6 +1077,11 @@ typedef svn_error_t *(*svn_log_message_receiver_t)(
  * When a commit succeeds, an instance of this is invoked with the
  * @a commit_info, along with the @a baton closure.
  * @a pool can be used for temporary allocations.
+ *
+ * @note Implementers of this callback that pass this callback to
+ * svn_ra_get_commit_editor3() should be careful with returning errors
+ * as these might be returned as commit errors. See the documentation
+ * of svn_ra_get_commit_editor3() for more details.
  *
  * @since New in 1.4.
  */

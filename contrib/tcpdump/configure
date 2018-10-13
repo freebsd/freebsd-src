@@ -704,7 +704,6 @@ enable_smb
 with_user
 with_chroot
 with_sandbox_capsicum
-enable_ipv6
 with_system_libpcap
 with_crypto
 with_cap_ng
@@ -1332,8 +1331,6 @@ Optional Features:
   --disable-universal     don't build universal on OS X
   --enable-smb            enable possibly-buggy SMB printer default=yes
   --disable-smb           disable possibly-buggy SMB printer
-  --enable-ipv6           enable ipv6 (with ipv4) support
-  --disable-ipv6          disable ipv6 support
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1346,7 +1343,8 @@ Optional Packages:
   --with-sandbox-capsicum use Capsicum security functions [default=yes, if
                           available]
   --with-system-libpcap   don't use local pcap library
-  --with-crypto           use OpenSSL libcrypto [default=yes, if available]
+  --with-crypto[=DIR]     use OpenSSL/libressl libcrypto (located in directory
+                          DIR, if specified) [default=yes, if available]
   --with-cap-ng           use libcap-ng [default=yes, if available]
 
 Some influential environment variables:
@@ -3352,7 +3350,18 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -ffloat-store option" >&5
 $as_echo_n "checking whether the compiler supports the -ffloat-store option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -ffloat-store"
+	if expr "x-ffloat-store" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -ffloat-store"
+	elif expr "x-ffloat-store" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -ffloat-store"
+	elif expr "x-ffloat-store" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -ffloat-store"
+	else
+	    CFLAGS="$CFLAGS -ffloat-store"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -4213,7 +4222,25 @@ fi
 done
 
 if test "$ac_cv_header_net_pfvar_h" = yes; then
-	LOCALSRC="print-pflog.c $LOCALSRC"
+	for ac_header in net/if_pflog.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "net/if_pflog.h" "ac_cv_header_net_if_pflog_h" "#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <net/if.h>
+	#include <net/pfvar.h>
+"
+if test "x$ac_cv_header_net_if_pflog_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_NET_IF_PFLOG_H 1
+_ACEOF
+
+fi
+
+done
+
+	if test "$ac_cv_header_net_if_pflog_h" = yes; then
+		LOCALSRC="print-pflog.c $LOCALSRC"
+	fi
 fi
 for ac_header in netinet/if_ether.h
 do :
@@ -4474,7 +4501,7 @@ $as_echo "yes" >&6; }
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: The SMB printer may have exploitable buffer overflows!!!" >&5
 $as_echo "$as_me: WARNING: The SMB printer may have exploitable buffer overflows!!!" >&2;}
 
-$as_echo "#define TCPDUMP_DO_SMB 1" >>confdefs.h
+$as_echo "#define ENABLE_SMB 1" >>confdefs.h
 
 	LOCALSRC="print-smb.c smbutil.c $LOCALSRC"
 	;;
@@ -4566,7 +4593,7 @@ fi
 $as_echo_n "checking whether to sandbox using capsicum... " >&6; }
 if test "x$ac_lbl_capsicum_function_seen" = "xyes" -a "x$ac_lbl_capsicum_function_not_seen" != "xyes"; then
 
-$as_echo "#define HAVE_CASPER 1" >>confdefs.h
+$as_echo "#define HAVE_CAPSICUM 1" >>confdefs.h
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
@@ -4576,9 +4603,9 @@ $as_echo "no" >&6; }
 fi
 
 #
-# We must check this before checking whether to enable IPv6, because,
-# on some platforms (such as SunOS 5.x), the test program requires
-# the extra networking libraries.
+# We must check this before checking whether to check the OS's IPv6,
+# support because, on some platforms (such as SunOS 5.x), the test
+# program requires the extra networking libraries.
 #
 
     # Most operating systems have gethostbyname() in the default searched
@@ -4842,30 +4869,19 @@ fi
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable ipv6" >&5
-$as_echo_n "checking whether to enable ipv6... " >&6; }
-# Check whether --enable-ipv6 was given.
-if test "${enable_ipv6+set}" = set; then :
-  enableval=$enable_ipv6;  case "$enableval" in
-yes)   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-       LOCALSRC="print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
-
-$as_echo "#define INET6 1" >>confdefs.h
-
-       ipv6=yes
-       ;;
-*)
-       { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-       ipv6=no
-       ;;
-  esac
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+#
+# Check whether AF_INET6 and struct in6_addr are defined.
+# If they aren't both defined, we don't have sufficient OS
+# support for IPv6, so we don't look for IPv6 support libraries,
+# and we define AF_INET6 and struct in6_addr ourselves.
+#
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the operating system supports IPv6" >&5
+$as_echo_n "checking whether the operating system supports IPv6... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-      /* AF_INET6 available check */
+
+/* AF_INET6 available check */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -4882,21 +4898,23 @@ foo(struct in6_addr *addr)
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-  LOCALSRC="print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
 
-$as_echo "#define INET6 1" >>confdefs.h
+$as_echo "#define HAVE_OS_IPV6_SUPPORT 1" >>confdefs.h
 
-  ipv6=yes
+	ipv6=yes
+
 else
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-  ipv6=no
+	ipv6=no
+
+
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-
 
 ipv6type=unknown
 ipv6lib=none
@@ -4917,8 +4935,7 @@ yes
 _ACEOF
 if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   $EGREP "yes" >/dev/null 2>&1; then :
-  ipv6type=$i;
-				CFLAGS="-DINET6 $CFLAGS"
+  ipv6type=$i
 fi
 rm -f conftest*
 
@@ -4936,8 +4953,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   ipv6type=$i;
 				ipv6lib=inet6;
 				ipv6libdir=/usr/local/v6/lib;
-				ipv6trylibc=yes;
-				CFLAGS="-DINET6 $CFLAGS"
+				ipv6trylibc=yes
 fi
 rm -f conftest*
 
@@ -4952,8 +4968,7 @@ yes
 _ACEOF
 if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   $EGREP "yes" >/dev/null 2>&1; then :
-  ipv6type=$i;
-				CFLAGS="-DINET6 $CFLAGS"
+  ipv6type=$i
 fi
 rm -f conftest*
 
@@ -4964,7 +4979,7 @@ rm -f conftest*
 				ipv6lib=inet6
 				ipv6libdir=/usr/inet6/lib
 				ipv6trylibc=yes;
-				CFLAGS="-DINET6 -I/usr/inet6/include $CFLAGS"
+				CFLAGS="-I/usr/inet6/include $CFLAGS"
 			fi
 			;;
 		toshiba)
@@ -4979,8 +4994,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   $EGREP "yes" >/dev/null 2>&1; then :
   ipv6type=$i;
 				ipv6lib=inet6;
-				ipv6libdir=/usr/local/v6/lib;
-				CFLAGS="-DINET6 $CFLAGS"
+				ipv6libdir=/usr/local/v6/lib
 fi
 rm -f conftest*
 
@@ -5015,8 +5029,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   $EGREP "yes" >/dev/null 2>&1; then :
   ipv6type=$i;
 				ipv6lib=inet6;
-				ipv6libdir=/usr/local/v6/lib;
-				CFLAGS="-DINET6 $CFLAGS"
+				ipv6libdir=/usr/local/v6/lib
 fi
 rm -f conftest*
 
@@ -5046,239 +5059,6 @@ if test "$ipv6" = "yes" -a "$ipv6lib" != "none"; then
 	fi
 fi
 
-
-if test "$ipv6" = "yes"; then
-	#
-	# XXX - on Tru64 UNIX 5.1, there is no "getaddrinfo()"
-	# function in libc; there are "ngetaddrinfo()" and
-	# "ogetaddrinfo()" functions, and <netdb.h> #defines
-	# "getaddrinfo" to be either "ngetaddrinfo" or
-	# "ogetaddrinfo", depending on whether _SOCKADDR_LEN
-	# or _XOPEN_SOURCE_EXTENDED are defined or not.
-	#
-	# So this test doesn't work on Tru64 5.1, and possibly
-	# on other 5.x releases.  This causes the configure
-	# script to become confused, and results in libpcap
-	# being unbuildable.
-	#
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing getaddrinfo" >&5
-$as_echo_n "checking for library containing getaddrinfo... " >&6; }
-if ${ac_cv_search_getaddrinfo+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char getaddrinfo ();
-int
-main ()
-{
-return getaddrinfo ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' socket; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_getaddrinfo=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_getaddrinfo+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_getaddrinfo+:} false; then :
-
-else
-  ac_cv_search_getaddrinfo=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_getaddrinfo" >&5
-$as_echo "$ac_cv_search_getaddrinfo" >&6; }
-ac_res=$ac_cv_search_getaddrinfo
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking getaddrinfo bug" >&5
-$as_echo_n "checking getaddrinfo bug... " >&6; }
-	if ${td_cv_buggygetaddrinfo+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test "$cross_compiling" = yes; then :
-  td_cv_buggygetaddrinfo=unknown
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <sys/types.h>
-#include <netdb.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
-main()
-{
-  int passive, gaierr, inet4 = 0, inet6 = 0;
-  struct addrinfo hints, *ai, *aitop;
-  char straddr[INET6_ADDRSTRLEN], strport[16];
-
-  for (passive = 0; passive <= 1; passive++) {
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_flags = passive ? AI_PASSIVE : 0;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    if ((gaierr = getaddrinfo(NULL, "54321", &hints, &aitop)) != 0) {
-      (void)gai_strerror(gaierr);
-      goto bad;
-    }
-    for (ai = aitop; ai; ai = ai->ai_next) {
-      if (ai->ai_addr == NULL ||
-          ai->ai_addrlen == 0 ||
-          getnameinfo(ai->ai_addr, ai->ai_addrlen,
-                      straddr, sizeof(straddr), strport, sizeof(strport),
-                      NI_NUMERICHOST|NI_NUMERICSERV) != 0) {
-        goto bad;
-      }
-      switch (ai->ai_family) {
-      case AF_INET:
-        if (strcmp(strport, "54321") != 0) {
-          goto bad;
-        }
-        if (passive) {
-          if (strcmp(straddr, "0.0.0.0") != 0) {
-            goto bad;
-          }
-        } else {
-          if (strcmp(straddr, "127.0.0.1") != 0) {
-            goto bad;
-          }
-        }
-        inet4++;
-        break;
-      case AF_INET6:
-        if (strcmp(strport, "54321") != 0) {
-          goto bad;
-        }
-        if (passive) {
-          if (strcmp(straddr, "::") != 0) {
-            goto bad;
-          }
-        } else {
-          if (strcmp(straddr, "::1") != 0) {
-            goto bad;
-          }
-        }
-        inet6++;
-        break;
-      case AF_UNSPEC:
-        goto bad;
-        break;
-#ifdef AF_UNIX
-      case AF_UNIX:
-#else
-#ifdef AF_LOCAL
-      case AF_LOCAL:
-#endif
-#endif
-      default:
-        /* another family support? */
-        break;
-      }
-    }
-  }
-
-  /* supported family should be 2, unsupported family should be 0 */
-  if (!(inet4 == 0 || inet4 == 2))
-    goto bad;
-  if (!(inet6 == 0 || inet6 == 2))
-    goto bad;
-
-  if (aitop)
-    freeaddrinfo(aitop);
-  exit(0);
-
- bad:
-  if (aitop)
-    freeaddrinfo(aitop);
-  exit(1);
-}
-
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  td_cv_buggygetaddrinfo=no
-else
-  td_cv_buggygetaddrinfo=yes
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-fi
-
-	if test "$td_cv_buggygetaddrinfo" = no; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: good" >&5
-$as_echo "good" >&6; }
-	elif test "$td_cv_buggygetaddrinfo" = unknown; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: unknown (cross-compiling)" >&5
-$as_echo "unknown (cross-compiling)" >&6; }
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: buggy" >&5
-$as_echo "buggy" >&6; }
-	fi
-
-	if test "$td_cv_buggygetaddrinfo" = "yes"; then
-		#
-		# XXX - it doesn't appear that "ipv6type" can ever be
-		# set to "linux".  Should this be testing for
-		# "linux-glibc", or for that *or* "linux-libinet6"?
-		# If the latter, note that "linux-libinet6" is also
-		# the type given to some non-Linux OSes.
-		#
-		if test "$ipv6type" != "linux"; then
-			echo 'Fatal: You must get working getaddrinfo() function.'
-			echo '       or you can specify "--disable-ipv6"'.
-			exit 1
-		else
-			echo 'Warning: getaddrinfo() implementation on your system seems be buggy.'
-			echo '         Better upgrade your system library to newest version'
-			echo '         of GNU C library (aka glibc).'
-		fi
-	fi
-
-fi
-
-	ac_fn_c_check_func "$LINENO" "getnameinfo" "ac_cv_func_getnameinfo"
-if test "x$ac_cv_func_getnameinfo" = xyes; then :
-  $as_echo "#define HAVE_GETNAMEINFO 1" >>confdefs.h
-
-else
-  case " $LIBOBJS " in
-  *" getnameinfo.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS getnameinfo.$ac_objext"
- ;;
-esac
-
-fi
-
-
-fi
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dnet_htoa declaration in netdnet/dnetdb.h" >&5
 $as_echo_n "checking for dnet_htoa declaration in netdnet/dnetdb.h... " >&6; }
 if ${td_cv_decl_netdnet_dnetdb_h_dnet_htoa+:} false; then :
@@ -5306,116 +5086,6 @@ $as_echo "#define HAVE_NETDNET_DNETDB_H_DNET_HTOA 1" >>confdefs.h
 
 fi
 
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for addrinfo" >&5
-$as_echo_n "checking for addrinfo... " >&6; }
-	if ${ac_cv_addrinfo+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#		include <netdb.h>
-int
-main ()
-{
-struct addrinfo a
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_addrinfo=yes
-else
-  ac_cv_addrinfo=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_addrinfo" >&5
-$as_echo "$ac_cv_addrinfo" >&6; }
-	if test $ac_cv_addrinfo = yes; then
-
-$as_echo "#define HAVE_ADDRINFO 1" >>confdefs.h
-
-	else
-
-$as_echo "#define NEED_ADDRINFO_H 1" >>confdefs.h
-
-	fi
-
-if test "$ac_cv_addrinfo" = no; then
-	missing_includes=yes
-fi
-
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for NI_MAXSERV" >&5
-$as_echo_n "checking for NI_MAXSERV... " >&6; }
-	if ${ac_cv_maxserv+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <netdb.h>
-#ifdef NI_MAXSERV
-yes
-#endif
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "yes" >/dev/null 2>&1; then :
-  ac_cv_maxserv=yes
-else
-  ac_cv_maxserv=no
-fi
-rm -f conftest*
-
-fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_maxserv" >&5
-$as_echo "$ac_cv_maxserv" >&6; }
-	if test $ac_cv_maxserv != yes; then
-		$as_echo "#define NEED_ADDRINFO_H 1" >>confdefs.h
-
-	fi
-
-if test "$ac_cv_maxserv" = no; then
-	missing_includes=yes
-fi
-
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for NI_NAMEREQD" >&5
-$as_echo_n "checking for NI_NAMEREQD... " >&6; }
-	if ${ac_cv_namereqd+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <netdb.h>
-#ifdef NI_NOFQDN
-yes
-#endif
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "yes" >/dev/null 2>&1; then :
-  ac_cv_namereqd=yes
-else
-  ac_cv_namereqd=no
-fi
-rm -f conftest*
-
-fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_namereqd" >&5
-$as_echo "$ac_cv_namereqd" >&6; }
-	if test $ac_cv_namereqd != yes; then
-		$as_echo "#define NEED_ADDRINFO_H 1" >>confdefs.h
-
-	fi
-
-if test "$ac_cv_namereqd" = no; then
-	missing_includes=yes
-fi
-
 ac_fn_c_check_func "$LINENO" "vfprintf" "ac_cv_func_vfprintf"
 if test "x$ac_cv_func_vfprintf" = xyes; then :
   $as_echo "#define HAVE_VFPRINTF 1" >>confdefs.h
@@ -5424,19 +5094,6 @@ else
   case " $LIBOBJS " in
   *" vfprintf.$ac_objext "* ) ;;
   *) LIBOBJS="$LIBOBJS vfprintf.$ac_objext"
- ;;
-esac
-
-fi
-
-ac_fn_c_check_func "$LINENO" "strcasecmp" "ac_cv_func_strcasecmp"
-if test "x$ac_cv_func_strcasecmp" = xyes; then :
-  $as_echo "#define HAVE_STRCASECMP 1" >>confdefs.h
-
-else
-  case " $LIBOBJS " in
-  *" strcasecmp.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS strcasecmp.$ac_objext"
  ;;
 esac
 
@@ -5794,7 +5451,6 @@ fi
 
 
 
-
                 LBL_LIBS="$LIBS"
     pfopen=/usr/examples/packetfilter/pfopen.c
     if test -f $pfopen ; then
@@ -6145,7 +5801,7 @@ if test "x$ac_cv_func_pcap_loop" = xyes; then :
 
 else
 
-	    as_fn_error $? "Report this to tcpdump-workers@lists.tcpdump.org, and include the
+	    as_fn_error $? "This is a bug, please follow the guidelines in CONTRIBUTING and include the
 config.log file in your report.  If you have downloaded libpcap from
 tcpdump.org, and built it yourself, please also include the config.log
 file from the libpcap source directory, the Makefile from the libpcap
@@ -6162,114 +5818,6 @@ fi
 #
 # Check for these after AC_LBL_LIBPCAP, so we link with the appropriate
 # libraries (e.g., "-lsocket -lnsl" on Solaris).
-#
-# We don't use AC_REPLACE_FUNCS because that uses AC_CHECK_FUNCS which
-# use AC_CHECK_FUNC which doesn't let us specify the right #includes
-# to make this work on BSD/OS 4.x.  BSD/OS 4.x ships with the BIND8
-# resolver, and the way it defines inet_{ntop,pton} is rather strange;
-# it does not ship with a libc symbol "inet_ntop()", it ships with
-# "_inet_ntop()", and has a #define macro in one of the system headers
-# to rename it.
-#
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for inet_ntop" >&5
-$as_echo_n "checking for inet_ntop... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-int
-main ()
-{
-char src[4], dst[128];
-inet_ntop(AF_INET, src, dst, sizeof(dst));
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	case " $LIBOBJS " in
-  *" inet_ntop.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS inet_ntop.$ac_objext"
- ;;
-esac
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for inet_pton" >&5
-$as_echo_n "checking for inet_pton... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-int
-main ()
-{
-char src[128], dst[4];
-inet_pton(AF_INET, src, dst);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	case " $LIBOBJS " in
-  *" inet_pton.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS inet_pton.$ac_objext"
- ;;
-esac
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for inet_aton" >&5
-$as_echo_n "checking for inet_aton... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-int
-main ()
-{
-char src[128];
-struct in_addr dst;
-inet_aton(src, &dst);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	case " $LIBOBJS " in
-  *" inet_aton.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS inet_aton.$ac_objext"
- ;;
-esac
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-
-#
-# Check for these after AC_LBL_LIBPCAP, for the same reason.
 #
 # You are in a twisty little maze of UN*Xes, all different.
 # Some might not have ether_ntohost().
@@ -6487,44 +6035,6 @@ if test "x$ac_cv_lib_dlpi_dlpi_walk" = xyes; then :
   LIBS="$LIBS -ldlpi" LDFLAGS="-L/lib $LDFLAGS"
 fi
 
-
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if sockaddr struct has sa_len member" >&5
-$as_echo_n "checking if sockaddr struct has sa_len member... " >&6; }
-	if ${ac_cv_sockaddr_has_sa_len+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#		include <sys/types.h>
-#		include <sys/socket.h>
-int
-main ()
-{
-u_int i = sizeof(((struct sockaddr *)0)->sa_len)
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_sockaddr_has_sa_len=yes
-else
-  ac_cv_sockaddr_has_sa_len=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sockaddr_has_sa_len" >&5
-$as_echo "$ac_cv_sockaddr_has_sa_len" >&6; }
-		if test $ac_cv_sockaddr_has_sa_len = yes ; then
-			$as_echo "#define HAVE_SOCKADDR_SA_LEN 1" >>confdefs.h
-
-	fi
-
-if test "$ac_cv_sockaddr_has_sa_len" = no; then
-	missing_includes=yes
-fi
 
 ac_fn_c_check_func "$LINENO" "pcap_list_datalinks" "ac_cv_func_pcap_list_datalinks"
 if test "x$ac_cv_func_pcap_list_datalinks" = xyes; then :
@@ -6748,18 +6258,38 @@ $as_echo "#define HAVE_PCAP_VERSION 1" >>confdefs.h
 $as_echo "no" >&6; }
     fi
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether pcap_debug is defined by libpcap" >&5
+
+#
+# Check for special debugging functions
+#
+for ac_func in pcap_set_parser_debug
+do :
+  ac_fn_c_check_func "$LINENO" "pcap_set_parser_debug" "ac_cv_func_pcap_set_parser_debug"
+if test "x$ac_cv_func_pcap_set_parser_debug" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCAP_SET_PARSER_DEBUG 1
+_ACEOF
+
+fi
+done
+
+if test "$ac_cv_func_pcap_set_parser_debug" = "no" ; then
+	#
+	# OK, we don't have pcap_set_parser_debug() to set the libpcap
+	# filter expression parser debug flag; can we directly set the
+	# flag?
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether pcap_debug is defined by libpcap" >&5
 $as_echo_n "checking whether pcap_debug is defined by libpcap... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 int
 main ()
 {
 
-	extern int pcap_debug;
+		extern int pcap_debug;
 
-	return pcap_debug;
+		return pcap_debug;
 
   ;
   return 0;
@@ -6772,30 +6302,30 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-if test "$ac_lbl_cv_pcap_debug_defined" = yes ; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	if test "$ac_lbl_cv_pcap_debug_defined" = yes ; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_PCAP_DEBUG 1" >>confdefs.h
 
-else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	#
-	# OK, what about "yydebug"?
-	#
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether yydebug is defined by libpcap" >&5
+		#
+		# OK, what about "yydebug"?
+		#
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether yydebug is defined by libpcap" >&5
 $as_echo_n "checking whether yydebug is defined by libpcap... " >&6; }
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+		cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 int
 main ()
 {
 
-		extern int yydebug;
+			extern int yydebug;
 
-		return yydebug;
+			return yydebug;
 
   ;
   return 0;
@@ -6808,17 +6338,29 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-	if test "$ac_lbl_cv_yydebug_defined" = yes ; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		if test "$ac_lbl_cv_yydebug_defined" = yes ; then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_YYDEBUG 1" >>confdefs.h
 
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+		else
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+		fi
 	fi
 fi
+for ac_func in pcap_set_optimizer_debug
+do :
+  ac_fn_c_check_func "$LINENO" "pcap_set_optimizer_debug" "ac_cv_func_pcap_set_optimizer_debug"
+if test "x$ac_cv_func_pcap_set_optimizer_debug" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCAP_SET_OPTIMIZER_DEBUG 1
+_ACEOF
+
+fi
+done
+
 ac_fn_c_check_func "$LINENO" "bpf_dump" "ac_cv_func_bpf_dump"
 if test "x$ac_cv_func_bpf_dump" = xyes; then :
   $as_echo "#define HAVE_BPF_DUMP 1" >>confdefs.h
@@ -7417,7 +6959,7 @@ savedcppflags="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $V_INCLS"
 for ac_header in pcap/bluetooth.h
 do :
-  ac_fn_c_check_header_compile "$LINENO" "pcap/bluetooth.h" "ac_cv_header_pcap_bluetooth_h" "#include \"tcpdump-stdinc.h\"
+  ac_fn_c_check_header_compile "$LINENO" "pcap/bluetooth.h" "ac_cv_header_pcap_bluetooth_h" "#include \"netdissect-stdinc.h\"
 "
 if test "x$ac_cv_header_pcap_bluetooth_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
@@ -7430,7 +6972,7 @@ done
 
 for ac_header in pcap/nflog.h
 do :
-  ac_fn_c_check_header_compile "$LINENO" "pcap/nflog.h" "ac_cv_header_pcap_nflog_h" "#include \"tcpdump-stdinc.h\"
+  ac_fn_c_check_header_compile "$LINENO" "pcap/nflog.h" "ac_cv_header_pcap_nflog_h" "#include \"netdissect-stdinc.h\"
 "
 if test "x$ac_cv_header_pcap_nflog_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
@@ -7443,7 +6985,7 @@ done
 
 for ac_header in pcap/usb.h
 do :
-  ac_fn_c_check_header_compile "$LINENO" "pcap/usb.h" "ac_cv_header_pcap_usb_h" "#include \"tcpdump-stdinc.h\"
+  ac_fn_c_check_header_compile "$LINENO" "pcap/usb.h" "ac_cv_header_pcap_usb_h" "#include \"netdissect-stdinc.h\"
 "
 if test "x$ac_cv_header_pcap_usb_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
@@ -7651,10 +7193,57 @@ rm -f os-proto.h
 	    #
 	    if test "$ac_lbl_cc_dont_try_gcc_dashW" != yes; then
 
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler fails when given an unknown warning option" >&5
+$as_echo_n "checking whether the compiler fails when given an unknown warning option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -Wxyzzy-this-will-never-succeed-xyzzy"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		#
+		# We're assuming this is clang, where
+		# -Werror=unknown-warning-option is the appropriate
+		# option to force the compiler to fail.
+		#
+		ac_lbl_unknown_warning_option_error="-Werror=unknown-warning-option"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CFLAGS="$save_CFLAGS"
+
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wall option" >&5
 $as_echo_n "checking whether the compiler supports the -Wall option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -Wall"
+	if expr "x-Wall" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wall"
+	elif expr "x-Wall" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wall"
+	elif expr "x-Wall" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wall"
+	else
+	    CFLAGS="$CFLAGS -Wall"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7686,7 +7275,18 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wmissing-prototypes option" >&5
 $as_echo_n "checking whether the compiler supports the -Wmissing-prototypes option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -Wmissing-prototypes"
+	if expr "x-Wmissing-prototypes" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wmissing-prototypes"
+	elif expr "x-Wmissing-prototypes" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wmissing-prototypes"
+	elif expr "x-Wmissing-prototypes" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wmissing-prototypes"
+	else
+	    CFLAGS="$CFLAGS -Wmissing-prototypes"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7718,7 +7318,18 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wstrict-prototypes option" >&5
 $as_echo_n "checking whether the compiler supports the -Wstrict-prototypes option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -Wstrict-prototypes"
+	if expr "x-Wstrict-prototypes" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wstrict-prototypes"
+	elif expr "x-Wstrict-prototypes" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wstrict-prototypes"
+	elif expr "x-Wstrict-prototypes" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wstrict-prototypes"
+	else
+	    CFLAGS="$CFLAGS -Wstrict-prototypes"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7750,7 +7361,18 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wwrite-strings option" >&5
 $as_echo_n "checking whether the compiler supports the -Wwrite-strings option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -Wwrite-strings"
+	if expr "x-Wwrite-strings" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wwrite-strings"
+	elif expr "x-Wwrite-strings" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wwrite-strings"
+	elif expr "x-Wwrite-strings" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wwrite-strings"
+	else
+	    CFLAGS="$CFLAGS -Wwrite-strings"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7782,7 +7404,18 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wpointer-arith option" >&5
 $as_echo_n "checking whether the compiler supports the -Wpointer-arith option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -Wpointer-arith"
+	if expr "x-Wpointer-arith" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wpointer-arith"
+	elif expr "x-Wpointer-arith" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wpointer-arith"
+	elif expr "x-Wpointer-arith" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wpointer-arith"
+	else
+	    CFLAGS="$CFLAGS -Wpointer-arith"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7811,10 +7444,279 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wcast-qual option" >&5
+$as_echo_n "checking whether the compiler supports the -Wcast-qual option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	if expr "x-Wcast-qual" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wcast-qual"
+	elif expr "x-Wcast-qual" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wcast-qual"
+	elif expr "x-Wcast-qual" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wcast-qual"
+	else
+	    CFLAGS="$CFLAGS -Wcast-qual"
+	fi
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		CFLAGS="$save_CFLAGS"
+		V_CCOPT="$V_CCOPT -Wcast-qual"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$save_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wshadow option" >&5
+$as_echo_n "checking whether the compiler supports the -Wshadow option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	if expr "x-Wshadow" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wshadow"
+	elif expr "x-Wshadow" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wshadow"
+	elif expr "x-Wshadow" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wshadow"
+	else
+	    CFLAGS="$CFLAGS -Wshadow"
+	fi
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		CFLAGS="$save_CFLAGS"
+		V_CCOPT="$V_CCOPT -Wshadow"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$save_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wdeclaration-after-statement option" >&5
+$as_echo_n "checking whether the compiler supports the -Wdeclaration-after-statement option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	if expr "x-Wdeclaration-after-statement" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wdeclaration-after-statement"
+	elif expr "x-Wdeclaration-after-statement" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wdeclaration-after-statement"
+	elif expr "x-Wdeclaration-after-statement" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wdeclaration-after-statement"
+	else
+	    CFLAGS="$CFLAGS -Wdeclaration-after-statement"
+	fi
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		CFLAGS="$save_CFLAGS"
+		V_CCOPT="$V_CCOPT -Wdeclaration-after-statement"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$save_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wpedantic option" >&5
+$as_echo_n "checking whether the compiler supports the -Wpedantic option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	if expr "x-Wpedantic" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wpedantic"
+	elif expr "x-Wpedantic" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wpedantic"
+	elif expr "x-Wpedantic" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wpedantic"
+	else
+	    CFLAGS="$CFLAGS -Wpedantic"
+	fi
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		CFLAGS="$save_CFLAGS"
+		V_CCOPT="$V_CCOPT -Wpedantic"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$save_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wold-style-definition option" >&5
+$as_echo_n "checking whether the compiler supports the -Wold-style-definition option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	if expr "x-Wold-style-definition" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wold-style-definition"
+	elif expr "x-Wold-style-definition" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wold-style-definition"
+	elif expr "x-Wold-style-definition" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wold-style-definition"
+	else
+	    CFLAGS="$CFLAGS -Wold-style-definition"
+	fi
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		CFLAGS="$save_CFLAGS"
+		V_CCOPT="$V_CCOPT -Wold-style-definition"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$save_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -Wused-but-marked-unused option" >&5
+$as_echo_n "checking whether the compiler supports the -Wused-but-marked-unused option... " >&6; }
+	save_CFLAGS="$CFLAGS"
+	if expr "x-Wused-but-marked-unused" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -Wused-but-marked-unused"
+	elif expr "x-Wused-but-marked-unused" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wused-but-marked-unused"
+	elif expr "x-Wused-but-marked-unused" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -Wused-but-marked-unused"
+	else
+	    CFLAGS="$CFLAGS -Wused-but-marked-unused"
+	fi
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		CFLAGS="$save_CFLAGS"
+		V_CCOPT="$V_CCOPT -Wused-but-marked-unused"
+
+else
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$save_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports the -W option" >&5
 $as_echo_n "checking whether the compiler supports the -W option... " >&6; }
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors -W"
+	if expr "x-W" : "x-W.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error -W"
+	elif expr "x-W" : "x-f.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -W"
+	elif expr "x-W" : "x-m.*" >/dev/null
+	then
+	    CFLAGS="$CFLAGS -Werror -W"
+	else
+	    CFLAGS="$CFLAGS -W"
+	fi
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -8092,45 +7994,9 @@ $as_echo "#define LBL_ALIGN 1" >>confdefs.h
 
     fi
 
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for h_errno" >&5
-$as_echo_n "checking for h_errno... " >&6; }
-	if ${ac_cv_var_h_errno+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#		include <sys/types.h>
-#		include <netdb.h>
-int
-main ()
-{
-int foo = h_errno;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_var_h_errno=yes
-else
-  ac_cv_var_h_errno=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_var_h_errno" >&5
-$as_echo "$ac_cv_var_h_errno" >&6; }
-	if test "$ac_cv_var_h_errno" = "yes"; then
-
-$as_echo "#define HAVE_H_ERRNO 1" >>confdefs.h
-
-	fi
-
-
-# Check for OpenSSL libcrypto
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to use OpenSSL libcrypto" >&5
-$as_echo_n "checking whether to use OpenSSL libcrypto... " >&6; }
+# Check for OpenSSL/libressl libcrypto
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to use OpenSSL/libressl libcrypto" >&5
+$as_echo_n "checking whether to use OpenSSL/libressl libcrypto... " >&6; }
 # Specify location for both includes and libraries.
 want_libcrypto=ifavailable
 
@@ -8139,20 +8005,38 @@ if test "${with_crypto+set}" = set; then :
   withval=$with_crypto;
 	if test $withval = no
 	then
+		# User doesn't want to link with libcrypto.
 		want_libcrypto=no
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	elif test $withval = yes
 	then
+		# User wants to link with libcrypto but hasn't specified
+		# a directory.
 		want_libcrypto=yes
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+	else
+		# User wants to link with libcrypto and has specified
+		# a directory, so use the provided value.
+		want_libcrypto=yes
+		libcrypto_root=$withval
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, using the version installed in $withval" >&5
+$as_echo "yes, using the version installed in $withval" >&6; }
+
+		#
+		# Put the subdirectories of the libcrypto root directory
+		# at the front of the header and library search path.
+		#
+		CFLAGS="-I$withval/include $CFLAGS"
+		LIBS="-L$withval/lib $LIBS"
 	fi
 
 else
 
 	#
-	# Use libcrypto if it's present, otherwise don't.
+	# Use libcrypto if it's present, otherwise don't; no directory
+	# was specified.
 	#
 	want_libcrypto=ifavailable
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, if available" >&5
@@ -8161,7 +8045,19 @@ $as_echo "yes, if available" >&6; }
 fi
 
 if test "$want_libcrypto" != "no"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for DES_cbc_encrypt in -lcrypto" >&5
+	#
+	# Don't check for libcrypto unless we have its headers;
+	# Apple, bless their pointy little heads, apparently ship
+	# libcrypto as a library, but not the header files, in
+	# El Capitan, probably because they don't want you writing
+	# nasty portable code that could run on other UN*Xes, they
+	# want you writing code that uses their Shiny New Crypto
+	# Library and that only runs on OS X.
+	#
+	ac_fn_c_check_header_mongrel "$LINENO" "openssl/crypto.h" "ac_cv_header_openssl_crypto_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_crypto_h" = xyes; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for DES_cbc_encrypt in -lcrypto" >&5
 $as_echo_n "checking for DES_cbc_encrypt in -lcrypto... " >&6; }
 if ${ac_cv_lib_crypto_DES_cbc_encrypt+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8206,7 +8102,8 @@ _ACEOF
 
 fi
 
-	for ac_header in openssl/evp.h
+		if test "$ac_cv_lib_crypto_DES_cbc_encrypt" = "yes"; then
+			for ac_header in openssl/evp.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "openssl/evp.h" "ac_cv_header_openssl_evp_h" "$ac_includes_default"
 if test "x$ac_cv_header_openssl_evp_h" = xyes; then :
@@ -8217,6 +8114,43 @@ _ACEOF
 fi
 
 done
+
+			#
+			# OK, then:
+			#
+			# 1) do we have EVP_CIPHER_CTX_new?
+			# If so, we use it to allocate an
+			# EVP_CIPHER_CTX, as EVP_CIPHER_CTX may be
+			# opaque; otherwise, we allocate it ourselves.
+			#
+			# 2) do we have EVP_CipherInit_ex()?
+			# If so, we use it, because we need to be
+			# able to make two "initialize the cipher"
+			# calls, one with the cipher and key, and
+			# one with the IV, and, as of OpenSSL 1.1,
+			# You Can't Do That with EVP_CipherInit(),
+			# because a call to EVP_CipherInit() will
+			# unconditionally clear the context, and
+			# if you don't supply a cipher, it'll
+			# clear the cipher, rendering the context
+			# unusable and causing a crash.
+			#
+			for ac_func in EVP_CIPHER_CTX_new EVP_CipherInit_ex
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+		fi
+
+fi
+
 
 fi
 

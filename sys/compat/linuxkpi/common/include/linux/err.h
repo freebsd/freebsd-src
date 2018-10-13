@@ -70,10 +70,10 @@ ERR_CAST(void *ptr)
 static inline int
 PTR_ERR_OR_ZERO(const void *ptr)
 {
-        if (IS_ERR(ptr))
-                return PTR_ERR(ptr);
-        else
-                return 0;
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+	else
+		return 0;
 }
 
 #define PTR_RET(p) PTR_ERR_OR_ZERO(p)

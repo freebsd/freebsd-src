@@ -23,6 +23,7 @@ FILES=	\
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
+	bsd.dirs.mk \
 	bsd.doc.mk \
 	bsd.dtb.mk \
 	bsd.endian.mk \
@@ -33,6 +34,7 @@ FILES=	\
 	bsd.kmod.mk \
 	bsd.lib.mk \
 	bsd.libnames.mk \
+	bsd.linker.mk \
 	bsd.links.mk \
 	bsd.man.mk \
 	bsd.mkopt.mk \
@@ -49,10 +51,13 @@ FILES=	\
 	bsd.progs.mk \
 	bsd.snmpmod.mk \
 	bsd.subdir.mk \
+	bsd.suffixes-posix.mk \
+	bsd.suffixes.mk \
 	bsd.symver.mk \
 	bsd.sys.mk \
 	bsd.test.mk \
 	dirdeps.mk \
+	dirdeps-options.mk \
 	gendirdeps.mk \
 	install-new.mk \
 	meta.autodep.mk \

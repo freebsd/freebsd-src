@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.
  * All rights reserved.
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -215,9 +217,9 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 		return;
 	printf(
 	"\trcv_(nxt,wnd,up) (%lx,%lx,%lx) snd_(una,nxt,max) (%lx,%lx,%lx)\n",
-	    (u_long)tp->rcv_nxt, tp->rcv_wnd, (u_long)tp->rcv_up,
+	    (u_long)tp->rcv_nxt, (u_long)tp->rcv_wnd, (u_long)tp->rcv_up,
 	    (u_long)tp->snd_una, (u_long)tp->snd_nxt, (u_long)tp->snd_max);
 	printf("\tsnd_(wl1,wl2,wnd) (%lx,%lx,%lx)\n",
-	    (u_long)tp->snd_wl1, (u_long)tp->snd_wl2, tp->snd_wnd);
+	    (u_long)tp->snd_wl1, (u_long)tp->snd_wl2, (u_long)tp->snd_wnd);
 #endif /* TCPDEBUG */
 }

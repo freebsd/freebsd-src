@@ -29,20 +29,33 @@
 # $FreeBSD$
 #
 
-set -e
+set -ex
 
 if [ ! -d /usr/local/share/nist-kat ]; then
 	echo 'Skipping, nist-kat package not installed for test vectors.'
 	exit 0
 fi
 
-if kldload aesni 2>/dev/null; then
-	unloadaesni=1
-fi
+loaded_modules=
+cleanup_tests()
+{
+	trap - EXIT INT TERM
 
-if kldload cryptodev 2>/dev/null; then
-	unloadcdev=1
-fi
+	set +e
+
+	# Unload modules in reverse order
+	for loaded_module in $(echo $loaded_modules | tr ' ' '\n' | sort -r); do
+		kldunload $loaded_module
+	done
+}
+trap cleanup_tests EXIT INT TERM
+
+for required_module in nexus/aesni cryptodev; do
+	if ! kldstat -q -m $required_module; then
+		kldload ${required_module#nexus/}
+		loaded_modules="$loaded_modules $required_module"
+	fi
+done
 
 # Run software crypto test
 oldcdas=$(sysctl -e kern.cryptodevallowsoft)
@@ -51,10 +64,3 @@ sysctl kern.cryptodevallowsoft=1
 python $(dirname $0)/cryptotest.py
 
 sysctl "$oldcdas"
-
-if [ x"$unloadcdev" = x"1" ]; then
-	kldunload cryptodev
-fi
-if [ x"$unloadaesni" = x"1" ]; then
-	kldunload aesni
-fi

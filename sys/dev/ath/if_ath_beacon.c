@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -148,8 +150,12 @@ ath_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmin = ATH_BEACON_CWMIN_DEFAULT;
 		qi.tqi_cwmax = ATH_BEACON_CWMAX_DEFAULT;
 	} else {
-		struct wmeParams *wmep =
-			&ic->ic_wme.wme_chanParams.cap_wmeParams[WME_AC_BE];
+		struct chanAccParams chp;
+		struct wmeParams *wmep;
+
+		ieee80211_wme_ic_getparams(ic, &chp);
+		wmep = &chp.cap_wmeParams[WME_AC_BE];
+
 		/*
 		 * Adhoc mode; important thing is to use 2x cwmin.
 		 */
@@ -347,7 +353,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		rc[0].tx_power_cap = 0x3f;
 		rc[0].PktDuration =
 		    ath_hal_computetxtime(ah, rt, roundup(m->m_len, 4),
-		        rix, 0);
+		        rix, 0, AH_TRUE);
 		ath_hal_set11nratescenario(ah, ds, 0, 0, rc, 4, flags);
 	}
 
@@ -761,6 +767,12 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 
 	/*
+	 * XXX TODO: tie into net80211 for quiet time IE update and program
+	 * local AP timer if we require it.  The process of updating the
+	 * beacon will also update the IE with the relevant counters.
+	 */
+
+	/*
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
@@ -917,6 +929,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
 #define	FUDGE	2
 	struct ath_hal *ah = sc->sc_ah;
+	struct ath_vap *avp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	u_int32_t nexttbtt, intval, tsftu;
@@ -935,11 +948,18 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		return;
 	}
 
+	/* Now that we have a vap, we can do this bit */
+	avp = ATH_VAP(vap);
+
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ATH_UNLOCK(sc);
+
+	/* Always clear the quiet IE timers; let the next update program them */
+	ath_hal_set_quiet(ah, 0, 0, 0, HAL_QUIET_DISABLE);
+	memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
 
 	/* extract tstamp from last beacon and convert to TU */
 	nexttbtt = TSF_TO_TU(le32dec(ni->ni_tstamp.data + 4),
@@ -964,10 +984,27 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* NB: the beacon interval is kept internally in TU's */
 		intval = ni->ni_intval & HAL_BEACON_PERIOD;
 	}
+
+	/*
+	 * Note: rounding up to the next intval can cause problems with
+	 * bad APs when we're in powersave mode.
+	 *
+	 * In STA mode with powersave enabled, beacons are only received
+	 * whenever the beacon timer fires to wake up the hardware.
+	 * Now, if this is rounded up to the next intval, it assumes
+	 * that the AP has started transmitting beacons at TSF values that
+	 * are multiples of intval, versus say being 25 TU off.
+	 *
+	 * The specification (802.11-2012 10.1.3.2 - Beacon Generation in
+	 * Infrastructure Networks) requires APs be beaconing at a
+	 * mutiple of intval.  So, if bintval=100, then we shouldn't
+	 * get beacons at intervals other than around multiples of 100.
+	 */
 	if (nexttbtt == 0)		/* e.g. for ap mode */
 		nexttbtt = intval;
-	else if (intval)		/* NB: can be 0 for monitor mode */
+	else
 		nexttbtt = roundup(nexttbtt, intval);
+
 	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: nexttbtt %u intval %u (%u)\n",
 		__func__, nexttbtt, intval, ni->ni_intval);
 	if (ic->ic_opmode == IEEE80211_M_STA && !sc->sc_swbmiss) {

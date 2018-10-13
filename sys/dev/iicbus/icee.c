@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2006 Warner Losh.  All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2006 M. Warner Losh.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/resource.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
 
@@ -184,6 +187,8 @@ static int
 icee_attach(device_t dev)
 {
 	struct icee_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *tree;
 
 	sc->dev = dev;
 	sc->addr = iicbus_get_addr(dev);
@@ -203,12 +208,36 @@ icee_attach(device_t dev)
 		return (ENOMEM);
 	}
 	sc->cdev->si_drv1 = sc;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "address_size", CTLFLAG_RD,
+	    &sc->type, 0, "Memory array address size in bits");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "device_size", CTLFLAG_RD,
+	    &sc->size, 0, "Memory array capacity in bytes");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "write_size", CTLFLAG_RD,
+	    &sc->wr_sz, 0, "Memory array page write size in bytes");
+
+	return (0);
+}
+
+static int
+icee_detach(device_t dev)
+{
+	struct icee_softc *sc = device_get_softc(dev);
+
+	destroy_dev(sc->cdev);
 	return (0);
 }
 
 static int 
 icee_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
+	struct icee_softc *sc;
+
+	sc = CDEV2SOFTC(dev);
+	if (device_get_state(sc->dev) < DS_BUSY)
+		device_busy(sc->dev);
 
 	return (0);
 }
@@ -216,7 +245,10 @@ icee_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 static int
 icee_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
+	struct icee_softc *sc;
 
+	sc = CDEV2SOFTC(dev);
+	device_unbusy(sc->dev);
 	return (0);
 }
 
@@ -345,6 +377,7 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 static device_method_t icee_methods[] = {
 	DEVMETHOD(device_probe,		icee_probe),
 	DEVMETHOD(device_attach,	icee_attach),
+	DEVMETHOD(device_detach,	icee_detach),
 
 	DEVMETHOD_END
 };

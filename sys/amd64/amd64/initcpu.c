@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) KATO Takenori, 1997, 1998.
  * 
  * All rights reserved.  Unpublished rights reserved under the copyright
@@ -48,6 +50,11 @@ __FBSDID("$FreeBSD$");
 static int	hw_instruction_sse;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
     &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
+static int	lower_sharedpage_init;
+int		hw_lower_amd64_sharedpage;
+SYSCTL_INT(_hw, OID_AUTO, lower_amd64_sharedpage, CTLFLAG_RDTUN,
+    &hw_lower_amd64_sharedpage, 0,
+   "Lower sharedpage to work around Ryzen issue with executing code near the top of user memory");
 /*
  * -1: automatic (default)
  *  0: keep enable CLFLUSH
@@ -92,6 +99,80 @@ init_amd(void)
 			msr = rdmsr(MSR_NB_CFG1);
 			msr |= (uint64_t)1 << 54;
 			wrmsr(MSR_NB_CFG1, msr);
+		}
+	}
+
+	/*
+	 * BIOS may configure Family 10h processors to convert WC+ cache type
+	 * to CD.  That can hurt performance of guest VMs using nested paging.
+	 * The relevant MSR bit is not documented in the BKDG,
+	 * the fix is borrowed from Linux.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) == 0x10) {
+		if ((cpu_feature2 & CPUID2_HV) == 0) {
+			msr = rdmsr(0xc001102a);
+			msr &= ~((uint64_t)1 << 24);
+			wrmsr(0xc001102a, msr);
+		}
+	}
+
+	/*
+	 * Work around Erratum 793: Specific Combination of Writes to Write
+	 * Combined Memory Types and Locked Instructions May Cause Core Hang.
+	 * See Revision Guide for AMD Family 16h Models 00h-0Fh Processors,
+	 * revision 3.04 or later, publication 51810.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) == 0x16 && CPUID_TO_MODEL(cpu_id) <= 0xf) {
+		if ((cpu_feature2 & CPUID2_HV) == 0) {
+			msr = rdmsr(0xc0011020);
+			msr |= (uint64_t)1 << 15;
+			wrmsr(0xc0011020, msr);
+		}
+	}
+
+	/* Ryzen erratas. */
+	if (CPUID_TO_FAMILY(cpu_id) == 0x17 && CPUID_TO_MODEL(cpu_id) == 0x1 &&
+	    (cpu_feature2 & CPUID2_HV) == 0) {
+		/* 1021 */
+		msr = rdmsr(0xc0011029);
+		msr |= 0x2000;
+		wrmsr(0xc0011029, msr);
+
+		/* 1033 */
+		msr = rdmsr(0xc0011020);
+		msr |= 0x10;
+		wrmsr(0xc0011020, msr);
+
+		/* 1049 */
+		msr = rdmsr(0xc0011028);
+		msr |= 0x10;
+		wrmsr(0xc0011028, msr);
+
+		/* 1095 */
+		msr = rdmsr(0xc0011020);
+		msr |= 0x200000000000000;
+		wrmsr(0xc0011020, msr);
+	}
+
+	/*
+	 * Work around a problem on Ryzen that is triggered by executing
+	 * code near the top of user memory, in our case the signal
+	 * trampoline code in the shared page on amd64.
+	 *
+	 * This function is executed once for the BSP before tunables take
+	 * effect so the value determined here can be overridden by the
+	 * tunable.  This function is then executed again for each AP and
+	 * also on resume.  Set a flag the first time so that value set by
+	 * the tunable is not overwritten.
+	 *
+	 * The stepping and/or microcode versions should be checked after
+	 * this issue is fixed by AMD so that we don't use this mode if not
+	 * needed.
+	 */
+	if (lower_sharedpage_init == 0) {
+		lower_sharedpage_init = 1;
+		if (CPUID_TO_FAMILY(cpu_id) == 0x17) {
+			hw_lower_amd64_sharedpage = 1;
 		}
 	}
 }
@@ -158,14 +239,20 @@ initializecpu(void)
 	 * to the kernel tables.  The boot loader enables the U bit in
 	 * its tables.
 	 */
-	if (!IS_BSP() && (cpu_stdext_feature & CPUID_STDEXT_SMEP))
-		cr4 |= CR4_SMEP;
+	if (!IS_BSP()) {
+		if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
+			cr4 |= CR4_SMEP;
+		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+			cr4 |= CR4_SMAP;
+	}
 	load_cr4(cr4);
-	if ((amd_feature & AMDID_NX) != 0) {
+	if (IS_BSP() && (amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);
 		pg_nx = PG_NX;
 	}
+	hw_ibrs_recalculate();
+	hw_ssb_recalculate(false);
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		init_amd();

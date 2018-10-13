@@ -77,7 +77,7 @@ main(int argc, char **argv)
 }
 EOF
 
-cc -c -xO2 test.c
+cc -c -O2 test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1

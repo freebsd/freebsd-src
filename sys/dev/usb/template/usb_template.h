@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
  *
@@ -31,7 +33,12 @@
 #define	_USB_TEMPLATE_H_
 
 #ifndef USB_TEMPLATE_VENDOR
-#define	USB_TEMPLATE_VENDOR	0x0001
+/*
+ * https://github.com/obdev/v-usb/blob/master/usbdrv/USB-IDs-for-free.txt
+ */
+#define	USB_TEMPLATE_VENDOR		0x16c0
+#define	USB_TEMPLATE_MANUFACTURER	\
+	"The FreeBSD Project (https://www.FreeBSD.org)"
 #endif
 
 typedef const void *(usb_temp_get_string_desc_t)(uint16_t lang_id, uint8_t string_index);
@@ -98,19 +105,26 @@ struct usb_temp_data {
 
 /* prototypes */
 
-extern const struct usb_temp_device_desc usb_template_audio;
-extern const struct usb_temp_device_desc usb_template_cdce;
-extern const struct usb_temp_device_desc usb_template_kbd;
-extern const struct usb_temp_device_desc usb_template_modem;
-extern const struct usb_temp_device_desc usb_template_mouse;
-extern const struct usb_temp_device_desc usb_template_msc;
-extern const struct usb_temp_device_desc usb_template_mtp;
-extern const struct usb_temp_device_desc usb_template_phone;
-extern const struct usb_temp_device_desc usb_template_serialnet;
-extern const struct usb_temp_device_desc usb_template_midi;
+extern struct usb_temp_device_desc usb_template_audio;
+extern struct usb_temp_device_desc usb_template_cdce;
+extern struct usb_temp_device_desc usb_template_kbd;
+extern struct usb_temp_device_desc usb_template_modem;
+extern struct usb_temp_device_desc usb_template_mouse;
+extern struct usb_temp_device_desc usb_template_msc;
+extern struct usb_temp_device_desc usb_template_mtp;
+extern struct usb_temp_device_desc usb_template_phone;
+extern struct usb_temp_device_desc usb_template_serialnet;
+extern struct usb_temp_device_desc usb_template_midi;
+extern struct usb_temp_device_desc usb_template_multi;
 
+
+void		usb_decode_str_desc(struct usb_string_descriptor *sd,
+		    char *buf, size_t buflen);
 usb_error_t	usb_temp_setup(struct usb_device *,
 		    const struct usb_temp_device_desc *);
-void	usb_temp_unsetup(struct usb_device *);
+void		usb_temp_unsetup(struct usb_device *);
+int		usb_temp_sysctl(SYSCTL_HANDLER_ARGS);
+
+SYSCTL_DECL(_hw_usb_templates);
 
 #endif					/* _USB_TEMPLATE_H_ */

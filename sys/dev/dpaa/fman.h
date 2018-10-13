@@ -29,17 +29,22 @@
 #ifndef FMAN_H_
 #define FMAN_H_
 
+#include <dev/fdt/simplebus.h>
+
 /**
  * FMan driver instance data.
  */
 struct fman_softc {
-	device_t dev;
+	struct simplebus_softc sc_base;
 	struct resource *mem_res;
 	struct resource *irq_res;
 	struct resource *err_irq_res;
+	struct rman	rman;
 	int mem_rid;
 	int irq_rid;
 	int err_irq_rid;
+	int qman_chan_base;
+	int qman_chan_count;
 
 	t_Handle fm_handle;
 	t_Handle muram_handle;
@@ -50,18 +55,25 @@ struct fman_softc {
  * @group QMan bus interface.
  * @{
  */
+struct resource * fman_alloc_resource(device_t bus, device_t child, int type,
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
+int fman_activate_resource(device_t bus, device_t child,
+    int type, int rid, struct resource *res);
+int fman_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res);
 int	fman_attach(device_t dev);
 int	fman_detach(device_t dev);
 int	fman_suspend(device_t dev);
-int	fman_resume(device_t dev);
+int	fman_resume_dev(device_t dev);
 int	fman_shutdown(device_t dev);
 int	fman_read_ivar(device_t dev, device_t child, int index,
 	    uintptr_t *result);
+int	fman_qman_channel_id(device_t, int);
 /** @} */
 
 uint32_t	fman_get_clock(struct fman_softc *sc);
-int	fman_get_handle(t_Handle *fmh);
-int	fman_get_muram_handle(t_Handle *muramh);
-int	fman_get_bushandle(vm_offset_t *fm_base);
+int	fman_get_handle(device_t dev, t_Handle *fmh);
+int	fman_get_muram_handle(device_t dev, t_Handle *muramh);
+int	fman_get_bushandle(device_t dev, vm_offset_t *fm_base);
 
 #endif /* FMAN_H_ */

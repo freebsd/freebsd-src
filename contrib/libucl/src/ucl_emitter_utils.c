@@ -102,7 +102,7 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	func->ucl_emitter_append_character ('"', 1, func->ud);
 
 	while (size) {
-		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
+		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE|UCL_CHARACTER_DENIED)) {
 			if (len > 0) {
 				func->ucl_emitter_append_len (c, len, func->ud);
 			}
@@ -128,6 +128,10 @@ ucl_elt_string_write_json (const char *str, size_t size,
 			case '"':
 				func->ucl_emitter_append_len ("\\\"", 2, func->ud);
 				break;
+			default:
+				/* Emit unicode unknown character */
+				func->ucl_emitter_append_len ("\\uFFFD", 5, func->ud);
+				break;
 			}
 			len = 0;
 			c = ++p;
@@ -138,9 +142,11 @@ ucl_elt_string_write_json (const char *str, size_t size,
 		}
 		size --;
 	}
+
 	if (len > 0) {
 		func->ucl_emitter_append_len (c, len, func->ud);
 	}
+
 	func->ucl_emitter_append_character ('"', 1, func->ud);
 }
 

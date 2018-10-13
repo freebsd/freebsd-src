@@ -4,6 +4,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2001-2003, 2005 Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
  *
@@ -166,7 +168,7 @@ struct uplcom_softc {
 /* prototypes */
 
 static usb_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
-static usb_error_t uplcom_pl2303_do(struct usb_device *, int8_t, uint8_t,
+static usb_error_t uplcom_pl2303_do(struct usb_device *, uint8_t, uint8_t,
 			uint16_t, uint16_t, uint16_t);
 static int	uplcom_pl2303_init(struct usb_device *, uint8_t);
 static void	uplcom_free(struct ucom_softc *);
@@ -514,7 +516,7 @@ uplcom_reset(struct uplcom_softc *sc, struct usb_device *udev)
 }
 
 static usb_error_t
-uplcom_pl2303_do(struct usb_device *udev, int8_t req_type, uint8_t request,
+uplcom_pl2303_do(struct usb_device *udev, uint8_t req_type, uint8_t request,
     uint16_t value, uint16_t index, uint16_t length)
 {
 	struct usb_device_request req;
@@ -807,6 +809,7 @@ uplcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	DPRINTF("\n");
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }

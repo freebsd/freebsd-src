@@ -3,6 +3,8 @@
 /*	$NetBSD: ebusreg.h,v 1.8 2008/05/29 14:51:27 mrg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1999 Matthew R. Green
  * All rights reserved.
  *

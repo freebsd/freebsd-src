@@ -47,8 +47,42 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk_mux.h>
 
-#define	CPU_CLK_SRC_SEL_WIDTH	2
-#define	CPU_CLK_SRC_SEL_SHIFT	16
+#define	A10_CPU_CLK_SRC_SEL_WIDTH	2
+#define	A10_CPU_CLK_SRC_SEL_SHIFT	16
+
+#define	A83T_Cx_CLK_SRC_SEL_WIDTH	1
+#define	A83T_C0_CLK_SRC_SEL_SHIFT	12
+#define	A83T_C1_CLK_SRC_SEL_SHIFT	28
+
+struct aw_cpuclk_config {
+	u_int		width;
+	u_int		shift;
+};
+
+static struct aw_cpuclk_config a10_config = {
+	.width = A10_CPU_CLK_SRC_SEL_WIDTH,
+	.shift = A10_CPU_CLK_SRC_SEL_SHIFT,
+};
+
+static struct aw_cpuclk_config a83t_c0_config = {
+	.width = A83T_Cx_CLK_SRC_SEL_WIDTH,
+	.shift = A83T_C0_CLK_SRC_SEL_SHIFT,
+};
+
+static struct aw_cpuclk_config a83t_c1_config = {
+	.width = A83T_Cx_CLK_SRC_SEL_WIDTH,
+	.shift = A83T_C1_CLK_SRC_SEL_SHIFT,
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{ "allwinner,sun4i-a10-cpu-clk",	(uintptr_t)&a10_config },
+	{ "allwinner,sun8i-a83t-c0cpu-clk",	(uintptr_t)&a83t_c0_config },
+	{ "allwinner,sun8i-a83t-c1cpu-clk",	(uintptr_t)&a83t_c1_config },
+	{ NULL,					(uintptr_t)NULL }
+};
+
+#define	CPUCLK_CONF(d)		\
+	(void *)ofw_bus_search_compatible((d), compat_data)->ocd_data
 
 static int
 aw_cpuclk_probe(device_t dev)
@@ -56,7 +90,7 @@ aw_cpuclk_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-cpu-clk"))
+	if (CPUCLK_CONF(dev) == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner CPU Clock");
@@ -68,6 +102,7 @@ aw_cpuclk_attach(device_t dev)
 {
 	struct clk_mux_def def;
 	struct clkdom *clkdom;
+	struct aw_cpuclk_config *conf;
 	bus_addr_t paddr;
 	bus_size_t psize;
 	phandle_t node;
@@ -75,6 +110,7 @@ aw_cpuclk_attach(device_t dev)
 	clk_t clk;
 
 	node = ofw_bus_get_node(dev);
+	conf = CPUCLK_CONF(dev);
 
 	if (ofw_reg_to_paddr(node, 0, &paddr, &psize, NULL) != 0) {
 		device_printf(dev, "cannot parse 'reg' property\n");
@@ -95,7 +131,7 @@ aw_cpuclk_attach(device_t dev)
 	def.clkdef.parent_names = malloc(sizeof(char *) * ncells, M_OFWPROP,
 	    M_WAITOK);
 	for (i = 0; i < ncells; i++) {
-		error = clk_get_by_ofw_index(dev, i, &clk);
+		error = clk_get_by_ofw_index(dev, 0, i, &clk);
 		if (error != 0) {
 			device_printf(dev, "cannot get clock %d\n", i);
 			goto fail;
@@ -105,8 +141,8 @@ aw_cpuclk_attach(device_t dev)
 	}
 	def.clkdef.parent_cnt = ncells;
 	def.offset = paddr;
-	def.shift = CPU_CLK_SRC_SEL_SHIFT;
-	def.width = CPU_CLK_SRC_SEL_WIDTH;
+	def.shift = conf->shift;
+	def.width = conf->width;
 
 	error = clk_parse_ofw_clk_name(dev, node, &def.clkdef.name);
 	if (error != 0) {

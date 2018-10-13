@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2016-2017 Mark Johnston <markj@FreeBSD.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * Copyright (c) 2008 John Birrell (jb@freebsd.org)
  * All rights reserved.
@@ -51,7 +54,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <libutil.h>
 
+#include "crc32.h"
 #include "_libproc.h"
+
+#define	PATH_DEBUG_DIR	"/usr/lib/debug"
 
 #ifdef NO_CTF
 typedef struct ctf_file ctf_file_t;
@@ -61,7 +67,21 @@ typedef struct ctf_file ctf_file_t;
 extern char *__cxa_demangle(const char *, char *, size_t *, int *);
 #endif /* NO_CXA_DEMANGLE */
 
-static void	proc_rdl2prmap(rd_loadobj_t *, prmap_t *);
+static int
+crc32_file(int fd, uint32_t *crc)
+{
+	uint8_t buf[PAGE_SIZE], *p;
+	size_t n;
+
+	*crc = ~0;
+	while ((n = read(fd, buf, sizeof(buf))) > 0) {
+		p = &buf[0];
+		while (n-- > 0)
+			*crc = crc32_tab[(*crc ^ *p++) & 0xff] ^ (*crc >> 8);
+	}
+	*crc = ~*crc;
+	return (n);
+}
 
 static void
 demangle(const char *symbol, char *buf, size_t len)
@@ -82,342 +102,486 @@ fail:
 	strlcpy(buf, symbol, len);
 }
 
-static int
-find_dbg_obj(const char *path)
-{
-	int fd;
-	char dbg_path[PATH_MAX];
+struct symsort_thunk {
+	Elf *e;
+	struct symtab *symtab;
+};
 
-	snprintf(dbg_path, sizeof(dbg_path),
-	    "/usr/lib/debug/%s.debug", path);
-	fd = open(dbg_path, O_RDONLY);
-	if (fd >= 0)
-		return (fd);
-	else
-		return (open(path, O_RDONLY));
+static int
+symvalcmp(void *_thunk, const void *a1, const void *a2)
+{
+	GElf_Sym sym1, sym2;
+	struct symsort_thunk *thunk;
+	const char *s1, *s2;
+	u_int i1, i2;
+	int bind1, bind2;
+
+	i1 = *(const u_int *)a1;
+	i2 = *(const u_int *)a2;
+	thunk = _thunk;
+
+	(void)gelf_getsym(thunk->symtab->data, i1, &sym1);
+	(void)gelf_getsym(thunk->symtab->data, i2, &sym2);
+
+	if (sym1.st_value != sym2.st_value)
+		return (sym1.st_value < sym2.st_value ? -1 : 1);
+
+	/* Prefer non-local symbols. */
+	bind1 = GELF_ST_BIND(sym1.st_info);
+	bind2 = GELF_ST_BIND(sym2.st_info);
+	if (bind1 != bind2) {
+		if (bind1 == STB_LOCAL && bind2 != STB_LOCAL)
+			return (-1);
+		if (bind1 != STB_LOCAL && bind2 == STB_LOCAL)
+			return (1);
+	}
+
+	s1 = elf_strptr(thunk->e, thunk->symtab->stridx, sym1.st_name);
+	s2 = elf_strptr(thunk->e, thunk->symtab->stridx, sym2.st_name);
+	if (s1 != NULL && s2 != NULL) {
+		/* Prefer symbols without a leading '$'. */
+		if (*s1 == '$')
+			return (-1);
+		if (*s2 == '$')
+			return (1);
+
+		/* Prefer symbols with fewer leading underscores. */
+		for (; *s1 == '_' && *s2 == '_'; s1++, s2++)
+			;
+		if (*s1 == '_')
+			return (-1);
+		if (*s2 == '_')
+			return (1);
+	}
+
+	return (0);
+}
+
+static int
+load_symtab(Elf *e, struct symtab *symtab, u_long sh_type)
+{
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	struct symsort_thunk thunk;
+	Elf_Scn *scn;
+	u_int nsyms;
+
+	if (gelf_getehdr(e, &ehdr) == NULL)
+		return (-1);
+
+	scn = NULL;
+	while ((scn = elf_nextscn(e, scn)) != NULL) {
+		(void)gelf_getshdr(scn, &shdr);
+		if (shdr.sh_type == sh_type)
+			break;
+	}
+	if (scn == NULL)
+		return (-1);
+
+	nsyms = shdr.sh_size / shdr.sh_entsize;
+	if (nsyms > (1 << 20))
+		return (-1);
+
+	if ((symtab->data = elf_getdata(scn, NULL)) == NULL)
+		return (-1);
+
+	symtab->index = calloc(nsyms, sizeof(u_int));
+	if (symtab->index == NULL)
+		return (-1);
+	for (u_int i = 0; i < nsyms; i++)
+		symtab->index[i] = i;
+	symtab->nsyms = nsyms;
+	symtab->stridx = shdr.sh_link;
+
+	thunk.e = e;
+	thunk.symtab = symtab;
+	qsort_r(symtab->index, nsyms, sizeof(u_int), &thunk, symvalcmp);
+
+	return (0);
 }
 
 static void
-proc_rdl2prmap(rd_loadobj_t *rdl, prmap_t *map)
+load_symtabs(struct file_info *file)
 {
-	map->pr_vaddr = rdl->rdl_saddr;
-	map->pr_size = rdl->rdl_eaddr - rdl->rdl_saddr;
-	map->pr_offset = rdl->rdl_offset;
-	map->pr_mflags = 0;
-	if (rdl->rdl_prot & RD_RDL_R)
-		map->pr_mflags |= MA_READ;
-	if (rdl->rdl_prot & RD_RDL_W)
-		map->pr_mflags |= MA_WRITE;
-	if (rdl->rdl_prot & RD_RDL_X)
-		map->pr_mflags |= MA_EXEC;
-	strlcpy(map->pr_mapname, rdl->rdl_path,
-	    sizeof(map->pr_mapname));
+
+	file->symtab.nsyms = file->dynsymtab.nsyms = 0;
+	(void)load_symtab(file->elf, &file->symtab, SHT_SYMTAB);
+	(void)load_symtab(file->elf, &file->dynsymtab, SHT_DYNSYM);
+}
+
+static int
+open_debug_file(char *path, const char *debugfile, uint32_t crc)
+{
+	size_t n;
+	uint32_t compcrc;
+	int fd;
+
+	fd = -1;
+	if ((n = strlcat(path, "/", PATH_MAX)) >= PATH_MAX)
+		return (fd);
+	if (strlcat(path, debugfile, PATH_MAX) >= PATH_MAX)
+		goto out;
+	if ((fd = open(path, O_RDONLY | O_CLOEXEC)) < 0)
+		goto out;
+	if (crc32_file(fd, &compcrc) != 0 || crc != compcrc) {
+		DPRINTFX("ERROR: CRC32 mismatch for %s", path);
+		(void)close(fd);
+		fd = -1;
+	}
+out:
+	path[n] = '\0';
+	return (fd);
+}
+
+/*
+ * Obtain an ELF descriptor for the specified mapped object. If a GNU debuglink
+ * section is present, a descriptor for the corresponding debug file is
+ * returned.
+ */
+static int
+open_object(struct map_info *mapping)
+{
+	char path[PATH_MAX];
+	GElf_Shdr shdr;
+	Elf *e, *e2;
+	Elf_Data *data;
+	Elf_Scn *scn;
+	struct file_info *file;
+	prmap_t *map;
+	const char *debugfile, *scnname;
+	size_t ndx;
+	uint32_t crc;
+	int fd, fd2;
+
+	if (mapping->map.pr_mapname[0] == '\0')
+		return (-1); /* anonymous object */
+	if (mapping->file->elf != NULL)
+		return (0); /* already loaded */
+
+	file = mapping->file;
+	map = &mapping->map;
+	if ((fd = open(map->pr_mapname, O_RDONLY | O_CLOEXEC)) < 0) {
+		DPRINTF("ERROR: open %s failed", map->pr_mapname);
+		return (-1);
+	}
+	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
+		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
+		goto err;
+	}
+	if (gelf_getehdr(e, &file->ehdr) != &file->ehdr) {
+		DPRINTFX("ERROR: elf_getehdr() failed: %s", elf_errmsg(-1));
+		goto err;
+	}
+
+	scn = NULL;
+	while ((scn = elf_nextscn(e, scn)) != NULL) {
+		if (gelf_getshdr(scn, &shdr) != &shdr) {
+			DPRINTFX("ERROR: gelf_getshdr failed: %s",
+			    elf_errmsg(-1));
+			goto err;
+		}
+		if (shdr.sh_type != SHT_PROGBITS)
+			continue;
+		if (elf_getshdrstrndx(e, &ndx) != 0) {
+			DPRINTFX("ERROR: elf_getshdrstrndx failed: %s",
+			    elf_errmsg(-1));
+			goto err;
+		}
+		if ((scnname = elf_strptr(e, ndx, shdr.sh_name)) == NULL)
+			continue;
+
+		if (strcmp(scnname, ".gnu_debuglink") == 0)
+			break;
+	}
+	if (scn == NULL)
+		goto internal;
+
+	if ((data = elf_getdata(scn, NULL)) == NULL) {
+		DPRINTFX("ERROR: elf_getdata failed: %s", elf_errmsg(-1));
+		goto err;
+	}
+
+	/*
+	 * The data contains a null-terminated file name followed by a 4-byte
+	 * CRC.
+	 */
+	if (data->d_size < sizeof(crc) + 1) {
+		DPRINTFX("ERROR: debuglink section is too small (%zd bytes)",
+		    data->d_size);
+		goto internal;
+	}
+	if (strnlen(data->d_buf, data->d_size) >= data->d_size - sizeof(crc)) {
+		DPRINTFX("ERROR: no null-terminator in gnu_debuglink section");
+		goto internal;
+	}
+
+	debugfile = data->d_buf;
+	memcpy(&crc, (char *)data->d_buf + data->d_size - sizeof(crc),
+	    sizeof(crc));
+
+	/*
+	 * Search for the debug file using the algorithm described in the gdb
+	 * documentation:
+	 * - look in the directory containing the object,
+	 * - look in the subdirectory ".debug" of the directory containing the
+	 *   object,
+	 * - look in the global debug directories (currently /usr/lib/debug).
+	 */
+	(void)strlcpy(path, map->pr_mapname, sizeof(path));
+	(void)dirname(path);
+
+	if ((fd2 = open_debug_file(path, debugfile, crc)) >= 0)
+		goto external;
+
+	if (strlcat(path, "/.debug", sizeof(path)) < sizeof(path) &&
+	    (fd2 = open_debug_file(path, debugfile, crc)) >= 0)
+		goto external;
+
+	(void)snprintf(path, sizeof(path), PATH_DEBUG_DIR);
+	if (strlcat(path, map->pr_mapname, sizeof(path)) < sizeof(path)) {
+		(void)dirname(path);
+		if ((fd2 = open_debug_file(path, debugfile, crc)) >= 0)
+			goto external;
+	}
+
+internal:
+	/* We didn't find a debug file, just return the object's descriptor. */
+	file->elf = e;
+	file->fd = fd;
+	load_symtabs(file);
+	return (0);
+
+external:
+	if ((e2 = elf_begin(fd2, ELF_C_READ, NULL)) == NULL) {
+		DPRINTFX("ERROR: elf_begin failed: %s", elf_errmsg(-1));
+		(void)close(fd2);
+		goto err;
+	}
+	(void)elf_end(e);
+	(void)close(fd);
+	file->elf = e2;
+	file->fd = fd2;
+	load_symtabs(file);
+	return (0);
+
+err:
+	if (e != NULL)
+		(void)elf_end(e);
+	(void)close(fd);
+	return (-1);
 }
 
 char *
 proc_objname(struct proc_handle *p, uintptr_t addr, char *objname,
     size_t objnamesz)
 {
+	prmap_t *map;
 	size_t i;
-	rd_loadobj_t *rdl;
 
-	for (i = 0; i < p->nobjs; i++) {
-		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
-			strlcpy(objname, rdl->rdl_path, objnamesz);
+	if (p->nmappings == 0)
+		if (proc_rdagent(p) == NULL)
+			return (NULL);
+	for (i = 0; i < p->nmappings; i++) {
+		map = &p->mappings[i].map;
+		if (addr >= map->pr_vaddr &&
+		    addr < map->pr_vaddr + map->pr_size) {
+			strlcpy(objname, map->pr_mapname, objnamesz);
 			return (objname);
 		}
 	}
 	return (NULL);
 }
 
-prmap_t *
-proc_obj2map(struct proc_handle *p, const char *objname)
-{
-	size_t i;
-	prmap_t *map;
-	rd_loadobj_t *rdl;
-	char path[MAXPATHLEN];
-
-	rdl = NULL;
-	for (i = 0; i < p->nobjs; i++) {
-		basename_r(p->rdobjs[i].rdl_path, path);
-		if (strcmp(path, objname) == 0) {
-			rdl = &p->rdobjs[i];
-			break;
-		}
-	}
-	if (rdl == NULL) {
-		if (strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
-			rdl = p->rdexec;
-		else
-			return (NULL);
-	}
-
-	if ((map = malloc(sizeof(*map))) == NULL)
-		return (NULL);
-	proc_rdl2prmap(rdl, map);
-	return (map);
-}
-
 int
 proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 {
+	char last[MAXPATHLEN], path[MAXPATHLEN], *base;
+	prmap_t *map;
 	size_t i;
-	rd_loadobj_t *rdl;
-	prmap_t map;
-	char path[MAXPATHLEN];
-	char last[MAXPATHLEN];
 	int error;
 
-	if (p->nobjs == 0)
-		return (-1);
+	if (p->nmappings == 0)
+		if (proc_rdagent(p) == NULL)
+			return (-1);
 
 	error = 0;
 	memset(last, 0, sizeof(last));
-	for (i = 0; i < p->nobjs; i++) {
-		rdl = &p->rdobjs[i];
-		proc_rdl2prmap(rdl, &map);
-		basename_r(rdl->rdl_path, path);
+	for (i = 0; i < p->nmappings; i++) {
+		map = &p->mappings[i].map;
+		strlcpy(path, map->pr_mapname, sizeof(path));
+		base = basename(path);
 		/*
 		 * We shouldn't call the callback twice with the same object.
 		 * To do that we are assuming the fact that if there are
 		 * repeated object names (i.e. different mappings for the
 		 * same object) they occur next to each other.
 		 */
-		if (strcmp(path, last) == 0)
+		if (strcmp(base, last) == 0)
 			continue;
-		if ((error = (*func)(cd, &map, path)) != 0)
+		if ((error = (*func)(cd, map, base)) != 0)
 			break;
 		strlcpy(last, path, sizeof(last));
 	}
 	return (error);
 }
 
-prmap_t *
-proc_addr2map(struct proc_handle *p, uintptr_t addr)
+static struct map_info *
+_proc_addr2map(struct proc_handle *p, uintptr_t addr)
 {
+	struct map_info *mapping;
 	size_t i;
-	int cnt, lastvn = 0;
-	prmap_t *map;
-	rd_loadobj_t *rdl;
-	struct kinfo_vmentry *kves, *kve;
 
-	/*
-	 * If we don't have a cache of listed objects, we need to query
-	 * it ourselves.
-	 */
-	if (p->nobjs == 0) {
-		if ((kves = kinfo_getvmmap(p->pid, &cnt)) == NULL)
+	if (p->nmappings == 0)
+		if (proc_rdagent(p) == NULL)
 			return (NULL);
-		for (i = 0; i < (size_t)cnt; i++) {
-			kve = kves + i;
-			if (kve->kve_type == KVME_TYPE_VNODE)
-				lastvn = i;
-			if (addr >= kve->kve_start && addr < kve->kve_end) {
-				if ((map = malloc(sizeof(*map))) == NULL) {
-					free(kves);
-					return (NULL);
-				}
-				map->pr_vaddr = kve->kve_start;
-				map->pr_size = kve->kve_end - kve->kve_start;
-				map->pr_offset = kve->kve_offset;
-				map->pr_mflags = 0;
-				if (kve->kve_protection & KVME_PROT_READ)
-					map->pr_mflags |= MA_READ;
-				if (kve->kve_protection & KVME_PROT_WRITE)
-					map->pr_mflags |= MA_WRITE;
-				if (kve->kve_protection & KVME_PROT_EXEC)
-					map->pr_mflags |= MA_EXEC;
-				if (kve->kve_flags & KVME_FLAG_COW)
-					map->pr_mflags |= MA_COW;
-				if (kve->kve_flags & KVME_FLAG_NEEDS_COPY)
-					map->pr_mflags |= MA_NEEDS_COPY;
-				if (kve->kve_flags & KVME_FLAG_NOCOREDUMP)
-					map->pr_mflags |= MA_NOCOREDUMP;
-				strlcpy(map->pr_mapname, kves[lastvn].kve_path,
-				    sizeof(map->pr_mapname));
-				free(kves);
-				return (map);
-			}
-		}
-		free(kves);
-		return (NULL);
-	}
-
-	for (i = 0; i < p->nobjs; i++) {
-		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
-			if ((map = malloc(sizeof(*map))) == NULL)
-				return (NULL);
-			proc_rdl2prmap(rdl, map);
-			return (map);
-		}
+	for (i = 0; i < p->nmappings; i++) {
+		mapping = &p->mappings[i];
+		if (addr >= mapping->map.pr_vaddr &&
+		    addr < mapping->map.pr_vaddr + mapping->map.pr_size)
+			return (mapping);
 	}
 	return (NULL);
 }
 
+prmap_t *
+proc_addr2map(struct proc_handle *p, uintptr_t addr)
+{
+
+	return (&_proc_addr2map(p, addr)->map);
+}
+
 /*
- * Look up the symbol at addr, returning a copy of the symbol and its name.
+ * Look up the symbol at addr using a binary search, returning a copy of the
+ * symbol and its name.
  */
 static int
-lookup_addr(Elf *e, Elf_Scn *scn, u_long stridx, uintptr_t off, uintptr_t addr,
-    const char **name, GElf_Sym *symcopy)
+lookup_symbol_by_addr(Elf *e, struct symtab *symtab, uintptr_t addr,
+    const char **namep, GElf_Sym *symp)
 {
 	GElf_Sym sym;
 	Elf_Data *data;
 	const char *s;
-	uint64_t rsym;
-	int i;
+	u_int i, min, max, mid;
 
-	if ((data = elf_getdata(scn, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		return (1);
+	if (symtab->nsyms == 0)
+		return (ENOENT);
+
+	data = symtab->data;
+	min = 0;
+	max = symtab->nsyms - 1;
+
+	while (min <= max) {
+		mid = (max + min) / 2;
+		(void)gelf_getsym(data, symtab->index[mid], &sym);
+		if (addr >= sym.st_value && addr < sym.st_value + sym.st_size)
+			break;
+
+		if (addr < sym.st_value)
+			max = mid - 1;
+		else
+			min = mid + 1;
 	}
-	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
-		rsym = off + sym.st_value;
-		if (addr >= rsym && addr < rsym + sym.st_size) {
-			s = elf_strptr(e, stridx, sym.st_name);
-			if (s != NULL) {
-				*name = s;
-				memcpy(symcopy, &sym, sizeof(*symcopy));
-				/*
-				 * DTrace expects the st_value to contain
-				 * only the address relative to the start of
-				 * the function.
-				 */
-				symcopy->st_value = rsym;
-				return (0);
-			}
-		}
+	if (min > max)
+		return (ENOENT);
+
+	/*
+	 * Advance until we find the matching symbol with largest index.
+	 */
+	for (i = mid; i < symtab->nsyms; i++) {
+		(void)gelf_getsym(data, symtab->index[i], &sym);
+		if (addr < sym.st_value || addr >= sym.st_value + sym.st_size)
+			break;
 	}
-	return (1);
+	(void)gelf_getsym(data, symtab->index[i - 1], symp);
+	s = elf_strptr(e, symtab->stridx, symp->st_name);
+	if (s != NULL && namep != NULL)
+		*namep = s;
+	return (0);
 }
 
 int
 proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
     size_t namesz, GElf_Sym *symcopy)
 {
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-	Elf *e;
-	Elf_Scn *scn, *dynsymscn = NULL, *symtabscn = NULL;
-	prmap_t *map;
+	struct file_info *file;
+	struct map_info *mapping;
 	const char *s;
 	uintptr_t off;
-	u_long symtabstridx = 0, dynsymstridx = 0;
-	int fd, error = -1;
+	int error;
 
-	if ((map = proc_addr2map(p, addr)) == NULL)
+	if ((mapping = _proc_addr2map(p, addr)) == NULL) {
+		DPRINTFX("ERROR: proc_addr2map failed to resolve 0x%jx", addr);
 		return (-1);
-	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
-		DPRINTF("ERROR: open %s failed", map->pr_mapname);
-		goto err0;
 	}
-	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
-		goto err1;
-	}
-	if (gelf_getehdr(e, &ehdr) == NULL) {
-		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err2;
+	if (open_object(mapping) != 0) {
+		DPRINTFX("ERROR: failed to open object %s",
+		    mapping->map.pr_mapname);
+		return (-1);
 	}
 
-	/*
-	 * Find the index of the STRTAB and SYMTAB sections to locate
-	 * symbol names.
-	 */
-	scn = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		switch (shdr.sh_type) {
-		case SHT_SYMTAB:
-			symtabscn = scn;
-			symtabstridx = shdr.sh_link;
-			break;
-		case SHT_DYNSYM:
-			dynsymscn = scn;
-			dynsymstridx = shdr.sh_link;
-			break;
-		}
+	file = mapping->file;
+	off = file->ehdr.e_type == ET_DYN ?
+	    mapping->map.pr_vaddr - mapping->map.pr_offset : 0;
+	if (addr < off)
+		return (ENOENT);
+	addr -= off;
+
+	error = lookup_symbol_by_addr(file->elf, &file->dynsymtab, addr, &s,
+	    symcopy);
+	if (error == ENOENT)
+		error = lookup_symbol_by_addr(file->elf, &file->symtab, addr,
+		    &s, symcopy);
+	if (error == 0) {
+		symcopy->st_value += off;
+		demangle(s, name, namesz);
 	}
-
-	off = ehdr.e_type == ET_EXEC ? 0 : map->pr_vaddr;
-
-	/*
-	 * First look up the symbol in the dynsymtab, and fall back to the
-	 * symtab if the lookup fails.
-	 */
-	error = lookup_addr(e, dynsymscn, dynsymstridx, off, addr, &s, symcopy);
-	if (error == 0)
-		goto out;
-
-	error = lookup_addr(e, symtabscn, symtabstridx, off, addr, &s, symcopy);
-	if (error != 0)
-		goto err2;
-
-out:
-	demangle(s, name, namesz);
-err2:
-	elf_end(e);
-err1:
-	close(fd);
-err0:
-	free(map);
 	return (error);
+}
+
+static struct map_info *
+_proc_name2map(struct proc_handle *p, const char *name)
+{
+	char path[MAXPATHLEN], *base;
+	struct map_info *mapping;
+	size_t i, len;
+
+	if ((len = strlen(name)) == 0)
+		return (NULL);
+	if (p->nmappings == 0)
+		if (proc_rdagent(p) == NULL)
+			return (NULL);
+	for (i = 0; i < p->nmappings; i++) {
+		mapping = &p->mappings[i];
+		(void)strlcpy(path, mapping->map.pr_mapname, sizeof(path));
+		base = basename(path);
+		if (strcmp(base, name) == 0)
+			return (mapping);
+	}
+	/* If we didn't find a match, try matching prefixes of the basename. */
+	for (i = 0; i < p->nmappings; i++) {
+		strlcpy(path, p->mappings[i].map.pr_mapname, sizeof(path));
+		base = basename(path);
+		if (strncmp(base, name, len) == 0)
+			return (&p->mappings[i]);
+	}
+	if (strcmp(name, "a.out") == 0)
+		return (_proc_addr2map(p,
+		    p->mappings[p->exec_map].map.pr_vaddr));
+	return (NULL);
 }
 
 prmap_t *
 proc_name2map(struct proc_handle *p, const char *name)
 {
-	size_t i;
-	int cnt;
-	prmap_t *map = NULL;
-	char tmppath[MAXPATHLEN];
-	struct kinfo_vmentry *kves, *kve;
-	rd_loadobj_t *rdl;
 
-	/*
-	 * If we haven't iterated over the list of loaded objects,
-	 * librtld_db isn't yet initialized and it's very likely
-	 * that librtld_db called us. We need to do the heavy
-	 * lifting here to find the symbol librtld_db is looking for.
-	 */
-	if (p->nobjs == 0) {
-		if ((kves = kinfo_getvmmap(proc_getpid(p), &cnt)) == NULL)
-			return (NULL);
-		for (i = 0; i < (size_t)cnt; i++) {
-			kve = kves + i;
-			basename_r(kve->kve_path, tmppath);
-			if (strcmp(tmppath, name) == 0) {
-				map = proc_addr2map(p, kve->kve_start);
-				break;
-			}
-		}
-		free(kves);
-	} else
-		for (i = 0; i < p->nobjs; i++) {
-			rdl = &p->rdobjs[i];
-			basename_r(rdl->rdl_path, tmppath);
-			if (strcmp(tmppath, name) == 0) {
-				if ((map = malloc(sizeof(*map))) == NULL)
-					return (NULL);
-				proc_rdl2prmap(rdl, map);
-				break;
-			}
-		}
-
-	if (map == NULL && strcmp(name, "a.out") == 0 && p->rdexec != NULL)
-		map = proc_addr2map(p, p->rdexec->rdl_saddr);
-
-	return (map);
+	return (&_proc_name2map(p, name)->map);
 }
 
 /*
  * Look up the symbol with the given name and return a copy of it.
  */
 static int
-lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
+lookup_symbol_by_name(Elf *elf, struct symtab *symtab, const char *symbol,
     GElf_Sym *symcopy, prsyminfo_t *si)
 {
 	GElf_Sym sym;
@@ -425,12 +589,11 @@ lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
 	char *s;
 	int i;
 
-	if ((data = elf_getdata(scn, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		return (1);
-	}
+	if (symtab->nsyms == 0)
+		return (ENOENT);
+	data = symtab->data;
 	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
-		s = elf_strptr(e, stridx, sym.st_name);
+		s = elf_strptr(elf, symtab->stridx, sym.st_name);
 		if (s != NULL && strcmp(s, symbol) == 0) {
 			memcpy(symcopy, &sym, sizeof(*symcopy));
 			if (si != NULL)
@@ -438,80 +601,39 @@ lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
 			return (0);
 		}
 	}
-	return (1);
+	return (ENOENT);
 }
 
 int
 proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
     GElf_Sym *symcopy, prsyminfo_t *si)
 {
-	Elf *e;
-	Elf_Scn *scn, *dynsymscn = NULL, *symtabscn = NULL;
-	GElf_Shdr shdr;
-	GElf_Ehdr ehdr;
-	prmap_t *map;
+	struct file_info *file;
+	struct map_info *mapping;
 	uintptr_t off;
-	u_long symtabstridx = 0, dynsymstridx = 0;
-	int fd, error = -1;
+	int error;
 
-	if ((map = proc_name2map(p, object)) == NULL) {
-		DPRINTFX("ERROR: couldn't find object %s", object);
-		goto err0;
+	if ((mapping = _proc_name2map(p, object)) == NULL) {
+		DPRINTFX("ERROR: proc_name2map failed to resolve %s", object);
+		return (-1);
 	}
-	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
-		DPRINTF("ERROR: open %s failed", map->pr_mapname);
-		goto err0;
-	}
-	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
-		goto err1;
-	}
-	if (gelf_getehdr(e, &ehdr) == NULL) {
-		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err2;
-	}
-	/*
-	 * Find the index of the STRTAB and SYMTAB sections to locate
-	 * symbol names.
-	 */
-	scn = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		switch (shdr.sh_type) {
-		case SHT_SYMTAB:
-			symtabscn = scn;
-			symtabstridx = shdr.sh_link;
-			break;
-		case SHT_DYNSYM:
-			dynsymscn = scn;
-			dynsymstridx = shdr.sh_link;
-			break;
-		}
+	if (open_object(mapping) != 0) {
+		DPRINTFX("ERROR: failed to open object %s",
+		    mapping->map.pr_mapname);
+		return (-1);
 	}
 
-	/*
-	 * First look up the symbol in the dynsymtab, and fall back to the
-	 * symtab if the lookup fails.
-	 */
-	error = lookup_name(e, dynsymscn, dynsymstridx, symbol, symcopy, si);
+	file = mapping->file;
+	off = file->ehdr.e_type == ET_DYN ?
+	    mapping->map.pr_vaddr - mapping->map.pr_offset : 0;
+
+	error = lookup_symbol_by_name(file->elf, &file->dynsymtab, symbol,
+	    symcopy, si);
+	if (error == ENOENT)
+		error = lookup_symbol_by_name(file->elf, &file->symtab, symbol,
+		    symcopy, si);
 	if (error == 0)
-		goto out;
-
-	error = lookup_name(e, symtabscn, symtabstridx, symbol, symcopy, si);
-	if (error == 0)
-		goto out;
-
-out:
-	off = ehdr.e_type == ET_EXEC ? 0 : map->pr_vaddr;
-	symcopy->st_value += off;
-
-err2:
-	elf_end(e);
-err1:
-	close(fd);
-err0:
-	free(map);
-
+		symcopy->st_value += off;
 	return (error);
 }
 
@@ -527,7 +649,6 @@ proc_name2ctf(struct proc_handle *p, const char *name)
 		return (NULL);
 
 	ctf = ctf_open(map->pr_mapname, &error);
-	free(map);
 	return (ctf);
 #else
 	(void)p;
@@ -540,56 +661,30 @@ int
 proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
     int mask, proc_sym_f *func, void *cd)
 {
-	Elf *e;
-	int i, fd;
-	prmap_t *map;
-	Elf_Scn *scn, *foundscn = NULL;
-	Elf_Data *data;
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
 	GElf_Sym sym;
-	unsigned long stridx = -1;
-	char *s;
-	int error = -1;
+	struct file_info *file;
+	struct map_info *mapping;
+	struct symtab *symtab;
+	const char *s;
+	int error, i;
 
-	if ((map = proc_name2map(p, object)) == NULL)
+	if ((mapping = _proc_name2map(p, object)) == NULL) {
+		DPRINTFX("ERROR: proc_name2map failed to resolve %s", object);
 		return (-1);
-	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
-		DPRINTF("ERROR: open %s failed", map->pr_mapname);
-		goto err0;
 	}
-	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
-		goto err1;
-	}
-	if (gelf_getehdr(e, &ehdr) == NULL) {
-		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err2;
-	}
-	/*
-	 * Find the section we are looking for.
-	 */
-	scn = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		if (which == PR_SYMTAB &&
-		    shdr.sh_type == SHT_SYMTAB) {
-			foundscn = scn;
-			break;
-		} else if (which == PR_DYNSYM &&
-		    shdr.sh_type == SHT_DYNSYM) {
-			foundscn = scn;
-			break;
-		}
-	}
-	if (!foundscn)
+	if (open_object(mapping) != 0) {
+		DPRINTFX("ERROR: failed to open object %s",
+		    mapping->map.pr_mapname);
 		return (-1);
-	stridx = shdr.sh_link;
-	if ((data = elf_getdata(foundscn, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		goto err2;
 	}
-	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
+
+	file = mapping->file;
+	symtab = which == PR_SYMTAB ? &file->symtab : &file->dynsymtab;
+	if (symtab->nsyms == 0)
+		return (-1);
+
+	error = 0;
+	for (i = 0; gelf_getsym(symtab->data, i, &sym) != NULL; i++) {
 		if (GELF_ST_BIND(sym.st_info) == STB_LOCAL &&
 		    (mask & BIND_LOCAL) == 0)
 			continue;
@@ -614,18 +709,11 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 		if (GELF_ST_TYPE(sym.st_info) == STT_FILE &&
 		    (mask & TYPE_FILE) == 0)
 			continue;
-		s = elf_strptr(e, stridx, sym.st_name);
-		if (ehdr.e_type != ET_EXEC)
-			sym.st_value += map->pr_vaddr;
+		s = elf_strptr(file->elf, symtab->stridx, sym.st_name);
+		if (file->ehdr.e_type == ET_DYN)
+			sym.st_value += mapping->map.pr_vaddr;
 		if ((error = (*func)(cd, &sym, s)) != 0)
-			goto err2;
+			break;
 	}
-	error = 0;
-err2:
-	elf_end(e);
-err1:
-	close(fd);
-err0:
-	free(map);
 	return (error);
 }

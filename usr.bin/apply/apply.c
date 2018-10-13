@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,7 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#define EXEC	"exec "
+#define ISMAGICNO(p) \
+	    (p)[0] == magic && isdigit((unsigned char)(p)[1]) && (p)[1] != '0'
 
 static int	exec_shell(const char *, const char *, const char *);
 static void	usage(void);
@@ -63,8 +66,9 @@ main(int argc, char *argv[])
 {
 	struct sbuf *cmdbuf;
 	long arg_max;
-	int ch, debug, i, magic, n, nargs, offset, rval;
+	int ch, debug, i, magic, n, nargs, rval;
 	size_t cmdsize;
+	char buf[4];
 	char *cmd, *name, *p, *shell, *slashp, *tmpshell;
 
 	debug = 0;
@@ -73,7 +77,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "a:d0123456789")) != -1)
 		switch (ch) {
 		case 'a':
-			if (optarg[1] != '\0')
+			if (optarg[0] == '\0' || optarg[1] != '\0')
 				errx(1,
 				    "illegal magic character specification");
 			magic = optarg[0];
@@ -103,7 +107,7 @@ main(int argc, char *argv[])
 	 * largest one.
 	 */
 	for (n = 0, p = argv[0]; *p != '\0'; ++p)
-		if (p[0] == magic && isdigit(p[1]) && p[1] != '0') {
+		if (ISMAGICNO(p)) {
 			++p;
 			if (p[0] - '0' > n)
 				n = p[0] - '0';
@@ -132,28 +136,19 @@ main(int argc, char *argv[])
 	 * Allocate enough space to hold the maximum command.  Save the
 	 * size to pass to snprintf().
 	 */
-	cmdsize = sizeof(EXEC) - 1 + strlen(argv[0])
-	    + 9 * (sizeof(" %1") - 1) + 1;
-	if ((cmd = malloc(cmdsize)) == NULL)
-		err(1, NULL);
-
 	if (n == 0) {
+		cmdsize = strlen(argv[0]) + 9 * (sizeof(" %1") - 1) + 1;
+		if ((cmd = malloc(cmdsize)) == NULL)
+			err(1, NULL);
+		strlcpy(cmd, argv[0], cmdsize);
+
 		/* If nargs not set, default to a single argument. */
 		if (nargs == -1)
 			nargs = 1;
 
-		p = cmd;
-		offset = snprintf(cmd, cmdsize, EXEC "%s", argv[0]);
-		if ((size_t)offset >= cmdsize)
-			errx(1, "snprintf() failed");
-		p += offset;
-		cmdsize -= offset;
 		for (i = 1; i <= nargs; i++) {
-			offset = snprintf(p, cmdsize, " %c%d", magic, i);
-			if ((size_t)offset >= cmdsize)
-				errx(1, "snprintf() failed");
-			p += offset;
-			cmdsize -= offset;
+			snprintf(buf, sizeof(buf), " %c%d", magic, i);
+			strlcat(cmd, buf, cmdsize);
 		}
 
 		/*
@@ -163,9 +158,8 @@ main(int argc, char *argv[])
 		if (nargs == 0)
 			nargs = 1;
 	} else {
-		offset = snprintf(cmd, cmdsize, EXEC "%s", argv[0]);
-		if ((size_t)offset >= cmdsize)
-			errx(1, "snprintf() failed");
+		if ((cmd = strdup(argv[0])) == NULL)
+			err(1, NULL);
 		nargs = n;
 	}
 
@@ -182,9 +176,10 @@ main(int argc, char *argv[])
 	 */
 	for (rval = 0; argc > nargs; argc -= nargs, argv += nargs) {
 		sbuf_clear(cmdbuf);
+		sbuf_cat(cmdbuf, "exec ");
 		/* Expand command argv references. */
 		for (p = cmd; *p != '\0'; ++p) {
-			if (p[0] == magic && isdigit(p[1]) && p[1] != '0') {
+			if (ISMAGICNO(p)) {
 				if (sbuf_cat(cmdbuf, argv[(++p)[0] - '0'])
 				    == -1)
 					errc(1, ENOMEM, "sbuf");

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2013
+.Dd March 10, 2018
 .Dt PFIL 9
 .Os
 .Sh NAME
@@ -37,7 +37,9 @@
 .Nm pfil_head_unregister ,
 .Nm pfil_head_get ,
 .Nm pfil_add_hook ,
+.Nm pfil_add_hook_flags ,
 .Nm pfil_remove_hook ,
+.Nm pfil_remove_hook_flags ,
 .Nm pfil_run_hooks ,
 .Nm pfil_rlock ,
 .Nm pfil_runlock ,
@@ -51,18 +53,24 @@
 .In net/pfil.h
 .Bd -literal
 typedef int (*pfil_func_t)(void *arg, struct mbuf **mp, struct ifnet *, int dir, struct inpcb);
+.Bd -literal
+typedef int (*pfil_func_flags_t)(void *arg, struct mbuf **mp, struct ifnet *, int dir, int flags, struct inpcb);
 .Ft int
 .Fn pfil_head_register "struct pfil_head *head"
 .Ft int
 .Fn pfil_head_unregister "struct pfil_head *head"
 .Ft "struct pfil_head *"
 .Fn pfil_head_get "int af" "u_long dlt"
-.Ft void
-.Fn pfil_add_hook "pfil_func_t" "void *arg" "int flags" "struct pfil_head *"
-.Ft void
-.Fn pfil_remove_hook "pfil_func_t" "void *arg" "int flags" "struct pfil_head *"
 .Ft int
-.Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
+.Fn pfil_add_hook "pfil_func_t" "void *arg" "struct pfil_head *"
+.Ft int
+.Fn pfil_add_hook_flags "pfil_func_flags_t" "void *arg" "int flags" "struct pfil_head *"
+.Ft int
+.Fn pfil_remove_hook "pfil_func_t" "void *arg" "struct pfil_head *"
+.Ft int
+.Fn pfil_remove_hook_flags "pfil_func_flags_t" "void *arg" "int flags" "struct pfil_head *"
+.Ft int
+.Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir" "int flags" "struct inpcb *"
 .Ft void
 .Fn pfil_rlock "struct pfil_head *" "struct rm_priotracker *"
 .Ft void
@@ -116,6 +124,7 @@ with the
 and
 .Fn pfil_remove_hook
 functions, respectively.
+.I
 The head is looked up using the
 .Fn pfil_head_get
 function, which takes the key and data link type that the packet filter
@@ -135,6 +144,10 @@ interface that the packet is traversing, and the direction
 or
 .Dv PFIL_OUT )
 that the packet is traveling.
+The
+.Vt flags
+argument will indicate if an outgoing packet is simply being forwarded with the
+value PFIL_FWD.
 The filter may change which mbuf the
 .Vt "mbuf\ **"
 argument references.

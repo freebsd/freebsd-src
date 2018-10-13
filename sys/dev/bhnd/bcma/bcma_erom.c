@@ -1,6 +1,12 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2017 Landon Fuller <landonf@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/bhnd_eromvar.h>
+
 #include "bcma_eromreg.h"
 #include "bcma_eromvar.h"
 
@@ -56,46 +64,65 @@ __FBSDID("$FreeBSD$");
  * marker.
  */
 
-static const char	*erom_entry_type_name (uint8_t entry);
-static int		 erom_read32(struct bcma_erom *erom, uint32_t *entry);
-static int		 erom_skip32(struct bcma_erom *erom);
+static const char	*bcma_erom_entry_type_name (uint8_t entry);
 
-static int		 erom_skip_core(struct bcma_erom *erom);
-static int		 erom_skip_mport(struct bcma_erom *erom);
-static int		 erom_skip_sport_region(struct bcma_erom *erom);
+static int		 bcma_erom_read32(struct bcma_erom *erom,
+			     uint32_t *entry);
+static int		 bcma_erom_skip32(struct bcma_erom *erom);
 
-static int		 erom_seek_next(struct bcma_erom *erom, uint8_t etype);
+static int		 bcma_erom_skip_core(struct bcma_erom *erom);
+static int		 bcma_erom_skip_mport(struct bcma_erom *erom);
+static int		 bcma_erom_skip_sport_region(struct bcma_erom *erom);
 
-#define	EROM_LOG(erom, fmt, ...)	\
-	device_printf(erom->dev, "erom[0x%llx]: " fmt, \
-	    (unsigned long long) (erom->offset), ##__VA_ARGS__);
+static int		 bcma_erom_seek_next(struct bcma_erom *erom,
+			     uint8_t etype);
+static int		 bcma_erom_region_to_port_type(struct bcma_erom *erom,
+			     uint8_t region_type, bhnd_port_type *port_type);
+
+
+static int		 bcma_erom_peek32(struct bcma_erom *erom,
+			     uint32_t *entry);
+
+static bus_size_t	 bcma_erom_tell(struct bcma_erom *erom);
+static void		 bcma_erom_seek(struct bcma_erom *erom,
+			     bus_size_t offset);
+static void		 bcma_erom_reset(struct bcma_erom *erom);
+
+static int		 bcma_erom_seek_matching_core(struct bcma_erom *sc,
+			     const struct bhnd_core_match *desc,
+			     struct bhnd_core_info *core);
+
+static int		 bcma_erom_parse_core(struct bcma_erom *erom,
+			     struct bcma_erom_core *core);
+
+static int		 bcma_erom_parse_mport(struct bcma_erom *erom,
+			     struct bcma_erom_mport *mport);
+
+static int		 bcma_erom_parse_sport_region(struct bcma_erom *erom,
+			     struct bcma_erom_sport_region *region);
+
+static void		 bcma_erom_to_core_info(const struct bcma_erom_core *core,
+			     u_int core_idx, int core_unit,
+			     struct bhnd_core_info *info);
 
 /**
- * Open an EROM table for reading.
- * 
- * @param[out] erom On success, will be populated with a valid EROM
- * read state.
- * @param r An active resource mapping the EROM core.
- * @param offset Offset of the EROM core within @p resource.
- *
- * @retval 0 success
- * @retval non-zero if the erom table could not be opened.
+ * BCMA EROM per-instance state.
  */
-int
-bcma_erom_open(struct bcma_erom *erom, struct resource *r, bus_size_t offset)
-{
-	/* Initialize the EROM reader */
-	erom->dev = rman_get_device(r);
-	erom->r = r;
-	erom->start = offset + BCMA_EROM_TABLE_START;
-	erom->offset = 0;
+struct bcma_erom {
+	struct bhnd_erom	 obj;
+	device_t	 	 dev;		/**< parent device, or NULL if none. */
+	struct bhnd_erom_io	*eio;		/**< bus I/O callbacks */
+	bhnd_size_t	 	 offset;	/**< current read offset */
+};
 
-	return (0);
-}
+#define	EROM_LOG(erom, fmt, ...)	do {			\
+	printf("%s erom[0x%llx]: " fmt, __FUNCTION__,		\
+	    (unsigned long long)(erom->offset), ##__VA_ARGS__);	\
+} while(0)
 
 /** Return the type name for an EROM entry */
 static const char *
-erom_entry_type_name (uint8_t entry)
+bcma_erom_entry_type_name (uint8_t entry)
 {
 	switch (BCMA_EROM_GET_ATTR(entry, ENTRY_TYPE)) {
 	case BCMA_EROM_ENTRY_TYPE_CORE:
@@ -109,10 +136,321 @@ erom_entry_type_name (uint8_t entry)
 	}
 }
 
+/* BCMA implementation of BHND_EROM_INIT() */
+static int
+bcma_erom_init(bhnd_erom_t *erom, const struct bhnd_chipid *cid,
+    struct bhnd_erom_io *eio)
+{
+	struct bcma_erom	*sc;
+	bhnd_addr_t		 table_addr;
+	int			 error;
+
+	sc = (struct bcma_erom *)erom;
+	sc->eio = eio;
+	sc->offset = 0;
+
+	/* Determine erom table address */
+	if (BHND_ADDR_MAX - BCMA_EROM_TABLE_START < cid->enum_addr)
+		return (ENXIO); /* would overflow */
+
+	table_addr = cid->enum_addr + BCMA_EROM_TABLE_START;
+
+	/* Try to map the erom table */
+	error = bhnd_erom_io_map(sc->eio, table_addr, BCMA_EROM_TABLE_SIZE);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+/* BCMA implementation of BHND_EROM_PROBE() */
+static int
+bcma_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
+    const struct bhnd_chipid *hint, struct bhnd_chipid *cid)
+{
+	int error;
+
+	/* Hints aren't supported; all BCMA devices have a ChipCommon
+	 * core */
+	if (hint != NULL)
+		return (EINVAL);
+
+	/* Read and parse chip identification */
+	if ((error = bhnd_erom_read_chipid(eio, cid)))
+		return (error);
+
+	/* Verify chip type */
+	switch (cid->chip_type) {
+		case BHND_CHIPTYPE_BCMA:
+			return (BUS_PROBE_DEFAULT);
+
+		case BHND_CHIPTYPE_BCMA_ALT:
+		case BHND_CHIPTYPE_UBUS:
+			return (BUS_PROBE_GENERIC);
+
+		default:
+			return (ENXIO);
+	}	
+}
+
+static void
+bcma_erom_fini(bhnd_erom_t *erom)
+{
+	struct bcma_erom *sc = (struct bcma_erom *)erom;
+
+	bhnd_erom_io_fini(sc->eio);
+}
+
+static int
+bcma_erom_lookup_core(bhnd_erom_t *erom, const struct bhnd_core_match *desc,
+    struct bhnd_core_info *core)
+{
+	struct bcma_erom *sc = (struct bcma_erom *)erom;
+
+	/* Search for the first matching core */
+	return (bcma_erom_seek_matching_core(sc, desc, core));
+}
+
+static int
+bcma_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc,
+    bhnd_port_type port_type, u_int port_num, u_int region_num,
+    struct bhnd_core_info *core, bhnd_addr_t *addr, bhnd_size_t *size)
+{
+	struct bcma_erom	*sc;
+	struct bcma_erom_core	 ec;
+	uint32_t		 entry;
+	uint8_t			 region_port, region_type;
+	bool			 found;
+	int			 error;
+
+	sc = (struct bcma_erom *)erom;
+
+	/* Seek to the first matching core and provide the core info
+	 * to the caller */
+	if ((error = bcma_erom_seek_matching_core(sc, desc, core)))
+		return (error);
+
+	if ((error = bcma_erom_parse_core(sc, &ec)))
+		return (error);
+
+	/* Skip master ports */
+	for (u_long i = 0; i < ec.num_mport; i++) {
+		if ((error = bcma_erom_skip_mport(sc)))
+			return (error);
+	}
+
+	/* Seek to the region block for the given port type */
+	found = false;
+	while (1) {
+		bhnd_port_type	p_type;
+		uint8_t		r_type;
+
+		if ((error = bcma_erom_peek32(sc, &entry)))
+			return (error);
+
+		if (!BCMA_EROM_ENTRY_IS(entry, REGION))
+			return (ENOENT);
+
+		/* Expected region type? */
+		r_type = BCMA_EROM_GET_ATTR(entry, REGION_TYPE);
+		error = bcma_erom_region_to_port_type(sc, r_type, &p_type);
+		if (error)
+			return (error);
+
+		if (p_type == port_type) {
+			found = true;
+			break;
+		}
+
+		/* Skip to next entry */
+		if ((error = bcma_erom_skip_sport_region(sc)))
+			return (error);
+	}
+
+	if (!found)
+		return (ENOENT);
+
+	/* Found the appropriate port type block; now find the region records
+	 * for the given port number */
+	found = false;
+	for (u_int i = 0; i <= port_num; i++) {
+		bhnd_port_type	p_type;
+
+		if ((error = bcma_erom_peek32(sc, &entry)))
+			return (error);
+		
+		if (!BCMA_EROM_ENTRY_IS(entry, REGION))
+			return (ENOENT);
+
+		/* Fetch the type/port of the first region entry */
+		region_type = BCMA_EROM_GET_ATTR(entry, REGION_TYPE);
+		region_port = BCMA_EROM_GET_ATTR(entry, REGION_PORT);
+
+		/* Have we found the region entries for the desired port? */
+		if (i == port_num) {
+			error = bcma_erom_region_to_port_type(sc, region_type,
+			    &p_type);
+			if (error)
+				return (error);
+
+			if (p_type == port_type)
+				found = true;
+
+			break;
+		}
+
+		/* Otherwise, seek to next block of region records */
+		while (1) {
+			uint8_t	next_type, next_port;
+	
+			if ((error = bcma_erom_skip_sport_region(sc)))
+				return (error);
+
+			if ((error = bcma_erom_peek32(sc, &entry)))
+				return (error);
+
+			if (!BCMA_EROM_ENTRY_IS(entry, REGION))
+				return (ENOENT);
+
+			next_type = BCMA_EROM_GET_ATTR(entry, REGION_TYPE);
+			next_port = BCMA_EROM_GET_ATTR(entry, REGION_PORT);
+
+			if (next_type != region_type ||
+			    next_port != region_port)
+				break;
+		}
+	}
+
+	if (!found)
+		return (ENOENT);
+
+	/* Finally, search for the requested region number */
+	for (u_int i = 0; i <= region_num; i++) {
+		struct bcma_erom_sport_region	region;
+		uint8_t				next_port, next_type;
+
+		if ((error = bcma_erom_peek32(sc, &entry)))
+			return (error);
+		
+		if (!BCMA_EROM_ENTRY_IS(entry, REGION))
+			return (ENOENT);
+
+		/* Check for the end of the region block */
+		next_type = BCMA_EROM_GET_ATTR(entry, REGION_TYPE);
+		next_port = BCMA_EROM_GET_ATTR(entry, REGION_PORT);
+
+		if (next_type != region_type ||
+		    next_port != region_port)
+			break;
+
+		/* Parse the region */
+		if ((error = bcma_erom_parse_sport_region(sc, &region)))
+			return (error);
+
+		/* Is this our target region_num? */
+		if (i == region_num) {
+			/* Found */
+			*addr = region.base_addr;
+			*size = region.size;
+			return (0);
+		}
+	}
+
+	/* Not found */
+	return (ENOENT);
+};
+
+static int
+bcma_erom_get_core_table(bhnd_erom_t *erom, struct bhnd_core_info **cores,
+    u_int *num_cores)
+{
+	struct bcma_erom	*sc;
+	struct bhnd_core_info	*buffer;
+	bus_size_t		 initial_offset;
+	u_int			 count;
+	int			 error;
+
+	sc = (struct bcma_erom *)erom;
+
+	buffer = NULL;
+	initial_offset = bcma_erom_tell(sc);
+
+	/* Determine the core count */
+	bcma_erom_reset(sc);
+	for (count = 0, error = 0; !error; count++) {
+		struct bcma_erom_core core;
+
+		/* Seek to the first readable core entry */
+		error = bcma_erom_seek_next(sc, BCMA_EROM_ENTRY_TYPE_CORE);
+		if (error == ENOENT)
+			break;
+		else if (error)
+			goto cleanup;
+		
+		/* Read past the core descriptor */
+		if ((error = bcma_erom_parse_core(sc, &core)))
+			goto cleanup;
+	}
+
+	/* Allocate our output buffer */
+	buffer = mallocarray(count, sizeof(struct bhnd_core_info), M_BHND,
+	    M_NOWAIT);
+	if (buffer == NULL) {
+		error = ENOMEM;
+		goto cleanup;
+	}
+
+	/* Parse all core descriptors */
+	bcma_erom_reset(sc);
+	for (u_int i = 0; i < count; i++) {
+		struct bcma_erom_core	core;
+		int			unit;
+
+		/* Parse the core */
+		error = bcma_erom_seek_next(sc, BCMA_EROM_ENTRY_TYPE_CORE);
+		if (error)
+			goto cleanup;
+
+		error = bcma_erom_parse_core(sc, &core);
+		if (error)
+			goto cleanup;
+
+		/* Determine the unit number */
+		unit = 0;
+		for (u_int j = 0; j < i; j++) {
+			if (buffer[i].vendor == buffer[j].vendor &&
+			    buffer[i].device == buffer[j].device)
+				unit++;
+		}
+
+		/* Convert to a bhnd info record */
+		bcma_erom_to_core_info(&core, i, unit, &buffer[i]);
+	}
+
+cleanup:
+	if (!error) {
+		*cores = buffer;
+		*num_cores = count;
+	} else {
+		if (buffer != NULL)
+			free(buffer, M_BHND);
+	}
+
+	/* Restore the initial position */
+	bcma_erom_seek(sc, initial_offset);
+	return (error);
+}
+
+static void
+bcma_erom_free_core_table(bhnd_erom_t *erom, struct bhnd_core_info *cores)
+{
+	free(cores, M_BHND);
+}
+
 /**
  * Return the current read position.
  */
-bus_size_t
+static bus_size_t
 bcma_erom_tell(struct bcma_erom *erom)
 {
 	return (erom->offset);
@@ -121,7 +459,7 @@ bcma_erom_tell(struct bcma_erom *erom)
 /**
  * Seek to an absolute read position.
  */
-void
+static void
 bcma_erom_seek(struct bcma_erom *erom, bus_size_t offset)
 {
 	erom->offset = offset;
@@ -137,15 +475,15 @@ bcma_erom_seek(struct bcma_erom *erom, bus_size_t offset)
  * @retval ENOENT The end of the EROM table was reached.
  * @retval non-zero The read could not be completed.
  */
-int
+static int
 bcma_erom_peek32(struct bcma_erom *erom, uint32_t *entry)
 {
-	if (erom->offset >= BCMA_EROM_TABLE_SIZE) {
+	if (erom->offset >= (BCMA_EROM_TABLE_SIZE - sizeof(uint32_t))) {
 		EROM_LOG(erom, "BCMA EROM table missing terminating EOF\n");
 		return (EINVAL);
 	}
 
-	*entry = bus_read_4(erom->r, erom->start + erom->offset);
+	*entry = bhnd_erom_io_read(erom->eio, erom->offset, 4);
 	return (0);
 }
 
@@ -159,7 +497,7 @@ bcma_erom_peek32(struct bcma_erom *erom, uint32_t *entry)
  * @retval non-zero The read could not be completed.
  */
 static int
-erom_read32(struct bcma_erom *erom, uint32_t *entry)
+bcma_erom_read32(struct bcma_erom *erom, uint32_t *entry)
 {
 	int error;
 
@@ -178,11 +516,11 @@ erom_read32(struct bcma_erom *erom, uint32_t *entry)
  * @retval non-zero The read could not be completed.
  */
 static int
-erom_skip32(struct bcma_erom *erom)
+bcma_erom_skip32(struct bcma_erom *erom)
 {
 	uint32_t	entry;
 
-	return erom_read32(erom, &entry);
+	return bcma_erom_read32(erom, &entry);
 }
 
 /**
@@ -194,7 +532,7 @@ erom_skip32(struct bcma_erom *erom)
  * @retval non-zero The read could not be completed.
  */
 static int
-erom_skip_core(struct bcma_erom *erom)
+bcma_erom_skip_core(struct bcma_erom *erom)
 {
 	struct bcma_erom_core core;
 	return (bcma_erom_parse_core(erom, &core));
@@ -209,7 +547,7 @@ erom_skip_core(struct bcma_erom *erom)
  * @retval non-zero The read could not be completed.
  */
 static int
-erom_skip_mport(struct bcma_erom *erom)
+bcma_erom_skip_mport(struct bcma_erom *erom)
 {
 	struct bcma_erom_mport mp;
 	return (bcma_erom_parse_mport(erom, &mp));
@@ -224,7 +562,7 @@ erom_skip_mport(struct bcma_erom *erom)
  * @retval non-zero The read could not be completed.
  */
 static int
-erom_skip_sport_region(struct bcma_erom *erom)
+bcma_erom_skip_sport_region(struct bcma_erom *erom)
 {
 	struct bcma_erom_sport_region r;
 	return (bcma_erom_parse_sport_region(erom, &r));
@@ -241,7 +579,7 @@ erom_skip_sport_region(struct bcma_erom *erom)
  * @retval non-zero Reading or parsing the descriptor failed.
  */
 static int
-erom_seek_next(struct bcma_erom *erom, uint8_t etype)
+bcma_erom_seek_next(struct bcma_erom *erom, uint8_t etype)
 {
 	uint32_t			entry;
 	int				error;
@@ -263,19 +601,19 @@ erom_seek_next(struct bcma_erom *erom, uint8_t etype)
 		/* Skip non-matching entry types. */
 		switch (BCMA_EROM_GET_ATTR(entry, ENTRY_TYPE)) {
 		case BCMA_EROM_ENTRY_TYPE_CORE:
-			if ((error = erom_skip_core(erom)))
+			if ((error = bcma_erom_skip_core(erom)))
 				return (error);
 
 			break;
 
 		case BCMA_EROM_ENTRY_TYPE_MPORT:
-			if ((error = erom_skip_mport(erom)))
+			if ((error = bcma_erom_skip_mport(erom)))
 				return (error);
 
 			break;
 		
 		case BCMA_EROM_ENTRY_TYPE_REGION:
-			if ((error = erom_skip_sport_region(erom)))
+			if ((error = bcma_erom_skip_sport_region(erom)))
 				return (error);
 			break;
 
@@ -293,47 +631,99 @@ erom_seek_next(struct bcma_erom *erom, uint8_t etype)
  * 
  * @param erom EROM read state.
  */
-void
+static void
 bcma_erom_reset(struct bcma_erom *erom)
 {
 	erom->offset = 0;
 }
 
 /**
- * Seek to the requested core entry.
+ * Seek to the first core entry matching @p desc.
  * 
  * @param erom EROM read state.
- * @param core_index Index of the core to seek to.
+ * @param desc The core match descriptor.
+ * @param[out] core On success, the matching core info. If the core info
+ * is not desired, a NULL pointer may be provided.
  * @retval 0 success
  * @retval ENOENT The end of the EROM table was reached before @p index was
  * found.
  * @retval non-zero Reading or parsing failed.
  */
-int
-bcma_erom_seek_core_index(struct bcma_erom *erom, u_int core_index)
+static int
+bcma_erom_seek_matching_core(struct bcma_erom *sc,
+    const struct bhnd_core_match *desc, struct bhnd_core_info *core)
 {
-	int error;
+	struct bhnd_core_match	 imatch;
+	bus_size_t		 core_offset, next_offset;
+	int			 error;
 
-	/* Start search at top of EROM */
-	bcma_erom_reset(erom);
+	/* Seek to table start. */
+	bcma_erom_reset(sc);
 
-	/* Skip core descriptors till we hit the requested entry */
-	for (u_int i = 0; i < core_index; i++) {
-		struct bcma_erom_core core;
+	/* We can't determine a core's unit number during the initial scan. */
+	imatch = *desc;
+	imatch.m.match.core_unit = 0;
 
-		/* Read past the core descriptor */
-		if ((error = bcma_erom_parse_core(erom, &core)))
-			return (error);
+	/* Locate the first matching core */
+	for (u_int i = 0; i < UINT_MAX; i++) {
+		struct bcma_erom_core	ec;
+		struct bhnd_core_info	ci;
 
-		/* Seek to the next readable core entry */
-		error = erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE);
+		/* Seek to the next core */
+		error = bcma_erom_seek_next(sc, BCMA_EROM_ENTRY_TYPE_CORE);
 		if (error)
 			return (error);
+
+		/* Save the core offset */
+		core_offset = bcma_erom_tell(sc);
+	
+		/* Parse the core */
+		if ((error = bcma_erom_parse_core(sc, &ec)))
+			return (error);
+
+		bcma_erom_to_core_info(&ec, i, 0, &ci);
+
+		/* Check for initial match */
+		if (!bhnd_core_matches(&ci, &imatch))
+			continue;
+
+		/* Re-scan preceding cores to determine the unit number. */
+		next_offset = bcma_erom_tell(sc);
+		bcma_erom_reset(sc);
+		for (u_int j = 0; j < i; j++) {
+			/* Parse the core */
+			error = bcma_erom_seek_next(sc,
+			    BCMA_EROM_ENTRY_TYPE_CORE);
+			if (error)
+				return (error);
+			
+			if ((error = bcma_erom_parse_core(sc, &ec)))
+				return (error);
+
+			/* Bump the unit number? */
+			if (ec.vendor == ci.vendor && ec.device == ci.device)
+				ci.unit++;
+		}
+
+		/* Check for full match against now-valid unit number */
+		if (!bhnd_core_matches(&ci, desc)) {
+			/* Reposition to allow reading the next core */
+			bcma_erom_seek(sc, next_offset);
+			continue;
+		}
+
+		/* Found; seek to the core's initial offset and provide
+		 * the core info to the caller */
+		bcma_erom_seek(sc, core_offset);
+		if (core != NULL)
+			*core = ci;
+
+		return (0);
 	}
 
-	return (0);
+	/* Not found, or a parse error occured */
+	return (error);
 }
-
 
 /**
  * Read the next core descriptor from the EROM table.
@@ -345,14 +735,14 @@ bcma_erom_seek_core_index(struct bcma_erom *erom, u_int core_index)
  * @retval ENOENT The end of the EROM table was reached.
  * @retval non-zero Reading or parsing the core descriptor failed.
  */
-int
+static int
 bcma_erom_parse_core(struct bcma_erom *erom, struct bcma_erom_core *core)
 {
 	uint32_t	entry;
 	int		error;
 
 	/* Parse CoreDescA */
-	if ((error = erom_read32(erom, &entry)))
+	if ((error = bcma_erom_read32(erom, &entry)))
 		return (error);
 	
 	/* Handle EOF */
@@ -361,7 +751,7 @@ bcma_erom_parse_core(struct bcma_erom *erom, struct bcma_erom_core *core)
 	
 	if (!BCMA_EROM_ENTRY_IS(entry, CORE)) {
 		EROM_LOG(erom, "Unexpected EROM entry 0x%x (type=%s)\n",
-                   entry, erom_entry_type_name(entry));
+                   entry, bcma_erom_entry_type_name(entry));
 		
 		return (EINVAL);
 	}
@@ -370,7 +760,7 @@ bcma_erom_parse_core(struct bcma_erom *erom, struct bcma_erom_core *core)
 	core->device = BCMA_EROM_GET_ATTR(entry, COREA_ID);
 	
 	/* Parse CoreDescB */
-	if ((error = erom_read32(erom, &entry)))
+	if ((error = bcma_erom_read32(erom, &entry)))
 		return (error);
 
 	if (!BCMA_EROM_ENTRY_IS(entry, CORE)) {
@@ -395,15 +785,14 @@ bcma_erom_parse_core(struct bcma_erom *erom, struct bcma_erom_core *core)
  * @retval 0 success
  * @retval non-zero Reading or parsing the descriptor failed.
  */
-int
-bcma_erom_parse_mport(struct bcma_erom *erom,
-    struct bcma_erom_mport *mport)
+static int
+bcma_erom_parse_mport(struct bcma_erom *erom, struct bcma_erom_mport *mport)
 {
 	uint32_t	entry;
 	int		error;
 
 	/* Parse the master port descriptor */
-	if ((error = erom_read32(erom, &entry)))
+	if ((error = bcma_erom_read32(erom, &entry)))
 		return (error);
 	
 	if (!BCMA_EROM_ENTRY_IS(entry, MPORT))
@@ -425,7 +814,7 @@ bcma_erom_parse_mport(struct bcma_erom *erom,
  * @retval ENOENT The end of the region descriptor table was reached.
  * @retval non-zero Reading or parsing the descriptor failed.
  */
-int
+static int
 bcma_erom_parse_sport_region(struct bcma_erom *erom,
     struct bcma_erom_sport_region *region)
 {
@@ -441,7 +830,7 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 	if (!BCMA_EROM_ENTRY_IS(entry, REGION)) {
 		return (ENOENT);
 	} else {
-		erom_skip32(erom);
+		bcma_erom_skip32(erom);
 	}
 
 	region->base_addr = BCMA_EROM_GET_ATTR(entry, REGION_BASE);
@@ -451,7 +840,7 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 
 	/* If region address is 64-bit, fetch the high bits. */
 	if (BCMA_EROM_GET_ATTR(entry, REGION_64BIT)) {
-		if ((error = erom_read32(erom, &entry)))
+		if ((error = bcma_erom_read32(erom, &entry)))
 			return (error);
 		
 		region->base_addr |= ((bhnd_addr_t) entry << 32);
@@ -461,13 +850,13 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 	 * of the number of 4K pages (i.e. log2 n), or its encoded as a
 	 * 32-bit/64-bit literal value directly following the current entry. */
 	if (size_type == BCMA_EROM_REGION_SIZE_OTHER) {
-		if ((error = erom_read32(erom, &entry)))
+		if ((error = bcma_erom_read32(erom, &entry)))
 			return (error);
 
 		region->size = BCMA_EROM_GET_ATTR(entry, RSIZE_VAL);
 
 		if (BCMA_EROM_GET_ATTR(entry, RSIZE_64BIT)) {
-			if ((error = erom_read32(erom, &entry)))
+			if ((error = bcma_erom_read32(erom, &entry)))
 				return (error);
 			region->size |= ((bhnd_size_t) entry << 32);
 		}
@@ -480,7 +869,7 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 	    BHND_ADDR_MAX - (region->size - 1) < region->base_addr)
 	{
 		EROM_LOG(erom, "%s%u: invalid address map %llx:%llx\n",
-		    erom_entry_type_name(region->region_type),
+		    bcma_erom_entry_type_name(region->region_type),
 		    region->region_port,
 		    (unsigned long long) region->base_addr,
 		    (unsigned long long) region->size);
@@ -492,99 +881,51 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 }
 
 /**
- * Parse all cores descriptors from @p erom and return the array
- * in @p cores and the count in @p num_cores. The current EROM read position
- * is left unmodified.
+ * Convert a bcma_erom_core record to its bhnd_core_info representation.
  * 
- * The memory allocated for the table should be freed using
- * `free(*cores, M_BHND)`. @p cores and @p num_cores are not changed
- * when an error is returned.
- * 
- * @param erom EROM read state.
- * @param[out] cores the table of parsed core descriptors.
- * @param[out] num_cores the number of core records in @p cores.
+ * @param core EROM core record to convert.
+ * @param core_idx The core index of @p core.
+ * @param core_unit The core unit of @p core.
+ * @param[out] info The populated bhnd_core_info representation.
  */
-int
-bcma_erom_get_core_info(struct bcma_erom *erom,
-    struct bhnd_core_info **cores,
-    u_int *num_cores)
+static void
+bcma_erom_to_core_info(const struct bcma_erom_core *core, u_int core_idx,
+    int core_unit, struct bhnd_core_info *info)
 {
-	struct bhnd_core_info	*buffer;
-	bus_size_t		 initial_offset;
-	u_int			 count;
-	int			 error;
-
-	buffer = NULL;
-	initial_offset = bcma_erom_tell(erom);
-
-	/* Determine the core count */
-	bcma_erom_reset(erom);
-	for (count = 0, error = 0; !error; count++) {
-		struct bcma_erom_core core;
-
-		/* Seek to the first readable core entry */
-		error = erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE);
-		if (error == ENOENT)
-			break;
-		else if (error)
-			goto cleanup;
-		
-		/* Read past the core descriptor */
-		if ((error = bcma_erom_parse_core(erom, &core)))
-			goto cleanup;
-	}
-
-	/* Allocate our output buffer */
-	buffer = malloc(sizeof(struct bhnd_core_info) * count, M_BHND,
-	    M_NOWAIT);
-	if (buffer == NULL) {
-		error = ENOMEM;
-		goto cleanup;
-	}
-
-	/* Parse all core descriptors */
-	bcma_erom_reset(erom);
-	for (u_int i = 0; i < count; i++) {
-		struct bcma_erom_core core;
-
-		/* Parse the core */
-		error = erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE);
-		if (error)
-			goto cleanup;
-
-		error = bcma_erom_parse_core(erom, &core);
-		if (error)
-			goto cleanup;
-		
-		/* Convert to a bhnd info record */
-		buffer[i].vendor = core.vendor;
-		buffer[i].device = core.device;
-		buffer[i].hwrev = core.rev;
-		buffer[i].core_idx = i;
-		buffer[i].unit = 0;
-
-		/* Determine the unit number */
-		for (u_int j = 0; j < i; j++) {
-			if (buffer[i].vendor == buffer[j].vendor &&
-			    buffer[i].device == buffer[j].device)
-				buffer[i].unit++;
-		}
-	}
-
-cleanup:
-	if (!error) {
-		*cores = buffer;
-		*num_cores = count;
-	} else {
-		if (buffer != NULL)
-			free(buffer, M_BHND);
-	}
-
-	/* Restore the initial position */
-	bcma_erom_seek(erom, initial_offset);
-	return (error);
+	info->vendor = core->vendor;
+	info->device = core->device;
+	info->hwrev = core->rev;
+	info->core_idx = core_idx;
+	info->unit = core_unit;
 }
 
+/**
+ * Map an EROM region type to its corresponding port type.
+ * 
+ * @param region_type Region type value.
+ * @param[out] port_type On success, the corresponding port type.
+ */
+static int
+bcma_erom_region_to_port_type(struct bcma_erom *erom, uint8_t region_type,
+    bhnd_port_type *port_type)
+{
+	switch (region_type) {
+	case BCMA_EROM_REGION_TYPE_DEVICE:
+		*port_type = BHND_PORT_DEVICE;
+		return (0);
+	case BCMA_EROM_REGION_TYPE_BRIDGE:
+		*port_type = BHND_PORT_BRIDGE;
+		return (0);
+	case BCMA_EROM_REGION_TYPE_MWRAP:
+	case BCMA_EROM_REGION_TYPE_SWRAP:
+		*port_type = BHND_PORT_AGENT;
+		return (0);
+	default:
+		EROM_LOG(erom, "unsupported region type %hhx\n",
+			region_type);
+		return (EINVAL);
+	}
+}
 
 /**
  * Register all MMIO region descriptors for the given slave port.
@@ -597,7 +938,7 @@ cleanup:
  * will be updated to point to the next EROM table entry.
  */
 static int 
-erom_corecfg_fill_port_regions(struct bcma_erom *erom,
+bcma_erom_corecfg_fill_port_regions(struct bcma_erom *erom,
     struct bcma_corecfg *corecfg, bcma_pid_t port_num,
     uint8_t region_type)
 {
@@ -608,24 +949,11 @@ erom_corecfg_fill_port_regions(struct bcma_erom *erom,
 	bhnd_port_type		 port_type;
 
 	error = 0;
-	
+
 	/* Determine the port type for this region type. */
-	switch (region_type) {
-		case BCMA_EROM_REGION_TYPE_DEVICE:
-			port_type = BHND_PORT_DEVICE;
-			break;
-		case BCMA_EROM_REGION_TYPE_BRIDGE:
-			port_type = BHND_PORT_BRIDGE;
-			break;
-		case BCMA_EROM_REGION_TYPE_MWRAP:
-		case BCMA_EROM_REGION_TYPE_SWRAP:
-			port_type = BHND_PORT_AGENT;
-			break;
-		default:
-			EROM_LOG(erom, "unsupported region type %hhx\n",
-			    region_type);
-			return (EINVAL);
-	}
+	error = bcma_erom_region_to_port_type(erom, region_type, &port_type);
+	if (error)
+		return (error);
 
 	/* Fetch the list to be populated */
 	sports = bcma_corecfg_get_port_list(corecfg, port_type);
@@ -719,7 +1047,7 @@ cleanup:
  * Parse the next core entry from the EROM table and produce a bcma_corecfg
  * to be owned by the caller.
  * 
- * @param erom EROM read state.
+ * @param erom A bcma EROM instance.
  * @param[out] result On success, the core's device info. The caller inherits
  * ownership of this allocation.
  * 
@@ -727,7 +1055,7 @@ cleanup:
  * ENOENT will be returned. On error, returns a non-zero error value.
  */
 int
-bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
+bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 {
 	struct bcma_corecfg	*cfg;
 	struct bcma_erom_core	 core;
@@ -752,7 +1080,8 @@ bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 		struct bcma_erom_core prev_core;
 
 		/* Parse next core */
-		if ((error = erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE)))
+		error = bcma_erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE);
+		if (error)
 			return (error);
 
 		if ((error = bcma_erom_parse_core(erom, &prev_core)))
@@ -766,12 +1095,13 @@ bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 		}
 
 		/* Seek to next core */
-		if ((error = erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE)))
+		error = bcma_erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE);
+		if (error)
 			return (error);
 	}
 
 	/* We already parsed the core descriptor */
-	if ((error = erom_skip_core(erom)))
+	if ((error = bcma_erom_skip_core(erom)))
 		return (error);
 
 	/* Allocate our corecfg */
@@ -857,7 +1187,7 @@ bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 	
 	/* Device/bridge port descriptors */
 	for (uint8_t sp_num = 0; sp_num < core.num_dport; sp_num++) {
-		error = erom_corecfg_fill_port_regions(erom, cfg, sp_num,
+		error = bcma_erom_corecfg_fill_port_regions(erom, cfg, sp_num,
 		    first_region_type);
 
 		if (error)
@@ -866,7 +1196,7 @@ bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 
 	/* Wrapper (aka device management) descriptors (for master ports). */
 	for (uint8_t sp_num = 0; sp_num < core.num_mwrap; sp_num++) {
-		error = erom_corecfg_fill_port_regions(erom, cfg, sp_num,
+		error = bcma_erom_corecfg_fill_port_regions(erom, cfg, sp_num,
 		    BCMA_EROM_REGION_TYPE_MWRAP);
 
 		if (error)
@@ -898,10 +1228,23 @@ bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 		sp_num = (core.num_mwrap > 0) ?
 				core.num_mwrap :
 				((core.vendor == BHND_MFGID_BCM) ? 1 : 0) + i;
-		error = erom_corecfg_fill_port_regions(erom, cfg, sp_num,
+		error = bcma_erom_corecfg_fill_port_regions(erom, cfg, sp_num,
 		    BCMA_EROM_REGION_TYPE_SWRAP);
 
 		if (error)
+			goto failed;
+	}
+
+	/*
+	 * Seek to the next core entry (if any), skipping any dangling/invalid
+	 * region entries.
+	 * 
+	 * On the BCM4706, the EROM entry for the memory controller core
+	 * (0x4bf/0x52E) contains a dangling/unused slave wrapper port region
+	 * descriptor.
+	 */
+	if ((error = bcma_erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE))) {
+		if (error != ENOENT)
 			goto failed;
 	}
 
@@ -914,3 +1257,169 @@ failed:
 
 	return error;
 }
+
+static int
+bcma_erom_dump(bhnd_erom_t *erom)
+{
+	struct bcma_erom	*sc;
+	uint32_t		entry;
+	int			error;
+
+	sc = (struct bcma_erom *)erom;
+
+	bcma_erom_reset(sc);
+
+	while (!(error = bcma_erom_read32(sc, &entry))) {
+		/* Handle EOF */
+		if (entry == BCMA_EROM_TABLE_EOF) {
+			EROM_LOG(sc, "EOF\n");
+			return (0);
+		}
+
+		/* Invalid entry */
+		if (!BCMA_EROM_GET_ATTR(entry, ENTRY_ISVALID)) {
+			EROM_LOG(sc, "invalid EROM entry %#x\n", entry);
+			return (EINVAL);
+		}
+
+		switch (BCMA_EROM_GET_ATTR(entry, ENTRY_TYPE)) {
+		case BCMA_EROM_ENTRY_TYPE_CORE: {
+			/* CoreDescA */
+			EROM_LOG(sc, "coreA (0x%x)\n", entry);
+			EROM_LOG(sc, "\tdesigner:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREA_DESIGNER));
+			EROM_LOG(sc, "\tid:\t\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREA_ID));
+			EROM_LOG(sc, "\tclass:\t\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREA_CLASS));
+
+			/* CoreDescB */
+			if ((error = bcma_erom_read32(sc, &entry))) {
+				EROM_LOG(sc, "error reading CoreDescB: %d\n",
+				    error);
+				return (error);
+			}
+
+			if (!BCMA_EROM_ENTRY_IS(entry, CORE)) {
+				EROM_LOG(sc, "invalid core descriptor; found "
+				    "unexpected entry %#x (type=%s)\n",
+				    entry, bcma_erom_entry_type_name(entry));
+				return (EINVAL);
+			}
+
+			EROM_LOG(sc, "coreB (0x%x)\n", entry);
+			EROM_LOG(sc, "\trev:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREB_REV));
+			EROM_LOG(sc, "\tnummp:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREB_NUM_MP));
+			EROM_LOG(sc, "\tnumdp:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREB_NUM_DP));
+			EROM_LOG(sc, "\tnumwmp:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREB_NUM_WMP));
+			EROM_LOG(sc, "\tnumwsp:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, COREB_NUM_WMP));
+
+			break;
+		}
+		case BCMA_EROM_ENTRY_TYPE_MPORT:
+			EROM_LOG(sc, "\tmport 0x%x\n", entry);
+			EROM_LOG(sc, "\t\tport:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, MPORT_NUM));
+			EROM_LOG(sc, "\t\tid:\t\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, MPORT_ID));
+			break;
+
+		case BCMA_EROM_ENTRY_TYPE_REGION: {
+			bool	addr64;
+			uint8_t	size_type;
+
+			addr64 = (BCMA_EROM_GET_ATTR(entry, REGION_64BIT) != 0);
+			size_type = BCMA_EROM_GET_ATTR(entry, REGION_SIZE);
+
+			EROM_LOG(sc, "\tregion 0x%x:\n", entry);
+			EROM_LOG(sc, "\t\t%s:\t0x%x\n",
+			    addr64 ? "baselo" : "base",
+			    BCMA_EROM_GET_ATTR(entry, REGION_BASE));
+			EROM_LOG(sc, "\t\tport:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, REGION_PORT));
+			EROM_LOG(sc, "\t\ttype:\t0x%x\n",
+			    BCMA_EROM_GET_ATTR(entry, REGION_TYPE));
+			EROM_LOG(sc, "\t\tsztype:\t0x%hhx\n", size_type);
+
+			/* Read the base address high bits */
+			if (addr64) {
+				if ((error = bcma_erom_read32(sc, &entry))) {
+					EROM_LOG(sc, "error reading region "
+					    "base address high bits %d\n",
+					    error);
+					return (error);
+				}
+
+				EROM_LOG(sc, "\t\tbasehi:\t0x%x\n", entry);
+			}
+
+			/* Read extended size descriptor */
+			if (size_type == BCMA_EROM_REGION_SIZE_OTHER) {
+				bool size64;
+
+				if ((error = bcma_erom_read32(sc, &entry))) {
+					EROM_LOG(sc, "error reading region "
+					    "size descriptor %d\n",
+					    error);
+					return (error);
+				}
+
+				if (BCMA_EROM_GET_ATTR(entry, RSIZE_64BIT))
+					size64 = true;
+				else
+					size64 = false;
+
+				EROM_LOG(sc, "\t\t%s:\t0x%x\n",
+				    size64 ? "sizelo" : "size",
+				    BCMA_EROM_GET_ATTR(entry, RSIZE_VAL));
+
+				if (size64) {
+					error = bcma_erom_read32(sc, &entry);
+					if (error) {
+						EROM_LOG(sc, "error reading "
+						    "region size high bits: "
+						    "%d\n", error);
+						return (error);
+					}
+
+					EROM_LOG(sc, "\t\tsizehi:\t0x%x\n",
+					    entry);
+				}
+			}
+			break;
+		}
+
+		default:
+			EROM_LOG(sc, "unknown EROM entry 0x%x (type=%s)\n",
+			    entry, bcma_erom_entry_type_name(entry));
+			return (EINVAL);
+		}
+	}
+
+	if (error == ENOENT)
+		EROM_LOG(sc, "BCMA EROM table missing terminating EOF\n");
+	else if (error)
+		EROM_LOG(sc, "EROM read failed: %d\n", error);
+
+	return (error);
+}
+
+static kobj_method_t bcma_erom_methods[] = {
+	KOBJMETHOD(bhnd_erom_probe,		bcma_erom_probe),
+	KOBJMETHOD(bhnd_erom_init,		bcma_erom_init),
+	KOBJMETHOD(bhnd_erom_fini,		bcma_erom_fini),
+	KOBJMETHOD(bhnd_erom_get_core_table,	bcma_erom_get_core_table),
+	KOBJMETHOD(bhnd_erom_free_core_table,	bcma_erom_free_core_table),
+	KOBJMETHOD(bhnd_erom_lookup_core,	bcma_erom_lookup_core),
+	KOBJMETHOD(bhnd_erom_lookup_core_addr,	bcma_erom_lookup_core_addr),
+	KOBJMETHOD(bhnd_erom_dump,		bcma_erom_dump),
+
+	KOBJMETHOD_END
+};
+
+BHND_EROM_DEFINE_CLASS(bcma_erom, bcma_erom_parser, bcma_erom_methods, sizeof(struct bcma_erom));

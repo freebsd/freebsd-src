@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/uio.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -378,7 +377,7 @@ fpgamgr_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "altr,fpga-mgr"))
+	if (!ofw_bus_is_compatible(dev, "altr,socfpga-fpga-mgr"))
 		return (ENXIO);
 
 	device_set_desc(dev, "FPGA Manager");

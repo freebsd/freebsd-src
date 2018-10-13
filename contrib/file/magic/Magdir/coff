@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: coff,v 1.1 2015/09/30 20:32:35 christos Exp $
+# $File: coff,v 1.2 2017/03/17 21:35:28 christos Exp $
 # coff: file(1) magic for Common Object Files not specific to known cpu types or manufactures
 #
 # COFF
@@ -15,7 +15,7 @@
 # mips,motorola,msdos,osf1,sharc,varied.out,vax
 0	name				display-coff
 # test for unused flag bits (0x8000,0x0800,0x0400,0x0200,x0080) in f_flags
->18	uleshort&0x8E80	0		
+>18	uleshort&0x8E80	0
 >>0	clear		x
 # f_magic - magic number
 # DJGPP, 80386 COFF executable, MS Windows COFF Intel 80386 object file (./intel)
@@ -25,7 +25,7 @@
 # Hitachi SH little-endian COFF (./hitachi-sh)
 >>0	uleshort	0x0550		Hitachi SH little-endian
 # executable (RISC System/6000 V3.1) or obj module (./ibm6000)
-#>>0	uleshort	0x01DF		
+#>>0	uleshort	0x01DF
 # TODO for other COFFs
 #>>0	uleshort	0xABCD		COFF_TEMPLATE
 >>0	default		x
@@ -45,12 +45,12 @@
 >>18	leshort		&0x0008		\b, stripped
 >>18	leshort		^0x0008		\b, not stripped
 # flags in other COFF versions
-#0x0010    F_FDPR_PROF 
+#0x0010    F_FDPR_PROF
 #0x0020    F_FDPR_OPTI
 #0x0040    F_DSA
 # F_AR32WR flag bit
 #>>>18	leshort		&0x0100		\b, 32 bit little endian
-#0x1000    F_DYNLOAD 
+#0x1000    F_DYNLOAD
 #0x2000    F_SHROBJ
 #0x4000    F_LOADONLY
 # f_nscns - number of sections
@@ -62,7 +62,7 @@
 >>8	ulelong		>0		\b, symbol offset=0x%x
 # f_nsyms - number of symbols, only for not stripped
 >>12	ulelong		>0		\b, %d symbols
-# f_opthdr - optional header size 
+# f_opthdr - optional header size
 >>16	uleshort	>0		\b, optional header size %d
 # at offset 20 can be optional header, extra bytes FILHSZ-20 because
 # do not rely on sizeof(FILHDR) to give the correct size for header.

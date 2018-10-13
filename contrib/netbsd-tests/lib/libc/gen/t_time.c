@@ -1,4 +1,4 @@
-/*	$NetBSD: t_time.c,v 1.2 2011/11/11 05:03:38 jruoho Exp $ */
+/*	$NetBSD: t_time.c,v 1.4 2017/01/10 15:32:46 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,11 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_time.c,v 1.2 2011/11/11 05:03:38 jruoho Exp $");
+__RCSID("$NetBSD: t_time.c,v 1.4 2017/01/10 15:32:46 christos Exp $");
 
-#ifdef __FreeBSD__
-#include <sys/time.h>
-#endif
 #include <atf-c.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -41,6 +38,7 @@ __RCSID("$NetBSD: t_time.c,v 1.2 2011/11/11 05:03:38 jruoho Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 ATF_TC(time_copy);
@@ -94,15 +92,16 @@ ATF_TC_HEAD(time_timeofday, tc)
 ATF_TC_BODY(time_timeofday, tc)
 {
 	struct timeval tv = { 0, 0 };
-	time_t t;
+	time_t t1, t2;
 
-	t = time(NULL);
+	t1 = time(NULL);
 	ATF_REQUIRE(gettimeofday(&tv, NULL) == 0);
+	t2 = time(NULL);
 
 	(void)fprintf(stderr, "%"PRId64" vs. %"PRId64"\n",
-	    (int64_t)t, (int64_t)tv.tv_sec);
+	    (int64_t)t1, (int64_t)tv.tv_sec);
 
-	if (t != tv.tv_sec)
+	if (t1 > tv.tv_sec || t2 < tv.tv_sec)
 		atf_tc_fail("time(3) and gettimeofday(2) differ");
 }
 

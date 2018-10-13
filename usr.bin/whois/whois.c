@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -119,11 +121,37 @@ static struct {
 	{ NULL, 0 }
 };
 
+/*
+ * We have a list of patterns for RIRs that assert ignorance rather than
+ * providing referrals. If that happens, we guess that ARIN will be more
+ * helpful. But, before following a referral to an RIR, we check if we have
+ * asked that RIR already, and if so we make another guess.
+ */
 static const char *actually_arin[] = {
 	"netname:        ERX-NETBLOCK\n", /* APNIC */
 	"netname:        NON-RIPE-NCC-MANAGED-ADDRESS-BLOCK\n",
 	NULL
 };
+
+static struct {
+	int loop;
+	const char *host;
+} try_rir[] = {
+	{ 0, ANICHOST },
+	{ 0, RNICHOST },
+	{ 0, PNICHOST },
+	{ 0, FNICHOST },
+	{ 0, LNICHOST },
+	{ 0, NULL }
+};
+
+static void
+reset_rir(void) {
+	int i;
+
+	for (i = 0; try_rir[i].host != NULL; i++)
+		try_rir[i].loop = 0;
+}
 
 static const char *port = DEFAULT_PORT;
 
@@ -232,6 +260,7 @@ main(int argc, char *argv[])
 		} else
 			whois(*argv, host != NULL ? host :
 			      choose_server(*argv), flags);
+		reset_rir();
 		argv++;
 	}
 	exit(0);
@@ -420,7 +449,7 @@ whois(const char *query, const char *hostname, int flags)
 	FILE *fp;
 	struct addrinfo *hostres;
 	char *buf, *host, *nhost, *p;
-	int s, f;
+	int comment, s, f;
 	size_t len, i;
 
 	hostres = gethostinfo(hostname, 1);
@@ -467,12 +496,28 @@ whois(const char *query, const char *hostname, int flags)
 		fprintf(fp, "%s\r\n", query);
 	fflush(fp);
 
+	comment = 0;
+	if (!(flags & WHOIS_SPAM_ME) &&
+	    (strcasecmp(hostname, ANICHOST) == 0 ||
+	     strcasecmp(hostname, RNICHOST) == 0)) {
+		comment = 2;
+	}
+
 	nhost = NULL;
 	while ((buf = fgetln(fp, &len)) != NULL) {
 		/* Nominet */
 		if (!(flags & WHOIS_SPAM_ME) &&
 		    len == 5 && strncmp(buf, "-- \r\n", 5) == 0)
 			break;
+		/* RIRs */
+		if (comment == 1 && buf[0] == '#')
+			break;
+		else if (comment == 2) {
+			if (strchr("#%\r\n", buf[0]) != NULL)
+				continue;
+			else
+				comment = 1;
+		}
 
 		printf("%.*s", (int)len, buf);
 
@@ -487,8 +532,7 @@ whois(const char *query, const char *hostname, int flags)
 				SCAN(p, buf+len, *p == ' ');
 				host = p;
 				SCAN(p, buf+len, ishost(*p));
-				/* avoid loops */
-				if (strncmp(hostname, host, p - host) != 0)
+				if (p > host)
 					s_asprintf(&nhost, "%.*s",
 						   (int)(p - host), host);
 				break;
@@ -511,8 +555,37 @@ whois(const char *query, const char *hostname, int flags)
 	}
 	fclose(fp);
 	freeaddrinfo(hostres);
+
+	f = 0;
+	for (i = 0; try_rir[i].host != NULL; i++) {
+		/* Remember visits to RIRs */
+		if (try_rir[i].loop == 0 &&
+		    strcasecmp(try_rir[i].host, hostname) == 0)
+			try_rir[i].loop = 1;
+		/* Do we need to find an alternative RIR? */
+		if (try_rir[i].loop != 0 && nhost != NULL &&
+		    strcasecmp(try_rir[i].host, nhost) == 0) {
+			    free(nhost);
+			    nhost = NULL;
+			    f = 1;
+		}
+	}
+	if (f) {
+		/* Find a replacement RIR */
+		for (i = 0; try_rir[i].host != NULL; i++) {
+			if (try_rir[i].loop == 0) {
+				s_asprintf(&nhost, "%s",
+					try_rir[i].host);
+				break;
+			}
+		}
+	}
 	if (nhost != NULL) {
-		whois(query, nhost, flags);
+		/* Ignore self-referrals */
+		if (strcasecmp(hostname, nhost) != 0) {
+			printf("# %s\n\n", nhost);
+			whois(query, nhost, flags);
+		}
 		free(nhost);
 	}
 }

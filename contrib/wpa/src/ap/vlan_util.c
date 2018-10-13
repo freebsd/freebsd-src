@@ -7,18 +7,10 @@
  */
 
 #include "utils/includes.h"
-#include <sys/ioctl.h>
-#include <linux/sockios.h>
-#include <linux/if_vlan.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/family.h>
-#include <netlink/genl/ctrl.h>
 #include <netlink/route/link.h>
 #include <netlink/route/link/vlan.h>
 
 #include "utils/common.h"
-#include "utils/eloop.h"
-#include "hostapd.h"
 #include "vlan_util.h"
 
 /*
@@ -33,7 +25,6 @@ int vlan_add(const char *if_name, int vid, const char *vlan_if_name)
 {
 	int err, ret = -1;
 	struct nl_sock *handle = NULL;
-	struct nl_cache *cache = NULL;
 	struct rtnl_link *rlink = NULL;
 	int if_idx = 0;
 
@@ -65,22 +56,19 @@ int vlan_add(const char *if_name, int vid, const char *vlan_if_name)
 		goto vlan_add_error;
 	}
 
-	err = rtnl_link_alloc_cache(handle, AF_UNSPEC, &cache);
+	err = rtnl_link_get_kernel(handle, 0, if_name, &rlink);
 	if (err < 0) {
-		cache = NULL;
-		wpa_printf(MSG_ERROR, "VLAN: failed to alloc cache: %s",
-			   nl_geterror(err));
-		goto vlan_add_error;
-	}
-
-	if (!(if_idx = rtnl_link_name2i(cache, if_name))) {
 		/* link does not exist */
 		wpa_printf(MSG_ERROR, "VLAN: interface %s does not exist",
 			   if_name);
 		goto vlan_add_error;
 	}
+	if_idx = rtnl_link_get_ifindex(rlink);
+	rtnl_link_put(rlink);
+	rlink = NULL;
 
-	if ((rlink = rtnl_link_get_by_name(cache, vlan_if_name))) {
+	err = rtnl_link_get_kernel(handle, 0, vlan_if_name, &rlink);
+	if (err >= 0) {
 		/* link does exist */
 		rtnl_link_put(rlink);
 		rlink = NULL;
@@ -127,8 +115,6 @@ int vlan_add(const char *if_name, int vid, const char *vlan_if_name)
 vlan_add_error:
 	if (rlink)
 		rtnl_link_put(rlink);
-	if (cache)
-		nl_cache_free(cache);
 	if (handle)
 		nl_socket_free(handle);
 	return ret;
@@ -139,7 +125,6 @@ int vlan_rem(const char *if_name)
 {
 	int err, ret = -1;
 	struct nl_sock *handle = NULL;
-	struct nl_cache *cache = NULL;
 	struct rtnl_link *rlink = NULL;
 
 	wpa_printf(MSG_DEBUG, "VLAN: vlan_rem(if_name=%s)", if_name);
@@ -157,15 +142,8 @@ int vlan_rem(const char *if_name)
 		goto vlan_rem_error;
 	}
 
-	err = rtnl_link_alloc_cache(handle, AF_UNSPEC, &cache);
+	err = rtnl_link_get_kernel(handle, 0, if_name, &rlink);
 	if (err < 0) {
-		cache = NULL;
-		wpa_printf(MSG_ERROR, "VLAN: failed to alloc cache: %s",
-			   nl_geterror(err));
-		goto vlan_rem_error;
-	}
-
-	if (!(rlink = rtnl_link_get_by_name(cache, if_name))) {
 		/* link does not exist */
 		wpa_printf(MSG_ERROR, "VLAN: interface %s does not exists",
 			   if_name);
@@ -184,9 +162,13 @@ int vlan_rem(const char *if_name)
 vlan_rem_error:
 	if (rlink)
 		rtnl_link_put(rlink);
-	if (cache)
-		nl_cache_free(cache);
 	if (handle)
 		nl_socket_free(handle);
 	return ret;
+}
+
+
+int vlan_set_name_type(unsigned int name_type)
+{
+	return 0;
 }

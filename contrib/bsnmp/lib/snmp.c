@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -19,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,19 +38,21 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <ctype.h>
+#include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #elif defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
 #endif
-#include <string.h>
-#include <ctype.h>
-#include <netdb.h>
-#include <errno.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "asn1.h"
 #include "snmp.h"
@@ -288,7 +290,7 @@ parse_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 	memset(buf, 0, 256);
 	tb.asn_ptr = buf;
 	tb.asn_len = 256;
-	u_int len;
+	u_int len = 256;
 
 	if (asn_get_octetstring(b, buf, &len) != ASN_ERR_OK) {
 		snmp_error("cannot parse usm header");
@@ -355,8 +357,8 @@ static enum snmp_code
 pdu_encode_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 {
 	u_char buf[256], *sptr;
-        struct asn_buf tb;
-        size_t auth_off, moved = 0;
+	struct asn_buf tb;
+	size_t auth_off, moved = 0;
 
 	auth_off = 0;
 	memset(buf, 0, 256);
@@ -682,7 +684,7 @@ snmp_pdu_snoop(const struct asn_buf *b0)
 	struct asn_buf b = *b0;
 
 	/* <0x10|0x20> <len> <data...> */
-	
+
 	if (b.asn_len == 0)
 		return (0);
 	if (b.asn_cptr[0] != (ASN_TYPE_SEQUENCE | ASN_TYPE_CONSTRUCTED)) {
@@ -757,7 +759,7 @@ snmp_pdu_encode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 		if (asn_put_temp_header(b, (ASN_TYPE_SEQUENCE |
 		    ASN_TYPE_CONSTRUCTED), &v3_hdr_ptr) != ASN_ERR_OK)
 			return (SNMP_CODE_FAILED);
-	
+
 		if (asn_put_integer(b, pdu->identifier) != ASN_ERR_OK)
 			return (SNMP_CODE_FAILED);
 
@@ -1152,8 +1154,11 @@ snmp_pdu_dump(const struct snmp_pdu *pdu)
 void
 snmp_value_free(struct snmp_value *value)
 {
-	if (value->syntax == SNMP_SYNTAX_OCTETSTRING)
+
+	if (value->syntax == SNMP_SYNTAX_OCTETSTRING) {
 		free(value->v.octetstring.octets);
+		value->v.octetstring.octets = NULL;
+	}
 	value->syntax = SNMP_SYNTAX_NULL;
 }
 
@@ -1214,6 +1219,7 @@ snmp_pdu_free(struct snmp_pdu *pdu)
 
 	for (i = 0; i < pdu->nbindings; i++)
 		snmp_value_free(&pdu->bindings[i]);
+	pdu->nbindings = 0;
 }
 
 /*
@@ -1384,29 +1390,16 @@ snmp_value_parse(const char *str, enum snmp_syntax syntax, union snmp_values *v)
 	  case SNMP_SYNTAX_IPADDRESS:
 	    {
 		struct hostent *he;
-		u_long ip[4];
-		int n;
 
-		if (sscanf(str, "%lu.%lu.%lu.%lu%n", &ip[0], &ip[1], &ip[2],
-		    &ip[3], &n) == 4 && (size_t)n == strlen(str) &&
-		    ip[0] <= 0xff && ip[1] <= 0xff &&
-		    ip[2] <= 0xff && ip[3] <= 0xff) {
-			v->ipaddress[0] = (u_char)ip[0];
-			v->ipaddress[1] = (u_char)ip[1];
-			v->ipaddress[2] = (u_char)ip[2];
-			v->ipaddress[3] = (u_char)ip[3];
+		if (inet_pton(AF_INET, str, &v->ipaddress) == 1)
 			return (0);
-		}
-
-		if ((he = gethostbyname(str)) == NULL)
+		if ((he = gethostbyname2(str, AF_INET)) == NULL)
 			return (-1);
 		if (he->h_addrtype != AF_INET)
 			return (-1);
 
-		v->ipaddress[0] = he->h_addr[0];
-		v->ipaddress[1] = he->h_addr[1];
-		v->ipaddress[2] = he->h_addr[2];
-		v->ipaddress[3] = he->h_addr[3];
+		memcpy(v->ipaddress, he->h_addr, sizeof(v->ipaddress));
+
 		return (0);
 	    }
 

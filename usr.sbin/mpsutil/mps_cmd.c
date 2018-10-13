@@ -365,8 +365,7 @@ mps_read_config_page(int fd, U8 PageType, U8 PageNumber, U32 PageAddress,
 	req.Action = MPI2_CONFIG_ACTION_PAGE_READ_CURRENT;
 	req.PageAddress = PageAddress;
 	req.Header = header;
-	req.Header.PageLength = reply.Header.PageLength;
-	if (reply.Header.PageLength == 0)
+	if (req.Header.PageLength == 0)
 		req.Header.PageLength = 4;
 
 	len = req.Header.PageLength * 4;
@@ -486,7 +485,7 @@ mps_firmware_get(int fd, unsigned char **firmware, bool bios)
 	}
 
 	size = reply.ActualImageSize;
-	*firmware = calloc(1, sizeof(unsigned char) * size);
+	*firmware = calloc(size, sizeof(unsigned char));
 	if (*firmware == NULL) {
 		warn("calloc");
 		return (-1);

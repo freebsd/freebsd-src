@@ -308,7 +308,7 @@ unmap_uint(apr_uint64_t value)
  * are no sub-streams).
  */
 static void
-svn_packed__data_flush_buffer(svn_packed__int_stream_t *stream)
+data_flush_buffer(svn_packed__int_stream_t *stream)
 {
   packed_int_private_t *private_data = stream->private_data;
   apr_size_t i;
@@ -382,7 +382,7 @@ svn_packed__add_uint(svn_packed__int_stream_t *stream,
 {
   stream->buffer[stream->buffer_used] = value;
   if (++stream->buffer_used == SVN__PACKED_DATA_BUFFER_SIZE)
-    svn_packed__data_flush_buffer(stream);
+    data_flush_buffer(stream);
 }
 
 void
@@ -435,7 +435,7 @@ write_int_stream_structure(svn_stringbuf_t* tree_struct,
                                    + (private_data->is_signed ? 2 : 0));
 
       /* store item count and length their of packed representation */
-      svn_packed__data_flush_buffer(stream);
+      data_flush_buffer(stream);
 
       write_packed_uint(tree_struct, private_data->item_count);
       write_packed_uint(tree_struct, private_data->packed
@@ -561,9 +561,9 @@ write_stream_data(svn_stream_t *stream,
                   svn_stringbuf_t *uncompressed,
                   svn_stringbuf_t *compressed)
 {
-  SVN_ERR(svn__compress(uncompressed,
-                        compressed,
-                        SVN_DELTA_COMPRESSION_LEVEL_DEFAULT));
+  SVN_ERR(svn__compress_zlib(uncompressed->data, uncompressed->len,
+                             compressed,
+                             SVN_DELTA_COMPRESSION_LEVEL_DEFAULT));
 
   SVN_ERR(write_stream_uint(stream, compressed->len));
   SVN_ERR(svn_stream_write(stream, compressed->data, &compressed->len));
@@ -674,6 +674,12 @@ apr_size_t
 svn_packed__byte_count(svn_packed__byte_stream_t *stream)
 {
   return stream->packed->len;
+}
+
+apr_size_t
+svn_packed__byte_block_count(svn_packed__byte_stream_t *stream)
+{
+  return svn_packed__int_count(stream->lengths_stream);
 }
 
 /* Read one 7b/8b encoded value from *P and return it in *RESULT.  Returns
@@ -972,7 +978,8 @@ read_stream_data(svn_stream_t *stream,
   SVN_ERR(svn_stream_read_full(stream, compressed->data, &compressed->len));
   compressed->data[compressed_len] = '\0';
 
-  SVN_ERR(svn__decompress(compressed, uncompressed, uncompressed_len));
+  SVN_ERR(svn__decompress_zlib(compressed->data, compressed->len,
+                               uncompressed, uncompressed_len));
 
   return SVN_NO_ERROR;
 }

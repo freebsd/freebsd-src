@@ -32,5 +32,6 @@ echo "========================"
 echo
 
 echo "Please select a password for the system management account (root):"
+echo "Typed characters will not be visible."
 
 chroot $BSDINSTALL_CHROOT passwd root 2>&1

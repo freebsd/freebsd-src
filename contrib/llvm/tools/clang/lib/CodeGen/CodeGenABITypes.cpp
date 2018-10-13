@@ -17,6 +17,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CodeGen/CodeGenABITypes.h"
+#include "CGRecordLayout.h"
 #include "CodeGenModule.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/CodeGenOptions.h"
@@ -26,45 +27,63 @@
 using namespace clang;
 using namespace CodeGen;
 
-CodeGenABITypes::CodeGenABITypes(ASTContext &C, llvm::Module &M,
-                                 CoverageSourceInfo *CoverageInfo)
-    : CGO(new CodeGenOptions), HSO(new HeaderSearchOptions),
-      PPO(new PreprocessorOptions),
-      CGM(new CodeGen::CodeGenModule(C, *HSO, *PPO, *CGO, M, C.getDiagnostics(),
-                                     CoverageInfo)) {}
-
-// Explicitly out-of-line because ~CodeGenModule() is private but
-// CodeGenABITypes.h is part of clang's API.
-CodeGenABITypes::~CodeGenABITypes() = default;
-
 const CGFunctionInfo &
-CodeGenABITypes::arrangeObjCMessageSendSignature(const ObjCMethodDecl *MD,
-                                                 QualType receiverType) {
-  return CGM->getTypes().arrangeObjCMessageSendSignature(MD, receiverType);
+CodeGen::arrangeObjCMessageSendSignature(CodeGenModule &CGM,
+                                         const ObjCMethodDecl *MD,
+                                         QualType receiverType) {
+  return CGM.getTypes().arrangeObjCMessageSendSignature(MD, receiverType);
 }
 
 const CGFunctionInfo &
-CodeGenABITypes::arrangeFreeFunctionType(CanQual<FunctionProtoType> Ty,
-                                         const FunctionDecl *FD) {
-  return CGM->getTypes().arrangeFreeFunctionType(Ty, FD);
+CodeGen::arrangeFreeFunctionType(CodeGenModule &CGM,
+                                 CanQual<FunctionProtoType> Ty,
+                                 const FunctionDecl *FD) {
+  return CGM.getTypes().arrangeFreeFunctionType(Ty, FD);
 }
 
 const CGFunctionInfo &
-CodeGenABITypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> Ty) {
-  return CGM->getTypes().arrangeFreeFunctionType(Ty);
+CodeGen::arrangeFreeFunctionType(CodeGenModule &CGM,
+                                 CanQual<FunctionNoProtoType> Ty) {
+  return CGM.getTypes().arrangeFreeFunctionType(Ty);
 }
 
 const CGFunctionInfo &
-CodeGenABITypes::arrangeCXXMethodType(const CXXRecordDecl *RD,
-                                      const FunctionProtoType *FTP,
-                                      const CXXMethodDecl *MD) {
-  return CGM->getTypes().arrangeCXXMethodType(RD, FTP, MD);
+CodeGen::arrangeCXXMethodType(CodeGenModule &CGM,
+                              const CXXRecordDecl *RD,
+                              const FunctionProtoType *FTP,
+                              const CXXMethodDecl *MD) {
+  return CGM.getTypes().arrangeCXXMethodType(RD, FTP, MD);
 }
 
-const CGFunctionInfo &CodeGenABITypes::arrangeFreeFunctionCall(
-    CanQualType returnType, ArrayRef<CanQualType> argTypes,
-    FunctionType::ExtInfo info, RequiredArgs args) {
-  return CGM->getTypes().arrangeLLVMFunctionInfo(
+const CGFunctionInfo &
+CodeGen::arrangeFreeFunctionCall(CodeGenModule &CGM,
+                                 CanQualType returnType,
+                                 ArrayRef<CanQualType> argTypes,
+                                 FunctionType::ExtInfo info,
+                                 RequiredArgs args) {
+  return CGM.getTypes().arrangeLLVMFunctionInfo(
       returnType, /*IsInstanceMethod=*/false, /*IsChainCall=*/false, argTypes,
-      info, args);
+      info, {}, args);
+}
+
+llvm::FunctionType *
+CodeGen::convertFreeFunctionType(CodeGenModule &CGM, const FunctionDecl *FD) {
+  assert(FD != nullptr && "Expected a non-null function declaration!");
+  llvm::Type *T = CGM.getTypes().ConvertFunctionType(FD->getType(), FD);
+
+  if (auto FT = dyn_cast<llvm::FunctionType>(T))
+    return FT;
+
+  return nullptr;
+}
+
+llvm::Type *
+CodeGen::convertTypeForMemory(CodeGenModule &CGM, QualType T) {
+  return CGM.getTypes().ConvertTypeForMem(T);
+}
+
+unsigned CodeGen::getLLVMFieldNumber(CodeGenModule &CGM,
+                                     const RecordDecl *RD,
+                                     const FieldDecl *FD) {
+  return CGM.getTypes().getCGRecordLayout(RD).getLLVMFieldNo(FD);
 }

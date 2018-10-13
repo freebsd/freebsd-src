@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs_vnops.c,v 1.39 2007/07/23 15:41:01 jmmv Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,9 +39,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/dirent.h>
 #include <sys/fcntl.h>
+#include <sys/limits.h>
 #include <sys/lockf.h>
 #include <sys/lock.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -76,13 +81,11 @@ tmpfs_vn_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
 }
 
 static int
-tmpfs_lookup(struct vop_cachedlookup_args *v)
+tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
-	struct vnode *dvp = v->a_dvp;
-	struct vnode **vpp = v->a_vpp;
-	struct componentname *cnp = v->a_cnp;
 	struct tmpfs_dirent *de;
-	struct tmpfs_node *dnode;
+	struct tmpfs_node *dnode, *pnode;
+	struct tmpfs_mount *tm;
 	int error;
 
 	dnode = VP_TO_TMPFS_DIR(dvp);
@@ -104,8 +107,12 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		goto out;
 	}
 	if (cnp->cn_flags & ISDOTDOT) {
+		tm = VFS_TO_TMPFS(dvp->v_mount);
+		pnode = dnode->tn_dir.tn_parent;
+		tmpfs_ref_node(pnode);
 		error = vn_vget_ino_gen(dvp, tmpfs_vn_get_ino_alloc,
-		    dnode->tn_dir.tn_parent, cnp->cn_lkflags, vpp);
+		    pnode, cnp->cn_lkflags, vpp);
+		tmpfs_free_node(tm, pnode);
 		if (error != 0)
 			goto out;
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
@@ -117,10 +124,12 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		if (de != NULL && de->td_node == NULL)
 			cnp->cn_flags |= ISWHITEOUT;
 		if (de == NULL || de->td_node == NULL) {
-			/* The entry was not found in the directory.
+			/*
+			 * The entry was not found in the directory.
 			 * This is OK if we are creating or renaming an
 			 * entry and are working on the last component of
-			 * the path name. */
+			 * the path name.
+			 */
 			if ((cnp->cn_flags & ISLASTCN) &&
 			    (cnp->cn_nameiop == CREATE || \
 			    cnp->cn_nameiop == RENAME ||
@@ -132,8 +141,10 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 				if (error != 0)
 					goto out;
 
-				/* Keep the component name in the buffer for
-				 * future uses. */
+				/*
+				 * Keep the component name in the buffer for
+				 * future uses.
+				 */
 				cnp->cn_flags |= SAVENAME;
 
 				error = EJUSTRETURN;
@@ -142,14 +153,18 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		} else {
 			struct tmpfs_node *tnode;
 
-			/* The entry was found, so get its associated
-			 * tmpfs_node. */
+			/*
+			 * The entry was found, so get its associated
+			 * tmpfs_node.
+			 */
 			tnode = de->td_node;
 
-			/* If we are not at the last path component and
+			/*
+			 * If we are not at the last path component and
 			 * found a non-directory or non-link entry (which
 			 * may itself be pointing to a directory), raise
-			 * an error. */
+			 * an error.
+			 */
 			if ((tnode->tn_type != VDIR &&
 			    tnode->tn_type != VLNK) &&
 			    !(cnp->cn_flags & ISLASTCN)) {
@@ -157,9 +172,11 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 				goto out;
 			}
 
-			/* If we are deleting or renaming the entry, keep
+			/*
+			 * If we are deleting or renaming the entry, keep
 			 * track of its tmpfs_dirent so that it can be
-			 * easily deleted later. */
+			 * easily deleted later.
+			 */
 			if ((cnp->cn_flags & ISLASTCN) &&
 			    (cnp->cn_nameiop == DELETE ||
 			    cnp->cn_nameiop == RENAME)) {
@@ -175,8 +192,9 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 					goto out;
 
 				if ((dnode->tn_mode & S_ISTXT) &&
-				  VOP_ACCESS(dvp, VADMIN, cnp->cn_cred, cnp->cn_thread) &&
-				  VOP_ACCESS(*vpp, VADMIN, cnp->cn_cred, cnp->cn_thread)) {
+				  VOP_ACCESS(dvp, VADMIN, cnp->cn_cred,
+				  cnp->cn_thread) && VOP_ACCESS(*vpp, VADMIN,
+				  cnp->cn_cred, cnp->cn_thread)) {
 					error = EPERM;
 					vput(*vpp);
 					*vpp = NULL;
@@ -192,18 +210,36 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		}
 	}
 
-	/* Store the result of this lookup in the cache.  Avoid this if the
+	/*
+	 * Store the result of this lookup in the cache.  Avoid this if the
 	 * request was for creation, as it does not improve timings on
-	 * emprical tests. */
-	if ((cnp->cn_flags & MAKEENTRY) != 0)
+	 * emprical tests.
+	 */
+	if ((cnp->cn_flags & MAKEENTRY) != 0 && tmpfs_use_nc(dvp))
 		cache_enter(dvp, *vpp, cnp);
 
 out:
-	/* If there were no errors, *vpp cannot be null and it must be
-	 * locked. */
+	/*
+	 * If there were no errors, *vpp cannot be null and it must be
+	 * locked.
+	 */
 	MPASS(IFF(error == 0, *vpp != NULLVP && VOP_ISLOCKED(*vpp)));
 
-	return error;
+	return (error);
+}
+
+static int
+tmpfs_cached_lookup(struct vop_cachedlookup_args *v)
+{
+
+	return (tmpfs_lookup1(v->a_dvp, v->a_vpp, v->a_cnp));
+}
+
+static int
+tmpfs_lookup(struct vop_lookup_args *v)
+{
+
+	return (tmpfs_lookup1(v->a_dvp, v->a_vpp, v->a_cnp));
 }
 
 static int
@@ -218,7 +254,7 @@ tmpfs_create(struct vop_create_args *v)
 	MPASS(vap->va_type == VREG || vap->va_type == VSOCK);
 
 	error = tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
-	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0)
+	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0 && tmpfs_use_nc(dvp))
 		cache_enter(dvp, *vpp, cnp);
 	return (error);
 }
@@ -445,7 +481,7 @@ tmpfs_read(struct vop_read_args *v)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	node = VP_TO_TMPFS_NODE(vp);
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 	return (uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio));
 }
 
@@ -583,8 +619,8 @@ tmpfs_link(struct vop_link_args *v)
 
 	/* Ensure that we do not overflow the maximum number of links imposed
 	 * by the system. */
-	MPASS(node->tn_links <= LINK_MAX);
-	if (node->tn_links == LINK_MAX) {
+	MPASS(node->tn_links <= TMPFS_LINK_MAX);
+	if (node->tn_links == TMPFS_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -993,10 +1029,12 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	tmpfs_dir_attach(tdvp, de);
 
-	cache_purge(fvp);
-	if (tvp != NULL)
-		cache_purge(tvp);
-	cache_purge_negative(tdvp);
+	if (tmpfs_use_nc(fvp)) {
+		cache_purge(fvp);
+		if (tvp != NULL)
+			cache_purge(tvp);
+		cache_purge_negative(tdvp);
+	}
 
 	error = 0;
 
@@ -1082,8 +1120,8 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	    v->a_cnp->cn_namelen));
 
 	/* Check flags to see if we are allowed to remove the directory. */
-	if (dnode->tn_flags & APPEND
-		|| node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) {
+	if ((dnode->tn_flags & APPEND) != 0 ||
+	    (node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) != 0) {
 		error = EPERM;
 		goto out;
 	}
@@ -1096,23 +1134,23 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* No vnode should be allocated for this entry from this point */
 	TMPFS_NODE_LOCK(node);
-	TMPFS_ASSERT_ELOCKED(node);
 	node->tn_links--;
 	node->tn_dir.tn_parent = NULL;
-	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
+	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
 	    TMPFS_NODE_MODIFIED;
 
 	TMPFS_NODE_UNLOCK(node);
 
 	TMPFS_NODE_LOCK(dnode);
-	TMPFS_ASSERT_ELOCKED(dnode);
 	dnode->tn_links--;
-	dnode->tn_status |= TMPFS_NODE_ACCESSED | \
-	    TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
+	    TMPFS_NODE_MODIFIED;
 	TMPFS_NODE_UNLOCK(dnode);
 
-	cache_purge(dvp);
-	cache_purge(vp);
+	if (tmpfs_use_nc(dvp)) {
+		cache_purge(dvp);
+		cache_purge(vp);
+	}
 
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
@@ -1220,9 +1258,9 @@ tmpfs_readlink(struct vop_readlink_args *v)
 
 	error = uiomove(node->tn_link, MIN(node->tn_size, uio->uio_resid),
 	    uio);
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 
-	return error;
+	return (error);
 }
 
 static int
@@ -1256,10 +1294,10 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	else
 		vnode_destroy_vobject(vp);
 	vp->v_object = NULL;
-	cache_purge(vp);
+	if (tmpfs_use_nc(vp))
+		cache_purge(vp);
 
 	TMPFS_NODE_LOCK(node);
-	TMPFS_ASSERT_ELOCKED(node);
 	tmpfs_free_vp(vp);
 
 	/* If the node referenced by this vnode was deleted by the user,
@@ -1277,7 +1315,7 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	return 0;
 }
 
-static int
+int
 tmpfs_print(struct vop_print_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1286,8 +1324,8 @@ tmpfs_print(struct vop_print_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%lx, links %d\n",
-	    node, node->tn_flags, node->tn_links);
+	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%lx, links %jd\n",
+	    node, node->tn_flags, (uintmax_t)node->tn_links);
 	printf("\tmode 0%o, owner %d, group %d, size %jd, status 0x%x\n",
 	    node->tn_mode, node->tn_uid, node->tn_gid,
 	    (intmax_t)node->tn_size, node->tn_status);
@@ -1300,11 +1338,12 @@ tmpfs_print(struct vop_print_args *v)
 	return 0;
 }
 
-static int
+int
 tmpfs_pathconf(struct vop_pathconf_args *v)
 {
+	struct vnode *vp = v->a_vp;
 	int name = v->a_name;
-	register_t *retval = v->a_retval;
+	long *retval = v->a_retval;
 
 	int error;
 
@@ -1312,19 +1351,18 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 
 	switch (name) {
 	case _PC_LINK_MAX:
-		*retval = LINK_MAX;
+		*retval = TMPFS_LINK_MAX;
 		break;
 
 	case _PC_NAME_MAX:
 		*retval = NAME_MAX;
 		break;
 
-	case _PC_PATH_MAX:
-		*retval = PATH_MAX;
-		break;
-
 	case _PC_PIPE_BUF:
-		*retval = PIPE_BUF;
+		if (vp->v_type == VDIR || vp->v_type == VFIFO)
+			*retval = PIPE_BUF;
+		else
+			error = EINVAL;
 		break;
 
 	case _PC_CHOWN_RESTRICTED:
@@ -1340,11 +1378,11 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		break;
 
 	case _PC_FILESIZEBITS:
-		*retval = 0; /* XXX Don't know which value should I return. */
+		*retval = 64;
 		break;
 
 	default:
-		error = EINVAL;
+		error = vop_stdpathconf(v);
 	}
 
 	return error;
@@ -1389,13 +1427,139 @@ tmpfs_whiteout(struct vop_whiteout_args *ap)
 	}
 }
 
+static int
+tmpfs_vptocnp_dir(struct tmpfs_node *tn, struct tmpfs_node *tnp,
+    struct tmpfs_dirent **pde)
+{
+	struct tmpfs_dir_cursor dc;
+	struct tmpfs_dirent *de;
+
+	for (de = tmpfs_dir_first(tnp, &dc); de != NULL;
+	     de = tmpfs_dir_next(tnp, &dc)) {
+		if (de->td_node == tn) {
+			*pde = de;
+			return (0);
+		}
+	}
+	return (ENOENT);
+}
+
+static int
+tmpfs_vptocnp_fill(struct vnode *vp, struct tmpfs_node *tn,
+    struct tmpfs_node *tnp, char *buf, int *buflen, struct vnode **dvp)
+{
+	struct tmpfs_dirent *de;
+	int error, i;
+
+	error = vn_vget_ino_gen(vp, tmpfs_vn_get_ino_alloc, tnp, LK_SHARED,
+	    dvp);
+	if (error != 0)
+		return (error);
+	error = tmpfs_vptocnp_dir(tn, tnp, &de);
+	if (error == 0) {
+		i = *buflen;
+		i -= de->td_namelen;
+		if (i < 0) {
+			error = ENOMEM;
+		} else {
+			bcopy(de->ud.td_name, buf + i, de->td_namelen);
+			*buflen = i;
+		}
+	}
+	if (error == 0) {
+		if (vp != *dvp)
+			VOP_UNLOCK(*dvp, 0);
+	} else {
+		if (vp != *dvp)
+			vput(*dvp);
+		else
+			vrele(vp);
+	}
+	return (error);
+}
+
+static int
+tmpfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp, **dvp;
+	struct tmpfs_node *tn, *tnp, *tnp1;
+	struct tmpfs_dirent *de;
+	struct tmpfs_mount *tm;
+	char *buf;
+	int *buflen;
+	int error;
+
+	vp = ap->a_vp;
+	dvp = ap->a_vpp;
+	buf = ap->a_buf;
+	buflen = ap->a_buflen;
+
+	tm = VFS_TO_TMPFS(vp->v_mount);
+	tn = VP_TO_TMPFS_NODE(vp);
+	if (tn->tn_type == VDIR) {
+		tnp = tn->tn_dir.tn_parent;
+		if (tnp == NULL)
+			return (ENOENT);
+		tmpfs_ref_node(tnp);
+		error = tmpfs_vptocnp_fill(vp, tn, tn->tn_dir.tn_parent, buf,
+		    buflen, dvp);
+		tmpfs_free_node(tm, tnp);
+		return (error);
+	}
+restart:
+	TMPFS_LOCK(tm);
+	LIST_FOREACH_SAFE(tnp, &tm->tm_nodes_used, tn_entries, tnp1) {
+		if (tnp->tn_type != VDIR)
+			continue;
+		TMPFS_NODE_LOCK(tnp);
+		tmpfs_ref_node_locked(tnp);
+
+		/*
+		 * tn_vnode cannot be instantiated while we hold the
+		 * node lock, so the directory cannot be changed while
+		 * we iterate over it.  Do this to avoid instantiating
+		 * vnode for directories which cannot point to our
+		 * node.
+		 */
+		error = tnp->tn_vnode == NULL ? tmpfs_vptocnp_dir(tn, tnp,
+		    &de) : 0;
+
+		if (error == 0) {
+			TMPFS_NODE_UNLOCK(tnp);
+			TMPFS_UNLOCK(tm);
+			error = tmpfs_vptocnp_fill(vp, tn, tnp, buf, buflen,
+			    dvp);
+			if (error == 0) {
+				tmpfs_free_node(tm, tnp);
+				return (0);
+			}
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
+				tmpfs_free_node(tm, tnp);
+				return (ENOENT);
+			}
+			TMPFS_LOCK(tm);
+			TMPFS_NODE_LOCK(tnp);
+		}
+		if (tmpfs_free_node_locked(tm, tnp, false)) {
+			goto restart;
+		} else {
+			KASSERT(tnp->tn_refcount > 0,
+			    ("node %p refcount zero", tnp));
+			tnp1 = LIST_NEXT(tnp, tn_entries);
+			TMPFS_NODE_UNLOCK(tnp);
+		}
+	}
+	TMPFS_UNLOCK(tm);
+	return (ENOENT);
+}
+
 /*
- * vnode operations vector used for files stored in a tmpfs file system.
+ * Vnode operations vector used for files stored in a tmpfs file system.
  */
 struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_default =			&default_vnodeops,
 	.vop_lookup =			vfs_cache_lookup,
-	.vop_cachedlookup =		tmpfs_lookup,
+	.vop_cachedlookup =		tmpfs_cached_lookup,
 	.vop_create =			tmpfs_create,
 	.vop_mknod =			tmpfs_mknod,
 	.vop_open =			tmpfs_open,
@@ -1421,5 +1585,13 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_vptofh =			tmpfs_vptofh,
 	.vop_whiteout =			tmpfs_whiteout,
 	.vop_bmap =			VOP_EOPNOTSUPP,
+	.vop_vptocnp =			tmpfs_vptocnp,
 };
 
+/*
+ * Same vector for mounts which do not use namecache.
+ */
+struct vop_vector tmpfs_vnodeop_nonc_entries = {
+	.vop_default =			&tmpfs_vnodeop_entries,
+	.vop_lookup =			tmpfs_lookup,
+};

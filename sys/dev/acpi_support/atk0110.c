@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/stdint.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
@@ -51,18 +52,23 @@ ACPI_SERIAL_DECL(aibs, "aibs");
 #define AIBS_MORE_SENSORS
 #define AIBS_VERBOSE
 
-enum aibs_type {
-	AIBS_VOLT,
-	AIBS_TEMP,
-	AIBS_FAN
-};
+#define	AIBS_GROUP_SENSORS	0x06
+
+#define AIBS_SENS_TYPE(x)	(((x) >> 16) & 0xff)
+#define AIBS_SENS_TYPE_VOLT	2
+#define AIBS_SENS_TYPE_TEMP	3
+#define AIBS_SENS_TYPE_FAN	4
+
+#define	AIBS_SENS_TYPE_VOLT_NAME		"volt"
+#define	AIBS_SENS_TYPE_VOLT_TEMP		"temp"
+#define	AIBS_SENS_TYPE_VOLT_FAN		"fan"
 
 struct aibs_sensor {
 	ACPI_INTEGER	v;
 	ACPI_INTEGER	i;
 	ACPI_INTEGER	l;
 	ACPI_INTEGER	h;
-	enum aibs_type	t;
+	int		t;
 };
 
 struct aibs_softc {
@@ -72,14 +78,23 @@ struct aibs_softc {
 	struct aibs_sensor	*sc_asens_volt;
 	struct aibs_sensor	*sc_asens_temp;
 	struct aibs_sensor	*sc_asens_fan;
+	struct aibs_sensor	*sc_asens_all;
+
+	struct sysctl_oid	*sc_volt_sysctl;
+	struct sysctl_oid	*sc_temp_sysctl;
+	struct sysctl_oid	*sc_fan_sysctl;
+
+	bool			sc_ggrp_method;
 };
 
 static int aibs_probe(device_t);
 static int aibs_attach(device_t);
 static int aibs_detach(device_t);
 static int aibs_sysctl(SYSCTL_HANDLER_ARGS);
+static int aibs_sysctl_ggrp(SYSCTL_HANDLER_ARGS);
 
-static void aibs_attach_sif(struct aibs_softc *, enum aibs_type);
+static int aibs_attach_ggrp(struct aibs_softc *);
+static int aibs_attach_sif(struct aibs_softc *, int);
 
 static device_method_t aibs_methods[] = {
 	DEVMETHOD(device_probe,		aibs_probe),
@@ -109,54 +124,240 @@ aibs_probe(device_t dev)
 {
 	if (acpi_disabled("aibs") ||
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, aibs_hids) == NULL)
-		return ENXIO;
+		return (ENXIO);
 
 	device_set_desc(dev, "ASUSTeK AI Booster (ACPI ASOC ATK0110)");
-	return 0;
+	return (0);
 }
 
 static int
 aibs_attach(device_t dev)
 {
 	struct aibs_softc *sc = device_get_softc(dev);
+	int err;
 
 	sc->sc_dev = dev;
 	sc->sc_ah = acpi_get_handle(dev);
 
-	aibs_attach_sif(sc, AIBS_VOLT);
-	aibs_attach_sif(sc, AIBS_TEMP);
-	aibs_attach_sif(sc, AIBS_FAN);
+	sc->sc_ggrp_method = false;
+	err = aibs_attach_sif(sc, AIBS_SENS_TYPE_VOLT);
+	if (err == 0)
+		err = aibs_attach_sif(sc, AIBS_SENS_TYPE_TEMP);
+	if (err == 0)
+		err = aibs_attach_sif(sc, AIBS_SENS_TYPE_FAN);
 
-	return 0;
+	if (err == 0)
+		return (0);
+
+	/* Clean up whatever was allocated earlier. */
+	if (sc->sc_volt_sysctl != NULL)
+		sysctl_remove_oid(sc->sc_volt_sysctl, true, true);
+	if (sc->sc_temp_sysctl != NULL)
+		sysctl_remove_oid(sc->sc_temp_sysctl, true, true);
+	if (sc->sc_fan_sysctl != NULL)
+		sysctl_remove_oid(sc->sc_fan_sysctl, true, true);
+	aibs_detach(dev);
+
+	sc->sc_ggrp_method = true;
+	err = aibs_attach_ggrp(sc);
+	return (err);
+}
+
+static int
+aibs_add_sensor(struct aibs_softc *sc, ACPI_OBJECT *o,
+    struct aibs_sensor* sensor, const char ** descr)
+{
+	int		off;
+
+	/*
+	 * Packages for the old and new methods are quite
+	 * similar except that the new package has two
+	 * new (unknown / unused) fields after the name field.
+	 */
+	if (sc->sc_ggrp_method)
+		off = 4;
+	else
+		off = 2;
+
+	if (o->Type != ACPI_TYPE_PACKAGE) {
+		device_printf(sc->sc_dev,
+		    "sensor object is not a package: %i type\n",
+		     o->Type);
+		return (ENXIO);
+	}
+	if (o[0].Package.Count != (off + 3) ||
+	    o->Package.Elements[0].Type != ACPI_TYPE_INTEGER ||
+	    o->Package.Elements[1].Type != ACPI_TYPE_STRING ||
+	    o->Package.Elements[off].Type != ACPI_TYPE_INTEGER ||
+	    o->Package.Elements[off + 1].Type != ACPI_TYPE_INTEGER ||
+	    o->Package.Elements[off + 2].Type != ACPI_TYPE_INTEGER) {
+		device_printf(sc->sc_dev, "unexpected package content\n");
+		return (ENXIO);
+	}
+
+	sensor->i = o->Package.Elements[0].Integer.Value;
+	*descr = o->Package.Elements[1].String.Pointer;
+	sensor->l = o->Package.Elements[off].Integer.Value;
+	sensor->h = o->Package.Elements[off + 1].Integer.Value;
+	/* For the new method the second value is a range size. */
+	if (sc->sc_ggrp_method)
+		sensor->h += sensor->l;
+	sensor->t = AIBS_SENS_TYPE(sensor->i);
+
+	switch (sensor->t) {
+	case AIBS_SENS_TYPE_VOLT:
+	case AIBS_SENS_TYPE_TEMP:
+	case AIBS_SENS_TYPE_FAN:
+		return (0);
+	default:
+		device_printf(sc->sc_dev, "unknown sensor type 0x%x",
+		    sensor->t);
+		return (ENXIO);
+	}
 }
 
 static void
-aibs_attach_sif(struct aibs_softc *sc, enum aibs_type st)
+aibs_sensor_added(struct aibs_softc *sc, struct sysctl_oid *so,
+    const char *type_name, int idx, struct aibs_sensor *sensor,
+    const char *descr)
 {
+	char	sysctl_name[8];
+
+	snprintf(sysctl_name, sizeof(sysctl_name), "%i", idx);
+#ifdef AIBS_VERBOSE
+	device_printf(sc->sc_dev, "%c%i: 0x%08jx %20s %5jd / %5jd\n",
+	    type_name[0], idx,
+	    (uintmax_t)sensor->i, descr, (intmax_t)sensor->l,
+	    (intmax_t)sensor->h);
+#endif
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->sc_dev),
+	    SYSCTL_CHILDREN(so), idx, sysctl_name,
+	    CTLTYPE_INT | CTLFLAG_RD, sc, (uintptr_t)sensor,
+	    sc->sc_ggrp_method ? aibs_sysctl_ggrp : aibs_sysctl,
+	    sensor->t == AIBS_SENS_TYPE_TEMP ? "IK" : "I", descr);
+}
+
+static int
+aibs_attach_ggrp(struct aibs_softc *sc)
+{
+	ACPI_STATUS		s;
+	ACPI_BUFFER		buf;
+	ACPI_HANDLE		h;
+	ACPI_OBJECT		id;
+	ACPI_OBJECT		*bp;
+	ACPI_OBJECT_LIST	arg;
+	int			i;
+	int			t, v, f;
+	int			err;
+	int			*s_idx;
+	const char		*name;
+	const char		*descr;
+	struct aibs_sensor	*sensor;
+	struct sysctl_oid	**so;
+
+	/* First see if GITM is available. */
+	s = AcpiGetHandle(sc->sc_ah, "GITM", &h);
+	if (ACPI_FAILURE(s)) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "GITM not found\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * Now call GGRP with the appropriate argument to list sensors.
+	 * The method lists different groups of entities depending on
+	 * the argument.
+	 */
+	id.Integer.Value = AIBS_GROUP_SENSORS;
+	id.Type = ACPI_TYPE_INTEGER;
+	arg.Count = 1;
+	arg.Pointer = &id;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	buf.Pointer = NULL;
+	s = AcpiEvaluateObjectTyped(sc->sc_ah, "GGRP", &arg, &buf,
+	    ACPI_TYPE_PACKAGE);
+	if (ACPI_FAILURE(s)) {
+		device_printf(sc->sc_dev, "GGRP not found\n");
+		return (ENXIO);
+	}
+
+	bp = buf.Pointer;
+	sc->sc_asens_all = malloc(sizeof(*sc->sc_asens_all) * bp->Package.Count,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	v = t = f = 0;
+	for (i = 0; i < bp->Package.Count; i++) {
+		sensor = &sc->sc_asens_all[i];
+		err = aibs_add_sensor(sc, &bp->Package.Elements[i], sensor,
+		    &descr);
+		if (err != 0)
+			continue;
+
+		switch (sensor->t) {
+		case AIBS_SENS_TYPE_VOLT:
+			name = "volt";
+			so = &sc->sc_volt_sysctl;
+			s_idx = &v;
+			break;
+		case AIBS_SENS_TYPE_TEMP:
+			name = "temp";
+			so = &sc->sc_temp_sysctl;
+			s_idx = &t;
+			break;
+		case AIBS_SENS_TYPE_FAN:
+			name = "fan";
+			so = &sc->sc_fan_sysctl;
+			s_idx = &f;
+			break;
+		default:
+			panic("add_sensor succeeded for unknown sensor type %d",
+			    sensor->t);
+		}
+
+		if (*so == NULL) {
+			/* sysctl subtree for sensors of this type */
+			*so = SYSCTL_ADD_NODE(device_get_sysctl_ctx(sc->sc_dev),
+			    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev)),
+			    sensor->t, name, CTLFLAG_RD, NULL, NULL);
+		}
+		aibs_sensor_added(sc, *so, name, *s_idx, sensor, descr);
+		*s_idx += 1;
+	}
+
+	AcpiOsFree(buf.Pointer);
+	return (0);
+}
+
+static int
+aibs_attach_sif(struct aibs_softc *sc, int st)
+{
+	char			name[] = "?SIF";
 	ACPI_STATUS		s;
 	ACPI_BUFFER		b;
 	ACPI_OBJECT		*bp, *o;
-	int			i, n;
 	const char		*node;
-	char			name[] = "?SIF";
 	struct aibs_sensor	*as;
-	struct sysctl_oid	*so;
+	struct sysctl_oid	**so;
+	int			i, n;
+	int err;
 
 	switch (st) {
-	case AIBS_VOLT:
+	case AIBS_SENS_TYPE_VOLT:
 		node = "volt";
 		name[0] = 'V';
+		so = &sc->sc_volt_sysctl;
 		break;
-	case AIBS_TEMP:
+	case AIBS_SENS_TYPE_TEMP:
 		node = "temp";
 		name[0] = 'T';
+		so = &sc->sc_temp_sysctl;
 		break;
-	case AIBS_FAN:
+	case AIBS_SENS_TYPE_FAN:
 		node = "fan";
 		name[0] = 'F';
+		so = &sc->sc_fan_sysctl;
 		break;
 	default:
-		return;
+		panic("Unsupported sensor type %d", st);
 	}
 
 	b.Length = ACPI_ALLOCATE_BUFFER;
@@ -164,7 +365,7 @@ aibs_attach_sif(struct aibs_softc *sc, enum aibs_type st)
 	    ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(s)) {
 		device_printf(sc->sc_dev, "%s not found\n", name);
-		return;
+		return (ENXIO);
 	}
 
 	bp = b.Pointer;
@@ -172,14 +373,14 @@ aibs_attach_sif(struct aibs_softc *sc, enum aibs_type st)
 	if (o[0].Type != ACPI_TYPE_INTEGER) {
 		device_printf(sc->sc_dev, "%s[0]: invalid type\n", name);
 		AcpiOsFree(b.Pointer);
-		return;
+		return (ENXIO);
 	}
 
 	n = o[0].Integer.Value;
 	if (bp->Package.Count - 1 < n) {
 		device_printf(sc->sc_dev, "%s: invalid package\n", name);
 		AcpiOsFree(b.Pointer);
-		return;
+		return (ENXIO);
 	} else if (bp->Package.Count - 1 > n) {
 		int on = n;
 
@@ -193,76 +394,37 @@ aibs_attach_sif(struct aibs_softc *sc, enum aibs_type st)
 		device_printf(sc->sc_dev, "%s: no members in the package\n",
 		    name);
 		AcpiOsFree(b.Pointer);
-		return;
+		return (ENXIO);
 	}
 
-	as = malloc(sizeof(*as) * n, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (as == NULL) {
-		device_printf(sc->sc_dev, "%s: malloc fail\n", name);
-		AcpiOsFree(b.Pointer);
-		return;
-	}
+	as = malloc(sizeof(*as) * n, M_DEVBUF, M_WAITOK | M_ZERO);
 	switch (st) {
-	case AIBS_VOLT:
+	case AIBS_SENS_TYPE_VOLT:
 		sc->sc_asens_volt = as;
 		break;
-	case AIBS_TEMP:
+	case AIBS_SENS_TYPE_TEMP:
 		sc->sc_asens_temp = as;
 		break;
-	case AIBS_FAN:
+	case AIBS_SENS_TYPE_FAN:
 		sc->sc_asens_fan = as;
 		break;
 	}
 
 	/* sysctl subtree for sensors of this type */
-	so = SYSCTL_ADD_NODE(device_get_sysctl_ctx(sc->sc_dev),
+	*so = SYSCTL_ADD_NODE(device_get_sysctl_ctx(sc->sc_dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev)), st,
 	    node, CTLFLAG_RD, NULL, NULL);
 
 	for (i = 0, o++; i < n; i++, o++) {
-		ACPI_OBJECT	*oi;
-		char		si[3];
-		const char	*desc;
+		const char	*descr;
 
-		/* acpica5 automatically evaluates the referenced package */
-		if (o[0].Type != ACPI_TYPE_PACKAGE) {
-			device_printf(sc->sc_dev,
-			    "%s: %i: not a package: %i type\n",
-			    name, i, o[0].Type);
-			continue;
-		}
-		oi = o[0].Package.Elements;
-		if (o[0].Package.Count != 5 ||
-		    oi[0].Type != ACPI_TYPE_INTEGER ||
-		    oi[1].Type != ACPI_TYPE_STRING ||
-		    oi[2].Type != ACPI_TYPE_INTEGER ||
-		    oi[3].Type != ACPI_TYPE_INTEGER ||
-		    oi[4].Type != ACPI_TYPE_INTEGER) {
-			device_printf(sc->sc_dev,
-			    "%s: %i: invalid package\n",
-			    name, i);
-			continue;
-		}
-		as[i].i = oi[0].Integer.Value;
-		desc = oi[1].String.Pointer;
-		as[i].l = oi[2].Integer.Value;
-		as[i].h = oi[3].Integer.Value;
-		as[i].t = st;
-#ifdef AIBS_VERBOSE
-		device_printf(sc->sc_dev, "%c%i: "
-		    "0x%08"PRIx64" %20s %5"PRIi64" / %5"PRIi64"  "
-		    "0x%"PRIx64"\n",
-		    name[0], i,
-		    (uint64_t)as[i].i, desc, (int64_t)as[i].l,
-		    (int64_t)as[i].h, (uint64_t)oi[4].Integer.Value);
-#endif
-		snprintf(si, sizeof(si), "%i", i);
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->sc_dev),
-		    SYSCTL_CHILDREN(so), i, si, CTLTYPE_INT | CTLFLAG_RD,
-		    sc, st, aibs_sysctl, st == AIBS_TEMP ? "IK" : "I", desc);
+		err = aibs_add_sensor(sc, o, &as[i], &descr);
+		if (err == 0)
+			aibs_sensor_added(sc, *so, node, i, &as[i], descr);
 	}
 
 	AcpiOsFree(b.Pointer);
+	return (0);
 }
 
 static int
@@ -276,7 +438,9 @@ aibs_detach(device_t dev)
 		free(sc->sc_asens_temp, M_DEVBUF);
 	if (sc->sc_asens_fan != NULL)
 		free(sc->sc_asens_fan, M_DEVBUF);
-	return 0;
+	if (sc->sc_asens_all != NULL)
+		free(sc->sc_asens_all, M_DEVBUF);
+	return (0);
 }
 
 #ifdef AIBS_VERBOSE
@@ -289,39 +453,33 @@ static int
 aibs_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct aibs_softc	*sc = arg1;
-	enum aibs_type		st = arg2;
+	struct aibs_sensor	*sensor = (void *)(intptr_t)arg2;
 	int			i = oidp->oid_number;
 	ACPI_STATUS		rs;
 	ACPI_OBJECT		p, *bp;
 	ACPI_OBJECT_LIST	mp;
 	ACPI_BUFFER		b;
 	char			*name;
-	struct aibs_sensor	*as;
 	ACPI_INTEGER		v, l, h;
 	int			so[3];
 
-	switch (st) {
-	case AIBS_VOLT:
+	switch (sensor->t) {
+	case AIBS_SENS_TYPE_VOLT:
 		name = "RVLT";
-		as = sc->sc_asens_volt;
 		break;
-	case AIBS_TEMP:
+	case AIBS_SENS_TYPE_TEMP:
 		name = "RTMP";
-		as = sc->sc_asens_temp;
 		break;
-	case AIBS_FAN:
+	case AIBS_SENS_TYPE_FAN:
 		name = "RFAN";
-		as = sc->sc_asens_fan;
 		break;
 	default:
-		return ENOENT;
+		return (ENOENT);
 	}
-	if (as == NULL)
-		return ENOENT;
-	l = as[i].l;
-	h = as[i].h;
+	l = sensor->l;
+	h = sensor->h;
 	p.Type = ACPI_TYPE_INTEGER;
-	p.Integer.Value = as[i].i;
+	p.Integer.Value = sensor->i;
 	mp.Count = 1;
 	mp.Pointer = &p;
 	b.Length = ACPI_ALLOCATE_BUFFER;
@@ -333,26 +491,91 @@ aibs_sysctl(SYSCTL_HANDLER_ARGS)
 		    "%s: %i: evaluation failed\n",
 		    name, i);
 		ACPI_SERIAL_END(aibs);
-		return EIO;
+		return (EIO);
 	}
 	bp = b.Pointer;
 	v = bp->Integer.Value;
 	AcpiOsFree(b.Pointer);
 	ACPI_SERIAL_END(aibs);
 
-	switch (st) {
-	case AIBS_VOLT:
+	switch (sensor->t) {
+	case AIBS_SENS_TYPE_VOLT:
 		break;
-	case AIBS_TEMP:
+	case AIBS_SENS_TYPE_TEMP:
 		v += 2731;
 		l += 2731;
 		h += 2731;
 		break;
-	case AIBS_FAN:
+	case AIBS_SENS_TYPE_FAN:
 		break;
 	}
 	so[0] = v;
 	so[1] = l;
 	so[2] = h;
-	return sysctl_handle_opaque(oidp, &so, sizeof(so), req);
+	return (sysctl_handle_opaque(oidp, &so, sizeof(so), req));
+}
+
+static int
+aibs_sysctl_ggrp(SYSCTL_HANDLER_ARGS)
+{
+	struct aibs_softc	*sc = arg1;
+	struct aibs_sensor	*sensor = (void *)(intptr_t)arg2;
+	ACPI_STATUS		rs;
+	ACPI_OBJECT		p, *bp;
+	ACPI_OBJECT_LIST	arg;
+	ACPI_BUFFER		buf;
+	ACPI_INTEGER		v, l, h;
+	int			so[3];
+	uint32_t		*ret;
+	uint32_t		cmd[3];
+
+	cmd[0] = sensor->i;
+	cmd[1] = 0;
+	cmd[2] = 0;
+	p.Type = ACPI_TYPE_BUFFER;
+	p.Buffer.Pointer = (void *)cmd;
+	p.Buffer.Length = sizeof(cmd);
+	arg.Count = 1;
+	arg.Pointer = &p;
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	ACPI_SERIAL_BEGIN(aibs);
+	rs = AcpiEvaluateObjectTyped(sc->sc_ah, "GITM", &arg, &buf,
+	    ACPI_TYPE_BUFFER);
+	ACPI_SERIAL_END(aibs);
+	if (ACPI_FAILURE(rs)) {
+		device_printf(sc->sc_dev, "GITM evaluation failed\n");
+		return (EIO);
+	}
+	bp = buf.Pointer;
+	if (bp->Buffer.Length < 8) {
+		device_printf(sc->sc_dev, "GITM returned short buffer\n");
+		return (EIO);
+	}
+	ret = (uint32_t *)bp->Buffer.Pointer;
+	if (ret[0] == 0) {
+		device_printf(sc->sc_dev, "GITM returned error status\n");
+		return (EINVAL);
+	}
+	v = ret[1];
+	AcpiOsFree(buf.Pointer);
+
+	l = sensor->l;
+	h = sensor->h;
+
+	switch (sensor->t) {
+	case AIBS_SENS_TYPE_VOLT:
+		break;
+	case AIBS_SENS_TYPE_TEMP:
+		v += 2731;
+		l += 2731;
+		h += 2731;
+		break;
+	case AIBS_SENS_TYPE_FAN:
+		break;
+	}
+	so[0] = v;
+	so[1] = l;
+	so[2] = h;
+	return (sysctl_handle_opaque(oidp, &so, sizeof(so), req));
 }

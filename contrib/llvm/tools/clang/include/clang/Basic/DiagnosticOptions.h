@@ -63,11 +63,15 @@ public:
   enum TextDiagnosticFormat { Clang, MSVC, Vi };
 
   // Default values.
-  enum { DefaultTabStop = 8, MaxTabStop = 100,
+  enum {
+    DefaultTabStop = 8,
+    MaxTabStop = 100,
     DefaultMacroBacktraceLimit = 6,
     DefaultTemplateBacktraceLimit = 10,
     DefaultConstexprBacktraceLimit = 10,
-    DefaultSpellCheckingLimit = 50 };
+    DefaultSpellCheckingLimit = 50,
+    DefaultSnippetLineLimit = 1,
+  };
 
   // Define simple diagnostic options (with no accessors).
 #define DIAGOPT(Name, Bits, Default) unsigned Name : Bits;
@@ -95,6 +99,10 @@ public:
   /// The list of -R... options used to alter the diagnostic mappings, with the
   /// prefixes removed.
   std::vector<std::string> Remarks;
+
+  /// The prefixes for comment directives sought by -verify ("expected" by
+  /// default).
+  std::vector<std::string> VerifyPrefixes;
 
 public:
   // Define accessors/mutators for diagnostic options of enumeration type.

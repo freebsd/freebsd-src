@@ -16,11 +16,11 @@
 .Xr xo_emit 3
 .Sh SYNOPSIS
 .Nm xohtml
-.Op Fl c
 .Op Fl "b <base>"
 .Op Fl "c" <command>"
 .Op Fl "f" <output>
-.Op Ar command argument...
+.Op Fl "w"
+.Op Ar command [argument ...]
 .Sh DESCRIPTION
 .Nm
 is a tool for preparing
@@ -53,26 +53,29 @@ will add the "--libxo=html" option needed to generate HTML output
 from
 .Nm libxo "-enabled"
 applications.  See
-.Xr libxo 3
+.Xr xo_options 7
 for details.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl "b <base>"
-.It Fl "-base <base>"
+.It Ic -b Ar base | Ic --base Ar base
 Supplies a source path for the CSS and Javascript files referenced in
 the output of
 .Nm xohtml .
-.It Fl "c <command>"
-.It Fl "-command <command>"
+.It Ic -c Ar command | Ic --command Ar command
 Use the given command instead of one on the command line.
 This command should be quoted if it consists of multiple tokens, and
 should contain the "--libxo=html" option or equivalent, since the
 command is used directly.
-.It Fl "f <file>"
-.It Fl "-file <file>"
+.It Ic -f Ar file | Ic --file Ar file
 Output is saved to the given file, rather than to the standard output
 descriptor.
+.It Ic -w | --web
+Uses the official
+.Nm libxo
+website URL as the source path for the CSS and Javascript files
+referenced in the output of
+.Nm xohtml .
 .El
 .Pp
 .Sh EXAMPLES
@@ -96,4 +99,5 @@ the output to /tmp/src.html:
 .Pp
 .Sh SEE ALSO
 .Xr libxo 3 ,
-.Xr xo_emit 3
+.Xr xo_emit 3 ,
+.Xr xo_options 7

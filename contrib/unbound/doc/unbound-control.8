@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
+.TH "unbound-control" "8" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -99,6 +99,22 @@ but if the name has become an empty nonterminal (there is still data in
 domain names below the removed name), NOERROR nodata answers are the 
 result for that name.
 .TP
+.B local_zones
+Add local zones read from stdin of unbound\-control. Input is read per line,
+with name space type on a line. For bulk additions.
+.TP
+.B local_zones_remove
+Remove local zones read from stdin of unbound\-control. Input is one name per
+line. For bulk removals.
+.TP
+.B local_datas
+Add local data RRs read from stdin of unbound\-control. Input is one RR per
+line. For bulk additions.
+.TP
+.B local_datas_remove
+Remove local data RRs read from stdin of unbound\-control. Input is one name per
+line. For bulk removals.
+.TP
 .B dump_cache
 The contents of the cache is printed in a text format to stdout. You can
 redirect it to a file to store the cache in a file.
@@ -128,6 +144,9 @@ Remove the name, type information from the cache.
 Remove all information at or below the name from the cache. 
 The rrsets and key entries are removed so that new lookups will be performed.
 This needs to walk and inspect the entire cache, and is a slow operation.
+The entries are set to expired in the implementation of this command (so,
+with serve\-expired enabled, it'll serve that information but schedule a
+prefetch for new information).
 .TP
 .B flush_bogus
 Remove all bogus data from the cache.
@@ -178,7 +197,7 @@ harden\-referral\-path, prefetch, prefetch\-key, log\-queries,
 hide\-identity, hide\-version, identity, version, val\-log\-level,
 val\-log\-squelch, ignore\-cd\-flag, add\-holddown, del\-holddown,
 keep\-missing, tcp\-upstream, ssl\-upstream, max\-udp\-size, ratelimit,
-cache\-max\-ttl, cache\-min\-ttl, cache\-max\-negative\-ttl.
+ip\-ratelimit, cache\-max\-ttl, cache\-min\-ttl, cache\-max\-negative\-ttl.
 .TP
 .B get_option \fIopt
 Get the value of the option.  Give the option name without a trailing ':'.
@@ -263,6 +282,46 @@ estimated qps and qps limit from config.  With +a it prints all domains, not
 just the ratelimited domains, with their estimated qps.  The ratelimited
 domains return an error for uncached (new) queries, but cached queries work
 as normal.
+.TP
+.B ip_ratelimit_list \fR[\fI+a\fR]
+List the ip addresses that are ratelimited.  Printed one per line with current
+estimated qps and qps limit from config.  With +a it prints all ips, not
+just the ratelimited ips, with their estimated qps.  The ratelimited
+ips are dropped before checking the cache.
+.TP
+.B list_auth_zones
+List the auth zones that are configured.  Printed one per line with a
+status, indicating if the zone is expired and current serial number.
+.TP
+.B auth_zone_reload \fIzone\fR
+Reload the auth zone from zonefile.  The zonefile is read in overwriting
+the current contents of the zone in memory.  This changes the auth zone
+contents itself, not the cache contents.  Such cache contents exists if
+you set unbound to validate with for-upstream yes and that can be cleared
+with \fBflush_zone\fR \fIzone\fR.
+.TP
+.B auth_zone_transfer \fIzone\fR
+Transfer the auth zone from master.  The auth zone probe sequence is started,
+where the masters are probed to see if they have an updated zone (with the SOA
+serial check).  And then the zone is transferred for a newer zone version.
+.TP
+.B view_list_local_zones \fIview\fR
+\fIlist_local_zones\fR for given view.
+.TP
+.B view_local_zone \fIview\fR \fIname\fR \fItype
+\fIlocal_zone\fR for given view.
+.TP
+.B view_local_zone_remove \fIview\fR \fIname
+\fIlocal_zone_remove\fR for given view.
+.TP
+.B view_list_local_data \fIview\fR
+\fIlist_local_data\fR for given view.
+.TP
+.B view_local_data \fIview\fR \fIRR data...
+\fIlocal_data\fR for given view.
+.TP
+.B view_local_data_remove \fIview\fR \fIname
+\fIlocal_data_remove\fR for given view.
 .SH "EXIT CODE"
 The unbound\-control program exits with status code 1 on error, 0 on success.
 .SH "SET UP"
@@ -288,11 +347,27 @@ The \fIstats\fR command shows a number of statistic counters.
 .I threadX.num.queries
 number of queries received by thread
 .TP
+.I threadX.num.queries_ip_ratelimited
+number of queries rate limited by thread
+.TP
 .I threadX.num.cachehits
 number of queries that were successfully answered using a cache lookup
 .TP
 .I threadX.num.cachemiss
 number of queries that needed recursive processing
+.TP
+.I threadX.num.dnscrypt.crypted
+number of queries that were encrypted and successfully decapsulated by dnscrypt.
+.TP
+.I threadX.num.dnscrypt.cert
+number of queries that were requesting dnscrypt certificates.
+.TP
+.I threadX.num.dnscrypt.cleartext
+number of queries received on dnscrypt port that were cleartext and not a
+request for certificates.
+.TP
+.I threadX.num.dnscrypt.malformed
+number of request that were neither cleartext, not valid dnscrypt messages.
 .TP
 .I threadX.num.prefetch
 number of cache prefetches performed.  This number is included in
@@ -300,6 +375,9 @@ cachehits, as the original query had the unprefetched answer from cache,
 and resulted in recursive processing, taking a slot in the requestlist.
 Not part of the recursivereplies (or the histogram thereof) or cachemiss,
 as a cache response was sent.
+.TP
+.I threadX.num.zero_ttl
+number of replies with ttl zero, because they served an expired cache entry.
 .TP
 .I threadX.num.recursivereplies
 The number of replies sent to queries that needed recursive processing. Could be smaller than threadX.num.cachemiss if due to timeouts no replies were sent for some queries.
@@ -347,7 +425,22 @@ summed over threads.
 .I total.num.cachemiss
 summed over threads.
 .TP
+.I total.num.dnscrypt.crypted
+summed over threads.
+.TP
+.I total.num.dnscrypt.cert
+summed over threads.
+.TP
+.I total.num.dnscrypt.cleartext
+summed over threads.
+.TP
+.I total.num.dnscrypt.malformed
+summed over threads.
+.TP
 .I total.num.prefetch
+summed over threads.
+.TP
+.I total.num.zero_ttl
 summed over threads.
 .TP
 .I total.num.recursivereplies
@@ -384,14 +477,17 @@ uptime since server boot in seconds.
 time since last statistics printout, in seconds.
 .SH EXTENDED STATISTICS
 .TP
-.I mem.total.sbrk
-If sbrk(2) is available, an estimate of the heap size of the program in number of bytes. Close to the total memory used by the program, as reported by top and ps.  Could be wrong if the OS allocates memory non\-contiguously.
-.TP
 .I mem.cache.rrset
 Memory in bytes in use by the RRset cache.
 .TP
 .I mem.cache.message
 Memory in bytes in use by the message cache.
+.TP
+.I mem.cache.dnscrypt_shared_secret
+Memory in bytes in use by the dnscrypt shared secrets cache.
+.TP
+.I mem.cache.dnscrypt_nonce
+Memory in bytes in use by the dnscrypt nonce cache.
 .TP
 .I mem.mod.iterator
 Memory in bytes in use by the iterator module.
@@ -431,6 +527,10 @@ Number of queries that were made using TCP towards the unbound server.
 Number of queries that the unbound server made using TCP outgoing towards
 other servers.
 .TP
+.I num.query.tls
+Number of queries that were made using TLS towards the unbound server.
+These are also counted in num.query.tcp, because TLS uses TCP.
+.TP
 .I num.query.ipv6
 Number of queries that were made using IPv6 towards the unbound server.
 .TP
@@ -446,6 +546,18 @@ number of queries that had an EDNS OPT record present.
 .I num.query.edns.DO
 number of queries that had an EDNS OPT record with the DO (DNSSEC OK) bit set.
 These queries are also included in the num.query.edns.present number.
+.TP
+.I num.query.ratelimited
+The number of queries that are turned away from being send to nameserver due to
+ratelimiting.
+.TP
+.I num.query.dnscrypt.shared_secret.cachemiss
+The number of dnscrypt queries that did not find a shared secret in the cache.
+The can be use to compute the shared secret hitrate.
+.TP
+.I num.query.dnscrypt.replay
+The number of dnscrypt queries that found a nonce hit in the nonce cache and
+hence are considered a query replay.
 .TP
 .I num.answer.rcode.NXDOMAIN
 The number of answers to queries, from cache or from recursion, that had the
@@ -496,6 +608,47 @@ timing and protocol support information.
 .I key.cache.count
 The number of items in the key cache.  These are DNSSEC keys, one item
 per delegation point, and their validation status.
+.TP
+.I dnscrypt_shared_secret.cache.count
+The number of items in the shared secret cache. These are precomputed shared
+secrets for a given client public key/server secret key pair. Shared secrets
+are CPU intensive and this cache allows unbound to avoid recomputing the
+shared secret when multiple dnscrypt queries are sent from the same client.
+.TP
+.I dnscrypt_nonce.cache.count
+The number of items in the client nonce cache. This cache is used to prevent
+dnscrypt queries replay. The client nonce must be unique for each client public
+key/server secret key pair. This cache should be able to host QPS * `replay
+window` interval keys to prevent replay of a query during `replay window`
+seconds.
+.TP
+.I num.query.authzone.up
+The number of queries answered from auth\-zone data, upstream queries.
+These queries would otherwise have been sent (with fallback enabled) to
+the internet, but are now answered from the auth zone.
+.TP
+.I num.query.authzone.down
+The number of queries for downstream answered from auth\-zone data.
+These queries are from downstream clients, and have had an answer from
+the data in the auth zone.
+.TP
+.I num.query.aggressive.NOERROR
+The number of queries answered using cached NSEC records with NODATA RCODE.
+These queries would otherwise have been sent to the internet, but are now
+answered using cached data.
+.TP
+.I num.query.aggressive.NXDOMAIN
+The number of queries answered using cached NSEC records with NXDOMAIN RCODE.
+These queries would otherwise have been sent to the internet, but are now
+answered using cached data.
+.TP
+.I num.query.subnet
+Number of queries that got an answer that contained EDNS client subnet data.
+.TP
+.I num.query.subnet_cache
+Number of queries answered from the edns client subnet cache.  These are
+counted as cachemiss by the main counters, but hit the client subnet
+specific cache, after getting processed by the edns client subnet module.
 .SH "FILES"
 .TP
 .I /var/unbound/unbound.conf

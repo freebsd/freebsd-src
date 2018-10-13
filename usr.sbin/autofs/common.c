@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -53,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
-#define	_WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

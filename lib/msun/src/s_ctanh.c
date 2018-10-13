@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 David Schultz
  * All rights reserved.
  *
@@ -102,8 +104,8 @@ ctanh(double complex z)
 	 */
 	if (ix >= 0x7ff00000) {
 		if ((ix & 0xfffff) | lx)	/* x is NaN */
-			return (CMPLX((x + 0) * (y + 0),
-			    y == 0 ? y : (x + 0) * (y + 0)));
+			return (CMPLX(nan_mix(x, y),
+			    y == 0 ? y : nan_mix(x, y)));
 		SET_HIGH_WORD(x, hx - 0x40000000);	/* x = copysign(1, x) */
 		return (CMPLX(x, copysign(0, isinf(y) ? y : sin(y) * cos(y))));
 	}

@@ -34,7 +34,10 @@ class raw_pwrite_stream;
 /// to that file format or custom semantics expected by the object writer
 /// implementation.
 class MCObjectStreamer : public MCStreamer {
-  MCAssembler *Assembler;
+  std::unique_ptr<MCObjectWriter> ObjectWriter;
+  std::unique_ptr<MCAsmBackend> TAB;
+  std::unique_ptr<MCCodeEmitter> Emitter;
+  std::unique_ptr<MCAssembler> Assembler;
   MCSection::iterator CurInsertionPoint;
   bool EmitEHFrame;
   bool EmitDebugFrame;
@@ -43,11 +46,14 @@ class MCObjectStreamer : public MCStreamer {
   virtual void EmitInstToData(const MCInst &Inst, const MCSubtargetInfo&) = 0;
   void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame) override;
   void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) override;
+  MCSymbol *EmitCFILabel() override;
+  void EmitInstructionImpl(const MCInst &Inst, const MCSubtargetInfo &STI);
 
 protected:
-  MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB, raw_pwrite_stream &OS,
-                   MCCodeEmitter *Emitter);
-  ~MCObjectStreamer() override;
+  MCObjectStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> TAB,
+                   raw_pwrite_stream &OS,
+                   std::unique_ptr<MCCodeEmitter> Emitter);
+  ~MCObjectStreamer();
 
 public:
   /// state management
@@ -59,7 +65,6 @@ public:
   void EmitFrames(MCAsmBackend *MAB);
   void EmitCFISections(bool EH, bool Debug) override;
 
-protected:
   MCFragment *getCurrentFragment() const;
 
   void insert(MCFragment *F) {
@@ -72,7 +77,9 @@ protected:
   /// Get a data fragment to write into, creating a new one if the current
   /// fragment is not a data fragment.
   MCDataFragment *getOrCreateDataFragment();
+  MCPaddingFragment *getOrCreatePaddingFragment();
 
+protected:
   bool changeSectionImpl(MCSection *Section, const MCExpr *Subsection);
 
   /// If any labels have been emitted but not assigned fragments, ensure that
@@ -89,7 +96,8 @@ public:
   /// \name MCStreamer Interface
   /// @{
 
-  void EmitLabel(MCSymbol *Symbol) override;
+  void EmitLabel(MCSymbol *Symbol, SMLoc Loc = SMLoc()) override;
+  virtual void EmitLabel(MCSymbol *Symbol, SMLoc Loc, MCFragment *F);
   void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) override;
   void EmitValueImpl(const MCExpr *Value, unsigned Size,
                      SMLoc Loc = SMLoc()) override;
@@ -97,7 +105,8 @@ public:
   void EmitSLEB128Value(const MCExpr *Value) override;
   void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) override;
   void ChangeSection(MCSection *Section, const MCExpr *Subsection) override;
-  void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo& STI) override;
+  void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
+                       bool = false) override;
 
   /// \brief Emit an instruction to a special fragment, because this instruction
   /// can change its size during relaxation.
@@ -112,7 +121,12 @@ public:
                             unsigned MaxBytesToEmit = 0) override;
   void EmitCodeAlignment(unsigned ByteAlignment,
                          unsigned MaxBytesToEmit = 0) override;
-  void emitValueToOffset(const MCExpr *Offset, unsigned char Value) override;
+  void emitValueToOffset(const MCExpr *Offset, unsigned char Value,
+                         SMLoc Loc) override;
+  void
+  EmitCodePaddingBasicBlockStart(const MCCodePaddingContext &Context) override;
+  void
+  EmitCodePaddingBasicBlockEnd(const MCCodePaddingContext &Context) override;
   void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
                              unsigned Column, unsigned Flags,
                              unsigned Isa, unsigned Discriminator,
@@ -122,11 +136,37 @@ public:
                                 unsigned PointerSize);
   void EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
                                  const MCSymbol *Label);
+  void EmitCVLocDirective(unsigned FunctionId, unsigned FileNo, unsigned Line,
+                          unsigned Column, bool PrologueEnd, bool IsStmt,
+                          StringRef FileName, SMLoc Loc) override;
+  void EmitCVLinetableDirective(unsigned FunctionId, const MCSymbol *Begin,
+                                const MCSymbol *End) override;
+  void EmitCVInlineLinetableDirective(unsigned PrimaryFunctionId,
+                                      unsigned SourceFileId,
+                                      unsigned SourceLineNum,
+                                      const MCSymbol *FnStartSym,
+                                      const MCSymbol *FnEndSym) override;
+  void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      StringRef FixedSizePortion) override;
+  void EmitCVStringTableDirective() override;
+  void EmitCVFileChecksumsDirective() override;
+  void EmitCVFileChecksumOffsetDirective(unsigned FileNo) override;
+  void EmitDTPRel32Value(const MCExpr *Value) override;
+  void EmitDTPRel64Value(const MCExpr *Value) override;
+  void EmitTPRel32Value(const MCExpr *Value) override;
+  void EmitTPRel64Value(const MCExpr *Value) override;
   void EmitGPRel32Value(const MCExpr *Value) override;
   void EmitGPRel64Value(const MCExpr *Value) override;
   bool EmitRelocDirective(const MCExpr &Offset, StringRef Name,
                           const MCExpr *Expr, SMLoc Loc) override;
-  void EmitFill(uint64_t NumBytes, uint8_t FillValue) override;
+  using MCStreamer::emitFill;
+  void emitFill(const MCExpr &NumBytes, uint64_t FillValue,
+                SMLoc Loc = SMLoc()) override;
+  void emitFill(const MCExpr &NumValues, int64_t Size, int64_t Expr,
+                SMLoc Loc = SMLoc()) override;
+  void EmitFileDirective(StringRef Filename) override;
+
   void FinishImpl() override;
 
   /// Emit the absolute difference between two symbols if possible.

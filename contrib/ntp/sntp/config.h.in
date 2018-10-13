@@ -260,6 +260,12 @@
 /* if you have NT Threads */
 #undef HAVE_NT_THREADS
 
+/* Define to 1 if you have the <openssl/cmac.h> header file. */
+#undef HAVE_OPENSSL_CMAC_H
+
+/* Define to 1 if you have the <openssl/hmac.h> header file. */
+#undef HAVE_OPENSSL_HMAC_H
+
 /* Define this if pathfind(3) works */
 #undef HAVE_PATHFIND
 
@@ -477,6 +483,9 @@
 /* Define to 1 if you have the <sys/limits.h> header file. */
 #undef HAVE_SYS_LIMITS_H
 
+/* Define to 1 if you have the <sys/mac.h> header file. */
+#undef HAVE_SYS_MAC_H
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -555,6 +564,9 @@
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
+
+/* Are TrustedBSD MAC policy privileges available? */
+#undef HAVE_TRUSTEDBSD_MAC
 
 /* Define to 1 if the system has the type `uint16_t'. */
 #undef HAVE_UINT16_T
@@ -712,8 +724,7 @@
 /* define to 1 if library is thread safe */
 #undef LDAP_API_FEATURE_X_OPENLDAP_THREAD_SAFE
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Does the target support multicast IP? */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,6 +37,8 @@
 
 #ifdef _KERNEL
 
+#define IFC_NOGROUP 0x1
+
 struct if_clone;
 
 /* Methods. */
@@ -57,6 +61,9 @@ void	if_clone_detach(struct if_clone *);
 int	ifc_name2unit(const char *name, int *unit);
 int	ifc_alloc_unit(struct if_clone *, int *);
 void	ifc_free_unit(struct if_clone *, int);
+const char *ifc_name(struct if_clone *);
+void ifc_flags_set(struct if_clone *, int flags);
+int ifc_flags_get(struct if_clone *);
 
 #ifdef _SYS_EVENTHANDLER_H_
 /* Interface clone event. */

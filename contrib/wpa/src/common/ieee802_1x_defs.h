@@ -10,7 +10,7 @@
 #define IEEE802_1X_DEFS_H
 
 #define CS_ID_LEN		8
-#define CS_ID_GCM_AES_128	{0x00, 0x80, 0x02, 0x00, 0x01, 0x00, 0x00, 0x01}
+#define CS_ID_GCM_AES_128	0x0080020001000001ULL
 #define CS_NAME_GCM_AES_128	"GCM-AES-128"
 
 enum macsec_policy {

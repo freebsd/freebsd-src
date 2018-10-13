@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd July 4, 2014
+.Dd August 12, 2017
 .Dt UNITS 1
 .Os
 .Sh NAME
@@ -14,33 +14,33 @@
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
-.It Fl h No , Fl -help
+.It Fl h \&No , Fl -help
 Show an overview of options
-.It Fl f Ar filename No , Fl -file Ar filename
+.It Fl f Ar filename \&No , Fl -file Ar filename
 Specify the name of the units data file to load.
-.It Fl H Ar filename No , Fl -historyfile Ar filename
+.It Fl H Ar filename \&No , Fl -history Ar filename
 Ignored, for compatibility with GNU units.
 .It Fl e , Fl -exponential
 Behave as if -o '%6e' was typed.
-.It Fl q No , Fl -quiet
+.It Fl q \&No , Fl -quiet
 Suppress prompting of the user for units and the display of statistics
 about the number of units loaded.
-.It Fl U No , Fl -unitsfile
+.It Fl U \&No , Fl -unitsfile
 If the default unit file exists prints its location.
 If not, print
 .Qo
 Units data file not found
 .Qc
-.It Fl t No , Fl -terse
+.It Fl t \&No , Fl -terse
 Only print the result.  This is used when calling
 .Nm
 from other programs for easy to parse results.
-.It Fl v No , Fl -verbose
+.It Fl v \&No , Fl -verbose
 Print the units in the conversion output.
 Be more verbose in general.
-.It Fl o Ar format No , Fl -output-format Ar format
+.It Fl o Ar format \&No , Fl -output-format Ar format
 Select the output format string by which numbers are printed.
-.It Fl V No , Fl -version
+.It Fl V \&No , Fl -version
 Print the version number, usage, and then exit.
 .It Ar from-unit to-unit
 Allow a single unit conversion to be done directly from the command

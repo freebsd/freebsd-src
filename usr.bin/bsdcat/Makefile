@@ -2,11 +2,11 @@
 
 .include <src.opts.mk>
 
-_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
-_LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+_LIBARCHIVECONFDIR=	${SRCTOP}/lib/libarchive
 
-PROG=	bsdcat	
-BSDCAT_VERSION_STRING=	3.2.0
+PROG=	bsdcat
+BSDCAT_VERSION_STRING=	3.3.3
 
 .PATH:	${_LIBARCHIVEDIR}/cat
 SRCS=	bsdcat.c cmdline.c
@@ -24,8 +24,7 @@ LIBADD=	archive
 CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

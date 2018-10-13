@@ -985,7 +985,6 @@ top_makefile_rules(FILE *outmk)
 	prog_t *p;
 
 	fprintf(outmk, "LD?= ld\n");
-	fprintf(outmk, "STRIPBIN?= strip\n");
 	if ( subtract_strlst(&libs, &libs_so) )
 		fprintf(outmk, "# NOTE: Some LIBS declarations below overridden by LIBS_SO\n");
 
@@ -1033,7 +1032,6 @@ top_makefile_rules(FILE *outmk)
 	fprintf(outmk, "\t$(CC) -static -o %s %s.o $(CRUNCHED_OBJS) $(LIBS)\n",
 	    execfname, execfname);
 	fprintf(outmk, ".endif\n");
-	fprintf(outmk, "\t$(STRIPBIN) %s\n", execfname);
 	fprintf(outmk, "realclean: clean subclean\n");
 	fprintf(outmk, "clean:\n\trm -f %s *.lo *.o *_stub.c\n", execfname);
 	fprintf(outmk, "subclean: $(SUBCLEAN_TARGETS)\n");
@@ -1064,6 +1062,7 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 		}
 		fprintf(outmk, "\n");
 	}
+	fprintf(outmk, "$(%s_OBJPATHS): .NOMETA\n", p->ident);
 
 	if (p->srcdir && p->objs) {
 		fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
@@ -1106,6 +1105,7 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 
 	fprintf(outmk, "%s_stub.c:\n", p->name);
 	fprintf(outmk, "\techo \""
+	    "extern int main(int argc, char **argv, char **envp); "
 	    "int _crunched_%s_stub(int argc, char **argv, char **envp)"
 	    "{return main(argc,argv,envp);}\" >%s_stub.c\n",
 	    p->ident, p->name);

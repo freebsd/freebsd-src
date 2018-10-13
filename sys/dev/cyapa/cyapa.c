@@ -122,11 +122,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
-#include <dev/smbus/smbconf.h>
-#include <dev/smbus/smbus.h>
+#include <dev/iicbus/iiconf.h>
+#include <dev/iicbus/iicbus.h>
 #include <dev/cyapa/cyapa.h>
 
-#include "smbus_if.h"
+#include "iicbus_if.h"
 #include "bus_if.h"
 #include "device_if.h"
 
@@ -149,7 +149,6 @@ struct cyapa_fifo {
 struct cyapa_softc {
 	device_t dev;
 	int	count;			/* >0 if device opened */
-	int	addr;
 	struct cdev *devnode;
 	struct selinfo selinfo;
 	struct mtx mutex;
@@ -273,6 +272,30 @@ static int cyapa_reset = 0;
 SYSCTL_INT(_debug, OID_AUTO, cyapa_reset, CTLFLAG_RW,
 	    &cyapa_reset, 0, "Reset track pad");
 
+static int
+cyapa_read_bytes(device_t dev, uint8_t reg, uint8_t *val, int cnt)
+{
+	uint16_t addr = iicbus_get_addr(dev);
+	struct iic_msg msgs[] = {
+	     { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
+	     { addr, IIC_M_RD, cnt, val },
+	};
+
+	return (iicbus_transfer(dev, msgs, nitems(msgs)));
+}
+
+static int
+cyapa_write_bytes(device_t dev, uint8_t reg, const uint8_t *val, int cnt)
+{
+	uint16_t addr = iicbus_get_addr(dev);
+	struct iic_msg msgs[] = {
+	     { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
+	     { addr, IIC_M_WR | IIC_M_NOSTART, cnt, __DECONST(uint8_t *, val) },
+	};
+
+	return (iicbus_transfer(dev, msgs, nitems(msgs)));
+}
+
 static void
 cyapa_lock(struct cyapa_softc *sc)
 {
@@ -318,7 +341,7 @@ cyapa_notify(struct cyapa_softc *sc)
  * Initialize the device
  */
 static int
-init_device(device_t dev, struct cyapa_cap *cap, int addr, int probe)
+init_device(device_t dev, struct cyapa_cap *cap, int probe)
 {
 	static char bl_exit[] = {
 		0x00, 0xff, 0xa5, 0x00, 0x01,
@@ -326,17 +349,13 @@ init_device(device_t dev, struct cyapa_cap *cap, int addr, int probe)
 	static char bl_deactivate[] = {
 		0x00, 0xff, 0x3b, 0x00, 0x01,
 		0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-	device_t bus;
 	struct cyapa_boot_regs boot;
 	int error;
 	int retries;
 
-	bus = device_get_parent(dev);	/* smbus */
-
 	/* Get status */
-	error = smbus_trans(bus, addr, CMD_BOOT_STATUS,
-	    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-	    NULL, 0, (void *)&boot, sizeof(boot), NULL);
+	error = cyapa_read_bytes(dev, CMD_BOOT_STATUS,
+	    (void *)&boot, sizeof(boot));
 	if (error)
 		goto done;
 
@@ -350,25 +369,21 @@ init_device(device_t dev, struct cyapa_cap *cap, int addr, int probe)
 			/* Busy, wait loop. */
 		} else if (boot.error & CYAPA_ERROR_BOOTLOADER) {
 			/* Magic */
-			error = smbus_trans(bus, addr, CMD_BOOT_STATUS,
-			    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-			    bl_deactivate, sizeof(bl_deactivate),
-			    NULL, 0, NULL);
+			error = cyapa_write_bytes(dev, CMD_BOOT_STATUS,
+			    bl_deactivate, sizeof(bl_deactivate));
 			if (error)
 				goto done;
 		} else {
 			/* Magic */
-			error = smbus_trans(bus, addr, CMD_BOOT_STATUS,
-			    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-			    bl_exit, sizeof(bl_exit), NULL, 0, NULL);
+			error = cyapa_write_bytes(dev, CMD_BOOT_STATUS,
+			    bl_exit, sizeof(bl_exit));
 			if (error)
 				goto done;
 		}
 		pause("cyapab1", (hz * 2) / 10);
 		--retries;
-		error = smbus_trans(bus, addr, CMD_BOOT_STATUS,
-		    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-		    NULL, 0, (void *)&boot, sizeof(boot), NULL);
+		error = cyapa_read_bytes(dev, CMD_BOOT_STATUS,
+		    (void *)&boot, sizeof(boot));
 		if (error)
 			goto done;
 	}
@@ -381,9 +396,8 @@ init_device(device_t dev, struct cyapa_cap *cap, int addr, int probe)
 
 	/* Check identity */
 	if (cap) {
-		error = smbus_trans(bus, addr, CMD_QUERY_CAPABILITIES,
-		    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-		    NULL, 0, (void *)cap, sizeof(*cap), NULL);
+		error = cyapa_read_bytes(dev, CMD_QUERY_CAPABILITIES,
+		    (void *)cap, sizeof(*cap));
 
 		if (strncmp(cap->prod_ida, "CYTRA", 5) != 0) {
 			device_printf(dev, "Product ID \"%5.5s\" mismatch\n",
@@ -391,9 +405,8 @@ init_device(device_t dev, struct cyapa_cap *cap, int addr, int probe)
 			error = ENXIO;
 		}
 	}
-	error = smbus_trans(bus, addr, CMD_BOOT_STATUS,
-	    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-	    NULL, 0, (void *)&boot, sizeof(boot), NULL);
+	error = cyapa_read_bytes(dev, CMD_BOOT_STATUS,
+	    (void *)&boot, sizeof(boot));
 
 	if (probe == 0)		/* official init */
 		device_printf(dev, "cyapa init status %02x\n", boot.stat);
@@ -452,16 +465,16 @@ cyapa_probe(device_t dev)
 	int addr;
 	int error;
 
-	addr = smbus_get_addr(dev);
+	addr = iicbus_get_addr(dev);
 
 	/*
 	 * 0x67 - cypress trackpad on the acer c720
 	 * (other devices might use other ids).
 	 */
-	if (addr != 0x67)
+	if (addr != 0xce)
 		return (ENXIO);
 
-	error = init_device(dev, &cap, addr, 1);
+	error = init_device(dev, &cap, 1);
 	if (error != 0)
 		return (ENXIO);
 
@@ -482,15 +495,14 @@ cyapa_attach(device_t dev)
 	sc->reporting_mode = 1;
 
 	unit = device_get_unit(dev);
-	addr = smbus_get_addr(dev);
+	addr = iicbus_get_addr(dev);
 
-	if (init_device(dev, &cap, addr, 0))
+	if (init_device(dev, &cap, 0))
 		return (ENXIO);
 
 	mtx_init(&sc->mutex, "cyapa", NULL, MTX_DEF);
 
 	sc->dev = dev;
-	sc->addr = addr;
 
 	knlist_init_mtx(&sc->selinfo.si_note, &sc->mutex);
 
@@ -1159,7 +1171,7 @@ cyapa_poll_thread(void *arg)
 {
 	struct cyapa_softc *sc;
 	struct cyapa_regs regs;
-	device_t bus;		/* smbus */
+	device_t bus;		/* iicbus */
 	int error;
 	int freq;
 	int isidle;
@@ -1180,12 +1192,10 @@ cyapa_poll_thread(void *arg)
 
 	while (!sc->detaching) {
 		cyapa_unlock(sc);
-		error = smbus_request_bus(bus, sc->dev, SMB_WAIT);
+		error = iicbus_request_bus(bus, sc->dev, IIC_WAIT);
 		if (error == 0) {
-			error = smbus_trans(bus, sc->addr, CMD_DEV_STATUS,
-			    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-			    NULL, 0,
-			    (void *)&regs, sizeof(regs), NULL);
+			error = cyapa_read_bytes(sc->dev, CMD_DEV_STATUS,
+			    (void *)&regs, sizeof(regs));
 			if (error == 0) {
 				isidle = cyapa_raw_input(sc, &regs, freq);
 			}
@@ -1200,9 +1210,9 @@ cyapa_poll_thread(void *arg)
 			     (unsigned)(ticks - last_reset) > TIME_TO_RESET)) {
 				cyapa_reset = 0;
 				last_reset = ticks;
-				init_device(sc->dev, NULL, sc->addr, 2);
+				init_device(sc->dev, NULL, 2);
 			}
-			smbus_release_bus(bus, sc->dev);
+			iicbus_release_bus(bus, sc->dev);
 		}
 		pause("cyapw", hz / freq);
 		++sc->poll_ticks;
@@ -1445,7 +1455,7 @@ cyapa_raw_input(struct cyapa_softc *sc, struct cyapa_regs *regs, int freq)
 				sc->delta_x = sc->cap_resx;
 			if (sc->delta_x < -sc->cap_resx)
 				sc->delta_x = -sc->cap_resx;
-			if (sc->delta_y > sc->cap_resx)
+			if (sc->delta_y > sc->cap_resy)
 				sc->delta_y = sc->cap_resy;
 			if (sc->delta_y < -sc->cap_resy)
 				sc->delta_y = -sc->cap_resy;
@@ -1531,18 +1541,16 @@ cyapa_set_power_mode(struct cyapa_softc *sc, int mode)
 	int error;
 
 	bus = device_get_parent(sc->dev);
-	error = smbus_request_bus(bus, sc->dev, SMB_WAIT);
+	error = iicbus_request_bus(bus, sc->dev, IIC_WAIT);
 	if (error == 0) {
-		error = smbus_trans(bus, sc->addr, CMD_POWER_MODE,
-		    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-		    NULL, 0, (void *)&data, 1, NULL);
+		error = cyapa_read_bytes(sc->dev, CMD_POWER_MODE,
+		    &data, 1);
 		data = (data & ~0xFC) | mode;
 		if (error == 0) {
-			error = smbus_trans(bus, sc->addr, CMD_POWER_MODE,
-			    SMB_TRANS_NOCNT | SMB_TRANS_7BIT,
-			    (void *)&data, 1, NULL, 0, NULL);
+			error = cyapa_write_bytes(sc->dev, CMD_POWER_MODE,
+			    &data, 1);
 		}
-		smbus_release_bus(bus, sc->dev);
+		iicbus_release_bus(bus, sc->dev);
 	}
 }
 
@@ -1697,6 +1705,6 @@ cyapa_fuzz(int delta, int *fuzzp)
 	return (delta);
 }
 
-DRIVER_MODULE(cyapa, smbus, cyapa_driver, cyapa_devclass, NULL, NULL);
-MODULE_DEPEND(cyapa, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+DRIVER_MODULE(cyapa, iicbus, cyapa_driver, cyapa_devclass, NULL, NULL);
+MODULE_DEPEND(cyapa, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(cyapa, 1);

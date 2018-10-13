@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/chflags/06.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="chflags returns ELOOP if too many symbolic links were encountered in translating the pathname"

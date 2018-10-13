@@ -52,6 +52,7 @@ struct dtsec_softc {
 	struct ifnet			*sc_ifnet;
 
 	device_t			sc_dev;
+	struct resource			*sc_mem;
 	struct mtx			sc_lock;
 	int				sc_mode;
 
@@ -65,7 +66,7 @@ struct dtsec_softc {
 
 	/* dTSEC data */
 	enum eth_dev_type		sc_eth_dev_type;
-	uint8_t				sc_eth_id;
+	uint8_t				sc_eth_id; /* Ethernet ID within its frame manager */
 	uintptr_t			sc_mac_mem_offset;
 	e_EnetMode			sc_mac_enet_mode;
 	int				sc_mac_mdio_irq;
@@ -75,6 +76,7 @@ struct dtsec_softc {
 	uint32_t			sc_port_tx_qman_chan;
 	int				sc_phy_addr;
 	bool				sc_hidden;
+	device_t			sc_mdio;
 
 	/* Params from fman_bus driver */
 	vm_offset_t			sc_fm_base;

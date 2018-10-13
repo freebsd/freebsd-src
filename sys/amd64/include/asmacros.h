@@ -1,6 +1,16 @@
+/* -*- mode: asm -*- */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
+ *
+ * Copyright (c) 2018 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by
+ * Konstantin Belousov <kib@FreeBSD.org> under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -144,70 +154,141 @@
 
 #ifdef LOCORE
 /*
- * Convenience macro for declaring interrupt entry points.
- */
-#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
-			.type __CONCAT(X,name),@function; __CONCAT(X,name):
-
-/*
- * Macros to create and destroy a trap frame.
- */
-#define PUSH_FRAME							\
-	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
-	jz	1f ;		/* Yes, dont swapgs again */		\
-	swapgs ;							\
-1:	movq	%rdi,TF_RDI(%rsp) ;					\
-	movq	%rsi,TF_RSI(%rsp) ;					\
-	movq	%rdx,TF_RDX(%rsp) ;					\
-	movq	%rcx,TF_RCX(%rsp) ;					\
-	movq	%r8,TF_R8(%rsp) ;					\
-	movq	%r9,TF_R9(%rsp) ;					\
-	movq	%rax,TF_RAX(%rsp) ;					\
-	movq	%rbx,TF_RBX(%rsp) ;					\
-	movq	%rbp,TF_RBP(%rsp) ;					\
-	movq	%r10,TF_R10(%rsp) ;					\
-	movq	%r11,TF_R11(%rsp) ;					\
-	movq	%r12,TF_R12(%rsp) ;					\
-	movq	%r13,TF_R13(%rsp) ;					\
-	movq	%r14,TF_R14(%rsp) ;					\
-	movq	%r15,TF_R15(%rsp) ;					\
-	movw	%fs,TF_FS(%rsp) ;					\
-	movw	%gs,TF_GS(%rsp) ;					\
-	movw	%es,TF_ES(%rsp) ;					\
-	movw	%ds,TF_DS(%rsp) ;					\
-	movl	$TF_HASSEGS,TF_FLAGS(%rsp) ;				\
-	cld
-
-#define POP_FRAME							\
-	movq	TF_RDI(%rsp),%rdi ;					\
-	movq	TF_RSI(%rsp),%rsi ;					\
-	movq	TF_RDX(%rsp),%rdx ;					\
-	movq	TF_RCX(%rsp),%rcx ;					\
-	movq	TF_R8(%rsp),%r8 ;					\
-	movq	TF_R9(%rsp),%r9 ;					\
-	movq	TF_RAX(%rsp),%rax ;					\
-	movq	TF_RBX(%rsp),%rbx ;					\
-	movq	TF_RBP(%rsp),%rbp ;					\
-	movq	TF_R10(%rsp),%r10 ;					\
-	movq	TF_R11(%rsp),%r11 ;					\
-	movq	TF_R12(%rsp),%r12 ;					\
-	movq	TF_R13(%rsp),%r13 ;					\
-	movq	TF_R14(%rsp),%r14 ;					\
-	movq	TF_R15(%rsp),%r15 ;					\
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
-	jz	1f ;		/* keep kernel GS.base */		\
-	cli ;								\
-	swapgs ;							\
-1:	addq	$TF_RIP,%rsp	/* skip over tf_err, tf_trapno */
-
-/*
  * Access per-CPU data.
  */
 #define	PCPU(member)	%gs:PC_ ## member
 #define	PCPU_ADDR(member, reg)					\
 	movq %gs:PC_PRVSPACE, reg ;				\
 	addq $PC_ ## member, reg
+
+/*
+ * Convenience macro for declaring interrupt entry points.
+ */
+#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
+			.type __CONCAT(X,name),@function; __CONCAT(X,name):
+
+	.macro	SAVE_SEGS
+	movw	%fs,TF_FS(%rsp)
+	movw	%gs,TF_GS(%rsp)
+	movw	%es,TF_ES(%rsp)
+	movw	%ds,TF_DS(%rsp)
+	.endm
+
+	.macro	MOVE_STACKS qw
+	.L.offset=0
+	.rept	\qw
+	movq	.L.offset(%rsp),%rdx
+	movq	%rdx,.L.offset(%rax)
+	.L.offset=.L.offset+8
+	.endr
+	.endm
+
+	.macro	PTI_UUENTRY has_err
+	movq	PCPU(KCR3),%rax
+	movq	%rax,%cr3
+	movq	PCPU(RSP0),%rax
+	subq	$PTI_SIZE - 8 * (1 - \has_err),%rax
+	MOVE_STACKS	((PTI_SIZE / 8) - 1 + \has_err)
+	movq	%rax,%rsp
+	popq	%rdx
+	popq	%rax
+	.endm
+
+	.macro	PTI_UENTRY has_err
+	swapgs
+	cmpq	$~0,PCPU(UCR3)
+	je	1f
+	pushq	%rax
+	pushq	%rdx
+	PTI_UUENTRY \has_err
+1:
+	.endm
+
+	.macro	PTI_ENTRY name, cont, has_err=0
+	ALIGN_TEXT
+	.globl	X\name\()_pti
+	.type	X\name\()_pti,@function
+X\name\()_pti:
+	/* %rax, %rdx and possibly err not yet pushed */
+	testb	$SEL_RPL_MASK,PTI_CS-(2+1-\has_err)*8(%rsp)
+	jz	\cont
+	PTI_UENTRY \has_err
+	swapgs
+	jmp	\cont
+	.endm
+
+	.macro	PTI_INTRENTRY vec_name
+	SUPERALIGN_TEXT
+	.globl	X\vec_name\()_pti
+	.type	X\vec_name\()_pti,@function
+X\vec_name\()_pti:
+	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* err, %rax, %rdx not pushed */
+	jz	.L\vec_name\()_u
+	PTI_UENTRY has_err=0
+	jmp	.L\vec_name\()_u
+	.endm
+
+	.macro	INTR_PUSH_FRAME vec_name
+	SUPERALIGN_TEXT
+	.globl	X\vec_name
+	.type	X\vec_name,@function
+X\vec_name:
+	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* come from kernel? */
+	jz	.L\vec_name\()_u		/* Yes, dont swapgs again */
+	swapgs
+.L\vec_name\()_u:
+	subq	$TF_RIP,%rsp	/* skip dummy tf_err and tf_trapno */
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	SAVE_SEGS
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	pushfq
+	andq	$~(PSL_D|PSL_AC),(%rsp)
+	popfq
+	testb	$SEL_RPL_MASK,TF_CS(%rsp)  /* come from kernel ? */
+	jz	1f		/* yes, leave PCB_FULL_IRET alone */
+	movq	PCPU(CURPCB),%r8
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r8)
+	call	handle_ibrs_entry
+1:
+	.endm
+
+	.macro	INTR_HANDLER vec_name
+	.text
+	PTI_INTRENTRY	\vec_name
+	INTR_PUSH_FRAME	\vec_name
+	.endm
+
+	.macro	RESTORE_REGS
+	movq	TF_RDI(%rsp),%rdi
+	movq	TF_RSI(%rsp),%rsi
+	movq	TF_RDX(%rsp),%rdx
+	movq	TF_RCX(%rsp),%rcx
+	movq	TF_R8(%rsp),%r8
+	movq	TF_R9(%rsp),%r9
+	movq	TF_RAX(%rsp),%rax
+	movq	TF_RBX(%rsp),%rbx
+	movq	TF_RBP(%rsp),%rbp
+	movq	TF_R10(%rsp),%r10
+	movq	TF_R11(%rsp),%r11
+	movq	TF_R12(%rsp),%r12
+	movq	TF_R13(%rsp),%r13
+	movq	TF_R14(%rsp),%r14
+	movq	TF_R15(%rsp),%r15
+	.endm
 
 #endif /* LOCORE */
 

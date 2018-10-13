@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)telldir.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)telldir.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -52,18 +52,39 @@ __FBSDID("$FreeBSD$");
 long
 telldir(DIR *dirp)
 {
-	struct ddloc *lp;
-	long idx;
+	struct ddloc_mem *lp, *flp;
+	union ddloc_packed ddloc;
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
+	/* 
+	 * Outline:
+	 * 1) If the directory position fits in a packed structure, return that.
+	 * 2) Otherwise, see if it's already been recorded in the linked list
+	 * 3) Otherwise, malloc a new one
+	 */
+	if (dirp->dd_seek < (1ul << DD_SEEK_BITS) &&
+	    dirp->dd_loc < (1ul << DD_LOC_BITS)) {
+		ddloc.s.is_packed = 1;
+		ddloc.s.loc = dirp->dd_loc;
+		ddloc.s.seek = dirp->dd_seek;
+		goto out;
+	}
+
+	flp = NULL;
 	LIST_FOREACH(lp, &dirp->dd_td->td_locq, loc_lqe) {
-		if (lp->loc_seek == dirp->dd_seek &&
-		    lp->loc_loc == dirp->dd_loc)
+		if (lp->loc_seek == dirp->dd_seek) {
+			if (flp == NULL)
+				flp = lp;
+			if (lp->loc_loc == dirp->dd_loc)
+				break;
+		} else if (flp != NULL) {
+			lp = NULL;
 			break;
+		}
 	}
 	if (lp == NULL) {
-		lp = malloc(sizeof(struct ddloc));
+		lp = malloc(sizeof(struct ddloc_mem));
 		if (lp == NULL) {
 			if (__isthreaded)
 				_pthread_mutex_unlock(&dirp->dd_lock);
@@ -72,12 +93,22 @@ telldir(DIR *dirp)
 		lp->loc_index = dirp->dd_td->td_loccnt++;
 		lp->loc_seek = dirp->dd_seek;
 		lp->loc_loc = dirp->dd_loc;
-		LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
+		if (flp != NULL)
+			LIST_INSERT_BEFORE(flp, lp, loc_lqe);
+		else
+			LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
 	}
-	idx = lp->loc_index;
+	ddloc.i.is_packed = 0;
+	/* 
+	 * Technically this assignment could overflow on 32-bit architectures,
+	 * but we would get ENOMEM long before that happens.
+	 */
+	ddloc.i.index = lp->loc_index;
+
+out:
 	if (__isthreaded)
 		_pthread_mutex_unlock(&dirp->dd_lock);
-	return (idx);
+	return (ddloc.l);
 }
 
 /*
@@ -87,34 +118,47 @@ telldir(DIR *dirp)
 void
 _seekdir(DIR *dirp, long loc)
 {
-	struct ddloc *lp;
+	struct ddloc_mem *lp;
 	struct dirent *dp;
+	union ddloc_packed ddloc;
+	off_t loc_seek;
+	long loc_loc;
 
-	LIST_FOREACH(lp, &dirp->dd_td->td_locq, loc_lqe) {
-		if (lp->loc_index == loc)
-			break;
+	ddloc.l = loc;
+
+	if (ddloc.s.is_packed) {
+		loc_seek = ddloc.s.seek;
+		loc_loc = ddloc.s.loc;
+	} else {
+		LIST_FOREACH(lp, &dirp->dd_td->td_locq, loc_lqe) {
+			if (lp->loc_index == ddloc.i.index)
+				break;
+		}
+		if (lp == NULL)
+			return;
+
+		loc_seek = lp->loc_seek;
+		loc_loc = lp->loc_loc;
 	}
-	if (lp == NULL)
-		return;
-	if (lp->loc_loc == dirp->dd_loc && lp->loc_seek == dirp->dd_seek)
+	if (loc_loc == dirp->dd_loc && loc_seek == dirp->dd_seek)
 		return;
 
 	/* If it's within the same chunk of data, don't bother reloading. */
-	if (lp->loc_seek == dirp->dd_seek) {
+	if (loc_seek == dirp->dd_seek) {
 		/*
 		 * If we go back to 0 don't make the next readdir
 		 * trigger a call to getdirentries().
 		 */
-		if (lp->loc_loc == 0)
+		if (loc_loc == 0)
 			dirp->dd_flags |= __DTF_SKIPREAD;
-		dirp->dd_loc = lp->loc_loc;
+		dirp->dd_loc = loc_loc;
 		return;
 	}
-	(void) lseek(dirp->dd_fd, (off_t)lp->loc_seek, SEEK_SET);
-	dirp->dd_seek = lp->loc_seek;
+	(void) lseek(dirp->dd_fd, (off_t)loc_seek, SEEK_SET);
+	dirp->dd_seek = loc_seek;
 	dirp->dd_loc = 0;
 	dirp->dd_flags &= ~__DTF_SKIPREAD; /* current contents are invalid */
-	while (dirp->dd_loc < lp->loc_loc) {
+	while (dirp->dd_loc < loc_loc) {
 		dp = _readdir_unlocked(dirp, 0);
 		if (dp == NULL)
 			break;
@@ -133,7 +177,7 @@ _seekdir(DIR *dirp, long loc)
 void
 _fixtelldir(DIR *dirp, long oldseek, long oldloc)
 {
-	struct ddloc *lp;
+	struct ddloc_mem *lp;
 
 	lp = LIST_FIRST(&dirp->dd_td->td_locq);
 	if (lp != NULL) {
@@ -151,8 +195,8 @@ _fixtelldir(DIR *dirp, long oldseek, long oldloc)
 void
 _reclaim_telldir(DIR *dirp)
 {
-	struct ddloc *lp;
-	struct ddloc *templp;
+	struct ddloc_mem *lp;
+	struct ddloc_mem *templp;
 
 	lp = LIST_FIRST(&dirp->dd_td->td_locq);
 	while (lp != NULL) {

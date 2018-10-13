@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -82,22 +82,16 @@ stop(type)
 }
 #endif
 
+#undef SIG_LESSWINDOW
 #ifdef SIGWINCH
-/*
- * "Window" change handler
- */
-	/* ARGSUSED*/
-	public RETSIGTYPE
-winch(type)
-	int type;
-{
-	LSIGNAL(SIGWINCH, winch);
-	sigs |= S_WINCH;
-	if (reading)
-		intread();
-}
+#define SIG_LESSWINDOW SIGWINCH
 #else
 #ifdef SIGWIND
+#define SIG_LESSWINDOW SIGWIND
+#endif
+#endif
+
+#ifdef SIG_LESSWINDOW
 /*
  * "Window" change handler
  */
@@ -106,12 +100,11 @@ winch(type)
 winch(type)
 	int type;
 {
-	LSIGNAL(SIGWIND, winch);
+	LSIGNAL(SIG_LESSWINDOW, winch);
 	sigs |= S_WINCH;
 	if (reading)
 		intread();
 }
-#endif
 #endif
 
 #if MSDOS_COMPILER==WIN32C
@@ -136,6 +129,13 @@ wbreak_handler(dwCtrlType)
 	return (FALSE);
 }
 #endif
+
+	static RETSIGTYPE
+terminate(type)
+	int type;
+{
+	quit(15);
+}
 
 /*
  * Set up the signal handlers.
@@ -165,6 +165,9 @@ init_signals(on)
 #ifdef SIGQUIT
 		(void) LSIGNAL(SIGQUIT, SIG_IGN);
 #endif
+#ifdef SIGTERM
+		(void) LSIGNAL(SIGTERM, terminate);
+#endif
 	} else
 	{
 		/*
@@ -186,6 +189,9 @@ init_signals(on)
 #ifdef SIGQUIT
 		(void) LSIGNAL(SIGQUIT, SIG_DFL);
 #endif
+#ifdef SIGTERM
+		(void) LSIGNAL(SIGTERM, SIG_DFL);
+#endif
 	}
 }
 
@@ -196,7 +202,7 @@ init_signals(on)
 	public void
 psignals()
 {
-	register int tsignals;
+	int tsignals;
 
 	if ((tsignals = sigs) == 0)
 		return;

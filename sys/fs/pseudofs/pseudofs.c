@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -383,11 +385,9 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	struct pfs_node *root;
 	int error;
 
-	mtx_assert(&Giant, MA_OWNED);
-
 	pfs_fileno_init(pi);
 
-	/* set up the root diretory */
+	/* set up the root directory */
 	root = pfs_alloc_node(pi, "/", pfstype_root);
 	pi->pi_root = root;
 	pfs_fileno_alloc(root);
@@ -413,8 +413,6 @@ int
 pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	int error;
-
-	mtx_assert(&Giant, MA_OWNED);
 
 	pfs_destroy(pi->pi_root);
 	pi->pi_root = NULL;

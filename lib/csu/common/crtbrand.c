@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2000 David E. O'Brien, John D. Polstra.
  * All rights reserved.
  *
@@ -27,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/elf_common.h>
 #include "notes.h"
 
 /*
@@ -60,7 +63,7 @@ static const struct {
 } abitag __attribute__ ((section (NOTE_SECTION), aligned(4))) __used = {
 	.namesz = sizeof(NOTE_FREEBSD_VENDOR),
 	.descsz = sizeof(int32_t),
-	.type = ABI_NOTETYPE,
+	.type = NT_FREEBSD_ABI_TAG,
 	.name = NOTE_FREEBSD_VENDOR,
 	.desc = __FreeBSD_version
 };

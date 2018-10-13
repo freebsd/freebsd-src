@@ -32,7 +32,7 @@ percentage=0
 for dist in $DISTRIBUTIONS; do
 	distname=$(basename $dist .txz)
 	eval "status_$distname=7"
-	
+
 	items=""
 	for i in $DISTRIBUTIONS; do
 		items="$items $i `eval echo \\\${status_$(basename $i .txz):-Pending}`"
@@ -62,8 +62,16 @@ for dist in $DISTRIBUTIONS; do
 		percentage=$(echo $percentage + 100/`echo $DISTRIBUTIONS | wc -w` | bc)
 	else
 		eval "status_$distname=1"
-		dialog --backtitle "FreeBSD Installer" --title "Error" \
-		    --msgbox "The checksum for $dist does not match. It may have become corrupted, and should be redownloaded." 0 0
+		case $(/bin/freebsd-version -u) in
+		*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
+			dialog --backtitle "FreeBSD Installer" --title "Error" \
+			    --msgbox "The checksum for $dist does not match. It may have become corrupted, or it may be from a newer version of FreeBSD. Please check for a newer snapshot." 0 0
+			;;
+		*)
+			dialog --backtitle "FreeBSD Installer" --title "Error" \
+			    --msgbox "The checksum for $dist does not match. It may have become corrupted, and should be redownloaded." 0 0
+			;;
+		esac
 		exit 1
 	fi
 done

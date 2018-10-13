@@ -32,7 +32,6 @@ def SLMModel : SchedMachineModel {
 let SchedModel = SLMModel in {
 
 // Silvermont has 5 reservation stations for micro-ops
-
 def IEC_RSV0 : ProcResource<1>;
 def IEC_RSV1 : ProcResource<1>;
 def FPC_RSV0 : ProcResource<1> { let BufferSize = 1; }
@@ -77,6 +76,9 @@ def : WriteRes<WriteStore, [IEC_RSV01, MEC_RSV]>;
 def : WriteRes<WriteLoad,  [MEC_RSV]> { let Latency = 3; }
 def : WriteRes<WriteMove,  [IEC_RSV01]>;
 def : WriteRes<WriteZero,  []>;
+
+// Treat misc copies as a move.
+def : InstRW<[WriteMove], (instrs COPY)>;
 
 defm : SMWriteResPair<WriteALU,   IEC_RSV01, 1>;
 defm : SMWriteResPair<WriteIMul,  IEC_RSV1,  3>;
@@ -136,6 +138,33 @@ defm : SMWriteResPair<WriteVecIMul,  FPC_RSV0,   4>;
 defm : SMWriteResPair<WriteShuffle,  FPC_RSV0,  1>;
 defm : SMWriteResPair<WriteBlend,  FPC_RSV0,  1>;
 defm : SMWriteResPair<WriteMPSAD,  FPC_RSV0,  7>;
+
+////////////////////////////////////////////////////////////////////////////////
+// Horizontal add/sub  instructions.
+////////////////////////////////////////////////////////////////////////////////
+
+// HADD, HSUB PS/PD
+
+def : WriteRes<WriteFHAdd,  [FPC_RSV01]> {
+  let Latency = 3;
+  let ResourceCycles = [2];
+}
+
+def : WriteRes<WriteFHAddLd,  [FPC_RSV01, MEC_RSV]> {
+  let Latency = 6;
+  let ResourceCycles = [2, 1];
+}
+
+// PHADD|PHSUB (S) W/D.
+def : WriteRes<WritePHAdd,  [FPC_RSV01]> {
+  let Latency = 1;
+  let ResourceCycles = [1];
+}
+
+def : WriteRes<WritePHAddLd,  [FPC_RSV01, MEC_RSV]> {
+  let Latency = 4;
+  let ResourceCycles = [1, 1];
+}
 
 // String instructions.
 // Packed Compare Implicit Length Strings, Return Mask
@@ -222,7 +251,7 @@ def : WriteRes<WriteMicrocoded, [FPC_RSV0]> { let Latency = 100; }
 def : WriteRes<WriteFence, [MEC_RSV]>;
 def : WriteRes<WriteNop, []>;
 
-// AVX is not supported on that architecture, but we should define the basic
+// AVX/FMA is not supported on that architecture, but we should define the basic
 // scheduling resources anyway.
 def  : WriteRes<WriteIMulH, [FPC_RSV0]>;
 defm : SMWriteResPair<WriteVarBlend, FPC_RSV0, 1>;
@@ -230,4 +259,5 @@ defm : SMWriteResPair<WriteFVarBlend, FPC_RSV0, 1>;
 defm : SMWriteResPair<WriteFShuffle256, FPC_RSV0,  1>;
 defm : SMWriteResPair<WriteShuffle256, FPC_RSV0,  1>;
 defm : SMWriteResPair<WriteVarVecShift, FPC_RSV0,  1>;
+defm : SMWriteResPair<WriteFMA, FPC_RSV0,  1>;
 } // SchedModel

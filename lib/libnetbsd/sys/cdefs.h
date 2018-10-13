@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012 SRI International
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,11 +37,13 @@
 
 #include_next <sys/cdefs.h>
 
+#ifndef __dead
 #ifdef __dead2
 #define __dead __dead2
 #else
 #define __dead
 #endif
+#endif /* !__dead */
 
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
@@ -68,5 +72,14 @@
  * __x.
  */
 #define	__arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
+
+/* __BIT(n): nth bit, where __BIT(0) == 0x1. */
+#define	__BIT(__n)	\
+    (((uintmax_t)(__n) >= NBBY * sizeof(uintmax_t)) ? 0 : \
+    ((uintmax_t)1 << (uintmax_t)((__n) & (NBBY * sizeof(uintmax_t) - 1))))
+
+/* __BITS(m, n): bits m through n, m < n. */
+#define	__BITS(__m, __n)	\
+	((__BIT(MAX((__m), (__n)) + 1) - 1) ^ (__BIT(MIN((__m), (__n))) - 1))
 
 #endif /* _LIBNETBSD_SYS_CDEFS_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 1999-2015, Broadcom Corporation
  * 
@@ -67,6 +69,7 @@
 
 
 /* PCI vendor IDs */
+#define	PCI_VENDOR_ASUSTEK	0x1043
 #define	PCI_VENDOR_EPIGRAM	0xfeda
 #define	PCI_VENDOR_BROADCOM	0x14e4
 #define	PCI_VENDOR_3COM		0x10b7
@@ -76,6 +79,8 @@
 #define	PCI_VENDOR_DELL		0x1028
 #define	PCI_VENDOR_HP		0x103c
 #define	PCI_VENDOR_HP_COMPAQ	0x0e11
+#define	PCI_VENDOR_LINKSYS	0x1737
+#define	PCI_VENDOR_MOTOROLA	0x1057
 #define	PCI_VENDOR_APPLE	0x106b
 #define	PCI_VENDOR_SI_IMAGE	0x1095		/* Silicon Image, used by Arasan SDIO Host */
 #define	PCI_VENDOR_BUFFALO	0x1154		/* Buffalo vendor id */
@@ -442,7 +447,7 @@
 #define	BHND_COREID_PCI			0x804		/* pci core */
 #define	BHND_COREID_MIPS		0x805		/* mips core */
 #define	BHND_COREID_ENET		0x806		/* enet mac core */
-#define	BHND_COREID_CODEC		0x807		/* v90 codec core */
+#define	BHND_COREID_V90_CODEC		0x807		/* v90 codec core */
 #define	BHND_COREID_USB			0x808		/* usb 1.1 host/device core */
 #define	BHND_COREID_ADSL		0x809		/* ADSL core */
 #define	BHND_COREID_ILINE100		0x80a		/* iline100 core */
@@ -535,6 +540,16 @@
 #define	BHND_CHIPTYPE_UBUS		2		/**< ubus interconnect found in bcm63xx devices */
 #define	BHND_CHIPTYPE_BCMA_ALT		3		/**< bcma(4) interconnect */
 
+/** Evaluates to true if @p _type is a BCMA or BCMA-compatible interconenct */
+#define	BHND_CHIPTYPE_IS_BCMA_COMPATIBLE(_type)	\
+	((_type) == BHND_CHIPTYPE_BCMA ||	\
+	 (_type) == BHND_CHIPTYPE_BCMA_ALT ||	\
+	 (_type) == BHND_CHIPTYPE_UBUS)
+
+/** Evaluates to true if @p _type uses a BCMA EROM table */
+#define	BHND_CHIPTYPE_HAS_EROM(_type)		\
+	BHND_CHIPTYPE_IS_BCMA_COMPATIBLE(_type)
+
 /* Boardflags */
 #define	BHND_BFL_BTC2WIRE		0x00000001	/* old 2wire Bluetooth coexistence, OBSOLETE */
 #define	BHND_BFL_BTCOEX			0x00000001	/* Board supports BTCOEX */
@@ -569,10 +584,10 @@
 #define	BHND_BFL_LNLDO2_2P5		0x04000000	/* Select 2.5V as LNLDO2 output voltage */
 #define	BHND_BFL_FASTPWR		0x08000000
 #define	BHND_BFL_UCPWRCTL_MININDX	0x08000000	/* Enforce min power index to avoid FEM damage */
-#define	BHND_BFL_EXTLNA_5GHz		0x10000000	/* Board has an external LNA in 5GHz band */
-#define	BHND_BFL_TRSW_1by2		0x20000000	/* Board has 2 TRSW's in 1by2 designs */
+#define	BHND_BFL_EXTLNA_5GHZ		0x10000000	/* Board has an external LNA in 5GHz band */
+#define	BHND_BFL_TRSW_1BY2		0x20000000	/* Board has 2 TRSW's in 1by2 designs */
 #define	BHND_BFL_GAINBOOSTA01	        0x20000000	/* 5g Gainboost for core0 and core1 */
-#define	BHND_BFL_LO_TRSW_R_5GHz		0x40000000	/* In 5G do not throw TRSW to T for clipLO gain */
+#define	BHND_BFL_LO_TRSW_R_5GHZ		0x40000000	/* In 5G do not throw TRSW to T for clipLO gain */
 #define	BHND_BFL_ELNA_GAINDEF		0x80000000	/* Backoff InitGain based on elna_2g/5g field
 							 * when this flag is set
 							 */
@@ -632,7 +647,7 @@
 #define	BHND_BFL_SROM11_BTCOEX		0x00000001	/* Board supports BTCOEX */
 #define	BHND_BFL_SROM11_WLAN_BT_SH_XTL	0x00000002	/* bluetooth and wlan share same crystal */
 #define	BHND_BFL_SROM11_EXTLNA		0x00001000	/* Board has an external LNA in 2.4GHz band */
-#define	BHND_BFL_SROM11_EXTLNA_5GHz	0x10000000	/* Board has an external LNA in 5GHz band */
+#define	BHND_BFL_SROM11_EXTLNA_5GHZ	0x10000000	/* Board has an external LNA in 5GHz band */
 #define	BHND_BFL_SROM11_GAINBOOSTA01	0x20000000	/* 5g Gainboost for core0 and core1 */
 #define	BHND_BFL2_SROM11_APLL_WAR	0x00000002	/* Flag to implement alternative A-band PLL settings */
 #define	BHND_BFL2_SROM11_ANAPACTRL_2G	0x00100000	/* 2G ext PAs are ctrl-ed by analog PA ctrl lines */
@@ -691,12 +706,6 @@
 #define	BHND_GPIO_BTC4W_OUT_43421	0x020	/* bit 5 is BT_IODISABLE */
 #define	BHND_GPIO_BTC4W_OUT_4313	0x060	/* bit 5 SW_BT, bit 6 SW_WL */
 #define	BHND_GPIO_BTC4W_OUT_4331_SHARED	0x010	/* GPIO 4  */
-
-/* Power Control Defines */
-#define	BHND_CHIPC_PLL_DELAY		150	/* us pll on delay */
-#define	BHND_CHIPC_FREF_DELAY		200	/* us fref change delay */
-#define	BHND_CHIPC_MIN_SLOW_CLK		32	/* us Slow clock period */
-#define	BHND_CHIPC_XTAL_ON_DELAY	1000	/* us crystal power-on delay */
 
 /* Board Types */
 #define	BHND_BOARD_BU4710		0x0400

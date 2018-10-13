@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2014
+.Dd March 20, 2018
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -78,9 +78,7 @@ are removed.
 Multiple processes may have the same physical pages locked via their own
 virtual address mappings.
 A single process may likewise have pages multiply-locked via different virtual
-mappings of the same pages or via nested
-.Fn mlock
-calls on the same address range.
+mappings of the same physical pages.
 Unlocking is performed explicitly by
 .Fn munlock
 or implicitly by a call to
@@ -125,7 +123,7 @@ will fail if:
 .Va security.bsd.unprivileged_mlock
 is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
-The address given is not page aligned or the length is negative.
+The address range given wraps around zero.
 .It Bq Er EAGAIN
 Locking the indicated range would exceed the system limit for locked memory.
 .It Bq Er ENOMEM
@@ -143,7 +141,7 @@ will fail if:
 .Va security.bsd.unprivileged_mlock
 is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
-The address given is not page aligned or the length is negative.
+The address range given wraps around zero.
 .It Bq Er ENOMEM
 Some or all of the address range specified by the addr and len
 arguments does not correspond to valid mapped pages in the address space

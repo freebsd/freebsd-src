@@ -22,6 +22,7 @@
 
 #include "recovery.h"
 
+#include "svn_dirent_uri.h"
 #include "svn_hash.h"
 #include "svn_pools.h"
 #include "private/svn_string_private.h"
@@ -37,6 +38,22 @@
 #include "../libsvn_fs/fs-loader.h"
 
 #include "svn_private_config.h"
+
+/* Set *EXISTS to TRUE, if the revision / pack file for REV exists in FS.
+   Use SCRATCH_POOL for temporary allocations. */
+static svn_error_t *
+revision_file_exists(svn_boolean_t *exists,
+                     svn_fs_t *fs,
+                     svn_revnum_t rev,
+                     apr_pool_t *scratch_pool)
+{
+  svn_node_kind_t kind;
+  const char *path = svn_fs_x__path_rev_absolute(fs, rev, scratch_pool);
+  SVN_ERR(svn_io_check_path(path, &kind, scratch_pool));
+
+  *exists = kind == svn_node_file;
+  return SVN_NO_ERROR;
+}
 
 /* Part of the recovery procedure.  Return the largest revision *REV in
    filesystem FS.  Use SCRATCH_POOL for temporary allocation. */
@@ -56,19 +73,12 @@ recover_get_largest_revision(svn_fs_t *fs,
   /* Keep doubling right, until we find a revision that doesn't exist. */
   while (1)
     {
-      svn_error_t *err;
-      svn_fs_x__revision_file_t *file;
+      svn_boolean_t exists;
       svn_pool_clear(iterpool);
 
-      err = svn_fs_x__open_pack_or_rev_file(&file, fs, right, iterpool,
-                                            iterpool);
-      if (err && err->apr_err == SVN_ERR_FS_NO_SUCH_REVISION)
-        {
-          svn_error_clear(err);
-          break;
-        }
-      else
-        SVN_ERR(err);
+      SVN_ERR(revision_file_exists(&exists, fs, right, iterpool));
+      if (!exists)
+        break;
 
       right <<= 1;
     }
@@ -80,28 +90,100 @@ recover_get_largest_revision(svn_fs_t *fs,
   while (left + 1 < right)
     {
       svn_revnum_t probe = left + ((right - left) / 2);
-      svn_error_t *err;
-      svn_fs_x__revision_file_t *file;
+      svn_boolean_t exists;
       svn_pool_clear(iterpool);
 
-      err = svn_fs_x__open_pack_or_rev_file(&file, fs, probe, iterpool,
-                                            iterpool);
-      if (err && err->apr_err == SVN_ERR_FS_NO_SUCH_REVISION)
-        {
-          svn_error_clear(err);
-          right = probe;
-        }
+      SVN_ERR(revision_file_exists(&exists, fs, probe, iterpool));
+      if (exists)
+        left = probe;
       else
-        {
-          SVN_ERR(err);
-          left = probe;
-        }
+        right = probe;
     }
 
   svn_pool_destroy(iterpool);
 
   /* left is now the largest revision that exists. */
   *rev = left;
+  return SVN_NO_ERROR;
+}
+
+/* Delete all files and sub-directories (recursively) of DIR_PATH but
+   leave DIR_PATH itself in place.  Use SCRATCH_POOL for temporaries. */
+static svn_error_t *
+clear_directory(const char *dir_path,
+                apr_pool_t *scratch_pool)
+{
+  apr_hash_t *dirents;
+  apr_hash_index_t *hi;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+
+  SVN_ERR(svn_io_get_dirents3(&dirents, dir_path, TRUE, scratch_pool,
+                              scratch_pool));
+
+  for (hi = apr_hash_first(scratch_pool, dirents);
+       hi;
+       hi = apr_hash_next(hi))
+    {
+      const char *path;
+      const char *name;
+      svn_dirent_t *dirent;
+
+      svn_pool_clear(iterpool);
+      apr_hash_this(hi, (const void **)&name, NULL, (void **)&dirent);
+
+      path = svn_dirent_join(dir_path, name, iterpool);
+      if (dirent->kind == svn_node_dir)
+        SVN_ERR(svn_io_remove_dir2(path, TRUE, NULL, NULL, iterpool));
+      else
+        SVN_ERR(svn_io_remove_file2(path, TRUE, iterpool));
+    }
+
+  svn_pool_destroy(iterpool);
+
+  return SVN_NO_ERROR;
+}
+
+/* Delete all uncommitted transaction data from FS.
+   Use SCRATCH_POOL for temporaries. */
+static svn_error_t *
+discard_transactions(svn_fs_t *fs,
+                     apr_pool_t *scratch_pool)
+{
+  svn_fs_x__data_t *ffd = fs->fsap_data;
+  svn_fs_x__shared_data_t *ffsd = ffd->shared;
+
+  /* In case this FS has been opened more than once in this process,
+     we should purge their shared transaction data as well.  We do the
+     same as abort_txn would, except that we don't expect all txn files
+     to be complete on disk. */
+  while (ffsd->txns)
+    {
+      svn_fs_x__shared_txn_data_t *txn = ffsd->txns;
+      ffsd->txns = txn->next;
+
+      svn_pool_destroy(txn->pool);
+    }
+
+  /* Remove anything from the transaction folders. */
+  SVN_ERR(clear_directory(svn_fs_x__path_txns_dir(fs, scratch_pool),
+                          scratch_pool));
+  SVN_ERR(clear_directory(svn_fs_x__path_txn_proto_revs(fs, scratch_pool),
+                          scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+/* Reset txn-current in FS.  Use SCRATCH_POOL for temporaries. */
+static svn_error_t *
+reset_txn_number(svn_fs_t *fs,
+                 apr_pool_t *scratch_pool)
+{
+  const char *initial_txn = "0\n";
+  SVN_ERR(svn_io_write_atomic2(svn_fs_x__path_txn_current(fs, scratch_pool),
+                               initial_txn, strlen(initial_txn),
+                               svn_fs_x__path_uuid(fs, scratch_pool),
+                               FALSE, scratch_pool));
+
   return SVN_NO_ERROR;
 }
 
@@ -133,7 +215,13 @@ recover_body(void *baton,
   /* The admin may have created a plain copy of this repo before attempting
      to recover it (hotcopy may or may not work with corrupted repos).
      Bump the instance ID. */
-  SVN_ERR(svn_fs_x__set_uuid(fs, fs->uuid, NULL, scratch_pool));
+  SVN_ERR(svn_fs_x__set_uuid(fs, fs->uuid, NULL, TRUE, scratch_pool));
+
+  /* Because transactions are not resilient against system crashes,
+     any existing transaction is suspect (and would probably not be
+     reopened anyway).  Get rid of those. */
+  SVN_ERR(discard_transactions(fs, scratch_pool));
+  SVN_ERR(reset_txn_number(fs, scratch_pool));
 
   /* We need to know the largest revision in the filesystem. */
   SVN_ERR(recover_get_largest_revision(fs, &max_rev, scratch_pool));

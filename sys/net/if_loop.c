@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +38,7 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -96,7 +99,7 @@ static void	lo_clone_destroy(struct ifnet *);
 VNET_DEFINE(struct ifnet *, loif);	/* Used externally */
 
 #ifdef VIMAGE
-static VNET_DEFINE(struct if_clone *, lo_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, lo_cloner);
 #define	V_lo_cloner		VNET(lo_cloner)
 #endif
 
@@ -133,7 +136,7 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_output = looutput;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_capabilities = ifp->if_capenable =
-	    IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6;
+	    IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_LINKSTATE;
 	ifp->if_hwassist = LO_CSUM_FEATURES | LO_CSUM_FEATURES6;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
@@ -156,7 +159,7 @@ vnet_loif_init(const void *unused __unused)
 	    1);
 #endif
 }
-VNET_SYSINIT(vnet_loif_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_loif_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_loif_init, NULL);
 
 #ifdef VIMAGE
@@ -167,7 +170,7 @@ vnet_loif_uninit(const void *unused __unused)
 	if_clone_detach(V_lo_cloner);
 	V_loif = NULL;
 }
-VNET_SYSUNINIT(vnet_loif_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_loif_uninit, SI_SUB_INIT_IF, SI_ORDER_SECOND,
     vnet_loif_uninit, NULL);
 #endif
 
@@ -223,6 +226,10 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
+
+#ifdef RSS
+	M_HASHTYPE_CLEAR(m);
+#endif
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
@@ -373,6 +380,7 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_link_state_change(ifp, LINK_STATE_UP);
 		/*
 		 * Everything else is done at a higher level.
 		 */
@@ -406,6 +414,8 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
+		if_link_state_change(ifp, (ifp->if_flags & IFF_UP) ?
+		    LINK_STATE_UP: LINK_STATE_DOWN);
 		break;
 
 	case SIOCSIFCAP:

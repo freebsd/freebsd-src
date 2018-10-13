@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from bf-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from bf-586.pl. */
 #ifdef PIC
-.file	"bf-586.S"
 .text
 .globl	BF_encrypt
 .type	BF_encrypt,@function
@@ -898,7 +897,6 @@ BF_cbc_encrypt:
 .align	64
 .size	BF_cbc_encrypt,.-.L_BF_cbc_encrypt_begin
 #else
-.file	"bf-586.S"
 .text
 .globl	BF_encrypt
 .type	BF_encrypt,@function

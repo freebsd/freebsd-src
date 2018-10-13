@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  * - When writing an XML element <link type="<file-type>">, <file-type>
  *   which is a file type a symbolic link is referencing is always marked
  *   as "broken". Xar utility uses stat(2) to get the file type, but, in
- *   libarcive format writer, we should not use it; if it is needed, we
+ *   libarchive format writer, we should not use it; if it is needed, we
  *   should get about it at archive_read_disk.c.
  * - It is possible to appear both <flags> and <ext2> elements.
  *   Xar utility generates <flags> on BSD platform and <ext2> on Linux
@@ -192,7 +192,7 @@ struct file {
 	struct file		*parent;	/* parent directory entry */
 	/*
 	 * To manage sub directory files.
-	 * We use 'chnext' a menber of struct file to chain.
+	 * We use 'chnext' (a member of struct file) to chain.
 	 */
 	struct {
 		struct file	*first;
@@ -258,7 +258,7 @@ struct xar {
 	/*
 	 * The list of all file entries is used to manage struct file
 	 * objects.
-	 * We use 'next' a menber of struct file to chain.
+	 * We use 'next' (a member of struct file) to chain.
 	 */
 	struct {
 		struct file	*first;
@@ -266,7 +266,7 @@ struct xar {
 	}			 file_list;
 	/*
 	 * The list of hard-linked file entries.
-	 * We use 'hlnext' a menber of struct file to chain.
+	 * We use 'hlnext' (a member of struct file) to chain.
 	 */
 	struct archive_rb_tree	 hardlink_rbtree;
 };
@@ -1227,7 +1227,7 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	case AE_IFLNK:
 		/*
 		 * xar utility has checked a file type, which
-		 * a symblic-link file has referenced.
+		 * a symbolic-link file has referenced.
 		 * For example:
 		 *   <link type="directory">../ref/</link>
 		 *   The symlink target file is "../ref/" and its
@@ -1237,8 +1237,8 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 		 *   The symlink target file is "../f" and its
 		 *   file type is a regular file.
 		 *
-		 * But our implemention cannot do it, and then we
-		 * always record that a attribute "type" is "borken",
+		 * But our implementation cannot do it, and then we
+		 * always record that a attribute "type" is "broken",
 		 * for example:
 		 *   <link type="broken">foo/bar</link>
 		 *   It means "foo/bar" is not reachable.
@@ -1544,7 +1544,7 @@ make_toc(struct archive_write *a)
 	}
 
 	/*
-	 * Start recoding TOC
+	 * Start recording TOC
 	 */
 	r = xmlTextWriterStartElement(writer, BAD_CAST("xar"));
 	if (r < 0) {
@@ -1961,6 +1961,7 @@ file_free(struct file *file)
 	archive_string_free(&(file->basename));
 	archive_string_free(&(file->symlink));
 	archive_string_free(&(file->script));
+	archive_entry_free(file->entry);
 	free(file);
 }
 
@@ -2484,7 +2485,7 @@ file_connect_hardlink_files(struct xar *xar)
 		archive_entry_set_nlink(target->entry, hl->nlink);
 		if (hl->nlink > 1)
 			/* It means this file is a hardlink
-			 * targe itself. */
+			 * target itself. */
 			target->hardlink_target = target;
 		for (nf = target->hlnext;
 		    nf != NULL; nf = nf->hlnext) {
@@ -2913,7 +2914,7 @@ compression_init_encoder_xz(struct archive *a,
 	*strm = lzma_init_data;
 #ifdef HAVE_LZMA_STREAM_ENCODER_MT
 	if (threads > 1) {
-		bzero(&mt_options, sizeof(mt_options));
+		memset(&mt_options, 0, sizeof(mt_options));
 		mt_options.threads = threads;
 		mt_options.timeout = 300;
 		mt_options.filters = lzmafilters;

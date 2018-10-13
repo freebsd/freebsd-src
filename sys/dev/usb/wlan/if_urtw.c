@@ -16,6 +16,9 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -61,6 +64,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/wlan/if_urtwreg.h>
 #include <dev/usb/wlan/if_urtwvar.h>
+
+/* copy some rate indices from if_rtwn_ridx.h */
+#define	URTW_RIDX_CCK5		2
+#define	URTW_RIDX_CCK11		3
+#define	URTW_RIDX_OFDM6		4
+#define	URTW_RIDX_OFDM24	8
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
 #ifdef URTW_DEBUG
@@ -679,7 +688,6 @@ static void		urtw_ledtask(void *, int);
 static void		urtw_watchdog(void *);
 static void		urtw_set_multi(void *);
 static int		urtw_isbmode(uint16_t);
-static uint16_t		urtw_rate2rtl(uint32_t);
 static uint16_t		urtw_rtl2rate(uint32_t);
 static usb_error_t	urtw_set_rate(struct urtw_softc *);
 static usb_error_t	urtw_update_msr(struct urtw_softc *);
@@ -863,7 +871,7 @@ urtw_attach(device_t dev)
 
 	sc->sc_rts_retry = URTW_DEFAULT_RTS_RETRY;
 	sc->sc_tx_retry = URTW_DEFAULT_TX_RETRY;
-	sc->sc_currate = 3;
+	sc->sc_currate = URTW_RIDX_CCK11;
 	sc->sc_preamble_mode = urtw_preamble_mode;
 
 	ic->ic_softc = sc;
@@ -1643,7 +1651,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 {
 	struct ieee80211_frame *wh = mtod(m0, struct ieee80211_frame *);
 	struct ieee80211_key *k;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct usb_xfer *rtl8187b_pipes[URTW_8187B_TXPIPE_MAX] = {
@@ -1653,13 +1661,16 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		sc->sc_xfer[URTW_8187B_BULK_TX_VO]
 	};
 	struct usb_xfer *xfer;
-	int dur = 0, rtsdur = 0, rtsenable = 0, ctsenable = 0, rate,
-	    pkttime = 0, txdur = 0, isshort = 0, xferlen;
+	int dur = 0, rtsdur = 0, rtsenable = 0, ctsenable = 0, rate, type,
+	    pkttime = 0, txdur = 0, isshort = 0, xferlen, ismcast;
 	uint16_t acktime, rtstime, ctstime;
 	uint32_t flags;
 	usb_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
+
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	/*
 	 * Software crypto.
@@ -1689,14 +1700,13 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m0->m_flags & M_EAPOL) != 0) {
 		rate = tp->mgmtrate;
 	} else {
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
 		/* for data frames */
-		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		if (ismcast)
 			rate = tp->mcastrate;
 		else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 			rate = tp->ucastrate;
@@ -1706,7 +1716,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 
 	sc->sc_stats.txrates[sc->sc_currate]++;
 
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (ismcast)
 		txdur = pkttime = urtw_compute_txtime(m0->m_pkthdr.len +
 		    IEEE80211_CRC_LEN, rate, 0, 0);
 	else {
@@ -1764,14 +1774,12 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 			flags |= URTW_TX_FLAG_CTS;
 		if (rtsenable) {
 			flags |= URTW_TX_FLAG_RTS;
-			flags |= (urtw_rate2rtl(11) & 0xf) <<
-			    URTW_TX_FLAG_RTSRATE_SHIFT;
+			flags |= URTW_RIDX_CCK5 << URTW_TX_FLAG_RTSRATE_SHIFT;
 			tx->rtsdur = rtsdur;
 		}
 		tx->flag = htole32(flags);
 		tx->txdur = txdur;
-		if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		    IEEE80211_FC0_TYPE_MGT &&
+		if (type == IEEE80211_FC0_TYPE_MGT &&
 		    (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) ==
 		    IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 			tx->retry = 1;
@@ -1786,7 +1794,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 			flags |= URTW_TX_FLAG_RTS;
 			tx->rtsdur = rtsdur;
 		}
-		flags |= (urtw_rate2rtl(11) & 0xf) << URTW_TX_FLAG_RTSRATE_SHIFT;
+		flags |= URTW_RIDX_CCK5 << URTW_TX_FLAG_RTSRATE_SHIFT;
 		tx->flag = htole32(flags);
 		tx->retry = 3;		/* CW minimum  */
 		tx->retry |= 7 << 4;	/* CW maximum  */
@@ -1799,7 +1807,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	data->m = m0;
 
 	if (sc->sc_flags & URTW_RTL8187B) {
-		switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
+		switch (type) {
 		case IEEE80211_FC0_TYPE_CTL:
 		case IEEE80211_FC0_TYPE_MGT:
 			xfer = sc->sc_xfer[URTW_8187B_BULK_TX_EP12];
@@ -1906,9 +1914,9 @@ urtw_set_rate(struct urtw_softc *sc)
 	uint16_t data;
 	usb_error_t error;
 
-	basic_rate = urtw_rate2rtl(48);
-	min_rr_rate = urtw_rate2rtl(12);
-	max_rr_rate = urtw_rate2rtl(48);
+	basic_rate = URTW_RIDX_OFDM24;
+	min_rr_rate = URTW_RIDX_OFDM6;
+	max_rr_rate = URTW_RIDX_OFDM24;
 
 	urtw_write8_m(sc, URTW_RESP_RATE,
 	    max_rr_rate << URTW_RESP_MAX_RATE_SHIFT |
@@ -1923,19 +1931,6 @@ urtw_set_rate(struct urtw_softc *sc)
 	urtw_write16_m(sc, URTW_BRSR, data);
 fail:
 	return (error);
-}
-
-static uint16_t
-urtw_rate2rtl(uint32_t rate)
-{
-	unsigned int i;
-
-	for (i = 0; i < nitems(urtw_ratetable); i++) {
-		if (rate == urtw_ratetable[i].reg)
-			return urtw_ratetable[i].val;
-	}
-
-	return (3);
 }
 
 static uint16_t

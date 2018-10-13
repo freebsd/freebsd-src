@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,10 +40,9 @@
 typedef struct {
 	u_char		*db;		/* buffer address */
 	u_char		*dbp;		/* current buffer I/O address */
-	/* XXX ssize_t? */
-	size_t		dbcnt;		/* current buffer byte count */
-	size_t		dbrcnt;		/* last read byte count */
-	size_t		dbsz;		/* block size */
+	ssize_t		dbcnt;		/* current buffer byte count */
+	ssize_t		dbrcnt;		/* last read byte count */
+	ssize_t		dbsz;		/* block size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe-like (see position.c) */
@@ -99,5 +100,6 @@ typedef struct {
 #define	C_STATUS	0x08000000
 #define	C_NOXFER	0x10000000
 #define	C_NOINFO	0x20000000
+#define	C_PROGRESS	0x40000000
 
 #define	C_PARITY	(C_PAREVEN | C_PARODD | C_PARNONE | C_PARSET)

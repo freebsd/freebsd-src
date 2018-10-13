@@ -15,7 +15,7 @@ digraph doc {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at svn logs for the svnadmin/access file.
+# can find looking at svn logs for the svnadmin/conf/access file.
 # Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
@@ -61,6 +61,7 @@ chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
 crees [label="Chris Rees\ncrees@FreeBSD.org\n2013/05/27"]
 danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
+dexter [label="Michael Dexter\ndexter@FreeBSD.org\n2016/11/15"]
 dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15"]
 ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
@@ -85,6 +86,7 @@ pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 ryusuke [label="Ryusuke Suzuki\nryusuke@FreeBSD.org\n2009/12/21"]
+sevan [label="Sevan Janiyan\nsevan@FreeBSD.org\n2016/09/16"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2014/01/15"]
 taras [label="Taras Korenko\ntaras@FreeBSD.org\n2010/06/25"]
@@ -104,6 +106,8 @@ bcr -> crees
 bcr -> jgh
 bcr -> allanjude
 bcr -> bhd
+bcr -> sevan
+bcr -> dexter
 
 blackend -> ale
 

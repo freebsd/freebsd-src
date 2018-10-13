@@ -1,18 +1,15 @@
 
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../../..
+SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 .PATH:	${SYSDIR}/dev/aic7xxx
 KMOD=	ahc
-.if ${MK_EISA} != "no"
-SUBDIR+= ahc_eisa
-.endif
 SUBDIR+= ahc_isa ahc_pci
 
 GENSRCS= aic7xxx_seq.h aic7xxx_reg.h
-AHC_REG_PRETTY_PRINT=1
+# AHC_REG_PRETTY_PRINT=1
 REG_PRINT_OPT=
 .ifdef AHC_REG_PRETTY_PRINT
 GENSRCS+= aic7xxx_reg_print.c
@@ -40,7 +37,7 @@ ${GENSRCS}:								 \
 # to appear when building the tree from 8.x worlds where fmake is the
 # default. fmake doens't define .MAKE.LEVEL so key off that to omit it,
 # while still allowing more-modern makes to theoretically update things.
-${GENSRCS}:
+${GENSRCS}: .NOMETA
 	@echo "Error: ${.TARGET} is missing.  Run 'make ahcfirmware'"
 .endif
 

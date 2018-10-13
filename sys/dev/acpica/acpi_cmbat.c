@@ -164,6 +164,16 @@ acpi_cmbat_detach(device_t dev)
     handle = acpi_get_handle(dev);
     AcpiRemoveNotifyHandler(handle, ACPI_ALL_NOTIFY, acpi_cmbat_notify_handler);
     acpi_battery_remove(dev);
+
+    /*
+     * Force any pending notification handler calls to complete by
+     * requesting cmbat serialisation while freeing and clearing the
+     * softc pointer:
+     */
+    ACPI_SERIAL_BEGIN(cmbat);
+    device_set_softc(dev, NULL);
+    ACPI_SERIAL_END(cmbat);
+
     return (0);
 }
 
@@ -219,7 +229,7 @@ acpi_cmbat_info_expired(struct timespec *lastupdated)
 	return (TRUE);
 
     getnanotime(&curtime);
-    timespecsub(&curtime, lastupdated);
+    timespecsub(&curtime, lastupdated, &curtime);
     return (curtime.tv_sec < 0 ||
 	    curtime.tv_sec > acpi_battery_get_info_expire());
 }
@@ -436,7 +446,6 @@ acpi_cmbat_init_battery(void *arg)
     device_t	dev;
 
     dev = (device_t)arg;
-    sc = device_get_softc(dev);
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		"battery initialization start\n");
 
@@ -446,18 +455,33 @@ acpi_cmbat_init_battery(void *arg)
      * to wait a while.
      */
     for (retry = 0; retry < ACPI_CMBAT_RETRY_MAX; retry++, AcpiOsSleep(10000)) {
-	/* batteries on DOCK can be ejected w/ DOCK during retrying */
-	if (!device_is_attached(dev))
+	/*
+	 * Batteries on DOCK can be ejected w/ DOCK during retrying.
+	 *
+	 * If there is a valid softc pointer the device may be in
+	 * attaching, attached or detaching state. If the state is
+	 * different from attached retry getting the device state
+	 * until it becomes stable. This solves a race if the ACPI
+	 * notification handler is called during attach, because
+	 * device_is_attached() doesn't return non-zero until after
+	 * the attach code has been executed.
+	 */
+	ACPI_SERIAL_BEGIN(cmbat);
+	sc = device_get_softc(dev);
+	if (sc == NULL) {
+	    ACPI_SERIAL_END(cmbat);
 	    return;
+	}
 
-	if (!acpi_BatteryIsPresent(dev))
+	if (!acpi_BatteryIsPresent(dev) || !device_is_attached(dev)) {
+	    ACPI_SERIAL_END(cmbat);
 	    continue;
+	}
 
 	/*
 	 * Only query the battery if this is the first try or the specific
 	 * type of info is still invalid.
 	 */
-	ACPI_SERIAL_BEGIN(cmbat);
 	if (retry == 0 || !acpi_battery_bst_valid(&sc->bst)) {
 	    timespecclear(&sc->bst_lastupdated);
 	    acpi_cmbat_get_bst(dev);

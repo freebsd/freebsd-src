@@ -34,6 +34,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,8 +64,9 @@ main(void)
 {
 	struct accept_filter_arg afa;
 	struct sockaddr_in sin;
+	struct linger linger;
 	socklen_t len;
-	int lso, ret;
+	int lso, so, i, ret;
 
 	/* XXX: PLAIN_TEST_REQUIRE_MODULE "backport" for stable/9 */
 	const char *_mod_name = "accf_data";
@@ -76,7 +78,7 @@ main(void)
 	}
 	/* XXX: PLAIN_TEST_REQUIRE_MODULE for stable/9 */
 
-	printf("1..11\n");
+	printf("1..12\n");
 
 	/*
 	 * Step 0. Open socket().
@@ -103,6 +105,7 @@ main(void)
 	/*
 	 * Step 2. Bind().  Ideally this will succeed.
 	 */
+	setsockopt(lso, SOL_SOCKET, SO_REUSEADDR, &lso, sizeof(lso));
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
@@ -203,25 +206,94 @@ main(void)
 	printf("ok 10 - getsockopt\n");
 
 	/*
-	 * Step 10: Remove accept filter.  After removing the accept filter
+	 * Step 10: Set listening socket to non blocking mode.  Open
+	 * connection to our listening socket and try to accept.  Should
+	 * no succeed.  Write a byte of data and try again.  Should accept.
+	 */
+	i = fcntl(lso, F_GETFL);
+	if (i < 0)
+		errx(-1, "not ok 11 - ioctl(F_GETFL): %s", strerror(errno));
+	i |= O_NONBLOCK;
+	if (fcntl(lso, F_SETFL, i) != 0)
+		errx(-1, "not ok 11 - ioctl(F_SETFL): %s", strerror(errno));
+	so = socket(PF_INET, SOCK_STREAM, 0);
+	if (so == -1)
+		errx(-1, "not ok 11 - socket: %s", strerror(errno));
+	if (connect(so, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		errx(-1, "not ok 11 - connect %s", strerror(errno));
+	if (accept(lso, NULL, 0) != -1 && errno != EWOULDBLOCK)
+		errx(-1, "not ok 11 - accept #1 %s", strerror(errno));
+	if (write(so, "0", 1) != 1)
+		errx(-1, "not ok 11 - write %s", strerror(errno));
+	/*
+	 * XXXGL: ugly, but we need to make sure that our write reaches
+	 * remote side of the socket.
+	 */
+	usleep(10000);
+	if (accept(lso, NULL, 0) < 1)
+		errx(-1, "not ok 11 - accept #2 %s", strerror(errno));
+	if (close(so) != 0)
+		errx(-1, "not ok 11 - close(): %s", strerror(errno));
+	printf("ok 11 - accept\n");
+
+	/*
+	 * Step 12: reset connection before accept filter allows it.
+	 * In this case the connection must make it to the listen
+	 * queue, but with ECONNABORTED code.
+	 */
+	so = socket(PF_INET, SOCK_STREAM, 0);
+	if (so == -1)
+		errx(-1, "not ok 12 - socket: %s", strerror(errno));
+	if (connect(so, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		errx(-1, "not ok 12 - connect %s", strerror(errno));
+	linger.l_onoff = 1;
+	linger.l_linger = 0;
+	ret = setsockopt(so, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+	if (ret != 0)
+		errx(-1, "not ok 12 - setsockopt(SO_LINGER) failed with %d "
+		    "(%s)", errno, strerror(errno));
+	if (close(so) != 0)
+		errx(-1, "not ok 12 - close(): %s", strerror(errno));
+	if (accept(lso, NULL, 0) != -1 && errno != ECONNABORTED)
+		errx(-1, "not ok 12 - accept #3 %s", strerror(errno));
+	printf("ok 12 - accept\n");
+
+#if 1
+	/*
+	 * XXXGL: this doesn't belong to the test itself, but is known
+	 * to examine rarely examined paths in the kernel.  Intentionally
+	 * leave a socket on the incomplete queue, before the program
+	 * exits.
+	 */
+	so = socket(PF_INET, SOCK_STREAM, 0);
+	if (so == -1)
+		errx(-1, "not ok 13 - socket: %s", strerror(errno));
+	if (connect(so, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		errx(-1, "not ok 13 - connect %s", strerror(errno));
+#endif
+
+	/*
+	 * Step 12: Remove accept filter.  After removing the accept filter
 	 * getsockopt() should fail with EINVAL.
 	 */
 	ret = setsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, NULL, 0);
 	if (ret != 0)
-		errx(-1, "not ok 11 - setsockopt() after listen() "
+		errx(-1, "not ok 13 - setsockopt() after listen() "
 		    "failed with %d (%s)", errno, strerror(errno));
 	bzero(&afa, sizeof(afa));
 	len = sizeof(afa);
 	ret = getsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, &len);
 	if (ret == 0)
-		errx(-1, "not ok 11 - getsockopt() after removing "
+		errx(-1, "not ok 13 - getsockopt() after removing "
 		    "the accept filter returns valid accept filter %s",
 		    afa.af_name);
 	if (errno != EINVAL)
-		errx(-1, "not ok 11 - getsockopt() after removing the accept"
+		errx(-1, "not ok 13 - getsockopt() after removing the accept"
 		    "filter failed with %d (%s)", errno, strerror(errno));
-	printf("ok 11 - setsockopt\n");
+	if (close(lso) != 0)
+		errx(-1, "not ok 13 - close() of listening socket: %s",
+		    strerror(errno));
+	printf("ok 13 - setsockopt\n");
 
-	close(lso);
 	return (0);
 }

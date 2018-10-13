@@ -28,13 +28,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2002
+.Dd September 15, 2017
 .Dt GETCONF 1
 .Os
 .Sh NAME
 .Nm getconf
 .Nd retrieve standard configuration variables
 .Sh SYNOPSIS
+.Nm
+.Fl a
+.Op Ar file
 .Nm
 .Op Fl v Ar environment
 .Ar path_var
@@ -45,20 +48,35 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility prints the value of a
+utility prints the values of
 .Tn POSIX
 or
 .Tn X/Open
-path or system configuration variable to the standard output.
-If the specified variable is undefined, the string
+path or system configuration variables to the standard output.
+If a variable is undefined, the string
 .Dq Li undefined
 is output.
 .Pp
-The first form of the command, with two mandatory
+The first form of the command displays all of the path or system configuration
+variables to standard output.
+If
+.Ar file
+is provided,
+all path configuration variables are reported for
+.Ar file
+using
+.Xr pathconf 2 .
+Otherwise,
+all system configuration variables are reported using
+.Xr confstr 3
+and
+.Xr sysconf 3.
+.Pp
+The second form of the command, with two mandatory
 arguments, retrieves file- and file system-specific
 configuration variables using
 .Xr pathconf 2 .
-The second form, with a single argument, retrieves system
+The third form, with a single argument, retrieves system
 configuration variables using
 .Xr confstr 3
 and
@@ -122,7 +140,7 @@ Exactly 32-bit integer, long, and pointer; at least 64-bit file offset.
 .It Li POSIX_V6_LP64_OFF64
 Exactly 32-bit integer; exactly 64-bit long, pointer, and file offset.
 .Sy Supported platforms :
-.Tn Alpha ,
+.Tn AMD64 ,
 .Tn SPARC64 .
 .It Li POSIX_V6_LPBIG_OFFBIG
 At least 32-bit integer; at least 64-bit long, pointer, and file offset.

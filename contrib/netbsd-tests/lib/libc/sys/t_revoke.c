@@ -1,4 +1,4 @@
-/* $NetBSD: t_revoke.c,v 1.1 2011/07/07 06:57:54 jruoho Exp $ */
+/* $NetBSD: t_revoke.c,v 1.2 2017/01/13 21:15:57 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_revoke.c,v 1.1 2011/07/07 06:57:54 jruoho Exp $");
+__RCSID("$NetBSD: t_revoke.c,v 1.2 2017/01/13 21:15:57 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -176,6 +176,7 @@ ATF_TC_BODY(revoke_perm, tc)
 	if (WIFEXITED(sta) == 0 || WEXITSTATUS(sta) != EXIT_SUCCESS)
 		atf_tc_fail("revoke(2) did not obey permissions");
 
+	(void)close(fd);
 	ATF_REQUIRE(unlink(path) == 0);
 }
 

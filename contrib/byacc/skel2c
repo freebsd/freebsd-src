@@ -4,7 +4,7 @@ function noident(given) {
 	return given;
 }
 BEGIN { havesection = 0;
-	version = "$Id: skel2c,v 1.3 2014/04/06 19:48:04 tom Exp $";
+	version = "$Id: skel2c,v 1.4 2016/06/07 00:26:09 tom Exp $";
 	nsec = 0;
 	ifdef = "";
 	printf  "/* This file generated automatically using\n * %s\n */\n\n",
@@ -42,10 +42,10 @@ BEGIN { havesection = 0;
 	if (ifdef != "") {
 	    if (NF >= 2) {
 		printf "    \"#endif /* %s */\",\n", $2;
-		printf "#endif /* defined(%s) */\n", $2;
+		printf "#endif\t\t\t/* defined(%s) */\n", $2;
 	    } else {
 		printf "    \"#endif /* %s */\",\n", ifdef;
-		printf "#endif /* defined(%s) */\n", ifdef;
+		printf "#endif\t\t\t/* defined(%s) */\n", ifdef;
 	    }
 	    ifdef = "";
 	} else {

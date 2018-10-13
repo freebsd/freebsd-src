@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.30 2016/02/20 23:06:23 sobrado Exp $
+#	$OpenBSD: ssh_config,v 1.33 2017/05/07 23:12:57 djm Exp $
 #	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
@@ -21,8 +21,6 @@
 # Host *
 #   ForwardAgent no
 #   ForwardX11 no
-#   RhostsRSAAuthentication no
-#   RSAAuthentication yes
 #   PasswordAuthentication yes
 #   HostbasedAuthentication no
 #   GSSAPIAuthentication no
@@ -32,16 +30,14 @@
 #   AddressFamily any
 #   ConnectTimeout 0
 #   StrictHostKeyChecking ask
-#   IdentityFile ~/.ssh/identity
 #   IdentityFile ~/.ssh/id_rsa
 #   IdentityFile ~/.ssh/id_dsa
 #   IdentityFile ~/.ssh/id_ecdsa
 #   IdentityFile ~/.ssh/id_ed25519
 #   Port 22
 #   Protocol 2
-#   Cipher 3des
-#   Ciphers aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,aes128-cbc,3des-cbc
-#   MACs hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160
+#   Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-cbc,3des-cbc
+#   MACs hmac-md5,hmac-sha1,umac-64@openssh.com
 #   EscapeChar ~
 #   Tunnel no
 #   TunnelDevice any:any
@@ -50,4 +46,4 @@
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
 #   RekeyLimit 1G 1h
 #   VerifyHostKeyDNS yes
-#   VersionAddendum FreeBSD-20160310
+#   VersionAddendum FreeBSD-20180909

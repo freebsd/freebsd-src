@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
@@ -40,9 +42,6 @@
 #define	XSCALE_PMNC_PMNRESET		0x02	/* Performance Counter Reset */
 #define	XSCALE_PMNC_CCNTRESET		0x04	/* Clock Counter Reset */
 #define	XSCALE_PMNC_CCNTDIV		0x08	/* Clock Counter Divider */
-/* IXP425 only -- first generation */
-#define	XSCALE_PMNC_EVT0_MASK		0x00ff000
-#define	XSCALE_PMNC_EVT1_MASK		0xff00000
 
 #define	XSCALE_INTEN_CCNT		0x01	/* Enable Clock Counter Int. */
 #define	XSCALE_INTEN_PMN0		0x02	/* Enable PMN0 Interrupts */

@@ -22,7 +22,7 @@
 
 CSIH_SCRIPT=/usr/share/csih/cygwin-service-installation-helper.sh
 
-# List of apps used.  This is checkad for existance in csih_sanity_check
+# List of apps used.  This is checkad for existence in csih_sanity_check
 # Don't use *any* transient commands before sourcing the csih helper script,
 # otherwise the sanity checks are short-circuited.
 declare -a csih_required_commands=(
@@ -63,7 +63,6 @@ sshd_config_configured=no
 port_number=22
 service_name=sshd
 strictmodes=yes
-privsep_used=yes
 cygwin_value=""
 user_account=
 password_value=
@@ -140,33 +139,21 @@ sshd_strictmodes() {
 
 # ======================================================================
 # Routine: sshd_privsep
-#  MODIFIES: privsep_used
+# Try to create ssshd user account
 # ======================================================================
 sshd_privsep() {
   local ret=0
 
   if [ "${sshd_config_configured}" != "yes" ]
   then
-    echo
-    csih_inform "Privilege separation is set to 'sandbox' by default since"
-    csih_inform "OpenSSH 6.1.  This is unsupported by Cygwin and has to be set"
-    csih_inform "to 'yes' or 'no'."
-    csih_inform "However, using privilege separation requires a non-privileged account"
-    csih_inform "called 'sshd'."
-    csih_inform "For more info on privilege separation read /usr/share/doc/openssh/README.privsep."
-    if csih_request "Should privilege separation be used?"
+    if ! csih_create_unprivileged_user sshd
     then
-      privsep_used=yes
-      if ! csih_create_unprivileged_user sshd
-      then
-	csih_error_recoverable "Couldn't create user 'sshd'!"
-	csih_error_recoverable "Privilege separation set to 'no' again!"
-	csih_error_recoverable "Check your ${SYSCONFDIR}/sshd_config file!"
-	let ++ret
-	privsep_used=no
-      fi
-    else
-      privsep_used=no
+      csih_error_recoverable "Could not create user 'sshd'!"
+      csih_error_recoverable "You will not be able to run an sshd service"
+      csih_error_recoverable "under a privileged account successfully."
+      csih_error_recoverable "Make sure to create a non-privileged user 'sshd'"
+      csih_error_recoverable "manually before trying to run the service!"
+      let ++ret
     fi
   fi
   return $ret
@@ -198,18 +185,6 @@ sshd_config_tweak() {
     if [ $? -ne 0 ]
     then
       csih_warning "Setting StrictModes to 'no' failed!"
-      csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
-      let ++ret
-    fi
-  fi
-  if [ "${sshd_config_configured}" != "yes" ]
-  then
-    /usr/bin/sed -i -e "
-      s/^#\?UsePrivilegeSeparation .*/UsePrivilegeSeparation ${privsep_used}/" \
-      ${SYSCONFDIR}/sshd_config
-    if [ $? -ne 0 ]
-    then
-      csih_warning "Setting privilege separation failed!"
       csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
       let ++ret
     fi
@@ -693,7 +668,7 @@ then
   fi
 fi
 
-# handle sshd_config (and privsep)
+# handle sshd_config
 csih_install_config "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults" || let ++warning_cnt
 if ! /usr/bin/cmp "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults/${SYSCONFDIR}/sshd_config" >/dev/null 2>&1
 then

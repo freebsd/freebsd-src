@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010
  *	Swinburne University of Technology, Melbourne, Australia
  * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
@@ -98,8 +100,8 @@ struct vegas {
 
 static int32_t ertt_id;
 
-static VNET_DEFINE(uint32_t, vegas_alpha) = 1;
-static VNET_DEFINE(uint32_t, vegas_beta) = 3;
+VNET_DEFINE_STATIC(uint32_t, vegas_alpha) = 1;
+VNET_DEFINE_STATIC(uint32_t, vegas_beta) = 3;
 #define	V_vegas_alpha	VNET(vegas_alpha)
 #define	V_vegas_beta	VNET(vegas_beta)
 
@@ -168,9 +170,7 @@ vegas_ack_received(struct cc_var *ccv, uint16_t ack_type)
 static void
 vegas_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_VEGAS);
+	free(ccv->cc_data, M_VEGAS);
 }
 
 static int

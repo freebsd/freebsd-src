@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
  *
@@ -131,10 +133,10 @@ static struct feed_mixer_info feed_mixer_info_tab[] = {
 				  sizeof(feed_mixer_info_tab[0])))
 
 #define FEEDMIXER_DATA(i, c)	((void *)				\
-				 ((uintptr_t)((((i) & 0x1f) << 5) |	\
-				 ((c) & 0x1f))))
-#define FEEDMIXER_INFOIDX(d)	((uint32_t)((uintptr_t)(d) >> 5) & 0x1f)
-#define FEEDMIXER_CHANNELS(d)	((uint32_t)((uintptr_t)(d)) & 0x1f)
+				 ((uintptr_t)((((i) & 0x1f) << 7) |	\
+				 ((c) & 0x7f))))
+#define FEEDMIXER_INFOIDX(d)	((uint32_t)((uintptr_t)(d) >> 7) & 0x1f)
+#define FEEDMIXER_CHANNELS(d)	((uint32_t)((uintptr_t)(d)) & 0x7f)
 
 static int
 feed_mixer_init(struct pcm_feeder *f)

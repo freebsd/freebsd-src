@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -67,7 +69,7 @@ pass2(void)
 	int i;
 	char pathbuf[MAXPATHLEN + 1];
 
-	switch (inoinfo(ROOTINO)->ino_state) {
+	switch (inoinfo(UFS_ROOTINO)->ino_state) {
 
 	case USTATE:
 		pfatal("ROOT INODE UNALLOCATED");
@@ -75,15 +77,16 @@ pass2(void)
 			ckfini(0);
 			exit(EEXIT);
 		}
-		if (allocdir(ROOTINO, ROOTINO, 0755) != ROOTINO)
+		if (allocdir(UFS_ROOTINO, UFS_ROOTINO, 0755) != UFS_ROOTINO)
 			errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
 		break;
 
 	case DCLEAR:
 		pfatal("DUPS/BAD IN ROOT INODE");
 		if (reply("REALLOCATE")) {
-			freeino(ROOTINO);
-			if (allocdir(ROOTINO, ROOTINO, 0755) != ROOTINO)
+			freeino(UFS_ROOTINO);
+			if (allocdir(UFS_ROOTINO, UFS_ROOTINO, 0755) !=
+			    UFS_ROOTINO)
 				errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
 			break;
 		}
@@ -98,8 +101,9 @@ pass2(void)
 	case FZLINK:
 		pfatal("ROOT INODE NOT DIRECTORY");
 		if (reply("REALLOCATE")) {
-			freeino(ROOTINO);
-			if (allocdir(ROOTINO, ROOTINO, 0755) != ROOTINO)
+			freeino(UFS_ROOTINO);
+			if (allocdir(UFS_ROOTINO, UFS_ROOTINO, 0755) !=
+			    UFS_ROOTINO)
 				errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
 			break;
 		}
@@ -107,7 +111,7 @@ pass2(void)
 			ckfini(0);
 			exit(EEXIT);
 		}
-		dp = ginode(ROOTINO);
+		dp = ginode(UFS_ROOTINO);
 		DIP_SET(dp, di_mode, DIP(dp, di_mode) & ~IFMT);
 		DIP_SET(dp, di_mode, DIP(dp, di_mode) | IFDIR);
 		inodirty();
@@ -119,11 +123,11 @@ pass2(void)
 
 	default:
 		errx(EEXIT, "BAD STATE %d FOR ROOT INODE",
-		    inoinfo(ROOTINO)->ino_state);
+		    inoinfo(UFS_ROOTINO)->ino_state);
 	}
-	inoinfo(ROOTINO)->ino_state = DFOUND;
-	inoinfo(WINO)->ino_state = FSTATE;
-	inoinfo(WINO)->ino_type = DT_WHT;
+	inoinfo(UFS_ROOTINO)->ino_state = DFOUND;
+	inoinfo(UFS_WINO)->ino_state = FSTATE;
+	inoinfo(UFS_WINO)->ino_type = DT_WHT;
 	/*
 	 * Sort the directory list into disk block order.
 	 */
@@ -182,11 +186,12 @@ pass2(void)
 		memset(dp, 0, sizeof(struct ufs2_dinode));
 		DIP_SET(dp, di_mode, IFDIR);
 		DIP_SET(dp, di_size, inp->i_isize);
-		for (i = 0; i < MIN(inp->i_numblks, NDADDR); i++)
+		for (i = 0; i < MIN(inp->i_numblks, UFS_NDADDR); i++)
 			DIP_SET(dp, di_db[i], inp->i_blks[i]);
-		if (inp->i_numblks > NDADDR)
-			for (i = 0; i < NIADDR; i++)
-				DIP_SET(dp, di_ib[i], inp->i_blks[NDADDR + i]);
+		if (inp->i_numblks > UFS_NDADDR)
+			for (i = 0; i < UFS_NIADDR; i++)
+				DIP_SET(dp, di_ib[i],
+				    inp->i_blks[UFS_NDADDR + i]);
 		curino.id_number = inp->i_number;
 		curino.id_parent = inp->i_parent;
 		(void)ckinode(dp, &curino);
@@ -411,10 +416,10 @@ chk2:
 	if (dirp->d_ino > maxino) {
 		fileerror(idesc->id_number, dirp->d_ino, "I OUT OF RANGE");
 		n = reply("REMOVE");
-	} else if (((dirp->d_ino == WINO && dirp->d_type != DT_WHT) ||
-		    (dirp->d_ino != WINO && dirp->d_type == DT_WHT))) {
+	} else if (((dirp->d_ino == UFS_WINO && dirp->d_type != DT_WHT) ||
+		    (dirp->d_ino != UFS_WINO && dirp->d_type == DT_WHT))) {
 		fileerror(idesc->id_number, dirp->d_ino, "BAD WHITEOUT ENTRY");
-		dirp->d_ino = WINO;
+		dirp->d_ino = UFS_WINO;
 		dirp->d_type = DT_WHT;
 		if (reply("FIX") == 1)
 			ret |= ALTERED;

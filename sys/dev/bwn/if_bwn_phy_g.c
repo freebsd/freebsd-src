@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -81,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwn_debug.h>
 #include <dev/bwn/if_bwn_misc.h>
 #include <dev/bwn/if_bwn_phy_g.h>
+
+#include "bhnd_nvram_map.h"
 
 static void	bwn_phy_g_init_sub(struct bwn_mac *);
 static uint8_t	bwn_has_hwpctl(struct bwn_mac *);
@@ -158,14 +157,27 @@ bwn_phy_g_attach(struct bwn_mac *mac)
 	int16_t pab0, pab1, pab2;
 	static int8_t bwn_phy_g_tssi2dbm_table[] = BWN_PHY_G_TSSI2DBM_TABLE;
 	int8_t bg;
+	int error;
 
-	bg = (int8_t)siba_sprom_get_tssi_bg(sc->sc_dev);
-	pab0 = (int16_t)siba_sprom_get_pa0b0(sc->sc_dev);
-	pab1 = (int16_t)siba_sprom_get_pa0b1(sc->sc_dev);
-	pab2 = (int16_t)siba_sprom_get_pa0b2(sc->sc_dev);
+	/* Fetch SPROM configuration */
+#define	BWN_PHY_G_READVAR(_dev, _type, _name, _result)		\
+do {									\
+	error = bhnd_nvram_getvar_ ##_type((_dev), (_name), (_result));	\
+	if (error) {							\
+		device_printf((_dev), "NVRAM variable %s unreadable: "	\
+		    "%d\n", (_name), error);				\
+		return (error);						\
+	}								\
+} while(0)
 
-	if ((siba_get_chipid(sc->sc_dev) == 0x4301) && (phy->rf_ver != 0x2050))
-		device_printf(sc->sc_dev, "not supported anymore\n");
+	BWN_PHY_G_READVAR(sc->sc_dev, int8, BHND_NVAR_PA0ITSSIT, &bg);
+	BWN_PHY_G_READVAR(sc->sc_dev, int16, BHND_NVAR_PA0B0, &pab0);
+	BWN_PHY_G_READVAR(sc->sc_dev, int16, BHND_NVAR_PA0B1, &pab1);
+	BWN_PHY_G_READVAR(sc->sc_dev, int16, BHND_NVAR_PA0B2, &pab2);
+	BWN_PHY_G_READVAR(sc->sc_dev, int16, BHND_NVAR_PA0MAXPWR,
+	    &pg->pg_pa0maxpwr);
+
+#undef	BWN_PHY_G_READVAR
 
 	pg->pg_flags = 0;
 	if (pab0 == 0 || pab1 == 0 || pab2 == 0 || pab0 == -1 || pab1 == -1 ||
@@ -204,7 +216,7 @@ bwn_phy_g_attach(struct bwn_mac *mac)
 		} while (delta >= 2);
 
 		pg->pg_tssi2dbm[i] = MIN(MAX(BWN_TSSI2DBM(m1 * f, 8192), -127),
-		    128);
+		    127);
 	}
 
 	pg->pg_flags |= BWN_PHY_G_FLAG_TSSITABLE_ALLOC;
@@ -290,12 +302,12 @@ bwn_phy_g_prepare_hw(struct bwn_mac *mac)
 	/* prepare Radio Attenuation */
 	pg->pg_rfatt.padmix = 0;
 
-	if (siba_get_pci_subvendor(sc->sc_dev) == SIBA_BOARDVENDOR_BCM &&
-	    siba_get_pci_subdevice(sc->sc_dev) == SIBA_BOARD_BCM4309G) {
-		if (siba_get_pci_revid(sc->sc_dev) < 0x43) {
+	if (sc->sc_board_info.board_vendor == PCI_VENDOR_BROADCOM &&
+	    sc->sc_board_info.board_type == BHND_BOARD_BCM94309G) {
+		if (sc->sc_board_info.board_rev < 0x43) {
 			pg->pg_rfatt.att = 2;
 			goto done;
-		} else if (siba_get_pci_revid(sc->sc_dev) < 0x51) {
+		} else if (sc->sc_board_info.board_rev < 0x51) {
 			pg->pg_rfatt.att = 3;
 			goto done;
 		}
@@ -314,25 +326,25 @@ bwn_phy_g_prepare_hw(struct bwn_mac *mac)
 			goto done;
 		case 1:
 			if (phy->type == BWN_PHYTYPE_G) {
-				if (siba_get_pci_subvendor(sc->sc_dev) ==
-				    SIBA_BOARDVENDOR_BCM &&
-				    siba_get_pci_subdevice(sc->sc_dev) ==
-				    SIBA_BOARD_BCM4309G &&
-				    siba_get_pci_revid(sc->sc_dev) >= 30)
+				if (sc->sc_board_info.board_vendor ==
+				    PCI_VENDOR_BROADCOM &&
+				    sc->sc_board_info.board_type ==
+				    BHND_BOARD_BCM94309G &&
+				    sc->sc_board_info.board_rev >= 30)
 					pg->pg_rfatt.att = 3;
-				else if (siba_get_pci_subvendor(sc->sc_dev) ==
-				    SIBA_BOARDVENDOR_BCM &&
-				    siba_get_pci_subdevice(sc->sc_dev) ==
-				    SIBA_BOARD_BU4306)
+				else if (sc->sc_board_info.board_vendor ==
+				    PCI_VENDOR_BROADCOM &&
+				    sc->sc_board_info.board_type ==
+				    BHND_BOARD_BU4306)
 					pg->pg_rfatt.att = 3;
 				else
 					pg->pg_rfatt.att = 1;
 			} else {
-				if (siba_get_pci_subvendor(sc->sc_dev) ==
-				    SIBA_BOARDVENDOR_BCM &&
-				    siba_get_pci_subdevice(sc->sc_dev) ==
-				    SIBA_BOARD_BCM4309G &&
-				    siba_get_pci_revid(sc->sc_dev) >= 30)
+				if (sc->sc_board_info.board_vendor ==
+				    PCI_VENDOR_BROADCOM &&
+				    sc->sc_board_info.board_type ==
+				    BHND_BOARD_BCM94309G &&
+				    sc->sc_board_info.board_rev >= 30)
 					pg->pg_rfatt.att = 7;
 				else
 					pg->pg_rfatt.att = 6;
@@ -340,18 +352,19 @@ bwn_phy_g_prepare_hw(struct bwn_mac *mac)
 			goto done;
 		case 2:
 			if (phy->type == BWN_PHYTYPE_G) {
-				if (siba_get_pci_subvendor(sc->sc_dev) ==
-				    SIBA_BOARDVENDOR_BCM &&
-				    siba_get_pci_subdevice(sc->sc_dev) ==
-				    SIBA_BOARD_BCM4309G &&
-				    siba_get_pci_revid(sc->sc_dev) >= 30)
+				if (sc->sc_board_info.board_vendor ==
+				    PCI_VENDOR_BROADCOM &&
+				    sc->sc_board_info.board_type ==
+				    BHND_BOARD_BCM94309G &&
+				    sc->sc_board_info.board_rev >= 30)
 					pg->pg_rfatt.att = 3;
-				else if (siba_get_pci_subvendor(sc->sc_dev) ==
-				    SIBA_BOARDVENDOR_BCM &&
-				    siba_get_pci_subdevice(sc->sc_dev) ==
-				    SIBA_BOARD_BU4306)
+				else if (sc->sc_board_info.board_vendor ==
+				    PCI_VENDOR_BROADCOM &&
+				    sc->sc_board_info.board_type ==
+				    BHND_BOARD_BU4306)
 					pg->pg_rfatt.att = 5;
-				else if (siba_get_chipid(sc->sc_dev) == 0x4320)
+				else if (sc->sc_cid.chip_id ==
+				    BHND_CHIPID_BCM4320)
 					pg->pg_rfatt.att = 4;
 				else
 					pg->pg_rfatt.att = 3;
@@ -657,13 +670,13 @@ bwn_phy_g_recalc_txpwr(struct bwn_mac *mac, int ignore_tssi)
 	pg->pg_avgtssi = tssi;
 	KASSERT(tssi < BWN_TSSI_MAX, ("%s:%d: fail", __func__, __LINE__));
 
-	max = siba_sprom_get_maxpwr_bg(sc->sc_dev);
-	if (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_PACTRL)
+	max = pg->pg_pa0maxpwr;
+	if (sc->sc_board_info.board_flags & BHND_BFL_PACTRL)
 		max -= 3;
 	if (max >= 120) {
 		device_printf(sc->sc_dev, "invalid max TX-power value\n");
 		max = 80;
-		siba_sprom_set_maxpwr_bg(sc->sc_dev, max);
+		pg->pg_pa0maxpwr = max;
 	}
 
 	power = MIN(MAX((phy->txpower < 0) ? 0 : (phy->txpower << 2), 0), max) -
@@ -707,8 +720,8 @@ bwn_phy_g_set_txpwr(struct bwn_mac *mac)
 				txctl = BWN_TXCTL_PA2DB | BWN_TXCTL_TXMIX;
 				rfatt += 2;
 				bbatt += 2;
-			} else if (siba_sprom_get_bf_lo(sc->sc_dev) &
-			    BWN_BFL_PACTRL) {
+			} else if (sc->sc_board_info.board_flags &
+			    BHND_BFL_PACTRL) {
 				bbatt += 4 * (rfatt - 2);
 				rfatt = 2;
 			}
@@ -806,7 +819,7 @@ bwn_phy_g_task_60s(struct bwn_mac *mac)
 	struct bwn_softc *sc = mac->mac_sc;
 	uint8_t old = phy->chan;
 
-	if (!(siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_RSSI))
+	if (!(sc->sc_board_info.board_flags & BHND_BFL_ADCDIV))
 		return;
 
 	bwn_mac_suspend(mac);
@@ -893,7 +906,7 @@ bwn_phy_g_init_sub(struct bwn_mac *mac)
 		BWN_PHY_SETMASK(mac, BWN_PHY_CCK(0x36), 0x0fff,
 		    (pg->pg_loctl.tx_bias << 12));
 	}
-	if (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_PACTRL)
+	if (sc->sc_board_info.board_flags & BHND_BFL_PACTRL)
 		BWN_PHY_WRITE(mac, BWN_PHY_CCK(0x2e), 0x8075);
 	else
 		BWN_PHY_WRITE(mac, BWN_PHY_CCK(0x2e), 0x807f);
@@ -906,7 +919,7 @@ bwn_phy_g_init_sub(struct bwn_mac *mac)
 		BWN_PHY_WRITE(mac, BWN_PHY_LO_MASK, 0x8078);
 	}
 
-	if (!(siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_RSSI)) {
+	if (!(sc->sc_board_info.board_flags & BHND_BFL_ADCDIV)) {
 		for (i = 0; i < 64; i++) {
 			BWN_PHY_WRITE(mac, BWN_PHY_NRSSI_CTRL, i);
 			BWN_PHY_WRITE(mac, BWN_PHY_NRSSI_DATA,
@@ -925,8 +938,8 @@ bwn_phy_g_init_sub(struct bwn_mac *mac)
 	if (phy->rf_rev == 8)
 		BWN_PHY_WRITE(mac, BWN_PHY_EXTG(0x05), 0x3230);
 	bwn_phy_hwpctl_init(mac);
-	if ((siba_get_chipid(sc->sc_dev) == 0x4306
-	     && siba_get_chippkg(sc->sc_dev) == 2) || 0) {
+	if ((sc->sc_cid.chip_id == BHND_CHIPID_BCM4306
+	     && sc->sc_cid.chip_pkg == 2) || 0) {
 		BWN_PHY_MASK(mac, BWN_PHY_CRS0, 0xbfff);
 		BWN_PHY_MASK(mac, BWN_PHY_OFDM(0xc3), 0x7fff);
 	}
@@ -943,8 +956,8 @@ bwn_phy_init_b5(struct bwn_mac *mac)
 
 	if (phy->analog == 1)
 		BWN_RF_SET(mac, 0x007a, 0x0050);
-	if ((siba_get_pci_subvendor(sc->sc_dev) != SIBA_BOARDVENDOR_BCM) &&
-	    (siba_get_pci_subdevice(sc->sc_dev) != SIBA_BOARD_BU4306)) {
+	if ((sc->sc_board_info.board_vendor != PCI_VENDOR_BROADCOM) &&
+	    (sc->sc_board_info.board_type != BHND_BOARD_BU4306)) {
 		value = 0x2120;
 		for (offset = 0x00a8; offset < 0x00c7; offset++) {
 			BWN_PHY_WRITE(mac, offset, value);
@@ -1112,7 +1125,7 @@ bwn_loopback_calcgain(struct bwn_mac *mac)
 	BWN_PHY_SET(mac, BWN_PHY_RFOVER, 0x0100);
 	BWN_PHY_MASK(mac, BWN_PHY_RFOVERVAL, 0xcfff);
 
-	if (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_EXTLNA) {
+	if (sc->sc_board_info.board_flags & BHND_BFL_EXTLNA) {
 		if (phy->rev >= 7) {
 			BWN_PHY_SET(mac, BWN_PHY_RFOVER, 0x0800);
 			BWN_PHY_SET(mac, BWN_PHY_RFOVERVAL, 0x8000);
@@ -1442,7 +1455,7 @@ bwn_phy_init_b6(struct bwn_mac *mac)
 		BWN_RF_WRITE(mac, 0x5a, 0x88);
 		BWN_RF_WRITE(mac, 0x5b, 0x6b);
 		BWN_RF_WRITE(mac, 0x5c, 0x0f);
-		if (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_ALTIQ) {
+		if (sc->sc_board_info.board_flags & BHND_BFL_ALTIQ) {
 			BWN_RF_WRITE(mac, 0x5d, 0xfa);
 			BWN_RF_WRITE(mac, 0x5e, 0xd8);
 		} else {
@@ -1540,7 +1553,7 @@ bwn_phy_init_a(struct bwn_mac *mac)
 	bwn_wa_init(mac);
 
 	if (phy->type == BWN_PHYTYPE_G &&
-	    (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_PACTRL))
+	    (sc->sc_board_info.board_flags & BHND_BFL_PACTRL))
 		BWN_PHY_SETMASK(mac, BWN_PHY_OFDM(0x6e), 0xe000, 0x3cf);
 }
 
@@ -1810,9 +1823,9 @@ bwn_wa_init(struct bwn_mac *mac)
 		KASSERT(0 == 1, ("%s:%d: fail", __func__, __LINE__));
 	}
 
-	if (siba_get_pci_subvendor(sc->sc_dev) != SIBA_BOARDVENDOR_BCM ||
-	    siba_get_pci_subdevice(sc->sc_dev) != SIBA_BOARD_BU4306 ||
-	    siba_get_pci_revid(sc->sc_dev) != 0x17) {
+	if (sc->sc_board_info.board_vendor != PCI_VENDOR_BROADCOM ||
+	    sc->sc_board_info.board_type != BHND_BOARD_BU4306 ||
+	    sc->sc_board_info.board_rev != 0x17) {
 		if (phy->rev < 2) {
 			bwn_ofdmtab_write_2(mac, BWN_OFDMTAB_GAINX_R1, 1,
 			    0x0002);
@@ -1821,8 +1834,8 @@ bwn_wa_init(struct bwn_mac *mac)
 		} else {
 			bwn_ofdmtab_write_2(mac, BWN_OFDMTAB_GAINX, 1, 0x0002);
 			bwn_ofdmtab_write_2(mac, BWN_OFDMTAB_GAINX, 2, 0x0001);
-			if ((siba_sprom_get_bf_lo(sc->sc_dev) &
-			     BWN_BFL_EXTLNA) &&
+			if ((sc->sc_board_info.board_flags &
+			     BHND_BFL_EXTLNA) &&
 			    (phy->rev >= 7)) {
 				BWN_PHY_MASK(mac, BWN_PHY_EXTG(0x11), 0xf7ff);
 				bwn_ofdmtab_write_2(mac, BWN_OFDMTAB_GAINX,
@@ -1840,7 +1853,7 @@ bwn_wa_init(struct bwn_mac *mac)
 			}
 		}
 	}
-	if (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_FEM) {
+	if (sc->sc_board_info.board_flags & BHND_BFL_FEM) {
 		BWN_PHY_WRITE(mac, BWN_PHY_GTABCTL, 0x3120);
 		BWN_PHY_WRITE(mac, BWN_PHY_GTABDATA, 0xc480);
 	}
@@ -1928,7 +1941,7 @@ bwn_lo_calcfeed(struct bwn_mac *mac,
 		trsw_rx &= (BWN_PHY_RFOVERVAL_TRSWRX | BWN_PHY_RFOVERVAL_BW);
 
 		rfover = BWN_PHY_RFOVERVAL_UNK | pga | lna | trsw_rx;
-		if ((siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_EXTLNA) &&
+		if ((sc->sc_board_info.board_flags & BHND_BFL_EXTLNA) &&
 		    phy->rev > 6)
 			rfover |= BWN_PHY_RFOVERVAL_EXTLNA;
 
@@ -2217,8 +2230,8 @@ bwn_lo_save(struct bwn_mac *mac, struct bwn_lo_g_value *sav)
 		BWN_PHY_MASK(mac, BWN_PHY_ANALOGOVERVAL, 0xfffc);
 		if (phy->type == BWN_PHYTYPE_G) {
 			if ((phy->rev >= 7) &&
-			    (siba_sprom_get_bf_lo(sc->sc_dev) &
-			     BWN_BFL_EXTLNA)) {
+			    (sc->sc_board_info.board_flags &
+			     BHND_BFL_EXTLNA)) {
 				BWN_PHY_WRITE(mac, BWN_PHY_RFOVER, 0x933);
 			} else {
 				BWN_PHY_WRITE(mac, BWN_PHY_RFOVER, 0x133);
@@ -2676,7 +2689,7 @@ bwn_nrssi_threshold(struct bwn_mac *mac)
 
 	KASSERT(phy->type == BWN_PHYTYPE_G, ("%s: fail", __func__));
 
-	if (phy->gmode && (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_RSSI)) {
+	if (phy->gmode && (sc->sc_board_info.board_flags & BHND_BFL_ADCDIV)) {
 		if (!pg->pg_aci_wlan_automatic && pg->pg_aci_enable) {
 			a = 0x13;
 			b = 0x12;
@@ -3119,8 +3132,8 @@ bwn_phy_hwpctl_init(struct bwn_mac *mac)
 	KASSERT(phy->type == BWN_PHYTYPE_G,
 	    ("%s:%d: fail", __func__, __LINE__));
 
-	if ((siba_get_pci_subvendor(sc->sc_dev) == SIBA_BOARDVENDOR_BCM) &&
-	    (siba_get_pci_subdevice(sc->sc_dev) == SIBA_BOARD_BU4306))
+	if ((sc->sc_board_info.board_vendor == PCI_VENDOR_BROADCOM) &&
+	    (sc->sc_board_info.board_type == BHND_BOARD_BU4306))
 		return;
 
 	BWN_PHY_WRITE(mac, 0x0028, 0x8018);
@@ -3257,7 +3270,8 @@ bwn_hwpctl_init_gphy(struct bwn_mac *mac)
 static void
 bwn_phy_g_switch_chan(struct bwn_mac *mac, int channel, uint8_t spu)
 {
-	struct bwn_softc *sc = mac->mac_sc;
+	struct bwn_softc	*sc = mac->mac_sc;
+	int			 error;
 
 	if (spu != 0)
 		bwn_spu_workaround(mac, channel);
@@ -3265,7 +3279,17 @@ bwn_phy_g_switch_chan(struct bwn_mac *mac, int channel, uint8_t spu)
 	BWN_WRITE_2(mac, BWN_CHANNEL, bwn_phy_g_chan2freq(channel));
 
 	if (channel == 14) {
-		if (siba_sprom_get_ccode(sc->sc_dev) == SIBA_CCODE_JAPAN)
+		uint8_t cc;
+
+		error = bhnd_nvram_getvar_uint8(sc->sc_dev, BHND_NVAR_CC, &cc);
+		if (error) {
+			device_printf(sc->sc_dev, "error reading country code "
+			    "from NVRAM, assuming channel 14 unavailable: %d\n",
+			    error);
+			cc = BWN_SPROM1_CC_WORLDWIDE;
+		}
+
+		if (cc == BWN_SPROM1_CC_JP)
 			bwn_hf_write(mac,
 			    bwn_hf_read(mac) & ~BWN_HF_JAPAN_CHAN14_OFF);
 		else
@@ -3382,7 +3406,7 @@ bwn_rf_2050_rfoverval(struct bwn_mac *mac, uint16_t reg, uint32_t lpd)
 		}
 
 		if ((phy->rev < 7) ||
-		    !(siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_EXTLNA)) {
+		    !(sc->sc_board_info.board_flags & BHND_BFL_EXTLNA)) {
 			if (reg == BWN_PHY_RFOVER) {
 				return (0x1b3);
 			} else if (reg == BWN_PHY_RFOVERVAL) {
@@ -3426,7 +3450,7 @@ bwn_rf_2050_rfoverval(struct bwn_mac *mac, uint16_t reg, uint32_t lpd)
 	}
 
 	if ((phy->rev < 7) ||
-	    !(siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_EXTLNA)) {
+	    !(sc->sc_board_info.board_flags & BHND_BFL_EXTLNA)) {
 		if (reg == BWN_PHY_RFOVER) {
 			return (0x1b3);
 		} else if (reg == BWN_PHY_RFOVERVAL) {
@@ -3563,8 +3587,8 @@ bwn_phy_lock(struct bwn_mac *mac)
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	KASSERT(siba_get_revid(sc->sc_dev) >= 3,
-	    ("%s: unsupported rev %d", __func__, siba_get_revid(sc->sc_dev)));
+	KASSERT(bhnd_get_hwrev(sc->sc_dev) >= 3,
+	    ("%s: unsupported rev %d", __func__, bhnd_get_hwrev(sc->sc_dev)));
 
 	if (ic->ic_opmode != IEEE80211_M_HOSTAP)
 		bwn_psctl(mac, BWN_PS_AWAKE);
@@ -3576,8 +3600,8 @@ bwn_phy_unlock(struct bwn_mac *mac)
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	KASSERT(siba_get_revid(sc->sc_dev) >= 3,
-	    ("%s: unsupported rev %d", __func__, siba_get_revid(sc->sc_dev)));
+	KASSERT(bhnd_get_hwrev(sc->sc_dev) >= 3,
+	    ("%s: unsupported rev %d", __func__, bhnd_get_hwrev(sc->sc_dev)));
 
 	if (ic->ic_opmode != IEEE80211_M_HOSTAP)
 		bwn_psctl(mac, 0);

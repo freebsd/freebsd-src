@@ -12,7 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2015
+.Dd August 15, 2018
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -86,6 +86,15 @@ The password check is skipped if the
 .Em console
 is marked as
 .Dq secure .
+Note that the password check does not protect from variables
+such as
+.Va init_script
+being set from the
+.Xr loader 8
+command line; see the
+.Sx SECURITY
+section of
+.Xr loader 8 .
 .Pp
 If the system security level (see
 .Xr security 7 )
@@ -286,6 +295,7 @@ as follows:
 .It Sy "Run-level	Signal	Action"
 .It Cm 0 Ta Dv SIGUSR1 Ta "Halt"
 .It Cm 0 Ta Dv SIGUSR2 Ta "Halt and turn the power off"
+.It Cm 0 Ta Dv SIGWINCH Ta "Halt and turn the power off and then back on"
 .It Cm 1 Ta Dv SIGTERM Ta "Go to single-user mode"
 .It Cm 6 Ta Dv SIGINT Ta "Reboot the machine"
 .It Cm c Ta Dv SIGTSTP Ta "Block further logins"
@@ -293,6 +303,84 @@ as follows:
 .Xr ttys 5
 file
 .El
+.Sh KERNEL ENVIRONMENT VARIABLES
+The following
+.Xr kenv 2
+variables are available as
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va init_chroot
+If set to a valid directory in the root file system, it causes
+.Nm
+to perform a
+.Xr chroot 2
+operation on that directory, making it the new root directory.
+That happens before entering single-user mode or multi-user
+mode (but after executing the
+.Va init_script
+if enabled).
+This functionality has generally been eclipsed by rerooting.
+See
+.Xr reboot 8
+.Fl r
+for details.
+.It Va init_exec
+If set to a valid file name in the root file system,
+instructs
+.Nm
+to directly execute that file as the very first action,
+replacing
+.Nm
+as PID 1.
+.It Va init_script
+If set to a valid file name in the root file system,
+instructs
+.Nm
+to run that script as the very first action,
+before doing anything else.
+Signal handling and exit code interpretation is similar to
+running the
+.Pa /etc/rc
+script.
+In particular, single-user operation is enforced
+if the script terminates with a non-zero exit code,
+or if a SIGTERM is delivered to the
+.Nm
+process (PID 1).
+This functionality has generally been eclipsed by rerooting.
+See
+.Xr reboot 8
+.Fl r
+for details.
+.It Va init_shell
+Defines the shell binary to be used for executing the various shell scripts.
+The default is
+.Dq Li /bin/sh .
+It is used for running the
+.Va init_exec
+or
+.Va init_script
+if set, as well as for the
+.Pa /etc/rc
+and
+.Pa /etc/rc.shutdown
+scripts.
+The value of the corresponding
+.Xr kenv 2
+variable is evaluated every time
+.Nm
+calls a shell script, so it can be changed later on using the
+.Xr kenv 1
+utility.
+In particular, if a non-default shell is used for running an
+.Va init_script ,
+it might be desirable to have that script reset the value of
+.Va init_shell
+back to the default, so that the
+.Pa /etc/rc
+script is executed with the standard shell
+.Pa /bin/sh .
 .Sh FILES
 .Bl -tag -width /var/log/init.log -compact
 .It Pa /dev/console
@@ -345,7 +433,7 @@ a persistent device error condition.
 An
 .Nm
 utility appeared in
-.At v6 .
+.At v1 .
 .Sh CAVEATS
 Systems without
 .Xr sysctl 8

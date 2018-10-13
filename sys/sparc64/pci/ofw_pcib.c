@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994,1995 Stefan Esser, Wolfgang StanglMeier
  * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000 BSDi
@@ -72,6 +74,7 @@ static device_method_t ofw_pcib_methods[] = {
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt, ofw_pcib_gen_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),

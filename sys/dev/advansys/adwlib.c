@@ -2,6 +2,8 @@
  * Low level routines for Second Generation
  * Advanced Systems Inc. SCSI controllers chips
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *

@@ -1624,6 +1624,10 @@ program to compile and work.
 specify archives, @command{objdump} shows information on each of the member
 object files.
 
+@command{objdump} will be removed from a future version of the
+FreeBSD base system.  Users who require @command{objdump} are advised
+to install the binutils port or package.
+
 @c man end
 
 @c man begin OPTIONS objdump

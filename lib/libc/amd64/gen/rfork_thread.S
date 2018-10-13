@@ -80,11 +80,7 @@ ENTRY(rfork_thread)
 	/*
 	 * Exit system call
 	 */
-#ifdef SYS_exit
 	movq	$SYS_exit, %rax
-#else
-	movq	$SYS_sys_exit, %rax
-#endif
 	KERNCALL
 
 	/*

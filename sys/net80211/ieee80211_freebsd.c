@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -180,6 +182,26 @@ ieee80211_sysctl_radar(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+/*
+ * For now, just restart everything.
+ *
+ * Later on, it'd be nice to have a separate VAP restart to
+ * full-device restart.
+ */
+static int
+ieee80211_sysctl_vap_restart(SYSCTL_HANDLER_ARGS)
+{
+	struct ieee80211vap *vap = arg1;
+	int t = 0, error;
+
+	error = sysctl_handle_int(oidp, &t, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	ieee80211_restart_all(vap->iv_ic);
+	return 0;
+}
+
 void
 ieee80211_sysctl_attach(struct ieee80211com *ic)
 {
@@ -259,6 +281,12 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 			&vap->iv_ampdu_mintraffic[WME_AC_VI], 0,
 			"VI traffic tx aggr threshold (pps)");
 	}
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"force_restart", CTLTYPE_INT | CTLFLAG_RW, vap, 0,
+		ieee80211_sysctl_vap_restart, "I",
+		"force a VAP restart");
+
 	if (vap->iv_caps & IEEE80211_C_DFS) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"radar", CTLTYPE_INT | CTLFLAG_RW, vap->iv_ic, 0,
@@ -527,6 +555,57 @@ ieee80211_get_rx_params(struct mbuf *m, struct ieee80211_rx_stats *rxs)
 	rx = (struct ieee80211_rx_params *)(mtag + 1);
 	memcpy(rxs, &rx->params, sizeof(*rxs));
 	return (0);
+}
+
+const struct ieee80211_rx_stats *
+ieee80211_get_rx_params_ptr(struct mbuf *m)
+{
+	struct m_tag *mtag;
+	struct ieee80211_rx_params *rx;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_RECV_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (NULL);
+	rx = (struct ieee80211_rx_params *)(mtag + 1);
+	return (&rx->params);
+}
+
+
+/*
+ * Add TOA parameters to the given mbuf.
+ */
+int
+ieee80211_add_toa_params(struct mbuf *m, const struct ieee80211_toa_params *p)
+{
+	struct m_tag *mtag;
+	struct ieee80211_toa_params *rp;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
+	    sizeof(struct ieee80211_toa_params), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	rp = (struct ieee80211_toa_params *)(mtag + 1);
+	memcpy(rp, p, sizeof(*rp));
+	m_tag_prepend(m, mtag);
+	return (1);
+}
+
+int
+ieee80211_get_toa_params(struct mbuf *m, struct ieee80211_toa_params *p)
+{
+	struct m_tag *mtag;
+	struct ieee80211_toa_params *rp;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (0);
+	rp = (struct ieee80211_toa_params *)(mtag + 1);
+	if (p != NULL)
+		memcpy(p, rp, sizeof(*p));
+	return (1);
 }
 
 /*

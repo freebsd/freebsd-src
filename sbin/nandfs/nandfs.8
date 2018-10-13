@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2012
+.Dd September 10, 2016
 .Dt NANDFS 8
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility allows to manage snapshots of a mounted NAND FS.
+utility allows the management of snapshots on a mounted NAND FS.
 .Sh EXAMPLES
 Create a snapshot of filesystem mounted on
 .Em /nand .
@@ -69,6 +69,11 @@ Remove snapshot 1 of filesystem mounted on
 .Bd -literal -offset 2n
 .Li # Ic nandfs rmsnap 1 /nand
 .Ed
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 10.0 .
 .Sh AUTHORS
 This utility and manual page were written by
 .An Mateusz Guzik .

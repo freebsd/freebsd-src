@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,6 +51,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/mount.h>
+#include <nfs/nfssvc.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -85,13 +88,13 @@ int	 xdr_dir (XDR *, char *);
 int
 main(int argc, char *argv[])
 {
-	int all, errs, ch, mntsize, error;
+	int all, errs, ch, mntsize, error, nfsforce, ret;
 	char **typelist = NULL;
 	struct statfs *mntbuf, *sfs;
 	struct addrinfo hints;
 
-	all = errs = 0;
-	while ((ch = getopt(argc, argv, "AaF:fh:t:v")) != -1)
+	nfsforce = all = errs = 0;
+	while ((ch = getopt(argc, argv, "AaF:fh:Nnt:v")) != -1)
 		switch (ch) {
 		case 'A':
 			all = 2;
@@ -103,11 +106,17 @@ main(int argc, char *argv[])
 			setfstab(optarg);
 			break;
 		case 'f':
-			fflag = MNT_FORCE;
+			fflag |= MNT_FORCE;
 			break;
 		case 'h':	/* -h implies -A. */
 			all = 2;
 			nfshost = optarg;
+			break;
+		case 'N':
+			nfsforce = 1;
+			break;
+		case 'n':
+			fflag |= MNT_NONBUSY;
 			break;
 		case 't':
 			if (typelist != NULL)
@@ -124,11 +133,13 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	/* Start disks transferring immediately. */
-	if ((fflag & MNT_FORCE) == 0)
-		sync();
+	if ((fflag & MNT_FORCE) != 0 && (fflag & MNT_NONBUSY) != 0)
+		err(1, "-f and -n are mutually exclusive");
 
 	if ((argc == 0 && !all) || (argc != 0 && all))
+		usage();
+
+	if (nfsforce != 0 && (argc == 0 || nfshost != NULL || typelist != NULL))
 		usage();
 
 	/* -h implies "-t nfs" if no -t flag. */
@@ -168,7 +179,20 @@ main(int argc, char *argv[])
 		break;
 	case 0:
 		for (errs = 0; *argv != NULL; ++argv)
-			if (checkname(*argv, typelist) != 0)
+			if (nfsforce != 0) {
+				/*
+				 * First do the nfssvc() syscall to shut down
+				 * the mount point and then do the forced
+				 * dismount.
+				 */
+				ret = nfssvc(NFSSVC_FORCEDISM, *argv);
+				if (ret >= 0)
+					ret = unmount(*argv, MNT_FORCE);
+				if (ret < 0) {
+					warn("%s", *argv);
+					errs = 1;
+				}
+			} else if (checkname(*argv, typelist) != 0)
 				errs = 1;
 		break;
 	}
@@ -317,6 +341,9 @@ umountfs(struct statfs *sfs)
 	CLIENT *clp;
 	char *nfsdirname, *orignfsdirname;
 	char *hostp, *delimp;
+	char buf[1024];
+	struct nfscl_dumpmntopts dumpmntopts;
+	const char *proto_ptr = NULL;
 
 	ai = NULL;
 	do_rpc = 0;
@@ -355,8 +382,24 @@ umountfs(struct statfs *sfs)
 		 * mount from mntfromname that is still mounted.
 		 */
 		if (getmntentry(sfs->f_mntfromname, NULL, NULL,
-		    CHECKUNIQUE) != NULL)
+		    CHECKUNIQUE) != NULL) {
 			do_rpc = 1;
+			proto_ptr = "udp";
+			/*
+			 * Try and find out whether this NFS mount is NFSv4 and
+			 * what protocol is being used. If this fails, the
+			 * default is NFSv2,3 and use UDP for the Unmount RPC.
+			 */
+			dumpmntopts.ndmnt_fname = sfs->f_mntonname;
+			dumpmntopts.ndmnt_buf = buf;
+			dumpmntopts.ndmnt_blen = sizeof(buf);
+			if (nfssvc(NFSSVC_DUMPMNTOPTS, &dumpmntopts) >= 0) {
+				if (strstr(buf, "nfsv4,") != NULL)
+					do_rpc = 0;
+				else if (strstr(buf, ",tcp,") != NULL)
+					proto_ptr = "tcp";
+			}
+		}
 	}
 
 	if (!namematch(ai)) {
@@ -394,7 +437,7 @@ umountfs(struct statfs *sfs)
 	 * has been unmounted.
 	 */
 	if (ai != NULL && !(fflag & MNT_FORCE) && do_rpc) {
-		clp = clnt_create(hostp, MOUNTPROG, MOUNTVERS3, "udp");
+		clp = clnt_create(hostp, MOUNTPROG, MOUNTVERS3, proto_ptr);
 		if (clp  == NULL) {
 			warnx("%s: %s", hostp,
 			    clnt_spcreateerror("MOUNTPROG"));
@@ -609,7 +652,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: umount [-fv] special ... | node ... | fsid ...",
-	    "       umount -a | -A [-F fstab] [-fv] [-h host] [-t type]");
+	    "usage: umount [-fNnv] special ... | node ... | fsid ...",
+	    "       umount -a | -A [-F fstab] [-fnv] [-h host] [-t type]");
 	exit(1);
 }

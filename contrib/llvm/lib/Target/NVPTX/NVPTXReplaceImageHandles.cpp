@@ -36,7 +36,7 @@ public:
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "NVPTX Replace Image Handles";
   }
 private:
@@ -158,7 +158,7 @@ findIndexForHandle(MachineOperand &Op, MachineFunction &MF, unsigned &Idx) {
     unsigned Param = atoi(Sym.data()+ParamBaseName.size());
     std::string NewSym;
     raw_string_ostream NewSymStr(NewSym);
-    NewSymStr << MF.getFunction()->getName() << "_param_" << Param;
+    NewSymStr << MF.getName() << "_param_" << Param;
 
     InstrsToRemove.insert(&TexHandleDef);
     Idx = MFI->getImageHandleSymbolIndex(NewSymStr.str().c_str());

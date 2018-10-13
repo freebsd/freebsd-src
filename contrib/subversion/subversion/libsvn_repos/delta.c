@@ -266,6 +266,13 @@ svn_repos_dir_delta2(svn_fs_root_t *src_root,
        _("Invalid editor anchoring; at least one of the "
          "input paths is not a directory and there was no source entry"));
 
+  /* Don't report / compare stale revprops.  However, revprop changes that
+   * are made by a 3rd party outside this delta operation, may not be
+   * detected as per our visibility guarantees.  Reset the revprop caches
+   * for both roots in case they belong to different svn_fs_t instances. */
+  SVN_ERR(svn_fs_refresh_revision_props(svn_fs_root_fs(tgt_root), pool));
+  SVN_ERR(svn_fs_refresh_revision_props(svn_fs_root_fs(src_root), pool));
+
   /* Set the global target revision if one can be determined. */
   if (svn_fs_is_revision_root(tgt_root))
     {
@@ -491,8 +498,8 @@ delta_proplists(struct context *c,
           SVN_ERR(change_fn(c, object, SVN_PROP_ENTRY_COMMITTED_REV,
                             cr_str, subpool));
 
-          SVN_ERR(svn_fs_revision_proplist(&r_props, fs, committed_rev,
-                                           pool));
+          SVN_ERR(svn_fs_revision_proplist2(&r_props, fs, committed_rev,
+                                            FALSE, pool, subpool));
 
           /* Transmit the committed-date. */
           committed_date = svn_hash_gets(r_props, SVN_PROP_REVISION_DATE);
@@ -595,19 +602,6 @@ send_text_delta(struct context *c,
       return delta_handler(NULL, delta_handler_baton);
     }
 }
-
-svn_error_t *
-svn_repos__compare_files(svn_boolean_t *changed_p,
-                         svn_fs_root_t *root1,
-                         const char *path1,
-                         svn_fs_root_t *root2,
-                         const char *path2,
-                         apr_pool_t *pool)
-{
-  return svn_error_trace(svn_fs_contents_different(changed_p, root1, path1,
-                                                   root2, path2, pool));
-}
-
 
 /* Make the appropriate edits on FILE_BATON to change its contents and
    properties from those in SOURCE_PATH to those in TARGET_PATH. */

@@ -58,16 +58,19 @@ BasicBlock::iterator llvm::PrepareToSplitEntryBlock(BasicBlock &BB,
 void llvm::initializeInstrumentation(PassRegistry &Registry) {
   initializeAddressSanitizerPass(Registry);
   initializeAddressSanitizerModulePass(Registry);
-  initializeBoundsCheckingPass(Registry);
-  initializeGCOVProfilerPass(Registry);
-  initializePGOInstrumentationGenPass(Registry);
-  initializePGOInstrumentationUsePass(Registry);
-  initializeInstrProfilingPass(Registry);
+  initializeBoundsCheckingLegacyPassPass(Registry);
+  initializeGCOVProfilerLegacyPassPass(Registry);
+  initializePGOInstrumentationGenLegacyPassPass(Registry);
+  initializePGOInstrumentationUseLegacyPassPass(Registry);
+  initializePGOIndirectCallPromotionLegacyPassPass(Registry);
+  initializePGOMemOPSizeOptLegacyPassPass(Registry);
+  initializeInstrProfilingLegacyPassPass(Registry);
   initializeMemorySanitizerPass(Registry);
+  initializeHWAddressSanitizerPass(Registry);
   initializeThreadSanitizerPass(Registry);
   initializeSanitizerCoverageModulePass(Registry);
   initializeDataFlowSanitizerPass(Registry);
-  initializeSafeStackPass(Registry);
+  initializeEfficiencySanitizerPass(Registry);
 }
 
 /// LLVMInitializeInstrumentation - C binding for

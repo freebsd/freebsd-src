@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -71,9 +73,9 @@ __FBSDID("$FreeBSD$");
 
 static int doformat_wr(void *, const char *, int);
 
-struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 256, 2, 0};
-struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
+struct output output = {NULL, NULL, NULL, OUTBUFSIZ, 1, 0};
+struct output errout = {NULL, NULL, NULL, 256, 2, 0};
+struct output memout = {NULL, NULL, NULL, 64, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
 
@@ -208,26 +210,26 @@ outbin(const void *data, size_t len, struct output *file)
 void
 emptyoutbuf(struct output *dest)
 {
-	int offset;
+	int offset, newsize;
 
 	if (dest->buf == NULL) {
 		INTOFF;
 		dest->buf = ckmalloc(dest->bufsize);
 		dest->nextc = dest->buf;
-		dest->nleft = dest->bufsize;
+		dest->bufend = dest->buf + dest->bufsize;
 		INTON;
 	} else if (dest->fd == MEM_OUT) {
-		offset = dest->bufsize;
+		offset = dest->nextc - dest->buf;
+		newsize = dest->bufsize << 1;
 		INTOFF;
-		dest->bufsize <<= 1;
-		dest->buf = ckrealloc(dest->buf, dest->bufsize);
-		dest->nleft = dest->bufsize - offset;
+		dest->buf = ckrealloc(dest->buf, newsize);
+		dest->bufsize = newsize;
+		dest->bufend = dest->buf + newsize;
 		dest->nextc = dest->buf + offset;
 		INTON;
 	} else {
 		flushout(dest);
 	}
-	dest->nleft--;
 }
 
 
@@ -248,20 +250,13 @@ flushout(struct output *dest)
 	if (xwrite(dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
 		dest->flags |= OUTPUT_ERR;
 	dest->nextc = dest->buf;
-	dest->nleft = dest->bufsize;
 }
 
 
 void
 freestdout(void)
 {
-	INTOFF;
-	if (output.buf) {
-		ckfree(output.buf);
-		output.buf = NULL;
-		output.nleft = 0;
-	}
-	INTON;
+	output.nextc = output.buf;
 }
 
 

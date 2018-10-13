@@ -15,7 +15,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_platform.h"
-#if SANITIZER_FREEBSD || SANITIZER_LINUX
+#if SANITIZER_FREEBSD || SANITIZER_FUCHSIA || SANITIZER_LINUX || \
+    SANITIZER_NETBSD || SANITIZER_SOLARIS
 
 #include "sanitizer_common/sanitizer_tls_get_addr.h"
 #include "asan_allocator.h"
@@ -26,65 +27,89 @@
 // ---------------------- Replacement functions ---------------- {{{1
 using namespace __asan;  // NOLINT
 
-static const uptr kCallocPoolSize = 1024;
-static uptr calloc_memory_for_dlsym[kCallocPoolSize];
+static uptr allocated_for_dlsym;
+static const uptr kDlsymAllocPoolSize = 1024;
+static uptr alloc_memory_for_dlsym[kDlsymAllocPoolSize];
 
-static bool IsInCallocPool(const void *ptr) {
-  sptr off = (sptr)ptr - (sptr)calloc_memory_for_dlsym;
-  return 0 <= off && off < (sptr)kCallocPoolSize;
+static INLINE bool IsInDlsymAllocPool(const void *ptr) {
+  uptr off = (uptr)ptr - (uptr)alloc_memory_for_dlsym;
+  return off < allocated_for_dlsym * sizeof(alloc_memory_for_dlsym[0]);
+}
+
+static void *AllocateFromLocalPool(uptr size_in_bytes) {
+  uptr size_in_words = RoundUpTo(size_in_bytes, kWordSize) / kWordSize;
+  void *mem = (void*)&alloc_memory_for_dlsym[allocated_for_dlsym];
+  allocated_for_dlsym += size_in_words;
+  CHECK_LT(allocated_for_dlsym, kDlsymAllocPoolSize);
+  return mem;
+}
+
+static INLINE bool MaybeInDlsym() {
+  // Fuchsia doesn't use dlsym-based interceptors.
+  return !SANITIZER_FUCHSIA && asan_init_is_running;
+}
+
+static void *ReallocFromLocalPool(void *ptr, uptr size) {
+  const uptr offset = (uptr)ptr - (uptr)alloc_memory_for_dlsym;
+  const uptr copy_size = Min(size, kDlsymAllocPoolSize - offset);
+  void *new_ptr;
+  if (UNLIKELY(MaybeInDlsym())) {
+    new_ptr = AllocateFromLocalPool(size);
+  } else {
+    ENSURE_ASAN_INITED();
+    GET_STACK_TRACE_MALLOC;
+    new_ptr = asan_malloc(size, &stack);
+  }
+  internal_memcpy(new_ptr, ptr, copy_size);
+  return new_ptr;
 }
 
 INTERCEPTOR(void, free, void *ptr) {
   GET_STACK_TRACE_FREE;
-  if (UNLIKELY(IsInCallocPool(ptr)))
+  if (UNLIKELY(IsInDlsymAllocPool(ptr)))
     return;
   asan_free(ptr, &stack, FROM_MALLOC);
 }
 
+#if SANITIZER_INTERCEPT_CFREE
 INTERCEPTOR(void, cfree, void *ptr) {
   GET_STACK_TRACE_FREE;
-  if (UNLIKELY(IsInCallocPool(ptr)))
+  if (UNLIKELY(IsInDlsymAllocPool(ptr)))
     return;
   asan_free(ptr, &stack, FROM_MALLOC);
 }
+#endif // SANITIZER_INTERCEPT_CFREE
 
 INTERCEPTOR(void*, malloc, uptr size) {
+  if (UNLIKELY(MaybeInDlsym()))
+    // Hack: dlsym calls malloc before REAL(malloc) is retrieved from dlsym.
+    return AllocateFromLocalPool(size);
+  ENSURE_ASAN_INITED();
   GET_STACK_TRACE_MALLOC;
   return asan_malloc(size, &stack);
 }
 
 INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
-  if (UNLIKELY(!asan_inited)) {
+  if (UNLIKELY(MaybeInDlsym()))
     // Hack: dlsym calls calloc before REAL(calloc) is retrieved from dlsym.
-    static uptr allocated;
-    uptr size_in_words = ((nmemb * size) + kWordSize - 1) / kWordSize;
-    void *mem = (void*)&calloc_memory_for_dlsym[allocated];
-    allocated += size_in_words;
-    CHECK(allocated < kCallocPoolSize);
-    return mem;
-  }
+    return AllocateFromLocalPool(nmemb * size);
+  ENSURE_ASAN_INITED();
   GET_STACK_TRACE_MALLOC;
   return asan_calloc(nmemb, size, &stack);
 }
 
 INTERCEPTOR(void*, realloc, void *ptr, uptr size) {
+  if (UNLIKELY(IsInDlsymAllocPool(ptr)))
+    return ReallocFromLocalPool(ptr, size);
+  if (UNLIKELY(MaybeInDlsym()))
+    return AllocateFromLocalPool(size);
+  ENSURE_ASAN_INITED();
   GET_STACK_TRACE_MALLOC;
-  if (UNLIKELY(IsInCallocPool(ptr))) {
-    uptr offset = (uptr)ptr - (uptr)calloc_memory_for_dlsym;
-    uptr copy_size = Min(size, kCallocPoolSize - offset);
-    void *new_ptr = asan_malloc(size, &stack);
-    internal_memcpy(new_ptr, ptr, copy_size);
-    return new_ptr;
-  }
   return asan_realloc(ptr, size, &stack);
 }
 
+#if SANITIZER_INTERCEPT_MEMALIGN
 INTERCEPTOR(void*, memalign, uptr boundary, uptr size) {
-  GET_STACK_TRACE_MALLOC;
-  return asan_memalign(boundary, size, &stack, FROM_MALLOC);
-}
-
-INTERCEPTOR(void*, aligned_alloc, uptr boundary, uptr size) {
   GET_STACK_TRACE_MALLOC;
   return asan_memalign(boundary, size, &stack, FROM_MALLOC);
 }
@@ -92,8 +117,14 @@ INTERCEPTOR(void*, aligned_alloc, uptr boundary, uptr size) {
 INTERCEPTOR(void*, __libc_memalign, uptr boundary, uptr size) {
   GET_STACK_TRACE_MALLOC;
   void *res = asan_memalign(boundary, size, &stack, FROM_MALLOC);
-  DTLS_on_libc_memalign(res, size * boundary);
+  DTLS_on_libc_memalign(res, size);
   return res;
+}
+#endif // SANITIZER_INTERCEPT_MEMALIGN
+
+INTERCEPTOR(void*, aligned_alloc, uptr boundary, uptr size) {
+  GET_STACK_TRACE_MALLOC;
+  return asan_memalign(boundary, size, &stack, FROM_MALLOC);
 }
 
 INTERCEPTOR(uptr, malloc_usable_size, void *ptr) {
@@ -102,6 +133,7 @@ INTERCEPTOR(uptr, malloc_usable_size, void *ptr) {
   return asan_malloc_usable_size(ptr, pc, bp);
 }
 
+#if SANITIZER_INTERCEPT_MALLOPT_AND_MALLINFO
 // We avoid including malloc.h for portability reasons.
 // man mallinfo says the fields are "long", but the implementation uses int.
 // It doesn't matter much -- we just need to make sure that the libc's mallinfo
@@ -119,6 +151,7 @@ INTERCEPTOR(struct fake_mallinfo, mallinfo, void) {
 INTERCEPTOR(int, mallopt, int cmd, int value) {
   return -1;
 }
+#endif // SANITIZER_INTERCEPT_MALLOPT_AND_MALLINFO
 
 INTERCEPTOR(int, posix_memalign, void **memptr, uptr alignment, uptr size) {
   GET_STACK_TRACE_MALLOC;
@@ -131,10 +164,12 @@ INTERCEPTOR(void*, valloc, uptr size) {
   return asan_valloc(size, &stack);
 }
 
+#if SANITIZER_INTERCEPT_PVALLOC
 INTERCEPTOR(void*, pvalloc, uptr size) {
   GET_STACK_TRACE_MALLOC;
   return asan_pvalloc(size, &stack);
 }
+#endif // SANITIZER_INTERCEPT_PVALLOC
 
 INTERCEPTOR(void, malloc_stats, void) {
   __asan_print_accumulated_stats();
@@ -200,4 +235,5 @@ void ReplaceSystemMalloc() {
 }  // namespace __asan
 #endif  // SANITIZER_ANDROID
 
-#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX
+#endif  // SANITIZER_FREEBSD || SANITIZER_FUCHSIA || SANITIZER_LINUX ||
+        // SANITIZER_NETBSD || SANITIZER_SOLARIS

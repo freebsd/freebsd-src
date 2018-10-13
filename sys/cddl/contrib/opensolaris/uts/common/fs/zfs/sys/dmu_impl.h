@@ -88,7 +88,6 @@ extern "C" {
  *   held from:
  *   	callers of dbuf_read_impl, dbuf_hold[_impl], dbuf_prefetch
  *   	dmu_object_info_from_dnode: dn_dirty_mtx (dn_datablksz)
- *   	dmu_tx_count_free:
  *   	dbuf_read_impl: db_mtx, dmu_zfetch()
  *   	dmu_zfetch: zf_rwlock/r, zst_lock, dbuf_prefetch()
  *   	dbuf_new_size: db_mtx
@@ -199,7 +198,6 @@ extern "C" {
  *    	dsl_prop_changed_notify: none (dd_prop_cbs)
  *    	dsl_prop_register: none (dd_prop_cbs)
  *    	dsl_prop_unregister: none (dd_prop_cbs)
- *    	dsl_dataset_block_freeable: none (dd_sync_*)
  *
  * os_lock (leaf)
  *   protects:
@@ -301,6 +299,8 @@ typedef struct dmu_sendarg {
 	uint64_t dsa_last_data_offset;
 	uint64_t dsa_resume_object;
 	uint64_t dsa_resume_offset;
+	boolean_t dsa_sent_begin;
+	boolean_t dsa_sent_end;
 } dmu_sendarg_t;
 
 void dmu_object_zapify(objset_t *, uint64_t, dmu_object_type_t, dmu_tx_t *);

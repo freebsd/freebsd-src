@@ -1,7 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2009 Silicon Graphics International Corp.
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2017 Jakub Wojciech Klama <jceel@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
+#include <sys/dnv.h>
 
 #include <cam/cam.h>
 #include <cam/scsi/scsi_all.h>
@@ -68,22 +73,41 @@ struct ctl_fe_ioctl_params {
 	ctl_fe_ioctl_state	state;
 };
 
-struct cfi_softc {
+struct cfi_port {
+	TAILQ_ENTRY(cfi_port)	link;
 	uint32_t		cur_tag_num;
+	struct cdev *		dev;
 	struct ctl_port		port;
 };
 
+struct cfi_softc {
+	TAILQ_HEAD(, cfi_port)	ports;
+};
+
+
 static struct cfi_softc cfi_softc;
 
+
 static int cfi_init(void);
-static void cfi_shutdown(void);
+static int cfi_shutdown(void);
 static void cfi_datamove(union ctl_io *io);
 static void cfi_done(union ctl_io *io);
+static int cfi_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+    struct thread *td);
+static void cfi_ioctl_port_create(struct ctl_req *req);
+static void cfi_ioctl_port_remove(struct ctl_req *req);
+
+static struct cdevsw cfi_cdevsw = {
+	.d_version = D_VERSION,
+	.d_flags = 0,
+	.d_ioctl = ctl_ioctl_io
+};
 
 static struct ctl_frontend cfi_frontend =
 {
 	.name = "ioctl",
 	.init = cfi_init,
+	.ioctl = cfi_ioctl,
 	.shutdown = cfi_shutdown,
 };
 CTL_FRONTEND_DECLARE(ctlioctl, cfi_frontend);
@@ -92,40 +116,217 @@ static int
 cfi_init(void)
 {
 	struct cfi_softc *isoftc = &cfi_softc;
+	struct cfi_port *cfi;
 	struct ctl_port *port;
+	int error = 0;
 
 	memset(isoftc, 0, sizeof(*isoftc));
+	TAILQ_INIT(&isoftc->ports);
 
-	port = &isoftc->port;
+	cfi = malloc(sizeof(*cfi), M_CTL, M_WAITOK | M_ZERO);
+	port = &cfi->port;
 	port->frontend = &cfi_frontend;
 	port->port_type = CTL_PORT_IOCTL;
 	port->num_requested_ctl_io = 100;
 	port->port_name = "ioctl";
 	port->fe_datamove = cfi_datamove;
 	port->fe_done = cfi_done;
-	port->max_targets = 1;
-	port->max_target_id = 0;
+	port->physical_port = 0;
 	port->targ_port = -1;
-	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0) {
+	if ((error = ctl_port_register(port)) != 0) {
 		printf("%s: ioctl port registration failed\n", __func__);
-		return (0);
+		return (error);
 	}
+
 	ctl_port_online(port);
+	TAILQ_INSERT_TAIL(&isoftc->ports, cfi, link);
 	return (0);
 }
 
-void
+static int
 cfi_shutdown(void)
 {
 	struct cfi_softc *isoftc = &cfi_softc;
+	struct cfi_port *cfi, *temp;
 	struct ctl_port *port;
+	int error;
 
-	port = &isoftc->port;
-	ctl_port_offline(port);
-	if (ctl_port_deregister(&isoftc->port) != 0)
-		printf("%s: ctl_frontend_deregister() failed\n", __func__);
+	TAILQ_FOREACH_SAFE(cfi, &isoftc->ports, link, temp) {
+		port = &cfi->port;
+		ctl_port_offline(port);
+		error = ctl_port_deregister(port);
+		if (error != 0) {
+			printf("%s: ctl_frontend_deregister() failed\n",
+			   __func__);
+			return (error);
+		}
+
+		TAILQ_REMOVE(&isoftc->ports, cfi, link);
+		free(cfi, M_CTL);
+	}
+
+	return (0);
+}
+
+static void
+cfi_ioctl_port_create(struct ctl_req *req)
+{
+	struct cfi_softc *isoftc = &cfi_softc;
+	struct cfi_port *cfi;
+	struct ctl_port *port;
+	struct make_dev_args args;
+	const char *val;
+	int retval;
+	int pp = -1, vp = 0;
+
+	val = dnvlist_get_string(req->args_nvl, "pp", NULL);
+	if (val != NULL)
+		pp = strtol(val, NULL, 10);
+	
+	val = dnvlist_get_string(req->args_nvl, "vp", NULL);
+	if (val != NULL)
+		vp = strtol(val, NULL, 10);
+
+	if (pp != -1) {
+		/* Check for duplicates */
+		TAILQ_FOREACH(cfi, &isoftc->ports, link) {
+			if (pp == cfi->port.physical_port && 
+			    vp == cfi->port.virtual_port) {
+				req->status = CTL_LUN_ERROR;
+				snprintf(req->error_str, sizeof(req->error_str),
+				    "port %d already exists", pp);
+
+				return;
+			}
+		}
+	} else {
+		/* Find free port number */
+		TAILQ_FOREACH(cfi, &isoftc->ports, link) {
+			pp = MAX(pp, cfi->port.physical_port);
+		}
+
+		pp++;
+	}
+
+	cfi = malloc(sizeof(*cfi), M_CTL, M_WAITOK | M_ZERO);
+	port = &cfi->port;
+	port->frontend = &cfi_frontend;
+	port->port_type = CTL_PORT_IOCTL;
+	port->num_requested_ctl_io = 100;
+	port->port_name = "ioctl";
+	port->fe_datamove = cfi_datamove;
+	port->fe_done = cfi_done;
+	port->physical_port = pp;
+	port->virtual_port = vp;
+	port->targ_port = -1;
+
+	retval = ctl_port_register(port);
+	if (retval != 0) {
+		req->status = CTL_LUN_ERROR;
+		snprintf(req->error_str, sizeof(req->error_str),
+		    "ctl_port_register() failed with error %d", retval);
+		free(port, M_CTL);
+		return;
+	}
+
+	req->result_nvl = nvlist_create(0);
+	nvlist_add_number(req->result_nvl, "port_id", port->targ_port);
+	ctl_port_online(port);
+
+	make_dev_args_init(&args);
+	args.mda_devsw = &cfi_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = NULL;
+	args.mda_si_drv2 = cfi;
+
+	retval = make_dev_s(&args, &cfi->dev, "cam/ctl%d.%d", pp, vp);
+	if (retval != 0) {
+		req->status = CTL_LUN_ERROR;
+		snprintf(req->error_str, sizeof(req->error_str),
+		    "make_dev_s() failed with error %d", retval);
+		free(port, M_CTL);
+		return;
+	}
+
+	req->status = CTL_LUN_OK;
+	TAILQ_INSERT_TAIL(&isoftc->ports, cfi, link);
+}
+
+static void
+cfi_ioctl_port_remove(struct ctl_req *req)
+{
+	struct cfi_softc *isoftc = &cfi_softc;
+	struct cfi_port *cfi = NULL;
+	const char *val;
+	int port_id = -1;
+
+	val = dnvlist_get_string(req->args_nvl, "port_id", NULL);
+	if (val != NULL)
+		port_id = strtol(val, NULL, 10);
+
+	if (port_id == -1) {
+		req->status = CTL_LUN_ERROR;
+		snprintf(req->error_str, sizeof(req->error_str),
+		    "port_id not provided");
+		return;
+	}
+
+	TAILQ_FOREACH(cfi, &isoftc->ports, link) {
+		if (cfi->port.targ_port == port_id)
+			break;
+	}
+
+	if (cfi == NULL) {
+		req->status = CTL_LUN_ERROR;
+		snprintf(req->error_str, sizeof(req->error_str),
+		    "cannot find port %d", port_id);
+
+		return;
+	}
+
+	if (cfi->port.physical_port == 0 && cfi->port.virtual_port == 0) {
+		req->status = CTL_LUN_ERROR;
+		snprintf(req->error_str, sizeof(req->error_str),
+		    "cannot destroy default ioctl port");
+
+		return;
+	}
+
+	ctl_port_offline(&cfi->port);
+	ctl_port_deregister(&cfi->port);
+	TAILQ_REMOVE(&isoftc->ports, cfi, link);
+	destroy_dev(cfi->dev);
+	free(cfi, M_CTL);
+	req->status = CTL_LUN_OK;
+}
+
+static int
+cfi_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+    struct thread *td)
+{
+	struct ctl_req *req;
+
+	if (cmd == CTL_PORT_REQ) {
+		req = (struct ctl_req *)addr;
+		switch (req->reqtype) {
+		case CTL_REQ_CREATE:
+			cfi_ioctl_port_create(req);
+			break;
+		case CTL_REQ_REMOVE:
+			cfi_ioctl_port_remove(req);
+			break;
+		default:
+			req->status = CTL_LUN_ERROR;
+			snprintf(req->error_str, sizeof(req->error_str),
+			    "Unsupported request type %d", req->reqtype);
+		}
+		return (0);
+	}
+
+	return (ENOTTY);
 }
 
 /*
@@ -138,14 +339,10 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	struct ctl_sg_entry ext_entry, kern_entry;
 	int ext_sglen, ext_sg_entries, kern_sg_entries;
 	int ext_sg_start, ext_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int kern_watermark, ext_watermark;
 	int ext_sglist_malloced;
 	int i, j;
-
-	ext_sglist_malloced = 0;
-	ext_sg_start = 0;
-	ext_offset = 0;
 
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove\n"));
 
@@ -153,7 +350,9 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	 * If this flag is set, fake the data transfer.
 	 */
 	if (ctsio->io_hdr.flags & CTL_FLAG_NO_DATAMOVE) {
-		ctsio->ext_data_filled = ctsio->ext_data_len;
+		ext_sglist_malloced = 0;
+		ctsio->ext_data_filled += ctsio->kern_data_len;
+		ctsio->kern_data_resid = 0;
 		goto bailout;
 	}
 
@@ -165,7 +364,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		int len_seen;
 
 		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
-
 		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
 							   M_WAITOK);
 		ext_sglist_malloced = 1;
@@ -174,6 +372,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			goto bailout;
 		}
 		ext_sg_entries = ctsio->ext_sg_entries;
+		ext_sg_start = ext_sg_entries;
+		ext_offset = 0;
 		len_seen = 0;
 		for (i = 0; i < ext_sg_entries; i++) {
 			if ((len_seen + ext_sglist[i].len) >=
@@ -186,6 +386,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		}
 	} else {
 		ext_sglist = &ext_entry;
+		ext_sglist_malloced = 0;
 		ext_sglist->addr = ctsio->ext_data_ptr;
 		ext_sglist->len = ctsio->ext_data_len;
 		ext_sg_entries = 1;
@@ -203,10 +404,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		kern_sg_entries = 1;
 	}
 
-
 	kern_watermark = 0;
 	ext_watermark = ext_offset;
-	len_copied = 0;
 	for (i = ext_sg_start, j = 0;
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
@@ -227,9 +426,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		} else
 			kern_ptr = (uint8_t *)kern_sglist[j].addr;
 		kern_ptr = kern_ptr + kern_watermark;
-
-		kern_watermark += len_to_copy;
-		ext_watermark += len_to_copy;
 
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
@@ -252,20 +448,21 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			}
 		}
 
-		len_copied += len_to_copy;
+		ctsio->ext_data_filled += len_to_copy;
+		ctsio->kern_data_resid -= len_to_copy;
 
+		ext_watermark += len_to_copy;
 		if (ext_sglist[i].len == ext_watermark) {
 			i++;
 			ext_watermark = 0;
 		}
 
+		kern_watermark += len_to_copy;
 		if (kern_sglist[j].len == kern_watermark) {
 			j++;
 			kern_watermark = 0;
 		}
 	}
-
-	ctsio->ext_data_filled += len_copied;
 
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_sg_entries: %d, "
 			 "kern_sg_entries: %d\n", ext_sg_entries,
@@ -274,10 +471,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			 "kern_data_len = %d\n", ctsio->ext_data_len,
 			 ctsio->kern_data_len));
 
-
-	/* XXX KDM set residual?? */
 bailout:
-
 	if (ext_sglist_malloced != 0)
 		free(ext_sglist, M_CTL);
 
@@ -396,26 +590,36 @@ int
 ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
+	struct cfi_port *cfi;
 	union ctl_io *io;
-	void *pool_tmp;
+	void *pool_tmp, *sc_tmp;
 	int retval = 0;
+
+	if (cmd != CTL_IO)
+		return (ENOTTY);
+
+	cfi = dev->si_drv2 == NULL
+	    ? TAILQ_FIRST(&cfi_softc.ports)
+	    : dev->si_drv2;
 
 	/*
 	 * If we haven't been "enabled", don't allow any SCSI I/O
 	 * to this FETD.
 	 */
-	if ((cfi_softc.port.status & CTL_PORT_STATUS_ONLINE) == 0)
+	if ((cfi->port.status & CTL_PORT_STATUS_ONLINE) == 0)
 		return (EPERM);
 
-	io = ctl_alloc_io(cfi_softc.port.ctl_pool_ref);
+	io = ctl_alloc_io(cfi->port.ctl_pool_ref);
 
 	/*
 	 * Need to save the pool reference so it doesn't get
 	 * spammed by the user's ctl_io.
 	 */
 	pool_tmp = io->io_hdr.pool;
+	sc_tmp = CTL_SOFTC(io);
 	memcpy(io, (void *)addr, sizeof(*io));
 	io->io_hdr.pool = pool_tmp;
+	CTL_SOFTC(io) = sc_tmp;
 
 	/*
 	 * No status yet, so make sure the status is set properly.
@@ -425,15 +629,16 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	/*
 	 * The user sets the initiator ID, target and LUN IDs.
 	 */
-	io->io_hdr.nexus.targ_port = cfi_softc.port.targ_port;
+	io->io_hdr.nexus.targ_port = cfi->port.targ_port;
 	io->io_hdr.flags |= CTL_FLAG_USER_REQ;
 	if ((io->io_hdr.io_type == CTL_IO_SCSI) &&
 	    (io->scsiio.tag_type != CTL_TAG_UNTAGGED))
-		io->scsiio.tag_num = cfi_softc.cur_tag_num++;
+		io->scsiio.tag_num = cfi->cur_tag_num++;
 
 	retval = cfi_submit_wait(io);
 	if (retval == 0)
 		memcpy((void *)addr, io, sizeof(*io));
+
 	ctl_free_io(io);
 	return (retval);
 }

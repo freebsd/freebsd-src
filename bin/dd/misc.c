@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <libutil.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,6 +84,9 @@ summary(void)
 	if (ddflags & C_NOINFO)
 		return;
 
+	if (ddflags & C_PROGRESS)
+		fprintf(stderr, "\n");
+
 	secs = secs_elapsed();
 
 	(void)fprintf(stderr,
@@ -100,12 +106,45 @@ summary(void)
 	need_summary = 0;
 }
 
+void
+progress(void)
+{
+	static int outlen;
+	char si[4 + 1 + 2 + 1];		/* 123 <space> <suffix> NUL */
+	char iec[4 + 1 + 3 + 1];	/* 123 <space> <suffix> NUL */
+	char persec[4 + 1 + 2 + 1];	/* 123 <space> <suffix> NUL */
+	char *buf;
+	double secs;
+
+	secs = secs_elapsed();
+	humanize_number(si, sizeof(si), (int64_t)st.bytes, "B", HN_AUTOSCALE,
+	    HN_DECIMAL | HN_DIVISOR_1000);
+	humanize_number(iec, sizeof(iec), (int64_t)st.bytes, "B", HN_AUTOSCALE,
+	    HN_DECIMAL | HN_IEC_PREFIXES);
+	humanize_number(persec, sizeof(persec), (int64_t)(st.bytes / secs), "B",
+	    HN_AUTOSCALE, HN_DECIMAL | HN_DIVISOR_1000);
+	asprintf(&buf, "  %'ju bytes (%s, %s) transferred %.3fs, %s/s",
+	    (uintmax_t)st.bytes, si, iec, secs, persec);
+	outlen = fprintf(stderr, "%-*s\r", outlen, buf) - 1;
+	fflush(stderr);
+	free(buf);
+	need_progress = 0;
+}
+
 /* ARGSUSED */
 void
 siginfo_handler(int signo __unused)
 {
 
 	need_summary = 1;
+}
+
+/* ARGSUSED */
+void
+sigalarm_handler(int signo __unused)
+{
+
+	need_progress = 1;
 }
 
 /* ARGSUSED */

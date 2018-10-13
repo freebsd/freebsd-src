@@ -2,6 +2,8 @@
 /*	$KAME: ipsec.h,v 1.53 2001/11/20 08:32:38 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -53,11 +55,6 @@
 
 #define	IPSEC_ASSERT(_c,_m) KASSERT(_c, _m)
 
-#define	IPSEC_IS_PRIVILEGED_SO(_so) \
-	((_so)->so_cred != NULL && \
-	 priv_check_cred((_so)->so_cred, PRIV_NETINET_IPSEC, 0) \
-	 == 0)
-
 /*
  * Security Policy Index
  * Ensure that both address families in the "src" and "dst" are same.
@@ -65,35 +62,41 @@
  * specifies ICMPv6 type, and the port field in "dst" specifies ICMPv6 code.
  */
 struct secpolicyindex {
-	u_int8_t dir;			/* direction of packet flow, see below */
 	union sockaddr_union src;	/* IP src address for SP */
 	union sockaddr_union dst;	/* IP dst address for SP */
-	u_int8_t prefs;			/* prefix length in bits for src */
-	u_int8_t prefd;			/* prefix length in bits for dst */
-	u_int16_t ul_proto;		/* upper layer Protocol */
-#ifdef notyet
-	uid_t uids;
-	uid_t uidd;
-	gid_t gids;
-	gid_t gidd;
-#endif
+	uint8_t ul_proto;		/* upper layer Protocol */
+	uint8_t dir;			/* direction of packet flow */
+	uint8_t prefs;			/* prefix length in bits for src */
+	uint8_t prefd;			/* prefix length in bits for dst */
+};
+
+/* Request for IPsec */
+struct ipsecrequest {
+	struct secasindex saidx;/* hint for search proper SA */
+				/* if __ss_len == 0 then no address specified.*/
+	u_int level;		/* IPsec level defined below. */
 };
 
 /* Security Policy Data Base */
 struct secpolicy {
 	TAILQ_ENTRY(secpolicy) chain;
+	LIST_ENTRY(secpolicy) idhash;
+	LIST_ENTRY(secpolicy) drainq;
 
 	struct secpolicyindex spidx;	/* selector */
-	struct ipsecrequest *req;
-				/* pointer to the ipsec request tree, */
-				/* if policy == IPSEC else this value == NULL.*/
-	u_int refcnt;			/* reference count */
+#define	IPSEC_MAXREQ		4
+	struct ipsecrequest *req[IPSEC_MAXREQ];
+	u_int tcount;			/* IPsec transforms count */
+	volatile u_int refcnt;		/* reference count */
 	u_int policy;			/* policy_type per pfkeyv2.h */
 	u_int state;
 #define	IPSEC_SPSTATE_DEAD	0
-#define	IPSEC_SPSTATE_ALIVE	1
-	u_int32_t priority;		/* priority of this policy */
-	u_int32_t id;			/* It's unique number on the system. */
+#define	IPSEC_SPSTATE_LARVAL	1
+#define	IPSEC_SPSTATE_ALIVE	2
+#define	IPSEC_SPSTATE_PCB	3
+#define	IPSEC_SPSTATE_IFNET	4
+	uint32_t priority;		/* priority of this policy */
+	uint32_t id;			/* It's unique number on the system. */
 	/*
 	 * lifetime handler.
 	 * the policy can be used without limitiation if both lifetime and
@@ -107,41 +110,25 @@ struct secpolicy {
 	long validtime;		/* duration this policy is valid without use */
 };
 
-/* Request for IPsec */
-struct ipsecrequest {
-	struct ipsecrequest *next;
-				/* pointer to next structure */
-				/* If NULL, it means the end of chain. */
-	struct secasindex saidx;/* hint for search proper SA */
-				/* if __ss_len == 0 then no address specified.*/
-	u_int level;		/* IPsec level defined below. */
-
-	struct secasvar *sav;	/* place holder of SA for use */
-	struct secpolicy *sp;	/* back pointer to SP */
-	struct rwlock lock;	/* to interlock updates */
-};
-
 /*
- * Need recursion for when crypto callbacks happen directly,
- * as in the case of software crypto.  Need to look at how
- * hard it is to remove this...
+ * PCB security policies.
+ * Application can setup private security policies for socket.
+ * Such policies can have IPSEC, BYPASS and ENTRUST type.
+ * By default, policies are set to NULL. This means that they have ENTRUST type.
+ * When application sets BYPASS or IPSEC type policy, the flags field
+ * is also updated. When flags is not set, the system could store
+ * used security policy into the sp_in/sp_out pointer to speed up further
+ * lookups.
  */
-#define	IPSECREQUEST_LOCK_INIT(_isr) \
-	rw_init_flags(&(_isr)->lock, "ipsec request", RW_RECURSE)
-#define	IPSECREQUEST_LOCK(_isr)		rw_rlock(&(_isr)->lock)
-#define	IPSECREQUEST_UNLOCK(_isr)	rw_runlock(&(_isr)->lock)
-#define	IPSECREQUEST_WLOCK(_isr)	rw_wlock(&(_isr)->lock)
-#define	IPSECREQUEST_WUNLOCK(_isr)	rw_wunlock(&(_isr)->lock)
-#define	IPSECREQUEST_UPGRADE(_isr)	rw_try_upgrade(&(_isr)->lock)
-#define	IPSECREQUEST_DOWNGRADE(_isr)	rw_downgrade(&(_isr)->lock)
-#define	IPSECREQUEST_LOCK_DESTROY(_isr)	rw_destroy(&(_isr)->lock)
-#define	IPSECREQUEST_LOCK_ASSERT(_isr)	rw_assert(&(_isr)->lock, RA_LOCKED)
-
-/* security policy in PCB */
 struct inpcbpolicy {
-	struct secpolicy *sp_in;
-	struct secpolicy *sp_out;
-	int priv;			/* privileged socket ? */
+	struct secpolicy	*sp_in;
+	struct secpolicy	*sp_out;
+
+	uint32_t		genid;
+	uint16_t		flags;
+#define	INP_INBOUND_POLICY	0x0001
+#define	INP_OUTBOUND_POLICY	0x0002
+	uint16_t		hdrsz;
 };
 
 /* SP acquiring list table. */
@@ -155,6 +142,9 @@ struct secspacq {
 	/* XXX: here is mbuf place holder to be sent ? */
 };
 #endif /* _KERNEL */
+
+/* buffer size for formatted output of ipsec address */
+#define	IPSEC_ADDRSTRLEN	(INET6_ADDRSTRLEN + 11)
 
 /* according to IANA assignment, port 0x0000 and proto 0xff are reserved. */
 #define IPSEC_PORT_ANY		0
@@ -191,6 +181,12 @@ struct secspacq {
 #define IPSEC_POLICY_ENTRUST	3	/* consulting SPD if present. */
 #define IPSEC_POLICY_BYPASS	4	/* only for privileged socket. */
 
+/* Policy scope */
+#define	IPSEC_POLICYSCOPE_ANY		0x00	/* unspecified */
+#define	IPSEC_POLICYSCOPE_GLOBAL	0x01	/* global scope */
+#define	IPSEC_POLICYSCOPE_IFNET		0x02	/* if_ipsec(4) scope */
+#define	IPSEC_POLICYSCOPE_PCB		0x04	/* PCB scope */
+
 /* Security protocol level */
 #define	IPSEC_LEVEL_DEFAULT	0	/* reference to system default */
 #define	IPSEC_LEVEL_USE		1	/* use SA if present. */
@@ -223,8 +219,9 @@ struct ipsecstat {
 	uint64_t ips_out_inval;		/* output: generic error */
 	uint64_t ips_out_bundlesa;	/* output: bundled SA processed */
 
-	uint64_t ips_mbcoalesced;	/* mbufs coalesced during clone */
-	uint64_t ips_clcoalesced;	/* clusters coalesced during clone */
+	uint64_t ips_spdcache_hits;	/* SPD cache hits */
+	uint64_t ips_spdcache_misses;	/* SPD cache misses */
+
 	uint64_t ips_clcopied;		/* clusters copied during clone */
 	uint64_t ips_mbinserted;	/* mbufs inserted during makespace */
 	/* 
@@ -259,8 +256,9 @@ struct ipsecstat {
 #include <sys/counter.h>
 
 struct ipsec_ctx_data;
-#define	IPSEC_INIT_CTX(_ctx, _mp, _sav, _af, _enc) do {	\
+#define	IPSEC_INIT_CTX(_ctx, _mp, _inp, _sav, _af, _enc) do {	\
 	(_ctx)->mp = (_mp);				\
+	(_ctx)->inp = (_inp);				\
 	(_ctx)->sav = (_sav);				\
 	(_ctx)->af = (_af);				\
 	(_ctx)->enc = (_enc);				\
@@ -283,11 +281,11 @@ VNET_DECLARE(int, ip4_esp_trans_deflev);
 VNET_DECLARE(int, ip4_esp_net_deflev);
 VNET_DECLARE(int, ip4_ah_trans_deflev);
 VNET_DECLARE(int, ip4_ah_net_deflev);
-VNET_DECLARE(int, ip4_ah_offsetmask);
 VNET_DECLARE(int, ip4_ipsec_dfbit);
 VNET_DECLARE(int, ip4_ipsec_ecn);
-VNET_DECLARE(int, ip4_esp_randpad);
 VNET_DECLARE(int, crypto_support);
+VNET_DECLARE(int, async_crypto);
+VNET_DECLARE(int, natt_cksum_policy);
 
 #define	IPSECSTAT_INC(name)	\
     VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1)
@@ -295,64 +293,62 @@ VNET_DECLARE(int, crypto_support);
 #define	V_ip4_esp_net_deflev	VNET(ip4_esp_net_deflev)
 #define	V_ip4_ah_trans_deflev	VNET(ip4_ah_trans_deflev)
 #define	V_ip4_ah_net_deflev	VNET(ip4_ah_net_deflev)
-#define	V_ip4_ah_offsetmask	VNET(ip4_ah_offsetmask)
 #define	V_ip4_ipsec_dfbit	VNET(ip4_ipsec_dfbit)
 #define	V_ip4_ipsec_ecn		VNET(ip4_ipsec_ecn)
-#define	V_ip4_esp_randpad	VNET(ip4_esp_randpad)
 #define	V_crypto_support	VNET(crypto_support)
+#define	V_async_crypto		VNET(async_crypto)
+#define	V_natt_cksum_policy	VNET(natt_cksum_policy)
 
 #define ipseclog(x)	do { if (V_ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
+#ifdef IPSEC_DEBUG
+#define	IPSEC_DEBUG_DECLARE(x)	x
 #define	DPRINTF(x)	do { if (V_ipsec_debug) printf x; } while (0)
-
-extern	struct ipsecrequest *ipsec_newisr(void);
-extern	void ipsec_delisr(struct ipsecrequest *);
-
-struct tdb_ident;
-extern struct secpolicy *ipsec_getpolicy(struct tdb_ident*, u_int);
-struct inpcb;
-extern struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, u_int,
-    int *, struct inpcb *);
-extern struct secpolicy * ipsec_getpolicybyaddr(const struct mbuf *, u_int,
-    int *);
+#else
+#define	IPSEC_DEBUG_DECLARE(x)
+#define	DPRINTF(x)
+#endif
 
 struct inpcb;
-extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
-extern int ipsec_copy_policy(struct inpcbpolicy *, struct inpcbpolicy *);
-extern u_int ipsec_get_reqlevel(struct ipsecrequest *);
-
-extern int ipsec_set_policy(struct inpcb *inp, int optname,
-	caddr_t request, size_t len, struct ucred *cred);
-extern int ipsec_get_policy(struct inpcb *inpcb, caddr_t request,
-    size_t len, struct mbuf **mp);
-extern int ipsec_delete_pcbpolicy(struct inpcb *);
-extern int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
-
-struct secas;
-struct tcpcb;
-extern int ipsec_chkreplay(u_int32_t, struct secasvar *);
-extern int ipsec_updatereplay(u_int32_t, struct secasvar *);
-
-extern size_t ipsec_hdrsiz(const struct mbuf *, u_int, struct inpcb *);
-extern size_t ipsec_hdrsiz_tcp(struct tcpcb *);
-
-union sockaddr_union;
-extern char *ipsec_address(union sockaddr_union *, char *, socklen_t);
-extern char *ipsec_logsastr(struct secasvar *, char *, size_t);
-
-extern void ipsec_dumpmbuf(const struct mbuf *);
-
 struct m_tag;
-extern int ah4_input(struct mbuf **mp, int *offp, int proto);
-extern void ah4_ctlinput(int cmd, struct sockaddr *sa, void *);
-extern int esp4_input(struct mbuf **mp, int *offp, int proto);
-extern void esp4_ctlinput(int cmd, struct sockaddr *sa, void *);
-extern int ipcomp4_input(struct mbuf **mp, int *offp, int proto);
-extern int ipsec_common_input(struct mbuf *m, int, int, int, int); 
-extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff);
-extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *);
-extern int ipsec_process_done(struct mbuf *, struct ipsecrequest *);
+struct secasvar;
+struct sockopt;
+struct tcphdr;
+union sockaddr_union;
+
+int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t);
+
+struct ipsecrequest *ipsec_newisr(void);
+void ipsec_delisr(struct ipsecrequest *);
+struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,
+    int *, int);
+
+u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
+
+void udp_ipsec_adjust_cksum(struct mbuf *, struct secasvar *, int, int);
+int udp_ipsec_output(struct mbuf *, struct secasvar *);
+int udp_ipsec_input(struct mbuf *, int, int);
+int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
+
+int ipsec_chkreplay(uint32_t, struct secasvar *);
+int ipsec_updatereplay(uint32_t, struct secasvar *);
+int ipsec_updateid(struct secasvar *, crypto_session_t *, crypto_session_t *);
+int ipsec_initialized(void);
+
+void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
+
+void ipsec4_setsockaddrs(const struct mbuf *, union sockaddr_union *,
+    union sockaddr_union *);
+int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec4_input(struct mbuf *, int, int);
+int ipsec4_forward(struct mbuf *);
+int ipsec4_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec4_output(struct mbuf *, struct inpcb *);
+int ipsec4_capability(struct mbuf *, u_int);
+int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
+int ipsec4_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
+int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,
+    u_int);
 
 extern	void m_checkalignment(const char* where, struct mbuf *m0,
 		int off, int len);

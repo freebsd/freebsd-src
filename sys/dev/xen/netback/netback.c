@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2011 Spectra Logic Corporation
  * All rights reserved.
  *
@@ -489,7 +491,7 @@ struct xnb_softc {
 	 */
 	vm_offset_t		kva;
 
-	/** Psuedo-physical address corresponding to kva. */
+	/** Pseudo-physical address corresponding to kva. */
 	uint64_t		gnt_base_addr;
 
 	/** Various configuration and state bit flags. */
@@ -660,6 +662,7 @@ xnb_disconnect(struct xnb_softc *xnb)
 	mtx_lock(&xnb->rx_lock);
 	mtx_unlock(&xnb->rx_lock);
 
+	mtx_lock(&xnb->sc_lock);
 	/* Free malloc'd softc member variables */
 	if (xnb->bridge != NULL) {
 		free(xnb->bridge, M_XENSTORE);
@@ -687,6 +690,8 @@ xnb_disconnect(struct xnb_softc *xnb)
 	    sizeof(struct xnb_ring_config));
 
 	xnb->flags &= ~XNBF_RING_CONNECTED;
+	mtx_unlock(&xnb->sc_lock);
+
 	return (0);
 }
 
@@ -1064,17 +1069,14 @@ xnb_shutdown(struct xnb_softc *xnb)
 		if_free(xnb->xnb_ifp);
 		xnb->xnb_ifp = NULL;
 	}
-	mtx_lock(&xnb->sc_lock);
 
 	xnb_disconnect(xnb);
 
-	mtx_unlock(&xnb->sc_lock);
 	if (xenbus_get_state(xnb->dev) < XenbusStateClosing)
 		xenbus_set_state(xnb->dev, XenbusStateClosing);
 	mtx_lock(&xnb->sc_lock);
 
 	xnb->flags &= ~XNBF_IN_SHUTDOWN;
-
 
 	/* Indicate to xnb_detach() that is it safe to proceed. */
 	wakeup(xnb);
@@ -1101,14 +1103,13 @@ xnb_attach_failed(struct xnb_softc *xnb, int err, const char *fmt, ...)
 	xs_vprintf(XST_NIL, xenbus_get_node(xnb->dev),
 		  "hotplug-error", fmt, ap_hotplug);
 	va_end(ap_hotplug);
-	xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
+	(void)xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
 		  "hotplug-status", "error");
 
 	xenbus_dev_vfatal(xnb->dev, err, fmt, ap);
 	va_end(ap);
 
-	xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
-		  "online", "0");
+	(void)xs_printf(XST_NIL, xenbus_get_node(xnb->dev), "online", "0");
 	xnb_detach(xnb->dev);
 }
 
@@ -1233,11 +1234,7 @@ create_netdev(device_t dev)
 		if_initname(ifp, xnb->if_name,  IF_DUNIT_NONE);
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		ifp->if_ioctl = xnb_ioctl;
-		ifp->if_output = ether_output;
 		ifp->if_start = xnb_start;
-#ifdef notyet
-		ifp->if_watchdog = xnb_watchdog;
-#endif
 		ifp->if_init = xnb_ifinit;
 		ifp->if_mtu = ETHERMTU;
 		ifp->if_snd.ifq_maxlen = NET_RX_RING_SIZE - 1;

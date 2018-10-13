@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -215,7 +217,7 @@ _powerpc64_kvatop(kvm_t *kd, kvaddr_t va, off_t *ofs)
 }
 
 static int
-_powerpc64_native(kvm_t *kd)
+_powerpc64_native(kvm_t *kd __unused)
 {
 
 #ifdef __powerpc64__
@@ -225,7 +227,7 @@ _powerpc64_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_powerpc64 = {
+static struct kvm_arch kvm_powerpc64 = {
 	.ka_probe = _powerpc64_probe,
 	.ka_initvtop = _powerpc64_initvtop,
 	.ka_freevtop = _powerpc64_freevtop,

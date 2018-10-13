@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +40,7 @@
 #ifndef _SYS_ERRNO_H_
 #define _SYS_ERRNO_H_
 
-#ifndef _KERNEL
+#if !defined(_KERNEL) && !defined(_STANDALONE)
 #include <sys/cdefs.h>
 __BEGIN_DECLS
 int *	__error(void);
@@ -184,13 +186,23 @@ __END_DECLS
 #define	ELAST		96		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_KERNEL_ERRNO)
 /* pseudo-errors returned inside kernel to modify return to process */
 #define	ERESTART	(-1)		/* restart syscall */
 #define	EJUSTRETURN	(-2)		/* don't modify regs, just return */
 #define	ENOIOCTL	(-3)		/* ioctl not handled by this layer */
 #define	EDIRIOCTL	(-4)		/* do direct ioctl in GEOM */
 #define	ERELOOKUP	(-5)		/* retry the directory lookup */
+#endif
+
+#ifndef _KERNEL
+#if __EXT1_VISIBLE
+/* ISO/IEC 9899:2011 K.3.2.2 */
+#ifndef _ERRNO_T_DEFINED
+#define _ERRNO_T_DEFINED
+typedef int errno_t;
+#endif
+#endif /* __EXT1_VISIBLE */
 #endif
 
 #endif

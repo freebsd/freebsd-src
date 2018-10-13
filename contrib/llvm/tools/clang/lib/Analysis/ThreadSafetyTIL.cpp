@@ -38,6 +38,7 @@ StringRef til::getBinaryOpcodeString(TIL_BinaryOpcode Op) {
     case BOP_Neq:      return "!=";
     case BOP_Lt:       return "<";
     case BOP_Leq:      return "<=";
+    case BOP_Cmp:      return "<=>";
     case BOP_LogicAnd: return "&&";
     case BOP_LogicOr:  return "||";
   }
@@ -186,8 +187,8 @@ int BasicBlock::topologicalSort(SimpleArray<BasicBlock*>& Blocks, int ID) {
 //
 // This sort assumes that (1) dominators have been computed, (2) there are no
 // critical edges, and (3) the entry block is reachable from the exit block
-// and no blocks are accessable via traversal of back-edges from the exit that
-// weren't accessable via forward edges from the entry.
+// and no blocks are accessible via traversal of back-edges from the exit that
+// weren't accessible via forward edges from the entry.
 int BasicBlock::topologicalFinalSort(SimpleArray<BasicBlock*>& Blocks, int ID) {
   // Visited is assumed to have been set by the topologicalSort.  This pass
   // assumes !Visited means that we've visited this node before.

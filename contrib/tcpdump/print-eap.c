@@ -16,19 +16,17 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Format and print EAP packets.
- *
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Extensible Authentication Protocol (EAP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 #define	EAP_FRAME_TYPE_PACKET		0
@@ -151,7 +149,7 @@ static const struct tok eap_aka_subtype_values[] = {
 void
 eap_print(netdissect_options *ndo,
           register const u_char *cp,
-          u_int length _U_)
+          u_int length)
 {
     const struct eap_frame_t *eap;
     const u_char *tptr;
@@ -184,7 +182,9 @@ eap_print(netdissect_options *ndo,
 
     switch (eap->type) {
     case EAP_FRAME_TYPE_PACKET:
+        ND_TCHECK_8BITS(tptr);
         type = *(tptr);
+        ND_TCHECK_16BITS(tptr+2);
         len = EXTRACT_16BITS(tptr+2);
         ND_PRINT((ndo, ", %s (%u), id %u, len %u",
                tok2str(eap_code_values, "unknown", type),
@@ -195,10 +195,11 @@ eap_print(netdissect_options *ndo,
         ND_TCHECK2(*tptr, len);
 
         if (type <= 2) { /* For EAP_REQUEST and EAP_RESPONSE only */
+            ND_TCHECK_8BITS(tptr+4);
             subtype = *(tptr+4);
             ND_PRINT((ndo, "\n\t\t Type %s (%u)",
-                   tok2str(eap_type_values, "unknown", *(tptr+4)),
-                   *(tptr + 4)));
+                   tok2str(eap_type_values, "unknown", subtype),
+                   subtype));
 
             switch (subtype) {
             case EAP_TYPE_IDENTITY:
@@ -224,6 +225,7 @@ eap_print(netdissect_options *ndo,
                  * type one octet per type
                  */
                 while (count < len) {
+                    ND_TCHECK_8BITS(tptr+count);
                     ND_PRINT((ndo, " %s (%u),",
                            tok2str(eap_type_values, "unknown", *(tptr+count)),
                            *(tptr + count)));
@@ -232,19 +234,23 @@ eap_print(netdissect_options *ndo,
                 break;
 
             case EAP_TYPE_TTLS:
-                ND_PRINT((ndo, " TTLSv%u",
-                       EAP_TTLS_VERSION(*(tptr + 5)))); /* fall through */
             case EAP_TYPE_TLS:
+                ND_TCHECK_8BITS(tptr + 5);
+                if (subtype == EAP_TYPE_TTLS)
+                    ND_PRINT((ndo, " TTLSv%u",
+                           EAP_TTLS_VERSION(*(tptr + 5))));
                 ND_PRINT((ndo, " flags [%s] 0x%02x,",
                        bittok2str(eap_tls_flags_values, "none", *(tptr+5)),
                        *(tptr + 5)));
 
                 if (EAP_TLS_EXTRACT_BIT_L(*(tptr+5))) {
+                    ND_TCHECK_32BITS(tptr + 6);
 		    ND_PRINT((ndo, " len %u", EXTRACT_32BITS(tptr + 6)));
                 }
                 break;
 
             case EAP_TYPE_FAST:
+                ND_TCHECK_8BITS(tptr + 5);
                 ND_PRINT((ndo, " FASTv%u",
                        EAP_TTLS_VERSION(*(tptr + 5))));
                 ND_PRINT((ndo, " flags [%s] 0x%02x,",
@@ -252,6 +258,7 @@ eap_print(netdissect_options *ndo,
                        *(tptr + 5)));
 
                 if (EAP_TLS_EXTRACT_BIT_L(*(tptr+5))) {
+                    ND_TCHECK_32BITS(tptr + 6);
                     ND_PRINT((ndo, " len %u", EXTRACT_32BITS(tptr + 6)));
                 }
 
@@ -260,6 +267,7 @@ eap_print(netdissect_options *ndo,
 
             case EAP_TYPE_AKA:
             case EAP_TYPE_SIM:
+                ND_TCHECK_8BITS(tptr + 5);
                 ND_PRINT((ndo, " subtype [%s] 0x%02x,",
                        tok2str(eap_aka_subtype_values, "unknown", *(tptr+5)),
                        *(tptr + 5)));

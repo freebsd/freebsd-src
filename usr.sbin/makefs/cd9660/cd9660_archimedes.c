@@ -1,6 +1,8 @@
 /* $NetBSD: cd9660_archimedes.c,v 1.1 2009/01/10 22:06:29 bjh21 Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998, 2009 Ben Harris
  * All rights reserved.
  *
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <util.h>
 
 #include "makefs.h"
 #include "cd9660.h"
@@ -91,11 +94,8 @@ archimedes_convert_node(cd9660node *node)
 		return;
 	if (type == -1) type = 0;
 
-	assert(sizeof(struct ISO_ARCHIMEDES) == 32);
-	if ((arc = calloc(1, sizeof(struct ISO_ARCHIMEDES))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("archimedes_convert_node");
-		exit(1);
-	}
+	assert(sizeof(*arc) == 32);
+	arc = ecalloc(1, sizeof(*arc));
 
 	stamp = riscos_date(node->node->inode->st.st_mtime);
 

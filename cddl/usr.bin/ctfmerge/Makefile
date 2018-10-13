@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/cvt
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/common
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/cvt
 
 PROG=		ctfmerge
 SRCS=		alist.c \
@@ -24,8 +24,8 @@ SRCS=		alist.c \
 
 WARNS?=		1
 
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR} \
 		-I${OPENSOLARIS_SYS_DISTDIR} \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \

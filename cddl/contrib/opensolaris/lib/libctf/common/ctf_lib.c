@@ -230,12 +230,12 @@ ctf_fdopen(int fd, int *errp)
 	bzero(&ctfsect, sizeof (ctf_sect_t));
 	bzero(&symsect, sizeof (ctf_sect_t));
 	bzero(&strsect, sizeof (ctf_sect_t));
-	bzero(&hdr.ctf, sizeof (hdr));
+	bzero(&hdr, sizeof (hdr));
 
 	if (fstat64(fd, &st) == -1)
 		return (ctf_set_open_errno(errp, errno));
 
-	if ((nbytes = pread64(fd, &hdr.ctf, sizeof (hdr), 0)) <= 0)
+	if ((nbytes = pread64(fd, &hdr, sizeof (hdr), 0)) <= 0)
 		return (ctf_set_open_errno(errp, nbytes < 0? errno : ECTF_FMT));
 
 	/*
@@ -346,6 +346,7 @@ ctf_fdopen(int fd, int *errp)
 			if ((sp32 = malloc(nbytes)) == NULL || pread64(fd,
 			    sp32, nbytes, hdr.e64.e_shoff) != nbytes) {
 				free(sp);
+				free(sp32);
 				return (ctf_set_open_errno(errp, errno));
 			}
 

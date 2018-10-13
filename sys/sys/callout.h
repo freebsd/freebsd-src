@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -57,6 +59,8 @@
 #define	C_PRELGET(x)		(int)((((x) >> 1) & C_PRELRANGE) - 1)
 #define	C_HARDCLOCK		0x0100 /* align to hardclock() calls */
 #define	C_ABSOLUTE		0x0200 /* event time is absolute. */
+#define	C_PRECALC		0x0400 /* event time is pre-calculated. */
+#define	C_CATCH			0x0800 /* catch signals, used by pause_sbt(9) */
 
 struct callout_handle {
 	struct callout *callout;
@@ -64,9 +68,8 @@ struct callout_handle {
 
 /* Flags for callout_stop_safe() */
 #define	CS_DRAIN		0x0001 /* callout_drain(), wait allowed */
-#define	CS_MIGRBLOCK		0x0002 /* Block migration, return value
-					  indicates that the callout was
-				          executing */
+#define	CS_EXECUTING		0x0002 /* Positive return value indicates that
+					  the callout was executing */
 
 #ifdef _KERNEL
 /* 
@@ -130,6 +133,8 @@ int	_callout_stop_safe(struct callout *, int, void (*)(void *));
 void	callout_process(sbintime_t now);
 #define callout_async_drain(c, d)					\
     _callout_stop_safe(c, 0, d)
+void callout_when(sbintime_t sbt, sbintime_t precision, int flags,
+    sbintime_t *sbt_res, sbintime_t *prec_res);
 #endif
 
 #endif /* _SYS_CALLOUT_H_ */

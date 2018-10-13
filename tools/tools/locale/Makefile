@@ -18,7 +18,7 @@ PASSON=		CLDRDIR="${CLDRDIR}" UNIDATADIR="${UNIDATADIR}"
 
 ETCDIR=		${.CURDIR}/etc
 
-KNOWN=		monetdef numericdef msgdef timedef colldef ctypedef
+KNOWN=		monetdef numericdef msgdef colldef ctypedef # timedef
 TYPES?=		${KNOWN}
 LOCALE_DESTDIR?=	/tmp/generated-locales/
 
@@ -31,8 +31,16 @@ COLLATION_SPECIAL?= \
 	nb_NO ISO8859-1 \
 	nb_NO ISO8859-15 \
 	sk_SK ISO8859-2 \
+	sr_Latn_RS ISO8859-2 \
+	sr_Cyrl_RS ISO8859-5 \
 	zh_Hans_CN GB2312 \
 	zh_Hans_CN eucCN \
+	zh_Hant_TW Big5 \
+	zh_Hans_CN GB18030 \
+	zh_Hans_CN GBK \
+	ja_JP eucJP \
+	nn_NO ISO8859-15 \
+	nn_NO ISO8859-1
 
 .for area enc in ${COLLATION_SPECIAL}
 COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
@@ -54,8 +62,9 @@ all:
 	@echo ""
 	@find . -name *failed
 
-install:
 .for t in ${TYPES}
+install: install-${t}
+install-${t}:
 .  if ${KNOWN:M${t}}
 	rm -rf ${.CURDIR}/${t}.draft
 	rm -rf ${.CURDIR}/../../../share/${t}
@@ -90,7 +99,7 @@ build-colldef:	static-colldef
 
 static-colldef:
 .for area enc in ${COLLATION_SPECIAL}
-	awk -f tools/extract-colldef.awk ${CLDRDIR}/posix/${area}.${enc}.src > colldef/${area}.${enc}.src
+	awk -f tools/extract-colldef.awk ${CLDRDIR}/posix/${area}.${enc}.src > colldef.draft/${area}.${enc}.src
 .endfor
 
 transfer-rollup:
@@ -117,7 +126,7 @@ BASE_LOCALES_OF_INTEREST?= \
 	nb_NO nl_BE nl_NL nn_NO pl_PL pt_BR pt_PT ro_RO \
 	ru_RU se_FI se_NO sk_SK sl_SI sv_FI sv_SE tr_TR \
 	uk_UA \
-	kk_Cyrl_KZ mn_Cyrl_MN sr_Cyrl_RS sr_Latn_RS \
+	kk_KZ mn_MN sr_Cyrl_RS sr_Latn_RS \
 	zh_Hans_CN zh_Hant_HK zh_Hant_TW \
 	bn_IN gu_IN or_IN ta_IN te_IN kn_IN ml_IN si_LK \
 	th_TH lo_LA bo_IN my_MM pa_Guru_IN ka_GE chr_US \
@@ -177,4 +186,4 @@ POSIX:
 .endif
 
 clean-POSIX:
-	rm -f {CLDRDIR}/posix/*
+	rm -f ${CLDRDIR}/posix/*

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -52,7 +54,7 @@
 /*
  * Virtual memory related constants, all in bytes
  */
-#define	MAXTSIZ		(128UL*1024*1024)	/* max text size */
+#define	MAXTSIZ		(32768UL*1024*1024)	/* max text size */
 #ifndef DFLDSIZ
 #define	DFLDSIZ		(32768UL*1024*1024)	/* initial data size limit */
 #endif
@@ -108,7 +110,9 @@
 #define	VM_NFREELIST		3
 #define	VM_FREELIST_DEFAULT	0
 #define	VM_FREELIST_DMA32	1
-#define	VM_FREELIST_ISADMA	2
+#define	VM_FREELIST_LOWMEM	2
+
+#define VM_LOWMEM_BOUNDARY	(16 << 20)	/* 16MB ISA DMA limit */
 
 /*
  * Create the DMA32 free list only if the number of physical pages above
@@ -188,6 +192,7 @@
  * because the result is not actually accessed until later, but the early
  * vt fb startup needs to be reworked.
  */
+#define	PMAP_HAS_DMAP	1
 #define	PHYS_TO_DMAP(x)	({						\
 	KASSERT(dmaplimit == 0 || (x) < dmaplimit,			\
 	    ("physical address %#jx not covered by the DMAP",		\
@@ -223,5 +228,11 @@
 #endif
 
 #define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
+
+/*
+ * Use a fairly large batch size since we expect amd64 systems to have lots of
+ * memory.
+ */
+#define	VM_BATCHQUEUE_SIZE	31
 
 #endif /* _MACHINE_VMPARAM_H_ */

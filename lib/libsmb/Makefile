@@ -2,8 +2,10 @@
 
 .include <src.opts.mk>
 
+CONFS=	nsmb.conf
+CONFSMODE=	600
 PACKAGE=lib${LIB}
-CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
+CONTRIBDIR=	${SRCTOP}/contrib/smbfs
 .PATH: ${CONTRIBDIR}/lib/smb
 
 LIB=	smb

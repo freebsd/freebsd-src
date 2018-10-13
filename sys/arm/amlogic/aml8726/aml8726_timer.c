@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -348,6 +347,7 @@ DELAY(int usec)
 			}
 		return;
 	}
+	TSENTER();
 
 	/*
 	 * Some of the other timers in the source tree do this calculation as:
@@ -392,4 +392,5 @@ DELAY(int usec)
 		previous = now;
 		remaining -= delta;
 	}
+	TSEXIT();
 }

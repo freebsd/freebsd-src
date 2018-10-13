@@ -267,7 +267,7 @@ it can be constructed and edited using an ordinary text editor.
 Figure 1 shows a typical symmetric keys file used by the reference
 implementation.
 Each line of the file contains three fields, first an
-integer between 1 and 65534, inclusive, representing the key identifier
+integer between 1 and 65535, inclusive, representing the key identifier
 used in the server and peer configuration commands.
 Next is the key type for the message digest algorithm,
 which in the absence of the

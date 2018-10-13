@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
  *
@@ -33,12 +35,22 @@
 #define	CPSW_INTR_COUNT		4
 
 /* MII BUS  */
-#define	CPSW_MIIBUS_RETRIES	5
-#define	CPSW_MIIBUS_DELAY	1000
+#define	CPSW_MIIBUS_RETRIES	20
+#define	CPSW_MIIBUS_DELAY	100
 
 #define	CPSW_MAX_ALE_ENTRIES	1024
 
 #define	CPSW_SYSCTL_COUNT	34
+
+#ifdef CPSW_ETHERSWITCH
+#define	CPSW_CPU_PORT		0
+#define	CPSW_PORTS_MASK		0x7
+#define	CPSW_VLANS		128	/* Arbitrary number. */
+
+struct cpsw_vlangroups {
+	int vid;
+};
+#endif
 
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
@@ -52,11 +64,13 @@ STAILQ_HEAD(cpsw_slots, cpsw_slot);
 struct cpsw_queue {
 	struct mtx	lock;
 	int		running;
+	int		teardown;
 	struct cpsw_slots active;
 	struct cpsw_slots avail;
 	uint32_t	queue_adds; /* total bufs added */
 	uint32_t	queue_removes; /* total bufs removed */
 	uint32_t	queue_removes_at_last_tick; /* Used by watchdog */
+	uint32_t	queue_restart;
 	int		queue_slots;
 	int		active_queue_len;
 	int		max_active_queue_len;
@@ -80,6 +94,7 @@ struct cpsw_softc {
 	phandle_t	node;
 	struct bintime	attach_uptime; /* system uptime when attach happened. */
 	struct cpsw_port port[2];
+	unsigned	coal_us;
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
@@ -90,10 +105,8 @@ struct cpsw_softc {
 	struct resource	*irq_res[CPSW_INTR_COUNT];
 	void		*ih_cookie[CPSW_INTR_COUNT];
 
-	/* An mbuf full of nulls for TX padding. */
-	bus_dmamap_t null_mbuf_dmamap;
-	struct mbuf *null_mbuf;
-	bus_addr_t null_mbuf_paddr;
+	/* A buffer full of nulls for TX padding. */
+	void		*nullpad;
 
 	bus_dma_tag_t	mbuf_dtag;
 

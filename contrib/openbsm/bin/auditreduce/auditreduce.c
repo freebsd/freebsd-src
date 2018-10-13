@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2004-2008 Apple Inc.
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,6 +52,11 @@
 #include <sys/queue.h>
 #else
 #include <compat/queue.h>
+#endif
+
+#ifdef HAVE_CAP_ENTER
+#include <sys/capsicum.h>
+#include <sys/wait.h>
 #endif
 
 #include <bsm/libbsm.h>
@@ -611,6 +622,10 @@ main(int argc, char **argv)
 	char timestr[128];
 	char *fname;
 	uint16_t *etp;
+#ifdef HAVE_CAP_ENTER
+	int retval, status;
+	pid_t childpid, pid;
+#endif
 
 	converr = NULL;
 
@@ -777,6 +792,11 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	if (argc == 0) {
+#ifdef HAVE_CAP_ENTER
+		retval = cap_enter();
+		if (retval != 0 && errno != ENOSYS)
+			err(EXIT_FAILURE, "cap_enter");
+#endif
 		if (select_records(stdin) == -1)
 			errx(EXIT_FAILURE,
 			    "Couldn't select records from stdin");
@@ -791,10 +811,39 @@ main(int argc, char **argv)
 		fp = fopen(fname, "r");
 		if (fp == NULL)
 			errx(EXIT_FAILURE, "Couldn't open %s", fname);
-		if (select_records(fp) == -1) {
+
+		/*
+		 * If operating with sandboxing, create a sandbox process for
+		 * each trail file we operate on.  This avoids the need to do
+		 * fancy things with file descriptors, etc, when iterating on
+		 * a list of arguments.
+		 *
+		 * NB: Unlike praudit(1), auditreduce(1) terminates if it hits
+		 * any errors.  Propagate the error from the child to the
+		 * parent if any problems arise.
+		 */
+#ifdef HAVE_CAP_ENTER
+		childpid = fork();
+		if (childpid == 0) {
+			/* Child. */
+			retval = cap_enter();
+			if (retval != 0 && errno != ENOSYS)
+				errx(EXIT_FAILURE, "cap_enter");
+			if (select_records(fp) == -1)
+				errx(EXIT_FAILURE,
+				    "Couldn't select records %s", fname);
+			exit(0);
+		}
+
+		/* Parent.  Await child termination, check exit value. */
+		while ((pid = waitpid(childpid, &status, 0)) != childpid);
+		if (WEXITSTATUS(status) != 0)
+			exit(EXIT_FAILURE);
+#else
+		if (select_records(fp) == -1)
 			errx(EXIT_FAILURE, "Couldn't select records %s",
 			    fname);
-		}
+#endif
 		fclose(fp);
 	}
 	exit(EXIT_SUCCESS);

@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_LIST_DATALINKS 3PCAP "17 September 2013"
+.TH PCAP_LIST_DATALINKS 3PCAP "8 March 2015"
 .SH NAME
 pcap_list_datalinks, pcap_free_datalinks \- get a list of link-layer header
 types supported by a capture device, and free that list
@@ -38,7 +38,7 @@ is used to get a list of the supported link-layer header types of the
 interface associated with the pcap descriptor.
 .B pcap_list_datalinks()
 allocates an array to hold the list and sets
-.IR *dlt_buf 
+.IR *dlt_buf
 to point to that array.
 .LP
 The caller is responsible for freeing the array with

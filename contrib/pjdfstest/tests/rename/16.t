@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/rename/16.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="rename returns EROFS if the requested link requires writing in a directory on a read-only file system"

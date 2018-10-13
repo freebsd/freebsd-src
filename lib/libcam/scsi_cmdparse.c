@@ -1,7 +1,10 @@
 /*
  * Taken from the original FreeBSD user SCSI library.
  */
-/* Copyright (c) 1994 HD Associates
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
+ * Copyright (c) 1994 HD Associates
  * (contact: dufault@hda.com)
  * All rights reserved.
  *
@@ -100,10 +103,11 @@ __FBSDID("$FreeBSD$");
  */
 
 static int
-do_buff_decode(u_int8_t *databuf, size_t len,
+do_buff_decode(u_int8_t *buff, size_t len,
 	       void (*arg_put)(void *, int , void *, int, char *),
 	       void *puthook, const char *fmt, va_list *ap)
 {
+	int ind = 0;
 	int assigned = 0;
 	int width;
 	int suppress;
@@ -112,33 +116,29 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 	static u_char mask[] = {0, 0x01, 0x03, 0x07, 0x0f,
 				   0x1f, 0x3f, 0x7f, 0xff};
 	int value;
-	u_char *base = databuf;
 	char *intendp;
 	char letter;
 	char field_name[80];
 
-#	define ARG_PUT(ARG) \
-	do \
-	{ \
-		if (!suppress) \
-		{ \
+#define ARG_PUT(ARG) \
+	do { \
+		if (!suppress) { \
 			if (arg_put) \
-				(*arg_put)(puthook, (letter == 't' ? \
-					'b' : letter), \
-					(void *)((long)(ARG)), width, \
-					field_name); \
+				(*arg_put)(puthook, (letter == 't' ? 'b' : \
+				    letter), (void *)((long)(ARG)), width, \
+				    field_name); \
 			else \
 				*(va_arg(*ap, int *)) = (ARG); \
 			assigned++; \
 		} \
-		field_name[0] = 0; \
+		field_name[0] = '\0'; \
 		suppress = 0; \
 	} while (0)
 
 	u_char bits = 0;	/* For bit fields */
 	int shift = 0;		/* Bits already shifted out */
 	suppress = 0;
-	field_name[0] = 0;
+	field_name[0] = '\0';
 
 	while (!done) {
 		switch(letter = *fmt) {
@@ -172,9 +172,9 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 
 				fmt++;
 			}
-			if (fmt)
+			if (*fmt != '\0')
 				fmt++;	/* Skip '}' */
-			field_name[i] = 0;
+			field_name[i] = '\0';
 			break;
 		}
 
@@ -187,7 +187,11 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 				done = 1;
 			else {
 				if (shift <= 0) {
-					bits = *databuf++;
+					if (ind >= len) {
+						done = 1;
+						break;
+					}
+					bits = buff[ind++];
 					shift = 8;
 				}
 				value = (bits >> (shift - width)) &
@@ -209,29 +213,31 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			fmt++;
 			width = strtol(fmt, &intendp, 10);
 			fmt = intendp;
+			if (ind + width > len) {
+				done = 1;
+				break;
+			}
 			switch(width) {
 			case 1:
-				ARG_PUT(*databuf);
-				databuf++;
+				ARG_PUT(buff[ind]);
+				ind++;
 				break;
 
 			case 2:
-				ARG_PUT((*databuf) << 8 | *(databuf + 1));
-				databuf += 2;
+				ARG_PUT(buff[ind] << 8 | buff[ind + 1]);
+				ind += 2;
 				break;
 
 			case 3:
-				ARG_PUT((*databuf) << 16 |
-					(*(databuf + 1)) << 8 | *(databuf + 2));
-				databuf += 3;
+				ARG_PUT(buff[ind] << 16 |
+					buff[ind + 1] << 8 | buff[ind + 2]);
+				ind += 3;
 				break;
 
 			case 4:
-				ARG_PUT((*databuf) << 24 |
-					(*(databuf + 1)) << 16 |
-					(*(databuf + 2)) << 8 |
-					*(databuf + 3));
-				databuf += 4;
+				ARG_PUT(buff[ind] << 24 | buff[ind + 1] << 16 |
+					buff[ind + 2] << 8 | buff[ind + 3]);
+				ind += 4;
 				break;
 
 			default:
@@ -242,32 +248,35 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			break;
 
 		case 'c':	/* Characters (i.e., not swapped) */
-		case 'z':	/* Characters with zeroed trailing
-					   spaces  */
+		case 'z':	/* Characters with zeroed trailing spaces */
 			shift = 0;
 			fmt++;
 			width = strtol(fmt, &intendp, 10);
 			fmt = intendp;
+			if (ind + width > len) {
+				done = 1;
+				break;
+			}
 			if (!suppress) {
-				if (arg_put)
+				if (arg_put != NULL)
 					(*arg_put)(puthook,
-						(letter == 't' ? 'b' : letter),
-						databuf, width, field_name);
+					    (letter == 't' ? 'b' : letter),
+					    &buff[ind], width, field_name);
 				else {
 					char *dest;
 					dest = va_arg(*ap, char *);
-					bcopy(databuf, dest, width);
+					bcopy(&buff[ind], dest, width);
 					if (letter == 'z') {
 						char *p;
 						for (p = dest + width - 1;
-						     (p >= (char *)dest)
-						     && (*p == ' '); p--)
-							*p = 0;
+						    p >= dest && *p == ' ';
+						    p--)
+							*p = '\0';
 					}
 				}
 				assigned++;
 			}
-			databuf += width;
+			ind += width;
 			field_name[0] = 0;
 			suppress = 0;
 			break;
@@ -295,9 +304,9 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			}
 
 			if (plus)
-				databuf += width;	/* Relative seek */
+				ind += width;	/* Relative seek */
 			else
-				databuf = base + width;	/* Absolute seek */
+				ind = width;	/* Absolute seek */
 
 			break;
 
@@ -373,22 +382,22 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 	field_size = 8;		/* Default to byte field type... */
 	*fmt = 'i';
 	field_width = 1;	/* 1 byte wide */
-	if (name)
-		*name = 0;
+	if (name != NULL)
+		*name = '\0';
 
 	state = BETWEEN_FIELDS;
 
 	while (state != DONE) {
 		switch(state) {
 		case BETWEEN_FIELDS:
-			if (*p == 0)
+			if (*p == '\0')
 				state = DONE;
 			else if (isspace(*p))
 				p++;
 			else if (*p == '#') {
 				while (*p && *p != '\n')
 					p++;
-				if (p)
+				if (*p != '\0')
 					p++;
 			} else if (*p == '{') {
 				int i = 0;
@@ -404,7 +413,7 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 				}
 
 				if(name && i < n_name)
-					name[i] = 0;
+					name[i] = '\0';
 
 				if (*p == '}')
 					p++;
@@ -524,7 +533,7 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 
 	if (is_error) {
 		*error_p = 1;
-		return 0;
+		return (0);
 	}
 
 	*error_p = 0;
@@ -562,7 +571,7 @@ do_encode(u_char *buff, size_t vec_max, size_t *used,
 			if (suppress)
 				value = 0;
 			else
-				value = arg_get ?
+				value = arg_get != NULL ?
 					(*arg_get)(gethook, field_name) :
 					va_arg(*ap, int);
 		}
@@ -653,9 +662,9 @@ do_encode(u_char *buff, size_t vec_max, size_t *used,
 		*used = ind;
 
 	if (error)
-		return -1;
+		return (-1);
 
-	return encoded;
+	return (encoded);
 }
 
 int
@@ -666,8 +675,8 @@ csio_decode(struct ccb_scsiio *csio, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	retval = do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len, 0, 0,
-		 fmt, &ap);
+	retval = do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len,
+	    NULL, NULL, fmt, &ap);
 
 	va_end(ap);
 
@@ -699,7 +708,7 @@ buff_decode(u_int8_t *buff, size_t len, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	retval = do_buff_decode(buff, len, 0, 0, fmt, &ap);
+	retval = do_buff_decode(buff, len, NULL, NULL, fmt, &ap);
 
 	va_end(ap);
 
@@ -717,7 +726,7 @@ buff_decode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	 * the arg_put function.
 	 */
 	if (arg_put == NULL)
-		return(-1);
+		return (-1);
 
 	return (do_buff_decode(buff, len, arg_put, puthook, fmt, NULL));
 }
@@ -773,20 +782,20 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 	int retval;
 
 	if (csio == NULL)
-		return(0);
+		return (0);
 
 	/*
 	 * We need something to encode, but we can't get it without the
 	 * arg_get function.
 	 */
 	if (arg_get == NULL)
-		return(-1);
+		return (-1);
 
 	bzero(csio, sizeof(struct ccb_scsiio));
 
 	if ((retval = do_encode(csio->cdb_io.cdb_bytes, SCSI_MAX_CDBLEN,
 				&cmdlen, arg_get, gethook, cmd_spec, NULL)) == -1)
-		return(retval);
+		return (retval);
 
 	cam_fill_csio(csio,
 		      /* retries */ retry_count,
@@ -799,7 +808,7 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 		      /* cdb_len */ cmdlen,
 		      /* timeout */ timeout ? timeout : 5000);
 
-	return(retval);
+	return (retval);
 }
 
 int
@@ -813,7 +822,8 @@ csio_encode(struct ccb_scsiio *csio, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	retval = do_encode(csio->data_ptr, csio->dxfer_len, 0, 0, 0, fmt, &ap);
+	retval = do_encode(csio->data_ptr, csio->dxfer_len, NULL, NULL, NULL,
+	    fmt, &ap);
 
 	va_end(ap);
 
@@ -830,9 +840,9 @@ buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	 * arg_get function.
 	 */
 	if (arg_get == NULL)
-		return(-1);
+		return (-1);
 
-	return (do_encode(buff, len, 0, arg_get, gethook, fmt, NULL));
+	return (do_encode(buff, len, NULL, arg_get, gethook, fmt, NULL));
 }
 
 int
@@ -845,8 +855,8 @@ csio_encode_visit(struct ccb_scsiio *csio, const char *fmt,
 	 * arg_get function.
 	 */
 	if (arg_get == NULL)
-		return(-1);
+		return (-1);
 
-	return (do_encode(csio->data_ptr, csio->dxfer_len, 0, arg_get,
+	return (do_encode(csio->data_ptr, csio->dxfer_len, NULL, arg_get,
 			 gethook, fmt, NULL));
 }

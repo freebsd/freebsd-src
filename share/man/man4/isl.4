@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2015
+.Dd October 03, 2016
 .Dt ISL 4
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@ the kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device isl"
 .Cd "device ig4"
-.Cd "device smbus"
+.Cd "device iicbus"
 .Ed
 .Pp
 Alternatively, to load the driver as a module at boot time, place the following line in
@@ -45,6 +45,13 @@ Alternatively, to load the driver as a module at boot time, place the following 
 isl_load="YES"
 ig4_load="YES"
 .Ed
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.isl.0.at="iicbus0"
+.Cd hint.isl.0.addr="0x88"
+.Cd hint.isl.1.at="iicbus1"
+.Cd hint.isl.1.addr="0x88"
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,6 +61,20 @@ Function.
 Functionality is basic and provided through the
 .Xr sysctl 8
 interface.
+.Pp
+On a system using
+.Xr device.hints 5 ,
+these values are configurable for
+.Nm :
+.Bl -tag -width "hint.isl.%d.addr"
+.It Va hint.isl.%d.at
+target
+.Xr iicbus 4 .
+.It Va hint.isl.%d.addr
+.Nm
+i2c address on the
+.Xr iicbus 4 .
+.El
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
@@ -86,7 +107,7 @@ $ sh /usr/local/share/examples/intel-backlight/isl_backlight.sh
 .Ed
 .Sh SEE ALSO
 .Xr ig4 4 ,
-.Xr smbus 4
+.Xr iicbus 4
 .Sh AUTHORS
 .An -nosplit
 The
@@ -99,6 +120,6 @@ This manual page was written by
 .Sh BUGS
 The
 .Nm
-driver detects the device based on its I2C address (0x44).
+driver detects the device based from the I2C address.
 This might have unforeseen consequences if the initialization sequence
 is sent to an unknown device at that address.

@@ -35,6 +35,15 @@ function die(msg) {
 function cchar(str) {
 	if (str == "^[")
 		return "\\x1B";
+	if (str == "SP")
+		return " ";
+
+	return str;
+}
+
+function csequence(str) {
+	if (str == "SP")
+		return " ";
 
 	return str;
 }
@@ -57,7 +66,7 @@ while (getline > 0) {
 	prefix = "";
 	l_prefix_name[""] = "teken_state_init";
 	for (i = 1; i < nsequences; i++) {
-		n = prefix sequence[i];
+		n = prefix csequence(sequence[i]);
 		l_prefix_parent[n] = prefix;
 		l_prefix_suffix[n] = sequence[i];
 		if (!l_prefix_name[n])

@@ -6,11 +6,11 @@
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -32,6 +32,7 @@ options 	SOC_MV_KIRKWOOD
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	NFSCL			# Network Filesystem Client
@@ -50,18 +51,6 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-
-# Debugging for use in -current
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-options 	KDB			# Enable kernel debugger support
-options 	DDB			# Enable the kernel debugger
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	WITNESS_KDB
-#options 	DIAGNOSTIC
 
 # Enable these options for nfs root configured via BOOTP.
 #options 	BOOTP
@@ -105,7 +94,6 @@ device		e1000phy
 
 # USB
 options 	USB_HOST_ALIGN=32	# Align DMA to cacheline
-#options 	USB_DEBUG       	# Compile in USB debug support
 device		usb  			# Basic usb support			
 device		ehci 			# USB host controller
 device		umass			# Mass storage
@@ -142,7 +130,6 @@ device		cryptodev
 # IPSec
 device		enc
 options 	IPSEC
-options 	IPSEC_NAT_T
 options 	TCP_SIGNATURE		# include support for RFC 2385
 
 # IPFW

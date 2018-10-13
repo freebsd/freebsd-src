@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2015
+.Dd April 26, 2017
 .Dt UART 4
 .Os
 .Sh NAME
@@ -225,8 +225,54 @@ Generally speaking, a connection to a DB-9 style connector is an RS-232
 level signal at up to 12 volts.
 A connection to header pins or an edge-connector on an embedded board
 is typically a TTL signal at 3.3 or 5 volts.
+.Sh Special Devices
+The
+.Nm
+driver also supports an initial-state and a lock-state control
+device for each of the callin and the callout "data" devices.
+The termios settings of a data device are copied
+from those of the corresponding initial-state device
+on first opens and are not inherited from previous opens.
+Use
+.Xr stty 1
+in the normal way on the initial-state devices to program
+initial termios states suitable for your setup.
+.Pp
+The lock termios state acts as flags to disable changing
+the termios state.
+E.g., to lock a flag variable such as CRTSCTS, use
+.Em stty crtscts
+on the lock-state device.
+Speeds and special characters
+may be locked by setting the corresponding value in the lock-state
+device to any nonzero value.
+E.g., to lock a speed to 115200, use
+.Dq Li stty 115200
+on the initial-state device and
+.Dq Li stty 1
+on the lock-state device.
+.Pp
+Correct programs talking to correctly wired external devices
+work with almost arbitrary initial states and almost no locking,
+but other setups may benefit from changing some of the default
+initial state and locking the state.
+In particular, the initial states for non (POSIX) standard flags
+should be set to suit the devices attached and may need to be
+locked to prevent buggy programs from changing them.
+E.g., CRTSCTS should be locked on for devices that support
+RTS/CTS handshaking at all times and off for devices that do not
+support it at all.
+CLOCAL should be locked on for devices that do not support carrier.
+HUPCL may be locked off if you do not
+want to hang up for some reason.
+In general, very bad things happen
+if something is locked to the wrong state, and things should not
+be locked for devices that support more than one setting.
+The CLOCAL flag on callin ports should be locked off for logins
+to avoid certain security holes, but this needs to be done by
+getty if the callin port is used for anything else.
 .Sh FILES
-.Bl -tag -width ".Pa /dev/ttyu?.init" -compact
+.Bl -tag -width "/dev/ttyu?.init" -compact
 .It Pa /dev/ttyu?
 for callin ports
 .It Pa /dev/ttyu?.init

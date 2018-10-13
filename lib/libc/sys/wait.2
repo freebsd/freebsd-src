@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2016
+.Dd December 1, 2017
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -601,9 +601,7 @@ must be checked against zero to determine if a process reported status.
 called with -1 to wait for any child process will ignore a child that is
 referenced by a process descriptor (see
 .Xr pdfork 2 ) .
-Specific processes can still be waited on by specifying the process ID
-or descriptor (see
-.Xr pdwait 4 ) .
+Specific processes can still be waited on by specifying the process ID.
 .Sh ERRORS
 The
 .Fn wait
@@ -677,4 +675,4 @@ only permits this flag with
 The
 .Fn wait
 function appeared in
-.At v6 .
+.At v1 .

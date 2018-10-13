@@ -32,7 +32,7 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2015
+.Dd July 7, 2017
 .Dt DLOPEN 3
 .Os
 .Sh NAME
@@ -376,6 +376,14 @@ option to
 .Xr ld 1
 for symbols defined in the executable to become visible to
 .Fn dlsym .
+.Pp
+Other ELF platforms require linking with
+.Lb libdl
+to provide
+.Fn dlopen
+and other functions.
+.Fx
+does not require linking with the library, but supports it for compatibility.
 .Pp
 In previous implementations, it was necessary to prepend an underscore
 to all external symbols in order to gain symbol

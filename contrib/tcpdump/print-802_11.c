@@ -20,16 +20,17 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IEEE 802.11 printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 
 #include "extract.h"
@@ -45,8 +46,11 @@
 #define	IEEE802_11_BSSID_LEN		6
 #define	IEEE802_11_RA_LEN		6
 #define	IEEE802_11_TA_LEN		6
+#define	IEEE802_11_ADDR1_LEN		6
 #define	IEEE802_11_SEQ_LEN		2
 #define	IEEE802_11_CTL_LEN		2
+#define	IEEE802_11_CARRIED_FC_LEN	2
+#define	IEEE802_11_HT_CONTROL_LEN	4
 #define	IEEE802_11_IV_LEN		3
 #define	IEEE802_11_KID_LEN		1
 
@@ -166,15 +170,15 @@ static const struct tok ctrl_str[] = {
 #define	FC_RETRY(fc)		((fc) & 0x0800)
 #define	FC_POWER_MGMT(fc)	((fc) & 0x1000)
 #define	FC_MORE_DATA(fc)	((fc) & 0x2000)
-#define	FC_WEP(fc)		((fc) & 0x4000)
+#define	FC_PROTECTED(fc)	((fc) & 0x4000)
 #define	FC_ORDER(fc)		((fc) & 0x8000)
 
 struct mgmt_header_t {
 	uint16_t	fc;
 	uint16_t 	duration;
-	uint8_t		da[6];
-	uint8_t		sa[6];
-	uint8_t		bssid[6];
+	uint8_t		da[IEEE802_11_DA_LEN];
+	uint8_t		sa[IEEE802_11_SA_LEN];
+	uint8_t		bssid[IEEE802_11_BSSID_LEN];
 	uint16_t	seq_ctrl;
 };
 
@@ -292,85 +296,90 @@ struct mgmt_body_t {
 	struct tim_t	tim;
 };
 
-struct ctrl_rts_t {
+struct ctrl_control_wrapper_hdr_t {
 	uint16_t	fc;
 	uint16_t	duration;
-	uint8_t		ra[6];
-	uint8_t		ta[6];
-	uint8_t		fcs[4];
+	uint8_t		addr1[IEEE802_11_ADDR1_LEN];
+	uint16_t	carried_fc[IEEE802_11_CARRIED_FC_LEN];
+	uint16_t	ht_control[IEEE802_11_HT_CONTROL_LEN];
+};
+
+#define	CTRL_CONTROL_WRAPPER_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+					 IEEE802_11_ADDR1_LEN+\
+					 IEEE802_11_CARRIED_FC_LEN+\
+					 IEEE802_11_HT_CONTROL_LEN)
+
+struct ctrl_rts_hdr_t {
+	uint16_t	fc;
+	uint16_t	duration;
+	uint8_t		ra[IEEE802_11_RA_LEN];
+	uint8_t		ta[IEEE802_11_TA_LEN];
 };
 
 #define	CTRL_RTS_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
 			 IEEE802_11_RA_LEN+IEEE802_11_TA_LEN)
 
-struct ctrl_cts_t {
+struct ctrl_cts_hdr_t {
 	uint16_t	fc;
 	uint16_t	duration;
-	uint8_t		ra[6];
-	uint8_t		fcs[4];
+	uint8_t		ra[IEEE802_11_RA_LEN];
 };
 
 #define	CTRL_CTS_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+IEEE802_11_RA_LEN)
 
-struct ctrl_ack_t {
+struct ctrl_ack_hdr_t {
 	uint16_t	fc;
 	uint16_t	duration;
-	uint8_t		ra[6];
-	uint8_t		fcs[4];
+	uint8_t		ra[IEEE802_11_RA_LEN];
 };
 
 #define	CTRL_ACK_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+IEEE802_11_RA_LEN)
 
-struct ctrl_ps_poll_t {
+struct ctrl_ps_poll_hdr_t {
 	uint16_t	fc;
 	uint16_t	aid;
-	uint8_t		bssid[6];
-	uint8_t		ta[6];
-	uint8_t		fcs[4];
+	uint8_t		bssid[IEEE802_11_BSSID_LEN];
+	uint8_t		ta[IEEE802_11_TA_LEN];
 };
 
 #define	CTRL_PS_POLL_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_AID_LEN+\
 				 IEEE802_11_BSSID_LEN+IEEE802_11_TA_LEN)
 
-struct ctrl_end_t {
+struct ctrl_end_hdr_t {
 	uint16_t	fc;
 	uint16_t	duration;
-	uint8_t		ra[6];
-	uint8_t		bssid[6];
-	uint8_t		fcs[4];
+	uint8_t		ra[IEEE802_11_RA_LEN];
+	uint8_t		bssid[IEEE802_11_BSSID_LEN];
 };
 
 #define	CTRL_END_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
 			 IEEE802_11_RA_LEN+IEEE802_11_BSSID_LEN)
 
-struct ctrl_end_ack_t {
+struct ctrl_end_ack_hdr_t {
 	uint16_t	fc;
 	uint16_t	duration;
-	uint8_t		ra[6];
-	uint8_t		bssid[6];
-	uint8_t		fcs[4];
+	uint8_t		ra[IEEE802_11_RA_LEN];
+	uint8_t		bssid[IEEE802_11_BSSID_LEN];
 };
 
 #define	CTRL_END_ACK_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
 				 IEEE802_11_RA_LEN+IEEE802_11_BSSID_LEN)
 
-struct ctrl_ba_t {
+struct ctrl_ba_hdr_t {
 	uint16_t	fc;
 	uint16_t	duration;
-	uint8_t		ra[6];
-	uint8_t		fcs[4];
+	uint8_t		ra[IEEE802_11_RA_LEN];
 };
 
 #define	CTRL_BA_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+IEEE802_11_RA_LEN)
 
-struct ctrl_bar_t {
+struct ctrl_bar_hdr_t {
 	uint16_t	fc;
 	uint16_t	dur;
-	uint8_t		ra[6];
-	uint8_t		ta[6];
+	uint8_t		ra[IEEE802_11_RA_LEN];
+	uint8_t		ta[IEEE802_11_TA_LEN];
 	uint16_t	ctl;
 	uint16_t	seq;
-	uint8_t		fcs[4];
 };
 
 #define	CTRL_BAR_HDRLEN		(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
@@ -389,310 +398,6 @@ struct meshcntl_t {
 #define	IV_IV(iv)	((iv) & 0xFFFFFF)
 #define	IV_PAD(iv)	(((iv) >> 24) & 0x3F)
 #define	IV_KEYID(iv)	(((iv) >> 30) & 0x03)
-
-/* $FreeBSD$ */
-/* NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp  */
-
-/*-
- * Copyright (c) 2003, 2004 David Young.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of David Young may not be used to endorse or promote
- *    products derived from this software without specific prior
- *    written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY DAVID YOUNG ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL DAVID
- * YOUNG BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
- * OF SUCH DAMAGE.
- */
-
-/* A generic radio capture format is desirable. It must be
- * rigidly defined (e.g., units for fields should be given),
- * and easily extensible.
- *
- * The following is an extensible radio capture format. It is
- * based on a bitmap indicating which fields are present.
- *
- * I am trying to describe precisely what the application programmer
- * should expect in the following, and for that reason I tell the
- * units and origin of each measurement (where it applies), or else I
- * use sufficiently weaselly language ("is a monotonically nondecreasing
- * function of...") that I cannot set false expectations for lawyerly
- * readers.
- */
-
-/*
- * The radio capture header precedes the 802.11 header.
- *
- * Note well: all radiotap fields are little-endian.
- */
-struct ieee80211_radiotap_header {
-	uint8_t		it_version;	/* Version 0. Only increases
-					 * for drastic changes,
-					 * introduction of compatible
-					 * new fields does not count.
-					 */
-	uint8_t		it_pad;
-	uint16_t       it_len;         /* length of the whole
-					 * header in bytes, including
-					 * it_version, it_pad,
-					 * it_len, and data fields.
-					 */
-	uint32_t       it_present;     /* A bitmap telling which
-					 * fields are present. Set bit 31
-					 * (0x80000000) to extend the
-					 * bitmap by another 32 bits.
-					 * Additional extensions are made
-					 * by setting bit 31.
-					 */
-};
-
-/* Name                                 Data type       Units
- * ----                                 ---------       -----
- *
- * IEEE80211_RADIOTAP_TSFT              uint64_t       microseconds
- *
- *      Value in microseconds of the MAC's 64-bit 802.11 Time
- *      Synchronization Function timer when the first bit of the
- *      MPDU arrived at the MAC. For received frames, only.
- *
- * IEEE80211_RADIOTAP_CHANNEL           2 x uint16_t   MHz, bitmap
- *
- *      Tx/Rx frequency in MHz, followed by flags (see below).
- *	Note that IEEE80211_RADIOTAP_XCHANNEL must be used to
- *	represent an HT channel as there is not enough room in
- *	the flags word.
- *
- * IEEE80211_RADIOTAP_FHSS              uint16_t       see below
- *
- *      For frequency-hopping radios, the hop set (first byte)
- *      and pattern (second byte).
- *
- * IEEE80211_RADIOTAP_RATE              uint8_t        500kb/s or index
- *
- *      Tx/Rx data rate.  If bit 0x80 is set then it represents an
- *	an MCS index and not an IEEE rate.
- *
- * IEEE80211_RADIOTAP_DBM_ANTSIGNAL     int8_t          decibels from
- *                                                      one milliwatt (dBm)
- *
- *      RF signal power at the antenna, decibel difference from
- *      one milliwatt.
- *
- * IEEE80211_RADIOTAP_DBM_ANTNOISE      int8_t          decibels from
- *                                                      one milliwatt (dBm)
- *
- *      RF noise power at the antenna, decibel difference from one
- *      milliwatt.
- *
- * IEEE80211_RADIOTAP_DB_ANTSIGNAL      uint8_t        decibel (dB)
- *
- *      RF signal power at the antenna, decibel difference from an
- *      arbitrary, fixed reference.
- *
- * IEEE80211_RADIOTAP_DB_ANTNOISE       uint8_t        decibel (dB)
- *
- *      RF noise power at the antenna, decibel difference from an
- *      arbitrary, fixed reference point.
- *
- * IEEE80211_RADIOTAP_LOCK_QUALITY      uint16_t       unitless
- *
- *      Quality of Barker code lock. Unitless. Monotonically
- *      nondecreasing with "better" lock strength. Called "Signal
- *      Quality" in datasheets.  (Is there a standard way to measure
- *      this?)
- *
- * IEEE80211_RADIOTAP_TX_ATTENUATION    uint16_t       unitless
- *
- *      Transmit power expressed as unitless distance from max
- *      power set at factory calibration.  0 is max power.
- *      Monotonically nondecreasing with lower power levels.
- *
- * IEEE80211_RADIOTAP_DB_TX_ATTENUATION uint16_t       decibels (dB)
- *
- *      Transmit power expressed as decibel distance from max power
- *      set at factory calibration.  0 is max power.  Monotonically
- *      nondecreasing with lower power levels.
- *
- * IEEE80211_RADIOTAP_DBM_TX_POWER      int8_t          decibels from
- *                                                      one milliwatt (dBm)
- *
- *      Transmit power expressed as dBm (decibels from a 1 milliwatt
- *      reference). This is the absolute power level measured at
- *      the antenna port.
- *
- * IEEE80211_RADIOTAP_FLAGS             uint8_t        bitmap
- *
- *      Properties of transmitted and received frames. See flags
- *      defined below.
- *
- * IEEE80211_RADIOTAP_ANTENNA           uint8_t        antenna index
- *
- *      Unitless indication of the Rx/Tx antenna for this packet.
- *      The first antenna is antenna 0.
- *
- * IEEE80211_RADIOTAP_RX_FLAGS          uint16_t       bitmap
- *
- *     Properties of received frames. See flags defined below.
- *
- * IEEE80211_RADIOTAP_XCHANNEL          uint32_t	bitmap
- *					uint16_t	MHz
- *					uint8_t		channel number
- *					uint8_t		.5 dBm
- *
- *	Extended channel specification: flags (see below) followed by
- *	frequency in MHz, the corresponding IEEE channel number, and
- *	finally the maximum regulatory transmit power cap in .5 dBm
- *	units.  This property supersedes IEEE80211_RADIOTAP_CHANNEL
- *	and only one of the two should be present.
- *
- * IEEE80211_RADIOTAP_MCS		uint8_t		known
- *					uint8_t		flags
- *					uint8_t		mcs
- *
- *	Bitset indicating which fields have known values, followed
- *	by bitset of flag values, followed by the MCS rate index as
- *	in IEEE 802.11n.
- *
- * IEEE80211_RADIOTAP_VENDOR_NAMESPACE
- *					uint8_t  OUI[3]
- *                                   uint8_t  subspace
- *                                   uint16_t length
- *
- *     The Vendor Namespace Field contains three sub-fields. The first
- *     sub-field is 3 bytes long. It contains the vendor's IEEE 802
- *     Organizationally Unique Identifier (OUI). The fourth byte is a
- *     vendor-specific "namespace selector."
- *
- */
-enum ieee80211_radiotap_type {
-	IEEE80211_RADIOTAP_TSFT = 0,
-	IEEE80211_RADIOTAP_FLAGS = 1,
-	IEEE80211_RADIOTAP_RATE = 2,
-	IEEE80211_RADIOTAP_CHANNEL = 3,
-	IEEE80211_RADIOTAP_FHSS = 4,
-	IEEE80211_RADIOTAP_DBM_ANTSIGNAL = 5,
-	IEEE80211_RADIOTAP_DBM_ANTNOISE = 6,
-	IEEE80211_RADIOTAP_LOCK_QUALITY = 7,
-	IEEE80211_RADIOTAP_TX_ATTENUATION = 8,
-	IEEE80211_RADIOTAP_DB_TX_ATTENUATION = 9,
-	IEEE80211_RADIOTAP_DBM_TX_POWER = 10,
-	IEEE80211_RADIOTAP_ANTENNA = 11,
-	IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
-	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
-	IEEE80211_RADIOTAP_RX_FLAGS = 14,
-	/* NB: gap for netbsd definitions */
-	IEEE80211_RADIOTAP_XCHANNEL = 18,
-	IEEE80211_RADIOTAP_MCS = 19,
-	IEEE80211_RADIOTAP_NAMESPACE = 29,
-	IEEE80211_RADIOTAP_VENDOR_NAMESPACE = 30,
-	IEEE80211_RADIOTAP_EXT = 31
-};
-
-/* channel attributes */
-#define	IEEE80211_CHAN_TURBO	0x00010	/* Turbo channel */
-#define	IEEE80211_CHAN_CCK	0x00020	/* CCK channel */
-#define	IEEE80211_CHAN_OFDM	0x00040	/* OFDM channel */
-#define	IEEE80211_CHAN_2GHZ	0x00080	/* 2 GHz spectrum channel. */
-#define	IEEE80211_CHAN_5GHZ	0x00100	/* 5 GHz spectrum channel */
-#define	IEEE80211_CHAN_PASSIVE	0x00200	/* Only passive scan allowed */
-#define	IEEE80211_CHAN_DYN	0x00400	/* Dynamic CCK-OFDM channel */
-#define	IEEE80211_CHAN_GFSK	0x00800	/* GFSK channel (FHSS PHY) */
-#define	IEEE80211_CHAN_GSM	0x01000	/* 900 MHz spectrum channel */
-#define	IEEE80211_CHAN_STURBO	0x02000	/* 11a static turbo channel only */
-#define	IEEE80211_CHAN_HALF	0x04000	/* Half rate channel */
-#define	IEEE80211_CHAN_QUARTER	0x08000	/* Quarter rate channel */
-#define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
-#define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
-#define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
-
-/* Useful combinations of channel characteristics, borrowed from Ethereal */
-#define IEEE80211_CHAN_A \
-        (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
-#define IEEE80211_CHAN_B \
-        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
-#define IEEE80211_CHAN_G \
-        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
-#define IEEE80211_CHAN_TA \
-        (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
-#define IEEE80211_CHAN_TG \
-        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN  | IEEE80211_CHAN_TURBO)
-
-
-/* For IEEE80211_RADIOTAP_FLAGS */
-#define	IEEE80211_RADIOTAP_F_CFP	0x01	/* sent/received
-						 * during CFP
-						 */
-#define	IEEE80211_RADIOTAP_F_SHORTPRE	0x02	/* sent/received
-						 * with short
-						 * preamble
-						 */
-#define	IEEE80211_RADIOTAP_F_WEP	0x04	/* sent/received
-						 * with WEP encryption
-						 */
-#define	IEEE80211_RADIOTAP_F_FRAG	0x08	/* sent/received
-						 * with fragmentation
-						 */
-#define	IEEE80211_RADIOTAP_F_FCS	0x10	/* frame includes FCS */
-#define	IEEE80211_RADIOTAP_F_DATAPAD	0x20	/* frame has padding between
-						 * 802.11 header and payload
-						 * (to 32-bit boundary)
-						 */
-#define	IEEE80211_RADIOTAP_F_BADFCS	0x40	/* does not pass FCS check */
-
-/* For IEEE80211_RADIOTAP_RX_FLAGS */
-#define IEEE80211_RADIOTAP_F_RX_BADFCS	0x0001	/* frame failed crc check */
-#define IEEE80211_RADIOTAP_F_RX_PLCP_CRC	0x0002	/* frame failed PLCP CRC check */
-
-/* For IEEE80211_RADIOTAP_MCS known */
-#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN		0x01
-#define IEEE80211_RADIOTAP_MCS_MCS_INDEX_KNOWN		0x02	/* MCS index field */
-#define IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN	0x04
-#define IEEE80211_RADIOTAP_MCS_HT_FORMAT_KNOWN		0x08
-#define IEEE80211_RADIOTAP_MCS_FEC_TYPE_KNOWN		0x10
-#define IEEE80211_RADIOTAP_MCS_STBC_KNOWN		0x20
-
-/* For IEEE80211_RADIOTAP_MCS flags */
-#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK	0x03
-#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20	0
-#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_40	1
-#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20L	2
-#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20U	3
-#define IEEE80211_RADIOTAP_MCS_SHORT_GI		0x04 /* short guard interval */
-#define IEEE80211_RADIOTAP_MCS_HT_GREENFIELD	0x08
-#define IEEE80211_RADIOTAP_MCS_FEC_LDPC		0x10
-#define IEEE80211_RADIOTAP_MCS_STBC_MASK	0x60
-#define		IEEE80211_RADIOTAP_MCS_STBC_1	1
-#define		IEEE80211_RADIOTAP_MCS_STBC_2	2
-#define		IEEE80211_RADIOTAP_MCS_STBC_3	3
-#define IEEE80211_RADIOTAP_MCS_STBC_SHIFT	5
-
-static const char tstr[] = "[|802.11]";
-
-/* Radiotap state */
-/*  This is used to save state when parsing/processing parameters */
-struct radiotap_state
-{
-	uint32_t	present;
-
-	uint8_t		rate;
-};
 
 #define PRINT_SSID(p) \
 	if (p.ssid_present) { \
@@ -1283,7 +988,7 @@ wep_print(netdissect_options *ndo,
 		return 0;
 	iv = EXTRACT_LE_32BITS(p);
 
-	ND_PRINT((ndo, "Data IV:%3x Pad %x KeyID %x", IV_IV(iv), IV_PAD(iv),
+	ND_PRINT((ndo, " IV:%3x Pad %x KeyID %x", IV_IV(iv), IV_PAD(iv),
 	    IV_KEYID(iv)));
 
 	return 1;
@@ -1334,10 +1039,6 @@ parse_elements(netdissect_options *ndo,
 			if (ssid.length != 0) {
 				if (ssid.length > sizeof(ssid.ssid) - 1)
 					return 0;
-				if (!ND_TTEST2(*(p + offset), ssid.length))
-					return 0;
-				if (length < ssid.length)
-					return 0;
 				memcpy(&ssid.ssid, p + offset, ssid.length);
 				offset += ssid.length;
 				length -= ssid.length;
@@ -1363,10 +1064,6 @@ parse_elements(netdissect_options *ndo,
 				if (challenge.length >
 				    sizeof(challenge.text) - 1)
 					return 0;
-				if (!ND_TTEST2(*(p + offset), challenge.length))
-					return 0;
-				if (length < challenge.length)
-					return 0;
 				memcpy(&challenge.text, p + offset,
 				    challenge.length);
 				offset += challenge.length;
@@ -1391,10 +1088,6 @@ parse_elements(netdissect_options *ndo,
 			length -= 2;
 			if (rates.length != 0) {
 				if (rates.length > sizeof rates.rate)
-					return 0;
-				if (!ND_TTEST2(*(p + offset), rates.length))
-					return 0;
-				if (length < rates.length)
 					return 0;
 				memcpy(&rates.rate, p + offset, rates.length);
 				offset += rates.length;
@@ -1484,8 +1177,7 @@ parse_elements(netdissect_options *ndo,
 			offset += 3;
 			length -= 3;
 
-			memcpy(tim.bitmap, p + (tim.length - 3),
-			    (tim.length - 3));
+			memcpy(tim.bitmap, p + offset, tim.length - 3);
 			offset += tim.length - 3;
 			length -= tim.length - 3;
 			/*
@@ -1801,7 +1493,7 @@ handle_auth(netdissect_options *ndo,
 
 static int
 handle_deauth(netdissect_options *ndo,
-              const struct mgmt_header_t *pmh, const u_char *p, u_int length)
+              const uint8_t *src, const u_char *p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 	const char *reason = NULL;
@@ -1821,7 +1513,7 @@ handle_deauth(netdissect_options *ndo,
 	if (ndo->ndo_eflag) {
 		ND_PRINT((ndo, ": %s", reason));
 	} else {
-		ND_PRINT((ndo, " (%s): %s", etheraddr_string(ndo, pmh->sa), reason));
+		ND_PRINT((ndo, " (%s): %s", etheraddr_string(ndo, src), reason));
 	}
 	return 1;
 }
@@ -1886,7 +1578,7 @@ handle_deauth(netdissect_options *ndo,
 
 static int
 handle_action(netdissect_options *ndo,
-              const struct mgmt_header_t *pmh, const u_char *p, u_int length)
+              const uint8_t *src, const u_char *p, u_int length)
 {
 	if (!ND_TTEST2(*p, 2))
 		return 0;
@@ -1895,7 +1587,7 @@ handle_action(netdissect_options *ndo,
 	if (ndo->ndo_eflag) {
 		ND_PRINT((ndo, ": "));
 	} else {
-		ND_PRINT((ndo, " (%s): ", etheraddr_string(ndo, pmh->sa)));
+		ND_PRINT((ndo, " (%s): ", etheraddr_string(ndo, src)));
 	}
 	switch (p[0]) {
 	case 0: ND_PRINT((ndo, "Spectrum Management Act#%d", p[1])); break;
@@ -1926,10 +1618,13 @@ handle_action(netdissect_options *ndo,
 
 static int
 mgmt_body_print(netdissect_options *ndo,
-                uint16_t fc, const struct mgmt_header_t *pmh,
-                const u_char *p, u_int length)
+                uint16_t fc, const uint8_t *src, const u_char *p, u_int length)
 {
 	ND_PRINT((ndo, "%s", tok2str(st_str, "Unhandled Management subtype(%x)", FC_SUBTYPE(fc))));
+
+	/* There may be a problem w/ AP not having this bit set */
+	if (FC_PROTECTED(fc))
+		return wep_print(ndo, p);
 	switch (FC_SUBTYPE(fc)) {
 	case ST_ASSOC_REQUEST:
 		return handle_assoc_request(ndo, p, length);
@@ -1950,17 +1645,11 @@ mgmt_body_print(netdissect_options *ndo,
 	case ST_DISASSOC:
 		return handle_disassoc(ndo, p, length);
 	case ST_AUTH:
-		if (!ND_TTEST2(*p, 3))
-			return 0;
-		if ((p[0] == 0 ) && (p[1] == 0) && (p[2] == 0)) {
-			ND_PRINT((ndo, "Authentication (Shared-Key)-3 "));
-			return wep_print(ndo, p);
-		}
 		return handle_auth(ndo, p, length);
 	case ST_DEAUTH:
-		return handle_deauth(ndo, pmh, p, length);
+		return handle_deauth(ndo, src, p, length);
 	case ST_ACTION:
-		return handle_action(ndo, pmh, p, length);
+		return handle_action(ndo, src, p, length);
 	default:
 		return 1;
 	}
@@ -1985,66 +1674,62 @@ ctrl_body_print(netdissect_options *ndo,
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " RA:%s TA:%s CTL(%x) SEQ(%u) ",
-			    etheraddr_string(ndo, ((const struct ctrl_bar_t *)p)->ra),
-			    etheraddr_string(ndo, ((const struct ctrl_bar_t *)p)->ta),
-			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
-			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq))));
+			    etheraddr_string(ndo, ((const struct ctrl_bar_hdr_t *)p)->ra),
+			    etheraddr_string(ndo, ((const struct ctrl_bar_hdr_t *)p)->ta),
+			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_hdr_t *)p)->ctl)),
+			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_hdr_t *)p)->seq))));
 		break;
 	case CTRL_BA:
 		if (!ND_TTEST2(*p, CTRL_BA_HDRLEN))
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " RA:%s ",
-			    etheraddr_string(ndo, ((const struct ctrl_ba_t *)p)->ra)));
+			    etheraddr_string(ndo, ((const struct ctrl_ba_hdr_t *)p)->ra)));
 		break;
 	case CTRL_PS_POLL:
 		if (!ND_TTEST2(*p, CTRL_PS_POLL_HDRLEN))
 			return 0;
 		ND_PRINT((ndo, " AID(%x)",
-		    EXTRACT_LE_16BITS(&(((const struct ctrl_ps_poll_t *)p)->aid))));
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_ps_poll_hdr_t *)p)->aid))));
 		break;
 	case CTRL_RTS:
 		if (!ND_TTEST2(*p, CTRL_RTS_HDRLEN))
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " TA:%s ",
-			    etheraddr_string(ndo, ((const struct ctrl_rts_t *)p)->ta)));
+			    etheraddr_string(ndo, ((const struct ctrl_rts_hdr_t *)p)->ta)));
 		break;
 	case CTRL_CTS:
 		if (!ND_TTEST2(*p, CTRL_CTS_HDRLEN))
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " RA:%s ",
-			    etheraddr_string(ndo, ((const struct ctrl_cts_t *)p)->ra)));
+			    etheraddr_string(ndo, ((const struct ctrl_cts_hdr_t *)p)->ra)));
 		break;
 	case CTRL_ACK:
 		if (!ND_TTEST2(*p, CTRL_ACK_HDRLEN))
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " RA:%s ",
-			    etheraddr_string(ndo, ((const struct ctrl_ack_t *)p)->ra)));
+			    etheraddr_string(ndo, ((const struct ctrl_ack_hdr_t *)p)->ra)));
 		break;
 	case CTRL_CF_END:
 		if (!ND_TTEST2(*p, CTRL_END_HDRLEN))
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " RA:%s ",
-			    etheraddr_string(ndo, ((const struct ctrl_end_t *)p)->ra)));
+			    etheraddr_string(ndo, ((const struct ctrl_end_hdr_t *)p)->ra)));
 		break;
 	case CTRL_END_ACK:
 		if (!ND_TTEST2(*p, CTRL_END_ACK_HDRLEN))
 			return 0;
 		if (!ndo->ndo_eflag)
 			ND_PRINT((ndo, " RA:%s ",
-			    etheraddr_string(ndo, ((const struct ctrl_end_ack_t *)p)->ra)));
+			    etheraddr_string(ndo, ((const struct ctrl_end_ack_hdr_t *)p)->ra)));
 		break;
 	}
 	return 1;
 }
-
-/*
- * Print Header funcs
- */
 
 /*
  *  Data Frame - Address field contents
@@ -2056,10 +1741,63 @@ ctrl_body_print(netdissect_options *ndo,
  *    1    |  1      |  RA    | TA     | DA     | SA
  */
 
+/*
+ * Function to get source and destination MAC addresses for a data frame.
+ */
 static void
-data_header_print(netdissect_options *ndo,
-                  uint16_t fc, const u_char *p, const uint8_t **srcp,
-                  const uint8_t **dstp)
+get_data_src_dst_mac(uint16_t fc, const u_char *p, const uint8_t **srcp,
+                     const uint8_t **dstp)
+{
+#define ADDR1  (p + 4)
+#define ADDR2  (p + 10)
+#define ADDR3  (p + 16)
+#define ADDR4  (p + 24)
+
+	if (!FC_TO_DS(fc)) {
+		if (!FC_FROM_DS(fc)) {
+			/* not To DS and not From DS */
+			*srcp = ADDR2;
+			*dstp = ADDR1;
+		} else {
+			/* not To DS and From DS */
+			*srcp = ADDR3;
+			*dstp = ADDR1;
+		}
+	} else {
+		if (!FC_FROM_DS(fc)) {
+			/* From DS and not To DS */
+			*srcp = ADDR2;
+			*dstp = ADDR3;
+		} else {
+			/* To DS and From DS */
+			*srcp = ADDR4;
+			*dstp = ADDR3;
+		}
+	}
+
+#undef ADDR1
+#undef ADDR2
+#undef ADDR3
+#undef ADDR4
+}
+
+static void
+get_mgmt_src_dst_mac(const u_char *p, const uint8_t **srcp, const uint8_t **dstp)
+{
+	const struct mgmt_header_t *hp = (const struct mgmt_header_t *) p;
+
+	if (srcp != NULL)
+		*srcp = hp->sa;
+	if (dstp != NULL)
+		*dstp = hp->da;
+}
+
+/*
+ * Print Header funcs
+ */
+
+static void
+data_header_print(netdissect_options *ndo, uint16_t fc, const u_char *p)
 {
 	u_int subtype = FC_SUBTYPE(fc);
 
@@ -2086,42 +1824,18 @@ data_header_print(netdissect_options *ndo,
 #define ADDR4  (p + 24)
 
 	if (!FC_TO_DS(fc) && !FC_FROM_DS(fc)) {
-		if (srcp != NULL)
-			*srcp = ADDR2;
-		if (dstp != NULL)
-			*dstp = ADDR1;
-		if (!ndo->ndo_eflag)
-			return;
 		ND_PRINT((ndo, "DA:%s SA:%s BSSID:%s ",
 		    etheraddr_string(ndo, ADDR1), etheraddr_string(ndo, ADDR2),
 		    etheraddr_string(ndo, ADDR3)));
 	} else if (!FC_TO_DS(fc) && FC_FROM_DS(fc)) {
-		if (srcp != NULL)
-			*srcp = ADDR3;
-		if (dstp != NULL)
-			*dstp = ADDR1;
-		if (!ndo->ndo_eflag)
-			return;
 		ND_PRINT((ndo, "DA:%s BSSID:%s SA:%s ",
 		    etheraddr_string(ndo, ADDR1), etheraddr_string(ndo, ADDR2),
 		    etheraddr_string(ndo, ADDR3)));
 	} else if (FC_TO_DS(fc) && !FC_FROM_DS(fc)) {
-		if (srcp != NULL)
-			*srcp = ADDR2;
-		if (dstp != NULL)
-			*dstp = ADDR3;
-		if (!ndo->ndo_eflag)
-			return;
 		ND_PRINT((ndo, "BSSID:%s SA:%s DA:%s ",
 		    etheraddr_string(ndo, ADDR1), etheraddr_string(ndo, ADDR2),
 		    etheraddr_string(ndo, ADDR3)));
 	} else if (FC_TO_DS(fc) && FC_FROM_DS(fc)) {
-		if (srcp != NULL)
-			*srcp = ADDR4;
-		if (dstp != NULL)
-			*dstp = ADDR3;
-		if (!ndo->ndo_eflag)
-			return;
 		ND_PRINT((ndo, "RA:%s TA:%s DA:%s SA:%s ",
 		    etheraddr_string(ndo, ADDR1), etheraddr_string(ndo, ADDR2),
 		    etheraddr_string(ndo, ADDR3), etheraddr_string(ndo, ADDR4)));
@@ -2134,17 +1848,9 @@ data_header_print(netdissect_options *ndo,
 }
 
 static void
-mgmt_header_print(netdissect_options *ndo,
-                  const u_char *p, const uint8_t **srcp, const uint8_t **dstp)
+mgmt_header_print(netdissect_options *ndo, const u_char *p)
 {
 	const struct mgmt_header_t *hp = (const struct mgmt_header_t *) p;
-
-	if (srcp != NULL)
-		*srcp = hp->sa;
-	if (dstp != NULL)
-		*dstp = hp->da;
-	if (!ndo->ndo_eflag)
-		return;
 
 	ND_PRINT((ndo, "BSSID:%s DA:%s SA:%s ",
 	    etheraddr_string(ndo, (hp)->bssid), etheraddr_string(ndo, (hp)->da),
@@ -2152,59 +1858,50 @@ mgmt_header_print(netdissect_options *ndo,
 }
 
 static void
-ctrl_header_print(netdissect_options *ndo,
-                  uint16_t fc, const u_char *p, const uint8_t **srcp,
-                  const uint8_t **dstp)
+ctrl_header_print(netdissect_options *ndo, uint16_t fc, const u_char *p)
 {
-	if (srcp != NULL)
-		*srcp = NULL;
-	if (dstp != NULL)
-		*dstp = NULL;
-	if (!ndo->ndo_eflag)
-		return;
-
 	switch (FC_SUBTYPE(fc)) {
 	case CTRL_BAR:
 		ND_PRINT((ndo, " RA:%s TA:%s CTL(%x) SEQ(%u) ",
-		    etheraddr_string(ndo, ((const struct ctrl_bar_t *)p)->ra),
-		    etheraddr_string(ndo, ((const struct ctrl_bar_t *)p)->ta),
-		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
-		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq))));
+		    etheraddr_string(ndo, ((const struct ctrl_bar_hdr_t *)p)->ra),
+		    etheraddr_string(ndo, ((const struct ctrl_bar_hdr_t *)p)->ta),
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_hdr_t *)p)->ctl)),
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_hdr_t *)p)->seq))));
 		break;
 	case CTRL_BA:
 		ND_PRINT((ndo, "RA:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_ba_t *)p)->ra)));
+		    etheraddr_string(ndo, ((const struct ctrl_ba_hdr_t *)p)->ra)));
 		break;
 	case CTRL_PS_POLL:
 		ND_PRINT((ndo, "BSSID:%s TA:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_ps_poll_t *)p)->bssid),
-		    etheraddr_string(ndo, ((const struct ctrl_ps_poll_t *)p)->ta)));
+		    etheraddr_string(ndo, ((const struct ctrl_ps_poll_hdr_t *)p)->bssid),
+		    etheraddr_string(ndo, ((const struct ctrl_ps_poll_hdr_t *)p)->ta)));
 		break;
 	case CTRL_RTS:
 		ND_PRINT((ndo, "RA:%s TA:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_rts_t *)p)->ra),
-		    etheraddr_string(ndo, ((const struct ctrl_rts_t *)p)->ta)));
+		    etheraddr_string(ndo, ((const struct ctrl_rts_hdr_t *)p)->ra),
+		    etheraddr_string(ndo, ((const struct ctrl_rts_hdr_t *)p)->ta)));
 		break;
 	case CTRL_CTS:
 		ND_PRINT((ndo, "RA:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_cts_t *)p)->ra)));
+		    etheraddr_string(ndo, ((const struct ctrl_cts_hdr_t *)p)->ra)));
 		break;
 	case CTRL_ACK:
 		ND_PRINT((ndo, "RA:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_ack_t *)p)->ra)));
+		    etheraddr_string(ndo, ((const struct ctrl_ack_hdr_t *)p)->ra)));
 		break;
 	case CTRL_CF_END:
 		ND_PRINT((ndo, "RA:%s BSSID:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_end_t *)p)->ra),
-		    etheraddr_string(ndo, ((const struct ctrl_end_t *)p)->bssid)));
+		    etheraddr_string(ndo, ((const struct ctrl_end_hdr_t *)p)->ra),
+		    etheraddr_string(ndo, ((const struct ctrl_end_hdr_t *)p)->bssid)));
 		break;
 	case CTRL_END_ACK:
 		ND_PRINT((ndo, "RA:%s BSSID:%s ",
-		    etheraddr_string(ndo, ((const struct ctrl_end_ack_t *)p)->ra),
-		    etheraddr_string(ndo, ((const struct ctrl_end_ack_t *)p)->bssid)));
+		    etheraddr_string(ndo, ((const struct ctrl_end_ack_hdr_t *)p)->ra),
+		    etheraddr_string(ndo, ((const struct ctrl_end_ack_hdr_t *)p)->bssid)));
 		break;
 	default:
-		ND_PRINT((ndo, "(H) Unknown Ctrl Subtype"));
+		/* We shouldn't get here - we should already have quit */
 		break;
 	}
 }
@@ -2220,8 +1917,12 @@ extract_header_length(netdissect_options *ndo,
 		return MGMT_HDRLEN;
 	case T_CTRL:
 		switch (FC_SUBTYPE(fc)) {
+		case CTRL_CONTROL_WRAPPER:
+			return CTRL_CONTROL_WRAPPER_HDRLEN;
 		case CTRL_BAR:
 			return CTRL_BAR_HDRLEN;
+		case CTRL_BA:
+			return CTRL_BA_HDRLEN;
 		case CTRL_PS_POLL:
 			return CTRL_PS_POLL_HDRLEN;
 		case CTRL_RTS:
@@ -2235,6 +1936,7 @@ extract_header_length(netdissect_options *ndo,
 		case CTRL_END_ACK:
 			return CTRL_END_ACK_HDRLEN;
 		default:
+			ND_PRINT((ndo, "unknown 802.11 ctrl frame subtype (%d)", FC_SUBTYPE(fc)));
 			return 0;
 		}
 	case T_DATA:
@@ -2243,7 +1945,7 @@ extract_header_length(netdissect_options *ndo,
 			len += 2;
 		return len;
 	default:
-		ND_PRINT((ndo, "unknown IEEE802.11 frame type (%d)", FC_TYPE(fc)));
+		ND_PRINT((ndo, "unknown 802.11 frame type (%d)", FC_TYPE(fc)));
 		return 0;
 	}
 }
@@ -2255,15 +1957,12 @@ extract_mesh_header_length(const u_char *p)
 }
 
 /*
- * Print the 802.11 MAC header if eflag is set, and set "*srcp" and "*dstp"
- * to point to the source and destination MAC addresses in any case if
- * "srcp" and "dstp" aren't null.
+ * Print the 802.11 MAC header.
  */
 static void
 ieee_802_11_hdr_print(netdissect_options *ndo,
                       uint16_t fc, const u_char *p, u_int hdrlen,
-                      u_int meshdrlen, const uint8_t **srcp,
-                      const uint8_t **dstp)
+                      u_int meshdrlen)
 {
 	if (ndo->ndo_vflag) {
 		if (FC_MORE_DATA(fc))
@@ -2276,8 +1975,8 @@ ieee_802_11_hdr_print(netdissect_options *ndo,
 			ND_PRINT((ndo, "Retry "));
 		if (FC_ORDER(fc))
 			ND_PRINT((ndo, "Strictly Ordered "));
-		if (FC_WEP(fc))
-			ND_PRINT((ndo, "WEP Encrypted "));
+		if (FC_PROTECTED(fc))
+			ND_PRINT((ndo, "Protected "));
 		if (FC_TYPE(fc) != T_CTRL || FC_SUBTYPE(fc) != CTRL_PS_POLL)
 			ND_PRINT((ndo, "%dus ",
 			    EXTRACT_LE_16BITS(
@@ -2301,19 +2000,15 @@ ieee_802_11_hdr_print(netdissect_options *ndo,
 
 	switch (FC_TYPE(fc)) {
 	case T_MGMT:
-		mgmt_header_print(ndo, p, srcp, dstp);
+		mgmt_header_print(ndo, p);
 		break;
 	case T_CTRL:
-		ctrl_header_print(ndo, fc, p, srcp, dstp);
+		ctrl_header_print(ndo, fc, p);
 		break;
 	case T_DATA:
-		data_header_print(ndo, fc, p, srcp, dstp);
+		data_header_print(ndo, fc, p);
 		break;
 	default:
-		ND_PRINT((ndo, "(header) unknown IEEE802.11 frame type (%d)",
-		    FC_TYPE(fc)));
-		*srcp = NULL;
-		*dstp = NULL;
 		break;
 	}
 }
@@ -2322,6 +2017,8 @@ ieee_802_11_hdr_print(netdissect_options *ndo,
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 #endif
 
+static const char tstr[] = "[|802.11]";
+
 static u_int
 ieee802_11_print(netdissect_options *ndo,
                  const u_char *p, u_int length, u_int orig_caplen, int pad,
@@ -2329,8 +2026,8 @@ ieee802_11_print(netdissect_options *ndo,
 {
 	uint16_t fc;
 	u_int caplen, hdrlen, meshdrlen;
-	const uint8_t *src, *dst;
-	u_short extracted_ethertype;
+	struct lladdr_info src, dst;
+	int llc_hdrlen;
 
 	caplen = orig_caplen;
 	/* Remove FCS, if present */
@@ -2353,6 +2050,10 @@ ieee802_11_print(netdissect_options *ndo,
 
 	fc = EXTRACT_LE_16BITS(p);
 	hdrlen = extract_header_length(ndo, fc);
+	if (hdrlen == 0) {
+		/* Unknown frame type or control frame subtype; quit. */
+		return (0);
+	}
 	if (pad)
 		hdrlen = roundup2(hdrlen, 4);
 	if (ndo->ndo_Hflag && FC_TYPE(fc) == T_DATA &&
@@ -2362,13 +2063,13 @@ ieee802_11_print(netdissect_options *ndo,
 	} else
 		meshdrlen = 0;
 
-
 	if (caplen < hdrlen) {
 		ND_PRINT((ndo, "%s", tstr));
 		return hdrlen;
 	}
 
-	ieee_802_11_hdr_print(ndo, fc, p, hdrlen, meshdrlen, &src, &dst);
+	if (ndo->ndo_eflag)
+		ieee_802_11_hdr_print(ndo, fc, p, hdrlen, meshdrlen);
 
 	/*
 	 * Go past the 802.11 header.
@@ -2377,10 +2078,12 @@ ieee802_11_print(netdissect_options *ndo,
 	caplen -= hdrlen;
 	p += hdrlen;
 
+	src.addr_string = etheraddr_string;
+	dst.addr_string = etheraddr_string;
 	switch (FC_TYPE(fc)) {
 	case T_MGMT:
-		if (!mgmt_body_print(ndo, fc,
-		    (const struct mgmt_header_t *)(p - hdrlen), p, length)) {
+		get_mgmt_src_dst_mac(p - hdrlen, &src.addr, &dst.addr);
+		if (!mgmt_body_print(ndo, fc, src.addr, p, length)) {
 			ND_PRINT((ndo, "%s", tstr));
 			return hdrlen;
 		}
@@ -2395,30 +2098,29 @@ ieee802_11_print(netdissect_options *ndo,
 		if (DATA_FRAME_IS_NULL(FC_SUBTYPE(fc)))
 			return hdrlen;	/* no-data frame */
 		/* There may be a problem w/ AP not having this bit set */
-		if (FC_WEP(fc)) {
+		if (FC_PROTECTED(fc)) {
+			ND_PRINT((ndo, "Data"));
 			if (!wep_print(ndo, p)) {
 				ND_PRINT((ndo, "%s", tstr));
 				return hdrlen;
 			}
-		} else if (llc_print(ndo, p, length, caplen, dst, src,
-		    &extracted_ethertype) == 0) {
-			/*
-			 * Some kinds of LLC packet we cannot
-			 * handle intelligently
-			 */
-			if (!ndo->ndo_eflag)
-				ieee_802_11_hdr_print(ndo, fc, p - hdrlen, hdrlen,
-				    meshdrlen, NULL, NULL);
-			if (extracted_ethertype)
-				ND_PRINT((ndo, "(LLC %s) ",
-				    etherproto_string(
-				        htons(extracted_ethertype))));
-			if (!ndo->ndo_suppress_default_print)
-				ND_DEFAULTPRINT(p, caplen);
+		} else {
+			get_data_src_dst_mac(fc, p - hdrlen, &src.addr, &dst.addr);
+			llc_hdrlen = llc_print(ndo, p, length, caplen, &src, &dst);
+			if (llc_hdrlen < 0) {
+				/*
+				 * Some kinds of LLC packet we cannot
+				 * handle intelligently
+				 */
+				if (!ndo->ndo_suppress_default_print)
+					ND_DEFAULTPRINT(p, caplen);
+				llc_hdrlen = -llc_hdrlen;
+			}
+			hdrlen += llc_hdrlen;
 		}
 		break;
 	default:
-		ND_PRINT((ndo, "unknown 802.11 frame type (%d)", FC_TYPE(fc)));
+		/* We shouldn't get here - we should already have quit */
 		break;
 	}
 
@@ -2437,6 +2139,349 @@ ieee802_11_if_print(netdissect_options *ndo,
 {
 	return ieee802_11_print(ndo, p, h->len, h->caplen, 0, 0);
 }
+
+
+/* $FreeBSD: projects/clang400-import/contrib/tcpdump/print-802_11.c 276788 2015-01-07 19:55:18Z delphij $ */
+/* NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp  */
+
+/*-
+ * Copyright (c) 2003, 2004 David Young.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of David Young may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY DAVID YOUNG ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL DAVID
+ * YOUNG BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ */
+
+/* A generic radio capture format is desirable. It must be
+ * rigidly defined (e.g., units for fields should be given),
+ * and easily extensible.
+ *
+ * The following is an extensible radio capture format. It is
+ * based on a bitmap indicating which fields are present.
+ *
+ * I am trying to describe precisely what the application programmer
+ * should expect in the following, and for that reason I tell the
+ * units and origin of each measurement (where it applies), or else I
+ * use sufficiently weaselly language ("is a monotonically nondecreasing
+ * function of...") that I cannot set false expectations for lawyerly
+ * readers.
+ */
+
+/*
+ * The radio capture header precedes the 802.11 header.
+ *
+ * Note well: all radiotap fields are little-endian.
+ */
+struct ieee80211_radiotap_header {
+	uint8_t		it_version;	/* Version 0. Only increases
+					 * for drastic changes,
+					 * introduction of compatible
+					 * new fields does not count.
+					 */
+	uint8_t		it_pad;
+	uint16_t	it_len;		/* length of the whole
+					 * header in bytes, including
+					 * it_version, it_pad,
+					 * it_len, and data fields.
+					 */
+	uint32_t	it_present;	/* A bitmap telling which
+					 * fields are present. Set bit 31
+					 * (0x80000000) to extend the
+					 * bitmap by another 32 bits.
+					 * Additional extensions are made
+					 * by setting bit 31.
+					 */
+};
+
+/* Name                                 Data type       Units
+ * ----                                 ---------       -----
+ *
+ * IEEE80211_RADIOTAP_TSFT              uint64_t       microseconds
+ *
+ *      Value in microseconds of the MAC's 64-bit 802.11 Time
+ *      Synchronization Function timer when the first bit of the
+ *      MPDU arrived at the MAC. For received frames, only.
+ *
+ * IEEE80211_RADIOTAP_CHANNEL           2 x uint16_t   MHz, bitmap
+ *
+ *      Tx/Rx frequency in MHz, followed by flags (see below).
+ *	Note that IEEE80211_RADIOTAP_XCHANNEL must be used to
+ *	represent an HT channel as there is not enough room in
+ *	the flags word.
+ *
+ * IEEE80211_RADIOTAP_FHSS              uint16_t       see below
+ *
+ *      For frequency-hopping radios, the hop set (first byte)
+ *      and pattern (second byte).
+ *
+ * IEEE80211_RADIOTAP_RATE              uint8_t        500kb/s or index
+ *
+ *      Tx/Rx data rate.  If bit 0x80 is set then it represents an
+ *	an MCS index and not an IEEE rate.
+ *
+ * IEEE80211_RADIOTAP_DBM_ANTSIGNAL     int8_t          decibels from
+ *                                                      one milliwatt (dBm)
+ *
+ *      RF signal power at the antenna, decibel difference from
+ *      one milliwatt.
+ *
+ * IEEE80211_RADIOTAP_DBM_ANTNOISE      int8_t          decibels from
+ *                                                      one milliwatt (dBm)
+ *
+ *      RF noise power at the antenna, decibel difference from one
+ *      milliwatt.
+ *
+ * IEEE80211_RADIOTAP_DB_ANTSIGNAL      uint8_t        decibel (dB)
+ *
+ *      RF signal power at the antenna, decibel difference from an
+ *      arbitrary, fixed reference.
+ *
+ * IEEE80211_RADIOTAP_DB_ANTNOISE       uint8_t        decibel (dB)
+ *
+ *      RF noise power at the antenna, decibel difference from an
+ *      arbitrary, fixed reference point.
+ *
+ * IEEE80211_RADIOTAP_LOCK_QUALITY      uint16_t       unitless
+ *
+ *      Quality of Barker code lock. Unitless. Monotonically
+ *      nondecreasing with "better" lock strength. Called "Signal
+ *      Quality" in datasheets.  (Is there a standard way to measure
+ *      this?)
+ *
+ * IEEE80211_RADIOTAP_TX_ATTENUATION    uint16_t       unitless
+ *
+ *      Transmit power expressed as unitless distance from max
+ *      power set at factory calibration.  0 is max power.
+ *      Monotonically nondecreasing with lower power levels.
+ *
+ * IEEE80211_RADIOTAP_DB_TX_ATTENUATION uint16_t       decibels (dB)
+ *
+ *      Transmit power expressed as decibel distance from max power
+ *      set at factory calibration.  0 is max power.  Monotonically
+ *      nondecreasing with lower power levels.
+ *
+ * IEEE80211_RADIOTAP_DBM_TX_POWER      int8_t          decibels from
+ *                                                      one milliwatt (dBm)
+ *
+ *      Transmit power expressed as dBm (decibels from a 1 milliwatt
+ *      reference). This is the absolute power level measured at
+ *      the antenna port.
+ *
+ * IEEE80211_RADIOTAP_FLAGS             uint8_t        bitmap
+ *
+ *      Properties of transmitted and received frames. See flags
+ *      defined below.
+ *
+ * IEEE80211_RADIOTAP_ANTENNA           uint8_t        antenna index
+ *
+ *      Unitless indication of the Rx/Tx antenna for this packet.
+ *      The first antenna is antenna 0.
+ *
+ * IEEE80211_RADIOTAP_RX_FLAGS          uint16_t       bitmap
+ *
+ *     Properties of received frames. See flags defined below.
+ *
+ * IEEE80211_RADIOTAP_XCHANNEL          uint32_t	bitmap
+ *					uint16_t	MHz
+ *					uint8_t		channel number
+ *					uint8_t		.5 dBm
+ *
+ *	Extended channel specification: flags (see below) followed by
+ *	frequency in MHz, the corresponding IEEE channel number, and
+ *	finally the maximum regulatory transmit power cap in .5 dBm
+ *	units.  This property supersedes IEEE80211_RADIOTAP_CHANNEL
+ *	and only one of the two should be present.
+ *
+ * IEEE80211_RADIOTAP_MCS		uint8_t		known
+ *					uint8_t		flags
+ *					uint8_t		mcs
+ *
+ *	Bitset indicating which fields have known values, followed
+ *	by bitset of flag values, followed by the MCS rate index as
+ *	in IEEE 802.11n.
+ *
+ *
+ * IEEE80211_RADIOTAP_AMPDU_STATUS	u32, u16, u8, u8	unitless
+ *
+ *	Contains the AMPDU information for the subframe.
+ *
+ * IEEE80211_RADIOTAP_VHT	u16, u8, u8, u8[4], u8, u8, u16
+ *
+ *	Contains VHT information about this frame.
+ *
+ * IEEE80211_RADIOTAP_VENDOR_NAMESPACE
+ *					uint8_t  OUI[3]
+ *                                   uint8_t  subspace
+ *                                   uint16_t length
+ *
+ *     The Vendor Namespace Field contains three sub-fields. The first
+ *     sub-field is 3 bytes long. It contains the vendor's IEEE 802
+ *     Organizationally Unique Identifier (OUI). The fourth byte is a
+ *     vendor-specific "namespace selector."
+ *
+ */
+enum ieee80211_radiotap_type {
+	IEEE80211_RADIOTAP_TSFT = 0,
+	IEEE80211_RADIOTAP_FLAGS = 1,
+	IEEE80211_RADIOTAP_RATE = 2,
+	IEEE80211_RADIOTAP_CHANNEL = 3,
+	IEEE80211_RADIOTAP_FHSS = 4,
+	IEEE80211_RADIOTAP_DBM_ANTSIGNAL = 5,
+	IEEE80211_RADIOTAP_DBM_ANTNOISE = 6,
+	IEEE80211_RADIOTAP_LOCK_QUALITY = 7,
+	IEEE80211_RADIOTAP_TX_ATTENUATION = 8,
+	IEEE80211_RADIOTAP_DB_TX_ATTENUATION = 9,
+	IEEE80211_RADIOTAP_DBM_TX_POWER = 10,
+	IEEE80211_RADIOTAP_ANTENNA = 11,
+	IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
+	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
+	IEEE80211_RADIOTAP_RX_FLAGS = 14,
+	/* NB: gap for netbsd definitions */
+	IEEE80211_RADIOTAP_XCHANNEL = 18,
+	IEEE80211_RADIOTAP_MCS = 19,
+	IEEE80211_RADIOTAP_AMPDU_STATUS = 20,
+	IEEE80211_RADIOTAP_VHT = 21,
+	IEEE80211_RADIOTAP_NAMESPACE = 29,
+	IEEE80211_RADIOTAP_VENDOR_NAMESPACE = 30,
+	IEEE80211_RADIOTAP_EXT = 31
+};
+
+/* channel attributes */
+#define	IEEE80211_CHAN_TURBO	0x00010	/* Turbo channel */
+#define	IEEE80211_CHAN_CCK	0x00020	/* CCK channel */
+#define	IEEE80211_CHAN_OFDM	0x00040	/* OFDM channel */
+#define	IEEE80211_CHAN_2GHZ	0x00080	/* 2 GHz spectrum channel. */
+#define	IEEE80211_CHAN_5GHZ	0x00100	/* 5 GHz spectrum channel */
+#define	IEEE80211_CHAN_PASSIVE	0x00200	/* Only passive scan allowed */
+#define	IEEE80211_CHAN_DYN	0x00400	/* Dynamic CCK-OFDM channel */
+#define	IEEE80211_CHAN_GFSK	0x00800	/* GFSK channel (FHSS PHY) */
+#define	IEEE80211_CHAN_GSM	0x01000	/* 900 MHz spectrum channel */
+#define	IEEE80211_CHAN_STURBO	0x02000	/* 11a static turbo channel only */
+#define	IEEE80211_CHAN_HALF	0x04000	/* Half rate channel */
+#define	IEEE80211_CHAN_QUARTER	0x08000	/* Quarter rate channel */
+#define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
+#define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
+#define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
+
+/* Useful combinations of channel characteristics, borrowed from Ethereal */
+#define IEEE80211_CHAN_A \
+        (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define IEEE80211_CHAN_B \
+        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
+#define IEEE80211_CHAN_G \
+        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
+#define IEEE80211_CHAN_TA \
+        (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+#define IEEE80211_CHAN_TG \
+        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN  | IEEE80211_CHAN_TURBO)
+
+
+/* For IEEE80211_RADIOTAP_FLAGS */
+#define	IEEE80211_RADIOTAP_F_CFP	0x01	/* sent/received
+						 * during CFP
+						 */
+#define	IEEE80211_RADIOTAP_F_SHORTPRE	0x02	/* sent/received
+						 * with short
+						 * preamble
+						 */
+#define	IEEE80211_RADIOTAP_F_WEP	0x04	/* sent/received
+						 * with WEP encryption
+						 */
+#define	IEEE80211_RADIOTAP_F_FRAG	0x08	/* sent/received
+						 * with fragmentation
+						 */
+#define	IEEE80211_RADIOTAP_F_FCS	0x10	/* frame includes FCS */
+#define	IEEE80211_RADIOTAP_F_DATAPAD	0x20	/* frame has padding between
+						 * 802.11 header and payload
+						 * (to 32-bit boundary)
+						 */
+#define	IEEE80211_RADIOTAP_F_BADFCS	0x40	/* does not pass FCS check */
+
+/* For IEEE80211_RADIOTAP_RX_FLAGS */
+#define IEEE80211_RADIOTAP_F_RX_BADFCS	0x0001	/* frame failed crc check */
+#define IEEE80211_RADIOTAP_F_RX_PLCP_CRC	0x0002	/* frame failed PLCP CRC check */
+
+/* For IEEE80211_RADIOTAP_MCS known */
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN		0x01
+#define IEEE80211_RADIOTAP_MCS_MCS_INDEX_KNOWN		0x02	/* MCS index field */
+#define IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN	0x04
+#define IEEE80211_RADIOTAP_MCS_HT_FORMAT_KNOWN		0x08
+#define IEEE80211_RADIOTAP_MCS_FEC_TYPE_KNOWN		0x10
+#define IEEE80211_RADIOTAP_MCS_STBC_KNOWN		0x20
+#define IEEE80211_RADIOTAP_MCS_NESS_KNOWN		0x40
+#define IEEE80211_RADIOTAP_MCS_NESS_BIT_1		0x80
+
+/* For IEEE80211_RADIOTAP_MCS flags */
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK	0x03
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20	0
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_40	1
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20L	2
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20U	3
+#define IEEE80211_RADIOTAP_MCS_SHORT_GI		0x04 /* short guard interval */
+#define IEEE80211_RADIOTAP_MCS_HT_GREENFIELD	0x08
+#define IEEE80211_RADIOTAP_MCS_FEC_LDPC		0x10
+#define IEEE80211_RADIOTAP_MCS_STBC_MASK	0x60
+#define		IEEE80211_RADIOTAP_MCS_STBC_1	1
+#define		IEEE80211_RADIOTAP_MCS_STBC_2	2
+#define		IEEE80211_RADIOTAP_MCS_STBC_3	3
+#define IEEE80211_RADIOTAP_MCS_STBC_SHIFT	5
+#define IEEE80211_RADIOTAP_MCS_NESS_BIT_0	0x80
+
+/* For IEEE80211_RADIOTAP_AMPDU_STATUS */
+#define IEEE80211_RADIOTAP_AMPDU_REPORT_ZEROLEN		0x0001
+#define IEEE80211_RADIOTAP_AMPDU_IS_ZEROLEN		0x0002
+#define IEEE80211_RADIOTAP_AMPDU_LAST_KNOWN		0x0004
+#define IEEE80211_RADIOTAP_AMPDU_IS_LAST		0x0008
+#define IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_ERR		0x0010
+#define IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_KNOWN	0x0020
+
+/* For IEEE80211_RADIOTAP_VHT known */
+#define IEEE80211_RADIOTAP_VHT_STBC_KNOWN			0x0001
+#define IEEE80211_RADIOTAP_VHT_TXOP_PS_NA_KNOWN			0x0002
+#define IEEE80211_RADIOTAP_VHT_GUARD_INTERVAL_KNOWN		0x0004
+#define IEEE80211_RADIOTAP_VHT_SGI_NSYM_DIS_KNOWN		0x0008
+#define IEEE80211_RADIOTAP_VHT_LDPC_EXTRA_OFDM_SYM_KNOWN	0x0010
+#define IEEE80211_RADIOTAP_VHT_BEAMFORMED_KNOWN			0x0020
+#define IEEE80211_RADIOTAP_VHT_BANDWIDTH_KNOWN			0x0040
+#define IEEE80211_RADIOTAP_VHT_GROUP_ID_KNOWN			0x0080
+#define IEEE80211_RADIOTAP_VHT_PARTIAL_AID_KNOWN		0x0100
+
+/* For IEEE80211_RADIOTAP_VHT flags */
+#define IEEE80211_RADIOTAP_VHT_STBC			0x01
+#define IEEE80211_RADIOTAP_VHT_TXOP_PS_NA		0x02
+#define IEEE80211_RADIOTAP_VHT_SHORT_GI			0x04
+#define IEEE80211_RADIOTAP_VHT_SGI_NSYM_M10_9		0x08
+#define IEEE80211_RADIOTAP_VHT_LDPC_EXTRA_OFDM_SYM	0x10
+#define IEEE80211_RADIOTAP_VHT_BEAMFORMED		0x20
+
+#define IEEE80211_RADIOTAP_VHT_BANDWIDTH_MASK	0x1f
+
+#define IEEE80211_RADIOTAP_VHT_NSS_MASK		0x0f
+#define IEEE80211_RADIOTAP_VHT_MCS_MASK		0xf0
+#define IEEE80211_RADIOTAP_VHT_MCS_SHIFT	4
+
+#define IEEE80211_RADIOTAP_CODING_LDPC_USERn			0x01
 
 #define	IEEE80211_CHAN_FHSS \
 	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
@@ -2464,30 +2509,41 @@ ieee802_11_if_print(netdissect_options *ndo,
 
 static void
 print_chaninfo(netdissect_options *ndo,
-               int freq, int flags)
+               uint16_t freq, int flags, int presentflags)
 {
 	ND_PRINT((ndo, "%u MHz", freq));
-	if (IS_CHAN_FHSS(flags))
-		ND_PRINT((ndo, " FHSS"));
-	if (IS_CHAN_A(flags)) {
-		if (flags & IEEE80211_CHAN_HALF)
-			ND_PRINT((ndo, " 11a/10Mhz"));
-		else if (flags & IEEE80211_CHAN_QUARTER)
-			ND_PRINT((ndo, " 11a/5Mhz"));
-		else
-			ND_PRINT((ndo, " 11a"));
+	if (presentflags & (1 << IEEE80211_RADIOTAP_MCS)) {
+		/*
+		 * We have the MCS field, so this is 11n, regardless
+		 * of what the channel flags say.
+		 */
+		ND_PRINT((ndo, " 11n"));
+	} else {
+		if (IS_CHAN_FHSS(flags))
+			ND_PRINT((ndo, " FHSS"));
+		if (IS_CHAN_A(flags)) {
+			if (flags & IEEE80211_CHAN_HALF)
+				ND_PRINT((ndo, " 11a/10Mhz"));
+			else if (flags & IEEE80211_CHAN_QUARTER)
+				ND_PRINT((ndo, " 11a/5Mhz"));
+			else
+				ND_PRINT((ndo, " 11a"));
+		}
+		if (IS_CHAN_ANYG(flags)) {
+			if (flags & IEEE80211_CHAN_HALF)
+				ND_PRINT((ndo, " 11g/10Mhz"));
+			else if (flags & IEEE80211_CHAN_QUARTER)
+				ND_PRINT((ndo, " 11g/5Mhz"));
+			else
+				ND_PRINT((ndo, " 11g"));
+		} else if (IS_CHAN_B(flags))
+			ND_PRINT((ndo, " 11b"));
+		if (flags & IEEE80211_CHAN_TURBO)
+			ND_PRINT((ndo, " Turbo"));
 	}
-	if (IS_CHAN_ANYG(flags)) {
-		if (flags & IEEE80211_CHAN_HALF)
-			ND_PRINT((ndo, " 11g/10Mhz"));
-		else if (flags & IEEE80211_CHAN_QUARTER)
-			ND_PRINT((ndo, " 11g/5Mhz"));
-		else
-			ND_PRINT((ndo, " 11g"));
-	} else if (IS_CHAN_B(flags))
-		ND_PRINT((ndo, " 11b"));
-	if (flags & IEEE80211_CHAN_TURBO)
-		ND_PRINT((ndo, " Turbo"));
+	/*
+	 * These apply to 11n.
+	 */
 	if (flags & IEEE80211_CHAN_HT20)
 		ND_PRINT((ndo, " ht/20"));
 	else if (flags & IEEE80211_CHAN_HT40D)
@@ -2499,146 +2555,50 @@ print_chaninfo(netdissect_options *ndo,
 
 static int
 print_radiotap_field(netdissect_options *ndo,
-                     struct cpack_state *s, uint32_t bit, uint8_t *flags,
-                     struct radiotap_state *state, uint32_t presentflags)
+                     struct cpack_state *s, uint32_t bit, uint8_t *flagsp,
+                     uint32_t presentflags)
 {
-	union {
-		int8_t		i8;
-		uint8_t		u8;
-		int16_t		i16;
-		uint16_t	u16;
-		uint32_t	u32;
-		uint64_t	u64;
-	} u, u2, u3, u4;
+	u_int i;
 	int rc;
 
 	switch (bit) {
-	case IEEE80211_RADIOTAP_FLAGS:
-		rc = cpack_uint8(s, &u.u8);
-		if (rc != 0)
-			break;
-		*flags = u.u8;
-		break;
-	case IEEE80211_RADIOTAP_RATE:
-		rc = cpack_uint8(s, &u.u8);
-		if (rc != 0)
-			break;
 
-		/* Save state rate */
-		state->rate = u.u8;
-		break;
-	case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
-	case IEEE80211_RADIOTAP_DB_ANTNOISE:
-	case IEEE80211_RADIOTAP_ANTENNA:
-		rc = cpack_uint8(s, &u.u8);
-		break;
-	case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-	case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-		rc = cpack_int8(s, &u.i8);
-		break;
-	case IEEE80211_RADIOTAP_CHANNEL:
-		rc = cpack_uint16(s, &u.u16);
-		if (rc != 0)
-			break;
-		rc = cpack_uint16(s, &u2.u16);
-		break;
-	case IEEE80211_RADIOTAP_FHSS:
-	case IEEE80211_RADIOTAP_LOCK_QUALITY:
-	case IEEE80211_RADIOTAP_TX_ATTENUATION:
-	case IEEE80211_RADIOTAP_RX_FLAGS:
-		rc = cpack_uint16(s, &u.u16);
-		break;
-	case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
-		rc = cpack_uint8(s, &u.u8);
-		break;
-	case IEEE80211_RADIOTAP_DBM_TX_POWER:
-		rc = cpack_int8(s, &u.i8);
-		break;
-	case IEEE80211_RADIOTAP_TSFT:
-		rc = cpack_uint64(s, &u.u64);
-		break;
-	case IEEE80211_RADIOTAP_XCHANNEL:
-		rc = cpack_uint32(s, &u.u32);
-		if (rc != 0)
-			break;
-		rc = cpack_uint16(s, &u2.u16);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &u3.u8);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &u4.u8);
-		break;
-	case IEEE80211_RADIOTAP_MCS:
-		rc = cpack_uint8(s, &u.u8);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &u2.u8);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &u3.u8);
-		break;
-	case IEEE80211_RADIOTAP_VENDOR_NAMESPACE: {
-		uint8_t vns[3];
-		uint16_t length;
-		uint8_t subspace;
+	case IEEE80211_RADIOTAP_TSFT: {
+		uint64_t tsft;
 
-		if ((cpack_align_and_reserve(s, 2)) == NULL) {
-			rc = -1;
-			break;
+		rc = cpack_uint64(s, &tsft);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%" PRIu64 "us tsft ", tsft));
+		break;
 		}
 
-		rc = cpack_uint8(s, &vns[0]);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &vns[1]);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &vns[2]);
-		if (rc != 0)
-			break;
-		rc = cpack_uint8(s, &subspace);
-		if (rc != 0)
-			break;
-		rc = cpack_uint16(s, &length);
-		if (rc != 0)
-			break;
+	case IEEE80211_RADIOTAP_FLAGS: {
+		uint8_t flagsval;
 
-		/* Skip up to length */
-		s->c_next += length;
+		rc = cpack_uint8(s, &flagsval);
+		if (rc != 0)
+			goto trunc;
+		*flagsp = flagsval;
+		if (flagsval & IEEE80211_RADIOTAP_F_CFP)
+			ND_PRINT((ndo, "cfp "));
+		if (flagsval & IEEE80211_RADIOTAP_F_SHORTPRE)
+			ND_PRINT((ndo, "short preamble "));
+		if (flagsval & IEEE80211_RADIOTAP_F_WEP)
+			ND_PRINT((ndo, "wep "));
+		if (flagsval & IEEE80211_RADIOTAP_F_FRAG)
+			ND_PRINT((ndo, "fragmented "));
+		if (flagsval & IEEE80211_RADIOTAP_F_BADFCS)
+			ND_PRINT((ndo, "bad-fcs "));
 		break;
-	}
-	default:
-		/* this bit indicates a field whose
-		 * size we do not know, so we cannot
-		 * proceed.  Just print the bit number.
-		 */
-		ND_PRINT((ndo, "[bit %u] ", bit));
-		return -1;
-	}
+		}
 
-	if (rc != 0) {
-		ND_PRINT((ndo, "%s", tstr));
-		return rc;
-	}
+	case IEEE80211_RADIOTAP_RATE: {
+		uint8_t rate;
 
-	/* Preserve the state present flags */
-	state->present = presentflags;
-
-	switch (bit) {
-	case IEEE80211_RADIOTAP_CHANNEL:
-		/*
-		 * If CHANNEL and XCHANNEL are both present, skip
-		 * CHANNEL.
-		 */
-		if (presentflags & (1 << IEEE80211_RADIOTAP_XCHANNEL))
-			break;
-		print_chaninfo(ndo, u.u16, u2.u16);
-		break;
-	case IEEE80211_RADIOTAP_FHSS:
-		ND_PRINT((ndo, "fhset %d fhpat %d ", u.u16 & 0xff, (u.u16 >> 8) & 0xff));
-		break;
-	case IEEE80211_RADIOTAP_RATE:
+		rc = cpack_uint8(s, &rate);
+		if (rc != 0)
+			goto trunc;
 		/*
 		 * XXX On FreeBSD rate & 0x80 means we have an MCS. On
 		 * Linux and AirPcap it does not.  (What about
@@ -2660,7 +2620,7 @@ print_radiotap_field(netdissect_options *ndo,
 		 * setting.  Such rates do exist, e.g. 11n
 		 * MCS 7 at 20 MHz with a long guard interval.
 		 */
-		if (u.u8 >= 0x80 && u.u8 <= 0x8f) {
+		if (rate >= 0x80 && rate <= 0x8f) {
 			/*
 			 * XXX - we don't know the channel width
 			 * or guard interval length, so we can't
@@ -2677,60 +2637,173 @@ print_radiotap_field(netdissect_options *ndo,
 			 * information from Flags, at least on
 			 * FreeBSD?
 			 */
-			ND_PRINT((ndo, "MCS %u ", u.u8 & 0x7f));
+			ND_PRINT((ndo, "MCS %u ", rate & 0x7f));
 		} else
-			ND_PRINT((ndo, "%2.1f Mb/s ", .5 * u.u8));
+			ND_PRINT((ndo, "%2.1f Mb/s ", .5 * rate));
 		break;
-	case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-		ND_PRINT((ndo, "%ddB signal ", u.i8));
+		}
+
+	case IEEE80211_RADIOTAP_CHANNEL: {
+		uint16_t frequency;
+		uint16_t flags;
+
+		rc = cpack_uint16(s, &frequency);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint16(s, &flags);
+		if (rc != 0)
+			goto trunc;
+		/*
+		 * If CHANNEL and XCHANNEL are both present, skip
+		 * CHANNEL.
+		 */
+		if (presentflags & (1 << IEEE80211_RADIOTAP_XCHANNEL))
+			break;
+		print_chaninfo(ndo, frequency, flags, presentflags);
 		break;
-	case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-		ND_PRINT((ndo, "%ddB noise ", u.i8));
+		}
+
+	case IEEE80211_RADIOTAP_FHSS: {
+		uint8_t hopset;
+		uint8_t hoppat;
+
+		rc = cpack_uint8(s, &hopset);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &hoppat);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "fhset %d fhpat %d ", hopset, hoppat));
 		break;
-	case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
-		ND_PRINT((ndo, "%ddB signal ", u.u8));
+		}
+
+	case IEEE80211_RADIOTAP_DBM_ANTSIGNAL: {
+		int8_t dbm_antsignal;
+
+		rc = cpack_int8(s, &dbm_antsignal);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%ddBm signal ", dbm_antsignal));
 		break;
-	case IEEE80211_RADIOTAP_DB_ANTNOISE:
-		ND_PRINT((ndo, "%ddB noise ", u.u8));
+		}
+
+	case IEEE80211_RADIOTAP_DBM_ANTNOISE: {
+		int8_t dbm_antnoise;
+
+		rc = cpack_int8(s, &dbm_antnoise);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%ddBm noise ", dbm_antnoise));
 		break;
-	case IEEE80211_RADIOTAP_LOCK_QUALITY:
-		ND_PRINT((ndo, "%u sq ", u.u16));
+		}
+
+	case IEEE80211_RADIOTAP_LOCK_QUALITY: {
+		uint16_t lock_quality;
+
+		rc = cpack_uint16(s, &lock_quality);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%u sq ", lock_quality));
 		break;
-	case IEEE80211_RADIOTAP_TX_ATTENUATION:
-		ND_PRINT((ndo, "%d tx power ", -(int)u.u16));
+		}
+
+	case IEEE80211_RADIOTAP_TX_ATTENUATION: {
+		uint16_t tx_attenuation;
+
+		rc = cpack_uint16(s, &tx_attenuation);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%d tx power ", -(int)tx_attenuation));
 		break;
-	case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
-		ND_PRINT((ndo, "%ddB tx power ", -(int)u.u8));
+		}
+
+	case IEEE80211_RADIOTAP_DB_TX_ATTENUATION: {
+		uint8_t db_tx_attenuation;
+
+		rc = cpack_uint8(s, &db_tx_attenuation);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%ddB tx attenuation ", -(int)db_tx_attenuation));
 		break;
-	case IEEE80211_RADIOTAP_DBM_TX_POWER:
-		ND_PRINT((ndo, "%ddBm tx power ", u.i8));
+		}
+
+	case IEEE80211_RADIOTAP_DBM_TX_POWER: {
+		int8_t dbm_tx_power;
+
+		rc = cpack_int8(s, &dbm_tx_power);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%ddBm tx power ", dbm_tx_power));
 		break;
-	case IEEE80211_RADIOTAP_FLAGS:
-		if (u.u8 & IEEE80211_RADIOTAP_F_CFP)
-			ND_PRINT((ndo, "cfp "));
-		if (u.u8 & IEEE80211_RADIOTAP_F_SHORTPRE)
-			ND_PRINT((ndo, "short preamble "));
-		if (u.u8 & IEEE80211_RADIOTAP_F_WEP)
-			ND_PRINT((ndo, "wep "));
-		if (u.u8 & IEEE80211_RADIOTAP_F_FRAG)
-			ND_PRINT((ndo, "fragmented "));
-		if (u.u8 & IEEE80211_RADIOTAP_F_BADFCS)
-			ND_PRINT((ndo, "bad-fcs "));
+		}
+
+	case IEEE80211_RADIOTAP_ANTENNA: {
+		uint8_t antenna;
+
+		rc = cpack_uint8(s, &antenna);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "antenna %u ", antenna));
 		break;
-	case IEEE80211_RADIOTAP_ANTENNA:
-		ND_PRINT((ndo, "antenna %d ", u.u8));
+		}
+
+	case IEEE80211_RADIOTAP_DB_ANTSIGNAL: {
+		uint8_t db_antsignal;
+
+		rc = cpack_uint8(s, &db_antsignal);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%ddB signal ", db_antsignal));
 		break;
-	case IEEE80211_RADIOTAP_TSFT:
-		ND_PRINT((ndo, "%" PRIu64 "us tsft ", u.u64));
+		}
+
+	case IEEE80211_RADIOTAP_DB_ANTNOISE: {
+		uint8_t db_antnoise;
+
+		rc = cpack_uint8(s, &db_antnoise);
+		if (rc != 0)
+			goto trunc;
+		ND_PRINT((ndo, "%ddB noise ", db_antnoise));
 		break;
-	case IEEE80211_RADIOTAP_RX_FLAGS:
+		}
+
+	case IEEE80211_RADIOTAP_RX_FLAGS: {
+		uint16_t rx_flags;
+
+		rc = cpack_uint16(s, &rx_flags);
+		if (rc != 0)
+			goto trunc;
 		/* Do nothing for now */
 		break;
-	case IEEE80211_RADIOTAP_XCHANNEL:
-		print_chaninfo(ndo, u2.u16, u.u32);
+		}
+
+	case IEEE80211_RADIOTAP_XCHANNEL: {
+		uint32_t flags;
+		uint16_t frequency;
+		uint8_t channel;
+		uint8_t maxpower;
+
+		rc = cpack_uint32(s, &flags);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint16(s, &frequency);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &channel);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &maxpower);
+		if (rc != 0)
+			goto trunc;
+		print_chaninfo(ndo, frequency, flags, presentflags);
 		break;
+		}
+
 	case IEEE80211_RADIOTAP_MCS: {
-		static const char *bandwidth[4] = {
+		uint8_t known;
+		uint8_t flags;
+		uint8_t mcs_index;
+		static const char *ht_bandwidth[4] = {
 			"20 MHz",
 			"40 MHz",
 			"20 MHz (L)",
@@ -2738,15 +2811,24 @@ print_radiotap_field(netdissect_options *ndo,
 		};
 		float htrate;
 
-		if (u.u8 & IEEE80211_RADIOTAP_MCS_MCS_INDEX_KNOWN) {
+		rc = cpack_uint8(s, &known);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &flags);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &mcs_index);
+		if (rc != 0)
+			goto trunc;
+		if (known & IEEE80211_RADIOTAP_MCS_MCS_INDEX_KNOWN) {
 			/*
 			 * We know the MCS index.
 			 */
-			if (u3.u8 <= MAX_MCS_INDEX) {
+			if (mcs_index <= MAX_MCS_INDEX) {
 				/*
 				 * And it's in-range.
 				 */
-				if (u.u8 & (IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN|IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN)) {
+				if (known & (IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN|IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN)) {
 					/*
 					 * And we know both the bandwidth and
 					 * the guard interval, so we can look
@@ -2754,9 +2836,9 @@ print_radiotap_field(netdissect_options *ndo,
 					 */
 					htrate =
 						ieee80211_float_htrates \
-							[u3.u8] \
-							[((u2.u8 & IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK) == IEEE80211_RADIOTAP_MCS_BANDWIDTH_40 ? 1 : 0)] \
-							[((u2.u8 & IEEE80211_RADIOTAP_MCS_SHORT_GI) ? 1 : 0)];
+							[mcs_index] \
+							[((flags & IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK) == IEEE80211_RADIOTAP_MCS_BANDWIDTH_40 ? 1 : 0)] \
+							[((flags & IEEE80211_RADIOTAP_MCS_SHORT_GI) ? 1 : 0)];
 				} else {
 					/*
 					 * We don't know both the bandwidth
@@ -2776,42 +2858,216 @@ print_radiotap_field(netdissect_options *ndo,
 				 * We have the rate.
 				 * Print it.
 				 */
-				ND_PRINT((ndo, "%.1f Mb/s MCS %u ", htrate, u3.u8));
+				ND_PRINT((ndo, "%.1f Mb/s MCS %u ", htrate, mcs_index));
 			} else {
 				/*
 				 * We at least have the MCS index.
 				 * Print it.
 				 */
-				ND_PRINT((ndo, "MCS %u ", u3.u8));
+				ND_PRINT((ndo, "MCS %u ", mcs_index));
 			}
 		}
-		if (u.u8 & IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN) {
+		if (known & IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN) {
 			ND_PRINT((ndo, "%s ",
-				bandwidth[u2.u8 & IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK]));
+				ht_bandwidth[flags & IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK]));
 		}
-		if (u.u8 & IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN) {
+		if (known & IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN) {
 			ND_PRINT((ndo, "%s GI ",
-				(u2.u8 & IEEE80211_RADIOTAP_MCS_SHORT_GI) ?
-				"short" : "lon"));
+				(flags & IEEE80211_RADIOTAP_MCS_SHORT_GI) ?
+				"short" : "long"));
 		}
-		if (u.u8 & IEEE80211_RADIOTAP_MCS_HT_FORMAT_KNOWN) {
+		if (known & IEEE80211_RADIOTAP_MCS_HT_FORMAT_KNOWN) {
 			ND_PRINT((ndo, "%s ",
-				(u2.u8 & IEEE80211_RADIOTAP_MCS_HT_GREENFIELD) ?
+				(flags & IEEE80211_RADIOTAP_MCS_HT_GREENFIELD) ?
 				"greenfield" : "mixed"));
 		}
-		if (u.u8 & IEEE80211_RADIOTAP_MCS_FEC_TYPE_KNOWN) {
+		if (known & IEEE80211_RADIOTAP_MCS_FEC_TYPE_KNOWN) {
 			ND_PRINT((ndo, "%s FEC ",
-				(u2.u8 & IEEE80211_RADIOTAP_MCS_FEC_LDPC) ?
+				(flags & IEEE80211_RADIOTAP_MCS_FEC_LDPC) ?
 				"LDPC" : "BCC"));
 		}
-		if (u.u8 & IEEE80211_RADIOTAP_MCS_STBC_KNOWN) {
+		if (known & IEEE80211_RADIOTAP_MCS_STBC_KNOWN) {
 			ND_PRINT((ndo, "RX-STBC%u ",
-				(u2.u8 & IEEE80211_RADIOTAP_MCS_STBC_MASK) >> IEEE80211_RADIOTAP_MCS_STBC_SHIFT));
+				(flags & IEEE80211_RADIOTAP_MCS_STBC_MASK) >> IEEE80211_RADIOTAP_MCS_STBC_SHIFT));
 		}
-
 		break;
 		}
+
+	case IEEE80211_RADIOTAP_AMPDU_STATUS: {
+		uint32_t reference_num;
+		uint16_t flags;
+		uint8_t delim_crc;
+		uint8_t reserved;
+
+		rc = cpack_uint32(s, &reference_num);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint16(s, &flags);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &delim_crc);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &reserved);
+		if (rc != 0)
+			goto trunc;
+		/* Do nothing for now */
+		break;
+		}
+
+	case IEEE80211_RADIOTAP_VHT: {
+		uint16_t known;
+		uint8_t flags;
+		uint8_t bandwidth;
+		uint8_t mcs_nss[4];
+		uint8_t coding;
+		uint8_t group_id;
+		uint16_t partial_aid;
+		static const char *vht_bandwidth[32] = {
+			"20 MHz",
+			"40 MHz",
+			"20 MHz (L)",
+			"20 MHz (U)",
+			"80 MHz",
+			"80 MHz (L)",
+			"80 MHz (U)",
+			"80 MHz (LL)",
+			"80 MHz (LU)",
+			"80 MHz (UL)",
+			"80 MHz (UU)",
+			"160 MHz",
+			"160 MHz (L)",
+			"160 MHz (U)",
+			"160 MHz (LL)",
+			"160 MHz (LU)",
+			"160 MHz (UL)",
+			"160 MHz (UU)",
+			"160 MHz (LLL)",
+			"160 MHz (LLU)",
+			"160 MHz (LUL)",
+			"160 MHz (UUU)",
+			"160 MHz (ULL)",
+			"160 MHz (ULU)",
+			"160 MHz (UUL)",
+			"160 MHz (UUU)",
+			"unknown (26)",
+			"unknown (27)",
+			"unknown (28)",
+			"unknown (29)",
+			"unknown (30)",
+			"unknown (31)"
+		};
+
+		rc = cpack_uint16(s, &known);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &flags);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &bandwidth);
+		if (rc != 0)
+			goto trunc;
+		for (i = 0; i < 4; i++) {
+			rc = cpack_uint8(s, &mcs_nss[i]);
+			if (rc != 0)
+				goto trunc;
+		}
+		rc = cpack_uint8(s, &coding);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint8(s, &group_id);
+		if (rc != 0)
+			goto trunc;
+		rc = cpack_uint16(s, &partial_aid);
+		if (rc != 0)
+			goto trunc;
+		for (i = 0; i < 4; i++) {
+			u_int nss, mcs;
+			nss = mcs_nss[i] & IEEE80211_RADIOTAP_VHT_NSS_MASK;
+			mcs = (mcs_nss[i] & IEEE80211_RADIOTAP_VHT_MCS_MASK) >> IEEE80211_RADIOTAP_VHT_MCS_SHIFT;
+
+			if (nss == 0)
+				continue;
+
+			ND_PRINT((ndo, "User %u MCS %u ", i, mcs));
+			ND_PRINT((ndo, "%s FEC ",
+				(coding & (IEEE80211_RADIOTAP_CODING_LDPC_USERn << i)) ?
+				"LDPC" : "BCC"));
+		}
+		if (known & IEEE80211_RADIOTAP_VHT_BANDWIDTH_KNOWN) {
+			ND_PRINT((ndo, "%s ",
+				vht_bandwidth[bandwidth & IEEE80211_RADIOTAP_VHT_BANDWIDTH_MASK]));
+		}
+		if (known & IEEE80211_RADIOTAP_VHT_GUARD_INTERVAL_KNOWN) {
+			ND_PRINT((ndo, "%s GI ",
+				(flags & IEEE80211_RADIOTAP_VHT_SHORT_GI) ?
+				"short" : "long"));
+		}
+		break;
+		}
+
+	default:
+		/* this bit indicates a field whose
+		 * size we do not know, so we cannot
+		 * proceed.  Just print the bit number.
+		 */
+		ND_PRINT((ndo, "[bit %u] ", bit));
+		return -1;
 	}
+
+	return 0;
+
+trunc:
+	ND_PRINT((ndo, "%s", tstr));
+	return rc;
+}
+
+
+static int
+print_in_radiotap_namespace(netdissect_options *ndo,
+                            struct cpack_state *s, uint8_t *flags,
+                            uint32_t presentflags, int bit0)
+{
+#define	BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
+#define	BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
+#define	BITNO_8(x) (((x) >> 4) ? 4 + BITNO_4((x) >> 4) : BITNO_4((x)))
+#define	BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
+#define	BITNO_2(x) (((x) & 2) ? 1 : 0)
+	uint32_t present, next_present;
+	int bitno;
+	enum ieee80211_radiotap_type bit;
+	int rc;
+
+	for (present = presentflags; present; present = next_present) {
+		/*
+		 * Clear the least significant bit that is set.
+		 */
+		next_present = present & (present - 1);
+
+		/*
+		 * Get the bit number, within this presence word,
+		 * of the remaining least significant bit that
+		 * is set.
+		 */
+		bitno = BITNO_32(present ^ next_present);
+
+		/*
+		 * Stop if this is one of the "same meaning
+		 * in all presence flags" bits.
+		 */
+		if (bitno >= IEEE80211_RADIOTAP_NAMESPACE)
+			break;
+
+		/*
+		 * Get the radiotap bit number of that bit.
+		 */
+		bit = (enum ieee80211_radiotap_type)(bit0 + bitno);
+
+		rc = print_radiotap_field(ndo, s, bit, flags, presentflags);
+		if (rc != 0)
+			return rc;
+	}
+
 	return 0;
 }
 
@@ -2819,83 +3075,181 @@ static u_int
 ieee802_11_radio_print(netdissect_options *ndo,
                        const u_char *p, u_int length, u_int caplen)
 {
-#define	BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
-#define	BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
-#define	BITNO_8(x) (((x) >> 4) ? 4 + BITNO_4((x) >> 4) : BITNO_4((x)))
-#define	BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
-#define	BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define	BIT(n)	(1U << n)
 #define	IS_EXTENDED(__p)	\
 	    (EXTRACT_LE_32BITS(__p) & BIT(IEEE80211_RADIOTAP_EXT)) != 0
 
 	struct cpack_state cpacker;
-	struct ieee80211_radiotap_header *hdr;
-	uint32_t present, next_present;
-	uint32_t presentflags = 0;
-	uint32_t *presentp, *last_presentp;
-	enum ieee80211_radiotap_type bit;
+	const struct ieee80211_radiotap_header *hdr;
+	uint32_t presentflags;
+	const uint32_t *presentp, *last_presentp;
+	int vendor_namespace;
+	uint8_t vendor_oui[3];
+	uint8_t vendor_subnamespace;
+	uint16_t skip_length;
 	int bit0;
 	u_int len;
 	uint8_t flags;
 	int pad;
 	u_int fcslen;
-	struct radiotap_state state;
 
 	if (caplen < sizeof(*hdr)) {
 		ND_PRINT((ndo, "%s", tstr));
 		return caplen;
 	}
 
-	hdr = (struct ieee80211_radiotap_header *)p;
+	hdr = (const struct ieee80211_radiotap_header *)p;
 
 	len = EXTRACT_LE_16BITS(&hdr->it_len);
 
+	/*
+	 * If we don't have the entire radiotap header, just give up.
+	 */
 	if (caplen < len) {
 		ND_PRINT((ndo, "%s", tstr));
 		return caplen;
 	}
-	cpack_init(&cpacker, (uint8_t *)hdr, len); /* align against header start */
+	cpack_init(&cpacker, (const uint8_t *)hdr, len); /* align against header start */
 	cpack_advance(&cpacker, sizeof(*hdr)); /* includes the 1st bitmap */
 	for (last_presentp = &hdr->it_present;
-	     IS_EXTENDED(last_presentp) &&
-	     (u_char*)(last_presentp + 1) <= p + len;
+	     (const u_char*)(last_presentp + 1) <= p + len &&
+	     IS_EXTENDED(last_presentp);
 	     last_presentp++)
 	  cpack_advance(&cpacker, sizeof(hdr->it_present)); /* more bitmaps */
 
 	/* are there more bitmap extensions than bytes in header? */
-	if (IS_EXTENDED(last_presentp)) {
+	if ((const u_char*)(last_presentp + 1) > p + len) {
 		ND_PRINT((ndo, "%s", tstr));
 		return caplen;
 	}
 
+	/*
+	 * Start out at the beginning of the default radiotap namespace.
+	 */
+	bit0 = 0;
+	vendor_namespace = 0;
+	memset(vendor_oui, 0, 3);
+	vendor_subnamespace = 0;
+	skip_length = 0;
 	/* Assume no flags */
 	flags = 0;
 	/* Assume no Atheros padding between 802.11 header and body */
 	pad = 0;
 	/* Assume no FCS at end of frame */
 	fcslen = 0;
-	for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
-	     presentp++, bit0 += 32) {
+	for (presentp = &hdr->it_present; presentp <= last_presentp;
+	    presentp++) {
 		presentflags = EXTRACT_LE_32BITS(presentp);
 
-		/* Clear state. */
-		memset(&state, 0, sizeof(state));
+		/*
+		 * If this is a vendor namespace, we don't handle it.
+		 */
+		if (vendor_namespace) {
+			/*
+			 * Skip past the stuff we don't understand.
+			 * If we add support for any vendor namespaces,
+			 * it'd be added here; use vendor_oui and
+			 * vendor_subnamespace to interpret the fields.
+			 */
+			if (cpack_advance(&cpacker, skip_length) != 0) {
+				/*
+				 * Ran out of space in the packet.
+				 */
+				break;
+			}
 
-		for (present = EXTRACT_LE_32BITS(presentp); present;
-		     present = next_present) {
-			/* clear the least significant bit that is set */
-			next_present = present & (present - 1);
+			/*
+			 * We've skipped it all; nothing more to
+			 * skip.
+			 */
+			skip_length = 0;
+		} else {
+			if (print_in_radiotap_namespace(ndo, &cpacker,
+			    &flags, presentflags, bit0) != 0) {
+				/*
+				 * Fatal error - can't process anything
+				 * more in the radiotap header.
+				 */
+				break;
+			}
+		}
 
-			/* extract the least significant bit that is set */
-			bit = (enum ieee80211_radiotap_type)
-			    (bit0 + BITNO_32(present ^ next_present));
+		/*
+		 * Handle the namespace switch bits; we've already handled
+		 * the extension bit in all but the last word above.
+		 */
+		switch (presentflags &
+		    (BIT(IEEE80211_RADIOTAP_NAMESPACE)|BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE))) {
 
-			if (print_radiotap_field(ndo, &cpacker, bit, &flags, &state, presentflags) != 0)
-				goto out;
+		case 0:
+			/*
+			 * We're not changing namespaces.
+			 * advance to the next 32 bits in the current
+			 * namespace.
+			 */
+			bit0 += 32;
+			break;
+
+		case BIT(IEEE80211_RADIOTAP_NAMESPACE):
+			/*
+			 * We're switching to the radiotap namespace.
+			 * Reset the presence-bitmap index to 0, and
+			 * reset the namespace to the default radiotap
+			 * namespace.
+			 */
+			bit0 = 0;
+			vendor_namespace = 0;
+			memset(vendor_oui, 0, 3);
+			vendor_subnamespace = 0;
+			skip_length = 0;
+			break;
+
+		case BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE):
+			/*
+			 * We're switching to a vendor namespace.
+			 * Reset the presence-bitmap index to 0,
+			 * note that we're in a vendor namespace,
+			 * and fetch the fields of the Vendor Namespace
+			 * item.
+			 */
+			bit0 = 0;
+			vendor_namespace = 1;
+			if ((cpack_align_and_reserve(&cpacker, 2)) == NULL) {
+				ND_PRINT((ndo, "%s", tstr));
+				break;
+			}
+			if (cpack_uint8(&cpacker, &vendor_oui[0]) != 0) {
+				ND_PRINT((ndo, "%s", tstr));
+				break;
+			}
+			if (cpack_uint8(&cpacker, &vendor_oui[1]) != 0) {
+				ND_PRINT((ndo, "%s", tstr));
+				break;
+			}
+			if (cpack_uint8(&cpacker, &vendor_oui[2]) != 0) {
+				ND_PRINT((ndo, "%s", tstr));
+				break;
+			}
+			if (cpack_uint8(&cpacker, &vendor_subnamespace) != 0) {
+				ND_PRINT((ndo, "%s", tstr));
+				break;
+			}
+			if (cpack_uint16(&cpacker, &skip_length) != 0) {
+				ND_PRINT((ndo, "%s", tstr));
+				break;
+			}
+			break;
+
+		default:
+			/*
+			 * Illegal combination.  The behavior in this
+			 * case is undefined by the radiotap spec; we
+			 * just ignore both bits.
+			 */
+			break;
 		}
 	}
 
-out:
 	if (flags & IEEE80211_RADIOTAP_F_DATAPAD)
 		pad = 1;	/* Atheros padding */
 	if (flags & IEEE80211_RADIOTAP_F_FCS)

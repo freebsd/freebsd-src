@@ -6,6 +6,8 @@
  * 
  * adw_pci.c	ABP[3]940UW, ABP950UW, ABP3940U2W
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *
@@ -708,14 +710,14 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = adw->initiator_id;
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "AdvanSys", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "AdvanSys", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-                cpi->transport = XPORT_SPI;
-                cpi->transport_version = 2;
-                cpi->protocol = PROTO_SCSI;
-                cpi->protocol_version = SCSI_REV_2;
+		cpi->transport = XPORT_SPI;
+		cpi->transport_version = 2;
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1171,6 +1173,7 @@ adw_attach(struct adw_softc *adw)
 		xpt_action((union ccb *)&csa);
 	}
 
+	gone_in_dev(adw->device, 12, "adw(4) driver");
 fail:
 	mtx_unlock(&adw->lock);
 	return (error);

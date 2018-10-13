@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992 Terrence R. Lambert.
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,8 +40,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -60,9 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <sys/user.h>
 #include <sys/uio.h>
+#include <machine/abi.h>
+#include <machine/cpuinfo.h>
 #include <machine/reg.h>
 #include <machine/md_var.h>
 #include <machine/sigframe.h>
+#include <machine/tls.h>
 #include <machine/vmparam.h>
 #include <sys/vnode.h>
 #include <fs/pseudofs/pseudofs.h>
@@ -128,10 +131,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe))
-		    & ~(sizeof(__int64_t) - 1));
+		    & ~(STACK_ALIGN - 1));
 	} else
 		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
-		    sizeof(struct sigframe)) & ~(sizeof(__int64_t) - 1));
+		    sizeof(struct sigframe)) & ~(STACK_ALIGN - 1));
 
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
@@ -142,6 +145,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
 		/* fill siginfo structure */
+		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = ksi->ksi_code;
 		sf.sf_si.si_addr = (void*)(intptr_t)regs->badvaddr;
@@ -212,29 +216,29 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 }
 
 static int
-ptrace_read_int(struct thread *td, off_t addr, int *v)
+ptrace_read_int(struct thread *td, uintptr_t addr, int *v)
 {
 
 	if (proc_readmem(td, td->td_proc, addr, v, sizeof(*v)) != sizeof(*v))
-		return (ENOMEM);
+		return (EFAULT);
 	return (0);
 }
 
 static int
-ptrace_write_int(struct thread *td, off_t addr, int v)
+ptrace_write_int(struct thread *td, uintptr_t addr, int v)
 {
 
 	if (proc_writemem(td, td->td_proc, addr, &v, sizeof(v)) != sizeof(v))
-		return (ENOMEM);
+		return (EFAULT);
 	return (0);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
-	unsigned va;
+	uintptr_t va;
 	struct trapframe *locr0 = td->td_frame;
-	int i;
+	int error;
 	int bpinstr = MIPS_BREAK_SSTEP;
 	int curinstr;
 	struct proc *p;
@@ -244,45 +248,53 @@ ptrace_single_step(struct thread *td)
 	/*
 	 * Fetch what's at the current location.
 	 */
-	ptrace_read_int(td,  (off_t)locr0->pc, &curinstr);
+	error = ptrace_read_int(td, locr0->pc, &curinstr);
+	if (error)
+		goto out;
+
+	CTR3(KTR_PTRACE,
+	    "ptrace_single_step: tid %d, current instr at %#lx: %#08x",
+	    td->td_tid, locr0->pc, curinstr);
 
 	/* compute next address after current location */
-	if(curinstr != 0) {
+	if (locr0->cause & MIPS_CR_BR_DELAY) {
 		va = MipsEmulateBranch(locr0, locr0->pc, locr0->fsr,
 		    (uintptr_t)&curinstr);
 	} else {
 		va = locr0->pc + 4;
 	}
 	if (td->td_md.md_ss_addr) {
-		printf("SS %s (%d): breakpoint already set at %x (va %x)\n",
-		    p->p_comm, p->p_pid, td->td_md.md_ss_addr, va); /* XXX */
-		return (EFAULT);
+		printf("SS %s (%d): breakpoint already set at %p (va %p)\n",
+		    p->p_comm, p->p_pid, (void *)td->td_md.md_ss_addr,
+		    (void *)va); /* XXX */
+		error = EFAULT;
+		goto out;
 	}
 	td->td_md.md_ss_addr = va;
 	/*
 	 * Fetch what's at the current location.
 	 */
-	ptrace_read_int(td, (off_t)va, &td->td_md.md_ss_instr);
+	error = ptrace_read_int(td, (off_t)va, &td->td_md.md_ss_instr);
+	if (error)
+		goto out;
 
 	/*
 	 * Store breakpoint instruction at the "next" location now.
 	 */
-	i = ptrace_write_int (td, va, bpinstr);
+	error = ptrace_write_int(td, va, bpinstr);
 
 	/*
-	 * The sync'ing of I & D caches is done by procfs_domem()
-	 * through procfs_rwmem().
+	 * The sync'ing of I & D caches is done by proc_rwmem()
+	 * through proc_writemem().
 	 */
 
+out:
 	PROC_LOCK(p);
-	if (i < 0)
-		return (EFAULT);
-#if 0
-	printf("SS %s (%d): breakpoint set at %x: %x (pc %x) br %x\n",
-	    p->p_comm, p->p_pid, p->p_md.md_ss_addr,
-	    p->p_md.md_ss_instr, locr0->pc, curinstr); /* XXX */
-#endif
-	return (0);
+	if (error == 0)
+		CTR3(KTR_PTRACE,
+		    "ptrace_single_step: tid %d, break set at %#lx: (%#08x)",
+		    td->td_tid, va, td->td_md.md_ss_instr); 
+	return (error);
 }
 
 
@@ -290,9 +302,9 @@ void
 makectx(struct trapframe *tf, struct pcb *pcb)
 {
 
-	pcb->pcb_regs.ra = tf->ra;
-	pcb->pcb_regs.pc = tf->pc;
-	pcb->pcb_regs.sp = tf->sp;
+	pcb->pcb_context[PCB_REG_RA] = tf->ra;
+	pcb->pcb_context[PCB_REG_PC] = tf->pc;
+	pcb->pcb_context[PCB_REG_SP] = tf->sp;
 }
 
 int
@@ -376,7 +388,8 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	if (td == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td);
-	memcpy(fpregs, &td->td_frame->f0, sizeof(struct fpreg)); 
+	memcpy(fpregs, &td->td_frame->f0, sizeof(struct fpreg));
+	fpregs->r_regs[FIR_NUM] = cpuinfo.fpu_id;
 	return 0;
 }
 
@@ -402,12 +415,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
-	/*
-	 * The stack pointer has to be aligned to accommodate the largest
-	 * datatype at minimum.  This probably means it should be 16-byte
-	 * aligned, but for now we're 8-byte aligning it.
-	 */
-	td->td_frame->sp = ((register_t) stack) & ~(sizeof(__int64_t) - 1);
+	td->td_frame->sp = ((register_t)stack) & ~(STACK_ALIGN - 1);
 
 	/*
 	 * If we're running o32 or n32 programs but have 64-bit registers,
@@ -423,15 +431,12 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 * 0xffffffff80007f00 and the load is instead done from
 	 * 0xffffffff7ffffff0.
 	 *
-	 * To prevent this, we subtract 64K from the stack pointer here.
-	 *
-	 * For consistency, we should just always do this unless we're
-	 * running n64 programs.  For now, since we don't support
-	 * COMPAT_FREEBSD32 on n64 kernels, we just do it unless we're
-	 * running n64 kernels.
+	 * To prevent this, we subtract 64K from the stack pointer here
+	 * for processes with 32-bit pointers.
 	 */
-#if !defined(__mips_n64)
-	td->td_frame->sp -= 65536;
+#if defined(__mips_n32) || defined(__mips_n64)
+	if (!SV_PROC_FLAG(td->td_proc, SV_LP64))
+		td->td_frame->sp -= 65536;
 #endif
 
 	td->td_frame->pc = imgp->entry_addr & ~3;
@@ -466,13 +471,15 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	if (PCPU_GET(fpcurthread) == td)
 	    PCPU_SET(fpcurthread, (struct thread *)0);
 	td->td_md.md_ss_addr = 0;
+
+	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE;
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
-	int i;
 	struct proc *p;
+	int error;
 
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -482,13 +489,20 @@ ptrace_clear_single_step(struct thread *td)
 	/*
 	 * Restore original instruction and clear BP
 	 */
-	i = ptrace_write_int (td, td->td_md.md_ss_addr, td->td_md.md_ss_instr);
+	PROC_UNLOCK(p);
+	CTR3(KTR_PTRACE,
+	    "ptrace_clear_single_step: tid %d, restore instr at %#lx: %#08x",
+	    td->td_tid, td->td_md.md_ss_addr, td->td_md.md_ss_instr);
+	error = ptrace_write_int(td, td->td_md.md_ss_addr,
+	    td->td_md.md_ss_instr);
+	PROC_LOCK(p);
 
-	/* The sync'ing of I & D caches is done by procfs_domem(). */
+	/* The sync'ing of I & D caches is done by proc_rwmem(). */
 
-	if (i < 0) {
-		log(LOG_ERR, "SS %s %d: can't restore instruction at %x: %x\n",
-		    p->p_comm, p->p_pid, td->td_md.md_ss_addr,
+	if (error != 0) {
+		log(LOG_ERR,
+		    "SS %s %d: can't restore instruction at %p: %x\n",
+		    p->p_comm, p->p_pid, (void *)td->td_md.md_ss_addr,
 		    td->td_md.md_ss_instr);
 	}
 	td->td_md.md_ss_addr = 0;

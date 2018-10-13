@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2003-2004 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
@@ -41,6 +43,7 @@ struct sfstat {				/* sendfile statistics */
 	uint64_t	sf_busy;	/* times aborted on a busy page */
 	uint64_t	sf_allocfail;	/* times sfbuf allocation failed */
 	uint64_t	sf_allocwait;	/* times sfbuf allocation had to wait */
+	uint64_t	sf_pages_bogus;	/* times bogus page was used */
 };
 
 #ifdef _KERNEL
@@ -74,9 +77,6 @@ struct sfstat {				/* sendfile statistics */
  *			that do no invalidate cache on the rest of CPUs.
  * SFBUF_NOMD		This machine doesn't have machine/sf_buf.h
  *
- * SFBUF_OPTIONAL_DIRECT_MAP	Value of this define is used as boolean
- *				variable that tells whether machine is
- *				capable of direct map or not at runtime.
  * SFBUF_MAP		This machine provides its own sf_buf_map() and
  *			sf_buf_unmap().
  * SFBUF_PROCESS_PAGE	This machine provides sf_buf_process_page()
@@ -106,9 +106,6 @@ struct sf_buf;
 #ifndef SFBUF_NOMD
 #include <machine/sf_buf.h>
 #endif
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-#include <machine/md_var.h>
-#endif
 
 #ifdef SFBUF
 struct sf_buf *sf_buf_alloc(struct vm_page *, int);
@@ -118,10 +115,8 @@ void sf_buf_ref(struct sf_buf *);
 static inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-	if (SFBUF_OPTIONAL_DIRECT_MAP)
-		return (SFBUF_PHYS_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
-#endif
+	if (PMAP_HAS_DMAP)
+		return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 
         return (sf->kva);
 }
@@ -129,10 +124,8 @@ sf_buf_kva(struct sf_buf *sf)
 static inline vm_page_t
 sf_buf_page(struct sf_buf *sf)
 {
-#ifdef SFBUF_OPTIONAL_DIRECT_MAP
-	if (SFBUF_OPTIONAL_DIRECT_MAP)
+	if (PMAP_HAS_DMAP)
 		return ((vm_page_t)sf);
-#endif
 
         return (sf->m);
 }

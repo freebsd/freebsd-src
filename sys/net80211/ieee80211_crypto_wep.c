@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -180,10 +182,22 @@ wep_encap(struct ieee80211_key *k, struct mbuf *m)
 {
 	struct wep_ctx *ctx = k->wk_private;
 	struct ieee80211com *ic = ctx->wc_ic;
+	struct ieee80211_frame *wh;
 	uint8_t *ivp;
 	int hdrlen;
+	int is_mgmt;
 
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
+	wh = mtod(m, struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
+
+	/*
+	 * Check to see if IV is required.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOIVMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOIV))
+		return 1;
 
 	/*
 	 * Copy down 802.11 header and add the IV + KeyID.
@@ -228,8 +242,14 @@ wep_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	struct wep_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->wc_vap;
 	struct ieee80211_frame *wh;
+	const struct ieee80211_rx_stats *rxs;
 
 	wh = mtod(m, struct ieee80211_frame *);
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+		goto finish;
 
 	/*
 	 * Check if the device handled the decrypt in hardware.
@@ -249,6 +269,9 @@ wep_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	 */
 	ovbcopy(mtod(m, void *), mtod(m, uint8_t *) + wep.ic_header, hdrlen);
 	m_adj(m, wep.ic_header);
+
+finish:
+	/* XXX TODO: do we have to strip this for offload devices? */
 	m_adj(m, -wep.ic_trailer);
 
 	return 1;
@@ -433,7 +456,7 @@ wep_decrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	}
 
 	off = hdrlen + wep.ic_header;
-	data_len = m->m_pkthdr.len - (off + wep.ic_trailer),
+	data_len = m->m_pkthdr.len - (off + wep.ic_trailer);
 
 	/* Compute CRC32 over unencrypted data and apply RC4 to data */
 	crc = ~0;

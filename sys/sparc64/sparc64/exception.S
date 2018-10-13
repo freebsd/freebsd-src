@@ -56,7 +56,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 
@@ -74,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/utrap.h>
 #include <machine/wstate.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define	TSB_ASI			0x0
 #define	TSB_KERNEL		0x0
@@ -2476,9 +2475,8 @@ ENTRY(tl0_intr)
 	inc	%l1
 	stx	%l1, [%l0]
 
-	lduw	[PCPU(CNT) + V_INTR], %l0
-	inc	%l0
-	stw	%l0, [PCPU(CNT) + V_INTR]
+	call	counter_intr_inc
+	 nop
 
 	ba,a	%xcc, tl0_ret
 	 nop
@@ -2989,11 +2987,8 @@ ENTRY(tl1_intr)
 	add	%l5, %l4, %l4
 	ldx	[%l4], %l5
 	inc	%l5
-	stx	%l5, [%l4]
-
-	lduw	[PCPU(CNT) + V_INTR], %l4
-	inc	%l4
-	stw	%l4, [PCPU(CNT) + V_INTR]
+	call	counter_intr_inc
+	 stx	%l5, [%l4]
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l4
 

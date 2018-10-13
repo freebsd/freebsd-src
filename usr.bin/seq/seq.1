@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2013
+.Dd April 30, 2018
 .Dt SEQ 1
 .Os
 .Sh NAME
@@ -72,7 +72,7 @@ The
 .Nm
 utility accepts the following options:
 .Bl -tag -width Ar
-.It Fl f Ar format
+.It Fl f Ar format , Fl -format Ar format
 Use a
 .Xr printf 3
 style
@@ -98,7 +98,7 @@ defined in
 .St -ansiC .
 The default is
 .Cm %g .
-.It Fl s Ar string
+.It Fl s Ar string , Fl -separator Ar string
 Use
 .Ar string
 to separate numbers.
@@ -109,7 +109,7 @@ defined in
 .St -ansiC .
 The default is
 .Cm \en .
-.It Fl t Ar string
+.It Fl t Ar string , Fl -terminator Ar string
 Use
 .Ar string
 to terminate sequence of numbers.
@@ -121,7 +121,7 @@ defined in
 This option is useful when the default separator
 does not contain a
 .Cm \en .
-.It Fl w
+.It Fl w , Fl -fixed-width
 Equalize the widths of all numbers by padding with zeros as necessary.
 This option has no effect with the
 .Fl f
@@ -156,13 +156,13 @@ the default conversion is changed to
 .Sh HISTORY
 The
 .Nm
-command first appeared in
-.Tn "Plan 9 from Bell Labs" .
+command first appeared in Version\~8
+.At .
 A
 .Nm
 command appeared in
 .Nx 3.0 ,
-and ported to
+and was ported to
 .Fx 9.0 .
 This command was based on the command of the same name in
 .Tn "Plan 9 from Bell Labs"
@@ -180,9 +180,4 @@ option does not handle the transition from pure floating point
 to exponent representation very well.
 The
 .Nm
-command is not bug for bug compatible with the
-.Tn "Plan 9 from Bell Labs"
-or
-.Tn GNU
-versions of
-.Nm .
+command is not bug for bug compatible with other implementations.

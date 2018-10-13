@@ -4,6 +4,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -50,9 +52,14 @@ comment				\#.*
 
 hexdigit			[0-9a-fA-F]
 hexbyte				{hexdigit}{hexdigit}?
+hexword				{hexdigit}{hexdigit}?{hexdigit}?{hexdigit}?
 
 device_word			device
 bdaddr_word			bdaddr
+name_word			name
+vendor_id_word			vendor_id
+product_id_word			product_id
+version_word			version
 control_psm_word		control_psm
 interrupt_psm_word		interrupt_psm
 reconnect_initiate_word		reconnect_initiate
@@ -64,6 +71,8 @@ false_word			false
 
 bdaddrstring			{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}
 hexbytestring			0x{hexbyte}
+hexwordstring			0x{hexword}
+string				\".+\"
 
 %%
 
@@ -78,6 +87,10 @@ hexbytestring			0x{hexbyte}
 
 {device_word}			return (T_DEVICE);
 {bdaddr_word}			return (T_BDADDR);
+{name_word}			return (T_NAME);
+{vendor_id_word}		return (T_VENDOR_ID);
+{product_id_word}		return (T_PRODUCT_ID);
+{version_word}			return (T_VERSION);
 {control_psm_word}		return (T_CONTROL_PSM);
 {interrupt_psm_word}		return (T_INTERRUPT_PSM);
 {reconnect_initiate_word}	return (T_RECONNECT_INITIATE);
@@ -98,6 +111,20 @@ hexbytestring			0x{hexbyte}
 				yylval.num = strtoul(yytext, &ep, 16);
 
 				return (*ep == '\0'? T_HEXBYTE : T_ERROR);
+				}
+
+{hexwordstring}			{
+				char	*ep;
+
+				yylval.num = strtoul(yytext, &ep, 16);
+
+				return (*ep == '\0'? T_HEXWORD : T_ERROR);
+				}
+
+{string}			{
+				yytext[strlen(yytext) - 1] = 0;
+				yylval.string = &yytext[1];
+				return (T_STRING);
 				}
 
 .				return (T_ERROR);

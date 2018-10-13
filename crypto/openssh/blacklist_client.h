@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
+ * Copyright (c) 2016 The FreeBSD Foundation, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Kurt Lidl
+ * under sponsorship from the FreeBSD Foundation.
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Christos Zoulas.
@@ -27,5 +31,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-void blacklist_notify(int);
+#ifndef BLACKLIST_CLIENT_H
+#define BLACKLIST_CLIENT_H
+
+#ifndef BLACKLIST_API_ENUM
+enum {
+	BLACKLIST_AUTH_OK = 0,
+	BLACKLIST_AUTH_FAIL,
+	BLACKLIST_ABUSIVE_BEHAVIOR,
+	BLACKLIST_BAD_USER
+};
+#endif
+
+#ifdef USE_BLACKLIST
 void blacklist_init(void);
+void blacklist_notify(int, const char *);
+
+#define BLACKLIST_INIT() blacklist_init()
+#define BLACKLIST_NOTIFY(x,msg) blacklist_notify(x,msg)
+
+#else
+
+#define BLACKLIST_INIT()
+#define BLACKLIST_NOTIFY(x,msg)
+
+#endif
+
+
+#endif /* BLACKLIST_CLIENT_H */

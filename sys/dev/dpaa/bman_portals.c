@@ -95,7 +95,7 @@ bman_portals_detach(device_t dev)
 		}
 
 		if (sc->sc_dp[i].dp_ires != NULL) {
-			XX_DeallocIntr((int)sc->sc_dp[i].dp_ires);
+			XX_DeallocIntr((uintptr_t)sc->sc_dp[i].dp_ires);
 			bus_release_resource(dev, SYS_RES_IRQ,
 			    sc->sc_dp[i].dp_irid, sc->sc_dp[i].dp_ires);
 		}
@@ -116,7 +116,8 @@ bman_portal_setup(struct bman_softc *bsc)
 	struct dpaa_portals_softc *sc;
 	t_BmPortalParam bpp;
 	t_Handle portal;
-	unsigned int cpu, p;
+	unsigned int cpu;
+	uintptr_t p;
 
 	/* Return NULL if we're not ready or while detach */
 	if (bp_sc == NULL)
@@ -129,9 +130,9 @@ bman_portal_setup(struct bman_softc *bsc)
 	cpu = PCPU_GET(cpuid);
 
 	/* Check if portal is ready */
-	while (atomic_cmpset_acq_32((uint32_t *)&sc->sc_dp[cpu].dp_ph,
+	while (atomic_cmpset_acq_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph,
 	    0, -1) == 0) {
-		p = atomic_load_acq_32((uint32_t *)&sc->sc_dp[cpu].dp_ph);
+		p = atomic_load_acq_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph);
 
 		/* Return if portal is already initialized */
 		if (p != 0 && p != -1) {
@@ -153,7 +154,7 @@ bman_portal_setup(struct bman_softc *bsc)
 	bpp.ciBaseAddress = rman_get_bushandle(sc->sc_rres[1]);
 	bpp.h_Bm = bsc->sc_bh;
 	bpp.swPortalId = cpu;
-	bpp.irq = (int)sc->sc_dp[cpu].dp_ires;
+	bpp.irq = (uintptr_t)sc->sc_dp[cpu].dp_ires;
 
 	portal = BM_PORTAL_Config(&bpp);
 	if (portal == NULL)
@@ -162,8 +163,7 @@ bman_portal_setup(struct bman_softc *bsc)
 	if (BM_PORTAL_Init(portal) != E_OK)
 		goto err;
 
-	atomic_store_rel_32((uint32_t *)&sc->sc_dp[cpu].dp_ph,
-	    (uint32_t)portal);
+	atomic_store_rel_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph, (uintptr_t)portal);
 	
 	sched_unpin();
 
@@ -173,7 +173,7 @@ err:
 	if (portal != NULL)
 		BM_PORTAL_Free(portal);
 
-	atomic_store_rel_32((uint32_t *)&sc->sc_dp[cpu].dp_ph, 0);
+	atomic_store_rel_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph, 0);
 	sched_unpin();
 
 	return (NULL);

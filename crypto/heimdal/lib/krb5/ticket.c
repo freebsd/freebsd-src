@@ -713,8 +713,8 @@ _krb5_extract_ticket(krb5_context context,
     /* check server referral and save principal */
     ret = _krb5_principalname2krb5_principal (context,
 					      &tmp_principal,
-					      rep->kdc_rep.ticket.sname,
-					      rep->kdc_rep.ticket.realm);
+					      rep->enc_part.sname,
+					      rep->enc_part.srealm);
     if (ret)
 	goto out;
     if((flags & EXTRACT_TICKET_ALLOW_SERVER_MISMATCH) == 0){

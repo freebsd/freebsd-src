@@ -13,14 +13,14 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
-#define DEBUG_TYPE "processimplicitdefs"
+#define DEBUG_TYPE "processimpdefs"
 
 namespace {
 /// Process IMPLICIT_DEF instructions and make sure there is one implicit_def
@@ -51,9 +51,7 @@ public:
 char ProcessImplicitDefs::ID = 0;
 char &llvm::ProcessImplicitDefsID = ProcessImplicitDefs::ID;
 
-INITIALIZE_PASS_BEGIN(ProcessImplicitDefs, "processimpdefs",
-                "Process Implicit Definitions", false, false)
-INITIALIZE_PASS_END(ProcessImplicitDefs, "processimpdefs",
+INITIALIZE_PASS(ProcessImplicitDefs, DEBUG_TYPE,
                 "Process Implicit Definitions", false, false)
 
 void ProcessImplicitDefs::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -156,7 +154,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &MF) {
     if (WorkList.empty())
       continue;
 
-    DEBUG(dbgs() << "BB#" << MFI->getNumber() << " has " << WorkList.size()
+    DEBUG(dbgs() << printMBBReference(*MFI) << " has " << WorkList.size()
                  << " implicit defs.\n");
     Changed = true;
 

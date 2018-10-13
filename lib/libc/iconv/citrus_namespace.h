@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_namespace.h,v 1.8 2009/01/11 02:46:24 christos Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

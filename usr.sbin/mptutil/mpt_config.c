@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -65,12 +67,16 @@ dehumanize(const char *value)
         switch (vtp[0]) {
         case 't': case 'T':
                 iv *= 1024;
+                /* FALLTHROUGH */
         case 'g': case 'G':
                 iv *= 1024;
+                /* FALLTHROUGH */
         case 'm': case 'M':
                 iv *= 1024;
+                /* FALLTHROUGH */
         case 'k': case 'K':
                 iv *= 1024;
+                /* FALLTHROUGH */
         case '\0':
                 break;
         default:
@@ -242,6 +248,7 @@ clear_config(int ac, char **av)
 	if (ioc2 == NULL) {
 		error = errno;
 		warn("Failed to fetch volume list");
+		close(fd);
 		return (error);
 	}
 
@@ -251,6 +258,8 @@ clear_config(int ac, char **av)
 		if (mpt_lock_volume(vol->VolumeBus, vol->VolumeID) < 0) {
 			warnx("Volume %s is busy and cannot be deleted",
 			    mpt_volume_name(vol->VolumeBus, vol->VolumeID));
+			free(ioc2);
+			close(fd);
 			return (EBUSY);
 		}
 	}
@@ -261,6 +270,8 @@ clear_config(int ac, char **av)
 	ch = getchar();
 	if (ch != 'y' && ch != 'Y') {
 		printf("\nAborting\n");
+		free(ioc2);
+		close(fd);
 		return (0);
 	}
 
@@ -555,16 +566,16 @@ build_volume(int fd, struct volume_info *info, int raid_type, long stripe_size,
 	case RT_RAID0:
 		vol->VolumeType = MPI_RAID_VOL_TYPE_IS;
 		vol->StripeSize = stripe_size / 512;
-		MaxLBA = MinLBA * info->drive_count;
+		MaxLBA = (uint64_t)MinLBA * info->drive_count;
 		break;
 	case RT_RAID1:
 		vol->VolumeType = MPI_RAID_VOL_TYPE_IM;
-		MaxLBA = MinLBA * (info->drive_count / 2);
+		MaxLBA = (uint64_t)MinLBA * (info->drive_count / 2);
 		break;
 	case RT_RAID1E:
 		vol->VolumeType = MPI_RAID_VOL_TYPE_IME;
 		vol->StripeSize = stripe_size / 512;
-		MaxLBA = MinLBA * info->drive_count / 2;
+		MaxLBA = (uint64_t)MinLBA * info->drive_count / 2;
 		break;
 	default:
 		/* Pacify gcc. */
@@ -643,6 +654,7 @@ create_volume(int ac, char **av)
 
 	if (raid_type == -1) {
 		warnx("Unknown or unsupported volume type %s", av[1]);
+		close(fd);
 		return (EINVAL);
 	}
 
@@ -669,6 +681,7 @@ create_volume(int ac, char **av)
 			stripe_size = dehumanize(optarg);
 			if ((stripe_size < 512) || (!powerof2(stripe_size))) {
 				warnx("Invalid stripe size %s", optarg);
+				close(fd);
 				return (EINVAL);
 			}
 			break;
@@ -677,6 +690,7 @@ create_volume(int ac, char **av)
 			break;
 		case '?':
 		default:
+			close(fd);
 			return (EINVAL);
 		}
 	}
@@ -688,14 +702,18 @@ create_volume(int ac, char **av)
 	if (state.ioc2 == NULL) {
 		error = errno;
 		warn("Failed to read volume list");
+		close(fd);
 		return (error);
 	}
 	state.list = mpt_pd_list(fd);
-	if (state.list == NULL)
+	if (state.list == NULL) {
+		close(fd);
 		return (errno);
+	}
 	error = mpt_fetch_disks(fd, &state.nsdisks, &state.sdisks);
 	if (error) {
 		warn("Failed to fetch standalone disk list");
+		close(fd);
 		return (error);
 	}	
 	state.target_id = 0xff;
@@ -703,24 +721,36 @@ create_volume(int ac, char **av)
 	/* Parse the drive list. */
 	if (ac != 1) {
 		warnx("Exactly one drive list is required");
+		close(fd);
 		return (EINVAL);
 	}
 	info = calloc(1, sizeof(*info));
-	if (info == NULL)
+	if (info == NULL) {
+		close(fd);
 		return (ENOMEM);
+	}
 	error = parse_volume(fd, raid_type, &state, av[0], info);
-	if (error)
+	if (error) {
+		free(info);
+		close(fd);
 		return (error);
+	}
 
 	/* Create RAID physdisk pages for standalone disks. */
 	error = add_drives(fd, info, verbose);
-	if (error)
+	if (error) {
+		free(info);
+		close(fd);
 		return (error);
+	}
 
 	/* Build the volume. */
 	vol = build_volume(fd, info, raid_type, stripe_size, &state, verbose);
-	if (vol == NULL)
+	if (vol == NULL) {
+		free(info);
+		close(fd);
 		return (errno);
+	}
 
 #ifdef DEBUG
 	if (dump) {
@@ -736,6 +766,8 @@ create_volume(int ac, char **av)
 	if (error) {
 		errno = error;
 		warn("Failed to add volume");
+		free(info);
+		close(fd);
 		return (error);
 	}
 
@@ -777,11 +809,14 @@ delete_volume(int ac, char **av)
 	error = mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID);
 	if (error) {
 		warnc(error, "Invalid volume %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
-	if (mpt_lock_volume(VolumeBus, VolumeID) < 0)
+	if (mpt_lock_volume(VolumeBus, VolumeID) < 0) {
+		close(fd);
 		return (errno);
+	}
 
 	error = mpt_raid_action(fd, MPI_RAID_ACTION_DELETE_VOLUME, VolumeBus,
 	    VolumeID, 0, MPI_RAID_ACTION_ADATA_DEL_PHYS_DISKS |
@@ -789,6 +824,7 @@ delete_volume(int ac, char **av)
 	    NULL, 0);
 	if (error) {
 		warnc(error, "Failed to delete volume");
+		close(fd);
 		return (error);
 	}
 
@@ -826,6 +862,7 @@ find_volume_spare_pool(int fd, const char *name, int *pool)
 	    0) {
 		*pool = 1 << (ffs(info->VolumeSettings.HotSparePool &
 		    ~MPI_RAID_HOT_SPARE_POOL_0) - 1);
+		free(info);
 		return (0);
 	}
 	free(info);
@@ -871,6 +908,7 @@ find_volume_spare_pool(int fd, const char *name, int *pool)
 	if (error) {
 		warnx("Failed to add spare pool %d to %s", new_pool,
 		    mpt_volume_name(VolumeBus, VolumeID));
+		free(info);
 		return (error);
 	}
 	free(info);
@@ -906,8 +944,10 @@ add_spare(int ac, char **av)
 
 	if (ac == 3) {
 		error = find_volume_spare_pool(fd, av[2], &pool);
-		if (error)
+		if (error) {
+			close(fd);
 			return (error);
+		}
 	} else
 		pool = MPI_RAID_HOT_SPARE_POOL_0;
 
@@ -920,6 +960,8 @@ add_spare(int ac, char **av)
 		error = mpt_fetch_disks(fd, &nsdisks, &sdisks);
 		if (error != 0) {
 			warn("Failed to fetch standalone disk list");
+			mpt_free_pd_list(list);
+			close(fd);
 			return (error);
 		}
 
@@ -927,15 +969,22 @@ add_spare(int ac, char **av)
 		    0) {
 			error = errno;
 			warn("Unable to lookup drive %s", av[1]);
+			mpt_free_pd_list(list);
+			close(fd);
 			return (error);
 		}
 
-		if (mpt_lock_physdisk(&sdisks[i]) < 0)
+		if (mpt_lock_physdisk(&sdisks[i]) < 0) {
+			mpt_free_pd_list(list);
+			close(fd);
 			return (errno);
+		}
 
 		if (mpt_create_physdisk(fd, &sdisks[i], &PhysDiskNum) < 0) {
 			error = errno;
 			warn("Failed to create physical disk page");
+			mpt_free_pd_list(list);
+			close(fd);
 			return (error);
 		}
 		free(sdisks);
@@ -946,6 +995,7 @@ add_spare(int ac, char **av)
 	if (info == NULL) {
 		error = errno;
 		warn("Failed to fetch drive info");
+		close(fd);
 		return (error);
 	}
 
@@ -955,6 +1005,7 @@ add_spare(int ac, char **av)
 	    NULL, 0, NULL, NULL, 0);
 	if (error) {
 		warnc(error, "Failed to assign spare");
+		close(fd);
 		return (error);
 	}
 
@@ -986,12 +1037,15 @@ remove_spare(int ac, char **av)
 	}
 
 	list = mpt_pd_list(fd);
-	if (list == NULL)
+	if (list == NULL) {
+		close(fd);
 		return (errno);
+	}
 
 	error = mpt_lookup_drive(list, av[1], &PhysDiskNum);
 	if (error) {
 		warn("Failed to find drive %s", av[1]);
+		close(fd);
 		return (error);
 	}
 	mpt_free_pd_list(list);
@@ -1001,17 +1055,22 @@ remove_spare(int ac, char **av)
 	if (info == NULL) {
 		error = errno;
 		warn("Failed to fetch drive info");
+		close(fd);
 		return (error);
 	}
 
 	if (info->PhysDiskSettings.HotSparePool == 0) {
 		warnx("Drive %u is not a hot spare", PhysDiskNum);
+		free(info);
+		close(fd);
 		return (EINVAL);
 	}
 
 	if (mpt_delete_physdisk(fd, PhysDiskNum) < 0) {
 		error = errno;
 		warn("Failed to delete physical disk page");
+		free(info);
+		close(fd);
 		return (error);
 	}
 

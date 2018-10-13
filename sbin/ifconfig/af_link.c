@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,6 +44,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <ifaddrs.h>
+#include <unistd.h>
 
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -57,28 +60,78 @@ static void
 link_status(int s __unused, const struct ifaddrs *ifa)
 {
 	/* XXX no const 'cuz LLADDR is defined wrong */
-	struct sockaddr_dl *sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+	struct sockaddr_dl *sdl;
 	char *ether_format, *format_char;
+	struct ifreq ifr;
+	int n, rc, sock_hw;
+	static const u_char laggaddr[6] = {0};
 
-	if (sdl != NULL && sdl->sdl_alen > 0) {
-		if ((sdl->sdl_type == IFT_ETHER ||
-		    sdl->sdl_type == IFT_L2VLAN ||
-		    sdl->sdl_type == IFT_BRIDGE) &&
-		    sdl->sdl_alen == ETHER_ADDR_LEN) {
-			ether_format = ether_ntoa((struct ether_addr *)LLADDR(sdl));
-			if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
-				for (format_char = strchr(ether_format, ':'); 
-				    format_char != NULL; 
-				    format_char = strchr(ether_format, ':'))
-					*format_char = '-';
-			}
-			printf("\tether %s\n", ether_format);
-		} else {
-			int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+	if (sdl == NULL || sdl->sdl_alen == 0)
+		return;
 
-			printf("\tlladdr %s\n", link_ntoa(sdl) + n);
+	if ((sdl->sdl_type == IFT_ETHER || sdl->sdl_type == IFT_L2VLAN ||
+	    sdl->sdl_type == IFT_BRIDGE) && sdl->sdl_alen == ETHER_ADDR_LEN) {
+		ether_format = ether_ntoa((struct ether_addr *)LLADDR(sdl));
+		if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
+			for (format_char = strchr(ether_format, ':');
+			    format_char != NULL;
+			    format_char = strchr(ether_format, ':'))
+				*format_char = '-';
 		}
+		printf("\tether %s\n", ether_format);
+	} else {
+		n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+		printf("\tlladdr %s\n", link_ntoa(sdl) + n);
 	}
+
+	/*
+	 * Best-effort (i.e. failures are silent) to get original
+	 * hardware address, as read by NIC driver at attach time. Only
+	 * applies to Ethernet NICs (IFT_ETHER). However, laggX
+	 * interfaces claim to be IFT_ETHER, and re-type their component
+	 * Ethernet NICs as IFT_IEEE8023ADLAG. So, check for both. If
+	 * the MAC is zeroed, then it's actually a lagg.
+	 */
+	if ((sdl->sdl_type != IFT_ETHER &&
+	    sdl->sdl_type != IFT_IEEE8023ADLAG) ||
+	    sdl->sdl_alen != ETHER_ADDR_LEN)
+		return;
+
+	strncpy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name));
+	memcpy(&ifr.ifr_addr, ifa->ifa_addr, sizeof(ifa->ifa_addr->sa_len));
+	ifr.ifr_addr.sa_family = AF_LOCAL;
+	if ((sock_hw = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0) {
+		warn("socket(AF_LOCAL,SOCK_DGRAM)");
+		return;
+	}
+	rc = ioctl(sock_hw, SIOCGHWADDR, &ifr);
+	close(sock_hw);
+	if (rc != 0)
+		return;
+
+	/*
+	 * If this is definitely a lagg device or the hwaddr
+	 * matches the link addr, don't bother.
+	 */
+	if (memcmp(ifr.ifr_addr.sa_data, laggaddr, sdl->sdl_alen) == 0 ||
+	    memcmp(ifr.ifr_addr.sa_data, LLADDR(sdl), sdl->sdl_alen) == 0)
+		goto pcp;
+
+	ether_format = ether_ntoa((const struct ether_addr *)
+	    &ifr.ifr_addr.sa_data);
+	if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
+		for (format_char = strchr(ether_format, ':');
+		     format_char != NULL;
+		     format_char = strchr(ether_format, ':'))
+			*format_char = '-';
+	}
+	printf("\thwaddr %s\n", ether_format);
+
+pcp:
+	if (ioctl(s, SIOCGLANPCP, (caddr_t)&ifr) == 0 &&
+	    ifr.ifr_lan_pcp != IFNET_PCP_NONE)
+		printf("\tpcp %d\n", ifr.ifr_lan_pcp);
 }
 
 static void
@@ -90,13 +143,24 @@ link_getaddr(const char *addr, int which)
 
 	if (which != ADDR)
 		errx(1, "can't set link-level netmask or broadcast");
-	if ((temp = malloc(strlen(addr) + 2)) == NULL)
-		errx(1, "malloc failed");
-	temp[0] = ':';
-	strcpy(temp + 1, addr);
-	sdl.sdl_len = sizeof(sdl);
-	link_addr(temp, &sdl);
-	free(temp);
+	if (!strcmp(addr, "random")) {
+		sdl.sdl_len = sizeof(sdl);
+		sdl.sdl_alen = ETHER_ADDR_LEN;
+		sdl.sdl_nlen = 0;
+		sdl.sdl_family = AF_LINK;
+		arc4random_buf(&sdl.sdl_data, ETHER_ADDR_LEN);
+		/* Non-multicast and claim it is locally administered. */
+		sdl.sdl_data[0] &= 0xfc;
+		sdl.sdl_data[0] |= 0x02;
+	} else {
+		if ((temp = malloc(strlen(addr) + 2)) == NULL)
+			errx(1, "malloc failed");
+		temp[0] = ':';
+		strcpy(temp + 1, addr);
+		sdl.sdl_len = sizeof(sdl);
+		link_addr(temp, &sdl);
+		free(temp);
+	}
 	if (sdl.sdl_alen > sizeof(sa->sa_data))
 		errx(1, "malformed link-level address");
 	sa->sa_family = AF_LINK;

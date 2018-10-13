@@ -1,6 +1,8 @@
 /*	$NetBSD: frame.h,v 1.5 2002/10/19 00:10:54 bjh21 Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994-1997 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.
@@ -94,6 +96,7 @@ struct trapframe {
 struct sigframe {
 	siginfo_t       sf_si;          /* actual saved siginfo */
 	ucontext_t      sf_uc;          /* actual saved ucontext */
+	mcontext_vfp_t	sf_vfp;         /* actual saved VFP context */
 };
 
 
@@ -117,6 +120,10 @@ struct switchframe
         register_t sf_sp;
         register_t sf_lr;
         register_t sf_pc;
+#if __ARM_ARCH >= 6
+        register_t sf_tpidrurw;
+        register_t sf_spare0;
+#endif
 };
 
 

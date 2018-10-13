@@ -22,4 +22,18 @@ typedef union
 #endif /* !YYSTYPE_IS_DECLARED */
 extern YYSTYPE err_inherit4_lval;
 
+#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
+/* Default: YYLTYPE is the text position type. */
+typedef struct YYLTYPE
+{
+    int first_line;
+    int first_column;
+    int last_line;
+    int last_column;
+    unsigned source;
+} YYLTYPE;
+#define YYLTYPE_IS_DECLARED 1
+#endif
+#define YYRHSLOC(rhs, k) ((rhs)[k])
+
 #endif /* _err_inherit4__defines_h_ */

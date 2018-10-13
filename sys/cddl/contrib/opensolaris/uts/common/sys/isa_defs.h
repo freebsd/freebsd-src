@@ -388,7 +388,7 @@ extern "C" {
 #define	_DONT_USE_1275_GENERIC_NAMES
 #define	_HAVE_CPUID_INSN
 
-#elif defined(__riscv__)
+#elif defined(__riscv)
 
 /*
  * Define the appropriate "processor characteristics"
@@ -525,7 +525,9 @@ extern "C" {
 /*
  * Define the appropriate "implementation choices".
  */
+#if !defined(_ILP32)
 #define	_ILP32
+#endif
 #if !defined(_I32LPx) && defined(_KERNEL)
 #define	_I32LPx
 #endif

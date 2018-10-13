@@ -3,14 +3,17 @@
 
 DIRDEPS = \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/arpa \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcapsicum \
+	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_dns \
 	lib/libcompiler_rt \
 	lib/libipsec \
+	lib/libnv \
 
 
 .include <dirdeps.mk>

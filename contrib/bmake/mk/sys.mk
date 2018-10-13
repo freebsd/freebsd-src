@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.43 2016/04/05 15:58:37 sjg Exp $
+# $Id: sys.mk,v 1.46 2017/11/15 22:59:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -15,38 +15,8 @@
 
 # Avoid putting anything platform specific in here.
 
-# We use the following paradigm for preventing multiple inclusion.
-# It relies on the fact that conditionals and dependencies are resolved 
-# at the time they are read.
-#
-# _this ?= ${.PARSEFILE}
-# .if !target(__${_this}__)
-# __${_this}__:
-#
-.if ${MAKE_VERSION:U0} > 20100408
-_this = ${.PARSEDIR:tA}/${.PARSEFILE}
-.else
-_this = ${.PARSEDIR}/${.PARSEFILE}
-.endif
-
-# Sometimes we want to turn on debugging in just one or two places
-# if .CURDIR is matched by any entry in DEBUG_MAKE_SYS_DIRS we
-# will apply DEBUG_MAKE_FLAGS now.
-# if an entry in DEBUG_MAKE_DIRS matches, we at the end of sys.mk
-# eg.  DEBUG_MAKE_FLAGS=-dv DEBUG_MAKE_SYS_DIRS="*lib/sjg"
-# use DEBUG_MAKE_FLAGS0 to apply only to .MAKE.LEVEL 0
-#
-.if ${.MAKE.LEVEL:U1} == 0
-# we use indirection, to simplify the tests below, and incase
-# DEBUG_* were given on our command line.
-_DEBUG_MAKE_FLAGS = ${DEBUG_MAKE_FLAGS0}
-_DEBUG_MAKE_SYS_DIRS = ${DEBUG_MAKE_SYS_DIRS0:U${DEBUG_MAKE_SYS_DIRS}}
-_DEBUG_MAKE_DIRS = ${DEBUG_MAKE_DIRS0:U${DEBUG_MAKE_DIRS}}
-.else
-_DEBUG_MAKE_FLAGS = ${DEBUG_MAKE_FLAGS}
-_DEBUG_MAKE_SYS_DIRS = ${DEBUG_MAKE_SYS_DIRS}
-_DEBUG_MAKE_DIRS = ${DEBUG_MAKE_DIRS}
-.endif
+# _DEBUG_MAKE_FLAGS etc.
+.include <sys.debug.mk>
 
 .if !empty(_DEBUG_MAKE_FLAGS)
 .if ${_DEBUG_MAKE_SYS_DIRS:Uno:@x@${.CURDIR:M$x}@} != ""
@@ -54,47 +24,8 @@ _DEBUG_MAKE_DIRS = ${DEBUG_MAKE_DIRS}
 .endif
 .endif
 
-# if this is an ancient version of bmake
-MAKE_VERSION ?= 0
-.if ${MAKE_VERSION:M*make-*}
-# turn it into what we want - just the date
-MAKE_VERSION := ${MAKE_VERSION:[1]:C,.*-,,}
-.endif
-
-# some useful modifiers
-
-# A useful trick for testing multiple :M's against something
-# :L says to use the variable's name as its value - ie. literal
-# got = ${clean* destroy:${M_ListToMatch:S,V,.TARGETS,}}
-M_ListToMatch = L:@m@$${V:M$$m}@
-# match against our initial targets (see above)
-M_L_TARGETS = ${M_ListToMatch:S,V,_TARGETS,}
-
-# turn a list into a set of :N modifiers
-# NskipFoo = ${Foo:${M_ListToSkip}}
-M_ListToSkip= O:u:ts::S,:,:N,g:S,^,N,
-
-# type should be a builtin in any sh since about 1980,
-# but sadly there are exceptions!
-.if ${.MAKE.OS:Unknown:NBSD/OS} == ""
-_type_sh = which
-.endif
-# AUTOCONF := ${autoconf:L:${M_whence}}
-M_type = @x@(${_type_sh:Utype} $$x) 2> /dev/null; echo;@:sh:[0]:N* found*:[@]:C,[()],,g
-M_whence = ${M_type}:M/*:[1]
-
-# convert a path to a valid shell variable
-M_P2V = tu:C,[./-],_,g
-
-# convert path to absolute
-.if ${MAKE_VERSION:U0} > 20100408
-M_tA = tA
-.else
-M_tA = C,.*,('cd' & \&\& 'pwd') 2> /dev/null || echo &,:sh
-.endif
-
-# absoulte path to what we are reading.
-_PARSEDIR = ${.PARSEDIR:${M_tA}}
+# useful modifiers
+.include <sys.vars.mk>
 
 # we expect a recent bmake
 .if !defined(_TARGETS)
@@ -140,11 +71,11 @@ SYS_OS_MK := ${_sys_mk}
 # some options we need to know early
 OPTIONS_DEFAULT_NO += \
 	DIRDEPS_BUILD \
-	DIRDEPS_CACHE \
-	META_MODE
+	DIRDEPS_CACHE
 
 OPTIONS_DEFAULT_DEPENDENT += \
 	AUTO_OBJ/DIRDEPS_BUILD \
+	META_MODE/DIRDEPS_BUILD \
 	STAGING/DIRDEPS_BUILD \
 
 .-include <options.mk>
@@ -153,7 +84,7 @@ OPTIONS_DEFAULT_DEPENDENT += \
 MK_META_MODE = yes
 .-include <meta.sys.mk>
 .elif ${MK_META_MODE:Uno} == "yes"
-.MAKE.MODE = meta verbose
+.MAKE.MODE = meta verbose ${META_MODE}
 .endif
 # make sure we have a harmless value
 .MAKE.MODE ?= normal

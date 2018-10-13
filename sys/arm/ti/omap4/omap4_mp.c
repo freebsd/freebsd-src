@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Olivier Houchard.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,20 +40,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 
 #include <arm/ti/ti_smc.h>
+#include <arm/ti/omap4/omap4_machdep.h>
 #include <arm/ti/omap4/omap4_smc.h>
 
 void
-platform_mp_setmaxid(void)
+omap4_mp_setmaxid(platform_t plat)
 {
 
+	if (mp_ncpus != 0)
+		return;
 	mp_maxid = 1;
 	mp_ncpus = 2;
 }
 
 void    
-platform_mp_start_ap(void)
+omap4_mp_start_ap(platform_t plat)
 {
 	bus_addr_t scu_addr;
 
@@ -64,6 +70,7 @@ platform_mp_start_ap(void)
 
 	ti_smc0(0x200, 0xfffffdff, MODIFY_AUX_CORE_0);
 	ti_smc0(pmap_kextract((vm_offset_t)mpentry), 0, WRITE_AUX_CORE_1);
-	armv7_sev();
+	dsb();
+	sev();
 	bus_space_unmap(fdtbus_bs_tag, scu_addr, 0x1000);
 }

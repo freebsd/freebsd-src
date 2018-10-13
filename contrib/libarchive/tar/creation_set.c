@@ -80,9 +80,10 @@ get_filter_code(const char *suffix)
 		{ ".lzma",	"lzma" },
 		{ ".uu",	"uuencode" },
 		{ ".xz",	"xz" },
+		{ ".zst",	"zstd"},
 		{ NULL,		NULL }
 	};
-	
+
 	return get_suffix_code(filters, suffix);
 }
 
@@ -121,6 +122,7 @@ decompose_alias(const char *suffix)
 		{ ".tzo",	".tar.lzo" },
 		{ ".taZ",	".tar.Z" },
 		{ ".tZ",	".tar.Z" },
+		{ ".tzst",	".tar.zst" },
 		{ NULL,		NULL }
 	};
 
@@ -295,7 +297,7 @@ cset_auto_compress(struct creation_set *cset, const char *filename)
 		struct filter_set *v;
 		int i, r;
 
-		/* Release previos filters. */
+		/* Release previous filters. */
 		_cleanup_filters(old_filters, old_filter_count);
 
 		v = malloc(sizeof(*v) * cset->filter_count);
@@ -308,7 +310,7 @@ cset_auto_compress(struct creation_set *cset, const char *filename)
 		cset->filters = v;
 		return (1);
 	} else {
-		/* Put previos filters back. */
+		/* Put previous filters back. */
 		cset->filters = old_filters;
 		cset->filter_count = old_filter_count;
 		return (0);

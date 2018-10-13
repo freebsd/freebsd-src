@@ -33,17 +33,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.228 2016/02/20 23:01:46 sobrado Exp $
+.\" $OpenBSD: ssh_config.5,v 1.281 2018/07/23 19:02:49 kn Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 20 2016 $
+.Dd $Mdocdate: July 23 2018 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
 .Nm ssh_config
 .Nd OpenSSH SSH client configuration files
-.Sh SYNOPSIS
-.Nm ~/.ssh/config
-.Nm /etc/ssh/ssh_config
 .Sh DESCRIPTION
 .Xr ssh 1
 obtains configuration data from the following sources in
@@ -63,25 +60,25 @@ system-wide configuration file
 For each parameter, the first obtained value
 will be used.
 The configuration files contain sections separated by
-.Dq Host
+.Cm Host
 specifications, and that section is only applied for hosts that
 match one of the patterns given in the specification.
 The matched host name is usually the one given on the command line
 (see the
 .Cm CanonicalizeHostname
-option for exceptions.)
+option for exceptions).
 .Pp
 Since the first obtained value for each parameter is used, more
 host-specific declarations should be given near the beginning of the
 file, and general defaults at the end.
 .Pp
-The configuration file has the following format:
-.Pp
-Empty lines and lines starting with
+The file contains keyword-argument pairs, one per line.
+Lines starting with
 .Ql #
-are comments.
-Otherwise a line is of the format
-.Dq keyword arguments .
+and empty lines are interpreted as comments.
+Arguments may optionally be enclosed in double quotes
+.Pq \&"
+in order to represent arguments containing spaces.
 Configuration options may be separated by whitespace or
 optional whitespace and exactly one
 .Ql = ;
@@ -93,9 +90,6 @@ and
 .Nm sftp
 .Fl o
 option.
-Arguments may optionally be enclosed in double quotes
-.Pq \&"
-in order to represent arguments containing spaces.
 .Pp
 The possible
 keywords and their meanings are as follows (note that
@@ -118,7 +112,7 @@ The host is usually the
 argument given on the command line
 (see the
 .Cm CanonicalizeHostname
-option for exceptions.)
+keyword for exceptions).
 .Pp
 A pattern entry may be negated by prefixing it with an exclamation mark
 .Pq Sq !\& .
@@ -178,24 +172,11 @@ The
 keyword executes the specified command under the user's shell.
 If the command returns a zero exit status then the condition is considered true.
 Commands containing whitespace characters must be quoted.
-The following character sequences in the command will be expanded prior to
-execution:
-.Ql %L
-will be substituted by the first component of the local host name,
-.Ql %l
-will be substituted by the local host name (including any domain name),
-.Ql %h
-will be substituted by the target host name,
-.Ql %n
-will be substituted by the original target host name
-specified on the command-line,
-.Ql %p
-the destination port,
-.Ql %r
-by the remote login username, and
-.Ql %u
-by the username of the user running
-.Xr ssh 1 .
+Arguments to
+.Cm exec
+accept the tokens described in the
+.Sx TOKENS
+section.
 .Pp
 The other keywords' criteria must be single entries or comma-separated
 lists and may use the wildcard and negation operators described in the
@@ -226,65 +207,61 @@ files).
 Specifies whether keys should be automatically added to a running
 .Xr ssh-agent 1 .
 If this option is set to
-.Dq yes
+.Cm yes
 and a key is loaded from a file, the key and its passphrase are added to
 the agent with the default lifetime, as if by
 .Xr ssh-add 1 .
 If this option is set to
-.Dq ask ,
-.Nm ssh
+.Cm ask ,
+.Xr ssh 1
 will require confirmation using the
 .Ev SSH_ASKPASS
 program before adding a key (see
 .Xr ssh-add 1
 for details).
 If this option is set to
-.Dq confirm ,
+.Cm confirm ,
 each use of the key must be confirmed, as if the
 .Fl c
 option was specified to
 .Xr ssh-add 1 .
 If this option is set to
-.Dq no ,
+.Cm no ,
 no keys are added to the agent.
 The argument must be
-.Dq yes ,
-.Dq confirm ,
-.Dq ask ,
+.Cm yes ,
+.Cm confirm ,
+.Cm ask ,
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm AddressFamily
 Specifies which address family to use when connecting.
 Valid arguments are
-.Dq any ,
-.Dq inet
+.Cm any
+(the default),
+.Cm inet
 (use IPv4 only), or
-.Dq inet6
+.Cm inet6
 (use IPv6 only).
-The default is
-.Dq any .
 .It Cm BatchMode
 If set to
-.Dq yes ,
+.Cm yes ,
 passphrase/password querying will be disabled.
 This option is useful in scripts and other batch jobs where no user
 is present to supply the password.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm BindAddress
 Use the specified address on the local machine as the source address of
 the connection.
 Only useful on systems with more than one address.
-Note that this option does not work if
-.Cm UsePrivilegedPort
-is set to
-.Dq yes .
+.It Cm BindInterface
+Use the address of the specified interface on the local machine as the
+source address of the connection.
 .It Cm CanonicalDomains
 When
 .Cm CanonicalizeHostname
@@ -293,11 +270,11 @@ search for the specified destination host.
 .It Cm CanonicalizeFallbackLocal
 Specifies whether to fail with an error when hostname canonicalization fails.
 The default,
-.Dq yes ,
+.Cm yes ,
 will attempt to look up the unqualified hostname using the system resolver's
 search rules.
 A value of
-.Dq no
+.Cm no
 will cause
 .Xr ssh 1
 to fail instantly if
@@ -308,11 +285,11 @@ specified by
 .It Cm CanonicalizeHostname
 Controls whether explicit hostname canonicalization is performed.
 The default,
-.Dq no ,
+.Cm no ,
 is not to perform any name rewriting and let the system resolver handle all
 hostname lookups.
 If set to
-.Dq yes
+.Cm yes
 then, for connections that do not use a
 .Cm ProxyCommand ,
 .Xr ssh 1
@@ -325,7 +302,7 @@ rules.
 If
 .Cm CanonicalizeHostname
 is set to
-.Dq always ,
+.Cm always ,
 then canonicalization is applied to proxied connections too.
 .Pp
 If this option is enabled, then the configuration files are processed
@@ -337,8 +314,7 @@ stanzas.
 .It Cm CanonicalizeMaxDots
 Specifies the maximum number of dot characters in a hostname before
 canonicalization is disabled.
-The default,
-.Dq 1 ,
+The default, 1,
 allows a single dot (i.e. hostname.subdomain).
 .It Cm CanonicalizePermittedCNAMEs
 Specifies rules to determine whether CNAMEs should be followed when
@@ -353,13 +329,13 @@ and
 is a pattern-list of domains that they may resolve to.
 .Pp
 For example,
-.Dq *.a.example.com:*.b.example.com,*.c.example.com
+.Qq *.a.example.com:*.b.example.com,*.c.example.com
 will allow hostnames matching
-.Dq *.a.example.com
+.Qq *.a.example.com
 to be canonicalized to names in the
-.Dq *.b.example.com
+.Qq *.b.example.com
 or
-.Dq *.c.example.com
+.Qq *.c.example.com
 domains.
 .It Cm CertificateFile
 Specifies a file from which the user's certificate is read.
@@ -376,19 +352,12 @@ via
 or via a
 .Cm PKCS11Provider .
 .Pp
-The file name may use the tilde
-syntax to refer to a user's home directory or one of the following
-escape characters:
-.Ql %d
-(local user's home directory),
-.Ql %u
-(local user name),
-.Ql %l
-(local host name),
-.Ql %h
-(remote host name) or
-.Ql %r
-(remote user name).
+Arguments to
+.Cm CertificateFile
+may use the tilde syntax to refer to a user's home directory
+or the tokens described in the
+.Sx TOKENS
+section.
 .Pp
 It is possible to have multiple certificate files specified in
 configuration files; these certificates will be tried in sequence.
@@ -399,105 +368,62 @@ authentication.
 .It Cm ChallengeResponseAuthentication
 Specifies whether to use challenge-response authentication.
 The argument to this keyword must be
-.Dq yes
+.Cm yes
+(the default)
 or
-.Dq no .
-The default is
-.Dq yes .
+.Cm no .
 .It Cm CheckHostIP
-If this flag is set to
-.Dq yes ,
+If set to
+.Cm yes ,
 .Xr ssh 1
 will additionally check the host IP address in the
 .Pa known_hosts
 file.
-This allows ssh to detect if a host key changed due to DNS spoofing
+This allows it to detect if a host key changed due to DNS spoofing
 and will add addresses of destination hosts to
 .Pa ~/.ssh/known_hosts
 in the process, regardless of the setting of
 .Cm StrictHostKeyChecking .
 If the option is set to
-.Dq no ,
+.Cm no ,
 the check will not be executed.
 The default is
-.Dq no .
-.It Cm Cipher
-Specifies the cipher to use for encrypting the session
-in protocol version 1.
-Currently,
-.Dq blowfish ,
-.Dq 3des ,
-and
-.Dq des
-are supported.
-.Ar des
-is only supported in the
-.Xr ssh 1
-client for interoperability with legacy protocol 1 implementations
-that do not support the
-.Ar 3des
-cipher.
-Its use is strongly discouraged due to cryptographic weaknesses.
-The default is
-.Dq 3des .
+.Cm no .
 .It Cm Ciphers
-Specifies the ciphers allowed for protocol version 2
-in order of preference.
+Specifies the ciphers allowed and their order of preference.
 Multiple ciphers must be comma-separated.
 If the specified value begins with a
 .Sq +
 character, then the specified ciphers will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified ciphers (including wildcards) will be removed
+from the default set instead of replacing them.
 .Pp
 The supported ciphers are:
-.Pp
-.Bl -item -compact -offset indent
-.It
+.Bd -literal -offset indent
 3des-cbc
-.It
 aes128-cbc
-.It
 aes192-cbc
-.It
 aes256-cbc
-.It
 aes128-ctr
-.It
 aes192-ctr
-.It
 aes256-ctr
-.It
 aes128-gcm@openssh.com
-.It
 aes256-gcm@openssh.com
-.It
-arcfour
-.It
-arcfour128
-.It
-arcfour256
-.It
-blowfish-cbc
-.It
-cast128-cbc
-.It
 chacha20-poly1305@openssh.com
-.El
+.Ed
 .Pp
 The default is:
 .Bd -literal -offset indent
 chacha20-poly1305@openssh.com,
 aes128-ctr,aes192-ctr,aes256-ctr,
-aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-aes128-cbc,aes192-cbc,aes256-cbc,3des-cbc
+aes128-gcm@openssh.com,aes256-gcm@openssh.com
 .Ed
 .Pp
-The list of available ciphers may also be obtained using the
-.Fl Q
-option of
-.Xr ssh 1
-with an argument of
-.Dq cipher .
+The list of available ciphers may also be obtained using
+.Qq ssh -Q cipher .
 .It Cm ClearAllForwardings
 Specifies that all local, remote, and dynamic port forwardings
 specified in the configuration files or on the command line be
@@ -510,26 +436,17 @@ configuration files, and is automatically set by
 and
 .Xr sftp 1 .
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm Compression
 Specifies whether to use compression.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
-.It Cm CompressionLevel
-Specifies the compression level to use if compression is enabled.
-The argument must be an integer from 1 (fast) to 9 (slow, best).
-The default level is 6, which is good for most applications.
-The meaning of the values is the same as in
-.Xr gzip 1 .
-Note that this option applies to protocol version 1 only.
+.Cm no
+(the default).
 .It Cm ConnectionAttempts
 Specifies the number of tries (one per second) to make before exiting.
 The argument must be an integer.
@@ -543,7 +460,7 @@ not when it refuses the connection.
 .It Cm ControlMaster
 Enables the sharing of multiple sessions over a single network connection.
 When set to
-.Dq yes ,
+.Cm yes ,
 .Xr ssh 1
 will listen for connections on a control socket specified using the
 .Cm ControlPath
@@ -553,21 +470,23 @@ Additional sessions can connect to this socket using the same
 with
 .Cm ControlMaster
 set to
-.Dq no
+.Cm no
 (the default).
 These sessions will try to reuse the master instance's network connection
 rather than initiating new ones, but will fall back to connecting normally
 if the control socket does not exist, or is not listening.
 .Pp
 Setting this to
-.Dq ask
-will cause ssh
+.Cm ask
+will cause
+.Xr ssh 1
 to listen for control connections, but require confirmation using
 .Xr ssh-askpass 1 .
 If the
 .Cm ControlPath
 cannot be opened,
-ssh will continue without connecting to a master instance.
+.Xr ssh 1
+will continue without connecting to a master instance.
 .Pp
 X11 and
 .Xr ssh-agent 1
@@ -579,41 +498,25 @@ Two additional options allow for opportunistic multiplexing: try to use a
 master connection but fall back to creating a new one if one does not already
 exist.
 These options are:
-.Dq auto
+.Cm auto
 and
-.Dq autoask .
+.Cm autoask .
 The latter requires confirmation like the
-.Dq ask
+.Cm ask
 option.
 .It Cm ControlPath
 Specify the path to the control socket used for connection sharing as described
 in the
 .Cm ControlMaster
 section above or the string
-.Dq none
+.Cm none
 to disable connection sharing.
-In the path,
-.Ql %L
-will be substituted by the first component of the local host name,
-.Ql %l
-will be substituted by the local host name (including any domain name),
-.Ql %h
-will be substituted by the target host name,
-.Ql %n
-will be substituted by the original target host name
-specified on the command line,
-.Ql %p
-the destination port,
-.Ql %r
-by the remote login username,
-.Ql %u
-by the username and
-.Ql %i
-by the numeric user ID (uid) of the user running
-.Xr ssh 1 ,
-and
-.Ql \&%C
-by a hash of the concatenation: %l%h%p%r.
+Arguments to
+.Cm ControlPath
+may use the tilde syntax to refer to a user's home directory
+or the tokens described in the
+.Sx TOKENS
+section.
 It is recommended that any
 .Cm ControlPath
 used for opportunistic connection sharing include
@@ -627,18 +530,15 @@ specifies that the master connection should remain open
 in the background (waiting for future client connections)
 after the initial client connection has been closed.
 If set to
-.Dq no ,
+.Cm no ,
 then the master connection will not be placed into the background,
 and will close as soon as the initial client connection is closed.
 If set to
-.Dq yes
-or
-.Dq 0 ,
+.Cm yes
+or 0,
 then the master connection will remain in the background indefinitely
 (until killed or closed via a mechanism such as the
-.Xr ssh 1
-.Dq Fl O No exit
-option).
+.Qq ssh -O exit ) .
 If set to a time in seconds, or a time in any of the formats documented in
 .Xr sshd_config 5 ,
 then the backgrounded master connection will automatically terminate
@@ -664,7 +564,7 @@ may be used to bind the connection to a specific address.
 The
 .Ar bind_address
 of
-.Dq localhost
+.Cm localhost
 indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
@@ -678,7 +578,7 @@ additional forwardings can be given on the command line.
 Only the superuser can forward privileged ports.
 .It Cm EnableSSHKeysign
 Setting this option to
-.Dq yes
+.Cm yes
 in the global client configuration file
 .Pa /etc/ssh/ssh_config
 enables the use of the helper program
@@ -686,11 +586,10 @@ enables the use of the helper program
 during
 .Cm HostbasedAuthentication .
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 This option should be placed in the non-hostspecific section.
 See
 .Xr ssh-keysign 8
@@ -703,7 +602,7 @@ be set on the command line.
 The argument should be a single character,
 .Ql ^
 followed by a letter, or
-.Dq none
+.Cm none
 to disable the escape
 character entirely (making the connection transparent for binary
 data).
@@ -720,28 +619,25 @@ for example, cause
 .Xr ssh 1
 to exit if TCP connections to the ultimate forwarding destination fail.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm FingerprintHash
 Specifies the hash algorithm used when displaying key fingerprints.
 Valid options are:
-.Dq md5
+.Cm md5
 and
-.Dq sha256 .
-The default is
-.Dq sha256 .
+.Cm sha256
+(the default).
 .It Cm ForwardAgent
 Specifies whether the connection to the authentication agent (if any)
 will be forwarded to the remote machine.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .Pp
 Agent forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
@@ -756,11 +652,10 @@ over the secure channel and
 .Ev DISPLAY
 set.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .Pp
 X11 forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
@@ -773,7 +668,8 @@ option is also enabled.
 .It Cm ForwardX11Timeout
 Specify a timeout for untrusted X11 forwarding
 using the format described in the
-TIME FORMATS section of
+.Sx TIME FORMATS
+section of
 .Xr sshd_config 5 .
 X11 connections received by
 .Xr ssh 1
@@ -782,11 +678,12 @@ The default is to disable untrusted X11 forwarding after twenty minutes has
 elapsed.
 .It Cm ForwardX11Trusted
 If this option is set to
-.Dq yes ,
+.Cm yes ,
 remote X11 clients will have full access to the original X11 display.
 .Pp
 If this option is set to
-.Dq no ,
+.Cm no
+(the default),
 remote X11 clients will be considered untrusted and prevented
 from stealing or tampering with data belonging to trusted X11
 clients.
@@ -794,9 +691,6 @@ Furthermore, the
 .Xr xauth 1
 token used for the session will be set to expire after 20 minutes.
 Remote clients will be refused access after this time.
-.Pp
-The default is
-.Dq no .
 .Pp
 See the X11 SECURITY extension specification for full details on
 the restrictions imposed on untrusted clients.
@@ -812,11 +706,10 @@ can be used to specify that ssh
 should bind local port forwardings to the wildcard address,
 thus allowing remote hosts to connect to forwarded ports.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm GlobalKnownHostsFile
 Specifies one or more files to use for the global
 host key database, separated by whitespace.
@@ -826,11 +719,11 @@ The default is
 .It Cm GSSAPIAuthentication
 Specifies whether user authentication based on GSSAPI is allowed.
 The default is
-.Dq no .
+.Cm no .
 .It Cm GSSAPIDelegateCredentials
 Forward (delegate) credentials to the server.
 The default is
-.Dq no .
+.Cm no .
 .It Cm HashKnownHosts
 Indicates that
 .Xr ssh 1
@@ -843,7 +736,7 @@ and
 but they do not reveal identifying information should the file's contents
 be disclosed.
 The default is
-.Dq no .
+.Cm no .
 Note that existing names and addresses in known hosts files
 will not be converted automatically,
 but may be manually hashed using
@@ -852,29 +745,31 @@ but may be manually hashed using
 Specifies whether to try rhosts based authentication with public key
 authentication.
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm HostbasedKeyTypes
 Specifies the key types that will be used for hostbased authentication
-as a comma-separated pattern list.
+as a comma-separated list of patterns.
 Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
-ssh-dss-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,ssh-ed25519,
-ssh-rsa,ssh-dss
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The
@@ -889,51 +784,45 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
-ssh-dss-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,ssh-ed25519,
-ssh-rsa,ssh-dss
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
 to prefer their algorithms.
 .Pp
-The list of available key types may also be obtained using the
-.Fl Q
-option of
-.Xr ssh 1
-with an argument of
-.Dq key .
+The list of available key types may also be obtained using
+.Qq ssh -Q key .
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
 real host name when looking up or saving the host key
-in the host key database files.
+in the host key database files and when validating host certificates.
 This option is useful for tunneling SSH connections
 or for multiple servers running on a single host.
 .It Cm HostName
 Specifies the real host name to log into.
 This can be used to specify nicknames or abbreviations for hosts.
-If the hostname contains the character sequence
-.Ql %h ,
-then this will be replaced with the host name specified on the command line
-(this is useful for manipulating unqualified names).
-The character sequence
-.Ql %%
-will be replaced by a single
-.Ql %
-character, which may be used when specifying IPv6 link-local addresses.
-.Pp
-The default is the name given on the command line.
+Arguments to
+.Cm HostName
+accept the tokens described in the
+.Sx TOKENS
+section.
 Numeric IP addresses are also permitted (both on the command line and in
 .Cm HostName
 specifications).
+The default is the name given on the command line.
 .It Cm IdentitiesOnly
 Specifies that
 .Xr ssh 1
@@ -950,25 +839,44 @@ or a
 .Cm PKCS11Provider
 offers more identities.
 The argument to this keyword must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
+.Cm no
+(the default).
 This option is intended for situations where ssh-agent
 offers many different identities.
-The default is
-.Dq no .
+.It Cm IdentityAgent
+Specifies the
+.Ux Ns -domain
+socket used to communicate with the authentication agent.
+.Pp
+This option overrides the
+.Ev SSH_AUTH_SOCK
+environment variable and can be used to select a specific agent.
+Setting the socket name to
+.Cm none
+disables the use of an authentication agent.
+If the string
+.Qq SSH_AUTH_SOCK
+is specified, the location of the socket will be read from the
+.Ev SSH_AUTH_SOCK
+environment variable.
+.Pp
+Arguments to
+.Cm IdentityAgent
+may use the tilde syntax to refer to a user's home directory
+or the tokens described in the
+.Sx TOKENS
+section.
 .It Cm IdentityFile
 Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA authentication
 identity is read.
 The default is
-.Pa ~/.ssh/identity
-for protocol version 1, and
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_rsa
-for protocol version 2.
+.Pa ~/.ssh/id_rsa .
 Additionally, any identities represented by the authentication agent
 will be used for authentication unless
 .Cm IdentitiesOnly
@@ -982,19 +890,12 @@ appending
 to the path of a specified
 .Cm IdentityFile .
 .Pp
-The file name may use the tilde
-syntax to refer to a user's home directory or one of the following
-escape characters:
-.Ql %d
-(local user's home directory),
-.Ql %u
-(local user name),
-.Ql %l
-(local host name),
-.Ql %h
-(remote host name) or
-.Ql %r
-(remote user name).
+Arguments to
+.Cm IdentityFile
+may use the tilde syntax to refer to a user's home directory
+or the tokens described in the
+.Sx TOKENS
+section.
 .Pp
 It is possible to have
 multiple identity files specified in configuration files; all these
@@ -1024,51 +925,73 @@ It is recommended that
 .Cm IgnoreUnknown
 be listed early in the configuration file as it will not be applied
 to unknown options that appear before it.
+.It Cm Include
+Include the specified configuration file(s).
+Multiple pathnames may be specified and each pathname may contain
+.Xr glob 7
+wildcards and, for user configurations, shell-like
+.Sq ~
+references to user home directories.
+Files without absolute paths are assumed to be in
+.Pa ~/.ssh
+if included in a user configuration file or
+.Pa /etc/ssh
+if included from the system configuration file.
+.Cm Include
+directive may appear inside a
+.Cm Match
+or
+.Cm Host
+block
+to perform conditional inclusion.
 .It Cm IPQoS
 Specifies the IPv4 type-of-service or DSCP class for connections.
 Accepted values are
-.Dq af11 ,
-.Dq af12 ,
-.Dq af13 ,
-.Dq af21 ,
-.Dq af22 ,
-.Dq af23 ,
-.Dq af31 ,
-.Dq af32 ,
-.Dq af33 ,
-.Dq af41 ,
-.Dq af42 ,
-.Dq af43 ,
-.Dq cs0 ,
-.Dq cs1 ,
-.Dq cs2 ,
-.Dq cs3 ,
-.Dq cs4 ,
-.Dq cs5 ,
-.Dq cs6 ,
-.Dq cs7 ,
-.Dq ef ,
-.Dq lowdelay ,
-.Dq throughput ,
-.Dq reliability ,
-or a numeric value.
+.Cm af11 ,
+.Cm af12 ,
+.Cm af13 ,
+.Cm af21 ,
+.Cm af22 ,
+.Cm af23 ,
+.Cm af31 ,
+.Cm af32 ,
+.Cm af33 ,
+.Cm af41 ,
+.Cm af42 ,
+.Cm af43 ,
+.Cm cs0 ,
+.Cm cs1 ,
+.Cm cs2 ,
+.Cm cs3 ,
+.Cm cs4 ,
+.Cm cs5 ,
+.Cm cs6 ,
+.Cm cs7 ,
+.Cm ef ,
+.Cm lowdelay ,
+.Cm throughput ,
+.Cm reliability ,
+a numeric value, or
+.Cm none
+to use the operating system default.
 This option may take one or two arguments, separated by whitespace.
 If one argument is specified, it is used as the packet class unconditionally.
 If two values are specified, the first is automatically selected for
 interactive sessions and the second for non-interactive sessions.
 The default is
-.Dq lowdelay
+.Cm af21
+(Low-Latency Data)
 for interactive sessions and
-.Dq throughput
+.Cm cs1
+(Lower Effort)
 for non-interactive sessions.
 .It Cm KbdInteractiveAuthentication
 Specifies whether to use keyboard-interactive authentication.
 The argument to this keyword must be
-.Dq yes
+.Cm yes
+(the default)
 or
-.Dq no .
-The default is
-.Dq yes .
+.Cm no .
 .It Cm KbdInteractiveDevices
 Specifies the list of methods to use in keyboard-interactive authentication.
 Multiple method names must be comma-separated.
@@ -1076,10 +999,9 @@ The default is to use the server specified list.
 The methods available vary depending on what the server supports.
 For an OpenSSH server,
 it may be zero or more of:
-.Dq bsdauth ,
-.Dq pam ,
+.Cm bsdauth
 and
-.Dq skey .
+.Cm pam .
 .It Cm KexAlgorithms
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
@@ -1087,43 +1009,34 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified methods will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified methods (including wildcards) will be removed
+from the default set instead of replacing them.
 The default is:
 .Bd -literal -offset indent
-curve25519-sha256@libssh.org,
+curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
+diffie-hellman-group16-sha512,
+diffie-hellman-group18-sha512,
 diffie-hellman-group-exchange-sha1,
+diffie-hellman-group14-sha256,
 diffie-hellman-group14-sha1
 .Ed
 .Pp
-The list of available key exchange algorithms may also be obtained using the
-.Fl Q
-option of
-.Xr ssh 1
-with an argument of
-.Dq kex .
+The list of available key exchange algorithms may also be obtained using
+.Qq ssh -Q kex .
 .It Cm LocalCommand
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
 The command string extends to the end of the line, and is executed with
 the user's shell.
-The following escape character substitutions will be performed:
-.Ql %d
-(local user's home directory),
-.Ql %h
-(remote host name),
-.Ql %l
-(local host name),
-.Ql %n
-(host name as provided on the command line),
-.Ql %p
-(remote port),
-.Ql %r
-(remote user name) or
-.Ql %u
-(local user name) or
-.Ql \&%C
-by a hash of the concatenation: %l%h%p%r.
+Arguments to
+.Cm LocalCommand
+accept the tokens described in the
+.Sx TOKENS
+section.
 .Pp
 The command is run synchronously and does not have access to the
 session of the
@@ -1156,7 +1069,7 @@ may be used to bind the connection to a specific address.
 The
 .Ar bind_address
 of
-.Dq localhost
+.Cm localhost
 indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
@@ -1178,9 +1091,13 @@ If the specified value begins with a
 .Sq +
 character, then the specified algorithms will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified algorithms (including wildcards) will be removed
+from the default set instead of replacing them.
 .Pp
 The algorithms that contain
-.Dq -etm
+.Qq -etm
 calculate the MAC after encryption (encrypt-then-mac).
 These are considered safer and their use recommended.
 .Pp
@@ -1193,22 +1110,15 @@ umac-64@openssh.com,umac-128@openssh.com,
 hmac-sha2-256,hmac-sha2-512,hmac-sha1
 .Ed
 .Pp
-The list of available MAC algorithms may also be obtained using the
-.Fl Q
-option of
-.Xr ssh 1
-with an argument of
-.Dq mac .
+The list of available MAC algorithms may also be obtained using
+.Qq ssh -Q mac .
 .It Cm NoHostAuthenticationForLocalhost
-This option can be used if the home directory is shared across machines.
-In this case localhost will refer to a different machine on each of
-the machines and the user will get many warnings about changed host keys.
-However, this option disables host authentication for localhost.
+Disable host authentication for localhost (loopback addresses).
 The argument to this keyword must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is to check the host key for localhost.
+.Cm no
+(the default).
 .It Cm NumberOfPasswordPrompts
 Specifies the number of password prompts before giving up.
 The argument to this keyword must be an integer.
@@ -1216,11 +1126,10 @@ The default is 3.
 .It Cm PasswordAuthentication
 Specifies whether to use password authentication.
 The argument to this keyword must be
-.Dq yes
+.Cm yes
+(the default)
 or
-.Dq no .
-The default is
-.Dq yes .
+.Cm no .
 .It Cm PermitLocalCommand
 Allow local command execution via the
 .Ic LocalCommand
@@ -1229,11 +1138,10 @@ option or using the
 escape sequence in
 .Xr ssh 1 .
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm PKCS11Provider
 Specifies which PKCS#11 provider to use.
 The argument to this keyword is the PKCS#11 shared library
@@ -1254,25 +1162,6 @@ The default is:
 gssapi-with-mic,hostbased,publickey,
 keyboard-interactive,password
 .Ed
-.It Cm Protocol
-Specifies the protocol versions
-.Xr ssh 1
-should support in order of preference.
-The possible values are
-.Sq 1
-and
-.Sq 2 .
-Multiple versions must be comma-separated.
-When this option is set to
-.Dq 2,1
-.Nm ssh
-will try version 2 and fall back to version 1
-if version 2 is not available.
-The default is
-.Sq 2 .
-Protocol 1 suffers from a number of cryptographic weaknesses and should
-not be used.
-It is only offered to support legacy devices.
 .It Cm ProxyCommand
 Specifies the command to use to connect to the server.
 The command
@@ -1281,14 +1170,11 @@ using the user's shell
 .Ql exec
 directive to avoid a lingering shell process.
 .Pp
-In the command string, any occurrence of
-.Ql %h
-will be substituted by the host name to
-connect,
-.Ql %p
-by the port, and
-.Ql %r
-by the remote user name.
+Arguments to
+.Cm ProxyCommand
+accept the tokens described in the
+.Sx TOKENS
+section.
 The command can be basically anything,
 and should read from its standard input and write to its standard output.
 It should eventually connect an
@@ -1300,7 +1186,7 @@ Host key management will be done using the
 HostName of the host being connected (defaulting to the name typed by
 the user).
 Setting the command to
-.Dq none
+.Cm none
 disables this option entirely.
 Note that
 .Cm CheckHostIP
@@ -1314,6 +1200,31 @@ For example, the following directive would connect via an HTTP proxy at
 .Bd -literal -offset 3n
 ProxyCommand /usr/bin/nc -X connect -x 192.0.2.0:8080 %h %p
 .Ed
+.It Cm ProxyJump
+Specifies one or more jump proxies as either
+.Xo
+.Sm off
+.Op Ar user No @
+.Ar host
+.Op : Ns Ar port
+.Sm on
+or an ssh URI
+.Xc .
+Multiple proxies may be separated by comma characters and will be visited
+sequentially.
+Setting this option will cause
+.Xr ssh 1
+to connect to the target host by first making a
+.Xr ssh 1
+connection to the specified
+.Cm ProxyJump
+host and then establishing a
+TCP forwarding to the ultimate target from there.
+.Pp
+Note that this option will compete with the
+.Cm ProxyCommand
+option - whichever is specified first will prevent later instances of the
+other from taking effect.
 .It Cm ProxyUseFdpass
 Specifies that
 .Cm ProxyCommand
@@ -1321,40 +1232,39 @@ will pass a connected file descriptor back to
 .Xr ssh 1
 instead of continuing to execute and pass data.
 The default is
-.Dq no .
+.Cm no .
 .It Cm PubkeyAcceptedKeyTypes
 Specifies the key types that will be used for public key authentication
-as a comma-separated pattern list.
+as a comma-separated list of patterns.
 Alternately if the specified value begins with a
 .Sq +
 character, then the key types after it will be appended to the default
 instead of replacing it.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
-ssh-dss-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,ssh-ed25519,
-ssh-rsa,ssh-dss
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
-The
-.Fl Q
-option of
-.Xr ssh 1
-may be used to list supported key types.
+The list of available key types may also be obtained using
+.Qq ssh -Q key .
 .It Cm PubkeyAuthentication
 Specifies whether to try public key authentication.
 The argument to this keyword must be
-.Dq yes
+.Cm yes
+(the default)
 or
-.Dq no .
-The default is
-.Dq yes .
+.Cm no .
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted before the
 session key is renegotiated, optionally followed a maximum amount of
@@ -1372,23 +1282,40 @@ and
 depending on the cipher.
 The optional second value is specified in seconds and may use any of the
 units documented in the
-TIME FORMATS section of
+.Sx TIME FORMATS
+section of
 .Xr sshd_config 5 .
 The default value for
 .Cm RekeyLimit
 is
-.Dq default none ,
+.Cm default none ,
 which means that rekeying is performed after the cipher's default amount
 of data has been sent or received and no time based rekeying is done.
+.It Cm RemoteCommand
+Specifies a command to execute on the remote machine after successfully
+connecting to the server.
+The command string extends to the end of the line, and is executed with
+the user's shell.
+Arguments to
+.Cm RemoteCommand
+accept the tokens described in the
+.Sx TOKENS
+section.
 .It Cm RemoteForward
 Specifies that a TCP port on the remote machine be forwarded over
-the secure channel to the specified host and port from the local machine.
+the secure channel.
+The remote port may either be forwarded to a specified host and port
+from the local machine, or may act as a SOCKS 4/5 proxy that allows a remote
+client to connect to arbitrary destinations from the local machine.
 The first argument must be
 .Sm off
 .Oo Ar bind_address : Oc Ar port
 .Sm on
-and the second argument must be
-.Ar host : Ns Ar hostport .
+If forwarding to a specific destination then the second argument must be
+.Ar host : Ns Ar hostport ,
+otherwise if no destination argument is specified then the remote forwarding
+will be established as a SOCKS proxy.
+.Pp
 IPv6 addresses can be specified by enclosing addresses in square brackets.
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
@@ -1397,8 +1324,7 @@ logging in as root on the remote machine.
 .Pp
 If the
 .Ar port
-argument is
-.Ql 0 ,
+argument is 0,
 the listen port will be dynamically allocated on the server and reported
 to the client at run time.
 .Pp
@@ -1420,13 +1346,13 @@ option is enabled (see
 .It Cm RequestTTY
 Specifies whether to request a pseudo-tty for the session.
 The argument may be one of:
-.Dq no
+.Cm no
 (never request a TTY),
-.Dq yes
+.Cm yes
 (always request a TTY when standard input is a TTY),
-.Dq force
+.Cm force
 (always request a TTY) or
-.Dq auto
+.Cm auto
 (request a TTY when opening a login session).
 This option mirrors the
 .Fl t
@@ -1444,30 +1370,6 @@ an OpenSSH Key Revocation List (KRL) as generated by
 .Xr ssh-keygen 1 .
 For more information on KRLs, see the KEY REVOCATION LISTS section in
 .Xr ssh-keygen 1 .
-.It Cm RhostsRSAAuthentication
-Specifies whether to try rhosts based authentication with RSA host
-authentication.
-The argument must be
-.Dq yes
-or
-.Dq no .
-The default is
-.Dq no .
-This option applies to protocol version 1 only and requires
-.Xr ssh 1
-to be setuid root.
-.It Cm RSAAuthentication
-Specifies whether to try RSA authentication.
-The argument to this keyword must be
-.Dq yes
-or
-.Dq no .
-RSA authentication will only be
-attempted if the identity file exists, or an authentication agent is
-running.
-The default is
-.Dq yes .
-Note that this option applies to protocol version 1 only.
 .It Cm SendEnv
 Specifies what variables from the local
 .Xr environ 7
@@ -1488,11 +1390,16 @@ Multiple environment variables may be separated by whitespace or spread
 across multiple
 .Cm SendEnv
 directives.
-The default is not to send any environment variables.
 .Pp
 See
 .Sx PATTERNS
 for more information on patterns.
+.Pp
+It is possible to clear previously set
+.Cm SendEnv
+variable names by prefixing patterns with
+.Pa - .
+The default is not to send any environment variables.
 .It Cm ServerAliveCountMax
 Sets the number of server alive messages (see below) which may be
 sent without
@@ -1527,6 +1434,12 @@ will send a message through the encrypted
 channel to request a response from the server.
 The default
 is 0, indicating that these messages will not be sent to the server.
+.It Cm SetEnv
+Directly specify one or more environment variables and their contents to
+be sent to the server.
+Similarly to
+.Cm SendEnv ,
+the server must be prepared to accept the environment variable.
 .It Cm StreamLocalBindMask
 Sets the octal file creation mode mask
 .Pq umask
@@ -1549,44 +1462,52 @@ will be unable to forward the port to the Unix-domain socket file.
 This option is only used for port forwarding to a Unix-domain socket file.
 .Pp
 The argument must be
-.Dq yes
+.Cm yes
 or
-.Dq no .
-The default is
-.Dq no .
+.Cm no
+(the default).
 .It Cm StrictHostKeyChecking
 If this flag is set to
-.Dq yes ,
+.Cm yes ,
 .Xr ssh 1
 will never automatically add host keys to the
 .Pa ~/.ssh/known_hosts
 file, and refuses to connect to hosts whose host key has changed.
-This provides maximum protection against trojan horse attacks,
+This provides maximum protection against man-in-the-middle (MITM) attacks,
 though it can be annoying when the
 .Pa /etc/ssh/ssh_known_hosts
 file is poorly maintained or when connections to new hosts are
 frequently made.
 This option forces the user to manually
 add all new hosts.
+.Pp
 If this flag is set to
-.Dq no ,
-ssh will automatically add new host keys to the
-user known hosts files.
+.Dq accept-new
+then ssh will automatically add new host keys to the user
+known hosts files, but will not permit connections to hosts with
+changed host keys.
 If this flag is set to
-.Dq ask ,
+.Dq no
+or
+.Dq off ,
+ssh will automatically add new host keys to the user known hosts files
+and allow connections to hosts with changed hostkeys to proceed,
+subject to some restrictions.
+If this flag is set to
+.Cm ask
+(the default),
 new host keys
 will be added to the user known host files only after the user
 has confirmed that is what they really want to do, and
 ssh will refuse to connect to hosts whose host key has changed.
 The host keys of
 known hosts will be verified automatically in all cases.
-The argument must be
-.Dq yes ,
-.Dq no ,
-or
-.Dq ask .
-The default is
-.Dq ask .
+.It Cm SyslogFacility
+Gives the facility code that is used when logging messages from
+.Xr ssh 1 .
+The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
+LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
+The default is USER.
 .It Cm TCPKeepAlive
 Specifies whether the system should send TCP keepalive messages to the
 other side.
@@ -1597,31 +1518,33 @@ connections will die if the route is down temporarily, and some people
 find it annoying.
 .Pp
 The default is
-.Dq yes
+.Cm yes
 (to send TCP keepalive messages), and the client will notice
 if the network goes down or the remote host dies.
 This is important in scripts, and many users want it too.
 .Pp
 To disable TCP keepalive messages, the value should be set to
-.Dq no .
+.Cm no .
+See also
+.Cm ServerAliveInterval
+for protocol-level keepalives.
 .It Cm Tunnel
 Request
 .Xr tun 4
 device forwarding between the client and the server.
 The argument must be
-.Dq yes ,
-.Dq point-to-point
+.Cm yes ,
+.Cm point-to-point
 (layer 3),
-.Dq ethernet
+.Cm ethernet
 (layer 2),
 or
-.Dq no .
+.Cm no
+(the default).
 Specifying
-.Dq yes
+.Cm yes
 requests the default tunnel mode, which is
-.Dq point-to-point .
-The default is
-.Dq no .
+.Cm point-to-point .
 .It Cm TunnelDevice
 Specifies the
 .Xr tun 4
@@ -1635,14 +1558,14 @@ The argument must be
 .Ar local_tun Op : Ar remote_tun .
 .Sm on
 The devices may be specified by numerical ID or the keyword
-.Dq any ,
+.Cm any ,
 which uses the next available tunnel device.
 If
 .Ar remote_tun
 is not specified, it defaults to
-.Dq any .
+.Cm any .
 The default is
-.Dq any:any .
+.Cm any:any .
 .It Cm UpdateHostKeys
 Specifies whether
 .Xr ssh 1
@@ -1650,10 +1573,10 @@ should accept notifications of additional hostkeys from the server sent
 after authentication has completed and add them to
 .Cm UserKnownHostsFile .
 The argument must be
-.Dq yes ,
-.Dq no
+.Cm yes ,
+.Cm no
 (the default) or
-.Dq ask .
+.Cm ask .
 Enabling this option allows learning alternate hostkeys for a server
 and supports graceful key rotation by allowing a server to send replacement
 public keys before old ones are removed.
@@ -1662,7 +1585,7 @@ host was already trusted or explicitly accepted by the user.
 If
 .Cm UpdateHostKeys
 is set to
-.Dq ask ,
+.Cm ask ,
 then the user is asked to confirm the modifications to the known_hosts file.
 Confirmation is currently incompatible with
 .Cm ControlPersist ,
@@ -1671,25 +1594,8 @@ and will be disabled if it is enabled.
 Presently, only
 .Xr sshd 8
 from OpenSSH 6.8 and greater support the
-.Dq hostkeys@openssh.com
+.Qq hostkeys@openssh.com
 protocol extension used to inform the client of all the server's hostkeys.
-.It Cm UsePrivilegedPort
-Specifies whether to use a privileged port for outgoing connections.
-The argument must be
-.Dq yes
-or
-.Dq no .
-The default is
-.Dq no .
-If set to
-.Dq yes ,
-.Xr ssh 1
-must be setuid root.
-Note that this option must be set to
-.Dq yes
-for
-.Cm RhostsRSAAuthentication
-with older servers.
 .It Cm User
 Specifies the user to log in as.
 This can be useful when a different user name is used on different machines.
@@ -1705,50 +1611,46 @@ The default is
 Specifies whether to verify the remote key using DNS and SSHFP resource
 records.
 If this option is set to
-.Dq yes ,
+.Cm yes ,
 the client will implicitly trust keys that match a secure fingerprint
 from DNS.
 Insecure fingerprints will be handled as if this option was set to
-.Dq ask .
+.Cm ask .
 If this option is set to
-.Dq ask ,
+.Cm ask ,
 information on fingerprint match will be displayed, but the user will still
 need to confirm new host keys according to the
 .Cm StrictHostKeyChecking
 option.
-The argument must be
-.Dq yes ,
-.Dq no ,
-or
-.Dq ask .
 The default is
-.Dq yes
+.Cm yes
 if compiled with LDNS and
-.Dq no
+.Cm no
 otherwise.
 .Pp
-See also VERIFYING HOST KEYS in
+See also
+.Sx VERIFYING HOST KEYS
+in
 .Xr ssh 1 .
 .It Cm VersionAddendum
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20160310 .
+.Dq FreeBSD-20180909 .
 The value
-.Dq none
+.Cm none
 may be used to disable this.
 .It Cm VisualHostKey
 If this flag is set to
-.Dq yes ,
+.Cm yes ,
 an ASCII art representation of the remote host key fingerprint is
 printed in addition to the fingerprint string at login and
 for unknown host keys.
 If this flag is set to
-.Dq no ,
+.Cm no
+(the default),
 no fingerprint strings are printed at login and
 only the fingerprint string will be printed for unknown host keys.
-The default is
-.Dq no .
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1
@@ -1766,7 +1668,7 @@ or
 .Sq ?\&
 (a wildcard that matches exactly one character).
 For example, to specify a set of declarations for any host in the
-.Dq .co.uk
+.Qq .co.uk
 set of domains,
 the following pattern could be used:
 .Pp
@@ -1786,11 +1688,87 @@ by preceding them with an exclamation mark
 For example,
 to allow a key to be used from anywhere within an organization
 except from the
-.Dq dialup
+.Qq dialup
 pool,
 the following entry (in authorized_keys) could be used:
 .Pp
 .Dl from=\&"!*.dialup.example.com,*.example.com\&"
+.Pp
+Note that a negated match will never produce a positive result by itself.
+For example, attempting to match
+.Qq host3
+against the following pattern-list will fail:
+.Pp
+.Dl from=\&"!host1,!host2\&"
+.Pp
+The solution here is to include a term that will yield a positive match,
+such as a wildcard:
+.Pp
+.Dl from=\&"!host1,!host2,*\&"
+.Sh TOKENS
+Arguments to some keywords can make use of tokens,
+which are expanded at runtime:
+.Pp
+.Bl -tag -width XXXX -offset indent -compact
+.It %%
+A literal
+.Sq % .
+.It \&%C
+Hash of %l%h%p%r.
+.It %d
+Local user's home directory.
+.It %h
+The remote hostname.
+.It %i
+The local user ID.
+.It %L
+The local hostname.
+.It %l
+The local hostname, including the domain name.
+.It %n
+The original remote hostname, as given on the command line.
+.It %p
+The remote port.
+.It %r
+The remote username.
+.It \&%T
+The local
+.Xr tun 4
+or
+.Xr tap 4
+network interface assigned if
+tunnel forwarding was requested, or
+.Qq NONE
+otherwise.
+.It %u
+The local username.
+.El
+.Pp
+.Cm Match exec
+accepts the tokens %%, %h, %i, %L, %l, %n, %p, %r, and %u.
+.Pp
+.Cm CertificateFile
+accepts the tokens %%, %d, %h, %i, %l, %r, and %u.
+.Pp
+.Cm ControlPath
+accepts the tokens %%, %C, %h, %i, %L, %l, %n, %p, %r, and %u.
+.Pp
+.Cm HostName
+accepts the tokens %% and %h.
+.Pp
+.Cm IdentityAgent
+and
+.Cm IdentityFile
+accept the tokens %%, %d, %h, %i, %l, %r, and %u.
+.Pp
+.Cm LocalCommand
+accepts the tokens %%, %C, %d, %h, %i, %l, %n, %p, %r, %T, and %u.
+.Pp
+.Cm ProxyCommand
+accepts the tokens %%, %h, %p, and %r.
+.Pp
+.Cm RemoteCommand
+accepts the tokens %%, %C, %d, %h, %i, %l, %n, %p, %r, and %u.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.ssh/config
@@ -1809,11 +1787,15 @@ This file must be world-readable.
 .Sh SEE ALSO
 .Xr ssh 1
 .Sh AUTHORS
+.An -nosplit
 OpenSSH is a derivative of the original and free
-ssh 1.2.12 release by Tatu Ylonen.
-Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
-Theo de Raadt and Dug Song
+ssh 1.2.12 release by
+.An Tatu Ylonen .
+.An Aaron Campbell , Bob Beck , Markus Friedl ,
+.An Niels Provos , Theo de Raadt
+and
+.An Dug Song
 removed many bugs, re-added newer features and
 created OpenSSH.
-Markus Friedl contributed the support for SSH
-protocol versions 1.5 and 2.0.
+.An Markus Friedl
+contributed the support for SSH protocol versions 1.5 and 2.0.

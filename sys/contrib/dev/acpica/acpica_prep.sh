@@ -17,22 +17,23 @@ dst="$(realpath .)/acpi_ca_destination"
 fulldirs="common compiler components include os_specific"
 
 # files to remove
-stripdirs="generate libraries tests tools"
+stripdirs="generate libraries parsers preprocessor tests tools"
 stripfiles="Makefile README accygwin.h acdragonfly.h acdragonflyex.h	\
 	acefi.h acefiex.h achaiku.h acintel.h aclinux.h aclinuxex.h	\
 	acmacosx.h acmsvc.h acmsvcex.h acnetbsd.h acos2.h acqnx.h	\
 	acwin.h acwin64.h acwinex.h new_table.txt osbsdtbl.c osefitbl.c	\
 	osefixf.c osfreebsdtbl.c oslinuxtbl.c osunixdir.c osunixmap.c	\
-	oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"
+	oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c utprint.c"
 
 # include files to canonify
 src_headers="acapps.h acbuffer.h acclib.h accommon.h acconfig.h		\
-	acdebug.h acdisasm.h acdispat.h acevents.h acexcep.h acglobal.h	\
-	achware.h acinterp.h aclocal.h acmacros.h acnames.h acnamesp.h	\
-	acobject.h acopcode.h acoutput.h acparser.h acpi.h acpiosxf.h	\
-	acpixf.h acpredef.h acresrc.h acrestyp.h acstruct.h actables.h	\
-	actbl.h actbl1.h actbl2.h actbl3.h actypes.h acutils.h acuuid.h	\
-	amlcode.h amlresrc.h platform/acenv.h platform/acenvex.h	\
+	acconvert.h acdebug.h acdisasm.h acdispat.h acevents.h		\
+	acexcep.h acglobal.h achware.h acinterp.h aclocal.h acmacros.h	\
+	acnames.h acnamesp.h acobject.h acopcode.h acoutput.h		\
+	acparser.h acpi.h acpiosxf.h acpixf.h acpredef.h acresrc.h	\
+	acrestyp.h acstruct.h actables.h actbinfo.h actbl.h actbl1.h	\
+	actbl2.h actbl3.h actypes.h acutils.h acuuid.h amlcode.h	\
+	amlresrc.h platform/acenv.h platform/acenvex.h			\
 	platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
 	aslsupport.l asltypes.h dtcompiler.h dttemplate.h preprocess.h"
@@ -87,6 +88,6 @@ rm -rf ${wrk}
 # assist the developer in generating a diff
 echo "Directories you may want to 'svn diff':"
 echo "    sys/contrib/dev/acpica sys/dev/acpica \\"
-echo "    sys/amd64/acpica sys/i386/acpica sys/x86/acpica \\"
-echo "    sys/amd64/include sys/i386/include include \\"
-echo "    sys/boot sys/conf sys/modules/acpi usr.sbin/acpi"
+echo "    sys/amd64/acpica sys/arm64/acpica sys/i386/acpica sys/x86/acpica \\"
+echo "    sys/amd64/include sys/arm64/include sys/i386/include include \\"
+echo "    stand sys/conf sys/modules/acpi usr.sbin/acpi"

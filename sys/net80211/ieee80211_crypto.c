@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -78,7 +80,7 @@ null_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 			return 0;
 		*keyix = 0;	/* NB: use key index 0 for ucast key */
 	} else {
-		*keyix = k - vap->iv_nw_keys;
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	}
 	*rxkeyix = IEEE80211_KEYIX_NONE;	/* XXX maybe *keyix? */
 	return 1;
@@ -520,6 +522,26 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	return dev_key_set(vap, key);
 }
 
+/*
+ * Return index if the key is a WEP key (0..3); -1 otherwise.
+ *
+ * This is different to "get_keyid" which defaults to returning
+ * 0 for unicast keys; it assumes that it won't be used for WEP.
+ */
+int
+ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
+    const struct ieee80211_key *k)
+{
+
+	if (k >= &vap->iv_nw_keys[0] &&
+	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+		return (k - vap->iv_nw_keys);
+	return (-1);
+}
+
+/*
+ * Note: only supports a single unicast key (0).
+ */
 uint8_t
 ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
@@ -580,8 +602,9 @@ ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
  * Validate and strip privacy headers (and trailer) for a
  * received frame that has the WEP/Privacy bit set.
  */
-struct ieee80211_key *
-ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
+int
+ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
+    struct ieee80211_key **key)
 {
 #define	IEEE80211_WEP_HDRLEN	(IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN)
 #define	IEEE80211_WEP_MINLEN \
@@ -590,8 +613,29 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
+	const struct ieee80211_rx_stats *rxs;
 	const struct ieee80211_cipher *cip;
 	uint8_t keyid;
+
+	/*
+	 * Check for hardware decryption and IV stripping.
+	 * If the IV is stripped then we definitely can't find a key.
+	 * Set the key to NULL but return true; upper layers
+	 * will need to handle a NULL key for a successful
+	 * decrypt.
+	 */
+	rxs = ieee80211_get_rx_params_ptr(m);
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
+		if (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP) {
+			/*
+			 * Hardware decrypted, IV stripped.
+			 * We can't find a key with a stripped IV.
+			 * Return successful.
+			 */
+			*key = NULL;
+			return (1);
+		}
+	}
 
 	/* NB: this minimum size data frame could be bigger */
 	if (m->m_pkthdr.len < IEEE80211_WEP_MINLEN) {
@@ -599,7 +643,8 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 			"%s: WEP data frame too short, len %u\n",
 			__func__, m->m_pkthdr.len);
 		vap->iv_stats.is_rx_tooshort++;	/* XXX need unique stat? */
-		return NULL;
+		*key = NULL;
+		return (0);
 	}
 
 	/*
@@ -625,13 +670,82 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 		    "unable to pullup %s header", cip->ic_name);
 		vap->iv_stats.is_rx_wepfail++;	/* XXX */
-		return NULL;
+		*key = NULL;
+		return (0);
 	}
 
-	return (cip->ic_decap(k, m, hdrlen) ? k : NULL);
+	/*
+	 * Attempt decryption.
+	 *
+	 * If we fail then don't return the key - return NULL
+	 * and an error.
+	 */
+	if (cip->ic_decap(k, m, hdrlen)) {
+		/* success */
+		*key = k;
+		return (1);
+	}
+
+	/* Failure */
+	*key = NULL;
+	return (0);
 #undef IEEE80211_WEP_MINLEN
 #undef IEEE80211_WEP_HDRLEN
 }
+
+/*
+ * Check and remove any MIC.
+ */
+int
+ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
+    struct mbuf *m, int force)
+{
+	const struct ieee80211_cipher *cip;
+	const struct ieee80211_rx_stats *rxs;
+	struct ieee80211_frame *wh;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+	wh = mtod(m, struct ieee80211_frame *);
+
+	/*
+	 * Handle demic / mic errors from hardware-decrypted offload devices.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
+		if (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC) {
+			/*
+			 * Hardware has said MIC failed.  We don't care about
+			 * whether it was stripped or not.
+			 *
+			 * Eventually - teach the demic methods in crypto
+			 * modules to handle a NULL key and not to dereference
+			 * it.
+			 */
+			ieee80211_notify_michael_failure(vap, wh, -1);
+			return (0);
+		}
+
+		if (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) {
+			/*
+			 * Hardware has decrypted and not indicated a
+			 * MIC failure and has stripped the MIC.
+			 * We may not have a key, so for now just
+			 * return OK.
+			 */
+			return (1);
+		}
+	}
+
+	/*
+	 * If we don't have a key at this point then we don't
+	 * have to demic anything.
+	 */
+	if (k == NULL)
+		return (1);
+
+	cip = k->wk_cipher;
+	return (cip->ic_miclen > 0 ? cip->ic_demic(k, m, force) : 1);
+}
+
 
 static void
 load_ucastkey(void *arg, struct ieee80211_node *ni)
@@ -674,4 +788,19 @@ ieee80211_crypto_reload_keys(struct ieee80211com *ic)
 	 * Unicast keys.
 	 */
 	ieee80211_iterate_nodes(&ic->ic_sta, load_ucastkey, NULL);
+}
+
+/*
+ * Set the default key index for WEP, or KEYIX_NONE for no default TX key.
+ *
+ * This should be done as part of a key update block (iv_key_update_begin /
+ * iv_key_update_end.)
+ */
+void
+ieee80211_crypto_set_deftxkey(struct ieee80211vap *vap, ieee80211_keyix kid)
+{
+
+	/* XXX TODO: assert we're in a key update block */
+
+	vap->iv_update_deftxkey(vap, kid);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 Andrew Moore, Talke Studio
  * All rights reserved.
@@ -128,6 +130,7 @@ typedef enum {
 
 #define	__fldcw(addr)	__asm __volatile("fldcw %0" : : "m" (*(addr)))
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
+#define	__fnclex()	__asm __volatile("fnclex")
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))

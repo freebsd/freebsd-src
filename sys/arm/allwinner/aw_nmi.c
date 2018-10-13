@@ -35,15 +35,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
+#include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dt-bindings/interrupt-controller/irq.h>
 
 #include "pic_if.h"
 
@@ -57,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #define	A20_NMI_IRQ_ENABLE_REG	0x8
 #define	A31_NMI_IRQ_ENABLE_REG	0x34
 #define	 NMI_IRQ_ENABLE		(1U << 0)
+
+#define	R_NMI_IRQ_CTRL_REG	0x0c
+#define	R_NMI_IRQ_PENDING_REG	0x10
+#define	R_NMI_IRQ_ENABLE_REG	0x40
 
 #define	SC_NMI_READ(_sc, _reg)		bus_read_4(_sc->res[0], _reg)
 #define	SC_NMI_WRITE(_sc, _reg, _val)	bus_write_4(_sc->res[0], _reg, _val)
@@ -74,21 +77,43 @@ struct aw_nmi_intr {
 	enum intr_trigger	tri;
 };
 
+struct aw_nmi_reg_cfg {
+	uint8_t			ctrl_reg;
+	uint8_t			pending_reg;
+	uint8_t			enable_reg;
+};
+
 struct aw_nmi_softc {
 	device_t		dev;
 	struct resource *	res[2];
 	void *			intrcookie;
 	struct aw_nmi_intr	intr;
-	uint8_t			enable_reg;
+	struct aw_nmi_reg_cfg *	cfg;
 };
 
-#define	A20_NMI	1
-#define	A31_NMI	2
+static struct aw_nmi_reg_cfg a20_nmi_cfg = {
+	.ctrl_reg =	NMI_IRQ_CTRL_REG,
+	.pending_reg =	NMI_IRQ_PENDING_REG,
+	.enable_reg =	A20_NMI_IRQ_ENABLE_REG,
+};
+
+static struct aw_nmi_reg_cfg a31_nmi_cfg = {
+	.ctrl_reg =	NMI_IRQ_CTRL_REG,
+	.pending_reg =	NMI_IRQ_PENDING_REG,
+	.enable_reg =	A31_NMI_IRQ_ENABLE_REG,
+};
+
+static struct aw_nmi_reg_cfg a83t_r_nmi_cfg = {
+	.ctrl_reg =	R_NMI_IRQ_CTRL_REG,
+	.pending_reg =	R_NMI_IRQ_PENDING_REG,
+	.enable_reg =	R_NMI_IRQ_ENABLE_REG,
+};
 
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun7i-a20-sc-nmi", A20_NMI},
-	{"allwinner,sun6i-a31-sc-nmi", A31_NMI},
-
+	{"allwinner,sun7i-a20-sc-nmi", (uintptr_t)&a20_nmi_cfg},
+	{"allwinner,sun6i-a31-sc-nmi", (uintptr_t)&a31_nmi_cfg},
+	{"allwinner,sun6i-a31-r-intc", (uintptr_t)&a83t_r_nmi_cfg},
+	{"allwinner,sun8i-a83t-r-intc", (uintptr_t)&a83t_r_nmi_cfg},
 	{NULL, 0},
 };
 
@@ -99,13 +124,13 @@ aw_nmi_intr(void *arg)
 
 	sc = arg;
 
-	if (SC_NMI_READ(sc, NMI_IRQ_PENDING_REG) == 0) {
+	if (SC_NMI_READ(sc, sc->cfg->pending_reg) == 0) {
 		device_printf(sc->dev, "Spurious interrupt\n");
 		return (FILTER_HANDLED);
 	}
 
 	if (intr_isrc_dispatch(&sc->intr.isrc, curthread->td_intr_frame) != 0) {
-		SC_NMI_WRITE(sc, sc->enable_reg, !NMI_IRQ_ENABLE);
+		SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
 		device_printf(sc->dev, "Stray interrupt, NMI disabled\n");
 	}
 
@@ -119,7 +144,7 @@ aw_nmi_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	SC_NMI_WRITE(sc, sc->enable_reg, NMI_IRQ_ENABLE);
+	SC_NMI_WRITE(sc, sc->cfg->enable_reg, NMI_IRQ_ENABLE);
 }
 
 static void
@@ -129,7 +154,7 @@ aw_nmi_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	SC_NMI_WRITE(sc, sc->enable_reg, !NMI_IRQ_ENABLE);
+	SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
 }
 
 static int
@@ -154,19 +179,19 @@ aw_nmi_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 	tripol = cells[1];
 
 	switch (tripol) {
-	case IRQ_TYPE_EDGE_RISING:
+	case FDT_INTR_EDGE_RISING:
 		trig = INTR_TRIGGER_EDGE;
 		pol  = INTR_POLARITY_HIGH;
 		break;
-	case IRQ_TYPE_EDGE_FALLING:
+	case FDT_INTR_EDGE_FALLING:
 		trig = INTR_TRIGGER_EDGE;
 		pol  = INTR_POLARITY_LOW;
 		break;
-	case IRQ_TYPE_LEVEL_HIGH:
+	case FDT_INTR_LEVEL_HIGH:
 		trig = INTR_TRIGGER_LEVEL;
 		pol  = INTR_POLARITY_HIGH;
 		break;
-	case IRQ_TYPE_LEVEL_LOW:
+	case FDT_INTR_LEVEL_LOW:
 		trig = INTR_TRIGGER_LEVEL;
 		pol  = INTR_POLARITY_LOW;
 		break;
@@ -255,7 +280,7 @@ aw_nmi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 			icfg = NMI_IRQ_LOW_EDGE;
 	}
 
-	SC_NMI_WRITE(sc, NMI_IRQ_CTRL_REG, icfg);
+	SC_NMI_WRITE(sc, sc->cfg->ctrl_reg, icfg);
 
 	return (0);
 }
@@ -272,7 +297,7 @@ aw_nmi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 		sc->intr.pol = INTR_POLARITY_CONFORM;
 		sc->intr.tri = INTR_TRIGGER_CONFORM;
 
-		SC_NMI_WRITE(sc, sc->enable_reg, !NMI_IRQ_ENABLE);
+		SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
 	}
 
 	return (0);
@@ -285,7 +310,7 @@ aw_nmi_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	aw_nmi_disable_intr(dev, isrc);
-	SC_NMI_WRITE(sc, NMI_IRQ_PENDING_REG, NMI_IRQ_ACK);
+	SC_NMI_WRITE(sc, sc->cfg->pending_reg, NMI_IRQ_ACK);
 }
 
 static void
@@ -304,7 +329,7 @@ aw_nmi_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	sc = device_get_softc(dev);
 
 	arm_irq_memory_barrier(0);
-	SC_NMI_WRITE(sc, NMI_IRQ_PENDING_REG, NMI_IRQ_ACK);
+	SC_NMI_WRITE(sc, sc->cfg->pending_reg, NMI_IRQ_ACK);
 }
 
 static int
@@ -328,6 +353,8 @@ aw_nmi_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->cfg = (struct aw_nmi_reg_cfg *)
+	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	if (bus_alloc_resources(dev, aw_nmi_res_spec, sc->res) != 0) {
 		device_printf(dev, "can't allocate device resources\n");
@@ -340,18 +367,9 @@ aw_nmi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
-	case A20_NMI:
-		sc->enable_reg = A20_NMI_IRQ_ENABLE_REG;
-		break;
-	case A31_NMI:
-		sc->enable_reg = A31_NMI_IRQ_ENABLE_REG;
-		break;
-	}
-
 	/* Disable and clear interrupts */
-	SC_NMI_WRITE(sc, sc->enable_reg, !NMI_IRQ_ENABLE);
-	SC_NMI_WRITE(sc, NMI_IRQ_PENDING_REG, NMI_IRQ_ACK);
+	SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
+	SC_NMI_WRITE(sc, sc->cfg->pending_reg, NMI_IRQ_ACK);
 
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 	/* Register our isrc */
@@ -400,4 +418,4 @@ static driver_t aw_nmi_driver = {
 static devclass_t aw_nmi_devclass;
 
 EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver,
-    aw_nmi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+    aw_nmi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

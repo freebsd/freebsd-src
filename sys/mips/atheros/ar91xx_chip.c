@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Adrian Chadd
  * All rights reserved.
  *
@@ -56,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar91xxreg.h>
 #include <mips/atheros/ar91xx_chip.h>
-
-#include <mips/sentry5/s5reg.h>
 
 static void
 ar91xx_chip_detect_mem_size(void)

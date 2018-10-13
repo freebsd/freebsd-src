@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Authors: Doug Rabson <dfr@rabson.org>
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
@@ -172,10 +174,26 @@ clnt_reconnect_connect(CLIENT *cl)
 		newclient = clnt_dg_create(so,
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
 		    rc->rc_sendsz, rc->rc_recvsz);
-	else
+	else {
+		/*
+		 * I do not believe a timeout of less than 1sec would make
+		 * sense here since short delays can occur when a server is
+		 * temporarily overloaded.
+		 */
+		if (rc->rc_timeout.tv_sec > 0 && rc->rc_timeout.tv_usec >= 0) {
+			error = so_setsockopt(so, SOL_SOCKET, SO_SNDTIMEO,
+			    &rc->rc_timeout, sizeof(struct timeval));
+			if (error != 0) {
+				stat = rpc_createerr.cf_stat = RPC_CANTSEND;
+				rpc_createerr.cf_error.re_errno = error;
+				td->td_ucred = oldcred;
+				goto out;
+			}
+		}
 		newclient = clnt_vc_create(so,
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
 		    rc->rc_sendsz, rc->rc_recvsz, rc->rc_intr);
+	}
 	td->td_ucred = oldcred;
 
 	if (!newclient) {
@@ -450,7 +468,6 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 
 	case CLSET_BACKCHANNEL:
 		xprt = (SVCXPRT *)info;
-		SVC_ACQUIRE(xprt);
 		xprt_register(xprt);
 		rc->rc_backchannel = info;
 		break;

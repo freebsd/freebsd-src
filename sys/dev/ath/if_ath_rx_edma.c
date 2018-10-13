@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -166,7 +168,7 @@ ath_edma_stoprecv(struct ath_softc *sc, int dodelay)
 	ath_hal_setrxfilter(ah, 0);
 
 	/*
-	 * 
+	 *
 	 */
 	if (ath_hal_stopdmarecv(ah) == AH_TRUE)
 		sc->sc_rx_stopped = 1;
@@ -427,6 +429,8 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 		rs = &bf->bf_status.ds_rxstat;
 		bf->bf_rxstatus = ath_hal_rxprocdesc(ah, ds, bf->bf_daddr,
 		    NULL, rs);
+		if (bf->bf_rxstatus == HAL_EINPROGRESS)
+			break;
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, bf->bf_rxstatus == HAL_OK);
@@ -436,8 +440,6 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
 			    sc->sc_rx_statuslen, (char *) ds);
 #endif /* ATH_DEBUG */
-		if (bf->bf_rxstatus == HAL_EINPROGRESS)
-			break;
 
 		/*
 		 * Completed descriptor.
@@ -727,7 +729,7 @@ ath_edma_rxbuf_alloc(struct ath_softc *sc)
 	bf = TAILQ_FIRST(&sc->sc_rxbuf);
 	/* XXX shouldn't happen upon startup? */
 	if (bf == NULL) {
-		device_printf(sc->sc_dev, "%s: nothing on rxbuf?!\n",
+		DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: nothing on rxbuf?!\n",
 		    __func__);
 		return (NULL);
 	}
@@ -808,7 +810,7 @@ ath_edma_rxfifo_alloc(struct ath_softc *sc, HAL_RX_QUEUE qtype, int nbufs)
 		bf = ath_edma_rxbuf_alloc(sc);
 		/* XXX should ensure the FIFO is not NULL? */
 		if (bf == NULL) {
-			device_printf(sc->sc_dev,
+			DPRINTF(sc, ATH_DEBUG_EDMA_RX,
 			    "%s: Q%d: alloc failed: i=%d, nbufs=%d?\n",
 			    __func__,
 			    qtype,
@@ -925,7 +927,7 @@ ath_edma_rxfifo_free(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 	device_printf(sc->sc_dev, "%s: called; qtype=%d\n",
 	    __func__,
 	    qtype);
-	
+
 	free(re->m_fifo, M_ATHDEV);
 
 	return (0);

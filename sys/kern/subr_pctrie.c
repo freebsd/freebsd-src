@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -58,18 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-/*
- * These widths should allow the pointers to a node's children to fit within
- * a single cache line.  The extra levels from a narrow width should not be
- * a problem thanks to path compression.
- */
-#ifdef __LP64__
-#define	PCTRIE_WIDTH	4
-#else
-#define	PCTRIE_WIDTH	3
-#endif
-
-#define	PCTRIE_COUNT	(1 << PCTRIE_WIDTH)
 #define	PCTRIE_MASK	(PCTRIE_COUNT - 1)
 #define	PCTRIE_LIMIT	(howmany(sizeof(uint64_t) * NBBY, PCTRIE_WIDTH) - 1)
 

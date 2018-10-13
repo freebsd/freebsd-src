@@ -19,20 +19,32 @@ class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, NoItineraries, Features>;
 
 def : Proc<"generic", []>;
+def : Proc<"v1", []>;
+def : Proc<"v2", []>;
+def : Proc<"probe", []>;
+
+def DummyFeature : SubtargetFeature<"dummy", "isDummyMode",
+                                    "true", "unused feature">;
 
 def BPFInstPrinter : AsmWriter {
   string AsmWriterClassName  = "InstPrinter";
   bit isMCAsmWriter = 1;
 }
 
+def BPFAsmParser : AsmParser {
+  bit HasMnemonicFirst = 0;
+}
+
 def BPFAsmParserVariant : AsmParserVariant {
   int Variant = 0;
   string Name = "BPF";
   string BreakCharacters = ".";
+  string TokenizingCharacters = "#()[]=:.<>!+*";
 }
 
 def BPF : Target {
   let InstructionSet = BPFInstrInfo;
   let AssemblyWriters = [BPFInstPrinter];
+  let AssemblyParsers = [BPFAsmParser];
   let AssemblyParserVariants = [BPFAsmParserVariant];
 }

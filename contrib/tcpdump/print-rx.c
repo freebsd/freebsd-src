@@ -20,6 +20,9 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+
+/* \summary: AFS RX printer */
+
 /*
  * This code unmangles RX packets.  RX is the mutant form of RPC that AFS
  * uses to communicate between clients and servers.
@@ -32,7 +35,6 @@
  * Ken Hornstein <kenh@cmf.nrl.navy.mil>
  */
 
-#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -40,9 +42,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -73,12 +75,12 @@
 #define	PRSFS_ADMINISTER	64 /* Change ACL's */
 
 struct rx_header {
-	uint32_t epoch;
-	uint32_t cid;
-	uint32_t callNumber;
-	uint32_t seq;
-	uint32_t serial;
-	uint8_t type;
+	nd_uint32_t epoch;
+	nd_uint32_t cid;
+	nd_uint32_t callNumber;
+	nd_uint32_t seq;
+	nd_uint32_t serial;
+	nd_uint8_t type;
 #define RX_PACKET_TYPE_DATA		1
 #define RX_PACKET_TYPE_ACK		2
 #define RX_PACKET_TYPE_BUSY		3
@@ -89,7 +91,7 @@ struct rx_header {
 #define RX_PACKET_TYPE_DEBUG		8
 #define RX_PACKET_TYPE_PARAMS		9
 #define RX_PACKET_TYPE_VERSION		13
-	uint8_t flags;
+	nd_uint8_t flags;
 #define RX_CLIENT_INITIATED	1
 #define RX_REQUEST_ACK		2
 #define RX_LAST_PACKET		4
@@ -97,10 +99,10 @@ struct rx_header {
 #define RX_FREE_PACKET		16
 #define RX_SLOW_START_OK	32
 #define RX_JUMBO_PACKET		32
-	uint8_t userStatus;
-	uint8_t securityIndex;
-	uint16_t spare;		/* How clever: even though the AFS */
-	uint16_t serviceId;		/* header files indicate that the */
+	nd_uint8_t userStatus;
+	nd_uint8_t securityIndex;
+	nd_uint16_t spare;		/* How clever: even though the AFS */
+	nd_uint16_t serviceId;		/* header files indicate that the */
 };					/* serviceId is first, it's really */
 					/* encoded _after_ the spare field */
 					/* I wasted a day figuring that out! */
@@ -522,9 +524,9 @@ static int is_ubik(uint32_t);
 void
 rx_print(netdissect_options *ndo,
          register const u_char *bp, int length, int sport, int dport,
-         u_char *bp2)
+         const u_char *bp2)
 {
-	register struct rx_header *rxh;
+	register const struct rx_header *rxh;
 	int i;
 	int32_t opcode;
 
@@ -533,7 +535,7 @@ rx_print(netdissect_options *ndo,
 		return;
 	}
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	ND_PRINT((ndo, " rx %s", tok2str(rx_types, "type %d", rxh->type)));
 
@@ -688,11 +690,11 @@ rx_cache_insert(netdissect_options *ndo,
 	if (++rx_cache_next >= RX_CACHE_SIZE)
 		rx_cache_next = 0;
 
-	rxent->callnum = rxh->callNumber;
-	rxent->client = ip->ip_src;
-	rxent->server = ip->ip_dst;
+	rxent->callnum = EXTRACT_32BITS(&rxh->callNumber);
+	UNALIGNED_MEMCPY(&rxent->client, &ip->ip_src, sizeof(uint32_t));
+	UNALIGNED_MEMCPY(&rxent->server, &ip->ip_dst, sizeof(uint32_t));
 	rxent->dport = dport;
-	rxent->serviceId = rxh->serviceId;
+	rxent->serviceId = EXTRACT_32BITS(&rxh->serviceId);
 	rxent->opcode = EXTRACT_32BITS(bp + sizeof(struct rx_header));
 }
 
@@ -709,18 +711,21 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 {
 	int i;
 	struct rx_cache_entry *rxent;
-	uint32_t clip = ip->ip_dst.s_addr;
-	uint32_t sip = ip->ip_src.s_addr;
+	uint32_t clip;
+	uint32_t sip;
+
+	UNALIGNED_MEMCPY(&clip, &ip->ip_dst, sizeof(uint32_t));
+	UNALIGNED_MEMCPY(&sip, &ip->ip_src, sizeof(uint32_t));
 
 	/* Start the search where we last left off */
 
 	i = rx_cache_hint;
 	do {
 		rxent = &rx_cache[i];
-		if (rxent->callnum == rxh->callNumber &&
+		if (rxent->callnum == EXTRACT_32BITS(&rxh->callNumber) &&
 		    rxent->client.s_addr == clip &&
 		    rxent->server.s_addr == sip &&
-		    rxent->serviceId == rxh->serviceId &&
+		    rxent->serviceId == EXTRACT_32BITS(&rxh->serviceId) &&
 		    rxent->dport == sport) {
 
 			/* We got a match! */
@@ -752,63 +757,63 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			ND_PRINT((ndo, " fid %d/%d/%d", (int) n1, (int) n2, (int) n3)); \
 		}
 
-#define STROUT(MAX) { unsigned int i; \
+#define STROUT(MAX) { unsigned int _i; \
 			ND_TCHECK2(bp[0], sizeof(int32_t)); \
-			i = EXTRACT_32BITS(bp); \
-			if (i > (MAX)) \
+			_i = EXTRACT_32BITS(bp); \
+			if (_i > (MAX)) \
 				goto trunc; \
 			bp += sizeof(int32_t); \
 			ND_PRINT((ndo, " \"")); \
-			if (fn_printn(ndo, bp, i, ndo->ndo_snapend)) \
+			if (fn_printn(ndo, bp, _i, ndo->ndo_snapend)) \
 				goto trunc; \
 			ND_PRINT((ndo, "\"")); \
-			bp += ((i + sizeof(int32_t) - 1) / sizeof(int32_t)) * sizeof(int32_t); \
+			bp += ((_i + sizeof(int32_t) - 1) / sizeof(int32_t)) * sizeof(int32_t); \
 		}
 
-#define INTOUT() { int i; \
+#define INTOUT() { int _i; \
 			ND_TCHECK2(bp[0], sizeof(int32_t)); \
-			i = (int) EXTRACT_32BITS(bp); \
+			_i = (int) EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
-			ND_PRINT((ndo, " %d", i)); \
+			ND_PRINT((ndo, " %d", _i)); \
 		}
 
-#define UINTOUT() { unsigned long i; \
+#define UINTOUT() { unsigned long _i; \
 			ND_TCHECK2(bp[0], sizeof(int32_t)); \
-			i = EXTRACT_32BITS(bp); \
+			_i = EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
-			ND_PRINT((ndo, " %lu", i)); \
+			ND_PRINT((ndo, " %lu", _i)); \
 		}
 
-#define UINT64OUT() { uint64_t i; \
+#define UINT64OUT() { uint64_t _i; \
 			ND_TCHECK2(bp[0], sizeof(uint64_t)); \
-			i = EXTRACT_64BITS(bp); \
+			_i = EXTRACT_64BITS(bp); \
 			bp += sizeof(uint64_t); \
-			ND_PRINT((ndo, " %" PRIu64, i)); \
+			ND_PRINT((ndo, " %" PRIu64, _i)); \
 		}
 
-#define DATEOUT() { time_t t; struct tm *tm; char str[256]; \
+#define DATEOUT() { time_t _t; struct tm *tm; char str[256]; \
 			ND_TCHECK2(bp[0], sizeof(int32_t)); \
-			t = (time_t) EXTRACT_32BITS(bp); \
+			_t = (time_t) EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
-			tm = localtime(&t); \
-			strftime(str, 256, "%Y/%m/%d %T", tm); \
+			tm = localtime(&_t); \
+			strftime(str, 256, "%Y/%m/%d %H:%M:%S", tm); \
 			ND_PRINT((ndo, " %s", str)); \
 		}
 
-#define STOREATTROUT() { unsigned long mask, i; \
+#define STOREATTROUT() { unsigned long mask, _i; \
 			ND_TCHECK2(bp[0], (sizeof(int32_t)*6)); \
 			mask = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
 			if (mask) ND_PRINT((ndo, " StoreStatus")); \
 		        if (mask & 1) { ND_PRINT((ndo, " date")); DATEOUT(); } \
 			else bp += sizeof(int32_t); \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 2) ND_PRINT((ndo, " owner %lu", i));  \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 4) ND_PRINT((ndo, " group %lu", i)); \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 8) ND_PRINT((ndo, " mode %lo", i & 07777)); \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 16) ND_PRINT((ndo, " segsize %lu", i)); \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 2) ND_PRINT((ndo, " owner %lu", _i));  \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 4) ND_PRINT((ndo, " group %lu", _i)); \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 8) ND_PRINT((ndo, " mode %lo", _i & 07777)); \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 16) ND_PRINT((ndo, " segsize %lu", _i)); \
 			/* undocumented in 3.3 docu */ \
 		        if (mask & 1024) ND_PRINT((ndo, " fsync"));  \
 		}
@@ -822,7 +827,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			ND_PRINT((ndo, " %d.%d", epoch, counter)); \
 		}
 
-#define AFSUUIDOUT() {uint32_t temp; int i; \
+#define AFSUUIDOUT() {uint32_t temp; int _i; \
 			ND_TCHECK2(bp[0], 11*sizeof(uint32_t)); \
 			temp = EXTRACT_32BITS(bp); \
 			bp += sizeof(uint32_t); \
@@ -833,7 +838,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			temp = EXTRACT_32BITS(bp); \
 			bp += sizeof(uint32_t); \
 			ND_PRINT((ndo, "%04x", temp)); \
-			for (i = 0; i < 8; i++) { \
+			for (_i = 0; _i < 8; _i++) { \
 				temp = EXTRACT_32BITS(bp); \
 				bp += sizeof(uint32_t); \
 				ND_PRINT((ndo, "%02x", (unsigned char) temp)); \
@@ -951,7 +956,7 @@ fs_print(netdissect_options *ndo,
 			bp += sizeof(int32_t);
 			ND_TCHECK2(bp[0], i);
 			i = min(AFSOPAQUEMAX, i);
-			strncpy(a, (char *) bp, i);
+			strncpy(a, (const char *) bp, i);
 			a[i] = '\0';
 			acl_print(ndo, (u_char *) a, sizeof(a), (u_char *) a + i);
 			break;
@@ -1054,12 +1059,12 @@ fs_reply_print(netdissect_options *ndo,
                register const u_char *bp, int length, int32_t opcode)
 {
 	unsigned long i;
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1084,7 +1089,7 @@ fs_reply_print(netdissect_options *ndo,
 			bp += sizeof(int32_t);
 			ND_TCHECK2(bp[0], i);
 			i = min(AFSOPAQUEMAX, i);
-			strncpy(a, (char *) bp, i);
+			strncpy(a, (const char *) bp, i);
 			a[i] = '\0';
 			acl_print(ndo, (u_char *) a, sizeof(a), (u_char *) a + i);
 			break;
@@ -1105,8 +1110,6 @@ fs_reply_print(netdissect_options *ndo,
 			;
 		}
 	} else if (rxh->type == RX_PACKET_TYPE_ABORT) {
-		int i;
-
 		/*
 		 * Otherwise, just print out the return code
 		 */
@@ -1259,6 +1262,7 @@ cb_print(netdissect_options *ndo,
 			if (j == 0)
 				ND_PRINT((ndo, " <none!>"));
 
+			ND_TCHECK_32BITS(bp);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 
@@ -1299,12 +1303,12 @@ static void
 cb_reply_print(netdissect_options *ndo,
                register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1493,13 +1497,13 @@ static void
 prot_reply_print(netdissect_options *ndo,
                  register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 	unsigned long i;
 
 	if (length < (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1700,13 +1704,13 @@ static void
 vldb_reply_print(netdissect_options *ndo,
                  register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 	unsigned long i;
 
 	if (length < (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1752,7 +1756,7 @@ vldb_reply_print(netdissect_options *ndo,
 				ND_TCHECK2(bp[0], sizeof(int32_t));
 				if (i < nservers)
 					ND_PRINT((ndo, " %s",
-					   intoa(((struct in_addr *) bp)->s_addr)));
+					   intoa(((const struct in_addr *) bp)->s_addr)));
 				bp += sizeof(int32_t);
 			}
 			ND_PRINT((ndo, " partitions"));
@@ -1799,7 +1803,7 @@ vldb_reply_print(netdissect_options *ndo,
 				ND_TCHECK2(bp[0], sizeof(int32_t));
 				if (i < nservers)
 					ND_PRINT((ndo, " %s",
-					   intoa(((struct in_addr *) bp)->s_addr)));
+					   intoa(((const struct in_addr *) bp)->s_addr)));
 				bp += sizeof(int32_t);
 			}
 			ND_PRINT((ndo, " partitions"));
@@ -1921,7 +1925,7 @@ kauth_print(netdissect_options *ndo,
 	bp += sizeof(struct rx_header) + 4;
 
 	switch (kauth_op) {
-		case 1:		/* Authenticate old */;
+		case 1:		/* Authenticate old */
 		case 21:	/* Authenticate */
 		case 22:	/* Authenticate-V2 */
 		case 2:		/* Change PW */
@@ -1982,12 +1986,12 @@ static void
 kauth_reply_print(netdissect_options *ndo,
                   register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2236,12 +2240,12 @@ static void
 vol_reply_print(netdissect_options *ndo,
                 register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2463,12 +2467,12 @@ static void
 bos_reply_print(netdissect_options *ndo,
                 register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2530,6 +2534,10 @@ ubik_print(netdissect_options *ndo,
 	 * gleaned from ubik/ubik_int.xg
 	 */
 
+	/* Every function that calls this function first makes a bounds check
+	 * for (sizeof(rx_header) + 4) bytes, so long as it remains this way
+	 * the line below will not over-read.
+	 */
 	ubik_op = EXTRACT_32BITS(bp + sizeof(struct rx_header));
 
 	ND_PRINT((ndo, " ubik call %s", tok2str(ubik_req, "op#%d", ubik_op)));
@@ -2574,6 +2582,7 @@ ubik_print(netdissect_options *ndo,
 			INTOUT();
 			ND_PRINT((ndo, " length"));
 			INTOUT();
+			ND_TCHECK_32BITS(bp);
 			temp = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			tok2str(ubik_lock_types, "type %d", temp);
@@ -2632,12 +2641,12 @@ static void
 ubik_reply_print(netdissect_options *ndo,
                  register const u_char *bp, int length, int32_t opcode)
 {
-	struct rx_header *rxh;
+	const struct rx_header *rxh;
 
 	if (length < (int)sizeof(struct rx_header))
 		return;
 
-	rxh = (struct rx_header *) bp;
+	rxh = (const struct rx_header *) bp;
 
 	/*
 	 * Print out the ubik call we're invoking.  This table was gleaned
@@ -2696,7 +2705,7 @@ static void
 rx_ack_print(netdissect_options *ndo,
              register const u_char *bp, int length)
 {
-	struct rx_ackPacket *rxa;
+	const struct rx_ackPacket *rxa;
 	int i, start, last;
 	uint32_t firstPacket;
 
@@ -2715,7 +2724,7 @@ rx_ack_print(netdissect_options *ndo,
 
 	ND_TCHECK2(bp[0], sizeof(struct rx_ackPacket) - RX_MAXACKS);
 
-	rxa = (struct rx_ackPacket *) bp;
+	rxa = (const struct rx_ackPacket *) bp;
 	bp += (sizeof(struct rx_ackPacket) - RX_MAXACKS);
 
 	/*

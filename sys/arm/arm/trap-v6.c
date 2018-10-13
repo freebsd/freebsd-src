@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/ktr.h>
+#include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -286,11 +287,12 @@ abort_handler(struct trapframe *tf, int prefetch)
 	struct vmspace *vm;
 	vm_prot_t ftype;
 	bool usermode;
+	int bp_harden;
 #ifdef INVARIANTS
 	void *onfault;
 #endif
 
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 	td = curthread;
 
 	fsr = (prefetch) ? cp15_ifsr_get(): cp15_dfsr_get();
@@ -302,6 +304,20 @@ abort_handler(struct trapframe *tf, int prefetch)
 
 	idx = FSR_TO_FAULT(fsr);
 	usermode = TRAPF_USERMODE(tf);	/* Abort came from user mode? */
+
+	/*
+	 * Apply BP hardening by flushing the branch prediction cache
+	 * for prefaults on kernel addresses.
+	 */
+	if (__predict_false(prefetch && far > VM_MAXUSER_ADDRESS &&
+	    (idx == FAULT_TRAN_L2 || idx == FAULT_PERM_L2))) {
+		bp_harden = PCPU_GET(bp_harden_kind);
+		if (bp_harden == PCPU_BP_HARDEN_KIND_BPIALL)
+			_CP15_BPIALL();
+		else if (bp_harden == PCPU_BP_HARDEN_KIND_ICIALLU)
+			_CP15_ICIALLU();
+	}
+
 	if (usermode)
 		td->td_frame = tf;
 
@@ -583,8 +599,11 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active)
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
 		kdb_trap(fsr, 0, tf);
+		kdb_why = KDB_WHY_UNSET;
+	}
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/

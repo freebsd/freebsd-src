@@ -1,6 +1,8 @@
 /*-
  * Routines for handling the integrated RAID features LSI MPT Fusion adapters.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005, WHEEL Sp. z o.o.
  * Copyright (c) 2005 Justin T. Gibbs.
  * All rights reserved.
@@ -782,7 +784,7 @@ mpt_raid_quiesce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 }
 #endif
 
-/* XXX Ignores that there may be multiple busses/IOCs involved. */
+/* XXX Ignores that there may be multiple buses/IOCs involved. */
 cam_status
 mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, target_id_t *tgt)
 {
@@ -799,7 +801,7 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, target_id_t *tgt)
 	return (-1);
 }
 
-/* XXX Ignores that there may be multiple busses/IOCs involved. */
+/* XXX Ignores that there may be multiple buses/IOCs involved. */
 int
 mpt_is_raid_member(struct mpt_softc *mpt, target_id_t tgt)
 {
@@ -818,7 +820,7 @@ mpt_is_raid_member(struct mpt_softc *mpt, target_id_t tgt)
 	
 }
 
-/* XXX Ignores that there may be multiple busses/IOCs involved. */
+/* XXX Ignores that there may be multiple buses/IOCs involved. */
 int
 mpt_is_raid_volume(struct mpt_softc *mpt, target_id_t tgt)
 {

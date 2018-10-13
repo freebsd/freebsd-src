@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
@@ -751,7 +753,7 @@ outloop:
 		return;
 	}
 	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-	if (m == 0) {
+	if (m == NULL) {
 
 		/*
 		 * We are using the !OACTIVE flag to indicate to the outside
@@ -1699,7 +1701,7 @@ ed_ds_getmcaf(struct ed_softc *sc, uint32_t *mcaf)
 	mcaf[1] = 0;
 
 	if_maddr_rlock(sc->ifp);
-	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		index = ether_crc32_be(LLADDR((struct sockaddr_dl *)

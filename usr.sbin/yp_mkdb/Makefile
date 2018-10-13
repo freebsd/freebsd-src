@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../libexec/ypxfr ${.CURDIR}/../ypserv
+.PATH: ${SRCTOP}/libexec/ypxfr ${SRCTOP}/usr.sbin/ypserv
 
 PROG=	yp_mkdb
 MAN=	yp_mkdb.8
 SRCS=	yp_mkdb.c yp_dblookup.c yp_dbwrite.c
 
 CFLAGS+= -Dyp_error=warnx
-CFLAGS+= -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.sbin/ypserv
+CFLAGS+= -I${SRCTOP}/libexec/ypxfr -I${SRCTOP}/usr.sbin/ypserv
 
 WARNS?=	1
 

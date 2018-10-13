@@ -343,9 +343,11 @@ out:
 	src_dtt.dtt_ctfp = src_ctfp;
 	src_dtt.dtt_type = src_type;
 
-	dst_dtt.dtt_object = dt_module_lookup_by_ctf(dtp, dst_ctfp)->dm_name;
-	dst_dtt.dtt_ctfp = dst_ctfp;
-	dst_dtt.dtt_type = dst_type;
+	dst_dtt = (dtrace_typeinfo_t){
+		.dtt_object = dt_module_lookup_by_ctf(dtp, dst_ctfp)->dm_name,
+		.dtt_ctfp = dst_ctfp,
+		.dtt_type = dst_type,
+	};
 
 	return (dt_xlator_create(dtp, &src_dtt, &dst_dtt, NULL, NULL, NULL));
 }

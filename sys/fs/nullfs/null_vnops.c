@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -649,7 +651,7 @@ null_lock(struct vop_lock1_args *ap)
 	nn = VTONULL(vp);
 	/*
 	 * If we're still active we must ask the lower layer to
-	 * lock as ffs has special lock considerations in it's
+	 * lock as ffs has special lock considerations in its
 	 * vop lock.
 	 */
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
@@ -662,7 +664,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * the lowervp's vop_lock routine.  When we vgone we will
 		 * drop our last ref to the lowervp, which would allow it
 		 * to be reclaimed.  The lowervp could then be recycled,
-		 * in which case it is not legal to be sleeping in it's VOP.
+		 * in which case it is not legal to be sleeping in its VOP.
 		 * We prevent it from being recycled by holding the vnode
 		 * here.
 		 */
@@ -870,9 +872,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	struct ucred *cred = ap->a_cred;
 	int error, locked;
 
-	if (vp->v_type == VDIR)
-		return (vop_stdvptocnp(ap));
-
 	locked = VOP_ISLOCKED(vp);
 	lvp = NULLVPTOLOWERVP(vp);
 	vhold(lvp);
@@ -896,7 +895,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		vn_lock(vp, locked | LK_RETRY);
 		return (ENOENT);
 	}
-	vref(ldvp);
 	error = null_nodeget(vp->v_mount, ldvp, dvp);
 	if (error == 0) {
 #ifdef DIAGNOSTIC

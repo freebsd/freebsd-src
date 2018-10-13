@@ -1,8 +1,9 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/17/94
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../sys/geom
+.PATH: ${SRCTOP}/sys/geom
 
+CONFS=	disktab
 PACKAGE=runtime
 PROG=	bsdlabel
 SRCS=	bsdlabel.c geom_bsd_enc.c

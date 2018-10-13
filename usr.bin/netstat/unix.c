@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,10 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#define	_WANT_UNPCB
 #include <sys/unpcb.h>
 
 #include <netinet/in.h>
@@ -75,7 +79,7 @@ pcblist_sysctl(int type, char **bufp)
 	size_t	len;
 	char mibvar[sizeof "net.local.seqpacket.pcblist"];
 
-	sprintf(mibvar, "net.local.%s.pcblist", socktype[type]);
+	snprintf(mibvar, sizeof(mibvar), "net.local.%s.pcblist", socktype[type]);
 
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
@@ -100,7 +104,7 @@ static int
 pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 {
 	struct unp_head head;
-	struct unpcb *unp, unp_conn;
+	struct unpcb *unp, unp0, unp_conn;
 	u_char sun_len;
 	struct socket so;
 	struct xunpgen xug;
@@ -149,9 +153,9 @@ pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 	xu.xu_len = sizeof xu;
 	KREAD(head_off, &head, sizeof(head));
 	LIST_FOREACH(unp, &head, unp_link) {
-		xu.xu_unpp = unp;
-		KREAD(unp, &xu.xu_unp, sizeof (*unp));
-		unp = &xu.xu_unp;
+		xu.xu_unpp = (uintptr_t)unp;
+		KREAD(unp, &unp0, sizeof (*unp));
+		unp = &unp0;
 
 		if (unp->unp_gencnt > unp_gencnt)
 			continue;
@@ -236,7 +240,7 @@ unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
 			so = &xunp->xu_socket;
 
 			/* Ignore PCBs which were freed during copyout. */
-			if (xunp->xu_unp.unp_gencnt > oxug->xug_gen)
+			if (xunp->unp_gencnt > oxug->xug_gen)
 				continue;
 			if (*first) {
 				xo_open_list("socket");
@@ -268,7 +272,6 @@ unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
 static void
 unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 {
-	struct unpcb *unp;
 	struct sockaddr_un *sa;
 	static int first = 1;
 	char buf1[33];
@@ -292,11 +295,7 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 	};
 	int fmt = (sizeof(void *) == 8) ? 1 : 0;
 
-	unp = &xunp->xu_unp;
-	if (unp->unp_addr)
-		sa = &xunp->xu_addr;
-	else
-		sa = (struct sockaddr_un *)0;
+	sa = (xunp->xu_addr.sun_family == AF_UNIX) ? &xunp->xu_addr : NULL;
 
 	if (first && !Lflag) {
 		xo_emit("{T:Active UNIX domain sockets}\n");
@@ -318,10 +317,9 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 	} else {
 		xo_emit(format[fmt],
 		    (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
-		    so->so_snd.sb_cc, (long)unp->unp_vnode,
-		    (long)unp->unp_conn,
-		    (long)LIST_FIRST(&unp->unp_refs),
-		    (long)LIST_NEXT(unp, unp_reflink));
+		    so->so_snd.sb_cc, (long)xunp->unp_vnode,
+		    (long)xunp->unp_conn, (long)xunp->xu_firstref,
+		    (long)xunp->xu_nextref);
 	}
 	if (sa)
 		xo_emit(" {:path/%.*s}",

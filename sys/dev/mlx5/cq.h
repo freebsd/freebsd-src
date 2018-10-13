@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,6 +49,8 @@ struct mlx5_core_cq {
 	unsigned		arm_sn;
 	struct mlx5_rsc_debug	*dbg;
 	int			pid;
+	int			reset_notify_added;
+	struct list_head	reset_notify;
 };
 
 
@@ -86,6 +88,7 @@ enum {
 	MLX5_CQ_MODIFY_PERIOD	= 1 << 0,
 	MLX5_CQ_MODIFY_COUNT	= 1 << 1,
 	MLX5_CQ_MODIFY_OVERRUN	= 1 << 2,
+	MLX5_CQ_MODIFY_PERIOD_MODE = 1 << 4,
 };
 
 enum {
@@ -154,15 +157,20 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 int mlx5_init_cq_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_cq_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_create_cq_mbox_in *in, int inlen);
+			u32 *in, int inlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-		       struct mlx5_query_cq_mbox_out *out);
+		       u32 *out, int outlen);
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_modify_cq_mbox_in *in, int in_sz);
+			u32 *in, int inlen);
 int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 				   struct mlx5_core_cq *cq, u16 cq_period,
 				   u16 cq_max_count);
+int mlx5_core_modify_cq_moderation_mode(struct mlx5_core_dev *dev,
+					struct mlx5_core_cq *cq,
+					u16 cq_period,
+					u16 cq_max_count,
+					u8 cq_mode);
 int mlx5_debug_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 

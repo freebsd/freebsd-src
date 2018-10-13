@@ -5,14 +5,14 @@
 #
 
 include 	"../mv/armada38x/std.armada38x"
-include 	"std.armv6"
+include 	"std.armv7"
 
 ident 	ARMADA38X
 
 options 	SOC_MV_ARMADA38X
 
-makeoptions 	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions 	WERROR="-Werror"
+makeoptions 	MODULES_EXTRA="dtb/mv"
 
 options 	MD_ROOT
 #makeoptions 	MFS_IMAGE=/path/to/miniroot
@@ -20,25 +20,9 @@ options 	MD_ROOT
 options 	ROOTDEVNAME=\"/dev/da0s1a\"
 
 options 	SCHED_ULE		# ULE scheduler
-#options 	SCHED_4BSD		# 4BSD scheduler
-
 options 	SMP
 
-# Debugging
-#options 	DEBUG
-#options 	VERBOSE_SYSINIT
-options 	ALT_BREAK_TO_DEBUGGER
-options 	DDB
-#options 	GDB
-#options 	DIAGNOSTIC
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	KDB
-options 	KDB_TRACE
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	WITNESS_KDB
-#options 	BOOTVERBOSE
+options		VM_KMEM_SIZE_MAX=0x9CCD000
 
 # Pseudo devices
 device		random
@@ -56,13 +40,16 @@ device		vlan
 device		mii
 device		bpf
 device		re
+device		mdio
+device		etherswitch
+device		e6000sw
+device		neta
 
 # PCI
 device		pci
 
 # Interrupt controllers
 device		gic
-options 	INTRNG
 
 # Timers
 device		mpcore_timer
@@ -76,17 +63,40 @@ device		scbus
 device		pass
 device		da
 
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
+
+# SATA
+device		ahci
+
 # I2C
 device		iic
 device		iicbus
 device		twsi
+
+# Wireless NIC cards
+device		wlan		# 802.11 support
+device		ath		# Atheros NIC's
+device		ath_pci		# Atheros pci/cardbus glue
+device		ath_hal
+device		ath_rate_sample
+options		ATH_ENABLE_11N
 
 # CESA
 device		cesa
 device		crypto
 device		cryptodev
 
-#FDT
+# L2 Cache
+device		pl310
+
+options		PLATFORM
+
+# FDT
 options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions 	FDT_DTS_FILE=armada-388-gp.dts
+
+# GPIO
+device gpio
+device gpioled

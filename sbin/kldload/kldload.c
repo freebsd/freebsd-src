@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Doug Rabson
  * All rights reserved.
  *
@@ -41,9 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #define	PATHCTL	"kern.module_path"
 
-static int	path_check(const char *, int);
-static void	usage(void);
-
 /*
  * Check to see if the requested module is specified as a filename with no
  * path.  If so and if a file by the same name exists in the module path,
@@ -52,43 +51,37 @@ static void	usage(void);
 static int
 path_check(const char *kldname, int quiet)
 {
-	int	mib[5], found;
-	size_t	miblen, pathlen;
-	char	kldpath[MAXPATHLEN];
 	char	*path, *tmppath, *element;
 	struct	stat sb;
+	int	mib[5];
+	char	kldpath[MAXPATHLEN];
+	size_t	miblen, pathlen;
 	dev_t	dev;
 	ino_t	ino;
+	int	found;
 
-	if (strchr(kldname, '/') != NULL) {
+	if (strchr(kldname, '/') != NULL)
 		return (0);
-	}
-	if (strstr(kldname, ".ko") == NULL) {
+	if (strstr(kldname, ".ko") == NULL)
 		return (0);
-	}
-	if (stat(kldname, &sb) != 0) {
+	if (stat(kldname, &sb) != 0)
 		return (0);
-	}
 
 	found = 0;
 	dev = sb.st_dev;
 	ino = sb.st_ino;
 
 	miblen = nitems(mib);
-	if (sysctlnametomib(PATHCTL, mib, &miblen) != 0) {
+	if (sysctlnametomib(PATHCTL, mib, &miblen) != 0)
 		err(1, "sysctlnametomib(%s)", PATHCTL);
-	}
-	if (sysctl(mib, miblen, NULL, &pathlen, NULL, 0) == -1) {
+	if (sysctl(mib, miblen, NULL, &pathlen, NULL, 0) == -1)
 		err(1, "getting path: sysctl(%s) - size only", PATHCTL);
-	}
 	path = malloc(pathlen + 1);
-	if (path == NULL) {
+	if (path == NULL)
 		err(1, "allocating %lu bytes for the path",
 		    (unsigned long)pathlen + 1);
-	}
-	if (sysctl(mib, miblen, path, &pathlen, NULL, 0) == -1) {
+	if (sysctl(mib, miblen, path, &pathlen, NULL, 0) == -1)
 		err(1, "getting path: sysctl(%s)", PATHCTL);
-	}
 	tmppath = path;
 
 	while ((element = strsep(&tmppath, ";")) != NULL) {
@@ -97,39 +90,36 @@ path_check(const char *kldname, int quiet)
 			strlcat(kldpath, "/", MAXPATHLEN);
 		}
 		strlcat(kldpath, kldname, MAXPATHLEN);
-				
-		if (stat(kldpath, &sb) == -1) {
+
+		if (stat(kldpath, &sb) == -1)
 			continue;
-		}	
 
 		found = 1;
 
 		if (sb.st_dev != dev || sb.st_ino != ino) {
-			if (!quiet) {
+			if (!quiet)
 				warnx("%s will be loaded from %s, not the "
 				    "current directory", kldname, element);
-			}
 			break;
-		} else if (sb.st_dev == dev && sb.st_ino == ino) {
+		} else if (sb.st_dev == dev && sb.st_ino == ino)
 			break;
-		}
 	}
 
 	free(path);
-	
+
 	if (!found) {
-		if (!quiet) {
+		if (!quiet)
 			warnx("%s is not in the module path", kldname);
-		}
 		return (-1);
 	}
-	
+
 	return (0);
 }
 
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: kldload [-nqv] file ...\n");
 	exit(1);
 }
@@ -138,17 +128,17 @@ int
 main(int argc, char** argv)
 {
 	int c;
+	int check_loaded;
 	int errors;
 	int fileid;
-	int verbose;
 	int quiet;
-	int check_loaded;
+	int verbose;
 
 	errors = 0;
 	verbose = 0;
 	quiet = 0;
 	check_loaded = 0;
-    
+
 	while ((c = getopt(argc, argv, "nqv")) != -1) {
 		switch (c) {
 		case 'q':
@@ -189,9 +179,9 @@ main(int argc, char** argv)
 						break;
 					case ENOEXEC:
 						warnx("an error occurred while "
-						    "loading the module. "
+						    "loading module %s. "
 						    "Please check dmesg(8) for "
-						    "more details.");
+						    "more details.", argv[0]);
 						break;
 					default:
 						warn("can't load %s", argv[0]);
@@ -204,9 +194,8 @@ main(int argc, char** argv)
 					printf("Loaded %s, id=%d\n", argv[0],
 					    fileid);
 			}
-		} else {
+		} else
 			errors++;
-		}
 		argv++;
 	}
 

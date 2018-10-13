@@ -136,7 +136,7 @@ mtk_pinctrl_process_node(device_t dev, struct mtk_pin_group *table,
 	if (num_groups <= 0)
 		return (ENOENT);
 
-	if (OF_getprop_alloc(node, "ralink,function", sizeof(*pin_function),
+	if (OF_getprop_alloc_multi(node, "ralink,function", sizeof(*pin_function),
 			     (void **)&pin_function) == -1) {
 		ret = ENOENT;
 		goto out;
@@ -169,6 +169,9 @@ mtk_pinctrl_configure(device_t dev, phandle_t cfgxref)
 	socid = mtk_soc_get_socid();
 
 	switch (socid) {
+	case MTK_SOC_RT2880:
+		pintable = rt2880_pintable;
+		break;
 	case MTK_SOC_RT3050: /* fallthrough */
 	case MTK_SOC_RT3052:
 	case MTK_SOC_RT3350:

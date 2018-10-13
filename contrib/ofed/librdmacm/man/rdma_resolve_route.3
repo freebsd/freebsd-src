@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "RDMA_RESOLVE_ROUTE" 3 "2007-10-31" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_resolve_route \- Resolve the route information needed to establish a connection.
@@ -16,6 +17,9 @@ Time to wait for resolution to complete.
 Resolves an RDMA route to the destination address in order to establish
 a connection.  The destination address must have already been resolved
 by calling rdma_resolve_addr.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
 .SH "NOTES"
 This is called on the client side of a connection after calling
 rdma_resolve_addr, but before calling rdma_connect.

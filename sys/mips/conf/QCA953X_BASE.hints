@@ -9,6 +9,10 @@
 hint.apb.0.at="nexus0"
 hint.apb.0.irq=4
 
+# ART calibration data mapping device
+hint.ar71xx_caldata.0.at="nexus0"
+hint.ar71xx_caldata.0.order=0
+
 # mdiobus on arge0 - required to bring up arge0
 hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x19000000
@@ -51,9 +55,12 @@ hint.ath.0.msize=0x20000
 hint.ath.0.irq=0
 hint.ath.0.vendor_id=0x168c
 hint.ath.0.device_id=0x003d
-# Set this to define where the ath calibration data
-# should be fetched from in physical memory.
-# hint.ath.0.eepromaddr=0x1fff1000
+# Where the ART is - last 64k in the first 8MB of flash
+#hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+#hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+#hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
 
 # SPI flash
 hint.spi.0.at="nexus0"

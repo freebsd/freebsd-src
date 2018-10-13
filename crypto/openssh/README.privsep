@@ -8,10 +8,6 @@ More information is available at:
 Privilege separation is now enabled by default; see the
 UsePrivilegeSeparation option in sshd_config(5).
 
-On systems which lack mmap or anonymous (MAP_ANON) memory mapping,
-compression must be disabled in order for privilege separation to
-function.
-
 When privsep is enabled, during the pre-authentication phase sshd will
 chroot(2) to "/var/empty" and change its privileges to the "sshd" user
 and its primary group.  sshd is a pseudo-account that should not be
@@ -35,14 +31,11 @@ privsep user and chroot directory:
   --with-privsep-path=xxx Path for privilege separation chroot
   --with-privsep-user=user Specify non-privileged user for privilege separation
 
-Privsep requires operating system support for file descriptor passing.
-Compression will be disabled on systems without a working mmap MAP_ANON.
-
 PAM-enabled OpenSSH is known to function with privsep on AIX, FreeBSD, 
 HP-UX (including Trusted Mode), Linux, NetBSD and Solaris.
 
-On Cygwin, Tru64 Unix, OpenServer, and Unicos only the pre-authentication
-part of privsep is supported.  Post-authentication privsep is disabled
+On Cygwin, Tru64 Unix and OpenServer only the pre-authentication part
+of privsep is supported.  Post-authentication privsep is disabled
 automatically (so you won't see the additional process mentioned below).
 
 Note that for a normal interactive login with a shell, enabling privsep
@@ -59,5 +52,3 @@ Given the following process listing (from HP-UX):
 process 1005 is the sshd process listening for new connections.
 process 6917 is the privileged monitor process, 6919 is the user owned
 sshd process and 6921 is the shell process.
-
-$Id: README.privsep,v 1.16 2005/06/04 23:21:41 djm Exp $

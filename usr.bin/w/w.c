@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -180,7 +182,7 @@ main(int argc, char *argv[])
 			nlistf = optarg;
 			break;
 		case 'n':
-			nflag = 1;
+			nflag += 1;
 			break;
 		case 'f': case 'l': case 's': case 'u': case 'w':
 			warnx("[-flsuw] no longer supported");
@@ -378,12 +380,12 @@ main(int argc, char *argv[])
 			lsin->sin_family = AF_INET;
 			isaddr = 1;
 		}
-		if (!nflag) {
+		if (nflag == 0) {
 			/* Attempt to change an IP address into a name */
 			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
 			    sa->sa_len) == HOSTNAME_FOUND)
 				p = fn;
-		} else if (!isaddr) {
+		} else if (!isaddr && nflag > 1) {
 			/*
 			 * If a host has only one A/AAAA RR, change a
 			 * name into an IP address
@@ -511,12 +513,12 @@ pr_header(time_t *nowp, int nusers)
 	}
 
 	/* Print number of users logged in to system */
-	xo_emit(" {:users/%d} {N:user%s}", nusers, nusers == 1 ? "" : "s");
+	xo_emit(" {:users/%d} {Np:user,users}", nusers);
 
 	/*
 	 * Print 1, 5, and 15 minute load averages.
 	 */
-	if (getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0])) == -1)
+	if (getloadavg(avenrun, nitems(avenrun)) == -1)
 		xo_emit(", no load average information available\n");
 	else {
 	        static const char *format[] = {
@@ -525,7 +527,7 @@ pr_header(time_t *nowp, int nusers)
 		    " {:load-average-15/%.2f}",
 		};
 		xo_emit(", load averages:");
-		for (i = 0; i < (int)(sizeof(avenrun) / sizeof(avenrun[0])); i++) {
+		for (i = 0; i < (int)(nitems(avenrun)); i++) {
 			if (use_comma && i > 0)
 				xo_emit(",");
 			xo_emit(format[i], avenrun[i]);

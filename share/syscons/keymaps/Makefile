@@ -26,7 +26,7 @@ FILES=	INDEX.keymaps \
 	icelandic.iso.kbd icelandic.iso.acc.kbd \
 	it.iso.kbd \
 	iw.iso8.kbd \
-	jp.106.kbd jp.106x.kbd jp.pc98.kbd jp.pc98.iso.kbd \
+	jp.106.kbd jp.106x.kbd \
 	kk.pt154.kst.kbd kk.pt154.io.kbd \
 	latinamerican.kbd latinamerican.iso.acc.kbd \
 	lt.iso4.kbd \
@@ -48,7 +48,8 @@ FILES=	INDEX.keymaps \
 	uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd \
 	uk.dvorak.kbd \
 	us.iso.kbd us.dvorak.kbd us.dvorakl.kbd us.dvorakr.kbd us.dvorakp.kbd \
-	us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd us.unix.kbd us.iso.acc.kbd
+	us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd us.unix.kbd us.iso.acc.kbd \
+	us.iso.macbook.kbd
 
 FILESDIR= ${SHAREDIR}/syscons/keymaps
 

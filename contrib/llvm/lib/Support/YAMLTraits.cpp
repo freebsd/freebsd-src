@@ -8,17 +8,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/YAMLTraits.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/LineIterator.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Unicode.h"
 #include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cctype>
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <string>
+#include <vector>
+
 using namespace llvm;
 using namespace yaml;
 
@@ -26,11 +37,9 @@ using namespace yaml;
 //  IO
 //===----------------------------------------------------------------------===//
 
-IO::IO(void *Context) : Ctxt(Context) {
-}
+IO::IO(void *Context) : Ctxt(Context) {}
 
-IO::~IO() {
-}
+IO::~IO() = default;
 
 void *IO::getContext() {
   return Ctxt;
@@ -44,20 +53,23 @@ void IO::setContext(void *Context) {
 //  Input
 //===----------------------------------------------------------------------===//
 
-Input::Input(StringRef InputContent,
-             void *Ctxt,
-             SourceMgr::DiagHandlerTy DiagHandler,
-             void *DiagHandlerCtxt)
-  : IO(Ctxt),
-    Strm(new Stream(InputContent, SrcMgr)),
-    CurrentNode(nullptr) {
+Input::Input(StringRef InputContent, void *Ctxt,
+             SourceMgr::DiagHandlerTy DiagHandler, void *DiagHandlerCtxt)
+    : IO(Ctxt), Strm(new Stream(InputContent, SrcMgr, false, &EC)) {
   if (DiagHandler)
     SrcMgr.setDiagHandler(DiagHandler, DiagHandlerCtxt);
   DocIterator = Strm->begin();
 }
 
-Input::~Input() {
+Input::Input(MemoryBufferRef Input, void *Ctxt,
+             SourceMgr::DiagHandlerTy DiagHandler, void *DiagHandlerCtxt)
+    : IO(Ctxt), Strm(new Stream(Input, SrcMgr, false, &EC)) {
+  if (DiagHandler)
+    SrcMgr.setDiagHandler(DiagHandler, DiagHandlerCtxt);
+  DocIterator = Strm->begin();
 }
+
+Input::~Input() = default;
 
 std::error_code Input::error() { return EC; }
 
@@ -121,6 +133,18 @@ void Input::beginMapping() {
   }
 }
 
+std::vector<StringRef> Input::keys() {
+  MapHNode *MN = dyn_cast<MapHNode>(CurrentNode);
+  std::vector<StringRef> Ret;
+  if (!MN) {
+    setError(CurrentNode, "not a mapping");
+    return Ret;
+  }
+  for (auto &P : MN->Mapping)
+    Ret.push_back(P.first());
+  return Ret;
+}
+
 bool Input::preflightKey(const char *Key, bool Required, bool, bool &UseDefault,
                          void *&SaveInfo) {
   UseDefault = false;
@@ -137,7 +161,8 @@ bool Input::preflightKey(const char *Key, bool Required, bool, bool &UseDefault,
 
   MapHNode *MN = dyn_cast<MapHNode>(CurrentNode);
   if (!MN) {
-    setError(CurrentNode, "not a mapping");
+    if (Required || !isa<EmptyHNode>(CurrentNode))
+      setError(CurrentNode, "not a mapping");
     return false;
   }
   MN->ValidKeys.push_back(Key);
@@ -166,7 +191,7 @@ void Input::endMapping() {
   if (!MN)
     return;
   for (const auto &NN : MN->Mapping) {
-    if (!MN->isValidKey(NN.first())) {
+    if (!is_contained(MN->ValidKeys, NN.first())) {
       setError(NN.second.get(), Twine("unknown key '") + NN.first() + "'");
       break;
     }
@@ -306,7 +331,7 @@ void Input::endBitSetScalar() {
   }
 }
 
-void Input::scalarString(StringRef &S, bool) {
+void Input::scalarString(StringRef &S, QuotingType) {
   if (ScalarHNode *SN = dyn_cast<ScalarHNode>(CurrentNode)) {
     S = SN->value();
   } else {
@@ -314,7 +339,7 @@ void Input::scalarString(StringRef &S, bool) {
   }
 }
 
-void Input::blockScalarString(StringRef &S) { scalarString(S, false); }
+void Input::blockScalarString(StringRef &S) { scalarString(S, QuotingType::None); }
 
 void Input::setError(HNode *hnode, const Twine &message) {
   assert(hnode && "HNode must not be NULL");
@@ -351,18 +376,22 @@ std::unique_ptr<Input::HNode> Input::createHNodes(Node *N) {
     auto mapHNode = llvm::make_unique<MapHNode>(N);
     for (KeyValueNode &KVN : *Map) {
       Node *KeyNode = KVN.getKey();
-      ScalarNode *KeyScalar = dyn_cast<ScalarNode>(KeyNode);
-      if (!KeyScalar) {
-        setError(KeyNode, "Map key must be a scalar");
+      ScalarNode *Key = dyn_cast<ScalarNode>(KeyNode);
+      Node *Value = KVN.getValue();
+      if (!Key || !Value) {
+        if (!Key)
+          setError(KeyNode, "Map key must be a scalar");
+        if (!Value)
+          setError(KeyNode, "Map value must not be empty");
         break;
       }
       StringStorage.clear();
-      StringRef KeyStr = KeyScalar->getValue(StringStorage);
+      StringRef KeyStr = Key->getValue(StringStorage);
       if (!StringStorage.empty()) {
         // Copy string to permanent storage
         KeyStr = StringStorage.str().copy(StringAllocator);
       }
-      auto ValueHNode = this->createHNodes(KVN.getValue());
+      auto ValueHNode = this->createHNodes(Value);
       if (EC)
         break;
       mapHNode->Mapping[KeyStr] = std::move(ValueHNode);
@@ -374,14 +403,6 @@ std::unique_ptr<Input::HNode> Input::createHNodes(Node *N) {
     setError(N, "unknown node kind");
     return nullptr;
   }
-}
-
-bool Input::MapHNode::isValidKey(StringRef Key) {
-  for (const char *K : ValidKeys) {
-    if (Key.equals(K))
-      return true;
-  }
-  return false;
 }
 
 void Input::setError(const Twine &Message) {
@@ -397,20 +418,9 @@ bool Input::canElideEmptySequence() {
 //===----------------------------------------------------------------------===//
 
 Output::Output(raw_ostream &yout, void *context, int WrapColumn)
-    : IO(context),
-      Out(yout),
-      WrapColumn(WrapColumn),
-      Column(0),
-      ColumnAtFlowStart(0),
-      ColumnAtMapFlowStart(0),
-      NeedBitValueComma(false),
-      NeedFlowSequenceComma(false),
-      EnumerationMatchFound(false),
-      NeedsNewLine(false) {
-}
+    : IO(context), Out(yout), WrapColumn(WrapColumn) {}
 
-Output::~Output() {
-}
+Output::~Output() = default;
 
 bool Output::outputting() {
   return true;
@@ -423,8 +433,29 @@ void Output::beginMapping() {
 
 bool Output::mapTag(StringRef Tag, bool Use) {
   if (Use) {
-    this->output(" ");
+    // If this tag is being written inside a sequence we should write the start
+    // of the sequence before writing the tag, otherwise the tag won't be
+    // attached to the element in the sequence, but rather the sequence itself.
+    bool SequenceElement =
+        StateStack.size() > 1 && (StateStack[StateStack.size() - 2] == inSeq ||
+          StateStack[StateStack.size() - 2] == inFlowSeq);
+    if (SequenceElement && StateStack.back() == inMapFirstKey) {
+      this->newLineCheck();
+    } else {
+      this->output(" ");
+    }
     this->output(Tag);
+    if (SequenceElement) {
+      // If we're writing the tag during the first element of a map, the tag
+      // takes the place of the first element in the sequence.
+      if (StateStack.back() == inMapFirstKey) {
+        StateStack.pop_back();
+        StateStack.push_back(inMapOtherKey);
+      }
+      // Tags inside maps in sequences should act as keys in the map from a
+      // formatting perspective, so we always want a newline in a sequence.
+      NeedsNewLine = true;
+    }
   }
   return Use;
 }
@@ -433,10 +464,14 @@ void Output::endMapping() {
   StateStack.pop_back();
 }
 
+std::vector<StringRef> Output::keys() {
+  report_fatal_error("invalid call");
+}
+
 bool Output::preflightKey(const char *Key, bool Required, bool SameAsDefault,
                           bool &UseDefault, void *&) {
   UseDefault = false;
-  if (Required || !SameAsDefault) {
+  if (Required || !SameAsDefault || WriteDefaultValues) {
     auto State = StateStack.back();
     if (State == inFlowMapFirstKey || State == inFlowMapOtherKey) {
       flowKey(Key);
@@ -583,7 +618,7 @@ void Output::endBitSetScalar() {
   this->outputUpToEndOfLine(" ]");
 }
 
-void Output::scalarString(StringRef &S, bool MustQuote) {
+void Output::scalarString(StringRef &S, QuotingType MustQuote) {
   this->newLineCheck();
   if (S.empty()) {
     // Print '' for the empty string because leaving the field empty is not
@@ -591,27 +626,57 @@ void Output::scalarString(StringRef &S, bool MustQuote) {
     this->outputUpToEndOfLine("''");
     return;
   }
-  if (!MustQuote) {
+  if (MustQuote == QuotingType::None) {
     // Only quote if we must.
     this->outputUpToEndOfLine(S);
     return;
   }
+
   unsigned i = 0;
   unsigned j = 0;
   unsigned End = S.size();
-  output("'"); // Starting single quote.
   const char *Base = S.data();
+
+  const char *const Quote = MustQuote == QuotingType::Single ? "'" : "\"";
+  const char QuoteChar = MustQuote == QuotingType::Single ? '\'' : '"';
+
+  output(Quote); // Starting quote.
+
+  // When using single-quoted strings, any single quote ' must be doubled to be
+  // escaped.
+  // When using double-quoted strings, print \x + hex for non-printable ASCII
+  // characters, and escape double quotes.
   while (j < End) {
-    // Escape a single quote by doubling it.
-    if (S[j] == '\'') {
-      output(StringRef(&Base[i], j - i + 1));
-      output("'");
+    if (S[j] == QuoteChar) {                  // Escape quotes.
+      output(StringRef(&Base[i], j - i));     // "flush".
+      if (MustQuote == QuotingType::Double) { // Print it as \"
+        output(StringLiteral("\\"));
+        output(StringRef(Quote, 1));
+      } else {                       // Single
+        output(StringLiteral("''")); // Print it as ''
+      }
+      i = j + 1;
+    } else if (MustQuote == QuotingType::Double &&
+               !sys::unicode::isPrintable(S[j]) && (S[j] & 0x80) == 0) {
+      // If we're double quoting non-printable characters, we prefer printing
+      // them as "\x" + their hex representation. Note that special casing is
+      // needed for UTF-8, where a byte may be part of a UTF-8 sequence and
+      // appear as non-printable, in which case we want to print the correct
+      // unicode character and not its hex representation.
+      output(StringRef(&Base[i], j - i)); // "flush"
+      output(StringLiteral("\\x"));
+
+      // Output the byte 0x0F as \x0f.
+      auto FormattedHex = format_hex_no_prefix(S[j], 2);
+      Out << FormattedHex;
+      Column += 4; // one for the '\', one for the 'x', and two for the hex
+
       i = j + 1;
     }
     ++j;
   }
   output(StringRef(&Base[i], j - i));
-  this->outputUpToEndOfLine("'"); // Ending single quote.
+  this->outputUpToEndOfLine(Quote); // Ending quote.
 }
 
 void Output::blockScalarString(StringRef &S) {
@@ -892,12 +957,9 @@ void ScalarTraits<double>::output(const double &Val, void *, raw_ostream &Out) {
 }
 
 StringRef ScalarTraits<double>::input(StringRef Scalar, void *, double &Val) {
-  SmallString<32> buff(Scalar.begin(), Scalar.end());
-  char *end;
-  Val = strtod(buff.c_str(), &end);
-  if (*end != '\0')
-    return "invalid floating point number";
-  return StringRef();
+  if (to_float(Scalar, Val))
+    return StringRef();
+  return "invalid floating point number";
 }
 
 void ScalarTraits<float>::output(const float &Val, void *, raw_ostream &Out) {
@@ -905,12 +967,9 @@ void ScalarTraits<float>::output(const float &Val, void *, raw_ostream &Out) {
 }
 
 StringRef ScalarTraits<float>::input(StringRef Scalar, void *, float &Val) {
-  SmallString<32> buff(Scalar.begin(), Scalar.end());
-  char *end;
-  Val = strtod(buff.c_str(), &end);
-  if (*end != '\0')
-    return "invalid floating point number";
-  return StringRef();
+  if (to_float(Scalar, Val))
+    return StringRef();
+  return "invalid floating point number";
 }
 
 void ScalarTraits<Hex8>::output(const Hex8 &Val, void *, raw_ostream &Out) {

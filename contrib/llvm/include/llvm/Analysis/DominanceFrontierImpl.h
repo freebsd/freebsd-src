@@ -18,54 +18,61 @@
 #ifndef LLVM_ANALYSIS_DOMINANCEFRONTIERIMPL_H
 #define LLVM_ANALYSIS_DOMINANCEFRONTIERIMPL_H
 
+#include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GenericDomTree.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <set>
+#include <utility>
+#include <vector>
 
 namespace llvm {
 
 template <class BlockT>
 class DFCalculateWorkObject {
 public:
-  typedef DomTreeNodeBase<BlockT> DomTreeNodeT;
+  using DomTreeNodeT = DomTreeNodeBase<BlockT>;
 
   DFCalculateWorkObject(BlockT *B, BlockT *P, const DomTreeNodeT *N,
                         const DomTreeNodeT *PN)
       : currentBB(B), parentBB(P), Node(N), parentNode(PN) {}
+
   BlockT *currentBB;
   BlockT *parentBB;
   const DomTreeNodeT *Node;
   const DomTreeNodeT *parentNode;
 };
 
-template <class BlockT>
-void DominanceFrontierBase<BlockT>::removeBlock(BlockT *BB) {
+template <class BlockT, bool IsPostDom>
+void DominanceFrontierBase<BlockT, IsPostDom>::removeBlock(BlockT *BB) {
   assert(find(BB) != end() && "Block is not in DominanceFrontier!");
   for (iterator I = begin(), E = end(); I != E; ++I)
     I->second.erase(BB);
   Frontiers.erase(BB);
 }
 
-template <class BlockT>
-void DominanceFrontierBase<BlockT>::addToFrontier(iterator I,
-                                                  BlockT *Node) {
+template <class BlockT, bool IsPostDom>
+void DominanceFrontierBase<BlockT, IsPostDom>::addToFrontier(iterator I,
+                                                             BlockT *Node) {
   assert(I != end() && "BB is not in DominanceFrontier!");
   assert(I->second.count(Node) && "Node is not in DominanceFrontier of BB");
   I->second.erase(Node);
 }
 
-template <class BlockT>
-void DominanceFrontierBase<BlockT>::removeFromFrontier(iterator I,
-                                                       BlockT *Node) {
+template <class BlockT, bool IsPostDom>
+void DominanceFrontierBase<BlockT, IsPostDom>::removeFromFrontier(
+    iterator I, BlockT *Node) {
   assert(I != end() && "BB is not in DominanceFrontier!");
   assert(I->second.count(Node) && "Node is not in DominanceFrontier of BB");
   I->second.erase(Node);
 }
 
-template <class BlockT>
-bool DominanceFrontierBase<BlockT>::compareDomSet(DomSetType &DS1,
-                                                  const DomSetType &DS2) const {
+template <class BlockT, bool IsPostDom>
+bool DominanceFrontierBase<BlockT, IsPostDom>::compareDomSet(
+    DomSetType &DS1, const DomSetType &DS2) const {
   std::set<BlockT *> tmpSet;
   for (BlockT *BB : DS2)
     tmpSet.insert(BB);
@@ -88,9 +95,9 @@ bool DominanceFrontierBase<BlockT>::compareDomSet(DomSetType &DS1,
   return false;
 }
 
-template <class BlockT>
-bool DominanceFrontierBase<BlockT>::compare(
-    DominanceFrontierBase<BlockT> &Other) const {
+template <class BlockT, bool IsPostDom>
+bool DominanceFrontierBase<BlockT, IsPostDom>::compare(
+    DominanceFrontierBase<BlockT, IsPostDom> &Other) const {
   DomSetMapType tmpFrontiers;
   for (typename DomSetMapType::const_iterator I = Other.begin(),
                                               E = Other.end();
@@ -118,8 +125,8 @@ bool DominanceFrontierBase<BlockT>::compare(
   return false;
 }
 
-template <class BlockT>
-void DominanceFrontierBase<BlockT>::print(raw_ostream &OS) const {
+template <class BlockT, bool IsPostDom>
+void DominanceFrontierBase<BlockT, IsPostDom>::print(raw_ostream &OS) const {
   for (const_iterator I = begin(), E = end(); I != E; ++I) {
     OS << "  DomFrontier for BB ";
     if (I->first)
@@ -142,8 +149,8 @@ void DominanceFrontierBase<BlockT>::print(raw_ostream &OS) const {
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-template <class BlockT>
-void DominanceFrontierBase<BlockT>::dump() const {
+template <class BlockT, bool IsPostDom>
+void DominanceFrontierBase<BlockT, IsPostDom>::dump() const {
   print(dbgs());
 }
 #endif
@@ -174,12 +181,10 @@ ForwardDominanceFrontierBase<BlockT>::calculate(const DomTreeT &DT,
     // Visit each block only once.
     if (visited.insert(currentBB).second) {
       // Loop over CFG successors to calculate DFlocal[currentNode]
-      for (auto SI = BlockTraits::child_begin(currentBB),
-                SE = BlockTraits::child_end(currentBB);
-           SI != SE; ++SI) {
+      for (const auto Succ : children<BlockT *>(currentBB)) {
         // Does Node immediately dominate this successor?
-        if (DT[*SI]->getIDom() != currentNode)
-          S.insert(*SI);
+        if (DT[Succ]->getIDom() != currentNode)
+          S.insert(Succ);
       }
     }
 
@@ -221,6 +226,6 @@ ForwardDominanceFrontierBase<BlockT>::calculate(const DomTreeT &DT,
   return *Result;
 }
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ANALYSIS_DOMINANCEFRONTIERIMPL_H

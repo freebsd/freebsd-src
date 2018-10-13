@@ -1,7 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, 2004 Silicon Graphics International Corp.
  * Copyright (c) 1997-2007 Kenneth D. Merry
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
@@ -43,25 +46,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <sys/linker.h>
-#include <sys/queue.h>
 #include <sys/callout.h>
+#include <sys/ioctl.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/nv.h>
+#include <sys/stat.h>
+#include <bsdxml.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <ctype.h>
-#include <bsdxml.h>
+#include <unistd.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl.h>
@@ -178,7 +182,7 @@ static struct ctladm_opts option_table[] = {
 	{"lunmap", CTLADM_CMD_LUNMAP, CTLADM_ARG_NONE, "p:l:L:"},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:o:s:"},
-	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:p:qt:w:W:x"},
+	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:O:d:crp:qt:w:W:x"},
 	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
@@ -369,7 +373,9 @@ typedef enum {
 	CCTL_PORT_MODE_LIST,
 	CCTL_PORT_MODE_SET,
 	CCTL_PORT_MODE_ON,
-	CCTL_PORT_MODE_OFF
+	CCTL_PORT_MODE_OFF,
+	CCTL_PORT_MODE_CREATE,
+	CCTL_PORT_MODE_REMOVE
 } cctl_port_mode;
 
 static struct ctladm_opts cctl_fe_table[] = {
@@ -392,8 +398,15 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	uint64_t wwnn = 0, wwpn = 0;
 	cctl_port_mode port_mode = CCTL_PORT_MODE_NONE;
 	struct ctl_port_entry entry;
+	struct ctl_req req;
+	char *driver = NULL;
+	nvlist_t *option_list;
 	ctl_port_type port_type = CTL_PORT_NONE;
 	int quiet = 0, xml = 0;
+
+	option_list = nvlist_create(0);
+	if (option_list == NULL)
+		err(1, "%s: unable to allocate nvlist", __func__);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -402,6 +415,12 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 				goto bailout_badarg;
 
 			port_mode = CCTL_PORT_MODE_LIST;
+			break;
+		case 'c':
+			port_mode = CCTL_PORT_MODE_CREATE;
+			break;
+		case 'r':
+			port_mode = CCTL_PORT_MODE_REMOVE;
 			break;
 		case 'o':
 			if (port_mode != CCTL_PORT_MODE_NONE)
@@ -418,6 +437,40 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
+			break;
+		case 'O': {
+			char *tmpstr;
+			char *name, *value;
+
+			tmpstr = strdup(optarg);
+			name = strsep(&tmpstr, "=");
+			if (name == NULL) {
+				warnx("%s: option -O takes \"name=value\""
+				      "argument", __func__);
+				retval = 1;
+				goto bailout;
+			}
+			value = strsep(&tmpstr, "=");
+			if (value == NULL) {
+				warnx("%s: option -O takes \"name=value\""
+				      "argument", __func__);
+				retval = 1;
+				goto bailout;
+			}
+
+			free(tmpstr);
+			nvlist_add_string(option_list, name, value);
+			break;
+		}
+		case 'd':
+			if (driver != NULL) {
+				warnx("%s: option -d cannot be specified twice",
+				    __func__);
+				retval = 1;
+				goto bailout;
+			}
+
+			driver = strdup(optarg);
 			break;
 		case 'p':
 			targ_port = strtol(optarg, NULL, 0);
@@ -474,6 +527,9 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		}
 	}
 
+	if (driver == NULL)
+		driver = strdup("ioctl");
+
 	/*
 	 * The user can specify either one or more frontend types (-t), or
 	 * a specific frontend, but not both.
@@ -513,6 +569,56 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		if (quiet)
 			argvx[argcx++] = argq;
 		cctl_portlist(fd, argcx, argvx, opts);
+		break;
+	}
+	case CCTL_PORT_MODE_REMOVE:
+		if (targ_port == -1) {
+			warnx("%s: -r require -p", __func__);
+			retval = 1;
+			goto bailout;
+		}
+	case CCTL_PORT_MODE_CREATE: {
+		bzero(&req, sizeof(req));
+		strlcpy(req.driver, driver, sizeof(req.driver));
+
+		if (port_mode == CCTL_PORT_MODE_REMOVE) {
+			req.reqtype = CTL_REQ_REMOVE;
+			nvlist_add_stringf(option_list, "port_id", "%d",
+			    targ_port);
+		} else
+			req.reqtype = CTL_REQ_CREATE;
+
+		req.args = nvlist_pack(option_list, &req.args_len);
+		if (req.args == NULL) {
+			warn("%s: error packing nvlist", __func__);
+			retval = 1;
+			goto bailout;
+		}
+
+		retval = ioctl(fd, CTL_PORT_REQ, &req);
+		free(req.args);
+		if (retval == -1) {
+			warn("%s: CTL_PORT_REQ ioctl failed", __func__);
+			retval = 1;
+			goto bailout;
+		}
+
+		switch (req.status) {
+		case CTL_LUN_ERROR:
+			warnx("error: %s", req.error_str);
+			retval = 1;
+			goto bailout;
+		case CTL_LUN_WARNING:
+			warnx("warning: %s", req.error_str);
+			break;
+		case CTL_LUN_OK:
+			break;
+		default:
+			warnx("unknown status: %d", req.status);
+			retval = 1;
+			goto bailout;
+		}
+
 		break;
 	}
 	case CCTL_PORT_MODE_SET:
@@ -561,7 +667,8 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	}
 
 bailout:
-
+	nvlist_destroy(req.args_nvl);
+	free(driver);
 	return (retval);
 
 bailout_badarg:
@@ -2271,14 +2378,6 @@ bailout:
 	return (retval);
 }
 
-struct cctl_req_option {
-	char			     *name;
-	int			      namelen;
-	char			     *value;
-	int			      vallen;
-	STAILQ_ENTRY(cctl_req_option) links;
-};
-
 static int
 cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 {
@@ -2290,11 +2389,12 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 	char *device_id = NULL;
 	int lun_size_set = 0, blocksize_set = 0, lun_id_set = 0;
 	char *backend_name = NULL;
-	STAILQ_HEAD(, cctl_req_option) option_list;
-	int num_options = 0;
+	nvlist_t *option_list;
 	int retval = 0, c;
 
-	STAILQ_INIT(&option_list);
+	option_list = nvlist_create(0);
+	if (option_list == NULL)
+		err(1, "%s: unable to allocate nvlist", __func__);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -2313,7 +2413,6 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 			lun_id_set = 1;
 			break;
 		case 'o': {
-			struct cctl_req_option *option;
 			char *tmpstr;
 			char *name, *value;
 
@@ -2332,21 +2431,8 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
-			option = malloc(sizeof(*option));
-			if (option == NULL) {
-				warn("%s: error allocating %zd bytes",
-				     __func__, sizeof(*option));
-				retval = 1;
-				goto bailout;
-			}
-			option->name = strdup(name);
-			option->namelen = strlen(name) + 1;
-			option->value = strdup(value);
-			option->vallen = strlen(value) + 1;
 			free(tmpstr);
-
-			STAILQ_INSERT_TAIL(&option_list, option, links);
-			num_options++;
+			nvlist_add_string(option_list, name, value);
 			break;
 		}
 		case 's':
@@ -2413,43 +2499,16 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 		req.reqdata.create.flags |= CTL_LUN_FLAG_DEVID;
 	}
 
-	req.num_be_args = num_options;
-	if (num_options > 0) {
-		struct cctl_req_option *option, *next_option;
-		int i;
-
-		req.be_args = malloc(num_options * sizeof(*req.be_args));
-		if (req.be_args == NULL) {
-			warn("%s: error allocating %zd bytes", __func__,
-			     num_options * sizeof(*req.be_args));
-			retval = 1;
-			goto bailout;
-		}
-
-		for (i = 0, option = STAILQ_FIRST(&option_list);
-		     i < num_options; i++, option = next_option) {
-			next_option = STAILQ_NEXT(option, links);
-
-			req.be_args[i].namelen = option->namelen;
-			req.be_args[i].name = strdup(option->name);
-			req.be_args[i].vallen = option->vallen;
-			req.be_args[i].value = strdup(option->value);
-			/*
-			 * XXX KDM do we want a way to specify a writeable
-			 * flag of some sort?  Do we want a way to specify
-			 * binary data?
-			 */
-			req.be_args[i].flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
-
-			STAILQ_REMOVE(&option_list, option, cctl_req_option,
-				      links);
-			free(option->name);
-			free(option->value);
-			free(option);
-		}
+	req.args = nvlist_pack(option_list, &req.args_len);
+	if (req.args == NULL) {
+		warn("%s: error packing nvlist", __func__);
+		retval = 1;
+		goto bailout;
 	}
 
-	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
+	retval = ioctl(fd, CTL_LUN_REQ, &req);
+	free(req.args);
+	if (retval == -1) {
 		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);
 		retval = 1;
 		goto bailout;
@@ -2480,9 +2539,10 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 		req.reqdata.create.blocksize_bytes);
 	fprintf(stdout, "LUN ID:        %d\n", req.reqdata.create.req_lun_id);
 	fprintf(stdout, "Serial Number: %s\n", req.reqdata.create.serial_num);
-	fprintf(stdout, "Device ID;     %s\n", req.reqdata.create.device_id);
+	fprintf(stdout, "Device ID:     %s\n", req.reqdata.create.device_id);
 
 bailout:
+	nvlist_destroy(req.args_nvl);
 	return (retval);
 }
 
@@ -2493,11 +2553,12 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 	uint32_t lun_id = 0;
 	int lun_id_set = 0;
 	char *backend_name = NULL;
-	STAILQ_HEAD(, cctl_req_option) option_list;
-	int num_options = 0;
+	nvlist_t *option_list;
 	int retval = 0, c;
 
-	STAILQ_INIT(&option_list);
+	option_list = nvlist_create(0);
+	if (option_list == NULL)
+		err(1, "%s: unable to allocate nvlist", __func__);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -2509,7 +2570,6 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 			lun_id_set = 1;
 			break;
 		case 'o': {
-			struct cctl_req_option *option;
 			char *tmpstr;
 			char *name, *value;
 
@@ -2528,21 +2588,8 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
-			option = malloc(sizeof(*option));
-			if (option == NULL) {
-				warn("%s: error allocating %zd bytes",
-				     __func__, sizeof(*option));
-				retval = 1;
-				goto bailout;
-			}
-			option->name = strdup(name);
-			option->namelen = strlen(name) + 1;
-			option->value = strdup(value);
-			option->vallen = strlen(value) + 1;
 			free(tmpstr);
-
-			STAILQ_INSERT_TAIL(&option_list, option, links);
-			num_options++;
+			nvlist_add_string(option_list, name, value);
 			break;
 		}
 		default:
@@ -2562,44 +2609,17 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 	req.reqtype = CTL_LUNREQ_RM;
 
 	req.reqdata.rm.lun_id = lun_id;
-
-	req.num_be_args = num_options;
-	if (num_options > 0) {
-		struct cctl_req_option *option, *next_option;
-		int i;
-
-		req.be_args = malloc(num_options * sizeof(*req.be_args));
-		if (req.be_args == NULL) {
-			warn("%s: error allocating %zd bytes", __func__,
-			     num_options * sizeof(*req.be_args));
-			retval = 1;
-			goto bailout;
-		}
-
-		for (i = 0, option = STAILQ_FIRST(&option_list);
-		     i < num_options; i++, option = next_option) {
-			next_option = STAILQ_NEXT(option, links);
-
-			req.be_args[i].namelen = option->namelen;
-			req.be_args[i].name = strdup(option->name);
-			req.be_args[i].vallen = option->vallen;
-			req.be_args[i].value = strdup(option->value);
-			/*
-			 * XXX KDM do we want a way to specify a writeable
-			 * flag of some sort?  Do we want a way to specify
-			 * binary data?
-			 */
-			req.be_args[i].flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
-
-			STAILQ_REMOVE(&option_list, option, cctl_req_option,
-				      links);
-			free(option->name);
-			free(option->value);
-			free(option);
-		}
+		
+	req.args = nvlist_pack(option_list, &req.args_len);
+	if (req.args == NULL) {
+		warn("%s: error packing nvlist", __func__);
+		retval = 1;
+		goto bailout;
 	}
 
-	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
+	retval = ioctl(fd, CTL_LUN_REQ, &req);
+	free(req.args);
+	if (retval == -1) {
 		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);
 		retval = 1;
 		goto bailout;
@@ -2624,6 +2644,7 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 	printf("LUN %d removed successfully\n", lun_id);
 
 bailout:
+	nvlist_destroy(req.args_nvl);
 	return (retval);
 }
 
@@ -2635,11 +2656,13 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	uint32_t lun_id = 0;
 	int lun_id_set = 0, lun_size_set = 0;
 	char *backend_name = NULL;
-	STAILQ_HEAD(, cctl_req_option) option_list;
-	int num_options = 0;
+	nvlist_t *option_list;
 	int retval = 0, c;
 
-	STAILQ_INIT(&option_list);
+	option_list = nvlist_create(0);
+	if (option_list == NULL)
+		err(1, "%s: unable to allocate nvlist", __func__);
+
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'b':
@@ -2650,7 +2673,6 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 			lun_id_set = 1;
 			break;
 		case 'o': {
-			struct cctl_req_option *option;
 			char *tmpstr;
 			char *name, *value;
 
@@ -2669,21 +2691,8 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
-			option = malloc(sizeof(*option));
-			if (option == NULL) {
-				warn("%s: error allocating %zd bytes",
-				     __func__, sizeof(*option));
-				retval = 1;
-				goto bailout;
-			}
-			option->name = strdup(name);
-			option->namelen = strlen(name) + 1;
-			option->value = strdup(value);
-			option->vallen = strlen(value) + 1;
 			free(tmpstr);
-
-			STAILQ_INSERT_TAIL(&option_list, option, links);
-			num_options++;
+			nvlist_add_string(option_list, name, value);
 			break;
 		}
 		case 's':
@@ -2709,7 +2718,7 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	if (lun_id_set == 0)
 		errx(1, "%s: LUN id (-l) must be specified", __func__);
 
-	if (lun_size_set == 0 && num_options == 0)
+	if (lun_size_set == 0 && nvlist_empty(option_list))
 		errx(1, "%s: size (-s) or options (-o) must be specified",
 		    __func__);
 
@@ -2721,43 +2730,16 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	req.reqdata.modify.lun_id = lun_id;
 	req.reqdata.modify.lun_size_bytes = lun_size;
 
-	req.num_be_args = num_options;
-	if (num_options > 0) {
-		struct cctl_req_option *option, *next_option;
-		int i;
-
-		req.be_args = malloc(num_options * sizeof(*req.be_args));
-		if (req.be_args == NULL) {
-			warn("%s: error allocating %zd bytes", __func__,
-			     num_options * sizeof(*req.be_args));
-			retval = 1;
-			goto bailout;
-		}
-
-		for (i = 0, option = STAILQ_FIRST(&option_list);
-		     i < num_options; i++, option = next_option) {
-			next_option = STAILQ_NEXT(option, links);
-
-			req.be_args[i].namelen = option->namelen;
-			req.be_args[i].name = strdup(option->name);
-			req.be_args[i].vallen = option->vallen;
-			req.be_args[i].value = strdup(option->value);
-			/*
-			 * XXX KDM do we want a way to specify a writeable
-			 * flag of some sort?  Do we want a way to specify
-			 * binary data?
-			 */
-			req.be_args[i].flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
-
-			STAILQ_REMOVE(&option_list, option, cctl_req_option,
-				      links);
-			free(option->name);
-			free(option->value);
-			free(option);
-		}
+	req.args = nvlist_pack(option_list, &req.args_len);
+	if (req.args == NULL) {
+		warn("%s: error packing nvlist", __func__);
+		retval = 1;
+		goto bailout;
 	}
 
-	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
+	retval = ioctl(fd, CTL_LUN_REQ, &req);
+	free(req.args);
+	if (retval == -1) {
 		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);
 		retval = 1;
 		goto bailout;
@@ -2782,6 +2764,7 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	printf("LUN %d modified successfully\n", lun_id);
 
 bailout:
+	nvlist_destroy(req.args_nvl);
 	return (retval);
 }
 
@@ -2794,7 +2777,8 @@ struct cctl_islist_conn {
 	char *target_alias;
 	char *header_digest;
 	char *data_digest;
-	char *max_data_segment_length;
+	char *max_recv_data_segment_length;
+	char *max_send_data_segment_length;
 	char *max_burst_length;
 	char *first_burst_length;
 	char *offload;
@@ -2908,8 +2892,11 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "data_digest") == 0) {
 		cur_conn->data_digest = str;
 		str = NULL;
-	} else if (strcmp(name, "max_data_segment_length") == 0) {
-		cur_conn->max_data_segment_length = str;
+	} else if (strcmp(name, "max_recv_data_segment_length") == 0) {
+		cur_conn->max_recv_data_segment_length = str;
+		str = NULL;
+	} else if (strcmp(name, "max_send_data_segment_length") == 0) {
+		cur_conn->max_send_data_segment_length = str;
 		str = NULL;
 	} else if (strcmp(name, "max_burst_length") == 0) {
 		cur_conn->max_burst_length = str;
@@ -3030,20 +3017,21 @@ retry:
 
 	if (verbose != 0) {
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
-			printf("Session ID:       %d\n", conn->connection_id);
-			printf("Initiator name:   %s\n", conn->initiator);
-			printf("Initiator portal: %s\n", conn->initiator_addr);
-			printf("Initiator alias:  %s\n", conn->initiator_alias);
-			printf("Target name:      %s\n", conn->target);
-			printf("Target alias:     %s\n", conn->target_alias);
-			printf("Header digest:    %s\n", conn->header_digest);
-			printf("Data digest:      %s\n", conn->data_digest);
-			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
-			printf("MaxBurstLen:      %s\n", conn->max_burst_length);
-			printf("FirstBurstLen:    %s\n", conn->first_burst_length);
-			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
-			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
-			printf("Offload driver:   %s\n", conn->offload);
+			printf("%-25s %d\n", "Session ID:", conn->connection_id);
+			printf("%-25s %s\n", "Initiator name:", conn->initiator);
+			printf("%-25s %s\n", "Initiator portal:", conn->initiator_addr);
+			printf("%-25s %s\n", "Initiator alias:", conn->initiator_alias);
+			printf("%-25s %s\n", "Target name:", conn->target);
+			printf("%-25s %s\n", "Target alias:", conn->target_alias);
+			printf("%-25s %s\n", "Header digest:", conn->header_digest);
+			printf("%-25s %s\n", "Data digest:", conn->data_digest);
+			printf("%-25s %s\n", "MaxRecvDataSegmentLength:", conn->max_recv_data_segment_length);
+			printf("%-25s %s\n", "MaxSendDataSegmentLength:", conn->max_send_data_segment_length);
+			printf("%-25s %s\n", "MaxBurstLen:", conn->max_burst_length);
+			printf("%-25s %s\n", "FirstBurstLen:", conn->first_burst_length);
+			printf("%-25s %s\n", "ImmediateData:", conn->immediate_data ? "Yes" : "No");
+			printf("%-25s %s\n", "iSER (RDMA):", conn->iser ? "Yes" : "No");
+			printf("%-25s %s\n", "Offload driver:", conn->offload);
 			printf("\n");
 		}
 	} else {
@@ -3656,7 +3644,7 @@ cctl_portlist(int fd, int argc, char **argv, char *combinedopt)
 	struct cctl_portlist_data portlist;
 	struct cctl_port *port;
 	XML_Parser parser;
-	char *port_str;
+	char *port_str = NULL;
 	int port_len;
 	int dump_xml = 0;
 	int retval, c;
@@ -3699,7 +3687,7 @@ cctl_portlist(int fd, int argc, char **argv, char *combinedopt)
 	}
 
 retry:
-	port_str = malloc(port_len);
+	port_str = (char *)realloc(port_str, port_len);
 
 	bzero(&list, sizeof(list));
 	list.alloc_len = port_len;
@@ -3871,6 +3859,8 @@ usage(int error)
 "                            [-s len fmt [args]] [-c] [-d delete_id]\n"
 "         ctladm port        <-o <on|off> | [-w wwnn][-W wwpn]>\n"
 "                            [-p targ_port] [-t port_type]\n"
+"                            <-c> [-d driver] [-O name=value]\n"
+"                            <-r> <-p targ_port>\n"
 "         ctladm portlist    [-f frontend] [-i] [-p targ_port] [-q] [-v] [-x]\n"
 "         ctladm islist      [-v | -x]\n"
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
@@ -3949,16 +3939,20 @@ usage(int error)
 "-c                       : continuous operation\n"
 "-d delete_id             : error id to delete\n"
 "port options:\n"
+"-c                       : create new ioctl or iscsi frontend port\n"
+"-d                       : specify ioctl or iscsi frontend type\n"
 "-l                       : list frontend ports\n"
 "-o on|off                : turn frontend ports on or off\n"
+"-O pp|vp                 : create new frontend port using pp and/or vp\n"
 "-w wwnn                  : set WWNN for one frontend\n"
 "-W wwpn                  : set WWPN for one frontend\n"
 "-t port_type             : specify fc, scsi, ioctl, internal frontend type\n"
 "-p targ_port             : specify target port number\n"
+"-r                       : remove frontend port\n" 
 "-q                       : omit header in list output\n"
 "-x                       : output port list in XML format\n"
 "portlist options:\n"
-"-f fronetnd              : specify frontend type\n"
+"-f frontend              : specify frontend type\n"
 "-i                       : report target and initiators addresses\n"
 "-l                       : report LUN mapping\n"
 "-p targ_port             : specify target port number\n"
@@ -4148,6 +4142,13 @@ main(int argc, char **argv)
 			retval = 1;
 			goto bailout;
 		}
+#ifdef	WANT_ISCSI
+		else {
+			if (modfind("cfiscsi") == -1 &&
+			    kldload("cfiscsi") == -1)
+				warn("couldn't load cfiscsi");
+		}
+#endif
 	} else if ((command != CTLADM_CMD_HELP)
 		&& ((cmdargs & CTLADM_ARG_DEVICE) == 0)) {
 		fprintf(stderr, "%s: you must specify a device with the "

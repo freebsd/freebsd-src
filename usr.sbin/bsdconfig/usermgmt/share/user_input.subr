@@ -1020,13 +1020,6 @@ f_dialog_menu_user_add()
 		user_password_expires_on="$user_password_expire"
 	fi
 
-	# Attempt to translate a numeric GID into `number (name)'
-	if f_isinteger "$user_gid"; then
-		local user_group
-		user_group=$( pw groupshow -g "$user_gid" 2> /dev/null ) &&
-			user_gid="$user_gid (${user_group%%:*})"
-	fi
-
 	# Localize potentially hostile variables and escape their values
 	# to the local variable (see f_shell_escape() of `strings.subr')
 	local var
@@ -1037,6 +1030,14 @@ f_dialog_menu_user_add()
 		local _user_$var
 		eval f_shell_escape \"\$user_$var\" _user_$var
 	done
+
+	# Attempt to translate a numeric GID into `number (name)'
+	if f_isinteger "$_user_gid"; then
+		local _user_group
+		_user_group=$( pw groupshow -g "$_user_gid" 2> /dev/null ) &&
+			_user_group="${_user_group%%:*}" &&
+			f_shell_escape "$_user_gid ($_user_group)" _user_gid
+	fi
 
 	menu_list="
 		'X' '$msg_add/$msg_exit'
@@ -1137,13 +1138,6 @@ f_dialog_menu_user_delete()
 		user_password_expires_on="$user_password_expire"
 	fi
 
-	# Attempt to translate a numeric GID into `number (name)'
-	if f_isinteger "$user_gid"; then
-		local user_group
-		user_group=$( pw groupshow -g "$user_gid" 2> /dev/null ) &&
-			user_gid="$user_gid (${user_group%%:*})"
-	fi
-
 	# Localize potentially hostile variables and escape their values
 	# to the local variable (see f_shell_escape() of `strings.subr')
 	local var
@@ -1154,6 +1148,14 @@ f_dialog_menu_user_delete()
 		local _user_$var
 		eval f_shell_escape \"\$user_$var\" _user_$var
 	done
+
+	# Attempt to translate a numeric GID into `number (name)'
+	if f_isinteger "$_user_gid"; then
+		local _user_group
+		_user_group=$( pw groupshow -g "$_user_gid" 2> /dev/null ) &&
+			_user_group="${_user_group%%:*}" &&
+			f_shell_escape "$_user_gid ($_user_group)" _user_gid
+	fi
 
 	menu_list="
 		'X' '$msg_delete/$msg_exit'
@@ -1254,13 +1256,6 @@ f_dialog_menu_user_edit()
 		user_password_expires_on="$user_password_expire"
 	fi
 
-	# Attempt to translate a numeric GID into `number (name)'
-	if f_isinteger "$user_gid"; then
-		local user_group
-		user_group=$( pw groupshow -g "$user_gid" 2> /dev/null ) &&
-			user_gid="$user_gid (${user_group%%:*})"
-	fi
-
 	# Localize potentially hostile variables and escape their values
 	# to the local variable (see f_shell_escape() of `strings.subr')
 	local var
@@ -1271,6 +1266,14 @@ f_dialog_menu_user_edit()
 		local _user_$var
 		eval f_shell_escape \"\$user_$var\" _user_$var
 	done
+
+	# Attempt to translate a numeric GID into `number (name)'
+	if f_isinteger "$_user_gid"; then
+		local _user_group
+		_user_group=$( pw groupshow -g "$_user_gid" 2> /dev/null ) &&
+			_user_group="${_user_group%%:*}" &&
+			f_shell_escape "$_user_gid ($_user_group)" _user_gid
+	fi
 
 	menu_list="
 		'X' '$msg_save/$msg_exit'

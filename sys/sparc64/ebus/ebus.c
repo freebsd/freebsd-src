@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2009 by Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -290,7 +292,7 @@ ebus_nexus_attach(device_t dev)
 	}
 #endif
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(struct ebus_nexus_ranges), &sc->sc_range);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "could not get ranges property\n");
@@ -319,7 +321,7 @@ ebus_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_LATTIMER, 64 /* 64 PCI cycles */, 1);
 
 	node = ofw_bus_get_node(dev);
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(struct isa_ranges), &sc->sc_range);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "could not get ranges property\n");
@@ -658,7 +660,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		return (NULL);
 	}
 	resource_list_init(&edi->edi_rl);
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*regs), (void **)&regs);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*regs), (void **)&regs);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    edi->edi_obdinfo.obd_name);
@@ -672,7 +674,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 	}
 	OF_prop_free(regs);
 
-	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
+	nintr = OF_getprop_alloc_multi(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	if (nintr == -1)
 		return (edi);

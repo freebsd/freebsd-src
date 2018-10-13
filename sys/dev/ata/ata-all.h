@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -83,7 +85,6 @@
 
 #define ATA_CTLOFFSET                   0x206   /* control register offset */
 #define ATA_PCCARD_CTLOFFSET            0x0e    /* do for PCCARD devices */
-#define ATA_PC98_CTLOFFSET              0x10c   /* do for PC98 devices */
 #define         ATA_A_IDS               0x02    /* disable interrupts */
 #define         ATA_A_RESET             0x04    /* RESET controller */
 #ifdef	ATA_LEGACY_SUPPORT			
@@ -178,17 +179,12 @@
 /* misc defines */
 #define ATA_PRIMARY                     0x1f0
 #define ATA_SECONDARY                   0x170
-#define ATA_PC98_BANK                   0x432
 #define ATA_IOSIZE                      0x08
-#define ATA_PC98_IOSIZE                 0x10
 #define ATA_CTLIOSIZE                   0x01
 #define ATA_BMIOSIZE                    0x08
-#define ATA_PC98_BANKIOSIZE             0x01
 #define ATA_IOADDR_RID                  0
 #define ATA_CTLADDR_RID                 1
 #define ATA_BMADDR_RID                  0x20
-#define ATA_PC98_CTLADDR_RID            8
-#define ATA_PC98_BANKADDR_RID           9
 #define ATA_IRQ_RID                     0
 #define ATA_DEV(unit)                   ((unit > 0) ? 0x10 : 0)
 #define ATA_CFA_MAGIC1                  0x844A

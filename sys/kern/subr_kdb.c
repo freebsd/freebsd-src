@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 The FreeBSD Project
  * All rights reserved.
  *
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
@@ -50,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-int kdb_active = 0;
+u_char __read_frequently kdb_active = 0;
 static void *kdb_jmpbufp = NULL;
 struct kdb_dbbe *kdb_dbbe = NULL;
 static struct pcb kdb_pcb;
@@ -82,6 +85,7 @@ static int kdb_sysctl_enter(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
+static int kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS);
 
 static SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
@@ -106,6 +110,10 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
+
+SYSCTL_PROC(_debug_kdb, OID_AUTO, stack_overflow,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
+    kdb_sysctl_stack_overflow, "I", "set to cause a stack overflow");
 
 SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
@@ -222,6 +230,36 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static void kdb_stack_overflow(volatile int *x)  __noinline;
+static void
+kdb_stack_overflow(volatile int *x)
+{
+
+	if (*x > 10000000)
+		return;
+	kdb_stack_overflow(x);
+	*x += PCPU_GET(cpuid) / 1000000;
+}
+
+static int
+kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+	volatile int x;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		i = 0;
+		error = sysctl_handle_int(oidp, &i, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	x = 0;
+	kdb_stack_overflow(&x);
+	return (0);
+}
+
+
 void
 kdb_panic(const char *msg)
 {
@@ -248,7 +286,6 @@ kdb_reboot(void)
  * its arguments.  Its up to the caller to ensure that the state variable is
  * consistent.
  */
-
 #define	KEY_CR		13	/* CR '\r' */
 #define	KEY_TILDE	126	/* ~ */
 #define	KEY_CRTLB	2	/* ^B */
@@ -360,7 +397,6 @@ kdb_alt_break_gdb(int key, int *state)
  * is selected or the current debugger does not support backtraces, this
  * function silently returns.
  */
-
 void
 kdb_backtrace(void)
 {
@@ -408,7 +444,6 @@ kdb_backtrace_thread(struct thread *td)
 /*
  * Set/change the current backend.
  */
-
 int
 kdb_dbbe_select(const char *name)
 {
@@ -448,7 +483,6 @@ kdb_enter(const char *why, const char *msg)
 /*
  * Initialize the kernel debugger interface.
  */
-
 void
 kdb_init(void)
 {
@@ -483,7 +517,6 @@ kdb_init(void)
 /*
  * Handle contexts.
  */
-
 void *
 kdb_jmpbuf(jmp_buf new)
 {
@@ -507,18 +540,28 @@ kdb_reenter(void)
 	/* NOTREACHED */
 }
 
-/*
- * Thread related support functions.
- */
+void
+kdb_reenter_silent(void)
+{
 
+	if (!kdb_active || kdb_jmpbufp == NULL)
+		return;
+
+	longjmp(kdb_jmpbufp, 1);
+	/* NOTREACHED */
+}
+
+/*
+ * Thread-related support functions.
+ */
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
-{  
+{
 #if defined(SMP) && defined(KDB_STOPPEDPCB)
 	struct pcpu *pc;
 #endif
- 
-	if (thr == curthread) 
+
+	if (thr == curthread)
 		return (&kdb_pcb);
 
 #if defined(SMP) && defined(KDB_STOPPEDPCB)
@@ -537,14 +580,12 @@ kdb_thr_first(void)
 	struct proc *p;
 	struct thread *thr;
 
-	p = LIST_FIRST(&allproc);
-	while (p != NULL) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_flag & P_INMEM) {
 			thr = FIRST_THREAD_IN_PROC(p);
 			if (thr != NULL)
 				return (thr);
 		}
-		p = LIST_NEXT(p, p_list);
 	}
 	return (NULL);
 }
@@ -554,11 +595,9 @@ kdb_thr_from_pid(pid_t pid)
 {
 	struct proc *p;
 
-	p = LIST_FIRST(&allproc);
-	while (p != NULL) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_flag & P_INMEM && p->p_pid == pid)
 			return (FIRST_THREAD_IN_PROC(p));
-		p = LIST_NEXT(p, p_list);
 	}
 	return (NULL);
 }
@@ -604,7 +643,6 @@ kdb_thr_select(struct thread *thr)
 /*
  * Enter the debugger due to a trap.
  */
-
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
@@ -631,6 +669,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 #ifdef SMP
 	if (!SCHEDULER_STOPPED()) {
 		other_cpus = all_cpus;
+		CPU_NAND(&other_cpus, &stopped_cpus);
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		stop_cpus_hard(other_cpus);
 		did_stop_cpus = 1;
@@ -665,8 +704,10 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	kdb_active--;
 
 #ifdef SMP
-	if (did_stop_cpus)
-		restart_cpus(stopped_cpus);
+	if (did_stop_cpus) {
+		CPU_AND(&other_cpus, &stopped_cpus);
+		restart_cpus(other_cpus);
+	}
 #endif
 
 	intr_restore(intr);

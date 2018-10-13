@@ -206,39 +206,33 @@ calculate_drop_prob(void *x)
 	int64_t p, prob, oldprob;
 	struct dn_aqm_pie_parms *pprms;
 	struct pie_status *pst = (struct pie_status *) x;
-
-	/* dealing with race condition */
-	if (callout_pending(&pst->aqm_pie_callout)) {
-		/* callout was reset */
-		mtx_unlock(&pst->lock_mtx);
-		return;
-	}
-
-	if (!callout_active(&pst->aqm_pie_callout)) {
-		/* callout was stopped */
-		mtx_unlock(&pst->lock_mtx);
-		mtx_destroy(&pst->lock_mtx);
-		free(x, M_DUMMYNET);
-		//pst->pq->aqm_status = NULL;
-		pie_desc.ref_count--;
-		return;
-	}
-	callout_deactivate(&pst->aqm_pie_callout);
+	int p_isneg;
 
 	pprms = pst->parms;
 	prob = pst->drop_prob;
 
-	/* calculate current qdelay */
-	if (pprms->flags & PIE_DEPRATEEST_ENABLED) {
+	/* calculate current qdelay using DRE method.
+	 * If TS is used and no data in the queue, reset current_qdelay
+	 * as it stays at last value during dequeue process. 
+	*/
+	if (pprms->flags & PIE_DEPRATEEST_ENABLED)
 		pst->current_qdelay = ((uint64_t)pst->pq->ni.len_bytes *
 			pst->avg_dq_time) >> PIE_DQ_THRESHOLD_BITS;
-	}
+	else 
+		if (!pst->pq->ni.len_bytes)
+			 pst->current_qdelay = 0;
 
 	/* calculate drop probability */
 	p = (int64_t)pprms->alpha * 
 		((int64_t)pst->current_qdelay - (int64_t)pprms->qdelay_ref); 
 	p +=(int64_t) pprms->beta * 
 		((int64_t)pst->current_qdelay - (int64_t)pst->qdelay_old); 
+
+	/* take absolute value so right shift result is well defined */
+	p_isneg = p < 0;
+	if (p_isneg) {
+		p = -p;
+	}
 		
 	/* We PIE_MAX_PROB shift by 12-bits to increase the division precision */
 	p *= (PIE_MAX_PROB << 12) / AQM_TIME_1S;
@@ -261,37 +255,47 @@ calculate_drop_prob(void *x)
 
 	oldprob = prob;
 
-	/* Cap Drop adjustment */
-	if ((pprms->flags & PIE_CAPDROP_ENABLED) && prob >= PIE_MAX_PROB / 10
-		&& p > PIE_MAX_PROB / 50 ) 
+	if (p_isneg) {
+		prob = prob - p;
+
+		/* check for multiplication underflow */
+		if (prob > oldprob) {
+			prob= 0;
+			D("underflow");
+		}
+	} else {
+		/* Cap Drop adjustment */
+		if ((pprms->flags & PIE_CAPDROP_ENABLED) &&
+		    prob >= PIE_MAX_PROB / 10 &&
+		    p > PIE_MAX_PROB / 50 ) {
 			p = PIE_MAX_PROB / 50;
+		}
 
-	prob = prob + p;
+		prob = prob + p;
 
-	/* decay the drop probability exponentially */
-	if (pst->current_qdelay == 0 && pst->qdelay_old == 0)
-		/* 0.98 ~= 1- 1/64 */
-		prob = prob - (prob >> 6); 
-
-
-	/* check for multiplication overflow/underflow */
-	if (p>0) {
+		/* check for multiplication overflow */
 		if (prob<oldprob) {
 			D("overflow");
 			prob= PIE_MAX_PROB;
 		}
 	}
-	else
-		if (prob>oldprob) {
-			prob= 0;
-			D("underflow");
+
+	/*
+	 * decay the drop probability exponentially
+	 * and restrict it to range 0 to PIE_MAX_PROB
+	 */
+	if (prob < 0) {
+		prob = 0;
+	} else {
+		if (pst->current_qdelay == 0 && pst->qdelay_old == 0) {
+			/* 0.98 ~= 1- 1/64 */
+			prob = prob - (prob >> 6); 
 		}
 
-	/* make drop probability between 0 and PIE_MAX_PROB*/
-	if (prob < 0)
-		prob = 0;
-	else if (prob > PIE_MAX_PROB)
-		prob = PIE_MAX_PROB;
+		if (prob > PIE_MAX_PROB) {
+			prob = PIE_MAX_PROB;
+		}
+	}
 
 	pst->drop_prob = prob;
 	
@@ -576,7 +580,7 @@ aqm_pie_init(struct dn_queue *q)
 	
 	do { /* exit with break when error occurs*/
 		if (!pprms){
-			D("AQM_PIE is not configured");
+			DX(2, "AQM_PIE is not configured");
 			err = EINVAL;
 			break;
 		}
@@ -615,6 +619,22 @@ aqm_pie_init(struct dn_queue *q)
 }
 
 /* 
+ * Callout function to destroy pie mtx and free PIE status memory
+ */
+static void
+pie_callout_cleanup(void *x)
+{
+	struct pie_status *pst = (struct pie_status *) x;
+
+	mtx_unlock(&pst->lock_mtx);
+	mtx_destroy(&pst->lock_mtx);
+	free(x, M_DUMMYNET);
+	DN_BH_WLOCK();
+	pie_desc.ref_count--;
+	DN_BH_WUNLOCK();
+}
+
+/* 
  * Clean up PIE status for queue 'q' 
  * Destroy memory allocated for PIE status.
  */
@@ -640,22 +660,19 @@ aqm_pie_cleanup(struct dn_queue *q)
 		return 1;
 	}
 
+	/* 
+	 * Free PIE status allocated memory using pie_callout_cleanup() callout
+	 * function to avoid any potential race.
+	 * We reset aqm_pie_callout to call pie_callout_cleanup() in next 1um. This
+	 * stops the scheduled calculate_drop_prob() callout and call pie_callout_cleanup() 
+	 * which does memory freeing.
+	 */
 	mtx_lock(&pst->lock_mtx);
+	callout_reset_sbt(&pst->aqm_pie_callout,
+		SBT_1US, 0, pie_callout_cleanup, pst, 0);
+	q->aqm_status = NULL;
+	mtx_unlock(&pst->lock_mtx);
 
-	/* stop callout timer */
-	if (callout_stop(&pst->aqm_pie_callout) || !(pst->sflags & PIE_ACTIVE)) {
-		mtx_unlock(&pst->lock_mtx);
-		mtx_destroy(&pst->lock_mtx);
-		free(q->aqm_status, M_DUMMYNET);
-		q->aqm_status = NULL;
-		pie_desc.ref_count--;
-		return 0;
-	} else {
-		q->aqm_status = NULL;
-		mtx_unlock(&pst->lock_mtx);
-		DX(2, "PIE callout has not been stoped from cleanup!");
-		return EBUSY;
-	}
 	return 0;
 }
 
@@ -760,7 +777,7 @@ aqm_pie_getconfig (struct dn_fsk *fs, struct dn_extra_parms * ep)
 {
 	struct dn_aqm_pie_parms *pcfg;
 	if (fs->aqmcfg) {
-		strcpy(ep->name, pie_desc.name);
+		strlcpy(ep->name, pie_desc.name, sizeof(ep->name));
 		pcfg = fs->aqmcfg;
 		ep->par[0] = pcfg->qdelay_ref / AQM_TIME_1US;
 		ep->par[1] = pcfg->tupdate / AQM_TIME_1US;

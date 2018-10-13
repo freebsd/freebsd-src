@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -30,6 +32,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/linker_set.h>
 #include <sys/select.h>
 #include <sys/uio.h>
@@ -41,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/netmap_user.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -53,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -719,30 +726,33 @@ pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 static int
 pci_vtnet_parsemac(char *mac_str, uint8_t *mac_addr)
 {
-        struct ether_addr *ea;
-        char *tmpstr;
-        char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
+	struct ether_addr *ea;
+	char *tmpstr;
+	char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
 
-        tmpstr = strsep(&mac_str,"=");
-       
-        if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
-                ea = ether_aton(mac_str);
+	tmpstr = strsep(&mac_str,"=");
 
-                if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
-                    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
+	if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
+		ea = ether_aton(mac_str);
+
+		if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
+		    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
 			fprintf(stderr, "Invalid MAC %s\n", mac_str);
-                        return (EINVAL);
-                } else
-                        memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
-        }
+			return (EINVAL);
+		} else
+			memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
+	}
 
-        return (0);
+	return (0);
 }
 
 static void
 pci_vtnet_tap_setup(struct pci_vtnet_softc *sc, char *devname)
 {
 	char tbuf[80];
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	strcpy(tbuf, "/dev/");
 	strlcat(tbuf, devname, sizeof(tbuf));
@@ -766,6 +776,12 @@ pci_vtnet_tap_setup(struct pci_vtnet_softc *sc, char *devname)
 		close(sc->vsc_tapfd);
 		sc->vsc_tapfd = -1;
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(sc->vsc_tapfd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	sc->vsc_mevp = mevent_add(sc->vsc_tapfd,
 				  EVF_READ,
@@ -916,7 +932,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
 	snprintf(tname, sizeof(tname), "vtnet-%d:%d tx", pi->pi_slot,
 	    pi->pi_func);
-        pthread_set_name_np(sc->tx_tid, tname);
+	pthread_set_name_np(sc->tx_tid, tname);
 
 	return (0);
 }

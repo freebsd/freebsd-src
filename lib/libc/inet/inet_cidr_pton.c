@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
  * Copyright (c) 1998,1999 by Internet Software Consortium.
  *
@@ -44,10 +46,9 @@ __FBSDID("$FreeBSD$");
 # define SPRINTF(x) ((size_t)sprintf x)
 #endif
 
-static int	inet_cidr_pton_ipv4 __P((const char *src, u_char *dst,
-					 int *bits, int ipv6));
-static int	inet_cidr_pton_ipv6 __P((const char *src, u_char *dst,
-					 int *bits));
+static int	inet_cidr_pton_ipv4 (const char *src, u_char *dst, int *bits,
+				     int ipv6);
+static int	inet_cidr_pton_ipv6 (const char *src, u_char *dst, int *bits);
 
 static int	getbits(const char *, int ipv6);
 

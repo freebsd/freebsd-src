@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * All rights reserved.
  *
@@ -48,6 +50,15 @@ typedef enum {
 #define ARSWITCH_NUM_PORTS	MAX(AR8327_NUM_PORTS, AR8X16_NUM_PORTS)
 #define ARSWITCH_NUM_PHYS	MAX(AR8327_NUM_PHYS, AR8X16_NUM_PHYS)
 
+#define ARSWITCH_NUM_LEDS	3
+
+struct arswitch_dev_led {
+	struct arswitch_softc	*sc;
+	struct cdev	*led;
+	int		phy;
+	int		lednum;
+};
+
 struct arswitch_softc {
 	struct mtx	sc_mtx;		/* serialize access to softc */
 	device_t	sc_dev;
@@ -66,23 +77,42 @@ struct arswitch_softc {
 	char		*ifname[ARSWITCH_NUM_PHYS];
 	device_t	miibus[ARSWITCH_NUM_PHYS];
 	struct ifnet	*ifp[ARSWITCH_NUM_PHYS];
+	struct arswitch_dev_led	dev_led[ARSWITCH_NUM_PHYS][ARSWITCH_NUM_LEDS];
 	struct callout	callout_tick;
 	etherswitch_info_t info;
+
+	uint32_t	sc_debug;
 
 	/* VLANs support */
 	int		vid[AR8X16_MAX_VLANS];
 	uint32_t	vlan_mode;
+
+	/* ATU (address table unit) support */
+	struct {
+		int count;
+		int size;
+		etherswitch_atu_entry_t *entries;
+	} atu;
 
 	struct {
 		/* Global setup */
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
 		int (* arswitch_hw_global_setup) (struct arswitch_softc *);
 
+		int (* arswitch_hw_get_switch_macaddr) (struct arswitch_softc *,
+		    struct ether_addr *sa);
+		int (* arswitch_hw_set_switch_macaddr) (struct arswitch_softc *,
+		    const struct ether_addr *sa);
+
 		/* Port functions */
 		void (* arswitch_port_init) (struct arswitch_softc *, int);
 
 		/* ATU functions */
 		int (* arswitch_atu_flush) (struct arswitch_softc *);
+		int (* arswitch_atu_flush_port) (struct arswitch_softc *, int);
+		int (* arswitch_atu_learn_default) (struct arswitch_softc *);
+		int (* arswitch_atu_fetch_table) (struct arswitch_softc *,
+		    etherswitch_atu_entry_t *, int atu_fetch_op);
 
 		/* VLAN functions */
 		int (* arswitch_port_vlan_setup) (struct arswitch_softc *,
@@ -132,18 +162,28 @@ struct arswitch_softc {
 #define	ARSWITCH_TRYLOCK(_sc)			\
 	    mtx_trylock(&(_sc)->sc_mtx)
 
-#if defined(DEBUG)
-#define DPRINTF(dev, args...) device_printf(dev, args)
+#define	ARSWITCH_DBG_RESET		0x00000001
+#define	ARSWITCH_DBG_REGIO		0x00000002
+#define	ARSWITCH_DBG_PHYIO		0x00000004
+#define	ARSWITCH_DBG_POLL		0x00000008
+#define	ARSWITCH_DBG_VLAN		0x00000010
+#define	ARSWITCH_DBG_ATU		0x00000020
+#define	ARSWITCH_DBG_ANY		0xffffffff
+
+#if 1
+#define DPRINTF(sc, dbg, args...) \
+	do { \
+		if (((sc)->sc_debug & (dbg)) || \
+		    ((sc)->sc_debug == ARSWITCH_DBG_ANY)) { \
+			device_printf((sc)->sc_dev, args); 	\
+		} \
+	} while (0)
 #define DEVERR(dev, err, fmt, args...) do { \
 		if (err != 0) device_printf(dev, fmt, err, args); \
 	} while (0)
-#define DEBUG_INCRVAR(var)	do { \
-		var++; \
-	} while (0)
 #else
-#define DPRINTF(dev, args...)
+#define DPRINTF(dev, dbg, args...)
 #define DEVERR(dev, err, fmt, args...)
-#define DEBUG_INCRVAR(var)
 #endif
 
 #endif	/* __ARSWITCHVAR_H__ */

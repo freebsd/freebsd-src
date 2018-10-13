@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +33,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
 
 #ifndef UNITSFILE
 #define UNITSFILE "/usr/share/misc/definitions.units"
@@ -352,6 +354,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -364,6 +367,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(divider + 1);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -378,6 +382,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -399,9 +404,12 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					repeat = item[strlen(item) - 1] - '0';
 					item[strlen(item) - 1] = 0;
 				}
-				for (; repeat; repeat--)
-					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item))
+				for (; repeat; repeat--) {
+					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item)) {
+						free(savescr);
 						return 1;
+					}
+				}
 			}
 			item = strtok(NULL, " *\t/\n");
 		}
@@ -617,8 +625,10 @@ compareproducts(char **one, char **two)
 			two++;
 		else if (strcmp(*one, *two))
 			return 1;
-		else
-			one++, two++;
+		else {
+			one++;
+			two++;
+		}
 	}
 	return 0;
 }
@@ -718,7 +728,7 @@ showanswer(struct unittype * have, struct unittype * want)
 }
 
 
-static void 
+static void __dead2
 usage(void)
 {
 	fprintf(stderr,
@@ -761,7 +771,7 @@ main(int argc, char **argv)
 	history_file = NULL;
 	outputformat = numfmt;
 	quit = false;
-	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvHUV", longopts, NULL)) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+ehf:o:qtvH:UV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'e':
 			outputformat = "%6e";
@@ -797,7 +807,6 @@ main(int argc, char **argv)
 			else
 				printf("Units data file not found");
 			exit(0);
-			break;
 		case 'h':
 			/* FALLTHROUGH */
 
@@ -810,7 +819,7 @@ main(int argc, char **argv)
 		readunits(NULL);
 
 	if (optind == argc - 2) {
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(1, "unable to enter capability mode");
 
 		havestr = argv[optind];
@@ -834,7 +843,7 @@ main(int argc, char **argv)
 		if (inhistory == 0)
 			err(1, "Could not initialize history");
 
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(1, "unable to enter capability mode");
 
 		if (!quiet)

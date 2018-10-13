@@ -1,24 +1,28 @@
-#------------------------------------------------------------------------------ # $File: sgml,v 1.33 2015/11/29 22:14:49 christos Exp $
+
+#------------------------------------------------------------------------------
+# $File: sgml,v 1.38 2017/10/11 11:40:43 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
-0	string		\<?xml\ version="
->15	string		>\0
+0	string		\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<svg			SVG Scalable Vector Graphics image
 !:mime	image/svg+xml
 >>19	search/4096	\<gnc-v2		GnuCash file
 !:mime	application/x-gnucash
+0	string		\<svg			SVG Scalable Vector Graphics image
+!:mime	image/svg
 
 # Sitemap file
-0	string/t		\<?xml\ version="
->15	string		>\0
+0	string/t		\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<urlset		XML Sitemap document text
 !:mime	application/xml-sitemap
 
 # OpenStreetMap XML (.osm)
 # http://wiki.openstreetmap.org/wiki/OSM_XML
 # From: Markus Heidelberg <markus.heidelberg@web.de>
-0	string		\<?xml\ version="
->15	string		>\0
+0	string		\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<osm			OpenStreetMap XML data
 
 # xhtml
@@ -42,6 +46,12 @@
 # adapted to string extenstions by Anthon van der Neut <anthon@mnt.org)
 0	search/4096/cWt	\<!doctype\ html	HTML document text
 !:mime	text/html
+!:strength + 5
+
+# SVG document
+# https://www.w3.org/TR/SVG/single-page.html
+0	search/4096/cWbt	\<!doctype\ svg	SVG XML document
+!:mime  image/svg+xml
 !:strength + 5
 
 0	search/4096/cwt	\<head\>		HTML document text
@@ -122,3 +132,14 @@
 0	search/1	#\ HTTP\ Cookie\ File	Web browser cookie text
 0	search/1	#\ Netscape\ HTTP\ Cookie\ File	Netscape cookie text
 0	search/1	#\ KDE\ Cookie\ File	Konqueror cookie text
+
+# XML-based format representing braille pages in a digital format.
+#
+# Specification:
+# http://files.pef-format.org/specifications/pef-2008-1/pef-specification.html
+#
+# Simon Aittamaa <simon.aittamaa@gmail.com>
+0   string      \<?xml\ version=
+>14 regex       ['"\ \t]*[0-9.]+['"\ \t]*
+>>19    search/4096 \<pef           Portable Embosser Format
+!:mime  application/x-pef+xml

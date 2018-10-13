@@ -16,7 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2014
+.Dd May 15, 2018
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -233,7 +233,7 @@ regardless of the
 .Fl h
 option described here.
 .It Fl m
-mute the console to suppress all console input and output during the
+mute the console to suppress all kernel console input and output during the
 boot.
 .It Fl n
 ignore key press to interrupt boot before
@@ -350,6 +350,7 @@ requirement has not been adhered to.
 .Xr ddb 4 ,
 .Xr boot.config 5 ,
 .Xr make.conf 5 ,
+.Xr mount.conf 5 ,
 .Xr ttys 5 ,
 .Xr boot0cfg 8 ,
 .Xr btxld 8 ,

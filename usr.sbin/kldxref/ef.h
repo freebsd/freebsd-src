@@ -21,6 +21,8 @@
     (ef)->ef_ops->seg_read((ef)->ef_ef, offset, len, dest)
 #define EF_SEG_READ_REL(ef, offset, len, dest) \
     (ef)->ef_ops->seg_read_rel((ef)->ef_ef, offset, len, dest)
+#define EF_SEG_READ_STRING(ef, offset, len, dest) \
+    (ef)->ef_ops->seg_read_string((ef)->ef_ef, offset, len, dest)
 #define EF_SEG_READ_ENTRY(ef, offset, len, ptr) \
     (ef)->ef_ops->seg_read_entry((ef)->kf_ef, offset, len, ptr)
 #define EF_SEG_READ_ENTRY_REL(ef, offset, len, ptr) \
@@ -44,6 +46,8 @@ struct elf_file_ops {
 	int (*seg_read)(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
 	int (*seg_read_rel)(elf_file_t ef, Elf_Off offset, size_t len,
 	    void *dest);
+	int (*seg_read_string)(elf_file_t, Elf_Off offset, size_t len,
+	    char *dest);
 	int (*seg_read_entry)(elf_file_t ef, Elf_Off offset, size_t len,
 	    void**ptr);
 	int (*seg_read_entry_rel)(elf_file_t ef, Elf_Off offset, size_t len,

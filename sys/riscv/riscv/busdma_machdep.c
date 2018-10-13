@@ -69,7 +69,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 }
 
 void
-__bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
     struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
@@ -88,14 +88,14 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
  * Release the mapping held by map.
  */
 void
-_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
 	panic("busdma");
 }
 
 void
-_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 
 	panic("busdma");

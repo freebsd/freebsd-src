@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
@@ -34,7 +36,7 @@
 
 /*
  * Export definitions of the pci bus so that we can more easily share
- * it with "subclass" busses.
+ * it with "subclass" buses.
  */
 DECLARE_CLASS(pci_driver);
 
@@ -88,10 +90,16 @@ int		pci_enable_io_method(device_t dev, device_t child, int space);
 int		pci_disable_io_method(device_t dev, device_t child, int space);
 int		pci_find_cap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_cap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_find_extcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_extcap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_find_htcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_htcap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
 int		pci_alloc_msix_method(device_t dev, device_t child, int *count);
 void		pci_enable_msi_method(device_t dev, device_t child,
@@ -158,7 +166,8 @@ struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
 		    rman_res_t count, u_long num, u_int flags);
 
 int		pci_iov_attach_method(device_t bus, device_t dev,
-		    struct nvlist *pf_schema, struct nvlist *vf_schema);
+		    struct nvlist *pf_schema, struct nvlist *vf_schema,
+		    const char *name);
 int		pci_iov_detach_method(device_t bus, device_t dev);
 
 device_t	pci_create_iov_child_method(device_t bus, device_t pf,

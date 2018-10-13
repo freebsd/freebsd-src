@@ -1,4 +1,3 @@
-# $FreeBSD$
 #!/usr/bin/env python
 
 from __future__ import print_function
@@ -38,7 +37,8 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.19 2016/04/02 20:45:40 sjg Exp $
+	$FreeBSD$
+	$Id: meta2deps.py,v 1.27 2017/05/24 00:04:04 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -91,6 +91,12 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     for d in [last_dir, cwd]:
         if not d:
             continue
+        if path == '..':
+            dw = d.split('/')
+            p = '/'.join(dw[:-1])
+            if not p:
+                p = '/'
+            return p
         p = '/'.join([d,path])
         if debug > 2:
             print("looking for:", p, end=' ', file=debug_out)
@@ -104,20 +110,39 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
         return p
     return None
 
+def cleanpath(path):
+    """cleanup path without using realpath(3)"""
+    if path.startswith('/'):
+        r = '/'
+    else:
+        r = ''
+    p = []
+    w = path.split('/')
+    for d in w:
+        if not d or d == '.':
+            continue
+        if d == '..':
+            try:
+                p.pop()
+                continue
+            except:
+                break
+        p.append(d)
+
+    return r + '/'.join(p)
+
 def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     """
     Return an absolute path, resolving via cwd or last_dir if needed.
-    this gets called a lot, so we try to avoid calling realpath
-    until we know we have something.
+    this gets called a lot, so we try to avoid calling realpath.
     """
     rpath = resolve(path, cwd, last_dir, debug, debug_out)
     if rpath:
         path = rpath
     if (path.find('/') < 0 or
-	path.find('./') > 0 or
-        path.endswith('/..') or
-        os.path.islink(path)):
-        return os.path.realpath(path)
+        path.find('./') > 0 or
+        path.endswith('/..')):
+        path = cleanpath(path)
     return path
 
 def sort_unique(list, cmp=None, key=None, reverse=False):
@@ -127,6 +152,7 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
     for e in list:
         if e == le:
             continue
+        le = e
         nl.append(e)
     return nl
 
@@ -154,38 +180,38 @@ class MetaFile:
         """if name is set we will parse it now.
         conf can have the follwing keys:
 
-        SRCTOPS	list of tops of the src tree(s).
+        SRCTOPS list of tops of the src tree(s).
 
-        CURDIR	the src directory 'bmake' was run from.
+        CURDIR  the src directory 'bmake' was run from.
 
-        RELDIR	the relative path from SRCTOP to CURDIR
+        RELDIR  the relative path from SRCTOP to CURDIR
 
-        MACHINE	the machine we built for.
-        	set to 'none' if we are not cross-building.
-		More specifically if machine cannot be deduced from objdirs.
+        MACHINE the machine we built for.
+                set to 'none' if we are not cross-building.
+                More specifically if machine cannot be deduced from objdirs.
 
         TARGET_SPEC
-        	Sometimes MACHINE isn't enough.
+                Sometimes MACHINE isn't enough.
                 
         HOST_TARGET
-		when we build for the pseudo machine 'host'
-		the object tree uses HOST_TARGET rather than MACHINE.
+                when we build for the pseudo machine 'host'
+                the object tree uses HOST_TARGET rather than MACHINE.
 
         OBJROOTS a list of the common prefix for all obj dirs it might
-		end in '/' or '-'.
+                end in '/' or '-'.
 
-        DPDEPS	names an optional file to which per file dependencies
-		will be appended.
-		For example if 'some/path/foo.h' is read from SRCTOP
-		then 'DPDEPS_some/path/foo.h +=' "RELDIR" is output.
-		This can allow 'bmake' to learn all the dirs within
- 		the tree that depend on 'foo.h'
+        DPDEPS  names an optional file to which per file dependencies
+                will be appended.
+                For example if 'some/path/foo.h' is read from SRCTOP
+                then 'DPDEPS_some/path/foo.h +=' "RELDIR" is output.
+                This can allow 'bmake' to learn all the dirs within
+                the tree that depend on 'foo.h'
 
-	EXCLUDES
-		A list of paths to ignore.
-		ccache(1) can otherwise be trouble.
+        EXCLUDES
+                A list of paths to ignore.
+                ccache(1) can otherwise be trouble.
 
-        debug	desired debug level
+        debug   desired debug level
 
         debug_out open file to send debug output to (sys.stderr)
 
@@ -229,8 +255,9 @@ class MetaFile:
                     if objroot.endswith(e):
                         # this is not what we want - fix it
                         objroot = objroot[0:-len(e)]
-                        if e.endswith('/'):
-                            objroot += '/'
+
+                if objroot[-1] != '/':
+                    objroot += '/'
                 if not objroot in self.objroots:
                     self.objroots.append(objroot)
                     _objroot = os.path.realpath(objroot)
@@ -293,6 +320,9 @@ class MetaFile:
             return None
         for f in sort_unique(self.file_deps):
             print('DPDEPS_%s += %s' % (f, self.reldir), file=out)
+        # these entries provide for reverse DIRDEPS lookup
+        for f in self.obj_deps:
+            print('DEPDIRS_%s += %s' % (f, self.reldir), file=out)
 
     def seenit(self, dir):
         """rememer that we have seen dir."""
@@ -360,28 +390,28 @@ class MetaFile:
     def parse(self, name=None, file=None):
         """A meta file looks like:
         
-	# Meta data file "path"
-	CMD "command-line"
-	CWD "cwd"
-	TARGET "target"
-	-- command output --
-	-- filemon acquired metadata --
-	# buildmon version 3
-	V 3
-	C "pid" "cwd"
-	E "pid" "path"
-	F "pid" "child"
-	R "pid" "path"
-	W "pid" "path"
-	X "pid" "status"
-	D "pid" "path"
-	L "pid" "src" "target"
-	M "pid" "old" "new"
-	S "pid" "path"
-	# Bye bye
+        # Meta data file "path"
+        CMD "command-line"
+        CWD "cwd"
+        TARGET "target"
+        -- command output --
+        -- filemon acquired metadata --
+        # buildmon version 3
+        V 3
+        C "pid" "cwd"
+        E "pid" "path"
+        F "pid" "child"
+        R "pid" "path"
+        W "pid" "path"
+        X "pid" "status"
+        D "pid" "path"
+        L "pid" "src" "target"
+        M "pid" "old" "new"
+        S "pid" "path"
+        # Bye bye
 
-	We go to some effort to avoid processing a dependency more than once.
-	Of the above record types only C,E,F,L,R,V and W are of interest.
+        We go to some effort to avoid processing a dependency more than once.
+        Of the above record types only C,E,F,L,R,V and W are of interest.
         """
 
         version = 0                     # unknown
@@ -431,7 +461,6 @@ class MetaFile:
             pid = int(w[1])
             if pid != last_pid:
                 if last_pid:
-                    pid_cwd[last_pid] = cwd
                     pid_last_dir[last_pid] = self.last_dir
                 cwd = getv(pid_cwd, pid, self.cwd)
                 self.last_dir = getv(pid_last_dir, pid, self.cwd)
@@ -448,7 +477,8 @@ class MetaFile:
                 cwd = abspath(w[2], cwd, None, self.debug, self.debug_out)
                 if cwd.endswith('/.'):
                     cwd = cwd[0:-2]
-                self.last_dir = cwd
+                self.last_dir = pid_last_dir[pid] = cwd
+                pid_cwd[pid] = cwd
                 if self.debug > 1:
                     print("cwd=", cwd, file=self.debug_out)
                 continue
@@ -470,6 +500,21 @@ class MetaFile:
 
         if not file:
             f.close()
+
+    def is_src(self, base, dir, rdir):
+        """is base in srctop"""
+        for dir in [dir,rdir]:
+            if not dir:
+                continue
+            path = '/'.join([dir,base])
+            srctop = self.find_top(path, self.srctops)
+            if srctop:
+                if self.dpdeps:
+                    self.add(self.file_deps, path.replace(srctop,''), 'file')
+                self.add(self.src_deps, dir.replace(srctop,''), 'src')
+                self.seenit(dir)
+                return True
+        return False
 
     def parse_path(self, path, cwd, op=None, w=[]):
         """look at a path for the op specified"""
@@ -499,7 +544,8 @@ class MetaFile:
         # to the src dir, we may need to add dependencies for each
         rdir = dir
         dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
-        if rdir == dir or rdir.find('./') > 0:
+        rdir = os.path.realpath(dir)
+        if rdir == dir:
             rdir = None
         # now put path back together
         path = '/'.join([dir,base])
@@ -521,17 +567,9 @@ class MetaFile:
             # finally, we get down to it
             if dir == self.cwd or dir == self.curdir:
                 return
-            srctop = self.find_top(path, self.srctops)
-            if srctop:
-                if self.dpdeps:
-                    self.add(self.file_deps, path.replace(srctop,''), 'file')
-                self.add(self.src_deps, dir.replace(srctop,''), 'src')
+            if self.is_src(base, dir, rdir):
                 self.seenit(w[2])
-                self.seenit(dir)
-                if rdir and not rdir.startswith(srctop):
-                    dir = rdir      # for below
-                    rdir = None
-                else:
+                if not rdir:
                     return
 
             objroot = None
@@ -545,6 +583,9 @@ class MetaFile:
                 ddep = self.find_obj(objroot, dir, path, w[2])
                 if ddep:
                     self.add(self.obj_deps, ddep, 'obj')
+                    if self.dpdeps and objroot.endswith('/stage/'):
+                        sp = '/'.join(path.replace(objroot,'').split('/')[1:])
+                        self.add(self.file_deps, sp, 'file')
             else:
                 # don't waste time looking again
                 self.seenit(w[2])

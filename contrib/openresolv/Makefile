@@ -1,5 +1,4 @@
 PKG=		openresolv
-VERSION=	3.7.3
 
 # Nasty hack so that make clean works without configure being run
 _CONFIG_MK!=	test -e config.mk && echo config.mk || echo config-null.mk
@@ -10,13 +9,11 @@ SBINDIR?=	/sbin
 SYSCONFDIR?=	/etc
 LIBEXECDIR?=	/libexec/resolvconf
 VARDIR?=	/var/run/resolvconf
-RCDIR?=		/etc/rc.d
-RESTARTCMD?=	if ${RCDIR}/\1 status >/dev/null 2>\&1; then \
-			${RCDIR}/\1 restart; \
-		fi
 
 INSTALL?=	install
 SED?=		sed
+
+VERSION!=	${SED} -n 's/OPENRESOLV_VERSION="\(.*\)".*/\1/p' resolvconf.in
 
 BINMODE?=	0755
 DOCMODE?=	0644
@@ -33,27 +30,35 @@ SED_SYSCONFDIR=		-e 's:@SYSCONFDIR@:${SYSCONFDIR}:g'
 SED_LIBEXECDIR=		-e 's:@LIBEXECDIR@:${LIBEXECDIR}:g'
 SED_VARDIR=		-e 's:@VARDIR@:${VARDIR}:g'
 SED_RCDIR=		-e 's:@RCDIR@:${RCDIR}:g'
-SED_RESTARTCMD=		-e 's:@RESTARTCMD \(.*\)@:${RESTARTCMD}:g'
+SED_RESTARTCMD=		-e 's:@RESTARTCMD@:${RESTARTCMD}:g'
+SED_RCDIR=		-e 's:@RCDIR@:${RCDIR}:g'
+SED_STATUSARG=		-e 's:@STATUSARG@:${STATUSARG}:g'
 
 DISTPREFIX?=	${PKG}-${VERSION}
 DISTFILEGZ?=	${DISTPREFIX}.tar.gz
 DISTFILE?=	${DISTPREFIX}.tar.xz
+DISTINFO=	${DISTFILE}.distinfo
+DISTINFOSIGN=	${DISTINFO}.asc
+CKSUM?=		cksum -a SHA256
+PGP?=		netpgp
+
 FOSSILID?=	current
 
 .SUFFIXES: .in
 
 all: ${TARGET}
 
-.in:
+.in: Makefile ${CONFIG_MK}
 	${SED}	${SED_SBINDIR} ${SED_SYSCONFDIR} ${SED_LIBEXECDIR} \
-		${SED_VARDIR} ${SED_RCDIR} ${SED_RESTARTCMD} \
+		${SED_VARDIR} \
+		${SED_RCDIR} ${SED_RESTARTCMD} ${SED_RCDIR} ${SED_STATUSARG} \
 		$< > $@
 
 clean:
 	rm -f ${TARGET}
 
 distclean: clean
-	rm -f config.mk ${DISTFILE}
+	rm -f config.mk ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
 
 installdirs:
 
@@ -83,3 +88,11 @@ dist:
 	fossil tarball --name ${DISTPREFIX} ${FOSSILID} ${DISTFILEGZ}
 	gunzip -c ${DISTFILEGZ} | xz >${DISTFILE}
 	rm ${DISTFILEGZ}
+
+distinfo: dist
+	rm -f ${DISTINFO} ${DISTINFOSIGN}
+	${CKSUM} ${DISTFILE} >${DISTINFO}
+	#printf "SIZE (${DISTFILE}) = %s\n" $$(wc -c <${DISTFILE}) >>${DISTINFO}
+	${PGP} --clearsign --output=${DISTINFOSIGN} ${DISTINFO}
+	chmod 644 ${DISTINFOSIGN}
+	ls -l ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}

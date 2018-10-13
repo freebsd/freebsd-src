@@ -8,6 +8,20 @@
 # created).  The WDSUP script is invoked for each wds vap that
 # gets created--to add the vap to a bridge.
 #
+# Notes!
+#
+# * If the main AP VAP is running with encryption, the plumbed up
+#   WDS VAP needs to have privacy enabled (wepmode mixed, for example)
+#   otherwise frames transmitted from the WDS AP to the WDS STA
+#   will not be encrypted.
+#
+# * Because wlanwds is running on the physical interface (for now),
+#   and NOT the parent VAP, it will create cloned interfaces using
+#   the MAC address of the physical interface.  So, until that
+#   whole setup is fixed, please only associate DWDS to the first
+#   VAP on a physical interface, which shares the MAC address of
+#   the physical NIC.
+#
 # $FreeBSD$
 #
 PATH=.:$PATH

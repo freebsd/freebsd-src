@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -44,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -107,7 +108,10 @@ __FBSDID("$FreeBSD$");
 #define	KMI_DRIVER_NAME          "kmi"
 #define	KMI_NFKEY        (sizeof(fkey_tab)/sizeof(fkey_tab[0]))	/* units */
 
+#define	SET_SCANCODE_SET	0xf0
+
 struct kmi_softc {
+	device_t sc_dev;
 	keyboard_t sc_kbd;
 	keymap_t sc_keymap;
 	accentmap_t sc_accmap;
@@ -142,6 +146,8 @@ static void	kmi_clear_state(keyboard_t *);
 static int	kmi_ioctl(keyboard_t *, u_long, caddr_t);
 static int	kmi_enable(keyboard_t *);
 static int	kmi_disable(keyboard_t *);
+
+static int	kmi_attached = 0;
 
 /* early keyboard probe, not supported */
 static int
@@ -481,7 +487,6 @@ kmi_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	}
 }
 
-
 /* clear the internal state of the keyboard */
 static void
 kmi_clear_state(keyboard_t *kbd)
@@ -611,6 +616,17 @@ pl050_kmi_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
+	/*
+	 * PL050 is plain PS2 port that pushes bytes to/from computer
+	 * VersatilePB has two such ports and QEMU simulates keyboard
+	 * connected to port #0 and mouse connected to port #1. This
+	 * information can't be obtained from device tree so we just
+	 * hardcode this knowledge here. We attach keyboard driver to
+	 * port #0 and ignore port #1
+	 */
+	if (kmi_attached)
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "arm,pl050")) {
 		device_set_desc(dev, "PL050 Keyboard/Mouse Interface");
 		return (BUS_PROBE_DEFAULT);
@@ -626,7 +642,9 @@ pl050_kmi_attach(device_t dev)
 	keyboard_t *kbd;
 	int rid;
 	int i;
+	uint32_t ack;
 
+	sc->sc_dev = dev;
 	kbd = &sc->sc_kbd;
 	rid = 0;
 
@@ -654,6 +672,16 @@ pl050_kmi_attach(device_t dev)
 	}
 
 	/* TODO: clock & divisor */
+
+	pl050_kmi_write_4(sc, KMICR, KMICR_EN);
+
+	pl050_kmi_write_4(sc, KMIDATA, SET_SCANCODE_SET);
+	/* read out ACK */
+	ack = pl050_kmi_read_4(sc, KMIDATA);
+	/* Set Scan Code set 1 (XT) */
+	pl050_kmi_write_4(sc, KMIDATA, 1);
+	/* read out ACK */
+	ack = pl050_kmi_read_4(sc, KMIDATA);
 
 	pl050_kmi_write_4(sc, KMICR, KMICR_EN | KMICR_RXINTREN);
 
@@ -690,6 +718,7 @@ pl050_kmi_attach(device_t dev)
 	if (bootverbose) {
 		genkbd_diag(kbd, bootverbose);
 	}
+	kmi_attached = 1;
 	return (0);
 
 detach:

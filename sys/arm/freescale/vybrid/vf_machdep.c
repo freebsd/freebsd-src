@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -24,54 +26,30 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_ddb.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/devmap.h>
 
 #include <vm/vm.h>
 
-#include <machine/armreg.h>
+#include <dev/ofw/openfirm.h>
+
 #include <machine/bus.h>
-#include <machine/machdep.h>
+#include <machine/fdt.h>
 #include <machine/platform.h> 
+#include <machine/platformvar.h>
 
-#include <dev/fdt/fdt_common.h>
+#include <arm/freescale/vybrid/vf_src.h>
 
-vm_offset_t
-platform_lastaddr(void)
-{
+#include "platform_if.h"
 
-	return (devmap_lastaddr());
-}
-
-void
-platform_probe_and_attach(void)
-{
-
-}
-
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
-{
-
-}
-
-int
-platform_devmap_init(void)
+static int
+vf_devmap_init(platform_t plat)
 {
 
 	devmap_add_entry(0x40000000, 0x100000);
@@ -79,16 +57,32 @@ platform_devmap_init(void)
 	return (0);
 }
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
+static void
+vf_cpu_reset(platform_t plat)
 {
+	phandle_t src;
+	uint32_t paddr;
+	bus_addr_t vaddr;
 
-	return (NULL);
+	if (src_swreset() == 0)
+		goto end;
+
+	src = OF_finddevice("src");
+	if ((src != -1) && (OF_getencprop(src, "reg", &paddr, sizeof(paddr))) > 0) {
+		if (bus_space_map(fdtbus_bs_tag, paddr, 0x10, 0, &vaddr) == 0) {
+			bus_space_write_4(fdtbus_bs_tag, vaddr, 0x00, SW_RST);
+		}
+	}
+
+end:
+	while (1);
 }
 
-int
-bus_dma_get_range_nb(void)
-{
+static platform_method_t vf_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	vf_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	vf_cpu_reset),
 
-	return (0);
-}
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(vf, "vybrid", 0, "freescale,vybrid", 200);

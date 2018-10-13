@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)gcore.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2010
+.Dd July 13, 2016
 .Dt GCORE 1
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f
-.Op Fl s
 .Op Fl c Ar core
 .Op Ar executable
 .Ar pid
@@ -66,15 +65,6 @@ behavior.
 As a result, this flag should only be used when the behavior of the
 application and any devices it has mapped is fully understood and any side
 effects can be controlled or tolerated.
-.It Fl s
-Stop the process while gathering the core image, and resume it
-when done.
-This guarantees that the resulting core dump will
-be in a consistent state.
-The process is resumed even if it was
-already stopped.
-The same effect can be achieved manually with
-.Xr kill 1 .
 .El
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2014
+.Dd March 7, 2018
 .Dt FPU_KERN 9
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Fn fpu_kern_alloc_ctx "u_int flags"
 .Ft void
 .Fn fpu_kern_free_ctx "struct fpu_kern_ctx *ctx"
-.Ft int
+.Ft void
 .Fn fpu_kern_enter "struct thread *td" "struct fpu_kern_ctx *ctx" "u_int flags"
 .Ft int
 .Fn fpu_kern_leave "struct thread *td" "struct fpu_kern_ctx *ctx"
@@ -120,28 +120,34 @@ could be used from both kernel thread and syscall contexts.
 The
 .Fn fpu_kern_leave
 function correctly handles such contexts.
+.It Dv FPU_KERN_NOCTX
+Avoid nesting save area.
+If the flag is specified, the
+.Fa ctx
+must be passed as
+.Va NULL .
+The flag should only be used for really short code blocks
+which can be executed in a critical section.
+It avoids the need to allocate the FPU context by the cost
+of increased system latency.
 .El
 .El
 .Pp
 The function does not sleep or block.
-It could cause the
+It could cause an FPU trap during execution, and on the first FPU access
+after the function returns, as well as after each context switch.
+On i386 and amd64 this will be the
 .Nm Device Not Available
-exception during execution, and on the first FPU access after the
-function returns, as well as after each context switch
-(see Intel Software Developer Manual for the reference).
-Currently, no errors are defined which can be returned by
-.Fn fpu_kern_enter
-to the caller.
+exception (see Intel Software Developer Manual for the reference).
 .Pp
 The
 .Fn fpu_kern_leave
 function ends the region started by
 .Fn fpu_kern_enter .
-The uses of FPU in the kernel after the call to
-.Fn fpu_kern_leave
-are erroneous until the next call to
+It is erroneous to use the FPU in the kernel before
 .Fn fpu_kern_enter
-is performed.
+or after
+.Fn fpu_kern_leave .
 The function takes the
 .Fa td
 thread argument, which currently must be
@@ -151,9 +157,9 @@ and the
 context pointer, previously passed to
 .Fn fpu_kern_enter .
 After the function returns, the context may be freed or reused
-by other invocation of
+by another invocation of
 .Fn fpu_kern_enter .
-There are no errors defined for the function, it always returns 0.
+The function always returns 0.
 .Pp
 The
 .Fn fpu_kern_thread
@@ -180,7 +186,7 @@ and false otherwise.
 .Sh NOTES
 The
 .Nm
-is currently implemented only for the i386 and amd64 architectures.
+is currently implemented only for the i386, amd64, and arm64 architectures.
 .Pp
 There is no way to handle floating point exceptions raised from
 kernel mode.
@@ -198,3 +204,11 @@ The
 .Nm
 facitily and this manual page were written by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org .
+The arm64 support was added by
+.An Andrew Turner Aq Mt andrew@FreeBSD.org .
+.Sh BUGS
+.Fn fpu_kern_leave
+should probably have type
+.Ft void
+(like
+.Fn fpu_kern_enter ) .

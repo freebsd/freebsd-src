@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -51,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/unistd.h>
 #include <sys/filio.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>
@@ -74,6 +77,7 @@ static vop_readdir_t	cd9660_readdir;
 static vop_readlink_t	cd9660_readlink;
 static vop_strategy_t	cd9660_strategy;
 static vop_vptofh_t	cd9660_vptofh;
+static vop_getpages_t	cd9660_getpages;
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -442,10 +446,10 @@ iso_shipdir(idp)
 	idp->current.d_reclen = GENERIC_DIRSIZ(&idp->current);
 	if (assoc) {
 		idp->assocoff = idp->curroff;
-		bcopy(&idp->current,&idp->assocent,idp->current.d_reclen);
+		memcpy(&idp->assocent, &idp->current, idp->current.d_reclen);
 	} else {
 		idp->saveoff = idp->curroff;
-		bcopy(&idp->current,&idp->saveent,idp->current.d_reclen);
+		memcpy(&idp->saveent, &idp->current, idp->current.d_reclen);
 	}
 	return (0);
 }
@@ -477,8 +481,9 @@ cd9660_readdir(ap)
 	int error = 0;
 	int reclen;
 	u_short namelen;
-	int ncookies = 0;
+	u_int ncookies = 0;
 	u_long *cookies = NULL;
+	cd_ino_t ino;
 
 	dp = VTOI(vdp);
 	imp = dp->i_mnt;
@@ -574,8 +579,10 @@ cd9660_readdir(ap)
 
 		switch (imp->iso_ftype) {
 		case ISO_FTYPE_RRIP:
-			cd9660_rrip_getname(ep,idp->current.d_name, &namelen,
-					   &idp->current.d_fileno,imp);
+			ino = idp->current.d_fileno;
+			cd9660_rrip_getname(ep, idp->current.d_name, &namelen,
+			    &ino, imp);
+			idp->current.d_fileno = ino;
 			idp->current.d_namlen = (u_char)namelen;
 			if (idp->current.d_namlen)
 				error = iso_uiodir(idp,&idp->current,idp->curroff);
@@ -778,6 +785,9 @@ cd9660_pathconf(ap)
 {
 
 	switch (ap->a_name) {
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 32;
+		return (0);
 	case _PC_LINK_MAX:
 		*ap->a_retval = 1;
 		return (0);
@@ -787,20 +797,17 @@ cd9660_pathconf(ap)
 		else
 			*ap->a_retval = 37;
 		return (0);
-	case _PC_PATH_MAX:
-		*ap->a_retval = PATH_MAX;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
+	case _PC_SYMLINK_MAX:
+		if (VTOI(ap->a_vp)->i_mnt->iso_ftype == ISO_FTYPE_RRIP) {
+			*ap->a_retval = MAXPATHLEN;
+			return (0);
+		}
+		return (EINVAL);
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		return (0);
 	default:
-		return (EINVAL);
+		return (vop_stdpathconf(ap));
 	}
 	/* NOTREACHED */
 }
@@ -829,11 +836,50 @@ cd9660_vptofh(ap)
 	memcpy(ap->a_fhp, &ifh, sizeof(ifh));
 
 #ifdef	ISOFS_DBG
-	printf("vptofh: ino %d, start %ld\n",
-	    ifh.ifid_ino, ifh.ifid_start);
+	printf("vptofh: ino %jd, start %ld\n",
+	    (uintmax_t)ifh.ifid_ino, ifh.ifid_start);
 #endif
 
 	return (0);
+}
+
+SYSCTL_NODE(_vfs, OID_AUTO, cd9660, CTLFLAG_RW, 0, "cd9660 filesystem");
+static int use_buf_pager = 1;
+SYSCTL_INT(_vfs_cd9660, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
+    &use_buf_pager, 0,
+    "Use buffer pager instead of bmap");
+
+static daddr_t
+cd9660_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
+{
+
+	return (lblkno(VTOI(vp)->i_mnt, off));
+}
+
+static int
+cd9660_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+{
+	struct iso_node *ip;
+
+	ip = VTOI(vp);
+	return (blksize(ip->i_mnt, ip, lbn));
+}
+
+static int
+cd9660_getpages(struct vop_getpages_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	if (use_buf_pager)
+		return (vfs_bio_getpages(vp, ap->a_m, ap->a_count,
+		    ap->a_rbehind, ap->a_rahead, cd9660_gbp_getblkno,
+		    cd9660_gbp_getblksz));
+	return (vnode_pager_generic_getpages(vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, NULL, NULL));
 }
 
 /*
@@ -857,6 +903,7 @@ struct vop_vector cd9660_vnodeops = {
 	.vop_setattr =		cd9660_setattr,
 	.vop_strategy =		cd9660_strategy,
 	.vop_vptofh =		cd9660_vptofh,
+	.vop_getpages =		cd9660_getpages,
 };
 
 /*

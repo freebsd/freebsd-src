@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1992-1994,2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
@@ -130,10 +132,6 @@ enum fd_drivetype {
 
 #define FD_GOPTS  _IOR('F', 64, int) /* drive options, see below */
 #define FD_SOPTS  _IOW('F', 65, int)
- 
-#ifdef PC98
-#define FD_DEBUG  _IOW('F', 66, int)
-#endif
 
 #define FD_CLRERR _IO('F', 67)	/* clear error counter */
 
@@ -152,10 +150,6 @@ enum fd_drivetype {
 #define FDOPT_NOERRLOG 0x002	/* no "hard error" kernel log messages */
 #define FDOPT_NOERROR 0x0004	/* do not indicate errors, caller will use
 				   FD_GSTAT in order to obtain status */
-#ifdef PC98
-#define FDOPT_AUTOSEL 0x8000	/* read/only option: device performs media
-				 * autoselection */
-#endif
 
 /*
  * Transfer rate definitions.  Used in the structures above.  They
@@ -180,19 +174,6 @@ enum fd_drivetype {
  * XXX: but the kernel needs some of them for proper defaults and it would
  * XXX: should have been done 20 years ago to make sense.
  */
-#ifdef PC98
-#define FDF_3_1440 18,2,0xFF,0x1B,80,0,2,2,0x54,1,0,FL_MFM
-#define FDF_3_1200 15,2,0xFF,0x1B,80,0,0,2,0x54,1,0,FL_MFM
-#define FDF_3_720   9,2,0xFF,0x20,80,0,1,2,0x50,1,0,FL_MFM
-#define FDF_3_360   9,2,0xFF,0x20,40,0,1,2,0x50,1,0,FL_MFM|FL_2STEP
-#define FDF_3_640   8,2,0xFF,0x2A,80,0,1,2,0x50,1,0,FL_MFM
-#define FDF_3_1230  8,3,0xFF,0x35,77,0,0,2,0x74,1,0,FL_MFM
-#define FDF_5_1200 15,2,0xFF,0x1B,80,0,0,2,0x54,1,0,FL_MFM
-#define FDF_5_720   9,2,0xFF,0x20,80,0,1,2,0x50,1,0,FL_MFM
-#define FDF_5_360   9,2,0xFF,0x20,40,0,1,2,0x50,1,0,FL_MFM|FL_2STEP
-#define FDF_5_640   8,2,0xFF,0x2A,80,0,1,2,0x50,1,0,FL_MFM
-#define FDF_5_1230  8,3,0xFF,0x35,77,0,0,2,0x74,1,0,FL_MFM
-#else /* PC98 */
 #define FDF_3_2880 36,2,0xFF,0x1B,80,0,FDC_1MBPS,002,0x4C,1,1,FL_MFM|FL_PERPND
 #define FDF_3_1722 21,2,0xFF,0x04,82,0,FDC_500KBPS,2,0x0C,2,0,FL_MFM
 #define FDF_3_1476 18,2,0xFF,0x1B,82,0,FDC_500KBPS,2,0x6C,1,0,FL_MFM
@@ -212,6 +193,5 @@ enum fd_drivetype {
 #define FDF_5_400  10,2,0xFF,0x10,80,0,FDC_300KBPS,1,0x2e,1,0,FL_MFM /* RX50 */
 #define FDF_5_360   9,2,0xFF,0x23,40,0,FDC_300KBPS,2,0x50,1,0,FL_MFM
 /* XXX:                      0x2a ? */
-#endif
 
 #endif /* !_MACHINE_IOCTL_FD_H_ */

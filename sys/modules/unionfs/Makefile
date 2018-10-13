@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/unionfs
+.PATH: ${SRCTOP}/sys/fs/unionfs
 
 KMOD=	unionfs
 SRCS=	vnode_if.h \

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -494,6 +496,54 @@
 #define S_TCB_RX_DDP_BUF1_TAG    0
 #define M_TCB_RX_DDP_BUF1_TAG    0xffffffffULL
 #define V_TCB_RX_DDP_BUF1_TAG(x) ((x) << S_TCB_RX_DDP_BUF1_TAG)
+
+/* 855:832  */
+#define W_TCB_RX_TLS_BUF_OFFSET    26
+#define S_TCB_RX_TLS_BUF_OFFSET    0
+#define M_TCB_RX_TLS_BUF_OFFSET    0xffffffULL
+#define V_TCB_RX_TLS_BUF_OFFSET(x) ((x) << S_TCB_RX_TLS_BUF_OFFSET)
+
+/* 876:856  */
+#define W_TCB_RX_TLS_BUF_LEN    26
+#define S_TCB_RX_TLS_BUF_LEN    24
+#define M_TCB_RX_TLS_BUF_LEN    0xffffffULL
+#define V_TCB_RX_TLS_BUF_LEN(x) ((__u64)(x) << S_TCB_RX_TLS_BUF_LEN)
+
+/* 895:880  */
+#define W_TCB_RX_TLS_FLAGS    26
+#define S_TCB_RX_TLS_FLAGS    48
+#define M_TCB_RX_TLS_FLAGS    0xffffULL
+#define V_TCB_RX_TLS_FLAGS(x) ((__u64)(x) << S_TCB_RX_TLS_FLAGS)
+
+/* 959:896  */
+#define W_TCB_TLS_SEQ    28
+#define S_TCB_TLS_SEQ    0
+#define M_TCB_TLS_SEQ    0xffffffffffffffffULL
+#define V_TCB_TLS_SEQ(x) ((__u64)(x) << S_TCB_TLS_SEQ)
+
+/* 991:960  */
+#define W_TCB_RX_TLS_BUF_TAG    30
+#define S_TCB_RX_TLS_BUF_TAG    0
+#define M_TCB_RX_TLS_BUF_TAG    0xffffffffULL
+#define V_TCB_RX_TLS_BUF_TAG(x) ((x) << S_TCB_RX_TLS_BUF_TAG)
+
+/* 1023:992 */
+#define W_TCB_RX_TLS_KEY_TAG    31
+#define S_TCB_RX_TLS_KEY_TAG    0
+#define M_TCB_RX_TLS_KEY_TAG    0xffffffffULL
+#define V_TCB_RX_TLS_KEY_TAG(x) ((x) << S_TCB_RX_TLS_KEY_TAG)
+
+#define S_TF_TLS_KEY_SIZE    7
+#define V_TF_TLS_KEY_SIZE(x) ((x) << S_TF_TLS_KEY_SIZE)
+
+#define S_TF_TLS_CONTROL     2
+#define V_TF_TLS_CONTROL(x) ((x) << S_TF_TLS_CONTROL)
+
+#define S_TF_TLS_ACTIVE      1
+#define V_TF_TLS_ACTIVE(x) ((x) << S_TF_TLS_ACTIVE)
+
+#define S_TF_TLS_ENABLE      0
+#define V_TF_TLS_ENABLE(x) ((x) << S_TF_TLS_ENABLE)
 
 #define S_TF_MIGRATING    0
 #define V_TF_MIGRATING(x) ((x) << S_TF_MIGRATING)

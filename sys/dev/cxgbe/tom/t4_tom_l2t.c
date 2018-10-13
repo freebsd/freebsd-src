@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -219,7 +221,7 @@ update_entry(struct adapter *sc, struct l2t_entry *e, uint8_t *lladdr,
 
 			memcpy(e->dmac, lladdr, ETHER_ADDR_LEN);
 			e->vlan = vtag;
-			t4_write_l2e(sc, e, 1);
+			t4_write_l2e(e, 1);
 		}
 		e->state = L2T_STATE_VALID;
 	}
@@ -234,7 +236,7 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 	struct sockaddr_in6 sin6 = {0};
 	struct sockaddr *sa;
 	uint8_t dmac[ETHER_HDR_LEN];
-	uint16_t vtag = VLAN_NONE;
+	uint16_t vtag;
 	int rc;
 
 	if (e->ipv6 == 0) {
@@ -249,6 +251,7 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 		sa = (void *)&sin6;
 	}
 
+	vtag = EVL_MAKETAG(VLAN_NONE, 0, 0);
 	rc = toe_l2_resolve(tod, e->ifp, sa, dmac, &vtag);
 	if (rc == EWOULDBLOCK)
 		return (rc);
@@ -309,19 +312,7 @@ again:
 	return (0);
 }
 
-/*
- * Called when an L2T entry has no more users.  The entry is left in the hash
- * table since it is likely to be reused but we also bump nfree to indicate
- * that the entry can be reallocated for a different neighbor.  We also drop
- * the existing neighbor reference in case the neighbor is going away and is
- * waiting on our reference.
- *
- * Because entries can be reallocated to other neighbors once their ref count
- * drops to 0 we need to take the entry's lock to avoid races with a new
- * incarnation.
- */
-
-static int
+int
 do_l2t_write_rpl2(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
@@ -329,11 +320,13 @@ do_l2t_write_rpl2(struct sge_iq *iq, const struct rss_header *rss,
 	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(rpl);
 	unsigned int idx = tid % L2T_SIZE;
-	int rc;
 
-	rc = do_l2t_write_rpl(iq, rss, m);
-	if (rc != 0)
-		return (rc);
+	if (__predict_false(rpl->status != CPL_ERR_NONE)) {
+		log(LOG_ERR,
+		    "Unexpected L2T_WRITE_RPL (%u) for entry at hw_idx %u\n",
+		    rpl->status, idx);
+		return (EINVAL);
+	}
 
 	if (tid & F_SYNC_WR) {
 		struct l2t_entry *e = &sc->l2t->l2tab[idx - sc->vres.l2t.start];
@@ -349,20 +342,6 @@ do_l2t_write_rpl2(struct sge_iq *iq, const struct rss_header *rss,
 	return (0);
 }
 
-void
-t4_init_l2t_cpl_handlers(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_L2T_WRITE_RPL, do_l2t_write_rpl2);
-}
-
-void
-t4_uninit_l2t_cpl_handlers(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_L2T_WRITE_RPL, do_l2t_write_rpl);
-}
-
 /*
  * The TOE wants an L2 table entry that it can use to reach the next hop over
  * the specified port.  Produce such an entry - create one if needed.
@@ -374,22 +353,30 @@ struct l2t_entry *
 t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 {
 	struct l2t_entry *e;
-	struct l2t_data *d = pi->adapter->l2t;
+	struct adapter *sc = pi->adapter;
+	struct l2t_data *d = sc->l2t;
 	u_int hash, smt_idx = pi->port_id;
+	uint16_t vid, pcp, vtag;
 
 	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
 	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
 	    sa->sa_family));
 
-#ifndef VLAN_TAG
-	if (ifp->if_type == IFT_L2VLAN)
-		return (NULL);
-#endif
+	vid = VLAN_NONE;
+	pcp = 0;
+	if (ifp->if_type == IFT_L2VLAN) {
+		VLAN_TAG(ifp, &vid);
+		VLAN_PCP(ifp, &pcp);
+	} else if (ifp->if_pcp != IFNET_PCP_NONE) {
+		vid = 0;
+		pcp = ifp->if_pcp;
+	}
+	vtag = EVL_MAKETAG(vid, pcp, 0);
 
 	hash = l2_hash(d, sa, ifp->if_index);
 	rw_wlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next) {
-		if (l2_cmp(sa, e) == 0 && e->ifp == ifp &&
+		if (l2_cmp(sa, e) == 0 && e->ifp == ifp && e->vlan == vtag &&
 		    e->smt_idx == smt_idx) {
 			l2t_hold(d, e);
 			goto done;
@@ -409,13 +396,10 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 		e->smt_idx = smt_idx;
 		e->hash = hash;
 		e->lport = pi->lport;
+		e->wrq = &sc->sge.ctrlq[pi->port_id];
+		e->iqid = sc->sge.ofld_rxq[pi->vi[0].first_ofld_rxq].iq.abs_id;
 		atomic_store_rel_int(&e->refcnt, 1);
-#ifdef VLAN_TAG
-		if (ifp->if_type == IFT_L2VLAN)
-			VLAN_TAG(ifp, &e->vlan);
-		else
-			e->vlan = VLAN_NONE;
-#endif
+		e->vlan = vtag;
 		mtx_unlock(&e->lock);
 	}
 done:

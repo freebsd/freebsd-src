@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-# Because i386 adds extra stuff we don't need or want for PC98 we need
-# an empty file so it doesn't get added.

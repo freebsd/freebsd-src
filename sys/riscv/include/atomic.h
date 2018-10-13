@@ -37,6 +37,8 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
+#include <sys/atomic_common.h>
+
 #define	fence()	__asm __volatile("fence" ::: "memory");
 #define	mb()	fence()
 #define	rmb()	fence()
@@ -120,6 +122,31 @@ atomic_cmpset_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (!res);
 }
 
+static __inline int
+atomic_fcmpset_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
+{
+	uint32_t tmp;
+	int res;
+
+	res = 0;
+
+	__asm __volatile(
+		"0:"
+			"li   %1, 1\n"		/* Preset to fail */
+			"lr.w %0, %2\n"		/* Load old value */
+			"bne  %0, %z4, 1f\n"	/* Compare */
+			"sc.w %1, %z5, %2\n"	/* Try to store new value */
+			"j 2f\n"
+		"1:"
+			"sw   %0, %3\n"		/* Save old value */
+		"2:"
+			: "=&r" (tmp), "=&r" (res), "+A" (*p), "+A" (*cmpval)
+			: "rJ" (*cmpval), "rJ" (newval)
+			: "memory");
+
+	return (!res);
+}
+
 static __inline uint32_t
 atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
 {
@@ -152,6 +179,7 @@ atomic_readandclear_32(volatile uint32_t *p)
 #define	atomic_add_int		atomic_add_32
 #define	atomic_clear_int	atomic_clear_32
 #define	atomic_cmpset_int	atomic_cmpset_32
+#define	atomic_fcmpset_int	atomic_fcmpset_32
 #define	atomic_fetchadd_int	atomic_fetchadd_32
 #define	atomic_readandclear_int	atomic_readandclear_32
 #define	atomic_set_int		atomic_set_32
@@ -183,6 +211,27 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
+static __inline int
+atomic_fcmpset_acq_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
+{
+	int res;
+
+	res = atomic_fcmpset_32(p, cmpval, newval);
+
+	fence();
+
+	return (res);
+}
+
+static __inline int
+atomic_fcmpset_rel_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
+{
+
+	fence();
+
+	return (atomic_fcmpset_32(p, cmpval, newval));
+}
+
 static __inline uint32_t
 atomic_load_acq_32(volatile uint32_t *p)
 {
@@ -207,6 +256,7 @@ atomic_store_rel_32(volatile uint32_t *p, uint32_t val)
 #define	atomic_add_acq_int	atomic_add_acq_32
 #define	atomic_clear_acq_int	atomic_clear_acq_32
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
+#define	atomic_fcmpset_acq_int	atomic_fcmpset_acq_32
 #define	atomic_load_acq_int	atomic_load_acq_32
 #define	atomic_set_acq_int	atomic_set_acq_32
 #define	atomic_subtract_acq_int	atomic_subtract_acq_32
@@ -214,6 +264,7 @@ atomic_store_rel_32(volatile uint32_t *p, uint32_t val)
 #define	atomic_add_rel_int	atomic_add_rel_32
 #define	atomic_clear_rel_int	atomic_add_rel_32
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
+#define	atomic_fcmpset_rel_int	atomic_fcmpset_rel_32
 #define	atomic_set_rel_int	atomic_set_rel_32
 #define	atomic_subtract_rel_int	atomic_subtract_rel_32
 #define	atomic_store_rel_int	atomic_store_rel_32
@@ -281,6 +332,31 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (!res);
 }
 
+static __inline int
+atomic_fcmpset_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
+{
+	uint64_t tmp;
+	int res;
+
+	res = 0;
+
+	__asm __volatile(
+		"0:"
+			"li   %1, 1\n"		/* Preset to fail */
+			"lr.d %0, %2\n"		/* Load old value */
+			"bne  %0, %z4, 1f\n"	/* Compare */
+			"sc.d %1, %z5, %2\n"	/* Try to store new value */
+			"j 2f\n"
+		"1:"
+			"sd   %0, %3\n"		/* Save old value */
+		"2:"
+			: "=&r" (tmp), "=&r" (res), "+A" (*p), "+A" (*cmpval)
+			: "rJ" (*cmpval), "rJ" (newval)
+			: "memory");
+
+	return (!res);
+}
+
 static __inline uint64_t
 atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
 {
@@ -336,21 +412,27 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 	return (old);
 }
 
+#define	atomic_swap_int			atomic_swap_32
+
 #define	atomic_add_long			atomic_add_64
 #define	atomic_clear_long		atomic_clear_64
 #define	atomic_cmpset_long		atomic_cmpset_64
+#define	atomic_fcmpset_long		atomic_fcmpset_64
 #define	atomic_fetchadd_long		atomic_fetchadd_64
 #define	atomic_readandclear_long	atomic_readandclear_64
 #define	atomic_set_long			atomic_set_64
 #define	atomic_subtract_long		atomic_subtract_64
+#define	atomic_swap_long		atomic_swap_64
 
 #define	atomic_add_ptr			atomic_add_64
 #define	atomic_clear_ptr		atomic_clear_64
 #define	atomic_cmpset_ptr		atomic_cmpset_64
+#define	atomic_fcmpset_ptr		atomic_fcmpset_64
 #define	atomic_fetchadd_ptr		atomic_fetchadd_64
 #define	atomic_readandclear_ptr		atomic_readandclear_64
 #define	atomic_set_ptr			atomic_set_64
 #define	atomic_subtract_ptr		atomic_subtract_64
+#define	atomic_swap_ptr			atomic_swap_64
 
 ATOMIC_ACQ_REL(set, 64)
 ATOMIC_ACQ_REL(clear, 64)
@@ -378,6 +460,27 @@ atomic_cmpset_rel_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (atomic_cmpset_64(p, cmpval, newval));
 }
 
+static __inline int
+atomic_fcmpset_acq_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
+{
+	int res;
+
+	res = atomic_fcmpset_64(p, cmpval, newval);
+
+	fence();
+
+	return (res);
+}
+
+static __inline int
+atomic_fcmpset_rel_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
+{
+
+	fence();
+
+	return (atomic_fcmpset_64(p, cmpval, newval));
+}
+
 static __inline uint64_t
 atomic_load_acq_64(volatile uint64_t *p)
 {
@@ -402,6 +505,7 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_add_acq_long		atomic_add_acq_64
 #define	atomic_clear_acq_long		atomic_add_acq_64
 #define	atomic_cmpset_acq_long		atomic_cmpset_acq_64
+#define	atomic_fcmpset_acq_long		atomic_fcmpset_acq_64
 #define	atomic_load_acq_long		atomic_load_acq_64
 #define	atomic_set_acq_long		atomic_set_acq_64
 #define	atomic_subtract_acq_long	atomic_subtract_acq_64
@@ -409,9 +513,12 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_add_acq_ptr		atomic_add_acq_64
 #define	atomic_clear_acq_ptr		atomic_add_acq_64
 #define	atomic_cmpset_acq_ptr		atomic_cmpset_acq_64
+#define	atomic_fcmpset_acq_ptr		atomic_fcmpset_acq_64
 #define	atomic_load_acq_ptr		atomic_load_acq_64
 #define	atomic_set_acq_ptr		atomic_set_acq_64
 #define	atomic_subtract_acq_ptr		atomic_subtract_acq_64
+
+#undef ATOMIC_ACQ_REL
 
 static __inline void
 atomic_thread_fence_acq(void)
@@ -447,6 +554,7 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_add_rel_long		atomic_add_rel_64
 #define	atomic_clear_rel_long		atomic_clear_rel_64
 #define	atomic_cmpset_rel_long		atomic_cmpset_rel_64
+#define	atomic_fcmpset_rel_long		atomic_fcmpset_rel_64
 #define	atomic_set_rel_long		atomic_set_rel_64
 #define	atomic_subtract_rel_long	atomic_subtract_rel_64
 #define	atomic_store_rel_long		atomic_store_rel_64
@@ -454,6 +562,7 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_add_rel_ptr		atomic_add_rel_64
 #define	atomic_clear_rel_ptr		atomic_clear_rel_64
 #define	atomic_cmpset_rel_ptr		atomic_cmpset_rel_64
+#define	atomic_fcmpset_rel_ptr		atomic_fcmpset_rel_64
 #define	atomic_set_rel_ptr		atomic_set_rel_64
 #define	atomic_subtract_rel_ptr		atomic_subtract_rel_64
 #define	atomic_store_rel_ptr		atomic_store_rel_64

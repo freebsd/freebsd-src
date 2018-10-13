@@ -69,4 +69,11 @@ FBSDprivate_1.0 {
 	__aeabi_memset;
 	__aeabi_memset4;
 	__aeabi_memset8;
+
+	/*
+	 * A workaround for DEFINE_AEABI_FUNCTION_ALIAS() bug.
+	 * - see aeabi_int_div.S
+	 */
+	__aeabi_idiv;
+	__aeabi_uidiv;
 };

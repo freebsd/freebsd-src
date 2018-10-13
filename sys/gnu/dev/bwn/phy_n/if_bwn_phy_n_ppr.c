@@ -60,15 +60,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_ratectl.h>
+
+#include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/cores/pmu/bhnd_pmu.h>
 
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
@@ -77,7 +77,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwn_phy_common.h>
 
 #include <gnu/dev/bwn/phy_n/if_bwn_phy_n_regs.h>
+#include <gnu/dev/bwn/phy_n/if_bwn_phy_n_sprom.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_phy_n_ppr.h>
+
+#include "bhnd_nvram_map.h"
 
 #define ppr_for_each_entry(ppr, i, entry)				\
 	for (i = 0, entry = &(ppr)->__all_rates[i];			\
@@ -139,18 +142,21 @@ bool bwn_ppr_load_max_from_sprom(struct bwn_mac *mac, struct bwn_ppr *ppr,
 				 bwn_phy_band_t band)
 {
 	struct bwn_softc *sc = mac->mac_sc;
-	struct siba_sprom_core_pwr_info core_pwr_info[4];
+	struct bwn_phy_n_core_pwr_info core_pwr_info[4];
 	struct bwn_ppr_rates *rates = &ppr->rates;
 	struct bwn_phy *phy = &mac->mac_phy;
+	const char *var_ofdmgpo, *var_mcsgpo_prefix;
 	uint8_t maxpwr, off;
 	uint32_t sprom_ofdm_po;
 	uint16_t sprom_mcs_po[8];
+	uint16_t cddpo, stbcpo;
 	uint8_t extra_cdd_po, extra_stbc_po;
+	int error;
 	int i;
 
 	for (i = 0; i < 4; i++) {
 		bzero(&core_pwr_info[i], sizeof(core_pwr_info[i]));
-		if (siba_sprom_get_core_power_info(sc->sc_dev, i,
+		if (bwn_nphy_get_core_power_info(mac, i,
 		    &core_pwr_info[i]) != 0) {
 			BWN_ERRPRINTF(mac->mac_sc,
 			    "%s: failed to get core_pwr_info for core %d\n",
@@ -159,38 +165,53 @@ bool bwn_ppr_load_max_from_sprom(struct bwn_mac *mac, struct bwn_ppr *ppr,
 		}
 	}
 
+	error = bhnd_nvram_getvar_uint16(sc->sc_dev, BHND_NVAR_CDDPO, &cddpo);
+	if (error) {
+		BWN_ERRPRINTF(mac->mac_sc, "NVRAM variable %s unreadable: %d\n",
+		     BHND_NVAR_CDDPO, error);
+		return (false);
+	}
+
+	error = bhnd_nvram_getvar_uint16(sc->sc_dev, BHND_NVAR_STBCPO, &stbcpo);
+	if (error) {
+		BWN_ERRPRINTF(mac->mac_sc, "NVRAM variable %s unreadable: %d\n",
+		     BHND_NVAR_STBCPO, error);
+		return (false);
+	}
+
 	switch (band) {
 	case BWN_PHY_BAND_2G:
 		maxpwr = min(core_pwr_info[0].maxpwr_2g,
 			     core_pwr_info[1].maxpwr_2g);
-		sprom_ofdm_po = siba_sprom_get_ofdm2gpo(sc->sc_dev);
-		siba_sprom_get_mcs2gpo(sc->sc_dev, sprom_mcs_po);
-		extra_cdd_po = (siba_sprom_get_cddpo(sc->sc_dev) >> 0) & 0xf;
-		extra_stbc_po = (siba_sprom_get_stbcpo(sc->sc_dev) >> 0) & 0xf;
+
+		var_ofdmgpo = BHND_NVAR_OFDM2GPO;
+		var_mcsgpo_prefix = "mcs2gpo";
+		extra_cdd_po = (cddpo >> 0) & 0xf;
+		extra_stbc_po = (stbcpo >> 0) & 0xf;
 		break;
 	case BWN_PHY_BAND_5G_LO:
 		maxpwr = min(core_pwr_info[0].maxpwr_5gl,
 			     core_pwr_info[1].maxpwr_5gl);
-		sprom_ofdm_po = siba_sprom_get_ofdm5glpo(sc->sc_dev);
-		siba_sprom_get_mcs5glpo(sc->sc_dev, sprom_mcs_po);
-		extra_cdd_po = (siba_sprom_get_cddpo(sc->sc_dev) >> 8) & 0xf;
-		extra_stbc_po = (siba_sprom_get_stbcpo(sc->sc_dev) >> 8) & 0xf;
+		var_ofdmgpo = BHND_NVAR_OFDM5GLPO;
+		var_mcsgpo_prefix = "mcs5glpo";
+		extra_cdd_po = (cddpo >> 8) & 0xf;
+		extra_stbc_po = (stbcpo >> 8) & 0xf;
 		break;
 	case BWN_PHY_BAND_5G_MI:
 		maxpwr = min(core_pwr_info[0].maxpwr_5g,
 			     core_pwr_info[1].maxpwr_5g);
-		sprom_ofdm_po = siba_sprom_get_ofdm5gpo(sc->sc_dev);
-		siba_sprom_get_mcs5gpo(sc->sc_dev, sprom_mcs_po);
-		extra_cdd_po = (siba_sprom_get_cddpo(sc->sc_dev) >> 4) & 0xf;
-		extra_stbc_po = (siba_sprom_get_stbcpo(sc->sc_dev) >> 4) & 0xf;
+		var_ofdmgpo = BHND_NVAR_OFDM5GPO;
+		var_mcsgpo_prefix = "mcs5gpo";
+		extra_cdd_po = (cddpo >> 4) & 0xf;
+		extra_stbc_po = (stbcpo >> 4) & 0xf;
 		break;
 	case BWN_PHY_BAND_5G_HI:
 		maxpwr = min(core_pwr_info[0].maxpwr_5gh,
 			     core_pwr_info[1].maxpwr_5gh);
-		sprom_ofdm_po = siba_sprom_get_ofdm5ghpo(sc->sc_dev);
-		siba_sprom_get_mcs5ghpo(sc->sc_dev, sprom_mcs_po);
-		extra_cdd_po = (siba_sprom_get_cddpo(sc->sc_dev) >> 12) & 0xf;
-		extra_stbc_po = (siba_sprom_get_stbcpo(sc->sc_dev) >> 12) & 0xf;
+		var_ofdmgpo = BHND_NVAR_OFDM5GHPO;
+		var_mcsgpo_prefix = "mcs5ghpo";
+		extra_cdd_po = (cddpo >> 12) & 0xf;
+		extra_stbc_po = (stbcpo >> 12) & 0xf;
 		break;
 	default:
 		device_printf(mac->mac_sc->sc_dev, "%s: invalid band (%d)\n",
@@ -199,9 +220,48 @@ bool bwn_ppr_load_max_from_sprom(struct bwn_mac *mac, struct bwn_ppr *ppr,
 		return false;
 	}
 
+	error = bhnd_nvram_getvar_uint32(sc->sc_dev, var_ofdmgpo,
+	    &sprom_ofdm_po);
+	if (error) {
+		device_printf(sc->sc_dev, "NVRAM variable %s unreadable: %d\n",
+		     var_ofdmgpo, error);
+		return (false);
+	}
+
+	for (size_t i = 0; i < nitems(sprom_mcs_po); i++) {
+		char	var[strlen(var_mcsgpo_prefix) + sizeof("XX")];
+		int	ret;
+
+		/* mcs[25]g[lh]?po[0-9] */
+		ret = snprintf(var, sizeof(var), "%s%zu", var_mcsgpo_prefix, i);
+		if (ret >= sizeof(var)) {
+			device_printf(sc->sc_dev, "buffer too small for "
+			    "%s%zu\n", var_mcsgpo_prefix, i);
+			return (false);
+		}
+
+		error = bhnd_nvram_getvar_uint16(sc->sc_dev, var,
+		    &sprom_mcs_po[i]);
+		if (error) {
+			device_printf(sc->sc_dev, "NVRAM variable %s "
+			    "unreadable: %d\n", var, error);
+			return (false);
+		}
+	}
+
 	if (band == BWN_BAND_2G) {
+		uint16_t ck2gpo;
+
+		error = bhnd_nvram_getvar_uint16(sc->sc_dev, BHND_NVAR_CCK2GPO,
+		    &ck2gpo);
+		if (error) {
+			device_printf(sc->sc_dev, "NVRAM variable %s "
+			    "unreadable: %d\n", BHND_NVAR_CCK2GPO, error);
+			return (false);
+		}
+
 		for (i = 0; i < 4; i++) {
-			off = ((siba_sprom_get_cck2gpo(sc->sc_dev) >> (i * 4)) & 0xf) * 2;
+			off = ((ck2gpo >> (i * 4)) & 0xf) * 2;
 			rates->cck[i] = maxpwr - off;
 		}
 	}

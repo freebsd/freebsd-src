@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_utf7.h,v 1.1 2005/03/05 18:05:15 tnozaki Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2004,2005 Citrus Project,
  * All rights reserved.
  *

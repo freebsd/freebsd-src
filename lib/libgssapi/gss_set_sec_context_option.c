@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2004, PADL Software Pty Ltd.
  * All rights reserved.
  *

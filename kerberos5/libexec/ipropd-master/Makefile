@@ -10,9 +10,6 @@ DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
-foo::
-	echo ${LIBHX509}
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/lib/kadm5

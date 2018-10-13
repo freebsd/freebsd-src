@@ -8,5 +8,5 @@ Description: Subversion General Utility Library
 Version: @PACKAGE_VERSION@
 Requires:  apr-util-@SVN_APR_MAJOR_VERSION@ apr-@SVN_APR_MAJOR_VERSION@
 Requires.private:  sqlite3
-Libs: -L${libdir}  -lsvn_subr @SVN_XML_LIBS@ @SVN_ZLIB_LIBS@ @SVN_APR_MEMCACHE_LIBS@ @SVN_MAGIC_LIBS@ @SVN_INTL_LIBS@
+Libs: -L${libdir}  -lsvn_subr @SVN_XML_LIBS@ @SVN_ZLIB_LIBS@ @SVN_APR_MEMCACHE_LIBS@ @SVN_MAGIC_LIBS@ @SVN_INTL_LIBS@ @SVN_LZ4_LIBS@ @SVN_UTF8PROC_LIBS@
 Cflags: -I${includedir}

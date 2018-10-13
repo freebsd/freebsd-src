@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2016
+.Dd August 19, 2017
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -52,6 +52,10 @@ input is async despite claim of adaptive
 do not adjust for fractional samples
 .It UQ_AU_NO_XU
 audio device has broken extension unit
+.It UQ_AU_VENDOR_CLASS
+audio device uses vendor class to identify itself
+.It UQ_AU_SET_SPDIF_CM6206
+audio device needs special programming to enable S/PDIF audio output
 .It UQ_BAD_ADC
 bad audio spec version number
 .It UQ_BAD_AUDIO
@@ -94,6 +98,8 @@ select configuration index 4 by default
 select configuration index 0 by default
 .It UQ_ASSUME_CM_OVER_DATA
 assume cm over data feature
+.It UQ_WMT_IGNORE
+device should be ignored by wmt driver
 .El
 .Sh USB Mass Storage quirks:
 .Bl -tag -width Ds

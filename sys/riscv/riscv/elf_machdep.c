@@ -259,6 +259,13 @@ reloctype_to_str(int type)
 	return "*unknown*";
 }
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /*
  * Currently kernel loadable module for RISCV is compiled with -fPIC option.
  * (see also additional CFLAGS definition for RISCV in sys/conf/kmod.mk)
@@ -323,11 +330,9 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_RISCV_RELATIVE:
-		val = relocbase + addend;
-
 		before64 = *where;
-		if (*where != val)
-			*where = val;
+
+		*where = elf_relocaddr(lf, relocbase + addend);
 
 		if (debug_kld)
 			printf("%p %c %-24s %016lx -> %016lx\n",

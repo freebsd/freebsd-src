@@ -28,6 +28,7 @@
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -70,8 +71,8 @@ int setlogin(const char *name)
 #endif /* !HAVE_SETLOGIN */
 
 #ifndef HAVE_INNETGR
-int innetgr(const char *netgroup, const char *host, 
-            const char *user, const char *domain)
+int innetgr(const char *netgroup, const char *host,
+	    const char *user, const char *domain)
 {
 	return (0);
 }
@@ -96,7 +97,7 @@ const char *strerror(int e)
 {
 	extern int sys_nerr;
 	extern char *sys_errlist[];
-	
+
 	if ((e >= 0) && (e < sys_nerr))
 		return (sys_errlist[e]);
 
@@ -111,10 +112,10 @@ int utimes(char *filename, struct timeval *tvp)
 
 	ub.actime = tvp[0].tv_sec;
 	ub.modtime = tvp[1].tv_sec;
-	
+
 	return (utime(filename, &ub));
 }
-#endif 
+#endif
 
 #ifndef HAVE_TRUNCATE
 int truncate(const char *path, off_t length)
@@ -149,9 +150,9 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
 		saverrno = errno;
 		(void) gettimeofday (&tstop, NULL);
 		errno = saverrno;
-		tremain.tv_sec = time2wait.tv_sec - 
+		tremain.tv_sec = time2wait.tv_sec -
 			(tstop.tv_sec - tstart.tv_sec);
-		tremain.tv_usec = time2wait.tv_usec - 
+		tremain.tv_usec = time2wait.tv_usec -
 			(tstop.tv_usec - tstart.tv_usec);
 		tremain.tv_sec += tremain.tv_usec / 1000000L;
 		tremain.tv_usec %= 1000000L;
@@ -211,33 +212,6 @@ tcsendbreak(int fd, int duration)
 }
 #endif /* HAVE_TCSENDBREAK */
 
-mysig_t
-mysignal(int sig, mysig_t act)
-{
-#ifdef HAVE_SIGACTION
-	struct sigaction sa, osa;
-
-	if (sigaction(sig, NULL, &osa) == -1)
-		return (mysig_t) -1;
-	if (osa.sa_handler != act) {
-		memset(&sa, 0, sizeof(sa));
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-#ifdef SA_INTERRUPT
-		if (sig == SIGALRM)
-			sa.sa_flags |= SA_INTERRUPT;
-#endif
-		sa.sa_handler = act;
-		if (sigaction(sig, &sa, NULL) == -1)
-			return (mysig_t) -1;
-	}
-	return (osa.sa_handler);
-#else
-	#undef signal
-	return (signal(sig, act));
-#endif
-}
-
 #ifndef HAVE_STRDUP
 char *
 strdup(const char *str)
@@ -265,7 +239,7 @@ isblank(int c)
 pid_t
 getpgid(pid_t pid)
 {
-#if defined(HAVE_GETPGRP) && !defined(GETPGRP_VOID)
+#if defined(HAVE_GETPGRP) && !defined(GETPGRP_VOID) && GETPGRP_VOID == 0
 	return getpgrp(pid);
 #elif defined(HAVE_GETPGRP)
 	if (pid == 0)
@@ -282,5 +256,72 @@ int
 pledge(const char *promises, const char *paths[])
 {
 	return 0;
+}
+#endif
+
+#ifndef HAVE_MBTOWC
+/* a mbtowc that only supports ASCII */
+int
+mbtowc(wchar_t *pwc, const char *s, size_t n)
+{
+	if (s == NULL || *s == '\0')
+		return 0;	/* ASCII is not state-dependent */
+	if (*s < 0 || *s > 0x7f || n < 1) {
+		errno = EOPNOTSUPP;
+		return -1;
+	}
+	if (pwc != NULL)
+		*pwc = *s;
+	return 1;
+}
+#endif
+
+#ifndef HAVE_LLABS
+long long
+llabs(long long j)
+{
+	return (j < 0 ? -j : j);
+}
+#endif
+
+#ifndef HAVE_BZERO
+void
+bzero(void *b, size_t n)
+{
+	(void)memset(b, 0, n);
+}
+#endif
+
+#ifndef HAVE_RAISE
+int
+raise(int sig)
+{
+	kill(getpid(), sig);
+}
+#endif
+
+#ifndef HAVE_GETSID
+pid_t
+getsid(pid_t pid)
+{
+	errno = ENOSYS;
+	return -1;
+}
+#endif
+
+#ifdef FFLUSH_NULL_BUG
+#undef fflush
+int _ssh_compat_fflush(FILE *f)
+{
+	int r1, r2, r3;
+
+	if (f == NULL) {
+		r2 = fflush(stdout);
+		r3 = fflush(stderr);
+		if (r1 == -1 || r2 == -1 || r3 == -1)
+			return -1;
+		return 0;
+	}
+	return fflush(f);
 }
 #endif

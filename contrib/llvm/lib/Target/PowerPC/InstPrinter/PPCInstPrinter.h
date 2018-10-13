@@ -14,21 +14,24 @@
 #ifndef LLVM_LIB_TARGET_POWERPC_INSTPRINTER_PPCINSTPRINTER_H
 #define LLVM_LIB_TARGET_POWERPC_INSTPRINTER_PPCINSTPRINTER_H
 
+#include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCInstPrinter.h"
 
 namespace llvm {
 
 class PPCInstPrinter : public MCInstPrinter {
-  bool IsDarwin;
+  Triple TT;
+private:
+  bool showRegistersWithPercentPrefix(const char *RegName) const;
+  bool showRegistersWithPrefix() const;
+  const char *getVerboseConditionRegName(unsigned RegNum,
+                                         unsigned RegEncoding) const;
+
 public:
   PPCInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
-                 const MCRegisterInfo &MRI, bool isDarwin)
-    : MCInstPrinter(MAI, MII, MRI), IsDarwin(isDarwin) {}
-  
-  bool isDarwinSyntax() const {
-    return IsDarwin;
-  }
-  
+                 const MCRegisterInfo &MRI, Triple T)
+    : MCInstPrinter(MAI, MII, MRI), TT(T) {}
+
   void printRegName(raw_ostream &OS, unsigned RegNo) const override;
   void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot,
                  const MCSubtargetInfo &STI) override;
@@ -45,6 +48,7 @@ public:
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printPredicateOperand(const MCInst *MI, unsigned OpNo,
                              raw_ostream &O, const char *Modifier = nullptr);
+  void printATBitsAsHint(const MCInst *MI, unsigned OpNo, raw_ostream &O);
 
   void printU1ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU2ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
@@ -53,6 +57,8 @@ public:
   void printS5ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU5ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU6ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
+  void printU7ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
+  void printU8ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU10ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU12ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printS16ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);

@@ -1,5 +1,8 @@
 /*-
- * Copyright (C) 2010 by Maxim Ignatenko <gelraen.ua@gmail.com>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2010 Maxim Ignatenko <gelraen.ua@gmail.com>
+ * Copyright (c) 2015 Dmitry Vagin <daemon.hammer@ya.ru>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,13 +42,19 @@
 #define	NG_PATCH_HOOK_IN	"in"
 #define	NG_PATCH_HOOK_OUT	"out"
 
+/* Checksum flags */
+#define NG_PATCH_CSUM_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#define NG_PATCH_CSUM_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6|CSUM_SCTP_IPV6)
+
 /* Netgraph commands understood by this node type */
 enum {
 	NGM_PATCH_SETCONFIG = 1,
 	NGM_PATCH_GETCONFIG,
 	NGM_PATCH_GET_STATS,
 	NGM_PATCH_CLR_STATS,
-	NGM_PATCH_GETCLR_STATS
+	NGM_PATCH_GETCLR_STATS,
+	NGM_PATCH_GETDLT,
+	NGM_PATCH_SETDLT
 };
 
 /* Patching modes */
@@ -57,39 +66,57 @@ enum {
 	NG_PATCH_MODE_DIV = 5,
 	NG_PATCH_MODE_NEG = 6,
 	NG_PATCH_MODE_AND = 7,
-	NG_PATCH_MODE_OR = 8,
+	NG_PATCH_MODE_OR  = 8,
 	NG_PATCH_MODE_XOR = 9,
 	NG_PATCH_MODE_SHL = 10,
 	NG_PATCH_MODE_SHR = 11
 };
 
-struct ng_patch_op {
-	uint64_t	value;
-	uint32_t	offset;
-	uint16_t	length;	/* 1,2,4 or 8 (bytes) */
-	uint16_t	mode;
+/* Parsing declarations */
+
+#define	NG_PATCH_CONFIG_TYPE {						\
+	{ "count",		&ng_parse_uint32_type		},	\
+	{ "csum_flags",		&ng_parse_uint64_type		},	\
+	{ "relative_offset",	&ng_parse_uint32_type		},	\
+	{ "ops",		&ng_patch_ops_array_type	},	\
+	{ NULL }							\
+}
+
+#define	NG_PATCH_OP_TYPE {				\
+	{ "offset",	&ng_parse_uint32_type	},	\
+	{ "length",	&ng_parse_uint16_type	},	\
+	{ "mode",	&ng_parse_uint16_type	},	\
+	{ "value",	&ng_parse_uint64_type	},	\
+	{ NULL }					\
+}
+
+#define	NG_PATCH_STATS_TYPE {				\
+	{ "Received",	&ng_parse_uint64_type	},	\
+	{ "Patched",	&ng_parse_uint64_type	},	\
+	{ "Dropped",	&ng_parse_uint64_type	},	\
+	{ NULL }					\
+}
+
+union ng_patch_op_val {
+	uint8_t		v1;
+	uint16_t	v2;
+	uint32_t	v4;
+	uint64_t	v8;
 };
 
-#define	NG_PATCH_OP_TYPE_INFO	{	\
-		{ "value",	&ng_parse_uint64_type	},	\
-		{ "offset",	&ng_parse_uint32_type	},	\
-		{ "length",	&ng_parse_uint16_type	},	\
-		{ "mode",	&ng_parse_uint16_type	},	\
-		{ NULL } \
-}
+struct ng_patch_op {
+	uint32_t	offset;
+	uint16_t	length;	/* 1, 2, 4 or 8 (bytes) */
+	uint16_t	mode;
+	union ng_patch_op_val val;
+};
 
 struct ng_patch_config {
 	uint32_t	count;
-	uint32_t	csum_flags;
+	uint64_t	csum_flags;
+	uint32_t	relative_offset;
 	struct ng_patch_op ops[];
 };
-
-#define	NG_PATCH_CONFIG_TYPE_INFO	{	\
-		{ "count",	&ng_parse_uint32_type	},	\
-		{ "csum_flags",	&ng_parse_uint32_type	},	\
-		{ "ops",	&ng_patch_confarr_type	},	\
-		{ NULL } \
-}
 
 struct ng_patch_stats {
 	uint64_t	received;
@@ -97,11 +124,12 @@ struct ng_patch_stats {
 	uint64_t	dropped;
 };
 
-#define	NG_PATCH_STATS_TYPE_INFO {	\
-		{ "received",	&ng_parse_uint64_type	},	\
-		{ "patched",	&ng_parse_uint64_type	},	\
-		{ "dropped",	&ng_parse_uint64_type	},	\
-		{ NULL } \
-}
+struct ng_patch_vlan_header {
+	u_int16_t tag;
+	u_int16_t etype;
+};
+
+#define NG_PATCH_CONF_SIZE(count) (sizeof(struct ng_patch_config) + \
+	(count) * sizeof(struct ng_patch_op))
 
 #endif /* _NETGRAPH_NG_PATCH_H_ */

@@ -64,7 +64,7 @@ typedef struct {
 } archive_crypto_ctx;
 
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
-#include <Bcrypt.h>
+#include <bcrypt.h>
 
 /* Common in other bcrypt implementations, but missing from VS2008. */
 #ifndef BCRYPT_SUCCESS
@@ -99,12 +99,12 @@ typedef struct {
 } archive_crypto_ctx;
 
 #elif defined(HAVE_LIBCRYPTO)
-#include <openssl/evp.h>
+#include "archive_openssl_evp_private.h"
 #define AES_BLOCK_SIZE	16
 #define AES_MAX_KEY_SIZE 32
 
 typedef struct {
-	EVP_CIPHER_CTX	ctx;
+	EVP_CIPHER_CTX	*ctx;
 	const EVP_CIPHER *type;
 	uint8_t		key[AES_MAX_KEY_SIZE];
 	unsigned	key_len;

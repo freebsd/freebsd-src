@@ -41,7 +41,7 @@ CRUNCHOBJS= ${.OBJDIR}
 CRUNCH_GENERATE_LINKS?= yes
 # Don't let the prog.mk use MK_AUTO_OBJ, but do let the component builds use
 # it.
-CRUNCHENV+= MK_AUTO_OBJ=no
+CRUNCHARGS+= MK_AUTO_OBJ=no
 CRUNCH_BUILDOPTS+= MK_AUTO_OBJ=${MK_AUTO_OBJ}
 
 CLEANFILES+= ${CONF} *.o *.lo *.c *.mk *.cache *.a *.h
@@ -100,6 +100,9 @@ ${CONF}: Makefile
 .else
 	echo special ${P} buildopts DIRPRFX=${DIRPRFX}${P}/ >>${.TARGET}
 .endif
+.ifdef CRUNCH_LIBS_${P}
+	echo special ${P} lib ${CRUNCH_LIBS_${P}} >>${.TARGET}
+.endif
 .for A in ${CRUNCH_ALIAS_${P}}
 	echo ln ${P} ${A} >>${.TARGET}
 .endfor
@@ -112,32 +115,39 @@ CRUNCHENV+= MK_TESTS=no \
 	    _RECURSING_CRUNCH=1
 .ORDER: ${OUTPUTS} objs
 ${OUTPUTS:[1]}: .META
+${OUTPUTS:[2..-1]}: .NOMETA
 ${OUTPUTS}: ${CONF}
-	MAKE=${MAKE} ${CRUNCHENV:NMK_AUTO_OBJ=*} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	MAKE="${MAKE}" ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
 	    MK_AUTO_OBJ=${MK_AUTO_OBJ} \
 	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
 	# Avoid redundantly calling 'make objs' which we've done by our
 	# own dependencies.
-	sed -i '' -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" ${OUTMK}
+	sed -i '' \
+	    -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" \
+	    ${OUTMK}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
-${PROG}: ${OUTPUTS} objs .META
+${PROG}: ${OUTPUTS} objs .NOMETA .PHONY
 	${CRUNCHENV} \
 	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
 	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
-	    ${MAKE} .MAKE.MODE=normal -f ${OUTMK} exe
+	    ${MAKE} ${CRUNCHARGS} .MAKE.MODE="${.MAKE.MODE} curdirOk=yes" \
+	    .MAKE.META.IGNORE_PATHS="${.MAKE.META.IGNORE_PATHS}" \
+	    -f ${OUTMK} exe
 
 objs: ${OUTMK} .META
 	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
-	    ${MAKE} -f ${OUTMK} objs
+	    ${MAKE} -f ${OUTMK} ${CRUNCHARGS} BUILD_TOOLS_META=.NOMETA objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
 .for _tool in ${CRUNCH_BUILDTOOLS}
 build-tools-${_tool}:
 	${_+_}cd ${.CURDIR}/../../${_tool}; \
-	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
+	    if [ "${MK_AUTO_OBJ}" = "no" ]; then \
+	        ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
+	    fi; \
 	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
 build-tools: build-tools-${_tool}
 .endfor
@@ -146,13 +156,18 @@ build-tools: build-tools-${_tool}
 # Yes, this does seem to partly duplicate bsd.subdir.mk, but I can't
 # get that to cooperate with bsd.prog.mk.  Besides, many of the standard
 # targets should NOT be propagated into the components.
-.for __target in clean cleandepend cleandir obj objlink
+.if ${MK_AUTO_OBJ} == "no"
+_obj=	obj
+.endif
+.for __target in clean cleandepend cleandir ${_obj} objlink
 .for D in ${CRUNCH_SRCDIRS}
 .for P in ${CRUNCH_PROGS_${D}}
 ${__target}_crunchdir_${P}: .PHONY .MAKE
 	${_+_}cd ${CRUNCH_SRCDIR_${P}} && \
 	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${__target}
+	    ${CRUNCHARGS} \
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} \
+	    ${CRUNCH_BUILDOPTS_${P}} ${__target}
 ${__target}: ${__target}_crunchdir_${P}
 .endfor
 .endfor
@@ -166,3 +181,5 @@ clean:
 	fi
 
 META_XTRAS+=	${find ${CRUNCHOBJS}${SRCTOP} -name '*.meta' 2>/dev/null || true:L:sh}
+META_XTRAS+=	${echo ${CRUNCHOBJS}/*.lo.meta 2>/dev/null || true:L:sh}
+META_XTRAS+=	${PROG}.meta

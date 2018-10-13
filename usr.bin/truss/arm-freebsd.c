@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/ucontext.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
@@ -130,7 +133,9 @@ static struct procabi arm_freebsd = {
 	"FreeBSD ELF32",
 	SYSDECODE_ABI_FREEBSD,
 	arm_fetch_args,
-	arm_fetch_retval
+	arm_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(arm_freebsd.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(arm_freebsd);

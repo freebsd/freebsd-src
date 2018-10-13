@@ -20,7 +20,7 @@
 .\" $FreeBSD$
 .\"
 .\" The following requests are required for all man pages.
-.Dd December 16, 1995
+.Dd July 4, 2018
 .Dt SETPROCTITLE 3
 .Os
 .Sh NAME
@@ -31,12 +31,20 @@
 .In unistd.h
 .Ft void
 .Fn setproctitle "const char *fmt" "..."
+.Ft void
+.Fn setproctitle_fast "const char *fmt" "..."
 .Sh DESCRIPTION
 The
 .Fn setproctitle
 library routine sets the process title that appears on the
 .Xr ps 1
 command.
+The
+.Fn setproctitle_fast
+variant is optimized for high frequency updates, but may make the
+.Xr ps 1
+command slightly slower by not updating the kernel cache of the program
+arguments.
 .Pp
 The title is set from the executable's name, followed by the
 result of a
@@ -96,6 +104,10 @@ The
 function
 first appeared in
 .Fx 2.2 .
+The
+.Fn setproctitle_fast
+function first appeared in
+.Fx 12 .
 Other operating systems have
 similar functions.
 .Sh AUTHORS

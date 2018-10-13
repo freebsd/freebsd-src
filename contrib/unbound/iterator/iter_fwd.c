@@ -82,7 +82,7 @@ static void fwd_zone_free(struct iter_forward_zone* n)
 	free(n);
 }
 
-static void delfwdnode(rbnode_t* n, void* ATTR_UNUSED(arg))
+static void delfwdnode(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct iter_forward_zone* node = (struct iter_forward_zone*)n;
 	fwd_zone_free(node);
@@ -231,14 +231,21 @@ read_fwds_addr(struct config_stub* s, struct delegpt* dp)
 	struct config_strlist* p;
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
+	char* tls_auth_name;
 	for(p = s->addrs; p; p = p->next) {
 		log_assert(p->str);
-		if(!extstrtoaddr(p->str, &addr, &addrlen)) {
+		if(!authextstrtoaddr(p->str, &addr, &addrlen, &tls_auth_name)) {
 			log_err("cannot parse forward %s ip address: '%s'", 
 				s->name, p->str);
 			return 0;
 		}
-		if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0)) {
+#ifndef HAVE_SSL_SET1_HOST
+		if(tls_auth_name)
+			log_err("no name verification functionality in "
+				"ssl library, ignored name for %s", p->str);
+#endif
+		if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
+			tls_auth_name)) {
 			log_err("out of memory");
 			return 0;
 		}
@@ -265,6 +272,10 @@ read_forwards(struct iter_forwards* fwd, struct config_file* cfg)
 		 * last resort will ask for parent-side NS record and thus
 		 * fallback to the internet name servers on a failure */
 		dp->has_parent_side_NS = (uint8_t)!s->isfirst;
+		/* Do not cache if set. */
+		dp->no_cache = s->no_cache;
+		/* use SSL for queries to this forwarder */
+		dp->ssl_upstream = (uint8_t)s->ssl_upstream;
 		verbose(VERB_QUERY, "Forward zone server list:");
 		delegpt_log(VERB_QUERY, dp);
 		if(!forwards_insert(fwd, LDNS_RR_CLASS_IN, dp))
@@ -294,6 +305,7 @@ make_stub_holes(struct iter_forwards* fwd, struct config_file* cfg)
 	uint8_t* dname;
 	size_t dname_len;
 	for(s = cfg->stubs; s; s = s->next) {
+		if(!s->name) continue;
 		dname = sldns_str2wire_dname(s->name, &dname_len);
 		if(!dname) {
 			log_err("cannot parse stub name '%s'", s->name);
@@ -329,7 +341,7 @@ forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg)
 struct delegpt* 
 forwards_find(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 {
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	struct iter_forward_zone key;
 	key.node.key = &key;
 	key.dclass = qclass;
@@ -344,7 +356,7 @@ struct delegpt*
 forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 {
 	/* lookup the forward zone in the tree */
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	struct iter_forward_zone *result;
 	struct iter_forward_zone key;
 	key.node.key = &key;
@@ -385,7 +397,7 @@ int
 forwards_next_root(struct iter_forwards* fwd, uint16_t* dclass)
 {
 	struct iter_forward_zone key;
-	rbnode_t* n;
+	rbnode_type* n;
 	struct iter_forward_zone* p;
 	if(*dclass == 0) {
 		/* first root item is first item in tree */

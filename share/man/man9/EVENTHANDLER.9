@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2014
+.Dd September 6, 2018
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -32,10 +32,15 @@
 .Sh SYNOPSIS
 .In sys/eventhandler.h
 .Fn EVENTHANDLER_DECLARE name type
+.Fn EVENTHANDLER_DEFINE name func arg priority
 .Fn EVENTHANDLER_INVOKE name ...
 .Ft eventhandler_tag
 .Fn EVENTHANDLER_REGISTER name func arg priority
 .Fn EVENTHANDLER_DEREGISTER name tag
+.Fn EVENTHANDLER_DEREGISTER_NOWAIT name tag
+.Fn EVENTHANDLER_LIST_DECLARE name
+.Fn EVENTHANDLER_LIST_DEFINE name
+.Fn EVENTHANDLER_DIRECT_INVOKE name
 .Ft eventhandler_tag
 .Fo eventhandler_register
 .Fa "struct eventhandler_list *list"
@@ -46,6 +51,11 @@
 .Fc
 .Ft void
 .Fo eventhandler_deregister
+.Fa "struct eventhandler_list *list"
+.Fa "eventhandler_tag tag"
+.Fc
+.Ft void
+.Fo eventhandler_deregister_nowait
 .Fa "struct eventhandler_list *list"
 .Fa "eventhandler_tag tag"
 .Fc
@@ -60,28 +70,6 @@ mechanism provides a way for kernel subsystems to register interest in
 kernel events and have their callback functions invoked when these
 events occur.
 .Pp
-The normal way to use this subsystem is via the macro interface.
-The macros that can be used for working with event handlers and callback
-function lists are:
-.Bl -tag -width indent
-.It Fn EVENTHANDLER_DECLARE
-This macro declares an event handler named by argument
-.Fa name
-with callback functions of type
-.Fa type .
-.It Fn EVENTHANDLER_REGISTER
-This macro registers a callback function
-.Fa func
-with event handler
-.Fa name .
-When invoked, function
-.Fa func
-will be invoked with argument
-.Fa arg
-as its first parameter along with any additional parameters passed in
-via macro
-.Fn EVENTHANDLER_INVOKE
-(see below).
 Callback functions are invoked in order of priority.
 The relative priority of each callback among other callbacks
 associated with an event is given by argument
@@ -95,6 +83,49 @@ The symbol
 .Dv EVENTHANDLER_PRI_ANY
 may be used if the handler does not have a specific priority
 associated with it.
+.Pp
+The normal way to use this subsystem is via the macro interface.
+For events that are high frequency it is suggested that you additionally use
+.Fn EVENTHANDLER_LIST_DEFINE
+so that the event handlers can be invoked directly using
+.Fn EVENTHANDLER_DIRECT_INVOKE
+(see below).
+This saves the invoker from having to do a locked traversal of a global
+list of event handler lists.
+.Bl -tag -width indent
+.It Fn EVENTHANDLER_DECLARE
+This macro declares an event handler named by argument
+.Fa name
+with callback functions of type
+.Fa type .
+.It Fn EVENTHANDLER_DEFINE
+This macro uses
+.Xr SYSINIT 9
+to register a callback function
+.Fa func
+with event handler
+.Fa name .
+When invoked, function
+.Fa func
+will be invoked with argument
+.Fa arg
+as its first parameter along with any additional parameters passed in
+via macro
+.Fn EVENTHANDLER_INVOKE
+(see below).
+.It Fn EVENTHANDLER_REGISTER
+This macro registers a callback function
+.Fa func
+with event handler
+.Fa name .
+When invoked, function
+.Fa func
+will be invoked with argument
+.Fa arg
+as its first parameter along with any additional parameters passed in
+via macro
+.Fn EVENTHANDLER_INVOKE
+(see below).
 If registration is successful,
 .Fn EVENTHANDLER_REGISTER
 returns a cookie of type
@@ -104,6 +135,18 @@ This macro removes a previously registered callback associated with tag
 .Fa tag
 from the event handler named by argument
 .Fa name .
+It waits until no threads are running handlers for this event before
+returning, making it safe to unload a module immediately upon return
+from this function.
+.It Fn EVENTHANDLER_DEREGISTER_NOWAIT
+This macro removes a previously registered callback associated with tag
+.Fa tag
+from the event handler named by argument
+.Fa name .
+Upon return, one or more threads could still be running the removed
+function(s), but no new calls will be made.
+To remove a handler function from within that function, use this
+version of deregister, to avoid a deadlock.
 .It Fn EVENTHANDLER_INVOKE
 This macro is used to invoke all the callbacks associated with event
 handler
@@ -113,6 +156,27 @@ Additional arguments to the macro after the
 .Fa name
 parameter are passed as the second and subsequent arguments to each
 registered callback function.
+.It Fn EVENTHANDLER_LIST_DEFINE
+This macro defines a reference to an event handler list named by
+argument
+.Fa name .
+It uses
+.Xr SYSINIT 9
+to initialize the reference and the eventhandler list.
+.It Fn EVENTHANDLER_LIST_DECLARE
+This macro declares an event handler list named by argument
+.Fa name .
+This is only needed for users of
+.Fn EVENTHANDLER_DIRECT_INVOKE
+which are not in the same compilation unit of that list's definition.
+.It Fn EVENTHANDLER_DIRECT_INVOKE
+This macro invokes the event handlers registered for the list named by
+argument
+.Fa name .
+This macro can only be used if the list was defined with
+.Fn EVENTHANDLER_LIST_DEFINE .
+The macro is variadic with the same semantics as
+.Fn EVENTHANDLER_INVOKE .
 .El
 .Pp
 The macros are implemented using the following functions:
@@ -165,6 +229,21 @@ function removes the callback associated with tag
 .Fa tag
 from the event handler list pointed to by
 .Fa list .
+If
+.Fa tag
+is
+.Va NULL ,
+all callback functions for the event are removed.
+This function will not return until all threads have exited from the
+removed handler callback function(s).
+This function is not safe to call from inside an event handler callback.
+.It Fn eventhandler_deregister_nowait
+The
+.Fn eventhandler_deregister
+function removes the callback associated with tag
+.Fa tag
+from the event handler list pointed to by
+.Fa list .
 This function is safe to call from inside an event handler
 callback.
 .It Fn eventhandler_find_list
@@ -204,6 +283,10 @@ Callback invoked after cpu frequency has changed.
 Callback invoked before cpu frequency has changed.
 .It Vt dcons_poll
 Callback invoked to poll for dcons changes.
+.It Vt device_attach
+Callback invoked after a device has attached.
+.It Vt device_detach
+Callbacks invoked before and after a device has detached.
 .It Vt dev_clone
 Callbacks invoked when a new entry is created under
 .Pa /dev .
@@ -265,7 +348,7 @@ This is never called.
 .It Vt process_fork
 Callbacks invoked when a process forks a child.
 .It Vt process_init
-Callback invoked when a process is initalized.
+Callback invoked when a process is initialized.
 .It Vt random_adaptor_attach
 Callback invoked when a new random module has been loaded.
 .It Vt register_framebuffer
@@ -287,7 +370,7 @@ Callback invoked when a thread object is created.
 .It Vt thread_dtor
 Callback invoked when a thread object is destroyed.
 .It Vt thread_init
-Callback invoked when a thread object is initalized.
+Callback invoked when a thread object is initialized.
 .It Vt thread_fini
 Callback invoked when a thread object is deinitalized.
 .It Vt usb_dev_configured
@@ -334,4 +417,6 @@ facility first appeared in
 .Fx 4.0 .
 .Sh AUTHORS
 This manual page was written by
-.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
+and
+.An Matt Joras Aq Mt mjoras@FreeBSD.org .

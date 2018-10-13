@@ -1,6 +1,14 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2009 Apple Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,6 +75,7 @@ kau_init(void)
 {
 
 	au_evclassmap_init();
+	au_evnamemap_init();
 }
 
 /*
@@ -418,7 +427,6 @@ audit_sys_auditon(struct audit_record *ar, struct au_record *rec)
 		break;
 
 	case A_SETCLASS:
-		kau_write(rec, tok);
 		tok = au_to_arg32(2, "setclass:ec_event",
 		    ar->ar_arg_auditon.au_evclass.ec_number);
 		kau_write(rec, tok);
@@ -523,6 +531,23 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	 */
 	switch(ar->ar_event) {
 	case AUE_ACCEPT:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRUNIX)) {
+			tok = au_to_sock_unix((struct sockaddr_un *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+			UPATH1_TOKENS;
+		}
+		break;
+
 	case AUE_BIND:
 	case AUE_LISTEN:
 	case AUE_CONNECT:
@@ -530,7 +555,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_RECVFROM:
 	case AUE_RECVMSG:
 	case AUE_SEND:
-	case AUE_SENDFILE:
 	case AUE_SENDMSG:
 	case AUE_SENDTO:
 		/*
@@ -567,6 +591,22 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 			UPATH1_TOKENS;
 		}
+		break;
+
+	case AUE_SENDFILE:
+		FD_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRUNIX)) {
+			tok = au_to_sock_unix((struct sockaddr_un *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+			UPATH1_TOKENS;
+		}
+		/* XXX Need to handle ARG_SADDRINET6 */
 		break;
 
 	case AUE_SOCKET:
@@ -730,6 +770,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_PROFILE:
 	case AUE_RTPRIO:
 	case AUE_SEMSYS:
+	case AUE_SETFIB:
 	case AUE_SHMSYS:
 	case AUE_SETPGRP:
 	case AUE_SETRLIMIT:
@@ -742,6 +783,26 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		 */
 		break;
 
+	case AUE_ACL_DELETE_FD:
+	case AUE_ACL_DELETE_FILE:
+	case AUE_ACL_CHECK_FD:
+	case AUE_ACL_CHECK_FILE:
+	case AUE_ACL_CHECK_LINK:
+	case AUE_ACL_DELETE_LINK:
+	case AUE_ACL_GET_FD:
+	case AUE_ACL_GET_FILE:
+	case AUE_ACL_GET_LINK:
+	case AUE_ACL_SET_FD:
+	case AUE_ACL_SET_FILE:
+	case AUE_ACL_SET_LINK:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "type", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		ATFD1_TOKENS(1);
+		UPATH1_VNODE1_TOKENS;
+		break;
+
 	case AUE_CHDIR:
 	case AUE_CHROOT:
 	case AUE_FSTATAT:
@@ -750,6 +811,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_JAIL:
 	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
+	case AUE_LGETFH:
 	case AUE_LSTAT:
 	case AUE_LPATHCONF:
 	case AUE_PATHCONF:
@@ -791,6 +853,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 
 	case AUE_CHFLAGS:
 	case AUE_LCHFLAGS:
+	case AUE_CHFLAGSAT:
 		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
@@ -952,6 +1015,9 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_GETDIRENTRIESATTR:
 	case AUE_LSEEK:
 	case AUE_POLL:
+	case AUE_POSIX_FALLOCATE:
+	case AUE_PREAD:
+	case AUE_PWRITE:
 	case AUE_READ:
 	case AUE_READV:
 	case AUE_WRITE:
@@ -977,10 +1043,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			    au_fcntl_cmd_to_bsm(ar->ar_arg_cmd));
 			kau_write(rec, tok);
 		}
-		if (ar->ar_arg_cmd == F_GETLK || ar->ar_arg_cmd == F_SETLK ||
-		    ar->ar_arg_cmd == F_SETLKW) {
-			FD_VNODE1_TOKENS;
-		}
+		FD_VNODE1_TOKENS;
 		break;
 
 	case AUE_FCHFLAGS:
@@ -1239,6 +1302,18 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		UPATH1_VNODE1_TOKENS;
 		break;
 
+	case AUE_PROCCTL:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "idtype", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "com", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		PROCESS_PID_TOKENS(3);
+		break;
+
 	case AUE_PTRACE:
 		if (ARG_IS_VALID(kar, ARG_CMD)) {
 			tok = au_to_arg32(1, "request", ar->ar_arg_cmd);
@@ -1392,8 +1467,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_SETLOGIN:
-		if (ARG_IS_VALID(kar, ARG_TEXT)) {
-			tok = au_to_text(ar->ar_arg_text);
+		if (ARG_IS_VALID(kar, ARG_LOGIN)) {
+			tok = au_to_text(ar->ar_arg_login);
 			kau_write(rec, tok);
 		}
 		break;
@@ -1493,7 +1568,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	/* AUE_SHMOPEN, AUE_SHMUNLINK, AUE_SEMOPEN, AUE_SEMCLOSE
 	 * and AUE_SEMUNLINK are Posix IPC */
 	case AUE_SHMOPEN:
-		if (ARG_IS_VALID(kar, ARG_SVIPC_ADDR)) {
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
 		}
@@ -1504,10 +1579,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		/* FALLTHROUGH */
 
 	case AUE_SHMUNLINK:
-		if (ARG_IS_VALID(kar, ARG_TEXT)) {
-			tok = au_to_text(ar->ar_arg_text);
-			kau_write(rec, tok);
-		}
+		UPATH1_TOKENS;
 		if (ARG_IS_VALID(kar, ARG_POSIX_IPC_PERM)) {
 			struct ipc_perm perm;
 
@@ -1604,6 +1676,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_WAIT4:
+	case AUE_WAIT6:
 		PROCESS_PID_TOKENS(1);
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
 			tok = au_to_arg32(3, "options", ar->ar_arg_value);

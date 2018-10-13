@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -210,7 +212,8 @@ typedef struct ng_hci_neighbor {
 	u_int8_t			page_scan_rep_mode; /* PS rep. mode */
 	u_int8_t			page_scan_mode; /* page scan mode */
 	u_int16_t			clock_offset;   /* clock offset */
-
+	uint8_t				extinq_size;
+	uint8_t				extinq_data[NG_HCI_EXTINQ_MAX];
 	LIST_ENTRY(ng_hci_neighbor)	next;
 } ng_hci_neighbor_t;
 typedef ng_hci_neighbor_t *		ng_hci_neighbor_p;

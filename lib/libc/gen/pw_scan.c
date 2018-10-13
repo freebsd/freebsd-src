@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)pw_scan.c	8.3 (Berkeley) 4/2/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)pw_scan.c	8.3 (Berkeley) 4/2/94");
 __FBSDID("$FreeBSD$");
 
 /*
@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <pwd.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -66,6 +64,22 @@ __FBSDID("$FreeBSD$");
  * system lag behind.
  */
 static int	pw_big_ids_warning = 0;
+
+void
+__pw_initpwd(struct passwd *pwd)
+{
+	static char nul[] = "";
+
+	memset(pwd, 0, sizeof(*pwd));
+	pwd->pw_uid = (uid_t)-1;  /* Considered least likely to lead to */
+	pwd->pw_gid = (gid_t)-1;  /* a security issue.                  */
+	pwd->pw_name = nul;
+	pwd->pw_passwd = nul;
+	pwd->pw_class = nul;
+	pwd->pw_gecos = nul;
+	pwd->pw_dir = nul;
+	pwd->pw_shell = nul;
+}
 
 int
 __pw_scan(char *bp, struct passwd *pw, int flags)

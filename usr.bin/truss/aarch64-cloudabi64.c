@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
@@ -79,7 +80,9 @@ static struct procabi aarch64_cloudabi64 = {
 	"CloudABI ELF64",
 	SYSDECODE_ABI_CLOUDABI64,
 	aarch64_cloudabi64_fetch_args,
-	aarch64_cloudabi64_fetch_retval
+	aarch64_cloudabi64_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(aarch64_cloudabi64.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(aarch64_cloudabi64);

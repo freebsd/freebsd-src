@@ -23,7 +23,7 @@ using namespace ento;
 
 void SymExpr::anchor() { }
 
-void SymExpr::dump() const {
+LLVM_DUMP_METHOD void SymExpr::dump() const {
   dumpToStream(llvm::errs());
 }
 
@@ -31,14 +31,20 @@ void SymIntExpr::dumpToStream(raw_ostream &os) const {
   os << '(';
   getLHS()->dumpToStream(os);
   os << ") "
-     << BinaryOperator::getOpcodeStr(getOpcode()) << ' '
-     << getRHS().getZExtValue();
+     << BinaryOperator::getOpcodeStr(getOpcode()) << ' ';
+  if (getRHS().isUnsigned())
+    os << getRHS().getZExtValue();
+  else
+    os << getRHS().getSExtValue();
   if (getRHS().isUnsigned())
     os << 'U';
 }
 
 void IntSymExpr::dumpToStream(raw_ostream &os) const {
-  os << getLHS().getZExtValue();
+  if (getLHS().isUnsigned())
+    os << getLHS().getZExtValue();
+  else
+    os << getLHS().getSExtValue();
   if (getLHS().isUnsigned())
     os << 'U';
   os << ' '
@@ -85,7 +91,8 @@ void SymbolMetadata::dumpToStream(raw_ostream &os) const {
 void SymbolData::anchor() { }
 
 void SymbolRegionValue::dumpToStream(raw_ostream &os) const {
-  os << "reg_$" << getSymbolID() << "<" << R << ">";
+  os << "reg_$" << getSymbolID()
+     << '<' << getType().getAsString() << ' ' << R << '>';
 }
 
 bool SymExpr::symbol_iterator::operator==(const symbol_iterator &X) const {
@@ -216,17 +223,18 @@ SymbolManager::getExtentSymbol(const SubRegion *R) {
   return cast<SymbolExtent>(SD);
 }
 
-const SymbolMetadata*
+const SymbolMetadata *
 SymbolManager::getMetadataSymbol(const MemRegion* R, const Stmt *S, QualType T,
+                                 const LocationContext *LCtx,
                                  unsigned Count, const void *SymbolTag) {
 
   llvm::FoldingSetNodeID profile;
-  SymbolMetadata::Profile(profile, R, S, T, Count, SymbolTag);
+  SymbolMetadata::Profile(profile, R, S, T, LCtx, Count, SymbolTag);
   void *InsertPos;
   SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);
   if (!SD) {
     SD = (SymExpr*) BPAlloc.Allocate<SymbolMetadata>();
-    new (SD) SymbolMetadata(SymbolCounter, R, S, T, Count, SymbolTag);
+    new (SD) SymbolMetadata(SymbolCounter, R, S, T, LCtx, Count, SymbolTag);
     DataSet.InsertNode(SD, InsertPos);
     ++SymbolCounter;
   }

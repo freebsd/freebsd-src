@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2001 Benno Rice
  * Copyright (c) 2001 David E. O'Brien
@@ -35,6 +37,8 @@
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
+
+#include <sys/atomic_common.h>
 
 /*
  * The __ATOMIC_REL/ACQ() macros provide memory barriers only in conjunction
@@ -446,7 +450,6 @@ atomic_readandclear_int(volatile u_int *addr)
 {
 	u_int result,temp;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"\tsync\n"			/* drain writes */
 		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
@@ -456,7 +459,6 @@ atomic_readandclear_int(volatile u_int *addr)
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "r" (addr), "m" (*addr)
 		: "cr0", "memory");
-#endif
 
 	return (result);
 }
@@ -467,7 +469,6 @@ atomic_readandclear_long(volatile u_long *addr)
 {
 	u_long result,temp;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"\tsync\n"			/* drain writes */
 		"1:\tldarx %0, 0, %3\n\t"	/* load old value */
@@ -477,7 +478,6 @@ atomic_readandclear_long(volatile u_long *addr)
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "r" (addr), "m" (*addr)
 		: "cr0", "memory");
-#endif
 
 	return (result);
 }
@@ -565,7 +565,6 @@ atomic_cmpset_int(volatile u_int* p, u_int cmpval, u_int newval)
 {
 	int	ret;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"cmplw %3, %0\n\t"		/* compare */
@@ -581,7 +580,6 @@ atomic_cmpset_int(volatile u_int* p, u_int cmpval, u_int newval)
 		: "=&r" (ret), "=m" (*p)
 		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
 		: "cr0", "memory");
-#endif
 
 	return (ret);
 }
@@ -590,7 +588,6 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 {
 	int ret;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 	    #ifdef __powerpc64__
 		"1:\tldarx %0, 0, %2\n\t"	/* load old value */
@@ -617,7 +614,6 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 		: "=&r" (ret), "=m" (*p)
 		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
 		: "cr0", "memory");
-#endif
 
 	return (ret);
 }
@@ -672,6 +668,125 @@ atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
 #define	atomic_cmpset_ptr	atomic_cmpset_int
 #define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_int
+#endif
+
+/*
+ * Atomically compare the value stored at *p with *cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed and sets *cmpval to the read value from *p,
+ * nonzero otherwise.
+ */
+static __inline int
+atomic_fcmpset_int(volatile u_int *p, u_int *cmpval, u_int newval)
+{
+	int	ret;
+
+	__asm __volatile (
+		"lwarx %0, 0, %3\n\t"	/* load old value */
+		"cmplw %4, %0\n\t"		/* compare */
+		"bne 1f\n\t"			/* exit if not equal */
+		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
+		"bne- 1f\n\t"			/* exit if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 2f\n\t"			/* we've succeeded */
+		"1:\n\t"
+		"stwcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"stwx %0, 0, %7\n\t"
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"2:\n\t"
+		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
+		: "r" (p), "r" (*cmpval), "r" (newval), "m" (*p), "r"(cmpval)
+		: "cr0", "memory");
+
+	return (ret);
+}
+static __inline int
+atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
+{
+	int ret;
+
+	__asm __volatile (
+	    #ifdef __powerpc64__
+		"ldarx %0, 0, %3\n\t"	/* load old value */
+		"cmpld %4, %0\n\t"		/* compare */
+		"bne 1f\n\t"			/* exit if not equal */
+		"stdcx. %5, 0, %3\n\t"		/* attempt to store */
+	    #else
+		"lwarx %0, 0, %3\n\t"	/* load old value */
+		"cmplw %4, %0\n\t"		/* compare */
+		"bne 1f\n\t"			/* exit if not equal */
+		"stwcx. %5, 0, %3\n\t"		/* attempt to store */
+	    #endif
+		"bne- 1f\n\t"			/* exit if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 2f\n\t"			/* we've succeeded */
+		"1:\n\t"
+	    #ifdef __powerpc64__
+		"stdcx. %0, 0, %3\n\t"		/* clear reservation (74xx) */
+		"stdx %0, 0, %7\n\t"
+	    #else
+		"stwcx. %0, 0, %3\n\t"		/* clear reservation (74xx) */
+		"stwx %0, 0, %7\n\t"
+	    #endif
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"2:\n\t"
+		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
+		: "r" (p), "r" (*cmpval), "r" (newval), "m" (*p), "r"(cmpval)
+		: "cr0", "memory");
+
+	return (ret);
+}
+
+static __inline int
+atomic_fcmpset_acq_int(volatile u_int *p, u_int *cmpval, u_int newval)
+{
+	int retval;
+
+	retval = atomic_fcmpset_int(p, cmpval, newval);
+	__ATOMIC_ACQ();
+	return (retval);
+}
+
+static __inline int
+atomic_fcmpset_rel_int(volatile u_int *p, u_int *cmpval, u_int newval)
+{
+	__ATOMIC_REL();
+	return (atomic_fcmpset_int(p, cmpval, newval));
+}
+
+static __inline int
+atomic_fcmpset_acq_long(volatile u_long *p, u_long *cmpval, u_long newval)
+{
+	u_long retval;
+
+	retval = atomic_fcmpset_long(p, cmpval, newval);
+	__ATOMIC_ACQ();
+	return (retval);
+}
+
+static __inline int
+atomic_fcmpset_rel_long(volatile u_long *p, u_long *cmpval, u_long newval)
+{
+	__ATOMIC_REL();
+	return (atomic_fcmpset_long(p, cmpval, newval));
+}
+
+#define	atomic_fcmpset_32	atomic_fcmpset_int
+#define	atomic_fcmpset_acq_32	atomic_fcmpset_acq_int
+#define	atomic_fcmpset_rel_32	atomic_fcmpset_rel_int
+
+#ifdef __powerpc64__
+#define	atomic_fcmpset_64	atomic_fcmpset_long
+#define	atomic_fcmpset_acq_64	atomic_fcmpset_acq_long
+#define	atomic_fcmpset_rel_64	atomic_fcmpset_rel_long
+
+#define	atomic_fcmpset_ptr	atomic_fcmpset_long
+#define	atomic_fcmpset_acq_ptr	atomic_fcmpset_acq_long
+#define	atomic_fcmpset_rel_ptr	atomic_fcmpset_rel_long
+#else
+#define	atomic_fcmpset_ptr	atomic_fcmpset_int
+#define	atomic_fcmpset_acq_ptr	atomic_fcmpset_acq_int
+#define	atomic_fcmpset_rel_ptr	atomic_fcmpset_rel_int
 #endif
 
 static __inline u_int

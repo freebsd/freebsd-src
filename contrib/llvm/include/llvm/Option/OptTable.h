@@ -1,4 +1,4 @@
-//===--- OptTable.h - Option Table ------------------------------*- C++ -*-===//
+//===- OptTable.h - Option Table --------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,12 +11,19 @@
 #define LLVM_OPTION_OPTTABLE_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Option/OptSpecifier.h"
+#include <cassert>
+#include <string>
+#include <vector>
 
 namespace llvm {
+
 class raw_ostream;
+
 namespace opt {
+
 class Arg;
 class ArgList;
 class InputArgList;
@@ -46,19 +53,20 @@ public:
     unsigned short GroupID;
     unsigned short AliasID;
     const char *AliasArgs;
+    const char *Values;
   };
 
 private:
-  /// \brief The static option information table.
-  ArrayRef<Info> OptionInfos;
+  /// \brief The option information table.
+  std::vector<Info> OptionInfos;
   bool IgnoreCase;
 
-  unsigned TheInputOptionID;
-  unsigned TheUnknownOptionID;
+  unsigned TheInputOptionID = 0;
+  unsigned TheUnknownOptionID = 0;
 
   /// The index of the first option which can be parsed (i.e., is not a
   /// special option like 'input' or 'unknown', and is not an option group).
-  unsigned FirstSearchableIndex;
+  unsigned FirstSearchableIndex = 0;
 
   /// The union of all option prefixes. If an argument does not begin with
   /// one of these, it is an input.
@@ -113,6 +121,39 @@ public:
     return getInfo(id).MetaVar;
   }
 
+  /// Find possible value for given flags. This is used for shell
+  /// autocompletion.
+  ///
+  /// \param [in] Option - Key flag like "-stdlib=" when "-stdlib=l"
+  /// was passed to clang.
+  ///
+  /// \param [in] Arg - Value which we want to autocomplete like "l"
+  /// when "-stdlib=l" was passed to clang.
+  ///
+  /// \return The vector of possible values.
+  std::vector<std::string> suggestValueCompletions(StringRef Option,
+                                                   StringRef Arg) const;
+
+  /// Find flags from OptTable which starts with Cur.
+  ///
+  /// \param [in] Cur - String prefix that all returned flags need
+  //  to start with.
+  ///
+  /// \return The vector of flags which start with Cur.
+  std::vector<std::string> findByPrefix(StringRef Cur,
+                                        unsigned short DisableFlags) const;
+
+  /// Add Values to Option's Values class
+  ///
+  /// \param [in] Option - Prefix + Name of the flag which Values will be
+  ///  changed. For example, "-analyzer-checker".
+  /// \param [in] Values - String of Values seperated by ",", such as
+  ///  "foo, bar..", where foo and bar is the argument which the Option flag
+  ///  takes
+  ///
+  /// \return true in success, and false in fail.
+  bool addValues(const char *Option, const char *Values);
+
   /// \brief Parse a single argument; returning the new argument and
   /// updating Index.
   ///
@@ -161,14 +202,20 @@ public:
   /// \param FlagsToInclude - If non-zero, only include options with any
   ///                         of these flags set.
   /// \param FlagsToExclude - Exclude options with any of these flags set.
-  void PrintHelp(raw_ostream &OS, const char *Name,
-                 const char *Title, unsigned FlagsToInclude,
-                 unsigned FlagsToExclude) const;
+  /// \param ShowAllAliases - If true, display all options including aliases
+  ///                         that don't have help texts. By default, we display
+  ///                         only options that are not hidden and have help
+  ///                         texts.
+  void PrintHelp(raw_ostream &OS, const char *Name, const char *Title,
+                 unsigned FlagsToInclude, unsigned FlagsToExclude,
+                 bool ShowAllAliases) const;
 
-  void PrintHelp(raw_ostream &OS, const char *Name,
-                  const char *Title, bool ShowHidden = false) const;
+  void PrintHelp(raw_ostream &OS, const char *Name, const char *Title,
+                 bool ShowHidden = false, bool ShowAllAliases = false) const;
 };
+
 } // end namespace opt
+
 } // end namespace llvm
 
-#endif
+#endif // LLVM_OPTION_OPTTABLE_H

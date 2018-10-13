@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
  *
@@ -45,12 +47,13 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_prcm.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
+
+#include "am335x_scm.h"
 
 #define CM_PER				0
 #define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x000)
@@ -133,6 +136,7 @@ struct am335x_prcm_softc {
 	struct resource *	res[2];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	int			attach_done;
 };
 
 static struct resource_spec am335x_prcm_spec[] = {
@@ -421,7 +425,6 @@ static int
 am335x_prcm_attach(device_t dev)
 {
 	struct am335x_prcm_softc *sc = device_get_softc(dev);
-	unsigned int sysclk, fclk;
 
 	if (am335x_prcm_sc)
 		return (ENXIO);
@@ -437,6 +440,24 @@ am335x_prcm_attach(device_t dev)
 	am335x_prcm_sc = sc;
 	ti_cpu_reset = am335x_prcm_reset;
 
+	return (0);
+}
+
+static void
+am335x_prcm_new_pass(device_t dev)
+{
+	struct am335x_prcm_softc *sc = device_get_softc(dev);
+	unsigned int sysclk, fclk;
+
+	sc = device_get_softc(dev);
+	if (sc->attach_done ||
+	    bus_current_pass < (BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY)) {
+		bus_generic_new_pass(dev);
+		return;
+	}
+
+	sc->attach_done = 1;
+
 	if (am335x_clk_get_sysclk_freq(NULL, &sysclk) != 0)
 		sysclk = 0;
 	if (am335x_clk_get_arm_fclk_freq(NULL, &fclk) != 0)
@@ -444,15 +465,24 @@ am335x_prcm_attach(device_t dev)
 	if (sysclk && fclk)
 		device_printf(dev, "Clocks: System %u.%01u MHz, CPU %u MHz\n",
 		    sysclk/1000000, (sysclk % 1000000)/100000, fclk/1000000);
-	else
+	else {
 		device_printf(dev, "can't read frequencies yet (SCM device not ready?)\n");
+		goto fail;
+	}
 
-	return (0);
+	return;
+
+fail:
+	device_detach(dev);
+	return;
 }
 
 static device_method_t am335x_prcm_methods[] = {
 	DEVMETHOD(device_probe,		am335x_prcm_probe),
 	DEVMETHOD(device_attach,	am335x_prcm_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_new_pass,		am335x_prcm_new_pass),
 	{ 0, 0 }
 };
 
@@ -464,8 +494,8 @@ static driver_t am335x_prcm_driver = {
 
 static devclass_t am335x_prcm_devclass;
 
-DRIVER_MODULE(am335x_prcm, simplebus, am335x_prcm_driver,
-	am335x_prcm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(am335x_prcm, simplebus, am335x_prcm_driver,
+	am335x_prcm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(am335x_prcm, 1);
 MODULE_DEPEND(am335x_prcm, ti_scm, 1, 1, 1);
 
@@ -619,10 +649,9 @@ am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	uint32_t ctrl_status;
 
-	/* Read the input clock freq from the control module */
-	/* control_status reg (0x40) */
-	if (ti_scm_reg_read_4(0x40, &ctrl_status))
-		return ENXIO;
+	/* Read the input clock freq from the control module. */
+	if (ti_scm_reg_read_4(SCM_CTRL_STATUS, &ctrl_status))
+		return (ENXIO);
 
 	switch ((ctrl_status>>22) & 0x3) {
 	case 0x0:

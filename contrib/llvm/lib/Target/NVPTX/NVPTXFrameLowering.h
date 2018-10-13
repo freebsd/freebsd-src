@@ -14,7 +14,7 @@
 #ifndef LLVM_LIB_TARGET_NVPTX_NVPTXFRAMELOWERING_H
 #define LLVM_LIB_TARGET_NVPTX_NVPTXFRAMELOWERING_H
 
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 
 namespace llvm {
 class NVPTXSubtarget;
@@ -26,7 +26,7 @@ public:
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
-  void
+  MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator I) const override;
 };

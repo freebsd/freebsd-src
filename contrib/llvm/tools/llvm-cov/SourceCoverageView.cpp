@@ -6,80 +6,96 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This class implements rendering for code coverage of source code.
-//
+///
+/// \file This class implements rendering for code coverage of source code.
+///
 //===----------------------------------------------------------------------===//
 
 #include "SourceCoverageView.h"
-#include "llvm/ADT/Optional.h"
+#include "SourceCoverageViewHTML.h"
+#include "SourceCoverageViewText.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/LineIterator.h"
+#include "llvm/Support/Path.h"
 
 using namespace llvm;
 
-void SourceCoverageView::renderLine(
-    raw_ostream &OS, StringRef Line, int64_t LineNumber,
-    const coverage::CoverageSegment *WrappedSegment,
-    ArrayRef<const coverage::CoverageSegment *> Segments,
-    unsigned ExpansionCol) {
-  Optional<raw_ostream::Colors> Highlight;
-  SmallVector<std::pair<unsigned, unsigned>, 2> HighlightedRanges;
+void CoveragePrinter::StreamDestructor::operator()(raw_ostream *OS) const {
+  if (OS == &outs())
+    return;
+  delete OS;
+}
 
-  // The first segment overlaps from a previous line, so we treat it specially.
-  if (WrappedSegment && WrappedSegment->HasCount && WrappedSegment->Count == 0)
-    Highlight = raw_ostream::RED;
+std::string CoveragePrinter::getOutputPath(StringRef Path, StringRef Extension,
+                                           bool InToplevel,
+                                           bool Relative) const {
+  assert(Extension.size() && "The file extension may not be empty");
 
-  // Output each segment of the line, possibly highlighted.
-  unsigned Col = 1;
-  for (const auto *S : Segments) {
-    unsigned End = std::min(S->Col, static_cast<unsigned>(Line.size()) + 1);
-    colored_ostream(OS, Highlight ? *Highlight : raw_ostream::SAVEDCOLOR,
-                    Options.Colors && Highlight, /*Bold=*/false, /*BG=*/true)
-        << Line.substr(Col - 1, End - Col);
-    if (Options.Debug && Highlight)
-      HighlightedRanges.push_back(std::make_pair(Col, End));
-    Col = End;
-    if (Col == ExpansionCol)
-      Highlight = raw_ostream::CYAN;
-    else if (S->HasCount && S->Count == 0)
-      Highlight = raw_ostream::RED;
-    else
-      Highlight = None;
+  SmallString<256> FullPath;
+
+  if (!Relative)
+    FullPath.append(Opts.ShowOutputDirectory);
+
+  if (!InToplevel)
+    sys::path::append(FullPath, getCoverageDir());
+
+  SmallString<256> ParentPath = sys::path::parent_path(Path);
+  sys::path::remove_dots(ParentPath, /*remove_dot_dots=*/true);
+  sys::path::append(FullPath, sys::path::relative_path(ParentPath));
+
+  auto PathFilename = (sys::path::filename(Path) + "." + Extension).str();
+  sys::path::append(FullPath, PathFilename);
+  sys::path::native(FullPath);
+
+  return FullPath.str();
+}
+
+Expected<CoveragePrinter::OwnedStream>
+CoveragePrinter::createOutputStream(StringRef Path, StringRef Extension,
+                                    bool InToplevel) const {
+  if (!Opts.hasOutputDirectory())
+    return OwnedStream(&outs());
+
+  std::string FullPath = getOutputPath(Path, Extension, InToplevel, false);
+
+  auto ParentDir = sys::path::parent_path(FullPath);
+  if (auto E = sys::fs::create_directories(ParentDir))
+    return errorCodeToError(E);
+
+  std::error_code E;
+  raw_ostream *RawStream = new raw_fd_ostream(FullPath, E, sys::fs::F_RW);
+  auto OS = CoveragePrinter::OwnedStream(RawStream);
+  if (E)
+    return errorCodeToError(E);
+  return std::move(OS);
+}
+
+std::unique_ptr<CoveragePrinter>
+CoveragePrinter::create(const CoverageViewOptions &Opts) {
+  switch (Opts.Format) {
+  case CoverageViewOptions::OutputFormat::Text:
+    return llvm::make_unique<CoveragePrinterText>(Opts);
+  case CoverageViewOptions::OutputFormat::HTML:
+    return llvm::make_unique<CoveragePrinterHTML>(Opts);
   }
-
-  // Show the rest of the line
-  colored_ostream(OS, Highlight ? *Highlight : raw_ostream::SAVEDCOLOR,
-                  Options.Colors && Highlight, /*Bold=*/false, /*BG=*/true)
-      << Line.substr(Col - 1, Line.size() - Col + 1);
-  OS << "\n";
-
-  if (Options.Debug) {
-    for (const auto &Range : HighlightedRanges)
-      errs() << "Highlighted line " << LineNumber << ", " << Range.first
-             << " -> " << Range.second << "\n";
-    if (Highlight)
-      errs() << "Highlighted line " << LineNumber << ", " << Col << " -> ?\n";
-  }
+  llvm_unreachable("Unknown coverage output format!");
 }
 
-void SourceCoverageView::renderIndent(raw_ostream &OS, unsigned Level) {
-  for (unsigned I = 0; I < Level; ++I)
-    OS << "  |";
+unsigned SourceCoverageView::getFirstUncoveredLineNo() {
+  const auto MinSegIt = find_if(CoverageInfo, [](const CoverageSegment &S) {
+    return S.HasCount && S.Count == 0;
+  });
+
+  // There is no uncovered line, return zero.
+  if (MinSegIt == CoverageInfo.end())
+    return 0;
+
+  return (*MinSegIt).Line;
 }
 
-void SourceCoverageView::renderViewDivider(unsigned Level, unsigned Length,
-                                           raw_ostream &OS) {
-  assert(Level != 0 && "Cannot render divider at top level");
-  renderIndent(OS, Level - 1);
-  OS.indent(2);
-  for (unsigned I = 0; I < Length; ++I)
-    OS << "-";
-}
-
-/// Format a count using engineering notation with 3 significant digits.
-static std::string formatCount(uint64_t N) {
+std::string SourceCoverageView::formatCount(uint64_t N) {
   std::string Number = utostr(N);
   int Len = Number.size();
   if (Len <= 3)
@@ -94,171 +110,149 @@ static std::string formatCount(uint64_t N) {
   return Result;
 }
 
-void
-SourceCoverageView::renderLineCoverageColumn(raw_ostream &OS,
-                                             const LineCoverageInfo &Line) {
-  if (!Line.isMapped()) {
-    OS.indent(LineCoverageColumnWidth) << '|';
-    return;
-  }
-  std::string C = formatCount(Line.ExecutionCount);
-  OS.indent(LineCoverageColumnWidth - C.size());
-  colored_ostream(OS, raw_ostream::MAGENTA,
-                  Line.hasMultipleRegions() && Options.Colors)
-      << C;
-  OS << '|';
-}
+bool SourceCoverageView::shouldRenderRegionMarkers(
+    const LineCoverageStats &LCS) const {
+  if (!getOptions().ShowRegionMarkers)
+    return false;
 
-void SourceCoverageView::renderLineNumberColumn(raw_ostream &OS,
-                                                unsigned LineNo) {
-  SmallString<32> Buffer;
-  raw_svector_ostream BufferOS(Buffer);
-  BufferOS << LineNo;
-  auto Str = BufferOS.str();
-  // Trim and align to the right
-  Str = Str.substr(0, std::min(Str.size(), (size_t)LineNumberColumnWidth));
-  OS.indent(LineNumberColumnWidth - Str.size()) << Str << '|';
-}
-
-void SourceCoverageView::renderRegionMarkers(
-    raw_ostream &OS, ArrayRef<const coverage::CoverageSegment *> Segments) {
-  unsigned PrevColumn = 1;
-  for (const auto *S : Segments) {
-    if (!S->IsRegionEntry)
+  CoverageSegmentArray Segments = LCS.getLineSegments();
+  if (Segments.empty())
+    return false;
+  for (unsigned I = 0, E = Segments.size() - 1; I < E; ++I) {
+    const auto *CurSeg = Segments[I];
+    if (!CurSeg->IsRegionEntry || CurSeg->Count == LCS.getExecutionCount())
       continue;
-    // Skip to the new region
-    if (S->Col > PrevColumn)
-      OS.indent(S->Col - PrevColumn);
-    PrevColumn = S->Col + 1;
-    std::string C = formatCount(S->Count);
-    PrevColumn += C.size();
-    OS << '^' << C;
+    return true;
   }
-  OS << "\n";
-
-  if (Options.Debug)
-    for (const auto *S : Segments)
-      errs() << "Marker at " << S->Line << ":" << S->Col << " = "
-             << formatCount(S->Count) << (S->IsRegionEntry ? "\n" : " (pop)\n");
+  return false;
 }
 
-void SourceCoverageView::render(raw_ostream &OS, bool WholeFile,
-                                unsigned IndentLevel) {
-  // The width of the leading columns
-  unsigned CombinedColumnWidth =
-      (Options.ShowLineStats ? LineCoverageColumnWidth + 1 : 0) +
-      (Options.ShowLineNumbers ? LineNumberColumnWidth + 1 : 0);
-  // The width of the line that is used to divide between the view and the
-  // subviews.
-  unsigned DividerWidth = CombinedColumnWidth + 4;
+bool SourceCoverageView::hasSubViews() const {
+  return !ExpansionSubViews.empty() || !InstantiationSubViews.empty();
+}
+
+std::unique_ptr<SourceCoverageView>
+SourceCoverageView::create(StringRef SourceName, const MemoryBuffer &File,
+                           const CoverageViewOptions &Options,
+                           CoverageData &&CoverageInfo) {
+  switch (Options.Format) {
+  case CoverageViewOptions::OutputFormat::Text:
+    return llvm::make_unique<SourceCoverageViewText>(
+        SourceName, File, Options, std::move(CoverageInfo));
+  case CoverageViewOptions::OutputFormat::HTML:
+    return llvm::make_unique<SourceCoverageViewHTML>(
+        SourceName, File, Options, std::move(CoverageInfo));
+  }
+  llvm_unreachable("Unknown coverage output format!");
+}
+
+std::string SourceCoverageView::getSourceName() const {
+  SmallString<128> SourceText(SourceName);
+  sys::path::remove_dots(SourceText, /*remove_dot_dots=*/true);
+  sys::path::native(SourceText);
+  return SourceText.str();
+}
+
+void SourceCoverageView::addExpansion(
+    const CounterMappingRegion &Region,
+    std::unique_ptr<SourceCoverageView> View) {
+  ExpansionSubViews.emplace_back(Region, std::move(View));
+}
+
+void SourceCoverageView::addInstantiation(
+    StringRef FunctionName, unsigned Line,
+    std::unique_ptr<SourceCoverageView> View) {
+  InstantiationSubViews.emplace_back(FunctionName, Line, std::move(View));
+}
+
+void SourceCoverageView::print(raw_ostream &OS, bool WholeFile,
+                               bool ShowSourceName, bool ShowTitle,
+                               unsigned ViewDepth) {
+  if (ShowTitle)
+    renderTitle(OS, "Coverage Report");
+
+  renderViewHeader(OS);
+
+  if (ShowSourceName)
+    renderSourceName(OS, WholeFile);
+
+  renderTableHeader(OS, (ViewDepth > 0) ? 0 : getFirstUncoveredLineNo(),
+                    ViewDepth);
 
   // We need the expansions and instantiations sorted so we can go through them
   // while we iterate lines.
-  std::sort(ExpansionSubViews.begin(), ExpansionSubViews.end());
-  std::sort(InstantiationSubViews.begin(), InstantiationSubViews.end());
+  std::stable_sort(ExpansionSubViews.begin(), ExpansionSubViews.end());
+  std::stable_sort(InstantiationSubViews.begin(), InstantiationSubViews.end());
   auto NextESV = ExpansionSubViews.begin();
   auto EndESV = ExpansionSubViews.end();
   auto NextISV = InstantiationSubViews.begin();
   auto EndISV = InstantiationSubViews.end();
 
   // Get the coverage information for the file.
-  auto NextSegment = CoverageInfo.begin();
+  auto StartSegment = CoverageInfo.begin();
   auto EndSegment = CoverageInfo.end();
+  LineCoverageIterator LCI{CoverageInfo, 1};
+  LineCoverageIterator LCIEnd = LCI.getEnd();
 
-  unsigned FirstLine = NextSegment != EndSegment ? NextSegment->Line : 0;
-  const coverage::CoverageSegment *WrappedSegment = nullptr;
-  SmallVector<const coverage::CoverageSegment *, 8> LineSegments;
-  for (line_iterator LI(File, /*SkipBlanks=*/false); !LI.is_at_eof(); ++LI) {
+  unsigned FirstLine = StartSegment != EndSegment ? StartSegment->Line : 0;
+  for (line_iterator LI(File, /*SkipBlanks=*/false); !LI.is_at_eof();
+       ++LI, ++LCI) {
     // If we aren't rendering the whole file, we need to filter out the prologue
     // and epilogue.
     if (!WholeFile) {
-      if (NextSegment == EndSegment)
+      if (LCI == LCIEnd)
         break;
       else if (LI.line_number() < FirstLine)
         continue;
     }
 
-    // Collect the coverage information relevant to this line.
-    if (LineSegments.size())
-      WrappedSegment = LineSegments.back();
-    LineSegments.clear();
-    while (NextSegment != EndSegment && NextSegment->Line == LI.line_number())
-      LineSegments.push_back(&*NextSegment++);
-
-    // Calculate a count to be for the line as a whole.
-    LineCoverageInfo LineCount;
-    if (WrappedSegment && WrappedSegment->HasCount)
-      LineCount.addRegionCount(WrappedSegment->Count);
-    for (const auto *S : LineSegments)
-      if (S->HasCount && S->IsRegionEntry)
-          LineCount.addRegionStartCount(S->Count);
-
-    // Render the line prefix.
-    renderIndent(OS, IndentLevel);
-    if (Options.ShowLineStats)
-      renderLineCoverageColumn(OS, LineCount);
-    if (Options.ShowLineNumbers)
+    renderLinePrefix(OS, ViewDepth);
+    if (getOptions().ShowLineNumbers)
       renderLineNumberColumn(OS, LI.line_number());
+
+    if (getOptions().ShowLineStats)
+      renderLineCoverageColumn(OS, *LCI);
 
     // If there are expansion subviews, we want to highlight the first one.
     unsigned ExpansionColumn = 0;
     if (NextESV != EndESV && NextESV->getLine() == LI.line_number() &&
-        Options.Colors)
+        getOptions().Colors)
       ExpansionColumn = NextESV->getStartCol();
 
     // Display the source code for the current line.
-    renderLine(OS, *LI, LI.line_number(), WrappedSegment, LineSegments,
-               ExpansionColumn);
+    renderLine(OS, {*LI, LI.line_number()}, *LCI, ExpansionColumn, ViewDepth);
 
     // Show the region markers.
-    if (Options.ShowRegionMarkers && (!Options.ShowLineStatsOrRegionMarkers ||
-                                      LineCount.hasMultipleRegions()) &&
-        !LineSegments.empty()) {
-      renderIndent(OS, IndentLevel);
-      OS.indent(CombinedColumnWidth);
-      renderRegionMarkers(OS, LineSegments);
-    }
+    if (shouldRenderRegionMarkers(*LCI))
+      renderRegionMarkers(OS, *LCI, ViewDepth);
 
     // Show the expansions and instantiations for this line.
-    unsigned NestedIndent = IndentLevel + 1;
     bool RenderedSubView = false;
     for (; NextESV != EndESV && NextESV->getLine() == LI.line_number();
          ++NextESV) {
-      renderViewDivider(NestedIndent, DividerWidth, OS);
-      OS << "\n";
+      renderViewDivider(OS, ViewDepth + 1);
+
+      // Re-render the current line and highlight the expansion range for
+      // this subview.
       if (RenderedSubView) {
-        // Re-render the current line and highlight the expansion range for
-        // this subview.
         ExpansionColumn = NextESV->getStartCol();
-        renderIndent(OS, IndentLevel);
-        OS.indent(CombinedColumnWidth + (IndentLevel == 0 ? 0 : 1));
-        renderLine(OS, *LI, LI.line_number(), WrappedSegment, LineSegments,
-                   ExpansionColumn);
-        renderViewDivider(NestedIndent, DividerWidth, OS);
-        OS << "\n";
+        renderExpansionSite(OS, {*LI, LI.line_number()}, *LCI, ExpansionColumn,
+                            ViewDepth);
+        renderViewDivider(OS, ViewDepth + 1);
       }
-      // Render the child subview
-      if (Options.Debug)
-        errs() << "Expansion at line " << NextESV->getLine() << ", "
-               << NextESV->getStartCol() << " -> " << NextESV->getEndCol()
-               << "\n";
-      NextESV->View->render(OS, false, NestedIndent);
+
+      renderExpansionView(OS, *NextESV, ViewDepth + 1);
       RenderedSubView = true;
     }
     for (; NextISV != EndISV && NextISV->Line == LI.line_number(); ++NextISV) {
-      renderViewDivider(NestedIndent, DividerWidth, OS);
-      OS << "\n";
-      renderIndent(OS, NestedIndent);
-      OS << ' ';
-      Options.colored_ostream(OS, raw_ostream::CYAN) << NextISV->FunctionName
-                                                     << ":";
-      OS << "\n";
-      NextISV->View->render(OS, false, NestedIndent);
+      renderViewDivider(OS, ViewDepth + 1);
+      renderInstantiationView(OS, *NextISV, ViewDepth + 1);
       RenderedSubView = true;
     }
-    if (RenderedSubView) {
-      renderViewDivider(NestedIndent, DividerWidth, OS);
-      OS << "\n";
-    }
+    if (RenderedSubView)
+      renderViewDivider(OS, ViewDepth + 1);
+    renderLineSuffix(OS, ViewDepth);
   }
+
+  renderViewFooter(OS);
 }

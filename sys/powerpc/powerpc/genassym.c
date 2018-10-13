@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,11 +66,11 @@ ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
 ASSYM(PC_RESTORE, offsetof(struct pcpu, pc_restore));
 
 #if defined(BOOKE)
-ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke_critsave));
-ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke_mchksave));
-ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke_tlbsave));
-ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke_tlb_level));
-ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke_tlb_lock));
+ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke.critsave));
+ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke.mchksave));
+ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke.tlbsave));
+ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke.tlb_level));
+ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke.tlb_lock));
 #endif
 
 ASSYM(CPUSAVE_R27, CPUSAVE_R27*sizeof(register_t));
@@ -82,6 +84,8 @@ ASSYM(CPUSAVE_AIM_DAR, CPUSAVE_AIM_DAR*sizeof(register_t));
 ASSYM(CPUSAVE_AIM_DSISR, CPUSAVE_AIM_DSISR*sizeof(register_t));
 ASSYM(CPUSAVE_BOOKE_DEAR, CPUSAVE_BOOKE_DEAR*sizeof(register_t));
 ASSYM(CPUSAVE_BOOKE_ESR, CPUSAVE_BOOKE_ESR*sizeof(register_t));
+ASSYM(BOOKE_CRITSAVE_SRR0, BOOKE_CRITSAVE_SRR0*sizeof(register_t));
+ASSYM(BOOKE_CRITSAVE_SRR1, BOOKE_CRITSAVE_SRR1*sizeof(register_t));
 
 ASSYM(TLBSAVE_BOOKE_LR, TLBSAVE_BOOKE_LR*sizeof(register_t));
 ASSYM(TLBSAVE_BOOKE_CR, TLBSAVE_BOOKE_CR*sizeof(register_t));
@@ -105,10 +109,10 @@ ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 #if defined(AIM)
 ASSYM(USER_ADDR, USER_ADDR);
 #ifdef __powerpc64__
-ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_slb));
-ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_userslb));
-ASSYM(PC_SLBSAVE, offsetof(struct pcpu, pc_slbsave));
-ASSYM(PC_SLBSTACK, offsetof(struct pcpu, pc_slbstack));
+ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_aim.slb));
+ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_aim.userslb));
+ASSYM(PC_SLBSAVE, offsetof(struct pcpu, pc_aim.slbsave));
+ASSYM(PC_SLBSTACK, offsetof(struct pcpu, pc_aim.slbstack));
 ASSYM(USER_SLB_SLOT, USER_SLB_SLOT);
 ASSYM(USER_SLB_SLBE, USER_SLB_SLBE);
 ASSYM(SEGMENT_MASK, SEGMENT_MASK);
@@ -117,7 +121,11 @@ ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
 ASSYM(USER_SR, USER_SR);
 #endif
 #elif defined(BOOKE)
+#ifdef __powerpc64__
+ASSYM(PM_PP2D, offsetof(struct pmap, pm_pp2d));
+#else
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
+#endif
 /*
  * With pte_t being a bitfield struct, these fields cannot be addressed via
  * offsetof().
@@ -187,6 +195,7 @@ ASSYM(CF_SIZE, sizeof(struct callframe));
 
 ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
 ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
+ASSYM(PCB_DSCR, offsetof(struct pcb, pcb_dscr));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_TOC, offsetof(struct pcb, pcb_toc));
 ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
@@ -194,9 +203,12 @@ ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FPU, PCB_FPU);
 ASSYM(PCB_VEC, PCB_VEC);
+ASSYM(PCB_CDSCR, PCB_CDSCR);
 
 ASSYM(PCB_AIM_USR_VSID, offsetof(struct pcb, pcb_cpu.aim.usr_vsid));
 ASSYM(PCB_BOOKE_DBCR0, offsetof(struct pcb, pcb_cpu.booke.dbcr0));
+
+ASSYM(PCB_VSCR, offsetof(struct pcb, pcb_vec.vscr));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
@@ -214,8 +226,13 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
 ASSYM(KERNBASE, KERNBASE);
+ASSYM(DMAP_BASE_ADDRESS, DMAP_BASE_ADDRESS);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 
+#ifdef __powerpc64__
+ASSYM(PSL_CM, PSL_CM);
+#endif
+ASSYM(PSL_GS, PSL_GS);
 ASSYM(PSL_DE, PSL_DE);
 ASSYM(PSL_DS, PSL_DS);
 ASSYM(PSL_IS, PSL_IS);
@@ -223,10 +240,6 @@ ASSYM(PSL_CE, PSL_CE);
 ASSYM(PSL_UCLE, PSL_UCLE);
 ASSYM(PSL_WE, PSL_WE);
 ASSYM(PSL_UBLE, PSL_UBLE);
-
-#if defined(BOOKE_E500)
-ASSYM(PSL_KERNSET_INIT, PSL_KERNSET_INIT);
-#endif
 
 #if defined(AIM) && defined(__powerpc64__)
 ASSYM(PSL_SF, PSL_SF);
@@ -256,7 +269,4 @@ ASSYM(PSL_FP, PSL_FP);
 ASSYM(PSL_ME, PSL_ME);
 ASSYM(PSL_PR, PSL_PR);
 ASSYM(PSL_PMM, PSL_PMM);
-ASSYM(PSL_KERNSET, PSL_KERNSET);
-ASSYM(PSL_USERSET, PSL_USERSET);
-ASSYM(PSL_USERSTATIC, PSL_USERSTATIC);
 

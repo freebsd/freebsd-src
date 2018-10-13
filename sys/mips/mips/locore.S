@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,7 +70,7 @@
 #include <machine/cpuregs.h>
 #include <machine/regnum.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.data
 #ifdef YAMON
@@ -117,6 +117,9 @@ VECTOR(_locore, unknown)
 	 *	Enable FPU
 	 */
 	li	t1, MIPS_SR_COP_1_BIT
+#if defined(__mips_n32) || defined(__mips_n64)
+	or	t1, MIPS_SR_FR
+#endif
 #ifdef __mips_n64
 	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX
 #endif
@@ -153,6 +156,21 @@ VECTOR(_locore, unknown)
 	beqz	t2, 1f
 	nop
 	j	octeon_ap_wait
+	nop
+	.set pop
+1:
+#endif
+
+#if defined(CPU_MALTA) && defined(SMP)
+	.set push
+	.set mips32r2
+	jal	malta_cpu_configure
+	nop
+	jal	platform_processor_id
+	nop
+	beqz	v0, 1f
+	nop
+	j	malta_ap_wait
 	nop
 	.set pop
 1:

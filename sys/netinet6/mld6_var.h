@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009 Bruce Simpson.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,7 +136,6 @@ struct mld_ifsoftc {
 	uint32_t mli_qi;	/* MLDv2 Query Interval (s) */
 	uint32_t mli_qri;	/* MLDv2 Query Response Interval (s) */
 	uint32_t mli_uri;	/* MLDv2 Unsolicited Report Interval (s) */
-	SLIST_HEAD(,in6_multi)	mli_relinmhead; /* released groups */
 	struct mbufq	 mli_gq;	/* queue of general query responses */
 };
 

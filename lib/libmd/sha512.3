@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2016
+.Dd July 20, 2018
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -26,7 +26,7 @@
 .Nm SHA384_End ,
 .Nm SHA384_File ,
 .Nm SHA384_FileChunk ,
-.Nm SHA384_Data,
+.Nm SHA384_Data ,
 .Nm SHA512_256_Init ,
 .Nm SHA512_256_Update ,
 .Nm SHA512_256_Final ,
@@ -110,7 +110,9 @@ initialize it with
 run over the data with
 .Fn SHA512_Update ,
 and finally extract the result using
-.Fn SHA512_Final .
+.Fn SHA512_Final ,
+which will also erase the
+.Vt SHA512_CTX .
 .Pp
 .Fn SHA512_End
 is a wrapper for

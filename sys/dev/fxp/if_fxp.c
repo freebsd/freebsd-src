@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1995, David Greenman
  * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * All rights reserved.
@@ -305,6 +307,8 @@ static devclass_t fxp_devclass;
 
 DRIVER_MODULE_ORDERED(fxp, pci, fxp_driver, fxp_devclass, NULL, NULL,
     SI_ORDER_ANY);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, fxp, fxp_ident_table,
+    nitems(fxp_ident_table) - 1);
 DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec fxp_res_spec_mem[] = {
@@ -2212,18 +2216,15 @@ fxp_stop(struct fxp_softc *sc)
 	 * Release any xmit buffers.
 	 */
 	txp = sc->fxp_desc.tx_list;
-	if (txp != NULL) {
-		for (i = 0; i < FXP_NTXCB; i++) {
-			if (txp[i].tx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_txmtag, txp[i].tx_map,
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->fxp_txmtag,
-				    txp[i].tx_map);
-				m_freem(txp[i].tx_mbuf);
-				txp[i].tx_mbuf = NULL;
-				/* clear this to reset csum offload bits */
-				txp[i].tx_cb->tbd[0].tb_addr = 0;
-			}
+	for (i = 0; i < FXP_NTXCB; i++) {
+		if (txp[i].tx_mbuf != NULL) {
+			bus_dmamap_sync(sc->fxp_txmtag, txp[i].tx_map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->fxp_txmtag, txp[i].tx_map);
+			m_freem(txp[i].tx_mbuf);
+			txp[i].tx_mbuf = NULL;
+			/* clear this to reset csum offload bits */
+			txp[i].tx_cb->tbd[0].tb_addr = 0;
 		}
 	}
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,

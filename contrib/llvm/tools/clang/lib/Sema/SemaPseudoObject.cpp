@@ -447,7 +447,8 @@ PseudoOpBuilder::buildAssignmentOperation(Scope *Sc, SourceLocation opcLoc,
     syntactic = new (S.Context) BinaryOperator(syntacticLHS, capturedRHS,
                                                opcode, capturedRHS->getType(),
                                                capturedRHS->getValueKind(),
-                                               OK_Ordinary, opcLoc, false);
+                                               OK_Ordinary, opcLoc,
+                                               FPOptions());
   } else {
     ExprResult opLHS = buildGet();
     if (opLHS.isInvalid()) return ExprError();
@@ -465,7 +466,7 @@ PseudoOpBuilder::buildAssignmentOperation(Scope *Sc, SourceLocation opcLoc,
                                              OK_Ordinary,
                                              opLHS.get()->getType(),
                                              result.get()->getType(),
-                                             opcLoc, false);
+                                             opcLoc, FPOptions());
   }
 
   // The result of the assignment, if not void, is the value set into
@@ -578,7 +579,7 @@ bool ObjCPropertyOpBuilder::isWeakProperty() const {
   if (RefExpr->isExplicitProperty()) {
     const ObjCPropertyDecl *Prop = RefExpr->getExplicitProperty();
     if (Prop->getPropertyAttributes() & ObjCPropertyDecl::OBJC_PR_weak)
-      return !Prop->hasAttr<IBOutletAttr>();
+      return true;
 
     T = Prop->getType();
   } else if (Getter) {
@@ -658,9 +659,10 @@ bool ObjCPropertyOpBuilder::findSetter(bool warn) {
         SmallString<100> PropertyName = thisPropertyName;
         PropertyName[0] = front;
         IdentifierInfo *AltMember = &S.PP.getIdentifierTable().get(PropertyName);
-        if (ObjCPropertyDecl *prop1 = IFace->FindPropertyDeclaration(AltMember))
+        if (ObjCPropertyDecl *prop1 = IFace->FindPropertyDeclaration(
+                AltMember, prop->getQueryKind()))
           if (prop != prop1 && (prop1->getSetterMethodDecl() == setter)) {
-            S.Diag(RefExpr->getExprLoc(), diag::error_property_setter_ambiguous_use)
+            S.Diag(RefExpr->getExprLoc(), diag::err_property_setter_ambiguous_use)
               << prop << prop1 << setter->getSelector();
             S.Diag(prop->getLocation(), diag::note_property_declare);
             S.Diag(prop1->getLocation(), diag::note_property_declare);
@@ -769,7 +771,8 @@ ExprResult ObjCPropertyOpBuilder::buildSet(Expr *op, SourceLocation opcLoc,
       ExprResult opResult = op;
       Sema::AssignConvertType assignResult
         = S.CheckSingleAssignmentConstraints(paramType, opResult);
-      if (S.DiagnoseAssignmentResult(assignResult, opcLoc, paramType,
+      if (opResult.isInvalid() ||
+          S.DiagnoseAssignmentResult(assignResult, opcLoc, paramType,
                                      op->getType(), opResult.get(),
                                      Sema::AA_Assigning))
         return ExprError();
@@ -839,12 +842,10 @@ ExprResult ObjCPropertyOpBuilder::buildRValueOperation(Expr *op) {
           result = S.ImpCastExprToType(result.get(), propType, CK_BitCast);
       }
     }
-    if (S.getLangOpts().ObjCAutoRefCount) {
-      Qualifiers::ObjCLifetime LT = propType.getObjCLifetime();
-      if (LT == Qualifiers::OCL_Weak)
-        if (!S.Diags.isIgnored(diag::warn_arc_repeated_use_of_weak, RefExpr->getLocation()))
-              S.getCurFunction()->markSafeWeakUse(RefExpr);
-    }
+    if (propType.getObjCLifetime() == Qualifiers::OCL_Weak &&
+        !S.Diags.isIgnored(diag::warn_arc_repeated_use_of_weak,
+                           RefExpr->getLocation()))
+      S.getCurFunction()->markSafeWeakUse(RefExpr);
   }
 
   return result;
@@ -960,11 +961,11 @@ ObjCPropertyOpBuilder::buildIncDecOperation(Scope *Sc, SourceLocation opcLoc,
 }
 
 ExprResult ObjCPropertyOpBuilder::complete(Expr *SyntacticForm) {
-  if (S.getLangOpts().ObjCAutoRefCount && isWeakProperty() &&
+  if (isWeakProperty() &&
       !S.Diags.isIgnored(diag::warn_arc_repeated_use_of_weak,
                          SyntacticForm->getLocStart()))
-      S.recordUseOfEvaluatedWeak(SyntacticRefExpr,
-                                 SyntacticRefExpr->isMessagingGetter());
+    S.recordUseOfEvaluatedWeak(SyntacticRefExpr,
+                               SyntacticRefExpr->isMessagingGetter());
 
   return PseudoOpBuilder::complete(SyntacticForm);
 }
@@ -1102,8 +1103,9 @@ Sema::ObjCSubscriptKind
   Diag(FromE->getExprLoc(), diag::err_objc_multiple_subscript_type_conversion)
       << FromE->getType();
   for (unsigned int i = 0; i < ConversionDecls.size(); i++)
-    Diag(ConversionDecls[i]->getLocation(), diag::not_conv_function_declared_at);
-    
+    Diag(ConversionDecls[i]->getLocation(),
+         diag::note_conv_function_declared_at);
+
   return OS_Error;
 }
 
@@ -1124,8 +1126,8 @@ static void CheckKeyForObjCARCConversion(Sema &S, QualType ContainerT,
   if (!Getter)
     return;
   QualType T = Getter->parameters()[0]->getType();
-  S.CheckObjCARCConversion(Key->getSourceRange(), 
-                         T, Key, Sema::CCK_ImplicitConversion);
+  S.CheckObjCConversion(Key->getSourceRange(), T, Key,
+                        Sema::CCK_ImplicitConversion);
 }
 
 bool ObjCSubscriptOpBuilder::findAtIndexGetter() {
@@ -1174,8 +1176,6 @@ bool ObjCSubscriptOpBuilder::findAtIndexGetter() {
   
   AtIndexGetter = S.LookupMethodInObjectType(AtIndexGetterSelector, ResultType, 
                                              true /*instance*/);
-  bool receiverIdType = (BaseT->isObjCIdType() ||
-                         BaseT->isObjCQualifiedIdType());
   
   if (!AtIndexGetter && S.getLangOpts().DebuggerObjCLiteral) {
     AtIndexGetter = ObjCMethodDecl::Create(S.Context, SourceLocation(), 
@@ -1201,7 +1201,7 @@ bool ObjCSubscriptOpBuilder::findAtIndexGetter() {
   }
 
   if (!AtIndexGetter) {
-    if (!receiverIdType) {
+    if (!BaseT->isObjCIdType()) {
       S.Diag(BaseExpr->getExprLoc(), diag::err_objc_subscript_method_not_found)
       << BaseExpr->getType() << 0 << arrayRef;
       return false;
@@ -1282,9 +1282,6 @@ bool ObjCSubscriptOpBuilder::findAtIndexSetter() {
   }
   AtIndexSetter = S.LookupMethodInObjectType(AtIndexSetterSelector, ResultType, 
                                              true /*instance*/);
-  
-  bool receiverIdType = (BaseT->isObjCIdType() ||
-                         BaseT->isObjCQualifiedIdType());
 
   if (!AtIndexSetter && S.getLangOpts().DebuggerObjCLiteral) {
     TypeSourceInfo *ReturnTInfo = nullptr;
@@ -1319,7 +1316,7 @@ bool ObjCSubscriptOpBuilder::findAtIndexSetter() {
   }
   
   if (!AtIndexSetter) {
-    if (!receiverIdType) {
+    if (!BaseT->isObjCIdType()) {
       S.Diag(BaseExpr->getExprLoc(), 
              diag::err_objc_subscript_method_not_found)
       << BaseExpr->getType() << 1 << arrayRef;
@@ -1445,8 +1442,7 @@ MSPropertyOpBuilder::getBaseMSProperty(MSPropertySubscriptExpr *E) {
 
 Expr *MSPropertyOpBuilder::rebuildAndCaptureObject(Expr *syntacticBase) {
   InstanceBase = capture(RefExpr->getBaseExpr());
-  std::for_each(CallArgs.begin(), CallArgs.end(),
-                [this](Expr *&Arg) { Arg = capture(Arg); });
+  llvm::for_each(CallArgs, [this](Expr *&Arg) { Arg = capture(Arg); });
   syntacticBase = Rebuilder(S, [=](Expr *, unsigned Idx) -> Expr * {
                     switch (Idx) {
                     case 0:
@@ -1478,7 +1474,7 @@ ExprResult MSPropertyOpBuilder::buildGet() {
                               SourceLocation(), GetterName, nullptr);
   if (GetterExpr.isInvalid()) {
     S.Diag(RefExpr->getMemberLoc(),
-           diag::error_cannot_find_suitable_accessor) << 0 /* getter */
+           diag::err_cannot_find_suitable_accessor) << 0 /* getter */
       << RefExpr->getPropertyDecl();
     return ExprError();
   }
@@ -1507,7 +1503,7 @@ ExprResult MSPropertyOpBuilder::buildSet(Expr *op, SourceLocation sl,
                               SourceLocation(), SetterName, nullptr);
   if (SetterExpr.isInvalid()) {
     S.Diag(RefExpr->getMemberLoc(),
-           diag::error_cannot_find_suitable_accessor) << 1 /* setter */
+           diag::err_cannot_find_suitable_accessor) << 1 /* setter */
       << RefExpr->getPropertyDecl();
     return ExprError();
   }
@@ -1584,7 +1580,8 @@ ExprResult Sema::checkPseudoObjectAssignment(Scope *S, SourceLocation opcLoc,
   // Do nothing if either argument is dependent.
   if (LHS->isTypeDependent() || RHS->isTypeDependent())
     return new (Context) BinaryOperator(LHS, RHS, opcode, Context.DependentTy,
-                                        VK_RValue, OK_Ordinary, opcLoc, false);
+                                        VK_RValue, OK_Ordinary, opcLoc,
+                                        FPOptions());
 
   // Filter out non-overload placeholder types in the RHS.
   if (RHS->getType()->isNonOverloadPlaceholderType()) {
@@ -1649,14 +1646,15 @@ Expr *Sema::recreateSyntacticForm(PseudoObjectExpr *E) {
                                                 cop->getObjectKind(),
                                                 cop->getComputationLHSType(),
                                                 cop->getComputationResultType(),
-                                                cop->getOperatorLoc(), false);
+                                                cop->getOperatorLoc(),
+                                                FPOptions());
   } else if (BinaryOperator *bop = dyn_cast<BinaryOperator>(syntax)) {
     Expr *lhs = stripOpaqueValuesFromPseudoObjectRef(*this, bop->getLHS());
     Expr *rhs = cast<OpaqueValueExpr>(bop->getRHS())->getSourceExpr();
     return new (Context) BinaryOperator(lhs, rhs, bop->getOpcode(),
                                         bop->getType(), bop->getValueKind(),
                                         bop->getObjectKind(),
-                                        bop->getOperatorLoc(), false);
+                                        bop->getOperatorLoc(), FPOptions());
   } else {
     assert(syntax->hasPlaceholderType(BuiltinType::PseudoObject));
     return stripOpaqueValuesFromPseudoObjectRef(*this, syntax);

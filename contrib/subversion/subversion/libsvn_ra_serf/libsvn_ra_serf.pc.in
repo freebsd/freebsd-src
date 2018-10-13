@@ -8,5 +8,5 @@ Description: Subversion HTTP/WebDAV Protocol Repository Access Library
 Version: @PACKAGE_VERSION@
 Requires:  apr-util-@SVN_APR_MAJOR_VERSION@ apr-@SVN_APR_MAJOR_VERSION@
 Requires.private:  libsvn_delta libsvn_subr serf-1
-Libs: -L${libdir}  -lsvn_ra_serf @SVN_XML_LIBS@ @SVN_ZLIB_LIBS@
+Libs: -L${libdir}  -lsvn_ra_serf @SVN_ZLIB_LIBS@
 Cflags: -I${includedir}

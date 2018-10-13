@@ -6,12 +6,15 @@ _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
+TEST_METADATA.functional_test+=	timeout="600"
+
 BINDIR=	${TESTSDIR}
 
 PROGS+=	libarchive_test
 
-CFLAGS+= -I${.CURDIR:H} -I${.OBJDIR}
-CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive -I${_LIBARCHIVEDIR}/test_utils
+CFLAGS+= -I${.CURDIR} -I${.CURDIR:H} -I${.OBJDIR}
+CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive -I${_LIBARCHIVEDIR}/libarchive/test
+CFLAGS+= -I${_LIBARCHIVEDIR}/test_utils
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # Uncomment to link against dmalloc
@@ -20,11 +23,12 @@ CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 .PATH: ${_LIBARCHIVEDIR}/libarchive/test
 TESTS_SRCS= \
-	test_acl_freebsd_nfs4.c			\
-	test_acl_freebsd_posix1e.c		\
 	test_acl_nfs4.c				\
 	test_acl_pax.c				\
+	test_acl_platform_nfs4.c		\
+	test_acl_platform_posix1e.c		\
 	test_acl_posix1e.c			\
+	test_acl_text.c				\
 	test_archive_api_feature.c		\
 	test_archive_clear_error.c		\
 	test_archive_cmdline.c			\
@@ -69,13 +73,17 @@ TESTS_SRCS= \
 	test_compat_lzop.c			\
 	test_compat_mac.c			\
 	test_compat_pax_libarchive_2x.c		\
+	test_compat_perl_archive_tar.c		\
+	test_compat_plexus_archiver_tar.c	\
 	test_compat_solaris_tar_acl.c		\
 	test_compat_solaris_pax_sparse.c	\
+	test_compat_star_acl.c			\
 	test_compat_tar_hardlink.c		\
 	test_compat_uudecode.c			\
 	test_compat_uudecode_large.c		\
 	test_compat_xz.c			\
 	test_compat_zip.c			\
+	test_compat_zstd.c			\
 	test_empty_write.c			\
 	test_entry.c				\
 	test_entry_strmode.c			\
@@ -149,11 +157,13 @@ TESTS_SRCS= \
 	test_read_format_lha_bugfix_0.c		\
 	test_read_format_lha_filename.c		\
 	test_read_format_mtree.c		\
+	test_read_format_mtree_crash747.c	\
 	test_read_format_pax_bz2.c		\
 	test_read_format_rar.c			\
 	test_read_format_rar_encryption_data.c	\
 	test_read_format_rar_encryption_header.c	\
 	test_read_format_rar_encryption_partially.c	\
+	test_read_format_rar_invalid1.c		\
 	test_read_format_raw.c			\
 	test_read_format_tar.c			\
 	test_read_format_tar_concatenated.c	\
@@ -174,6 +184,8 @@ TESTS_SRCS= \
 	test_read_format_zip_encryption_header.c	\
 	test_read_format_zip_encryption_partially.c	\
 	test_read_format_zip_filename.c		\
+	test_read_format_zip_high_compression.c	\
+	test_read_format_zip_jar.c		\
 	test_read_format_zip_mac_metadata.c	\
 	test_read_format_zip_malformed.c	\
 	test_read_format_zip_msdos.c		\
@@ -184,8 +196,10 @@ TESTS_SRCS= \
 	test_read_format_zip_traditional_encryption_data.c	\
 	test_read_format_zip_winzip_aes.c	\
 	test_read_format_zip_winzip_aes_large.c	\
+	test_read_format_zip_with_invalid_traditional_eocd.c	\
 	test_read_format_zip_zip64.c		\
 	test_read_large.c			\
+	test_read_pax_schily_xattr.c		\
 	test_read_pax_truncated.c		\
 	test_read_position.c			\
 	test_read_set_format.c			\
@@ -208,6 +222,9 @@ TESTS_SRCS= \
 	test_write_disk_no_hfs_compression.c	\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
+	test_write_disk_secure744.c		\
+	test_write_disk_secure745.c		\
+	test_write_disk_secure746.c		\
 	test_write_disk_sparse.c		\
 	test_write_disk_symlink.c		\
 	test_write_disk_times.c			\
@@ -224,6 +241,7 @@ TESTS_SRCS= \
 	test_write_filter_program.c		\
 	test_write_filter_uuencode.c		\
 	test_write_filter_xz.c			\
+	test_write_filter_zstd.c		\
 	test_write_format_7zip.c		\
 	test_write_format_7zip_empty.c		\
 	test_write_format_7zip_large.c		\
@@ -233,6 +251,7 @@ TESTS_SRCS= \
 	test_write_format_cpio_newc.c		\
 	test_write_format_cpio_odc.c		\
 	test_write_format_gnutar.c		\
+	test_write_format_gnutar_filenames.c	\
 	test_write_format_iso9660.c		\
 	test_write_format_iso9660_boot.c	\
 	test_write_format_iso9660_empty.c	\
@@ -268,6 +287,7 @@ TESTS_SRCS= \
 	test_write_format_zip_zip64.c		\
 	test_write_open_memory.c		\
 	test_write_read_format_zip.c		\
+	test_xattr_platform.c			\
 	test_zip_filename_encoding.c
 
 # Deterministic failures:
@@ -287,14 +307,14 @@ BROKEN_TESTS+=			test_fuzz_rar
 # Build the test program.
 SRCS.libarchive_test=		\
 	${TESTS_SRCS}		\
-	main.c			\
 	read_open_memory.c	\
 	list.h
 
 LIBADD.libarchive_test=	archive
 
 .PATH: ${_LIBARCHIVEDIR}/test_utils
-SRCS.libarchive_test+=	test_utils.c
+SRCS.libarchive_test+=	test_main.c	\
+			test_utils.c
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS_SRCS} Makefile
@@ -304,14 +324,15 @@ list.h: ${TESTS_SRCS} Makefile
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 CLEANTESTS+=	list.h list.h.tmp
-
 ${PACKAGE}FILES+=	README
-${PACKAGE}FILES+=	test_acl_pax.tar.uu
+${PACKAGE}FILES+=	test_acl_pax_posix1e.tar.uu
+${PACKAGE}FILES+=	test_acl_pax_nfs4.tar.uu
 ${PACKAGE}FILES+=	test_archive_string_conversion.txt.Z.uu
 ${PACKAGE}FILES+=	test_compat_bzip2_1.tbz.uu
 ${PACKAGE}FILES+=	test_compat_bzip2_2.tbz.uu
 ${PACKAGE}FILES+=	test_compat_cpio_1.cpio.uu
 ${PACKAGE}FILES+=	test_compat_gtar_1.tar.uu
+${PACKAGE}FILES+=	test_compat_gtar_2.tar.uu
 ${PACKAGE}FILES+=	test_compat_gzip_1.tgz.uu
 ${PACKAGE}FILES+=	test_compat_gzip_2.tgz.uu
 ${PACKAGE}FILES+=	test_compat_lz4_1.tar.lz4.uu
@@ -337,9 +358,13 @@ ${PACKAGE}FILES+=	test_compat_lzop_3.tar.lzo.uu
 ${PACKAGE}FILES+=	test_compat_mac-1.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_mac-2.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_pax_libarchive_2x.tar.Z.uu
+${PACKAGE}FILES+=	test_compat_perl_archive_tar.tar.uu
+${PACKAGE}FILES+=	test_compat_plexus_archiver_tar.tar.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_1.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_2.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_tar_acl.tar.uu
+${PACKAGE}FILES+=	test_compat_star_acl_nfs4.tar.uu
+${PACKAGE}FILES+=	test_compat_star_acl_posix1e.tar.uu
 ${PACKAGE}FILES+=	test_compat_tar_hardlink_1.tar.uu
 ${PACKAGE}FILES+=	test_compat_uudecode_large.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_xz_1.txz.uu
@@ -350,6 +375,8 @@ ${PACKAGE}FILES+=	test_compat_zip_4.zip.uu
 ${PACKAGE}FILES+=	test_compat_zip_5.zip.uu
 ${PACKAGE}FILES+=	test_compat_zip_6.zip.uu
 ${PACKAGE}FILES+=	test_compat_zip_7.xps.uu
+${PACKAGE}FILES+=	test_compat_zip_8.zip.uu
+${PACKAGE}FILES+=	test_compat_zstd_1.tar.zst.uu
 ${PACKAGE}FILES+=	test_fuzz.cab.uu
 ${PACKAGE}FILES+=	test_fuzz.lzh.uu
 ${PACKAGE}FILES+=	test_fuzz_1.iso.Z.uu
@@ -458,6 +485,7 @@ ${PACKAGE}FILES+=	test_read_format_lha_lh6.lzh.uu
 ${PACKAGE}FILES+=	test_read_format_lha_lh7.lzh.uu
 ${PACKAGE}FILES+=	test_read_format_lha_withjunk.lzh.uu
 ${PACKAGE}FILES+=	test_read_format_mtree.mtree.uu
+${PACKAGE}FILES+=	test_read_format_mtree_crash747.mtree.bz2.uu
 ${PACKAGE}FILES+=	test_read_format_mtree_nomagic.mtree.uu
 ${PACKAGE}FILES+=	test_read_format_mtree_nomagic2.mtree.uu
 ${PACKAGE}FILES+=	test_read_format_mtree_nomagic3.mtree.uu
@@ -468,6 +496,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_compress_normal.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_data.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_header.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_partially.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar_invalid1.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multi_lzss_blocks.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0001.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0002.rar.uu
@@ -479,6 +508,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_sfx.exe.uu
 ${PACKAGE}FILES+=	test_read_format_rar_subblock.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_unicode.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_windows.rar.uu
+${PACKAGE}FILES+=	test_read_format_raw.bufr.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.Z.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.uu
 ${PACKAGE}FILES+=	test_read_format_tar_concatenated.tar.uu
@@ -501,6 +531,8 @@ ${PACKAGE}FILES+=	test_read_format_zip_filename_koi8r.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_jp.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_ru.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_ru2.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_high_compression.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_jar.jar.uu
 ${PACKAGE}FILES+=	test_read_format_zip_length_at_end.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_mac_metadata.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_malformed1.zip.uu
@@ -514,6 +546,7 @@ ${PACKAGE}FILES+=	test_read_format_zip_sfx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_symlink.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_traditional_encryption_data.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_ux.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_with_invalid_traditional_eocd.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes128.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes256.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes256_large.zip.uu
@@ -525,6 +558,7 @@ ${PACKAGE}FILES+=	test_read_large_splitted_rar_ab.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ac.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ad.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ae.uu
+${PACKAGE}FILES+=	test_read_pax_schily_xattr.tar.uu
 ${PACKAGE}FILES+=	test_read_splitted_rar_aa.uu
 ${PACKAGE}FILES+=	test_read_splitted_rar_ab.uu
 ${PACKAGE}FILES+=	test_read_splitted_rar_ac.uu

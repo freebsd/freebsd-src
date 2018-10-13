@@ -23,7 +23,7 @@ pkt_output (
 		if (a > 0 && a % 8 == 0)
 			fprintf(output, "\n");
 
-		fprintf(output, "%d: %x \t", a, pkt[a]);
+		fprintf(output, "%3d: %02x  ", a, pkt[a]);
 	}
 
 	fprintf(output, "\n");

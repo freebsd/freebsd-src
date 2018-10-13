@@ -17,23 +17,111 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Asynchronous Transfer Mode (ATM) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 #include "atm.h"
-#include "atmuni31.h"
 #include "llc.h"
+
+/* start of the original atmuni31.h */
+
+/*
+ * Copyright (c) 1997 Yen Yen Lim and North Dakota State University
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Yen Yen Lim and
+        North Dakota State University
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/* Based on UNI3.1 standard by ATM Forum */
+
+/* ATM traffic types based on VPI=0 and (the following VCI */
+#define VCI_PPC			0x05	/* Point-to-point signal msg */
+#define VCI_BCC			0x02	/* Broadcast signal msg */
+#define VCI_OAMF4SC		0x03	/* Segment OAM F4 flow cell */
+#define VCI_OAMF4EC		0x04	/* End-to-end OAM F4 flow cell */
+#define VCI_METAC		0x01	/* Meta signal msg */
+#define VCI_ILMIC		0x10	/* ILMI msg */
+
+/* Q.2931 signalling messages */
+#define CALL_PROCEED		0x02	/* call proceeding */
+#define CONNECT			0x07	/* connect */
+#define CONNECT_ACK		0x0f	/* connect_ack */
+#define SETUP			0x05	/* setup */
+#define RELEASE			0x4d	/* release */
+#define RELEASE_DONE		0x5a	/* release_done */
+#define RESTART			0x46	/* restart */
+#define RESTART_ACK		0x4e	/* restart ack */
+#define STATUS			0x7d	/* status */
+#define STATUS_ENQ		0x75	/* status ack */
+#define ADD_PARTY		0x80	/* add party */
+#define ADD_PARTY_ACK		0x81	/* add party ack */
+#define ADD_PARTY_REJ		0x82	/* add party rej */
+#define DROP_PARTY		0x83	/* drop party */
+#define DROP_PARTY_ACK		0x84	/* drop party ack */
+
+/* Information Element Parameters in the signalling messages */
+#define CAUSE			0x08	/* cause */
+#define ENDPT_REF		0x54	/* endpoint reference */
+#define AAL_PARA		0x58	/* ATM adaptation layer parameters */
+#define TRAFF_DESCRIP		0x59	/* atm traffic descriptors */
+#define CONNECT_ID		0x5a	/* connection identifier */
+#define QOS_PARA		0x5c	/* quality of service parameters */
+#define B_HIGHER		0x5d	/* broadband higher layer information */
+#define B_BEARER		0x5e	/* broadband bearer capability */
+#define B_LOWER			0x5f	/* broadband lower information */
+#define CALLING_PARTY		0x6c	/* calling party number */
+#define CALLED_PARTY		0x70	/* called party nmber */
+
+#define Q2931			0x09
+
+/* Q.2931 signalling general messages format */
+#define PROTO_POS       0	/* offset of protocol discriminator */
+#define CALL_REF_POS    2	/* offset of call reference value */
+#define MSG_TYPE_POS    5	/* offset of message type */
+#define MSG_LEN_POS     7	/* offset of mesage length */
+#define IE_BEGIN_POS    9	/* offset of first information element */
+
+/* format of signalling messages */
+#define TYPE_POS	0
+#define LEN_POS		2
+#define FIELD_BEGIN_POS 4
+
+/* end of the original atmuni31.h */
 
 static const char tstr[] = "[|atm]";
 
@@ -128,22 +216,20 @@ static const struct tok *oam_functype_values[16] = {
 /*
  * Print an RFC 1483 LLC-encapsulated ATM frame.
  */
-static void
+static u_int
 atm_llc_print(netdissect_options *ndo,
               const u_char *p, int length, int caplen)
 {
-	u_short extracted_ethertype;
+	int llc_hdrlen;
 
-	if (!llc_print(ndo, p, length, caplen, NULL, NULL,
-	    &extracted_ethertype)) {
-		/* ether_type not known, print raw packet */
-		if (extracted_ethertype) {
-			ND_PRINT((ndo, "(LLC %s) ",
-		etherproto_string(htons(extracted_ethertype))));
-		}
+	llc_hdrlen = llc_print(ndo, p, length, caplen, NULL, NULL);
+	if (llc_hdrlen < 0) {
+		/* packet not known, print raw packet */
 		if (!ndo->ndo_suppress_default_print)
 			ND_DEFAULTPRINT(p, caplen);
+		llc_hdrlen = -llc_hdrlen;
 	}
+	return (llc_hdrlen);
 }
 
 /*
@@ -176,7 +262,7 @@ atm_if_print(netdissect_options *ndo,
         if (*p == LLC_UI) {
             if (ndo->ndo_eflag)
                 ND_PRINT((ndo, "CNLPID "));
-            isoclns_print(ndo, p + 1, length - 1, caplen - 1);
+            isoclns_print(ndo, p + 1, length - 1);
             return hdrlen;
         }
 
@@ -231,7 +317,7 @@ atm_if_print(netdissect_options *ndo,
 		caplen -= 20;
 		hdrlen += 20;
 	}
-	atm_llc_print(ndo, p, length, caplen);
+	hdrlen += atm_llc_print(ndo, p, length, caplen);
 	return (hdrlen);
 }
 
@@ -259,24 +345,18 @@ static const struct tok msgtype2str[] = {
 
 static void
 sig_print(netdissect_options *ndo,
-          const u_char *p, int caplen)
+          const u_char *p)
 {
 	uint32_t call_ref;
 
-	if (caplen < PROTO_POS) {
-		ND_PRINT((ndo, "%s", tstr));
-		return;
-	}
+	ND_TCHECK(p[PROTO_POS]);
 	if (p[PROTO_POS] == Q2931) {
 		/*
 		 * protocol:Q.2931 for User to Network Interface
 		 * (UNI 3.1) signalling
 		 */
 		ND_PRINT((ndo, "Q.2931"));
-		if (caplen < MSG_TYPE_POS) {
-			ND_PRINT((ndo, " %s", tstr));
-			return;
-		}
+		ND_TCHECK(p[MSG_TYPE_POS]);
 		ND_PRINT((ndo, ":%s ",
 		    tok2str(msgtype2str, "msgtype#%d", p[MSG_TYPE_POS])));
 
@@ -292,6 +372,10 @@ sig_print(netdissect_options *ndo,
 		/* SCCOP with some unknown protocol atop it */
 		ND_PRINT((ndo, "SSCOP, proto %d ", p[PROTO_POS]));
 	}
+	return;
+
+trunc:
+	ND_PRINT((ndo, " %s", tstr));
 }
 
 /*
@@ -309,7 +393,7 @@ atm_print(netdissect_options *ndo,
 		switch (vci) {
 
 		case VCI_PPC:
-			sig_print(ndo, p, caplen);
+			sig_print(ndo, p);
 			return;
 
 		case VCI_BCC:
@@ -362,7 +446,7 @@ struct oam_fm_ais_rdi_t {
     uint8_t unused[28];
 };
 
-int
+void
 oam_print (netdissect_options *ndo,
            const u_char *p, u_int length, u_int hec)
 {
@@ -376,6 +460,7 @@ oam_print (netdissect_options *ndo,
     } oam_ptr;
 
 
+    ND_TCHECK(*(p+ATM_HDR_LEN_NOHEC+hec));
     cell_header = EXTRACT_32BITS(p+hec);
     cell_type = ((*(p+ATM_HDR_LEN_NOHEC+hec))>>4) & 0x0f;
     func_type = (*(p+ATM_HDR_LEN_NOHEC+hec)) & 0x0f;
@@ -392,7 +477,7 @@ oam_print (netdissect_options *ndo,
            clp, length));
 
     if (!ndo->ndo_vflag) {
-        return 1;
+        return;
     }
 
     ND_PRINT((ndo, "\n\tcell-type %s (%u)",
@@ -411,6 +496,7 @@ oam_print (netdissect_options *ndo,
     switch (cell_type << 4 | func_type) {
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_LOOPBACK):
         oam_ptr.oam_fm_loopback = (const struct oam_fm_loopback_t *)(p + OAM_CELLTYPE_FUNCTYPE_LEN);
+        ND_TCHECK(*oam_ptr.oam_fm_loopback);
         ND_PRINT((ndo, "\n\tLoopback-Indicator %s, Correlation-Tag 0x%08x",
                tok2str(oam_fm_loopback_indicator_values,
                        "Unknown",
@@ -433,6 +519,7 @@ oam_print (netdissect_options *ndo,
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_AIS):
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_RDI):
         oam_ptr.oam_fm_ais_rdi = (const struct oam_fm_ais_rdi_t *)(p + OAM_CELLTYPE_FUNCTYPE_LEN);
+        ND_TCHECK(*oam_ptr.oam_fm_ais_rdi);
         ND_PRINT((ndo, "\n\tFailure-type 0x%02x", oam_ptr.oam_fm_ais_rdi->failure_type));
         ND_PRINT((ndo, "\n\tLocation-ID "));
         for (idx = 0; idx < sizeof(oam_ptr.oam_fm_ais_rdi->failure_location); idx++) {
@@ -451,6 +538,7 @@ oam_print (netdissect_options *ndo,
     }
 
     /* crc10 checksum verification */
+    ND_TCHECK2(*(p + OAM_CELLTYPE_FUNCTYPE_LEN + OAM_FUNCTION_SPECIFIC_LEN), 2);
     cksum = EXTRACT_16BITS(p + OAM_CELLTYPE_FUNCTYPE_LEN + OAM_FUNCTION_SPECIFIC_LEN)
         & OAM_CRC10_MASK;
     cksum_shouldbe = verify_crc10_cksum(0, p, OAM_PAYLOAD_LEN);
@@ -459,5 +547,9 @@ oam_print (netdissect_options *ndo,
            cksum,
            cksum_shouldbe == 0 ? "" : "in"));
 
-    return 1;
+    return;
+
+trunc:
+    ND_PRINT((ndo, "[|oam]"));
+    return;
 }

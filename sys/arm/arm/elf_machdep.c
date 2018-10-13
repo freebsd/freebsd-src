@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -45,8 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#ifdef VFP
+#include <machine/vfp.h>
+#endif
 
 static boolean_t elf32_arm_abi_supported(struct image_params *);
+
+u_long elf_hwcap;
+u_long elf_hwcap2;
 
 struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
@@ -86,6 +94,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
+	.sv_hwcap	= &elf_hwcap,
+	.sv_hwcap2	= &elf_hwcap2,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
@@ -124,9 +134,26 @@ elf32_arm_abi_supported(struct image_params *imgp)
 }
 
 void
-elf32_dump_thread(struct thread *td __unused, void *dst __unused,
-    size_t *off __unused)
+elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+#ifdef VFP
+	mcontext_vfp_t vfp;
+
+	if (dst != NULL) {
+		get_vfpcontext(td, &vfp);
+		*off = elf32_populate_note(NT_ARM_VFP, &vfp, dst, sizeof(vfp),
+		    NULL);
+	} else
+		*off = elf32_populate_note(NT_ARM_VFP, NULL, NULL, sizeof(vfp),
+		    NULL);
+#endif
+}
+
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
 }
 
 /*

@@ -19,6 +19,9 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+
+/* \summary: Radius protocol printer */
+
 /*
  * Radius printer routines as specified on:
  *
@@ -37,6 +40,10 @@
  * RFC 2869:
  *      "RADIUS Extensions"
  *
+ * RFC 3580:
+ *      "IEEE 802.1X Remote Authentication Dial In User Service (RADIUS)"
+ *      "Usage Guidelines"
+ *
  * RFC 4675:
  *      "RADIUS Attributes for Virtual LAN and Priority Support"
  *
@@ -48,16 +55,15 @@
  * TODO: Among other things to print ok MacIntosh and Vendor values
  */
 
-#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 #include "oui.h"
@@ -162,12 +168,12 @@ static const struct tok rfc4675_tagged[] = {
 };
 
 
-static void print_attr_string(netdissect_options *, register u_char *, u_int, u_short );
-static void print_attr_num(netdissect_options *, register u_char *, u_int, u_short );
-static void print_vendor_attr(netdissect_options *, register u_char *, u_int, u_short );
-static void print_attr_address(netdissect_options *, register u_char *, u_int, u_short);
-static void print_attr_time(netdissect_options *, register u_char *, u_int, u_short);
-static void print_attr_strange(netdissect_options *, register u_char *, u_int, u_short);
+static void print_attr_string(netdissect_options *, register const u_char *, u_int, u_short );
+static void print_attr_num(netdissect_options *, register const u_char *, u_int, u_short );
+static void print_vendor_attr(netdissect_options *, register const u_char *, u_int, u_short );
+static void print_attr_address(netdissect_options *, register const u_char *, u_int, u_short);
+static void print_attr_time(netdissect_options *, register const u_char *, u_int, u_short);
+static void print_attr_strange(netdissect_options *, register const u_char *, u_int, u_short);
 
 
 struct radius_hdr { uint8_t  code; /* Radius packet code  */
@@ -331,6 +337,7 @@ static const char *tunnel_type[]={ NULL,
                                    "GRE",
                                    "DVS",
                                    "IP-in-IP Tunneling",
+                                   "VLAN",
                                  };
 
 /* Tunnel-Medium-Type Attribute standard values */
@@ -365,11 +372,12 @@ static const char *prompt[]={ "No Echo",
                             };
 
 
-struct attrtype { const char *name;      /* Attribute name                 */
+static struct attrtype {
+                  const char *name;      /* Attribute name                 */
                   const char **subtypes; /* Standard Values (if any)       */
                   u_char siz_subtypes;   /* Size of total standard values  */
                   u_char first_subtype;  /* First standard value is 0 or 1 */
-                  void (*print_func)(netdissect_options *, register u_char *, u_int, u_short);
+                  void (*print_func)(netdissect_options *, register const u_char *, u_int, u_short);
                 } attr_type[]=
   {
      { NULL,                              NULL, 0, 0, NULL               },
@@ -478,7 +486,7 @@ struct attrtype { const char *name;      /* Attribute name                 */
 /*****************************/
 static void
 print_attr_string(netdissect_options *ndo,
-                  register u_char *data, u_int length, u_short attr_code)
+                  register const u_char *data, u_int length, u_short attr_code)
 {
    register u_int i;
 
@@ -488,10 +496,7 @@ print_attr_string(netdissect_options *ndo,
    {
       case TUNNEL_PASS:
            if (length < 3)
-           {
-              ND_PRINT((ndo, "%s", tstr));
-              return;
-           }
+              goto trunc;
            if (*data && (*data <=0x1F) )
               ND_PRINT((ndo, "Tag[%u] ", *data));
            else
@@ -511,10 +516,7 @@ print_attr_string(netdissect_options *ndo,
            if (*data <= 0x1F)
            {
               if (length < 1)
-              {
-                 ND_PRINT((ndo, "%s", tstr));
-                 return;
-              }
+                 goto trunc;
               if (*data)
                 ND_PRINT((ndo, "Tag[%u] ", *data));
               else
@@ -524,6 +526,8 @@ print_attr_string(netdissect_options *ndo,
            }
         break;
       case EGRESS_VLAN_NAME:
+           if (length < 1)
+              goto trunc;
            ND_PRINT((ndo, "%s (0x%02x) ",
                   tok2str(rfc4675_tagged,"Unknown tag",*data),
                   *data));
@@ -532,8 +536,8 @@ print_attr_string(netdissect_options *ndo,
         break;
    }
 
-   for (i=0; *data && i < length ; i++, data++)
-       ND_PRINT((ndo, "%c", (*data < 32 || *data > 128) ? '.' : *data));
+   for (i=0; i < length && *data; i++, data++)
+       ND_PRINT((ndo, "%c", (*data < 32 || *data > 126) ? '.' : *data));
 
    return;
 
@@ -546,7 +550,7 @@ print_attr_string(netdissect_options *ndo,
  */
 static void
 print_vendor_attr(netdissect_options *ndo,
-                  register u_char *data, u_int length, u_short attr_code _U_)
+                  register const u_char *data, u_int length, u_short attr_code _U_)
 {
     u_int idx;
     u_int vendor_id;
@@ -593,7 +597,7 @@ print_vendor_attr(netdissect_options *ndo,
                vendor_type,
                vendor_length));
         for (idx = 0; idx < vendor_length ; idx++, data++)
-            ND_PRINT((ndo, "%c", (*data < 32 || *data > 128) ? '.' : *data));
+            ND_PRINT((ndo, "%c", (*data < 32 || *data > 126) ? '.' : *data));
         length-=vendor_length;
     }
     return;
@@ -611,7 +615,7 @@ print_vendor_attr(netdissect_options *ndo,
 /******************************/
 static void
 print_attr_num(netdissect_options *ndo,
-               register u_char *data, u_int length, u_short attr_code)
+               register const u_char *data, u_int length, u_short attr_code)
 {
    uint32_t timeout;
 
@@ -734,7 +738,7 @@ print_attr_num(netdissect_options *ndo,
 /*****************************/
 static void
 print_attr_address(netdissect_options *ndo,
-                   register u_char *data, u_int length, u_short attr_code)
+                   register const u_char *data, u_int length, u_short attr_code)
 {
    if (length != 4)
    {
@@ -778,7 +782,7 @@ print_attr_address(netdissect_options *ndo,
 /*************************************/
 static void
 print_attr_time(netdissect_options *ndo,
-                register u_char *data, u_int length, u_short attr_code _U_)
+                register const u_char *data, u_int length, u_short attr_code _U_)
 {
    time_t attr_time;
    char string[26];
@@ -811,7 +815,7 @@ print_attr_time(netdissect_options *ndo,
 /***********************************/
 static void
 print_attr_strange(netdissect_options *ndo,
-                   register u_char *data, u_int length, u_short attr_code)
+                   register const u_char *data, u_int length, u_short attr_code)
 {
    u_short len_data;
 
@@ -884,7 +888,7 @@ static void
 radius_attrs_print(netdissect_options *ndo,
                    register const u_char *attr, u_int length)
 {
-   register const struct radius_attr *rad_attr = (struct radius_attr *)attr;
+   register const struct radius_attr *rad_attr = (const struct radius_attr *)attr;
    const char *attr_string;
 
    while (length > 0)
@@ -924,16 +928,16 @@ radius_attrs_print(netdissect_options *ndo,
          {
              if ( attr_type[rad_attr->type].print_func )
                  (*attr_type[rad_attr->type].print_func)(
-                     ndo, ((u_char *)(rad_attr+1)),
+                     ndo, ((const u_char *)(rad_attr+1)),
                      rad_attr->len - 2, rad_attr->type);
          }
      }
      /* do we also want to see a hex dump ? */
      if (ndo->ndo_vflag> 1)
-         print_unknown_data(ndo, (u_char *)rad_attr+2, "\n\t    ", (rad_attr->len)-2);
+         print_unknown_data(ndo, (const u_char *)rad_attr+2, "\n\t    ", (rad_attr->len)-2);
 
      length-=(rad_attr->len);
-     rad_attr = (struct radius_attr *)( ((char *)(rad_attr))+rad_attr->len);
+     rad_attr = (const struct radius_attr *)( ((const char *)(rad_attr))+rad_attr->len);
    }
    return;
 
@@ -949,7 +953,7 @@ radius_print(netdissect_options *ndo,
    u_int len, auth_idx;
 
    ND_TCHECK2(*dat, MIN_RADIUS_LEN);
-   rad = (struct radius_hdr *)dat;
+   rad = (const struct radius_hdr *)dat;
    len = EXTRACT_16BITS(&rad->len);
 
    if (len < MIN_RADIUS_LEN)

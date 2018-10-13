@@ -31,9 +31,16 @@ class CXXABI {
 public:
   virtual ~CXXABI();
 
-  /// Returns the width and alignment of a member pointer in bits.
-  virtual std::pair<uint64_t, unsigned>
-  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const = 0;
+  struct MemberPointerInfo {
+    uint64_t Width;
+    unsigned Align;
+    bool HasPadding;
+  };
+
+  /// Returns the width and alignment of a member pointer in bits, as well as
+  /// whether it has padding.
+  virtual MemberPointerInfo
+  getMemberPointerInfo(const MemberPointerType *MPT) const = 0;
 
   /// Returns the default calling convention for C++ methods.
   virtual CallingConv getDefaultMethodCallConv(bool isVariadic) const = 0;
@@ -43,7 +50,8 @@ public:
   virtual bool isNearlyEmpty(const CXXRecordDecl *RD) const = 0;
 
   /// Returns a new mangling number context for this C++ ABI.
-  virtual MangleNumberingContext *createMangleNumberingContext() const = 0;
+  virtual std::unique_ptr<MangleNumberingContext>
+  createMangleNumberingContext() const = 0;
 
   /// Adds a mapping from class to copy constructor for this C++ ABI.
   virtual void addCopyConstructorForExceptionObject(CXXRecordDecl *,
@@ -52,12 +60,6 @@ public:
   /// Retrieves the mapping from class to copy constructor for this C++ ABI.
   virtual const CXXConstructorDecl *
   getCopyConstructorForExceptionObject(CXXRecordDecl *) = 0;
-
-  virtual void addDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
-                                               unsigned ParmIdx, Expr *DAE) = 0;
-
-  virtual Expr *getDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
-                                                unsigned ParmIdx) = 0;
 
   virtual void addTypedefNameForUnnamedTagDecl(TagDecl *TD,
                                                TypedefNameDecl *DD) = 0;

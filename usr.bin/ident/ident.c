@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,11 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
 #include <sys/types.h>
 #include <sys/sbuf.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -202,8 +204,9 @@ int
 main(int argc, char **argv)
 {
 	bool quiet = false;
-	int ch, i;
+	int ch, i, *fds, fd;
 	int ret = EXIT_SUCCESS;
+	size_t nfds;
 	FILE *fp;
 
 	while ((ch = getopt(argc, argv, "qV")) != -1) {
@@ -223,17 +226,50 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 0)
-		return (scan(stdin, NULL, quiet));
+	if (caph_limit_stdio() < 0)
+		err(EXIT_FAILURE, "unable to limit stdio");
 
-	for (i = 0; i < argc; i++) {
-		fp = fopen(argv[i], "r");
+	if (argc == 0) {
+		nfds = 1;
+		fds = malloc(sizeof(*fds));
+		if (fds == NULL)
+			err(EXIT_FAILURE, "unable to allocate fds array");
+		fds[0] = STDIN_FILENO;
+	} else {
+		nfds = argc;
+		fds = malloc(sizeof(*fds) * nfds);
+		if (fds == NULL)
+			err(EXIT_FAILURE, "unable to allocate fds array");
+
+		for (i = 0; i < argc; i++) {
+			fds[i] = fd = open(argv[i], O_RDONLY);
+			if (fd < 0) {
+				warn("%s", argv[i]);
+				ret = EXIT_FAILURE;
+				continue;
+			}
+			if (caph_limit_stream(fd, CAPH_READ) < 0)
+				err(EXIT_FAILURE,
+				    "unable to limit fcntls/rights for %s",
+				    argv[i]);
+		}
+	}
+
+	/* Enter Capsicum sandbox. */
+	if (caph_enter() < 0)
+		err(EXIT_FAILURE, "unable to enter capability mode");
+
+	for (i = 0; i < (int)nfds; i++) {
+		if (fds[i] < 0)
+			continue;
+
+		fp = fdopen(fds[i], "r");
 		if (fp == NULL) {
 			warn("%s", argv[i]);
 			ret = EXIT_FAILURE;
 			continue;
 		}
-		if (scan(fp, argv[i], quiet) != EXIT_SUCCESS)
+		if (scan(fp, argc == 0 ? NULL : argv[i], quiet) != EXIT_SUCCESS)
 			ret = EXIT_FAILURE;
 		fclose(fp);
 	}

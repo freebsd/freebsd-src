@@ -261,7 +261,7 @@ gengtype-lex.c:	gengtype-lex.l
 gengtype-yacc.h: gengtype-yacc.y
 	yacc -d -o gengtype-yacc.c ${.ALLSRC}
 
-gengtype-yacc.c: gengtype-yacc.h
+gengtype-yacc.c: gengtype-yacc.h .NOMETA
 
 gengtype-yacc+%DIKED.c: gengtype-yacc.c
 	cat    ${.ALLSRC} > ${.TARGET}
@@ -276,7 +276,7 @@ CLEANFILES+= gengtype-yacc.c
 
 gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o errors.o \
 	  ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 gtype-desc.h:	gengtype
 	${BTOOLSPATH:U.}/gengtype
@@ -292,18 +292,18 @@ CLEANFILES+=	gt-*.h gtype-*.h
 #
 .for F in check checksum genrtl modes
 gen$F:	gen$F.o errors.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 .endfor
 
 .for F in attr attrtab automata codes conditions config constants emit \
 	extract flags  opinit output peep preds recog
 gen$F:	gen$F.o rtl.o read-rtl.o ggc-none.o vec.o min-insn-modes.o \
 	gensupport.o print-rtl.o errors.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} -lm
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} -lm
 .endfor
 
 gencondmd:	gencondmd.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 #
 # Generated .md files.
@@ -391,6 +391,7 @@ GNTOOLS+=	genattr genattrtab genautomata gencodes gencheck genchecksum \
 
 ${GNTOOLS:C,$,.o,} ${GNTOOLS}: ${BUILD_TOOLS_META}
 all: ${GNTOOLS} ${GENSRCS} ${GENONLY}
+build-tools: all
 beforedepend: ${GENONLY}
 
 #
@@ -438,9 +439,7 @@ CLEANFILES+=	${GENSRCS} ${GENONLY} ${GENOBJS} ${GNTOOLS}
 
 #-----------------------------------------------------------------------
 # Manual dependencies.
-.if !exists(${DEPENDFILE})
 .include  "Makefile.dep"
-.endif
 
 .include <bsd.prog.mk>
 # DO NOT DELETE

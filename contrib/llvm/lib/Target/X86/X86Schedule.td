@@ -77,6 +77,10 @@ defm WriteFVarBlend  : X86SchedWritePair; // Fp vector variable blends.
 // FMA Scheduling helper class.
 class FMASC { X86FoldableSchedWrite Sched = WriteFAdd; }
 
+// Horizontal Add/Sub (float and integer)
+defm WriteFHAdd  : X86SchedWritePair;
+defm WritePHAdd : X86SchedWritePair;
+
 // Vector integer operations.
 defm WriteVecALU   : X86SchedWritePair; // Vector integer ALU op, no logicals.
 defm WriteVecShift : X86SchedWritePair; // Vector integer shifts.
@@ -295,6 +299,7 @@ def IIC_SSE_SHUFP : InstrItinClass;
 def IIC_SSE_PSHUF_RI : InstrItinClass;
 def IIC_SSE_PSHUF_MI : InstrItinClass;
 
+def IIC_SSE_PACK : InstrItinClass;
 def IIC_SSE_UNPCK : InstrItinClass;
 
 def IIC_SSE_MOVMSK : InstrItinClass;
@@ -364,6 +369,9 @@ def IIC_SSE_PALIGNRR : InstrItinClass;
 def IIC_SSE_PALIGNRM : InstrItinClass;
 def IIC_SSE_MWAIT : InstrItinClass;
 def IIC_SSE_MONITOR : InstrItinClass;
+def IIC_SSE_MWAITX : InstrItinClass;
+def IIC_SSE_MONITORX : InstrItinClass;
+def IIC_SSE_CLZERO : InstrItinClass;
 
 def IIC_SSE_PREFETCH : InstrItinClass;
 def IIC_SSE_PAUSE : InstrItinClass;
@@ -377,8 +385,6 @@ def IIC_SSE_CVT_PD_RR : InstrItinClass;
 def IIC_SSE_CVT_PD_RM : InstrItinClass;
 def IIC_SSE_CVT_PS_RR : InstrItinClass;
 def IIC_SSE_CVT_PS_RM : InstrItinClass;
-def IIC_SSE_CVT_PI2PS_RR : InstrItinClass;
-def IIC_SSE_CVT_PI2PS_RM : InstrItinClass;
 def IIC_SSE_CVT_Scalar_RR : InstrItinClass;
 def IIC_SSE_CVT_Scalar_RM : InstrItinClass;
 def IIC_SSE_CVT_SS2SI32_RM : InstrItinClass;
@@ -387,6 +393,8 @@ def IIC_SSE_CVT_SS2SI64_RM : InstrItinClass;
 def IIC_SSE_CVT_SS2SI64_RR : InstrItinClass;
 def IIC_SSE_CVT_SD2SI_RM : InstrItinClass;
 def IIC_SSE_CVT_SD2SI_RR : InstrItinClass;
+
+def IIC_AVX_ZERO : InstrItinClass;
 
 // MMX
 def IIC_MMX_MOV_MM_RM : InstrItinClass;
@@ -418,11 +426,20 @@ def IIC_MMX_PSHUF : InstrItinClass;
 def IIC_MMX_PEXTR : InstrItinClass;
 def IIC_MMX_PINSRW : InstrItinClass;
 def IIC_MMX_MASKMOV : InstrItinClass;
-
+def IIC_MMX_MOVMSK : InstrItinClass;
 def IIC_MMX_CVT_PD_RR : InstrItinClass;
 def IIC_MMX_CVT_PD_RM : InstrItinClass;
 def IIC_MMX_CVT_PS_RR : InstrItinClass;
 def IIC_MMX_CVT_PS_RM : InstrItinClass;
+
+def IIC_3DNOW_FALU_RM : InstrItinClass;
+def IIC_3DNOW_FALU_RR : InstrItinClass;
+def IIC_3DNOW_FCVT_F2I_RM : InstrItinClass;
+def IIC_3DNOW_FCVT_F2I_RR : InstrItinClass;
+def IIC_3DNOW_FCVT_I2F_RM : InstrItinClass;
+def IIC_3DNOW_FCVT_I2F_RR : InstrItinClass;
+def IIC_3DNOW_MISC_FUNC_REG : InstrItinClass;
+def IIC_3DNOW_MISC_FUNC_MEM : InstrItinClass;
 
 def IIC_CMPX_LOCK : InstrItinClass;
 def IIC_CMPX_LOCK_8 : InstrItinClass;
@@ -432,6 +449,7 @@ def IIC_CMPX_LOCK_16B : InstrItinClass;
 def IIC_XADD_LOCK_MEM : InstrItinClass;
 def IIC_XADD_LOCK_MEM8 : InstrItinClass;
 
+def IIC_FCMOV : InstrItinClass;
 def IIC_FILD : InstrItinClass;
 def IIC_FLD : InstrItinClass;
 def IIC_FLD80 : InstrItinClass;
@@ -460,6 +478,8 @@ def IIC_FXTRACT : InstrItinClass;
 def IIC_FPREM1 : InstrItinClass;
 def IIC_FPSTP : InstrItinClass;
 def IIC_FPREM : InstrItinClass;
+def IIC_FSIGN : InstrItinClass;
+def IIC_FSQRT : InstrItinClass;
 def IIC_FYL2XP1 : InstrItinClass;
 def IIC_FSINCOS : InstrItinClass;
 def IIC_FRNDINT : InstrItinClass;
@@ -476,16 +496,31 @@ def IIC_INT : InstrItinClass;
 def IIC_INT3 : InstrItinClass;
 def IIC_INVD : InstrItinClass;
 def IIC_INVLPG : InstrItinClass;
+def IIC_INVPCID : InstrItinClass;
 def IIC_IRET : InstrItinClass;
 def IIC_HLT : InstrItinClass;
 def IIC_LXS : InstrItinClass;
 def IIC_LTR : InstrItinClass;
+def IIC_MPX : InstrItinClass;
+def IIC_PKU : InstrItinClass;
+def IIC_PTWRITE : InstrItinClass;
+def IIC_RDPID : InstrItinClass;
+def IIC_RDRAND : InstrItinClass;
+def IIC_RDSEED : InstrItinClass;
 def IIC_RDTSC : InstrItinClass;
+def IIC_RDTSCP : InstrItinClass;
 def IIC_RSM : InstrItinClass;
 def IIC_SIDT : InstrItinClass;
 def IIC_SGDT : InstrItinClass;
 def IIC_SLDT : InstrItinClass;
+def IIC_SMAP : InstrItinClass;
+def IIC_SMX : InstrItinClass;
 def IIC_STR : InstrItinClass;
+def IIC_SKINIT : InstrItinClass;
+def IIC_SVM : InstrItinClass;
+def IIC_VMX : InstrItinClass;
+def IIC_CLGI : InstrItinClass;
+def IIC_STGI : InstrItinClass;
 def IIC_SWAPGS : InstrItinClass;
 def IIC_SYSCALL : InstrItinClass;
 def IIC_SYS_ENTER_EXIT : InstrItinClass;
@@ -494,6 +529,7 @@ def IIC_IN_RI : InstrItinClass;
 def IIC_OUT_RR : InstrItinClass;
 def IIC_OUT_IR : InstrItinClass;
 def IIC_INS : InstrItinClass;
+def IIC_LWP : InstrItinClass;
 def IIC_MOV_REG_DR : InstrItinClass;
 def IIC_MOV_DR_REG : InstrItinClass;
 def IIC_MOV_REG_CR : InstrItinClass;
@@ -514,6 +550,8 @@ def IIC_PUSH_CS : InstrItinClass;
 def IIC_PUSH_SR : InstrItinClass;
 def IIC_POP_SR : InstrItinClass;
 def IIC_POP_SR_SS : InstrItinClass;
+def IIC_SEGMENT_BASE_R : InstrItinClass;
+def IIC_SEGMENT_BASE_W : InstrItinClass;
 def IIC_VERR : InstrItinClass;
 def IIC_VERW_REG : InstrItinClass;
 def IIC_VERW_MEM : InstrItinClass;
@@ -539,6 +577,10 @@ def IIC_PUSH_A : InstrItinClass;
 def IIC_BSWAP : InstrItinClass;
 def IIC_BIT_SCAN_MEM : InstrItinClass;
 def IIC_BIT_SCAN_REG : InstrItinClass;
+def IIC_LZCNT_RR : InstrItinClass;
+def IIC_LZCNT_RM : InstrItinClass;
+def IIC_TZCNT_RR : InstrItinClass;
+def IIC_TZCNT_RM : InstrItinClass;
 def IIC_MOVS : InstrItinClass;
 def IIC_STOS : InstrItinClass;
 def IIC_SCAS : InstrItinClass;
@@ -566,12 +608,10 @@ def IIC_CMPXCHG_8B : InstrItinClass;
 def IIC_CMPXCHG_16B : InstrItinClass;
 def IIC_LODS : InstrItinClass;
 def IIC_OUTS : InstrItinClass;
-def IIC_CLC : InstrItinClass;
+def IIC_CLC_CMC_STC : InstrItinClass;
 def IIC_CLD : InstrItinClass;
 def IIC_CLI : InstrItinClass;
-def IIC_CMC : InstrItinClass;
 def IIC_CLTS : InstrItinClass;
-def IIC_STC : InstrItinClass;
 def IIC_STI : InstrItinClass;
 def IIC_STD : InstrItinClass;
 def IIC_XLAT : InstrItinClass;
@@ -633,18 +673,21 @@ def IIC_NOP : InstrItinClass;
 // latencies. Since these latencies are not used for pipeline hazards,
 // they do not need to be exact.
 //
-// The GenericModel contains no instruction itineraries.
-def GenericModel : SchedMachineModel {
+// The GenericX86Model contains no instruction itineraries
+// and disables PostRAScheduler.
+class GenericX86Model : SchedMachineModel {
   let IssueWidth = 4;
   let MicroOpBufferSize = 32;
   let LoadLatency = 4;
   let HighLatency = 10;
   let PostRAScheduler = 0;
+  let CompleteModel = 0;
 }
 
-include "X86ScheduleAtom.td"
-include "X86SchedSandyBridge.td"
-include "X86SchedHaswell.td"
-include "X86ScheduleSLM.td"
-include "X86ScheduleBtVer2.td"
+def GenericModel : GenericX86Model;
+
+// Define a model with the PostRAScheduler enabled.
+def GenericPostRAModel : GenericX86Model {
+  let PostRAScheduler = 1;
+}
 

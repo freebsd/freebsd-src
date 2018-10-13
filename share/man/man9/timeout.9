@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2015
+.Dd July 27, 2016
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -56,6 +56,7 @@
 .Nm callout_schedule_sbt_curcpu ,
 .Nm callout_schedule_sbt_on ,
 .Nm callout_stop ,
+.Nm callout_when ,
 .Nm timeout ,
 .Nm untimeout
 .Nd execute a function after a specified length of time
@@ -91,20 +92,48 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
 .Ft int
-.Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
-"void *arg"
+.Fo callout_reset_curcpu
+.Fa "struct callout *c"
+.Fa "int ticks"
+.Fa "timeout_t *func"
+.Fa "void *arg"
+.Fc
 .Ft int
-.Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
-"void *arg" "int cpu"
+.Fo callout_reset_on
+.Fa "struct callout *c"
+.Fa "int ticks"
+.Fa "timeout_t *func"
+.Fa "void *arg"
+.Fa "int cpu"
+.Fc
 .Ft int
-.Fn callout_reset_sbt "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "timeout_t *func" "void *arg" "int flags"
+.Fo callout_reset_sbt
+.Fa "struct callout *c"
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t pr"
+.Fa "timeout_t *func"
+.Fa "void *arg"
+.Fa "int flags"
+.Fc
 .Ft int
-.Fn callout_reset_sbt_curcpu "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "timeout_t *func" "void *arg" "int flags"
+.Fo callout_reset_sbt_curcpu
+.Fa "struct callout *c"
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t pr"
+.Fa "timeout_t *func"
+.Fa "void *arg"
+.Fa "int flags"
+.Fc
 .Ft int
-.Fn callout_reset_sbt_on "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
+.Fo callout_reset_sbt_on
+.Fa "struct callout *c"
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t pr"
+.Fa "timeout_t *func"
+.Fa "void *arg"
+.Fa "int cpu"
+.Fa "int flags"
+.Fc
 .Ft int
 .Fn callout_schedule "struct callout *c" "int ticks"
 .Ft int
@@ -112,16 +141,37 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Ft int
 .Fn callout_schedule_on "struct callout *c" "int ticks" "int cpu"
 .Ft int
-.Fn callout_schedule_sbt "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "int flags"
+.Fo callout_schedule_sbt
+.Fa "struct callout *c"
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t pr"
+.Fa "int flags"
+.Fc
 .Ft int
-.Fn callout_schedule_sbt_curcpu "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "int flags"
+.Fo callout_schedule_sbt_curcpu
+.Fa "struct callout *c"
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t pr"
+.Fa "int flags"
+.Fc
 .Ft int
-.Fn callout_schedule_sbt_on "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "int cpu" "int flags"
+.Fo callout_schedule_sbt_on
+.Fa "struct callout *c"
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t pr"
+.Fa "int cpu"
+.Fa "int flags"
+.Fc
 .Ft int
 .Fn callout_stop "struct callout *c"
+.Ft sbintime_t
+.Fo callout_when
+.Fa "sbintime_t sbt"
+.Fa "sbintime_t precision"
+.Fa "int flags"
+.Fa "sbintime_t *sbt_res"
+.Fa "sbintime_t *precision_res"
+.Fc
 .Ft struct callout_handle
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
@@ -247,6 +297,10 @@ has already been serviced, then
 negative one is returned.
 If the callout is currently being serviced and cannot be stopped,
 then zero will be returned.
+If the callout is currently being serviced and cannot be stopped, and at the
+same time a next invocation of the same callout is also scheduled, then
+.Fn callout_stop
+unschedules the next run and returns zero.
 If the callout has an associated lock,
 then that lock must be held when this function is called.
 .Pp
@@ -273,7 +327,6 @@ The
 .Fa drain
 function itself is called from the context of the completing callout
 i.e. softclock or hardclock, just like a callout itself.
-p
 .Pp
 The function
 .Fn callout_drain
@@ -383,6 +436,26 @@ or this value is used as the length of the time window.
 Smaller values
 .Pq which result in larger time intervals
 allow the callout subsystem to aggregate more events in one timer interrupt.
+.It Dv C_PRECALC
+The
+.Fa sbt
+argument specifies the absolute time at which the callout should be run,
+and the
+.Fa pr
+argument specifies the requested precision, which will not be
+adjusted during the scheduling process.
+The
+.Fa sbt
+and
+.Fa pr
+values should be calculated by an earlier call to
+.Fn callout_when
+which uses the user-supplied
+.Fa sbt ,
+.Fa pr ,
+and
+.Fa flags
+values.
 .It Dv C_HARDCLOCK
 Align the timeouts to
 .Fn hardclock
@@ -499,6 +572,39 @@ but it
 .Em does not
 clear it when a callout expires normally via the execution of the
 callout function.
+.Pp
+The
+.Fn callout_when
+function may be used to pre-calculate the absolute time at which the
+timeout should be run and the precision of the scheduled run time
+according to the required time
+.Fa sbt ,
+precision
+.Fa precision ,
+and additional adjustments requested by the
+.Fa flags
+argument.
+Flags accepted by the
+.Fn callout_when
+function are the same as flags for the
+.Fn callout_reset
+function.
+The resulting time is assigned to the variable pointed to by the
+.Fa sbt_res
+argument, and the resulting precision is assigned to
+.Fa *precision_res .
+When passing the results to
+.Fa callout_reset ,
+add the
+.Va C_PRECALC
+flag to
+.Fa flags ,
+to avoid incorrect re-adjustment.
+The function is intended for situations where precise time of the callout
+run should be known in advance, since
+trying to read this time from the callout structure itself after a
+.Fn callout_reset
+call is racy.
 .Ss "Avoiding Race Conditions"
 The callout subsystem invokes callout functions from its own thread
 context.
@@ -814,7 +920,7 @@ and
 .Fn callout_drain
 functions return a value of one if the callout was still pending when it was
 called, a zero if the callout could not be stopped and a negative one is it
-was either not running or haas already completed.
+was either not running or has already completed.
 The
 .Fn timeout
 function returns a

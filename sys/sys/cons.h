@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,6 +66,8 @@ struct consdev_ops {
 				/* grab console for exclusive kernel use */
 	cn_ungrab_t	*cn_ungrab;
 				/* ungrab console */
+	cn_init_t	*cn_resume;
+				/* set up console after sleep, optional */
 };
 
 struct consdev {
@@ -103,8 +107,9 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 	};								\
 	DATA_SET(cons_set, name)
 
-#define	CONSOLE_DRIVER(name)						\
+#define	CONSOLE_DRIVER(name, ...)					\
 	static const struct consdev_ops name##_consdev_ops = {		\
+		/* Mandatory methods. */				\
 		.cn_probe = name##_cnprobe,				\
 		.cn_init = name##_cninit,				\
 		.cn_term = name##_cnterm,				\
@@ -112,6 +117,8 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 		.cn_putc = name##_cnputc,				\
 		.cn_grab = name##_cngrab,				\
 		.cn_ungrab = name##_cnungrab,				\
+		/* Optional fields. */					\
+		__VA_ARGS__						\
 	};								\
 	CONSOLE_DEVICE(name##_consdev, name##_consdev_ops, NULL)
 
@@ -124,6 +131,7 @@ void	cnremove(struct consdev *);
 void	cnselect(struct consdev *);
 void	cngrab(void);
 void	cnungrab(void);
+void	cnresume(void);
 int	cncheckc(void);
 int	cngetc(void);
 void	cngets(char *, size_t, int);

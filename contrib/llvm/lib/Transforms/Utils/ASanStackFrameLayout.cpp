@@ -12,7 +12,9 @@
 //===----------------------------------------------------------------------===//
 #include "llvm/Transforms/Utils/ASanStackFrameLayout.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -34,9 +36,11 @@ static inline bool CompareVars(const ASanStackVariableDescription &a,
 // with e.g. alignment 1 and alignment 16 do not get reordered by CompareVars.
 static const size_t kMinAlignment = 16;
 
+// We want to add a full redzone after every variable.
 // The larger the variable Size the larger is the redzone.
 // The resulting frame size is a multiple of Alignment.
-static size_t VarAndRedzoneSize(size_t Size, size_t Alignment) {
+static size_t VarAndRedzoneSize(size_t Size, size_t Granularity,
+                                size_t Alignment) {
   size_t Res = 0;
   if (Size <= 4)  Res = 16;
   else if (Size <= 16) Res = 32;
@@ -44,67 +48,106 @@ static size_t VarAndRedzoneSize(size_t Size, size_t Alignment) {
   else if (Size <= 512) Res = Size + 64;
   else if (Size <= 4096) Res = Size + 128;
   else                   Res = Size + 256;
-  return RoundUpToAlignment(Res, Alignment);
+  return alignTo(std::max(Res, 2 * Granularity), Alignment);
 }
 
-void
+ASanStackFrameLayout
 ComputeASanStackFrameLayout(SmallVectorImpl<ASanStackVariableDescription> &Vars,
-                            size_t Granularity, size_t MinHeaderSize,
-                            ASanStackFrameLayout *Layout) {
+                            size_t Granularity, size_t MinHeaderSize) {
   assert(Granularity >= 8 && Granularity <= 64 &&
          (Granularity & (Granularity - 1)) == 0);
   assert(MinHeaderSize >= 16 && (MinHeaderSize & (MinHeaderSize - 1)) == 0 &&
          MinHeaderSize >= Granularity);
-  size_t NumVars = Vars.size();
+  const size_t NumVars = Vars.size();
   assert(NumVars > 0);
   for (size_t i = 0; i < NumVars; i++)
     Vars[i].Alignment = std::max(Vars[i].Alignment, kMinAlignment);
 
   std::stable_sort(Vars.begin(), Vars.end(), CompareVars);
-  SmallString<2048> StackDescriptionStorage;
-  raw_svector_ostream StackDescription(StackDescriptionStorage);
-  StackDescription << NumVars;
-  Layout->FrameAlignment = std::max(Granularity, Vars[0].Alignment);
-  SmallVector<uint8_t, 64> &SB(Layout->ShadowBytes);
-  SB.clear();
+
+  ASanStackFrameLayout Layout;
+  Layout.Granularity = Granularity;
+  Layout.FrameAlignment = std::max(Granularity, Vars[0].Alignment);
   size_t Offset = std::max(std::max(MinHeaderSize, Granularity),
      Vars[0].Alignment);
   assert((Offset % Granularity) == 0);
-  SB.insert(SB.end(), Offset / Granularity, kAsanStackLeftRedzoneMagic);
   for (size_t i = 0; i < NumVars; i++) {
     bool IsLast = i == NumVars - 1;
     size_t Alignment = std::max(Granularity, Vars[i].Alignment);
     (void)Alignment;  // Used only in asserts.
     size_t Size = Vars[i].Size;
-    const char *Name = Vars[i].Name;
     assert((Alignment & (Alignment - 1)) == 0);
-    assert(Layout->FrameAlignment >= Alignment);
+    assert(Layout.FrameAlignment >= Alignment);
     assert((Offset % Alignment) == 0);
     assert(Size > 0);
-    StackDescription << " " << Offset << " " << Size << " " << strlen(Name)
-                     << " " << Name;
     size_t NextAlignment = IsLast ? Granularity
                    : std::max(Granularity, Vars[i + 1].Alignment);
-    size_t SizeWithRedzone = VarAndRedzoneSize(Vars[i].Size, NextAlignment);
-    SB.insert(SB.end(), Size / Granularity, 0);
-    if (Size % Granularity)
-      SB.insert(SB.end(), Size % Granularity);
-    SB.insert(SB.end(), (SizeWithRedzone - Size) / Granularity,
-        IsLast ? kAsanStackRightRedzoneMagic
-        : kAsanStackMidRedzoneMagic);
+    size_t SizeWithRedzone = VarAndRedzoneSize(Size, Granularity,
+                                               NextAlignment);
     Vars[i].Offset = Offset;
     Offset += SizeWithRedzone;
   }
   if (Offset % MinHeaderSize) {
-    size_t ExtraRedzone = MinHeaderSize - (Offset % MinHeaderSize);
-    SB.insert(SB.end(), ExtraRedzone / Granularity,
-              kAsanStackRightRedzoneMagic);
-    Offset += ExtraRedzone;
+    Offset += MinHeaderSize - (Offset % MinHeaderSize);
   }
-  Layout->DescriptionString = StackDescription.str();
-  Layout->FrameSize = Offset;
-  assert((Layout->FrameSize % MinHeaderSize) == 0);
-  assert(Layout->FrameSize / Granularity == Layout->ShadowBytes.size());
+  Layout.FrameSize = Offset;
+  assert((Layout.FrameSize % MinHeaderSize) == 0);
+  return Layout;
+}
+
+SmallString<64> ComputeASanStackFrameDescription(
+    const SmallVectorImpl<ASanStackVariableDescription> &Vars) {
+  SmallString<2048> StackDescriptionStorage;
+  raw_svector_ostream StackDescription(StackDescriptionStorage);
+  StackDescription << Vars.size();
+
+  for (const auto &Var : Vars) {
+    std::string Name = Var.Name;
+    if (Var.Line) {
+      Name += ":";
+      Name += to_string(Var.Line);
+    }
+    StackDescription << " " << Var.Offset << " " << Var.Size << " "
+                     << Name.size() << " " << Name;
+  }
+  return StackDescription.str();
+}
+
+SmallVector<uint8_t, 64>
+GetShadowBytes(const SmallVectorImpl<ASanStackVariableDescription> &Vars,
+               const ASanStackFrameLayout &Layout) {
+  assert(Vars.size() > 0);
+  SmallVector<uint8_t, 64> SB;
+  SB.clear();
+  const size_t Granularity = Layout.Granularity;
+  SB.resize(Vars[0].Offset / Granularity, kAsanStackLeftRedzoneMagic);
+  for (const auto &Var : Vars) {
+    SB.resize(Var.Offset / Granularity, kAsanStackMidRedzoneMagic);
+
+    SB.resize(SB.size() + Var.Size / Granularity, 0);
+    if (Var.Size % Granularity)
+      SB.push_back(Var.Size % Granularity);
+  }
+  SB.resize(Layout.FrameSize / Granularity, kAsanStackRightRedzoneMagic);
+  return SB;
+}
+
+SmallVector<uint8_t, 64> GetShadowBytesAfterScope(
+    const SmallVectorImpl<ASanStackVariableDescription> &Vars,
+    const ASanStackFrameLayout &Layout) {
+  SmallVector<uint8_t, 64> SB = GetShadowBytes(Vars, Layout);
+  const size_t Granularity = Layout.Granularity;
+
+  for (const auto &Var : Vars) {
+    assert(Var.LifetimeSize <= Var.Size);
+    const size_t LifetimeShadowSize =
+        (Var.LifetimeSize + Granularity - 1) / Granularity;
+    const size_t Offset = Var.Offset / Granularity;
+    std::fill(SB.begin() + Offset, SB.begin() + Offset + LifetimeShadowSize,
+              kAsanStackUseAfterScopeMagic);
+  }
+
+  return SB;
 }
 
 } // llvm namespace

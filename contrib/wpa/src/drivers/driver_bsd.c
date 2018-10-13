@@ -47,14 +47,25 @@
 
 #include "l2_packet/l2_packet.h"
 
+struct bsd_driver_global {
+	void		*ctx;
+	int		sock;			/* socket for 802.11 ioctls */
+	int		route;			/* routing socket for events */
+	char		*event_buf;
+	size_t		event_buf_len;
+	struct dl_list	ifaces;			/* list of interfaces */
+};
+
 struct bsd_driver_data {
+	struct dl_list	list;
+	struct bsd_driver_global *global;
 	struct hostapd_data *hapd;	/* back pointer */
 
-	int	sock;			/* open socket for 802.11 ioctls */
 	struct l2_packet_data *sock_xmit;/* raw packet xmit socket */
-	int	route;			/* routing socket for events */
 	char	ifname[IFNAMSIZ+1];	/* interface name */
+	int	flags;
 	unsigned int ifindex;		/* interface index */
+	int	if_removed;		/* has the interface been removed? */
 	void	*ctx;
 	struct wpa_driver_capa capa;	/* driver capability */
 	int	is_ap;			/* Access point mode */
@@ -62,16 +73,45 @@ struct bsd_driver_data {
 	int	prev_privacy;	/* privacy state to restore on deinit */
 	int	prev_wpa;	/* wpa state to restore on deinit */
 	enum ieee80211_opmode opmode;	/* operation mode */
-	char	*event_buf;
-	size_t	event_buf_len;
 };
 
 /* Generic functions for hostapd and wpa_supplicant */
+static struct bsd_driver_data *
+bsd_get_drvindex(void *priv, unsigned int ifindex)
+{
+	struct bsd_driver_global *global = priv;
+	struct bsd_driver_data *drv;
+
+	dl_list_for_each(drv, &global->ifaces, struct bsd_driver_data, list) {
+		if (drv->ifindex == ifindex)
+			return drv;
+	}
+	return NULL;
+}
+
+#ifndef HOSTAPD
+static struct bsd_driver_data *
+bsd_get_drvname(void *priv, const char *ifname)
+{
+	struct bsd_driver_global *global = priv;
+	struct bsd_driver_data *drv;
+
+	dl_list_for_each(drv, &global->ifaces, struct bsd_driver_data, list) {
+		if (os_strcmp(drv->ifname, ifname) == 0)
+			return drv;
+	}
+	return NULL;
+}
+#endif /* HOSTAPD */
+
 static int
 bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
 {
 	struct bsd_driver_data *drv = priv;
 	struct ieee80211req ireq;
+
+	if (drv->ifindex == 0 || drv->if_removed)
+		return -1;
 
 	os_memset(&ireq, 0, sizeof(ireq));
 	os_strlcpy(ireq.i_name, drv->ifname, sizeof(ireq.i_name));
@@ -80,7 +120,7 @@ bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
 	ireq.i_data = (void *) arg;
 	ireq.i_len = arg_len;
 
-	if (ioctl(drv->sock, SIOCS80211, &ireq) < 0) {
+	if (ioctl(drv->global->sock, SIOCS80211, &ireq) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, val=%u, "
 			   "arg_len=%u]: %s", op, val, arg_len,
 			   strerror(errno));
@@ -101,7 +141,7 @@ bsd_get80211(void *priv, struct ieee80211req *ireq, int op, void *arg,
 	ireq->i_len = arg_len;
 	ireq->i_data = arg;
 
-	if (ioctl(drv->sock, SIOCG80211, ireq) < 0) {
+	if (ioctl(drv->global->sock, SIOCG80211, ireq) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, "
 			   "arg_len=%u]: %s", op, arg_len, strerror(errno));
 		return -1;
@@ -142,7 +182,7 @@ bsd_get_ssid(void *priv, u8 *ssid, int len)
 	os_memset(&ifr, 0, sizeof(ifr));
 	os_strlcpy(ifr.ifr_name, drv->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (void *)&nwid;
-	if (ioctl(drv->sock, SIOCG80211NWID, &ifr) < 0 ||
+	if (ioctl(drv->global->sock, SIOCG80211NWID, &ifr) < 0 ||
 	    nwid.i_len > IEEE80211_NWID_LEN)
 		return -1;
 	os_memcpy(ssid, nwid.i_nwid, nwid.i_len);
@@ -165,7 +205,7 @@ bsd_set_ssid(void *priv, const u8 *ssid, int ssid_len)
 	os_memset(&ifr, 0, sizeof(ifr));
 	os_strlcpy(ifr.ifr_name, drv->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (void *)&nwid;
-	return ioctl(drv->sock, SIOCS80211NWID, &ifr);
+	return ioctl(drv->global->sock, SIOCS80211NWID, &ifr);
 #else
 	return set80211var(drv, IEEE80211_IOC_SSID, ssid, ssid_len);
 #endif
@@ -180,7 +220,7 @@ bsd_get_if_media(void *priv)
 	os_memset(&ifmr, 0, sizeof(ifmr));
 	os_strlcpy(ifmr.ifm_name, drv->ifname, sizeof(ifmr.ifm_name));
 
-	if (ioctl(drv->sock, SIOCGIFMEDIA, &ifmr) < 0) {
+	if (ioctl(drv->global->sock, SIOCGIFMEDIA, &ifmr) < 0) {
 		wpa_printf(MSG_ERROR, "%s: SIOCGIFMEDIA %s", __func__,
 			   strerror(errno));
 		return -1;
@@ -199,7 +239,7 @@ bsd_set_if_media(void *priv, int media)
 	os_strlcpy(ifr.ifr_name, drv->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_media = media;
 
-	if (ioctl(drv->sock, SIOCSIFMEDIA, &ifr) < 0) {
+	if (ioctl(drv->global->sock, SIOCSIFMEDIA, &ifr) < 0) {
 		wpa_printf(MSG_ERROR, "%s: SIOCSIFMEDIA %s", __func__,
 			   strerror(errno));
 		return -1;
@@ -262,11 +302,12 @@ bsd_ctrl_iface(void *priv, int enable)
 	os_memset(&ifr, 0, sizeof(ifr));
 	os_strlcpy(ifr.ifr_name, drv->ifname, sizeof(ifr.ifr_name));
 
-	if (ioctl(drv->sock, SIOCGIFFLAGS, &ifr) < 0) {
+	if (ioctl(drv->global->sock, SIOCGIFFLAGS, &ifr) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCGIFFLAGS]: %s",
 			   strerror(errno));
 		return -1;
 	}
+	drv->flags = ifr.ifr_flags;
 
 	if (enable) {
 		if (ifr.ifr_flags & IFF_UP)
@@ -278,12 +319,13 @@ bsd_ctrl_iface(void *priv, int enable)
 		ifr.ifr_flags &= ~IFF_UP;
 	}
 
-	if (ioctl(drv->sock, SIOCSIFFLAGS, &ifr) < 0) {
+	if (ioctl(drv->global->sock, SIOCSIFFLAGS, &ifr) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCSIFFLAGS]: %s",
 			   strerror(errno));
 		return -1;
 	}
 
+	drv->flags = ifr.ifr_flags;
 	return 0;
 }
 
@@ -575,7 +617,7 @@ bsd_set_freq(void *priv, struct hostapd_freq_params *freq)
 	os_memset(&creq, 0, sizeof(creq));
 	os_strlcpy(creq.i_name, drv->ifname, sizeof(creq.i_name));
 	creq.i_channel = (u_int16_t)channel;
-	return ioctl(drv->sock, SIOCS80211CHANNEL, &creq);
+	return ioctl(drv->global->sock, SIOCS80211CHANNEL, &creq);
 #else /* SIOCS80211CHANNEL */
 	return set80211param(priv, IEEE80211_IOC_CHANNEL, channel);
 #endif /* SIOCS80211CHANNEL */
@@ -729,7 +771,8 @@ bsd_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
 static void
 bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 {
-	struct bsd_driver_data *drv = ctx;
+	struct bsd_driver_global *global = sock_ctx;
+	struct bsd_driver_data *drv;
 	struct if_announcemsghdr *ifan;
 	struct rt_msghdr *rtm;
 	struct ieee80211_michael_event *mic;
@@ -738,7 +781,7 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 	int n;
 	union wpa_event_data data;
 
-	n = read(sock, drv->event_buf, drv->event_buf_len);
+	n = read(sock, global->event_buf, global->event_buf_len);
 	if (n < 0) {
 		if (errno != EINTR && errno != EAGAIN)
 			wpa_printf(MSG_ERROR, "%s read() failed: %s",
@@ -746,15 +789,18 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 		return;
 	}
 
-	rtm = (struct rt_msghdr *) drv->event_buf;
+	rtm = (struct rt_msghdr *) global->event_buf;
 	if (rtm->rtm_version != RTM_VERSION) {
 		wpa_printf(MSG_DEBUG, "Invalid routing message version=%d",
 			   rtm->rtm_version);
 		return;
 	}
-	ifan = (struct if_announcemsghdr *) rtm;
 	switch (rtm->rtm_type) {
 	case RTM_IEEE80211:
+		ifan = (struct if_announcemsghdr *) rtm;
+		drv = bsd_get_drvindex(global, ifan->ifan_index);
+		if (drv == NULL)
+			return;
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 		case RTM_IEEE80211_REASSOC:
@@ -810,21 +856,15 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 		return NULL;
 	}
 
-	drv->event_buf_len = rtbuf_len();
-
-	drv->event_buf = os_malloc(drv->event_buf_len);
-	if (drv->event_buf == NULL) {
-		wpa_printf(MSG_ERROR, "%s: os_malloc() failed", __func__);
+	drv->ifindex = if_nametoindex(params->ifname);
+	if (drv->ifindex == 0) {
+		wpa_printf(MSG_DEBUG, "%s: interface %s does not exist",
+			   __func__, params->ifname);
 		goto bad;
 	}
 
 	drv->hapd = hapd;
-	drv->sock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (drv->sock < 0) {
-		wpa_printf(MSG_ERROR, "socket[PF_INET,SOCK_DGRAM]: %s",
-			   strerror(errno));
-		goto bad;
-	}
+	drv->global = params->global_priv;
 	os_strlcpy(drv->ifname, params->ifname, sizeof(drv->ifname));
 
 	drv->sock_xmit = l2_packet_init(drv->ifname, NULL, ETH_P_EAPOL,
@@ -838,28 +878,18 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 	if (bsd_ctrl_iface(drv, 0) < 0)
 		goto bad;
 
-	drv->route = socket(PF_ROUTE, SOCK_RAW, 0);
-	if (drv->route < 0) {
-		wpa_printf(MSG_ERROR, "socket(PF_ROUTE,SOCK_RAW): %s",
-			   strerror(errno));
-		goto bad;
-	}
-	eloop_register_read_sock(drv->route, bsd_wireless_event_receive, drv,
-				 NULL);
-
 	if (bsd_set_mediaopt(drv, IFM_OMASK, IFM_IEEE80211_HOSTAP) < 0) {
 		wpa_printf(MSG_ERROR, "%s: failed to set operation mode",
 			   __func__);
 		goto bad;
 	}
 
+	dl_list_add(&drv->global->ifaces, &drv->list);
+
 	return drv;
 bad:
 	if (drv->sock_xmit != NULL)
 		l2_packet_deinit(drv->sock_xmit);
-	if (drv->sock >= 0)
-		close(drv->sock);
-	os_free(drv->event_buf);
 	os_free(drv);
 	return NULL;
 }
@@ -870,16 +900,10 @@ bsd_deinit(void *priv)
 {
 	struct bsd_driver_data *drv = priv;
 
-	if (drv->route >= 0) {
-		eloop_unregister_read_sock(drv->route);
-		close(drv->route);
-	}
-	bsd_ctrl_iface(drv, 0);
-	if (drv->sock >= 0)
-		close(drv->sock);
+	if (drv->ifindex != 0)
+		bsd_ctrl_iface(drv, 0);
 	if (drv->sock_xmit != NULL)
 		l2_packet_deinit(drv->sock_xmit);
-	os_free(drv->event_buf);
 	os_free(drv);
 }
 
@@ -931,7 +955,7 @@ wpa_driver_bsd_get_bssid(void *priv, u8 *bssid)
 	struct ieee80211_bssid bs;
 
 	os_strlcpy(bs.i_name, drv->ifname, sizeof(bs.i_name));
-	if (ioctl(drv->sock, SIOCG80211BSSID, &bs) < 0)
+	if (ioctl(drv->global->sock, SIOCG80211BSSID, &bs) < 0)
 		return -1;
 	os_memcpy(bssid, bs.i_bssid, sizeof(bs.i_bssid));
 	return 0;
@@ -965,7 +989,7 @@ wpa_driver_bsd_set_wpa_internal(void *priv, int wpa, int privacy)
 	int ret = 0;
 
 	wpa_printf(MSG_DEBUG, "%s: wpa=%d privacy=%d",
-		__FUNCTION__, wpa, privacy);
+		__func__, wpa, privacy);
 
 	if (!wpa && wpa_driver_bsd_set_wpa_ie(priv, NULL, 0) < 0)
 		ret = -1;
@@ -980,7 +1004,7 @@ wpa_driver_bsd_set_wpa_internal(void *priv, int wpa, int privacy)
 static int
 wpa_driver_bsd_set_wpa(void *priv, int enabled)
 {
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, enabled);
 
 	return wpa_driver_bsd_set_wpa_internal(priv, enabled ? 3 : 0, enabled);
 }
@@ -1199,7 +1223,8 @@ wpa_driver_bsd_scan(void *priv, struct wpa_driver_scan_params *params)
 static void
 wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 {
-	struct bsd_driver_data *drv = sock_ctx;
+	struct bsd_driver_global *global = sock_ctx;
+	struct bsd_driver_data *drv;
 	struct if_announcemsghdr *ifan;
 	struct if_msghdr *ifm;
 	struct rt_msghdr *rtm;
@@ -1209,7 +1234,12 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 	struct ieee80211_join_event *join;
 	int n;
 
-	n = read(sock, drv->event_buf, drv->event_buf_len);
+	/*
+	 * CID 1394785: Memory - illegal access (STRING_NULL):
+	 * Though global->event_buf is a char *, it actually contains
+	 * a struct rt_msghdr *. See below.
+	 */
+	n = read(sock, global->event_buf, global->event_buf_len);
 	if (n < 0) {
 		if (errno != EINTR && errno != EAGAIN)
 			wpa_printf(MSG_ERROR, "%s read() failed: %s",
@@ -1217,7 +1247,11 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 		return;
 	}
 
-	rtm = (struct rt_msghdr *) drv->event_buf;
+	/*
+	 * CID 1394785: global->event_buf is assigned here to a
+	 * struct rt_msghdr *.
+	 */
+	rtm = (struct rt_msghdr *) global->event_buf;
 	if (rtm->rtm_version != RTM_VERSION) {
 		wpa_printf(MSG_DEBUG, "Invalid routing message version=%d",
 			   rtm->rtm_version);
@@ -1227,53 +1261,79 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 	switch (rtm->rtm_type) {
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *) rtm;
-		if (ifan->ifan_index != drv->ifindex)
-			break;
-		os_strlcpy(event.interface_status.ifname, drv->ifname,
-			   sizeof(event.interface_status.ifname));
 		switch (ifan->ifan_what) {
 		case IFAN_DEPARTURE:
+			drv = bsd_get_drvindex(global, ifan->ifan_index);
+			if (drv)
+				drv->if_removed = 1;
 			event.interface_status.ievent = EVENT_INTERFACE_REMOVED;
+			break;
+		case IFAN_ARRIVAL:
+			drv = bsd_get_drvname(global, ifan->ifan_name);
+			if (drv) {
+				drv->ifindex = ifan->ifan_index;
+				drv->if_removed = 0;
+			}
+			event.interface_status.ievent = EVENT_INTERFACE_ADDED;
+			break;
 		default:
+			wpa_printf(MSG_DEBUG, "RTM_IFANNOUNCE: unknown action");
 			return;
 		}
 		wpa_printf(MSG_DEBUG, "RTM_IFANNOUNCE: Interface '%s' %s",
-			   event.interface_status.ifname,
+			   ifan->ifan_name,
 			   ifan->ifan_what == IFAN_DEPARTURE ?
 				"removed" : "added");
-		wpa_supplicant_event(ctx, EVENT_INTERFACE_STATUS, &event);
+		os_strlcpy(event.interface_status.ifname, ifan->ifan_name,
+			   sizeof(event.interface_status.ifname));
+		if (drv) {
+			wpa_supplicant_event(drv->ctx, EVENT_INTERFACE_STATUS,
+					     &event);
+			/*
+			 * Set ifindex to zero after sending the event as the
+			 * event might query the driver to ensure a match.
+			 */
+			if (ifan->ifan_what == IFAN_DEPARTURE)
+				drv->ifindex = 0;
+		} else {
+			wpa_supplicant_event_global(global->ctx,
+						    EVENT_INTERFACE_STATUS,
+						    &event);
+		}
 		break;
 	case RTM_IEEE80211:
 		ifan = (struct if_announcemsghdr *) rtm;
-		if (ifan->ifan_index != drv->ifindex)
-			break;
+		drv = bsd_get_drvindex(global, ifan->ifan_index);
+		if (drv == NULL)
+			return;
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 		case RTM_IEEE80211_REASSOC:
 			if (drv->is_ap)
 				break;
-			wpa_supplicant_event(ctx, EVENT_ASSOC, NULL);
+			wpa_supplicant_event(drv->ctx, EVENT_ASSOC, NULL);
 			break;
 		case RTM_IEEE80211_DISASSOC:
 			if (drv->is_ap)
 				break;
-			wpa_supplicant_event(ctx, EVENT_DISASSOC, NULL);
+			wpa_supplicant_event(drv->ctx, EVENT_DISASSOC, NULL);
 			break;
 		case RTM_IEEE80211_SCAN:
 			if (drv->is_ap)
 				break;
-			wpa_supplicant_event(ctx, EVENT_SCAN_RESULTS, NULL);
+			wpa_supplicant_event(drv->ctx, EVENT_SCAN_RESULTS,
+					     NULL);
 			break;
 		case RTM_IEEE80211_LEAVE:
 			leave = (struct ieee80211_leave_event *) &ifan[1];
-			drv_event_disassoc(ctx, leave->iev_addr);
+			drv_event_disassoc(drv->ctx, leave->iev_addr);
 			break;
 		case RTM_IEEE80211_JOIN:
 #ifdef RTM_IEEE80211_REJOIN
 		case RTM_IEEE80211_REJOIN:
 #endif
 			join = (struct ieee80211_join_event *) &ifan[1];
-			bsd_new_sta(drv, ctx, join->iev_addr);
+			bsd_new_sta(drv, drv->ctx, join->iev_addr);
 			break;
 		case RTM_IEEE80211_REPLAY:
 			/* ignore */
@@ -1288,23 +1348,30 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 			os_memset(&event, 0, sizeof(event));
 			event.michael_mic_failure.unicast =
 				!IEEE80211_IS_MULTICAST(mic->iev_dst);
-			wpa_supplicant_event(ctx, EVENT_MICHAEL_MIC_FAILURE,
-				&event);
+			wpa_supplicant_event(drv->ctx,
+					     EVENT_MICHAEL_MIC_FAILURE, &event);
 			break;
 		}
 		break;
 	case RTM_IFINFO:
 		ifm = (struct if_msghdr *) rtm;
-		if (ifm->ifm_index != drv->ifindex)
-			break;
-		if ((rtm->rtm_flags & RTF_UP) == 0) {
-			os_strlcpy(event.interface_status.ifname, drv->ifname,
-				   sizeof(event.interface_status.ifname));
-			event.interface_status.ievent = EVENT_INTERFACE_REMOVED;
+		drv = bsd_get_drvindex(global, ifm->ifm_index);
+		if (drv == NULL)
+			return;
+		if ((ifm->ifm_flags & IFF_UP) == 0 &&
+		    (drv->flags & IFF_UP) != 0) {
 			wpa_printf(MSG_DEBUG, "RTM_IFINFO: Interface '%s' DOWN",
-				   event.interface_status.ifname);
-			wpa_supplicant_event(ctx, EVENT_INTERFACE_STATUS, &event);
+				   drv->ifname);
+			wpa_supplicant_event(drv->ctx, EVENT_INTERFACE_DISABLED,
+					     NULL);
+		} else if ((ifm->ifm_flags & IFF_UP) != 0 &&
+		    (drv->flags & IFF_UP) == 0) {
+			wpa_printf(MSG_DEBUG, "RTM_IFINFO: Interface '%s' UP",
+				   drv->ifname);
+			wpa_supplicant_event(drv->ctx, EVENT_INTERFACE_ENABLED,
+					     NULL);
 		}
+		drv->flags = ifm->ifm_flags;
 		break;
 	}
 }
@@ -1331,11 +1398,16 @@ wpa_driver_bsd_add_scan_entry(struct wpa_scan_results *res,
 	result->caps = sr->isr_capinfo;
 	result->qual = sr->isr_rssi;
 	result->noise = sr->isr_noise;
+
+#ifdef __FreeBSD__
 	/*
 	 * the rssi value reported by the kernel is in 0.5dB steps relative to
 	 * the reported noise floor. see ieee80211_node.h for details.
 	 */
 	result->level = sr->isr_rssi / 2 + sr->isr_noise;
+#else
+	result->level = sr->isr_rssi;
+#endif
 
 	pos = (u8 *)(result + 1);
 
@@ -1502,7 +1574,7 @@ get80211opmode(struct bsd_driver_data *drv)
 	(void) memset(&ifmr, 0, sizeof(ifmr));
 	(void) os_strlcpy(ifmr.ifm_name, drv->ifname, sizeof(ifmr.ifm_name));
 
-	if (ioctl(drv->sock, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
+	if (ioctl(drv->global->sock, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
 		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC) {
 			if (ifmr.ifm_current & IFM_FLAG0)
 				return IEEE80211_M_AHDEMO;
@@ -1524,7 +1596,7 @@ get80211opmode(struct bsd_driver_data *drv)
 }
 
 static void *
-wpa_driver_bsd_init(void *ctx, const char *ifname)
+wpa_driver_bsd_init(void *ctx, const char *ifname, void *priv)
 {
 #define	GETPARAM(drv, param, v) \
 	(((v) = get80211param(drv, param)) != -1)
@@ -1533,14 +1605,6 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	drv = os_zalloc(sizeof(*drv));
 	if (drv == NULL)
 		return NULL;
-
-	drv->event_buf_len = rtbuf_len();
-
-	drv->event_buf = os_malloc(drv->event_buf_len);
-	if (drv->event_buf == NULL) {
-		wpa_printf(MSG_ERROR, "%s: os_malloc() failed", __func__);
-		goto fail1;
-	}
 
 	/*
 	 * NB: We require the interface name be mappable to an index.
@@ -1552,24 +1616,12 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	if (drv->ifindex == 0) {
 		wpa_printf(MSG_DEBUG, "%s: interface %s does not exist",
 			   __func__, ifname);
-		goto fail1;
+		goto fail;
 	}
-	drv->sock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (drv->sock < 0)
-		goto fail1;
-
-	os_strlcpy(drv->ifname, ifname, sizeof(drv->ifname));
-	/* Down interface during setup. */
-	if (bsd_ctrl_iface(drv, 0) < 0)
-		goto fail;
-
-	drv->route = socket(PF_ROUTE, SOCK_RAW, 0);
-	if (drv->route < 0)
-		goto fail;
-	eloop_register_read_sock(drv->route,
-		wpa_driver_bsd_event_receive, ctx, drv);
 
 	drv->ctx = ctx;
+	drv->global = priv;
+	os_strlcpy(drv->ifname, ifname, sizeof(drv->ifname));
 
 	if (!GETPARAM(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming)) {
 		wpa_printf(MSG_DEBUG, "%s: failed to get roaming state: %s",
@@ -1590,13 +1642,15 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	if (wpa_driver_bsd_capa(drv))
 		goto fail;
 
+	/* Down interface during setup. */
+	if (bsd_ctrl_iface(drv, 0) < 0)
+		goto fail;
+
 	drv->opmode = get80211opmode(drv);
+	dl_list_add(&drv->global->ifaces, &drv->list);
 
 	return drv;
 fail:
-	close(drv->sock);
-fail1:
-	os_free(drv->event_buf);
 	os_free(drv);
 	return NULL;
 #undef GETPARAM
@@ -1607,22 +1661,25 @@ wpa_driver_bsd_deinit(void *priv)
 {
 	struct bsd_driver_data *drv = priv;
 
-	wpa_driver_bsd_set_wpa(drv, 0);
-	eloop_unregister_read_sock(drv->route);
+	if (drv->ifindex != 0 && !drv->if_removed) {
+		wpa_driver_bsd_set_wpa(drv, 0);
 
-	/* NB: mark interface down */
-	bsd_ctrl_iface(drv, 0);
+		/* NB: mark interface down */
+		bsd_ctrl_iface(drv, 0);
 
-	wpa_driver_bsd_set_wpa_internal(drv, drv->prev_wpa, drv->prev_privacy);
-	if (set80211param(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming) < 0)
-		wpa_printf(MSG_DEBUG, "%s: failed to restore roaming state",
-			__func__);
+		wpa_driver_bsd_set_wpa_internal(drv, drv->prev_wpa,
+						drv->prev_privacy);
+
+		if (set80211param(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming)
+		    < 0)
+			wpa_printf(MSG_DEBUG,
+				   "%s: failed to restore roaming state",
+				   __func__);
+	}
 
 	if (drv->sock_xmit != NULL)
 		l2_packet_deinit(drv->sock_xmit);
-	(void) close(drv->route);		/* ioctl socket */
-	(void) close(drv->sock);		/* event socket */
-	os_free(drv->event_buf);
+	dl_list_del(&drv->list);
 	os_free(drv);
 }
 
@@ -1636,10 +1693,74 @@ wpa_driver_bsd_get_capa(void *priv, struct wpa_driver_capa *capa)
 }
 #endif /* HOSTAPD */
 
+static void *
+bsd_global_init(void *ctx)
+{
+	struct bsd_driver_global *global;
+
+	global = os_zalloc(sizeof(*global));
+	if (global == NULL)
+		return NULL;
+
+	global->ctx = ctx;
+	dl_list_init(&global->ifaces);
+
+	global->sock = socket(PF_INET, SOCK_DGRAM, 0);
+	if (global->sock < 0) {
+		wpa_printf(MSG_ERROR, "socket[PF_INET,SOCK_DGRAM]: %s",
+			   strerror(errno));
+		goto fail1;
+	}
+
+	global->route = socket(PF_ROUTE, SOCK_RAW, 0);
+	if (global->route < 0) {
+		wpa_printf(MSG_ERROR, "socket[PF_ROUTE,SOCK_RAW]: %s",
+			   strerror(errno));
+		goto fail;
+	}
+
+	global->event_buf_len = rtbuf_len();
+	global->event_buf = os_malloc(global->event_buf_len);
+	if (global->event_buf == NULL) {
+		wpa_printf(MSG_ERROR, "%s: os_malloc() failed", __func__);
+		goto fail;
+	}
+
+#ifdef HOSTAPD
+	eloop_register_read_sock(global->route, bsd_wireless_event_receive,
+				 NULL, global);
+
+#else /* HOSTAPD */
+	eloop_register_read_sock(global->route, wpa_driver_bsd_event_receive,
+				 NULL, global);
+#endif /* HOSTAPD */
+
+	return global;
+
+fail:
+	close(global->sock);
+fail1:
+	os_free(global);
+	return NULL;
+}
+
+static void
+bsd_global_deinit(void *priv)
+{
+	struct bsd_driver_global *global = priv;
+
+	eloop_unregister_read_sock(global->route);
+	(void) close(global->route);
+	(void) close(global->sock);
+	os_free(global);
+}
+
 
 const struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.name			= "bsd",
 	.desc			= "BSD 802.11 support",
+	.global_init		= bsd_global_init,
+	.global_deinit		= bsd_global_deinit,
 #ifdef HOSTAPD
 	.hapd_init		= bsd_init,
 	.hapd_deinit		= bsd_deinit,
@@ -1652,7 +1773,7 @@ const struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.sta_set_flags		= bsd_set_sta_authorized,
 	.commit			= bsd_commit,
 #else /* HOSTAPD */
-	.init			= wpa_driver_bsd_init,
+	.init2			= wpa_driver_bsd_init,
 	.deinit			= wpa_driver_bsd_deinit,
 	.get_bssid		= wpa_driver_bsd_get_bssid,
 	.get_ssid		= wpa_driver_bsd_get_ssid,

@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -451,15 +453,12 @@ dbg_monitor_init(void)
 {
 	u_int i;
 
-	/* Clear OS lock */
-	WRITE_SPECIALREG(OSLAR_EL1, 0);
-
 	/* Find out many breakpoints and watchpoints we can use */
 	dbg_watchpoint_num = ((READ_SPECIALREG(ID_AA64DFR0_EL1) >> 20) & 0xf) + 1;
 	dbg_breakpoint_num = ((READ_SPECIALREG(ID_AA64DFR0_EL1) >> 12) & 0xf) + 1;
 
 	if (bootverbose && PCPU_GET(cpuid) == 0) {
-		db_printf("%d watchpoints and %d breakpoints supported\n",
+		printf("%d watchpoints and %d breakpoints supported\n",
 		    dbg_watchpoint_num, dbg_breakpoint_num);
 	}
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2012 Semihalf.
  * All rights reserved.
  *
@@ -39,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
+#include <machine/_inttypes.h>
 #include <machine/machdep.h>
+#include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -53,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -63,10 +68,21 @@ extern void *ap_pcpu;
 extern vm_paddr_t kernload;		/* Kernel physical load address */
 extern uint8_t __boot_page[];		/* Boot page body */
 extern uint32_t bp_kernload;
+
+struct cpu_release {
+	uint32_t entry_h;
+	uint32_t entry_l;
+	uint32_t r3_h;
+	uint32_t r3_l;
+	uint32_t reserved;
+	uint32_t pir;
+};
 #endif
 
 extern uint32_t *bootinfo;
+vm_paddr_t ccsrbar_pa;
 vm_offset_t ccsrbar_va;
+vm_size_t ccsrbar_size;
 
 static int cpu, maxcpu;
 
@@ -78,8 +94,7 @@ static int mpc85xx_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_start_cpu(platform_t, struct pcpu *cpu);
-static void mpc85xx_idle(platform_t, int cpu);
-static int mpc85xx_idle_wakeup(platform_t plat, int cpu);
+static void mpc85xx_smp_timebase_sync(platform_t, u_long tb, int ap);
 
 static void mpc85xx_reset(platform_t);
 
@@ -93,10 +108,9 @@ static platform_method_t mpc85xx_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	mpc85xx_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	mpc85xx_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	mpc85xx_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_timebase_sync, mpc85xx_smp_timebase_sync),
 
 	PLATFORMMETHOD(platform_reset,		mpc85xx_reset),
-	PLATFORMMETHOD(platform_idle,		mpc85xx_idle),
-	PLATFORMMETHOD(platform_idle_wakeup,	mpc85xx_idle_wakeup),
 
 	PLATFORMMETHOD_END
 };
@@ -108,11 +122,16 @@ PLATFORM_DEF(mpc85xx_platform);
 static int
 mpc85xx_probe(platform_t plat)
 {
-	u_int pvr = mfpvr() >> 16;
+	u_int pvr = (mfpvr() >> 16) & 0xFFFF;
 
-	if ((pvr & 0xfff0) == FSL_E500v1)
-		return (BUS_PROBE_DEFAULT);
-
+	switch (pvr) {
+		case FSL_E500v1:
+		case FSL_E500v2:
+		case FSL_E500mc:
+		case FSL_E5500:
+		case FSL_E6500:
+			return (BUS_PROBE_DEFAULT);
+	}
 	return (ENXIO);
 }
 
@@ -123,9 +142,8 @@ mpc85xx_attach(platform_t plat)
 	const char *soc_name_guesses[] = {"/soc", "soc", NULL};
 	const char **name;
 	pcell_t ranges[6], acells, pacells, scells;
-	uint32_t sr;
 	uint64_t ccsrbar, ccsrsize;
-	int i, law_max, tgt;
+	int i;
 
 	if ((cpus = OF_finddevice("/cpus")) != -1) {
 		for (maxcpu = 0, child = OF_child(cpus); child != 0;
@@ -178,26 +196,10 @@ mpc85xx_attach(platform_t plat)
 		ccsrsize |= ranges[i];
 	}
 	ccsrbar_va = pmap_early_io_map(ccsrbar, ccsrsize);
+	ccsrbar_pa = ccsrbar;
+	ccsrbar_size = ccsrsize;
 
-	mpc85xx_fix_errata(ccsrbar_va);
 	mpc85xx_enable_l3_cache();
-
-	/*
-	 * Clear local access windows. Skip DRAM entries, so we don't shoot
-	 * ourselves in the foot.
-	 */
-	law_max = law_getmax();
-	for (i = 0; i < law_max; i++) {
-		sr = ccsr_read4(OCP85XX_LAWSR(i));
-		if ((sr & OCP85XX_ENA_MASK) == 0)
-			continue;
-		tgt = (sr & 0x01f00000) >> 20;
-		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
-		    tgt == OCP85XX_TGTIF_RAM_INTL)
-			continue;
-
-		ccsr_write4(OCP85XX_LAWSR(i), sr & OCP85XX_DIS_MASK);
-	}
 
 	return (0);
 }
@@ -258,16 +260,17 @@ mpc85xx_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	    sizeof(freq)) <= 0)
 		goto out;
 
+	if (freq == 0)
+		goto out;
+
 	/*
 	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
 	 * HID0[SEL_TBCLK] = 0
 	 */
-	if (freq != 0)
-#ifdef QORIQ_DPAA
+	if (mpc85xx_is_qoriq())
 		ticks = freq / 32;
-#else
+	else
 		ticks = freq / 8;
-#endif
 
 out:
 	if (ticks <= 0)
@@ -315,6 +318,51 @@ mpc85xx_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	return (0);
 }
 
+#ifdef SMP
+static int
+mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
+{
+	vm_paddr_t rel_pa, bptr;
+	volatile struct cpu_release *rel;
+	vm_offset_t rel_va, rel_page;
+	phandle_t node;
+	int i;
+
+	/* If we're calling this, the node already exists. */
+	node = OF_finddevice("/cpus");
+	for (i = 0, node = OF_child(node); i < pc->pc_cpuid;
+	    i++, node = OF_peer(node))
+		;
+	if (OF_getencprop(node, "cpu-release-addr", (pcell_t *)&rel_pa,
+	    sizeof(rel_pa)) == -1) {
+		return (ENOENT);
+	}
+
+	rel_page = kva_alloc(PAGE_SIZE);
+	if (rel_page == 0)
+		return (ENOMEM);
+
+	critical_enter();
+	rel_va = rel_page + (rel_pa & PAGE_MASK);
+	pmap_kenter(rel_page, rel_pa & ~PAGE_MASK);
+	rel = (struct cpu_release *)rel_va;
+	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
+	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
+	rel->pir = pc->pc_cpuid; __asm __volatile("sync");
+	rel->entry_h = (bptr >> 32);
+	rel->entry_l = bptr; __asm __volatile("sync");
+	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
+	if (bootverbose)
+		printf("Waking up CPU %d via CPU release page %p\n",
+		    pc->pc_cpuid, rel);
+	critical_exit();
+	pmap_kremove(rel_page);
+	kva_free(rel_page, PAGE_SIZE);
+
+	return (0);
+}
+#endif
+
 static int
 mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
@@ -324,24 +372,39 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	int timeout;
 	uintptr_t brr;
 	int cpuid;
-
-#ifdef QORIQ_DPAA
+	int epapr_boot = 0;
 	uint32_t tgt;
 
-	reg = ccsr_read4(OCP85XX_COREDISR);
-	cpuid = pc->pc_cpuid;
+	if (mpc85xx_is_qoriq()) {
+		reg = ccsr_read4(OCP85XX_COREDISR);
+		cpuid = pc->pc_cpuid;
 
-	if ((reg & cpuid) != 0) {
-		printf("%s: CPU %d is disabled!\n", __func__, pc->pc_cpuid);
-		return (-1);
+		if ((reg & (1 << cpuid)) != 0) {
+		    printf("%s: CPU %d is disabled!\n", __func__, pc->pc_cpuid);
+		    return (-1);
+		}
+
+		brr = OCP85XX_BRR;
+	} else {
+		brr = OCP85XX_EEBPCR;
+		cpuid = pc->pc_cpuid + 24;
+	}
+	bp_kernload = kernload;
+	/*
+	 * bp_kernload is in the boot page.  Sync the cache because ePAPR
+	 * booting has the other core(s) already running.
+	 */
+	cpu_flush_dcache(&bp_kernload, sizeof(bp_kernload));
+
+	ap_pcpu = pc;
+	__asm __volatile("msync; isync");
+
+	/* First try the ePAPR way. */
+	if (mpc85xx_smp_start_cpu_epapr(plat, pc) == 0) {
+		epapr_boot = 1;
+		goto spin_wait;
 	}
 
-	brr = OCP85XX_BRR;
-#else /* QORIQ_DPAA */
-	brr = OCP85XX_EEBPCR;
-	cpuid = pc->pc_cpuid + 24;
-#endif
-	bp_kernload = kernload;
 	reg = ccsr_read4(brr);
 	if ((reg & (1 << cpuid)) != 0) {
 		printf("SMP: CPU %d already out of hold-off state!\n",
@@ -349,64 +412,58 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 		return (ENXIO);
 	}
 
-	ap_pcpu = pc;
-	__asm __volatile("msync; isync");
-
 	/* Flush caches to have our changes hit DRAM. */
 	cpu_flush_dcache(__boot_page, 4096);
 
 	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
 	KASSERT((bptr & 0xfff) == 0,
 	    ("%s: boot page is not aligned (%#jx)", __func__, (uintmax_t)bptr));
-#ifdef QORIQ_DPAA
+	if (mpc85xx_is_qoriq()) {
+		/*
+		 * Read DDR controller configuration to select proper BPTR target ID.
+		 *
+		 * On P5020 bit 29 of DDR1_CS0_CONFIG enables DDR controllers
+		 * interleaving. If this bit is set, we have to use
+		 * OCP85XX_TGTIF_RAM_INTL as BPTR target ID. On other QorIQ DPAA SoCs,
+		 * this bit is reserved and always 0.
+		 */
 
-	/*
-	 * Read DDR controller configuration to select proper BPTR target ID.
-	 *
-	 * On P5020 bit 29 of DDR1_CS0_CONFIG enables DDR controllers
-	 * interleaving. If this bit is set, we have to use
-	 * OCP85XX_TGTIF_RAM_INTL as BPTR target ID. On other QorIQ DPAA SoCs,
-	 * this bit is reserved and always 0.
-	 */
+		reg = ccsr_read4(OCP85XX_DDR1_CS0_CONFIG);
+		if (reg & (1 << 29))
+			tgt = OCP85XX_TGTIF_RAM_INTL;
+		else
+			tgt = OCP85XX_TGTIF_RAM1;
 
-	reg = ccsr_read4(OCP85XX_DDR1_CS0_CONFIG);
-	if (reg & (1 << 29))
-		tgt = OCP85XX_TGTIF_RAM_INTL;
-	else
-		tgt = OCP85XX_TGTIF_RAM1;
+		/*
+		 * Set BSTR to the physical address of the boot page
+		 */
+		ccsr_write4(OCP85XX_BSTRH, bptr >> 32);
+		ccsr_write4(OCP85XX_BSTRL, bptr);
+		ccsr_write4(OCP85XX_BSTAR, OCP85XX_ENA_MASK |
+		    (tgt << OCP85XX_TRGT_SHIFT_QORIQ) | (ffsl(PAGE_SIZE) - 2));
 
-	/*
-	 * Set BSTR to the physical address of the boot page
-	 */
-	ccsr_write4(OCP85XX_BSTRH, bptr >> 32);
-	ccsr_write4(OCP85XX_BSTRL, bptr);
-	ccsr_write4(OCP85XX_BSTAR, OCP85XX_ENA_MASK |
-	    (tgt << OCP85XX_TRGT_SHIFT) | (ffsl(PAGE_SIZE) - 2));
+		/* Read back OCP85XX_BSTAR to synchronize write */
+		ccsr_read4(OCP85XX_BSTAR);
 
-	/* Read back OCP85XX_BSTAR to synchronize write */
-	ccsr_read4(OCP85XX_BSTAR);
+		/*
+		 * Enable and configure time base on new CPU.
+		 */
 
-	/*
-	 * Enable and configure time base on new CPU.
-	 */
+		/* Set TB clock source to platform clock / 32 */
+		reg = ccsr_read4(CCSR_CTBCKSELR);
+		ccsr_write4(CCSR_CTBCKSELR, reg & ~(1 << pc->pc_cpuid));
 
-	/* Set TB clock source to platform clock / 32 */
-	reg = ccsr_read4(CCSR_CTBCKSELR);
-	ccsr_write4(CCSR_CTBCKSELR, reg & ~(1 << pc->pc_cpuid));
-
-	/* Enable TB */
-	reg = ccsr_read4(CCSR_CTBENR);
-	ccsr_write4(CCSR_CTBENR, reg | (1 << pc->pc_cpuid));
-#else
-
-	/*
-	 * Set BPTR to the physical address of the boot page
-	 */
-	bptr = (bptr >> 12) | 0x80000000u;
-	ccsr_write4(OCP85XX_BPTR, bptr);
-	__asm __volatile("isync; msync");
-
-#endif /* QORIQ_DPAA */
+		/* Enable TB */
+		reg = ccsr_read4(CCSR_CTBENR);
+		ccsr_write4(CCSR_CTBENR, reg | (1 << pc->pc_cpuid));
+	} else {
+		/*
+		 * Set BPTR to the physical address of the boot page
+		 */
+		bptr = (bptr >> 12) | 0x80000000u;
+		ccsr_write4(OCP85XX_BPTR, bptr);
+		__asm __volatile("isync; msync");
+	}
 
 	/*
 	 * Release AP from hold-off state
@@ -415,6 +472,7 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	ccsr_write4(brr, reg | (1 << cpuid));
 	__asm __volatile("isync; msync");
 
+spin_wait:
 	timeout = 500;
 	while (!pc->pc_awake && timeout--)
 		DELAY(1000);	/* wait 1ms */
@@ -424,15 +482,16 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	 * address (= 0xfffff000) isn't permanently remapped and thus not
 	 * usable otherwise.
 	 */
-#ifdef QORIQ_DPAA
-	ccsr_write4(OCP85XX_BSTAR, 0);
-#else
-	ccsr_write4(OCP85XX_BPTR, 0);
-#endif
-	__asm __volatile("isync; msync");
+	if (!epapr_boot) {
+		if (mpc85xx_is_qoriq())
+			ccsr_write4(OCP85XX_BSTAR, 0);
+		else
+			ccsr_write4(OCP85XX_BPTR, 0);
+		__asm __volatile("isync; msync");
+	}
 
 	if (!pc->pc_awake)
-		printf("SMP: CPU %d didn't wake up.\n", pc->pc_cpuid);
+		panic("SMP: CPU %d didn't wake up.\n", pc->pc_cpuid);
 	return ((pc->pc_awake) ? 0 : EBUSY);
 #else
 	/* No SMP support */
@@ -467,35 +526,9 @@ mpc85xx_reset(platform_t plat)
 }
 
 static void
-mpc85xx_idle(platform_t plat, int cpu)
+mpc85xx_smp_timebase_sync(platform_t plat, u_long tb, int ap)
 {
-#ifdef QORIQ_DPAA
-	uint32_t reg;
 
-	reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
-	ccsr_write4(OCP85XX_RCPM_CDOZCR, reg | (1 << cpu));
-	ccsr_read4(OCP85XX_RCPM_CDOZCR);
-#else
-	register_t msr;
-
-	msr = mfmsr();
-	/* Freescale E500 core RM section 6.4.1. */
-	__asm __volatile("msync; mtmsr %0; isync" ::
-	    "r" (msr | PSL_WE));
-#endif
+	mttb(tb);
 }
 
-static int
-mpc85xx_idle_wakeup(platform_t plat, int cpu)
-{
-#ifdef QORIQ_DPAA
-	uint32_t reg;
-
-	reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
-	ccsr_write4(OCP85XX_RCPM_CDOZCR, reg & ~(1 << cpu));
-	ccsr_read4(OCP85XX_RCPM_CDOZCR);
-
-	return (1);
-#endif
-	return (0);
-}

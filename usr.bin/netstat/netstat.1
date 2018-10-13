@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd March 22, 2018
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Bl -tag -width "netstat"
 .It Nm
 .Op Fl -libxo
-.Op Fl 46AaLnRSTWx
+.Op Fl 46AaLnPRSTWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -181,6 +181,8 @@ and the third count is the maximum number of queued connections.
 Do not resolve numeric addresses and port numbers to names.
 See
 .Sx GENERAL OPTIONS .
+.It Fl P
+Display the log ID for each socket.
 .It Fl R
 Display the flowid and flowtype for each socket.
 flowid is a 32 bit hardware specific identifier for each flow.
@@ -770,7 +772,7 @@ The following address families and protocols are recognized:
 .It Cm inet Pq Dv AF_INET
 .Cm divert , icmp , igmp , ip , ipsec , pim, sctp , tcp , udp
 .It Cm inet6 Pq Dv AF_INET6
-.Cm icmp6 , ip6 , ipsec6 , rip6 , tcp , udp
+.Cm icmp6 , ip6 , ipsec6 , rip6 , sctp , tcp , udp
 .It Cm pfkey Pq Dv PF_KEY
 .Cm pfkey
 .It Cm netgraph , ng Pq Dv AF_NETGRAPH

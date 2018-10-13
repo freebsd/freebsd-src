@@ -73,7 +73,7 @@ ldns_duration_type* ldns_duration_create(void);
  * \return int 0 if equal, -1 if d1 < d2, 1 if d2 < d1
  *
  */
-int ldns_duration_compare(ldns_duration_type* d1, ldns_duration_type* d2);
+int ldns_duration_compare(const ldns_duration_type* d1, const ldns_duration_type* d2);
 
 /**
  * Create a duration from string.
@@ -89,7 +89,7 @@ ldns_duration_type* ldns_duration_create_from_string(const char* str);
  * \return char* string-format duration
  *
  */
-char* ldns_duration2string(ldns_duration_type* duration);
+char* ldns_duration2string(const ldns_duration_type* duration);
 
 /**
  * Convert a duration to a time.
@@ -97,7 +97,7 @@ char* ldns_duration2string(ldns_duration_type* duration);
  * \return time_t time-format duration
  *
  */
-time_t ldns_duration2time(ldns_duration_type* duration);
+time_t ldns_duration2time(const ldns_duration_type* duration);
 
 /**
  * Clean up duration.

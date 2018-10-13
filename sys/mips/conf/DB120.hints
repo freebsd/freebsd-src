@@ -84,9 +84,15 @@ hint.arge.1.miimode=1		# GMII
 # MAC for arge1 is the second 6 bytes of the ART
 hint.arge.1.eeprommac=0x1f7f0006
 
-# ath0: Where the ART is - last 64k in the flash
-hint.ath.0.eepromaddr=0x1fff0000
-hint.ath.0.eepromsize=16384
+# ART calibration data mapping - for the AR934x AHB device
+hint.ar71xx_caldata.0.at="nexus0"
+hint.ar71xx_caldata.0.order=0
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
 
 # ath1: it's different; it's a PCIe attached device, so
 # we instead need to teach the PCIe bridge code about it
@@ -119,19 +125,20 @@ hint.map.1.end=0x00050000	# 64k u-boot-env
 hint.map.1.name="u-boot-env"
 hint.map.1.readonly=1
 
-# 6336KiB rootfs
+# 6336KiB rootfs + 1344KiB uImage; turn into a single long
+# combo image for FreeBSD.
+
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x00050000
-hint.map.2.end=0x00680000	# 6336k rootfs
-hint.map.2.name="rootfs"
-hint.map.2.readonly=1
+hint.map.2.end="search:0x00050000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=0
 
-# 1344KiB uImage
 hint.map.3.at="flash/spi0"
-hint.map.3.start=0x00680000
-hint.map.3.end=0x007d0000	# 1408k uImage, 64k off the end..
-hint.map.3.name="uImage"
-hint.map.3.readonly=1
+hint.map.3.start="search:0x00050000:0x10000:.!/bin/sh"
+hint.map.3.end=0x007d0000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=0
 
 # 64KiB cfg
 hint.map.4.at="flash/spi0"

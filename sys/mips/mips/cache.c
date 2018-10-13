@@ -1,6 +1,8 @@
 /*      $NetBSD: cache.c,v 1.33 2005/12/24 23:24:01 perry Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
+ *
  * Copyright 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

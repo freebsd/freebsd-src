@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -417,7 +419,6 @@ le_advertizing_report(ng_hci_unit_p unit, struct mbuf *event)
 		} else
 			getmicrotime(&n->updated);
 		
-#if 0
 		{
 			/* 
 			 * TODO: Make these information 
@@ -425,21 +426,36 @@ le_advertizing_report(ng_hci_unit_p unit, struct mbuf *event)
 			 */
 			u_int8_t length_data;
 			
-			char *rssi;
-			
-			NG_HCI_M_PULLUP(event, sizeof(u_int8_t));
+			event = m_pullup(event, sizeof(u_int8_t));
+			if(event == NULL){
+				NG_HCI_WARN("%s: Event datasize Pullup Failed\n", __func__);
+				goto out;
+			}
 			length_data = *mtod(event, u_int8_t *);
 			m_adj(event, sizeof(u_int8_t));
+			n->extinq_size = (length_data < NG_HCI_EXTINQ_MAX)?
+				length_data : NG_HCI_EXTINQ_MAX;
+			
 			/*Advertizement data*/
-			NG_HCI_M_PULLUP(event, length_data);
-			m_adj(event, length_data);
-			NG_HCI_M_PULLUP(event, sizeof(char ));
+			event = m_pullup(event, n->extinq_size);
+			if(event == NULL){
+				NG_HCI_WARN("%s: Event data pullup Failed\n", __func__);
+				goto out;
+			}
+			m_copydata(event, 0, n->extinq_size, n->extinq_data);
+			m_adj(event, n->extinq_size);
+			event = m_pullup(event, sizeof(char ));
 			/*Get RSSI*/
-			rssi = mtod(event, char *);
+			if(event == NULL){
+				NG_HCI_WARN("%s: Event rssi pull up Failed\n", __func__);
+				
+				goto out;
+			}				
+			n->page_scan_mode = *mtod(event, char *);
 			m_adj(event, sizeof(u_int8_t));
 		}
-#endif
 	}
+ out:
 	NG_FREE_M(event);
 
 	return (error);

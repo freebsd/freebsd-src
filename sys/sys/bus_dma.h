@@ -1,6 +1,8 @@
 /*	$NetBSD: bus.h,v 1.12 1997/10/01 08:25:15 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-NetBSD AND BSD-4-Clause)
+ *
  * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -174,6 +176,14 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		       void *lockfuncarg, bus_dma_tag_t *dmat);
 
+/*
+ * Set the memory domain to be used for allocations.
+ *
+ * Automatic for PCI devices.  Must be set prior to creating maps or
+ * allocating memory.
+ */
+int bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain);
+
 int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 
 /*
@@ -248,105 +258,49 @@ int bus_dmamap_load_ma_triv(bus_dma_tag_t dmat, bus_dmamap_t map,
     struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
     bus_dma_segment_t *segs, int *segp);
 
-/*
- * XXX sparc64 uses the same interface, but a much different implementation.
- *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
- *     declarations.
- */
-#if !defined(__sparc64__)
+#ifdef WANT_INLINE_DMAMAP
+#define BUS_DMAMAP_OP static inline
+#else
+#define BUS_DMAMAP_OP
+#endif
 
 /*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
  */
-int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
+BUS_DMAMAP_OP int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
 
 /*
  * Destroy a handle for mapping from kva/uva/physical
  * address space into bus device space.
  */
-int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
+BUS_DMAMAP_OP int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
 
 /*
  * Allocate a piece of memory that can be efficiently mapped into
  * bus device space based on the constraints listed in the dma tag.
  * A dmamap to for use with dmamap_load is also allocated.
  */
-int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+BUS_DMAMAP_OP int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		     bus_dmamap_t *mapp);
 
 /*
  * Free a piece of memory and its allocated dmamap, that was allocated
  * via bus_dmamem_alloc.
  */
-void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
+BUS_DMAMAP_OP void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
  * Perform a synchronization operation on the given map. If the map
- * is NULL we have a fully IO-coherent system. On every ARM architecture
- * there must be a memory barrier placed to ensure that all data
- * accesses are visible before going any further.
+ * is NULL we have a fully IO-coherent system.
  */
-void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
-#if defined(__arm__)
-	#define __BUS_DMAMAP_SYNC_DEFAULT		mb()
-#elif defined(__aarch64__)
-	#define	__BUS_DMAMAP_SYNC_DEFAULT		dmb(sy)
-#else
-	#define	__BUS_DMAMAP_SYNC_DEFAULT		do {} while (0)
-#endif
-#define bus_dmamap_sync(dmat, dmamap, op) 			\
-	do {							\
-		if ((dmamap) != NULL)				\
-			_bus_dmamap_sync(dmat, dmamap, op);	\
-		else						\
-			__BUS_DMAMAP_SYNC_DEFAULT;		\
-	} while (0)
+BUS_DMAMAP_OP void bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t dmamap, bus_dmasync_op_t op);
 
 /*
  * Release the mapping held by map.
  */
-void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
-#define bus_dmamap_unload(dmat, dmamap) 			\
-	do {							\
-		if ((dmamap) != NULL)				\
-			_bus_dmamap_unload(dmat, dmamap);	\
-	} while (0)
+BUS_DMAMAP_OP void bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t dmamap);
 
-/*
- * The following functions define the interface between the MD and MI
- * busdma layers.  These are not intended for consumption by driver
- * software.
- */
-void __bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
-			 struct memdesc *mem,
-    			 bus_dmamap_callback_t *callback,
-			 void *callback_arg);
-
-#define	_bus_dmamap_waitok(dmat, map, mem, callback, callback_arg)	\
-	do {								\
-		if ((map) != NULL)					\
-			__bus_dmamap_waitok(dmat, map, mem, callback,	\
-			    callback_arg);				\
-	} while (0);
-
-int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
-			    void *buf, bus_size_t buflen, struct pmap *pmap,
-			    int flags, bus_dma_segment_t *segs, int *segp);
-
-int _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
-			  vm_paddr_t paddr, bus_size_t buflen,
-			  int flags, bus_dma_segment_t *segs, int *segp);
-
-int _bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
-    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
-    bus_dma_segment_t *segs, int *segp);
-
-bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat,
-			   		bus_dmamap_t map,
-					bus_dma_segment_t *segs,
-					int nsegs, int error);
-
-#endif /* __sparc64__ */
+#undef BUS_DMAMAP_OP
 
 #endif /* _BUS_DMA_H_ */

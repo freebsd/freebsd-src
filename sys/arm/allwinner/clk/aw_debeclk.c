@@ -209,15 +209,18 @@ aw_debeclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 
 	m = howmany(fin, *fout) - 1;
 
+	*fout = fin / (m + 1);
+	*stop = 1;
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
 	DEVICE_LOCK(sc);
 	DEBECLK_READ(sc, &val);
 	val &= ~CLK_RATIO_M;
 	val |= (m << CLK_RATIO_M_SHIFT);
 	DEBECLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
-
-	*fout = fin / (m + 1);
-	*stop = 1;
 
 	return (0);
 }
@@ -287,7 +290,7 @@ aw_debeclk_attach(device_t dev)
 	def.id = 1;
 	def.parent_names = malloc(sizeof(char *) * ncells, M_OFWPROP, M_WAITOK);
 	for (i = 0; i < ncells; i++) {
-		error = clk_get_by_ofw_index(dev, i, &clk_parent);
+		error = clk_get_by_ofw_index(dev, 0, i, &clk_parent);
 		if (error != 0) {
 			device_printf(dev, "cannot get clock %d\n", i);
 			goto fail;

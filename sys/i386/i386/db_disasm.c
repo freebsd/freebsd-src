@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
  * Instruction disassembler.
  */
 #include <sys/param.h>
+#include <sys/kdb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -883,6 +884,7 @@ struct i_addr {
 	const char *	base;
 	const char *	index;
 	int		ss;
+	bool		defss;	/* set if %ss is the default segment */
 };
 
 static const char * const db_index_reg_16[8] = {
@@ -954,10 +956,12 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 	}
 	addrp->is_reg = FALSE;
 	addrp->index = NULL;
+	addrp->ss = 0;
+	addrp->defss = FALSE;
 
 	if (short_addr) {
-	    addrp->index = NULL;
-	    addrp->ss = 0;
+	    if (rm == 2 || rm == 3 || (rm == 6 && mod != 0))
+		addrp->defss = TRUE;
 	    switch (mod) {
 		case 0:
 		    if (rm == 6) {
@@ -984,7 +988,7 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 	    }
 	}
 	else {
-	    if (mod != 3 && rm == 4) {
+	    if (rm == 4) {
 		get_value_inc(sib, loc, 1, FALSE);
 		rm = sib_base(sib);
 		index = sib_index(sib);
@@ -1034,6 +1038,9 @@ db_print_address(seg, size, addrp)
 
 	if (seg) {
 	    db_printf("%s:", seg);
+	}
+	else if (addrp->defss) {
+	    db_printf("%%ss:");
 	}
 
 	db_printsym((db_addr_t)addrp->disp, DB_STGY_ANY);
@@ -1159,7 +1166,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 	int	i_size;
 	int	i_mode;
 	int	regmodrm = 0;
-	boolean_t	first;
+	bool	first;
 	int	displ;
 	int	prefix;
 	int	rep;
@@ -1168,9 +1175,17 @@ db_disasm(db_addr_t loc, bool altfmt)
 	int	len;
 	struct i_addr	address;
 
+	if (db_segsize(kdb_frame) == 16)
+	   altfmt = !altfmt;
 	get_value_inc(inst, loc, 1, FALSE);
-	short_addr = FALSE;
-	size = LONG;
+	if (altfmt) {
+	    short_addr = TRUE;
+	    size = WORD;
+	}
+	else {
+	    short_addr = FALSE;
+	    size = LONG;
+	}
 	seg = NULL;
 
 	/*
@@ -1180,11 +1195,11 @@ db_disasm(db_addr_t loc, bool altfmt)
 	prefix = TRUE;
 	do {
 	    switch (inst) {
-		case 0x66:		/* data16 */
-		    size = WORD;
+		case 0x66:
+		    size = (altfmt ? LONG : WORD);
 		    break;
 		case 0x67:
-		    short_addr = TRUE;
+		    short_addr = !altfmt;
 		    break;
 		case 0x26:
 		    seg = "%es";
@@ -1323,9 +1338,9 @@ db_disasm(db_addr_t loc, bool altfmt)
 	    }
 	}
 	db_printf("\t");
-	for (first = TRUE;
+	for (first = true;
 	     i_mode != 0;
-	     i_mode >>= 8, first = FALSE)
+	     i_mode >>= 8, first = false)
 	{
 	    if (!first)
 		db_printf(",");

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/ntp/libparse
+.PATH: ${SRCTOP}/contrib/ntp/libparse
 
 LIB=	parse
 INTERNALLIB=
@@ -12,8 +12,8 @@ SRCS=	binio.c	clk_computime.c	clk_dcf7000.c	clk_hopf6021.c \
 	info_trimble.c	mfp_mul.c	parse.c	parse_conf.c \
 	trim_info.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include \
-	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include -I${.CURDIR}/../
+CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/lib/isc/include -I${.CURDIR:H}
 
 .include <bsd.lib.mk>

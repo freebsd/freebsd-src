@@ -20,31 +20,40 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "ppc-loop-preinc-prep"
+
 #include "PPC.h"
+#include "PPCSubtarget.h"
 #include "PPCTargetMachine.h"
 #include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/CodeMetrics.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
+#include <cassert>
+#include <iterator>
+#include <utility>
+
 using namespace llvm;
 
 // By default, we limit this to creating 16 PHIs (which is a little over half
@@ -53,18 +62,24 @@ static cl::opt<unsigned> MaxVars("ppc-preinc-prep-max-vars",
                                  cl::Hidden, cl::init(16),
   cl::desc("Potential PHI threshold for PPC preinc loop prep"));
 
+STATISTIC(PHINodeAlreadyExists, "PHI node already in pre-increment form");
+
 namespace llvm {
+
   void initializePPCLoopPreIncPrepPass(PassRegistry&);
-}
+
+} // end namespace llvm
 
 namespace {
 
   class PPCLoopPreIncPrep : public FunctionPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    PPCLoopPreIncPrep() : FunctionPass(ID), TM(nullptr) {
+
+    PPCLoopPreIncPrep() : FunctionPass(ID) {
       initializePPCLoopPreIncPrepPass(*PassRegistry::getPassRegistry());
     }
+
     PPCLoopPreIncPrep(PPCTargetMachine &TM) : FunctionPass(ID), TM(&TM) {
       initializePPCLoopPreIncPrepPass(*PassRegistry::getPassRegistry());
     }
@@ -76,6 +91,9 @@ namespace {
       AU.addRequired<ScalarEvolutionWrapperPass>();
     }
 
+    bool alreadyPrepared(Loop *L, Instruction* MemI,
+                         const SCEV *BasePtrStartSCEV,
+                         const SCEVConstant *BasePtrIncSCEV);
     bool runOnFunction(Function &F) override;
 
     bool runOnLoop(Loop *L);
@@ -83,13 +101,14 @@ namespace {
     bool rotateLoop(Loop *L);
 
   private:
-    PPCTargetMachine *TM;
+    PPCTargetMachine *TM = nullptr;
     DominatorTree *DT;
     LoopInfo *LI;
     ScalarEvolution *SE;
     bool PreserveLCSSA;
   };
-}
+
+} // end anonymous namespace
 
 char PPCLoopPreIncPrep::ID = 0;
 static const char *name = "Prepare loop for pre-inc. addressing modes";
@@ -103,6 +122,7 @@ FunctionPass *llvm::createPPCLoopPreIncPrepPass(PPCTargetMachine &TM) {
 }
 
 namespace {
+
   struct BucketElement {
     BucketElement(const SCEVConstant *O, Instruction *I) : Offset(O), Instr(I) {}
     BucketElement(Instruction *I) : Offset(nullptr), Instr(I) {}
@@ -118,7 +138,8 @@ namespace {
     const SCEV *BaseSCEV;
     SmallVector<BucketElement, 16> Elements;
   };
-}
+
+} // end anonymous namespace
 
 static bool IsPtrInBounds(Value *BasePtr) {
   Value *StrippedBasePtr = BasePtr;
@@ -140,10 +161,13 @@ static Value *GetPointerOperand(Value *MemI) {
       return IMemI->getArgOperand(0);
   }
 
-  return 0;
+  return nullptr;
 }
 
 bool PPCLoopPreIncPrep::runOnFunction(Function &F) {
+  if (skipFunction(F))
+    return false;
+
   LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   auto *DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>();
@@ -157,6 +181,62 @@ bool PPCLoopPreIncPrep::runOnFunction(Function &F) {
       MadeChange |= runOnLoop(*L);
 
   return MadeChange;
+}
+
+// In order to prepare for the pre-increment a PHI is added.
+// This function will check to see if that PHI already exists and will return
+//  true if it found an existing PHI with the same start and increment as the
+//  one we wanted to create.
+bool PPCLoopPreIncPrep::alreadyPrepared(Loop *L, Instruction* MemI,
+                                        const SCEV *BasePtrStartSCEV,
+                                        const SCEVConstant *BasePtrIncSCEV) {
+  BasicBlock *BB = MemI->getParent();
+  if (!BB)
+    return false;
+
+  BasicBlock *PredBB = L->getLoopPredecessor();
+  BasicBlock *LatchBB = L->getLoopLatch();
+
+  if (!PredBB || !LatchBB)
+    return false;
+
+  // Run through the PHIs and see if we have some that looks like a preparation
+  iterator_range<BasicBlock::phi_iterator> PHIIter = BB->phis();
+  for (auto & CurrentPHI : PHIIter) {
+    PHINode *CurrentPHINode = dyn_cast<PHINode>(&CurrentPHI);
+    if (!CurrentPHINode)
+      continue;
+
+    if (!SE->isSCEVable(CurrentPHINode->getType()))
+      continue;
+
+    const SCEV *PHISCEV = SE->getSCEVAtScope(CurrentPHINode, L);
+
+    const SCEVAddRecExpr *PHIBasePtrSCEV = dyn_cast<SCEVAddRecExpr>(PHISCEV);
+    if (!PHIBasePtrSCEV)
+      continue;
+
+    const SCEVConstant *PHIBasePtrIncSCEV =
+      dyn_cast<SCEVConstant>(PHIBasePtrSCEV->getStepRecurrence(*SE));
+    if (!PHIBasePtrIncSCEV)
+      continue;
+
+    if (CurrentPHINode->getNumIncomingValues() == 2) {
+      if ( (CurrentPHINode->getIncomingBlock(0) == LatchBB &&
+            CurrentPHINode->getIncomingBlock(1) == PredBB) ||
+            (CurrentPHINode->getIncomingBlock(1) == LatchBB &&
+            CurrentPHINode->getIncomingBlock(0) == PredBB) ) {
+        if (PHIBasePtrSCEV->getStart() == BasePtrStartSCEV &&
+            PHIBasePtrIncSCEV == BasePtrIncSCEV) {
+          // The existing PHI (CurrentPHINode) has the same start and increment
+          //  as the PHI that we wanted to create.
+          ++PHINodeAlreadyExists;
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 bool PPCLoopPreIncPrep::runOnLoop(Loop *L) {
@@ -329,6 +409,9 @@ bool PPCLoopPreIncPrep::runOnLoop(Loop *L) {
 
     DEBUG(dbgs() << "PIP: New start is: " << *BasePtrStartSCEV << "\n");
 
+    if (alreadyPrepared(L, MemI, BasePtrStartSCEV, BasePtrIncSCEV))
+      continue;
+
     PHINode *NewPHI = PHINode::Create(I8PtrTy, HeaderLoopPredCount,
       MemI->hasName() ? MemI->getName() + ".phi" : "",
       Header->getFirstNonPHI());
@@ -391,7 +474,7 @@ bool PPCLoopPreIncPrep::runOnLoop(Loop *L) {
         Instruction *PtrIP = dyn_cast<Instruction>(Ptr);
         if (PtrIP && isa<Instruction>(NewBasePtr) &&
             cast<Instruction>(NewBasePtr)->getParent() == PtrIP->getParent())
-          PtrIP = 0;
+          PtrIP = nullptr;
         else if (isa<PHINode>(PtrIP))
           PtrIP = &*PtrIP->getParent()->getFirstInsertionPt();
         else if (!PtrIP)
@@ -434,4 +517,3 @@ bool PPCLoopPreIncPrep::runOnLoop(Loop *L) {
 
   return MadeChange;
 }
-

@@ -96,8 +96,8 @@ bman_attach(device_t dev)
 
 	/* Allocate resources */
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->sc_rrid, 0, ~0, BMAN_CCSR_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
+	    &sc->sc_rrid, BMAN_CCSR_SIZE, RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 
@@ -114,10 +114,9 @@ bman_attach(device_t dev)
 	bp.totalNumOfBuffers = BMAN_MAX_BUFFERS;
 	bp.f_Exception = bman_exception;
 	bp.h_App = sc;
-	bp.errIrq = (int)sc->sc_ires;
+	bp.errIrq = (uintptr_t)sc->sc_ires;
 	bp.partBpidBase = 0;
 	bp.partNumOfPools = BM_MAX_NUM_OF_POOLS;
-	printf("base address: %llx\n", (uint64_t)bp.baseAddress);
 
 	sc->sc_bh = BM_Config(&bp);
 	if (sc->sc_bh == NULL)

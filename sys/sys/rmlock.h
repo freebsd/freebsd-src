@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Stephan Uphoff <ups@FreeBSD.org>
  * All rights reserved.
  *
@@ -101,35 +103,21 @@ void	_rm_assert(const struct rmlock *rm, int what, const char *file,
 struct rm_args {
 	struct rmlock	*ra_rm;
 	const char 	*ra_desc;
+	int		ra_flags;
 };
 
-struct rm_args_flags {
-	struct rmlock	*ra_rm;
-	const char 	*ra_desc;
-	int		ra_opts;
-};
-
-#define	RM_SYSINIT(name, rm, desc)       				\
+#define	RM_SYSINIT_FLAGS(name, rm, desc, flags)				\
 	static struct rm_args name##_args = {				\
 		(rm),							\
 		(desc),							\
+		(flags),						\
 	};								\
 	SYSINIT(name##_rm_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rm_sysinit, &name##_args);					\
 	SYSUNINIT(name##_rm_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rm_destroy, (rm))
 
-
-#define	RM_SYSINIT_FLAGS(name, rm, desc, opts)       			\
-	static struct rm_args name##_args = {				\
-		(rm),							\
-		(desc),							\
-                (opts),							\
-	};								\
-	SYSINIT(name##_rm_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    rm_sysinit_flags, &name##_args);				\
-	SYSUNINIT(name##_rm_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    rm_destroy, (rm))
+#define	RM_SYSINIT(name, rm, desc)	RM_SYSINIT_FLAGS(name, rm, desc, 0)
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	RA_LOCKED		LA_LOCKED

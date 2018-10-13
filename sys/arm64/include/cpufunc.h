@@ -29,16 +29,18 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
-#ifdef _KERNEL
-
-#include <machine/armreg.h>
-
 static __inline void
 breakpoint(void)
 {
 
 	__asm("brk #0");
 }
+
+#ifdef _KERNEL
+
+#include <machine/armreg.h>
+
+void pan_enable(void);
 
 static __inline register_t
 dbg_disable(void)
@@ -129,7 +131,6 @@ extern int64_t dczva_line_size;
 #define	cpu_setttb(a)			arm64_setttb(a)
 
 #define	cpu_tlb_flushID()		arm64_tlb_flushID()
-#define	cpu_tlb_flushID_SE(e)		arm64_tlb_flushID_SE(e)
 
 #define	cpu_dcache_wbinv_range(a, s)	arm64_dcache_wbinv_range((a), (s))
 #define	cpu_dcache_inv_range(a, s)	arm64_dcache_inv_range((a), (s))

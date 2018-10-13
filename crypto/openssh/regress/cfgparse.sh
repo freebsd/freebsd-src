@@ -1,7 +1,7 @@
-#	$OpenBSD: cfgparse.sh,v 1.5 2015/05/29 03:05:13 djm Exp $
+#	$OpenBSD: cfgparse.sh,v 1.7 2018/05/11 03:51:06 dtucker Exp $
 #	Placed in the Public Domain.
 
-tid="config parse"
+tid="sshd config parse"
 
 # This is a reasonable proxy for IPv6 support.
 if ! config_defined HAVE_STRUCT_IN6_ADDR ; then
@@ -10,8 +10,8 @@ fi
 
 # We need to use the keys generated for the regression test because sshd -T
 # will fail if we're not running with SUDO (no permissions for real keys) or
-# if we are # running tests on a system that has never had sshd installed
-# (keys won't exist).
+# if we are running tests on a system that has never had sshd installed
+# because the keys won't exist.
 
 grep "HostKey " $OBJ/sshd_config > $OBJ/sshd_config_minimal
 SSHD_KEYS="`cat $OBJ/sshd_config_minimal`"

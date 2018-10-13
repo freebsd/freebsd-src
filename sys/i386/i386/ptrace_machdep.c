@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Doug Rabson
  * All rights reserved.
  *
@@ -39,11 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-
-#ifdef CPU_ENABLE_SSE
 static int
 cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 {
@@ -114,12 +111,10 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 
 	return (error);
 }
-#endif
 
 static int
 cpu_ptrace_xmm(struct thread *td, int req, void *addr, int data)
 {
-#ifdef CPU_ENABLE_SSE
 	struct savexmm *fpstate;
 	int error;
 
@@ -152,9 +147,6 @@ cpu_ptrace_xmm(struct thread *td, int req, void *addr, int data)
 	}
 
 	return (error);
-#else
-	return (EINVAL);
-#endif
 }
 
 int

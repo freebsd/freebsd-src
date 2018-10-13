@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,7 +156,9 @@ void ipfw_nat_destroy(void);
 /* In ip_fw_log.c */
 struct ip;
 struct ip_fw_chain;
-void ipfw_log_bpf(int);
+void ipfw_bpf_init(int);
+void ipfw_bpf_uninit(int);
+void ipfw_bpf_mtap2(void *, u_int, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
     struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
     u_short offset, uint32_t tablearg, struct ip *ip);
@@ -180,24 +184,48 @@ enum { /* result for matching dynamic rules */
 struct ip_fw_chain;
 struct sockopt_data;
 int ipfw_is_dyn_rule(struct ip_fw *rule);
-void ipfw_expire_dyn_rules(struct ip_fw_chain *, ipfw_range_tlv *);
-void ipfw_dyn_unlock(ipfw_dyn_rule *q);
+void ipfw_expire_dyn_states(struct ip_fw_chain *, ipfw_range_tlv *);
 
 struct tcphdr;
 struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
     u_int32_t, u_int32_t, int);
-int ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
-    ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg);
-ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
-	int *match_direction, struct tcphdr *tcp);
-void ipfw_remove_dyn_children(struct ip_fw *rule);
+/*
+ * Macro to determine that we need to do or redo dynamic state lookup.
+ * direction == MATCH_UNKNOWN means that this is first lookup, then we need
+ * to do lookup.
+ * Otherwise check the state name, if previous lookup was for "any" name,
+ * this means there is no state with specific name. Thus no need to do
+ * lookup. If previous name was not "any", redo lookup for specific name.
+ */
+#define	DYN_LOOKUP_NEEDED(p, cmd)	\
+    ((p)->direction == MATCH_UNKNOWN ||	\
+	((p)->kidx != 0 && (p)->kidx != (cmd)->arg1))
+#define	DYN_INFO_INIT(p)	do {	\
+	(p)->direction = MATCH_UNKNOWN;	\
+	(p)->kidx = 0;			\
+} while (0)
+struct ipfw_dyn_info {
+	uint16_t	direction;	/* match direction */
+	uint16_t	kidx;		/* state name kidx */
+	uint32_t	hashval;	/* hash value */
+	uint32_t	version;	/* bucket version */
+	uint32_t	f_pos;
+};
+int ipfw_dyn_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+    const ipfw_insn_limit *cmd, const struct ip_fw_args *args,
+    const void *ulp, int pktlen, struct ipfw_dyn_info *info,
+    uint32_t tablearg);
+struct ip_fw *ipfw_dyn_lookup_state(const struct ip_fw_args *args,
+    const void *ulp, int pktlen, const ipfw_insn *cmd,
+    struct ipfw_dyn_info *info);
+
 void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
 int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);
 
 void ipfw_dyn_init(struct ip_fw_chain *);	/* per-vnet initialization */
 void ipfw_dyn_uninit(int);	/* per-vnet deinitialization */
 int ipfw_dyn_len(void);
-int ipfw_dyn_get_count(void);
+uint32_t ipfw_dyn_get_count(void);
 
 /* common variables */
 VNET_DECLARE(int, fw_one_pass);
@@ -270,8 +298,6 @@ struct ip_fw_chain {
 	void		**srvstate;	/* runtime service mappings */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
-#else
-	struct rmlock	rwmtx;
 #endif
 	int		static_len;	/* total len of static rules (v0) */
 	uint32_t	gencnt;		/* NAT generation count */
@@ -412,25 +438,23 @@ struct ipfw_ifc {
 #define	IPFW_PF_RUNLOCK(p)		IPFW_RUNLOCK(p)
 #else /* FreeBSD */
 #define	IPFW_LOCK_INIT(_chain) do {			\
-	rm_init(&(_chain)->rwmtx, "IPFW static rules");	\
 	rw_init(&(_chain)->uh_lock, "IPFW UH lock");	\
 	} while (0)
 
 #define	IPFW_LOCK_DESTROY(_chain) do {			\
-	rm_destroy(&(_chain)->rwmtx);			\
 	rw_destroy(&(_chain)->uh_lock);			\
 	} while (0)
 
-#define	IPFW_RLOCK_ASSERT(_chain)	rm_assert(&(_chain)->rwmtx, RA_RLOCKED)
-#define	IPFW_WLOCK_ASSERT(_chain)	rm_assert(&(_chain)->rwmtx, RA_WLOCKED)
+#define	IPFW_RLOCK_ASSERT(_chain)	rm_assert(&V_pfil_lock, RA_RLOCKED)
+#define	IPFW_WLOCK_ASSERT(_chain)	rm_assert(&V_pfil_lock, RA_WLOCKED)
 
 #define	IPFW_RLOCK_TRACKER		struct rm_priotracker _tracker
-#define	IPFW_RLOCK(p)			rm_rlock(&(p)->rwmtx, &_tracker)
-#define	IPFW_RUNLOCK(p)			rm_runlock(&(p)->rwmtx, &_tracker)
-#define	IPFW_WLOCK(p)			rm_wlock(&(p)->rwmtx)
-#define	IPFW_WUNLOCK(p)			rm_wunlock(&(p)->rwmtx)
-#define	IPFW_PF_RLOCK(p)		IPFW_RLOCK(p)
-#define	IPFW_PF_RUNLOCK(p)		IPFW_RUNLOCK(p)
+#define	IPFW_RLOCK(p)			rm_rlock(&V_pfil_lock, &_tracker)
+#define	IPFW_RUNLOCK(p)			rm_runlock(&V_pfil_lock, &_tracker)
+#define	IPFW_WLOCK(p)			rm_wlock(&V_pfil_lock)
+#define	IPFW_WUNLOCK(p)			rm_wunlock(&V_pfil_lock)
+#define	IPFW_PF_RLOCK(p)
+#define	IPFW_PF_RUNLOCK(p)
 #endif
 
 #define	IPFW_UH_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_RLOCKED)
@@ -627,6 +651,8 @@ void ipfw_destroy_skipto_cache(struct ip_fw_chain *chain);
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl3(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
+int ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
+    int locked);
 void ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
     struct ip_fw *rule);
 void ipfw_reap_rules(struct ip_fw *head);
@@ -739,10 +765,12 @@ struct table_info;
 typedef int (table_lookup_t)(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val);
 
-int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint32_t *val);
-int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
     void *paddr, uint32_t *val);
+struct named_object *ipfw_objhash_lookup_table_kidx(struct ip_fw_chain *ch,
+    uint16_t kidx);
+int ipfw_ref_table(struct ip_fw_chain *ch, ipfw_obj_ntlv *ntlv, uint16_t *kidx);
+void ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx);
 int ipfw_init_tables(struct ip_fw_chain *ch, int first);
 int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
 int ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int nsets);

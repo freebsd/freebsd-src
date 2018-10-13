@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
@@ -436,6 +438,21 @@ void
 ncp_ClearUrgentPorts(struct port_range *range)
 {
   range->nports = 0;
+}
+
+int
+ncp_IsUrgentTcpLen(struct ncp *ncp, int len)
+{
+  if (len < ncp->cfg.urgent.len)
+    return 1;
+  else
+    return 0;
+}
+
+void
+ncp_SetUrgentTcpLen(struct ncp *ncp, int len)
+{
+    ncp->cfg.urgent.len = len;
 }
 
 int

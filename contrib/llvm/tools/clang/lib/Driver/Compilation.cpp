@@ -23,41 +23,60 @@ using namespace clang;
 using namespace llvm::opt;
 
 Compilation::Compilation(const Driver &D, const ToolChain &_DefaultToolChain,
-                         InputArgList *_Args, DerivedArgList *_TranslatedArgs)
-    : TheDriver(D), DefaultToolChain(_DefaultToolChain),
-      CudaHostToolChain(&DefaultToolChain), CudaDeviceToolChain(nullptr),
-      Args(_Args), TranslatedArgs(_TranslatedArgs), Redirects(nullptr),
-      ForDiagnostics(false) {}
+                         InputArgList *_Args, DerivedArgList *_TranslatedArgs,
+                         bool ContainsError)
+    : TheDriver(D), DefaultToolChain(_DefaultToolChain), ActiveOffloadMask(0u),
+      Args(_Args), TranslatedArgs(_TranslatedArgs), ForDiagnostics(false),
+      ContainsError(ContainsError) {
+  // The offloading host toolchain is the default toolchain.
+  OrderedOffloadingToolchains.insert(
+      std::make_pair(Action::OFK_Host, &DefaultToolChain));
+}
 
 Compilation::~Compilation() {
   delete TranslatedArgs;
   delete Args;
 
   // Free any derived arg lists.
-  for (llvm::DenseMap<std::pair<const ToolChain*, const char*>,
-                      DerivedArgList*>::iterator it = TCArgs.begin(),
-         ie = TCArgs.end(); it != ie; ++it)
-    if (it->second != TranslatedArgs)
-      delete it->second;
-
-  // Free redirections of stdout/stderr.
-  if (Redirects) {
-    delete Redirects[1];
-    delete Redirects[2];
-    delete [] Redirects;
-  }
+  for (auto Arg : TCArgs)
+    if (Arg.second != TranslatedArgs)
+      delete Arg.second;
 }
 
-const DerivedArgList &Compilation::getArgsForToolChain(const ToolChain *TC,
-                                                       const char *BoundArch) {
+const DerivedArgList &
+Compilation::getArgsForToolChain(const ToolChain *TC, StringRef BoundArch,
+                                 Action::OffloadKind DeviceOffloadKind) {
   if (!TC)
     TC = &DefaultToolChain;
 
-  DerivedArgList *&Entry = TCArgs[std::make_pair(TC, BoundArch)];
+  DerivedArgList *&Entry = TCArgs[{TC, BoundArch, DeviceOffloadKind}];
   if (!Entry) {
-    Entry = TC->TranslateArgs(*TranslatedArgs, BoundArch);
-    if (!Entry)
-      Entry = TranslatedArgs;
+    SmallVector<Arg *, 4> AllocatedArgs;
+    DerivedArgList *OpenMPArgs = nullptr;
+    // Translate OpenMP toolchain arguments provided via the -Xopenmp-target flags.
+    if (DeviceOffloadKind == Action::OFK_OpenMP) {
+      const ToolChain *HostTC = getSingleOffloadToolChain<Action::OFK_Host>();
+      bool SameTripleAsHost = (TC->getTriple() == HostTC->getTriple());
+      OpenMPArgs = TC->TranslateOpenMPTargetArgs(
+          *TranslatedArgs, SameTripleAsHost, AllocatedArgs);
+    }
+
+    if (!OpenMPArgs) {
+      Entry = TC->TranslateArgs(*TranslatedArgs, BoundArch, DeviceOffloadKind);
+      if (!Entry)
+        Entry = TranslatedArgs;
+    } else {
+      Entry = TC->TranslateArgs(*OpenMPArgs, BoundArch, DeviceOffloadKind);
+      if (!Entry)
+        Entry = OpenMPArgs;
+      else
+        delete OpenMPArgs;
+    }
+
+    // Add allocated arguments to the final DAL.
+    for (auto ArgPtr : AllocatedArgs) {
+      Entry->AddSynthesizedArg(ArgPtr);
+    }
   }
 
   return *Entry;
@@ -163,7 +182,7 @@ int Compilation::ExecuteCommand(const Command &C,
   return ExecutionFailed ? 1 : Res;
 }
 
-typedef SmallVectorImpl< std::pair<int, const Command *> > FailingCommandList;
+using FailingCommandList = SmallVectorImpl<std::pair<int, const Command *>>;
 
 static bool ActionFailed(const Action *A,
                          const FailingCommandList &FailingCommands) {
@@ -171,13 +190,18 @@ static bool ActionFailed(const Action *A,
   if (FailingCommands.empty())
     return false;
 
-  for (FailingCommandList::const_iterator CI = FailingCommands.begin(),
-         CE = FailingCommands.end(); CI != CE; ++CI)
-    if (A == &(CI->second->getSource()))
+  // CUDA can have the same input source code compiled multiple times so do not
+  // compiled again if there are already failures. It is OK to abort the CUDA
+  // pipeline on errors.
+  if (A->isOffloading(Action::OFK_Cuda))
+    return true;
+
+  for (const auto &CI : FailingCommands)
+    if (A == &(CI.second->getSource()))
       return true;
 
-  for (Action::const_iterator AI = A->begin(), AE = A->end(); AI != AE; ++AI)
-    if (ActionFailed(*AI, FailingCommands))
+  for (const Action *AI : A->inputs())
+    if (ActionFailed(AI, FailingCommands))
       return true;
 
   return false;
@@ -190,12 +214,20 @@ static bool InputsOk(const Command &C,
 
 void Compilation::ExecuteJobs(const JobList &Jobs,
                               FailingCommandList &FailingCommands) const {
+  // According to UNIX standard, driver need to continue compiling all the
+  // inputs on the command line even one of them failed.
+  // In all but CLMode, execute all the jobs unless the necessary inputs for the
+  // job is missing due to previous failures.
   for (const auto &Job : Jobs) {
     if (!InputsOk(Job, FailingCommands))
       continue;
     const Command *FailingCommand = nullptr;
-    if (int Res = ExecuteCommand(Job, FailingCommand))
+    if (int Res = ExecuteCommand(Job, FailingCommand)) {
       FailingCommands.push_back(std::make_pair(Res, FailingCommand));
+      // Bail as soon as one command fails in cl driver mode.
+      if (TheDriver.IsCLMode())
+        return;
+    }
   }
 }
 
@@ -223,12 +255,13 @@ void Compilation::initCompilationForDiagnostics() {
   TranslatedArgs->ClaimAllArgs();
 
   // Redirect stdout/stderr to /dev/null.
-  Redirects = new const StringRef*[3]();
-  Redirects[0] = nullptr;
-  Redirects[1] = new StringRef();
-  Redirects[2] = new StringRef();
+  Redirects = {None, {""}, {""}};
 }
 
 StringRef Compilation::getSysRoot() const {
   return getDriver().SysRoot;
+}
+
+void Compilation::Redirect(ArrayRef<Optional<StringRef>> Redirects) {
+  this->Redirects = Redirects;
 }

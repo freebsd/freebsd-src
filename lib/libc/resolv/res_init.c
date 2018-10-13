@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND ISC)
+ *
  * Copyright (c) 1985, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -677,6 +679,8 @@ res_setoptions(res_state statp, const char *options, const char *source)
 		       statp->options |= RES_INSECURE2;
 		} else if (!strncmp(cp, "rotate", sizeof("rotate") - 1)) {
 			statp->options |= RES_ROTATE;
+		} else if (!strncmp(cp, "usevc", sizeof("usevc") - 1)) {
+			statp->options |= RES_USEVC;
 		} else if (!strncmp(cp, "no-check-names",
 				    sizeof("no-check-names") - 1)) {
 			statp->options |= RES_NOCHECKNAME;

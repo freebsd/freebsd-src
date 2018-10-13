@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to not build binutils (as, ld, objcopy and objdump)
+Set to not build binutils (as, ld, and objdump)
 as part of the bootstrap process.
 .Bf -symbolic
 The option does not work for build targets unless some alternative

@@ -36,7 +36,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3002000
+#define	ARCHIVE_VERSION_NUMBER 3003003
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -155,7 +155,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.2.0"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.3.3"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -177,6 +177,7 @@ __LA_DECL const char *  archive_zlib_version(void);
 __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
+__LA_DECL const char *  archive_libzstd_version(void);
 
 /* Declare our basic types. */
 struct archive;
@@ -276,6 +277,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_LZOP	11
 #define	ARCHIVE_FILTER_GRZIP	12
 #define	ARCHIVE_FILTER_LZ4	13
+#define	ARCHIVE_FILTER_ZSTD	14
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -373,7 +375,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
  *   4) Repeatedly call archive_read_next_header to get information about
  *      successive archive entries.  Call archive_read_data to extract
  *      data for entries of interest.
- *   5) Call archive_read_finish to end processing.
+ *   5) Call archive_read_free to end processing.
  */
 __LA_DECL struct archive	*archive_read_new(void);
 
@@ -433,6 +435,7 @@ __LA_DECL int archive_read_support_filter_program_signature
 __LA_DECL int archive_read_support_filter_rpm(struct archive *);
 __LA_DECL int archive_read_support_filter_uu(struct archive *);
 __LA_DECL int archive_read_support_filter_xz(struct archive *);
+__LA_DECL int archive_read_support_filter_zstd(struct archive *);
 
 __LA_DECL int archive_read_support_format_7zip(struct archive *);
 __LA_DECL int archive_read_support_format_all(struct archive *);
@@ -562,7 +565,7 @@ __LA_DECL la_int64_t		 archive_read_header_position(struct archive *);
  * we cannot say whether there are encrypted entries, then
  * ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW is returned.
  * In general, this function will return values below zero when the
- * reader is uncertain or totally uncapable of encryption support.
+ * reader is uncertain or totally incapable of encryption support.
  * When this function returns 0 you can be sure that the reader
  * supports encryption detection but no encrypted entries have
  * been found yet.
@@ -778,6 +781,7 @@ __LA_DECL int archive_write_add_filter_program(struct archive *,
 		     const char *cmd);
 __LA_DECL int archive_write_add_filter_uuencode(struct archive *);
 __LA_DECL int archive_write_add_filter_xz(struct archive *);
+__LA_DECL int archive_write_add_filter_zstd(struct archive *);
 
 
 /* A convenience function to set the format based on the code or name. */
@@ -984,12 +988,12 @@ __LA_DECL int	archive_read_disk_can_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
-/* Request that the access time of the entry visited by travesal be restored. */
+/* Request that the access time of the entry visited by traversal be restored. */
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 /*
  * Set behavior. The "flags" argument selects optional behavior.
  */
-/* Request that the access time of the entry visited by travesal be restored.
+/* Request that the access time of the entry visited by traversal be restored.
  * This is the same as archive_read_disk_set_atime_restored. */
 #define	ARCHIVE_READDISK_RESTORE_ATIME		(0x0001)
 /* Default: Do not skip an entry which has nodump flags. */
@@ -1001,6 +1005,10 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
 /* Default: Xattrs are read from disk. */
 #define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
+/* Default: ACLs are read from disk. */
+#define	ARCHIVE_READDISK_NO_ACL			(0x0020)
+/* Default: File flags are read from disk. */
+#define	ARCHIVE_READDISK_NO_FFLAGS		(0x0040)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);
@@ -1124,7 +1132,7 @@ __LA_DECL int	archive_match_time_excluded(struct archive *,
 
 /*
  * Flags to tell a matching type of time stamps. These are used for
- * following functinos.
+ * following functions.
  */
 /* Time flag: mtime to be tested. */
 #define ARCHIVE_MATCH_MTIME	(0x0100)
@@ -1144,7 +1152,7 @@ __LA_DECL int	archive_match_include_date(struct archive *, int _flag,
 		    const char *_datestr);
 __LA_DECL int	archive_match_include_date_w(struct archive *, int _flag,
 		    const wchar_t *_datestr);
-/* Set inclusion time by a particluar file. */
+/* Set inclusion time by a particular file. */
 __LA_DECL int	archive_match_include_file_time(struct archive *,
 		    int _flag, const char *_pathname);
 __LA_DECL int	archive_match_include_file_time_w(struct archive *,

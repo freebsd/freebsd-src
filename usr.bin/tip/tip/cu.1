@@ -30,7 +30,7 @@
 .\"	@(#)tip.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2006
+.Dd April 22, 2017
 .Dt CU 1
 .Os
 .Sh NAME
@@ -494,6 +494,11 @@ line access log
 lock file to avoid conflicts with
 .Xr uucp 1 Pq Pa ports/net/freebsd-uucp
 .El
+.Sh EXAMPLES
+Connect to the first USB serial port at the speed of 115200 baud:
+.Bd -literal -offset indent
+cu -s 115200 -l /dev/cuaU0
+.Ed
 .Sh SEE ALSO
 .Xr tip 1
 .Sh HISTORY

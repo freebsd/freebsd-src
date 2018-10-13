@@ -1,4 +1,4 @@
-README for Unbound 1.5.8
+README for Unbound 1.8.1
 Copyright 2007 NLnet Labs
 http://unbound.net
 
@@ -76,6 +76,8 @@ The DNSTAP code has BSD license in dnstap/dnstap.c.
   	Disable support for RSASHA256 and RSASHA512 crypto.
   * --disable-gost
   	Disable support for GOST crypto, RFC 5933.
+  * --enable-subnet
+  	Enable EDNS client subnet processing.
 
 * 'make test' runs a series of self checks.
 

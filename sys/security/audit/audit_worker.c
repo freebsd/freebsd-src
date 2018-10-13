@@ -1,7 +1,14 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2008 Apple Inc.
- * Copyright (c) 2006-2008 Robert N. M. Watson
+ * Copyright (c) 2006-2008, 2016, 2018 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -298,7 +305,8 @@ fail_enospc:
 		    "Audit log space exhausted and fail-stop set.");
 	}
 	(void)audit_send_trigger(AUDIT_TRIGGER_NO_SPACE);
-	audit_suspended = 1;
+	audit_trail_suspended = 1;
+	audit_syscalls_enabled_update();
 
 	/* FALLTHROUGH */
 fail:
@@ -362,7 +370,8 @@ audit_worker_process_record(struct kaudit_record *ar)
 
 	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL) ||
 	    ((ar->k_ar_commit & AR_PRESELECT_PIPE) == 0 &&
-	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0))
+	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0 &&
+	    (ar->k_ar_commit & AR_PRESELECT_DTRACE) == 0))
 		goto out;
 
 	auid = ar->k_ar.ar_subj_auid;
@@ -398,6 +407,17 @@ audit_worker_process_record(struct kaudit_record *ar)
 		audit_pipe_submit(auid, event, class, sorf,
 		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data,
 		    bsm->len);
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Version of the dtaudit commit hook that accepts BSM.
+	 */
+	if (ar->k_ar_commit & AR_PRESELECT_DTRACE) {
+		if (dtaudit_hook_bsm != NULL)
+			dtaudit_hook_bsm(ar, auid, event, class, sorf,
+			    bsm->data, bsm->len);
+	}
+#endif
 
 	kau_free(bsm);
 out:
@@ -499,7 +519,8 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	audit_vp = vp;
 	audit_size = vattr.va_size;
 	audit_file_rotate_wait = 0;
-	audit_enabled = (audit_vp != NULL);
+	audit_trail_enabled = (audit_vp != NULL);
+	audit_syscalls_enabled_update();
 	AUDIT_WORKER_UNLOCK();
 
 	/*

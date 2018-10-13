@@ -17,20 +17,19 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Format and print trivial file transfer protocol packets.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Trivial File Transfer Protocol (TFTP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 /*
@@ -46,21 +45,6 @@
 #define	ACK	04			/* acknowledgement */
 #define	TFTP_ERROR	05			/* error code */
 #define OACK	06			/* option acknowledgement */
-
-struct	tftphdr {
-	unsigned short	th_opcode;		/* packet type */
-	union {
-		unsigned short	tu_block;	/* block # */
-		unsigned short	tu_code;	/* error code */
-		char	tu_stuff[1];	/* request packet stuff */
-	} th_u;
-	char	th_data[1];		/* data or error string */
-};
-
-#define	th_block	th_u.tu_block
-#define	th_code		th_u.tu_code
-#define	th_stuff	th_u.tu_stuff
-#define	th_msg		th_data
 
 /*
  * Error codes.
@@ -107,69 +91,103 @@ void
 tftp_print(netdissect_options *ndo,
            register const u_char *bp, u_int length)
 {
-	register const struct tftphdr *tp;
 	register const char *cp;
-	register const u_char *p;
-	register int opcode, i;
-
-	tp = (const struct tftphdr *)bp;
+	register int opcode;
+	u_int ui;
 
 	/* Print length */
 	ND_PRINT((ndo, " %d", length));
 
 	/* Print tftp request type */
-	ND_TCHECK(tp->th_opcode);
-	opcode = EXTRACT_16BITS(&tp->th_opcode);
+	if (length < 2)
+		goto trunc;
+	ND_TCHECK_16BITS(bp);
+	opcode = EXTRACT_16BITS(bp);
 	cp = tok2str(op2str, "tftp-#%d", opcode);
 	ND_PRINT((ndo, " %s", cp));
 	/* Bail if bogus opcode */
 	if (*cp == 't')
 		return;
+	bp += 2;
+	length -= 2;
 
 	switch (opcode) {
 
 	case RRQ:
 	case WRQ:
-	case OACK:
-		p = (u_char *)tp->th_stuff;
-		ND_PRINT((ndo, " "));
-		/* Print filename or first option */
-		if (opcode != OACK)
-			ND_PRINT((ndo, "\""));
-		i = fn_print(ndo, p, ndo->ndo_snapend);
-		if (opcode != OACK)
-			ND_PRINT((ndo, "\""));
-
-		/* Print the mode (RRQ and WRQ only) and any options */
-		while ((p = (const u_char *)strchr((const char *)p, '\0')) != NULL) {
-			if (length <= (u_int)(p - (const u_char *)&tp->th_block))
-				break;
-			p++;
-			if (*p != '\0') {
-				ND_PRINT((ndo, " "));
-				fn_print(ndo, p, ndo->ndo_snapend);
-			}
-		}
-
-		if (i)
+		if (length == 0)
 			goto trunc;
+		ND_PRINT((ndo, " "));
+		/* Print filename */
+		ND_PRINT((ndo, "\""));
+		ui = fn_printztn(ndo, bp, length, ndo->ndo_snapend);
+		ND_PRINT((ndo, "\""));
+		if (ui == 0)
+			goto trunc;
+		bp += ui;
+		length -= ui;
+
+		/* Print the mode - RRQ and WRQ only */
+		if (length == 0)
+			goto trunc;	/* no mode */
+		ND_PRINT((ndo, " "));
+		ui = fn_printztn(ndo, bp, length, ndo->ndo_snapend);
+		if (ui == 0)
+			goto trunc;
+		bp += ui;
+		length -= ui;
+
+		/* Print options, if any */
+		while (length != 0) {
+			ND_TCHECK(*bp);
+			if (*bp != '\0')
+				ND_PRINT((ndo, " "));
+			ui = fn_printztn(ndo, bp, length, ndo->ndo_snapend);
+			if (ui == 0)
+				goto trunc;
+			bp += ui;
+			length -= ui;
+		}
+		break;
+
+	case OACK:
+		/* Print options */
+		while (length != 0) {
+			ND_TCHECK(*bp);
+			if (*bp != '\0')
+				ND_PRINT((ndo, " "));
+			ui = fn_printztn(ndo, bp, length, ndo->ndo_snapend);
+			if (ui == 0)
+				goto trunc;
+			bp += ui;
+			length -= ui;
+		}
 		break;
 
 	case ACK:
 	case DATA:
-		ND_TCHECK(tp->th_block);
-		ND_PRINT((ndo, " block %d", EXTRACT_16BITS(&tp->th_block)));
+		if (length < 2)
+			goto trunc;	/* no block number */
+		ND_TCHECK_16BITS(bp);
+		ND_PRINT((ndo, " block %d", EXTRACT_16BITS(bp)));
 		break;
 
 	case TFTP_ERROR:
 		/* Print error code string */
-		ND_TCHECK(tp->th_code);
-		ND_PRINT((ndo, " %s \"", tok2str(err2str, "tftp-err-#%d \"",
-				       EXTRACT_16BITS(&tp->th_code))));
+		if (length < 2)
+			goto trunc;	/* no error code */
+		ND_TCHECK_16BITS(bp);
+		ND_PRINT((ndo, " %s", tok2str(err2str, "tftp-err-#%d \"",
+				       EXTRACT_16BITS(bp))));
+		bp += 2;
+		length -= 2;
 		/* Print error message string */
-		i = fn_print(ndo, (const u_char *)tp->th_data, ndo->ndo_snapend);
+		if (length == 0)
+			goto trunc;	/* no error message */
+		ND_PRINT((ndo, " \""));
+		ui = fn_printztn(ndo, bp, length, ndo->ndo_snapend);
 		ND_PRINT((ndo, "\""));
-		if (i)
+		if (ui == 0)
 			goto trunc;
 		break;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -789,8 +789,70 @@ v477  5/19/15   Fix off-by-one in jump_forw_buffered;
                 don't add FAKE_* files to cmd history.
 v478  5/21/15   Fix nonportable pointer usage in hilite tree.
 v479  7/6/15    Allow %% escapes in LESSOPEN variable.
-v480  7/24/15	Fix bug in no-regex searches; support MSVC v1900.
-v481  8/20/15	Fix broken -g option.
+v480  7/24/15   Fix bug in no-regex searches; support MSVC v1900.
+v481  8/20/15   Fix broken -g option.
+-----------------------------------------------------------------
+v482  2/25/16   Update Unicode database to "2015-06-16, 20:24:00 GMT [KW]".
+v483  2/27/16   Regenerate hilite when change search caselessness.
+                (Thanks to Jason Hood)
+                Fix bug when terminal has no "cm". (Thanks to Noel Cragg)
+v484  9/20/16   Update to Unicode 9.0.0 database.
+v485  10/21/16  Fix "nothing to search" bug when top/bottom line is empty;
+                Display line numbers in bold. (thanks to Jason Hood);
+                Fix incorrect display when entering double-width chars in 
+                search string.
+v486  10/22/16  New commands ESC-{ and ESC-} to shift to start/end of 
+                displayed lines; new option -Da in Windows version to 
+                enable SGR mode (thanks to Jason Hood).
+v487  10/23/16  configure --help formatting.
+-----------------------------------------------------------------
+v488  2/23/17   Fix memory leaks in search (thanks to John Brooks).
+v489  3/30/17   Make -F not do init/deinit if file fits on one screen
+                (thanks to Jindrich Novy).
+v490  4/5/17    Switch to ANSI prototypes in funcs.h; remove "register".
+v491  4/7/17    Fix signed char bug.
+v492  4/21/17   Handle SIGTERM.
+v493  6/22/17   Fix bug initializing charset in MSDOS build.
+v494  6/26/17   Update Unicode tables; make Cf chars composing not binary.
+v495  7/3/17    Improve binary file detection (thanks to Bela Lubkin);
+                do -R filter when matching tags (thanks to Matthew Malcomson).
+v496  7/5/17    Add LESSRSCROLL marker.
+v497  7/5/17    Sync.
+v498  7/7/17    Fix early truncation of text if last char is double-width.
+v499  7/10/17   Misc fixes.
+v500  7/11/17   Fix bug where certain env variables couldn't be set in lesskey.
+v501  7/12/17   Make sure rscroll char is standout by default.
+v502  7/13/17   Control rscroll char via command line option not env variable.
+v503  7/13/17   Switch to git.
+v504  7/13/17   Call opt_rscroll at startup; change mkhelp.c to mkhelp.pl.
+v505  7/17/17   Add M and ESC-M commands; 
+                fix buffer handling with stdin and LESSOPEN.
+v506  7/17/17   On Windows, convert UTF-8 to multibyte if console is not UTF-8;
+                handle extended chars on input (thanks to Jason Hood).
+v507  7/18/17   Fix some bugs handling filenames containing shell metachars.
+v508  7/19/17   Fix bugs when using LESSOPEN to read stdin.
+v509  7/19/17   Fix another stdin bug.
+v510  7/20/17   Fix bug in determining when to reopen a file.
+v511  7/25/17   Fix bugs in recent MSDOS changes (thanks to Jason Hood).
+v512  7/26/17   Fix MSDOS build.
+v513  7/26/17   Fix switch to normal attr at end of line with -R and rscroll.
+v514  7/27/17   Fix bug in fcomplete when pattern does not match a file.
+v515  7/28/17   Allow 'u' in -D option on Windows.
+v516  7/29/17   Fix bug using LESSOPEN with filename containing metachars.
+v517  7/30/17   Status column shows matches even if hiliting is disabled via -G.
+v518  8/1/17    Use underline in sgr mode in MSDOS (thanks to Jason Hood).
+v519  8/10/17   Fix rscroll bug when last char of line starts coloration.
+v520  9/3/17    Fix compiler warning.
+v521  10/20/17  Fix binary file warning in UTF-8 files with SGI sequences.
+v522  10/20/17  Handle keypad ENTER key properly.
+v523  10/23/17  Cleanup.
+v524  10/24/17  Fix getcc bug.
+v525  10/24/17  Change M command to mark last displayed line.
+v526  10/25/17  Fix search hilite bug introduced in v517.
+v527  10/30/17  Fix search hilite bug on last page with -a.
+v528  11/3/17   Make second ESC-u clear status column.
+v529  11/12/17  Display Unicode formatting chars in hex if -U is set.
+v530  12/2/17   Minor doc change and add missing VOID_PARAM.
 */
 
-char version[] = "481";
+char version[] = "530";

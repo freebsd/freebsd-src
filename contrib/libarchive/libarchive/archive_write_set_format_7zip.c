@@ -205,7 +205,7 @@ struct _7zip {
 	/*
 	 * The list of the file entries which has its contents is used to
 	 * manage struct file objects.
-	 * We use 'next' a menber of struct file to chain.
+	 * We use 'next' (a member of struct file) to chain.
 	 */
 	struct {
 		struct file	*first;
@@ -1358,7 +1358,7 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 	if (r < 0)
 		return (r);
 
-	/* Write Nume size. */
+	/* Write Name size. */
 	r = enc_uint64(a, zip->total_bytes_entry_name+1);
 	if (r < 0)
 		return (r);
@@ -2095,19 +2095,6 @@ compression_init_encoder_lzma2(struct archive *a,
 /*
  * _7_PPMD compressor.
  */
-static void *
-ppmd_alloc(void *p, size_t size)
-{
-	(void)p;
-	return malloc(size);
-}
-static void
-ppmd_free(void *p, void *address)
-{
-	(void)p;
-	free(address);
-}
-static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
 static void
 ppmd_write(void *p, Byte b)
 {
@@ -2167,7 +2154,7 @@ compression_init_encoder_ppmd(struct archive *a,
 	archive_le32enc(props+1, msize);
 	__archive_ppmd7_functions.Ppmd7_Construct(&strm->ppmd7_context);
 	r = __archive_ppmd7_functions.Ppmd7_Alloc(
-		&strm->ppmd7_context, msize, &g_szalloc);
+		&strm->ppmd7_context, msize);
 	if (r == 0) {
 		free(strm->buff);
 		free(strm);
@@ -2243,7 +2230,7 @@ compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
 	(void)a; /* UNUSED */
 
 	strm = (struct ppmd_stream *)lastrm->real_stream;
-	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context, &g_szalloc);
+	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context);
 	free(strm->buff);
 	free(strm);
 	lastrm->real_stream = NULL;

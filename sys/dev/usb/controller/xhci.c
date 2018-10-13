@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,6 +100,7 @@ static int xhcidebug;
 static int xhciroute;
 static int xhcipolling;
 static int xhcidma32;
+static int xhcictlstep;
 
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &xhcidebug, 0, "Debug level");
@@ -107,9 +110,12 @@ SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RWTUN,
     &xhcipolling, 0, "Set to enable software interrupt polling for the XHCI controller");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, dma32, CTLFLAG_RWTUN,
     &xhcidma32, 0, "Set to only use 32-bit DMA for the XHCI controller");
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, ctlstep, CTLFLAG_RWTUN,
+    &xhcictlstep, 0, "Set to enable control endpoint status stage stepping");
 #else
 #define	xhciroute 0
 #define	xhcidma32 0
+#define	xhcictlstep 0
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -210,7 +216,7 @@ static void
 xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 {
 	struct xhci_softc *sc = XHCI_BUS2SC(bus);
-	uint8_t i;
+	uint16_t i;
 
 	cb(bus, &sc->sc_hw.root_pc, &sc->sc_hw.root_pg,
 	   sizeof(struct xhci_hw_root), XHCI_PAGE_SIZE);
@@ -218,7 +224,7 @@ xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 	cb(bus, &sc->sc_hw.ctx_pc, &sc->sc_hw.ctx_pg,
 	   sizeof(struct xhci_dev_ctx_addr), XHCI_PAGE_SIZE);
 
-	for (i = 0; i != XHCI_MAX_SCRATCHPADS; i++) {
+	for (i = 0; i != sc->sc_noscratch; i++) {
 		cb(bus, &sc->sc_hw.scratch_pc[i], &sc->sc_hw.scratch_pg[i],
 		    XHCI_PAGE_SIZE, XHCI_PAGE_SIZE);
 	}
@@ -347,6 +353,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	struct usb_page_search buf_res;
 	struct xhci_hw_root *phwr;
 	struct xhci_dev_ctx_addr *pdctxa;
+	usb_error_t err;
 	uint64_t addr;
 	uint32_t temp;
 	uint16_t i;
@@ -358,22 +365,9 @@ xhci_start_controller(struct xhci_softc *sc)
 	sc->sc_command_ccs = 1;
 	sc->sc_command_idx = 0;
 
-	/* Reset controller */
-	XWRITE4(sc, oper, XHCI_USBCMD, XHCI_CMD_HCRST);
-
-	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 100);
-		temp = (XREAD4(sc, oper, XHCI_USBCMD) & XHCI_CMD_HCRST) |
-		    (XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_CNR);
-		if (!temp)
-			break;
-	}
-
-	if (temp) {
-		device_printf(sc->sc_bus.parent, "Controller "
-		    "reset timeout.\n");
-		return (USB_ERR_IOERROR);
-	}
+	err = xhci_reset_controller(sc);
+	if (err)
+		return (err);
 
 	/* set up number of device slots */
 	DPRINTF("CONFIG=0x%08x -> 0x%08x\n",
@@ -515,6 +509,33 @@ xhci_halt_controller(struct xhci_softc *sc)
 
 	if (!temp) {
 		device_printf(sc->sc_bus.parent, "Controller halt timeout.\n");
+		return (USB_ERR_IOERROR);
+	}
+	return (0);
+}
+
+usb_error_t
+xhci_reset_controller(struct xhci_softc *sc)
+{
+	uint32_t temp = 0;
+	uint16_t i;
+
+	DPRINTF("\n");
+
+	/* Reset controller */
+	XWRITE4(sc, oper, XHCI_USBCMD, XHCI_CMD_HCRST);
+
+	for (i = 0; i != 100; i++) {
+		usb_pause_mtx(NULL, hz / 100);
+		temp = (XREAD4(sc, oper, XHCI_USBCMD) & XHCI_CMD_HCRST) |
+		    (XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_CNR);
+		if (!temp)
+			break;
+	}
+
+	if (temp) {
+		device_printf(sc->sc_bus.parent, "Controller "
+		    "reset timeout.\n");
 		return (USB_ERR_IOERROR);
 	}
 	return (0);
@@ -671,10 +692,12 @@ xhci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	case USB_HW_POWER_SUSPEND:
 		DPRINTF("Stopping the XHCI\n");
 		xhci_halt_controller(sc);
+		xhci_reset_controller(sc);
 		break;
 	case USB_HW_POWER_SHUTDOWN:
 		DPRINTF("Stopping the XHCI\n");
 		xhci_halt_controller(sc);
+		xhci_reset_controller(sc);
 		break;
 	case USB_HW_POWER_RESUME:
 		DPRINTF("Starting the XHCI\n");
@@ -2221,7 +2244,17 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 		 * Send a DATA1 message and invert the current
 		 * endpoint direction.
 		 */
-		temp.step_td = (xfer->nframes != 0);
+		if (xhcictlstep || temp.sc->sc_ctlstep) {
+			/*
+			 * Some XHCI controllers will not delay the
+			 * status stage until the next SOF. Force this
+			 * behaviour to avoid failed control
+			 * transfers.
+			 */
+			temp.step_td = (xfer->nframes != 0);
+		} else {
+			temp.step_td = 0;
+		}
 		temp.direction = UE_GET_DIR(xfer->endpointno) ^ UE_DIR_IN;
 		temp.len = 0;
 		temp.pc = NULL;
@@ -3691,13 +3724,11 @@ xhci_xfer_setup(struct usb_setup_params *parm)
 {
 	struct usb_page_search page_info;
 	struct usb_page_cache *pc;
-	struct xhci_softc *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t n;
 
-	sc = XHCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
 
 	/*
@@ -3867,12 +3898,10 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 
 	xhci_configure_mask(udev, (1U << epno) | 1U, 0);
 
-	err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
-
-	if (err != 0)
-		DPRINTF("Could not configure endpoint %u\n", epno);
-
-	err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+	if (epno > 1)
+		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+	else
+		err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
 
 	if (err != 0)
 		DPRINTF("Could not configure endpoint %u\n", epno);
@@ -4255,6 +4284,10 @@ xhci_device_state_change(struct usb_device *udev)
 
 		sc->sc_hw.devs[index].state = XHCI_ST_ADDRESSED;
 
+		/* set configure mask to slot only */
+		xhci_configure_mask(udev, 1, 0);
+
+		/* deconfigure all endpoints, except EP0 */
 		err = xhci_cmd_configure_ep(sc, 0, 1, index);
 
 		if (err) {

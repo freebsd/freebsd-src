@@ -26,14 +26,6 @@ mips/mediatek/mtk_gpio_v2.c 		optional gpio mtk_gpio_v2
 # Ralink/Mediatek Ethernet driver
 dev/rt/if_rt.c 				optional rt
 
-# Hack to reuse ARM intrng code
-kern/subr_intr.c 			standard
-kern/msi_if.m 				standard
-kern/pic_if.m 				standard
-
-# Intrng compatible MIPS32 interrupt controller
-mips/mips/mips_pic.c 			standard
-
 # Standard MIPS ticker
 mips/mips/tick.c 			standard
 

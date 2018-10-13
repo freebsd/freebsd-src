@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
  *
@@ -27,6 +29,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <err.h>

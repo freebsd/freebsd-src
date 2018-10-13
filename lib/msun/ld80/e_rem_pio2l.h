@@ -84,14 +84,8 @@ __ieee754_rem_pio2l(long double x, long double *y)
 	ex = expsign & 0x7fff;
 	if (ex < BIAS + 25 || (ex == BIAS + 25 && u.bits.manh < 0xc90fdaa2)) {
 	    /* |x| ~< 2^25*(pi/2), medium size */
-	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	    fn = x*invpio2+0x1.8p63;
-	    fn = fn-0x1.8p63;
-#ifdef HAVE_EFFICIENT_IRINT
+	    fn = rnintl(x*invpio2);
 	    n  = irint(fn);
-#else
-	    n  = fn;
-#endif
 	    r  = x-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 102 bit */
 	    {

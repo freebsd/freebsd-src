@@ -17,33 +17,151 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IPv6 printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
-
-#ifdef INET6
 
 #include "ip6.h"
 #include "ipproto.h"
 
 /*
+ * If routing headers are presend and valid, set dst to the final destination.
+ * Otherwise, set it to the IPv6 destination.
+ *
+ * This is used for UDP and TCP pseudo-header in the checksum
+ * calculation.
+ */
+static void
+ip6_finddst(netdissect_options *ndo, struct in6_addr *dst,
+            const struct ip6_hdr *ip6)
+{
+	const u_char *cp;
+	int advance;
+	u_int nh;
+	const struct in6_addr *dst_addr;
+	const struct ip6_rthdr *dp;
+	const struct ip6_rthdr0 *dp0;
+	const struct in6_addr *addr;
+	int i, len;
+
+	cp = (const u_char *)ip6;
+	advance = sizeof(struct ip6_hdr);
+	nh = ip6->ip6_nxt;
+	dst_addr = &ip6->ip6_dst;
+
+	while (cp < ndo->ndo_snapend) {
+		cp += advance;
+
+		switch (nh) {
+
+		case IPPROTO_HOPOPTS:
+		case IPPROTO_DSTOPTS:
+		case IPPROTO_MOBILITY_OLD:
+		case IPPROTO_MOBILITY:
+			/*
+			 * These have a header length byte, following
+			 * the next header byte, giving the length of
+			 * the header, in units of 8 octets, excluding
+			 * the first 8 octets.
+			 */
+			ND_TCHECK2(*cp, 2);
+			advance = (int)((*(cp + 1) + 1) << 3);
+			nh = *cp;
+			break;
+
+		case IPPROTO_FRAGMENT:
+			/*
+			 * The byte following the next header byte is
+			 * marked as reserved, and the header is always
+			 * the same size.
+			 */
+			ND_TCHECK2(*cp, 1);
+			advance = sizeof(struct ip6_frag);
+			nh = *cp;
+			break;
+
+		case IPPROTO_ROUTING:
+			/*
+			 * OK, we found it.
+			 */
+			dp = (const struct ip6_rthdr *)cp;
+			ND_TCHECK(*dp);
+			len = dp->ip6r_len;
+			switch (dp->ip6r_type) {
+
+			case IPV6_RTHDR_TYPE_0:
+			case IPV6_RTHDR_TYPE_2:		/* Mobile IPv6 ID-20 */
+				dp0 = (const struct ip6_rthdr0 *)dp;
+				if (len % 2 == 1)
+					goto trunc;
+				len >>= 1;
+				addr = &dp0->ip6r0_addr[0];
+				for (i = 0; i < len; i++) {
+					if ((const u_char *)(addr + 1) > ndo->ndo_snapend)
+						goto trunc;
+
+					dst_addr = addr;
+					addr++;
+				}
+				break;
+
+			default:
+				break;
+			}
+
+			/*
+			 * Only one routing header to a customer.
+			 */
+			goto done;
+
+		case IPPROTO_AH:
+		case IPPROTO_ESP:
+		case IPPROTO_IPCOMP:
+		default:
+			/*
+			 * AH and ESP are, in the RFCs that describe them,
+			 * described as being "viewed as an end-to-end
+			 * payload" "in the IPv6 context, so that they
+			 * "should appear after hop-by-hop, routing, and
+			 * fragmentation extension headers".  We assume
+			 * that's the case, and stop as soon as we see
+			 * one.  (We can't handle an ESP header in
+			 * the general case anyway, as its length depends
+			 * on the encryption algorithm.)
+			 *
+			 * IPComp is also "viewed as an end-to-end
+			 * payload" "in the IPv6 context".
+			 *
+			 * All other protocols are assumed to be the final
+			 * protocol.
+			 */
+			goto done;
+		}
+	}
+
+done:
+trunc:
+	UNALIGNED_MEMCPY(dst, dst_addr, sizeof(struct in6_addr));
+}
+
+/*
  * Compute a V6-style checksum by building a pseudoheader.
  */
 int
-nextproto6_cksum(const struct ip6_hdr *ip6, const uint8_t *data,
+nextproto6_cksum(netdissect_options *ndo,
+                 const struct ip6_hdr *ip6, const uint8_t *data,
 		 u_int len, u_int covlen, u_int next_proto)
 {
         struct {
@@ -58,7 +176,26 @@ nextproto6_cksum(const struct ip6_hdr *ip6, const uint8_t *data,
         /* pseudo-header */
         memset(&ph, 0, sizeof(ph));
         UNALIGNED_MEMCPY(&ph.ph_src, &ip6->ip6_src, sizeof (struct in6_addr));
-        UNALIGNED_MEMCPY(&ph.ph_dst, &ip6->ip6_dst, sizeof (struct in6_addr));
+        switch (ip6->ip6_nxt) {
+
+        case IPPROTO_HOPOPTS:
+        case IPPROTO_DSTOPTS:
+        case IPPROTO_MOBILITY_OLD:
+        case IPPROTO_MOBILITY:
+        case IPPROTO_FRAGMENT:
+        case IPPROTO_ROUTING:
+                /*
+                 * The next header is either a routing header or a header
+                 * after which there might be a routing header, so scan
+                 * for a routing header.
+                 */
+                ip6_finddst(ndo, &ph.ph_dst, ip6);
+                break;
+
+        default:
+                UNALIGNED_MEMCPY(&ph.ph_dst, &ip6->ip6_dst, sizeof (struct in6_addr));
+                break;
+        }
         ph.ph_len = htonl(len);
         ph.ph_nxt = next_proto;
 
@@ -143,6 +280,8 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	advance = sizeof(struct ip6_hdr);
 	nh = ip6->ip6_nxt;
 	while (cp < ndo->ndo_snapend && advance > 0) {
+		if (len < (u_int)advance)
+			goto trunc;
 		cp += advance;
 		len -= advance;
 
@@ -156,15 +295,19 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 		switch (nh) {
 		case IPPROTO_HOPOPTS:
 			advance = hbhopt_print(ndo, cp);
+			if (advance < 0)
+				return;
 			nh = *cp;
 			break;
 		case IPPROTO_DSTOPTS:
 			advance = dstopt_print(ndo, cp);
+			if (advance < 0)
+				return;
 			nh = *cp;
 			break;
 		case IPPROTO_FRAGMENT:
 			advance = frag6_print(ndo, cp, (const u_char *)ip6);
-			if (ndo->ndo_snapend <= cp + advance)
+			if (advance < 0 || ndo->ndo_snapend <= cp + advance)
 				return;
 			nh = *cp;
 			fragmented = 1;
@@ -173,9 +316,7 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 		case IPPROTO_MOBILITY_OLD:
 		case IPPROTO_MOBILITY:
 			/*
-			 * XXX - we don't use "advance"; the current
-			 * "Mobility Support in IPv6" draft
-			 * (draft-ietf-mobileip-ipv6-24) says that
+			 * XXX - we don't use "advance"; RFC 3775 says that
 			 * the next header field in a mobility header
 			 * should be IPPROTO_NONE, but speaks of
 			 * the possiblity of a future extension in
@@ -183,10 +324,15 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 			 * mobility header.
 			 */
 			advance = mobility_print(ndo, cp, (const u_char *)ip6);
+			if (advance < 0)
+				return;
 			nh = *cp;
 			return;
 		case IPPROTO_ROUTING:
+			ND_TCHECK(*cp);
 			advance = rt6_print(ndo, cp, (const u_char *)ip6);
+			if (advance < 0)
+				return;
 			nh = *cp;
 			break;
 		case IPPROTO_SCTP:
@@ -206,27 +352,35 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 			return;
 		case IPPROTO_AH:
 			advance = ah_print(ndo, cp);
+			if (advance < 0)
+				return;
 			nh = *cp;
 			break;
 		case IPPROTO_ESP:
 		    {
 			int enh, padlen;
 			advance = esp_print(ndo, cp, len, (const u_char *)ip6, &enh, &padlen);
+			if (advance < 0)
+				return;
 			nh = enh & 0xff;
 			len -= padlen;
 			break;
 		    }
 		case IPPROTO_IPCOMP:
 		    {
-			int enh;
-			advance = ipcomp_print(ndo, cp, &enh);
-			nh = enh & 0xff;
+			ipcomp_print(ndo, cp);
+			/*
+			 * Either this has decompressed the payload and
+			 * printed it, in which case there's nothing more
+			 * to do, or it hasn't, in which case there's
+			 * nothing more to do.
+			 */
+			advance = -1;
 			break;
 		    }
 
 		case IPPROTO_PIM:
-			pim_print(ndo, cp, len, nextproto6_cksum(ip6, cp, len, len,
-							    IPPROTO_PIM));
+			pim_print(ndo, cp, len, (const u_char *)ip6);
 			return;
 
 		case IPPROTO_OSPF:
@@ -267,13 +421,3 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 trunc:
 	ND_PRINT((ndo, "[|ip6]"));
 }
-
-#else /* INET6 */
-
-void
-ip6_print(netdissect_options *ndo, const u_char *bp _U_, u_int length)
-{
-	ND_PRINT((ndo, "IP6, length: %u (printing not supported)", length));
-}
-
-#endif /* INET6 */

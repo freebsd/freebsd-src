@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: perl,v 1.24 2015/03/27 17:58:58 christos Exp $
+# $File: perl,v 1.26 2017/02/21 18:34:55 christos Exp $
 # perl:  file(1) magic for Larry Wall's perl language.
 #
 # The `eval' lines recognizes an outrageously clever hack.
@@ -23,24 +23,24 @@
 !:mime	text/x-perl
 0	search/1024	eval\ '(exit\ $?0)'\ &&\ eval\ 'exec	Perl script text
 !:mime	text/x-perl
-0	search/1024	#!/usr/bin/env\ perl	Perl script text executable
+0	string	#!/usr/bin/env\ perl	Perl script text executable
 !:mime	text/x-perl
-0	search/1024	#!\ /usr/bin/env\ perl	Perl script text executable
+0	string	#!\ /usr/bin/env\ perl	Perl script text executable
 !:mime	text/x-perl
-0	search/1024	#!
+0	string	#!
 >0	regex	\^#!.*/bin/perl([[:space:]].*)*$	Perl script text executable
 !:mime	text/x-perl
 
 # by Dmitry V. Levin and Alexey Tourbin
 # check the first line
-0	search/1024	package
+0	search/8192	package
 >0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;	Perl5 module source text
-!:strength + 10
+!:strength + 40
 # not 'p', check other lines
-0	search/1024	!p
+0	search/8192	!p
 >0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;
 >>0	regex		\^1\ *;|\^(use|sub|my)\ .*[(;{=]	Perl5 module source text
-!:strength + 10
+!:strength + 75
 
 # Perl POD documents
 # From: Tom Hukins <tom@eborcom.com>

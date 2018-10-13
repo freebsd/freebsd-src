@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -174,6 +176,16 @@ union sigval {
 	int     sigval_int;
 	void    *sigval_ptr;
 };
+
+#if defined(_WANT_LWPINFO32) || (defined(_KERNEL) && defined(__LP64__))
+union sigval32 {
+	int	sival_int;
+	uint32_t sival_ptr;
+	/* 6.0 compatibility */
+	int	sigval_int;
+	uint32_t sigval_ptr;
+};
+#endif
 #endif
 
 #if __POSIX_VISIBLE >= 199309
@@ -256,6 +268,38 @@ typedef	struct __siginfo {
 #define si_mqd		_reason._mesgq._mqd
 #define si_band		_reason._poll._band
 
+#if defined(_WANT_LWPINFO32) || (defined(_KERNEL) && defined(__LP64__))
+struct siginfo32 {
+	int	si_signo;		/* signal number */
+	int	si_errno;		/* errno association */
+	int	si_code;		/* signal code */
+	__pid_t	si_pid;			/* sending process */
+	__uid_t	si_uid;			/* sender's ruid */
+	int	si_status;		/* exit value */
+	uint32_t si_addr;		/* faulting instruction */
+	union sigval32 si_value;	/* signal value */
+	union	{
+		struct {
+			int	_trapno;/* machine specific trap code */
+		} _fault;
+		struct {
+			int	_timerid;
+			int	_overrun;
+		} _timer;
+		struct {
+			int	_mqd;
+		} _mesgq;
+		struct {
+			int32_t	_band;		/* band event for SIGPOLL */
+		} _poll;			/* was this ever used ? */
+		struct {
+			int32_t	__spare1__;
+			int	__spare2__[7];
+		} __spare__;
+	} _reason;
+};
+#endif
+
 /** si_code **/
 /* codes for SIGILL */
 #define ILL_ILLOPC 	1	/* Illegal opcode.			*/
@@ -291,6 +335,7 @@ typedef	struct __siginfo {
 #define TRAP_BRKPT	1	/* Process breakpoint.			*/
 #define TRAP_TRACE	2	/* Process trace trap.			*/
 #define	TRAP_DTRACE	3	/* DTrace induced trap.			*/
+#define	TRAP_CAP	4	/* Capabilities protective trap.	*/
 
 /* codes for SIGCHLD */
 #define CLD_EXITED	1	/* Child has exited			*/

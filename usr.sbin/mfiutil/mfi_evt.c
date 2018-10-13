@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008, 2009 Yahoo!, Inc.
  * All rights reserved.
  *
@@ -540,6 +542,7 @@ show_events(int ac, char **av)
 	char *cp;
 	ssize_t size;
 	uint32_t seq, start, stop;
+	uint16_t locale;
 	uint8_t status;
 	int ch, error, fd, num_events, verbose;
 	u_int i;
@@ -580,12 +583,13 @@ show_events(int ac, char **av)
 			}
 			break;
 		case 'l':
-			if (parse_locale(optarg, &filter.members.locale) < 0) {
+			if (parse_locale(optarg, &locale) < 0) {
 				error = errno;
 				warn("Error parsing event locale");
 				close(fd);
 				return (error);
 			}
+			filter.members.locale = locale;
 			break;
 		case 'n':
 			val = strtol(optarg, &cp, 0);

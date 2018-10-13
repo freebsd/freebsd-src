@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/linux_lvm
+.PATH: ${SRCTOP}/sys/geom/linux_lvm
 
 KMOD=	geom_linux_lvm
 SRCS=	g_linux_lvm.c

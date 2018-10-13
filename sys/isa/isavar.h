@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
@@ -138,6 +140,10 @@ enum isa_device_ivars {
 #define ISACFGATTR_DYNAMIC	(1 << 1)	/* dynamic configuration */
 #define ISACFGATTR_HINTS	(1 << 3)	/* source of config is hints */
 
+#define	ISA_PNP_DESCR "E:pnpid;D:#"
+#define ISA_PNP_INFO(t) \
+	MODULE_PNP_INFO(ISA_PNP_DESCR, isa, t, t, nitems(t) - 1); \
+
 /*
  * Simplified accessors for isa devices
  */
@@ -185,19 +191,6 @@ void	isa_hinted_child(device_t parent, const char *name, int unit);
 void	isa_hint_device_unit(device_t bus, device_t child, const char *name,
 	    int *unitp);
 int	isab_attach(device_t dev);
-
-#ifdef PC98
-#include <machine/bus.h>
-
-/*
- * Allocate discontinuous resources for ISA bus.
- */
-struct resource *
-isa_alloc_resourcev(device_t child, int type, int *rid,
-		    bus_addr_t *res, bus_size_t count, u_int flags);
-int
-isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count);
-#endif
 
 #endif /* _KERNEL */
 

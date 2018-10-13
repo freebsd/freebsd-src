@@ -38,6 +38,10 @@
 
  @Description   BM low-level implementation
 *//***************************************************************************/
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <machine/atomic.h>
+
 #include "std_ext.h"
 #include "core_ext.h"
 #include "xx_ext.h"
@@ -51,45 +55,45 @@
 /***************************/
 
 /* Cache-inhibited register offsets */
-#define REG_RCR_PI_CINH     (void *)0x0000
-#define REG_RCR_CI_CINH     (void *)0x0004
-#define REG_RCR_ITR         (void *)0x0008
-#define REG_CFG             (void *)0x0100
-#define REG_SCN(n)          ((void *)(0x0200 + ((n) << 2)))
-#define REG_ISR             (void *)0x0e00
-#define REG_IER             (void *)0x0e04
-#define REG_ISDR            (void *)0x0e08
-#define REG_IIR             (void *)0x0e0c
+#define REG_RCR_PI_CINH     0x0000
+#define REG_RCR_CI_CINH     0x0004
+#define REG_RCR_ITR         0x0008
+#define REG_CFG             0x0100
+#define REG_SCN(n)          (0x0200 + ((n) << 2))
+#define REG_ISR             0x0e00
+#define REG_IER             0x0e04
+#define REG_ISDR            0x0e08
+#define REG_IIR             0x0e0c
 
 /* Cache-enabled register offsets */
-#define CL_CR               (void *)0x0000
-#define CL_RR0              (void *)0x0100
-#define CL_RR1              (void *)0x0140
-#define CL_RCR              (void *)0x1000
-#define CL_RCR_PI_CENA      (void *)0x3000
-#define CL_RCR_CI_CENA      (void *)0x3100
+#define CL_CR               0x0000
+#define CL_RR0              0x0100
+#define CL_RR1              0x0140
+#define CL_RCR              0x1000
+#define CL_RCR_PI_CENA      0x3000
+#define CL_RCR_CI_CENA      0x3100
 
 /* The h/w design requires mappings to be size-aligned so that "add"s can be
  * reduced to "or"s. The primitives below do the same for s/w. */
 
-static __inline__ void *ptr_ADD(void *a, void *b)
+static __inline__ void *ptr_ADD(void *a, uintptr_t b)
 {
-    return (void *)((uintptr_t)a + (uintptr_t)b);
+    return (void *)((uintptr_t)a + b);
 }
 
 /* Bitwise-OR two pointers */
-static __inline__ void *ptr_OR(void *a, void *b)
+static __inline__ void *ptr_OR(void *a, uintptr_t b)
 {
-    return (void *)((uintptr_t)a | (uintptr_t)b);
+    return (void *)((uintptr_t)a | b);
 }
 
 /* Cache-inhibited register access */
-static __inline__ uint32_t __bm_in(struct bm_addr *bm, void *offset)
+static __inline__ uint32_t __bm_in(struct bm_addr *bm, uintptr_t offset)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(bm->addr_ci, offset);
     return GET_UINT32(*tmp);
 }
-static __inline__ void __bm_out(struct bm_addr *bm, void *offset, uint32_t val)
+static __inline__ void __bm_out(struct bm_addr *bm, uintptr_t offset, uint32_t val)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(bm->addr_ci, offset);
     WRITE_UINT32(*tmp, val);
@@ -101,26 +105,26 @@ static __inline__ void __bm_out(struct bm_addr *bm, void *offset, uint32_t val)
 #define bm_cl(n)        (void *)((n) << 6)
 
 /* Cache-enabled (index) register access */
-static __inline__ void __bm_cl_touch_ro(struct bm_addr *bm, void *offset)
+static __inline__ void __bm_cl_touch_ro(struct bm_addr *bm, uintptr_t offset)
 {
     dcbt_ro(ptr_ADD(bm->addr_ce, offset));
 }
-static __inline__ void __bm_cl_touch_rw(struct bm_addr *bm, void *offset)
+static __inline__ void __bm_cl_touch_rw(struct bm_addr *bm, uintptr_t offset)
 {
     dcbt_rw(ptr_ADD(bm->addr_ce, offset));
 }
-static __inline__ uint32_t __bm_cl_in(struct bm_addr *bm, void *offset)
+static __inline__ uint32_t __bm_cl_in(struct bm_addr *bm, uintptr_t offset)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(bm->addr_ce, offset);
     return GET_UINT32(*tmp);
 }
-static __inline__ void __bm_cl_out(struct bm_addr *bm, void *offset, uint32_t val)
+static __inline__ void __bm_cl_out(struct bm_addr *bm, uintptr_t offset, uint32_t val)
 {
     uint32_t    *tmp = (uint32_t *)ptr_ADD(bm->addr_ce, offset);
     WRITE_UINT32(*tmp, val);
     dcbf(tmp);
 }
-static __inline__ void __bm_cl_invalidate(struct bm_addr *bm, void *offset)
+static __inline__ void __bm_cl_invalidate(struct bm_addr *bm, uintptr_t offset)
 {
     dcbi(ptr_ADD(bm->addr_ce, offset));
 }
@@ -156,7 +160,7 @@ static __inline__ uint8_t cyc_diff(uint8_t ringsize, uint8_t first, uint8_t last
 /* Bit-wise logic to convert a ring pointer to a ring index */
 static __inline__ uint8_t RCR_PTR2IDX(struct bm_rcr_entry *e)
 {
-    return (uint8_t)(((uint32_t)e >> 6) & (BM_RCR_SIZE - 1));
+    return (uint8_t)(((uintptr_t)e >> 6) & (BM_RCR_SIZE - 1));
 }
 
 /* Increment the 'cursor' ring pointer, taking 'vbit' into account */
@@ -259,7 +263,7 @@ void bm_rcr_pci_commit(struct bm_portal *portal, uint8_t myverb)
     rcr->cursor->__dont_write_directly__verb = (uint8_t)(myverb | rcr->vbit);
     RCR_INC(rcr);
     rcr->available--;
-    hwsync();
+    mb();
     bm_out(RCR_PI_CINH, RCR_PTR2IDX(rcr->cursor));
 #ifdef BM_CHECKING
     rcr->busy = 0;
@@ -281,7 +285,7 @@ void bm_rcr_pce_commit(struct bm_portal *portal, uint8_t myverb)
     rcr->cursor->__dont_write_directly__verb = (uint8_t)(myverb | rcr->vbit);
     RCR_INC(rcr);
     rcr->available--;
-    lwsync();
+    wmb();
     bm_cl_out(RCR_PI, RCR_PTR2IDX(rcr->cursor));
 #ifdef BM_CHECKING
     rcr->busy = 0;
@@ -294,7 +298,7 @@ void bm_rcr_pvb_commit(struct bm_portal *portal, uint8_t myverb)
     struct bm_rcr_entry *rcursor;
     ASSERT_COND(rcr->busy);
     ASSERT_COND(rcr->pmode == e_BmPortalPVB);
-    lwsync();
+    rmb();
     rcursor = rcr->cursor;
     rcursor->__dont_write_directly__verb = (uint8_t)(myverb | rcr->vbit);
     dcbf_64(rcursor);
@@ -432,7 +436,7 @@ void bm_mc_commit(struct bm_portal *portal, uint8_t myverb)
 {
     register struct bm_mc *mc = &portal->mc;
     ASSERT_COND(mc->state == mc_user);
-    lwsync();
+    rmb();
     mc->cr->__dont_write_directly__verb = (uint8_t)(myverb | mc->vbit);
     dcbf_64(mc->cr);
     dcbit_ro(mc->rr + mc->rridx);
@@ -483,12 +487,12 @@ void bm_isr_bscn_mask(struct bm_portal *portal, uint8_t bpid, int enable)
 
 uint32_t __bm_isr_read(struct bm_portal *portal, enum bm_isr_reg n)
 {
-    return __bm_in(&portal->addr, PTR_MOVE(REG_ISR, (n << 2)));
+    return __bm_in(&portal->addr, REG_ISR + (n << 2));
 }
 
 
 void __bm_isr_write(struct bm_portal *portal, enum bm_isr_reg n, uint32_t val)
 {
-    __bm_out(&portal->addr, PTR_MOVE(REG_ISR, (n << 2)), val);
+    __bm_out(&portal->addr, REG_ISR + (n << 2), val);
 }
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1982, 1986, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -16,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -151,12 +153,6 @@ int
 memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot, vm_memattr_t *memattr)
 {
-	/*
-	 * /dev/mem is the only one that makes sense through this
-	 * interface.  For /dev/kmem any physaddr we return here
-	 * could be transient and hence incorrect or invalid at
-	 * a later time.
-	 */
 	if (dev2unit(dev) != CDEV_MINOR_MEM)
 		return (-1);
 

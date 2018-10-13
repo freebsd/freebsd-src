@@ -42,7 +42,7 @@
 ofwstk:
 	.space	OFWSTKSZ
 rtas_regsave:
-	.space	24 /* 3 * sizeof(register_t) */
+	.space	32 /* 4 * sizeof(register_t) */
 GLOBAL(ofmsr)
 	.llong  0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
 GLOBAL(rtasmsr)
@@ -64,8 +64,8 @@ TOC_ENTRY(rtas_regsave)
  */
 
 ASENTRY_NOPROF(ofwcall)
-	mflr	%r0
-	std	%r0,16(%r1)
+	mflr	%r8
+	std	%r8,16(%r1)
 	stdu	%r1,-208(%r1)
 
 	/*
@@ -106,7 +106,7 @@ ASENTRY_NOPROF(ofwcall)
 
 	/* Get OF stack pointer */
 	ld	%r7,TOC_REF(ofwstk)(%r2)
-	addi	%r7,%r7,OFWSTKSZ-32
+	addi	%r7,%r7,OFWSTKSZ-40
 
 	/*
 	 * Set the MSR to the OF value. This has the side effect of disabling
@@ -129,6 +129,8 @@ ASENTRY_NOPROF(ofwcall)
 	std	%r5,8(%r1)	/* Save real stack pointer */
 	std	%r2,16(%r1)	/* Save old TOC */
 	std	%r6,24(%r1)	/* Save old MSR */
+	std	%r8,32(%r1)	/* Save high 32-bits of the kernel's PC */
+
 	li	%r5,0
 	stw	%r5,4(%r1)
 	stw	%r5,0(%r1)
@@ -137,15 +139,23 @@ ASENTRY_NOPROF(ofwcall)
 	mtctr	%r4
 	bctrl
 
-	/* Reload stack pointer and MSR from the OFW stack */
+	/* Reload stack pointer, MSR, and reference PC from the OFW stack */
+	ld	%r7,32(%r1)
 	ld	%r6,24(%r1)
 	ld	%r2,16(%r1)
 	ld	%r1,8(%r1)
 
-	/* Now set the real MSR */
-	mtmsrd	%r6
-	isync
+	/* Get back to the MSR/PC we want, using the cached high bits of PC */
+	mtsrr1	%r6
+	clrrdi	%r7,%r7,32
+	bl	1f
+1:	mflr	%r8
+	or	%r8,%r8,%r7
+	addi	%r8,%r8,2f-1b
+	mtsrr0	%r8
+	rfid			/* Turn on MMU, exceptions, and 64-bit mode */
 
+2:
 	/* Sign-extend the return value from OF */
 	extsw	%r3,%r3
 
@@ -186,8 +196,8 @@ ASENTRY_NOPROF(ofwcall)
  */
 
 ASENTRY_NOPROF(rtascall)
-	mflr	%r0
-	std	%r0,16(%r1)
+	mflr	%r9
+	std	%r9,16(%r1)
 	stdu	%r1,-208(%r1)
 
 	/*
@@ -248,24 +258,41 @@ ASENTRY_NOPROF(rtascall)
 	std	%r7,0(%r1)	/* Save 64-bit stack pointer */
 	std	%r2,8(%r1)	/* Save TOC */
 	std	%r6,16(%r1)	/* Save MSR */
+	std	%r9,24(%r1)	/* Save reference PC for high 32 bits */
 
 	/* Finally, branch to RTAS */
 	mtctr	%r5
 	bctrl
 
 	/* 
-	 * Reload stack pointer and MSR from the reg save area in r1. We are
-	 * running in 32-bit mode at this point, so it doesn't matter if r1
+	 * Reload stack pointer, MSR, reg PC from the reg save area in r1. We
+	 * are running in 32-bit mode at this point, so it doesn't matter if r1
 	 * has become sign-extended.
 	 */
+	ld	%r7,24(%r1)
 	ld	%r6,16(%r1)
 	ld	%r2,8(%r1)
 	ld	%r1,0(%r1)
 
-	/* Now set the real MSR */
-	mtmsrd	%r6
-	isync
+	/*
+	 * Get back to the right PC. We need to atomically re-enable
+	 * exceptions, 64-bit mode, and the MMU. One thing that has likely
+	 * happened is that, if we were running in the high-memory direct
+	 * map, we no longer are as a result of LR truncation in RTAS.
+	 * Fix this by copying the high-order bits of the LR at function
+	 * entry onto the current PC and then jumping there while flipping
+	 * all the MSR bits.
+	 */
+	mtsrr1	%r6
+	clrrdi	%r7,%r7,32
+	bl	1f
+1:	mflr	%r8
+	or	%r8,%r8,%r7
+	addi	%r8,%r8,2f-1b
+	mtsrr0	%r8
+	rfid			/* Turn on MMU, exceptions, and 64-bit mode */
 
+2:
 	/* Sign-extend the return value from RTAS */
 	extsw	%r3,%r3
 

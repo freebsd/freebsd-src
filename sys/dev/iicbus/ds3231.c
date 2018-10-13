@@ -62,29 +62,23 @@ struct ds3231_softc {
 	uint16_t	sc_addr;	/* DS3231 slave address. */
 	uint8_t		sc_ctrl;
 	uint8_t		sc_status;
+	bool		sc_use_ampm;
 };
 
 static void ds3231_start(void *);
 
 static int
-ds3231_read(device_t dev, uint16_t addr, uint8_t reg, uint8_t *data, size_t len)
+ds3231_read1(device_t dev, uint8_t reg, uint8_t *data)
 {
-	struct iic_msg msg[2] = {
-	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
-	    { addr, IIC_M_RD, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return (iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
 }
 
 static int
-ds3231_write(device_t dev, uint16_t addr, uint8_t *data, size_t len)
+ds3231_write1(device_t dev, uint8_t reg, uint8_t data)
 {
-	struct iic_msg msg[1] = {
-	    { addr, IIC_M_WR, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
@@ -92,14 +86,11 @@ ds3231_ctrl_read(struct ds3231_softc *sc)
 {
 	int error;
 
-	sc->sc_ctrl = 0;
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_CONTROL,
-	    &sc->sc_ctrl, sizeof(sc->sc_ctrl));
+	error = ds3231_read1(sc->sc_dev, DS3231_CONTROL, &sc->sc_ctrl);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
 	}
-
 	return (0);
 }
 
@@ -107,12 +98,11 @@ static int
 ds3231_ctrl_write(struct ds3231_softc *sc)
 {
 	int error;
-	uint8_t data[2];
+	uint8_t data;
 
-	data[0] = DS3231_CONTROL;
 	/* Always enable the oscillator.  Always disable both alarms. */
-	data[1] = sc->sc_ctrl & ~DS3231_CTRL_MASK;
-	error = ds3231_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	data = sc->sc_ctrl & ~DS3231_CTRL_MASK;
+	error = ds3231_write1(sc->sc_dev, DS3231_CONTROL, data);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -124,9 +114,7 @@ ds3231_status_read(struct ds3231_softc *sc)
 {
 	int error;
 
-	sc->sc_status = 0;
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_STATUS,
-	    &sc->sc_status, sizeof(sc->sc_status));
+	error = ds3231_read1(sc->sc_dev, DS3231_STATUS, &sc->sc_status);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
@@ -139,37 +127,14 @@ static int
 ds3231_status_write(struct ds3231_softc *sc, int clear_a1, int clear_a2)
 {
 	int error;
-	uint8_t data[2];
+	uint8_t data;
 
-	data[0] = DS3231_STATUS;
-	data[1] = sc->sc_status;
+	data = sc->sc_status;
 	if (clear_a1 == 0)
-		data[1] |= DS3231_STATUS_A1F;
+		data |= DS3231_STATUS_A1F;
 	if (clear_a2 == 0)
-		data[1] |= DS3231_STATUS_A2F;
-	error = ds3231_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
-	if (error != 0)
-		device_printf(sc->sc_dev, "cannot write to RTC.\n");
-
-	return (error);
-}
-
-static int
-ds3231_set_24hrs_mode(struct ds3231_softc *sc)
-{
-	int error;
-	uint8_t data[2], hour;
-
-	hour = 0;
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_HOUR,
-	    &hour, sizeof(hour));
-	if (error) {
-		device_printf(sc->sc_dev, "cannot read from RTC.\n");
-		return (error);
-	}
-	data[0] = DS3231_HOUR;
-	data[1] = hour & ~DS3231_C_MASK;
-	error = ds3231_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+		data |= DS3231_STATUS_A2F;
+	error = ds3231_write1(sc->sc_dev, DS3231_STATUS, data);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -183,8 +148,8 @@ ds3231_temp_read(struct ds3231_softc *sc, int *temp)
 	uint8_t buf8[2];
 	uint16_t buf;
 
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_TEMP,
-	    buf8, sizeof(buf8));
+	error = iicdev_readfrom(sc->sc_dev, DS3231_TEMP, buf8, sizeof(buf8),
+	    IIC_INTRWAIT);
 	if (error != 0)
 		return (error);
 	buf = (buf8[0] << 8) | (buf8[1] & 0xff);
@@ -412,7 +377,7 @@ ds3231_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
 	sc->sc_last_c = -1;
-	sc->sc_year0 = 1900;
+	sc->sc_year0 = 0;
 	sc->enum_hook.ich_func = ds3231_start;
 	sc->enum_hook.ich_arg = dev;
 
@@ -423,6 +388,14 @@ ds3231_attach(device_t dev)
 	if (config_intrhook_establish(&sc->enum_hook) != 0)
 		return (ENOMEM);
 
+	return (0);
+}
+
+static int
+ds3231_detach(device_t dev)
+{
+
+	clock_unregister(dev);
 	return (0);
 }
 
@@ -446,20 +419,26 @@ ds3231_start(void *xdev)
 		return;
 	if (ds3231_status_read(sc) != 0)
 		return;
-	/* Clear the OSF bit and ack any pending alarm interrupt. */
+	/*
+	 * Warn if the clock stopped, but don't restart it until the first
+	 * clock_settime() call.
+	 */
 	if (sc->sc_status & DS3231_STATUS_OSF) {
 		device_printf(sc->sc_dev,
-		    "oscillator has stopped, check the battery.\n");
-		sc->sc_status &= ~DS3231_STATUS_OSF;
+		    "WARNING: RTC clock stopped, check the battery.\n");
 	}
-	if (ds3231_status_write(sc, 1, 1) != 0)
-		return;
-	/* Always enable the oscillator. */
-	if (ds3231_ctrl_write(sc) != 0)
-		return;
-	/* Set the 24 hours mode. */
-	if (ds3231_set_24hrs_mode(sc) != 0)
-		return;
+
+	/*
+	 * Ack any pending alarm interrupts and clear the EOSC bit to ensure the
+	 * clock runs even when on battery power.  Do not give up if these
+	 * writes fail, because a factory-fresh chip is in a special mode that
+	 * disables much of the chip to save battery power, and the only thing
+	 * that gets it out of that mode is writing to the time registers.  In
+	 * these pristine chips, the EOSC and alarm bits are zero already, so
+	 * the first valid write of time will get everything running properly.
+	 */
+	ds3231_status_write(sc, 1, 1);
+	ds3231_ctrl_write(sc);
 
 	/* Temperature. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temperature",
@@ -485,77 +464,134 @@ ds3231_start(void *xdev)
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds3231_en32khz_sysctl, "IU", "DS3231 enable the 32kHz output");
 
-	/* 1 second resolution. */
-	clock_register(dev, 1000000);
+	/*
+	 * Register as a clock with 1 second resolution.  Schedule the
+	 * clock_settime() method to be called just after top-of-second;
+	 * resetting the time resets top-of-second in the hardware.
+	 */
+	clock_register_flags(dev, 1000000, CLOCKF_SETTIME_NO_ADJ);
+	clock_schedule(dev, 1);
 }
 
 static int
 ds3231_gettime(device_t dev, struct timespec *ts)
 {
 	int c, error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds3231_softc *sc;
-	uint8_t data[7];
+	uint8_t data[7], hourmask;
 
 	sc = device_get_softc(dev);
-	memset(data, 0, sizeof(data));
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_SECS,
-	    data, sizeof(data)); 
+
+	/* If the clock halted, we don't have good data. */
+	if ((error = ds3231_status_read(sc)) != 0) {
+		device_printf(dev, "cannot read from RTC.\n");
+		return (error);
+	}
+	if (sc->sc_status & DS3231_STATUS_OSF)
+		return (EINVAL);
+
+	error = iicdev_readfrom(sc->sc_dev, DS3231_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0) {
 		device_printf(dev, "cannot read from RTC.\n");
 		return (error);
 	}
-	ct.nsec = 0;
-	ct.sec = FROMBCD(data[DS3231_SECS] & DS3231_SECS_MASK);
-	ct.min = FROMBCD(data[DS3231_MINS] & DS3231_MINS_MASK);
-	ct.hour = FROMBCD(data[DS3231_HOUR] & DS3231_HOUR_MASK);
-	ct.day = FROMBCD(data[DS3231_DATE] & DS3231_DATE_MASK);
-	ct.dow = data[DS3231_WEEKDAY] & DS3231_WEEKDAY_MASK;
-	ct.mon = FROMBCD(data[DS3231_MONTH] & DS3231_MONTH_MASK);
-	ct.year = FROMBCD(data[DS3231_YEAR] & DS3231_YEAR_MASK);
+
+	/* If chip is in AM/PM mode remember that. */
+	if (data[DS3231_HOUR] & DS3231_HOUR_USE_AMPM) {
+		sc->sc_use_ampm = true;
+		hourmask = DS3231_HOUR_MASK_12HR;
+	} else
+		hourmask = DS3231_HOUR_MASK_24HR;
+
+	bct.nsec = 0;
+	bct.sec  = data[DS3231_SECS]  & DS3231_SECS_MASK;
+	bct.min  = data[DS3231_MINS]  & DS3231_MINS_MASK;
+	bct.hour = data[DS3231_HOUR]  & hourmask;
+	bct.day  = data[DS3231_DATE]  & DS3231_DATE_MASK;
+	bct.mon  = data[DS3231_MONTH] & DS3231_MONTH_MASK;
+	bct.year = data[DS3231_YEAR]  & DS3231_YEAR_MASK;
+	bct.ispm = data[DS3231_HOUR]  & DS3231_HOUR_IS_PM;
+
+	/*
+	 * If the century flag has toggled since we last saw it, there has been
+	 * a century rollover.  If this is the first time we're seeing it,
+	 * remember the state so we can preserve its polarity on writes.
+	 */
 	c = (data[DS3231_MONTH] & DS3231_C_MASK) ? 1 : 0;
 	if (sc->sc_last_c == -1)
 		sc->sc_last_c = c;
 	else if (c != sc->sc_last_c) {
-		sc->sc_year0 += 100;
+		sc->sc_year0 += 0x100;
 		sc->sc_last_c = c;
 	}
-	ct.year += sc->sc_year0;
-	if (ct.year < POSIX_BASE_YEAR)
-		ct.year += 100;	/* assume [1970, 2069] */
+	bct.year |= sc->sc_year0;
 
-	return (clock_ct_to_ts(&ct, ts));
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, sc->sc_use_ampm));
 }
 
 static int
 ds3231_settime(device_t dev, struct timespec *ts)
 {
 	int error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds3231_softc *sc;
-	uint8_t data[8];
+	uint8_t data[7];
+	uint8_t pmflags;
 
 	sc = device_get_softc(dev);
-	/* Accuracy is only one second. */
-	if (ts->tv_nsec >= 500000000)
-		ts->tv_sec++;
-	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
-	memset(data, 0, sizeof(data));
-	data[0] = DS3231_SECS;
-	data[DS3231_SECS + 1] = TOBCD(ct.sec);
-	data[DS3231_MINS + 1] = TOBCD(ct.min);
-	data[DS3231_HOUR + 1] = TOBCD(ct.hour);
-	data[DS3231_DATE + 1] = TOBCD(ct.day);
-	data[DS3231_WEEKDAY + 1] = ct.dow;
-	data[DS3231_MONTH + 1] = TOBCD(ct.mon);
-	data[DS3231_YEAR + 1] = TOBCD(ct.year % 100);
+
+	/*
+	 * We request a timespec with no resolution-adjustment.  That also
+	 * disables utc adjustment, so apply that ourselves.
+	 */
+	ts->tv_sec -= utc_offset();
+	clock_ts_to_bcd(ts, &bct, sc->sc_use_ampm);
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_WRITE, &bct); 
+
+	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
+	if (sc->sc_use_ampm) {
+		pmflags = DS3231_HOUR_USE_AMPM;
+		if (bct.ispm)
+			pmflags |= DS3231_HOUR_IS_PM;
+	} else
+		pmflags = 0;
+
+	data[DS3231_SECS]    = bct.sec;
+	data[DS3231_MINS]    = bct.min;
+	data[DS3231_HOUR]    = bct.hour | pmflags;
+	data[DS3231_DATE]    = bct.day;
+	data[DS3231_WEEKDAY] = bct.dow + 1;
+	data[DS3231_MONTH]   = bct.mon;
+	data[DS3231_YEAR]    = bct.year & 0xff;
 	if (sc->sc_last_c)
 		data[DS3231_MONTH] |= DS3231_C_MASK;
+
 	/* Write the time back to RTC. */
-	error = ds3231_write(dev, sc->sc_addr, data, sizeof(data));
-	if (error != 0)
+	error = iicdev_writeto(dev, DS3231_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
+	if (error != 0) {
 		device_printf(dev, "cannot write to RTC.\n");
+		return (error);
+	}
+
+	/*
+	 * Unlike most hardware, the osc-was-stopped bit does not clear itself
+	 * after setting the time, it has to be manually written to zero.
+	 */
+	if (sc->sc_status & DS3231_STATUS_OSF) {
+		if ((error = ds3231_status_read(sc)) != 0) {
+			device_printf(dev, "cannot read from RTC.\n");
+			return (error);
+		}
+		sc->sc_status &= ~DS3231_STATUS_OSF;
+		if ((error = ds3231_status_write(sc, 0, 0)) != 0) {
+			device_printf(dev, "cannot write to RTC.\n");
+			return (error);
+		}
+	}
 
 	return (error);
 }
@@ -563,6 +599,7 @@ ds3231_settime(device_t dev, struct timespec *ts)
 static device_method_t ds3231_methods[] = {
 	DEVMETHOD(device_probe,		ds3231_probe),
 	DEVMETHOD(device_attach,	ds3231_attach),
+	DEVMETHOD(device_detach,	ds3231_detach),
 
 	DEVMETHOD(clock_gettime,	ds3231_gettime),
 	DEVMETHOD(clock_settime,	ds3231_settime),

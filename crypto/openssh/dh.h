@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.h,v 1.14 2015/10/16 22:32:22 djm Exp $ */
+/* $OpenBSD: dh.h,v 1.15 2016/05/02 10:26:04 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
@@ -37,10 +37,12 @@ DH	*dh_new_group_asc(const char *, const char *);
 DH	*dh_new_group(BIGNUM *, BIGNUM *);
 DH	*dh_new_group1(void);
 DH	*dh_new_group14(void);
+DH	*dh_new_group16(void);
+DH	*dh_new_group18(void);
 DH	*dh_new_group_fallback(int);
 
 int	 dh_gen_key(DH *, int);
-int	 dh_pub_is_valid(DH *, BIGNUM *);
+int	 dh_pub_is_valid(const DH *, const BIGNUM *);
 
 u_int	 dh_estimate(int);
 

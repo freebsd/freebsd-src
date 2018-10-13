@@ -1,4 +1,4 @@
-$ $tcsh: set20,v 1.4 2011/02/04 18:19:43 christos Exp $
+$ $tcsh: set20,v 1.5 2015/08/13 08:54:04 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Nombre de tecla no válido `%S'\n
@@ -19,7 +19,7 @@ $set 20
 16     -c   interpreta COMANDO como comando interno o externo\n
 17     -v   usa las definiciones del editor vi\n
 18     -e   usa las definiciones del editor vi\n
-19     -d   usa las definiciones del editor por defecto\n
+19     -d   usa las definiciones del editor por defecto (%s)\n
 20     -l   lista los comandos del editor y sus descripciones\n
 21     -r   elimina la definición asociada a TECLA\n
 22     -k   interpreta TECLA como nombre simbólico de tecla de flecha\n

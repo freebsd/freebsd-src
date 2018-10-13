@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Bjoern A. Zeeb <bz@FreeBSD.org>
  * All rights reserved.
  *
@@ -91,9 +93,7 @@ in_show_in_ifaddr(struct in_ifaddr *ia)
 	IA_DB_RPINTF("%p", ia_hash.le_next);
 	IA_DB_RPINTF("%p", ia_hash.le_prev);
 	IA_DB_RPINTF_DPTR("%p", ia_hash.le_prev);
-	IA_DB_RPINTF("%p", ia_link.tqe_next);
-	IA_DB_RPINTF("%p", ia_link.tqe_prev);
-	IA_DB_RPINTF_DPTR("%p", ia_link.tqe_prev);
+	IA_DB_RPINTF("%p", ia_link.cstqe_next);
 	IA_DB_RPINTF_PTR("%p", ia_addr);
 	IA_DB_RPINTF_PTR("%p", ia_dstaddr);
 	IA_DB_RPINTF_PTR("%p", ia_sockmask);

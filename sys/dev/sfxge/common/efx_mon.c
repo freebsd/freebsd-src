@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -40,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_NAMES
 
-static const char	*__efx_mon_name[] = {
+static const char * const __efx_mon_name[] = {
 	"",
 	"sfx90x0",
 	"sfx91x0",
@@ -126,8 +128,8 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED MonitorStatNamesBlock 31f437eafb0b0437 */
-static const char 	*__mon_stat_name[] = {
+/* START MKCONFIG GENERATED MonitorStatNamesBlock 5daa2a5725ba734b */
+static const char * const __mon_stat_name[] = {
 	"value_2_5v",
 	"value_vccp1",
 	"value_vcc",

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -68,8 +70,7 @@ struct ktr_header {
  * is the public interface.
  */
 #define	KTRCHECK(td, type)	((td)->td_proc->p_traceflag & (1 << type))
-#define KTRPOINT(td, type)						\
-	(KTRCHECK((td), (type)) && !((td)->td_pflags & TDP_INKTRACE))
+#define KTRPOINT(td, type)  (__predict_false(KTRCHECK((td), (type))))
 #define	KTRCHECKDRAIN(td)	(!(STAILQ_EMPTY(&(td)->td_proc->p_ktr)))
 #define	KTRUSERRET(td) do {						\
 	if (KTRCHECKDRAIN(td))						\
@@ -219,6 +220,18 @@ struct ktr_faultend {
 };
 
 /*
+ * KTR_STRUCT_ARRAY - array of misc. structs
+ */
+#define	KTR_STRUCT_ARRAY 15
+struct ktr_struct_array {
+	size_t struct_size;
+	/*
+	 * Followed by null-terminated structure name and then payload
+	 * contents.
+	 */
+};
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -242,6 +255,7 @@ struct ktr_faultend {
 #define KTRFAC_CAPFAIL	(1<<KTR_CAPFAIL)
 #define KTRFAC_FAULT	(1<<KTR_FAULT)
 #define KTRFAC_FAULTEND	(1<<KTR_FAULTEND)
+#define	KTRFAC_STRUCT_ARRAY (1<<KTR_STRUCT_ARRAY)
 
 /*
  * trace flags (also in p_traceflags)
@@ -265,16 +279,19 @@ void	ktrprocexec(struct proc *, struct ucred **, struct vnode **);
 void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
-void	ktrstruct(const char *, void *, size_t);
+void	ktrstruct(const char *, const void *, size_t);
+void	ktrstructarray(const char *, enum uio_seg, const void *, int, size_t);
 void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 	    const cap_rights_t *);
 #define ktrcaprights(s) \
 	ktrstruct("caprights", (s), sizeof(cap_rights_t))
+#define	ktritimerval(s) \
+	ktrstruct("itimerval", (s), sizeof(struct itimerval))
 #define ktrsockaddr(s) \
 	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \
 	ktrstruct("stat", (s), sizeof(struct stat))
-
+extern u_int ktr_geniosize;
 #else
 
 #include <sys/cdefs.h>

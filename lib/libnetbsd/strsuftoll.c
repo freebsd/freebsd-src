@@ -1,5 +1,7 @@
 /*	$NetBSD: strsuftoll.c,v 1.6 2004/03/05 05:58:29 lukem Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2001-2002,2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

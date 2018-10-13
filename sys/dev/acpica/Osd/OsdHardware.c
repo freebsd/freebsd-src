@@ -37,6 +37,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/iodev.h>
 #include <machine/pci_cfgreg.h>
 
+extern int	acpi_susp_bounce;
+
+ACPI_STATUS
+AcpiOsEnterSleep(UINT8 SleepState, UINT32 RegaValue, UINT32 RegbValue)
+{
+
+	/* If testing device suspend only, back out of everything here. */
+	if (acpi_susp_bounce)
+		return (AE_CTRL_TERMINATE);
+
+	return (AE_OK);
+}
+
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
  * troublesome insofar as there is no easy way for us to know in advance

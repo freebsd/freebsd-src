@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)tcsendbreak.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 11, 2017
 .Dt TCSENDBREAK 3
 .Os
 .Sh NAME
@@ -137,17 +137,43 @@ is not a terminal.
 A signal interrupted the
 .Fn tcdrain
 function.
+.It Bq Er EWOULDBLOCK
+The configured timeout expired before the
+.Fn tcdrain
+function could write all buffered output.
 .El
 .Sh SEE ALSO
 .Xr tcsetattr 3 ,
-.Xr termios 4
+.Xr termios 4 ,
+.Xr tty 4 ,
+.Xr comcontrol 8
 .Sh STANDARDS
 The
 .Fn tcsendbreak ,
-.Fn tcdrain ,
 .Fn tcflush
 and
 .Fn tcflow
 functions are expected to be compliant with the
 .St -p1003.1-88
 specification.
+.Pp
+The
+.Fn tcdrain
+function is expected to be compliant with
+.St -p1003.1-88
+when the drain wait value is set to zero with
+.Xr comcontrol 8 ,
+or with
+.Xr ioctl 2
+.Va TIOCSDRAINWAIT ,
+or with
+.Xr sysctl 8
+.Va kern.tty_drainwait .
+A non-zero drain wait value can result in
+.Fn tcdrain
+returning
+.Va EWOULDBLOCK
+without writing all output.
+The default value for
+.Va kern.tty_drainwait
+is 300 seconds.

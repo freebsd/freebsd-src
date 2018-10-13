@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Daisuke Aoyama. All rights reserved.
  * Copyright (c) 2012-2015 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2010-2011 Aleksandr Rybalko. All rights reserved.
@@ -93,25 +95,10 @@
 #define	DWC_OTG_PC2UDEV(pc) \
    (USB_DMATAG_TO_XROOT((pc)->tag_parent)->udev)
 
-#define	DWC_OTG_MSK_GINT_ENABLED	\
-   (GINTMSK_ENUMDONEMSK |		\
-   GINTMSK_USBRSTMSK |			\
-   GINTMSK_USBSUSPMSK |			\
-   GINTMSK_IEPINTMSK |			\
-   GINTMSK_SESSREQINTMSK |		\
-   GINTMSK_RXFLVLMSK |			\
-   GINTMSK_HCHINTMSK |			\
-   GINTMSK_OTGINTMSK |			\
-   GINTMSK_PRTINTMSK)
-
 #define	DWC_OTG_MSK_GINT_THREAD_IRQ				\
    (GINTSTS_USBRST | GINTSTS_ENUMDONE | GINTSTS_PRTINT |	\
    GINTSTS_WKUPINT | GINTSTS_USBSUSP | GINTMSK_OTGINTMSK |	\
    GINTSTS_SESSREQINT)
-
-#define	DWC_OTG_PHY_ULPI 0
-#define	DWC_OTG_PHY_HSIC 1
-#define	DWC_OTG_PHY_INTERNAL 2
 
 #ifndef DWC_OTG_PHY_DEFAULT
 #define	DWC_OTG_PHY_DEFAULT DWC_OTG_PHY_ULPI
@@ -121,10 +108,10 @@ static int dwc_otg_phy_type = DWC_OTG_PHY_DEFAULT;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW, 0, "USB DWC OTG");
 SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, phy_type, CTLFLAG_RDTUN,
-    &dwc_otg_phy_type, 0, "DWC OTG PHY TYPE - 0/1/2 - ULPI/HSIC/INTERNAL");
+    &dwc_otg_phy_type, 0, "DWC OTG PHY TYPE - 0/1/2/3 - ULPI/HSIC/INTERNAL/UTMI+");
 
 #ifdef USB_DEBUG
-static int dwc_otg_debug;
+static int dwc_otg_debug = 0;
 
 SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RWTUN,
     &dwc_otg_debug, 0, "DWC OTG debug level");
@@ -376,6 +363,11 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		/* enable all host channel interrupts */
 		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK,
 		    (1U << sc->sc_host_ch_max) - 1U);
+
+		/* enable proper host channel interrupts */
+		sc->sc_irq_mask |= GINTMSK_HCHINTMSK;
+		sc->sc_irq_mask &= ~GINTMSK_IEPINTMSK;
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 	}
 
 	if (mode == DWC_MODE_DEVICE) {
@@ -436,6 +428,11 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		    pf->usb.max_in_frame_size,
 		    pf->usb.max_out_frame_size);
 	    }
+
+	    /* enable proper device channel interrupts */
+	    sc->sc_irq_mask &= ~GINTMSK_HCHINTMSK;
+	    sc->sc_irq_mask |= GINTMSK_IEPINTMSK;
+	    DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 	}
 
 	/* reset RX FIFO */
@@ -2870,10 +2867,13 @@ dwc_otg_filter_interrupt(void *arg)
 
 		for (x = 0; x != sc->sc_dev_in_ep_max; x++) {
 			temp = DWC_OTG_READ_4(sc, DOTG_DIEPINT(x));
-			if (temp & DIEPMSK_XFERCOMPLMSK) {
-				DWC_OTG_WRITE_4(sc, DOTG_DIEPINT(x),
-				    DIEPMSK_XFERCOMPLMSK);
-			}
+			/*
+			 * NOTE: Need to clear all interrupt bits,
+			 * because some appears to be unmaskable and
+			 * can cause an interrupt loop:
+			 */
+			if (temp != 0)
+				DWC_OTG_WRITE_4(sc, DOTG_DIEPINT(x), temp);
 		}
 	}
 
@@ -2985,7 +2985,8 @@ dwc_otg_interrupt(void *arg)
 		else
 			sc->sc_flags.status_bus_reset = 0;
 
-		if (hprt & HPRT_PRTENCHNG)
+		if ((hprt & HPRT_PRTENCHNG) &&
+		    (hprt & HPRT_PRTENA) == 0)
 			sc->sc_flags.change_enabled = 1;
 
 		if (hprt & HPRT_PRTENA)
@@ -3886,8 +3887,13 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		break;
 	}
 
-	/* select HSIC, ULPI or internal PHY mode */
-	switch (dwc_otg_phy_type) {
+	if (sc->sc_phy_type == 0)
+		sc->sc_phy_type = dwc_otg_phy_type + 1;
+	if (sc->sc_phy_bits == 0)
+		sc->sc_phy_bits = 16;
+
+	/* select HSIC, ULPI, UTMI+ or internal PHY mode */
+	switch (sc->sc_phy_type) {
 	case DWC_OTG_PHY_HSIC:
 		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
 		    GUSBCFG_PHYIF |
@@ -3904,6 +3910,16 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	case DWC_OTG_PHY_ULPI:
 		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
 		    GUSBCFG_ULPI_UTMI_SEL |
+		    GUSBCFG_TRD_TIM_SET(5) | temp);
+		DWC_OTG_WRITE_4(sc, DOTG_GOTGCTL, 0);
+
+		temp = DWC_OTG_READ_4(sc, DOTG_GLPMCFG);
+		DWC_OTG_WRITE_4(sc, DOTG_GLPMCFG,
+		    temp & ~GLPMCFG_HSIC_CONN);
+		break;
+	case DWC_OTG_PHY_UTMI:
+		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
+		    (sc->sc_phy_bits == 16 ? GUSBCFG_PHYIF : 0) |
 		    GUSBCFG_TRD_TIM_SET(5) | temp);
 		DWC_OTG_WRITE_4(sc, DOTG_GOTGCTL, 0);
 
@@ -3979,7 +3995,7 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	}
 
 	/* enable interrupts */
-	sc->sc_irq_mask = DWC_OTG_MSK_GINT_ENABLED;
+	sc->sc_irq_mask |= DWC_OTG_MSK_GINT_THREAD_IRQ;
 	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 	if (sc->sc_mode == DWC_MODE_OTG || sc->sc_mode == DWC_MODE_DEVICE) {
@@ -4745,6 +4761,8 @@ tr_handle_get_port_status:
 
 	value = 0;
 
+	if (sc->sc_flags.change_enabled)
+		value |= UPS_C_PORT_ENABLED;
 	if (sc->sc_flags.change_connect)
 		value |= UPS_C_CONNECT_STATUS;
 	if (sc->sc_flags.change_suspend)

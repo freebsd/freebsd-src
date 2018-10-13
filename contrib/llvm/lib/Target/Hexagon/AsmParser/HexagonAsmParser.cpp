@@ -10,64 +10,79 @@
 #define DEBUG_TYPE "mcasmparser"
 
 #include "Hexagon.h"
-#include "HexagonRegisterInfo.h"
 #include "HexagonTargetStreamer.h"
-#include "MCTargetDesc/HexagonBaseInfo.h"
-#include "MCTargetDesc/HexagonMCELFStreamer.h"
 #include "MCTargetDesc/HexagonMCChecker.h"
+#include "MCTargetDesc/HexagonMCELFStreamer.h"
 #include "MCTargetDesc/HexagonMCExpr.h"
-#include "MCTargetDesc/HexagonMCShuffler.h"
+#include "MCTargetDesc/HexagonMCInstrInfo.h"
 #include "MCTargetDesc/HexagonMCTargetDesc.h"
-#include "MCTargetDesc/HexagonMCAsmInfo.h"
 #include "MCTargetDesc/HexagonShuffler.h"
-#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCELFStreamer.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
-#include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCParser/MCTargetAsmParser.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCTargetAsmParser.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCValue.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ELF.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
-#include <sstream>
+#include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
 
 using namespace llvm;
 
-static cl::opt<bool> EnableFutureRegs("mfuture-regs",
-                                      cl::desc("Enable future registers"));
-
-static cl::opt<bool> WarnMissingParenthesis("mwarn-missing-parenthesis",
-cl::desc("Warn for missing parenthesis around predicate registers"),
-cl::init(true));
-static cl::opt<bool> ErrorMissingParenthesis("merror-missing-parenthesis",
-cl::desc("Error for missing parenthesis around predicate registers"),
-cl::init(false));
-static cl::opt<bool> WarnSignedMismatch("mwarn-sign-mismatch",
-cl::desc("Warn for mismatching a signed and unsigned value"),
-cl::init(true));
-static cl::opt<bool> WarnNoncontigiousRegister("mwarn-noncontigious-register",
-cl::desc("Warn for register names that arent contigious"),
-cl::init(true));
-static cl::opt<bool> ErrorNoncontigiousRegister("merror-noncontigious-register",
-cl::desc("Error for register names that aren't contigious"),
-cl::init(false));
-
+static cl::opt<bool> WarnMissingParenthesis(
+    "mwarn-missing-parenthesis",
+    cl::desc("Warn for missing parenthesis around predicate registers"),
+    cl::init(true));
+static cl::opt<bool> ErrorMissingParenthesis(
+    "merror-missing-parenthesis",
+    cl::desc("Error for missing parenthesis around predicate registers"),
+    cl::init(false));
+static cl::opt<bool> WarnSignedMismatch(
+    "mwarn-sign-mismatch",
+    cl::desc("Warn for mismatching a signed and unsigned value"),
+    cl::init(true));
+static cl::opt<bool> WarnNoncontigiousRegister(
+    "mwarn-noncontigious-register",
+    cl::desc("Warn for register names that arent contigious"), cl::init(true));
+static cl::opt<bool> ErrorNoncontigiousRegister(
+    "merror-noncontigious-register",
+    cl::desc("Error for register names that aren't contigious"),
+    cl::init(false));
 
 namespace {
+
 struct HexagonOperand;
 
 class HexagonAsmParser : public MCTargetAsmParser {
@@ -78,13 +93,20 @@ class HexagonAsmParser : public MCTargetAsmParser {
   }
 
   MCAsmParser &Parser;
-  MCAssembler *Assembler;
-  MCInstrInfo const &MCII;
   MCInst MCB;
   bool InBrackets;
 
   MCAsmParser &getParser() const { return Parser; }
-  MCAssembler *getAssembler() const { return Assembler; }
+  MCAssembler *getAssembler() const {
+    MCAssembler *Assembler = nullptr;
+    // FIXME: need better way to detect AsmStreamer (upstream removed getKind())
+    if (!Parser.getStreamer().hasRawTextSupport()) {
+      MCELFStreamer *MES = static_cast<MCELFStreamer *>(&Parser.getStreamer());
+      Assembler = &MES->getAssembler();
+    }
+    return Assembler;
+  }
+
   MCAsmLexer &getLexer() const { return Parser.getLexer(); }
 
   bool equalIsAsmAssignment() override { return false; }
@@ -94,9 +116,7 @@ class HexagonAsmParser : public MCTargetAsmParser {
   bool Error(SMLoc L, const Twine &Msg) { return Parser.Error(L, Msg); }
   bool ParseDirectiveFalign(unsigned Size, SMLoc L);
 
-  virtual bool ParseRegister(unsigned &RegNo,
-                             SMLoc &StartLoc,
-                             SMLoc &EndLoc) override;
+  bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
   bool ParseDirectiveSubsection(SMLoc L);
   bool ParseDirectiveValue(unsigned Size, SMLoc L);
   bool ParseDirectiveComm(bool IsLocal, SMLoc L);
@@ -108,22 +128,26 @@ class HexagonAsmParser : public MCTargetAsmParser {
   void canonicalizeImmediates(MCInst &MCI);
   bool matchOneInstruction(MCInst &MCB, SMLoc IDLoc,
                            OperandVector &InstOperands, uint64_t &ErrorInfo,
-                           bool MatchingInlineAsm, bool &MustExtend);
-
+                           bool MatchingInlineAsm);
+  void eatToEndOfPacket();
   bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                OperandVector &Operands, MCStreamer &Out,
-                               uint64_t &ErrorInfo, bool MatchingInlineAsm) override;
+                               uint64_t &ErrorInfo,
+                               bool MatchingInlineAsm) override;
 
-  unsigned validateTargetOperandClass(MCParsedAsmOperand &Op, unsigned Kind) override;
-  void OutOfRange(SMLoc IDLoc, long long Val, long long Max);
+  unsigned validateTargetOperandClass(MCParsedAsmOperand &Op,
+                                      unsigned Kind) override;
+  bool OutOfRange(SMLoc IDLoc, long long Val, long long Max);
   int processInstruction(MCInst &Inst, OperandVector const &Operands,
-                         SMLoc IDLoc, bool &MustExtend);
+                         SMLoc IDLoc);
 
   // Check if we have an assembler and, if so, set the ELF e_header flags.
   void chksetELFHeaderEFlags(unsigned flags) {
     if (getAssembler())
       getAssembler()->setELFHeaderEFlags(flags);
   }
+
+  unsigned matchRegister(StringRef Name);
 
 /// @name Auto-generated Match Functions
 /// {
@@ -136,42 +160,37 @@ class HexagonAsmParser : public MCTargetAsmParser {
 public:
   HexagonAsmParser(const MCSubtargetInfo &_STI, MCAsmParser &_Parser,
                    const MCInstrInfo &MII, const MCTargetOptions &Options)
-    : MCTargetAsmParser(Options, _STI), Parser(_Parser),
-      MCII (MII), MCB(HexagonMCInstrInfo::createBundle()), InBrackets(false) {
+    : MCTargetAsmParser(Options, _STI, MII), Parser(_Parser),
+      InBrackets(false) {
+    MCB.setOpcode(Hexagon::BUNDLE);
     setAvailableFeatures(ComputeAvailableFeatures(getSTI().getFeatureBits()));
 
-  MCAsmParserExtension::Initialize(_Parser);
-
-  Assembler = nullptr;
-  // FIXME: need better way to detect AsmStreamer (upstream removed getKind())
-  if (!Parser.getStreamer().hasRawTextSupport()) {
-    MCELFStreamer *MES = static_cast<MCELFStreamer *>(&Parser.getStreamer());
-    Assembler = &MES->getAssembler();
-  }
+    MCAsmParserExtension::Initialize(_Parser);
   }
 
-  bool mustExtend(OperandVector &Operands);
   bool splitIdentifier(OperandVector &Operands);
   bool parseOperand(OperandVector &Operands);
   bool parseInstruction(OperandVector &Operands);
   bool implicitExpressionLocation(OperandVector &Operands);
   bool parseExpressionOrOperand(OperandVector &Operands);
-  bool parseExpression(MCExpr const *& Expr);
-  virtual bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
-                                SMLoc NameLoc, OperandVector &Operands) override
-  {
+  bool parseExpression(MCExpr const *&Expr);
+
+  bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
+                        SMLoc NameLoc, OperandVector &Operands) override {
     llvm_unreachable("Unimplemented");
   }
-  virtual bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
-                                AsmToken ID, OperandVector &Operands) override;
 
-  virtual bool ParseDirective(AsmToken DirectiveID) override;
+  bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name, AsmToken ID,
+                        OperandVector &Operands) override;
+
+  bool ParseDirective(AsmToken DirectiveID) override;
 };
 
 /// HexagonOperand - Instances of this class represent a parsed Hexagon machine
 /// instruction.
 struct HexagonOperand : public MCParsedAsmOperand {
   enum KindTy { Token, Immediate, Register } Kind;
+  MCContext &Context;
 
   SMLoc StartLoc, EndLoc;
 
@@ -186,7 +205,6 @@ struct HexagonOperand : public MCParsedAsmOperand {
 
   struct ImmTy {
     const MCExpr *Val;
-    bool MustExtend;
   };
 
   struct InstTy {
@@ -199,10 +217,12 @@ struct HexagonOperand : public MCParsedAsmOperand {
     struct ImmTy Imm;
   };
 
-  HexagonOperand(KindTy K) : MCParsedAsmOperand(), Kind(K) {}
+  HexagonOperand(KindTy K, MCContext &Context)
+      : MCParsedAsmOperand(), Kind(K), Context(Context) {}
 
 public:
-  HexagonOperand(const HexagonOperand &o) : MCParsedAsmOperand() {
+  HexagonOperand(const HexagonOperand &o)
+      : MCParsedAsmOperand(), Context(o.Context) {
     Kind = o.Kind;
     StartLoc = o.StartLoc;
     EndLoc = o.EndLoc;
@@ -220,12 +240,12 @@ public:
   }
 
   /// getStartLoc - Get the location of the first token of this operand.
-  SMLoc getStartLoc() const { return StartLoc; }
+  SMLoc getStartLoc() const override { return StartLoc; }
 
   /// getEndLoc - Get the location of the last token of this operand.
-  SMLoc getEndLoc() const { return EndLoc; }
+  SMLoc getEndLoc() const override { return EndLoc; }
 
-  unsigned getReg() const {
+  unsigned getReg() const override {
     assert(Kind == Register && "Invalid access!");
     return Reg.RegNum;
   }
@@ -235,16 +255,16 @@ public:
     return Imm.Val;
   }
 
-  bool isToken() const { return Kind == Token; }
-  bool isImm() const { return Kind == Immediate; }
-  bool isMem() const { llvm_unreachable("No isMem"); }
-  bool isReg() const { return Kind == Register; }
+  bool isToken() const override { return Kind == Token; }
+  bool isImm() const override { return Kind == Immediate; }
+  bool isMem() const override { llvm_unreachable("No isMem"); }
+  bool isReg() const override { return Kind == Register; }
 
   bool CheckImmRange(int immBits, int zeroBits, bool isSigned,
                      bool isRelocatable, bool Extendable) const {
     if (Kind == Immediate) {
-      const MCExpr *myMCExpr = getImm();
-      if (Imm.MustExtend && !Extendable)
+      const MCExpr *myMCExpr = &HexagonMCInstrInfo::getExpr(*getImm());
+      if (HexagonMCInstrInfo::mustExtend(*Imm.Val) && !Extendable)
         return false;
       int64_t Res;
       if (myMCExpr->evaluateAsAbsolute(Res)) {
@@ -260,11 +280,11 @@ public:
           if (bits == 64)
             return true;
           if (Res >= 0)
-            return ((uint64_t)Res < (uint64_t)(1ULL << bits)) ? true : false;
+            return ((uint64_t)Res < (uint64_t)(1ULL << bits));
           else {
             const int64_t high_bit_set = 1ULL << 63;
             const uint64_t mask = (high_bit_set >> (63 - bits));
-            return (((uint64_t)Res & mask) == mask) ? true : false;
+            return (((uint64_t)Res & mask) == mask);
           }
         }
       } else if (myMCExpr->getKind() == MCExpr::SymbolRef && isRelocatable)
@@ -276,78 +296,84 @@ public:
     return false;
   }
 
-  bool isf32Ext() const { return false; }
-  bool iss32Imm() const { return CheckImmRange(32, 0, true, true, false); }
-  bool iss8Imm() const { return CheckImmRange(8, 0, true, false, false); }
-  bool iss8Imm64() const { return CheckImmRange(8, 0, true, true, false); }
-  bool iss7Imm() const { return CheckImmRange(7, 0, true, false, false); }
-  bool iss6Imm() const { return CheckImmRange(6, 0, true, false, false); }
-  bool iss4Imm() const { return CheckImmRange(4, 0, true, false, false); }
+  bool isa30_2Imm() const { return CheckImmRange(30, 2, true, true, true); }
+  bool isb30_2Imm() const { return CheckImmRange(30, 2, true, true, true); }
+  bool isb15_2Imm() const { return CheckImmRange(15, 2, true, true, false); }
+  bool isb13_2Imm() const { return CheckImmRange(13, 2, true, true, false); }
+
+  bool ism32_0Imm() const { return true; }
+
+  bool isf32Imm() const { return false; }
+  bool isf64Imm() const { return false; }
+  bool iss32_0Imm() const { return true; }
+  bool iss31_1Imm() const { return true; }
+  bool iss30_2Imm() const { return true; }
+  bool iss29_3Imm() const { return true; }
+  bool iss27_2Imm() const { return CheckImmRange(27, 2, true, true, false); }
+  bool iss10_0Imm() const { return CheckImmRange(10, 0, true, false, false); }
+  bool iss10_6Imm() const { return CheckImmRange(10, 6, true, false, false); }
+  bool iss9_0Imm() const { return CheckImmRange(9, 0, true, false, false); }
+  bool iss8_0Imm() const { return CheckImmRange(8, 0, true, false, false); }
+  bool iss8_0Imm64() const { return CheckImmRange(8, 0, true, true, false); }
+  bool iss7_0Imm() const { return CheckImmRange(7, 0, true, false, false); }
+  bool iss6_0Imm() const { return CheckImmRange(6, 0, true, false, false); }
+  bool iss6_3Imm() const { return CheckImmRange(6, 3, true, false, false); }
   bool iss4_0Imm() const { return CheckImmRange(4, 0, true, false, false); }
   bool iss4_1Imm() const { return CheckImmRange(4, 1, true, false, false); }
   bool iss4_2Imm() const { return CheckImmRange(4, 2, true, false, false); }
   bool iss4_3Imm() const { return CheckImmRange(4, 3, true, false, false); }
-  bool iss4_6Imm() const { return CheckImmRange(4, 0, true, false, false); }
-  bool iss3_6Imm() const { return CheckImmRange(3, 0, true, false, false); }
-  bool iss3Imm() const { return CheckImmRange(3, 0, true, false, false); }
+  bool iss3_0Imm() const { return CheckImmRange(3, 0, true, false, false); }
 
-  bool isu64Imm() const { return CheckImmRange(64, 0, false, true, true); }
-  bool isu32Imm() const { return CheckImmRange(32, 0, false, true, false); }
+  bool isu64_0Imm() const { return CheckImmRange(64, 0, false, true, true); }
+  bool isu32_0Imm() const { return true; }
+  bool isu31_1Imm() const { return true; }
+  bool isu30_2Imm() const { return true; }
+  bool isu29_3Imm() const { return true; }
   bool isu26_6Imm() const { return CheckImmRange(26, 6, false, true, false); }
-  bool isu16Imm() const { return CheckImmRange(16, 0, false, true, false); }
   bool isu16_0Imm() const { return CheckImmRange(16, 0, false, true, false); }
   bool isu16_1Imm() const { return CheckImmRange(16, 1, false, true, false); }
   bool isu16_2Imm() const { return CheckImmRange(16, 2, false, true, false); }
   bool isu16_3Imm() const { return CheckImmRange(16, 3, false, true, false); }
   bool isu11_3Imm() const { return CheckImmRange(11, 3, false, false, false); }
+  bool isu10_0Imm() const { return CheckImmRange(10, 0, false, false, false); }
+  bool isu9_0Imm() const { return CheckImmRange(9, 0, false, false, false); }
+  bool isu8_0Imm() const { return CheckImmRange(8, 0, false, false, false); }
+  bool isu7_0Imm() const { return CheckImmRange(7, 0, false, false, false); }
   bool isu6_0Imm() const { return CheckImmRange(6, 0, false, false, false); }
   bool isu6_1Imm() const { return CheckImmRange(6, 1, false, false, false); }
   bool isu6_2Imm() const { return CheckImmRange(6, 2, false, false, false); }
   bool isu6_3Imm() const { return CheckImmRange(6, 3, false, false, false); }
-  bool isu10Imm() const { return CheckImmRange(10, 0, false, false, false); }
-  bool isu9Imm() const { return CheckImmRange(9, 0, false, false, false); }
-  bool isu8Imm() const { return CheckImmRange(8, 0, false, false, false); }
-  bool isu7Imm() const { return CheckImmRange(7, 0, false, false, false); }
-  bool isu6Imm() const { return CheckImmRange(6, 0, false, false, false); }
-  bool isu5Imm() const { return CheckImmRange(5, 0, false, false, false); }
-  bool isu4Imm() const { return CheckImmRange(4, 0, false, false, false); }
-  bool isu3Imm() const { return CheckImmRange(3, 0, false, false, false); }
-  bool isu2Imm() const { return CheckImmRange(2, 0, false, false, false); }
-  bool isu1Imm() const { return CheckImmRange(1, 0, false, false, false); }
+  bool isu5_0Imm() const { return CheckImmRange(5, 0, false, false, false); }
+  bool isu5_2Imm() const { return CheckImmRange(5, 2, false, false, false); }
+  bool isu5_3Imm() const { return CheckImmRange(5, 3, false, false, false); }
+  bool isu4_0Imm() const { return CheckImmRange(4, 0, false, false, false); }
+  bool isu4_2Imm() const { return CheckImmRange(4, 2, false, false, false); }
+  bool isu3_0Imm() const { return CheckImmRange(3, 0, false, false, false); }
+  bool isu3_1Imm() const { return CheckImmRange(3, 1, false, false, false); }
+  bool isu2_0Imm() const { return CheckImmRange(2, 0, false, false, false); }
+  bool isu1_0Imm() const { return CheckImmRange(1, 0, false, false, false); }
 
-  bool ism6Imm() const { return CheckImmRange(6, 0, false, false, false); }
-  bool isn8Imm() const { return CheckImmRange(8, 0, false, false, false); }
-
-  bool iss16Ext() const { return CheckImmRange(16 + 26, 0, true, true, true); }
-  bool iss12Ext() const { return CheckImmRange(12 + 26, 0, true, true, true); }
-  bool iss10Ext() const { return CheckImmRange(10 + 26, 0, true, true, true); }
-  bool iss9Ext() const { return CheckImmRange(9 + 26, 0, true, true, true); }
-  bool iss8Ext() const { return CheckImmRange(8 + 26, 0, true, true, true); }
-  bool iss7Ext() const { return CheckImmRange(7 + 26, 0, true, true, true); }
-  bool iss6Ext() const { return CheckImmRange(6 + 26, 0, true, true, true); }
-  bool iss11_0Ext() const {
+  bool isn1Const() const {
+    if (!isImm())
+      return false;
+    int64_t Value;
+    if (!getImm()->evaluateAsAbsolute(Value))
+      return false;
+    return Value == -1;
+  }
+  bool iss11_0Imm() const {
     return CheckImmRange(11 + 26, 0, true, true, true);
   }
-  bool iss11_1Ext() const {
+  bool iss11_1Imm() const {
     return CheckImmRange(11 + 26, 1, true, true, true);
   }
-  bool iss11_2Ext() const {
+  bool iss11_2Imm() const {
     return CheckImmRange(11 + 26, 2, true, true, true);
   }
-  bool iss11_3Ext() const {
+  bool iss11_3Imm() const {
     return CheckImmRange(11 + 26, 3, true, true, true);
   }
-
-  bool isu6Ext() const { return CheckImmRange(6 + 26, 0, false, true, true); }
-  bool isu7Ext() const { return CheckImmRange(7 + 26, 0, false, true, true); }
-  bool isu8Ext() const { return CheckImmRange(8 + 26, 0, false, true, true); }
-  bool isu9Ext() const { return CheckImmRange(9 + 26, 0, false, true, true); }
-  bool isu10Ext() const { return CheckImmRange(10 + 26, 0, false, true, true); }
-  bool isu6_0Ext() const { return CheckImmRange(6 + 26, 0, false, true, true); }
-  bool isu6_1Ext() const { return CheckImmRange(6 + 26, 1, false, true, true); }
-  bool isu6_2Ext() const { return CheckImmRange(6 + 26, 2, false, true, true); }
-  bool isu6_3Ext() const { return CheckImmRange(6 + 26, 3, false, true, true); }
-  bool isu32MustExt() const { return isImm() && Imm.MustExtend; }
+  bool isu32_0MustExt() const { return isImm(); }
 
   void addRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
@@ -361,206 +387,25 @@ public:
 
   void addSignedImmOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    MCExpr const *Expr = getImm();
+    HexagonMCExpr *Expr =
+        const_cast<HexagonMCExpr *>(cast<HexagonMCExpr>(getImm()));
     int64_t Value;
     if (!Expr->evaluateAsAbsolute(Value)) {
       Inst.addOperand(MCOperand::createExpr(Expr));
       return;
     }
-    int64_t Extended = SignExtend64 (Value, 32);
-    if ((Extended < 0) == (Value < 0)) {
-      Inst.addOperand(MCOperand::createExpr(Expr));
-      return;
-    }
-    // Flip bit 33 to signal signed unsigned mismatch
-    Extended ^= 0x100000000;
-    Inst.addOperand(MCOperand::createImm(Extended));
+    int64_t Extended = SignExtend64(Value, 32);
+    HexagonMCExpr *NewExpr = HexagonMCExpr::create(
+        MCConstantExpr::create(Extended, Context), Context);
+    if ((Extended < 0) != (Value < 0))
+      NewExpr->setSignMismatch();
+    NewExpr->setMustExtend(Expr->mustExtend());
+    NewExpr->setMustNotExtend(Expr->mustNotExtend());
+    Inst.addOperand(MCOperand::createExpr(NewExpr));
   }
 
-  void addf32ExtOperands(MCInst &Inst, unsigned N) const {
+  void addn1ConstOperands(MCInst &Inst, unsigned N) const {
     addImmOperands(Inst, N);
-  }
-
-  void adds32ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds8ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds8Imm64Operands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds6ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds4ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds4_0ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds4_1ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds4_2ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds4_3ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds3ImmOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-
-  void addu64ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu32ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu26_6ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu16ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu16_0ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu16_1ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu16_2ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu16_3ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu11_3ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu10ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu9ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu8ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu7ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_0ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_1ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_2ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_3ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu5ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu4ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu3ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu2ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu1ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-
-  void addm6ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addn8ImmOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-
-  void adds16ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds12ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds10ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds9ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds8ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds6ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds11_0ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds11_1ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds11_2ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-  void adds11_3ExtOperands(MCInst &Inst, unsigned N) const {
-    addSignedImmOperands(Inst, N);
-  }
-
-  void addu6ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu7ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu8ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu9ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu10ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_0ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_1ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_2ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu6_3ExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-  void addu32MustExtOperands(MCInst &Inst, unsigned N) const {
-    addImmOperands(Inst, N);
-  }
-
-  void adds4_6ImmOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    Inst.addOperand(MCOperand::createImm(CE->getValue() * 64));
-  }
-
-  void adds3_6ImmOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    Inst.addOperand(MCOperand::createImm(CE->getValue() * 64));
   }
 
   StringRef getToken() const {
@@ -568,10 +413,11 @@ public:
     return StringRef(Tok.Data, Tok.Length);
   }
 
-  virtual void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS) const override;
 
-  static std::unique_ptr<HexagonOperand> CreateToken(StringRef Str, SMLoc S) {
-    HexagonOperand *Op = new HexagonOperand(Token);
+  static std::unique_ptr<HexagonOperand> CreateToken(MCContext &Context,
+                                                     StringRef Str, SMLoc S) {
+    HexagonOperand *Op = new HexagonOperand(Token, Context);
     Op->Tok.Data = Str.data();
     Op->Tok.Length = Str.size();
     Op->StartLoc = S;
@@ -579,27 +425,26 @@ public:
     return std::unique_ptr<HexagonOperand>(Op);
   }
 
-  static std::unique_ptr<HexagonOperand> CreateReg(unsigned RegNum, SMLoc S,
-                                                   SMLoc E) {
-    HexagonOperand *Op = new HexagonOperand(Register);
+  static std::unique_ptr<HexagonOperand>
+  CreateReg(MCContext &Context, unsigned RegNum, SMLoc S, SMLoc E) {
+    HexagonOperand *Op = new HexagonOperand(Register, Context);
     Op->Reg.RegNum = RegNum;
     Op->StartLoc = S;
     Op->EndLoc = E;
     return std::unique_ptr<HexagonOperand>(Op);
   }
 
-  static std::unique_ptr<HexagonOperand> CreateImm(const MCExpr *Val, SMLoc S,
-                                                   SMLoc E) {
-    HexagonOperand *Op = new HexagonOperand(Immediate);
+  static std::unique_ptr<HexagonOperand>
+  CreateImm(MCContext &Context, const MCExpr *Val, SMLoc S, SMLoc E) {
+    HexagonOperand *Op = new HexagonOperand(Immediate, Context);
     Op->Imm.Val = Val;
-    Op->Imm.MustExtend = false;
     Op->StartLoc = S;
     Op->EndLoc = E;
     return std::unique_ptr<HexagonOperand>(Op);
   }
 };
 
-} // end anonymous namespace.
+} // end anonymous namespace
 
 void HexagonOperand::print(raw_ostream &OS) const {
   switch (Kind) {
@@ -616,99 +461,21 @@ void HexagonOperand::print(raw_ostream &OS) const {
   }
 }
 
-/// @name Auto-generated Match Functions
-static unsigned MatchRegisterName(StringRef Name);
-
 bool HexagonAsmParser::finishBundle(SMLoc IDLoc, MCStreamer &Out) {
   DEBUG(dbgs() << "Bundle:");
   DEBUG(MCB.dump_pretty(dbgs()));
   DEBUG(dbgs() << "--\n");
 
+  MCB.setLoc(IDLoc);
   // Check the bundle for errors.
   const MCRegisterInfo *RI = getContext().getRegisterInfo();
-  HexagonMCChecker Check(MCII, getSTI(), MCB, MCB, *RI);
+  HexagonMCChecker Check(getContext(), MII, getSTI(), MCB, *RI);
 
-  bool CheckOk = HexagonMCInstrInfo::canonicalizePacket(MCII, getSTI(),
+  bool CheckOk = HexagonMCInstrInfo::canonicalizePacket(MII, getSTI(),
                                                         getContext(), MCB,
                                                         &Check);
 
-  while (Check.getNextErrInfo() == true) {
-    unsigned Reg = Check.getErrRegister();
-    Twine R(RI->getName(Reg));
-
-    uint64_t Err = Check.getError();
-    if (Err != HexagonMCErrInfo::CHECK_SUCCESS) {
-      if (HexagonMCErrInfo::CHECK_ERROR_BRANCHES & Err)
-        Error(IDLoc,
-              "unconditional branch cannot precede another branch in packet");
-
-      if (HexagonMCErrInfo::CHECK_ERROR_NEWP & Err ||
-          HexagonMCErrInfo::CHECK_ERROR_NEWV & Err)
-        Error(IDLoc, "register `" + R +
-                         "' used with `.new' "
-                         "but not validly modified in the same packet");
-
-      if (HexagonMCErrInfo::CHECK_ERROR_REGISTERS & Err)
-        Error(IDLoc, "register `" + R + "' modified more than once");
-
-      if (HexagonMCErrInfo::CHECK_ERROR_READONLY & Err)
-        Error(IDLoc, "cannot write to read-only register `" + R + "'");
-
-      if (HexagonMCErrInfo::CHECK_ERROR_LOOP & Err)
-        Error(IDLoc, "loop-setup and some branch instructions "
-                     "cannot be in the same packet");
-
-      if (HexagonMCErrInfo::CHECK_ERROR_ENDLOOP & Err) {
-        Twine N(HexagonMCInstrInfo::isInnerLoop(MCB) ? '0' : '1');
-        Error(IDLoc, "packet marked with `:endloop" + N + "' " +
-                         "cannot contain instructions that modify register " +
-                         "`" + R + "'");
-      }
-
-      if (HexagonMCErrInfo::CHECK_ERROR_SOLO & Err)
-        Error(IDLoc,
-              "instruction cannot appear in packet with other instructions");
-
-      if (HexagonMCErrInfo::CHECK_ERROR_NOSLOTS & Err)
-        Error(IDLoc, "too many slots used in packet");
-
-      if (Err & HexagonMCErrInfo::CHECK_ERROR_SHUFFLE) {
-        uint64_t Erm = Check.getShuffleError();
-
-        if (HexagonShuffler::SHUFFLE_ERROR_INVALID == Erm)
-          Error(IDLoc, "invalid instruction packet");
-        else if (HexagonShuffler::SHUFFLE_ERROR_STORES == Erm)
-          Error(IDLoc, "invalid instruction packet: too many stores");
-        else if (HexagonShuffler::SHUFFLE_ERROR_LOADS == Erm)
-          Error(IDLoc, "invalid instruction packet: too many loads");
-        else if (HexagonShuffler::SHUFFLE_ERROR_BRANCHES == Erm)
-          Error(IDLoc, "too many branches in packet");
-        else if (HexagonShuffler::SHUFFLE_ERROR_NOSLOTS == Erm)
-          Error(IDLoc, "invalid instruction packet: out of slots");
-        else if (HexagonShuffler::SHUFFLE_ERROR_SLOTS == Erm)
-          Error(IDLoc, "invalid instruction packet: slot error");
-        else if (HexagonShuffler::SHUFFLE_ERROR_ERRATA2 == Erm)
-          Error(IDLoc, "v60 packet violation");
-        else if (HexagonShuffler::SHUFFLE_ERROR_STORE_LOAD_CONFLICT == Erm)
-          Error(IDLoc, "slot 0 instruction does not allow slot 1 store");
-        else
-          Error(IDLoc, "unknown error in instruction packet");
-      }
-    }
-
-    unsigned Warn = Check.getWarning();
-    if (Warn != HexagonMCErrInfo::CHECK_SUCCESS) {
-      if (HexagonMCErrInfo::CHECK_WARN_CURRENT & Warn)
-        Warning(IDLoc, "register `" + R + "' used with `.cur' "
-                                          "but not used in the same packet");
-      else if (HexagonMCErrInfo::CHECK_WARN_TEMPORARY & Warn)
-        Warning(IDLoc, "register `" + R + "' used with `.tmp' "
-                                          "but not used in the same packet");
-    }
-  }
-
   if (CheckOk) {
-    MCB.setLoc(IDLoc);
     if (HexagonMCInstrInfo::bundleSize(MCB) == 0) {
       assert(!HexagonMCInstrInfo::isInnerLoop(MCB));
       assert(!HexagonMCInstrInfo::isOuterLoop(MCB));
@@ -721,8 +488,8 @@ bool HexagonAsmParser::finishBundle(SMLoc IDLoc, MCStreamer &Out) {
     // 4 or less we have a packet that is too big.
     if (HexagonMCInstrInfo::bundleSize(MCB) > HEXAGON_PACKET_SIZE) {
       Error(IDLoc, "invalid instruction packet: out of slots");
-      return true; // Error
     }
+    return true; // Error
   }
 
   return false; // No error
@@ -730,23 +497,28 @@ bool HexagonAsmParser::finishBundle(SMLoc IDLoc, MCStreamer &Out) {
 
 bool HexagonAsmParser::matchBundleOptions() {
   MCAsmParser &Parser = getParser();
-  MCAsmLexer &Lexer = getLexer();
   while (true) {
     if (!Parser.getTok().is(AsmToken::Colon))
       return false;
-    Lexer.Lex();
+    Lex();
+    char const *MemNoShuffMsg =
+        "invalid instruction packet: mem_noshuf specifier not "
+        "supported with this architecture";
     StringRef Option = Parser.getTok().getString();
+    auto IDLoc = Parser.getTok().getLoc();
     if (Option.compare_lower("endloop0") == 0)
       HexagonMCInstrInfo::setInnerLoop(MCB);
     else if (Option.compare_lower("endloop1") == 0)
       HexagonMCInstrInfo::setOuterLoop(MCB);
     else if (Option.compare_lower("mem_noshuf") == 0)
-      HexagonMCInstrInfo::setMemReorderDisabled(MCB);
-    else if (Option.compare_lower("mem_shuf") == 0)
-      HexagonMCInstrInfo::setMemStoreReorderEnabled(MCB);
+      if (getSTI().getFeatureBits()[Hexagon::FeatureMemNoShuf])
+        HexagonMCInstrInfo::setMemReorderDisabled(MCB);
+      else
+        return getParser().Error(IDLoc, MemNoShuffMsg);
     else
-      return true;
-    Lexer.Lex();
+      return getParser().Error(IDLoc, llvm::Twine("'") + Option +
+                                          "' is not a valid bundle option");
+    Lex();
   }
 }
 
@@ -758,34 +530,29 @@ void HexagonAsmParser::canonicalizeImmediates(MCInst &MCI) {
   NewInst.setOpcode(MCI.getOpcode());
   for (MCOperand &I : MCI)
     if (I.isImm()) {
-      int64_t Value (I.getImm());
-      if ((Value & 0x100000000) != (Value & 0x80000000)) {
-        // Detect flipped bit 33 wrt bit 32 and signal warning
-        Value ^= 0x100000000;
-        if (WarnSignedMismatch)
-          Warning (MCI.getLoc(), "Signed/Unsigned mismatch");
-      }
-      NewInst.addOperand(MCOperand::createExpr(
-          MCConstantExpr::create(Value, getContext())));
-    }
-    else
+      int64_t Value(I.getImm());
+      NewInst.addOperand(MCOperand::createExpr(HexagonMCExpr::create(
+          MCConstantExpr::create(Value, getContext()), getContext())));
+    } else {
+      if (I.isExpr() && cast<HexagonMCExpr>(I.getExpr())->signMismatch() &&
+          WarnSignedMismatch)
+        Warning(MCI.getLoc(), "Signed/Unsigned mismatch");
       NewInst.addOperand(I);
+    }
   MCI = NewInst;
 }
 
 bool HexagonAsmParser::matchOneInstruction(MCInst &MCI, SMLoc IDLoc,
                                            OperandVector &InstOperands,
                                            uint64_t &ErrorInfo,
-                                           bool MatchingInlineAsm,
-                                           bool &MustExtend) {
+                                           bool MatchingInlineAsm) {
   // Perform matching with tablegen asmmatcher generated function
   int result =
       MatchInstructionImpl(InstOperands, MCI, ErrorInfo, MatchingInlineAsm);
   if (result == Match_Success) {
     MCI.setLoc(IDLoc);
-    MustExtend = mustExtend(InstOperands);
     canonicalizeImmediates(MCI);
-    result = processInstruction(MCI, InstOperands, IDLoc, MustExtend);
+    result = processInstruction(MCI, InstOperands, IDLoc);
 
     DEBUG(dbgs() << "Insn:");
     DEBUG(MCI.dump_pretty(dbgs()));
@@ -823,15 +590,13 @@ bool HexagonAsmParser::matchOneInstruction(MCInst &MCI, SMLoc IDLoc,
   llvm_unreachable("Implement any new match types added!");
 }
 
-bool HexagonAsmParser::mustExtend(OperandVector &Operands) {
-  unsigned Count = 0;
-  for (std::unique_ptr<MCParsedAsmOperand> &i : Operands)
-    if (i->isImm())
-      if (static_cast<HexagonOperand *>(i.get())->Imm.MustExtend)
-        ++Count;
-  // Multiple extenders should have been filtered by iss9Ext et. al.
-  assert(Count < 2 && "Multiple extenders");
-  return Count == 1;
+void HexagonAsmParser::eatToEndOfPacket() {
+  assert(InBrackets);
+  MCAsmLexer &Lexer = getLexer();
+  while (!Lexer.is(AsmToken::RCurly))
+    Lexer.Lex();
+  Lexer.Lex();
+  InBrackets = false;
 }
 
 bool HexagonAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
@@ -848,6 +613,7 @@ bool HexagonAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     assert(Operands.size() == 1 && "Brackets should be by themselves");
     if (InBrackets) {
       getParser().Error(IDLoc, "Already in a packet");
+      InBrackets = false;
       return true;
     }
     InBrackets = true;
@@ -865,13 +631,14 @@ bool HexagonAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return finishBundle(IDLoc, Out);
   }
   MCInst *SubInst = new (getParser().getContext()) MCInst;
-  bool MustExtend = false;
   if (matchOneInstruction(*SubInst, IDLoc, Operands, ErrorInfo,
-                          MatchingInlineAsm, MustExtend))
+                          MatchingInlineAsm)) {
+    if (InBrackets)
+      eatToEndOfPacket();
     return true;
+  }
   HexagonMCInstrInfo::extendIfNeeded(
-      getParser().getContext(), MCII, MCB, *SubInst,
-      HexagonMCInstrInfo::isExtended(MCII, *SubInst) || MustExtend);
+      getParser().getContext(), MII, MCB, *SubInst);
   MCB.addOperand(MCOperand::createInst(SubInst));
   if (!InBrackets)
     return finishBundle(IDLoc, Out);
@@ -898,7 +665,7 @@ bool HexagonAsmParser::ParseDirective(AsmToken DirectiveID) {
   return true;
 }
 bool HexagonAsmParser::ParseDirectiveSubsection(SMLoc L) {
-  const MCExpr *Subsection = 0;
+  const MCExpr *Subsection = nullptr;
   int64_t Res;
 
   assert((getLexer().isNot(AsmToken::EndOfStatement)) &&
@@ -916,7 +683,8 @@ bool HexagonAsmParser::ParseDirectiveSubsection(SMLoc L) {
   // end of the section.  Only legacy hexagon-gcc created assembly code
   // used negative subsections.
   if ((Res < 0) && (Res > -8193))
-    Subsection = MCConstantExpr::create(8192 + Res, this->getContext());
+    Subsection = HexagonMCExpr::create(
+        MCConstantExpr::create(8192 + Res, getContext()), getContext());
 
   getStreamer().SubSection(Subsection);
   return false;
@@ -927,13 +695,13 @@ bool HexagonAsmParser::ParseDirectiveFalign(unsigned Size, SMLoc L) {
 
   int64_t MaxBytesToFill = 15;
 
-  // if there is an arguement
+  // if there is an argument
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
     const MCExpr *Value;
     SMLoc ExprLoc = L;
 
     // Make sure we have a number (false is returned if expression is a number)
-    if (getParser().parseExpression(Value) == false) {
+    if (!getParser().parseExpression(Value)) {
       // Make sure this is a number that is in range
       const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(Value);
       uint64_t IntValue = MCE->getValue();
@@ -955,8 +723,7 @@ bool HexagonAsmParser::ParseDirectiveFalign(unsigned Size, SMLoc L) {
 ///  ::= .word [ expression (, expression)* ]
 bool HexagonAsmParser::ParseDirectiveValue(unsigned Size, SMLoc L) {
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-
-    for (;;) {
+    while (true) {
       const MCExpr *Value;
       SMLoc ExprLoc = L;
       if (getParser().parseExpression(Value))
@@ -1074,6 +841,9 @@ bool HexagonAsmParser::ParseDirectiveComm(bool IsLocal, SMLoc Loc) {
 
 // validate register against architecture
 bool HexagonAsmParser::RegisterMatchesArch(unsigned MatchNum) const {
+  if (HexagonMCRegisterClasses[Hexagon::V62RegsRegClassID].contains(MatchNum))
+    if (!getSTI().getFeatureBits()[Hexagon::ArchV62])
+      return false;
   return true;
 }
 
@@ -1081,15 +851,15 @@ bool HexagonAsmParser::RegisterMatchesArch(unsigned MatchNum) const {
 
 /// Force static initialization.
 extern "C" void LLVMInitializeHexagonAsmParser() {
-  RegisterMCAsmParser<HexagonAsmParser> X(TheHexagonTarget);
+  RegisterMCAsmParser<HexagonAsmParser> X(getTheHexagonTarget());
 }
 
 #define GET_MATCHER_IMPLEMENTATION
 #define GET_REGISTER_MATCHER
 #include "HexagonGenAsmMatcher.inc"
 
-namespace {
-bool previousEqual(OperandVector &Operands, size_t Index, StringRef String) {
+static bool previousEqual(OperandVector &Operands, size_t Index,
+                          StringRef String) {
   if (Index >= Operands.size())
     return false;
   MCParsedAsmOperand &Operand = *Operands[Operands.size() - Index - 1];
@@ -1097,27 +867,28 @@ bool previousEqual(OperandVector &Operands, size_t Index, StringRef String) {
     return false;
   return static_cast<HexagonOperand &>(Operand).getToken().equals_lower(String);
 }
-bool previousIsLoop(OperandVector &Operands, size_t Index) {
+
+static bool previousIsLoop(OperandVector &Operands, size_t Index) {
   return previousEqual(Operands, Index, "loop0") ||
          previousEqual(Operands, Index, "loop1") ||
          previousEqual(Operands, Index, "sp1loop0") ||
          previousEqual(Operands, Index, "sp2loop0") ||
          previousEqual(Operands, Index, "sp3loop0");
 }
-}
 
 bool HexagonAsmParser::splitIdentifier(OperandVector &Operands) {
   AsmToken const &Token = getParser().getTok();
   StringRef String = Token.getString();
   SMLoc Loc = Token.getLoc();
-  getLexer().Lex();
+  Lex();
   do {
     std::pair<StringRef, StringRef> HeadTail = String.split('.');
     if (!HeadTail.first.empty())
-      Operands.push_back(HexagonOperand::CreateToken(HeadTail.first, Loc));
+      Operands.push_back(
+          HexagonOperand::CreateToken(getContext(), HeadTail.first, Loc));
     if (!HeadTail.second.empty())
       Operands.push_back(HexagonOperand::CreateToken(
-          String.substr(HeadTail.first.size(), 1), Loc));
+          getContext(), String.substr(HeadTail.first.size(), 1), Loc));
     String = HeadTail.second;
   } while (!String.empty());
   return false;
@@ -1139,38 +910,43 @@ bool HexagonAsmParser::parseOperand(OperandVector &Operands) {
       case Hexagon::P3:
         if (previousEqual(Operands, 0, "if")) {
           if (WarnMissingParenthesis)
-            Warning (Begin, "Missing parenthesis around predicate register");
+            Warning(Begin, "Missing parenthesis around predicate register");
           static char const *LParen = "(";
           static char const *RParen = ")";
-          Operands.push_back(HexagonOperand::CreateToken(LParen, Begin));
-          Operands.push_back(HexagonOperand::CreateReg(Register, Begin, End));
-          AsmToken MaybeDotNew = Lexer.getTok();
+          Operands.push_back(
+              HexagonOperand::CreateToken(getContext(), LParen, Begin));
+          Operands.push_back(
+              HexagonOperand::CreateReg(getContext(), Register, Begin, End));
+          const AsmToken &MaybeDotNew = Lexer.getTok();
           if (MaybeDotNew.is(AsmToken::TokenKind::Identifier) &&
               MaybeDotNew.getString().equals_lower(".new"))
             splitIdentifier(Operands);
-          Operands.push_back(HexagonOperand::CreateToken(RParen, Begin));
+          Operands.push_back(
+              HexagonOperand::CreateToken(getContext(), RParen, Begin));
           return false;
         }
         if (previousEqual(Operands, 0, "!") &&
             previousEqual(Operands, 1, "if")) {
           if (WarnMissingParenthesis)
-            Warning (Begin, "Missing parenthesis around predicate register");
+            Warning(Begin, "Missing parenthesis around predicate register");
           static char const *LParen = "(";
           static char const *RParen = ")";
-          Operands.insert(Operands.end () - 1,
-                          HexagonOperand::CreateToken(LParen, Begin));
-          Operands.push_back(HexagonOperand::CreateReg(Register, Begin, End));
-          AsmToken MaybeDotNew = Lexer.getTok();
+          Operands.insert(Operands.end() - 1, HexagonOperand::CreateToken(
+                                                  getContext(), LParen, Begin));
+          Operands.push_back(
+              HexagonOperand::CreateReg(getContext(), Register, Begin, End));
+          const AsmToken &MaybeDotNew = Lexer.getTok();
           if (MaybeDotNew.is(AsmToken::TokenKind::Identifier) &&
               MaybeDotNew.getString().equals_lower(".new"))
             splitIdentifier(Operands);
-          Operands.push_back(HexagonOperand::CreateToken(RParen, Begin));
+          Operands.push_back(
+              HexagonOperand::CreateToken(getContext(), RParen, Begin));
           return false;
         }
         break;
       }
-    Operands.push_back(HexagonOperand::CreateReg(
-        Register, Begin, End));
+    Operands.push_back(
+        HexagonOperand::CreateReg(getContext(), Register, Begin, End));
     return false;
   }
   return splitIdentifier(Operands);
@@ -1179,30 +955,33 @@ bool HexagonAsmParser::parseOperand(OperandVector &Operands) {
 bool HexagonAsmParser::isLabel(AsmToken &Token) {
   MCAsmLexer &Lexer = getLexer();
   AsmToken const &Second = Lexer.getTok();
-  AsmToken Third = Lexer.peekTok();  
+  AsmToken Third = Lexer.peekTok();
   StringRef String = Token.getString();
   if (Token.is(AsmToken::TokenKind::LCurly) ||
       Token.is(AsmToken::TokenKind::RCurly))
     return false;
+  // special case for parsing vwhist256:sat
+  if (String.lower() == "vwhist256" && Second.is(AsmToken::Colon) &&
+      Third.getString().lower() == "sat")
+    return false;
   if (!Token.is(AsmToken::TokenKind::Identifier))
     return true;
-  if (!MatchRegisterName(String.lower()))
+  if (!matchRegister(String.lower()))
     return true;
-  (void)Second;
   assert(Second.is(AsmToken::Colon));
-  StringRef Raw (String.data(), Third.getString().data() - String.data() +
-                 Third.getString().size());
+  StringRef Raw(String.data(), Third.getString().data() - String.data() +
+                                   Third.getString().size());
   std::string Collapsed = Raw;
-  Collapsed.erase(std::remove_if(Collapsed.begin(), Collapsed.end(), isspace),
-                  Collapsed.end());
+  Collapsed.erase(llvm::remove_if(Collapsed, isspace), Collapsed.end());
   StringRef Whole = Collapsed;
   std::pair<StringRef, StringRef> DotSplit = Whole.split('.');
-  if (!MatchRegisterName(DotSplit.first.lower()))
+  if (!matchRegister(DotSplit.first.lower()))
     return true;
   return false;
 }
 
-bool HexagonAsmParser::handleNoncontigiousRegister(bool Contigious, SMLoc &Loc) {
+bool HexagonAsmParser::handleNoncontigiousRegister(bool Contigious,
+                                                   SMLoc &Loc) {
   if (!Contigious && ErrorNoncontigiousRegister) {
     Error(Loc, "Register name is not contigious");
     return true;
@@ -1212,7 +991,8 @@ bool HexagonAsmParser::handleNoncontigiousRegister(bool Contigious, SMLoc &Loc) 
   return false;
 }
 
-bool HexagonAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) {
+bool HexagonAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
+                                     SMLoc &EndLoc) {
   MCAsmLexer &Lexer = getLexer();
   StartLoc = getLexer().getLoc();
   SmallVector<AsmToken, 5> Lookahead;
@@ -1221,28 +1001,27 @@ bool HexagonAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &En
   bool NeededWorkaround = false;
   while (Again) {
     AsmToken const &Token = Lexer.getTok();
-    RawString = StringRef(RawString.data(),
-                          Token.getString().data() - RawString.data () +
-                          Token.getString().size());
+    RawString = StringRef(RawString.data(), Token.getString().data() -
+                                                RawString.data() +
+                                                Token.getString().size());
     Lookahead.push_back(Token);
     Lexer.Lex();
     bool Contigious = Lexer.getTok().getString().data() ==
                       Lookahead.back().getString().data() +
-                      Lookahead.back().getString().size();
+                          Lookahead.back().getString().size();
     bool Type = Lexer.is(AsmToken::Identifier) || Lexer.is(AsmToken::Dot) ||
                 Lexer.is(AsmToken::Integer) || Lexer.is(AsmToken::Real) ||
                 Lexer.is(AsmToken::Colon);
-    bool Workaround = Lexer.is(AsmToken::Colon) ||
-                      Lookahead.back().is(AsmToken::Colon);
+    bool Workaround =
+        Lexer.is(AsmToken::Colon) || Lookahead.back().is(AsmToken::Colon);
     Again = (Contigious && Type) || (Workaround && Type);
     NeededWorkaround = NeededWorkaround || (Again && !(Contigious && Type));
   }
   std::string Collapsed = RawString;
-  Collapsed.erase(std::remove_if(Collapsed.begin(), Collapsed.end(), isspace),
-                  Collapsed.end());
+  Collapsed.erase(llvm::remove_if(Collapsed, isspace), Collapsed.end());
   StringRef FullString = Collapsed;
   std::pair<StringRef, StringRef> DotSplit = FullString.split('.');
-  unsigned DotReg = MatchRegisterName(DotSplit.first.lower());
+  unsigned DotReg = matchRegister(DotSplit.first.lower());
   if (DotReg != Hexagon::NoRegister && RegisterMatchesArch(DotReg)) {
     if (DotSplit.second.empty()) {
       RegNo = DotReg;
@@ -1262,12 +1041,12 @@ bool HexagonAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &En
     }
   }
   std::pair<StringRef, StringRef> ColonSplit = StringRef(FullString).split(':');
-  unsigned ColonReg = MatchRegisterName(ColonSplit.first.lower());
+  unsigned ColonReg = matchRegister(ColonSplit.first.lower());
   if (ColonReg != Hexagon::NoRegister && RegisterMatchesArch(DotReg)) {
-    Lexer.UnLex(Lookahead.back());
-    Lookahead.pop_back();
-    Lexer.UnLex(Lookahead.back());
-    Lookahead.pop_back();
+    do {
+      Lexer.UnLex(Lookahead.back());
+      Lookahead.pop_back();
+    } while (!Lookahead.empty () && !Lexer.is(AsmToken::Colon));
     RegNo = ColonReg;
     EndLoc = Lexer.getLoc();
     if (handleNoncontigiousRegister(!NeededWorkaround, StartLoc))
@@ -1295,19 +1074,18 @@ bool HexagonAsmParser::implicitExpressionLocation(OperandVector &Operands) {
   return false;
 }
 
-bool HexagonAsmParser::parseExpression(MCExpr const *& Expr) {
-  llvm::SmallVector<AsmToken, 4> Tokens;
+bool HexagonAsmParser::parseExpression(MCExpr const *&Expr) {
+  SmallVector<AsmToken, 4> Tokens;
   MCAsmLexer &Lexer = getLexer();
   bool Done = false;
-  static char const * Comma = ",";
+  static char const *Comma = ",";
   do {
-    Tokens.emplace_back (Lexer.getTok());
-    Lexer.Lex();
-    switch (Tokens.back().getKind())
-    {
+    Tokens.emplace_back(Lexer.getTok());
+    Lex();
+    switch (Tokens.back().getKind()) {
     case AsmToken::TokenKind::Hash:
-      if (Tokens.size () > 1)
-        if ((Tokens.end () - 2)->getKind() == AsmToken::TokenKind::Plus) {
+      if (Tokens.size() > 1)
+        if ((Tokens.end() - 2)->getKind() == AsmToken::TokenKind::Plus) {
           Tokens.insert(Tokens.end() - 2,
                         AsmToken(AsmToken::TokenKind::Comma, Comma));
           Done = true;
@@ -1326,18 +1104,21 @@ bool HexagonAsmParser::parseExpression(MCExpr const *& Expr) {
     Lexer.UnLex(Tokens.back());
     Tokens.pop_back();
   }
-  return getParser().parseExpression(Expr);
+  SMLoc Loc = Lexer.getLoc();
+  return getParser().parseExpression(Expr, Loc);
 }
 
 bool HexagonAsmParser::parseExpressionOrOperand(OperandVector &Operands) {
   if (implicitExpressionLocation(Operands)) {
     MCAsmParser &Parser = getParser();
     SMLoc Loc = Parser.getLexer().getLoc();
-    std::unique_ptr<HexagonOperand> Expr =
-        HexagonOperand::CreateImm(nullptr, Loc, Loc);
-    MCExpr const *& Val = Expr->Imm.Val;
-    Operands.push_back(std::move(Expr));
-    return parseExpression(Val);
+    MCExpr const *Expr = nullptr;
+    bool Error = parseExpression(Expr);
+    Expr = HexagonMCExpr::create(Expr, getContext());
+    if (!Error)
+      Operands.push_back(
+          HexagonOperand::CreateImm(getContext(), Expr, Loc, Loc));
+    return Error;
   }
   return parseOperand(Operands);
 }
@@ -1349,28 +1130,29 @@ bool HexagonAsmParser::parseInstruction(OperandVector &Operands) {
   while (true) {
     AsmToken const &Token = Parser.getTok();
     switch (Token.getKind()) {
+    case AsmToken::Eof:
     case AsmToken::EndOfStatement: {
-      Lexer.Lex();
+      Lex();
       return false;
     }
     case AsmToken::LCurly: {
       if (!Operands.empty())
         return true;
-      Operands.push_back(
-          HexagonOperand::CreateToken(Token.getString(), Token.getLoc()));
-      Lexer.Lex();
+      Operands.push_back(HexagonOperand::CreateToken(
+          getContext(), Token.getString(), Token.getLoc()));
+      Lex();
       return false;
     }
     case AsmToken::RCurly: {
       if (Operands.empty()) {
-        Operands.push_back(
-            HexagonOperand::CreateToken(Token.getString(), Token.getLoc()));
-        Lexer.Lex();
+        Operands.push_back(HexagonOperand::CreateToken(
+            getContext(), Token.getString(), Token.getLoc()));
+        Lex();
       }
       return false;
     }
     case AsmToken::Comma: {
-      Lexer.Lex();
+      Lex();
       continue;
     }
     case AsmToken::EqualEqual:
@@ -1380,33 +1162,31 @@ bool HexagonAsmParser::parseInstruction(OperandVector &Operands) {
     case AsmToken::LessEqual:
     case AsmToken::LessLess: {
       Operands.push_back(HexagonOperand::CreateToken(
-          Token.getString().substr(0, 1), Token.getLoc()));
+          getContext(), Token.getString().substr(0, 1), Token.getLoc()));
       Operands.push_back(HexagonOperand::CreateToken(
-          Token.getString().substr(1, 1), Token.getLoc()));
-      Lexer.Lex();
+          getContext(), Token.getString().substr(1, 1), Token.getLoc()));
+      Lex();
       continue;
     }
     case AsmToken::Hash: {
       bool MustNotExtend = false;
       bool ImplicitExpression = implicitExpressionLocation(Operands);
-      std::unique_ptr<HexagonOperand> Expr = HexagonOperand::CreateImm(
-          nullptr, Lexer.getLoc(), Lexer.getLoc());
+      SMLoc ExprLoc = Lexer.getLoc();
       if (!ImplicitExpression)
-        Operands.push_back(
-          HexagonOperand::CreateToken(Token.getString(), Token.getLoc()));
-      Lexer.Lex();
+        Operands.push_back(HexagonOperand::CreateToken(
+            getContext(), Token.getString(), Token.getLoc()));
+      Lex();
       bool MustExtend = false;
       bool HiOnly = false;
       bool LoOnly = false;
       if (Lexer.is(AsmToken::Hash)) {
-        Lexer.Lex();
+        Lex();
         MustExtend = true;
       } else if (ImplicitExpression)
         MustNotExtend = true;
       AsmToken const &Token = Parser.getTok();
       if (Token.is(AsmToken::Identifier)) {
         StringRef String = Token.getString();
-        AsmToken IDToken = Token;
         if (String.lower() == "hi") {
           HiOnly = true;
         } else if (String.lower() == "lo") {
@@ -1418,27 +1198,45 @@ bool HexagonAsmParser::parseInstruction(OperandVector &Operands) {
             HiOnly = false;
             LoOnly = false;
           } else {
-            Lexer.Lex();
+            Lex();
           }
         }
       }
-      if (parseExpression(Expr->Imm.Val))
+      MCExpr const *Expr = nullptr;
+      if (parseExpression(Expr))
         return true;
       int64_t Value;
       MCContext &Context = Parser.getContext();
-      assert(Expr->Imm.Val != nullptr);
-      if (Expr->Imm.Val->evaluateAsAbsolute(Value)) {
+      assert(Expr != nullptr);
+      if (Expr->evaluateAsAbsolute(Value)) {
         if (HiOnly)
-          Expr->Imm.Val = MCBinaryExpr::createLShr(
-              Expr->Imm.Val, MCConstantExpr::create(16, Context), Context);
+          Expr = MCBinaryExpr::createLShr(
+              Expr, MCConstantExpr::create(16, Context), Context);
         if (HiOnly || LoOnly)
-          Expr->Imm.Val = MCBinaryExpr::createAnd(
-              Expr->Imm.Val, MCConstantExpr::create(0xffff, Context), Context);
+          Expr = MCBinaryExpr::createAnd(
+              Expr, MCConstantExpr::create(0xffff, Context), Context);
+      } else {
+        MCValue Value;
+        if (Expr->evaluateAsRelocatable(Value, nullptr, nullptr)) {
+          if (!Value.isAbsolute()) {
+            switch (Value.getAccessVariant()) {
+            case MCSymbolRefExpr::VariantKind::VK_TPREL:
+            case MCSymbolRefExpr::VariantKind::VK_DTPREL:
+              // Don't lazy extend these expression variants
+              MustNotExtend = !MustExtend;
+              break;
+            default:
+              break;
+            }
+          }
+        }
       }
-      if (MustNotExtend)
-        Expr->Imm.Val = HexagonNoExtendOperand::Create(Expr->Imm.Val, Context);
-      Expr->Imm.MustExtend = MustExtend;
-      Operands.push_back(std::move(Expr));
+      Expr = HexagonMCExpr::create(Expr, Context);
+      HexagonMCInstrInfo::setMustNotExtend(*Expr, MustNotExtend);
+      HexagonMCInstrInfo::setMustExtend(*Expr, MustExtend);
+      std::unique_ptr<HexagonOperand> Operand =
+          HexagonOperand::CreateImm(getContext(), Expr, ExprLoc, ExprLoc);
+      Operands.push_back(std::move(Operand));
       continue;
     }
     default:
@@ -1450,16 +1248,14 @@ bool HexagonAsmParser::parseInstruction(OperandVector &Operands) {
 }
 
 bool HexagonAsmParser::ParseInstruction(ParseInstructionInfo &Info,
-                                        StringRef Name,
-                                        AsmToken ID,
+                                        StringRef Name, AsmToken ID,
                                         OperandVector &Operands) {
   getLexer().UnLex(ID);
   return parseInstruction(Operands);
 }
 
-namespace {
-MCInst makeCombineInst(int opCode, MCOperand &Rdd,
-                       MCOperand &MO1, MCOperand &MO2) {
+static MCInst makeCombineInst(int opCode, MCOperand &Rdd, MCOperand &MO1,
+                              MCOperand &MO2) {
   MCInst TmpInst;
   TmpInst.setOpcode(opCode);
   TmpInst.addOperand(Rdd);
@@ -1467,7 +1263,6 @@ MCInst makeCombineInst(int opCode, MCOperand &Rdd,
   TmpInst.addOperand(MO2);
 
   return TmpInst;
-}
 }
 
 // Define this matcher function after the auto-generated include so we
@@ -1489,12 +1284,6 @@ unsigned HexagonAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
                ? Match_Success
                : Match_InvalidOperand;
   }
-  case MCK__MINUS_1: {
-    int64_t Value;
-    return Op->isImm() && Op->Imm.Val->evaluateAsAbsolute(Value) && Value == -1
-               ? Match_Success
-               : Match_InvalidOperand;
-  }
   }
   if (Op->Kind == HexagonOperand::Token && Kind != InvalidMatchClass) {
     StringRef myStringRef = StringRef(Op->Tok.Data, Op->Tok.Length);
@@ -1511,7 +1300,8 @@ unsigned HexagonAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
   return Match_InvalidOperand;
 }
 
-void HexagonAsmParser::OutOfRange(SMLoc IDLoc, long long Val, long long Max) {
+// FIXME: Calls to OutOfRange shoudl propagate failure up to parseStatement.
+bool HexagonAsmParser::OutOfRange(SMLoc IDLoc, long long Val, long long Max) {
   std::string errStr;
   raw_string_ostream ES(errStr);
   ES << "value " << Val << "(" << format_hex(Val, 0) << ") out of range: ";
@@ -1519,12 +1309,12 @@ void HexagonAsmParser::OutOfRange(SMLoc IDLoc, long long Val, long long Max) {
     ES << "0-" << Max;
   else
     ES << Max << "-" << (-Max - 1);
-  Error(IDLoc, ES.str().c_str());
+  return Parser.printError(IDLoc, ES.str());
 }
 
 int HexagonAsmParser::processInstruction(MCInst &Inst,
                                          OperandVector const &Operands,
-                                         SMLoc IDLoc, bool &MustExtend) {
+                                         SMLoc IDLoc) {
   MCContext &Context = getParser().getContext();
   const MCRegisterInfo *RI = getContext().getRegisterInfo();
   std::string r = "r";
@@ -1534,8 +1324,27 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
   bool is32bit = false; // used to distinguish between CONST32 and CONST64
   switch (Inst.getOpcode()) {
   default:
+    if (HexagonMCInstrInfo::getDesc(MII, Inst).isPseudo()) {
+      SMDiagnostic Diag = getSourceManager().GetMessage(
+          IDLoc, SourceMgr::DK_Error,
+          "Found pseudo instruction with no expansion");
+      Diag.print("", errs());
+      report_fatal_error("Invalid pseudo instruction");
+    }
     break;
 
+  case Hexagon::A2_iconst: {
+    Inst.setOpcode(Hexagon::A2_addi);
+    MCOperand Reg = Inst.getOperand(0);
+    MCOperand S27 = Inst.getOperand(1);
+    HexagonMCInstrInfo::setMustNotExtend(*S27.getExpr());
+    HexagonMCInstrInfo::setS27_2_reloc(*S27.getExpr());
+    Inst.clear();
+    Inst.addOperand(Reg);
+    Inst.addOperand(MCOperand::createReg(Hexagon::R0));
+    Inst.addOperand(S27);
+    break;
+  }
   case Hexagon::M4_mpyrr_addr:
   case Hexagon::S4_addi_asl_ri:
   case Hexagon::S4_addi_lsr_ri:
@@ -1555,8 +1364,10 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
 
   case Hexagon::C2_cmpgei: {
     MCOperand &MO = Inst.getOperand(2);
-    MO.setExpr(MCBinaryExpr::createSub(
-        MO.getExpr(), MCConstantExpr::create(1, Context), Context));
+    MO.setExpr(HexagonMCExpr::create(
+        MCBinaryExpr::createSub(MO.getExpr(),
+                                MCConstantExpr::create(1, Context), Context),
+        Context));
     Inst.setOpcode(Hexagon::C2_cmpgti);
     break;
   }
@@ -1577,34 +1388,11 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
       TmpInst.addOperand(Rt);
       Inst = TmpInst;
     } else {
-      MO.setExpr(MCBinaryExpr::createSub(
-          MO.getExpr(), MCConstantExpr::create(1, Context), Context));
+      MO.setExpr(HexagonMCExpr::create(
+          MCBinaryExpr::createSub(MO.getExpr(),
+                                  MCConstantExpr::create(1, Context), Context),
+          Context));
       Inst.setOpcode(Hexagon::C2_cmpgtui);
-    }
-    break;
-  }
-  case Hexagon::J2_loop1r:
-  case Hexagon::J2_loop1i:
-  case Hexagon::J2_loop0r:
-  case Hexagon::J2_loop0i: {
-    MCOperand &MO = Inst.getOperand(0);
-    // Loop has different opcodes for extended vs not extended, but we should
-    //   not use the other opcode as it is a legacy artifact of TD files.
-    int64_t Value;
-    if (MO.getExpr()->evaluateAsAbsolute(Value)) {
-      // if the operand can fit within a 7:2 field
-      if (Value < (1 << 8) && Value >= -(1 << 8)) {
-        SMLoc myLoc = Operands[2]->getStartLoc();
-        // # is left in startLoc in the case of ##
-        // If '##' found then force extension.
-        if (*myLoc.getPointer() == '#') {
-          MustExtend = true;
-          break;
-        }
-      } else {
-        // If immediate and out of 7:2 range.
-        MustExtend = true;
-      }
     }
     break;
   }
@@ -1613,13 +1401,13 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
   case Hexagon::A2_tfrp: {
     MCOperand &MO = Inst.getOperand(1);
     unsigned int RegPairNum = RI->getEncodingValue(MO.getReg());
-    std::string R1 = r + llvm::utostr_32(RegPairNum + 1);
+    std::string R1 = r + utostr(RegPairNum + 1);
     StringRef Reg1(R1);
-    MO.setReg(MatchRegisterName(Reg1));
+    MO.setReg(matchRegister(Reg1));
     // Add a new operand for the second register in the pair.
-    std::string R2 = r + llvm::utostr_32(RegPairNum);
+    std::string R2 = r + utostr(RegPairNum);
     StringRef Reg2(R2);
-    Inst.addOperand(MCOperand::createReg(MatchRegisterName(Reg2)));
+    Inst.addOperand(MCOperand::createReg(matchRegister(Reg2)));
     Inst.setOpcode(Hexagon::A2_combinew);
     break;
   }
@@ -1628,13 +1416,13 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
   case Hexagon::A2_tfrpf: {
     MCOperand &MO = Inst.getOperand(2);
     unsigned int RegPairNum = RI->getEncodingValue(MO.getReg());
-    std::string R1 = r + llvm::utostr_32(RegPairNum + 1);
+    std::string R1 = r + utostr(RegPairNum + 1);
     StringRef Reg1(R1);
-    MO.setReg(MatchRegisterName(Reg1));
+    MO.setReg(matchRegister(Reg1));
     // Add a new operand for the second register in the pair.
-    std::string R2 = r + llvm::utostr_32(RegPairNum);
+    std::string R2 = r + utostr(RegPairNum);
     StringRef Reg2(R2);
-    Inst.addOperand(MCOperand::createReg(MatchRegisterName(Reg2)));
+    Inst.addOperand(MCOperand::createReg(matchRegister(Reg2)));
     Inst.setOpcode((Inst.getOpcode() == Hexagon::A2_tfrpt)
                        ? Hexagon::C2_ccombinewt
                        : Hexagon::C2_ccombinewf);
@@ -1644,29 +1432,38 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
   case Hexagon::A2_tfrpfnew: {
     MCOperand &MO = Inst.getOperand(2);
     unsigned int RegPairNum = RI->getEncodingValue(MO.getReg());
-    std::string R1 = r + llvm::utostr_32(RegPairNum + 1);
+    std::string R1 = r + utostr(RegPairNum + 1);
     StringRef Reg1(R1);
-    MO.setReg(MatchRegisterName(Reg1));
+    MO.setReg(matchRegister(Reg1));
     // Add a new operand for the second register in the pair.
-    std::string R2 = r + llvm::utostr_32(RegPairNum);
+    std::string R2 = r + utostr(RegPairNum);
     StringRef Reg2(R2);
-    Inst.addOperand(MCOperand::createReg(MatchRegisterName(Reg2)));
+    Inst.addOperand(MCOperand::createReg(matchRegister(Reg2)));
     Inst.setOpcode((Inst.getOpcode() == Hexagon::A2_tfrptnew)
                        ? Hexagon::C2_ccombinewnewt
                        : Hexagon::C2_ccombinewnewf);
     break;
   }
 
+  // Translate a "$Vdd = $Vss" to "$Vdd = vcombine($Vs, $Vt)"
+  case Hexagon::V6_vassignp: {
+    MCOperand &MO = Inst.getOperand(1);
+    unsigned int RegPairNum = RI->getEncodingValue(MO.getReg());
+    std::string R1 = v + utostr(RegPairNum + 1);
+    MO.setReg(MatchRegisterName(R1));
+    // Add a new operand for the second register in the pair.
+    std::string R2 = v + utostr(RegPairNum);
+    Inst.addOperand(MCOperand::createReg(MatchRegisterName(R2)));
+    Inst.setOpcode(Hexagon::V6_vcombine);
+    break;
+  }
+
   // Translate a "$Rx =  CONST32(#imm)" to "$Rx = memw(gp+#LABEL) "
   case Hexagon::CONST32:
-  case Hexagon::CONST32_Float_Real:
-  case Hexagon::CONST32_Int_Real:
-  case Hexagon::FCONST32_nsdata:
     is32bit = true;
+    LLVM_FALLTHROUGH;
   // Translate a "$Rx:y =  CONST64(#imm)" to "$Rx:y = memd(gp+#LABEL) "
-  case Hexagon::CONST64_Float_Real:
-  case Hexagon::CONST64_Int_Real:
-
+  case Hexagon::CONST64:
     // FIXME: need better way to detect AsmStreamer (upstream removed getKind())
     if (!Parser.getStreamer().hasRawTextSupport()) {
       MCELFStreamer *MES = static_cast<MCELFStreamer *>(&Parser.getStreamer());
@@ -1726,8 +1523,8 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
           getStreamer().EmitIntValue(Value, byteSize);
         }
       } else if (MO_1.isExpr()) {
-        const char *StringStart = 0;
-        const char *StringEnd = 0;
+        const char *StringStart = nullptr;
+        const char *StringEnd = nullptr;
         if (*Operands[4]->getStartLoc().getPointer() == '#') {
           StringStart = Operands[5]->getStartLoc().getPointer();
           StringEnd = Operands[6]->getStartLoc().getPointer();
@@ -1760,8 +1557,8 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
           TmpInst.setOpcode(Hexagon::L2_loadrdgp);
 
         TmpInst.addOperand(MO_0);
-        TmpInst.addOperand(
-            MCOperand::createExpr(MCSymbolRefExpr::create(Sym, getContext())));
+        TmpInst.addOperand(MCOperand::createExpr(HexagonMCExpr::create(
+            MCSymbolRefExpr::create(Sym, getContext()), getContext())));
         Inst = TmpInst;
       }
     }
@@ -1773,7 +1570,8 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     MCOperand &MO = Inst.getOperand(1);
     int64_t Value;
     int sVal = (MO.getExpr()->evaluateAsAbsolute(Value) && Value < 0) ? -1 : 0;
-    MCOperand imm(MCOperand::createExpr(MCConstantExpr::create(sVal, Context)));
+    MCOperand imm(MCOperand::createExpr(
+        HexagonMCExpr::create(MCConstantExpr::create(sVal, Context), Context)));
     Inst = makeCombineInst(Hexagon::A2_combineii, Rdd, imm, MO);
     break;
   }
@@ -1784,18 +1582,20 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     MCOperand &MO = Inst.getOperand(1);
     int64_t Value;
     if (MO.getExpr()->evaluateAsAbsolute(Value)) {
-      unsigned long long u64 = Value;
-      signed int s8 = (u64 >> 32) & 0xFFFFFFFF;
-      if (s8 < -128 || s8 > 127)
+      int s8 = Hi_32(Value);
+      if (!isInt<8>(s8))
         OutOfRange(IDLoc, s8, -128);
-      MCOperand imm(MCOperand::createExpr(
-          MCConstantExpr::create(s8, Context))); // upper 32
-      MCOperand imm2(MCOperand::createExpr(
-          MCConstantExpr::create(u64 & 0xFFFFFFFF, Context))); // lower 32
+      MCOperand imm(MCOperand::createExpr(HexagonMCExpr::create(
+          MCConstantExpr::create(s8, Context), Context))); // upper 32
+      auto Expr = HexagonMCExpr::create(
+          MCConstantExpr::create(Lo_32(Value), Context), Context);
+      HexagonMCInstrInfo::setMustExtend(
+          *Expr, HexagonMCInstrInfo::mustExtend(*MO.getExpr()));
+      MCOperand imm2(MCOperand::createExpr(Expr)); // lower 32
       Inst = makeCombineInst(Hexagon::A4_combineii, Rdd, imm, imm2);
     } else {
-      MCOperand imm(MCOperand::createExpr(
-          MCConstantExpr::create(0, Context))); // upper 32
+      MCOperand imm(MCOperand::createExpr(HexagonMCExpr::create(
+          MCConstantExpr::create(0, Context), Context))); // upper 32
       Inst = makeCombineInst(Hexagon::A4_combineii, Rdd, imm, MO);
     }
     break;
@@ -1831,23 +1631,23 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     break;
   }
 
-  case Hexagon::S2_tableidxb_goodsyntax: {
+  case Hexagon::S2_tableidxb_goodsyntax:
     Inst.setOpcode(Hexagon::S2_tableidxb);
     break;
-  }
 
   case Hexagon::S2_tableidxh_goodsyntax: {
     MCInst TmpInst;
     MCOperand &Rx = Inst.getOperand(0);
-    MCOperand &_dst_ = Inst.getOperand(1);
     MCOperand &Rs = Inst.getOperand(2);
     MCOperand &Imm4 = Inst.getOperand(3);
     MCOperand &Imm6 = Inst.getOperand(4);
-    Imm6.setExpr(MCBinaryExpr::createSub(
-        Imm6.getExpr(), MCConstantExpr::create(1, Context), Context));
+    Imm6.setExpr(HexagonMCExpr::create(
+        MCBinaryExpr::createSub(Imm6.getExpr(),
+                                MCConstantExpr::create(1, Context), Context),
+        Context));
     TmpInst.setOpcode(Hexagon::S2_tableidxh);
     TmpInst.addOperand(Rx);
-    TmpInst.addOperand(_dst_);
+    TmpInst.addOperand(Rx);
     TmpInst.addOperand(Rs);
     TmpInst.addOperand(Imm4);
     TmpInst.addOperand(Imm6);
@@ -1858,15 +1658,16 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
   case Hexagon::S2_tableidxw_goodsyntax: {
     MCInst TmpInst;
     MCOperand &Rx = Inst.getOperand(0);
-    MCOperand &_dst_ = Inst.getOperand(1);
     MCOperand &Rs = Inst.getOperand(2);
     MCOperand &Imm4 = Inst.getOperand(3);
     MCOperand &Imm6 = Inst.getOperand(4);
-    Imm6.setExpr(MCBinaryExpr::createSub(
-        Imm6.getExpr(), MCConstantExpr::create(2, Context), Context));
+    Imm6.setExpr(HexagonMCExpr::create(
+        MCBinaryExpr::createSub(Imm6.getExpr(),
+                                MCConstantExpr::create(2, Context), Context),
+        Context));
     TmpInst.setOpcode(Hexagon::S2_tableidxw);
     TmpInst.addOperand(Rx);
-    TmpInst.addOperand(_dst_);
+    TmpInst.addOperand(Rx);
     TmpInst.addOperand(Rs);
     TmpInst.addOperand(Imm4);
     TmpInst.addOperand(Imm6);
@@ -1877,15 +1678,16 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
   case Hexagon::S2_tableidxd_goodsyntax: {
     MCInst TmpInst;
     MCOperand &Rx = Inst.getOperand(0);
-    MCOperand &_dst_ = Inst.getOperand(1);
     MCOperand &Rs = Inst.getOperand(2);
     MCOperand &Imm4 = Inst.getOperand(3);
     MCOperand &Imm6 = Inst.getOperand(4);
-    Imm6.setExpr(MCBinaryExpr::createSub(
-        Imm6.getExpr(), MCConstantExpr::create(3, Context), Context));
+    Imm6.setExpr(HexagonMCExpr::create(
+        MCBinaryExpr::createSub(Imm6.getExpr(),
+                                MCConstantExpr::create(3, Context), Context),
+        Context));
     TmpInst.setOpcode(Hexagon::S2_tableidxd);
     TmpInst.addOperand(Rx);
-    TmpInst.addOperand(_dst_);
+    TmpInst.addOperand(Rx);
     TmpInst.addOperand(Rs);
     TmpInst.addOperand(Imm4);
     TmpInst.addOperand(Imm6);
@@ -1893,33 +1695,28 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     break;
   }
 
-  case Hexagon::M2_mpyui: {
+  case Hexagon::M2_mpyui:
     Inst.setOpcode(Hexagon::M2_mpyi);
     break;
-  }
   case Hexagon::M2_mpysmi: {
     MCInst TmpInst;
     MCOperand &Rd = Inst.getOperand(0);
     MCOperand &Rs = Inst.getOperand(1);
     MCOperand &Imm = Inst.getOperand(2);
     int64_t Value;
-    bool Absolute = Imm.getExpr()->evaluateAsAbsolute(Value);
+    MCExpr const &Expr = *Imm.getExpr();
+    bool Absolute = Expr.evaluateAsAbsolute(Value);
     assert(Absolute);
     (void)Absolute;
-    if (!MustExtend) {
-      if (Value < 0 && Value > -256) {
-        Imm.setExpr(MCConstantExpr::create(Value * -1, Context));
-        TmpInst.setOpcode(Hexagon::M2_mpysin);
-      } else if (Value < 256 && Value >= 0)
-        TmpInst.setOpcode(Hexagon::M2_mpysip);
-      else
-        return Match_InvalidOperand;
-    } else {
-      if (Value >= 0)
-        TmpInst.setOpcode(Hexagon::M2_mpysip);
-      else
-        return Match_InvalidOperand;
-    }
+    if (!HexagonMCInstrInfo::mustExtend(Expr) &&
+        ((Value <= -256) || Value >= 256))
+      return Match_InvalidOperand;
+    if (Value < 0 && Value > -256) {
+      Imm.setExpr(HexagonMCExpr::create(
+          MCConstantExpr::create(Value * -1, Context), Context));
+      TmpInst.setOpcode(Hexagon::M2_mpysin);
+    } else
+      TmpInst.setOpcode(Hexagon::M2_mpysip);
     TmpInst.addOperand(Rd);
     TmpInst.addOperand(Rs);
     TmpInst.addOperand(Imm);
@@ -1941,8 +1738,10 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
       TmpInst.addOperand(Rd);
       TmpInst.addOperand(Rs);
     } else {
-      Imm.setExpr(MCBinaryExpr::createSub(
-          Imm.getExpr(), MCConstantExpr::create(1, Context), Context));
+      Imm.setExpr(HexagonMCExpr::create(
+          MCBinaryExpr::createSub(Imm.getExpr(),
+                                  MCConstantExpr::create(1, Context), Context),
+          Context));
       TmpInst.setOpcode(Hexagon::S2_asr_i_r_rnd);
       MCOperand &Rd = Inst.getOperand(0);
       MCOperand &Rs = Inst.getOperand(1);
@@ -1965,20 +1764,22 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     if (Value == 0) { // convert to $Rdd = combine ($Rs[0], $Rs[1])
       MCInst TmpInst;
       unsigned int RegPairNum = RI->getEncodingValue(Rss.getReg());
-      std::string R1 = r + llvm::utostr_32(RegPairNum + 1);
+      std::string R1 = r + utostr(RegPairNum + 1);
       StringRef Reg1(R1);
-      Rss.setReg(MatchRegisterName(Reg1));
+      Rss.setReg(matchRegister(Reg1));
       // Add a new operand for the second register in the pair.
-      std::string R2 = r + llvm::utostr_32(RegPairNum);
+      std::string R2 = r + utostr(RegPairNum);
       StringRef Reg2(R2);
       TmpInst.setOpcode(Hexagon::A2_combinew);
       TmpInst.addOperand(Rdd);
       TmpInst.addOperand(Rss);
-      TmpInst.addOperand(MCOperand::createReg(MatchRegisterName(Reg2)));
+      TmpInst.addOperand(MCOperand::createReg(matchRegister(Reg2)));
       Inst = TmpInst;
     } else {
-      Imm.setExpr(MCBinaryExpr::createSub(
-          Imm.getExpr(), MCConstantExpr::create(1, Context), Context));
+      Imm.setExpr(HexagonMCExpr::create(
+          MCBinaryExpr::createSub(Imm.getExpr(),
+                                  MCConstantExpr::create(1, Context), Context),
+          Context));
       Inst.setOpcode(Hexagon::S2_asr_i_p_rnd);
     }
     break;
@@ -1989,16 +1790,14 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     unsigned int RegNum = RI->getEncodingValue(Rs.getReg());
     if (RegNum & 1) { // Odd mapped to raw:hi, regpair is rodd:odd-1, like r3:2
       Inst.setOpcode(Hexagon::A4_boundscheck_hi);
-      std::string Name =
-          r + llvm::utostr_32(RegNum) + Colon + llvm::utostr_32(RegNum - 1);
+      std::string Name = r + utostr(RegNum) + Colon + utostr(RegNum - 1);
       StringRef RegPair = Name;
-      Rs.setReg(MatchRegisterName(RegPair));
+      Rs.setReg(matchRegister(RegPair));
     } else { // raw:lo
       Inst.setOpcode(Hexagon::A4_boundscheck_lo);
-      std::string Name =
-          r + llvm::utostr_32(RegNum + 1) + Colon + llvm::utostr_32(RegNum);
+      std::string Name = r + utostr(RegNum + 1) + Colon + utostr(RegNum);
       StringRef RegPair = Name;
-      Rs.setReg(MatchRegisterName(RegPair));
+      Rs.setReg(matchRegister(RegPair));
     }
     break;
   }
@@ -2008,16 +1807,14 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     unsigned int RegNum = RI->getEncodingValue(Rs.getReg());
     if (RegNum & 1) { // Odd mapped to raw:hi
       Inst.setOpcode(Hexagon::A2_addsph);
-      std::string Name =
-          r + llvm::utostr_32(RegNum) + Colon + llvm::utostr_32(RegNum - 1);
+      std::string Name = r + utostr(RegNum) + Colon + utostr(RegNum - 1);
       StringRef RegPair = Name;
-      Rs.setReg(MatchRegisterName(RegPair));
+      Rs.setReg(matchRegister(RegPair));
     } else { // Even mapped raw:lo
       Inst.setOpcode(Hexagon::A2_addspl);
-      std::string Name =
-          r + llvm::utostr_32(RegNum + 1) + Colon + llvm::utostr_32(RegNum);
+      std::string Name = r + utostr(RegNum + 1) + Colon + utostr(RegNum);
       StringRef RegPair = Name;
-      Rs.setReg(MatchRegisterName(RegPair));
+      Rs.setReg(matchRegister(RegPair));
     }
     break;
   }
@@ -2027,16 +1824,14 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     unsigned int RegNum = RI->getEncodingValue(Rt.getReg());
     if (RegNum & 1) { // Odd mapped to sat:raw:hi
       Inst.setOpcode(Hexagon::M2_vrcmpys_s1_h);
-      std::string Name =
-          r + llvm::utostr_32(RegNum) + Colon + llvm::utostr_32(RegNum - 1);
+      std::string Name = r + utostr(RegNum) + Colon + utostr(RegNum - 1);
       StringRef RegPair = Name;
-      Rt.setReg(MatchRegisterName(RegPair));
+      Rt.setReg(matchRegister(RegPair));
     } else { // Even mapped sat:raw:lo
       Inst.setOpcode(Hexagon::M2_vrcmpys_s1_l);
-      std::string Name =
-          r + llvm::utostr_32(RegNum + 1) + Colon + llvm::utostr_32(RegNum);
+      std::string Name = r + utostr(RegNum + 1) + Colon + utostr(RegNum);
       StringRef RegPair = Name;
-      Rt.setReg(MatchRegisterName(RegPair));
+      Rt.setReg(matchRegister(RegPair));
     }
     break;
   }
@@ -2049,16 +1844,14 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     unsigned int RegNum = RI->getEncodingValue(Rt.getReg());
     if (RegNum & 1) { // Odd mapped to sat:raw:hi
       TmpInst.setOpcode(Hexagon::M2_vrcmpys_acc_s1_h);
-      std::string Name =
-          r + llvm::utostr_32(RegNum) + Colon + llvm::utostr_32(RegNum - 1);
+      std::string Name = r + utostr(RegNum) + Colon + utostr(RegNum - 1);
       StringRef RegPair = Name;
-      Rt.setReg(MatchRegisterName(RegPair));
+      Rt.setReg(matchRegister(RegPair));
     } else { // Even mapped sat:raw:lo
       TmpInst.setOpcode(Hexagon::M2_vrcmpys_acc_s1_l);
-      std::string Name =
-          r + llvm::utostr_32(RegNum + 1) + Colon + llvm::utostr_32(RegNum);
+      std::string Name = r + utostr(RegNum + 1) + Colon + utostr(RegNum);
       StringRef RegPair = Name;
-      Rt.setReg(MatchRegisterName(RegPair));
+      Rt.setReg(matchRegister(RegPair));
     }
     // Registers are in different positions
     TmpInst.addOperand(Rxx);
@@ -2074,16 +1867,14 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     unsigned int RegNum = RI->getEncodingValue(Rt.getReg());
     if (RegNum & 1) { // Odd mapped to rnd:sat:raw:hi
       Inst.setOpcode(Hexagon::M2_vrcmpys_s1rp_h);
-      std::string Name =
-          r + llvm::utostr_32(RegNum) + Colon + llvm::utostr_32(RegNum - 1);
+      std::string Name = r + utostr(RegNum) + Colon + utostr(RegNum - 1);
       StringRef RegPair = Name;
-      Rt.setReg(MatchRegisterName(RegPair));
+      Rt.setReg(matchRegister(RegPair));
     } else { // Even mapped rnd:sat:raw:lo
       Inst.setOpcode(Hexagon::M2_vrcmpys_s1rp_l);
-      std::string Name =
-          r + llvm::utostr_32(RegNum + 1) + Colon + llvm::utostr_32(RegNum);
+      std::string Name = r + utostr(RegNum + 1) + Colon + utostr(RegNum);
       StringRef RegPair = Name;
-      Rt.setReg(MatchRegisterName(RegPair));
+      Rt.setReg(matchRegister(RegPair));
     }
     break;
   }
@@ -2097,8 +1888,10 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     if (Value == 0)
       Inst.setOpcode(Hexagon::S2_vsathub);
     else {
-      Imm.setExpr(MCBinaryExpr::createSub(
-          Imm.getExpr(), MCConstantExpr::create(1, Context), Context));
+      Imm.setExpr(HexagonMCExpr::create(
+          MCBinaryExpr::createSub(Imm.getExpr(),
+                                  MCConstantExpr::create(1, Context), Context),
+          Context));
       Inst.setOpcode(Hexagon::S5_asrhub_rnd_sat);
     }
     break;
@@ -2115,20 +1908,22 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     if (Value == 0) {
       MCInst TmpInst;
       unsigned int RegPairNum = RI->getEncodingValue(Rss.getReg());
-      std::string R1 = r + llvm::utostr_32(RegPairNum + 1);
+      std::string R1 = r + utostr(RegPairNum + 1);
       StringRef Reg1(R1);
-      Rss.setReg(MatchRegisterName(Reg1));
+      Rss.setReg(matchRegister(Reg1));
       // Add a new operand for the second register in the pair.
-      std::string R2 = r + llvm::utostr_32(RegPairNum);
+      std::string R2 = r + utostr(RegPairNum);
       StringRef Reg2(R2);
       TmpInst.setOpcode(Hexagon::A2_combinew);
       TmpInst.addOperand(Rdd);
       TmpInst.addOperand(Rss);
-      TmpInst.addOperand(MCOperand::createReg(MatchRegisterName(Reg2)));
+      TmpInst.addOperand(MCOperand::createReg(matchRegister(Reg2)));
       Inst = TmpInst;
     } else {
-      Imm.setExpr(MCBinaryExpr::createSub(
-          Imm.getExpr(), MCConstantExpr::create(1, Context), Context));
+      Imm.setExpr(HexagonMCExpr::create(
+          MCBinaryExpr::createSub(Imm.getExpr(),
+                                  MCConstantExpr::create(1, Context), Context),
+          Context));
       Inst.setOpcode(Hexagon::S5_vasrhrnd);
     }
     break;
@@ -2140,13 +1935,81 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
     MCOperand &Rs = Inst.getOperand(1);
     TmpInst.setOpcode(Hexagon::A2_subri);
     TmpInst.addOperand(Rd);
-    TmpInst.addOperand(
-        MCOperand::createExpr(MCConstantExpr::create(-1, Context)));
+    TmpInst.addOperand(MCOperand::createExpr(
+        HexagonMCExpr::create(MCConstantExpr::create(-1, Context), Context)));
     TmpInst.addOperand(Rs);
     Inst = TmpInst;
+    break;
+  }
+  case Hexagon::PS_loadrubabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(1).getExpr()))
+      Inst.setOpcode(Hexagon::L2_loadrubgp);
+    break;
+  case Hexagon::PS_loadrbabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(1).getExpr()))
+      Inst.setOpcode(Hexagon::L2_loadrbgp);
+    break;
+  case Hexagon::PS_loadruhabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(1).getExpr()))
+      Inst.setOpcode(Hexagon::L2_loadruhgp);
+    break;
+  case Hexagon::PS_loadrhabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(1).getExpr()))
+      Inst.setOpcode(Hexagon::L2_loadrhgp);
+    break;
+  case Hexagon::PS_loadriabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(1).getExpr()))
+      Inst.setOpcode(Hexagon::L2_loadrigp);
+    break;
+  case Hexagon::PS_loadrdabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(1).getExpr()))
+      Inst.setOpcode(Hexagon::L2_loadrdgp);
+    break;
+  case Hexagon::PS_storerbabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerbgp);
+    break;
+  case Hexagon::PS_storerhabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerhgp);
+    break;
+  case Hexagon::PS_storerfabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerfgp);
+    break;
+  case Hexagon::PS_storeriabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerigp);
+    break;
+  case Hexagon::PS_storerdabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerdgp);
+    break;
+  case Hexagon::PS_storerbnewabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerbnewgp);
+    break;
+  case Hexagon::PS_storerhnewabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerhnewgp);
+    break;
+  case Hexagon::PS_storerinewabs:
+    if (!HexagonMCInstrInfo::mustExtend(*Inst.getOperand(0).getExpr()))
+      Inst.setOpcode(Hexagon::S2_storerinewgp);
+    break;
+  case Hexagon::A2_zxtb: {
+    Inst.setOpcode(Hexagon::A2_andir);
+    Inst.addOperand(
+        MCOperand::createExpr(MCConstantExpr::create(255, Context)));
     break;
   }
   } // switch
 
   return Match_Success;
+}
+
+unsigned HexagonAsmParser::matchRegister(StringRef Name) {
+  if (unsigned Reg = MatchRegisterName(Name))
+    return Reg;
+  return MatchRegisterAltName(Name);
 }

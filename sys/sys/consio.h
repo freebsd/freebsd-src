@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991-1996 Søren Schmidt
  * All rights reserved.
  *
@@ -103,11 +105,15 @@ typedef struct ssaver	ssaver_t;
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
 
-/* set the text cursor type (obsolete, see CONS_CURSORSHAPE below) */
 /*
-#define CONS_BLINK_CURSOR (1 << 0)
-#define CONS_CHAR_CURSOR (1 << 1)
-*/
+ * Set the text cursor type.
+ *
+ * This is an old interface extended to support the CONS_HIDDEN_CURSOR bit.
+ * New code should use CONS_CURSORSHAPE.  CONS_CURSOR_ATTRS gives the 3
+ * bits supported by the (extended) old interface.  The old interface is
+ * especially unusable for hiding the cursor (even with its extension)
+ * since it changes the cursor on all vtys.
+ */
 #define CONS_CURSORTYPE	_IOW('c', 7, int)
 
 /* set the bell type to audible or visual */
@@ -183,9 +189,12 @@ typedef struct mouse_info mouse_info_t;
 #define CONS_HIDDEN_CURSOR	(1 << 2)
 #define CONS_CURSOR_ATTRS	(CONS_BLINK_CURSOR | CONS_CHAR_CURSOR |	\
 				 CONS_HIDDEN_CURSOR)
+#define CONS_CHARCURSOR_COLORS	(1 << 26)
+#define CONS_MOUSECURSOR_COLORS	(1 << 27)
+#define CONS_DEFAULT_CURSOR	(1 << 28)
+#define CONS_SHAPEONLY_CURSOR	(1 << 29)
 #define CONS_RESET_CURSOR	(1 << 30)
 #define CONS_LOCAL_CURSOR	(1U << 31)
-#define CONS_CURSOR_FLAGS	(CONS_RESET_CURSOR | CONS_LOCAL_CURSOR)
 struct cshape {
 	/* shape[0]: flags, shape[1]: base, shape[2]: height */
 	int		shape[3];
@@ -404,12 +413,6 @@ typedef struct vt_mode vtmode_t;
 #define SW_VGA_CG320	_IO('S', M_VGA13)
 #define SW_VGA_CG640	_IO('S', M_VGA_CG640)
 #define SW_VGA_MODEX	_IO('S', M_VGA_MODEX)
-
-#define SW_PC98_80x25		_IO('S', M_PC98_80x25)
-#define SW_PC98_80x30		_IO('S', M_PC98_80x30)
-#define SW_PC98_EGC640x400	_IO('S', M_PC98_EGC640x400)
-#define SW_PC98_PEGC640x400	_IO('S', M_PC98_PEGC640x400)
-#define SW_PC98_PEGC640x480	_IO('S', M_PC98_PEGC640x480)
 
 #define SW_VGA_C90x25	_IO('S', M_VGA_C90x25)
 #define SW_VGA_M90x25	_IO('S', M_VGA_M90x25)

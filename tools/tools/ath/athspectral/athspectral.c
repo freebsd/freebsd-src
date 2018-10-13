@@ -104,6 +104,9 @@ spectralset(struct spectralhandler *spectral, int op, u_int32_t param)
 	case SPECTRAL_PARAM_SS_SHORT_RPT:
 		pe.ss_short_report = param;
 		break;
+	case SPECTRAL_PARAM_SS_SPECTRAL_PRI:
+		pe.ss_spectral_pri = param;
+		break;
 	}
 
 	spectral->atd.ad_id = SPECTRAL_CONTROL_SET_PARAMS | ATH_DIAG_IN;
@@ -138,6 +141,7 @@ spectral_get(struct spectralhandler *spectral)
 	printf("   ss_fft_period: %d\n", pe.ss_fft_period);
 	printf("   ss_period: %d\n", pe.ss_period);
 	printf("   ss_short_report: %d\n", pe.ss_short_report);
+	printf("   ss_spectral_pri: %d\n", pe.ss_spectral_pri);
 	printf("   radar_bin_thresh_sel: %d\n", pe.radar_bin_thresh_sel);
 }
 
@@ -222,6 +226,8 @@ spectral_set_param(struct spectralhandler *spectral, const char *param,
 		spectralset(spectral, SPECTRAL_PARAM_SS_PERIOD, v);
 	} else if (strcmp(param, "ss_count") == 0) {
 		spectralset(spectral, SPECTRAL_PARAM_SS_COUNT, v);
+	} else if (strcmp(param, "ss_spectral_pri") == 0) {
+		spectralset(spectral, SPECTRAL_PARAM_SS_SPECTRAL_PRI, v);
 	} else {
 		return (0);
 	}

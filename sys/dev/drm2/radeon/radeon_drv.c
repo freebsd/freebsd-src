@@ -127,54 +127,71 @@ int radeon_pcie_gen2 = -1;
 int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
 
+TUNABLE_INT("drm.radeon.no_wb", &radeon_no_wb);
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
 
+TUNABLE_INT("drm.radeon.modeset", &radeon_modeset);
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, radeon_modeset, int, 0400);
 
+TUNABLE_INT("drm.radeon.dynclks", &radeon_dynclks);
 MODULE_PARM_DESC(dynclks, "Disable/Enable dynamic clocks");
 module_param_named(dynclks, radeon_dynclks, int, 0444);
 
+TUNABLE_INT("drm.radeon.r4xx_atom", &radeon_r4xx_atom);
 MODULE_PARM_DESC(r4xx_atom, "Enable ATOMBIOS modesetting for R4xx");
 module_param_named(r4xx_atom, radeon_r4xx_atom, int, 0444);
 
+TUNABLE_INT("drm.radeon.vramlimit", &radeon_vram_limit);
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing");
 module_param_named(vramlimit, radeon_vram_limit, int, 0600);
 
+TUNABLE_INT("drm.radeon.agpmode", &radeon_agpmode);
 MODULE_PARM_DESC(agpmode, "AGP Mode (-1 == PCI)");
 module_param_named(agpmode, radeon_agpmode, int, 0444);
 
+TUNABLE_INT("drm.radeon.gartsize", &radeon_gart_size);
 MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc)");
 module_param_named(gartsize, radeon_gart_size, int, 0600);
 
+TUNABLE_INT("drm.radeon.benchmark", &radeon_benchmarking);
 MODULE_PARM_DESC(benchmark, "Run benchmark");
 module_param_named(benchmark, radeon_benchmarking, int, 0444);
 
+TUNABLE_INT("drm.radeon.test", &radeon_testing);
 MODULE_PARM_DESC(test, "Run tests");
 module_param_named(test, radeon_testing, int, 0444);
 
+TUNABLE_INT("drm.radeon.connector_table", &radeon_connector_table);
 MODULE_PARM_DESC(connector_table, "Force connector table");
 module_param_named(connector_table, radeon_connector_table, int, 0444);
 
+TUNABLE_INT("drm.radeon.tv", &radeon_tv);
 MODULE_PARM_DESC(tv, "TV enable (0 = disable)");
 module_param_named(tv, radeon_tv, int, 0444);
 
+TUNABLE_INT("drm.radeon.audio", &radeon_audio);
 MODULE_PARM_DESC(audio, "Audio enable (1 = enable)");
 module_param_named(audio, radeon_audio, int, 0444);
 
+TUNABLE_INT("drm.radeon.disp_priority", &radeon_disp_priority);
 MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
 module_param_named(disp_priority, radeon_disp_priority, int, 0444);
 
+TUNABLE_INT("drm.radeon.hw_i2c", &radeon_hw_i2c);
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
 module_param_named(hw_i2c, radeon_hw_i2c, int, 0444);
 
+TUNABLE_INT("drm.radeon.pcie_gen2", &radeon_pcie_gen2);
 MODULE_PARM_DESC(pcie_gen2, "PCIE Gen2 mode (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
+TUNABLE_INT("drm.radeon.msi", &radeon_msi);
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, radeon_msi, int, 0444);
 
+TUNABLE_INT("drm.radeon.lockup_timeout", &radeon_lockup_timeout);
 MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (defaul 10000 = 10 seconds, 0 = disable)");
 module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
 
@@ -384,3 +401,5 @@ MODULE_DEPEND(radeonkms, iicbus, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iic, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbb, 1, 1, 1);
 MODULE_DEPEND(radeonkms, firmware, 1, 1, 1);
+MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:#", vgapci, radeonkms,
+    pciidlist, nitems(pciidlist) - 1);

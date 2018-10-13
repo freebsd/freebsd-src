@@ -59,11 +59,13 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/random.h>
+#include <sys/rmlock.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -112,8 +114,14 @@ struct ng_iface_private {
 	int	unit;			/* Interface unit number */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
+	struct rmlock	lock;		/* Protect private data changes */
 };
 typedef struct ng_iface_private *priv_p;
+
+#define	PRIV_RLOCK(priv, t)	rm_rlock(&priv->lock, t)
+#define	PRIV_RUNLOCK(priv, t)	rm_runlock(&priv->lock, t)
+#define	PRIV_WLOCK(priv)	rm_wlock(&priv->lock)
+#define	PRIV_WUNLOCK(priv)	rm_wunlock(&priv->lock)
 
 /* Interface methods */
 static void	ng_iface_start(struct ifnet *ifp);
@@ -191,7 +199,7 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
-static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
+VNET_DEFINE_STATIC(struct unrhdr *, ng_iface_unit);
 #define	V_ng_iface_unit			VNET(ng_iface_unit)
 
 /************************************************************************
@@ -336,7 +344,6 @@ static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
-	struct m_tag *mtag;
 	uint32_t af;
 	int error;
 
@@ -348,22 +355,11 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Protect from deadly infinite recursion. */
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, mtag))) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
-			m_freem(m);
-			return (EDEADLK);
-		}
-	}
-	mtag = m_tag_alloc(MTAG_NGIF, MTAG_NGIF_CALLED, sizeof(struct ifnet *),
-	    M_NOWAIT);
-	if (mtag == NULL) {
+	error = if_tunnel_check_nesting(ifp, m, NGM_IFACE_COOKIE, 1);
+	if (error) {
 		m_freem(m);
-		return (ENOMEM);
+		return (error);
 	}
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC)
@@ -431,8 +427,10 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 static int
 ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 {
+	struct rm_priotracker priv_tracker;
 	const priv_p priv = (priv_p) ifp->if_softc;
 	const iffam_p iffam = get_iffam_from_af(sa);
+	hook_p hook;
 	int error;
 	int len;
 
@@ -446,10 +444,20 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 	/* Copy length before the mbuf gets invalidated. */
 	len = m->m_pkthdr.len;
 
-	/* Send packet. If hook is not connected, mbuf will get freed. */
+	PRIV_RLOCK(priv, &priv_tracker);
+	hook = *get_hook_from_iffam(priv, iffam);
+	if (hook == NULL) {
+		NG_FREE_M(m);
+		PRIV_RUNLOCK(priv, &priv_tracker);
+		return ENETDOWN;
+	}
+	NG_HOOK_REF(hook);
+	PRIV_RUNLOCK(priv, &priv_tracker);
+
 	NG_OUTBOUND_THREAD_REF();
-	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
+	NG_SEND_DATA_ONLY(error, hook, m);
 	NG_OUTBOUND_THREAD_UNREF();
+	NG_HOOK_UNREF(hook);
 
 	/* Update stats. */
 	if (error == 0) {
@@ -516,6 +524,8 @@ ng_iface_constructor(node_p node)
 		return (ENOMEM);
 	}
 
+	rm_init(&priv->lock, "ng_iface private rmlock");
+
 	/* Link them together */
 	ifp->if_softc = priv;
 	priv->ifp = ifp;
@@ -562,16 +572,21 @@ static int
 ng_iface_newhook(node_p node, hook_p hook, const char *name)
 {
 	const iffam_p iffam = get_iffam_from_name(name);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p *hookptr;
 
 	if (iffam == NULL)
 		return (EPFNOSUPPORT);
-	hookptr = get_hook_from_iffam(NG_NODE_PRIVATE(node), iffam);
-	if (*hookptr != NULL)
+	PRIV_WLOCK(priv);
+	hookptr = get_hook_from_iffam(priv, iffam);
+	if (*hookptr != NULL) {
+		PRIV_WUNLOCK(priv);
 		return (EISCONN);
+	}
 	*hookptr = hook;
 	NG_HOOK_HI_STACK(hook);
 	NG_HOOK_SET_TO_INBOUND(hook);
+	PRIV_WUNLOCK(priv);
 	return (0);
 }
 
@@ -705,7 +720,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_NG);
+	random_harvest_queue(m, sizeof(*m), RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return (0);
@@ -730,6 +745,7 @@ ng_iface_shutdown(node_p node)
 	CURVNET_RESTORE();
 	priv->ifp = NULL;
 	free_unr(V_ng_iface_unit, priv->unit);
+	rm_destroy(&priv->lock);
 	free(priv, M_NETGRAPH_IFACE);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
@@ -748,7 +764,9 @@ ng_iface_disconnect(hook_p hook)
 
 	if (iffam == NULL)
 		panic("%s", __func__);
+	PRIV_WLOCK(priv);
 	*get_hook_from_iffam(priv, iffam) = NULL;
+	PRIV_WUNLOCK(priv);
 	return (0);
 }
 
@@ -786,5 +804,5 @@ vnet_ng_iface_uninit(const void *unused)
 
 	delete_unrhdr(V_ng_iface_unit);
 }
-VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_ng_iface_uninit, NULL);

@@ -15,6 +15,7 @@
 #define LLVM_LIB_TARGET_AARCH64_INSTPRINTER_AARCH64INSTPRINTER_H
 
 #include "MCTargetDesc/AArch64MCTargetDesc.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCInstPrinter.h"
 
 namespace llvm {
@@ -37,9 +38,11 @@ public:
                                        unsigned PrintMethodIdx,
                                        const MCSubtargetInfo &STI,
                                        raw_ostream &O);
+
   virtual StringRef getRegName(unsigned RegNo) const {
     return getRegisterName(RegNo);
   }
+
   static const char *getRegisterName(unsigned RegNo,
                                      unsigned AltIdx = AArch64::NoRegAltName);
 
@@ -49,7 +52,9 @@ protected:
   // Operand printers
   void printOperand(const MCInst *MI, unsigned OpNo, const MCSubtargetInfo &STI,
                     raw_ostream &O);
-  void printHexImm(const MCInst *MI, unsigned OpNo, const MCSubtargetInfo &STI,
+  void printImm(const MCInst *MI, unsigned OpNo, const MCSubtargetInfo &STI,
+                raw_ostream &O);
+  void printImmHex(const MCInst *MI, unsigned OpNo, const MCSubtargetInfo &STI,
                    raw_ostream &O);
   void printPostIncOperand(const MCInst *MI, unsigned OpNo, unsigned Imm,
                            raw_ostream &O);
@@ -153,10 +158,16 @@ protected:
                               const MCSubtargetInfo &STI, raw_ostream &O);
   void printSIMDType10Operand(const MCInst *MI, unsigned OpNum,
                               const MCSubtargetInfo &STI, raw_ostream &O);
+  template<int64_t Angle, int64_t Remainder>
+  void printComplexRotationOp(const MCInst *MI, unsigned OpNo,
+                            const MCSubtargetInfo &STI, raw_ostream &O);
   template<unsigned size>
   void printGPRSeqPairsClassOperand(const MCInst *MI, unsigned OpNum,
                                     const MCSubtargetInfo &STI,
                                     raw_ostream &O);
+  template <char = 0>
+  void printSVERegOp(const MCInst *MI, unsigned OpNum,
+                    const MCSubtargetInfo &STI, raw_ostream &O);
 };
 
 class AArch64AppleInstPrinter : public AArch64InstPrinter {
@@ -175,12 +186,15 @@ public:
                                unsigned PrintMethodIdx,
                                const MCSubtargetInfo &STI,
                                raw_ostream &O) override;
+
   StringRef getRegName(unsigned RegNo) const override {
     return getRegisterName(RegNo);
   }
+
   static const char *getRegisterName(unsigned RegNo,
                                      unsigned AltIdx = AArch64::NoRegAltName);
 };
-}
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_LIB_TARGET_AARCH64_INSTPRINTER_AARCH64INSTPRINTER_H

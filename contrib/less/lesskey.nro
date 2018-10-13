@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 481: 31 Aug 2015"
+.TH LESSKEY 1 "Version 530: 05 Dec 2017"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -134,7 +134,7 @@ default command keys used by less:
 	\en		forw-line 
 	e		forw-line 
 	j		forw-line 
-	\ekd	forw-line
+	\ekd		forw-line
 	^E		forw-line 
 	^N		forw-line 
 	k		back-line 
@@ -149,15 +149,15 @@ default command keys used by less:
 	^D		forw-scroll 
 	u		back-scroll 
 	^U		back-scroll 
-	\e40	forw-screen 
+	\e40		forw-screen 
 	f		forw-screen 
 	^F		forw-screen 
 	^V		forw-screen 
-	\ekD	forw-screen
+	\ekD		forw-screen
 	b		back-screen 
 	^B		back-screen 
 	\eev		back-screen 
-	\ekU	back-screen
+	\ekU		back-screen
 	z		forw-window 
 	w		back-window 
 	\ee\e40		forw-screen-force
@@ -169,7 +169,7 @@ default command keys used by less:
 	^L		repaint 
 	\eeu		undo-hilite
 	g		goto-line 
-	\ekh	goto-line
+	\ekh		goto-line
 	<		goto-line 
 	\ee<		goto-line 
 	p		percent 
@@ -180,6 +180,8 @@ default command keys used by less:
 	\ee)		right-scroll
 	\ekl		left-scroll
 	\ekr		right-scroll
+	\ee{		no-scroll
+	\ee}		end-scroll
 	{		forw-bracket {}
 	}		back-bracket {}
 	(		forw-bracket ()
@@ -191,7 +193,7 @@ default command keys used by less:
 	G		goto-end 
 	\ee>		goto-end 
 	>		goto-end 
-	\eke	goto-end
+	\eke		goto-end
 	\eeG		goto-end-buffered
 	=		status 
 	^G		status 
@@ -206,6 +208,8 @@ default command keys used by less:
 	\eeN		reverse-search-all 
 	&		filter
 	m		set-mark 
+	M		set-mark-bottom
+	\eem		clear-mark
 	'		goto-mark 
 	^X^X		goto-mark 
 	E		examine 
@@ -359,7 +363,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 
 .SH COPYRIGHT
-Copyright (C) 1984-2015  Mark Nudelman
+Copyright (C) 1984-2017  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -29,8 +31,6 @@
 /*
  * IPsec-specific mbuf routines.
  */
-
-#include "opt_param.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,7 +72,21 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 	 * the contents of m as needed.
 	 */
 	remain = m->m_len - skip;		/* data to move */
-	if (hlen > M_TRAILINGSPACE(m)) {
+	if (remain > skip &&
+	    hlen + max_linkhdr < M_LEADINGSPACE(m)) {
+		/*
+		 * mbuf has enough free space at the beginning.
+		 * XXX: which operation is the most heavy - copying of
+		 *	possible several hundred of bytes or allocation
+		 *	of new mbuf? We can remove max_linkhdr check
+		 *	here, but it is possible that this will lead
+		 *	to allocation of new mbuf in Layer 2 code.
+		 */
+		m->m_data -= hlen;
+		bcopy(mtodo(m, hlen), mtod(m, caddr_t), skip);
+		m->m_len += hlen;
+		*off = skip;
+	} else if (hlen > M_TRAILINGSPACE(m)) {
 		struct mbuf *n0, *n, **np;
 		int todo, len, done, alloc;
 
@@ -140,7 +154,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 		 * so there's space to write the new header.
 		 */
 		bcopy(mtod(m, caddr_t) + skip,
-		      mtod(m, caddr_t) + skip + hlen, remain);
+		    mtod(m, caddr_t) + skip + hlen, remain);
 		m->m_len += hlen;
 		*off = skip;
 	}
@@ -156,8 +170,8 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 caddr_t
 m_pad(struct mbuf *m, int n)
 {
-	register struct mbuf *m0, *m1;
-	register int len, pad;
+	struct mbuf *m0, *m1;
+	int len, pad;
 	caddr_t retval;
 
 	if (n <= 0) {  /* No stupid arguments. */
@@ -241,10 +255,11 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		/* The header was at the beginning of the mbuf */
 		IPSECSTAT_INC(ips_input_front);
 		m_adj(m1, hlen);
-		if ((m1->m_flags & M_PKTHDR) == 0)
+		if (m1 != m)
 			m->m_pkthdr.len -= hlen;
 	} else if (roff + hlen >= m1->m_len) {
 		struct mbuf *mo;
+		int adjlen;
 
 		/*
 		 * Part or all of the header is at the end of this mbuf,
@@ -253,11 +268,13 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 */
 		IPSECSTAT_INC(ips_input_end);
 		if (roff + hlen > m1->m_len) {
+			adjlen = roff + hlen - m1->m_len;
+
 			/* Adjust the next mbuf by the remainder */
-			m_adj(m1->m_next, roff + hlen - m1->m_len);
+			m_adj(m1->m_next, adjlen);
 
 			/* The second mbuf is guaranteed not to have a pkthdr... */
-			m->m_pkthdr.len -= (roff + hlen - m1->m_len);
+			m->m_pkthdr.len -= adjlen;
 		}
 
 		/* Now, let's unlink the mbuf chain for a second...*/
@@ -265,9 +282,10 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		m1->m_next = NULL;
 
 		/* ...and trim the end of the first part of the chain...sick */
-		m_adj(m1, -(m1->m_len - roff));
-		if ((m1->m_flags & M_PKTHDR) == 0)
-			m->m_pkthdr.len -= (m1->m_len - roff);
+		adjlen = m1->m_len - roff;
+		m_adj(m1, -adjlen);
+		if (m1 != m)
+			m->m_pkthdr.len -= adjlen;
 
 		/* Finally, let's relink */
 		m1->m_next = mo;

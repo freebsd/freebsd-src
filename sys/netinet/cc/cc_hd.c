@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010
  *	Swinburne University of Technology, Melbourne, Australia
  * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
@@ -87,9 +89,9 @@ static int	hd_mod_init(void);
 
 static int ertt_id;
 
-static VNET_DEFINE(uint32_t, hd_qthresh) = 20;
-static VNET_DEFINE(uint32_t, hd_qmin) = 5;
-static VNET_DEFINE(uint32_t, hd_pmax) = 5;
+VNET_DEFINE_STATIC(uint32_t, hd_qthresh) = 20;
+VNET_DEFINE_STATIC(uint32_t, hd_qmin) = 5;
+VNET_DEFINE_STATIC(uint32_t, hd_pmax) = 5;
 #define	V_hd_qthresh	VNET(hd_qthresh)
 #define	V_hd_qmin	VNET(hd_qmin)
 #define	V_hd_pmax	VNET(hd_pmax)

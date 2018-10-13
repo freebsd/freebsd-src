@@ -8,8 +8,7 @@ PACKAGE=acct
 PROG=	lastcomm
 SRCS=	lastcomm.c readrec.c
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

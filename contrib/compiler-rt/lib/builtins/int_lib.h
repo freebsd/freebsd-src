@@ -22,33 +22,28 @@
 
 #if defined(__ELF__)
 #define FNALIAS(alias_name, original_name) \
-  void alias_name() __attribute__((alias(#original_name)))
+  void alias_name() __attribute__((__alias__(#original_name)))
+#define COMPILER_RT_ALIAS(aliasee) __attribute__((__alias__(#aliasee)))
 #else
 #define FNALIAS(alias, name) _Pragma("GCC error(\"alias unsupported on this file format\")")
+#define COMPILER_RT_ALIAS(aliasee) _Pragma("GCC error(\"alias unsupported on this file format\")")
 #endif
 
 /* ABI macro definitions */
 
 #if __ARM_EABI__
-# define ARM_EABI_FNALIAS(aeabi_name, name)         \
-  void __aeabi_##aeabi_name() __attribute__((alias("__" #name)));
-
-# if !defined(__clang__) && defined(__GNUC__) && \
-     (__GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ < 5)
+# if defined(COMPILER_RT_ARMHF_TARGET) || (!defined(__clang__) && \
+     defined(__GNUC__) && (__GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ < 5))
 /* The pcs attribute was introduced in GCC 4.5.0 */
-#  define COMPILER_RT_ABI
-# else
-#  define COMPILER_RT_ABI __attribute__((pcs("aapcs")))
-# endif
-
-#else
-# define ARM_EABI_FNALIAS(aeabi_name, name)
-# if defined(__arm__) && defined(_WIN32) && (!defined(_MSC_VER) || defined(__clang__))
-#   define COMPILER_RT_ABI __attribute__((pcs("aapcs")))
-# else
 #   define COMPILER_RT_ABI
+# else
+#   define COMPILER_RT_ABI __attribute__((__pcs__("aapcs")))
 # endif
+#else
+# define COMPILER_RT_ABI
 #endif
+
+#define AEABI_RTABI __attribute__((__pcs__("aapcs")))
 
 #ifdef _MSC_VER
 #define ALWAYS_INLINE __forceinline
@@ -62,12 +57,16 @@
 #define UNUSED __attribute__((unused))
 #endif
 
-#if defined(__NetBSD__) && (defined(_KERNEL) || defined(_STANDALONE))
+#if (defined(__FreeBSD__) || defined(__NetBSD__)) && (defined(_KERNEL) || defined(_STANDALONE))
 /*
  * Kernel and boot environment can't use normal headers,
  * so use the equivalent system headers.
  */
+#ifdef __FreeBSD__
+#  include <sys/limits.h>
+#else
 #  include <machine/limits.h>
+#endif
 #  include <sys/stdint.h>
 #  include <sys/types.h>
 #else
@@ -99,12 +98,13 @@
  * does not have dedicated bit counting instructions.
  */
 #if defined(__FreeBSD__) && (defined(__sparc64__) || \
-    defined(__mips_n64) || defined(__mips_o64) || defined(__riscv__))
+    defined(__mips_n32) || defined(__mips_n64) || defined(__mips_o64) || \
+    defined(__riscv))
 si_int __clzsi2(si_int);
 si_int __ctzsi2(si_int);
 #define	__builtin_clz __clzsi2
 #define	__builtin_ctz __ctzsi2
-#endif /* FreeBSD && (sparc64 || mips_n64 || mips_o64) */
+#endif /* FreeBSD && (sparc64 || mips_n32 || mips_n64 || mips_o64 || riscv) */
 
 COMPILER_RT_ABI si_int __paritysi2(si_int a);
 COMPILER_RT_ABI si_int __paritydi2(di_int a);
@@ -125,14 +125,14 @@ COMPILER_RT_ABI tu_int __udivmodti4(tu_int a, tu_int b, tu_int* rem);
 #include <intrin.h>
 
 uint32_t __inline __builtin_ctz(uint32_t value) {
-  uint32_t trailing_zero = 0;
+  unsigned long trailing_zero = 0;
   if (_BitScanForward(&trailing_zero, value))
     return trailing_zero;
   return 32;
 }
 
 uint32_t __inline __builtin_clz(uint32_t value) {
-  uint32_t leading_zero = 0;
+  unsigned long leading_zero = 0;
   if (_BitScanReverse(&leading_zero, value))
     return 31 - leading_zero;
   return 32;
@@ -140,7 +140,7 @@ uint32_t __inline __builtin_clz(uint32_t value) {
 
 #if defined(_M_ARM) || defined(_M_X64)
 uint32_t __inline __builtin_clzll(uint64_t value) {
-  uint32_t leading_zero = 0;
+  unsigned long leading_zero = 0;
   if (_BitScanReverse64(&leading_zero, value))
     return 63 - leading_zero;
   return 64;

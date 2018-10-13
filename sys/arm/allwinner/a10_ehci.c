@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
@@ -58,23 +60,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 
 #define EHCI_HC_DEVSTR			"Allwinner Integrated USB 2.0 controller"
 
-#define SW_USB_PMU_IRQ_ENABLE		0x800
-
 #define SW_SDRAM_REG_HPCR_USB1		(0x250 + ((1 << 2) * 4))
 #define SW_SDRAM_REG_HPCR_USB2		(0x250 + ((1 << 2) * 5))
 #define SW_SDRAM_BP_HPCR_ACCESS		(1 << 0)
-
-#define SW_ULPI_BYPASS			(1 << 0)
-#define SW_AHB_INCRX_ALIGN		(1 << 8)
-#define SW_AHB_INCR4			(1 << 9)
-#define SW_AHB_INCR8			(1 << 10)
 
 #define	USB_CONF(d)			\
 	(void *)ofw_bus_search_compatible((d), compat_data)->ocd_data
@@ -88,14 +83,21 @@ __FBSDID("$FreeBSD$");
 static device_attach_t a10_ehci_attach;
 static device_detach_t a10_ehci_detach;
 
-bs_r_1_proto(reversed);
-bs_w_1_proto(reversed);
+struct clk_list {
+	TAILQ_ENTRY(clk_list)	next;
+	clk_t			clk;
+};
+
+struct hwrst_list {
+	TAILQ_ENTRY(hwrst_list)	next;
+	hwreset_t		rst;
+};
 
 struct aw_ehci_softc {
 	ehci_softc_t	sc;
-	clk_t		clk;
-	hwreset_t	rst;
-	phy_t		phy;
+	TAILQ_HEAD(, clk_list)		clk_list;
+	TAILQ_HEAD(, hwrst_list)	rst_list;
+	phy_t				phy;
 };
 
 struct aw_ehci_conf {
@@ -112,10 +114,12 @@ static const struct aw_ehci_conf a31_ehci_conf = {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-ehci",	(uintptr_t)&a10_ehci_conf },
+	{ "allwinner,sun5i-a13-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun6i-a31-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ "allwinner,sun7i-a20-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun8i-a83t-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ "allwinner,sun8i-h3-ehci",	(uintptr_t)&a31_ehci_conf },
+	{ "allwinner,sun50i-a64-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ NULL,				(uintptr_t)NULL }
 };
 
@@ -141,8 +145,11 @@ a10_ehci_attach(device_t self)
 	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
 	bus_space_handle_t bsh;
-	int err;
-	int rid;
+	int err, rid, off;
+	struct clk_list *clkp;
+	clk_t clk;
+	struct hwrst_list *rstp;
+	hwreset_t rst;
 	uint32_t reg_value = 0;
 
 	conf = USB_CONF(self);
@@ -206,46 +213,41 @@ a10_ehci_attach(device_t self)
 
 	sc->sc_flags |= EHCI_SCFLG_DONTRESET;
 
+	/* Enable clock for USB */
+	TAILQ_INIT(&aw_sc->clk_list);
+	for (off = 0; clk_get_by_ofw_index(self, 0, off, &clk) == 0; off++) {
+		err = clk_enable(clk);
+		if (err != 0) {
+			device_printf(self, "Could not enable clock %s\n",
+			    clk_get_name(clk));
+			goto error;
+		}
+		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
+		clkp->clk = clk;
+		TAILQ_INSERT_TAIL(&aw_sc->clk_list, clkp, next);
+	}
+
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(self, 0, &aw_sc->rst) == 0) {
-		err = hwreset_deassert(aw_sc->rst);
+	TAILQ_INIT(&aw_sc->rst_list);
+	for (off = 0; hwreset_get_by_ofw_idx(self, 0, off, &rst) == 0; off++) {
+		err = hwreset_deassert(rst);
 		if (err != 0) {
 			device_printf(self, "Could not de-assert reset\n");
 			goto error;
 		}
-	}
-
-	/* Enable clock for USB */
-	err = clk_get_by_ofw_index(self, 0, &aw_sc->clk);
-	if (err != 0) {
-		device_printf(self, "Could not get clock\n");
-		goto error;
-	}
-	err = clk_enable(aw_sc->clk);
-	if (err != 0) {
-		device_printf(self, "Could not enable clock\n");
-		goto error;
+		rstp = malloc(sizeof(*rstp), M_DEVBUF, M_WAITOK | M_ZERO);
+		rstp->rst = rst;
+		TAILQ_INSERT_TAIL(&aw_sc->rst_list, rstp, next);
 	}
 
 	/* Enable USB PHY */
-	err = phy_get_by_ofw_name(self, "usb", &aw_sc->phy);
-	if (err != 0) {
-		device_printf(self, "Could not get phy\n");
-		goto error;
+	if (phy_get_by_ofw_name(self, 0, "usb", &aw_sc->phy) == 0) {
+		err = phy_enable(aw_sc->phy);
+		if (err != 0) {
+			device_printf(self, "Could not enable phy\n");
+			goto error;
+		}
 	}
-	err = phy_enable(self, aw_sc->phy);
-	if (err != 0) {
-		device_printf(self, "Could not enable phy\n");
-		goto error;
-	}
-
-	/* Enable passby */
-	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);
-	reg_value |= SW_AHB_INCR8; /* AHB INCR8 enable */
-	reg_value |= SW_AHB_INCR4; /* AHB burst type INCR4 enable */
-	reg_value |= SW_AHB_INCRX_ALIGN; /* AHB INCRX align enable */
-	reg_value |= SW_ULPI_BYPASS; /* ULPI bypass enable */
-	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
 	/* Configure port */
 	if (conf->sdram_init) {
@@ -265,8 +267,6 @@ a10_ehci_attach(device_t self)
 	return (0);
 
 error:
-	if (aw_sc->clk)
-		clk_release(aw_sc->clk);
 	a10_ehci_detach(self);
 	return (ENXIO);
 }
@@ -277,17 +277,13 @@ a10_ehci_detach(device_t self)
 	struct aw_ehci_softc *aw_sc = device_get_softc(self);
 	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
-	device_t bdev;
 	int err;
 	uint32_t reg_value = 0;
+	struct clk_list *clk, *clk_tmp;
+	struct hwrst_list *rst, *rst_tmp;
 
 	conf = USB_CONF(self);
 
-	if (sc->sc_bus.bdev) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(self, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
@@ -324,22 +320,26 @@ a10_ehci_detach(device_t self)
 		A10_WRITE_4(sc, SW_SDRAM_REG_HPCR_USB2, reg_value);
 	}
 
-	/* Disable passby */
-	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);
-	reg_value &= ~SW_AHB_INCR8; /* AHB INCR8 disable */
-	reg_value &= ~SW_AHB_INCR4; /* AHB burst type INCR4 disable */
-	reg_value &= ~SW_AHB_INCRX_ALIGN; /* AHB INCRX align disable */
-	reg_value &= ~SW_ULPI_BYPASS; /* ULPI bypass disable */
-	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
-
-	/* Disable clock for USB */
-	clk_disable(aw_sc->clk);
-	clk_release(aw_sc->clk);
+	/* Disable clock */
+	TAILQ_FOREACH_SAFE(clk, &aw_sc->clk_list, next, clk_tmp) {
+		err = clk_disable(clk->clk);
+		if (err != 0)
+			device_printf(self, "Could not disable clock %s\n",
+			    clk_get_name(clk->clk));
+		err = clk_release(clk->clk);
+		if (err != 0)
+			device_printf(self, "Could not release clock %s\n",
+			    clk_get_name(clk->clk));
+		TAILQ_REMOVE(&aw_sc->clk_list, clk, next);
+		free(clk, M_DEVBUF);
+	}
 
 	/* Assert reset */
-	if (aw_sc->rst != NULL) {
-		hwreset_assert(aw_sc->rst);
-		hwreset_release(aw_sc->rst);
+	TAILQ_FOREACH_SAFE(rst, &aw_sc->rst_list, next, rst_tmp) {
+		hwreset_assert(rst->rst);
+		hwreset_release(rst->rst);
+		TAILQ_REMOVE(&aw_sc->rst_list, rst, next);
+		free(rst, M_DEVBUF);
 	}
 
 	return (0);
@@ -360,10 +360,10 @@ static device_method_t ehci_methods[] = {
 static driver_t ehci_driver = {
 	.name = "ehci",
 	.methods = ehci_methods,
-	.size = sizeof(ehci_softc_t),
+	.size = sizeof(struct aw_ehci_softc),
 };
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(a10_ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(a10_ehci, usb, 1, 1, 1);

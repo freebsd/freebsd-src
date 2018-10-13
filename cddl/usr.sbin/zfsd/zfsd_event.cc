@@ -36,6 +36,7 @@
 #include <sys/cdefs.h>
 #include <sys/time.h>
 #include <sys/fs/zfs.h>
+#include <sys/vdev_impl.h>
 
 #include <syslog.h>
 
@@ -75,162 +76,6 @@ using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/
 
-/*-------------------------------- DevfsEvent --------------------------------*/
-
-//- DevfsEvent Static Public Methods -------------------------------------------
-Event *
-DevfsEvent::Builder(Event::Type type,
-		    NVPairMap &nvPairs,
-		    const string &eventString)
-{
-	return (new DevfsEvent(type, nvPairs, eventString));
-}
-
-//- DevfsEvent Static Protected Methods ----------------------------------------
-nvlist_t *
-DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
-{
-	pool_state_t poolState;
-	char        *poolName;
-	boolean_t    b_inuse;
-
-	inUse    = false;
-	degraded = false;
-	poolName = NULL;
-	if (zpool_in_use(g_zfsHandle, devFd, &poolState,
-			 &poolName, &b_inuse) == 0) {
-		nvlist_t *devLabel;
-
-		inUse = b_inuse == B_TRUE;
-		if (poolName != NULL)
-			free(poolName);
-
-		if (zpool_read_label(devFd, &devLabel) != 0
-		 || devLabel == NULL)
-			return (NULL);
-
-		try {
-			Vdev vdev(devLabel);
-			degraded = vdev.State() != VDEV_STATE_HEALTHY;
-			return (devLabel);
-		} catch (ZfsdException &exp) {
-			string devName = fdevname(devFd);
-			string devPath = _PATH_DEV + devName;
-			string context("DevfsEvent::ReadLabel: "
-				     + devPath + ": ");
-
-			exp.GetString().insert(0, context);
-			exp.Log();
-		}
-	}
-	return (NULL);
-}
-
-bool
-DevfsEvent::OnlineByLabel(const string &devPath, const string& physPath,
-			      nvlist_t *devConfig)
-{
-	try {
-		/*
-		 * A device with ZFS label information has been
-		 * inserted.  If it matches a device for which we
-		 * have a case, see if we can solve that case.
-		 */
-		syslog(LOG_INFO, "Interrogating VDEV label for %s\n",
-		       devPath.c_str());
-		Vdev vdev(devConfig);
-		CaseFile *caseFile(CaseFile::Find(vdev.PoolGUID(),
-						  vdev.GUID()));
-		if (caseFile != NULL)
-			return (caseFile->ReEvaluate(devPath, physPath, &vdev));
-
-	} catch (ZfsdException &exp) {
-		string context("DevfsEvent::OnlineByLabel: " + devPath + ": ");
-
-		exp.GetString().insert(0, context);
-		exp.Log();
-	}
-	return (false);
-}
-
-//- DevfsEvent Virtual Public Methods ------------------------------------------
-Event *
-DevfsEvent::DeepCopy() const
-{
-	return (new DevfsEvent(*this));
-}
-
-bool
-DevfsEvent::Process() const
-{
-	/*
-	 * We are only concerned with newly discovered
-	 * devices that can be ZFS vdevs.
-	 */
-	if (Value("type") != "CREATE" || !IsDiskDev())
-		return (false);
-
-	/* Log the event since it is of interest. */
-	Log(LOG_INFO);
-
-	string devPath;
-	if (!DevPath(devPath))
-		return (false);
-
-	int devFd(open(devPath.c_str(), O_RDONLY));
-	if (devFd == -1)
-		return (false);
-
-	bool inUse;
-	bool degraded;
-	nvlist_t *devLabel(ReadLabel(devFd, inUse, degraded));
-
-	string physPath;
-	bool havePhysPath(PhysicalPath(physPath));
-
-	string devName;
-	DevName(devName);
-	close(devFd);
-
-	if (inUse && devLabel != NULL) {
-		OnlineByLabel(devPath, physPath, devLabel);
-	} else if (degraded) {
-		syslog(LOG_INFO, "%s is marked degraded.  Ignoring "
-		       "as a replace by physical path candidate.\n",
-		       devName.c_str());
-	} else if (havePhysPath && IsWholeDev()) {
-		/*
-		 * TODO: attempt to resolve events using every casefile
-		 * that matches this physpath
-		 */
-		CaseFile *caseFile(CaseFile::Find(physPath));
-		if (caseFile != NULL) {
-			syslog(LOG_INFO,
-			       "Found CaseFile(%s:%s:%s) - ReEvaluating\n",
-			       caseFile->PoolGUIDString().c_str(),
-			       caseFile->VdevGUIDString().c_str(),
-			       zpool_state_to_name(caseFile->VdevState(),
-						   VDEV_AUX_NONE));
-			caseFile->ReEvaluate(devPath, physPath, /*vdev*/NULL);
-		}
-	}
-	if (devLabel != NULL)
-		nvlist_free(devLabel);
-	return (false);
-}
-
-//- DevfsEvent Protected Methods -----------------------------------------------
-DevfsEvent::DevfsEvent(Event::Type type, NVPairMap &nvpairs,
-			       const string &eventString)
- : DevdCtl::DevfsEvent(type, nvpairs, eventString)
-{
-}
-
-DevfsEvent::DevfsEvent(const DevfsEvent &src)
- : DevdCtl::DevfsEvent::DevfsEvent(src)
-{
-}
-
 /*-------------------------------- GeomEvent --------------------------------*/
 
 //- GeomEvent Static Public Methods -------------------------------------------
@@ -253,10 +98,18 @@ bool
 GeomEvent::Process() const
 {
 	/*
-	 * We are only concerned with physical path changes, because those can
-	 * be used to satisfy autoreplace operations
+	 * We only use GEOM events to repair damaged pools.  So return early if
+	 * there are no damaged pools
 	 */
-	if (Value("type") != "GEOM::physpath" || !IsDiskDev())
+	if (CaseFile::Empty())
+		return (false);
+
+	/*
+	 * We are only concerned with arrivals and physical path changes,
+	 * because those can be used to satisfy online and autoreplace
+	 * operations
+	 */
+	if (Value("type") != "GEOM::physpath" && Value("type") != "CREATE")
 		return (false);
 
 	/* Log the event since it is of interest. */
@@ -266,13 +119,28 @@ GeomEvent::Process() const
 	if (!DevPath(devPath))
 		return (false);
 
+	int devFd(open(devPath.c_str(), O_RDONLY));
+	if (devFd == -1)
+		return (false);
+
+	bool inUse;
+	bool degraded;
+	nvlist_t *devLabel(ReadLabel(devFd, inUse, degraded));
+
 	string physPath;
         bool havePhysPath(PhysicalPath(physPath));
 
 	string devName;
 	DevName(devName);
+	close(devFd);
 
-	if (havePhysPath) {
+	if (inUse && devLabel != NULL) {
+		OnlineByLabel(devPath, physPath, devLabel);
+	} else if (degraded) {
+		syslog(LOG_INFO, "%s is marked degraded.  Ignoring "
+		       "as a replace by physical path candidate.\n",
+		       devName.c_str());
+	} else if (havePhysPath) {
 		/* 
 		 * TODO: attempt to resolve events using every casefile
 		 * that matches this physpath
@@ -301,6 +169,84 @@ GeomEvent::GeomEvent(Event::Type type, NVPairMap &nvpairs,
 GeomEvent::GeomEvent(const GeomEvent &src)
  : DevdCtl::GeomEvent::GeomEvent(src)
 {
+}
+
+nvlist_t *
+GeomEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
+{
+	pool_state_t poolState;
+	char        *poolName;
+	boolean_t    b_inuse;
+	int          nlabels;
+
+	inUse    = false;
+	degraded = false;
+	poolName = NULL;
+	if (zpool_in_use(g_zfsHandle, devFd, &poolState,
+			 &poolName, &b_inuse) == 0) {
+		nvlist_t *devLabel = NULL;
+
+		inUse = b_inuse == B_TRUE;
+		if (poolName != NULL)
+			free(poolName);
+
+		nlabels = zpool_read_all_labels(devFd, &devLabel);
+		/*
+		 * If we find a disk with fewer than the maximum number of
+		 * labels, it might be the whole disk of a partitioned disk
+		 * where ZFS resides on a partition.  In that case, we should do
+		 * nothing and wait for the partition to appear.  Or, the disk
+		 * might be damaged.  In that case, zfsd should do nothing and
+		 * wait for the sysadmin to decide.
+		 */
+		if (nlabels != VDEV_LABELS || devLabel == NULL) {
+			nvlist_free(devLabel);
+			return (NULL);
+		}
+
+		try {
+			Vdev vdev(devLabel);
+			degraded = vdev.State() != VDEV_STATE_HEALTHY;
+			return (devLabel);
+		} catch (ZfsdException &exp) {
+			string devName = fdevname(devFd);
+			string devPath = _PATH_DEV + devName;
+			string context("GeomEvent::ReadLabel: "
+				     + devPath + ": ");
+
+			exp.GetString().insert(0, context);
+			exp.Log();
+			nvlist_free(devLabel);
+		}
+	}
+	return (NULL);
+}
+
+bool
+GeomEvent::OnlineByLabel(const string &devPath, const string& physPath,
+			      nvlist_t *devConfig)
+{
+	try {
+		/*
+		 * A device with ZFS label information has been
+		 * inserted.  If it matches a device for which we
+		 * have a case, see if we can solve that case.
+		 */
+		syslog(LOG_INFO, "Interrogating VDEV label for %s\n",
+		       devPath.c_str());
+		Vdev vdev(devConfig);
+		CaseFile *caseFile(CaseFile::Find(vdev.PoolGUID(),
+						  vdev.GUID()));
+		if (caseFile != NULL)
+			return (caseFile->ReEvaluate(devPath, physPath, &vdev));
+
+	} catch (ZfsdException &exp) {
+		string context("GeomEvent::OnlineByLabel: " + devPath + ": ");
+
+		exp.GetString().insert(0, context);
+		exp.Log();
+	}
+	return (false);
 }
 
 

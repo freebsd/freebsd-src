@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /******************************************************************************
  @File          fm_port_im.c
 
@@ -38,31 +39,13 @@
 #include "std_ext.h"
 #include "string_ext.h"
 #include "error_ext.h"
+#include "memcpy_ext.h"
 #include "fm_muram_ext.h"
 
 #include "fm_port.h"
 
 
 #define TX_CONF_STATUS_UNSENT 0x1
-
-#ifdef CORE_8BIT_ACCESS_ERRATA
-#undef WRITE_UINT16
-#undef GET_UINT16
-
-#define WRITE_UINT16(addr, val)  \
-    do{                             \
-            if((int)&(addr) % 4)    \
-                WRITE_UINT32(*(uint32_t*)(uint32_t)((uint32_t)&addr & ~0x3L),                                           \
-                        ((GET_UINT32(*(uint32_t*)(uint32_t)((uint32_t)&addr & ~0x3L)) & 0xffff0000) | (uint32_t)val));  \
-            else                    \
-                WRITE_UINT32(*(uint32_t*)&addr,                                                                         \
-                        ((GET_UINT32(*(uint32_t*)&addr) & 0x0000ffff) | (uint32_t)val<<16));                            \
-      }while(0);
-
-#define GET_UINT16(addr) (((uint32_t)&addr%4) ?           \
-       ((uint16_t)GET_UINT32(*(uint32_t*)(uint32_t)((uint32_t)&addr & ~0x3L))):  \
-       ((uint16_t)(GET_UINT32(*(uint32_t*)(uint32_t)&addr) >> 16)))
-#endif /* CORE_8BIT_ACCESS_ERRATA */
 
 
 typedef enum e_TxConfType
@@ -77,7 +60,7 @@ static void ImException(t_Handle h_FmPort, uint32_t event)
 {
     t_FmPort *p_FmPort = (t_FmPort*)h_FmPort;
 
-    ASSERT_COND(((event & IM_EV_RX) && FmIsMaster(p_FmPort->h_Fm)) ||
+    ASSERT_COND(((event & (IM_EV_RX | IM_EV_BSY)) && FmIsMaster(p_FmPort->h_Fm)) ||
                 !FmIsMaster(p_FmPort->h_Fm));
 
     if (event & IM_EV_RX)
@@ -158,7 +141,7 @@ t_Error FmPortImRx(t_FmPort *p_FmPort)
     uint32_t                bdStatus;
     volatile uint8_t        buffPos;
     uint16_t                length;
-    uint16_t                errors/*, reportErrors*/;
+    uint16_t                errors;
     uint8_t                 *p_CurData, *p_Data;
     uint32_t                flags;
 
@@ -186,7 +169,6 @@ t_Error FmPortImRx(t_FmPort *p_FmPort)
         if (p_FmPort->im.firstBdOfFrameId == IM_ILEGAL_BD_ID)
             p_FmPort->im.firstBdOfFrameId = p_FmPort->im.currBdId;
 
-        errors = 0;
         p_CurData = BdBufferGet(p_FmPort->im.rxPool.f_PhysToVirt, BD_GET(p_FmPort->im.currBdId));
         h_CurrUserPriv = p_FmPort->im.p_BdShadow[p_FmPort->im.currBdId];
         length = (uint16_t)((bdStatus & BD_L) ?
@@ -217,9 +199,8 @@ t_Error FmPortImRx(t_FmPort *p_FmPort)
         WRITE_UINT16(p_FmPort->im.p_FmPortImPram->rxQd.offsetOut, (uint16_t)(p_FmPort->im.currBdId<<4));
         /* Pass the buffer if one of the conditions is true:
         - There are no errors
-        - This is a part of a larger frame ( the application has already received some buffers )
-        - There is an error, but it was defined to be passed anyway. */
-        if ((buffPos != SINGLE_BUF) || !errors || (errors & (uint16_t)(BD_ERROR_PASS_FRAME>>16)))
+        - This is a part of a larger frame ( the application has already received some buffers ) */
+        if ((buffPos != SINGLE_BUF) || !errors)
         {
             if (p_FmPort->im.f_RxStore(p_FmPort->h_App,
                                        p_CurData,
@@ -282,7 +263,7 @@ void FmPortConfigIM (t_FmPort *p_FmPort, t_FmPortParams *p_FmPortParams)
         if (p_FmPort->im.mrblr != p_FmPort->im.rxPool.bufferSize)
             DBG(WARNING, ("Max-Rx-Buffer-Length set to %d", p_FmPort->im.mrblr));
         p_FmPort->im.bdRingSize             = DEFAULT_PORT_rxBdRingLength;
-        p_FmPort->exceptions                = DEFAULT_exception;
+        p_FmPort->exceptions                = DEFAULT_PORT_exception;
         if (FmIsMaster(p_FmPort->h_Fm))
             p_FmPort->polling               = FALSE;
         else
@@ -312,28 +293,8 @@ t_Error FmPortImCheckInitParameters(t_FmPort *p_FmPort)
             RETURN_ERROR(MAJOR, E_INVALID_VALUE, ("max Rx buffer length must be power of 2!!!"));
         if (p_FmPort->im.mrblr < 256)
             RETURN_ERROR(MAJOR, E_INVALID_VALUE, ("max Rx buffer length must at least 256!!!"));
-        if(p_FmPort->p_FmPortDriverParam->liodnOffset & ~FM_LIODN_OFFSET_MASK)
+        if (p_FmPort->p_FmPortDriverParam->liodnOffset & ~FM_LIODN_OFFSET_MASK)
             RETURN_ERROR(MAJOR, E_INVALID_VALUE, ("liodnOffset is larger than %d", FM_LIODN_OFFSET_MASK+1));
-#ifdef FM_PARTITION_ARRAY
-        {
-            t_FmRevisionInfo revInfo;
-            FM_GetRevision(p_FmPort->h_Fm, &revInfo);
-            if ((revInfo.majorRev == 1) && (revInfo.minorRev == 0))
-            {
-                if(p_FmPort->p_FmPortDriverParam->liodnOffset >= MAX_LIODN_OFFSET)
-                {
-                    p_FmPort->p_FmPortDriverParam->liodnOffset =
-                        (uint16_t)(p_FmPort->p_FmPortDriverParam->liodnOffset & (MAX_LIODN_OFFSET-1));
-                    DBG(WARNING, ("liodnOffset number is out of rev1 range - MSB bits cleard."));
-                }
-            }
-        }
-#endif /* FM_PARTITION_ARRAY */
-/* TODO - add checks */
-    }
-    else
-    {
-/* TODO - add checks */
     }
 
     return E_OK;
@@ -362,7 +323,10 @@ t_Error FmPortImInit(t_FmPort *p_FmPort)
     if ((p_FmPort->portType == e_FM_PORT_TYPE_RX) ||
         (p_FmPort->portType == e_FM_PORT_TYPE_RX_10G))
     {
-        p_FmPort->im.p_BdRing = (t_FmImBd *)XX_MallocSmart((uint32_t)(sizeof(t_FmImBd)*p_FmPort->im.bdRingSize), p_FmPort->im.fwExtStructsMemId, 4);
+        p_FmPort->im.p_BdRing =
+            (t_FmImBd *)XX_MallocSmart((uint32_t)(sizeof(t_FmImBd)*p_FmPort->im.bdRingSize),
+                                       p_FmPort->im.fwExtStructsMemId,
+                                       4);
         if (!p_FmPort->im.p_BdRing)
             RETURN_ERROR(MAJOR, E_NO_MEMORY, ("Independent-Mode Rx BD ring!!!"));
         IOMemSet32(p_FmPort->im.p_BdRing, 0, (uint32_t)(sizeof(t_FmImBd)*p_FmPort->im.bdRingSize));
@@ -392,7 +356,7 @@ t_Error FmPortImInit(t_FmPort *p_FmPort)
 
         WRITE_UINT32(p_FmPort->im.p_FmPortImPram->rxQdPtr,
                      (uint32_t)((uint64_t)(XX_VirtToPhys(p_FmPort->im.p_FmPortImPram)) -
-                                p_FmPort->p_FmPortDriverParam->fmMuramPhysBaseAddr + 0x20));
+                                p_FmPort->fmMuramPhysBaseAddr + 0x20));
 
         LOG2((uint64_t)p_FmPort->im.mrblr, log2Num);
         WRITE_UINT16(p_FmPort->im.p_FmPortImPram->mrblr, log2Num);
@@ -405,24 +369,24 @@ t_Error FmPortImInit(t_FmPort *p_FmPort)
         /* Update the IM PRAM address in the BMI */
         WRITE_UINT32(p_FmPort->p_FmPortBmiRegs->rxPortBmiRegs.fmbm_rfqid,
                      (uint32_t)((uint64_t)(XX_VirtToPhys(p_FmPort->im.p_FmPortImPram)) -
-                                p_FmPort->p_FmPortDriverParam->fmMuramPhysBaseAddr));
+                                p_FmPort->fmMuramPhysBaseAddr));
         if (!p_FmPort->polling || p_FmPort->exceptions)
         {
             /* Allocate, configure and register interrupts */
             err = FmAllocFmanCtrlEventReg(p_FmPort->h_Fm, &p_FmPort->fmanCtrlEventId);
-            if(err)
+            if (err)
                 RETURN_ERROR(MAJOR, err, NO_MSG);
 
             ASSERT_COND(!(p_FmPort->fmanCtrlEventId & ~IM_RXQD_FPMEVT_SEL_MASK));
             tmpReg16 = (uint16_t)(p_FmPort->fmanCtrlEventId & IM_RXQD_FPMEVT_SEL_MASK);
             tmpReg32 = 0;
 
-            if(p_FmPort->exceptions & IM_EV_BSY)
+            if (p_FmPort->exceptions & IM_EV_BSY)
             {
                 tmpReg16 |= IM_RXQD_BSYINTM;
                 tmpReg32 |= IM_EV_BSY;
             }
-            if(!p_FmPort->polling)
+            if (!p_FmPort->polling)
             {
                 tmpReg16 |= IM_RXQD_RXFINTM;
                 tmpReg32 |= IM_EV_RX;
@@ -457,7 +421,7 @@ t_Error FmPortImInit(t_FmPort *p_FmPort)
 
         WRITE_UINT32(p_FmPort->im.p_FmPortImPram->txQdPtr,
                      (uint32_t)((uint64_t)(XX_VirtToPhys(p_FmPort->im.p_FmPortImPram)) -
-                                p_FmPort->p_FmPortDriverParam->fmMuramPhysBaseAddr + 0x40));
+                                p_FmPort->fmMuramPhysBaseAddr + 0x40));
 
         /* Initialize Tx QD */
         tmpPhysBase = (uint64_t)(XX_VirtToPhys(p_FmPort->im.p_BdRing));
@@ -467,7 +431,7 @@ t_Error FmPortImInit(t_FmPort *p_FmPort)
         /* Update the IM PRAM address in the BMI */
         WRITE_UINT32(p_FmPort->p_FmPortBmiRegs->txPortBmiRegs.fmbm_tcfqid,
                      (uint32_t)((uint64_t)(XX_VirtToPhys(p_FmPort->im.p_FmPortImPram)) -
-                                p_FmPort->p_FmPortDriverParam->fmMuramPhysBaseAddr));
+                                p_FmPort->fmMuramPhysBaseAddr));
     }
 
 
@@ -593,7 +557,7 @@ t_Error FM_PORT_ConfigIMPolling(t_Handle h_FmPort)
     SANITY_CHECK_RETURN_ERROR(p_FmPort->imEn, E_INVALID_STATE);
     SANITY_CHECK_RETURN_ERROR(p_FmPort->p_FmPortDriverParam, E_INVALID_HANDLE);
 
-    if((p_FmPort->portType != e_FM_PORT_TYPE_RX_10G) && (p_FmPort->portType != e_FM_PORT_TYPE_RX))
+    if ((p_FmPort->portType != e_FM_PORT_TYPE_RX_10G) && (p_FmPort->portType != e_FM_PORT_TYPE_RX))
         RETURN_ERROR(MAJOR, E_INVALID_OPERATION, ("Available for Rx ports only"));
 
     if (!FmIsMaster(p_FmPort->h_Fm))
@@ -616,16 +580,16 @@ t_Error FM_PORT_SetIMExceptions(t_Handle h_FmPort, e_FmPortExceptions exception,
     SANITY_CHECK_RETURN_ERROR(p_FmPort->imEn, E_INVALID_STATE);
     SANITY_CHECK_RETURN_ERROR(!p_FmPort->p_FmPortDriverParam, E_INVALID_HANDLE);
 
-    if(exception == e_FM_PORT_EXCEPTION_IM_BUSY)
+    if (exception == e_FM_PORT_EXCEPTION_IM_BUSY)
     {
-        if(enable)
+        if (enable)
         {
             p_FmPort->exceptions |= IM_EV_BSY;
-            if(p_FmPort->fmanCtrlEventId == (uint8_t)NO_IRQ)
+            if (p_FmPort->fmanCtrlEventId == (uint8_t)NO_IRQ)
             {
                 /* Allocate, configure and register interrupts */
                 err = FmAllocFmanCtrlEventReg(p_FmPort->h_Fm, &p_FmPort->fmanCtrlEventId);
-                if(err)
+                if (err)
                     RETURN_ERROR(MAJOR, err, NO_MSG);
                 ASSERT_COND(!(p_FmPort->fmanCtrlEventId & ~IM_RXQD_FPMEVT_SEL_MASK));
 

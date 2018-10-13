@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt_dg.c,v 1.4 2000/07/14 08:40:41 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -313,11 +315,9 @@ recheck_socket:
 	cl->cl_netid = NULL;
 	return (cl);
 err2:
-	if (cl) {
-		mem_free(cl, sizeof (CLIENT));
-		if (cu)
-			mem_free(cu, sizeof (*cu));
-	}
+	mem_free(cl, sizeof (CLIENT));
+	mem_free(cu, sizeof (*cu));
+
 	return (NULL);
 }
 
@@ -346,7 +346,6 @@ clnt_dg_call(
 	int retransmit_time;
 	int next_sendtime, starttime, rtt, time_waited, tv = 0;
 	struct sockaddr *sa;
-	socklen_t salen;
 	uint32_t xid = 0;
 	struct mbuf *mreq = NULL, *results;
 	struct cu_request *cr;
@@ -398,13 +397,10 @@ clnt_dg_call(
 		}
 		cu->cu_connected = 1;
 	}
-	if (cu->cu_connected) {
+	if (cu->cu_connected)
 		sa = NULL;
-		salen = 0;
-	} else {
+	else
 		sa = (struct sockaddr *)&cu->cu_raddr;
-		salen = cu->cu_rlen;
-	}
 	time_waited = 0;
 	retrans = 0;
 	if (ext && ext->rc_timers) {

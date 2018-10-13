@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.c,v 1.35 2015/08/20 22:32:42 deraadt Exp $ */
+/* $OpenBSD: dns.c,v 1.38 2018/02/23 15:58:37 markus Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -102,6 +102,11 @@ dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
 		break;
 	case KEY_ED25519:
 		*algorithm = SSHFP_KEY_ED25519;
+		if (!*digest_type)
+			*digest_type = SSHFP_HASH_SHA256;
+		break;
+	case KEY_XMSS:
+		*algorithm = SSHFP_KEY_XMSS;
 		if (!*digest_type)
 			*digest_type = SSHFP_HASH_SHA256;
 		break;

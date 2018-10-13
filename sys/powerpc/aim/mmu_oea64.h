@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Nathan Whitehorn
  * All rights reserved.
  *
@@ -37,7 +39,7 @@ extern mmu_def_t oea64_mmu;
  */
 
 /* Allocate physical memory for use in moea64_bootstrap. */
-vm_offset_t	moea64_bootstrap_alloc(vm_size_t, u_int);
+vm_offset_t	moea64_bootstrap_alloc(vm_size_t size, vm_size_t align);
 /* Set an LPTE structure to match the contents of a PVO */
 void	moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte);
 
@@ -79,8 +81,9 @@ extern u_int	moea64_pte_overflow;
 
 extern int		moea64_large_page_shift;
 extern uint64_t		moea64_large_page_size;
-extern u_int		moea64_pteg_count;
-extern u_int		moea64_pteg_mask;
+extern u_long		moea64_pteg_count;
+extern u_long		moea64_pteg_mask;
+extern int		n_slbs;
 
 #endif /* _POWERPC_AIM_MMU_OEA64_H */
 

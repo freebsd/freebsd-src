@@ -11,15 +11,13 @@ trap "cleanup" INT QUIT TRAP ABRT TERM
 
 write_partition_layout() {
 	if [ -z "${NOSWAP}" ]; then
-		SWAPOPT="-p freebsd-swap/swapfs::1G"
+		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
 	fi
 
-	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
-	if [ -d "${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}" ]; then
-		BOOTFILES="/${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
-	else
-		BOOTFILES="/${_OBJDIR}/sys/boot"
-	fi
+	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		WITH_UNIFIED_OBJDIR=yes \
+		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	BOOTFILES="$(realpath ${BOOTFILES})"
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
@@ -121,6 +119,15 @@ vm_install_base() {
 		installworld installkernel distribution || \
 		err "\n\nCannot install the base system to ${DESTDIR}."
 
+	# Bootstrap etcupdate(8) and mergemaster(8) databases.
+	mkdir -p ${DESTDIR}/var/db/etcupdate
+	etcupdate extract -B \
+		-M "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
+		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate
+	sh ${WORLDDIR}/release/scripts/mm-mtree.sh -m ${WORLDDIR} \
+		-F "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
+		-D ${DESTDIR}
+
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
 	echo "/dev/${ROOTLABEL}/rootfs   /       ufs     rw      1       1" \
@@ -129,6 +136,10 @@ vm_install_base() {
 		echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
 			>> ${DESTDIR}/etc/fstab
 	fi
+
+	local hostname
+	hostname="$(echo $(uname -o) | tr '[:upper:]' '[:lower:]')"
+	echo "hostname=\"${hostname}\"" >> ${DESTDIR}/etc/rc.conf
 
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
@@ -154,6 +165,11 @@ vm_extra_enable_services() {
 		for _rcvar in ${VM_RC_LIST}; do
 			echo ${_rcvar}_enable="YES" >> ${DESTDIR}/etc/rc.conf
 		done
+	fi
+
+	if [ -z "${VMCONFIG}" -o -c "${VMCONFIG}" ]; then
+		echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> \
+			${DESTDIR}/etc/rc.conf
 	fi
 
 	return 0

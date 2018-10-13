@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *      The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -99,3 +101,4 @@ int checkpath(const char *, char resolved_path[]);
 extern int getmnt_silent;
 void build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, size_t len);
 void build_iovec_argf(struct iovec **iov, int *iovlen, const char *name, const char *fmt, ...);
+void free_iovec(struct iovec **iovec, int *iovlen);

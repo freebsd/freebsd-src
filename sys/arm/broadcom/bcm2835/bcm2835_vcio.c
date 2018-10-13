@@ -68,10 +68,6 @@ vcio_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	if (error != 0)
 		break;
 	property = malloc(size, M_VCIO, M_WAITOK);
-	if (property == NULL) {
-		error = ENOMEM;
-		break;
-	}
 
 	error = copyin(ptr, property, size);
 	if (error) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -37,6 +39,11 @@
 #ifndef _GEOM_GEOM_DISK_H_
 #define _GEOM_GEOM_DISK_H_
 
+#define	DISK_RR_UNKNOWN		0
+#define	DISK_RR_NON_ROTATING	1
+#define	DISK_RR_MIN		0x0401
+#define	DISK_RR_MAX		0xfffe
+
 #ifdef _KERNEL 
 
 #include <sys/queue.h>
@@ -60,11 +67,24 @@ typedef	int	disk_ioctl_t(struct disk *, u_long cmd, void *data,
 struct g_geom;
 struct devstat;
 
+typedef enum {
+	DISK_INIT_NONE,
+	DISK_INIT_START,
+	DISK_INIT_DONE
+} disk_init_level;
+
+struct disk_alias {
+	LIST_ENTRY(disk_alias)	da_next;
+	const char		*da_alias;
+};
+
 struct disk {
 	/* Fields which are private to geom_disk */
 	struct g_geom		*d_geom;
 	struct devstat		*d_devstat;
+	int			d_goneflag;
 	int			d_destroyed;
+	disk_init_level		d_init_level;
 
 	/* Shared fields */
 	u_int			d_flags;
@@ -101,15 +121,19 @@ struct disk {
 
 	/* Fields private to the driver */
 	void			*d_drv1;
+
+	/* Fields private to geom_disk, to be moved on next version bump */
+	LIST_HEAD(,disk_alias)	d_aliases;
 };
 
-#define DISKFLAG_RESERVED	0x1	/* Was NEEDSGIANT */
-#define DISKFLAG_OPEN		0x2
-#define DISKFLAG_CANDELETE	0x4
-#define DISKFLAG_CANFLUSHCACHE	0x8
-#define	DISKFLAG_UNMAPPED_BIO	0x10
-#define	DISKFLAG_DIRECT_COMPLETION	0x20
-#define	DISKFLAG_CANZONE	0x80
+#define	DISKFLAG_RESERVED		0x0001	/* Was NEEDSGIANT */
+#define	DISKFLAG_OPEN			0x0002
+#define	DISKFLAG_CANDELETE		0x0004
+#define	DISKFLAG_CANFLUSHCACHE		0x0008
+#define	DISKFLAG_UNMAPPED_BIO		0x0010
+#define	DISKFLAG_DIRECT_COMPLETION	0x0020
+#define	DISKFLAG_CANZONE		0x0080
+#define	DISKFLAG_WRITE_PROTECT		0x0100
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
@@ -119,13 +143,15 @@ void disk_attr_changed(struct disk *dp, const char *attr, int flag);
 void disk_media_changed(struct disk *dp, int flag);
 void disk_media_gone(struct disk *dp, int flag);
 int disk_resize(struct disk *dp, int flag);
+void disk_add_alias(struct disk *disk, const char *);
 
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION_01		0x5856105a
 #define DISK_VERSION_02		0x5856105b
 #define DISK_VERSION_03		0x5856105c
 #define DISK_VERSION_04		0x5856105d
-#define DISK_VERSION		DISK_VERSION_04
+#define DISK_VERSION_05		0x5856105e
+#define DISK_VERSION		DISK_VERSION_05
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */

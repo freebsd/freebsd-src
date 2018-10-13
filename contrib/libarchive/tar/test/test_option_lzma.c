@@ -48,10 +48,13 @@ DEFINE_TEST(test_option_lzma)
 		}
 		failure("--lzma option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x5d\00\00", 3);
+done:
+	free(p);
 }

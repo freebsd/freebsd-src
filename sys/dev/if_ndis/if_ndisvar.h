@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -152,6 +154,7 @@ struct ndisusb_task {
 };
 
 struct ndis_softc {
+#define        NDISUSB_GET_IFNET(ndis_softc) ( (ndis_softc)->ndis_80211 ? NULL : (ndis_softc)->ifp )
 	u_int			ndis_80211:1,
 				ndis_link:1,
 				ndis_running:1;

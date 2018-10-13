@@ -26,9 +26,10 @@
  */
 
 #include <machine/asm.h>
+#include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
 
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 
@@ -56,13 +57,23 @@ __FBSDID("$FreeBSD$");
 	stp	x0,  x1,  [sp, #(TF_X + 0  * 8)]
 	mrs	x10, elr_el1
 	mrs	x11, spsr_el1
+	mrs	x12, esr_el1
 .if \el == 0
 	mrs	x18, sp_el0
 .endif
-	stp	x10, x11, [sp, #(TF_ELR)]
+	str	x10, [sp, #(TF_ELR)]
+	stp	w11, w12, [sp, #(TF_SPSR)]
 	stp	x18,  lr, [sp, #(TF_SP)]
 	mrs	x18, tpidr_el1
 	add	x29, sp, #(TF_SIZE)
+.if \el == 0
+	/* Apply the SSBD (CVE-2018-3639) workaround if needed */
+	ldr	x1, [x18, #PC_SSBD]
+	cbz	x1, 1f
+	mov	w0, #1
+	blr	x1
+1:
+.endif
 .endm
 
 .macro	restore_registers el
@@ -72,6 +83,14 @@ __FBSDID("$FreeBSD$");
 	 * Disable interrupts, x18 may change in the interrupt exception
 	 * handler.  For EL0 exceptions, do_ast already did this.
 	 */
+.endif
+.if \el == 0
+	/* Remove the SSBD (CVE-2018-3639) workaround if needed */
+	ldr	x1, [x18, #PC_SSBD]
+	cbz	x1, 1f
+	mov	w0, #0
+	blr	x1
+1:
 .endif
 	ldp	x18,  lr, [sp, #(TF_SP)]
 	ldp	x10, x11, [sp, #(TF_ELR)]
@@ -112,9 +131,11 @@ __FBSDID("$FreeBSD$");
 .endm
 
 .macro	do_ast
-	/* Disable interrupts */
 	mrs	x19, daif
+	/* Make sure the IRQs are enabled before calling ast() */
+	bic	x19, x19, #PSR_I
 1:
+	/* Disable interrupts */
 	msr	daifset, #2
 
 	/* Read the current thread flags */
@@ -141,7 +162,8 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(handle_el1h_sync)
 	save_registers 1
-	mov	x0, sp
+	ldr	x0, [x18, #PC_CURTHREAD]
+	mov	x1, sp
 	bl	do_el1h_sync
 	restore_registers 1
 	eret
@@ -155,13 +177,11 @@ ENTRY(handle_el1h_irq)
 	eret
 END(handle_el1h_irq)
 
-ENTRY(handle_el1h_error)
-	brk	0xf13
-END(handle_el1h_error)
-
 ENTRY(handle_el0_sync)
 	save_registers 0
-	mov	x0, sp
+	ldr	x0, [x18, #PC_CURTHREAD]
+	mov	x1, sp
+	str	x1, [x0, #TD_FRAME]
 	bl	do_el0_sync
 	do_ast
 	restore_registers 0
@@ -177,18 +197,23 @@ ENTRY(handle_el0_irq)
 	eret
 END(handle_el0_irq)
 
-ENTRY(handle_el0_error)
+ENTRY(handle_serror)
 	save_registers 0
 	mov	x0, sp
-	bl	do_el0_error
-	brk	0xf23
-	1: b 1b
-END(handle_el0_error)
+1:	bl	do_serror
+	b	1b
+END(handle_serror)
+
+ENTRY(handle_empty_exception)
+	save_registers 0
+	mov	x0, sp
+1:	bl	unhandled_exception
+	b	1b
+END(handle_unhandled_exception)
 
 .macro	vempty
 	.align 7
-	brk	0xfff
-	1: b	1b
+	b	handle_empty_exception
 .endm
 
 .macro	vector	name
@@ -207,15 +232,15 @@ exception_vectors:
 	vector el1h_sync	/* Synchronous EL1h */
 	vector el1h_irq		/* IRQ EL1h */
 	vempty			/* FIQ EL1h */
-	vector el1h_error	/* Error EL1h */
+	vector serror		/* Error EL1h */
 
 	vector el0_sync		/* Synchronous 64-bit EL0 */
 	vector el0_irq		/* IRQ 64-bit EL0 */
 	vempty			/* FIQ 64-bit EL0 */
-	vector el0_error	/* Error 64-bit EL0 */
+	vector serror		/* Error 64-bit EL0 */
 
-	vempty			/* Synchronous 32-bit EL0 */
-	vempty			/* IRQ 32-bit EL0 */
+	vector el0_sync		/* Synchronous 32-bit EL0 */
+	vector el0_irq		/* IRQ 32-bit EL0 */
 	vempty			/* FIQ 32-bit EL0 */
-	vempty			/* Error 32-bit EL0 */
+	vector serror		/* Error 32-bit EL0 */
 

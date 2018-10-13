@@ -46,10 +46,25 @@ extern "C" {
  */
 
 /** Return a writable generic stream which will encode binary data in
- * base64 format and write the encoded data to @a output.  Be sure to
- * close the stream when done writing in order to squeeze out the last
- * bit of encoded data.  The stream is allocated in @a pool.
+ * base64 format and write the encoded data to @a output.  If @a break_lines
+ * is true, newlines will be inserted periodically; otherwise the output
+ * stream will only consist of base64 encoding characters. Be sure to close
+ * the stream when done writing in order to squeeze out the last bit of
+ * encoded data.  The stream is allocated in @a pool.
+ *
+ * @since New in 1.10.
  */
+svn_stream_t *
+svn_base64_encode2(svn_stream_t *output,
+                   svn_boolean_t break_lines,
+                   apr_pool_t *pool);
+
+/**
+ * Same as svn_base64_encode2, but with @a break_lines always TRUE.
+ *
+ * @deprecated Provided for backward compatibility with the 1.9 API.
+ */
+SVN_DEPRECATED
 svn_stream_t *
 svn_base64_encode(svn_stream_t *output,
                   apr_pool_t *pool);

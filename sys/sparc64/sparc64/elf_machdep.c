@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2001 Jake Burkholder.
  * Copyright (c) 2000 Eduardo Horvath.
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
@@ -309,6 +311,13 @@ static const long reloc_target_bitmask[] = {
 #undef _BM
 };
 #define	RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
+
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
 
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,

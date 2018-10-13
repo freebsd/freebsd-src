@@ -18,6 +18,10 @@
 #	endif
 #	include <windows.h>
 
+// glibc >= 2.9
+#elif defined(TUKLIB_CPUCORES_SCHED_GETAFFINITY)
+#	include <sched.h>
+
 // FreeBSD
 #elif defined(TUKLIB_CPUCORES_CPUSET)
 #	include <sys/param.h>
@@ -48,6 +52,11 @@ tuklib_cpucores(void)
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	ret = sysinfo.dwNumberOfProcessors;
+
+#elif defined(TUKLIB_CPUCORES_SCHED_GETAFFINITY)
+	cpu_set_t cpu_mask;
+	if (sched_getaffinity(0, sizeof(cpu_mask), &cpu_mask) == 0)
+		ret = CPU_COUNT(&cpu_mask);
 
 #elif defined(TUKLIB_CPUCORES_CPUSET)
 	cpuset_t set;

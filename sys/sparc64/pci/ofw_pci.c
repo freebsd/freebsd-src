@@ -93,7 +93,7 @@ ofw_pci_attach_common(device_t dev, bus_dma_tag_t dmat, u_long iosize,
 	 * start addresses of the ranges are the configuration, I/O and
 	 * memory handles.  There should not be multiple ones of one kind.
 	 */
-	nrange = OF_getprop_alloc(node, "ranges", sizeof(*range),
+	nrange = OF_getprop_alloc_multi(node, "ranges", sizeof(*range),
 	    (void **)&range);
 	for (i = 0; i < nrange; i++) {
 		j = OFW_PCI_RANGE_CS(&range[i]);

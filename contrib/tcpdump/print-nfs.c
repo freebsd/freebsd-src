@@ -17,21 +17,20 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Network File System (NFS) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -39,9 +38,7 @@
 #include "nfsfh.h"
 
 #include "ip.h"
-#ifdef INET6
 #include "ip6.h"
-#endif
 #include "rpc_auth.h"
 #include "rpc_msg.h"
 
@@ -57,7 +54,7 @@ static const uint32_t *parse_post_op_attr(netdissect_options *, const uint32_t *
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
-uint32_t nfsv3_procid[NFS_NPROCS] = {
+static uint32_t nfsv3_procid[NFS_NPROCS] = {
 	NFSPROC_NULL,
 	NFSPROC_GETATTR,
 	NFSPROC_SETATTR,
@@ -205,33 +202,24 @@ static void
 print_nfsaddr(netdissect_options *ndo,
               const u_char *bp, const char *s, const char *d)
 {
-	struct ip *ip;
-#ifdef INET6
-	struct ip6_hdr *ip6;
+	const struct ip *ip;
+	const struct ip6_hdr *ip6;
 	char srcaddr[INET6_ADDRSTRLEN], dstaddr[INET6_ADDRSTRLEN];
-#else
-#ifndef INET_ADDRSTRLEN
-#define INET_ADDRSTRLEN	16
-#endif
-	char srcaddr[INET_ADDRSTRLEN], dstaddr[INET_ADDRSTRLEN];
-#endif
 
 	srcaddr[0] = dstaddr[0] = '\0';
-	switch (IP_V((struct ip *)bp)) {
+	switch (IP_V((const struct ip *)bp)) {
 	case 4:
-		ip = (struct ip *)bp;
+		ip = (const struct ip *)bp;
 		strlcpy(srcaddr, ipaddr_string(ndo, &ip->ip_src), sizeof(srcaddr));
 		strlcpy(dstaddr, ipaddr_string(ndo, &ip->ip_dst), sizeof(dstaddr));
 		break;
-#ifdef INET6
 	case 6:
-		ip6 = (struct ip6_hdr *)bp;
+		ip6 = (const struct ip6_hdr *)bp;
 		strlcpy(srcaddr, ip6addr_string(ndo, &ip6->ip6_src),
 		    sizeof(srcaddr));
 		strlcpy(dstaddr, ip6addr_string(ndo, &ip6->ip6_dst),
 		    sizeof(dstaddr));
 		break;
-#endif
 	default:
 		strlcpy(srcaddr, "?", sizeof(srcaddr));
 		strlcpy(dstaddr, "?", sizeof(dstaddr));
@@ -436,7 +424,7 @@ parsereq(netdissect_options *ndo,
 	/*
 	 * find the start of the req data (if we captured it)
 	 */
-	dp = (uint32_t *)&rp->rm_call.cb_cred;
+	dp = (const uint32_t *)&rp->rm_call.cb_cred;
 	ND_TCHECK(dp[1]);
 	len = EXTRACT_32BITS(&dp[1]);
 	if (len < length) {
@@ -498,7 +486,7 @@ parsefn(netdissect_options *ndo,
 
 	ND_TCHECK2(*dp, ((len + 3) & ~3));
 
-	cp = (u_char *)dp;
+	cp = (const u_char *)dp;
 	/* Update 32-bit pointer (NFS filenames padded to 32-bit boundaries) */
 	dp += ((len + 3) & ~3) / sizeof(*dp);
 	ND_PRINT((ndo, "\""));
@@ -640,17 +628,15 @@ nfsreq_print_noaddr(netdissect_options *ndo,
 		if ((dp = parsereq(ndo, rp, length)) != NULL &&
 		    (dp = parsefh(ndo, dp, v3)) != NULL) {
 			if (v3) {
-				ND_TCHECK(dp[2]);
+				ND_TCHECK(dp[4]);
 				ND_PRINT((ndo, " %u (%u) bytes @ %" PRIu64,
 						EXTRACT_32BITS(&dp[4]),
 						EXTRACT_32BITS(&dp[2]),
 						EXTRACT_64BITS(&dp[0])));
 				if (ndo->ndo_vflag) {
-					dp += 3;
-					ND_TCHECK(dp[0]);
 					ND_PRINT((ndo, " <%s>",
 						tok2str(nfsv3_writemodes,
-							NULL, EXTRACT_32BITS(dp))));
+							NULL, EXTRACT_32BITS(&dp[3]))));
 				}
 			} else {
 				ND_TCHECK(dp[3]);
@@ -665,12 +651,12 @@ nfsreq_print_noaddr(netdissect_options *ndo,
 		break;
 
 	case NFSPROC_SYMLINK:
-		if ((dp = parsereq(ndo, rp, length)) != 0 &&
-		    (dp = parsefhn(ndo, dp, v3)) != 0) {
+		if ((dp = parsereq(ndo, rp, length)) != NULL &&
+		    (dp = parsefhn(ndo, dp, v3)) != NULL) {
 			ND_PRINT((ndo, " ->"));
-			if (v3 && (dp = parse_sattr3(ndo, dp, &sa3)) == 0)
+			if (v3 && (dp = parse_sattr3(ndo, dp, &sa3)) == NULL)
 				break;
-			if (parsefn(ndo, dp) == 0)
+			if (parsefn(ndo, dp) == NULL)
 				break;
 			if (v3 && ndo->ndo_vflag)
 				print_sattr3(ndo, &sa3, ndo->ndo_vflag);
@@ -679,12 +665,12 @@ nfsreq_print_noaddr(netdissect_options *ndo,
 		break;
 
 	case NFSPROC_MKNOD:
-		if ((dp = parsereq(ndo, rp, length)) != 0 &&
-		    (dp = parsefhn(ndo, dp, v3)) != 0) {
+		if ((dp = parsereq(ndo, rp, length)) != NULL &&
+		    (dp = parsefhn(ndo, dp, v3)) != NULL) {
 			ND_TCHECK(*dp);
 			type = (nfs_type)EXTRACT_32BITS(dp);
 			dp++;
-			if ((dp = parse_sattr3(ndo, dp, &sa3)) == 0)
+			if ((dp = parse_sattr3(ndo, dp, &sa3)) == NULL)
 				break;
 			ND_PRINT((ndo, " %s", tok2str(type2str, "unk-ft %d", type)));
 			if (ndo->ndo_vflag && (type == NFCHR || type == NFBLK)) {
@@ -821,11 +807,15 @@ nfs_printfh(netdissect_options *ndo,
 
 	if (sfsname) {
 		/* file system ID is ASCII, not numeric, for this server OS */
-		static char temp[NFSX_V3FHMAX+1];
+		char temp[NFSX_V3FHMAX+1];
+		u_int stringlen;
 
 		/* Make sure string is null-terminated */
-		strncpy(temp, sfsname, NFSX_V3FHMAX);
-		temp[sizeof(temp) - 1] = '\0';
+		stringlen = len;
+		if (stringlen > NFSX_V3FHMAX)
+			stringlen = NFSX_V3FHMAX;
+		strncpy(temp, sfsname, stringlen);
+		temp[stringlen] = '\0';
 		/* Remove trailing spaces */
 		spacep = strchr(temp, ' ');
 		if (spacep)
@@ -853,13 +843,8 @@ nfs_printfh(netdissect_options *ndo,
 struct xid_map_entry {
 	uint32_t	xid;		/* transaction ID (net order) */
 	int ipver;			/* IP version (4 or 6) */
-#ifdef INET6
 	struct in6_addr	client;		/* client IP address (net order) */
 	struct in6_addr	server;		/* server IP address (net order) */
-#else
-	struct in_addr	client;		/* client IP address (net order) */
-	struct in_addr	server;		/* server IP address (net order) */
-#endif
 	uint32_t	proc;		/* call proc number (host order) */
 	uint32_t	vers;		/* program version (host order) */
 };
@@ -872,32 +857,28 @@ struct xid_map_entry {
 
 #define	XIDMAPSIZE	64
 
-struct xid_map_entry xid_map[XIDMAPSIZE];
+static struct xid_map_entry xid_map[XIDMAPSIZE];
 
-int	xid_map_next = 0;
-int	xid_map_hint = 0;
+static int xid_map_next = 0;
+static int xid_map_hint = 0;
 
 static int
 xid_map_enter(netdissect_options *ndo,
               const struct sunrpc_msg *rp, const u_char *bp)
 {
-	struct ip *ip = NULL;
-#ifdef INET6
-	struct ip6_hdr *ip6 = NULL;
-#endif
+	const struct ip *ip = NULL;
+	const struct ip6_hdr *ip6 = NULL;
 	struct xid_map_entry *xmep;
 
-	if (!ND_TTEST(rp->rm_call.cb_vers))
+	if (!ND_TTEST(rp->rm_call.cb_proc))
 		return (0);
-	switch (IP_V((struct ip *)bp)) {
+	switch (IP_V((const struct ip *)bp)) {
 	case 4:
-		ip = (struct ip *)bp;
+		ip = (const struct ip *)bp;
 		break;
-#ifdef INET6
 	case 6:
-		ip6 = (struct ip6_hdr *)bp;
+		ip6 = (const struct ip6_hdr *)bp;
 		break;
-#endif
 	default:
 		return (1);
 	}
@@ -913,13 +894,11 @@ xid_map_enter(netdissect_options *ndo,
 		UNALIGNED_MEMCPY(&xmep->client, &ip->ip_src, sizeof(ip->ip_src));
 		UNALIGNED_MEMCPY(&xmep->server, &ip->ip_dst, sizeof(ip->ip_dst));
 	}
-#ifdef INET6
 	else if (ip6) {
 		xmep->ipver = 6;
 		UNALIGNED_MEMCPY(&xmep->client, &ip6->ip6_src, sizeof(ip6->ip6_src));
 		UNALIGNED_MEMCPY(&xmep->server, &ip6->ip6_dst, sizeof(ip6->ip6_dst));
 	}
-#endif
 	xmep->proc = EXTRACT_32BITS(&rp->rm_call.cb_proc);
 	xmep->vers = EXTRACT_32BITS(&rp->rm_call.cb_vers);
 	return (1);
@@ -935,13 +914,12 @@ xid_map_find(const struct sunrpc_msg *rp, const u_char *bp, uint32_t *proc,
 {
 	int i;
 	struct xid_map_entry *xmep;
-	uint32_t xid = rp->rm_xid;
-	struct ip *ip = (struct ip *)bp;
-#ifdef INET6
-	struct ip6_hdr *ip6 = (struct ip6_hdr *)bp;
-#endif
+	uint32_t xid;
+	const struct ip *ip = (const struct ip *)bp;
+	const struct ip6_hdr *ip6 = (const struct ip6_hdr *)bp;
 	int cmp;
 
+	UNALIGNED_MEMCPY(&xid, &rp->rm_xid, sizeof(xmep->xid));
 	/* Start searching from where we last left off */
 	i = xid_map_hint;
 	do {
@@ -958,7 +936,6 @@ xid_map_find(const struct sunrpc_msg *rp, const u_char *bp, uint32_t *proc,
 				cmp = 0;
 			}
 			break;
-#ifdef INET6
 		case 6:
 			if (UNALIGNED_MEMCMP(&ip6->ip6_src, &xmep->server,
 				   sizeof(ip6->ip6_src)) != 0 ||
@@ -967,7 +944,6 @@ xid_map_find(const struct sunrpc_msg *rp, const u_char *bp, uint32_t *proc,
 				cmp = 0;
 			}
 			break;
-#endif
 		default:
 			cmp = 0;
 			break;
@@ -1028,11 +1004,11 @@ parserep(netdissect_options *ndo,
 	 * skip past the ar_verf credentials.
 	 */
 	dp += (len + (2*sizeof(uint32_t) + 3)) / sizeof(uint32_t);
-	ND_TCHECK2(dp[0], 0);
 
 	/*
 	 * now we can check the ar_stat field
 	 */
+	ND_TCHECK(dp[0]);
 	astat = (enum sunrpc_accept_stat) EXTRACT_32BITS(dp);
 	if (astat != SUNRPC_SUCCESS) {
 		ND_PRINT((ndo, " %s", tok2str(sunrpc_str, "ar_stat %d", astat)));
@@ -1041,7 +1017,7 @@ parserep(netdissect_options *ndo,
 	}
 	/* successful return */
 	ND_TCHECK2(*dp, sizeof(astat));
-	return ((uint32_t *) (sizeof(astat) + ((char *)dp)));
+	return ((const uint32_t *) (sizeof(astat) + ((const char *)dp)));
 trunc:
 	return (0);
 }
@@ -1086,7 +1062,7 @@ parsefattr(netdissect_options *ndo,
 		if (v3) {
 			ND_TCHECK(fap->fa3_size);
 			ND_PRINT((ndo, " sz %" PRIu64,
-				EXTRACT_64BITS((uint32_t *)&fap->fa3_size)));
+				EXTRACT_64BITS((const uint32_t *)&fap->fa3_size)));
 		} else {
 			ND_TCHECK(fap->fa2_size);
 			ND_PRINT((ndo, " sz %d", EXTRACT_32BITS(&fap->fa2_size)));
@@ -1101,9 +1077,9 @@ parsefattr(netdissect_options *ndo,
 			       EXTRACT_32BITS(&fap->fa3_rdev.specdata1),
 			       EXTRACT_32BITS(&fap->fa3_rdev.specdata2)));
 			ND_PRINT((ndo, " fsid %" PRIx64,
-				EXTRACT_64BITS((uint32_t *)&fap->fa3_fsid)));
+				EXTRACT_64BITS((const uint32_t *)&fap->fa3_fsid)));
 			ND_PRINT((ndo, " fileid %" PRIx64,
-				EXTRACT_64BITS((uint32_t *)&fap->fa3_fileid)));
+				EXTRACT_64BITS((const uint32_t *)&fap->fa3_fileid)));
 			ND_PRINT((ndo, " a/m/ctime %u.%06u",
 			       EXTRACT_32BITS(&fap->fa3_atime.nfsv3_sec),
 			       EXTRACT_32BITS(&fap->fa3_atime.nfsv3_nsec)));
@@ -1131,7 +1107,7 @@ parsefattr(netdissect_options *ndo,
 			       EXTRACT_32BITS(&fap->fa2_ctime.nfsv2_usec)));
 		}
 	}
-	return ((const uint32_t *)((unsigned char *)dp +
+	return ((const uint32_t *)((const unsigned char *)dp +
 		(v3 ? NFSX_V3FATTR : NFSX_V2FATTR)));
 trunc:
 	return (NULL);
@@ -1216,14 +1192,14 @@ parsestatfs(netdissect_options *ndo,
 
 	if (v3) {
 		ND_PRINT((ndo, " tbytes %" PRIu64 " fbytes %" PRIu64 " abytes %" PRIu64,
-			EXTRACT_64BITS((uint32_t *)&sfsp->sf_tbytes),
-			EXTRACT_64BITS((uint32_t *)&sfsp->sf_fbytes),
-			EXTRACT_64BITS((uint32_t *)&sfsp->sf_abytes)));
+			EXTRACT_64BITS((const uint32_t *)&sfsp->sf_tbytes),
+			EXTRACT_64BITS((const uint32_t *)&sfsp->sf_fbytes),
+			EXTRACT_64BITS((const uint32_t *)&sfsp->sf_abytes)));
 		if (ndo->ndo_vflag) {
 			ND_PRINT((ndo, " tfiles %" PRIu64 " ffiles %" PRIu64 " afiles %" PRIu64 " invar %u",
-			       EXTRACT_64BITS((uint32_t *)&sfsp->sf_tfiles),
-			       EXTRACT_64BITS((uint32_t *)&sfsp->sf_ffiles),
-			       EXTRACT_64BITS((uint32_t *)&sfsp->sf_afiles),
+			       EXTRACT_64BITS((const uint32_t *)&sfsp->sf_tfiles),
+			       EXTRACT_64BITS((const uint32_t *)&sfsp->sf_ffiles),
+			       EXTRACT_64BITS((const uint32_t *)&sfsp->sf_afiles),
 			       EXTRACT_32BITS(&sfsp->sf_invarsec)));
 		}
 	} else {
@@ -1269,6 +1245,7 @@ static const uint32_t *
 parse_wcc_attr(netdissect_options *ndo,
                const uint32_t *dp)
 {
+	/* Our caller has already checked this */
 	ND_PRINT((ndo, " sz %" PRIu64, EXTRACT_64BITS(&dp[0])));
 	ND_PRINT((ndo, " mtime %u.%06u ctime %u.%06u",
 	       EXTRACT_32BITS(&dp[2]), EXTRACT_32BITS(&dp[3]),
@@ -1370,7 +1347,7 @@ parsewccres(netdissect_options *ndo,
 
 	if (!(dp = parsestatus(ndo, dp, &er)))
 		return (0);
-	return parse_wcc_data(ndo, dp, verbose) != 0;
+	return parse_wcc_data(ndo, dp, verbose) != NULL;
 }
 
 static const uint32_t *
@@ -1401,7 +1378,7 @@ static int
 parsefsinfo(netdissect_options *ndo,
             const uint32_t *dp)
 {
-	struct nfsv3_fsinfo *sfp;
+	const struct nfsv3_fsinfo *sfp;
 	int er;
 
 	if (!(dp = parsestatus(ndo, dp, &er)))
@@ -1413,7 +1390,7 @@ parsefsinfo(netdissect_options *ndo,
 	if (er)
 		return (1);
 
-	sfp = (struct nfsv3_fsinfo *)dp;
+	sfp = (const struct nfsv3_fsinfo *)dp;
 	ND_TCHECK(*sfp);
 	ND_PRINT((ndo, " rtmax %u rtpref %u wtmax %u wtpref %u dtpref %u",
 	       EXTRACT_32BITS(&sfp->fs_rtmax),
@@ -1425,7 +1402,7 @@ parsefsinfo(netdissect_options *ndo,
 		ND_PRINT((ndo, " rtmult %u wtmult %u maxfsz %" PRIu64,
 		       EXTRACT_32BITS(&sfp->fs_rtmult),
 		       EXTRACT_32BITS(&sfp->fs_wtmult),
-		       EXTRACT_64BITS((uint32_t *)&sfp->fs_maxfilesize)));
+		       EXTRACT_64BITS((const uint32_t *)&sfp->fs_maxfilesize)));
 		ND_PRINT((ndo, " delta %u.%06u ",
 		       EXTRACT_32BITS(&sfp->fs_timedelta.nfsv3_sec),
 		       EXTRACT_32BITS(&sfp->fs_timedelta.nfsv3_nsec)));
@@ -1440,7 +1417,7 @@ parsepathconf(netdissect_options *ndo,
               const uint32_t *dp)
 {
 	int er;
-	struct nfsv3_pathconf *spp;
+	const struct nfsv3_pathconf *spp;
 
 	if (!(dp = parsestatus(ndo, dp, &er)))
 		return (0);
@@ -1451,7 +1428,7 @@ parsepathconf(netdissect_options *ndo,
 	if (er)
 		return (1);
 
-	spp = (struct nfsv3_pathconf *)dp;
+	spp = (const struct nfsv3_pathconf *)dp;
 	ND_TCHECK(*spp);
 
 	ND_PRINT((ndo, " linkmax %u namemax %u %s %s %s %s",
@@ -1537,8 +1514,10 @@ interp_reply(netdissect_options *ndo,
 			ND_PRINT((ndo, " attr:"));
 		if (!(dp = parse_post_op_attr(ndo, dp, ndo->ndo_vflag)))
 			break;
-		if (!er)
+		if (!er) {
+			ND_TCHECK(dp[0]);
 			ND_PRINT((ndo, " c %04x", EXTRACT_32BITS(&dp[0])));
+		}
 		return;
 
 	case NFSPROC_READLINK:
@@ -1602,7 +1581,7 @@ interp_reply(netdissect_options *ndo,
 		if (!(dp = parserep(ndo, rp, length)))
 			break;
 		if (v3) {
-			if (parsecreateopres(ndo, dp, ndo->ndo_vflag) != 0)
+			if (parsecreateopres(ndo, dp, ndo->ndo_vflag) != NULL)
 				return;
 		} else {
 			if (parsediropres(ndo, dp) != 0)
@@ -1614,10 +1593,10 @@ interp_reply(netdissect_options *ndo,
 		if (!(dp = parserep(ndo, rp, length)))
 			break;
 		if (v3) {
-			if (parsecreateopres(ndo, dp, ndo->ndo_vflag) != 0)
+			if (parsecreateopres(ndo, dp, ndo->ndo_vflag) != NULL)
 				return;
 		} else {
-			if (parsestatus(ndo, dp, &er) != 0)
+			if (parsestatus(ndo, dp, &er) != NULL)
 				return;
 		}
 		break;
@@ -1625,7 +1604,7 @@ interp_reply(netdissect_options *ndo,
 	case NFSPROC_MKNOD:
 		if (!(dp = parserep(ndo, rp, length)))
 			break;
-		if (parsecreateopres(ndo, dp, ndo->ndo_vflag) != 0)
+		if (parsecreateopres(ndo, dp, ndo->ndo_vflag) != NULL)
 			return;
 		break;
 
@@ -1637,7 +1616,7 @@ interp_reply(netdissect_options *ndo,
 			if (parsewccres(ndo, dp, ndo->ndo_vflag))
 				return;
 		} else {
-			if (parsestatus(ndo, dp, &er) != 0)
+			if (parsestatus(ndo, dp, &er) != NULL)
 				return;
 		}
 		break;
@@ -1658,7 +1637,7 @@ interp_reply(netdissect_options *ndo,
 			}
 			return;
 		} else {
-			if (parsestatus(ndo, dp, &er) != 0)
+			if (parsestatus(ndo, dp, &er) != NULL)
 				return;
 		}
 		break;
@@ -1679,7 +1658,7 @@ interp_reply(netdissect_options *ndo,
 				return;
 			}
 		} else {
-			if (parsestatus(ndo, dp, &er) != 0)
+			if (parsestatus(ndo, dp, &er) != NULL)
 				return;
 		}
 		break;

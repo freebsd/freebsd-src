@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1993 Paul Kranenburg
  * All rights reserved.
  *
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /* We don't support a.out executables on arm64 and riscv */
-#if !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__aarch64__) && !defined(__riscv)
 #include <a.out.h>
 #define	AOUT_SUPPORTED
 #endif

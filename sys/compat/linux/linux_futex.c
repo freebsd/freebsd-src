@@ -1,6 +1,8 @@
 /*	$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2009-2016 Dmitry Chagin
  * Copyright (c) 2005 Emmanuel Dreyfus
  * All rights reserved.
@@ -271,14 +273,6 @@ static int handle_futex_death(struct linux_emuldata *, uint32_t *,
 static int fetch_robust_entry(struct linux_robust_list **,
     struct linux_robust_list **, unsigned int *);
 
-/* support.s */
-int futex_xchgl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_addl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_orl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_andl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_xorl(int oparg, uint32_t *uaddr, int *oldval);
-
-
 static int
 futex_copyin_timeout(int op, struct l_timespec *luts, int clockrt,
     struct timespec *ts)
@@ -294,15 +288,12 @@ futex_copyin_timeout(int op, struct l_timespec *luts, int clockrt,
 	error = linux_to_native_timespec(ts, &lts);
 	if (error)
 		return (error);
-	if (ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000)
-		return (EINVAL);
-
 	if (clockrt) {
 		nanotime(&kts);
-		timespecsub(ts, &kts);
+		timespecsub(ts, &kts, ts);
 	} else if (op == LINUX_FUTEX_WAIT_BITSET) {
 		nanouptime(&kts);
-		timespecsub(ts, &kts);
+		timespecsub(ts, &kts, ts);
 	}
 	return (error);
 }
@@ -955,6 +946,11 @@ retry1:
 		    args->uaddr, args->val, args->uaddr2, args->val3,
 		    args->timeout);
 
+		if (args->uaddr == args->uaddr2) {
+			LIN_SDT_PROBE1(futex, linux_sys_futex, return, EINVAL);
+			return (EINVAL);
+		}
+
 retry2:
 		error = futex_get(args->uaddr, NULL, &f, flags | FUTEX_DONTLOCK);
 		if (error) {
@@ -962,9 +958,7 @@ retry2:
 			return (error);
 		}
 
-		if (args->uaddr != args->uaddr2)
-			error = futex_get(args->uaddr2, NULL, &f2,
-			    flags | FUTEX_DONTLOCK);
+		error = futex_get(args->uaddr2, NULL, &f2, flags | FUTEX_DONTLOCK);
 		if (error) {
 			futex_put(f, NULL);
 

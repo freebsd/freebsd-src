@@ -8,6 +8,8 @@
 **                SATA/SAS RAID HOST Adapter
 ********************************************************************************
 ********************************************************************************
+** SPDX-License-Identifier: BSD-3-Clause
+**
 ** Copyright (C) 2002 - 2012, Areca Technology Corporation All rights reserved.
 **
 ** Redistribution and use in source and binary forms,with or without
@@ -51,6 +53,7 @@
 #define ARCMSR_MAX_HBB_POSTQUEUE	264	/* (ARCMSR_MAX_OUTSTANDING_CMD+8) */
 #define ARCMSR_MAX_HBD_POSTQUEUE	256
 #define	ARCMSR_TIMEOUT_DELAY		60	/* in sec */
+#define	ARCMSR_NUM_MSIX_VECTORS		4
 /*
 *********************************************************************
 */
@@ -116,14 +119,18 @@
 #define PCI_DEVICE_ID_ARECA_1680        0x1680 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1681        0x1681 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1880        0x1880 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1884        0x1884 /* Device ID	*/
 
 #define ARECA_SUB_DEV_ID_1880	0x1880 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1882	0x1882 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1883	0x1883 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1884	0x1884 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1212	0x1212 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1213	0x1213 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1216	0x1216 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1222	0x1222 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1223	0x1223 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1226	0x1226 /* Subsystem Device ID	*/
 
 #define PCIDevVenIDARC1110              0x111017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1120              0x112017D3 /* Vendor Device ID	*/
@@ -152,6 +159,7 @@
 #define PCIDevVenIDARC1681              0x168117D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1880              0x188017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1882              0x188217D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1884              0x188417D3 /* Vendor Device ID	*/
 
 #ifndef PCIR_BARS
 	#define PCIR_BARS	0x10
@@ -460,6 +468,26 @@ struct CMD_MESSAGE_FIELD {
 
 /*ARCMSR_HBAMU_MESSAGE_FIRMWARE_OK*/
 #define ARCMSR_HBDMU_MESSAGE_FIRMWARE_OK		0x80000000
+/* 
+*******************************************************************************
+**                SPEC. for Areca HBE adapter
+*******************************************************************************
+*/
+#define ARCMSR_SIGNATURE_1884				0x188417D3
+#define ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR		0x00000001
+#define ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR		0x00000008
+#define ARCMSR_HBEMU_ALL_INTMASKENABLE			0x00000009 /* disable all ISR */
+
+#define ARCMSR_HBEMU_DRV2IOP_DATA_WRITE_OK		0x00000002
+#define ARCMSR_HBEMU_DRV2IOP_DATA_READ_OK		0x00000004
+#define ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE		0x00000008 /* inbound message 0 ready */
+#define ARCMSR_HBEMU_IOP2DRV_DATA_WRITE_OK		0x00000002
+#define ARCMSR_HBEMU_IOP2DRV_DATA_READ_OK		0x00000004
+#define ARCMSR_HBEMU_IOP2DRV_MESSAGE_CMD_DONE		0x00000008 /* outbound message 0 ready */
+#define ARCMSR_HBEMU_MESSAGE_FIRMWARE_OK		0x80000000 /* ARCMSR_HBCMU_MESSAGE_FIRMWARE_OK */
+/* ARC-1884 doorbell sync */
+#define ARCMSR_HBEMU_DOORBELL_SYNC			0x100
+#define ARCMSR_ARC188X_RESET_ADAPTER			0x00000004
 /*
 *********************************************************************
 ** Message Unit structure
@@ -687,6 +715,92 @@ struct HBD_MessageUnit0 {
 	uint16_t doneq_index;
 	struct HBD_MessageUnit	*phbdmu;
 };
+/*
+*********************************************************************
+** 
+*********************************************************************
+*/
+struct HBE_MessageUnit {
+	u_int32_t	iobound_doorbell;                           /*0000 0003*/
+	u_int32_t	write_sequence_3xxx;	                    /*0004 0007*/
+	u_int32_t	host_diagnostic_3xxx;	                    /*0008 000B*/
+	u_int32_t	posted_outbound_doorbell;	            /*000C 000F*/
+	u_int32_t	master_error_attribute;	                    /*0010 0013*/
+	u_int32_t	master_error_address_low;	            /*0014 0017*/
+	u_int32_t	master_error_address_high;	            /*0018 001B*/
+	u_int32_t	hcb_size;                                   /*001C 001F*/
+	u_int32_t	inbound_doorbell;	                    /*0020 0023*/
+	u_int32_t	diagnostic_rw_data;	                    /*0024 0027*/
+	u_int32_t	diagnostic_rw_address_low;	            /*0028 002B*/
+	u_int32_t	diagnostic_rw_address_high;	            /*002C 002F*/
+	u_int32_t	host_int_status;	                    /*0030 0033 host interrupt status*/
+	u_int32_t	host_int_mask;     	                    /*0034 0037 host interrupt mask*/
+	u_int32_t	dcr_data;	                            /*0038 003B*/
+	u_int32_t	dcr_address;                                /*003C 003F*/
+	u_int32_t	inbound_queueport;                          /*0040 0043 port32 host inbound queue port*/
+	u_int32_t	outbound_queueport;                         /*0044 0047 port32 host outbound queue port*/
+	u_int32_t	hcb_pci_address_low;                        /*0048 004B*/
+	u_int32_t	hcb_pci_address_high;                       /*004C 004F*/
+	u_int32_t	iop_int_status;                             /*0050 0053*/
+	u_int32_t	iop_int_mask;                               /*0054 0057*/
+	u_int32_t	iop_inbound_queue_port;                     /*0058 005B*/
+	u_int32_t	iop_outbound_queue_port;                    /*005C 005F*/
+	u_int32_t	inbound_free_list_index;                    /*0060 0063*/
+	u_int32_t	inbound_post_list_index;                    /*0064 0067*/
+	u_int32_t	outbound_free_list_index;                   /*0068 006B*/
+	u_int32_t	outbound_post_list_index;                   /*006C 006F*/
+	u_int32_t	inbound_doorbell_clear;                     /*0070 0073*/
+	u_int32_t	i2o_message_unit_control;                   /*0074 0077*/
+	u_int32_t	last_used_message_source_address_low;       /*0078 007B*/
+	u_int32_t	last_used_message_source_address_high;	    /*007C 007F*/
+	u_int32_t	pull_mode_data_byte_count[4];               /*0080 008F*/
+	u_int32_t	message_dest_address_index;                 /*0090 0093*/
+	u_int32_t	done_queue_not_empty_int_counter_timer;     /*0094 0097*/
+	u_int32_t	utility_A_int_counter_timer;                /*0098 009B*/
+	u_int32_t	outbound_doorbell;                          /*009C 009F*/
+	u_int32_t	outbound_doorbell_clear;                    /*00A0 00A3*/
+	u_int32_t	message_source_address_index;               /*00A4 00A7*/
+	u_int32_t	message_done_queue_index;                   /*00A8 00AB*/
+	u_int32_t	reserved0;                                  /*00AC 00AF*/
+	u_int32_t	inbound_msgaddr0;                           /*00B0 00B3 scratchpad0*/
+	u_int32_t	inbound_msgaddr1;                           /*00B4 00B7 scratchpad1*/
+	u_int32_t	outbound_msgaddr0;                          /*00B8 00BB scratchpad2*/
+	u_int32_t	outbound_msgaddr1;                          /*00BC 00BF scratchpad3*/
+	u_int32_t	inbound_queueport_low;                      /*00C0 00C3 port64 host inbound queue port low*/
+	u_int32_t	inbound_queueport_high;                     /*00C4 00C7 port64 host inbound queue port high*/
+	u_int32_t	outbound_queueport_low;                     /*00C8 00CB port64 host outbound queue port low*/
+	u_int32_t	outbound_queueport_high;                    /*00CC 00CF port64 host outbound queue port high*/
+	u_int32_t	iop_inbound_queue_port_low;                 /*00D0 00D3*/
+	u_int32_t	iop_inbound_queue_port_high;                /*00D4 00D7*/
+	u_int32_t	iop_outbound_queue_port_low;                /*00D8 00DB*/
+	u_int32_t	iop_outbound_queue_port_high;               /*00DC 00DF*/
+	u_int32_t	message_dest_queue_port_low;                /*00E0 00E3*/
+	u_int32_t	message_dest_queue_port_high;               /*00E4 00E7*/
+	u_int32_t	last_used_message_dest_address_low;         /*00E8 00EB*/
+	u_int32_t	last_used_message_dest_address_high;        /*00EC 00EF*/
+	u_int32_t	message_done_queue_base_address_low;        /*00F0 00F3*/
+	u_int32_t	message_done_queue_base_address_high;       /*00F4 00F7*/
+	u_int32_t	host_diagnostic;                            /*00F8 00FB*/
+	u_int32_t	write_sequence;                             /*00FC 00FF*/
+	u_int32_t	reserved1[46];                              /*0100 01B7*/
+	u_int32_t	reply_post_producer_index;                  /*01B8 01BB*/
+	u_int32_t	reply_post_consumer_index;                  /*01BC 01BF*/
+	u_int32_t	reserved2[1936];                            /*01C0 1FFF*/
+	u_int32_t	message_wbuffer[32];                        /*2000 207F*/
+	u_int32_t	reserved3[32];                              /*2080 20FF*/
+	u_int32_t	message_rbuffer[32];                        /*2100 217F*/
+	u_int32_t	reserved4[32];                              /*2180 21FF*/
+	u_int32_t	msgcode_rwbuffer[256];                      /*2200 23FF*/
+};
+
+typedef struct deliver_completeQ {
+	u_int16_t	cmdFlag;
+	u_int16_t	cmdSMID;
+	u_int16_t	cmdLMID;        // reserved (0)
+	u_int16_t	cmdFlag2;       // reserved (0)
+} DeliverQ, CompletionQ, *pDeliver_Q, *pCompletion_Q;
+
+#define	COMPLETION_Q_POOL_SIZE	(sizeof(struct deliver_completeQ) * 512 + 128)
 
 /*
 *********************************************************************
@@ -700,6 +814,7 @@ struct MessageUnit_UNION
 		struct HBB_MessageUnit		hbbmu;
         	struct HBC_MessageUnit		hbcmu;
         	struct HBD_MessageUnit0		hbdmu;
+        	struct HBE_MessageUnit		hbemu;
 	} muu;
 };
 /* 
@@ -1089,6 +1204,7 @@ struct CommandControlBlock {
 	u_int16_t		srb_state;              /* 538-539 */
 	u_int32_t		cdb_phyaddr_high;	/* 540-543 */
 	struct	callout		ccb_callout;
+	u_int32_t		smid;
     /*  ==========================================================  */
 };
 /*	srb_flags */
@@ -1121,10 +1237,11 @@ struct CommandControlBlock {
 **                 Adapter Control Block
 *********************************************************************
 */
-#define ACB_ADAPTER_TYPE_A	0x00000001	/* hba I IOP */
-#define ACB_ADAPTER_TYPE_B	0x00000002	/* hbb M IOP */
-#define ACB_ADAPTER_TYPE_C	0x00000004	/* hbc L IOP */
-#define ACB_ADAPTER_TYPE_D	0x00000008	/* hbd M IOP */
+#define ACB_ADAPTER_TYPE_A	0x00000000	/* hba I IOP */
+#define ACB_ADAPTER_TYPE_B	0x00000001	/* hbb M IOP */
+#define ACB_ADAPTER_TYPE_C	0x00000002	/* hbc L IOP */
+#define ACB_ADAPTER_TYPE_D	0x00000003	/* hbd M IOP */
+#define ACB_ADAPTER_TYPE_E	0x00000004	/* hbd L IOP */
 
 struct AdapterControlBlock {
 	u_int32_t		adapter_type;		/* adapter A,B..... */
@@ -1144,8 +1261,9 @@ struct AdapterControlBlock {
 	int			pci_unit;
 	
 	struct resource		*sys_res_arcmsr[2];
-	struct resource		*irqres;
-	void			*ih;			/* interrupt handle */
+	struct resource		*irqres[ARCMSR_NUM_MSIX_VECTORS];
+	void			*ih[ARCMSR_NUM_MSIX_VECTORS]; /* interrupt handle */
+	int			irq_id[ARCMSR_NUM_MSIX_VECTORS];
 	
 	/* Hooks into the CAM XPT */
 	struct			cam_sim *psim;
@@ -1206,6 +1324,13 @@ struct AdapterControlBlock {
 	u_int32_t		adapter_bus_speed;
 	u_int32_t		maxOutstanding;
 	u_int16_t		sub_device_id;
+	u_int32_t		doneq_index;
+	u_int32_t		in_doorbell;
+	u_int32_t		out_doorbell;
+	u_int32_t		completionQ_entry;
+	pCompletion_Q		pCompletionQ;
+	int			msix_vectors;
+	int			rid[2];
 };/* HW_DEVICE_EXTENSION */
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001
@@ -1221,6 +1346,7 @@ struct AdapterControlBlock {
 #define ACB_F_CAM_DEV_QFRZN             0x0400
 #define ACB_F_BUS_HANG_ON               0x0800		/* need hardware reset bus */
 #define ACB_F_SRB_FUNCTION_POWER        0x1000
+#define	ACB_F_MSIX_ENABLED		0x2000
 /* devstate */
 #define ARECA_RAID_GONE         	0x55
 #define ARECA_RAID_GOOD         	0xaa

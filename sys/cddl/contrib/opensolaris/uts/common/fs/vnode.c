@@ -72,12 +72,6 @@ xva_getxoptattr(xvattr_t *xvap)
 	return (xoap);
 }
 
-static void
-vn_rele_inactive(vnode_t *vp)
-{
-	vrele(vp);
-}
-
 /*
  * Like vn_rele() except if we are going to call VOP_INACTIVE() then do it
  * asynchronously using a taskq. This can avoid deadlocks caused by re-entering
@@ -92,13 +86,10 @@ void
 vn_rele_async(vnode_t *vp, taskq_t *taskq)
 {
 	VERIFY(vp->v_count > 0);
-	VI_LOCK(vp);
-	if (vp->v_count == 1 && !(vp->v_iflag & VI_DOINGINACT)) {
-		VI_UNLOCK(vp);
-		VERIFY(taskq_dispatch((taskq_t *)taskq,
-		    (task_func_t *)vn_rele_inactive, vp, TQ_SLEEP) != 0);
+	if (refcount_release_if_not_last(&vp->v_usecount)) {
+		vdrop(vp);
 		return;
 	}
-	refcount_release(&vp->v_usecount);
-	vdropl(vp);
+	VERIFY(taskq_dispatch((taskq_t *)taskq,
+	    (task_func_t *)vrele, vp, TQ_SLEEP) != 0);
 }

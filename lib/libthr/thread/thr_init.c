@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
@@ -173,7 +175,6 @@ STATIC_LIB_REQUIRE(_sigtimedwait);
 STATIC_LIB_REQUIRE(_sigwait);
 STATIC_LIB_REQUIRE(_sigwaitinfo);
 STATIC_LIB_REQUIRE(_spinlock);
-STATIC_LIB_REQUIRE(_spinlock_debug);
 STATIC_LIB_REQUIRE(_spinunlock);
 STATIC_LIB_REQUIRE(_thread_init_hack);
 
@@ -447,7 +448,6 @@ init_private(void)
 	_thr_urwlock_init(&_thr_atfork_lock);
 	_thr_umutex_init(&_thr_event_lock);
 	_thr_umutex_init(&_suspend_all_lock);
-	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();
 	_thr_wake_addr_init();

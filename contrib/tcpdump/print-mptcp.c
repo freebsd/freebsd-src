@@ -32,14 +32,17 @@
  * SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Multipath TCP (MPTCP) printer */
+
+/* specification: RFC 6824 */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 
@@ -173,9 +176,9 @@ static int
 mp_capable_print(netdissect_options *ndo,
                  const u_char *opt, u_int opt_len, u_char flags)
 {
-        struct mp_capable *mpc = (struct mp_capable *) opt;
+        const struct mp_capable *mpc = (const struct mp_capable *) opt;
 
-        if (!(opt_len == 12 && flags & TH_SYN) &&
+        if (!(opt_len == 12 && (flags & TH_SYN)) &&
             !(opt_len == 20 && (flags & (TH_SYN | TH_ACK)) == TH_ACK))
                 return 0;
 
@@ -197,11 +200,11 @@ static int
 mp_join_print(netdissect_options *ndo,
               const u_char *opt, u_int opt_len, u_char flags)
 {
-        struct mp_join *mpj = (struct mp_join *) opt;
+        const struct mp_join *mpj = (const struct mp_join *) opt;
 
-        if (!(opt_len == 12 && flags & TH_SYN) &&
+        if (!(opt_len == 12 && (flags & TH_SYN)) &&
             !(opt_len == 16 && (flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) &&
-            !(opt_len == 24 && flags & TH_ACK))
+            !(opt_len == 24 && (flags & TH_ACK)))
                 return 0;
 
         if (opt_len != 24) {
@@ -233,76 +236,92 @@ mp_join_print(netdissect_options *ndo,
         return 1;
 }
 
-static u_int mp_dss_len(struct mp_dss *m, int csum)
-{
-        u_int len;
-
-        len = 4;
-        if (m->flags & MP_DSS_A) {
-                /* Ack present - 4 or 8 octets */
-                len += (m->flags & MP_DSS_a) ? 8 : 4;
-        }
-        if (m->flags & MP_DSS_M) {
-                /*
-                 * Data Sequence Number (DSN), Subflow Sequence Number (SSN),
-                 * Data-Level Length present, and Checksum possibly present.
-                 * All but the Checksum are 10 bytes if the m flag is
-                 * clear (4-byte DSN) and 14 bytes if the m flag is set
-                 * (8-byte DSN).
-                 */
-                len += (m->flags & MP_DSS_m) ? 14 : 10;
-
-                /*
-                 * The Checksum is present only if negotiated.
-                 */
-                if (csum)
-                        len += 2;
-	}
-	return len;
-}
-
 static int
 mp_dss_print(netdissect_options *ndo,
              const u_char *opt, u_int opt_len, u_char flags)
 {
-        struct mp_dss *mdss = (struct mp_dss *) opt;
+        const struct mp_dss *mdss = (const struct mp_dss *) opt;
 
-        if ((opt_len != mp_dss_len(mdss, 1) &&
-             opt_len != mp_dss_len(mdss, 0)) || flags & TH_SYN)
+        /* We need the flags, at a minimum. */
+        if (opt_len < 4)
+                return 0;
+
+        if (flags & TH_SYN)
                 return 0;
 
         if (mdss->flags & MP_DSS_F)
                 ND_PRINT((ndo, " fin"));
 
         opt += 4;
+        opt_len -= 4;
         if (mdss->flags & MP_DSS_A) {
+                /* Ack present */
                 ND_PRINT((ndo, " ack "));
+                /*
+                 * If the a flag is set, we have an 8-byte ack; if it's
+                 * clear, we have a 4-byte ack.
+                 */
                 if (mdss->flags & MP_DSS_a) {
+                        if (opt_len < 8)
+                                return 0;
                         ND_PRINT((ndo, "%" PRIu64, EXTRACT_64BITS(opt)));
                         opt += 8;
+                        opt_len -= 8;
                 } else {
+                        if (opt_len < 4)
+                                return 0;
                         ND_PRINT((ndo, "%u", EXTRACT_32BITS(opt)));
                         opt += 4;
+                        opt_len -= 4;
                 }
         }
 
         if (mdss->flags & MP_DSS_M) {
+                /*
+                 * Data Sequence Number (DSN), Subflow Sequence Number (SSN),
+                 * Data-Level Length present, and Checksum possibly present.
+                 */
                 ND_PRINT((ndo, " seq "));
+		/*
+                 * If the m flag is set, we have an 8-byte NDS; if it's clear,
+                 * we have a 4-byte DSN.
+                 */
                 if (mdss->flags & MP_DSS_m) {
+                        if (opt_len < 8)
+                                return 0;
                         ND_PRINT((ndo, "%" PRIu64, EXTRACT_64BITS(opt)));
                         opt += 8;
+                        opt_len -= 8;
                 } else {
+                        if (opt_len < 4)
+                                return 0;
                         ND_PRINT((ndo, "%u", EXTRACT_32BITS(opt)));
                         opt += 4;
+                        opt_len -= 4;
                 }
+                if (opt_len < 4)
+                        return 0;
                 ND_PRINT((ndo, " subseq %u", EXTRACT_32BITS(opt)));
                 opt += 4;
+                opt_len -= 4;
+                if (opt_len < 2)
+                        return 0;
                 ND_PRINT((ndo, " len %u", EXTRACT_16BITS(opt)));
                 opt += 2;
+                opt_len -= 2;
 
-                if (opt_len == mp_dss_len(mdss, 1))
+                /*
+                 * The Checksum is present only if negotiated.
+                 * If there are at least 2 bytes left, process the next 2
+                 * bytes as the Checksum.
+                 */
+                if (opt_len >= 2) {
                         ND_PRINT((ndo, " csum 0x%x", EXTRACT_16BITS(opt)));
+                        opt_len -= 2;
+                }
         }
+        if (opt_len != 0)
+                return 0;
         return 1;
 }
 
@@ -310,7 +329,7 @@ static int
 add_addr_print(netdissect_options *ndo,
                const u_char *opt, u_int opt_len, u_char flags _U_)
 {
-        struct mp_add_addr *add_addr = (struct mp_add_addr *) opt;
+        const struct mp_add_addr *add_addr = (const struct mp_add_addr *) opt;
         u_int ipver = MP_ADD_ADDR_IPVER(add_addr->sub_ipver);
 
         if (!((opt_len == 8 || opt_len == 10) && ipver == 4) &&
@@ -325,9 +344,7 @@ add_addr_print(netdissect_options *ndo,
                         ND_PRINT((ndo, ":%u", EXTRACT_16BITS(add_addr->u.v4.port)));
                 break;
         case 6:
-#ifdef INET6
                 ND_PRINT((ndo, " %s", ip6addr_string(ndo, add_addr->u.v6.addr)));
-#endif
                 if (opt_len == 22)
                         ND_PRINT((ndo, ":%u", EXTRACT_16BITS(add_addr->u.v6.port)));
                 break;
@@ -342,8 +359,8 @@ static int
 remove_addr_print(netdissect_options *ndo,
                   const u_char *opt, u_int opt_len, u_char flags _U_)
 {
-        struct mp_remove_addr *remove_addr = (struct mp_remove_addr *) opt;
-        uint8_t *addr_id = &remove_addr->addrs_id;
+        const struct mp_remove_addr *remove_addr = (const struct mp_remove_addr *) opt;
+        const uint8_t *addr_id = &remove_addr->addrs_id;
 
         if (opt_len < 4)
                 return 0;
@@ -359,7 +376,7 @@ static int
 mp_prio_print(netdissect_options *ndo,
               const u_char *opt, u_int opt_len, u_char flags _U_)
 {
-        struct mp_prio *mpp = (struct mp_prio *) opt;
+        const struct mp_prio *mpp = (const struct mp_prio *) opt;
 
         if (opt_len != 3 && opt_len != 4)
                 return 0;
@@ -415,13 +432,13 @@ int
 mptcp_print(netdissect_options *ndo,
             const u_char *cp, u_int len, u_char flags)
 {
-        struct mptcp_option *opt;
+        const struct mptcp_option *opt;
         u_int subtype;
 
         if (len < 3)
                 return 0;
 
-        opt = (struct mptcp_option *) cp;
+        opt = (const struct mptcp_option *) cp;
         subtype = min(MPTCP_OPT_SUBTYPE(opt->sub_etc), MPTCP_SUB_FCLOSE + 1);
 
         ND_PRINT((ndo, " %s", mptcp_options[subtype].name));

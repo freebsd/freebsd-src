@@ -12,18 +12,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Linker/Linker.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
-#include "llvm/IR/FunctionInfo.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/Object/FunctionIndexObjectFile.h"
+#include "llvm/Linker/Linker.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -33,7 +33,12 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Transforms/IPO/FunctionImport.h"
+#include "llvm/Transforms/IPO/Internalize.h"
+#include "llvm/Transforms/Utils/FunctionImportUtils.h"
+
 #include <memory>
+#include <utility>
 using namespace llvm;
 
 static cl::list<std::string>
@@ -52,15 +57,14 @@ static cl::list<std::string> Imports(
     cl::desc("Pair of function name and filename, where function should be "
              "imported from bitcode in filename"));
 
-// Option to support testing of function importing. The function index
+// Option to support testing of function importing. The module summary
 // must be specified in the case were we request imports via the -import
 // option, as well as when compiling any module with functions that may be
 // exported (imported by a different llvm-link -import invocation), to ensure
 // consistent promotion and renaming of locals.
-static cl::opt<std::string> FunctionIndex("functionindex",
-                                          cl::desc("Function index filename"),
-                                          cl::init(""),
-                                          cl::value_desc("filename"));
+static cl::opt<std::string>
+    SummaryIndex("summary-index", cl::desc("Module summary index filename"),
+                 cl::init(""), cl::value_desc("filename"));
 
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Override output filename"), cl::init("-"),
@@ -70,14 +74,21 @@ static cl::opt<bool>
 Internalize("internalize", cl::desc("Internalize linked symbols"));
 
 static cl::opt<bool>
+    DisableDITypeMap("disable-debug-info-type-map",
+                     cl::desc("Don't use a uniquing type map for debug info"));
+
+static cl::opt<bool>
 OnlyNeeded("only-needed", cl::desc("Link only needed symbols"));
 
 static cl::opt<bool>
 Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::opt<bool>
-OutputAssembly("S",
-         cl::desc("Write output as LLVM assembly"), cl::Hidden);
+    DisableLazyLoad("disable-lazy-loading",
+                    cl::desc("Disable lazy module loading"));
+
+static cl::opt<bool>
+    OutputAssembly("S", cl::desc("Write output as LLVM assembly"), cl::Hidden);
 
 static cl::opt<bool>
 Verbose("v", cl::desc("Print information about actions taken"));
@@ -89,10 +100,6 @@ static cl::opt<bool>
 SuppressWarnings("suppress-warnings", cl::desc("Suppress all linking warnings"),
                  cl::init(false));
 
-static cl::opt<bool>
-    PreserveModules("preserve-modules",
-                    cl::desc("Preserve linked modules for testing"));
-
 static cl::opt<bool> PreserveBitcodeUseListOrder(
     "preserve-bc-uselistorder",
     cl::desc("Preserve use-list order when writing LLVM bitcode."),
@@ -103,6 +110,8 @@ static cl::opt<bool> PreserveAssemblyUseListOrder(
     cl::desc("Preserve use-list order when writing LLVM assembly."),
     cl::init(false), cl::Hidden);
 
+static ExitOnError ExitOnErr;
+
 // Read the specified bitcode file in and return it. This routine searches the
 // link path for the specified file to try to find it...
 //
@@ -112,49 +121,109 @@ static std::unique_ptr<Module> loadFile(const char *argv0,
                                         bool MaterializeMetadata = true) {
   SMDiagnostic Err;
   if (Verbose) errs() << "Loading '" << FN << "'\n";
-  std::unique_ptr<Module> Result =
-      getLazyIRFileModule(FN, Err, Context, !MaterializeMetadata);
-  if (!Result)
+  std::unique_ptr<Module> Result;
+  if (DisableLazyLoad)
+    Result = parseIRFile(FN, Err, Context);
+  else
+    Result = getLazyIRFileModule(FN, Err, Context, !MaterializeMetadata);
+
+  if (!Result) {
     Err.print(argv0, errs());
+    return nullptr;
+  }
 
   if (MaterializeMetadata) {
-    Result->materializeMetadata();
+    ExitOnErr(Result->materializeMetadata());
     UpgradeDebugInfo(*Result);
   }
 
   return Result;
 }
 
-static void diagnosticHandler(const DiagnosticInfo &DI) {
-  unsigned Severity = DI.getSeverity();
-  switch (Severity) {
-  case DS_Error:
-    errs() << "ERROR: ";
-    break;
-  case DS_Warning:
-    if (SuppressWarnings)
-      return;
-    errs() << "WARNING: ";
-    break;
-  case DS_Remark:
-  case DS_Note:
-    llvm_unreachable("Only expecting warnings and errors");
+namespace {
+
+/// Helper to load on demand a Module from file and cache it for subsequent
+/// queries during function importing.
+class ModuleLazyLoaderCache {
+  /// Cache of lazily loaded module for import.
+  StringMap<std::unique_ptr<Module>> ModuleMap;
+
+  /// Retrieve a Module from the cache or lazily load it on demand.
+  std::function<std::unique_ptr<Module>(const char *argv0,
+                                        const std::string &FileName)>
+      createLazyModule;
+
+public:
+  /// Create the loader, Module will be initialized in \p Context.
+  ModuleLazyLoaderCache(std::function<std::unique_ptr<Module>(
+                            const char *argv0, const std::string &FileName)>
+                            createLazyModule)
+      : createLazyModule(std::move(createLazyModule)) {}
+
+  /// Retrieve a Module from the cache or lazily load it on demand.
+  Module &operator()(const char *argv0, const std::string &FileName);
+
+  std::unique_ptr<Module> takeModule(const std::string &FileName) {
+    auto I = ModuleMap.find(FileName);
+    assert(I != ModuleMap.end());
+    std::unique_ptr<Module> Ret = std::move(I->second);
+    ModuleMap.erase(I);
+    return Ret;
   }
+};
 
-  DiagnosticPrinterRawOStream DP(errs());
-  DI.print(DP);
-  errs() << '\n';
+// Get a Module for \p FileName from the cache, or load it lazily.
+Module &ModuleLazyLoaderCache::operator()(const char *argv0,
+                                          const std::string &Identifier) {
+  auto &Module = ModuleMap[Identifier];
+  if (!Module)
+    Module = createLazyModule(argv0, Identifier);
+  return *Module;
 }
+} // anonymous namespace
 
-static void diagnosticHandlerWithContext(const DiagnosticInfo &DI, void *C) {
-  diagnosticHandler(DI);
+namespace {
+struct LLVMLinkDiagnosticHandler : public DiagnosticHandler {
+  bool handleDiagnostics(const DiagnosticInfo &DI) override {
+    unsigned Severity = DI.getSeverity();
+    switch (Severity) {
+    case DS_Error:
+      errs() << "ERROR: ";
+      break;
+    case DS_Warning:
+      if (SuppressWarnings)
+        return true;
+      errs() << "WARNING: ";
+      break;
+    case DS_Remark:
+    case DS_Note:
+      llvm_unreachable("Only expecting warnings and errors");
+    }
+
+    DiagnosticPrinterRawOStream DP(errs());
+    DI.print(DP);
+    errs() << '\n';
+    return true;
+  }
+};
 }
 
 /// Import any functions requested via the -import option.
-static bool importFunctions(const char *argv0, LLVMContext &Context,
-                            Linker &L) {
-  StringMap<std::unique_ptr<DenseMap<unsigned, MDNode *>>>
-      ModuleToTempMDValsMap;
+static bool importFunctions(const char *argv0, Module &DestModule) {
+  if (SummaryIndex.empty())
+    return true;
+  std::unique_ptr<ModuleSummaryIndex> Index =
+      ExitOnErr(llvm::getModuleSummaryIndexForFile(SummaryIndex));
+
+  // Map of Module -> List of globals to import from the Module
+  FunctionImporter::ImportMapTy ImportList;
+
+  auto ModuleLoader = [&DestModule](const char *argv0,
+                                    const std::string &Identifier) {
+    return loadFile(argv0, Identifier, DestModule.getContext(), false);
+  };
+
+  ModuleLazyLoaderCache ModuleLoaderCache(ModuleLoader);
   for (const auto &Import : Imports) {
     // Identify the requested function and its bitcode source file.
     size_t Idx = Import.find(':');
@@ -166,19 +235,15 @@ static bool importFunctions(const char *argv0, LLVMContext &Context,
     std::string FileName = Import.substr(Idx + 1, std::string::npos);
 
     // Load the specified source module.
-    std::unique_ptr<Module> M = loadFile(argv0, FileName, Context, false);
-    if (!M.get()) {
-      errs() << argv0 << ": error loading file '" << FileName << "'\n";
-      return false;
-    }
+    auto &SrcModule = ModuleLoaderCache(argv0, FileName);
 
-    if (verifyModule(*M, &errs())) {
+    if (verifyModule(SrcModule, &errs())) {
       errs() << argv0 << ": " << FileName
              << ": error: input module is broken!\n";
       return false;
     }
 
-    Function *F = M->getFunction(FunctionName);
+    Function *F = SrcModule.getFunction(FunctionName);
     if (!F) {
       errs() << "Ignoring import request for non-existent function "
              << FunctionName << " from " << FileName << "\n";
@@ -196,53 +261,15 @@ static bool importFunctions(const char *argv0, LLVMContext &Context,
     if (Verbose)
       errs() << "Importing " << FunctionName << " from " << FileName << "\n";
 
-    std::unique_ptr<FunctionInfoIndex> Index;
-    if (!FunctionIndex.empty()) {
-      ErrorOr<std::unique_ptr<FunctionInfoIndex>> IndexOrErr =
-          llvm::getFunctionIndexForFile(FunctionIndex, diagnosticHandler);
-      std::error_code EC = IndexOrErr.getError();
-      if (EC) {
-        errs() << EC.message() << '\n';
-        return false;
-      }
-      Index = std::move(IndexOrErr.get());
-    }
-
-    // Save the mapping of value ids to temporary metadata created when
-    // importing this function. If we have already imported from this module,
-    // add new temporary metadata to the existing mapping.
-    auto &TempMDVals = ModuleToTempMDValsMap[FileName];
-    if (!TempMDVals)
-      TempMDVals = llvm::make_unique<DenseMap<unsigned, MDNode *>>();
-
-    // Link in the specified function.
-    DenseSet<const GlobalValue *> FunctionsToImport;
-    FunctionsToImport.insert(F);
-    if (L.linkInModule(std::move(M), Linker::Flags::None, Index.get(),
-                       &FunctionsToImport, TempMDVals.get()))
-      return false;
+    auto &Entry = ImportList[FileName];
+    Entry.insert(std::make_pair(F->getGUID(), /* (Unused) threshold */ 1.0));
   }
+  auto CachedModuleLoader = [&](StringRef Identifier) {
+    return ModuleLoaderCache.takeModule(Identifier);
+  };
+  FunctionImporter Importer(*Index, CachedModuleLoader);
+  ExitOnErr(Importer.importFunctions(DestModule, ImportList));
 
-  // Now link in metadata for all modules from which we imported functions.
-  for (StringMapEntry<std::unique_ptr<DenseMap<unsigned, MDNode *>>> &SME :
-       ModuleToTempMDValsMap) {
-    // Load the specified source module.
-    std::unique_ptr<Module> M = loadFile(argv0, SME.getKey(), Context, true);
-    if (!M.get()) {
-      errs() << argv0 << ": error loading file '" << SME.getKey() << "'\n";
-      return false;
-    }
-
-    if (verifyModule(*M, &errs())) {
-      errs() << argv0 << ": " << SME.getKey()
-             << ": error: input module is broken!\n";
-      return false;
-    }
-
-    // Link in all necessary metadata from this module.
-    if (L.linkInMetadata(*M, SME.getValue().get()))
-      return false;
-  }
   return true;
 }
 
@@ -251,6 +278,8 @@ static bool linkFiles(const char *argv0, LLVMContext &Context, Linker &L,
                       unsigned Flags) {
   // Filter out flags that don't apply to the first file we load.
   unsigned ApplicableFlags = Flags & Linker::Flags::OverrideFromSrc;
+  // Similar to some flags, internalization doesn't apply to the first file.
+  bool InternalizeLinkedSymbols = false;
   for (const auto &File : Files) {
     std::unique_ptr<Module> M = loadFile(argv0, File, Context);
     if (!M.get()) {
@@ -258,41 +287,58 @@ static bool linkFiles(const char *argv0, LLVMContext &Context, Linker &L,
       return false;
     }
 
-    if (verifyModule(*M, &errs())) {
+    // Note that when ODR merging types cannot verify input files in here When
+    // doing that debug metadata in the src module might already be pointing to
+    // the destination.
+    if (DisableDITypeMap && verifyModule(*M, &errs())) {
       errs() << argv0 << ": " << File << ": error: input module is broken!\n";
       return false;
     }
 
-    // If a function index is supplied, load it so linkInModule can treat
+    // If a module summary index is supplied, load it so linkInModule can treat
     // local functions/variables as exported and promote if necessary.
-    std::unique_ptr<FunctionInfoIndex> Index;
-    if (!FunctionIndex.empty()) {
-      ErrorOr<std::unique_ptr<FunctionInfoIndex>> IndexOrErr =
-          llvm::getFunctionIndexForFile(FunctionIndex, diagnosticHandler);
-      std::error_code EC = IndexOrErr.getError();
-      if (EC) {
-        errs() << EC.message() << '\n';
-        return false;
+    if (!SummaryIndex.empty()) {
+      std::unique_ptr<ModuleSummaryIndex> Index =
+          ExitOnErr(llvm::getModuleSummaryIndexForFile(SummaryIndex));
+
+      // Conservatively mark all internal values as promoted, since this tool
+      // does not do the ThinLink that would normally determine what values to
+      // promote.
+      for (auto &I : *Index) {
+        for (auto &S : I.second.SummaryList) {
+          if (GlobalValue::isLocalLinkage(S->linkage()))
+            S->setLinkage(GlobalValue::ExternalLinkage);
+        }
       }
-      Index = std::move(IndexOrErr.get());
+
+      // Promotion
+      if (renameModuleForThinLTO(*M, *Index))
+        return true;
     }
 
     if (Verbose)
       errs() << "Linking in '" << File << "'\n";
 
-    if (L.linkInModule(std::move(M), ApplicableFlags, Index.get()))
+    bool Err = false;
+    if (InternalizeLinkedSymbols) {
+      Err = L.linkInModule(
+          std::move(M), ApplicableFlags, [](Module &M, const StringSet<> &GVS) {
+            internalizeModule(M, [&GVS](const GlobalValue &GV) {
+              return !GV.hasName() || (GVS.count(GV.getName()) == 0);
+            });
+          });
+    } else {
+      Err = L.linkInModule(std::move(M), ApplicableFlags);
+    }
+
+    if (Err)
       return false;
+
+    // Internalization applies to linking of subsequent files.
+    InternalizeLinkedSymbols = Internalize;
+
     // All linker flags apply to linking of subsequent files.
     ApplicableFlags = Flags;
-
-    // If requested for testing, preserve modules by releasing them from
-    // the unique_ptr before the are freed. This can help catch any
-    // cross-module references from e.g. unneeded metadata references
-    // that aren't properly set to null but instead mapped to the source
-    // module version. The bitcode writer will assert if it finds any such
-    // cross-module references.
-    if (PreserveModules)
-      M.release();
   }
 
   return true;
@@ -300,21 +346,24 @@ static bool linkFiles(const char *argv0, LLVMContext &Context, Linker &L,
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
 
-  LLVMContext &Context = getGlobalContext();
-  Context.setDiagnosticHandler(diagnosticHandlerWithContext, nullptr, true);
+  ExitOnErr.setBanner(std::string(argv[0]) + ": ");
 
+  LLVMContext Context;
+  Context.setDiagnosticHandler(
+    llvm::make_unique<LLVMLinkDiagnosticHandler>(), true);
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm linker\n");
+
+  if (!DisableDITypeMap)
+    Context.enableDebugTypeODRUniquing();
 
   auto Composite = make_unique<Module>("llvm-link", Context);
   Linker L(*Composite);
 
   unsigned Flags = Linker::Flags::None;
-  if (Internalize)
-    Flags |= Linker::Flags::InternalizeLinkedSymbols;
   if (OnlyNeeded)
     Flags |= Linker::Flags::LinkOnlyNeeded;
 
@@ -328,13 +377,13 @@ int main(int argc, char **argv) {
     return 1;
 
   // Import any functions requested via -import
-  if (!importFunctions(argv[0], Context, L))
+  if (!importFunctions(argv[0], *Composite))
     return 1;
 
   if (DumpAsm) errs() << "Here's the assembly:\n" << *Composite;
 
   std::error_code EC;
-  tool_output_file Out(OutputFilename, EC, sys::fs::F_None);
+  ToolOutputFile Out(OutputFilename, EC, sys::fs::F_None);
   if (EC) {
     errs() << EC.message() << '\n';
     return 1;

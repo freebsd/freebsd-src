@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-4-Clause) 
+ *
  * Copyright (c) 1997, 1998 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -70,13 +72,13 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
-#define CAM_ERRBUF_SIZE 2048	/* sizeof the CAM libarary error string  */
+#define	CAM_ERRBUF_SIZE 2048	/* CAM library error string size */
 
 /*
  * Right now we hard code the transport layer device, but this will change
  * if we ever get more than one transport layer.
  */
-#define XPT_DEVICE	"/dev/xpt0"
+#define	XPT_DEVICE	"/dev/xpt0"
 
 
 extern char cam_errbuf[];

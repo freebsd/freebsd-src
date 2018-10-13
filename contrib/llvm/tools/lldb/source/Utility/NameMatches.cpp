@@ -6,45 +6,30 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-#include "lldb/Core/RegularExpression.h"
 #include "lldb/Utility/NameMatches.h"
+#include "lldb/Utility/RegularExpression.h"
 
 #include "llvm/ADT/StringRef.h"
 
 using namespace lldb_private;
 
-bool
-lldb_private::NameMatches(const char *name, NameMatchType match_type, const char *match)
-{
-    if (match_type == eNameMatchIgnore)
-        return true;
-
-    if (name == match)
-        return true;
-
-    if (name && match)
-    {
-        llvm::StringRef name_sref(name);
-        llvm::StringRef match_sref(match);
-        switch (match_type)
-        {
-            case eNameMatchIgnore: // This case cannot occur: tested before
-                return true;
-            case eNameMatchEquals:
-                return name_sref == match_sref;
-            case eNameMatchContains:
-                return name_sref.find(match_sref) != llvm::StringRef::npos;
-            case eNameMatchStartsWith:
-                return name_sref.startswith(match_sref);
-            case eNameMatchEndsWith:
-                return name_sref.endswith(match_sref);
-            case eNameMatchRegularExpression:
-            {
-                RegularExpression regex(match);
-                return regex.Execute(name);
-            }
-            break;
-        }
-    }
-    return false;
+bool lldb_private::NameMatches(llvm::StringRef name, NameMatch match_type,
+                               llvm::StringRef match) {
+  switch (match_type) {
+  case NameMatch::Ignore:
+    return true;
+  case NameMatch::Equals:
+    return name == match;
+  case NameMatch::Contains:
+    return name.contains(match);
+  case NameMatch::StartsWith:
+    return name.startswith(match);
+  case NameMatch::EndsWith:
+    return name.endswith(match);
+  case NameMatch::RegularExpression: {
+    RegularExpression regex(match);
+    return regex.Execute(name);
+  }
+  }
+  return false;
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -79,7 +81,7 @@ intel_gas_init(void)
 
 	dmar_map_entry_zone = uma_zcreate("DMAR_MAP_ENTRY",
 	    sizeof(struct dmar_map_entry), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NODUMP);
 }
 SYSINIT(intel_gas, SI_SUB_DRIVERS, SI_ORDER_FIRST, intel_gas_init, NULL);
 
@@ -198,7 +200,7 @@ dmar_gas_check_free(struct dmar_domain *domain)
 			    l->free_down));
 		} else {
 			v = MAX(entry->free_after, l->free_down);
-			v = MAX(entry->free_down, r->free_down);
+			v = MAX(v, r->free_down);
 			MPASS(entry->free_down == v);
 		}
 	}

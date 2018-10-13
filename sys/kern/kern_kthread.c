@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/tslog.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -122,12 +125,19 @@ kproc_create(void (*func)(void *), void *arg,
 #ifdef KTR
 	sched_clear_tdname(td);
 #endif
+	TSTHREAD(td, td->td_name);
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE()) {
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_PROC_CREATE_LOG, p2);
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+	}
+#endif
 
 	/* call the processes' main()... */
-	cpu_set_fork_handler(td, func, arg);
+	cpu_fork_kthread_handler(td, func, arg);
 
 	/* Avoid inheriting affinity from a random parent. */
-	cpuset_setthread(td->td_tid, cpuset_root);
+	cpuset_kernthread(td);
 	thread_lock(td);
 	TD_SET_CAN_RUN(td);
 	sched_prio(td, PVM);
@@ -281,14 +291,13 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	vsnprintf(newtd->td_name, sizeof(newtd->td_name), fmt, ap);
 	va_end(ap);
 
-	newtd->td_proc = p;  /* needed for cpu_set_upcall */
+	TSTHREAD(newtd, newtd->td_name);
 
-	/* XXX optimise this probably? */
-	/* On x86 (and probably the others too) it is way too full of junk */
-	/* Needs a better name */
-	cpu_set_upcall(newtd, oldtd);
+	newtd->td_proc = p;  /* needed for cpu_copy_thread */
+	/* might be further optimized for kthread */
+	cpu_copy_thread(newtd, oldtd);
 	/* put the designated function(arg) as the resume context */
-	cpu_set_fork_handler(newtd, func, arg);
+	cpu_fork_kthread_handler(newtd, func, arg);
 
 	newtd->td_pflags |= TDP_KTHREAD;
 	thread_cow_get_proc(newtd, p);
@@ -306,8 +315,11 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	tidhash_add(newtd);
 
 	/* Avoid inheriting affinity from a random parent. */
-	cpuset_setthread(newtd->td_tid, cpuset_root);
-
+	cpuset_kernthread(newtd);
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		thread_lock(newtd);
@@ -323,11 +335,17 @@ void
 kthread_exit(void)
 {
 	struct proc *p;
+	struct thread *td;
 
-	p = curthread->td_proc;
+	td = curthread;
+	p = td->td_proc;
 
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_EXIT_LOG, NULL);
+#endif
 	/* A module may be waiting for us to exit. */
-	wakeup(curthread);
+	wakeup(td);
 
 	/*
 	 * The last exiting thread in a kernel process must tear down
@@ -340,9 +358,10 @@ kthread_exit(void)
 		rw_wunlock(&tidhash_lock);
 		kproc_exit(0);
 	}
-	LIST_REMOVE(curthread, td_hash);
+	LIST_REMOVE(td, td_hash);
 	rw_wunlock(&tidhash_lock);
-	umtx_thread_exit(curthread);
+	umtx_thread_exit(td);
+	tdsigcleanup(td);
 	PROC_SLOCK(p);
 	thread_exit();
 }

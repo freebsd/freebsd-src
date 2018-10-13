@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2005 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
@@ -53,6 +55,8 @@
 #include <sys/thr.h>
 #include <pthread.h>
 
+__NULLABILITY_PRAGMA_PUSH
+
 #define	SYM_FB10(sym)			__CONCAT(sym, _fb10)
 #define	SYM_FBP10(sym)			__CONCAT(sym, _fbp10)
 #define	WEAK_REF(sym, alias)		__weak_reference(sym, alias)
@@ -66,6 +70,9 @@
 #define	FB10_COMPAT_PRIVATE(func, sym)			\
 	WEAK_REF(func, SYM_FBP10(sym));			\
 	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
+
+struct pthread;
+extern struct pthread	*_thr_initial __hidden;
 
 #include "pthread_md.h"
 #include "thr_umtx.h"
@@ -565,6 +572,8 @@ struct pthread {
 	/* Sleep queue */
 	struct	sleepqueue	*sleepqueue;
 
+	/* pthread_set/get_name_np */
+	char			*name;
 };
 
 #define THR_SHOULD_GC(thrd) 						\
@@ -699,19 +708,23 @@ do {								\
 	(curthr->report_events && 			\
 	 (((curthr)->event_mask | _thread_event_mask ) & e) != 0)
 
+#ifndef __LIBC_ISTHREADED_DECLARED
+#define __LIBC_ISTHREADED_DECLARED
 extern int __isthreaded;
+#endif
 
 /*
  * Global variables for the pthread kernel.
  */
 
 extern char		*_usrstack __hidden;
-extern struct pthread	*_thr_initial __hidden;
 
 /* For debugger */
 extern int		_libthr_debug;
 extern int		_thread_event_mask;
 extern struct pthread	*_thread_last_event;
+/* Used in symbol lookup of libthread_db */
+extern struct pthread_key	_thread_keytable[];
 
 /* List of all threads: */
 extern pthreadlist	_thread_list;
@@ -811,7 +824,6 @@ void	_thr_link(struct pthread *, struct pthread *) __hidden;
 void	_thr_unlink(struct pthread *, struct pthread *) __hidden;
 void	_thr_assert_lock_level(void) __hidden __dead2;
 void	_thr_ast(struct pthread *) __hidden;
-void	_thr_once_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
 	    struct pthread *newthread) __hidden;
 void	_thr_report_death(struct pthread *curthread) __hidden;
@@ -834,54 +846,67 @@ int	_sched_yield(void);
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);
 void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
+#ifndef _LIBC_PRIVATE_H_
 void	_pthread_cancel_enter(int maycancel);
 void 	_pthread_cancel_leave(int maycancel);
-int	_pthread_mutex_consistent(pthread_mutex_t *) __nonnull(1);
-int	_pthread_mutexattr_getrobust(pthread_mutexattr_t *__restrict,
-	    int *__restrict) __nonnull_all;
-int	_pthread_mutexattr_setrobust(pthread_mutexattr_t *, int)
-	    __nonnull(1);
+#endif
+int	_pthread_mutex_consistent(pthread_mutex_t * _Nonnull);
+int	_pthread_mutexattr_getrobust(pthread_mutexattr_t * _Nonnull __restrict,
+	    int * _Nonnull __restrict);
+int	_pthread_mutexattr_setrobust(pthread_mutexattr_t * _Nonnull, int);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
+#ifndef _LIBC_PRIVATE_H_
 int     __sys_fcntl(int, int, ...);
 int     __sys_openat(int, const char *, int, ...);
-#endif
+#endif /* _LIBC_PRIVATE_H_ */
+#endif /* _SYS_FCNTL_H_ */
 
 /* #include <signal.h> */
 #ifdef _SIGNAL_H_
 int	__sys_kill(pid_t, int);
-int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
+int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int     __sys_sigpending(sigset_t *);
+int     __sys_sigreturn(const ucontext_t *);
+#ifndef _LIBC_PRIVATE_H_
+int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
 int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int     __sys_sigsuspend(const sigset_t *);
-int     __sys_sigreturn(const ucontext_t *);
-int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-int	__sys_sigwait(const sigset_t *, int *);
 int	__sys_sigtimedwait(const sigset_t *, siginfo_t *,
 		const struct timespec *);
+int	__sys_sigwait(const sigset_t *, int *);
 int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
-#endif
+#endif /* _LIBC_PRIVATE_H_ */
+#endif /* _SYS_FCNTL_H_ */
 
 /* #include <time.h> */
 #ifdef	_TIME_H_
+#ifndef _LIBC_PRIVATE_H_
+int	__sys_clock_nanosleep(clockid_t, int, const struct timespec *,
+	    struct timespec *);
 int	__sys_nanosleep(const struct timespec *, struct timespec *);
-#endif
+#endif /* _LIBC_PRIVATE_H_ */
+#endif /* _SYS_FCNTL_H_ */
 
 /* #include <sys/ucontext.h> */
 #ifdef _SYS_UCONTEXT_H_
+#ifndef _LIBC_PRIVATE_H_
 int	__sys_setcontext(const ucontext_t *ucp);
 int	__sys_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
-#endif
+#endif /* _LIBC_PRIVATE_H_ */
+#endif /* _SYS_FCNTL_H_ */
 
 /* #include <unistd.h> */
 #ifdef  _UNISTD_H_
+void	__sys_exit(int);
+pid_t	__sys_getpid(void);
+#ifndef _LIBC_PRIVATE_H_
 int     __sys_close(int);
 int	__sys_fork(void);
-pid_t	__sys_getpid(void);
 ssize_t __sys_read(int, void *, size_t);
-void	__sys_exit(int);
-#endif
+#endif /* _LIBC_PRIVATE_H_ */
+#endif /* _SYS_FCNTL_H_ */
 
 static inline int
 _thr_isthreaded(void)
@@ -985,5 +1010,6 @@ void __thr_pshared_atfork_pre(void) __hidden;
 void __thr_pshared_atfork_post(void) __hidden;
 
 __END_DECLS
+__NULLABILITY_PRAGMA_POP
 
 #endif  /* !_THR_PRIVATE_H */

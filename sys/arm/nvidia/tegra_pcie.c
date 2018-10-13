@@ -33,30 +33,30 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/devmap.h>
+#include <sys/proc.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
-#include <sys/endian.h>
-#include <sys/devmap.h>
 
 #include <machine/intr.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/regulator/regulator.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
@@ -64,100 +64,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 
-#include "ofw_bus_if.h"
-#include "pcib_if.h"
-
 #include <arm/nvidia/tegra_pmc.h>
 
-/* --- Move to ofw_pci.c/.h ----------------------- */
+#include "ofw_bus_if.h"
+#include "msi_if.h"
+#include "pcib_if.h"
+#include "pic_if.h"
 
-struct tegra_pci_range {
-	/* parsed phys.hi */
-	int 		nonrelocatable;
-	int		prefetchable;
-	int		aliased;
-	int		space_code;	/* In native format (not shifted)*/
-	int		bus;
-	int		device;
-	int		function;
-	int		reg;
-	pci_addr_t	pci_addr;	/* PCI Address */
-	bus_addr_t	host_addr;	/* Host bus address*/
-	bus_size_t	size;		/* Range size */
-};
 
-static int
-tegra_pci_get_ranges(phandle_t node,  struct tegra_pci_range **ranges)
-{
-	int host_address_cells, pci_address_cells, size_cells;
-	cell_t *base_ranges;
-	ssize_t nbase_ranges;
-	int nranges;
-	int i, j, k;
-	uint32_t flags;
-	uint64_t tmp;
-
-	host_address_cells = 1;
-	pci_address_cells = 3;
-	size_cells = 2;
-	OF_getencprop(OF_parent(node), "#address-cells", &host_address_cells,
-	    sizeof(host_address_cells));
-	OF_getencprop(node, "#address-cells", &pci_address_cells,
-	    sizeof(pci_address_cells));
-	OF_getencprop(node, "#size-cells", &size_cells, sizeof(size_cells));
-
-	nbase_ranges = OF_getproplen(node, "ranges");
-	if (nbase_ranges <= 0)
-		return (-1);
-	nranges = nbase_ranges / sizeof(cell_t) /
-	    (pci_address_cells + host_address_cells + size_cells);
-
-	*ranges = malloc(nranges * sizeof(struct tegra_pci_range),
-	    M_DEVBUF, M_WAITOK);
-	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
-	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
-
-	for (i = 0, j = 0; i < nranges; i++) {
-		flags =  base_ranges[j++];
-		(*ranges)[i].nonrelocatable =
-		   flags & OFW_PCI_PHYS_HI_NONRELOCATABLE ? 1 : 0;
-		(*ranges)[i].prefetchable =
-		   flags & OFW_PCI_PHYS_HI_PREFETCHABLE ? 1 : 0;
-		(*ranges)[i].aliased =
-		   flags & OFW_PCI_PHYS_HI_ALIASED ? 1 : 0;
-		(*ranges)[i].space_code = flags & OFW_PCI_PHYS_HI_SPACEMASK;
-		(*ranges)[i].bus = OFW_PCI_PHYS_HI_BUS(flags);
-		(*ranges)[i].device = OFW_PCI_PHYS_HI_DEVICE(flags);
-		(*ranges)[i].function = OFW_PCI_PHYS_HI_FUNCTION(flags);
-		(*ranges)[i].reg = flags & OFW_PCI_PHYS_HI_REGISTERMASK;
-
-		tmp = 0;
-		for (k = 0; k < pci_address_cells - 1; k++) {
-			tmp <<= 32;
-			tmp |= base_ranges[j++];
-		}
-		(*ranges)[i].pci_addr = (pci_addr_t)tmp;
-
-		tmp = 0;
-		for (k = 0; k < host_address_cells; k++) {
-			tmp <<= 32;
-			tmp |= base_ranges[j++];
-		}
-		(*ranges)[i].host_addr = (bus_addr_t)tmp;
-		tmp = 0;
-
-		for (k = 0; k < size_cells; k++) {
-			tmp <<= 32;
-			tmp |= base_ranges[j++];
-		}
-		(*ranges)[i].size = (bus_size_t)tmp;
-	}
-
-	free(base_ranges, M_DEVBUF);
-	return (nranges);
-}
-
-/* -------------------------------------------------------------------------- */
 #define	AFI_AXI_BAR0_SZ				0x000
 #define	AFI_AXI_BAR1_SZ				0x004
 #define	AFI_AXI_BAR2_SZ				0x008
@@ -179,17 +93,10 @@ tegra_pci_get_ranges(phandle_t node,  struct tegra_pci_range **ranges)
 #define	AFI_MSI_BAR_SZ				0x060
 #define	AFI_MSI_FPCI_BAR_ST			0x064
 #define	AFI_MSI_AXI_BAR_ST			0x068
-
-
-#define	AFI_AXI_BAR6_SZ				0x134
-#define	AFI_AXI_BAR7_SZ				0x138
-#define	AFI_AXI_BAR8_SZ				0x13c
-#define	AFI_AXI_BAR6_START			0x140
-#define	AFI_AXI_BAR7_START			0x144
-#define	AFI_AXI_BAR8_START			0x148
-#define	AFI_FPCI_BAR6				0x14c
-#define	AFI_FPCI_BAR7				0x150
-#define	AFI_FPCI_BAR8				0x154
+#define AFI_MSI_VEC(x)				(0x06c + 4 * (x))
+#define AFI_MSI_EN_VEC(x)			(0x08c + 4 * (x))
+#define	 AFI_MSI_INTR_IN_REG				32
+#define	 AFI_MSI_REGS					8
 
 #define	AFI_CONFIGURATION			0x0ac
 #define	 AFI_CONFIGURATION_EN_FPCI			(1 << 0)
@@ -293,7 +200,10 @@ tegra_pci_get_ranges(phandle_t node,  struct tegra_pci_range **ranges)
 #define	 RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE	0x20000000
 #define	 RP_LINK_CONTROL_STATUS_LINKSTAT_MASK	0x3fff0000
 
-#define	TEGRA_PCIE_LINKUP_TIMEOUT	200
+/* Wait 50 ms (per port) for link. */
+#define	TEGRA_PCIE_LINKUP_TIMEOUT	50000
+
+#define TEGRA_PCIB_MSI_ENABLE
 
 #define	DEBUG
 #ifdef DEBUG
@@ -344,11 +254,19 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,		 		0},
 };
 
+#define	TEGRA_FLAG_MSI_USED	0x0001
+struct tegra_pcib_irqsrc {
+	struct intr_irqsrc	isrc;
+	u_int			irq;
+	u_int			flags;
+};
+
 struct tegra_pcib_port {
 	int		enabled;
 	int 		port_idx;		/* chip port index */
 	int		num_lanes;		/* number of lanes */
 	bus_size_t	afi_pex_ctrl;		/* offset of afi_pex_ctrl */
+	phy_t		phy;			/* port phy */
 
 	/* Config space properties. */
 	bus_addr_t	rp_base_addr;		/* PA of config window */
@@ -357,13 +275,11 @@ struct tegra_pcib_port {
 };
 
 #define	TEGRA_PCIB_MAX_PORTS	3
+#define	TEGRA_PCIB_MAX_MSI	AFI_MSI_INTR_IN_REG * AFI_MSI_REGS
 struct tegra_pcib_softc {
+	struct ofw_pci_softc	ofw_pci;
 	device_t		dev;
 	struct mtx		mtx;
-	struct ofw_bus_iinfo	pci_iinfo;
-	struct rman		pref_mem_rman;
-	struct rman		mem_rman;
-	struct rman		io_rman;
 	struct resource		*pads_mem_res;
 	struct resource		*afi_mem_res;
 	struct resource		*cfg_mem_res;
@@ -372,18 +288,17 @@ struct tegra_pcib_softc {
 	void			*intr_cookie;
 	void			*msi_intr_cookie;
 
-	struct tegra_pci_range	mem_range;
-	struct tegra_pci_range	pref_mem_range;
-	struct tegra_pci_range	io_range;
+	struct ofw_pci_range	mem_range;
+	struct ofw_pci_range	pref_mem_range;
+	struct ofw_pci_range	io_range;
 
-	phy_t			phy;
 	clk_t			clk_pex;
 	clk_t			clk_afi;
 	clk_t			clk_pll_e;
 	clk_t			clk_cml;
-	hwreset_t			hwreset_pex;
-	hwreset_t			hwreset_afi;
-	hwreset_t			hwreset_pcie_x;
+	hwreset_t		hwreset_pex;
+	hwreset_t		hwreset_afi;
+	hwreset_t		hwreset_pcie_x;
 	regulator_t		supply_avddio_pex;
 	regulator_t		supply_dvddio_pex;
 	regulator_t		supply_avdd_pex_pll;
@@ -392,8 +307,7 @@ struct tegra_pcib_softc {
 	regulator_t		supply_vddio_pex_ctl;
 	regulator_t		supply_avdd_pll_erefe;
 
-	int			busnr;		/* host bridge bus number */
-	uint32_t		msi_bitmap;
+	vm_offset_t		msi_page;	/* VA of MSI page */
 	bus_addr_t		cfg_base_addr;	/* base address of config */
 	bus_size_t		cfg_cur_offs; 	/* currently mapped window */
 	bus_space_handle_t 	cfg_handle;	/* handle of config window */
@@ -401,257 +315,8 @@ struct tegra_pcib_softc {
 	int			lanes_cfg;
 	int			num_ports;
 	struct tegra_pcib_port *ports[TEGRA_PCIB_MAX_PORTS];
+	struct tegra_pcib_irqsrc *isrcs;
 };
-
-/* ------------------------------------------------------------------------- */
-/*
- * Resource manager
- */
-static int
-tegra_pcib_rman_init(struct tegra_pcib_softc *sc)
-{
-	int err;
-	char buf[64];
-
-	/* Memory management. */
-	sc->pref_mem_rman.rm_type = RMAN_ARRAY;
-	snprintf(buf, sizeof(buf), "%s prefetchable memory space",
-	    device_get_nameunit(sc->dev));
-	sc->pref_mem_rman.rm_descr = strdup(buf, M_DEVBUF);
-	err = rman_init(&sc->pref_mem_rman);
-	if (err)
-		return (err);
-
-	sc->mem_rman.rm_type = RMAN_ARRAY;
-	snprintf(buf, sizeof(buf), "%s non prefetchable memory space",
-	    device_get_nameunit(sc->dev));
-	sc->mem_rman.rm_descr = strdup(buf, M_DEVBUF);
-	err = rman_init(&sc->mem_rman);
-	if (err)
-		return (err);
-
-	sc->io_rman.rm_type = RMAN_ARRAY;
-	snprintf(buf, sizeof(buf), "%s I/O space",
-	    device_get_nameunit(sc->dev));
-	sc->io_rman.rm_descr = strdup(buf, M_DEVBUF);
-	err = rman_init(&sc->io_rman);
-	if (err) {
-		rman_fini(&sc->mem_rman);
-		return (err);
-	}
-
-	err = rman_manage_region(&sc->pref_mem_rman,
-	    sc->pref_mem_range.host_addr,
-	    sc->pref_mem_range.host_addr + sc->pref_mem_range.size - 1);
-	if (err)
-		goto error;
-	err = rman_manage_region(&sc->mem_rman,
-	    sc->mem_range.host_addr,
-	    sc->mem_range.host_addr + sc->mem_range.size - 1);
-	if (err)
-		goto error;
-	err = rman_manage_region(&sc->io_rman,
-	    sc->io_range.pci_addr,
-	    sc->io_range.pci_addr + sc->io_range.size - 1);
-	if (err)
-		goto error;
-	return (0);
-
-error:
-	rman_fini(&sc->pref_mem_rman);
-	rman_fini(&sc->mem_rman);
-	rman_fini(&sc->io_rman);
-	return (err);
-}
-
-static struct rman *
-tegra_pcib_rman(struct tegra_pcib_softc *sc, int type, u_int flags)
-{
-
-	switch (type) {
-	case SYS_RES_IOPORT:
-		return (&sc->io_rman);
-	case SYS_RES_MEMORY:
-		if (flags & RF_PREFETCHABLE)
-			return (&sc->pref_mem_rman);
-		else
-			return (&sc->mem_rman);
-	default:
-		break;
-	}
-
-	return (NULL);
-}
-
-static struct resource *
-tegra_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
-{
-	struct tegra_pcib_softc *sc;
-	struct rman *rm;
-	struct resource *res;
-
-	debugf("%s: enter %d start %#jx end %#jx count %#jx\n", __func__,
-	    type, start, end, count);
-	sc = device_get_softc(dev);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type ==  PCI_RES_BUS) {
-		  return (pci_domain_alloc_bus(0, child, rid, start, end, count,
-					       flags));
-	}
-#endif
-
-	rm = tegra_pcib_rman(sc, type, flags);
-
-	if (rm == NULL) {
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-		    type, rid, start, end, count, flags);
-
-		return (res);
-	}
-
-	if (bootverbose) {
-		device_printf(dev,
-		    "rman_reserve_resource: start=%#jx, end=%#jx, count=%#jx\n",
-		    start, end, count);
-	}
-
-	res = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (res == NULL)
-		goto fail;
-	rman_set_rid(res, *rid);
-	if (flags & RF_ACTIVE) {
-		if (bus_activate_resource(child, type, *rid, res)) {
-			rman_release_resource(res);
-			goto fail;
-		}
-	}
-	return (res);
-
-fail:
-	if (bootverbose) {
-		device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-		    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
-		    __func__, type, *rid, start, end, count, flags);
-	}
-
-	return (NULL);
-}
-
-static int
-tegra_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
-{
-	struct tegra_pcib_softc *sc;
-	struct rman *rm;
-
-	sc = device_get_softc(dev);
-	debugf("%s: %d rid %x\n",  __func__, type, rid);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(0, child, rid, res));
-#endif
-
-	rm = tegra_pcib_rman(sc, type, rman_get_flags(res));
-	if (rm != NULL) {
-		KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
-		rman_release_resource(res);
-	}
-
-	return (bus_generic_release_resource(dev, child, type, rid, res));
-}
-
-static int
-tegra_pcib_adjust_resource(device_t dev, device_t child, int type,
-			    struct resource *res, rman_res_t start, rman_res_t end)
-{
-	struct tegra_pcib_softc *sc;
-	struct rman *rm;
-
-	sc = device_get_softc(dev);
-	debugf("%s: %d start %jx end %jx \n", __func__, type, start, end);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS)
-		return (pci_domain_adjust_bus(0, child, res, start, end));
-#endif
-
-	rm = tegra_pcib_rman(sc, type, rman_get_flags(res));
-	if (rm != NULL)
-		return (rman_adjust_resource(res, start, end));
-	return (bus_generic_adjust_resource(dev, child, type, res, start, end));
-}
-extern bus_space_tag_t fdtbus_bs_tag;
-static int
-tegra_pcib_pcie_activate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
-{
-	struct tegra_pcib_softc *sc;
-	vm_offset_t start;
-	void *p;
-	int rv;
-
-	sc = device_get_softc(dev);
-	rv = rman_activate_resource(r);
-	if (rv != 0)
-		return (rv);
-	switch(type) {
-	case SYS_RES_IOPORT:
-		start = rman_get_start(r) + sc->io_range.host_addr;
-		break;
-	default:
-		start = rman_get_start(r);
-		rman_get_start(r);
-		break;
-	}
-
-	if (bootverbose)
-		printf("%s: start %zx, len %jd\n", __func__, start,
-			rman_get_size(r));
-
-	p = pmap_mapdev(start, (vm_size_t)rman_get_size(r));
-	rman_set_virtual(r, p);
-	rman_set_bustag(r, fdtbus_bs_tag);
-	rman_set_bushandle(r, (u_long)p);
-	return (0);
-}
-
-/* ------------------------------------------------------------------------- */
-/*
- * IVARs
- */
-static int
-tegra_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct tegra_pcib_softc *sc = device_get_softc(dev);
-
-	switch (which) {
-	case PCIB_IVAR_BUS:
-		*result = sc->busnr;
-		return (0);
-	case PCIB_IVAR_DOMAIN:
-		*result = device_get_unit(dev);
-		return (0);
-	}
-
-	return (ENOENT);
-}
-
-static int
-tegra_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct tegra_pcib_softc *sc = device_get_softc(dev);
-
-	switch (which) {
-	case PCIB_IVAR_BUS:
-		sc->busnr = value;
-		return (0);
-	}
-
-	return (ENOENT);
-}
 
 static int
 tegra_pcib_maxslots(device_t dev)
@@ -659,18 +324,19 @@ tegra_pcib_maxslots(device_t dev)
 	return (16);
 }
 
-
 static int
 tegra_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct tegra_pcib_softc *sc;
+	u_int irq;
 
 	sc = device_get_softc(bus);
-	device_printf(bus, "route pin %d for device %d.%d to %ju\n",
+	irq = intr_map_clone_irq(rman_get_start(sc->irq_res));
+	device_printf(bus, "route pin %d for device %d.%d to %u\n",
 		      pin, pci_get_slot(dev), pci_get_function(dev),
-		      rman_get_start(sc->irq_res));
+		      irq);
 
-	return (rman_get_start(sc->irq_res));
+	return (irq);
 }
 
 static int
@@ -811,84 +477,316 @@ static int tegra_pci_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-#if defined(TEGRA_PCI_MSI)
+/* -----------------------------------------------------------------------
+ *
+ * 	PCI MSI interface
+ */
 static int
-tegra_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
+tegra_pcib_alloc_msi(device_t pci, device_t child, int count, int maxcount,
+    int *irqs)
+{
+	phandle_t msi_parent;
+
+	/* XXXX ofw_bus_msimap() don't works for Tegra DT.
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	*/
+	msi_parent = OF_xref_from_node(ofw_bus_get_node(pci));
+	return (intr_alloc_msi(pci, child, msi_parent, count, maxcount,
+	    irqs));
+}
+
+static int
+tegra_pcib_release_msi(device_t pci, device_t child, int count, int *irqs)
+{
+	phandle_t msi_parent;
+
+	/* XXXX ofw_bus_msimap() don't works for Tegra DT.
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	*/
+	msi_parent = OF_xref_from_node(ofw_bus_get_node(pci));
+	return (intr_release_msi(pci, child, msi_parent, count, irqs));
+}
+
+static int
+tegra_pcib_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
 {
+	phandle_t msi_parent;
+
+	/* XXXX ofw_bus_msimap() don't works for Tegra DT.
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	*/
+	msi_parent = OF_xref_from_node(ofw_bus_get_node(pci));
+	return (intr_map_msi(pci, child, msi_parent, irq, addr, data));
+}
+
+#ifdef TEGRA_PCIB_MSI_ENABLE
+
+/* --------------------------------------------------------------------------
+ *
+ * Interrupts
+ *
+ */
+
+static inline void
+tegra_pcib_isrc_mask(struct tegra_pcib_softc *sc,
+     struct tegra_pcib_irqsrc *tgi, uint32_t val)
+{
+	uint32_t reg;
+	int offs, bit;
+
+	offs = tgi->irq / AFI_MSI_INTR_IN_REG;
+	bit = 1 << (tgi->irq % AFI_MSI_INTR_IN_REG);
+
+	if (val != 0)
+		AFI_WR4(sc, AFI_MSI_VEC(offs), bit);
+	reg = AFI_RD4(sc, AFI_MSI_EN_VEC(offs));
+	if (val !=  0)
+		reg |= bit;
+	else
+		reg &= ~bit;
+	AFI_WR4(sc, AFI_MSI_EN_VEC(offs), reg);
+}
+
+static int
+tegra_pcib_msi_intr(void *arg)
+{
+	u_int irq, i, bit, reg;
 	struct tegra_pcib_softc *sc;
+	struct trapframe *tf;
+	struct tegra_pcib_irqsrc *tgi;
 
-	sc = device_get_softc(dev);
-	irq = irq - MSI_IRQ;
+	sc = (struct tegra_pcib_softc *)arg;
+	tf = curthread->td_intr_frame;
 
-	/* validate parameters */
-	if (isclr(&sc->msi_bitmap, irq)) {
-		device_printf(dev, "invalid MSI 0x%x\n", irq);
-		return (EINVAL);
+	for (i = 0; i < AFI_MSI_REGS; i++) {
+		reg = AFI_RD4(sc, AFI_MSI_VEC(i));
+		/* Handle one vector. */
+		while (reg != 0) {
+			bit = ffs(reg) - 1;
+			/* Send EOI */
+			AFI_WR4(sc, AFI_MSI_VEC(i), 1 << bit);
+			irq = i * AFI_MSI_INTR_IN_REG + bit;
+			tgi = &sc->isrcs[irq];
+			if (intr_isrc_dispatch(&tgi->isrc, tf) != 0) {
+				/* Disable stray. */
+				tegra_pcib_isrc_mask(sc, tgi, 0);
+				device_printf(sc->dev,
+				    "Stray irq %u disabled\n", irq);
+			}
+			reg = AFI_RD4(sc, AFI_MSI_VEC(i));
+		}
 	}
+	return (FILTER_HANDLED);
+}
 
-	tegra_msi_data(irq, addr, data);
+static int
+tegra_pcib_msi_attach(struct tegra_pcib_softc *sc)
+{
+	int error;
+	uint32_t irq;
+	const char *name;
 
-	debugf("%s: irq: %d addr: %jx data: %x\n",
-	    __func__, irq, *addr, *data);
+	sc->isrcs = malloc(sizeof(*sc->isrcs) * TEGRA_PCIB_MAX_MSI, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+
+	name = device_get_nameunit(sc->dev);
+	for (irq = 0; irq < TEGRA_PCIB_MAX_MSI; irq++) {
+		sc->isrcs[irq].irq = irq;
+		error = intr_isrc_register(&sc->isrcs[irq].isrc,
+		    sc->dev, 0, "%s,%u", name, irq);
+		if (error != 0)
+			return (error); /* XXX deregister ISRCs */
+	}
+	if (intr_msi_register(sc->dev,
+	    OF_xref_from_node(ofw_bus_get_node(sc->dev))) != 0)
+		return (ENXIO);
 
 	return (0);
 }
 
 static int
-tegra_pcib_alloc_msi(device_t dev, device_t child, int count,
-    int maxcount __unused, int *irqs)
+tegra_pcib_msi_detach(struct tegra_pcib_softc *sc)
+{
+
+	/*
+	 *  There has not been established any procedure yet
+	 *  how to detach PIC from living system correctly.
+	 */
+	device_printf(sc->dev, "%s: not implemented yet\n", __func__);
+	return (EBUSY);
+}
+
+
+static void
+tegra_pcib_msi_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_pcib_softc *sc;
-	u_int start = 0, i;
+	struct tegra_pcib_irqsrc *tgi;
 
-	if (powerof2(count) == 0 || count > MSI_IRQ_NUM)
-		return (EINVAL);
+	sc = device_get_softc(dev);
+	tgi = (struct tegra_pcib_irqsrc *)isrc;
+	tegra_pcib_isrc_mask(sc, tgi, 0);
+}
+
+static void
+tegra_pcib_msi_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct tegra_pcib_softc *sc;
+	struct tegra_pcib_irqsrc *tgi;
+
+	sc = device_get_softc(dev);
+	tgi = (struct tegra_pcib_irqsrc *)isrc;
+	tegra_pcib_isrc_mask(sc, tgi, 1);
+}
+
+/* MSI interrupts are edge trigered -> do nothing */
+static void
+tegra_pcib_msi_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+}
+
+static void
+tegra_pcib_msi_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+}
+
+static void
+tegra_pcib_msi_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+}
+
+static int
+tegra_pcib_msi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_pcib_softc *sc;
+	struct tegra_pcib_irqsrc *tgi;
+
+	sc = device_get_softc(dev);
+	tgi = (struct tegra_pcib_irqsrc *)isrc;
+
+	if (data == NULL || data->type != INTR_MAP_DATA_MSI)
+		return (ENOTSUP);
+
+	if (isrc->isrc_handlers == 0)
+		tegra_pcib_msi_enable_intr(dev, isrc);
+
+	return (0);
+}
+
+static int
+tegra_pcib_msi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_pcib_softc *sc;
+	struct tegra_pcib_irqsrc *tgi;
+
+	sc = device_get_softc(dev);
+	tgi = (struct tegra_pcib_irqsrc *)isrc;
+
+	if (isrc->isrc_handlers == 0)
+		tegra_pcib_isrc_mask(sc, tgi, 0);
+	return (0);
+}
+
+
+static int
+tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    device_t *pic, struct intr_irqsrc **srcs)
+{
+	struct tegra_pcib_softc *sc;
+	int i, irq, end_irq;
+	bool found;
+
+	KASSERT(powerof2(count), ("%s: bad count", __func__));
+	KASSERT(powerof2(maxcount), ("%s: bad maxcount", __func__));
 
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->mtx);
 
-	for (start = 0; (start + count) < MSI_IRQ_NUM; start++) {
-		for (i = start; i < start + count; i++) {
-			if (isset(&sc->msi_bitmap, i))
+	found = false;
+	for (irq = 0; (irq + count - 1) < TEGRA_PCIB_MAX_MSI; irq++) {
+		/* Start on an aligned interrupt */
+		if ((irq & (maxcount - 1)) != 0)
+			continue;
+
+		/* Assume we found a valid range until shown otherwise */
+		found = true;
+
+		/* Check this range is valid */
+		for (end_irq = irq; end_irq < irq + count; end_irq++) {
+			/* This is already used */
+			if ((sc->isrcs[end_irq].flags & TEGRA_FLAG_MSI_USED) ==
+			    TEGRA_FLAG_MSI_USED) {
+				found = false;
 				break;
+			}
 		}
-		if (i == start + count)
+
+		if (found)
 			break;
 	}
 
-	if ((start + count) == MSI_IRQ_NUM) {
+	/* Not enough interrupts were found */
+	if (!found || irq == (TEGRA_PCIB_MAX_MSI - 1)) {
 		mtx_unlock(&sc->mtx);
 		return (ENXIO);
 	}
 
-	for (i = start; i < start + count; i++) {
-		setbit(&sc->msi_bitmap, i);
-		irqs[i] = MSI_IRQ + i;
-	}
-	debugf("%s: start: %x count: %x\n", __func__, start, count);
+	for (i = 0; i < count; i++) {
+		/* Mark the interrupt as used */
+		sc->isrcs[irq + i].flags |= TEGRA_FLAG_MSI_USED;
 
+	}
+	mtx_unlock(&sc->mtx);
+
+	for (i = 0; i < count; i++)
+		srcs[i] = (struct intr_irqsrc *)&sc->isrcs[irq + i];
+	*pic = device_get_parent(dev);
+	return (0);
+}
+
+static int
+tegra_pcib_msi_release_msi(device_t dev, device_t child, int count,
+    struct intr_irqsrc **isrc)
+{
+	struct tegra_pcib_softc *sc;
+	struct tegra_pcib_irqsrc *ti;
+	int i;
+
+	sc = device_get_softc(dev);
+	mtx_lock(&sc->mtx);
+	for (i = 0; i < count; i++) {
+		ti = (struct tegra_pcib_irqsrc *)isrc[i];
+
+		KASSERT((ti->flags & TEGRA_FLAG_MSI_USED) == TEGRA_FLAG_MSI_USED,
+		    ("%s: Trying to release an unused MSI-X interrupt",
+		    __func__));
+
+		ti->flags &= ~TEGRA_FLAG_MSI_USED;
+	}
 	mtx_unlock(&sc->mtx);
 	return (0);
 }
 
 static int
-tegra_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
+tegra_pcib_msi_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
+    uint64_t *addr, uint32_t *data)
 {
-	struct tegra_pcib_softc *sc;
-	u_int i;
+	struct tegra_pcib_softc *sc = device_get_softc(dev);
+	struct tegra_pcib_irqsrc *ti = (struct tegra_pcib_irqsrc *)isrc;
 
-	sc = device_get_softc(dev);
-	mtx_lock(&sc->mtx);
-
-	for (i = 0; i < count; i++)
-		clrbit(&sc->msi_bitmap, irqs[i] - MSI_IRQ);
-
-	mtx_unlock(&sc->mtx);
+	*addr = vtophys(sc->msi_page);
+	*data = ti->irq;
 	return (0);
 }
 #endif
 
+/* ------------------------------------------------------------------- */
 static bus_size_t
 tegra_pcib_pex_ctrl(struct tegra_pcib_softc *sc, int port)
 {
@@ -947,7 +845,6 @@ tegra_pcib_enable_fdt_resources(struct tegra_pcib_softc *sc)
 		    "Cannot enable 'avdd-pex-pll' regulator\n");
 		return (rv);
 	}
-
 	rv = regulator_enable(sc->supply_hvdd_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
@@ -991,13 +888,11 @@ tegra_pcib_enable_fdt_resources(struct tegra_pcib_softc *sc)
 		device_printf(sc->dev, "Cannot enable 'afi' clock\n");
 		return (rv);
 	}
-
 	rv = clk_enable(sc->clk_cml);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable 'cml' clock\n");
 		return (rv);
 	}
-
 	rv = clk_enable(sc->clk_pll_e);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable 'pll_e' clock\n");
@@ -1065,6 +960,15 @@ tegra_pcib_parse_port(struct tegra_pcib_softc *sc, phandle_t node)
 	port->afi_pex_ctrl = tegra_pcib_pex_ctrl(sc, port->port_idx);
 	sc->lanes_cfg |= port->num_lanes << (4 * port->port_idx);
 
+	/* Phy. */
+	rv = phy_get_by_ofw_name(sc->dev, node, "pcie-0", &port->phy);
+	if (rv != 0) {
+		device_printf(sc->dev,
+		    "Cannot get 'pcie-0' phy for port %d\n",
+		    port->port_idx);
+		goto fail;
+	}
+
 	return (port);
 fail:
 	free(port, M_DEVBUF);
@@ -1080,49 +984,49 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 	int rv;
 
 	/* Power supplies. */
-	rv = regulator_get_by_ofw_property(sc->dev, "avddio-pex-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "avddio-pex-supply",
 	    &sc->supply_avddio_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'avddio-pex' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "dvddio-pex-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "dvddio-pex-supply",
 	     &sc->supply_dvddio_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'dvddio-pex' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "avdd-pex-pll-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "avdd-pex-pll-supply",
 	     &sc->supply_avdd_pex_pll);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'avdd-pex-pll' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "hvdd-pex-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "hvdd-pex-supply",
 	     &sc->supply_hvdd_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'hvdd-pex' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "hvdd-pex-pll-e-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "hvdd-pex-pll-e-supply",
 	     &sc->supply_hvdd_pex_pll_e);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'hvdd-pex-pll-e' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "vddio-pex-ctl-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "vddio-pex-ctl-supply",
 	    &sc->supply_vddio_pex_ctl);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'vddio-pex-ctl' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "avdd-pll-erefe-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "avdd-pll-erefe-supply",
 	     &sc->supply_avdd_pll_erefe);
 	if (rv != 0) {
 		device_printf(sc->dev,
@@ -1131,48 +1035,41 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 	}
 
 	/* Resets. */
-	rv = hwreset_get_by_ofw_name(sc->dev, "pex", &sc->hwreset_pex);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "pex", &sc->hwreset_pex);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pex' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "afi", &sc->hwreset_afi);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "afi", &sc->hwreset_afi);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'afi' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "pcie_x", &sc->hwreset_pcie_x);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "pcie_x", &sc->hwreset_pcie_x);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pcie_x' reset\n");
 		return (ENXIO);
 	}
 
 	/* Clocks. */
-	rv = clk_get_by_ofw_name(sc->dev, "pex", &sc->clk_pex);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pex", &sc->clk_pex);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pex' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "afi", &sc->clk_afi);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "afi", &sc->clk_afi);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'afi' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "pll_e", &sc->clk_pll_e);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pll_e", &sc->clk_pll_e);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll_e' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "cml", &sc->clk_cml);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "cml", &sc->clk_cml);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cml' clock\n");
-		return (ENXIO);
-	}
-
-	/* Phy. */
-	rv = phy_get_by_ofw_name(sc->dev, "pcie", &sc->phy);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'pcie' phy\n");
 		return (ENXIO);
 	}
 
@@ -1192,12 +1089,13 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 
 static int
 tegra_pcib_decode_ranges(struct tegra_pcib_softc *sc,
-    struct tegra_pci_range *ranges, int nranges)
+    struct ofw_pci_range *ranges, int nranges)
 {
 	int i;
 
 	for (i = 2; i < nranges; i++) {
-		if (ranges[i].space_code == OFW_PCI_PHYS_HI_SPACE_IO) {
+		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK)  ==
+		    OFW_PCI_PHYS_HI_SPACE_IO) {
 			if (sc->io_range.size != 0) {
 				device_printf(sc->dev,
 				    "Duplicated IO range found in DT\n");
@@ -1205,23 +1103,25 @@ tegra_pcib_decode_ranges(struct tegra_pcib_softc *sc,
 			}
 			sc->io_range = ranges[i];
 		}
-		if ((ranges[i].space_code == OFW_PCI_PHYS_HI_SPACE_MEM32) &&
-		    !ranges[i].prefetchable) {
-			if (sc->mem_range.size != 0) {
-				device_printf(sc->dev,
-				    "Duplicated memory range found in DT\n");
-				return (ENXIO);
+		if (((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
+		    OFW_PCI_PHYS_HI_SPACE_MEM32))  {
+			if (ranges[i].pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) {
+				if (sc->pref_mem_range.size != 0) {
+					device_printf(sc->dev,
+					    "Duplicated memory range found "
+					    "in DT\n");
+					return (ENXIO);
+				}
+				sc->pref_mem_range = ranges[i];
+			} else {
+				if (sc->mem_range.size != 0) {
+					device_printf(sc->dev,
+					    "Duplicated memory range found "
+					    "in DT\n");
+					return (ENXIO);
+				}
+				sc->mem_range = ranges[i];
 			}
-			sc->mem_range = ranges[i];
-		}
-		if ((ranges[i].space_code == OFW_PCI_PHYS_HI_SPACE_MEM32) &&
-		    ranges[i].prefetchable) {
-			if (sc->pref_mem_range.size != 0) {
-				device_printf(sc->dev,
-				    "Duplicated memory range found in DT\n");
-				return (ENXIO);
-			}
-			sc->pref_mem_range = ranges[i];
 		}
 	}
 	if ((sc->io_range.size == 0) || (sc->mem_range.size == 0)
@@ -1257,6 +1157,7 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		    RP_VEND_XP, 4);
 		if (reg & RP_VEND_XP_DL_UP)
 				break;
+		DELAY(1);
 
 	}
 	if (i <= 0)
@@ -1268,6 +1169,7 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		if (reg & RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE)
 				break;
 
+		DELAY(1);
 	}
 	if (i <= 0)
 		return (ETIMEDOUT);
@@ -1355,7 +1257,7 @@ tegra_pcib_set_bar(struct tegra_pcib_softc *sc, int bar, uint32_t axi,
 }
 
 static int
-tegra_pcib_enable(struct tegra_pcib_softc *sc, uint32_t port)
+tegra_pcib_enable(struct tegra_pcib_softc *sc)
 {
 	int rv;
 	int i;
@@ -1405,12 +1307,18 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc, uint32_t port)
 	reg &= ~AFI_FUSE_PCIE_T0_GEN2_DIS;
 	AFI_WR4(sc, AFI_FUSE, reg);
 
-	/* Enable PCIe phy. */
-	rv = phy_enable(sc->dev, sc->phy);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable phy\n");
-		return (rv);
+	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {
+		if (sc->ports[i] != NULL) {
+			rv = phy_enable(sc->ports[i]->phy);
+			if (rv != 0) {
+				device_printf(sc->dev,
+				    "Cannot enable phy for port %d\n",
+				    sc->ports[i]->port_idx);
+				return (rv);
+			}
+		}
 	}
+
 
 	rv = hwreset_deassert(sc->hwreset_pcie_x);
 	if (rv != 0) {
@@ -1454,16 +1362,16 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc, uint32_t port)
 	   FPCI_MAP_EXT_TYPE1_CONFIG, rman_get_size(sc->cfg_mem_res), 0);
 
 	/* BAR 1 - downstream I/O. */
-	tegra_pcib_set_bar(sc, 1, sc->io_range.host_addr, FPCI_MAP_IO,
+	tegra_pcib_set_bar(sc, 1, sc->io_range.host, FPCI_MAP_IO,
 	    sc->io_range.size, 0);
 
 	/* BAR 2 - downstream prefetchable memory 1:1. */
-	tegra_pcib_set_bar(sc, 2, sc->pref_mem_range.host_addr,
-	    sc->pref_mem_range.host_addr, sc->pref_mem_range.size, 1);
+	tegra_pcib_set_bar(sc, 2, sc->pref_mem_range.host,
+	    sc->pref_mem_range.host, sc->pref_mem_range.size, 1);
 
 	/* BAR 3 - downstream not prefetchable memory 1:1 .*/
-	tegra_pcib_set_bar(sc, 3, sc->mem_range.host_addr,
-	    sc->mem_range.host_addr, sc->mem_range.size, 1);
+	tegra_pcib_set_bar(sc, 3, sc->mem_range.host,
+	    sc->mem_range.host, sc->mem_range.size, 1);
 
 	/* BAR 3-8 clear. */
 	tegra_pcib_set_bar(sc, 4, 0, 0, 0, 0);
@@ -1476,6 +1384,52 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc, uint32_t port)
 	tegra_pcib_set_bar(sc, 9, 0, 0, 0, 0);
 	return(0);
 }
+
+#ifdef TEGRA_PCIB_MSI_ENABLE
+static int
+tegra_pcib_attach_msi(device_t dev)
+{
+	struct tegra_pcib_softc *sc;
+	uint32_t reg;
+	int i, rv;
+
+	sc = device_get_softc(dev);
+
+	sc->msi_page = kmem_alloc_contig(PAGE_SIZE, M_WAITOK, 0,
+	    BUS_SPACE_MAXADDR, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+
+	/* MSI BAR */
+	tegra_pcib_set_bar(sc, 9, vtophys(sc->msi_page), vtophys(sc->msi_page),
+	    PAGE_SIZE, 0);
+
+	/* Disble and clear all interrupts. */
+	for (i = 0; i < AFI_MSI_REGS; i++) {
+		AFI_WR4(sc, AFI_MSI_EN_VEC(i), 0);
+		AFI_WR4(sc, AFI_MSI_VEC(i), 0xFFFFFFFF);
+	}
+	rv = bus_setup_intr(dev, sc->msi_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+	    tegra_pcib_msi_intr, NULL, sc, &sc->msi_intr_cookie);
+	if (rv != 0) {
+		device_printf(dev, "cannot setup MSI interrupt handler\n");
+		rv = ENXIO;
+		goto out;
+	}
+
+	if (tegra_pcib_msi_attach(sc) != 0) {
+		device_printf(dev, "WARNING: unable to attach PIC\n");
+		tegra_pcib_msi_detach(sc);
+		goto out;
+	}
+
+	/* Unmask  MSI interrupt. */
+	reg = AFI_RD4(sc, AFI_INTR_MASK);
+	reg |= AFI_INTR_MASK_MSI_MASK;
+	AFI_WR4(sc, AFI_INTR_MASK, reg);
+
+out:
+	return (rv);
+}
+#endif
 
 static int
 tegra_pcib_probe(device_t dev)
@@ -1495,19 +1449,14 @@ tegra_pcib_attach(device_t dev)
 {
 	struct tegra_pcib_softc *sc;
 	phandle_t node;
-	uint32_t unit;
 	int rv;
 	int rid;
-	int nranges;
-	struct tegra_pci_range *ranges;
 	struct tegra_pcib_port *port;
 	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	unit = fdt_get_unit(dev);
 	mtx_init(&sc->mtx, "msi_mtx", NULL, MTX_DEF);
-
 
 	node = ofw_bus_get_node(dev);
 
@@ -1515,14 +1464,6 @@ tegra_pcib_attach(device_t dev)
 	if (rv != 0) {
 		device_printf(dev, "Cannot get FDT resources\n");
 		return (rv);
-	}
-
-	nranges = tegra_pci_get_ranges(node, &ranges);
-	if (nranges != 5) {
-		device_printf(sc->dev, "Unexpected number of ranges: %d\n",
-		    nranges);
-		rv = ENXIO;
-		goto out;
 	}
 
 	/* Allocate bus_space resources. */
@@ -1576,9 +1517,8 @@ tegra_pcib_attach(device_t dev)
 	}
 
 	/*
-	 * Get PCI interrupt info.
+	 * Get PCI interrupt
 	 */
-	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(pcell_t));
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -1597,28 +1537,27 @@ tegra_pcib_attach(device_t dev)
 		goto out;
 	}
 
+	sc->ofw_pci.sc_range_mask = 0x3;
+	rv = ofw_pci_init(dev);
+	if (rv != 0)
+		goto out;
+
+	rv = tegra_pcib_decode_ranges(sc, sc->ofw_pci.sc_range,
+	    sc->ofw_pci.sc_nrange);
+	if (rv != 0)
+		goto out;
+
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-			   tegra_pci_intr, NULL, sc, &sc->intr_cookie)) {
+		    tegra_pci_intr, NULL, sc, &sc->intr_cookie)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		rv = ENXIO;
 		goto out;
 	}
 
-	/* Memory management. */
-	rv = tegra_pcib_decode_ranges(sc, ranges, nranges);
-	if (rv != 0)
-		goto out;
-
-	rv = tegra_pcib_rman_init(sc);
-	if (rv != 0)
-		goto out;
-	free(ranges, M_DEVBUF);
-	ranges = NULL;
-
 	/*
 	 * Enable PCIE device.
 	 */
-	rv = tegra_pcib_enable(sc, unit);
+	rv = tegra_pcib_enable(sc);
 	if (rv != 0)
 		goto out;
 	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {
@@ -1630,13 +1569,16 @@ tegra_pcib_attach(device_t dev)
 			tegra_pcib_port_disable(sc, i);
 	}
 
+#ifdef TEGRA_PCIB_MSI_ENABLE
+	rv = tegra_pcib_attach_msi(dev);
+	if (rv != 0)
+		 goto out;
+#endif
 	device_add_child(dev, "pci", -1);
 
 	return (bus_generic_attach(dev));
 
 out:
-	if (ranges != NULL)
-		free(ranges, M_DEVBUF);
 
 	return (rv);
 }
@@ -1648,13 +1590,6 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD(device_attach,		tegra_pcib_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,		tegra_pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,		tegra_pcib_write_ivar),
-	DEVMETHOD(bus_alloc_resource,		tegra_pcib_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,		tegra_pcib_adjust_resource),
-	DEVMETHOD(bus_release_resource,		tegra_pcib_release_resource),
-	DEVMETHOD(bus_activate_resource,	tegra_pcib_pcie_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
@@ -1663,11 +1598,25 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config,		tegra_pcib_read_config),
 	DEVMETHOD(pcib_write_config,		tegra_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,		tegra_pcib_route_interrupt),
-
-#if defined(TEGRA_PCI_MSI)
 	DEVMETHOD(pcib_alloc_msi,		tegra_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,		tegra_pcib_release_msi),
 	DEVMETHOD(pcib_map_msi,			tegra_pcib_map_msi),
+	DEVMETHOD(pcib_request_feature,		pcib_request_feature_allow),
+
+#ifdef TEGRA_PCIB_MSI_ENABLE
+	/* MSI/MSI-X */
+	DEVMETHOD(msi_alloc_msi,		tegra_pcib_msi_alloc_msi),
+	DEVMETHOD(msi_release_msi,		tegra_pcib_msi_release_msi),
+	DEVMETHOD(msi_map_msi,			tegra_pcib_msi_map_msi),
+
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_disable_intr,		tegra_pcib_msi_disable_intr),
+	DEVMETHOD(pic_enable_intr,		tegra_pcib_msi_enable_intr),
+	DEVMETHOD(pic_setup_intr,		tegra_pcib_msi_setup_intr),
+	DEVMETHOD(pic_teardown_intr,		tegra_pcib_msi_teardown_intr),
+	DEVMETHOD(pic_post_filter,		tegra_pcib_msi_post_filter),
+	DEVMETHOD(pic_post_ithread,		tegra_pcib_msi_post_ithread),
+	DEVMETHOD(pic_pre_ithread,		tegra_pcib_msi_pre_ithread),
 #endif
 
 	/* OFW bus interface */
@@ -1680,12 +1629,8 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_pcib_driver = {
-	"pcib",
-	tegra_pcib_methods,
-	sizeof(struct tegra_pcib_softc),
-};
-
-devclass_t pcib_devclass;
-
-DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass, 0, 0);
+static devclass_t pcib_devclass;
+DEFINE_CLASS_1(pcib, tegra_pcib_driver, tegra_pcib_methods,
+    sizeof(struct tegra_pcib_softc), ofw_pci_driver);
+DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass,
+    NULL, NULL);

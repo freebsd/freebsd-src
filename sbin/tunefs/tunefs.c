@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,9 +96,11 @@ main(int argc, char *argv[])
 	int kvalue, Lflag, lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue;
 	int pflag, sflag, svalue, Svalue, tflag;
 	int ch, found_arg, i;
+	int iovlen = 0;
 	const char *chg[2];
-	struct ufs_args args;
 	struct statfs stfs;
+	struct iovec *iov = NULL;
+	char errmsg[255] = {0};
 
 	if (argc < 3)
 		usage();
@@ -556,10 +561,16 @@ main(int argc, char *argv[])
 		goto err;
 	ufs_disk_close(&disk);
 	if (active) {
-		bzero(&args, sizeof(args));
-		if (mount("ufs", on,
-		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD, &args) < 0)
-			err(9, "%s: reload", special);
+		build_iovec_argf(&iov, &iovlen, "fstype", "ufs");
+		build_iovec_argf(&iov, &iovlen, "fspath", "%s", on);
+		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+		if (nmount(iov, iovlen,
+		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD) < 0) {
+			if (errmsg[0])
+				err(9, "%s: reload: %s", special, errmsg);
+			else
+				err(9, "%s: reload", special);
+		}
 		warnx("file system reloaded");
 	}
 	exit(0);
@@ -662,7 +673,7 @@ dir_search(ufs2_daddr_t blk, int bytes)
 }
 
 /*
- * Search in the ROOTINO for the SUJ_FILE.  If it exists we can not enable
+ * Search in the UFS_ROOTINO for the SUJ_FILE.  If it exists we can not enable
  * journaling.
  */
 static ino_t
@@ -675,18 +686,18 @@ journal_findfile(void)
 	void *ip;
 	int i;
 
-	if (getino(&disk, &ip, ROOTINO, &mode) != 0) {
+	if (getino(&disk, &ip, UFS_ROOTINO, &mode) != 0) {
 		warn("Failed to get root inode");
 		return (-1);
 	}
 	dp2 = ip;
 	dp1 = ip;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
-		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
-			warnx("ROOTINO extends beyond direct blocks.");
+		if ((off_t)dp1->di_size >= lblktosize(&sblock, UFS_NDADDR)) {
+			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
-		for (i = 0; i < NDADDR; i++) {
+		for (i = 0; i < UFS_NDADDR; i++) {
 			if (dp1->di_db[i] == 0)
 				break;
 			if ((ino = dir_search(dp1->di_db[i],
@@ -694,11 +705,11 @@ journal_findfile(void)
 				return (ino);
 		}
 	} else {
-		if ((off_t)dp2->di_size >= lblktosize(&sblock, NDADDR)) {
-			warnx("ROOTINO extends beyond direct blocks.");
+		if ((off_t)dp2->di_size >= lblktosize(&sblock, UFS_NDADDR)) {
+			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
-		for (i = 0; i < NDADDR; i++) {
+		for (i = 0; i < UFS_NDADDR; i++) {
 			if (dp2->di_db[i] == 0)
 				break;
 			if ((ino = dir_search(dp2->di_db[i],
@@ -778,7 +789,7 @@ dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
 }
 
 /*
- * Insert the journal file into the ROOTINO directory.  We always extend the
+ * Insert the journal file into the UFS_ROOTINO directory.  We always extend the
  * last frag
  */
 static int
@@ -794,7 +805,7 @@ journal_insertfile(ino_t ino)
 	int mode;
 	int off;
 
-	if (getino(&disk, &ip, ROOTINO, &mode) != 0) {
+	if (getino(&disk, &ip, UFS_ROOTINO, &mode) != 0) {
 		warn("Failed to get root inode");
 		sbdirty();
 		return (-1);
@@ -807,7 +818,7 @@ journal_insertfile(ino_t ino)
 	if (nblk <= 0)
 		return (-1);
 	/*
-	 * For simplicity sake we aways extend the ROOTINO into a new
+	 * For simplicity sake we aways extend the UFS_ROOTINO into a new
 	 * directory block rather than searching for space and inserting
 	 * into an existing block.  However, if the rootino has frags
 	 * have to free them and extend the block.
@@ -1027,7 +1038,7 @@ journal_alloc(int64_t size)
 			dp2->di_ctime = utime;
 			dp2->di_birthtime = utime;
 		}
-		for (i = 0; i < NDADDR && resid; i++, resid--) {
+		for (i = 0; i < UFS_NDADDR && resid; i++, resid--) {
 			blk = journal_balloc();
 			if (blk <= 0)
 				goto out;
@@ -1039,7 +1050,7 @@ journal_alloc(int64_t size)
 				dp2->di_blocks++;
 			}
 		}
-		for (i = 0; i < NIADDR && resid; i++) {
+		for (i = 0; i < UFS_NIADDR && resid; i++) {
 			blk = journal_balloc();
 			if (blk <= 0)
 				goto out;

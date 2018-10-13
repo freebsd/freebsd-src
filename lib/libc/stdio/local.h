@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,6 +39,9 @@
  *	@(#)local.h	8.3 (Berkeley) 7/3/94
  * $FreeBSD$
  */
+
+#ifndef _STDIO_LOCAL_H
+#define	_STDIO_LOCAL_H
 
 #include <sys/types.h>	/* for off_t */
 #include <pthread.h>
@@ -138,3 +143,26 @@ __fgetwc(FILE *fp, locale_t locale)
 	if ((fp)->_orientation == 0)			\
 		(fp)->_orientation = (o);		\
 } while (0)
+
+void __stdio_cancel_cleanup(void *);
+#define	FLOCKFILE_CANCELSAFE(fp)					\
+	{								\
+		struct _pthread_cleanup_info __cleanup_info__;		\
+		if (__isthreaded) {					\
+			_FLOCKFILE(fp);					\
+			___pthread_cleanup_push_imp(			\
+			    __stdio_cancel_cleanup, (fp), 		\
+			    &__cleanup_info__);				\
+		} else {						\
+			___pthread_cleanup_push_imp(			\
+			    __stdio_cancel_cleanup, NULL, 		\
+			    &__cleanup_info__);				\
+		}							\
+		{
+#define	FUNLOCKFILE_CANCELSAFE()					\
+			(void)0;					\
+		}							\
+		___pthread_cleanup_pop_imp(1);				\
+	}
+
+#endif /* _STDIO_LOCAL_H */

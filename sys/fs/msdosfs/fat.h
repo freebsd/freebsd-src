@@ -2,6 +2,8 @@
 /*	$NetBSD: fat.h,v 1.12 1997/11/17 15:36:36 ws Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1997 TooLs GmbH.
  * All rights reserved.
@@ -48,6 +50,8 @@
  * October 1992
  */
 
+#ifndef _FS_MSDOSFS_FAT_H_
+#define	_FS_MSDOSFS_FAT_H_
 /*
  * Some useful cluster numbers.
  */
@@ -66,10 +70,10 @@
 
 /*
  * MSDOSFS:
- * Return true if filesystem uses 12 bit fats. Microsoft Programmer's
+ * Return true if filesystem uses 12 bit FATs. Microsoft Programmer's
  * Reference says if the maximum cluster number in a filesystem is greater
- * than 4078 ((CLUST_RSRVS - CLUST_FIRST) & FAT12_MASK) then we've got a
- * 16 bit fat filesystem. While mounting, the result of this test is stored
+ * than 4084 ((CLUST_RSRVD - CLUST_FIRST) & FAT12_MASK) then we've got a
+ * 16 bit FAT filesystem. While mounting, the result of this test is stored
  * in pm_fatentrysize.
  */
 #define	FAT12(pmp)	(pmp->pm_fatmask == FAT12_MASK)
@@ -83,8 +87,8 @@
  * These are the values for the function argument to the function
  * fatentry().
  */
-#define	FAT_GET		0x0001	/* get a fat entry */
-#define	FAT_SET		0x0002	/* set a fat entry */
+#define	FAT_GET		0x0001	/* get a FAT entry */
+#define	FAT_SET		0x0002	/* set a FAT entry */
 #define	FAT_GET_AND_SET	(FAT_GET | FAT_SET)
 
 /*
@@ -102,3 +106,4 @@ void fc_purge(struct denode *dep, u_int frcn);
 int markvoldirty(struct msdosfsmount *pmp, int dirty);
 
 #endif	/* _KERNEL */
+#endif	/* !_FS_MSDOSFS_FAT_H_ */

@@ -1,6 +1,8 @@
 /*	$NetBSD: nsdispatch.c,v 1.9 1999/01/25 00:16:17 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -213,7 +215,7 @@ vector_append(const void *elem, void *vec, unsigned int *count, size_t esize)
 	void	*p;
 
 	if ((*count % ELEMSPERCHUNK) == 0) {
-		p = realloc(vec, (*count + ELEMSPERCHUNK) * esize);
+		p = reallocarray(vec, *count + ELEMSPERCHUNK, esize);
 		if (p == NULL) {
 			nss_log_simple(LOG_ERR, "memory allocation failure");
 			return (vec);
@@ -349,20 +351,20 @@ nss_configure(void)
 	path = getenv("NSSWITCH_CONF");
 	if (path == NULL)
 #endif
-	path = _PATH_NS_CONF;
+		path = _PATH_NS_CONF;
 	if (stat(path, &statbuf) != 0)
 		return (0);
 	if (statbuf.st_mtime <= confmod)
 		return (0);
 	if (isthreaded) {
-	    (void)_pthread_rwlock_unlock(&nss_lock);
-	    result = _pthread_rwlock_wrlock(&nss_lock);
-	    if (result != 0)
-		    return (result);
-	    if (stat(path, &statbuf) != 0)
-		    goto fin;
-	    if (statbuf.st_mtime <= confmod)
-		    goto fin;
+		(void)_pthread_rwlock_unlock(&nss_lock);
+		result = _pthread_rwlock_wrlock(&nss_lock);
+		if (result != 0)
+			return (result);
+		if (stat(path, &statbuf) != 0)
+			goto fin;
+		if (statbuf.st_mtime <= confmod)
+			goto fin;
 	}
 	_nsyyin = fopen(path, "re");
 	if (_nsyyin == NULL)
@@ -371,27 +373,27 @@ nss_configure(void)
 	    (vector_free_elem)ns_dbt_free);
 	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
+	if (confmod == 0)
+		(void)atexit(nss_atexit);
 	nss_load_builtin_modules();
 	_nsyyparse();
 	(void)fclose(_nsyyin);
 	vector_sort(_nsmap, _nsmapsize, sizeof(*_nsmap), string_compare);
-	if (confmod == 0)
-		(void)atexit(nss_atexit);
 	confmod = statbuf.st_mtime;
 
 #ifdef NS_CACHING
 	handle = libc_dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
 	if (handle != NULL) {
 		nss_cache_cycle_prevention_func = dlsym(handle,
-			"_nss_cache_cycle_prevention_function");
+		    "_nss_cache_cycle_prevention_function");
 		dlclose(handle);
 	}
 #endif
 fin:
 	if (isthreaded) {
-	    (void)_pthread_rwlock_unlock(&nss_lock);
-	    if (result == 0)
-		    result = _pthread_rwlock_rdlock(&nss_lock);
+		(void)_pthread_rwlock_unlock(&nss_lock);
+		if (result == 0)
+			result = _pthread_rwlock_rdlock(&nss_lock);
 	}
 	return (result);
 }
@@ -525,7 +527,7 @@ fin:
 	vector_sort(_nsmod, _nsmodsize, sizeof(*_nsmod), string_compare);
 }
 
-
+static int exiting = 0;
 
 static void
 ns_mod_free(ns_mod *mod)
@@ -536,11 +538,9 @@ ns_mod_free(ns_mod *mod)
 		return;
 	if (mod->unregister != NULL)
 		mod->unregister(mod->mtab, mod->mtabsize);
-	if (mod->handle != nss_builtin_handle)
+	if (mod->handle != nss_builtin_handle && !exiting)
 		(void)dlclose(mod->handle);
 }
-
-
 
 /*
  * Cleanup
@@ -550,6 +550,7 @@ nss_atexit(void)
 {
 	int isthreaded;
 
+	exiting = 1;
 	isthreaded = __isthreaded;
 	if (isthreaded)
 		(void)_pthread_rwlock_wrlock(&nss_lock);
@@ -560,8 +561,6 @@ nss_atexit(void)
 	if (isthreaded)
 		(void)_pthread_rwlock_unlock(&nss_lock);
 }
-
-
 
 /*
  * Finally, the actual implementation.

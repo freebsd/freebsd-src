@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998-2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -137,6 +139,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
+#include <netinet/netdump/netdump.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -183,6 +187,8 @@ static const struct rl_type re_devs[] = {
 	    "RealTek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
 	    "RealTek 8168/8111 B/C/CP/D/DP/E/F/G PCIe Gigabit Ethernet" },
+	{ NCUBE_VENDORID, RT_DEVICEID_8168, 0,
+	    "TP-Link TG-3468 v2 (RTL8168) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -275,6 +281,7 @@ static void re_tick		(void *);
 static void re_int_task		(void *, int);
 static void re_start		(struct ifnet *);
 static void re_start_locked	(struct ifnet *);
+static void re_start_tx		(struct rl_softc *);
 static int re_ioctl		(struct ifnet *, u_long, caddr_t);
 static void re_init		(void *);
 static void re_init_locked	(struct rl_softc *);
@@ -302,6 +309,8 @@ static void re_reset		(struct rl_softc *);
 static void re_setwol		(struct rl_softc *);
 static void re_clrwol		(struct rl_softc *);
 static void re_set_linkspeed	(struct rl_softc *);
+
+NETDUMP_DEFINE(re);
 
 #ifdef DEV_NETMAP	/* see ixgbe.c for details */
 #include <dev/netmap/if_re_netmap.h>
@@ -676,7 +685,7 @@ re_set_rxmode(struct rl_softc *sc)
 	}
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -1356,15 +1365,17 @@ re_attach(device_t dev)
 		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 	}
 
-	/* Disable ASPM L0S/L1. */
+	/* Disable ASPM L0S/L1 and CLKREQ. */
 	if (sc->rl_expcap != 0) {
 		cap = pci_read_config(dev, sc->rl_expcap +
 		    PCIER_LINK_CAP, 2);
 		if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
 			ctl = pci_read_config(dev, sc->rl_expcap +
 			    PCIER_LINK_CTL, 2);
-			if ((ctl & PCIEM_LINK_CTL_ASPMC) != 0) {
-				ctl &= ~PCIEM_LINK_CTL_ASPMC;
+			if ((ctl & (PCIEM_LINK_CTL_ECPM |
+			    PCIEM_LINK_CTL_ASPMC))!= 0) {
+				ctl &= ~(PCIEM_LINK_CTL_ECPM |
+				    PCIEM_LINK_CTL_ASPMC);
 				pci_write_config(dev, sc->rl_expcap +
 				    PCIER_LINK_CTL, ctl, 2);
 				device_printf(dev, "ASPM disabled\n");
@@ -1731,7 +1742,10 @@ re_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
+		goto fail;
 	}
+
+	NETDUMP_SET(ifp, re);
 
 fail:
 	if (error)
@@ -2927,7 +2941,7 @@ re_start_locked(struct ifnet *ifp)
 #ifdef DEV_NETMAP
 	/* XXX is this necessary ? */
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_kring *kring = &NA(ifp)->tx_rings[0];
+		struct netmap_kring *kring = NA(ifp)->tx_rings[0];
 		if (sc->rl_ldata.rl_tx_prodidx != kring->nr_hwcur) {
 			/* kick the tx unit */
 			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
@@ -2975,8 +2989,14 @@ re_start_locked(struct ifnet *ifp)
 		return;
 	}
 
-	/* Flush the TX descriptors */
+	re_start_tx(sc);
+}
 
+static void
+re_start_tx(struct rl_softc *sc)
+{
+
+	/* Flush the TX descriptors */
 	bus_dmamap_sync(sc->rl_ldata.rl_tx_list_tag,
 	    sc->rl_ldata.rl_tx_list_map,
 	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
@@ -4072,3 +4092,59 @@ sysctl_hw_re_int_mod(SYSCTL_HANDLER_ARGS)
 	return (sysctl_int_range(oidp, arg1, arg2, req, RL_TIMER_MIN,
 	    RL_TIMER_MAX));
 }
+
+#ifdef NETDUMP
+static void
+re_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+{
+	struct rl_softc *sc;
+
+	sc = if_getsoftc(ifp);
+	RL_LOCK(sc);
+	*nrxr = sc->rl_ldata.rl_rx_desc_cnt;
+	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*clsize = (ifp->if_mtu > RL_MTU &&
+	    (sc->rl_flags & RL_FLAG_JUMBOV2) != 0) ? MJUM9BYTES : MCLBYTES;
+	RL_UNLOCK(sc);
+}
+
+static void
+re_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+{
+}
+
+static int
+re_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	struct rl_softc *sc;
+	int error;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
+		return (EBUSY);
+
+	error = re_encap(sc, &m);
+	if (error == 0)
+		re_start_tx(sc);
+	return (error);
+}
+
+static int
+re_netdump_poll(struct ifnet *ifp, int count)
+{
+	struct rl_softc *sc;
+	int error;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	    (sc->rl_flags & RL_FLAG_LINK) == 0)
+		return (EBUSY);
+
+	re_txeof(sc);
+	error = re_rxeof(sc, NULL);
+	if (error != 0 && error != EAGAIN)
+		return (error);
+	return (0);
+}
+#endif /* NETDUMP */

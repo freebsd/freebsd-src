@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2015
+.Dd April 26, 2017
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -37,9 +37,12 @@
 .Op Fl S Ar secsz
 .Op Fl T Ar tracksz
 .Op Fl b Ar bootcode
-.Op Fl c Ar capacity
+.Op Fl c Ar min_capacity
+.Op Fl C Ar max_capacity
+.Op Fl -capacity Ar capacity
 .Op Fl f Ar format
 .Op Fl o Ar outfile
+.Op Fl a Ar active
 .Op Fl v
 .Op Fl y
 .Op Fl s Ar scheme Op Fl p Ar partition ...
@@ -119,9 +122,21 @@ An empty partition table can be written to the disk when specifying a
 partitioning scheme with the
 .Fl s
 option, but without specifying any partitions.
-When the size required to for all the partitions is larger than the
+When the size required for all the partitions is larger than the
 given capacity, then the disk image will be larger than the capacity
 given.
+.Pp
+The
+.Fl C
+option specifies a maximum capacity for the disk image.
+If the combined sizes of the given partitions exceed the size given with
+.Fl C ,
+image creation fails.
+.Pp
+The
+.Fl -capacity
+option is a shorthand to specify the minimum and maximum capacity at the
+same time.
 .Pp
 The
 .Fl v
@@ -138,6 +153,26 @@ utility will generate predictable values for Universally Unique Identifiers
 (UUIDs) and time stamps so that consecutive runs of the
 .Nm
 utility will create images that are identical.
+.Pp
+The
+.Ar active
+option marks a partition as active, if the partitioning
+scheme supports it.
+Currently, only the
+.Ar mbr
+scheme supports this concept.
+By default,
+.Nm
+will only mark the first partition as active when boot code is
+specified.
+Use the
+.Ar active
+option to override the active partition.
+The number specified corresponds to the number after the 's' in the
+partition's
+.Xr geom 8
+name.
+No partitions are marked active when the value is 0.
 .Pp
 A set of long options exist to query about the
 .Nm
@@ -253,7 +288,7 @@ Directory to put temporary files in; default is
 .Sh EXAMPLES
 To create a bootable disk image that is partitioned using the GPT scheme and
 containing a root file system that was previously created using
-.Xr makefs
+.Xr makefs 8
 and also containing a swap partition, run the
 .Nm
 utility as follows:
@@ -328,4 +363,4 @@ utility first appeared in
 The
 .Nm
 utility and manpage were written by
-.An Marcel Moolenaar Aq Mt marcelm@juniper.net .
+.An Marcel Moolenaar Aq Mt marcel@FreeBSD.org .

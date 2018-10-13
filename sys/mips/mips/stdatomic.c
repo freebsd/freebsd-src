@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -32,6 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stdatomic.h>
 #include <sys/types.h>
+
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif /* _KERNEL */
 
 #if defined(__SYNC_ATOMICS)
 
@@ -287,8 +293,8 @@ EMIT_BITWISE_FETCH_AND_OP_N(2, uint16_t, fetch_and_xor, "xor", 0)
  * 32-bit routines.
  */
 
-uint32_t
-__sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
+static __inline uint32_t
+do_compare_and_swap_4(uint32_t *mem, uint32_t expected,
     uint32_t desired)
 {
 	uint32_t old, temp;
@@ -305,6 +311,23 @@ __sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
 		: "=&r" (old), "=m" (*mem), "=&r" (temp)
 		: "r" (expected), "r" (desired), "m" (*mem));
 	return (old);
+}
+
+uint32_t
+__sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
+    uint32_t desired)
+{
+
+	return (do_compare_and_swap_4(mem, expected, desired));
+}
+
+bool
+__sync_bool_compare_and_swap_4(uint32_t *mem, uint32_t expected,
+    uint32_t desired)
+{
+
+	return (do_compare_and_swap_4(mem, expected, desired) ==
+	    expected);
 }
 
 #define	EMIT_FETCH_AND_OP_4(name, op)					\

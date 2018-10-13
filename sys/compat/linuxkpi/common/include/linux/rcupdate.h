@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2016-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,70 +28,76 @@
 #ifndef	_LINUX_RCUPDATE_H_
 #define	_LINUX_RCUPDATE_H_
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/sx.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
 
-extern struct sx linux_global_rcu_lock;
+#include <machine/atomic.h>
 
-struct rcu_head {
-};
+#define	LINUX_KFREE_RCU_OFFSET_MAX	4096	/* exclusive */
 
-typedef void (*rcu_callback_t)(struct rcu_head *);
+#define	RCU_INITIALIZER(v)			\
+	((__typeof(*(v)) *)(v))
 
-static inline void
-call_rcu(struct rcu_head *ptr, rcu_callback_t func)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	func(ptr);
-	sx_xunlock(&linux_global_rcu_lock);
-}
-
-static inline void
-rcu_read_lock(void)
-{
-	sx_slock(&linux_global_rcu_lock);
-}
-
-static inline void
-rcu_read_unlock(void)
-{
-	sx_sunlock(&linux_global_rcu_lock);
-}
-
-static inline void
-rcu_barrier(void)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	sx_xunlock(&linux_global_rcu_lock);
-}
-
-static inline void
-synchronize_rcu(void)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	sx_xunlock(&linux_global_rcu_lock);
-}
-
-#define	hlist_add_head_rcu(n, h)		\
-do {						\
-  	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_add_head(n, h);			\
-	sx_xunlock(&linux_global_rcu_lock);	\
+#define	RCU_INIT_POINTER(p, v) do {		\
+	(p) = (v);				\
 } while (0)
 
-#define	hlist_del_init_rcu(n)			\
-do {						\
-    	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_del_init(n);			\
-	sx_xunlock(&linux_global_rcu_lock);	\
+#define	call_rcu(ptr, func) do {		\
+	linux_call_rcu(ptr, func);		\
 } while (0)
 
-#define	hlist_del_rcu(n)			\
-do {						\
-    	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_del(n);				\
-	sx_xunlock(&linux_global_rcu_lock);	\
+#define	rcu_barrier(void) do {			\
+	linux_rcu_barrier();			\
 } while (0)
+
+#define	rcu_read_lock(void) do {		\
+	linux_rcu_read_lock();			\
+} while (0)
+
+#define	rcu_read_unlock(void) do {		\
+	linux_rcu_read_unlock();		\
+} while (0)
+
+#define	synchronize_rcu(void) do {	\
+	linux_synchronize_rcu();	\
+} while (0)
+
+#define	synchronize_rcu_expedited(void) do {	\
+	linux_synchronize_rcu();		\
+} while (0)
+
+#define	kfree_rcu(ptr, rcu_head) do {				\
+	CTASSERT(offsetof(__typeof(*(ptr)), rcu_head) <		\
+	    LINUX_KFREE_RCU_OFFSET_MAX);			\
+	call_rcu(&(ptr)->rcu_head, (rcu_callback_t)(uintptr_t)	\
+	    offsetof(__typeof(*(ptr)), rcu_head));		\
+} while (0)
+
+#define	rcu_access_pointer(p)			\
+	((__typeof(*p) *)READ_ONCE(p))
+
+#define	rcu_dereference_protected(p, c)		\
+	((__typeof(*p) *)READ_ONCE(p))
+
+#define	rcu_dereference(p)			\
+	rcu_dereference_protected(p, 0)
+
+#define	rcu_dereference_raw(p)			\
+	((__typeof(*p) *)READ_ONCE(p))
+
+#define	rcu_pointer_handoff(p) (p)
+
+#define	rcu_assign_pointer(p, v) do {				\
+	atomic_store_rel_ptr((volatile uintptr_t *)&(p),	\
+	    (uintptr_t)(v));					\
+} while (0)
+
+/* prototypes */
+
+extern void linux_call_rcu(struct rcu_head *ptr, rcu_callback_t func);
+extern void linux_rcu_barrier(void);
+extern void linux_rcu_read_lock(void);
+extern void linux_rcu_read_unlock(void);
+extern void linux_synchronize_rcu(void);
 
 #endif					/* _LINUX_RCUPDATE_H_ */

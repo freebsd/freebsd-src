@@ -33,11 +33,10 @@
  *
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
-#include <machine/cpuconf.h>
 #include <machine/pte-v4.h>
 
 __FBSDID("$FreeBSD$");
@@ -195,6 +194,16 @@ Lunmapped:
 	ldr	r2, =(KERNVIRTADDR)
 	mov	r3, #64
 	bl	build_pagetables
+#if defined(PHYSADDR) && (KERNVIRTADDR != KERNBASE)
+/* 
+ * If the kernel wasn't loaded at the beginning of the ram, map the memory
+ * before the kernel too, as some ports use that for pagetables, stack, etc...
+ */
+	ldr	r1, =PHYSADDR
+	ldr 	r2, =KERNBASE
+	ldr	r3, =((KERNVIRTADDR - KERNBASE) / L1_S_SIZE)
+	bl	build_pagetables
+#endif
 
 	/* Create a device mapping for early_printf if specified. */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
@@ -356,7 +365,7 @@ svcstk:
  * Memory for the initial pagetable. We are unable to place this in
  * the bss as this will be cleared after the table is loaded.
  */
-	.section ".init_pagetable"
+	.section ".init_pagetable", "aw", %nobits
 	.align	14 /* 16KiB aligned */
 pagetable:
 	.space	L1_TABLE_SIZE

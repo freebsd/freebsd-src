@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -103,6 +103,7 @@ enum i40e_status_code {
 	I40E_ERR_NOT_READY			= -63,
 	I40E_NOT_SUPPORTED			= -64,
 	I40E_ERR_FIRMWARE_API_VERSION		= -65,
+	I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR	= -66,
 };
 
 #endif /* _I40E_STATUS_H_ */

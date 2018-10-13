@@ -10,180 +10,150 @@
 #ifndef liblldb_Select_h_
 #define liblldb_Select_h_
 
-// C Includes
-// C++ Includes
+#include "lldb/Core/Broadcaster.h" // for Broadcaster::BroadcasterImplWP
+#include "lldb/Utility/Timeout.h"
+#include "lldb/lldb-defines.h" // for DISALLOW_COPY_AND_ASSIGN
+#include "lldb/lldb-forward.h" // for BroadcasterManagerWP, EventSP
+
+#include <condition_variable>
 #include <list>
 #include <map>
+#include <memory> // for owner_less, enable_shared_from_this
+#include <mutex>
+#include <ratio> // for micro
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
-#include "lldb/lldb-private.h"
-#include "lldb/Host/Predicate.h"
-#include "lldb/Core/Event.h"
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t
+
+namespace lldb_private {
+class ConstString;
+}
+namespace lldb_private {
+class Event;
+}
 
 namespace lldb_private {
 
-class Listener
-{
+class Listener : public std::enable_shared_from_this<Listener> {
 public:
-    typedef bool (*HandleBroadcastCallback) (lldb::EventSP &event_sp, void *baton);
+  typedef bool (*HandleBroadcastCallback)(lldb::EventSP &event_sp, void *baton);
 
-    friend class Broadcaster;
-    friend class BroadcasterManager;
+  friend class Broadcaster;
+  friend class BroadcasterManager;
 
-    //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
-    Listener (const char *name);
+  //------------------------------------------------------------------
+  // Constructors and Destructors
+  //------------------------------------------------------------------
+  //
+  // Listeners have to be constructed into shared pointers - at least if you
+  // want them to listen to Broadcasters,
+protected:
+  Listener(const char *name);
 
-    ~Listener ();
+public:
+  static lldb::ListenerSP MakeListener(const char *name);
 
-    void
-    AddEvent (lldb::EventSP &event);
+  ~Listener();
 
-    void
-    Clear ();
+  void AddEvent(lldb::EventSP &event);
 
-    const char *
-    GetName ()
-    {
-        return m_name.c_str();
-    }
+  void Clear();
 
-    uint32_t
-    StartListeningForEventSpec (BroadcasterManager &manager, 
+  const char *GetName() { return m_name.c_str(); }
+
+  uint32_t StartListeningForEventSpec(lldb::BroadcasterManagerSP manager_sp,
+                                      const BroadcastEventSpec &event_spec);
+
+  bool StopListeningForEventSpec(lldb::BroadcasterManagerSP manager_sp,
                                  const BroadcastEventSpec &event_spec);
-    
-    bool
-    StopListeningForEventSpec (BroadcasterManager &manager, 
-                                 const BroadcastEventSpec &event_spec);
-    
-    uint32_t
-    StartListeningForEvents (Broadcaster* broadcaster, 
-                             uint32_t event_mask);
-    
-    uint32_t
-    StartListeningForEvents (Broadcaster* broadcaster,
-                             uint32_t event_mask,
-                             HandleBroadcastCallback callback,
-                             void *callback_user_data);
 
-    bool
-    StopListeningForEvents (Broadcaster* broadcaster,
-                            uint32_t event_mask);
+  uint32_t StartListeningForEvents(Broadcaster *broadcaster,
+                                   uint32_t event_mask);
 
-    // Returns true if an event was received, false if we timed out.
-    bool
-    WaitForEvent (const TimeValue *timeout,
-                  lldb::EventSP &event_sp);
+  uint32_t StartListeningForEvents(Broadcaster *broadcaster,
+                                   uint32_t event_mask,
+                                   HandleBroadcastCallback callback,
+                                   void *callback_user_data);
 
-    bool
-    WaitForEventForBroadcaster (const TimeValue *timeout,
-                                Broadcaster *broadcaster,
-                                lldb::EventSP &event_sp);
+  bool StopListeningForEvents(Broadcaster *broadcaster, uint32_t event_mask);
 
-    bool
-    WaitForEventForBroadcasterWithType (const TimeValue *timeout,
-                                        Broadcaster *broadcaster,
-                                        uint32_t event_type_mask,
-                                        lldb::EventSP &event_sp);
+  Event *PeekAtNextEvent();
 
-    Event *
-    PeekAtNextEvent ();
+  Event *PeekAtNextEventForBroadcaster(Broadcaster *broadcaster);
 
-    Event *
-    PeekAtNextEventForBroadcaster (Broadcaster *broadcaster);
+  Event *PeekAtNextEventForBroadcasterWithType(Broadcaster *broadcaster,
+                                               uint32_t event_type_mask);
 
-    Event *
-    PeekAtNextEventForBroadcasterWithType (Broadcaster *broadcaster,
-                                           uint32_t event_type_mask);
+  // Returns true if an event was received, false if we timed out.
+  bool GetEvent(lldb::EventSP &event_sp, const Timeout<std::micro> &timeout);
 
-    bool
-    GetNextEvent (lldb::EventSP &event_sp);
+  bool GetEventForBroadcaster(Broadcaster *broadcaster, lldb::EventSP &event_sp,
+                              const Timeout<std::micro> &timeout);
 
-    bool
-    GetNextEventForBroadcaster (Broadcaster *broadcaster,
-                                lldb::EventSP &event_sp);
+  bool GetEventForBroadcasterWithType(Broadcaster *broadcaster,
+                                      uint32_t event_type_mask,
+                                      lldb::EventSP &event_sp,
+                                      const Timeout<std::micro> &timeout);
 
-    bool
-    GetNextEventForBroadcasterWithType (Broadcaster *broadcaster,
-                                        uint32_t event_type_mask,
-                                        lldb::EventSP &event_sp);
-
-    size_t
-    HandleBroadcastEvent (lldb::EventSP &event_sp);
+  size_t HandleBroadcastEvent(lldb::EventSP &event_sp);
 
 private:
-    //------------------------------------------------------------------
-    // Classes that inherit from Listener can see and modify these
-    //------------------------------------------------------------------
-    struct BroadcasterInfo
-    {
-        BroadcasterInfo(uint32_t mask, HandleBroadcastCallback cb = nullptr, void *ud = nullptr) :
-            event_mask (mask),
-            callback (cb),
-            callback_user_data (ud)
-        {
-        }
+  //------------------------------------------------------------------
+  // Classes that inherit from Listener can see and modify these
+  //------------------------------------------------------------------
+  struct BroadcasterInfo {
+    BroadcasterInfo(uint32_t mask, HandleBroadcastCallback cb = nullptr,
+                    void *ud = nullptr)
+        : event_mask(mask), callback(cb), callback_user_data(ud) {}
 
-        uint32_t event_mask;
-        HandleBroadcastCallback callback;
-        void *callback_user_data;
-    };
+    uint32_t event_mask;
+    HandleBroadcastCallback callback;
+    void *callback_user_data;
+  };
 
-    typedef std::multimap<Broadcaster*, BroadcasterInfo> broadcaster_collection;
-    typedef std::list<lldb::EventSP> event_collection;
-    typedef std::vector<BroadcasterManager *> broadcaster_manager_collection;
+  typedef std::multimap<Broadcaster::BroadcasterImplWP, BroadcasterInfo,
+                        std::owner_less<Broadcaster::BroadcasterImplWP>>
+      broadcaster_collection;
+  typedef std::list<lldb::EventSP> event_collection;
+  typedef std::vector<lldb::BroadcasterManagerWP>
+      broadcaster_manager_collection;
 
-    bool
-    FindNextEventInternal(Broadcaster *broadcaster,   // nullptr for any broadcaster
-                          const ConstString *sources, // nullptr for any event
-                          uint32_t num_sources,
-                          uint32_t event_type_mask,
-                          lldb::EventSP &event_sp,
-                          bool remove);
+  bool
+  FindNextEventInternal(std::unique_lock<std::mutex> &lock,
+                        Broadcaster *broadcaster, // nullptr for any broadcaster
+                        const ConstString *sources, // nullptr for any event
+                        uint32_t num_sources, uint32_t event_type_mask,
+                        lldb::EventSP &event_sp, bool remove);
 
-    bool
-    GetNextEventInternal(Broadcaster *broadcaster,   // nullptr for any broadcaster
-                         const ConstString *sources, // nullptr for any event
-                         uint32_t num_sources,
-                         uint32_t event_type_mask,
-                         lldb::EventSP &event_sp);
+  bool GetEventInternal(const Timeout<std::micro> &timeout,
+                        Broadcaster *broadcaster, // nullptr for any broadcaster
+                        const ConstString *sources, // nullptr for any event
+                        uint32_t num_sources, uint32_t event_type_mask,
+                        lldb::EventSP &event_sp);
 
-    bool
-    WaitForEventsInternal(const TimeValue *timeout,
-                          Broadcaster *broadcaster,   // nullptr for any broadcaster
-                          const ConstString *sources, // nullptr for any event
-                          uint32_t num_sources,
-                          uint32_t event_type_mask,
-                          lldb::EventSP &event_sp);
+  std::string m_name;
+  broadcaster_collection m_broadcasters;
+  std::recursive_mutex m_broadcasters_mutex; // Protects m_broadcasters
+  event_collection m_events;
+  std::mutex m_events_mutex; // Protects m_broadcasters and m_events
+  std::condition_variable m_events_condition;
+  broadcaster_manager_collection m_broadcaster_managers;
 
-    std::string m_name;
-    broadcaster_collection m_broadcasters;
-    Mutex m_broadcasters_mutex; // Protects m_broadcasters
-    event_collection m_events;
-    Mutex m_events_mutex; // Protects m_broadcasters and m_events
-    Predicate<bool> m_cond_wait;
-    broadcaster_manager_collection m_broadcaster_managers;
+  void BroadcasterWillDestruct(Broadcaster *);
 
-    void
-    BroadcasterWillDestruct (Broadcaster *);
-    
-    void
-    BroadcasterManagerWillDestruct (BroadcasterManager *manager);
-    
+  void BroadcasterManagerWillDestruct(lldb::BroadcasterManagerSP manager_sp);
 
-//    broadcaster_collection::iterator
-//    FindBroadcasterWithMask (Broadcaster *broadcaster,
-//                             uint32_t event_mask,
-//                             bool exact);
+  //    broadcaster_collection::iterator
+  //    FindBroadcasterWithMask (Broadcaster *broadcaster,
+  //                             uint32_t event_mask,
+  //                             bool exact);
 
-    //------------------------------------------------------------------
-    // For Listener only
-    //------------------------------------------------------------------
-    DISALLOW_COPY_AND_ASSIGN (Listener);
+  //------------------------------------------------------------------
+  // For Listener only
+  //------------------------------------------------------------------
+  DISALLOW_COPY_AND_ASSIGN(Listener);
 };
 
 } // namespace lldb_private

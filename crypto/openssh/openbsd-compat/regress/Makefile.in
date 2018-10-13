@@ -1,5 +1,3 @@
-# $Id: Makefile.in,v 1.5 2014/06/17 13:06:08 dtucker Exp $
-
 sysconfdir=@sysconfdir@
 piddir=@piddir@
 srcdir=@srcdir@

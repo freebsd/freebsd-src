@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
@@ -130,18 +132,10 @@ struct ppc_data {
 #define PPC_SPP_CTR	2	/* SPP control register */
 #define PPC_EPP_ADDR	3	/* EPP address register (8 bit) */
 #define PPC_EPP_DATA	4	/* EPP data register (8, 16 or 32 bit) */
-#if defined(__i386__) && defined(PC98)
-#define PPC_1284_ENABLE	0x09	/* IEEE STD 1284 Enable register */
-#define PPC_ECP_D_FIFO	0x0c	/* ECP Data fifo register */
-#define PPC_ECP_CNFGA	0x0c	/* Configuration register A */
-#define PPC_ECP_CNFGB	0x0d	/* Configuration register B */
-#define PPC_ECP_ECR	0x0e	/* ECP extended control register */
-#else
 #define PPC_ECP_D_FIFO	0x400	/* ECP Data fifo register */
 #define PPC_ECP_CNFGA	0x400	/* Configuration register A */
 #define PPC_ECP_CNFGB	0x401	/* Configuration register B */
 #define PPC_ECP_ECR	0x402	/* ECP extended control register */
-#endif
 
 #define PPC_FIFO_EMPTY	0x1	/* ecr register - bit 0 */
 #define PPC_FIFO_FULL	0x2	/* ecr register - bit 1 */

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/tpm
+.PATH:	${SRCTOP}/sys/dev/tpm
 
 KMOD=	tpm
 

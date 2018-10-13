@@ -49,8 +49,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT = 16,
 };
 
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
-
 DECLARE_TEST_DATA(group)
 DECLARE_TEST_FILE_SNAPSHOT(group)
 DECLARE_1PASS_TEST(group)
@@ -104,7 +102,7 @@ clone_group(struct group *dest, struct group const *src)
 		for (cp = src->gr_mem; *cp; ++cp)
 			++members_num;
 
-		dest->gr_mem = calloc(1, (members_num + 1) * sizeof(char *));
+		dest->gr_mem = calloc(members_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->gr_mem != NULL);
 
 		for (cp = src->gr_mem; *cp; ++cp) {
@@ -176,19 +174,20 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 	char **cp;
 	int written;
 
-	written = snprintf(buffer, buflen, "%s %s %d",
+	written = snprintf(buffer, buflen, "%s:%s:%d:",
 		grp->gr_name, grp->gr_passwd, grp->gr_gid);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (grp->gr_mem != NULL) {
 		if (*(grp->gr_mem) != '\0') {
 			for (cp = grp->gr_mem; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, "%s%s",
+				    cp == grp->gr_mem ? "" : ",", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -196,9 +195,9 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 					return;
 			}
 		} else
-			snprintf(buffer, buflen, " nomem");
+			snprintf(buffer, buflen, "nomem");
 	} else
-		snprintf(buffer, buflen, " (null)");
+		snprintf(buffer, buflen, "(null)");
 }
 
 static int
@@ -206,6 +205,7 @@ group_read_snapshot_func(struct group *grp, char *line)
 {
 	StringList *sl;
 	char *s, *ps, *ts;
+	const char *sep;
 	int i;
 
 	printf("1 line read from snapshot:\n%s\n", line);
@@ -213,8 +213,9 @@ group_read_snapshot_func(struct group *grp, char *line)
 	i = 0;
 	sl = NULL;
 	ps = line;
+	sep = ":";
 	memset(grp, 0, sizeof(struct group));
-	while ((s = strsep(&ps, " ")) != NULL) {
+	while ((s = strsep(&ps, sep)) != NULL) {
 		switch (i) {
 		case 0:
 			grp->gr_name = strdup(s);
@@ -235,6 +236,8 @@ group_read_snapshot_func(struct group *grp, char *line)
 				grp->gr_passwd = NULL;
 				return (-1);
 			}
+			/* Change to parsing groups. */
+			sep = ",";
 			break;
 
 		default:
@@ -304,7 +307,7 @@ group_fill_test_data(struct group_test_data *td)
 }
 
 static int
-group_test_correctness(struct group *grp, void *mdata)
+group_test_correctness(struct group *grp, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_group(grp);
@@ -382,7 +385,7 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 }
 
 static int
-group_test_getgrent(struct group *grp, void *mdata)
+group_test_getgrent(struct group *grp, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getgrent(). */
@@ -474,6 +477,7 @@ fin:
 
 #define	SNAPSHOT_FILE	"snapshot_grp"
 
+ATF_TC_WITHOUT_HEAD(getgrent);
 ATF_TC_BODY(getgrent, tc)
 {
 
@@ -525,7 +529,6 @@ ATF_TC_BODY(getgrnam_with_snapshot, tc)
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(getgrent);
 ATF_TP_ADD_TCS(tp)
 {
 

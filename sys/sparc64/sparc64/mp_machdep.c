@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -340,12 +342,10 @@ ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 	cpuid_to_mid[cpuid] = mid;
 	cpu_identify(csa->csa_ver, clock, cpuid);
 
-	va = kmem_malloc(kernel_arena, PCPU_PAGES * PAGE_SIZE,
-	    M_WAITOK | M_ZERO);
+	va = kmem_malloc(PCPU_PAGES * PAGE_SIZE, M_WAITOK | M_ZERO);
 	pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, cpuid, sizeof(*pc));
-	dpcpu_init((void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-	    M_WAITOK | M_ZERO), cpuid);
+	dpcpu_init((void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO), cpuid);
 	pc->pc_addr = va;
 	pc->pc_clock = clock;
 	pc->pc_impl = cpu_impl;

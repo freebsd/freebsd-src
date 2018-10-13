@@ -46,6 +46,8 @@ struct spibus_ivar
 	uint32_t	clock;
 };
 
+#define	SPIBUS_CS_HIGH	(1U << 31)
+
 enum {
 	SPIBUS_IVAR_CS,		/* chip select that we're on */
 	SPIBUS_IVAR_MODE,	/* SPI mode (0-3) */
@@ -58,11 +60,19 @@ spibus_get_ ## A(device_t dev, T *t)					\
 {									\
 	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
 	    SPIBUS_IVAR_ ## B, (uintptr_t *) t);			\
+}									\
+static inline int							\
+spibus_set_ ## A(device_t dev, T t)					\
+{									\
+	return BUS_WRITE_IVAR(device_get_parent(dev), dev,		\
+	    SPIBUS_IVAR_ ## B, (uintptr_t) t);			\
 }
-	
+
 SPIBUS_ACCESSOR(cs,		CS,		uint32_t)
 SPIBUS_ACCESSOR(mode,		MODE,		uint32_t)
 SPIBUS_ACCESSOR(clock,		CLOCK,		uint32_t)
 
 extern driver_t spibus_driver;
 extern devclass_t spibus_devclass;
+extern driver_t ofw_spibus_driver;
+extern devclass_t ofw_spibus_devclass;

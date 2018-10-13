@@ -1,6 +1,8 @@
 /*	$NetBSD: cache_mipsNN.c,v 1.10 2005/12/24 20:07:19 perry Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -97,6 +99,8 @@ xlp_sync(void)
  */
 int mips_picache_linesize;
 int mips_pdcache_linesize;
+int mips_sdcache_linesize;
+int mips_dcache_max_linesize;
 
 static int picache_size;
 static int picache_stride;
@@ -157,6 +161,10 @@ mipsNN_cache_init(struct mips_cpuinfo * cpuinfo)
 	sdcache_size = cpuinfo->l2.dc_size;
 	sdcache_way_mask = cpuinfo->l2.dc_nways - 1;
 
+	mips_sdcache_linesize = cpuinfo->l2.dc_linesize;
+	mips_dcache_max_linesize = MAX(mips_pdcache_linesize,
+	    mips_sdcache_linesize);
+
 #define CACHE_DEBUG
 #ifdef CACHE_DEBUG
 	printf("Cache info:\n");
@@ -166,6 +174,7 @@ mipsNN_cache_init(struct mips_cpuinfo * cpuinfo)
 	printf("  picache_loopcount = %d\n", picache_loopcount);
 	printf("  pdcache_stride    = %d\n", pdcache_stride);
 	printf("  pdcache_loopcount = %d\n", pdcache_loopcount);
+	printf("  max line size     = %d\n", mips_dcache_max_linesize);
 #endif
 }
 

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2004, 2005, Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation. All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
@@ -31,6 +33,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __IB_MAD_PRIV_H__
@@ -41,9 +45,7 @@
 #include <linux/workqueue.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
-
-
-#define PFX "ib_mad: "
+#include <rdma/opa_smi.h>
 
 #define IB_MAD_QPS_CORE		2 /* Always QP0 and QP1 as a minimum */
 
@@ -59,13 +61,14 @@
 
 /* Registration table sizes */
 #define MAX_MGMT_CLASS		80
-#define MAX_MGMT_VERSION	8
+#define MAX_MGMT_VERSION	0x83
 #define MAX_MGMT_OUI		8
 #define MAX_MGMT_VENDOR_RANGE2	(IB_MGMT_CLASS_VENDOR_RANGE2_END - \
 				IB_MGMT_CLASS_VENDOR_RANGE2_START + 1)
 
 struct ib_mad_list_head {
 	struct list_head list;
+	struct ib_cqe cqe;
 	struct ib_mad_queue *mad_queue;
 };
 
@@ -78,12 +81,9 @@ struct ib_mad_private_header {
 
 struct ib_mad_private {
 	struct ib_mad_private_header header;
+	size_t mad_size;
 	struct ib_grh grh;
-	union {
-		struct ib_mad mad;
-		struct ib_rmpp_mad rmpp_mad;
-		struct ib_smp smp;
-	} mad;
+	u8 mad[0];
 } __attribute__ ((packed));
 
 struct ib_rmpp_segment {
@@ -121,14 +121,6 @@ struct ib_mad_snoop_private {
 	struct completion comp;
 };
 
-/* Structure for timeout-fifo entry */
-struct tf_entry {
-	unsigned long exp_time;	    /* entry expiration time */
-	struct list_head fifo_list; /* to keep entries in fifo order */
-	struct list_head to_list;   /* to keep entries in timeout order */
-	int canceled;		    /* indicates whether entry is canceled */
-};
-
 struct ib_mad_send_wr_private {
 	struct ib_mad_list_head mad_list;
 	struct list_head agent_list;
@@ -136,7 +128,7 @@ struct ib_mad_send_wr_private {
 	struct ib_mad_send_buf send_buf;
 	u64 header_mapping;
 	u64 payload_mapping;
-	struct ib_send_wr send_wr;
+	struct ib_ud_wr send_wr;
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	__be64 tid;
 	unsigned long timeout;
@@ -154,10 +146,6 @@ struct ib_mad_send_wr_private {
 	int seg_num;
 	int newwin;
 	int pad;
-
-	/* SA congestion controlled MAD */
-	int is_sa_cc_mad;
-	struct tf_entry tf_list;
 };
 
 struct ib_mad_local_private {
@@ -165,6 +153,7 @@ struct ib_mad_local_private {
 	struct ib_mad_private *mad_priv;
 	struct ib_mad_agent_private *recv_mad_agent;
 	struct ib_mad_send_wr_private *mad_send_wr;
+	size_t return_wc_byte_len;
 };
 
 struct ib_mad_mgmt_method_table {
@@ -209,47 +198,25 @@ struct ib_mad_qp_info {
 	atomic_t snoop_count;
 };
 
-struct to_fifo {
-	struct list_head to_head;
-	struct list_head fifo_head;
-	spinlock_t lists_lock;
-	struct timer_list timer;
-	struct work_struct work;
-	u32 fifo_size;
-	u32 num_items;
-	int stop_enqueue;
-	struct workqueue_struct *workq;
-};
-
-/* SA congestion control data */
-struct sa_cc_data {
-	spinlock_t lock;
-	unsigned long outstanding;
-	struct to_fifo  *tf;
-};
-
 struct ib_mad_port_private {
 	struct list_head port_list;
 	struct ib_device *device;
 	int port_num;
 	struct ib_cq *cq;
 	struct ib_pd *pd;
-	struct ib_mr *mr;
 
 	spinlock_t reg_lock;
 	struct ib_mad_mgmt_version_table version[MAX_MGMT_VERSION];
 	struct list_head agent_list;
 	struct workqueue_struct *wq;
-	struct work_struct work;
 	struct ib_mad_qp_info qp_info[IB_MAD_QPS_CORE];
-	struct sa_cc_data sa_cc;
 };
 
 int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr);
 
 struct ib_mad_send_wr_private *
-ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
-		 struct ib_mad_recv_wc *mad_recv_wc);
+ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
+		 const struct ib_mad_recv_wc *mad_recv_wc);
 
 void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 			     struct ib_mad_send_wc *mad_send_wc);

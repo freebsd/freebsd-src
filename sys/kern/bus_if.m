@@ -206,7 +206,7 @@ METHOD void driver_added {
 /**
  * @brief Create a new child device
  *
- * For busses which use use drivers supporting DEVICE_IDENTIFY() to
+ * For buses which use use drivers supporting DEVICE_IDENTIFY() to
  * enumerate their devices, this method is used to create new
  * device instances. The new device will be added after the last
  * existing child with the same order. Implementations of bus_add_child
@@ -418,35 +418,6 @@ METHOD int release_resource {
 };
 
 /**
- * @brief Map an interrupt
- *
- * This method is used to get an interrupt mapping data according to provided
- * hints. The hints could be modified afterwards, but only if mapping data was
- * allocated. This method is intended to be called before BUS_ALLOC_RESOURCE().
- *
- * @param _dev		the parent device of @p _child
- * @param _child	the device which is requesting an allocation
- * @param _rid		a pointer to the resource identifier
- * @param _start	a pointer to the hint at the start of the resource
- *			range - pass @c 0 for any start address
- * @param _end		a pointer to the hint at the end of the resource
- *			range - pass @c ~0 for any end address
- * @param _count	a pointer to the hint at the size of resource
- *			range required - pass @c 1 for any size
- * @param _imd		a pointer to the interrupt mapping data which was
- *			allocated
- */
-METHOD int map_intr {
-	device_t	_dev;
-	device_t	_child;
-	int		*_rid;
-	rman_res_t	*_start;
-	rman_res_t	*_end;
-	rman_res_t	*_count;
-	struct intr_map_data **_imd;
-} DEFAULT bus_generic_map_intr;
-
-/**
  * @brief Install an interrupt handler
  *
  * This method is used to associate an interrupt handler function with
@@ -504,7 +475,7 @@ METHOD int teardown_intr {
  * @brief Define a resource which can be allocated with
  * BUS_ALLOC_RESOURCE().
  *
- * This method is used by some busses (typically ISA) to allow a
+ * This method is used by some buses (typically ISA) to allow a
  * driver to describe a resource range that it would like to
  * allocate. The resource defined by @p _type and @p _rid is defined
  * to start at @p _start and to include @p _count indices in its
@@ -591,7 +562,7 @@ METHOD struct resource_list * get_resource_list {
  * should return -1 if it is present.  Any errors in determining
  * should be returned as a normal errno value.  Client drivers are to
  * assume that the device is present, even if there is an error
- * determining if it is there.  Busses are to try to avoid returning
+ * determining if it is there.  Buses are to try to avoid returning
  * errors, but newcard will return an error if the device fails to
  * implement this method.
  * 

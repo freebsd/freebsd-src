@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Neelkanth Natu
  * All rights reserved.
  *
@@ -183,7 +185,7 @@ start_ap(int cpuid)
 	int cpus, ms;
 
 	cpus = mp_naps;
-	dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE, M_WAITOK | M_ZERO);
+	dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 	mips_sync();
 
@@ -302,6 +304,10 @@ smp_init_secondary(u_int32_t cpuid)
 	while (!aps_ready)
 		;
 
+#ifdef PLATFORM_INIT_SECONDARY
+	platform_init_secondary(cpuid);
+#endif
+
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
@@ -342,12 +348,22 @@ release_aps(void *dummy __unused)
 	if (mp_ncpus == 1)
 		return;
 
+#ifdef PLATFORM_INIT_SECONDARY
+	platform_init_secondary(0);
+#endif
+
 	/*
 	 * IPI handler
 	 */
-	ipi_irq = platform_ipi_intrnum();
-	cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL, ipi_irq,
-			       INTR_TYPE_MISC | INTR_EXCL, NULL);
+	ipi_irq = platform_ipi_hardintr_num();
+	if (ipi_irq != -1) {
+		cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL,
+		    ipi_irq, INTR_TYPE_MISC | INTR_EXCL, NULL);
+	} else {
+		ipi_irq = platform_ipi_softintr_num();
+		cpu_establish_softintr("ipi", mips_ipi_handler, NULL, NULL,
+		    ipi_irq, INTR_TYPE_MISC | INTR_EXCL, NULL);
+	}
 
 	atomic_store_rel_int(&aps_ready, 1);
 

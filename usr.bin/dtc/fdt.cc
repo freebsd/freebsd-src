@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 David Chisnall
  * All rights reserved.
  *
@@ -36,6 +38,7 @@
 #include "dtb.hh"
 
 #include <algorithm>
+#include <sstream>
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -47,6 +50,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+
+using std::string;
 
 namespace dtc
 {
@@ -78,7 +83,7 @@ property_value::push_to_buffer(byte_buffer &buffer)
 	}
 	else
 	{
-		string_data.push_to_buffer(buffer, true);
+		push_string(buffer, string_data, true);
 		// Trailing nul
 		buffer.push_back(0);
 	}
@@ -166,13 +171,23 @@ property_value::resolve_type()
 	type = BINARY;
 }
 
+size_t
+property_value::size()
+{
+	if (!byte_data.empty())
+	{
+		return byte_data.size();
+	}
+	return string_data.size() + 1;
+}
+
 void
 property_value::write_as_string(FILE *file)
 {
 	putc('"', file);
 	if (byte_data.empty())
 	{
-		string_data.print(file);
+		fputs(string_data.c_str(), file);
 	}
 	else
 	{
@@ -240,31 +255,32 @@ property_value::write_as_bytes(FILE *file)
 }
 
 void
-property::parse_string(input_buffer &input)
+property::parse_string(text_input_buffer &input)
 {
 	property_value v;
-	assert(input[0] == '"');
+	assert(*input == '"');
 	++input;
-	const char *start = (const char*)input;
-	int length = 0;
-	while (char c = input[0])
+	std::vector<char> bytes;
+	bool isEscaped = false;
+	while (char c = *input)
 	{
-		if (c == '"' && input[-1] != '\\')
+		if (c == '"' && !isEscaped)
 		{
 			input.consume('"');
 			break;
 		}
+		isEscaped = (c == '\\');
+		bytes.push_back(c);
 		++input;
-		++length;
 	}
-	v.string_data = string(start, length);
+	v.string_data = string(bytes.begin(), bytes.end());
 	values.push_back(v);
 }
 
 void
-property::parse_cells(input_buffer &input, int cell_size)
+property::parse_cells(text_input_buffer &input, int cell_size)
 {
-	assert(input[0] == '<');
+	assert(*input == '<');
 	++input;
 	property_value v;
 	input.next_token();
@@ -282,9 +298,16 @@ property::parse_cells(input_buffer &input, int cell_size)
 				return;
 			}
 			input.next_token();
-			// FIXME: We should support full paths here, but we
-			// don't.
-			string referenced = string::parse_node_name(input);
+			string referenced;
+			if (!input.consume('{'))
+			{
+				referenced = input.parse_node_name();
+			}
+			else
+			{
+				referenced = input.parse_to('}');
+				input.consume('}');
+			}
 			if (referenced.empty())
 			{
 				input.parse_error("Expected node name");
@@ -343,9 +366,9 @@ property::parse_cells(input_buffer &input, int cell_size)
 }
 
 void
-property::parse_bytes(input_buffer &input)
+property::parse_bytes(text_input_buffer &input)
 {
-	assert(input[0] == '[');
+	assert(*input == '[');
 	++input;
 	property_value v;
 	input.next_token();
@@ -370,13 +393,13 @@ property::parse_bytes(input_buffer &input)
 }
 
 void
-property::parse_reference(input_buffer &input)
+property::parse_reference(text_input_buffer &input)
 {
-	assert(input[0] == '&');
+	assert(*input == '&');
 	++input;
 	input.next_token();
 	property_value v;
-	v.string_data = string::parse_node_name(input);
+	v.string_data = input.parse_node_name();
 	if (v.string_data.empty())
 	{
 		input.parse_error("Expected node name");
@@ -400,7 +423,7 @@ property::property(input_buffer &structs, input_buffer &strings)
 	}
 	// Find the name
 	input_buffer name_buffer = strings.buffer_from_offset(name_offset);
-	if (name_buffer.empty())
+	if (name_buffer.finished())
 	{
 		fprintf(stderr, "Property name offset %" PRIu32
 			" is past the end of the strings table\n",
@@ -408,7 +431,7 @@ property::property(input_buffer &structs, input_buffer &strings)
 		valid = false;
 		return;
 	}
-	key = string(name_buffer);
+	key = name_buffer.parse_to(0);
 
 	// If we're empty, do not push anything as value.
 	if (!length)
@@ -429,7 +452,7 @@ property::property(input_buffer &structs, input_buffer &strings)
 	values.push_back(v);
 }
 
-void property::parse_define(input_buffer &input, define_map *defines)
+void property::parse_define(text_input_buffer &input, define_map *defines)
 {
 	input.consume('$');
 	if (!defines)
@@ -438,7 +461,7 @@ void property::parse_define(input_buffer &input, define_map *defines)
 		valid = false;
 		return;
 	}
-	string name = string::parse_property_name(input);
+	string name = input.parse_property_name();
 	define_map::iterator found;
 	if ((name == string()) ||
 	    ((found = defines->find(name)) == defines->end()))
@@ -450,15 +473,15 @@ void property::parse_define(input_buffer &input, define_map *defines)
 	values.push_back((*found).second->values[0]);
 }
 
-property::property(input_buffer &input,
-                   string k,
-                   string l,
+property::property(text_input_buffer &input,
+                   string &&k,
+                   string_set &&l,
                    bool semicolonTerminated,
-                   define_map *defines) : key(k), label(l), valid(true)
+                   define_map *defines) : key(k), labels(l), valid(true)
 {
 	do {
 		input.next_token();
-		switch (input[0])
+		switch (*input)
 		{
 			case '$':
 			{
@@ -474,6 +497,29 @@ property::property(input_buffer &input,
 				return;
 			case '/':
 			{
+				if (input.consume("/incbin/(\""))
+				{
+					auto loc = input.location();
+					std::string filename = input.parse_to('"');
+					if (!(valid = input.consume('"')))
+					{
+						loc.report_error("Syntax error, expected '\"' to terminate /incbin/(");
+						return;
+					}
+					property_value v;
+					if (!(valid = input.read_binary_file(filename, v.byte_data)))
+					{
+						input.parse_error("Cannot open binary include file");
+						return;
+					}
+					if (!(valid &= input.consume(')')))
+					{
+						input.parse_error("Syntax error, expected ')' to terminate /incbin/(");
+						return;
+					}
+					values.push_back(v);
+					break;
+				}
 				unsigned long long bits = 0;
 				valid = input.consume("/bits/");
 				input.next_token();
@@ -487,7 +533,7 @@ property::property(input_buffer &input,
 				}
 				if (!valid) return;
 				input.next_token();
-				if (input[0] != '<')
+				if (*input != '<')
 				{
 					input.parse_error("/bits/ directive is only valid on arrays");
 					valid = false;
@@ -534,10 +580,14 @@ property::parse_dtb(input_buffer &structs, input_buffer &strings)
 }
 
 property_ptr
-property::parse(input_buffer &input, string key, string label,
+property::parse(text_input_buffer &input, string &&key, string_set &&label,
                 bool semicolonTerminated, define_map *defines)
 {
-	property_ptr p(new property(input, key, label, semicolonTerminated, defines));
+	property_ptr p(new property(input,
+	                            std::move(key),
+	                            std::move(label),
+	                            semicolonTerminated,
+	                            defines));
 	if (!p->valid)
 	{
 		p = nullptr;
@@ -596,14 +646,16 @@ property::write_dts(FILE *file, int indent)
 	{
 		putc('\t', file);
 	}
-	if (label != string())
+#ifdef PRINT_LABELS
+	for (auto &l : labels)
 	{
-		label.print(file);
+		fputs(l.c_str(), file);
 		fputs(": ", file);
 	}
+#endif
 	if (key != string())
 	{
-		key.print(file);
+		fputs(key.c_str(), file);
 	}
 	if (!values.empty())
 	{
@@ -636,8 +688,23 @@ property::write_dts(FILE *file, int indent)
 	fputs(";\n", file);
 }
 
+size_t
+property::offset_of_value(property_value &val)
+{
+	size_t off = 0;
+	for (auto &v : values)
+	{
+		if (&v == &val)
+		{
+			return off;
+		}
+		off += v.size();
+	}
+	return -1;
+}
+
 string
-node::parse_name(input_buffer &input, bool &is_property, const char *error)
+node::parse_name(text_input_buffer &input, bool &is_property, const char *error)
 {
 	if (!valid)
 	{
@@ -646,9 +713,9 @@ node::parse_name(input_buffer &input, bool &is_property, const char *error)
 	input.next_token();
 	if (is_property)
 	{
-		return string::parse_property_name(input);
+		return input.parse_property_name();
 	}
-	string n = string::parse_node_or_property_name(input, is_property);
+	string n = input.parse_node_or_property_name(is_property);
 	if (n.empty())
 	{
 		if (n.empty())
@@ -660,37 +727,53 @@ node::parse_name(input_buffer &input, bool &is_property, const char *error)
 	return n;
 }
 
-void
-node::visit(std::function<void(node&)> fn)
+node::visit_behavior
+node::visit(std::function<visit_behavior(node&, node*)> fn, node *parent)
 {
-	fn(*this);
-	for (auto &&c : children)
+	visit_behavior behavior;
+	behavior = fn(*this, parent);
+	if (behavior == VISIT_BREAK)
 	{
-		c->visit(fn);
+		return VISIT_BREAK;
 	}
+	else if (behavior != VISIT_CONTINUE)
+	{
+		for (auto &&c : children)
+		{
+			behavior = c->visit(fn, this);
+			// Any status other than VISIT_RECURSE stops our execution and
+			// bubbles up to our caller.  The caller may then either continue
+			// visiting nodes that are siblings to this one or completely halt
+			// visiting.
+			if (behavior != VISIT_RECURSE)
+			{
+				return behavior;
+			}
+		}
+	}
+	// Continue recursion by default
+	return VISIT_RECURSE;
 }
 
 node::node(input_buffer &structs, input_buffer &strings) : valid(true)
 {
-	const char *name_start = (const char*)structs;
-	int name_length = 0;
+	std::vector<char> bytes;
 	while (structs[0] != '\0' && structs[0] != '@')
 	{
-		name_length++;
+		bytes.push_back(structs[0]);
 		++structs;
 	}
-	name = string(name_start, name_length);
+	name = string(bytes.begin(), bytes.end());
+	bytes.clear();
 	if (structs[0] == '@')
 	{
 		++structs;
-		name_start = (const char*)structs;
-		name_length = 0;
 		while (structs[0] != '\0')
 		{
-			name_length++;
+			bytes.push_back(structs[0]);
 			++structs;
 		}
-		unit_address = string(name_start, name_length);
+		unit_address = string(bytes.begin(), bytes.end());
 	}
 	++structs;
 	uint32_t token;
@@ -747,8 +830,27 @@ node::node(input_buffer &structs, input_buffer &strings) : valid(true)
 	return;
 }
 
-node::node(input_buffer &input, string n, string l, string a, define_map *defines) : 
-	label(l), name(n), unit_address(a), valid(true)
+
+node::node(const string &n,
+           const std::vector<property_ptr> &p)
+	: name(n)
+{
+	props.insert(props.begin(), p.begin(), p.end());
+}
+
+node_ptr node::create_special_node(const string &name,
+                                   const std::vector<property_ptr> &props)
+{
+	node_ptr n(new node(name, props));
+	return n;
+}
+
+node::node(text_input_buffer &input,
+           string &&n,
+           std::unordered_set<string> &&l,
+           string &&a,
+           define_map *defines)
+	: labels(l), name(n), unit_address(a), valid(true)
 {
 	if (!input.consume('{'))
 	{
@@ -760,15 +862,60 @@ node::node(input_buffer &input, string n, string l, string a, define_map *define
 		// flag set if we find any characters that are only in
 		// the property name character set, not the node 
 		bool is_property = false;
-		string child_name, child_label, child_address;
+		string child_name, child_address;
+		std::unordered_set<string> child_labels;
+		auto parse_delete = [&](const char *expected, bool at)
+		{
+			if (child_name == string())
+			{
+				input.parse_error(expected);
+				valid = false;
+				return;
+			}
+			input.next_token();
+			if (at && input.consume('@'))
+			{
+				child_name += '@';
+				child_name += parse_name(input, is_property, "Expected unit address");
+			}
+			if (!input.consume(';'))
+			{
+				input.parse_error("Expected semicolon");
+				valid = false;
+				return;
+			}
+			input.next_token();
+		};
+		if (input.consume("/delete-node/"))
+		{
+			input.next_token();
+			child_name = input.parse_node_name();
+			parse_delete("Expected node name", true);
+			if (valid)
+			{
+				deleted_children.insert(child_name);
+			}
+			continue;
+		}
+		if (input.consume("/delete-property/"))
+		{
+			input.next_token();
+			child_name = input.parse_property_name();
+			parse_delete("Expected property name", false);
+			if (valid)
+			{
+				deleted_props.insert(child_name);
+			}
+			continue;
+		}
 		child_name = parse_name(input, is_property,
 				"Expected property or node name");
-		if (input.consume(':'))
+		while (input.consume(':'))
 		{
 			// Node labels can contain any characters?  The
 			// spec doesn't say, so we guess so...
 			is_property = false;
-			child_label = child_name;
+			child_labels.insert(std::move(child_name));
 			child_name = parse_name(input, is_property, "Expected property or node name");
 		}
 		if (input.consume('@'))
@@ -783,8 +930,8 @@ node::node(input_buffer &input, string n, string l, string a, define_map *define
 		// If we're parsing a property, then we must actually do that.
 		if (input.consume('='))
 		{
-			property_ptr p = property::parse(input, child_name,
-					child_label, true, defines);
+			property_ptr p = property::parse(input, std::move(child_name),
+					std::move(child_labels), true, defines);
 			if (p == 0)
 			{
 				valid = false;
@@ -794,10 +941,10 @@ node::node(input_buffer &input, string n, string l, string a, define_map *define
 				props.push_back(p);
 			}
 		}
-		else if (!is_property && input[0] == ('{'))
+		else if (!is_property && *input == ('{'))
 		{
-			node_ptr child = node::parse(input, child_name,
-					child_label, child_address, defines);
+			node_ptr child = node::parse(input, std::move(child_name),
+					std::move(child_labels), std::move(child_address), defines);
 			if (child)
 			{
 				children.push_back(std::move(child));
@@ -809,15 +956,16 @@ node::node(input_buffer &input, string n, string l, string a, define_map *define
 		}
 		else if (input.consume(';'))
 		{
-			props.push_back(property_ptr(new property(child_name, child_label)));
+			props.push_back(property_ptr(new property(std::move(child_name), std::move(child_labels))));
 		}
 		else
 		{
-			input.parse_error("Error parsing property.");
+			input.parse_error("Error parsing property.  Expected property value");
 			valid = false;
 		}
 		input.next_token();
 	}
+	input.next_token();
 	input.consume(';');
 }
 
@@ -849,13 +997,17 @@ node::sort()
 }
 
 node_ptr
-node::parse(input_buffer &input,
-            string name,
-            string label,
-            string address,
+node::parse(text_input_buffer &input,
+            string &&name,
+            string_set &&label,
+            string &&address,
             define_map *defines)
 {
-	node_ptr n(new node(input, name, label, address, defines));
+	node_ptr n(new node(input,
+	                    std::move(name),
+	                    std::move(label),
+	                    std::move(address),
+	                    defines));
 	if (!n->valid)
 	{
 		n = 0;
@@ -875,7 +1027,7 @@ node::parse_dtb(input_buffer &structs, input_buffer &strings)
 }
 
 property_ptr
-node::get_property(string key)
+node::get_property(const string &key)
 {
 	for (auto &i : props)
 	{
@@ -888,11 +1040,11 @@ node::get_property(string key)
 }
 
 void
-node::merge_node(node_ptr other)
+node::merge_node(node_ptr &other)
 {
-	if (!other->label.empty())
+	for (auto &l : other->labels)
 	{
-		label = other->label;
+		labels.insert(l);
 	}
 	// Note: this is an O(n*m) operation.  It might be sensible to
 	// optimise this if we find that there are nodes with very
@@ -923,7 +1075,7 @@ node::merge_node(node_ptr other)
 		{
 			if (i->name == c->name && i->unit_address == c->unit_address)
 			{
-				i->merge_node(std::move(c));
+				i->merge_node(c);
 				found = true;
 				break;
 			}
@@ -933,6 +1085,30 @@ node::merge_node(node_ptr other)
 			children.push_back(std::move(c));
 		}
 	}
+	children.erase(std::remove_if(children.begin(), children.end(),
+			[&](const node_ptr &p) {
+				string full_name = p->name;
+				if (p->unit_address != string())
+				{
+					full_name += '@';
+					full_name += p->unit_address;
+				}
+				if (other->deleted_children.count(full_name) > 0)
+				{
+					other->deleted_children.erase(full_name);
+					return true;
+				}
+				return false;
+			}), children.end());
+	props.erase(std::remove_if(props.begin(), props.end(),
+			[&](const property_ptr &p) {
+				if (other->deleted_props.count(p->get_key()) > 0)
+				{
+					other->deleted_props.erase(p->get_key());
+					return true;
+				}
+				return false;
+			}), props.end());
 }
 
 void
@@ -940,11 +1116,11 @@ node::write(dtb::output_writer &writer, dtb::string_table &strings)
 {
 	writer.write_token(dtb::FDT_BEGIN_NODE);
 	byte_buffer name_buffer;
-	name.push_to_buffer(name_buffer);
+	push_string(name_buffer, name);
 	if (unit_address != string())
 	{
 		name_buffer.push_back('@');
-		unit_address.push_to_buffer(name_buffer);
+		push_string(name_buffer, unit_address);
 	}
 	writer.write_comment(name);
 	writer.write_data(name_buffer);
@@ -968,20 +1144,19 @@ node::write_dts(FILE *file, int indent)
 		putc('\t', file);
 	}
 #ifdef PRINT_LABELS
-	if (label != string())
+	for (auto &label : labels)
 	{
-		label.print(file);
-		fputs(": ", file);
+		fprintf(file, "%s: ", label.c_str());
 	}
 #endif
 	if (name != string())
 	{
-		name.print(file);
+		fputs(name.c_str(), file);
 	}
 	if (unit_address != string())
 	{
 		putc('@', file);
-		unit_address.print(file);
+		fputs(unit_address.c_str(), file);
 	}
 	fputs(" {\n\n", file);
 	for (auto p : properties())
@@ -1002,33 +1177,33 @@ node::write_dts(FILE *file, int indent)
 void
 device_tree::collect_names_recursive(node_ptr &n, node_path &path)
 {
-	string name = n->label;
 	path.push_back(std::make_pair(n->name, n->unit_address));
-	if (name != string())
+	for (const string &name : n->labels)
 	{
-		if (node_names.find(name) == node_names.end())
+		if (name != string())
 		{
-			node_names.insert(std::make_pair(name, n.get()));
-			node_paths.insert(std::make_pair(name, path));
-		}
-		else
-		{
-			node_names[name] = (node*)-1;
-			auto i = node_paths.find(name);
-			if (i != node_paths.end())
+			auto iter = node_names.find(name);
+			if (iter == node_names.end())
 			{
-				node_paths.erase(name);
+				node_names.insert(std::make_pair(name, n.get()));
+				node_paths.insert(std::make_pair(name, path));
 			}
-			fprintf(stderr, "Label not unique: ");
-			name.dump();
-			fprintf(stderr, ".  References to this label will not be resolved.");
+			else
+			{
+				node_names.erase(iter);
+				auto i = node_paths.find(name);
+				if (i != node_paths.end())
+				{
+					node_paths.erase(name);
+				}
+				fprintf(stderr, "Label not unique: %s.  References to this label will not be resolved.\n", name.c_str());
+			}
 		}
 	}
 	for (auto &c : n->child_nodes())
 	{
 		collect_names_recursive(c, path);
 	}
-	path.pop_back();
 	// Now we collect the phandles and properties that reference
 	// other nodes.
 	for (auto &p : n->properties())
@@ -1037,21 +1212,19 @@ device_tree::collect_names_recursive(node_ptr &n, node_path &path)
 		{
 			if (v.is_phandle())
 			{
-				phandles.push_back(&v);
+				fixups.push_back({path, p, v});
 			}
 			if (v.is_cross_reference())
 			{
 				cross_references.push_back(&v);
 			}
 		}
-		if (p->get_key() == string("phandle") ||
-		    p->get_key() == string("linux,phandle"))
+		if ((p->get_key() == "phandle") ||
+		    (p->get_key() == "linux,phandle"))
 		{
 			if (p->begin()->byte_data.size() != 4)
 			{
-				fprintf(stderr, "Invalid phandle value for node ");
-				n->name.dump();
-				fprintf(stderr, ".  Should be a 4-byte value.\n");
+				fprintf(stderr, "Invalid phandle value for node %s.  Should be a 4-byte value.\n", n->name.c_str());
 				valid = false;
 			}
 			else
@@ -1061,6 +1234,7 @@ device_tree::collect_names_recursive(node_ptr &n, node_path &path)
 			}
 		}
 	}
+	path.pop_back();
 }
 
 void
@@ -1070,186 +1244,207 @@ device_tree::collect_names()
 	node_names.clear();
 	node_paths.clear();
 	cross_references.clear();
-	phandles.clear();
+	fixups.clear();
 	collect_names_recursive(root, p);
 }
 
+property_ptr
+device_tree::assign_phandle(node *n, uint32_t &phandle)
+{
+	// If there is an existing phandle, use it
+	property_ptr p = n->get_property("phandle");
+	if (p == 0)
+	{
+		p = n->get_property("linux,phandle");
+	}
+	if (p == 0)
+	{
+		// Otherwise insert a new phandle node
+		property_value v;
+		while (used_phandles.find(phandle) != used_phandles.end())
+		{
+			// Note that we only don't need to
+			// store this phandle in the set,
+			// because we are monotonically
+			// increasing the value of phandle and
+			// so will only ever revisit this value
+			// if we have used 2^32 phandles, at
+			// which point our blob won't fit in
+			// any 32-bit system and we've done
+			// something badly wrong elsewhere
+			// already.
+			phandle++;
+		}
+		push_big_endian(v.byte_data, phandle++);
+		if (phandle_node_name == BOTH || phandle_node_name == LINUX)
+		{
+			p.reset(new property("linux,phandle"));
+			p->add_value(v);
+			n->add_property(p);
+		}
+		if (phandle_node_name == BOTH || phandle_node_name == EPAPR)
+		{
+			p.reset(new property("phandle"));
+			p->add_value(v);
+			n->add_property(p);
+		}
+	}
+
+	return (p);
+}
+
 void
-device_tree::resolve_cross_references()
+device_tree::assign_phandles(node_ptr &n, uint32_t &next)
+{
+	if (!n->labels.empty())
+	{
+		assign_phandle(n.get(), next);
+	}
+
+	for (auto &c : n->child_nodes())
+	{
+		assign_phandles(c, next);
+	}
+}
+
+void
+device_tree::resolve_cross_references(uint32_t &phandle)
 {
 	for (auto *pv : cross_references)
 	{
 		node_path path = node_paths[pv->string_data];
-		// Skip the first name in the path.  It's always "", and implicitly /
-		for (auto p=path.begin()+1, pe=path.end() ; p!=pe ; ++p)
+		auto p = path.begin();
+		auto pe = path.end();
+		if (p != pe)
 		{
-			pv->byte_data.push_back('/');
-			p->first.push_to_buffer(pv->byte_data);
-			if (!(p->second.empty()))
+			// Skip the first name in the path.  It's always "", and implicitly /
+			for (++p ; p!=pe ; ++p)
 			{
-				pv->byte_data.push_back('@');
-				p->second.push_to_buffer(pv->byte_data);
-				pv->byte_data.push_back(0);
+				pv->byte_data.push_back('/');
+				push_string(pv->byte_data, p->first);
+				if (!(p->second.empty()))
+				{
+					pv->byte_data.push_back('@');
+					push_string(pv->byte_data, p->second);
+				}
 			}
+			pv->byte_data.push_back(0);
 		}
 	}
-	std::unordered_set<property_value*> phandle_set;
-	for (auto &i : phandles)
+	std::unordered_map<property_value*, fixup&> phandle_set;
+	for (auto &i : fixups)
 	{
-		phandle_set.insert(i);
+		phandle_set.insert({&i.val, i});
 	}
-	std::vector<property_value*> sorted_phandles;
-	root->visit([&](node &n) {
+	std::vector<std::reference_wrapper<fixup>> sorted_phandles;
+	root->visit([&](node &n, node *) {
 		for (auto &p : n.properties())
 		{
 			for (auto &v : *p)
 			{
-				if (phandle_set.count(&v))
+				auto i = phandle_set.find(&v);
+				if (i != phandle_set.end())
 				{
-					sorted_phandles.push_back(&v);
+					sorted_phandles.push_back(i->second);
 				}
 			}
 		}
-	});
-	assert(sorted_phandles.size() == phandles.size());
+		// Allow recursion
+		return node::VISIT_RECURSE;
+	}, nullptr);
+	assert(sorted_phandles.size() == fixups.size());
 
-	uint32_t phandle = 1;
 	for (auto &i : sorted_phandles)
 	{
-		string target_name = i->string_data;
-		node *target = node_names[target_name];
-		if (target == 0)
+		string target_name = i.get().val.string_data;
+		node *target = nullptr;
+		string possible;
+		// If the node name is a path, then look it up by following the path,
+		// otherwise jump directly to the named node.
+		if (target_name[0] == '/')
 		{
-			fprintf(stderr, "Failed to find node with label: ");
-			target_name.dump();
-			fprintf(stderr, "\n");
-			valid = 0;
-			return;
+			string path;
+			target = root.get();
+			std::istringstream ss(target_name);
+			string path_element;
+			// Read the leading /
+			std::getline(ss, path_element, '/');
+			// Iterate over path elements
+			while (!ss.eof())
+			{
+				path += '/';
+				std::getline(ss, path_element, '/');
+				std::istringstream nss(path_element);
+				string node_name, node_address;
+				std::getline(nss, node_name, '@');
+				std::getline(nss, node_address, '@');
+				node *next = nullptr;
+				for (auto &c : target->child_nodes())
+				{
+					if (c->name == node_name)
+					{
+						if (c->unit_address == node_address)
+						{
+							next = c.get();
+							break;
+						}
+						else
+						{
+							possible = path + c->name;
+							if (c->unit_address != string())
+							{
+								possible += '@';
+								possible += c->unit_address;
+							}
+						}
+					}
+				}
+				path += node_name;
+				if (node_address != string())
+				{
+					path += '@';
+					path += node_address;
+				}
+				target = next;
+				if (target == nullptr)
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			target = node_names[target_name];
+		}
+		if (target == nullptr)
+		{
+			if (is_plugin)
+			{
+				unresolved_fixups.push_back(i);
+				continue;
+			}
+			else
+			{
+				fprintf(stderr, "Failed to find node with label: %s\n", target_name.c_str());
+				if (possible != string())
+				{
+					fprintf(stderr, "Possible intended match: %s\n", possible.c_str());
+				}
+				valid = 0;
+				return;
+			}
 		}
 		// If there is an existing phandle, use it
-		property_ptr p = target->get_property("phandle");
-		if (p == 0)
-		{
-			p = target->get_property("linux,phandle");
-		}
-		if (p == 0)
-		{
-			// Otherwise insert a new phandle node
-			property_value v;
-			while (used_phandles.find(phandle) != used_phandles.end())
-			{
-				// Note that we only don't need to
-				// store this phandle in the set,
-				// because we are monotonically
-				// increasing the value of phandle and
-				// so will only ever revisit this value
-				// if we have used 2^32 phandles, at
-				// which point our blob won't fit in
-				// any 32-bit system and we've done
-				// something badly wrong elsewhere
-				// already.
-				phandle++;
-			}
-			push_big_endian(v.byte_data, phandle++);
-			if (phandle_node_name == BOTH || phandle_node_name == LINUX)
-			{
-				p.reset(new property(string("linux,phandle")));
-				p->add_value(v);
-				target->add_property(p);
-			}
-			if (phandle_node_name == BOTH || phandle_node_name == EPAPR)
-			{
-				p.reset(new property(string("phandle")));
-				p->add_value(v);
-				target->add_property(p);
-			}
-		}
-		p->begin()->push_to_buffer(i->byte_data);
-		assert(i->byte_data.size() == 4);
+		property_ptr p = assign_phandle(target, phandle);
+		p->begin()->push_to_buffer(i.get().val.byte_data);
+		assert(i.get().val.byte_data.size() == 4);
 	}
 }
 
-bool
-device_tree::parse_include(input_buffer &input,
-                        const std::string &dir,
-                        std::vector<node_ptr> &roots,
-                        FILE *depfile,
-                        bool &read_header)
-{
-	if (!input.consume("/include/"))
-	{
-		return false;
-	}
-	bool reallyInclude = true;
-	if (input.consume("if "))
-	{
-		input.next_token();
-		string name = string::parse_property_name(input);
-		// XXX: Error handling
-		if (defines.find(name) == defines.end())
-		{
-			reallyInclude = false;
-		}
-		input.consume('/');
-	}
-	input.next_token();
-	if (!input.consume('"'))
-	{
-		input.parse_error("Expected quoted filename");
-		valid = false;
-		return false;
-	}
-	int length = 0;
-	while (input[length] != '"') length++;
-
-	std::string file((const char*)input, length);
-	std::string include_file = dir + '/' + file;
-	input.consume(file.c_str());
-	if (!reallyInclude)
-	{
-		input.consume('"');
-		input.next_token();
-		return true;
-	}
-
-	input_buffer *include_buffer = buffer_for_file(include_file.c_str(), false);
-
-	if (include_buffer == 0)
-	{
-		for (auto i : include_paths)
-		{
-			include_file = i + '/' + file;
-			include_buffer = buffer_for_file(include_file.c_str());
-			if (include_buffer != 0)
-			{
-				break;
-			}
-		}
-	}
-	if (depfile != 0)
-	{
-		putc(' ', depfile);
-		fputs(include_file.c_str(), depfile);
-	}
-	if (include_buffer == 0)
-	{
-		input.parse_error("Unable to locate input file");
-		input.consume('"');
-		input.next_token();
-		valid = false;
-		return true;
-	}
-	input.consume('"');
-	input.next_token();
-	parse_file(*include_buffer, dir, roots, depfile, read_header);
-	return true;
-}
 
 void
-device_tree::parse_file(input_buffer &input,
-                        const std::string &dir,
+device_tree::parse_file(text_input_buffer &input,
                         std::vector<node_ptr> &roots,
-                        FILE *depfile,
                         bool &read_header)
 {
 	input.next_token();
@@ -1259,14 +1454,17 @@ device_tree::parse_file(input_buffer &input,
 		read_header = true;
 	}
 	input.next_token();
+	if (input.consume("/plugin/;"))
+	{
+		is_plugin = true;
+	}
 	input.next_token();
 	if (!read_header)
 	{
 		input.parse_error("Expected /dts-v1/; version string");
 	}
-	while(parse_include(input, dir, roots, depfile, read_header)) {}
 	// Read any memory reservations
-	while(input.consume("/memreserve/"))
+	while (input.consume("/memreserve/"))
 	{
 		unsigned long long start, len;
 		input.next_token();
@@ -1280,23 +1478,37 @@ device_tree::parse_file(input_buffer &input,
 		input.next_token();
 		input.consume(';');
 		reservations.push_back(reservation(start, len));
+		input.next_token();
 	}
-	input.next_token();
-	while(parse_include(input, dir, roots, depfile, read_header)) {}
 	while (valid && !input.finished())
 	{
 		node_ptr n;
 		if (input.consume('/'))
 		{
 			input.next_token();
-			n = node::parse(input, string(), string(), string(), &defines);
+			n = node::parse(input, string(), string_set(), string(), &defines);
 		}
 		else if (input.consume('&'))
 		{
 			input.next_token();
-			string name = string::parse_node_name(input);
+			string name;
+			bool name_is_path_reference = false;
+			// This is to deal with names intended as path references, e.g. &{/path}.
+			// While it may make sense in a non-plugin context, we don't support such
+			// usage at this time.
+			if (input.consume('{') && is_plugin)
+			{
+				name = input.parse_to('}');
+				input.consume('}');
+				name_is_path_reference = true;
+			}
+			else
+			{
+				name = input.parse_node_name();
+			}
 			input.next_token();
-			n = node::parse(input, name, string(), string(), &defines);
+			n = node::parse(input, std::move(name), string_set(), string(), &defines);
+			n->name_is_path_reference = name_is_path_reference;
 		}
 		else
 		{
@@ -1311,50 +1523,7 @@ device_tree::parse_file(input_buffer &input,
 			valid = false;
 		}
 		input.next_token();
-		while(parse_include(input, dir, roots, depfile, read_header)) {}
 	}
-}
-
-input_buffer*
-device_tree::buffer_for_file(const char *path, bool warn)
-{
-	if (string(path) == string("-"))
-	{
-		input_buffer *b = new stream_input_buffer();
-		if (b)
-		{
-			std::unique_ptr<input_buffer> ptr(b);
-			buffers.push_back(std::move(ptr));
-		}
-		return b;
-	}
-	int source = open(path, O_RDONLY);
-	if (source == -1)
-	{
-		if (warn)
-		{
-			fprintf(stderr, "Unable to open file '%s'.  %s\n", path, strerror(errno));
-		}
-		return 0;
-	}
-	struct stat st;
-	if (fstat(source, &st) == 0 && S_ISDIR(st.st_mode))
-	{
-		fprintf(stderr, "File %s is a directory\n", path);
-		close(source);
-		return 0;
-	}
-	input_buffer *b = new mmap_input_buffer(source);
-	// Keep the buffer that owns the memory around for the lifetime
-	// of this FDT.  Ones simply referring to it may have shorter
-	// lifetimes.
-	if (b)
-	{
-		std::unique_ptr<input_buffer> ptr(b);
-		buffers.push_back(std::move(ptr));
-	}
-	close(source);
-	return b;
 }
 
 template<class writer> void
@@ -1475,9 +1644,9 @@ device_tree::write_dts(int fd)
 }
 
 void
-device_tree::parse_dtb(const char *fn, FILE *)
+device_tree::parse_dtb(const string &fn, FILE *)
 {
-	input_buffer *in = buffer_for_file(fn);
+	auto in = input_buffer::buffer_for_file(fn);
 	if (in == 0)
 	{
 		valid = false;
@@ -1531,20 +1700,129 @@ device_tree::parse_dtb(const char *fn, FILE *)
 	valid = (root != 0);
 }
 
-void
-device_tree::parse_dts(const char *fn, FILE *depfile)
+string
+device_tree::node_path::to_string() const
 {
-	input_buffer *in = buffer_for_file(fn);
-	std::string dir(dirname((char*)fn));
-	if (in == 0)
+	string path;
+	auto p = begin();
+	auto pe = end();
+	if ((p == pe) || (p+1 == pe))
+	{
+		return string("/");
+	}
+	// Skip the first name in the path.  It's always "", and implicitly /
+	for (++p ; p!=pe ; ++p)
+	{
+		path += '/';
+		path += p->first;
+		if (!(p->second.empty()))
+		{
+			path += '@';
+			path += p->second;
+		}
+	}
+	return path;
+}
+
+node_ptr
+device_tree::create_fragment_wrapper(node_ptr &node, int &fragnum)
+{
+	// In a plugin, we can massage these non-/ root nodes into into a fragment
+	std::string fragment_address = "fragment@" + std::to_string(fragnum);
+	++fragnum;
+
+	std::vector<property_ptr> symbols;
+
+	// Intentionally left empty
+	node_ptr newroot = node::create_special_node("", symbols);
+	node_ptr wrapper = node::create_special_node("__overlay__", symbols);
+
+	// Generate the fragment with $propname = <&name>
+	property_value v;
+	std::string propname;
+	v.string_data = node->name;
+	if (!node->name_is_path_reference)
+	{
+		propname = "target";
+		v.type = property_value::PHANDLE;
+	}
+	else
+	{
+		propname = "target-path";
+		v.type = property_value::STRING;
+	}
+	auto prop = std::make_shared<property>(std::string(propname));
+	prop->add_value(v);
+	symbols.push_back(prop);
+
+	node_ptr fragment = node::create_special_node(fragment_address, symbols);
+
+	wrapper->merge_node(node);
+	fragment->add_child(std::move(wrapper));
+	newroot->add_child(std::move(fragment));
+	return newroot;
+}
+
+node_ptr
+device_tree::generate_root(node_ptr &node, int &fragnum)
+{
+
+	string name = node->name;
+	if (name == string())
+	{
+		return std::move(node);
+	}
+	else if (!is_plugin)
+	{
+		return nullptr;
+	}
+
+	return create_fragment_wrapper(node, fragnum);
+}
+
+void
+device_tree::reassign_fragment_numbers(node_ptr &node, int &delta)
+{
+
+	for (auto &c : node->child_nodes())
+	{
+		if (c->name == std::string("fragment"))
+		{
+			int current_address = std::stoi(c->unit_address, nullptr, 16);
+			std::ostringstream new_address;
+			current_address += delta;
+			// It's possible that we hopped more than one somewhere, so just reset
+			// delta to the next in sequence.
+			delta = current_address + 1;
+			new_address << std::hex << current_address;
+			c->unit_address = new_address.str();
+		}
+	}
+}
+
+void
+device_tree::parse_dts(const string &fn, FILE *depfile)
+{
+	auto in = input_buffer::buffer_for_file(fn);
+	if (!in)
 	{
 		valid = false;
 		return;
 	}
 	std::vector<node_ptr> roots;
-	input_buffer &input = *in;
+	std::unordered_set<string> defnames;
+	for (auto &i : defines)
+	{
+		defnames.insert(i.first);
+	}
+	text_input_buffer input(std::move(in),
+	                        std::move(defnames),
+	                        std::vector<string>(include_paths),
+	                        dirname(fn),
+	                        depfile);
 	bool read_header = false;
-	parse_file(input, dir, roots, depfile, read_header);
+	int fragnum = 0;
+	parse_file(input, roots, read_header);
 	switch (roots.size())
 	{
 		case 0:
@@ -1552,18 +1830,36 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 			input.parse_error("Failed to find root node /.");
 			return;
 		case 1:
-			root = std::move(roots[0]);
+			root = generate_root(roots[0], fragnum);
+			if (!root)
+			{
+				valid = false;
+				input.parse_error("Failed to find root node /.");
+				return;
+			}
 			break;
 		default:
 		{
-			root = std::move(roots[0]);
+			root = generate_root(roots[0], fragnum);
+			if (!root)
+			{
+				valid = false;
+				input.parse_error("Failed to find root node /.");
+				return;
+			}
 			for (auto i=++(roots.begin()), e=roots.end() ; i!=e ; ++i)
 			{
 				auto &node = *i;
 				string name = node->name;
 				if (name == string())
 				{
-					root->merge_node(std::move(node));
+					if (is_plugin)
+					{
+						// Re-assign any fragment numbers based on a delta of
+						// fragnum before we merge it
+						reassign_fragment_numbers(node, fragnum);
+					}
+					root->merge_node(node);
 				}
 				else
 				{
@@ -1575,22 +1871,174 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 					}
 					if (existing == node_names.end())
 					{
-						fprintf(stderr, "Unable to merge node: ");
-						name.dump();
-						fprintf(stderr, "\n");
+						if (is_plugin)
+						{
+							auto fragment = create_fragment_wrapper(node, fragnum);
+							root->merge_node(fragment);
+						}
+						else
+						{
+							fprintf(stderr, "Unable to merge node: %s\n", name.c_str());
+						}
 					}
-					existing->second->merge_node(std::move(node));
+					else
+					{
+						existing->second->merge_node(node);
+					}
 				}
 			}
 		}
 	}
 	collect_names();
-	resolve_cross_references();
+	uint32_t phandle = 1;
+	// If we're writing symbols, go ahead and assign phandles to the entire
+	// tree. We'll do this before we resolve cross references, just to keep
+	// order semi-predictable and stable.
+	if (write_symbols)
+	{
+		assign_phandles(root, phandle);
+	}
+	resolve_cross_references(phandle);
+	if (write_symbols)
+	{
+		std::vector<property_ptr> symbols;
+		// Create a symbol table.  Each label  in this device tree may be
+		// referenced by other plugins, so we create a __symbols__ node inside
+		// the root that contains mappings (properties) from label names to
+		// paths.
+		for (auto &s : node_paths)
+		{
+			property_value v;
+			v.string_data = s.second.to_string();
+			v.type = property_value::STRING;
+			string name = s.first;
+			auto prop = std::make_shared<property>(std::move(name));
+			prop->add_value(v);
+			symbols.push_back(prop);
+		}
+		root->add_child(node::create_special_node("__symbols__", symbols));
+	}
+	// If this is a plugin, then we also need to create two extra nodes.
+	// Internal phandles will need to be renumbered to avoid conflicts with
+	// already-loaded nodes and external references will need to be
+	// resolved.
+	if (is_plugin)
+	{
+		std::vector<property_ptr> symbols;
+		// Create the fixups entry.  This is of the form:
+		// {target} = {path}:{property name}:{offset}
+		auto create_fixup_entry = [&](fixup &i, string target)
+			{
+				string value = i.path.to_string();
+				value += ':';
+				value += i.prop->get_key();
+				value += ':';
+				value += std::to_string(i.prop->offset_of_value(i.val));
+				property_value v;
+				v.string_data = value;
+				v.type = property_value::STRING;
+				auto prop = std::make_shared<property>(std::move(target));
+				prop->add_value(v);
+				return prop;
+			};
+		// If we have any unresolved phandle references in this plugin,
+		// then we must update them to 0xdeadbeef and leave a property in
+		// the /__fixups__ node whose key is the label and whose value is
+		// as described above.
+		if (!unresolved_fixups.empty())
+		{
+			for (auto &i : unresolved_fixups)
+			{
+				auto &val = i.get().val;
+				symbols.push_back(create_fixup_entry(i, val.string_data));
+				val.byte_data.push_back(0xde);
+				val.byte_data.push_back(0xad);
+				val.byte_data.push_back(0xbe);
+				val.byte_data.push_back(0xef);
+				val.type = property_value::BINARY;
+			}
+			root->add_child(node::create_special_node("__fixups__", symbols));
+		}
+		symbols.clear();
+		// If we have any resolved phandle references in this plugin, then
+		// we must create a child in the __local_fixups__ node whose path
+		// matches the node path from the root and whose value contains the
+		// location of the reference within a property.
+		
+		// Create a local_fixups node that is initially empty.
+		node_ptr local_fixups = node::create_special_node("__local_fixups__", symbols);
+		for (auto &i : fixups)
+		{
+			if (!i.val.is_phandle())
+			{
+				continue;
+			}
+			node *n = local_fixups.get();
+			for (auto &p : i.path)
+			{
+				// Skip the implicit root
+				if (p.first.empty())
+				{
+					continue;
+				}
+				bool found = false;
+				for (auto &c : n->child_nodes())
+				{
+					if (c->name == p.first)
+					{
+						string path = p.first;
+						if (!(p.second.empty()))
+						{
+							path += '@';
+							path += p.second;
+						}
+						n->add_child(node::create_special_node(path, symbols));
+						n = (--n->child_end())->get();
+					}
+				}
+				if (!found)
+				{
+					n->add_child(node::create_special_node(p.first, symbols));
+					n = (--n->child_end())->get();
+				}
+			}
+			assert(n);
+			property_value pv;
+			push_big_endian(pv.byte_data, static_cast<uint32_t>(i.prop->offset_of_value(i.val)));
+			pv.type = property_value::BINARY;
+			auto key = i.prop->get_key();
+			property_ptr prop = n->get_property(key);
+			// If we don't have an existing property then create one and
+			// use this property value
+			if (!prop)
+			{
+				prop = std::make_shared<property>(std::move(key));
+				n->add_property(prop);
+				prop->add_value(pv);
+			}
+			else
+			{
+				// If we do have an existing property value, try to append
+				// this value.
+				property_value &old_val = *(--prop->end());
+				if (!old_val.try_to_merge(pv))
+				{
+					prop->add_value(pv);
+				}
+			}
+		}
+		// We've iterated over all fixups, but only emit the
+		// __local_fixups__ if we found some that were resolved internally.
+		if (local_fixups->child_begin() != local_fixups->child_end())
+		{
+			root->add_child(std::move(local_fixups));
+		}
+	}
 }
 
 bool device_tree::parse_define(const char *def)
 {
-	char *val = strchr(def, '=');
+	const char *val = strchr(def, '=');
 	if (!val)
 	{
 		if (strlen(def) != 0)
@@ -1602,9 +2050,15 @@ bool device_tree::parse_define(const char *def)
 		return false;
 	}
 	string name(def, val-def);
+	string name_copy = name;
 	val++;
-	input_buffer in = input_buffer(val, strlen(val));
-	property_ptr p = property::parse(in, name, string(), false);
+	std::unique_ptr<input_buffer> raw(new input_buffer(val, strlen(val)));
+	text_input_buffer in(std::move(raw),
+	                     std::unordered_set<string>(),
+	                     std::vector<string>(),
+	                     string(),
+	                     nullptr);
+	property_ptr p = property::parse(in, std::move(name_copy), string_set(), false);
 	if (p)
 		defines[name] = p;
 	return (bool)p;

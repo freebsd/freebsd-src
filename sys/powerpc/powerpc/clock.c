@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -80,7 +82,7 @@ __FBSDID("$FreeBSD$");
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
 static int		initialized = 0;
-static u_long		ns_per_tick = 80;
+static uint64_t		ps_per_tick = 80000;
 static u_long		ticks_per_sec = 12500000;
 static u_long		*decr_counts[MAXCPU];
 
@@ -93,7 +95,7 @@ struct decr_state {
 	int	mode;	/* 0 - off, 1 - periodic, 2 - one-shot. */
 	int32_t	div;	/* Periodic divisor. */
 };
-static DPCPU_DEFINE(struct decr_state, decr_state);
+DPCPU_DEFINE_STATIC(struct decr_state, decr_state);
 
 static struct eventtimer	decr_et;
 static struct timecounter	decr_tc = {
@@ -141,6 +143,9 @@ decr_intr(struct trapframe *frame)
 	} else if (s->mode == 2) {
 		nticks = 1;
 		decr_et_stop(NULL);
+	} else if (s->mode == 0) {
+		/* Potemkin timer ran out without an event. Just reset it. */
+		decr_et_stop(NULL);
 	}
 
 	while (nticks-- > 0) {
@@ -173,7 +178,7 @@ decr_init(void)
 	if (platform_smp_get_bsp(&cpu) != 0)
 		platform_smp_first_cpu(&cpu);
 	ticks_per_sec = platform_timebase_freq(&cpu);
-	ns_per_tick = 1000000000 / ticks_per_sec;
+	ps_per_tick = 1000000000000 / ticks_per_sec;
 
 	set_cputicker(mftb, ticks_per_sec, 0);
 	snprintf(buf, sizeof(buf), "cpu%d:decrementer", curcpu);
@@ -300,9 +305,11 @@ DELAY(int n)
 {
 	u_quad_t	tb, ttb;
 
+	TSENTER();
 	tb = mftb();
-	ttb = tb + howmany(n * 1000, ns_per_tick);
+	ttb = tb + howmany((uint64_t)n * 1000000, ps_per_tick);
 	while (tb < ttb)
 		tb = mftb();
+	TSEXIT();
 }
 

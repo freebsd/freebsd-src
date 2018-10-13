@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,14 +32,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_version.h 812 2014-09-12 07:24:23Z des $
+ * $OpenPAM: openpam_version.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef SECURITY_OPENPAM_VERSION_H_INCLUDED
 #define SECURITY_OPENPAM_VERSION_H_INCLUDED
 
 #define OPENPAM
-#define OPENPAM_VERSION	20140912
-#define OPENPAM_RELEASE	"Ourouparia"
+#define OPENPAM_VERSION	20170430
+#define OPENPAM_RELEASE	"Resedacea"
 
 #endif /* !SECURITY_OPENPAM_VERSION_H_INCLUDED */

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2009
+.Dd February 6, 2017
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd Internet Protocol Security protocol
 .Sh SYNOPSIS
 .Cd "options IPSEC"
+.Cd "options IPSEC_SUPPORT"
 .Cd "device crypto"
 .Pp
 .In sys/types.h
@@ -151,6 +152,16 @@ Refer to
 .Xr setkey 8
 on how to use it.
 .Pp
+Depending on the socket's address family, IPPROTO_IP or IPPROTO_IPV6
+transport level and IP_IPSEC_POLICY or IPV6_IPSEC_POLICY socket options
+may be used to configure per-socket security policies.
+A properly-formed IPsec policy specification structure can be
+created using
+.Xr ipsec_set_policy 3
+function and used as socket option value for the
+.Xr setsockopt 2
+call.
+.Pp
 When setting policies using the
 .Xr setkey 8
 command, the
@@ -228,6 +239,8 @@ for tweaking the kernel's IPsec behavior:
 .It "net.inet.ipsec.dfbit	integer	yes"
 .It "net.inet.ipsec.ecn	integer	yes"
 .It "net.inet.ipsec.debug	integer	yes"
+.It "net.inet.ipsec.natt_cksum_policy	integer	yes"
+.It "net.inet.ipsec.check_policy_history	integer	yes"
 .It "net.inet6.ipsec6.ecn	integer	yes"
 .It "net.inet6.ipsec6.debug	integer	yes"
 .El
@@ -270,6 +283,23 @@ talks more about the behavior.
 .It Li ipsec.debug
 If set to non-zero, debug messages will be generated via
 .Xr syslog 3 .
+.It Li ipsec.natt_cksum_policy
+Controls how the kernel handles TCP and UDP checksums when ESP in UDP
+encapsulation is used for IPsec transport mode.
+If set to a non-zero value, the kernel fully recomputes checksums for
+inbound TCP segments and UDP datagrams after they are decapsulated and
+decrypted.
+If set to 0 and original addresses were configured for corresponding SA
+by the IKE daemon, the kernel incrementally recomputes checksums for
+inbound TCP segments and UDP datagrams.
+If addresses were not configured, the checksums are ignored.
+.It Li ipsec.check_policy_history
+Enables strict policy checking for inbound packets.
+By default, inbound security policies check that packets handled by IPsec
+have been decrypted and authenticated.
+If this variable is set to a non-zero value, each packet handled by IPsec
+is checked against the history of IPsec security associations.
+The IPsec security protocol, mode, and SA addresses must match.
 .El
 .Pp
 Variables under the
@@ -305,6 +335,7 @@ routines from looking into the IP payload.
 .Xr ipsec_set_policy 3 ,
 .Xr crypto 4 ,
 .Xr enc 4 ,
+.Xr if_ipsec 4 ,
 .Xr icmp6 4 ,
 .Xr intro 4 ,
 .Xr ip6 4 ,

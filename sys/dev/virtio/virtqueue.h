@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -82,7 +84,11 @@ void	 virtqueue_disable_intr(struct virtqueue *vq);
 
 /* Get physical address of the virtqueue ring. */
 vm_paddr_t virtqueue_paddr(struct virtqueue *vq);
+vm_paddr_t virtqueue_desc_paddr(struct virtqueue *vq);
+vm_paddr_t virtqueue_avail_paddr(struct virtqueue *vq);
+vm_paddr_t virtqueue_used_paddr(struct virtqueue *vq);
 
+uint16_t virtqueue_index(struct virtqueue *vq);
 int	 virtqueue_full(struct virtqueue *vq);
 int	 virtqueue_empty(struct virtqueue *vq);
 int	 virtqueue_size(struct virtqueue *vq);

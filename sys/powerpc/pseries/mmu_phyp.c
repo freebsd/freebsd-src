@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Andreas Tobler
  * All rights reserved.
  *
@@ -56,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include "moea64_if.h"
 
 #include "phyp-hvcall.h"
-
-extern int n_slbs;
 
 static struct rmlock mphyp_eviction_lock;
 
@@ -221,7 +221,7 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 static void
 mphyp_cpu_bootstrap(mmu_t mmup, int ap)
 {
-	struct slb *slb = PCPU_GET(slb);
+	struct slb *slb = PCPU_GET(aim.slb);
 	register_t seg0;
 	int i;
 
@@ -403,7 +403,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 		return (0);
 	}
 	KASSERT(result == H_PTEG_FULL, ("Page insertion error: %ld "
-	    "(ptegidx: %#zx/%#x, PTE %#lx/%#lx", result, pvo->pvo_pte.slot,
+	    "(ptegidx: %#zx/%#lx, PTE %#lx/%#lx", result, pvo->pvo_pte.slot,
 	    moea64_pteg_count, pte.pte_hi, pte.pte_lo));
 
 	/*

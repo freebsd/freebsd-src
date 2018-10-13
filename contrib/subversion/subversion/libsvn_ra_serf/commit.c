@@ -71,6 +71,7 @@ typedef struct commit_context_t {
   const char *checked_in_url;    /* checked-in root to base CHECKOUTs from */
   const char *vcc_url;           /* vcc url */
 
+  int open_batons;               /* Number of open batons */
 } commit_context_t;
 
 #define USING_HTTPV2_COMMIT_SUPPORT(commit_ctx) ((commit_ctx)->txn_url != NULL)
@@ -116,9 +117,6 @@ typedef struct dir_context_t {
   /* URL to operate against (used for CHECKOUT and PROPPATCH before
      HTTP v2, for PROPPATCH in HTTP v2).  */
   const char *url;
-
-  /* How many pending changes we have left in this directory. */
-  unsigned int ref_count;
 
   /* Is this directory being added?  (Otherwise, just opened.) */
   svn_boolean_t added;
@@ -172,17 +170,23 @@ typedef struct file_context_t {
   const char *copy_path;
   svn_revnum_t copy_revision;
 
-  /* stream */
+  /* Stream for collecting the svndiff. */
   svn_stream_t *stream;
 
-  /* Temporary file containing the svndiff. */
-  apr_file_t *svndiff;
+  /* Buffer holding the svndiff (can spill to disk). */
+  svn_ra_serf__request_body_t *svndiff;
+
+  /* Did we send the svndiff in apply_textdelta_stream()? */
+  svn_boolean_t svndiff_sent;
 
   /* Our base checksum as reported by the WC. */
   const char *base_checksum;
 
   /* Our resulting checksum as reported by the WC. */
   const char *result_checksum;
+
+  /* Our resulting checksum as reported by the server. */
+  svn_checksum_t *remote_result_checksum;
 
   /* Changed properties (const char * -> svn_prop_t *) */
   apr_hash_t *prop_changes;
@@ -683,7 +687,7 @@ maybe_set_lock_token_header(serf_bucket_t *headers,
 {
   const char *token;
 
-  if (! (*relpath && commit_ctx->lock_tokens))
+  if (! commit_ctx->lock_tokens)
     return SVN_NO_ERROR;
 
   if (! svn_hash_gets(commit_ctx->deleted_entries, relpath))
@@ -867,35 +871,6 @@ proppatch_resource(svn_ra_serf__session_t *session,
     }
 
   return svn_error_trace(err);
-}
-
-/* Implements svn_ra_serf__request_body_delegate_t */
-static svn_error_t *
-create_put_body(serf_bucket_t **body_bkt,
-                void *baton,
-                serf_bucket_alloc_t *alloc,
-                apr_pool_t *pool /* request pool */,
-                apr_pool_t *scratch_pool)
-{
-  file_context_t *ctx = baton;
-  apr_off_t offset;
-
-  /* We need to flush the file, make it unbuffered (so that it can be
-   * zero-copied via mmap), and reset the position before attempting to
-   * deliver the file.
-   *
-   * N.B. If we have APR 1.3+, we can unbuffer the file to let us use mmap
-   * and zero-copy the PUT body.  However, on older APR versions, we can't
-   * check the buffer status; but serf will fall through and create a file
-   * bucket for us on the buffered svndiff handle.
-   */
-  SVN_ERR(svn_io_file_flush(ctx->svndiff, pool));
-  apr_file_buffer_set(ctx->svndiff, NULL, 0);
-  offset = 0;
-  SVN_ERR(svn_io_file_seek(ctx->svndiff, APR_SET, &offset, pool));
-
-  *body_bkt = serf_bucket_file_create(ctx->svndiff, alloc);
-  return SVN_NO_ERROR;
 }
 
 /* Implements svn_ra_serf__request_body_delegate_t */
@@ -1259,6 +1234,8 @@ open_root(void *edit_baton,
   const char *proppatch_target = NULL;
   apr_pool_t *scratch_pool = svn_pool_create(dir_pool);
 
+  commit_ctx->open_batons++;
+
   if (SVN_RA_SERF__HAVE_HTTPV2_SUPPORT(commit_ctx->session))
     {
       post_response_ctx_t *prc;
@@ -1545,6 +1522,8 @@ add_directory(const char *path,
   dir->name = svn_relpath_basename(dir->relpath, NULL);
   dir->prop_changes = apr_hash_make(dir->pool);
 
+  dir->commit_ctx->open_batons++;
+
   if (USING_HTTPV2_COMMIT_SUPPORT(dir->commit_ctx))
     {
       dir->url = svn_path_url_add_component2(parent->commit_ctx->txn_root_url,
@@ -1635,6 +1614,8 @@ open_directory(const char *path,
   dir->name = svn_relpath_basename(dir->relpath, NULL);
   dir->prop_changes = apr_hash_make(dir->pool);
 
+  dir->commit_ctx->open_batons++;
+
   if (USING_HTTPV2_COMMIT_SUPPORT(dir->commit_ctx))
     {
       dir->url = svn_path_url_add_component2(parent->commit_ctx->txn_root_url,
@@ -1713,6 +1694,8 @@ close_directory(void *dir_baton,
                                  proppatch_ctx, dir->pool));
     }
 
+  dir->commit_ctx->open_batons--;
+
   return SVN_NO_ERROR;
 }
 
@@ -1732,8 +1715,6 @@ add_file(const char *path,
   new_file = apr_pcalloc(file_pool, sizeof(*new_file));
   new_file->pool = file_pool;
 
-  dir->ref_count++;
-
   new_file->parent_dir = dir;
   new_file->commit_ctx = dir->commit_ctx;
   new_file->relpath = apr_pstrdup(new_file->pool, path);
@@ -1743,6 +1724,8 @@ add_file(const char *path,
   new_file->copy_path = apr_pstrdup(new_file->pool, copy_path);
   new_file->copy_revision = copy_revision;
   new_file->prop_changes = apr_hash_make(new_file->pool);
+
+  dir->commit_ctx->open_batons++;
 
   /* Ensure that the file doesn't exist by doing a HEAD on the
      resource.  If we're using HTTP v2, we'll just look into the
@@ -1854,8 +1837,6 @@ open_file(const char *path,
   new_file = apr_pcalloc(file_pool, sizeof(*new_file));
   new_file->pool = file_pool;
 
-  parent->ref_count++;
-
   new_file->parent_dir = parent;
   new_file->commit_ctx = parent->commit_ctx;
   new_file->relpath = apr_pstrdup(new_file->pool, path);
@@ -1863,6 +1844,8 @@ open_file(const char *path,
   new_file->added = FALSE;
   new_file->base_revision = base_revision;
   new_file->prop_changes = apr_hash_make(new_file->pool);
+
+  parent->commit_ctx->open_batons++;
 
   if (USING_HTTPV2_COMMIT_SUPPORT(parent->commit_ctx))
     {
@@ -1882,21 +1865,73 @@ open_file(const char *path,
   return SVN_NO_ERROR;
 }
 
-/* Implements svn_stream_lazyopen_func_t for apply_textdelta */
-static svn_error_t *
-delayed_commit_stream_open(svn_stream_t **stream,
-                           void *baton,
-                           apr_pool_t *result_pool,
-                           apr_pool_t *scratch_pool)
+static void
+negotiate_put_encoding(int *svndiff_version_p,
+                       int *svndiff_compression_level_p,
+                       svn_ra_serf__session_t *session)
 {
-  file_context_t *file_ctx = baton;
+  int svndiff_version;
+  int compression_level;
 
-  SVN_ERR(svn_io_open_unique_file3(&file_ctx->svndiff, NULL, NULL,
-                                   svn_io_file_del_on_pool_cleanup,
-                                   file_ctx->pool, scratch_pool));
+  if (session->using_compression == svn_tristate_unknown)
+    {
+      /* With http-compression=auto, prefer svndiff2 to svndiff1 with a
+       * low latency connection (assuming the underlying network has high
+       * bandwidth), as it is faster and in this case, we don't care about
+       * worse compression ratio.
+       *
+       * Note: For future compatibility, we also handle a theoretically
+       * possible case where the server has advertised only svndiff2 support.
+       */
+      if (session->supports_svndiff2 &&
+          svn_ra_serf__is_low_latency_connection(session))
+        svndiff_version = 2;
+      else if (session->supports_svndiff1)
+        svndiff_version = 1;
+      else if (session->supports_svndiff2)
+        svndiff_version = 2;
+      else
+        svndiff_version = 0;
+    }
+  else if (session->using_compression == svn_tristate_true)
+    {
+      /* Otherwise, prefer svndiff1, as svndiff2 is not a reasonable
+       * substitute for svndiff1 with default compression level.  (It gives
+       * better speed and compression ratio comparable to svndiff1 with
+       * compression level 1, but not 5).
+       *
+       * Note: For future compatibility, we also handle a theoretically
+       * possible case where the server has advertised only svndiff2 support.
+       */
+      if (session->supports_svndiff1)
+        svndiff_version = 1;
+      else if (session->supports_svndiff2)
+        svndiff_version = 2;
+      else
+        svndiff_version = 0;
+    }
+  else
+    {
+      /* Difference between svndiff formats 0 and 1/2 that format 1/2 allows
+       * compression.  Uncompressed svndiff0 should also be slightly more
+       * effective if the compression is not required at all.
+       *
+       * If the server cannot handle svndiff1/2, or compression is disabled
+       * with the 'http-compression = no' client configuration option, fall
+       * back to uncompressed svndiff0 format.  As a bonus, users can force
+       * the usage of the uncompressed format by setting the corresponding
+       * client configuration option, if they want to.
+       */
+      svndiff_version = 0;
+    }
 
-  *stream = svn_stream_from_aprfile2(file_ctx->svndiff, TRUE, result_pool);
-  return SVN_NO_ERROR;
+  if (svndiff_version == 0)
+    compression_level = SVN_DELTA_COMPRESSION_LEVEL_NONE;
+  else
+    compression_level = SVN_DELTA_COMPRESSION_LEVEL_DEFAULT;
+
+  *svndiff_version_p = svndiff_version;
+  *svndiff_compression_level_p = compression_level;
 }
 
 static svn_error_t *
@@ -1907,24 +1942,174 @@ apply_textdelta(void *file_baton,
                 void **handler_baton)
 {
   file_context_t *ctx = file_baton;
+  int svndiff_version;
+  int compression_level;
 
-  /* Store the stream in a temporary file; we'll give it to serf when we
+  /* Construct a holder for the request body; we'll give it to serf when we
    * close this file.
    *
-   * TODO: There should be a way we can stream the request body instead of
-   * writing to a temporary file (ugh). A special svn stream serf bucket
-   * that returns EAGAIN until we receive the done call?  But, when
-   * would we run through the serf context?  Grr.
+   * Please note that if this callback is used, large request bodies will
+   * be spilled into temporary files (that requires disk space and prevents
+   * simultaneous processing by the server and the client).  A better approach
+   * that streams the request body is implemented in apply_textdelta_stream().
+   * It will be used with most recent servers having the "send result checksum
+   * in response to a PUT" capability, and only if the editor driver uses the
+   * new callback.
    */
+  ctx->svndiff =
+    svn_ra_serf__request_body_create(SVN_RA_SERF__REQUEST_BODY_IN_MEM_SIZE,
+                                     ctx->pool);
+  ctx->stream = svn_ra_serf__request_body_get_stream(ctx->svndiff);
 
-  ctx->stream = svn_stream_lazyopen_create(delayed_commit_stream_open,
-                                           ctx, FALSE, ctx->pool);
-
-  svn_txdelta_to_svndiff3(handler, handler_baton, ctx->stream, 0,
-                          SVN_DELTA_COMPRESSION_LEVEL_DEFAULT, pool);
+  negotiate_put_encoding(&svndiff_version, &compression_level,
+                         ctx->commit_ctx->session);
+  /* Disown the stream; we'll close it explicitly in close_file(). */
+  svn_txdelta_to_svndiff3(handler, handler_baton,
+                          svn_stream_disown(ctx->stream, pool),
+                          svndiff_version, compression_level, pool);
 
   if (base_checksum)
     ctx->base_checksum = apr_pstrdup(ctx->pool, base_checksum);
+
+  return SVN_NO_ERROR;
+}
+
+typedef struct open_txdelta_baton_t
+{
+  svn_ra_serf__session_t *session;
+  svn_txdelta_stream_open_func_t open_func;
+  void *open_baton;
+  svn_error_t *err;
+} open_txdelta_baton_t;
+
+static void
+txdelta_stream_errfunc(void *baton, svn_error_t *err)
+{
+  open_txdelta_baton_t *b = baton;
+
+  /* Remember extended error info from the stream bucket.  Note that
+   * theoretically this errfunc could be called multiple times -- say,
+   * if the request gets restarted after an error.  Compose the errors
+   * so we don't leak one of them if this happens. */
+  b->err = svn_error_compose_create(b->err, svn_error_dup(err));
+}
+
+/* Implements svn_ra_serf__request_body_delegate_t */
+static svn_error_t *
+create_body_from_txdelta_stream(serf_bucket_t **body_bkt,
+                                void *baton,
+                                serf_bucket_alloc_t *alloc,
+                                apr_pool_t *pool /* request pool */,
+                                apr_pool_t *scratch_pool)
+{
+  open_txdelta_baton_t *b = baton;
+  svn_txdelta_stream_t *txdelta_stream;
+  svn_stream_t *stream;
+  int svndiff_version;
+  int compression_level;
+
+  SVN_ERR(b->open_func(&txdelta_stream, b->open_baton, pool, scratch_pool));
+
+  negotiate_put_encoding(&svndiff_version, &compression_level, b->session);
+  stream = svn_txdelta_to_svndiff_stream(txdelta_stream, svndiff_version,
+                                         compression_level, pool);
+  *body_bkt = svn_ra_serf__create_stream_bucket(stream, alloc,
+                                                txdelta_stream_errfunc, b);
+
+  return SVN_NO_ERROR;
+}
+
+/* Handler baton for PUT request. */
+typedef struct put_response_ctx_t
+{
+  svn_ra_serf__handler_t *handler;
+  file_context_t *file_ctx;
+} put_response_ctx_t;
+
+/* Implements svn_ra_serf__response_handler_t */
+static svn_error_t *
+put_response_handler(serf_request_t *request,
+                     serf_bucket_t *response,
+                     void *baton,
+                     apr_pool_t *scratch_pool)
+{
+  put_response_ctx_t *prc = baton;
+  serf_bucket_t *hdrs;
+  const char *val;
+
+  hdrs = serf_bucket_response_get_headers(response);
+  val = serf_bucket_headers_get(hdrs, SVN_DAV_RESULT_FULLTEXT_MD5_HEADER);
+  SVN_ERR(svn_checksum_parse_hex(&prc->file_ctx->remote_result_checksum,
+                                 svn_checksum_md5, val, prc->file_ctx->pool));
+
+  return svn_error_trace(
+           svn_ra_serf__expect_empty_body(request, response,
+                                          prc->handler, scratch_pool));
+}
+
+static svn_error_t *
+apply_textdelta_stream(const svn_delta_editor_t *editor,
+                       void *file_baton,
+                       const char *base_checksum,
+                       svn_txdelta_stream_open_func_t open_func,
+                       void *open_baton,
+                       apr_pool_t *scratch_pool)
+{
+  file_context_t *ctx = file_baton;
+  open_txdelta_baton_t open_txdelta_baton = {0};
+  svn_ra_serf__handler_t *handler;
+  put_response_ctx_t *prc;
+  int expected_result;
+  svn_error_t *err;
+
+  /* Remember that we have sent the svndiff.  A case when we need to
+   * perform a zero-byte file PUT (during add_file, close_file editor
+   * sequences) is handled in close_file().
+   */
+  ctx->svndiff_sent = TRUE;
+  ctx->base_checksum = base_checksum;
+
+  handler = svn_ra_serf__create_handler(ctx->commit_ctx->session,
+                                        scratch_pool);
+  handler->method = "PUT";
+  handler->path = ctx->url;
+
+  prc = apr_pcalloc(scratch_pool, sizeof(*prc));
+  prc->handler = handler;
+  prc->file_ctx = ctx;
+
+  handler->response_handler = put_response_handler;
+  handler->response_baton = prc;
+
+  open_txdelta_baton.session = ctx->commit_ctx->session;
+  open_txdelta_baton.open_func = open_func;
+  open_txdelta_baton.open_baton = open_baton;
+  open_txdelta_baton.err = SVN_NO_ERROR;
+
+  handler->body_delegate = create_body_from_txdelta_stream;
+  handler->body_delegate_baton = &open_txdelta_baton;
+  handler->body_type = SVN_SVNDIFF_MIME_TYPE;
+
+  handler->header_delegate = setup_put_headers;
+  handler->header_delegate_baton = ctx;
+
+  err = svn_ra_serf__context_run_one(handler, scratch_pool);
+  /* Do we have an error from the stream bucket?  If yes, use it. */
+  if (open_txdelta_baton.err)
+    {
+      svn_error_clear(err);
+      return svn_error_trace(open_txdelta_baton.err);
+    }
+  else if (err)
+    return svn_error_trace(err);
+
+  if (ctx->added && !ctx->copy_path)
+    expected_result = 201; /* Created */
+  else
+    expected_result = 204; /* Updated */
+
+  if (handler->sline.code != expected_result)
+    return svn_error_trace(svn_ra_serf__unexpected_status(handler));
 
   return SVN_NO_ERROR;
 }
@@ -1964,8 +2149,8 @@ close_file(void *file_baton,
   if ((!ctx->svndiff) && ctx->added && (!ctx->copy_path))
     put_empty_file = TRUE;
 
-  /* If we had a stream of changes, push them to the server... */
-  if (ctx->svndiff || put_empty_file)
+  /* If we have a stream of changes, push them to the server... */
+  if ((ctx->svndiff || put_empty_file) && !ctx->svndiff_sent)
     {
       svn_ra_serf__handler_t *handler;
       int expected_result;
@@ -1987,8 +2172,11 @@ close_file(void *file_baton,
         }
       else
         {
-          handler->body_delegate = create_put_body;
-          handler->body_delegate_baton = ctx;
+          SVN_ERR(svn_stream_close(ctx->stream));
+
+          svn_ra_serf__request_body_get_delegate(&handler->body_delegate,
+                                                 &handler->body_delegate_baton,
+                                                 ctx->svndiff);
           handler->body_type = SVN_SVNDIFF_MIME_TYPE;
         }
 
@@ -2006,8 +2194,9 @@ close_file(void *file_baton,
         return svn_error_trace(svn_ra_serf__unexpected_status(handler));
     }
 
+  /* Don't keep open file handles longer than necessary. */
   if (ctx->svndiff)
-    SVN_ERR(svn_io_file_close(ctx->svndiff, scratch_pool));
+    SVN_ERR(svn_ra_serf__request_body_cleanup(ctx->svndiff, scratch_pool));
 
   /* If we had any prop changes, push them via PROPPATCH. */
   if (apr_hash_count(ctx->prop_changes))
@@ -2026,6 +2215,24 @@ close_file(void *file_baton,
                                  proppatch, scratch_pool));
     }
 
+  if (ctx->result_checksum && ctx->remote_result_checksum)
+    {
+      svn_checksum_t *result_checksum;
+
+      SVN_ERR(svn_checksum_parse_hex(&result_checksum, svn_checksum_md5,
+                                     ctx->result_checksum, scratch_pool));
+
+      if (!svn_checksum_match(result_checksum, ctx->remote_result_checksum))
+        return svn_checksum_mismatch_err(result_checksum,
+                                         ctx->remote_result_checksum,
+                                         scratch_pool,
+                                         _("Checksum mismatch for '%s'"),
+                                         svn_dirent_local_style(ctx->relpath,
+                                                                scratch_pool));
+    }
+
+  ctx->commit_ctx->open_batons--;
+
   return SVN_NO_ERROR;
 }
 
@@ -2038,6 +2245,11 @@ close_edit(void *edit_baton,
     ctx->activity_url ? ctx->activity_url : ctx->txn_url;
   const svn_commit_info_t *commit_info;
   svn_error_t *err = NULL;
+
+  if (ctx->open_batons > 0)
+    return svn_error_create(
+              SVN_ERR_FS_INCORRECT_EDITOR_COMPLETION, NULL,
+              _("Closing editor with directories or files open"));
 
   /* MERGE our activity */
   SVN_ERR(svn_ra_serf__run_merge(&commit_info,
@@ -2194,6 +2406,12 @@ svn_ra_serf__get_commit_editor(svn_ra_session_t *ra_session,
   editor->close_file = close_file;
   editor->close_edit = close_edit;
   editor->abort_edit = abort_edit;
+  /* Only install the callback that allows streaming PUT request bodies
+   * if the server has the necessary capability.  Otherwise, this will
+   * fallback to the default implementation using the temporary files.
+   * See default_editor.c:apply_textdelta_stream(). */
+  if (session->supports_put_result_checksum)
+    editor->apply_textdelta_stream = apply_textdelta_stream;
 
   *ret_editor = editor;
   *edit_baton = ctx;

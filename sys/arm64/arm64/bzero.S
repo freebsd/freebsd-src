@@ -30,7 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 
-#include "assym.s"
+#include "assym.inc"
 
 	/*
 	 * void bzero(void *p, size_t size)

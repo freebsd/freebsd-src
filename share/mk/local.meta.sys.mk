@@ -7,55 +7,25 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
-_default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
-
-.if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
-# put things approximately where they want
-OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
-MAKEOBJDIRPREFIX=
-.export MAKEOBJDIRPREFIX
-.endif
-.if empty(MAKEOBJDIR)
-# OBJTOP set below
-MAKEOBJDIR=${_default_makeobjdir}
-# export but do not track
-.export-env MAKEOBJDIR
-# Expand for our own use
-MAKEOBJDIR:= ${MAKEOBJDIR}
-.endif
-.if !empty(SB)
-SB_OBJROOT ?= ${SB}/obj/
-# this is what we use below
-OBJROOT ?= ${SB_OBJROOT}
-.endif
-OBJROOT ?= /usr/obj${SRCTOP}/
-.if ${OBJROOT:M*/} != ""
-OBJROOT:= ${OBJROOT:H:tA}/
-.else
-OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
-.endif
-.export OBJROOT SRCTOP
-
+.if !defined(HOST_TARGET) || !defined(HOST_MACHINE)
 # we need HOST_TARGET etc below.
 .include <host-target.mk>
 .export HOST_TARGET
 .endif
 
 # from src/Makefile (for universe)
-TARGET_ARCHES_arm?=     arm armeb armv6
+TARGET_ARCHES_arm?=     arm armv6 armv7
 TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
-TARGET_ARCHES_powerpc?= powerpc powerpc64
-TARGET_ARCHES_pc98?=    i386
-TARGET_ARCHES_riscv?=   riscv64
+TARGET_ARCHES_powerpc?= powerpc powerpc64 powerpcspe
+TARGET_ARCHES_riscv?=   riscv64 riscv64sf
 
 # some corner cases
 BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc riscv sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips powerpc riscv sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
@@ -108,7 +78,7 @@ TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
 OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
 
 .if defined(MAKEOBJDIR)
-.if ${MAKEOBJDIR:M*/*} == ""
+.if ${MAKEOBJDIR:M/*} == ""
 .error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
 .endif
 .endif
@@ -141,13 +111,13 @@ BUILD_AT_LEVEL0= no
 .error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
 .endif
 .endif
+.endif
 
 # we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
 .if empty(STAGE_ROOT)
 STAGE_ROOT?= ${OBJROOT}stage
 .export STAGE_ROOT
-.endif
 .endif
 .endif
 
@@ -179,7 +149,7 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
-LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
+#LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
 SYSROOT?= ${STAGE_OBJTOP}
 .else
@@ -187,6 +157,8 @@ LDFLAGS_LAST+= -L${STAGE_LIBDIR}
 .endif
 
 .endif				# MK_STAGING
+
+.-include "local.toolchain.mk"
 
 # this is sufficient for most of the tree.
 .MAKE.DEPENDFILE_DEFAULT = ${.MAKE.DEPENDFILE_PREFIX}
@@ -214,7 +186,8 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
-.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH)
+.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH) && \
+    !make(print-dir)
 WITH_META_STATS= t
 .endif
 
@@ -222,7 +195,7 @@ WITH_META_STATS= t
 .if ${MACHINE} == "host"
 MK_SHARED_TOOLCHAIN= no
 .endif
-TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJDUMP OBJCOPY RANLIB \
+TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJCOPY RANLIB \
 		STRINGS SIZE LLVM_TBLGEN
 _toolchain_bin_CLANG_TBLGEN=	/usr/bin/clang-tblgen
 _toolchain_bin_LLVM_TBLGEN=	/usr/bin/llvm-tblgen
@@ -241,7 +214,7 @@ BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
 
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
-    !make(showconfig) && \
+    !make(test-system-*) && !make(showconfig) && !make(print-dir) && \
     !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
 .for dir in /sbin /bin /usr/sbin /usr/bin
 PATH:= ${TOOLSDIR}${dir}:${PATH}

@@ -14,7 +14,7 @@ SRCS=	closeout.c dfa.c error.c exclude.c grep.c grepmat.c hard-locale.c \
 	xstrtoumax.c
 CLEANFILES+=	gnugrep.1
 
-CFLAGS+=-I${.CURDIR} -I${DESTDIR}/usr/include/gnu -DHAVE_CONFIG_H
+CFLAGS+=-I${.CURDIR} -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DHAVE_CONFIG_H
 
 .if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
@@ -24,22 +24,9 @@ MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
 
 LIBADD=	gnuregex bz2
 
-.if ${MK_BSD_GREP} != "yes"
-LINKS+=	${BINDIR}/grep ${BINDIR}/bzgrep \
-	${BINDIR}/grep ${BINDIR}/bzegrep \
-	${BINDIR}/grep ${BINDIR}/bzfgrep
-MLINKS+=grep.1 bzgrep.1 grep.1 bzegrep.1 grep.1 bzfgrep.1
-.endif
-
 .if defined(GREP_LIBZ) && !empty(GREP_LIBZ)
 LIBADD+=	z
 CFLAGS+=-DHAVE_LIBZ=1
-.if ${MK_BSD_GREP} != "yes"
-LINKS+=	${BINDIR}/grep ${BINDIR}/zgrep \
-	${BINDIR}/grep ${BINDIR}/zegrep \
-	${BINDIR}/grep ${BINDIR}/zfgrep
-MLINKS+=grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
-.endif
 .endif
 
 gnugrep.1: grep.1

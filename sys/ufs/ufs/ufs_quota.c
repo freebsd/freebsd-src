@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -232,13 +234,13 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 		/* Reset timer when crossing soft limit */
 		if (dq->dq_curblocks + change >= dq->dq_bsoftlimit &&
 		    dq->dq_curblocks < dq->dq_bsoftlimit)
-			dq->dq_btime = time_second + ip->i_ump->um_btime[i];
+			dq->dq_btime = time_second + ITOUMP(ip)->um_btime[i];
 		dq->dq_curblocks += change;
 		dq->dq_flags |= DQ_MOD;
 		DQI_UNLOCK(dq);
 		if (warn)
 			uprintf("\n%s: warning, %s disk quota exceeded\n",
-			    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+			    ITOVFS(ip)->mnt_stat.f_mntonname,
 			    quotatypes[i]);
 	}
 	return (0);
@@ -264,7 +266,7 @@ chkdqchg(struct inode *ip, ufs2_daddr_t change, struct ucred *cred,
 			dq->dq_flags |= DQ_BLKS;
 			DQI_UNLOCK(dq);
 			uprintf("\n%s: write failed, %s disk limit reached\n",
-			    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+			    ITOVFS(ip)->mnt_stat.f_mntonname,
 			    quotatypes[type]);
 			return (EDQUOT);
 		}
@@ -277,7 +279,7 @@ chkdqchg(struct inode *ip, ufs2_daddr_t change, struct ucred *cred,
 	 */
 	if (ncurblocks >= dq->dq_bsoftlimit && dq->dq_bsoftlimit) {
 		if (dq->dq_curblocks < dq->dq_bsoftlimit) {
-			dq->dq_btime = time_second + ip->i_ump->um_btime[type];
+			dq->dq_btime = time_second + ITOUMP(ip)->um_btime[type];
 			if (ip->i_uid == cred->cr_uid)
 				*warn = 1;
 			return (0);
@@ -289,7 +291,7 @@ chkdqchg(struct inode *ip, ufs2_daddr_t change, struct ucred *cred,
 				DQI_UNLOCK(dq);
 				uprintf("\n%s: write failed, %s "
 				    "disk quota exceeded for too long\n",
-				    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+				    ITOVFS(ip)->mnt_stat.f_mntonname,
 				    quotatypes[type]);
 				return (EDQUOT);
 			}
@@ -370,13 +372,13 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 		/* Reset timer when crossing soft limit */
 		if (dq->dq_curinodes + change >= dq->dq_isoftlimit &&
 		    dq->dq_curinodes < dq->dq_isoftlimit)
-			dq->dq_itime = time_second + ip->i_ump->um_itime[i];
+			dq->dq_itime = time_second + ITOUMP(ip)->um_itime[i];
 		dq->dq_curinodes += change;
 		dq->dq_flags |= DQ_MOD;
 		DQI_UNLOCK(dq);
 		if (warn)
 			uprintf("\n%s: warning, %s inode quota exceeded\n",
-			    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+			    ITOVFS(ip)->mnt_stat.f_mntonname,
 			    quotatypes[i]);
 	}
 	return (0);
@@ -401,7 +403,7 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 			dq->dq_flags |= DQ_INODS;
 			DQI_UNLOCK(dq);
 			uprintf("\n%s: write failed, %s inode limit reached\n",
-			    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+			    ITOVFS(ip)->mnt_stat.f_mntonname,
 			    quotatypes[type]);
 			return (EDQUOT);
 		}
@@ -414,7 +416,7 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 	 */
 	if (ncurinodes >= dq->dq_isoftlimit && dq->dq_isoftlimit) {
 		if (dq->dq_curinodes < dq->dq_isoftlimit) {
-			dq->dq_itime = time_second + ip->i_ump->um_itime[type];
+			dq->dq_itime = time_second + ITOUMP(ip)->um_itime[type];
 			if (ip->i_uid == cred->cr_uid)
 				*warn = 1;
 			return (0);
@@ -426,7 +428,7 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 				DQI_UNLOCK(dq);
 				uprintf("\n%s: write failed, %s "
 				    "inode quota exceeded for too long\n",
-				    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+				    ITOVFS(ip)->mnt_stat.f_mntonname,
 				    quotatypes[type]);
 				return (EDQUOT);
 			}
@@ -445,9 +447,12 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 static void
 chkdquot(struct inode *ip)
 {
-	struct ufsmount *ump = ip->i_ump;
-	struct vnode *vp = ITOV(ip);
+	struct ufsmount *ump;
+	struct vnode *vp;
 	int i;
+
+	ump = ITOUMP(ip);
+	vp = ITOV(ip);
 
 	/*
 	 * Disk quotas must be turned off for system files.  Currently
@@ -469,7 +474,7 @@ chkdquot(struct inode *ip)
 			continue;
 		if (ip->i_dquot[i] == NODQUOT) {
 			UFS_UNLOCK(ump);
-			vprint("chkdquot: missing dquot", ITOV(ip));
+			vn_printf(ITOV(ip), "chkdquot: missing dquot ");
 			panic("chkdquot: missing dquot");
 		}
 	}
@@ -707,6 +712,34 @@ again:
 	return (error);
 }
 
+static int
+quotaoff_inchange1(struct thread *td, struct mount *mp, int type)
+{
+	int error;
+	bool need_resume;
+
+	/*
+	 * mp is already suspended on unmount.  If not, suspend it, to
+	 * avoid the situation where quotaoff operation eventually
+	 * failing due to SU structures still keeping references on
+	 * dquots, but vnode's references are already clean.  This
+	 * would cause quota accounting leak and asserts otherwise.
+	 * Note that the thread has already called vn_start_write().
+	 */
+	if (mp->mnt_susp_owner == td) {
+		need_resume = false;
+	} else {
+		error = vfs_write_suspend_umnt(mp);
+		if (error != 0)
+			return (error);
+		need_resume = true;
+	}
+	error = quotaoff1(td, mp, type);
+	if (need_resume)
+		vfs_write_resume(mp, VR_START_WRITE);
+	return (error);
+}
+
 /*
  * Turns off quotas, assumes that ump->um_qflags are already checked
  * and QTF_CLOSING is set to indicate operation in progress. Fixes
@@ -716,10 +749,9 @@ int
 quotaoff_inchange(struct thread *td, struct mount *mp, int type)
 {
 	struct ufsmount *ump;
-	int i;
-	int error;
+	int error, i;
 
-	error = quotaoff1(td, mp, type);
+	error = quotaoff_inchange1(td, mp, type);
 
 	ump = VFSTOUFS(mp);
 	UFS_LOCK(ump);
@@ -1538,8 +1570,13 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	if ((ump = dq->dq_ump) == NULL)
 		return (0);
 	UFS_LOCK(ump);
-	if ((dqvp = ump->um_quotas[dq->dq_type]) == NULLVP)
-		panic("dqsync: file");
+	if ((dqvp = ump->um_quotas[dq->dq_type]) == NULLVP) {
+		if (vp == NULL) {
+			UFS_UNLOCK(ump);
+			return (0);
+		} else
+			panic("dqsync: file");
+	}
 	vref(dqvp);
 	UFS_UNLOCK(ump);
 

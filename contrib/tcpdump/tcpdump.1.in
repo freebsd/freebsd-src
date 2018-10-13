@@ -20,14 +20,14 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "11 July 2014"
+.TH TCPDUMP 1  "2 February 2017"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
 .na
 .B tcpdump
 [
-.B \-AbdDefhHIJKlLnNOpqRStuUvxX#
+.B \-AbdDefhHIJKlLnNOpqStuUvxX#
 ] [
 .B \-B
 .I buffer_size
@@ -400,7 +400,7 @@ If the
 flag is supported, an interface number as printed by that flag can be
 used as the
 .I interface
-argument.
+argument, if no interface on the system has that number as a name.
 .TP
 .B \-I
 .PD 0
@@ -593,12 +593,6 @@ Quick (quiet?) output.
 Print less protocol information so output
 lines are shorter.
 .TP
-.B \-R
-Assume ESP/AH packets to be based on old specification (RFC1825 to RFC1829).
-If specified, \fItcpdump\fP will not print replay prevention field.
-Since there is no protocol version field in ESP/AH specification,
-\fItcpdump\fP cannot deduce the version of ESP/AH protocol.
-.TP
 .BI \-r " file"
 Read packets from \fIfile\fR (which was created with the
 .B \-w
@@ -618,7 +612,7 @@ Print absolute, rather than relative, TCP sequence numbers.
 .BI \-\-snapshot\-length= snaplen
 .PD
 Snarf \fIsnaplen\fP bytes of data from each packet rather than the
-default of 65535 bytes.
+default of 262144 bytes.
 Packets truncated because of a limited snapshot
 are indicated in the output with ``[|\fIproto\fP]'', where \fIproto\fP
 is the name of the protocol level at which the truncation has occurred.
@@ -630,7 +624,7 @@ lost.
 You should limit \fIsnaplen\fP to the smallest number that will
 capture the protocol information you're interested in.
 Setting
-\fIsnaplen\fP to 0 sets it to the default of 65535,
+\fIsnaplen\fP to 0 sets it to the default of 262144,
 for backwards compatibility with recent older versions of
 .IR tcpdump .
 .TP
@@ -644,6 +638,7 @@ Currently known types are
 \fBlmp\fR (Link Management Protocol),
 \fBpgm\fR (Pragmatic General Multicast),
 \fBpgm_zmtp1\fR (ZMTP/1.0 inside PGM/EPGM),
+\fBresp\fR (REdis Serialization Protocol),
 \fBradius\fR (RADIUS),
 \fBrpc\fR (Remote Procedure Call),
 \fBrtp\fR (Real-Time Applications protocol),
@@ -990,6 +985,27 @@ gives a brief description and examples of most of the formats.
 .B
 ..
 .HD
+Timestamps
+.LP
+By default, all output lines are preceded by a timestamp.
+The timestamp
+is the current clock time in the form
+.RS
+.nf
+\fIhh:mm:ss.frac\fP
+.fi
+.RE
+and is as accurate as the kernel's clock.
+The timestamp reflects the time the kernel applied a time stamp to the packet.
+No attempt is made to account for the time lag between when the network
+interface finished receiving the packet from the network and when the
+kernel applied a time stamp to the packet; that time lag could include a
+delay between the time when the network interface finished receiving a
+packet from the network and the time when an interrupt was delivered to
+the kernel to get it to read the packet and a delay between the time
+when the kernel serviced the `new packet' interrupt and the time when it
+applied a time stamp to the packet.
+.HD
 Link Level Headers
 .LP
 If the '-e' option is given, the link level header is printed out.
@@ -1099,39 +1115,84 @@ For the first packet this says the Ethernet source address is RTSG, the
 destination is the Ethernet broadcast address, the type field
 contained hex 0806 (type ETHER_ARP) and the total length was 64 bytes.
 .HD
+IPv4 Packets
+.LP
+If the link-layer header is not being printed, for IPv4 packets,
+\fBIP\fP is printed after the time stamp.
+.LP
+If the
+.B \-v
+flag is specified, information from the IPv4 header is shown in
+parentheses after the \fBIP\fP or the link-layer header.
+The general format of this information is:
+.RS
+.nf
+.sp .5
+tos \fItos\fP, ttl \fIttl\fP, id \fIid\fP, offset \fIoffset\fP, flags [\fIflags\fP], proto \fIproto\fP, length \fIlength\fP, options (\fIoptions\fP)
+.sp .5
+.fi
+.RE
+\fItos\fP is the type of service field; if the ECN bits are non-zero,
+those are reported as \fBECT(1)\fP, \fBECT(0)\fP, or \fBCE\fP.
+\fIttl\fP is the time-to-live; it is not reported if it is zero.
+\fIid\fP is the IP identification field.
+\fIoffset\fP is the fragment offset field; it is printed whether this is
+part of a fragmented datagram or not.
+\fIflags\fP are the MF and DF flags; \fB+\fP is reported if MF is set,
+and \fBDF\P is reported if F is set.  If neither are set, \fB.\fP is
+reported.
+\fIproto\fP is the protocol ID field.
+\fIlength\fP is the total length field.
+\fIoptions\fP are the IP options, if any.
+.LP
+Next, for TCP and UDP packets, the source and destination IP addresses
+and TCP or UDP ports, with a dot between each IP address and its
+corresponding port, will be printed, with a > separating the source and
+destination.  For other protocols, the addresses will be printed, with
+a > separating the source and destination.  Higher level protocol
+information, if any, will be printed after that.
+.LP
+For fragmented IP datagrams, the first fragment contains the higher
+level protocol header; fragments after the first contain no higher level
+protocol header.  Fragmentation information will be printed only with
+the
+.B \-v
+flag, in the IP header information, as described above.
+.HD
 TCP Packets
 .LP
 \fI(N.B.:The following description assumes familiarity with
 the TCP protocol described in RFC-793.
 If you are not familiar
-with the protocol, neither this description nor \fItcpdump\fP will
+with the protocol, this description will not
 be of much use to you.)\fP
 .LP
-The general format of a tcp protocol line is:
+The general format of a TCP protocol line is:
 .RS
 .nf
 .sp .5
-\fIsrc > dst: flags data-seqno ack window urgent options\fP
+\fIsrc\fP > \fIdst\fP: Flags [\fItcpflags\fP], seq \fIdata-seqno\fP, ack \fIackno\fP, win \fIwindow\fP, urg \fIurgent\fP, options [\fIopts\fP], length \fIlen\fP
 .sp .5
 .fi
 .RE
 \fISrc\fP and \fIdst\fP are the source and destination IP
 addresses and ports.
-\fIFlags\fP are some combination of S (SYN),
+\fITcpflags\fP are some combination of S (SYN),
 F (FIN), P (PUSH), R (RST), U (URG), W (ECN CWR), E (ECN-Echo) or
 `.' (ACK), or `none' if no flags are set.
 \fIData-seqno\fP describes the portion of sequence space covered
 by the data in this packet (see example below).
-\fIAck\fP is sequence number of the next data expected the other
+\fIAckno\fP is sequence number of the next data expected the other
 direction on this connection.
 \fIWindow\fP is the number of bytes of receive buffer space available
 the other direction on this connection.
 \fIUrg\fP indicates there is `urgent' data in the packet.
-\fIOptions\fP are tcp options enclosed in angle brackets (e.g., <mss 1024>).
+\fIOpts\fP are TCP options (e.g., mss 1024).
+\fILen\fP is the length of payload data.
 .LP
-\fISrc, dst\fP and \fIflags\fP are always present.
+\fIIptype\fR, \fISrc\fP, \fIdst\fP, and \fIflags\fP are always present.
 The other fields
-depend on the contents of the packet's tcp protocol header and
+depend on the contents of the packet's TCP protocol header and
 are output only if appropriate.
 .LP
 Here is the opening portion of an rlogin from host \fIrtsg\fP to
@@ -1139,26 +1200,26 @@ host \fIcsam\fP.
 .RS
 .nf
 .sp .5
-\s-2\f(CWrtsg.1023 > csam.login: S 768512:768512(0) win 4096 <mss 1024>
-csam.login > rtsg.1023: S 947648:947648(0) ack 768513 win 4096 <mss 1024>
-rtsg.1023 > csam.login: . ack 1 win 4096
-rtsg.1023 > csam.login: P 1:2(1) ack 1 win 4096
-csam.login > rtsg.1023: . ack 2 win 4096
-rtsg.1023 > csam.login: P 2:21(19) ack 1 win 4096
-csam.login > rtsg.1023: P 1:2(1) ack 21 win 4077
-csam.login > rtsg.1023: P 2:3(1) ack 21 win 4077 urg 1
-csam.login > rtsg.1023: P 3:4(1) ack 21 win 4077 urg 1\fR\s+2
+\s-2\f(CWIP rtsg.1023 > csam.login: Flags [S], seq 768512:768512, win 4096, opts [mss 1024]
+IP csam.login > rtsg.1023: Flags [S.], seq, 947648:947648, ack 768513, win 4096, opts [mss 1024]
+IP rtsg.1023 > csam.login: Flags [.], ack 1, win 4096
+IP rtsg.1023 > csam.login: Flags [P.], seq 1:2, ack 1, win 4096, length 1
+IP csam.login > rtsg.1023: Flags [.], ack 2, win 4096
+IP rtsg.1023 > csam.login: Flags [P.], seq 2:21, ack 1, win 4096, length 19
+IP csam.login > rtsg.1023: Flags [P.], seq 1:2, ack 21, win 4077, length 1
+IP csam.login > rtsg.1023: Flags [P.], seq 2:3, ack 21, win 4077, urg 1, length 1
+IP csam.login > rtsg.1023: Flags [P.], seq 3:4, ack 21, win 4077, urg 1, length 1\fR\s+2
 .sp .5
 .fi
 .RE
-The first line says that tcp port 1023 on rtsg sent a packet
+The first line says that TCP port 1023 on rtsg sent a packet
 to port \fIlogin\fP
 on csam.
 The \fBS\fP indicates that the \fISYN\fP flag was set.
 The packet sequence number was 768512 and it contained no data.
-(The notation is `first:last(nbytes)' which means `sequence
+(The notation is `first:last' which means `sequence
 numbers \fIfirst\fP
-up to but not including \fIlast\fP which is \fInbytes\fP bytes of user data'.)
+up to but not including \fIlast\fP.)
 There was no piggy-backed ack, the available receive window was 4096
 bytes and there was a max-segment-size option requesting an mss of
 1024 bytes.
@@ -1167,11 +1228,11 @@ Csam replies with a similar packet except it includes a piggy-backed
 ack for rtsg's SYN.
 Rtsg then acks csam's SYN.
 The `.' means the ACK flag was set.
-The packet contained no data so there is no data sequence number.
+The packet contained no data so there is no data sequence number or length.
 Note that the ack sequence
 number is a small integer (1).
 The first time \fItcpdump\fP sees a
-tcp `conversation', it prints the sequence number from the packet.
+TCP `conversation', it prints the sequence number from the packet.
 On subsequent packets of the conversation, the difference between
 the current packet's sequence number and this initial sequence number
 is printed.
@@ -1816,77 +1877,6 @@ jssmag.209 initiates the next request.
 The `*' on the request
 indicates that XO (`exactly once') was \fInot\fP set.
 
-.HD
-IP Fragmentation
-.LP
-Fragmented Internet datagrams are printed as
-.RS
-.nf
-.sp .5
-\fB(frag \fIid\fB:\fIsize\fB@\fIoffset\fB+)\fR
-\fB(frag \fIid\fB:\fIsize\fB@\fIoffset\fB)\fR
-.sp .5
-.fi
-.RE
-(The first form indicates there are more fragments.
-The second
-indicates this is the last fragment.)
-.LP
-\fIId\fP is the fragment id.
-\fISize\fP is the fragment
-size (in bytes) excluding the IP header.
-\fIOffset\fP is this
-fragment's offset (in bytes) in the original datagram.
-.LP
-The fragment information is output for each fragment.
-The first
-fragment contains the higher level protocol header and the frag
-info is printed after the protocol info.
-Fragments
-after the first contain no higher level protocol header and the
-frag info is printed after the source and destination addresses.
-For example, here is part of an ftp from arizona.edu to lbl-rtsg.arpa
-over a CSNET connection that doesn't appear to handle 576 byte datagrams:
-.RS
-.nf
-.sp .5
-\s-2\f(CWarizona.ftp-data > rtsg.1170: . 1024:1332(308) ack 1 win 4096 (frag 595a:328@0+)
-arizona > rtsg: (frag 595a:204@328)
-rtsg.1170 > arizona.ftp-data: . ack 1536 win 2560\fP\s+2
-.sp .5
-.fi
-.RE
-There are a couple of things to note here:  First, addresses in the
-2nd line don't include port numbers.
-This is because the TCP
-protocol information is all in the first fragment and we have no idea
-what the port or sequence numbers are when we print the later fragments.
-Second, the tcp sequence information in the first line is printed as if there
-were 308 bytes of user data when, in fact, there are 512 bytes (308 in
-the first frag and 204 in the second).
-If you are looking for holes
-in the sequence space or trying to match up acks
-with packets, this can fool you.
-.LP
-A packet with the IP \fIdon't fragment\fP flag is marked with a
-trailing \fB(DF)\fP.
-.HD
-Timestamps
-.LP
-By default, all output lines are preceded by a timestamp.
-The timestamp
-is the current clock time in the form
-.RS
-.nf
-\fIhh:mm:ss.frac\fP
-.fi
-.RE
-and is as accurate as the kernel's clock.
-The timestamp reflects the time the kernel first saw the packet.
-No attempt
-is made to account for the time lag between when the
-Ethernet interface removed the packet from the wire and when the kernel
-serviced the `new packet' interrupt.
 .SH "SEE ALSO"
 stty(1), pcap(3PCAP), bpf(4), nit(4P), pcap-savefile(@MAN_FILE_FORMATS@),
 pcap-filter(@MAN_MISC_INFO@), pcap-tstamp(@MAN_MISC_INFO@)
@@ -1920,12 +1910,12 @@ The original distribution is available via anonymous ftp:
 IPv6/IPsec support is added by WIDE/KAME project.
 This program uses Eric Young's SSLeay library, under specific configurations.
 .SH BUGS
-Please send problems, bugs, questions, desirable enhancements, patches
-etc. to:
+To report a security issue please send an e-mail to \%security@tcpdump.org.
 .LP
-.RS
-tcpdump-workers@lists.tcpdump.org
-.RE
+To report bugs and other problems, contribute patches, request a
+feature, provide generic feedback etc please see the file
+.I CONTRIBUTING
+in the tcpdump source tree root.
 .LP
 NIT doesn't let you watch your own outbound traffic, BPF will.
 We recommend that you use the latter.

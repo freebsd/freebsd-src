@@ -408,31 +408,16 @@ static void flushfilter(arg, filter)
 		}
 		closedevice();
 		return;
-	}
-
-#ifdef	SIOCIPFFA
-	if (!strcmp(arg, "u")) {
-		closedevice();
-		/*
-		 * Flush auth rules and packets
-		 */
-		if (opendevice(IPL_AUTH, 1) == -1)
-			perror("open(IPL_AUTH)");
-		else {
-			if (ioctl(fd, SIOCIPFFA, &fl) == -1)
-				ipferror(fd, "ioctl(SIOCIPFFA)");
-		}
-		closedevice();
-		return;
-	}
-#endif
-
-	if (strchr(arg, 'i') || strchr(arg, 'I'))
+	} else if (strchr(arg, 'i') || strchr(arg, 'I'))
 		fl = FR_INQUE;
-	if (strchr(arg, 'o') || strchr(arg, 'O'))
+	else if (strchr(arg, 'o') || strchr(arg, 'O'))
 		fl = FR_OUTQUE;
-	if (strchr(arg, 'a') || strchr(arg, 'A'))
+	else if (strchr(arg, 'a') || strchr(arg, 'A'))
 		fl = FR_OUTQUE|FR_INQUE;
+	else {
+		fprintf(stderr, "Incorrect flush argument: %s\n", arg);
+		usage();
+	}
 	if (opts & OPT_INACTIVE)
 		fl |= FR_INACTIVE;
 	rem = fl;

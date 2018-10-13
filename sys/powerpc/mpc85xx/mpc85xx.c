@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Semihalf, Rafal Jaworowski
  * All rights reserved.
  *
@@ -96,6 +98,10 @@ law_getmax(void)
 		break;
 	case SVR_P5020:
 	case SVR_P5020E:
+	case SVR_P5021:
+	case SVR_P5021E:
+	case SVR_P5040:
+	case SVR_P5040E:
 		law_max = 32;
 		break;
 	default:
@@ -108,13 +114,17 @@ law_getmax(void)
 static inline void
 law_write(uint32_t n, uint64_t bar, uint32_t sr)
 {
-#if defined(QORIQ_DPAA)
-	ccsr_write4(OCP85XX_LAWBARH(n), bar >> 32);
-	ccsr_write4(OCP85XX_LAWBARL(n), bar);
-#else
-	ccsr_write4(OCP85XX_LAWBAR(n), bar >> 12);
-#endif
-	ccsr_write4(OCP85XX_LAWSR(n), sr);
+
+	if (mpc85xx_is_qoriq()) {
+		ccsr_write4(OCP85XX_LAWBARH(n), bar >> 32);
+		ccsr_write4(OCP85XX_LAWBARL(n), bar);
+		ccsr_write4(OCP85XX_LAWSR_QORIQ(n), sr);
+		ccsr_read4(OCP85XX_LAWSR_QORIQ(n));
+	} else {
+		ccsr_write4(OCP85XX_LAWBAR(n), bar >> 12);
+		ccsr_write4(OCP85XX_LAWSR_85XX(n), sr);
+		ccsr_read4(OCP85XX_LAWSR_85XX(n));
+	}
 
 	/*
 	 * The last write to LAWAR should be followed by a read
@@ -123,20 +133,21 @@ law_write(uint32_t n, uint64_t bar, uint32_t sr)
 	 * instruction.
 	 */
 
-	ccsr_read4(OCP85XX_LAWSR(n));
 	isync();
 }
 
 static inline void
 law_read(uint32_t n, uint64_t *bar, uint32_t *sr)
 {
-#if defined(QORIQ_DPAA)
-	*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBARH(n)) << 32 |
-	    ccsr_read4(OCP85XX_LAWBARL(n));
-#else
-	*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBAR(n)) << 12;
-#endif
-	*sr = ccsr_read4(OCP85XX_LAWSR(n));
+
+	if (mpc85xx_is_qoriq()) {
+		*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBARH(n)) << 32 |
+		    ccsr_read4(OCP85XX_LAWBARL(n));
+		*sr = ccsr_read4(OCP85XX_LAWSR_QORIQ(n));
+	} else {
+		*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBAR(n)) << 12;
+		*sr = ccsr_read4(OCP85XX_LAWSR_85XX(n));
+	}
 }
 
 static int
@@ -306,118 +317,41 @@ mpc85xx_enable_l3_cache(void)
 	}
 }
 
-static void
-mpc85xx_dataloss_erratum_spr976(void)
+int
+mpc85xx_is_qoriq(void)
 {
-	uint32_t svr = SVR_VER(mfspr(SPR_SVR));
+	uint16_t pvr = mfpvr() >> 16;
 
-	/* Ignore whether it's the E variant */
-	svr &= ~0x8;
+	/* QorIQ register set is only in e500mc and derivative core based SoCs. */
+	if (pvr == FSL_E500mc || pvr == FSL_E5500 || pvr == FSL_E6500)
+		return (1);
 
-	if (svr != SVR_P3041 && svr != SVR_P4040 &&
-	    svr != SVR_P4080 && svr != SVR_P5020)
-		return;
-
-	mb();
-	isync();
-	mtspr(976, (mfspr(976) & ~0x1f8) | 0x48);
-	isync();
+	return (0);
 }
 
-static vm_offset_t
-mpc85xx_map_dcsr(void)
+uint32_t
+mpc85xx_get_platform_clock(void)
 {
-	phandle_t node;
-	u_long b, s;
-	int err;
+	phandle_t soc;
+	static uint32_t freq;
 
-	/*
-	 * Try to access the dcsr node directly i.e. through /aliases/.
-	 */
-	if ((node = OF_finddevice("dcsr")) != -1)
-		if (fdt_is_compatible_strict(node, "fsl,dcsr"))
-			goto moveon;
-	/*
-	 * Find the node the long way.
-	 */
-	if ((node = OF_finddevice("/")) == -1)
-		return (ENXIO);
+	if (freq != 0)
+		return (freq);
 
-	if ((node = ofw_bus_find_compatible(node, "fsl,dcsr")) == 0)
-		return (ENXIO);
+	soc = OF_finddevice("/soc");
 
-moveon:
-	err = fdt_get_range(node, 0, &b, &s);
+	/* freq isn't modified on error. */
+	OF_getencprop(soc, "bus-frequency", (void *)&freq, sizeof(freq));
 
-	if (err != 0)
-		return (err);
-
-#ifdef QORIQ_DPAA
-	law_enable(OCP85XX_TGTIF_DCSR, b, 0x400000);
-#endif
-	return pmap_early_io_map(b, 0x400000);
+	return (freq);
 }
 
-
-
-void
-mpc85xx_fix_errata(vm_offset_t va_ccsr)
+uint32_t
+mpc85xx_get_system_clock(void)
 {
-	uint32_t svr = SVR_VER(mfspr(SPR_SVR));
-	vm_offset_t va_dcsr;
+	uint32_t freq;
 
-	/* Ignore whether it's the E variant */
-	svr &= ~0x8;
+	freq = mpc85xx_get_platform_clock();
 
-	if (svr != SVR_P3041 && svr != SVR_P4040 &&
-	    svr != SVR_P4080 && svr != SVR_P5020)
-		return;
-
-	if (mfmsr() & PSL_EE)
-		return;
-
-	/*
-	 * dcsr region need to be mapped thus patch can refer to.
-	 * Align dcsr right after ccsbar.
-	 */
-	va_dcsr = mpc85xx_map_dcsr();
-	if (va_dcsr == 0)
-		goto err;
-
-	/*
-	 * As A004510 errata specify, special purpose register 976
-	 * SPR976[56:60] = 6'b001001 must be set. e500mc core reference manual
-	 * does not document SPR976 register.
-	 */
-	mpc85xx_dataloss_erratum_spr976();
-
-	/*
-	 * Specific settings in the CCF and core platform cache (CPC)
-	 * are required to reconfigure the CoreNet coherency fabric.
-	 * The register settings that should be updated are described
-	 * in errata and relay on base address, offset and updated value.
-	 * Special conditions must be used to update these registers correctly.
-	 */
-	dataloss_erratum_access(va_dcsr + 0xb0e08, 0xe0201800);
-	dataloss_erratum_access(va_dcsr + 0xb0e18, 0xe0201800);
-	dataloss_erratum_access(va_dcsr + 0xb0e38, 0xe0400000);
-	dataloss_erratum_access(va_dcsr + 0xb0008, 0x00900000);
-	dataloss_erratum_access(va_dcsr + 0xb0e40, 0xe00a0000);
-
-	switch (svr) {
-	case SVR_P5020:
-		dataloss_erratum_access(va_ccsr + 0x18600, 0xc0000000);
-		break;
-	case SVR_P4040:
-	case SVR_P4080:
-		dataloss_erratum_access(va_ccsr + 0x18600, 0xff000000);
-		break;
-	case SVR_P3041:
-		dataloss_erratum_access(va_ccsr + 0x18600, 0xf0000000);
-	}
-	dataloss_erratum_access(va_ccsr + 0x10f00, 0x415e5000);
-	dataloss_erratum_access(va_ccsr + 0x11f00, 0x415e5000);
-
-err:
-	return;
+	return (freq / 2);
 }

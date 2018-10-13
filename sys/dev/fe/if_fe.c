@@ -37,14 +37,6 @@ __FBSDID("$FreeBSD$");
  * other types of Ethernet cards, but the author is not sure whether
  * they are useful.
  *
- * This version also includes some alignments to support RE1000,
- * C-NET(98)P2 and so on. These cards are not for AT-compatibles,
- * but for NEC PC-98 bus -- a proprietary bus architecture available
- * only in Japan. Confusingly, it is different from the Microsoft's
- * PC98 architecture. :-{
- * Further work for PC-98 version will be available as a part of
- * FreeBSD(98) project.
- *
  * This software is a derivative work of if_ed.c version 1.56 by David
  * Greenman available as a part of FreeBSD 2.0 RELEASE source distribution.
  *
@@ -61,7 +53,6 @@ __FBSDID("$FreeBSD$");
 /*
  * TODO:
  *  o   To support ISA PnP auto configuration for FMV-183/184.
- *  o   To support REX-9886/87(PC-98 only).
  *  o   To reconsider mbuf usage.
  *  o   To reconsider transmission buffer usage, including
  *      transmission buffer size (currently 4KB x 2) and pros-and-
@@ -2011,7 +2002,7 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		/* 8-bit cards are easy.  */
-		for (mp = m; mp != 0; mp = mp->m_next) {
+		for (mp = m; mp != NULL; mp = mp->m_next) {
 			if (mp->m_len)
 				fe_outsb(sc, FE_BMPR8, mtod(mp, caddr_t),
 					 mp->m_len);
@@ -2021,7 +2012,7 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 	{
 		/* 16-bit cards are a pain.  */
 		savebyte = NO_PENDING_BYTE;
-		for (mp = m; mp != 0; mp = mp->m_next) {
+		for (mp = m; mp != NULL; mp = mp->m_next) {
 
 			/* Ignore empty mbuf.  */
 			len = mp->m_len;
@@ -2085,7 +2076,7 @@ fe_mcaf ( struct fe_softc *sc )
 
 	filter = fe_filter_nothing;
 	if_maddr_rlock(sc->ifp);
-	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		index = ether_crc32_le(LLADDR((struct sockaddr_dl *)

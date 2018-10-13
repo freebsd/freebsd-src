@@ -1,10 +1,16 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
  * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_util.h>
 
 #include <dev/usb/template/usb_template.h>
 #endif		/* USB_GLOBAL_INCLUDE_FILE */
@@ -68,55 +76,45 @@ __FBSDID("$FreeBSD$");
 #define	MODEM_IFACE_1 1
 
 enum {
-	STRING_LANG_INDEX,
-	STRING_MODEM_INDEX,
-	STRING_ETH_MAC_INDEX,
-	STRING_ETH_CONTROL_INDEX,
-	STRING_ETH_DATA_INDEX,
-	STRING_ETH_CONFIG_INDEX,
-	STRING_CONFIG_INDEX,
-	STRING_VENDOR_INDEX,
-	STRING_PRODUCT_INDEX,
-	STRING_SERIAL_INDEX,
-	STRING_MAX,
+	SERIALNET_LANG_INDEX,
+	SERIALNET_MODEM_INDEX,
+	SERIALNET_ETH_MAC_INDEX,
+	SERIALNET_ETH_CONTROL_INDEX,
+	SERIALNET_ETH_DATA_INDEX,
+	SERIALNET_CONFIGURATION_INDEX,
+	SERIALNET_MANUFACTURER_INDEX,
+	SERIALNET_PRODUCT_INDEX,
+	SERIALNET_SERIAL_NUMBER_INDEX,
+	SERIALNET_MAX_INDEX,
 };
 
-#define	STRING_MODEM \
-  "U\0S\0B\0 \0M\0o\0d\0e\0m\0 \0I\0n\0t\0e\0r\0f\0a\0c\0e"
+#define	SERIALNET_DEFAULT_VENDOR_ID	USB_TEMPLATE_VENDOR
+#define	SERIALNET_DEFAULT_PRODUCT_ID	0x05dc
+#define	SERIALNET_DEFAULT_MODEM		"Virtual serial port"
+#define	SERIALNET_DEFAULT_ETH_MAC	"2A02030405060789AB"
+#define	SERIALNET_DEFAULT_ETH_CONTROL	"USB Ethernet Comm Interface"
+#define	SERIALNET_DEFAULT_ETH_DATA	"USB Ethernet Data Interface"
+#define	SERIALNET_DEFAULT_CONFIGURATION	"Default configuration"
+#define	SERIALNET_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
+#define	SERIALNET_DEFAULT_PRODUCT	"Serial/Ethernet device"
+/*
+ * The reason for this being called like this is that OSX
+ * derives the device node name from it, resulting in a somewhat
+ * user-friendly "/dev/cu.usbmodemFreeBSD1".  And yes, the "1"
+ * needs to be there, otherwise OSX will mangle it.
+ */
+#define SERIALNET_DEFAULT_SERIAL_NUMBER	"FreeBSD1"
 
-#define	STRING_ETH_MAC \
-  "2\0A\0002\0003\0004\0005\0006\0007\08\09\0A\0B"
+static struct usb_string_descriptor	serialnet_modem;
+static struct usb_string_descriptor	serialnet_eth_mac;
+static struct usb_string_descriptor	serialnet_eth_control;
+static struct usb_string_descriptor	serialnet_eth_data;
+static struct usb_string_descriptor	serialnet_configuration;
+static struct usb_string_descriptor	serialnet_manufacturer;
+static struct usb_string_descriptor	serialnet_product;
+static struct usb_string_descriptor	serialnet_serial_number;
 
-#define	STRING_ETH_CONTROL \
-  "U\0S\0B\0 \0E\0t\0h\0e\0r\0n\0e\0t\0 " \
-  "\0C\0o\0m\0m\0 \0I\0n\0t\0e\0r\0f\0a\0c\0e"
-
-#define	STRING_ETH_DATA \
-  "U\0S\0B\0 \0E\0t\0h\0e\0r\0n\0e\0t\0 \0D\0a\0t\0a\0 " \
-  "\0I\0n\0t\0e\0r\0f\0a\0c\0e"
-
-#define	STRING_CONFIG \
-  "D\0e\0f\0a\0u\0l\0t\0 \0c\0o\0n\0f\0i\0g\0u\0r\0a\0t\0i\0o\0n"
-
-#define	STRING_VENDOR \
-  "T\0h\0e\0 \0F\0r\0e\0e\0B\0S\0D\0 \0P\0r\0o\0j\0e\0c\0t"
-
-#define	STRING_PRODUCT \
-  "S\0E\0R\0I\0A\0L\0N\0E\0T"
-
-#define	STRING_SERIAL \
-  "J\0a\0n\0u\0a\0r\0y\0 \0002\0000\0001\0005"
-
-/* make the real string descriptors */
-
-USB_MAKE_STRING_DESC(STRING_MODEM, string_modem);
-USB_MAKE_STRING_DESC(STRING_ETH_MAC, string_eth_mac);
-USB_MAKE_STRING_DESC(STRING_ETH_CONTROL, string_eth_control);
-USB_MAKE_STRING_DESC(STRING_ETH_DATA, string_eth_data);
-USB_MAKE_STRING_DESC(STRING_CONFIG, string_serialnet_config);
-USB_MAKE_STRING_DESC(STRING_VENDOR, string_serialnet_vendor);
-USB_MAKE_STRING_DESC(STRING_PRODUCT, string_serialnet_product);
-USB_MAKE_STRING_DESC(STRING_SERIAL, string_serialnet_serial);
+static struct sysctl_ctx_list		serialnet_ctx_list;
 
 /* prototypes */
 
@@ -142,7 +140,7 @@ static const struct usb_cdc_ethernet_descriptor eth_enf_desc = {
 	.bLength = sizeof(eth_enf_desc),
 	.bDescriptorType = UDESC_CS_INTERFACE,
 	.bDescriptorSubtype = UDESCSUB_CDC_ENF,
-	.iMacAddress = STRING_ETH_MAC_INDEX,
+	.iMacAddress = SERIALNET_ETH_MAC_INDEX,
 	.bmEthernetStatistics = {0, 0, 0, 0},
 	.wMaxSegmentSize = {0xEA, 0x05},/* 1514 bytes */
 	.wNumberMCFilters = {0, 0},
@@ -202,8 +200,8 @@ static const struct usb_temp_interface_desc eth_control_interface = {
 	.ppRawDesc = eth_control_if_desc,
 	.bInterfaceClass = UICLASS_CDC,
 	.bInterfaceSubClass = UISUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL,
-	.bInterfaceProtocol = 0,
-	.iInterface = STRING_ETH_CONTROL_INDEX,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
+	.iInterface = SERIALNET_ETH_CONTROL_INDEX,
 };
 
 static const struct usb_temp_endpoint_desc *eth_data_endpoints[] = {
@@ -215,9 +213,9 @@ static const struct usb_temp_endpoint_desc *eth_data_endpoints[] = {
 static const struct usb_temp_interface_desc eth_data_null_interface = {
 	.ppEndpoints = NULL,		/* no endpoints */
 	.bInterfaceClass = UICLASS_CDC_DATA,
-	.bInterfaceSubClass = 0,
+	.bInterfaceSubClass = UISUBCLASS_DATA,
 	.bInterfaceProtocol = 0,
-	.iInterface = STRING_ETH_DATA_INDEX,
+	.iInterface = SERIALNET_ETH_DATA_INDEX,
 };
 
 static const struct usb_temp_interface_desc eth_data_interface = {
@@ -225,7 +223,7 @@ static const struct usb_temp_interface_desc eth_data_interface = {
 	.bInterfaceClass = UICLASS_CDC_DATA,
 	.bInterfaceSubClass = UISUBCLASS_DATA,
 	.bInterfaceProtocol = 0,
-	.iInterface = STRING_ETH_DATA_INDEX,
+	.iInterface = SERIALNET_ETH_DATA_INDEX,
 	.isAltInterface = 1,		/* this is an alternate setting */
 };
 
@@ -304,18 +302,18 @@ static const void *modem_iface_0_desc[] = {
 static const struct usb_temp_interface_desc modem_iface_0 = {
 	.ppRawDesc = modem_iface_0_desc,
 	.ppEndpoints = modem_iface_0_ep,
-	.bInterfaceClass = 2,
-	.bInterfaceSubClass = 2,
-	.bInterfaceProtocol = 1,
-	.iInterface = STRING_MODEM_INDEX,
+	.bInterfaceClass = UICLASS_CDC,
+	.bInterfaceSubClass = UISUBCLASS_ABSTRACT_CONTROL_MODEL,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
+	.iInterface = SERIALNET_MODEM_INDEX,
 };
 
 static const struct usb_temp_interface_desc modem_iface_1 = {
 	.ppEndpoints = modem_iface_1_ep,
-	.bInterfaceClass = 10,
-	.bInterfaceSubClass = 0,
+	.bInterfaceClass = UICLASS_CDC_DATA,
+	.bInterfaceSubClass = UISUBCLASS_DATA,
 	.bInterfaceProtocol = 0,
-	.iInterface = STRING_MODEM_INDEX,
+	.iInterface = SERIALNET_MODEM_INDEX,
 };
 
 static const struct usb_temp_interface_desc *serialnet_interfaces[] = {
@@ -329,27 +327,27 @@ static const struct usb_temp_interface_desc *serialnet_interfaces[] = {
 
 static const struct usb_temp_config_desc serialnet_config_desc = {
 	.ppIfaceDesc = serialnet_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
-	.iConfiguration = STRING_CONFIG_INDEX,
+	.bmAttributes = 0,
+	.bMaxPower = 0,
+	.iConfiguration = SERIALNET_CONFIGURATION_INDEX,
 };
 static const struct usb_temp_config_desc *serialnet_configs[] = {
 	&serialnet_config_desc,
 	NULL,
 };
 
-const struct usb_temp_device_desc usb_template_serialnet = {
+struct usb_temp_device_desc usb_template_serialnet = {
 	.getStringDesc = &serialnet_get_string_desc,
 	.ppConfigDesc = serialnet_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0001,
+	.idVendor = SERIALNET_DEFAULT_VENDOR_ID,
+	.idProduct = SERIALNET_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
-	.bDeviceClass = UDCLASS_COMM,
+	.bDeviceClass = UDCLASS_IN_INTERFACE,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = STRING_VENDOR_INDEX,
-	.iProduct = STRING_PRODUCT_INDEX,
-	.iSerialNumber = STRING_SERIAL_INDEX,
+	.iManufacturer = SERIALNET_MANUFACTURER_INDEX,
+	.iProduct = SERIALNET_PRODUCT_INDEX,
+	.iSerialNumber = SERIALNET_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -362,16 +360,16 @@ const struct usb_temp_device_desc usb_template_serialnet = {
 static const void *
 serialnet_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
-	static const void *ptr[STRING_MAX] = {
-		[STRING_LANG_INDEX] = &usb_string_lang_en,
-		[STRING_MODEM_INDEX] = &string_modem,
-		[STRING_ETH_MAC_INDEX] = &string_eth_mac,
-		[STRING_ETH_CONTROL_INDEX] = &string_eth_control,
-		[STRING_ETH_DATA_INDEX] = &string_eth_data,
-		[STRING_CONFIG_INDEX] = &string_serialnet_config,
-		[STRING_VENDOR_INDEX] = &string_serialnet_vendor,
-		[STRING_PRODUCT_INDEX] = &string_serialnet_product,
-		[STRING_SERIAL_INDEX] = &string_serialnet_serial,
+	static const void *ptr[SERIALNET_MAX_INDEX] = {
+		[SERIALNET_LANG_INDEX] = &usb_string_lang_en,
+		[SERIALNET_MODEM_INDEX] = &serialnet_modem,
+		[SERIALNET_ETH_MAC_INDEX] = &serialnet_eth_mac,
+		[SERIALNET_ETH_CONTROL_INDEX] = &serialnet_eth_control,
+		[SERIALNET_ETH_DATA_INDEX] = &serialnet_eth_data,
+		[SERIALNET_CONFIGURATION_INDEX] = &serialnet_configuration,
+		[SERIALNET_MANUFACTURER_INDEX] = &serialnet_manufacturer,
+		[SERIALNET_PRODUCT_INDEX] = &serialnet_product,
+		[SERIALNET_SERIAL_NUMBER_INDEX] = &serialnet_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -380,8 +378,90 @@ serialnet_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	if (lang_id != 0x0409) {
 		return (NULL);
 	}
-	if (string_index < STRING_MAX) {
+	if (string_index < SERIALNET_MAX_INDEX) {
 		return (ptr[string_index]);
 	}
 	return (NULL);
 }
+
+static void
+serialnet_init(void *arg __unused)
+{
+	struct sysctl_oid *parent;
+	char parent_name[3];
+
+	usb_make_str_desc(&serialnet_modem, sizeof(serialnet_modem),
+	    SERIALNET_DEFAULT_MODEM);
+	usb_make_str_desc(&serialnet_eth_mac, sizeof(serialnet_eth_mac),
+	    SERIALNET_DEFAULT_ETH_MAC);
+	usb_make_str_desc(&serialnet_eth_control, sizeof(serialnet_eth_control),
+	    SERIALNET_DEFAULT_ETH_CONTROL);
+	usb_make_str_desc(&serialnet_eth_data, sizeof(serialnet_eth_data),
+	    SERIALNET_DEFAULT_ETH_DATA);
+	usb_make_str_desc(&serialnet_configuration, sizeof(serialnet_configuration),
+	    SERIALNET_DEFAULT_CONFIGURATION);
+	usb_make_str_desc(&serialnet_manufacturer, sizeof(serialnet_manufacturer),
+	    SERIALNET_DEFAULT_MANUFACTURER);
+	usb_make_str_desc(&serialnet_product, sizeof(serialnet_product),
+	    SERIALNET_DEFAULT_PRODUCT);
+	usb_make_str_desc(&serialnet_serial_number, sizeof(serialnet_serial_number),
+	    SERIALNET_DEFAULT_SERIAL_NUMBER);
+
+	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_SERIALNET);
+	sysctl_ctx_init(&serialnet_ctx_list);
+
+	parent = SYSCTL_ADD_NODE(&serialnet_ctx_list,
+	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
+	    parent_name, CTLFLAG_RW,
+	    0, "USB CDC Serial/Ethernet device side template");
+	SYSCTL_ADD_U16(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "vendor_id", CTLFLAG_RWTUN,
+	    &usb_template_serialnet.idVendor, 1, "Vendor identifier");
+	SYSCTL_ADD_U16(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product_id", CTLFLAG_RWTUN,
+	    &usb_template_serialnet.idProduct, 1, "Product identifier");
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "eth_mac", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_eth_mac, sizeof(serialnet_eth_mac), usb_temp_sysctl,
+	    "A", "Ethernet MAC address string");
+#if 0
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "modem", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_modem, sizeof(serialnet_modem), usb_temp_sysctl,
+	    "A", "Modem interface string");
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "eth_control", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_eth_control, sizeof(serialnet_eth_data), usb_temp_sysctl,
+	    "A", "Ethernet control interface string");
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "eth_data", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_eth_data, sizeof(serialnet_eth_data), usb_temp_sysctl,
+	    "A", "Ethernet data interface string");
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "configuration", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_configuration, sizeof(serialnet_configuration), usb_temp_sysctl,
+	    "A", "Configuration string");
+#endif
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_manufacturer, sizeof(serialnet_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_product, sizeof(serialnet_product), usb_temp_sysctl,
+	    "A", "Product string");
+	SYSCTL_ADD_PROC(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &serialnet_serial_number, sizeof(serialnet_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
+}
+
+static void
+serialnet_uninit(void *arg __unused)
+{
+
+	sysctl_ctx_free(&serialnet_ctx_list);
+}
+
+SYSINIT(serialnet_init, SI_SUB_LOCK, SI_ORDER_FIRST, serialnet_init, NULL);
+SYSUNINIT(serialnet_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, serialnet_uninit, NULL);

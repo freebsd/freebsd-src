@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2005-2007, 2011 Marcel Moolenaar
  * All rights reserved.
  *
@@ -144,7 +146,9 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
+MODULE_VERSION(geom_part_gpt, 0);
 
+static struct uuid gpt_uuid_apple_apfs = GPT_ENT_TYPE_APPLE_APFS;
 static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;
 static struct uuid gpt_uuid_apple_core_storage =
     GPT_ENT_TYPE_APPLE_CORE_STORAGE;
@@ -206,6 +210,7 @@ static struct g_part_uuid_alias {
 	int alias;
 	int mbrtype;
 } gpt_uuid_alias_match[] = {
+	{ &gpt_uuid_apple_apfs,		G_PART_ALIAS_APPLE_APFS,	 0 },
 	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT,	 0xab },
 	{ &gpt_uuid_apple_core_storage,	G_PART_ALIAS_APPLE_CORE_STORAGE, 0 },
 	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS,		 0xaf },
@@ -687,10 +692,11 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table->hdr = NULL;
 
 	/*
-	 * Wipe the first 2 sectors to clear the partitioning. Wipe the last
-	 * sector only if it has valid secondary header.
+	 * Wipe the first 2 sectors and last one to clear the partitioning.
+	 * Wipe sectors only if they have valid metadata.
 	 */
-	basetable->gpt_smhead |= 3;
+	if (table->state[GPT_ELT_PRIHDR] == GPT_STATE_OK)
+		basetable->gpt_smhead |= 3;
 	if (table->state[GPT_ELT_SECHDR] == GPT_STATE_OK &&
 	    table->lba[GPT_ELT_SECHDR] == pp->mediasize / pp->sectorsize - 1)
 		basetable->gpt_smtail |= 1;
@@ -698,11 +704,11 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
-g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_gpt_entry *entry;
- 
+
 	entry = (struct g_part_gpt_entry *)baseentry;
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
@@ -730,13 +736,19 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf(sb, "%s<rawuuid>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
 		sbuf_printf(sb, "</rawuuid>\n");
+		sbuf_printf(sb, "%s<efimedia>", indent);
+		sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
+		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+		sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
+		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		sbuf_printf(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}
 }
 
 static int
-g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_gpt_entry *entry;
 
@@ -859,7 +871,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	    &error);
 	if (buf == NULL)
 		return (error);
-	res = memcmp(buf, GPT_HDR_SIG, 8); 
+	res = memcmp(buf, GPT_HDR_SIG, 8);
 	g_free(buf);
 	return ((res == 0) ? pri : ENXIO);
 }
@@ -912,6 +924,14 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    pp->name);
 		printf("GEOM: %s: GPT rejected -- may not be recoverable.\n",
 		    pp->name);
+		if (prihdr != NULL)
+			g_free(prihdr);
+		if (pritbl != NULL)
+			g_free(pritbl);
+		if (sechdr != NULL)
+			g_free(sechdr);
+		if (sectbl != NULL)
+			g_free(sectbl);
 		return (EINVAL);
 	}
 
@@ -1101,13 +1121,13 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 }
 
 static const char *
-g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_gpt_entry *entry;
 	struct uuid *type;
 	struct g_part_uuid_alias *uap;
- 
+
 	entry = (struct g_part_gpt_entry *)baseentry;
 	type = &entry->ent.ent_type;
 	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++)

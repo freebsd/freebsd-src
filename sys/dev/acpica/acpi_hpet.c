@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+
 #if defined(__amd64__)
 #define	DEV_APIC
 #else
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
+#include <sys/vdso.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -94,6 +96,9 @@ struct hpet_softc {
 		struct hpet_softc	*sc;
 		int			num;
 		int			mode;
+#define	TIMER_STOPPED	0
+#define	TIMER_PERIODIC	1
+#define	TIMER_ONESHOT	2
 		int			intr_rid;
 		int			irq;
 		int			pcpu_cpu;
@@ -141,6 +146,35 @@ hpet_get_timecount(struct timecounter *tc)
 	return (bus_read_4(sc->mem_res, HPET_MAIN_COUNTER));
 }
 
+uint32_t
+hpet_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+	struct hpet_softc *sc;
+
+	sc = tc->tc_priv;
+	vdso_th->th_algo = VDSO_TH_ALGO_X86_HPET;
+	vdso_th->th_x86_shift = 0;
+	vdso_th->th_x86_hpet_idx = device_get_unit(sc->dev);
+	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
+	return (sc->mmap_allow != 0);
+}
+
+#ifdef COMPAT_FREEBSD32
+uint32_t
+hpet_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc)
+{
+	struct hpet_softc *sc;
+
+	sc = tc->tc_priv;
+	vdso_th32->th_algo = VDSO_TH_ALGO_X86_HPET;
+	vdso_th32->th_x86_shift = 0;
+	vdso_th32->th_x86_hpet_idx = device_get_unit(sc->dev);
+	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
+	return (sc->mmap_allow != 0);
+}
+#endif
+
 static void
 hpet_enable(struct hpet_softc *sc)
 {
@@ -175,10 +209,10 @@ hpet_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	t = (mt->pcpu_master < 0) ? mt : &sc->t[mt->pcpu_slaves[curcpu]];
 	if (period != 0) {
-		t->mode = 1;
+		t->mode = TIMER_PERIODIC;
 		t->div = (sc->freq * period) >> 32;
 	} else {
-		t->mode = 2;
+		t->mode = TIMER_ONESHOT;
 		t->div = 0;
 	}
 	if (first != 0)
@@ -191,7 +225,7 @@ hpet_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	now = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 restart:
 	t->next = now + fdiv;
-	if (t->mode == 1 && (t->caps & HPET_TCAP_PER_INT)) {
+	if (t->mode == TIMER_PERIODIC && (t->caps & HPET_TCAP_PER_INT)) {
 		t->caps |= HPET_TCNF_TYPE;
 		bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(t->num),
 		    t->caps | HPET_TCNF_VAL_SET);
@@ -222,7 +256,7 @@ hpet_stop(struct eventtimer *et)
 	struct hpet_softc *sc = mt->sc;
 
 	t = (mt->pcpu_master < 0) ? mt : &sc->t[mt->pcpu_slaves[curcpu]];
-	t->mode = 0;
+	t->mode = TIMER_STOPPED;
 	t->caps &= ~(HPET_TCNF_INT_ENB | HPET_TCNF_TYPE);
 	bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(t->num), t->caps);
 	return (0);
@@ -236,7 +270,7 @@ hpet_intr_single(void *arg)
 	struct hpet_softc *sc = t->sc;
 	uint32_t now;
 
-	if (t->mode == 0)
+	if (t->mode == TIMER_STOPPED)
 		return (FILTER_STRAY);
 	/* Check that per-CPU timer interrupt reached right CPU. */
 	if (t->pcpu_cpu >= 0 && t->pcpu_cpu != curcpu) {
@@ -250,8 +284,9 @@ hpet_intr_single(void *arg)
 		 * Reload timer, hoping that next time may be more lucky
 		 * (system will manage proper interrupt binding).
 		 */
-		if ((t->mode == 1 && (t->caps & HPET_TCAP_PER_INT) == 0) ||
-		    t->mode == 2) {
+		if ((t->mode == TIMER_PERIODIC &&
+		    (t->caps & HPET_TCAP_PER_INT) == 0) ||
+		    t->mode == TIMER_ONESHOT) {
 			t->next = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER) +
 			    sc->freq / 8;
 			bus_write_4(sc->mem_res, HPET_TIMER_COMPARATOR(t->num),
@@ -259,7 +294,7 @@ hpet_intr_single(void *arg)
 		}
 		return (FILTER_HANDLED);
 	}
-	if (t->mode == 1 &&
+	if (t->mode == TIMER_PERIODIC &&
 	    (t->caps & HPET_TCAP_PER_INT) == 0) {
 		t->next += t->div;
 		now = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
@@ -267,8 +302,8 @@ hpet_intr_single(void *arg)
 			t->next = now + t->div / 2;
 		bus_write_4(sc->mem_res,
 		    HPET_TIMER_COMPARATOR(t->num), t->next);
-	} else if (t->mode == 2)
-		t->mode = 0;
+	} else if (t->mode == TIMER_ONESHOT)
+		t->mode = TIMER_STOPPED;
 	mt = (t->pcpu_master < 0) ? t : &sc->t[t->pcpu_master];
 	if (mt->et.et_active)
 		mt->et.et_event_cb(&mt->et, mt->et.et_arg);
@@ -497,7 +532,7 @@ hpet_attach(device_t dev)
 		t = &sc->t[i];
 		t->sc = sc;
 		t->num = i;
-		t->mode = 0;
+		t->mode = TIMER_STOPPED;
 		t->intr_rid = -1;
 		t->irq = -1;
 		t->pcpu_cpu = -1;
@@ -537,6 +572,10 @@ hpet_attach(device_t dev)
 		sc->tc.tc_quality = 950,
 		sc->tc.tc_frequency = sc->freq;
 		sc->tc.tc_priv = sc;
+		sc->tc.tc_fill_vdso_timehands = hpet_vdso_timehands;
+#ifdef COMPAT_FREEBSD32
+		sc->tc.tc_fill_vdso_timehands32 = hpet_vdso_timehands32;
+#endif
 		tc_init(&sc->tc);
 	}
 	/* If not disabled - setup and announce event timers. */
@@ -762,14 +801,14 @@ hpet_attach(device_t dev)
 	mda.mda_devsw = &hpet_cdevsw;
 	mda.mda_uid = UID_ROOT;
 	mda.mda_gid = GID_WHEEL;
-	mda.mda_mode = 0600;
+	mda.mda_mode = 0644;
 	mda.mda_si_drv1 = sc;
 	error = make_dev_s(&mda, &sc->pdev, "hpet%d", device_get_unit(dev));
 	if (error == 0) {
 		sc->mmap_allow = 1;
 		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow",
 		    &sc->mmap_allow);
-		sc->mmap_allow_write = 1;
+		sc->mmap_allow_write = 0;
 		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow_write",
 		    &sc->mmap_allow_write);
 		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
@@ -843,10 +882,11 @@ hpet_resume(device_t dev)
 			}
 		}
 #endif
-		if (t->mode == 0)
+		if (t->mode == TIMER_STOPPED)
 			continue;
 		t->next = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
-		if (t->mode == 1 && (t->caps & HPET_TCAP_PER_INT)) {
+		if (t->mode == TIMER_PERIODIC &&
+		    (t->caps & HPET_TCAP_PER_INT) != 0) {
 			t->caps |= HPET_TCNF_TYPE;
 			t->next += t->div;
 			bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(t->num),

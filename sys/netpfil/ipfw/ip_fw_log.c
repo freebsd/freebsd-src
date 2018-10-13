@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,20 +42,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_clone.h>
 #include <net/vnet.h>
-#include <net/if_types.h>	/* for IFT_PFLOG */
-#include <net/bpf.h>		/* for BPF */
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -96,151 +92,6 @@ __FBSDID("$FreeBSD$");
 #define SNP(buf) buf, sizeof(buf)
 #endif /* !__APPLE__ */
 
-#ifdef WITHOUT_BPF
-void
-ipfw_log_bpf(int onoff)
-{
-}
-#else /* !WITHOUT_BPF */
-static struct ifnet *log_if;	/* hook to attach to bpf */
-static struct rwlock log_if_lock;
-#define	LOGIF_LOCK_INIT(x)	rw_init(&log_if_lock, "ipfw log_if lock")
-#define	LOGIF_LOCK_DESTROY(x)	rw_destroy(&log_if_lock)
-#define	LOGIF_RLOCK(x)		rw_rlock(&log_if_lock)
-#define	LOGIF_RUNLOCK(x)	rw_runlock(&log_if_lock)
-#define	LOGIF_WLOCK(x)		rw_wlock(&log_if_lock)
-#define	LOGIF_WUNLOCK(x)	rw_wunlock(&log_if_lock)
-
-static const char ipfwname[] = "ipfw";
-
-/* we use this dummy function for all ifnet callbacks */
-static int
-log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
-{
-	return EINVAL;
-}
-
-static int
-ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
-{
-	if (m != NULL)
-		FREE_PKT(m);
-	return EINVAL;
-}
-
-static void
-ipfw_log_start(struct ifnet* ifp)
-{
-	panic("ipfw_log_start() must not be called");
-}
-
-static const u_char ipfwbroadcastaddr[6] =
-	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
-static int
-ipfw_log_clone_match(struct if_clone *ifc, const char *name)
-{
-
-	return (strncmp(name, ipfwname, sizeof(ipfwname) - 1) == 0);
-}
-
-static int
-ipfw_log_clone_create(struct if_clone *ifc, char *name, size_t len,
-    caddr_t params)
-{
-	int error;
-	int unit;
-	struct ifnet *ifp;
-
-	error = ifc_name2unit(name, &unit);
-	if (error)
-		return (error);
-
-	error = ifc_alloc_unit(ifc, &unit);
-	if (error)
-		return (error);
-
-	ifp = if_alloc(IFT_PFLOG);
-	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
-		return (ENOSPC);
-	}
-	ifp->if_dname = ipfwname;
-	ifp->if_dunit = unit;
-	snprintf(ifp->if_xname, IFNAMSIZ, "%s%d", ipfwname, unit);
-	strlcpy(name, ifp->if_xname, len);
-	ifp->if_mtu = 65536;
-	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = (void *)log_dummy;
-	ifp->if_ioctl = log_dummy;
-	ifp->if_start = ipfw_log_start;
-	ifp->if_output = ipfw_log_output;
-	ifp->if_addrlen = 6;
-	ifp->if_hdrlen = 14;
-	ifp->if_broadcastaddr = ipfwbroadcastaddr;
-	ifp->if_baudrate = IF_Mbps(10);
-
-	LOGIF_WLOCK();
-	if (log_if == NULL)
-		log_if = ifp;
-	else {
-		LOGIF_WUNLOCK();
-		if_free(ifp);
-		ifc_free_unit(ifc, unit);
-		return (EEXIST);
-	}
-	LOGIF_WUNLOCK();
-	if_attach(ifp);
-	bpfattach(ifp, DLT_EN10MB, 14);
-
-	return (0);
-}
-
-static int
-ipfw_log_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
-{
-	int unit;
-
-	if (ifp == NULL)
-		return (0);
-
-	LOGIF_WLOCK();
-	if (log_if != NULL && ifp == log_if)
-		log_if = NULL;
-	else {
-		LOGIF_WUNLOCK();
-		return (EINVAL);
-	}
-	LOGIF_WUNLOCK();
-
-	unit = ifp->if_dunit;
-	bpfdetach(ifp);
-	if_detach(ifp);
-	if_free(ifp);
-	ifc_free_unit(ifc, unit);
-
-	return (0);
-}
-
-static struct if_clone *ipfw_log_cloner;
-
-void
-ipfw_log_bpf(int onoff)
-{
-
-	if (onoff) {
-		LOGIF_LOCK_INIT();
-		ipfw_log_cloner = if_clone_advanced(ipfwname, 0,
-		    ipfw_log_clone_match, ipfw_log_clone_create,
-		    ipfw_log_clone_destroy);
-	} else {
-		if_clone_detach(ipfw_log_cloner);
-		LOGIF_LOCK_DESTROY();
-	}
-}
-#endif /* !WITHOUT_BPF */
-
 #define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 /*
  * We enter here when we have a rule with O_LOG.
@@ -256,29 +107,23 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 	char action2[92], proto[128], fragment[32];
 
 	if (V_fw_verbose == 0) {
-#ifndef WITHOUT_BPF
-		LOGIF_RLOCK();
-		if (log_if == NULL || log_if->if_bpf == NULL) {
-			LOGIF_RUNLOCK();
-			return;
-		}
-
 		if (args->eh) /* layer2, use orig hdr */
-			BPF_MTAP2(log_if, args->eh, ETHER_HDR_LEN, m);
+			ipfw_bpf_mtap2(args->eh, ETHER_HDR_LEN, m);
 		else {
 			/* Add fake header. Later we will store
 			 * more info in the header.
 			 */
 			if (ip->ip_v == 4)
-				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
-			else if  (ip->ip_v == 6)
-				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x86\xdd", ETHER_HDR_LEN, m);
+				ipfw_bpf_mtap2("DDDDDDSSSSSS\x08\x00",
+				    ETHER_HDR_LEN, m);
+			else if (ip->ip_v == 6)
+				ipfw_bpf_mtap2("DDDDDDSSSSSS\x86\xdd",
+				    ETHER_HDR_LEN, m);
 			else
 				/* Obviously bogus EtherType. */
-				BPF_MTAP2(log_if, "DDDDDDSSSSSS\xff\xff", ETHER_HDR_LEN, m);
+				ipfw_bpf_mtap2("DDDDDDSSSSSS\xff\xff",
+				    ETHER_HDR_LEN, m);
 		}
-		LOGIF_RUNLOCK();
-#endif /* !WITHOUT_BPF */
 		return;
 	}
 	/* the old 'log' function */
@@ -322,6 +167,8 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		case O_REJECT:
 			if (cmd->arg1==ICMP_REJECT_RST)
 				action = "Reset";
+			else if (cmd->arg1==ICMP_REJECT_ABORT)
+				action = "Abort";
 			else if (cmd->arg1==ICMP_UNREACH_HOST)
 				action = "Reject";
 			else
@@ -332,6 +179,8 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		case O_UNREACH6:
 			if (cmd->arg1==ICMP6_UNREACH_RST)
 				action = "Reset";
+			else if (cmd->arg1==ICMP6_UNREACH_ABORT)
+				action = "Abort";
 			else
 				snprintf(SNPARGS(action2, 0), "Unreach %d",
 					cmd->arg1);
@@ -368,6 +217,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 				TARG(cmd->arg1, pipe));
 			break;
 		case O_FORWARD_IP: {
+			char buf[INET_ADDRSTRLEN];
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;
 			int len;
 			struct in_addr dummyaddr;
@@ -377,7 +227,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 				dummyaddr.s_addr = sa->sa.sin_addr.s_addr;
 
 			len = snprintf(SNPARGS(action2, 0), "Forward to %s",
-				inet_ntoa(dummyaddr));
+				inet_ntoa_r(dummyaddr, buf));
 
 			if (sa->sa.sin_port)
 				snprintf(SNPARGS(action2, len), ":%d",
@@ -419,6 +269,11 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 			else
 				snprintf(SNPARGS(action2, 0), "Call %d",
 				    cmd->arg1);
+			break;
+		case O_EXTERNAL_ACTION:
+			snprintf(SNPARGS(action2, 0), "Eaction %s",
+			    ((struct named_object *)SRV_OBJECT(chain,
+			    cmd->arg1))->name);
 			break;
 		default:
 			action = "UNKNOWN";
@@ -483,7 +338,10 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 			break;
 
 		case IPPROTO_UDP:
-			len = snprintf(SNPARGS(proto, 0), "UDP %s", src);
+		case IPPROTO_UDPLITE:
+			len = snprintf(SNPARGS(proto, 0), "UDP%s%s",
+			    args->f_id.proto == IPPROTO_UDP ? " ": "Lite ",
+			    src);
 			if (offset == 0)
 				snprintf(SNPARGS(proto, len), ":%d %s:%d",
 				    ntohs(udp->uh_sport),

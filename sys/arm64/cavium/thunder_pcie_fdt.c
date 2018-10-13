@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pci_host_generic_fdt.h>
 #include <dev/pci/pcib_private.h>
 
 #include "thunder_pcie_common.h"
@@ -80,7 +81,7 @@ static device_method_t thunder_pcie_fdt_methods[] = {
 };
 
 DEFINE_CLASS_1(pcib, thunder_pcie_fdt_driver, thunder_pcie_fdt_methods,
-    sizeof(struct generic_pcie_softc), generic_pcie_driver);
+    sizeof(struct generic_pcie_fdt_softc), generic_pcie_fdt_driver);
 
 static devclass_t thunder_pcie_fdt_devclass;
 
@@ -96,7 +97,7 @@ thunder_pcie_fdt_probe(device_t dev)
 
 	/* Check if we're running on Cavium ThunderX */
 	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-	    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0))
+	    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0))
 		return (ENXIO);
 
 	if (!ofw_bus_status_okay(dev))
@@ -115,11 +116,11 @@ thunder_pcie_fdt_probe(device_t dev)
 static int
 thunder_pcie_fdt_attach(device_t dev)
 {
-	struct generic_pcie_softc *sc;
+	struct generic_pcie_fdt_softc *sc;
 
 	sc = device_get_softc(dev);
-	thunder_pcie_identify_ecam(dev, &sc->ecam);
-	sc->coherent = 1;
+	thunder_pcie_identify_ecam(dev, &sc->base.ecam);
+	sc->base.coherent = 1;
 
 	return (pci_host_generic_attach(dev));
 }

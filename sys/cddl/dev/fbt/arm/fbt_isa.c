@@ -61,7 +61,7 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 
 			/* Get 5th parameter from stack */
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
-			fifthparam = *(register_t *)frame->tf_usr_sp;
+			fifthparam = *(register_t *)frame->tf_svc_sp;
 			DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
 
 			dtrace_probe(fbt->fbtp_id, frame->tf_r0,
@@ -95,18 +95,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	uint32_t *instr, *limit;
 	int popm;
 
-	if (strncmp(name, "dtrace_", 7) == 0 &&
-	    strncmp(name, "dtrace_safe_", 12) != 0) {
-		/*
-		 * Anything beginning with "dtrace_" may be called
-		 * from probe context unless it explicitly indicates
-		 * that it won't be called from probe context by
-		 * using the prefix "dtrace_safe_".
-		 */
-		return (0);
-	}
-
-	if (name[0] == '_' && name[1] == '_')
+	if (fbt_excluded(name))
 		return (0);
 
 	instr = (uint32_t *)symval->value;
@@ -176,7 +165,7 @@ again:
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
 		    name, FBT_RETURN, 2, fbt);
 	} else {
-		retfbt->fbtp_next = fbt;
+		retfbt->fbtp_probenext = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
 	}
 	retfbt = fbt;

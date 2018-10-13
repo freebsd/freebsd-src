@@ -8,21 +8,35 @@
     bin
         cat
         ..
-        chown
+        chflags
+        ..
+        chmod
         ..
         date
         ..
         dd
         ..
+        echo
+        ..
         expr
         ..
+        ln
+        ..
         ls
+        ..
+        mkdir
         ..
         mv
         ..
         pax
         ..
         pkill
+        ..
+        pwait
+        ..
+        rm
+        ..
+        rmdir
         ..
         sh
             builtins
@@ -32,6 +46,8 @@
             execution
             ..
             expansion
+            ..
+            invocation
             ..
             parameters
             ..
@@ -51,6 +67,10 @@
         sbin
         ..
         usr.bin
+            ctfconvert
+            ..
+            ztest
+            ..
         ..
         usr.sbin
             dtrace
@@ -84,6 +104,8 @@
                     dtraceUtil
                     ..
                     end
+                    ..
+                    env
                     ..
                     enum
                     ..
@@ -184,6 +206,8 @@
                     strtoll
                     ..
                     struct
+                    ..
+                    sugar
                     ..
                     syscall
                     ..
@@ -308,19 +332,39 @@
             ttyio
             ..
         ..
+        libcam
+        ..
+        libcasper
+            services
+                cap_dns
+                ..
+                cap_grp
+                ..
+                cap_pwd
+                ..
+                cap_sysctl
+                ..
+            ..
+        ..
         libcrypt
         ..
         libdevdctl
+        ..
+        libkvm
         ..
         libmp
         ..
         libnv
         ..
-        libpam
-        ..
         libproc
         ..
+        libregex
+            data
+            ..
+        ..
         librt
+        ..
+        libsbuf
         ..
         libthr
             dlopen
@@ -342,6 +386,8 @@
         ..
         rtld-elf
         ..
+        tftpd
+        ..
     ..
     sbin
         dhclient
@@ -353,6 +399,10 @@
         ifconfig
         ..
         mdconfig
+        ..
+        pfctl
+            files
+            ..
         ..
     ..
     secure
@@ -372,7 +422,11 @@
                 ..
                 plain
                 ..
+                tap
+                ..
             ..
+        ..
+        zoneinfo
         ..
     ..
     sys
@@ -380,9 +434,265 @@
         ..
         aio
         ..
+        audit
+        ..
+        auditpipe
+        ..
+        capsicum
+        ..
+        cddl
+            zfs
+                bin
+                ..
+                include
+                ..
+                tests
+                    acl
+                        cifs
+                        ..
+                        nontrivial
+                        ..
+                        trivial
+                        ..
+                    ..
+                    atime
+                    ..
+                    bootfs
+                    ..
+                    cache
+                    ..
+                    cachefile
+                    ..
+                    clean_mirror
+                    ..
+                    cli_root
+                        zfs_upgrade
+                        ..
+                        zfs_promote
+                        ..
+                        zfs_clone
+                        ..
+                        zfs_property
+                        ..
+                        zfs_destroy
+                        ..
+                        zpool_create
+                        ..
+                        zpool_history
+                        ..
+                        zpool_expand
+                        ..
+                        zpool_remove
+                        ..
+                        zfs_mount
+                        ..
+                        zfs_unshare
+                        ..
+                        zdb
+                        ..
+                        zpool_online
+                        ..
+                        zpool_get
+                        ..
+                        zpool_export
+                        ..
+                        zfs_copies
+                        ..
+                        zfs_get
+                        ..
+                        zfs
+                        ..
+                        zpool_clear
+                        ..
+                        zpool_import
+                            blockfiles
+                            ..
+                        ..
+                        zpool
+                        ..
+                        zpool_offline
+                        ..
+                        zpool_replace
+                        ..
+                        zfs_rollback
+                        ..
+                        zpool_set
+                        ..
+                        zfs_send
+                        ..
+                        zfs_set
+                        ..
+                        zpool_detach
+                        ..
+                        zfs_diff
+                        ..
+                        zpool_scrub
+                        ..
+                        zfs_inherit
+                        ..
+                        zfs_snapshot
+                        ..
+                        zfs_share
+                        ..
+                        zpool_destroy
+                        ..
+                        zpool_status
+                        ..
+                        zfs_unmount
+                        ..
+                        zfs_receive
+                        ..
+                        zfs_create
+                        ..
+                        zpool_upgrade
+                            blockfiles
+                            ..
+                        ..
+                        zpool_add
+                        ..
+                        zfs_rename
+                        ..
+                        zpool_attach
+                        ..
+                        zfs_reservation
+                        ..
+                    ..
+                    cli_user
+                        misc
+                        ..
+                        zfs_list
+                        ..
+                        zpool_iostat
+                        ..
+                        zpool_list
+                        ..
+                    ..
+                    compression
+                    ..
+                    ctime
+                    ..
+                    delegate
+                    ..
+                    devices
+                    ..
+                    exec
+                    ..
+                    grow_pool
+                    ..
+                    grow_replicas
+                    ..
+                    history
+                    ..
+                    hotplug
+                    ..
+                    hotspare
+                    ..
+                    inheritance
+                    ..
+                    interop
+                    ..
+                    inuse
+                    ..
+                    iscsi
+                    ..
+                    large_files
+                    ..
+                    largest_pool
+                    ..
+                    link_count
+                    ..
+                    migration
+                    ..
+                    mmap
+                    ..
+                    mount
+                    ..
+                    mv_files
+                    ..
+                    nestedfs
+                    ..
+                    no_space
+                    ..
+                    online_offline
+                    ..
+                    pool_names
+                    ..
+                    poolversion
+                    ..
+                    quota
+                    ..
+                    redundancy
+                    ..
+                    refquota
+                    ..
+                    refreserv
+                    ..
+                    rename_dirs
+                    ..
+                    replacement
+                    ..
+                    reservation
+                    ..
+                    rootpool
+                    ..
+                    rsend
+                    ..
+                    scrub_mirror
+                    ..
+                    slog
+                    ..
+                    snapshot
+                    ..
+                    snapused
+                    ..
+                    sparse
+                    ..
+                    threadsappend
+                    ..
+                    truncate
+                    ..
+                    txg_integrity
+                    ..
+                    userquota
+                    ..
+                    utils_test
+                    ..
+                    write_dirs
+                    ..
+                    xattr
+                    ..
+                    zfsd
+                    ..
+                    zil
+                    ..
+                    zinject
+                    ..
+                    zones
+                    ..
+                    zvol
+                        zvol_ENOSPC
+                        ..
+                        zvol_cli
+                        ..
+                        zvol_misc
+                        ..
+                        zvol_swap
+                        ..
+                    ..
+                    zvol_thrash
+                    ..
+                ..
+            ..
+        ..
+        dtrace
+        ..
         fifo
         ..
         file
+        ..
+        fs
+            tmpfs
+            ..
         ..
         geom
             class
@@ -397,6 +707,8 @@
                 mirror
                 ..
                 nop
+                ..
+                part
                 ..
                 raid3
                 ..
@@ -419,6 +731,8 @@
             ..
         ..
         kqueue
+            libkqueue
+            ..
         ..
         mac
             bsdextended
@@ -428,7 +742,19 @@
         ..
         mqueue
         ..
+        net
+        ..
         netinet
+        ..
+        netipsec
+            tunnel
+            ..
+        ..
+        netpfil
+            pf
+                ioctl
+                ..
+            ..
         ..
         opencrypto
         ..
@@ -463,6 +789,8 @@
             ..
             unlink
             ..
+            utimensat
+            ..
         ..
         posixshm
         ..
@@ -475,6 +803,8 @@
     ..
     usr.bin
         apply
+        ..
+        awk
         ..
         basename
         ..
@@ -576,11 +906,13 @@
                 ..
             ..
         ..
-	bsdcat
-	..
+        bsdcat
+        ..
         calendar
         ..
         cmp
+        ..
+        compress
         ..
         cpio
         ..
@@ -588,17 +920,37 @@
         ..
         comm
         ..
+        csplit
+        ..
         cut
+        ..
+        dc
+        ..
+        diff
         ..
         dirname
         ..
+        du
+        ..
         file2c
+        ..
+        find
+        ..
+        fold
+        ..
+        getconf
         ..
         grep
         ..
         gzip
         ..
+        head
+        ..
+        hexdump
+        ..
         ident
+        ..
+        indent
         ..
         join
         ..
@@ -616,7 +968,13 @@
         ..
         opensm
         ..
+        pr
+        ..
         printf
+        ..
+        procstat
+        ..
+        rs
         ..
         sdiff
         ..
@@ -624,7 +982,13 @@
             regress.multitest.out
             ..
         ..
+        seq
+        ..
         soelim
+        ..
+        stat
+        ..
+        tail
         ..
         tar
         ..
@@ -640,6 +1004,10 @@
         ..
         uuencode
         ..
+        uniq
+        ..
+        vmstat
+        ..
         xargs
         ..
         xinstall
@@ -652,6 +1020,8 @@
         ..
     ..
     usr.sbin
+        chown
+        ..
         etcupdate
         ..
         extattr
@@ -663,6 +1033,8 @@
         newsyslog
         ..
         nmtree
+        ..
+        praudit
         ..
         pw
         ..

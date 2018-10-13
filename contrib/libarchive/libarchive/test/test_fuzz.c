@@ -104,29 +104,44 @@ test_fuzz(const struct files *filesets)
 			}
 			if (!assert(size < buffsize)) {
 				free(rawimage);
+				rawimage = NULL;
 				continue;
 			}
 		} else {
 			for (i = 0; filesets[n].names[i] != NULL; ++i)
 			{
+				char *newraw;
 				tmp = slurpfile(&size, filesets[n].names[i]);
-				rawimage = (char *)realloc(rawimage, oldsize + size);
+				newraw = realloc(rawimage, oldsize + size);
+				if (!assert(newraw != NULL))
+				{
+					free(rawimage);
+					rawimage = NULL;
+					free(tmp);
+					continue;
+				}
+				rawimage = newraw;
 				memcpy(rawimage + oldsize, tmp, size);
 				oldsize += size;
 				size = oldsize;
 				free(tmp);
-				if (!assert(rawimage != NULL))
-					continue;
 			}
 		}
-		if (size == 0)
+		if (size == 0) {
+			free(rawimage);
+			rawimage = NULL;
 			continue;
+		}
 		image = malloc(size);
 		assert(image != NULL);
 		if (image == NULL) {
 			free(rawimage);
+			rawimage = NULL;
 			return;
 		}
+
+		assert(rawimage != NULL);
+
 		srand((unsigned)time(NULL));
 
 		for (i = 0; i < 1000; ++i) {
@@ -158,6 +173,7 @@ test_fuzz(const struct files *filesets)
 				Sleep(100);
 #endif
 			}
+			assert(f != NULL);
 			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
@@ -191,7 +207,7 @@ test_fuzz(const struct files *filesets)
 				archive_read_close(a);
 			}
 			archive_read_free(a);
-}
+		}
 		free(image);
 		free(rawimage);
 	}
@@ -391,10 +407,18 @@ DEFINE_TEST(test_fuzz_tar)
 		"test_read_format_tar_empty_filename.tar",
 		NULL
 	};
+#if HAVE_LIBLZO2 && HAVE_LZO_LZO1X_H && HAVE_LZO_LZOCONF_H
 	static const char *fileset9[] = {
 		"test_compat_lzop_1.tar.lzo",
 		NULL
 	};
+#endif
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	static const char *fileset10[] = {
+		"test_compat_zstd_1.tar.zst",
+		NULL
+	};
+#endif
 	static const struct files filesets[] = {
 		{0, fileset1}, /* Exercise bzip2 decompressor. */
 		{1, fileset1},
@@ -405,7 +429,12 @@ DEFINE_TEST(test_fuzz_tar)
 		{0, fileset6}, /* Exercise xz decompressor. */
 		{0, fileset7},
 		{0, fileset8},
+#if HAVE_LIBLZO2 && HAVE_LZO_LZO1X_H && HAVE_LZO_LZOCONF_H
 		{0, fileset9}, /* Exercise lzo decompressor. */
+#endif
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+		{0, fileset10}, /* Excercise zstd decompressor. */
+#endif
 		{1, NULL}
 	};
 	test_fuzz(filesets);

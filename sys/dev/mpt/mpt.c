@@ -2,6 +2,8 @@
  * Generic routines for LSI Fusion adapters.
  * FreeBSD Version.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c) 2000, 2001 by Greg Ansley
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1544,7 +1546,7 @@ mpt_get_portfacts(struct mpt_softc *mpt, U8 port, MSG_PORT_FACTS_REPLY *freplp)
 
 /*
  * Send the initialization request. This is where we specify how many
- * SCSI busses and how many devices per bus we wish to emulate.
+ * SCSI buses and how many devices per bus we wish to emulate.
  * This is also the command that specifies the max size of the reply
  * frames from the IOC that we will be allocating.
  */
@@ -1559,7 +1561,7 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	init.WhoInit = who;
 	init.Function = MPI_FUNCTION_IOC_INIT;
 	init.MaxDevices = 0;	/* at least 256 devices per bus */
-	init.MaxBuses = 16;	/* at least 16 busses */
+	init.MaxBuses = 16;	/* at least 16 buses */
 
 	init.MsgVersion = htole16(MPI_VERSION);
 	init.HeaderVersion = htole16(MPI_HEADER_VERSION);
@@ -2695,7 +2697,11 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 	 */
 	mpt->max_cam_seg_cnt = min(mpt->max_seg_cnt, (MAXPHYS / PAGE_SIZE) + 1);
 
+	/* XXX Lame Locking! */
+	MPT_UNLOCK(mpt);
 	error = mpt_dma_buf_alloc(mpt);
+	MPT_LOCK(mpt);
+
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_dma_buf_alloc() failed!\n");
 		return (EIO);
@@ -2745,6 +2751,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		 * retrieved, we are responsible for re-downloading
 		 * the firmware after any hard-reset.
 		 */
+		MPT_UNLOCK(mpt);
 		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
 		error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
 		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -2752,6 +2759,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    &mpt->fw_dmat);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot create firmware dma tag\n");
+			MPT_LOCK(mpt);
 			return (ENOMEM);
 		}
 		error = bus_dmamem_alloc(mpt->fw_dmat,
@@ -2760,6 +2768,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		if (error != 0) {
 			mpt_prt(mpt, "cannot allocate firmware memory\n");
 			bus_dma_tag_destroy(mpt->fw_dmat);
+			MPT_LOCK(mpt);
 			return (ENOMEM);
 		}
 		mi.mpt = mpt;
@@ -2768,6 +2777,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    mpt->fw_image, mpt->fw_image_size, mpt_map_rquest, &mi, 0);
 		mpt->fw_phys = mi.phys;
 
+		MPT_LOCK(mpt);
 		error = mpt_upload_fw(mpt);
 		if (error != 0) {
 			mpt_prt(mpt, "firmware upload failed.\n");

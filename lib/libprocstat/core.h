@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Mikolaj Golub <trociny@FreeBSD.org>
+ * Copyright (c) 2017 Dell EMC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +44,8 @@ enum psc_type {
 	PSC_TYPE_ARGV,
 	PSC_TYPE_ENVV,
 	PSC_TYPE_AUXV,
+	PSC_TYPE_PTLWPINFO,
+	PSC_TYPE_MAX
 };
 
 struct procstat_core;
@@ -48,6 +53,7 @@ struct procstat_core;
 void procstat_core_close(struct procstat_core *core);
 void *procstat_core_get(struct procstat_core *core, enum psc_type type,
     void * buf, size_t *lenp);
+int procstat_core_note_count(struct procstat_core *core, enum psc_type type);
 struct procstat_core *procstat_core_open(const char *filename);
 
 #endif 	/* !_CORE_H_ */

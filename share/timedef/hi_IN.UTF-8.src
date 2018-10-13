@@ -50,20 +50,20 @@
 शनिवार
 #
 # X_fmt
-%I:%M:%S %p
+%H:%M:%S
 #
 # x_fmt
-%e/%m/%y
+%d/%m/%Y
 #
 # c_fmt
-%A %e %B %Y को %I:%M:%S %p
+%a %b %e %X %Y
 #
 # AM/PM
 पूर्वाह्न
 अपराह्न
 #
 # date_fmt
-%A %e %B %Y को %I:%M:%S %p %Z
+%a %b %e %X %Z %Y
 #
 # Long month names (without case ending)
 जनवरी
@@ -80,7 +80,7 @@
 दिसंबर
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

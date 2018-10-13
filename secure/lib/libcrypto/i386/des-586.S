@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from des-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from des-586.pl. */
 #ifdef PIC
-.file	"des-586.S"
 .text
 .globl	DES_SPtrans
 .type	_x86_DES_encrypt,@function
@@ -1840,7 +1839,6 @@ DES_SPtrans:
 .long	128,545390592,8519808,0
 .long	536870912,545259648,131072,8519808
 #else
-.file	"des-586.S"
 .text
 .globl	DES_SPtrans
 .type	_x86_DES_encrypt,@function

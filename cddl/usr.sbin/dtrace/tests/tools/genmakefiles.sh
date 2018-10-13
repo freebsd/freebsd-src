@@ -34,15 +34,28 @@ genmakefile()
 
     # One-off variable definitions.
     local special
-    if [ "$basedir" = proc ]; then
+    case "$basedir" in
+    proc)
         special="
 LIBADD.tst.sigwait.exe+= rt
 "
-    elif [ "$basedir" = uctf ]; then
+        ;;
+    raise)
+	special="
+TEST_METADATA.t_dtrace_contrib+=	required_memory=\"4g\"
+"
+        ;;
+    safety)
+	special="
+TEST_METADATA.t_dtrace_contrib+=	required_memory=\"4g\"
+"
+        ;;
+    uctf)
         special="
 WITH_CTF=YES
 "
-    fi
+        ;;
+    esac
 
     local makefile=$(mktemp)
     cat <<__EOF__ > $makefile
@@ -75,6 +88,8 @@ set -e
 if [ $# -ne 0 ]; then
     usage
 fi
+
+export LC_ALL=C
 
 readonly ORIGINDIR=$(realpath $(dirname $0))
 readonly TOPDIR=$(realpath ${ORIGINDIR}/../../../../..)

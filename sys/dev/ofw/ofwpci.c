@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -94,6 +95,7 @@ static phandle_t ofw_pci_get_node(device_t, device_t);
  * local methods
  */
 static int ofw_pci_fill_ranges(phandle_t, struct ofw_pci_range *);
+static struct rman *ofw_pci_get_rman(struct ofw_pci_softc *, int, u_int);
 
 /*
  * Driver methods.
@@ -121,6 +123,7 @@ static device_method_t	ofw_pci_methods[] = {
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	ofw_pci_maxslots),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),
@@ -137,13 +140,14 @@ ofw_pci_init(device_t dev)
 	phandle_t node;
 	u_int32_t busrange[2];
 	struct ofw_pci_range *rp;
-	int error;
+	int i, error;
 	struct ofw_pci_cell_info *cell_info;
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	sc->sc_initialized = 1;
 	sc->sc_range = NULL;
+	sc->sc_pci_domain = device_get_unit(dev);
 
 	cell_info = (struct ofw_pci_cell_info *)malloc(sizeof(*cell_info),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
@@ -195,23 +199,33 @@ ofw_pci_init(device_t dev)
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "PCI I/O Ports";
 	error = rman_init(&sc->sc_io_rman);
-	if (error) {
+	if (error != 0) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		goto out;
 	}
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "PCI Memory";
+	sc->sc_mem_rman.rm_descr = "PCI Non Prefetchable Memory";
 	error = rman_init(&sc->sc_mem_rman);
-	if (error) {
+	if (error != 0) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		goto out;
 	}
 
-	for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
-	    rp->pci_hi != 0; rp++) {
-		error = 0;
+	sc->sc_pmem_rman.rm_type = RMAN_ARRAY;
+	sc->sc_pmem_rman.rm_descr = "PCI Prefetchable Memory";
+	error = rman_init(&sc->sc_pmem_rman);
+	if (error != 0) {
+		device_printf(dev, "rman_init() failed. error = %d\n", error);
+		goto out;
+	}
 
+	for (i = 0; i < sc->sc_nrange; i++) {
+		error = 0;
+		rp = sc->sc_range + i;
+
+		if (sc->sc_range_mask & ((uint64_t)1 << i))
+			continue;
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
@@ -221,12 +235,18 @@ ofw_pci_init(device_t dev)
 			break;
 		case OFW_PCI_PHYS_HI_SPACE_MEM32:
 		case OFW_PCI_PHYS_HI_SPACE_MEM64:
-			error = rman_manage_region(&sc->sc_mem_rman, rp->pci,
-			    rp->pci + rp->size - 1);
+			if (rp->pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) {
+				sc->sc_have_pmem = 1;
+				error = rman_manage_region(&sc->sc_pmem_rman,
+				    rp->pci, rp->pci + rp->size - 1);
+			} else {
+				error = rman_manage_region(&sc->sc_mem_rman,
+				    rp->pci, rp->pci + rp->size - 1);
+			}
 			break;
 		}
 
-		if (error) {
+		if (error != 0) {
 			device_printf(dev,
 			    "rman_manage_region(%x, %#jx, %#jx) failed. "
 			    "error = %d\n", rp->pci_hi &
@@ -244,6 +264,7 @@ out:
 	free(sc->sc_range, M_DEVBUF);
 	rman_fini(&sc->sc_io_rman);
 	rman_fini(&sc->sc_mem_rman);
+	rman_fini(&sc->sc_pmem_rman);
 
 	return (error);
 }
@@ -257,7 +278,7 @@ ofw_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	if (!sc->sc_initialized) {
 		error = ofw_pci_init(dev);
-		if (error)
+		if (error != 0)
 			return (error);
 	}
 
@@ -318,7 +339,7 @@ ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
-		*result = device_get_unit(dev);
+		*result = sc->sc_pci_domain;
 		return (0);
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_bus;
@@ -385,28 +406,23 @@ ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 	int needactivate;
 
+
 	needactivate = flags & RF_ACTIVE;
 	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
 
-	switch (type) {
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_mem_rman;
-		break;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type ==  PCI_RES_BUS) {
+		  return (pci_domain_alloc_bus(sc->sc_pci_domain, child, rid,
+		      start, end, count, flags | needactivate));
+	}
+#endif
 
-	case SYS_RES_IOPORT:
-		rm = &sc->sc_io_rman;
-		break;
-
-	case SYS_RES_IRQ:
-		return (bus_alloc_resource(bus, type, rid, start, end, count,
-		    flags));
-
-	default:
-		device_printf(bus, "unknown resource request from %s\n",
-		    device_get_nameunit(child));
-		return (NULL);
+	rm = ofw_pci_get_rman(sc, type, flags);
+	if (rm == NULL)  {
+		return (bus_generic_alloc_resource(bus, child, type, rid,
+		    start, end, count, flags | needactivate));
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
@@ -435,13 +451,30 @@ static int
 ofw_pci_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
+	struct ofw_pci_softc *sc;
+	struct rman *rm;
+	int error;
+
+	sc = device_get_softc(bus);
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->sc_pci_domain, child, rid,
+		    res));
+#endif
+
+	rm = ofw_pci_get_rman(sc, type, rman_get_flags(res));
+	if (rm == NULL) {
+		return (bus_generic_release_resource(bus, child, type, rid,
+		    res));
+	}
+	KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
-		int error = bus_deactivate_resource(child, type, rid, res);
-		if (error)
-			return error;
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error != 0)
+			return (error);
 	}
-
 	return (rman_release_resource(res));
 }
 
@@ -452,63 +485,62 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	struct ofw_pci_softc *sc;
 	bus_space_handle_t handle;
 	bus_space_tag_t tag;
+	struct ofw_pci_range *rp;
+	vm_paddr_t start;
+	int space;
 	int rv;
 
 	sc = device_get_softc(bus);
 
-	if (type == SYS_RES_IRQ) {
-		return (bus_activate_resource(bus, type, rid, res));
+	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY) {
+		return (bus_generic_activate_resource(bus, child, type, rid,
+		    res));
 	}
-	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		struct ofw_pci_range *rp;
-		vm_paddr_t start;
-		int space;
 
-		start = (vm_paddr_t)rman_get_start(res);
+	start = (vm_paddr_t)rman_get_start(res);
 
-		/*
-		 * Map this through the ranges list
-		 */
-		for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
-		    rp->pci_hi != 0; rp++) {
-			if (start < rp->pci || start >= rp->pci + rp->size)
-				continue;
+	/*
+	 * Map this through the ranges list
+	 */
+	for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
+	    rp->pci_hi != 0; rp++) {
+		if (start < rp->pci || start >= rp->pci + rp->size)
+			continue;
 
-			switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
-			case OFW_PCI_PHYS_HI_SPACE_IO:
-				space = SYS_RES_IOPORT;
-				break;
-			case OFW_PCI_PHYS_HI_SPACE_MEM32:
-			case OFW_PCI_PHYS_HI_SPACE_MEM64:
-				space = SYS_RES_MEMORY;
-				break;
-			default:
-				space = -1;
+		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
+		case OFW_PCI_PHYS_HI_SPACE_IO:
+			space = SYS_RES_IOPORT;
+			break;
+		case OFW_PCI_PHYS_HI_SPACE_MEM32:
+		case OFW_PCI_PHYS_HI_SPACE_MEM64:
+			space = SYS_RES_MEMORY;
+			break;
+		default:
+			space = -1;
 			}
 
-			if (type == space) {
-				start += (rp->host - rp->pci);
-				break;
-			}
+		if (type == space) {
+			start += (rp->host - rp->pci);
+			break;
 		}
-
-		if (bootverbose)
-			printf("ofw_pci mapdev: start %jx, len %jd\n",
-			    (rman_res_t)start, rman_get_size(res));
-
-		tag = BUS_GET_BUS_TAG(child, child);
-		if (tag == NULL)
-			return (ENOMEM);
-
-		rman_set_bustag(res, tag);
-		rv = bus_space_map(tag, start,
-		    rman_get_size(res), 0, &handle);
-		if (rv != 0)
-			return (ENOMEM);
-
-		rman_set_bushandle(res, handle);
-		rman_set_virtual(res, (void *)handle); /* XXX  for powerpc only ? */
 	}
+
+	if (bootverbose)
+		printf("ofw_pci mapdev: start %jx, len %jd\n",
+		    (rman_res_t)start, rman_get_size(res));
+
+	tag = BUS_GET_BUS_TAG(child, child);
+	if (tag == NULL)
+		return (ENOMEM);
+
+	rman_set_bustag(res, tag);
+	rv = bus_space_map(tag, start,
+	    rman_get_size(res), 0, &handle);
+	if (rv != 0)
+		return (ENOMEM);
+
+	rman_set_bushandle(res, handle);
+	rman_set_virtual(res, (void *)handle); /* XXX  for powerpc only ? */
 
 	return (rman_activate_resource(res));
 }
@@ -526,16 +558,15 @@ static int
 ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
+	vm_size_t psize;
 
-	/*
-	 * If this is a memory resource, unmap it.
-	 */
-	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
-		u_int32_t psize;
-
-		psize = rman_get_size(res);
-		pmap_unmapdev((vm_offset_t)rman_get_virtual(res), psize);
+	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY) {
+		return (bus_generic_deactivate_resource(bus, child, type, rid,
+		    res));
 	}
+
+	psize = rman_get_size(res);
+	pmap_unmapdev((vm_offset_t)rman_get_virtual(res), psize);
 
 	return (rman_deactivate_resource(res));
 }
@@ -544,27 +575,24 @@ static int
 ofw_pci_adjust_resource(device_t bus, device_t child, int type,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
-	struct rman *rm = NULL;
-	struct ofw_pci_softc *sc = device_get_softc(bus);
+	struct rman *rm;
+	struct ofw_pci_softc *sc;
 
+	sc = device_get_softc(bus);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->sc_pci_domain, child, res,
+		    start, end));
+#endif
+
+	rm = ofw_pci_get_rman(sc, type, rman_get_flags(res));
+	if (rm == NULL) {
+		return (bus_generic_adjust_resource(bus, child, type, res,
+		    start, end));
+	}
+	KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
 	KASSERT(!(rman_get_flags(res) & RF_ACTIVE),
 	    ("active resources cannot be adjusted"));
-	if (rman_get_flags(res) & RF_ACTIVE)
-		return (EINVAL);
-
-	switch (type) {
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_mem_rman;
-		break;
-	case SYS_RES_IOPORT:
-		rm = &sc->sc_io_rman;
-		break;
-	default:
-		return (ENXIO);
-	}
-
-	if (!rman_is_region_manager(res, rm))
-		return (EINVAL);
 
 	return (rman_adjust_resource(res, start, end));
 }
@@ -625,4 +653,23 @@ ofw_pci_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
 
 	free(base_ranges, M_DEVBUF);
 	return (nranges);
+}
+
+static struct rman *
+ofw_pci_get_rman(struct ofw_pci_softc *sc, int type, u_int flags)
+{
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return (&sc->sc_io_rman);
+	case SYS_RES_MEMORY:
+		if (sc->sc_have_pmem  && (flags & RF_PREFETCHABLE))
+			return (&sc->sc_pmem_rman);
+		else
+			return (&sc->sc_mem_rman);
+	default:
+		break;
+	}
+
+	return (NULL);
 }

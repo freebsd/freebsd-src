@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Matthew Jacob
  * All rights reserved.
  *
@@ -37,8 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -56,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
-#include <opt_ses.h>
+#include "opt_ses.h"
 
 MALLOC_DEFINE(M_SCSIENC, "SCSI ENC", "SCSI ENC buffers");
 
@@ -264,7 +269,7 @@ enc_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	cam_periph_lock(periph);
@@ -332,7 +337,7 @@ enc_error(union ccb *ccb, uint32_t cflags, uint32_t sflags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct enc_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cflags, sflags, &softc->saved_ccb));
+	return (cam_periph_error(ccb, cflags, sflags));
 }
 
 static int
@@ -351,6 +356,10 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 	void *addr;
 	int error, i;
 
+#ifdef	COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+		return (ENOTTY);
+#endif
 
 	if (arg_addr)
 		addr = *((caddr_t *) arg_addr);
@@ -856,7 +865,7 @@ enc_kproc_init(enc_softc_t *enc)
 
 	callout_init_mtx(&enc->status_updater, cam_periph_mtx(enc->periph), 0);
 
-	if (cam_periph_acquire(enc->periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(enc->periph) != 0)
 		return (ENXIO);
 
 	result = kproc_create(enc_daemon, enc, &enc->enc_daemon, /*flags*/0,
@@ -897,6 +906,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 	char *tname;
 	struct make_dev_args args;
+	struct sbuf sb;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -971,7 +981,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -1026,7 +1036,12 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		tname = "SEMB SAF-TE Device";
 		break;
 	}
-	xpt_announce_periph(periph, tname);
+
+	sbuf_new(&sb, enc->announce_buf, ENC_ANNOUNCE_SZ, SBUF_FIXEDLEN);
+	xpt_announce_periph_sbuf(periph, &sb, tname);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
+
 	status = CAM_REQ_CMP;
 
 out:

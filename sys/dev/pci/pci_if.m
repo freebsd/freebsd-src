@@ -60,6 +60,11 @@ HEADER {
 	    PCI_ID_RID,
 	    PCI_ID_MSI,
 	};
+
+	enum pci_feature {
+	    PCI_FEATURE_HP,		/* Hot Plug feature */
+	    PCI_FEATURE_AER,		/* Advanced Error Reporting */
+	};
 }
 
 
@@ -136,6 +141,14 @@ METHOD int find_cap {
 	int		*capreg;
 };
 
+METHOD int find_next_cap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
+	int		*capreg;
+};
+
 METHOD int find_extcap {
 	device_t	dev;
 	device_t	child;
@@ -143,10 +156,26 @@ METHOD int find_extcap {
 	int		*capreg;
 };
 
+METHOD int find_next_extcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
+	int		*capreg;
+};
+
 METHOD int find_htcap {
 	device_t	dev;
 	device_t	child;
 	int		capability;
+	int		*capreg;
+};
+
+METHOD int find_next_htcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
 	int		*capreg;
 };
 
@@ -235,6 +264,7 @@ METHOD int iov_attach {
 	device_t	child;
 	struct nvlist	*pf_schema;
 	struct nvlist	*vf_schema;
+	const char	*name;
 };
 
 METHOD int iov_detach {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -92,17 +94,27 @@ struct bcm_mbox_softc {
 #define	mbox_write_4(sc, reg, val)		\
     bus_space_write_4((sc)->bst, (sc)->bsh, reg, val)
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-mbox",	1},
+	{"brcm,bcm2835-mbox",		1},
+	{NULL,				0}
+};
+
 static int
 bcm_mbox_read_msg(struct bcm_mbox_softc *sc, int *ochan)
 {
+#ifdef DEBUG
 	uint32_t data;
+#endif
 	uint32_t msg;
 	int chan;
 
 	msg = mbox_read_4(sc, REG_READ);
 	dprintf("bcm_mbox_intr: raw data %08x\n", msg);
 	chan = MBOX_CHAN(msg);
+#ifdef DEBUG
 	data = MBOX_DATA(msg);
+#endif
 	if (sc->msg[chan]) {
 		printf("bcm_mbox_intr: channel %d oveflow\n", chan);
 		return (1);
@@ -138,12 +150,12 @@ bcm_mbox_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-mbox")) {
-		device_set_desc(dev, "BCM2835 VideoCore Mailbox");
-		return(BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	device_set_desc(dev, "BCM2835 VideoCore Mailbox");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

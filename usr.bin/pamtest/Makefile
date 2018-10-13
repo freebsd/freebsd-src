@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-OPENPAM=	${.CURDIR}/../../contrib/openpam
+OPENPAM=	${SRCTOP}/contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/bin/pamtest
 
 PROG= pamtest

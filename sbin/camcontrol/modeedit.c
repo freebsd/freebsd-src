@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Kelly Yancey <kbyanc@posi.net>
  * Derived from work done by Julian Elischer <julian@tfs.com,
  * julian@dialix.oz.au>, 1993, and Peter Dufault <dufault@hda.com>, 1994.
@@ -66,9 +68,6 @@ __FBSDID("$FreeBSD$");
 #define	MODE_PAGE_HEADER(mh)						\
 	(struct scsi_mode_page_header *)find_mode_page_6(mh)
 
-#define	MODE_PAGE_DATA(mph)						\
-	(u_int8_t *)(mph) + sizeof(struct scsi_mode_page_header)
-
 
 struct editentry {
 	STAILQ_ENTRY(editentry) link;
@@ -86,7 +85,8 @@ static int editlist_changed = 0;	/* Whether any entries were changed. */
 
 struct pagename {
 	SLIST_ENTRY(pagename) link;
-	int pagenum;
+	int page;
+	int subpage;
 	char *name;
 };
 static SLIST_HEAD(, pagename) namelist;	/* Page number to name mappings. */
@@ -106,21 +106,23 @@ static int		 editentry_save(void *hook, char *name);
 static struct editentry	*editentry_lookup(char *name);
 static int		 editentry_set(char *name, char *newvalue,
 				       int editonly);
-static void		 editlist_populate(struct cam_device *device,
-					   int modepage, int page_control,
-					   int dbd, int retries, int timeout);
-static void		 editlist_save(struct cam_device *device, int modepage,
-				       int page_control, int dbd, int retries,
-				       int timeout);
-static void		 nameentry_create(int pagenum, char *name);
-static struct pagename	*nameentry_lookup(int pagenum);
-static int		 load_format(const char *pagedb_path, int page);
+static void		 editlist_populate(struct cam_device *device, int dbd,
+					   int pc, int page, int subpage,
+					   int task_attr, int retries,
+					   int timeout);
+static void		 editlist_save(struct cam_device *device, int dbd,
+				       int pc, int page, int subpage,
+				       int task_attr, int retries, int timeout);
+static void		 nameentry_create(int page, int subpage, char *name);
+static struct pagename	*nameentry_lookup(int page, int subpage);
+static int		 load_format(const char *pagedb_path, int lpage,
+			    int lsubpage);
 static int		 modepage_write(FILE *file, int editonly);
 static int		 modepage_read(FILE *file);
 static void		 modepage_edit(void);
-static void		 modepage_dump(struct cam_device *device, int page,
-				       int page_control, int dbd, int retries,
-				       int timeout);
+static void		 modepage_dump(struct cam_device *device, int dbd,
+			    int pc, int page, int subpage, int task_attr,
+			    int retries, int timeout);
 static void		 cleanup_editfile(void);
 
 
@@ -193,7 +195,14 @@ editentry_save(void *hook __unused, char *name)
 	struct editentry *src;		/* Entry value to save. */
 
 	src = editentry_lookup(name);
-	assert(src != NULL);
+	if (src == 0) {
+		/*
+		 * This happens if field does not fit into read page size.
+		 * It also means that this field won't be written, so the
+		 * returned value does not really matter.
+		 */
+		return (0);
+	}
 
 	switch (src->type) {
 	case 'i':			/* Byte-sized integral type. */
@@ -318,10 +327,10 @@ editentry_set(char *name, char *newvalue, int editonly)
 }
 
 static void
-nameentry_create(int pagenum, char *name) {
+nameentry_create(int page, int subpage, char *name) {
 	struct pagename *newentry;
 
-	if (pagenum < 0 || name == NULL || name[0] == '\0')
+	if (page < 0 || subpage < 0 || name == NULL || name[0] == '\0')
 		return;
 
 	/* Allocate memory for the new entry and a copy of the entry name. */
@@ -332,16 +341,17 @@ nameentry_create(int pagenum, char *name) {
 	/* Trim any trailing whitespace for the page name. */
 	RTRIM(newentry->name);
 
-	newentry->pagenum = pagenum;
+	newentry->page = page;
+	newentry->subpage = subpage;
 	SLIST_INSERT_HEAD(&namelist, newentry, link);
 }
 
 static struct pagename *
-nameentry_lookup(int pagenum) {
+nameentry_lookup(int page, int subpage) {
 	struct pagename *scan;
 
 	SLIST_FOREACH(scan, &namelist, link) {
-		if (pagenum == scan->pagenum)
+		if (page == scan->page && subpage == scan->subpage)
 			return (scan);
 	}
 
@@ -350,12 +360,14 @@ nameentry_lookup(int pagenum) {
 }
 
 static int
-load_format(const char *pagedb_path, int page)
+load_format(const char *pagedb_path, int lpage, int lsubpage)
 {
 	FILE *pagedb;
-	char str_pagenum[MAX_PAGENUM_LEN];
+	char str_page[MAX_PAGENUM_LEN];
+	char *str_subpage;
 	char str_pagename[MAX_PAGENAME_LEN];
-	int pagenum;
+	int page;
+	int subpage;
 	int depth;			/* Quoting depth. */
 	int found;
 	int lineno;
@@ -364,9 +376,10 @@ load_format(const char *pagedb_path, int page)
 	char c;
 
 #define	SETSTATE_LOCATE do {						\
-	str_pagenum[0] = '\0';						\
+	str_page[0] = '\0';						\
 	str_pagename[0] = '\0';						\
-	pagenum = -1;							\
+	page = -1;							\
+	subpage = -1;							\
 	state = LOCATE;							\
 } while (0)
 
@@ -443,32 +456,46 @@ load_format(const char *pagedb_path, int page)
 				 * modes without providing a mode definition).
 				 */
 				/* Record the name of this page. */
-				pagenum = strtol(str_pagenum, NULL, 0);
-				nameentry_create(pagenum, str_pagename);
+				str_subpage = str_page;
+				strsep(&str_subpage, ",");
+				page = strtol(str_page, NULL, 0);
+				if (str_subpage)
+				    subpage = strtol(str_subpage, NULL, 0);
+				else
+				    subpage = 0;
+				nameentry_create(page, subpage, str_pagename);
 				SETSTATE_LOCATE;
 			} else if (depth == 0 && c == PAGENAME_START) {
 				SETSTATE_PAGENAME;
 			} else if (c == PAGEDEF_START) {
-				pagenum = strtol(str_pagenum, NULL, 0);
+				str_subpage = str_page;
+				strsep(&str_subpage, ",");
+				page = strtol(str_page, NULL, 0);
+				if (str_subpage)
+				    subpage = strtol(str_subpage, NULL, 0);
+				else
+				    subpage = 0;
 				if (depth == 1) {
 					/* Record the name of this page. */
-					nameentry_create(pagenum, str_pagename);
+					nameentry_create(page, subpage,
+					    str_pagename);
 					/*
 					 * Only record the format if this is
 					 * the page we are interested in.
 					 */
-					if (page == pagenum && !found)
+					if (lpage == page &&
+					    lsubpage == subpage && !found)
 						SETSTATE_PAGEDEF;
 				}
 			} else if (c == PAGEDEF_END) {
 				/* Reset the processor state. */
 				SETSTATE_LOCATE;
-			} else if (depth == 0 && ! BUFFERFULL(str_pagenum)) {
-				strncat(str_pagenum, &c, 1);
+			} else if (depth == 0 && ! BUFFERFULL(str_page)) {
+				strncat(str_page, &c, 1);
 			} else if (depth == 0) {
 				errx(EX_OSFILE, "%s:%d: %s %zd %s", pagedb_path,
 				    lineno, "page identifier exceeds",
-				    sizeof(str_pagenum) - 1, "characters");
+				    sizeof(str_page) - 1, "characters");
 			}
 			break;
 
@@ -484,7 +511,7 @@ load_format(const char *pagedb_path, int page)
 			} else {
 				errx(EX_OSFILE, "%s:%d: %s %zd %s", pagedb_path,
 				    lineno, "page name exceeds",
-				    sizeof(str_pagenum) - 1, "characters");
+				    sizeof(str_page) - 1, "characters");
 			}
 			break;
 
@@ -525,88 +552,111 @@ load_format(const char *pagedb_path, int page)
 }
 
 static void
-editlist_populate(struct cam_device *device, int modepage, int page_control,
-		  int dbd, int retries, int timeout)
+editlist_populate(struct cam_device *device, int dbd, int pc, int page,
+    int subpage, int task_attr, int retries, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
+	struct scsi_mode_page_header_sp *mphsp;
+	size_t len;
 
 	STAILQ_INIT(&editlist);
 
 	/* Fetch changeable values; use to build initial editlist. */
-	mode_sense(device, modepage, 1, dbd, retries, timeout, data,
-		   sizeof(data));
+	mode_sense(device, dbd, 1, page, subpage, task_attr, retries, timeout,
+		   data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
 	mph = MODE_PAGE_HEADER(mh);
-	mode_pars = MODE_PAGE_DATA(mph);
+	if ((mph->page_code & SMPH_SPF) == 0) {
+		mode_pars = (uint8_t *)(mph + 1);
+		len = mph->page_length;
+	} else {
+		mphsp = (struct scsi_mode_page_header_sp *)mph;
+		mode_pars = (uint8_t *)(mphsp + 1);
+		len = scsi_2btoul(mphsp->page_length);
+	}
+	len = MIN(len, sizeof(data) - (mode_pars - data));
 
 	/* Decode the value data, creating edit_entries for each value. */
-	buff_decode_visit(mode_pars, mh->data_length, format,
-	    editentry_create, 0);
+	buff_decode_visit(mode_pars, len, format, editentry_create, 0);
 
 	/* Fetch the current/saved values; use to set editentry values. */
-	mode_sense(device, modepage, page_control, dbd, retries, timeout, data,
-		   sizeof(data));
-	buff_decode_visit(mode_pars, mh->data_length, format,
-	    editentry_update, 0);
+	mode_sense(device, dbd, pc, page, subpage, task_attr, retries, timeout,
+	    data, sizeof(data));
+	buff_decode_visit(mode_pars, len, format, editentry_update, 0);
 }
 
 static void
-editlist_save(struct cam_device *device, int modepage, int page_control,
-	      int dbd, int retries, int timeout)
+editlist_save(struct cam_device *device, int dbd, int pc, int page,
+    int subpage, int task_attr, int retries, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
+	struct scsi_mode_page_header_sp *mphsp;
+	size_t len, hlen;
 
 	/* Make sure that something changed before continuing. */
 	if (! editlist_changed)
 		return;
 
-	/*
-	 * Preload the CDB buffer with the current mode page data.
-	 * XXX If buff_encode_visit would return the number of bytes encoded
-	 *     we *should* use that to build a header from scratch. As it is
-	 *     now, we need mode_sense to find out the page length.
-	 */
-	mode_sense(device, modepage, page_control, dbd, retries, timeout, data,
-		   sizeof(data));
+	/* Preload the CDB buffer with the current mode page data. */
+	mode_sense(device, dbd, pc, page, subpage, task_attr, retries, timeout,
+	    data, sizeof(data));
 
 	/* Initial headers & offsets. */
 	mh = (struct scsi_mode_header_6 *)data;
 	mph = MODE_PAGE_HEADER(mh);
-	mode_pars = MODE_PAGE_DATA(mph);
+	if ((mph->page_code & SMPH_SPF) == 0) {
+		hlen = sizeof(*mph);
+		mode_pars = (uint8_t *)(mph + 1);
+		len = mph->page_length;
+	} else {
+		mphsp = (struct scsi_mode_page_header_sp *)mph;
+		hlen = sizeof(*mphsp);
+		mode_pars = (uint8_t *)(mphsp + 1);
+		len = scsi_2btoul(mphsp->page_length);
+	}
+	len = MIN(len, sizeof(data) - (mode_pars - data));
 
 	/* Encode the value data to be passed back to the device. */
-	buff_encode_visit(mode_pars, mh->data_length, format,
-	    editentry_save, 0);
+	buff_encode_visit(mode_pars, len, format, editentry_save, 0);
 
 	/* Eliminate block descriptors. */
-	bcopy(mph, ((u_int8_t *)mh) + sizeof(*mh),
-	    sizeof(*mph) + mph->page_length);
+	bcopy(mph, mh + 1, hlen + len);
 
 	/* Recalculate headers & offsets. */
-	mh->blk_desc_len = 0;		/* No block descriptors. */
-	mh->dev_spec = 0;		/* Clear device-specific parameters. */
-	mph = MODE_PAGE_HEADER(mh);
-	mode_pars = MODE_PAGE_DATA(mph);
-
-	mph->page_code &= SMS_PAGE_CODE;/* Isolate just the page code. */
 	mh->data_length = 0;		/* Reserved for MODE SELECT command. */
+	mh->blk_desc_len = 0;		/* No block descriptors. */
+	/*
+	 * Tape drives include write protect (WP), Buffered Mode and Speed
+	 * settings in the device-specific parameter.  Clearing this
+	 * parameter on a mode select can have the effect of turning off
+	 * write protect or buffered mode, or changing the speed setting of
+	 * the tape drive.
+	 *
+	 * Disks report DPO/FUA support via the device specific parameter
+	 * for MODE SENSE, but the bit is reserved for MODE SELECT.  So we
+	 * clear this for disks (and other non-tape devices) to avoid
+	 * potential errors from the target device.
+	 */
+	if (device->pd_type != T_SEQUENTIAL)
+		mh->dev_spec = 0;
+	mph = MODE_PAGE_HEADER(mh);
+	mph->page_code &= ~SMPH_PS;	/* Reserved for MODE SELECT command. */
 
 	/*
 	 * Write the changes back to the device. If the user editted control
 	 * page 3 (saved values) then request the changes be permanently
 	 * recorded.
 	 */
-	mode_select(device,
-	    (page_control << PAGE_CTRL_SHIFT == SMS_PAGE_CTRL_SAVED),
-	    retries, timeout, (u_int8_t *)mh,
-	    sizeof(*mh) + mh->blk_desc_len + sizeof(*mph) + mph->page_length);
+	mode_select(device, (pc << PAGE_CTRL_SHIFT == SMS_PAGE_CTRL_SAVED),
+	    task_attr, retries, timeout, (u_int8_t *)mh,
+	    sizeof(*mh) + hlen + len);
 }
 
 static int
@@ -775,24 +825,33 @@ modepage_edit(void)
 }
 
 static void
-modepage_dump(struct cam_device *device, int page, int page_control, int dbd,
-	      int retries, int timeout)
+modepage_dump(struct cam_device *device, int dbd, int pc, int page, int subpage,
+	      int task_attr, int retries, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
-	int indx;			/* Index for scanning mode params. */
+	struct scsi_mode_page_header_sp *mphsp;
+	size_t indx, len;
 
-	mode_sense(device, page, page_control, dbd, retries, timeout, data,
-		   sizeof(data));
+	mode_sense(device, dbd, pc, page, subpage, task_attr, retries, timeout,
+	    data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
 	mph = MODE_PAGE_HEADER(mh);
-	mode_pars = MODE_PAGE_DATA(mph);
+	if ((mph->page_code & SMPH_SPF) == 0) {
+		mode_pars = (uint8_t *)(mph + 1);
+		len = mph->page_length;
+	} else {
+		mphsp = (struct scsi_mode_page_header_sp *)mph;
+		mode_pars = (uint8_t *)(mphsp + 1);
+		len = scsi_2btoul(mphsp->page_length);
+	}
+	len = MIN(len, sizeof(data) - (mode_pars - data));
 
 	/* Print the raw mode page data with newlines each 8 bytes. */
-	for (indx = 0; indx < mph->page_length; indx++) {
+	for (indx = 0; indx < len; indx++) {
 		printf("%02x%c",mode_pars[indx],
 		    (((indx + 1) % 8) == 0) ? '\n' : ' ');
 	}
@@ -810,8 +869,8 @@ cleanup_editfile(void)
 }
 
 void
-mode_edit(struct cam_device *device, int page, int page_control, int dbd,
-	  int edit, int binary, int retry_count, int timeout)
+mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
+	  int edit, int binary, int task_attr, int retry_count, int timeout)
 {
 	const char *pagedb_path;	/* Path to modepage database. */
 
@@ -822,15 +881,17 @@ mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 		if ((pagedb_path = getenv("SCSI_MODES")) == NULL)
 			pagedb_path = DEFAULT_SCSI_MODE_DB;
 
-		if (load_format(pagedb_path, page) != 0 && (edit || verbose)) {
+		if (load_format(pagedb_path, page, subpage) != 0 &&
+		    (edit || verbose)) {
 			if (errno == ENOENT) {
 				/* Modepage database file not found. */
 				warn("cannot open modepage database \"%s\"",
 				    pagedb_path);
 			} else if (errno == ESRCH) {
 				/* Modepage entry not found in database. */
-				warnx("modepage %d not found in database"
-				    "\"%s\"", page, pagedb_path);
+				warnx("modepage 0x%02x,0x%02x not found in "
+				    "database \"%s\"", page, subpage,
+				    pagedb_path);
 			}
 			/* We can recover in display mode, otherwise we exit. */
 			if (!edit) {
@@ -840,22 +901,22 @@ mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 				exit(EX_OSFILE);
 		}
 
-		editlist_populate(device, page, page_control, dbd, retry_count,
-			timeout);
+		editlist_populate(device, dbd, pc, page, subpage, task_attr,
+		    retry_count, timeout);
 	}
 
 	if (edit) {
-		if (page_control << PAGE_CTRL_SHIFT != SMS_PAGE_CTRL_CURRENT &&
-		    page_control << PAGE_CTRL_SHIFT != SMS_PAGE_CTRL_SAVED)
+		if (pc << PAGE_CTRL_SHIFT != SMS_PAGE_CTRL_CURRENT &&
+		    pc << PAGE_CTRL_SHIFT != SMS_PAGE_CTRL_SAVED)
 			errx(EX_USAGE, "it only makes sense to edit page 0 "
 			    "(current) or page 3 (saved values)");
 		modepage_edit();
-		editlist_save(device, page, page_control, dbd, retry_count,
-			timeout);
+		editlist_save(device, dbd, pc, page, subpage, task_attr,
+		    retry_count, timeout);
 	} else if (binary || STAILQ_EMPTY(&editlist)) {
 		/* Display without formatting information. */
-		modepage_dump(device, page, page_control, dbd, retry_count,
-		    timeout);
+		modepage_dump(device, dbd, pc, page, subpage, task_attr, 
+		    retry_count, timeout);
 	} else {
 		/* Display with format. */
 		modepage_write(stdout, 0);
@@ -863,44 +924,55 @@ mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 }
 
 void
-mode_list(struct cam_device *device, int page_control, int dbd,
-	  int retry_count, int timeout)
+mode_list(struct cam_device *device, int dbd, int pc, int subpages,
+	  int task_attr, int retry_count, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
+	struct scsi_mode_page_header_sp *mphsp;
 	struct pagename *nameentry;
 	const char *pagedb_path;
-	int len;
+	int len, page, subpage;
 
 	if ((pagedb_path = getenv("SCSI_MODES")) == NULL)
 		pagedb_path = DEFAULT_SCSI_MODE_DB;
 
-	if (load_format(pagedb_path, 0) != 0 && verbose && errno == ENOENT) {
+	if (load_format(pagedb_path, 0, 0) != 0 && verbose && errno == ENOENT) {
 		/* Modepage database file not found. */
 		warn("cannot open modepage database \"%s\"", pagedb_path);
 	}
 
 	/* Build the list of all mode pages by querying the "all pages" page. */
-	mode_sense(device, SMS_ALL_PAGES_PAGE, page_control, dbd, retry_count,
-	    timeout, data, sizeof(data));
+	mode_sense(device, dbd, pc, SMS_ALL_PAGES_PAGE,
+	    subpages ? SMS_SUBPAGE_ALL : 0,
+	    task_attr, retry_count, timeout, data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
 	len = sizeof(*mh) + mh->blk_desc_len;	/* Skip block descriptors. */
 	/* Iterate through the pages in the reply. */
 	while (len < mh->data_length) {
 		/* Locate the next mode page header. */
-		mph = (struct scsi_mode_page_header *)
-		    ((intptr_t)mh + len);
+		mph = (struct scsi_mode_page_header *)((intptr_t)mh + len);
 
-		mph->page_code &= SMS_PAGE_CODE;
-		nameentry = nameentry_lookup(mph->page_code);
+		if ((mph->page_code & SMPH_SPF) == 0) {
+			page = mph->page_code & SMS_PAGE_CODE;
+			subpage = 0;
+			len += sizeof(*mph) + mph->page_length;
+		} else {
+			mphsp = (struct scsi_mode_page_header_sp *)mph;
+			page = mphsp->page_code & SMS_PAGE_CODE;
+			subpage = mphsp->subpage;
+			len += sizeof(*mphsp) + scsi_2btoul(mphsp->page_length);
+		}
 
-		if (nameentry == NULL || nameentry->name == NULL)
-			printf("0x%02x\n", mph->page_code);
-		else
-			printf("0x%02x\t%s\n", mph->page_code,
-			    nameentry->name); 
-		len += mph->page_length + sizeof(*mph);
+		nameentry = nameentry_lookup(page, subpage);
+		if (subpage == 0) {
+			printf("0x%02x\t%s\n", page,
+			    nameentry ? nameentry->name : "");
+		} else {
+			printf("0x%02x,0x%02x\t%s\n", page, subpage,
+			    nameentry ? nameentry->name : "");
+		}
 	}
 }

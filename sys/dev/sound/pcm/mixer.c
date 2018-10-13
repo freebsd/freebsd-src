@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
@@ -322,6 +324,7 @@ mixer_set(struct snd_mixer *m, u_int dev, u_int lev)
 	MIXER_SET_LOCK(m, dropmtx);
 
 	m->level[dev] = l | (r << 8);
+	m->modify_counter++;
 
 	return 0;
 }

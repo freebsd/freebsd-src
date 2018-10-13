@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
  *
@@ -28,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/disk.h>
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "mkuz_format.h"
 #include "mkuz_fqueue.h"
 #include "mkuz_time.h"
+#include "mkuz_insize.h"
 
 #define DEFAULT_CLSTSIZE	16384
 
@@ -94,7 +96,7 @@ cmp_blkno(const struct mkuz_blk *bp, void *p)
 int main(int argc, char **argv)
 {
 	struct mkuz_cfg cfs;
-	char *iname, *oname;
+	char *oname;
 	uint64_t *toc;
 	int i, io, opt, tmp;
 	struct {
@@ -102,13 +104,12 @@ int main(int argc, char **argv)
 		FILE *f;
 	} summary;
 	struct iovec iov[2];
-	struct stat sb;
 	uint64_t offset, last_offset;
 	struct cloop_header hdr;
 	struct mkuz_conveyor *cvp;
         void *c_ctx;
 	struct mkuz_blk_info *chit;
-	size_t ncpusz, ncpu;
+	size_t ncpusz, ncpu, magiclen;
 	double st, et;
 
 	st = getdtime();
@@ -192,7 +193,8 @@ int main(int argc, char **argv)
 		/* Not reached */
 	}
 
-	strcpy(hdr.magic, cfs.handler->magic);
+	magiclen = strlcpy(hdr.magic, cfs.handler->magic, sizeof(hdr.magic));
+	assert(magiclen < sizeof(hdr.magic));
 
 	if (cfs.en_dedup != 0) {
 		hdr.magic[CLOOP_OFS_VERSN] = CLOOP_MAJVER_3;
@@ -202,9 +204,9 @@ int main(int argc, char **argv)
 
 	c_ctx = cfs.handler->f_init(cfs.blksz);
 
-	iname = argv[0];
+	cfs.iname = argv[0];
 	if (oname == NULL) {
-		asprintf(&oname, "%s%s", iname, cfs.handler->default_sufx);
+		asprintf(&oname, "%s%s", cfs.iname, cfs.handler->default_sufx);
 		if (oname == NULL) {
 			err(1, "can't allocate memory");
 			/* Not reached */
@@ -218,30 +220,18 @@ int main(int argc, char **argv)
 	signal(SIGXFSZ, exit);
 	atexit(cleanup);
 
-	cfs.fdr = open(iname, O_RDONLY);
+	cfs.fdr = open(cfs.iname, O_RDONLY);
 	if (cfs.fdr < 0) {
-		err(1, "open(%s)", iname);
+		err(1, "open(%s)", cfs.iname);
 		/* Not reached */
 	}
-	if (fstat(cfs.fdr, &sb) != 0) {
-		err(1, "fstat(%s)", iname);
+	cfs.isize = mkuz_get_insize(&cfs);
+	if (cfs.isize < 0) {
+		errx(1, "can't determine input image size");
 		/* Not reached */
 	}
-	if (S_ISCHR(sb.st_mode)) {
-		off_t ms;
-
-		if (ioctl(cfs.fdr, DIOCGMEDIASIZE, &ms) < 0) {
-			err(1, "ioctl(DIOCGMEDIASIZE)");
-			/* Not reached */
-		}
-		sb.st_size = ms;
-	} else if (!S_ISREG(sb.st_mode)) {
-		fprintf(stderr, "%s: not a character device or regular file\n",
-			iname);
-		exit(1);
-	}
-	hdr.nblocks = sb.st_size / cfs.blksz;
-	if ((sb.st_size % cfs.blksz) != 0) {
+	hdr.nblocks = cfs.isize / cfs.blksz;
+	if ((cfs.isize % cfs.blksz) != 0) {
 		if (cfs.verbose != 0)
 			fprintf(stderr, "file size is not multiple "
 			"of %d, padding data\n", cfs.blksz);
@@ -269,7 +259,7 @@ int main(int argc, char **argv)
 
 	if (cfs.verbose != 0) {
 		fprintf(stderr, "data size %ju bytes, number of clusters "
-		    "%u, index length %zu bytes\n", sb.st_size,
+		    "%u, index length %zu bytes\n", cfs.isize,
 		    hdr.nblocks, iov[1].iov_len);
 	}
 
@@ -352,9 +342,9 @@ drain:
 		et = getdtime();
 		fprintf(summary.f, "compressed data to %ju bytes, saved %lld "
 		    "bytes, %.2f%% decrease, %.2f bytes/sec.\n", offset,
-		    (long long)(sb.st_size - offset),
-		    100.0 * (long long)(sb.st_size - offset) /
-		    (float)sb.st_size, (float)sb.st_size / (et - st));
+		    (long long)(cfs.isize - offset),
+		    100.0 * (long long)(cfs.isize - offset) /
+		    (float)cfs.isize, (float)cfs.isize / (et - st));
 	}
 
 	/* Convert to big endian */

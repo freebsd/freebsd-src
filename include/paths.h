@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -99,6 +101,7 @@
 #define	_PATH_VARDB	"/var/db/"
 #define	_PATH_VARRUN	"/var/run/"
 #define	_PATH_VARTMP	"/var/tmp/"
+#define	_PATH_DEVVMM	"/dev/vmm/"
 #define	_PATH_YP	"/var/yp/"
 #define	_PATH_UUCPLOCK	"/var/spool/lock/"
 

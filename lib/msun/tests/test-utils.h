@@ -88,6 +88,13 @@ CMPLXL(long double x, long double y)
 }
 #endif
 
+static int	fpequal(long double, long double) __used;
+static int	cfpequal(long double complex, long double complex) __used;
+static int	cfpequal_cs(long double complex, long double complex,
+		    int) __used;
+static int	cfpequal_tol(long double complex, long double complex,
+		    long double, unsigned int) __used;
+
 /*
  * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
  * Fail an assertion if they differ.
@@ -119,7 +126,8 @@ fpequal_cs(long double x, long double y, int checksign)
 }
 
 static int
-fpequal_tol(long double x, long double y, long double tol, unsigned int flags)
+fpequal_tol(long double x, long double y, long double tol,
+    unsigned int flags)
 {
 	fenv_t env;
 	int ret;
@@ -153,7 +161,7 @@ cfpequal(long double complex d1, long double complex d2)
 {
 
 	return (fpequal(creall(d1), creall(d2)) &&
-		fpequal(cimagl(d1), cimagl(d2)));
+	    fpequal(cimagl(d1), cimagl(d2)));
 }
 
 static int
@@ -165,7 +173,7 @@ cfpequal_cs(long double complex x, long double complex y, int checksign)
 
 static int
 cfpequal_tol(long double complex x, long double complex y, long double tol,
-		     unsigned int flags)
+    unsigned int flags)
 {
 	return (fpequal_tol(creal(x), creal(y), tol, flags)
 		&& fpequal_tol(cimag(x), cimag(y), tol, flags));

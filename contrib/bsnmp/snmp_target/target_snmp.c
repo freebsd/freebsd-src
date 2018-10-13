@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2010,2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Shteryana Sotirova Shopova under
@@ -43,6 +43,7 @@
 #include "snmp.h"
 #include "snmpmod.h"
 
+#define SNMPTREE_TYPES
 #include "target_tree.h"
 #include "target_oid.h"
 
@@ -299,7 +300,7 @@ op_snmp_target_addrs(struct snmp_context *ctx __unused, struct snmp_value *val,
 				return (target_delete_address(addrs));
 			break;
 		default:
-			break;	
+			break;
 		}
 		return (SNMP_ERR_NOERROR);
 
@@ -826,9 +827,10 @@ target_dump(void)
 	/* XXX: dump the module stats & list of mgmt targets */
 }
 
-const char target_comment[] = \
+static const char target_comment[] = \
 "This module implements SNMP Management Target MIB Module defined in RFC 3413.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	target_comment,
 	.init =		target_init,

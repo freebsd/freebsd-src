@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1993 Herb Peyerl (hpeyerl@novatel.ca) All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,7 +61,6 @@ struct ep_softc {
 #define	F_RX_FIRST		0x001
 #define F_ENADDR_SKIP		0x002
 #define	F_PROMISC		0x008
-#define	F_ACCESS_32_BITS	0x100
 #define	F_HAS_TX_PLL		0x200
 
 	int gone;		/* adapter is not present (for PCCARD) */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
@@ -491,6 +493,8 @@ static driver_t aacch_driver = {
 
 static devclass_t	aacch_devclass;
 DRIVER_MODULE(aacch, pci, aacch_driver, aacch_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;", pci, aac,
+    aac_identifiers, nitems(aac_identifiers) - 1);
 
 static int
 aacch_probe(device_t dev)

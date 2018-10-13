@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
+/* Used in symbol lookup of libthread_db */
 struct pthread_key _thread_keytable[PTHREAD_KEYS_MAX];
 
 __weak_reference(_pthread_key_create, pthread_key_create);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND ISC)
+ *
  * Copyright (c) 1980, 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -214,9 +216,7 @@ struct addrinfo {
 #define	NI_NAMEREQD	0x00000004
 #define	NI_NUMERICSERV	0x00000008
 #define	NI_DGRAM	0x00000010
-#if 0 /* obsolete */
-#define NI_WITHSCOPEID	0x00000020
-#endif
+#define	NI_NUMERICSCOPE	0x00000020
 
 /*
  * Scope delimit character

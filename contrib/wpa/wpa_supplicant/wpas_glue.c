@@ -739,6 +739,8 @@ enum wpa_ctrl_req_type wpa_supplicant_ctrl_req_from_string(const char *field)
 		return WPA_CTRL_REQ_SIM;
 	else if (os_strcmp(field, "PSK_PASSPHRASE") == 0)
 		return WPA_CTRL_REQ_PSK_PASSPHRASE;
+	else if (os_strcmp(field, "EXT_CERT_CHECK") == 0)
+		return WPA_CTRL_REQ_EXT_CERT_CHECK;
 	return WPA_CTRL_REQ_UNKNOWN;
 }
 
@@ -781,6 +783,10 @@ const char * wpa_supplicant_ctrl_req_to_string(enum wpa_ctrl_req_type field,
 	case WPA_CTRL_REQ_PSK_PASSPHRASE:
 		*txt = "PSK or passphrase";
 		ret = "PSK_PASSPHRASE";
+		break;
+	case WPA_CTRL_REQ_EXT_CERT_CHECK:
+		*txt = "External server certificate validation";
+		ret = "EXT_CERT_CHECK";
 		break;
 	default:
 		break;
@@ -837,6 +843,8 @@ static void wpa_supplicant_eap_param_needed(void *ctx,
 	if (ssid == NULL)
 		return;
 
+	if (field == WPA_CTRL_REQ_EXT_CERT_CHECK)
+		ssid->eap.pending_ext_cert_check = PENDING_CHECK;
 	wpas_notify_network_request(wpa_s, ssid, field, default_txt);
 
 	field_name = wpa_supplicant_ctrl_req_to_string(field, default_txt,
@@ -1013,7 +1021,6 @@ static void wpa_supplicant_set_rekey_offload(void *ctx,
 
 	wpa_drv_set_rekey_info(wpa_s, kek, kek_len, kck, kck_len, replay_ctr);
 }
-#endif /* CONFIG_NO_WPA */
 
 
 static int wpa_supplicant_key_mgmt_set_pmk(void *ctx, const u8 *pmk,
@@ -1028,6 +1035,7 @@ static int wpa_supplicant_key_mgmt_set_pmk(void *ctx, const u8 *pmk,
 	else
 		return 0;
 }
+#endif /* CONFIG_NO_WPA */
 
 
 int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
@@ -1124,6 +1132,7 @@ void wpa_supplicant_rsn_supp_set_config(struct wpa_supplicant *wpa_s,
 			}
 		}
 #endif /* CONFIG_P2P */
+		conf.wpa_rsc_relaxation = wpa_s->conf->wpa_rsc_relaxation;
 	}
 	wpa_sm_set_config(wpa_s->wpa, ssid ? &conf : NULL);
 }

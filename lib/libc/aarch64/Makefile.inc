@@ -5,5 +5,5 @@
 
 # Long double is quad precision
 GDTOASRCS+=strtorQ.c
-MDSRCS+=machdep_ldisQ.c
+SRCS+=machdep_ldisQ.c
 SYM_MAPS+=${LIBC_SRCTOP}/aarch64/Symbol.map

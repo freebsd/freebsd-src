@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../netpfil/pf
+.PATH: ${SRCTOP}/sys/netpfil/pf
 
 KMOD=	pf
 SRCS=	pf.c pf_if.c pf_lb.c pf_osfp.c pf_ioctl.c pf_norm.c pf_table.c \

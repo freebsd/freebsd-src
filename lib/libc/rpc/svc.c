@@ -1,6 +1,8 @@
 /*	$NetBSD: svc.c,v 1.21 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -108,18 +110,19 @@ xprt_register(SVCXPRT *xprt)
 	rwlock_wrlock(&svc_fd_lock);
 	if (__svc_xports == NULL) {
 		__svc_xports = (SVCXPRT **)
-			mem_alloc(FD_SETSIZE * sizeof(SVCXPRT *));
+			mem_alloc((FD_SETSIZE + 1) * sizeof(SVCXPRT *));
 		if (__svc_xports == NULL) {
 			rwlock_unlock(&svc_fd_lock);
 			return;
 		}
-		memset(__svc_xports, '\0', FD_SETSIZE * sizeof(SVCXPRT *));
+		memset(__svc_xports, '\0', (FD_SETSIZE + 1) * sizeof(SVCXPRT *));
 	}
 	if (sock < FD_SETSIZE) {
 		__svc_xports[sock] = xprt;
 		FD_SET(sock, &svc_fdset);
 		svc_maxfd = max(svc_maxfd, sock);
-	}
+	} else if (sock == FD_SETSIZE)
+		__svc_xports[sock] = xprt;
 	rwlock_unlock(&svc_fd_lock);
 }
 
@@ -157,7 +160,8 @@ __xprt_do_unregister(SVCXPRT *xprt, bool_t dolock)
 				if (__svc_xports[svc_maxfd])
 					break;
 		}
-	}
+	} else if ((sock == FD_SETSIZE) && (__svc_xports[sock] == xprt))
+		__svc_xports[sock] = NULL;
 	if (dolock)
 		rwlock_unlock(&svc_fd_lock);
 }

@@ -30,8 +30,7 @@ const Target *TargetRegistry::lookupTarget(const std::string &ArchName,
   // name, because it might be a backend that has no mapping to a target triple.
   const Target *TheTarget = nullptr;
   if (!ArchName.empty()) {
-    auto I =
-        std::find_if(targets().begin(), targets().end(),
+    auto I = find_if(targets(),
                      [&](const Target &T) { return ArchName == T.getName(); });
 
     if (I == targets().end()) {
@@ -70,11 +69,10 @@ const Target *TargetRegistry::lookupTarget(const std::string &TT,
   }
   Triple::ArchType Arch = Triple(TT).getArch();
   auto ArchMatch = [&](const Target &T) { return T.ArchMatchFn(Arch); };
-  auto I = std::find_if(targets().begin(), targets().end(), ArchMatch);
+  auto I = find_if(targets(), ArchMatch);
 
   if (I == targets().end()) {
-    Error = "No available targets are compatible with this triple, "
-      "see -version for the available targets.";
+    Error = "No available targets are compatible with this triple.";
     return nullptr;
   }
 
@@ -88,9 +86,9 @@ const Target *TargetRegistry::lookupTarget(const std::string &TT,
   return &*I;
 }
 
-void TargetRegistry::RegisterTarget(Target &T,
-                                    const char *Name,
+void TargetRegistry::RegisterTarget(Target &T, const char *Name,
                                     const char *ShortDesc,
+                                    const char *BackendName,
                                     Target::ArchMatchFnTy ArchMatchFn,
                                     bool HasJIT) {
   assert(Name && ShortDesc && ArchMatchFn &&
@@ -107,6 +105,7 @@ void TargetRegistry::RegisterTarget(Target &T,
 
   T.Name = Name;
   T.ShortDesc = ShortDesc;
+  T.BackendName = BackendName;
   T.ArchMatchFn = ArchMatchFn;
   T.HasJIT = HasJIT;
 }
@@ -116,7 +115,7 @@ static int TargetArraySortFn(const std::pair<StringRef, const Target *> *LHS,
   return LHS->first.compare(RHS->first);
 }
 
-void TargetRegistry::printRegisteredTargetsForVersion() {
+void TargetRegistry::printRegisteredTargetsForVersion(raw_ostream &OS) {
   std::vector<std::pair<StringRef, const Target*> > Targets;
   size_t Width = 0;
   for (const auto &T : TargetRegistry::targets()) {
@@ -125,7 +124,6 @@ void TargetRegistry::printRegisteredTargetsForVersion() {
   }
   array_pod_sort(Targets.begin(), Targets.end(), TargetArraySortFn);
 
-  raw_ostream &OS = outs();
   OS << "  Registered Targets:\n";
   for (unsigned i = 0, e = Targets.size(); i != e; ++i) {
     OS << "    " << Targets[i].first;

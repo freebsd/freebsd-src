@@ -35,7 +35,7 @@ namespace libunwind {
 #include "Registers.hpp"
 
 #if _LIBUNWIND_ARM_EHABI
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 
 #include <sys/link_elf.h>
 typedef void *_Unwind_Ptr;
@@ -62,7 +62,8 @@ extern EHTEntry __exidx_end;
 #endif // !defined(_LIBUNWIND_IS_BAREMETAL)
 #endif // _LIBUNWIND_ARM_EHABI
 
-#if defined(__CloudABI__) || defined(__FreeBSD__) || defined(__linux__)
+#if defined(__CloudABI__) || defined(__FreeBSD__) || defined(__linux__) ||	\
+    defined(__NetBSD__)
 #if _LIBUNWIND_SUPPORT_DWARF_UNWIND && _LIBUNWIND_SUPPORT_DWARF_INDEX
 #include <link.h>
 // Macro for machine-independent access to the ELF program headers. This
@@ -147,6 +148,7 @@ public:
     return val;
   }
   uintptr_t       getP(pint_t addr);
+  uint64_t        getRegister(pint_t addr);
   static uint64_t getULEB128(pint_t &addr, pint_t end);
   static int64_t  getSLEB128(pint_t &addr, pint_t end);
 
@@ -162,6 +164,14 @@ public:
 
 inline uintptr_t LocalAddressSpace::getP(pint_t addr) {
 #ifdef __LP64__
+  return get64(addr);
+#else
+  return get32(addr);
+#endif
+}
+
+inline uint64_t LocalAddressSpace::getRegister(pint_t addr) {
+#if defined(__LP64__) || defined(__mips64)
   return get64(addr);
 #else
   return get32(addr);
@@ -373,7 +383,7 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
       (_Unwind_Ptr) targetAddr, &length);
   info.arm_section_length = (uintptr_t)length;
  #endif
-  _LIBUNWIND_TRACE_UNWINDING("findUnwindSections: section %X length %x\n",
+  _LIBUNWIND_TRACE_UNWINDING("findUnwindSections: section %X length %x",
                              info.arm_section, info.arm_section_length);
   if (info.arm_section && info.arm_section_length)
     return true;
@@ -495,6 +505,7 @@ public:
   uint32_t  get32(pint_t addr);
   uint64_t  get64(pint_t addr);
   pint_t    getP(pint_t addr);
+  uint64_t  getRegister(pint_t addr);
   uint64_t  getULEB128(pint_t &addr, pint_t end);
   int64_t   getSLEB128(pint_t &addr, pint_t end);
   pint_t    getEncodedP(pint_t &addr, pint_t end, uint8_t encoding,
@@ -528,6 +539,11 @@ template <typename P> uint64_t OtherAddressSpace<P>::get64(pint_t addr) {
 template <typename P>
 typename P::uint_t OtherAddressSpace<P>::getP(pint_t addr) {
   return P::getP(*(uint64_t *)localCopy(addr));
+}
+
+template <typename P>
+typename P::uint_t OtherAddressSpace<P>::getRegister(pint_t addr) {
+  return P::getRegister(*(uint64_t *)localCopy(addr));
 }
 
 template <typename P>

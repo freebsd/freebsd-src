@@ -65,6 +65,8 @@ DEFINE_TEST(test_read_format_zip_nested)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 
+	free(p);
+
 	/* Inspect inner Zip. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));

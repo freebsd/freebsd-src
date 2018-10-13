@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2015
+.Dd March 4, 2018
 .Dt SLEEP 9
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm msleep_spin ,
 .Nm msleep_spin_sbt ,
 .Nm pause ,
+.Nm pause_sig ,
 .Nm pause_sbt ,
 .Nm tsleep ,
 .Nm tsleep_sbt ,
@@ -53,9 +54,11 @@
 .Ft int
 .Fn msleep_spin_sbt "void *chan" "struct mtx *mtx" "const char *wmesg" \
 "sbintime_t sbt" "sbintime_t pr" "int flags"
-.Ft void
+.Ft int
 .Fn pause "const char *wmesg" "int timo"
-.Ft void
+.Ft int
+.Fn pause_sig "const char *wmesg" "int timo"
+.Ft int
 .Fn pause_sbt "const char *wmesg" "sbintime_t sbt" "sbintime_t pr" \
  "int flags"
 .Ft int
@@ -73,6 +76,8 @@ The functions
 .Fn msleep ,
 .Fn msleep_spin ,
 .Fn pause ,
+.Fn pause_sig ,
+.Fn pause_sbt ,
 .Fn wakeup ,
 and
 .Fn wakeup_one
@@ -82,8 +87,10 @@ external event, it is put to sleep by
 .Fn tsleep ,
 .Fn msleep ,
 .Fn msleep_spin ,
+.Fn pause ,
+.Fn pause_sig ,
 or
-.Fn pause .
+.Fn pause_sbt .
 Threads may also wait using one of the locking primitive sleep routines
 .Xr mtx_sleep 9 ,
 .Xr rw_sleep 9 ,
@@ -248,6 +255,11 @@ The thread can not be awakened early by signals or calls to
 .Fn wakeup
 or
 .Fn wakeup_one .
+The
+.Fn pause_sig
+function is a variant of
+.Fn pause
+which can be awakened early by signals.
 .Pp
 The
 .Fn wakeup_one
@@ -280,6 +292,21 @@ to
 pay particular attention to ensure that no other threads wait on the
 same
 .Fa chan .
+.Pp
+If the timeout given by
+.Fa timo
+or
+.Fa sbt
+is based on an absolute real-time clock value,
+then the thread should copy the global
+.Va rtc_generation
+into its
+.Va td_rtcgen
+member before reading the RTC.
+If the real-time clock is adjusted, these functions will set
+.Va td_rtcgen
+to zero and return zero.
+The caller should reconsider its orientation with the new RTC value.
 .Sh RETURN VALUES
 When awakened by a call to
 .Fn wakeup
@@ -298,6 +325,9 @@ the
 .Fn msleep_spin ,
 .Fn tsleep ,
 and locking primitive sleep functions return 0.
+Zero can also be returned when the real-time clock is adjusted;
+see above regarding
+.Va td_rtcgen .
 Otherwise, a non-zero error code is returned.
 .Sh ERRORS
 .Fn msleep ,
@@ -367,6 +397,10 @@ The
 .Fn pause
 function appeared in
 .Fx 7.0 .
+The
+.Fn pause_sig
+function appeared in
+.Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by

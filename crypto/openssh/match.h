@@ -1,4 +1,4 @@
-/* $OpenBSD: match.h,v 1.16 2015/05/04 06:10:48 djm Exp $ */
+/* $OpenBSD: match.h,v 1.18 2018/07/04 13:49:31 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -20,6 +20,8 @@ int	 match_hostname(const char *, const char *);
 int	 match_host_and_ip(const char *, const char *, const char *);
 int	 match_user(const char *, const char *, const char *, const char *);
 char	*match_list(const char *, const char *, u_int *);
+char	*match_filter_blacklist(const char *, const char *);
+char	*match_filter_whitelist(const char *, const char *);
 
 /* addrmatch.c */
 int	 addr_match_list(const char *, const char *);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -223,7 +225,7 @@ siena_mac_loopback_set(
 	return (0);
 
 fail1:
-	EFSYS_PROBE(fail2);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	epp->ep_loopback_type = old_loopback_type;
 	epp->ep_loopback_link_mode = old_loopback_link_mode;
@@ -234,6 +236,33 @@ fail1:
 #endif	/* EFSYS_OPT_LOOPBACK */
 
 #if EFSYS_OPT_MAC_STATS
+
+	__checkReturn			efx_rc_t
+siena_mac_stats_get_mask(
+	__in				efx_nic_t *enp,
+	__inout_bcount(mask_size)	uint32_t *maskp,
+	__in				size_t mask_size)
+{
+	const struct efx_mac_stats_range siena_stats[] = {
+		{ EFX_MAC_RX_OCTETS, EFX_MAC_RX_GE_15XX_PKTS },
+		/* EFX_MAC_RX_ERRORS is not supported */
+		{ EFX_MAC_RX_FCS_ERRORS, EFX_MAC_TX_EX_DEF_PKTS },
+	};
+	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(enp))
+
+	if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+	    siena_stats, EFX_ARRAY_SIZE(siena_stats))) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 #define	SIENA_MAC_STAT_READ(_esmp, _field, _eqp)			\
 	EFSYS_MEM_READQ((_esmp), (_field) * sizeof (efx_qword_t), _eqp)

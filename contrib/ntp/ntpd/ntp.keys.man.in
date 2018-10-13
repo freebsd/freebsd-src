@@ -1,8 +1,8 @@
-.TH ntp.keys 5 "02 Jun 2016" "4.2.8p8" "File Formats"
+.TH ntp.keys 5 "14 Aug 2018" "4.2.8p12" "File Formats"
 .\"
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
 .\"
-.\"  It has been AutoGen-ed  June  2, 2016 at 07:35:57 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  August 14, 2018 at 08:28:59 AM by AutoGen 5.18.5
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agman-file.tpl
 .Sh NAME
@@ -54,7 +54,7 @@ statement in the configuration file.
 While key number 0 is fixed by the NTP standard
 (as 56 zero bits)
 and may not be changed,
-one or more keys numbered between 1 and 65534
+one or more keys numbered between 1 and 65535
 may be arbitrarily set in the keys file.
 .sp \n(Ppu
 .ne 2
@@ -73,19 +73,27 @@ Key entries use a fixed format of the form
 
 where
 \f\*[I-Font]keyno\f[]
-is a positive integer (between 1 and 65534),
+is a positive integer (between 1 and 65535),
 \f\*[I-Font]type\f[]
 is the message digest algorithm,
-and
 \f\*[I-Font]key\f[]
 is the key itself, and
 \f\*[I-Font]opt_IP_list\f[]
 is an optional comma-separated list of IPs
+where the
+\f\*[I-Font]keyno\f[]
+should be trusted.
 that are allowed to serve time.
+Each IP in
+\f\*[I-Font]opt_IP_list\f[]
+may contain an optional
+\f\*[B-Font]/subnetbits\f[]
+specification which identifies the number of bits for
+the desired subnet of trust.
 If
 \f\*[I-Font]opt_IP_list\f[]
 is empty,
-any properly-authenticated server message will be
+any properly-authenticated message will be
 accepted.
 .sp \n(Ppu
 .ne 2
@@ -168,7 +176,7 @@ the default name of the configuration file
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org

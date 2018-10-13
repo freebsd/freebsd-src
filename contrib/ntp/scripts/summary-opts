@@ -1,6 +1,6 @@
 # EDIT THIS FILE WITH CAUTION  (summary-opts)
 #
-# It has been AutoGen-ed  June  2, 2016 at 07:25:48 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  August 14, 2018 at 08:09:40 AM by AutoGen 5.18.5
 # From the definitions    summary-opts.def
 # and the template file   perlopt
 
@@ -44,7 +44,7 @@ sub processOptions {
         'help|?', 'more-help'));
 
     $usage = <<'USAGE';
-summary - compute various stastics from NTP stat files - Ver. 4.2.8p8
+summary - compute various stastics from NTP stat files - Ver. 4.2.8p12
 USAGE: summary [ -<flag> [<val>] | --<name>[{=| }<val>] ]... 
 
         --directory=str          Directory containing stat files

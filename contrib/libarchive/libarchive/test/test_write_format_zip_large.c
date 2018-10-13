@@ -67,21 +67,19 @@ static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 static ssize_t	memory_write(struct archive *, void *, const void *, size_t);
 
-static int16_t le16(const void *_p) {
+static uint16_t le16(const void *_p) {
 	const uint8_t *p = _p;
-	return (0xff & (int16_t)p[0]) | ((0xff & (int16_t)p[1]) << 8);
+	return p[0] | (p[1] << 8);
 }
 
-static int32_t le32(const void *_p) {
+static uint32_t le32(const void *_p) {
 	const uint8_t *p = _p;
-	int32_t v = 0xffff & (int32_t)le16(_p);
-	return v + ((0xffff & (int32_t)le16(p + 2)) << 16);
+	return le16(p) | ((uint32_t)le16(p + 2) << 16);
 }
 
-static int64_t le64(const void *_p) {
+static uint64_t le64(const void *_p) {
 	const uint8_t *p = _p;
-	int64_t v = 0xffffffff & (int64_t)le32(_p);
-	return v + ((0xffffffff & (int64_t)le32(p + 4)) << 32);
+	return le32(p) | ((uint64_t)le32(p + 4) << 32);
 }
 
 static ssize_t
@@ -470,5 +468,6 @@ DEFINE_TEST(test_write_format_zip_large)
 	assertEqualMem(cd_start, "PK\001\002", 4);
 
 	fileblocks_free(fileblocks);
+	free(buff);
 	free(nulldata);
 }

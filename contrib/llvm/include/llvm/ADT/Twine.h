@@ -1,4 +1,4 @@
-//===-- Twine.h - Fast Temporary String Concatenation -----------*- C++ -*-===//
+//===- Twine.h - Fast Temporary String Concatenation ------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,12 +12,14 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
+#include <cstdint>
 #include <string>
 
 namespace llvm {
+
+  class formatv_object_base;
   class raw_ostream;
 
   /// Twine - A lightweight data structure for efficiently representing the
@@ -101,6 +103,9 @@ namespace llvm {
       /// A pointer to a SmallString instance.
       SmallStringKind,
 
+      /// A pointer to a formatv_object_base instance.
+      FormatvObjectKind,
+
       /// A char value, to render as a character.
       CharKind,
 
@@ -136,6 +141,7 @@ namespace llvm {
       const std::string *stdString;
       const StringRef *stringRef;
       const SmallVectorImpl<char> *smallString;
+      const formatv_object_base *formatvObject;
       char character;
       unsigned int decUI;
       int decI;
@@ -146,22 +152,22 @@ namespace llvm {
       const uint64_t *uHex;
     };
 
-  private:
     /// LHS - The prefix in the concatenation, which may be uninitialized for
     /// Null or Empty kinds.
     Child LHS;
+
     /// RHS - The suffix in the concatenation, which may be uninitialized for
     /// Null or Empty kinds.
     Child RHS;
-    /// LHSKind - The NodeKind of the left hand side, \see getLHSKind().
-    NodeKind LHSKind;
-    /// RHSKind - The NodeKind of the right hand side, \see getRHSKind().
-    NodeKind RHSKind;
 
-  private:
+    /// LHSKind - The NodeKind of the left hand side, \see getLHSKind().
+    NodeKind LHSKind = EmptyKind;
+
+    /// RHSKind - The NodeKind of the right hand side, \see getRHSKind().
+    NodeKind RHSKind = EmptyKind;
+
     /// Construct a nullary twine; the kind must be NullKind or EmptyKind.
-    explicit Twine(NodeKind Kind)
-      : LHSKind(Kind), RHSKind(EmptyKind) {
+    explicit Twine(NodeKind Kind) : LHSKind(Kind) {
       assert(isNullary() && "Invalid kind!");
     }
 
@@ -178,10 +184,6 @@ namespace llvm {
         : LHS(LHS), RHS(RHS), LHSKind(LHSKind), RHSKind(RHSKind) {
       assert(isValid() && "Invalid twine!");
     }
-
-    /// Since the intended use of twines is as temporary objects, assignments
-    /// when concatenating might cause undefined behavior or stack corruptions
-    Twine &operator=(const Twine &Other) = delete;
 
     /// Check for the null twine.
     bool isNull() const {
@@ -252,7 +254,7 @@ namespace llvm {
     /// @{
 
     /// Construct from an empty string.
-    /*implicit*/ Twine() : LHSKind(EmptyKind), RHSKind(EmptyKind) {
+    /*implicit*/ Twine() {
       assert(isValid() && "Invalid twine!");
     }
 
@@ -263,8 +265,7 @@ namespace llvm {
     /// We take care here to optimize "" into the empty twine -- this will be
     /// optimized out for string constants. This allows Twine arguments have
     /// default "" values, without introducing unnecessary string constants.
-    /*implicit*/ Twine(const char *Str)
-      : RHSKind(EmptyKind) {
+    /*implicit*/ Twine(const char *Str) {
       if (Str[0] != '\0') {
         LHS.cString = Str;
         LHSKind = CStringKind;
@@ -275,77 +276,73 @@ namespace llvm {
     }
 
     /// Construct from an std::string.
-    /*implicit*/ Twine(const std::string &Str)
-      : LHSKind(StdStringKind), RHSKind(EmptyKind) {
+    /*implicit*/ Twine(const std::string &Str) : LHSKind(StdStringKind) {
       LHS.stdString = &Str;
       assert(isValid() && "Invalid twine!");
     }
 
     /// Construct from a StringRef.
-    /*implicit*/ Twine(const StringRef &Str)
-      : LHSKind(StringRefKind), RHSKind(EmptyKind) {
+    /*implicit*/ Twine(const StringRef &Str) : LHSKind(StringRefKind) {
       LHS.stringRef = &Str;
       assert(isValid() && "Invalid twine!");
     }
 
     /// Construct from a SmallString.
     /*implicit*/ Twine(const SmallVectorImpl<char> &Str)
-      : LHSKind(SmallStringKind), RHSKind(EmptyKind) {
+        : LHSKind(SmallStringKind) {
       LHS.smallString = &Str;
       assert(isValid() && "Invalid twine!");
     }
 
+    /// Construct from a formatv_object_base.
+    /*implicit*/ Twine(const formatv_object_base &Fmt)
+        : LHSKind(FormatvObjectKind) {
+      LHS.formatvObject = &Fmt;
+      assert(isValid() && "Invalid twine!");
+    }
+
     /// Construct from a char.
-    explicit Twine(char Val)
-      : LHSKind(CharKind), RHSKind(EmptyKind) {
+    explicit Twine(char Val) : LHSKind(CharKind) {
       LHS.character = Val;
     }
 
     /// Construct from a signed char.
-    explicit Twine(signed char Val)
-      : LHSKind(CharKind), RHSKind(EmptyKind) {
+    explicit Twine(signed char Val) : LHSKind(CharKind) {
       LHS.character = static_cast<char>(Val);
     }
 
     /// Construct from an unsigned char.
-    explicit Twine(unsigned char Val)
-      : LHSKind(CharKind), RHSKind(EmptyKind) {
+    explicit Twine(unsigned char Val) : LHSKind(CharKind) {
       LHS.character = static_cast<char>(Val);
     }
 
     /// Construct a twine to print \p Val as an unsigned decimal integer.
-    explicit Twine(unsigned Val)
-      : LHSKind(DecUIKind), RHSKind(EmptyKind) {
+    explicit Twine(unsigned Val) : LHSKind(DecUIKind) {
       LHS.decUI = Val;
     }
 
     /// Construct a twine to print \p Val as a signed decimal integer.
-    explicit Twine(int Val)
-      : LHSKind(DecIKind), RHSKind(EmptyKind) {
+    explicit Twine(int Val) : LHSKind(DecIKind) {
       LHS.decI = Val;
     }
 
     /// Construct a twine to print \p Val as an unsigned decimal integer.
-    explicit Twine(const unsigned long &Val)
-      : LHSKind(DecULKind), RHSKind(EmptyKind) {
+    explicit Twine(const unsigned long &Val) : LHSKind(DecULKind) {
       LHS.decUL = &Val;
     }
 
     /// Construct a twine to print \p Val as a signed decimal integer.
-    explicit Twine(const long &Val)
-      : LHSKind(DecLKind), RHSKind(EmptyKind) {
+    explicit Twine(const long &Val) : LHSKind(DecLKind) {
       LHS.decL = &Val;
     }
 
     /// Construct a twine to print \p Val as an unsigned decimal integer.
-    explicit Twine(const unsigned long long &Val)
-      : LHSKind(DecULLKind), RHSKind(EmptyKind) {
+    explicit Twine(const unsigned long long &Val) : LHSKind(DecULLKind) {
       LHS.decULL = &Val;
     }
 
     /// Construct a twine to print \p Val as a signed decimal integer.
-    explicit Twine(const long long &Val)
-      : LHSKind(DecLLKind), RHSKind(EmptyKind) {
+    explicit Twine(const long long &Val) : LHSKind(DecLLKind) {
       LHS.decLL = &Val;
     }
 
@@ -369,6 +366,10 @@ namespace llvm {
       this->RHS.cString = RHS;
       assert(isValid() && "Invalid twine!");
     }
+
+    /// Since the intended use of twines is as temporary objects, assignments
+    /// when concatenating might cause undefined behavior or stack corruptions
+    Twine &operator=(const Twine &) = delete;
 
     /// Create a 'null' string, which is an empty string that always
     /// concatenates to form another empty string.
@@ -535,6 +536,7 @@ namespace llvm {
   }
 
   /// @}
-}
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_ADT_TWINE_H

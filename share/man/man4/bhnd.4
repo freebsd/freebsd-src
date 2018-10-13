@@ -31,14 +31,13 @@
 .Nm bhnd
 .Nd Broadcom Home Networking Division interconnect bus
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your kernel configuration file:
+To compile this driver into the kernel, add the following lines to the
+kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device bhnd"
 .Ed
 .Pp
-Alternatively, to load the driver as a module at boot time,
-place the following line in
+To load the driver as a module at boot, add this line to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 bhnd_load="YES"
@@ -67,8 +66,9 @@ the
 .Xr bcma 4
 BHND driver.
 .Sh SEE ALSO
-.Xr bhndb 4 ,
 .Xr bcma 4 ,
+.Xr bhndb 4 ,
+.Xr intro 4 ,
 .Xr siba 4
 .Sh HISTORY
 The

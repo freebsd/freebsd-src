@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2013 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2010 Juniper Networks, Inc.
  * Copyright (c) 2009 Robert N. M. Watson

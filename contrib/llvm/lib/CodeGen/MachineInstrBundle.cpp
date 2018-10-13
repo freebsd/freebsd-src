@@ -13,25 +13,27 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
+#include <utility>
 using namespace llvm;
 
 namespace {
   class UnpackMachineBundles : public MachineFunctionPass {
   public:
     static char ID; // Pass identification
-    UnpackMachineBundles(std::function<bool(const Function &)> Ftor = nullptr)
-        : MachineFunctionPass(ID), PredicateFtor(Ftor) {
+    UnpackMachineBundles(
+        std::function<bool(const MachineFunction &)> Ftor = nullptr)
+        : MachineFunctionPass(ID), PredicateFtor(std::move(Ftor)) {
       initializeUnpackMachineBundlesPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;
 
   private:
-    std::function<bool(const Function &)> PredicateFtor;
+    std::function<bool(const MachineFunction &)> PredicateFtor;
   };
 } // end anonymous namespace
 
@@ -41,7 +43,7 @@ INITIALIZE_PASS(UnpackMachineBundles, "unpack-mi-bundles",
                 "Unpack machine instruction bundles", false, false)
 
 bool UnpackMachineBundles::runOnMachineFunction(MachineFunction &MF) {
-  if (PredicateFtor && !PredicateFtor(*MF.getFunction()))
+  if (PredicateFtor && !PredicateFtor(MF))
     return false;
 
   bool Changed = false;
@@ -77,8 +79,9 @@ bool UnpackMachineBundles::runOnMachineFunction(MachineFunction &MF) {
 }
 
 FunctionPass *
-llvm::createUnpackMachineBundles(std::function<bool(const Function &)> Ftor) {
-  return new UnpackMachineBundles(Ftor);
+llvm::createUnpackMachineBundles(
+    std::function<bool(const MachineFunction &)> Ftor) {
+  return new UnpackMachineBundles(std::move(Ftor));
 }
 
 namespace {
@@ -293,7 +296,7 @@ MachineOperandIteratorBase::PhysRegInfo
 MachineOperandIteratorBase::analyzePhysReg(unsigned Reg,
                                            const TargetRegisterInfo *TRI) {
   bool AllDefsDead = true;
-  PhysRegInfo PRI = {false, false, false, false, false, false, false};
+  PhysRegInfo PRI = {false, false, false, false, false, false, false, false};
 
   assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
          "analyzePhysReg not given a physical register!");
@@ -332,8 +335,12 @@ MachineOperandIteratorBase::analyzePhysReg(unsigned Reg,
     }
   }
 
-  if (AllDefsDead && PRI.FullyDefined)
-    PRI.DeadDef = true;
+  if (AllDefsDead) {
+    if (PRI.FullyDefined || PRI.Clobbered)
+      PRI.DeadDef = true;
+    else if (PRI.Defined)
+      PRI.PartialDeadDef = true;
+  }
 
   return PRI;
 }

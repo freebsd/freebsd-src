@@ -2,11 +2,11 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../newkey
+.PATH: ${SRCTOP}/usr.bin/newkey
 
 PROG=	chkey
 SRCS=	chkey.c generic.c update.c
-CFLAGS+= -I${.CURDIR}/../newkey
+CFLAGS+= -I${SRCTOP}/usr.bin/newkey
 .if ${MK_NIS} != "no"
 CFLAGS+= -DYP
 .endif

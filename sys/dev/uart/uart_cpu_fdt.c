@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -70,64 +72,14 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
 }
 
-static int
-phandle_chosen_propdev(phandle_t chosen, const char *name, phandle_t *node)
-{
-	char buf[64];
-
-	if (OF_getprop(chosen, name, buf, sizeof(buf)) <= 0)
-		return (ENXIO);
-	if ((*node = OF_finddevice(buf)) == -1)
-		return (ENXIO);
-	
-	return (0);
-}
-
-static const struct ofw_compat_data *
-uart_fdt_find_compatible(phandle_t node, const struct ofw_compat_data *cd)
-{
-	const struct ofw_compat_data *ocd;
-
-	for (ocd = cd; ocd->ocd_str != NULL; ocd++) {
-		if (fdt_is_compatible(node, ocd->ocd_str))
-			return (ocd);
-	}
-	return (NULL);
-}
-
-static uintptr_t
-uart_fdt_find_by_node(phandle_t node, int class_list)
-{
-	struct ofw_compat_data **cd;
-	const struct ofw_compat_data *ocd;
-
-	if (class_list) {
-		SET_FOREACH(cd, uart_fdt_class_set) {
-			ocd = uart_fdt_find_compatible(node, *cd);
-			if ((ocd != NULL) && (ocd->ocd_data != 0))
-				return (ocd->ocd_data);
-		}
-	} else {
-		SET_FOREACH(cd, uart_fdt_class_and_device_set) {
-			ocd = uart_fdt_find_compatible(node, *cd);
-			if ((ocd != NULL) && (ocd->ocd_data != 0))
-				return (ocd->ocd_data);
-		}
-	}
-	return (0);
-}
-
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	const char *propnames[] = {"stdout-path", "linux,stdout-path", "stdout",
-	    "stdin-path", "stdin", NULL};
-	const char **name;
 	struct uart_class *class;
-	phandle_t node, chosen;
-	pcell_t shift, br, rclk;
-	char *cp;
-	int err;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	u_int shift, iowidth, rclk;
+	int br, err;
 
 	/* Allow overriding the FDT using the environment. */
 	class = &uart_ns8250_class;
@@ -138,69 +90,25 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (devtype != UART_DEV_CONSOLE)
 		return (ENXIO);
 
-	/* Has the user forced a specific device node? */
-	cp = kern_getenv("hw.fdt.console");
-	if (cp == NULL) {
-		/*
-		 * Retrieve /chosen/std{in,out}.
-		 */
-		node = -1;
-		if ((chosen = OF_finddevice("/chosen")) != -1) {
-			for (name = propnames; *name != NULL; name++) {
-				if (phandle_chosen_propdev(chosen, *name,
-				    &node) == 0)
-					break;
-			}
-		}
-		if (chosen == -1 || *name == NULL)
-			node = OF_finddevice("serial0"); /* Last ditch */
-	} else {
-		node = OF_finddevice(cp);
-	}
-
-	if (node == -1) /* Can't find anything */
-		return (ENXIO);
-
-	/*
-	 * Check old style of UART definition first. Unfortunately, the common
-	 * FDT processing is not possible if we have clock, power domains and
-	 * pinmux stuff.
-	 */
-	class = (struct uart_class *)uart_fdt_find_by_node(node, 0);
-	if (class != NULL) {
-		if ((err = uart_fdt_get_clock(node, &rclk)) != 0)
-			return (err);
-	} else {
-		/* Check class only linker set */
-		class =
-		    (struct uart_class *)uart_fdt_find_by_node(node, 1);
-		if (class == NULL)
-			return (ENXIO);
-		rclk = 0;
-	}
-
-	/*
-	 * Retrieve serial attributes.
-	 */
-	if (uart_fdt_get_shift(node, &shift) != 0)
-		shift = uart_getregshift(class);
-
-	if (OF_getencprop(node, "current-speed", &br, sizeof(br)) <= 0)
-		br = 0;
+	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk, &shift, &iowidth);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * Finalize configuration.
 	 */
 	di->bas.chan = 0;
-	di->bas.regshft = (u_int)shift;
+	di->bas.regshft = shift;
+	di->bas.regiowidth = iowidth;
 	di->baudrate = br;
-	di->bas.rclk = (u_int)rclk;
+	di->bas.rclk = rclk;
 	di->ops = uart_getops(class);
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
+	di->bas.bst = bst;
+	di->bas.bsh = bsh;
 
-	err = OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh, NULL);
 	uart_bus_space_mem = di->bas.bst;
 	uart_bus_space_io = NULL;
 

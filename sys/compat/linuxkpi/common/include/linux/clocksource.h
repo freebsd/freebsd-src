@@ -33,9 +33,6 @@
 
 #include <asm/types.h>
 
-#define	CLOCKSOURCE_MASK(x) ((cycle_t)(-1ULL >> ((-(x)) & 63)))
-
-/* clocksource cycle base type */
-typedef u64 cycle_t;
+#define	CLOCKSOURCE_MASK(x) ((u64)(-1ULL >> ((-(x)) & 63)))
 
 #endif					/* _LINUX_CLOCKSOURCE_H */

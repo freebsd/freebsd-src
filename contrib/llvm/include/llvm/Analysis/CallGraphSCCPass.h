@@ -21,15 +21,16 @@
 #ifndef LLVM_ANALYSIS_CALLGRAPHSCCPASS_H
 #define LLVM_ANALYSIS_CALLGRAPHSCCPASS_H
 
-#include "llvm/Analysis/CallGraph.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Pass.h"
+#include <vector>
 
 namespace llvm {
 
-class CallGraphNode;
 class CallGraph;
-class PMStack;
+class CallGraphNode;
 class CallGraphSCC;
+class PMStack;
 
 class CallGraphSCCPass : public Pass {
 public:
@@ -37,7 +38,7 @@ public:
 
   /// createPrinterPass - Get a pass that prints the Module
   /// corresponding to a CallGraph.
-  Pass *createPrinterPass(raw_ostream &O,
+  Pass *createPrinterPass(raw_ostream &OS,
                           const std::string &Banner) const override;
 
   using llvm::Pass::doInitialization;
@@ -56,7 +57,6 @@ public:
   ///
   /// SCC passes that add or delete functions to the SCC are required to update
   /// the SCC list, otherwise stale pointers may be dereferenced.
-  ///
   virtual bool runOnSCC(CallGraphSCC &SCC) = 0;
 
   /// doFinalization - This method is called after the SCC's of the program has
@@ -77,18 +77,24 @@ public:
   /// the call graph.  If the derived class implements this method, it should
   /// always explicitly call the implementation here.
   void getAnalysisUsage(AnalysisUsage &Info) const override;
+
+protected:
+  /// Optional passes call this function to check whether the pass should be
+  /// skipped. This is the case when optimization bisect is over the limit.
+  bool skipSCC(CallGraphSCC &SCC) const;
 };
 
 /// CallGraphSCC - This is a single SCC that a CallGraphSCCPass is run on.
 class CallGraphSCC {
+  const CallGraph &CG; // The call graph for this SCC.
   void *Context; // The CGPassManager object that is vending this.
-  std::vector<CallGraphNode*> Nodes;
+  std::vector<CallGraphNode *> Nodes;
 
 public:
-  CallGraphSCC(void *context) : Context(context) {}
+  CallGraphSCC(CallGraph &cg, void *context) : CG(cg), Context(context) {}
 
-  void initialize(CallGraphNode *const *I, CallGraphNode *const *E) {
-    Nodes.assign(I, E);
+  void initialize(ArrayRef<CallGraphNode *> NewNodes) {
+    Nodes.assign(NewNodes.begin(), NewNodes.end());
   }
 
   bool isSingular() const { return Nodes.size() == 1; }
@@ -98,11 +104,34 @@ public:
   /// Old node has been deleted, and New is to be used in its place.
   void ReplaceNode(CallGraphNode *Old, CallGraphNode *New);
 
-  typedef std::vector<CallGraphNode *>::const_iterator iterator;
+  using iterator = std::vector<CallGraphNode *>::const_iterator;
+
   iterator begin() const { return Nodes.begin(); }
   iterator end() const { return Nodes.end(); }
+
+  const CallGraph &getCallGraph() { return CG; }
 };
 
-} // End llvm namespace
+void initializeDummyCGSCCPassPass(PassRegistry &);
 
-#endif
+/// This pass is required by interprocedural register allocation. It forces
+/// codegen to follow bottom up order on call graph.
+class DummyCGSCCPass : public CallGraphSCCPass {
+public:
+  static char ID;
+
+  DummyCGSCCPass() : CallGraphSCCPass(ID) {
+    PassRegistry &Registry = *PassRegistry::getPassRegistry();
+    initializeDummyCGSCCPassPass(Registry);
+  }
+
+  bool runOnSCC(CallGraphSCC &SCC) override { return false; }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesAll();
+  }
+};
+
+} // end namespace llvm
+
+#endif // LLVM_ANALYSIS_CALLGRAPHSCCPASS_H

@@ -1,3 +1,6 @@
-.if exists(${.CURDIR}/../../Makefile.inc)
-.include "${.CURDIR}/../../Makefile.inc"  
-.endif
+# $FreeBSD$
+
+FORTUNE_SRC=	${SRCTOP}/usr.bin/fortune
+FORTUNE_OBJ=	${OBJTOP}/usr.bin/fortune
+
+.include "${SRCTOP}/usr.bin/Makefile.inc"

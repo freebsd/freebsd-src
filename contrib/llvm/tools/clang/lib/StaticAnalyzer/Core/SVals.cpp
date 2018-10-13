@@ -16,6 +16,7 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/AST/DeclCXX.h"
 using namespace clang;
 using namespace ento;
 using llvm::APSInt;
@@ -56,6 +57,10 @@ const FunctionDecl *SVal::getAsFunctionDecl() const {
         return FD;
   }
 
+  if (auto X = getAs<nonloc::PointerToMember>()) {
+    if (const CXXMethodDecl *MD = dyn_cast_or_null<CXXMethodDecl>(X->getDecl()))
+      return MD;
+  }
   return nullptr;
 }
 
@@ -108,12 +113,12 @@ SymbolRef SVal::getLocSymbolInBase() const {
 /// Casts are ignored during lookup.
 /// \param IncludeBaseRegions The boolean that controls whether the search
 /// should continue to the base regions if the region is not symbolic.
-SymbolRef SVal::getAsSymbol(bool IncludeBaseRegion) const {
+SymbolRef SVal::getAsSymbol(bool IncludeBaseRegions) const {
   // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
   if (Optional<nonloc::SymbolVal> X = getAs<nonloc::SymbolVal>())
     return X->getSymbol();
 
-  return getAsLocSymbol(IncludeBaseRegion);
+  return getAsLocSymbol(IncludeBaseRegions);
 }
 
 /// getAsSymbolicExpression - If this Sval wraps a symbolic expression then
@@ -155,6 +160,20 @@ const TypedValueRegion *nonloc::LazyCompoundVal::getRegion() const {
   return static_cast<const LazyCompoundValData*>(Data)->getRegion();
 }
 
+const DeclaratorDecl *nonloc::PointerToMember::getDecl() const {
+  const auto PTMD = this->getPTMData();
+  if (PTMD.isNull())
+    return nullptr;
+
+  const DeclaratorDecl *DD = nullptr;
+  if (PTMD.is<const DeclaratorDecl *>())
+    DD = PTMD.get<const DeclaratorDecl *>();
+  else
+    DD = PTMD.get<const PointerToMemberData *>()->getDeclaratorDecl();
+
+  return DD;
+}
+
 //===----------------------------------------------------------------------===//
 // Other Iterators.
 //===----------------------------------------------------------------------===//
@@ -165,6 +184,20 @@ nonloc::CompoundVal::iterator nonloc::CompoundVal::begin() const {
 
 nonloc::CompoundVal::iterator nonloc::CompoundVal::end() const {
   return getValue()->end();
+}
+
+nonloc::PointerToMember::iterator nonloc::PointerToMember::begin() const {
+  const PTMDataType PTMD = getPTMData();
+  if (PTMD.is<const DeclaratorDecl *>())
+    return nonloc::PointerToMember::iterator();
+  return PTMD.get<const PointerToMemberData *>()->begin();
+}
+
+nonloc::PointerToMember::iterator nonloc::PointerToMember::end() const {
+  const PTMDataType PTMD = getPTMData();
+  if (PTMD.is<const DeclaratorDecl *>())
+    return nonloc::PointerToMember::iterator();
+  return PTMD.get<const PointerToMemberData *>()->end();
 }
 
 //===----------------------------------------------------------------------===//
@@ -236,7 +269,7 @@ SVal loc::ConcreteInt::evalBinOp(BasicValueFactory& BasicVals,
 // Pretty-Printing.
 //===----------------------------------------------------------------------===//
 
-void SVal::dump() const { dumpToStream(llvm::errs()); }
+LLVM_DUMP_METHOD void SVal::dump() const { dumpToStream(llvm::errs()); }
 
 void SVal::dumpToStream(raw_ostream &os) const {
   switch (getBaseKind()) {
@@ -297,6 +330,26 @@ void NonLoc::dumpToStream(raw_ostream &os) const {
       os << "lazyCompoundVal{" << const_cast<void *>(C.getStore())
          << ',' << C.getRegion()
          << '}';
+      break;
+    }
+    case nonloc::PointerToMemberKind: {
+      os << "pointerToMember{";
+      const nonloc::PointerToMember &CastRes =
+          castAs<nonloc::PointerToMember>();
+      if (CastRes.getDecl())
+        os << "|" << CastRes.getDecl()->getQualifiedNameAsString() << "|";
+      bool first = true;
+      for (const auto &I : CastRes) {
+        if (first) {
+          os << ' '; first = false;
+        }
+        else
+          os << ", ";
+
+        os << (*I).getType().getAsString();
+      }
+
+      os << '}';
       break;
     }
     default:

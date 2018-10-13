@@ -23,22 +23,21 @@
 using namespace llvm;
 
 bool llvm::parseAssemblyInto(MemoryBufferRef F, Module &M, SMDiagnostic &Err,
-                             SlotMapping *Slots) {
+                             SlotMapping *Slots, bool UpgradeDebugInfo) {
   SourceMgr SM;
   std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(F);
   SM.AddNewSourceBuffer(std::move(Buf), SMLoc());
 
-  return LLParser(F.getBuffer(), SM, Err, &M, Slots).Run();
+  return LLParser(F.getBuffer(), SM, Err, &M, Slots, UpgradeDebugInfo).Run();
 }
 
-std::unique_ptr<Module> llvm::parseAssembly(MemoryBufferRef F,
-                                            SMDiagnostic &Err,
-                                            LLVMContext &Context,
-                                            SlotMapping *Slots) {
+std::unique_ptr<Module>
+llvm::parseAssembly(MemoryBufferRef F, SMDiagnostic &Err, LLVMContext &Context,
+                    SlotMapping *Slots, bool UpgradeDebugInfo) {
   std::unique_ptr<Module> M =
       make_unique<Module>(F.getBufferIdentifier(), Context);
 
-  if (parseAssemblyInto(F, *M, Err, Slots))
+  if (parseAssemblyInto(F, *M, Err, Slots, UpgradeDebugInfo))
     return nullptr;
 
   return M;
@@ -47,7 +46,8 @@ std::unique_ptr<Module> llvm::parseAssembly(MemoryBufferRef F,
 std::unique_ptr<Module> llvm::parseAssemblyFile(StringRef Filename,
                                                 SMDiagnostic &Err,
                                                 LLVMContext &Context,
-                                                SlotMapping *Slots) {
+                                                SlotMapping *Slots,
+                                                bool UpgradeDebugInfo) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
       MemoryBuffer::getFileOrSTDIN(Filename);
   if (std::error_code EC = FileOrErr.getError()) {
@@ -56,15 +56,17 @@ std::unique_ptr<Module> llvm::parseAssemblyFile(StringRef Filename,
     return nullptr;
   }
 
-  return parseAssembly(FileOrErr.get()->getMemBufferRef(), Err, Context, Slots);
+  return parseAssembly(FileOrErr.get()->getMemBufferRef(), Err, Context, Slots,
+                       UpgradeDebugInfo);
 }
 
 std::unique_ptr<Module> llvm::parseAssemblyString(StringRef AsmString,
                                                   SMDiagnostic &Err,
                                                   LLVMContext &Context,
-                                                  SlotMapping *Slots) {
+                                                  SlotMapping *Slots,
+                                                  bool UpgradeDebugInfo) {
   MemoryBufferRef F(AsmString, "<string>");
-  return parseAssembly(F, Err, Context, Slots);
+  return parseAssembly(F, Err, Context, Slots, UpgradeDebugInfo);
 }
 
 Constant *llvm::parseConstantValue(StringRef Asm, SMDiagnostic &Err,
@@ -77,4 +79,33 @@ Constant *llvm::parseConstantValue(StringRef Asm, SMDiagnostic &Err,
           .parseStandaloneConstantValue(C, Slots))
     return nullptr;
   return C;
+}
+
+Type *llvm::parseType(StringRef Asm, SMDiagnostic &Err, const Module &M,
+                      const SlotMapping *Slots) {
+  unsigned Read;
+  Type *Ty = parseTypeAtBeginning(Asm, Read, Err, M, Slots);
+  if (!Ty)
+    return nullptr;
+  if (Read != Asm.size()) {
+    SourceMgr SM;
+    std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(Asm);
+    SM.AddNewSourceBuffer(std::move(Buf), SMLoc());
+    Err = SM.GetMessage(SMLoc::getFromPointer(Asm.begin() + Read),
+                        SourceMgr::DK_Error, "expected end of string");
+    return nullptr;
+  }
+  return Ty;
+}
+Type *llvm::parseTypeAtBeginning(StringRef Asm, unsigned &Read,
+                                 SMDiagnostic &Err, const Module &M,
+                                 const SlotMapping *Slots) {
+  SourceMgr SM;
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(Asm);
+  SM.AddNewSourceBuffer(std::move(Buf), SMLoc());
+  Type *Ty;
+  if (LLParser(Asm, SM, Err, const_cast<Module *>(&M))
+          .parseTypeAtBeginning(Ty, Read, Slots))
+    return nullptr;
+  return Ty;
 }

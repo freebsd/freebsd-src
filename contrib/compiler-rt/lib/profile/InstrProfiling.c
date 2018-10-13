@@ -7,22 +7,33 @@
 |*
 \*===----------------------------------------------------------------------===*/
 
-#include "InstrProfiling.h"
-#include "InstrProfilingInternal.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "InstrProfiling.h"
+#include "InstrProfilingInternal.h"
+
 #define INSTR_PROF_VALUE_PROF_DATA
 #include "InstrProfData.inc"
 
-char *(*GetEnvHook)(const char *) = 0;
 
-COMPILER_RT_WEAK uint64_t __llvm_profile_raw_version = INSTR_PROF_RAW_VERSION;
+COMPILER_RT_WEAK uint64_t INSTR_PROF_RAW_VERSION_VAR = INSTR_PROF_RAW_VERSION;
 
 COMPILER_RT_VISIBILITY uint64_t __llvm_profile_get_magic(void) {
   return sizeof(void *) == sizeof(uint64_t) ? (INSTR_PROF_RAW_MAGIC_64)
                                             : (INSTR_PROF_RAW_MAGIC_32);
+}
+
+static unsigned ProfileDumped = 0;
+
+COMPILER_RT_VISIBILITY unsigned lprofProfileDumped() {
+  return ProfileDumped;
+}
+
+COMPILER_RT_VISIBILITY void lprofSetProfileDumped() {
+  ProfileDumped = 1;
 }
 
 /* Return the number of bytes needed to add to SizeInBytes to make it
@@ -46,7 +57,7 @@ COMPILER_RT_VISIBILITY void __llvm_profile_reset_counters(void) {
   const __llvm_profile_data *DataBegin = __llvm_profile_begin_data();
   const __llvm_profile_data *DataEnd = __llvm_profile_end_data();
   const __llvm_profile_data *DI;
-  for (DI = DataBegin; DI != DataEnd; ++DI) {
+  for (DI = DataBegin; DI < DataEnd; ++DI) {
     uint64_t CurrentVSiteCount = 0;
     uint32_t VKI, i;
     if (!DI->Values)
@@ -61,9 +72,10 @@ COMPILER_RT_VISIBILITY void __llvm_profile_reset_counters(void) {
       ValueProfNode *CurrentVNode = ValueCounters[i];
 
       while (CurrentVNode) {
-        CurrentVNode->VData.Count = 0;
+        CurrentVNode->Count = 0;
         CurrentVNode = CurrentVNode->Next;
       }
     }
   }
+  ProfileDumped = 0;
 }

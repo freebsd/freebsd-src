@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2016
+.Dd April 26, 2018
 .Dt SYSDECODE 3
 .Os
 .Sh NAME
@@ -33,6 +33,10 @@
 .Nd system argument decoding library
 .Sh LIBRARY
 .Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In sysdecode.h
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,19 +57,33 @@ Supported on all platforms.
 Supported on amd64 and powerpc64.
 .It Li SYSDECODE_ABI_LINUX
 Linux binaries of the same platform.
-Supported on amd64 and i386.
+Supported on amd64, i386, and arm64.
 .It Li SYSDECODE_ABI_LINUX32
 32-bit Linux binaries.
 Supported on amd64.
+.It Li SYSDECODE_ABI_CLOUDABI32
+32-bit CloudABI binaries.
+Supported on all platforms.
 .It Li SYSDECODE_ABI_CLOUDABI64
 64-bit CloudABI binaries.
-Supported on aarch64 and amd64.
+Supported on all platforms.
 .It Li SYSDECODE_ABI_UNKNOWN
 A placeholder for use when the ABI is not known.
 .El
 .Sh SEE ALSO
 .Xr sysdecode_abi_to_freebsd_errno 3 ,
+.Xr sysdecode_cap_rights 3 ,
+.Xr sysdecode_cmsg_type 3 ,
+.Xr sysdecode_enum 3 ,
+.Xr sysdecode_fcntl_arg 3 ,
 .Xr sysdecode_ioctlname 3 ,
+.Xr sysdecode_kevent 3 ,
+.Xr sysdecode_mask 3 ,
+.Xr sysdecode_quotactl_cmd 3 ,
+.Xr sysdecode_sctp_sinfo_flags 3 ,
+.Xr sysdecode_sigcode 3 ,
+.Xr sysdecode_socket_protocol 3 ,
+.Xr sysdecode_sockopt_name 3 ,
 .Xr sysdecode_syscallnames 3 ,
 .Xr sysdecode_utrace 3
 .Sh HISTORY

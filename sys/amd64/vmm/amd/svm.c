@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013, Anish Gupta (akgupt3@gmail.com)
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/psl.h>
 #include <machine/md_var.h>
+#include <machine/reg.h>
 #include <machine/specialreg.h>
 #include <machine/smp.h>
 #include <machine/vmm.h>
@@ -87,6 +90,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
 				VMCB_CACHE_TPR		|	\
 				VMCB_CACHE_CR2		|	\
 				VMCB_CACHE_CR		|	\
+				VMCB_CACHE_DR		|	\
 				VMCB_CACHE_DT		|	\
 				VMCB_CACHE_SEG		|	\
 				VMCB_CACHE_NP)
@@ -504,6 +508,10 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
 	    PAT_VALUE(6, PAT_UNCACHED)		|
 	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
+	/* Set up DR6/7 to power-on state */
+	state->dr6 = DBREG_DR6_RESERVED1;
+	state->dr7 = DBREG_DR7_RESERVED1;
 }
 
 /*
@@ -514,17 +522,29 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 {
 	struct svm_softc *svm_sc;
 	struct svm_vcpu *vcpu;
-	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;	
+	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;
 	int i;
 
-	svm_sc = malloc(sizeof (struct svm_softc), M_SVM, M_WAITOK | M_ZERO);
+	svm_sc = malloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO);
+	if (((uintptr_t)svm_sc & PAGE_MASK) != 0)
+		panic("malloc of svm_softc not aligned on page boundary");
+
+	svm_sc->msr_bitmap = contigmalloc(SVM_MSR_BITMAP_SIZE, M_SVM,
+	    M_WAITOK, 0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
+	if (svm_sc->msr_bitmap == NULL)
+		panic("contigmalloc of SVM MSR bitmap failed");
+	svm_sc->iopm_bitmap = contigmalloc(SVM_IO_BITMAP_SIZE, M_SVM,
+	    M_WAITOK, 0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
+	if (svm_sc->iopm_bitmap == NULL)
+		panic("contigmalloc of SVM IO bitmap failed");
+
 	svm_sc->vm = vm;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
 	/*
 	 * Intercept read and write accesses to all MSRs.
 	 */
-	memset(svm_sc->msr_bitmap, 0xFF, sizeof(svm_sc->msr_bitmap));
+	memset(svm_sc->msr_bitmap, 0xFF, SVM_MSR_BITMAP_SIZE);
 
 	/*
 	 * Access to the following MSRs is redirected to the VMCB when the
@@ -534,7 +554,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_GSBASE);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_FSBASE);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_KGSBASE);
-	
+
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_STAR);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_LSTAR);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_CSTAR);
@@ -552,7 +572,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_EFER);
 
 	/* Intercept access to all I/O ports. */
-	memset(svm_sc->iopm_bitmap, 0xFF, sizeof(svm_sc->iopm_bitmap));
+	memset(svm_sc->iopm_bitmap, 0xFF, SVM_IO_BITMAP_SIZE);
 
 	iopm_pa = vtophys(svm_sc->iopm_bitmap);
 	msrpm_pa = vtophys(svm_sc->msr_bitmap);
@@ -916,7 +936,6 @@ svm_update_virqinfo(struct svm_softc *sc, int vcpu)
 	struct vm *vm;
 	struct vlapic *vlapic;
 	struct vmcb_ctrl *ctrl;
-	int pending;
 
 	vm = sc->vm;
 	vlapic = vm_lapic(vm, vcpu);
@@ -925,20 +944,9 @@ svm_update_virqinfo(struct svm_softc *sc, int vcpu)
 	/* Update %cr8 in the emulated vlapic */
 	vlapic_set_cr8(vlapic, ctrl->v_tpr);
 
-	/*
-	 * If V_IRQ indicates that the interrupt injection attempted on then
-	 * last VMRUN was successful then update the vlapic accordingly.
-	 */
-	if (ctrl->v_intr_vector != 0) {
-		pending = ctrl->v_irq;
-		KASSERT(ctrl->v_intr_vector >= 16, ("%s: invalid "
-		    "v_intr_vector %d", __func__, ctrl->v_intr_vector));
-		KASSERT(!ctrl->v_ign_tpr, ("%s: invalid v_ign_tpr", __func__));
-		VCPU_CTR2(vm, vcpu, "v_intr_vector %d %s", ctrl->v_intr_vector,
-		    pending ? "pending" : "accepted");
-		if (!pending)
-			vlapic_intr_accepted(vlapic, ctrl->v_intr_vector);
-	}
+	/* Virtual interrupt injection is not used. */
+	KASSERT(ctrl->v_intr_vector == 0, ("%s: invalid "
+	    "v_intr_vector %d", __func__, ctrl->v_intr_vector));
 }
 
 static void
@@ -964,6 +972,7 @@ svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
 	vm_exit_intinfo(svm_sc->vm, vcpu, intinfo);
 }
 
+#ifdef INVARIANTS
 static __inline int
 vintr_intercept_enabled(struct svm_softc *sc, int vcpu)
 {
@@ -971,6 +980,7 @@ vintr_intercept_enabled(struct svm_softc *sc, int vcpu)
 	return (svm_get_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
 	    VMCB_INTCPT_VINTR));
 }
+#endif
 
 static __inline void
 enable_intr_window_exiting(struct svm_softc *sc, int vcpu)
@@ -1007,12 +1017,7 @@ disable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 		return;
 	}
 
-#ifdef KTR
-	if (ctrl->v_intr_vector == 0)
-		VCPU_CTR0(sc->vm, vcpu, "Disable intr window exiting");
-	else
-		VCPU_CTR0(sc->vm, vcpu, "Clearing V_IRQ interrupt injection");
-#endif
+	VCPU_CTR0(sc->vm, vcpu, "Disable intr window exiting");
 	ctrl->v_irq = 0;
 	ctrl->v_intr_vector = 0;
 	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
@@ -1557,14 +1562,14 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 	struct vmcb_state *state;
 	struct svm_vcpu *vcpustate;
 	uint8_t v_tpr;
-	int vector, need_intr_window, pending_apic_vector;
+	int vector, need_intr_window;
+	int extint_pending;
 
 	state = svm_get_vmcb_state(sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(sc, vcpu);
 	vcpustate = svm_get_vcpu(sc, vcpu);
 
 	need_intr_window = 0;
-	pending_apic_vector = 0;
 
 	if (vcpustate->nextrip != state->rip) {
 		ctrl->intr_shadow = 0;
@@ -1634,39 +1639,18 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 		}
 	}
 
-	if (!vm_extint_pending(sc->vm, vcpu)) {
-		/*
-		 * APIC interrupts are delivered using the V_IRQ offload.
-		 *
-		 * The primary benefit is that the hypervisor doesn't need to
-		 * deal with the various conditions that inhibit interrupts.
-		 * It also means that TPR changes via CR8 will be handled
-		 * without any hypervisor involvement.
-		 *
-		 * Note that the APIC vector must remain pending in the vIRR
-		 * until it is confirmed that it was delivered to the guest.
-		 * This can be confirmed based on the value of V_IRQ at the
-		 * next #VMEXIT (1 = pending, 0 = delivered).
-		 *
-		 * Also note that it is possible that another higher priority
-		 * vector can become pending before this vector is delivered
-		 * to the guest. This is alright because vcpu_notify_event()
-		 * will send an IPI and force the vcpu to trap back into the
-		 * hypervisor. The higher priority vector will be injected on
-		 * the next VMRUN.
-		 */
-		if (vlapic_pending_intr(vlapic, &vector)) {
-			KASSERT(vector >= 16 && vector <= 255,
-			    ("invalid vector %d from local APIC", vector));
-			pending_apic_vector = vector;
-		}
-		goto done;
+	extint_pending = vm_extint_pending(sc->vm, vcpu);
+	if (!extint_pending) {
+		if (!vlapic_pending_intr(vlapic, &vector))
+			goto done;
+		KASSERT(vector >= 16 && vector <= 255,
+		    ("invalid vector %d from local APIC", vector));
+	} else {
+		/* Ask the legacy pic for a vector to inject */
+		vatpic_pending_intr(sc->vm, &vector);
+		KASSERT(vector >= 0 && vector <= 255,
+		    ("invalid vector %d from INTR", vector));
 	}
-
-	/* Ask the legacy pic for a vector to inject */
-	vatpic_pending_intr(sc->vm, &vector);
-	KASSERT(vector >= 0 && vector <= 255, ("invalid vector %d from INTR",
-	    vector));
 
 	/*
 	 * If the guest has disabled interrupts or is in an interrupt shadow
@@ -1693,14 +1677,14 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 		goto done;
 	}
 
-	/*
-	 * Legacy PIC interrupts are delivered via the event injection
-	 * mechanism.
-	 */
 	svm_eventinject(sc, vcpu, VMCB_EVENTINJ_TYPE_INTR, vector, 0, false);
 
-	vm_extint_clear(sc->vm, vcpu);
-	vatpic_intr_accepted(sc->vm, vector);
+	if (!extint_pending) {
+		vlapic_intr_accepted(vlapic, vector);
+	} else {
+		vm_extint_clear(sc->vm, vcpu);
+		vatpic_intr_accepted(sc->vm, vector);
+	}
 
 	/*
 	 * Force a VM-exit as soon as the vcpu is ready to accept another
@@ -1730,21 +1714,7 @@ done:
 		svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
 	}
 
-	if (pending_apic_vector) {
-		/*
-		 * If an APIC vector is being injected then interrupt window
-		 * exiting is not possible on this VMRUN.
-		 */
-		KASSERT(!need_intr_window, ("intr_window exiting impossible"));
-		VCPU_CTR1(sc->vm, vcpu, "Injecting vector %d using V_IRQ",
-		    pending_apic_vector);
-
-		ctrl->v_irq = 1;
-		ctrl->v_ign_tpr = 0;
-		ctrl->v_intr_vector = pending_apic_vector;
-		ctrl->v_intr_prio = pending_apic_vector >> 4;
-		svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
-	} else if (need_intr_window) {
+	if (need_intr_window) {
 		/*
 		 * We use V_IRQ in conjunction with the VINTR intercept to
 		 * trap into the hypervisor as soon as a virtual interrupt
@@ -1899,6 +1869,60 @@ enable_gintr(void)
         __asm __volatile("stgi");
 }
 
+static __inline void
+svm_dr_enter_guest(struct svm_regctx *gctx)
+{
+
+	/* Save host control debug registers. */
+	gctx->host_dr7 = rdr7();
+	gctx->host_debugctl = rdmsr(MSR_DEBUGCTLMSR);
+
+	/*
+	 * Disable debugging in DR7 and DEBUGCTL to avoid triggering
+	 * exceptions in the host based on the guest DRx values.  The
+	 * guest DR6, DR7, and DEBUGCTL are saved/restored in the
+	 * VMCB.
+	 */
+	load_dr7(0);
+	wrmsr(MSR_DEBUGCTLMSR, 0);
+
+	/* Save host debug registers. */
+	gctx->host_dr0 = rdr0();
+	gctx->host_dr1 = rdr1();
+	gctx->host_dr2 = rdr2();
+	gctx->host_dr3 = rdr3();
+	gctx->host_dr6 = rdr6();
+
+	/* Restore guest debug registers. */
+	load_dr0(gctx->sctx_dr0);
+	load_dr1(gctx->sctx_dr1);
+	load_dr2(gctx->sctx_dr2);
+	load_dr3(gctx->sctx_dr3);
+}
+
+static __inline void
+svm_dr_leave_guest(struct svm_regctx *gctx)
+{
+
+	/* Save guest debug registers. */
+	gctx->sctx_dr0 = rdr0();
+	gctx->sctx_dr1 = rdr1();
+	gctx->sctx_dr2 = rdr2();
+	gctx->sctx_dr3 = rdr3();
+
+	/*
+	 * Restore host debug registers.  Restore DR7 and DEBUGCTL
+	 * last.
+	 */
+	load_dr0(gctx->host_dr0);
+	load_dr1(gctx->host_dr1);
+	load_dr2(gctx->host_dr2);
+	load_dr3(gctx->host_dr3);
+	load_dr6(gctx->host_dr6);
+	wrmsr(MSR_DEBUGCTLMSR, gctx->host_debugctl);
+	load_dr7(gctx->host_dr7);
+}
+
 /*
  * Start vcpu with specified RIP.
  */
@@ -1994,6 +2018,12 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 			break;
 		}
 
+		if (vcpu_debugged(vm, vcpu)) {
+			enable_gintr();
+			vm_exit_debug(vm, vcpu, state->rip);
+			break;
+		}
+
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
 		/* Activate the nested pmap on 'curcpu' */
@@ -2011,7 +2041,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* Launch Virtual Machine. */
 		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
+		svm_dr_enter_guest(gctx);
 		svm_launch(vmcb_pa, gctx, &__pcpu[curcpu]);
+		svm_dr_leave_guest(gctx);
 
 		CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 
@@ -2042,6 +2074,8 @@ svm_vmcleanup(void *arg)
 {
 	struct svm_softc *sc = arg;
 
+	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
+	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
 	free(sc, M_SVM);
 }
 
@@ -2078,6 +2112,14 @@ swctx_regptr(struct svm_regctx *regctx, int reg)
 		return (&regctx->sctx_r14);
 	case VM_REG_GUEST_R15:
 		return (&regctx->sctx_r15);
+	case VM_REG_GUEST_DR0:
+		return (&regctx->sctx_dr0);
+	case VM_REG_GUEST_DR1:
+		return (&regctx->sctx_dr1);
+	case VM_REG_GUEST_DR2:
+		return (&regctx->sctx_dr2);
+	case VM_REG_GUEST_DR3:
+		return (&regctx->sctx_dr3);
 	default:
 		return (NULL);
 	}

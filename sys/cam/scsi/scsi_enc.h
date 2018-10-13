@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD OR GPL-2.0)
+ *
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
  *

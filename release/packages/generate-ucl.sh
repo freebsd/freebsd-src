@@ -48,6 +48,12 @@ main() {
 			pkgdeps="runtime"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
 			;;
+		jail_*)
+			outname="${origname}"
+			uclfile="${outname##*}${uclfile}"
+			pkgdeps="runtime"
+			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
+			;;
 		*_lib32_development)
 			outname="${outname%%_lib32_development}"
 			_descr="32-bit Libraries, Development Files"
@@ -125,14 +131,12 @@ main() {
 	[ -z "${desc}" ] && desc="${outname} package"
 
 	cp "${uclsource}" "${uclfile}"
-	cap_arg="$(make -C ${srctree}/etc -VCAP_MKDB_ENDIAN)"
-	pwd_arg="$(make -C ${srctree}/etc -VPWD_MKDB_ENDIAN)"
+	cap_arg="$( make -f ${srctree}/share/mk/bsd.endian.mk -VCAP_MKDB_ENDIAN )"
 	sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%PKGNAME%/${origname}/" \
 		-e "s/%COMMENT%/${comment}/" \
 		-e "s/%DESC%/${desc}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/${cap_arg}/g" \
-		-e "s/%PWD_MKDB_ENDIAN%/${pwd_arg}/g" \
 		-e "s/%PKGDEPS%/${pkgdeps}/" \
 		${uclfile}
 	return 0

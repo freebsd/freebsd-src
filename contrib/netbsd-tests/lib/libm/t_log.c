@@ -1,4 +1,4 @@
-/* $NetBSD: t_log.c,v 1.12 2014/11/04 00:20:19 justin Exp $ */
+/* $NetBSD: t_log.c,v 1.13 2015/02/09 19:39:48 martin Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_log.c,v 1.12 2014/11/04 00:20:19 justin Exp $");
+__RCSID("$NetBSD: t_log.c,v 1.13 2015/02/09 19:39:48 martin Exp $");
 
 #include <atf-c.h>
 
@@ -185,10 +185,6 @@ ATF_TC_HEAD(log10f_inf_pos, tc)
 ATF_TC_BODY(log10f_inf_pos, tc)
 {
 	const float x = 1.0L / 0.0L;
-
-#if defined(__alpha__)
-	atf_tc_expect_fail("PR port-alpha/46301");
-#endif
 
 	ATF_CHECK(log10f(x) == x);
 }
@@ -562,10 +558,6 @@ ATF_TC_BODY(log2f_inf_pos, tc)
 {
 	const float x = 1.0L / 0.0L;
 
-#if defined(__alpha__)
-	atf_tc_expect_fail("PR port-alpha/46301");
-#endif
-
 	ATF_CHECK(log2f(x) == x);
 }
 
@@ -765,10 +757,6 @@ ATF_TC_HEAD(logf_inf_pos, tc)
 ATF_TC_BODY(logf_inf_pos, tc)
 {
 	const float x = 1.0L / 0.0L;
-
-#if defined(__alpha__)
-	atf_tc_expect_fail("PR port-alpha/46301");
-#endif
 
 	ATF_CHECK(logf(x) == x);
 }

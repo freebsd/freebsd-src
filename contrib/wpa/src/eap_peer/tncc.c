@@ -104,7 +104,7 @@ static struct tnc_if_imc *tnc_imc[TNC_MAX_IMC_ID] = { NULL };
 
 /* TNCC functions that IMCs can call */
 
-TNC_Result TNC_TNCC_ReportMessageTypes(
+static TNC_Result TNC_TNCC_ReportMessageTypes(
 	TNC_IMCID imcID,
 	TNC_MessageTypeList supportedTypes,
 	TNC_UInt32 typeCount)
@@ -138,7 +138,7 @@ TNC_Result TNC_TNCC_ReportMessageTypes(
 }
 
 
-TNC_Result TNC_TNCC_SendMessage(
+static TNC_Result TNC_TNCC_SendMessage(
 	TNC_IMCID imcID,
 	TNC_ConnectionID connectionID,
 	TNC_BufferReference message,
@@ -183,7 +183,7 @@ TNC_Result TNC_TNCC_SendMessage(
 }
 
 
-TNC_Result TNC_TNCC_RequestHandshakeRetry(
+static TNC_Result TNC_TNCC_RequestHandshakeRetry(
 	TNC_IMCID imcID,
 	TNC_ConnectionID connectionID,
 	TNC_RetryReason reason)
@@ -203,8 +203,8 @@ TNC_Result TNC_TNCC_RequestHandshakeRetry(
 }
 
 
-TNC_Result TNC_9048_LogMessage(TNC_IMCID imcID, TNC_UInt32 severity,
-			       const char *message)
+static TNC_Result TNC_9048_LogMessage(TNC_IMCID imcID, TNC_UInt32 severity,
+				      const char *message)
 {
 	wpa_printf(MSG_DEBUG, "TNC: TNC_9048_LogMessage(imcID=%lu "
 		   "severity==%lu message='%s')",
@@ -213,8 +213,9 @@ TNC_Result TNC_9048_LogMessage(TNC_IMCID imcID, TNC_UInt32 severity,
 }
 
 
-TNC_Result TNC_9048_UserMessage(TNC_IMCID imcID, TNC_ConnectionID connectionID,
-				const char *message)
+static TNC_Result TNC_9048_UserMessage(TNC_IMCID imcID,
+				       TNC_ConnectionID connectionID,
+				       const char *message)
 {
 	wpa_printf(MSG_DEBUG, "TNC: TNC_9048_UserMessage(imcID=%lu "
 		   "connectionID==%lu message='%s')",
@@ -223,7 +224,7 @@ TNC_Result TNC_9048_UserMessage(TNC_IMCID imcID, TNC_ConnectionID connectionID,
 }
 
 
-TNC_Result TNC_TNCC_BindFunction(
+static TNC_Result TNC_TNCC_BindFunction(
 	TNC_IMCID imcID,
 	char *functionName,
 	void **pOutfunctionPointer)
@@ -694,6 +695,8 @@ enum tncc_process_res tncc_process_if_tnccs(struct tncc_data *tncc,
 	enum tncc_process_res res = TNCCS_PROCESS_OK_NO_RECOMMENDATION;
 	int recommendation_msg = 0;
 
+	wpa_hexdump_ascii(MSG_MSGDUMP, "TNC: Received IF-TNCCS message",
+			  msg, len);
 	buf = dup_binstr(msg, len);
 	if (buf == NULL)
 		return TNCCS_PROCESS_ERROR;

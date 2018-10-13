@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -50,6 +52,11 @@ struct vmxctx {
 	register_t	guest_r14;
 	register_t	guest_r15;
 	register_t	guest_cr2;
+	register_t	guest_dr0;
+	register_t	guest_dr1;
+	register_t	guest_dr2;
+	register_t	guest_dr3;
+	register_t	guest_dr6;
 
 	register_t	host_r15;		/* Host state */
 	register_t	host_r14;
@@ -58,9 +65,14 @@ struct vmxctx {
 	register_t	host_rbp;
 	register_t	host_rsp;
 	register_t	host_rbx;
-	/*
-	 * XXX todo debug registers and fpu state
-	 */
+	register_t	host_dr0;
+	register_t	host_dr1;
+	register_t	host_dr2;
+	register_t	host_dr3;
+	register_t	host_dr6;
+	register_t	host_dr7;
+	uint64_t	host_debugctl;
+	int		host_tf;
 
 	int		inst_fail_status;
 
@@ -138,5 +150,6 @@ u_long	vmx_fix_cr4(u_long cr4);
 int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
 
 extern char	vmx_exit_guest[];
+extern char	vmx_exit_guest_flush_rsb[];
 
 #endif

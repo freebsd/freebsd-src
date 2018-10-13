@@ -33,7 +33,33 @@ u32 hostapd_sta_flags_to_drv(u32 flags)
 		res |= WPA_STA_SHORT_PREAMBLE;
 	if (flags & WLAN_STA_MFP)
 		res |= WPA_STA_MFP;
+	if (flags & WLAN_STA_AUTH)
+		res |= WPA_STA_AUTHENTICATED;
+	if (flags & WLAN_STA_ASSOC)
+		res |= WPA_STA_ASSOCIATED;
 	return res;
+}
+
+
+static int add_buf(struct wpabuf **dst, const struct wpabuf *src)
+{
+	if (!src)
+		return 0;
+	if (wpabuf_resize(dst, wpabuf_len(src)) != 0)
+		return -1;
+	wpabuf_put_buf(*dst, src);
+	return 0;
+}
+
+
+static int add_buf_data(struct wpabuf **dst, const u8 *data, size_t len)
+{
+	if (!data || !len)
+		return 0;
+	if (wpabuf_resize(dst, len) != 0)
+		return -1;
+	wpabuf_put_data(*dst, data, len);
+	return 0;
 }
 
 
@@ -49,82 +75,38 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 
 	pos = buf;
 	pos = hostapd_eid_time_adv(hapd, pos);
-	if (pos != buf) {
-		if (wpabuf_resize(&beacon, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(beacon, buf, pos - buf);
-	}
+	if (add_buf_data(&beacon, buf, pos - buf) < 0)
+		goto fail;
 	pos = hostapd_eid_time_zone(hapd, pos);
-	if (pos != buf) {
-		if (wpabuf_resize(&proberesp, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(proberesp, buf, pos - buf);
-	}
+	if (add_buf_data(&proberesp, buf, pos - buf) < 0)
+		goto fail;
 
 	pos = buf;
 	pos = hostapd_eid_ext_capab(hapd, pos);
-	if (pos != buf) {
-		if (wpabuf_resize(&assocresp, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(assocresp, buf, pos - buf);
-	}
+	if (add_buf_data(&assocresp, buf, pos - buf) < 0)
+		goto fail;
 	pos = hostapd_eid_interworking(hapd, pos);
 	pos = hostapd_eid_adv_proto(hapd, pos);
 	pos = hostapd_eid_roaming_consortium(hapd, pos);
-	if (pos != buf) {
-		if (wpabuf_resize(&beacon, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(beacon, buf, pos - buf);
-
-		if (wpabuf_resize(&proberesp, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(proberesp, buf, pos - buf);
-	}
+	if (add_buf_data(&beacon, buf, pos - buf) < 0 ||
+	    add_buf_data(&proberesp, buf, pos - buf) < 0)
+		goto fail;
 
 #ifdef CONFIG_FST
-	if (hapd->iface->fst_ies) {
-		size_t add = wpabuf_len(hapd->iface->fst_ies);
-
-		if (wpabuf_resize(&beacon, add) < 0)
-			goto fail;
-		wpabuf_put_buf(beacon, hapd->iface->fst_ies);
-		if (wpabuf_resize(&proberesp, add) < 0)
-			goto fail;
-		wpabuf_put_buf(proberesp, hapd->iface->fst_ies);
-		if (wpabuf_resize(&assocresp, add) < 0)
-			goto fail;
-		wpabuf_put_buf(assocresp, hapd->iface->fst_ies);
-	}
+	if (add_buf(&beacon, hapd->iface->fst_ies) < 0 ||
+	    add_buf(&proberesp, hapd->iface->fst_ies) < 0 ||
+	    add_buf(&assocresp, hapd->iface->fst_ies) < 0)
+		goto fail;
 #endif /* CONFIG_FST */
 
-	if (hapd->wps_beacon_ie) {
-		if (wpabuf_resize(&beacon, wpabuf_len(hapd->wps_beacon_ie)) <
-		    0)
-			goto fail;
-		wpabuf_put_buf(beacon, hapd->wps_beacon_ie);
-	}
-
-	if (hapd->wps_probe_resp_ie) {
-		if (wpabuf_resize(&proberesp,
-				  wpabuf_len(hapd->wps_probe_resp_ie)) < 0)
-			goto fail;
-		wpabuf_put_buf(proberesp, hapd->wps_probe_resp_ie);
-	}
+	if (add_buf(&beacon, hapd->wps_beacon_ie) < 0 ||
+	    add_buf(&proberesp, hapd->wps_probe_resp_ie) < 0)
+		goto fail;
 
 #ifdef CONFIG_P2P
-	if (hapd->p2p_beacon_ie) {
-		if (wpabuf_resize(&beacon, wpabuf_len(hapd->p2p_beacon_ie)) <
-		    0)
-			goto fail;
-		wpabuf_put_buf(beacon, hapd->p2p_beacon_ie);
-	}
-
-	if (hapd->p2p_probe_resp_ie) {
-		if (wpabuf_resize(&proberesp,
-				  wpabuf_len(hapd->p2p_probe_resp_ie)) < 0)
-			goto fail;
-		wpabuf_put_buf(proberesp, hapd->p2p_probe_resp_ie);
-	}
+	if (add_buf(&beacon, hapd->p2p_beacon_ie) < 0 ||
+	    add_buf(&proberesp, hapd->p2p_probe_resp_ie) < 0)
+		goto fail;
 #endif /* CONFIG_P2P */
 
 #ifdef CONFIG_P2P_MANAGER
@@ -148,8 +130,7 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 #ifdef CONFIG_WPS
 	if (hapd->conf->wps_state) {
 		struct wpabuf *a = wps_build_assoc_resp_ie();
-		if (a && wpabuf_resize(&assocresp, wpabuf_len(a)) == 0)
-			wpabuf_put_buf(assocresp, a);
+		add_buf(&assocresp, a);
 		wpabuf_free(a);
 	}
 #endif /* CONFIG_WPS */
@@ -169,44 +150,36 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 	if (hapd->p2p_group) {
 		struct wpabuf *a;
 		a = p2p_group_assoc_resp_ie(hapd->p2p_group, P2P_SC_SUCCESS);
-		if (a && wpabuf_resize(&assocresp, wpabuf_len(a)) == 0)
-			wpabuf_put_buf(assocresp, a);
+		add_buf(&assocresp, a);
 		wpabuf_free(a);
 	}
 #endif /* CONFIG_WIFI_DISPLAY */
 
 #ifdef CONFIG_HS20
-	pos = buf;
-	pos = hostapd_eid_hs20_indication(hapd, pos);
-	if (pos != buf) {
-		if (wpabuf_resize(&beacon, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(beacon, buf, pos - buf);
-
-		if (wpabuf_resize(&proberesp, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(proberesp, buf, pos - buf);
-	}
+	pos = hostapd_eid_hs20_indication(hapd, buf);
+	if (add_buf_data(&beacon, buf, pos - buf) < 0 ||
+	    add_buf_data(&proberesp, buf, pos - buf) < 0)
+		goto fail;
 
 	pos = hostapd_eid_osen(hapd, buf);
-	if (pos != buf) {
-		if (wpabuf_resize(&beacon, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(beacon, buf, pos - buf);
-
-		if (wpabuf_resize(&proberesp, pos - buf) != 0)
-			goto fail;
-		wpabuf_put_data(proberesp, buf, pos - buf);
-	}
+	if (add_buf_data(&beacon, buf, pos - buf) < 0 ||
+	    add_buf_data(&proberesp, buf, pos - buf) < 0)
+		goto fail;
 #endif /* CONFIG_HS20 */
 
-	if (hapd->conf->vendor_elements) {
-		size_t add = wpabuf_len(hapd->conf->vendor_elements);
-		if (wpabuf_resize(&beacon, add) == 0)
-			wpabuf_put_buf(beacon, hapd->conf->vendor_elements);
-		if (wpabuf_resize(&proberesp, add) == 0)
-			wpabuf_put_buf(proberesp, hapd->conf->vendor_elements);
+#ifdef CONFIG_MBO
+	if (hapd->conf->mbo_enabled) {
+		pos = hostapd_eid_mbo(hapd, buf, sizeof(buf));
+		if (add_buf_data(&beacon, buf, pos - buf) < 0 ||
+		    add_buf_data(&proberesp, buf, pos - buf) < 0 ||
+		    add_buf_data(&assocresp, buf, pos - buf) < 0)
+			goto fail;
 	}
+#endif /* CONFIG_MBO */
+
+	add_buf(&beacon, hapd->conf->vendor_elements);
+	add_buf(&proberesp, hapd->conf->vendor_elements);
+	add_buf(&assocresp, hapd->conf->assocresp_elements);
 
 	*beacon_ret = beacon;
 	*proberesp_ret = proberesp;
@@ -390,7 +363,8 @@ int hostapd_sta_add(struct hostapd_data *hapd,
 		    u16 listen_interval,
 		    const struct ieee80211_ht_capabilities *ht_capab,
 		    const struct ieee80211_vht_capabilities *vht_capab,
-		    u32 flags, u8 qosinfo, u8 vht_opmode)
+		    u32 flags, u8 qosinfo, u8 vht_opmode, int supp_p2p_ps,
+		    int set)
 {
 	struct hostapd_sta_add_params params;
 
@@ -412,6 +386,8 @@ int hostapd_sta_add(struct hostapd_data *hapd,
 	params.vht_opmode = vht_opmode;
 	params.flags = hostapd_sta_flags_to_drv(flags);
 	params.qosinfo = qosinfo;
+	params.support_p2p_ps = supp_p2p_ps;
+	params.set = set;
 	return hapd->driver->sta_add(hapd->drv_priv, &params);
 }
 
@@ -468,7 +444,7 @@ int hostapd_if_add(struct hostapd_data *hapd, enum wpa_driver_if_type type,
 		return -1;
 	return hapd->driver->if_add(hapd->drv_priv, type, ifname, addr,
 				    bss_ctx, drv_priv, force_ifname, if_addr,
-				    bridge, use_existing);
+				    bridge, use_existing, 1);
 }
 
 
@@ -647,16 +623,28 @@ int hostapd_drv_set_key(const char *ifname, struct hostapd_data *hapd,
 int hostapd_drv_send_mlme(struct hostapd_data *hapd,
 			  const void *msg, size_t len, int noack)
 {
+	if (!hapd->driver || !hapd->driver->send_mlme || !hapd->drv_priv)
+		return 0;
+	return hapd->driver->send_mlme(hapd->drv_priv, msg, len, noack, 0,
+				       NULL, 0);
+}
+
+
+int hostapd_drv_send_mlme_csa(struct hostapd_data *hapd,
+			      const void *msg, size_t len, int noack,
+			      const u16 *csa_offs, size_t csa_offs_len)
+{
 	if (hapd->driver == NULL || hapd->driver->send_mlme == NULL)
 		return 0;
-	return hapd->driver->send_mlme(hapd->drv_priv, msg, len, noack, 0);
+	return hapd->driver->send_mlme(hapd->drv_priv, msg, len, noack, 0,
+				       csa_offs, csa_offs_len);
 }
 
 
 int hostapd_drv_sta_deauth(struct hostapd_data *hapd,
 			   const u8 *addr, int reason)
 {
-	if (hapd->driver == NULL || hapd->driver->sta_deauth == NULL)
+	if (!hapd->driver || !hapd->driver->sta_deauth || !hapd->drv_priv)
 		return 0;
 	return hapd->driver->sta_deauth(hapd->drv_priv, hapd->own_addr, addr,
 					reason);
@@ -666,7 +654,7 @@ int hostapd_drv_sta_deauth(struct hostapd_data *hapd,
 int hostapd_drv_sta_disassoc(struct hostapd_data *hapd,
 			     const u8 *addr, int reason)
 {
-	if (hapd->driver == NULL || hapd->driver->sta_disassoc == NULL)
+	if (!hapd->driver || !hapd->driver->sta_disassoc || !hapd->drv_priv)
 		return 0;
 	return hapd->driver->sta_disassoc(hapd->drv_priv, hapd->own_addr, addr,
 					  reason);
@@ -686,6 +674,36 @@ int hostapd_drv_wnm_oper(struct hostapd_data *hapd, enum wnm_oper oper,
 int hostapd_drv_send_action(struct hostapd_data *hapd, unsigned int freq,
 			    unsigned int wait, const u8 *dst, const u8 *data,
 			    size_t len)
+{
+	const u8 *bssid;
+	const u8 wildcard_bssid[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
+
+	if (!hapd->driver || !hapd->driver->send_action || !hapd->drv_priv)
+		return 0;
+	bssid = hapd->own_addr;
+	if (!is_multicast_ether_addr(dst) &&
+	    len > 0 && data[0] == WLAN_ACTION_PUBLIC) {
+		struct sta_info *sta;
+
+		/*
+		 * Public Action frames to a STA that is not a member of the BSS
+		 * shall use wildcard BSSID value.
+		 */
+		sta = ap_get_sta(hapd, dst);
+		if (!sta || !(sta->flags & WLAN_STA_ASSOC))
+			bssid = wildcard_bssid;
+	}
+	return hapd->driver->send_action(hapd->drv_priv, freq, wait, dst,
+					 hapd->own_addr, bssid, data, len, 0);
+}
+
+
+int hostapd_drv_send_action_addr3_ap(struct hostapd_data *hapd,
+				     unsigned int freq,
+				     unsigned int wait, const u8 *dst,
+				     const u8 *data, size_t len)
 {
 	if (hapd->driver == NULL || hapd->driver->send_action == NULL)
 		return 0;
@@ -736,7 +754,7 @@ int hostapd_start_dfs_cac(struct hostapd_iface *iface,
 int hostapd_drv_set_qos_map(struct hostapd_data *hapd,
 			    const u8 *qos_map_set, u8 qos_map_set_len)
 {
-	if (hapd->driver == NULL || hapd->driver->set_qos_map == NULL)
+	if (!hapd->driver || !hapd->driver->set_qos_map || !hapd->drv_priv)
 		return 0;
 	return hapd->driver->set_qos_map(hapd->drv_priv, qos_map_set,
 					 qos_map_set_len);
@@ -759,6 +777,20 @@ static void hostapd_get_hw_mode_any_channels(struct hostapd_data *hapd,
 		    !(chan->flag & HOSTAPD_CHAN_DISABLED))
 			int_array_add_unique(freq_list, chan->freq);
 	}
+}
+
+
+void hostapd_get_ext_capa(struct hostapd_iface *iface)
+{
+	struct hostapd_data *hapd = iface->bss[0];
+
+	if (!hapd->driver || !hapd->driver->get_ext_capab)
+		return;
+
+	hapd->driver->get_ext_capab(hapd->drv_priv, WPA_IF_AP_BSS,
+				    &iface->extended_capa,
+				    &iface->extended_capa_mask,
+				    &iface->extended_capa_len);
 }
 
 

@@ -1,5 +1,149 @@
 ChangeLog for wpa_supplicant
 
+2016-10-02 - v2.6
+	* fixed WNM Sleep Mode processing when PMF is not enabled
+	  [http://w1.fi/security/2015-6/] (CVE-2015-5310)
+	* fixed EAP-pwd last fragment validation
+	  [http://w1.fi/security/2015-7/] (CVE-2015-5315)
+	* fixed EAP-pwd unexpected Confirm message processing
+	  [http://w1.fi/security/2015-8/] (CVE-2015-5316)
+	* fixed WPS configuration update vulnerability with malformed passphrase
+	  [http://w1.fi/security/2016-1/] (CVE-2016-4476)
+	* fixed configuration update vulnerability with malformed parameters set
+	  over the local control interface
+	  [http://w1.fi/security/2016-1/] (CVE-2016-4477)
+	* fixed TK configuration to the driver in EAPOL-Key 3/4 retry case
+	* extended channel switch support for P2P GO
+	* started to throttle control interface event message bursts to avoid
+	  issues with monitor sockets running out of buffer space
+	* mesh mode fixes/improvements
+	  - generate proper AID for peer
+	  - enable WMM by default
+	  - add VHT support
+	  - fix PMKID derivation
+	  - improve robustness on various exchanges
+	  - fix peer link counting in reconnect case
+	  - improve mesh joining behavior
+	  - allow DTIM period to be configured
+	  - allow HT to be disabled (disable_ht=1)
+	  - add MESH_PEER_ADD and MESH_PEER_REMOVE commands
+	  - add support for PMKSA caching
+	  - add minimal support for SAE group negotiation
+	  - allow pairwise/group cipher to be configured in the network profile
+	  - use ieee80211w profile parameter to enable/disable PMF and derive
+	    a separate TX IGTK if PMF is enabled instead of using MGTK
+	    incorrectly
+	  - fix AEK and MTK derivation
+	  - remove GTKdata and IGTKdata from Mesh Peering Confirm/Close
+	  - note: these changes are not fully backwards compatible for secure
+	    (RSN) mesh network
+	* fixed PMKID derivation with SAE
+	* added support for requesting and fetching arbitrary ANQP-elements
+	  without internal support in wpa_supplicant for the specific element
+	  (anqp[265]=<hexdump> in "BSS <BSSID>" command output)
+	* P2P
+	  - filter control characters in group client device names to be
+	    consistent with other P2P peer cases
+	  - support VHT 80+80 MHz and 160 MHz
+	  - indicate group completion in P2P Client role after data association
+	    instead of already after the WPS provisioning step
+	  - improve group-join operation to use SSID, if known, to filter BSS
+	    entries
+	  - added optional ssid=<hexdump> argument to P2P_CONNECT for join case
+	  - added P2P_GROUP_MEMBER command to fetch client interface address
+	* P2PS
+	  - fix follow-on PD Response behavior
+	  - fix PD Response generation for unknown peer
+	  - fix persistent group reporting
+	  - add channel policy to PD Request
+	  - add group SSID to the P2PS-PROV-DONE event
+	  - allow "P2P_CONNECT <addr> p2ps" to be used without specifying the
+	    default PIN
+	* BoringSSL
+	  - support for OCSP stapling
+	  - support building of h20-osu-client
+	* D-Bus
+	  - add ExpectDisconnect()
+	  - add global config parameters as properties
+	  - add SaveConfig()
+	  - add VendorElemAdd(), VendorElemGet(), VendorElemRem()
+	* fixed Suite B 192-bit AKM to use proper PMK length
+	  (note: this makes old releases incompatible with the fixed behavior)
+	* improved PMF behavior for cases where the AP and STA has different
+	  configuration by not trying to connect in some corner cases where the
+	  connection cannot succeed
+	* added option to reopen debug log (e.g., to rotate the file) upon
+	  receipt of SIGHUP signal
+	* EAP-pwd: added support for Brainpool Elliptic Curves
+	  (with OpenSSL 1.0.2 and newer)
+	* fixed EAPOL reauthentication after FT protocol run
+	* fixed FTIE generation for 4-way handshake after FT protocol run
+	* extended INTERFACE_ADD command to allow certain type (sta/ap)
+	  interface to be created
+	* fixed and improved various FST operations
+	* added 80+80 MHz and 160 MHz VHT support for IBSS/mesh
+	* fixed SIGNAL_POLL in IBSS and mesh cases
+	* added an option to abort an ongoing scan (used to speed up connection
+	  and can also be done with the new ABORT_SCAN command)
+	* TLS client
+	  - do not verify CA certificates when ca_cert is not specified
+	  - support validating server certificate hash
+	  - support SHA384 and SHA512 hashes
+	  - add signature_algorithms extension into ClientHello
+	  - support TLS v1.2 signature algorithm with SHA384 and SHA512
+	  - support server certificate probing
+	  - allow specific TLS versions to be disabled with phase2 parameter
+	  - support extKeyUsage
+	  - support PKCS #5 v2.0 PBES2
+	  - support PKCS #5 with PKCS #12 style key decryption
+	  - minimal support for PKCS #12
+	  - support OCSP stapling (including ocsp_multi)
+	* OpenSSL
+	  - support OpenSSL 1.1 API changes
+	  - drop support for OpenSSL 0.9.8
+	  - drop support for OpenSSL 1.0.0
+	* added support for multiple schedule scan plans (sched_scan_plans)
+	* added support for external server certificate chain validation
+	  (tls_ext_cert_check=1 in the network profile phase1 parameter)
+	* made phase2 parser more strict about correct use of auth=<val> and
+	  autheap=<val> values
+	* improved GAS offchannel operations with comeback request
+	* added SIGNAL_MONITOR command to request signal strength monitoring
+	  events
+	* added command for retrieving HS 2.0 icons with in-memory storage
+	  (REQ_HS20_ICON, GET_HS20_ICON, DEL_HS20_ICON commands and
+	  RX-HS20-ICON event)
+	* enabled ACS support for AP mode operations with wpa_supplicant
+	* EAP-PEAP: fixed interoperability issue with Windows 2012r2 server
+	  ("Invalid Compound_MAC in cryptobinding TLV")
+	* EAP-TTLS: fixed success after fragmented final Phase 2 message
+	* VHT: added interoperability workaround for 80+80 and 160 MHz channels
+	* WNM: workaround for broken AP operating class behavior
+	* added kqueue(2) support for eloop (CONFIG_ELOOP_KQUEUE)
+	* nl80211:
+	  - add support for full station state operations
+	  - do not add NL80211_ATTR_SMPS_MODE attribute if HT is disabled
+	  - add NL80211_ATTR_PREV_BSSID with Connect command
+	  - fix IEEE 802.1X/WEP EAP reauthentication and rekeying to use
+	    unencrypted EAPOL frames
+	* added initial MBO support; number of extensions to WNM BSS Transition
+	  Management
+	* added support for PBSS/PCP and P2P on 60 GHz
+	* Interworking: add credential realm to EAP-TLS identity
+	* fixed EAPOL-Key Request Secure bit to be 1 if PTK is set
+	* HS 2.0: add support for configuring frame filters
+	* added POLL_STA command to check connectivity in AP mode
+	* added initial functionality for location related operations
+	* started to ignore pmf=1/2 parameter for non-RSN networks
+	* added wps_disabled=1 network profile parameter to allow AP mode to
+	  be started without enabling WPS
+	* wpa_cli: added action script support for AP-ENABLED and AP-DISABLED
+	  events
+	* improved Public Action frame addressing
+	  - add gas_address3 configuration parameter to control Address 3
+	    behavior
+	* number of small fixes
+
 2015-09-27 - v2.5
 	* fixed P2P validation of SSID element length before copying it
 	  [http://w1.fi/security/2015-1/] (CVE-2015-1863)

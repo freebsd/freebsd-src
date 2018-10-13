@@ -47,6 +47,7 @@ struct listen_list;
 struct config_file;
 struct addrinfo;
 struct sldns_buffer;
+struct tcl_list;
 
 /**
  * Listening for queries structure.
@@ -59,7 +60,9 @@ struct listen_dnsport {
 	/** buffer shared by UDP connections, since there is only one
 	    datagram at any time. */
 	struct sldns_buffer* udp_buff;
-
+#ifdef USE_DNSCRYPT
+	struct sldns_buffer* dnscrypt_udp_buff;
+#endif
 	/** list of comm points used to get incoming events */
 	struct listen_list* cps;
 };
@@ -85,7 +88,14 @@ enum listen_type {
 	/** udp ipv6 (v4mapped) for use with ancillary data */
 	listen_type_udpancil,
 	/** ssl over tcp type */
-	listen_type_ssl
+	listen_type_ssl,
+	/** udp type  + dnscrypt*/
+	listen_type_udp_dnscrypt,
+	/** tcp type + dnscrypt */
+	listen_type_tcp_dnscrypt,
+	/** udp ipv6 (v4mapped) for use with ancillary data + dnscrypt*/
+	listen_type_udpancil_dnscrypt
+
 };
 
 /**
@@ -128,6 +138,8 @@ void listening_ports_free(struct listen_port* list);
  * @param bufsize: size of datagram buffer.
  * @param tcp_accept_count: max number of simultaneous TCP connections 
  * 	from clients.
+ * @param tcp_idle_timeout: idle timeout for TCP connections in msec.
+ * @param tcp_conn_limit: TCP connection limit info.
  * @param sslctx: nonNULL if ssl context.
  * @param dtenv: nonNULL if dnstap enabled.
  * @param cb: callback function when a request arrives. It is passed
@@ -136,9 +148,10 @@ void listening_ports_free(struct listen_port* list);
  * @return: the malloced listening structure, ready for use. NULL on error.
  */
 struct listen_dnsport* listen_create(struct comm_base* base,
-	struct listen_port* ports, size_t bufsize, int tcp_accept_count,
-	void* sslctx, struct dt_env *dtenv, comm_point_callback_t* cb,
-	void* cb_arg);
+	struct listen_port* ports, size_t bufsize,
+	int tcp_accept_count, int tcp_idle_timeout,
+	struct tcl_list* tcp_conn_limit, void* sslctx,
+	struct dt_env *dtenv, comm_point_callback_type* cb, void* cb_arg);
 
 /**
  * delete the listening structure
@@ -190,11 +203,13 @@ void listen_start_accept(struct listen_dnsport* listen);
  * @param reuseport: if nonNULL and true, try to set SO_REUSEPORT on
  * 	listening UDP port.  Set to false on return if it failed to do so.
  * @param transparent: set IP_TRANSPARENT socket option.
+ * @param freebind: set IP_FREEBIND socket option.
+ * @param use_systemd: if true, fetch sockets from systemd.
  * @return: the socket. -1 on error.
  */
 int create_udp_sock(int family, int socktype, struct sockaddr* addr, 
 	socklen_t addrlen, int v6only, int* inuse, int* noproto, int rcv,
-	int snd, int listen, int* reuseport, int transparent);
+	int snd, int listen, int* reuseport, int transparent, int freebind, int use_systemd);
 
 /**
  * Create and bind TCP listening socket
@@ -205,18 +220,21 @@ int create_udp_sock(int family, int socktype, struct sockaddr* addr,
  * 	listening UDP port.  Set to false on return if it failed to do so.
  * @param transparent: set IP_TRANSPARENT socket option.
  * @param mss: maximum segment size of the socket. if zero, leaves the default. 
+ * @param freebind: set IP_FREEBIND socket option.
+ * @param use_systemd: if true, fetch sockets from systemd.
  * @return: the socket. -1 on error.
  */
 int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent, int mss);
+	int* reuseport, int transparent, int mss, int freebind, int use_systemd);
 
 /**
  * Create and bind local listening socket
  * @param path: path to the socket.
  * @param noproto: on error, this is set true if cause is that local sockets
  *	are not supported.
+ * @param use_systemd: if true, fetch sockets from systemd.
  * @return: the socket. -1 on error.
  */
-int create_local_accept_sock(const char* path, int* noproto);
+int create_local_accept_sock(const char* path, int* noproto, int use_systemd);
 
 #endif /* LISTEN_DNSPORT_H */

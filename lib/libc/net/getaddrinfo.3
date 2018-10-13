@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2015
+.Dd September 13, 2017
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -351,6 +351,17 @@ pointer should be a
 .Li addrinfo
 structure created by a call to
 .Fn getaddrinfo .
+.Sh IMPLEMENTATION NOTES
+The behavior of
+.Li freeadrinfo(NULL)
+is left unspecified by both
+.St -susv4
+and
+.Dv "RFC 3493" .
+The current implementation ignores a
+.Dv NULL
+argument for compatibility with programs that rely on the implementation
+details of other operating systems.
 .Sh RETURN VALUES
 .Fn getaddrinfo
 returns zero on success or one of the error codes listed in

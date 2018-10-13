@@ -11,12 +11,18 @@
 /// \brief Utilities to print analysis info for various kinds of passes.
 ///
 //===----------------------------------------------------------------------===//
+
 #include "PassPrinters.h"
+#include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionPass.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/raw_ostream.h"
 #include <string>
 
 using namespace llvm;
@@ -46,7 +52,7 @@ struct FunctionPassPrinter : public FunctionPass {
     return false;
   }
 
-  const char *getPassName() const override { return PassName.c_str(); }
+  StringRef getPassName() const override { return PassName; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -83,7 +89,7 @@ struct CallGraphSCCPassPrinter : public CallGraphSCCPass {
     return false;
   }
 
-  const char *getPassName() const override { return PassName.c_str(); }
+  StringRef getPassName() const override { return PassName; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -115,7 +121,7 @@ struct ModulePassPrinter : public ModulePass {
     return false;
   }
 
-  const char *getPassName() const override { return PassName.c_str(); }
+  StringRef getPassName() const override { return PassName; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -148,7 +154,7 @@ struct LoopPassPrinter : public LoopPass {
     return false;
   }
 
-  const char *getPassName() const override { return PassName.c_str(); }
+  StringRef getPassName() const override { return PassName; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -183,7 +189,7 @@ struct RegionPassPrinter : public RegionPass {
     return false;
   }
 
-  const char *getPassName() const override { return PassName.c_str(); }
+  StringRef getPassName() const override { return PassName; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -217,7 +223,7 @@ struct BasicBlockPassPrinter : public BasicBlockPass {
     return false;
   }
 
-  const char *getPassName() const override { return PassName.c_str(); }
+  StringRef getPassName() const override { return PassName; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -226,7 +232,8 @@ struct BasicBlockPassPrinter : public BasicBlockPass {
 };
 
 char BasicBlockPassPrinter::ID = 0;
-}
+
+} // end anonymous namespace
 
 FunctionPass *llvm::createFunctionPassPrinter(const PassInfo *PI,
                                               raw_ostream &OS, bool Quiet) {

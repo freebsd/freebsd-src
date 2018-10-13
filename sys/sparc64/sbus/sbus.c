@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2002 Eduardo Horvath
  * All rights reserved.
  *
@@ -297,7 +299,7 @@ sbus_attach(device_t dev)
 	/*
 	 * Collect address translations from the OBP.
 	 */
-	if ((sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	if ((sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(*range), (void **)&range)) == -1) {
 		panic("%s: error getting ranges property", __func__);
 	}
@@ -409,7 +411,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_ot_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE,
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE | INTR_MPSAFE,
 	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	i = 3;
@@ -419,7 +421,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_pf_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE,
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE | INTR_MPSAFE,
 	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
@@ -476,7 +478,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 	}
 	resource_list_init(&sdi->sdi_rl);
 	slot = -1;
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		if (sdi->sdi_obdinfo.obd_type == NULL ||
 		    strcmp(sdi->sdi_obdinfo.obd_type, "hierarchical") != 0) {
@@ -510,7 +512,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 	/*
 	 * The `interrupts' property contains the SBus interrupt level.
 	 */
-	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr),
+	nintr = OF_getprop_alloc_multi(node, "interrupts", sizeof(*intr),
 	    (void **)&intr);
 	if (nintr != -1) {
 		for (i = 0; i < nintr; i++) {

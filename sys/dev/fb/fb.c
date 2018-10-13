@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -530,7 +532,6 @@ static char
 	{ KD_CGA,	"CGA" },
 	{ KD_EGA,	"EGA" },
 	{ KD_VGA,	"VGA" },
-	{ KD_PC98,	"PC-98x1" },
 	{ KD_TGA,	"TGA" },
 	{ -1,		"Unknown" },
     };
@@ -605,7 +606,6 @@ fb_type(int adp_type)
 		{ FBTYPE_CGA,		KD_CGA },
 		{ FBTYPE_EGA,		KD_EGA },
 		{ FBTYPE_VGA,		KD_VGA },
-		{ FBTYPE_PC98,		KD_PC98 },
 		{ FBTYPE_TGA,		KD_TGA },
 	};
 	int i;

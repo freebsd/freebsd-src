@@ -52,11 +52,13 @@ static Attribute::AttrKind parseAttrKind(StringRef Kind) {
       .Case("returns_twice", Attribute::ReturnsTwice)
       .Case("safestack", Attribute::SafeStack)
       .Case("sanitize_address", Attribute::SanitizeAddress)
+      .Case("sanitize_hwaddress", Attribute::SanitizeHWAddress)
       .Case("sanitize_memory", Attribute::SanitizeMemory)
       .Case("sanitize_thread", Attribute::SanitizeThread)
       .Case("ssp", Attribute::StackProtect)
       .Case("sspreq", Attribute::StackProtectReq)
       .Case("sspstrong", Attribute::StackProtectStrong)
+      .Case("strictfp", Attribute::StrictFP)
       .Case("uwtable", Attribute::UWTable)
       .Default(Attribute::None);
 }
@@ -80,7 +82,8 @@ static void addForcedAttributes(Function &F) {
   }
 }
 
-PreservedAnalyses ForceFunctionAttrsPass::run(Module &M) {
+PreservedAnalyses ForceFunctionAttrsPass::run(Module &M,
+                                              ModuleAnalysisManager &) {
   if (ForceAttributes.empty())
     return PreservedAnalyses::all();
 

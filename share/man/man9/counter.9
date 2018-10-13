@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2016
+.Dd March 22, 2017
 .Dt COUNTER 9
 .Os
 .Sh NAME
@@ -51,6 +51,8 @@
 .Fn counter_u64_fetch "counter_u64_t c"
 .Ft void
 .Fn counter_u64_zero "counter_u64_t c"
+.Ft int64_t
+.Fn counter_ratecheck "struct counter_rate *cr" "int64_t limit"
 .In sys/sysctl.h
 .Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 .Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
@@ -105,7 +107,7 @@ to
 .Fa c .
 The KPI does not guarantee any protection from wraparound.
 .It Fn counter_enter
-Enter mode that would allow to safely update several counters via
+Enter mode that would allow the safe update of several counters via
 .Fn counter_u64_add_protected .
 On some machines this expands to
 .Xr critical 9
@@ -128,9 +130,21 @@ value for any moment.
 Clear the counter
 .Fa c
 and set it to zero.
+.It Fn counter_ratecheck cr limit
+The function is a multiprocessor-friendly version of
+.Fn ppsratecheck
+which uses
+.Nm
+internally.
+Returns non-negative value if the rate is not yet reached during the current
+second, and a negative value otherwise.
+If the limit was reached on previous second, but was just reset back to zero,
+then
+.Fn counter_ratecheck
+returns number of events since previous reset.
 .It Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 Declare a static
-.Xr sysctl
+.Xr sysctl 9
 oid that would represent a
 .Nm .
 The
@@ -142,7 +156,7 @@ A read of the oid returns value obtained through
 Any write to the oid zeroes it.
 .It Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
 Create a
-.Xr sysctl
+.Xr sysctl 9
 oid that would represent a
 .Nm .
 The
@@ -154,7 +168,7 @@ A read of the oid returns value obtained through
 Any write to the oid zeroes it.
 .It Fn SYSCTL_COUNTER_U64_ARRAY parent nbr name access ptr len descr
 Declare a static
-.Xr sysctl
+.Xr sysctl 9
 oid that would represent an array of
 .Nm .
 The
@@ -171,7 +185,7 @@ values  obtained through
 Any write to the oid zeroes all array elements.
 .It Fn SYSCTL_ADD_COUNTER_U64_ARRAY ctx parent nbr name access ptr len descr
 Create a
-.Xr sysctl
+.Xr sysctl 9
 oid that would represent an array of
 .Nm .
 The
@@ -224,12 +238,12 @@ static counter_u64_t array[MY_SIZE];
 SYSCTL_COUNTER_U64_ARRAY(_debug, OID_AUTO, counter_array, CTLFLAG_RW,
     &array[0], MY_SIZE, "Test counter array");
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr atomic 9 ,
 .Xr critical 9 ,
 .Xr locking 9 ,
 .Xr malloc 9 ,
+.Xr ratecheck 9 ,
 .Xr sysctl 9 ,
 .Xr uma 9
 .Sh HISTORY

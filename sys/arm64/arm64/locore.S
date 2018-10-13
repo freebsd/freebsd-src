@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_kstack_pages.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
@@ -167,7 +167,7 @@ ENTRY(mpentry)
 	bl	drop_to_el1
 
 	/* Set the context id */
-	msr	contextidr_el1, x1
+	msr	contextidr_el1, xzr
 
 	/* Load the kernel page table */
 	adr	x24, pagetable_l0_ttbr1
@@ -352,13 +352,13 @@ create_pagetables:
 
 	/* Find the size of the kernel */
 	mov	x6, #(KERNBASE)
-	ldr	x7, .Lend
-	/* Find the end - begin */
-	sub	x8, x7, x6
+	/* Find modulep - begin */
+	sub	x8, x0, x6
+	/* Add two 2MiB pages for the module data and round up */
+	ldr	x7, =(3 * L2_SIZE - 1)
+	add	x8, x8, x7
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
-	/* Add 8 MiB for any rounding above and the module data */
-	add	x10, x10, #4
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26
@@ -617,19 +617,23 @@ start_mmu:
 
 	.align 3
 mair:
-		/* Device            Normal, no cache     Normal, write-back */
-	.quad	MAIR_ATTR(0x00, 0) | MAIR_ATTR(0x44, 1) | MAIR_ATTR(0xff, 2)
+	.quad	MAIR_ATTR(MAIR_DEVICE_nGnRnE, 0) |	\
+		MAIR_ATTR(MAIR_NORMAL_NC, 1) |		\
+		MAIR_ATTR(MAIR_NORMAL_WB, 2) |		\
+		MAIR_ATTR(MAIR_NORMAL_WT, 3)
 tcr:
 	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_ASID_16 | TCR_TG1_4K | \
 	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
 sctlr_set:
 	/* Bits to set */
-	.quad (SCTLR_UCI | SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
-	    SCTLR_I | SCTLR_SED | SCTLR_SA0 | SCTLR_SA | SCTLR_C | SCTLR_M)
+	.quad (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_UCI | SCTLR_SPAN | \
+	    SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
+	    SCTLR_I | SCTLR_SED | SCTLR_SA0 | SCTLR_SA | SCTLR_C | \
+	    SCTLR_M | SCTLR_CP15BEN)
 sctlr_clear:
 	/* Bits to clear */
-	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_WXN | SCTLR_UMA | SCTLR_ITD | \
-	    SCTLR_THEE | SCTLR_CP15BEN | SCTLR_A)
+	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_IESB | SCTLR_WXN | SCTLR_UMA | \
+	    SCTLR_ITD | SCTLR_THEE | SCTLR_A)
 
 	.globl abort
 abort:

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2015
+.Dd July 3, 2018
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46cLlsu
+.Op Fl 46cLlSsUuvw
 .Op Fl j Ar jid
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -58,8 +58,8 @@ Show
 (IPv6) sockets.
 .It Fl c
 Show connected sockets.
-.It Fl j Ar jid
-Show only sockets belonging to the specified jail ID.
+.It Fl j Ar jail
+Show only sockets belonging to the specified jail ID or name.
 .It Fl L
 Only show Internet sockets if the local and foreign addresses are not
 in the loopback network prefix
@@ -83,14 +83,26 @@ The
 argument is a comma-separated list of protocol names,
 as they are defined in
 .Xr protocols 5 .
+.It Fl q
+Quiet mode, do not print the header line.
+.It Fl S
+Display the protocol stack, if applicable.
+This is currently only implemented for TCP.
 .It Fl s
 Display the protocol state, if applicable.
 This is currently only implemented for SCTP and TCP.
+.It Fl U
+Display the remote UDP encapsulation port number, if applicable.
+This is currently only implemented for SCTP.
 .It Fl u
 Show
 .Dv AF_LOCAL
 .Pq Ux
 sockets.
+.It Fl v
+Verbose mode.
+.It Fl w
+Use wider field size for displaying addresses.
 .El
 .Pp
 If neither
@@ -143,6 +155,22 @@ if the endpoint could not be determined.
 (Internet sockets only)
 The address the foreign end of the socket is bound to (see
 .Xr getpeername 2 ) .
+.It Li ENCAPS
+The remote UDP encapsulation port number if
+.Fl U
+is specified (only for SCTP).
+.It Li PATH STATE
+The path state if
+.Fl s
+is specified (only for SCTP).
+.It Li CONN STATE
+The connection state if
+.Fl s
+is specified (only for SCTP or TCP).
+.It Li STACK
+The protocol stack if
+.Fl S
+is specified (only for TCP).
 .El
 .Pp
 If a socket is associated with more than one file descriptor,

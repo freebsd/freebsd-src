@@ -18,7 +18,7 @@ CFLAGS+= -DWITHOUT_KERBEROS
 
 CLEANFILES= gssd_svc.c gssd_xdr.c gssd.h
 
-RPCSRC=	${.CURDIR}/../../sys/kgssapi/gssd.x
+RPCSRC=	${SRCTOP}/sys/kgssapi/gssd.x
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C -M
 
 gssd_svc.c: ${RPCSRC} gssd.h
@@ -30,6 +30,6 @@ gssd_xdr.c: ${RPCSRC} gssd.h
 gssd.h: ${RPCSRC}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
 
-.PATH:	${.CURDIR}/../../sys/kgssapi
+.PATH:	${SRCTOP}/sys/kgssapi
 
 .include <bsd.prog.mk>

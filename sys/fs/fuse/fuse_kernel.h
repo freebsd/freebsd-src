@@ -1,4 +1,4 @@
-/*-
+/*--
  * This file defines the kernel interface of FUSE
  * Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
  *
@@ -282,7 +282,12 @@ struct fuse_fsync_in {
 	__u32	padding;
 };
 
-struct fuse_setxattr_in {
+struct fuse_listxattr_in {
+	__u32	size;
+	__u32	flags;
+};
+
+struct fuse_listxattr_out {
 	__u32	size;
 	__u32	flags;
 };
@@ -295,6 +300,11 @@ struct fuse_getxattr_in {
 struct fuse_getxattr_out {
 	__u32	size;
 	__u32	padding;
+};
+
+struct fuse_setxattr_in {
+	__u32	size;
+	__u32	flags;
 };
 
 struct fuse_lk_in {

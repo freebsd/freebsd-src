@@ -1,4 +1,4 @@
-/*	$NetBSD: t_bpf.c,v 1.5 2012/08/14 19:40:30 alnsn Exp $	*/
+/*	$NetBSD: t_bpf.c,v 1.7 2017/02/01 08:04:49 ozaki-r Exp $	*/
 
 /*-
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_bpf.c,v 1.5 2012/08/14 19:40:30 alnsn Exp $");
+__RCSID("$NetBSD: t_bpf.c,v 1.7 2017/02/01 08:04:49 ozaki-r Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -50,7 +50,7 @@ __RCSID("$NetBSD: t_bpf.c,v 1.5 2012/08/14 19:40:30 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../config/netconfig.c"
 
 ATF_TC(bpfwriteleak);
@@ -166,6 +166,39 @@ ATF_TC_BODY(bpfwritetrunc, tc)
 }
 #endif /* #if (SIZE_MAX > UINT_MAX) */
 
+ATF_TC(bpf_ioctl_BLEN);
+ATF_TC_HEAD(bpf_ioctl_BLEN, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr", "Checks behaviors of BIOCGBLEN and "
+	    "BIOCSBLEN");
+}
+
+ATF_TC_BODY(bpf_ioctl_BLEN, tc)
+{
+	struct ifreq ifr;
+	int ifnum, bpfd;
+	u_int blen = 0;
+
+	RZ(rump_init());
+	RZ(rump_pub_shmif_create(NULL, &ifnum));
+	sprintf(ifr.ifr_name, "shmif%d", ifnum);
+
+	RL(bpfd = rump_sys_open("/dev/bpf", O_RDWR));
+
+	RL(rump_sys_ioctl(bpfd, BIOCGBLEN, &blen));
+	ATF_REQUIRE(blen != 0);
+	blen = 100;
+	RL(rump_sys_ioctl(bpfd, BIOCSBLEN, &blen));
+	RL(rump_sys_ioctl(bpfd, BIOCGBLEN, &blen));
+	ATF_REQUIRE_EQ(blen, 100);
+
+	RL(rump_sys_ioctl(bpfd, BIOCSETIF, &ifr));
+
+	ATF_REQUIRE_EQ_MSG(rump_sys_ioctl(bpfd, BIOCSBLEN, &blen), -1,
+	    "Don't allow to change buflen after binding bpf to an interface");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -173,5 +206,6 @@ ATF_TP_ADD_TCS(tp)
 #if (SIZE_MAX > UINT_MAX)
 	ATF_TP_ADD_TC(tp, bpfwritetrunc);
 #endif
+	ATF_TP_ADD_TC(tp, bpf_ioctl_BLEN);
 	return atf_no_error();
 }

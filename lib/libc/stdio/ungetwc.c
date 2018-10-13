@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
@@ -76,10 +78,10 @@ ungetwc_l(wint_t wc, FILE *fp, locale_t locale)
 	wint_t r;
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, 1);
 	r = __ungetwc(wc, fp, locale);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }

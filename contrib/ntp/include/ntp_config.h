@@ -54,7 +54,15 @@ typedef struct int_range_tag {
 	int	last;
 } int_range;
 
-/* Structure for storing an attribute-value pair  */
+/* generic list node */
+typedef struct any_node_tag any_node;
+struct any_node_tag {
+	any_node *	link;
+};
+
+typedef DECL_FIFO_ANCHOR(any_node) any_node_fifo;
+
+/* Structure for storing an attribute-value pair */
 typedef struct attr_val_tag attr_val;
 struct attr_val_tag {
 	attr_val *	link;
@@ -102,8 +110,9 @@ struct restrict_node_tag {
 	restrict_node *	link;
 	address_node *	addr;
 	address_node *	mask;
-	int_fifo *	flags;
+	int_fifo *	flag_tok_fifo;
 	int		line_no;
+	short		ippeerlimit;
 };
 
 typedef DECL_FIFO_ANCHOR(restrict_node) restrict_fifo;
@@ -267,8 +276,12 @@ typedef struct settrap_parms_tag {
 const char * token_name(int token);
 
 /* generic fifo routines for structs linked by 1st member */
-void*	append_gen_fifo(void *fifo, void *entry);
+typedef void (*fifo_deleter)(void*);
+void *	destroy_gen_fifo(void *fifo, fifo_deleter func);
+void *	append_gen_fifo(void *fifo, void *entry);
 void *	concat_gen_fifos(void *first, void *second);
+#define DESTROY_G_FIFO(pf, func)	\
+	((pf) = destroy_gen_fifo((pf), (fifo_deleter)(func)))
 #define APPEND_G_FIFO(pf, pe)		\
 	((pf) = append_gen_fifo((pf), (pe)))
 #define CONCAT_G_FIFOS(first, second)	\
@@ -288,11 +301,13 @@ attr_val *create_attr_ival(int attr, int value);
 attr_val *create_attr_uval(int attr, u_int value);
 attr_val *create_attr_rangeval(int attr, int first, int last);
 attr_val *create_attr_sval(int attr, const char *s);
+void	  destroy_attr_val(attr_val *node);
 filegen_node *create_filegen_node(int filegen_token,
 				  attr_val_fifo *options);
 string_node *create_string_node(char *str);
 restrict_node *create_restrict_node(address_node *addr,
 				    address_node *mask,
+				    short ippeerlimit,
 				    int_fifo *flags, int line_no);
 int_node *create_int_node(int val);
 addr_opts_node *create_addr_opts_node(address_node *addr,

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Peter Wemm
  * All rights reserved.
  *
@@ -47,12 +49,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
-
 #define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
 #define	DEV_ALIGN(x)	roundup2((off_t)(x), DEV_BSIZE)
 
@@ -60,7 +56,6 @@ uint32_t *vm_page_dump;
 int vm_page_dump_size;
 
 static struct kerneldumpheader kdh;
-static off_t dumplo;
 
 /* Handle chunked writes. */
 static size_t fragsz;
@@ -92,8 +87,7 @@ blk_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_write(di, dump_va, 0, dumplo, fragsz);
-	dumplo += fragsz;
+	error = dump_append(di, dump_va, 0, fragsz);
 	fragsz = 0;
 	return (error);
 }
@@ -141,10 +135,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		wdog_kern_pat(WD_LASTVAL);
 
 		if (ptr) {
-			error = dump_write(di, ptr, 0, dumplo, len);
+			error = dump_append(di, ptr, 0, len);
 			if (error)
 				return (error);
-			dumplo += len;
 			ptr += len;
 			sz -= len;
 		} else {
@@ -197,7 +190,7 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 2MB of space
 		 */
 		ptesize += PAGE_SIZE;
-		pd = (pd_entry_t *)((uintptr_t)IdlePTD + KERNBASE);	/* always mapped! */
+		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is an entire 2M page. */
@@ -244,13 +237,6 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = ENOSPC;
-		goto fail;
-	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
 	progress = dumpsize;
 
 	/* Initialize mdhdr */
@@ -265,16 +251,15 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.paemode = 1;
 #endif
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION, dumpsize, di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION,
+	    dumpsize);
+
+	error = dump_start(di, &kdh);
+	if (error != 0)
+		goto fail;
 
 	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
-
-	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
-		goto fail;
-	dumplo += sizeof(kdh);
 
 	/* Dump my header */
 	bzero(&fakept, sizeof(fakept));
@@ -296,7 +281,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump kernel page table pages */
 	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
 		/* We always write a page, even if it is zero */
-		pd = (pd_entry_t *)((uintptr_t)IdlePTD + KERNBASE);	/* always mapped! */
+		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is a single 2M block. Generate a fake PTP */
@@ -348,14 +333,10 @@ minidumpsys(struct dumperinfo *di)
 	if (error)
 		goto fail;
 
-	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
+	error = dump_finish(di, &kdh);
+	if (error != 0)
 		goto fail;
-	dumplo += sizeof(kdh);
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 
@@ -365,7 +346,7 @@ minidumpsys(struct dumperinfo *di)
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
-	else if (error == ENOSPC)
+	else if (error == E2BIG || error == ENOSPC)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);

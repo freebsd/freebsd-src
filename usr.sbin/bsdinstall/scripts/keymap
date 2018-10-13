@@ -28,7 +28,7 @@
 # $FreeBSD$
 #
 ############################################################ INCLUDES
- 
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
@@ -42,11 +42,6 @@ f_include $BSDCFG_SHARE/sysrc.subr
 # Default file to store keymap selection in
 #
 : ${KEYMAPFILE:=$BSDINSTALL_TMPETC/rc.conf.keymap}
-
-#
-# Default path to keymap INDEX containing descriptions
-#
-: ${MAPDESCFILE:=/usr/share/syscons/keymaps/INDEX.keymaps}
 
 ############################################################ GLOBALS
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -177,8 +179,13 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m)
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->tc_vap;
 	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_frame *wh;
 	uint8_t *ivp;
 	int hdrlen;
+	int is_mgmt;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
 
 	/*
 	 * Handle TKIP counter measures requirement.
@@ -193,6 +200,16 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m)
 		vap->iv_stats.is_crypto_tkipcm++;
 		return 0;
 	}
+
+	/*
+	 * Check to see whether IV needs to be included.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOIVMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOIV))
+		return 1;
+
+
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
 
 	/*
@@ -224,6 +241,19 @@ static int
 tkip_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
 	struct tkip_ctx *ctx = k->wk_private;
+	struct ieee80211_frame *wh;
+	int is_mgmt;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
+
+	/*
+	 * Check to see whether MIC needs to be included.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOMICMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOMIC))
+		return 1;
 
 	if (force || (k->wk_flags & IEEE80211_KEY_SWENMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
@@ -259,10 +289,19 @@ READ_6(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5)
 static int
 tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->tc_vap;
 	struct ieee80211_frame *wh;
 	uint8_t *ivp, tid;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	/*
+	 * If IV has been stripped, we skip most of the below.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+		goto finish;
 
 	/*
 	 * Header should have extended IV and sequence number;
@@ -318,11 +357,22 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	    !tkip_decrypt(ctx, k, m, hdrlen))
 		return 0;
 
+finish:
+
 	/*
-	 * Copy up 802.11 header and strip crypto bits.
+	 * Copy up 802.11 header and strip crypto bits - but only if we
+	 * are required to.
 	 */
-	memmove(mtod(m, uint8_t *) + tkip.ic_header, mtod(m, void *), hdrlen);
-	m_adj(m, tkip.ic_header);
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		memmove(mtod(m, uint8_t *) + tkip.ic_header, mtod(m, void *),
+		    hdrlen);
+		m_adj(m, tkip.ic_header);
+	}
+
+	/*
+	 * XXX TODO: do we need an option to potentially not strip the
+	 * WEP trailer?  Does "MMIC_STRIP" also mean this? Or?
+	 */
 	m_adj(m, -tkip.ic_trailer);
 
 	return 1;
@@ -334,11 +384,33 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 static int
 tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211_frame *wh;
 	uint8_t tid;
 
 	wh = mtod(m, struct ieee80211_frame *);
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	/*
+	 * If we are told about a MIC failure from the driver,
+	 * directly notify as a michael failure to the upper
+	 * layers.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC)) {
+		struct ieee80211vap *vap = ctx->tc_vap;
+		ieee80211_notify_michael_failure(vap, wh,
+		    k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
+		    k->wk_rxkeyix : k->wk_keyix);
+		return 0;
+	}
+
+	/*
+	 * If IV has been stripped, we skip most of the below.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP))
+		goto finish;
+
 	if ((k->wk_flags & IEEE80211_KEY_SWDEMIC) || force) {
 		struct ieee80211vap *vap = ctx->tc_vap;
 		int hdrlen = ieee80211_hdrspace(vap->iv_ic, wh);
@@ -371,6 +443,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	tid = ieee80211_gettid(wh);
 	k->wk_keyrsc[tid] = ctx->rx_rsc;
 
+finish:
 	return 1;
 }
 

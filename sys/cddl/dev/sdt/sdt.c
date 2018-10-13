@@ -76,6 +76,9 @@ static void	sdt_kld_unload_try(void *, struct linker_file *, int *);
 
 static MALLOC_DEFINE(M_SDT, "SDT", "DTrace SDT providers");
 
+static int sdt_probes_enabled_count;
+static int lockstat_enabled_count;
+
 static dtrace_pattr_t sdt_attr = {
 { DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
 { DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE, DTRACE_CLASS_UNKNOWN },
@@ -85,16 +88,16 @@ static dtrace_pattr_t sdt_attr = {
 };
 
 static dtrace_pops_t sdt_pops = {
-	sdt_provide_probes,
-	NULL,
-	sdt_enable,
-	sdt_disable,
-	NULL,
-	NULL,
-	sdt_getargdesc,
-	NULL,
-	NULL,
-	sdt_destroy,
+	.dtps_provide =		sdt_provide_probes,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		sdt_enable,
+	.dtps_disable =		sdt_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	sdt_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		sdt_destroy,
 };
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
@@ -206,8 +209,14 @@ sdt_enable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	probe->id = id;
 	probe->sdtp_lf->nenabled++;
-	if (strcmp(probe->prov->name, "lockstat") == 0)
-		lockstat_enabled++;
+	if (strcmp(probe->prov->name, "lockstat") == 0) {
+		lockstat_enabled_count++;
+		if (lockstat_enabled_count == 1)
+			lockstat_enabled = true;
+	}
+	sdt_probes_enabled_count++;
+	if (sdt_probes_enabled_count == 1)
+		sdt_probes_enabled = true;
 }
 
 static void
@@ -217,8 +226,14 @@ sdt_disable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	KASSERT(probe->sdtp_lf->nenabled > 0, ("no probes enabled"));
 
-	if (strcmp(probe->prov->name, "lockstat") == 0)
-		lockstat_enabled--;
+	sdt_probes_enabled_count--;
+	if (sdt_probes_enabled_count == 0)
+		sdt_probes_enabled = false;
+	if (strcmp(probe->prov->name, "lockstat") == 0) {
+		lockstat_enabled_count--;
+		if (lockstat_enabled_count == 0)
+			lockstat_enabled = false;
+	}
 	probe->id = 0;
 	probe->sdtp_lf->nenabled--;
 }

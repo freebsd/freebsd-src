@@ -88,12 +88,12 @@ struct tegra_lic_sc {
 };
 
 static int
-tegra_lic_alloc_intr(device_t dev, struct intr_irqsrc *isrc,
+tegra_lic_activate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	return (PIC_ALLOC_INTR(sc->parent, isrc, res, data));
+	return (PIC_ACTIVATE_INTR(sc->parent, isrc, res, data));
 }
 
 static void
@@ -122,12 +122,12 @@ tegra_lic_map_intr(device_t dev, struct intr_map_data *data,
 }
 
 static int
-tegra_lic_release_intr(device_t dev, struct intr_irqsrc *isrc,
+tegra_lic_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	return (PIC_RELEASE_INTR(sc->parent, isrc, res, data));
+	return (PIC_DEACTIVATE_INTR(sc->parent, isrc, res, data));
 }
 
 static int
@@ -266,11 +266,11 @@ static device_method_t tegra_lic_methods[] = {
 	DEVMETHOD(device_detach,	tegra_lic_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_alloc_intr,	tegra_lic_alloc_intr),
+	DEVMETHOD(pic_activate_intr,	tegra_lic_activate_intr),
 	DEVMETHOD(pic_disable_intr,	tegra_lic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	tegra_lic_enable_intr),
 	DEVMETHOD(pic_map_intr,		tegra_lic_map_intr),
-	DEVMETHOD(pic_release_intr,	tegra_lic_release_intr),
+	DEVMETHOD(pic_deactivate_intr,	tegra_lic_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	tegra_lic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	tegra_lic_teardown_intr),
 	DEVMETHOD(pic_pre_ithread,	tegra_lic_pre_ithread),
@@ -281,8 +281,9 @@ static device_method_t tegra_lic_methods[] = {
 #endif
 	DEVMETHOD_END
 };
+
 devclass_t tegra_lic_devclass;
-DEFINE_CLASS_0(tegra_lic, tegra_lic_driver, tegra_lic_methods,
+static DEFINE_CLASS_0(lic, tegra_lic_driver, tegra_lic_methods,
     sizeof(struct tegra_lic_sc));
 EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, tegra_lic_devclass,
     NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);

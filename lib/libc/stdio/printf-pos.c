@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 
+#include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -54,6 +57,12 @@ __FBSDID("$FreeBSD$");
 
 #include "un-namespace.h"
 #include "printflocal.h"
+
+#ifdef	NL_ARGMAX
+#define	MAX_POSARG	NL_ARGMAX
+#else
+#define	MAX_POSARG	65536
+#endif
 
 /*
  * Type ids for argument type table.
@@ -70,9 +79,9 @@ enum typeid {
 struct typetable {
 	enum typeid *table; /* table of types */
 	enum typeid stattable[STATIC_ARG_TBL_SIZE];
-	int tablesize;		/* current size of type table */
-	int tablemax;		/* largest used index in table */
-	int nextarg;		/* 1-based argument index */
+	u_int tablesize;	/* current size of type table */
+	u_int tablemax;		/* largest used index in table */
+	u_int nextarg;		/* 1-based argument index */
 };
 
 static int	__grow_type_table(struct typetable *);
@@ -84,7 +93,7 @@ static void	build_arg_table (struct typetable *, va_list, union arg **);
 static inline void
 inittypes(struct typetable *types)
 {
-	int n;
+	u_int n;
 
 	types->table = types->stattable;
 	types->tablesize = STATIC_ARG_TBL_SIZE;
@@ -185,7 +194,7 @@ static inline int
 addaster(struct typetable *types, char **fmtp)
 {
 	char *cp;
-	int n2;
+	u_int n2;
 
 	n2 = 0;
 	cp = *fmtp;
@@ -194,7 +203,7 @@ addaster(struct typetable *types, char **fmtp)
 		cp++;
 	}
 	if (*cp == '$') {
-		int hold = types->nextarg;
+		u_int hold = types->nextarg;
 		types->nextarg = n2;
 		if (addtype(types, T_INT))
 			return (-1);
@@ -211,7 +220,7 @@ static inline int
 addwaster(struct typetable *types, wchar_t **fmtp)
 {
 	wchar_t *cp;
-	int n2;
+	u_int n2;
 
 	n2 = 0;
 	cp = *fmtp;
@@ -220,7 +229,7 @@ addwaster(struct typetable *types, wchar_t **fmtp)
 		cp++;
 	}
 	if (*cp == '$') {
-		int hold = types->nextarg;
+		u_int hold = types->nextarg;
 		types->nextarg = n2;
 		if (addtype(types, T_INT))
 			return (-1);
@@ -245,7 +254,7 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
 {
 	char *fmt;		/* format string */
 	int ch;			/* character from fmt */
-	int n;			/* handy integer (short term usage) */
+	u_int n;		/* handy integer (short term usage) */
 	int error;
 	int flags;		/* flags as above */
 	struct typetable types;	/* table of types */
@@ -296,6 +305,11 @@ reswitch:	switch (ch) {
 			n = 0;
 			do {
 				n = 10 * n + to_digit(ch);
+				/* Detect overflow */
+				if (n > MAX_POSARG) {
+					error = -1;
+					goto error;
+				}
 				ch = *fmt++;
 			} while (is_digit(ch));
 			if (ch == '$') {
@@ -433,7 +447,7 @@ __find_warguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
 {
 	wchar_t *fmt;		/* format string */
 	wchar_t ch;		/* character from fmt */
-	int n;			/* handy integer (short term usage) */
+	u_int n;		/* handy integer (short term usage) */
 	int error;
 	int flags;		/* flags as above */
 	struct typetable types;	/* table of types */
@@ -484,6 +498,11 @@ reswitch:	switch (ch) {
 			n = 0;
 			do {
 				n = 10 * n + to_digit(ch);
+				/* Detect overflow */
+				if (n > MAX_POSARG) {
+					error = -1;
+					goto error;
+				}
 				ch = *fmt++;
 			} while (is_digit(ch));
 			if (ch == '$') {
@@ -624,8 +643,13 @@ __grow_type_table(struct typetable *types)
 	enum typeid *const oldtable = types->table;
 	const int oldsize = types->tablesize;
 	enum typeid *newtable;
-	int n, newsize = oldsize * 2;
+	u_int n, newsize;
 
+	/* Detect overflow */
+	if (types->nextarg > NL_ARGMAX)
+		return (-1);
+
+	newsize = oldsize * 2;
 	if (newsize < types->nextarg + 1)
 		newsize = types->nextarg + 1;
 	if (oldsize == STATIC_ARG_TBL_SIZE) {
@@ -633,7 +657,7 @@ __grow_type_table(struct typetable *types)
 			return (-1);
 		bcopy(oldtable, newtable, oldsize * sizeof(enum typeid));
 	} else {
-		newtable = realloc(oldtable, newsize * sizeof(enum typeid));
+		newtable = reallocarray(oldtable, newsize, sizeof(enum typeid));
 		if (newtable == NULL)
 			return (-1);
 	}
@@ -653,7 +677,7 @@ __grow_type_table(struct typetable *types)
 static void
 build_arg_table(struct typetable *types, va_list ap, union arg **argtable)
 {
-	int n;
+	u_int n;
 
 	if (types->tablemax >= STATIC_ARG_TBL_SIZE) {
 		*argtable = (union arg *)

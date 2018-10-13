@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -46,6 +48,7 @@
 #include <bitstring.h>
 
 #include <netgraph/ng_message.h>
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
 #include <netgraph/bluetooth/include/ng_btsocket.h>
@@ -179,8 +182,18 @@ void		bt_devfilter_evt_clr(struct bt_devfilter *filter, uint8_t event);
 int		bt_devfilter_evt_tst(struct bt_devfilter const *filter, uint8_t event);
 int		bt_devinquiry(char const *devname, time_t length, int num_rsp,
 			      struct bt_devinquiry **ii);
+char *		bt_devremote_name(char const *devname, const bdaddr_t *remote,
+				  time_t to, uint16_t clk_off,
+				  uint8_t ps_rep_mode, uint8_t ps_mode);
 int		bt_devinfo (struct bt_devinfo *di);
 int		bt_devenum (bt_devenum_cb_t cb, void *arg);
+
+static __inline char *
+bt_devremote_name_gen(char const *btooth_devname, const bdaddr_t *remote)
+{
+	return (bt_devremote_name(btooth_devname, remote, 0, 0x0000,
+		NG_HCI_SCAN_REP_MODE0, NG_HCI_MANDATORY_PAGE_SCAN_MODE));
+}
 
 /*
  * bdaddr utility functions (from NetBSD)

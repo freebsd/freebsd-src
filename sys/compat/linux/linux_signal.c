@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -6,24 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -279,7 +279,7 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 #endif
 
 	if (args->sigsetsize != sizeof(l_sigset_t))
-		return EINVAL;
+		return (EINVAL);
 
 	if (args->mask != NULL) {
 		error = copyin(args->mask, &set, sizeof(l_sigset_t));
@@ -377,7 +377,7 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 	l_sigset_t lset;
 
 	if (args->sigsetsize > sizeof(lset))
-		return EINVAL;
+		return (EINVAL);
 		/* NOT REACHED */
 
 #ifdef DEBUG
@@ -434,7 +434,7 @@ linux_rt_sigtimedwait(struct thread *td,
 		tv.tv_sec = (long)ltv.tv_sec;
 		tv.tv_usec = (suseconds_t)ltv.tv_usec;
 		if (itimerfix(&tv)) {
-			/* 
+			/*
 			 * The timeout was invalid. Convert it to something
 			 * valid that will act as it does under Linux.
 			 */
@@ -473,7 +473,7 @@ linux_rt_sigtimedwait(struct thread *td,
 		error = copyout(&linfo, args->ptr, sizeof(linfo));
 	}
 	if (error == 0)
-		td->td_retval[0] = sig; 
+		td->td_retval[0] = sig;
 
 	return (error);
 }
@@ -748,8 +748,7 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 	sig = linux_to_bsd_signal(args->sig);
 
 	error = ESRCH;
-	if ((p = pfind(args->pid)) != NULL ||
-	    (p = zpfind(args->pid)) != NULL) {
+	if ((p = pfind_any(args->pid)) != NULL) {
 		error = p_cansignal(td, p, sig);
 		if (error != 0) {
 			PROC_UNLOCK(p);
@@ -763,4 +762,33 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 	}
 
 	return (error);
+}
+
+int
+linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *args)
+{
+	l_siginfo_t linfo;
+	struct thread *tds;
+	ksiginfo_t ksi;
+	int error;
+	int sig;
+
+	if (!LINUX_SIG_VALID(args->sig))
+		return (EINVAL);
+
+	error = copyin(args->uinfo, &linfo, sizeof(linfo));
+	if (error != 0)
+		return (error);
+
+	if (linfo.lsi_code >= 0)
+		return (EPERM);
+
+	tds = linux_tdfind(td, args->tid, args->tgid);
+	if (tds == NULL)
+		return (ESRCH);
+
+	sig = linux_to_bsd_signal(args->sig);
+	ksiginfo_init(&ksi);
+	lsiginfo_to_ksiginfo(&linfo, &ksi, sig);
+	return (linux_do_tkill(td, tds, &ksi));
 }

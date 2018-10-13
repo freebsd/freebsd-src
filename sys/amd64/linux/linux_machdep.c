@@ -33,15 +33,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/capability.h>
-#include <sys/dirent.h>
-#include <sys/file.h>
-#include <sys/fcntl.h>
-#include <sys/filedesc.h>
+#include <sys/capsicum.h>
 #include <sys/clock.h>
+#include <sys/dirent.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/imgact.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -55,8 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
-#include <sys/vnode.h>
+#include <sys/systm.h>
 #include <sys/unistd.h>
+#include <sys/vnode.h>
 #include <sys/wait.h>
 
 #include <security/mac/mac_framework.h>
@@ -72,21 +72,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 
-#include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
+#include <x86/ifunc.h>
+#include <x86/sysarch.h>
+
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
-#include <compat/linux/linux_ipc.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_file.h>
+#include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_misc.h>
+#include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
-#include <compat/linux/linux_emul.h>
-
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
@@ -122,181 +125,19 @@ linux_set_upcall_kse(struct thread *td, register_t stack)
 	return (0);
 }
 
-#define STACK_SIZE  (2 * 1024 * 1024)
-#define GUARD_SIZE  (4 * PAGE_SIZE)
-
 int
 linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
-	struct proc *p = td->td_proc;
-	struct mmap_args /* {
-		caddr_t addr;
-		size_t len;
-		int prot;
-		int flags;
-		int fd;
-		long pad;
-		off_t pos;
-	} */ bsd_args;
-	int error;
-	struct file *fp;
-	cap_rights_t rights;
 
-	LINUX_CTR6(mmap2, "0x%lx, %ld, %ld, 0x%08lx, %ld, 0x%lx",
-	    args->addr, args->len, args->prot,
-	    args->flags, args->fd, args->pgoff);
-
-	error = 0;
-	bsd_args.flags = 0;
-	fp = NULL;
-
-	/*
-	 * Linux mmap(2):
-	 * You must specify exactly one of MAP_SHARED and MAP_PRIVATE
-	 */
-	if (! ((args->flags & LINUX_MAP_SHARED) ^
-	    (args->flags & LINUX_MAP_PRIVATE)))
-		return (EINVAL);
-
-	if (args->flags & LINUX_MAP_SHARED)
-		bsd_args.flags |= MAP_SHARED;
-	if (args->flags & LINUX_MAP_PRIVATE)
-		bsd_args.flags |= MAP_PRIVATE;
-	if (args->flags & LINUX_MAP_FIXED)
-		bsd_args.flags |= MAP_FIXED;
-	if (args->flags & LINUX_MAP_ANON)
-		bsd_args.flags |= MAP_ANON;
-	else
-		bsd_args.flags |= MAP_NOSYNC;
-	if (args->flags & LINUX_MAP_GROWSDOWN)
-		bsd_args.flags |= MAP_STACK;
-
-	/*
-	 * PROT_READ, PROT_WRITE, or PROT_EXEC implies PROT_READ and PROT_EXEC
-	 * on Linux/i386. We do this to ensure maximum compatibility.
-	 * Linux/ia64 does the same in i386 emulation mode.
-	 */
-	bsd_args.prot = args->prot;
-	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
-		bsd_args.prot |= PROT_READ | PROT_EXEC;
-
-	/* Linux does not check file descriptor when MAP_ANONYMOUS is set. */
-	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : args->fd;
-	if (bsd_args.fd != -1) {
-		/*
-		 * Linux follows Solaris mmap(2) description:
-		 * The file descriptor fildes is opened with
-		 * read permission, regardless of the
-		 * protection options specified.
-		 */
-
-		error = fget(td, bsd_args.fd,
-		    cap_rights_init(&rights, CAP_MMAP), &fp);
-		if (error != 0 )
-			return (error);
-		if (fp->f_type != DTYPE_VNODE) {
-			fdrop(fp, td);
-			return (EINVAL);
-		}
-
-		/* Linux mmap() just fails for O_WRONLY files */
-		if (!(fp->f_flag & FREAD)) {
-			fdrop(fp, td);
-			return (EACCES);
-		}
-
-		fdrop(fp, td);
-	}
-
-	if (args->flags & LINUX_MAP_GROWSDOWN) {
-		/*
-		 * The Linux MAP_GROWSDOWN option does not limit auto
-		 * growth of the region.  Linux mmap with this option
-		 * takes as addr the initial BOS, and as len, the initial
-		 * region size.  It can then grow down from addr without
-		 * limit.  However, Linux threads has an implicit internal
-		 * limit to stack size of STACK_SIZE.  Its just not
-		 * enforced explicitly in Linux.  But, here we impose
-		 * a limit of (STACK_SIZE - GUARD_SIZE) on the stack
-		 * region, since we can do this with our mmap.
-		 *
-		 * Our mmap with MAP_STACK takes addr as the maximum
-		 * downsize limit on BOS, and as len the max size of
-		 * the region.  It then maps the top SGROWSIZ bytes,
-		 * and auto grows the region down, up to the limit
-		 * in addr.
-		 *
-		 * If we don't use the MAP_STACK option, the effect
-		 * of this code is to allocate a stack region of a
-		 * fixed size of (STACK_SIZE - GUARD_SIZE).
-		 */
-
-		if ((caddr_t)PTRIN(args->addr) + args->len >
-		    p->p_vmspace->vm_maxsaddr) {
-			/*
-			 * Some Linux apps will attempt to mmap
-			 * thread stacks near the top of their
-			 * address space.  If their TOS is greater
-			 * than vm_maxsaddr, vm_map_growstack()
-			 * will confuse the thread stack with the
-			 * process stack and deliver a SEGV if they
-			 * attempt to grow the thread stack past their
-			 * current stacksize rlimit.  To avoid this,
-			 * adjust vm_maxsaddr upwards to reflect
-			 * the current stacksize rlimit rather
-			 * than the maximum possible stacksize.
-			 * It would be better to adjust the
-			 * mmap'ed region, but some apps do not check
-			 * mmap's return value.
-			 */
-			PROC_LOCK(p);
-			p->p_vmspace->vm_maxsaddr = (char *)USRSTACK -
-			    lim_cur_proc(p, RLIMIT_STACK);
-			PROC_UNLOCK(p);
-		}
-
-		/*
-		 * This gives us our maximum stack size and a new BOS.
-		 * If we're using VM_STACK, then mmap will just map
-		 * the top SGROWSIZ bytes, and let the stack grow down
-		 * to the limit at BOS.  If we're not using VM_STACK
-		 * we map the full stack, since we don't have a way
-		 * to autogrow it.
-		 */
-		if (args->len > STACK_SIZE - GUARD_SIZE) {
-			bsd_args.addr = (caddr_t)PTRIN(args->addr);
-			bsd_args.len = args->len;
-		} else {
-			bsd_args.addr = (caddr_t)PTRIN(args->addr) -
-			    (STACK_SIZE - GUARD_SIZE - args->len);
-			bsd_args.len = STACK_SIZE - GUARD_SIZE;
-		}
-	} else {
-		bsd_args.addr = (caddr_t)PTRIN(args->addr);
-		bsd_args.len  = args->len;
-	}
-	bsd_args.pos = (off_t)args->pgoff;
-
-	error = sys_mmap(td, &bsd_args);
-
-	LINUX_CTR2(mmap2, "return: %d (%p)",
-	    error, td->td_retval[0]);
-	return (error);
+	return (linux_mmap_common(td, PTROUT(args->addr), args->len, args->prot,
+		args->flags, args->fd, args->pgoff));
 }
 
 int
 linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 {
-	struct mprotect_args bsd_args;
 
-	LINUX_CTR(mprotect);
-
-	bsd_args.addr = uap->addr;
-	bsd_args.len = uap->len;
-	bsd_args.prot = uap->prot;
-	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
-		bsd_args.prot |= PROT_READ | PROT_EXEC;
-	return (sys_mprotect(td, &bsd_args));
+	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
 }
 
 int
@@ -387,28 +228,34 @@ int
 linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 {
 	int error;
-	struct pcb *pcb;
+	struct sysarch_args bsd_args;
 
 	LINUX_CTR2(arch_prctl, "0x%x, %p", args->code, args->addr);
 
-	error = ENOTSUP;
-	pcb = td->td_pcb;
-
 	switch (args->code) {
-	case LINUX_ARCH_GET_GS:
-		error = copyout(&pcb->pcb_gsbase, (unsigned long *)args->addr,
-		    sizeof(args->addr));
-		break;
 	case LINUX_ARCH_SET_GS:
-		if (args->addr >= VM_MAXUSER_ADDRESS)
-			return(EPERM);
-		break;
-	case LINUX_ARCH_GET_FS:
-		error = copyout(&pcb->pcb_fsbase, (unsigned long *)args->addr,
-		    sizeof(args->addr));
+		bsd_args.op = AMD64_SET_GSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
+		if (error == EINVAL)
+			error = EPERM;
 		break;
 	case LINUX_ARCH_SET_FS:
-		error = linux_set_cloned_tls(td, (void *)args->addr);
+		bsd_args.op = AMD64_SET_FSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
+		if (error == EINVAL)
+			error = EPERM;
+		break;
+	case LINUX_ARCH_GET_FS:
+		bsd_args.op = AMD64_GET_FSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
+		break;
+	case LINUX_ARCH_GET_GS:
+		bsd_args.op = AMD64_GET_GSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
 		break;
 	default:
 		error = EINVAL;
@@ -429,4 +276,49 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 	td->td_frame->tf_fs = _ufssel;
 
 	return (0);
+}
+
+int futex_xchgl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_xchgl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_xchgl_smap : futex_xchgl_nosmap);
+}
+
+int futex_addl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_addl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_addl_smap : futex_addl_nosmap);
+}
+
+int futex_orl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_orl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_orl_smap : futex_orl_nosmap);
+}
+
+int futex_andl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_andl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_andl_smap : futex_andl_nosmap);
+}
+
+int futex_xorl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_xorl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_xorl_smap : futex_xorl_nosmap);
 }

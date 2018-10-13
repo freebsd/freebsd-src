@@ -24,7 +24,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <sys/types.h>
@@ -130,11 +130,11 @@ pcap_read_snit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		if (cc < 0) {
 			if (errno == EWOULDBLOCK)
 				return (0);
-			snprintf(p->errbuf, sizeof(p->errbuf), "pcap_read: %s",
-				pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(p->errbuf, sizeof(p->errbuf),
+			    errno, "pcap_read");
 			return (-1);
 		}
-		bp = p->buffer;
+		bp = (u_char *)p->buffer;
 	} else
 		bp = p->bp;
 
@@ -211,7 +211,7 @@ static int
 pcap_inject_snit(pcap_t *p, const void *buf, size_t size)
 {
 	struct strbuf ctl, data;
-	
+
 	/*
 	 * XXX - can we just do
 	 *
@@ -223,8 +223,8 @@ pcap_inject_snit(pcap_t *p, const void *buf, size_t size)
 	data.len = size;
 	ret = putmsg(p->fd, &ctl, &data);
 	if (ret == -1) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "send: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "send");
 		return (-1);
 	}
 	return (ret);
@@ -247,8 +247,8 @@ nit_setflags(pcap_t *p)
 		si.ic_len = sizeof(zero);
 		si.ic_dp = (char *)&zero;
 		if (ioctl(p->fd, I_STR, (char *)&si) < 0) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "NIOCSCHUNK: %s",
-			    pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "NIOCSCHUNK");
 			return (-1);
 		}
 	}
@@ -260,8 +260,8 @@ nit_setflags(pcap_t *p)
 		si.ic_len = sizeof(timeout);
 		si.ic_dp = (char *)&timeout;
 		if (ioctl(p->fd, I_STR, (char *)&si) < 0) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "NIOCSTIME: %s",
-			    pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "NIOCSTIME");
 			return (-1);
 		}
 	}
@@ -272,8 +272,8 @@ nit_setflags(pcap_t *p)
 	si.ic_len = sizeof(flags);
 	si.ic_dp = (char *)&flags;
 	if (ioctl(p->fd, I_STR, (char *)&si) < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "NIOCSFLAGS: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "NIOCSFLAGS");
 		return (-1);
 	}
 	return (0);
@@ -286,7 +286,8 @@ pcap_activate_snit(pcap_t *p)
 	struct ifreq ifr;		/* interface request struct */
 	int chunksize = CHUNKSIZE;
 	int fd;
-	static char dev[] = "/dev/nit";
+	static const char dev[] = "/dev/nit";
+	int err;
 
 	if (p->opt.rfmon) {
 		/*
@@ -295,6 +296,17 @@ pcap_activate_snit(pcap_t *p)
 		 */
 		return (PCAP_ERROR_RFMON_NOTSUP);
 	}
+
+	/*
+	 * Turn a negative snapshot value (invalid), a snapshot value of
+	 * 0 (unspecified), or a value bigger than the normal maximum
+	 * value, into the maximum allowed value.
+	 *
+	 * If some application really *needs* a bigger snapshot
+	 * length, we should just increase MAXIMUM_SNAPLEN.
+	 */
+	if (p->snapshot <= 0 || p->snapshot > MAXIMUM_SNAPLEN)
+		p->snapshot = MAXIMUM_SNAPLEN;
 
 	if (p->snapshot < 96)
 		/*
@@ -320,20 +332,26 @@ pcap_activate_snit(pcap_t *p)
 	if (fd < 0 && errno == EACCES)
 		p->fd = fd = open(dev, O_RDONLY);
 	if (fd < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "%s: %s", dev,
-		    pcap_strerror(errno));
+		if (errno == EACCES)
+			err = PCAP_ERROR_PERM_DENIED;
+		else
+			err = PCAP_ERROR;
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "%s", dev);
 		goto bad;
 	}
 
 	/* arrange to get discrete messages from the STREAM and use NIT_BUF */
 	if (ioctl(fd, I_SRDOPT, (char *)RMSGD) < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "I_SRDOPT: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "I_SRDOPT");
+		err = PCAP_ERROR;
 		goto bad;
 	}
 	if (ioctl(fd, I_PUSH, "nbuf") < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "push nbuf: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "push nbuf");
+		err = PCAP_ERROR;
 		goto bad;
 	}
 	/* set the chunksize */
@@ -342,20 +360,27 @@ pcap_activate_snit(pcap_t *p)
 	si.ic_len = sizeof(chunksize);
 	si.ic_dp = (char *)&chunksize;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "NIOCSCHUNK: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "NIOCSCHUNK");
+		err = PCAP_ERROR;
 		goto bad;
 	}
 
 	/* request the interface */
-	strncpy(ifr.ifr_name, p->opt.source, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, p->opt.device, sizeof(ifr.ifr_name));
 	ifr.ifr_name[sizeof(ifr.ifr_name) - 1] = '\0';
 	si.ic_cmd = NIOCBIND;
 	si.ic_len = sizeof(ifr);
 	si.ic_dp = (char *)&ifr;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "NIOCBIND: %s: %s",
-			ifr.ifr_name, pcap_strerror(errno));
+		/*
+		 * XXX - is there an error that means "no such device"?
+		 * Is there one that means "that device doesn't support
+		 * STREAMS NIT"?
+		 */
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "NIOCBIND: %s", ifr.ifr_name);
+		err = PCAP_ERROR;
 		goto bad;
 	}
 
@@ -364,12 +389,15 @@ pcap_activate_snit(pcap_t *p)
 	si.ic_len = sizeof(p->snapshot);
 	si.ic_dp = (char *)&p->snapshot;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "NIOCSSNAP: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "NIOCSSNAP");
+		err = PCAP_ERROR;
 		goto bad;
 	}
-	if (nit_setflags(p) < 0)
+	if (nit_setflags(p) < 0) {
+		err = PCAP_ERROR;
 		goto bad;
+	}
 
 	(void)ioctl(fd, I_FLUSH, (char *)FLUSHR);
 	/*
@@ -378,9 +406,11 @@ pcap_activate_snit(pcap_t *p)
 	p->linktype = DLT_EN10MB;
 
 	p->bufsize = BUFSPACE;
-	p->buffer = (u_char *)malloc(p->bufsize);
+	p->buffer = malloc(p->bufsize);
 	if (p->buffer == NULL) {
-		strlcpy(p->errbuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "malloc");
+		err = PCAP_ERROR;
 		goto bad;
 	}
 
@@ -422,15 +452,15 @@ pcap_activate_snit(pcap_t *p)
 	return (0);
  bad:
 	pcap_cleanup_live_common(p);
-	return (PCAP_ERROR);
+	return (err);
 }
 
 pcap_t *
-pcap_create_interface(const char *device, char *ebuf)
+pcap_create_interface(const char *device _U_, char *ebuf)
 {
 	pcap_t *p;
 
-	p = pcap_create_common(device, ebuf, sizeof (struct pcap_snit));
+	p = pcap_create_common(ebuf, sizeof (struct pcap_snit));
 	if (p == NULL)
 		return (NULL);
 
@@ -438,8 +468,39 @@ pcap_create_interface(const char *device, char *ebuf)
 	return (p);
 }
 
-int
-pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
+/*
+ * XXX - there's probably a NIOCBIND error that means "that device
+ * doesn't support NIT"; if so, we should try an NIOCBIND and use that.
+ */
+static int
+can_be_bound(const char *name _U_)
 {
+	return (1);
+}
+
+static int
+get_if_flags(const char *name _U_, bpf_u_int32 *flags _U_, char *errbuf _U_)
+{
+	/*
+	 * Nothing we can do.
+	 * XXX - is there a way to find out whether an adapter has
+	 * something plugged into it?
+	 */
 	return (0);
+}
+
+int
+pcap_platform_finddevs(pcap_if_list_t *devlistp, char *errbuf)
+{
+	return (pcap_findalldevs_interfaces(devlistp, errbuf, can_be_bound,
+	    get_if_flags));
+}
+
+/*
+ * Libpcap version string.
+ */
+const char *
+pcap_lib_version(void)
+{
+	return (PCAP_VERSION_STRING);
 }

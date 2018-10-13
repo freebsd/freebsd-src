@@ -9,9 +9,10 @@ ATF_TESTS_SH+=	functional_test
 BINDIR=		${TESTSDIR}
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-static
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/tar/test
+CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -34,9 +35,12 @@ TESTS_SRCS=	\
 	test_extract_tar_lzma.c			\
 	test_extract_tar_lzo.c			\
 	test_extract_tar_xz.c			\
+	test_extract_tar_zstd.c			\
 	test_format_newc.c			\
 	test_help.c				\
 	test_leading_slash.c			\
+	test_missing_file.c			\
+	test_option_C_mtree.c			\
 	test_option_C_upper.c			\
 	test_option_H_upper.c			\
 	test_option_L_upper.c			\
@@ -45,9 +49,11 @@ TESTS_SRCS=	\
 	test_option_U_upper.c			\
 	test_option_X_upper.c			\
 	test_option_a.c				\
+	test_option_acls.c			\
 	test_option_b.c				\
 	test_option_b64encode.c			\
 	test_option_exclude.c			\
+	test_option_fflags.c			\
 	test_option_gid_gname.c			\
 	test_option_grzip.c			\
 	test_option_j.c				\
@@ -67,8 +73,10 @@ TESTS_SRCS=	\
 	test_option_s.c				\
 	test_option_uid_uname.c			\
 	test_option_uuencode.c			\
+	test_option_xattrs.c			\
 	test_option_xz.c			\
 	test_option_z.c				\
+	test_option_zstd.c			\
 	test_patterns.c				\
 	test_print_longpath.c			\
 	test_stdio.c				\
@@ -78,11 +86,11 @@ TESTS_SRCS=	\
 
 SRCS.bsdtar_test=	\
 	${TESTS_SRCS}	\
-	list.h		\
-	main.c
+	list.h
 
 .PATH: ${_LIBARCHIVEDIR}/test_utils
-SRCS.bsdtar_test+=	test_utils.c
+SRCS.bsdtar_test+=	test_main.c		\
+			test_utils.c
 
 LIBADD.bsdtar_test=	archive
 
@@ -103,6 +111,7 @@ ${PACKAGE}FILES+=	test_extract.tar.lz4.uu
 ${PACKAGE}FILES+=	test_extract.tar.lzma.uu
 ${PACKAGE}FILES+=	test_extract.tar.lzo.uu
 ${PACKAGE}FILES+=	test_extract.tar.xz.uu
+${PACKAGE}FILES+=	test_extract.tar.zst.uu
 ${PACKAGE}FILES+=	test_leading_slash.tar.uu
 ${PACKAGE}FILES+=	test_option_keep_newer_files.tar.Z.uu
 ${PACKAGE}FILES+=	test_option_passphrase.zip.uu

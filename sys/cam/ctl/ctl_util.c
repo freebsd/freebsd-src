@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * All rights reserved.
  *
@@ -697,7 +699,6 @@ ctl_scsi_free_io(union ctl_io *io)
 	free(io);
 }
 
-#endif /* !_KERNEL */
 void
 ctl_scsi_zero_io(union ctl_io *io)
 {
@@ -707,11 +708,10 @@ ctl_scsi_zero_io(union ctl_io *io)
 		return;
 
 	pool_ref = io->io_hdr.pool;
-
 	memset(io, 0, sizeof(*io));
-
 	io->io_hdr.pool = pool_ref;
 }
+#endif /* !_KERNEL */
 
 const char *
 ctl_scsi_task_string(struct ctl_taskio *taskio)

@@ -4,11 +4,11 @@
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -31,12 +31,16 @@ options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PS3			#Sony Playstation 3
 options 	MAMBO			#IBM Mambo Full System Simulator
 options 	PSERIES			#PAPR-compliant systems (e.g. IBM p)
+options 	POWERNV			#Non-virtualized OpenPOWER systems
 
 options		FDT			#Flattened Device Tree
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	TCP_RFC7413		# TCP Fast Open
 options 	SCTP			#Stream Control Transmission Protocol
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
@@ -62,6 +66,7 @@ options 	COMPAT_FREEBSD6		#Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		#Compatible with FreeBSD7
 options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
 options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	STACK			#stack(9) support
@@ -91,6 +96,12 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
+# Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	NETDUMP			# netdump(4) client support
+
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
@@ -108,11 +119,14 @@ device		ata		# Legacy ATA/SATA controllers
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
+# NVM Express (NVMe) support
+device		nvme		# base NVMe driver
+options		NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
-options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
-					# output.  Adds ~128k to driver.
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
@@ -137,11 +151,11 @@ device		uart_z8530
 
 # Ethernet hardware
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
-device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		ix		# Intel PRO/10GbE PCIE PF Ethernet Family
 device		ixv		# Intel PRO/10GbE PCIE VF Ethernet Family
 device		glc		# Sony Playstation 3 Ethernet
 device		llan		# IBM pSeries Virtual Ethernet
+device		cxgbe		# Chelsio 10/25G NIC
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
@@ -173,6 +187,7 @@ options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface
+device		xhci		# XHCI PCI->USB interface
 device		usb		# USB Bus (required)
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
@@ -199,6 +214,7 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc
 device		iicbus		# I2C bus code
+device		iic
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
 device		ds1631		# PowerMac11,2 temperature sensor

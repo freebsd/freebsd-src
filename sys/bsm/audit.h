@@ -1,6 +1,14 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005-2009 Apple Inc.
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -125,6 +133,8 @@
 #define	A_SETQCTRL	36
 #define	A_GETCOND	37
 #define	A_SETCOND	38
+#define	A_GETEVENT	39	/* Get audit event-to-name mapping. */
+#define	A_SETEVENT	40	/* Set audit event-to-name mapping. */
 
 /*
  * Audit policy controls.
@@ -175,13 +185,13 @@ typedef	u_int32_t	au_class_t;
 typedef	u_int64_t	au_asflgs_t __attribute__ ((aligned (8)));
 
 struct au_tid {
-	dev_t		port;
+	u_int32_t	port;		/* XXX dev_t compatibility */
 	u_int32_t	machine;
 };
 typedef	struct au_tid	au_tid_t;
 
 struct au_tid_addr {
-	dev_t		at_port;
+	u_int32_t	at_port;	/* XXX dev_t compatibility */
 	u_int32_t	at_type;
 	u_int32_t	at_addr[4];
 };
@@ -299,6 +309,16 @@ struct au_evclass_map {
 	au_class_t	ec_class;
 };
 typedef	struct au_evclass_map	au_evclass_map_t;
+
+/*
+ * Event-to-name mapping.
+ */
+#define	EVNAMEMAP_NAME_SIZE	64
+struct au_evname_map {
+	au_event_t	en_number;
+	char		en_name[EVNAMEMAP_NAME_SIZE];
+};
+typedef struct au_evname_map	au_evname_map_t;
 
 /*
  * Audit system calls.

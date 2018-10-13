@@ -1,4 +1,6 @@
 /**
+ ** SPDX-License-Identifier: BSD-4-Clause
+ **
  ** Copyright (c) 1995 Michael Smith, All rights reserved.
  **
  ** Redistribution and use in source and binary forms, with or without
@@ -246,6 +248,7 @@ static symtab_t	rmodels[] = {
     { "4D+ Mouse",		MOUSE_MODEL_4DPLUS,		0 },
     { "Synaptics Touchpad",	MOUSE_MODEL_SYNAPTICS,		0 },
     { "TrackPoint",		MOUSE_MODEL_TRACKPOINT,		0 },
+    { "Elantech Touchpad",	MOUSE_MODEL_ELANTECH,		0 },
     { "generic",		MOUSE_MODEL_GENERIC,		0 },
     { NULL,			MOUSE_MODEL_UNKNOWN,		0 },
 };

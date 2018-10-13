@@ -2,6 +2,8 @@
 /*	$NetBSD: pfil.c,v 1.20 2001/11/12 23:49:46 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 Matthew R. Green
  * All rights reserved.
  *
@@ -55,20 +57,46 @@ MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock",
 
 static struct packet_filter_hook *pfil_chain_get(int, struct pfil_head *);
 static int pfil_chain_add(pfil_chain_t *, struct packet_filter_hook *, int);
-static int pfil_chain_remove(pfil_chain_t *, pfil_func_t, void *);
+static int pfil_chain_remove(pfil_chain_t *, void *, void *);
+static int pfil_add_hook_priv(void *, void *, int, struct pfil_head *, bool);
 
 LIST_HEAD(pfilheadhead, pfil_head);
 VNET_DEFINE(struct pfilheadhead, pfil_head_list);
 #define	V_pfil_head_list	VNET(pfil_head_list)
 VNET_DEFINE(struct rmlock, pfil_lock);
-#define	V_pfil_lock	VNET(pfil_lock)
+
+#define	PFIL_LOCK_INIT_REAL(l, t)	\
+	rm_init_flags(l, "PFil " t " rmlock", RM_RECURSE)
+#define	PFIL_LOCK_DESTROY_REAL(l)	\
+	rm_destroy(l)
+#define	PFIL_LOCK_INIT(p)	do {			\
+	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK) {	\
+		PFIL_LOCK_INIT_REAL(&(p)->ph_lock, "private");	\
+		(p)->ph_plock = &(p)->ph_lock;		\
+	} else						\
+		(p)->ph_plock = &V_pfil_lock;		\
+} while (0)
+#define	PFIL_LOCK_DESTROY(p)	do {			\
+	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK)	\
+		PFIL_LOCK_DESTROY_REAL((p)->ph_plock);	\
+} while (0)
+
+#define	PFIL_TRY_RLOCK(p, t)	rm_try_rlock((p)->ph_plock, (t))
+#define	PFIL_RLOCK(p, t)	rm_rlock((p)->ph_plock, (t))
+#define	PFIL_WLOCK(p)		rm_wlock((p)->ph_plock)
+#define	PFIL_RUNLOCK(p, t)	rm_runlock((p)->ph_plock, (t))
+#define	PFIL_WUNLOCK(p)		rm_wunlock((p)->ph_plock)
+#define	PFIL_WOWNED(p)		rm_wowned((p)->ph_plock)
+
+#define	PFIL_HEADLIST_LOCK()	mtx_lock(&pfil_global_lock)
+#define	PFIL_HEADLIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
 
 /*
  * pfil_run_hooks() runs the specified packet filter hook chain.
  */
 int
 pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
-    int dir, struct inpcb *inp)
+    int dir, int flags, struct inpcb *inp)
 {
 	struct rm_priotracker rmpt;
 	struct packet_filter_hook *pfh;
@@ -79,6 +107,12 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	KASSERT(ph->ph_nhooks >= 0, ("Pfil hook count dropped < 0"));
 	for (pfh = pfil_chain_get(dir, ph); pfh != NULL;
 	     pfh = TAILQ_NEXT(pfh, pfil_chain)) {
+		if (pfh->pfil_func_flags != NULL) {
+			rv = (*pfh->pfil_func_flags)(pfh->pfil_arg, &m, ifp,
+			    dir, flags, inp);
+			if (rv != 0 || m == NULL)
+				break;
+		}
 		if (pfh->pfil_func != NULL) {
 			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir,
 			    inp);
@@ -229,6 +263,21 @@ pfil_head_get(int type, u_long val)
 }
 
 /*
+ * pfil_add_hook_flags() adds a function to the packet filter hook.  the
+ * flags are:
+ *	PFIL_IN		call me on incoming packets
+ *	PFIL_OUT	call me on outgoing packets
+ *	PFIL_ALL	call me on all of the above
+ *	PFIL_WAITOK	OK to call malloc with M_WAITOK.
+ */
+int
+pfil_add_hook_flags(pfil_func_flags_t func, void *arg, int flags,
+    struct pfil_head *ph)
+{
+	return (pfil_add_hook_priv(func, arg, flags, ph, true));
+}
+
+/*
  * pfil_add_hook() adds a function to the packet filter hook.  the
  * flags are:
  *	PFIL_IN		call me on incoming packets
@@ -238,6 +287,13 @@ pfil_head_get(int type, u_long val)
  */
 int
 pfil_add_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
+{
+	return (pfil_add_hook_priv(func, arg, flags, ph, false));
+}
+
+static int
+pfil_add_hook_priv(void *func, void *arg, int flags,
+    struct pfil_head *ph, bool hasflags)
 {
 	struct packet_filter_hook *pfh1 = NULL;
 	struct packet_filter_hook *pfh2 = NULL;
@@ -261,7 +317,8 @@ pfil_add_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
 	}
 	PFIL_WLOCK(ph);
 	if (flags & PFIL_IN) {
-		pfh1->pfil_func = func;
+		pfh1->pfil_func_flags = hasflags ? func : NULL;
+		pfh1->pfil_func = hasflags ? NULL : func;
 		pfh1->pfil_arg = arg;
 		err = pfil_chain_add(&ph->ph_in, pfh1, flags & ~PFIL_OUT);
 		if (err)
@@ -269,7 +326,8 @@ pfil_add_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
 		ph->ph_nhooks++;
 	}
 	if (flags & PFIL_OUT) {
-		pfh2->pfil_func = func;
+		pfh2->pfil_func_flags = hasflags ? func : NULL;
+		pfh2->pfil_func = hasflags ? NULL : func;
 		pfh2->pfil_arg = arg;
 		err = pfil_chain_add(&ph->ph_out, pfh2, flags & ~PFIL_IN);
 		if (err) {
@@ -289,6 +347,17 @@ error:
 	if (pfh2 != NULL)
 		free(pfh2, M_IFADDR);
 	return (err);
+}
+
+/*
+ * pfil_remove_hook_flags removes a specific function from the packet filter hook
+ * chain.
+ */
+int
+pfil_remove_hook_flags(pfil_func_flags_t func, void *arg, int flags,
+    struct pfil_head *ph)
+{
+	return (pfil_remove_hook((pfil_func_t)func, arg, flags, ph));
 }
 
 /*
@@ -327,7 +396,9 @@ pfil_chain_add(pfil_chain_t *chain, struct packet_filter_hook *pfh1, int flags)
 	 * First make sure the hook is not already there.
 	 */
 	TAILQ_FOREACH(pfh, chain, pfil_chain)
-		if (pfh->pfil_func == pfh1->pfil_func &&
+		if (((pfh->pfil_func != NULL && pfh->pfil_func == pfh1->pfil_func) ||
+		    (pfh->pfil_func_flags != NULL &&
+		     pfh->pfil_func_flags == pfh1->pfil_func_flags)) &&
 		    pfh->pfil_arg == pfh1->pfil_arg)
 			return (EEXIST);
 
@@ -346,12 +417,13 @@ pfil_chain_add(pfil_chain_t *chain, struct packet_filter_hook *pfh1, int flags)
  * Internal: Remove a pfil hook from a hook chain.
  */
 static int
-pfil_chain_remove(pfil_chain_t *chain, pfil_func_t func, void *arg)
+pfil_chain_remove(pfil_chain_t *chain, void *func, void *arg)
 {
 	struct packet_filter_hook *pfh;
 
 	TAILQ_FOREACH(pfh, chain, pfil_chain)
-		if (pfh->pfil_func == func && pfh->pfil_arg == arg) {
+		if ((pfh->pfil_func == func || pfh->pfil_func_flags == func) &&
+		    pfh->pfil_arg == arg) {
 			TAILQ_REMOVE(chain, pfh, pfil_chain);
 			free(pfh, M_IFADDR);
 			return (0);
@@ -383,17 +455,14 @@ vnet_pfil_uninit(const void *unused __unused)
 	PFIL_LOCK_DESTROY_REAL(&V_pfil_lock);
 }
 
-/* Define startup order. */
-#define	PFIL_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
-#define	PFIL_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
-#define	PFIL_VNET_ORDER		(PFIL_MODEVENT_ORDER + 2) /* Later still. */
-
 /*
  * Starting up.
  *
  * VNET_SYSINIT is called for each existing vnet and each new vnet.
+ * Make sure the pfil bits are first before any possible subsystem which
+ * might piggyback on the SI_SUB_PROTO_PFIL.
  */
-VNET_SYSINIT(vnet_pfil_init, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
+VNET_SYSINIT(vnet_pfil_init, SI_SUB_PROTO_PFIL, SI_ORDER_FIRST,
     vnet_pfil_init, NULL);
  
 /*
@@ -401,5 +470,5 @@ VNET_SYSINIT(vnet_pfil_init, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
  *
  * VNET_SYSUNINIT is called for each exiting vnet as it exits.
  */
-VNET_SYSUNINIT(vnet_pfil_uninit, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
+VNET_SYSUNINIT(vnet_pfil_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_FIRST,
     vnet_pfil_uninit, NULL);

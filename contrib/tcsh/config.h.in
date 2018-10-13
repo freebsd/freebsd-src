@@ -1,4 +1,4 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to the type of elements in the array set by `getgroups'. Usually
    this is either `int' or `gid_t'. */
@@ -68,6 +68,9 @@
 
 /* Define to 1 if you have the `mallinfo' function. */
 #undef HAVE_MALLINFO
+
+/* Define to 1 if you have the `mblen' function. */
+#undef HAVE_MBLEN
 
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
 #undef HAVE_MBRTOWC

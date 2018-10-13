@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -417,7 +419,7 @@ struct sctp_error_unresolv_addr {
 
 struct sctp_error_unrecognized_chunk {
 	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_UNRECOG_CHUNK */
-	struct sctp_chunkhdr ch;/* header from chunk in error */
+	struct sctp_chunkhdr ch;	/* header from chunk in error */
 }                             SCTP_PACKED;
 
 struct sctp_error_no_user_data {
@@ -545,7 +547,6 @@ struct sctp_error_auth_invalid_hmac {
 #define SCTP_PCB_FLAGS_INTERLEAVE_STRMS  0x0000000000000010
 #define SCTP_PCB_FLAGS_DO_ASCONF         0x0000000000000020
 #define SCTP_PCB_FLAGS_AUTO_ASCONF       0x0000000000000040
-#define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE  0x0000000000000080
 /* socket options */
 #define SCTP_PCB_FLAGS_NODELAY           0x0000000000000100
 #define SCTP_PCB_FLAGS_AUTOCLOSE         0x0000000000000200

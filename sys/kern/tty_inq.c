@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -112,7 +114,7 @@ static uma_zone_t ttyinq_zone;
 		TTYINQ_INSERT_TAIL(ti, tib);				\
 } while (0)
 
-void
+int 
 ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
 {
 	struct ttyinq_block *tib;
@@ -134,8 +136,14 @@ ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
 		tib = uma_zalloc(ttyinq_zone, M_WAITOK);
 		tty_lock(tp);
 
+		if (tty_gone(tp)) {
+			uma_zfree(ttyinq_zone, tib);
+			return (ENXIO);
+		}
+
 		TTYINQ_INSERT_TAIL(ti, tib);
 	}
+	return (0);
 }
 
 void
@@ -320,7 +328,7 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 int
 ttyinq_write_nofrag(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 {
-	size_t ret;
+	size_t ret __unused;
 
 	if (ttyinq_bytesleft(ti) < nbytes)
 		return (-1);

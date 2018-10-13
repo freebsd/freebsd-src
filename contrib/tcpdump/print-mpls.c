@@ -26,15 +26,16 @@
  * SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Multi-Protocol Label Switching (MPLS) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
-#include "extract.h"			/* must come after interface.h */
+#include "netdissect.h"
+#include "extract.h"
 #include "mpls.h"
 
 static const char *mpls_labelname[] = {
@@ -67,6 +68,10 @@ mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	ND_PRINT((ndo, "MPLS"));
 	do {
 		ND_TCHECK2(*p, sizeof(label_entry));
+		if (length < sizeof(label_entry)) {
+			ND_PRINT((ndo, "[|MPLS], length %u", length));
+			return;
+		}
 		label_entry = EXTRACT_32BITS(p);
 		ND_PRINT((ndo, "%s(label %u",
 		       (label_stack_depth && ndo->ndo_vflag) ? "\n\t" : " ",
@@ -81,6 +86,7 @@ mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 		ND_PRINT((ndo, ", ttl %u)", MPLS_TTL(label_entry)));
 
 		p += sizeof(label_entry);
+		length -= sizeof(label_entry);
 	} while (!MPLS_STACK(label_entry));
 
 	/*
@@ -123,6 +129,11 @@ mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 		 * Cisco sends control-plane traffic MPLS-encapsulated in
 		 * this fashion.
 		 */
+		ND_TCHECK(*p);
+		if (length < 1) {
+			/* nothing to print */
+			return;
+		}
 		switch(*p) {
 
 		case 0x45:
@@ -175,22 +186,22 @@ mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	 */
 	if (pt == PT_UNKNOWN) {
 		if (!ndo->ndo_suppress_default_print)
-			ND_DEFAULTPRINT(p, length - (p - bp));
+			ND_DEFAULTPRINT(p, length);
 		return;
 	}
 	ND_PRINT((ndo, ndo->ndo_vflag ? "\n\t" : " "));
 	switch (pt) {
 
 	case PT_IPV4:
-		ip_print(ndo, p, length - (p - bp));
+		ip_print(ndo, p, length);
 		break;
 
 	case PT_IPV6:
-		ip6_print(ndo, p, length - (p - bp));
+		ip6_print(ndo, p, length);
 		break;
 
 	case PT_OSI:
-		isoclns_print(ndo, p, length - (p - bp), length - (p - bp));
+		isoclns_print(ndo, p, length);
 		break;
 
 	default:

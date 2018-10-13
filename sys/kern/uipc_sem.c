@@ -1,13 +1,20 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
  * Copyright (c) 2003-2005 SPARTA, Inc.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005, 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +41,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_posix.h"
 
 #include <sys/param.h>
@@ -66,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/vnode.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 FEATURE(p1003_1b_semaphores, "POSIX P1003.1B semaphores support");
@@ -467,6 +474,10 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	Fnv32_t fnv;
 	int error, fd;
 
+	AUDIT_ARG_FFLAGS(flags);
+	AUDIT_ARG_MODE(mode);
+	AUDIT_ARG_VALUE(value);
+
 	if (value > SEM_VALUE_MAX)
 		return (EINVAL);
 
@@ -518,6 +529,7 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 			return (error);
 		}
 
+		AUDIT_ARG_UPATH1_CANON(path);
 		fnv = fnv_32_str(path, FNV1_32_INIT);
 		sx_xlock(&ksem_dict_lock);
 		ks = ksem_lookup(path, fnv);
@@ -661,6 +673,7 @@ sys_ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 		return (error);
 	}
 
+	AUDIT_ARG_UPATH1_CANON(path);
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&ksem_dict_lock);
 	error = ksem_remove(path, fnv, td->td_ucred);
@@ -678,13 +691,13 @@ struct ksem_close_args {
 int
 sys_ksem_close(struct thread *td, struct ksem_close_args *uap)
 {
-	cap_rights_t rights;
 	struct ksem *ks;
 	struct file *fp;
 	int error;
 
 	/* No capability rights required to close a semaphore. */
-	error = ksem_get(td, uap->id, cap_rights_init(&rights), &fp);
+	AUDIT_ARG_FD(uap->id);
+	error = ksem_get(td, uap->id, &cap_no_rights, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -710,6 +723,7 @@ sys_ksem_post(struct thread *td, struct ksem_post_args *uap)
 	struct ksem *ks;
 	int error;
 
+	AUDIT_ARG_FD(uap->id);
 	error = ksem_get(td, uap->id,
 	    cap_rights_init(&rights, CAP_SEM_POST), &fp);
 	if (error)
@@ -802,6 +816,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 	int error;
 
 	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
+	AUDIT_ARG_FD(id);
 	error = ksem_get(td, id, cap_rights_init(&rights, CAP_SEM_WAIT), &fp);
 	if (error)
 		return (error);
@@ -828,7 +843,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 			for (;;) {
 				ts1 = *abstime;
 				getnanotime(&ts2);
-				timespecsub(&ts1, &ts2);
+				timespecsub(&ts1, &ts2, &ts1);
 				TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 				if (tv.tv_sec < 0) {
 					error = ETIMEDOUT;
@@ -869,6 +884,7 @@ sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 	struct ksem *ks;
 	int error, val;
 
+	AUDIT_ARG_FD(uap->id);
 	error = ksem_get(td, uap->id,
 	    cap_rights_init(&rights, CAP_SEM_GETVALUE), &fp);
 	if (error)
@@ -900,13 +916,13 @@ struct ksem_destroy_args {
 int
 sys_ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 {
-	cap_rights_t rights;
 	struct file *fp;
 	struct ksem *ks;
 	int error;
 
 	/* No capability rights required to close a semaphore. */
-	error = ksem_get(td, uap->id, cap_rights_init(&rights), &fp);
+	AUDIT_ARG_FD(uap->id);
+	error = ksem_get(td, uap->id, &cap_no_rights, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;

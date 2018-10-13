@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Thomas Skibo
  * Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -34,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -46,21 +47,33 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
+
 #include <dev/sdhci/sdhci.h>
 
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
-#define MAX_SLOTS	6
+#include "opt_mmccam.h"
+
+#define	MAX_SLOTS		6
+#define	SDHCI_FDT_ARMADA38X	1
+#define	SDHCI_FDT_GENERIC	2
+#define	SDHCI_FDT_XLNX_ZY7	3
+#define	SDHCI_FDT_QUALCOMM	4
+
+static struct ofw_compat_data compat_data[] = {
+	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
+	{ "sdhci_generic",		SDHCI_FDT_GENERIC },
+	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
+	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
+	{ NULL, 0 }
+};
 
 struct sdhci_fdt_softc {
 	device_t	dev;		/* Controller device */
@@ -68,25 +81,30 @@ struct sdhci_fdt_softc {
 	u_int		caps;		/* If we override SDHCI_CAPABILITIES */
 	uint32_t	max_clk;	/* Max possible freq */
 	struct resource *irq_res;	/* IRQ resource */
-	void 		*intrhand;	/* Interrupt handle */
+	void		*intrhand;	/* Interrupt handle */
 
 	int		num_slots;	/* Number of slots on this controller*/
 	struct sdhci_slot slots[MAX_SLOTS];
 	struct resource	*mem_res[MAX_SLOTS];	/* Memory resource */
+
+	bool		wp_inverted;	/* WP pin is inverted */
+	bool		no_18v;		/* No 1.8V support */
 };
 
 static uint8_t
 sdhci_fdt_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	return (bus_read_1(sc->mem_res[slot->num], off));
 }
 
 static void
 sdhci_fdt_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-		  uint8_t val)
+    uint8_t val)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	bus_write_1(sc->mem_res[slot->num], off, val);
 }
 
@@ -94,14 +112,16 @@ static uint16_t
 sdhci_fdt_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	return (bus_read_2(sc->mem_res[slot->num], off));
 }
 
 static void
 sdhci_fdt_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-		  uint16_t val)
+    uint16_t val)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	bus_write_2(sc->mem_res[slot->num], off, val);
 }
 
@@ -109,14 +129,21 @@ static uint32_t
 sdhci_fdt_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	return (bus_read_4(sc->mem_res[slot->num], off));
+	uint32_t val32;
+
+	val32 = bus_read_4(sc->mem_res[slot->num], off);
+	if (off == SDHCI_CAPABILITIES && sc->no_18v)
+		val32 &= ~SDHCI_CAN_VDD_180;
+
+	return (val32);
 }
 
 static void
 sdhci_fdt_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-		  uint32_t val)
+    uint32_t val)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	bus_write_4(sc->mem_res[slot->num], off, val);
 }
 
@@ -125,6 +152,7 @@ sdhci_fdt_read_multi_4(device_t dev, struct sdhci_slot *slot,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	bus_read_multi_4(sc->mem_res[slot->num], off, data, count);
 }
 
@@ -133,6 +161,7 @@ sdhci_fdt_write_multi_4(device_t dev, struct sdhci_slot *slot,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+
 	bus_write_multi_4(sc->mem_res[slot->num], off, data, count);
 }
 
@@ -142,10 +171,16 @@ sdhci_fdt_intr(void *arg)
 	struct sdhci_fdt_softc *sc = (struct sdhci_fdt_softc *)arg;
 	int i;
 
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-		sdhci_generic_intr(slot);
-	}
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_generic_intr(&sc->slots[i]);
+}
+
+static int
+sdhci_fdt_get_ro(device_t bus, device_t dev)
+{
+	struct sdhci_fdt_softc *sc = device_get_softc(bus);
+
+	return (sdhci_generic_get_ro(bus, dev) ^ sc->wp_inverted);
 }
 
 static int
@@ -162,13 +197,25 @@ sdhci_fdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "sdhci_generic")) {
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+	case SDHCI_FDT_ARMADA38X:
+		sc->quirks = SDHCI_QUIRK_BROKEN_AUTO_STOP;
+		device_set_desc(dev, "ARMADA38X SDHCI controller");
+		break;
+	case SDHCI_FDT_GENERIC:
 		device_set_desc(dev, "generic fdt SDHCI controller");
-	} else if (ofw_bus_is_compatible(dev, "xlnx,zy7_sdhci")) {
+		break;
+	case SDHCI_FDT_QUALCOMM:
+		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE;
+		device_set_desc(dev, "Qualcomm FDT SDHCI controller");
+		break;
+	case SDHCI_FDT_XLNX_ZY7:
 		sc->quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
 		device_set_desc(dev, "Zynq-7000 generic fdt SDHCI controller");
-	} else
+		break;
+	default:
 		return (ENXIO);
+	}
 
 	node = ofw_bus_get_node(dev);
 
@@ -179,6 +226,10 @@ sdhci_fdt_probe(device_t dev)
 		sc->num_slots = cid;
 	if ((OF_getencprop(node, "max-frequency", &cid, sizeof(cid))) > 0)
 		sc->max_clk = cid;
+	if (OF_hasprop(node, "no-1-8-v"))
+		sc->no_18v = true;
+	if (OF_hasprop(node, "wp-inverted"))
+		sc->wp_inverted = true;
 
 	return (0);
 }
@@ -187,6 +238,7 @@ static int
 sdhci_fdt_attach(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+	struct sdhci_slot *slot;
 	int err, slots, rid, i;
 
 	sc->dev = dev;
@@ -194,7 +246,7 @@ sdhci_fdt_attach(device_t dev)
 	/* Allocate IRQ. */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-					     RF_ACTIVE);
+	    RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Can't allocate IRQ\n");
 		return (ENOMEM);
@@ -204,15 +256,15 @@ sdhci_fdt_attach(device_t dev)
 	slots = sc->num_slots;	/* number of slots determined in probe(). */
 	sc->num_slots = 0;
 	for (i = 0; i < slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[sc->num_slots];
+		slot = &sc->slots[sc->num_slots];
 
 		/* Allocate memory. */
 		rid = 0;
 		sc->mem_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 							&rid, RF_ACTIVE);
 		if (sc->mem_res[i] == NULL) {
-			device_printf(dev, "Can't allocate memory for "
-				      "slot %d\n", i);
+			device_printf(dev,
+			    "Can't allocate memory for slot %d\n", i);
 			continue;
 		}
 
@@ -236,10 +288,8 @@ sdhci_fdt_attach(device_t dev)
 	}
 
 	/* Process cards detection. */
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-		sdhci_start_slot(slot);
-	}
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_start_slot(&sc->slots[i]);
 
 	return (0);
 }
@@ -253,15 +303,12 @@ sdhci_fdt_detach(device_t dev)
 	bus_generic_detach(dev);
 	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res),
-			     sc->irq_res);
+	    sc->irq_res);
 
 	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-
-		sdhci_cleanup_slot(slot);
+		sdhci_cleanup_slot(&sc->slots[i]);
 		bus_release_resource(dev, SYS_RES_MEMORY,
-				     rman_get_rid(sc->mem_res[i]),
-				     sc->mem_res[i]);
+		    rman_get_rid(sc->mem_res[i]), sc->mem_res[i]);
 	}
 
 	return (0);
@@ -269,20 +316,20 @@ sdhci_fdt_detach(device_t dev)
 
 static device_method_t sdhci_fdt_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, 	sdhci_fdt_probe),
-	DEVMETHOD(device_attach, 	sdhci_fdt_attach),
-	DEVMETHOD(device_detach, 	sdhci_fdt_detach),
+	DEVMETHOD(device_probe,		sdhci_fdt_probe),
+	DEVMETHOD(device_attach,	sdhci_fdt_attach),
+	DEVMETHOD(device_detach,	sdhci_fdt_detach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
 
 	/* mmcbr_if */
-	DEVMETHOD(mmcbr_update_ios, 	sdhci_generic_update_ios),
-	DEVMETHOD(mmcbr_request, 	sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro, 	sdhci_generic_get_ro),
-	DEVMETHOD(mmcbr_acquire_host, 	sdhci_generic_acquire_host),
-	DEVMETHOD(mmcbr_release_host, 	sdhci_generic_release_host),
+	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro,		sdhci_fdt_get_ro),
+	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
+	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
 
 	/* SDHCI registers accessors */
 	DEVMETHOD(sdhci_read_1,		sdhci_fdt_read_1),
@@ -307,5 +354,6 @@ static devclass_t sdhci_fdt_devclass;
 DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
     NULL, NULL);
 MODULE_DEPEND(sdhci_fdt, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_fdt, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_fdt, mmc, 1, 1, 1);
+#ifndef MMCCAM
+MMC_DECLARE_BRIDGE(sdhci_fdt);
+#endif

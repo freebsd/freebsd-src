@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2008-2009 Stacey Son <sson@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/lockstat.h>
 #include <sys/sdt.h>
@@ -61,7 +64,7 @@ SDT_PROBE_DEFINE1(lockstat, , , sx__downgrade, "struct sx *");
 
 SDT_PROBE_DEFINE2(lockstat, , , thread__spin, "struct mtx *", "uint64_t");
 
-int lockstat_enabled = 0;
+volatile bool __read_frequently lockstat_enabled;
 
 uint64_t 
 lockstat_nsecs(struct lock_object *lo)

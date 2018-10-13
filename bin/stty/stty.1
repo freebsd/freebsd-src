@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"     @(#)stty.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2008
+.Dd March 2, 2018
 .Dt STTY 1
 .Os
 .Sh NAME
@@ -588,7 +588,9 @@ Same as the control character
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
-.Xr termios 4
+.Xr resizewin 1 ,
+.Xr termios 4 ,
+.Xr pstat 8
 .Sh STANDARDS
 The
 .Nm
@@ -601,3 +603,8 @@ and
 .Fl f
 are
 extensions to the standard.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v2 .

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993 The Regents of the University of California.
  * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,14 +45,14 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capsicum.h>
 #include <sys/param.h>
+#include <sys/capsicum.h>
+#include <sys/ioctl.h>
+#include <sys/procdesc.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/signal.h>
-#include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <sys/procdesc.h>
 #include <sys/wait.h>
 
 #include <net/if.h>
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <protocols/rwhod.h>
 
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -370,7 +373,7 @@ receiver_process(void)
 		syslog(LOG_WARNING, "cap_rights_limit: %m");
 		exit(1);
 	}
-	if (cap_enter() < 0 && errno != ENOSYS) {
+	if (caph_enter() < 0) {
 		syslog(LOG_ERR, "cap_enter: %m");
 		exit(1);
 	}
@@ -548,7 +551,7 @@ getboottime(int signo __unused)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_BOOTTIME;
 	size = sizeof(tm);
-	if (sysctl(mib, 2, &tm, &size, NULL, 0) == -1) {
+	if (sysctl(mib, nitems(mib), &tm, &size, NULL, 0) == -1) {
 		syslog(LOG_ERR, "cannot get boottime: %m");
 		exit(1);
 	}
@@ -629,11 +632,11 @@ configure(int so)
 	mib[3] = AF_INET;
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = 0;
-	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
 		quit("route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		quit("malloc");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
 		quit("actual retrieval of interface table");
 	lim = buf + needed;
 

@@ -28,7 +28,7 @@
 .\"     @(#)intro.3	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd March 22, 2017
 .Dt INTRO 3
 .Os
 .Sh NAME
@@ -40,26 +40,16 @@ library functions, their error returns and other
 common definitions and concepts.
 Most of these functions are available from the C library,
 .Em libc .
-.\" (see
-.\" .Xr libc 3 ) .
 Other libraries, such as the math library,
 .Em libm ,
 must be indicated at compile time with the
 .Fl l
 option of the compiler.
-.\" .Pp
-.\" A subset of the
-.\" .Xr libc functions
-.\" are available from Fortran;
-.\" they are described separately in
-.\" .Xr intro 3f .
 .Pp
 The various libraries (followed by the loader flag):
 .Bl -tag -width "libc (-lc)"
-.It Xr libc Pq Fl l Ns Ar c
+.It Em libc Pq Fl l Ns Ar c
 Standard C library functions.
-.\" (See
-.\" .Xr libc 3 . )
 When using the C compiler
 .Xr cc 1 ,
 it is not necessary
@@ -67,8 +57,8 @@ to supply the loader flag
 .Fl l Ns Ar c
 for these functions.
 There are several `libraries' or groups of functions included inside of
-.Xr libc :
-the standard
+.Em libc
+: the standard
 .Tn I/O
 routines,
 database routines,
@@ -77,12 +67,12 @@ string operators,
 character tests and character operators,
 des encryption routines,
 storage allocation, time functions, signal handling and more.
-.It Xr libcurses Pq Fl l Ns Ar curses Fl l Ns Ar termcap
+.It Em libcurses Pq Fl l Ns Ar curses Fl l Ns Ar termcap
 Terminal independent screen management routines
 for two dimensional non-bitmap display terminals.
 (See
 .Xr ncurses 3 . )
-.It Xr libcompat Pq Fl l Ns Ar compat
+.It Em libcompat Pq Fl l Ns Ar compat
 Functions which are obsolete but are available for compatibility with
 .Bx 4.3 .
 In particular,
@@ -92,45 +82,30 @@ have been included for source code compatibility.
 Use of these routines should, for the most part, be avoided.
 The manual page entry for each compatibility routine
 indicates the proper interface to use.
-.It Xr libkvm Pq Fl l Ns Ar kvm
+.It Em libkvm Pq Fl l Ns Ar kvm
 Functions used to access kernel memory are in this library.
 They can be used
 against both a running system and a crash dump.
 (See
 .Xr kvm 3 . )
-.It Xr libl Pq Fl l Ns Ar l
+.It Em libl Pq Fl l Ns Ar l
 The library for
 .Xr lex 1 .
-.\" .It Xr libln
-.It Xr libm Pq Fl l Ns Ar m
+.It Em libm Pq Fl l Ns Ar m
 The math library,
 .Em libm .
 The math library is loaded as needed by the Pascal compiler,
-.\" .Xr pc 1 ,
 but not by the C compiler which requires the
 .Fl l Ns Ar m
 flag.
 (See
 .Xr math 3 . )
-.It Xr libmp Pq Fl l Ns Ar mp
-.\" .It Xr libom
-.\" Old math library.
-.\" .It Xr libplot Pq Fl l Ns Ar plot
-.\" Device independent plotting functions.
-.\" (See
-.\" .Xr plot 3 . )
-.\" .It Xr libplotf77 Pq Fl l Ns Ar plotf77
-.\" The device independent plotting functions for fortran.
-.\" (See
-.\" .Xr plot 3 . )
-.\" .It Xr libresolv Pq Fl l Ns Ar resolv
-.\" Routines for network address resolution.
-.It Xr libtermcap Pq Fl l Ns Ar termcap
+.It Em libmp Pq Fl l Ns Ar mp
+.It Em libtermcap Pq Fl l Ns Ar termcap
 The terminal independent operation library package.
 (See
 .Xr termcap 3 . )
-.\" .It libvt0.a
-.It Xr liby Pq Fl l Ns Ar y
+.It Em liby Pq Fl l Ns Ar y
 The library for
 .Xr yacc 1 .
 .El
@@ -146,17 +121,12 @@ the math library
 the math library compiled for profiling
 .El
 .Sh SEE ALSO
-.\" .Xr libc 3 ,
 .Xr cc 1 ,
 .Xr ld 1 ,
 .Xr nm 1 ,
 .Xr intro 2 ,
 .Xr math 3 ,
 .Xr stdio 3
-.\" .Sh LIST OF FUNCTIONS
-.\" .Bl -column "strncasecmpxxx" "system"
-.\" .Sy Name	Description
-.\" .El
 .Sh HISTORY
 An
 .Nm

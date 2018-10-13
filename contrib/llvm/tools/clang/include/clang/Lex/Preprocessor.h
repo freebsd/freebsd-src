@@ -1,4 +1,4 @@
-//===--- Preprocessor.h - C Language Family Preprocessor --------*- C++ -*-===//
+//===- Preprocessor.h - C Language Family Preprocessor ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,10 +6,10 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-///
+//
 /// \file
 /// \brief Defines the clang::Preprocessor interface.
-///
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_LEX_PREPROCESSOR_H
@@ -18,46 +18,70 @@
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/Module.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/ModuleMap.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/PTHLexer.h"
+#include "clang/Lex/Token.h"
 #include "clang/Lex/TokenLexer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/TinyPtrVector.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Registry.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace llvm {
-  template<unsigned InternalLen> class SmallString;
-}
+
+template<unsigned InternalLen> class SmallString;
+
+} // namespace llvm
 
 namespace clang {
 
-class SourceManager;
-class ExternalPreprocessorSource;
-class FileManager;
-class FileEntry;
-class HeaderSearch;
-class PragmaNamespace;
-class PragmaHandler;
+class CodeCompletionHandler;
 class CommentHandler;
+class DirectoryEntry;
+class DirectoryLookup;
+class ExternalPreprocessorSource;
+class FileEntry;
+class FileManager;
+class HeaderSearch;
+class MacroArgs;
+class MemoryBufferCache;
+class PragmaHandler;
+class PragmaNamespace;
+class PreprocessingRecord;
+class PreprocessorLexer;
+class PreprocessorOptions;
+class PTHManager;
 class ScratchBuffer;
 class TargetInfo;
-class PPCallbacks;
-class CodeCompletionHandler;
-class DirectoryLookup;
-class PreprocessingRecord;
-class ModuleLoader;
-class PTHManager;
-class PreprocessorOptions;
 
 /// \brief Stores token information for comparing actual tokens with
 /// predefined values.  Only handles simple tokens and identifiers.
@@ -73,7 +97,9 @@ public:
     assert(!tok::isLiteral(Kind) && "Literals are not supported.");
     assert(!tok::isAnnotation(Kind) && "Annotations are not supported.");
   }
+
   TokenValue(IdentifierInfo *II) : Kind(tok::identifier), II(II) {}
+
   bool operator==(const Token &Tok) const {
     return Tok.getKind() == Kind &&
         (!II || II == Tok.getIdentifierInfo());
@@ -82,9 +108,14 @@ public:
 
 /// \brief Context in which macro name is used.
 enum MacroUse {
-  MU_Other  = 0,  // other than #define or #undef
-  MU_Define = 1,  // macro name specified in #define
-  MU_Undef  = 2   // macro name specified in #undef
+  // other than #define or #undef
+  MU_Other  = 0,
+
+  // macro name specified in #define
+  MU_Define = 1,
+
+  // macro name specified in #undef
+  MU_Undef  = 2
 };
 
 /// \brief Engages in a tight little dance with the lexer to efficiently
@@ -93,21 +124,24 @@ enum MacroUse {
 /// Lexers know only about tokens within a single source file, and don't
 /// know anything about preprocessor-level issues like the \#include stack,
 /// token expansion, etc.
-class Preprocessor : public RefCountedBase<Preprocessor> {
-  IntrusiveRefCntPtr<PreprocessorOptions> PPOpts;
+class Preprocessor {
+  friend class VAOptDefinitionContext;
+  friend class VariadicMacroScopeGuard;
+
+  std::shared_ptr<PreprocessorOptions> PPOpts;
   DiagnosticsEngine        *Diags;
   LangOptions       &LangOpts;
-  const TargetInfo  *Target;
-  const TargetInfo  *AuxTarget;
+  const TargetInfo *Target = nullptr;
+  const TargetInfo *AuxTarget = nullptr;
   FileManager       &FileMgr;
   SourceManager     &SourceMgr;
+  MemoryBufferCache &PCMCache;
   std::unique_ptr<ScratchBuffer> ScratchBuf;
   HeaderSearch      &HeaderInfo;
   ModuleLoader      &TheModuleLoader;
 
   /// \brief External source of macros.
   ExternalPreprocessorSource *ExternalSource;
-
 
   /// An optional PTHManager object used for getting tokens from
   /// a token cache rather than lexing the original source file.
@@ -127,6 +161,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   IdentifierInfo *Ident_Pragma, *Ident__pragma;    // _Pragma, __pragma
   IdentifierInfo *Ident__identifier;               // __identifier
   IdentifierInfo *Ident__VA_ARGS__;                // __VA_ARGS__
+  IdentifierInfo *Ident__VA_OPT__;                 // __VA_OPT__
   IdentifierInfo *Ident__has_feature;              // __has_feature
   IdentifierInfo *Ident__has_extension;            // __has_extension
   IdentifierInfo *Ident__has_builtin;              // __has_builtin
@@ -138,10 +173,17 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   IdentifierInfo *Ident__building_module;          // __building_module
   IdentifierInfo *Ident__MODULE__;                 // __MODULE__
   IdentifierInfo *Ident__has_cpp_attribute;        // __has_cpp_attribute
+  IdentifierInfo *Ident__has_c_attribute;          // __has_c_attribute
   IdentifierInfo *Ident__has_declspec;             // __has_declspec_attribute
+  IdentifierInfo *Ident__is_target_arch;           // __is_target_arch
+  IdentifierInfo *Ident__is_target_vendor;         // __is_target_vendor
+  IdentifierInfo *Ident__is_target_os;             // __is_target_os
+  IdentifierInfo *Ident__is_target_environment;    // __is_target_environment
 
   SourceLocation DATELoc, TIMELoc;
-  unsigned CounterValue;  // Next __COUNTER__ value.
+
+  // Next __COUNTER__ value, starts at 0.
+  unsigned CounterValue = 0;
 
   enum {
     /// \brief Maximum depth of \#includes.
@@ -215,19 +257,19 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
   /// \brief True if we want to ignore EOF token and continue later on (thus 
   /// avoid tearing the Lexer and etc. down).
-  bool IncrementalProcessing;
+  bool IncrementalProcessing = false;
 
   /// The kind of translation unit we are processing.
   TranslationUnitKind TUKind;
 
   /// \brief The code-completion handler.
-  CodeCompletionHandler *CodeComplete;
+  CodeCompletionHandler *CodeComplete = nullptr;
 
   /// \brief The file that we're performing code-completion for, if any.
-  const FileEntry *CodeCompletionFile;
+  const FileEntry *CodeCompletionFile = nullptr;
 
   /// \brief The offset in file for the code-completion point.
-  unsigned CodeCompletionOffset;
+  unsigned CodeCompletionOffset = 0;
 
   /// \brief The location for the code-completion point. This gets instantiated
   /// when the CodeCompletionFile gets \#include'ed for preprocessing.
@@ -247,11 +289,11 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   SmallVector<std::pair<IdentifierInfo *, SourceLocation>, 2> ModuleImportPath;
 
   /// \brief Whether the last token we lexed was an '@'.
-  bool LastTokenWasAt;
+  bool LastTokenWasAt = false;
 
   /// \brief Whether the module import expects an identifier next. Otherwise,
   /// it expects a '.' or ';'.
-  bool ModuleImportExpectsIdentifier;
+  bool ModuleImportExpectsIdentifier = false;
   
   /// \brief The source location of the currently-active
   /// \#pragma clang arc_cf_code_audited begin.
@@ -262,12 +304,16 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   SourceLocation PragmaAssumeNonNullLoc;
 
   /// \brief True if we hit the code-completion point.
-  bool CodeCompletionReached;
+  bool CodeCompletionReached = false;
+
+  /// \brief The code completion token containing the information
+  /// on the stem that is to be code completed.
+  IdentifierInfo *CodeCompletionII = nullptr;
 
   /// \brief The directory that the main file should be considered to occupy,
   /// if it does not correspond to a real file (as happens when building a
   /// module).
-  const DirectoryEntry *MainFileDir;
+  const DirectoryEntry *MainFileDir = nullptr;
 
   /// \brief The number of bytes that we will initially skip when entering the
   /// main file, along with a flag that indicates whether skipping this number
@@ -275,6 +321,70 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   ///
   /// This is used when loading a precompiled preamble.
   std::pair<int, bool> SkipMainFilePreamble;
+
+public:
+  struct PreambleSkipInfo {
+    SourceLocation HashTokenLoc;
+    SourceLocation IfTokenLoc;
+    bool FoundNonSkipPortion;
+    bool FoundElse;
+    SourceLocation ElseLoc;
+
+    PreambleSkipInfo(SourceLocation HashTokenLoc, SourceLocation IfTokenLoc,
+                     bool FoundNonSkipPortion, bool FoundElse,
+                     SourceLocation ElseLoc)
+        : HashTokenLoc(HashTokenLoc), IfTokenLoc(IfTokenLoc),
+          FoundNonSkipPortion(FoundNonSkipPortion), FoundElse(FoundElse),
+          ElseLoc(ElseLoc) {}
+  };
+
+private:
+  friend class ASTReader;
+  friend class MacroArgs;
+
+  class PreambleConditionalStackStore {
+    enum State {
+      Off = 0,
+      Recording = 1,
+      Replaying = 2,
+    };
+
+  public:
+    PreambleConditionalStackStore() = default;
+
+    void startRecording() { ConditionalStackState = Recording; }
+    void startReplaying() { ConditionalStackState = Replaying; }
+    bool isRecording() const { return ConditionalStackState == Recording; }
+    bool isReplaying() const { return ConditionalStackState == Replaying; }
+
+    ArrayRef<PPConditionalInfo> getStack() const {
+      return ConditionalStack;
+    }
+
+    void doneReplaying() {
+      ConditionalStack.clear();
+      ConditionalStackState = Off;
+    }
+
+    void setStack(ArrayRef<PPConditionalInfo> s) {
+      if (!isRecording() && !isReplaying())
+        return;
+      ConditionalStack.clear();
+      ConditionalStack.append(s.begin(), s.end());
+    }
+
+    bool hasRecordedPreamble() const { return !ConditionalStack.empty(); }
+
+    bool reachedEOFWhileSkipping() const { return SkipInfo.hasValue(); }
+
+    void clearSkipInfo() { SkipInfo.reset(); }
+
+    llvm::Optional<PreambleSkipInfo> SkipInfo;
+
+  private:
+    SmallVector<PPConditionalInfo, 4> ConditionalStack;
+    State ConditionalStackState = Off;
+  } PreambleConditionalStack;
 
   /// \brief The current top of the stack that we're lexing from if
   /// not expanding a macro and we are lexing directly from source code.
@@ -292,14 +402,14 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// if not expanding a macro.
   ///
   /// This is an alias for either CurLexer or  CurPTHLexer.
-  PreprocessorLexer *CurPPLexer;
+  PreprocessorLexer *CurPPLexer = nullptr;
 
   /// \brief Used to find the current FileEntry, if CurLexer is non-null
   /// and if applicable.
   ///
   /// This allows us to implement \#include_next and find directory-specific
   /// properties.
-  const DirectoryLookup *CurDirLookup;
+  const DirectoryLookup *CurDirLookup = nullptr;
 
   /// \brief The current macro we are expanding, if we are expanding a macro.
   ///
@@ -313,11 +423,11 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
     CLK_TokenLexer,
     CLK_CachingLexer,
     CLK_LexAfterModuleImport
-  } CurLexerKind;
+  } CurLexerKind = CLK_Lexer;
 
   /// \brief If the current lexer is for a submodule that is being built, this
   /// is that submodule.
-  Module *CurSubmodule;
+  Module *CurLexerSubmodule = nullptr;
 
   /// \brief Keeps track of the stack of files currently
   /// \#included, and macros currently being expanded from, not counting
@@ -345,14 +455,6 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
           ThePPLexer(std::move(ThePPLexer)),
           TheTokenLexer(std::move(TheTokenLexer)),
           TheDirLookup(std::move(TheDirLookup)) {}
-    IncludeStackInfo(IncludeStackInfo &&RHS)
-        : CurLexerKind(std::move(RHS.CurLexerKind)),
-          TheSubmodule(std::move(RHS.TheSubmodule)),
-          TheLexer(std::move(RHS.TheLexer)),
-          ThePTHLexer(std::move(RHS.ThePTHLexer)),
-          ThePPLexer(std::move(RHS.ThePPLexer)),
-          TheTokenLexer(std::move(RHS.TheTokenLexer)),
-          TheDirLookup(std::move(RHS.TheDirLookup)) {}
   };
   std::vector<IncludeStackInfo> IncludeMacroStack;
 
@@ -364,27 +466,31 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
     Token Tok;
     MacroDefinition MD;
     SourceRange Range;
+
     MacroExpandsInfo(Token Tok, MacroDefinition MD, SourceRange Range)
-      : Tok(Tok), MD(MD), Range(Range) { }
+        : Tok(Tok), MD(MD), Range(Range) {}
   };
   SmallVector<MacroExpandsInfo, 2> DelayedMacroExpandsCallbacks;
 
   /// Information about a name that has been used to define a module macro.
   struct ModuleMacroInfo {
-    ModuleMacroInfo(MacroDirective *MD)
-        : MD(MD), ActiveModuleMacrosGeneration(0), IsAmbiguous(false) {}
-
     /// The most recent macro directive for this identifier.
     MacroDirective *MD;
+
     /// The active module macros for this identifier.
-    llvm::TinyPtrVector<ModuleMacro*> ActiveModuleMacros;
+    llvm::TinyPtrVector<ModuleMacro *> ActiveModuleMacros;
+
     /// The generation number at which we last updated ActiveModuleMacros.
     /// \see Preprocessor::VisibleModules.
-    unsigned ActiveModuleMacrosGeneration;
+    unsigned ActiveModuleMacrosGeneration = 0;
+
     /// Whether this macro name is ambiguous.
-    bool IsAmbiguous;
+    bool IsAmbiguous = false;
+
     /// The module macros that are overridden by this macro.
-    llvm::TinyPtrVector<ModuleMacro*> OverriddenMacros;
+    llvm::TinyPtrVector<ModuleMacro *> OverriddenMacros;
+
+    ModuleMacroInfo(MacroDirective *MD) : MD(MD) {}
   };
 
   /// The state of a macro for an identifier.
@@ -393,6 +499,8 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
     ModuleMacroInfo *getModuleInfo(Preprocessor &PP,
                                    const IdentifierInfo *II) const {
+      if (II->isOutOfDate())
+        PP.updateOutOfDateIdentifier(const_cast<IdentifierInfo&>(*II));
       // FIXME: Find a spare bit on IdentifierInfo and store a
       //        HasModuleMacros flag.
       if (!II->hasMacroDefinition() ||
@@ -417,15 +525,18 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   public:
     MacroState() : MacroState(nullptr) {}
     MacroState(MacroDirective *MD) : State(MD) {}
-    MacroState(MacroState &&O) LLVM_NOEXCEPT : State(O.State) {
+
+    MacroState(MacroState &&O) noexcept : State(O.State) {
       O.State = (MacroDirective *)nullptr;
     }
-    MacroState &operator=(MacroState &&O) LLVM_NOEXCEPT {
+
+    MacroState &operator=(MacroState &&O) noexcept {
       auto S = O.State;
       O.State = (MacroDirective *)nullptr;
       State = S;
       return *this;
     }
+
     ~MacroState() {
       if (auto *Info = State.dyn_cast<ModuleMacroInfo*>())
         Info->~ModuleMacroInfo();
@@ -436,6 +547,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
         return Info->MD;
       return State.get<MacroDirective*>();
     }
+
     void setLatest(MacroDirective *MD) {
       if (auto *Info = State.dyn_cast<ModuleMacroInfo*>())
         Info->MD = MD;
@@ -447,6 +559,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
       auto *Info = getModuleInfo(PP, II);
       return Info ? Info->IsAmbiguous : false;
     }
+
     ArrayRef<ModuleMacro *>
     getActiveModuleMacros(Preprocessor &PP, const IdentifierInfo *II) const {
       if (auto *Info = getModuleInfo(PP, II))
@@ -459,7 +572,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
       // FIXME: Incorporate module macros into the result of this.
       if (auto *Latest = getLatest())
         return Latest->findDirectiveAtLoc(Loc, SourceMgr);
-      return MacroDirective::DefInfo();
+      return {};
     }
 
     void overrideActiveModuleMacros(Preprocessor &PP, IdentifierInfo *II) {
@@ -471,11 +584,13 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
         Info->IsAmbiguous = false;
       }
     }
+
     ArrayRef<ModuleMacro*> getOverriddenMacros() const {
       if (auto *Info = State.dyn_cast<ModuleMacroInfo*>())
         return Info->OverriddenMacros;
       return None;
     }
+
     void setOverriddenMacros(Preprocessor &PP,
                              ArrayRef<ModuleMacro *> Overrides) {
       auto *Info = State.dyn_cast<ModuleMacroInfo*>();
@@ -498,25 +613,33 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// the reverse order (the latest one is in the head of the list).
   ///
   /// This mapping lives within the \p CurSubmoduleState.
-  typedef llvm::DenseMap<const IdentifierInfo *, MacroState> MacroMap;
-
-  friend class ASTReader;
+  using MacroMap = llvm::DenseMap<const IdentifierInfo *, MacroState>;
 
   struct SubmoduleState;
 
   /// \brief Information about a submodule that we're currently building.
   struct BuildingSubmoduleInfo {
-    BuildingSubmoduleInfo(Module *M, SourceLocation ImportLoc,
-                          SubmoduleState *OuterSubmoduleState)
-        : M(M), ImportLoc(ImportLoc), OuterSubmoduleState(OuterSubmoduleState) {
-    }
-
     /// The module that we are building.
     Module *M;
+
     /// The location at which the module was included.
     SourceLocation ImportLoc;
+
+    /// Whether we entered this submodule via a pragma.
+    bool IsPragma;
+
     /// The previous SubmoduleState.
     SubmoduleState *OuterSubmoduleState;
+
+    /// The number of pending module macro names when we started building this.
+    unsigned OuterPendingModuleMacroNames;
+
+    BuildingSubmoduleInfo(Module *M, SourceLocation ImportLoc, bool IsPragma,
+                          SubmoduleState *OuterSubmoduleState,
+                          unsigned OuterPendingModuleMacroNames)
+        : M(M), ImportLoc(ImportLoc), IsPragma(IsPragma),
+          OuterSubmoduleState(OuterSubmoduleState),
+          OuterPendingModuleMacroNames(OuterPendingModuleMacroNames) {}
   };
   SmallVector<BuildingSubmoduleInfo, 8> BuildingSubmoduleStack;
 
@@ -524,12 +647,14 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   struct SubmoduleState {
     /// The macros for the submodule.
     MacroMap Macros;
+
     /// The set of modules that are visible within the submodule.
     VisibleModuleSet VisibleModules;
+
     // FIXME: CounterValue?
     // FIXME: PragmaPushMacroInfo?
   };
-  std::map<Module*, SubmoduleState> Submodules;
+  std::map<Module *, SubmoduleState> Submodules;
 
   /// The preprocessor state for preprocessing outside of any submodule.
   SubmoduleState NullSubmoduleState;
@@ -541,9 +666,12 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// The set of known macros exported from modules.
   llvm::FoldingSet<ModuleMacro> ModuleMacros;
 
+  /// The names of potential module macros that we've not yet processed.
+  llvm::SmallVector<const IdentifierInfo *, 32> PendingModuleMacroNames;
+
   /// The list of module macros, for each identifier, that are not overridden by
   /// any other module macro.
-  llvm::DenseMap<const IdentifierInfo *, llvm::TinyPtrVector<ModuleMacro*>>
+  llvm::DenseMap<const IdentifierInfo *, llvm::TinyPtrVector<ModuleMacro *>>
       LeafModuleMacros;
 
   /// \brief Macros that we want to warn because they are not used at the end
@@ -555,25 +683,35 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// just so that we can report that they are unused, we just warn using
   /// the SourceLocations of this set (that will be filled by the ASTReader).
   /// We are using SmallPtrSet instead of a vector for faster removal.
-  typedef llvm::SmallPtrSet<SourceLocation, 32> WarnUnusedMacroLocsTy;
+  using WarnUnusedMacroLocsTy = llvm::SmallPtrSet<SourceLocation, 32>;
   WarnUnusedMacroLocsTy WarnUnusedMacroLocs;
 
   /// \brief A "freelist" of MacroArg objects that can be
   /// reused for quick allocation.
-  MacroArgs *MacroArgCache;
-  friend class MacroArgs;
+  MacroArgs *MacroArgCache = nullptr;
 
   /// For each IdentifierInfo used in a \#pragma push_macro directive,
   /// we keep a MacroInfo stack used to restore the previous macro value.
-  llvm::DenseMap<IdentifierInfo*, std::vector<MacroInfo*> > PragmaPushMacroInfo;
+  llvm::DenseMap<IdentifierInfo *, std::vector<MacroInfo *>>
+      PragmaPushMacroInfo;
 
   // Various statistics we track for performance analysis.
-  unsigned NumDirectives, NumDefined, NumUndefined, NumPragma;
-  unsigned NumIf, NumElse, NumEndif;
-  unsigned NumEnteredSourceFiles, MaxIncludeStackDepth;
-  unsigned NumMacroExpanded, NumFnMacroExpanded, NumBuiltinMacroExpanded;
-  unsigned NumFastMacroExpanded, NumTokenPaste, NumFastTokenPaste;
-  unsigned NumSkipped;
+  unsigned NumDirectives = 0;
+  unsigned NumDefined = 0;
+  unsigned NumUndefined = 0;
+  unsigned NumPragma = 0;
+  unsigned NumIf = 0;
+  unsigned NumElse = 0;
+  unsigned NumEndif = 0;
+  unsigned NumEnteredSourceFiles = 0;
+  unsigned MaxIncludeStackDepth = 0;
+  unsigned NumMacroExpanded = 0;
+  unsigned NumFnMacroExpanded = 0;
+  unsigned NumBuiltinMacroExpanded = 0;
+  unsigned NumFastMacroExpanded = 0;
+  unsigned NumTokenPaste = 0;
+  unsigned NumFastTokenPaste = 0;
+  unsigned NumSkipped = 0;
 
   /// \brief The predefined macros that preprocessor should use from the
   /// command line etc.
@@ -595,17 +733,17 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// going to lex in the cache and when it finishes the tokens are removed
   /// from the end of the cache.
   SmallVector<Token, 16> MacroExpandedTokens;
-  std::vector<std::pair<TokenLexer *, size_t> > MacroExpandingLexersStack;
+  std::vector<std::pair<TokenLexer *, size_t>> MacroExpandingLexersStack;
 
   /// \brief A record of the macro definitions and expansions that
   /// occurred during preprocessing.
   ///
   /// This is an optional side structure that can be enabled with
   /// \c createPreprocessingRecord() prior to preprocessing.
-  PreprocessingRecord *Record;
+  PreprocessingRecord *Record = nullptr;
 
   /// Cached tokens state.
-  typedef SmallVector<Token, 1> CachedTokensTy;
+  using CachedTokensTy = SmallVector<Token, 1>;
 
   /// \brief Cached tokens are stored here when we do backtracking or
   /// lookahead. They are "lexed" by the CachingLex() method.
@@ -616,7 +754,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   ///
   /// If it points beyond the CachedTokens vector, it means that a normal
   /// Lex() should be invoked.
-  CachedTokensTy::size_type CachedLexPos;
+  CachedTokensTy::size_type CachedLexPos = 0;
 
   /// \brief Stack of backtrack positions, allowing nested backtracks.
   ///
@@ -632,21 +770,15 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
   /// MacroInfos are managed as a chain for easy disposal.  This is the head
   /// of that list.
-  MacroInfoChain *MIChainHead;
+  MacroInfoChain *MIChainHead = nullptr;
 
-  struct DeserializedMacroInfoChain {
-    MacroInfo MI;
-    unsigned OwningModuleID; // MUST be immediately after the MacroInfo object
-                     // so it can be accessed by MacroInfo::getOwningModuleID().
-    DeserializedMacroInfoChain *Next;
-  };
-  DeserializedMacroInfoChain *DeserialMIChainHead;
+  void updateOutOfDateIdentifier(IdentifierInfo &II) const;
 
 public:
-  Preprocessor(IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
-               DiagnosticsEngine &diags, LangOptions &opts,
-               SourceManager &SM, HeaderSearch &Headers,
-               ModuleLoader &TheModuleLoader,
+  Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
+               DiagnosticsEngine &diags, LangOptions &opts, SourceManager &SM,
+               MemoryBufferCache &PCMCache,
+               HeaderSearch &Headers, ModuleLoader &TheModuleLoader,
                IdentifierInfoLookup *IILookup = nullptr,
                bool OwnsHeaderSearch = false,
                TranslationUnitKind TUKind = TU_Complete);
@@ -685,6 +817,7 @@ public:
   const TargetInfo *getAuxTargetInfo() const { return AuxTarget; }
   FileManager &getFileManager() const { return FileMgr; }
   SourceManager &getSourceManager() const { return SourceMgr; }
+  MemoryBufferCache &getPCMCache() const { return PCMCache; }
   HeaderSearch &getHeaderSearchInfo() const { return HeaderInfo; }
 
   IdentifierTable &getIdentifierTable() { return Identifiers; }
@@ -763,8 +896,9 @@ public:
   /// expansions going on at the time.
   PreprocessorLexer *getCurrentFileLexer() const;
 
-  /// \brief Return the submodule owning the file being lexed.
-  Module *getCurrentSubmodule() const { return CurSubmodule; }
+  /// \brief Return the submodule owning the file being lexed. This may not be
+  /// the current module if we have changed modules since entering the file.
+  Module *getCurrentLexerSubmodule() const { return CurLexerSubmodule; }
 
   /// \brief Returns the FileID for the preprocessor predefines.
   FileID getPredefinesFileID() const { return PredefinesFileID; }
@@ -809,7 +943,7 @@ public:
 
   MacroDefinition getMacroDefinition(const IdentifierInfo *II) {
     if (!II->hasMacroDefinition())
-      return MacroDefinition();
+      return {};
 
     MacroState &S = CurSubmoduleState->Macros[II];
     auto *MD = S.getLatest();
@@ -823,7 +957,7 @@ public:
   MacroDefinition getMacroDefinitionAtLoc(const IdentifierInfo *II,
                                           SourceLocation Loc) {
     if (!II->hadMacroDefinition())
-      return MacroDefinition();
+      return {};
 
     MacroState &S = CurSubmoduleState->Macros[II];
     MacroDirective::DefInfo DI;
@@ -879,8 +1013,10 @@ public:
                                              MacroInfo *MI) {
     return appendDefMacroDirective(II, MI, MI->getDefinitionLoc());
   }
+
   /// \brief Set a MacroDirective that was loaded from a PCH file.
-  void setLoadedMacroDirective(IdentifierInfo *II, MacroDirective *MD);
+  void setLoadedMacroDirective(IdentifierInfo *II, MacroDirective *ED,
+                               MacroDirective *MD);
 
   /// \brief Register an exported macro for a module and identifier.
   ModuleMacro *addModuleMacro(Module *Mod, IdentifierInfo *II, MacroInfo *Macro,
@@ -889,6 +1025,8 @@ public:
 
   /// \brief Get the list of leaf (non-overridden) module macros for a name.
   ArrayRef<ModuleMacro*> getLeafModuleMacros(const IdentifierInfo *II) const {
+    if (II->isOutOfDate())
+      updateOutOfDateIdentifier(const_cast<IdentifierInfo&>(*II));
     auto I = LeafModuleMacros.find(II);
     if (I != LeafModuleMacros.end())
       return I->second;
@@ -899,10 +1037,12 @@ public:
   /// Iterators for the macro history table. Currently defined macros have
   /// IdentifierInfo::hasMacroDefinition() set and an empty
   /// MacroInfo::getUndefLoc() at the head of the list.
-  typedef MacroMap::const_iterator macro_iterator;
+  using macro_iterator = MacroMap::const_iterator;
+
   macro_iterator macro_begin(bool IncludeExternalMacros = true) const;
   macro_iterator macro_end(bool IncludeExternalMacros = true) const;
   llvm::iterator_range<macro_iterator>
+
   macros(bool IncludeExternalMacros = true) const {
     return llvm::make_range(macro_begin(IncludeExternalMacros),
                             macro_end(IncludeExternalMacros));
@@ -916,6 +1056,7 @@ public:
                                      ArrayRef<TokenValue> Tokens) const;
 
   const std::string &getPredefines() const { return Predefines; }
+
   /// \brief Set the predefines for this Preprocessor.
   ///
   /// These predefines are automatically injected when parsing the main file.
@@ -977,6 +1118,18 @@ public:
   /// completion point.
   void CodeCompleteNaturalLanguage();
 
+  /// \brief Set the code completion token for filtering purposes.
+  void setCodeCompletionIdentifierInfo(IdentifierInfo *Filter) {
+    CodeCompletionII = Filter;
+  }
+
+  /// \brief Get the code completion token for filtering purposes.
+  StringRef getCodeCompletionFilter() {
+    if (CodeCompletionII)
+      return CodeCompletionII->getName();
+    return {};
+  }
+
   /// \brief Retrieve the preprocessing record, or NULL if there is no
   /// preprocessing record.
   PreprocessingRecord *getPreprocessingRecord() const { return Record; }
@@ -1018,9 +1171,20 @@ public:
   /// If \p OwnsTokens is false, this method assumes that the specified stream
   /// of tokens has a permanent owner somewhere, so they do not need to be
   /// copied. If it is true, it assumes the array of tokens is allocated with
-  /// \c new[] and must be freed.
+  /// \c new[] and the Preprocessor will delete[] it.
+private:
   void EnterTokenStream(const Token *Toks, unsigned NumToks,
                         bool DisableMacroExpansion, bool OwnsTokens);
+
+public:
+  void EnterTokenStream(std::unique_ptr<Token[]> Toks, unsigned NumToks,
+                        bool DisableMacroExpansion) {
+    EnterTokenStream(Toks.release(), NumToks, DisableMacroExpansion, true);
+  }
+
+  void EnterTokenStream(ArrayRef<Token> Toks, bool DisableMacroExpansion) {
+    EnterTokenStream(Toks.data(), Toks.size(), DisableMacroExpansion, false);
+  }
 
   /// \brief Pop the current lexer/macro exp off the top of the lexer stack.
   ///
@@ -1045,6 +1209,24 @@ public:
 
   /// \brief Disable the last EnableBacktrackAtThisPos call.
   void CommitBacktrackedTokens();
+
+  struct CachedTokensRange {
+    CachedTokensTy::size_type Begin, End;
+  };
+
+private:
+  /// \brief A range of cached tokens that should be erased after lexing
+  /// when backtracking requires the erasure of such cached tokens.
+  Optional<CachedTokensRange> CachedTokenRangeToErase;
+
+public:
+  /// \brief Returns the range of cached tokens that were lexed since
+  /// EnableBacktrackAtThisPos() was previously called.
+  CachedTokensRange LastCachedTokenRange();
+
+  /// \brief Erase the range of cached tokens that were lexed since
+  /// EnableBacktrackAtThisPos() was previously called.
+  void EraseCachedTokens(CachedTokensRange TokenRange);
 
   /// \brief Make Preprocessor re-lex the tokens that were lexed since
   /// EnableBacktrackAtThisPos() was previously called.
@@ -1185,6 +1367,17 @@ public:
     return CachedTokens[CachedLexPos-1].getLastLoc();
   }
 
+  /// \brief Whether \p Tok is the most recent token (`CachedLexPos - 1`) in
+  /// CachedTokens.
+  bool IsPreviousCachedToken(const Token &Tok) const;
+
+  /// \brief Replace token in `CachedLexPos - 1` in CachedTokens by the tokens
+  /// in \p NewToks.
+  ///
+  /// Useful when a token needs to be split in smaller ones and CachedTokens
+  /// most recent token must to be updated to reflect that.
+  void ReplacePreviousCachedToken(ArrayRef<Token> NewToks);
+
   /// \brief Replace the last token with an annotation token.
   ///
   /// Like AnnotateCachedTokens(), this routine replaces an
@@ -1198,6 +1391,10 @@ public:
     if (CachedLexPos != 0 && isBacktrackEnabled())
       CachedTokens[CachedLexPos-1] = Tok;
   }
+
+  /// Enter an annotation token into the token stream.
+  void EnterAnnotationToken(SourceRange Range, tok::TokenKind Kind,
+                            void *AnnotationVal);
 
   /// Update the current token to represent the provided
   /// identifier, in order to cache an action performed by typo correction.
@@ -1503,7 +1700,6 @@ private:
   llvm::DenseMap<IdentifierInfo*,unsigned> PoisonReasons;
 
 public:
-
   /// \brief Specifies the reason for poisoning an identifier.
   ///
   /// If that identifier is accessed while poisoned, then this reason will be
@@ -1538,6 +1734,7 @@ private:
                  *Ident_AbnormalTermination;
 
   const char *getCurLexerEndPos();
+  void diagnoseMissingHeaderInUmbrellaDir(const Module &Mod);
 
 public:
   void PoisonSEHIdentifiers(bool Poison = true); // Borland
@@ -1551,7 +1748,6 @@ public:
   /// \returns true if we actually computed a token, false if we need to
   /// lex again.
   bool HandleIdentifier(Token &Identifier);
-
 
   /// \brief Callback invoked when the lexer hits the end of the current file.
   ///
@@ -1596,10 +1792,6 @@ public:
   /// \brief Allocate a new MacroInfo object with the provided SourceLocation.
   MacroInfo *AllocateMacroInfo(SourceLocation L);
 
-  /// \brief Allocate a new MacroInfo object loaded from an AST file.
-  MacroInfo *AllocateDeserializedMacroInfo(SourceLocation L,
-                                           unsigned SubModuleID);
-
   /// \brief Turn the specified lexer token into a fully checked and spelled
   /// filename, e.g. as an operand of \#include. 
   ///
@@ -1622,7 +1814,7 @@ public:
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
                               ModuleMap::KnownHeader *SuggestedModule,
-                              bool SkipCache = false);
+                              bool *IsMapped, bool SkipCache = false);
 
   /// \brief Get the DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable. 
@@ -1657,13 +1849,18 @@ public:
   bool CheckMacroName(Token &MacroNameTok, MacroUse isDefineUndef,
                       bool *ShadowFlag = nullptr);
 
+  void EnterSubmodule(Module *M, SourceLocation ImportLoc, bool ForPragma);
+  Module *LeaveSubmodule(bool ForPragma);
+
 private:
+  friend void TokenLexer::ExpandFunctionArguments();
 
   void PushIncludeMacroStack() {
     assert(CurLexerKind != CLK_CachingLexer && "cannot push a caching lexer");
-    IncludeMacroStack.emplace_back(
-        CurLexerKind, CurSubmodule, std::move(CurLexer), std::move(CurPTHLexer),
-        CurPPLexer, std::move(CurTokenLexer), CurDirLookup);
+    IncludeMacroStack.emplace_back(CurLexerKind, CurLexerSubmodule,
+                                   std::move(CurLexer), std::move(CurPTHLexer),
+                                   CurPPLexer, std::move(CurTokenLexer),
+                                   CurDirLookup);
     CurPPLexer = nullptr;
   }
 
@@ -1673,22 +1870,20 @@ private:
     CurPPLexer = IncludeMacroStack.back().ThePPLexer;
     CurTokenLexer = std::move(IncludeMacroStack.back().TheTokenLexer);
     CurDirLookup  = IncludeMacroStack.back().TheDirLookup;
-    CurSubmodule = IncludeMacroStack.back().TheSubmodule;
+    CurLexerSubmodule = IncludeMacroStack.back().TheSubmodule;
     CurLexerKind = IncludeMacroStack.back().CurLexerKind;
     IncludeMacroStack.pop_back();
   }
 
   void PropagateLineStartLeadingSpaceInfo(Token &Result);
 
-  void EnterSubmodule(Module *M, SourceLocation ImportLoc);
-  void LeaveSubmodule();
+  /// Determine whether we need to create module macros for #defines in the
+  /// current context.
+  bool needModuleMacros() const;
 
   /// Update the set of active module macros and ambiguity flag for a module
   /// macro name.
   void updateModuleMacroInfo(const IdentifierInfo *II, ModuleMacroInfo &Info);
-
-  /// \brief Allocate a new MacroInfo object.
-  MacroInfo *AllocateMacroInfo();
 
   DefMacroDirective *AllocateDefMacroDirective(MacroInfo *MI,
                                                SourceLocation Loc);
@@ -1709,11 +1904,23 @@ private:
   void ReadMacroName(Token &MacroNameTok, MacroUse IsDefineUndef = MU_Other,
                      bool *ShadowFlag = nullptr);
 
+  /// ReadOptionalMacroParameterListAndBody - This consumes all (i.e. the
+  /// entire line) of the macro's tokens and adds them to MacroInfo, and while
+  /// doing so performs certain validity checks including (but not limited to):
+  ///   - # (stringization) is followed by a macro parameter
+  /// \param MacroNameTok - Token that represents the macro name
+  /// \param ImmediatelyAfterHeaderGuard - Macro follows an #ifdef header guard
+  /// 
+  ///  Either returns a pointer to a MacroInfo object OR emits a diagnostic and
+  ///  returns a nullptr if an invalid sequence of tokens is encountered.
+  MacroInfo *ReadOptionalMacroParameterListAndBody(
+      const Token &MacroNameTok, bool ImmediatelyAfterHeaderGuard);
+
   /// The ( starting an argument list of a macro definition has just been read.
-  /// Lex the rest of the arguments and the closing ), updating \p MI with
+  /// Lex the rest of the parameters and the closing ), updating \p MI with
   /// what we learn and saving in \p LastTok the last token read.
   /// Return true if an error occurs parsing the arg list.
-  bool ReadMacroDefinitionArgList(MacroInfo *MI, Token& LastTok);
+  bool ReadMacroParameterList(MacroInfo *MI, Token& LastTok);
 
   /// We just read a \#if or related directive and decided that the
   /// subsequent tokens are in the \#if'd out portion of the
@@ -1723,18 +1930,29 @@ private:
   /// \p FoundElse is false, then \#else directives are ok, if not, then we have
   /// already seen one so a \#else directive is a duplicate.  When this returns,
   /// the caller can lex the first valid token.
-  void SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
+  void SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
+                                    SourceLocation IfTokenLoc,
                                     bool FoundNonSkipPortion, bool FoundElse,
                                     SourceLocation ElseLoc = SourceLocation());
 
   /// \brief A fast PTH version of SkipExcludedConditionalBlock.
   void PTHSkipExcludedConditionalBlock();
 
+  /// Information about the result for evaluating an expression for a
+  /// preprocessor directive.
+  struct DirectiveEvalResult {
+    /// Whether the expression was evaluated as true or not.
+    bool Conditional;
+
+    /// True if the expression contained identifiers that were undefined.
+    bool IncludedUndefinedIds;
+  };
+
   /// \brief Evaluate an integer constant expression that may occur after a
-  /// \#if or \#elif directive and return it as a bool.
+  /// \#if or \#elif directive and return a \p DirectiveEvalResult object.
   ///
   /// If the expression is equivalent to "!defined(X)" return X in IfNDefMacro.
-  bool EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro);
+  DirectiveEvalResult EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro);
 
   /// \brief Install the standard preprocessor pragmas:
   /// \#pragma GCC poison/system_header/dependency and \#pragma once.
@@ -1755,8 +1973,8 @@ private:
   /// from the end of the cache.
   Token *cacheMacroExpandedTokens(TokenLexer *tokLexer,
                                   ArrayRef<Token> tokens);
+
   void removeCachedMacroExpandedTokensOfLastLexer();
-  friend void TokenLexer::ExpandFunctionArguments();
 
   /// Determine whether the next preprocessor token to be
   /// lexed is a '('.  If so, consume the token and return true, if not, this
@@ -1765,7 +1983,7 @@ private:
 
   /// After reading "MACRO(", this method is invoked to read all of the formal
   /// arguments specified for the macro invocation.  Returns null on error.
-  MacroArgs *ReadFunctionLikeMacroArgs(Token &MacroName, MacroInfo *MI,
+  MacroArgs *ReadMacroCallArgumentList(Token &MacroName, MacroInfo *MI,
                                        SourceLocation &ExpansionEnd);
 
   /// \brief If an identifier token is read that is to be expanded
@@ -1812,17 +2030,21 @@ private:
   //===--------------------------------------------------------------------===//
   // Caching stuff.
   void CachingLex(Token &Result);
+
   bool InCachingLexMode() const {
     // If the Lexer pointers are 0 and IncludeMacroStack is empty, it means
     // that we are past EOF, not that we are in CachingLex mode.
     return !CurPPLexer && !CurTokenLexer && !CurPTHLexer &&
            !IncludeMacroStack.empty();
   }
+
   void EnterCachingLexMode();
+
   void ExitCachingLexMode() {
     if (InCachingLexMode())
       RemoveTopOfLexerStack();
   }
+
   const Token &PeekAhead(unsigned N);
   void AnnotatePreviousCachedTokens(const Token &Tok);
 
@@ -1830,12 +2052,12 @@ private:
   /// Handle*Directive - implement the various preprocessor directives.  These
   /// should side-effect the current preprocessor object so that the next call
   /// to Lex() will return the appropriate token next.
-  void HandleLineDirective(Token &Tok);
+  void HandleLineDirective();
   void HandleDigitDirective(Token &Tok);
   void HandleUserDiagnosticDirective(Token &Tok, bool isWarning);
   void HandleIdentSCCSDirective(Token &Tok);
   void HandleMacroPublicDirective(Token &Tok);
-  void HandleMacroPrivateDirective(Token &Tok);
+  void HandleMacroPrivateDirective();
 
   // File inclusion.
   void HandleIncludeDirective(SourceLocation HashLoc,
@@ -1849,41 +2071,93 @@ private:
   void HandleMicrosoftImportDirective(Token &Tok);
 
 public:
+  /// Check that the given module is available, producing a diagnostic if not.
+  /// \return \c true if the check failed (because the module is not available).
+  ///         \c false if the module appears to be usable.
+  static bool checkModuleIsAvailable(const LangOptions &LangOpts,
+                                     const TargetInfo &TargetInfo,
+                                     DiagnosticsEngine &Diags, Module *M);
+
   // Module inclusion testing.
   /// \brief Find the module that owns the source or header file that
   /// \p Loc points to. If the location is in a file that was included
   /// into a module, or is outside any module, returns nullptr.
   Module *getModuleForLocation(SourceLocation Loc);
 
-  /// \brief Find the module that contains the specified location, either
-  /// directly or indirectly.
-  Module *getModuleContainingLocation(SourceLocation Loc);
+  /// \brief We want to produce a diagnostic at location IncLoc concerning a
+  /// missing module import.
+  ///
+  /// \param IncLoc The location at which the missing import was detected.
+  /// \param M The desired module.
+  /// \param MLoc A location within the desired module at which some desired
+  ///        effect occurred (eg, where a desired entity was declared).
+  ///
+  /// \return A file that can be #included to import a module containing MLoc.
+  ///         Null if no such file could be determined or if a #include is not
+  ///         appropriate.
+  const FileEntry *getModuleHeaderToIncludeForDiagnostics(SourceLocation IncLoc,
+                                                          Module *M,
+                                                          SourceLocation MLoc);
+
+  bool isRecordingPreamble() const {
+    return PreambleConditionalStack.isRecording();
+  }
+
+  bool hasRecordedPreamble() const {
+    return PreambleConditionalStack.hasRecordedPreamble();
+  }
+
+  ArrayRef<PPConditionalInfo> getPreambleConditionalStack() const {
+      return PreambleConditionalStack.getStack();
+  }
+
+  void setRecordedPreambleConditionalStack(ArrayRef<PPConditionalInfo> s) {
+    PreambleConditionalStack.setStack(s);
+  }
+
+  void setReplayablePreambleConditionalStack(ArrayRef<PPConditionalInfo> s,
+                                             llvm::Optional<PreambleSkipInfo> SkipInfo) {
+    PreambleConditionalStack.startReplaying();
+    PreambleConditionalStack.setStack(s);
+    PreambleConditionalStack.SkipInfo = SkipInfo;
+  }
+
+  llvm::Optional<PreambleSkipInfo> getPreambleSkipInfo() const {
+    return PreambleConditionalStack.SkipInfo;
+  }
 
 private:
+  /// \brief After processing predefined file, initialize the conditional stack from
+  /// the preamble.
+  void replayPreambleConditionalStack();
+
   // Macro handling.
   void HandleDefineDirective(Token &Tok, bool ImmediatelyAfterTopLevelIfndef);
-  void HandleUndefDirective(Token &Tok);
+  void HandleUndefDirective();
 
   // Conditional Inclusion.
-  void HandleIfdefDirective(Token &Tok, bool isIfndef,
-                            bool ReadAnyTokensBeforeDirective);
-  void HandleIfDirective(Token &Tok, bool ReadAnyTokensBeforeDirective);
+  void HandleIfdefDirective(Token &Tok, const Token &HashToken,
+                            bool isIfndef, bool ReadAnyTokensBeforeDirective);
+  void HandleIfDirective(Token &Tok, const Token &HashToken,
+                         bool ReadAnyTokensBeforeDirective);
   void HandleEndifDirective(Token &Tok);
-  void HandleElseDirective(Token &Tok);
-  void HandleElifDirective(Token &Tok);
+  void HandleElseDirective(Token &Tok, const Token &HashToken);
+  void HandleElifDirective(Token &Tok, const Token &HashToken);
 
   // Pragmas.
   void HandlePragmaDirective(SourceLocation IntroducerLoc,
                              PragmaIntroducerKind Introducer);
+
 public:
   void HandlePragmaOnce(Token &OnceTok);
   void HandlePragmaMark();
-  void HandlePragmaPoison(Token &PoisonTok);
+  void HandlePragmaPoison();
   void HandlePragmaSystemHeader(Token &SysHeaderTok);
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaPushMacro(Token &Tok);
   void HandlePragmaPopMacro(Token &Tok);
   void HandlePragmaIncludeAlias(Token &Tok);
+  void HandlePragmaModuleBuild(Token &Tok);
   IdentifierInfo *ParsePragmaPushOrPopMacro(Token &Tok);
 
   // Return true and store the first token only if any CommentHandler
@@ -1906,6 +2180,9 @@ public:
   virtual bool HandleComment(Preprocessor &PP, SourceRange Comment) = 0;
 };
 
-}  // end namespace clang
+/// \brief Registry of pragma handlers added by plugins
+using PragmaHandlerRegistry = llvm::Registry<PragmaHandler>;
 
-#endif
+} // namespace clang
+
+#endif // LLVM_CLANG_LEX_PREPROCESSOR_H

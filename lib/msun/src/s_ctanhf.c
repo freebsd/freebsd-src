@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 David Schultz
  * All rights reserved.
  *
@@ -51,8 +53,8 @@ ctanhf(float complex z)
 
 	if (ix >= 0x7f800000) {
 		if (ix & 0x7fffff)
-			return (CMPLXF((x + 0) * (y + 0),
-			    y == 0 ? y : (x + 0) * (y + 0)));
+			return (CMPLXF(nan_mix(x, y),
+			    y == 0 ? y : nan_mix(x, y)));
 		SET_FLOAT_WORD(x, hx - 0x40000000);
 		return (CMPLXF(x,
 		    copysignf(0, isinf(y) ? y : sinf(y) * cosf(y))));

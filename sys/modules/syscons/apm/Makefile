@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/apm
+.PATH:	${SRCTOP}/sys/dev/syscons/apm
 
 KMOD=	apm_saver
 SRCS= 	apm_saver.c

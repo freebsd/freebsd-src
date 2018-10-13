@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -204,13 +206,17 @@ static int
 ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct ar71xx_spi_softc *sc;
+	uint32_t cs;
 	uint8_t *buf_in, *buf_out;
-	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 	int i;
 
 	sc = device_get_softc(dev);
 
-	ar71xx_spi_chip_activate(sc, devi->cs);
+	spibus_get_cs(child, &cs);
+
+	cs &= ~SPIBUS_CS_HIGH;
+
+	ar71xx_spi_chip_activate(sc, cs);
 
 	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
 	    ("TX/RX command sizes should be equal"));
@@ -223,7 +229,7 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	buf_out = (uint8_t *)cmd->tx_cmd;
 	buf_in = (uint8_t *)cmd->rx_cmd;
 	for (i = 0; i < cmd->tx_cmd_sz; i++)
-		buf_in[i] = ar71xx_spi_txrx(sc, devi->cs, buf_out[i]);
+		buf_in[i] = ar71xx_spi_txrx(sc, cs, buf_out[i]);
 
 	/*
 	 * Receive/transmit data (depends on  command)
@@ -231,9 +237,9 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	buf_out = (uint8_t *)cmd->tx_data;
 	buf_in = (uint8_t *)cmd->rx_data;
 	for (i = 0; i < cmd->tx_data_sz; i++)
-		buf_in[i] = ar71xx_spi_txrx(sc, devi->cs, buf_out[i]);
+		buf_in[i] = ar71xx_spi_txrx(sc, cs, buf_out[i]);
 
-	ar71xx_spi_chip_deactivate(sc, devi->cs);
+	ar71xx_spi_chip_deactivate(sc, cs);
 
 	return (0);
 }

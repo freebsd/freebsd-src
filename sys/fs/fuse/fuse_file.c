@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
  *
@@ -100,7 +102,6 @@ fuse_filehandle_open(struct vnode *vp,
 	struct fuse_open_out *foo;
 
 	int err = 0;
-	int isdir = 0;
 	int oflags = 0;
 	int op = FUSE_OPEN;
 
@@ -118,7 +119,6 @@ fuse_filehandle_open(struct vnode *vp,
 	oflags = fuse_filehandle_xlate_to_oflags(fufh_type);
 
 	if (vnode_isdir(vp)) {
-		isdir = 1;
 		op = FUSE_OPENDIR;
 		if (fufh_type != FUFH_RDONLY) {
 			printf("FUSE:non-rdonly fh requested for a directory?\n");
@@ -170,7 +170,6 @@ fuse_filehandle_close(struct vnode *vp,
 	struct fuse_filehandle *fufh = NULL;
 
 	int err = 0;
-	int isdir = 0;
 	int op = FUSE_RELEASE;
 
 	fuse_trace_printf("fuse_filehandle_put(vp=%p, fufh_type=%d)\n",
@@ -185,10 +184,8 @@ fuse_filehandle_close(struct vnode *vp,
 	if (fuse_isdeadfs(vp)) {
 		goto out;
 	}
-	if (vnode_isdir(vp)) {
+	if (vnode_isdir(vp))
 		op = FUSE_RELEASEDIR;
-		isdir = 1;
-	}
 	fdisp_init(&fdi, sizeof(*fri));
 	fdisp_make_vp(&fdi, op, vp, td, cred);
 	fri = fdi.indata;

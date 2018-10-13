@@ -1,4 +1,5 @@
 .\" Copyright (c) 2003-2007 Tim Kientzle
+.\" Copyright (c) 2017 Martin Matuska
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2014
+.Dd October 1, 2017
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -124,7 +125,7 @@ Unless specifically stated otherwise, options are applicable in
 all operating modes.
 .Bl -tag -width indent
 .It Cm @ Ns Pa archive
-(c and r mode only)
+(c and r modes only)
 The specified archive is opened and the entries
 in it will be appended to the current archive.
 As a simple example,
@@ -164,6 +165,16 @@ and gzip compression,
 .Dl Nm Fl a Fl jcf Pa archive.xxx source.c source.h
 if it is unknown suffix or no suffix, creates a new archive with
 restricted pax format and bzip2 compression.
+.It Fl Fl acls
+(c, r, u, x modes only)
+Archive or extract POSIX.1e or NFSv4 ACLs. This is the reverse of
+.Fl Fl no-acls
+and the default behavior in c, r, and u modes (except on Mac OS X) or if
+.Nm
+is run in x mode as root. On Mac OS X this option translates extended ACLs
+to NFSv4 ACLs. To store extended ACLs the
+.Fl Fl mac-metadata
+option is preferred.
 .It Fl B , Fl Fl read-full-blocks
 Ignored for compatibility with other
 .Xr tar 1
@@ -188,15 +199,18 @@ options and before extracting any files.
 (x mode only)
 Before removing file system objects to replace them, clear platform-specific
 file flags that might prevent removal.
-.It Fl Fl disable-copyfile
-Mac OS X specific.
-Disable the use of
-.Xr copyfile 3 .
 .It Fl Fl exclude Ar pattern
 Do not process files or directories that match the
 specified pattern.
 Note that exclusions take precedence over patterns or filenames
 specified on the command line.
+.It Fl Fl fflags
+(c, r, u, x modes only)
+Archive or extract file flags. This is the reverse of
+.Fl Fl no-fflags
+and the default behavior in c, r, and u modes or if
+.Nm
+is run in x mode as root.
 .It Fl Fl format Ar format
 (c, r, u mode only)
 Use the specified format for the created archive.
@@ -245,11 +259,11 @@ On create, this sets the group name that will be stored
 in the archive;
 the name will not be verified against the system group database.
 .It Fl H
-(c and r mode only)
+(c and r modes only)
 Symbolic links named on the command line will be followed; the
 target of the link will be archived, not the link itself.
 .It Fl h
-(c and r mode only)
+(c and r modes only)
 Synonym for
 .Fl L .
 .It Fl I
@@ -259,7 +273,8 @@ Synonym for
 Show usage.
 .It Fl Fl hfsCompression
 (x mode only)
-Mac OS X specific(v10.6 or later). Compress extracted regular files with HFS+ compression.
+Mac OS X specific (v10.6 or later). Compress extracted regular files with HFS+
+compression.
 .It Fl Fl ignore-zeros
 An alias of
 .Fl Fl options Cm read_concatenated_archives
@@ -287,19 +302,18 @@ containing the string
 Compress the resulting archive with
 .Xr xz 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes XZ compression
-automatically when reading archives.
+implementation recognizes XZ compression automatically when reading archives.
 .It Fl j , Fl Fl bzip , Fl Fl bzip2 , Fl Fl bunzip2
 (c mode only)
 Compress the resulting archive with
 .Xr bzip2 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes bzip2 compression
-automatically when reading archives.
+implementation recognizes bzip2 compression automatically when reading
+archives.
 .It Fl k , Fl Fl keep-old-files
 (x mode only)
 Do not overwrite existing files.
@@ -310,7 +324,7 @@ later copies will not overwrite earlier copies.
 Do not overwrite existing files that are newer than the
 versions appearing in the archive being extracted.
 .It Fl L , Fl Fl dereference
-(c and r mode only)
+(c and r modes only)
 All symbolic links will be followed.
 Normally, symbolic links are archived as such.
 With this option, the target of the link will be archived instead.
@@ -322,29 +336,55 @@ Issue a warning message unless all links to each file are archived.
 Compress the resulting archive with
 .Xr lrzip 1 .
 In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes lrzip compression automatically when reading
+archives.
 .It Fl Fl lz4
 (c mode only)
 Compress the archive with lz4-compatible compression before writing it.
-In input mode, this option is ignored; lz4 compression is recognized
-automatically on input.
+In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes lz4 compression automatically when reading archives.
+.It Fl Fl zstd
+(c mode only)
+Compress the archive with zstd-compatible compression before writing it.
+In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes zstd compression automatically when reading archives.
 .It Fl Fl lzma
 (c mode only) Compress the resulting archive with the original LZMA algorithm.
+In extract or list modes, this option is ignored.
 Use of this option is discouraged and new archives should be created with
 .Fl Fl xz
 instead.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes LZMA compression
-automatically when reading archives.
+implementation recognizes LZMA compression automatically when reading archives.
 .It Fl Fl lzop
 (c mode only)
 Compress the resulting archive with
 .Xr lzop 1 .
 In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes LZO compression automatically when reading archives.
 .It Fl m , Fl Fl modification-time
 (x mode only)
 Do not extract modification time.
 By default, the modification time is set to the time stored in the archive.
+.It Fl Fl mac-metadata
+(c, r, u and x mode only)
+Mac OS X specific. Archive or extract extended ACLs and extended attributes
+using
+.Xr copyfile 3
+in AppleDouble format. This is the reverse of
+.Fl Fl no-mac-metadata .
+and the default behavior in c, r, and u modes or if
+.Nm
+is run in x mode as root.
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 (c, r, u modes only)
 Do not recursively archive the contents of directories.
@@ -371,7 +411,7 @@ except it compares mtime entries instead of ctime entries.
 Honor the nodump file flag by skipping this file.
 .It Fl Fl nopreserveHFSCompression
 (x mode only)
-Mac OS X specific(v10.6 or later). Do not compress extracted regular files
+Mac OS X specific (v10.6 or later). Do not compress extracted regular files
 which were compressed with HFS+ compression before archived.
 By default, compress the regular files again with HFS+ compression.
 .It Fl Fl null
@@ -385,6 +425,30 @@ This is often used to read filenames output by the
 .Fl print0
 option to
 .Xr find 1 .
+.It Fl Fl no-acls
+(c, r, u, x modes only)
+Do not archive or extract POSIX.1e or NFSv4 ACLs. This is the reverse of
+.Fl Fl acls
+and the default behavior if
+.Nm
+is run as non-root in x mode (on Mac OS X as any user in c, r, u and x modes).
+.It Fl Fl no-fflags
+(c, r, u, x modes only)
+Do not archive or extract file flags. This is the reverse of
+.Fl Fl fflags
+and the default behavior if
+.Nm
+is run as non-root in x mode.
+.It Fl Fl no-mac-metadata
+(x mode only)
+Mac OS X specific. Do not archive or extract ACLs and extended attributes using
+.Xr copyfile 3
+in AppleDouble format. This is the reverse of
+.Fl Fl mac-metadata .
+and the default behavior if
+.Nm
+is run as non-root in x mode.
+.It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 .It Fl Fl no-same-owner
 (x mode only)
 Do not extract owner and group IDs.
@@ -402,6 +466,13 @@ This is the reverse of
 and the default behavior if
 .Nm
 is run as non-root.
+.It Fl Fl no-xattrs
+(c, r, u, x modes only)
+Do not archive or extract extended attributes. This is the reverse of
+.Fl Fl xattrs
+and the default behavior if
+.Nm
+is run as non-root in x mode.
 .It Fl Fl numeric-owner
 This is equivalent to
 .Fl Fl uname
@@ -521,6 +592,8 @@ A decimal integer from 4 to 7 specifying the lz4 compression block size
 .It Cm lz4:block-dependence
 Use the previous block of the block being compressed for
 a compression dictionary to improve compression ratio.
+.It Cm zstd:compression-level
+A decimal integer from 1 to 22 specifying the zstd compression level.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
@@ -583,14 +656,18 @@ This option suppresses these behaviors.
 .It Fl p , Fl Fl insecure , Fl Fl preserve-permissions
 (x mode only)
 Preserve file permissions.
-Attempt to restore the full permissions, including owner, file modes, file
-flags and ACLs, if available, for each item extracted from the archive.
-This is the default, if
+Attempt to restore the full permissions, including owner, file modes, ACLs,
+extended attributes and extended file flags, if available, for each item
+extracted from the archive. This is te reverse of
+.Fl Fl no-same-permissions
+and the default if
 .Nm
-is being run by root and can be overridden by also specifying
-.Fl Fl no-same-owner
-and
-.Fl Fl no-same-permissions .
+is being run by root and can be partially overridden by also specifying
+.Fl Fl no-acls ,
+.Fl Fl no-fflags ,
+.Fl Fl no-mac-metadata
+or
+.Fl Fl no-xattrs .
 .It Fl Fl passphrase Ar passphrase
 The
 .Pa passphrase
@@ -692,7 +769,7 @@ you probably want to use
 .Fl n
 as well.
 .It Fl Fl totals
-(c, r, u mode only)
+(c, r, u modes only)
 After archiving all files, print a summary to stderr.
 .It Fl U , Fl Fl unlink , Fl Fl unlink-first
 (x mode only)
@@ -754,33 +831,40 @@ Read a list of exclusion patterns from the specified file.
 See
 .Fl Fl exclude
 for more information about the handling of exclusions.
+.It Fl Fl xattrs
+(c, r, u, x modes only)
+Archive or extract extended attributes. This is the reverse of
+.Fl Fl no-xattrs
+and the default behavior in c, r, and u modes or if
+.Nm
+is run in x mode as root.
 .It Fl y
 (c mode only)
 Compress the resulting archive with
 .Xr bzip2 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes bzip2 compression
-automatically when reading archives.
+implementation recognizes bzip2 compression automatically when reading
+archives.
 .It Fl Z , Fl Fl compress , Fl Fl uncompress
 (c mode only)
 Compress the resulting archive with
 .Xr compress 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes compress compression
-automatically when reading archives.
+implementation recognizes compress compression automatically when reading
+archives.
 .It Fl z , Fl Fl gunzip , Fl Fl gzip
 (c mode only)
 Compress the resulting archive with
 .Xr gzip 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes gzip compression
-automatically when reading archives.
+implementation recognizes gzip compression automatically when reading
+archives.
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of

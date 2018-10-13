@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,6 +57,8 @@ extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
 
 char nfs_v2pubfh[NFSX_V2FH];
+struct nfsdontlisthead nfsrv_dontlisthead;
+struct nfslayouthead nfsrv_recalllisthead;
 static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
     NFNON, NFCHR, NFNON };
 extern nfstype nfsv34_type[9];
@@ -1398,8 +1402,7 @@ nfsrv_fillattr(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 		fp->fa3_rdev.specdata2 = txdr_unsigned(NFSMINOR(nvap->na_rdev));
 		fp->fa3_fsid.nfsuquad[0] = 0;
 		fp->fa3_fsid.nfsuquad[1] = txdr_unsigned(nvap->na_fsid);
-		fp->fa3_fileid.nfsuquad[0] = 0;
-		fp->fa3_fileid.nfsuquad[1] = txdr_unsigned(nvap->na_fileid);
+		txdr_hyper(nvap->na_fileid, &fp->fa3_fileid);
 		txdr_nfsv3time(&nvap->na_atime, &fp->fa3_atime);
 		txdr_nfsv3time(&nvap->na_mtime, &fp->fa3_mtime);
 		txdr_nfsv3time(&nvap->na_ctime, &fp->fa3_ctime);
@@ -1442,7 +1445,14 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 			nd->nd_flag |= ND_PUBLOOKUP;
 			goto nfsmout;
 		}
-		if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
+		copylen = len;
+
+		/* If len == NFSX_V4PNFSFH the RPC is a pNFS DS one. */
+		if (len == NFSX_V4PNFSFH && (nd->nd_flag & ND_NFSV41) != 0) {
+			copylen = NFSX_MYFH;
+			len = NFSM_RNDUP(len);
+			nd->nd_flag |= ND_DSSERVER;
+		} else if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
 			    if (len > 0 && len <= NFSX_V4FHMAX) {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
@@ -1459,7 +1469,6 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 				goto nfsmout;
 			}
 		}
-		copylen = len;
 	} else {
 		/*
 		 * For NFSv2, the file handle is always 32 bytes on the
@@ -1809,8 +1818,7 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
 			break;
 		case NFSATTRBIT_MOUNTEDONFILEID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
-			*tl++ = 0;
-			*tl = txdr_unsigned(refp->nfr_dfileno);
+			txdr_hyper(refp->nfr_dfileno, tl);
 			retnum += NFSX_HYPER;
 			break;
 		default:
@@ -2054,6 +2062,8 @@ nfsd_init(void)
 		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
 	}
+	LIST_INIT(&nfsrv_dontlisthead);
+	TAILQ_INIT(&nfsrv_recalllisthead);
 
 	/* and the v2 pubfh should be all zeros */
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);

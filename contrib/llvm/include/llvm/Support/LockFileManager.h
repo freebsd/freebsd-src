@@ -11,11 +11,13 @@
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/FileSystem.h"
 #include <system_error>
 #include <utility> // for std::pair
 
 namespace llvm {
+class StringRef;
+
 /// \brief Class that manages the creation of a lock file to aid
 /// implicit coordination between different processes.
 ///
@@ -52,10 +54,11 @@ public:
 private:
   SmallString<128> FileName;
   SmallString<128> LockFileName;
-  SmallString<128> UniqueLockFileName;
+  Optional<sys::fs::TempFile> UniqueLockFile;
 
   Optional<std::pair<std::string, int> > Owner;
-  Optional<std::error_code> Error;
+  std::error_code ErrorCode;
+  std::string ErrorDiagMsg;
 
   LockFileManager(const LockFileManager &) = delete;
   LockFileManager &operator=(const LockFileManager &) = delete;
@@ -81,6 +84,15 @@ public:
   /// \brief Remove the lock file.  This may delete a different lock file than
   /// the one previously read if there is a race.
   std::error_code unsafeRemoveLockFile();
+
+  /// \brief Get error message, or "" if there is no error.
+  std::string getErrorMessage() const;
+
+  /// \brief Set error and error message
+  void setError(const std::error_code &EC, StringRef ErrorMsg = "") {
+    ErrorCode = EC;
+    ErrorDiagMsg = ErrorMsg.str();
+  }
 };
 
 } // end namespace llvm

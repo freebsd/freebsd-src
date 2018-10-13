@@ -7,22 +7,18 @@
 #define FREEBSD_NATIVE 1
 
 /* Fake out gcc/config/freebsd<version>.h.  */
-#define	FBSD_MAJOR	11
-#define	FBSD_CC_VER	1100002		/* form like __FreeBSD_version */
+#define	FBSD_MAJOR	12
+#define	FBSD_CC_VER	1200001		/* form like __FreeBSD_version */
 
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
 #undef TOOL_INCLUDE_DIR			/* We don't need one for now. */
 #undef LOCAL_INCLUDE_DIR		/* We don't wish to support one. */
 
 /* Look for the include files in the system-defined places.  */
-#define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/c++/"GCCVER
-#define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	PREFIX"/include/c++/"GCCVER"/backward"
+#define GPLUSPLUS_INCLUDE_DIR		"/usr/include/c++/"GCCVER
+#define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	"/usr/include/c++/"GCCVER"/backward"
 #define GCC_INCLUDE_DIR			PREFIX"/include/gcc/"GCCVER
-#ifdef CROSS_DIRECTORY_STRUCTURE
-#define CROSS_INCLUDE_DIR		PREFIX"/include"
-#else
-#define STANDARD_INCLUDE_DIR		PREFIX"/include"
-#endif
+#define STANDARD_INCLUDE_DIR		"/usr/include"
 
 /* Under FreeBSD, the normal location of the compiler back ends is the
    /usr/libexec directory.
@@ -43,8 +39,8 @@
    /usr/lib directory.  */
 
 #undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
-#define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
-#define STARTFILE_PREFIX_SPEC		PREFIX"/lib/"
+#define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
+#define STARTFILE_PREFIX_SPEC		"/usr/lib/"
 
 #if 0
 #define LIBGCC_SPEC		"%{shared: -lgcc_pic} \

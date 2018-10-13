@@ -368,19 +368,40 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     OS_REG_WRITE(ah, AR_DCHNTIME(q), SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
                 (qi->tqi_burstTime ? AR_D_CHNTIME_EN : 0));
 
-    if (qi->tqi_burstTime &&
-        (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
-    {
+    if (qi->tqi_readyTime &&
+      (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
         qmisc |= AR_Q_MISC_RDYTIME_EXP_POLICY;
+    if (qi->tqi_qflags & HAL_TXQ_DBA_GATED)
+        qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_DBA_GATED;
+    if (MS(qmisc, AR_Q_MISC_FSP) != AR_Q_MISC_FSP_ASAP) {
+        /*
+        * These are meangingful only when not scheduled asap.
+        */
+        if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_BEMPTY)
+            qmisc |= AR_Q_MISC_CBR_INCR_DIS0;
+        else
+            qmisc &= ~AR_Q_MISC_CBR_INCR_DIS0;
+        if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_QEMPTY)
+            qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
+        else
+            qmisc &= ~AR_Q_MISC_CBR_INCR_DIS1;
     }
 
-    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE)
         dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
-    }
-
-    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE)
         dmisc |= AR_D_MISC_FRAG_BKOFF_EN;
-    }
+    if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_GLOBAL)
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+    else if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_INTRA)
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_INTRA_FR,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+    if (qi->tqi_qflags & HAL_TXQ_IGNORE_VIRTCOL)
+        dmisc |= SM(AR_D_MISC_VIR_COL_HANDLING_IGNORE,
+                    AR_D_MISC_VIR_COL_HANDLING);
+    if (qi->tqi_qflags & HAL_TXQ_SEQNUM_INC_DIS)
+        dmisc |= AR_D_MISC_SEQ_NUM_INCR_DIS;
 
     switch (qi->tqi_type) {
     case HAL_TX_QUEUE_BEACON:               /* beacon frames */
@@ -426,6 +447,8 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
              */
             if (value < 10)
                 value = 10;
+            if (value < 0)
+                value = 10;
             HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
               "%s: defaulting to rdytime = %d uS\n",
               __func__, value);
@@ -433,9 +456,8 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
               SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_DURATION) |
               AR_Q_RDYTIMECFG_EN);
         }
-
-        dmisc |= (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
-                                AR_D_MISC_ARB_LOCKOUT_CNTRL_S);
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
         break;
     case HAL_TX_QUEUE_PSPOLL:
         /*

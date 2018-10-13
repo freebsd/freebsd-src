@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -32,6 +34,11 @@
 #define	G_NOP_CLASS_NAME	"NOP"
 #define	G_NOP_VERSION		4
 #define	G_NOP_SUFFIX		".nop"
+/*
+ * Special flag to instruct gnop to passthrough the underlying provider's
+ * physical path
+ */
+#define G_NOP_PHYSPATH_PASSTHROUGH "\255"
 
 #ifdef _KERNEL
 #define	G_NOP_DEBUG(lvl, ...)	do {					\
@@ -73,6 +80,7 @@ struct g_nop_softc {
 	uintmax_t	sc_cmd2s;
 	uintmax_t	sc_readbytes;
 	uintmax_t	sc_wrotebytes;
+	char*		sc_physpath;
 	struct mtx	sc_lock;
 };
 #endif	/* _KERNEL */

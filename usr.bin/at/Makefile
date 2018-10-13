@@ -2,6 +2,9 @@
 
 .include "${.CURDIR}/Makefile.inc"
 
+CONFS=	atrun
+CONFSDIR=	/etc/cron.d
+CONFSNAME=	at
 PROG=	at
 SRCS=	at.c panic.c parsetime.c perm.c
 LINKS=	${BINDIR}/at ${BINDIR}/atq \

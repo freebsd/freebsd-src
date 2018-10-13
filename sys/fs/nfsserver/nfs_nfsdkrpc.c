@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,6 +52,7 @@ __FBSDID("$FreeBSD$");
 NFSDLOCKMUTEX;
 NFSV4ROOTLOCKMUTEX;
 struct nfsv4lock nfsd_suspend_lock;
+char *nfsrv_zeropnfsdat = NULL;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -103,6 +106,10 @@ static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
 extern struct proc *nfsd_master_proc;
+extern time_t nfsdev_time;
+extern int nfsrv_writerpc[NFS_NPROCS];
+extern volatile int nfsrv_devidcnt;
+extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 
 /*
  * NFS server system calls
@@ -174,7 +181,11 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (port >= IPPORT_RESERVED &&
 		    nd.nd_procnum != NFSPROC_NULL) {
 #ifdef INET6
-			char b6[INET6_ADDRSTRLEN];
+			char buf[INET6_ADDRSTRLEN];
+#else
+			char buf[INET_ADDRSTRLEN];
+#endif
+#ifdef INET6
 #if defined(KLD_MODULE)
 			/* Do not use ip6_sprintf: the nfs module should work without INET6. */
 #define	ip6_sprintf(buf, a)						\
@@ -189,12 +200,12 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			printf("NFS request from unprivileged port (%s:%d)\n",
 #ifdef INET6
 			    sin->sin_family == AF_INET6 ?
-			    ip6_sprintf(b6, &satosin6(sin)->sin6_addr) :
+			    ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
 #if defined(KLD_MODULE)
 #undef ip6_sprintf
 #endif
 #endif
-			    inet_ntoa(sin->sin_addr), port);
+			    inet_ntoa_r(sin->sin_addr, buf), port);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
@@ -300,8 +311,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	svc_freereq(rqst);
 
 out:
-	if (softdep_ast_cleanup != NULL)
-		softdep_ast_cleanup();
+	td_softdep_cleanup(curthread);
 	NFSEXITCODE(0);
 }
 
@@ -490,6 +500,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 */
 	NFSD_LOCK();
 	if (newnfs_numnfsd == 0) {
+		nfsdev_time = time_second;
 		p = td->td_proc;
 		PROC_LOCK(p);
 		p->p_flag2 |= P2_AST_SU;
@@ -497,31 +508,49 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		newnfs_numnfsd++;
 
 		NFSD_UNLOCK();
+		error = nfsrv_createdevids(args, td);
+		if (error == 0) {
+			/* An empty string implies AUTH_SYS only. */
+			if (principal[0] != '\0') {
+				ret2 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER2);
+				ret3 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER3);
+				ret4 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER4);
+	
+				if (!ret2 || !ret3 || !ret4)
+					printf(
+					    "nfsd: can't register svc name\n");
+			}
+	
+			nfsrvd_pool->sp_minthreads = args->minthreads;
+			nfsrvd_pool->sp_maxthreads = args->maxthreads;
+				
+			/*
+			 * If this is a pNFS service, make Getattr do a
+			 * vn_start_write(), so it can do a vn_set_extattr().
+			 */
+			if (nfsrv_devidcnt > 0) {
+				nfsrv_writerpc[NFSPROC_GETATTR] = 1;
+				nfsv4_opflag[NFSV4OP_GETATTR].modifyfs = 1;
+			}
 
-		/* An empty string implies AUTH_SYS only. */
-		if (principal[0] != '\0') {
-			ret2 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-			ret3 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-			ret4 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
+			svc_run(nfsrvd_pool);
+	
+			/* Reset Getattr to not do a vn_start_write(). */
+			nfsrv_writerpc[NFSPROC_GETATTR] = 0;
+			nfsv4_opflag[NFSV4OP_GETATTR].modifyfs = 0;
 
-			if (!ret2 || !ret3 || !ret4)
-				printf("nfsd: can't register svc name\n");
+			if (principal[0] != '\0') {
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
+			}
 		}
-
-		nfsrvd_pool->sp_minthreads = args->minthreads;
-		nfsrvd_pool->sp_maxthreads = args->maxthreads;
-			
-		svc_run(nfsrvd_pool);
-
-		if (principal[0] != '\0') {
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
-		}
-
 		NFSD_LOCK();
 		newnfs_numnfsd--;
 		nfsrvd_init(1);
@@ -550,19 +579,20 @@ nfsrvd_init(int terminating)
 	if (terminating) {
 		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
+		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
-		svcpool_destroy(nfsrvd_pool);
-		nfsrvd_pool = NULL;
+		svcpool_close(nfsrvd_pool);
+		free(nfsrv_zeropnfsdat, M_TEMP);
+		nfsrv_zeropnfsdat = NULL;
+		NFSD_LOCK();
+	} else {
+		NFSD_UNLOCK();
+		nfsrvd_pool = svcpool_create("nfsd",
+		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
+		nfsrvd_pool->sp_rcache = NULL;
+		nfsrvd_pool->sp_assign = fhanew_assign;
+		nfsrvd_pool->sp_done = fha_nd_complete;
 		NFSD_LOCK();
 	}
-
-	NFSD_UNLOCK();
-
-	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
-	nfsrvd_pool->sp_rcache = NULL;
-	nfsrvd_pool->sp_assign = fhanew_assign;
-	nfsrvd_pool->sp_done = fha_nd_complete;
-
-	NFSD_LOCK();
 }
 

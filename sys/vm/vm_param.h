@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -84,12 +86,13 @@
 #define VM_V_PAGEOUT_FREE_MIN	9	/* vm_cnt.v_pageout_free_min */
 #define	VM_OBSOLETE_10		10	/* pageout algorithm */
 #define VM_SWAPPING_ENABLED	11	/* swapping enabled */
-#define	VM_MAXID		12	/* number of valid vm ids */
+#define VM_OVERCOMMIT		12	/* vm.overcommit */
+#define	VM_MAXID		13	/* number of valid vm ids */
 
 /*
  * Structure for swap device statistics
  */
-#define XSWDEV_VERSION	1
+#define XSWDEV_VERSION	2
 struct xswdev {
 	u_int	xsw_version;
 	dev_t	xsw_dev;

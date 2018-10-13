@@ -19,667 +19,356 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Breakpoint/BreakpointLocation.h"
-#include "lldb/Breakpoint/BreakpointSite.h"
-#include "lldb/Core/Error.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Module.h"
-#include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Host/Host.h"
+#include "lldb/Core/State.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/Target.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/Utility/StreamString.h"
+
+// Define these constants from NetBSD mman.h for use when targeting
+// remote netbsd systems even when host has different values.
+#define MAP_PRIVATE 0x0002
+#define MAP_ANON 0x1000
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::platform_netbsd;
 
-PlatformSP
-PlatformNetBSD::CreateInstance(bool force, const ArchSpec *arch)
-{
-    // The only time we create an instance is when we are creating a remote
-    // netbsd platform
-    const bool is_host = false;
-
-    bool create = force;
-    if (create == false && arch && arch->IsValid())
-    {
-        const llvm::Triple &triple = arch->GetTriple();
-        switch (triple.getOS())
-        {
-            case llvm::Triple::NetBSD:
-                create = true;
-                break;
-
-            default:
-                break;
-        }
-    }
-    if (create)
-        return PlatformSP(new PlatformNetBSD (is_host));
-    return PlatformSP();
-
-}
-
-ConstString
-PlatformNetBSD::GetPluginNameStatic(bool is_host)
-{
-    if (is_host)
-    {
-        static ConstString g_host_name(Platform::GetHostPlatformName ());
-        return g_host_name;
-    }
-    else
-    {
-        static ConstString g_remote_name("remote-netbsd");
-        return g_remote_name;
-    }
-}
-
-const char *
-PlatformNetBSD::GetDescriptionStatic (bool is_host)
-{
-    if (is_host)
-        return "Local NetBSD user platform plug-in.";
-    else
-        return "Remote NetBSD user platform plug-in.";
-}
-
 static uint32_t g_initialize_count = 0;
 
-void
-PlatformNetBSD::Initialize ()
-{
-    Platform::Initialize ();
+//------------------------------------------------------------------
 
-    if (g_initialize_count++ == 0)
-    {
+PlatformSP PlatformNetBSD::CreateInstance(bool force, const ArchSpec *arch) {
+  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
+  LLDB_LOG(log, "force = {0}, arch=({1}, {2})", force,
+           arch ? arch->GetArchitectureName() : "<null>",
+           arch ? arch->GetTriple().getTriple() : "<null>");
+
+  bool create = force;
+  if (create == false && arch && arch->IsValid()) {
+    const llvm::Triple &triple = arch->GetTriple();
+    switch (triple.getOS()) {
+    case llvm::Triple::NetBSD:
+      create = true;
+      break;
+
+    default:
+      break;
+    }
+  }
+
+  LLDB_LOG(log, "create = {0}", create);
+  if (create) {
+    return PlatformSP(new PlatformNetBSD(false));
+  }
+  return PlatformSP();
+}
+
+ConstString PlatformNetBSD::GetPluginNameStatic(bool is_host) {
+  if (is_host) {
+    static ConstString g_host_name(Platform::GetHostPlatformName());
+    return g_host_name;
+  } else {
+    static ConstString g_remote_name("remote-netbsd");
+    return g_remote_name;
+  }
+}
+
+const char *PlatformNetBSD::GetPluginDescriptionStatic(bool is_host) {
+  if (is_host)
+    return "Local NetBSD user platform plug-in.";
+  else
+    return "Remote NetBSD user platform plug-in.";
+}
+
+ConstString PlatformNetBSD::GetPluginName() {
+  return GetPluginNameStatic(IsHost());
+}
+
+void PlatformNetBSD::Initialize() {
+  PlatformPOSIX::Initialize();
+
+  if (g_initialize_count++ == 0) {
 #if defined(__NetBSD__)
-        // Force a host flag to true for the default platform object.
-        PlatformSP default_platform_sp (new PlatformNetBSD(true));
-        default_platform_sp->SetSystemArchitecture(HostInfo::GetArchitecture());
-        Platform::SetHostPlatform (default_platform_sp);
+    PlatformSP default_platform_sp(new PlatformNetBSD(true));
+    default_platform_sp->SetSystemArchitecture(HostInfo::GetArchitecture());
+    Platform::SetHostPlatform(default_platform_sp);
 #endif
-        PluginManager::RegisterPlugin(PlatformNetBSD::GetPluginNameStatic(false),
-                                      PlatformNetBSD::GetDescriptionStatic(false),
-                                      PlatformNetBSD::CreateInstance);
-    }
+    PluginManager::RegisterPlugin(
+        PlatformNetBSD::GetPluginNameStatic(false),
+        PlatformNetBSD::GetPluginDescriptionStatic(false),
+        PlatformNetBSD::CreateInstance, nullptr);
+  }
 }
 
-void
-PlatformNetBSD::Terminate ()
-{
-    if (g_initialize_count > 0 && --g_initialize_count == 0)
-        PluginManager::UnregisterPlugin (PlatformNetBSD::CreateInstance);
-
-    Platform::Terminate ();
-}
-
-bool
-PlatformNetBSD::GetModuleSpec (const FileSpec& module_file_spec,
-                               const ArchSpec& arch,
-                               ModuleSpec &module_spec)
-{
-    if (m_remote_platform_sp)
-        return m_remote_platform_sp->GetModuleSpec (module_file_spec, arch, module_spec);
-
-    return Platform::GetModuleSpec (module_file_spec, arch, module_spec);
-}
-
-Error
-PlatformNetBSD::RunShellCommand(const char *command,
-                                const FileSpec &working_dir,
-                                int *status_ptr,
-                                int *signo_ptr,
-                                std::string *command_output,
-                                uint32_t timeout_sec)
-{
-    if (IsHost())
-        return Host::RunShellCommand(command, working_dir, status_ptr, signo_ptr, command_output, timeout_sec);
-    else
-    {
-        if (m_remote_platform_sp)
-            return m_remote_platform_sp->RunShellCommand(command, working_dir, status_ptr, signo_ptr, command_output, timeout_sec);
-        else
-            return Error("unable to run a remote command without a platform");
+void PlatformNetBSD::Terminate() {
+  if (g_initialize_count > 0) {
+    if (--g_initialize_count == 0) {
+      PluginManager::UnregisterPlugin(PlatformNetBSD::CreateInstance);
     }
+  }
+
+  PlatformPOSIX::Terminate();
 }
-
-Error
-PlatformNetBSD::ResolveExecutable (const ModuleSpec &module_spec,
-                                   lldb::ModuleSP &exe_module_sp,
-                                   const FileSpecList *module_search_paths_ptr)
-{
-    Error error;
-    // Nothing special to do here, just use the actual file and architecture
-
-    char exe_path[PATH_MAX];
-    ModuleSpec resolved_module_spec(module_spec);
-
-    if (IsHost())
-    {
-        // If we have "ls" as the module_spec's file, resolve the executable location based on
-        // the current path variables
-        if (!resolved_module_spec.GetFileSpec().Exists())
-        {
-            module_spec.GetFileSpec().GetPath(exe_path, sizeof(exe_path));
-            resolved_module_spec.GetFileSpec().SetFile(exe_path, true);
-        }
-
-        if (!resolved_module_spec.GetFileSpec().Exists())
-            resolved_module_spec.GetFileSpec().ResolveExecutableLocation ();
-
-        if (resolved_module_spec.GetFileSpec().Exists())
-            error.Clear();
-        else
-        {
-            error.SetErrorStringWithFormat("unable to find executable for '%s'", resolved_module_spec.GetFileSpec().GetPath().c_str());
-        }
-    }
-    else
-    {
-        if (m_remote_platform_sp)
-        {
-            error = GetCachedExecutable (resolved_module_spec, exe_module_sp, module_search_paths_ptr, *m_remote_platform_sp);
-        }
-        else
-        {
-            // We may connect to a process and use the provided executable (Don't use local $PATH).
-
-            // Resolve any executable within a bundle on MacOSX
-            Host::ResolveExecutableInBundle (resolved_module_spec.GetFileSpec());
-
-            if (resolved_module_spec.GetFileSpec().Exists())
-            {
-                error.Clear();
-            }
-            else
-            {
-                error.SetErrorStringWithFormat("the platform is not currently connected, and '%s' doesn't exist in the system root.", resolved_module_spec.GetFileSpec().GetPath().c_str());
-            }
-        }
-    }
-
-    if (error.Success())
-    {
-        if (resolved_module_spec.GetArchitecture().IsValid())
-        {
-            error = ModuleList::GetSharedModule (resolved_module_spec,
-                                                 exe_module_sp,
-                                                 module_search_paths_ptr,
-                                                 NULL,
-                                                 NULL);
-
-            if (!exe_module_sp || exe_module_sp->GetObjectFile() == NULL)
-            {
-                exe_module_sp.reset();
-                error.SetErrorStringWithFormat ("'%s' doesn't contain the architecture %s",
-                                                resolved_module_spec.GetFileSpec().GetPath().c_str(),
-                                                resolved_module_spec.GetArchitecture().GetArchitectureName());
-            }
-        }
-        else
-        {
-            // No valid architecture was specified, ask the platform for
-            // the architectures that we should be using (in the correct order)
-            // and see if we can find a match that way
-            StreamString arch_names;
-            for (uint32_t idx = 0; GetSupportedArchitectureAtIndex (idx, resolved_module_spec.GetArchitecture()); ++idx)
-            {
-                error = ModuleList::GetSharedModule (resolved_module_spec,
-                                                     exe_module_sp,
-                                                     module_search_paths_ptr,
-                                                     NULL,
-                                                     NULL);
-                // Did we find an executable using one of the
-                if (error.Success())
-                {
-                    if (exe_module_sp && exe_module_sp->GetObjectFile())
-                        break;
-                    else
-                        error.SetErrorToGenericError();
-                }
-
-                if (idx > 0)
-                    arch_names.PutCString (", ");
-                arch_names.PutCString (resolved_module_spec.GetArchitecture().GetArchitectureName());
-            }
-
-            if (error.Fail() || !exe_module_sp)
-            {
-                if (resolved_module_spec.GetFileSpec().Readable())
-                {
-                    error.SetErrorStringWithFormat ("'%s' doesn't contain any '%s' platform architectures: %s",
-                                                    resolved_module_spec.GetFileSpec().GetPath().c_str(),
-                                                    GetPluginName().GetCString(),
-                                                    arch_names.GetString().c_str());
-                }
-                else
-                {
-                    error.SetErrorStringWithFormat("'%s' is not readable", resolved_module_spec.GetFileSpec().GetPath().c_str());
-                }
-            }
-        }
-    }
-
-    return error;
-}
-
-// From PlatformMacOSX only
-Error
-PlatformNetBSD::GetFileWithUUID (const FileSpec &platform_file,
-                                 const UUID *uuid_ptr,
-                                 FileSpec &local_file)
-{
-    if (IsRemote())
-    {
-        if (m_remote_platform_sp)
-            return m_remote_platform_sp->GetFileWithUUID (platform_file, uuid_ptr, local_file);
-    }
-
-    // Default to the local case
-    local_file = platform_file;
-    return Error();
-}
-
 
 //------------------------------------------------------------------
 /// Default Constructor
 //------------------------------------------------------------------
-PlatformNetBSD::PlatformNetBSD (bool is_host) :
-    Platform(is_host),
-    m_remote_platform_sp()
-{
-}
+PlatformNetBSD::PlatformNetBSD(bool is_host)
+    : PlatformPOSIX(is_host) // This is the local host platform
+{}
 
-bool
-PlatformNetBSD::GetRemoteOSVersion ()
-{
-    if (m_remote_platform_sp)
-        return m_remote_platform_sp->GetOSVersion (m_major_os_version,
-                                                   m_minor_os_version,
-                                                   m_update_os_version);
-    return false;
-}
+PlatformNetBSD::~PlatformNetBSD() = default;
 
-bool
-PlatformNetBSD::GetRemoteOSBuildString (std::string &s)
-{
-    if (m_remote_platform_sp)
-        return m_remote_platform_sp->GetRemoteOSBuildString (s);
-    s.clear();
-    return false;
-}
-
-bool
-PlatformNetBSD::GetRemoteOSKernelDescription (std::string &s)
-{
-    if (m_remote_platform_sp)
-        return m_remote_platform_sp->GetRemoteOSKernelDescription (s);
-    s.clear();
-    return false;
-}
-
-// Remote Platform subclasses need to override this function
-ArchSpec
-PlatformNetBSD::GetRemoteSystemArchitecture ()
-{
-    if (m_remote_platform_sp)
-        return m_remote_platform_sp->GetRemoteSystemArchitecture ();
-    return ArchSpec();
-}
-
-
-const char *
-PlatformNetBSD::GetHostname ()
-{
-    if (IsHost())
-        return Platform::GetHostname();
-
-    if (m_remote_platform_sp)
-        return m_remote_platform_sp->GetHostname ();
-    return NULL;
-}
-
-bool
-PlatformNetBSD::IsConnected () const
-{
-    if (IsHost())
-        return true;
-    else if (m_remote_platform_sp)
-        return m_remote_platform_sp->IsConnected();
-    return false;
-}
-
-Error
-PlatformNetBSD::ConnectRemote (Args& args)
-{
-    Error error;
-    if (IsHost())
-    {
-        error.SetErrorStringWithFormat ("can't connect to the host platform '%s', always connected", GetPluginName().GetCString());
-    }
-    else
-    {
-        if (!m_remote_platform_sp)
-            m_remote_platform_sp = Platform::Create (ConstString("remote-gdb-server"), error);
-
-        if (m_remote_platform_sp)
-        {
-            if (error.Success())
-            {
-                if (m_remote_platform_sp)
-                {
-                    error = m_remote_platform_sp->ConnectRemote (args);
-                }
-                else
-                {
-                    error.SetErrorString ("\"platform connect\" takes a single argument: <connect-url>");
-                }
-            }
+bool PlatformNetBSD::GetSupportedArchitectureAtIndex(uint32_t idx,
+                                                     ArchSpec &arch) {
+  if (IsHost()) {
+    ArchSpec hostArch = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
+    if (hostArch.GetTriple().isOSNetBSD()) {
+      if (idx == 0) {
+        arch = hostArch;
+        return arch.IsValid();
+      } else if (idx == 1) {
+        // If the default host architecture is 64-bit, look for a 32-bit variant
+        if (hostArch.IsValid() && hostArch.GetTriple().isArch64Bit()) {
+          arch = HostInfo::GetArchitecture(HostInfo::eArchKind32);
+          return arch.IsValid();
         }
-        else
-            error.SetErrorString ("failed to create a 'remote-gdb-server' platform");
-
-        if (error.Fail())
-            m_remote_platform_sp.reset();
+      }
     }
+  } else {
+    if (m_remote_platform_sp)
+      return m_remote_platform_sp->GetSupportedArchitectureAtIndex(idx, arch);
 
-    return error;
-}
-
-Error
-PlatformNetBSD::DisconnectRemote ()
-{
-    Error error;
-
-    if (IsHost())
-    {
-        error.SetErrorStringWithFormat ("can't disconnect from the host platform '%s', always connected", GetPluginName().GetCString());
-    }
-    else
-    {
-        if (m_remote_platform_sp)
-            error = m_remote_platform_sp->DisconnectRemote ();
-        else
-            error.SetErrorString ("the platform is not currently connected");
-    }
-    return error;
-}
-
-bool
-PlatformNetBSD::GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &process_info)
-{
-    bool success = false;
-    if (IsHost())
-    {
-        success = Platform::GetProcessInfo (pid, process_info);
-    }
-    else if (m_remote_platform_sp)
-    {
-        success = m_remote_platform_sp->GetProcessInfo (pid, process_info);
-    }
-    return success;
-}
-
-uint32_t
-PlatformNetBSD::FindProcesses (const ProcessInstanceInfoMatch &match_info,
-                               ProcessInstanceInfoList &process_infos)
-{
-    uint32_t match_count = 0;
-    if (IsHost())
-    {
-        // Let the base class figure out the host details
-        match_count = Platform::FindProcesses (match_info, process_infos);
-    }
-    else
-    {
-        // If we are remote, we can only return results if we are connected
-        if (m_remote_platform_sp)
-            match_count = m_remote_platform_sp->FindProcesses (match_info, process_infos);
-    }
-    return match_count;
-}
-
-const char *
-PlatformNetBSD::GetUserName (uint32_t uid)
-{
-    // Check the cache in Platform in case we have already looked this uid up
-    const char *user_name = Platform::GetUserName(uid);
-    if (user_name)
-        return user_name;
-
-    if (IsRemote() && m_remote_platform_sp)
-        return m_remote_platform_sp->GetUserName(uid);
-    return NULL;
-}
-
-const char *
-PlatformNetBSD::GetGroupName (uint32_t gid)
-{
-    const char *group_name = Platform::GetGroupName(gid);
-    if (group_name)
-        return group_name;
-
-    if (IsRemote() && m_remote_platform_sp)
-        return m_remote_platform_sp->GetGroupName(gid);
-    return NULL;
-}
-
-
-Error
-PlatformNetBSD::GetSharedModule (const ModuleSpec &module_spec,
-                                 Process* process,
-                                 ModuleSP &module_sp,
-                                 const FileSpecList *module_search_paths_ptr,
-                                 ModuleSP *old_module_sp_ptr,
-                                 bool *did_create_ptr)
-{
-    Error error;
-    module_sp.reset();
-
-    if (IsRemote())
-    {
-        // If we have a remote platform always, let it try and locate
-        // the shared module first.
-        if (m_remote_platform_sp)
-        {
-            error = m_remote_platform_sp->GetSharedModule (module_spec,
-                                                           process,
-                                                           module_sp,
-                                                           module_search_paths_ptr,
-                                                           old_module_sp_ptr,
-                                                           did_create_ptr);
-        }
-    }
-
-    if (!module_sp)
-    {
-        // Fall back to the local platform and find the file locally
-        error = Platform::GetSharedModule (module_spec,
-                                           process,
-                                           module_sp,
-                                           module_search_paths_ptr,
-                                           old_module_sp_ptr,
-                                           did_create_ptr);
-    }
-    if (module_sp)
-        module_sp->SetPlatformFileSpec(module_spec.GetFileSpec());
-    return error;
-}
-
-
-bool
-PlatformNetBSD::GetSupportedArchitectureAtIndex (uint32_t idx, ArchSpec &arch)
-{
-    if (IsHost())
-    {
-        ArchSpec hostArch = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
-        if (hostArch.GetTriple().isOSNetBSD())
-        {
-            if (idx == 0)
-            {
-                arch = hostArch;
-                return arch.IsValid();
-            }
-            else if (idx == 1)
-            {
-                // If the default host architecture is 64-bit, look for a 32-bit variant
-                if (hostArch.IsValid() && hostArch.GetTriple().isArch64Bit())
-                {
-                    arch = HostInfo::GetArchitecture(HostInfo::eArchKind32);
-                    return arch.IsValid();
-                }
-            }
-        }
-    }
-    else
-    {
-        if (m_remote_platform_sp)
-            return m_remote_platform_sp->GetSupportedArchitectureAtIndex(idx, arch);
-
-        llvm::Triple triple;
-        // Set the OS to NetBSD
-        triple.setOS(llvm::Triple::NetBSD);
-        // Set the architecture
-        switch (idx)
-        {
-            case 0: triple.setArchName("x86_64"); break;
-            case 1: triple.setArchName("i386"); break;
-            default: return false;
-        }
-        // Leave the vendor as "llvm::Triple:UnknownVendor" and don't specify the vendor by
-        // calling triple.SetVendorName("unknown") so that it is a "unspecified unknown".
-        // This means when someone calls triple.GetVendorName() it will return an empty string
-        // which indicates that the vendor can be set when two architectures are merged
-
-        // Now set the triple into "arch" and return true
-        arch.SetTriple(triple);
-        return true;
-    }
-    return false;
-}
-
-void
-PlatformNetBSD::GetStatus (Stream &strm)
-{
-#ifndef LLDB_DISABLE_POSIX
-    struct ::utsname un;
-
-    strm << "      Host: ";
-
-    ::memset(&un, 0, sizeof(utsname));
-    if (::uname(&un) == -1) {
-        strm << "NetBSD" << '\n';
-    } else {
-        strm << un.sysname << ' ' << un.release;
-        if (un.nodename[0] != '\0')
-            strm << " (" << un.nodename << ')';
-        strm << '\n';
-
-        // Dump a common information about the platform status.
-        strm << "Host: " << un.sysname << ' ' << un.release << ' ' << un.version << '\n';
-    }
-#endif
-
-    Platform::GetStatus(strm);
-}
-
-size_t
-PlatformNetBSD::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite *bp_site)
-{
-    ArchSpec arch = target.GetArchitecture();
-    const uint8_t *trap_opcode = NULL;
-    size_t trap_opcode_size = 0;
-
-    switch (arch.GetMachine())
-    {
+    llvm::Triple triple;
+    // Set the OS to NetBSD
+    triple.setOS(llvm::Triple::NetBSD);
+    // Set the architecture
+    switch (idx) {
+    case 0:
+      triple.setArchName("x86_64");
+      break;
+    case 1:
+      triple.setArchName("i386");
+      break;
     default:
-        assert(false && "Unhandled architecture in PlatformNetBSD::GetSoftwareBreakpointTrapOpcode()");
-        break;
-    case llvm::Triple::x86:
-    case llvm::Triple::x86_64:
-        {
-            static const uint8_t g_i386_opcode[] = { 0xCC };
-            trap_opcode = g_i386_opcode;
-            trap_opcode_size = sizeof(g_i386_opcode);
-        }
-        break;
+      return false;
     }
+    // Leave the vendor as "llvm::Triple:UnknownVendor" and don't specify the
+    // vendor by
+    // calling triple.SetVendorName("unknown") so that it is a "unspecified
+    // unknown".
+    // This means when someone calls triple.GetVendorName() it will return an
+    // empty string
+    // which indicates that the vendor can be set when two architectures are
+    // merged
 
-    if (bp_site->SetTrapOpcode(trap_opcode, trap_opcode_size))
-        return trap_opcode_size;
-    return 0;
+    // Now set the triple into "arch" and return true
+    arch.SetTriple(triple);
+    return true;
+  }
+  return false;
 }
 
+void PlatformNetBSD::GetStatus(Stream &strm) {
+  Platform::GetStatus(strm);
 
-void
-PlatformNetBSD::CalculateTrapHandlerSymbolNames ()
-{
-    m_trap_handlers.push_back (ConstString ("_sigtramp"));
+#ifndef LLDB_DISABLE_POSIX
+  // Display local kernel information only when we are running in host mode.
+  // Otherwise, we would end up printing non-NetBSD information (when running
+  // on Mac OS for example).
+  if (IsHost()) {
+    struct utsname un;
+
+    if (uname(&un))
+      return;
+
+    strm.Printf("    Kernel: %s\n", un.sysname);
+    strm.Printf("   Release: %s\n", un.release);
+    strm.Printf("   Version: %s\n", un.version);
+  }
+#endif
 }
 
-Error
-PlatformNetBSD::LaunchProcess (ProcessLaunchInfo &launch_info)
-{
-    Error error;
-    if (IsHost())
-    {
-        error = Platform::LaunchProcess (launch_info);
-    }
-    else
-    {
-        if (m_remote_platform_sp)
-            error = m_remote_platform_sp->LaunchProcess (launch_info);
-        else
-            error.SetErrorString ("the platform is not currently connected");
-    }
-    return error;
+int32_t
+PlatformNetBSD::GetResumeCountForLaunchInfo(ProcessLaunchInfo &launch_info) {
+  int32_t resume_count = 0;
+
+  // Always resume past the initial stop when we use eLaunchFlagDebug
+  if (launch_info.GetFlags().Test(eLaunchFlagDebug)) {
+    // Resume past the stop for the final exec into the true inferior.
+    ++resume_count;
+  }
+
+  // If we're not launching a shell, we're done.
+  const FileSpec &shell = launch_info.GetShell();
+  if (!shell)
+    return resume_count;
+
+  std::string shell_string = shell.GetPath();
+  // We're in a shell, so for sure we have to resume past the shell exec.
+  ++resume_count;
+
+  // Figure out what shell we're planning on using.
+  const char *shell_name = strrchr(shell_string.c_str(), '/');
+  if (shell_name == NULL)
+    shell_name = shell_string.c_str();
+  else
+    shell_name++;
+
+  if (strcmp(shell_name, "csh") == 0 || strcmp(shell_name, "tcsh") == 0 ||
+      strcmp(shell_name, "zsh") == 0 || strcmp(shell_name, "sh") == 0) {
+    // These shells seem to re-exec themselves.  Add another resume.
+    ++resume_count;
+  }
+
+  return resume_count;
 }
 
+bool PlatformNetBSD::CanDebugProcess() {
+  if (IsHost()) {
+    return true;
+  } else {
+    // If we're connected, we can debug.
+    return IsConnected();
+  }
+}
+
+// For local debugging, NetBSD will override the debug logic to use llgs-launch
+// rather than lldb-launch, llgs-attach.  This differs from current lldb-launch,
+// debugserver-attach approach on MacOSX.
 lldb::ProcessSP
-PlatformNetBSD::Attach(ProcessAttachInfo &attach_info,
-                       Debugger &debugger,
-                       Target *target,
-                       Error &error)
-{
-    lldb::ProcessSP process_sp;
-    if (IsHost())
-    {
-        if (target == NULL)
-        {
-            TargetSP new_target_sp;
-            ArchSpec emptyArchSpec;
+PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
+                             Target *target, // Can be NULL, if NULL create a new
+                                             // target, else use existing one
+                             Status &error) {
+  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
+  LLDB_LOG(log, "target {0}", target);
 
-            error = debugger.GetTargetList().CreateTarget (debugger,
-                                                           NULL,
-                                                           emptyArchSpec,
-                                                           false,
-                                                           m_remote_platform_sp,
-                                                           new_target_sp);
-            target = new_target_sp.get();
-        }
-        else
-            error.Clear();
+  // If we're a remote host, use standard behavior from parent class.
+  if (!IsHost())
+    return PlatformPOSIX::DebugProcess(launch_info, debugger, target, error);
 
-        if (target && error.Success())
-        {
-            debugger.GetTargetList().SetSelectedTarget(target);
-            // The netbsd always currently uses the GDB remote debugger plug-in
-            // so even when debugging locally we are debugging remotely!
-            // Just like the darwin plugin.
-            process_sp = target->CreateProcess (attach_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
+  //
+  // For local debugging, we'll insist on having ProcessGDBRemote create the
+  // process.
+  //
 
-            if (process_sp)
-                error = process_sp->Attach (attach_info);
-        }
+  ProcessSP process_sp;
+
+  // Make sure we stop at the entry point
+  launch_info.GetFlags().Set(eLaunchFlagDebug);
+
+  // We always launch the process we are going to debug in a separate process
+  // group, since then we can handle ^C interrupts ourselves w/o having to worry
+  // about the target getting them as well.
+  launch_info.SetLaunchInSeparateProcessGroup(true);
+
+  // Ensure we have a target.
+  if (target == nullptr) {
+    LLDB_LOG(log, "creating new target");
+    TargetSP new_target_sp;
+    error = debugger.GetTargetList().CreateTarget(debugger, "", "", false,
+                                                  nullptr, new_target_sp);
+    if (error.Fail()) {
+      LLDB_LOG(log, "failed to create new target: {0}", error);
+      return process_sp;
     }
-    else
-    {
-        if (m_remote_platform_sp)
-            process_sp = m_remote_platform_sp->Attach (attach_info, debugger, target, error);
-        else
-            error.SetErrorString ("the platform is not currently connected");
+
+    target = new_target_sp.get();
+    if (!target) {
+      error.SetErrorString("CreateTarget() returned nullptr");
+      LLDB_LOG(log, "error: {0}", error);
+      return process_sp;
     }
+  }
+
+  // Mark target as currently selected target.
+  debugger.GetTargetList().SetSelectedTarget(target);
+
+  // Now create the gdb-remote process.
+  LLDB_LOG(log, "having target create process with gdb-remote plugin");
+  process_sp = target->CreateProcess(
+      launch_info.GetListenerForProcess(debugger), "gdb-remote", nullptr);
+
+  if (!process_sp) {
+    error.SetErrorString("CreateProcess() failed for gdb-remote process");
+    LLDB_LOG(log, "error: {0}", error);
     return process_sp;
+  }
+
+  LLDB_LOG(log, "successfully created process");
+  // Adjust launch for a hijacker.
+  ListenerSP listener_sp;
+  if (!launch_info.GetHijackListener()) {
+    LLDB_LOG(log, "setting up hijacker");
+    listener_sp =
+        Listener::MakeListener("lldb.PlatformNetBSD.DebugProcess.hijack");
+    launch_info.SetHijackListener(listener_sp);
+    process_sp->HijackProcessEvents(listener_sp);
+  }
+
+  // Log file actions.
+  if (log) {
+    LLDB_LOG(log, "launching process with the following file actions:");
+    StreamString stream;
+    size_t i = 0;
+    const FileAction *file_action;
+    while ((file_action = launch_info.GetFileActionAtIndex(i++)) != nullptr) {
+      file_action->Dump(stream);
+      LLDB_LOG(log, "{0}", stream.GetData());
+      stream.Clear();
+    }
+  }
+
+  // Do the launch.
+  error = process_sp->Launch(launch_info);
+  if (error.Success()) {
+    // Handle the hijacking of process events.
+    if (listener_sp) {
+      const StateType state = process_sp->WaitForProcessToStop(
+          llvm::None, NULL, false, listener_sp);
+
+      LLDB_LOG(log, "pid {0} state {0}", process_sp->GetID(), state);
+    }
+
+    // Hook up process PTY if we have one (which we should for local debugging
+    // with llgs).
+    int pty_fd = launch_info.GetPTY().ReleaseMasterFileDescriptor();
+    if (pty_fd != PseudoTerminal::invalid_fd) {
+      process_sp->SetSTDIOFileDescriptor(pty_fd);
+      LLDB_LOG(log, "hooked up STDIO pty to process");
+    } else
+      LLDB_LOG(log, "not using process STDIO pty");
+  } else {
+    LLDB_LOG(log, "process launch failed: {0}", error);
+    // FIXME figure out appropriate cleanup here.  Do we delete the target? Do
+    // we delete the process?  Does our caller do that?
+  }
+
+  return process_sp;
+}
+
+void PlatformNetBSD::CalculateTrapHandlerSymbolNames() {
+  m_trap_handlers.push_back(ConstString("_sigtramp"));
+}
+
+MmapArgList PlatformNetBSD::GetMmapArgumentList(const ArchSpec &arch,
+                                                addr_t addr, addr_t length,
+                                                unsigned prot, unsigned flags,
+                                                addr_t fd, addr_t offset) {
+  uint64_t flags_platform = 0;
+
+  if (flags & eMmapFlagsPrivate)
+    flags_platform |= MAP_PRIVATE;
+  if (flags & eMmapFlagsAnon)
+    flags_platform |= MAP_ANON;
+
+  MmapArgList args({addr, length, prot, flags_platform, fd, offset});
+  return args;
 }

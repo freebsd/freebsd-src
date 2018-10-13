@@ -32,13 +32,39 @@
 #ifndef _MACHINE_VFP_H_
 #define	_MACHINE_VFP_H_
 
-#ifdef _KERNEL
 
 #ifndef LOCORE
+struct vfpstate {
+	__uint128_t	vfp_regs[32];
+	uint32_t	vfp_fpcr;
+	uint32_t	vfp_fpsr;
+};
+
+#ifdef _KERNEL
+struct pcb;
+
 void	vfp_init(void);
 void	vfp_discard(struct thread *);
 void	vfp_restore_state(void);
 void	vfp_save_state(struct thread *, struct pcb *);
+
+struct fpu_kern_ctx;
+
+/*
+ * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().
+ */
+#define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
+#define	FPU_KERN_KTHR	0x0002
+#define	FPU_KERN_NOCTX	0x0004
+
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int);
+void fpu_kern_free_ctx(struct fpu_kern_ctx *);
+void fpu_kern_enter(struct thread *, struct fpu_kern_ctx *, u_int);
+int fpu_kern_leave(struct thread *, struct fpu_kern_ctx *);
+int fpu_kern_thread(u_int);
+int is_fpu_kern_thread(u_int);
+
 #endif
 
 #endif

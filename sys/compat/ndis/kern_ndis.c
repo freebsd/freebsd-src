@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -210,8 +212,8 @@ ndis_status_func(adapter, status, sbuf, slen)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = sc->ifp;
-	if (ifp->if_flags & IFF_DEBUG)
+	ifp = NDISUSB_GET_IFNET(sc);
+	if ( ifp && ifp->if_flags & IFF_DEBUG)
 		device_printf(sc->ndis_dev, "status: %x\n", status);
 }
 
@@ -225,8 +227,8 @@ ndis_statusdone_func(adapter)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = sc->ifp;
-	if (ifp->if_flags & IFF_DEBUG)
+	ifp = NDISUSB_GET_IFNET(sc);
+	if (ifp && ifp->if_flags & IFF_DEBUG)
 		device_printf(sc->ndis_dev, "status complete\n");
 }
 
@@ -264,9 +266,9 @@ ndis_resetdone_func(ndis_handle adapter, ndis_status status,
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = sc->ifp;
+	ifp = NDISUSB_GET_IFNET(sc);
 
-	if (ifp->if_flags & IFF_DEBUG)
+	if (ifp && ifp->if_flags & IFF_DEBUG)
 		device_printf(sc->ndis_dev, "reset done...\n");
 	KeSetEvent(&block->nmb_resetevent, IO_NO_INCREMENT, FALSE);
 }
@@ -285,6 +287,9 @@ ndis_create_sysctls(arg)
 		return (EINVAL);
 
 	sc = arg;
+	/*
+	device_printf(sc->ndis_dev, "ndis_create_sysctls() sc=%p\n", sc);
+	*/
 	vals = sc->ndis_regvals;
 
 	TAILQ_INIT(&sc->ndis_cfglist_head);
@@ -492,16 +497,20 @@ ndis_return(dobj, arg)
 	KeReleaseSpinLock(&block->nmb_returnlock, irql);
 }
 
-void
-ndis_return_packet(struct mbuf *m, void *buf, void *arg)
+static void
+ndis_ext_free(struct mbuf *m)
 {
-	ndis_packet		*p;
+
+	return (ndis_return_packet(m->m_ext.ext_arg1));
+}
+
+void
+ndis_return_packet(ndis_packet *p)
+{
 	ndis_miniport_block	*block;
 
-	if (arg == NULL)
+	if (p == NULL)
 		return;
-
-	p = arg;
 
 	/* Decrement refcount. */
 	p->np_refcnt--;
@@ -673,9 +682,8 @@ ndis_ptom(m0, p)
 			return (ENOBUFS);
 		}
 		m->m_len = MmGetMdlByteCount(buf);
-		m->m_data = MmGetMdlVirtualAddress(buf);
-		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
-		    m->m_data, p, 0, EXT_NDIS);
+		m_extadd(m, MmGetMdlVirtualAddress(buf), m->m_len,
+		    ndis_ext_free, p, NULL, 0, EXT_NDIS);
 		p->np_refcnt++;
 
 		totlen += m->m_len;
@@ -698,8 +706,8 @@ ndis_ptom(m0, p)
 	 */
 
 	eh = mtod((*m0), struct ether_header *);
-	ifp = ((struct ndis_softc *)p->np_softc)->ifp;
-	if (totlen > ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE)) {
+	ifp = NDISUSB_GET_IFNET((struct ndis_softc *)p->np_softc);
+	if (ifp && totlen > ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE)) {
 		diff = totlen - ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE);
 		totlen -= diff;
 		m->m_len -= diff;

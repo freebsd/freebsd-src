@@ -18,10 +18,10 @@
 #include "BPFTargetMachine.h"
 #include "InstPrinter/BPFInstPrinter.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
@@ -35,19 +35,25 @@ using namespace llvm;
 namespace {
 class BPFAsmPrinter : public AsmPrinter {
 public:
-  explicit BPFAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+  explicit BPFAsmPrinter(TargetMachine &TM,
+                         std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)) {}
 
-  const char *getPassName() const override { return "BPF Assembly Printer"; }
+  StringRef getPassName() const override { return "BPF Assembly Printer"; }
+  void printOperand(const MachineInstr *MI, int OpNum, raw_ostream &O);
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                       unsigned AsmVariant, const char *ExtraCode,
+                       raw_ostream &O) override;
+  bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
+                             unsigned AsmVariant, const char *ExtraCode,
+                             raw_ostream &O) override;
 
-  void printOperand(const MachineInstr *MI, int OpNum, raw_ostream &O,
-                    const char *Modifier = nullptr);
   void EmitInstruction(const MachineInstr *MI) override;
 };
-}
+} // namespace
 
 void BPFAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
-                                 raw_ostream &O, const char *Modifier) {
+                                 raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(OpNum);
 
   switch (MO.getType()) {
@@ -67,9 +73,53 @@ void BPFAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     O << *getSymbol(MO.getGlobal());
     break;
 
+  case MachineOperand::MO_BlockAddress: {
+    MCSymbol *BA = GetBlockAddressSymbol(MO.getBlockAddress());
+    O << BA->getName();
+    break;
+  }
+
+  case MachineOperand::MO_ExternalSymbol:
+    O << *GetExternalSymbolSymbol(MO.getSymbolName());
+    break;
+
+  case MachineOperand::MO_JumpTableIndex:
+  case MachineOperand::MO_ConstantPoolIndex:
   default:
     llvm_unreachable("<unknown operand type>");
   }
+}
+
+bool BPFAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                                    unsigned /*AsmVariant*/,
+                                    const char *ExtraCode, raw_ostream &O) {
+  if (ExtraCode && ExtraCode[0])
+    return true; // BPF does not have special modifiers
+
+  printOperand(MI, OpNo, O);
+  return false;
+}
+
+bool BPFAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
+                                          unsigned OpNum, unsigned AsmVariant,
+                                          const char *ExtraCode,
+                                          raw_ostream &O) {
+  assert(OpNum + 1 < MI->getNumOperands() && "Insufficient operands");
+  const MachineOperand &BaseMO = MI->getOperand(OpNum);
+  const MachineOperand &OffsetMO = MI->getOperand(OpNum + 1);
+  assert(BaseMO.isReg() && "Unexpected base pointer for inline asm memory operand.");
+  assert(OffsetMO.isImm() && "Unexpected offset for inline asm memory operand.");
+  int Offset = OffsetMO.getImm();
+
+  if (ExtraCode)
+    return true; // Unknown modifier.
+
+  if (Offset < 0)
+    O << "(" << BPFInstPrinter::getRegisterName(BaseMO.getReg()) << " - " << -Offset << ")";
+  else
+    O << "(" << BPFInstPrinter::getRegisterName(BaseMO.getReg()) << " + " << Offset << ")";
+
+  return false;
 }
 
 void BPFAsmPrinter::EmitInstruction(const MachineInstr *MI) {
@@ -83,7 +133,7 @@ void BPFAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
 // Force static initialization.
 extern "C" void LLVMInitializeBPFAsmPrinter() {
-  RegisterAsmPrinter<BPFAsmPrinter> X(TheBPFleTarget);
-  RegisterAsmPrinter<BPFAsmPrinter> Y(TheBPFbeTarget);
-  RegisterAsmPrinter<BPFAsmPrinter> Z(TheBPFTarget);
+  RegisterAsmPrinter<BPFAsmPrinter> X(getTheBPFleTarget());
+  RegisterAsmPrinter<BPFAsmPrinter> Y(getTheBPFbeTarget());
+  RegisterAsmPrinter<BPFAsmPrinter> Z(getTheBPFTarget());
 }

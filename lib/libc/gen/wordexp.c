@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Tim J. Robbins.
  * All rights reserved.
  *
@@ -234,8 +236,8 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		vofs += we->we_offs;
 	we->we_wordc += nwords;
 	we->we_nbytes += nbytes;
-	if ((nwv = realloc(we->we_wordv, (we->we_wordc + 1 +
-	    (flags & WRDE_DOOFFS ?  we->we_offs : 0)) *
+	if ((nwv = reallocarray(we->we_wordv, (we->we_wordc + 1 +
+	    (flags & WRDE_DOOFFS ? we->we_offs : 0)),
 	    sizeof(char *))) == NULL) {
 		error = WRDE_NOSPACE;
 		goto cleanup;

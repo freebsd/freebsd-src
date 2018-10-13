@@ -1,5 +1,3 @@
-/* $Id: bsd-misc.h,v 1.25 2013/08/04 11:48:41 dtucker Exp $ */
-
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
  *
@@ -49,7 +47,7 @@ int setegid(uid_t);
 
 #if !defined(HAVE_STRERROR) && defined(HAVE_SYS_ERRLIST) && defined(HAVE_SYS_NERR)
 const char *strerror(int);
-#endif 
+#endif
 
 #if !defined(HAVE_SETLINEBUF)
 #define setlinebuf(a)	(setvbuf((a), NULL, _IOLBF, 0))
@@ -96,12 +94,6 @@ int tcsendbreak(int, int);
 int unsetenv(const char *);
 #endif
 
-/* wrapper for signal interface */
-typedef void (*mysig_t)(int);
-mysig_t mysignal(int sig, mysig_t act);
-
-#define signal(a,b) mysignal(a,b)
-
 #ifndef HAVE_ISBLANK
 int	isblank(int);
 #endif
@@ -124,6 +116,45 @@ pid_t getpgid(pid_t);
 
 #ifndef HAVE_PLEDGE
 int pledge(const char *promises, const char *paths[]);
+#endif
+
+/* bsd-err.h */
+#ifndef HAVE_ERR
+void err(int, const char *, ...) __attribute__((format(printf, 2, 3)));
+#endif
+#ifndef HAVE_ERRX
+void errx(int, const char *, ...) __attribute__((format(printf, 2, 3)));
+#endif
+#ifndef HAVE_WARN
+void warn(const char *, ...) __attribute__((format(printf, 1, 2)));
+#endif
+
+#ifndef HAVE_LLABS
+long long llabs(long long);
+#endif
+
+#if defined(HAVE_DECL_BZERO) && HAVE_DECL_BZERO == 0
+void bzero(void *, size_t);
+#endif
+
+#ifndef HAVE_RAISE
+int raise(int);
+#endif
+
+#ifndef HAVE_GETSID
+pid_t getsid(pid_t);
+#endif
+
+#ifndef HAVE_FLOCK
+# define LOCK_SH		0x01
+# define LOCK_EX		0x02
+# define LOCK_NB		0x04
+# define LOCK_UN		0x08
+int flock(int, int);
+#endif
+
+#ifdef FFLUSH_NULL_BUG
+# define fflush(x)	(_ssh_compat_fflush(x))
 #endif
 
 #endif /* _BSD_MISC_H */

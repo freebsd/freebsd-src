@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -68,8 +70,8 @@ struct ata_params {
 /*049*/ u_int16_t       capabilities1;
 #define ATA_SUPPORT_DMA                 0x0100
 #define ATA_SUPPORT_LBA                 0x0200
-#define ATA_SUPPORT_IORDY               0x0400
-#define ATA_SUPPORT_IORDYDIS            0x0800
+#define ATA_SUPPORT_IORDYDIS            0x0400
+#define ATA_SUPPORT_IORDY               0x0800
 #define ATA_SUPPORT_OVERLAP             0x4000
 
 /*050*/ u_int16_t       capabilities2;
@@ -263,7 +265,7 @@ struct ata_params {
 	u_int16_t       reserved170[6];
 /*176*/ u_int8_t        media_serial[60];
 /*206*/ u_int16_t       sct;
-	u_int16_t       reserved206[2];
+	u_int16_t       reserved207[2];
 /*209*/ u_int16_t       lsalign;
 /*210*/ u_int16_t       wrv_sectors_m3_1;
 	u_int16_t       wrv_sectors_m3_2;
@@ -682,7 +684,7 @@ struct atapi_sense {
 #define	ATA_IDL_ATA_STRINGS	0x05	/* ATA Strings */
 #define	ATA_IDL_SECURITY	0x06	/* Security */
 #define	ATA_IDL_PARALLEL_ATA	0x07	/* Parallel ATA */
-#define	ATA_IDL_SERIAL_ATA	0x08	/* Seiral ATA */
+#define	ATA_IDL_SERIAL_ATA	0x08	/* Serial ATA */
 #define	ATA_IDL_ZDI		0x09	/* Zoned Device Information */
 
 struct ata_gp_log_dir {

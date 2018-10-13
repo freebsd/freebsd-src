@@ -81,7 +81,7 @@ or
 	./buildall -K
 
 To be a developer and be able to run "bootstrap", you must have
-autoconf-2.50, automake-1.5, and libtool 1.4 installed on your system (or
+autoconf-2.68, automake-1.11.1, and libtool 2.2.6b installed on your system (or
 later versions thereof).  You no longer need to get my special version of
 automake.  Contact me if you'd like to be a maintainer and get access to the
 CVS server.
@@ -94,9 +94,9 @@ before.  Let me know if you are having any problems with them.  I fully
 expect, at least initially, to have to be the sole developers of the M4
 macros and let others concentrate on C sources.
 
-[E] Report all bugs to am-utils@am-utils.org.  Avoid reporting to my
-personal email address.  It is important to involve the whole list in bug
-fixes etc.
+[E] Report all bugs via Bugzilla or the am-utils list (see
+www.am-utils.org).  Avoid reporting to my personal email address.  It is
+important to involve the whole list in bug fixes etc.
 
 Good luck.
 

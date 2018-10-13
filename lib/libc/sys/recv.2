@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2016
+.Dd August 19, 2018
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -40,7 +40,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In sys/socket.h
 .Ft ssize_t
 .Fn recv "int s" "void *buf" "size_t len" "int flags"
@@ -199,9 +198,11 @@ If no data is available,
 .Va errno
 is set to
 .Er EAGAIN .
-This flag is not available in strict
-.Tn ANSI
-or C99 compilation mode.
+This flag is not available in
+.St -ansiC
+or
+.St -isoC-99
+compilation mode.
 The
 .Dv MSG_WAITFORONE
 flag sets MSG_DONTWAIT after the first message has been received.
@@ -231,7 +232,7 @@ Here
 .Fa msg_name
 and
 .Fa msg_namelen
-specify the destination address if the socket is unconnected;
+specify the source address if the socket is unconnected;
 .Fa msg_name
 may be given as a null pointer if no names are desired or required.
 The
@@ -267,57 +268,10 @@ with no data buffer provided immediately after an
 .Fn accept
 system call.
 .Pp
-Open file descriptors are now passed as ancillary data for
+With
 .Dv AF_UNIX
-domain sockets, with
-.Fa cmsg_level
-set to
-.Dv SOL_SOCKET
-and
-.Fa cmsg_type
-set to
-.Dv SCM_RIGHTS .
-The close-on-exec flag on received descriptors is set according to the
-.Dv MSG_CMSG_CLOEXEC
-flag passed to
-.Fn recvmsg .
-.Pp
-Process credentials can also be passed as ancillary data for
-.Dv AF_UNIX
-domain sockets using a
-.Fa cmsg_type
-of
-.Dv SCM_CREDS .
-In this case,
-.Fa cmsg_data
-should be a structure of type
-.Fa cmsgcred ,
-which is defined in
-.In sys/socket.h
-as follows:
-.Bd -literal
-struct cmsgcred {
-	pid_t	cmcred_pid;		/* PID of sending process */
-	uid_t	cmcred_uid;		/* real UID of sending process */
-	uid_t	cmcred_euid;		/* effective UID of sending process */
-	gid_t	cmcred_gid;		/* real GID of sending process */
-	short	cmcred_ngroups;		/* number or groups */
-	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
-};
-.Ed
-.Pp
-If a sender supplies ancillary data with enough space for the above struct
-tagged as
-.Dv SCM_CREDS
-control message type to the
-.Fn sendmsg
-system call, then kernel will fill in the credential information of the
-sending process and deliver it to the receiver.
-Since receiver usually has no control over a sender, this method of retrieving
-credential information isn't reliable.
-For reliable retrieval of remote side credentials it is advised to use the
-.Dv LOCAL_CREDS
-socket option on the receiving socket.
+domain sockets, ancillary data can be used to pass file descriptors and
+process credentials.
 See
 .Xr unix 4
 for details.
@@ -346,7 +300,7 @@ system call uses the
 .Fa mmsghdr
 structure, defined as follows in the
 .In sys/socket.h
-header :
+header:
 .Bd -literal
 struct mmsghdr {
 	struct msghdr	 msg_hdr;	/* message header */
@@ -412,6 +366,7 @@ address space.
 .Xr read 2 ,
 .Xr select 2 ,
 .Xr socket 2 ,
+.Xr CMSG_DATA 3 ,
 .Xr unix 4
 .Sh HISTORY
 The

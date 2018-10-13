@@ -701,9 +701,10 @@ local_clock(
 				 * where the FLL becomes effective.
 				 */
 				if (sys_poll >= allan_xpt)
-					clock_frequency += (fp_offset -
-					    clock_offset) / max(ULOGTOD(sys_poll),
-					    mu) * CLOCK_FLL;
+					clock_frequency +=
+					      (fp_offset - clock_offset)
+					    / ( max(ULOGTOD(sys_poll), mu)
+					       * CLOCK_FLL);
 
 				/*
 				 * The PLL frequency gain (numerator) depends on
@@ -713,8 +714,8 @@ local_clock(
 				 */
 				etemp = min(ULOGTOD(allan_xpt), mu);
 				dtemp = 4 * CLOCK_PLL * ULOGTOD(sys_poll);
-				clock_frequency += fp_offset * etemp / (dtemp *
-				    dtemp);
+				clock_frequency +=
+				    fp_offset * etemp / (dtemp * dtemp);
 			}
 			rstclock(EVNT_SYNC, fp_offset);
 			if (fabs(fp_offset) < CLOCK_FLOOR)
@@ -1098,10 +1099,14 @@ start_kern_loop(void)
 	pll_control = TRUE;
 	ZERO(ntv);
 	ntv.modes = MOD_BITS;
-	ntv.status = STA_PLL;
-	ntv.maxerror = MAXDISPERSE;
-	ntv.esterror = MAXDISPERSE;
-	ntv.constant = sys_poll; /* why is it that here constant is unconditionally set to sys_poll, whereas elsewhere is is modified depending on nanosecond vs. microsecond kernel? */
+	ntv.status = STA_PLL | STA_UNSYNC;
+	ntv.maxerror = MAXDISPERSE * 1.0e6;
+	ntv.esterror = MAXDISPERSE * 1.0e6;
+	ntv.constant = sys_poll;
+	/*             ^^^^^^^^ why is it that here constant is
+	 * unconditionally set to sys_poll, whereas elsewhere is is
+	 * modified depending on nanosecond vs. microsecond kernel?
+	 */
 #ifdef SIGSYS
 	/*
 	 * Use sigsetjmp() to save state and then call ntp_adjtime(); if
@@ -1306,8 +1311,7 @@ loop_config(
 		if (freq < HUFFPUFF)
 			freq = HUFFPUFF;
 		sys_hufflen = (int)(freq / HUFFPUFF);
-		sys_huffpuff = emalloc(sizeof(sys_huffpuff[0]) *
-		    sys_hufflen);
+		sys_huffpuff = eallocarray(sys_hufflen, sizeof(sys_huffpuff[0]));
 		for (i = 0; i < sys_hufflen; i++)
 			sys_huffpuff[i] = 1e9;
 		sys_mindly = 1e9;

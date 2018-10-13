@@ -28,7 +28,7 @@
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\" "
-.Dd April 19, 1994
+.Dd February 26, 2018
 .Dt GETTYTAB 5
 .Os
 .Sh NAME
@@ -81,8 +81,8 @@ table.
 .It "c2	num	unused	tty control flags to leave terminal as"
 .It "ce	bool	false	use crt erase algorithm"
 .It "ck	bool	false	use crt kill algorithm"
-.It "cl	str" Ta Dv NULL Ta
-.No "screen clear sequence"
+.It "cl	str" Ta Dv NULL
+.Ta No "screen clear sequence"
 .It "co	bool	false	console - add"
 .Ql \en
 after login prompt
@@ -94,31 +94,28 @@ scripts
 .It "dc	num	0	chat debug bitmask"
 .It "de	num	0	delay secs and flush input before writing first prompt"
 .It "df	str	%+	the" Xr strftime 3 "format used for \&%d in the banner message"
-.It "ds	str" Ta So Li ^Y Sc Ta
-.No "delayed suspend character"
+.It "ds	str" Ta So Li ^Y
+.Sc Ta No "delayed suspend character"
 .It "dx	bool	false	set"
 .Dv DECCTLQ
 .It "ec	bool	false	leave echo"
 .Em OFF
 .It "ep	bool	false	terminal uses even parity"
-.It "er	str" Ta So Li ^? Sc Ta
-.No "erase character"
-.It "et	str" Ta So Li ^D Sc Ta
-.No "end of text"
+.It "er	str" Ta So Li ^?
+.Sc Ta No "erase character"
+.It "et	str" Ta So Li ^D
+.Sc Ta No "end of text"
 .Pq Dv EOF
 character
-.It "ev	str" Ta Dv NULL Ta
-.No "initial environment"
-.It "f0	num	unused	tty mode flags to write messages"
-.It "f1	num	unused	tty mode flags to read login name"
-.It "f2	num	unused	tty mode flags to leave terminal as"
-.It "fl	str" Ta So Li ^O Sc Ta
-.No "output flush character"
+.It "ev	str" Ta Dv NULL
+.Ta No "initial environment"
+.It "fl	str" Ta So Li ^O
+.Sc Ta No "output flush character"
 .It "hc	bool	false	do"
 .Em NOT
 hangup line on last close
-.It "he	str" Ta Dv NULL Ta
-.No "hostname editing string"
+.It "he	str" Ta Dv NULL
+.Ta No "hostname editing regular expression"
 .It "hn	str	hostname	hostname"
 .It "ht	bool	false	terminal has real tabs"
 .It "hw	bool	false	do cts/rts hardware flow control"
@@ -128,33 +125,35 @@ hangup line on last close
 .It "ic	str	unused	expect-send chat script for modem initialization"
 .It "if	str	unused	display named file before prompt, like /etc/issue"
 .It "ig	bool	false	ignore garbage characters in login name"
-.It "im	str" Ta Dv NULL Ta
-.No "initial (banner) message"
-.It "in	str" Ta So Li ^C Sc Ta
-.No "interrupt character"
+.It "im	str" Ta Dv NULL
+.Ta No "initial (banner) message"
+.It "iM	str" Ta Dv NULL
+.Ta No "execute named file to generate initial (banner) message"
+.It "in	str" Ta So Li ^C
+.Sc Ta No "interrupt character"
 .It "is	num	unused	input speed"
-.It "kl	str" Ta So Li ^U Sc Ta
-.No "kill character"
+.It "kl	str" Ta So Li ^U
+.Sc Ta No "kill character"
 .It "l0	num	unused	tty local flags to write messages"
 .It "l1	num	unused	tty local flags to read login name"
 .It "l2	num	unused	tty local flags to leave terminal as"
 .It "lm	str	login:	login prompt"
-.It "ln	str" Ta So Li ^V Sc Ta
-.No "``literal next'' character"
-.It "lo	str" Ta Pa /usr/bin/login Ta
-.No "program to exec when name obtained"
+.It "ln	str" Ta So Li ^V
+.Sc Ta No "``literal next'' character"
+.It "lo	str" Ta Pa /usr/bin/login
+.Ta No "program to exec when name obtained"
 .It "mb	bool	false	do flow control based on carrier"
 .It "nc	bool	false	terminal does not supply carrier (set clocal)"
 .It "nl	bool	false	terminal has (or might have) a newline character"
-.It "np	bool	false	terminal uses no parity (i.e. 8-bit characters)"
+.It "np	bool	false	terminal uses no parity (i.e., 8-bit characters)"
 .It "nx	str	default	next table (for auto speed selection)"
 .It "o0	num	unused	tty output flags to write messages"
 .It "o1	num	unused	tty output flags to read login name"
 .It "o2	num	unused	tty output flags to leave terminal as"
 .It "op	bool	false	terminal uses odd parity"
 .It "os	num	unused	output speed"
-.It "pc	str" Ta So Li \e0 Sc Ta
-.No "pad character"
+.It "pc	str" Ta So Li \e0
+.Sc Ta No "pad character"
 .It "pe	bool	false	use printer (hard copy) erase algorithm"
 .It "pf	num	0	delay"
 between first prompt and following flush (seconds)
@@ -165,25 +164,25 @@ is specified
 .It "ps	bool	false	line connected to a"
 .Tn MICOM
 port selector
-.It "qu	str" Ta So Li \&^\e Sc Ta
-.No "quit character"
-.It "rp	str" Ta So Li ^R Sc Ta
-.No "line retype character"
+.It "qu	str" Ta So Li \&^\e
+.Sc Ta No "quit character"
+.It "rp	str" Ta So Li ^R
+.Sc Ta No "line retype character"
 .It "rt	num	unused	ring timeout when using"
 .Va \&ac
 .It "rw	bool	false	do"
 .Em NOT
 use raw for input, use cbreak
 .It "sp	num	unused	line speed (input and output)"
-.It "su	str" Ta So Li ^Z Sc Ta
-.No "suspend character"
+.It "su	str" Ta So Li ^Z
+.Sc Ta No "suspend character"
 .It "tc	str	none	table continuation"
 .It "to	num	0	timeout (seconds)"
-.It "tt	str" Ta Dv NULL Ta
-.No "terminal type (for environment)"
+.It "tt	str" Ta Dv NULL
+.Ta No "terminal type (for environment)"
 .It "ub	bool	false	do unbuffered output (of prompts etc)"
-.It "we	str" Ta So Li ^W Sc Ta
-.No "word erase character"
+.It "we	str" Ta So Li ^W
+.Sc Ta No "word erase character"
 .It "xc	bool	false	do"
 .Em NOT
 echo control chars as
@@ -201,6 +200,9 @@ The following capabilities are no longer supported by
 .It "bd	num	0	backspace delay"
 .It "cb	bool	false	use crt backspace mode"
 .It "cd	num	0	carriage-return delay"
+.It "f0	num	unused	tty mode flags to write messages"
+.It "f1	num	unused	tty mode flags to read login name"
+.It "f2	num	unused	tty mode flags to leave terminal as"
 .It "fd	num	0	form-feed (vertical motion) delay"
 .It "lc	bool	false	terminal has lower case"
 .It "nd	num	0	newline (line-feed) delay"
@@ -243,17 +245,6 @@ and
 .Va c_oflag
 fields, respectively.
 Each these sets must be completely specified to be effective.
-The
-.Va \&f0 ,
-.Va \&f1 ,
-and
-.Va \&f2
-are excepted for backwards compatibility with a previous incarnation of
-the TTY sub-system.
-In these flags the bottom 16 bits of the (32 bits)
-value contain the sgttyb
-.Va sg_flags
-field, while the top 16 bits represent the local mode word.
 .Pp
 Should
 .Xr getty 8
@@ -302,18 +293,13 @@ but may also be overridden by the
 table entry.
 In either case it may be edited with the
 .Va \&he
-string.
-A '@' in the
-.Va \&he
-string causes one character from the real hostname to
-be copied to the final hostname.
-A '#' in the
-.Va \&he
-string causes the next character of the real hostname
-to be skipped.
-Each character that
-is neither '@' nor '#' is copied into the final hostname.
-Surplus '@' and '#' characters are ignored.
+POSIX
+.Dq extended
+regular expression, which is matched against the hostname.
+If there are no parenthesized subexpressions in the pattern,
+the entire matched string is used as the final hostname;
+otherwise, the first matched subexpression is used instead.
+If the pattern does not match, the original hostname is not modified.
 .It \&%t
 The tty name.
 .It "\&%m, \&%r, \&%s, \&%v"
@@ -526,10 +512,6 @@ The delay stuff is a real crock.
 Apart form its general lack of flexibility, some
 of the delay algorithms are not implemented.
 The terminal driver should support sane delay settings.
-.Pp
-The
-.Va \&he
-capability is stupid.
 .Pp
 The
 .Xr termcap 5

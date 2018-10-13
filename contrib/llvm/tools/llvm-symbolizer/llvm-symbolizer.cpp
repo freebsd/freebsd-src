@@ -46,8 +46,7 @@ static cl::opt<FunctionNameKind> ClPrintFunctions(
                clEnumValN(FunctionNameKind::ShortName, "short",
                           "print short function name"),
                clEnumValN(FunctionNameKind::LinkageName, "linkage",
-                          "print function linkage name"),
-               clEnumValEnd));
+                          "print function linkage name")));
 
 static cl::opt<bool>
     ClUseRelativeAddress("relative-address", cl::init(false),
@@ -70,6 +69,10 @@ ClBinaryName("obj", cl::init(""),
              cl::desc("Path to object file to be symbolized (if not provided, "
                       "object file should be specified for each input line)"));
 
+static cl::opt<std::string>
+    ClDwpName("dwp", cl::init(""),
+              cl::desc("Path to DWP file to be use for any split CUs"));
+
 static cl::list<std::string>
 ClDsymHint("dsym-hint", cl::ZeroOrMore,
            cl::desc("Path to .dSYM bundles to search for debug info for the "
@@ -86,10 +89,15 @@ static cl::opt<int> ClPrintSourceContextLines(
     "print-source-context-lines", cl::init(0),
     cl::desc("Print N number of source file context"));
 
-static bool error(std::error_code ec) {
-  if (!ec)
+static cl::opt<bool> ClVerbose("verbose", cl::init(false),
+                               cl::desc("Print verbose line info"));
+
+template<typename T>
+static bool error(Expected<T> &ResOrErr) {
+  if (ResOrErr)
     return false;
-  errs() << "LLVMSymbolizer: error reading file: " << ec.message() << ".\n";
+  logAllUnhandledErrors(ResOrErr.takeError(), errs(),
+                        "LLVMSymbolizer: error reading file: ");
   return true;
 }
 
@@ -138,7 +146,7 @@ static bool parseCommand(StringRef InputString, bool &IsData,
 
 int main(int argc, char **argv) {
   // Print stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
   llvm_shutdown_obj Y; // Call llvm_shutdown() on exit.
 
@@ -159,7 +167,7 @@ int main(int argc, char **argv) {
   LLVMSymbolizer Symbolizer(Opts);
 
   DIPrinter Printer(outs(), ClPrintFunctions != FunctionNameKind::None,
-                    ClPrettyPrint, ClPrintSourceContextLines);
+                    ClPrettyPrint, ClPrintSourceContextLines, ClVerbose);
 
   const int kMaxInputStringLength = 1024;
   char InputString[kMaxInputStringLength];
@@ -185,14 +193,16 @@ int main(int argc, char **argv) {
     }
     if (IsData) {
       auto ResOrErr = Symbolizer.symbolizeData(ModuleName, ModuleOffset);
-      Printer << (error(ResOrErr.getError()) ? DIGlobal() : ResOrErr.get());
+      Printer << (error(ResOrErr) ? DIGlobal() : ResOrErr.get());
     } else if (ClPrintInlining) {
-      auto ResOrErr = Symbolizer.symbolizeInlinedCode(ModuleName, ModuleOffset);
-      Printer << (error(ResOrErr.getError()) ? DIInliningInfo()
+      auto ResOrErr =
+          Symbolizer.symbolizeInlinedCode(ModuleName, ModuleOffset, ClDwpName);
+      Printer << (error(ResOrErr) ? DIInliningInfo()
                                              : ResOrErr.get());
     } else {
-      auto ResOrErr = Symbolizer.symbolizeCode(ModuleName, ModuleOffset);
-      Printer << (error(ResOrErr.getError()) ? DILineInfo() : ResOrErr.get());
+      auto ResOrErr =
+          Symbolizer.symbolizeCode(ModuleName, ModuleOffset, ClDwpName);
+      Printer << (error(ResOrErr) ? DILineInfo() : ResOrErr.get());
     }
     outs() << "\n";
     outs().flush();

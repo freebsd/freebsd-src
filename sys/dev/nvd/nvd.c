@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
  *
@@ -47,6 +49,7 @@ struct nvd_disk;
 
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
+static dumper_t nvd_dump;
 
 static void nvd_done(void *arg, const struct nvme_completion *cpl);
 
@@ -133,6 +136,8 @@ MODULE_DEPEND(nvd, nvme, 1, 1, 1);
 static int
 nvd_load()
 {
+	if (!nvme_use_nvd)
+		return 0;
 
 	TAILQ_INIT(&ctrlr_head);
 	TAILQ_INIT(&disk_head);
@@ -148,6 +153,9 @@ nvd_unload()
 {
 	struct nvd_controller	*ctrlr;
 	struct nvd_disk		*disk;
+
+	if (!nvme_use_nvd)
+		return;
 
 	while (!TAILQ_EMPTY(&ctrlr_head)) {
 		ctrlr = TAILQ_FIRST(&ctrlr_head);
@@ -226,6 +234,18 @@ nvd_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
 	return (ret);
 }
 
+static int
+nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
+{
+	struct nvd_disk *ndisk;
+	struct disk *dp;
+
+	dp = arg;
+	ndisk = dp->d_drv1;
+
+	return (nvme_ns_dump(ndisk->ns, virt, offset, len));
+}
+
 static void
 nvd_done(void *arg, const struct nvme_completion *cpl)
 {
@@ -302,6 +322,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk = disk_alloc();
 	disk->d_strategy = nvd_strategy;
 	disk->d_ioctl = nvd_ioctl;
+	disk->d_dump = nvd_dump;
 	disk->d_name = NVD_STR;
 	disk->d_drv1 = ndisk;
 
@@ -338,13 +359,11 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	 */
 	nvme_strvis(disk->d_ident, nvme_ns_get_serial_number(ns),
 	    sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH);
-
 	nvme_strvis(descr, nvme_ns_get_model_number(ns), sizeof(descr),
 	    NVME_MODEL_NUMBER_LENGTH);
-
-#if __FreeBSD_version >= 900034
 	strlcpy(disk->d_descr, descr, sizeof(descr));
-#endif
+
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	ndisk->ns = ns;
 	ndisk->disk = disk;

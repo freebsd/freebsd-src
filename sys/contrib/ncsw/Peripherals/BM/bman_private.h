@@ -54,76 +54,13 @@
  * and that dcbzl(), dcbfl(), and dcbi() won't fall victim to compiler or
  * execution reordering with respect to other code/instructions that manipulate
  * the same cacheline. */
-#ifdef CORE_E500MC
-
-#if defined(_DIAB_TOOL)
-#define hwsync() \
-do { \
-__asm__ __volatile__ ("sync"); \
-} while(0)
-
-#define lwsync() \
-do { \
-__asm__ __volatile__ ("lwsync"); \
-} while(0)
-
-__asm__ __volatile__ void dcbf (volatile void * addr)
-{
-%reg addr
-    dcbf r0, addr
-}
-
-__asm__ __volatile__ void dcbt_ro (volatile void * addr)
-{
-%reg addr
-    dcbt r0, addr
-}
-
-__asm__ __volatile__ void dcbt_rw (volatile void * addr)
-{
-%reg addr
-    dcbtst r0, addr
-}
-
-__asm__ __volatile__ void dcbzl (volatile void * addr)
-{
-%reg addr
-    dcbzl r0, addr
-}
-
-#define dcbz_64(p) \
-    do { \
-        dcbzl(p); \
-    } while (0)
-
-#define dcbf_64(p) \
-    do { \
-        dcbf(p); \
-    } while (0)
-
-/* Commonly used combo */
-#define dcbit_ro(p) \
-    do { \
-        dcbi(p); \
-        dcbt_ro(p); \
-    } while (0)
-
-#else /* GNU C */
-#define hwsync() \
-    do { \
-        __asm__ __volatile__ ("sync" : : : "memory"); \
-    } while(0)
-
-#define lwsync() \
-    do { \
-        __asm__ __volatile__ ("lwsync" : : : "memory"); \
-    } while(0)
 
 #define dcbf(addr)  \
     do { \
         __asm__ __volatile__ ("dcbf 0, %0" : : "r" (addr)); \
     } while(0)
 
+#ifdef CORE_E500MC
 #define dcbt_ro(addr)   \
     do { \
         __asm__ __volatile__ ("dcbt 0, %0" : : "r" (addr)); \
@@ -156,24 +93,12 @@ __asm__ __volatile__ void dcbzl (volatile void * addr)
         dcbt_ro(p); \
     } while (0)
 
-#endif /* _DIAB_TOOL */
-
 #else
-#define hwsync      CORE_MemoryBarrier
-#define lwsync      hwsync
 
-#define dcbf(p) \
-    do { \
-        __asm__ __volatile__ ("dcbf 0,%0" : : "r" (p)); \
-    } while(0)
 #define dcbt_ro(p) \
     do { \
         __asm__ __volatile__ ("dcbt 0,%0" : : "r" (p)); \
         lwsync(); \
-    } while(0)
-#define dcbt_rw(p) \
-    do { \
-        __asm__ __volatile__ ("dcbtst 0,%0" : : "r" (p)); \
     } while(0)
 #define dcbz(p) \
     do { \
@@ -181,21 +106,21 @@ __asm__ __volatile__ void dcbzl (volatile void * addr)
     } while (0)
 #define dcbz_64(p) \
     do { \
-        dcbz((uint32_t)p + 32); \
+        dcbz((char *)p + 32); \
         dcbz(p);    \
     } while (0)
 #define dcbf_64(p) \
     do { \
-        dcbf((uint32_t)p + 32); \
+        dcbf((char *)p + 32); \
         dcbf(p); \
     } while (0)
 /* Commonly used combo */
 #define dcbit_ro(p) \
     do { \
         dcbi(p); \
-        dcbi((uint32_t)p + 32); \
+        dcbi((char *)p + 32); \
         dcbt_ro(p); \
-        dcbt_ro((uint32_t)p + 32); \
+        dcbt_ro((char *)p + 32); \
     } while (0)
 
 #endif /* CORE_E500MC */

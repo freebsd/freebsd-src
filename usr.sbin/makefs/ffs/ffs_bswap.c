@@ -1,6 +1,8 @@
 /*	$NetBSD: ffs_bswap.c,v 1.28 2004/05/25 14:54:59 hannken Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 Manuel Bouyer.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,11 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -38,17 +35,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #endif
 
-#include <ufs/ufs/dinode.h>
-#include "ffs/ufs_bswap.h"
-#include <ufs/ffs/fs.h>
-
 #if !defined(_KERNEL)
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define panic(x)	printf("%s\n", (x)), abort()
 #endif
+
+#include <ufs/ufs/dinode.h>
+#include "ffs/ufs_bswap.h"
+#include <ufs/ffs/fs.h>
+#include "ffs/ffs_extern.h"
 
 #define	fs_old_postbloff	fs_spare5[0]
 #define	fs_old_rotbloff		fs_spare5[1]

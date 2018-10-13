@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2016
+.Dd July 1, 2018
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -268,6 +268,15 @@ Default location where compressed snapshots are stored.
 .It Pa /usr/ports
 Default location where the ports tree is extracted.
 .El
+.Sh EXAMPLES
+Fetch the snapshots and create the
+.Xr ports 7
+tree under
+.Pa /usr/ports :
+.Dl Nm Ar fetch Ar extract
+.Pp
+Update the ports tree:
+.Dl Nm Ar fetch Ar update
 .Sh SEE ALSO
 .Xr fetch 1 ,
 .Xr sha256 1 ,

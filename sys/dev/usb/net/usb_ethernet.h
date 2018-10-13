@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,6 +113,7 @@ struct ifnet	*uether_getifp(struct usb_ether *);
 struct mii_data *uether_getmii(struct usb_ether *);
 void		*uether_getsc(struct usb_ether *);
 int		uether_ifattach(struct usb_ether *);
+void		uether_ifattach_wait(struct usb_ether *);
 void		uether_ifdetach(struct usb_ether *);
 int		uether_ifmedia_upd(struct ifnet *);
 void		uether_init(void *);

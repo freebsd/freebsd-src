@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2010 Broadcom Corporation
  * 
@@ -37,7 +39,17 @@
  * in the proprietary "NIC-301 Interconnect Device Management (PL368)"
  * errata publication, available to licensees as part of ARM's
  * CoreLink Controllers and Peripherals Engineering Errata.
+ * 
+ * As such, the exact interpretation of these register definitions is
+ * unconfirmed, and may be incorrect.
  */
+
+#define	BCMA_DMP_GET_FLAG(_value, _flag)	\
+	(((_value) & _flag) != 0)
+#define	BCMA_DMP_GET_BITS(_value, _field)	\
+        ((_value & _field ## _MASK) >> _field ## _SHIFT)
+#define	BHND_DMP_SET_BITS(_value, _field)	\
+	(((_value) << _field ## _SHIFT) & _field ## _MASK)
 
 /* Out-of-band Router registers */
 #define	BCMA_OOB_BUSCONFIG	0x020
@@ -71,23 +83,36 @@
 #define	BCMA_OOB_ITOPOOBC	0xf38
 #define	BCMA_OOB_ITOPOOBD	0xf3c
 
-/* DMP wrapper registers */
-#define	BCMA_DMP_OOBSELINA30	0x000
-#define	BCMA_DMP_OOBSELINA74	0x004
-#define	BCMA_DMP_OOBSELINB30	0x020
-#define	BCMA_DMP_OOBSELINB74	0x024
-#define	BCMA_DMP_OOBSELINC30	0x040
-#define	BCMA_DMP_OOBSELINC74	0x044
-#define	BCMA_DMP_OOBSELIND30	0x060
-#define	BCMA_DMP_OOBSELIND74	0x064
-#define	BCMA_DMP_OOBSELOUTA30	0x100
-#define	BCMA_DMP_OOBSELOUTA74	0x104
-#define	BCMA_DMP_OOBSELOUTB30	0x120
-#define	BCMA_DMP_OOBSELOUTB74	0x124
-#define	BCMA_DMP_OOBSELOUTC30	0x140
-#define	BCMA_DMP_OOBSELOUTC74	0x144
-#define	BCMA_DMP_OOBSELOUTD30	0x160
-#define	BCMA_DMP_OOBSELOUTD74	0x164
+/* Common definitions */
+#define	BCMA_OOB_NUM_BANKS	4	/**< number of OOB banks (A, B, C, D) */
+#define	BCMA_OOB_NUM_SEL	8	/**< number of OOB selectors per bank */
+#define	BCMA_OOB_NUM_BUSLINES	32	/**< number of bus lines managed by OOB core */
+
+#define	BCMA_OOB_BANKA		0	/**< bank A index */
+#define	BCMA_OOB_BANKB		1	/**< bank B index */
+#define	BCMA_OOB_BANKC		2	/**< bank C index */
+#define	BCMA_OOB_BANKD		3	/**< bank D index */
+
+/** OOB bank used for interrupt lines */
+#define	BCMA_OOB_BANK_INTR	BCMA_OOB_BANKA
+
+/* DMP agent registers */
+#define	BCMA_DMP_OOBSELINA30	0x000	/**< A0-A3 input selectors */
+#define	BCMA_DMP_OOBSELINA74	0x004	/**< A4-A7 input selectors */
+#define	BCMA_DMP_OOBSELINB30	0x020	/**< B0-B3 input selectors */
+#define	BCMA_DMP_OOBSELINB74	0x024	/**< B4-B7 input selectors */
+#define	BCMA_DMP_OOBSELINC30	0x040	/**< C0-C3 input selectors */
+#define	BCMA_DMP_OOBSELINC74	0x044	/**< C4-C7 input selectors */
+#define	BCMA_DMP_OOBSELIND30	0x060	/**< D0-D3 input selectors */
+#define	BCMA_DMP_OOBSELIND74	0x064	/**< D4-D7 input selectors */
+#define	BCMA_DMP_OOBSELOUTA30	0x100	/**< A0-A3 output selectors */
+#define	BCMA_DMP_OOBSELOUTA74	0x104	/**< A4-A7 output selectors */
+#define	BCMA_DMP_OOBSELOUTB30	0x120	/**< B0-B3 output selectors */
+#define	BCMA_DMP_OOBSELOUTB74	0x124	/**< B4-B7 output selectors */
+#define	BCMA_DMP_OOBSELOUTC30	0x140	/**< C0-C3 output selectors */
+#define	BCMA_DMP_OOBSELOUTC74	0x144	/**< C4-C7 output selectors */
+#define	BCMA_DMP_OOBSELOUTD30	0x160	/**< D0-D3 output selectors */
+#define	BCMA_DMP_OOBSELOUTD74	0x164	/**< D4-D7 output selectors */
 #define	BCMA_DMP_OOBSYNCA	0x200
 #define	BCMA_DMP_OOBSELOUTAEN	0x204
 #define	BCMA_DMP_OOBSYNCB	0x220
@@ -108,6 +133,21 @@
 #define	BCMA_DMP_OOBDEXTWIDTH	0x360
 #define	BCMA_DMP_OOBDINWIDTH	0x364
 #define	BCMA_DMP_OOBDOUTWIDTH	0x368
+
+#define	BCMA_DMP_OOBSEL(_base, _bank, _sel)	\
+    (_base + (_bank * 8) + (_sel >= 4 ? 4 : 0))
+
+#define	BCMA_DMP_OOBSELIN(_bank, _sel)		\
+	BCMA_DMP_OOBSEL(BCMA_DMP_OOBSELINA30, _bank, _sel)
+
+#define	BCMA_DMP_OOBSELOUT(_bank, _sel)		\
+	BCMA_DMP_OOBSEL(BCMA_DMP_OOBSELOUTA30, _bank, _sel)
+
+#define	BCMA_DMP_OOBSYNC(_bank)		(BCMA_DMP_OOBSYNCA + (_bank * 8))
+#define	BCMA_DMP_OOBSELOUT_EN(_bank)	(BCMA_DMP_OOBSELOUTAEN + (_bank * 8))
+#define	BCMA_DMP_OOB_EXTWIDTH(_bank)	(BCMA_DMP_OOBAEXTWIDTH + (_bank * 12))
+#define	BCMA_DMP_OOB_INWIDTH(_bank)	(BCMA_DMP_OOBAINWIDTH + (_bank * 12))
+#define	BCMA_DMP_OOB_OUTWIDTH(_bank)	(BCMA_DMP_OOBAOUTWIDTH + (_bank * 12))
 
 // This was inherited from Broadcom's aidmp.h header
 // Is it required for any of our use-cases?
@@ -179,8 +219,42 @@
 #define	BCMA_DMP_COMPONENTID2	0xff8
 #define	BCMA_DMP_COMPONENTID3	0xffc
 
+
+/* OOBSEL(IN|OUT) */
+#define	BCMA_DMP_OOBSEL_MASK		0xFF		/**< OOB selector mask */
+#define	BCMA_DMP_OOBSEL_EN		(1<<7)		/**< OOB selector enable bit */
+#define	BCMA_DMP_OOBSEL_SHIFT(_sel)	((_sel % 4) * 8)
+#define	BCMA_DMP_OOBSEL_BUSLINE_MASK	0x7F		/**< OOB selector bus line mask */
+#define	BCMA_DMP_OOBSEL_BUSLINE_SHIFT	0
+
+#define	BCMA_DMP_OOBSEL_0_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_1_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_2_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_3_MASK	BCMA_DMP_OOBSEL_MASK
+
+#define	BCMA_DMP_OOBSEL_4_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_5_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_6_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_7_MASK	BCMA_DMP_OOBSEL_MASK
+
+#define	BCMA_DMP_OOBSEL_0_SHIFT	BCMA_DMP_OOBSEL_SHIFT(0)
+#define	BCMA_DMP_OOBSEL_1_SHIFT	BCMA_DMP_OOBSEL_SHIFT(1)
+#define	BCMA_DMP_OOBSEL_2_SHIFT	BCMA_DMP_OOBSEL_SHIFT(2)
+#define	BCMA_DMP_OOBSEL_3_SHIFT	BCMA_DMP_OOBSEL_SHIFT(3)
+
+#define	BCMA_DMP_OOBSEL_4_SHIFT	BCMA_DMP_OOBSEL_0_SHIFT
+#define	BCMA_DMP_OOBSEL_5_SHIFT	BCMA_DMP_OOBSEL_1_SHIFT
+#define	BCMA_DMP_OOBSEL_6_SHIFT	BCMA_DMP_OOBSEL_2_SHIFT
+#define	BCMA_DMP_OOBSEL_7_SHIFT	BCMA_DMP_OOBSEL_3_SHIFT
+
+/* ioctrl */
+#define	BCMA_DMP_IOCTRL_MASK	0x0000FFFF
+
+/* iostatus */
+#define	BCMA_DMP_IOST_MASK	0x0000FFFF
+
 /* resetctrl */
-#define	BMCA_DMP_RC_RESET	1
+#define	BCMA_DMP_RC_RESET	0x00000001
 
 /* config */
 #define	BCMA_DMP_CFG_OOB	0x00000020

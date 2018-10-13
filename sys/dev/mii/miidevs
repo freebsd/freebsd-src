@@ -224,6 +224,7 @@ model ICS 1889			0x0001 ICS1889 10/100 media interface
 model ICS 1890			0x0002 ICS1890 10/100 media interface
 model ICS 1892			0x0003 ICS1892 10/100 media interface
 model ICS 1893			0x0004 ICS1893 10/100 media interface
+model ICS 1893C			0x0005 ICS1893C 10/100 media interface
 
 /* Intel Corporation PHYs */
 model xxINTEL I82553		0x0000 i82553 10/100 media interface
@@ -282,7 +283,9 @@ model MARVELL E1000_5		0x0005 Marvell 88E1000 Gigabit PHY
 model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
 
 /* Micrel PHYs */
+model MICREL KSZ8081		0x0016 Micrel KSZ8081 10/100 PHY
 model MICREL KSZ9021		0x0021 Micrel KSZ9021 10/100/1000 PHY
+model MICREL KSZ9031		0x0022 Micrel KSZ9031 10/100/1000 PHY
 
 /* Myson Technology PHYs */
 model xxMYSON MTD972		0x0000 MTD972 10/100 media interface
@@ -315,7 +318,7 @@ model yyREALTEK RTL8201L	0x0020 RTL8201L 10/100 media interface
 model xxREALTEK RTL8169S	0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 model REALTEK RTL8305SC		0x0005 RTL8305SC 10/100 802.1q switch
 model REALTEK RTL8201E		0x0008 RTL8201E 10/100 media interface
-model REALTEK RTL8251		0x0000 RTL8251 1000BASE-T media interface
+model REALTEK RTL8251		0x0000 RTL8251/8153 1000BASE-T media interface
 model REALTEK RTL8169S		0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 
 /* Seeq Seeq PHYs */
@@ -335,7 +338,8 @@ model TI TNETE2101		0x0003 TNETE2101 media interface
 model xxTSC 78Q2120		0x0014 78Q2120 10/100 media interface
 model xxTSC 78Q2121		0x0015 78Q2121 100BASE-TX media interface
 
-/* Vitesse Semiconductor */
+/* Vitesse Semiconductor (now Microsemi) */
+model xxVITESSE VSC8501		0x0013 Vitesse VSC8501 10/100/1000TX PHY
 model xxVITESSE VSC8641		0x0003 Vitesse VSC8641 10/100/1000TX PHY
 
 /* XaQti Corp. PHYs */

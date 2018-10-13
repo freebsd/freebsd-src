@@ -1,4 +1,4 @@
-YACC: w - -B flag unsupported, reconfigure with --enable-btyacc
+YACC: w - -L flag unsupported, reconfigure with --enable-btyacc
 Usage: YACC [options] filename
 
 Options:

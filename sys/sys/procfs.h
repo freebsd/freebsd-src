@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 John D. Polstra.
  * All rights reserved.
  *
@@ -49,7 +51,10 @@ typedef struct fpreg fpregset_t;
 
 /*
  * The parenthsized numbers like (1) indicate the minimum version number
- * for which each element exists in the structure.
+ * for which each element exists in the structure.  The version number is
+ * not bumped when adding new fields to the end, only if the meaning of
+ * an existing field changes.  Additional fields are annotated as (1a),
+ * (1b), etc. to indicate the groupings of additions.
  */
 
 #define PRSTATUS_VERSION	1	/* Current version of prstatus_t */
@@ -61,7 +66,7 @@ typedef struct prstatus {
     size_t	pr_fpregsetsz;	/* sizeof(fpregset_t) (1) */
     int		pr_osreldate;	/* Kernel version (1) */
     int		pr_cursig;	/* Current signal (1) */
-    pid_t	pr_pid;		/* Process ID (1) */
+    pid_t	pr_pid;		/* LWP (Thread) ID (1) */
     gregset_t	pr_reg;		/* General purpose registers (1) */
 } prstatus_t;
 
@@ -78,6 +83,7 @@ typedef struct prpsinfo {
     size_t	pr_psinfosz;	/* sizeof(prpsinfo_t) (1) */
     char	pr_fname[PRFNAMESZ+1];	/* Command name, null terminated (1) */
     char	pr_psargs[PRARGSZ+1];	/* Arguments, null terminated (1) */
+    pid_t	pr_pid;		/* Process ID (1a) */
 } prpsinfo_t;
 
 typedef struct thrmisc {
@@ -104,6 +110,7 @@ typedef struct prpsinfo32 {
 	uint32_t pr_psinfosz;
 	char	pr_fname[PRFNAMESZ+1];
 	char	pr_psargs[PRARGSZ+1];
+	int32_t	pr_pid;
 } prpsinfo32_t;
 
 struct thrmisc32 {

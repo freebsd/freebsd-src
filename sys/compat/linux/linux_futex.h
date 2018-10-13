@@ -1,6 +1,8 @@
 /*	$NetBSD: linux_futex.h,v 1.2 2005/12/11 12:20:19 christos Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2005 Emmanuel Dreyfus, all rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +78,11 @@ extern struct mtx futex_mtx;
 #define	FUTEX_TID_MASK		0x3fffffff
 #define	FUTEX_BITSET_MATCH_ANY	0xffffffff
 
+int futex_xchgl(int oparg, uint32_t *uaddr, int *oldval);
+int futex_addl(int oparg, uint32_t *uaddr, int *oldval);
+int futex_orl(int oparg, uint32_t *uaddr, int *oldval);
+int futex_andl(int oparg, uint32_t *uaddr, int *oldval);
+int futex_xorl(int oparg, uint32_t *uaddr, int *oldval);
 void	release_futexes(struct thread *,
 			struct linux_emuldata *);
 

@@ -1,5 +1,3 @@
-/* $Id: platform.c,v 1.22 2014/07/18 04:11:26 djm Exp $ */
-
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
  *
@@ -18,16 +16,13 @@
 
 #include "includes.h"
 
-#include <sys/types.h>
-
 #include <stdarg.h>
 #include <unistd.h>
 
 #include "log.h"
-#include "buffer.h"
 #include "misc.h"
 #include "servconf.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "auth-pam.h"
@@ -107,8 +102,12 @@ platform_setusercontext(struct passwd *pw)
 #endif
 
 #ifdef USE_SOLARIS_PROJECTS
-	/* if solaris projects were detected, set the default now */
-	if (getuid() == 0 || geteuid() == 0)
+	/*
+	 * If solaris projects were detected, set the default now, unless
+	 * we are using PAM in which case it is the responsibility of the
+	 * PAM stack.
+	 */
+	if (!options.use_pam && (getuid() == 0 || geteuid() == 0))
 		solaris_set_default_project(pw);
 #endif
 
@@ -196,20 +195,4 @@ platform_krb5_get_principal_name(const char *pw_name)
 #else
 	return NULL;
 #endif
-}
-
-/*
- * return 1 if the specified uid is a uid that may own a system directory
- * otherwise 0.
- */
-int
-platform_sys_dir_uid(uid_t uid)
-{
-	if (uid == 0)
-		return 1;
-#ifdef PLATFORM_SYS_DIR_UID
-	if (uid == PLATFORM_SYS_DIR_UID)
-		return 1;
-#endif
-	return 0;
 }

@@ -51,7 +51,7 @@ static lzma_check check;
 /// This becomes false if the --check=CHECK option is used.
 static bool check_default = true;
 
-#ifdef MYTHREAD_ENABLED
+#if defined(HAVE_ENCODERS) && defined(MYTHREAD_ENABLED)
 static lzma_mt mt_options = {
 	.flags = 0,
 	.timeout = 300,
@@ -221,9 +221,10 @@ coder_set_compression_settings(void)
 	// Get the memory usage. Note that if --format=raw was used,
 	// we can be decompressing.
 	const uint64_t memory_limit = hardware_memlimit_get(opt_mode);
-	uint64_t memory_usage;
+	uint64_t memory_usage = UINT64_MAX;
 	if (opt_mode == MODE_COMPRESS) {
-#ifdef MYTHREAD_ENABLED
+#ifdef HAVE_ENCODERS
+#	ifdef MYTHREAD_ENABLED
 		if (opt_format == FORMAT_XZ && hardware_threads_get() > 1) {
 			mt_options.threads = hardware_threads_get();
 			mt_options.block_size = opt_block_size;
@@ -235,12 +236,15 @@ coder_set_compression_settings(void)
 						" threads."),
 						mt_options.threads);
 		} else
-#endif
+#	endif
 		{
 			memory_usage = lzma_raw_encoder_memusage(filters);
 		}
+#endif
 	} else {
+#ifdef HAVE_DECODERS
 		memory_usage = lzma_raw_decoder_memusage(filters);
+#endif
 	}
 
 	if (memory_usage == UINT64_MAX)
@@ -248,7 +252,11 @@ coder_set_compression_settings(void)
 
 	// Print memory usage info before possible dictionary
 	// size auto-adjusting.
+	//
+	// NOTE: If only encoder support was built, we cannot show the
+	// what the decoder memory usage will be.
 	message_mem_needed(V_DEBUG, memory_usage);
+#ifdef HAVE_DECODERS
 	if (opt_mode == MODE_COMPRESS) {
 		const uint64_t decmem = lzma_raw_decoder_memusage(filters);
 		if (decmem != UINT64_MAX)
@@ -256,6 +264,7 @@ coder_set_compression_settings(void)
 					"%s MiB of memory."), uint64_to_str(
 						round_up_to_mib(decmem), 0));
 	}
+#endif
 
 	if (memory_usage <= memory_limit)
 		return;
@@ -268,7 +277,8 @@ coder_set_compression_settings(void)
 
 	assert(opt_mode == MODE_COMPRESS);
 
-#ifdef MYTHREAD_ENABLED
+#ifdef HAVE_ENCODERS
+#	ifdef MYTHREAD_ENABLED
 	if (opt_format == FORMAT_XZ && mt_options.threads > 1) {
 		// Try to reduce the number of threads before
 		// adjusting the compression settings down.
@@ -295,7 +305,7 @@ coder_set_compression_settings(void)
 			uint64_to_str(round_up_to_mib(
 				memory_limit), 2));
 	}
-#endif
+#	endif
 
 	if (memory_usage <= memory_limit)
 		return;
@@ -349,11 +359,13 @@ coder_set_compression_settings(void)
 			uint64_to_str(orig_dict_size >> 20, 0),
 			uint64_to_str(opt->dict_size >> 20, 1),
 			uint64_to_str(round_up_to_mib(memory_limit), 2));
+#endif
 
 	return;
 }
 
 
+#ifdef HAVE_DECODERS
 /// Return true if the data in in_buf seems to be in the .xz format.
 static bool
 is_format_xz(void)
@@ -411,6 +423,7 @@ is_format_lzma(void)
 
 	return true;
 }
+#endif
 
 
 /// Detect the input file type (for now, this done only when decompressing),
@@ -424,6 +437,7 @@ coder_init(file_pair *pair)
 	lzma_ret ret = LZMA_PROG_ERROR;
 
 	if (opt_mode == MODE_COMPRESS) {
+#ifdef HAVE_ENCODERS
 		switch (opt_format) {
 		case FORMAT_AUTO:
 			// args.c ensures this.
@@ -431,12 +445,12 @@ coder_init(file_pair *pair)
 			break;
 
 		case FORMAT_XZ:
-#ifdef MYTHREAD_ENABLED
+#	ifdef MYTHREAD_ENABLED
 			if (hardware_threads_get() > 1)
 				ret = lzma_stream_encoder_mt(
 						&strm, &mt_options);
 			else
-#endif
+#	endif
 				ret = lzma_stream_encoder(
 						&strm, filters, check);
 			break;
@@ -449,7 +463,9 @@ coder_init(file_pair *pair)
 			ret = lzma_raw_encoder(&strm, filters);
 			break;
 		}
+#endif
 	} else {
+#ifdef HAVE_DECODERS
 		uint32_t flags = 0;
 
 		// It seems silly to warn about unsupported check if the
@@ -531,6 +547,7 @@ coder_init(file_pair *pair)
 			strm.avail_out = 0;
 			ret = lzma_code(&strm, LZMA_RUN);
 		}
+#endif
 	}
 
 	if (ret != LZMA_OK) {

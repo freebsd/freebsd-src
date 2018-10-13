@@ -313,14 +313,14 @@ ahci_a10_attach(device_t dev)
 		return (ENXIO);
 
 	/* Enable clocks */
-	error = clk_get_by_ofw_index(dev, 0, &clk_pll);
-	if (error != 0) {
-		device_printf(dev, "Cannot get PLL clock\n");
-		goto fail;
-	}
-	error = clk_get_by_ofw_index(dev, 1, &clk_gate);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk_gate);
 	if (error != 0) {
 		device_printf(dev, "Cannot get gate clock\n");
+		goto fail;
+	}
+	error = clk_get_by_ofw_index(dev, 0, 1, &clk_pll);
+	if (error != 0) {
+		device_printf(dev, "Cannot get PLL clock\n");
 		goto fail;
 	}
 	error = clk_set_freq(clk_pll, PLL_FREQ, CLK_SET_ROUND_DOWN);
@@ -373,8 +373,6 @@ ahci_a10_detach(device_t dev)
 	return (ahci_detach(dev));
 }
 
-devclass_t ahci_devclass;
-
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_a10_probe),
 	DEVMETHOD(device_attach,    ahci_a10_attach),
@@ -394,4 +392,4 @@ static driver_t ahci_ata_driver = {
         sizeof(struct ahci_controller)
 };
 
-DRIVER_MODULE(ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(a10_ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
@@ -33,6 +35,6 @@
 
 struct vmctx;
 
-int	bootrom_init(struct vmctx *ctx, const char *romfile);
+int bootrom_init(struct vmctx *ctx, const char *romfile);
 
 #endif

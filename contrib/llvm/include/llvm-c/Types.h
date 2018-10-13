@@ -83,11 +83,25 @@ typedef struct LLVMOpaqueValue *LLVMValueRef;
 typedef struct LLVMOpaqueBasicBlock *LLVMBasicBlockRef;
 
 /**
+ * Represents an LLVM Metadata.
+ *
+ * This models llvm::Metadata.
+ */
+typedef struct LLVMOpaqueMetadata *LLVMMetadataRef;
+
+/**
  * Represents an LLVM basic block builder.
  *
  * This models llvm::IRBuilder.
  */
 typedef struct LLVMOpaqueBuilder *LLVMBuilderRef;
+
+/**
+ * Represents an LLVM debug info builder.
+ *
+ * This models llvm::DIBuilder.
+ */
+typedef struct LLVMOpaqueDIBuilder *LLVMDIBuilderRef;
 
 /**
  * Interface used to provide a module to JIT or interpreter.
@@ -107,6 +121,13 @@ typedef struct LLVMOpaquePassRegistry *LLVMPassRegistryRef;
  *
  * @see llvm::Use */
 typedef struct LLVMOpaqueUse *LLVMUseRef;
+
+/**
+ * Used to represent an attributes.
+ *
+ * @see llvm::Attribute
+ */
+typedef struct LLVMOpaqueAttributeRef *LLVMAttributeRef;
 
 /**
  * @see llvm::DiagnosticInfo

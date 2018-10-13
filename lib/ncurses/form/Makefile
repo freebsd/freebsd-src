@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../config.mk"
+.include "${.CURDIR:H}/config.mk"
 
 SRCDIR=	${NCURSES_DIR}/form
 

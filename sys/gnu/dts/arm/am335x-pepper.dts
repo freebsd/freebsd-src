@@ -20,7 +20,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
@@ -41,15 +41,15 @@
 		compatible = "ti,da830-evm-audio";
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 	};
 
-	v3v3c_reg: fixedregulator@1 {
+	v3v3c_reg: fixedregulator1 {
 		compatible = "regulator-fixed";
 	};
 
-	vdd5_reg: fixedregulator@2 {
+	vdd5_reg: fixedregulator2 {
 		compatible = "regulator-fixed";
 	};
 };
@@ -67,7 +67,7 @@
 	};
 
 	eeprom: eeprom@50 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x50>;
 	};
 
@@ -139,7 +139,7 @@
 &audio_codec {
 	status = "okay";
 
-	gpio-reset = <&gpio1 16 GPIO_ACTIVE_LOW>;
+	reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 	AVDD-supply = <&ldo3_reg>;
 	IOVDD-supply = <&ldo3_reg>;
 	DRVDD-supply = <&ldo3_reg>;
@@ -420,9 +420,9 @@
 	vin-supply = <&vbat>;
 };
 
-&tps {
-	compatible = "ti,tps65217";
+/include/ "tps65217.dtsi"
 
+&tps {
 	backlight {
 		isel = <1>; /* ISET1 */
 		fdim = <200>; /* TPS65217_BL_FDIM_200HZ */
@@ -430,17 +430,12 @@
 	};
 
 	regulators {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		dcdc1_reg: regulator@0 {
-			reg = <0>;
 			/* VDD_1V8 system supply */
 			regulator-always-on;
 		};
 
 		dcdc2_reg: regulator@1 {
-			reg = <1>;
 			/* VDD_CORE voltage limits 0.95V - 1.26V with +/-4% tolerance */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <925000>;
@@ -450,7 +445,6 @@
 		};
 
 		dcdc3_reg: regulator@2 {
-			reg = <2>;
 			/* VDD_MPU voltage limits 0.95V - 1.1V with +/-4% tolerance */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <925000>;
@@ -460,21 +454,18 @@
 		};
 
 		ldo1_reg: regulator@3 {
-			reg = <3>;
 			/* VRTC 1.8V always-on supply */
 			regulator-name = "vrtc,vdds";
 			regulator-always-on;
 		};
 
 		ldo2_reg: regulator@4 {
-			reg = <4>;
 			/* 3.3V rail */
 			regulator-name = "vdd_3v3aux";
 			regulator-always-on;
 		};
 
 		ldo3_reg: regulator@5 {
-			reg = <5>;
 			/* VDD_3V3A 3.3V rail */
 			regulator-name = "vdd_3v3a";
 			regulator-min-microvolt = <3300000>;
@@ -482,7 +473,6 @@
 		};
 
 		ldo4_reg: regulator@6 {
-			reg = <6>;
 			/* VDD_3V3B 3.3V rail */
 			regulator-name = "vdd_3v3b";
 			regulator-always-on;
@@ -605,14 +595,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&user_leds_pins>;
 
-	led@0 {
+	led0 {
 		label = "pepper:user0:blue";
 		gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
 		linux,default-trigger = "none";
 		default-state = "off";
 	};
 
-	led@1 {
+	led1 {
 		label = "pepper:user1:red";
 		gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 		linux,default-trigger = "none";
@@ -626,21 +616,21 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	button@0 {
+	button0 {
 		label = "home";
 		linux,code = <KEY_HOME>;
 		gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;
 		wakeup-source;
 	};
 
-	button@1 {
+	button1 {
 		label = "menu";
 		linux,code = <KEY_MENU>;
 		gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
 		wakeup-source;
 	};
 
-	buttons@2 {
+	buttons2 {
 		label = "power";
 		linux,code = <KEY_POWER>;
 		gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;

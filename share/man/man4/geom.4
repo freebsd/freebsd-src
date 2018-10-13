@@ -34,27 +34,24 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2015
+.Dd April 9, 2018
 .Dt GEOM 4
 .Os
 .Sh NAME
 .Nm GEOM
 .Nd "modular disk I/O request transformation framework"
 .Sh SYNOPSIS
-.Cd options GEOM_AES
 .Cd options GEOM_BDE
-.Cd options GEOM_BSD
 .Cd options GEOM_CACHE
 .Cd options GEOM_CONCAT
 .Cd options GEOM_ELI
-.Cd options GEOM_FOX
 .Cd options GEOM_GATE
 .Cd options GEOM_JOURNAL
 .Cd options GEOM_LABEL
 .Cd options GEOM_LINUX_LVM
 .Cd options GEOM_MAP
-.Cd options GEOM_MBR
 .Cd options GEOM_MIRROR
+.Cd options GEOM_MOUNTVER
 .Cd options GEOM_MULTIPATH
 .Cd options GEOM_NOP
 .Cd options GEOM_PART_APM
@@ -65,17 +62,13 @@
 .Cd options GEOM_PART_GPT
 .Cd options GEOM_PART_LDM
 .Cd options GEOM_PART_MBR
-.Cd options GEOM_PART_PC98
 .Cd options GEOM_PART_VTOC8
-.Cd options GEOM_PC98
 .Cd options GEOM_RAID
 .Cd options GEOM_RAID3
 .Cd options GEOM_SHSEC
 .Cd options GEOM_STRIPE
-.Cd options GEOM_SUNLABEL
 .Cd options GEOM_UZIP
 .Cd options GEOM_VIRSTOR
-.Cd options GEOM_VOL
 .Cd options GEOM_ZERO
 .Sh DESCRIPTION
 The
@@ -450,6 +443,24 @@ This is unused at this time.
 .It 0x80 Pq Dv G_F_CTLDUMP
 Dump contents of gctl requests.
 .El
+.Sh OBSOLETE OPTIONS
+.Pp
+The following options have been deprecated and will be removed in
+.Fx 12 :
+.Cd GEOM_BSD ,
+.Cd GEOM_FOX ,
+.Cd GEOM_MBR ,
+.Cd GEOM_SUNLABEL ,
+and
+.Cd GEOM_VOL .
+.Pp
+Use
+.Cd GEOM_PART_BSD ,
+.Cd GEOM_MULTIPATH ,
+.Cd GEOM_PART_MBR ,
+.Cd GEOM_PART_VTOC8 ,
+.Cd GEOM_LABEL
+options, respectively, instead.
 .Sh SEE ALSO
 .Xr libgeom 3 ,
 .Xr DECLARE_GEOM_CLASS 9 ,

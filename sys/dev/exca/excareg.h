@@ -2,7 +2,9 @@
 /* $FreeBSD$ */
 
 /*-
- * Copyright (c) 2002 M Warner Losh.  All rights reserved.
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2002 M. Warner Losh.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -417,10 +419,6 @@
 #define EXCA_PNP_82365_CARDBUS	0x030ED041	/* PNP0E03 */
 #define EXCA_PNP_SCM_SWAPBOX	0x69046d4c	/* SMC0469 */
 
-/* C-Bus PnP Definitions */
-#define EXCA_NEC_PC9801_102	0x9180a3b8	/* NEC8091 PC-9801-102 */
-#define	EXCA_NEC_PC9821RA_E01	0x2181a3b8	/* NEC8121 PC-9821RA-E01 */
-
 /*
  *	Mask of allowable interrupts.
  *
@@ -433,20 +431,7 @@
  *	NT had a special device that would probe for conflicts early in the
  *	boot process and formulate a mapping table.  Maybe we should do
  *	something similar.
- *
- *	For NEC PC-98 machines, irq 3, 5, 6, 9, 10, 11, 12, 13 are allowed.
- *	These correspond to the C-BUS signals INT 0, 1, 2, 3, 41, 42, 5, 6
- *	respectively.
- *
- *	Hiroshi TSUKADA-san writes in FreeBSD98-testers that CBUS INT 2
- *	(mapped to IRQ 6) is routed to the IRQ 7 pin of the pcic in pc98
- *	cbus add-in cards.  He has confirmed this routing with a visual
- *	inspection of his card or a VOM.
  */
-#ifdef PC98
-#define	EXCA_INT_MASK_ALLOWED	0x3E68		/* PC98 */
-#else
 #define	EXCA_INT_MASK_ALLOWED	0xDEB8		/* AT */
-#endif
 
 #endif /* !_SYS_DEV_EXCA_EXCAREG_H */

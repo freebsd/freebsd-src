@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.109 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.112 2018/06/01 03:33:53 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -17,7 +17,6 @@
 
 #include "includes.h"
 
-#include <sys/param.h>	/* MIN */
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
@@ -28,9 +27,6 @@
 #endif
 #ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
-#endif
-#ifdef HAVE_SYS_PRCTL_H
-#include <sys/prctl.h>
 #endif
 
 #include <dirent.h>
@@ -508,7 +504,7 @@ status_to_message(u_int32_t status)
 		"Operation unsupported",	/* SSH_FX_OP_UNSUPPORTED */
 		"Unknown error"			/* Others */
 	};
-	return (status_messages[MIN(status,SSH2_FX_MAX)]);
+	return (status_messages[MINIMUM(status,SSH2_FX_MAX)]);
 }
 
 static void
@@ -695,8 +691,8 @@ process_open(u_int32_t id)
 	logit("open \"%s\" flags %s mode 0%o",
 	    name, string_from_portable(pflags), mode);
 	if (readonly &&
-	    ((flags & O_ACCMODE) == O_WRONLY ||
-	    (flags & O_ACCMODE) == O_RDWR)) {
+	    ((flags & O_ACCMODE) != O_RDONLY ||
+	    (flags & (O_CREAT|O_TRUNC)) != 0)) {
 		verbose("Refusing open request in read-only mode");
 		status = SSH2_FX_PERMISSION_DENIED;
 	} else {
@@ -1507,7 +1503,7 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	int i, r, in, out, max, ch, skipargs = 0, log_stderr = 0;
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
-	char *cp, *homedir = NULL, buf[4*4096];
+	char *cp, *homedir = NULL, uidstr[32], buf[4*4096];
 	long mask;
 
 	extern char *optarg;
@@ -1558,8 +1554,10 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 			break;
 		case 'd':
 			cp = tilde_expand_filename(optarg, user_pw->pw_uid);
+			snprintf(uidstr, sizeof(uidstr), "%llu",
+			    (unsigned long long)pw->pw_uid);
 			homedir = percent_expand(cp, "d", user_pw->pw_dir,
-			    "u", user_pw->pw_name, (char *)NULL);
+			    "u", user_pw->pw_name, "U", uidstr, (char *)NULL);
 			free(cp);
 			break;
 		case 'p':
@@ -1588,16 +1586,13 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 
 	log_init(__progname, log_level, log_facility, log_stderr);
 
-#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
 	/*
-	 * On Linux, we should try to avoid making /proc/self/{mem,maps}
+	 * On platforms where we can, avoid making /proc/self/{mem,maps}
 	 * available to the user so that sftp access doesn't automatically
 	 * imply arbitrary code execution access that will break
 	 * restricted configurations.
 	 */
-	if (prctl(PR_SET_DUMPABLE, 0) != 0)
-		fatal("unable to make the process undumpable");
-#endif /* defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE) */
+	platform_disable_tracing(1);	/* strict */
 
 	/* Drop any fine-grained privileges we don't need */
 	platform_pledge_sftp_server();

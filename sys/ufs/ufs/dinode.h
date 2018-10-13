@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-3-Clause)
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -74,15 +76,15 @@
  * the root inode is 2.  (Inode 1 is no longer used for this purpose, however
  * numerous dump tapes make this assumption, so we are stuck with it).
  */
-#define	ROOTINO	((ino_t)2)
+#define	UFS_ROOTINO	((ino_t)2)
 
 /*
  * The Whiteout inode# is a dummy non-zero inode number which will
  * never be allocated to a real file.  It is used as a place holder
  * in the directory entry which has been tagged as a DT_WHT entry.
- * See the comments about ROOTINO above.
+ * See the comments about UFS_ROOTINO above.
  */
-#define	WINO	((ino_t)1)
+#define	UFS_WINO	((ino_t)1)
 
 /*
  * The size of physical and logical block numbers and time fields in UFS.
@@ -118,9 +120,9 @@ typedef int64_t ufs_time_t;
  * are defined by types with precise widths.
  */
 
-#define	NXADDR	2			/* External addresses in inode. */
-#define	NDADDR	12			/* Direct addresses in inode. */
-#define	NIADDR	3			/* Indirect addresses in inode. */
+#define	UFS_NXADDR	2		/* External addresses in inode. */
+#define	UFS_NDADDR	12		/* Direct addresses in inode. */
+#define	UFS_NIADDR	3		/* Indirect addresses in inode. */
 
 struct ufs2_dinode {
 	u_int16_t	di_mode;	/*   0: IFMT, permissions; see below. */
@@ -142,9 +144,9 @@ struct ufs2_dinode {
 	u_int32_t	di_kernflags;	/*  84: Kernel flags. */
 	u_int32_t	di_flags;	/*  88: Status flags (chflags). */
 	u_int32_t	di_extsize;	/*  92: External attributes size. */
-	ufs2_daddr_t	di_extb[NXADDR];/*  96: External attributes block. */
-	ufs2_daddr_t	di_db[NDADDR];	/* 112: Direct disk blocks. */
-	ufs2_daddr_t	di_ib[NIADDR];	/* 208: Indirect disk blocks. */
+	ufs2_daddr_t	di_extb[UFS_NXADDR];/* 96: External attributes block. */
+	ufs2_daddr_t	di_db[UFS_NDADDR]; /* 112: Direct disk blocks. */
+	ufs2_daddr_t	di_ib[UFS_NIADDR]; /* 208: Indirect disk blocks. */
 	u_int64_t	di_modrev;	/* 232: i_modrev for NFSv4 */
 	uint32_t	di_freelink;	/* 240: SUJ: Next unlinked inode. */
 	uint32_t	di_spare[3];	/* 244: Reserved; currently unused */
@@ -176,8 +178,8 @@ struct ufs1_dinode {
 	int32_t		di_mtimensec;	/*  28: Last modified time. */
 	int32_t		di_ctime;	/*  32: Last inode change time. */
 	int32_t		di_ctimensec;	/*  36: Last inode change time. */
-	ufs1_daddr_t	di_db[NDADDR];	/*  40: Direct disk blocks. */
-	ufs1_daddr_t	di_ib[NIADDR];	/*  88: Indirect disk blocks. */
+	ufs1_daddr_t	di_db[UFS_NDADDR]; /*  40: Direct disk blocks. */
+	ufs1_daddr_t	di_ib[UFS_NIADDR]; /*  88: Indirect disk blocks. */
 	u_int32_t	di_flags;	/* 100: Status flags (chflags). */
 	u_int32_t	di_blocks;	/* 104: Blocks actually held. */
 	u_int32_t	di_gen;		/* 108: Generation number. */
@@ -185,5 +187,7 @@ struct ufs1_dinode {
 	u_int32_t	di_gid;		/* 116: File group. */
 	u_int64_t	di_modrev;	/* 120: i_modrev for NFSv4 */
 };
+
+#define	UFS_LINK_MAX	32767
 
 #endif /* _UFS_UFS_DINODE_H_ */

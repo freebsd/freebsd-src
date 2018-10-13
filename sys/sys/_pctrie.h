@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -38,14 +40,4 @@ struct pctrie {
 	uintptr_t	pt_root;
 };
 
-#ifdef _KERNEL
-
-static __inline boolean_t
-pctrie_is_empty(struct pctrie *ptree)
-{
-
-	return (ptree->pt_root == 0);
-}
-
-#endif /* _KERNEL */
 #endif /* !__SYS_PCTRIE_H_ */

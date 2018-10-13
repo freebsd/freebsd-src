@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -83,7 +85,7 @@ extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
-extern struct nfsstats newnfsstats;
+extern struct nfsstatsv1 nfsstatsv1;
 
 struct task	ncl_nfsiodnew_task;
 
@@ -135,42 +137,33 @@ ncl_dircookie_unlock(struct nfsnode *np)
 	mtx_unlock(&np->n_mtx);
 }
 
-int
-ncl_upgrade_vnlock(struct vnode *vp)
+bool
+ncl_excl_start(struct vnode *vp)
 {
-	int old_lock;
+	struct nfsnode *np;
+	int vn_lk;
 
-	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
-	old_lock = NFSVOPISLOCKED(vp);
-	if (old_lock != LK_EXCLUSIVE) {
-		KASSERT(old_lock == LK_SHARED,
-		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
-		/* Upgrade to exclusive lock, this might block */
-		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
-  	}
-	return (old_lock);
+	ASSERT_VOP_LOCKED(vp, "ncl_excl_start");
+	vn_lk = NFSVOPISLOCKED(vp);
+	if (vn_lk == LK_EXCLUSIVE)
+		return (false);
+	KASSERT(vn_lk == LK_SHARED,
+	    ("ncl_excl_start: wrong vnode lock %d", vn_lk));
+	/* Ensure exclusive access, this might block */
+	np = VTONFS(vp);
+	lockmgr(&np->n_excl, LK_EXCLUSIVE, NULL);
+	return (true);
 }
 
 void
-ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
+ncl_excl_finish(struct vnode *vp, bool old_lock)
 {
-	if (old_lock != LK_EXCLUSIVE) {
-		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
-		/* Downgrade from exclusive lock. */
-		NFSVOPLOCK(vp, LK_DOWNGRADE | LK_RETRY);
-  	}
-}
+	struct nfsnode *np;
 
-void
-ncl_printf(const char *fmt, ...)
-{
-	va_list ap;
-
-	mtx_lock(&Giant);
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-	mtx_unlock(&Giant);
+	if (!old_lock)
+		return;
+	np = VTONFS(vp);
+	lockmgr(&np->n_excl, LK_RELEASE, NULL);
 }
 
 #ifdef NFS_ACDEBUG
@@ -197,16 +190,13 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
 	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
-#ifdef NFS_ACDEBUG
-	mtx_lock(&Giant);	/* ncl_printf() */
-#endif
 	mtx_lock(&np->n_mtx);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
 	timeo = (time_second - np->n_mtime.tv_sec) / 10;
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug>1)
-		ncl_printf("nfs_getattrcache: initial timeo = %d\n", timeo);
+		printf("ncl_getattrcache: initial timeo = %d\n", timeo);
 #endif
 
 	if (vap->va_type == VDIR) {
@@ -223,26 +213,23 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug > 2)
-		ncl_printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
-			   nmp->nm_acregmin, nmp->nm_acregmax,
-			   nmp->nm_acdirmin, nmp->nm_acdirmax);
+		printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
+		    nmp->nm_acregmin, nmp->nm_acregmax,
+		    nmp->nm_acdirmin, nmp->nm_acdirmax);
 
 	if (nfs_acdebug)
-		ncl_printf("nfs_getattrcache: age = %d; final timeo = %d\n",
-			   (time_second - np->n_attrstamp), timeo);
+		printf("ncl_getattrcache: age = %d; final timeo = %d\n",
+		    (time_second - np->n_attrstamp), timeo);
 #endif
 
 	if ((time_second - np->n_attrstamp) >= timeo &&
 	    (mustflush != 0 || np->n_attrstamp == 0)) {
-		newnfsstats.attrcache_misses++;
+		nfsstatsv1.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-		mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
-	newnfsstats.attrcache_hits++;
+	nfsstatsv1.attrcache_hits++;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (np->n_flag & NMODIFIED) {
@@ -266,9 +253,6 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 			vaper->va_mtime = np->n_mtim;
 	}
 	mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-	mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
 	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
@@ -294,7 +278,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 	dp = LIST_FIRST(&np->n_cookies);
 	if (!dp) {
 		if (add) {
-			MALLOC(dp, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
@@ -309,7 +293,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 				goto out;
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
-			MALLOC(dp2, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp2 = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp2->ndm_eocookie = 0;
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);

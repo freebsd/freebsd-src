@@ -100,7 +100,7 @@ qman_portals_detach(device_t dev)
 		}
 
 		if (sc->sc_dp[i].dp_ires != NULL) {
-			XX_DeallocIntr((int)sc->sc_dp[i].dp_ires);
+			XX_DeallocIntr((uintptr_t)sc->sc_dp[i].dp_ires);
 			bus_release_resource(dev, SYS_RES_IRQ,
 			    sc->sc_dp[i].dp_irid, sc->sc_dp[i].dp_ires);
 		}
@@ -120,7 +120,8 @@ qman_portal_setup(struct qman_softc *qsc)
 {
 	struct dpaa_portals_softc *sc;
 	t_QmPortalParam qpp;
-	unsigned int cpu, p;
+	unsigned int cpu;
+	uintptr_t p;
 	t_Handle portal;
 
 	/* Return NULL if we're not ready or while detach */
@@ -134,9 +135,9 @@ qman_portal_setup(struct qman_softc *qsc)
 	cpu = PCPU_GET(cpuid);
 
 	/* Check if portal is ready */
-	while (atomic_cmpset_acq_32((uint32_t *)&sc->sc_dp[cpu].dp_ph,
+	while (atomic_cmpset_acq_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph,
 	    0, -1) == 0) {
-		p = atomic_load_acq_32((uint32_t *)&sc->sc_dp[cpu].dp_ph);
+		p = atomic_load_acq_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph);
 
 		/* Return if portal is already initialized */
 		if (p != 0 && p != -1) {
@@ -158,7 +159,7 @@ qman_portal_setup(struct qman_softc *qsc)
 	qpp.ciBaseAddress = rman_get_bushandle(sc->sc_rres[1]);
 	qpp.h_Qm = qsc->sc_qh;
 	qpp.swPortalId = cpu;
-	qpp.irq = (int)sc->sc_dp[cpu].dp_ires;
+	qpp.irq = (uintptr_t)sc->sc_dp[cpu].dp_ires;
 	qpp.fdLiodnOffset = 0;
 	qpp.f_DfltFrame = qman_received_frame_callback;
 	qpp.f_RejectedFrame = qman_rejected_frame_callback;
@@ -174,8 +175,8 @@ qman_portal_setup(struct qman_softc *qsc)
 	if (QM_PORTAL_AddPoolChannel(portal, QMAN_COMMON_POOL_CHANNEL) != E_OK)
 		goto err;
 
-	atomic_store_rel_32((uint32_t *)&sc->sc_dp[cpu].dp_ph,
-	    (uint32_t)portal);
+	atomic_store_rel_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph,
+	    (uintptr_t)portal);
 	sched_unpin();
 
 	return (portal);

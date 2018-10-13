@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -153,6 +155,7 @@ static struct connection *
 connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 {
 	struct connection *conn;
+	struct iscsi_session_limits *isl;
 	struct addrinfo *from_ai, *to_ai;
 	const char *from_addr, *to_addr;
 #ifdef ICL_KERNEL_PROXY
@@ -171,7 +174,8 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	conn->conn_data_digest = CONN_DIGEST_NONE;
 	conn->conn_initial_r2t = true;
 	conn->conn_immediate_data = true;
-	conn->conn_max_data_segment_length = 8192;
+	conn->conn_max_recv_data_segment_length = 8192;
+	conn->conn_max_send_data_segment_length = 8192;
 	conn->conn_max_burst_length = 262144;
 	conn->conn_first_burst_length = 65536;
 	conn->conn_iscsi_fd = iscsi_fd;
@@ -180,7 +184,38 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	memcpy(&conn->conn_conf, &request->idr_conf, sizeof(conn->conn_conf));
 	memcpy(&conn->conn_isid, &request->idr_isid, sizeof(conn->conn_isid));
 	conn->conn_tsih = request->idr_tsih;
-	memcpy(&conn->conn_limits, &request->idr_limits, sizeof(conn->conn_limits));
+
+	/*
+	 * Read the driver limits and provide reasonable defaults for the ones
+	 * the driver doesn't care about.  If a max_snd_dsl is not explicitly
+	 * provided by the driver then we'll make sure both conn->max_snd_dsl
+	 * and isl->max_snd_dsl are set to the rcv_dsl.  This preserves historic
+	 * behavior.
+	 */
+	isl = &conn->conn_limits;
+	memcpy(isl, &request->idr_limits, sizeof(*isl));
+	if (isl->isl_max_recv_data_segment_length == 0)
+		isl->isl_max_recv_data_segment_length = (1 << 24) - 1;
+	if (isl->isl_max_send_data_segment_length == 0)
+		isl->isl_max_send_data_segment_length =
+		    isl->isl_max_recv_data_segment_length;
+	if (isl->isl_max_burst_length == 0)
+		isl->isl_max_burst_length = (1 << 24) - 1;
+	if (isl->isl_first_burst_length == 0)
+		isl->isl_first_burst_length = (1 << 24) - 1;
+	if (isl->isl_first_burst_length > isl->isl_max_burst_length)
+		isl->isl_first_burst_length = isl->isl_max_burst_length;
+
+	/*
+	 * Limit default send length in case it won't be negotiated.
+	 * We can't do it for other limits, since they may affect both
+	 * sender and receiver operation, and we must obey defaults.
+	 */
+	if (conn->conn_max_send_data_segment_length >
+	    isl->isl_max_send_data_segment_length) {
+		conn->conn_max_send_data_segment_length =
+		    isl->isl_max_send_data_segment_length;
+	}
 
 	from_addr = conn->conn_conf.isc_initiator_addr;
 	to_addr = conn->conn_conf.isc_target_addr;
@@ -277,7 +312,10 @@ handoff(struct connection *conn)
 	idh.idh_data_digest = conn->conn_data_digest;
 	idh.idh_initial_r2t = conn->conn_initial_r2t;
 	idh.idh_immediate_data = conn->conn_immediate_data;
-	idh.idh_max_data_segment_length = conn->conn_max_data_segment_length;
+	idh.idh_max_recv_data_segment_length =
+	    conn->conn_max_recv_data_segment_length;
+	idh.idh_max_send_data_segment_length =
+	    conn->conn_max_send_data_segment_length;
 	idh.idh_max_burst_length = conn->conn_max_burst_length;
 	idh.idh_first_burst_length = conn->conn_first_burst_length;
 
@@ -326,8 +364,8 @@ capsicate(struct connection *conn)
 	if (error != 0 && errno != ENOSYS)
 		log_err(1, "cap_rights_limit");
 
-	error = cap_ioctls_limit(conn->conn_iscsi_fd, cmds,
-	    sizeof(cmds) / sizeof(cmds[0]));
+	error = cap_ioctls_limit(conn->conn_iscsi_fd, cmds, nitems(cmds));
+
 	if (error != 0 && errno != ENOSYS)
 		log_err(1, "cap_ioctls_limit");
 

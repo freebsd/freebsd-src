@@ -1,6 +1,8 @@
 /*-
  * Data structures and definitions for CAM peripheral ("type") drivers.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -35,6 +37,7 @@
 #include <cam/cam_sim.h>
 
 #ifdef _KERNEL
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <cam/cam_xpt.h>
@@ -45,6 +48,7 @@ extern struct cam_periph *xpt_periph;
 
 extern struct periph_driver **periph_drivers;
 void periphdriver_register(void *);
+int periphdriver_unregister(void *);
 void periphdriver_init(int level);
 
 #include <sys/module.h>
@@ -56,8 +60,7 @@ void periphdriver_init(int level);
 			periphdriver_register(data); \
 			break; \
 		case MOD_UNLOAD: \
-			printf(#name " module unload - not possible for this module type\n"); \
-			return EINVAL; \
+			return (periphdriver_unregister(data)); \
 		default: \
 			return EOPNOTSUPP; \
 		} \
@@ -71,20 +74,26 @@ void periphdriver_init(int level);
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_ANY); \
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
-typedef void (periph_init_t)(void); /*
-				     * Callback informing the peripheral driver
-				     * it can perform it's initialization since
-				     * the XPT is now fully initialized.
-				     */
-typedef periph_init_t *periph_init_func_t;
+/*
+ * Callback informing the peripheral driver it can perform it's
+ * initialization since the XPT is now fully initialized.
+ */
+typedef void (periph_init_t)(void);
+
+/*
+ * Callback requesting the peripheral driver to remove its instances
+ * and shutdown, if possible.
+ */
+typedef int (periph_deinit_t)(void);
 
 struct periph_driver {
-	periph_init_func_t	 init;
-	char			 *driver_name;
+	periph_init_t		*init;
+	char			*driver_name;
 	TAILQ_HEAD(,cam_periph)	 units;
 	u_int			 generation;
 	u_int			 flags;
 #define CAM_PERIPH_DRV_EARLY		0x01
+	periph_deinit_t		*deinit;
 };
 
 typedef enum {
@@ -151,7 +160,7 @@ cam_status cam_periph_alloc(periph_ctor_t *periph_ctor,
 			    ac_callback_t *, ac_code, void *arg);
 struct cam_periph *cam_periph_find(struct cam_path *path, char *name);
 int		cam_periph_list(struct cam_path *, struct sbuf *);
-cam_status	cam_periph_acquire(struct cam_periph *periph);
+int		cam_periph_acquire(struct cam_periph *periph);
 void		cam_periph_doacquire(struct cam_periph *periph);
 void		cam_periph_release(struct cam_periph *periph);
 void		cam_periph_release_locked(struct cam_periph *periph);
@@ -166,7 +175,6 @@ void		cam_periph_unmapmem(union ccb *ccb,
 				    struct cam_periph_map_info *mapinfo);
 union ccb	*cam_periph_getccb(struct cam_periph *periph,
 				   u_int32_t priority);
-void		cam_periph_ccbwait(union ccb *ccb);
 int		cam_periph_runccb(union ccb *ccb,
 				  int (*error_routine)(union ccb *ccb,
 						       cam_flags camflags,
@@ -190,12 +198,16 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 					      struct timeval* event_time,
 					      u_int duration_ms);
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
-				 u_int32_t sense_flags, union ccb *save_ccb);
+				 u_int32_t sense_flags);
+int		cam_periph_invalidate_sysctl(SYSCTL_HANDLER_ARGS);
 
 static __inline struct mtx *
 cam_periph_mtx(struct cam_periph *periph)
 {
-	return (xpt_path_mtx(periph->path));
+	if (periph != NULL)
+		return (xpt_path_mtx(periph->path));
+	else
+		return (NULL);
 }
 
 #define cam_periph_owned(periph)					\
@@ -249,6 +261,9 @@ cam_periph_acquire_next(struct cam_periph *pperiph)
 	for ((periph) = cam_periph_acquire_first(driver);		\
 	    (periph) != NULL;						\
 	    (periph) = cam_periph_acquire_next(periph))
+
+#define CAM_PERIPH_PRINT(p, msg, args...)				\
+    printf("%s%d:" msg, (periph)->periph_name, (periph)->unit_number, ##args)
 
 #endif /* _KERNEL */
 #endif /* _CAM_CAM_PERIPH_H */

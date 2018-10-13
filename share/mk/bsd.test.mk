@@ -42,7 +42,7 @@ TESTS_ENV?=
 # Force all tests in a separate distribution file.
 #
 # We want this to be the case even when the distribution name is already
-# overriden.  For example: we want the tests for programs in the 'games'
+# overridden.  For example: we want the tests for programs in the 'games'
 # distribution to end up in the 'tests' distribution; the test programs
 # themselves have all the necessary logic to detect that the games are not
 # installed and thus won't cause false negatives.
@@ -65,6 +65,10 @@ _TESTS=
 .include <atf.test.mk>
 .include <plain.test.mk>
 .include <tap.test.mk>
+
+# Sort the tests alphabetically, so the results are deterministically formed
+# across runs.
+_TESTS:=	${_TESTS:O}
 
 # kyua automatically descends directories; only run make check on the
 # top-level directory

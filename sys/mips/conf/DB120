@@ -5,7 +5,7 @@
 #
 
 # Include the default AR934x parameters
-include         "AR934X_BASE"
+include         "std.AR934X"
 
 #NO_UNIVERSE
 
@@ -45,7 +45,6 @@ options 	GEOM_UZIP
 device          geom_map
 
 # yes, this board has a PCI connected atheros device
-device		ath_pci
 options 	AR71XX_ATH_EEPROM
 device		firmware		# Used by the above
 options 	ATH_EEPROM_FIRMWARE

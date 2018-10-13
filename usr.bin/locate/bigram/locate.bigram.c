@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -57,6 +59,8 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
  * Use 'code' to encode a file using this output.
  */
 
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>			/* for MAXPATHLEN */
@@ -72,6 +76,9 @@ main(void)
 	u_char *cp;
 	u_char *oldpath = buf1, *path = buf2;
 	u_int i, j;
+
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(1, "capsicum");
 
      	while (fgets(path, sizeof(buf2), stdin) != NULL) {
 

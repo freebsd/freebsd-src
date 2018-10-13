@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Neelkanth Natu
  * All rights reserved.
  *
@@ -446,6 +448,7 @@ static device_method_t zbpci_methods[] ={
 	DEVMETHOD(pcib_read_config,	zbpci_read_config),
 	DEVMETHOD(pcib_write_config,	zbpci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	zbpci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 	
 	{ 0, 0 }
 };

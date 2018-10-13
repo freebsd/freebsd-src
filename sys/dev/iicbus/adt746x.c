@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Andreas Tobler
  * Copyright (c) 2014 Justin Hibbits
  * All rights reserved.
@@ -358,8 +360,8 @@ adt746x_fill_fan_prop(device_t dev)
 	child = ofw_bus_get_node(dev);
 
 	/* Fill the fan location property. */
-	location_len = OF_getprop_alloc(child, "hwctrl-location", 1, (void **)&location);
-	id_len = OF_getprop_alloc(child, "hwctrl-id", sizeof(cell_t), (void **)&id);
+	location_len = OF_getprop_alloc(child, "hwctrl-location", (void **)&location);
+	id_len = OF_getprop_alloc_multi(child, "hwctrl-id", sizeof(cell_t), (void **)&id);
 	if (location_len == -1 || id_len == -1) {
 		OF_prop_free(location);
 		OF_prop_free(id);

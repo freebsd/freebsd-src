@@ -2,6 +2,8 @@
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -62,18 +64,18 @@ extern struct iconv_functions *msdosfs_iconv;
 
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
 static u_char * dos2unixchr(u_char *, const u_char **, size_t *, int, struct msdosfsmount *);
-static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
-static u_char * win2unixchr(u_char *, u_int16_t, struct msdosfsmount *);
-static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
+static uint16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
+static u_char * win2unixchr(u_char *, uint16_t, struct msdosfsmount *);
+static uint16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
 
 /*
  * 0 - character disallowed in long file name.
- * 1 - character should be replaced by '_' in DOS file name, 
+ * 1 - character should be replaced by '_' in DOS file name,
  *     and generation number inserted.
  * 2 - character ('.' and ' ') should be skipped in DOS file name,
  *     and generation number inserted.
  */
-static u_char
+static const u_char
 unix2dos[256] = {
 /* iso8859-1 -> cp850 */
 	0,    0,    0,    0,    0,    0,    0,    0,	/* 00-07 */
@@ -110,7 +112,7 @@ unix2dos[256] = {
 	0x9d, 0xeb, 0xe9, 0xea, 0x9a, 0xed, 0xe8, 0x98,	/* f8-ff */
 };
 
-static u_char
+static const u_char
 dos2unix[256] = {
 /* cp850 -> iso8859-1 */
 	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,	/* 00-07 */
@@ -147,7 +149,7 @@ dos2unix[256] = {
 	0xb0, 0xa8, 0xb7, 0xb9, 0xb3, 0xb2, 0x3f, 0x3f,	/* f8-ff */
 };
 
-static u_char
+static const u_char
 u2l[256] = {
 /* tolower */
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, /* 00-07 */
@@ -184,7 +186,7 @@ u2l[256] = {
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, /* f8-ff */
 };
 
-static u_char
+static const u_char
 l2u[256] = {
 /* toupper */
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, /* 00-07 */
@@ -303,7 +305,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	int conv = 1;
 	const u_char *cp, *dp, *dp1;
 	u_char gentext[6], *wcp;
-	u_int16_t c;
+	uint16_t c;
 
 	/*
 	 * Fill the dos filename string with blanks. These are DOS's pad
@@ -351,7 +353,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	 * Note(2003/7): It seems recent Windows has
 	 *	 defferent rule than this code, that Windows
 	 *	 ignores all dots before extension, and use all
-	 * 	 chars as filename except for dots.
+	 *	 chars as filename except for dots.
 	 */
 	dp = dp1 = NULL;
 	for (cp = un + 1, i = unlen - 1; --i >= 0;) {
@@ -518,9 +520,9 @@ int
 unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
     int chksum, struct msdosfsmount *pmp)
 {
-	u_int8_t *wcp;
+	uint8_t *wcp;
 	int i, end;
-	u_int16_t code;
+	uint16_t code;
 
 	/*
 	 * Drop trailing blanks and dots
@@ -536,7 +538,7 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	/*
 	 * Initialize winentry to some useful default
 	 */
-	for (wcp = (u_int8_t *)wep, i = sizeof(*wep); --i >= 0; *wcp++ = 0xff);
+	memset(wep, 0xff, sizeof(*wep));
 	wep->weCnt = cnt;
 	wep->weAttributes = ATTR_WIN95;
 	wep->weReserved1 = 0;
@@ -568,7 +570,7 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 		if (!code)
 			end = WIN_LAST;
 	}
-	if (*un == '\0')
+	if (!unlen)
 		end = WIN_LAST;
 	wep->weCnt |= end;
 	return !end;
@@ -583,7 +585,7 @@ winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
     struct msdosfsmount *pmp)
 {
 	size_t len;
-	u_int16_t c1, c2;
+	uint16_t c1, c2;
 	u_char *np;
 	struct dirent dirbuf;
 
@@ -594,7 +596,7 @@ winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
 		return -1;
 
 #ifdef MSDOSFS_DEBUG
-	printf("winChkName(): un=%s:%d,d_name=%s:%d\n", un, unlen,
+	printf("winChkName(): un=%s:%zu,d_name=%s:%d\n", un, unlen,
 							dirbuf.d_name,
 							dirbuf.d_namlen);
 #endif
@@ -630,9 +632,9 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
     struct msdosfsmount *pmp)
 {
 	u_char *c, tmpbuf[5];
-	u_int8_t *cp;
-	u_int8_t *np, name[WIN_CHARS * 3 + 1];
-	u_int16_t code;
+	uint8_t *cp;
+	uint8_t *np, name[WIN_CHARS * 3 + 1];
+	uint16_t code;
 	int i;
 
 	if ((wep->weCnt&WIN_CNT) > howmany(WIN_MAXLEN, WIN_CHARS)
@@ -722,11 +724,11 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 /*
  * Compute the unrolled checksum of a DOS filename for Win95 LFN use.
  */
-u_int8_t
-winChksum(u_int8_t *name)
+uint8_t
+winChksum(uint8_t *name)
 {
 	int i;
-	u_int8_t s;
+	uint8_t s;
 
 	for (s = 0, i = 11; --i >= 0; s += *name++)
 		s = (s << 7)|(s >> 1);
@@ -838,12 +840,12 @@ dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struc
 /*
  * Convert Local char to DOS char
  */
-static u_int16_t
+static uint16_t
 unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 {
 	u_char c;
 	char *up, *outp, unicode[3], outbuf[3];
-	u_int16_t wc;
+	uint16_t wc;
 	size_t len, ucslen, unixlen, olen;
 
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
@@ -909,14 +911,14 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 	c = *(*instr)++;
 	c = l2u[c];
 	c = unix2dos[c];
-	return ((u_int16_t)c);
+	return ((uint16_t)c);
 }
 
 /*
  * Convert Windows char to Local char
  */
 static u_char *
-win2unixchr(u_char *outbuf, u_int16_t wc, struct msdosfsmount *pmp)
+win2unixchr(u_char *outbuf, uint16_t wc, struct msdosfsmount *pmp)
 {
 	u_char *inp, *outp, inbuf[3];
 	size_t ilen, olen, len;
@@ -951,11 +953,11 @@ win2unixchr(u_char *outbuf, u_int16_t wc, struct msdosfsmount *pmp)
 /*
  * Convert Local char to Windows char
  */
-static u_int16_t
+static uint16_t
 unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
 {
 	u_char *outp, outbuf[3];
-	u_int16_t wc;
+	uint16_t wc;
 	size_t olen;
 
 	if (*ilen == 0)
@@ -1043,11 +1045,11 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 		    sizeof(nbp->nb_buf))
 			return (ENAMETOOLONG);
 
-		bcopy(slot + WIN_CHARS, slot + count, nbp->nb_len);
+		memmove(slot + count, slot + WIN_CHARS, nbp->nb_len);
 	}
 
 	/* Copy in the substring to its slot and update length so far. */
-	bcopy(name, slot, count);
+	memcpy(slot, name, count);
 	nbp->nb_len = newlen;
 	nbp->nb_last_id = id;
 
@@ -1069,7 +1071,7 @@ mbnambuf_flush(struct mbnambuf *nbp, struct dirent *dp)
 		mbnambuf_init(nbp);
 		return (NULL);
 	}
-	bcopy(&nbp->nb_buf[0], dp->d_name, nbp->nb_len);
+	memcpy(dp->d_name, &nbp->nb_buf[0], nbp->nb_len);
 	dp->d_name[nbp->nb_len] = '\0';
 	dp->d_namlen = nbp->nb_len;
 

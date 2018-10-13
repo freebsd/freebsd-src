@@ -4,7 +4,6 @@ kern/kern_clocksource.c				standard
 
 arm/samsung/exynos/exynos5_mct.c		standard
 arm/samsung/exynos/exynos5_mp.c			optional	smp
-arm/samsung/exynos/exynos5_common.c		standard
 arm/samsung/exynos/exynos5_machdep.c		standard
 arm/samsung/exynos/exynos5_combiner.c		standard
 arm/samsung/exynos/exynos5_pad.c		optional	gpio
@@ -23,3 +22,4 @@ arm/samsung/exynos/chrome_ec_spi.c		optional	chrome_ec_spi
 arm/samsung/exynos/chrome_kb.c			optional	chrome_kb
 
 dev/mmc/host/dwmmc.c				optional	dwmmc
+dev/mmc/host/dwmmc_samsung.c			optional	dwmmc

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001, John Baldwin <jhb@FreeBSD.org>.
  * All rights reserved.
  *
@@ -84,8 +86,9 @@ SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxid, 0,
 SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxcpus,
     0, "Max number of CPUs that the system was compiled for.");
 
-SYSCTL_PROC(_kern_smp, OID_AUTO, active, CTLFLAG_RD | CTLTYPE_INT, NULL, 0,
-    sysctl_kern_smp_active, "I", "Indicates system is running in SMP mode");
+SYSCTL_PROC(_kern_smp, OID_AUTO, active, CTLFLAG_RD|CTLTYPE_INT|CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_kern_smp_active, "I",
+    "Indicates system is running in SMP mode");
 
 int smp_disabled = 0;	/* has smp been disabled? */
 SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
@@ -209,6 +212,11 @@ forward_signal(struct thread *td)
  *   1: ok
  *
  */
+#if defined(__amd64__) || defined(__i386__)
+#define	X86	1
+#else
+#define	X86	0
+#endif
 static int
 generic_stop_cpus(cpuset_t map, u_int type)
 {
@@ -220,12 +228,11 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	volatile cpuset_t *cpus;
 
 	KASSERT(
-#if defined(__amd64__) || defined(__i386__)
-	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
-#else
-	    type == IPI_STOP || type == IPI_STOP_HARD,
+	    type == IPI_STOP || type == IPI_STOP_HARD
+#if X86
+	    || type == IPI_SUSPEND
 #endif
-	    ("%s: invalid stop type", __func__));
+	    , ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
 		return (0);
@@ -233,7 +240,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	CTR2(KTR_SMP, "stop_cpus(%s) with %u type",
 	    cpusetobj_strprint(cpusetbuf, &map), type);
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	/*
 	 * When suspending, ensure there are are no IPIs in progress.
 	 * IPIs that have been issued, but not yet delivered (e.g.
@@ -245,6 +252,9 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		mtx_lock_spin(&smp_ipi_mtx);
 #endif
 
+#if X86
+	if (!nmi_is_broadcast || nmi_kdb_lock == 0) {
+#endif
 	if (stopping_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
 		    PCPU_GET(cpuid)) == 0)
@@ -253,8 +263,11 @@ generic_stop_cpus(cpuset_t map, u_int type)
 
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, type);
+#if X86
+	}
+#endif
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	if (type == IPI_SUSPEND)
 		cpus = &suspended_cpus;
 	else
@@ -272,7 +285,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		}
 	}
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	if (type == IPI_SUSPEND)
 		mtx_unlock_spin(&smp_ipi_mtx);
 #endif
@@ -295,7 +308,7 @@ stop_cpus_hard(cpuset_t map)
 	return (generic_stop_cpus(map, IPI_STOP_HARD));
 }
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 int
 suspend_cpus(cpuset_t map)
 {
@@ -325,34 +338,43 @@ generic_restart_cpus(cpuset_t map, u_int type)
 #endif
 	volatile cpuset_t *cpus;
 
-	KASSERT(
-#if defined(__amd64__) || defined(__i386__)
-	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
-#else
-	    type == IPI_STOP || type == IPI_STOP_HARD,
+	KASSERT(type == IPI_STOP || type == IPI_STOP_HARD
+#if X86
+	    || type == IPI_SUSPEND
 #endif
-	    ("%s: invalid stop type", __func__));
+	    , ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
-		return 0;
+		return (0);
 
 	CTR1(KTR_SMP, "restart_cpus(%s)", cpusetobj_strprint(cpusetbuf, &map));
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	if (type == IPI_SUSPEND)
-		cpus = &suspended_cpus;
+		cpus = &resuming_cpus;
 	else
 #endif
 		cpus = &stopped_cpus;
 
 	/* signal other cpus to restart */
-	CPU_COPY_STORE_REL(&map, &started_cpus);
+#if X86
+	if (type == IPI_SUSPEND)
+		CPU_COPY_STORE_REL(&map, &toresume_cpus);
+	else
+#endif
+		CPU_COPY_STORE_REL(&map, &started_cpus);
 
+#if X86
+	if (!nmi_is_broadcast || nmi_kdb_lock == 0) {
+#endif
 	/* wait for each to clear its bit */
 	while (CPU_OVERLAP(cpus, &map))
 		cpu_spinwait();
+#if X86
+	}
+#endif
 
-	return 1;
+	return (1);
 }
 
 int
@@ -362,7 +384,7 @@ restart_cpus(cpuset_t map)
 	return (generic_restart_cpus(map, IPI_STOP));
 }
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 int
 resume_cpus(cpuset_t map)
 {
@@ -370,6 +392,7 @@ resume_cpus(cpuset_t map)
 	return (generic_restart_cpus(map, IPI_SUSPEND));
 }
 #endif
+#undef X86
 
 /*
  * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
@@ -436,7 +459,7 @@ smp_rendezvous_action(void)
 	 * function.  Ensure all CPUs have completed the setup
 	 * function before moving on to the action function.
 	 */
-	if (local_setup_func != smp_no_rendevous_barrier) {
+	if (local_setup_func != smp_no_rendezvous_barrier) {
 		if (smp_rv_setup_func != NULL)
 			smp_rv_setup_func(smp_rv_func_arg);
 		atomic_add_int(&smp_rv_waiters[1], 1);
@@ -447,7 +470,7 @@ smp_rendezvous_action(void)
 	if (local_action_func != NULL)
 		local_action_func(local_func_arg);
 
-	if (local_teardown_func != smp_no_rendevous_barrier) {
+	if (local_teardown_func != smp_no_rendezvous_barrier) {
 		/*
 		 * Signal that the main action has been completed.  If a
 		 * full exit rendezvous is requested, then all CPUs will
@@ -615,6 +638,15 @@ smp_topo(void)
 		panic("Built bad topology at %p.  CPU mask (%s) != (%s)",
 		    top, cpusetobj_strprint(cpusetbuf, &top->cg_mask),
 		    cpusetobj_strprint(cpusetbuf2, &all_cpus));
+
+	/*
+	 * Collapse nonsense levels that may be created out of convenience by
+	 * the MD layers.  They cause extra work in the search functions.
+	 */
+	while (top->cg_children == 1) {
+		top = &top->cg_child[0];
+		top->cg_parent = NULL;
+	}
 	return (top);
 }
 
@@ -779,15 +811,8 @@ smp_rendezvous(void (*setup_func)(void *),
 	       void *arg)
 {
 
-	/* Look comments in the smp_rendezvous_cpus() case. */
-	spinlock_enter();
-	if (setup_func != NULL)
-		setup_func(arg);
-	if (action_func != NULL)
-		action_func(arg);
-	if (teardown_func != NULL)
-		teardown_func(arg);
-	spinlock_exit();
+	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func,
+	    arg);
 }
 
 /*
@@ -807,15 +832,15 @@ SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
 #endif /* SMP */
 
 void
-smp_no_rendevous_barrier(void *dummy)
+smp_no_rendezvous_barrier(void *dummy)
 {
 #ifdef SMP
-	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
+	KASSERT((!smp_started),("smp_no_rendezvous called and smp is started"));
 #endif
 }
 
 /*
- * Wait specified idle threads to switch once.  This ensures that even
+ * Wait for specified idle threads to switch once.  This ensures that even
  * preempted threads have cycled through the switch function once,
  * exiting their codepaths.  This allows us to change global pointers
  * with no other synchronization.
@@ -985,7 +1010,7 @@ topo_next_node(struct topo_node *top, struct topo_node *node)
 	if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 		return (next);
 
-	while ((node = node->parent) != top)
+	while (node != top && (node = node->parent) != top)
 		if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 			return (next);
 
@@ -1004,7 +1029,7 @@ topo_next_nonchild_node(struct topo_node *top, struct topo_node *node)
 	if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 		return (next);
 
-	while ((node = node->parent) != top)
+	while (node != top && (node = node->parent) != top)
 		if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 			return (next);
 
@@ -1036,105 +1061,99 @@ topo_set_pu_id(struct topo_node *node, cpuid_t id)
 	}
 }
 
+static struct topology_spec {
+	topo_node_type	type;
+	bool		match_subtype;
+	uintptr_t	subtype;
+} topology_level_table[TOPO_LEVEL_COUNT] = {
+	[TOPO_LEVEL_PKG] = { .type = TOPO_TYPE_PKG, },
+	[TOPO_LEVEL_GROUP] = { .type = TOPO_TYPE_GROUP, },
+	[TOPO_LEVEL_CACHEGROUP] = {
+		.type = TOPO_TYPE_CACHE,
+		.match_subtype = true,
+		.subtype = CG_SHARE_L3,
+	},
+	[TOPO_LEVEL_CORE] = { .type = TOPO_TYPE_CORE, },
+	[TOPO_LEVEL_THREAD] = { .type = TOPO_TYPE_PU, },
+};
+
+static bool
+topo_analyze_table(struct topo_node *root, int all, enum topo_level level,
+    struct topo_analysis *results)
+{
+	struct topology_spec *spec;
+	struct topo_node *node;
+	int count;
+
+	if (level >= TOPO_LEVEL_COUNT)
+		return (true);
+
+	spec = &topology_level_table[level];
+	count = 0;
+	node = topo_next_node(root, root);
+
+	while (node != NULL) {
+		if (node->type != spec->type ||
+		    (spec->match_subtype && node->subtype != spec->subtype)) {
+			node = topo_next_node(root, node);
+			continue;
+		}
+		if (!all && CPU_EMPTY(&node->cpuset)) {
+			node = topo_next_nonchild_node(root, node);
+			continue;
+		}
+
+		count++;
+
+		if (!topo_analyze_table(node, all, level + 1, results))
+			return (false);
+
+		node = topo_next_nonchild_node(root, node);
+	}
+
+	/* No explicit subgroups is essentially one subgroup. */
+	if (count == 0) {
+		count = 1;
+
+		if (!topo_analyze_table(root, all, level + 1, results))
+			return (false);
+	}
+
+	if (results->entities[level] == -1)
+		results->entities[level] = count;
+	else if (results->entities[level] != count)
+		return (false);
+
+	return (true);
+}
+
 /*
  * Check if the topology is uniform, that is, each package has the same number
  * of cores in it and each core has the same number of threads (logical
- * processors) in it.  If so, calculate the number of package, the number of
- * cores per package and the number of logical processors per core.
- * 'all' parameter tells whether to include administratively disabled logical
- * processors into the analysis.
+ * processors) in it.  If so, calculate the number of packages, the number of
+ * groups per package, the number of cachegroups per group, and the number of
+ * logical processors per cachegroup.  'all' parameter tells whether to include
+ * administratively disabled logical processors into the analysis.
  */
 int
 topo_analyze(struct topo_node *topo_root, int all,
-    int *pkg_count, int *cores_per_pkg, int *thrs_per_core)
+    struct topo_analysis *results)
 {
-	struct topo_node *pkg_node;
-	struct topo_node *core_node;
-	struct topo_node *pu_node;
-	int thrs_per_pkg;
-	int cpp_counter;
-	int tpc_counter;
-	int tpp_counter;
 
-	*pkg_count = 0;
-	*cores_per_pkg = -1;
-	*thrs_per_core = -1;
-	thrs_per_pkg = -1;
-	pkg_node = topo_root;
-	while (pkg_node != NULL) {
-		if (pkg_node->type != TOPO_TYPE_PKG) {
-			pkg_node = topo_next_node(topo_root, pkg_node);
-			continue;
-		}
-		if (!all && CPU_EMPTY(&pkg_node->cpuset)) {
-			pkg_node = topo_next_nonchild_node(topo_root, pkg_node);
-			continue;
-		}
+	results->entities[TOPO_LEVEL_PKG] = -1;
+	results->entities[TOPO_LEVEL_CORE] = -1;
+	results->entities[TOPO_LEVEL_THREAD] = -1;
+	results->entities[TOPO_LEVEL_GROUP] = -1;
+	results->entities[TOPO_LEVEL_CACHEGROUP] = -1;
 
-		(*pkg_count)++;
+	if (!topo_analyze_table(topo_root, all, TOPO_LEVEL_PKG, results))
+		return (0);
 
-		cpp_counter = 0;
-		tpp_counter = 0;
-		core_node = pkg_node;
-		while (core_node != NULL) {
-			if (core_node->type == TOPO_TYPE_CORE) {
-				if (!all && CPU_EMPTY(&core_node->cpuset)) {
-					core_node =
-					    topo_next_nonchild_node(pkg_node,
-					        core_node);
-					continue;
-				}
-
-				cpp_counter++;
-
-				tpc_counter = 0;
-				pu_node = core_node;
-				while (pu_node != NULL) {
-					if (pu_node->type == TOPO_TYPE_PU &&
-					    (all || !CPU_EMPTY(&pu_node->cpuset)))
-						tpc_counter++;
-					pu_node = topo_next_node(core_node,
-					    pu_node);
-				}
-
-				if (*thrs_per_core == -1)
-					*thrs_per_core = tpc_counter;
-				else if (*thrs_per_core != tpc_counter)
-					return (0);
-
-				core_node = topo_next_nonchild_node(pkg_node,
-				    core_node);
-			} else {
-				/* PU node directly under PKG. */
-				if (core_node->type == TOPO_TYPE_PU &&
-			           (all || !CPU_EMPTY(&core_node->cpuset)))
-					tpp_counter++;
-				core_node = topo_next_node(pkg_node,
-				    core_node);
-			}
-		}
-
-		if (*cores_per_pkg == -1)
-			*cores_per_pkg = cpp_counter;
-		else if (*cores_per_pkg != cpp_counter)
-			return (0);
-		if (thrs_per_pkg == -1)
-			thrs_per_pkg = tpp_counter;
-		else if (thrs_per_pkg != tpp_counter)
-			return (0);
-
-		pkg_node = topo_next_nonchild_node(topo_root, pkg_node);
-	}
-
-	KASSERT(*pkg_count > 0,
+	KASSERT(results->entities[TOPO_LEVEL_PKG] > 0,
 		("bug in topology or analysis"));
-	if (*cores_per_pkg == 0) {
-		KASSERT(*thrs_per_core == -1 && thrs_per_pkg > 0,
-			("bug in topology or analysis"));
-		*thrs_per_core = thrs_per_pkg;
-	}
 
 	return (1);
 }
+
 #endif /* SMP */
 

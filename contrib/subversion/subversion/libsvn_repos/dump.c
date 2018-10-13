@@ -326,7 +326,7 @@ store_delta(apr_file_t **tempfile, svn_filesize_t *len,
             svn_fs_root_t *newroot, const char *newpath, apr_pool_t *pool)
 {
   svn_stream_t *temp_stream;
-  apr_off_t offset = 0;
+  apr_off_t offset;
   svn_txdelta_stream_t *delta_stream;
   svn_txdelta_window_handler_t wh;
   void *whb;
@@ -346,7 +346,7 @@ store_delta(apr_file_t **tempfile, svn_filesize_t *len,
   SVN_ERR(svn_txdelta_send_txstream(delta_stream, wh, whb, pool));
 
   /* Get the length of the temporary file and rewind it. */
-  SVN_ERR(svn_io_file_seek(*tempfile, APR_CUR, &offset, pool));
+  SVN_ERR(svn_io_file_get_offset(&offset, *tempfile, pool));
   *len = offset;
   offset = 0;
   return svn_io_file_seek(*tempfile, APR_SET, &offset, pool);
@@ -546,11 +546,15 @@ svn_repos__dump_revision_record(svn_stream_t *dump_stream,
                                  "%" APR_SIZE_T_FMT, propstring->len));
     }
 
-  /* Write out a regular Content-length header for the benefit of
-     non-Subversion RFC-822 parsers. */
-  svn_hash_sets(headers, SVN_REPOS_DUMPFILE_CONTENT_LENGTH,
-                apr_psprintf(scratch_pool,
-                             "%" APR_SIZE_T_FMT, propstring->len));
+  if (propstring)
+    {
+      /* Write out a regular Content-length header for the benefit of
+         non-Subversion RFC-822 parsers. */
+      svn_hash_sets(headers, SVN_REPOS_DUMPFILE_CONTENT_LENGTH,
+                    apr_psprintf(scratch_pool,
+                                 "%" APR_SIZE_T_FMT, propstring->len));
+    }
+
   SVN_ERR(write_revision_headers(dump_stream, headers, scratch_pool));
 
   /* End of headers */
@@ -1918,50 +1922,90 @@ get_dump_editor(const svn_delta_editor_t **editor,
 
 /* Helper for svn_repos_dump_fs.
 
-   Write a revision record of REV in FS to writable STREAM, using POOL.
+   Write a revision record of REV in REPOS to writable STREAM, using POOL.
+   Dump revision properties as well if INCLUDE_REVPROPS has been set.
+   AUTHZ_FUNC and AUTHZ_BATON are passed directly to the repos layer.
  */
 static svn_error_t *
 write_revision_record(svn_stream_t *stream,
-                      svn_fs_t *fs,
+                      svn_repos_t *repos,
                       svn_revnum_t rev,
+                      svn_boolean_t include_revprops,
+                      svn_repos_authz_func_t authz_func,
+                      void *authz_baton,
                       apr_pool_t *pool)
 {
   apr_hash_t *props;
   apr_time_t timetemp;
   svn_string_t *datevalue;
 
-  SVN_ERR(svn_fs_revision_proplist(&props, fs, rev, pool));
-
-  /* Run revision date properties through the time conversion to
-     canonicalize them. */
-  /* ### Remove this when it is no longer needed for sure. */
-  datevalue = svn_hash_gets(props, SVN_PROP_REVISION_DATE);
-  if (datevalue)
+  if (include_revprops)
     {
-      SVN_ERR(svn_time_from_cstring(&timetemp, datevalue->data, pool));
-      datevalue = svn_string_create(svn_time_to_cstring(timetemp, pool),
-                                    pool);
-      svn_hash_sets(props, SVN_PROP_REVISION_DATE, datevalue);
+      SVN_ERR(svn_repos_fs_revision_proplist(&props, repos, rev,
+                                             authz_func, authz_baton, pool));
+
+      /* Run revision date properties through the time conversion to
+        canonicalize them. */
+      /* ### Remove this when it is no longer needed for sure. */
+      datevalue = svn_hash_gets(props, SVN_PROP_REVISION_DATE);
+      if (datevalue)
+        {
+          SVN_ERR(svn_time_from_cstring(&timetemp, datevalue->data, pool));
+          datevalue = svn_string_create(svn_time_to_cstring(timetemp, pool),
+                                        pool);
+          svn_hash_sets(props, SVN_PROP_REVISION_DATE, datevalue);
+        }
+    }
+   else
+    {
+      /* Although we won't use it, we still need this container for the
+         call below. */
+      props = apr_hash_make(pool);
     }
 
   SVN_ERR(svn_repos__dump_revision_record(stream, rev, NULL, props,
-                                          TRUE /*props_section_always*/,
+                                          include_revprops,
                                           pool));
   return SVN_NO_ERROR;
+}
+
+/* Baton for dump_filter_authz_func(). */
+typedef struct dump_filter_baton_t
+{
+  svn_repos_dump_filter_func_t filter_func;
+  void *filter_baton;
+} dump_filter_baton_t;
+
+/* Implements svn_repos_authz_func_t. */
+static svn_error_t *
+dump_filter_authz_func(svn_boolean_t *allowed,
+                       svn_fs_root_t *root,
+                       const char *path,
+                       void *baton,
+                       apr_pool_t *pool)
+{
+  dump_filter_baton_t *b = baton;
+
+  return svn_error_trace(b->filter_func(allowed, root, path, b->filter_baton,
+                                        pool));
 }
 
 
 
 /* The main dumper. */
 svn_error_t *
-svn_repos_dump_fs3(svn_repos_t *repos,
+svn_repos_dump_fs4(svn_repos_t *repos,
                    svn_stream_t *stream,
                    svn_revnum_t start_rev,
                    svn_revnum_t end_rev,
                    svn_boolean_t incremental,
                    svn_boolean_t use_deltas,
+                   svn_boolean_t include_revprops,
+                   svn_boolean_t include_changes,
                    svn_repos_notify_func_t notify_func,
                    void *notify_baton,
+                   svn_repos_dump_filter_func_t filter_func,
+                   void *filter_baton,
                    svn_cancel_func_t cancel_func,
                    void *cancel_baton,
                    apr_pool_t *pool)
@@ -1970,13 +2014,19 @@ svn_repos_dump_fs3(svn_repos_t *repos,
   void *dump_edit_baton = NULL;
   svn_revnum_t rev;
   svn_fs_t *fs = svn_repos_fs(repos);
-  apr_pool_t *subpool = svn_pool_create(pool);
+  apr_pool_t *iterpool = svn_pool_create(pool);
   svn_revnum_t youngest;
   const char *uuid;
   int version;
   svn_boolean_t found_old_reference = FALSE;
   svn_boolean_t found_old_mergeinfo = FALSE;
   svn_repos_notify_t *notify;
+  svn_repos_authz_func_t authz_func;
+  dump_filter_baton_t authz_baton = {0};
+
+  /* Make sure we catch up on the latest revprop changes.  This is the only
+   * time we will refresh the revprop data in this query. */
+  SVN_ERR(svn_fs_refresh_revision_props(fs, pool));
 
   /* Determine the current youngest revision of the filesystem. */
   SVN_ERR(svn_fs_youngest_rev(&youngest, fs, pool));
@@ -2000,6 +2050,20 @@ svn_repos_dump_fs3(svn_repos_t *repos,
                              _("End revision %ld is invalid "
                                "(youngest revision is %ld)"),
                              end_rev, youngest);
+
+  /* We use read authz callback to implement dump filtering. If there is no
+   * read access for some node, it will be excluded from dump as well as
+   * references to it (e.g. copy source). */
+  if (filter_func)
+    {
+      authz_func = dump_filter_authz_func;
+      authz_baton.filter_func = filter_func;
+      authz_baton.filter_baton = filter_baton;
+    }
+  else
+    {
+      authz_func = NULL;
+    }
 
   /* Write out the UUID. */
   SVN_ERR(svn_fs_get_uuid(fs, &uuid, pool));
@@ -2029,18 +2093,20 @@ svn_repos_dump_fs3(svn_repos_t *repos,
       svn_fs_root_t *to_root;
       svn_boolean_t use_deltas_for_rev;
 
-      svn_pool_clear(subpool);
+      svn_pool_clear(iterpool);
 
       /* Check for cancellation. */
       if (cancel_func)
         SVN_ERR(cancel_func(cancel_baton));
 
       /* Write the revision record. */
-      SVN_ERR(write_revision_record(stream, fs, rev, subpool));
+      SVN_ERR(write_revision_record(stream, repos, rev, include_revprops,
+                                    authz_func, &authz_baton, iterpool));
 
       /* When dumping revision 0, we just write out the revision record.
-         The parser might want to use its properties. */
-      if (rev == 0)
+         The parser might want to use its properties.
+         If we don't want revision changes at all, skip in any case. */
+      if (rev == 0 || !include_changes)
         goto loop_end;
 
       /* Fetch the editor which dumps nodes to a file.  Regardless of
@@ -2052,10 +2118,10 @@ svn_repos_dump_fs3(svn_repos_t *repos,
                               &found_old_mergeinfo, NULL,
                               notify_func, notify_baton,
                               start_rev, use_deltas_for_rev, FALSE, FALSE,
-                              subpool));
+                              iterpool));
 
       /* Drive the editor in one way or another. */
-      SVN_ERR(svn_fs_revision_root(&to_root, fs, rev, subpool));
+      SVN_ERR(svn_fs_revision_root(&to_root, fs, rev, iterpool));
 
       /* If this is the first revision of a non-incremental dump,
          we're in for a full tree dump.  Otherwise, we want to simply
@@ -2064,35 +2130,34 @@ svn_repos_dump_fs3(svn_repos_t *repos,
         {
           /* Compare against revision 0, so everything appears to be added. */
           svn_fs_root_t *from_root;
-          SVN_ERR(svn_fs_revision_root(&from_root, fs, 0, subpool));
+          SVN_ERR(svn_fs_revision_root(&from_root, fs, 0, iterpool));
           SVN_ERR(svn_repos_dir_delta2(from_root, "", "",
                                        to_root, "",
                                        dump_editor, dump_edit_baton,
-                                       NULL,
-                                       NULL,
+                                       authz_func, &authz_baton,
                                        FALSE, /* don't send text-deltas */
                                        svn_depth_infinity,
                                        FALSE, /* don't send entry props */
                                        FALSE, /* don't ignore ancestry */
-                                       subpool));
+                                       iterpool));
         }
       else
         {
           /* The normal case: compare consecutive revs. */
           SVN_ERR(svn_repos_replay2(to_root, "", SVN_INVALID_REVNUM, FALSE,
                                     dump_editor, dump_edit_baton,
-                                    NULL, NULL, subpool));
+                                    authz_func, &authz_baton, iterpool));
 
           /* While our editor close_edit implementation is a no-op, we still
              do this for completeness. */
-          SVN_ERR(dump_editor->close_edit(dump_edit_baton, subpool));
+          SVN_ERR(dump_editor->close_edit(dump_edit_baton, iterpool));
         }
 
     loop_end:
       if (notify_func)
         {
           notify->revision = rev;
-          notify_func(notify_baton, notify, subpool);
+          notify_func(notify_baton, notify, iterpool);
         }
     }
 
@@ -2103,12 +2168,12 @@ svn_repos_dump_fs3(svn_repos_t *repos,
          warning, since the inline warnings already issued might easily be
          missed. */
 
-      notify = svn_repos_notify_create(svn_repos_notify_dump_end, subpool);
-      notify_func(notify_baton, notify, subpool);
+      notify = svn_repos_notify_create(svn_repos_notify_dump_end, iterpool);
+      notify_func(notify_baton, notify, iterpool);
 
       if (found_old_reference)
         {
-          notify_warning(subpool, notify_func, notify_baton,
+          notify_warning(iterpool, notify_func, notify_baton,
                          svn_repos_notify_warning_found_old_reference,
                          _("The range of revisions dumped "
                            "contained references to "
@@ -2120,7 +2185,7 @@ svn_repos_dump_fs3(svn_repos_t *repos,
          in dumped mergeinfo. */
       if (found_old_mergeinfo)
         {
-          notify_warning(subpool, notify_func, notify_baton,
+          notify_warning(iterpool, notify_func, notify_baton,
                          svn_repos_notify_warning_found_old_mergeinfo,
                          _("The range of revisions dumped "
                            "contained mergeinfo "
@@ -2129,7 +2194,7 @@ svn_repos_dump_fs3(svn_repos_t *repos,
         }
     }
 
-  svn_pool_destroy(subpool);
+  svn_pool_destroy(iterpool);
 
   return SVN_NO_ERROR;
 }
@@ -2310,7 +2375,8 @@ verify_one_revision(svn_fs_t *fs,
      do this for completeness. */
   SVN_ERR(cancel_editor->close_edit(cancel_edit_baton, scratch_pool));
 
-  SVN_ERR(svn_fs_revision_proplist(&props, fs, rev, scratch_pool));
+  SVN_ERR(svn_fs_revision_proplist2(&props, fs, rev, FALSE, scratch_pool,
+                                    scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -2389,6 +2455,10 @@ svn_repos_verify_fs3(svn_repos_t *repos,
   svn_fs_progress_notify_func_t verify_notify = NULL;
   struct verify_fs_notify_func_baton_t *verify_notify_baton = NULL;
   svn_error_t *err;
+
+  /* Make sure we catch up on the latest revprop changes.  This is the only
+   * time we will refresh the revprop data in this query. */
+  SVN_ERR(svn_fs_refresh_revision_props(fs, pool));
 
   /* Determine the current youngest revision of the filesystem. */
   SVN_ERR(svn_fs_youngest_rev(&youngest, fs, pool));

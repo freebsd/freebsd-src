@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -505,7 +507,7 @@ printlist(char *name, char *basename)
 
 	dp = pathsearch(name);
 	if (dp == NULL || (!dflag && TSTINO(dp->d_ino, dumpmap) == 0) ||
-	    (!vflag && dp->d_ino == WINO))
+	    (!vflag && dp->d_ino == UFS_WINO))
 		return;
 	if ((dirp = rst_opendir(name)) == NULL) {
 		entries = 1;
@@ -540,7 +542,7 @@ printlist(char *name, char *basename)
 				break;
 			if (!dflag && TSTINO(dp->d_ino, dumpmap) == 0)
 				continue;
-			if (!vflag && (dp->d_ino == WINO ||
+			if (!vflag && (dp->d_ino == UFS_WINO ||
 			     strcmp(dp->d_name, ".") == 0 ||
 			     strcmp(dp->d_name, "..") == 0))
 				continue;
@@ -644,7 +646,7 @@ formatf(struct afile *list, int nentry)
 	width = 0;
 	haveprefix = 0;
 	havepostfix = 0;
-	bigino = ROOTINO;
+	bigino = UFS_ROOTINO;
 	endlist = &list[nentry];
 	for (fp = &list[0]; fp < endlist; fp++) {
 		if (bigino < fp->fnum)
@@ -713,7 +715,7 @@ glob_readdir(void *dirp)
 	static struct dirent adirent;
 
 	while ((dp = rst_readdir(dirp)) != NULL) {
-		if (!vflag && dp->d_ino == WINO)
+		if (!vflag && dp->d_ino == UFS_WINO)
 			continue;
 		if (dflag || TSTINO(dp->d_ino, dumpmap))
 			break;
@@ -736,7 +738,7 @@ glob_stat(const char *name, struct stat *stp)
 
 	dp = pathsearch(name);
 	if (dp == NULL || (!dflag && TSTINO(dp->d_ino, dumpmap) == 0) ||
-	    (!vflag && dp->d_ino == WINO))
+	    (!vflag && dp->d_ino == UFS_WINO))
 		return (-1);
 	if (inodetype(dp->d_ino) == NODE)
 		stp->st_mode = IFDIR;

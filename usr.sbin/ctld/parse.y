@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -766,28 +768,41 @@ target_port:	PORT STR
 	{
 		struct pport *pp;
 		struct port *tp;
+		int ret, i_pp, i_vp = 0;
 
-		pp = pport_find(conf, $2);
-		if (pp == NULL) {
-			log_warnx("unknown port \"%s\" for target \"%s\"",
-			    $2, target->t_name);
-			free($2);
-			return (1);
+		ret = sscanf($2, "ioctl/%d/%d", &i_pp, &i_vp);
+		if (ret > 0) {
+			tp = port_new_ioctl(conf, target, i_pp, i_vp);
+			if (tp == NULL) {
+				log_warnx("can't create new ioctl port for "
+				    "target \"%s\"", target->t_name);
+				free($2);
+				return (1);
+			}
+		} else {
+			pp = pport_find(conf, $2);
+			if (pp == NULL) {
+				log_warnx("unknown port \"%s\" for target \"%s\"",
+				    $2, target->t_name);
+				free($2);
+				return (1);
+			}
+			if (!TAILQ_EMPTY(&pp->pp_ports)) {
+				log_warnx("can't link port \"%s\" to target \"%s\", "
+				    "port already linked to some target",
+				    $2, target->t_name);
+				free($2);
+				return (1);
+			}
+			tp = port_new_pp(conf, target, pp);
+			if (tp == NULL) {
+				log_warnx("can't link port \"%s\" to target \"%s\"",
+				    $2, target->t_name);
+				free($2);
+				return (1);
+			}
 		}
-		if (!TAILQ_EMPTY(&pp->pp_ports)) {
-			log_warnx("can't link port \"%s\" to target \"%s\", "
-			    "port already linked to some target",
-			    $2, target->t_name);
-			free($2);
-			return (1);
-		}
-		tp = port_new_pp(conf, target, pp);
-		if (tp == NULL) {
-			log_warnx("can't link port \"%s\" to target \"%s\"",
-			    $2, target->t_name);
-			free($2);
-			return (1);
-		}
+
 		free($2);
 	}
 	;
@@ -821,6 +836,11 @@ lun_number:	STR
 			free($1);
 			return (1);
 		}
+		if (tmp >= MAX_LUNS) {
+			yyerror("LU number is too big");
+			free($1);
+			return (1);
+		}
 
 		ret = asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
 		if (ret <= 0)
@@ -845,6 +865,11 @@ target_lun_ref:	LUN STR STR
 			return (1);
 		}
 		free($2);
+		if (tmp >= MAX_LUNS) {
+			yyerror("LU number is too big");
+			free($3);
+			return (1);
+		}
 
 		lun = lun_find(conf, $3);
 		free($3);

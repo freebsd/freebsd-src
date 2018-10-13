@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -208,7 +210,6 @@ rewrite(FS *fs)
 	unsigned char *p1, *p2, *fmtp;
 	char savech, cs[3];
 	int nconv, prec;
-	size_t len;
 
 	prec = 0;
 
@@ -389,10 +390,8 @@ isint2:					switch(fu->bcnt) {
 			 */
 			savech = *p2;
 			p1[0] = '\0';
-			len = strlen(fmtp) + strlen(cs) + 1;
-			if ((pr->fmt = calloc(1, len)) == NULL)
+			if (asprintf(&pr->fmt, "%s%s", fmtp, cs) == -1)
 				err(1, NULL);
-			snprintf(pr->fmt, len, "%s%s", fmtp, cs);
 			*p2 = savech;
 			pr->cchar = pr->fmt + (p1 - fmtp);
 			fmtp = p2;

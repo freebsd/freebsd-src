@@ -2,6 +2,8 @@
  * Product specific probe and attach routines for:
  *      Buslogic BT946, BT948, BT956, BT958 SCSI controllers
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1995, 1997, 1998 Justin T. Gibbs
  * All rights reserved.
  *
@@ -58,8 +60,8 @@ static int
 bt_pci_alloc_resources(device_t dev)
 {
 	int		type = 0, rid, zero;
-	struct resource *regs = 0;
-	struct resource *irq = 0;
+	struct resource *regs = NULL;
+	struct resource *irq = NULL;
 
 #if 0
 	/* XXX Memory Mapped I/O seems to cause problems */

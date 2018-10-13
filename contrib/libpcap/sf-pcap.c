@@ -28,28 +28,15 @@
  * dependent values so we can print the dump file on any architecture.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header$ (LBL)";
-#endif
-
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#ifdef WIN32
-#include <pcap-stdinc.h>
-#else /* WIN32 */
-#if HAVE_INTTYPES_H
-#include <inttypes.h>
-#elif HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#ifdef HAVE_SYS_BITYPES_H
-#include <sys/bitypes.h>
-#endif
-#include <sys/types.h>
-#endif /* WIN32 */
+#include <pcap-types.h>
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif /* _WIN32 */
 
 #include <errno.h>
 #include <memory.h>
@@ -70,7 +57,7 @@ static const char rcsid[] _U_ =
 /*
  * Setting O_BINARY on DOS/Windows is a bit tricky
  */
-#if defined(WIN32)
+#if defined(_WIN32)
   #define SET_BINMODE(f)  _setmode(_fileno(f), _O_BINARY)
 #elif defined(MSDOS)
   #if defined(__HIGHC__)
@@ -149,7 +136,7 @@ struct pcap_sf {
  */
 pcap_t *
 pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
-    int *err)
+		  int *err)
 {
 	struct pcap_file_header hdr;
 	size_t amt_read;
@@ -185,11 +172,10 @@ pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
 	    sizeof(hdr) - sizeof(hdr.magic), fp);
 	if (amt_read != sizeof(hdr) - sizeof(hdr.magic)) {
 		if (ferror(fp)) {
-			snprintf(errbuf, PCAP_ERRBUF_SIZE,
-			    "error reading dump file: %s",
-			    pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "error reading dump file");
 		} else {
-			snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
 			    "truncated dump file; tried to read %lu file header bytes, only got %lu",
 			    (unsigned long)sizeof(hdr),
 			    (unsigned long)amt_read);
@@ -211,10 +197,25 @@ pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
 	}
 
 	if (hdr.version_major < PCAP_VERSION_MAJOR) {
-		snprintf(errbuf, PCAP_ERRBUF_SIZE,
+		pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
 		    "archaic pcap savefile format");
 		*err = 1;
 		return (NULL);
+	}
+
+	/*
+	 * currently only versions 2.[0-4] are supported with
+	 * the exception of 543.0 for DG/UX tcpdump.
+	 */
+	if (! ((hdr.version_major == PCAP_VERSION_MAJOR &&
+		hdr.version_minor <= PCAP_VERSION_MINOR) ||
+	       (hdr.version_major == 543 &&
+		hdr.version_minor == 0))) {
+		pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			 "unsupported pcap savefile version %u.%u",
+			 hdr.version_major, hdr.version_minor);
+		*err = 1;
+		return NULL;
 	}
 
 	/*
@@ -232,6 +233,17 @@ pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
 	p->version_minor = hdr.version_minor;
 	p->tzoff = hdr.thiszone;
 	p->snapshot = hdr.snaplen;
+	if (p->snapshot <= 0) {
+		/*
+		 * Bogus snapshot length; use the maximum for this
+		 * link-layer type as a fallback.
+		 *
+		 * XXX - the only reason why snapshot is signed is
+		 * that pcap_snapshot() returns an int, not an
+		 * unsigned int.
+		 */
+		p->snapshot = max_snaplen_for_dlt(hdr.linktype);
+	}
 	p->linktype = linktype_to_dlt(LT_LINKTYPE(hdr.linktype));
 	p->linktype_ext = LT_LINKTYPE_EXT(hdr.linktype);
 
@@ -282,7 +294,7 @@ pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
 		break;
 
 	default:
-		snprintf(errbuf, PCAP_ERRBUF_SIZE,
+		pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
 		    "unknown time stamp resolution %u", precision);
 		free(p);
 		*err = 1;
@@ -367,17 +379,19 @@ pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
 
 	/*
 	 * Allocate a buffer for the packet data.
+	 * Choose the minimum of the file's snapshot length and 2K bytes;
+	 * that should be enough for most network packets - we'll grow it
+	 * if necessary.  That way, we don't allocate a huge chunk of
+	 * memory just because there's a huge snapshot length, as the
+	 * snapshot length might be larger than the size of the largest
+	 * packet.
 	 */
 	p->bufsize = p->snapshot;
-	if (p->bufsize <= 0) {
-		/*
-		 * Bogus snapshot length; use the maximum as a fallback.
-		 */
-		p->bufsize = MAXIMUM_SNAPLEN;
-	}
+	if (p->bufsize > 2048)
+		p->bufsize = 2048;
 	p->buffer = malloc(p->bufsize);
 	if (p->buffer == NULL) {
-		snprintf(errbuf, PCAP_ERRBUF_SIZE, "out of memory");
+		pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE, "out of memory");
 		free(p);
 		*err = 1;
 		return (NULL);
@@ -386,6 +400,24 @@ pcap_check_header(bpf_u_int32 magic, FILE *fp, u_int precision, char *errbuf,
 	p->cleanup_op = sf_cleanup;
 
 	return (p);
+}
+
+/*
+ * Grow the packet buffer to the specified size.
+ */
+static int
+grow_buffer(pcap_t *p, u_int bufsize)
+{
+	void *bigger_buffer;
+
+	bigger_buffer = realloc(p->buffer, bufsize);
+	if (bigger_buffer == NULL) {
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "out of memory");
+		return (0);
+	}
+	p->buffer = bigger_buffer;
+	p->bufsize = bufsize;
+	return (1);
 }
 
 /*
@@ -412,13 +444,12 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 	amt_read = fread(&sf_hdr, 1, ps->hdrsize, fp);
 	if (amt_read != ps->hdrsize) {
 		if (ferror(fp)) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-			    "error reading dump file: %s",
-			    pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "error reading dump file");
 			return (-1);
 		} else {
 			if (amt_read != 0) {
-				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 				    "truncated dump file; tried to read %lu header bytes, only got %lu",
 				    (unsigned long)ps->hdrsize,
 				    (unsigned long)amt_read);
@@ -490,67 +521,169 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 		break;
 	}
 
-	if (hdr->caplen > p->bufsize) {
+	/*
+	 * Is the packet bigger than we consider sane?
+	 */
+	if (hdr->caplen > max_snaplen_for_dlt(p->linktype)) {
 		/*
+		 * Yes.  This may be a damaged or fuzzed file.
+		 *
+		 * Is it bigger than the snapshot length?
+		 * (We don't treat that as an error if it's not
+		 * bigger than the maximum we consider sane; see
+		 * below.)
+		 */
+		if (hdr->caplen > (bpf_u_int32)p->snapshot) {
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "invalid packet capture length %u, bigger than "
+			    "snaplen of %d", hdr->caplen, p->snapshot);
+		} else {
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "invalid packet capture length %u, bigger than "
+			    "maximum of %u", hdr->caplen,
+			    max_snaplen_for_dlt(p->linktype));
+		}
+		return (-1);
+	}
+
+	if (hdr->caplen > (bpf_u_int32)p->snapshot) {
+		/*
+		 * The packet is bigger than the snapshot length
+		 * for this file.
+		 *
 		 * This can happen due to Solaris 2.3 systems tripping
 		 * over the BUFMOD problem and not setting the snapshot
-		 * correctly in the savefile header.  If the caplen isn't
-		 * grossly wrong, try to salvage.
+		 * length correctly in the savefile header.
+		 *
+		 * libpcap 0.4 and later on Solaris 2.3 should set the
+		 * snapshot length correctly in the pcap file header,
+		 * even though they don't set a snapshot length in bufmod
+		 * (the buggy bufmod chops off the *beginning* of the
+		 * packet if a snapshot length is specified); they should
+		 * also reduce the captured length, as supplied to the
+		 * per-packet callback, to the snapshot length if it's
+		 * greater than the snapshot length, so the code using
+		 * libpcap should see the packet cut off at the snapshot
+		 * length, even though the full packet is copied up to
+		 * userland.
+		 *
+		 * However, perhaps some versions of libpcap failed to
+		 * set the snapshot length currectly in the file header
+		 * or the per-packet header, or perhaps this is a
+		 * corrupted safefile or a savefile built/modified by a
+		 * fuzz tester, so we check anyway.  We grow the buffer
+		 * to be big enough for the snapshot length, read up
+		 * to the snapshot length, discard the rest of the
+		 * packet, and report the snapshot length as the captured
+		 * length; we don't want to hand our caller a packet
+		 * bigger than the snapshot length, because they might
+		 * be assuming they'll never be handed such a packet,
+		 * and might copy the packet into a snapshot-length-
+		 * sized buffer, assuming it'll fit.
 		 */
-		static u_char *tp = NULL;
-		static size_t tsize = 0;
+		size_t bytes_to_discard;
+		size_t bytes_to_read, bytes_read;
+		char discard_buf[4096];
 
-		if (hdr->caplen > MAXIMUM_SNAPLEN) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-			    "bogus savefile header");
+		if (hdr->caplen > p->bufsize) {
+			/*
+			 * Grow the buffer to the snapshot length.
+			 */
+			if (!grow_buffer(p, p->snapshot))
+				return (-1);
+		}
+
+		/*
+		 * Read the first p->snapshot bytes into the buffer.
+		 */
+		amt_read = fread(p->buffer, 1, p->snapshot, fp);
+		if (amt_read != (bpf_u_int32)p->snapshot) {
+			if (ferror(fp)) {
+				pcap_fmt_errmsg_for_errno(p->errbuf,
+				     PCAP_ERRBUF_SIZE, errno,
+				    "error reading dump file");
+			} else {
+				/*
+				 * Yes, this uses hdr->caplen; technically,
+				 * it's true, because we would try to read
+				 * and discard the rest of those bytes, and
+				 * that would fail because we got EOF before
+				 * the read finished.
+				 */
+				pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "truncated dump file; tried to read %u captured bytes, only got %lu",
+				    p->snapshot, (unsigned long)amt_read);
+			}
 			return (-1);
 		}
 
-		if (tsize < hdr->caplen) {
-			tsize = ((hdr->caplen + 1023) / 1024) * 1024;
-			if (tp != NULL)
-				free((u_char *)tp);
-			tp = (u_char *)malloc(tsize);
-			if (tp == NULL) {
-				tsize = 0;
-				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-				    "BUFMOD hack malloc");
+		/*
+		 * Now read and discard what's left.
+		 */
+		bytes_to_discard = hdr->caplen - p->snapshot;
+		bytes_read = amt_read;
+		while (bytes_to_discard != 0) {
+			bytes_to_read = bytes_to_discard;
+			if (bytes_to_read > sizeof (discard_buf))
+				bytes_to_read = sizeof (discard_buf);
+			amt_read = fread(discard_buf, 1, bytes_to_read, fp);
+			bytes_read += amt_read;
+			if (amt_read != bytes_to_read) {
+				if (ferror(fp)) {
+					pcap_fmt_errmsg_for_errno(p->errbuf,
+					    PCAP_ERRBUF_SIZE, errno,
+					    "error reading dump file");
+				} else {
+					pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+					    "truncated dump file; tried to read %u captured bytes, only got %lu",
+					    hdr->caplen, (unsigned long)bytes_read);
+				}
 				return (-1);
 			}
+			bytes_to_discard -= amt_read;
 		}
-		amt_read = fread((char *)tp, 1, hdr->caplen, fp);
-		if (amt_read != hdr->caplen) {
-			if (ferror(fp)) {
-				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-				    "error reading dump file: %s",
-				    pcap_strerror(errno));
-			} else {
-				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-				    "truncated dump file; tried to read %u captured bytes, only got %lu",
-				    hdr->caplen, (unsigned long)amt_read);
-			}
-			return (-1);
-		}
+
 		/*
-		 * We can only keep up to p->bufsize bytes.  Since
-		 * caplen > p->bufsize is exactly how we got here,
-		 * we know we can only keep the first p->bufsize bytes
-		 * and must drop the remainder.  Adjust caplen accordingly,
-		 * so we don't get confused later as to how many bytes we
-		 * have to play with.
+		 * Adjust caplen accordingly, so we don't get confused later
+		 * as to how many bytes we have to play with.
 		 */
-		hdr->caplen = p->bufsize;
-		memcpy(p->buffer, (char *)tp, p->bufsize);
+		hdr->caplen = p->snapshot;
 	} else {
+		if (hdr->caplen > p->bufsize) {
+			/*
+			 * Grow the buffer to the next power of 2, or
+			 * the snaplen, whichever is lower.
+			 */
+			u_int new_bufsize;
+
+			new_bufsize = hdr->caplen;
+			/*
+			 * http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+			 */
+			new_bufsize--;
+			new_bufsize |= new_bufsize >> 1;
+			new_bufsize |= new_bufsize >> 2;
+			new_bufsize |= new_bufsize >> 4;
+			new_bufsize |= new_bufsize >> 8;
+			new_bufsize |= new_bufsize >> 16;
+			new_bufsize++;
+
+			if (new_bufsize > (u_int)p->snapshot)
+				new_bufsize = p->snapshot;
+
+			if (!grow_buffer(p, new_bufsize))
+				return (-1);
+		}
+
 		/* read the packet itself */
 		amt_read = fread(p->buffer, 1, hdr->caplen, fp);
 		if (amt_read != hdr->caplen) {
 			if (ferror(fp)) {
-				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-				    "error reading dump file: %s",
-				    pcap_strerror(errno));
+				pcap_fmt_errmsg_for_errno(p->errbuf,
+				    PCAP_ERRBUF_SIZE, errno,
+				    "error reading dump file");
 			} else {
-				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 				    "truncated dump file; tried to read %u captured bytes, only got %lu",
 				    hdr->caplen, (unsigned long)amt_read);
 			}
@@ -608,7 +741,7 @@ static pcap_dumper_t *
 pcap_setup_dump(pcap_t *p, int linktype, FILE *f, const char *fname)
 {
 
-#if defined(WIN32) || defined(MSDOS)
+#if defined(_WIN32) || defined(MSDOS)
 	/*
 	 * If we're writing to the standard output, put it in binary
 	 * mode, as savefiles are binary files.
@@ -619,11 +752,11 @@ pcap_setup_dump(pcap_t *p, int linktype, FILE *f, const char *fname)
 	if (f == stdout)
 		SET_BINMODE(f);
 	else
-		setbuf(f, NULL);
+		setvbuf(f, NULL, _IONBF, 0);
 #endif
 	if (sf_write_header(p, f, linktype, p->tzoff, p->snapshot) == -1) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "Can't write to %s: %s",
-		    fname, pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "Can't write to %s", fname);
 		if (f != stdout)
 			(void)fclose(f);
 		return (NULL);
@@ -645,32 +778,39 @@ pcap_dump_open(pcap_t *p, const char *fname)
 	 * link-layer type, so we can't use it.
 	 */
 	if (!p->activated) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 		    "%s: not-yet-activated pcap_t passed to pcap_dump_open",
 		    fname);
 		return (NULL);
 	}
 	linktype = dlt_to_linktype(p->linktype);
 	if (linktype == -1) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 		    "%s: link-layer type %d isn't supported in savefiles",
 		    fname, p->linktype);
 		return (NULL);
 	}
 	linktype |= p->linktype_ext;
 
+	if (fname == NULL) {
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "A null pointer was supplied as the file name");
+		return NULL;
+	}
 	if (fname[0] == '-' && fname[1] == '\0') {
 		f = stdout;
 		fname = "standard output";
 	} else {
-#if !defined(WIN32) && !defined(MSDOS)
-		f = fopen(fname, "w");
-#else
+		/*
+		 * "b" is supported as of C90, so *all* UN*Xes should
+		 * support it, even though it does nothing.  It's
+		 * required on Windows, as the file is a binary file
+		 * and must be written in binary mode.
+		 */
 		f = fopen(fname, "wb");
-#endif
 		if (f == NULL) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "%s: %s",
-			    fname, pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "%s", fname);
 			return (NULL);
 		}
 	}
@@ -682,12 +822,12 @@ pcap_dump_open(pcap_t *p, const char *fname)
  */
 pcap_dumper_t *
 pcap_dump_fopen(pcap_t *p, FILE *f)
-{	
+{
 	int linktype;
 
 	linktype = dlt_to_linktype(p->linktype);
 	if (linktype == -1) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 		    "stream: link-layer type %d isn't supported in savefiles",
 		    p->linktype);
 		return (NULL);
@@ -695,6 +835,175 @@ pcap_dump_fopen(pcap_t *p, FILE *f)
 	linktype |= p->linktype_ext;
 
 	return (pcap_setup_dump(p, linktype, f, "stream"));
+}
+
+pcap_dumper_t *
+pcap_dump_open_append(pcap_t *p, const char *fname)
+{
+	FILE *f;
+	int linktype;
+	size_t amt_read;
+	struct pcap_file_header ph;
+
+	linktype = dlt_to_linktype(p->linktype);
+	if (linktype == -1) {
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "%s: link-layer type %d isn't supported in savefiles",
+		    fname, linktype);
+		return (NULL);
+	}
+
+	if (fname == NULL) {
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "A null pointer was supplied as the file name");
+		return NULL;
+	}
+	if (fname[0] == '-' && fname[1] == '\0')
+		return (pcap_setup_dump(p, linktype, stdout, "standard output"));
+
+	/*
+	 * "b" is supported as of C90, so *all* UN*Xes should support it,
+	 * even though it does nothing.  It's required on Windows, as the
+	 * file is a binary file and must be read in binary mode.
+	 */
+	f = fopen(fname, "rb+");
+	if (f == NULL) {
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "%s", fname);
+		return (NULL);
+	}
+
+	/*
+	 * Try to read a pcap header.
+	 */
+	amt_read = fread(&ph, 1, sizeof (ph), f);
+	if (amt_read != sizeof (ph)) {
+		if (ferror(f)) {
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "%s", fname);
+			fclose(f);
+			return (NULL);
+		} else if (feof(f) && amt_read > 0) {
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: truncated pcap file header", fname);
+			fclose(f);
+			return (NULL);
+		}
+	}
+
+#if defined(_WIN32) || defined(MSDOS)
+	/*
+	 * We turn off buffering.
+	 * XXX - why?  And why not on the standard output?
+	 */
+	setvbuf(f, NULL, _IONBF, 0);
+#endif
+
+	/*
+	 * If a header is already present and:
+	 *
+	 *	it's not for a pcap file of the appropriate resolution
+	 *	and the right byte order for this machine;
+	 *
+	 *	the link-layer header types don't match;
+	 *
+	 *	the snapshot lengths don't match;
+	 *
+	 * return an error.
+	 */
+	if (amt_read > 0) {
+		/*
+		 * A header is already present.
+		 * Do the checks.
+		 */
+		switch (ph.magic) {
+
+		case TCPDUMP_MAGIC:
+			if (p->opt.tstamp_precision != PCAP_TSTAMP_PRECISION_MICRO) {
+				pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "%s: different time stamp precision, cannot append to file", fname);
+				fclose(f);
+				return (NULL);
+			}
+			break;
+
+		case NSEC_TCPDUMP_MAGIC:
+			if (p->opt.tstamp_precision != PCAP_TSTAMP_PRECISION_NANO) {
+				pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "%s: different time stamp precision, cannot append to file", fname);
+				fclose(f);
+				return (NULL);
+			}
+			break;
+
+		case SWAPLONG(TCPDUMP_MAGIC):
+		case SWAPLONG(NSEC_TCPDUMP_MAGIC):
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: different byte order, cannot append to file", fname);
+			fclose(f);
+			return (NULL);
+
+		case KUZNETZOV_TCPDUMP_MAGIC:
+		case SWAPLONG(KUZNETZOV_TCPDUMP_MAGIC):
+		case NAVTEL_TCPDUMP_MAGIC:
+		case SWAPLONG(NAVTEL_TCPDUMP_MAGIC):
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: not a pcap file to which we can append", fname);
+			fclose(f);
+			return (NULL);
+
+		default:
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: not a pcap file", fname);
+			fclose(f);
+			return (NULL);
+		}
+
+		/*
+		 * Good version?
+		 */
+		if (ph.version_major != PCAP_VERSION_MAJOR ||
+		    ph.version_minor != PCAP_VERSION_MINOR) {
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: version is %u.%u, cannot append to file", fname,
+			    ph.version_major, ph.version_minor);
+			fclose(f);
+			return (NULL);
+		}
+		if ((bpf_u_int32)linktype != ph.linktype) {
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: different linktype, cannot append to file", fname);
+			fclose(f);
+			return (NULL);
+		}
+		if ((bpf_u_int32)p->snapshot != ph.snaplen) {
+			pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "%s: different snaplen, cannot append to file", fname);
+			fclose(f);
+			return (NULL);
+		}
+	} else {
+		/*
+		 * A header isn't present; attempt to write it.
+		 */
+		if (sf_write_header(p, f, linktype, p->tzoff, p->snapshot) == -1) {
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "Can't write to %s", fname);
+			(void)fclose(f);
+			return (NULL);
+		}
+	}
+
+	/*
+	 * Start writing at the end of the file.
+	 */
+	if (fseek(f, 0, SEEK_END) == -1) {
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "Can't seek to end of %s", fname);
+		(void)fclose(f);
+		return (NULL);
+	}
+	return ((pcap_dumper_t *)f);
 }
 
 FILE *
@@ -708,6 +1017,45 @@ pcap_dump_ftell(pcap_dumper_t *p)
 {
 	return (ftell((FILE *)p));
 }
+
+#if defined(HAVE_FSEEKO)
+/*
+ * We have fseeko(), so we have ftello().
+ * If we have large file support (files larger than 2^31-1 bytes),
+ * ftello() will give us a current file position with more than 32
+ * bits.
+ */
+int64_t
+pcap_dump_ftell64(pcap_dumper_t *p)
+{
+	return (ftello((FILE *)p));
+}
+#elif defined(_MSC_VER)
+/*
+ * We have Visual Studio; we support only 2005 and later, so we have
+ * _ftelli64().
+ */
+int64_t
+pcap_dump_ftell64(pcap_dumper_t *p)
+{
+	return (_ftelli64((FILE *)p));
+}
+#else
+/*
+ * We don't have ftello() or _ftelli64(), so fall back on ftell().
+ * Either long is 64 bits, in which case ftell() should suffice,
+ * or this is probably an older 32-bit UN*X without large file
+ * support, which means you'll probably get errors trying to
+ * write files > 2^31-1, so it won't matter anyway.
+ *
+ * XXX - what about MinGW?
+ */
+int64_t
+pcap_dump_ftell64(pcap_dumper_t *p)
+{
+	return (ftell((FILE *)p));
+}
+#endif
 
 int
 pcap_dump_flush(pcap_dumper_t *p)

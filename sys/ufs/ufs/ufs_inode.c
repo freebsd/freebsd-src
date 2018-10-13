@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -125,7 +127,7 @@ ufs_inactive(ap)
 		}
 	}
 	isize = ip->i_size;
-	if (ip->i_ump->um_fstype == UFS2)
+	if (I_IS_UFS2(ip))
 		isize += ip->i_din2->di_extsize;
 	if (ip->i_effnlink <= 0 && isize && !UFS_RDONLY(ip))
 		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL, NOCRED);
@@ -214,7 +216,6 @@ ufs_reclaim(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
-	struct ufsmount *ump = ip->i_ump;
 
 	ufs_prepare_reclaim(vp);
 
@@ -233,6 +234,6 @@ ufs_reclaim(ap)
 	VI_LOCK(vp);
 	vp->v_data = 0;
 	VI_UNLOCK(vp);
-	UFS_IFREE(ump, ip);
+	UFS_IFREE(ITOUMP(ip), ip);
 	return (0);
 }

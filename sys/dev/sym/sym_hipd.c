@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010
  *  PCI-SCSI controllers.
  *
@@ -138,7 +140,7 @@ typedef	u_int32_t u32;
 #define MEMORY_BARRIER()	dmb()
 #elif	defined	__aarch64__
 #define MEMORY_BARRIER()	dmb(sy)
-#elif	defined __riscv__
+#elif	defined __riscv
 #define MEMORY_BARRIER()	fence()
 #else
 #error	"Not supported platform"
@@ -3710,7 +3712,7 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
 	} else {
 		script_ofs	= dsp;
 		script_size	= 0;
-		script_base	= 0;
+		script_base	= NULL;
 		script_name	= "mem";
 	}
 
@@ -4296,7 +4298,7 @@ static void sym_int_ma (hcb_p np)
 	 *  try to find the interrupted script command,
 	 *  and the address at which to continue.
 	 */
-	vdsp	= 0;
+	vdsp	= NULL;
 	nxtdsp	= 0;
 	if	(dsp >  np->scripta_ba &&
 		 dsp <= np->scripta_ba + np->scripta_sz) {
@@ -6673,7 +6675,7 @@ static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln)
 	lp->cb_tags = sym_calloc(SYM_CONF_MAX_TASK, "CB_TAGS");
 	if (!lp->cb_tags) {
 		sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
-		lp->itlq_tbl = 0;
+		lp->itlq_tbl = NULL;
 		return;
 	}
 
@@ -8047,9 +8049,9 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->initiator_id = np->myaddr;
 		cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Symbios", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "Symbios", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 
 		cpi->protocol = PROTO_SCSI;
@@ -8090,11 +8092,6 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		sym_init (np, 1);
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	case XPT_ACCEPT_TARGET_IO:
-	case XPT_CONT_TARGET_IO:
-	case XPT_EN_LUN:
-	case XPT_NOTIFY_ACK:
-	case XPT_IMMED_NOTIFY:
 	case XPT_TERM_IO:
 	default:
 		sym_xpt_done2(np, ccb, CAM_REQ_INVALID);

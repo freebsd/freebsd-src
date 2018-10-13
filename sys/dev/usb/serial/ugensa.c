@@ -1,7 +1,9 @@
 /* $FreeBSD$ */
 /*	$NetBSD: ugensa.c,v 1.9.2.1 2007/03/24 14:55:50 yamt Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2004, 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

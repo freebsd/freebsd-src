@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -84,6 +86,25 @@ struct sysentvec elf64_freebsd_sysvec = {
 };
 INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
 
+void
+amd64_lower_shared_page(struct sysentvec *sv)
+{
+	if (hw_lower_amd64_sharedpage != 0) {
+		sv->sv_maxuser -= PAGE_SIZE;
+		sv->sv_shared_page_base -= PAGE_SIZE;
+		sv->sv_usrstack -= PAGE_SIZE;
+		sv->sv_psstrings -= PAGE_SIZE;
+	}
+}
+
+/*
+ * Do this fixup before INIT_SYSENTVEC (SI_ORDER_ANY) because the latter
+ * uses the value of sv_shared_page_base.
+ */
+SYSINIT(elf64_sysvec_fixup, SI_SUB_EXEC, SI_ORDER_FIRST,
+	(sysinit_cfunc_t) amd64_lower_shared_page,
+	&elf64_freebsd_sysvec);
+
 static Elf64_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
@@ -154,10 +175,17 @@ elf64_dump_thread(struct thread *td, void *dst, size_t *off)
 	*off = len;
 }
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info)
+{
+
+	return (ELF_R_TYPE(r_info) == R_X86_64_IRELATIVE);
+}
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, int local, elf_lookup_fn lookup)
+    int type, elf_lookup_fn lookup)
 {
 	Elf64_Addr *where, val;
 	Elf32_Addr *where32, val32;
@@ -178,6 +206,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		switch (rtype) {
 		case R_X86_64_PC32:
 		case R_X86_64_32S:
+		case R_X86_64_PLT32:
 			addend = *(Elf32_Addr *)where;
 			break;
 		default:
@@ -197,7 +226,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-
 		case R_X86_64_NONE:	/* none */
 			break;
 
@@ -211,6 +239,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_X86_64_PC32:	/* S + A - P */
+		case R_X86_64_PLT32:	/* L + A - P, L is PLT location for
+					   the symbol, which we treat as S */
 			error = lookup(lf, symidx, 1, &addr);
 			where32 = (Elf32_Addr *)where;
 			val32 = (Elf32_Addr)(addr + addend - (Elf_Addr)where);
@@ -236,7 +266,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			 * objects.
 			 */
 			printf("kldload: unexpected R_COPY relocation\n");
-			return -1;
+			return (-1);
 			break;
 
 		case R_X86_64_GLOB_DAT:	/* S */
@@ -255,12 +285,19 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 				*where = val;
 			break;
 
+		case R_X86_64_IRELATIVE:
+			addr = relocbase + addend;
+			val = ((Elf64_Addr (*)(void))addr)();
+			if (*where != val)
+				*where = val;
+			break;
+
 		default:
 			printf("kldload: unexpected relocation type %ld\n",
 			       rtype);
-			return -1;
+			return (-1);
 	}
-	return(0);
+	return (0);
 }
 
 int
@@ -268,7 +305,7 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
     elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
+	return (elf_reloc_internal(lf, relocbase, data, type, lookup));
 }
 
 int
@@ -276,7 +313,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
+	return (elf_reloc_internal(lf, relocbase, data, type, lookup));
 }
 
 int

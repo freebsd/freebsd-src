@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -44,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <arm/nvidia/tegra124/tegra124_mp.h>
@@ -62,30 +60,11 @@ __FBSDID("$FreeBSD$");
 					PMC_SCRATCH0_MODE_BOOTLOADER | \
 					PMC_SCRATCH0_MODE_RCM)
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-static vm_offset_t
-tegra124_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
+static platform_attach_t tegra124_attach;
+static platform_lastaddr_t tegra124_lastaddr;
+static platform_devmap_init_t tegra124_devmap_init;
+static platform_late_init_t tegra124_late_init;
+static platform_cpu_reset_t tegra124_cpu_reset;
 
 static int
 tegra124_attach(platform_t plat)
@@ -112,8 +91,8 @@ tegra124_devmap_init(platform_t plat)
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+tegra124_cpu_reset(platform_t plat)
 {
 	bus_space_handle_t pmc;
 	uint32_t reg;
@@ -139,30 +118,33 @@ cpu_reset(void)
 
 /*
  * Early putc routine for EARLY_PRINTF support.  To use, add to kernel config:
- *   option SOCDEV_PA=0x02000000
- *   option SOCDEV_VA=0x02000000
+ *   option SOCDEV_PA=0x70000000
+ *   option SOCDEV_VA=0x70000000
  *   option EARLY_PRINTF
  */
 #if 0
+#ifdef EARLY_PRINTF
 static void
 tegra124_early_putc(int c)
 {
-	volatile uint32_t * UART_STAT_REG = (uint32_t *)0x02020098;
-	volatile uint32_t * UART_TX_REG   = (uint32_t *)0x02020040;
-	const uint32_t      UART_TXRDY    = (1 << 3);
 
+	volatile uint32_t * UART_STAT_REG = (uint32_t *)(0x70006314);
+	volatile uint32_t * UART_TX_REG   = (uint32_t *)(0x70006300);
+	const uint32_t      UART_TXRDY    = (1 << 6);
 	while ((*UART_STAT_REG & UART_TXRDY) == 0)
 		continue;
 	*UART_TX_REG = c;
 }
 early_putc_t *early_putc = tegra124_early_putc;
 #endif
+#endif
 
 static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD(platform_attach,		tegra124_attach),
-	PLATFORMMETHOD(platform_lastaddr,	tegra124_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	tegra124_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	tegra124_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	tegra124_cpu_reset),
+
 #ifdef SMP
 	PLATFORMMETHOD(platform_mp_start_ap,	tegra124_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	tegra124_mp_setmaxid),
@@ -170,4 +152,4 @@ static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(tegra124, "Nvidia Jetson-TK1", 0, "nvidia,jetson-tk1", 0);
+FDT_PLATFORM_DEF(tegra124, "Nvidia Jetson-TK1", 0, "nvidia,jetson-tk1", 120);

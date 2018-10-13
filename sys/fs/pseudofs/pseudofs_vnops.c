@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -866,7 +868,7 @@ pfs_readdir(struct vop_readdir_args *va)
 		free(pfsent, M_IOV);
 		i++;
 	}
-	PFS_TRACE(("%d bytes", i * PFS_DELEN));
+	PFS_TRACE(("%ju bytes", (uintmax_t)(i * PFS_DELEN)));
 	PFS_RETURN (error);
 }
 

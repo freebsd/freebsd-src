@@ -7,7 +7,7 @@
 
 set append ask autoprint 
 set indentprefix="> "
-set PAGER=more
+set PAGER=less
 set EDITOR=vi
 set VISUAL=vi
 set folder=Mail

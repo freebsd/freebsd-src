@@ -1,11 +1,13 @@
 /* 08 Nov 1998*/
-/*
+/*-
  * testmisc.c
  *
  * Test program to call the sample loaded kld device driver.
  *
  * 05 Jun 93	Rajesh Vaidheeswarran		Original
  *
+ *
+ * SPDX-License-Identifier: BSD-4-Clause
  *
  * Copyright (c) 1993 Rajesh Vaidheeswarran.
  * All rights reserved.

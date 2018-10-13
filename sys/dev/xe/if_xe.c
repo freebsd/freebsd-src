@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1998, 1999, 2003  Scott Mitchell
  * All rights reserved.
  *
@@ -1392,7 +1394,7 @@ xe_set_multicast(struct xe_softc *scp)
 	/* Iterate over multicast address list */
 	count = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 		if (maddr->ifma_addr->sa_family != AF_LINK)
 			continue;
 

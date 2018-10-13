@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2008
+.Dd April 19, 2017
 .Dt CRASHINFO 8
 .Os
 .Sh NAME
@@ -88,6 +88,12 @@ and
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl b
+Run in batch mode.  Write most messages to the
+.Pa core.txt.XX
+file instead of the terminal.  This flag is used when
+.Nm
+is run during boot.
 .It Fl d Ar crashdir
 Specify an alternate core dump directory.
 The default crash dump directory is

@@ -1,6 +1,8 @@
 /*	$KAME: getnameinfo.c,v 1.61 2002/06/27 09:25:47 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * Copyright (c) 2000 Ben Harris.
  * All rights reserved.
@@ -122,26 +124,36 @@ getnameinfo(const struct sockaddr *sa, socklen_t salen,
 	afd = find_afd(sa->sa_family);
 	if (afd == NULL)
 		return (EAI_FAMILY);
+	/*
+	 * getnameinfo() accepts an salen of sizeof(struct sockaddr_storage)
+	 * at maximum as shown in RFC 4038 Sec.6.2.3.
+	 */
+	if (salen > sizeof(struct sockaddr_storage))
+		return (EAI_FAMILY);
+
 	switch (sa->sa_family) {
 	case PF_LOCAL:
 		/*
-		 * PF_LOCAL uses variable sa->sa_len depending on the
+		 * PF_LOCAL uses variable salen depending on the
 		 * content length of sun_path.  Require 1 byte in
 		 * sun_path at least.
 		 */
-		if (salen > afd->a_socklen ||
-		    salen <= afd->a_socklen -
+		if (salen <= afd->a_socklen -
 			sizeofmember(struct sockaddr_un, sun_path))
-			return (EAI_FAIL);
+			return (EAI_FAMILY);
+		else if (salen > afd->a_socklen)
+			salen = afd->a_socklen;
 		break;
 	case PF_LINK:
 		if (salen <= afd->a_socklen -
 			sizeofmember(struct sockaddr_dl, sdl_data))
-			return (EAI_FAIL);
+			return (EAI_FAMILY);
 		break;
 	default:
-		if (salen != afd->a_socklen)
-			return (EAI_FAIL);
+		if (salen < afd->a_socklen)
+			return (EAI_FAMILY);
+		else
+			salen = afd->a_socklen;
 		break;
 	}
 
@@ -378,7 +390,6 @@ ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf, size_t bufsiz, int flags)
 	ifindex = (unsigned int)sa6->sin6_scope_id;
 	a6 = &sa6->sin6_addr;
 
-#ifdef NI_NUMERICSCOPE
 	if ((flags & NI_NUMERICSCOPE) != 0) {
 		n = snprintf(buf, bufsiz, "%u", sa6->sin6_scope_id);
 		if (n < 0 || n >= bufsiz)
@@ -386,7 +397,6 @@ ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf, size_t bufsiz, int flags)
 		else
 			return n;
 	}
-#endif
 
 	/* if_indextoname() does not take buffer size.  not a good api... */
 	if ((IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
@@ -457,7 +467,6 @@ getnameinfo_link(const struct afd *afd,
 		    host, hostlen);
 	/*
 	 * The following have zero-length addresses.
-	 * IFT_ATM	(net/if_atmsubr.c)
 	 * IFT_GIF	(net/if_gif.c)
 	 * IFT_LOOP	(net/if_loop.c)
 	 * IFT_PPP	(net/if_ppp.c, net/if_spppsubr.c)
@@ -472,7 +481,6 @@ getnameinfo_link(const struct afd *afd,
 	 * IFT_OTHER	(netinet/ip_ipip.c)
 	 */
 	/* default below is believed correct for all these. */
-	case IFT_ARCNET:
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_HIPPI:
@@ -518,7 +526,7 @@ getnameinfo_un(const struct afd *afd,
 	if (serv != NULL && servlen > 0)
 		*serv = '\0';
 	if (host != NULL && hostlen > 0) {
-		pathlen = sa->sa_len - afd->a_off;
+		pathlen = salen - afd->a_off;
 
 		if (pathlen + 1 > hostlen) {
 			*host = '\0';

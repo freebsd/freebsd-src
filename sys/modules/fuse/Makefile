@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/fuse
+.PATH: ${SRCTOP}/sys/fs/fuse
 
 KMOD=	fuse
 SRCS=	vnode_if.h \

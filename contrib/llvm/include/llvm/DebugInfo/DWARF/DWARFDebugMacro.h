@@ -1,4 +1,4 @@
-//===-- DWARFDebugMacro.h ---------------------------------------*- C++ -*-===//
+//===- DWARFDebugMacro.h ----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,9 +11,8 @@
 #define LLVM_DEBUGINFO_DWARF_DWARFDEBUGMACRO_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataExtractor.h"
-#include "llvm/Support/Dwarf.h"
+#include <cstdint>
 
 namespace llvm {
 
@@ -41,19 +40,24 @@ class DWARFDebugMacro {
     };
   };
 
-  typedef SmallVector<Entry, 4> MacroList;
+  using MacroList = SmallVector<Entry, 4>;
 
   /// A list of all the macro entries in the debug_macinfo section.
   MacroList Macros;
 
 public:
-  DWARFDebugMacro() {}
+  DWARFDebugMacro() = default;
+
   /// Print the macro list found within the debug_macinfo section.
   void dump(raw_ostream &OS) const;
+
   /// Parse the debug_macinfo section accessible via the 'data' parameter.
   void parse(DataExtractor data);
+
+  /// Return whether the section has any entries.
+  bool empty() const { return Macros.empty(); }
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_DEBUGINFO_DWARF_DWARFDEBUGMACRO_H

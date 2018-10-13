@@ -140,7 +140,7 @@ static struct tncs_data * tncs_get_conn(TNC_ConnectionID connectionID)
 
 
 /* TNCS functions that IMVs can call */
-TNC_Result TNC_TNCS_ReportMessageTypes(
+static TNC_Result TNC_TNCS_ReportMessageTypes(
 	TNC_IMVID imvID,
 	TNC_MessageTypeList supportedTypes,
 	TNC_UInt32 typeCount)
@@ -173,7 +173,7 @@ TNC_Result TNC_TNCS_ReportMessageTypes(
 }
 
 
-TNC_Result TNC_TNCS_SendMessage(
+static TNC_Result TNC_TNCS_SendMessage(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_BufferReference message,
@@ -222,7 +222,7 @@ TNC_Result TNC_TNCS_SendMessage(
 }
 
 
-TNC_Result TNC_TNCS_RequestHandshakeRetry(
+static TNC_Result TNC_TNCS_RequestHandshakeRetry(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_RetryReason reason)
@@ -233,7 +233,7 @@ TNC_Result TNC_TNCS_RequestHandshakeRetry(
 }
 
 
-TNC_Result TNC_TNCS_ProvideRecommendation(
+static TNC_Result TNC_TNCS_ProvideRecommendation(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_IMV_Action_Recommendation recommendation,
@@ -260,7 +260,7 @@ TNC_Result TNC_TNCS_ProvideRecommendation(
 }
 
 
-TNC_Result TNC_TNCS_GetAttribute(
+static TNC_Result TNC_TNCS_GetAttribute(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_AttributeID attribureID,
@@ -274,7 +274,7 @@ TNC_Result TNC_TNCS_GetAttribute(
 }
 
 
-TNC_Result TNC_TNCS_SetAttribute(
+static TNC_Result TNC_TNCS_SetAttribute(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_AttributeID attribureID,
@@ -287,7 +287,7 @@ TNC_Result TNC_TNCS_SetAttribute(
 }
 
 
-TNC_Result TNC_TNCS_BindFunction(
+static TNC_Result TNC_TNCS_BindFunction(
 	TNC_IMVID imvID,
 	char *functionName,
 	void **pOutFunctionPointer)

@@ -44,9 +44,10 @@ DEFINE_TEST(test_option_grzip)
 	    systemf("echo f | %s -o --grzip >archive.out 2>archive.err",
 	    testprog));
 	p = slurpfile(&s, "archive.err");
-	p[s] = '\0';
+	free(p);
 	/* Check that the archive file has an grzip signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "GRZipII\x00\x02\x04:)", 12);
+	free(p);
 }

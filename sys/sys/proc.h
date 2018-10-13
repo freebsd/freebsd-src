@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -60,11 +62,17 @@
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #else
 #include <sys/pcpu.h>
+#include <sys/systm.h>
 #endif
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
-#include <sys/_vm_domain.h>
+#include <sys/types.h>
+#include <sys/_domainset.h>
+
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
+#ifdef _KERNEL
+#include <machine/cpu.h>
+#endif
 
 /*
  * One structure allocated per session.
@@ -142,12 +150,14 @@ struct pargs {
  *      j - locked by proc slock
  *      k - only accessed by curthread
  *	k*- only accessed by curthread and from an interrupt
+ *	kx- only accessed by curthread and by debugger
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
  *      o - ktrace lock
  *      q - td_contested lock
  *      r - p_peers lock
+ *      s - see sleepq_switch(), sleeping_on_old_rtc(), and sleep(9)
  *      t - thread lock
  *	u - process stat lock
  *	w - process timer lock
@@ -175,11 +185,14 @@ struct procdesc;
 struct racct;
 struct sbuf;
 struct sleepqueue;
+struct socket;
 struct syscall_args;
 struct td_sched;
 struct thread;
 struct trapframe;
 struct turnstile;
+struct vm_map;
+struct vm_map_entry;
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
@@ -216,19 +229,20 @@ struct thread {
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
 	LIST_ENTRY(thread) td_hash;	/* (d) Hash chain. */
 	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
+	struct domainset_ref td_domain;	/* (a) NUMA policy */
 	struct seltd	*td_sel;	/* Select queue/channel. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 	struct rl_q_entry *td_rlqe;	/* (k) Associated range lock entry. */
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
-	struct vm_domain_policy td_vm_dom_policy;	/* (c) current numa domain policy */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
 	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
 #define	td_siglist	td_sigqueue.sq_signals
 	u_char		td_lend_user_pri; /* (t) Lend user pri. */
 
 /* Cleared during fork1() */
-#define	td_startzero td_flags
+#define	td_startzero td_epochnest
+	u_char		td_epochnest;	/* (k) Epoch nest counter. */
 	int		td_flags;	/* (t) TDF_* flags. */
 	int		td_inhibitors;	/* (t) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
@@ -240,6 +254,7 @@ struct thread {
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
 	short		td_locks;	/* (k) Debug: count of non-spin locks */
 	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
+	short		td_sx_slocks;	/* (k) Count of sx shared locks. */
 	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
 	short		td_stopsched;	/* (k) Scheduler stopped. */
 	struct turnstile *td_blocked;	/* (t) Lock thread is blocked on. */
@@ -273,18 +288,17 @@ struct thread {
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	int		td_dbgflags;	/* (c) Userland debugger flags */
-	struct ksiginfo td_dbgksi;	/* (c) ksi reflected to debugger. */
+	siginfo_t	td_si;		/* (c) For debugger or core file */
 	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
 	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
-	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
-	uintptr_t	td_rb_list;	/* (k) Robust list head. */
-	uintptr_t	td_rbp_list;	/* (k) Robust priv list head. */
-	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
+	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
+	int		td_rtcgen;	/* (s) rtc_generation of abs. sleep */
+	size_t		td_vslock_sz;	/* (k) amount of vslock-ed space */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -296,8 +310,12 @@ struct thread {
 	u_char		td_pri_class;	/* (t) Scheduling class. */
 	u_char		td_user_pri;	/* (t) User pri from estcpu and nice. */
 	u_char		td_base_user_pri; /* (t) Base user pri */
-	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
-	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
+	u_char		td_pre_epoch_prio; /* (k) User pri on entry to epoch */
+	uintptr_t	td_rb_list;	/* (k) Robust list head. */
+	uintptr_t	td_rbp_list;	/* (k) Robust priv list head. */
+	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
+	struct syscall_args td_sa;	/* (kx) Syscall parameters. Copied on
+					   fork for child tracing. */
 #define	td_endcopy td_pcb
 
 /*
@@ -314,10 +332,11 @@ struct thread {
 	} td_state;			/* (t) thread state */
 	union {
 		register_t	tdu_retval[2];
-		off_t		tdu_off;	
+		off_t		tdu_off;
 	} td_uretoff;			/* (k) Syscall aux returns. */
 #define td_retval	td_uretoff.tdu_retval
 	u_int		td_cowgen;	/* (k) Generation of COW pointers. */
+	/* LP64 hole */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
@@ -329,15 +348,19 @@ struct thread {
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
+	/* LP64 hole */
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 	struct trapframe *td_intr_frame;/* (k) Frame of the current irq */
 	struct proc	*td_rfppwait_p;	/* (k) The vforked child */
 	struct vm_page	**td_ma;	/* (k) uio pages held */
 	int		td_ma_cnt;	/* (k) size of *td_ma */
+	/* LP64 hole */
 	void		*td_emuldata;	/* Emulator state data */
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
+	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
+	int		td_pmcpend;
 };
 
 struct thread0_storage {
@@ -364,7 +387,11 @@ do {									\
 } while (0)
 
 #define	TD_LOCKS_INC(td)	((td)->td_locks++)
-#define	TD_LOCKS_DEC(td)	((td)->td_locks--)
+#define	TD_LOCKS_DEC(td) do {						\
+	KASSERT(SCHEDULER_STOPPED_TD(td) || (td)->td_locks > 0,		\
+	    ("thread %p owns no locks", (td)));				\
+	(td)->td_locks--;						\
+} while (0)
 #else
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 
@@ -388,16 +415,16 @@ do {									\
 #define	TDF_ALLPROCSUSP	0x00000200 /* suspended by SINGLE_ALLPROC */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
-#define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
+#define	TDF_UNUSED12	0x00001000 /* --available-- */
 #define	TDF_SBDRY	0x00002000 /* Stop only on usermode boundary. */
 #define	TDF_UPIBLOCKED	0x00004000 /* Thread blocked on user PI mutex. */
 #define	TDF_NEEDSUSPCHK	0x00008000 /* Thread may need to suspend. */
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
 #define	TDF_NOLOAD	0x00040000 /* Ignore during load avg calculations. */
-#define	TDF_UNUSED19	0x00080000 /* --available-- */
+#define	TDF_SERESTART	0x00080000 /* ERESTART on stop attempts. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
-#define	TDF_UNUSED21	0x00200000 /* --available-- */
+#define	TDF_SEINTR	0x00200000 /* EINTR on stop attempts. */
 #define	TDF_SWAPINREQ	0x00400000 /* Swapin request due to wakeup. */
 #define	TDF_UNUSED23	0x00800000 /* --available-- */
 #define	TDF_SCHED0	0x01000000 /* Reserved for scheduler private use */
@@ -422,6 +449,9 @@ do {									\
 #define	TDB_CHILD	0x00000100 /* New child indicator for ptrace() */
 #define	TDB_BORN	0x00000200 /* New LWP indicator for ptrace() */
 #define	TDB_EXIT	0x00000400 /* Exiting LWP indicator for ptrace() */
+#define	TDB_VFORK	0x00000800 /* vfork indicator for ptrace() */
+#define	TDB_FSTP	0x00001000 /* The thread is PT_ATTACH leader */
+#define	TDB_STEP	0x00002000 /* (x86) PSL_T set for PT_STEP */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -482,6 +512,12 @@ do {									\
 #define	TD_ON_UPILOCK(td)	((td)->td_flags & TDF_UPIBLOCKED)
 #define TD_IS_IDLETHREAD(td)	((td)->td_flags & TDF_IDLETD)
 
+#define	KTDSTATE(td)							\
+	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
+	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
+	((td)->td_inhibitors & TDI_SWAPPED) != 0 ? "swapped" :		\
+	((td)->td_inhibitors & TDI_LOCK) != 0 ? "blocked" :		\
+	((td)->td_inhibitors & TDI_IWAIT) != 0 ? "iwait" : "yielding")
 
 #define	TD_SET_INHIB(td, inhib) do {			\
 	(td)->td_state = TDS_INHIBITED;			\
@@ -510,6 +546,11 @@ do {									\
 #define	TD_SET_RUNNING(td)	(td)->td_state = TDS_RUNNING
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
+
+#define	TD_SBDRY_INTR(td) \
+    (((td)->td_flags & (TDF_SEINTR | TDF_SERESTART)) != 0)
+#define	TD_SBDRY_ERRNO(td) \
+    (((td)->td_flags & TDF_SEINTR) != 0 ? EINTR : ERESTART)
 
 /*
  * Process structure.
@@ -577,6 +618,7 @@ struct proc {
 	u_int		p_stype;	/* (c) Stop event type. */
 	char		p_step;		/* (c) Process is stopped. */
 	u_char		p_pfsflags;	/* (c) Procfs flags. */
+	u_int		p_ptevents;	/* (c + e) ptrace() event mask. */
 	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
 	struct kaioinfo	*p_aioinfo;	/* (y) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
@@ -589,6 +631,7 @@ struct proc {
 	u_int		p_treeflag;	/* (e) P_TREE flags */
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
 	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
+	int		p_pdeathsig;	/* (c) Signal from parent on exit. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -597,7 +640,7 @@ struct proc {
 	u_int		p_magic;	/* (b) Magic number. */
 	int		p_osrel;	/* (x) osreldate for the
 					       binary (from ELF note, if any) */
-	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
+	char		p_comm[MAXCOMLEN + 1];	/* (x) Process name. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
@@ -606,12 +649,15 @@ struct proc {
 	pid_t		p_reapsubtree;	/* (e) Pid of the direct child of the
 					       reaper which spawned
 					       our subtree. */
+	uint16_t	p_elf_machine;	/* (x) ELF machine type */
+	uint64_t	p_elf_flags;	/* (x) ELF flags */
+/* End area that is copied on creation. */
+#define	p_endcopy	p_xexit
+
 	u_int		p_xexit;	/* (c) Exit code. */
 	u_int		p_xsig;		/* (c) Stop/kill sig. */
-/* End area that is copied on creation. */
-#define	p_endcopy	p_xsig
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
-	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
+	struct knlist	*p_klist;	/* (c) Knotes attached to this proc. */
 	int		p_numthreads;	/* (c) Number of threads. */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
@@ -624,14 +670,11 @@ struct proc {
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
 	struct cv	p_pwait;	/* (*) wait cv for exit/exec. */
-	struct cv	p_dbgwait;	/* (*) wait cv for debugger attach
-					   after fork. */
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
 	int		p_throttled;	/* (c) Flag for racct pcpu throttling */
-	struct vm_domain_policy p_vm_dom_policy;	/* (c) process default VM domain, or -1 */
 	/*
-	 * An orphan is the child that has beed re-parented to the
+	 * An orphan is the child that has been re-parented to the
 	 * debugger as a result of attaching to it.  Need to keep
 	 * track of them for parent to be able to collect the exit
 	 * status of what used to be children.
@@ -667,7 +710,7 @@ struct proc {
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_KPROC		0x00004	/* Kernel process. */
-#define	P_FOLLOWFORK	0x00008	/* Attach parent debugger to children. */
+#define	P_UNUSED3	0x00008	/* --available-- */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_STOPPROF	0x00040	/* Has thread requesting to stop profiling. */
@@ -706,7 +749,8 @@ struct proc {
 #define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
 #define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
 #define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
-#define	P2_LWP_EVENTS	0x00000010	/* Report LWP events via ptrace(2). */
+#define	P2_PTRACE_FSTP	0x00000010 /* SIGSTOP from PT_ATTACH not yet handled. */
+#define	P2_TRAPCAP	0x00000020	/* SIGTRAP on ENOTCAPABLE */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -734,7 +778,7 @@ struct proc {
 #define	SW_TYPE_MASK		0xff	/* First 8 bits are switch type */
 #define	SWT_NONE		0	/* Unspecified switch. */
 #define	SWT_PREEMPT		1	/* Switching due to preemption. */
-#define	SWT_OWEPREEMPT		2	/* Switching due to opepreempt. */
+#define	SWT_OWEPREEMPT		2	/* Switching due to owepreempt. */
 #define	SWT_TURNSTILE		3	/* Turnstile contention. */
 #define	SWT_SLEEPQ		4	/* Sleepq wait. */
 #define	SWT_SLEEPQTIMO		5	/* Sleepq timeout wait. */
@@ -827,7 +871,20 @@ extern pid_t pid_max;
 #define	SESS_LOCKED(s)	mtx_owned(&(s)->s_mtx)
 #define	SESS_LOCK_ASSERT(s, type)	mtx_assert(&(s)->s_mtx, (type))
 
-/* Hold process U-area in memory, normally for ptrace/procfs work. */
+/*
+ * Non-zero p_lock ensures that:
+ * - exit1() is not performed until p_lock reaches zero;
+ * - the process' threads stack are not swapped out if they are currently
+ *   not (P_INMEM).
+ *
+ * PHOLD() asserts that the process (except the current process) is
+ * not exiting, increments p_lock and swaps threads stacks into memory,
+ * if needed.
+ * _PHOLD() is same as PHOLD(), it takes the process locked.
+ * _PHOLD_LITE() also takes the process locked, but comparing with
+ * _PHOLD(), it only guarantees that exit1() is not executed,
+ * faultin() is not called.
+ */
 #define	PHOLD(p) do {							\
 	PROC_LOCK(p);							\
 	_PHOLD(p);							\
@@ -840,6 +897,12 @@ extern pid_t pid_max;
 	(p)->p_lock++;							\
 	if (((p)->p_flag & P_INMEM) == 0)				\
 		faultin((p));						\
+} while (0)
+#define	_PHOLD_LITE(p) do {						\
+	PROC_LOCK_ASSERT((p), MA_OWNED);				\
+	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
+	    ("PHOLD of exiting process %p", p));			\
+	(p)->p_lock++;							\
 } while (0)
 #define	PROC_ASSERT_HELD(p) do {					\
 	KASSERT((p)->p_lock > 0, ("process %p not held", p));		\
@@ -912,6 +975,7 @@ extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct uma_zone *proc_zone;
 
 struct	proc *pfind(pid_t);		/* Find process by id. */
+struct	proc *pfind_any(pid_t);		/* Find (zombie) process by id. */
 struct	proc *pfind_locked(pid_t pid);
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
@@ -943,6 +1007,11 @@ int	pget(pid_t pid, int flags, struct proc **pp);
 
 void	ast(struct trapframe *framep);
 struct	thread *choosethread(void);
+int	cr_cansee(struct ucred *u1, struct ucred *u2);
+int	cr_canseesocket(struct ucred *cred, struct socket *so);
+int	cr_canseeothergids(struct ucred *u1, struct ucred *u2);
+int	cr_canseeotheruids(struct ucred *u1, struct ucred *u2);
+int	cr_canseejailproc(struct ucred *u1, struct ucred *u2);
 int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
 int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 	    struct session *sess);
@@ -954,6 +1023,8 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
+void	kern_proc_vmmap_resident(struct vm_map *map, struct vm_map_entry *entry,
+	    int *resident_count, bool *super);
 void	kern_yield(int);
 void 	kick_proc0(void);
 void	killjobc(void);
@@ -978,6 +1049,8 @@ void	proc_linkup(struct proc *p, struct thread *td);
 struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent);
+void	proc_set_traced(struct proc *p, bool stop);
+void	proc_wkilled(struct proc *p);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);
@@ -1005,12 +1078,12 @@ void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
-int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+void	cpu_copy_thread(struct thread *td, struct thread *td0);
+int	cpu_fetch_syscall_args(struct thread *td);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
-void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
+void	cpu_fork_kthread_handler(struct thread *, void (*)(void *), void *);
 void	cpu_set_syscall_retval(struct thread *, int);
-void	cpu_set_upcall(struct thread *td, struct thread *td0);
-void	cpu_set_upcall_kse(struct thread *, void (*)(void *), void *,
+void	cpu_set_upcall(struct thread *, void (*)(void *), void *,
 	    stack_t *);
 int	cpu_set_user_tls(struct thread *, void *tls_base);
 void	cpu_thread_alloc(struct thread *);
@@ -1074,6 +1147,15 @@ td_get_sched(struct thread *td)
 {
 
 	return ((struct td_sched *)&td[1]);
+}
+
+extern void (*softdep_ast_cleanup)(struct thread *);
+static __inline void
+td_softdep_cleanup(struct thread *td)
+{
+
+	if (td->td_su != NULL && softdep_ast_cleanup != NULL)
+		softdep_ast_cleanup(td);
 }
 
 #endif	/* _KERNEL */

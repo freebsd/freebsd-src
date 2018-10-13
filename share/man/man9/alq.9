@@ -360,8 +360,8 @@ Performance critical code paths may wish to consider using
 .Fn alq_getn
 (variable length queues) or
 .Fn alq_get
-(fixed length queues) to avoid the extra memory copy. Note that a queue
-remains locked between calls to
+(fixed length queues) to avoid the extra memory copy.
+Note that a queue remains locked between calls to
 .Fn alq_getn
 or
 .Fn alq_get

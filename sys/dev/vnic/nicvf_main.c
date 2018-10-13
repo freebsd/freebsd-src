@@ -350,7 +350,7 @@ nicvf_setup_ifnet(struct nicvf *nic)
 
 	if_setsoftc(ifp, nic);
 	if_initname(ifp, device_get_name(nic->dev), device_get_unit(nic->dev));
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
 	if_settransmitfn(ifp, nicvf_if_transmit);
 	if_setqflushfn(ifp, nicvf_if_qflush);
@@ -370,9 +370,9 @@ nicvf_setup_ifnet(struct nicvf *nic)
 		/* TSO */
 		if_setcapabilitiesbit(ifp, IFCAP_TSO4, 0);
 		/* TSO parameters */
-		ifp->if_hw_tsomax = NICVF_TSO_MAXSIZE;
-		ifp->if_hw_tsomaxsegcount = NICVF_TSO_NSEGS;
-		ifp->if_hw_tsomaxsegsize = MCLBYTES;
+		if_sethwtsomax(ifp, NICVF_TSO_MAXSIZE);
+		if_sethwtsomaxsegcount(ifp, NICVF_TSO_NSEGS);
+		if_sethwtsomaxsegsize(ifp, MCLBYTES);
 	}
 	/* IP/TCP/UDP HW checksums */
 	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
@@ -425,7 +425,6 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct nicvf *nic;
 	struct rcv_queue *rq;
 	struct ifreq *ifr;
-	uint32_t flags;
 	int mask, err;
 	int rq_idx;
 #if defined(INET) || defined(INET6)
@@ -453,7 +452,7 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #if defined(INET) || defined(INET6)
 		/* Avoid reinitialization unless it's necessary */
 		if (avoid_reset) {
-			ifp->if_flags |= IFF_UP;
+			if_setflagbits(ifp, IFF_UP, 0);
 			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 				nicvf_if_init(nic);
 #ifdef INET
@@ -482,8 +481,7 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		NICVF_CORE_LOCK(nic);
 		if (if_getflags(ifp) & IFF_UP) {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				flags = ifp->if_flags ^ nic->if_flags;
-				if ((nic->if_flags & ifp->if_flags) &
+				if ((nic->if_flags & if_getflags(ifp)) &
 				    IFF_PROMISC) {
 					/* Change promiscous mode */
 #if 0
@@ -492,7 +490,7 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 				}
 
-				if ((nic->if_flags ^ ifp->if_flags) &
+				if ((nic->if_flags ^ if_getflags(ifp)) &
 				    IFF_ALLMULTI) {
 					/* Change multicasting settings */
 #if 0
@@ -506,7 +504,7 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			nicvf_stop_locked(nic);
 
-		nic->if_flags = ifp->if_flags;
+		nic->if_flags = if_getflags(ifp);
 		NICVF_CORE_UNLOCK(nic);
 		break;
 
@@ -528,24 +526,24 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_VLAN_MTU) {
 			/* No work to do except acknowledge the change took. */
-			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		}
 		if (mask & IFCAP_TXCSUM)
-			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
 		if (mask & IFCAP_RXCSUM)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if ((mask & IFCAP_TSO4) && nic->hw_tso)
-			ifp->if_capenable ^= IFCAP_TSO4;
+			if_togglecapenable(ifp, IFCAP_TSO4);
 		if (mask & IFCAP_LRO) {
 			/*
 			 * Lock the driver for a moment to avoid
 			 * mismatch in per-queue settings.
 			 */
 			NICVF_CORE_LOCK(nic);
-			ifp->if_capenable ^= IFCAP_LRO;
+			if_togglecapenable(ifp, IFCAP_LRO);
 			if ((if_getdrvflags(nic->ifp) & IFF_DRV_RUNNING) != 0) {
 				/*
 				 * Now disable LRO for subsequent packets.

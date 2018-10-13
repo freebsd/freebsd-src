@@ -691,7 +691,7 @@ Convert(time_t Month, time_t Day, time_t Year,
 	time_t Hours, time_t Minutes, time_t Seconds,
 	time_t Timezone, enum DSTMODE DSTmode)
 {
-	static int DaysInMonth[12] = {
+	signed char DaysInMonth[12] = {
 		31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 	};
 	time_t	Julian;

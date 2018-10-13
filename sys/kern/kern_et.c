@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2013 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -66,9 +68,9 @@ et_register(struct eventtimer *et)
 		}
 	}
 	KASSERT(et->et_start, ("et_register: timer has no start function"));
-	et->et_sysctl = SYSCTL_ADD_NODE(NULL,
+	et->et_sysctl = SYSCTL_ADD_NODE_WITH_LABEL(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_eventtimer_et), OID_AUTO, et->et_name,
-	    CTLFLAG_RW, 0, "event timer description");
+	    CTLFLAG_RW, 0, "event timer description", "eventtimer");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
 	    "flags", CTLFLAG_RD, &(et->et_flags), 0,
 	    "Event timer capabilities");

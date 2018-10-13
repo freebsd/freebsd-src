@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,12 +41,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ptrace.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -223,8 +227,10 @@ add_threads(struct trussinfo *info, struct procinfo *p)
 		t = new_thread(p, lwps[i]);
 		if (ptrace(PT_LWPINFO, lwps[i], (caddr_t)&pl, sizeof(pl)) == -1)
 			err(1, "ptrace(PT_LWPINFO)");
-		if (pl.pl_flags & PL_FLAG_SCE)
+		if (pl.pl_flags & PL_FLAG_SCE) {
+			info->curthread = t;
 			enter_syscall(info, t, &pl);
+		}
 	}
 	free(lwps);
 }
@@ -341,7 +347,7 @@ alloc_syscall(struct threadinfo *t, struct ptrace_lwpinfo *pl)
 
 	assert(t->in_syscall == 0);
 	assert(t->cs.number == 0);
-	assert(t->cs.name == NULL);
+	assert(t->cs.sc == NULL);
 	assert(t->cs.nargs == 0);
 	for (i = 0; i < nitems(t->cs.s_args); i++)
 		assert(t->cs.s_args[i] == NULL);
@@ -375,12 +381,11 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 		return;
 	}
 
-	t->cs.name = sysdecode_syscallname(t->proc->abi->abi, t->cs.number);
-	if (t->cs.name == NULL)
+	sc = get_syscall(t, t->cs.number, narg);
+	if (sc->unknown)
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
 
-	sc = get_syscall(t->cs.name, narg);
 	t->cs.nargs = sc->nargs;
 	assert(sc->nargs <= nitems(t->cs.s_args));
 
@@ -393,25 +398,22 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 	 * now.	This doesn't currently support arguments that are
 	 * passed in *and* out, however.
 	 */
-	if (t->cs.name != NULL) {
 #if DEBUG
-		fprintf(stderr, "syscall %s(", t->cs.name);
+	fprintf(stderr, "syscall %s(", sc->name);
 #endif
-		for (i = 0; i < t->cs.nargs; i++) {
+	for (i = 0; i < t->cs.nargs; i++) {
 #if DEBUG
-			fprintf(stderr, "0x%lx%s", sc ?
-			    t->cs.args[sc->args[i].offset] : t->cs.args[i],
-			    i < (t->cs.nargs - 1) ? "," : "");
+		fprintf(stderr, "0x%lx%s", t->cs.args[sc->args[i].offset],
+		    i < (t->cs.nargs - 1) ? "," : "");
 #endif
-			if (!(sc->args[i].type & OUT)) {
-				t->cs.s_args[i] = print_arg(&sc->args[i],
-				    t->cs.args, 0, info);
-			}
+		if (!(sc->args[i].type & OUT)) {
+			t->cs.s_args[i] = print_arg(&sc->args[i],
+			    t->cs.args, 0, info);
 		}
-#if DEBUG
-		fprintf(stderr, ")\n");
-#endif
 	}
+#if DEBUG
+	fprintf(stderr, ")\n");
+#endif
 
 	clock_gettime(CLOCK_REALTIME, &t->before);
 }
@@ -521,12 +523,12 @@ print_line_prefix(struct trussinfo *info)
 		len += fprintf(info->outfile, ": ");
 	}
 	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&t->after, &info->start_time, &timediff);
+		timespecsub(&t->after, &info->start_time, &timediff);
 		len += fprintf(info->outfile, "%jd.%09ld ",
 		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
 	}
 	if (info->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&t->after, &t->before, &timediff);
+		timespecsub(&t->after, &t->before, &timediff);
 		len += fprintf(info->outfile, "%jd.%09ld ",
 		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
 	}
@@ -585,18 +587,77 @@ report_new_child(struct trussinfo *info)
 	fprintf(info->outfile, "<new process>\n");
 }
 
+void
+decode_siginfo(FILE *fp, siginfo_t *si)
+{
+	const char *str;
+
+	fprintf(fp, " code=");
+	str = sysdecode_sigcode(si->si_signo, si->si_code);
+	if (str == NULL)
+		fprintf(fp, "%d", si->si_code);
+	else
+		fprintf(fp, "%s", str);
+	switch (si->si_code) {
+	case SI_NOINFO:
+		break;
+	case SI_QUEUE:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		/* FALLTHROUGH */
+	case SI_USER:
+	case SI_LWP:
+		fprintf(fp, " pid=%jd uid=%jd", (intmax_t)si->si_pid,
+		    (intmax_t)si->si_uid);
+		break;
+	case SI_TIMER:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		fprintf(fp, " timerid=%d", si->si_timerid);
+		fprintf(fp, " overrun=%d", si->si_overrun);
+		if (si->si_errno != 0)
+			fprintf(fp, " errno=%d", si->si_errno);
+		break;
+	case SI_ASYNCIO:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		break;
+	case SI_MESGQ:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		fprintf(fp, " mqd=%d", si->si_mqd);
+		break;
+	default:
+		switch (si->si_signo) {
+		case SIGILL:
+		case SIGFPE:
+		case SIGSEGV:
+		case SIGBUS:
+			fprintf(fp, " trapno=%d", si->si_trapno);
+			fprintf(fp, " addr=%p", si->si_addr);
+			break;
+		case SIGCHLD:
+			fprintf(fp, " pid=%jd uid=%jd", (intmax_t)si->si_pid,
+			    (intmax_t)si->si_uid);
+			fprintf(fp, " status=%d", si->si_status);
+			break;
+		}
+	}
+}
+
 static void
-report_signal(struct trussinfo *info, siginfo_t *si)
+report_signal(struct trussinfo *info, siginfo_t *si, struct ptrace_lwpinfo *pl)
 {
 	struct threadinfo *t;
-	char *signame;
+	const char *signame;
 
 	t = info->curthread;
 	clock_gettime(CLOCK_REALTIME, &t->after);
 	print_line_prefix(info);
-	signame = strsig(si->si_status);
-	fprintf(info->outfile, "SIGNAL %u (%s)\n", si->si_status,
-	    signame == NULL ? "?" : signame);
+	signame = sysdecode_signal(si->si_status);
+	if (signame == NULL)
+		signame = "?";
+	fprintf(info->outfile, "SIGNAL %u (%s)", si->si_status, signame);
+	if (pl->pl_event == PL_EVENT_SIGNAL && pl->pl_flags & PL_FLAG_SI)
+		decode_siginfo(info->outfile, &pl->pl_siginfo);
+	fprintf(info->outfile, "\n");
+	
 }
 
 /*
@@ -673,7 +734,7 @@ eventloop(struct trussinfo *info)
 				pending_signal = 0;
 			} else {
 				if ((info->flags & NOSIGS) == 0)
-					report_signal(info, &si);
+					report_signal(info, &si, &pl);
 				pending_signal = si.si_status;
 			}
 			ptrace(PT_SYSCALL, si.si_pid, (caddr_t)1,

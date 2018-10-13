@@ -29,10 +29,21 @@
  *
  * $FreeBSD$
  */
+
 #ifndef	_LINUX_UACCESS_H_
 #define	_LINUX_UACCESS_H_
 
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/proc.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
 #include <linux/compiler.h>
+
+#define	VERIFY_READ	VM_PROT_READ
+#define	VERIFY_WRITE	VM_PROT_WRITE
 
 #define	__get_user(_x, _p) ({					\
 	int __err;						\
@@ -47,26 +58,34 @@
 	linux_copyout(&(__x), (_p), sizeof(*(_p)));	\
 })
 #define	get_user(_x, _p)	linux_copyin((_p), &(_x), sizeof(*(_p)))
-#define	put_user(_x, _p)	linux_copyout(&(_x), (_p), sizeof(*(_p)))
+#define	put_user(_x, _p)	__put_user(_x, _p)
+#define	clear_user(...)		linux_clear_user(__VA_ARGS__)
+#define	access_ok(...)		linux_access_ok(__VA_ARGS__)
 
 extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
+extern size_t linux_clear_user(void *uaddr, size_t len);
+extern int linux_access_ok(int rw, const void *uaddr, size_t len);
 
 /*
- * NOTE: The returned value from pagefault_disable() must be stored
- * and passed to pagefault_enable(). Else possible recursion on the
- * state can be lost.
+ * NOTE: Each pagefault_disable() call must have a corresponding
+ * pagefault_enable() call in the same scope. The former creates a new
+ * block and defines a temporary variable, and the latter uses the
+ * temporary variable and closes the block. Failure to balance the
+ * calls will result in a compile-time error.
  */
-static inline int __must_check
-pagefault_disable(void)
+#define	pagefault_disable(void) do {		\
+	int __saved_pflags =			\
+	    vm_fault_disable_pagefaults()
+
+#define	pagefault_enable(void)				\
+	vm_fault_enable_pagefaults(__saved_pflags);	\
+} while (0)
+
+static inline bool
+pagefault_disabled(void)
 {
-	return (vm_fault_disable_pagefaults());
+	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
 }
 
-static inline void
-pagefault_enable(int save)
-{
-	vm_fault_enable_pagefaults(save);
-}
-
-#endif	/* _LINUX_UACCESS_H_ */
+#endif					/* _LINUX_UACCESS_H_ */

@@ -51,7 +51,7 @@ svn_cl__propset(apr_getopt_t *os,
 {
   svn_cl__opt_state_t *opt_state = ((svn_cl__cmd_baton_t *) baton)->opt_state;
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
-  const char *pname, *pname_utf8;
+  const char *pname;
   svn_string_t *propval = NULL;
   svn_boolean_t propval_came_from_cmdline;
   apr_array_header_t *args, *targets;
@@ -62,13 +62,13 @@ svn_cl__propset(apr_getopt_t *os,
   SVN_ERR(svn_opt_parse_num_args(&args, os,
                                  opt_state->filedata ? 1 : 2, scratch_pool));
   pname = APR_ARRAY_IDX(args, 0, const char *);
-  SVN_ERR(svn_utf_cstring_to_utf8(&pname_utf8, pname, scratch_pool));
-  if (! svn_prop_name_is_valid(pname_utf8))
+  SVN_ERR(svn_utf_cstring_to_utf8(&pname, pname, scratch_pool));
+  if (! svn_prop_name_is_valid(pname))
     return svn_error_createf(SVN_ERR_CLIENT_PROPERTY_NAME, NULL,
                              _("'%s' is not a valid Subversion property name"),
-                             pname_utf8);
+                             pname);
   if (!opt_state->force)
-    SVN_ERR(svn_cl__check_svn_prop_name(pname_utf8, opt_state->revprop,
+    SVN_ERR(svn_cl__check_svn_prop_name(pname, opt_state->revprop,
                                         svn_cl__prop_use_set, scratch_pool));
 
   /* Get the PROPVAL from either an external file, or from the command
@@ -87,7 +87,7 @@ svn_cl__propset(apr_getopt_t *os,
 
   /* We only want special Subversion property values to be in UTF-8
      and LF line endings.  All other propvals are taken literally. */
-  if (svn_prop_needs_translation(pname_utf8))
+  if (svn_prop_needs_translation(pname))
     SVN_ERR(svn_subst_translate_string2(&propval, NULL, NULL, propval,
                                         opt_state->encoding, FALSE,
                                         scratch_pool, scratch_pool));
@@ -120,7 +120,7 @@ svn_cl__propset(apr_getopt_t *os,
                                       &URL, ctx, scratch_pool));
 
       /* Let libsvn_client do the real work. */
-      SVN_ERR(svn_client_revprop_set2(pname_utf8, propval, NULL,
+      SVN_ERR(svn_client_revprop_set2(pname, propval, NULL,
                                       URL, &(opt_state->start_revision),
                                       &rev, opt_state->force, ctx,
                                       scratch_pool));
@@ -174,17 +174,17 @@ svn_cl__propset(apr_getopt_t *os,
         }
 
       SVN_ERR(svn_cl__propset_print_binary_mime_type_warning(targets,
-                                                             pname_utf8,
+                                                             pname,
                                                              propval,
                                                              scratch_pool));
 
-      SVN_ERR(svn_client_propset_local(pname_utf8, propval, targets,
+      SVN_ERR(svn_client_propset_local(pname, propval, targets,
                                        opt_state->depth, opt_state->force,
                                        opt_state->changelists, ctx,
                                        scratch_pool));
 
       if (! opt_state->quiet)
-        svn_cl__check_boolean_prop_val(pname_utf8, propval->data, scratch_pool);
+        svn_cl__check_boolean_prop_val(pname, propval->data, scratch_pool);
     }
 
   return SVN_NO_ERROR;

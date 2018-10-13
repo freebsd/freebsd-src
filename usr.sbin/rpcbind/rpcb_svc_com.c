@@ -2,6 +2,8 @@
 /*	$FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -51,14 +53,15 @@
 #include <netconfig.h>
 #include <errno.h>
 #include <syslog.h>
-#include <unistd.h>
 #include <stdio.h>
-#ifdef PORTMAP
-#include <netinet/in.h>
-#include <rpc/pmap_prot.h>
-#endif /* PORTMAP */
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#ifdef PORTMAP
+#include <netinet/in.h>
+#include <rpc/rpc_com.h>
+#include <rpc/pmap_prot.h>
+#endif /* PORTMAP */
 
 #include "rpcbind.h"
 
@@ -180,12 +183,9 @@ map_set(RPCB *regp, char *owner)
 	a->r_addr = strdup(reg.r_addr);
 	a->r_owner = strdup(owner);
 	if (!a->r_addr || !a->r_netid || !a->r_owner) {
-		if (a->r_netid)
-			free(a->r_netid);
-		if (a->r_addr)
-			free(a->r_addr);
-		if (a->r_owner)
-			free(a->r_owner);
+		free(a->r_netid);
+		free(a->r_addr);
+		free(a->r_owner);
 		free(rbl);
 		return (FALSE);
 	}
@@ -369,11 +369,8 @@ rpcbproc_uaddr2taddr_com(void *arg, struct svc_req *rqstp __unused,
 	static struct netbuf nbuf;
 	static struct netbuf *taddr;
 
-	if (taddr) {
-		free(taddr->buf);
-		free(taddr);
-		taddr = NULL;
-	}
+	netbuffree(taddr);
+	taddr = NULL;
 	if (((nconf = rpcbind_get_conf(transp->xp_netid)) == NULL) ||
 	    ((taddr = uaddr2taddr(nconf, *uaddrp)) == NULL)) {
 		(void) memset((char *)&nbuf, 0, sizeof (struct netbuf));
@@ -418,7 +415,8 @@ rpcbproc_taddr2uaddr_com(void *arg, struct svc_req *rqstp __unused,
 static bool_t
 xdr_encap_parms(XDR *xdrs, struct encap_parms *epp)
 {
-	return (xdr_bytes(xdrs, &(epp->args), (u_int *) &(epp->arglen), ~0));
+	return (xdr_bytes(xdrs, &(epp->args), (u_int *) &(epp->arglen),
+	    RPC_MAXDATASIZE));
 }
 
 /*
@@ -681,8 +679,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 			(unsigned long)a.rmt_prog, (unsigned long)a.rmt_vers,
 			(unsigned long)a.rmt_proc, transp->xp_netid,
 			uaddr ? uaddr : "unknown");
-		if (uaddr)
-			free(uaddr);
+		free(uaddr);
 	}
 #endif
 
@@ -726,8 +723,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 			rbl->rpcb_map.r_addr, NULL);
 		if (uaddr == NULL || uaddr[0] == '\0') {
 			svcerr_noprog(transp);
-			if (uaddr != NULL)
-				free(uaddr);
+			free(uaddr);
 			goto error;
 		}
 		free(uaddr);
@@ -906,18 +902,11 @@ error:
 	if (call_msg.rm_xid != 0)
 		(void) free_slot_by_xid(call_msg.rm_xid);
 out:
-	if (local_uaddr)
-		free(local_uaddr);
-	if (buf_alloc)
-		free(buf_alloc);
-	if (outbuf_alloc)
-		free(outbuf_alloc);
-	if (na) {
-		free(na->buf);
-		free(na);
-	}
-	if (m_uaddr != NULL)
-		free(m_uaddr);
+	free(local_uaddr);
+	free(buf_alloc);
+	free(outbuf_alloc);
+	netbuffree(na);
+	free(m_uaddr);
 }
 
 /*
@@ -1054,8 +1043,7 @@ netbuf_copybuf(struct netbuf *dst, const struct netbuf *src)
 	assert(src->len <= src->maxlen);
 
 	if (dst->maxlen < src->len || dst->buf == NULL) {
-		if (dst->buf != NULL)
-			free(dst->buf);
+		free(dst->buf);
 		if ((dst->buf = calloc(1, src->maxlen)) == NULL)
 			return (FALSE);
 		dst->maxlen = src->maxlen;
@@ -1084,6 +1072,9 @@ netbufdup(struct netbuf *ap)
 static void
 netbuffree(struct netbuf *ap)
 {
+
+	if (ap == NULL)
+		return;
 	free(ap->buf);
 	ap->buf = NULL;
 	free(ap);
@@ -1097,7 +1088,7 @@ void
 my_svc_run(void)
 {
 	size_t nfds;
-	struct pollfd pollfds[FD_SETSIZE];
+	struct pollfd pollfds[FD_SETSIZE + 1];
 	int poll_ret, check_ret;
 	int n;
 #ifdef SVC_RUN_DEBUG
@@ -1108,6 +1099,9 @@ my_svc_run(void)
 
 	for (;;) {
 		p = pollfds;
+		p->fd = terminate_rfd;
+		p->events = MASKVAL;
+		p++;
 		for (n = 0; n <= svc_maxfd; n++) {
 			if (FD_ISSET(n, &svc_fdset)) {
 				p->fd = n;
@@ -1126,7 +1120,20 @@ my_svc_run(void)
 			fprintf(stderr, ">\n");
 		}
 #endif
-		switch (poll_ret = poll(pollfds, nfds, 30 * 1000)) {
+		poll_ret = poll(pollfds, nfds, 30 * 1000);
+
+		if (doterminate != 0) {
+			close(rpcbindlockfd);
+#ifdef WARMSTART
+			syslog(LOG_ERR,
+			    "rpcbind terminating on signal %d. Restart with \"rpcbind -w\"",
+			    (int)doterminate);
+			write_warmstart();	/* Dump yourself */
+#endif
+			exit(2);
+		}
+
+		switch (poll_ret) {
 		case -1:
 			/*
 			 * We ignore all errors, continuing with the assumption
@@ -1297,13 +1304,11 @@ handle_reply(int fd, SVCXPRT *xprt)
 		fprintf(stderr, "handle_reply:  forwarding address %s to %s\n",
 			a.rmt_uaddr, uaddr ? uaddr : "unknown");
 	}
-	if (uaddr)
-		free(uaddr);
+	free(uaddr);
 #endif
 	svc_sendreply(xprt, (xdrproc_t) xdr_rmtcall_result, (char *) &a);
 done:
-	if (buffer)
-		free(buffer);
+	free(buffer);
 
 	if (reply_msg.rm_xid == 0) {
 #ifdef	SVC_RUN_DEBUG

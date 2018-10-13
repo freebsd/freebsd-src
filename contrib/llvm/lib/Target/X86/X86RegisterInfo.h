@@ -14,7 +14,7 @@
 #ifndef LLVM_LIB_TARGET_X86_X86REGISTERINFO_H
 #define LLVM_LIB_TARGET_X86_X86REGISTERINFO_H
 
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_REGINFO_HEADER
 #include "X86GenRegisterInfo.inc"
@@ -100,7 +100,7 @@ public:
   const MCPhysReg *
   getCalleeSavedRegs(const MachineFunction* MF) const override;
   const MCPhysReg *
-  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const override;
+  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
   const uint32_t *getNoPreservedMask() const override;
@@ -133,12 +133,14 @@ public:
   unsigned getPtrSizedFrameRegister(const MachineFunction &MF) const;
   unsigned getStackRegister() const { return StackPtr; }
   unsigned getBaseRegister() const { return BasePtr; }
+  /// Returns physical register used as frame pointer.
+  /// This will always returns the frame pointer register, contrary to
+  /// getFrameRegister() which returns the "base pointer" in situations
+  /// involving a stack, frame and base pointer.
+  unsigned getFramePtr() const { return FramePtr; }
   // FIXME: Move to FrameInfok
   unsigned getSlotSize() const { return SlotSize; }
 };
-
-//get512BitRegister - X86 utility - returns 512-bit super register
-unsigned get512BitSuperRegister(unsigned Reg);
 
 } // End llvm namespace
 

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 struct linux_file;
 
@@ -49,37 +50,47 @@ extern struct fileops linuxfileops;
 static inline struct linux_file *
 linux_fget(unsigned int fd)
 {
-	cap_rights_t rights;
 	struct file *file;
 
+	/* lookup file pointer by file descriptor index */
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0) {
+	    &cap_no_rights, &file, NULL) != 0)
+		return (NULL);
+
+	/* check if file handle really belongs to us */
+	if (file->f_data == NULL ||
+	    file->f_ops != &linuxfileops) {
+		fdrop(file, curthread);
 		return (NULL);
 	}
-	return (struct linux_file *)file->f_data;
+	return ((struct linux_file *)file->f_data);
 }
+
+extern void linux_file_free(struct linux_file *filp);
 
 static inline void
 fput(struct linux_file *filp)
 {
-	if (filp->_file == NULL) {
-		kfree(filp);
-		return;
+	if (refcount_release(filp->_file == NULL ?
+	    &filp->f_count : &filp->_file->f_count)) {
+		linux_file_free(filp);
 	}
-	if (refcount_release(&filp->_file->f_count)) {
-		_fdrop(filp->_file, curthread);
-		kfree(filp);
-	}
+}
+
+static inline unsigned int
+file_count(struct linux_file *filp)
+{
+	return (filp->_file == NULL ?
+	    filp->f_count : filp->_file->f_count);
 }
 
 static inline void
 put_unused_fd(unsigned int fd)
 {
-	cap_rights_t rights;
 	struct file *file;
 
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0) {
+	    &cap_no_rights, &file, NULL) != 0) {
 		return;
 	}
 	/*
@@ -96,15 +107,18 @@ put_unused_fd(unsigned int fd)
 static inline void
 fd_install(unsigned int fd, struct linux_file *filp)
 {
-	cap_rights_t rights;
 	struct file *file;
 
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0) {
+	    &cap_no_rights, &file, NULL) != 0) {
 		filp->_file = NULL;
 	} else {
 		filp->_file = file;
 		finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+
+		/* transfer reference count from "filp" to "file" */
+		while (refcount_release(&filp->f_count) == 0)
+			refcount_acquire(&file->f_count);
 	}
 
 	/* drop the extra reference */
@@ -141,18 +155,18 @@ get_unused_fd_flags(int flags)
 	return fd;
 }
 
+extern struct linux_file *linux_file_alloc(void);
+
 static inline struct linux_file *
 alloc_file(int mode, const struct file_operations *fops)
 {
 	struct linux_file *filp;
 
-	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL)
-		return (NULL);
+	filp = linux_file_alloc();
 	filp->f_op = fops;
 	filp->f_mode = mode;
 
-	return filp;
+	return (filp);
 }
 
 struct fd {
@@ -170,7 +184,7 @@ static inline struct fd fdget(unsigned int fd)
 	return (struct fd){f};
 }
 
-#define	file	linux_file
-#define	fget	linux_fget
+#define	file		linux_file
+#define	fget(...)	linux_fget(__VA_ARGS__)
 
 #endif	/* _LINUX_FILE_H_ */

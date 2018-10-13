@@ -32,7 +32,8 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../dev/qlxgbe
+.PATH: ${SRCTOP}/sys/dev/qlxgbe
+#.PATH: ${.CURDIR}
 
 KMOD=if_qlxgbe
 SRCS=ql_os.c ql_dbg.c ql_hw.c ql_misc.c ql_isr.c ql_ioctl.c
@@ -43,7 +44,8 @@ SRCS+= ql_minidump.c
 
 SRCS+= device_if.h bus_if.h pci_if.h
 
-#CFLAGS += -DQL_DBG
+CFLAGS += -DQLA_LOCK_NO_SLEEP=1
+#CFLAGS += -DQL_DBG -g
 # Please turn off QL_LDFLASH_FW when you enable QL_ENABLE_ISCSI_TLV
 # You may comment out both QL_LDFLASH_FW and QL_ENABLE_ISCSI_TLV if you like
 # the firmware and boot loader compiled into the driver

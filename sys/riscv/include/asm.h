@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -47,7 +47,7 @@
 #define	_C_LABEL(x)	x
 
 #define	ENTRY(sym)						\
-	.text; .globl sym; .type sym,@function; .align 2; sym:
+	.text; .globl sym; .type sym,@function; .align 4; sym:
 #define	END(sym) .size sym, . - sym
 
 #define	EENTRY(sym)						\
@@ -62,5 +62,13 @@
 	ld	tmp, PC_CURTHREAD(gp);					\
 	ld	tmp, TD_PCB(tmp);		/* Load the pcb */	\
 	sd	handler, PCB_ONFAULT(tmp)	/* Set the handler */
+
+#define	ENTER_USER_ACCESS(tmp)						\
+	li	tmp, SSTATUS_SUM;					\
+	csrs	sstatus, tmp
+
+#define	EXIT_USER_ACCESS(tmp)						\
+	li	tmp, SSTATUS_SUM;					\
+	csrc	sstatus, tmp
 
 #endif /* _MACHINE_ASM_H_ */

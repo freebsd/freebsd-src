@@ -1,5 +1,7 @@
 /* $Id: array.h,v 1.46 2010/02/05 06:57:43 mah Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2004-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *

@@ -1,4 +1,7 @@
+/* -*- mode: asm -*- */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -10,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -105,11 +108,11 @@
 #define CROSSJUMPTARGET(label) \
 	ALIGN_TEXT; __CONCAT(to,label): ; MCOUNT; jmp label
 #define ENTRY(name)		GEN_ENTRY(name) ; 9: ; MCOUNT
-#define FAKE_MCOUNT(caller)	pushl caller ; call __mcount ; popl %ecx
-#define MCOUNT			call __mcount
+#define FAKE_MCOUNT(caller)	pushl caller ; call *__mcountp ; popl %ecx
+#define MCOUNT			call *__mcountp
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
 #ifdef GUPROF
-#define MEXITCOUNT		call .mexitcount
+#define MEXITCOUNT		call *__mexitcountp
 #define ret			MEXITCOUNT ; NON_GPROF_RET
 #else
 #define MEXITCOUNT
@@ -133,6 +136,10 @@
 #endif /* GPROF */
 
 #ifdef LOCORE
+
+#define	GSEL_KPL	0x0020	/* GSEL(GCODE_SEL, SEL_KPL) */
+#define	SEL_RPL_MASK	0x0003
+
 /*
  * Convenience macro for declaring interrupt entry points.
  */
@@ -142,24 +149,22 @@
 /*
  * Macros to create and destroy a trap frame.
  */
-#define	PUSH_FRAME							\
-	pushl	$0 ;		/* dummy error code */			\
-	pushl	$0 ;		/* dummy trap type */			\
-	pushal ;		/* 8 ints */				\
-	pushl	$0 ;		/* save data and extra segments ... */	\
-	movw	%ds,(%esp) ;						\
-	pushl	$0 ;							\
-	movw	%es,(%esp) ;						\
-	pushl	$0 ;							\
+	.macro	PUSH_FRAME2
+	pushal
+	pushl	$0
+	movw	%ds,(%esp)
+	pushl	$0
+	movw	%es,(%esp)
+	pushl	$0
 	movw	%fs,(%esp)
-	
-#define	POP_FRAME							\
-	popl	%fs ;							\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp
+	.endm
 
+	.macro	PUSH_FRAME
+	pushl	$0		/* dummy error code */
+	pushl	$0		/* dummy trap type */
+	PUSH_FRAME2
+	.endm
+	
 /*
  * Access per-CPU data.
  */
@@ -172,12 +177,57 @@
 /*
  * Setup the kernel segment registers.
  */
-#define	SET_KERNEL_SREGS						\
-	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	movl	%eax, %ds ;						\
-	movl	%eax, %es ;						\
-	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
+	.macro	SET_KERNEL_SREGS
+	movl	$KDSEL, %eax	/* reload with kernel's data segment */
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	$KPSEL, %eax	/* reload with per-CPU data segment */
 	movl	%eax, %fs
+	.endm
+
+	.macro	NMOVE_STACKS
+	movl	PCPU(KESP0), %edx
+	movl	$TF_SZ, %ecx
+	testl	$PSL_VM, TF_EFLAGS(%esp)
+	jz	.L\@.1
+	addl	$VM86_STACK_SPACE, %ecx
+.L\@.1:	subl	%ecx, %edx
+	movl	%edx, %edi
+	movl	%esp, %esi
+	rep; movsb
+	movl	%edx, %esp
+	.endm
+
+	.macro	LOAD_KCR3
+	call	.L\@.1
+.L\@.1:	popl	%eax
+	movl	(tramp_idleptd - .L\@.1)(%eax), %eax
+	movl	%eax, %cr3
+	.endm
+
+	.macro	MOVE_STACKS
+	LOAD_KCR3
+	NMOVE_STACKS
+	.endm
+
+	.macro	KENTER
+	testl	$PSL_VM, TF_EFLAGS(%esp)
+	jz	.L\@.1
+	LOAD_KCR3
+	movl	PCPU(CURPCB), %eax
+	testl	$PCB_VM86CALL, PCB_FLAGS(%eax)
+	jnz	.L\@.3
+	NMOVE_STACKS
+	movl	$handle_ibrs_entry,%edx
+	call	*%edx
+	jmp	.L\@.3
+.L\@.1:	testb	$SEL_RPL_MASK, TF_CS(%esp)
+	jz	.L\@.3
+.L\@.2:	MOVE_STACKS
+	movl	$handle_ibrs_entry,%edx
+	call	*%edx
+.L\@.3:
+	.endm
 
 #endif /* LOCORE */
 

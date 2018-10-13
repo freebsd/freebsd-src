@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014,2016 Microsoft Corp.
+ * Copyright (c) 2014,2016-2017 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,27 +54,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/endian.h>
 #include <sys/_null.h>
+#include <sys/sema.h>
 #include <sys/signal.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/mutex.h>
 
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_var.h>
-
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
+#include <dev/hyperv/utilities/vmbus_icvar.h>
 
-#include "hv_util.h"
 #include "unicode.h"
 #include "hv_kvp.h"
+#include "vmbus_if.h"
 
 /* hv_kvp defines */
 #define BUFFERSIZE	sizeof(struct hv_kvp_msg)
-#define KVP_SUCCESS	0
-#define KVP_ERROR	1
 #define kvp_hdr		hdr.kvp_hdr
+
+#define KVP_FWVER_MAJOR		3
+#define KVP_FWVER		VMBUS_IC_VERSION(KVP_FWVER_MAJOR, 0)
+
+#define KVP_MSGVER_MAJOR	4
+#define KVP_MSGVER		VMBUS_IC_VERSION(KVP_MSGVER_MAJOR, 0)
 
 /* hv_kvp debug control */
 static int hv_kvp_log = 0;
@@ -89,9 +93,15 @@ static int hv_kvp_log = 0;
 		log(LOG_INFO, "hv_kvp: " __VA_ARGS__);		\
 } while (0)
 
-static hv_guid service_guid = { .data =
-	{0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-	0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6} };
+static const struct vmbus_ic_desc vmbus_kvp_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+		    0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6 } },
+		.ic_desc = "Hyper-V KVP"
+	},
+	VMBUS_IC_DESC_END
+};
 
 /* character device prototypes */
 static d_open_t		hv_kvp_dev_open;
@@ -118,7 +128,8 @@ static struct cdevsw hv_kvp_cdevsw =
  * KVP transaction requests from the host.
  */
 typedef struct hv_kvp_sc {
-	struct hv_util_sc	util_sc;
+	struct vmbus_ic_softc	util_sc;
+	device_t		dev;
 
 	/* Unless specified the pending mutex should be
 	 * used to alter the values of the following parameters:
@@ -203,52 +214,9 @@ hv_kvp_transaction_init(hv_kvp_sc *sc, uint32_t rcv_len,
 	sc->host_msg_id = request_id;
 	sc->rcv_buf = rcv_buf;
 	sc->host_kvp_msg = (struct hv_kvp_msg *)&rcv_buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
+	    sizeof(struct hv_vmbus_pipe_hdr) +
+	    sizeof(struct hv_vmbus_icmsg_hdr)];
 }
-
-
-/*
- * hv_kvp - version neogtiation function
- */
-static void
-hv_kvp_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp,
-			 struct hv_vmbus_icmsg_negotiate *negop,
-			 uint8_t *buf)
-{
-	int icframe_vercnt;
-	int icmsg_vercnt;
-
-	icmsghdrp->icmsgsize = 0x10;
-
-	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
-	icframe_vercnt = negop->icframe_vercnt;
-	icmsg_vercnt = negop->icmsg_vercnt;
-
-	/*
-	 * Select the framework version number we will support
-	 */
-	if ((icframe_vercnt >= 2) && (negop->icversion_data[1].major == 3)) {
-		icframe_vercnt = 3;
-		if (icmsg_vercnt > 2)
-			icmsg_vercnt = 4;
-		else
-			icmsg_vercnt = 3;
-	} else {
-		icframe_vercnt = 1;
-		icmsg_vercnt = 1;
-	}
-
-	negop->icframe_vercnt = 1;
-	negop->icmsg_vercnt = 1;
-	negop->icversion_data[0].major = icframe_vercnt;
-	negop->icversion_data[0].minor = 0;
-	negop->icversion_data[1].major = icmsg_vercnt;
-	negop->icversion_data[1].minor = 0;
-}
-
 
 /*
  * Convert ip related info in umsg from utf8 to utf16 and store in hmsg
@@ -285,7 +253,7 @@ hv_kvp_convert_utf8_ipinfo_to_utf16(struct hv_kvp_msg *umsg,
 	    UNUSED_FLAG,
 	    &err_dns);
 	utf8_to_utf16((uint16_t *)host_ip_msg->kvp_ip_val.adapter_id,
-	    MAX_IP_ADDR_SIZE,
+	    MAX_ADAPTER_ID_SIZE,
 	    (char *)umsg->body.kvp_ip_val.adapter_id,
 	    strlen((char *)umsg->body.kvp_ip_val.adapter_id),
 	    UNUSED_FLAG,
@@ -307,10 +275,6 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 {
 	int err_ip, err_subnet, err_gway, err_dns, err_adap;
 	int UNUSED_FLAG = 1;
-	struct hv_device *hv_dev;       /* GUID Data Structure */
-	hn_softc_t *sc;                 /* hn softc structure  */
-	char buf[HYPERV_GUID_STRLEN];
-
 	device_t *devs;
 	int devcnt;
 
@@ -332,17 +296,25 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 
 	if (devclass_get_devices(devclass_find("hn"), &devs, &devcnt) == 0) {
 		for (devcnt = devcnt - 1; devcnt >= 0; devcnt--) {
-			sc = device_get_softc(devs[devcnt]);
+			device_t dev = devs[devcnt];
+			struct vmbus_channel *chan;
+			char buf[HYPERV_GUID_STRLEN];
+			int n;
 
-			/* Trying to find GUID of Network Device */
-			hv_dev = sc->hn_dev_obj;
+			chan = vmbus_get_channel(dev);
+			n = hyperv_guid2str(vmbus_chan_guid_inst(chan), buf,
+			    sizeof(buf));
 
-			hyperv_guid2str(&hv_dev->device_id, buf, sizeof(buf));
-
-			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
-			    HYPERV_GUID_STRLEN - 1) == 0) {
+			/*
+			 * The string in the 'kvp_ip_val.adapter_id' has
+			 * braces around the GUID; skip the leading brace
+			 * in 'kvp_ip_val.adapter_id'.
+			 */
+			if (strncmp(buf,
+			    ((char *)&umsg->body.kvp_ip_val.adapter_id) + 1,
+			    n) == 0) {
 				strlcpy((char *)umsg->body.kvp_ip_val.adapter_id,
-				    sc->hn_ifp->if_xname, MAX_ADAPTER_ID_SIZE);
+				    device_get_nameunit(dev), MAX_ADAPTER_ID_SIZE);
 				break;
 			}
 		}
@@ -506,7 +478,7 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 	case HV_KVP_OP_SET_IP_INFO:
 	case HV_KVP_OP_SET:
 	case HV_KVP_OP_DELETE:
-		return (KVP_SUCCESS);
+		return (0);
 
 	case HV_KVP_OP_ENUMERATE:
 		host_exchg_data = &hmsg->body.kvp_enum_data.data;
@@ -527,9 +499,9 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 		host_exchg_data->value_type = HV_REG_SZ;
 
 		if ((hkey_len < 0) || (hvalue_len < 0))
-			return (HV_KVP_E_FAIL);
+			return (EINVAL);
 
-		return (KVP_SUCCESS);
+		return (0);
 
 	case HV_KVP_OP_GET:
 		host_exchg_data = &hmsg->body.kvp_get.data;
@@ -544,13 +516,13 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 		/* Use values by string */
 		host_exchg_data->value_type = HV_REG_SZ;
 
-		if ((hkey_len < 0) || (hvalue_len < 0))
-			return (HV_KVP_E_FAIL);
+		if (hvalue_len < 0)
+			return (EINVAL);
 
-		return (KVP_SUCCESS);
+		return (0);
 
 	default:
-		return (HV_KVP_E_FAIL);
+		return (EINVAL);
 	}
 }
 
@@ -559,24 +531,20 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
  * Send the response back to the host.
  */
 static void
-hv_kvp_respond_host(hv_kvp_sc *sc, int error)
+hv_kvp_respond_host(hv_kvp_sc *sc, uint32_t error)
 {
 	struct hv_vmbus_icmsg_hdr *hv_icmsg_hdrp;
 
 	hv_icmsg_hdrp = (struct hv_vmbus_icmsg_hdr *)
 	    &sc->rcv_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
-	if (error)
-		error = HV_KVP_E_FAIL;
-
 	hv_icmsg_hdrp->status = error;
-	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION | HV_ICMSGHDRFLAG_RESPONSE;
+	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
+	    HV_ICMSGHDRFLAG_RESPONSE;
 
-	error = hv_vmbus_channel_send_packet(sc->util_sc.hv_dev->channel,
-			sc->rcv_buf,
-			sc->host_msg_len, sc->host_msg_id,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
-
+	error = vmbus_chan_send(vmbus_get_channel(sc->dev),
+	    VMBUS_CHANPKT_TYPE_INBAND, 0, sc->rcv_buf, sc->host_msg_len,
+	    sc->host_msg_id);
 	if (error)
 		hv_kvp_log_info("%s: hv_kvp_respond_host: sendpacket error:%d\n",
 			__func__, error);
@@ -612,32 +580,37 @@ static void
 hv_kvp_process_request(void *context, int pending)
 {
 	uint8_t *kvp_buf;
-	hv_vmbus_channel *channel;
+	struct vmbus_channel *channel;
 	uint32_t recvlen = 0;
 	uint64_t requestid;
 	struct hv_vmbus_icmsg_hdr *icmsghdrp;
-	int ret = 0;
-	hv_kvp_sc		*sc;
+	int ret = 0, error;
+	hv_kvp_sc *sc;
 
 	hv_kvp_log_info("%s: entering hv_kvp_process_request\n", __func__);
 
 	sc = (hv_kvp_sc*)context;
-	kvp_buf = sc->util_sc.receive_buffer;
-	channel = sc->util_sc.hv_dev->channel;
+	kvp_buf = sc->util_sc.ic_buf;
+	channel = vmbus_get_channel(sc->dev);
 
-	ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
-		&recvlen, &requestid);
+	recvlen = sc->util_sc.ic_buflen;
+	ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	while ((ret == 0) && (recvlen > 0)) {
-
 		icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
-			&kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
+		    &kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 		hv_kvp_transaction_init(sc, recvlen, requestid, kvp_buf);
 		if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-			hv_kvp_negotiate_version(icmsghdrp, NULL, kvp_buf);
-			hv_kvp_respond_host(sc, ret);
-
+			error = vmbus_ic_negomsg(&sc->util_sc,
+			    kvp_buf, &recvlen, KVP_FWVER, KVP_MSGVER);
+			/* XXX handle vmbus_ic_negomsg failure. */
+			if (!error)
+				hv_kvp_respond_host(sc, HV_S_OK);
+			else
+				hv_kvp_respond_host(sc, HV_E_FAIL);
 			/*
 			 * It is ok to not acquire the mutex before setting
 			 * req_in_progress here because negotiation is the
@@ -681,7 +654,7 @@ hv_kvp_process_request(void *context, int pending)
 		 */
 		if (hv_kvp_req_in_progress(sc)) {
 			hv_kvp_log_info("%s: request was still active after wait so failing\n", __func__);
-			hv_kvp_respond_host(sc, HV_KVP_E_FAIL);
+			hv_kvp_respond_host(sc, HV_E_FAIL);
 			sc->req_in_progress = false;
 		}
 
@@ -690,9 +663,11 @@ hv_kvp_process_request(void *context, int pending)
 		/*
 		 * Try reading next buffer
 		 */
-		recvlen = 0;
-		ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
-			&recvlen, &requestid);
+		recvlen = sc->util_sc.ic_buflen;
+		ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
+		KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
+		/* XXX check recvlen to make sure that it contains enough data */
+
 		hv_kvp_log_info("%s: read: context %p, ret =%d, recvlen=%d\n",
 			__func__, context, ret, recvlen);
 	}
@@ -703,7 +678,7 @@ hv_kvp_process_request(void *context, int pending)
  * Callback routine that gets called whenever there is a message from host
  */
 static void
-hv_kvp_callback(void *context)
+hv_kvp_callback(struct vmbus_channel *chan __unused, void *context)
 {
 	hv_kvp_sc *sc = (hv_kvp_sc*)context;
 	/*
@@ -759,9 +734,9 @@ hv_kvp_dev_daemon_read(struct cdev *dev, struct uio *uio, int ioflag __unused)
 	struct hv_kvp_msg *hv_kvp_dev_buf;
 	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
 
-	/* Check hv_kvp daemon registration status*/
+	/* Read is not allowed util registering is done. */
 	if (!sc->register_done)
-		return (KVP_ERROR);
+		return (EPERM);
 
 	sema_wait(&sc->dev_sema);
 
@@ -807,11 +782,11 @@ hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)
 	if (sc->register_done == false) {
 		if (sc->daemon_kvp_msg.kvp_hdr.operation == HV_KVP_OP_REGISTER) {
 			sc->register_done = true;
-			hv_kvp_callback(dev->si_drv1);
+			hv_kvp_callback(vmbus_get_channel(sc->dev), dev->si_drv1);
 		}
 		else {
 			hv_kvp_log_info("%s, KVP Registration Failed\n", __func__);
-			return (KVP_ERROR);
+			return (EINVAL);
 		}
 	} else {
 
@@ -821,10 +796,15 @@ hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)
 			struct hv_kvp_msg *hmsg = sc->host_kvp_msg;
 			struct hv_kvp_msg *umsg = &sc->daemon_kvp_msg;
 
-			hv_kvp_convert_usermsg_to_hostmsg(umsg, hmsg);
-			hv_kvp_respond_host(sc, KVP_SUCCESS);
+			error = hv_kvp_convert_usermsg_to_hostmsg(umsg, hmsg);
+			hv_kvp_respond_host(sc, umsg->hdr.error);
 			wakeup(sc);
 			sc->req_in_progress = false;
+			if (umsg->hdr.error != HV_S_OK)
+				hv_kvp_log_info("%s, Error 0x%x from daemon\n",
+				    __func__, umsg->hdr.error);
+			if (error)
+				hv_kvp_log_info("%s, Error from convert\n", __func__);
 		}
 
 		sc->daemon_busy = false;
@@ -865,17 +845,8 @@ hv_kvp_dev_daemon_poll(struct cdev *dev, int events, struct thread *td)
 static int
 hv_kvp_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
 
-	if (resource_disabled("hvkvp", 0))
-		return ENXIO;
-
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
-		device_set_desc(dev, "Hyper-V KVP Service");
-		return BUS_PROBE_DEFAULT;
-	}
-
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_kvp_descs));
 }
 
 static int
@@ -887,7 +858,7 @@ hv_kvp_attach(device_t dev)
 
 	hv_kvp_sc *sc = (hv_kvp_sc*)device_get_softc(dev);
 
-	sc->util_sc.callback = hv_kvp_callback;
+	sc->dev = dev;
 	sema_init(&sc->dev_sema, 0, "hv_kvp device semaphore");
 	mtx_init(&sc->pending_mutex, "hv-kvp pending mutex",
 		NULL, MTX_DEF);
@@ -896,7 +867,7 @@ hv_kvp_attach(device_t dev)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "hv_kvp_log",
-	    CTLFLAG_RW, &hv_kvp_log, 0, "Hyperv KVP service log level");
+	    CTLFLAG_RWTUN, &hv_kvp_log, 0, "Hyperv KVP service log level");
 
 	TASK_INIT(&sc->task, 0, hv_kvp_process_request, sc);
 
@@ -914,7 +885,7 @@ hv_kvp_attach(device_t dev)
 		return (error);
 	sc->hv_kvp_dev->si_drv1 = sc;
 
-	return hv_util_attach(dev);
+	return (vmbus_ic_attach(dev, hv_kvp_callback));
 }
 
 static int
@@ -929,7 +900,7 @@ hv_kvp_detach(device_t dev)
 	}
 
 	destroy_dev(sc->hv_kvp_dev);
-	return hv_util_detach(dev);
+	return (vmbus_ic_detach(dev));
 }
 
 static device_method_t kvp_methods[] = {

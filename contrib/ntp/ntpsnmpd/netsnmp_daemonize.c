@@ -194,7 +194,7 @@ netsnmp_daemonize(int quit_immediately, int stderr_log)
     int i = 0;
     int saved_errno;
 
-    DEBUGMSGT(("daemonize","deamonizing...\n"));
+    DEBUGMSGT(("daemonize","daemonizing...\n"));
 #ifdef HAVE_WORKING_FORK
     /*
      * Fork to return control to the invoking process and to

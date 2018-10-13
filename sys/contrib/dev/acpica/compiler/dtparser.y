@@ -5,9 +5,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,26 +132,25 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dtparser")
@@ -59,7 +166,7 @@ int                         DtParserlex (void);
 int                         DtParserparse (void);
 void                        DtParsererror (char const *msg);
 extern char                 *DtParsertext;
-extern DT_FIELD             *Gbl_CurrentField;
+extern DT_FIELD             *AslGbl_CurrentField;
 
 UINT64                      DtParserResult; /* Expression return value */
 
@@ -86,26 +193,26 @@ UINT64                      DtParserResult; /* Expression return value */
 
 %type  <value>  Expression
 
-%token <op>     EXPOP_EOF
-%token <op>     EXPOP_NEW_LINE
-%token <op>     EXPOP_NUMBER
-%token <op>     EXPOP_HEX_NUMBER
-%token <op>     EXPOP_DECIMAL_NUMBER
-%token <op>     EXPOP_LABEL
-%token <op>     EXPOP_PAREN_OPEN
-%token <op>     EXPOP_PAREN_CLOSE
+%token <op>     OP_EXP_EOF
+%token <op>     OP_EXP_NEW_LINE
+%token <op>     OP_EXP_NUMBER
+%token <op>     OP_EXP_HEX_NUMBER
+%token <op>     OP_EXP_DECIMAL_NUMBER
+%token <op>     OP_EXP_LABEL
+%token <op>     OP_EXP_PAREN_OPEN
+%token <op>     OP_EXP_PAREN_CLOSE
 
-%left <op>      EXPOP_LOGICAL_OR
-%left <op>      EXPOP_LOGICAL_AND
-%left <op>      EXPOP_OR
-%left <op>      EXPOP_XOR
-%left <op>      EXPOP_AND
-%left <op>      EXPOP_EQUAL EXPOP_NOT_EQUAL
-%left <op>      EXPOP_GREATER EXPOP_LESS EXPOP_GREATER_EQUAL EXPOP_LESS_EQUAL
-%left <op>      EXPOP_SHIFT_RIGHT EXPOP_SHIFT_LEFT
-%left <op>      EXPOP_ADD EXPOP_SUBTRACT
-%left <op>      EXPOP_MULTIPLY EXPOP_DIVIDE EXPOP_MODULO
-%right <op>     EXPOP_ONES_COMPLIMENT EXPOP_LOGICAL_NOT
+%left <op>      OP_EXP_LOGICAL_OR
+%left <op>      OP_EXP_LOGICAL_AND
+%left <op>      OP_EXP_OR
+%left <op>      OP_EXP_XOR
+%left <op>      OP_EXP_AND
+%left <op>      OP_EXP_EQUAL OP_EXP_NOT_EQUAL
+%left <op>      OP_EXP_GREATER OP_EXP_LESS OP_EXP_GREATER_EQUAL OP_EXP_LESS_EQUAL
+%left <op>      OP_EXP_SHIFT_RIGHT OP_EXP_SHIFT_LEFT
+%left <op>      OP_EXP_ADD OP_EXP_SUBTRACT
+%left <op>      OP_EXP_MULTIPLY OP_EXP_DIVIDE OP_EXP_MODULO
+%right <op>     OP_EXP_ONES_COMPLIMENT OP_EXP_LOGICAL_NOT
 
 %%
 
@@ -126,58 +233,65 @@ UINT64                      DtParserResult; /* Expression return value */
  *  12)     ||
  */
 Value
-    : Expression EXPOP_NEW_LINE                     { DtParserResult=$1; return 0; } /* End of line (newline) */
-    | Expression EXPOP_EOF                          { DtParserResult=$1; return 0; } /* End of string (0) */
+    : Expression OP_EXP_NEW_LINE                     { DtParserResult=$1; return 0; } /* End of line (newline) */
+    | Expression OP_EXP_EOF                          { DtParserResult=$1; return 0; } /* End of string (0) */
     ;
 
 Expression
 
       /* Unary operators */
 
-    : EXPOP_LOGICAL_NOT         Expression          { $$ = DtDoOperator ($2, EXPOP_LOGICAL_NOT,     $2);}
-    | EXPOP_ONES_COMPLIMENT     Expression          { $$ = DtDoOperator ($2, EXPOP_ONES_COMPLIMENT, $2);}
+    : OP_EXP_LOGICAL_NOT         Expression          { $$ = DtDoOperator ($2, OP_EXP_LOGICAL_NOT,     $2);}
+    | OP_EXP_ONES_COMPLIMENT     Expression          { $$ = DtDoOperator ($2, OP_EXP_ONES_COMPLIMENT, $2);}
 
       /* Binary operators */
 
-    | Expression EXPOP_MULTIPLY         Expression  { $$ = DtDoOperator ($1, EXPOP_MULTIPLY,        $3);}
-    | Expression EXPOP_DIVIDE           Expression  { $$ = DtDoOperator ($1, EXPOP_DIVIDE,          $3);}
-    | Expression EXPOP_MODULO           Expression  { $$ = DtDoOperator ($1, EXPOP_MODULO,          $3);}
-    | Expression EXPOP_ADD              Expression  { $$ = DtDoOperator ($1, EXPOP_ADD,             $3);}
-    | Expression EXPOP_SUBTRACT         Expression  { $$ = DtDoOperator ($1, EXPOP_SUBTRACT,        $3);}
-    | Expression EXPOP_SHIFT_RIGHT      Expression  { $$ = DtDoOperator ($1, EXPOP_SHIFT_RIGHT,     $3);}
-    | Expression EXPOP_SHIFT_LEFT       Expression  { $$ = DtDoOperator ($1, EXPOP_SHIFT_LEFT,      $3);}
-    | Expression EXPOP_GREATER          Expression  { $$ = DtDoOperator ($1, EXPOP_GREATER,         $3);}
-    | Expression EXPOP_LESS             Expression  { $$ = DtDoOperator ($1, EXPOP_LESS,            $3);}
-    | Expression EXPOP_GREATER_EQUAL    Expression  { $$ = DtDoOperator ($1, EXPOP_GREATER_EQUAL,   $3);}
-    | Expression EXPOP_LESS_EQUAL       Expression  { $$ = DtDoOperator ($1, EXPOP_LESS_EQUAL,      $3);}
-    | Expression EXPOP_EQUAL            Expression  { $$ = DtDoOperator ($1, EXPOP_EQUAL,           $3);}
-    | Expression EXPOP_NOT_EQUAL        Expression  { $$ = DtDoOperator ($1, EXPOP_NOT_EQUAL,       $3);}
-    | Expression EXPOP_AND              Expression  { $$ = DtDoOperator ($1, EXPOP_AND,             $3);}
-    | Expression EXPOP_XOR              Expression  { $$ = DtDoOperator ($1, EXPOP_XOR,             $3);}
-    | Expression EXPOP_OR               Expression  { $$ = DtDoOperator ($1, EXPOP_OR,              $3);}
-    | Expression EXPOP_LOGICAL_AND      Expression  { $$ = DtDoOperator ($1, EXPOP_LOGICAL_AND,     $3);}
-    | Expression EXPOP_LOGICAL_OR       Expression  { $$ = DtDoOperator ($1, EXPOP_LOGICAL_OR,      $3);}
+    | Expression OP_EXP_MULTIPLY         Expression  { $$ = DtDoOperator ($1, OP_EXP_MULTIPLY,        $3);}
+    | Expression OP_EXP_DIVIDE           Expression  { $$ = DtDoOperator ($1, OP_EXP_DIVIDE,          $3);}
+    | Expression OP_EXP_MODULO           Expression  { $$ = DtDoOperator ($1, OP_EXP_MODULO,          $3);}
+    | Expression OP_EXP_ADD              Expression  { $$ = DtDoOperator ($1, OP_EXP_ADD,             $3);}
+    | Expression OP_EXP_SUBTRACT         Expression  { $$ = DtDoOperator ($1, OP_EXP_SUBTRACT,        $3);}
+    | Expression OP_EXP_SHIFT_RIGHT      Expression  { $$ = DtDoOperator ($1, OP_EXP_SHIFT_RIGHT,     $3);}
+    | Expression OP_EXP_SHIFT_LEFT       Expression  { $$ = DtDoOperator ($1, OP_EXP_SHIFT_LEFT,      $3);}
+    | Expression OP_EXP_GREATER          Expression  { $$ = DtDoOperator ($1, OP_EXP_GREATER,         $3);}
+    | Expression OP_EXP_LESS             Expression  { $$ = DtDoOperator ($1, OP_EXP_LESS,            $3);}
+    | Expression OP_EXP_GREATER_EQUAL    Expression  { $$ = DtDoOperator ($1, OP_EXP_GREATER_EQUAL,   $3);}
+    | Expression OP_EXP_LESS_EQUAL       Expression  { $$ = DtDoOperator ($1, OP_EXP_LESS_EQUAL,      $3);}
+    | Expression OP_EXP_EQUAL            Expression  { $$ = DtDoOperator ($1, OP_EXP_EQUAL,           $3);}
+    | Expression OP_EXP_NOT_EQUAL        Expression  { $$ = DtDoOperator ($1, OP_EXP_NOT_EQUAL,       $3);}
+    | Expression OP_EXP_AND              Expression  { $$ = DtDoOperator ($1, OP_EXP_AND,             $3);}
+    | Expression OP_EXP_XOR              Expression  { $$ = DtDoOperator ($1, OP_EXP_XOR,             $3);}
+    | Expression OP_EXP_OR               Expression  { $$ = DtDoOperator ($1, OP_EXP_OR,              $3);}
+    | Expression OP_EXP_LOGICAL_AND      Expression  { $$ = DtDoOperator ($1, OP_EXP_LOGICAL_AND,     $3);}
+    | Expression OP_EXP_LOGICAL_OR       Expression  { $$ = DtDoOperator ($1, OP_EXP_LOGICAL_OR,      $3);}
 
       /* Parentheses: '(' Expression ')' */
 
-    | EXPOP_PAREN_OPEN          Expression
-        EXPOP_PAREN_CLOSE                           { $$ = $2;}
+    | OP_EXP_PAREN_OPEN          Expression
+        OP_EXP_PAREN_CLOSE                           { $$ = $2;}
 
       /* Label references (prefixed with $) */
 
-    | EXPOP_LABEL                                   { $$ = DtResolveLabel (DtParsertext);}
+    | OP_EXP_LABEL                                   { $$ = DtResolveLabel (DtParsertext);}
 
-      /* Default base for a non-prefixed integer is 16 */
+      /*
+       * All constants for the data table compiler are in hex, whether a (optional) 0x
+       * prefix is present or not. For example, these two input strings are equivalent:
+       *    1234
+       *    0x1234
+       */
 
-    | EXPOP_NUMBER                                  { AcpiUtStrtoul64 (DtParsertext, 16, ACPI_MAX64_BYTE_WIDTH, &$$);}
+      /* Non-prefixed hex number */
+
+    | OP_EXP_NUMBER                                  { $$ = DtDoConstant (DtParsertext);}
 
       /* Standard hex number (0x1234) */
 
-    | EXPOP_HEX_NUMBER                              { AcpiUtStrtoul64 (DtParsertext, 16, ACPI_MAX64_BYTE_WIDTH, &$$);}
+    | OP_EXP_HEX_NUMBER                              { $$ = DtDoConstant (DtParsertext);}
 
-      /* TBD: Decimal number with prefix (0d1234) - Not supported by strtoul64 at this time */
+      /* Possible TBD: Decimal number with prefix (0d1234) - Not supported this time */
 
-    | EXPOP_DECIMAL_NUMBER                          { AcpiUtStrtoul64 (DtParsertext, 10, ACPI_MAX64_BYTE_WIDTH, &$$);}
+    | OP_EXP_DECIMAL_NUMBER                          { $$ = DtDoConstant (DtParsertext);}
     ;
 %%
 
@@ -186,7 +300,7 @@ Expression
 /*
  * Local support functions, including parser entry point
  */
-#define PR_FIRST_PARSE_OPCODE   EXPOP_EOF
+#define PR_FIRST_PARSE_OPCODE   OP_EXP_EOF
 #define PR_YYTNAME_START        3
 
 
@@ -207,7 +321,7 @@ DtParsererror (
     char const              *Message)
 {
     DtError (ASL_ERROR, ASL_MSG_SYNTAX,
-        Gbl_CurrentField, (char *) Message);
+        AslGbl_CurrentField, (char *) Message);
 }
 
 
@@ -215,7 +329,7 @@ DtParsererror (
  *
  * FUNCTION:    DtGetOpName
  *
- * PARAMETERS:  ParseOpcode         - Parser token (EXPOP_*)
+ * PARAMETERS:  ParseOpcode         - Parser token (OP_EXP_*)
  *
  * RETURN:      Pointer to the opcode name
  *
@@ -230,7 +344,7 @@ DtGetOpName (
 #ifdef ASL_YYTNAME_START
     /*
      * First entries (PR_YYTNAME_START) in yytname are special reserved names.
-     * Ignore first 6 characters of name (EXPOP_)
+     * Ignore first 6 characters of name (OP_EXP_)
      */
     return ((char *) yytname
         [(ParseOpcode - PR_FIRST_PARSE_OPCODE) + PR_YYTNAME_START] + 6);
@@ -267,7 +381,7 @@ DtEvaluateExpression (
     if (DtInitLexer (ExprString))
     {
         DtError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-            Gbl_CurrentField, "Could not initialize lexer");
+            AslGbl_CurrentField, "Could not initialize lexer");
         return (0);
     }
 

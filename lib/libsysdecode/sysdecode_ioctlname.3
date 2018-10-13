@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2015
+.Dd October 17, 2016
 .Dt sysdecode_ioctlname 3
 .Os
 .Sh NAME
@@ -34,7 +34,10 @@
 .Sh LIBRARY
 .Lb libsysdecode
 .Sh SYNOPSIS
-.Ft conts char *
+.In sys/types.h
+.In stdbool.h
+.In sysdecode.h
+.Ft const char *
 .Fn sysdecode_ioctlname "unsigned long request"
 .Sh DESCRIPTION
 The

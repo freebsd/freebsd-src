@@ -482,10 +482,8 @@ SHA_CTX *c;
 	l=c->h3; nl2c(l,cp);
 	l=c->h4; nl2c(l,cp);
 
-	/* clear stuff, sha1_block may be leaving some stuff on the stack
-	 * but I'm not worried :-) */
-	c->num=0;
-/*	memset((char *)&c,0,sizeof(c));*/
+	/* Clear the context state */
+	explicit_bzero(&c, sizeof(c));
 	}
 
 #ifdef WEAK_REFS

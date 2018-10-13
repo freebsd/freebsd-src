@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -36,15 +38,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/tree.h>
 #include <sys/errno.h>
+#include <sys/tree.h>
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
 
+#include <assert.h>
+#include <err.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <pthread.h>
 
 #include "mem.h"
 
@@ -121,6 +124,7 @@ mmio_rb_add(struct mmio_rb_tree *rbt, struct mmio_rb_range *new)
 static void
 mmio_rb_dump(struct mmio_rb_tree *rbt)
 {
+	int perror;
 	struct mmio_rb_range *np;
 
 	pthread_rwlock_rdlock(&mmio_rwlock);
@@ -128,11 +132,15 @@ mmio_rb_dump(struct mmio_rb_tree *rbt)
 		printf(" %lx:%lx, %s\n", np->mr_base, np->mr_end,
 		       np->mr_param.name);
 	}
-	pthread_rwlock_unlock(&mmio_rwlock);
+	perror = pthread_rwlock_unlock(&mmio_rwlock);
+	assert(perror == 0);
 }
 #endif
 
 RB_GENERATE(mmio_rb_tree, mmio_rb_range, mr_link, mmio_rb_range_compare);
+
+typedef int (mem_cb_t)(struct vmctx *ctx, int vcpu, uint64_t gpa,
+    struct mem_range *mr, void *arg);
 
 static int
 mem_read(void *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size, void *arg)
@@ -156,13 +164,12 @@ mem_write(void *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
 	return (error);
 }
 
-int
-emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
-    struct vm_guest_paging *paging)
-
+static int
+access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
+    void *arg)
 {
 	struct mmio_rb_range *entry;
-	int err, immutable;
+	int err, perror, immutable;
 	
 	pthread_rwlock_rdlock(&mmio_rwlock);
 	/*
@@ -180,7 +187,8 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
 			/* Update the per-vCPU cache */
 			mmio_hint[vcpu] = entry;			
 		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
-			pthread_rwlock_unlock(&mmio_rwlock);
+			perror = pthread_rwlock_unlock(&mmio_rwlock);
+			assert(perror == 0);
 			return (ESRCH);
 		}
 	}
@@ -199,40 +207,101 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
 	 * config space window as 'immutable' the deadlock can be avoided.
 	 */
 	immutable = (entry->mr_param.flags & MEM_F_IMMUTABLE);
-	if (immutable)
-		pthread_rwlock_unlock(&mmio_rwlock);
+	if (immutable) {
+		perror = pthread_rwlock_unlock(&mmio_rwlock);
+		assert(perror == 0);
+	}
 
-	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie, paging,
-				      mem_read, mem_write, &entry->mr_param);
+	err = cb(ctx, vcpu, paddr, &entry->mr_param, arg);
 
-	if (!immutable)
-		pthread_rwlock_unlock(&mmio_rwlock);
+	if (!immutable) {
+		perror = pthread_rwlock_unlock(&mmio_rwlock);
+		assert(perror == 0);
+	}
+
 
 	return (err);
+}
+
+struct emulate_mem_args {
+	struct vie *vie;
+	struct vm_guest_paging *paging;
+};
+
+static int
+emulate_mem_cb(struct vmctx *ctx, int vcpu, uint64_t paddr, struct mem_range *mr,
+    void *arg)
+{
+	struct emulate_mem_args *ema;
+
+	ema = arg;
+	return (vmm_emulate_instruction(ctx, vcpu, paddr, ema->vie, ema->paging,
+	    mem_read, mem_write, mr));
+}
+
+int
+emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
+    struct vm_guest_paging *paging)
+
+{
+	struct emulate_mem_args ema;
+
+	ema.vie = vie;
+	ema.paging = paging;
+	return (access_memory(ctx, vcpu, paddr, emulate_mem_cb, &ema));
+}
+
+struct read_mem_args {
+	uint64_t *rval;
+	int size;
+};
+
+static int
+read_mem_cb(struct vmctx *ctx, int vcpu, uint64_t paddr, struct mem_range *mr,
+    void *arg)
+{
+	struct read_mem_args *rma;
+
+	rma = arg;
+	return (mr->handler(ctx, vcpu, MEM_F_READ, paddr, rma->size,
+	    rma->rval, mr->arg1, mr->arg2));
+}
+
+int
+read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size)
+{
+	struct read_mem_args rma;
+
+	rma.rval = rval;
+	rma.size = size;
+	return (access_memory(ctx, vcpu, gpa, read_mem_cb, &rma));
 }
 
 static int
 register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 {
 	struct mmio_rb_range *entry, *mrp;
-	int		err;
+	int err, perror;
 
 	err = 0;
 
 	mrp = malloc(sizeof(struct mmio_rb_range));
-	
-	if (mrp != NULL) {
+	if (mrp == NULL) {
+		warn("%s: couldn't allocate memory for mrp\n",
+		     __func__);
+		err = ENOMEM;
+	} else {
 		mrp->mr_param = *memp;
 		mrp->mr_base = memp->base;
 		mrp->mr_end = memp->base + memp->size - 1;
 		pthread_rwlock_wrlock(&mmio_rwlock);
 		if (mmio_rb_lookup(rbt, memp->base, &entry) != 0)
 			err = mmio_rb_add(rbt, mrp);
-		pthread_rwlock_unlock(&mmio_rwlock);
+		perror = pthread_rwlock_unlock(&mmio_rwlock);
+		assert(perror == 0);
 		if (err)
 			free(mrp);
-	} else
-		err = ENOMEM;
+	}
 
 	return (err);
 }
@@ -256,7 +325,7 @@ unregister_mem(struct mem_range *memp)
 {
 	struct mem_range *mr;
 	struct mmio_rb_range *entry = NULL;
-	int err, i;
+	int err, perror, i;
 	
 	pthread_rwlock_wrlock(&mmio_rwlock);
 	err = mmio_rb_lookup(&mmio_rb_root, memp->base, &entry);
@@ -273,7 +342,8 @@ unregister_mem(struct mem_range *memp)
 				mmio_hint[i] = NULL;
 		}
 	}
-	pthread_rwlock_unlock(&mmio_rwlock);
+	perror = pthread_rwlock_unlock(&mmio_rwlock);
+	assert(perror == 0);
 
 	if (entry)
 		free(entry);

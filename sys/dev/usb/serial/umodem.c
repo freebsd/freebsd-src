@@ -4,6 +4,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2003, M. Warner Losh <imp@FreeBSD.org>.
  * All rights reserved.
  *
@@ -129,6 +131,18 @@ static const STRUCT_USB_DUAL_ID umodem_dual_devs[] = {
 
 static const STRUCT_USB_HOST_ID umodem_host_devs[] = {
 	/* Huawei Modem class match */
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x01)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x02)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x10)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x12)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x61)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x62)},
 	{USB_VENDOR(USB_VENDOR_HUAWEI),USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 		USB_IFACE_PROTOCOL(0xFF)},
@@ -443,6 +457,8 @@ umodem_attach(device_t dev)
 		mtx_unlock(&sc->sc_mtx);
 	}
 
+	ucom_set_usb_mode(&sc->sc_super_ucom, uaa->usb_mode);
+
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &umodem_callback, &sc->sc_mtx);
 	if (error) {
@@ -558,6 +574,7 @@ umodem_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	DPRINTF("\n");
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }

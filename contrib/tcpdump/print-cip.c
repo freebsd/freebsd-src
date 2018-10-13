@@ -20,19 +20,18 @@
  *
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Classical-IP over ATM printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <string.h>
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
-
-#define RFC1483LLC_LEN	8
 
 static const unsigned char rfcllc[] = {
 	0xaa,	/* DSAP: non-ISO */
@@ -43,12 +42,12 @@ static const unsigned char rfcllc[] = {
 	0x00 };
 
 static inline void
-cip_print(netdissect_options *ndo, int length)
+cip_print(netdissect_options *ndo, u_int length)
 {
 	/*
 	 * There is no MAC-layer header, so just print the length.
 	 */
-	ND_PRINT((ndo, "%d: ", length));
+	ND_PRINT((ndo, "%u: ", length));
 }
 
 /*
@@ -62,40 +61,42 @@ cip_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char 
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	u_short extracted_ethertype;
+	size_t cmplen;
+	int llc_hdrlen;
 
-	if (memcmp(rfcllc, p, sizeof(rfcllc))==0 && caplen < RFC1483LLC_LEN) {
-		ND_PRINT((ndo, "[|cip]"));
-		return (0);
-	}
+	cmplen = sizeof(rfcllc);
+	if (cmplen > caplen)
+		cmplen = caplen;
+	if (cmplen > length)
+		cmplen = length;
 
 	if (ndo->ndo_eflag)
 		cip_print(ndo, length);
 
-	if (memcmp(rfcllc, p, sizeof(rfcllc)) == 0) {
+	if (cmplen == 0) {
+		ND_PRINT((ndo, "[|cip]"));
+		return 0;
+	}
+	if (memcmp(rfcllc, p, cmplen) == 0) {
 		/*
 		 * LLC header is present.  Try to print it & higher layers.
 		 */
-		if (llc_print(ndo, p, length, caplen, NULL, NULL,
-		    &extracted_ethertype) == 0) {
-			/* ether_type not known, print raw packet */
-			if (!ndo->ndo_eflag)
-				cip_print(ndo, length);
-			if (extracted_ethertype) {
-				ND_PRINT((ndo, "(LLC %s) ",
-			       etherproto_string(htons(extracted_ethertype))));
-			}
+		llc_hdrlen = llc_print(ndo, p, length, caplen, NULL, NULL);
+		if (llc_hdrlen < 0) {
+			/* packet type not known, print raw packet */
 			if (!ndo->ndo_suppress_default_print)
 				ND_DEFAULTPRINT(p, caplen);
+			llc_hdrlen = -llc_hdrlen;
 		}
 	} else {
 		/*
 		 * LLC header is absent; treat it as just IP.
 		 */
+		llc_hdrlen = 0;
 		ip_print(ndo, p, length);
 	}
 
-	return (0);
+	return (llc_hdrlen);
 }
 
 

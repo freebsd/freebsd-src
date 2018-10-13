@@ -8,12 +8,12 @@ NETGRAPH_MPPC_COMPRESSION?=	1
 NETGRAPH_MPPC_ENCRYPTION?=	1
 
 .if ${NETGRAPH_MPPC_COMPRESSION} > 0
-.PATH: ${.CURDIR}/../../../net
+.PATH: ${SRCTOP}/sys/net
 SRCS+=	mppcc.c mppcd.c
 .endif
 
 .if ${NETGRAPH_MPPC_ENCRYPTION} > 0
-.PATH: ${.CURDIR}/../../../crypto
+.PATH: ${SRCTOP}/sys/crypto
 SRCS+= sha1.c
 .endif
 

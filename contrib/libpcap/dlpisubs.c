@@ -12,7 +12,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #ifndef DL_IPATM
@@ -186,8 +186,8 @@ pcap_process_pkts(pcap_t *p, pcap_handler callback, u_char *user,
 			pkthdr.len = origlen;
 			pkthdr.caplen = caplen;
 			/* Insure caplen does not exceed snapshot */
-			if (pkthdr.caplen > p->snapshot)
-				pkthdr.caplen = p->snapshot;
+			if (pkthdr.caplen > (bpf_u_int32)p->snapshot)
+				pkthdr.caplen = (bpf_u_int32)p->snapshot;
 			(*callback)(user, &pkthdr, pk);
 			if (++n >= count && !PACKET_COUNT_IS_UNLIMITED(count)) {
 				p->cc = ep - bufp;
@@ -255,8 +255,38 @@ pcap_process_mactype(pcap_t *p, u_int mactype)
 		break;
 #endif
 
+#ifdef DL_IPV4
+	case DL_IPV4:
+		p->linktype = DLT_IPV4;
+		p->offset = 0;
+		break;
+#endif
+
+#ifdef DL_IPV6
+	case DL_IPV6:
+		p->linktype = DLT_IPV6;
+		p->offset = 0;
+		break;
+#endif
+
+#ifdef DL_IPNET
+	case DL_IPNET:
+		/*
+		 * XXX - DL_IPNET devices default to "raw IP" rather than
+		 * "IPNET header"; see
+		 *
+		 *    http://seclists.org/tcpdump/2009/q1/202
+		 *
+		 * We'd have to do DL_IOC_IPNET_INFO to enable getting
+		 * the IPNET header.
+		 */
+		p->linktype = DLT_RAW;
+		p->offset = 0;
+		break;
+#endif
+
 	default:
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "unknown mactype %u",
+		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "unknown mactype 0x%x",
 		    mactype);
 		retv = -1;
 	}
@@ -326,9 +356,10 @@ int
 pcap_alloc_databuf(pcap_t *p)
 {
 	p->bufsize = PKTBUFSIZE;
-	p->buffer = (u_char *)malloc(p->bufsize + p->offset);
+	p->buffer = malloc(p->bufsize + p->offset);
 	if (p->buffer == NULL) {
-		strlcpy(p->errbuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "malloc");
 		return (-1);
 	}
 
@@ -362,6 +393,6 @@ strioctl(int fd, int cmd, int len, char *dp)
 static void
 pcap_stream_err(const char *func, int err, char *errbuf)
 {
-	snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s", func, pcap_strerror(err));
+	pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE, err, "%s", func);
 }
 #endif

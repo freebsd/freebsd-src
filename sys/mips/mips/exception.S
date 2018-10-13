@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -63,7 +63,7 @@
 #include <machine/pte.h>
 #include <machine/pcb.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.set	noreorder		# Noreorder is default style!
 
@@ -590,7 +590,11 @@ GLOBAL(MipsWaitStart)			# this is 16 byte aligned
 	mtc0	t1, MIPS_COP_0_STATUS
 	bnez	v0, MipsWaitEnd
 	nop
+#if defined(CPU_XBURST) && defined(SMP)
+	nop
+#else
 	wait
+#endif
 GLOBAL(MipsWaitEnd)			# MipsWaitStart + 16
 	jr	ra
 	PTR_ADDU        sp, sp, CALLFRAME_SIZ
@@ -1015,6 +1019,8 @@ tlb_insert_random:
 	 * of this handler. Otherwise the ddb backtrace code will think that
 	 * the panic() was called from MipsTLBMissException.
 	 */
+	.globl	MipsKStackOverflow
+MipsKStackOverflow:
 	nop
 
 	.set pop
@@ -1096,13 +1102,21 @@ END(MipsTLBMissException)
  *----------------------------------------------------------------------------
  */
 NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
+	.set push
+	.set hardfloat
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	mfc0	t0, MIPS_COP_0_STATUS
+	HAZARD_DELAY
 	REG_S	ra, CALLFRAME_RA(sp)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 
+#if defined(__mips_n32) || defined(__mips_n64)
+	or	t1, t0, MIPS_SR_COP_1_BIT | MIPS_SR_FR
+#else
 	or	t1, t0, MIPS_SR_COP_1_BIT
+#endif
 	mtc0	t1, MIPS_COP_0_STATUS
+	HAZARD_DELAY
 	ITLBNOPFIX
 	cfc1	t1, MIPS_FPU_CSR		# stall til FP done
 	cfc1	t1, MIPS_FPU_CSR		# now get status
@@ -1189,6 +1203,7 @@ FPReturn:
 	ITLBNOPFIX
 	j	ra
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
+	.set pop
 END(MipsFPTrap)
 
 #ifndef INTRNG

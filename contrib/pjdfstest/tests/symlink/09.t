@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/symlink/09.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="symlink returns EPERM if the parent directory of the file named by name2 has its immutable flag set"

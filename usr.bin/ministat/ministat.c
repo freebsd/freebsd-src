@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -11,16 +13,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
-#include <math.h>
-#include <ctype.h>
-#include <err.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/capsicum.h>
 #include <sys/ioctl.h>
 #include <sys/queue.h>
 #include <sys/ttycom.h>
+
+#include <capsicum_helpers.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define NSTUDENT 100
 #define NCONF 6
@@ -202,6 +208,12 @@ static double
 Var(struct dataset *ds)
 {
 
+	/*
+	 * Due to limited precision it is possible that sy^2/n > syy,
+	 * but variance cannot actually be negative.
+	 */
+	if (ds->syy <= ds->sy * ds->sy / ds->n)
+		return (0);
 	return (ds->syy - ds->sy * ds->sy / ds->n) / (ds->n - 1.0);
 }
 
@@ -232,6 +244,7 @@ static void
 Relative(struct dataset *ds, struct dataset *rs, int confidx)
 {
 	double spool, s, d, e, t;
+	double re;
 	int i;
 
 	i = ds->n + rs->n - 2;
@@ -246,11 +259,16 @@ Relative(struct dataset *ds, struct dataset *rs, int confidx)
 	d = Avg(ds) - Avg(rs);
 	e = t * s;
 
+	re = (ds->n - 1) * Var(ds) + (rs->n - 1) * Var(rs) *
+	    (Avg(ds) * Avg(ds)) / (Avg(rs) * Avg(rs));
+	re *= (ds->n + rs->n) / (ds->n * rs->n * (ds->n + rs->n - 2.0));
+	re = t * sqrt(re);
+
 	if (fabs(d) > e) {
 	
 		printf("Difference at %.1f%% confidence\n", studentpct[confidx]);
 		printf("	%g +/- %g\n", d, e);
-		printf("	%g%% +/- %g%%\n", d * 100 / Avg(rs), e * 100 / Avg(rs));
+		printf("	%g%% +/- %g%%\n", d * 100 / Avg(rs), re * 100 / Avg(rs));
 		printf("	(Student's t, pooled s = %g)\n", spool);
 	} else {
 		printf("No difference proven at %.1f%% confidence\n",
@@ -449,26 +467,14 @@ dbl_cmp(const void *a, const void *b)
 }
 
 static struct dataset *
-ReadSet(const char *n, int column, const char *delim)
+ReadSet(FILE *f, const char *n, int column, const char *delim)
 {
-	FILE *f;
 	char buf[BUFSIZ], *p, *t;
 	struct dataset *s;
 	double d;
 	int line;
 	int i;
 
-	if (n == NULL) {
-		f = stdin;
-		n = "<stdin>";
-	} else if (!strcmp(n, "-")) {
-		f = stdin;
-		n = "<stdin>";
-	} else {
-		f = fopen(n, "r");
-	}
-	if (f == NULL)
-		err(1, "Cannot open %s", n);
 	s = NewSet();
 	s->name = strdup(n);
 	line = 0;
@@ -493,7 +499,6 @@ ReadSet(const char *n, int column, const char *delim)
 		if (*buf != '\0')
 			AddPoint(s, d);
 	}
-	fclose(f);
 	if (s->n < 3) {
 		fprintf(stderr,
 		    "Dataset %s must contain at least 3 data points\n", n);
@@ -530,7 +535,9 @@ usage(char const *whine)
 int
 main(int argc, char **argv)
 {
-	struct dataset *ds[7];
+	const char *setfilenames[MAX_DS - 1];
+	struct dataset *ds[MAX_DS - 1];
+	FILE *setfiles[MAX_DS - 1];
 	int nds;
 	double a;
 	const char *delim = " \t";
@@ -603,14 +610,36 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0) {
-		ds[0] = ReadSet("-", column, delim);
+		setfilenames[0] = "<stdin>";
+		setfiles[0] = stdin;
 		nds = 1;
 	} else {
 		if (argc > (MAX_DS - 1))
 			usage("Too many datasets.");
 		nds = argc;
-		for (i = 0; i < nds; i++)
-			ds[i] = ReadSet(argv[i], column, delim);
+		for (i = 0; i < nds; i++) {
+			setfilenames[i] = argv[i];
+			setfiles[i] = fopen(argv[i], "r");
+			if (setfiles[i] == NULL)
+				err(2, "Cannot open %s", argv[i]);
+		}
+	}
+
+	if (caph_limit_stdio() < 0)
+		err(2, "capsicum");
+
+	for (i = 0; i < nds; i++)
+		if (caph_limit_stream(fileno(setfiles[i]), CAPH_READ) < 0)
+			err(2, "unable to limit rights for %s",
+			    setfilenames[i]);
+
+	/* Enter Capsicum sandbox. */
+	if (caph_enter() < 0)
+		err(2, "unable to enter capability mode");
+
+	for (i = 0; i < nds; i++) {
+		ds[i] = ReadSet(setfiles[i], setfilenames[i], column, delim);
+		fclose(setfiles[i]);
 	}
 
 	for (i = 0; i < nds; i++) 

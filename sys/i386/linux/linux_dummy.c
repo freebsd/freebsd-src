@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -6,30 +8,26 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -45,6 +43,24 @@ __FBSDID("$FreeBSD$");
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
+UNIMPLEMENTED(afs_syscall);
+UNIMPLEMENTED(break);
+UNIMPLEMENTED(create_module);	/* Added in Linux 1.0 removed in 2.6. */
+UNIMPLEMENTED(ftime);
+UNIMPLEMENTED(get_kernel_syms);	/* Added in Linux 1.0 removed in 2.6. */
+UNIMPLEMENTED(getpmsg);
+UNIMPLEMENTED(gtty);
+UNIMPLEMENTED(stty);
+UNIMPLEMENTED(lock);
+UNIMPLEMENTED(mpx);
+UNIMPLEMENTED(nfsservctl);	/* Added in Linux 2.2 removed in 3.1. */
+UNIMPLEMENTED(prof);
+UNIMPLEMENTED(profil);
+UNIMPLEMENTED(putpmsg);
+UNIMPLEMENTED(query_module);	/* Added in Linux 2.2 removed in 2.6. */
+UNIMPLEMENTED(ulimit);
+UNIMPLEMENTED(vserver);
+
 DUMMY(stime);
 DUMMY(fstat);
 DUMMY(olduname);
@@ -54,74 +70,93 @@ DUMMY(vhangup);
 DUMMY(vm86old);
 DUMMY(swapoff);
 DUMMY(adjtimex);
-DUMMY(create_module);
 DUMMY(init_module);
 DUMMY(delete_module);
-DUMMY(get_kernel_syms);
 DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(vm86);
-DUMMY(query_module);
-DUMMY(nfsservctl);
 DUMMY(sendfile);		/* different semantics */
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);
-DUMMY(mincore);
 DUMMY(lookup_dcookie);
 DUMMY(remap_file_pages);
 DUMMY(mbind);
 DUMMY(get_mempolicy);
 DUMMY(set_mempolicy);
 DUMMY(kexec_load);
-/* linux 2.6.11: */
+/* Linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);
 DUMMY(keyctl);
-/* linux 2.6.13: */
+/* Linux 2.6.13: */
 DUMMY(ioprio_set);
 DUMMY(ioprio_get);
 DUMMY(inotify_init);
 DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
-/* linux 2.6.16: */
+/* Linux 2.6.16: */
 DUMMY(migrate_pages);
 DUMMY(unshare);
-/* linux 2.6.17: */
+/* Linux 2.6.17: */
 DUMMY(splice);
 DUMMY(sync_file_range);
 DUMMY(tee);
 DUMMY(vmsplice);
-/* linux 2.6.18: */
+/* Linux 2.6.18: */
 DUMMY(move_pages);
-/* linux 2.6.19: */
+/* Linux 2.6.19: */
 DUMMY(getcpu);
-/* linux 2.6.22: */
+/* Linux 2.6.22: */
 DUMMY(signalfd);
-DUMMY(timerfd_create);
-/* linux 2.6.25: */
-DUMMY(timerfd_settime);
-DUMMY(timerfd_gettime);
-/* linux 2.6.27: */
+/* Linux 2.6.27: */
 DUMMY(signalfd4);
 DUMMY(inotify_init1);
-/* linux 2.6.30: */
-DUMMY(preadv);
-DUMMY(pwritev);
-/* linux 2.6.31 */
-DUMMY(rt_tsigqueueinfo);
+/* Linux 2.6.31: */
 DUMMY(perf_event_open);
-/* linux 2.6.33: */
+/* Linux 2.6.33: */
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
-/* later: */
+/* Linux 2.6.39: */
 DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
+/* Linux 3.0: */
 DUMMY(setns);
+/* Linux 3.2: */
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);
+/* Linux 3.5: */
+DUMMY(kcmp);
+/* Linux 3.8: */
+DUMMY(finit_module);
+DUMMY(sched_setattr);
+DUMMY(sched_getattr);
+/* Linux 3.14: */
+DUMMY(renameat2);
+/* Linux 3.15: */
+DUMMY(seccomp);
+DUMMY(memfd_create);
+/* Linux 3.18: */
+DUMMY(bpf);
+/* Linux 3.19: */
+DUMMY(execveat);
+/* Linux 4.2: */
+DUMMY(userfaultfd);
+/* Linux 4.3: */
+DUMMY(membarrier);
+/* Linux 4.4: */
+DUMMY(mlock2);
+/* Linux 4.5: */
+DUMMY(copy_file_range);
+/* Linux 4.6: */
+DUMMY(preadv2);
+DUMMY(pwritev2);
+/* Linux 4.8: */
+DUMMY(pkey_mprotect);
+DUMMY(pkey_alloc);
+DUMMY(pkey_free);
 
 #define DUMMY_XATTR(s)						\
 int								\

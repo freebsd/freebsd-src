@@ -1,7 +1,8 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
- * Copyright (c) 2016 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,6 +31,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(RDMA_CM_H)
@@ -60,12 +63,10 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_MULTICAST_JOIN,
 	RDMA_CM_EVENT_MULTICAST_ERROR,
 	RDMA_CM_EVENT_ADDR_CHANGE,
-	RDMA_CM_EVENT_TIMEWAIT_EXIT,
-	RDMA_CM_EVENT_ALT_ROUTE_RESOLVED,
-	RDMA_CM_EVENT_ALT_ROUTE_ERROR,
-	RDMA_CM_EVENT_LOAD_ALT_PATH,
-	RDMA_CM_EVENT_ALT_PATH_LOADED,
+	RDMA_CM_EVENT_TIMEWAIT_EXIT
 };
+
+const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
 
 enum rdma_port_space {
 	RDMA_PS_SDP   = 0x0001,
@@ -75,12 +76,10 @@ enum rdma_port_space {
 	RDMA_PS_UDP   = 0x0111,
 };
 
-enum alt_path_type {
-	RDMA_ALT_PATH_NONE,
-	RDMA_ALT_PATH_PORT,
-	RDMA_ALT_PATH_LID,
-	RDMA_ALT_PATH_BEST
-};
+#define RDMA_IB_IP_PS_MASK   0xFFFFFFFFFFFF0000ULL
+#define RDMA_IB_IP_PS_TCP    0x0000000001060000ULL
+#define RDMA_IB_IP_PS_UDP    0x0000000001110000ULL
+#define RDMA_IB_IP_PS_IB     0x00000000013F0000ULL
 
 struct rdma_addr {
 	struct sockaddr_storage src_addr;
@@ -105,6 +104,7 @@ struct rdma_conn_param {
 	/* Fields below ignored if a QP is created on the rdma_cm_id. */
 	u8 srq;
 	u32 qp_num;
+	u32 qkey;
 };
 
 struct rdma_ud_param {
@@ -113,7 +113,6 @@ struct rdma_ud_param {
 	struct ib_ah_attr ah_attr;
 	u32 qp_num;
 	u32 qkey;
-	u8 alt_path_index;
 };
 
 struct rdma_cm_event {
@@ -160,19 +159,22 @@ struct rdma_cm_id {
 	enum rdma_port_space	 ps;
 	enum ib_qp_type		 qp_type;
 	u8			 port_num;
-	void			 *ucontext;
 };
 
 /**
  * rdma_create_id - Create an RDMA identifier.
  *
+ * @net: The network namespace in which to create the new id.
  * @event_handler: User callback invoked to report events associated with the
  *   returned rdma_id.
  * @context: User specified context associated with the id.
  * @ps: RDMA port space.
  * @qp_type: type of queue pair associated with the id.
+ *
+ * The id holds a reference on the network namespace until it is destroyed.
  */
-struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
+struct rdma_cm_id *rdma_create_id(struct vnet *net,
+				  rdma_cm_event_handler event_handler,
 				  void *context, enum rdma_port_space ps,
 				  enum ib_qp_type qp_type);
 
@@ -221,19 +223,6 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
  * into an RDMA address before calling this routine.
  */
 int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms);
-
-/**
- * rdma_enable_apm - Get ready to use APM for the given ID.
- * Actual Alternate path discovery and load will take place only
- * after a connection has been established.
- *
- * Calling this function only has an effect on the connection's client side.
- * It should be called after rdma_resolve_route and before rdma_connect.
- *
- * @id: RDMA identifier.
- * @alt_type: Alternate path type to resolve.
- */
-int rdma_enable_apm(struct rdma_cm_id *id, enum alt_path_type alt_type);
 
 /**
  * rdma_create_qp - Allocate a QP and associate it with the specified RDMA
@@ -348,11 +337,13 @@ int rdma_disconnect(struct rdma_cm_id *id);
  *   address.
  * @id: Communication identifier associated with the request.
  * @addr: Multicast address identifying the group to join.
+ * @join_state: Multicast JoinState bitmap requested by port.
+ *		Bitmap is based on IB_SA_MCMEMBER_REC_JOIN_STATE bits.
  * @context: User-defined context associated with the join request, returned
  * to the user through the private_data pointer in multicast events.
  */
 int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
-			void *context);
+			u8 join_state, void *context);
 
 /**
  * rdma_leave_multicast - Leave the multicast group specified by the given
@@ -394,14 +385,11 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
  */
 int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
 
-/**
- * rdma_set_timeout - Set the QP timeout associated with a connection
- * identifier.
- * @id: Communication identifier to associated with service type.
- * @timeout: QP timeout
+ /**
+ * rdma_get_service_id - Return the IB service ID for a specified address.
+ * @id: Communication identifier associated with the address.
+ * @addr: Address for the service ID.
  */
-void rdma_set_timeout(struct rdma_cm_id *id, int timeout);
-int rdma_cma_any_addr(struct sockaddr *addr);
-int rdma_find_cmid_laddr(struct sockaddr_in *local_addr,
-		unsigned short dev_type, void **cm_id);
+__be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
+
 #endif /* RDMA_CM_H */

@@ -48,7 +48,7 @@ static int p2p_sd_dns_uncompress_label(char **upos, char *uend, u8 *start,
 			u8 *spos_tmp;
 
 			/* Offset */
-			if (*spos + 2 > end) {
+			if (end - *spos < 2) {
 				wpa_printf(MSG_DEBUG, "P2P: No room for full "
 					   "DNS offset field");
 				return -1;
@@ -74,14 +74,14 @@ static int p2p_sd_dns_uncompress_label(char **upos, char *uend, u8 *start,
 			return 0;
 
 		(*spos)++;
-		if (*spos + len > end) {
+		if (len > end - *spos) {
 			wpa_printf(MSG_DEBUG, "P2P: Invalid domain name "
 				   "sequence - no room for label with length "
 				   "%u", len);
 			return -1;
 		}
 
-		if (*upos + len + 2 > uend)
+		if (len + 2 > uend - *upos)
 			return -2;
 
 		os_memcpy(*upos, *spos, len);
@@ -722,11 +722,11 @@ void wpas_sd_request(void *ctx, int freq, const u8 *sa, u8 dialog_token,
 	if (resp == NULL)
 		return;
 
-	while (pos + 1 < end) {
+	while (end - pos > 1) {
 		wpa_printf(MSG_DEBUG, "P2P: Service Request TLV");
 		slen = WPA_GET_LE16(pos);
 		pos += 2;
-		if (pos + slen > end || slen < 2) {
+		if (slen > end - pos || slen < 2) {
 			wpa_printf(MSG_DEBUG, "P2P: Unexpected Query Data "
 				   "length");
 			wpabuf_free(resp);
@@ -827,10 +827,10 @@ static void wpas_sd_p2ps_serv_response(struct wpa_supplicant *wpa_s,
 		u8 svc_len;
 
 		/* Sanity check fixed length+svc_str */
-		if (pos + 6 >= tlv_end)
+		if (6 >= tlv_end - pos)
 			break;
 		svc_len = pos[6];
-		if (pos + svc_len + 10 > tlv_end)
+		if (svc_len + 10 > tlv_end - pos)
 			break;
 
 		/* Advertisement ID */
@@ -917,13 +917,13 @@ void wpas_sd_response(void *ctx, const u8 *sa, u16 update_indic,
 		}
 	}
 
-	while (pos < end) {
+	while (end - pos >= 2) {
 		u8 srv_proto, srv_trans_id, status;
 
 		wpa_printf(MSG_DEBUG, "P2P: Service Response TLV");
 		slen = WPA_GET_LE16(pos);
 		pos += 2;
-		if (pos + slen > end || slen < 3) {
+		if (slen > end - pos || slen < 3) {
 			wpa_printf(MSG_DEBUG, "P2P: Unexpected Response Data "
 				   "length");
 			return;

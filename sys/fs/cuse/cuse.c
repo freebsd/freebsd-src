@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010-2013 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2017 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_compat.h"
-
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -46,6 +44,7 @@
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/sx.h>
+#include <sys/rwlock.h>
 #include <sys/queue.h>
 #include <sys/fcntl.h>
 #include <sys/proc.h>
@@ -57,13 +56,20 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <fs/cuse/cuse_defs.h>
 #include <fs/cuse/cuse_ioctl.h>
 
 MODULE_VERSION(cuse, 1);
 
-#define	NBUSY	((uint8_t *)1)
+/*
+ * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
+ * declaring support for the cuse4bsd interface in cuse.ko:
+ */
+MODULE_VERSION(cuse4bsd, 1);
 
 #ifdef FEATURE
 FEATURE(cuse, "Userspace character devices");
@@ -88,10 +94,10 @@ struct cuse_client_command {
 };
 
 struct cuse_memory {
-	struct cuse_server *owner;
-	uint8_t *virtaddr;
+	TAILQ_ENTRY(cuse_memory) entry;
+	vm_object_t object;
 	uint32_t page_count;
-	uint32_t is_allocated;
+	uint32_t alloc_nr;
 };
 
 struct cuse_server_dev {
@@ -106,6 +112,7 @@ struct cuse_server {
 	TAILQ_HEAD(, cuse_client_command) head;
 	TAILQ_HEAD(, cuse_server_dev) hdev;
 	TAILQ_HEAD(, cuse_client) hcli;
+	TAILQ_HEAD(, cuse_memory) hmem;
 	struct cv cv;
 	struct selinfo selinfo;
 	pid_t	pid;
@@ -122,8 +129,8 @@ struct cuse_client {
 
 	uint8_t	ioctl_buffer[CUSE_BUFFER_MAX] __aligned(4);
 
-	int	fflags;		/* file flags */
-	int	cflags;		/* client flags */
+	int	fflags;			/* file flags */
+	int	cflags;			/* client flags */
 #define	CUSE_CLI_IS_CLOSING 0x01
 #define	CUSE_CLI_KNOTE_NEED_READ 0x02
 #define	CUSE_CLI_KNOTE_NEED_WRITE 0x04
@@ -134,14 +141,13 @@ struct cuse_client {
 #define	CUSE_CLIENT_CLOSING(pcc) \
     ((pcc)->cflags & CUSE_CLI_IS_CLOSING)
 
-static MALLOC_DEFINE(M_CUSE, "cuse", "CUSE memory");
+static	MALLOC_DEFINE(M_CUSE, "cuse", "CUSE memory");
 
 static TAILQ_HEAD(, cuse_server) cuse_server_head;
 static struct mtx cuse_mtx;
 static struct cdev *cuse_dev;
 static struct cuse_server *cuse_alloc_unit[CUSE_DEVICES_MAX];
 static int cuse_alloc_unit_id[CUSE_DEVICES_MAX];
-static struct cuse_memory cuse_mem[CUSE_ALLOC_UNIT_MAX];
 
 static void cuse_server_wakeup_all_client_locked(struct cuse_server *pcs);
 static void cuse_client_kqfilter_read_detach(struct knote *kn);
@@ -167,7 +173,7 @@ static d_ioctl_t cuse_client_ioctl;
 static d_read_t cuse_client_read;
 static d_write_t cuse_client_write;
 static d_poll_t cuse_client_poll;
-static d_mmap_t cuse_client_mmap;
+static d_mmap_single_t cuse_client_mmap_single;
 static d_kqfilter_t cuse_client_kqfilter;
 
 static struct cdevsw cuse_client_devsw = {
@@ -180,7 +186,7 @@ static struct cdevsw cuse_client_devsw = {
 	.d_read = cuse_client_read,
 	.d_write = cuse_client_write,
 	.d_poll = cuse_client_poll,
-	.d_mmap = cuse_client_mmap,
+	.d_mmap_single = cuse_client_mmap_single,
 	.d_kqfilter = cuse_client_kqfilter,
 };
 
@@ -190,7 +196,7 @@ static d_ioctl_t cuse_server_ioctl;
 static d_read_t cuse_server_read;
 static d_write_t cuse_server_write;
 static d_poll_t cuse_server_poll;
-static d_mmap_t cuse_server_mmap;
+static d_mmap_single_t cuse_server_mmap_single;
 
 static struct cdevsw cuse_server_devsw = {
 	.d_version = D_VERSION,
@@ -202,7 +208,7 @@ static struct cdevsw cuse_server_devsw = {
 	.d_read = cuse_server_read,
 	.d_write = cuse_server_write,
 	.d_poll = cuse_server_poll,
-	.d_mmap = cuse_server_mmap,
+	.d_mmap_single = cuse_server_mmap_single,
 };
 
 static void cuse_client_is_closing(struct cuse_client *);
@@ -246,8 +252,7 @@ cuse_kern_init(void *arg)
 	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
 	    (CUSE_VERSION >> 0) & 0xFF);
 }
-
-SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, 0);
+SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, NULL);
 
 static void
 cuse_kern_uninit(void *arg)
@@ -274,7 +279,6 @@ cuse_kern_uninit(void *arg)
 
 	mtx_destroy(&cuse_mtx);
 }
-
 SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, 0);
 
 static int
@@ -384,79 +388,87 @@ cuse_convert_error(int error)
 		return (EFAULT);
 	case CUSE_ERR_SIGNAL:
 		return (EINTR);
+	case CUSE_ERR_NO_DEVICE:
+		return (ENODEV);
 	default:
 		return (ENXIO);
 	}
 }
 
 static void
-cuse_server_free_memory(struct cuse_server *pcs)
+cuse_vm_memory_free(struct cuse_memory *mem)
 {
-	struct cuse_memory *mem;
-	uint32_t n;
+	/* last user is gone - free */
+	vm_object_deallocate(mem->object);
 
-	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
-		mem = &cuse_mem[n];
-
-		/* this memory is never freed */
-		if (mem->owner == pcs) {
-			mem->owner = NULL;
-			mem->is_allocated = 0;
-		}
-	}
+	/* free CUSE memory */
+	free(mem, M_CUSE);
 }
 
 static int
-cuse_server_alloc_memory(struct cuse_server *pcs,
-    struct cuse_memory *mem, uint32_t page_count)
+cuse_server_alloc_memory(struct cuse_server *pcs, uint32_t alloc_nr,
+    uint32_t page_count)
 {
-	void *ptr;
+	struct cuse_memory *temp;
+	struct cuse_memory *mem;
+	vm_object_t object;
 	int error;
 
-	cuse_lock();
+	mem = malloc(sizeof(*mem), M_CUSE, M_WAITOK | M_ZERO);
+	if (mem == NULL)
+		return (ENOMEM);
 
-	if (mem->virtaddr == NBUSY) {
-		cuse_unlock();
-		return (EBUSY);
-	}
-	if (mem->virtaddr != NULL) {
-		if (mem->is_allocated != 0) {
-			cuse_unlock();
-			return (EBUSY);
-		}
-		if (mem->page_count == page_count) {
-			mem->is_allocated = 1;
-			mem->owner = pcs;
-			cuse_unlock();
-			return (0);
-		}
-		cuse_unlock();
-		return (EBUSY);
-	}
-	memset(mem, 0, sizeof(*mem));
-
-	mem->virtaddr = NBUSY;
-
-	cuse_unlock();
-
-	ptr = malloc(page_count * PAGE_SIZE, M_CUSE, M_WAITOK | M_ZERO);
-	if (ptr == NULL)
+	object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * page_count,
+	    VM_PROT_DEFAULT, 0, curthread->td_ucred);
+	if (object == NULL) {
 		error = ENOMEM;
-	else
-		error = 0;
+		goto error_0;
+	}
 
 	cuse_lock();
-
-	if (error) {
-		mem->virtaddr = NULL;
-		cuse_unlock();
-		return (error);
+	/* check if allocation number already exists */
+	TAILQ_FOREACH(temp, &pcs->hmem, entry) {
+		if (temp->alloc_nr == alloc_nr)
+			break;
 	}
-	mem->virtaddr = ptr;
+	if (temp != NULL) {
+		cuse_unlock();
+		error = EBUSY;
+		goto error_1;
+	}
+	mem->object = object;
 	mem->page_count = page_count;
-	mem->is_allocated = 1;
-	mem->owner = pcs;
+	mem->alloc_nr = alloc_nr;
+	TAILQ_INSERT_TAIL(&pcs->hmem, mem, entry);
 	cuse_unlock();
+
+	return (0);
+
+error_1:
+	vm_object_deallocate(object);
+error_0:
+	free(mem, M_CUSE);
+	return (error);
+}
+
+static int
+cuse_server_free_memory(struct cuse_server *pcs, uint32_t alloc_nr)
+{
+	struct cuse_memory *mem;
+
+	cuse_lock();
+	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
+		if (mem->alloc_nr == alloc_nr)
+			break;
+	}
+	if (mem == NULL) {
+		cuse_unlock();
+		return (EINVAL);
+	}
+	TAILQ_REMOVE(&pcs->hmem, mem, entry);
+	cuse_unlock();
+
+	cuse_vm_memory_free(mem);
 
 	return (0);
 }
@@ -638,10 +650,10 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 }
 
 static void
-cuse_server_free(void *arg)
+cuse_server_unref(struct cuse_server *pcs)
 {
-	struct cuse_server *pcs = arg;
 	struct cuse_server_dev *pcsd;
+	struct cuse_memory *mem;
 
 	cuse_lock();
 	pcs->refs--;
@@ -664,7 +676,12 @@ cuse_server_free(void *arg)
 		cuse_lock();
 	}
 
-	cuse_server_free_memory(pcs);
+	while ((mem = TAILQ_FIRST(&pcs->hmem)) != NULL) {
+		TAILQ_REMOVE(&pcs->hmem, mem, entry);
+		cuse_unlock();
+		cuse_vm_memory_free(mem);
+		cuse_lock();
+	}
 
 	knlist_clear(&pcs->selinfo.si_note, 1);
 	knlist_destroy(&pcs->selinfo.si_note);
@@ -676,6 +693,15 @@ cuse_server_free(void *arg)
 	cv_destroy(&pcs->cv);
 
 	free(pcs, M_CUSE);
+}
+
+static void
+cuse_server_free(void *arg)
+{
+	struct cuse_server *pcs = arg;
+
+	/* drop refcount */
+	cuse_server_unref(pcs);
 }
 
 static int
@@ -692,13 +718,13 @@ cuse_server_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 		free(pcs, M_CUSE);
 		return (ENOMEM);
 	}
-
 	/* store current process ID */
 	pcs->pid = curproc->p_pid;
 
 	TAILQ_INIT(&pcs->head);
 	TAILQ_INIT(&pcs->hdev);
 	TAILQ_INIT(&pcs->hcli);
+	TAILQ_INIT(&pcs->hmem);
 
 	cv_init(&pcs->cv, "cuse-server-cv");
 
@@ -1085,12 +1111,12 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 			error = ENOMEM;
 			break;
 		}
-		if (pai->page_count > CUSE_ALLOC_PAGES_MAX) {
+		if (pai->page_count >= CUSE_ALLOC_PAGES_MAX) {
 			error = ENOMEM;
 			break;
 		}
 		error = cuse_server_alloc_memory(pcs,
-		    &cuse_mem[pai->alloc_nr], pai->page_count);
+		    pai->alloc_nr, pai->page_count);
 		break;
 
 	case CUSE_IOCTL_FREE_MEMORY:
@@ -1100,16 +1126,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 			error = ENOMEM;
 			break;
 		}
-		/* we trust the character device driver in this case */
-
-		cuse_lock();
-		if (cuse_mem[pai->alloc_nr].owner == pcs) {
-			cuse_mem[pai->alloc_nr].is_allocated = 0;
-			cuse_mem[pai->alloc_nr].owner = NULL;
-		} else {
-			error = EINVAL;
-		}
-		cuse_unlock();
+		error = cuse_server_free_memory(pcs, pai->alloc_nr);
 		break;
 
 	case CUSE_IOCTL_GET_SIG:
@@ -1268,49 +1285,49 @@ cuse_server_poll(struct cdev *dev, int events, struct thread *td)
 }
 
 static int
-cuse_server_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot, vm_memattr_t *memattr)
+cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot)
 {
-	uint32_t page_nr = offset / PAGE_SIZE;
+	uint32_t page_nr = *offset / PAGE_SIZE;
 	uint32_t alloc_nr = page_nr / CUSE_ALLOC_PAGES_MAX;
 	struct cuse_memory *mem;
 	struct cuse_server *pcs;
-	uint8_t *ptr;
 	int error;
-
-	if (alloc_nr >= CUSE_ALLOC_UNIT_MAX)
-		return (ENOMEM);
 
 	error = cuse_server_get(&pcs);
 	if (error != 0)
-		pcs = NULL;
+		return (error);
 
 	cuse_lock();
-	mem = &cuse_mem[alloc_nr];
-
-	/* try to enforce slight ownership */
-	if ((pcs != NULL) && (mem->owner != pcs)) {
-		cuse_unlock();
-		return (EINVAL);
+	/* lookup memory structure */
+	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
+		if (mem->alloc_nr == alloc_nr)
+			break;
 	}
-	if (mem->virtaddr == NULL) {
+	if (mem == NULL) {
 		cuse_unlock();
 		return (ENOMEM);
 	}
-	if (mem->virtaddr == NBUSY) {
-		cuse_unlock();
-		return (ENOMEM);
-	}
+	/* verify page offset */
 	page_nr %= CUSE_ALLOC_PAGES_MAX;
-
 	if (page_nr >= mem->page_count) {
 		cuse_unlock();
 		return (ENXIO);
 	}
-	ptr = mem->virtaddr + (page_nr * PAGE_SIZE);
+	/* verify mmap size */
+	if ((size % PAGE_SIZE) != 0 || (size < PAGE_SIZE) ||
+	    (size > ((mem->page_count - page_nr) * PAGE_SIZE))) {
+		cuse_unlock();
+		return (EINVAL);
+	}
+	vm_object_reference(mem->object);
+	*object = mem->object;
 	cuse_unlock();
 
-	*paddr = vtophys(ptr);
+	/* set new VM object offset to use */
+	*offset = page_nr * PAGE_SIZE;
 
+	/* success */
 	return (0);
 }
 
@@ -1343,7 +1360,7 @@ cuse_client_free(void *arg)
 	free(pcc, M_CUSE);
 
 	/* drop reference on server */
-	cuse_server_free(pcs);
+	cuse_server_unref(pcs);
 }
 
 static int
@@ -1386,13 +1403,13 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	pcc = malloc(sizeof(*pcc), M_CUSE, M_WAITOK | M_ZERO);
 	if (pcc == NULL) {
 		/* drop reference on server */
-		cuse_server_free(pcs);
+		cuse_server_unref(pcs);
 		return (ENOMEM);
 	}
 	if (devfs_set_cdevpriv(pcc, &cuse_client_free)) {
 		printf("Cuse: Cannot set cdevpriv.\n");
 		/* drop reference on server */
-		cuse_server_free(pcs);
+		cuse_server_unref(pcs);
 		free(pcc, M_CUSE);
 		return (ENOMEM);
 	}
@@ -1501,8 +1518,8 @@ cuse_client_kqfilter_poll(struct cdev *dev, struct cuse_client *pcc)
 		/* get the latest polling state from the server */
 		temp = cuse_client_poll(dev, POLLIN | POLLOUT, NULL);
 
-		cuse_lock();
 		if (temp & (POLLIN | POLLOUT)) {
+			cuse_lock();
 			if (temp & POLLIN)
 				pcc->cflags |= CUSE_CLI_KNOTE_NEED_READ;
 			if (temp & POLLOUT)
@@ -1510,8 +1527,8 @@ cuse_client_kqfilter_poll(struct cdev *dev, struct cuse_client *pcc)
 
 			/* make sure the "knote" gets woken up */
 			cuse_server_wakeup_locked(pcc->server);
+			cuse_unlock();
 		}
-		cuse_unlock();
 	}
 }
 
@@ -1542,7 +1559,6 @@ cuse_client_read(struct cdev *dev, struct uio *uio, int ioflag)
 			error = ENOMEM;
 			break;
 		}
-
 		len = uio->uio_iov->iov_len;
 
 		cuse_lock();
@@ -1602,7 +1618,6 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 			error = ENOMEM;
 			break;
 		}
-
 		len = uio->uio_iov->iov_len;
 
 		cuse_lock();
@@ -1656,7 +1671,7 @@ cuse_client_ioctl(struct cdev *dev, unsigned long cmd,
 
 	cuse_cmd_lock(pccmd);
 
-	if (cmd & IOC_IN)
+	if (cmd & (IOC_IN | IOC_VOID))
 		memcpy(pcc->ioctl_buffer, data, len);
 
 	/*
@@ -1745,59 +1760,56 @@ cuse_client_poll(struct cdev *dev, int events, struct thread *td)
 	}
 	return (revents);
 
- pollnval:
+pollnval:
 	/* XXX many clients don't understand POLLNVAL */
 	return (events & (POLLHUP | POLLPRI | POLLIN |
 	    POLLRDNORM | POLLOUT | POLLWRNORM));
 }
 
 static int
-cuse_client_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot, vm_memattr_t *memattr)
+cuse_client_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot)
 {
-	uint32_t page_nr = offset / PAGE_SIZE;
+	uint32_t page_nr = *offset / PAGE_SIZE;
 	uint32_t alloc_nr = page_nr / CUSE_ALLOC_PAGES_MAX;
 	struct cuse_memory *mem;
-	struct cuse_server *pcs;
 	struct cuse_client *pcc;
-	uint8_t *ptr;
 	int error;
-
-	if (alloc_nr >= CUSE_ALLOC_UNIT_MAX)
-		return (ENOMEM);
 
 	error = cuse_client_get(&pcc);
 	if (error != 0)
-		pcs = NULL;
-	else
-		pcs = pcc->server;
+		return (error);
 
 	cuse_lock();
-	mem = &cuse_mem[alloc_nr];
-
-	/* try to enforce slight ownership */
-	if ((pcs != NULL) && (mem->owner != pcs)) {
-		cuse_unlock();
-		return (EINVAL);
+	/* lookup memory structure */
+	TAILQ_FOREACH(mem, &pcc->server->hmem, entry) {
+		if (mem->alloc_nr == alloc_nr)
+			break;
 	}
-	if (mem->virtaddr == NULL) {
+	if (mem == NULL) {
 		cuse_unlock();
 		return (ENOMEM);
 	}
-	if (mem->virtaddr == NBUSY) {
-		cuse_unlock();
-		return (ENOMEM);
-	}
+	/* verify page offset */
 	page_nr %= CUSE_ALLOC_PAGES_MAX;
-
 	if (page_nr >= mem->page_count) {
 		cuse_unlock();
 		return (ENXIO);
 	}
-	ptr = mem->virtaddr + (page_nr * PAGE_SIZE);
+	/* verify mmap size */
+	if ((size % PAGE_SIZE) != 0 || (size < PAGE_SIZE) ||
+	    (size > ((mem->page_count - page_nr) * PAGE_SIZE))) {
+		cuse_unlock();
+		return (EINVAL);
+	}
+	vm_object_reference(mem->object);
+	*object = mem->object;
 	cuse_unlock();
 
-	*paddr = vtophys(ptr);
+	/* set new VM object offset to use */
+	*offset = page_nr * PAGE_SIZE;
 
+	/* success */
 	return (0);
 }
 

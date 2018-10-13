@@ -18,17 +18,19 @@
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/CommentDiagnostic.h"
 #include "clang/Analysis/AnalysisDiagnostic.h"
+#include "clang/CrossTU/CrossTUDiagnostic.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Serialization/SerializationDiagnostic.h"
+#include "clang/Tooling/Refactoring/RefactoringDiagnostic.h"
 
 namespace clang {
 template <size_t SizeOfStr, typename FieldType>
 class StringSizerHelper {
-  char FIELD_TOO_SMALL[SizeOfStr <= FieldType(~0U) ? 1 : -1];
+  static_assert(SizeOfStr <= FieldType(~0U), "Field too small!");
 public:
   enum { Size = SizeOfStr };
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "qcom-apq8064-v2.0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
@@ -9,6 +10,11 @@
 	aliases {
 		serial0 = &gsbi7_serial;
 		serial1 = &gsbi6_serial;
+		i2c0 = &gsbi1_i2c;
+		i2c1 = &gsbi2_i2c;
+		i2c2 = &gsbi3_i2c;
+		i2c3 = &gsbi4_i2c;
+		spi0 = &gsbi5_spi;
 	};
 
 	chosen {
@@ -35,6 +41,17 @@
 			label = "apq8064:green:user1";
 			gpios = <&pm8921_gpio 18 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+		};
+	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
 		};
 	};
 
@@ -157,7 +174,16 @@
 		gsbi3: gsbi@16200000 {
 			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C>;
-			i2c3: i2c@16280000 {
+			i2c@16280000 {
+				status = "okay";
+			};
+		};
+
+		gsbi@16300000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+			/* CAM I2C MIPI-CSI connector */
+			i2c@16380000 {
 				status = "okay";
 			};
 		};
@@ -175,6 +201,16 @@
 					reg = <0x52>;
 					pagesize = <32>;
 				};
+			};
+		};
+
+		gsbi@1a200000 {
+			qcom,mode = <GSBI_PROT_SPI>;
+			status = "okay";
+			spi4: spi@1a280000 {
+				status = "okay";
+				num-cs = <1>;
+				cs-gpios = <&tlmm_pinmux 53 0>;
 			};
 		};
 
@@ -209,42 +245,37 @@
 		};
 
 		/* OTG */
-		usb1_phy: phy@12500000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l4>;
-		};
-
-		usb3_phy: phy@12520000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l23>;
-		};
-
-		usb4_phy: phy@12530000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l23>;
-		};
-
-		gadget1: gadget@12500000 {
+		usb@12500000 {
 			status = "okay";
+			dr_mode = "otg";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l4>;
+				};
+			};
 		};
 
-		/* OTG */
-		usb1: usb@12500000 {
+		usb@12520000 {
 			status = "okay";
+			dr_mode = "host";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l23>;
+				};
+			};
 		};
 
-		usb3: usb@12520000 {
+		usb@12530000 {
 			status = "okay";
-		};
-
-		usb4: usb@12530000 {
-			status = "okay";
+			dr_mode = "host";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l23>;
+				};
+			};
 		};
 
 		pci@1b500000 {
@@ -303,6 +334,47 @@
 				vmmc-supply = <&ext_3p3v>;
 				vqmmc-supply = <&pm8921_lvs1>;
 				mmc-pwrseq = <&sdcc4_pwrseq>;
+			};
+		};
+
+		hdmi-tx@4a00000 {
+			status = "okay";
+
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+			hdmi-mux-supply = <&ext_3p3v>;
+
+			hpd-gpios = <&tlmm_pinmux 72 GPIO_ACTIVE_HIGH>;
+
+			ports {
+				port@0 {
+					endpoint {
+						remote-endpoint = <&mdp_dtv_out>;
+					};
+				};
+
+				port@1 {
+					endpoint {
+						remote-endpoint = <&hdmi_con>;
+					};
+				};
+			};
+		};
+
+		hdmi-phy@4a00400 {
+			status = "okay";
+
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+		};
+
+		mdp@5100000 {
+			status = "okay";
+
+			ports {
+				port@3 {
+					endpoint {
+						remote-endpoint = <&hdmi_in>;
+					};
+				};
 			};
 		};
 	};

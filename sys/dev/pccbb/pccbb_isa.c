@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2004 M. Warner Losh.
  * All rights reserved.
  *
@@ -75,11 +77,11 @@ static SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
 static int isa_intr_mask = EXCA_INT_MASK_ALLOWED;
 SYSCTL_INT(_hw_pcic, OID_AUTO, intr_mask, CTLFLAG_RDTUN, &isa_intr_mask, 0,
-    "Mask of allowable interrupts for this laptop.  The default is generally\n\
-correct, but some laptops do not route all the IRQ pins to the bridge to\n\
-save wires.  Sometimes you need a more restrictive mask because some of the\n\
-hardware in your laptop may not have a driver so its IRQ might not be\n\
-allocated.");
+    "Mask of allowable interrupts for this laptop.  The default is generally"
+    " correct, but some laptops do not route all the IRQ pins to the bridge to"
+    " save wires.  Sometimes you need a more restrictive mask because some of"
+    " the hardware in your laptop may not have a driver so its IRQ might not be"
+    " allocated.");
 
 /*
  * CL-PD6722's VSENSE method
@@ -90,13 +92,13 @@ allocated.");
 int pcic_pd6722_vsense = 1;
 SYSCTL_INT(_hw_pcic, OID_AUTO, pd6722_vsense, CTLFLAG_RDTUN,
     &pcic_pd6722_vsense, 1,
-    "Select CL-PD6722's VSENSE method.  VSENSE is used to determine the\n\
-volatage of inserted cards.  The CL-PD6722 has two methods to determine the\n\
-voltage of the card.  0 means assume a 5.0V card and do not check.  1 means\n\
-use the same method that the CL-PD6710 uses (default).  2 means use the\n\
-same method as the CL-PD6729.  2 is documented in the datasheet as being\n\
-the correct way, but 1 seems to give better results on more laptops.");
-
+    "Select CL-PD6722's VSENSE method.  VSENSE is used to determine the"
+    " voltage of inserted cards.  The CL-PD6722 has two methods to determine"
+    " the voltage of the card.  0 means assume a 5.0V card and do not check.  1"
+    " means use the same method that the CL-PD6710 uses (default).  2 means use"
+    " the same method as the CL-PD6729.  2 is documented in the datasheet as"
+    " being the correct way, but 1 seems to give better results on more"
+    " laptops."); 
 /*****************************************************************************
  * End of configurable parameters.
  *****************************************************************************/
@@ -104,7 +106,6 @@ the correct way, but 1 seems to give better results on more laptops.");
 #define	DPRINTF(x) do { if (cbb_debug) printf x; } while (0)
 #define	DEVPRINTF(x) do { if (cbb_debug) device_printf x; } while (0)
 
-/* XXX Not sure that PNP0E03 should be claimed, except maybe on pc98 */
 static struct isa_pnp_id pcic_ids[] = {
 	{EXCA_PNP_ACTIONTEC,		NULL},		/* AEI0218 */
 	{EXCA_PNP_IBM3765,		NULL},		/* IBM3765 */
@@ -113,8 +114,6 @@ static struct isa_pnp_id pcic_ids[] = {
 	{EXCA_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
 	{EXCA_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
 	{EXCA_PNP_SCM_SWAPBOX,		NULL},		/* SCM0469 */
-	{EXCA_NEC_PC9801_102,		NULL},		/* NEC8091 */
-	{EXCA_NEC_PC9821RA_E01,         NULL},          /* NEC8121 */
 	{0}
 };
 
@@ -255,3 +254,4 @@ static driver_t cbb_isa_driver = {
 
 DRIVER_MODULE(cbb, isa, cbb_isa_driver, cbb_devclass, 0, 0);
 MODULE_DEPEND(cbb, exca, 1, 1, 1);
+ISA_PNP_INFO(pcic_ids);

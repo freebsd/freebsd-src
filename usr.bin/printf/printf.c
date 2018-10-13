@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright 2018 Staysail Systems, Inc. <info@staysail.tech>
  * Copyright 2014 Garrett D'Amore <garrett@damore.org>
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1989, 1993
@@ -12,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,20 +73,15 @@ static const char rcsid[] =
 #endif
 
 #define	PF(f, func) do {						\
-	char *b = NULL;							\
 	if (havewidth)							\
 		if (haveprec)						\
-			(void)asprintf(&b, f, fieldwidth, precision, func); \
+			(void)printf(f, fieldwidth, precision, func);	\
 		else							\
-			(void)asprintf(&b, f, fieldwidth, func);	\
+			(void)printf(f, fieldwidth, func);		\
 	else if (haveprec)						\
-		(void)asprintf(&b, f, precision, func);			\
+		(void)printf(f, precision, func);			\
 	else								\
-		(void)asprintf(&b, f, func);				\
-	if (b) {							\
-		(void)fputs(b, stdout);					\
-		free(b);						\
-	}								\
+		(void)printf(f, func);					\
 } while (0)
 
 static int	 asciicode(void);
@@ -378,13 +376,16 @@ printf_doformat(char *fmt, int *rval)
 		char *p;
 		int getout;
 
-		p = strdup(getstr());
-		if (p == NULL) {
+		/* Convert "b" to "s" for output. */
+		start[strlen(start) - 1] = 's';
+		if ((p = strdup(getstr())) == NULL) {
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
-		fputs(p, stdout);
+		PF(start, p);
+		/* Restore format for next loop. */
+
 		free(p);
 		if (getout)
 			return (end_fmt);
@@ -394,7 +395,8 @@ printf_doformat(char *fmt, int *rval)
 		char p;
 
 		p = getchr();
-		PF(start, p);
+		if (p != '\0')
+			PF(start, p);
 		break;
 	}
 	case 's': {

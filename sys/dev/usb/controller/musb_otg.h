@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -385,6 +387,12 @@ struct musbotg_flags {
 	uint8_t	d_pulled_up:1;
 };
 
+struct musb_otg_ep_cfg {
+	int ep_end;
+	int ep_fifosz_shift;
+	uint8_t ep_fifosz_reg;
+};
+
 struct musbotg_softc {
 	struct usb_bus sc_bus;
 	union musbotg_hub_temp sc_hub_temp;
@@ -421,6 +429,7 @@ struct musbotg_softc {
 	uint8_t	sc_id;
 	uint8_t	sc_mode;
 	void *sc_platform_data;
+	const struct musb_otg_ep_cfg *sc_ep_cfg;
 };
 
 /* prototypes */

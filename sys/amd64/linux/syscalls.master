@@ -11,18 +11,20 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL
-;	name	psuedo-prototype of syscall routine
+;	type	one of STD, NOPROTO, UNIMPL
+;	name	pseudo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
 ;	alttag	name of args struct tag if different from [o]`name'"_args"
 ;	altrtyp	return type if not int (bogus - syscalls always return int)
-;		for UNIMPL/OBSOL, name continues with comments
+;		for UNIMPL, name continues with comments
 
 ; types:
 ;	STD	always included
-;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
+;	NOPROTO	same as STD except do not create structure or
+;		function prototype in sys/sysproto.h.  Does add a
+;		definition to syscall.h besides adding a sysent.
 
 #include <sys/param.h>
 #include <sys/sysent.h>
@@ -56,8 +58,8 @@
 9	AUE_MMAP	STD	{ int linux_mmap2(l_ulong addr, l_ulong len, \
 				    l_ulong prot, l_ulong flags, l_ulong fd, \
 				    l_ulong pgoff); }
-10	AUE_MPROTECT	STD	{ int linux_mprotect(caddr_t addr, int len, \
-				    int prot); }
+10	AUE_MPROTECT	STD	{ int linux_mprotect(caddr_t addr, l_int len, \
+				    l_int prot); }
 11	AUE_MUNMAP	NOPROTO	{ int munmap(caddr_t addr, int len); }
 12	AUE_NULL	STD	{ int linux_brk(l_ulong dsend); }
 13	AUE_NULL	STD	{ int linux_rt_sigaction(l_int sig, \
@@ -74,7 +76,7 @@
 				    l_size_t nbyte, l_loff_t offset); }
 18	AUE_PWRITE	STD	{ int linux_pwrite(l_uint fd, char *buf, \
 				    l_size_t nbyte, l_loff_t offset); }
-19	AUE_READV	NOPROTO { int readv(int fd, struct iovec *iovp, \
+19	AUE_READV	NOPROTO	{ int readv(int fd, struct iovec *iovp, \
 				    u_int iovcnt); }
 20	AUE_WRITEV	NOPROTO	{ int writev(int fd, struct iovec *iovp, \
 				    u_int iovcnt); }
@@ -113,7 +115,7 @@
 				    struct l_itimerval *itv, \
 				    struct l_itimerval *oitv); }
 39	AUE_GETPID	STD	{ int linux_getpid(void); }
-40	AUE_SENDFILE	STD	{ int linux_sendfile(int out, int in, \
+40	AUE_SENDFILE	STD	{ int linux_sendfile(l_int out, l_int in, \
 				    l_long *offset, l_size_t count); }
 41	AUE_SOCKET	STD	{ int linux_socket(l_int domain, l_int type, \
 				    l_int protocol); }
@@ -148,12 +150,12 @@
 				    l_int optname, l_uintptr_t optval, \
 				    l_uintptr_t optlen); }
 56	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack, \
-				    void *parent_tidptr, void * child_tidptr, void *tls ); }
+				    void *parent_tidptr, void *child_tidptr, void *tls); }
 57	AUE_FORK	STD	{ int linux_fork(void); }
 58	AUE_VFORK	STD	{ int linux_vfork(void); }
 59	AUE_EXECVE	STD	{ int linux_execve(char *path, char **argp, \
 				    char **envp); }
-60	AUE_EXIT	STD	{ void linux_exit(int rval); }
+60	AUE_EXIT	STD	{ void linux_exit(l_int rval); }
 61	AUE_WAIT4	STD	{ int linux_wait4(l_pid_t pid, \
 				    l_int *status, l_int options, \
 				    struct rusage *rusage); }
@@ -217,7 +219,7 @@
 99	AUE_NULL	STD	{ int linux_sysinfo(struct l_sysinfo *info); }
 100	AUE_NULL	STD	{ int linux_times(struct l_times_argv *buf); }
 101	AUE_PTRACE	STD	{ int linux_ptrace(l_long req, l_long pid, \
-				    l_long addr, l_long data); }
+				    l_ulong addr, l_ulong data); }
 102	AUE_GETUID	STD	{ int linux_getuid(void); }
 103	AUE_NULL	STD	{ int linux_syslog(l_int type, char *buf, \
 				    l_int len); }
@@ -270,7 +272,7 @@
 133	AUE_MKNOD	STD	{ int linux_mknod(char *path, l_int mode, \
 				    l_dev_t dev); }
 134	AUE_USELIB	UNIMPL	uselib
-135	AUE_PERSONALITY	STD	{ int linux_personality(l_ulong per); }
+135	AUE_PERSONALITY	STD	{ int linux_personality(l_uint per); }
 136	AUE_NULL	STD	{ int linux_ustat(l_dev_t dev, \
 				    struct l_ustat *ubuf); }
 137	AUE_STATFS	STD	{ int linux_statfs(char *path, \
@@ -279,7 +281,7 @@
 				    struct l_statfs_buf *buf); }
 139	AUE_NULL	STD	{ int linux_sysfs(l_int option, \
 				    l_ulong arg1, l_ulong arg2); }
-140	AUE_GETPRIORITY	STD	{ int linux_getpriority(int which, int who); }
+140	AUE_GETPRIORITY	STD	{ int linux_getpriority(l_int which, l_int who); }
 141	AUE_SETPRIORITY	NOPROTO	{ int setpriority(int which, int who, \
 				    int prio); }
 142	AUE_SCHED_SETPARAM	STD	{ int linux_sched_setparam(l_pid_t pid, \
@@ -331,18 +333,18 @@
 				    l_int len); }
 172	AUE_NULL	STD	{ int linux_iopl(l_uint level); }
 173	AUE_NULL	UNIMPL	ioperm
-174	AUE_NULL	STD	{ int linux_create_module(void); }
+174	AUE_NULL	UNIMPL	create_module
 175	AUE_NULL	STD	{ int linux_init_module(void); }
 176	AUE_NULL	STD	{ int linux_delete_module(void); }
-177	AUE_NULL	STD	{ int linux_get_kernel_syms(void); }
-178	AUE_NULL	STD	{ int linux_query_module(void); }
+177	AUE_NULL	UNIMPL	get_kernel_syms
+178	AUE_NULL	UNIMPL	query_module
 179	AUE_QUOTACTL	STD	{ int linux_quotactl(void); }
-180	AUE_NULL	STD	{ int linux_nfsservctl(void); }
-181	AUE_GETPMSG	STD	{ int linux_getpmsg(void); }
-182	AUE_PUTPMSG	STD	{ int linux_putpmsg(void); }
-183	AUE_NULL	STD	{ int linux_afs_syscall(void); }
-184	AUE_NULL	STD	{ int linux_tuxcall(void); }
-185	AUE_NULL	STD	{ int linux_security(void); }
+180	AUE_NULL	UNIMPL	nfsservctl
+181	AUE_GETPMSG	UNIMPL	getpmsg
+182	AUE_PUTPMSG	UNIMPL	putpmsg
+183	AUE_NULL	UNIMPL	afs_syscall
+184	AUE_NULL	UNIMPL	tuxcall
+185	AUE_NULL	UNIMPL	security
 186	AUE_NULL	STD	{ int linux_gettid(void); }
 187	AUE_NULL	UNIMPL	linux_readahead
 188	AUE_NULL	STD	{ int linux_setxattr(void); }
@@ -357,33 +359,33 @@
 197	AUE_NULL	STD	{ int linux_removexattr(void); }
 198	AUE_NULL	STD	{ int linux_lremovexattr(void); }
 199	AUE_NULL	STD	{ int linux_fremovexattr(void); }
-200	AUE_NULL	STD	{ int linux_tkill(int tid, int sig); }
+200	AUE_NULL	STD	{ int linux_tkill(l_int tid, l_int sig); }
 201	AUE_NULL	STD	{ int linux_time(l_time_t *tm); }
-202	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, int val, \
-				    struct l_timespec *timeout, void *uaddr2, int val3); }
+202	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, l_int op, l_int val, \
+				    struct l_timespec *timeout, void *uaddr2, l_int val3); }
 203	AUE_NULL	STD	{ int linux_sched_setaffinity(l_pid_t pid, l_uint len, \
 				    l_ulong *user_mask_ptr); }
 204	AUE_NULL	STD	{ int linux_sched_getaffinity(l_pid_t pid, l_uint len, \
 				    l_ulong *user_mask_ptr); }
-205	AUE_NULL	STD	{ int linux_set_thread_area(void); }
+205	AUE_NULL	UNIMPL	set_thread_area
 206	AUE_NULL	UNIMPL	linux_io_setup
 207	AUE_NULL	UNIMPL	linux_io_destroy
 208	AUE_NULL	UNIMPL	linux_io_getevents
-209	AUE_NULL	UNIMPL	inux_io_submit
+209	AUE_NULL	UNIMPL	linux_io_submit
 210	AUE_NULL	UNIMPL	linux_io_cancel
-211	AUE_NULL	UNIMPL	linux_get_thread_area
+211	AUE_NULL	UNIMPL	get_thread_area
 212	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
 213	AUE_NULL	STD	{ int linux_epoll_create(l_int size); }
-214	AUE_NULL	STD	{ int linux_epoll_ctl_old(void); }
-215	AUE_NULL	STD	{ int linux_epoll_wait_old(void); }
+214	AUE_NULL	UNIMPL	epoll_ctl_old
+215	AUE_NULL	UNIMPL	epoll_wait_old
 216	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
 217	AUE_GETDIRENTRIES	STD { int linux_getdents64(l_uint fd, \
 				    void *dirent, l_uint count); }
-218	AUE_NULL	STD	{ int linux_set_tid_address(int *tidptr); }
+218	AUE_NULL	STD	{ int linux_set_tid_address(l_int *tidptr); }
 219	AUE_NULL	UNIMPL	restart_syscall
 220	AUE_NULL	STD	{ int linux_semtimedop(void); }
-221	AUE_NULL	STD	{ int linux_fadvise64(int fd, l_loff_t offset, \
-				    l_size_t len, int advice); }
+221	AUE_NULL	STD	{ int linux_fadvise64(l_int fd, l_loff_t offset, \
+				    l_size_t len, l_int advice); }
 222	AUE_NULL	STD	{ int linux_timer_create(clockid_t clock_id, \
 				    struct sigevent *evp, l_timer_t *timerid); }
 223	AUE_NULL	STD	{ int linux_timer_settime(l_timer_t timerid, l_int flags, \
@@ -396,12 +398,12 @@
 229	AUE_NULL	STD	{ int linux_clock_getres(clockid_t which, struct l_timespec *tp); }
 230	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 				    struct l_timespec *rqtp, struct l_timespec *rmtp); }
-231	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
+231	AUE_EXIT	STD	{ int linux_exit_group(l_int error_code); }
 232	AUE_NULL	STD	{ int linux_epoll_wait(l_int epfd, struct epoll_event *events, \
 					l_int maxevents, l_int timeout); }
 233	AUE_NULL	STD	{ int linux_epoll_ctl(l_int epfd, l_int op, l_int fd, \
 					struct epoll_event *event); }
-234	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
+234	AUE_NULL	STD	{ int linux_tgkill(l_int tgid, l_int pid, l_int sig); }
 235	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 				    struct l_timeval *tptr); }
 236	AUE_NULL	UNIMPL	vserver
@@ -415,8 +417,8 @@
 244	AUE_NULL	STD	{ int linux_mq_notify(void); }
 245	AUE_NULL	STD	{ int linux_mq_getsetattr(void); }
 246	AUE_NULL	STD	{ int linux_kexec_load(void); }
-247	AUE_WAIT6	STD	{ int linux_waitid(int idtype, l_pid_t id, \
-				    l_siginfo_t *info, int options, \
+247	AUE_WAIT6	STD	{ int linux_waitid(l_int idtype, l_pid_t id, \
+				    l_siginfo_t *info, l_int options, \
 				    struct rusage *rusage); }
 248	AUE_NULL	STD	{ int linux_add_key(void); }
 249	AUE_NULL	STD	{ int linux_request_key(void); }
@@ -469,47 +471,131 @@
 278	AUE_NULL	STD	{ int linux_vmsplice(void); }
 279	AUE_NULL	STD	{ int linux_move_pages(void); }
 280	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
-					const struct l_timespec *times, l_int flags); }
-281     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
-                                        l_int maxevents, l_int timeout, l_sigset_t *mask); }
+				    const struct l_timespec *times, l_int flags); }
+281	AUE_NULL	STD	{ int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
+				    l_int maxevents, l_int timeout, l_sigset_t *mask, \
+				    l_size_t sigsetsize); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
-283	AUE_NULL	STD	{ int linux_timerfd(void); }
+283	AUE_NULL	STD	{ int linux_timerfd_create(l_int clockid, l_int flags); }
 284	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 285	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
 				    l_loff_t offset, l_loff_t len); }
-286	AUE_NULL	STD	{ int linux_timerfd_settime(void); }
-287	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
+286	AUE_NULL	STD	{ int linux_timerfd_settime(l_int fd, l_int flags,	\
+				    const struct l_itimerspec *new_value,		\
+				    struct l_itimerspec *old_value); }
+287	AUE_NULL	STD	{ int linux_timerfd_gettime(l_int fd,	\
+				    struct l_itimerspec *old_value); }
 288	AUE_ACCEPT	STD	{ int linux_accept4(l_int s, l_uintptr_t addr, \
 				    l_uintptr_t namelen, int flags); }
+; Linux 2.6.27:
 289	AUE_NULL	STD	{ int linux_signalfd4(void); }
 290	AUE_NULL	STD	{ int linux_eventfd2(l_uint initval, l_int flags); }
 291	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
 292	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
 				    l_int newfd, l_int flags); }
 293	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
-294	AUE_NULL	STD	{ int linux_inotify_init1(void); }
-295	AUE_NULL	STD	{ int linux_preadv(void); }
-296	AUE_NULL	STD	{ int linux_pwritev(void); }
-297	AUE_NULL	STD	{ int linux_rt_tsigqueueinfo(void); }
+294	AUE_NULL	STD	{ int linux_inotify_init1(l_int flags); }
+; Linux 2.6.30:
+295	AUE_NULL	STD	{ int linux_preadv(l_ulong fd,			\
+				    struct iovec *vec, l_ulong vlen,		\
+				    l_ulong pos_l, l_ulong pos_h); }
+296	AUE_NULL	STD	{ int linux_pwritev(l_ulong fd,			\
+				    struct iovec *vec, l_ulong vlen,		\
+				    l_ulong pos_l, l_ulong pos_h); }
+; Linux 2.6.31:
+297	AUE_NULL	STD	{ int linux_rt_tgsigqueueinfo(l_pid_t tgid,	\
+				    l_pid_t tid, l_int sig, l_siginfo_t *uinfo); }
 298	AUE_NULL	STD	{ int linux_perf_event_open(void); }
+; Linux 2.6.33:
 299	AUE_NULL	STD	{ int linux_recvmmsg(l_int s,			\
 				    struct l_mmsghdr *msg, l_uint vlen,		\
 				    l_uint flags, struct l_timespec *timeout); }
+; Linux 2.6.37:
 300	AUE_NULL	STD	{ int linux_fanotify_init(void); }
 301	AUE_NULL	STD	{ int linux_fanotify_mark(void); }
+; Linux 2.6.36:
 302	AUE_NULL	STD	{ int linux_prlimit64(l_pid_t pid, l_uint resource, \
 				    struct rlimit *new, struct rlimit *old); }
+; Linux 2.6.39 (glibc 2.14):
 303	AUE_NULL	STD	{ int linux_name_to_handle_at(void); }
 304	AUE_NULL	STD	{ int linux_open_by_handle_at(void); }
 305	AUE_NULL	STD	{ int linux_clock_adjtime(void); }
 306	AUE_SYNC	STD	{ int linux_syncfs(l_int fd); }
+; Linux 3.0 (glibc 2.14):
 307	AUE_NULL	STD	{ int linux_sendmmsg(l_int s,			\
 				    struct l_mmsghdr *msg, l_uint vlen,		\
 				    l_uint flags); }
-308	AUE_NULL	STD	{ int linux_setns(void); }
-309	AUE_NULL	STD	{ int linux_process_vm_readv(void); }
-310	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
-311	AUE_NULL	STD	{ int linux_kcmp(void); }
-312	AUE_NULL	STD	{ int linux_finit_module(void); }
+308	AUE_NULL	STD	{ int linux_setns(l_int fd, l_int nstype); }
+; Linux 2.6.19 (no glibc wrapper):
+309	AUE_NULL	STD	{ int linux_getcpu(l_uint *cpu, l_uint *node,	\
+				    void *cache); }
+; Linux 3.2 (glibc 2.15):
+310	AUE_NULL	STD	{ int linux_process_vm_readv(l_pid_t pid,	\
+				    const struct iovec *lvec, l_ulong liovcnt,	\
+				    const struct iovec *rvec, l_ulong riovcnt,	\
+				    l_ulong flags); }
+311	AUE_NULL	STD	{ int linux_process_vm_writev(l_pid_t pid,	\
+				    const struct iovec *lvec, l_ulong liovcnt,	\
+				    const struct iovec *rvec, l_ulong riovcnt,	\
+				    l_ulong flags); }
+; Linux 3.5 (no glibc wrapper):
+312	AUE_NULL	STD	{ int linux_kcmp(l_pid_t pid1, l_pid_t pid2,	\
+				    l_int type, l_ulong idx1, l_ulong idx); }
+; Linux 3.8 (no glibc wrapper):
+313	AUE_NULL	STD	{ int linux_finit_module(l_int fd,		\
+				    const char *uargs, l_int flags); }
+; Linux 3.14:
+314	AUE_NULL	STD	{ int linux_sched_setattr(l_pid_t pid,		\
+				    void *attr, l_uint flags); }
+315	AUE_NULL	STD	{ int linux_sched_getattr(l_pid_t pid,		\
+				    void *attr, l_uint size, l_uint flags); }
+; Linux 3.15:
+316	AUE_NULL	STD	{ int linux_renameat2(l_int oldfd,		\
+				    const char *oldname, l_int newfd,		\
+				    const char *newname, unsigned int flags); }
+; Linux 3.17:
+317	AUE_NULL	STD	{ int linux_seccomp(l_uint op, l_uint flags,	\
+				    const char *uargs); }
+318	AUE_NULL	STD	{ int linux_getrandom(char *buf,		\
+				    l_size_t count, l_uint flags); }
+319	AUE_NULL	STD	{ int linux_memfd_create(const char *uname_ptr,	\
+				    l_uint flags); }
+320	AUE_NULL	STD	{ int linux_kexec_file_load(l_int kernel_fd,	\
+				    l_int initrd_fd, l_ulong cmdline_len,	\
+				    const char *cmdline_ptr, l_ulong flags); }
+; Linux 3.18:
+321	AUE_NULL	STD	{ int linux_bpf(l_int cmd, void *attr,		\
+				    l_uint size); }
+; Linux 3.19:
+322	AUE_NULL	STD	{ int linux_execveat(l_int dfd,			\
+				    const char *filename, const char **argv,	\
+				    const char **envp, l_int flags); }
+; Linux 4.2:
+323	AUE_NULL	STD	{ int linux_userfaultfd(l_int flags); }
+; Linux 4.3:
+324	AUE_NULL	STD	{ int linux_membarrier(l_int cmd, l_int flags); }
+; Linux 4.4:
+325	AUE_NULL	STD	{ int linux_mlock2(l_ulong start, l_size_t len,	\
+				    l_int flags); }
+; Linux 4.5:
+326	AUE_NULL	STD	{ int linux_copy_file_range(l_int fd_in,	\
+				    l_loff_t *off_in, l_int fd_out,		\
+				    l_loff_t *off_out, l_size_t len,		\
+				    l_uint flags); }
+; Linux 4.6:
+327	AUE_NULL	STD	{ int linux_preadv2(l_ulong fd,			\
+				    const struct iovec *vec, l_ulong vlen,	\
+				    l_ulong pos_l, l_ulong pos_h, l_int flags); }
+328	AUE_NULL	STD	{ int linux_pwritev2(l_ulong fd,		\
+				    const struct iovec *vec, l_ulong vlen,	\
+				    l_ulong pos_l, l_ulong pos_h, l_int flags); }
+; Linux 4.8:
+329	AUE_NULL	STD	{ int linux_pkey_mprotect(l_ulong start,	\
+				    l_size_t len, l_ulong prot, l_int pkey); }
+330	AUE_NULL	STD	{ int linux_pkey_alloc(l_ulong flags,		\
+				    l_ulong init_val); }
+331	AUE_NULL	STD	{ int linux_pkey_free(l_int pkey); }
+
 ; please, keep this line at the end.
-313	AUE_NULL	UNIMPL	nosys
+332	AUE_NULL	UNIMPL	nosys
+; vim: syntax=off

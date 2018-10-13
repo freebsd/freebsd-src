@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -42,20 +44,19 @@ struct sctp_queued_to_read *
 sctp_build_readq_entry(struct sctp_tcb *stcb,
     struct sctp_nets *net,
     uint32_t tsn, uint32_t ppid,
-    uint32_t context, uint16_t stream_no,
-    uint32_t stream_seq, uint8_t flags,
+    uint32_t context, uint16_t sid,
+    uint32_t mid, uint8_t flags,
     struct mbuf *dm);
 
 
-#define sctp_build_readq_entry_mac(_ctl, in_it, context, net, tsn, ppid, stream_no, stream_seq, flags, dm, tfsn, msgid) do { \
+#define sctp_build_readq_entry_mac(_ctl, in_it, context, net, tsn, ppid, sid, flags, dm, tfsn, mid) do { \
 	if (_ctl) { \
 		atomic_add_int(&((net)->ref_count), 1); \
 		memset(_ctl, 0, sizeof(struct sctp_queued_to_read)); \
-		(_ctl)->sinfo_stream = stream_no; \
-		(_ctl)->sinfo_ssn = stream_seq; \
+		(_ctl)->sinfo_stream = sid; \
 		TAILQ_INIT(&_ctl->reasm); \
 		(_ctl)->top_fsn = tfsn; \
-		(_ctl)->msg_id = msgid; \
+		(_ctl)->mid = mid; \
 		(_ctl)->sinfo_flags = (flags << 8); \
 		(_ctl)->sinfo_ppid = ppid; \
 		(_ctl)->sinfo_context = context; \
@@ -80,7 +81,7 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp,
 void sctp_set_rwnd(struct sctp_tcb *, struct sctp_association *);
 
 uint32_t
-sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc);
+         sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc);
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
@@ -98,8 +99,7 @@ void
 sctp_handle_forward_tsn(struct sctp_tcb *,
     struct sctp_forward_tsn_chunk *, int *, struct mbuf *, int);
 
-struct sctp_tmit_chunk *
-                sctp_try_advance_peer_ack_point(struct sctp_tcb *, struct sctp_association *);
+struct sctp_tmit_chunk *sctp_try_advance_peer_ack_point(struct sctp_tcb *, struct sctp_association *);
 
 void sctp_service_queues(struct sctp_tcb *, struct sctp_association *);
 

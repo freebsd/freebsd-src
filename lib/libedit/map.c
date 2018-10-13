@@ -1,4 +1,4 @@
-/*	$NetBSD: map.c,v 1.35 2015/05/14 10:44:15 christos Exp $	*/
+/*	$NetBSD: map.c,v 1.43 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: map.c,v 1.35 2015/05/14 10:44:15 christos Exp $");
+__RCSID("$NetBSD: map.c,v 1.43 2016/02/17 19:47:49 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -46,11 +46,16 @@ __FBSDID("$FreeBSD$");
 /*
  * map.c: Editor function definitions
  */
+#include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "el.h"
+#include "help.h"
+#include "parse.h"
 
 private void	map_print_key(EditLine *, el_action_t *, const Char *);
-private void	map_print_some_keys(EditLine *, el_action_t *, Int, Int);
+private void	map_print_some_keys(EditLine *, el_action_t *, wint_t, wint_t);
 private void	map_print_all_keys(EditLine *);
 private void	map_init_nls(EditLine *);
 private void	map_init_meta(EditLine *);
@@ -365,7 +370,7 @@ private const el_action_t  el_map_vi_insert[] = {
 				 * NOTE: These mappings do NOT Correspond well
 				 * to the KSH VI editing assignments.
 				 * On the other and they are convenient and
-				 * many people have have gotten used to them.
+				 * many people have gotten used to them.
 				 */
 	/*   0 */	ED_UNASSIGNED,		/* ^@ */
 	/*   1 */	ED_MOVE_TO_BEG,		/* ^A */
@@ -1144,19 +1149,19 @@ map_print_key(EditLine *el, el_action_t *map, const Char *in)
  *	Print keys from first to last
  */
 private void
-map_print_some_keys(EditLine *el, el_action_t *map, Int first, Int last)
+map_print_some_keys(EditLine *el, el_action_t *map, wint_t first, wint_t last)
 {
 	el_bindings_t *bp, *ep;
 	Char firstbuf[2], lastbuf[2];
 	char unparsbuf[EL_BUFSIZ], extrabuf[EL_BUFSIZ];
 
-	firstbuf[0] = first;
+	firstbuf[0] = (Char)first;
 	firstbuf[1] = 0;
-	lastbuf[0] = last;
+	lastbuf[0] = (Char)last;
 	lastbuf[1] = 0;
 	if (map[first] == ED_UNASSIGNED) {
 		if (first == last) {
-			(void) keymacro__decode_str(firstbuf, unparsbuf, 
+			(void) keymacro__decode_str(firstbuf, unparsbuf,
 			    sizeof(unparsbuf), STRQQ);
 			(void) fprintf(el->el_outfile,
 			    "%-15s->  is undefined\n", unparsbuf);
@@ -1167,14 +1172,14 @@ map_print_some_keys(EditLine *el, el_action_t *map, Int first, Int last)
 	for (bp = el->el_map.help; bp < ep; bp++) {
 		if (bp->func == map[first]) {
 			if (first == last) {
-				(void) keymacro__decode_str(firstbuf, unparsbuf, 
+				(void) keymacro__decode_str(firstbuf, unparsbuf,
 				    sizeof(unparsbuf), STRQQ);
 				(void) fprintf(el->el_outfile, "%-15s->  " FSTR "\n",
 				    unparsbuf, bp->name);
 			} else {
-				(void) keymacro__decode_str(firstbuf, unparsbuf, 
+				(void) keymacro__decode_str(firstbuf, unparsbuf,
 				    sizeof(unparsbuf), STRQQ);
-				(void) keymacro__decode_str(lastbuf, extrabuf, 
+				(void) keymacro__decode_str(lastbuf, extrabuf,
 				    sizeof(extrabuf), STRQQ);
 				(void) fprintf(el->el_outfile,
 				    "%-4s to %-7s->  " FSTR "\n",
@@ -1185,14 +1190,14 @@ map_print_some_keys(EditLine *el, el_action_t *map, Int first, Int last)
 	}
 #ifdef MAP_DEBUG
 	if (map == el->el_map.key) {
-		(void) keymacro__decode_str(firstbuf, unparsbuf, 
+		(void) keymacro__decode_str(firstbuf, unparsbuf,
 		    sizeof(unparsbuf), STRQQ);
 		(void) fprintf(el->el_outfile,
 		    "BUG!!! %s isn't bound to anything.\n", unparsbuf);
 		(void) fprintf(el->el_outfile, "el->el_map.key[%d] == %d\n",
 		    first, el->el_map.key[first]);
 	} else {
-		(void) keymacro__decode_str(firstbuf, unparsbuf, 
+		(void) keymacro__decode_str(firstbuf, unparsbuf,
 		    sizeof(unparsbuf), STRQQ);
 		(void) fprintf(el->el_outfile,
 		    "BUG!!! %s isn't bound to anything.\n", unparsbuf);
@@ -1302,8 +1307,8 @@ map_bind(EditLine *el, int argc, const Char **argv)
 				return 0;
 			default:
 				(void) fprintf(el->el_errfile,
-				    "" FSTR ": Invalid switch `" FCHAR "'.\n",
-				    argv[0], (Int)p[1]);
+				    "" FSTR ": Invalid switch `%lc'.\n",
+				    argv[0], (wint_t)p[1]);
 			}
 		else
 			break;

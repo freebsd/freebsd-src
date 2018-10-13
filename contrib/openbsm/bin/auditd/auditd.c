@@ -415,27 +415,35 @@ close_all(void)
 static int
 register_daemon(void)
 {
+	struct sigaction action;
 	FILE * pidfile;
 	int fd;
 	pid_t pid;
 
 	/* Set up the signal hander. */
-	if (signal(SIGTERM, auditd_relay_signal) == SIG_ERR) {
+	action.sa_handler = auditd_relay_signal;
+	/*
+	 * sa_flags must not include SA_RESTART, so that read(2) will be
+	 * interruptible in auditd_wait_for_events
+	 */
+	action.sa_flags = 0;
+	sigemptyset(&action.sa_mask);
+	if (sigaction(SIGTERM, &action, NULL) != 0) {
 		auditd_log_err(
 		    "Could not set signal handler for SIGTERM");
 		fail_exit();
 	}
-	if (signal(SIGCHLD, auditd_relay_signal) == SIG_ERR) {
+	if (sigaction(SIGCHLD, &action, NULL) != 0) {
 		auditd_log_err(
 		    "Could not set signal handler for SIGCHLD");
 		fail_exit();
 	}
-	if (signal(SIGHUP, auditd_relay_signal) == SIG_ERR) {
+	if (sigaction(SIGHUP, &action, NULL) != 0) {
 		auditd_log_err(
 		    "Could not set signal handler for SIGHUP");
 		fail_exit();
 	}
-	if (signal(SIGALRM, auditd_relay_signal) == SIG_ERR) {
+	if (sigaction(SIGALRM, &action, NULL) != 0) {
 		auditd_log_err(
 		    "Could not set signal handler for SIGALRM");
 		fail_exit();
@@ -698,6 +706,17 @@ auditd_config_controls(void)
 		ret = -1;
 	} else
 		auditd_log_debug("Set audit trail size in kernel.");
+
+	/*
+	 * Configure audit trail queue size in kernel.
+	 */
+	err = auditd_set_qsize();
+	if (err) {
+		auditd_log_err("audit_set_qsize() %s: %m",
+		    auditd_strerror(err));
+		ret = -1;
+	} else
+		auditd_log_debug("Set audit trail queue in kernel.");
 
 	/*
 	 * Configure audit trail volume minimum free percentage of blocks in

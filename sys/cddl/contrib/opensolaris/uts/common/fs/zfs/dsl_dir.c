@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
@@ -132,8 +132,13 @@ extern inline dsl_dir_phys_t *dsl_dir_phys(dsl_dir_t *dd);
 
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
 
+typedef struct ddulrt_arg {
+	dsl_dir_t	*ddulrta_dd;
+	uint64_t	ddlrta_txg;
+} ddulrt_arg_t;
+
 static void
-dsl_dir_evict(void *dbu)
+dsl_dir_evict_async(void *dbu)
 {
 	dsl_dir_t *dd = dbu;
 	dsl_pool_t *dp = dd->dd_pool;
@@ -240,7 +245,8 @@ dsl_dir_hold_obj(dsl_pool_t *dp, uint64_t ddobj,
 			dmu_buf_rele(origin_bonus, FTAG);
 		}
 
-		dmu_buf_init_user(&dd->dd_dbu, dsl_dir_evict, &dd->dd_dbuf);
+		dmu_buf_init_user(&dd->dd_dbu, NULL, dsl_dir_evict_async,
+		    &dd->dd_dbuf);
 		winner = dmu_buf_set_user_ie(dbuf, &dd->dd_dbu);
 		if (winner != NULL) {
 			if (dd->dd_parent)
@@ -303,13 +309,14 @@ dsl_dir_async_rele(dsl_dir_t *dd, void *tag)
 	dmu_buf_rele(dd->dd_dbuf, tag);
 }
 
-/* buf must be long enough (MAXNAMELEN + strlen(MOS_DIR_NAME) + 1 should do) */
+/* buf must be at least ZFS_MAX_DATASET_NAME_LEN bytes */
 void
 dsl_dir_name(dsl_dir_t *dd, char *buf)
 {
 	if (dd->dd_parent) {
 		dsl_dir_name(dd->dd_parent, buf);
-		(void) strcat(buf, "/");
+		VERIFY3U(strlcat(buf, "/", ZFS_MAX_DATASET_NAME_LEN), <,
+		    ZFS_MAX_DATASET_NAME_LEN);
 	} else {
 		buf[0] = '\0';
 	}
@@ -319,10 +326,12 @@ dsl_dir_name(dsl_dir_t *dd, char *buf)
 		 * dprintf_dd() with dd_lock held
 		 */
 		mutex_enter(&dd->dd_lock);
-		(void) strcat(buf, dd->dd_myname);
+		VERIFY3U(strlcat(buf, dd->dd_myname, ZFS_MAX_DATASET_NAME_LEN),
+		    <, ZFS_MAX_DATASET_NAME_LEN);
 		mutex_exit(&dd->dd_lock);
 	} else {
-		(void) strcat(buf, dd->dd_myname);
+		VERIFY3U(strlcat(buf, dd->dd_myname, ZFS_MAX_DATASET_NAME_LEN),
+		    <, ZFS_MAX_DATASET_NAME_LEN);
 	}
 }
 
@@ -371,12 +380,12 @@ getcomponent(const char *path, char *component, const char **nextp)
 		if (p != NULL &&
 		    (p[0] != '@' || strpbrk(path+1, "/@") || p[1] == '\0'))
 			return (SET_ERROR(EINVAL));
-		if (strlen(path) >= MAXNAMELEN)
+		if (strlen(path) >= ZFS_MAX_DATASET_NAME_LEN)
 			return (SET_ERROR(ENAMETOOLONG));
 		(void) strcpy(component, path);
 		p = NULL;
 	} else if (p[0] == '/') {
-		if (p - path >= MAXNAMELEN)
+		if (p - path >= ZFS_MAX_DATASET_NAME_LEN)
 			return (SET_ERROR(ENAMETOOLONG));
 		(void) strncpy(component, path, p - path);
 		component[p - path] = '\0';
@@ -388,7 +397,7 @@ getcomponent(const char *path, char *component, const char **nextp)
 		 */
 		if (strchr(path, '/'))
 			return (SET_ERROR(EINVAL));
-		if (p - path >= MAXNAMELEN)
+		if (p - path >= ZFS_MAX_DATASET_NAME_LEN)
 			return (SET_ERROR(ENAMETOOLONG));
 		(void) strncpy(component, path, p - path);
 		component[p - path] = '\0';
@@ -410,7 +419,7 @@ int
 dsl_dir_hold(dsl_pool_t *dp, const char *name, void *tag,
     dsl_dir_t **ddp, const char **tailp)
 {
-	char buf[MAXNAMELEN];
+	char buf[ZFS_MAX_DATASET_NAME_LEN];
 	const char *spaname, *next, *nextnext = NULL;
 	int err;
 	dsl_dir_t *dd;
@@ -734,6 +743,35 @@ dsl_enforce_ds_ss_limits(dsl_dir_t *dd, zfs_prop_t prop, cred_t *cr)
 	return (enforce);
 }
 
+static void
+dsl_dir_update_last_remap_txg_sync(void *varg, dmu_tx_t *tx)
+{
+	ddulrt_arg_t *arg = varg;
+	uint64_t last_remap_txg;
+	dsl_dir_t *dd = arg->ddulrta_dd;
+	objset_t *mos = dd->dd_pool->dp_meta_objset;
+
+	dsl_dir_zapify(dd, tx);
+	if (zap_lookup(mos, dd->dd_object, DD_FIELD_LAST_REMAP_TXG,
+	    sizeof (last_remap_txg), 1, &last_remap_txg) != 0 ||
+	    last_remap_txg < arg->ddlrta_txg) {
+		VERIFY0(zap_update(mos, dd->dd_object, DD_FIELD_LAST_REMAP_TXG,
+		    sizeof (arg->ddlrta_txg), 1, &arg->ddlrta_txg, tx));
+	}
+}
+
+int
+dsl_dir_update_last_remap_txg(dsl_dir_t *dd, uint64_t txg)
+{
+	ddulrt_arg_t arg;
+	arg.ddulrta_dd = dd;
+	arg.ddlrta_txg = txg;
+
+	return (dsl_sync_task(spa_name(dd->dd_pool->dp_spa),
+	    NULL, dsl_dir_update_last_remap_txg_sync, &arg,
+	    1, ZFS_SPACE_CHECK_RESERVED));
+}
+
 /*
  * Check if adding additional child filesystem(s) would exceed any filesystem
  * limits or adding additional snapshot(s) would exceed any snapshot limits.
@@ -892,14 +930,14 @@ dsl_dir_create_sync(dsl_pool_t *dp, dsl_dir_t *pds, const char *name,
 	ddobj = dmu_object_alloc(mos, DMU_OT_DSL_DIR, 0,
 	    DMU_OT_DSL_DIR, sizeof (dsl_dir_phys_t), tx);
 	if (pds) {
-		VERIFY(0 == zap_add(mos, dsl_dir_phys(pds)->dd_child_dir_zapobj,
+		VERIFY0(zap_add(mos, dsl_dir_phys(pds)->dd_child_dir_zapobj,
 		    name, sizeof (uint64_t), 1, &ddobj, tx));
 	} else {
 		/* it's the root dir */
-		VERIFY(0 == zap_add(mos, DMU_POOL_DIRECTORY_OBJECT,
+		VERIFY0(zap_add(mos, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_ROOT_DATASET, sizeof (uint64_t), 1, &ddobj, tx));
 	}
-	VERIFY(0 == dmu_bonus_hold(mos, ddobj, FTAG, &dbuf));
+	VERIFY0(dmu_bonus_hold(mos, ddobj, FTAG, &dbuf));
 	dmu_buf_will_dirty(dbuf, tx);
 	ddphys = dbuf->db_data;
 
@@ -930,61 +968,161 @@ dsl_dir_is_clone(dsl_dir_t *dd)
 	    dd->dd_pool->dp_origin_snap->ds_object));
 }
 
+
+uint64_t
+dsl_dir_get_used(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_used_bytes);
+}
+
+uint64_t
+dsl_dir_get_compressed(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_compressed_bytes);
+}
+
+uint64_t
+dsl_dir_get_quota(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_quota);
+}
+
+uint64_t
+dsl_dir_get_reservation(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_reserved);
+}
+
+uint64_t
+dsl_dir_get_compressratio(dsl_dir_t *dd)
+{
+	/* a fixed point number, 100x the ratio */
+	return (dsl_dir_phys(dd)->dd_compressed_bytes == 0 ? 100 :
+	    (dsl_dir_phys(dd)->dd_uncompressed_bytes * 100 /
+	    dsl_dir_phys(dd)->dd_compressed_bytes));
+}
+
+uint64_t
+dsl_dir_get_logicalused(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_uncompressed_bytes);
+}
+
+uint64_t
+dsl_dir_get_usedsnap(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_SNAP]);
+}
+
+uint64_t
+dsl_dir_get_usedds(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_HEAD]);
+}
+
+uint64_t
+dsl_dir_get_usedrefreserv(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_REFRSRV]);
+}
+
+uint64_t
+dsl_dir_get_usedchild(dsl_dir_t *dd)
+{
+	return (dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_CHILD] +
+	    dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_CHILD_RSRV]);
+}
+
+void
+dsl_dir_get_origin(dsl_dir_t *dd, char *buf)
+{
+	dsl_dataset_t *ds;
+	VERIFY0(dsl_dataset_hold_obj(dd->dd_pool,
+	    dsl_dir_phys(dd)->dd_origin_obj, FTAG, &ds));
+
+	dsl_dataset_name(ds, buf);
+
+	dsl_dataset_rele(ds, FTAG);
+}
+
+int
+dsl_dir_get_filesystem_count(dsl_dir_t *dd, uint64_t *count)
+{
+	if (dsl_dir_is_zapified(dd)) {
+		objset_t *os = dd->dd_pool->dp_meta_objset;
+		return (zap_lookup(os, dd->dd_object, DD_FIELD_FILESYSTEM_COUNT,
+		    sizeof (*count), 1, count));
+	} else {
+		return (ENOENT);
+	}
+}
+
+int
+dsl_dir_get_snapshot_count(dsl_dir_t *dd, uint64_t *count)
+{
+	if (dsl_dir_is_zapified(dd)) {
+		objset_t *os = dd->dd_pool->dp_meta_objset;
+		return (zap_lookup(os, dd->dd_object, DD_FIELD_SNAPSHOT_COUNT,
+		    sizeof (*count), 1, count));
+	} else {
+		return (ENOENT);
+	}
+}
+
+int
+dsl_dir_get_remaptxg(dsl_dir_t *dd, uint64_t *count)
+{
+	if (dsl_dir_is_zapified(dd)) {
+		objset_t *os = dd->dd_pool->dp_meta_objset;
+		return (zap_lookup(os, dd->dd_object, DD_FIELD_LAST_REMAP_TXG,
+		    sizeof (*count), 1, count));
+	} else {
+		return (ENOENT);
+	}
+}
+
 void
 dsl_dir_stats(dsl_dir_t *dd, nvlist_t *nv)
 {
 	mutex_enter(&dd->dd_lock);
-	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_USED,
-	    dsl_dir_phys(dd)->dd_used_bytes);
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_QUOTA,
-	    dsl_dir_phys(dd)->dd_quota);
+	    dsl_dir_get_quota(dd));
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_RESERVATION,
-	    dsl_dir_phys(dd)->dd_reserved);
-	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_COMPRESSRATIO,
-	    dsl_dir_phys(dd)->dd_compressed_bytes == 0 ? 100 :
-	    (dsl_dir_phys(dd)->dd_uncompressed_bytes * 100 /
-	    dsl_dir_phys(dd)->dd_compressed_bytes));
+	    dsl_dir_get_reservation(dd));
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_LOGICALUSED,
-	    dsl_dir_phys(dd)->dd_uncompressed_bytes);
+	    dsl_dir_get_logicalused(dd));
 	if (dsl_dir_phys(dd)->dd_flags & DD_FLAG_USED_BREAKDOWN) {
 		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_USEDSNAP,
-		    dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_SNAP]);
+		    dsl_dir_get_usedsnap(dd));
 		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_USEDDS,
-		    dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_HEAD]);
+		    dsl_dir_get_usedds(dd));
 		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_USEDREFRESERV,
-		    dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_REFRSRV]);
+		    dsl_dir_get_usedrefreserv(dd));
 		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_USEDCHILD,
-		    dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_CHILD] +
-		    dsl_dir_phys(dd)->dd_used_breakdown[DD_USED_CHILD_RSRV]);
+		    dsl_dir_get_usedchild(dd));
 	}
 	mutex_exit(&dd->dd_lock);
 
-	if (dsl_dir_is_zapified(dd)) {
-		uint64_t count;
-		objset_t *os = dd->dd_pool->dp_meta_objset;
-
-		if (zap_lookup(os, dd->dd_object, DD_FIELD_FILESYSTEM_COUNT,
-		    sizeof (count), 1, &count) == 0) {
-			dsl_prop_nvlist_add_uint64(nv,
-			    ZFS_PROP_FILESYSTEM_COUNT, count);
-		}
-		if (zap_lookup(os, dd->dd_object, DD_FIELD_SNAPSHOT_COUNT,
-		    sizeof (count), 1, &count) == 0) {
-			dsl_prop_nvlist_add_uint64(nv,
-			    ZFS_PROP_SNAPSHOT_COUNT, count);
-		}
+	uint64_t count;
+	if (dsl_dir_get_filesystem_count(dd, &count) == 0) {
+		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_FILESYSTEM_COUNT,
+		    count);
+	}
+	if (dsl_dir_get_snapshot_count(dd, &count) == 0) {
+		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_SNAPSHOT_COUNT,
+		    count);
+	}
+	if (dsl_dir_get_remaptxg(dd, &count) == 0) {
+		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_REMAPTXG,
+		    count);
 	}
 
 	if (dsl_dir_is_clone(dd)) {
-		dsl_dataset_t *ds;
-		char buf[MAXNAMELEN];
-
-		VERIFY0(dsl_dataset_hold_obj(dd->dd_pool,
-		    dsl_dir_phys(dd)->dd_origin_obj, FTAG, &ds));
-		dsl_dataset_name(ds, buf);
-		dsl_dataset_rele(ds, FTAG);
+		char buf[ZFS_MAX_DATASET_NAME_LEN];
+		dsl_dir_get_origin(dd, buf);
 		dsl_prop_nvlist_add_string(nv, ZFS_PROP_ORIGIN, buf);
 	}
+
 }
 
 void
@@ -1029,13 +1167,12 @@ static uint64_t
 dsl_dir_space_towrite(dsl_dir_t *dd)
 {
 	uint64_t space = 0;
-	int i;
 
 	ASSERT(MUTEX_HELD(&dd->dd_lock));
 
-	for (i = 0; i < TXG_SIZE; i++) {
-		space += dd->dd_space_towrite[i&TXG_MASK];
-		ASSERT3U(dd->dd_space_towrite[i&TXG_MASK], >=, 0);
+	for (int i = 0; i < TXG_SIZE; i++) {
+		space += dd->dd_space_towrite[i & TXG_MASK];
+		ASSERT3U(dd->dd_space_towrite[i & TXG_MASK], >=, 0);
 	}
 	return (space);
 }
@@ -1071,7 +1208,8 @@ dsl_dir_space_available(dsl_dir_t *dd,
 		used += dsl_dir_space_towrite(dd);
 
 	if (dd->dd_parent == NULL) {
-		uint64_t poolsize = dsl_pool_adjustedsize(dd->dd_pool, FALSE);
+		uint64_t poolsize = dsl_pool_adjustedsize(dd->dd_pool,
+		    ZFS_SPACE_CHECK_NORMAL);
 		quota = MIN(quota, poolsize);
 	}
 
@@ -1115,16 +1253,13 @@ struct tempreserve {
 
 static int
 dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
-    boolean_t ignorequota, boolean_t checkrefquota, list_t *tr_list,
+    boolean_t ignorequota, list_t *tr_list,
     dmu_tx_t *tx, boolean_t first)
 {
 	uint64_t txg = tx->tx_txg;
-	uint64_t est_inflight, used_on_disk, quota, parent_rsrv;
-	uint64_t deferred = 0;
+	uint64_t quota;
 	struct tempreserve *tr;
 	int retval = EDQUOT;
-	int txgidx = txg & TXG_MASK;
-	int i;
 	uint64_t ref_rsrv = 0;
 
 	ASSERT3U(txg, !=, 0);
@@ -1136,10 +1271,10 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 	 * Check against the dsl_dir's quota.  We don't add in the delta
 	 * when checking for over-quota because they get one free hit.
 	 */
-	est_inflight = dsl_dir_space_towrite(dd);
-	for (i = 0; i < TXG_SIZE; i++)
+	uint64_t est_inflight = dsl_dir_space_towrite(dd);
+	for (int i = 0; i < TXG_SIZE; i++)
 		est_inflight += dd->dd_tempreserved[i];
-	used_on_disk = dsl_dir_phys(dd)->dd_used_bytes;
+	uint64_t used_on_disk = dsl_dir_phys(dd)->dd_used_bytes;
 
 	/*
 	 * On the first iteration, fetch the dataset's used-on-disk and
@@ -1150,9 +1285,9 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 		int error;
 		dsl_dataset_t *ds = tx->tx_objset->os_dsl_dataset;
 
-		error = dsl_dataset_check_quota(ds, checkrefquota,
+		error = dsl_dataset_check_quota(ds, !netfree,
 		    asize, est_inflight, &used_on_disk, &ref_rsrv);
-		if (error) {
+		if (error != 0) {
 			mutex_exit(&dd->dd_lock);
 			return (error);
 		}
@@ -1177,12 +1312,14 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 	 * we're very close to full, this will allow a steady trickle of
 	 * removes to get through.
 	 */
+	uint64_t deferred = 0;
 	if (dd->dd_parent == NULL) {
-		spa_t *spa = dd->dd_pool->dp_spa;
-		uint64_t poolsize = dsl_pool_adjustedsize(dd->dd_pool, netfree);
-		deferred = metaslab_class_get_deferred(spa_normal_class(spa));
-		if (poolsize - deferred < quota) {
-			quota = poolsize - deferred;
+		uint64_t avail = dsl_pool_unreserved_space(dd->dd_pool,
+		    (netfree) ?
+		    ZFS_SPACE_CHECK_RESERVED : ZFS_SPACE_CHECK_NORMAL);
+
+		if (avail < quota) {
+			quota = avail;
 			retval = ENOSPC;
 		}
 	}
@@ -1206,9 +1343,9 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 	}
 
 	/* We need to up our estimated delta before dropping dd_lock */
-	dd->dd_tempreserved[txgidx] += asize;
+	dd->dd_tempreserved[txg & TXG_MASK] += asize;
 
-	parent_rsrv = parent_delta(dd, used_on_disk + est_inflight,
+	uint64_t parent_rsrv = parent_delta(dd, used_on_disk + est_inflight,
 	    asize - ref_rsrv);
 	mutex_exit(&dd->dd_lock);
 
@@ -1218,11 +1355,11 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 	list_insert_tail(tr_list, tr);
 
 	/* see if it's OK with our parent */
-	if (dd->dd_parent && parent_rsrv) {
+	if (dd->dd_parent != NULL && parent_rsrv != 0) {
 		boolean_t ismos = (dsl_dir_phys(dd)->dd_head_dataset_obj == 0);
 
 		return (dsl_dir_tempreserve_impl(dd->dd_parent,
-		    parent_rsrv, netfree, ismos, TRUE, tr_list, tx, FALSE));
+		    parent_rsrv, netfree, ismos, tr_list, tx, B_FALSE));
 	} else {
 		return (0);
 	}
@@ -1236,7 +1373,7 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
  */
 int
 dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t lsize, uint64_t asize,
-    uint64_t fsize, uint64_t usize, void **tr_cookiep, dmu_tx_t *tx)
+    boolean_t netfree, void **tr_cookiep, dmu_tx_t *tx)
 {
 	int err;
 	list_t *tr_list;
@@ -1250,9 +1387,8 @@ dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t lsize, uint64_t asize,
 	list_create(tr_list, sizeof (struct tempreserve),
 	    offsetof(struct tempreserve, tr_node));
 	ASSERT3S(asize, >, 0);
-	ASSERT3S(fsize, >=, 0);
 
-	err = arc_tempreserve_space(lsize, tx->tx_txg);
+	err = arc_tempreserve_space(dd->dd_pool->dp_spa, lsize, tx->tx_txg);
 	if (err == 0) {
 		struct tempreserve *tr;
 
@@ -1277,8 +1413,8 @@ dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t lsize, uint64_t asize,
 	}
 
 	if (err == 0) {
-		err = dsl_dir_tempreserve_impl(dd, asize, fsize >= asize,
-		    FALSE, asize > usize, tr_list, tx, TRUE);
+		err = dsl_dir_tempreserve_impl(dd, asize, netfree,
+		    B_FALSE, tr_list, tx, B_TRUE);
 	}
 
 	if (err != 0)
@@ -1521,7 +1657,8 @@ dsl_dir_set_quota(const char *ddname, zprop_source_t source, uint64_t quota)
 	ddsqra.ddsqra_value = quota;
 
 	return (dsl_sync_task(ddname, dsl_dir_set_quota_check,
-	    dsl_dir_set_quota_sync, &ddsqra, 0, ZFS_SPACE_CHECK_NONE));
+	    dsl_dir_set_quota_sync, &ddsqra, 0,
+	    ZFS_SPACE_CHECK_EXTRA_RESERVED));
 }
 
 int
@@ -1564,7 +1701,8 @@ dsl_dir_set_reservation_check(void *arg, dmu_tx_t *tx)
 		avail = dsl_dir_space_available(dd->dd_parent,
 		    NULL, 0, FALSE);
 	} else {
-		avail = dsl_pool_adjustedsize(dd->dd_pool, B_FALSE) - used;
+		avail = dsl_pool_adjustedsize(dd->dd_pool,
+		    ZFS_SPACE_CHECK_NORMAL) - used;
 	}
 
 	if (MAX(used, newval) > MAX(used, dsl_dir_phys(dd)->dd_reserved)) {
@@ -1642,7 +1780,8 @@ dsl_dir_set_reservation(const char *ddname, zprop_source_t source,
 	ddsqra.ddsqra_value = reservation;
 
 	return (dsl_sync_task(ddname, dsl_dir_set_reservation_check,
-	    dsl_dir_set_reservation_sync, &ddsqra, 0, ZFS_SPACE_CHECK_NONE));
+	    dsl_dir_set_reservation_sync, &ddsqra, 0,
+	    ZFS_SPACE_CHECK_EXTRA_RESERVED));
 }
 
 static dsl_dir_t *
@@ -1680,16 +1819,28 @@ typedef struct dsl_dir_rename_arg {
 	cred_t *ddra_cred;
 } dsl_dir_rename_arg_t;
 
+typedef struct dsl_valid_rename_arg {
+	int char_delta;
+	int nest_delta;
+} dsl_valid_rename_arg_t;
+
 /* ARGSUSED */
 static int
 dsl_valid_rename(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 {
-	int *deltap = arg;
-	char namebuf[MAXNAMELEN];
+	dsl_valid_rename_arg_t *dvra = arg;
+	char namebuf[ZFS_MAX_DATASET_NAME_LEN];
 
 	dsl_dataset_name(ds, namebuf);
 
-	if (strlen(namebuf) + *deltap >= MAXNAMELEN)
+	ASSERT3U(strnlen(namebuf, ZFS_MAX_DATASET_NAME_LEN),
+	    <, ZFS_MAX_DATASET_NAME_LEN);
+	int namelen = strlen(namebuf) + dvra->char_delta;
+	int depth = get_dataset_depth(namebuf) + dvra->nest_delta;
+
+	if (namelen >= ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
+	if (dvra->nest_delta > 0 && depth >= zfs_max_dataset_nesting)
 		return (SET_ERROR(ENAMETOOLONG));
 	return (0);
 }
@@ -1700,9 +1851,9 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 	dsl_dir_rename_arg_t *ddra = arg;
 	dsl_pool_t *dp = dmu_tx_pool(tx);
 	dsl_dir_t *dd, *newparent;
+	dsl_valid_rename_arg_t dvra;
 	const char *mynewname;
 	int error;
-	int delta = strlen(ddra->ddra_newname) - strlen(ddra->ddra_oldname);
 
 	/* target dir should exist */
 	error = dsl_dir_hold(dp, ddra->ddra_oldname, FTAG, &dd, NULL);
@@ -1731,10 +1882,19 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 		return (SET_ERROR(EEXIST));
 	}
 
+	ASSERT3U(strnlen(ddra->ddra_newname, ZFS_MAX_DATASET_NAME_LEN),
+	    <, ZFS_MAX_DATASET_NAME_LEN);
+	ASSERT3U(strnlen(ddra->ddra_oldname, ZFS_MAX_DATASET_NAME_LEN),
+	    <, ZFS_MAX_DATASET_NAME_LEN);
+	dvra.char_delta = strlen(ddra->ddra_newname)
+	    - strlen(ddra->ddra_oldname);
+	dvra.nest_delta = get_dataset_depth(ddra->ddra_newname)
+	    - get_dataset_depth(ddra->ddra_oldname);
+
 	/* if the name length is growing, validate child name lengths */
-	if (delta > 0) {
+	if (dvra.char_delta > 0 || dvra.nest_delta > 0) {
 		error = dmu_objset_find_dp(dp, dd->dd_object, dsl_valid_rename,
-		    &delta, DS_FIND_CHILDREN | DS_FIND_SNAPSHOTS);
+		    &dvra, DS_FIND_CHILDREN | DS_FIND_SNAPSHOTS);
 		if (error != 0) {
 			dsl_dir_rele(newparent, FTAG);
 			dsl_dir_rele(dd, FTAG);

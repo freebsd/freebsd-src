@@ -31,6 +31,10 @@ hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 hint.arge.1.eeprommac=0x1fff0006
 
+# ath0
+hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromsize=16384
+
 # 16MB flash layout:
 # [    0.510000] 5 tp-link partitions found on MTD device spi0.0
 # [    0.510000] Creating 5 MTD partitions on "spi0.0":
@@ -92,3 +96,37 @@ hint.map.6.start=0x00ff0000
 hint.map.6.end=0x01000000
 hint.map.6.name="ART"
 hint.map.6.readonly=1
+
+# GPIO
+hint.gpio.0.pinmask=0x0c8ff1c3
+
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.pins=0x08000000
+hint.gpioled.0.name="board"
+hint.gpioled.0.invert=0
+
+#Red
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.pins=0x00020000
+hint.gpioled.1.name="red"
+hint.gpioled.1.invert=0
+
+#Green
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.pins=0x00010000
+hint.gpioled.2.name="green"
+hint.gpioled.2.invert=0
+
+#Blue
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.pins=0x00008000
+hint.gpioled.3.name="blue"
+hint.gpioled.3.invert=0
+
+# I2C
+# 0x20 - 0x27 = Relay Controllers (0x27 is default)
+# 0x5a = PWM/Servo Controller
+hint.gpioiic.0.at="gpiobus0"
+hint.gpioiic.0.pins=0x300000 # pins 20 and 21
+hint.gpioiic.0.scl=0 # pin 20
+hint.gpioiic.0.sda=1 # pin 21

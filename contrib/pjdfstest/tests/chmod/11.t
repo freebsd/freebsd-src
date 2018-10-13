@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/chmod/11.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="chmod returns EFTYPE if the effective user ID is not the super-user, the mode includes the sticky bit (S_ISVTX), and path does not refer to a directory"
@@ -63,6 +64,12 @@ for type in regular fifo block char socket symlink; do
 		create_file ${type} ${n1} 0640 65534 65534
 		expect 0 symlink ${n1} ${n2}
 		case "${os}" in
+		Darwin)
+			expect 0 -u 65534 -g 65534 chmod ${n1} 01644
+			expect 01644 stat ${n1} mode
+			expect 0 -u 65534 -g 65534 chmod ${n2} 01640
+			expect 01640 stat ${n1} mode
+			;;
 		FreeBSD)
 			expect EFTYPE -u 65534 -g 65534 chmod ${n1} 01644
 			expect 0640 stat ${n1} mode
@@ -93,6 +100,10 @@ for type in regular fifo block char socket symlink; do
 	if supported lchmod; then
 		create_file ${type} ${n1} 0640 65534 65534
 		case "${os}" in
+		Darwin)
+			expect 0 -u 65534 -g 65534 lchmod ${n1} 01644
+			expect 01644 lstat ${n1} mode
+			;;
 		FreeBSD)
 			expect EFTYPE -u 65534 -g 65534 lchmod ${n1} 01644
 			expect 0640 lstat ${n1} mode

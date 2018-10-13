@@ -10,7 +10,6 @@ DIRDEPS = \
 	cddl/lib/libzfs_core \
 	cddl/lib/libzpool \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/arpa \
 	include/protocols \
@@ -24,6 +23,9 @@ DIRDEPS = \
 	lib/libbz2 \
 	lib/libc \
 	lib/libcam \
+	lib/libcapsicum \
+	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_dns \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libdevstat \
@@ -38,13 +40,13 @@ DIRDEPS = \
 	lib/liblzma \
 	lib/libmd \
 	lib/libmt \
-	lib/libnetgraph \
 	lib/libsbuf \
 	lib/libthr \
 	lib/libufs \
 	lib/libutil \
 	lib/libxo \
 	lib/libz \
+	lib/libzstd \
 	lib/msun \
 	lib/ncurses/ncursesw \
 	rescue/librescue \
@@ -52,6 +54,7 @@ DIRDEPS = \
 	usr.bin/lex/lib \
 	usr.bin/yacc.host \
 	usr.sbin/crunch/crunchgen.host \
+	usr.sbin/crunch/crunchide.host \
 
 
 .include <dirdeps.mk>

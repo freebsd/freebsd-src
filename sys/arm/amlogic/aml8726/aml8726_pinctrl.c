@@ -45,10 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include <arm/amlogic/aml8726/aml8726_soc.h>
 #include <arm/amlogic/aml8726/aml8726_pinctrl.h>
@@ -195,7 +194,7 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 	node = OF_node_from_xref(cfgxref);
 
 	len = OF_getprop_alloc(node, "amlogic,function",
-	    sizeof(char), (void **)&function_name);
+	    (void **)&function_name);
 
 	if (len < 0) {
 		device_printf(dev,
@@ -217,7 +216,7 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 	OF_prop_free(function_name);
 
 	len = OF_getprop_alloc(node, "amlogic,pull",
-	    sizeof(char), (void **)&pull);
+	    (void **)&pull);
 
 	pm = aml8726_unknown_pm;
 
@@ -258,7 +257,7 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 	}
 
 	len = OF_getprop_alloc(node, "amlogic,pins",
-	    sizeof(char), (void **)&pins);
+	    (void **)&pins);
 
 	if (len < 0) {
 		device_printf(dev, "missing amlogic,pins attribute in FDT\n");

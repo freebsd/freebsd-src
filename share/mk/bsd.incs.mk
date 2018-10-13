@@ -8,8 +8,6 @@
 
 INCSGROUPS?=	INCS
 
-_INCSGROUPS=	${INCSGROUPS:C,[/*],_,g}
-
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=		package=${PACKAGE:Uruntime}
@@ -18,7 +16,7 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .endif
 
 .if !target(buildincludes)
-.for group in ${_INCSGROUPS}
+.for group in ${INCSGROUPS}
 buildincludes: ${${group}}
 .endfor
 .endif
@@ -28,16 +26,16 @@ all: buildincludes
 .endif
 
 .if !target(installincludes)
-.for group in ${_INCSGROUPS}
+.for group in ${INCSGROUPS}
 .if defined(${group}) && !empty(${group})
 
 ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
 ${group}MODE?=	${NOBINMODE}
 ${group}DIR?=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
-STAGE_SETS+=	${group}
-STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
-STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
+STAGE_SETS+=	${group:C,[/*],_,g}
+STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SYMLINKS_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}
 
 _${group}INCS=
 .for header in ${${group}}
@@ -91,7 +89,6 @@ _${group}INS: ${_${group}INCS}
 .if defined(INCSLINKS) && !empty(INCSLINKS)
 installincludes:
 .for s t in ${INCSLINKS}
-	@${ECHO} "${DESTDIR}${t} -> ${s}" ; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${s} ${DESTDIR}${t}
 .endfor
 .endif

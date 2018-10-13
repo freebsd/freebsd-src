@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -104,6 +106,8 @@ static tf_cursor_t	termteken_cursor;
 static tf_putchar_t	termteken_putchar;
 static tf_fill_t	termteken_fill;
 static tf_copy_t	termteken_copy;
+static tf_pre_input_t	termteken_pre_input;
+static tf_post_input_t	termteken_post_input;
 static tf_param_t	termteken_param;
 static tf_respond_t	termteken_respond;
 
@@ -113,6 +117,8 @@ static teken_funcs_t terminal_drawmethods = {
 	.tf_putchar	= termteken_putchar,
 	.tf_fill	= termteken_fill,
 	.tf_copy	= termteken_copy,
+	.tf_pre_input	= termteken_pre_input,
+	.tf_post_input	= termteken_post_input,
 	.tf_param	= termteken_param,
 	.tf_respond	= termteken_respond,
 };
@@ -130,9 +136,34 @@ static const teken_attr_t default_message = {
 	.ta_format	= TCHAR_FORMAT(TERMINAL_NORM_ATTR)
 };
 
+/* Fudge fg brightness as TF_BOLD (shifted). */
+#define	TCOLOR_FG_FUDGED(color) __extension__ ({			\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	TCOLOR_FG(_c & 7) | ((_c & 8) << 18);				\
+})
+
+/* Fudge bg brightness as TF_BLINK (shifted). */
+#define	TCOLOR_BG_FUDGED(color) __extension__ ({			\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	TCOLOR_BG(_c & 7) | ((_c & 8) << 20);				\
+})
+
+#define	TCOLOR_256TO16(color) __extension__ ({				\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	if (_c >= 16)							\
+		_c = teken_256to16(_c);					\
+	_c;								\
+})
+
 #define	TCHAR_CREATE(c, a)	((c) | TFORMAT((a)->ta_format) |	\
-	TCOLOR_FG(teken_256to8((a)->ta_fgcolor)) |			\
-	TCOLOR_BG(teken_256to8((a)->ta_bgcolor)))
+	TCOLOR_FG_FUDGED(TCOLOR_256TO16((a)->ta_fgcolor)) |		\
+	TCOLOR_BG_FUDGED(TCOLOR_256TO16((a)->ta_bgcolor)))
 
 static void
 terminal_init(struct terminal *tm)
@@ -375,7 +406,10 @@ termtty_outwakeup(struct tty *tp)
 		TERMINAL_UNLOCK_TTY(tm);
 	}
 
-	tm->tm_class->tc_done(tm);
+	TERMINAL_LOCK_TTY(tm);
+	if (!(tm->tm_flags & TF_MUTE))
+		tm->tm_class->tc_done(tm);
+	TERMINAL_UNLOCK_TTY(tm);
 	if (flags & TF_BELL)
 		tm->tm_class->tc_bell(tm);
 }
@@ -545,10 +579,9 @@ termcn_cnputc(struct consdev *cp, int c)
 		teken_set_curattr(&tm->tm_emulator, &kernel_message);
 		teken_input(&tm->tm_emulator, &cv, 1);
 		teken_set_curattr(&tm->tm_emulator, &backup);
+		tm->tm_class->tc_done(tm);
 	}
 	TERMINAL_UNLOCK_CONS(tm);
-
-	tm->tm_class->tc_done(tm);
 }
 
 /*
@@ -595,6 +628,22 @@ termteken_copy(void *softc, const teken_rect_t *r, const teken_pos_t *p)
 	struct terminal *tm = softc;
 
 	tm->tm_class->tc_copy(tm, r, p);
+}
+
+static void
+termteken_pre_input(void *softc)
+{
+	struct terminal *tm = softc;
+
+	tm->tm_class->tc_pre_input(tm);
+}
+
+static void
+termteken_post_input(void *softc)
+{
+	struct terminal *tm = softc;
+
+	tm->tm_class->tc_post_input(tm);
 }
 
 static void

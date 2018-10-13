@@ -659,18 +659,6 @@ METHOD void zero_page_area {
 
 
 /**
- * @brief Called from the idle loop to zero pages. XXX I think locking
- * constraints might be different here compared to zero_page.
- *
- * @param _pg		physical page
- */
-METHOD void zero_page_idle {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-};
-
-
-/**
  * @brief Extract mincore(2) information from a mapping.
  *
  * @param _pmap		physical map
@@ -737,7 +725,7 @@ METHOD void align_superpage {
 
 /**
  * @brief Bootstrap the VM system. At the completion of this routine, the
- * kernel will be running in it's own address space with full control over
+ * kernel will be running in its own address space with full control over
  * paging.
  *
  * @param _start	start of reserved memory (obsolete ???)
@@ -829,6 +817,42 @@ METHOD void unmapdev {
 	vm_size_t	_size;
 };
 
+/**
+ * @brief Provide a kernel-space pointer that can be used to access the
+ * given userland address. The kernel accessible length returned in klen
+ * may be less than the requested length of the userland buffer (ulen). If
+ * so, retry with a higher address to get access to the later parts of the
+ * buffer. Returns EFAULT if no mapping can be made, else zero.
+ *
+ * @param _pm		PMAP for the user pointer.
+ * @param _uaddr	Userland address to map.
+ * @param _kaddr	Corresponding kernel address.
+ * @param _ulen		Length of user buffer.
+ * @param _klen		Available subset of ulen with _kaddr.
+ */
+METHOD int map_user_ptr {
+	mmu_t		_mmu;
+	pmap_t		_pm;
+	volatile const void *_uaddr;
+	void		**_kaddr;
+	size_t		_ulen;
+	size_t		*_klen;
+};
+
+/**
+ * @brief Decode a kernel pointer, as visible to the current thread,
+ * by setting whether it corresponds to a user or kernel address and
+ * the address in the respective memory maps to which the address as
+ * seen in the kernel corresponds. This is essentially the inverse of
+ * MMU_MAP_USER_PTR() above and is used in kernel-space fault handling.
+ * Returns 0 on success or EFAULT if the address could not be mapped. 
+ */
+METHOD int decode_kernel_ptr {
+	mmu_t		_mmu;
+	vm_offset_t	addr;
+	int		*is_user;
+	vm_offset_t	*decoded_addr;
+};
 
 /**
  * @brief Reverse-map a kernel virtual address
@@ -868,6 +892,16 @@ METHOD void kenter_attr {
 	vm_paddr_t	_pa;
 	vm_memattr_t	_ma;
 } DEFAULT mmu_null_kenter_attr;
+
+/**
+ * @brief Unmap a wired page from kernel virtual address space
+ *
+ * @param _va		mapped virtual address
+ */
+METHOD void kremove {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+};
 
 /**
  * @brief Determine if the given physical address range has been direct-mapped.
@@ -979,3 +1013,4 @@ METHOD int change_attr {
 	vm_size_t	_sz;
 	vm_memattr_t	_mode;
 } DEFAULT mmu_null_change_attr;
+

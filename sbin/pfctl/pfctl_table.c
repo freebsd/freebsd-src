@@ -1,6 +1,8 @@
 /*	$OpenBSD: pfctl_table.c,v 1.67 2008/06/10 20:55:02 mcbride Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2002 Cedric Berger
  * All rights reserved.
  *

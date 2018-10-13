@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *       Copyright (c) 2000-04 ICP vortex GmbH
  *       Copyright (c) 2002-04 Intel Corporation
  *       Copyright (c) 2003-04 Adaptec Inc.
@@ -1366,12 +1368,12 @@ iir_action( struct cam_sim *sim, union ccb *ccb )
               cpi->initiator_id = 
                   (bus == gdt->sc_virt_bus ? 127 : gdt->sc_bus_id[bus]);
               cpi->base_transfer_speed = 3300;
-              strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+              strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
               if (gdt->sc_vendor == INTEL_VENDOR_ID_IIR)
-                  strncpy(cpi->hba_vid, "Intel Corp.", HBA_IDLEN);
+                  strlcpy(cpi->hba_vid, "Intel Corp.", HBA_IDLEN);
               else
-                  strncpy(cpi->hba_vid, "ICP vortex ", HBA_IDLEN);
-              strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+                  strlcpy(cpi->hba_vid, "ICP vortex ", HBA_IDLEN);
+              strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
               cpi->transport = XPORT_SPI;
               cpi->transport_version = 2;
               cpi->protocol = PROTO_SCSI;

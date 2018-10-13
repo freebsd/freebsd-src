@@ -127,6 +127,7 @@ struct section {
 	uint64_t	 cap;	/* section capacity */
 	uint64_t	 align;	/* section alignment */
 	uint64_t	 type;	/* section type */
+	uint64_t	 flags;	/* section flags */
 	uint64_t	 vma;	/* section virtual addr */
 	uint64_t	 lma;	/* section load addr */
 	uint64_t	 pad_sz;/* section padding size */

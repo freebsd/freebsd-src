@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
+ * Copyright (c) 2016 The FreeBSD Foundation, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Kurt Lidl
+ * under sponsorship from the FreeBSD Foundation.
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Christos Zoulas.
@@ -27,38 +31,67 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "includes.h"
+
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "ssh.h"
 #include "packet.h"
 #include "log.h"
-#include "blacklist_client.h"
+#include "misc.h"
+#include "servconf.h"
 #include <blacklist.h>
+#include "blacklist_client.h"
 
-static struct blacklist *blstate;
+static struct blacklist *blstate = NULL;
+
+/* import */
+extern ServerOptions options;
+
+/* internal definition from bl.h */
+struct blacklist *bl_create(bool, char *, void (*)(int, const char *, va_list));
+
+/* impedence match vsyslog() to sshd's internal logging levels */
+void
+im_log(int priority, const char *message, va_list args)
+{
+	LogLevel imlevel;
+
+	switch (priority) {
+	case LOG_ERR:
+		imlevel = SYSLOG_LEVEL_ERROR;
+		break;
+	case LOG_DEBUG:
+		imlevel = SYSLOG_LEVEL_DEBUG1;
+		break;
+	case LOG_INFO:
+		imlevel = SYSLOG_LEVEL_INFO;
+		break;
+	default:
+		imlevel = SYSLOG_LEVEL_DEBUG2;
+	}
+	do_log(imlevel, message, args);
+}
 
 void
 blacklist_init(void)
 {
-	blstate = blacklist_open();
+
+	if (options.use_blacklist)
+		blstate = bl_create(false, NULL, im_log);
 }
 
 void
-blacklist_notify(int action)
+blacklist_notify(int action, const char *msg)
 {
-	int fd;
-	if (blstate == NULL)
-		blacklist_init();
-	if (blstate == NULL)
-		return;
-	fd = packet_get_connection_in();
-	if (!packet_connection_is_on_socket()) {
-		fprintf(stderr, "packet_connection_is_on_socket: false "
-			"(fd = %d)\n", fd);
-	}
-	(void)blacklist_r(blstate, action, fd, "ssh");
+
+	if (blstate != NULL && packet_connection_is_on_socket())
+		(void)blacklist_r(blstate, action,
+		packet_get_connection_in(), msg);
 }

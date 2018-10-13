@@ -1,6 +1,8 @@
 /*	$NetBSD: getnetconfig.c,v 1.3 2000/07/06 03:10:34 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -630,8 +632,8 @@ parse_ncp(char *stringp, struct netconfig *ncp)
 	ncp->nc_lookups = NULL;
 	ncp->nc_nlookups = 0;
 	while ((cp = tokenp) != NULL) {
-	    if ((nc_lookups = realloc(ncp->nc_lookups,
-		(ncp->nc_nlookups + 1) * sizeof *ncp->nc_lookups)) == NULL) {
+	    if ((nc_lookups = reallocarray(ncp->nc_lookups,
+		ncp->nc_nlookups + 1, sizeof(*ncp->nc_lookups))) == NULL) {
 		    free(ncp->nc_lookups);
 		    ncp->nc_lookups = NULL;
 		    return (-1);
@@ -692,7 +694,7 @@ static struct netconfig *
 dup_ncp(struct netconfig *ncp)
 {
     struct netconfig	*p;
-    char	*tmp, *tmp2;
+    char	*tmp;
     u_int	i;
 
     if ((tmp=malloc(MAXNETCONFIGLINE)) == NULL)
@@ -701,7 +703,6 @@ dup_ncp(struct netconfig *ncp)
 	free(tmp);
 	return(NULL);
     }
-    tmp2 = tmp;
     /*
      * First we dup all the data from matched netconfig buffer.  Then we
      * adjust some of the member pointer to a pre-allocated buffer where
@@ -723,7 +724,6 @@ dup_ncp(struct netconfig *ncp)
     if (p->nc_lookups == NULL) {
 	free(p->nc_netid);
 	free(p);
-	free(tmp2);
 	return(NULL);
     }
     for (i=0; i < p->nc_nlookups; i++) {

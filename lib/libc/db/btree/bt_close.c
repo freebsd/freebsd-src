@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -134,7 +136,8 @@ __bt_sync(const DB *dbp, u_int flags)
 		return (RET_ERROR);
 	}
 
-	if (F_ISSET(t, B_INMEM | B_RDONLY) || !F_ISSET(t, B_MODIFIED))
+	if (F_ISSET(t, B_INMEM | B_RDONLY) ||
+	    !F_ISSET(t, B_MODIFIED | B_METADIRTY))
 		return (RET_SUCCESS);
 
 	if (F_ISSET(t, B_METADIRTY) && bt_meta(t) == RET_ERROR)

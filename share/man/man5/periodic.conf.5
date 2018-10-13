@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2015
+.Dd March 7, 2018
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -133,6 +133,10 @@ respectively.
 Refer to the
 .Xr periodic 8
 manual page for how script return codes are interpreted.
+.It Va anticongestion_sleeptime
+.Pq Vt int
+The maximum number of seconds to randomly sleep in order to smooth bursty loads
+on a shared resource, such as a download mirror.
 .El
 .Pp
 The following variables are used by the standard scripts that reside in
@@ -395,6 +399,15 @@ if you want to run
 on your
 .Xr gconcat 8
 devices.
+.It Va daily_status_mfi_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm mfiutil Cm status
+on your
+.Xr mfi 4
+devices.
 .It Va daily_status_network_enable
 .Pq Vt bool
 Set to
@@ -420,7 +433,7 @@ if you want to run
 without the
 .Fl n
 option (to do DNS lookups).
-.It Va daily_status_rwho_enable
+.It Va daily_status_uptime_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
@@ -580,15 +593,6 @@ if you want to run
 This script regenerates the database used by the
 .Xr apropos 1
 command.
-.It Va weekly_catman_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to run
-.Pa /usr/libexec/catman.local .
-This script processes all out of date manual pages, speeding up the
-.Xr man 1
-command at the expense of disk space.
 .It Va weekly_noid_enable
 .Pq Vt bool
 Set to

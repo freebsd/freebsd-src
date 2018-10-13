@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
  * All rights reserved.
  *
@@ -344,6 +346,20 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
     return 0;
 }
 
+/* Fixup the jump slot at "where" to transfer control to "target". */
+Elf_Addr
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+    const struct Struct_Obj_Entry *obj, const struct Struct_Obj_Entry *refobj,
+    const Elf_Rel *rel)
+{
+#ifdef dbg
+	dbg("reloc_jmpslot: *%p = %p", where, (void *)target);
+#endif
+	if (!ld_bind_not)
+		*where = target;
+	return (target);
+}
+
 int
 reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 {
@@ -359,7 +375,7 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 	case R_386_IRELATIVE:
 	  where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 	  lock_release(rtld_bind_lock, lockstate);
-	  target = ((Elf_Addr (*)(void))(obj->relocbase + *where))();
+	  target = call_ifunc_resolver(obj->relocbase + *where);
 	  wlock_acquire(rtld_bind_lock, lockstate);
 	  *where = target;
 	  break;
@@ -402,6 +418,64 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     obj->gnu_ifunc = false;
     return (0);
+}
+
+uint32_t cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2;
+
+static void
+rtld_cpuid_count(int idx, int cnt, u_int *p)
+{
+
+	__asm __volatile(
+	    "	pushl	%%ebx\n"
+	    "	cpuid\n"
+	    "	movl	%%ebx,%1\n"
+	    "	popl	%%ebx\n"
+	    : "=a" (p[0]), "=r" (p[1]), "=c" (p[2]), "=d" (p[3])
+	    :  "0" (idx), "2" (cnt));
+}
+
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+	u_int p[4], cpu_high;
+	int cpuid_supported;
+
+	__asm __volatile(
+	    "	pushfl\n"
+	    "	popl	%%eax\n"
+	    "	movl    %%eax,%%ecx\n"
+	    "	xorl    $0x200000,%%eax\n"
+	    "	pushl	%%eax\n"
+	    "	popfl\n"
+	    "	pushfl\n"
+	    "	popl    %%eax\n"
+	    "	xorl    %%eax,%%ecx\n"
+	    "	je	1f\n"
+	    "	movl	$1,%0\n"
+	    "	jmp	2f\n"
+	    "1:	movl	$0,%0\n"
+	    "2:\n"
+	    : "=r" (cpuid_supported) : : "eax", "ecx");
+	if (!cpuid_supported)
+		return;
+
+	rtld_cpuid_count(1, 0, p);
+	cpu_feature = p[3];
+	cpu_feature2 = p[2];
+	rtld_cpuid_count(0, 0, p);
+	cpu_high = p[0];
+	if (cpu_high >= 7) {
+		rtld_cpuid_count(7, 0, p);
+		cpu_stdext_feature = p[1];
+		cpu_stdext_feature2 = p[2];
+	}
+}
+
+void
+pre_init(void)
+{
+
 }
 
 void

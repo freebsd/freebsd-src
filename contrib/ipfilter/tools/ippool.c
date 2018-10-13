@@ -75,11 +75,11 @@ usage(prog)
 	char *prog;
 {
 	fprintf(stderr, "Usage:\t%s\n", prog);
-	fprintf(stderr, "\t-a [-dnv] [-m <name>] [-o <role>] [-t type] [-T ttl] -i <ipaddr>[/netmask]\n");
+	fprintf(stderr, "\t-a [-dnv] -m <name> [-o <role>] [-t type] [-T ttl] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]\n");
-	fprintf(stderr, "\t-f <file> [-dnuv]\n");
+	fprintf(stderr, "\t-f <file> [-dnuvR]\n");
 	fprintf(stderr, "\t-F [-dv] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-O <fields>]\n");
+	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]\n");
 	fprintf(stderr, "\t-r [-dnv] [-m <name>] [-o <role>] [-t type] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
 	fprintf(stderr, "\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
@@ -99,7 +99,7 @@ main(argc, argv)
 
 	assigndefined(getenv("IPPOOL_PREDEFINED"));
 
-	switch (getopt(argc, argv, "aAf:FlnrRsv"))
+	switch (getopt(argc, argv, "aAf:FlrRs"))
 	{
 	case 'a' :
 		err = poolnodecommand(0, argc, argv);
@@ -116,9 +116,6 @@ main(argc, argv)
 	case 'l' :
 		err = poollist(argc, argv);
 		break;
-	case 'n' :
-		opts |= OPT_DONOTHING|OPT_DONTOPEN;
-		break;
 	case 'r' :
 		err = poolnodecommand(1, argc, argv);
 		break;
@@ -127,9 +124,6 @@ main(argc, argv)
 		break;
 	case 's' :
 		err = poolstats(argc, argv);
-		break;
-	case 'v' :
-		opts |= OPT_VERBOSE;
 		break;
 	default :
 		exit(1);
@@ -207,16 +201,26 @@ poolnodecommand(remove, argc, argv)
 			}
 			break;
 		case 'T' :
-			ttl = atoi(optarg);
-			if (ttl < 0) {
-				fprintf(stderr, "cannot set negative ttl\n");
-				return -1;
+			if (remove == 0) {
+				ttl = atoi(optarg);
+				if (ttl < 0) {
+					fprintf(stderr, "cannot set negative ttl\n");
+					return -1;
+				}
+			} else {
+				usage(argv[0]);
 			}
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (argv[optind] != NULL && ipset == 0) {
 		if (setnodeaddr(type, role, ptr, argv[optind]) == 0)
@@ -274,7 +278,7 @@ poolcommand(remove, argc, argv)
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:RSv")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:RS:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -298,12 +302,21 @@ poolcommand(remove, argc, argv)
 			opts |= OPT_NORESOLVE;
 			break;
 		case 'S' :
-			iph.iph_seed = atoi(optarg);
+			if (remove == 0)
+				iph.iph_seed = atoi(optarg);
+			else
+				usage(argv[0]);
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolcommand: opts = %#x\n", opts);
@@ -361,8 +374,6 @@ loadpoolfile(argc, argv, infile)
 {
 	int c;
 
-	infile = optarg;
-
 	while ((c = getopt(argc, argv, "dnRuv")) != -1)
 		switch (c)
 		{
@@ -382,7 +393,13 @@ loadpoolfile(argc, argv, infile)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "loadpoolfile: opts = %#x\n", opts);
@@ -453,7 +470,13 @@ poolstats(argc, argv)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolstats: opts = %#x\n", opts);
@@ -559,7 +582,13 @@ poolflush(argc, argv)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolflush: opts = %#x\n", opts);
@@ -663,7 +692,7 @@ poollist(argc, argv)
 	poolname = NULL;
 	role = IPL_LOGALL;
 
-	while ((c = getopt(argc, argv, "dm:M:N:o:Rt:v")) != -1)
+	while ((c = getopt(argc, argv, "dm:M:N:o:t:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -687,12 +716,16 @@ poollist(argc, argv)
 				return -1;
 			}
 			break;
+#if 0
 		case 'O' :
+			/* XXX This option does not work. This function as  */
+			/* XXX used by state and nat can be used to format  */
+			/* XXX output especially useful for scripting. It   */
+			/* XXX is left here with the intention of making    */
+			/* XXX it work for the same purpose at some point.  */
 			pool_fields = parsefields(poolfields, optarg);
 			break;
-		case 'R' :
-			opts |= OPT_NORESOLVE;
-			break;
+#endif
 		case 't' :
 			type = gettype(optarg, NULL);
 			if (type == IPLT_NONE) {
@@ -703,7 +736,13 @@ poollist(argc, argv)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poollist: opts = %#x\n", opts);
@@ -1030,43 +1069,80 @@ int
 setnodeaddr(int type, int role, void *ptr, char *arg)
 {
 	struct in_addr mask;
+	sa_family_t family;
 	char *s;
 
-	s = strchr(arg, '/');
-	if (s == NULL)
-		mask.s_addr = 0xffffffff;
-	else if (strchr(s, '.') == NULL) {
-		if (ntomask(AF_INET, atoi(s + 1), &mask.s_addr) != 0)
-			return -1;
+	if (strchr(arg, ':') == NULL) {
+		family = AF_INET;
+		s = strchr(arg, '/');
+		if (s == NULL)
+			mask.s_addr = 0xffffffff;
+		else if (strchr(s, '.') == NULL) {
+			if (ntomask(AF_INET, atoi(s + 1), &mask.s_addr) != 0)
+				return -1;
+		} else {
+			mask.s_addr = inet_addr(s + 1);
+		}
+		if (s != NULL)
+			*s = '\0';
 	} else {
-		mask.s_addr = inet_addr(s + 1);
+		family = AF_INET6;
+
+		/* XXX for now we use mask for IPv6 prefix length */
+		/* XXX mask should be a union with prefix */
+		/* XXX Currently address handling is sloppy. */
+
+		if ((s = strchr(arg, '/')) == NULL)
+			mask.s_addr = 128;
+		else
+			mask.s_addr = atoi(s + 1);
 	}
-	if (s != NULL)
-		*s = '\0';
 
 	if (type == IPLT_POOL) {
 		ip_pool_node_t *node = ptr;
 
-		if (node->ipn_addr.adf_family == AF_INET)
+		node->ipn_addr.adf_family = family;
+
+#ifdef USE_INET6
+		if (node->ipn_addr.adf_family == AF_INET) {
+#endif
 			node->ipn_addr.adf_len = offsetof(addrfamily_t,
 							  adf_addr) +
 						 sizeof(struct in_addr);
+			node->ipn_addr.adf_addr.in4.s_addr = inet_addr(arg);
 #ifdef USE_INET6
-		else
+		} else {
 			node->ipn_addr.adf_len = offsetof(addrfamily_t,
 							  adf_addr) +
 						 sizeof(struct in6_addr);
+			inet_pton(AF_INET6, arg, 
+				&node->ipn_addr.adf_addr.in6.s6_addr);
+		}
 #endif
-		node->ipn_addr.adf_addr.in4.s_addr = inet_addr(arg);
 		node->ipn_mask.adf_len = node->ipn_addr.adf_len;
 		node->ipn_mask.adf_addr.in4.s_addr = mask.s_addr;
 	} else if (type == IPLT_HASH) {
 		iphtent_t *node = ptr;
 
-		node->ipe_addr.in4.s_addr = inet_addr(arg);
-		node->ipe_mask.in4.s_addr = mask.s_addr;
-        	node->ipe_family = AF_INET;
-        	node->ipe_unit = role;
+        	node->ipe_family = family;
+		node->ipe_unit = role;
+
+#ifdef USE_INET6
+		if (node->ipe_family == AF_INET) {
+#endif
+			node->ipe_addr.in4.s_addr = inet_addr(arg);
+			node->ipe_mask.in4.s_addr = mask.s_addr;
+#ifdef USE_INET6
+		} else {
+			inet_pton(AF_INET6, arg, 
+				&node->ipe_addr.in6.__u6_addr.__u6_addr32);
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[0] =
+				mask.s_addr;
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[1] =
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[2] = 
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[3] = 0;
+		}
+#endif
 	}
 
 	return 0;

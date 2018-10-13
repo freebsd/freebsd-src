@@ -14,7 +14,7 @@
 #ifndef LLVM_LIB_TARGET_BPF_BPFFRAMELOWERING_H
 #define LLVM_LIB_TARGET_BPF_BPFFRAMELOWERING_H
 
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 
 namespace llvm {
 class BPFSubtarget;
@@ -31,10 +31,10 @@ public:
   void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
                             RegScavenger *RS) const override;
 
-  void
+  MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator MI) const override {
-    MBB.erase(MI);
+    return MBB.erase(MI);
   }
 };
 }

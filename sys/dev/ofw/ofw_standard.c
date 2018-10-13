@@ -1,6 +1,8 @@
 /*	$NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -230,7 +232,7 @@ ofw_std_peer(ofw_t ofw, phandle_t node)
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
-		return (-1);
+		return (0);
 	return (args.next);
 }
 
@@ -252,7 +254,7 @@ ofw_std_child(ofw_t ofw, phandle_t node)
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
-		return (-1);
+		return (0);
 	return (args.child);
 }
 
@@ -274,7 +276,7 @@ ofw_std_parent(ofw_t ofw, phandle_t node)
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
-		return (-1);
+		return (0);
 	return (args.parent);
 }
 

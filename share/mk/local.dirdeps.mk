@@ -6,9 +6,6 @@
 .include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
 
-# DEP_MACHINE is set before we get here, this may not be.
-DEP_RELDIR ?= ${RELDIR}
-
 # making universe is special
 .if defined(UNIVERSE_GUARD)
 # these should be done by now
@@ -39,6 +36,7 @@ DIRDEPS_FILTER.host = \
 	${N_host_libs} \
 	Ninclude* \
 	Nlib/csu* \
+	Nlib/libc \
 	Nlib/[mn]* \
 	Ngnu/lib/csu* \
 	Ngnu/lib/lib[a-r]* \
@@ -49,6 +47,20 @@ DIRDEPS_FILTER.host = \
 DIRDEPS_FILTER+= \
 	Nbin/cat.host \
 	${DIRDEPS_FILTER.xtras:U}
+
+# Cleanup a buildworld's WORLDTMP so that any files generated from it
+# or using it will rebuild with the DIRDEPS SYSROOT.  Otherwise existing
+# object .meta files may still reference those directories and not be
+# rebuilt and lead to incorrect Makefile.depend files due to lack of
+# .dirdep files.
+.if !defined(NO_CLEANUP_WORLDTMP) && exists(${OBJTOP}/tmp/_worldtmp)
+cleanup_worldtmp: .PHONY .NOMETA
+	@echo "Cleaning leftover WORLDTMP from buildworld."
+	-rm -rf ${OBJTOP}/tmp/*
+	-chflags -R 0 ${OBJTOP}/tmp/*
+	rm -rf ${OBJTOP}/tmp
+beforedirdeps: cleanup_worldtmp
+.endif
 .endif
 
 # reset this each time
@@ -74,6 +86,19 @@ DIRDEPS_FILTER.xtras+= Nlib/libc_nonshared
 DIRDEPS += \
 	cddl/usr.bin/ctfconvert.host \
 	cddl/usr.bin/ctfmerge.host
+.endif
+
+# Add in proper libgcc (gnu or LLVM) if not building libcc and libc is needed.
+# Add both gcc_s and gcc_eh as dependencies as the decision to build
+# -static or not is not known here.
+.if ${DEP_RELDIR:M*libgcc*} == "" && ${DIRDEPS:U:Mlib/libc} != ""
+.if ${MK_LLVM_LIBUNWIND} == "yes"
+DIRDEPS+= \
+	lib/libgcc_eh \
+	lib/libgcc_s
+.else
+DIRDEPS+= gnu/lib/libgcc
+.endif
 .endif
 
 # Bootstrap support.  Give hints to DIRDEPS if there is no Makefile.depend*
@@ -124,7 +149,6 @@ _SRCS= ${SRCS} ${_PROGS_SRCS}
 # Has C files. The C_DIRDEPS are shared with C++ files as well.
 C_DIRDEPS= \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/arpa \
 	include/protocols \
@@ -135,6 +159,7 @@ C_DIRDEPS= \
 	lib/libc \
 	lib/libcompiler_rt \
 
+# libgcc is needed as well but is added later.
 
 .if ${MK_GSSAPI} != "no"
 C_DIRDEPS+=  include/gssapi

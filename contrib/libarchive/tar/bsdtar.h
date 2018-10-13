@@ -50,6 +50,7 @@ struct bsdtar {
 	int		  bytes_per_block; /* -b block_size */
 	int		  bytes_in_last_block; /* See -b handling. */
 	int		  verbose;   /* -v */
+	unsigned int	  flags; /* Bitfield of boolean options */
 	int		  extract_flags; /* Flags for extract operation */
 	int		  readdisk_flags; /* Flags for read disk operation */
 	int		  strip_components; /* Remove this many leading dirs */
@@ -60,20 +61,7 @@ struct bsdtar {
 	const char	 *passphrase; /* --passphrase */
 	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
-	char		  option_absolute_paths; /* -P */
-	char		  option_chroot; /* --chroot */
-	char		  option_fast_read; /* --fast-read */
 	const char	 *option_options; /* --options */
-	char		  option_ignore_zeros; /* --ignore-zeros */
-	char		  option_interactive; /* -w */
-	char		  option_no_owner; /* -o */
-	char		  option_no_subdirs; /* -n */
-	char		  option_numeric_owner; /* --numeric-owner */
-	char		  option_null; /* --null */
-	char		  option_stdout; /* -O */
-	char		  option_totals; /* --totals */
-	char		  option_unlink_first; /* -U */
-	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
 	struct creation_set *cset;
 
@@ -114,14 +102,40 @@ struct bsdtar {
 	char			*ppbuff;	/* for util.c */
 };
 
+/* Options for flags bitfield */
+#define	OPTFLAG_AUTO_COMPRESS	(0x00000001)	/* -a */
+#define	OPTFLAG_ABSOLUTE_PATHS	(0x00000002)	/* -P */
+#define	OPTFLAG_CHROOT		(0x00000004)	/* --chroot */
+#define	OPTFLAG_FAST_READ	(0x00000008)	/* --fast-read */
+#define	OPTFLAG_IGNORE_ZEROS	(0x00000010)	/* --ignore-zeros */
+#define	OPTFLAG_INTERACTIVE	(0x00000020)	/* -w */
+#define	OPTFLAG_NO_OWNER	(0x00000040)	/* -o */
+#define	OPTFLAG_NO_SUBDIRS	(0x00000080)	/* -n */
+#define	OPTFLAG_NULL		(0x00000100)	/* --null */
+#define	OPTFLAG_NUMERIC_OWNER	(0x00000200)	/* --numeric-owner */
+#define	OPTFLAG_O		(0x00000400)	/* -o */
+#define	OPTFLAG_STDOUT		(0x00000800)	/* -O */
+#define	OPTFLAG_TOTALS		(0x00001000)	/* --totals */
+#define	OPTFLAG_UNLINK_FIRST	(0x00002000)	/* -U */
+#define	OPTFLAG_WARN_LINKS	(0x00004000)	/* --check-links */
+#define	OPTFLAG_NO_XATTRS	(0x00008000)	/* --no-xattrs */
+#define	OPTFLAG_XATTRS		(0x00010000)	/* --xattrs */
+#define	OPTFLAG_NO_ACLS		(0x00020000)	/* --no-acls */
+#define	OPTFLAG_ACLS		(0x00040000)	/* --acls */
+#define	OPTFLAG_NO_FFLAGS	(0x00080000)	/* --no-fflags */
+#define	OPTFLAG_FFLAGS		(0x00100000)	/* --fflags */
+#define	OPTFLAG_NO_MAC_METADATA	(0x00200000)	/* --no-mac-metadata */
+#define	OPTFLAG_MAC_METADATA	(0x00400000)	/* --mac-metadata */
+
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_B64ENCODE = 1,
+	OPTION_ACLS = 1,
+	OPTION_B64ENCODE,
 	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,
 	OPTION_CLEAR_NOCHANGE_FFLAGS,
-	OPTION_DISABLE_COPYFILE,
 	OPTION_EXCLUDE,
+	OPTION_FFLAGS,
 	OPTION_FORMAT,
 	OPTION_GID,
 	OPTION_GNAME,
@@ -136,15 +150,19 @@ enum {
 	OPTION_LZIP,
 	OPTION_LZMA,
 	OPTION_LZOP,
+	OPTION_MAC_METADATA,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
 	OPTION_NEWER_MTIME,
 	OPTION_NEWER_MTIME_THAN,
 	OPTION_NODUMP,
 	OPTION_NOPRESERVE_HFS_COMPRESSION,
+	OPTION_NO_ACLS,
+	OPTION_NO_FFLAGS,
+	OPTION_NO_MAC_METADATA,
 	OPTION_NO_SAME_OWNER,
 	OPTION_NO_SAME_PERMISSIONS,
-	OPTION_NO_XATTR,
+	OPTION_NO_XATTRS,
 	OPTION_NULL,
 	OPTION_NUMERIC_OWNER,
 	OPTION_OLDER_CTIME,
@@ -162,7 +180,9 @@ enum {
 	OPTION_UNAME,
 	OPTION_USE_COMPRESS_PROGRAM,
 	OPTION_UUENCODE,
-	OPTION_VERSION
+	OPTION_VERSION,
+	OPTION_XATTRS,
+	OPTION_ZSTD,
 };
 
 int	bsdtar_getopt(struct bsdtar *);
@@ -170,7 +190,7 @@ void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
 int	pathcmp(const char *a, const char *b);
-void	safe_fprintf(FILE *, const char *fmt, ...);
+void	safe_fprintf(FILE *, const char *fmt, ...) __LA_PRINTF(2, 3);
 void	set_chdir(struct bsdtar *, const char *newdir);
 const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);
@@ -178,8 +198,8 @@ void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
-void	usage(void);
-int	yes(const char *fmt, ...);
+void	usage(void) __LA_DEAD;
+int	yes(const char *fmt, ...) __LA_PRINTF(1, 2);
 
 #if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
 void	add_substitution(struct bsdtar *, const char *);

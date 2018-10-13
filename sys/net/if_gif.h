@@ -2,7 +2,10 @@
 /*	$KAME: if_gif.h,v 1.17 2000/09/11 11:36:41 sumikawa Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (c) 2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,14 +37,9 @@
 #define _NET_IF_GIF_H_
 
 #ifdef _KERNEL
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
-#include <netinet/in.h>
 
 struct ip;
 struct ip6_hdr;
-struct encaptab;
 
 extern	void (*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp,
 		int af);
@@ -53,8 +51,6 @@ extern	void (*ng_gif_detach_p)(struct ifnet *ifp);
 
 struct gif_softc {
 	struct ifnet		*gif_ifp;
-	struct rmlock		gif_lock;
-	const struct encaptab	*gif_ecookie;
 	int			gif_family;
 	int			gif_flags;
 	u_int			gif_fibnum;
@@ -63,28 +59,22 @@ struct gif_softc {
 	union {
 		void		*hdr;
 		struct ip	*iphdr;
-#ifdef INET6
 		struct ip6_hdr	*ip6hdr;
-#endif
 	} gif_uhdr;
-	LIST_ENTRY(gif_softc)	gif_list; /* all gif's are linked */
-};
-#define	GIF2IFP(sc)	((sc)->gif_ifp)
-#define	GIF_LOCK_INIT(sc)	rm_init(&(sc)->gif_lock, "gif softc")
-#define	GIF_LOCK_DESTROY(sc)	rm_destroy(&(sc)->gif_lock)
-#define	GIF_RLOCK_TRACKER	struct rm_priotracker gif_tracker
-#define	GIF_RLOCK(sc)		rm_rlock(&(sc)->gif_lock, &gif_tracker)
-#define	GIF_RUNLOCK(sc)		rm_runlock(&(sc)->gif_lock, &gif_tracker)
-#define	GIF_RLOCK_ASSERT(sc)	rm_assert(&(sc)->gif_lock, RA_RLOCKED)
-#define	GIF_WLOCK(sc)		rm_wlock(&(sc)->gif_lock)
-#define	GIF_WUNLOCK(sc)		rm_wunlock(&(sc)->gif_lock)
-#define	GIF_WLOCK_ASSERT(sc)	rm_assert(&(sc)->gif_lock, RA_WLOCKED)
 
+	CK_LIST_ENTRY(gif_softc) chain;
+};
+CK_LIST_HEAD(gif_list, gif_softc);
+MALLOC_DECLARE(M_GIF);
+
+#ifndef GIF_HASH_SIZE
+#define	GIF_HASH_SIZE	(1 << 4)
+#endif
+
+#define	GIF2IFP(sc)	((sc)->gif_ifp)
 #define	gif_iphdr	gif_uhdr.iphdr
 #define	gif_hdr		gif_uhdr.hdr
-#ifdef INET6
 #define	gif_ip6hdr	gif_uhdr.ip6hdr
-#endif
 
 #define GIF_MTU		(1280)	/* Default MTU */
 #define	GIF_MTU_MIN	(1280)	/* Minimum MTU */
@@ -106,21 +96,29 @@ struct etherip_header {
 /* mbuf adjust factor to force 32-bit alignment of IP header */
 #define	ETHERIP_ALIGN		2
 
+#define	GIF_RLOCK()	struct epoch_tracker gif_et; epoch_enter_preempt(net_epoch_preempt, &gif_et)
+#define	GIF_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt, &gif_et)
+#define	GIF_WAIT()	epoch_wait_preempt(net_epoch_preempt)
+
 /* Prototypes */
+struct gif_list *gif_hashinit(void);
+void gif_hashdestroy(struct gif_list *);
+
 void gif_input(struct mbuf *, struct ifnet *, int, uint8_t);
 int gif_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	       struct route *);
-int gif_encapcheck(const struct mbuf *, int, int, void *);
-#ifdef INET
+
+void in_gif_init(void);
+void in_gif_uninit(void);
 int in_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);
-int in_gif_encapcheck(const struct mbuf *, int, int, void *);
-int in_gif_attach(struct gif_softc *);
-#endif
-#ifdef INET6
+int in_gif_ioctl(struct gif_softc *, u_long, caddr_t);
+int in_gif_setopts(struct gif_softc *, u_int);
+
+void in6_gif_init(void);
+void in6_gif_uninit(void);
 int in6_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);
-int in6_gif_encapcheck(const struct mbuf *, int, int, void *);
-int in6_gif_attach(struct gif_softc *);
-#endif
+int in6_gif_ioctl(struct gif_softc *, u_long, caddr_t);
+int in6_gif_setopts(struct gif_softc *, u_int);
 #endif /* _KERNEL */
 
 #define GIFGOPTS	_IOWR('i', 150, struct ifreq)

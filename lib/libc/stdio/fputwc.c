@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
@@ -53,19 +55,9 @@ __fputwc(wchar_t wc, FILE *fp, locale_t locale)
 	size_t i, len;
 	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
-	if (MB_CUR_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
-		/*
-		 * Assume single-byte locale with no special encoding.
-		 * A more careful test would be to check
-		 * _CurrentRuneLocale->encoding.
-		 */
-		*buf = (unsigned char)wc;
-		len = 1;
-	} else {
-		if ((len = l->__wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
-			fp->_flags |= __SERR;
-			return (WEOF);
-		}
+	if ((len = l->__wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
+		fp->_flags |= __SERR;
+		return (WEOF);
 	}
 
 	for (i = 0; i < len; i++)
@@ -84,10 +76,10 @@ fputwc_l(wchar_t wc, FILE *fp, locale_t locale)
 	wint_t r;
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, 1);
 	r = __fputwc(wc, fp, locale);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }

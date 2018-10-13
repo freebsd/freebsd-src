@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Michael Smith <msmith@freebsd.org>
  * All rights reserved.
  *
@@ -51,8 +53,7 @@ struct eventhandler_entry_vimage {
 
 struct eventhandler_list {
 	char				*el_name;
-	int				el_flags;
-#define EHL_INITTED	(1<<0)
+	int				el_flags;	/* Unused. */
 	u_int				el_runcount;
 	struct mtx			el_lock;
 	TAILQ_ENTRY(eventhandler_list)	el_link;
@@ -72,8 +73,6 @@ typedef struct eventhandler_entry	*eventhandler_tag;
 	struct eventhandler_entry *_ep;					\
 	struct eventhandler_entry_ ## name *_t;				\
 									\
-	KASSERT((list)->el_flags & EHL_INITTED,				\
- 	   ("eventhandler_invoke: running non-inited list"));		\
 	EHL_LOCK_ASSERT((list), MA_OWNED);				\
 	(list)->el_runcount++;						\
 	KASSERT((list)->el_runcount > 0,				\
@@ -98,10 +97,41 @@ typedef struct eventhandler_entry	*eventhandler_tag;
 } while (0)
 
 /*
- * Slow handlers are entirely dynamic; lists are created
- * when entries are added to them, and thus have no concept of "owner",
- *
- * Slow handlers need to be declared, but do not need to be defined. The
+ * You can optionally use the EVENTHANDLER_LIST and EVENTHANDLER_DIRECT macros
+ * to pre-define a symbol for the eventhandler list. This symbol can be used by
+ * EVENTHANDLER_DIRECT_INVOKE, which has the advantage of not needing to do a
+ * locked search of the global list of eventhandler lists. At least
+ * EVENTHANDLER_LIST_DEFINE must be be used for EVENTHANDLER_DIRECT_INVOKE to
+ * work. EVENTHANDLER_LIST_DECLARE is only needed if the call to
+ * EVENTHANDLER_DIRECT_INVOKE is in a different compilation unit from
+ * EVENTHANDLER_LIST_DEFINE. If the events are even relatively high frequency
+ * it is suggested that you directly define a list for them.
+ */
+#define	EVENTHANDLER_LIST_DECLARE(name)					\
+extern struct eventhandler_list *_eventhandler_list_ ## name		\
+
+#define	EVENTHANDLER_LIST_DEFINE(name)					\
+struct eventhandler_list *_eventhandler_list_ ## name ;			\
+static void _ehl_init_ ## name (void * ctx __unused)			\
+{									\
+	_eventhandler_list_ ## name = eventhandler_create_list(#name);	\
+}									\
+SYSINIT(name ## _ehl_init, SI_SUB_EVENTHANDLER, SI_ORDER_ANY,		\
+	    _ehl_init_ ## name, NULL);					\
+	struct __hack
+
+#define	EVENTHANDLER_DIRECT_INVOKE(name, ...) do {			\
+	struct eventhandler_list *_el;					\
+									\
+	_el = _eventhandler_list_ ## name ;				\
+	if (!TAILQ_EMPTY(&_el->el_entries)) {				\
+		EHL_LOCK(_el);						\
+		_EVENTHANDLER_INVOKE(name, _el , ## __VA_ARGS__);	\
+	}								\
+} while (0)
+
+/*
+ * Event handlers need to be declared, but do not need to be defined. The
  * declaration must be in scope wherever the handler is to be invoked.
  */
 #define EVENTHANDLER_DECLARE(name, type)				\
@@ -141,14 +171,24 @@ do {									\
 	if ((_el = eventhandler_find_list(#name)) != NULL)		\
 		eventhandler_deregister(_el, tag);			\
 } while(0)
-	
+
+#define EVENTHANDLER_DEREGISTER_NOWAIT(name, tag)			\
+do {									\
+	struct eventhandler_list *_el;					\
+									\
+	if ((_el = eventhandler_find_list(#name)) != NULL)		\
+		eventhandler_deregister_nowait(_el, tag);		\
+} while(0)
 
 eventhandler_tag eventhandler_register(struct eventhandler_list *list, 
 	    const char *name, void *func, void *arg, int priority);
 void	eventhandler_deregister(struct eventhandler_list *list,
 	    eventhandler_tag tag);
+void	eventhandler_deregister_nowait(struct eventhandler_list *list,
+	    eventhandler_tag tag);
 struct eventhandler_list *eventhandler_find_list(const char *name);
 void	eventhandler_prune_list(struct eventhandler_list *list);
+struct eventhandler_list *eventhandler_create_list(const char *name);
 
 #ifdef VIMAGE
 typedef	void (*vimage_iterator_func_t)(void *, ...);
@@ -269,5 +309,30 @@ typedef void (*register_framebuffer_fn)(void *, struct fb_info *);
 typedef void (*unregister_framebuffer_fn)(void *, struct fb_info *);
 EVENTHANDLER_DECLARE(register_framebuffer, register_framebuffer_fn);
 EVENTHANDLER_DECLARE(unregister_framebuffer, unregister_framebuffer_fn);
+
+/* Veto ada attachment */
+struct cam_path;
+struct ata_params;
+typedef void (*ada_probe_veto_fn)(void *, struct cam_path *,
+    struct ata_params *, int *);
+EVENTHANDLER_DECLARE(ada_probe_veto, ada_probe_veto_fn);
+
+/* Swap device events */
+struct swdevt;
+typedef void (*swapon_fn)(void *, struct swdevt *);
+typedef void (*swapoff_fn)(void *, struct swdevt *);
+EVENTHANDLER_DECLARE(swapon, swapon_fn);
+EVENTHANDLER_DECLARE(swapoff, swapoff_fn);
+
+/* newbus device events */
+enum evhdev_detach {
+	EVHDEV_DETACH_BEGIN,    /* Before detach() is called */
+	EVHDEV_DETACH_COMPLETE, /* After detach() returns 0 */
+	EVHDEV_DETACH_FAILED    /* After detach() returns err */
+};
+typedef void (*device_attach_fn)(void *, device_t);
+typedef void (*device_detach_fn)(void *, device_t, enum evhdev_detach);
+EVENTHANDLER_DECLARE(device_attach, device_attach_fn);
+EVENTHANDLER_DECLARE(device_detach, device_detach_fn);
 
 #endif /* _SYS_EVENTHANDLER_H_ */

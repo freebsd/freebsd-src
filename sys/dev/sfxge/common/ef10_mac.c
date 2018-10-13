@@ -484,6 +484,89 @@ fail1:
 
 #if EFSYS_OPT_MAC_STATS
 
+	__checkReturn			efx_rc_t
+ef10_mac_stats_get_mask(
+	__in				efx_nic_t *enp,
+	__inout_bcount(mask_size)	uint32_t *maskp,
+	__in				size_t mask_size)
+{
+	const struct efx_mac_stats_range ef10_common[] = {
+		{ EFX_MAC_RX_OCTETS, EFX_MAC_RX_GE_15XX_PKTS },
+		{ EFX_MAC_RX_FCS_ERRORS, EFX_MAC_RX_DROP_EVENTS },
+		{ EFX_MAC_RX_JABBER_PKTS, EFX_MAC_RX_JABBER_PKTS },
+		{ EFX_MAC_RX_NODESC_DROP_CNT, EFX_MAC_TX_PAUSE_PKTS },
+	};
+	const struct efx_mac_stats_range ef10_tx_size_bins[] = {
+		{ EFX_MAC_TX_LE_64_PKTS, EFX_MAC_TX_GE_15XX_PKTS },
+	};
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	efx_port_t *epp = &(enp->en_port);
+	efx_rc_t rc;
+
+	if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+	    ef10_common, EFX_ARRAY_SIZE(ef10_common))) != 0)
+		goto fail1;
+
+	if (epp->ep_phy_cap_mask & (1 << MC_CMD_PHY_CAP_40000FDX_LBN)) {
+		const struct efx_mac_stats_range ef10_40g_extra[] = {
+			{ EFX_MAC_RX_ALIGN_ERRORS, EFX_MAC_RX_ALIGN_ERRORS },
+		};
+
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_40g_extra, EFX_ARRAY_SIZE(ef10_40g_extra))) != 0)
+			goto fail2;
+
+		if (encp->enc_mac_stats_40g_tx_size_bins) {
+			if ((rc = efx_mac_stats_mask_add_ranges(maskp,
+			    mask_size, ef10_tx_size_bins,
+			    EFX_ARRAY_SIZE(ef10_tx_size_bins))) != 0)
+				goto fail3;
+		}
+	} else {
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_tx_size_bins, EFX_ARRAY_SIZE(ef10_tx_size_bins))) != 0)
+			goto fail4;
+	}
+
+	if (encp->enc_pm_and_rxdp_counters) {
+		const struct efx_mac_stats_range ef10_pm_and_rxdp[] = {
+			{ EFX_MAC_PM_TRUNC_BB_OVERFLOW, EFX_MAC_RXDP_HLB_WAIT },
+		};
+
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_pm_and_rxdp, EFX_ARRAY_SIZE(ef10_pm_and_rxdp))) != 0)
+			goto fail5;
+	}
+
+	if (encp->enc_datapath_cap_evb) {
+		const struct efx_mac_stats_range ef10_vadaptor[] = {
+			{ EFX_MAC_VADAPTER_RX_UNICAST_PACKETS,
+			    EFX_MAC_VADAPTER_TX_OVERFLOW },
+		};
+
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_vadaptor, EFX_ARRAY_SIZE(ef10_vadaptor))) != 0)
+			goto fail6;
+	}
+
+	return (0);
+
+fail6:
+	EFSYS_PROBE(fail6);
+fail5:
+	EFSYS_PROBE(fail5);
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 #define	EF10_MAC_STAT_READ(_esmp, _field, _eqp)			\
 	EFSYS_MEM_READQ((_esmp), (_field) * sizeof (efx_qword_t), _eqp)
 

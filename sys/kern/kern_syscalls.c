@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Assar Westerlund
  * All rights reserved.
  *
@@ -78,14 +80,12 @@ syscall_thread_drain(struct sysent *se)
 }
 
 int
-syscall_thread_enter(struct thread *td, struct sysent *se)
+_syscall_thread_enter(struct thread *td, struct sysent *se)
 {
 	u_int32_t cnt, oldcnt;
 
 	do {
 		oldcnt = se->sy_thrcnt;
-		if ((oldcnt & SY_THR_STATIC) != 0)
-			return (0);
 		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0)
 			return (ENOSYS);
 		cnt = oldcnt + SY_THR_INCR;
@@ -94,21 +94,19 @@ syscall_thread_enter(struct thread *td, struct sysent *se)
 }
 
 void
-syscall_thread_exit(struct thread *td, struct sysent *se)
+_syscall_thread_exit(struct thread *td, struct sysent *se)
 {
 	u_int32_t cnt, oldcnt;
 
 	do {
 		oldcnt = se->sy_thrcnt;
-		if ((oldcnt & SY_THR_STATIC) != 0)
-			return;
 		cnt = oldcnt - SY_THR_INCR;
 	} while (atomic_cmpset_rel_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
 }
 
 int
-syscall_register(int *offset, struct sysent *new_sysent,
-    struct sysent *old_sysent, int flags)
+kern_syscall_register(struct sysent *sysents, int *offset,
+    struct sysent *new_sysent, struct sysent *old_sysent, int flags)
 {
 	int i;
 
@@ -117,44 +115,53 @@ syscall_register(int *offset, struct sysent *new_sysent,
 
 	if (*offset == NO_SYSCALL) {
 		for (i = 1; i < SYS_MAXSYSCALL; ++i)
-			if (sysent[i].sy_call == (sy_call_t *)lkmnosys)
+			if (sysents[i].sy_call == (sy_call_t *)lkmnosys)
 				break;
 		if (i == SYS_MAXSYSCALL)
 			return (ENFILE);
 		*offset = i;
 	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
 		return (EINVAL);
-	else if (sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
-	    sysent[*offset].sy_call != (sy_call_t *)lkmressys)
+	else if (sysents[*offset].sy_call != (sy_call_t *)lkmnosys &&
+	    sysents[*offset].sy_call != (sy_call_t *)lkmressys)
 		return (EEXIST);
 
-	KASSERT(sysent[*offset].sy_thrcnt == SY_THR_ABSENT,
+	KASSERT(sysents[*offset].sy_thrcnt == SY_THR_ABSENT,
 	    ("dynamic syscall is not protected"));
-	*old_sysent = sysent[*offset];
+	*old_sysent = sysents[*offset];
 	new_sysent->sy_thrcnt = SY_THR_ABSENT;
-	sysent[*offset] = *new_sysent;
-	atomic_store_rel_32(&sysent[*offset].sy_thrcnt, flags);
+	sysents[*offset] = *new_sysent;
+	atomic_store_rel_32(&sysents[*offset].sy_thrcnt, flags);
 	return (0);
 }
 
 int
-syscall_deregister(int *offset, struct sysent *old_sysent)
+kern_syscall_deregister(struct sysent *sysents, int offset,
+    const struct sysent *old_sysent)
 {
 	struct sysent *se;
 
-	if (*offset == 0)
+	if (offset == 0)
 		return (0); /* XXX? */
 
-	se = &sysent[*offset];
+	se = &sysents[offset];
 	if ((se->sy_thrcnt & SY_THR_STATIC) != 0)
 		return (EINVAL);
 	syscall_thread_drain(se);
-	sysent[*offset] = *old_sysent;
+	sysents[offset] = *old_sysent;
 	return (0);
 }
 
 int
 syscall_module_handler(struct module *mod, int what, void *arg)
+{
+
+	return (kern_syscall_module_handler(sysent, mod, what, arg));
+}
+
+int
+kern_syscall_module_handler(struct sysent *sysents, struct module *mod,
+    int what, void *arg)
 {
 	struct syscall_module_data *data = arg;
 	modspecific_t ms;
@@ -162,8 +169,8 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		error = syscall_register(data->offset, data->new_sysent,
-		    &data->old_sysent, data->flags);
+		error = kern_syscall_register(sysents, data->offset,
+		    data->new_sysent, &data->old_sysent, data->flags);
 		if (error) {
 			/* Leave a mark so we know to safely unload below. */
 			data->offset = NULL;
@@ -189,7 +196,8 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 			if (error)
 				return error;
 		}
-		error = syscall_deregister(data->offset, &data->old_sysent);
+		error = kern_syscall_deregister(sysents, *data->offset,
+		    &data->old_sysent);
 		return (error);
 	default:
 		if (data->chainevh)
@@ -203,14 +211,22 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 int
 syscall_helper_register(struct syscall_helper_data *sd, int flags)
 {
+
+	return (kern_syscall_helper_register(sysent, sd, flags));
+}
+
+int
+kern_syscall_helper_register(struct sysent *sysents,
+    struct syscall_helper_data *sd, int flags)
+{
 	struct syscall_helper_data *sd1;
 	int error;
 
 	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
-		error = syscall_register(&sd1->syscall_no, &sd1->new_sysent,
-		    &sd1->old_sysent, flags);
+		error = kern_syscall_register(sysents, &sd1->syscall_no,
+		    &sd1->new_sysent, &sd1->old_sysent, flags);
 		if (error != 0) {
-			syscall_helper_unregister(sd);
+			kern_syscall_helper_unregister(sysents, sd);
 			return (error);
 		}
 		sd1->registered = 1;
@@ -221,10 +237,19 @@ syscall_helper_register(struct syscall_helper_data *sd, int flags)
 int
 syscall_helper_unregister(struct syscall_helper_data *sd)
 {
+
+	return (kern_syscall_helper_unregister(sysent, sd));
+}
+
+int
+kern_syscall_helper_unregister(struct sysent *sysents,
+    struct syscall_helper_data *sd)
+{
 	struct syscall_helper_data *sd1;
 
 	for (sd1 = sd; sd1->registered != 0; sd1++) {
-		syscall_deregister(&sd1->syscall_no, &sd1->old_sysent);
+		kern_syscall_deregister(sysents, sd1->syscall_no,
+		    &sd1->old_sysent);
 		sd1->registered = 0;
 	}
 	return (0);

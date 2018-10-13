@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -59,11 +59,11 @@ typedef	__uint64_t	fexcept_t;
 /*
  * RISC-V Rounding modes
  */
-#define	FE_TONEAREST	(0x00 << 5)
-#define	FE_TOWARDZERO	(0x01 << 5)
-#define	FE_DOWNWARD	(0x02 << 5)
-#define	FE_UPWARD	(0x03 << 5)
 #define	_ROUND_SHIFT	5
+#define	FE_TONEAREST	(0x00 << _ROUND_SHIFT)
+#define	FE_TOWARDZERO	(0x01 << _ROUND_SHIFT)
+#define	FE_DOWNWARD	(0x02 << _ROUND_SHIFT)
+#define	FE_UPWARD	(0x03 << _ROUND_SHIFT)
 #define	_ROUND_MASK	(FE_TONEAREST | FE_DOWNWARD | \
 			 FE_UPWARD | FE_TOWARDZERO)
 
@@ -73,96 +73,125 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
-/* We need to be able to map status flag positions to mask flag positions */
-#define	_FPUSW_SHIFT	0
-#define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
+#if !defined(__riscv_float_abi_soft) && !defined(__riscv_float_abi_double)
+#if defined(__riscv_float_abi_single)
+#error single precision floating point ABI not supported
+#else
+#error compiler did not set soft/hard float macros
+#endif
+#endif
 
-#define	__rfs(__fpsr)	__asm __volatile("csrr %0, fcsr" : "=r" (*(__fpsr)))
-#define	__wfs(__fpsr)	__asm __volatile("csrw fcsr, %0" :: "r" (__fpsr))
+#ifndef __riscv_float_abi_soft
+#define	__rfs(__fcsr)	__asm __volatile("csrr %0, fcsr" : "=r" (__fcsr))
+#define	__wfs(__fcsr)	__asm __volatile("csrw fcsr, %0" :: "r" (__fcsr))
+#endif
 
+#ifdef __riscv_float_abi_soft
+int feclearexcept(int __excepts);
+int fegetexceptflag(fexcept_t *__flagp, int __excepts);
+int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
+int feraiseexcept(int __excepts);
+int fetestexcept(int __excepts);
+int fegetround(void);
+int fesetround(int __round);
+int fegetenv(fenv_t *__envp);
+int feholdexcept(fenv_t *__envp);
+int fesetenv(const fenv_t *__envp);
+int feupdateenv(const fenv_t *__envp);
+#else
 __fenv_static inline int
 feclearexcept(int __excepts)
 {
-	fexcept_t __fpsr;
 
-	__rfs(&__fpsr);
-	__fpsr &= ~__excepts;
-	__wfs(__fpsr);
+	__asm __volatile("csrc fflags, %0" :: "r"(__excepts));
+
 	return (0);
 }
 
 __fenv_static inline int
 fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t __fcsr;
 
-	__rfs(&__fpsr);
-	*__flagp = __fpsr & __excepts;
+	__rfs(__fcsr);
+	*__flagp = __fcsr & __excepts;
+
 	return (0);
 }
 
 __fenv_static inline int
 fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t __fcsr;
 
-	__rfs(&__fpsr);
-	__fpsr &= ~__excepts;
-	__fpsr |= *__flagp & __excepts;
-	__wfs(__fpsr);
+	__fcsr = *__flagp;
+	__asm __volatile("csrc fflags, %0" :: "r"(__excepts));
+	__asm __volatile("csrs fflags, %0" :: "r"(__fcsr & __excepts));
+
 	return (0);
 }
 
 __fenv_static inline int
 feraiseexcept(int __excepts)
 {
-	fexcept_t __ex = __excepts;
 
-	fesetexceptflag(&__ex, __excepts);	/* XXX */
+	__asm __volatile("csrs fflags, %0" :: "r"(__excepts));
+
 	return (0);
 }
 
 __fenv_static inline int
 fetestexcept(int __excepts)
 {
-	fexcept_t __fpsr;
+	fexcept_t __fcsr;
 
-	__rfs(&__fpsr);
-	return (__fpsr & __excepts);
+	__rfs(__fcsr);
+
+	return (__fcsr & __excepts);
 }
 
 __fenv_static inline int
 fegetround(void)
 {
+	fexcept_t __fcsr;
 
-	return (-1);
+	__rfs(__fcsr);
+
+	return (__fcsr & _ROUND_MASK);
 }
 
 __fenv_static inline int
 fesetround(int __round)
 {
+	fexcept_t __fcsr;
 
-	return (-1);
+	if (__round & ~_ROUND_MASK)
+		return (-1);
+
+	__rfs(__fcsr);
+	__fcsr &= ~_ROUND_MASK;
+	__fcsr |= __round;
+	__wfs(__fcsr);
+
+	return (0);
 }
 
 __fenv_static inline int
 fegetenv(fenv_t *__envp)
 {
 
-	__rfs(__envp);
+	__rfs(*__envp);
+
 	return (0);
 }
 
 __fenv_static inline int
 feholdexcept(fenv_t *__envp)
 {
-	fenv_t __env;
 
-	__rfs(&__env);
-	*__envp = __env;
-	__env &= ~(FE_ALL_EXCEPT | _ENABLE_MASK);
-	__wfs(__env);
-	return (0);
+	/* No exception traps. */
+
+	return (-1);
 }
 
 __fenv_static inline int
@@ -170,56 +199,59 @@ fesetenv(const fenv_t *__envp)
 {
 
 	__wfs(*__envp);
+
 	return (0);
 }
 
 __fenv_static inline int
 feupdateenv(const fenv_t *__envp)
 {
-	fexcept_t __fpsr;
+	fexcept_t __fcsr;
 
-	__rfs(&__fpsr);
+	__rfs(__fcsr);
 	__wfs(*__envp);
-	feraiseexcept(__fpsr & FE_ALL_EXCEPT);
+	feraiseexcept(__fcsr & FE_ALL_EXCEPT);
+
 	return (0);
 }
+#endif /* !__riscv_float_abi_soft */
 
 #if __BSD_VISIBLE
 
 /* We currently provide no external definitions of the functions below. */
 
+#ifdef __riscv_float_abi_soft
+int feenableexcept(int __mask);
+int fedisableexcept(int __mask);
+int fegetexcept(void);
+#else
 static inline int
 feenableexcept(int __mask)
 {
-	fenv_t __old_fpsr;
-	fenv_t __new_fpsr;
 
-	__rfs(&__old_fpsr);
-	__new_fpsr = __old_fpsr | (__mask & FE_ALL_EXCEPT) << _FPUSW_SHIFT;
-	__wfs(__new_fpsr);
-	return ((__old_fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
+	/* No exception traps. */
+
+	return (-1);
 }
 
 static inline int
 fedisableexcept(int __mask)
 {
-	fenv_t __old_fpsr;
-	fenv_t __new_fpsr;
 
-	__rfs(&__old_fpsr);
-	__new_fpsr = __old_fpsr & ~((__mask & FE_ALL_EXCEPT) << _FPUSW_SHIFT);
-	__wfs(__new_fpsr);
-	return ((__old_fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
+	/* No exception traps. */
+
+	return (0);
 }
 
 static inline int
 fegetexcept(void)
 {
-	fenv_t __fpsr;
 
-	__rfs(&__fpsr);
-	return ((__fpsr & _ENABLE_MASK) >> _FPUSW_SHIFT);
+	/* No exception traps. */
+
+	return (0);
 }
+#endif /* !__riscv_float_abi_soft */
 
 #endif /* __BSD_VISIBLE */
 

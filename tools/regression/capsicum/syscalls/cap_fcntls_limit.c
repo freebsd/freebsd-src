@@ -157,13 +157,16 @@ static void
 fcntl_tests_1(int fd)
 {
 	uint32_t fcntlrights;
+	cap_rights_t rights;
 
 	CHECK(cap_fcntls_limit(fd, CAP_FCNTL_GETFL) == 0);
 	fcntlrights = 0;
 	CHECK(cap_fcntls_get(fd, &fcntlrights) == 0);
 	CHECK(fcntlrights == CAP_FCNTL_GETFL);
 
-	CHECK(cap_rights_limit(fd, CAP_ALL & ~CAP_FCNTL) == 0);
+	CAP_ALL(&rights);
+	cap_rights_clear(&rights, CAP_FCNTL);
+	CHECK(cap_rights_limit(fd, &rights) == 0);
 
 	fcntlrights = CAP_FCNTL_ALL;
 	CHECK(cap_fcntls_get(fd, &fcntlrights) == 0);
@@ -206,8 +209,11 @@ static void
 fcntl_tests_2(int fd)
 {
 	uint32_t fcntlrights;
+	cap_rights_t rights;
 
-	CHECK(cap_rights_limit(fd, CAP_ALL & ~CAP_FCNTL) == 0);
+	CAP_ALL(&rights);
+	cap_rights_clear(&rights, CAP_FCNTL);
+	CHECK(cap_rights_limit(fd, &rights) == 0);
 
 	fcntlrights = CAP_FCNTL_ALL;
 	CHECK(cap_fcntls_get(fd, &fcntlrights) == 0);

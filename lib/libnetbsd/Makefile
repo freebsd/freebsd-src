@@ -7,7 +7,7 @@ LIB=	netbsd
 
 CFLAGS+=	-I${.CURDIR}
 
-SRCS+=	strsuftoll.c util.c util.h
+SRCS+=	efun.c sockaddr_snprintf.c strsuftoll.c util.c util.h
 
 INTERNALLIB=
 

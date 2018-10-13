@@ -311,6 +311,9 @@
 /* Provide the explicit 127.0.0.0/8 martian filter? */
 #undef ENABLE_BUG3020_FIX
 
+/* Enable CMAC support? */
+#undef ENABLE_CMAC
+
 /* nls support in libopts */
 #undef ENABLE_NLS
 
@@ -371,6 +374,14 @@
 
 /* Define to 1 if you have the `daemon' function. */
 #undef HAVE_DAEMON
+
+/* Define to 1 if you have the declaration of `siglongjmp', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SIGLONGJMP
+
+/* Define to 1 if you have the declaration of `sigsetjmp', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SIGSETJMP
 
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */
@@ -652,6 +663,12 @@
 
 /* if you have NT Threads */
 #undef HAVE_NT_THREADS
+
+/* Define to 1 if you have the <openssl/cmac.h> header file. */
+#undef HAVE_OPENSSL_CMAC_H
+
+/* Define to 1 if you have the <openssl/hmac.h> header file. */
+#undef HAVE_OPENSSL_HMAC_H
 
 /* Define to 1 if the system has the type `pid_t'. */
 #undef HAVE_PID_T
@@ -957,6 +974,9 @@
 /* Define to 1 if you have the <sys/lock.h> header file. */
 #undef HAVE_SYS_LOCK_H
 
+/* Define to 1 if you have the <sys/mac.h> header file. */
+#undef HAVE_SYS_MAC_H
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -1116,6 +1136,9 @@
 
 /* Do we have the TIO serial stuff? */
 #undef HAVE_TIO_SERIAL_STUFF
+
+/* Are TrustedBSD MAC policy privileges available? */
+#undef HAVE_TRUSTEDBSD_MAC
 
 /* Define to 1 if the system has the type `uint16_t'. */
 #undef HAVE_UINT16_T
@@ -1342,8 +1365,7 @@
 /* Should we align with the NIST lockclock scheme? */
 #undef LOCKCLOCK
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Does the target support multicast IP? */
@@ -1394,9 +1416,6 @@
 
 /* Should we NOT read /dev/kmem? */
 #undef NOKMEM
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
 
 /* Should we avoid #warning on option name collisions? */
 #undef NO_OPTION_NAME_WARNINGS

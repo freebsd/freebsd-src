@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Ian Lepore
  * All rights reserved.
  *
@@ -147,7 +149,7 @@ busdma_bufalloc_findzone(busdma_bufalloc_t ba, bus_size_t size)
 }
 
 void *
-busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size,
+busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size, int domain,
     uint8_t *pflag, int wait)
 {
 #ifdef VM_MEMATTR_UNCACHEABLE
@@ -155,7 +157,7 @@ busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size,
 	/* Inform UMA that this allocator uses kernel_arena/object. */
 	*pflag = UMA_SLAB_KERNEL;
 
-	return ((void *)kmem_alloc_attr(kernel_arena, size, wait, 0,
+	return ((void *)kmem_alloc_attr_domain(domain, size, wait, 0,
 	    BUS_SPACE_MAXADDR, VM_MEMATTR_UNCACHEABLE));
 
 #else
@@ -169,6 +171,6 @@ void
 busdma_bufalloc_free_uncacheable(void *item, vm_size_t size, uint8_t pflag)
 {
 
-	kmem_free(kernel_arena, (vm_offset_t)item, size);
+	kmem_free((vm_offset_t)item, size);
 }
 

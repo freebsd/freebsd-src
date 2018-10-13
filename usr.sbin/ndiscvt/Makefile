@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../sys/compat/ndis
+.PATH:	${SRCTOP}/sys/compat/ndis
 
 PROG=	ndiscvt
 SRCS=	ndiscvt.c
@@ -17,7 +17,7 @@ LIBADD=	l
 
 YFLAGS+=-v
 
-CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../sys
+CFLAGS+=-I. -I${.CURDIR} -I${SRCTOP}/sys
 
 CLEANFILES= y.output
 

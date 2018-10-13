@@ -7,7 +7,7 @@ PROG=	sort
 SRCS=	bwstring.c coll.c file.c mem.c radixsort.c sort.c vsort.c
 
 sort.1: sort.1.in
-	/usr/bin/sed ${MAN_SUB} ${.ALLSRC} >${.TARGET}
+	sed ${MAN_SUB} ${.ALLSRC} >${.TARGET}
 
 CLEANFILES+= sort.1
 
@@ -31,5 +31,8 @@ NLSSRCDIR_${lang}= ${.CURDIR}/nls
 CFLAGS+= -DWITHOUT_NLS
 MAN_SUB+= -e 's|%%NLS%%|\.\\"|g'
 .endif
+
+#HAS_TESTS=
+#SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

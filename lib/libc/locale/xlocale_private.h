@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -40,6 +42,14 @@
 #include <machine/atomic.h>
 #include "setlocale.h"
 
+/**
+ * The XLC_ values are indexes into the components array.  They are defined in
+ * the same order as the LC_ values in locale.h, but without the LC_ALL zero
+ * value.  Translating from LC_X to XLC_X is done by subtracting one.
+ *
+ * Any reordering of this enum should ensure that these invariants are not
+ * violated.
+ */
 enum {
 	XLC_COLLATE = 0,
 	XLC_CTYPE,
@@ -50,6 +60,19 @@ enum {
 	XLC_LAST
 };
 
+_Static_assert(XLC_LAST - XLC_COLLATE == 6, "XLC values should be contiguous");
+_Static_assert(XLC_COLLATE == LC_COLLATE - 1,
+               "XLC_COLLATE doesn't match the LC_COLLATE value.");
+_Static_assert(XLC_CTYPE == LC_CTYPE - 1,
+               "XLC_CTYPE doesn't match the LC_CTYPE value.");
+_Static_assert(XLC_MONETARY == LC_MONETARY - 1,
+               "XLC_MONETARY doesn't match the LC_MONETARY value.");
+_Static_assert(XLC_NUMERIC == LC_NUMERIC - 1,
+               "XLC_NUMERIC doesn't match the LC_NUMERIC value.");
+_Static_assert(XLC_TIME == LC_TIME - 1,
+               "XLC_TIME doesn't match the LC_TIME value.");
+_Static_assert(XLC_MESSAGES == LC_MESSAGES - 1,
+               "XLC_MESSAGES doesn't match the LC_MESSAGES value.");
 
 /**
  * Header used for objects that are reference counted.  Objects may optionally

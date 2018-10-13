@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd September 15, 2015
+.Dd February 14, 2018
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -104,12 +104,33 @@ the state machine as a client.
 It must be newly created and a service name can be given as an argument.
 It is legal to specify a zero-length service name, this is common
 on some DSL setups.
-It is possible to request a connection to a specific
-access concentrator by its name using the "AC-Name\\Service-Name" syntax.
-A session request packet will be broadcasted on the Ethernet.
+It is possible to request a connection to a specific access concentrator,
+and/or set a specific Host-Uniq tag, required by some Internet providers,
+using the
+.Qq Li [AC-Name\\][Host-Uniq|]Service-Name
+syntax.
+To set a binary Host-Uniq, it must be encoded as a hexadecimal lowercase
+string and prefixed with 
+.Qq Li 0x ,
+for example 
+.Qq Li 0x6d792d746167
+is equivalent to
+.Qq Li my-tag .
+A session request packet will be broadcast on the Ethernet.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
+For example, this init data argument can be used to
+connect to
+.Qq Li my-isp
+service with
+.Qq Li my-host
+uniq tag, accepting only
+.Qq Li remote-ac
+as access concentrator:
+.Bd -literal -offset indent
+"remote-ac\\my-host|my-isp"
+.Ed
 .It Dv NGM_PPPOE_LISTEN Pq Ic pppoe_listen
 Tell a nominated newly created hook that its session should enter
 the state machine as a server listener.
@@ -258,7 +279,41 @@ struct ngpppoe_maxp {
     uint16_t data;
 };
 .Ed
+.It Dv NGM_PPPOE_SEND_HURL Pq Ic send_hurl
+Tell a nominated hook with an active session to send a PADM message with
+a HURL tag.
+The argument is the URL to be delivered to the client:
+.Bd -literal -offset indent
+ngctl msg fxp0:orphans send_hurl '{ hook="myHook" data="http://example.net/cpe" }'
+.Ed
+.It Dv NGM_PPPOE_SEND_MOTM Pq Ic send_motm
+Tell a nominated hook with an active session to send a PADM message with
+a MOTM tag.
+The argument is the message to be delivered to the client:
+.Bd -literal -offset indent
+ngctl msg fxp0:orphans send_motm '{ hook="myHook" data="Welcome aboard" }'
+.Ed
 .El
+.Pp
+The two commands above use the same ngpppoe_init_data structure described
+above.
+.Bl -tag -width 3n
+.It Dv NGM_PPPOE_HURL
+This command is sent to the node that started this session when a PADM
+message with a HURL tag is received, and contains a URL that the host can
+pass to a web browser for presentation to the user.
+.It Dv NGM_PPPOE_MOTM
+This command is sent to the node that started this session when a PADM
+message with a MOTM tag is received, and contains a Message Of The
+Minute that the host can display to the user.
+.El
+.Pp
+The two commands above use a common data structure:
+.Bd -literal -offset 4n
+struct ngpppoe_padm {
+    char    msg[PPPOE_PADM_VALUE_SIZE];
+};
+.Ed
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN

@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -139,11 +140,7 @@ static const struct data_abort data_aborts[] = {
 	{dab_align,	"Alignment Fault 3"},
 	{dab_buserr,	"External Linefetch Abort (S)"},
 	{NULL,		"Translation Fault (S)"},
-#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
-	{NULL,		"Translation Flag Fault"},
-#else
 	{dab_buserr,	"External Linefetch Abort (P)"},
-#endif
 	{NULL,		"Translation Fault (P)"},
 	{dab_buserr,	"External Non-Linefetch Abort (S)"},
 	{NULL,		"Domain Fault (S)"},
@@ -192,8 +189,8 @@ abort_handler(struct trapframe *tf, int type)
 		return (prefetch_abort_handler(tf));
 
 	/* Grab FAR/FSR before enabling interrupts */
-	far = cpu_faultaddress();
-	fsr = cpu_faultstatus();
+	far = cp15_dfar_get();
+	fsr = cp15_dfsr_get();
 #if 0
 	printf("data abort: fault address=%p (from pc=%p lr=%p)\n",
 	       (void*)far, (void*)tf->tf_pc, (void*)tf->tf_svc_lr);
@@ -207,7 +204,7 @@ abort_handler(struct trapframe *tf, int type)
 	td = curthread;
 	p = td->td_proc;
 
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 	/* Data abort came from user mode? */
 	user = TRAP_USERMODE(tf);
 
@@ -407,7 +404,16 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
     struct ksig *ksig)
 {
 	const char *mode;
+#ifdef KDB
+	bool handled;
+#endif
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return (0);
+	}
+#endif
 #ifdef KDTRACE_HOOKS
 	if (!TRAP_USERMODE(tf))	{
 		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, far & FAULT_TYPE_MASK))
@@ -450,9 +456,13 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active)
-		if (kdb_trap(fsr, 0, tf))
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
+		handled = kdb_trap(fsr, 0, tf);
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
 			return (0);
+	}
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
@@ -618,7 +628,7 @@ prefetch_abort_handler(struct trapframe *tf)
 
  	td = curthread;
 	p = td->td_proc;
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 
 	if (TRAP_USERMODE(tf)) {
 		td->td_frame = tf;

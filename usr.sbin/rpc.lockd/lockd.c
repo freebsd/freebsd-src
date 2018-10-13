@@ -1,7 +1,9 @@
 /*	$NetBSD: lockd.c,v 1.7 2000/08/12 18:08:44 thorpej Exp $	*/
 /*	$FreeBSD$ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	A.R. Gordon (andrew.gordon@net-tel.co.uk).  All rights reserved.
  *
@@ -99,9 +101,8 @@ char localhost[] = "localhost";
 static int	create_service(struct netconfig *nconf);
 static void	complete_service(struct netconfig *nconf, char *port_str);
 static void	clearout_service(void);
-void 	lookup_addresses(struct netconfig *nconf);
+static void	out_of_mem(void) __dead2;
 void	init_nsm(void);
-void	out_of_mem(void);
 void	usage(void);
 
 void sigalarm_handler(void);
@@ -144,7 +145,6 @@ main(int argc, char **argv)
 			break;
 		case 'h':
 			++nhosts;
-			hosts_bak = hosts;
 			hosts_bak = realloc(hosts, nhosts * sizeof(char *));
 			if (hosts_bak == NULL) {
 				if (hosts != NULL) {
@@ -172,7 +172,6 @@ main(int argc, char **argv)
 			svcport_str = strdup(optarg);
 			break;
 		default:
-		case '?':
 			usage();
 			/* NOTREACHED */
 		}
@@ -227,7 +226,6 @@ main(int argc, char **argv)
 		hosts[0] = strdup("*");
 		nhosts = 1;
 	} else {
-		hosts_bak = hosts;
 		if (have_v6) {
 			hosts_bak = realloc(hosts, (nhosts + 2) *
 			    sizeof(char *));
@@ -309,7 +307,7 @@ main(int argc, char **argv)
 				if (have_v6 == 0 && strcmp(nconf->nc_protofmly, "inet6") == 0) {
 					/* DO NOTHING */
 				} else {
-					lookup_addresses(nconf);
+					create_service(nconf);
 				}
 			}
 		}
@@ -482,9 +480,14 @@ main(int argc, char **argv)
 
 /*
  * This routine creates and binds sockets on the appropriate
- * addresses. It gets called one time for each transport.
+ * addresses if lockd for user NLM, or perform a lookup of
+ * addresses for the kernel to create transports.
+ *
+ * It gets called one time for each transport.
+ *
  * It returns 0 upon success, 1 for ingore the call and -1 to indicate
  * bind failed with EADDRINUSE.
+ *
  * Any file descriptors that have been created are stored in sock_fd and
  * the total count of them is maintained in sock_fdcnt.
  */
@@ -528,20 +531,23 @@ create_service(struct netconfig *nconf)
 	nhostsbak = nhosts;
 	while (nhostsbak > 0) {
 		--nhostsbak;
-		sock_fd = realloc(sock_fd, (sock_fdcnt + 1) * sizeof(int));
-		if (sock_fd == NULL)
-			out_of_mem();
-		sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
 		mallocd_res = 0;
 		hints.ai_flags = AI_PASSIVE;
 
-		/*	
-		 * XXX - using RPC library internal functions.
-		 */
-		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-			syslog(LOG_ERR, "cannot create socket for %s",
-			    nconf->nc_netid);
-			continue;
+		if (!kernel_lockd) {
+			sock_fd = realloc(sock_fd, (sock_fdcnt + 1) * sizeof(int));
+			if (sock_fd == NULL)
+				out_of_mem();
+			sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
+
+			/*	
+			* XXX - using RPC library internal functions.
+			*/
+			if ((fd = __rpc_nconf2fd(nconf)) < 0) {
+				syslog(LOG_ERR, "cannot create socket for %s",
+					nconf->nc_netid);
+				continue;
+			}
 		}
 
 		switch (hints.ai_family) {
@@ -555,7 +561,8 @@ create_service(struct netconfig *nconf)
 					 */
 					if (inet_pton(AF_INET6, hosts[nhostsbak],
 					    host_addr) == 1) {
-						close(fd);
+						if (!kernel_lockd)
+							close(fd);
 						continue;
 					}
 				}
@@ -570,7 +577,8 @@ create_service(struct netconfig *nconf)
 					 */
 					if (inet_pton(AF_INET, hosts[nhostsbak],
 					    host_addr) == 1) {
-						close(fd);
+						if (!kernel_lockd)
+							close(fd);
 						continue;
 					}
 				}
@@ -584,8 +592,7 @@ create_service(struct netconfig *nconf)
 		 */
 		if (strcmp("*", hosts[nhostsbak]) == 0) {
 			if (svcport_str == NULL) {
-				res = malloc(sizeof(struct addrinfo));
-				if (res == NULL) 
+				if ((res = malloc(sizeof(struct addrinfo))) == NULL)
 					out_of_mem();
 				mallocd_res = 1;
 				res->ai_flags = hints.ai_flags;
@@ -616,7 +623,7 @@ create_service(struct netconfig *nconf)
 						break;
 					default:
 						syslog(LOG_ERR,
-						    "bad addr fam %d",
+						    "bad address family %d",
 						    res->ai_family);
 						exit(1);
 				}
@@ -627,7 +634,8 @@ create_service(struct netconfig *nconf)
 					    "cannot get local address for %s: %s",
 					    nconf->nc_netid,
 					    gai_strerror(aicode));
-					close(fd);
+					if (!kernel_lockd)
+						close(fd);
 					continue;
 				}
 			}
@@ -637,42 +645,62 @@ create_service(struct netconfig *nconf)
 				syslog(LOG_ERR,
 				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
-				close(fd);
+				if (!kernel_lockd)
+					close(fd);
 				continue;
 			}
 		}
 
+		if (kernel_lockd) {
+			struct netbuf servaddr;
+			char *uaddr;
 
-		/* Store the fd. */
-		sock_fd[sock_fdcnt - 1] = fd;
+			/*
+			 * Look up addresses for the kernel to create transports for.
+			 */
+			servaddr.len = servaddr.maxlen = res->ai_addrlen;
+			servaddr.buf = res->ai_addr;
+			uaddr = taddr2uaddr(nconf, &servaddr);
 
-		/* Now, attempt the bind. */
-		r = bindresvport_sa(fd, res->ai_addr);
-		if (r != 0) {
-			if (errno == EADDRINUSE && mallocd_svcport != 0) {
-				if (mallocd_res != 0) {
-					free(res->ai_addr);
-					free(res);
-				} else
-					freeaddrinfo(res);
-				return (-1);
-			}
-			syslog(LOG_ERR, "bindresvport_sa: %m");
-			exit(1);
-		}
-
-		if (svcport_str == NULL) {
-			svcport_str = malloc(NI_MAXSERV * sizeof(char));
-			if (svcport_str == NULL)
+			addrs = realloc(addrs, 2 * (naddrs + 1) * sizeof(char *));
+			if (!addrs)
 				out_of_mem();
-			mallocd_svcport = 1;
+			addrs[2 * naddrs] = strdup(nconf->nc_netid);
+			addrs[2 * naddrs + 1] = uaddr;
+			naddrs++;
+		} else {
+			/* Store the fd. */
+			sock_fd[sock_fdcnt - 1] = fd;
 
-			if (getnameinfo(res->ai_addr,
-			    res->ai_addr->sa_len, NULL, NI_MAXHOST,
-			    svcport_str, NI_MAXSERV * sizeof(char),
-			    NI_NUMERICHOST | NI_NUMERICSERV))
-				errx(1, "Cannot get port number");
+			/* Now, attempt the bind. */
+			r = bindresvport_sa(fd, res->ai_addr);
+			if (r != 0) {
+				if (errno == EADDRINUSE && mallocd_svcport != 0) {
+					if (mallocd_res != 0) {
+						free(res->ai_addr);
+						free(res);
+					} else
+						freeaddrinfo(res);
+					return (-1);
+				}
+				syslog(LOG_ERR, "bindresvport_sa: %m");
+				exit(1);
+			}
+
+			if (svcport_str == NULL) {
+				svcport_str = malloc(NI_MAXSERV * sizeof(char));
+				if (svcport_str == NULL)
+					out_of_mem();
+				mallocd_svcport = 1;
+
+				if (getnameinfo(res->ai_addr,
+				res->ai_addr->sa_len, NULL, NI_MAXHOST,
+				svcport_str, NI_MAXSERV * sizeof(char),
+				NI_NUMERICHOST | NI_NUMERICSERV))
+					errx(1, "Cannot get port number");
+			}
 		}
+
 		if (mallocd_res != 0) {
 			free(res->ai_addr);
 			free(res);
@@ -803,152 +831,6 @@ clearout_service(void)
 			close(sock_fd[i]);
 		}
 	}
-}
-
-/*
- * Look up addresses for the kernel to create transports for.
- */
-void
-lookup_addresses(struct netconfig *nconf)
-{
-	struct addrinfo hints, *res = NULL;
-	struct sockaddr_in *sin;
-	struct sockaddr_in6 *sin6;
-	struct __rpc_sockinfo si;
-	struct netbuf servaddr;
-	int aicode;
-	int nhostsbak;
-	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
-	char *uaddr;
-
-	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
-	    (nconf->nc_semantics != NC_TPI_COTS) &&
-	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
-		return;	/* not my type */
-
-	/*
-	 * XXX - using RPC library internal functions.
-	 */
-	if (!__rpc_nconf2sockinfo(nconf, &si)) {
-		syslog(LOG_ERR, "cannot get information for %s",
-		    nconf->nc_netid);
-		return;
-	}
-
-	/* Get rpc.statd's address on this transport */
-	memset(&hints, 0, sizeof hints);
-	hints.ai_flags = AI_PASSIVE;
-	hints.ai_family = si.si_af;
-	hints.ai_socktype = si.si_socktype;
-	hints.ai_protocol = si.si_proto;
-
-	/*
-	 * Bind to specific IPs if asked to
-	 */
-	nhostsbak = nhosts;
-	while (nhostsbak > 0) {
-		--nhostsbak;
-
-		switch (hints.ai_family) {
-			case AF_INET:
-				if (inet_pton(AF_INET, hosts[nhostsbak],
-				    host_addr) == 1) {
-					hints.ai_flags &= AI_NUMERICHOST;
-				} else {
-					/*
-					 * Skip if we have an AF_INET6 address.
-					 */
-					if (inet_pton(AF_INET6, hosts[nhostsbak],
-					    host_addr) == 1) {
-						continue;
-					}
-				}
-				break;
-			case AF_INET6:
-				if (inet_pton(AF_INET6, hosts[nhostsbak],
-				    host_addr) == 1) {
-					hints.ai_flags &= AI_NUMERICHOST;
-				} else {
-					/*
-					 * Skip if we have an AF_INET address.
-					 */
-					if (inet_pton(AF_INET, hosts[nhostsbak],
-					    host_addr) == 1) {
-						continue;
-					}
-				}
-				break;
-			default:
-				break;
-		}
-
-		/*
-		 * If no hosts were specified, just bind to INADDR_ANY
-		 */
-		if (strcmp("*", hosts[nhostsbak]) == 0) {
-			if (svcport_str == NULL) {
-				res = malloc(sizeof(struct addrinfo));
-				if (res == NULL) 
-					out_of_mem();
-				res->ai_flags = hints.ai_flags;
-				res->ai_family = hints.ai_family;
-				res->ai_protocol = hints.ai_protocol;
-				switch (res->ai_family) {
-					case AF_INET:
-						sin = malloc(sizeof(struct sockaddr_in));
-						if (sin == NULL) 
-							out_of_mem();
-						sin->sin_family = AF_INET;
-						sin->sin_port = htons(0);
-						sin->sin_addr.s_addr = htonl(INADDR_ANY);
-						res->ai_addr = (struct sockaddr*) sin;
-						res->ai_addrlen = (socklen_t)
-						    sizeof(res->ai_addr);
-						break;
-					case AF_INET6:
-						sin6 = malloc(sizeof(struct sockaddr_in6));
-						if (sin6 == NULL)
-							out_of_mem();
-						sin6->sin6_family = AF_INET6;
-						sin6->sin6_port = htons(0);
-						sin6->sin6_addr = in6addr_any;
-						res->ai_addr = (struct sockaddr*) sin6;
-						res->ai_addrlen = (socklen_t) sizeof(res->ai_addr);
-						break;
-					default:
-						break;
-				}
-			} else { 
-				if ((aicode = getaddrinfo(NULL, svcport_str,
-				    &hints, &res)) != 0) {
-					syslog(LOG_ERR,
-					    "cannot get local address for %s: %s",
-					    nconf->nc_netid,
-					    gai_strerror(aicode));
-					continue;
-				}
-			}
-		} else {
-			if ((aicode = getaddrinfo(hosts[nhostsbak], svcport_str,
-			    &hints, &res)) != 0) {
-				syslog(LOG_ERR,
-				    "cannot get local address for %s: %s",
-				    nconf->nc_netid, gai_strerror(aicode));
-				continue;
-			}
-		}
-
-		servaddr.len = servaddr.maxlen = res->ai_addr->sa_len;
-		servaddr.buf = res->ai_addr;
-		uaddr = taddr2uaddr(nconf, &servaddr);
-
-		addrs = realloc(addrs, 2 * (naddrs + 1) * sizeof(char *));
-		if (!addrs)
-			out_of_mem();
-		addrs[2 * naddrs] = strdup(nconf->nc_netid);
-		addrs[2 * naddrs + 1] = uaddr;
-		naddrs++;
-	} /* end while */
 }
 
 void

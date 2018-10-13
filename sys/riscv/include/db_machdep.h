@@ -41,7 +41,7 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 
-#define	T_BREAKPOINT	(EXCP_INSTR_BREAKPOINT)
+#define	T_BREAKPOINT	(EXCP_BREAKPOINT)
 #define	T_WATCHPOINT	(0)
 
 typedef vm_offset_t	db_addr_t;
@@ -82,9 +82,6 @@ typedef long		db_expr_t;
 #define	is_store_instr(ins)	(((ins) & 0x7f) == 35)
 
 #define	next_instr_address(pc, bd)	((bd) ? (pc) : ((pc) + 4))
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
 
 #define	DB_ELFSIZE		64
 

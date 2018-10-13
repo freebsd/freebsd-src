@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 The DragonFly Project.  All rights reserved.
  * 
  * This code is derived from software contributed to The DragonFly Project
@@ -381,6 +383,7 @@ bwi_attach(struct bwi_softc *sc)
 	 */
 	sc->sc_fw_version = BWI_FW_VERSION3;
 	sc->sc_led_idle = (2350 * hz) / 1000;
+	sc->sc_led_ticks = ticks - sc->sc_led_idle;
 	sc->sc_led_blink = 1;
 	sc->sc_txpwr_calib = 1;
 #ifdef BWI_DEBUG
@@ -487,10 +490,12 @@ bwi_attach(struct bwi_softc *sc)
 				   BWI_SPROM_CARD_INFO_LOCALE);
 	DPRINTF(sc, BWI_DBG_ATTACH, "locale: %d\n", sc->sc_locale);
 	/* XXX use locale */
+
+	ic->ic_softc = sc;
+
 	bwi_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
 
-	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_caps = IEEE80211_C_STA |
 		      IEEE80211_C_SHSLOT |
@@ -2930,7 +2935,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	struct bwi_mac *mac;
 	struct bwi_txbuf_hdr *hdr;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	uint8_t rate, rate_fb;
 	uint32_t mac_ctrl;
 	uint16_t phy_ctrl;
@@ -2955,7 +2960,6 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * Find TX rate
 	 */
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 	if (type != IEEE80211_FC0_TYPE_DATA || (m->m_flags & M_EAPOL)) {
 		rate = rate_fb = tp->mgmtrate;
 	} else if (ismcast) {
@@ -3321,7 +3325,6 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	struct bwi_txbuf *tb;
 	int ring_idx, buf_idx;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 
 	if (tx_id == 0) {
 		device_printf(sc->sc_dev, "%s: zero tx id\n", __func__);
@@ -3348,7 +3351,7 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	if ((ni = tb->tb_ni) != NULL) {
 		const struct bwi_txbuf_hdr *hdr =
 		    mtod(tb->tb_mbuf, const struct bwi_txbuf_hdr *);
-		vap = ni->ni_vap;
+		struct ieee80211_ratectl_tx_status txs;
 
 		/* NB: update rate control only for unicast frames */
 		if (hdr->txh_mac_ctrl & htole32(BWI_TXH_MAC_C_ACK)) {
@@ -3359,9 +3362,15 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 			 * well so to avoid over-aggressive downshifting we
 			 * treat any number of retries as "1".
 			 */
-			ieee80211_ratectl_tx_complete(vap, ni,
-			    (data_txcnt > 1) ? IEEE80211_RATECTL_TX_SUCCESS :
-			        IEEE80211_RATECTL_TX_FAILURE, &acked, NULL);
+			txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
+			txs.long_retries = acked;
+			if (data_txcnt > 1)
+				txs.status = IEEE80211_RATECTL_TX_SUCCESS;
+			else {
+				txs.status =
+				    IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			}
+			ieee80211_ratectl_tx_complete(ni, &txs);
 		}
 		ieee80211_tx_complete(ni, tb->tb_mbuf, !acked);
 		tb->tb_ni = NULL;

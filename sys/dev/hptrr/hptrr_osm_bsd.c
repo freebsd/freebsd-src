@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -300,7 +302,7 @@ static int hpt_flush_vdev(PVBUS_EXT vbus_ext, PVDEV vd)
 	hpt_assert_vbus_locked(vbus_ext);
 
 	if (mIsArray(vd->type) && vd->u.array.transform)
-		count = MAX(vd->u.array.transform->source->cmds_per_request,
+		count = max(vd->u.array.transform->source->cmds_per_request,
 					vd->u.array.transform->target->cmds_per_request);
 	else
 		count = vd->cmds_per_request;
@@ -782,9 +784,9 @@ static void hpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = osm_max_targets;
 		cpi->base_transfer_speed = 3300;
 
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;
@@ -1231,7 +1233,7 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 {
 	PHPT_IOCTL_PARAM piop=(PHPT_IOCTL_PARAM)data;
 	IOCTL_ARG ioctl_args;
-	HPT_U32 bytesReturned;
+	HPT_U32 bytesReturned = 0;
 
 	switch (cmd){
 	case HPT_DO_IOCONTROL:
@@ -1261,7 +1263,7 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 		}
 	
 		if (ioctl_args.nOutBufferSize) {
-			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK);
+			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK | M_ZERO);
 			if (!ioctl_args.lpOutBuffer)
 				goto invalid;
 		}

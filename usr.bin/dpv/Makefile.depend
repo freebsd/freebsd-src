@@ -4,7 +4,6 @@
 DIRDEPS = \
 	gnu/lib/csu \
 	gnu/lib/libdialog \
-	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \

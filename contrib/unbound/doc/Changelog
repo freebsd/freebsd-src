@@ -1,3 +1,2025 @@
+8 October 2018: Wouter
+	- fastrpz.patch fix included.
+
+1 October 2018: Wouter
+	- tag for release 1.8.1rc1.
+
+27 September 2018: Wouter
+	- Fix #4188: IPv6 forwarders without ipv6 result in SERVFAIL, fixes
+	  qname minimisation with a forwarder when connectivity has issues
+	  from rejecting responses.
+
+25 September 2018: Wouter
+	- Perform TLS SNI indication of the host that is being contacted
+	  for DNS over TLS service.  It sets the configured tls auth name.
+	  This is useful for hosts that apart from the DNS over TLS services
+	  also provide other (web) services.
+	- Fix #4149: Add SSL cleanup for tcp timeout.
+
+17 September 2018: Wouter
+	- Fix compile on Mac for unbound, provide explicit_bzero when libc
+	  does not have it.
+	- Fix unbound for openssl in FIPS mode, it uses the digests with
+	  the EVP call contexts.
+	- Fix that with harden-below-nxdomain and qname minisation enabled
+	  some iterator states for nonresponsive domains can get into a
+	  state where they waited for an empty list.
+	- Stop UDP to TCP failover after timeouts that causes the ping count
+	  to be reset by the TCP time measurement (that exists for TLS),
+	  because that causes the UDP part to not be measured as timeout.
+	- Fix #4156: Fix systemd service manager state change notification.
+
+13 September 2018: Wouter
+	- Fix seed for random backup code to use explicit zero when wiped.
+	- exit log routine is annotated as noreturn function.
+	- free memory leaks in config strlist and str2list insert functions.
+	- do not move unused argv variable after getopt.
+	- Remove unused if clause in testcode.
+	- in testcode, free async ids, initialise array, and check for null
+	  pointer during test of the test.  And use exit for return to note
+	  irregular program stop.
+	- Free memory leak in config strlist append.
+	- make sure nsec3 comparison salt is initialized.
+	- unit test has clang analysis.
+	- remove unused variable assignment from iterator scrub routine.
+	- check for null in delegation point during iterator refetch
+	  in forward zone.
+	- neater pointer cast in libunbound context quit routine.
+	- initialize statistics totals for printout.
+	- in authzone check that node exists before adding rrset.
+	- in unbound-anchor, use readwrite memory BIO.
+	- assertion in autotrust that packed rrset is formed correctly.
+	- Fix memory leak when message parse fails partway through copy.
+	- remove unused udpsize assignment in message encode.
+	- nicer bio free code in unbound-anchor.
+	- annotate exit functions with noreturn in unbound-control.
+
+11 September 2018: Wouter
+	- Fixed unused return value warnings in contrib/fastrpz.patch for
+	  asprintf.
+	- Fix to squelch respip warning in unit test, it is printed at
+	  higher verbosity settings.
+	- Fix spelling errors.
+	- Fix initialisation in remote.c
+
+10 September 2018: Wouter
+	- 1.8.1 in svn trunk. (changes from 4,5,.. sep apply).
+	- iana port update.
+
+5 September 2018: Wouter
+	- Fix spelling error in header, from getdns commit by Andreas Gelmini.
+
+4 September 2018: Ralph
+	- More explicitly mention the type of ratelimit when applying
+	  ip-ratelimit.
+
+4 September 2018: Wouter
+	- Tag for 1.8.0rc1 release, became 1.8.0 release on 10 Sep 2018.
+
+31 August 2018: Wouter
+	- Disable minimal-responses in subnet unit tests.
+
+30 August 2018: Wouter
+	- Fix that a local-zone with a local-zone-type that is transparent
+	  in a view with view-first, makes queries check for answers from the
+	  local-zones defined outside of views.
+
+28 August 2018: Ralph
+	- Disable minimal-responses in ipsecmod unit tests.
+	- Added serve-expired-ttl and serve-expired-ttl-reset options.
+
+27 August 2018: Wouter
+	- Set defaults to yes for a number of options to increase speed and
+	  resilience of the server.  The so-reuseport, harden-below-nxdomain,
+	  and minimal-responses options are enabled by default.  They used
+	  to be disabled by default, waiting to make sure they worked.  They
+	  are enabled by default now, and can be disabled explicitly by
+	  setting them to "no" in the unbound.conf config file.  The reuseport
+	  and minimal options increases speed of the server, and should be
+	  otherwise harmless.  The harden-below-nxdomain option works well
+	  together with the recently default enabled qname minimisation, this
+	  causes more fetches to use information from the cache.
+	- next release is called 1.8.0.
+	- Fix lintflags for lint on FreeBSD.
+
+22 August 2018: George
+	- #4140: Expose repinfo (comm_reply) to the inplace_callbacks. This
+	  gives access to reply information for the client's communication
+	  point when the callback is called before the mesh state (modules).
+	  Changes to C and Python's inplace_callback signatures were also
+	  necessary.
+
+21 August 2018: Wouter
+	- log-local-actions: yes option for unbound.conf that logs all the
+	  local zone actions, a patch from Saksham Manchanda (Secure64).
+	- #4146: num.query.subnet and num.query.subnet_cache counters.
+	- Fix only misc failure from log-servfail when val-log-level is not
+	  enabled.
+
+17 August 2018: Ralph
+	- Fix classification for QTYPE=CNAME queries when QNAME minimisation is
+ 	  enabled.
+
+17 August 2018: Wouter
+	- Set libunbound to increase current, because the libunbound change
+	  to the event callback function signature.  That needs programs,
+	  that use it, to recompile against the new header definition.
+	- print servfail info to log as error.
+	- added more servfail printout statements, to the iterator.
+	- log-servfail: yes prints log lines that say why queries are
+	  returning SERVFAIL to clients.
+
+16 August 2018: Wouter
+	- Fix warning on compile without threads.
+	- Fix contrib/fastrpz.patch.
+
+15 August 2018: Wouter
+	- Fix segfault in auth-zone read and reorder of RRSIGs.
+
+14 August 2018: Wouter
+	- Fix that printout of error for cycle targets is a verbosity 4
+	  printout and does not wrongly print it is a memory error.
+	- Upgraded crosscompile script to include libunbound DLL in the
+	  zipfile.
+
+10 August 2018: Wouter
+	- Fix #4144: dns64 module caches wrong (negative) information.
+
+9 August 2018: Wouter
+	- unbound-checkconf checks if modules exist and prints if they are
+	  not compiled in the name of the wrong module.
+	- document --enable-subnet in doc/README.
+	- Patch for stub-no-cache and forward-no-cache options that disable
+	  caching for the contents of that stub or forward, for when you
+	  want immediate changes visible, from Bjoern A. Zeeb.
+
+7 August 2018: Ralph
+	- Make capsforid fallback QNAME minimisation aware.
+
+7 August 2018: Wouter
+	- Fix #4142: unbound.service.in: improvements and fixes.
+	  Add unit dependency ordering (based on systemd-resolved).
+	  Add 'CAP_SYS_RESOURCE' to 'CapabilityBoundingSet' (fixes warnings
+	  about missing privileges during startup). Add 'AF_INET6' to
+	  'RestrictAddressFamilies' (without it IPV6 can't work). From
+	  Guido Shanahan.
+	- Patch to implement tcp-connection-limit from Jim Hague (Sinodun).
+	  This limits the number of simultaneous TCP client connections
+	  from a nominated netblock.
+	- make depend, yacc, lex, doc, headers.  And log the limit exceeded
+	  message only on high verbosity, so as to not spam the logs when
+	  it is busy.
+
+6 August 2018: Wouter
+	- Fix for #4136: Fix to unconditionally call destroy in daemon.c.
+
+3 August 2018: George
+	- Expose if a query (or a subquery) was ratelimited (not src IP
+	  ratelimiting) to libunbound under 'ub_result.was_ratelimited'.
+	  This also introduces a change to 'ub_event_callback_type' in
+	  libunbound/unbound-event.h.
+	- Tidy pylib tests.
+
+3 August 2018: Wouter
+	- Revert previous change for #4136: because it introduces build
+	  problems.
+	- New fix for #4136: This one ignores lex without without
+	  yylex_destroy.
+
+1 August 2018: Wouter
+	- Fix to remove systemd sockaddr function check, that is not
+	  always present.  Make socket activation more lenient.  But not
+	  different when socket activation is not used.
+	- iana port list update.
+
+31 July 2018: Wouter
+	- Patches from Jim Hague (Sinodun) for EDNS KeepAlive.
+	- Sort out test runs when the build directory isn't the project
+	  root directory.
+	- Add config tcp-idle-timeout (default 30s). This applies to
+	  client connections only; the timeout on TCP connections upstream
+	  is unaffected.
+	- Error if EDNS Keepalive received over UDP.
+	- Add edns-tcp-keepalive and edns-tcp-keepalive timeout options
+	  and implement option in client responses.
+	- Correct and expand manual page entries for keepalive and idle timeout.
+	- Implement progressive backoff of TCP idle/keepalive timeout.
+	- Fix 'make depend' to work when build dir is not project root.
+	- Add delay parameter to streamtcp, -d secs.
+	  To be used when testing idle timeout.
+	- From Wouter: make depend, the dependencies in the patches did not
+	  apply cleanly.  Also remade yacc and lex.
+	- Fix mesh.c incompatible pointer pass.
+	- Please doxygen so it passes.
+	- Fix #4139: Fix unbound-host leaks memory on ANY.
+
+30 July 2018: Wouter
+	- Fix #4136: insufficiency from mismatch of FLEX capability between
+	  released tarball and build host.
+
+27 July 2018: Wouter
+	- Fix man page, say that chroot is enabled by default.
+
+26 July 2018: Wouter
+	- Fix #4135: 64-bit Windows Installer Creates Entries Under The
+	  Wrong Registry Key, reported by Brian White.
+
+23 July 2018: Wouter
+	- Fix use-systemd readiness signalling, only when use-systemd is yes
+	  and not in signal handler.
+
+20 July 2018: Wouter
+	- Fix #4130: print text describing -dd and unbound-checkconf on
+	  config file read error at startup, the errors may have been moved
+	  away by the startup process.
+	- Fix #4131: for solaris, error YY_CURRENT_BUFFER undeclared.
+
+19 July 2018: Wouter
+	- Fix #4129 unbound-control error message with wrong cert permissions
+	  is too cryptic.
+
+17 July 2018: Wouter
+	- Fix #4127 unbound -h does not list -p help.
+	- Print error if SSL name verification configured but not available
+	  in the ssl library.
+	- Fix that ratelimit and ip-ratelimit are applied after reload of
+	  changed config file.
+	- Resize ratelimit and ip-ratelimit caches if changed on reload.
+
+16 July 2018: Wouter
+	- Fix qname minimisation NXDOMAIN validation lookup failures causing
+	  error_supers assertion fails.
+	- Squelch can't bind socket errors with Permission denied unless
+	  verbosity is 4 or higher, for UDP outgoing sockets.
+
+12 July 2018: Wouter
+	- Fix to improve systemd socket activation code file descriptor
+	  assignment.
+	- Fix for 4126 that the #define for UNKNOWN_SERVER_NICENESS can be more
+	  easily changed to adjust default rtt assumptions.
+
+10 July 2018: Wouter
+	- Note in documentation that the cert name match code needs
+	  OpenSSL 1.1.0 or later to be enabled.
+
+6 July 2018: Wouter
+	- Fix documentation ambiguity for tls-win-cert in tls-upstream and
+	  forward-tls-upstream docs.
+	- iana port update.
+	- Note RFC8162 support.  SMIMEA record type can be read in by the
+	  zone record parser.
+	- Fix round robin for failed addresses with prefer-ip6: yes
+
+4 July 2018: Wouter
+	- Fix #4112: Fix that unbound-anchor -f /etc/resolv.conf will not pass
+	  if DNSSEC is not enabled.  New option -R allows fallback from
+	  resolv.conf to direct queries.
+
+3 July 2018: Wouter
+	- Better documentation for unblock-lan-zones and insecure-lan-zones
+	  config statements.
+	- Fix permission denied printed for auth zone probe random port nrs.
+
+2 July 2018: Wouter
+	- Fix checking for libhiredis printout in configure output.
+	- Fix typo on man page in ip-address description.
+	- Update libunbound/python/examples/dnssec_test.py example code to
+	  also set the 20326 trust anchor for the root in the example code.
+
+29 June 2018: Wouter
+	- dns64-ignore-aaaa: config option to list domain names for which the
+	  existing AAAA is ignored and dns64 processing is used on the A
+	  record.
+
+28 June 2018: Wouter
+	- num.queries.tls counter for queries over TLS.
+	- log port number with err_addr logs.
+
+27 June 2018: Wouter
+	- #4109: Fix that package config depends on python unconditionally.
+	- Patch, do not export python from pkg-config, from Petr Menšík.
+
+26 June 2018: Wouter
+	- Partial fix for permission denied on IPv6 address on FreeBSD.
+	- Fix that auth-zone master reply with current SOA serial does not
+	  stop scan of masters for an updated zone.
+	- Fix that auth-zone does not start the wait timer without checking
+	  if the wait timer has already been started.
+
+21 June 2018: Wouter
+	- #4108: systemd reload hang fix.
+	- Fix usage printout for unbound-host, hostname has to be last
+	  argument on BSDs and Windows.
+
+19 June 2018: Wouter
+	- Fix for unbound-control on Windows and set TCP socket parameters
+	  more closely.
+	  This fix is part of 1.7.3.
+	- Windows example service.conf edited with more windows specific
+	  configuration.
+	- Fix windows unbound-control no cert bad file descriptor error.
+	  This fix is part of 1.7.3.
+
+18 June 2018: Wouter
+	- Fix that control-use-cert: no works for 127.0.0.1 to disable certs.
+	  This fix is part of 1.7.3rc2.
+	- Fix unbound-checkconf for control-use-cert.
+	  This fix is part of 1.7.3.
+
+15 June 2018: Wouter
+	- tag for 1.7.3rc1.
+	- trunk has 1.7.4.
+	- unbound-control auth_zone_reload _zone_ option rereads the zonefile.
+	- unbound-control auth_zone_transfer _zone_ option starts the probe
+	  sequence for a master to transfer the zone from and transfers when
+	  a new zone version is available.
+
+14 June 2018: Wouter
+	- #4103: Fix that auth-zone does not insist on SOA record first in
+	  file for url downloads.
+	- Fix that first control-interface determines if TLS is used.  Warn
+	  when IP address interfaces are used without TLS.
+	- Fix nettle compile.
+
+12 June 2018: Ralph
+	- Don't count CNAME response types received during qname minimisation as
+	  query restart.
+
+12 June 2018: Wouter
+	- #4102 for NSD, but for Unbound.  Named unix pipes do not use
+	  certificate and key files, access can be restricted with file and
+	  directory permissions.  The option control-use-cert is no longer
+	  used, and ignored if found in unbound.conf.
+	- Rename tls-additional-ports to tls-additional-port, because every
+	  line adds one port.
+	- Fix buffer size warning in unit test.
+	- remade dependencies in the Makefile.
+
+6 June 2018: Wouter
+	- Patch to fix openwrt for mac os build darwin detection in configure.
+
+5 June 2018: Wouter
+	- Fix crash if ratelimit taken into use with unbound-control
+	  instead of with unbound.conf.
+
+4 June 2018: Wouter
+	- Fix deadlock caused by incoming notify for auth-zone.
+	- tag for 1.7.2rc1, became 1.7.2 release on 11 June 2018,
+	  trunk is 1.7.3 in development from this point.
+	- #4100: Fix stub reprime when it becomes useless.
+
+1 June 2018: Wouter
+	- Rename additional-tls-port to tls-additional-ports.
+	  The older name is accepted for backwards compatibility.
+
+30 May 2018: Wouter
+	- Patch from Syzdek: Add ability to ignore RD bit and treat all
+	  requests as if the RD bit is set.
+
+29 May 2018: Wouter
+	- in compat/arc4random call getentropy_urandom when getentropy fails
+	  with ENOSYS.
+	- Fix that fallback for windows port.
+
+28 May 2018: Wouter
+	- Fix windows tcp and tls spin on events.
+	- Add routine from getdns to add windows cert store to the SSL_CTX.
+	- tls-win-cert option that adds the system certificate store for
+	  authenticating DNS-over-TLS connections.  It can be used instead
+	  of the tls-cert-bundle option, or with it to add certificates.
+
+25 May 2018: Wouter
+	- For TCP and TLS connections that don't establish, perform address
+	  update in infra cache, so future selections can exclude them.
+	- Fix that tcp sticky events are removed for closed fd on windows.
+	- Fix close events for tcp only.
+
+24 May 2018: Wouter
+	- Fix that libunbound can do DNS-over-TLS, when configured.
+	- Fix that windows unbound service can use DNS-over-TLS.
+	- unbound-host initializes ssl (for potential DNS-over-TLS usage
+	  inside libunbound), when ssl upstream or a cert-bundle is configured.
+
+23 May 2018: Wouter
+	- Use accept4 to speed up incoming TCP (and TLS) connections,
+	  available on Linux, FreeBSD and OpenBSD.
+
+17 May 2018: Ralph
+	- Qname minimisation default changed to yes.
+
+15 May 2018: Wouter
+	- Fix low-rtt-pct to low-rtt-permil, as it is parts in one thousand.
+
+11 May 2018: Wouter
+	- Fix contrib/libunbound.pc for libssl libcrypto references,
+	  from https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=226914
+
+7 May 2018: Wouter
+	- Fix windows to not have sticky TLS events for TCP.
+	- Fix read of DNS over TLS length and data in one read call.
+	- Fix mesh state assertion failure due to callback removal.
+
+3 May 2018: Wouter
+	- Fix that configure --with-libhiredis also turns on cachedb.
+	- Fix gcc 8 buffer warning in testcode.
+	- Fix function type cast warning in libunbound context callback type.
+
+2 May 2018: Wouter
+	- Fix fail to reject dead peers in forward-zone, with ssl-upstream.
+
+1 May 2018: Wouter
+	- Fix that unbound-control reload frees the rrset keys and returns
+	  the memory pages to the system.
+
+30 April 2018: Wouter
+	- Fix spelling error in man page and note defaults as no instead of
+	  off.
+
+26 April 2018: Wouter
+	- Fix for crash in daemon_cleanup with dnstap during reload,
+	  from Saksham Manchanda.
+	- Also that for dnscrypt.
+	- tag for 1.7.1rc1 release.  Became 1.7.1 release on 3 May, trunk
+	  is from here 1.7.2 in development.
+
+25 April 2018: Ralph
+	- Fix memory leak when caching wildcard records for aggressive NSEC use
+
+24 April 2018: Wouter
+	- Fix contrib/fastrpz.patch for this release.
+	- Fix auth https for libev.
+
+24 April 2018: Ralph
+	- Added root-key-sentinel support
+
+23 April 2018: Wouter
+	- makedist uses bz2 for expat code, instead of tar.gz.
+	- Fix #4092: libunbound: use-caps-for-id lacks colon in
+	  config_set_option.
+	- auth zone http download stores exact copy of downloaded file,
+	  including comments in the file.
+	- Fix sldns parse failure for CDS alternate delete syntax empty hex.
+	- Attempt for auth zone fix; add of callback in mesh gets from
+	  callback does not skip callback of result.
+	- Fix cname classification with qname minimisation enabled.
+	- list_auth_zones unbound-control command.
+
+20 April 2018: Wouter
+	- man page documentation for dns-over-tls forward-addr '#' notation.
+	- removed free from failed parse case.
+	- Fix #4091: Fix that reload of auth-zone does not merge the zonefile
+	  with the previous contents.
+	- Delete auth zone when removed from config.
+
+19 April 2018: Wouter
+	- Can set tls authentication with forward-addr: IP#tls.auth.name
+	  And put the public cert bundle in tls-cert-bundle: "ca-bundle.pem".
+	  such as forward-addr: 9.9.9.9@853#dns.quad9.net or
+	  1.1.1.1@853#cloudflare-dns.com
+	- Fix #658: unbound using TLS in a forwarding configuration does not
+	  verify the server's certificate (RFC 8310 support).
+	- For addr with #authname and no @port notation, the default is 853.
+
+18 April 2018: Wouter
+	- Fix auth-zone retry timer to be on schedule with retry timeout,
+	  with backoff.  Also time a refresh at the zone expiry.
+
+17 April 2018: Wouter
+	- auth zone notify work.
+	- allow-notify: config statement for auth-zones.
+	- unit test for allow-notify
+
+16 April 2018: Wouter
+	- Fix auth zone target lookup iterator.
+	- auth zone notify with prefix
+	- auth zone notify work.
+
+13 April 2018: Wouter
+	- Fix for max include depth for authzones.
+	- Fix memory free on fail for $INCLUDE in authzone.
+	- Fix that an internal error to look up the wrong rr type for
+	  auth zone gets stopped, before trying to send there.
+	- auth zone notify work.
+
+10 April 2018: Ralph
+	- num.query.aggressive.NOERROR and num.query.aggressive.NXDOMAIN
+	  statistics counters.
+
+10 April 2018: Wouter
+	- documentation for low-rtt and low-rtt-pct.
+	- auth zone notify work.
+
+9 April 2018: Wouter
+	- Fix that flush_zone sets prefetch ttl expired, so that with
+	  serve-expired enabled it'll start prefetching those entries.
+	- num.query.authzone.up and num.query.authzone.down statistics counters.
+	- Fix downstream auth zone, only fallback when auth zone fails to
+	  answer and fallback is enabled.
+	- Accept both option names with and without colon for get_option
+	  and set_option.
+	- low-rtt and low-rtt-pct in unbound.conf enable the server selection
+	  of fast servers for some percentage of the time.
+
+5 April 2018: Wouter
+	- Combine write of tcp length and tcp query for dns over tls.
+	- nitpick fixes in example.conf.
+	- Fix above stub queries for type NS and useless delegation point.
+	- Fix unbound-control over pipe with openssl 1.1.1, the TLSv1.3
+	  tls_choose_sigalg routine does not allow the ciphers for the pipe,
+	  so use TLSv1.2.
+	- ED448 support.
+
+3 April 2018: Wouter
+	- Fix #4043: make test fails due to v6 presentation issue in macOS.
+	- Fix unable to resolve after new WLAN connection, due to auth-zone
+	  failing with a forwarder set.  Now, auth-zone is only used for
+	  answers (not referrals) when a forwarder is set.
+
+29 March 2018: Ralph
+	- Check "result" in dup_all(), by Florian Obser.
+
+23 March 2018: Ralph
+	- Fix unbound-control get_option aggressive-nsec
+
+21 March 2018: Ralph
+	- Do not use cached NSEC records to generate negative answers for
+	  domains under DNSSEC Negative Trust Anchors.
+
+19 March 2018: Wouter
+	- iana port update.
+
+16 March 2018: Wouter
+	- corrected a minor typo in the changelog.
+	- move htobe64/be64toh portability code to cachedb.c.
+
+15 March 2018: Wouter
+	- Add --with-libhiredis, unbound support for a new cachedb backend
+	  that uses a Redis server as the storage.  This implementation
+	  depends on the hiredis client library (https://redislabs.com/lp/hiredis/).
+	  And unbound should be built with both --enable-cachedb and
+	  --with-libhiredis[=PATH] (where $PATH/include/hiredis/hiredis.h
+	  should exist).  Patch from Jinmei Tatuya (Infoblox).
+	- Fix #3817: core dump happens in libunbound delete, when queued
+	  servfail hits deleted message queue.
+	- Create additional tls service interfaces by opening them on other
+	  portnumbers and listing the portnumbers as additional-tls-port: nr.
+
+13 March 2018: Wouter
+	- Fix typo in documentation.
+	- Fix #3736: Fix 0 TTL domains stuck on SERVFAIL unless manually
+	  flushed with serve-expired on.
+
+12 March 2018: Wouter
+	- Added documentation for aggressive-nsec: yes.
+	- tag 1.7.0rc3.  That became the 1.7.0 release on 15 Mar, trunk
+	  now has 1.7.1 in development.
+	- Fix #3727: Protocol name is TLS, options have been renamed but
+	  documentation is not consistent.
+	- Check IXFR start serial.
+
+9 March 2018: Wouter
+	- Fix #3598: Fix swig build issue on rhel6 based system.
+	  configure --disable-swig-version-check stops the swig version check.
+
+8 March 2018: Wouter
+	- tag 1.7.0rc2.
+
+7 March 2018: Wouter
+	- Fixed contrib/fastrpz.patch, even though this already applied
+	  cleanly for me, now also for others.
+	- patch to log creates keytag queries, from A. Schulze.
+	- patch suggested by Debian lintian: allow to -> allow one to, from 
+	  A. Schulze.
+	- Attempt to remove warning about trailing whitespace.
+
+6 March 2018: Wouter
+	- Reverted fix for #3512, this may not be the best way forward;
+	  although it could be changed at a later time, to stay similar to
+	  other implementations.
+	- svn trunk contains 1.7.0, this is the number for the next release.
+	- Fix for windows compile.
+	- tag 1.7.0rc1.
+
+5 March 2018: Wouter
+	- Fix to check define of DSA for when openssl is without deprecated.
+	- iana port update.
+	- Fix #3582: Squelch address already in use log when reuseaddr option
+	  causes same port to be used twice for tcp connections.
+
+27 February 2018: Wouter
+	- Fixup contrib/fastrpz.patch so that it applies.
+	- Fix compile without threads, and remove unused variable.
+	- Fix compile with staticexe and python module.
+	- Fix nettle compile.
+
+22 February 2018: Ralph
+	- Save wildcard RRset from answer with original owner for use in
+ 	  aggressive NSEC.
+
+21 February 2018: Wouter
+	- Fix #3512: unbound incorrectly reports SERVFAIL for CAA query
+	  when there is a CNAME loop.
+	- Fix validation for CNAME loops.  When it detects a cname loop,
+	  by finding the cname, cname in the existing list, it returns
+	  the partial result with the validation result up to then.
+	- more robust cachedump rrset routine.
+
+19 February 2018: Wouter
+	- Fix #3505: Documentation for default local zones references
+	  wrong RFC.
+	- Fix #3494: local-zone noview can be used to break out of the view
+	  to the global local zone contents, for queries for that zone.
+	- Fix for more maintainable code in localzone.
+
+16 February 2018: Wouter
+	- Fixes for clang static analyzer, the missing ; in
+	  edns-subnet/addrtree.c after the assert made clang analyzer
+	  produce a failure to analyze it.
+
+13 February 2018: Ralph
+	- Aggressive NSEC tests
+
+13 February 2018: Wouter
+	- tls-cert-bundle option in unbound.conf enables TLS authentication.
+	- iana port update.
+
+12 February 2018: Wouter
+	- Unit test for auth zone https url download.
+
+12 February 2018: Ralph
+	- Added tests with wildcard expanded NSEC records (CVE-2017-15105 test)
+	- Processed aggressive NSEC code review remarks Wouter
+
+8 February 2018: Ralph
+	- Aggressive use of NSEC implementation. Use cached NSEC records to
+	  generate NXDOMAIN, NODATA and positive wildcard answers.
+
+8 February 2018: Wouter
+	- iana port update.
+	- auth zone url config.
+
+5 February 2018: Wouter
+	- Fix #3451: dnstap not building when you have a separate build dir.
+	  And removed protoc warning, set dnstap.proto syntax to proto2.
+	- auth-zone provides a way to configure RFC7706 from unbound.conf,
+	  eg. with auth-zone: name: "." for-downstream: no for-upstream: yes
+	  fallback-enabled: yes and masters or a zonefile with data.
+
+2 February 2018: Wouter
+	- Fix unfreed locks in log and arc4random at exit of unbound.
+	- unit test with valgrind
+	- Fix lock race condition in dns cache dname synthesis.
+	- lock subnet new item before insertion to please checklocks,
+	  no modification of critical regions outside of lock region.
+
+1 February 2018: Wouter
+	- fix unaligned structure making a false positive in checklock
+	  unitialised memory.
+
+29 January 2018: Ralph
+	- Use NSEC with longest ce to prove wildcard absence.
+	- Only use *.ce to prove wildcard absence, no longer names.
+
+25 January 2018: Wouter
+	- ltrace.conf file for libunbound in contrib.
+
+23 January 2018: Wouter
+	- Fix that unbound-checkconf -f flag works with auto-trust-anchor-file
+	  for startup scripts to get the full pathname(s) of anchor file(s).
+	- Print fatal errors about remote control setup before log init,
+	  so that it is printed to console.
+
+22 January 2018: Wouter
+	- Accept tls-upstream in unbound.conf, the ssl-upstream keyword is
+	  also recognized and means the same.  Also for tls-port,
+	  tls-service-key, tls-service-pem, stub-tls-upstream and
+	  forward-tls-upstream.
+	- Fix #3397: Fix that cachedb could return a partial CNAME chain.
+	- Fix #3397: Fix that when the cache contains an unsigned DNAME in
+	  the middle of a cname chain, a result without the DNAME could
+	  be returned.
+
+19 January 2018: Wouter
+	- tag 1.6.8 for release with CVE fix.
+	- trunk has 1.6.9 with fix and previous commits.
+	- patch for CVE-2017-15105: vulnerability in the processing of
+	  wildcard synthesized NSEC records.
+	- iana port update.
+	- make depend: code dependencies updated in Makefile.
+
+4 January 2018: Ralph
+	- Copy query and correctly set flags on REFUSED answers when cache
+	  snooping is not allowed.
+
+3 January 2018: Ralph
+	- Fix queries being leaked above stub when refetching glue.
+
+2 January 2017: Wouter
+	- Fix that DS queries with referral replies are answered straight
+	  away, without a repeat query picking the DS from cache.
+	  The correct reply should have been an answer, the reply is fixed
+	  by the scrubber to have the answer in the answer section.
+	- Remove clang optimizer disable,
+	  Fix that expiration date checks don't fail with clang -O2.
+
+15 December 2017: Wouter
+	- Fix timestamp failure because of clang optimizer failure, by
+	  disabling -O2 when the compiler --version is clang.
+	- iana port update.
+	- Also disable -flto for clang, to make incep-expi signature check
+	  work.
+
+12 December 2017: Ralph
+	- Fix qname-minimisation documentation (A QTYPE, not NS)
+
+12 December 2017: Wouter
+	- authzone work, transfer connect.
+
+7 December 2017: Ralph
+	- Check whether --with-libunbound-only is set when using --with-nettle
+	  or --with-nss.
+
+4 December 2017: Wouter 
+	- Fix link failure on OmniOS.
+
+1 December 2017: Wouter 
+	- auth zone work.
+
+30 November 2017: Wouter 
+	- Fix #3299 - forward CNAME daisy chain is not working
+
+14 November 2017: Wouter 
+	- Fix #2882: Unbound behaviour changes (wrong) when domain-insecure is
+	  set for stub zone.  It no longer searches for DNSSEC information.
+	- auth xfer work on probe timer and lookup.
+
+13 November 2017: Wouter 
+	- Fix #2801: Install libunbound.pc.
+	- Fix qname minimisation to send AAAA queries at zonecut like type A.
+	- reverted AAAA change.
+
+7 November 2017: Wouter 
+	- Fix #2492: Documentation libunbound.
+
+3 November 2017: Wouter 
+	- Fix #2362: TLS1.3/openssl-1.1.1 not working.
+	- Fix #2034 - Autoconf and -flto.
+	- Fix #2141 - for libsodium detect lack of entropy in chroot, print
+	  a message and exit.
+
+2 November 2017: Wouter 
+	- Fix #1913: ub_ctx_config is under circumstances thread-safe.
+	- make ip-transparent option work on OpenBSD.
+
+31 October 2017: Wouter 
+	- Document that errno is left informative on libunbound config read
+	  fail.
+	- lexer output.
+	- iana port update.
+
+25 October 2017: Ralph
+	- Fixed libunbound manual typo.
+	- Fix #1949: [dnscrypt] make provider name mismatch more obvious.
+	- Fix #2031: Double included headers
+
+24 October 2017: Ralph
+	- Update B root ipv4 address.
+
+19 October 2017: Wouter 
+	- authzone work, probe timer setup.
+
+18 October 2017: Wouter 
+	- lint for recent authzone commit.
+
+17 October 2017: Wouter 
+	- Fix #1749: With harden-referral-path: performance drops, due to
+	  circular dependency in NS and DS lookups.
+	- [dnscrypt] prevent dnscrypt-secret-key, dnscrypt-provider-cert
+	  duplicates
+	- [dnscrypt] introduce dnscrypt-provider-cert-rotated option,
+	  from Manu Bretelle.
+	This option allows handling multiple cert/key pairs while only
+	distributing some of them.
+	In order to reliably match a client magic with a given key without
+	strong assumption as to how those were generated, we need both key and
+	cert. Likewise, in order to know which ES version should be used.
+	On the other hand, when rotating a cert, it can be desirable to only
+	serve the new cert but still be able to handle clients that are still
+	using the old certs's public key.
+	The `dnscrypt-provider-cert-rotated` allow to instruct unbound to not
+	publish the cert as part of the DNS's provider_name's TXT answer.
+	- Better documentation for cache-max-negative-ttl.
+	- Work on local root zone code.
+
+10 October 2017: Wouter 
+	- tag 1.6.7
+	- trunk has version 1.6.8.
+
+6 October 2017: Wouter 
+	- Fix spelling in unbound-control man page.
+
+5 October 2017: Wouter 
+	- Fix trust-anchor-signaling works in libunbound.
+	- Fix some more crpls in testdata for different signaling default.
+	- tag 1.6.7rc1
+
+5 October 2017: Ralph 
+	- Set trust-anchor-signaling default to yes
+	- Use RCODE from A query on DNS64 synthesized answer.
+
+2 October 2017: Wouter
+	- Fix param unused warning for windows exportsymbol compile.
+
+25 September 2017: Ralph
+	- Fix #1450: Generate again patch contrib/aaaa-filter-iterator.patch
+	   (by Danilo G. Baio).
+
+21 September 2017: Ralph
+	- Log name of looping module
+
+19 September 2017: Wouter
+	- use a cachedb answer even if it's "expired" when serve-expired is yes
+	  (patch from Jinmei Tatuya).
+	- trigger refetching of the answer in that case (this will bypass
+	  cachedb lookup)
+	- allow storing a 0-TTL answer from cachedb in the in-memory message
+	  cache when serve-expired is yes
+	- Fix DNSCACHE_STORE_ZEROTTL to be bigger than 0xffff.
+
+18 September 2017: Ralph
+	- Fix #1400: allowing use of global cache on ECS-forwarding unless
+	  always-forward.
+
+18 September 2017: Wouter
+	- tag 1.6.6 (is 1.6.6rc2)
+	- Fix that looping modules always stop the query, and don't pass
+	  control.
+	- Fix #1435: Please allow UDP to be disabled separately upstream and
+	  downstream.
+	- Fix #1440: [dnscrypt] client nonce cache.
+
+15 September 2017: Wouter
+	- Fix unbound-host to report error for DNSSEC state of failed lookups.
+	- Spelling fixes, from Josh Soref.
+
+13 September 2017: Wouter
+	- tag 1.6.6rc2, became 1.6.6 on 18 sep.  trunk 1.6.7 in development.
+
+12 September 2017: Wouter
+	- Add dns64 for client-subnet in unbound-checkconf.
+
+4 September 2017: Ralph
+	- Fix #1412: QNAME minimisation strict mode not honored
+	- Fix #1434: Fix windows openssl 1.1.0 linking.
+
+4 September 2017: Wouter
+	- tag 1.6.6rc1
+	- makedist fix for windows binaries, with openssl 1.1.0 windres fix,
+	  and expat 2.2.4 install target fix.
+
+1 September 2017: Wouter
+	- Recommend 1472 buffer size in unbound.conf
+
+31 August 2017: Wouter
+	- Fix #1424: cachedb:testframe is not thread safe.
+	- For #1417: escape ; in dnscrypt tests.
+	- but reverted that, tests fails with that escape.
+	- Fix #1417: [dnscrypt] shared secret cache counters, and works when
+	  dnscrypt is not enabled.  And cache size configuration option.
+	- make depend
+	- Fix #1418: [ip ratelimit] initialize slabhash using
+	  ip-ratelimit-slabs.
+
+30 August 2017: Wouter
+	- updated contrib/fastrpz.patch to apply with configparser changes.
+	- Fix 1416: qname-minimisation breaks TLSA lookups with CNAMEs.
+
+29 August 2017: Wouter
+	- Fix #1414: fix segfault on parse failure and log_replies.
+	- zero qinfo in handle_request, this zeroes local_alias and also the
+	  qname member.
+	- new keys and certs for dnscrypt tests.
+	- fixup WKS test on buildhost without servicebyname.
+
+28 August 2017: Wouter
+	- Fix #1415: patch to free dnscrypt environment on reload.
+	- iana portlist update
+	- Fix #1415: [dnscrypt] shared secret cache, patch from
+	  Manu Bretelle.
+	- Small fixes for the shared secret cache patch.
+	- Fix WKS records on kvm autobuild host, with default protobyname
+	  entries for udp and tcp.
+
+23 August 2017: Wouter
+	- Fix #1407: Add ECS options check to unbound-checkconf.
+	- make depend
+	- Fix to reclaim tcp handler when it is closed due to dnscrypt buffer
+	  allocation failure.
+
+22 August 2017: Wouter
+	- Fix install of trust anchor when two anchors are present, makes both
+	  valid. Checks hash of DS but not signature of new key. This fixes
+	  the root.key file if created when unbound is installed between
+	  sep11 and oct11 2017.
+	- tag 1.6.5 with pointrelease 1.6.5 (1.6.4 plus 5011 fix).
+	- trunk version 1.6.6 in development.
+	- Fix issue on macOX 10.10 where TCP fast open is detected but not
+	  implemented causing TCP to fail. The fix allows fallback to regular
+	  TCP in this case and is also more robust for cases where connectx()
+	  fails for some reason.
+	- Fix #1402: squelch invalid argument error for fd_set_block on windows.
+
+10 August 2017: Wouter
+	- Patch to show DNSCrypt status in help output, from Carsten
+	  Strotmann.
+
+8 August 2017: Wouter
+	- Fix #1398: make cachedb secret configurable.
+	- Remove spaces from Makefile.
+
+7 August 2017: Wouter
+	- Fix #1397: Recursive DS lookups for AS112 zones names should recurse.
+
+3 August 2017: Ralph
+	- Remove unused iter_env member (ip6arpa_dname)
+	- Do not reset rrset.bogus stats when called using stats_noreset.
+	- Added stats for queries that have been ratelimited by domain
+	  recursion.
+	- Do not add rrset_bogus and query ratelimiting stats per thread, these
+	  module stats are global.
+
+3 August 2017: Wouter
+	- Fix #1394: mix of serve-expired and response-ip could cause a crash.
+
+24 July 2017: Wouter
+	- upgrade aclocal(pkg.m4 0.29.1), config.guess(2016-10-02),
+	  config.sub(2016-09-05).
+	- annotate case statement fallthrough for gcc 7.1.1.
+	- flex output from flex 2.6.1.
+	- snprintf of thread number does not warn about truncated string.
+	- squelch TCP fast open error on FreeBSD when kernel has it disabled,
+	  unless verbosity is high.
+	- remove warning from windows compile.
+	- Fix compile with libnettle
+	- Fix DSA configure switch (--disable dsa) for libnettle and libnss.
+	- Fix #1365: Add Ed25519 support using libnettle.
+	- iana portlist update
+
+17 July 2017: Wouter
+	- Fix #1350: make cachedb backend configurable (from JINMEI Tatuya).
+	- Fix #1349: allow suppression of pidfiles (from Daniel Kahn Gillmor).
+	  With the -p option unbound does not create a pidfile.
+
+11 July 2017: Wouter
+	- Fix #1344: RFC6761-reserved domains: test. and invalid.
+	- Redirect all localhost names to localhost address for RFC6761.
+
+6 July 2017: Wouter
+	- Fix tests to use .tdir (from Manu Bretelle) instead of .tpkg.
+	- Fix svn hooks for tdir (selected if testcode/mini_tdir.sh exists)..
+
+4 July 2017: Wouter
+	- Fix 1332: Bump verbosity of failed chown'ing of the control socket.
+
+3 July 2017: Wouter
+	- Fix for unbound-checkconf, check ipsecmod-hook if ipsecmod is turned
+	  on.
+	- Fix #1331: libunbound segfault in threaded mode when context is
+	  deleted.
+	- Fix pythonmod link line option flag.
+	- Fix openssl 1.1.0 load of ssl error strings from ssl init.
+
+29 June 2017: Wouter
+	- Fix python example0 return module wait instead of error for pass.
+	- iana portlist update
+	- enhancement for hardened-tls for DNS over TLS.  Removed duplicated
+	  security settings.
+
+27 June 2017: Wouter
+	- Tag 1.6.4 is created with the 1.6.4rc2 contents.
+	- Trunk contains 1.6.5, with changes from 26, 27 june.
+	- Remove signed unsigned warning from authzone.
+	- Fix that infra cache host hash does not change after reconfig.
+
+26 June 2017: Wouter
+	- (for 1.6.5)
+	  Better fixup of dnscrypt_cert_chacha test for different escapes.
+	- First fix for zero b64 and hex text zone format in sldns.
+	- unbound-control dump_infra prints port number for address if not 53.
+
+23 June 2017: Wouter
+	- (for 1.6.5): fixup of dnscrypt_cert_chacha test (from Manu Bretelle).
+
+22 June 2017: Wouter
+	- Tag 1.6.4rc2
+
+22 June 2017: Ralph
+	- Added fastrpz patch to contrib
+
+21 June 2017: Wouter
+	- Fix #1316: heap read buffer overflow in parse_edns_options.
+
+20 June 2017: Wouter
+	- Fix warning in pythonmod under clang compiler.
+	- Tag 1.6.4rc1
+	- Fix lintian typo.
+
+16 June 2017: Ralph
+	- Fix #1277: disable domain ratelimit by setting value to 0.
+
+16 June 2017: Wouter
+	- Fix #1301: memory leak in respip and tests.
+	- Free callback in edns-subnetmod on exit and restart.
+	- Fix memory leak in sldns_buffer_new_frm_data.
+	- Fix memory leak in dnscrypt config read.
+	- Fix dnscrypt chacha cert support ifdefs.
+	- Fix dnscrypt chacha cert unit test escapes in grep.
+	- Remove asynclook tests that cause test and purifier problems.
+	- Fix to unlock view in view test.
+
+15 June 2017: Wouter
+	- Fix stub zone queries leaking to the internet for
+	  harden-referral-path ns checks.
+	- Fix query for refetch_glue of stub leaking to internet.
+
+13 June 2017: Wouter
+	- Fix #1279: Memory leak on reload when python module is enabled.
+	- Fix #1280: Unbound fails assert when response from authoritative
+	  contains malformed qname.  When 0x20 caps-for-id is enabled, when
+	  assertions are not enabled the malformed qname is handled correctly.
+	- 1.6.3 tag created, with only #1280 fix, trunk is 1.6.4 development.
+	- More fixes in depth for buffer checks in 0x20 qname checks.
+
+12 June 2017: Wouter
+	- Fix #1278: Incomplete wildcard proof.
+
+8 June 2017: Ralph
+	- Added domain name based ECS whitelist.
+
+8 June 2017: Wouter
+	- Detect chacha for dnscrypt at configure time.
+	- dnscrypt unit tests with chacha.
+
+7 June 2017: Wouter
+	- Fix that unbound-control can set val_clean_additional and val_permissive_mode.
+	- Add dnscrypt XChaCha20 tests.
+
+6 June 2017: Wouter
+	- Add an explicit type cast for TCP FASTOPEN fix.
+	- renumbering B-Root's IPv6 address to 2001:500:200::b.
+	- Fix #1275: cached data in cachedb is never used.
+	- Fix #1276: [dnscrypt] add XChaCha20-Poly1305 cipher.
+
+1 June 2017: Ralph
+	- Fix #1274: automatically trim chroot path from dnscrypt key/cert paths
+	  (from Manu Bretelle).
+
+1 June 2017: Wouter
+	- Fix fastopen EPIPE fallthrough to perform connect.
+
+31 May 2017: Ralph
+	- Also use global local-zones when there is a matching view that does
+	  not have any local-zone specified.
+
+31 May 2017: Wouter
+	- Fix #1273: cachedb.c doesn't compile with -Wextra.
+	- If MSG_FASTOPEN gives EPIPE fallthrough to try normal tcp write.
+
+30 May 2017: Ralph
+	- Fix #1269: inconsistent use of built-in local zones with views.
+	- Add defaults for new local-zone trees added to views using
+	  unbound-control.
+
+30 May 2017: Wouter
+	- Support for openssl EVP_DigestVerify.
+	- Support for the ED25519 algorithm with openssl (from openssl 1.1.1).
+
+29 May 2017: Wouter
+	- Fix assertion for low buffer size and big edns payload when worker
+	  overrides udpsize.
+
+26 May 2017: Ralph
+	- Added redirect-bogus.patch to contrib directory.
+
+26 May 2017: Wouter
+	- Fix #1270: unitauth.c doesn't compile with higher warning level
+	  and optimization
+	- exec_prefix is by default equal to prefix.
+	- printout localzone for duplicate local-zone warnings.
+
+24 May 2017: Wouter
+	- authzone cname chain, no rrset duplicates, wildcard doesn't change
+	  rrsets added for cname chain.
+
+23 May 2017: Wouter
+	- first services/authzone check in, it compiles and reads and writes
+	  zonefiles.
+	- iana portlist update
+
+22 May 2017: Wouter
+	- Fix #1268: SIGSEGV after log_reopen.
+
+18 May 2017: Wouter
+	- Fix #1265 to use /bin/kill.
+	- Fix #1267: Libunbound validator/val_secalgo.c uses obsolete APIs,
+	  and compatibility with BoringSSL.
+
+17 May 2017: Wouter
+	- Fix #1265: contrib/unbound.service contains hardcoded path.
+
+17 May 2017: George
+	- Use qstate's region for IPSECKEY rrset (ipsecmod).
+
+16 May 2017: George
+	- Implemented opportunistic IPsec support module (ipsecmod).
+	- Some whitespace fixup.
+
+16 May 2017: Wouter
+	- updated dependencies in the makefile.
+	- document trust-anchor-signaling in example config file.
+	- updated configure, dependencies and flex output.
+	- better module memory lookup, fix of unbound-control shm names for
+	  module memory printout of statistics.
+	- Fix type AVC sldns rrdef.
+
+12 May 2017: Wouter
+	- Adjust servfail by iterator to not store in cache when serve-expired
+	  is enabled, to avoid overwriting useful information there.
+	- Fix queries for nameservers under a stub leaking to the internet.
+
+9 May 2017: Ralph
+	- Add 'c' to getopt() in testbound.
+	- iana portlist update
+
+8 May 2017: Wouter
+	- Fix tcp-mss failure printout text.
+	- Set SO_REUSEADDR on outgoing tcp connections to fix the bind before
+	  connect limited tcp connections.  With the option tcp connections
+	  can share the same source port (for different destinations).
+
+2 May 2017: Ralph
+	- Added mesh_add_sub to add detached mesh entries.
+	- Use mesh_add_sub for key tag signaling query.
+
+2 May 2017: Wouter
+	- Added test for leak of stub information.
+	- Fix sldns wire2str printout of RR type CAA tags.
+	- Fix sldns int16_data parse.
+	- Fix sldns parse and printout of TSIG RRs.
+	- sldns SMIMEA and AVC definitions, same as getdns definitions.
+
+1 May 2017: Wouter
+	- Fix #1259: "--disable-ecdsa" argument overwritten 
+	  by "#ifdef SHA256_DIGEST_LENGTH@daemon/remote.c".
+	- iana portlist update
+	- Fix #1258: Windows 10 X64 unbound 1.6.2 service will not start.
+	  and fix that 64bit getting installed in C:\Program Files (x86).
+
+26 April 2017: Ralph
+	- Implemented trust anchor signaling using key tag query.
+
+26 April 2017: Wouter
+	- Based on #1257: check parse limit before t increment in sldns RR
+	  string parse routine.
+
+24 April 2017: Wouter
+	- unbound-checkconf -o allows query of dnstap config variables.
+	  Also unbound-control get_option.  Also for dnscrypt.
+	- trunk contains 1.6.3 version number (changes from 1.6.2 back from
+	  when the 1.6.2rc1 tag has been created).
+
+21 April 2017: Ralph
+	- Fix #1254: clarify ratelimit-{for,below}-domain (from Manu Bretelle).
+	- iana portlist update
+	
+18 April 2017: Ralph
+	- Fix #1252: more indentation inconsistencies.
+	- Fix #1253: unused variable in edns-subnet/addrtree.c:getbit().
+
+13 April 2017: Ralph
+	- Added ECS unit test (from Manu Bretelle).
+	- ECS documentation fix (from Manu Bretelle).
+
+13 April 2017: Wouter
+	- Fix #1250: inconsistent indentation in services/listen_dnsport.c.
+	- tag for 1.6.2rc1
+	- (for 1.6.3:) unbound.h exports the shm stats structures.  They use
+	  type long long and no ifdefs, and ub_ before the typenames.
+
+12 April 2017: Wouter
+	- subnet mem value is available in shm, also when not enabled,
+	  to make the struct easier to memmap by other applications,
+	  independent of the configuration of unbound.
+
+12 April 2017: Ralph
+	- Fix #1247: unbound does not shorten source prefix length when
+	  forwarding ECS.
+	- Properly check for allocation failure in local_data_find_tag_datas.
+	- Fix #1249: unbound doesn't return FORMERR to bogus ECS.
+	- Set SHM ECS memory usage to 0 when module not loaded.
+
+11 April 2017: Ralph
+	- Display ECS module memory usage.
+
+10 April 2017: Wouter
+	- harden-algo-downgrade: no also makes unbound more lenient about
+	  digest algorithms in DS records.
+
+10 April 2017: Ralph
+	- Remove ECS option after REFUSED answer.
+	- Fix small memory leak in edns_opt_copy_alloc.
+	- Respip dereference after NULL check.
+	- Zero initialize addrtree allocation.
+	- Use correct identifier for SHM destroy.
+
+7 April 2017: George
+	- Fix pythonmod for cb changes.
+	- Some whitespace fixup.
+
+7 April 2017: Ralph
+	- Unlock view in respip unit test
+
+6 April 2017: Ralph
+	- Generalise inplace callback (de)registration
+	- (de)register inplace callbacks for module id
+	- No unbound-control set_option for ECS options
+	- Deprecated client-subnet-opcode config option
+	- Introduced client-subnet-always-forward config option
+	- Changed max-client-subnet-ipv6 default to 56 (as in RFC)
+	- Removed extern ECS config options
+	- module_restart_next now calls clear on all following modules
+	- Also create ECS module qstate on module_event_pass event
+	- remove malloc from inplace_cb_register
+
+6 April 2017: Wouter
+	- Small fixup for documentation.
+	- iana portlist update
+	- Fix respip for braces when locks arent used.
+	- Fix pythonmod for cb changes.
+
+4 April 2017: Wouter
+	- Fix #1244: document that use of chroot requires trust anchor file to
+	  be under chroot.
+	- iana portlist update
+
+3 April 2017: Ralph
+	- Do not add current time twice to TTL before ECS cache store.
+	- Do not touch rrset cache after ECS cache message generation.
+	- Use LDNS_EDNS_CLIENT_SUBNET as default ECS opcode.
+
+3 April 2017: Wouter
+	- Fix #1217: Add metrics to unbound-control interface showing
+	  crypted, cert request, plaintext and malformed queries (from
+	  Manu Bretelle).
+	- iana portlist update
+
+27 March 2017: Wouter
+	- Remove (now unused) event2 include from dnscrypt code.
+
+24 March 2017: George
+	- Fix to prevent non-referal query from being cached as referal when the
+	  no_cache_store flag was set.
+
+23 March 2017: Wouter
+	- Fix #1239: configure fails to find python distutils if python
+	  prints warning.
+
+22 March 2017: Wouter
+	- Fix #1238: segmentation fault when adding through the remote
+	  interface a per-view local zone to a view with no previous
+	  (configured) local zones.
+	- Fix #1229: Systemd service sandboxing, options in wrong sections.
+
+21 March 2017: Ralph
+	- Merge EDNS Client subnet implementation from feature branch into main
+	  branch, using new EDNS processing framework. 
+
+21 March 2017: Wouter
+	- Fix doxygen for dnscrypt files.
+
+20 March 2017: Wouter
+	- #1217. DNSCrypt support, with --enable-dnscrypt, libsodium and then
+	  enabled in the config file from Manu Bretelle.
+	- make depend, autoconf, remove warnings about statement before var.
+	- lru_demote and lruhash_insert_or_retrieve functions for getdns.
+	- fixup for lruhash (whitespace and header file comment).
+	- dnscrypt tests.
+
+17 March 2017: Wouter
+	- Patch for view functionality for local-data-ptr from Björn Ketelaars.
+	- Fix #1237 - Wrong resolving in chain, for norec queries that get
+	  SERVFAIL returned.
+
+16 March 2017: Wouter
+	- Fix that SHM is not inited if not enabled.
+	- Add trustanchor.unbound CH TXT that gets a response with a number
+	  of TXT RRs with a string like "example.com. 2345 1234" with
+	  the trust anchors and their keytags.
+	- Fix that looped DNAMEs do not cause unbound to spend effort.
+	- trustanchor tags are sorted.  reusable routine to fetch taglist.
+
+13 March 2017: Wouter
+	- testbound understands Deckard MATCH rcode question answer commands.
+	- Fix #1235: Fix too long DNAME expansion produces SERVFAIL instead
+	  of YXDOMAIN + query loop, reported by Petr Spacek.
+
+10 March 2017: Wouter
+	- Fix #1234: shortening DNAME loop produces duplicate DNAME records
+	  in ANSWER section.
+
+9 March 2017: Wouter
+	- --disable-sha1 disables SHA1 support in RRSIG, so from DNSKEY and
+	  DS records.  NSEC3 is not disabled.
+	- fake-sha1 test option; print warning if used.  To make unit tests.
+	- unbound-control list local zone and data commands listed in the
+	  help output.
+
+8 March 2017: Wouter
+	- make depend for build dependencies.
+	- swig version 2.0.1 required.
+	- fix enum conversion warnings
+
+7 March 2017: Wouter
+	- Fix #1230: swig version 2.0.0 is required for pythonmod, with
+	  1.3.40 it crashes when running repeatly unbound-control reload.
+	- Response actions based on IP address from Jinmei Tatuya (Infoblox).
+
+6 March 2017: Wouter
+	- Fix #1229: Systemd service sandboxing in contrib/unbound.service.
+	- iana portlist update
+
+28 February 2017: Ralph
+	- Fix testpkts.c, check if DO bit is set, not only if there is an OPT
+	  record.
+
+28 February 2017: Wouter
+	- For #1227: if we have sha256, set the cipher list to have no
+	  known vulns.
+
+27 February 2017: Wouter
+	- Fix #1227: Fix that Unbound control allows weak ciphersuits.
+	- Fix #1226: provide official 32bit binary for windows.
+
+24 February 2017: Wouter
+	- include sys/time.h for new shm code on NetBSD.
+
+23 February 2017: Wouter
+	- Fix doc/CNAME-basedRedirectionDesignNotes.pdf zone static to
+	  redirect.
+	- Patch from Luiz Fernando Softov for Stats Shared Memory.
+	- unbound-control stats_shm command prints stats using shared memory,
+	  which uses less cpu.
+	- make depend, autoconf, doxygen and lint fixed up.
+
+22 February 2017: Wouter
+	- Fix #1224: Fix that defaults should not fall back to "Program Files
+	  (x86) if Unbound is 64bit by default on windows.
+
+21 February 2017: Wouter
+	- iana portlist update
+
+16 February 2017: Wouter
+	- sldns updated for vfixed and buffer resize indication from getdns.
+
+15 February 2017: Wouter
+	- sldns has ED25519 and ED448 algorithm number and name for display.
+
+14 February 2017: Wouter
+	- tag 1.6.1rc3. -- which became 1.6.1 on 21feb, trunk has 1.6.2
+
+13 February 2017: Wouter
+	- Fix autoconf of systemd check for lack of pkg-config.
+
+10 February 2017: Wouter
+	- Fix pythonmod for typedef changes.
+	- Fix dnstap for warning of set but not used.
+	- tag 1.6.1rc2.
+
+9 February 2017: Wouter
+	- tag 1.6.1rc1.
+
+8 February 2017: Wouter
+	- Fix for type name change and fix warning on windows compile.
+
+7 February 2017: Wouter
+	- Include root trust anchor id 20326 in unbound-anchor.
+
+6 February 2017: Wouter
+	- Fix compile on solaris of the fix to use $host detect.
+
+4 February 2017: Wouter
+	- fix root_anchor test for updated icannbundle.pem lower certificates.
+
+26 January 2017: Wouter
+	- Fix 1211: Fix can't enable interface-automatic if no IPv6 with
+	  more helpful error message.
+
+20 January 2017: Wouter
+	- Increase MAX_MODULE to 16.
+
+19 January 2017: Wouter
+	- Fix to Rename ub_callback_t to ub_callback_type, because POSIX
+	  reserves _t typedefs.
+	- Fix to rename internally used types from _t to _type, because _t
+	  type names are reserved by POSIX.
+	- iana portlist update
+
+12 January 2017: Wouter
+	- Fix to also block meta types 128 through to 248 with formerr. 
+	- Fix #1206: Some view-related commands are missing from 'unbound-control -h'
+
+9 January 2017: Wouter
+	- Fix #1202: Fix code comment that packed_rrset_data is not always
+	  'packed'.
+
+6 January 2017: Wouter
+	- Fix #1201: Fix missing unlock in answer_from_cache error condition.
+
+5 January 2017: Wouter
+	- Fix to return formerr for queries for meta-types, to avoid
+	  packet amplification if this meta-type is sent on to upstream.
+	- Fix #1184: Log DNS replies. This includes the same logging
+	  information that DNS queries and response code and response size,
+	  patch from Larissa Feng.
+	- Fix #1187: Source IP rate limiting, patch from Larissa Feng.
+
+3 January 2017: Wouter
+	- configure --enable-systemd and lets unbound use systemd sockets if
+	  you enable use-systemd: yes in unbound.conf.
+	  Also there are contrib/unbound.socket and contrib/unbound.service:
+	  systemd files for unbound, install them in /usr/lib/systemd/system.
+	  Contributed by Sami Kerola and Pavel Odintsov.
+	- Fix reload chdir failure when also chrooted to that directory.
+
+2 January 2017: Wouter
+	- Fix #1194: Cross build fails when $host isn't `uname` for getentropy.
+
+23 December 2016: Ralph
+	- Fix #1190: Do not echo back EDNS options in local-zone error response.
+	- iana portlist update
+
+21 December 2016: Ralph
+	- Fix #1188: Unresolved symbol 'fake_dsa' in libunbound.so when built
+	  with Nettle
+
+19 December 2016: Ralph
+	- Fix #1191: remove comment about view deletion.
+
+15 December 2016: Wouter
+	- iana portlist update
+	- 64bit is default for windows builds.
+	- Fix inet_ntop and inet_pton warnings in windows compile.
+
+14 December 2016: Wouter
+	- Fix #1178: attempt to fix setup error at end, pop result values
+	  at end of install.
+
+13 December 2016: Wouter
+	- Fix #1182: Fix Resource leak (socket), at startup.
+	- Fix unbound-control and ipv6 only.
+
+9 December 2016: Wouter
+	- Fix #1176: stack size too small for Alpine Linux.
+
+8 December 2016: Wouter
+	- Fix downcast warnings from visual studio in sldns code.
+	- tag 1.6.0rc1 which became 1.6.0 on 15 dec, and trunk is 1.6.1.
+
+7 December 2016: Ralph
+	- Add DSA support for OpenSSL 1.1.0
+	- Fix remote control without cert for LibreSSL
+
+6 December 2016: George
+	- Added generic EDNS code for registering known EDNS option codes,
+	  bypassing the cache response stage and uniquifying mesh states. Four EDNS
+	  option lists were added to module_qstate (module_qstate.edns_opts_*) to
+	  store EDNS options from/to front/back side.
+	- Added two flags to module_qstate (no_cache_lookup, no_cache_store) that
+	  control the modules' cache interactions.
+	- Added code for registering inplace callback functions. The registered
+	  functions can be called just before replying with local data or Chaos,
+	  replying from cache, replying with SERVFAIL, replying with a resolved
+	  query, sending a query to a nameserver. The functions can inspect the
+	  available data and maybe change response/query related data (i.e. append
+	  EDNS options).
+	- Updated Python module for the above.
+	- Updated Python documentation.
+
+5 December 2016: Ralph
+	- Fix #1173: differ local-zone type deny from unset
+	  tag_actions element.
+
+5 December 2016: Wouter
+	- Fix #1170: document that 'inform' local-zone uses local-data.
+
+1 December 2016: Ralph
+	- hyphen as minus fix, by Andreas Schulze
+
+30 November 2016: Ralph
+	- Added local-zones and local-data bulk addition and removal
+	  functionality in unbound-control (local_zones, local_zones_remove,
+	  local_datas and local_datas_remove).
+	- iana portlist update
+
+29 November 2016: Wouter
+	- version 1.6.0 is in the development branch.
+	- braces in view.c around lock statements.
+
+28 November 2016: Wouter
+	- new install-sh.
+
+25 November 2016: Wouter
+	- Fix that with openssl 1.1 control-use-cert: no uses less cpu, by
+	  using no encryption over the unix socket.
+
+22 Novenber 2016: Ralph
+	- Make access-control-tag-data RDATA absolute. This makes the RDATA
+	  origin consistent between local-data and access-control-tag-data.
+	- Fix NSEC ENT wildcard check. Matching wildcard does not have to be a
+	  subdomain of the NSEC owner.
+	- QNAME minimisation uses QTYPE=A, therefore always check cache for
+	  this type in harden-below-nxdomain functionality.
+	- Added unit test for QNAME minimisation + harden below nxdomain
+	  synergy.
+
+22 November 2016: Wouter
+	- iana portlist update.
+	- Fix unit tests for DS hash processing for fake-dsa test option.
+	- patch from Dag-Erling Smorgrav that removes code that relies
+	  on sbrk().
+
+21 November 2016: Wouter
+	- Fix #1158: reference RFC 8020 "NXDOMAIN: There Really Is Nothing
+	  Underneath" for the harden-below-nxdomain option.
+
+10 November 2016: Ralph
+	- Fix #1155: test status code of unbound-control in 04-checkconf,
+	  not the status code from the tee command.
+
+4 November 2016: Ralph
+	- Added stub-ssl-upstream and forward-ssl-upstream options.
+
+4 November 2016: Wouter
+	- configure detects ssl security level API function in the autoconf
+	  manner.  Every function on its own, so that other libraries (eg.
+	  LibreSSL) can develop their API without hindrance.
+	- Fix #1154: segfault when reading config with duplicate zones.
+	- Note that for harden-below-nxdomain the nxdomain must be secure,
+	  this means nsec3 with optout is insufficient.
+
+3 November 2016: Ralph
+	- Set OpenSSL security level to 0 when using aNULL ciphers.
+
+3 November 2016: Wouter
+	- .gitattributes line for githubs code language display.
+	- log-identity: config option to set sys log identity, patch from
+	  "Robin H. Johnson" <robbat2@gentoo.org>
+
+2 November 2016: Wouter
+	- iana portlist update.
+
+31 October 2016: Wouter
+	- Fix failure to build on arm64 with no sbrk.
+	- iana portlist update.
+
+28 October 2016: Wouter
+	- Patch for server.num.zero_ttl stats for count of expired replies,
+	  from Pavel Odintsov.
+
+26 October 2016: Wouter
+	- Fix unit tests for openssl 1.1, with no DSA, by faking DSA, enabled
+	  with the undocumented switch 'fake-dsa'.  It logs a warning.
+
+25 October 2016: Wouter
+	- Fix #1134: unbound-control set_option -- val-override-date: -1 works
+	  immediately to ignore datetime, or back to 0 to enable it again.
+	  The -- is to ignore the '-1' as an option flag.
+
+24 October 2016: Wouter
+	- serve-expired config option: serve expired responses with TTL 0.
+	- g.root-servers.net has AAAA address.
+
+21 October 2016: Wouter
+	- Ported tests for local_cname unit test to testbound framework.
+
+20 October 2016: Wouter
+	- suppress compile warning in lex files.
+	- init lzt variable, for older gcc compiler warnings.
+	- fix --enable-dsa to work, instead of copying ecdsa enable.
+	- Fix DNSSEC validation of query type ANY with DNAME answers.
+	- Fixup query_info local_alias init.
+
+19 October 2016: Wouter
+	- Fix #1130: whitespace in example.conf.in more consistent.
+
+18 October 2016: Wouter
+	- Patch that resolves CNAMEs entered in local-data conf statements that
+	  point to data on the internet, from Jinmei Tatuya (Infoblox).
+	- Removed patch comments from acllist.c and msgencode.c
+	- Added documentation doc/CNAME-basedRedirectionDesignNotes.pdf,
+	  from Jinmei Tatuya (Infoblox).
+	- Fix #1125: unbound could reuse an answer packet incorrectly for
+	  clients with different EDNS parameters, from Jinmei Tatuya.
+	- Fix #1118: libunbound.pc sets strange Libs, Libs.private values.
+	- Added Requires line to libunbound.pc
+	- Please doxygen by modifying mesh.h
+
+17 October 2016: Wouter
+	- Re-fix #839 from view commit overwrite.
+	- Fixup const void cast warning.
+
+12 October 2016: Ralph
+	- Free view config elements.
+
+11 October 2016: Ralph
+	- Added qname-minimisation-strict config option.
+	- iana portlist update.
+	- fix memoryleak logfile when in debug mode.
+
+5 October 2016: Ralph
+	- Added views functionality.
+	- Fix #1117: spelling errors, from Robert Edmonds.
+
+30 September 2016: Wouter
+	- Fix Nits for 1.5.10 reported by Dag-Erling Smorgrav.
+
+29 September 2016: Wouter
+	- Fix #838: 1.5.10 cannot be built on Solaris, undefined PATH_MAX.
+	- Fix #839: Memory grows unexpectedly with large RPZ files.
+	- Fix #840: infinite loop in unbound_munin_ plugin on unowned lockfile.
+	- Fix #841: big local-zone's make it consume large amounts of memory.
+
+27 September 2016: Wouter
+	- tag for 1.5.10 release
+	- trunk contains 1.5.11 in development.
+	- Fix dnstap relaying "random" messages instead of resolver/forwarder
+	  responses, from Nikolay Edigaryev.
+	- Fix #836: unbound could echo back EDNS options in an error response.
+
+20 September 2016: Wouter
+	- iana portlist update.
+	- Fix #835: fix --disable-dsa with nettle verify.
+	- tag for 1.5.10rc1 release.
+
+15 September 2016: Wouter
+	- Fix 883: error for duplicate local zone entry.
+	- Test for openssl init_crypto and init_ssl functions.
+
+15 September 2016: Ralph
+	- fix potential memory leak in daemon/remote.c and nullpointer
+	  dereference in validator/autotrust.
+	- iana portlist update.
+
+13 September 2016: Wouter
+	- Silenced flex-generated sign-unsigned warning print with gcc
+	  diagnostic pragma.
+	- Fix for new splint on FreeBSD.  Fix cast for sockaddr_un.sun_len.
+
+9 September 2016: Wouter
+	- Fix #831: workaround for spurious fread_chk warning against petal.c
+
+5 September 2016: Ralph
+	- Take configured minimum TTL into consideration when reducing TTL
+	  to original TTL from RRSIG.
+
+5 September 2016: Wouter
+	- Fix #829: doc of sldns_wire2str_rdata_buf() return value has an
+	  off-by-one typo, from Jinmei Tatuya (Infoblox).
+	- Fix incomplete prototypes reported by Dag-Erling Smørgrav.
+	- Fix #828: missing type in access-control-tag-action redirect results
+	  in NXDOMAIN.
+
+2 September 2016: Wouter
+	- Fix compile with openssl 1.1.0 with api=1.1.0.
+
+1 September 2016: Wouter
+	- RFC 7958 is now out, updated docs for unbound-anchor.
+	- Fix for compile without warnings with openssl 1.1.0.
+	- Fix #826: Fix refuse_non_local could result in a broken response.
+	- iana portlist update.
+
+29 August 2016: Wouter
+	- Fix #777: OpenSSL 1.1.0 compatibility, patch from Sebastian A.
+	  Siewior.
+	- Add default root hints for IPv6 E.ROOT-SERVERS.NET, 2001:500:a8::e.
+
+25 August 2016: Ralph
+	- Clarify local-zone-override entry in unbound.conf.5 
+	
+25 August 2016: Wouter
+	- 64bit build option for makedist windows compile, -w64.
+
+24 August 2016: Ralph
+	- Fix #820: set sldns_str2wire_rr_buf() dual meaning len parameter
+	  in each iteration in find_tag_datas().
+	- unbound.conf.5 entries for define-tag, access-control-tag,
+	  access-control-tag-action, access-control-tag-data, local-zone-tag,
+	  and local-zone-override.
+	  
+23 August 2016: Wouter
+	- Fix #804: unbound stops responding after outage.  Fixes queries
+	  that attempt to wait for an empty list of subqueries.
+	- Fix #804: lower num_target_queries for iterator also for failed
+	  lookups.
+
+8 August 2016: Wouter
+	- Note that OPENPGPKEY type is RFC 7929.
+
+4 August 2016: Wouter
+	- Fix #807: workaround for possible some "unused" function parameters
+	  in test code, from Jinmei Tatuya.
+
+3 August 2016: Wouter
+	- use sendmsg instead of sendto for TFO.
+
+28 July 2016: Wouter
+	- Fix #806: wrong comment removed.
+
+26 July 2016: Wouter
+	- nicer ratelimit-below-domain explanation.
+
+22 July 2016: Wouter
+	- Fix #801: missing error condition handling in
+	  daemon_create_workers().
+	- Fix #802: workaround for function parameters that are "unused"
+	  without log_assert.
+	- Fix #803: confusing (and incorrect) code comment in daemon_cleanup().
+
+20 July 2016: Wouter
+	- Fix typo in unbound.conf.
+
+18 July 2016: Wouter
+	- Fix #798: Client-side TCP fast open fails (Linux).
+
+14 July 2016: Wouter
+	- TCP Fast open patch from Sara Dickinson.
+	- Fixed unbound.doxygen for 1.8.11.
+
+7 July 2016: Wouter
+	- access-control-tag-data implemented. verbose(4) prints tag debug.
+
+5 July 2016: Wouter
+	- Fix dynamic link of anchor-update.exe on windows.
+	- Fix detect of mingw for MXE package build.
+	- Fixes for 64bit windows compile.
+	- Fix #788 for nettle 3.0: Failed to build with Nettle >= 3.0 and
+	  --with-libunbound-only --with-nettle.
+
+4 July 2016: Wouter
+	- For #787: prefer-ip6 option for unbound.conf prefers to send
+	  upstream queries to ipv6 servers.
+	- Fix #787: outgoing-interface netblock/64 ipv6 option to use linux
+	  freebind to use 64bits of entropy for every query with random local
+	  part.
+
+30 June 2016: Wouter
+	- Document always_transparent, always_refuse, always_nxdomain types.
+
+29 June 2016: Wouter
+	- Fix static compile on windows missing gdi32.
+
+28 June 2016: Wouter
+	- Create a pkg-config file for libunbound in contrib.
+
+27 June 2016: Wouter
+	- Fix #784: Build configure assumess that having getpwnam means there
+	  is endpwent function available.
+	- Updated repository with newer flex and bison output.
+
+24 June 2016: Ralph
+	- Possibility to specify local-zone type for an acl/tag pair
+	- Possibility to specify (override) local-zone type for a source address
+	  block
+16 June 2016: Ralph
+	- Decrease dp attempts at each QNAME minimisation iteration
+
+16 June 2016: Wouter
+	- Fix tcp timeouts in tv.usec.
+
+15 June 2016: Wouter
+	- TCP_TIMEOUT is specified in milliseconds.
+	- If more than half of tcp connections are in use, a shorter timeout
+	  is used (200 msec, vs 2 minutes) to pressure tcp for new connects.
+
+14 June 2016: Ralph
+	- QNAME minimisation unit test for dropped QTYPE=A queries.
+
+14 June 2016: Wouter
+	- Fix 775: unbound-host and unbound-anchor crash on windows, ignore
+	  null delete for wsaevent.
+	- Fix spelling in freebind option man page text.
+	- Fix windows link of ssl with crypt32.
+	- Fix 779: Union casting is non-portable.
+	- Fix 780: MAP_ANON not defined in HP-UX 11.31.
+	- Fix 781: prealloc() is an HP-UX system library call.
+
+13 June 2016: Ralph
+	- Use QTYPE=A for QNAME minimisation.
+	- Keep track of number of time-outs when performing QNAME minimisation.
+	  Stop minimising when number of time-outs for a QNAME/QTYPE pair is
+	  more than three.
+
+13 June 2016: Wouter
+	- Fix #778: unbound 1.5.9: -h segfault (null deref).
+	- Fix directory: fix for unbound-checkconf, it restores cwd.
+
+10 June 2016: Wouter
+	- And delete service.conf.shipped on uninstall.
+	- In unbound.conf directory: dir immediately changes to that directory,
+	  so that include: file below that is relative to that directory.
+	  With chroot, make the directory an absolute path inside chroot.
+	- keep debug symbols in windows build.
+	- do not delete service.conf on windows uninstall.
+	- document directory immediate fix and allow EXECUTABLE syntax in it
+	  on windows.
+
+9 June 2016: Wouter
+	- Trunk is called 1.5.10 (with previous fixes already in there to 2
+	  june).
+	- Revert fix for NetworkService account on windows due to breakage
+	  it causes.
+	- Fix that windows install will not overwrite existing service.conf
+	  file (and ignore gui config choices if it exists).
+
+7 June 2016: Ralph
+	- Lookup localzones by taglist from acl.
+	- Possibility to lookup local_zone, regardless the taglist.
+	- Added local_zone/taglist/acl unit test.
+
+7 June 2016: Wouter
+	- Fix #773: Non-standard Python location build failure with pyunbound.
+	- Improve threadsafety for openssl 0.9.8 ecdsa dnssec signatures.
+
+6 June 2016: Wouter
+	- Better help text from -h (from Ray Griffith).
+	- access-control-tag config directive.
+	- local-zone-override config directive.
+	- access-control-tag-action and access-control-tag-data config
+	  directives.
+	- free acl-tags, acltag-action and acltag-data config lists during
+	  initialisation to free up memory for more entries.
+
+3 June 2016: Wouter
+	- Fix to not ignore return value of chown() in daemon startup.
+
+2 June 2016: Wouter
+	- Fix libubound for edns optlist feature.
+	- Fix distinction between free and CRYPTO_free in dsa and ecdsa alloc.
+	- Fix #752: retry resource temporarily unavailable on control pipe.
+	- un-document localzone tags.
+	- tag for release 1.5.9rc1.
+	  And this also became release 1.5.9.
+	- Fix (for 1.5.10): Fix unbound-anchor.exe file location defaults to
+	  Program Files with (x86) appended.
+	- re-documented localzone tags in example.conf.
+
+31 May 2016: Wouter
+	- Fix windows service to be created run with limited rights, as a
+	  network service account, from Mario Turschmann.
+	- compat strsep implementation.
+	- generic edns option parse and store code.
+	- and also generic edns options for upstream messages (and replies).
+	  after parse use edns_opt_find(edns.opt_list, LDNS_EDNS_NSID),
+	  to insert use edns_opt_append(edns, region, code, len, bindata) on
+	  the opt_list passed to send_query, or in edns_opt_inplace_reply.
+
+30 May 2016: Wouter
+	- Fix time in case answer comes from cache in ub_resolve_event().
+	- Attempted fix for #765: _unboundmodule missing for python3.
+
+27 May 2016: Wouter
+	- Fix #770: Small subgroup attack on DH used in unix pipe on localhost
+	  if unbound control uses a unix local named pipe.
+	- Document write permission to directory of trust anchor needed.
+	- Fix #768:  Unbound Service Sometimes Can Not Shutdown
+	  Completely, WER Report Shown Up.  Close handle before closing WSA.
+
+26 May 2016: Wouter
+	- Updated patch from Charles Walker.
+
+24 May 2016: Wouter
+	- disable-dnssec-lame-check config option from Charles Walker.
+	- remove memory leak from lame-check patch.
+	- iana portlist update.
+
+23 May 2016: Wouter
+	- Fix #767:  Reference to an expired Internet-Draft in
+	  harden-below-nxdomain documentation.
+
+20 May 2016: Ralph
+	- No QNAME minimisation fall-back for NXDOMAIN answers from DNSSEC 
+	  signed zones.
+	- iana portlist update.
+
+19 May 2016: Wouter
+	- Fix #766: dns64 should synthesize results on timeout/errors.
+
+18 May 2016: Wouter
+	- Fix #761: DNSSEC LAME false positive resolving nic.club.
+
+17 May 2016: Wouter
+	- trunk updated with output of flex 2.6.0.
+
+6 May 2016: Wouter
+	- Fix memory leak in out-of-memory conditions of local zone add.
+
+29 April 2016: Wouter
+	- Fix sldns with static checking fixes copied from getdns.
+
+28 April 2016: Wouter
+	- Fix #759: 0x20 capsforid no longer checks type PTR, for
+	  compatibility with cisco dns guard.  This lowers false positives.
+
+18 April 2016: Wouter
+	- Fix some malformed responses to edns queries get fallback to nonedns.
+
+15 April 2016: Wouter
+	- cachedb module event handling design.
+
+14 April 2016: Wouter
+	- cachedb module framework (empty).
+	- iana portlist update.
+
+12 April 2016: Wouter
+	- Fix #753: document dump_requestlist is for first thread.
+
+24 March 2016: Wouter
+	- Document permit-small-holddown for 5011 debug.
+	- Fix #749: unbound-checkconf gets SIGSEGV when use against a
+	  malformatted conf file.
+
+23 March 2016: Wouter
+	- OpenSSL 1.1.0 portability, --disable-dsa configure option.
+
+21 March 2016: Wouter
+	- Fix compile of getentropy_linux for SLES11 servicepack 4.
+	- Fix dnstap-log-resolver-response-messages, from Nikolay Edigaryev.
+	- Fix test for openssl to use HMAC_Update for 1.1.0.
+	- acx_nlnetlabs.m4 to v33, with HMAC_Update.
+	- acx_nlnetlabs.m4 to v34, with -ldl -pthread test for libcrypto.
+	- ERR_remove_state deprecated since openssl 1.0.0.
+	- OPENSSL_config is deprecated, removing.
+
+18 March 2016: Ralph
+	- Validate QNAME minimised NXDOMAIN responses.
+	- If QNAME minimisation is enabled, do cache lookup for QTYPE NS in
+	  harden-below-nxdomain.
+
+17 March 2016: Ralph
+	- Limit number of QNAME minimisation iterations.
+
+17 March 2016: Wouter
+	- Fix #746: Fix unbound sets CD bit on all forwards.
+	  If no trust anchors, it'll not set CD bit when forwarding to another
+	  server.  If a trust anchor, no CD bit on the first attempt to a
+	  forwarder, but CD bit thereafter on repeated attempts to get DNSSEC.
+	- iana portlist update.
+
+16 March 2016: Wouter
+	- Fix ip-transparent for ipv6 on FreeBSD, thanks to Nick Hibma.
+	- Fix ip-transparent for tcp on freebsd.
+
+15 March 2016: Wouter
+	- ip_freebind: yesno option in unbound.conf sets IP_FREEBIND for
+	  binding to an IP address while the interface or address is down.
+
+14 March 2016: Wouter
+	- Fix warnings in ifdef corner case, older or unknown libevent.
+	- Fix compile for ub_event code with older libev.
+
+11 March 2016: Wouter
+	- Remove warning about unused parameter in event_pluggable.c.
+	- Fix libev usage of dispatch return value.
+	- No side effects in tolower() call, in case it is a macro.
+	- For test put free in pluggable api in parenthesis.
+
+10 March 2016: Wouter
+	- Fixup backend2str for libev.
+
+09 March 2016: Willem
+	- User defined pluggable event API for libunbound
+	- Fixup of compile fix for pluggable event API from P.Y. Adi
+	  Prasaja.
+
+09 March 2016: Wouter
+	- Updated configure and ltmain.sh.
+	- Updated L root IPv6 address.
+
+07 March 2016: Wouter
+	- Fix #747: assert in outnet_serviced_query_stop.
+	- iana ports fetched via https.
+	- iana portlist update.
+
+03 March 2016: Wouter
+	- configure tests for the weak attribute support by the compiler.
+
+02 March 2016: Wouter
+	- 1.5.8 release tag
+	- trunk contains 1.5.9 in development.
+	- iana portlist update.
+	- Fix #745: unbound.py - idn2dname throws UnicodeError when idnname
+	  contains trailing dot.
+
 24 February 2016: Wouter
 	- Fix OpenBSD asynclook lock free that gets used later (fix test code).
 	- Fix that NSEC3 negative cache is used when there is no salt.

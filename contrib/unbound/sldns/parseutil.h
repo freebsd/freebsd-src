@@ -62,13 +62,13 @@ time_t sldns_mktime_from_utc(const struct tm *tm);
  * fields of RRSIG records.
  *
  * \param[in] time number of seconds since epoch (midnight, January 1st, 1970)
- *            to be intepreted as a serial arithmetics number relative to now.
+ *            to be interpreted as a serial arithmetics number relative to now.
  * \param[in] now number of seconds since epoch (midnight, January 1st, 1970)
  *            to which the time value is compared to determine the final value.
  * \param[out] result the struct with the broken-out time information
  * \return result on success or NULL on error
  */
-struct tm * sldns_serial_arithmitics_gmtime_r(int32_t time, time_t now, struct tm *result);
+struct tm * sldns_serial_arithmetics_gmtime_r(int32_t time, time_t now, struct tm *result);
 
 /**
  * converts a ttl value (like 5d2h) to a long.

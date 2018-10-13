@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
@@ -37,12 +39,10 @@ struct Struct_Obj_Entry;
 /* Return the address of the .dynamic section in the dynamic linker. */
 Elf_Dyn *rtld_dynamic_addr(void);
 #define	rtld_dynamic(obj)	rtld_dynamic_addr()
-#define	RTLD_IS_DYNAMIC()	(rtld_dynamic_addr() != NULL)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
-		       const struct Struct_Obj_Entry *,
-		       const struct Struct_Obj_Entry *,
-		       const Elf_Rel *);
+    const struct Struct_Obj_Entry *, const struct Struct_Obj_Entry *,
+    const Elf_Rel *);
 
 #define make_function_pointer(def, defobj) \
 	((defobj)->relocbase + (def)->st_value)
@@ -53,7 +53,10 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
-#define round(size, align) \
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
+
+#define round(size, align)				\
 	(((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
 	round(size, align)

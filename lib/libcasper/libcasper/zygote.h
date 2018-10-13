@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -36,6 +38,12 @@
 typedef void zygote_func_t(int);
 
 int	zygote_init(void);
-int	zygote_clone(zygote_func_t *func, int *chanfdp, int *procfdp);
+int	zygote_clone(uint64_t funcidx, int *chanfdp, int *procfdp);
+int	zygote_clone_service_execute(int *chanfdp, int *procfdp);
+
+/*
+ * Functions reachable via zygote_clone().
+ */
+zygote_func_t	service_execute;
 
 #endif	/* !_ZYGOTE_H_ */

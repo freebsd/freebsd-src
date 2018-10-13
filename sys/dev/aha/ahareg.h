@@ -1,8 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Generic register and struct definitions for the Adaptech 1540, 1542,
- * 1640, 1642 SCSI host adapters. Product specific probe and attach
+ * SCSI host adapters. Product specific probe and attach
  * routines can be found in:
- *	aha_isa.c, aha_mca.c
+ *	aha_isa.c
  *
  * Derived from bt.c written by:
  *
@@ -157,8 +159,6 @@ typedef struct {
 #define		BOARD_1540_16HEAD_BIOS	0x00
 #define		BOARD_1540_64HEAD_BIOS	0x30
 #define		BOARD_1542		0x41	/* aha-1540/1542 w/64-h bios */
-#define		BOARD_1640		0x42	/* aha-1640 */
-#define		BOARD_1740		0x43	/* aha-1740A/1742A/1744 */
 #define		BOARD_1542C		0x44	/* aha-1542C */
 #define		BOARD_1542CF		0x45	/* aha-1542CF */
 #define		BOARD_1542CP		0x46	/* aha-1542CP, plug and play */

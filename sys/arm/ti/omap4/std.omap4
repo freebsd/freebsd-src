@@ -3,7 +3,6 @@
 files		"../ti/omap4/files.omap4"
 include		"../ti/std.ti"
 
-options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
-makeoptions	KERNVIRTADDR=0xc0200000
+cpu 		CPU_CORTEXA
 
 options		SOC_OMAP4

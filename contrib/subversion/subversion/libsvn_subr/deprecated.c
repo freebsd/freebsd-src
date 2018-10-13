@@ -46,6 +46,7 @@
 #include "svn_utf.h"
 #include "svn_xml.h"
 #include "svn_auth.h"
+#include "svn_base64.h"
 
 #include "opt.h"
 #include "auth.h"
@@ -889,6 +890,26 @@ svn_io_stat_dirent(const svn_io_dirent2_t **dirent_p,
                                 scratch_pool));
 }
 
+svn_error_t *
+svn_io_file_rename(const char *from_path, const char *to_path,
+                   apr_pool_t *pool)
+{
+  return svn_error_trace(svn_io_file_rename2(from_path, to_path,
+                                             FALSE, pool));
+}
+
+svn_error_t *
+svn_io_write_atomic(const char *final_path,
+                    const void *buf,
+                    apr_size_t nbytes,
+                    const char *copy_perms_path,
+                    apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(svn_io_write_atomic2(final_path, buf, nbytes,
+                                              copy_perms_path, TRUE,
+                                              scratch_pool));
+}
+
 /*** From constructors.c ***/
 svn_log_changed_path_t *
 svn_log_changed_path_dup(const svn_log_changed_path_t *changed_path,
@@ -1058,6 +1079,12 @@ svn_stream_from_aprfile(apr_file_t *file, apr_pool_t *pool)
 }
 
 svn_error_t *
+svn_stream_for_stdin(svn_stream_t **in, apr_pool_t *pool)
+{
+  return svn_error_trace(svn_stream_for_stdin2(in, FALSE, pool));
+}
+
+svn_error_t *
 svn_stream_contents_same(svn_boolean_t *same,
                          svn_stream_t *stream1,
                          svn_stream_t *stream2,
@@ -1183,6 +1210,16 @@ svn_stream_checksummed(svn_stream_t *stream,
   return s;
 }
 
+svn_error_t *
+svn_string_from_stream(svn_string_t **result,
+                       svn_stream_t *stream,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(svn_string_from_stream2(result, stream, 0,
+                                                 result_pool));
+}
+
 /*** From path.c ***/
 
 const char *
@@ -1251,7 +1288,7 @@ svn_rangelist_merge(svn_rangelist_t **rangelist,
                                pool, pool));
 
   return svn_error_trace(
-            svn_rangelist__combine_adjacent_ranges(*rangelist, pool));
+            svn_rangelist__canonicalize(*rangelist, pool));
 }
 
 svn_error_t *
@@ -1484,7 +1521,11 @@ void
 svn_auth_get_keychain_simple_provider(svn_auth_provider_object_t **provider,
                                       apr_pool_t *pool)
 {
+#ifdef SVN_HAVE_KEYCHAIN_SERVICES
   svn_auth__get_keychain_simple_provider(provider, pool);
+#else
+  svn_auth__get_dummmy_simple_provider(provider, pool);
+#endif
 }
 
 void
@@ -1492,7 +1533,13 @@ svn_auth_get_keychain_ssl_client_cert_pw_provider
   (svn_auth_provider_object_t **provider,
    apr_pool_t *pool)
 {
+#ifdef SVN_HAVE_KEYCHAIN_SERVICES
   svn_auth__get_keychain_ssl_client_cert_pw_provider(provider, pool);
+#else
+  /* Not really the right type of dummy provider, but doesn't throw NULL
+     errors as just returning NULL would */
+  svn_auth__get_dummmy_simple_provider(provider, pool);
+#endif
 }
 #endif /* DARWIN */
 
@@ -1537,4 +1584,20 @@ svn_cmdline_create_auth_baton(svn_auth_baton_t **ab,
                                                         cancel_func,
                                                         cancel_baton,
                                                         pool));
+}
+
+/*** From base64.c ***/
+svn_stream_t *
+svn_base64_encode(svn_stream_t *output, apr_pool_t *pool)
+{
+  return svn_base64_encode2(output, TRUE, pool);
+}
+
+/*** From string.c ***/
+char *
+svn_cstring_join(const apr_array_header_t *strings,
+                 const char *separator,
+                 apr_pool_t *pool)
+{
+  return svn_cstring_join2(strings, separator, TRUE, pool);
 }

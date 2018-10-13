@@ -8,6 +8,7 @@ MAN=	adb.4 \
 	ams.4 \
 	bm.4 \
 	cuda.4 \
+	dtsec.4 \
 	llan.4 \
 	pmu.4 \
 	powermac_nvram.4 \

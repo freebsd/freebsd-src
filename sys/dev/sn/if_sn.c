@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Gardner Buchanan <gbuchanan@shl.com>
  * All rights reserved.
  *
@@ -393,7 +395,7 @@ startagain:
 	 * Sneak a peek at the next packet
 	 */
 	m = ifp->if_snd.ifq_head;
-	if (m == 0)
+	if (m == NULL)
 		return;
 	/*
 	 * Compute the frame length and set pad to give an overall even
@@ -509,7 +511,7 @@ startagain:
 	/*
 	 * Push out the data to the card.
 	 */
-	for (top = m; m != 0; m = m->m_next) {
+	for (top = m; m != NULL; m = m->m_next) {
 
 		/*
 		 * Push out words.
@@ -607,7 +609,7 @@ snresume(struct ifnet *ifp)
 	 * Sneak a peek at the next packet
 	 */
 	m = ifp->if_snd.ifq_head;
-	if (m == 0) {
+	if (m == NULL) {
 		if_printf(ifp, "snresume() with nothing to send\n");
 		return;
 	}
@@ -708,7 +710,7 @@ snresume(struct ifnet *ifp)
 	/*
 	 * Push out the data to the card.
 	 */
-	for (top = m; m != 0; m = m->m_next) {
+	for (top = m; m != NULL; m = m->m_next) {
 
 		/*
 		 * Push out words.
@@ -1416,7 +1418,7 @@ sn_getmcf(struct ifnet *ifp, uint8_t *mcf)
 	bzero(mcf, MCFSZ);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK) {
 		if_maddr_runlock(ifp);
 		return 0;

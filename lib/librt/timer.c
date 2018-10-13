@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
@@ -175,8 +177,9 @@ __timer_settime(timer_t timerid, int flags,
 		flags, value, ovalue);
 }
 
+#pragma weak timer_oshandle_np
 int
-__timer_oshandle(timer_t timerid)
+timer_oshandle_np(timer_t timerid)
 {
 
 	return (timerid->oshandle);

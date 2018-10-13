@@ -1,6 +1,8 @@
 /*	$NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -198,6 +200,12 @@ OF_install(char *name, int prio)
 {
 	ofw_def_t *ofwp, **ofwpp;
 	static int curr_prio = 0;
+
+	/* Allow OF layer to be uninstalled */
+	if (name == NULL) {
+		ofw_def_impl = NULL;
+		return (FALSE);
+	}
 
 	/*
 	 * Try and locate the OFW kobj corresponding to the name.
@@ -420,7 +428,7 @@ OF_searchprop(phandle_t node, const char *propname, void *buf, size_t len)
 }
 
 ssize_t
-OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
+OF_searchencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
 {
 	ssize_t rv;
 
@@ -432,11 +440,35 @@ OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
 
 /*
  * Store the value of a property of a package into newly allocated memory
+ * (using the M_OFWPROP malloc pool and M_WAITOK).
+ */
+ssize_t
+OF_getprop_alloc(phandle_t package, const char *propname, void **buf)
+{
+	int len;
+
+	*buf = NULL;
+	if ((len = OF_getproplen(package, propname)) == -1)
+		return (-1);
+
+	if (len > 0) {
+		*buf = malloc(len, M_OFWPROP, M_WAITOK);
+		if (OF_getprop(package, propname, *buf, len) == -1) {
+			free(*buf, M_OFWPROP);
+			*buf = NULL;
+			return (-1);
+		}
+	}
+	return (len);
+}
+
+/*
+ * Store the value of a property of a package into newly allocated memory
  * (using the M_OFWPROP malloc pool and M_WAITOK).  elsz is the size of a
  * single element, the number of elements is return in number.
  */
 ssize_t
-OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
+OF_getprop_alloc_multi(phandle_t package, const char *propname, int elsz, void **buf)
 {
 	int len;
 
@@ -445,30 +477,41 @@ OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
 	    len % elsz != 0)
 		return (-1);
 
-	*buf = malloc(len, M_OFWPROP, M_WAITOK);
-	if (OF_getprop(package, propname, *buf, len) == -1) {
-		free(*buf, M_OFWPROP);
-		*buf = NULL;
-		return (-1);
+	if (len > 0) {
+		*buf = malloc(len, M_OFWPROP, M_WAITOK);
+		if (OF_getprop(package, propname, *buf, len) == -1) {
+			free(*buf, M_OFWPROP);
+			*buf = NULL;
+			return (-1);
+		}
 	}
 	return (len / elsz);
 }
 
 ssize_t
-OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
+OF_getencprop_alloc(phandle_t package, const char *name, void **buf)
+{
+	ssize_t ret;
+
+	ret = OF_getencprop_alloc_multi(package, name, sizeof(pcell_t),
+	    buf);
+	if (ret < 0)
+		return (ret);
+	else
+		return (ret * sizeof(pcell_t));
+}
+
+ssize_t
+OF_getencprop_alloc_multi(phandle_t package, const char *name, int elsz,
+    void **buf)
 {
 	ssize_t retval;
 	pcell_t *cell;
 	int i;
 
-	retval = OF_getprop_alloc(package, name, elsz, buf);
+	retval = OF_getprop_alloc_multi(package, name, elsz, buf);
 	if (retval == -1)
 		return (-1);
- 	if (retval * elsz % 4 != 0) {
-		free(*buf, M_OFWPROP);
-		*buf = NULL;
-		return (-1);
-	}
 
 	cell = *buf;
 	for (i = 0; i < retval * elsz / 4; i++)

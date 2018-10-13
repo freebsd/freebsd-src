@@ -50,7 +50,7 @@ center 90 moveto
 /FreeBSD findfont 50 scalefont setfont
 
 center 50 moveto 
-(http://www.FreeBSD.org) cshow
+(https://www.FreeBSD.org) cshow
 
 % Do not forget Kirks copyright string.
 10 105 moveto 

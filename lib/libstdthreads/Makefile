@@ -35,7 +35,7 @@ MLINKS=	thrd_create.3 call_once.3 \
 
 LIBADD=	pthread
 
-VERSION_DEF= ${.CURDIR}/../libc/Versions.def
+VERSION_DEF= ${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS= ${.CURDIR}/Symbol.map
 
 .include <bsd.lib.mk>

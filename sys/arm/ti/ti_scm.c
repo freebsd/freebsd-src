@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2010
  *	Ben Gray <ben.r.gray@gmail.com>.
  * All rights reserved.
@@ -59,17 +61,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include "ti_scm.h"
+#include "ti_cpuid.h"
 
 static struct resource_spec ti_scm_res_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Control memory window */
@@ -89,6 +89,10 @@ static struct ti_scm_softc *ti_scm_sc;
 static int
 ti_scm_probe(device_t dev)
 {
+
+	if (!ti_soc_is_supported())
+		return (ENXIO);
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -131,7 +135,10 @@ ti_scm_attach(device_t dev)
 
 	ti_scm_sc = sc;
 
-	return (0);
+	/* Attach platform extensions, if any. */
+	bus_generic_probe(dev);
+
+	return (bus_generic_attach(dev));
 }
 
 int

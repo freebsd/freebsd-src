@@ -15,7 +15,7 @@
 #define LLVM_LIB_TARGET_MIPS_MIPSFRAMELOWERING_H
 
 #include "Mips.h"
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 
 namespace llvm {
   class MipsSubtarget;
@@ -36,7 +36,7 @@ public:
 
   bool isFPCloseToIncomingSP() const override { return false; }
 
-  void
+  MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF,
                                 MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator I) const override;

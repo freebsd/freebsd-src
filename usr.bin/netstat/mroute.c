@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1989 Stephen Deering
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -100,17 +102,19 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 
 	/* The measured values */
 	if (bw_meter->bm_flags & BW_METER_UNIT_PACKETS) {
-		sprintf(s1, "%ju", (uintmax_t)bw_meter->bm_measured.b_packets);
+		snprintf(s1, sizeof(s1), "%ju",
+		    (uintmax_t)bw_meter->bm_measured.b_packets);
 		xo_emit("{e:measured-packets/%ju}",
 		    (uintmax_t)bw_meter->bm_measured.b_packets);
 	} else
-		sprintf(s1, "?");
+		strcpy(s1, "?");
 	if (bw_meter->bm_flags & BW_METER_UNIT_BYTES) {
-		sprintf(s2, "%ju", (uintmax_t)bw_meter->bm_measured.b_bytes);
+		snprintf(s2, sizeof(s2), "%ju",
+		    (uintmax_t)bw_meter->bm_measured.b_bytes);
 		xo_emit("{e:measured-bytes/%ju}",
 		    (uintmax_t)bw_meter->bm_measured.b_bytes);
 	} else
-		sprintf(s2, "?");
+		strcpy(s2, "?");
 	xo_emit("  {[:-30}{:start-time/%lu.%06lu}|{q:measured-packets/%s}"
 	    "|{q:measured-bytes%s}{]:}",
 	    (u_long)bw_meter->bm_start_time.tv_sec,
@@ -122,17 +126,19 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 
 	/* The threshold values */
 	if (bw_meter->bm_flags & BW_METER_UNIT_PACKETS) {
-		sprintf(s1, "%ju", (uintmax_t)bw_meter->bm_threshold.b_packets);
+		snprintf(s1, sizeof(s1), "%ju",
+		    (uintmax_t)bw_meter->bm_threshold.b_packets);
 		xo_emit("{e:threshold-packets/%ju}",
 		    (uintmax_t)bw_meter->bm_threshold.b_packets);
 	} else
-		sprintf(s1, "?");
+		strcpy(s1, "?");
 	if (bw_meter->bm_flags & BW_METER_UNIT_BYTES) {
-		sprintf(s2, "%ju", (uintmax_t)bw_meter->bm_threshold.b_bytes);
+		snprintf(s2, sizeof(s2), "%ju",
+		    (uintmax_t)bw_meter->bm_threshold.b_bytes);
 		xo_emit("{e:threshold-bytes/%ju}",
 		    (uintmax_t)bw_meter->bm_threshold.b_bytes);
 	} else
-		sprintf(s2, "?");
+		strcpy(s2, "?");
 
 	xo_emit("  {[:-30}{:threshold-time/%lu.%06lu}|{q:threshold-packets/%s}"
 	    "|{q:threshold-bytes%s}{]:}",
@@ -144,13 +150,13 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 		 &bw_meter->bm_threshold.b_time, &end);
 	if (timercmp(&now, &end, <=)) {
 		timersub(&end, &now, &delta);
-		sprintf(s3, "%lu.%06lu",
+		snprintf(s3, sizeof(s3), "%lu.%06lu",
 			(u_long)delta.tv_sec,
 			(u_long)delta.tv_usec);
 	} else {
 		/* Negative time */
 		timersub(&now, &end, &delta);
-		sprintf(s3, "-%lu.06%lu",
+		snprintf(s3, sizeof(s3), "-%lu.06%lu",
 			(u_long)delta.tv_sec,
 			(u_long)delta.tv_usec);
 	}

@@ -47,6 +47,8 @@ struct stub {
 extern char *__progname;
 extern struct stub entry_points[];
 
+static void crunched_usage(void);
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -72,22 +74,6 @@ main(int argc, char **argv, char **envp)
 
 
 int
-crunched_here(char *path)
-{
-    char *slash, *basename;
-    struct stub *ep;
-
-    slash = strrchr(path, '/');
-    basename = slash? slash+1 : path;
-
-    for(ep=entry_points; ep->name != NULL; ep++)
-	if(!strcmp(basename, ep->name))
-	    return 1;
-    return 0;
-}
-
-
-int
 crunched_main(int argc, char **argv, char **envp)
 {
     char *slash;
@@ -104,7 +90,7 @@ crunched_main(int argc, char **argv, char **envp)
 }
 
 
-int
+static void
 crunched_usage()
 {
     int columns, len;

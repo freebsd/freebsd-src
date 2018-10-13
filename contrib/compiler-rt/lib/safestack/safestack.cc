@@ -21,7 +21,9 @@
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+#if !defined(__NetBSD__)
 #include <sys/user.h>
+#endif
 
 #include "interception/interception.h"
 #include "sanitizer_common/sanitizer_common.h"
@@ -91,6 +93,8 @@ __attribute__((visibility(
 static __thread void *unsafe_stack_start = nullptr;
 static __thread size_t unsafe_stack_size = 0;
 static __thread size_t unsafe_stack_guard = 0;
+
+using namespace __sanitizer;
 
 static inline void *unsafe_stack_alloc(size_t size, size_t guard) {
   CHECK_GE(size + guard, size);

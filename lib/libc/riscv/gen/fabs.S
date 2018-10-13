@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -35,7 +35,9 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef __riscv_float_abi_double
 ENTRY(fabs)
 	fabs.d	fa0, fa0
 	ret
 END(fabs)
+#endif

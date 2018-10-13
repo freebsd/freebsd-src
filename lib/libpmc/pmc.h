@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003,2004 Joseph Koshy
  * All rights reserved.
  *
@@ -73,7 +75,7 @@ struct pmc_pmcinfo {
 
 __BEGIN_DECLS
 int	pmc_allocate(const char *_ctrspec, enum pmc_mode _mode, uint32_t _flags,
-    int _cpu, pmc_id_t *_pmcid);
+    int _cpu, pmc_id_t *_pmcid, uint64_t count);
 int	pmc_attach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_capabilities(pmc_id_t _pmc, uint32_t *_caps);
 int	pmc_configure_logfile(int _fd);
@@ -110,6 +112,17 @@ const char	*pmc_name_of_state(enum pmc_state _ps);
 
 int	pmc_event_names_of_class(enum pmc_class _cl, const char ***_eventnames,
     int *_nevents);
+
+int pmc_pmu_enabled(void);
+void pmc_pmu_print_counters(const char *);
+void pmc_pmu_print_counter_desc(const char *);
+void pmc_pmu_print_counter_desc_long(const char *);
+void pmc_pmu_print_counter_full(const char *);
+uint64_t pmc_pmu_sample_rate_get(const char *);
+int pmc_pmu_pmcallocate(const char *, struct pmc_op_pmcallocate *);
+const char *pmc_pmu_event_get_by_idx(const char *, int idx);
+int pmc_pmu_idx_get_by_event(const char*, const char *);
+int pmc_pmu_stat_mode(const char ***);
 __END_DECLS
 
 #endif

@@ -1,4 +1,4 @@
-//===--- Module.cpp - Describe a module -----------------------------------===//
+//===- Module.cpp - Describe a module -------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,27 +13,38 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/Module.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cassert>
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace clang;
 
 Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
                bool IsFramework, bool IsExplicit, unsigned VisibilityID)
-    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent), Directory(),
-      Umbrella(), Signature(0), ASTFile(nullptr), VisibilityID(VisibilityID),
-      IsMissingRequirement(false), HasIncompatibleModuleFile(false),
-      IsAvailable(true), IsFromModuleFile(false), IsFramework(IsFramework),
-      IsExplicit(IsExplicit), IsSystem(false), IsExternC(false),
-      IsInferred(false), InferSubmodules(false), InferExplicitSubmodules(false),
+    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent),
+      VisibilityID(VisibilityID), IsMissingRequirement(false),
+      HasIncompatibleModuleFile(false), IsAvailable(true),
+      IsFromModuleFile(false), IsFramework(IsFramework), IsExplicit(IsExplicit),
+      IsSystem(false), IsExternC(false), IsInferred(false),
+      InferSubmodules(false), InferExplicitSubmodules(false),
       InferExportWildcard(false), ConfigMacrosExhaustive(false),
-      NameVisibility(Hidden) {
+      NoUndeclaredIncludes(false), NameVisibility(Hidden) {
   if (Parent) {
     if (!Parent->isAvailable())
       IsAvailable = false;
@@ -41,6 +52,8 @@ Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
       IsSystem = true;
     if (Parent->IsExternC)
       IsExternC = true;
+    if (Parent->NoUndeclaredIncludes)
+      NoUndeclaredIncludes = true;
     IsMissingRequirement = Parent->IsMissingRequirement;
     
     Parent->SubModuleIndex[Name] = Parent->SubModules.size();
@@ -62,8 +75,11 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
   bool HasFeature = llvm::StringSwitch<bool>(Feature)
                         .Case("altivec", LangOpts.AltiVec)
                         .Case("blocks", LangOpts.Blocks)
+                        .Case("coroutines", LangOpts.CoroutinesTS)
                         .Case("cplusplus", LangOpts.CPlusPlus)
                         .Case("cplusplus11", LangOpts.CPlusPlus11)
+                        .Case("freestanding", LangOpts.Freestanding)
+                        .Case("gnuinlineasm", LangOpts.GNUAsm)
                         .Case("objc", LangOpts.ObjC1)
                         .Case("objc_arc", LangOpts.ObjCAutoRefCount)
                         .Case("opencl", LangOpts.OpenCL)
@@ -120,7 +136,37 @@ const Module *Module::getTopLevelModule() const {
   return Result;
 }
 
-std::string Module::getFullModuleName() const {
+static StringRef getModuleNameFromComponent(
+    const std::pair<std::string, SourceLocation> &IdComponent) {
+  return IdComponent.first;
+}
+
+static StringRef getModuleNameFromComponent(StringRef R) { return R; }
+
+template<typename InputIter>
+static void printModuleId(raw_ostream &OS, InputIter Begin, InputIter End,
+                          bool AllowStringLiterals = true) {
+  for (InputIter It = Begin; It != End; ++It) {
+    if (It != Begin)
+      OS << ".";
+
+    StringRef Name = getModuleNameFromComponent(*It);
+    if (!AllowStringLiterals || isValidIdentifier(Name))
+      OS << Name;
+    else {
+      OS << '"';
+      OS.write_escaped(Name);
+      OS << '"';
+    }
+  }
+}
+
+template<typename Container>
+static void printModuleId(raw_ostream &OS, const Container &C) {
+  return printModuleId(OS, C.begin(), C.end());
+}
+
+std::string Module::getFullModuleName(bool AllowStringLiterals) const {
   SmallVector<StringRef, 2> Names;
   
   // Build up the set of module names (from innermost to outermost).
@@ -128,15 +174,11 @@ std::string Module::getFullModuleName() const {
     Names.push_back(M->Name);
   
   std::string Result;
-  for (SmallVectorImpl<StringRef>::reverse_iterator I = Names.rbegin(),
-                                                 IEnd = Names.rend();
-       I != IEnd; ++I) {
-    if (!Result.empty())
-      Result += '.';
-    
-    Result += *I;
-  }
-  
+
+  llvm::raw_string_ostream Out(Result);
+  printModuleId(Out, Names.rbegin(), Names.rend(), AllowStringLiterals);
+  Out.flush(); 
+
   return Result;
 }
 
@@ -179,6 +221,11 @@ bool Module::directlyUses(const Module *Requested) const {
   for (auto *Use : Top->DirectUses)
     if (Requested->isSubModuleOf(Use))
       return true;
+
+  // Anyone is allowed to use our builtin stddef.h and its accompanying module.
+  if (!Requested->Parent && Requested->Name == "_Builtin_stddef_max_align_t")
+    return true;
+
   return false;
 }
 
@@ -228,14 +275,6 @@ Module *Module::findSubmodule(StringRef Name) const {
     return nullptr;
 
   return SubModules[Pos->getValue()];
-}
-
-static void printModuleId(raw_ostream &OS, const ModuleId &Id) {
-  for (unsigned I = 0, N = Id.size(); I != N; ++I) {
-    if (I)
-      OS << ".";
-    OS << Id[I].first;
-  }
 }
 
 void Module::getExportedModules(SmallVectorImpl<Module *> &Exported) const {
@@ -324,7 +363,8 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS << "framework ";
   if (IsExplicit)
     OS << "explicit ";
-  OS << "module " << Name;
+  OS << "module ";
+  printModuleId(OS, &Name, &Name + 1);
 
   if (IsSystem || IsExternC) {
     OS.indent(Indent + 2);
@@ -384,14 +424,38 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
                {"exclude ", HK_Excluded}};
 
   for (auto &K : Kinds) {
+    assert(&K == &Kinds[K.Kind] && "kinds in wrong order");
     for (auto &H : Headers[K.Kind]) {
       OS.indent(Indent + 2);
       OS << K.Prefix << "header \"";
       OS.write_escaped(H.NameAsWritten);
-      OS << "\"\n";
+      OS << "\" { size " << H.Entry->getSize()
+         << " mtime " << H.Entry->getModificationTime() << " }\n";
+    }
+  }
+  for (auto *Unresolved : {&UnresolvedHeaders, &MissingHeaders}) {
+    for (auto &U : *Unresolved) {
+      OS.indent(Indent + 2);
+      OS << Kinds[U.Kind].Prefix << "header \"";
+      OS.write_escaped(U.FileName);
+      OS << "\"";
+      if (U.Size || U.ModTime) {
+        OS << " {";
+        if (U.Size)
+          OS << " size " << *U.Size;
+        if (U.ModTime)
+          OS << " mtime " << *U.ModTime;
+        OS << " }";
+      }
+      OS << "\n";
     }
   }
 
+  if (!ExportAsModule.empty()) {
+    OS.indent(Indent + 2);
+    OS << "export_as" << ExportAsModule << "\n";
+  }
+  
   for (submodule_const_iterator MI = submodule_begin(), MIEnd = submodule_end();
        MI != MIEnd; ++MI)
     // Print inferred subframework modules so that we don't need to re-infer
@@ -405,7 +469,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS.indent(Indent + 2);
     OS << "export ";
     if (Module *Restriction = Exports[I].getPointer()) {
-      OS << Restriction->getFullModuleName();
+      OS << Restriction->getFullModuleName(true);
       if (Exports[I].getInt())
         OS << ".*";
     } else {
@@ -418,19 +482,15 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS.indent(Indent + 2);
     OS << "export ";
     printModuleId(OS, UnresolvedExports[I].Id);
-    if (UnresolvedExports[I].Wildcard) {
-      if (UnresolvedExports[I].Id.empty())
-        OS << "*";
-      else
-        OS << ".*";
-    }
+    if (UnresolvedExports[I].Wildcard)
+      OS << (UnresolvedExports[I].Id.empty() ? "*" : ".*");
     OS << "\n";
   }
 
   for (unsigned I = 0, N = DirectUses.size(); I != N; ++I) {
     OS.indent(Indent + 2);
     OS << "use ";
-    OS << DirectUses[I]->getFullModuleName();
+    OS << DirectUses[I]->getFullModuleName(true);
     OS << "\n";
   }
 
@@ -463,7 +523,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
   for (unsigned I = 0, N = Conflicts.size(); I != N; ++I) {
     OS.indent(Indent + 2);
     OS << "conflict ";
-    OS << Conflicts[I].Other->getFullModuleName();
+    OS << Conflicts[I].Other->getFullModuleName(true);
     OS << ", \"";
     OS.write_escaped(Conflicts[I].Message);
     OS << "\"\n";
@@ -486,12 +546,13 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
   OS << "}\n";
 }
 
-void Module::dump() const {
+LLVM_DUMP_METHOD void Module::dump() const {
   print(llvm::errs());
 }
 
 void VisibleModuleSet::setVisible(Module *M, SourceLocation Loc,
                                   VisibleCallback Vis, ConflictCallback Cb) {
+  assert(Loc.isValid() && "setVisible expects a valid import location");
   if (isVisible(M))
     return;
 

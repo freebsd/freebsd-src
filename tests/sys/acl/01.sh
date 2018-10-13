@@ -76,12 +76,12 @@ chmod 600 xxx
 rm xxx
 echo "ok 2"
 
-perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test >&2
 
 if [ $? -eq 0 ]; then
 	echo "ok 3"
 else
-	echo "not ok 3"
+	echo "not ok 3 # TODO: fails due to ACL changes in ZFS; bug 212323"
 fi
 
 echo "ok 4"

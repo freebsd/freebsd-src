@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1982, 1986 The Regents of the University of California.
  * Copyright (c) 1989, 1990 William Jolitz
  * Copyright (c) 1994 John Dyson
@@ -40,8 +42,6 @@
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
 
-#include "opt_compat.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -82,8 +82,8 @@ __FBSDID("$FreeBSD$");
  * struct switchframe and trapframe must both be a multiple of 8
  * for correct stack alignment.
  */
-CTASSERT(sizeof(struct switchframe) == 48);
-CTASSERT(sizeof(struct trapframe) == 80);
+_Static_assert((sizeof(struct switchframe) % 8) == 0, "Bad alignment");
+_Static_assert((sizeof(struct trapframe) % 8) == 0, "Bad alignment");
 
 uint32_t initial_fpscr = VFPSCR_DN | VFPSCR_FZ;
 
@@ -93,8 +93,7 @@ uint32_t initial_fpscr = VFPSCR_DN | VFPSCR_FZ;
  * ready to run and return to user mode.
  */
 void
-cpu_fork(register struct thread *td1, register struct proc *p2,
-    struct thread *td2, int flags)
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
@@ -106,10 +105,13 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Point the pcb to the top of the stack */
 	pcb2 = (struct pcb *)
 	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
-#ifdef __XSCALE__
-#ifndef CPU_XSCALE_CORE3
-	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
-#endif
+#ifdef VFP
+	/* Store actual state of VFP */
+	if (curthread == td1) {
+		critical_enter();
+		vfp_store(&td1->td_pcb->pcb_vfpstate, false);
+		critical_exit();
+	}
 #endif
 	td2->td_pcb = pcb2;
 
@@ -134,6 +136,9 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2->pcb_regs.sf_r5 = (register_t)td2;
 	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
 	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
+#if __ARM_ARCH >= 6
+	pcb2->pcb_regs.sf_tpidrurw = (register_t)get_tls();
+#endif
 
 	pcb2->pcb_vfpcpu = -1;
 	pcb2->pcb_vfpstate.fpscr = initial_fpscr;
@@ -147,9 +152,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
-#if __ARM_ARCH >= 6
-	td2->td_md.md_tp = td1->td_md.md_tp;
-#else
+#if __ARM_ARCH < 6
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #endif
 }
@@ -219,21 +222,21 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/* nothing to do */
 		break;
 	default:
-		frame->tf_r0 = error;
+		frame->tf_r0 = SV_ABI_ERRNO(td->td_proc, error);
 		frame->tf_spsr |= PSR_C;    /* carry bit */
 		break;
 	}
 }
 
 /*
- * Initialize machine state (pcb and trap frame) for a new thread about to
- * upcall. Put enough state in the new thread's PCB to get it to go back
- * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
- * such as those generated in thread_userret() itself.
+ * Initialize machine state, mostly pcb and trap frame for a new
+ * thread, about to return to userspace.  Put enough state in the new
+ * thread's PCB to get it to go back to the fork_return(), which
+ * finalizes the thread state and handles peculiarities of the first
+ * return to userspace for the new thread.
  */
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
@@ -253,12 +256,11 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 /*
- * Set that machine state for performing an upcall that has to
- * be done in thread_userret() so that those upcalls generated
- * in thread_userret() itself can be done as well.
+ * Set that machine state for performing an upcall that starts
+ * the entry function with the given argument.
  */
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
 	struct trapframe *tf = td->td_frame;
@@ -273,16 +275,18 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
+#if __ARM_ARCH >= 6
+	td->td_pcb->pcb_regs.sf_tpidrurw = (register_t)tls_base;
+	if (td == curthread)
+		set_tls(tls_base);
+#else
 	td->td_md.md_tp = (register_t)tls_base;
 	if (td == curthread) {
 		critical_enter();
-#if __ARM_ARCH >= 6
-		set_tls(tls_base);
-#else
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
-#endif
 		critical_exit();
 	}
+#endif
 	return (0);
 }
 
@@ -302,12 +306,6 @@ cpu_thread_alloc(struct thread *td)
 	 * the ARM EABI.
 	 */
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
-
-#ifdef __XSCALE__
-#ifndef CPU_XSCALE_CORE3
-	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
-#endif
-#endif
 }
 
 void
@@ -327,7 +325,7 @@ cpu_thread_clean(struct thread *td)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */

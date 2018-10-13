@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Joseph Koshy
  * All rights reserved.
  *
@@ -37,13 +39,6 @@
 #define	PERFCAP_SMM_FREEZE		0x1000
 #define	PERFCAP_FW_WRITE		0x2000	/* full width write aliases */
 
-/*
- * Fixed-function PMCs.
- */
-struct pmc_md_iaf_op_pmcallocate {
-	uint16_t	pm_iaf_flags;	/* additional flags */
-};
-
 #define	IAF_OS		0x1
 #define	IAF_USR		0x2
 #define	IAF_ANY		0x4
@@ -58,7 +53,7 @@ struct pmc_md_iap_op_pmcallocate {
 };
 
 #define	IAP_EVSEL(C)	((C) & 0xFF)
-#define	IAP_UMASK(C)	((C) & 0xFF00)
+#define	IAP_UMASK(C)	(((C) & 0xFF) << 8)
 #define	IAP_USR		(1 << 16)
 #define	IAP_OS		(1 << 17)
 #define	IAP_EDGE	(1 << 18)
@@ -67,6 +62,9 @@ struct pmc_md_iap_op_pmcallocate {
 #define	IAP_EN		(1 << 22)
 #define	IAP_INV		(1 << 23)
 #define	IAP_CMASK(C)	(((C) & 0xFF) << 24)
+
+#define	IAP_EVSEL_GET(C)	((C) & 0xFF)
+#define	IAP_UMASK_GET(C)	(((C) & 0xFF00) >> 8)
 
 #define	IA_OFFCORE_RSP_MASK_I7WM	0x000000F7FF
 #define	IA_OFFCORE_RSP_MASK_SBIB	0x3F807F8FFF

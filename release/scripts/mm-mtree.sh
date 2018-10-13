@@ -81,12 +81,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
 fi
 
 # Setup make to use system files from SOURCEDIR
-objp=${MAKEOBJDIRPREFIX}
-[ -z "${objp}" ] && objp=/usr/obj
-legacydir=${objp}${SOURCEDIR}/tmp/legacy
-legacypath=${legacydir}/usr/sbin:${legacydir}/usr/bin:${legacydir}/bin
-MM_MAKE_ARGS="${MM_MAKE_ARGS} PATH=${legacypath}:${PATH}"
-MM_MAKE="make ${ARCHSTRING} ${MM_MAKE_ARGS} -m ${SOURCEDIR}/share/mk"
+MM_MAKE="make ${ARCHSTRING} ${MM_MAKE_ARGS} -m ${SOURCEDIR}/share/mk -DDB_FROM_SRC"
 
 delete_temproot () {
   rm -rf "${TEMPROOT}" 2>/dev/null
@@ -119,11 +114,10 @@ echo ''
     ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs
     ;;
   esac
-  od=${TEMPROOT}/usr/obj
   ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
+  ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
+  ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
+  ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
   { echo '';
     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
     echo "      the temproot environment";

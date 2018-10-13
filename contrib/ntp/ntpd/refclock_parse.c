@@ -3614,7 +3614,9 @@ parse_control(
 		}
 		else
 		{
-			int count = tmpctl.parseformat.parse_count - 1;
+			int count = tmpctl.parseformat.parse_count;
+			if (count)
+				--count;
 
 			start = tt = add_var(&out->kv_list, 80, RO|DEF);
 			tt = ap(start, 80, tt, "refclock_format=\"");
@@ -3675,8 +3677,7 @@ parse_control(
 			}
 		}
 
-		tt = ap(start, LEN_STATES, tt,
-		    "; running time: %s\"", l_mktime(sum));
+		ap(start, LEN_STATES, tt, "; running time: %s\"", l_mktime(sum));
 
 		tt = add_var(&out->kv_list, 32, RO);
 		snprintf(tt, 32,  "refclock_id=\"%s\"", parse->parse_type->cl_id);
@@ -3781,9 +3782,14 @@ parse_process(
 			}
 			else
 			{
+				unsigned int count = tmpctl.parsegettc.parse_count;
+				if (count)
+					--count;
 				ERR(ERR_BADDATA)
-					msyslog(LOG_WARNING, "PARSE receiver #%d: FAILED TIMECODE: \"%s\" (check receiver configuration / wiring)",
-						CLK_UNIT(parse->peer), mkascii(buffer, sizeof buffer, tmpctl.parsegettc.parse_buffer, (unsigned)(tmpctl.parsegettc.parse_count - 1)));
+				    msyslog(LOG_WARNING, "PARSE receiver #%d: FAILED TIMECODE: \"%s\" (check receiver configuration / wiring)",
+					    CLK_UNIT(parse->peer),
+					    mkascii(buffer, sizeof(buffer),
+						    tmpctl.parsegettc.parse_buffer, count));
 			}
 			/* copy status to show only changes in case of failures */
 			parse->timedata.parse_status = parsetime->parse_status;
@@ -4226,13 +4232,13 @@ parse_process(
 
 static void
 mk_utcinfo(
-	   char *t,  // pointer to the output string buffer
-	   int wnt,
-	   int wnlsf,
+	   char *t,  /* pointer to the output string buffer */
+	   uint16_t wnt,
+	   uint16_t wnlsf,
 	   int dn,
 	   int dtls,
 	   int dtlsf,
-	   int size  // size of the output string buffer
+	   int size  /* size of the output string buffer */
 	   )
 {
 	/*
@@ -4248,32 +4254,37 @@ mk_utcinfo(
 	{
 		time_t t_ls;
 		struct tm *tm;
-		int n = 0;
+		int nc;
 
 		if (wnlsf < GPSWRAP)
 			wnlsf += GPSWEEKS;
-
-		if (wnt < GPSWRAP)
-			wnt += GPSWEEKS;
+		/* 'wnt' not used here: would need the same treatment as 'wnlsf */
 
 		t_ls = (time_t) wnlsf * SECSPERWEEK
 			+ (time_t) dn * SECSPERDAY
 			+ GPS_SEC_BIAS - 1;
 
 		tm = gmtime( &t_ls );
-		if (tm == NULL)  // gmtime() failed
+		if (tm == NULL)  /* gmtime() failed */
 		{
 			snprintf( t, size, "** (gmtime() failed in mk_utcinfo())" );
 			return;
 		}
 
-		n += snprintf( t, size, "UTC offset transition from %is to %is due to leap second %s",
+		nc = snprintf( t, size, "UTC offset transition from %is to %is due to leap second %s",
 				dtls, dtlsf, ( dtls < dtlsf ) ? "insertion" : "deletion" );
-		n += snprintf( t + n, size - n, " at UTC midnight at the end of %s, %04i-%02i-%02i",
+		if (nc < 0)
+			nc = strlen(t);
+		else if (nc > size)
+			nc = size;
+		
+		snprintf( t + nc, size - nc, " at UTC midnight at the end of %s, %04i-%02i-%02i",
 				daynames[tm->tm_wday], tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday );
 	}
 	else
+	{
 		snprintf( t, size, "UTC offset parameter: %is, no leap second announced.\n", dtls );
+	}
 
 }
 

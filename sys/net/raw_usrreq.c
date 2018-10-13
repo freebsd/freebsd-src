@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.
  * All rights reserved.
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -95,7 +97,7 @@ raw_input_ext(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src,
 			continue;
 		if (last) {
 			struct mbuf *n;
-			n = m_copy(m, 0, (int)M_COPYALL);
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if (n) {
 				if (sbappendaddr(&last->so_rcv, src,
 				    n, (struct mbuf *)0) == 0)
@@ -225,9 +227,10 @@ raw_usend(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	KASSERT(sotorawcb(so) != NULL, ("raw_usend: rp == NULL"));
 
 	if ((flags & PRUS_OOB) || (control && control->m_len)) {
-		/* XXXRW: Should control also be freed here? */
 		if (m != NULL)
 			m_freem(m);
+		if (control != NULL)
+			m_freem(control);
 		return (EOPNOTSUPP);
 	}
 

@@ -148,16 +148,18 @@ v2_sign_message(gss_buffer_t in,
 {
     unsigned char hmac[16];
     unsigned int hmaclen;
-    HMAC_CTX c;
+    HMAC_CTX *c;
 
-    HMAC_CTX_init(&c);
-    HMAC_Init_ex(&c, signkey, 16, EVP_md5(), NULL);
+    c = HMAC_CTX_new();
+    if (c == NULL)
+	return GSS_S_FAILURE;
+    HMAC_Init_ex(c, signkey, 16, EVP_md5(), NULL);
 
     encode_le_uint32(seq, hmac);
-    HMAC_Update(&c, hmac, 4);
-    HMAC_Update(&c, in->value, in->length);
-    HMAC_Final(&c, hmac, &hmaclen);
-    HMAC_CTX_cleanup(&c);
+    HMAC_Update(c, hmac, 4);
+    HMAC_Update(c, in->value, in->length);
+    HMAC_Final(c, hmac, &hmaclen);
+    HMAC_CTX_free(c);
 
     encode_le_uint32(1, &out[0]);
     if (sealkey)

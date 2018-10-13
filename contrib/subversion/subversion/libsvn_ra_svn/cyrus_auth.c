@@ -68,7 +68,7 @@ static apr_status_t sasl_done_cb(void *data)
      apr_initialize()/apr_terminate() more than once. */
   svn_ra_svn__sasl_status = 0;
   if (svn_atomic_dec(&sasl_ctx_count) == 0)
-    sasl_done();
+    svn_sasl__done();
   return APR_SUCCESS;
 }
 
@@ -174,10 +174,10 @@ svn_ra_svn__sasl_common_init(apr_pool_t *pool)
   apr_pool_cleanup_register(sasl_pool, NULL, sasl_done_cb,
                             apr_pool_cleanup_null);
 #if APR_HAS_THREADS
-  sasl_set_mutex(sasl_mutex_alloc_cb,
-                 sasl_mutex_lock_cb,
-                 sasl_mutex_unlock_cb,
-                 sasl_mutex_free_cb);
+  svn_sasl__set_mutex(sasl_mutex_alloc_cb,
+                      sasl_mutex_lock_cb,
+                      sasl_mutex_unlock_cb,
+                      sasl_mutex_free_cb);
   free_mutexes = apr_array_make(sasl_pool, 0, sizeof(svn_mutex__t *));
   SVN_ERR(svn_mutex__init(&array_mutex, TRUE, sasl_pool));
 
@@ -223,7 +223,7 @@ get_sasl_error(sasl_conn_t *sasl_ctx, int result, apr_pool_t *result_pool)
 
   return apr_psprintf(result_pool,
                       _("SASL authentication error: %s%s"),
-                      sasl_errdetail(sasl_ctx), sasl_errno_msg);
+                      svn_sasl__errdetail(sasl_ctx), sasl_errno_msg);
 }
 
 static svn_error_t *sasl_init_cb(void *baton, apr_pool_t *pool)
@@ -232,7 +232,7 @@ static svn_error_t *sasl_init_cb(void *baton, apr_pool_t *pool)
 
   SVN_ERR(svn_ra_svn__sasl_common_init(pool));
   clear_sasl_errno();
-  result = sasl_client_init(NULL);
+  result = svn_sasl__client_init(NULL);
   if (result != SASL_OK)
     {
       const char *sasl_errno_msg = get_sasl_errno_msg(result, pool);
@@ -240,7 +240,7 @@ static svn_error_t *sasl_init_cb(void *baton, apr_pool_t *pool)
       return svn_error_createf
         (SVN_ERR_RA_NOT_AUTHORIZED, NULL,
          _("Could not initialized the SASL library: %s%s"),
-         sasl_errstring(result, NULL, NULL),
+         svn_sasl__errstring(result, NULL, NULL),
          sasl_errno_msg);
     }
 
@@ -257,9 +257,9 @@ svn_error_t *svn_ra_svn__sasl_init(void)
 static apr_status_t sasl_dispose_cb(void *data)
 {
   sasl_conn_t *sasl_ctx = data;
-  sasl_dispose(&sasl_ctx);
+  svn_sasl__dispose(&sasl_ctx);
   if (svn_atomic_dec(&sasl_ctx_count) == 0)
-    sasl_done();
+    svn_sasl__done();
   return APR_SUCCESS;
 }
 
@@ -403,17 +403,17 @@ static svn_error_t *new_sasl_ctx(sasl_conn_t **sasl_ctx,
   int result;
 
   clear_sasl_errno();
-  result = sasl_client_new(SVN_RA_SVN_SASL_NAME,
-                           hostname, local_addrport, remote_addrport,
-                           callbacks, SASL_SUCCESS_DATA,
-                           sasl_ctx);
+  result = svn_sasl__client_new(SVN_RA_SVN_SASL_NAME,
+                                hostname, local_addrport, remote_addrport,
+                                callbacks, SASL_SUCCESS_DATA,
+                                sasl_ctx);
   if (result != SASL_OK)
     {
       const char *sasl_errno_msg = get_sasl_errno_msg(result, pool);
 
       return svn_error_createf(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                _("Could not create SASL context: %s%s"),
-                               sasl_errstring(result, NULL, NULL),
+                               svn_sasl__errstring(result, NULL, NULL),
                                sasl_errno_msg);
     }
   svn_atomic_inc(&sasl_ctx_count);
@@ -427,8 +427,8 @@ static svn_error_t *new_sasl_ctx(sasl_conn_t **sasl_ctx,
          should be the username, but since SASL doesn't seem
          to use it on the client side, any non-empty string will do. */
       clear_sasl_errno();
-      result = sasl_setprop(*sasl_ctx,
-                            SASL_AUTH_EXTERNAL, " ");
+      result = svn_sasl__setprop(*sasl_ctx,
+                                 SASL_AUTH_EXTERNAL, " ");
       if (result != SASL_OK)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                 get_sasl_error(*sasl_ctx, result, pool));
@@ -436,7 +436,7 @@ static svn_error_t *new_sasl_ctx(sasl_conn_t **sasl_ctx,
 
   /* Set security properties. */
   svn_ra_svn__default_secprops(&secprops);
-  sasl_setprop(*sasl_ctx, SASL_SEC_PROPS, &secprops);
+  svn_sasl__setprop(*sasl_ctx, SASL_SEC_PROPS, &secprops);
 
   return SVN_NO_ERROR;
 }
@@ -460,12 +460,12 @@ static svn_error_t *try_auth(svn_ra_svn__session_baton_t *sess,
     {
       again = FALSE;
       clear_sasl_errno();
-      result = sasl_client_start(sasl_ctx,
-                                 mechstring,
-                                 &client_interact,
-                                 &out,
-                                 &outlen,
-                                 &mech);
+      result = svn_sasl__client_start(sasl_ctx,
+                                      mechstring,
+                                      &client_interact,
+                                      &out,
+                                      &outlen,
+                                      &mech);
       switch (result)
         {
           case SASL_OK:
@@ -531,12 +531,12 @@ static svn_error_t *try_auth(svn_ra_svn__session_baton_t *sess,
         in = svn_base64_decode_string(in, pool);
 
       clear_sasl_errno();
-      result = sasl_client_step(sasl_ctx,
-                                in->data,
-                                (const unsigned int) in->len,
-                                &client_interact,
-                                &out, /* Filled in by SASL. */
-                                &outlen);
+      result = svn_sasl__client_step(sasl_ctx,
+                                     in->data,
+                                     (const unsigned int) in->len,
+                                     &client_interact,
+                                     &out, /* Filled in by SASL. */
+                                     &outlen);
 
       if (result != SASL_OK && result != SASL_CONTINUE)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
@@ -620,9 +620,9 @@ static svn_error_t *sasl_read_cb(void *baton, char *buffer, apr_size_t *len)
           return SVN_NO_ERROR;
         }
       clear_sasl_errno();
-      result = sasl_decode(sasl_baton->ctx, buffer, (unsigned int) len2,
-                           &sasl_baton->read_buf,
-                           &sasl_baton->read_len);
+      result = svn_sasl__decode(sasl_baton->ctx, buffer, (unsigned int) len2,
+                                &sasl_baton->read_buf,
+                                &sasl_baton->read_len);
       if (result != SASL_OK)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                 get_sasl_error(sasl_baton->ctx, result,
@@ -662,9 +662,9 @@ sasl_write_cb(void *baton, const char *buffer, apr_size_t *len)
       /* Make sure we don't write too much. */
       *len = (*len > sasl_baton->maxsize) ? sasl_baton->maxsize : *len;
       clear_sasl_errno();
-      result = sasl_encode(sasl_baton->ctx, buffer, (unsigned int) *len,
-                           &sasl_baton->write_buf,
-                           &sasl_baton->write_len);
+      result = svn_sasl__encode(sasl_baton->ctx, buffer, (unsigned int) *len,
+                                &sasl_baton->write_buf,
+                                &sasl_baton->write_len);
 
       if (result != SASL_OK)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
@@ -725,7 +725,7 @@ svn_error_t *svn_ra_svn__enable_sasl_encryption(svn_ra_svn_conn_t *conn,
 
       /* Get the strength of the security layer. */
       clear_sasl_errno();
-      result = sasl_getprop(sasl_ctx, SASL_SSF, (void*) &ssfp);
+      result = svn_sasl__getprop(sasl_ctx, SASL_SSF, (void*) &ssfp);
       if (result != SASL_OK)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                 get_sasl_error(sasl_ctx, result, pool));
@@ -745,7 +745,7 @@ svn_error_t *svn_ra_svn__enable_sasl_encryption(svn_ra_svn_conn_t *conn,
 
           /* Find out the maximum input size for sasl_encode. */
           clear_sasl_errno();
-          result = sasl_getprop(sasl_ctx, SASL_MAXOUTBUF, &maxsize);
+          result = svn_sasl__getprop(sasl_ctx, SASL_MAXOUTBUF, &maxsize);
           if (result != SASL_OK)
             return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                     get_sasl_error(sasl_ctx, result, pool));
@@ -756,9 +756,10 @@ svn_error_t *svn_ra_svn__enable_sasl_encryption(svn_ra_svn_conn_t *conn,
           if (conn->read_end > conn->read_ptr)
             {
               clear_sasl_errno();
-              result = sasl_decode(sasl_ctx, conn->read_ptr,
-                             (unsigned int) (conn->read_end - conn->read_ptr),
-                             &sasl_baton->read_buf, &sasl_baton->read_len);
+              result = svn_sasl__decode(
+                  sasl_ctx, conn->read_ptr,
+                  (unsigned int) (conn->read_end - conn->read_ptr),
+                  &sasl_baton->read_buf, &sasl_baton->read_len);
               if (result != SASL_OK)
                 return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                         get_sasl_error(sasl_ctx, result, pool));
@@ -828,7 +829,7 @@ svn_error_t *svn_ra_svn__get_addresses(const char **local_addrport,
 
 svn_error_t *
 svn_ra_svn__do_cyrus_auth(svn_ra_svn__session_baton_t *sess,
-                          const apr_array_header_t *mechlist,
+                          const svn_ra_svn__list_t *mechlist,
                           const char *realm, apr_pool_t *pool)
 {
   apr_pool_t *subpool;
@@ -856,11 +857,11 @@ svn_ra_svn__do_cyrus_auth(svn_ra_svn__session_baton_t *sess,
       /* Create a string containing the list of mechanisms, separated by spaces. */
       for (i = 0; i < mechlist->nelts; i++)
         {
-          svn_ra_svn_item_t *elt = &APR_ARRAY_IDX(mechlist, i, svn_ra_svn_item_t);
+          svn_ra_svn__item_t *elt = &SVN_RA_SVN__LIST_ITEM(mechlist, i);
           mechstring = apr_pstrcat(pool,
                                    mechstring,
                                    i == 0 ? "" : " ",
-                                   elt->u.word, SVN_VA_NULL);
+                                   elt->u.word.data, SVN_VA_NULL);
         }
     }
 

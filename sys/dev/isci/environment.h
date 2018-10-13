@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * BSD LICENSE
  *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
@@ -42,7 +44,7 @@
 #include <sys/types.h>
 #include <sys/libkern.h>
 #include <machine/bus.h>
-#include <opt_isci.h>
+#include "opt_isci.h"
 
 typedef int8_t 		S8;
 typedef uint8_t		U8;

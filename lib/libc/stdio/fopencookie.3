@@ -35,13 +35,13 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft typedef ssize_t
-.Fn (cookie_read_function_t) "void *cookie" "char *buf" "size_t size"
+.Fn (*cookie_read_function_t) "void *cookie" "char *buf" "size_t size"
 .Ft typedef ssize_t
-.Fn (cookie_write_function_t) "void *cookie" "const char *buf" "size_t size"
+.Fn (*cookie_write_function_t) "void *cookie" "const char *buf" "size_t size"
 .Ft typedef int
-.Fn (cookie_seek_function_t) "void *cookie" "off64_t *offset" "int whence"
+.Fn (*cookie_seek_function_t) "void *cookie" "off64_t *offset" "int whence"
 .Ft typedef int
-.Fn (cookie_close_function_t) "void *cookie"
+.Fn (*cookie_close_function_t) "void *cookie"
 .Bd -literal
 typedef struct {
 	cookie_read_function_t	*read;

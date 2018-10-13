@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -15,6 +15,9 @@
 #include "less.h"
 #if MSDOS_COMPILER==WIN32C
 #include "windows.h"
+#ifndef COMMON_LVB_UNDERSCORE
+#define COMMON_LVB_UNDERSCORE 0x8000
+#endif
 #endif
 
 public int errmsgs;	/* Count of messages displayed by error() */
@@ -37,6 +40,10 @@ extern int bo_fg_color, bo_bg_color;
 extern int ul_fg_color, ul_bg_color;
 extern int so_fg_color, so_bg_color;
 extern int bl_fg_color, bl_bg_color;
+extern int sgr_mode;
+#if MSDOS_COMPILER==WIN32C
+extern int have_ul;
+#endif
 #endif
 
 /*
@@ -45,8 +52,8 @@ extern int bl_fg_color, bl_bg_color;
 	public void
 put_line()
 {
-	register int c;
-	register int i;
+	int c;
+	int i;
 	int a;
 
 	if (ABORT_SIGS())
@@ -95,8 +102,8 @@ static char *ob = obuf;
 	public void
 flush()
 {
-	register int n;
-	register int fd;
+	int n;
+	int fd;
 
 	n = (int) (ob - obuf);
 	if (n == 0)
@@ -126,8 +133,9 @@ flush()
 			 * the -D command-line option.
 			 */
 			char *anchor, *p, *p_next;
-			unsigned char fg, bg;
-			static unsigned char at;
+			static int fg, fgi, bg, bgi;
+			static int at;
+			int f, b;
 #if MSDOS_COMPILER==WIN32C
 			/* Screen colors used by 3x and 4x SGR commands. */
 			static unsigned char screen_color[] = {
@@ -147,6 +155,13 @@ flush()
 			};
 #endif
 
+			if (fg == 0 && bg == 0)
+			{
+				fg  = nm_fg_color & 7;
+				fgi = nm_fg_color & 8;
+				bg  = nm_bg_color & 7;
+				bgi = nm_bg_color & 8;
+			}
 			for (anchor = p_next = obuf;
 			     (p_next = memchr(p_next, ESC, ob - p_next)) != NULL; )
 			{
@@ -173,18 +188,21 @@ flush()
 						 */
 						p++;
 						anchor = p_next = p;
-						at = 0;
+						fg  = nm_fg_color & 7;
+						fgi = nm_fg_color & 8;
+						bg  = nm_bg_color & 7;
+						bgi = nm_bg_color & 8;
+						at  = 0;
 						WIN32setcolors(nm_fg_color, nm_bg_color);
 						continue;
 					}
 					p_next = p;
+					at &= ~32;
 
 					/*
 					 * Select foreground/background colors
 					 * based on the escape sequence. 
 					 */
-					fg = nm_fg_color;
-					bg = nm_bg_color;
 					while (!is_ansi_end(*p))
 					{
 						char *q;
@@ -212,34 +230,60 @@ flush()
 							break;
 						}
 						if (*q == ';')
+						{
 							q++;
+							at |= 32;
+						}
 
 						switch (code)
 						{
 						default:
 						/* case 0: all attrs off */
-							fg = nm_fg_color;
-							bg = nm_bg_color;
-							at = 0;
+							fg = nm_fg_color & 7;
+							bg = nm_bg_color & 7;
+							at &= 32;
+							/*
+							 * \e[0m use normal
+							 * intensities, but
+							 * \e[0;...m resets them
+							 */
+							if (at & 32)
+							{
+								fgi = 0;
+								bgi = 0;
+							} else
+							{
+								fgi = nm_fg_color & 8;
+								bgi = nm_bg_color & 8;
+							}
 							break;
 						case 1:	/* bold on */
+							fgi = 8;
 							at |= 1;
 							break;
 						case 3:	/* italic on */
 						case 7: /* inverse on */
 							at |= 2;
 							break;
-						case 4:	/* underline on */
+						case 4: /* underline on */
+#if MSDOS_COMPILER==WIN32C
+							if (have_ul)
+								bgi = COMMON_LVB_UNDERSCORE >> 4;
+							else
+#endif
+								bgi = 8;
 							at |= 4;
 							break;
 						case 5: /* slow blink on */
 						case 6: /* fast blink on */
+							bgi = 8;
 							at |= 8;
 							break;
 						case 8:	/* concealed on */
-							fg = (bg & 7) | 8;
+							at |= 16;
 							break;
 						case 22: /* bold off */
+							fgi = 0;
 							at &= ~1;
 							break;
 						case 23: /* italic off */
@@ -247,62 +291,88 @@ flush()
 							at &= ~2;
 							break;
 						case 24: /* underline off */
+							bgi = 0;
 							at &= ~4;
+							break;
+						case 28: /* concealed off */
+							at &= ~16;
 							break;
 						case 30: case 31: case 32:
 						case 33: case 34: case 35:
 						case 36: case 37:
-							fg = (fg & 8) | (screen_color[code - 30]);
+							fg = screen_color[code - 30];
+							at |= 32;
 							break;
 						case 39: /* default fg */
-							fg = nm_fg_color;
+							fg = nm_fg_color & 7;
+							at |= 32;
 							break;
 						case 40: case 41: case 42:
 						case 43: case 44: case 45:
 						case 46: case 47:
-							bg = (bg & 8) | (screen_color[code - 40]);
+							bg = screen_color[code - 40];
+							at |= 32;
 							break;
-						case 49: /* default fg */
-							bg = nm_bg_color;
+						case 49: /* default bg */
+							bg = nm_bg_color & 7;
+							at |= 32;
 							break;
 						}
 						p = q;
 					}
 					if (!is_ansi_end(*p) || p == p_next)
 						break;
-					if (at & 1)
+					/*
+					 * In SGR mode, the ANSI sequence is
+					 * always honored; otherwise if an attr
+					 * is used by itself ("\e[1m" versus
+					 * "\e[1;33m", for example), set the
+					 * color assigned to that attribute.
+					 */
+					if (sgr_mode || (at & 32))
 					{
-						/*
-						 * If \e[1m use defined bold
-						 * color, else set intensity.
-						 */
-						if (p[-2] == '[')
+						if (at & 2)
 						{
-#if MSDOS_COMPILER==WIN32C
-							fg |= FOREGROUND_INTENSITY;
-							bg |= BACKGROUND_INTENSITY;
-#else
-							fg = bo_fg_color;
-							bg = bo_bg_color;
-#endif
+							f = bg | bgi;
+							b = fg | fgi;
 						} else
-							fg |= 8;
-					} else if (at & 2)
+						{
+							f = fg | fgi;
+							b = bg | bgi;
+						}
+					} else
 					{
-						fg = so_fg_color;
-						bg = so_bg_color;
-					} else if (at & 4)
-					{
-						fg = ul_fg_color;
-						bg = ul_bg_color;
-					} else if (at & 8)
-					{
-						fg = bl_fg_color;
-						bg = bl_bg_color;
+						if (at & 1)
+						{
+							f = bo_fg_color;
+							b = bo_bg_color;
+						} else if (at & 2)
+						{
+							f = so_fg_color;
+							b = so_bg_color;
+						} else if (at & 4)
+						{
+							f = ul_fg_color;
+							b = ul_bg_color;
+						} else if (at & 8)
+						{
+							f = bl_fg_color;
+							b = bl_bg_color;
+						} else
+						{
+							f = nm_fg_color;
+							b = nm_bg_color;
+						}
 					}
-					fg &= 0xf;
-					bg &= 0xf;
-					WIN32setcolors(fg, bg);
+					if (at & 16)
+						f = b ^ 8;
+					f &= 0xf;
+#if MSDOS_COMPILER==WIN32C
+					b &= 0xf | (COMMON_LVB_UNDERSCORE >> 4);
+#else
+ 					b &= 0xf;
+#endif
+					WIN32setcolors(f, b);
 					p_next = anchor = p + 1;
 				} else
 					p_next++;
@@ -381,7 +451,7 @@ putchr(c)
  */
 	public void
 putstr(s)
-	register char *s;
+	constant char *s;
 {
 	while (*s != '\0')
 		putchr(*s++);
@@ -398,7 +468,7 @@ void funcname(num, buf) \
 { \
 	int neg = (num < 0); \
 	char tbuf[INT_STRLEN_BOUND(num)+2]; \
-	register char *s = tbuf + sizeof(tbuf); \
+	char *s = tbuf + sizeof(tbuf); \
 	if (neg) num = -num; \
 	*--s = '\0'; \
 	do { \
@@ -446,11 +516,11 @@ iprint_linenum(num)
  */
 	static int
 less_printf(fmt, parg)
-	register char *fmt;
+	char *fmt;
 	PARG *parg;
 {
-	register char *s;
-	register int col;
+	char *s;
+	int col;
 
 	col = 0;
 	while (*fmt != '\0')
@@ -480,6 +550,9 @@ less_printf(fmt, parg)
 			case 'n':
 				col += iprint_linenum(parg->p_linenum);
 				parg++;
+				break;
+			case '%':
+				putchr('%');
 				break;
 			}
 		}
@@ -545,7 +618,7 @@ error(fmt, parg)
 
 	get_return();
 	lower_left();
-    clear_eol();
+	clear_eol();
 
 	if (col >= sc_width)
 		/*
@@ -590,7 +663,7 @@ query(fmt, parg)
 	char *fmt;
 	PARG *parg;
 {
-	register int c;
+	int c;
 	int col = 0;
 
 	if (any_display && is_tty)

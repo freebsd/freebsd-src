@@ -13,10 +13,10 @@
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
-;		COMPAT7, NODEF, NOARGS, NOPROTO, NOSTD
+;		COMPAT7, COMPAT11, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
-;	name	psuedo-prototype of syscall routine
+;	name	pseudo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
 ;	alttag	name of args struct tag if different from [o]`name'"_args"
@@ -29,6 +29,8 @@
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
 ;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
 ;	COMPAT7	included on COMPAT7 #ifdef (FreeBSD 7 compat)
+;	COMPAT10 included on COMPAT10 #ifdef (FreeBSD 10 compat)
+;	COMPAT11 included on COMPAT11 #ifdef (FreeBSD 11 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
@@ -81,14 +83,14 @@
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(char *path); }
 13	AUE_FCHDIR	NOPROTO	{ int fchdir(int fd); }
-14	AUE_MKNOD	NOPROTO	{ int mknod(char *path, int mode, int dev); }
+14	AUE_MKNOD	COMPAT11 { int freebsd32_mknod(char *path, \
+					int mode, int dev); }
 15	AUE_CHMOD	NOPROTO	{ int chmod(char *path, int mode); }
 16	AUE_CHOWN	NOPROTO	{ int chown(char *path, int uid, int gid); }
-17	AUE_NULL	NOPROTO	{ int obreak(char *nsize); } break \
-				    obreak_args int
+17	AUE_NULL	NOPROTO	{ caddr_t break(char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
-				    int flags); }
+				    int mode); }
 19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int offset, \
 				    int whence); }
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
@@ -124,7 +126,7 @@
 40	AUE_LSTAT	COMPAT	{ int freebsd32_lstat(char *path, \
 				    struct ostat *ub); }
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
-42	AUE_PIPE	NOPROTO	{ int pipe(void); }
+42	AUE_PIPE	COMPAT10	{ int freebsd32_pipe(void); }
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
 44	AUE_PROFILE	NOPROTO	{ int profil(caddr_t samples, size_t size, \
 				    size_t offset, u_int scale); }
@@ -144,7 +146,7 @@
 53	AUE_SIGALTSTACK	STD	{ int freebsd32_sigaltstack( \
 				    struct sigaltstack32 *ss, \
 				    struct sigaltstack32 *oss); }
-54	AUE_NULL	STD	{ int freebsd32_ioctl(int fd, uint32_t com, \
+54	AUE_IOCTL	STD	{ int freebsd32_ioctl(int fd, uint32_t com, \
 				    struct md_ioctl32 *data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(char *path); }
@@ -153,8 +155,7 @@
 				    size_t count); }
 59	AUE_EXECVE	STD	{ int freebsd32_execve(char *fname, \
 				    uint32_t *argv, uint32_t *envv); }
-60	AUE_UMASK	NOPROTO	{ int umask(int newmask); } umask \
-				    umask_args int
+60	AUE_UMASK	NOPROTO	{ int umask(int newmask); }
 61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
 62	AUE_FSTAT	COMPAT	{ int freebsd32_fstat(int fd, \
 				    struct ostat32 *ub); }
@@ -170,10 +171,9 @@
 70	AUE_SSTK	NOPROTO	{ int sstk(int incr); }
 71	AUE_MMAP	COMPAT|NOPROTO	{ int mmap(void *addr, int len, \
 				    int prot, int flags, int fd, int pos); }
-72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
-				    ovadvise_args int
+72	AUE_O_VADVISE	COMPAT11|NOPROTO	{ int vadvise(int anom); }
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
-74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(const void *addr, \
+74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(void *addr, \
 				    size_t len, int prot); }
 75	AUE_MADVISE	NOPROTO	{ int madvise(void *addr, size_t len, \
 				    int behav); }
@@ -217,7 +217,7 @@
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
 101	AUE_NULL	OBSOL	osend
 102	AUE_NULL	OBSOL	orecv
-103	AUE_NULL	COMPAT	{ int freebsd32_sigreturn( \
+103	AUE_SIGRETURN	COMPAT	{ int freebsd32_sigreturn( \
 				    struct ia32_sigcontext3 *sigcntxp); }
 104	AUE_BIND	NOPROTO	{ int bind(int s, caddr_t name, \
 				    int namelen); }
@@ -311,8 +311,8 @@
 160	AUE_LGETFH	UNIMPL	lgetfh
 161	AUE_NFS_GETFH	NOPROTO	{ int getfh(char *fname, \
 				    struct fhandle *fhp); }
-162	AUE_NULL	OBSOL	getdomainname
-163	AUE_NULL	OBSOL	setdomainname
+162	AUE_SYSCTL	OBSOL	getdomainname
+163	AUE_SYSCTL	OBSOL	setdomainname
 164	AUE_NULL	OBSOL	uname
 165	AUE_SYSARCH	STD	{ int freebsd32_sysarch(int op, char *parms); }
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
@@ -343,16 +343,16 @@
 181	AUE_SETGID	NOPROTO	{ int setgid(gid_t gid); }
 182	AUE_SETEGID	NOPROTO	{ int setegid(gid_t egid); }
 183	AUE_SETEUID	NOPROTO	{ int seteuid(uid_t euid); }
-184	AUE_NULL	UNIMPL	lfs_bmapv
-185	AUE_NULL	UNIMPL	lfs_markv
-186	AUE_NULL	UNIMPL	lfs_segclean
-187	AUE_NULL	UNIMPL	lfs_segwait
-188	AUE_STAT	STD	{ int freebsd32_stat(char *path, \
-				    struct stat32 *ub); }
-189	AUE_FSTAT	STD	{ int freebsd32_fstat(int fd, \
-				    struct stat32 *ub); }
-190	AUE_LSTAT	STD	{ int freebsd32_lstat(char *path, \
-				    struct stat32 *ub); }
+184	AUE_NULL	OBSOL	lfs_bmapv
+185	AUE_NULL	OBSOL	lfs_markv
+186	AUE_NULL	OBSOL	lfs_segclean
+187	AUE_NULL	OBSOL	lfs_segwait
+188	AUE_STAT	COMPAT11 { int freebsd32_stat(char *path, \
+				    struct freebsd11_stat32 *ub); }
+189	AUE_FSTAT	COMPAT11 { int freebsd32_fstat(int fd, \
+				    struct freebsd11_stat32 *ub); }
+190	AUE_LSTAT	COMPAT11 { int freebsd32_lstat(char *path, \
+				    struct freebsd11_stat32 *ub); }
 191	AUE_PATHCONF	NOPROTO	{ int pathconf(char *path, int name); }
 192	AUE_FPATHCONF	NOPROTO	{ int fpathconf(int fd, int name); }
 193	AUE_NULL	UNIMPL	nosys
@@ -362,7 +362,7 @@
 195	AUE_SETRLIMIT	NOPROTO	{ int setrlimit(u_int which, \
 				    struct rlimit *rlp); } setrlimit \
 				    __setrlimit_args int
-196	AUE_GETDIRENTRIES	STD	{ int freebsd32_getdirentries(int fd, \
+196	AUE_GETDIRENTRIES COMPAT11 { int freebsd32_getdirentries(int fd, \
 				    char *buf, u_int count, int32_t *basep); }
 197	AUE_MMAP	COMPAT6	{ caddr_t freebsd32_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
@@ -389,7 +389,7 @@
 206	AUE_FUTIMES	STD	{ int freebsd32_futimes(int fd, \
 				    struct timeval32 *tptr); }
 207	AUE_GETPGID	NOPROTO	{ int getpgid(pid_t pid); }
-208	AUE_NULL	UNIMPL	newreboot (NetBSD)
+208	AUE_NULL	UNIMPL	nosys
 209	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
 				    int timeout); }
 
@@ -407,10 +407,6 @@
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 
-;
-; The following were introduced with NetBSD/4.4Lite-2
-; They are initialized by their respective modules/sysinits
-; XXX PROBLEM!!
 220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32_semctl( \
 				    int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
@@ -418,7 +414,7 @@
 				    int semflg); }
 222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \
 				    struct sembuf *sops, u_int nsops); }
-223	AUE_NULL	UNIMPL	semconfig
+223	AUE_NULL	OBSOL	semconfig
 224	AUE_MSGCTL	COMPAT7|NOSTD	{ int freebsd32_msgctl( \
 				    int msqid, int cmd, \
 				    struct msqid_ds32_old *buf); }
@@ -461,7 +457,10 @@
 				    struct ffclock_estimate *cest); }
 243	AUE_NULL	NOPROTO	{ int ffclock_getestimate( \
 				    struct ffclock_estimate *cest); }
-244	AUE_NULL	UNIMPL	nosys
+244	AUE_NULL	STD	{ int freebsd32_clock_nanosleep( \
+				    clockid_t clock_id, int flags, \
+				    const struct timespec32 *rqtp, \
+				    struct timespec32 *rmtp); }
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
 247	AUE_NULL	STD	{ int freebsd32_clock_getcpuclockid2(\
@@ -469,19 +468,17 @@
 				    int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
 249	AUE_NULL	UNIMPL	nosys
-; syscall numbers initially used in OpenBSD
 250	AUE_MINHERIT	NOPROTO	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
-252	AUE_POLL	NOPROTO	{ int openbsd_poll(struct pollfd *fds, \
-				    u_int nfds, int timeout); }
+252	AUE_POLL	OBSOL	openbsd_poll
 253	AUE_ISSETUGID	NOPROTO	{ int issetugid(void); }
 254	AUE_LCHOWN	NOPROTO	{ int lchown(char *path, int uid, int gid); }
-255	AUE_NULL	STD	{ int freebsd32_aio_read( \
+255	AUE_AIO_READ	STD	{ int freebsd32_aio_read( \
 				    struct aiocb32 *aiocbp); }
-256	AUE_NULL	STD	{ int freebsd32_aio_write( \
+256	AUE_AIO_WRITE	STD	{ int freebsd32_aio_write( \
 				    struct aiocb32 *aiocbp); }
-257	AUE_NULL	STD	{ int freebsd32_lio_listio(int mode, \
+257	AUE_LIO_LISTIO	STD	{ int freebsd32_lio_listio(int mode, \
 				    struct aiocb32 * const *acb_list, \
 				    int nent, struct sigevent32 *sig); }
 258	AUE_NULL	UNIMPL	nosys
@@ -498,20 +495,17 @@
 269	AUE_NULL	UNIMPL	nosys
 270	AUE_NULL	UNIMPL	nosys
 271	AUE_NULL	UNIMPL	nosys
-272	AUE_O_GETDENTS	NOPROTO	{ int getdents(int fd, char *buf, \
-				    size_t count); }
+272	AUE_O_GETDENTS	COMPAT11 { int freebsd32_getdents(int fd, char *buf, \
+				    int count); }
 273	AUE_NULL	UNIMPL	nosys
 274	AUE_LCHMOD	NOPROTO	{ int lchmod(char *path, mode_t mode); }
-275	AUE_LCHOWN	NOPROTO	{ int lchown(char *path, uid_t uid, \
-				    gid_t gid); } netbsd_lchown \
-				    lchown_args int
+275	AUE_NULL	OBSOL	netbsd_lchown
 276	AUE_LUTIMES	STD	{ int freebsd32_lutimes(char *path, \
 				    struct timeval32 *tptr); }
-277	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
-				    int flags); } netbsd_msync msync_args int
-278	AUE_STAT	NOPROTO	{ int nstat(char *path, struct nstat *ub); }
-279	AUE_FSTAT	NOPROTO	{ int nfstat(int fd, struct nstat *sb); }
-280	AUE_LSTAT	NOPROTO	{ int nlstat(char *path, struct nstat *ub); }
+277	AUE_NULL	OBSOL	netbsd_msync
+278	AUE_STAT  COMPAT11|NOPROTO { int nstat(char *path, struct nstat *ub); }
+279	AUE_FSTAT COMPAT11|NOPROTO { int nfstat(int fd, struct nstat *sb); }
+280	AUE_LSTAT COMPAT11|NOPROTO { int nlstat(char *path, struct nstat *ub); }
 281	AUE_NULL	UNIMPL	nosys
 282	AUE_NULL	UNIMPL	nosys
 283	AUE_NULL	UNIMPL	nosys
@@ -520,7 +514,6 @@
 286	AUE_NULL	UNIMPL	nosys
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
-; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
 289	AUE_PREADV	STD	{ ssize_t freebsd32_preadv(int fd, \
 					struct iovec32 *iovp, \
 					u_int iovcnt, \
@@ -535,14 +528,14 @@
 294	AUE_NULL	UNIMPL	nosys
 295	AUE_NULL	UNIMPL	nosys
 296	AUE_NULL	UNIMPL	nosys
-; XXX 297 is 300 in NetBSD 
 297	AUE_FHSTATFS	COMPAT4	{ int freebsd32_fhstatfs( \
 				    const struct fhandle *u_fhp, \
 				    struct statfs32 *buf); }
 298	AUE_FHOPEN	NOPROTO	{ int fhopen(const struct fhandle *u_fhp, \
 			 	    int flags); }
-299	AUE_FHSTAT	NOPROTO	{ int fhstat(const struct fhandle *u_fhp, \
-				    struct stat *sb); }
+299	AUE_FHSTAT	COMPAT11 { int freebsd32_fhstat( \
+				    const struct fhandle *u_fhp, \
+				    struct freebsd11_stat32 *sb); }
 ; syscall numbers for FreeBSD
 300	AUE_NULL	NOPROTO	{ int modnext(int modid); }
 301	AUE_NULL	STD	{ int freebsd32_modstat(int modid, \
@@ -562,20 +555,20 @@
 312	AUE_SETRESGID	NOPROTO	{ int setresgid(gid_t rgid, gid_t egid, \
 				    gid_t sgid); }
 313	AUE_NULL	OBSOL	signanosleep
-314	AUE_NULL	STD	{ int freebsd32_aio_return( \
+314	AUE_AIO_RETURN	STD	{ int freebsd32_aio_return( \
 				    struct aiocb32 *aiocbp); }
-315	AUE_NULL	STD	{ int freebsd32_aio_suspend( \
+315	AUE_AIO_SUSPEND	STD	{ int freebsd32_aio_suspend( \
 				    struct aiocb32 * const * aiocbp, int nent, \
 				    const struct timespec32 *timeout); }
-316	AUE_NULL	NOPROTO	{ int aio_cancel(int fd, \
+316	AUE_AIO_CANCEL	NOPROTO	{ int aio_cancel(int fd, \
 				    struct aiocb *aiocbp); }
-317	AUE_NULL	STD	{ int freebsd32_aio_error( \
+317	AUE_AIO_ERROR	STD	{ int freebsd32_aio_error( \
 				    struct aiocb32 *aiocbp); }
-318	AUE_NULL	COMPAT6	{ int freebsd32_aio_read( \
+318	AUE_AIO_READ	COMPAT6	{ int freebsd32_aio_read( \
 				    struct oaiocb32 *aiocbp); }
-319	AUE_NULL	COMPAT6	{ int freebsd32_aio_write( \
+319	AUE_AIO_WRITE	COMPAT6	{ int freebsd32_aio_write( \
 				    struct oaiocb32 *aiocbp); }
-320	AUE_NULL	COMPAT6	{ int freebsd32_lio_listio(int mode, \
+320	AUE_LIO_LISTIO	COMPAT6	{ int freebsd32_lio_listio(int mode, \
 				    struct oaiocb32 * const *acb_list, \
 				    int nent, struct osigevent32 *sig); }
 321	AUE_NULL	NOPROTO	{ int yield(void); }
@@ -583,7 +576,7 @@
 323	AUE_NULL	OBSOL	thr_wakeup
 324	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 325	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
-326	AUE_GETCWD	NOPROTO	{ int __getcwd(char *buf, u_int buflen); }
+326	AUE_GETCWD	NOPROTO	{ int __getcwd(char *buf, size_t buflen); }
 
 327	AUE_NULL	NOPROTO	{ int sched_setparam (pid_t pid, \
 				    const struct sched_param *param); }
@@ -598,8 +591,9 @@
 331	AUE_NULL	NOPROTO	{ int sched_yield (void); }
 332	AUE_NULL	NOPROTO	{ int sched_get_priority_max (int policy); }
 333	AUE_NULL	NOPROTO	{ int sched_get_priority_min (int policy); }
-334	AUE_NULL	NOPROTO	{ int sched_rr_get_interval (pid_t pid, \
-				    struct timespec *interval); }
+334	AUE_NULL	STD	{ int freebsd32_sched_rr_get_interval ( \
+				    pid_t pid, \
+				    struct timespec32 *interval); }
 335	AUE_NULL	NOPROTO	{ int utrace(const void *addr, size_t len); }
 336	AUE_SENDFILE	COMPAT4	{ int freebsd32_sendfile(int fd, int s, \
 				    uint32_t offset1, uint32_t offset2, \
@@ -623,21 +617,21 @@
 				    const struct timespec *timeout); }
 346	AUE_NULL	STD	{ int freebsd32_sigwaitinfo(const sigset_t *set, \
 				    siginfo_t *info); }
-347	AUE_NULL	NOPROTO	{ int __acl_get_file(const char *path, \
+347	AUE_ACL_GET_FILE	NOPROTO	{ int __acl_get_file(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
-348	AUE_NULL	NOPROTO	{ int __acl_set_file(const char *path, \
+348	AUE_ACL_SET_FILE	NOPROTO	{ int __acl_set_file(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
-349	AUE_NULL	NOPROTO	{ int __acl_get_fd(int filedes, \
+349	AUE_ACL_GET_FD	NOPROTO	{ int __acl_get_fd(int filedes, \
 				    acl_type_t type, struct acl *aclp); }
-350	AUE_NULL	NOPROTO	{ int __acl_set_fd(int filedes, \
+350	AUE_ACL_SET_FD	NOPROTO	{ int __acl_set_fd(int filedes, \
 				    acl_type_t type, struct acl *aclp); }
-351	AUE_NULL	NOPROTO	{ int __acl_delete_file(const char *path, \
+351	AUE_ACL_DELETE_FILE	NOPROTO	{ int __acl_delete_file(const char *path, \
 				    acl_type_t type); }
-352	AUE_NULL	NOPROTO	{ int __acl_delete_fd(int filedes, \
+352	AUE_ACL_DELETE_FD	NOPROTO	{ int __acl_delete_fd(int filedes, \
 				    acl_type_t type); }
-353	AUE_NULL	NOPROTO	{ int __acl_aclcheck_file(const char *path, \
+353	AUE_ACL_CHECK_FILE	NOPROTO	{ int __acl_aclcheck_file(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
-354	AUE_NULL	NOPROTO	{ int __acl_aclcheck_fd(int filedes, \
+354	AUE_ACL_CHECK_FD	NOPROTO	{ int __acl_aclcheck_fd(int filedes, \
 				    acl_type_t type, struct acl *aclp); }
 355	AUE_EXTATTRCTL	NOPROTO	{ int extattrctl(const char *path, int cmd, \
 				    const char *filename, int attrnamespace, \
@@ -653,7 +647,7 @@
 358	AUE_EXTATTR_DELETE_FILE	NOPROTO	{ int extattr_delete_file( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname); }
-359	AUE_NULL	STD	{ int freebsd32_aio_waitcomplete( \
+359	AUE_AIO_WAITCOMPLETE	STD	{ int freebsd32_aio_waitcomplete( \
 				    struct aiocb32 **aiocbp, \
 				    struct timespec32 *timeout); }
 360	AUE_GETRESUID	NOPROTO	{ int getresuid(uid_t *ruid, uid_t *euid, \
@@ -661,17 +655,19 @@
 361	AUE_GETRESGID	NOPROTO	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				    gid_t *sgid); }
 362	AUE_KQUEUE	NOPROTO	{ int kqueue(void); }
-363	AUE_NULL	STD	{ int freebsd32_kevent(int fd, \
-				    const struct kevent32 *changelist, \
+363	AUE_KEVENT	COMPAT11 { int freebsd32_kevent(int fd, \
+				    const struct kevent32_freebsd11 * \
+				    changelist, \
 				    int nchanges, \
-				    struct kevent32 *eventlist, int nevents, \
+				    struct kevent32_freebsd11 *eventlist, \
+				    int nevents, \
 				    const struct timespec32 *timeout); }
-364	AUE_NULL	UNIMPL	__cap_get_proc
-365	AUE_NULL	UNIMPL	__cap_set_proc
-366	AUE_NULL	UNIMPL	__cap_get_fd
-367	AUE_NULL	UNIMPL	__cap_get_file
-368	AUE_NULL	UNIMPL	__cap_set_fd
-369	AUE_NULL	UNIMPL	__cap_set_file
+364	AUE_NULL	OBSOL	__cap_get_proc
+365	AUE_NULL	OBSOL	__cap_set_proc
+366	AUE_NULL	OBSOL	__cap_get_fd
+367	AUE_NULL	OBSOL	__cap_get_file
+368	AUE_NULL	OBSOL	__cap_set_fd
+369	AUE_NULL	OBSOL	__cap_set_file
 370	AUE_NULL	UNIMPL	nosys
 371	AUE_EXTATTR_SET_FD	NOPROTO	{ ssize_t extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
@@ -682,17 +678,17 @@
 373	AUE_EXTATTR_DELETE_FD	NOPROTO	{ int extattr_delete_fd(int fd, \
 				    int attrnamespace, \
 				    const char *attrname); }
-374	AUE_NULL	NOPROTO	{ int __setugid(int flag); }
-375	AUE_NULL	UNIMPL	nfsclnt
+374	AUE_SETUGID	NOPROTO	{ int __setugid(int flag); }
+375	AUE_NULL	OBSOL	nfsclnt
 376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int amode); }
 377	AUE_NULL	UNIMPL	afs_syscall
 378	AUE_NMOUNT	STD	{ int freebsd32_nmount(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
-379	AUE_NULL	UNIMPL	kse_exit
-380	AUE_NULL	UNIMPL	kse_wakeup
-381	AUE_NULL	UNIMPL	kse_create
-382	AUE_NULL	UNIMPL	kse_thr_interrupt
-383	AUE_NULL	UNIMPL	kse_release
+379	AUE_NULL	OBSOL	kse_exit
+380	AUE_NULL	OBSOL	kse_wakeup
+381	AUE_NULL	OBSOL	kse_create
+382	AUE_NULL	OBSOL	kse_thr_interrupt
+383	AUE_NULL	OBSOL	kse_release
 384	AUE_NULL	UNIMPL	__mac_get_proc
 385	AUE_NULL	UNIMPL	__mac_set_proc
 386	AUE_NULL	UNIMPL	__mac_get_fd
@@ -710,27 +706,30 @@
 				    size_t nbytes, struct sf_hdtr32 *hdtr, \
 				    off_t *sbytes, int flags); }
 394	AUE_NULL	UNIMPL	mac_syscall
-395	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs *buf, \
-				    long bufsize, int flags); }
-396	AUE_STATFS	NOPROTO	{ int statfs(char *path, \
+395	AUE_GETFSSTAT	COMPAT11|NOPROTO	{ int getfsstat( \
+				    struct freebsd11_statfs *buf, \
+				    long bufsize, int mode); }
+396	AUE_STATFS	COMPAT11|NOPROTO	{ int statfs(char *path, \
 				    struct statfs *buf); }
-397	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
-398	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
-				    struct statfs *buf); }
+397	AUE_FSTATFS	COMPAT11|NOPROTO	{ int fstatfs(int fd, \
+				    struct freebsd11_statfs *buf); }
+398	AUE_FHSTATFS	COMPAT11|NOPROTO	{ int fhstatfs( \
+				    const struct fhandle *u_fhp, \
+				    struct freebsd11_statfs *buf); }
 399	AUE_NULL	UNIMPL	nosys
-400	AUE_NULL	NOSTD|NOPROTO	{ int ksem_close(semid_t id); }
-401	AUE_NULL	NOSTD|NOPROTO	{ int ksem_post(semid_t id); }
-402	AUE_NULL	NOSTD|NOPROTO	{ int ksem_wait(semid_t id); }
-403	AUE_NULL	NOSTD|NOPROTO	{ int ksem_trywait(semid_t id); }
-404	AUE_NULL	NOSTD	{ int freebsd32_ksem_init(semid_t *idp, \
+400	AUE_SEMCLOSE	NOSTD|NOPROTO	{ int ksem_close(semid_t id); }
+401	AUE_SEMPOST	NOSTD|NOPROTO	{ int ksem_post(semid_t id); }
+402	AUE_SEMWAIT	NOSTD|NOPROTO	{ int ksem_wait(semid_t id); }
+403	AUE_SEMTRYWAIT	NOSTD|NOPROTO	{ int ksem_trywait(semid_t id); }
+404	AUE_SEMINIT	NOSTD	{ int freebsd32_ksem_init(semid_t *idp, \
 				    unsigned int value); }
-405	AUE_NULL	NOSTD	{ int freebsd32_ksem_open(semid_t *idp, \
+405	AUE_SEMOPEN	NOSTD	{ int freebsd32_ksem_open(semid_t *idp, \
 				    const char *name, int oflag, \
 				    mode_t mode, unsigned int value); }
-406	AUE_NULL	NOSTD|NOPROTO	{ int ksem_unlink(const char *name); }
-407	AUE_NULL	NOSTD|NOPROTO	{ int ksem_getvalue(semid_t id, \
+406	AUE_SEMUNLINK	NOSTD|NOPROTO	{ int ksem_unlink(const char *name); }
+407	AUE_SEMGETVALUE	NOSTD|NOPROTO	{ int ksem_getvalue(semid_t id, \
 				    int *val); }
-408	AUE_NULL	NOSTD|NOPROTO	{ int ksem_destroy(semid_t id); }
+408	AUE_SEMDESTROY	NOSTD|NOPROTO	{ int ksem_destroy(semid_t id); }
 409	AUE_NULL	UNIMPL	__mac_get_pid
 410	AUE_NULL	UNIMPL	__mac_get_link
 411	AUE_NULL	UNIMPL	__mac_set_link
@@ -762,23 +761,23 @@
 				    struct freebsd32_ucontext *oucp, \
 				    const struct freebsd32_ucontext *ucp); }
 424	AUE_SWAPOFF	UNIMPL	swapoff
-425	AUE_NULL	NOPROTO	{ int __acl_get_link(const char *path, \
+425	AUE_ACL_GET_LINK	NOPROTO	{ int __acl_get_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
-426	AUE_NULL	NOPROTO	{ int __acl_set_link(const char *path, \
+426	AUE_ACL_SET_LINK	NOPROTO	{ int __acl_set_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
-427	AUE_NULL	NOPROTO	{ int __acl_delete_link(const char *path, \
+427	AUE_ACL_DELETE_LINK	NOPROTO	{ int __acl_delete_link(const char *path, \
 				    acl_type_t type); }
-428	AUE_NULL	NOPROTO	{ int __acl_aclcheck_link(const char *path, \
+428	AUE_ACL_CHECK_LINK	NOPROTO	{ int __acl_aclcheck_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
 429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
 				    int *sig); }
-430	AUE_NULL	UNIMPL	thr_create;
-431	AUE_NULL	NOPROTO	{ void thr_exit(long *state); }
+430	AUE_THR_CREATE	UNIMPL	thr_create;
+431	AUE_THR_EXIT	NOPROTO	{ void thr_exit(long *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(long *id); }
-433	AUE_NULL	NOPROTO	{ int thr_kill(long id, int sig); }
+433	AUE_THR_KILL	NOPROTO	{ int thr_kill(long id, int sig); }
 434	AUE_NULL	UNIMPL	nosys
 435	AUE_NULL	UNIMPL	nosys
-436	AUE_NULL	NOPROTO	{ int jail_attach(int jid); }
+436	AUE_JAIL_ATTACH	NOPROTO	{ int jail_attach(int jid); }
 437	AUE_EXTATTR_LIST_FD	NOPROTO	{ ssize_t extattr_list_fd(int fd, \
 				    int attrnamespace, void *data, \
 				    size_t nbytes); }
@@ -788,8 +787,8 @@
 439	AUE_EXTATTR_LIST_LINK	NOPROTO	{ ssize_t extattr_list_link( \
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
-440	AUE_NULL	UNIMPL	kse_switchin
-441	AUE_NULL	NOSTD	{ int freebsd32_ksem_timedwait(semid_t id, \
+440	AUE_NULL	OBSOL	kse_switchin
+441	AUE_SEMWAIT	NOSTD	{ int freebsd32_ksem_timedwait(semid_t id, \
 				    const struct timespec32 *abstime); }
 442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
 				    const struct timespec32 *timeout); }
@@ -813,31 +812,31 @@
 454	AUE_NULL	STD	{ int freebsd32_umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
-455	AUE_NULL	STD	{ int freebsd32_thr_new(	\
+455	AUE_THR_NEW	STD	{ int freebsd32_thr_new(	\
 				    struct thr_param32 *param,	\
 				    int param_size); }
-456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
-				    void *value); }
-457	AUE_NULL	NOSTD	{ int freebsd32_kmq_open( \
+456	AUE_NULL	STD	{ int freebsd32_sigqueue(pid_t pid, \
+				    int signum, int value); }
+457	AUE_MQ_OPEN	NOSTD	{ int freebsd32_kmq_open( \
 				    const char *path, int flags, mode_t mode, \
 				    const struct mq_attr32 *attr); }
-458	AUE_NULL	NOSTD	{ int freebsd32_kmq_setattr(int mqd, \
+458	AUE_MQ_SETATTR	NOSTD	{ int freebsd32_kmq_setattr(int mqd, \
 				    const struct mq_attr32 *attr,	\
 				    struct mq_attr32 *oattr); }
-459	AUE_NULL	NOSTD	{ int freebsd32_kmq_timedreceive(int mqd, \
+459	AUE_MQ_TIMEDRECEIVE	NOSTD	{ int freebsd32_kmq_timedreceive(int mqd, \
 				    char *msg_ptr, size_t msg_len,	\
 				    unsigned *msg_prio,			\
 				    const struct timespec32 *abs_timeout); }
-460	AUE_NULL	NOSTD	{ int freebsd32_kmq_timedsend(int mqd,	\
+460	AUE_MQ_TIMEDSEND	NOSTD	{ int freebsd32_kmq_timedsend(int mqd,	\
 				    const char *msg_ptr, size_t msg_len,\
 				    unsigned msg_prio,			\
 				    const struct timespec32 *abs_timeout);}
-461	AUE_NULL	NOSTD	{ int freebsd32_kmq_notify(int mqd,	\
+461	AUE_MQ_NOTIFY	NOSTD	{ int freebsd32_kmq_notify(int mqd,	\
 				    const struct sigevent32 *sigev); }
-462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
+462	AUE_MQ_UNLINK	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
-465	AUE_NULL	STD	{ int freebsd32_aio_fsync(int op, \
+465	AUE_AIO_FSYNC	STD	{ int freebsd32_aio_fsync(int op, \
 				    struct aiocb32 *aiocbp); }
 466	AUE_RTPRIO	NOPROTO	{ int rtprio_thread(int function, \
 				    lwpid_t lwpid, struct rtprio *rtp); }
@@ -845,14 +844,14 @@
 468	AUE_NULL	UNIMPL	nosys
 469	AUE_NULL	UNIMPL	__getpath_fromfd
 470	AUE_NULL	UNIMPL	__getpath_fromaddr
-471	AUE_NULL	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, uint32_t name); }
-472	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, caddr_t msg, int mlen, \
+471	AUE_SCTP_PEELOFF	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, uint32_t name); }
+472	AUE_SCTP_GENERIC_SENDMSG	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, caddr_t msg, int mlen, \
 				    caddr_t to, __socklen_t tolen, \
 				    struct sctp_sndrcvinfo *sinfo, int flags); }
-473	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg_iov(int sd, struct iovec *iov, int iovlen, \
+473	AUE_SCTP_GENERIC_SENDMSG_IOV	NOPROTO|NOSTD	{ int sctp_generic_sendmsg_iov(int sd, struct iovec *iov, int iovlen, \
 				    caddr_t to, __socklen_t tolen, \
 				    struct sctp_sndrcvinfo *sinfo, int flags); }
-474	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_recvmsg(int sd, struct iovec *iov, int iovlen, \
+474	AUE_SCTP_GENERIC_RECVMSG	NOPROTO|NOSTD	{ int sctp_generic_recvmsg(int sd, struct iovec *iov, int iovlen, \
 				    struct sockaddr * from, __socklen_t *fromlenaddr, \
 				    struct sctp_sndrcvinfo *sinfo, int *msg_flags); }
 #ifdef PAD64_REQUIRED
@@ -896,7 +895,7 @@
 480	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, \
 				    uint32_t length1, uint32_t length2); }
 #endif
-481	AUE_KILL	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
+481	AUE_THR_KILL2	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
 482	AUE_SHMOPEN	NOPROTO	{ int shm_open(const char *path, int flags, \
 				    mode_t mode); }
 483	AUE_SHMUNLINK	NOPROTO	{ int shm_unlink(const char *path); }
@@ -933,8 +932,9 @@
 				    gid_t gid, int flag); }
 492	AUE_FEXECVE	STD	{ int freebsd32_fexecve(int fd, \
 				    uint32_t *argv, uint32_t *envv); }
-493	AUE_FSTATAT	STD	{ int freebsd32_fstatat(int fd, char *path, \
-				    struct stat *buf, int flag); }
+493	AUE_FSTATAT	COMPAT11 { int freebsd32_fstatat(int fd, \
+				    char *path, struct freebsd11_stat32 *buf, \
+				    int flag); }
 494	AUE_FUTIMESAT	STD	{ int freebsd32_futimesat(int fd, char *path, \
 				    struct timeval *times); }
 495	AUE_LINKAT	NOPROTO	{ int linkat(int fd1, char *path1, int fd2, \
@@ -943,8 +943,8 @@
 				    mode_t mode); }
 497	AUE_MKFIFOAT	NOPROTO	{ int mkfifoat(int fd, char *path, \
 				    mode_t mode); }
-498	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, char *path, \
-				    mode_t mode, dev_t dev); }
+498	AUE_MKNODAT	COMPAT11 { int freebsd32_mknodat(int fd, char *path, \
+				    mode_t mode, uint32_t dev); }
 499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, char *path, int flag, \
 				    mode_t mode); }
 500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, char *path, char *buf, \
@@ -958,11 +958,11 @@
 504	AUE_POSIX_OPENPT	NOPROTO	{ int posix_openpt(int flags); }
 ; 505 is initialised by the kgssapi code, if present.
 505	AUE_NULL	UNIMPL	gssd_syscall
-506	AUE_NULL	STD	{ int freebsd32_jail_get(struct iovec32 *iovp, \
+506	AUE_JAIL_GET	STD	{ int freebsd32_jail_get(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
-507	AUE_NULL	STD	{ int freebsd32_jail_set(struct iovec32 *iovp, \
+507	AUE_JAIL_SET	STD	{ int freebsd32_jail_set(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
-508	AUE_NULL	NOPROTO	{ int jail_remove(int jid); }
+508	AUE_JAIL_REMOVE	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
 510	AUE_SEMCTL	NOSTD { int freebsd32_semctl(int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
@@ -974,7 +974,7 @@
 514	AUE_NULL	OBSOL	cap_new
 515	AUE_CAP_RIGHTS_GET	NOPROTO	{ int __cap_rights_get(int version, \
 				    int fd, cap_rights_t *rightsp); }
-516	AUE_CAP_ENTER	STD	{ int freebsd32_cap_enter(void); }
+516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	NOPROTO	{ int pdfork(int *fdp, int flags); }
 519	AUE_PDKILL	NOPROTO	{ int pdkill(int fd, int signum); }
@@ -984,9 +984,9 @@
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec32 *ts, \
 				    const sigset_t *sm); }
-523	AUE_NULL	NOPROTO	{ int getloginclass(char *namebuf, \
+523	AUE_GETLOGINCLASS	NOPROTO	{ int getloginclass(char *namebuf, \
 				    size_t namelen); }
-524	AUE_NULL	NOPROTO	{ int setloginclass(const char *namebuf); }
+524	AUE_SETLOGINCLASS	NOPROTO	{ int setloginclass(const char *namebuf); }
 525	AUE_NULL	NOPROTO	{ int rctl_get_racct(const void *inbufp, \
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
@@ -1003,11 +1003,11 @@
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
 #ifdef PAD64_REQUIRED
-530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd, \
+530	AUE_POSIX_FALLOCATE	STD	{ int freebsd32_posix_fallocate(int fd, \
 				    int pad, \
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2); }
-531	AUE_NULL	STD	{ int freebsd32_posix_fadvise(int fd, \
+531	AUE_POSIX_FADVISE	STD	{ int freebsd32_posix_fadvise(int fd, \
 				    int pad, \
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
@@ -1018,10 +1018,10 @@
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
 #else
-530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
+530	AUE_POSIX_FALLOCATE	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2); }
-531	AUE_NULL	STD	{ int freebsd32_posix_fadvise(int fd, \
+531	AUE_POSIX_FADVISE	STD	{ int freebsd32_posix_fadvise(int fd, \
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
@@ -1055,14 +1055,14 @@
 				    __socklen_t * __restrict anamelen, \
 				    int flags); }
 542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }
-543	AUE_NULL	STD	{ int freebsd32_aio_mlock( \
+543	AUE_AIO_MLOCK	STD	{ int freebsd32_aio_mlock( \
 				    struct aiocb32 *aiocbp); }
 #ifdef PAD64_REQUIRED
-544	AUE_NULL	STD	{ int freebsd32_procctl(int idtype, int pad, \
+544	AUE_PROCCTL	STD	{ int freebsd32_procctl(int idtype, int pad, \
 				    uint32_t id1, uint32_t id2, int com, \
 				    void *data); }
 #else
-544	AUE_NULL	STD	{ int freebsd32_procctl(int idtype, \
+544	AUE_PROCCTL	STD	{ int freebsd32_procctl(int idtype, \
 				    uint32_t id1, uint32_t id2, int com, \
 				    void *data); }
 #endif
@@ -1074,9 +1074,44 @@
 547	AUE_FUTIMESAT	STD	{ int freebsd32_utimensat(int fd, \
 				    char *path, \
 				    struct timespec *times, int flag); }
-548	AUE_NULL	NOPROTO	{ int numa_getaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    struct vm_domain_policy *policy); }
-549	AUE_NULL	NOPROTO	{ int numa_setaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    const struct vm_domain_policy *policy); }
+548	AUE_NULL	OBSOL	numa_getaffinity
+549	AUE_NULL	OBSOL	numa_setaffinity
+550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }
+551	AUE_FSTAT	STD	{ int freebsd32_fstat(int fd, \
+				    struct stat32 *ub); }
+552	AUE_FSTATAT	STD	{ int freebsd32_fstatat(int fd, \
+				    char *path, struct stat32 *buf, \
+				    int flag); }
+553	AUE_FHSTAT	STD	{ int freebsd32_fhstat( \
+				    const struct fhandle *u_fhp, \
+				    struct stat32 *sb); }
+554	AUE_GETDIRENTRIES NOPROTO	{ ssize_t getdirentries( \
+				    int fd, char *buf, size_t count, \
+				    off_t *basep); }
+555	AUE_STATFS	NOPROTO	{ int statfs(char *path, \
+				    struct statfs32 *buf); }
+556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs32 *buf); }
+557	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs32 *buf, \
+				    long bufsize, int mode); }
+558	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
+				    struct statfs32 *buf); }
+559	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, char *path, mode_t mode, \
+				    dev_t dev); }
+560	AUE_KEVENT	STD	{ int freebsd32_kevent(int fd, \
+				    const struct kevent32 *changelist, \
+				    int nchanges, \
+				    struct kevent32 *eventlist, \
+				    int nevents, \
+				    const struct timespec32 *timeout); }
+561	AUE_NULL	STD	{ int freebsd32_cpuset_getdomain(cpulevel_t level, \
+				    cpuwhich_t which, uint32_t id1, uint32_t id2, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int *policy); }
+562	AUE_NULL	STD	{ int freebsd32_cpuset_setdomain(cpulevel_t level, \
+				    cpuwhich_t which, uint32_t id1, uint32_t id2, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int policy); }
+563	AUE_NULL	NOPROTO	{ int getrandom(void *buf, size_t buflen, \
+				    unsigned int flags); }
+
+; vim: syntax=off

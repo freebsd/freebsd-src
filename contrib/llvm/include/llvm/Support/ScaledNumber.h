@@ -504,13 +504,13 @@ private:
   static_assert(Width <= 64, "invalid integer width for digits");
 
 private:
-  DigitsType Digits;
-  int16_t Scale;
+  DigitsType Digits = 0;
+  int16_t Scale = 0;
 
 public:
-  ScaledNumber() : Digits(0), Scale(0) {}
+  ScaledNumber() = default;
 
-  ScaledNumber(DigitsType Digits, int16_t Scale)
+  constexpr ScaledNumber(DigitsType Digits, int16_t Scale)
       : Digits(Digits), Scale(Scale) {}
 
 private:
@@ -859,7 +859,6 @@ template <class DigitsT> void ScaledNumber<DigitsT>::shiftLeft(int32_t Shift) {
   }
 
   Digits <<= Shift;
-  return;
 }
 
 template <class DigitsT> void ScaledNumber<DigitsT>::shiftRight(int32_t Shift) {
@@ -886,7 +885,6 @@ template <class DigitsT> void ScaledNumber<DigitsT>::shiftRight(int32_t Shift) {
   }
 
   Digits >>= Shift;
-  return;
 }
 
 template <typename T> struct isPodLike;
@@ -896,4 +894,4 @@ template <typename T> struct isPodLike<ScaledNumber<T>> {
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_SUPPORT_SCALEDNUMBER_H

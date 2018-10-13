@@ -78,7 +78,7 @@ ldns_dnssec_rrs_add_rr(ldns_dnssec_rrs *rrs, ldns_rr *rr)
 
 void
 ldns_dnssec_rrs_print_fmt(FILE *out, const ldns_output_format *fmt,
-	       ldns_dnssec_rrs *rrs)
+	       const ldns_dnssec_rrs *rrs)
 {
 	if (!rrs) {
 		if ((fmt->flags & LDNS_COMMENT_LAYOUT))
@@ -94,7 +94,7 @@ ldns_dnssec_rrs_print_fmt(FILE *out, const ldns_output_format *fmt,
 }
 
 void
-ldns_dnssec_rrs_print(FILE *out, ldns_dnssec_rrs *rrs)
+ldns_dnssec_rrs_print(FILE *out, const ldns_dnssec_rrs *rrs)
 {
 	ldns_dnssec_rrs_print_fmt(out, ldns_output_format_default, rrs);
 }
@@ -143,7 +143,7 @@ ldns_dnssec_rrsets_deep_free(ldns_dnssec_rrsets *rrsets)
 }
 
 ldns_rr_type
-ldns_dnssec_rrsets_type(ldns_dnssec_rrsets *rrsets)
+ldns_dnssec_rrsets_type(const ldns_dnssec_rrsets *rrsets)
 {
 	if (rrsets) {
 		return rrsets->type;
@@ -271,7 +271,7 @@ ldns_dnssec_rrsets_add_rr(ldns_dnssec_rrsets *rrsets, ldns_rr *rr)
 
 static void
 ldns_dnssec_rrsets_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
-		ldns_dnssec_rrsets *rrsets,
+		const ldns_dnssec_rrsets *rrsets,
 		bool follow,
 		bool show_soa)
 {
@@ -300,14 +300,14 @@ ldns_dnssec_rrsets_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 
 void
 ldns_dnssec_rrsets_print_fmt(FILE *out, const ldns_output_format *fmt,
-		ldns_dnssec_rrsets *rrsets, 
+		const ldns_dnssec_rrsets *rrsets, 
 		bool follow)
 {
 	ldns_dnssec_rrsets_print_soa_fmt(out, fmt, rrsets, follow, true);
 }
 
 void
-ldns_dnssec_rrsets_print(FILE *out, ldns_dnssec_rrsets *rrsets, bool follow)
+ldns_dnssec_rrsets_print(FILE *out, const ldns_dnssec_rrsets *rrsets, bool follow)
 {
 	ldns_dnssec_rrsets_print_fmt(out, ldns_output_format_default, 
 			rrsets, follow);
@@ -391,7 +391,7 @@ ldns_dnssec_name_deep_free(ldns_dnssec_name *name)
 }
 
 ldns_rdf *
-ldns_dnssec_name_name(ldns_dnssec_name *name)
+ldns_dnssec_name_name(const ldns_dnssec_name *name)
 {
 	if (name) {
 		return name->name;
@@ -400,7 +400,7 @@ ldns_dnssec_name_name(ldns_dnssec_name *name)
 }
 
 bool
-ldns_dnssec_name_is_glue(ldns_dnssec_name *name)
+ldns_dnssec_name_is_glue(const ldns_dnssec_name *name)
 {
 	if (name) {
 		return name->is_glue;
@@ -489,7 +489,7 @@ ldns_dnssec_name_add_rr(ldns_dnssec_name *name,
 }
 
 ldns_dnssec_rrsets *
-ldns_dnssec_name_find_rrset(ldns_dnssec_name *name,
+ldns_dnssec_name_find_rrset(const ldns_dnssec_name *name,
 					   ldns_rr_type type) {
 	ldns_dnssec_rrsets *result;
 
@@ -505,13 +505,13 @@ ldns_dnssec_name_find_rrset(ldns_dnssec_name *name,
 }
 
 ldns_dnssec_rrsets *
-ldns_dnssec_zone_find_rrset(ldns_dnssec_zone *zone,
-					   ldns_rdf *dname,
+ldns_dnssec_zone_find_rrset(const ldns_dnssec_zone *zone,
+					   const ldns_rdf *dname,
 					   ldns_rr_type type)
 {
 	ldns_rbnode_t *node;
 
-	if (!zone || !dname) {
+	if (!zone || !dname || !zone->names) {
 		return NULL;
 	}
 
@@ -526,7 +526,7 @@ ldns_dnssec_zone_find_rrset(ldns_dnssec_zone *zone,
 
 static void
 ldns_dnssec_name_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
-		ldns_dnssec_name *name, 
+		const ldns_dnssec_name *name, 
 		bool show_soa)
 {
 	if (name) {
@@ -553,13 +553,13 @@ ldns_dnssec_name_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 
 void
 ldns_dnssec_name_print_fmt(FILE *out, const ldns_output_format *fmt,
-		ldns_dnssec_name *name)
+		const ldns_dnssec_name *name)
 {
 	ldns_dnssec_name_print_soa_fmt(out, fmt, name, true);
 }
 
 void
-ldns_dnssec_name_print(FILE *out, ldns_dnssec_name *name)
+ldns_dnssec_name_print(FILE *out, const ldns_dnssec_name *name)
 {
 	ldns_dnssec_name_print_fmt(out, ldns_output_format_default, name);
 }
@@ -593,8 +593,19 @@ rr_is_rrsig_covering(ldns_rr* rr, ldns_rr_type t)
  */
 #define FASTER_DNSSEC_ZONE_NEW_FRM_FP 1 /* Because of L2 cache efficiency */
 
+static ldns_status
+ldns_dnssec_zone_add_empty_nonterminals_nsec3(
+		ldns_dnssec_zone *zone, ldns_rbtree_t *nsec3s);
+
+static void
+ldns_todo_nsec3_ents_node_free(ldns_rbnode_t *node, void *arg) {
+	(void) arg;
+	ldns_rdf_deep_free((ldns_rdf *)node->key);
+	LDNS_FREE(node);
+}
+
 ldns_status
-ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
+ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, const ldns_rdf* origin,
 	       	uint32_t ttl, ldns_rr_class ATTR_UNUSED(c), int* line_nr)
 {
 	ldns_rr* cur_rr;
@@ -604,34 +615,58 @@ ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
 	ldns_rdf *my_prev = NULL;
 
 	ldns_dnssec_zone *newzone = ldns_dnssec_zone_new();
+	/* NSEC3s may occur before the names they refer to. We must remember
+	   them and add them to the name later on, after the name is read.
+	   We track not yet  matching NSEC3s*n the todo_nsec3s list */
+	ldns_rr_list* todo_nsec3s = ldns_rr_list_new();
 	/* when reading NSEC3s, there is a chance that we encounter nsecs
 	   for empty nonterminals, whose nonterminals we cannot derive yet
-	   because the needed information is to be read later. in that case
-	   we keep a list of those nsec3's and retry to add them later */
-	ldns_rr_list* todo_nsec3s = ldns_rr_list_new();
+	   because the needed information is to be read later.
+
+	   nsec3_ents (where ent is e.n.t.; i.e. empty non terminal) will
+	   hold the NSEC3s that still didn't have a matching name in the
+	   zone tree, even after all names were read.  They can only match
+	   after the zone is equiped with all the empty non terminals. */
+	ldns_rbtree_t todo_nsec3_ents;
+	ldns_rbnode_t *new_node;
 	ldns_rr_list* todo_nsec3_rrsigs = ldns_rr_list_new();
 
-	ldns_status status = LDNS_STATUS_MEM_ERR;
+	ldns_status status;
 
 #ifdef FASTER_DNSSEC_ZONE_NEW_FRM_FP
 	ldns_zone* zone = NULL;
-	if (ldns_zone_new_frm_fp_l(&zone, fp, origin,ttl, c, line_nr)
-			!= LDNS_STATUS_OK) goto error;
 #else
 	uint32_t  my_ttl = ttl;
 #endif
 
-	if (!newzone || !todo_nsec3s || !todo_nsec3_rrsigs ) goto error;
+	ldns_rbtree_init(&todo_nsec3_ents, ldns_dname_compare_v);
 
+#ifdef FASTER_DNSSEC_ZONE_NEW_FRM_FP
+	status = ldns_zone_new_frm_fp_l(&zone, fp, origin,ttl, c, line_nr);
+	if (status != LDNS_STATUS_OK)
+		goto error;
+#endif
+	if (!newzone || !todo_nsec3s || !todo_nsec3_rrsigs ) {
+		status = LDNS_STATUS_MEM_ERR;
+		goto error;
+	}
 	if (origin) {
-		if (!(my_origin = ldns_rdf_clone(origin))) goto error;
-		if (!(my_prev   = ldns_rdf_clone(origin))) goto error;
+		if (!(my_origin = ldns_rdf_clone(origin))) {
+			status = LDNS_STATUS_MEM_ERR;
+			goto error;
+		}
+		if (!(my_prev   = ldns_rdf_clone(origin))) {
+			status = LDNS_STATUS_MEM_ERR;
+			goto error;
+		}
 	}
 
 #ifdef FASTER_DNSSEC_ZONE_NEW_FRM_FP
-	if (ldns_dnssec_zone_add_rr(newzone, ldns_zone_soa(zone))
-			!= LDNS_STATUS_OK) goto error;
-
+	if (ldns_zone_soa(zone)) {
+		status = ldns_dnssec_zone_add_rr(newzone, ldns_zone_soa(zone));
+		if (status != LDNS_STATUS_OK)
+			goto error;
+	}
 	for (i = 0; i < ldns_rr_list_rr_count(ldns_zone_rrs(zone)); i++) {
 		cur_rr = ldns_rr_list_rr(ldns_zone_rrs(zone), i);
 		status = LDNS_STATUS_OK;
@@ -679,23 +714,33 @@ ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
 		}
 	}
 
-	if (ldns_rr_list_rr_count(todo_nsec3s) > 0) {
-		(void) ldns_dnssec_zone_add_empty_nonterminals(newzone);
-		for (i = 0; status == LDNS_STATUS_OK &&
-				i < ldns_rr_list_rr_count(todo_nsec3s); i++) {
-			cur_rr = ldns_rr_list_rr(todo_nsec3s, i);
-			status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
-		}
-	} 
-	if (ldns_rr_list_rr_count(todo_nsec3_rrsigs) > 0) {
-		for (i = 0; status == LDNS_STATUS_OK &&
-				i < ldns_rr_list_rr_count(todo_nsec3_rrsigs);
-				i++){
-			cur_rr = ldns_rr_list_rr(todo_nsec3_rrsigs, i);
-			status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
+	for (i = 0; status == LDNS_STATUS_OK &&
+			i < ldns_rr_list_rr_count(todo_nsec3s); i++) {
+		cur_rr = ldns_rr_list_rr(todo_nsec3s, i);
+		status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
+		if (status == LDNS_STATUS_DNSSEC_NSEC3_ORIGINAL_NOT_FOUND) {
+			if (!(new_node = LDNS_MALLOC(ldns_rbnode_t))) {
+				status = LDNS_STATUS_MEM_ERR;
+				break;
+			}
+			new_node->key  = ldns_dname_label(ldns_rr_owner(cur_rr), 0);
+			new_node->data = cur_rr;
+			if (!ldns_rbtree_insert(&todo_nsec3_ents, new_node)) {
+				LDNS_FREE(new_node);
+				status = LDNS_STATUS_MEM_ERR;
+				break;
+			}
+			status = LDNS_STATUS_OK;
 		}
 	}
-
+	if (todo_nsec3_ents.count > 0)
+		(void) ldns_dnssec_zone_add_empty_nonterminals_nsec3(
+				newzone, &todo_nsec3_ents);
+	for (i = 0; status == LDNS_STATUS_OK &&
+			i < ldns_rr_list_rr_count(todo_nsec3_rrsigs); i++) {
+		cur_rr = ldns_rr_list_rr(todo_nsec3_rrsigs, i);
+		status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
+	}
 	if (z) {
 		*z = newzone;
 		newzone = NULL;
@@ -710,6 +755,8 @@ error:
 	}
 #endif
 	ldns_rr_list_free(todo_nsec3_rrsigs);
+	ldns_traverse_postorder(&todo_nsec3_ents,
+			ldns_todo_nsec3_ents_node_free, NULL);
 	ldns_rr_list_free(todo_nsec3s);
 
 	if (my_origin) {
@@ -725,7 +772,7 @@ error:
 }
 
 ldns_status
-ldns_dnssec_zone_new_frm_fp(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
+ldns_dnssec_zone_new_frm_fp(ldns_dnssec_zone** z, FILE* fp, const ldns_rdf* origin,
 		uint32_t ttl, ldns_rr_class ATTR_UNUSED(c))
 {
 	return ldns_dnssec_zone_new_frm_fp_l(z, fp, origin, ttl, c, NULL);
@@ -932,7 +979,7 @@ ldns_dnssec_zone_add_rr(ldns_dnssec_zone *zone, ldns_rr *rr)
 
 void
 ldns_dnssec_zone_names_print_fmt(FILE *out, const ldns_output_format *fmt,
-		ldns_rbtree_t *tree, 
+		const ldns_rbtree_t *tree, 
 		bool print_soa)
 {
 	ldns_rbnode_t *node;
@@ -949,7 +996,7 @@ ldns_dnssec_zone_names_print_fmt(FILE *out, const ldns_output_format *fmt,
 }
 
 void
-ldns_dnssec_zone_names_print(FILE *out, ldns_rbtree_t *tree, bool print_soa)
+ldns_dnssec_zone_names_print(FILE *out, const ldns_rbtree_t *tree, bool print_soa)
 {
 	ldns_dnssec_zone_names_print_fmt(out, ldns_output_format_default,
 		       tree, print_soa);
@@ -957,7 +1004,7 @@ ldns_dnssec_zone_names_print(FILE *out, ldns_rbtree_t *tree, bool print_soa)
 
 void
 ldns_dnssec_zone_print_fmt(FILE *out, const ldns_output_format *fmt,
-	       ldns_dnssec_zone *zone)
+	       const ldns_dnssec_zone *zone)
 {
 	if (zone) {
 		if (zone->soa) {
@@ -984,13 +1031,14 @@ ldns_dnssec_zone_print_fmt(FILE *out, const ldns_output_format *fmt,
 }
 
 void
-ldns_dnssec_zone_print(FILE *out, ldns_dnssec_zone *zone)
+ldns_dnssec_zone_print(FILE *out, const ldns_dnssec_zone *zone)
 {
 	ldns_dnssec_zone_print_fmt(out, ldns_output_format_default, zone);
 }
 
-ldns_status
-ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone)
+static ldns_status
+ldns_dnssec_zone_add_empty_nonterminals_nsec3(
+		ldns_dnssec_zone *zone, ldns_rbtree_t *nsec3s)
 {
 	ldns_dnssec_name *new_name;
 	ldns_rdf *cur_name;
@@ -1053,12 +1101,34 @@ ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone)
 				/* We have an empty nonterminal, add it to the
 				 * tree
 				 */
+				ldns_rbnode_t *node = NULL;
+				ldns_rdf *ent_name;
+
+				if (!(ent_name = ldns_dname_clone_from(
+						next_name, i)))
+					return LDNS_STATUS_MEM_ERR;
+
+				if (nsec3s && zone->_nsec3params) {
+					ldns_rdf *ent_hashed_name;
+
+					if (!(ent_hashed_name =
+					    ldns_nsec3_hash_name_frm_nsec3(
+							zone->_nsec3params,
+							ent_name)))
+						return LDNS_STATUS_MEM_ERR;
+					node = ldns_rbtree_search(nsec3s, 
+							ent_hashed_name);
+					if (!node) {
+						ldns_rdf_deep_free(l1);
+						ldns_rdf_deep_free(l2);
+						continue;
+					}
+				}
 				new_name = ldns_dnssec_name_new();
 				if (!new_name) {
 					return LDNS_STATUS_MEM_ERR;
 				}
-				new_name->name = ldns_dname_clone_from(next_name,
-				                                       i);
+				new_name->name = ent_name;
 				if (!new_name->name) {
 					ldns_dnssec_name_free(new_name);
 					return LDNS_STATUS_MEM_ERR;
@@ -1074,6 +1144,9 @@ ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone)
 				(void)ldns_rbtree_insert(zone->names, new_node);
 				ldns_dnssec_name_make_hashed_name(
 						zone, new_name, NULL);
+				if (node)
+					(void) ldns_dnssec_zone_add_rr(zone,
+							(ldns_rr *)node->data);
 			}
 			ldns_rdf_deep_free(l1);
 			ldns_rdf_deep_free(l2);
@@ -1091,8 +1164,14 @@ ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone)
 	return LDNS_STATUS_OK;
 }
 
+ldns_status
+ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone)
+{
+	return ldns_dnssec_zone_add_empty_nonterminals_nsec3(zone, NULL);
+}
+
 bool
-ldns_dnssec_zone_is_nsec3_optout(ldns_dnssec_zone* zone)
+ldns_dnssec_zone_is_nsec3_optout(const ldns_dnssec_zone* zone)
 {
 	ldns_rr* nsec3;
 	ldns_rbnode_t* node;

@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/console
+.PATH: ${SRCTOP}/sys/dev/virtio/console
 
 KMOD=	virtio_console
 SRCS=	virtio_console.c

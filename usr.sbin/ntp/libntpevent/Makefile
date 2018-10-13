@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/sntp/libevent
+.PATH: ${SRCTOP}/contrib/libevent
 
 LIB= ntpevent
 INTERNALLIB=
@@ -25,8 +25,8 @@ NTP_ATOMIC=sparc64
 NTP_ATOMIC=noatomic
 .endif
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
-	-I${.CURDIR}/../../../contrib/ntp/sntp/libevent/include \
+CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
+	-I${SRCTOP}/contrib/libevent/include \
 	-I${.CURDIR}/
 
 CFLAGS+= -DHAVE_BSD_NICE -DHAVE_STDINT_H

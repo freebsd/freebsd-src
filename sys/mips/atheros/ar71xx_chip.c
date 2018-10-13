@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Adrian Chadd
  * All rights reserved.
  *
@@ -54,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar71xx_cpudef.h>
-
-#include <mips/sentry5/s5reg.h>
 
 /* XXX these should replace the current definitions in ar71xxreg.h */
 /* XXX perhaps an ar71xx_chip.h header file? */

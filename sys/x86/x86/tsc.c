@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998-2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -27,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_clock.h"
 
 #include <sys/param.h>
@@ -48,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <x86/vmware.h>
+#include <dev/acpica/acpi_hpet.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "cpufreq_if.h"
 
@@ -79,8 +82,9 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 
 static int	tsc_skip_calibration;
-SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
-    &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN |
+    CTLFLAG_NOFETCH, &tsc_skip_calibration, 0,
+    "Disable TSC frequency calibration");
 
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
@@ -93,14 +97,22 @@ static unsigned tsc_get_timecount_low_lfence(struct timecounter *tc);
 static unsigned tsc_get_timecount_mfence(struct timecounter *tc);
 static unsigned tsc_get_timecount_low_mfence(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
+static uint32_t x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+#ifdef COMPAT_FREEBSD32
+static uint32_t x86_tsc_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
+#endif
 
 static struct timecounter tsc_timecounter = {
-	tsc_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
-	~0u,			/* counter_mask */
-	0,			/* frequency */
-	"TSC",			/* name */
-	800,			/* quality (adjusted in code) */
+	.tc_get_timecount =		tsc_get_timecount,
+	.tc_counter_mask =		~0u,
+	.tc_name =			"TSC",
+	.tc_quality =			800,	/* adjusted in code */
+	.tc_fill_vdso_timehands = 	x86_tsc_vdso_timehands,
+#ifdef COMPAT_FREEBSD32
+	.tc_fill_vdso_timehands32 = 	x86_tsc_vdso_timehands32,
+#endif
 };
 
 static void
@@ -117,6 +129,26 @@ tsc_freq_vmware(void)
 			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	}
 	tsc_is_invariant = 1;
+}
+
+/*
+ * Calculate TSC frequency using information from the CPUID leaf 0x15
+ * 'Time Stamp Counter and Nominal Core Crystal Clock'.  It should be
+ * an improvement over the parsing of the CPU model name in
+ * tsc_freq_intel(), when available.
+ */
+static bool
+tsc_freq_cpuid(void)
+{
+	u_int regs[4];
+
+	if (cpu_high < 0x15)
+		return (false);
+	do_cpuid(0x15, regs);
+	if (regs[0] == 0 || regs[1] == 0 || regs[2] == 0)
+		return (false);
+	tsc_freq = (uint64_t)regs[2] * regs[1] / regs[0];
+	return (true);
 }
 
 static void
@@ -183,6 +215,7 @@ probe_tsc_freq(void)
 {
 	u_int regs[4];
 	uint64_t tsc1, tsc2;
+	uint16_t bootflags;
 
 	if (cpu_high >= 6) {
 		do_cpuid(6, regs);
@@ -242,18 +275,38 @@ probe_tsc_freq(void)
 		break;
 	}
 
-	if (tsc_skip_calibration) {
-		if (cpu_vendor_id == CPU_VENDOR_INTEL)
-			tsc_freq_intel();
-		return;
+	if (!TUNABLE_INT_FETCH("machdep.disable_tsc_calibration",
+	    &tsc_skip_calibration)) {
+		/*
+		 * User did not give the order about calibration.
+		 * If he did, we do not try to guess.
+		 *
+		 * Otherwise, if ACPI FADT reports that the platform
+		 * is legacy-free and CPUID provides TSC frequency,
+		 * use it.  The calibration could fail anyway since
+		 * ISA timer can be absent or power gated.
+		 */
+		if (acpi_get_fadt_bootflags(&bootflags) &&
+		    (bootflags & ACPI_FADT_LEGACY_DEVICES) == 0 &&
+		    tsc_freq_cpuid()) {
+			printf("Skipping TSC calibration since no legacy "
+			    "devices reported by FADT and CPUID works\n");
+			tsc_skip_calibration = 1;
+		}
 	}
-
-	if (bootverbose)
-	        printf("Calibrating TSC clock ... ");
-	tsc1 = rdtsc();
-	DELAY(1000000);
-	tsc2 = rdtsc();
-	tsc_freq = tsc2 - tsc1;
+	if (tsc_skip_calibration) {
+		if (tsc_freq_cpuid())
+			;
+		else if (cpu_vendor_id == CPU_VENDOR_INTEL)
+			tsc_freq_intel();
+	} else {
+		if (bootverbose)
+			printf("Calibrating TSC clock ... ");
+		tsc1 = rdtsc();
+		DELAY(1000000);
+		tsc2 = rdtsc();
+		tsc_freq = tsc2 - tsc1;
+	}
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
 }
@@ -420,7 +473,7 @@ adj_smp_tsc(void *arg)
 }
 
 static int
-test_tsc(void)
+test_tsc(int adj_max_count)
 {
 	uint64_t *data, *tsc;
 	u_int i, size, adj;
@@ -434,12 +487,12 @@ retry:
 	for (i = 0, tsc = data; i < N; i++, tsc += size)
 		smp_rendezvous(tsc_read_0, tsc_read_1, tsc_read_2, tsc);
 	smp_tsc = 1;	/* XXX */
-	smp_rendezvous(smp_no_rendevous_barrier, comp_smp_tsc,
-	    smp_no_rendevous_barrier, data);
-	if (!smp_tsc && adj < smp_tsc_adjust) {
+	smp_rendezvous(smp_no_rendezvous_barrier, comp_smp_tsc,
+	    smp_no_rendezvous_barrier, data);
+	if (!smp_tsc && adj < adj_max_count) {
 		adj++;
-		smp_rendezvous(smp_no_rendevous_barrier, adj_smp_tsc,
-		    smp_no_rendevous_barrier, data);
+		smp_rendezvous(smp_no_rendezvous_barrier, adj_smp_tsc,
+		    smp_no_rendezvous_barrier, data);
 		goto retry;
 	}
 	free(data, M_TEMP);
@@ -473,19 +526,6 @@ retry:
 }
 
 #undef N
-
-#else
-
-/*
- * The function is not called, it is provided to avoid linking failure
- * on uniprocessor kernel.
- */
-static int
-test_tsc(void)
-{
-
-	return (0);
-}
 
 #endif /* SMP */
 
@@ -533,7 +573,7 @@ init_TSC_tc(void)
 	 * result incorrect runtimes for kernel idle threads (but not
 	 * for any non-idle threads).
 	 */
-	if (cpu_deepest_sleep >= 2 && cpu_vendor_id == CPU_VENDOR_INTEL &&
+	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    (amd_pminfo & AMDPM_TSC_INVARIANT) == 0) {
 		tsc_timecounter.tc_flags |= TC_FLAGS_C2STOP;
 		if (bootverbose)
@@ -547,9 +587,12 @@ init_TSC_tc(void)
 	 * non-zero value.  The TSC seems unreliable in virtualized SMP
 	 * environments, so it is set to a negative quality in those cases.
 	 */
+#ifdef SMP
 	if (mp_ncpus > 1)
-		tsc_timecounter.tc_quality = test_tsc();
-	else if (tsc_is_invariant)
+		tsc_timecounter.tc_quality = test_tsc(smp_tsc_adjust);
+	else
+#endif /* SMP */
+	if (tsc_is_invariant)
 		tsc_timecounter.tc_quality = 1000;
 	max_freq >>= tsc_shift;
 
@@ -583,6 +626,32 @@ init:
 	}
 }
 SYSINIT(tsc_tc, SI_SUB_SMP, SI_ORDER_ANY, init_TSC_tc, NULL);
+
+void
+resume_TSC(void)
+{
+#ifdef SMP
+	int quality;
+
+	/* If TSC was not good on boot, it is unlikely to become good now. */
+	if (tsc_timecounter.tc_quality < 0)
+		return;
+	/* Nothing to do with UP. */
+	if (mp_ncpus < 2)
+		return;
+
+	/*
+	 * If TSC was good, a single synchronization should be enough,
+	 * but honour smp_tsc_adjust if it's set.
+	 */
+	quality = test_tsc(MAX(smp_tsc_adjust, 1));
+	if (quality != tsc_timecounter.tc_quality) {
+		printf("TSC timecounter quality changed: %d -> %d\n",
+		    tsc_timecounter.tc_quality, quality);
+		tsc_timecounter.tc_quality = quality;
+	}
+#endif /* SMP */
+}
 
 /*
  * When cpufreq levels change, find out about the (new) max frequency.  We
@@ -724,23 +793,27 @@ tsc_get_timecount_low_mfence(struct timecounter *tc)
 	return (tsc_get_timecount_low(tc));
 }
 
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+static uint32_t
+x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
 {
 
+	vdso_th->th_algo = VDSO_TH_ALGO_X86_TSC;
 	vdso_th->th_x86_shift = (int)(intptr_t)tc->tc_priv;
+	vdso_th->th_x86_hpet_idx = 0xffffffff;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
-	return (tc == &tsc_timecounter);
+	return (1);
 }
 
 #ifdef COMPAT_FREEBSD32
-uint32_t
-cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+static uint32_t
+x86_tsc_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
     struct timecounter *tc)
 {
 
+	vdso_th32->th_algo = VDSO_TH_ALGO_X86_TSC;
 	vdso_th32->th_x86_shift = (int)(intptr_t)tc->tc_priv;
+	vdso_th32->th_x86_hpet_idx = 0xffffffff;
 	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
-	return (tc == &tsc_timecounter);
+	return (1);
 }
 #endif

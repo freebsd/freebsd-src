@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following edsclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,7 +72,7 @@ struct edsc_softc {
 /*
  * Attach to the interface cloning framework.
  */
-static VNET_DEFINE(struct if_clone *, edsc_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, edsc_cloner);
 #define	V_edsc_cloner	VNET(edsc_cloner)
 static int	edsc_clone_create(struct if_clone *, int, caddr_t);
 static void	edsc_clone_destroy(struct ifnet *);
@@ -336,7 +338,7 @@ vnet_edsc_uninit(const void *unused __unused)
 	 */
 	if_clone_detach(V_edsc_cloner);
 }
-VNET_SYSUNINIT(vnet_edsc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_edsc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_edsc_uninit, NULL);
 
 /*

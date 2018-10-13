@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
 .PATH: ${OPENBSMDIR}/bin/auditdistd
 
 # Addition of auditdistd because otherwise generated parse.c can't find

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -96,11 +98,11 @@ siena_mcdi_init(
 
 extern			void
 siena_mcdi_send_request(
-	__in		efx_nic_t *enp,
-	__in		void *hdrp,
-	__in		size_t hdr_len,
-	__in		void *sdup,
-	__in		size_t sdu_len);
+	__in			efx_nic_t *enp,
+	__in_bcount(hdr_len)	void *hdrp,
+	__in			size_t hdr_len,
+	__in_bcount(sdu_len)	void *sdup,
+	__in			size_t sdu_len);
 
 extern	__checkReturn	boolean_t
 siena_mcdi_poll_response(
@@ -127,6 +129,12 @@ siena_mcdi_feature_supported(
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);
 
+extern			void
+siena_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp);
+
 #endif /* EFSYS_OPT_MCDI */
 
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
@@ -136,7 +144,7 @@ siena_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
 
-extern				void
+extern	__checkReturn		efx_rc_t
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
@@ -208,7 +216,7 @@ siena_nvram_partn_write(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern				void
+extern	__checkReturn		efx_rc_t
 siena_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
@@ -294,7 +302,7 @@ siena_vpd_fini(
 typedef struct siena_link_state_s {
 	uint32_t		sls_adv_cap_mask;
 	uint32_t		sls_lp_cap_mask;
-	unsigned int 		sls_fcntl;
+	unsigned int		sls_fcntl;
 	efx_link_mode_t		sls_link_mode;
 #if EFSYS_OPT_LOOPBACK
 	efx_loopback_type_t	sls_loopback;
@@ -362,7 +370,7 @@ siena_phy_bist_poll(
 	__in			efx_bist_type_t type,
 	__out			efx_bist_result_t *resultp,
 	__out_opt __drv_when(count > 0, __notnull)
-	uint32_t 	*value_maskp,
+	uint32_t	*value_maskp,
 	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
 	unsigned long	*valuesp,
 	__in			size_t count);
@@ -404,6 +412,12 @@ siena_mac_loopback_set(
 #endif	/* EFSYS_OPT_LOOPBACK */
 
 #if EFSYS_OPT_MAC_STATS
+
+extern	__checkReturn			efx_rc_t
+siena_mac_stats_get_mask(
+	__in				efx_nic_t *enp,
+	__inout_bcount(mask_size)	uint32_t *maskp,
+	__in				size_t mask_size);
 
 extern	__checkReturn			efx_rc_t
 siena_mac_stats_update(

@@ -17,6 +17,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
@@ -309,7 +310,7 @@ StringRef CodeCompletionTUInfo::getParentName(const DeclContext *DC) {
         if (!Interface) {
           // Assign an empty StringRef but with non-null data to distinguish
           // between empty because we didn't process the DeclContext yet.
-          CachedParentName = StringRef((const char *)~0U, 0);
+          CachedParentName = StringRef((const char *)(uintptr_t)~0U, 0);
           return StringRef();
         }
         
@@ -327,9 +328,9 @@ StringRef CodeCompletionTUInfo::getParentName(const DeclContext *DC) {
 
 CodeCompletionString *CodeCompletionBuilder::TakeString() {
   void *Mem = getAllocator().Allocate(
-                  sizeof(CodeCompletionString) + sizeof(Chunk) * Chunks.size()
-                                    + sizeof(const char *) * Annotations.size(),
-                                 llvm::alignOf<CodeCompletionString>());
+      sizeof(CodeCompletionString) + sizeof(Chunk) * Chunks.size() +
+          sizeof(const char *) * Annotations.size(),
+      alignof(CodeCompletionString));
   CodeCompletionString *Result 
     = new (Mem) CodeCompletionString(Chunks.data(), Chunks.size(),
                                      Priority, Availability,
@@ -428,6 +429,26 @@ CodeCompleteConsumer::OverloadCandidate::getFunctionType() const {
 
 CodeCompleteConsumer::~CodeCompleteConsumer() { }
 
+bool PrintingCodeCompleteConsumer::isResultFilteredOut(StringRef Filter,
+                                                CodeCompletionResult Result) {
+  switch (Result.Kind) {
+  case CodeCompletionResult::RK_Declaration: {
+    return !(Result.Declaration->getIdentifier() &&
+            Result.Declaration->getIdentifier()->getName().startswith(Filter));
+  }
+  case CodeCompletionResult::RK_Keyword: {
+    return !StringRef(Result.Keyword).startswith(Filter);
+  }
+  case CodeCompletionResult::RK_Macro: {
+    return !Result.Macro->getName().startswith(Filter);
+  }
+  case CodeCompletionResult::RK_Pattern: {
+    return !StringRef(Result.Pattern->getAsString()).startswith(Filter);
+  }
+  }
+  llvm_unreachable("Unknown code completion result Kind.");
+}
+
 void 
 PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
                                                  CodeCompletionContext Context,
@@ -435,8 +456,12 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
                                                          unsigned NumResults) {
   std::stable_sort(Results, Results + NumResults);
   
+  StringRef Filter = SemaRef.getPreprocessor().getCodeCompletionFilter();
+
   // Print the results.
   for (unsigned I = 0; I != NumResults; ++I) {
+    if(!Filter.empty() && isResultFilteredOut(Filter, Results[I]))
+      continue;
     OS << "COMPLETION: ";
     switch (Results[I].Kind) {
     case CodeCompletionResult::RK_Declaration:
@@ -537,7 +562,7 @@ void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
       // Do nothing: Patterns can come with cursor kinds!
       break;
     }
-    // Fall through
+    LLVM_FALLTHROUGH;
       
   case RK_Declaration: {
     // Set the availability based on attributes.
@@ -588,24 +613,20 @@ void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
 ///
 /// If the name needs to be constructed as a string, that string will be
 /// saved into Saved and the returned StringRef will refer to it.
-static StringRef getOrderedName(const CodeCompletionResult &R,
-                                    std::string &Saved) {
-  switch (R.Kind) {
-    case CodeCompletionResult::RK_Keyword:
-      return R.Keyword;
-      
-    case CodeCompletionResult::RK_Pattern:
-      return R.Pattern->getTypedText();
-      
-    case CodeCompletionResult::RK_Macro:
-      return R.Macro->getName();
-      
-    case CodeCompletionResult::RK_Declaration:
+StringRef CodeCompletionResult::getOrderedName(std::string &Saved) const {
+  switch (Kind) {
+    case RK_Keyword:
+      return Keyword;
+    case RK_Pattern:
+      return Pattern->getTypedText();
+    case RK_Macro:
+      return Macro->getName();
+    case RK_Declaration:
       // Handle declarations below.
       break;
   }
   
-  DeclarationName Name = R.Declaration->getDeclName();
+  DeclarationName Name = Declaration->getDeclName();
   
   // If the name is a simple identifier (by far the common case), or a
   // zero-argument selector, just return a reference to that identifier.
@@ -623,8 +644,8 @@ static StringRef getOrderedName(const CodeCompletionResult &R,
 bool clang::operator<(const CodeCompletionResult &X, 
                       const CodeCompletionResult &Y) {
   std::string XSaved, YSaved;
-  StringRef XStr = getOrderedName(X, XSaved);
-  StringRef YStr = getOrderedName(Y, YSaved);
+  StringRef XStr = X.getOrderedName(XSaved);
+  StringRef YStr = Y.getOrderedName(YSaved);
   int cmp = XStr.compare_lower(YStr);
   if (cmp)
     return cmp < 0;

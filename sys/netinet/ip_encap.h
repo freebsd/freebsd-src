@@ -2,7 +2,10 @@
 /*	$KAME: ip_encap.h,v 1.7 2000/03/25 07:23:37 sumikawa Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (c) 2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,30 +38,36 @@
 
 #ifdef _KERNEL
 
-struct encaptab {
-	LIST_ENTRY(encaptab) chain;
-	int af;
-	int proto;			/* -1: don't care, I'll check myself */
-	struct sockaddr_storage src;	/* my addr */
-	struct sockaddr_storage srcmask;
-	struct sockaddr_storage dst;	/* remote addr */
-	struct sockaddr_storage dstmask;
-	int (*func)(const struct mbuf *, int, int, void *);
-	const struct protosw *psw;	/* only pr_input will be used */
-	void *arg;			/* passed via m->m_pkthdr.aux */
-};
-
-void	encap_init(void);
 int	encap4_input(struct mbuf **, int *, int);
 int	encap6_input(struct mbuf **, int *, int);
-const struct encaptab *encap_attach(int, int, const struct sockaddr *,
-	const struct sockaddr *, const struct sockaddr *,
-	const struct sockaddr *, const struct protosw *, void *);
-const struct encaptab *encap_attach_func(int, int,
-	int (*)(const struct mbuf *, int, int, void *),
-	const struct protosw *, void *);
-int	encap_detach(const struct encaptab *);
-void	*encap_getarg(struct mbuf *);
+
+typedef int (*encap_lookup_t)(const struct mbuf *, int, int, void **);
+typedef int (*encap_check_t)(const struct mbuf *, int, int, void *);
+typedef int (*encap_input_t)(struct mbuf *, int , int, void *);
+
+struct encap_config {
+	int		proto;		/* protocol */
+	int		min_length;	/* minimum packet length */
+	int		max_hdrsize;	/* maximum header size */
+	int		exact_match;	/* a packet is exactly matched */
+#define	ENCAP_DRV_LOOKUP	0x7fffffff
+
+	encap_lookup_t	lookup;
+	encap_check_t	check;
+	encap_input_t	input;
+
+	void		*pad[3];
+};
+
+struct encaptab;
+
+const struct encaptab *ip_encap_attach(const struct encap_config *,
+    void *arg, int mflags);
+const struct encaptab *ip6_encap_attach(const struct encap_config *,
+    void *arg, int mflags);
+
+int ip_encap_detach(const struct encaptab *);
+int ip6_encap_detach(const struct encaptab *);
 #endif
 
 #endif /*_NETINET_IP_ENCAP_H_*/

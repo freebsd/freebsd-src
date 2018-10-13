@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *       Copyright (c) 1997 by Simon Shapiro
  *       All Rights Reserved
  *
@@ -147,16 +149,12 @@ typedef void *physaddr;
 #define min(a,b) ((a<b)?(a):(b))
 
 #define MAXISA			       	4
-#define MAXEISA			      	16
 #define MAXPCI		       		16
 #define MAXIRQ	       			16
 #define MAXTARGET		      	16
 
 #define IS_ISA				'I'
-#define IS_EISA				'E'
 #define IS_PCI				'P'
-
-#define BROKEN_INQUIRY	1
 
 #define BUSMASTER			0xff
 #define PIO			       	0xfe
@@ -197,13 +195,6 @@ typedef void *physaddr;
 #define PCI_REG_PumpModeData			0x48
 #define PCI_REG_ConfigParam1			0x50
 #define PCI_REG_ConfigParam2			0x54
-
-#define EATA_CMD_PIO_SETUPTEST			0xc6
-#define EATA_CMD_PIO_READ_CONFIG		0xf0
-#define EATA_CMD_PIO_SET_CONFIG			0xf1
-#define EATA_CMD_PIO_SEND_CP			0xf2
-#define EATA_CMD_PIO_RECEIVE_SP			0xf3
-#define EATA_CMD_PIO_TRUNC		      	0xf4
 
 #define EATA_CMD_RESET			       	0xf9
 #define EATA_COLD_BOOT                          0x06 /* Last resort only! */
@@ -548,12 +539,9 @@ typedef struct driveParam_S driveParam_T;
 #define SI_NO_SmartROM     	0x8000
 
 #define SI_ISA_BUS	       	0x00
-#define SI_MCA_BUS        	0x01
-#define SI_EISA_BUS	       	0x02
 #define SI_PCI_BUS	       	0x04
 
 #define HBA_BUS_ISA		0x00
-#define HBA_BUS_EISA		0x01
 #define HBA_BUS_PCI		0x02
 
 typedef struct dpt_sysinfo {
@@ -791,12 +779,9 @@ typedef struct eata_ccb {
 #define ADF_2001	0x0001	/* PM2001 */
 #define ADF_2012A	0x0002	/* PM2012A */
 #define ADF_PLUS_ISA	0x0004	/* PM2011,PM2021 */
-#define ADF_PLUS_EISA	0x0008	/* PM2012B,PM2022 */
 #define ADF_SC3_ISA	0x0010	/* PM2021 */
-#define ADF_SC3_EISA	0x0020	/* PM2022,PM2122, etc */
 #define ADF_SC3_PCI	0x0040	/* SmartCache III PCI */
 #define ADF_SC4_ISA	0x0080	/* SmartCache IV ISA */
-#define ADF_SC4_EISA	0x0100	/* SmartCache IV EISA */
 #define ADF_SC4_PCI	0x0200	/* SmartCache IV PCI */
 #define ADF_ALL_MASTER	0xFFFE	/* All bus mastering */
 #define ADF_ALL_CACHE	0xFFFC	/* All caching */
@@ -1114,8 +1099,7 @@ typedef struct dpt_softc {
 
 	u_int8_t  more_support		:1,	/* HBA supports MORE flag */
 		  immediate_support	:1,	/* HBA supports IMMEDIATE */
-		  broken_INQUIRY	:1,	/* EISA HBA w/broken INQUIRY */
-		  spare2		:5;
+		  spare2		:6;
 
 	u_int8_t  resetlevel[MAX_CHANNELS];
 	u_int32_t last_ccb;	/* Last used ccb */
@@ -1201,8 +1185,7 @@ typedef struct dpt_user_softc {
 	u_int8_t  primary;
 	u_int8_t  more_support 	    :1,
 		  immediate_support :1,
-		  broken_INQUIRY    :1,
-		  spare2	    :5;
+		  spare2	    :6;
 
 	u_int8_t  resetlevel[MAX_CHANNELS];
 	u_int32_t last_ccb;
@@ -1276,10 +1259,6 @@ void			dpt_free(struct dpt_softc *dpt);
 int			dpt_init(struct dpt_softc *dpt);
 int			dpt_attach(dpt_softc_t * dpt);
 void			dpt_intr(void *arg);
-
-#ifdef DEV_EISA
-dpt_conf_t *		dpt_pio_get_conf(u_int32_t);
-#endif
 
 #if 0
 extern void		hex_dump(u_char * data, int length,

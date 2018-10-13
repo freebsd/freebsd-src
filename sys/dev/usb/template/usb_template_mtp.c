@@ -1,7 +1,13 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky <hselasky@FreeBSD.org>
+ * Copyright (c) 2018 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,7 +32,7 @@
  */
 
 /*
- * This file contains the USB templates for an USB Message Transfer
+ * This file contains the USB templates for an USB Media Transfer
  * Protocol device.
  *
  * NOTE: It is common practice that MTP devices use some dummy
@@ -61,6 +67,8 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_core.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_util.h>
 
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
@@ -68,37 +76,30 @@
 #define	MTP_BREQUEST 0x08
 
 enum {
-	STRING_LANG_INDEX,
-	STRING_MTP_DATA_INDEX,
-	STRING_MTP_CONFIG_INDEX,
-	STRING_MTP_VENDOR_INDEX,
-	STRING_MTP_PRODUCT_INDEX,
-	STRING_MTP_SERIAL_INDEX,
-	STRING_MTP_MAX,
+	MTP_LANG_INDEX,
+	MTP_INTERFACE_INDEX,
+	MTP_CONFIGURATION_INDEX,
+	MTP_MANUFACTURER_INDEX,
+	MTP_PRODUCT_INDEX,
+	MTP_SERIAL_NUMBER_INDEX,
+	MTP_MAX_INDEX,
 };
 
-#define	STRING_MTP_DATA	\
-  "U\0S\0B\0 \0M\0T\0P\0 \0I\0n\0t\0e\0r\0f\0a\0c\0e"
+#define	MTP_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MTP_DEFAULT_PRODUCT_ID		0x27e2
+#define	MTP_DEFAULT_INTERFACE		"USB MTP Interface"
+#define	MTP_DEFAULT_CONFIGURATION	"Default Config"
+#define	MTP_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
+#define	MTP_DEFAULT_PRODUCT		"USB MTP"
+#define	MTP_DEFAULT_SERIAL_NUMBER	"June 2008"
 
-#define	STRING_MTP_CONFIG \
-  "D\0e\0f\0a\0u\0l\0t\0 \0c\0o\0n\0f\0i\0g"
+static struct usb_string_descriptor	mtp_interface;
+static struct usb_string_descriptor	mtp_configuration;
+static struct usb_string_descriptor	mtp_manufacturer;
+static struct usb_string_descriptor	mtp_product;
+static struct usb_string_descriptor	mtp_serial_number;
 
-#define	STRING_MTP_VENDOR \
-  "F\0r\0e\0e\0B\0S\0D\0 \0f\0o\0u\0n\0d\0a\0t\0i\0o\0n"
-
-#define	STRING_MTP_PRODUCT \
-  "U\0S\0B\0 \0M\0T\0P"
-
-#define	STRING_MTP_SERIAL \
-  "J\0u\0n\0e\0 \0002\0000\0000\08"
-
-/* make the real string descriptors */
-
-USB_MAKE_STRING_DESC(STRING_MTP_DATA, string_mtp_data);
-USB_MAKE_STRING_DESC(STRING_MTP_CONFIG, string_mtp_config);
-USB_MAKE_STRING_DESC(STRING_MTP_VENDOR, string_mtp_vendor);
-USB_MAKE_STRING_DESC(STRING_MTP_PRODUCT, string_mtp_product);
-USB_MAKE_STRING_DESC(STRING_MTP_SERIAL, string_mtp_serial);
+static struct sysctl_ctx_list		mtp_ctx_list;
 
 /* prototypes */
 
@@ -153,7 +154,7 @@ static const struct usb_temp_interface_desc mtp_data_interface = {
 	.bInterfaceClass = UICLASS_IMAGE,
 	.bInterfaceSubClass = UISUBCLASS_SIC,	/* Still Image Class */
 	.bInterfaceProtocol = 1,	/* PIMA 15740 */
-	.iInterface = STRING_MTP_DATA_INDEX,
+	.iInterface = MTP_INTERFACE_INDEX,
 };
 
 static const struct usb_temp_interface_desc *mtp_interfaces[] = {
@@ -163,9 +164,9 @@ static const struct usb_temp_interface_desc *mtp_interfaces[] = {
 
 static const struct usb_temp_config_desc mtp_config_desc = {
 	.ppIfaceDesc = mtp_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
-	.iConfiguration = STRING_MTP_CONFIG_INDEX,
+	.bmAttributes = 0,
+	.bMaxPower = 0,
+	.iConfiguration = MTP_CONFIGURATION_INDEX,
 };
 
 static const struct usb_temp_config_desc *mtp_configs[] = {
@@ -173,19 +174,19 @@ static const struct usb_temp_config_desc *mtp_configs[] = {
 	NULL,
 };
 
-const struct usb_temp_device_desc usb_template_mtp = {
+struct usb_temp_device_desc usb_template_mtp = {
 	.getStringDesc = &mtp_get_string_desc,
 	.getVendorDesc = &mtp_get_vendor_desc,
 	.ppConfigDesc = mtp_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0011,
+	.idVendor = MTP_DEFAULT_VENDOR_ID,
+	.idProduct = MTP_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = 0,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = STRING_MTP_VENDOR_INDEX,
-	.iProduct = STRING_MTP_PRODUCT_INDEX,
-	.iSerialNumber = STRING_MTP_SERIAL_INDEX,
+	.iManufacturer = MTP_MANUFACTURER_INDEX,
+	.iProduct = MTP_PRODUCT_INDEX,
+	.iSerialNumber = MTP_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -229,13 +230,13 @@ mtp_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 static const void *
 mtp_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
-	static const void *ptr[STRING_MTP_MAX] = {
-		[STRING_LANG_INDEX] = &usb_string_lang_en,
-		[STRING_MTP_DATA_INDEX] = &string_mtp_data,
-		[STRING_MTP_CONFIG_INDEX] = &string_mtp_config,
-		[STRING_MTP_VENDOR_INDEX] = &string_mtp_vendor,
-		[STRING_MTP_PRODUCT_INDEX] = &string_mtp_product,
-		[STRING_MTP_SERIAL_INDEX] = &string_mtp_serial,
+	static const void *ptr[MTP_MAX_INDEX] = {
+		[MTP_LANG_INDEX] = &usb_string_lang_en,
+		[MTP_INTERFACE_INDEX] = &mtp_interface,
+		[MTP_CONFIGURATION_INDEX] = &mtp_configuration,
+		[MTP_MANUFACTURER_INDEX] = &mtp_manufacturer,
+		[MTP_PRODUCT_INDEX] = &mtp_product,
+		[MTP_SERIAL_NUMBER_INDEX] = &mtp_serial_number,
 	};
 
 	static const uint8_t dummy_desc[0x12] = {
@@ -257,8 +258,72 @@ mtp_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	if (lang_id != 0x0409) {
 		return (NULL);
 	}
-	if (string_index < STRING_MTP_MAX) {
+	if (string_index < MTP_MAX_INDEX) {
 		return (ptr[string_index]);
 	}
 	return (NULL);
 }
+
+static void
+mtp_init(void *arg __unused)
+{
+	struct sysctl_oid *parent;
+	char parent_name[3];
+
+	usb_make_str_desc(&mtp_interface, sizeof(mtp_interface),
+	    MTP_DEFAULT_INTERFACE);
+	usb_make_str_desc(&mtp_configuration, sizeof(mtp_configuration),
+	    MTP_DEFAULT_CONFIGURATION);
+	usb_make_str_desc(&mtp_manufacturer, sizeof(mtp_manufacturer),
+	    MTP_DEFAULT_MANUFACTURER);
+	usb_make_str_desc(&mtp_product, sizeof(mtp_product),
+	    MTP_DEFAULT_PRODUCT);
+	usb_make_str_desc(&mtp_serial_number, sizeof(mtp_serial_number),
+	    MTP_DEFAULT_SERIAL_NUMBER);
+
+	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_MTP);
+	sysctl_ctx_init(&mtp_ctx_list);
+
+	parent = SYSCTL_ADD_NODE(&mtp_ctx_list,
+	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
+	    parent_name, CTLFLAG_RW,
+	    0, "USB Media Transfer Protocol device side template");
+	SYSCTL_ADD_U16(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "vendor_id", CTLFLAG_RWTUN,
+	    &usb_template_mtp.idVendor, 1, "Vendor identifier");
+	SYSCTL_ADD_U16(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product_id", CTLFLAG_RWTUN,
+	    &usb_template_mtp.idProduct, 1, "Product identifier");
+#if 0
+	SYSCTL_ADD_PROC(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "interface", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mtp_interface, sizeof(mtp_interface), usb_temp_sysctl,
+	    "A", "Interface string");
+	SYSCTL_ADD_PROC(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "configuration", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mtp_configuration, sizeof(mtp_configuration), usb_temp_sysctl,
+	    "A", "Configuration string");
+#endif
+	SYSCTL_ADD_PROC(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mtp_manufacturer, sizeof(mtp_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mtp_product, sizeof(mtp_product), usb_temp_sysctl,
+	    "A", "Product string");
+	SYSCTL_ADD_PROC(&mtp_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mtp_serial_number, sizeof(mtp_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
+}
+
+static void
+mtp_uninit(void *arg __unused)
+{
+
+	sysctl_ctx_free(&mtp_ctx_list);
+}
+
+SYSINIT(mtp_init, SI_SUB_LOCK, SI_ORDER_FIRST, mtp_init, NULL);
+SYSUNINIT(mtp_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, mtp_uninit, NULL);

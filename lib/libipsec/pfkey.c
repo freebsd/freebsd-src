@@ -1,6 +1,8 @@
 /*	$KAME: pfkey.c,v 1.46 2003/08/26 03:37:06 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  *
@@ -41,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec.h>
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -69,6 +72,7 @@ static caddr_t pfkey_setsadbmsg(caddr_t, caddr_t, u_int, u_int,
 	u_int, u_int32_t, pid_t);
 static caddr_t pfkey_setsadbsa(caddr_t, caddr_t, u_int32_t, u_int,
 	u_int, u_int, u_int32_t);
+static caddr_t pfkey_setsadbxreplay(caddr_t, caddr_t, uint32_t);
 static caddr_t pfkey_setsadbaddr(caddr_t, caddr_t, u_int,
 	struct sockaddr *, u_int, u_int);
 static caddr_t pfkey_setsadbkey(caddr_t, caddr_t, u_int, caddr_t, u_int);
@@ -1196,6 +1200,13 @@ pfkey_send_x1(so, type, satype, mode, src, dst, spi, reqid, wsize,
 		+ sizeof(struct sadb_lifetime)
 		+ sizeof(struct sadb_lifetime);
 
+	if (wsize > UINT8_MAX) {
+		if (wsize > (UINT32_MAX - 32) >> 3) {
+			__ipsec_errcode = EIPSEC_INVAL_ARGUMENT;
+			return (-1);
+		}
+		len += sizeof(struct sadb_x_sa_replay);
+	}
 	if (e_type != SADB_EALG_NONE)
 		len += (sizeof(struct sadb_key) + PFKEY_ALIGN8(e_keylen));
 	if (a_type != SADB_AALG_NONE)
@@ -1222,6 +1233,13 @@ pfkey_send_x1(so, type, satype, mode, src, dst, spi, reqid, wsize,
 	if (!p) {
 		free(newmsg);
 		return -1;
+	}
+	if (wsize > UINT8_MAX) {
+		p = pfkey_setsadbxreplay(p, ep, wsize);
+		if (!p) {
+			free(newmsg);
+			return (-1);
+		}
 	}
 	p = pfkey_setsadbaddr(p, ep, SADB_EXT_ADDRESS_SRC, src, plen,
 	    IPSEC_ULPROTO_ANY);
@@ -1577,10 +1595,12 @@ pfkey_send_x5(so, type, spid)
  *	others : success and return value of socket.
  */
 int
-pfkey_open()
+pfkey_open(void)
 {
 	int so;
-	const int bufsiz = 128 * 1024;	/*is 128K enough?*/
+	int bufsiz_current, bufsiz_wanted;
+	int ret;
+	socklen_t len;
 
 	if ((so = socket(PF_KEY, SOCK_RAW, PF_KEY_V2)) < 0) {
 		__ipsec_set_strerror(strerror(errno));
@@ -1591,8 +1611,28 @@ pfkey_open()
 	 * This is a temporary workaround for KAME PR 154.
 	 * Don't really care even if it fails.
 	 */
-	(void)setsockopt(so, SOL_SOCKET, SO_SNDBUF, &bufsiz, sizeof(bufsiz));
-	(void)setsockopt(so, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz));
+	/* Try to have 128k. If we have more, do not lower it. */
+	bufsiz_wanted = 128 * 1024;
+	len = sizeof(bufsiz_current);
+	ret = getsockopt(so, SOL_SOCKET, SO_SNDBUF,
+		&bufsiz_current, &len);
+	if ((ret < 0) || (bufsiz_current < bufsiz_wanted))
+		(void)setsockopt(so, SOL_SOCKET, SO_SNDBUF,
+			&bufsiz_wanted, sizeof(bufsiz_wanted));
+
+	/* Try to have have at least 2MB. If we have more, do not lower it. */
+	bufsiz_wanted = 2 * 1024 * 1024;
+	len = sizeof(bufsiz_current);
+	ret = getsockopt(so, SOL_SOCKET, SO_RCVBUF,
+		&bufsiz_current, &len);
+	if (ret < 0)
+		bufsiz_current = 128 * 1024;
+
+	for (; bufsiz_wanted > bufsiz_current; bufsiz_wanted /= 2) {
+		if (setsockopt(so, SOL_SOCKET, SO_RCVBUF,
+				&bufsiz_wanted, sizeof(bufsiz_wanted)) == 0)
+			break;
+	}
 
 	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return so;
@@ -1776,20 +1816,17 @@ pfkey_align(msg, mhp)
 		case SADB_EXT_SPIRANGE:
 		case SADB_X_EXT_POLICY:
 		case SADB_X_EXT_SA2:
-			mhp[ext->sadb_ext_type] = (caddr_t)ext;
-			break;
 		case SADB_X_EXT_NAT_T_TYPE:
 		case SADB_X_EXT_NAT_T_SPORT:
 		case SADB_X_EXT_NAT_T_DPORT:
-		/* case SADB_X_EXT_NAT_T_OA: is OAI */
 		case SADB_X_EXT_NAT_T_OAI:
 		case SADB_X_EXT_NAT_T_OAR:
 		case SADB_X_EXT_NAT_T_FRAG:
-			if (feature_present("ipsec_natt")) {
-				mhp[ext->sadb_ext_type] = (caddr_t)ext;
-				break;
-			}
-			/* FALLTHROUGH */
+		case SADB_X_EXT_SA_REPLAY:
+		case SADB_X_EXT_NEW_ADDRESS_SRC:
+		case SADB_X_EXT_NEW_ADDRESS_DST:
+			mhp[ext->sadb_ext_type] = (caddr_t)ext;
+			break;
 		default:
 			__ipsec_errcode = EIPSEC_INVAL_EXTTYPE;
 			return -1;
@@ -1985,13 +2022,38 @@ pfkey_setsadbsa(buf, lim, spi, wsize, auth, enc, flags)
 	p->sadb_sa_len = PFKEY_UNIT64(len);
 	p->sadb_sa_exttype = SADB_EXT_SA;
 	p->sadb_sa_spi = spi;
-	p->sadb_sa_replay = wsize;
+	p->sadb_sa_replay = wsize > UINT8_MAX ? UINT8_MAX: wsize;
 	p->sadb_sa_state = SADB_SASTATE_LARVAL;
 	p->sadb_sa_auth = auth;
 	p->sadb_sa_encrypt = enc;
 	p->sadb_sa_flags = flags;
 
 	return(buf + len);
+}
+
+/*
+ * Set data into sadb_x_sa_replay.
+ * `buf' must has been allocated sufficiently.
+ */
+static caddr_t
+pfkey_setsadbxreplay(caddr_t buf, caddr_t lim, uint32_t wsize)
+{
+	struct sadb_x_sa_replay *p;
+	u_int len;
+
+	p = (struct sadb_x_sa_replay *)buf;
+	len = sizeof(struct sadb_x_sa_replay);
+
+	if (buf + len > lim)
+		return (NULL);
+
+	memset(p, 0, len);
+	p->sadb_x_sa_replay_len = PFKEY_UNIT64(len);
+	p->sadb_x_sa_replay_exttype = SADB_X_EXT_SA_REPLAY;
+	/* Convert wsize from bytes to number of packets. */
+	p->sadb_x_sa_replay_replay = wsize << 3;
+
+	return (buf + len);
 }
 
 /*

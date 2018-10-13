@@ -14,14 +14,15 @@
 #include "llvm/Support/ThreadPool.h"
 
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
 #if LLVM_ENABLE_THREADS
 
-// Default to std::thread::hardware_concurrency
-ThreadPool::ThreadPool() : ThreadPool(std::thread::hardware_concurrency()) {}
+// Default to hardware_concurrency
+ThreadPool::ThreadPool() : ThreadPool(hardware_concurrency()) {}
 
 ThreadPool::ThreadPool(unsigned ThreadCount)
     : ActiveThreads(0), EnableFlag(true) {
@@ -46,18 +47,14 @@ ThreadPool::ThreadPool(unsigned ThreadCount)
           // in order for wait() to properly detect that even if the queue is
           // empty, there is still a task in flight.
           {
-            ++ActiveThreads;
             std::unique_lock<std::mutex> LockGuard(CompletionLock);
+            ++ActiveThreads;
           }
           Task = std::move(Tasks.front());
           Tasks.pop();
         }
         // Run the task we just grabbed
-#ifndef _MSC_VER
         Task();
-#else
-        Task(/* unused */ false);
-#endif
 
         {
           // Adjust `ActiveThreads`, in case someone waits on ThreadPool::wait()
@@ -75,11 +72,14 @@ ThreadPool::ThreadPool(unsigned ThreadCount)
 void ThreadPool::wait() {
   // Wait for all threads to complete and the queue to be empty
   std::unique_lock<std::mutex> LockGuard(CompletionLock);
+  // The order of the checks for ActiveThreads and Tasks.empty() matters because
+  // any active threads might be modifying the Tasks queue, and this would be a
+  // race.
   CompletionCondition.wait(LockGuard,
-                           [&] { return Tasks.empty() && !ActiveThreads; });
+                           [&] { return !ActiveThreads && Tasks.empty(); });
 }
 
-std::shared_future<ThreadPool::VoidTy> ThreadPool::asyncImpl(TaskTy Task) {
+std::shared_future<void> ThreadPool::asyncImpl(TaskTy Task) {
   /// Wrap the Task in a packaged_task to return a future object.
   PackagedTaskTy PackagedTask(std::move(Task));
   auto Future = PackagedTask.get_future();
@@ -125,25 +125,16 @@ void ThreadPool::wait() {
   while (!Tasks.empty()) {
     auto Task = std::move(Tasks.front());
     Tasks.pop();
-#ifndef _MSC_VER
-        Task();
-#else
-        Task(/* unused */ false);
-#endif
+    Task();
   }
 }
 
-std::shared_future<ThreadPool::VoidTy> ThreadPool::asyncImpl(TaskTy Task) {
-#ifndef _MSC_VER
+std::shared_future<void> ThreadPool::asyncImpl(TaskTy Task) {
   // Get a Future with launch::deferred execution using std::async
   auto Future = std::async(std::launch::deferred, std::move(Task)).share();
   // Wrap the future so that both ThreadPool::wait() can operate and the
   // returned future can be sync'ed on.
   PackagedTaskTy PackagedTask([Future]() { Future.get(); });
-#else
-  auto Future = std::async(std::launch::deferred, std::move(Task), false).share();
-  PackagedTaskTy PackagedTask([Future](bool) -> bool { Future.get(); return false; });
-#endif
   Tasks.push(std::move(PackagedTask));
   return Future;
 }

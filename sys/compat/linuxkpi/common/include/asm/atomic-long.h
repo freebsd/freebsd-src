@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 #ifndef	_ATOMIC_LONG_H_
 #define	_ATOMIC_LONG_H_
 
-#include <sys/cdefs.h>
+#include <linux/compiler.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
 
@@ -54,13 +54,13 @@ atomic_long_add_return(long i, atomic_long_t *v)
 static inline void
 atomic_long_set(atomic_long_t *v, long i)
 {
-	atomic_store_rel_long(&v->counter, i);
+	WRITE_ONCE(v->counter, i);
 }
 
 static inline long
 atomic_long_read(atomic_long_t *v)
 {
-	return atomic_load_acq_long(&v->counter);
+	return READ_ONCE(v->counter);
 }
 
 static inline long
@@ -75,16 +75,35 @@ atomic_long_dec(atomic_long_t *v)
 	return atomic_fetchadd_long(&v->counter, -1) - 1;
 }
 
+static inline long
+atomic_long_xchg(atomic_long_t *v, long val)
+{
+	return atomic_swap_long(&v->counter, val);
+}
+
+static inline long
+atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
+{
+	long ret = old;
+
+	for (;;) {
+		if (atomic_fcmpset_long(&v->counter, &ret, new))
+			break;
+		if (ret != old)
+			break;
+	}
+	return (ret);
+}
+
 static inline int
 atomic_long_add_unless(atomic_long_t *v, long a, long u)
 {
-	long c;
+	long c = atomic_long_read(v);
 
 	for (;;) {
-		c = atomic_long_read(v);
 		if (unlikely(c == u))
 			break;
-		if (likely(atomic_cmpset_long(&v->counter, c, c + a)))
+		if (likely(atomic_fcmpset_long(&v->counter, &c, c + a)))
 			break;
 	}
 	return (c != u);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -84,7 +86,6 @@ time_t	tstart_writing;	/* when started writing the first tape block */
 time_t	tend_writing;	/* after writing the last tape block */
 int	passno;		/* current dump pass number */
 struct	fs *sblock;	/* the file system super block */
-char	sblock_buf[MAXBSIZE];
 long	dev_bsize;	/* block size of underlying disk device */
 int	dev_bshift;	/* log2(dev_bsize) */
 int	tp_bshift;	/* log2(TP_BSIZE) */
@@ -106,7 +107,7 @@ int	mapfiles(ino_t maxino, long *tapesize);
 int	mapdirs(ino_t maxino, long *tapesize);
 
 /* file dumping routines */
-void	bread(ufs2_daddr_t blkno, char *buf, int size);
+void	blkread(ufs2_daddr_t blkno, char *buf, int size);
 ssize_t cread(int fd, void *buf, size_t nbytes, off_t offset);
 void	dumpino(union dinode *dp, ino_t ino);
 void	dumpmap(char *map, int type, ino_t ino);
@@ -125,7 +126,7 @@ void	dumpabort(int signo) __dead2;
 void	dump_getfstab(void);
 
 char	*rawname(char *cp);
-union	dinode *getino(ino_t inum, int *mode);
+union	dinode *getinode(ino_t inum, int *mode);
 
 /* rdump routines */
 #ifdef RDUMP

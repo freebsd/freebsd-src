@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -63,6 +66,8 @@ static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void dev_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dev_pager_free_page(vm_object_t object, vm_page_t m);
+static int dev_pager_populate(vm_object_t object, vm_pindex_t pidx,
+    int fault_type, vm_prot_t, vm_pindex_t *first, vm_pindex_t *last);
 
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
@@ -84,6 +89,7 @@ struct pagerops mgtdevicepagerops = {
 	.pgo_getpages =	dev_pager_getpages,
 	.pgo_putpages =	dev_pager_putpages,
 	.pgo_haspage =	dev_pager_haspage,
+	.pgo_populate =	dev_pager_populate,
 };
 
 static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -127,6 +133,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 
 	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
 		return (NULL);
+	KASSERT(tp == OBJT_MGTDEVICE || ops->cdev_pg_populate == NULL,
+	    ("populate on unmanaged device pager"));
 
 	/*
 	 * Offset should be page aligned.
@@ -134,8 +142,18 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 	if (foff & PAGE_MASK)
 		return (NULL);
 
+	/*
+	 * Treat the mmap(2) file offset as an unsigned value for a
+	 * device mapping.  This, in effect, allows a user to pass all
+	 * possible off_t values as the mapping cookie to the driver.  At
+	 * this point, we know that both foff and size are a multiple
+	 * of the page size.  Do a check to avoid wrap.
+	 */
 	size = round_page(size);
-	pindex = OFF_TO_IDX(foff + size);
+	pindex = UOFF_TO_IDX(foff) + UOFF_TO_IDX(size);
+	if (pindex > OBJ_MAX_SIZE || pindex < UOFF_TO_IDX(foff) ||
+	    pindex < UOFF_TO_IDX(size))
+		return (NULL);
 
 	if (ops->cdev_pg_ctor(handle, size, prot, foff, cred, &color) != 0)
 		return (NULL);
@@ -169,13 +187,18 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 			if (pindex > object->size)
 				object->size = pindex;
 			KASSERT(object->type == tp,
-		    ("Inconsistent device pager type %p %d", object, tp));
+			    ("Inconsistent device pager type %p %d",
+			    object, tp));
+			KASSERT(object->un_pager.devp.ops == ops,
+			    ("Inconsistent devops %p %p", object, ops));
 		} else {
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
+			if (ops->cdev_pg_populate != NULL)
+				vm_object_set_flag(object, OBJ_POPULATE);
 		}
 	} else {
 		if (pindex > object->size)
@@ -265,6 +288,8 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	/* Since our haspage reports zero after/before, the count is 1. */
 	KASSERT(count == 1, ("%s: count %d", __func__, count));
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	if (object->un_pager.devp.ops->cdev_pg_fault == NULL)
+		return (VM_PAGER_FAIL);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
@@ -287,6 +312,18 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	}
 
 	return (error);
+}
+
+static int
+dev_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
+    vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	if (object->un_pager.devp.ops->cdev_pg_populate == NULL)
+		return (VM_PAGER_FAIL);
+	return (object->un_pager.devp.ops->cdev_pg_populate(object, pidx,
+	    fault_type, max_prot, first, last));
 }
 
 static int

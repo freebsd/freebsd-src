@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008-2011 MARVELL INTERNATIONAL LTD.
  * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
@@ -49,10 +51,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/vmparam.h>
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
 
 #ifndef INTRNG
 static int

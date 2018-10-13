@@ -1,6 +1,13 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +40,7 @@
 #define _BHND_BHNDB_PRIVATE_H_
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 
@@ -47,16 +55,9 @@
  */
 
 struct bhndb_dw_alloc;
+struct bhndb_intr_handler;
 struct bhndb_region;
 struct bhndb_resources;
-
-struct resource			*bhndb_find_resource_range(
-				     struct bhndb_resources *br,
-				     rman_res_t start, rman_res_t count);
-
-struct resource			*bhndb_find_regwin_resource(
-				     struct bhndb_resources *br,
-				     const struct bhndb_regwin *win);
 
 struct bhndb_resources		*bhndb_alloc_resources(device_t dev,
 				     device_t parent_dev,
@@ -69,12 +70,33 @@ int				 bhndb_add_resource_region(
 				     struct bhndb_resources *br,
 				     bhnd_addr_t addr, bhnd_size_t size,
 				     bhndb_priority_t priority,
+				     uint32_t alloc_flags,
 				     const struct bhndb_regwin *static_regwin);
 
 int				 bhndb_find_resource_limits(
-				     struct bhndb_resources *br,
+				     struct bhndb_resources *br, int type,
 				     struct resource *r, rman_res_t *start,
 				     rman_res_t *end);
+
+struct bhndb_intr_handler	*bhndb_alloc_intr_handler(device_t owner,
+				     struct resource *r,
+				     struct bhndb_intr_isrc *isrc);
+void				 bhndb_free_intr_handler(
+				     struct bhndb_intr_handler *ih);
+
+void				 bhndb_register_intr_handler(
+				     struct bhndb_resources *br,
+				     struct bhndb_intr_handler *ih);
+void				 bhndb_deregister_intr_handler(
+				     struct bhndb_resources *br,
+				     struct bhndb_intr_handler *ih);
+struct bhndb_intr_handler	*bhndb_find_intr_handler(
+				     struct bhndb_resources *br,
+				     void *cookiep);
+
+bool				 bhndb_has_static_region_mapping(
+				     struct bhndb_resources *br,
+				     bhnd_addr_t addr, bhnd_size_t size);
 
 struct bhndb_region		*bhndb_find_resource_region(
 				     struct bhndb_resources *br,
@@ -103,35 +125,23 @@ int				 bhndb_dw_set_addr(device_t dev,
 				     struct bhndb_dw_alloc *dwa,
 				     bus_addr_t addr, bus_size_t size);
 
-size_t				 bhndb_regwin_count(
-				     const struct bhndb_regwin *table,
-				     bhndb_regwin_type_t type);
+struct bhndb_dw_alloc		*bhndb_dw_steal(struct bhndb_resources *br,
+				     bus_addr_t *saved);
 
-const struct bhndb_regwin	*bhndb_regwin_find_type(
-				     const struct bhndb_regwin *table,
-				     bhndb_regwin_type_t type,
-				     bus_size_t min_size);
+void				 bhndb_dw_return_stolen(device_t dev,
+				     struct bhndb_resources *br,
+				     struct bhndb_dw_alloc *dwa,
+				     bus_addr_t saved);
 
-const struct bhndb_regwin	*bhndb_regwin_find_core(
-				     const struct bhndb_regwin *table,
-				     bhnd_devclass_t class, int unit,
+const struct bhndb_hw_priority	*bhndb_hw_priority_find_core(
+				     const struct bhndb_hw_priority *table,
+				     struct bhnd_core_info *core);
+
+const struct bhndb_port_priority *bhndb_hw_priorty_find_port(
+				     const struct bhndb_hw_priority *table,
+				     struct bhnd_core_info *core,
 				     bhnd_port_type port_type, u_int port,
 				     u_int region);
-
-
-const struct bhndb_regwin	*bhndb_regwin_find_best(
-				     const struct bhndb_regwin *table,
-				     bhnd_devclass_t class, int unit,
-				     bhnd_port_type port_type, u_int port,
-				     u_int region, bus_size_t min_size);
-
-bool				 bhndb_regwin_matches_device(
-				     const struct bhndb_regwin *regw,
-				     device_t dev);
-
-const struct bhndb_hw_priority	*bhndb_hw_priority_find_device(
-				     const struct bhndb_hw_priority *table,
-				     device_t device);
 
 
 /**
@@ -161,9 +171,23 @@ struct bhndb_region {
 	bhnd_addr_t			 addr;		/**< start of mapped range */
 	bhnd_size_t			 size;		/**< size of mapped range */
 	bhndb_priority_t		 priority;	/**< direct resource allocation priority */
+	uint32_t			 alloc_flags;	/**< resource allocation flags (@see bhndb_alloc_flags) */
 	const struct bhndb_regwin	*static_regwin;	/**< fixed mapping regwin, if any */
 
 	STAILQ_ENTRY(bhndb_region)	 link;
+};
+
+/**
+ * Attached interrupt handler state
+ */
+struct bhndb_intr_handler {
+	device_t		 ih_owner;	/**< child device */
+	struct resource		*ih_res;	/**< child resource */
+	void			*ih_cookiep;	/**< hostb-assigned cookiep, or NULL if bus_setup_intr() incomplete. */
+	struct bhndb_intr_isrc	*ih_isrc;	/**< host interrupt source routing the child's interrupt  */
+	bool			 ih_active;	/**< handler has been registered via bhndb_register_intr_handler */
+
+	STAILQ_ENTRY(bhndb_intr_handler) ih_link;
 };
 
 /**
@@ -173,32 +197,36 @@ struct bhndb_resources {
 	device_t			 dev;		/**< bridge device */
 	const struct bhndb_hwcfg	*cfg;		/**< hardware configuration */
 
-	device_t			 parent_dev;	/**< parent device */
-	struct resource_spec		*res_spec;	/**< parent bus resource specs */
-	struct resource			**res;		/**< parent bus resources */
+	struct bhndb_host_resources	*res;		/**< host resources, or NULL if not allocated */
 	
 	struct rman			 ht_mem_rman;	/**< host memory manager */
 	struct rman			 br_mem_rman;	/**< bridged memory manager */
+	struct rman			 br_irq_rman;	/**< bridged irq manager */
 
 	STAILQ_HEAD(, bhndb_region) 	 bus_regions;	/**< bus region descriptors */
 
+	struct mtx			 dw_steal_mtx;	/**< spinlock must be held when stealing a dynamic window allocation */
 	struct bhndb_dw_alloc		*dw_alloc;	/**< dynamic window allocation records */
 	size_t				 dwa_count;	/**< number of dynamic windows available. */
-	uint32_t			 dwa_freelist;	/**< dynamic window free list */
+	bitstr_t			*dwa_freelist;	/**< dynamic window free list */
 	bhndb_priority_t		 min_prio;	/**< minimum resource priority required to
 							     allocate a dynamic window */
+
+	STAILQ_HEAD(,bhndb_intr_handler) bus_intrs;	/**< attached child interrupt handlers */
 };
 
 /**
- * Returns true if the all dynamic windows have been exhausted, false
+ * Returns true if the all dynamic windows are marked free, false
  * otherwise.
  * 
  * @param br The resource state to check.
  */
 static inline bool
-bhndb_dw_exhausted(struct bhndb_resources *br)
+bhndb_dw_all_free(struct bhndb_resources *br)
 {
-	return (br->dwa_freelist == 0);
+	int bit;
+	bit_ffs(br->dwa_freelist, br->dwa_count, &bit);
+	return (bit == -1);
 }
 
 /**
@@ -209,12 +237,14 @@ bhndb_dw_exhausted(struct bhndb_resources *br)
 static inline struct bhndb_dw_alloc *
 bhndb_dw_next_free(struct bhndb_resources *br)
 {
-	struct bhndb_dw_alloc *dw_free;
+	struct bhndb_dw_alloc	*dw_free;
+	int			 bit;
 
-	if (bhndb_dw_exhausted(br))
+	bit_ffc(br->dwa_freelist, br->dwa_count, &bit);
+	if (bit == -1)
 		return (NULL);
 
-	dw_free = &br->dw_alloc[__builtin_ctz(br->dwa_freelist)];
+	dw_free = &br->dw_alloc[bit];
 
 	KASSERT(LIST_EMPTY(&dw_free->refs),
 	    ("free list out of sync with refs"));
@@ -233,7 +263,7 @@ bhndb_dw_is_free(struct bhndb_resources *br, struct bhndb_dw_alloc *dwa)
 {
 	bool is_free = LIST_EMPTY(&dwa->refs);
 
-	KASSERT(is_free == ((br->dwa_freelist & (1 << dwa->rnid)) != 0),
+	KASSERT(is_free == !bit_test(br->dwa_freelist, dwa->rnid),
 	    ("refs out of sync with free list"));
 
 	return (is_free);

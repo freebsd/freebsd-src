@@ -21,16 +21,17 @@
  * OSPF support contributed by Jeffrey Honig (jch@mitchell.cit.cornell.edu)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IPv6 Open Shortest Path First (OSPFv3) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -386,7 +387,7 @@ static int
 ospf6_print_lshdr(netdissect_options *ndo,
                   register const struct lsa6_hdr *lshp, const u_char *dataend)
 {
-	if ((u_char *)(lshp + 1) > dataend)
+	if ((const u_char *)(lshp + 1) > dataend)
 		goto trunc;
 	ND_TCHECK(lshp->ls_type);
 	ND_TCHECK(lshp->ls_seq);
@@ -408,7 +409,7 @@ static int
 ospf6_print_lsaprefix(netdissect_options *ndo,
                       const uint8_t *tptr, u_int lsa_length)
 {
-	const struct lsa6_prefix *lsapp = (struct lsa6_prefix *)tptr;
+	const struct lsa6_prefix *lsapp = (const struct lsa6_prefix *)tptr;
 	u_int wordlen;
 	struct in6_addr prefix;
 
@@ -480,10 +481,10 @@ ospf6_print_lsa(netdissect_options *ndo,
 	 * If it does, find the length of what follows the
 	 * header.
 	 */
-        if (length < sizeof(struct lsa6_hdr) || (u_char *)lsap + length > dataend)
+        if (length < sizeof(struct lsa6_hdr) || (const u_char *)lsap + length > dataend)
         	return (1);
         lsa_length = length - sizeof(struct lsa6_hdr);
-        tptr = (uint8_t *)lsap+sizeof(struct lsa6_hdr);
+        tptr = (const uint8_t *)lsap+sizeof(struct lsa6_hdr);
 
 	switch (EXTRACT_16BITS(&lsap->ls_hdr.ls_type)) {
 	case LS_TYPE_ROUTER | LS_SCOPE_AREA:
@@ -569,7 +570,7 @@ ospf6_print_lsa(netdissect_options *ndo,
 		ND_PRINT((ndo, ", metric %u",
 			EXTRACT_32BITS(&lsap->lsa_un.un_inter_ap.inter_ap_metric) & SLA_MASK_METRIC));
 
-		tptr = (uint8_t *)lsap->lsa_un.un_inter_ap.inter_ap_prefix;
+		tptr = (const uint8_t *)lsap->lsa_un.un_inter_ap.inter_ap_prefix;
 		while (lsa_length != 0) {
 			bytelen = ospf6_print_lsaprefix(ndo, tptr, lsa_length);
 			if (bytelen < 0)
@@ -591,8 +592,8 @@ ospf6_print_lsa(netdissect_options *ndo,
 		       EXTRACT_32BITS(&lsap->lsa_un.un_asla.asla_metric) &
 		       ASLA_MASK_METRIC));
 
-		tptr = (uint8_t *)lsap->lsa_un.un_asla.asla_prefix;
-		lsapp = (struct lsa6_prefix *)tptr;
+		tptr = (const uint8_t *)lsap->lsa_un.un_asla.asla_prefix;
+		lsapp = (const struct lsa6_prefix *)tptr;
 		bytelen = ospf6_print_lsaprefix(ndo, tptr, lsa_length);
 		if (bytelen < 0)
 			goto trunc;
@@ -600,9 +601,9 @@ ospf6_print_lsa(netdissect_options *ndo,
 		tptr += bytelen;
 
 		if ((flags32 & ASLA_FLAG_FWDADDR) != 0) {
-			struct in6_addr *fwdaddr6;
+			const struct in6_addr *fwdaddr6;
 
-			fwdaddr6 = (struct in6_addr *)tptr;
+			fwdaddr6 = (const struct in6_addr *)tptr;
 			if (lsa_length < sizeof (*fwdaddr6))
 				return (1);
 			lsa_length -= sizeof (*fwdaddr6);
@@ -616,9 +617,9 @@ ospf6_print_lsa(netdissect_options *ndo,
 			if (lsa_length < sizeof (uint32_t))
 				return (1);
 			lsa_length -= sizeof (uint32_t);
-			ND_TCHECK(*(uint32_t *)tptr);
+			ND_TCHECK(*(const uint32_t *)tptr);
 			ND_PRINT((ndo, " tag %s",
-			       ipaddr_string(ndo, (uint32_t *)tptr)));
+			       ipaddr_string(ndo, (const uint32_t *)tptr)));
 			tptr += sizeof(uint32_t);
 		}
 
@@ -626,9 +627,9 @@ ospf6_print_lsa(netdissect_options *ndo,
 			if (lsa_length < sizeof (uint32_t))
 				return (1);
 			lsa_length -= sizeof (uint32_t);
-			ND_TCHECK(*(uint32_t *)tptr);
+			ND_TCHECK(*(const uint32_t *)tptr);
 			ND_PRINT((ndo, " RefLSID: %s",
-			       ipaddr_string(ndo, (uint32_t *)tptr)));
+			       ipaddr_string(ndo, (const uint32_t *)tptr)));
 			tptr += sizeof(uint32_t);
 		}
 		break;
@@ -647,13 +648,14 @@ ospf6_print_lsa(netdissect_options *ndo,
 		if (lsa_length < sizeof (llsap->llsa_lladdr) + sizeof (llsap->llsa_nprefix))
 			return (1);
 		lsa_length -= sizeof (llsap->llsa_lladdr) + sizeof (llsap->llsa_nprefix);
+                ND_TCHECK(llsap->llsa_nprefix);
                 prefixes = EXTRACT_32BITS(&llsap->llsa_nprefix);
 		ND_PRINT((ndo, "\n\t      Priority %d, Link-local address %s, Prefixes %d:",
                        llsap->llsa_priority,
                        ip6addr_string(ndo, &llsap->llsa_lladdr),
                        prefixes));
 
-		tptr = (uint8_t *)llsap->llsa_prefix;
+		tptr = (const uint8_t *)llsap->llsa_prefix;
 		while (prefixes > 0) {
 			bytelen = ospf6_print_lsaprefix(ndo, tptr, lsa_length);
 			if (bytelen < 0)
@@ -681,7 +683,7 @@ ospf6_print_lsa(netdissect_options *ndo,
                 prefixes = EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
 		ND_PRINT((ndo, "\n\t      Prefixes %d:", prefixes));
 
-		tptr = (uint8_t *)lsap->lsa_un.un_intra_ap.intra_ap_prefix;
+		tptr = (const uint8_t *)lsap->lsa_un.un_intra_ap.intra_ap_prefix;
 		while (prefixes > 0) {
 			bytelen = ospf6_print_lsaprefix(ndo, tptr, lsa_length);
 			if (bytelen < 0)
@@ -732,8 +734,9 @@ ospf6_decode_v3(netdissect_options *ndo,
 	switch (op->ospf6_type) {
 
 	case OSPF_TYPE_HELLO: {
-		register const struct hello6 *hellop = (const struct hello6 *)((uint8_t *)op + OSPF6HDR_LEN);
+		register const struct hello6 *hellop = (const struct hello6 *)((const uint8_t *)op + OSPF6HDR_LEN);
 
+		ND_TCHECK_32BITS(&hellop->hello_options);
 		ND_PRINT((ndo, "\n\tOptions [%s]",
 		          bittok2str(ospf6_option_values, "none",
 		          EXTRACT_32BITS(&hellop->hello_options))));
@@ -756,7 +759,7 @@ ospf6_decode_v3(netdissect_options *ndo,
 		if (ndo->ndo_vflag > 1) {
 			ND_PRINT((ndo, "\n\t  Neighbor List:"));
 			ap = hellop->hello_neighbor;
-			while ((u_char *)ap < dataend) {
+			while ((const u_char *)ap < dataend) {
 				ND_TCHECK(*ap);
 				ND_PRINT((ndo, "\n\t    %s", ipaddr_string(ndo, ap)));
 				++ap;
@@ -766,7 +769,7 @@ ospf6_decode_v3(netdissect_options *ndo,
 	}
 
 	case OSPF_TYPE_DD: {
-		register const struct dd6 *ddp = (const struct dd6 *)((uint8_t *)op + OSPF6HDR_LEN);
+		register const struct dd6 *ddp = (const struct dd6 *)((const uint8_t *)op + OSPF6HDR_LEN);
 
 		ND_TCHECK(ddp->db_options);
 		ND_PRINT((ndo, "\n\tOptions [%s]",
@@ -783,7 +786,7 @@ ospf6_decode_v3(netdissect_options *ndo,
 		if (ndo->ndo_vflag > 1) {
 			/* Print all the LS adv's */
 			lshp = ddp->db_lshdr;
-			while ((u_char *)lshp < dataend) {
+			while ((const u_char *)lshp < dataend) {
 				if (ospf6_print_lshdr(ndo, lshp++, dataend))
 					goto trunc;
 			}
@@ -793,8 +796,8 @@ ospf6_decode_v3(netdissect_options *ndo,
 
 	case OSPF_TYPE_LS_REQ:
 		if (ndo->ndo_vflag > 1) {
-			lsrp = (const struct lsr6 *)((uint8_t *)op + OSPF6HDR_LEN);
-			while ((u_char *)lsrp < dataend) {
+			lsrp = (const struct lsr6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+			while ((const u_char *)lsrp < dataend) {
 				ND_TCHECK(*lsrp);
 				ND_PRINT((ndo, "\n\t  Advertising Router %s",
 				          ipaddr_string(ndo, &lsrp->ls_router)));
@@ -807,15 +810,15 @@ ospf6_decode_v3(netdissect_options *ndo,
 
 	case OSPF_TYPE_LS_UPDATE:
 		if (ndo->ndo_vflag > 1) {
-			register const struct lsu6 *lsup = (const struct lsu6 *)((uint8_t *)op + OSPF6HDR_LEN);
+			register const struct lsu6 *lsup = (const struct lsu6 *)((const uint8_t *)op + OSPF6HDR_LEN);
 
 			ND_TCHECK(lsup->lsu_count);
 			i = EXTRACT_32BITS(&lsup->lsu_count);
 			lsap = lsup->lsu_lsa;
-			while ((u_char *)lsap < dataend && i--) {
+			while ((const u_char *)lsap < dataend && i--) {
 				if (ospf6_print_lsa(ndo, lsap, dataend))
 					goto trunc;
-				lsap = (struct lsa6 *)((u_char *)lsap +
+				lsap = (const struct lsa6 *)((const u_char *)lsap +
 				    EXTRACT_16BITS(&lsap->ls_hdr.ls_length));
 			}
 		}
@@ -823,8 +826,8 @@ ospf6_decode_v3(netdissect_options *ndo,
 
 	case OSPF_TYPE_LS_ACK:
 		if (ndo->ndo_vflag > 1) {
-			lshp = (const struct lsa6_hdr *)((uint8_t *)op + OSPF6HDR_LEN);
-			while ((u_char *)lshp < dataend) {
+			lshp = (const struct lsa6_hdr *)((const uint8_t *)op + OSPF6HDR_LEN);
+			while ((const u_char *)lshp < dataend) {
 				if (ospf6_print_lshdr(ndo, lshp++, dataend))
 					goto trunc;
 			}
@@ -931,11 +934,13 @@ ospf6_decode_v3_trailer(netdissect_options *ndo,
 	int lls_dd = 0;
 
 	if (op->ospf6_type == OSPF_TYPE_HELLO) {
-		const struct hello6 *hellop = (const struct hello6 *)((uint8_t *)op + OSPF6HDR_LEN);
+		const struct hello6 *hellop = (const struct hello6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+		ND_TCHECK(hellop->hello_options);
 		if (EXTRACT_32BITS(&hellop->hello_options) & OSPF6_OPTION_L)
 			lls_hello = 1;
 	} else if (op->ospf6_type == OSPF_TYPE_DD) {
-		const struct dd6 *ddp = (const struct dd6 *)((uint8_t *)op + OSPF6HDR_LEN);
+		const struct dd6 *ddp = (const struct dd6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+		ND_TCHECK(ddp->db_options);
 		if (EXTRACT_32BITS(&ddp->db_options) & OSPF6_OPTION_L)
 			lls_dd = 1;
 	}
@@ -956,7 +961,7 @@ ospf6_print(netdissect_options *ndo,
 	register const char *cp;
 	uint16_t datalen;
 
-	op = (struct ospf6hdr *)bp;
+	op = (const struct ospf6hdr *)bp;
 
 	/* If the type is valid translate it, or just print the type */
 	/* value.  If it's not valid, say so and return */

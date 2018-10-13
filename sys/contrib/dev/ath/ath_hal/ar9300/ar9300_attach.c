@@ -2339,7 +2339,9 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
     } else {
         ar9300_disable_pcie_phy(ah);
     }
+#if 0
     ath_hal_printf(ah, "%s: calling ar9300_hw_attach\n", __func__);
+#endif
     ecode = ar9300_hw_attach(ah);
     if (ecode != HAL_OK) {
         goto bad;
@@ -2878,7 +2880,6 @@ ar9300_fill_capability_info(struct ath_hal *ah)
 #if ATH_SUPPORT_SPECTRAL
     p_cap->halSpectralScanSupport = AH_TRUE;
 #endif
-
     ahpriv->ah_rfsilent = ar9300_eeprom_get(ahp, EEP_RF_SILENT);
     if (ahpriv->ah_rfsilent & EEP_RFSILENT_ENABLED) {
         ahp->ah_gpio_select = MS(ahpriv->ah_rfsilent, EEP_RFSILENT_GPIO_SEL);
@@ -2998,8 +2999,8 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     p_cap->hal_cfend_fix_support = AH_FALSE;
     p_cap->hal_aggr_extra_delim_war = AH_FALSE;
 #endif
-    p_cap->halHasLongRxDescTsf = AH_TRUE;
-//    p_cap->hal_rx_desc_timestamp_bits = 32;
+    p_cap->halTxTstampPrecision = 32;
+    p_cap->halRxTstampPrecision = 32;
     p_cap->halRxTxAbortSupport = AH_TRUE;
     p_cap->hal_ani_poll_interval = AR9300_ANI_POLLINTERVAL;
     p_cap->hal_channel_switch_time_usec = AR9300_CHANNEL_SWITCH_TIME_USEC;
@@ -3235,7 +3236,9 @@ ar9300_hw_attach(struct ath_hal *ah)
         return HAL_ESELFTEST;
     }
 
+#if 0
     ath_hal_printf(ah, "%s: calling ar9300_eeprom_attach\n", __func__);
+#endif
     ecode = ar9300_eeprom_attach(ah);
     ath_hal_printf(ah, "%s: ar9300_eeprom_attach returned %d\n", __func__, ecode);
     if (ecode != HAL_OK) {

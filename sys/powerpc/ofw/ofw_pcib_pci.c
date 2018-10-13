@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -61,6 +63,7 @@ static device_method_t ofw_pcib_pci_methods[] = {
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_pci_get_node),

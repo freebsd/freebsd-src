@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -34,7 +36,7 @@
 #define NUM_NOISEFLOOR_READINGS 6       /* 3 chains * (ctl + ext) */
 
 static void ar5416StartNFCal(struct ath_hal *ah);
-static void ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
+static HAL_BOOL ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
 static int16_t ar5416GetNf(struct ath_hal *, struct ieee80211_channel *);
 
 static uint16_t ar5416GetDefaultNF(struct ath_hal *ah, const struct ieee80211_channel *chan);
@@ -511,6 +513,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 			HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "%s: NF calibration"
 			    " didn't finish; delaying CCA\n", __func__);
 		} else {
+			int ret;
 			/* 
 			 * NF calibration result is valid.
 			 *
@@ -518,10 +521,17 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 			 * NF is slow time-variant, so it is OK to use a
 			 * historical value.
 			 */
-			ar5416LoadNF(ah, AH_PRIVATE(ah)->ah_curchan);
+			ret = ar5416LoadNF(ah, AH_PRIVATE(ah)->ah_curchan);
 
 			/* start NF calibration, without updating BB NF register*/
 			ar5416StartNFCal(ah);
+
+			/*
+			 * If we failed calibration then tell the driver
+			 * we failed and it should do a full chip reset
+			 */
+			if (! ret)
+				return AH_FALSE;
 		}
 	}
 	return AH_TRUE;
@@ -576,7 +586,7 @@ ar5416StartNFCal(struct ath_hal *ah)
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 }
 
-static void
+static HAL_BOOL
 ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	static const uint32_t ar5416_cca_regs[] = {
@@ -655,7 +665,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "Timeout while waiting for "
 		    "nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
-		return;
+		return AH_FALSE;
 	}
 
 	/*
@@ -677,6 +687,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			OS_REG_WRITE(ah, ar5416_cca_regs[i], val);
 		}
 	}
+	return AH_TRUE;
 }
 
 /*

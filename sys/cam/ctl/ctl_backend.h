@@ -1,6 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
- * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,54 +42,8 @@
 #ifndef	_CTL_BACKEND_H_
 #define	_CTL_BACKEND_H_
 
-/*
- * XXX KDM move this to another header file?
- */
-#define	CTL_BE_NAME_LEN		32
-
-/*
- * The ID_REQ flag is used to say that the caller has requested a
- * particular LUN ID in the req_lun_id field.  If we cannot allocate that
- * LUN ID, the ctl_add_lun() call will fail.
- *
- * The STOPPED flag tells us that the LUN should default to the powered
- * off state.  It will return 0x04,0x02 until it is powered up.  ("Logical
- * unit not ready, initializing command required.")
- *
- * The NO_MEDIA flag tells us that the LUN has no media inserted.
- *
- * The PRIMARY flag tells us that this LUN is registered as a Primary LUN
- * which is accessible via the Master shelf controller in an HA. This flag
- * being set indicates a Primary LUN. This flag being reset represents a
- * Secondary LUN controlled by the Secondary controller in an HA
- * configuration. Flag is applicable at this time to T_DIRECT types. 
- *
- * The SERIAL_NUM flag tells us that the serial_num field is filled in and
- * valid for use in SCSI INQUIRY VPD page 0x80.
- *
- * The DEVID flag tells us that the device_id field is filled in and
- * valid for use in SCSI INQUIRY VPD page 0x83.
- *
- * The DEV_TYPE flag tells us that the device_type field is filled in.
- *
- * The EJECTED flag tells us that the removable LUN has tray open.
- *
- * The UNMAP flag tells us that this LUN supports UNMAP.
- *
- * The OFFLINE flag tells us that this LUN can not access backing store.
- */
-typedef enum {
-	CTL_LUN_FLAG_ID_REQ		= 0x01,
-	CTL_LUN_FLAG_STOPPED		= 0x02,
-	CTL_LUN_FLAG_NO_MEDIA		= 0x04,
-	CTL_LUN_FLAG_PRIMARY		= 0x08,
-	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
-	CTL_LUN_FLAG_DEVID		= 0x20,
-	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
-	CTL_LUN_FLAG_UNMAP		= 0x80,
-	CTL_LUN_FLAG_EJECTED		= 0x100,
-	CTL_LUN_FLAG_READONLY		= 0x200
-} ctl_backend_lun_flags;
+#include <cam/ctl/ctl_ioctl.h>
+#include <sys/nv.h>
 
 typedef enum {
 	CTL_LUN_SERSEQ_OFF,
@@ -102,12 +58,13 @@ typedef enum {
 	{ \
 		switch (type) { \
 		case MOD_LOAD: \
-			ctl_backend_register( \
-				(struct ctl_backend_driver *)data); \
+			return (ctl_backend_register( \
+				(struct ctl_backend_driver *)data)); \
 			break; \
 		case MOD_UNLOAD: \
-			printf(#name " module unload - not possible for this module type\n"); \
-			return EINVAL; \
+			return (ctl_backend_deregister( \
+				(struct ctl_backend_driver *)data)); \
+			break; \
 		default: \
 			return EOPNOTSUPP; \
 		} \
@@ -219,17 +176,17 @@ struct ctl_be_lun {
 	be_lun_config_t		lun_config_status; /* passed to CTL */
 	struct ctl_backend_driver *be;		/* passed to CTL */
 	void			*ctl_lun;	/* used by CTL */
-	ctl_options_t		options;	/* passed to CTL */
+	nvlist_t	 	*options;	/* passed to CTL */
 	STAILQ_ENTRY(ctl_be_lun) links;		/* used by CTL */
 };
 
 typedef enum {
 	CTL_BE_FLAG_NONE	= 0x00,	/* no flags */
 	CTL_BE_FLAG_HAS_CONFIG	= 0x01,	/* can do config reads, writes */
-	CTL_BE_FLAG_INTERNAL	= 0x02	/* don't inc mod refcount */
 } ctl_backend_flags;
 
 typedef int (*be_init_t)(void);
+typedef int (*be_shutdown_t)(void);
 typedef int (*be_func_t)(union ctl_io *io);
 typedef void (*be_vfunc_t)(union ctl_io *io);
 typedef int (*be_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
@@ -241,6 +198,7 @@ struct ctl_backend_driver {
 	char		  name[CTL_BE_NAME_LEN]; /* passed to CTL */
 	ctl_backend_flags flags;	         /* passed to CTL */
 	be_init_t	  init;			 /* passed to CTL */
+	be_shutdown_t	  shutdown;		 /* passed to CTL */
 	be_func_t	  data_submit;		 /* passed to CTL */
 	be_func_t	  data_move_done;	 /* passed to CTL */
 	be_func_t	  config_read;		 /* passed to CTL */

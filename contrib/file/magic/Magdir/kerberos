@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: kerberos,v 1.1 2014/12/10 18:45:43 christos Exp $
+# $File: kerberos,v 1.2 2017/03/17 21:35:28 christos Exp $
 # kerberos: MIT kerberos file binary formats
 #
 
@@ -38,7 +38,7 @@
 >>>>>&0		bedate		x		\b, date=%s
 >>>>>>&0	byte		x		\b, kvno=%u
 #>>>>>>>&0	pstring/H	x
-#>>>>>>>>&0	belong		x	
+#>>>>>>>>&0	belong		x
 #>>>>>>>>>>&0	use		keytab_entry
 
 0		belong		0x05020000	Kerberos Keytab file

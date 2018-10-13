@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -113,7 +115,7 @@ typedef enum {
 	IFT_QLLC	= 0x44,		/* SNA QLLC			*/
 	IFT_FASTETHERFX	= 0x45,		/* Fast Ethernet (100BaseFX)	*/
 	IFT_CHANNEL	= 0x46,		/* channel			*/
-	IFT_IEEE80211	= 0x47,		/* radio spread spectrum	*/
+	IFT_IEEE80211	= 0x47,		/* radio spread spectrum (unused) */
 	IFT_IBM370PARCHAN = 0x48,	/* IBM System 360/370 OEMI Channel */
 	IFT_ESCON	= 0x49,		/* IBM Enterprise Systems Connection */
 	IFT_DLSW	= 0x4a,		/* Data Link Switching */

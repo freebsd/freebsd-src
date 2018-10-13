@@ -1,6 +1,8 @@
 /*-
  * CAM request queue management functions.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -176,8 +178,11 @@ camq_remove(struct camq *queue, int index)
 {
 	cam_pinfo *removed_entry;
 
-	if (index == 0 || index > queue->entries)
-		return (NULL);
+	if (index <= 0 || index > queue->entries)
+		panic("%s: Attempt to remove out-of-bounds index %d "
+		    "from queue %p of size %d", __func__, index, queue,
+		    queue->entries);
+
 	removed_entry = queue->queue_array[index];
 	if (queue->entries != index) {
 		queue->queue_array[index] = queue->queue_array[queue->entries];

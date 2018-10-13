@@ -2,13 +2,15 @@
 
 .include <src.opts.mk>
 
-TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
+TCPDUMP_DISTDIR?= ${SRCTOP}/contrib/tcpdump
 .PATH: ${TCPDUMP_DISTDIR}
 
 PROG=	tcpdump
 
 SRCS=	addrtoname.c \
+	addrtostr.c \
 	af.c \
+	ascii_strcasecmp.c \
 	checksum.c \
 	cpack.c \
 	gmpls.c \
@@ -17,9 +19,11 @@ SRCS=	addrtoname.c \
 	ipproto.c \
 	l2vpn.c \
 	machdep.c \
+	netdissect.c \
 	nlpid.c \
 	oui.c \
 	parsenfsfh.c \
+	print.c \
 	print-802_11.c \
 	print-802_15_4.c \
 	print-ah.c \
@@ -32,6 +36,7 @@ SRCS=	addrtoname.c \
 	print-ascii.c \
 	print-atalk.c \
 	print-atm.c \
+	print-babel.c \
 	print-beep.c \
 	print-bfd.c \
 	print-bgp.c \
@@ -46,6 +51,7 @@ SRCS=	addrtoname.c \
 	print-cnfp.c \
 	print-dccp.c \
 	print-decnet.c \
+	print-dhcp6.c \
 	print-domain.c \
 	print-dtp.c \
 	print-dvmrp.c \
@@ -58,17 +64,21 @@ SRCS=	addrtoname.c \
 	print-fddi.c \
 	print-forces.c \
 	print-fr.c \
+	print-frag6.c \
 	print-ftp.c \
 	print-geneve.c \
 	print-geonet.c \
 	print-gre.c \
+	print-hncp.c \
 	print-hsrp.c \
 	print-http.c \
 	print-icmp.c \
+	print-icmp6.c \
 	print-igmp.c \
 	print-igrp.c \
 	print-ip.c \
 	print-ip6.c \
+	print-ip6opts.c \
 	print-ipcomp.c \
 	print-ipfc.c \
 	print-ipnet.c \
@@ -80,6 +90,7 @@ SRCS=	addrtoname.c \
 	print-l2tp.c \
 	print-lane.c \
 	print-ldp.c \
+	print-lisp.c \
 	print-llc.c \
 	print-lldp.c \
 	print-lmp.c \
@@ -88,19 +99,23 @@ SRCS=	addrtoname.c \
 	print-lwapp.c \
 	print-lwres.c \
 	print-m3ua.c \
+	print-medsa.c \
 	print-mobile.c \
+	print-mobility.c \
 	print-mpcp.c \
 	print-mpls.c \
 	print-mptcp.c \
 	print-msdp.c \
 	print-msnlb.c \
 	print-nfs.c \
+	print-nsh.c \
 	print-ntp.c \
 	print-null.c \
 	print-olsr.c \
 	print-openflow.c \
 	print-openflow-1.0.c \
 	print-ospf.c \
+	print-ospf6.c \
 	print-otv.c \
 	print-pgm.c \
 	print-pim.c \
@@ -111,10 +126,13 @@ SRCS=	addrtoname.c \
 	print-pptp.c \
 	print-radius.c \
 	print-raw.c \
+	print-resp.c \
 	print-rip.c \
+	print-ripng.c \
 	print-rpki-rtr.c \
 	print-rrcp.c \
 	print-rsvp.c \
+	print-rt6.c \
 	print-rtsp.c \
 	print-rx.c \
 	print-sctp.c \
@@ -144,32 +162,25 @@ SRCS=	addrtoname.c \
 	print-vrrp.c \
 	print-vtp.c \
 	print-vxlan.c \
+	print-vxlan-gpe.c \
 	print-wb.c \
 	print-zephyr.c \
 	print-zeromq.c \
 	setsignal.c \
 	signature.c \
 	smbutil.c \
+	strtoaddr.c \
 	tcpdump.c \
-	util.c \
+	util-print.c \
 	version.c
-CLEANFILES+=	version.c
+CLEANFILES+=	version.c ${MAN}
 
 CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -D_U_="__attribute__((unused))"
 
 .if ${MK_INET6_SUPPORT} != "no"
-SRCS+=	print-babel.c \
-	print-dhcp6.c \
-	print-frag6.c \
-	print-icmp6.c \
-	print-ip6opts.c \
-	print-mobility.c \
-	print-ospf6.c \
-	print-ripng.c \
-	print-rt6.c
-CFLAGS+=	-DINET6
+CFLAGS+=	-DINET6 -DHAVE_OS_IPV6_SUPPORT
 .endif
 .if ${MACHINE_CPUARCH} != "i386"
 CFLAGS+=	-DLBL_ALIGN
@@ -183,14 +194,14 @@ CFLAGS+=-DHAVE_CASPER
 .endif
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto
-CFLAGS+= -I${DESTDIR}/usr/include/openssl
+CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/openssl
 CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif
 
 .if ${MK_PF} != "no"
 SRCS+=	print-pflog.c \
 	print-pfsync.c
-CFLAGS+= -DHAVE_NET_PFVAR_H
+CFLAGS+= -DHAVE_NET_PFVAR_H -DHAVE_NET_IF_PFLOG_H
 .endif
 
 version.c: ${TCPDUMP_DISTDIR}/VERSION
@@ -199,3 +210,9 @@ version.c: ${TCPDUMP_DISTDIR}/VERSION
 		> version.c
 
 .include <bsd.prog.mk>
+
+.for mp in ${MAN}
+${mp}: ${mp}.in
+	sed -e 's/@MAN_MISC_INFO@/7/g' -e 's/@MAN_FILE_FORMATS@/5/g' \
+		${.ALLSRC} > ${.TARGET}
+.endfor

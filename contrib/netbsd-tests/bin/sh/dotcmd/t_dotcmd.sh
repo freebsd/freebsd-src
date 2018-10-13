@@ -1,4 +1,4 @@
-# $NetBSD: t_dotcmd.sh,v 1.1 2014/05/31 14:29:06 christos Exp $
+# $NetBSD: t_dotcmd.sh,v 1.2 2016/03/27 14:57:50 christos Exp $
 #
 # Copyright (c) 2014 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -32,6 +32,10 @@
 # sourced by a dotcmd in various scopes.  Basically, dotcmd is like #include
 # in C/C++ so, for example, if the dotcmd is in a loop's body, a break in
 # the sourced file can be used to break out of that loop.
+
+# Note that the standard does not require this, and allows lexically
+# scoped interpretation of break/continue (and permits dynamic scope
+# as an optional extension.)
 
 cmds='return break continue'
 scopes='case compound file for func subshell until while'

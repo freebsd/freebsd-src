@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2015
+.Dd March 15, 2018
 .Dt GETNAMEINFO 3
 .Os
 .Sh NAME
@@ -80,6 +80,20 @@ or UNIX-domain respectively
 that is
 .Fa salen
 bytes long.
+If
+.Fa salen
+is shorter than the length corresponding to the specified
+address family or longer than
+.Fn sizeof "struct sockaddr_storage" ,
+it returns
+.Er EAI_FAMILY .
+Note that
+.Va sa->sa_len
+should be consistent with
+.Fa salen
+though the value of
+.Va sa->sa_len
+is not directly used in this function.
 .Pp
 The host and service names associated with
 .Fa sa
@@ -111,7 +125,7 @@ The
 argument is formed by
 .Tn OR Ns 'ing
 the following values:
-.Bl -tag -width "NI_NUMERICHOSTXX"
+.Bl -tag -width "NI_NUMERICSCOPEXX"
 .It Dv NI_NOFQDN
 A fully qualified domain name is not required for local hosts.
 The local part of the fully qualified domain name is returned instead.
@@ -127,6 +141,8 @@ If the host name is not found and the flag is not set, the
 address is returned in numeric form.
 .It NI_NUMERICSERV
 The service name is returned as a digit string representing the port number.
+.It NI_NUMERICSCOPE
+The scope identifier is returned as a digit string.
 .It NI_DGRAM
 Specifies that the service being looked up is a datagram
 service, and causes

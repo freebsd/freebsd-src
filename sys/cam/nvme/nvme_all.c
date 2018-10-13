@@ -1,6 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Netflix, Inc
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/sysctl.h>
 #else
 #include <errno.h>
@@ -54,6 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/endian.h>
 
+#ifdef _KERNEL
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
+#endif
+
 void
 nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
     uint32_t cdw10, uint32_t cdw11, uint32_t cdw12, uint32_t cdw13,
@@ -61,13 +70,13 @@ nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
 {
 	bzero(&nvmeio->cmd, sizeof(struct nvme_command));
 	nvmeio->cmd.opc = cmd;
-	nvmeio->cmd.nsid = nsid;
-	nvmeio->cmd.cdw10 = cdw10;
-	nvmeio->cmd.cdw11 = cdw11;
-	nvmeio->cmd.cdw12 = cdw12;
-	nvmeio->cmd.cdw13 = cdw13;
-	nvmeio->cmd.cdw14 = cdw14;
-	nvmeio->cmd.cdw15 = cdw15;
+	nvmeio->cmd.nsid = htole32(nsid);
+	nvmeio->cmd.cdw10 = htole32(cdw10);
+	nvmeio->cmd.cdw11 = htole32(cdw11);
+	nvmeio->cmd.cdw12 = htole32(cdw12);
+	nvmeio->cmd.cdw13 = htole32(cdw13);
+	nvmeio->cmd.cdw14 = htole32(cdw14);
+	nvmeio->cmd.cdw15 = htole32(cdw15);
 }
 
 int
@@ -79,9 +88,16 @@ nvme_identify_match(caddr_t identbuffer, caddr_t table_entry)
 
 void
 nvme_print_ident(const struct nvme_controller_data *cdata,
-    const struct nvme_namespace_data *data)
+    const struct nvme_namespace_data *data, struct sbuf *sb)
 {
-	printf("I'm a pretty NVME drive\n");
+
+	sbuf_printf(sb, "<");
+	cam_strvis_sbuf(sb, cdata->mn, sizeof(cdata->mn), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, cdata->fr, sizeof(cdata->fr), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, cdata->sn, sizeof(cdata->sn), 0);
+	sbuf_printf(sb, ">\n");
 }
 
 /* XXX need to do nvme admin opcodes too, but those aren't used yet by nda */
@@ -101,7 +117,8 @@ nvme_opc2str[] = {
 const char *
 nvme_op_string(const struct nvme_command *cmd)
 {
-	if (cmd->opc > nitems(nvme_opc2str))
+
+	if (cmd->opc >= nitems(nvme_opc2str))
 		return "UNKNOWN";
 
 	return nvme_opc2str[cmd->opc];
@@ -110,6 +127,7 @@ nvme_op_string(const struct nvme_command *cmd)
 const char *
 nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 {
+
 	/*
 	 * cid, rsvd areas and mptr not printed, since they are used
 	 * only internally by the SIM.
@@ -118,7 +136,28 @@ nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 	    "opc=%x fuse=%x nsid=%x prp1=%llx prp2=%llx cdw=%x %x %x %x %x %x",
 	    cmd->opc, cmd->fuse, cmd->nsid,
 	    (unsigned long long)cmd->prp1, (unsigned long long)cmd->prp2,
-	    cmd->cdw10, cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14, cmd->cdw15);
+	    cmd->cdw10, cmd->cdw11, cmd->cdw12,
+	    cmd->cdw13, cmd->cdw14, cmd->cdw15);
 
 	return cmd_string;
+}
+
+const void *
+nvme_get_identify_cntrl(struct cam_periph *periph)
+{
+	struct cam_ed *device;
+
+	device = periph->path->device;
+
+	return device->nvme_cdata;
+}
+
+const void *
+nvme_get_identify_ns(struct cam_periph *periph)
+{
+	struct cam_ed *device;
+
+	device = periph->path->device;
+
+	return device->nvme_data;
 }

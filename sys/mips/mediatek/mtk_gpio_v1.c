@@ -292,7 +292,8 @@ mtk_gpio_attach(device_t dev)
 
 	for (i = 0; i < sc->num_pins; i++) {
 		sc->pins[i].pin_caps |= GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
-		    GPIO_PIN_INVIN | GPIO_PIN_INVOUT;
+		    GPIO_PIN_INVIN | GPIO_PIN_INVOUT |
+		    GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING;
 		sc->pins[i].intr_polarity = INTR_POLARITY_HIGH;
 		sc->pins[i].intr_trigger = INTR_TRIGGER_EDGE;
 
@@ -500,22 +501,78 @@ out:
 }
 
 static int
+mtk_gpio_pic_map_fdt(struct mtk_gpio_softc *sc,
+    struct intr_map_data_fdt *daf, u_int *irqp, uint32_t *modep)
+{
+	u_int irq;
+
+	if (daf->ncells != 1) {
+		device_printf(sc->dev, "Invalid #interrupt-cells\n");
+		return (EINVAL);
+	}
+
+	irq = daf->cells[0];
+
+	if (irq >= sc->num_pins) {
+		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
+		return (EINVAL);
+	}
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = GPIO_INTR_EDGE_BOTH;
+
+	return (0);
+}
+
+static int
+mtk_gpio_pic_map_gpio(struct mtk_gpio_softc *sc,
+    struct intr_map_data_gpio *dag, u_int *irqp, uint32_t *modep)
+{
+	u_int irq;
+
+	irq = dag->gpio_pin_num;
+	if (irq >= sc->num_pins) {
+		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
+		return (EINVAL);
+	}
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = dag->gpio_intr_mode;
+
+	return (0);
+}
+
+static int
 mtk_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
-	struct intr_map_data_fdt *daf;
+	int error;
+	u_int irq;
 	struct mtk_gpio_softc *sc;
 
-	if (data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-
 	sc = device_get_softc(dev);
-	daf = (struct intr_map_data_fdt *)data;
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		error = (mtk_gpio_pic_map_fdt(sc, 
+		    (struct intr_map_data_fdt *)data, &irq, NULL));
+		break;
+	case INTR_MAP_DATA_GPIO:
+		error = (mtk_gpio_pic_map_gpio(sc, 
+		    (struct intr_map_data_gpio *)data, &irq, NULL));
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
 
-	if (daf->ncells != 1 || daf->cells[0] >= sc->num_pins)
-		return (EINVAL);
+	if (error != 0) {
+		device_printf(dev, "Invalid map type\n");
+		return (error);
+	}
 
-	*isrcp = PIC_INTR_ISRC(sc, daf->cells[0]);
+	*isrcp = PIC_INTR_ISRC(sc, irq);
 	return (0);
 }
 
@@ -600,6 +657,51 @@ mtk_gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
+mtk_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct mtk_gpio_softc *sc;
+	uint32_t val;
+	int error;
+	uint32_t mode;
+	u_int irq;
+
+	if (data == NULL)
+		return (ENOTSUP);
+
+	sc = device_get_softc(dev);
+
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		error = mtk_gpio_pic_map_fdt(sc, 
+		    (struct intr_map_data_fdt *)data, &irq, &mode);
+		break;
+	case INTR_MAP_DATA_GPIO:
+		error = mtk_gpio_pic_map_gpio(sc, 
+		    (struct intr_map_data_gpio *)data, &irq, &mode);
+		break;
+	default:
+		error = ENOTSUP;
+		break;
+	}
+
+	if (error != 0)
+		return (error);
+	
+	MTK_GPIO_LOCK(sc);
+	if (mode == GPIO_INTR_EDGE_BOTH || mode == GPIO_INTR_EDGE_RISING) {
+		val = MTK_READ_4(sc, GPIO_PIORENA) | (1u << irq);
+		MTK_WRITE_4(sc, GPIO_PIORENA, val);
+	}
+	if (mode == GPIO_INTR_EDGE_BOTH || mode == GPIO_INTR_EDGE_FALLING) {
+		val = MTK_READ_4(sc, GPIO_PIOFENA) | (1u << irq);
+		MTK_WRITE_4(sc, GPIO_PIOFENA, val);
+	}
+	MTK_GPIO_UNLOCK(sc);
+	return (0);
+}
+
+static int
 mtk_gpio_intr(void *arg)
 {
 	struct mtk_gpio_softc *sc;
@@ -607,6 +709,7 @@ mtk_gpio_intr(void *arg)
 
 	sc = arg;
 	interrupts = MTK_READ_4(sc, GPIO_PIOINT);
+	MTK_WRITE_4(sc, GPIO_PIOINT, interrupts);
 
 	for (i = 0; interrupts != 0; i++, interrupts >>= 1) {
 		if ((interrupts & 0x1) == 0)
@@ -649,6 +752,7 @@ static device_method_t mtk_gpio_methods[] = {
 	DEVMETHOD(pic_disable_intr,	mtk_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mtk_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mtk_gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr,	mtk_gpio_pic_setup_intr),
 	DEVMETHOD(pic_post_filter,	mtk_gpio_pic_post_filter),
 	DEVMETHOD(pic_post_ithread,	mtk_gpio_pic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mtk_gpio_pic_pre_ithread),

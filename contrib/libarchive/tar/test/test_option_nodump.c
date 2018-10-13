@@ -36,7 +36,7 @@ DEFINE_TEST(test_option_nodump)
 	assertMakeFile("file1", 0644, "file1");
 	assertMakeFile("file2", 0644, "file2");
 	assertMakeFile("file3", 0644, "file3");
-	assertNodump("file2");
+	assertSetNodump("file2");
 
 	/* Test 1: Without --nodump */
 	assertEqualInt(0, systemf("%s -cf test1.tar file1 file2 file3",

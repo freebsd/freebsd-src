@@ -28,7 +28,6 @@
 #include <apr_pools.h>
 #include <apr_time.h>
 #include <apr_file_io.h>
-#include <apr_signal.h>
 
 #define APR_WANT_STDIO
 #define APR_WANT_STRFUNC
@@ -43,6 +42,7 @@
 #include "svn_dirent_uri.h"
 #include "svn_path.h"
 #include "svn_repos.h"
+#include "svn_cache_config.h"
 #include "svn_fs.h"
 #include "svn_time.h"
 #include "svn_utf.h"
@@ -143,6 +143,13 @@ static const apr_getopt_option_t options_table[] =
 
   {"properties-only",   svnlook__properties_only, 0,
    N_("show only properties during the operation")},
+
+  {"memory-cache-size", 'M', 1,
+   N_("size of the extra in-memory cache in MB used to\n"
+      "                             "
+      "minimize redundant operations. Default: 16.\n"
+      "                             "
+      "[used for FSFS repositories only]")},
 
   {"no-newline",        svnlook__no_newline, 0,
    N_("do not output the trailing newline")},
@@ -296,7 +303,7 @@ static const svn_opt_subcommand_desc2_t cmd_table[] =
    N_("usage: svnlook tree REPOS_PATH [PATH_IN_REPOS]\n\n"
       "Print the tree, starting at PATH_IN_REPOS (if supplied, at the root\n"
       "of the tree otherwise), optionally showing node revision ids.\n"),
-   {'r', 't', 'N', svnlook__show_ids, svnlook__full_paths} },
+   {'r', 't', 'N', svnlook__show_ids, svnlook__full_paths, 'M'} },
 
   {"uuid", subcommand_uuid, {0},
    N_("usage: svnlook uuid REPOS_PATH\n\n"
@@ -340,6 +347,7 @@ struct svnlook_opt_state
   const char *diff_cmd;           /* --diff-cmd */
   svn_boolean_t show_inherited_props; /*  --show-inherited-props */
   svn_boolean_t no_newline;       /* --no-newline */
+  apr_uint64_t memory_cache_size; /* --memory-cache-size */
 };
 
 
@@ -365,30 +373,10 @@ typedef struct svnlook_ctxt_t
 
 } svnlook_ctxt_t;
 
-/* A flag to see if we've been cancelled by the client or not. */
-static volatile sig_atomic_t cancelled = FALSE;
-
 
 /*** Helper functions. ***/
 
-/* A signal handler to support cancellation. */
-static void
-signal_handler(int signum)
-{
-  apr_signal(signum, SIG_IGN);
-  cancelled = TRUE;
-}
-
-/* Our cancellation callback. */
-static svn_error_t *
-check_cancel(void *baton)
-{
-  if (cancelled)
-    return svn_error_create(SVN_ERR_CANCELLED, NULL, _("Caught signal"));
-  else
-    return SVN_NO_ERROR;
-}
-
+static svn_cancel_func_t check_cancel = NULL;
 
 /* Version compatibility check */
 static svn_error_t *
@@ -426,8 +414,8 @@ get_property(svn_string_t **prop_value,
 
   /* ...or revision property -- it's your call. */
   else
-    SVN_ERR(svn_fs_revision_prop(&raw_value, c->fs, c->rev_id,
-                                 prop_name, pool));
+    SVN_ERR(svn_fs_revision_prop2(&raw_value, c->fs, c->rev_id,
+                                  prop_name, TRUE, pool, pool));
 
   *prop_value = raw_value;
 
@@ -755,8 +743,9 @@ generate_label(const char **label,
       if (svn_fs_is_revision_root(root))
         {
           rev = svn_fs_revision_root_revision(root);
-          SVN_ERR(svn_fs_revision_prop(&date, fs, rev,
-                                       SVN_PROP_REVISION_DATE, pool));
+          SVN_ERR(svn_fs_revision_prop2(&date, fs, rev,
+                                        SVN_PROP_REVISION_DATE, TRUE,
+                                        pool, pool));
         }
       else
         {
@@ -1861,7 +1850,8 @@ do_plist(svnlook_ctxt_t *c,
     }
   else if (c->is_revision)
     {
-      SVN_ERR(svn_fs_revision_proplist(&props, c->fs, c->rev_id, pool));
+      SVN_ERR(svn_fs_revision_proplist2(&props, c->fs, c->rev_id, TRUE,
+                                        pool, pool));
       revprop = TRUE;
     }
   else
@@ -2472,6 +2462,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   /* Initialize opt_state. */
   memset(&opt_state, 0, sizeof(opt_state));
   opt_state.rev = SVN_INVALID_REVNUM;
+  opt_state.memory_cache_size = svn_cache_config_get()->cache_size;
 
   /* Parse options. */
   SVN_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
@@ -2511,6 +2502,15 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
         case 't':
           opt_state.txn = opt_arg;
+          break;
+
+        case 'M':
+          {
+            apr_uint64_t sz_val;
+            SVN_ERR(svn_cstring_atoui64(&sz_val, opt_arg));
+
+            opt_state.memory_cache_size = 0x100000 * sz_val;
+          }
           break;
 
         case 'N':
@@ -2665,21 +2665,21 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         }
       else
         {
-          const char *first_arg = os->argv[os->ind++];
+          const char *first_arg;
+
+          SVN_ERR(svn_utf_cstring_to_utf8(&first_arg, os->argv[os->ind++],
+                                          pool));
           subcommand = svn_opt_get_canonical_subcommand2(cmd_table, first_arg);
           if (subcommand == NULL)
             {
-              const char *first_arg_utf8;
-              SVN_ERR(svn_utf_cstring_to_utf8(&first_arg_utf8, first_arg,
-                                              pool));
               svn_error_clear(
                 svn_cmdline_fprintf(stderr, pool,
                                     _("Unknown subcommand: '%s'\n"),
-                                    first_arg_utf8));
+                                    first_arg));
               SVN_ERR(subcommand_help(NULL, NULL, pool));
 
               /* Be kind to people who try 'svnlook verify'. */
-              if (strcmp(first_arg_utf8, "verify") == 0)
+              if (strcmp(first_arg, "verify") == 0)
                 {
                   svn_error_clear(
                     svn_cmdline_fprintf(stderr, pool,
@@ -2783,30 +2783,18 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         }
     }
 
-  /* Set up our cancellation support. */
-  apr_signal(SIGINT, signal_handler);
-#ifdef SIGBREAK
-  /* SIGBREAK is a Win32 specific signal generated by ctrl-break. */
-  apr_signal(SIGBREAK, signal_handler);
-#endif
-#ifdef SIGHUP
-  apr_signal(SIGHUP, signal_handler);
-#endif
-#ifdef SIGTERM
-  apr_signal(SIGTERM, signal_handler);
-#endif
+  check_cancel = svn_cmdline__setup_cancellation_handler();
 
-#ifdef SIGPIPE
-  /* Disable SIGPIPE generation for the platforms that have it. */
-  apr_signal(SIGPIPE, SIG_IGN);
-#endif
+  /* Configure FSFS caches for maximum efficiency with svnadmin.
+   * Also, apply the respective command line parameters, if given. */
+  {
+    svn_cache_config_t settings = *svn_cache_config_get();
 
-#ifdef SIGXFSZ
-  /* Disable SIGXFSZ generation for the platforms that have it, otherwise
-   * working with large files when compiled against an APR that doesn't have
-   * large file support will crash the program, which is uncool. */
-  apr_signal(SIGXFSZ, SIG_IGN);
-#endif
+    settings.cache_size = opt_state.memory_cache_size;
+    settings.single_threaded = TRUE;
+
+    svn_cache_config_set(&settings);
+  }
 
   /* Run the subcommand. */
   err = (*subcommand->cmd_func)(os, &opt_state, pool);
@@ -2855,5 +2843,8 @@ main(int argc, const char *argv[])
     }
 
   svn_pool_destroy(pool);
+
+  svn_cmdline__cancellation_exit();
+
   return exit_code;
 }

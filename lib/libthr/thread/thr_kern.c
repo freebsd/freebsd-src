@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
  * Copyright (C) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * All rights reserved.
@@ -62,7 +64,7 @@ _thr_setthreaded(int threaded)
 }
 
 void
-_thr_assert_lock_level()
+_thr_assert_lock_level(void)
 {
 	PANIC("locklevel <= 0");
 }

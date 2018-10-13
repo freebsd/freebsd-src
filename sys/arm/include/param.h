@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -52,10 +54,12 @@
 
 #define __PCI_REROUTE_INTERRUPT
 
-#if __ARM_ARCH >= 6
-#define	_V6_SUFFIX "v6"
+#if __ARM_ARCH >= 7
+#define	_V_SUFFIX "v7"
+#elif __ARM_ARCH >= 6
+#define	_V_SUFFIX "v6"
 #else
-#define	_V6_SUFFIX ""
+#define	_V_SUFFIX ""
 #endif
 
 #ifdef __ARM_BIG_ENDIAN
@@ -68,7 +72,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm" _V6_SUFFIX _EB_SUFFIX
+#define	MACHINE_ARCH	"arm" _V_SUFFIX _EB_SUFFIX
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
@@ -91,15 +95,15 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits).
  *
- * armv4 and v5 require alignment to the type's size.  armv6 and later require
- * that an 8-byte type be aligned to at least a 4-byte boundary; access to
- * smaller types can be unaligned.
+ * armv4 and v5 require alignment to the type's size.  armv6 requires 8-byte
+ * alignment for the ldrd/strd instructions, but otherwise follows armv7 rules.
+ * armv7 requires that an 8-byte type be aligned to at least a 4-byte boundary;
+ * access to smaller types can be unaligned, except that the compiler may
+ * optimize access to adjacent uint32_t values into a single load/store-multiple
+ * instruction which requires 4-byte alignment, so we must provide the most-
+ * pessimistic answer possible even on armv7.
  */
-#if __ARM_ARCH >= 6
-#define	ALIGNED_POINTER(p, t)	(((sizeof(t) != 8) || ((unsigned)(p) & 3) == 0))
-#else
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
-#endif
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an

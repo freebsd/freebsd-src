@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/resource.h>
-#include <sys/wait.h> /* For WIFSIGNALED(status) */
 #include <errno.h>
 
 /*
@@ -470,6 +469,7 @@ evalredir(union node *n, int flags)
 		if (e == EXERROR || e == EXEXEC) {
 			if (in_redirect) {
 				exitstatus = 2;
+				FORCEINTON;
 				return;
 			}
 		}
@@ -799,11 +799,8 @@ xtracecommand(struct arglist *varlist, int argc, char **argv)
 static int
 safe_builtin(int idx, int argc, char **argv)
 {
-	if (idx == BLTINCMD || idx == COMMANDCMD || idx == ECHOCMD ||
-	    idx == FALSECMD || idx == JOBIDCMD || idx == JOBSCMD ||
-	    idx == KILLCMD || idx == PRINTFCMD || idx == PWDCMD ||
-	    idx == TESTCMD || idx == TIMESCMD || idx == TRUECMD ||
-	    idx == TYPECMD)
+	/* Generated from builtins.def. */
+	if (safe_builtin_always(idx))
 		return (1);
 	if (idx == EXPORTCMD || idx == TRAPCMD || idx == ULIMITCMD ||
 	    idx == UMASKCMD)
@@ -842,7 +839,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	struct parsefile *savetopfile;
 	volatile int e;
 	char *lastarg;
-	int realstatus;
+	int signaled;
 	int do_clearcmdentry;
 	const char *path = pathval();
 	int i;
@@ -1080,9 +1077,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 #endif
 		mode = (cmdentry.u.index == EXECCMD)? 0 : REDIR_PUSH;
 		if (flags == EV_BACKCMD) {
-			memout.nleft = 0;
 			memout.nextc = memout.buf;
-			memout.bufsize = 64;
 			mode |= REDIR_BACKQ;
 		}
 		savecmdname = commandname;
@@ -1134,8 +1129,12 @@ cmddone:
 			exitshell(exitstatus);
 		if (flags == EV_BACKCMD) {
 			backcmd->buf = memout.buf;
-			backcmd->nleft = memout.nextc - memout.buf;
+			backcmd->nleft = memout.buf != NULL ?
+			    memout.nextc - memout.buf : 0;
 			memout.buf = NULL;
+			memout.nextc = NULL;
+			memout.bufend = NULL;
+			memout.bufsize = 64;
 		}
 		if (cmdentry.u.index != EXECCMD)
 			popredir();
@@ -1163,9 +1162,9 @@ cmddone:
 parent:	/* parent process gets here (if we forked) */
 	if (mode == FORK_FG) {	/* argument to fork */
 		INTOFF;
-		exitstatus = waitforjob(jp, &realstatus);
+		exitstatus = waitforjob(jp, &signaled);
 		INTON;
-		if (iflag && loopnest > 0 && WIFSIGNALED(realstatus)) {
+		if (iflag && loopnest > 0 && signaled) {
 			evalskip = SKIPBREAK;
 			skipcount = loopnest;
 		}
@@ -1222,7 +1221,7 @@ bltincmd(int argc, char **argv)
 		return 127;
 	}
 	/*
-	 * Preserve exitstatus of a previous possible redirection
+	 * Preserve exitstatus of a previous possible command substitution
 	 * as POSIX mandates
 	 */
 	return exitstatus;

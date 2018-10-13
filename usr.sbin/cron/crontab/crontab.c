@@ -28,6 +28,7 @@ static const char rcsid[] =
 
 #define	MAIN_PROGRAM
 
+#include <sys/param.h>
 #include "cron.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -57,11 +58,12 @@ static char	*Options[] = { "???", "list", "delete", "edit", "replace" };
 
 
 static	PID_T		Pid;
-static	char		User[MAX_UNAME], RealUser[MAX_UNAME];
+static	char		User[MAXLOGNAME], RealUser[MAXLOGNAME];
 static	char		Filename[MAX_FNAME];
 static	FILE		*NewCrontab;
 static	int		CheckErrorCount;
 static	enum opt_t	Option;
+static	int		fflag;
 static	struct passwd	*pw;
 static	void		list_cmd(void),
 			delete_cmd(void),
@@ -78,7 +80,7 @@ usage(char *msg)
 	fprintf(stderr, "crontab: usage error: %s\n", msg);
 	fprintf(stderr, "%s\n%s\n",
 		"usage: crontab [-u user] file",
-		"       crontab [-u user] { -e | -l | -r }");
+		"       crontab [-u user] { -l | -r [-f] | -e }");
 	exit(ERROR_EXIT);
 }
 
@@ -141,7 +143,7 @@ parse_args(argc, argv)
 	strcpy(RealUser, User);
 	Filename[0] = '\0';
 	Option = opt_unknown;
-	while ((argch = getopt(argc, argv, "u:lerx:")) != -1) {
+	while ((argch = getopt(argc, argv, "u:lerx:f")) != -1) {
 		switch (argch) {
 		case 'x':
 			if (!set_debug_flags(optarg))
@@ -170,6 +172,9 @@ parse_args(argc, argv)
 			if (Option != opt_unknown)
 				usage("only one operation permitted");
 			Option = opt_edit;
+			break;
+		case 'f':
+			fflag = 1;
 			break;
 		default:
 			usage("unrecognized option");
@@ -281,7 +286,7 @@ delete_cmd() {
 	char	n[MAX_FNAME];
 	int ch, first;
 
-	if (isatty(STDIN_FILENO)) {
+	if (!fflag && isatty(STDIN_FILENO)) {
 		(void)fprintf(stderr, "remove crontab for %s? ", User);
 		first = ch = getchar();
 		while (ch != '\n' && ch != EOF)

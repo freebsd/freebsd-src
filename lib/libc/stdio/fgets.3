@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,12 +32,13 @@
 .\"     @(#)fgets.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2012
+.Dd April 3, 2018
 .Dt FGETS 3
 .Os
 .Sh NAME
 .Nm fgets ,
-.Nm gets
+.Nm gets ,
+.Nm gets_s
 .Nd get a line from a stream
 .Sh LIBRARY
 .Lb libc
@@ -45,6 +46,8 @@
 .In stdio.h
 .Ft char *
 .Fn fgets "char * restrict str" "int size" "FILE * restrict stream"
+.Ft char *
+.Fn gets_s "char *str" "rsize_t size"
 .Ft char *
 .Fn gets "char *str"
 .Sh DESCRIPTION
@@ -65,6 +68,17 @@ If any characters are read and there is no error, a
 character is appended to end the string.
 .Pp
 The
+.Fn gets_s
+function
+is equivalent to
+.Fn fgets
+with a
+.Fa stream
+of
+.Dv stdin ,
+except that the newline character (if any) is not stored in the string.
+.Pp
+The
 .Fn gets
 function
 is equivalent to
@@ -80,7 +94,8 @@ It is the caller's responsibility to ensure that the input line,
 if any, is sufficiently short to fit in the string.
 .Sh RETURN VALUES
 Upon successful completion,
-.Fn fgets
+.Fn fgets ,
+.Fn gets_s ,
 and
 .Fn gets
 return
@@ -94,7 +109,8 @@ they return
 .Dv NULL
 and the buffer contents are indeterminate.
 The
-.Fn fgets
+.Fn fgets ,
+.Fn gets_s ,
 and
 .Fn gets
 functions
@@ -141,6 +157,13 @@ and
 .Fn gets
 conform to
 .St -isoC-99 .
+.Fn gets_s
+conforms to
+.St -isoC-2011
+K.3.7.4.1.
+.Fn gets
+has been removed from
+.St -isoC-2011 .
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn gets

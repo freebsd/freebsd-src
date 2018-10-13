@@ -1,10 +1,17 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
+ * Copyright (c) 2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -130,18 +137,25 @@ casper_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	return (0);
 }
 
-static void
+void
 service_execute(int chanfd)
 {
+	struct casper_service *casserv;
 	struct service *service;
+	const char *servname;
 	nvlist_t *nvl;
 	int procfd;
 
 	nvl = nvlist_recv(chanfd, 0);
 	if (nvl == NULL)
 		exit(1);
-	service = (struct service *)(uintptr_t)nvlist_take_number(nvl,
-	    "service");
+	if (!nvlist_exists_string(nvl, "service"))
+		exit(1);
+	servname = nvlist_get_string(nvl, "service");
+	casserv = service_find(servname);
+	if (casserv == NULL)
+		exit(1);
+	service = casserv->cs_service;
 	procfd = nvlist_take_descriptor(nvl, "procfd");
 	nvlist_destroy(nvl);
 
@@ -172,12 +186,11 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	if (!casper_allowed_service(limits, servname))
 		return (ENOTCAPABLE);
 
-	if (zygote_clone(service_execute, &chanfd, &procfd) == -1)
+	if (zygote_clone_service_execute(&chanfd, &procfd) == -1)
 		return (errno);
 
 	nvl = nvlist_create(0);
-	nvlist_add_number(nvl, "service",
-	    (uint64_t)(uintptr_t)casserv->cs_service);
+	nvlist_add_string(nvl, "service", servname);
 	nvlist_move_descriptor(nvl, "procfd", procfd);
 	if (nvlist_send(chanfd, nvl) == -1) {
 		error = errno;
@@ -188,6 +201,8 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	nvlist_destroy(nvl);
 
 	nvlist_move_descriptor(nvlout, "chanfd", chanfd);
+	nvlist_add_number(nvlout, "chanflags",
+	    service_get_channel_flags(casserv->cs_service));
 
 	return (0);
 }

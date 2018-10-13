@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
@@ -21,6 +21,8 @@
  *
  * altq interface
  */
+
+#define PFIOC_USE_LATEST
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -85,6 +87,7 @@ altq_fetch(void)
 		return;
 	}
 	bzero(&pfioc, sizeof(pfioc));
+	pfioc.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(pffd, DIOCGETALTQS, &pfioc) != 0) {
 		warn("altq support getting queue list");
 		close(pffd);

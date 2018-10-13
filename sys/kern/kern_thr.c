@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -27,8 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_posix.h"
+#include "opt_hwpmc_hooks.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -53,8 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 #include <sys/umtx.h>
 #include <sys/limits.h>
-
-#include <vm/vm_domain.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #include <machine/frame.h>
 
@@ -163,7 +167,7 @@ thr_new_initthr(struct thread *td, void *thunk)
 	stack.ss_sp = param->stack_base;
 	stack.ss_size = param->stack_size;
 	/* Set upcall address to user thread entry function. */
-	cpu_set_upcall_kse(td, param->start_func, param->arg, &stack);
+	cpu_set_upcall(td, param->start_func, param->arg, &stack);
 	/* Setup user TLS address and TLS pointer register. */
 	return (cpu_set_user_tls(td, param->tls_base));
 }
@@ -227,13 +231,14 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	if (error)
 		goto fail;
 
-	cpu_set_upcall(newtd, td);
+	cpu_copy_thread(newtd, td);
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
+	newtd->td_rb_list = newtd->td_rbp_list = newtd->td_rb_inact = 0;
 	thread_cow_get(newtd, td);
 
 	error = initialize_thread(newtd, thunk);
@@ -253,16 +258,16 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	thread_unlock(td);
 	if (P_SHOULDSTOP(p))
 		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
-	if (p->p_flag2 & P2_LWP_EVENTS)
+	if (p->p_ptevents & PTRACE_LWP)
 		newtd->td_dbgflags |= TDB_BORN;
 
-	/*
-	 * Copy the existing thread VM policy into the new thread.
-	 */
-	vm_domain_policy_localcopy(&newtd->td_vm_dom_policy,
-	    &td->td_vm_dom_policy);
-
 	PROC_UNLOCK(p);
+#ifdef	HWPMC_HOOKS
+	if (PMC_PROC_IS_USING_PMCS(p))
+		PMC_CALL_HOOK(newtd, PMC_FN_THR_CREATE, NULL);
+	else if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(newtd, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 
 	tidhash_add(newtd);
 
@@ -353,8 +358,8 @@ kern_thr_exit(struct thread *td)
 
 	p->p_pendingexits++;
 	td->td_dbgflags |= TDB_EXIT;
-	if (p->p_flag & P_TRACED && p->p_flag2 & P2_LWP_EVENTS)
-		ptracestop(td, SIGTRAP);
+	if (p->p_ptevents & PTRACE_LWP)
+		ptracestop(td, SIGTRAP, NULL);
 	PROC_UNLOCK(p);
 	tidhash_remove(td);
 	PROC_LOCK(p);
@@ -369,6 +374,11 @@ kern_thr_exit(struct thread *td)
 	KASSERT(p->p_numthreads > 1, ("too few threads"));
 	racct_sub(p, RACCT_NTHR, 1);
 	tdsigcleanup(td);
+
+#ifdef AUDIT
+	AUDIT_SYSCALL_EXIT(0, td);
+#endif
+
 	PROC_SLOCK(p);
 	thread_stopped(p);
 	thread_exit();
@@ -576,8 +586,11 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	error = 0;
 	name[0] = '\0';
 	if (uap->name != NULL) {
-		error = copyinstr(uap->name, name, sizeof(name),
-			NULL);
+		error = copyinstr(uap->name, name, sizeof(name), NULL);
+		if (error == ENAMETOOLONG) {
+			error = copyin(uap->name, name, sizeof(name) - 1);
+			name[sizeof(name) - 1] = '\0';
+		}
 		if (error)
 			return (error);
 	}
@@ -586,6 +599,10 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	if (ttd == NULL)
 		return (ESRCH);
 	strcpy(ttd->td_name, name);
+#ifdef HWPMC_HOOKS
+	if (PMC_PROC_IS_USING_PMCS(p) || PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(ttd, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 #ifdef KTR
 	sched_clear_tdname(ttd);
 #endif

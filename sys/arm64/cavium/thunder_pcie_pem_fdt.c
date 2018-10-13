@@ -109,15 +109,17 @@ thunder_pem_fdt_probe(device_t dev)
 	return (ENXIO);
 }
 
-#ifdef INTRNG
 static int
 thunder_pem_fdt_alloc_msi(device_t pci, device_t child, int count, int maxcount,
     int *irqs)
 {
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_alloc_msi(pci, child, msi_parent, count, maxcount,
 	    irqs));
 }
@@ -126,9 +128,12 @@ static int
 thunder_pem_fdt_release_msi(device_t pci, device_t child, int count, int *irqs)
 {
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_release_msi(pci, child, msi_parent, count, irqs));
 }
 
@@ -136,9 +141,12 @@ static int
 thunder_pem_fdt_alloc_msix(device_t pci, device_t child, int *irq)
 {
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_alloc_msix(pci, child, msi_parent, irq));
 }
 
@@ -146,9 +154,12 @@ static int
 thunder_pem_fdt_release_msix(device_t pci, device_t child, int irq)
 {
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_release_msix(pci, child, msi_parent, irq));
 }
 
@@ -157,55 +168,21 @@ thunder_pem_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
 {
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_map_msi(pci, child, msi_parent, irq, addr, data));
 }
-#else
-static int
-thunder_pem_fdt_alloc_msi(device_t pci, device_t child, int count, int maxcount,
-    int *irqs)
-{
-
-	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
-}
-
-static int
-thunder_pem_fdt_release_msi(device_t pci, device_t child, int count, int *irqs)
-{
-
-	return (arm_release_msi(pci, child, count, irqs));
-}
-
-static int
-thunder_pem_fdt_alloc_msix(device_t pci, device_t child, int *irq)
-{
-
-	return (arm_alloc_msix(pci, child, irq));
-}
-
-static int
-thunder_pem_fdt_release_msix(device_t pci, device_t child, int irq)
-{
-
-	return (arm_release_msix(pci, child, irq));
-}
-
-static int
-thunder_pem_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
-    uint32_t *data)
-{
-
-	return (arm_map_msi(pci, child, irq, addr, data));
-}
-#endif
 
 static int
 thunder_pem_fdt_get_id(device_t dev, device_t child, enum pci_id_type type,
     uintptr_t *id)
 {
 	phandle_t node;
+	int err;
 	uint32_t rid;
 	uint16_t pci_rid;
 
@@ -215,7 +192,9 @@ thunder_pem_fdt_get_id(device_t dev, device_t child, enum pci_id_type type,
 	node = ofw_bus_get_node(dev);
 	pci_rid = pci_get_rid(child);
 
-	ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	err = ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	if (err != 0)
+		return (err);
 	*id = rid;
 
 	return (0);

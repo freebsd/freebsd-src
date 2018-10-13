@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Poul-Henning Kamp.
  * Copyright (c) 2009 James Gritton.
  * All rights reserved.
@@ -214,23 +216,21 @@ struct prison_racct {
 #define	PR_IP6		0x04000000	/* IPv6 restricted or disabled */
 					/* by this jail or an ancestor */
 
-/* Flags for pr_allow */
-#define	PR_ALLOW_SET_HOSTNAME		0x0001
-#define	PR_ALLOW_SYSVIPC		0x0002
-#define	PR_ALLOW_RAW_SOCKETS		0x0004
-#define	PR_ALLOW_CHFLAGS		0x0008
-#define	PR_ALLOW_MOUNT			0x0010
-#define	PR_ALLOW_QUOTAS			0x0020
-#define	PR_ALLOW_SOCKET_AF		0x0040
-#define	PR_ALLOW_MOUNT_DEVFS		0x0080
-#define	PR_ALLOW_MOUNT_NULLFS		0x0100
-#define	PR_ALLOW_MOUNT_ZFS		0x0200
-#define	PR_ALLOW_MOUNT_PROCFS		0x0400
-#define	PR_ALLOW_MOUNT_TMPFS		0x0800
-#define	PR_ALLOW_MOUNT_FDESCFS		0x1000
-#define	PR_ALLOW_MOUNT_LINPROCFS	0x2000
-#define	PR_ALLOW_MOUNT_LINSYSFS		0x4000
-#define	PR_ALLOW_ALL			0x7fff
+/*
+ * Flags for pr_allow
+ * Bits not noted here may be used for dynamic allow.mount.xxxfs.
+ */
+#define	PR_ALLOW_SET_HOSTNAME		0x00000001
+#define	PR_ALLOW_SYSVIPC		0x00000002
+#define	PR_ALLOW_RAW_SOCKETS		0x00000004
+#define	PR_ALLOW_CHFLAGS		0x00000008
+#define	PR_ALLOW_MOUNT			0x00000010
+#define	PR_ALLOW_QUOTAS			0x00000020
+#define	PR_ALLOW_SOCKET_AF		0x00000040
+#define	PR_ALLOW_MLOCK			0x00000080
+#define	PR_ALLOW_RESERVED_PORTS		0x00008000
+#define	PR_ALLOW_KMEM_ACCESS		0x00010000	/* reserved, not used yet */
+#define	PR_ALLOW_ALL_STATIC		0x000180ff
 
 /*
  * OSD methods
@@ -360,6 +360,7 @@ struct ucred;
 struct mount;
 struct sockaddr;
 struct statfs;
+struct vfsconf;
 int jailed(struct ucred *cred);
 int jailed_without_vnet(struct ucred *);
 void getcredhostname(struct ucred *, char *, size_t);
@@ -389,20 +390,29 @@ int prison_get_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_local_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_remote_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_check_ip4(const struct ucred *, const struct in_addr *);
+int prison_check_ip4_locked(const struct prison *, const struct in_addr *);
 int prison_saddrsel_ip4(struct ucred *, struct in_addr *);
+int prison_restrict_ip4(struct prison *, struct in_addr *);
+int prison_qcmp_v4(const void *, const void *);
 #ifdef INET6
 int prison_equal_ip6(struct prison *, struct prison *);
 int prison_get_ip6(struct ucred *, struct in6_addr *);
 int prison_local_ip6(struct ucred *, struct in6_addr *, int);
 int prison_remote_ip6(struct ucred *, struct in6_addr *);
-int prison_check_ip6(struct ucred *, struct in6_addr *);
+int prison_check_ip6(const struct ucred *, const struct in6_addr *);
+int prison_check_ip6_locked(const struct prison *, const struct in6_addr *);
 int prison_saddrsel_ip6(struct ucred *, struct in6_addr *);
+int prison_restrict_ip6(struct prison *, struct in6_addr *);
+int prison_qcmp_v6(const void *, const void *);
 #endif
 int prison_check_af(struct ucred *cred, int af);
 int prison_if(struct ucred *cred, struct sockaddr *sa);
 char *prison_name(struct prison *, struct prison *);
 int prison_priv_check(struct ucred *cred, int priv);
 int sysctl_jail_param(SYSCTL_HANDLER_ARGS);
+unsigned prison_add_allow(const char *prefix, const char *name,
+    const char *prefix_descr, const char *descr);
+void prison_add_vfs(struct vfsconf *vfsp);
 void prison_racct_foreach(void (*callback)(struct racct *racct,
     void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
     void *arg2, void *arg3);

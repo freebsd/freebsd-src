@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -162,12 +164,27 @@ ccmp_setiv(struct ieee80211_key *k, uint8_t *ivp)
 static int
 ccmp_encap(struct ieee80211_key *k, struct mbuf *m)
 {
+	const struct ieee80211_frame *wh;
 	struct ccmp_ctx *ctx = k->wk_private;
 	struct ieee80211com *ic = ctx->cc_ic;
 	uint8_t *ivp;
 	int hdrlen;
+	int is_mgmt;
 
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
+	wh = mtod(m, const struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
+
+	/*
+	 * Check to see if we need to insert IV/MIC.
+	 *
+	 * Some offload devices don't require the IV to be inserted
+	 * as part of the hardware encryption.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOIVMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOIV))
+		return 1;
 
 	/*
 	 * Copy down 802.11 header and add the IV, KeyID, and ExtIV.
@@ -217,11 +234,17 @@ READ_6(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5)
 static int
 ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct ccmp_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->cc_vap;
 	struct ieee80211_frame *wh;
 	uint8_t *ivp, tid;
 	uint64_t pn;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+		goto finish;
 
 	/*
 	 * Header should have extended IV and sequence number;
@@ -261,17 +284,28 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	    !ccmp_decrypt(k, pn, m, hdrlen))
 		return 0;
 
+finish:
 	/*
 	 * Copy up 802.11 header and strip crypto bits.
 	 */
-	ovbcopy(mtod(m, void *), mtod(m, uint8_t *) + ccmp.ic_header, hdrlen);
-	m_adj(m, ccmp.ic_header);
-	m_adj(m, -ccmp.ic_trailer);
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		ovbcopy(mtod(m, void *), mtod(m, uint8_t *) + ccmp.ic_header,
+		    hdrlen);
+		m_adj(m, ccmp.ic_header);
+	}
+
+	/*
+	 * XXX TODO: see if MMIC_STRIP also covers CCMP MIC trailer.
+	 */
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP)))
+		m_adj(m, -ccmp.ic_trailer);
 
 	/*
 	 * Ok to update rsc now.
 	 */
-	k->wk_keyrsc[tid] = pn;
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		k->wk_keyrsc[tid] = pn;
+	}
 
 	return 1;
 }

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -140,7 +142,8 @@ extractdirs(int genmode)
 	vprintf(stdout, "Extract directories from tape\n");
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
 		tmpdir = _PATH_TMP;
-	(void) sprintf(dirfile, "%s/rstdir%jd", tmpdir, (intmax_t)dumpdate);
+	(void) snprintf(dirfile, sizeof(dirfile), "%s/rstdir%jd", tmpdir,
+	    (intmax_t)dumpdate);
 	if (command != 'r' && command != 'R') {
 		(void) strcat(dirfile, "-XXXXXX");
 		fd = mkstemp(dirfile);
@@ -153,8 +156,8 @@ extractdirs(int genmode)
 		done(1);
 	}
 	if (genmode != 0) {
-		(void) sprintf(modefile, "%s/rstmode%jd", tmpdir,
-		    (intmax_t)dumpdate);
+		(void) snprintf(modefile, sizeof(modefile), "%s/rstmode%jd",
+		    tmpdir, (intmax_t)dumpdate);
 		if (command != 'r' && command != 'R') {
 			(void) strcat(modefile, "-XXXXXX");
 			fd = mkstemp(modefile);
@@ -272,7 +275,7 @@ treescan(char *pname, ino_t ino, long (*todo)(char *, ino_t, int))
 }
 
 /*
- * Lookup a pathname which is always assumed to start from the ROOTINO.
+ * Lookup a pathname which is always assumed to start from the UFS_ROOTINO.
  */
 struct direct *
 pathsearch(const char *pathname)
@@ -283,7 +286,7 @@ pathsearch(const char *pathname)
 
 	strcpy(buffer, pathname);
 	path = buffer;
-	ino = ROOTINO;
+	ino = UFS_ROOTINO;
 	while (*path == '/')
 		path++;
 	dp = NULL;
@@ -568,8 +571,8 @@ setdirmodes(int flags)
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
 		tmpdir = _PATH_TMP;
 	if (command == 'r' || command == 'R')
-		(void) sprintf(modefile, "%s/rstmode%jd", tmpdir,
-		    (intmax_t)dumpdate);
+		(void) snprintf(modefile, sizeof(modefile), "%s/rstmode%jd",
+		    tmpdir, (intmax_t)dumpdate);
 	if (modefile[0] == '#') {
 		panic("modefile not defined\n");
 		fprintf(stderr, "directory mode, owner, and times not set\n");
@@ -632,7 +635,7 @@ setdirmodes(int flags)
 				ep->e_flags &= ~NEW;
 				continue;
 			}
-			if (node.ino == ROOTINO &&
+			if (node.ino == UFS_ROOTINO &&
 		   	    reply("set owner/mode for '.'") == FAIL)
 				continue;
 		}
@@ -645,7 +648,7 @@ setdirmodes(int flags)
 		if (!Nflag) {
 			if (node.extsize > 0) {
 				if (bufsize >= node.extsize) {
-					set_extattr_file(cp, buf, node.extsize);
+					set_extattr(-1, cp, buf, node.extsize, SXA_FILE);
 				} else {
 					fprintf(stderr, "Cannot restore %s%s\n",
 					    "extended attributes for ", cp);

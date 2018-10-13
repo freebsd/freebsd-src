@@ -130,6 +130,7 @@ static int	vmxnet3_alloc_queue_data(struct vmxnet3_softc *);
 static void	vmxnet3_free_queue_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_mcast_table(struct vmxnet3_softc *);
 static void	vmxnet3_init_shared_data(struct vmxnet3_softc *);
+static void	vmxnet3_init_hwassist(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_interface(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_shared_data(struct vmxnet3_softc *);
@@ -1583,6 +1584,24 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 }
 
 static void
+vmxnet3_init_hwassist(struct vmxnet3_softc *sc)
+{
+	struct ifnet *ifp = sc->vmx_ifp;
+	uint64_t hwassist;
+
+	hwassist = 0;
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		hwassist |= VMXNET3_CSUM_OFFLOAD;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		hwassist |= CSUM_IP_TSO;
+	if (ifp->if_capenable & IFCAP_TSO6)
+		hwassist |= CSUM_IP6_TSO;
+	ifp->if_hwassist = hwassist;
+}
+
+static void
 vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1593,15 +1612,7 @@ vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
 	vmxnet3_set_lladdr(sc);
 
-	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD;
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_IP_TSO;
-	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_IP6_TSO;
+	vmxnet3_init_hwassist(sc);
 }
 
 static void
@@ -2183,6 +2194,20 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 		} else {
 			KASSERT(rxd->btype == VMXNET3_BTYPE_BODY,
 			    ("%s: non start of frame w/o body buffer", __func__));
+
+			if (m_head == NULL && m_tail == NULL) {
+				/*
+				 * This is a continuation of a packet that we
+				 * started to drop, but could not drop entirely
+				 * because this segment was still owned by the
+				 * host.  So, drop the remainder now.
+				 */
+				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+				if (!rxcd->eop)
+					vmxnet3_rxq_discard_chain(rxq);
+				goto nextp;
+			}
+
 			KASSERT(m_head != NULL,
 			    ("%s: frame not started?", __func__));
 
@@ -3148,7 +3173,7 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 		int cnt = 0, overflow = 0;
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			else if (cnt == VMXNET3_MULTICAST_MAX) {
@@ -3284,6 +3309,8 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			vmxnet3_init_locked(sc);
+		} else {
+			vmxnet3_init_hwassist(sc);
 		}
 
 		VMXNET3_CORE_UNLOCK(sc);
@@ -3458,14 +3485,15 @@ vmxnet3_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
-	ifmr->ifm_active = IFM_ETHER | IFM_AUTO;
 	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER;
 
 	VMXNET3_CORE_LOCK(sc);
-	if (vmxnet3_link_is_up(sc) != 0)
+	if (vmxnet3_link_is_up(sc) != 0) {
 		ifmr->ifm_status |= IFM_ACTIVE;
-	else
-		ifmr->ifm_status |= IFM_NONE;
+		ifmr->ifm_active |= IFM_AUTO;
+	} else
+		ifmr->ifm_active |= IFM_NONE;
 	VMXNET3_CORE_UNLOCK(sc);
 }
 

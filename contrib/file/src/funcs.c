@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.89 2016/03/21 15:56:53 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.95 2018/05/24 18:09:17 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -76,7 +76,7 @@ file_vprintf(struct magic_set *ms, const char *fmt, va_list ap)
 	ms->o.buf = buf;
 	return 0;
 out:
-	file_error(ms, errno, "vasprintf failed");
+	fprintf(stderr, "vasprintf failed (%s)", strerror(errno));
 	return -1;
 }
 
@@ -178,14 +178,16 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
     const void *buf, size_t nb)
 {
 	int m = 0, rv = 0, looks_text = 0;
-	const unsigned char *ubuf = CAST(const unsigned char *, buf);
-	unichar *u8buf = NULL;
-	size_t ulen;
 	const char *code = NULL;
 	const char *code_mime = "binary";
 	const char *type = "application/octet-stream";
 	const char *def = "data";
 	const char *ftype = NULL;
+	char *rbuf = NULL;
+	struct buffer b;
+
+	buffer_init(&b, fd, buf, nb);
+	ms->mode = b.st.st_mode;
 
 	if (nb == 0) {
 		def = "empty";
@@ -197,13 +199,13 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 	}
 
 	if ((ms->flags & MAGIC_NO_CHECK_ENCODING) == 0) {
-		looks_text = file_encoding(ms, ubuf, nb, &u8buf, &ulen,
+		looks_text = file_encoding(ms, &b, NULL, 0,
 		    &code, &code_mime, &ftype);
 	}
 
 #ifdef __EMX__
 	if ((ms->flags & MAGIC_NO_CHECK_APPTYPE) == 0 && inname) {
-		m = file_os2_apptype(ms, inname, buf, nb);
+		m = file_os2_apptype(ms, inname, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try os2_apptype %d]\n", m);
 		switch (m) {
@@ -219,7 +221,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 #if HAVE_FORK
 	/* try compression stuff */
 	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0) {
-		m = file_zmagic(ms, fd, inname, ubuf, nb);
+		m = file_zmagic(ms, &b, inname);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try zmagic %d]\n", m);
 		if (m) {
@@ -229,7 +231,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 #endif
 	/* Check if we have a tar file */
 	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0) {
-		m = file_is_tar(ms, ubuf, nb);
+		m = file_is_tar(ms, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try tar %d]\n", m);
 		if (m) {
@@ -240,7 +242,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 
 	/* Check if we have a CDF file */
 	if ((ms->flags & MAGIC_NO_CHECK_CDF) == 0) {
-		m = file_trycdf(ms, fd, ubuf, nb);
+		m = file_trycdf(ms, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try cdf %d]\n", m);
 		if (m) {
@@ -248,40 +250,52 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 				goto done;
 		}
 	}
+#ifdef BUILTIN_ELF
+	if ((ms->flags & MAGIC_NO_CHECK_ELF) == 0 && nb > 5 && fd != -1) {
+		file_pushbuf_t *pb;
+		/*
+		 * We matched something in the file, so this
+		 * *might* be an ELF file, and the file is at
+		 * least 5 bytes long, so if it's an ELF file
+		 * it has at least one byte past the ELF magic
+		 * number - try extracting information from the
+		 * ELF headers that cannot easily be  extracted
+		 * with rules in the magic file. We we don't
+		 * print the information yet.
+		 */
+		if ((pb = file_push_buffer(ms)) == NULL)
+			return -1;
+
+		rv = file_tryelf(ms, &b);
+		rbuf = file_pop_buffer(ms, pb);
+		if (rv != 1) {
+			free(rbuf);
+			rbuf = NULL;
+		}
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try elf %d]\n", m);
+	}
+#endif
 
 	/* try soft magic tests */
-	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0)
-		m = file_softmagic(ms, ubuf, nb, NULL, NULL, BINTEST,
-		    looks_text);
+	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0) {
+		m = file_softmagic(ms, &b, NULL, NULL, BINTEST, looks_text);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try softmagic %d]\n", m);
+		if (m == 1 && rbuf) {
+			if (file_printf(ms, "%s", rbuf) == -1)
+				goto done;
+		}
 		if (m) {
-#ifdef BUILTIN_ELF
-			if ((ms->flags & MAGIC_NO_CHECK_ELF) == 0 && m == 1 &&
-			    nb > 5 && fd != -1) {
-				/*
-				 * We matched something in the file, so this
-				 * *might* be an ELF file, and the file is at
-				 * least 5 bytes long, so if it's an ELF file
-				 * it has at least one byte past the ELF magic
-				 * number - try extracting information from the
-				 * ELF headers that cannot easily * be
-				 * extracted with rules in the magic file.
-				 */
-				m = file_tryelf(ms, fd, ubuf, nb);
-				if ((ms->flags & MAGIC_DEBUG) != 0)
-					(void)fprintf(stderr, "[try elf %d]\n",
-					    m);
-			}
-#endif
 			if (checkdone(ms, &rv))
 				goto done;
 		}
+	}
 
 	/* try text properties */
 	if ((ms->flags & MAGIC_NO_CHECK_TEXT) == 0) {
 
-		m = file_ascmagic(ms, ubuf, nb, looks_text);
+		m = file_ascmagic(ms, &b, looks_text);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try ascmagic %d]\n", m);
 		if (m) {
@@ -318,7 +332,8 @@ simple:
 #if HAVE_FORK
  done_encoding:
 #endif
-	free(u8buf);
+	free(rbuf);
+	buffer_fini(&b);
 	if (rv)
 		return rv;
 
@@ -327,9 +342,9 @@ simple:
 #endif
 
 protected int
-file_reset(struct magic_set *ms)
+file_reset(struct magic_set *ms, int checkloaded)
 {
-	if (ms->mlist[0] == NULL) {
+	if (checkloaded && ms->mlist[0] == NULL) {
 		file_error(ms, 0, "no magic files loaded");
 		return -1;
 	}
@@ -508,6 +523,8 @@ file_regexec(file_regex_t *rx, const char *str, size_t nmatch,
     regmatch_t* pmatch, int eflags)
 {
 	assert(rx->rc == 0);
+	/* XXX: force initialization because glibc does not always do this */
+	memset(pmatch, 0, nmatch * sizeof(*pmatch));
 	return regexec(&rx->rx, str, nmatch, pmatch, eflags);
 }
 

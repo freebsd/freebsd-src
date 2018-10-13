@@ -1,7 +1,22 @@
 # $FreeBSD$
 
-.if ${MK_DIRDEPS_BUILD} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes" || ${MK_META_MODE} == "yes"
+
+# Not in the below list as it may make sense for non-meta mode
+# eventually.  meta.sys.mk (DIRDEPS_BUILD) also already adds these in.
+.if ${MK_DIRDEPS_BUILD} == "no" && ${MK_META_MODE} == "yes"
+MAKE_PRINT_VAR_ON_ERROR += \
+	.ERROR_TARGET \
+	.ERROR_META_FILE \
+	.MAKE.LEVEL \
+	MAKEFILE \
+	.MAKE.MODE
+.endif
+
+_ERROR_CMD_EXEC=	${sed -n '/^CMD/s,^CMD \(.*\),\1;,p' ${.ERROR_META_FILE}:L:sh}
+_ERROR_CMD=		${!empty(.ERROR_META_FILE):?${_ERROR_CMD_EXEC}:.PHONY}
 MAKE_PRINT_VAR_ON_ERROR+= \
+	_ERROR_CMD \
 	.CURDIR \
 	.MAKE \
 	.OBJDIR \
@@ -12,7 +27,7 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 	MACHINE_ARCH \
 	MAKEOBJDIRPREFIX \
 	MAKESYSPATH \
-	MAKE_VERSION\
+	MAKE_VERSION \
 	PATH \
 	SRCTOP \
 	OBJTOP \
@@ -25,6 +40,10 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 
 .if !empty(.OBJDIR)
 OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.endif
+
+.if !empty(LIBDIR)
+_PREMK_LIBDIR:=	${LIBDIR}
 .endif
 
 .include "src.sys.mk"

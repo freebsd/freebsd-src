@@ -1116,7 +1116,7 @@ cleanup:
  * - the filename of second file is stored in UTF-8.
  *
  * Whenever hdrcharset option is specified, we will correctly read the
- * filename of sencod file, which is stored in UTF-8.
+ * filename of second file, which is stored in UTF-8.
  */
 
 DEFINE_TEST(test_read_format_zip_filename_KOI8R_UTF8_2)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -43,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/errno.h>
@@ -72,10 +73,19 @@ g_slice_alloc(unsigned nslice, unsigned scsize)
 }
 
 static void
-g_slice_free(struct g_slicer *gsp)
+g_slice_free(struct g_geom *gp)
 {
+	struct g_slicer *gsp;
 
-	if (gsp == NULL)	/* XXX: phk thinks about this */
+	gsp = gp->softc;
+	gp->softc = NULL;
+
+	/*
+	 * We can get multiple spoiled events before wither-washer
+	 * detaches our consumer, so this can get called multiple
+	 * times.
+	 */
+	if (gsp == NULL)
 		return;
 	g_free(gsp->slices);
 	if (gsp->hotspot != NULL)
@@ -127,6 +137,15 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
 		de--;
 	error = g_access(cp, dr, dw, de);
+
+	/*
+	 * Free the softc if all providers have been closed and this geom
+	 * is being removed.
+	 */
+	if (error == 0 && (gp->flags & G_GEOM_WITHER) != 0 &&
+	    (cp->acr + cp->acw + cp->ace) == 0)
+		g_slice_free(gp);
+
 	return (error);
 }
 
@@ -470,19 +489,30 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int r
 }
 
 void
-g_slice_spoiled(struct g_consumer *cp)
+g_slice_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
-	struct g_slicer *gsp;
 
 	g_topology_assert();
 	gp = cp->geom;
-	g_trace(G_T_TOPOLOGY, "g_slice_spoiled(%p/%s)", cp, gp->name);
-	cp->flags |= G_CF_ORPHAN;
-	gsp = gp->softc;
-	gp->softc = NULL;
-	g_slice_free(gsp);
+	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp, gp->name);
 	g_wither_geom(gp, ENXIO);
+
+	/*
+	 * We can safely free the softc now if there are no accesses,
+	 * otherwise g_slice_access() will do that after the last close.
+	 */
+	if ((cp->acr + cp->acw + cp->ace) == 0)
+		g_slice_free(gp);
+}
+
+void
+g_slice_spoiled(struct g_consumer *cp)
+{
+
+	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp, cp->geom->name);
+	cp->flags |= G_CF_ORPHAN;
+	g_slice_orphan(cp);
 }
 
 int
@@ -507,10 +537,10 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	gp = g_new_geomf(mp, "%s", pp->name);
 	gsp = g_slice_alloc(slices, extra);
 	gsp->start = start;
-	gp->access = g_slice_access;
-	gp->orphan = g_slice_orphan;
 	gp->softc = gsp;
 	gp->start = g_slice_start;
+	gp->access = g_slice_access;
+	gp->orphan = g_slice_orphan;
 	gp->spoiled = g_slice_spoiled;
 	if (gp->dumpconf == NULL)
 		gp->dumpconf = g_slice_dumpconf;
@@ -529,19 +559,4 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 		*vp = gsp->softc;
 	*cpp = cp;
 	return (gp);
-}
-
-void
-g_slice_orphan(struct g_consumer *cp)
-{
-	struct g_slicer *gsp;
-
-	g_trace(G_T_TOPOLOGY, "g_slice_orphan(%p/%s)", cp, cp->provider->name);
-	g_topology_assert();
-
-	/* XXX: Not good enough we leak the softc and its suballocations */
-	gsp = cp->geom->softc;
-	cp->geom->softc = NULL;
-	g_slice_free(gsp);
-	g_wither_geom(cp->geom, ENXIO);
 }

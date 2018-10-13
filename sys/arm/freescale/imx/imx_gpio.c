@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -135,6 +134,8 @@ static struct resource_spec imx_gpio_spec[] = {
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
 	{ -1, 0 }
 };
+#define	FIRST_IRQRES	1
+#define	NUM_IRQRES	2
 
 /*
  * Helpers
@@ -507,21 +508,41 @@ static void
 imx51_gpio_pin_configure(struct imx51_gpio_softc *sc, struct gpio_pin *pin,
     unsigned int flags)
 {
-	u_int newflags;
+	u_int newflags, pad;
 
 	mtx_lock_spin(&sc->sc_mtx);
 
 	/*
-	 * Manage input/output; other flags not supported yet.
+	 * Manage input/output; other flags not supported yet (maybe not ever,
+	 * since we have no connection to the pad config registers from here).
+	 *
+	 * When setting a pin to output, honor the PRESET_[LOW,HIGH] flags if
+	 * present.  Otherwise, for glitchless transistions on pins with pulls,
+	 * read the current state of the pad and preset the DR register to drive
+	 * the current value onto the pin before enabling the pin for output.
 	 *
 	 * Note that changes to pin->gp_flags must be acccumulated in newflags
 	 * and stored with a single writeback to gp_flags at the end, to enable
-	 * unlocked reads of that value elsewhere.
+	 * unlocked reads of that value elsewhere. This is only about unlocked
+	 * access to gp_flags from elsewhere; we still use locking in this
+	 * function to protect r-m-w access to the hardware registers.
 	 */
 	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
 		newflags = pin->gp_flags & ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
+			if (flags & GPIO_PIN_PRESET_LOW) {
+				pad = 0;
+			} else if (flags & GPIO_PIN_PRESET_HIGH) {
+				pad = 1;
+			} else {
+				if (flags & GPIO_PIN_OPENDRAIN)
+					pad = READ4(sc, IMX_GPIO_PSR_REG);
+				else
+					pad = READ4(sc, IMX_GPIO_DR_REG);
+				pad = (pad >> pin->gp_pin) & 1;
+			}
 			newflags |= GPIO_PIN_OUTPUT;
+			SET4(sc, IMX_GPIO_DR_REG, (pad << pin->gp_pin));
 			SET4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
 		} else {
 			newflags |= GPIO_PIN_INPUT;
@@ -645,7 +666,20 @@ imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
+	/*
+	 * Normally a pin set for output can be read by reading the DR reg which
+	 * indicates what value is being driven to that pin.  The exception is
+	 * pins configured for open-drain mode, in which case we have to read
+	 * the pad status register in case the pin is being driven externally.
+	 * Doing so requires that the SION bit be configured in pinmux, which
+	 * isn't the case for most normal gpio pins, so only try to read via PSR
+	 * if the OPENDRAIN flag is set, and it's the user's job to correctly
+	 * configure SION along with open-drain output mode for those pins.
+	 */
+	if (sc->gpio_pins[pin].gp_flags & GPIO_PIN_OPENDRAIN)
+		*val = (READ4(sc, IMX_GPIO_PSR_REG) >> pin) & 1;
+	else
+		*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
 
 	return (0);
 }
@@ -663,6 +697,72 @@ imx51_gpio_pin_toggle(device_t dev, uint32_t pin)
 	mtx_lock_spin(&sc->sc_mtx);
 	WRITE4(sc, IMX_GPIO_DR_REG,
 	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << pin)));
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	return (0);
+}
+
+static int
+imx51_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
+    uint32_t change_pins, uint32_t *orig_pins)
+{
+	struct imx51_gpio_softc *sc;
+
+	if (first_pin != 0)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	if (orig_pins != NULL)
+		*orig_pins = READ4(sc, IMX_GPIO_DR_REG);
+
+	if ((clear_pins | change_pins) != 0) {
+		mtx_lock_spin(&sc->sc_mtx);
+		WRITE4(sc, IMX_GPIO_DR_REG,
+		    (READ4(sc, IMX_GPIO_DR_REG) & ~clear_pins) ^ change_pins);
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+
+	return (0);
+}
+
+static int
+imx51_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
+    uint32_t *pin_flags)
+{
+	struct imx51_gpio_softc *sc;
+	u_int i;
+	uint32_t bit, drclr, drset, flags, oeclr, oeset, pads;
+
+	sc = device_get_softc(dev);
+
+	if (first_pin != 0 || num_pins > sc->gpio_npins)
+		return (EINVAL);
+
+	drclr = drset = oeclr = oeset = 0;
+	pads = READ4(sc, IMX_GPIO_DR_REG);
+
+	for (i = 0; i < num_pins; ++i) {
+		bit = 1u << i;
+		flags = pin_flags[i];
+		if (flags & GPIO_PIN_INPUT) {
+			oeclr |= bit;
+		} else if (flags & GPIO_PIN_OUTPUT) {
+			oeset |= bit;
+			if (flags & GPIO_PIN_PRESET_LOW)
+				drclr |= bit;
+			else if (flags & GPIO_PIN_PRESET_HIGH)
+				drset |= bit;
+			else /* Drive whatever it's now pulled to. */
+				drset |= pads & bit;
+		}
+	}
+
+	mtx_lock_spin(&sc->sc_mtx);
+	WRITE4(sc, IMX_GPIO_DR_REG,
+	    (READ4(sc, IMX_GPIO_DR_REG) & ~drclr) | drset);
+	WRITE4(sc, IMX_GPIO_OE_REG,
+	    (READ4(sc, IMX_GPIO_OE_REG) & ~oeclr) | oeset);
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -728,7 +828,7 @@ imx51_gpio_attach(device_t dev)
  		    (READ4(sc, IMX_GPIO_OE_REG) & (1U << i)) ? GPIO_PIN_OUTPUT :
  		    GPIO_PIN_INPUT;
  		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
- 		    "imx_gpio%d.%d", unit, i);
+ 		    "GPIO%d_IO%02d", unit + 1, i);
 	}
 
 #ifdef INTRNG
@@ -754,9 +854,10 @@ imx51_gpio_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	gpiobus_detach_bus(dev);
-	for (irq = 1; irq <= 2; irq++) {
+	for (irq = 0; irq < NUM_IRQRES; irq++) {
 		if (sc->gpio_ih[irq])
-			bus_teardown_intr(dev, sc->sc_res[irq], sc->gpio_ih[irq]);
+			bus_teardown_intr(dev, sc->sc_res[irq + FIRST_IRQRES],
+			    sc->gpio_ih[irq]);
 	}
 	bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
 	mtx_destroy(&sc->sc_mtx);
@@ -791,6 +892,8 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		imx51_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		imx51_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	imx51_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32,	imx51_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32,	imx51_gpio_pin_config_32),
 	{0, 0},
 };
 
@@ -801,5 +904,5 @@ static driver_t imx51_gpio_driver = {
 };
 static devclass_t imx51_gpio_devclass;
 
-DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver, imx51_gpio_devclass,
-    0, 0);
+EARLY_DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver,
+    imx51_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

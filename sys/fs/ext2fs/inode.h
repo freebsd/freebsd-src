@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,16 +52,16 @@
  */
 #define	doff_t		int32_t
 
-#define	NDADDR	12			/* Direct addresses in inode. */
-#define	NIADDR	3			/* Indirect addresses in inode. */
+#define	EXT2_NDADDR	12		/* Direct addresses in inode. */
+#define	EXT2_NIADDR	3		/* Indirect addresses in inode. */
 
 /*
  * The size of physical and logical block numbers in EXT2FS.
  */
-typedef	uint32_t e2fs_daddr_t;
-typedef	int64_t	e2fs_lbn_t;
-typedef	int64_t e4fs_daddr_t;
- 
+typedef uint32_t e2fs_daddr_t;
+typedef int64_t e2fs_lbn_t;
+typedef int64_t e4fs_daddr_t;
+
 /*
  * The inode is used to describe each active (or recently active) file in the
  * EXT2FS filesystem. It is composed of two types of information. The first
@@ -91,7 +93,7 @@ struct inode {
 
 	/* Fields from struct dinode in UFS. */
 	uint16_t	i_mode;		/* IFMT, permissions; see below. */
-	int16_t		i_nlink;	/* File link count. */
+	int32_t		i_nlink;	/* File link count. */
 	uint32_t	i_uid;		/* File owner. */
 	uint32_t	i_gid;		/* File group. */
 	uint64_t	i_size;		/* File byte count. */
@@ -105,9 +107,15 @@ struct inode {
 	int32_t		i_ctimensec;	/* Last inode change time. */
 	int32_t		i_birthnsec;	/* Inode creation time. */
 	uint32_t	i_gen;		/* Generation number. */
+	uint64_t	i_facl;		/* EA block number. */
 	uint32_t	i_flags;	/* Status flags (chflags). */
-	uint32_t	i_db[NDADDR];	/* Direct disk blocks. */
-	uint32_t	i_ib[NIADDR];	/* Indirect disk blocks. */
+	union {
+		struct {
+			uint32_t i_db[EXT2_NDADDR]; /* Direct disk blocks. */
+			uint32_t i_ib[EXT2_NIADDR]; /* Indirect disk blocks. */
+		};
+		uint32_t i_data[EXT2_NDADDR + EXT2_NIADDR];
+	};
 
 	struct ext4_extent_cache i_ext_cache; /* cache for ext4 extent */
 };
@@ -178,11 +186,11 @@ struct indir {
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
-	uint16_t ufid_len;	/* Length of structure. */
-	uint16_t ufid_pad;	/* Force 32-bit alignment. */
-	ino_t	 ufid_ino;	/* File number (ino). */
-	uint32_t ufid_gen;	/* Generation number. */
+	uint16_t ufid_len;		/* Length of structure. */
+	uint16_t ufid_pad;		/* Force 32-bit alignment. */
+	ino_t	ufid_ino;		/* File number (ino). */
+	uint32_t ufid_gen;		/* Generation number. */
 };
-#endif /* _KERNEL */
+#endif	/* _KERNEL */
 
-#endif /* !_FS_EXT2FS_INODE_H_ */
+#endif	/* !_FS_EXT2FS_INODE_H_ */

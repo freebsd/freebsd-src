@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2016
+.Dd August 17, 2018
 .Dt PTHREAD_BARRIERATTR 3
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Ft int
 .Fn pthread_barrierattr_destroy "pthread_barrierattr_t *attr"
 .Ft int
-.Fn pthread_barrierattr_getpshared "const pthread_barrierattr_t *attr" "int *pshared"
+.Fn pthread_barrierattr_getpshared "const pthread_barrierattr_t *restrict attr" "int *restrict pshared"
 .Ft int
 .Fn pthread_barrierattr_init "pthread_barrierattr_t *attr"
 .Ft int

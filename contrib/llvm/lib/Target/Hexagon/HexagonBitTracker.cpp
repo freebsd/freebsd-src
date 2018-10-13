@@ -1,4 +1,4 @@
-//===--- HexagonBitTracker.cpp --------------------------------------------===//
+//===- HexagonBitTracker.cpp ----------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,26 +7,42 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
-
+#include "HexagonBitTracker.h"
 #include "Hexagon.h"
 #include "HexagonInstrInfo.h"
 #include "HexagonRegisterInfo.h"
-#include "HexagonTargetMachine.h"
-#include "HexagonBitTracker.h"
+#include "HexagonSubtarget.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/IR/Argument.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <utility>
+#include <vector>
 
 using namespace llvm;
 
-typedef BitTracker BT;
+using BT = BitTracker;
 
 HexagonEvaluator::HexagonEvaluator(const HexagonRegisterInfo &tri,
                                    MachineRegisterInfo &mri,
                                    const HexagonInstrInfo &tii,
                                    MachineFunction &mf)
-    : MachineEvaluator(tri, mri), MF(mf), MFI(*mf.getFrameInfo()), TII(tii) {
+    : MachineEvaluator(tri, mri), MF(mf), MFI(mf.getFrameInfo()), TII(tii) {
   // Populate the VRX map (VR to extension-type).
   // Go over all the formal parameters of the function. If a given parameter
   // P is sign- or zero-extended, locate the virtual register holding that
@@ -43,13 +59,9 @@ HexagonEvaluator::HexagonEvaluator(const HexagonRegisterInfo &tri,
   // tion). To avoid the complications with in-memory arguments, only consi-
   // der the initial sequence of formal parameters that are known to be
   // passed via registers.
-  unsigned AttrIdx = 0;
   unsigned InVirtReg, InPhysReg = 0;
-  const Function &F = *MF.getFunction();
-  typedef Function::const_arg_iterator arg_iterator;
-  for (arg_iterator I = F.arg_begin(), E = F.arg_end(); I != E; ++I) {
-    AttrIdx++;
-    const Argument &Arg = *I;
+
+  for (const Argument &Arg : MF.getFunction().args()) {
     Type *ATy = Arg.getType();
     unsigned Width = 0;
     if (ATy->isIntegerTy())
@@ -60,51 +72,94 @@ HexagonEvaluator::HexagonEvaluator(const HexagonRegisterInfo &tri,
     // Module::AnyPointerSize.
     if (Width == 0 || Width > 64)
       break;
+    if (Arg.hasAttribute(Attribute::ByVal))
+      continue;
     InPhysReg = getNextPhysReg(InPhysReg, Width);
     if (!InPhysReg)
       break;
     InVirtReg = getVirtRegFor(InPhysReg);
     if (!InVirtReg)
       continue;
-    AttributeSet Attrs = F.getAttributes();
-    if (Attrs.hasAttribute(AttrIdx, Attribute::SExt))
+    if (Arg.hasAttribute(Attribute::SExt))
       VRX.insert(std::make_pair(InVirtReg, ExtType(ExtType::SExt, Width)));
-    else if (Attrs.hasAttribute(AttrIdx, Attribute::ZExt))
+    else if (Arg.hasAttribute(Attribute::ZExt))
       VRX.insert(std::make_pair(InVirtReg, ExtType(ExtType::ZExt, Width)));
   }
 }
 
-
 BT::BitMask HexagonEvaluator::mask(unsigned Reg, unsigned Sub) const {
   if (Sub == 0)
     return MachineEvaluator::mask(Reg, 0);
-  using namespace Hexagon;
-  const TargetRegisterClass *RC = MRI.getRegClass(Reg);
-  unsigned ID = RC->getID();
+  const TargetRegisterClass &RC = *MRI.getRegClass(Reg);
+  unsigned ID = RC.getID();
   uint16_t RW = getRegBitWidth(RegisterRef(Reg, Sub));
+  auto &HRI = static_cast<const HexagonRegisterInfo&>(TRI);
+  bool IsSubLo = (Sub == HRI.getHexagonSubRegIndex(RC, Hexagon::ps_sub_lo));
   switch (ID) {
-    case DoubleRegsRegClassID:
-    case VecDblRegsRegClassID:
-    case VecDblRegs128BRegClassID:
-      return (Sub == subreg_loreg) ? BT::BitMask(0, RW-1)
-                                   : BT::BitMask(RW, 2*RW-1);
+    case Hexagon::DoubleRegsRegClassID:
+    case Hexagon::HvxWRRegClassID:
+      return IsSubLo ? BT::BitMask(0, RW-1)
+                     : BT::BitMask(RW, 2*RW-1);
     default:
       break;
   }
 #ifndef NDEBUG
-  dbgs() << PrintReg(Reg, &TRI, Sub) << '\n';
+  dbgs() << printReg(Reg, &TRI, Sub) << " in reg class "
+         << TRI.getRegClassName(&RC) << '\n';
 #endif
   llvm_unreachable("Unexpected register/subregister");
 }
 
+uint16_t HexagonEvaluator::getPhysRegBitWidth(unsigned Reg) const {
+  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+
+  using namespace Hexagon;
+  for (auto &RC : {HvxVRRegClass, HvxWRRegClass, HvxQRRegClass})
+    if (RC.contains(Reg))
+      return TRI.getRegSizeInBits(RC);
+  // Default treatment for other physical registers.
+  if (const TargetRegisterClass *RC = TRI.getMinimalPhysRegClass(Reg))
+    return TRI.getRegSizeInBits(*RC);
+
+  llvm_unreachable(
+      (Twine("Unhandled physical register") + TRI.getName(Reg)).str().c_str());
+}
+
+const TargetRegisterClass &HexagonEvaluator::composeWithSubRegIndex(
+      const TargetRegisterClass &RC, unsigned Idx) const {
+  if (Idx == 0)
+    return RC;
+
+#ifndef NDEBUG
+  const auto &HRI = static_cast<const HexagonRegisterInfo&>(TRI);
+  bool IsSubLo = (Idx == HRI.getHexagonSubRegIndex(RC, Hexagon::ps_sub_lo));
+  bool IsSubHi = (Idx == HRI.getHexagonSubRegIndex(RC, Hexagon::ps_sub_hi));
+  assert(IsSubLo != IsSubHi && "Must refer to either low or high subreg");
+#endif
+
+  switch (RC.getID()) {
+    case Hexagon::DoubleRegsRegClassID:
+      return Hexagon::IntRegsRegClass;
+    case Hexagon::HvxWRRegClassID:
+      return Hexagon::HvxVRRegClass;
+    default:
+      break;
+  }
+#ifndef NDEBUG
+  dbgs() << "Reg class id: " << RC.getID() << " idx: " << Idx << '\n';
+#endif
+  llvm_unreachable("Unimplemented combination of reg class/subreg idx");
+}
+
 namespace {
+
 class RegisterRefs {
   std::vector<BT::RegisterRef> Vector;
 
 public:
-  RegisterRefs(const MachineInstr *MI) : Vector(MI->getNumOperands()) {
+  RegisterRefs(const MachineInstr &MI) : Vector(MI.getNumOperands()) {
     for (unsigned i = 0, n = Vector.size(); i < n; ++i) {
-      const MachineOperand &MO = MI->getOperand(i);
+      const MachineOperand &MO = MI.getOperand(i);
       if (MO.isReg())
         Vector[i] = BT::RegisterRef(MO);
       // For indices that don't correspond to registers, the entry will
@@ -113,21 +168,25 @@ public:
   }
 
   size_t size() const { return Vector.size(); }
+
   const BT::RegisterRef &operator[](unsigned n) const {
     // The main purpose of this operator is to assert with bad argument.
     assert(n < Vector.size());
     return Vector[n];
   }
 };
-}
 
-bool HexagonEvaluator::evaluate(const MachineInstr *MI,
-      const CellMapType &Inputs, CellMapType &Outputs) const {
+} // end anonymous namespace
+
+bool HexagonEvaluator::evaluate(const MachineInstr &MI,
+                                const CellMapType &Inputs,
+                                CellMapType &Outputs) const {
+  using namespace Hexagon;
+
   unsigned NumDefs = 0;
 
   // Sanity verification: there should not be any defs with subregisters.
-  for (unsigned i = 0, n = MI->getNumOperands(); i < n; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
+  for (const MachineOperand &MO : MI.operands()) {
     if (!MO.isReg() || !MO.isDef())
       continue;
     NumDefs++;
@@ -137,8 +196,19 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
   if (NumDefs == 0)
     return false;
 
-  if (MI->mayLoad())
-    return evaluateLoad(MI, Inputs, Outputs);
+  unsigned Opc = MI.getOpcode();
+
+  if (MI.mayLoad()) {
+    switch (Opc) {
+      // These instructions may be marked as mayLoad, but they are generating
+      // immediate values, so skip them.
+      case CONST32:
+      case CONST64:
+        break;
+      default:
+        return evaluateLoad(MI, Inputs, Outputs);
+    }
+  }
 
   // Check COPY instructions that copy formal parameters into virtual
   // registers. Such parameters can be sign- or zero-extended at the
@@ -154,7 +224,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
   // was not a COPY, it would not be clear how to mirror that extension
   // on the callee's side. For that reason, only check COPY instructions
   // for potential extensions.
-  if (MI->isCopy()) {
+  if (MI.isCopy()) {
     if (evaluateFormalCopy(MI, Inputs, Outputs))
       return true;
   }
@@ -165,19 +235,16 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
   // checking what kind of operand a given instruction has individually
   // for each instruction, do it here. Global symbols as operands gene-
   // rally do not provide any useful information.
-  for (unsigned i = 0, n = MI->getNumOperands(); i < n; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
+  for (const MachineOperand &MO : MI.operands()) {
     if (MO.isGlobal() || MO.isBlockAddress() || MO.isSymbol() || MO.isJTI() ||
         MO.isCPI())
       return false;
   }
 
   RegisterRefs Reg(MI);
-  unsigned Opc = MI->getOpcode();
-  using namespace Hexagon;
-  #define op(i) MI->getOperand(i)
-  #define rc(i) RegisterCell::ref(getCell(Reg[i],Inputs))
-  #define im(i) MI->getOperand(i).getImm()
+#define op(i) MI.getOperand(i)
+#define rc(i) RegisterCell::ref(getCell(Reg[i], Inputs))
+#define im(i) MI.getOperand(i).getImm()
 
   // If the instruction has no register operands, skip it.
   if (Reg.size() == 0)
@@ -190,9 +257,9 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
     return true;
   };
   // Get the cell corresponding to the N-th operand.
-  auto cop = [this,&Reg,&MI,&Inputs] (unsigned N, uint16_t W)
-        -> BT::RegisterCell {
-    const MachineOperand &Op = MI->getOperand(N);
+  auto cop = [this, &Reg, &MI, &Inputs](unsigned N,
+                                        uint16_t W) -> BT::RegisterCell {
+    const MachineOperand &Op = MI.getOperand(N);
     if (Op.isImm())
       return eIMM(Op.getImm(), W);
     if (!Op.isReg())
@@ -239,22 +306,22 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
   // cases below.
   uint16_t W0 = (Reg[0].Reg != 0) ? getRegBitWidth(Reg[0]) : 0;
 
+  // Register id of the 0th operand. It can be 0.
+  unsigned Reg0 = Reg[0].Reg;
+
   switch (Opc) {
     // Transfer immediate:
 
     case A2_tfrsi:
     case A2_tfrpi:
     case CONST32:
-    case CONST32_Float_Real:
-    case CONST32_Int_Real:
-    case CONST64_Float_Real:
-    case CONST64_Int_Real:
+    case CONST64:
       return rr0(eIMM(im(1), W0), Outputs);
-    case TFR_PdFalse:
+    case PS_false:
       return rr0(RegisterCell(W0).fill(0, W0, BT::BitValue::Zero), Outputs);
-    case TFR_PdTrue:
+    case PS_true:
       return rr0(RegisterCell(W0).fill(0, W0, BT::BitValue::One), Outputs);
-    case TFR_FI: {
+    case PS_fi: {
       int FI = op(1).getIndex();
       int Off = op(2).getImm();
       unsigned A = MFI.getObjectAlignment(FI) + std::abs(Off);
@@ -669,6 +736,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
     case A4_combineir:
     case A4_combineri:
     case A2_combinew:
+    case V6_vcombine:
       assert(W0 % 2 == 0);
       return rr0(cop(2, W0/2).cat(cop(1, W0/2)), Outputs);
     case A2_combine_ll:
@@ -760,15 +828,26 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
     case A2_zxth:
       return rr0(eZXT(rc(1), 16), Outputs);
 
+    // Saturations
+
+    case A2_satb:
+      return rr0(eSXT(RegisterCell::self(0, W0).regify(Reg0), 8), Outputs);
+    case A2_sath:
+      return rr0(eSXT(RegisterCell::self(0, W0).regify(Reg0), 16), Outputs);
+    case A2_satub:
+      return rr0(eZXT(RegisterCell::self(0, W0).regify(Reg0), 8), Outputs);
+    case A2_satuh:
+      return rr0(eZXT(RegisterCell::self(0, W0).regify(Reg0), 16), Outputs);
+
     // Bit count:
 
     case S2_cl0:
     case S2_cl0p:
       // Always produce a 32-bit result.
-      return rr0(eCLB(rc(1), 0/*bit*/, 32), Outputs);
+      return rr0(eCLB(rc(1), false/*bit*/, 32), Outputs);
     case S2_cl1:
     case S2_cl1p:
-      return rr0(eCLB(rc(1), 1/*bit*/, 32), Outputs);
+      return rr0(eCLB(rc(1), true/*bit*/, 32), Outputs);
     case S2_clb:
     case S2_clbp: {
       uint16_t W1 = getRegBitWidth(Reg[1]);
@@ -780,10 +859,10 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
     }
     case S2_ct0:
     case S2_ct0p:
-      return rr0(eCTB(rc(1), 0/*bit*/, 32), Outputs);
+      return rr0(eCTB(rc(1), false/*bit*/, 32), Outputs);
     case S2_ct1:
     case S2_ct1p:
-      return rr0(eCTB(rc(1), 1/*bit*/, 32), Outputs);
+      return rr0(eCTB(rc(1), true/*bit*/, 32), Outputs);
     case S5_popcountp:
       // TODO
       break;
@@ -879,21 +958,24 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
   return false;
 }
 
-
-bool HexagonEvaluator::evaluate(const MachineInstr *BI,
-      const CellMapType &Inputs, BranchTargetList &Targets,
-      bool &FallsThru) const {
-  // We need to evaluate one branch at a time. TII::AnalyzeBranch checks
+bool HexagonEvaluator::evaluate(const MachineInstr &BI,
+                                const CellMapType &Inputs,
+                                BranchTargetList &Targets,
+                                bool &FallsThru) const {
+  // We need to evaluate one branch at a time. TII::analyzeBranch checks
   // all the branches in a basic block at once, so we cannot use it.
-  unsigned Opc = BI->getOpcode();
+  unsigned Opc = BI.getOpcode();
   bool SimpleBranch = false;
   bool Negated = false;
   switch (Opc) {
     case Hexagon::J2_jumpf:
+    case Hexagon::J2_jumpfpt:
     case Hexagon::J2_jumpfnew:
     case Hexagon::J2_jumpfnewpt:
       Negated = true;
+      LLVM_FALLTHROUGH;
     case Hexagon::J2_jumpt:
+    case Hexagon::J2_jumptpt:
     case Hexagon::J2_jumptnew:
     case Hexagon::J2_jumptnewpt:
       // Simple branch:  if([!]Pn) jump ...
@@ -901,7 +983,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr *BI,
       SimpleBranch = true;
       break;
     case Hexagon::J2_jump:
-      Targets.insert(BI->getOperand(0).getMBB());
+      Targets.insert(BI.getOperand(0).getMBB());
       FallsThru = false;
       return true;
     default:
@@ -914,7 +996,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr *BI,
     return false;
 
   // BI is a conditional branch if we got here.
-  RegisterRef PR = BI->getOperand(0);
+  RegisterRef PR = BI.getOperand(0);
   RegisterCell PC = getCell(PR, Inputs);
   const BT::BitValue &Test = PC[0];
 
@@ -929,22 +1011,23 @@ bool HexagonEvaluator::evaluate(const MachineInstr *BI,
     return true;
   }
 
-  Targets.insert(BI->getOperand(1).getMBB());
+  Targets.insert(BI.getOperand(1).getMBB());
   FallsThru = false;
   return true;
 }
 
+bool HexagonEvaluator::evaluateLoad(const MachineInstr &MI,
+                                    const CellMapType &Inputs,
+                                    CellMapType &Outputs) const {
+  using namespace Hexagon;
 
-bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
-      const CellMapType &Inputs, CellMapType &Outputs) const {
   if (TII.isPredicated(MI))
     return false;
-  assert(MI->mayLoad() && "A load that mayn't?");
-  unsigned Opc = MI->getOpcode();
+  assert(MI.mayLoad() && "A load that mayn't?");
+  unsigned Opc = MI.getOpcode();
 
   uint16_t BitNum;
   bool SignEx;
-  using namespace Hexagon;
 
   switch (Opc) {
     default:
@@ -985,7 +1068,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
     case L2_loadrb_pci:
     case L2_loadrb_pcr:
     case L2_loadrb_pi:
-    case L4_loadrb_abs:
+    case PS_loadrbabs:
     case L4_loadrb_ap:
     case L4_loadrb_rr:
     case L4_loadrb_ur:
@@ -999,7 +1082,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
     case L2_loadrub_pci:
     case L2_loadrub_pcr:
     case L2_loadrub_pi:
-    case L4_loadrub_abs:
+    case PS_loadrubabs:
     case L4_loadrub_ap:
     case L4_loadrub_rr:
     case L4_loadrub_ur:
@@ -1013,7 +1096,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
     case L2_loadrh_pci:
     case L2_loadrh_pcr:
     case L2_loadrh_pi:
-    case L4_loadrh_abs:
+    case PS_loadrhabs:
     case L4_loadrh_ap:
     case L4_loadrh_rr:
     case L4_loadrh_ur:
@@ -1028,7 +1111,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
     case L2_loadruh_pcr:
     case L2_loadruh_pi:
     case L4_loadruh_rr:
-    case L4_loadruh_abs:
+    case PS_loadruhabs:
     case L4_loadruh_ap:
     case L4_loadruh_ur:
       BitNum = 16;
@@ -1042,7 +1125,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
     case L2_loadri_pcr:
     case L2_loadri_pi:
     case L2_loadw_locked:
-    case L4_loadri_abs:
+    case PS_loadriabs:
     case L4_loadri_ap:
     case L4_loadri_rr:
     case L4_loadri_ur:
@@ -1058,7 +1141,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
     case L2_loadrd_pcr:
     case L2_loadrd_pi:
     case L4_loadd_locked:
-    case L4_loadrd_abs:
+    case PS_loadrdabs:
     case L4_loadrd_ap:
     case L4_loadrd_rr:
     case L4_loadrd_ur:
@@ -1067,7 +1150,7 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
       break;
   }
 
-  const MachineOperand &MD = MI->getOperand(0);
+  const MachineOperand &MD = MI.getOperand(0);
   assert(MD.isReg() && MD.isDef());
   RegisterRef RD = MD;
 
@@ -1091,15 +1174,15 @@ bool HexagonEvaluator::evaluateLoad(const MachineInstr *MI,
   return true;
 }
 
-
-bool HexagonEvaluator::evaluateFormalCopy(const MachineInstr *MI,
-      const CellMapType &Inputs, CellMapType &Outputs) const {
+bool HexagonEvaluator::evaluateFormalCopy(const MachineInstr &MI,
+                                          const CellMapType &Inputs,
+                                          CellMapType &Outputs) const {
   // If MI defines a formal parameter, but is not a copy (loads are handled
   // in evaluateLoad), then it's not clear what to do.
-  assert(MI->isCopy());
+  assert(MI.isCopy());
 
-  RegisterRef RD = MI->getOperand(0);
-  RegisterRef RS = MI->getOperand(1);
+  RegisterRef RD = MI.getOperand(0);
+  RegisterRef RS = MI.getOperand(1);
   assert(RD.Sub == 0);
   if (!TargetRegisterInfo::isPhysicalRegister(RS.Reg))
     return false;
@@ -1125,9 +1208,9 @@ bool HexagonEvaluator::evaluateFormalCopy(const MachineInstr *MI,
   return true;
 }
 
-
 unsigned HexagonEvaluator::getNextPhysReg(unsigned PReg, unsigned Width) const {
   using namespace Hexagon;
+
   bool Is64 = DoubleRegsRegClass.contains(PReg);
   assert(PReg == 0 || Is64 || IntRegsRegClass.contains(PReg));
 
@@ -1164,12 +1247,9 @@ unsigned HexagonEvaluator::getNextPhysReg(unsigned PReg, unsigned Width) const {
   return (Idx64+1 < Num64) ? Phys64[Idx64+1] : 0;
 }
 
-
 unsigned HexagonEvaluator::getVirtRegFor(unsigned PReg) const {
-  typedef MachineRegisterInfo::livein_iterator iterator;
-  for (iterator I = MRI.livein_begin(), E = MRI.livein_end(); I != E; ++I) {
-    if (I->first == PReg)
-      return I->second;
-  }
+  for (std::pair<unsigned,unsigned> P : MRI.liveins())
+    if (P.first == PReg)
+      return P.second;
   return 0;
 }

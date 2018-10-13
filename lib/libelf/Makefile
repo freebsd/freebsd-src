@@ -43,6 +43,7 @@ SRCS=	elf.c							\
 	gelf_ehdr.c						\
 	gelf_getclass.c						\
 	gelf_fsize.c						\
+	gelf_mips64el.c						\
 	gelf_move.c						\
 	gelf_phdr.c						\
 	gelf_rel.c						\
@@ -82,7 +83,7 @@ CLEANFILES=	${GENSRCS}
 CLEANDIRS=	sys
 CFLAGS+=	-I. -I${SRCDIR} -I${ELFTCDIR}/common
 
-sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET} .NOMETA
+sys/elf32.h sys/elf64.h sys/elf_common.h: ${SRCTOP}/sys/${.TARGET} .NOMETA
 	mkdir -p ${.OBJDIR}/sys
 	ln -sf ${.ALLSRC} ${.TARGET}
 

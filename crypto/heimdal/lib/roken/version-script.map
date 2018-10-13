@@ -123,17 +123,12 @@ HEIMDAL_ROKEN_1.0 {
 		rk_strptime;
 		rk_strsep_copy;
 		rk_strsvis;
-		rk_strsvis;
 		rk_strsvisx;
-		rk_strunvis;
 		rk_strunvis;
 		rk_strunvisx;
 		rk_strupr;
 		rk_strvis;
-		rk_strvis;
 		rk_strvisx;
-		rk_strvisx;
-		rk_svis;
 		rk_svis;
 		rk_timegm;
 		rk_timevaladd;
@@ -147,7 +142,6 @@ HEIMDAL_ROKEN_1.0 {
 		rk_unvis;
 		rk_vasnprintf;
 		rk_vasprintf;
-		rk_vis;
 		rk_vis;
 		rk_vsnprintf;
 		rk_vstrcollect;

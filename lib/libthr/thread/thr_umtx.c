@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
@@ -168,7 +170,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 }
 
 int
-__thr_umutex_unlock(struct umutex *mtx, uint32_t id)
+__thr_umutex_unlock(struct umutex *mtx)
 {
 
 	return (_umtx_op_err(mtx, UMTX_OP_MUTEX_UNLOCK, 0, 0, 0));

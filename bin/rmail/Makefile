@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PACKAGE=sendmail
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/rmail
 
 # Not much point this being static. It calls a shared sendmail...

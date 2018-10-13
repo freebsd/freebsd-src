@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 2000, 2001  Kenneth D. Merry
  * All rights reserved.
  *
@@ -800,14 +802,18 @@ devstats(int perf_select, long double etime, int havelast)
 	char *devicename;
 
 	if (xflag > 0) {
+		if (Cflag > 0) {
+			printf("      cpu\n");
+			printf(" us ni sy in id\n");
+			cpustats();
+			printf("\n");
+		}
 		printf("                        extended device statistics  ");
 		if (Tflag > 0)
 			printf("      tty ");
-		if (Cflag > 0)
-			printf("           cpu ");
 		printf("\n");
 		if (Iflag == 0) {
-			printf("device     r/s   w/s     kr/s     kw/s "
+			printf("device       r/s     w/s     kr/s     kw/s "
 			    " ms/r  ms/w  ms/o  ms/t qlen  %%b  ");
 		} else {
 			printf("device           r/i         w/i         kr/i"
@@ -815,8 +821,6 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 		if (Tflag > 0)
 			printf("tin  tout ");
-		if (Cflag > 0)
-			printf("us ni sy in id ");
 		printf("\n");
 	}
 
@@ -884,7 +888,7 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
-					printf("%-8.8s %5d %5d %8.1Lf "
+					printf("%-8.8s %7d %7d %8.1Lf "
 					    "%8.1Lf %5d %5d %5d %5d "
 					    "%4" PRIu64 " %3.0Lf ",
 					    devicename,
@@ -920,8 +924,6 @@ devstats(int perf_select, long double etime, int havelast)
 						printf("%4.0Lf%5.0Lf",
 						    cur.tk_nin / etime,
 						    cur.tk_nout / etime);
-					if (Cflag > 0)
-						cpustats();
 				}
 				printf("\n");
 			}

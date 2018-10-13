@@ -11,9 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+def isR600 : Predicate<"Subtarget->getGeneration() <= R600Subtarget::R700">;
+
+def isR600toCayman : Predicate<
+    "Subtarget->getGeneration() <= R600Subtarget::NORTHERN_ISLANDS">;
+
+class R600Pat<dag pattern, dag result> : AMDGPUPat<pattern, result> {
+  let SubtargetPredicate = isR600toCayman;
+}
+
 class InstR600 <dag outs, dag ins, string asm, list<dag> pattern,
-                InstrItinClass itin>
-    : AMDGPUInst <outs, ins, asm, pattern> {
+                InstrItinClass itin = NoItinerary>
+    : AMDGPUInst <outs, ins, asm, pattern>, PredicateControl {
 
   field bits<64> Inst;
   bit Trig = 0;
@@ -31,6 +40,7 @@ class InstR600 <dag outs, dag ins, string asm, list<dag> pattern,
   bit IsExport = 0;
   bit LDS_1A2D = 0;
 
+  let SubtargetPredicate = isR600toCayman;
   let Namespace = "AMDGPU";
   let OutOperandList = outs;
   let InOperandList = ins;
@@ -210,14 +220,14 @@ class VTX_WORD0 {
   bits<5> VC_INST;
   bits<2> FETCH_TYPE;
   bits<1> FETCH_WHOLE_QUAD;
-  bits<8> BUFFER_ID;
+  bits<8> buffer_id;
   bits<1> SRC_REL;
   bits<2> SRC_SEL_X;
 
   let Word0{4-0}   = VC_INST;
   let Word0{6-5}   = FETCH_TYPE;
   let Word0{7}     = FETCH_WHOLE_QUAD;
-  let Word0{15-8}  = BUFFER_ID;
+  let Word0{15-8}  = buffer_id;
   let Word0{22-16} = src_gpr;
   let Word0{23}    = SRC_REL;
   let Word0{25-24} = SRC_SEL_X;

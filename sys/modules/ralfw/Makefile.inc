@@ -11,5 +11,5 @@ CLEANFILES+=	${_FIRM}
 
 FIRMWS=	${_FIRM}:${KMOD}
 
-${_FIRM}: ${.CURDIR}/../../../contrib/dev/ral/${_FIRM}.uu
+${_FIRM}: ${SRCTOP}/sys/contrib/dev/ral/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}

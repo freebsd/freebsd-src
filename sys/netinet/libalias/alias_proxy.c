@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
  *
@@ -294,6 +296,7 @@ ProxyEncodeTcpStream(struct alias_link *lnk,
 	int slen;
 	char buffer[40];
 	struct tcphdr *tc;
+	char addrbuf[INET_ADDRSTRLEN];
 
 /* Compute pointer to tcp header */
 	tc = (struct tcphdr *)ip_next(pip);
@@ -305,7 +308,8 @@ ProxyEncodeTcpStream(struct alias_link *lnk,
 
 /* Translate destination address and port to string form */
 	snprintf(buffer, sizeof(buffer) - 2, "[DEST %s %d]",
-	    inet_ntoa(GetProxyAddress(lnk)), (u_int) ntohs(GetProxyPort(lnk)));
+	    inet_ntoa_r(GetProxyAddress(lnk), INET_NTOA_BUF(addrbuf)),
+	    (u_int) ntohs(GetProxyPort(lnk)));
 
 /* Pad string out to a multiple of two in length */
 	slen = strlen(buffer);
@@ -718,7 +722,8 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				err = RuleNumberDelete(la, rule_to_delete);
 				if (err)
 					ret = -1;
-				ret = 0;
+				else
+					ret = 0;
 				goto getout;
 			}
 

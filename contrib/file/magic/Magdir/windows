@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.14 2015/12/15 01:06:17 christos Exp $
+# $File: windows,v 1.22 2018/02/16 15:44:00 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -29,7 +29,7 @@
 # Created by: Andreas Schuster (http://computer.forensikblog.de/)
 # Reference (1): http://computer.forensikblog.de/en/2008/02/64bit_magic.html
 # Modified by (1): Abel Cheung (Avoid match with first 4 bytes only)
-0	string		PAGE		
+0	string		PAGE
 >4	string		DUMP		MS Windows 32bit crash dump
 >>0x05c	byte            0		\b, no PAE
 >>0x05c	byte            1		\b, PAE
@@ -66,13 +66,13 @@
 # Summary: Old format help files
 # URL: https://en.wikipedia.org/wiki/WinHelp
 # Reference: http://www.oocities.org/mwinterhoff/helpfile.htm
-# Update: Joerg Jenderek 
+# Update: Joerg Jenderek
 # Created by: Dirk Jagdmann <doj@cubic.org>
 #
 # check and then display version and date inside MS Windows HeLP file fragment
 0	name				help-ver-date
 # look for Magic of SYSTEMHEADER
->0	leshort		0x036C		
+>0	leshort		0x036C
 # version Major		1 for right file fragment
 >>4	leshort		1		Windows
 # print non empty string above to avoid error message
@@ -93,7 +93,7 @@
 >>>6	ldate		x		\b, %s
 #
 # Magic for HeLP files
-0	lelong		0x00035f3f		
+0	lelong		0x00035f3f
 # ./windows (version 5.25) labeled the entry as "MS Windows 3.x help file"
 # file header magic 0x293B at DirectoryStart+9
 >(4.l+9)	uleshort	0x293B		MS
@@ -101,37 +101,37 @@
 >>0xD4		string	=\x62\x6D\x66\x01\x00	Windows help annotation
 !:mime	application/x-winhelp
 !:ext	ann
->>0xD4		string	!\x62\x6D\x66\x01\x00	
+>>0xD4		string	!\x62\x6D\x66\x01\x00
 # "GID Help index" by TrID
 >>>(4.l+0x65)	string	=|Pete			Windows help Global Index
 !:mime	application/x-winhelp
 !:ext	gid
 # HeLP Bookmark or
 # "Windows HELP File" by TrID
->>>(4.l+0x65)		string		!|Pete		
+>>>(4.l+0x65)		string		!|Pete
 # maybe there exist a cleaner way to detect HeLP fragments
 # brute search for Magic 0x036C with matching Major maximal 7 iterations
 # discapp.hlp
->>>>16			search/0x49AF/s	\x6c\x03 	
+>>>>16			search/0x49AF/s	\x6c\x03
 >>>>>&0			use 		help-ver-date
->>>>>&4			leshort		!1		
+>>>>>&4			leshort		!1
 # putty.hlp
->>>>>>&0		search/0x69AF/s	\x6c\x03 	
+>>>>>>&0		search/0x69AF/s	\x6c\x03
 >>>>>>>&0		use 		help-ver-date
->>>>>>>&4		leshort		!1		
->>>>>>>>&0		search/0x49AF/s	\x6c\x03 	
+>>>>>>>&4		leshort		!1
+>>>>>>>>&0		search/0x49AF/s	\x6c\x03
 >>>>>>>>>&0		use 		help-ver-date
->>>>>>>>>&4		leshort		!1		
->>>>>>>>>>&0		search/0x49AF/s	\x6c\x03 	
+>>>>>>>>>&4		leshort		!1
+>>>>>>>>>>&0		search/0x49AF/s	\x6c\x03
 >>>>>>>>>>>&0		use 		help-ver-date
->>>>>>>>>>>&4		leshort		!1		
->>>>>>>>>>>>&0		search/0x49AF/s	\x6c\x03 	
+>>>>>>>>>>>&4		leshort		!1
+>>>>>>>>>>>>&0		search/0x49AF/s	\x6c\x03
 >>>>>>>>>>>>>&0		use 		help-ver-date
->>>>>>>>>>>>>&4		leshort		!1		
->>>>>>>>>>>>>>&0	search/0x49AF/s	\x6c\x03 	
+>>>>>>>>>>>>>&4		leshort		!1
+>>>>>>>>>>>>>>&0	search/0x49AF/s	\x6c\x03
 >>>>>>>>>>>>>>>&0	use 		help-ver-date
->>>>>>>>>>>>>>>&4	leshort		!1		
->>>>>>>>>>>>>>>>&0	search/0x49AF/s	\x6c\x03 	
+>>>>>>>>>>>>>>>&4	leshort		!1
+>>>>>>>>>>>>>>>>&0	search/0x49AF/s	\x6c\x03
 # GCC.HLP is detected after 7 iterations
 >>>>>>>>>>>>>>>>>&0	use 		help-ver-date
 # this only happens if bigger hlp file is detected after used search iterations
@@ -139,11 +139,11 @@
 !:mime	application/winhelp
 !:ext	hlp
 # repeat search again or following default line does not work
->>>>16			search/0x49AF/s	\x6c\x03 	
+>>>>16			search/0x49AF/s	\x6c\x03
 # remaining files should be HeLP Bookmark WinHlp32.BMK (XP 32-bit) or WinHlp32 (Windows 8.1 64-bit)
 >>>>16	default				x	Windows help Bookmark
 !:mime	application/x-winhelp
-!:ext	/bmk
+!:ext	bmk
 ## FirstFreeBlock normally FFFFFFFFh 10h for *ANN
 ##>>8	lelong			x		\b, FirstFreeBlock 0x%8.8x
 # EntireFileSize
@@ -180,21 +180,21 @@
 #>>(4.l+47)	ubequad		x		\b, PageStart 0x%16.16llx
 
 # start with colon or semicolon for comment line like Back2Life.cnt
-0		regex		\^(:|;)		
+0		regex		\^(:|;)
 # look for first keyword Base
->0		search/45	:Base 		
+>0		search/45	:Base
 >>&0				use 		cnt-name
 # only solution to search again from beginning , because relative offsets changes when use is called
->0		search/45	:Base 		
->0		default		x		
+>0		search/45	:Base
+>0		default		x
 # look for other keyword Title like in putty.cnt
->>0		search/45	:Title 		
+>>0		search/45	:Title
 >>>&0				use 		cnt-name
 #
 # display mime type and name of Windows help Content source
 0	name				cnt-name
 # skip space at beginning
->0     string		\ 		
+>0     string		\040
 # name without extension and greater character or name with hlp extension
 >>1	regex/c		\^([^\xd>]*|.*\.hlp)	MS Windows help file Content, based "%s"
 !:mime	text/plain
@@ -210,10 +210,10 @@
 # Summary: Hyper terminal
 # Extension: .ht
 # Created by: unknown
-0	string		HyperTerminal\ 
+0	string		HyperTerminal\040
 >15	string		1.0\ --\ HyperTerminal\ data\ file	MS Windows HyperTerminal profile
 
-# http://ithreats.files.wordpress.com/2009/05/\
+# http://ithreats.files.wordpress.com/2009/05/\040
 # lnk_the_windows_shortcut_file_format.pdf
 # Summary: Windows shortcut
 # Extension: .lnk
@@ -290,35 +290,86 @@
 
 
 # Summary: Windows Registry text
-# Extension: .reg
+# URL: https://en.wikipedia.org/wiki/Windows_Registry#.REG_files
+# Reference: http://fileformats.archiveteam.org/wiki/Windows_Registry
 # Submitted by: Abel Cheung <abelcheung@gmail.com>
-0	string		REGEDIT4\r\n\r\n	Windows Registry text (Win95 or above)
+# Update: Joerg Jenderek
+#		Windows 3-9X variant
+0	string		REGEDIT
+# skip ASCII text like "REGEDITor.txt" but match
+# L1WMAP.REG with only 1 CRNL or org.gnome.gnumeric.reg with 2 NL
+>7	search/3	\n			Windows Registry text
+!:mime	text/x-ms-regedit
+!:ext	reg
+#		Windows 9X variant
+>>0	string		REGEDIT4		(Win95 or above)
+#		Windows 2K ANSI variant
 0	string		Windows\ Registry\ Editor\ 
 >&0	string		Version\ 5.00\r\n\r\n	Windows Registry text (Win2K or above)
+!:mime	text/x-ms-regedit
+!:ext	reg
+#		Windows 2K UTF-16 variant
+2	lestring16	Windows\ Registry\ Editor\ 
+>0x32	lestring16	Version\ 5.00\r\n\r\n	Windows Registry little-endian text (Win2K or above)
+# relative offset not working
+#>&0	lestring16	Version\ 5.00\r\n\r\n	Windows Registry little-endian text (Win2K or above)
+!:mime	text/x-ms-regedit
+!:ext	reg
+#		WINE variant
+# URL: https://en.wikipedia.org/wiki/Wine_(software)
+# Reference: https://www.winehq.org/pipermail/wine-cvs/2005-October/018763.html
+# Note:	WINE use text based registry (system.reg,user.reg,userdef.reg)
+#	instead binary hiv structure like Windows
+0	string	WINE\ REGISTRY\ Version\ 	WINE registry text
+# version 2
+>&0	string	x				\b, version %s
+!:mime	text/x-wine-extension-reg
+!:ext	reg
 
-# Windows *.INF *.INI files updated by Joerg Jenderek at Apr 2013
+# Windows *.INF *.INI files updated by Joerg Jenderek at Apr 2013, Feb 2018
 # empty ,comment , section
 # PR/383: remove unicode BOM because it is not portable across regex impls
-0	regex/s		\\`(\\r\\n|;|[[])
-# left bracket in section line
->&0	search/8192	[						
+#0	regex/s		\\`(\\r\\n|;|[[])
+# empty line CRLF
+0	ubeshort	0x0D0A
+>0	use		ini-file
+# comment line
+0	string		;
+>0	use		ini-file
+# section line
+0	string		[
+>0	use		ini-file
+# check and then display Windows INItialization configuration
+0	name		ini-file
+# look for left bracket in section line
+>0	search/8192	[
 # http://en.wikipedia.org/wiki/Autorun.inf
 # http://msdn.microsoft.com/en-us/library/windows/desktop/cc144200.aspx
->>&0	regex/c		\^(autorun)]\r\n				
->>>&0	ubyte		=0x5b						INItialization configuration
-!:mime application/x-wine-extension-ini
+# space after right bracket
+# or AutoRun.Amd64 for 64 bit systems
+# or only NL separator
+>>&0	regex/c		\^(autorun)
+# but sometimes total commander directory tree file "treeinfo.wc" with lines like
+# [AUTORUN]
+# [boot]
+>>>&0	string		=]\r\n[					Total commander directory treeinfo.wc
+!:mime text/plain
+!:ext	wc
 # From: Pal Tamas <folti@balabit.hu>
 # Autorun File
->>>&0	ubyte		!0x5b						Microsoft Windows Autorun file
+>>>&0	string		!]\r\n[					Microsoft Windows Autorun file
 !:mime application/x-setupscript
+!:ext	inf
 # http://msdn.microsoft.com/en-us/library/windows/hardware/ff549520(v=vs.85).aspx
 # version strings ASCII coded case-independent for Windows setup information script file
 >>&0	regex/c		\^(version|strings)]				Windows setup INFormation
 !:mime	application/x-setupscript
-#!:mime application/inf
 #!:mime application/x-wine-extension-inf
+!:ext	inf
+# NETCRC.INF OEMCPL.INF
 >>&0	regex/c		\^(WinsockCRCList|OEMCPL)]			Windows setup INFormation
-!:mime	text/inf
+!:mime	application/x-setupscript
+!:ext	inf
 # http://www.winfaq.de/faq_html/Content/tip2500/onlinefaq.php?h=tip2653.htm
 # http://msdn.microsoft.com/en-us/library/windows/desktop/cc144102.aspx
 # .ShellClassInfo DeleteOnCopy LocalizedFileNames ASCII coded case-independent
@@ -328,69 +379,101 @@
 # http://support.microsoft.com/kb/84709/
 >>&0	regex/c		\^(don't\ load)]				Windows CONTROL.INI
 !:mime application/x-wine-extension-ini
+!:ext	ini
 >>&0	regex/c		\^(ndishlp\\$|protman\\$|NETBEUI\\$)]		Windows PROTOCOL.INI
 !:mime application/x-wine-extension-ini
+!:ext	ini
 # http://technet.microsoft.com/en-us/library/cc722567.aspx
 # http://www.winfaq.de/faq_html/Content/tip0000/onlinefaq.php?h=tip0137.htm
 >>&0	regex/c		\^(windows|Compatibility|embedding)]		Windows WIN.INI
 !:mime application/x-wine-extension-ini
+!:ext	ini
 # http://en.wikipedia.org/wiki/SYSTEM.INI
 >>&0	regex/c		\^(boot|386enh|drivers)]			Windows SYSTEM.INI
 !:mime application/x-wine-extension-ini
+!:ext	ini
 # http://www.mdgx.com/newtip6.htm
 >>&0	regex/c		\^(SafeList)]					Windows IOS.INI
 !:mime application/x-wine-extension-ini
+!:ext	ini
 # http://en.wikipedia.org/wiki/NTLDR	Windows Boot Loader information
 >>&0	regex/c		\^(boot\x20loader)]				Windows boot.ini
 !:mime application/x-wine-extension-ini
->>>&0	ubyte		x						
+!:ext	ini
 # http://en.wikipedia.org/wiki/CONFIG.SYS
->>&0	regex/c		\^(menu)]\r\n					MS-DOS CONFIG.SYS
+>>&0	regex/c		\^(menu)]					MS-DOS CONFIG.SYS
+# @CONFIG.UI configuration file of previous DOS version saved by Caldera OPENDOS INSTALL.EXE
+# CONFIG.PSS saved version of file CONFIG.SYS created by %WINDIR%\SYTEM\MSCONFIG.EXE
+# CONFIG.TSH renamed file CONFIG.SYS.BAT by %WINDIR%\SYTEM\MSCONFIG.EXE
+# dos and w40 used in dual booting scene
+!:ext	sys/dos/w40
 # http://support.microsoft.com/kb/118579/
 >>&0	regex/c		\^(Paths)]\r\n					MS-DOS MSDOS.SYS
-# VERS string unicoded case-independent
->>&0	ubequad&0xFFdfFFdfFFdfFFdf	0x0056004500520053		
-# ION] string unicoded case-independent
->>>&0	ubequad&0xFFdfFFdfFFdfFFff	0x0049004f004e005d		Windows setup INFormation 
-!:mime application/x-setupscript
-# STRI string unicoded case-independent
->>&0	ubequad&0xFFdfFFdfFFdfFFdf	0x0053005400520049		
-# NGS] string unicoded case-independent
->>>&0	ubequad&0xFFdfFFdfFFdfFFff	0x004e00470053005D		Windows setup INFormation 
-!:mime application/x-setupscript
+!:ext	sys/dos
+# http://chmspec.nongnu.org/latest/INI.html#HHP
+>>&0	regex/c		\^(options)]\r\n				Microsoft HTML Help Project
+!:mime text/plain
+!:ext	hhp
 # unknown keyword after opening bracket
->>&0	default				x				
->>>&0	search/8192			[				
+>>&0	default				x
+#>>>&0	string/c			x	UNKNOWN [%s
+# look for left bracket of second section
+>>>&0	search/8192			[
 # version Strings FileIdentification
->>>>&0	string/c			version				Windows setup INFormation 
+>>>>&0	string/c			version				Windows setup INFormation
 !:mime application/x-setupscript
-# VERS string unicoded case-independent
->>>>&0	ubequad&0xFFdfFFdfFFdfFFdf	0x0056004500520053		
-# ION] string unicoded case-independent
->>>>>&0	ubequad&0xFFdfFFdfFFdfFFff	0x0049004f004e005d		Windows setup INFormation 
-!:mime application/x-setupscript
+!:ext	inf
 # http://en.wikipedia.org/wiki/Initialization_file	Windows Initialization File or other
-#>>>>&0	default				x				Generic INItialization configuration
-#!:mime application/x-wine-extension-ini
+>>>>&0	default				x
+>>>>>&0	ubyte				x
+# characters, digits, underscore and white space followed by right bracket
+# terminated by CR implies section line to skip BOOTLOG.TXT DETLOG.TXT
+>>>>>>&-1	regex			\^([A-Za-z0-9_\(\)\ ]+)\]\r	Generic INItialization configuration [%-.40s
+# NETDEF.INF multiarc.ini 
+#!:mime	application/x-setupscript
+!:mime	application/x-wine-extension-ini
+#!:mime	text/plain
+!:ext	ini/inf
+# UTF-16 BOM followed by CR~0D00 , comment~semicolon~3B00 , section~bracket~5B00
+0	ubelong&0xFFff89FF	=0xFFFE0900
+# look for left bracket in section line
+>2	search/8192		[
+# keyword without 1st letter which is maybe up-/down-case
+>>&3	lestring16		ersion]			Windows setup INFormation
+!:mime	application/x-setupscript
+!:ext	inf
+>>&3	lestring16		trings]			Windows setup INFormation
+!:mime	application/x-setupscript
+!:ext	inf
+>>&3	lestring16		ourceDisksNames]	Windows setup INFormation
+!:mime	application/x-setupscript
+!:ext	inf
+# netnwcli.inf start with ;---[ NetNWCli.INX ]
+>>&3	default			x
+# look for NL followed by left bracket
+>>>&0	search/8192		\x0A\x00\x5b
+>>>>&3	lestring16		ersion]			Windows setup INFormation
+!:mime	application/x-setupscript
+!:ext	inf
 
 # Windows Precompiled INF files *.PNF added by Joerg Jenderek at Mar 2013 of _PNF_HEADER inf.h
 # http://read.pudn.com/downloads3/sourcecode/windows/248345/win2k/private/windows/setup/setupapi/inf.h__.htm
 # GRR: line below too general as it catches also PDP-11 UNIX/RT ldp
-0		leshort&0xFeFe	0x0000		
+0		leshort&0xFeFe	0x0000
 !:strength -5
 # test for unused null bits in PNF_FLAGs
->4	ulelong&0xFCffFe00	0x00000000	
+>4	ulelong&0xFCffFe00	0x00000000
 # only found 58h for Offset of WinDirPath immediately after _PNF_HEADER structure
->>68		ulelong		>0x57		
+>>68		ulelong		>0x57
 # test for zero high byte of InfValueBlockSize, followed by WinDirPath like
 # C:\WINDOWS (ASCII 0x433a5c.. , unicode 0x43003a005c..) or X:\MININT
 >>>(68.l-1)	ubelong&0xffE0C519	=0x00400018	Windows Precompiled iNF
 !:mime	application/x-pnf
 # currently only found Major Version=1 and Minor Version=1
-#>>>>0		uleshort	=0x0101		
+#>>>>0		uleshort	=0x0101
 #>>>>>1		ubyte		x		\b, version %u
 #>>>>>0		ubyte		x		\b.%u
->>>>0		uleshort	!0x0101		
+>>>>0		uleshort	!0x0101
 >>>>>1		ubyte		x		\b, version %u
 >>>>>0		ubyte		x		\b.%u
 # 1 ,2 (windows 98 SE)
@@ -416,10 +499,10 @@
 #>>>>16		ulelong		x		\b, InfVersionDataSize 0x%x
 # only found positive values lower 0x00ffFFff for InfVersionDataOffset
 >>>>20		ulelong		x		\b, at 0x%x
->>>>4	ulelong&0x00000001	=0x00000001	
-# case independent: CatalogFile Class DriverVer layoutfile LayoutFile SetupClass signature Signature    
+>>>>4	ulelong&0x00000001	=0x00000001
+# case independent: CatalogFile Class DriverVer layoutfile LayoutFile SetupClass signature Signature
 >>>>>(20.l)	lestring16	x		"%s"
->>>>4	ulelong&0x00000001	!0x00000001	
+>>>>4	ulelong&0x00000001	!0x00000001
 >>>>>(20.l)	string		x		"%s"
 # FILETIME is number of 100-nanosecond intervals since 1 January 1601
 #>>>>24		ulequad		x		\b, InfVersionLastWriteTime %16.16llx
@@ -435,23 +518,23 @@
 #>>>>64		ulelong		x		\b, InfValueBlockSize 0x%x
 # WinDirPathOffset
 #>>>>68		ulelong		x		\b, at 0x%x
->>>>68		ulelong		>0x57		
->>>>>4	ulelong&0x00000001	=0x00000001	
->>>>>>(68.l)	ubequad		=0x43003a005c005700			
+>>>>68		ulelong		>0x57
+>>>>>4	ulelong&0x00000001	=0x00000001
+>>>>>>(68.l)	ubequad		=0x43003a005c005700
 # normally unicoded C:\Windows
 #>>>>>>>(68.l)	lestring16	x		\b, WinDirPath "%s"
->>>>>>(68.l)	ubequad		!0x43003a005c005700			
+>>>>>>(68.l)	ubequad		!0x43003a005c005700
 >>>>>>>(68.l)	lestring16	x		\b, WinDirPath "%s"
->>>>>4	ulelong&0x00000001	!0x00000001	
+>>>>>4	ulelong&0x00000001	!0x00000001
 # normally ASCII C:\WINDOWS
 #>>>>>>(68.l)	string		=C:\\WINDOWS	\b, WinDirPath "%s"
 >>>>>>(68.l)	string		!C:\\WINDOWS	\b, WinDirPath "%s"
-# found OsLoaderPathOffset values often 0 , once 70h corelist.PNF, once 68h ASCII machine.PNF 
+# found OsLoaderPathOffset values often 0 , once 70h corelist.PNF, once 68h ASCII machine.PNF
 #>>>>72		ulelong		>0		\b, at 0x%x
 >>>>72		ulelong		>0		\b,
->>>>>4	ulelong&0x00000001	=0x00000001	
+>>>>>4	ulelong&0x00000001	=0x00000001
 >>>>>>(72.l)	lestring16	x		OsLoaderPath "%s"
->>>>>4	ulelong&0x00000001	!0x00000001	
+>>>>>4	ulelong&0x00000001	!0x00000001
 # seldom C:\ instead empty
 >>>>>>(72.l)	string		x		OsLoaderPath "%s"
 # 1fdh
@@ -462,16 +545,16 @@
 # InfSourcePathOffset often 0
 #>>>>80		ulelong		>0		\b, at 0x%x
 >>>>80		ulelong		>0		\b,
->>>>>4	ulelong&0x00000001	=0x00000001	
+>>>>>4	ulelong&0x00000001	=0x00000001
 >>>>>>(80.l)	lestring16	x		SourcePath "%s"
->>>>>4	ulelong&0x00000001	!0x00000001	
+>>>>>4	ulelong&0x00000001	!0x00000001
 >>>>>>(80.l)	string		>\0		SourcePath "%s"
 # OriginalInfNameOffset often 0
 #>>>>84		ulelong		>0		\b, at 0x%x
 >>>>84		ulelong		>0		\b,
->>>>>4	ulelong&0x00000001	=0x00000001	
+>>>>>4	ulelong&0x00000001	=0x00000001
 >>>>>>(84.l)	lestring16	x		InfName "%s"
->>>>>4	ulelong&0x00000001	!0x00000001	
+>>>>>4	ulelong&0x00000001	!0x00000001
 >>>>>>(84.l)	string		>\0		InfName "%s"
 
 # Summary: backup file created with utility like NTBACKUP.EXE shipped with Windows NT/2K/XP/2003
@@ -480,13 +563,13 @@
 # URL: http://en.wikipedia.org/wiki/NTBackup
 # Reference: http://laytongraphics.com/mtf/MTF_100a.PDF
 # Descriptor BloCK name of Microsoft Tape Format
-0	string			TAPE		
+0	string			TAPE
 # Format Logical Address is zero
->20	ulequad			0		
+>20	ulequad			0
 # Reserved for MBC is zero
->>28	uleshort		0		
+>>28	uleshort		0
 # Control Block ID is zero
->>>36	ulelong			0		
+>>>36	ulelong			0
 # BIT4-BIT15, BIT18-BIT31 of block attributes are unused
 >>>>4	ulelong&0xFFfcFFe0	0		Windows NTbackup archive
 #!:mime application/x-ntbackup
@@ -508,7 +591,7 @@
 >>>>>4	ulelong&0x00000004	!0		\b, compressed
 # MTF_EOS_AT_EOM	End Of Medium was hit during end of set processing
 >>>>>4	ulelong&0x00000008	!0		\b, End Of Medium hit
->>>>>4	ulelong&0x00020000	0		
+>>>>>4	ulelong&0x00020000	0
 # MTF_SET_MAP_EXISTS	A Media Based Catalog Set Map may exist on tape
 >>>>>>4	ulelong&0x00010000	!0		\b, with catalog
 # MTF_FDD_ALLOWED	However File/Directory Detail can only exist if a Set Map is also present
@@ -531,37 +614,37 @@
 # Media Based Catalog Type (1,2)
 #>>>>>66	uleshort		x		\b, catalog type %4.4x
 # size of Media Name (66,68,6Eh)
->>>>>68	uleshort		>0		
+>>>>>68	uleshort		>0
 # offset of Media Name (5Eh)
->>>>>>70	uleshort	>0		
+>>>>>>70	uleshort	>0
 # 0~, 1~ANSI, 2~UNICODE
->>>>>>>48	ubyte		1		
+>>>>>>>48	ubyte		1
 # size terminated ansi coded string normally followed by "MTF Media Label"
 >>>>>>>>(70.s)	string		>\0		\b, name: %s
->>>>>>>48	ubyte		2		
+>>>>>>>48	ubyte		2
 # Not null, but size terminated unicoded string
 >>>>>>>>(70.s)	lestring16	x		\b, name: %s
 # size of Media Label (104h)
->>>>>72	uleshort		>0		
+>>>>>72	uleshort		>0
 # offset of Media Label (C4h,C6h,CCh)
->>>>>74		uleshort	>0		
->>>>>>48	ubyte		1		
+>>>>>74		uleshort	>0
+>>>>>>48	ubyte		1
 #Tag|Version|Vendor|Vendor ID|Creation Time Stamp|Cartridge Label|Side|Media ID|Media Domain ID|Vendor Specific fields
 >>>>>>>(74.s)	string		>\0		\b, label: %s
->>>>>>48	ubyte		2		
+>>>>>>48	ubyte		2
 >>>>>>>(74.s)	lestring16	x		\b, label: %s
 # size of password name (0,1Ch)
 #>>>>>76	uleshort		>0		\b, password size %4.4x
 # Software Vendor ID (CBEh)
 >>>>>86	uleshort		x		\b, software (0x%x)
 # size of Software Name (6Eh)
->>>>>80	uleshort		>0		
+>>>>>80	uleshort		>0
 # offset of Software Name (1C8h,1CAh,1D0h)
->>>>>>82	uleshort	>0		
+>>>>>>82	uleshort	>0
 # 1~ANSI, 2~UNICODE
->>>>>>>48	ubyte		1		
+>>>>>>>48	ubyte		1
 >>>>>>>>(82.s)	string		>\0		\b: %s
->>>>>>>48	ubyte		2		
+>>>>>>>48	ubyte		2
 # size terminated unicoded coded string normally followed by "SPAD"
 >>>>>>>>(82.s)	lestring16	x		\b: %s
 # Format Logical Block Size (512,1024)
@@ -572,4 +655,64 @@
 # MTF Major Version (1)
 #>>>>>>93	ubyte		x		\b, MFT version %x
 #
+
+# URL: https://en.wikipedia.org/wiki/PaintShop_Pro
+# Reference: http://www.cryer.co.uk/file-types/p/pal.htm
+# Created by: Joerg Jenderek
+# Note: there exist other color palette formats also with .pal extension
+0	string	JASC-PAL\r\n	PaintShop Pro color palette
+#!:mime	text/plain
+# PspPalette extension is used by newer (probably 8) PaintShopPro versions
+!:ext	pal/PspPalette
+# 2nd line contains palette file version. For example "0100"
+>10	string	!0100		\b, version %.4s
+# third line contains the number of colours: 16 256 ...
+>16	string	x		\b, %.3s colors
+
+# URL: http://en.wikipedia.org/wiki/Innosetup
+# Reference: https://github.com/jrsoftware/issrc/blob/master/Projects/Undo.pas
+# Created by: Joerg Jenderek
+# Note:	created by like "InnoSetup self-extracting archive" inside ./msdos
+# TrID labeles the entry as "Inno Setup Uninstall Log"
+#	TUninstallLogID
+0	string	Inno\ Setup\ Uninstall\ Log\ (b)	InnoSetup Log
+!:mime	application/x-innosetup
+# unins000.dat, unins001.dat, ...
+!:ext	dat
+# " 64-bit" variant
+>0x1c	string		>\0				\b%.7s
+# AppName[0x80] like "Minimal SYStem", ClamWin Free Antivirus , ...
+>0xc0	string		x				%s
+# AppId[0x80] is simliar to AppName or
+# GUID like {4BB0DCDC-BC24-49EC-8937-72956C33A470} start with left brace
+>0x40	ubyte		0x7b
+>>0x40	string		x				%-.38s
+# do not know how this log version correlates to program version
+>0x140	ulelong		x				\b, version 0x%x
+# NumRecs
+#>0x144	ulelong		x				\b, 0x%4.4x records
+# EndOffset means files size
+>0x148	ulelong		x				\b, %u bytes
+# Flags 5 25h 35h
+#>0x14c	ulelong		x				\b, flags %8.8x
+# Reserved: array[0..26] of Longint
+# the non Unicode HighestSupportedVersion may never become greater than or equal to 1000
+>0x140	ulelong		<1000
+# hostname
+>>0x1d6	pstring		x				\b, %s
+# user name
+>>>&0	pstring		x				\b\%s
+# directory like C:\Program Files (x86)\GnuWin32
+>>>>&0	pstring		x				\b, "%s"
+# version 1000 or higher implies unicode
+>0x140	ulelong		>999
+# hostname
+>>0x1db	lestring16	x				\b, %-.9s
+# utf string variant with prepending fe??ffFFff
+>>0x1db	search/43	\xFF\xFF\xFF			
+# user name
+>>>&0	lestring16	x				\b\%-.9s
+>>>&0	search/43	\xFF\xFF\xFF			
+# directory like C:\Program Files\GIMP 2
+>>>>&0	lestring16	x				\b, %-.42s
 

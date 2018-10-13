@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,9 +37,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #ifndef _KERNEL
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <sys/errno.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#else
+
+struct malloc_type;
+#define UFS_MALLOC(size, type, flags) malloc(size)
+#define UFS_FREE(ptr, type) free(ptr)
+#define UFS_TIME time(NULL)
+
+#else /* _KERNEL */
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -55,17 +68,17 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ffs/fs.h>
 
+#define UFS_MALLOC(size, type, flags) malloc(size, type, flags)
+#define UFS_FREE(ptr, type) free(ptr, type)
+#define UFS_TIME time_second
+
 /*
  * Return buffer with the contents of block "offset" from the beginning of
  * directory "ip".  If "res" is non-zero, fill it in with a pointer to the
  * remaining space in the directory.
  */
 int
-ffs_blkatoff(vp, offset, res, bpp)
-	struct vnode *vp;
-	off_t offset;
-	char **res;
-	struct buf **bpp;
+ffs_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 {
 	struct inode *ip;
 	struct fs *fs;
@@ -74,7 +87,7 @@ ffs_blkatoff(vp, offset, res, bpp)
 	int bsize, error;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
 
@@ -95,14 +108,10 @@ ffs_blkatoff(vp, offset, res, bpp)
  * to the incore copy.
  */
 void
-ffs_load_inode(bp, ip, fs, ino)
-	struct buf *bp;
-	struct inode *ip;
-	struct fs *fs;
-	ino_t ino;
+ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 {
 
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		*ip->i_din1 =
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = ip->i_din1->di_mode;
@@ -127,15 +136,194 @@ ffs_load_inode(bp, ip, fs, ino)
 #endif /* KERNEL */
 
 /*
+ * These are the low-level functions that actually read and write
+ * the superblock and its associated data.
+ */
+static off_t sblock_try[] = SBLOCKSEARCH;
+static int readsuper(void *, struct fs **, off_t, int,
+	int (*)(void *, off_t, void **, int));
+
+/*
+ * Read a superblock from the devfd device.
+ *
+ * If an alternate superblock is specified, it is read. Otherwise the
+ * set of locations given in the SBLOCKSEARCH list is searched for a
+ * superblock. Memory is allocated for the superblock by the readfunc and
+ * is returned. If filltype is non-NULL, additional memory is allocated
+ * of type filltype and filled in with the superblock summary information.
+ * All memory is freed when any error is returned.
+ *
+ * If a superblock is found, zero is returned. Otherwise one of the
+ * following error values is returned:
+ *     EIO: non-existent or truncated superblock.
+ *     EIO: error reading summary information.
+ *     ENOENT: no usable known superblock found.
+ *     ENOSPC: failed to allocate space for the superblock.
+ *     EINVAL: The previous newfs operation on this volume did not complete.
+ *         The administrator must complete newfs before using this volume.
+ */
+int
+ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
+    struct malloc_type *filltype,
+    int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
+{
+	struct fs *fs;
+	int i, error, size, blks;
+	uint8_t *space;
+	int32_t *lp;
+	char *buf;
+
+	fs = NULL;
+	*fsp = NULL;
+	if (altsblock != -1) {
+		if ((error = readsuper(devfd, &fs, altsblock, 1,
+		     readfunc)) != 0) {
+			if (fs != NULL)
+				UFS_FREE(fs, filltype);
+			return (error);
+		}
+	} else {
+		for (i = 0; sblock_try[i] != -1; i++) {
+			if ((error = readsuper(devfd, &fs, sblock_try[i], 0,
+			     readfunc)) == 0)
+				break;
+			if (fs != NULL) {
+				UFS_FREE(fs, filltype);
+				fs = NULL;
+			}
+			if (error == ENOENT)
+				continue;
+			return (error);
+		}
+		if (sblock_try[i] == -1)
+			return (ENOENT);
+	}
+	/*
+	 * Read in the superblock summary information.
+	 */
+	size = fs->fs_cssize;
+	blks = howmany(size, fs->fs_fsize);
+	if (fs->fs_contigsumsize > 0)
+		size += fs->fs_ncg * sizeof(int32_t);
+	size += fs->fs_ncg * sizeof(u_int8_t);
+	/* When running in libufs or libsa, UFS_MALLOC may fail */
+	if ((space = UFS_MALLOC(size, filltype, M_WAITOK)) == NULL) {
+		UFS_FREE(fs, filltype);
+		return (ENOSPC);
+	}
+	fs->fs_csp = (struct csum *)space;
+	for (i = 0; i < blks; i += fs->fs_frag) {
+		size = fs->fs_bsize;
+		if (i + fs->fs_frag > blks)
+			size = (blks - i) * fs->fs_fsize;
+		buf = NULL;
+		error = (*readfunc)(devfd,
+		    dbtob(fsbtodb(fs, fs->fs_csaddr + i)), (void **)&buf, size);
+		if (error) {
+			if (buf != NULL)
+				UFS_FREE(buf, filltype);
+			UFS_FREE(fs->fs_csp, filltype);
+			UFS_FREE(fs, filltype);
+			return (error);
+		}
+		memcpy(space, buf, size);
+		UFS_FREE(buf, filltype);
+		space += size;
+	}
+	if (fs->fs_contigsumsize > 0) {
+		fs->fs_maxcluster = lp = (int32_t *)space;
+		for (i = 0; i < fs->fs_ncg; i++)
+			*lp++ = fs->fs_contigsumsize;
+		space = (uint8_t *)lp;
+	}
+	size = fs->fs_ncg * sizeof(u_int8_t);
+	fs->fs_contigdirs = (u_int8_t *)space;
+	bzero(fs->fs_contigdirs, size);
+	*fsp = fs;
+	return (0);
+}
+
+/*
+ * Try to read a superblock from the location specified by sblockloc.
+ * Return zero on success or an errno on failure.
+ */
+static int
+readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
+    int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
+{
+	struct fs *fs;
+	int error;
+
+	error = (*readfunc)(devfd, sblockloc, (void **)fsp, SBLOCKSIZE);
+	if (error != 0)
+		return (error);
+	fs = *fsp;
+	if (fs->fs_magic == FS_BAD_MAGIC)
+		return (EINVAL);
+	if (((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
+	      sblockloc <= SBLOCK_UFS1)) ||
+	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
+	      sblockloc == fs->fs_sblockloc))) &&
+	    fs->fs_ncg >= 1 &&
+	    fs->fs_bsize >= MINBSIZE &&
+	    fs->fs_bsize <= MAXBSIZE &&
+	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE)) {
+		/* Have to set for old filesystems that predate this field */
+		fs->fs_sblockactualloc = sblockloc;
+		/* Not yet any summary information */
+		fs->fs_csp = NULL;
+		return (0);
+	}
+	return (ENOENT);
+}
+
+/*
+ * Write a superblock to the devfd device from the memory pointed to by fs.
+ * Write out the superblock summary information if it is present.
+ *
+ * If the write is successful, zero is returned. Otherwise one of the
+ * following error values is returned:
+ *     EIO: failed to write superblock.
+ *     EIO: failed to write superblock summary information.
+ */
+int
+ffs_sbput(void *devfd, struct fs *fs, off_t loc,
+    int (*writefunc)(void *devfd, off_t loc, void *buf, int size))
+{
+	int i, error, blks, size;
+	uint8_t *space;
+
+	/*
+	 * If there is summary information, write it first, so if there
+	 * is an error, the superblock will not be marked as clean.
+	 */
+	if (fs->fs_csp != NULL) {
+		blks = howmany(fs->fs_cssize, fs->fs_fsize);
+		space = (uint8_t *)fs->fs_csp;
+		for (i = 0; i < blks; i += fs->fs_frag) {
+			size = fs->fs_bsize;
+			if (i + fs->fs_frag > blks)
+				size = (blks - i) * fs->fs_fsize;
+			if ((error = (*writefunc)(devfd,
+			     dbtob(fsbtodb(fs, fs->fs_csaddr + i)),
+			     space, size)) != 0)
+				return (error);
+			space += size;
+		}
+	}
+	fs->fs_fmod = 0;
+	fs->fs_time = UFS_TIME;
+	if ((error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize)) != 0)
+		return (error);
+	return (0);
+}
+
+/*
  * Update the frsum fields to reflect addition or deletion
  * of some frags.
  */
 void
-ffs_fragacct(fs, fragmap, fraglist, cnt)
-	struct fs *fs;
-	int fragmap;
-	int32_t fraglist[];
-	int cnt;
+ffs_fragacct(struct fs *fs, int fragmap, int32_t fraglist[], int cnt)
 {
 	int inblk;
 	int field, subfield;
@@ -167,10 +355,7 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
  * check if a block is available
  */
 int
-ffs_isblock(fs, cp, h)
-	struct fs *fs;
-	unsigned char *cp;
-	ufs1_daddr_t h;
+ffs_isblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
 {
 	unsigned char mask;
 
@@ -199,10 +384,7 @@ ffs_isblock(fs, cp, h)
  * check if a block is free
  */
 int
-ffs_isfreeblock(fs, cp, h)
-	struct fs *fs;
-	u_char *cp;
-	ufs1_daddr_t h;
+ffs_isfreeblock(struct fs *fs, u_char *cp, ufs1_daddr_t h)
 {
  
 	switch ((int)fs->fs_frag) {
@@ -227,10 +409,7 @@ ffs_isfreeblock(fs, cp, h)
  * take a block out of the map
  */
 void
-ffs_clrblock(fs, cp, h)
-	struct fs *fs;
-	u_char *cp;
-	ufs1_daddr_t h;
+ffs_clrblock(struct fs *fs, u_char *cp, ufs1_daddr_t h)
 {
 
 	switch ((int)fs->fs_frag) {
@@ -258,10 +437,7 @@ ffs_clrblock(fs, cp, h)
  * put a block into the map
  */
 void
-ffs_setblock(fs, cp, h)
-	struct fs *fs;
-	unsigned char *cp;
-	ufs1_daddr_t h;
+ffs_setblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
 {
 
 	switch ((int)fs->fs_frag) {
@@ -292,16 +468,13 @@ ffs_setblock(fs, cp, h)
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
 void
-ffs_clusteracct(fs, cgp, blkno, cnt)
-	struct fs *fs;
-	struct cg *cgp;
-	ufs1_daddr_t blkno;
-	int cnt;
+ffs_clusteracct(struct fs *fs, struct cg *cgp, ufs1_daddr_t blkno, int cnt)
 {
 	int32_t *sump;
 	int32_t *lp;
 	u_char *freemapp, *mapp;
-	int i, start, end, forw, back, map, bit;
+	int i, start, end, forw, back, map;
+	u_int bit;
 
 	if (fs->fs_contigsumsize <= 0)
 		return;
@@ -323,7 +496,7 @@ ffs_clusteracct(fs, cgp, blkno, cnt)
 		end = cgp->cg_nclusterblks;
 	mapp = &freemapp[start / NBBY];
 	map = *mapp++;
-	bit = 1 << (start % NBBY);
+	bit = 1U << (start % NBBY);
 	for (i = start; i < end; i++) {
 		if ((map & bit) == 0)
 			break;
@@ -344,7 +517,7 @@ ffs_clusteracct(fs, cgp, blkno, cnt)
 		end = -1;
 	mapp = &freemapp[start / NBBY];
 	map = *mapp--;
-	bit = 1 << (start % NBBY);
+	bit = 1U << (start % NBBY);
 	for (i = start; i > end; i--) {
 		if ((map & bit) == 0)
 			break;
@@ -352,7 +525,7 @@ ffs_clusteracct(fs, cgp, blkno, cnt)
 			bit >>= 1;
 		} else {
 			map = *mapp--;
-			bit = 1 << (NBBY - 1);
+			bit = 1U << (NBBY - 1);
 		}
 	}
 	back = start - i;

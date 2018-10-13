@@ -13,7 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <algorithm>
 
 #include "X86.h"
 #include "X86InstrInfo.h"
@@ -21,12 +20,11 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
 
 using namespace llvm;
 
@@ -55,7 +53,12 @@ namespace {
 
     bool runOnMachineFunction(MachineFunction &MF) override;
 
-    const char *getPassName() const override {
+    MachineFunctionProperties getRequiredProperties() const override {
+      return MachineFunctionProperties().set(
+          MachineFunctionProperties::Property::NoVRegs);
+    }
+
+    StringRef getPassName() const override {
       return "X86 Atom pad short functions";
     }
 
@@ -93,7 +96,10 @@ FunctionPass *llvm::createX86PadShortFunctions() {
 /// runOnMachineFunction - Loop over all of the basic blocks, inserting
 /// NOOP instructions before early exits.
 bool PadShortFunc::runOnMachineFunction(MachineFunction &MF) {
-  if (MF.getFunction()->optForSize()) {
+  if (skipFunction(MF.getFunction()))
+    return false;
+
+  if (MF.getFunction().optForSize()) {
     return false;
   }
 
@@ -179,13 +185,11 @@ bool PadShortFunc::cyclesUntilReturn(MachineBasicBlock *MBB,
 
   unsigned int CyclesToEnd = 0;
 
-  for (MachineBasicBlock::iterator MBBI = MBB->begin();
-        MBBI != MBB->end(); ++MBBI) {
-    MachineInstr *MI = MBBI;
+  for (MachineInstr &MI : *MBB) {
     // Mark basic blocks with a return instruction. Calls to other
     // functions do not count because the called function will be padded,
     // if necessary.
-    if (MI->isReturn() && !MI->isCall()) {
+    if (MI.isReturn() && !MI.isCall()) {
       VisitedBBs[MBB] = VisitedBBInfo(true, CyclesToEnd);
       Cycles += CyclesToEnd;
       return true;

@@ -1,42 +1,43 @@
 # $FreeBSD$
 
+.PATH: ${SRCTOP}/sys/geom/eli ${SRCTOP}/sys/crypto/sha2
+
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
 
-TAP_TESTS_SH+= attach_d_test
-TAP_TESTS_SH+= configure_b_B_test
-TAP_TESTS_SH+= delkey_test
-TAP_TESTS_SH+= detach_l_test
-TAP_TESTS_SH+= init_B_test
-TAP_TESTS_SH+= init_J_test
-TAP_TESTS_SH+= init_a_test
-TAP_TESTS_SH+= init_i_P_test
-TAP_TESTS_SH+= init_test
-TAP_TESTS_SH+= integrity_copy_test
-TAP_TESTS_SH+= integrity_data_test
-TAP_TESTS_SH+= integrity_hmac_test
-TAP_TESTS_SH+= kill_test
-TAP_TESTS_SH+= nokey_test
-TAP_TESTS_SH+= onetime_a_test
-TAP_TESTS_SH+= onetime_d_test
-TAP_TESTS_SH+= onetime_test
-TAP_TESTS_SH+= readonly_test
-TAP_TESTS_SH+= resize_test
-TAP_TESTS_SH+= setkey_test
-
-TEST_METADATA.init_a_test+=	timeout="1200"
-TEST_METADATA.init_test+=	timeout="300"
-TEST_METADATA.integrity_copy_test+=	timeout="1200"
-TEST_METADATA.integrity_data_test+=	timeout="600"
-TEST_METADATA.integrity_hmac_test+=	timeout="600"
-TEST_METADATA.onetime_a_test+=	timeout="600"
-TEST_METADATA.onetime_test+=	timeout="600"
+ATF_TESTS_C=	pbkdf2_test
+ATF_TESTS_SH+=	attach_test
+ATF_TESTS_SH+=	configure_test
+ATF_TESTS_SH+=	delkey_test
+ATF_TESTS_SH+=	detach_test
+ATF_TESTS_SH+=	init_test
+ATF_TESTS_SH+=	integrity_test
+ATF_TESTS_SH+=	kill_test
+ATF_TESTS_SH+=	misc_test
+ATF_TESTS_SH+=	onetime_test
+ATF_TESTS_SH+=	resize_test
+ATF_TESTS_SH+=	setkey_test
 
 ${PACKAGE}FILES+=		conf.sh
 
 .for t in ${TAP_TESTS_SH}
 TEST_METADATA.$t+=	required_user="root"
 .endfor
+
+CFLAGS.pbkdf2_test=	-I${SRCTOP}/sys
+
+SRCS.pbkdf2_test=	\
+		hmac_test.c \
+		g_eli_crypto.c \
+		g_eli_hmac.c \
+		pkcs5v2.c \
+		sha512c.c \
+		sha256c.c
+
+LIBADD.pbkdf2_test= crypto
+
+testvect.h:
+	python gentestvect.py > ${.TARGET}
 
 .include <bsd.test.mk>

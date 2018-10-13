@@ -3,8 +3,33 @@
 PACKAGE=lib${LIB}
 LIB=	pmc
 
-SRCS=	libpmc.c pmclog.c
-INCS=	pmc.h pmclog.h
+SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c libpmc_json.cc
+INCS=	pmc.h pmclog.h pmcformat.h
+
+CFLAGS+= -I${.CURDIR}
+CWARNFLAGS.gcc+= -Wno-shadow -Wno-cast-align
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+
+.if ${MACHINE_ARCH} == "aarch64"
+EVENT_ARCH="arm64"
+.elif ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+EVENT_ARCH="x86"
+.elif ${MACHINE_ARCH} == "powerpc"
+EVENT_ARCH="powerpc"
+.endif
+
+JEVENTS= ${BTOOLSPATH:U.}/pmu-events/jevents
+# This file is built in a subdirectory so never try to rebuild it here.
+${JEVENTS}: .PHONY
+.if make(*clean*)
+SUBDIR+= pmu-events
+.endif
+
+libpmc_events.c: ${JEVENTS}
+	${JEVENTS} ${EVENT_ARCH} ${.CURDIR}/pmu-events/arch libpmc_events.c
+SRCS+= libpmc_events.c
+.endif
 
 MAN=	pmc.3
 MAN+=	pmc_allocate.3

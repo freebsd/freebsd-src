@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/TypeLoc.h"
@@ -21,8 +20,9 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 using namespace clang;
 using namespace sema;
@@ -48,10 +48,10 @@ static bool CheckAsmLValue(const Expr *E, Sema &S) {
   if (E != E2 && E2->isLValue()) {
     if (!S.getLangOpts().HeinousExtensions)
       S.Diag(E2->getLocStart(), diag::err_invalid_asm_cast_lvalue)
-        << E->getSourceRange();
+          << E->getSourceRange();
     else
       S.Diag(E2->getLocStart(), diag::warn_invalid_asm_cast_lvalue)
-        << E->getSourceRange();
+          << E->getSourceRange();
     // Accept, even if we emitted an error diagnostic.
     return false;
   }
@@ -62,11 +62,13 @@ static bool CheckAsmLValue(const Expr *E, Sema &S) {
 
 /// isOperandMentioned - Return true if the specified operand # is mentioned
 /// anywhere in the decomposed asm string.
-static bool isOperandMentioned(unsigned OpNo,
-                         ArrayRef<GCCAsmStmt::AsmStringPiece> AsmStrPieces) {
+static bool
+isOperandMentioned(unsigned OpNo,
+                   ArrayRef<GCCAsmStmt::AsmStringPiece> AsmStrPieces) {
   for (unsigned p = 0, e = AsmStrPieces.size(); p != e; ++p) {
     const GCCAsmStmt::AsmStringPiece &Piece = AsmStrPieces[p];
-    if (!Piece.isOperand()) continue;
+    if (!Piece.isOperand())
+      continue;
 
     // If this is a reference to the input and if the input was the smaller
     // one, then we have to reject this asm.
@@ -136,6 +138,56 @@ static bool checkExprMemoryConstraintCompat(Sema &S, Expr *E,
   }
 
   return false;
+}
+
+// Extracting the register name from the Expression value,
+// if there is no register name to extract, returns ""
+static StringRef extractRegisterName(const Expr *Expression,
+                                     const TargetInfo &Target) {
+  Expression = Expression->IgnoreImpCasts();
+  if (const DeclRefExpr *AsmDeclRef = dyn_cast<DeclRefExpr>(Expression)) {
+    // Handle cases where the expression is a variable
+    const VarDecl *Variable = dyn_cast<VarDecl>(AsmDeclRef->getDecl());
+    if (Variable && Variable->getStorageClass() == SC_Register) {
+      if (AsmLabelAttr *Attr = Variable->getAttr<AsmLabelAttr>())
+        if (Target.isValidGCCRegisterName(Attr->getLabel()))
+          return Target.getNormalizedGCCRegisterName(Attr->getLabel(), true);
+    }
+  }
+  return "";
+}
+
+// Checks if there is a conflict between the input and output lists with the
+// clobbers list. If there's a conflict, returns the location of the
+// conflicted clobber, else returns nullptr
+static SourceLocation
+getClobberConflictLocation(MultiExprArg Exprs, StringLiteral **Constraints,
+                           StringLiteral **Clobbers, int NumClobbers,
+                           const TargetInfo &Target, ASTContext &Cont) {
+  llvm::StringSet<> InOutVars;
+  // Collect all the input and output registers from the extended asm
+  // statement in order to check for conflicts with the clobber list
+  for (unsigned int i = 0; i < Exprs.size(); ++i) {
+    StringRef Constraint = Constraints[i]->getString();
+    StringRef InOutReg = Target.getConstraintRegister(
+        Constraint, extractRegisterName(Exprs[i], Target));
+    if (InOutReg != "")
+      InOutVars.insert(InOutReg);
+  }
+  // Check for each item in the clobber list if it conflicts with the input
+  // or output
+  for (int i = 0; i < NumClobbers; ++i) {
+    StringRef Clobber = Clobbers[i]->getString();
+    // We only check registers, therefore we don't check cc and memory
+    // clobbers
+    if (Clobber == "cc" || Clobber == "memory")
+      continue;
+    Clobber = Target.getNormalizedGCCRegisterName(Clobber, true);
+    // Go over the output's registers we collected
+    if (InOutVars.count(Clobber))
+      return Clobbers[i]->getLocStart();
+  }
+  return SourceLocation();
 }
 
 StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
@@ -227,6 +279,7 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
       if (RequireCompleteType(OutputExpr->getLocStart(), Exprs[i]->getType(),
                               diag::err_dereference_incomplete_type))
         return StmtError();
+      LLVM_FALLTHROUGH;
     default:
       return StmtError(Diag(OutputExpr->getLocStart(),
                             diag::err_asm_invalid_lvalue_in_output)
@@ -544,30 +597,46 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
     return StmtError();
   }
 
+  // Check for conflicts between clobber list and input or output lists
+  SourceLocation ConstraintLoc =
+      getClobberConflictLocation(Exprs, Constraints, Clobbers, NumClobbers,
+                                 Context.getTargetInfo(), Context);
+  if (ConstraintLoc.isValid())
+    return Diag(ConstraintLoc, diag::error_inoutput_conflict_with_clobber);
+  
   return NS;
 }
 
-static void fillInlineAsmTypeInfo(const ASTContext &Context, QualType T,
-                                  llvm::InlineAsmIdentifierInfo &Info) {
-  // Compute the type size (and array length if applicable?).
-  Info.Type = Info.Size = Context.getTypeSizeInChars(T).getQuantity();
-  if (T->isArrayType()) {
-    const ArrayType *ATy = Context.getAsArrayType(T);
-    Info.Type = Context.getTypeSizeInChars(ATy->getElementType()).getQuantity();
-    Info.Length = Info.Size / Info.Type;
+void Sema::FillInlineAsmIdentifierInfo(Expr *Res,
+                                       llvm::InlineAsmIdentifierInfo &Info) {
+  QualType T = Res->getType();
+  Expr::EvalResult Eval;
+  if (T->isFunctionType() || T->isDependentType())
+    return Info.setLabel(Res);
+  if (Res->isRValue()) {
+    if (isa<clang::EnumType>(T) && Res->EvaluateAsRValue(Eval, Context))
+      return Info.setEnum(Eval.Val.getInt().getSExtValue());
+    return Info.setLabel(Res);
   }
+  unsigned Size = Context.getTypeSizeInChars(T).getQuantity();
+  unsigned Type = Size;
+  if (const auto *ATy = Context.getAsArrayType(T))
+    Type = Context.getTypeSizeInChars(ATy->getElementType()).getQuantity();
+  bool IsGlobalLV = false;
+  if (Res->EvaluateAsLValue(Eval, Context))
+    IsGlobalLV = Eval.isGlobalLValue();
+  Info.setVar(Res, IsGlobalLV, Size, Type);
 }
 
 ExprResult Sema::LookupInlineAsmIdentifier(CXXScopeSpec &SS,
                                            SourceLocation TemplateKWLoc,
                                            UnqualifiedId &Id,
-                                           llvm::InlineAsmIdentifierInfo &Info,
                                            bool IsUnevaluatedContext) {
-  Info.clear();
 
   if (IsUnevaluatedContext)
-    PushExpressionEvaluationContext(UnevaluatedAbstract,
-                                    ReuseLambdaContextDecl);
+    PushExpressionEvaluationContext(
+        ExpressionEvaluationContext::UnevaluatedAbstract,
+        ReuseLambdaContextDecl);
 
   ExprResult Result = ActOnIdExpression(getCurScope(), SS, TemplateKWLoc, Id,
                                         /*trailing lparen*/ false,
@@ -603,12 +672,6 @@ ExprResult Sema::LookupInlineAsmIdentifier(CXXScopeSpec &SS,
     return ExprError();
   }
 
-  fillInlineAsmTypeInfo(Context, T, Info);
-
-  // We can work with the expression as long as it's not an r-value.
-  if (!Result.get()->isRValue())
-    Info.IsVarDecl = true;
-
   return Result;
 }
 
@@ -618,26 +681,33 @@ bool Sema::LookupInlineAsmField(StringRef Base, StringRef Member,
   SmallVector<StringRef, 2> Members;
   Member.split(Members, ".");
 
-  LookupResult BaseResult(*this, &Context.Idents.get(Base), SourceLocation(),
-                          LookupOrdinaryName);
+  NamedDecl *FoundDecl = nullptr;
 
-  if (!LookupName(BaseResult, getCurScope()))
+  // MS InlineAsm uses 'this' as a base
+  if (getLangOpts().CPlusPlus && Base.equals("this")) {
+    if (const Type *PT = getCurrentThisType().getTypePtrOrNull())
+      FoundDecl = PT->getPointeeType()->getAsTagDecl();
+  } else {
+    LookupResult BaseResult(*this, &Context.Idents.get(Base), SourceLocation(),
+                            LookupOrdinaryName);
+    if (LookupName(BaseResult, getCurScope()) && BaseResult.isSingleResult())
+      FoundDecl = BaseResult.getFoundDecl();
+  }
+
+  if (!FoundDecl)
     return true;
 
-  LookupResult CurrBaseResult(BaseResult);
-
   for (StringRef NextMember : Members) {
-
-    if (!CurrBaseResult.isSingleResult())
-      return true;
-
     const RecordType *RT = nullptr;
-    NamedDecl *FoundDecl = CurrBaseResult.getFoundDecl();
     if (VarDecl *VD = dyn_cast<VarDecl>(FoundDecl))
       RT = VD->getType()->getAs<RecordType>();
     else if (TypedefNameDecl *TD = dyn_cast<TypedefNameDecl>(FoundDecl)) {
       MarkAnyDeclReferenced(TD->getLocation(), TD, /*OdrUse=*/false);
-      RT = TD->getUnderlyingType()->getAs<RecordType>();
+      // MS InlineAsm often uses struct pointer aliases as a base
+      QualType QT = TD->getUnderlyingType();
+      if (const auto *PT = QT->getAs<PointerType>())
+        QT = PT->getPointeeType();
+      RT = QT->getAs<RecordType>();
     } else if (TypeDecl *TD = dyn_cast<TypeDecl>(FoundDecl))
       RT = TD->getTypeForDecl()->getAs<RecordType>();
     else if (FieldDecl *TD = dyn_cast<FieldDecl>(FoundDecl))
@@ -655,12 +725,14 @@ bool Sema::LookupInlineAsmField(StringRef Base, StringRef Member,
     if (!LookupQualifiedName(FieldResult, RT->getDecl()))
       return true;
 
+    if (!FieldResult.isSingleResult())
+      return true;
+    FoundDecl = FieldResult.getFoundDecl();
+
     // FIXME: Handle IndirectFieldDecl?
-    FieldDecl *FD = dyn_cast<FieldDecl>(FieldResult.getFoundDecl());
+    FieldDecl *FD = dyn_cast<FieldDecl>(FoundDecl);
     if (!FD)
       return true;
-
-    CurrBaseResult = FieldResult;
 
     const ASTRecordLayout &RL = Context.getASTRecordLayout(RT->getDecl());
     unsigned i = FD->getFieldIndex();
@@ -673,9 +745,7 @@ bool Sema::LookupInlineAsmField(StringRef Base, StringRef Member,
 
 ExprResult
 Sema::LookupInlineAsmVarDeclField(Expr *E, StringRef Member,
-                                  llvm::InlineAsmIdentifierInfo &Info,
                                   SourceLocation AsmLoc) {
-  Info.clear();
 
   QualType T = E->getType();
   if (T->isDependentType()) {
@@ -710,14 +780,6 @@ Sema::LookupInlineAsmVarDeclField(Expr *E, StringRef Member,
   ExprResult Result = BuildMemberReferenceExpr(
       E, E->getType(), AsmLoc, /*IsArrow=*/false, CXXScopeSpec(),
       SourceLocation(), nullptr, FieldResult, nullptr, nullptr);
-  if (Result.isInvalid())
-    return Result;
-  Info.OpDecl = Result.get();
-
-  fillInlineAsmTypeInfo(Context, Result.get()->getType(), Info);
-
-  // Fields are "variables" as far as inline assembly is concerned.
-  Info.IsVarDecl = true;
 
   return Result;
 }
@@ -753,17 +815,17 @@ LabelDecl *Sema::GetOrCreateMSAsmLabel(StringRef ExternalLabelName,
     // Otherwise, insert it, but only resolve it if we have seen the label itself.
     std::string InternalName;
     llvm::raw_string_ostream OS(InternalName);
-    // Create an internal name for the label.  The name should not be a valid mangled
-    // name, and should be unique.  We use a dot to make the name an invalid mangled
-    // name.
-    OS << "__MSASMLABEL_." << MSAsmLabelNameCounter++ << "__";
-    for (auto it = ExternalLabelName.begin(); it != ExternalLabelName.end();
-         ++it) {
-      OS << *it;
-      if (*it == '$') {
-        // We escape '$' in asm strings by replacing it with "$$"
+    // Create an internal name for the label.  The name should not be a valid
+    // mangled name, and should be unique.  We use a dot to make the name an
+    // invalid mangled name. We use LLVM's inline asm ${:uid} escape so that a
+    // unique label is generated each time this blob is emitted, even after
+    // inlining or LTO.
+    OS << "__MSASMLABEL_.${:uid}__";
+    for (char C : ExternalLabelName) {
+      OS << C;
+      // We escape '$' in asm strings by replacing it with "$$"
+      if (C == '$')
         OS << '$';
-      }
     }
     Label->setMSAsmLabel(OS.str());
   }

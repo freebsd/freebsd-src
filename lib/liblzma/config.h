@@ -25,17 +25,20 @@
 /* Define to 1 if you have the <byteswap.h> header file. */
 /* #undef HAVE_BYTESWAP_H */
 
+/* Define to 1 if Capsicum is available. */
+/* #undef HAVE_CAPSICUM */
+
 /* Define to 1 if the system has the type `CC_SHA256_CTX'. */
 /* #undef HAVE_CC_SHA256_CTX */
 
 /* Define to 1 if you have the `CC_SHA256_Init' function. */
 /* #undef HAVE_CC_SHA256_INIT */
 
-/* Define to 1 if you have the MacOS X function CFLocaleCopyCurrent in the
+/* Define to 1 if you have the Mac OS X function CFLocaleCopyCurrent in the
    CoreFoundation framework. */
 /* #undef HAVE_CFLOCALECOPYCURRENT */
 
-/* Define to 1 if you have the MacOS X function CFPreferencesCopyAppValue in
+/* Define to 1 if you have the Mac OS X function CFPreferencesCopyAppValue in
    the CoreFoundation framework. */
 /* #undef HAVE_CFPREFERENCESCOPYAPPVALUE */
 
@@ -67,6 +70,9 @@
    to 0 if you don't. */
 #define HAVE_DECL_PROGRAM_INVOCATION_NAME 0
 
+/* Define to 1 if any of HAVE_DECODER_foo have been defined. */
+#define HAVE_DECODERS 1
+
 /* Define to 1 if arm decoder is enabled. */
 #define HAVE_DECODER_ARM 1
 
@@ -96,6 +102,9 @@
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
+
+/* Define to 1 if any of HAVE_ENCODER_foo have been defined. */
+#define HAVE_ENCODERS 1
 
 /* Define to 1 if arm encoder is enabled. */
 #define HAVE_ENCODER_ARM 1
@@ -182,9 +191,6 @@
 /* Define to 1 to enable hc4 match finder. */
 #define HAVE_MF_HC4 1
 
-/* Define to 1 if you have the <minix/sha2.h> header file. */
-/* #undef HAVE_MINIX_SHA2_H */
-
 /* Define to 1 if getopt.h declares extern int optreset. */
 #define HAVE_OPTRESET 1
 
@@ -254,6 +260,9 @@
 /* Define to 1 if you have the <sys/byteorder.h> header file. */
 /* #undef HAVE_SYS_BYTEORDER_H */
 
+/* Define to 1 if you have the <sys/capsicum.h> header file. */
+/* #undef HAVE_SYS_CAPSICUM_H */
+
 /* Define to 1 if you have the <sys/endian.h> header file. */
 #define HAVE_SYS_ENDIAN_H 1
 
@@ -291,6 +300,9 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1
 
+/* Define to 1 if you have the `_futime' function. */
+/* #undef HAVE__FUTIME */
+
 /* Define to 1 if _mm_movemask_epi8 is available. */
 #if defined(__FreeBSD__) && defined(__amd64__)
 #define HAVE__MM_MOVEMASK_EPI8 1
@@ -323,16 +335,16 @@
 #define PACKAGE_NAME "XZ Utils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "XZ Utils 5.2.2"
+#define PACKAGE_STRING "XZ Utils 5.2.4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "xz"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "http://tukaani.org/xz/"
+#define PACKAGE_URL "https://tukaani.org/xz/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.2.2"
+#define PACKAGE_VERSION "5.2.4"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -351,6 +363,10 @@
 /* Define to 1 if the number of available CPU cores can be detected with
    pstat_getdynamic(). */
 /* #undef TUKLIB_CPUCORES_PSTAT_GETDYNAMIC */
+
+/* Define to 1 if the number of available CPU cores can be detected with
+   sched_getaffinity() */
+/* #undef TUKLIB_CPUCORES_SCHED_GETAFFINITY */
 
 /* Define to 1 if the number of available CPU cores can be detected with
    sysconf(_SC_NPROCESSORS_ONLN) or sysconf(_SC_NPROC_ONLN). */
@@ -416,7 +432,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.2.2"
+#define VERSION "5.2.4"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_filedesc.c,v 1.5 2012/03/18 09:46:50 jruoho Exp $	*/
+/*	$NetBSD: t_filedesc.c,v 1.6 2017/01/13 21:30:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_filedesc.c,v 1.5 2012/03/18 09:46:50 jruoho Exp $");
+__RCSID("$NetBSD: t_filedesc.c,v 1.6 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/types.h>
 
@@ -40,7 +40,7 @@ __RCSID("$NetBSD: t_filedesc.c,v 1.5 2012/03/18 09:46:50 jruoho Exp $");
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(getfilerace);
 ATF_TC_HEAD(getfilerace, tc)

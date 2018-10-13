@@ -70,7 +70,7 @@ for (;;) {
   if (defined $line) {
     # Substitute %VAR and %{VAR} with environment variables.
     $line =~ s[%(\w+)][$ENV{$1}]eg;
-    $line =~ s[%{(\w+)}][$ENV{$1}]eg;
+    $line =~ s[%\{(\w+)\}][$ENV{$1}]eg;
   }
   if (defined $line) {
     if ($line =~ s/^\s*< ?//) {

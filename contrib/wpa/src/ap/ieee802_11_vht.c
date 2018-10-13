@@ -17,9 +17,10 @@
 #include "sta_info.h"
 #include "beacon.h"
 #include "ieee802_11.h"
+#include "dfs.h"
 
 
-u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid)
+u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid, u32 nsts)
 {
 	struct ieee80211_vht_capabilities *cap;
 	struct hostapd_hw_modes *mode = hapd->iface->current_mode;
@@ -48,6 +49,18 @@ u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid)
 	os_memset(cap, 0, sizeof(*cap));
 	cap->vht_capabilities_info = host_to_le32(
 		hapd->iface->conf->vht_capab);
+
+	if (nsts != 0) {
+		u32 hapd_nsts;
+
+		hapd_nsts = le_to_host32(cap->vht_capabilities_info);
+		hapd_nsts = (hapd_nsts >> VHT_CAP_BEAMFORMEE_STS_OFFSET) & 7;
+		cap->vht_capabilities_info &=
+			~(host_to_le32(hapd_nsts <<
+				       VHT_CAP_BEAMFORMEE_STS_OFFSET));
+		cap->vht_capabilities_info |=
+			host_to_le32(nsts << VHT_CAP_BEAMFORMEE_STS_OFFSET);
+	}
 
 	/* Supported MCS set comes from hw */
 	os_memcpy(&cap->vht_supported_mcs_set, mode->vht_mcs_set, 8);
@@ -80,6 +93,26 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
 		hapd->iconf->vht_oper_centr_freq_seg1_idx;
 
 	oper->vht_op_info_chwidth = hapd->iconf->vht_oper_chwidth;
+	if (hapd->iconf->vht_oper_chwidth == 2) {
+		/*
+		 * Convert 160 MHz channel width to new style as interop
+		 * workaround.
+		 */
+		oper->vht_op_info_chwidth = 1;
+		oper->vht_op_info_chan_center_freq_seg1_idx =
+			oper->vht_op_info_chan_center_freq_seg0_idx;
+		if (hapd->iconf->channel <
+		    hapd->iconf->vht_oper_centr_freq_seg0_idx)
+			oper->vht_op_info_chan_center_freq_seg0_idx -= 8;
+		else
+			oper->vht_op_info_chan_center_freq_seg0_idx += 8;
+	} else if (hapd->iconf->vht_oper_chwidth == 3) {
+		/*
+		 * Convert 80+80 MHz channel width to new style as interop
+		 * workaround.
+		 */
+		oper->vht_op_info_chwidth = 1;
+	}
 
 	/* VHT Basic MCS set comes from hw */
 	/* Hard code 1 stream, MCS0-7 is a min Basic VHT MCS rates */
@@ -128,6 +161,171 @@ static int check_valid_vht_mcs(struct hostapd_hw_modes *mode,
 	wpa_printf(MSG_DEBUG,
 		   "No matching VHT MCS found between AP TX and STA RX");
 	return 0;
+}
+
+
+u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid)
+{
+	u8 bw, chan1, chan2 = 0;
+	int freq1;
+
+	if (!hapd->cs_freq_params.channel ||
+	    !hapd->cs_freq_params.vht_enabled)
+		return eid;
+
+	/* bandwidth: 0: 40, 1: 80, 2: 160, 3: 80+80 */
+	switch (hapd->cs_freq_params.bandwidth) {
+	case 40:
+		bw = 0;
+		break;
+	case 80:
+		/* check if it's 80+80 */
+		if (!hapd->cs_freq_params.center_freq2)
+			bw = 1;
+		else
+			bw = 3;
+		break;
+	case 160:
+		bw = 2;
+		break;
+	default:
+		/* not valid VHT bandwidth or not in CSA */
+		return eid;
+	}
+
+	freq1 = hapd->cs_freq_params.center_freq1 ?
+		hapd->cs_freq_params.center_freq1 :
+		hapd->cs_freq_params.freq;
+	if (ieee80211_freq_to_chan(freq1, &chan1) !=
+	    HOSTAPD_MODE_IEEE80211A)
+		return eid;
+
+	if (hapd->cs_freq_params.center_freq2 &&
+	    ieee80211_freq_to_chan(hapd->cs_freq_params.center_freq2,
+				   &chan2) != HOSTAPD_MODE_IEEE80211A)
+		return eid;
+
+	*eid++ = WLAN_EID_VHT_CHANNEL_SWITCH_WRAPPER;
+	*eid++ = 5; /* Length of Channel Switch Wrapper */
+	*eid++ = WLAN_EID_VHT_WIDE_BW_CHSWITCH;
+	*eid++ = 3; /* Length of Wide Bandwidth Channel Switch element */
+	*eid++ = bw; /* New Channel Width */
+	*eid++ = chan1; /* New Channel Center Frequency Segment 0 */
+	*eid++ = chan2; /* New Channel Center Frequency Segment 1 */
+
+	return eid;
+}
+
+
+u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid)
+{
+	struct hostapd_iface *iface = hapd->iface;
+	struct hostapd_config *iconf = iface->conf;
+	struct hostapd_hw_modes *mode = iface->current_mode;
+	struct hostapd_channel_data *chan;
+	int dfs, i;
+	u8 channel, tx_pwr_count, local_pwr_constraint;
+	int max_tx_power;
+	u8 tx_pwr;
+
+	if (!mode)
+		return eid;
+
+	if (ieee80211_freq_to_chan(iface->freq, &channel) == NUM_HOSTAPD_MODES)
+		return eid;
+
+	for (i = 0; i < mode->num_channels; i++) {
+		if (mode->channels[i].freq == iface->freq)
+			break;
+	}
+	if (i == mode->num_channels)
+		return eid;
+
+	switch (iface->conf->vht_oper_chwidth) {
+	case VHT_CHANWIDTH_USE_HT:
+		if (iconf->secondary_channel == 0) {
+			/* Max Transmit Power count = 0 (20 MHz) */
+			tx_pwr_count = 0;
+		} else {
+			/* Max Transmit Power count = 1 (20, 40 MHz) */
+			tx_pwr_count = 1;
+		}
+		break;
+	case VHT_CHANWIDTH_80MHZ:
+		/* Max Transmit Power count = 2 (20, 40, and 80 MHz) */
+		tx_pwr_count = 2;
+		break;
+	case VHT_CHANWIDTH_80P80MHZ:
+	case VHT_CHANWIDTH_160MHZ:
+		/* Max Transmit Power count = 3 (20, 40, 80, 160/80+80 MHz) */
+		tx_pwr_count = 3;
+		break;
+	default:
+		return eid;
+	}
+
+	/*
+	 * Below local_pwr_constraint logic is referred from
+	 * hostapd_eid_pwr_constraint.
+	 *
+	 * Check if DFS is required by regulatory.
+	 */
+	dfs = hostapd_is_dfs_required(hapd->iface);
+	if (dfs < 0)
+		dfs = 0;
+
+	/*
+	 * In order to meet regulations when TPC is not implemented using
+	 * a transmit power that is below the legal maximum (including any
+	 * mitigation factor) should help. In this case, indicate 3 dB below
+	 * maximum allowed transmit power.
+	 */
+	if (hapd->iconf->local_pwr_constraint == -1)
+		local_pwr_constraint = (dfs == 0) ? 0 : 3;
+	else
+		local_pwr_constraint = hapd->iconf->local_pwr_constraint;
+
+	/*
+	 * A STA that is not an AP shall use a transmit power less than or
+	 * equal to the local maximum transmit power level for the channel.
+	 * The local maximum transmit power can be calculated from the formula:
+	 * local max TX pwr = max TX pwr - local pwr constraint
+	 * Where max TX pwr is maximum transmit power level specified for
+	 * channel in Country element and local pwr constraint is specified
+	 * for channel in this Power Constraint element.
+	 */
+	chan = &mode->channels[i];
+	max_tx_power = chan->max_tx_power - local_pwr_constraint;
+
+	/*
+	 * Local Maximum Transmit power is encoded as two's complement
+	 * with a 0.5 dB step.
+	 */
+	max_tx_power *= 2; /* in 0.5 dB steps */
+	if (max_tx_power > 127) {
+		/* 63.5 has special meaning of 63.5 dBm or higher */
+		max_tx_power = 127;
+	}
+	if (max_tx_power < -128)
+		max_tx_power = -128;
+	if (max_tx_power < 0)
+		tx_pwr = 0x80 + max_tx_power + 128;
+	else
+		tx_pwr = max_tx_power;
+
+	*eid++ = WLAN_EID_VHT_TRANSMIT_POWER_ENVELOPE;
+	*eid++ = 2 + tx_pwr_count;
+
+	/*
+	 * Max Transmit Power count and
+	 * Max Transmit Power units = 0 (EIRP)
+	 */
+	*eid++ = tx_pwr_count;
+
+	for (i = 0; i <= tx_pwr_count; i++)
+		*eid++ = tx_pwr;
+
+	return eid;
 }
 
 
@@ -212,7 +410,7 @@ u8 * hostapd_eid_vendor_vht(struct hostapd_data *hapd, u8 *eid)
 	WPA_PUT_BE32(pos, (OUI_BROADCOM << 8) | VENDOR_VHT_TYPE);
 	pos += 4;
 	*pos++ = VENDOR_VHT_SUBTYPE;
-	pos = hostapd_eid_vht_capabilities(hapd, pos);
+	pos = hostapd_eid_vht_capabilities(hapd, pos, 0);
 	pos = hostapd_eid_vht_operation(hapd, pos);
 
 	return pos;

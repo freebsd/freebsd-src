@@ -1,4 +1,6 @@
 .\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
 .\" Copyright (c) 2009 Sam Leffler, Errno Consulting
 .\" All rights reserved.
 .\"
@@ -25,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2010
+.Dd December 31, 2017
 .Dt IEEE80211 9
 .Os
 .Sh NAME
@@ -34,9 +36,31 @@
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
 .Ft void
-.Fn ieee80211_ifattach "struct ieee80211com *ic" "const uint8_t macaddr[IEEE80211_ADDR_LEN]"
+.Fn ieee80211_ifattach "struct ieee80211com *ic"
 .Ft void
 .Fn ieee80211_ifdetach "struct ieee80211com *ic"
+.Ft int
+.Fn ieee80211_mhz2ieee "u_int freq" "u_int flags"
+.Ft int
+.Fn ieee80211_chan2ieee "struct ieee80211com *ic" "const struct ieee80211_channel *c"
+.Ft u_int
+.Fn ieee80211_ieee2mhz "u_int chan" "u_int flags"
+.Ft int
+.Fn ieee80211_media_change "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_media_status "struct ifnet *ifp" "struct ifmediareq *imr"
+.Ft int
+.Fn ieee80211_setmode "struct ieee80211com *ic" "enum ieee80211_phymode mode"
+.Ft enum ieee80211_phymode
+.Fo ieee80211_chan2mode
+.Fa "const struct ieee80211_channel *chan"
+.Fc
+.Ft int
+.Fo ieee80211_rate2media
+.Fa "struct ieee80211com *ic" "int rate" "enum ieee80211_phymode mode"
+.Fc
+.Ft int
+.Fn ieee80211_media2rate "int mword"
 .Sh DESCRIPTION
 IEEE 802.11 device drivers are written to use the infrastructure provided
 by the
@@ -59,7 +83,7 @@ device driver implements a virtual radio API that is exported to
 users through network interfaces (aka vaps) that are cloned from the
 underlying device.
 These interfaces have an operating mode
-(station, adhoc, hostap, wds, monitor, etc.)
+(station, adhoc, hostap, wds, monitor, etc.\&)
 that is fixed for the lifetime of the interface.
 Devices that can support multiple concurrent interfaces allow
 multiple vaps to be cloned.
@@ -89,6 +113,112 @@ The virtual radio interface defined by the
 layer means that drivers must be structured to follow specific rules.
 Drivers that support only a single interface at any time must still
 follow these rules.
+.Pp
+Most of these functions require that attachment to the stack is performed
+before calling.
+.Pp
+.\"
+The
+.Fn ieee80211_ifattach
+function attaches the wireless network interface
+.Fa ic
+to the 802.11 network stack layer.
+This function must be called before using any of the
+.Nm
+functions which need to store driver state across invocations.
+.Pp
+.\"
+The
+.Fn ieee80211_ifdetach
+function frees any
+.Nm
+structures associated with the driver, and performs Ethernet and BPF
+detachment on behalf of the caller.
+.Pp
+.\"
+The
+.Fn ieee80211_mhz2ieee
+utility function converts the frequency
+.Fa freq
+(specified in MHz) to an IEEE 802.11 channel number.
+The
+.Fa flags
+argument is a hint which specifies whether the frequency is in
+the 2GHz ISM band
+.Pq Vt IEEE80211_CHAN_2GHZ
+or the 5GHz band
+.Pq Vt IEEE80211_CHAN_5GHZ ;
+appropriate clipping of the result is then performed.
+.Pp
+.\"
+The
+.Fn ieee80211_chan2ieee
+function converts the channel specified in
+.Fa *c
+to an IEEE channel number for the driver
+.Fa ic .
+If the conversion would be invalid, an error message is printed to the
+system console.
+This function REQUIRES that the driver is hooked up to the
+.Nm
+subsystem.
+.Pp
+.\"
+The
+.Fn ieee80211_ieee2mhz
+utility function converts the IEEE channel number
+.Ft chan
+to a frequency (in MHz).
+The
+.Fa flags
+argument is a hint which specifies whether the frequency is in
+the 2GHz ISM band
+.Pq Vt IEEE80211_CHAN_2GHZ
+or the 5GHz band
+.Pq Vt IEEE80211_CHAN_5GHZ ;
+appropriate clipping of the result is then performed.
+.Pp
+.\"
+The
+.Fn ieee80211_media_status
+and
+.Fn ieee80211_media_change
+functions are device-independent handlers for
+.Vt ifmedia
+commands and are not intended to be called directly.
+.Pp
+.\"
+The
+.Fn ieee80211_setmode
+function is called from within the 802.11 stack to change the mode
+of the driver's PHY; it is not intended to be called directly.
+.Pp
+.\"
+The
+.Fn ieee80211_chan2mode
+function returns the PHY mode required for use with the channel
+.Fa chan .
+This is typically used when selecting a rate set, to be advertised in
+beacons, for example.
+.Pp
+.\"
+The
+.Fn ieee80211_rate2media
+function converts the bit rate
+.Fa rate
+(measured in units of 0.5Mbps) to an
+.Vt ifmedia
+sub-type, for the device
+.Fa ic
+running in PHY mode
+.Fa mode .
+The
+.Fn ieee80211_media2rate
+performs the reverse of this conversion, returning the bit rate (in 0.5Mbps
+units) corresponding to an
+.Vt ifmedia
+sub-type.
+.
 .Sh DATA STRUCTURES
 The virtual radio architecture splits state between a single per-device
 .Vt ieee80211com
@@ -566,3 +696,23 @@ Device supports Reduced Inter Frame Spacing (RIFS).
 .Xr ieee80211_vap 9 ,
 .Xr ifnet 9 ,
 .Xr malloc 9
+.Sh HISTORY
+The
+.Nm
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6 .
+This man page was updated with the information from
+.Nx
+.Nm
+man page. 
+.Sh AUTHORS
+.An -nosplit
+The original
+.Nx
+.Nm
+man page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .

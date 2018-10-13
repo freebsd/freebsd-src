@@ -1,4 +1,4 @@
-.\"	$NetBSD: makefs.8,v 1.32 2009/01/20 20:47:25 bjh21 Exp $
+.\"	$NetBSD: makefs.8,v 1.33 2011/05/22 21:51:39 christos Exp $
 .\"
 .\" Copyright (c) 2001-2003 Wasabi Systems, Inc.
 .\" All rights reserved.
@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2015
+.Dd March 30, 2018
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -52,10 +52,12 @@
 .Op Fl M Ar minimum-size
 .Op Fl m Ar maximum-size
 .Op Fl N Ar userdb-dir
+.Op Fl O Ar offset
 .Op Fl o Ar fs-options
 .Op Fl R Ar roundup-size
 .Op Fl S Ar sector-size
 .Op Fl s Ar image-size
+.Op Fl T Ar timestamp
 .Op Fl t Ar fs-type
 .Ar image-file
 .Ar directory | manifest
@@ -115,6 +117,12 @@ set in
 .Ar debug-mask .
 XXX: document these
 .It Fl F Ar mtree-specfile
+.Em This is almost certainly not the option you are looking for.
+To create an image from a list of files in an mtree format manifest,
+specify it as the last argument on the commandline, not as a the
+argument to
+.Fl F .
+.Pp
 Use
 .Ar mtree-specfile
 as an
@@ -186,6 +194,11 @@ rather than using the results from the system's
 and
 .Xr getgrnam 3
 (and related) library calls.
+.It Fl O Ar offset
+Instead of creating the filesystem at the beginning of the file, start
+at offset.
+Valid only for
+.Sy ffs .
 .It Fl o Ar fs-options
 Set file system specific options.
 .Ar fs-options
@@ -212,6 +225,18 @@ Defaults to 512.
 .It Fl s Ar image-size
 Set the size of the file system image to
 .Ar image-size .
+.It Fl T Ar timestamp
+Specify a timestamp to be set for all filesystem files and directories
+created so that repeatable builds are possible.
+The
+.Ar timestamp
+can be a
+.Pa pathname ,
+where the timestamps are derived from that file, or an integer
+value interpreted as the number of seconds from the Epoch.
+Note that timestamps specified in an
+.Xr mtree 5
+spec file, override the default timestamp.
 .It Fl t Ar fs-type
 Create an
 .Ar fs-type
@@ -289,6 +314,8 @@ Maximum total number of blocks in a cylinder group.
 .It Sy version
 UFS version.
 1 for FFS (default), 2 for UFS2.
+.It Sy softupdates
+0 for disable (default), 1 for enable
 .El
 .Ss CD9660-specific options
 .Sy cd9660
@@ -367,6 +394,8 @@ ElTorito image.
 Do not pad the image (apparently Linux needs the padding).
 .It Sy omit-trailing-period
 Omit trailing periods in filenames.
+.It Sy platformid
+Set platform ID of section header entry of the boot image.
 .It Sy preparer
 Preparer ID of the image.
 .It Sy publisher
@@ -388,7 +417,8 @@ The
 utility appeared in
 .Nx 1.6 .
 .Sh AUTHORS
-.An Luke Mewburn Aq Mt lukem@NetBSD.org
+.An Luke Mewburn
+.Aq Mt lukem@NetBSD.org
 (original program),
 .An Daniel Watt ,
 .An Walter Deignan ,

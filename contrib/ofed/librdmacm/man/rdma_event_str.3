@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "RDMA_EVENT_STR" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_event_str \- Returns a string representation of an rdma cm event.
@@ -11,5 +12,7 @@ rdma_event_str \- Returns a string representation of an rdma cm event.
 Asynchronous event.
 .SH "DESCRIPTION"
 Returns a string representation of an asynchronous event.
+.SH "RETURN VALUE"
+Returns a pointer to a static character string corresponding to the event.
 .SH "SEE ALSO"
 rdma_get_cm_event(3)

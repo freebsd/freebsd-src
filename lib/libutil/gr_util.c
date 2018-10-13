@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Sean C. Farley <scf@FreeBSD.org>
  * All rights reserved.
  *
@@ -141,7 +143,7 @@ gr_tmp(int mfd)
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
-	if ((tfd = mkostemp(tempname, O_SYNC)) == -1)
+	if ((tfd = mkostemp(tempname, 0)) == -1)
 		return (-1);
 	if (mfd != -1) {
 		while ((nr = read(mfd, buf, sizeof(buf))) > 0)
@@ -164,11 +166,12 @@ gr_tmp(int mfd)
 int
 gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 {
-	char buf[8192], *end, *line, *p, *q, *r, t;
+	char *buf, *end, *line, *p, *q, *r, *tmp;
 	struct group *fgr;
 	const struct group *sgr;
-	size_t len;
+	size_t len, size;
 	int eof, readlen;
+	char t;
 
 	if (old_gr == NULL && gr == NULL)
 		return(-1);
@@ -186,6 +189,10 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 	if (sgr == NULL)
 		sgr = gr;
 
+	/* initialize the buffer */
+	if ((buf = malloc(size = 1024)) == NULL)
+		goto err;
+
 	eof = 0;
 	len = 0;
 	p = q = end = buf;
@@ -199,10 +206,16 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 		if (q >= end) {
 			if (eof)
 				break;
-			if ((size_t)(q - p) >= sizeof(buf)) {
-				warnx("group line too long");
-				errno = EINVAL; /* hack */
-				goto err;
+			while ((size_t)(q - p) >= size) {
+				if ((tmp = reallocarray(buf, 2, size)) == NULL) {
+					warnx("group line too long");
+					goto err;
+				}
+				p = tmp + (p - buf);
+				q = tmp + (q - buf);
+				end = tmp + (end - buf);
+				buf = tmp;
+				size = size * 2;
 			}
 			if (p < end) {
 				q = memmove(buf, p, end -p);
@@ -210,7 +223,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 			} else {
 				p = q = end = buf;
 			}
-			readlen = read(ffd, end, sizeof(buf) - (end -buf));
+			readlen = read(ffd, end, size - (end - buf));
 			if (readlen == -1)
 				goto err;
 			else
@@ -219,7 +232,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 				break;
 			end += len;
 			len = end - buf;
-			if (len < (ssize_t)sizeof(buf)) {
+			if (len < size) {
 				eof = 1;
 				if (len > 0 && buf[len -1] != '\n')
 					++len, *end++ = '\n';
@@ -281,7 +294,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 			if (write(tfd, q, end - q) != end - q)
 				goto err;
 			q = buf;
-			readlen = read(ffd, buf, sizeof(buf));
+			readlen = read(ffd, buf, size);
 			if (readlen == 0)
 				break;
 			else
@@ -303,12 +316,12 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 	   write(tfd, "\n", 1) != 1)
 		goto err;
  done:
-	if (line != NULL)
-		free(line);
+	free(line);
+	free(buf);
 	return (0);
  err:
-	if (line != NULL)
-		free(line);
+	free(line);
+	free(buf);
 	return (-1);
 }
 

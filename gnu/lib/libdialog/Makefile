@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DIALOG=		${.CURDIR}/../../../contrib/dialog
+DIALOG=		${SRCTOP}/contrib/dialog
 
 LIB=		dialog
 SHLIB_MAJOR=	8

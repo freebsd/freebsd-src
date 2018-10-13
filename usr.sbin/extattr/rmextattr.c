@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
  * Copyright (c) 2002 Poul-Henning Kamp.
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson

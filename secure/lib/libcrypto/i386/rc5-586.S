@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from rc5-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from rc5-586.pl. */
 #ifdef PIC
-.file	"rc5-586.S"
 .text
 .globl	RC5_32_encrypt
 .type	RC5_32_encrypt,@function
@@ -566,7 +565,6 @@ RC5_32_cbc_encrypt:
 .align	64
 .size	RC5_32_cbc_encrypt,.-.L_RC5_32_cbc_encrypt_begin
 #else
-.file	"rc5-586.S"
 .text
 .globl	RC5_32_encrypt
 .type	RC5_32_encrypt,@function

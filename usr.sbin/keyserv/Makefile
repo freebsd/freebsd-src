@@ -10,7 +10,7 @@ LIBADD=	mp rpcsvc
 
 WARNS?=	1
 
-RPCDIR=	${DESTDIR}/usr/include/rpcsvc
+RPCDIR=	${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc
 
 CLEANFILES= crypt_svc.c crypt.h
 

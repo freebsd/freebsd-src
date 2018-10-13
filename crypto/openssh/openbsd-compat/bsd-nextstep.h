@@ -1,5 +1,3 @@
-/* $Id: bsd-nextstep.h,v 1.9 2003/08/29 16:59:52 mouring Exp $ */
-
 /*
  * Copyright (c) 2000,2001 Ben Lindstrom.  All rights reserved.
  *
@@ -38,7 +36,7 @@
 /* NeXT's readdir() is BSD (struct direct) not POSIX (struct dirent) */
 #define dirent direct
 
-/* Swap out NeXT's BSD wait() for a more POSIX complient one */
+/* Swap out NeXT's BSD wait() for a more POSIX compliant one */
 pid_t posix_wait(int *);
 #define wait(a) posix_wait(a)
 

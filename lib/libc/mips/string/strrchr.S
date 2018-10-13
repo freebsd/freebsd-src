@@ -44,8 +44,13 @@ __FBSDID("$FreeBSD$");
 	.abicalls
 #endif
 
+/*
+ * char *
+ * strrchr(const char *s, int c);
+ */
 LEAF(strrchr)
 	move		v0, zero		# default if not found
+	and		a1, a1, 0xff
 1:
 	lbu		a3, 0(a0)		# get a byte
 	PTR_ADDU	a0, a0, 1

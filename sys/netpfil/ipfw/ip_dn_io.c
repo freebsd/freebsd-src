@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Luigi Rizzo, Riccardo Panicucci, Universita` di Pisa
  * All rights reserved
  *
@@ -237,27 +239,10 @@ SYSEND
 static void	dummynet_send(struct mbuf *);
 
 /*
- * Packets processed by dummynet have an mbuf tag associated with
- * them that carries their dummynet state.
- * Outside dummynet, only the 'rule' field is relevant, and it must
- * be at the beginning of the structure.
- */
-struct dn_pkt_tag {
-	struct ipfw_rule_ref rule;	/* matching rule	*/
-
-	/* second part, dummynet specific */
-	int dn_dir;		/* action when packet comes out.*/
-				/* see ip_fw_private.h		*/
-	uint64_t output_time;	/* when the pkt is due for delivery*/
-	struct ifnet *ifp;	/* interface, for ip_output	*/
-	struct _ip6dn_args ip6opt;	/* XXX ipv6 options	*/
-};
-
-/*
  * Return the mbuf tag holding the dummynet state (it should
  * be the first one on the list).
  */
-static struct dn_pkt_tag *
+struct dn_pkt_tag *
 dn_tag_get(struct mbuf *m)
 {
 	struct m_tag *mtag = m_tag_first(m);
@@ -448,7 +433,7 @@ int
 ecn_mark(struct mbuf* m)
 {
 	struct ip *ip;
-	ip = mtod(m, struct ip *);
+	ip = (struct ip *)mtodo(m, dn_tag_get(m)->iphdr_off);
 
 	switch (ip->ip_v) {
 	case IPVERSION:
@@ -472,7 +457,7 @@ ecn_mark(struct mbuf* m)
 #ifdef INET6
 	case (IPV6_VERSION >> 4):
 	{
-		struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+		struct ip6_hdr *ip6 = (struct ip6_hdr *)ip;
 		u_int32_t flowlabel;
 
 		flowlabel = ntohl(ip6->ip6_flow);
@@ -824,7 +809,7 @@ dummynet_send(struct mbuf *m)
 			ether_demux(m->m_pkthdr.rcvif, m);
 			break;
 
-		case DIR_OUT | PROTO_LAYER2: /* N_TO_ETH_OUT: */
+		case DIR_OUT | PROTO_LAYER2: /* DN_TO_ETH_OUT: */
 			ether_output_frame(ifp, m);
 			break;
 
@@ -859,6 +844,7 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	dt->ifp = fwa->oif;
 	/* dt->output tame is updated as we move through */
 	dt->output_time = dn_cfg.curr_time;
+	dt->iphdr_off = (dir & PROTO_LAYER2) ? ETHER_HDR_LEN : 0;
 	return 0;
 }
 

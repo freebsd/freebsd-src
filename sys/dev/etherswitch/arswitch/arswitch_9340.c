@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
@@ -74,19 +76,9 @@ ar9340_hw_setup(struct arswitch_softc *sc)
 	return (0);
 }
 
-/*
- * Initialise other global values for the AR9340.
- */
 static int
-ar9340_hw_global_setup(struct arswitch_softc *sc)
+ar9340_atu_learn_default(struct arswitch_softc *sc)
 {
-
-	/* Enable CPU port; disable mirror port */
-	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
-	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
-
-	/* Setup TAG priority mapping */
-	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
 
 	/* Enable aging, MAC replacing */
 	arswitch_writereg(sc->sc_dev, AR934X_REG_AT_CTRL,
@@ -98,6 +90,31 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
 	    AR934X_QM_CTRL_ARP_EN, AR934X_QM_CTRL_ARP_EN);
 
+#if 0
+	/* Copy frame to CPU port, not just redirect it */
+	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
+	    AR934X_QM_CTRL_ARP_COPY_EN, AR934X_QM_CTRL_ARP_COPY_EN);
+#endif
+
+	return (0);
+}
+
+/*
+ * Initialise other global values for the AR9340.
+ */
+static int
+ar9340_hw_global_setup(struct arswitch_softc *sc)
+{
+
+	ARSWITCH_LOCK(sc);
+
+	/* Enable CPU port; disable mirror port */
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
+	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
+
+	/* Setup TAG priority mapping */
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
+
 	/* Enable Broadcast frames transmitted to the CPU */
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_FLOOD_MASK,
 	    AR934X_FLOOD_MASK_BC_DP(0),
@@ -105,6 +122,11 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_FLOOD_MASK,
 	    AR934X_FLOOD_MASK_MC_DP(0),
 	    AR934X_FLOOD_MASK_MC_DP(0));
+#if 0
+	arswitch_modifyreg(sc->sc_dev, AR934X_REG_FLOOD_MASK,
+	    AR934X_FLOOD_MASK_UC_DP(0),
+	    AR934X_FLOOD_MASK_UC_DP(0));
+#endif
 
 	/* Enable MIB counters */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_MIB_FUNC0,
@@ -142,6 +164,7 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	} else {
 		device_printf(sc->sc_dev, "%s: need is_gmii or is_mii set\n",
 		    __func__);
+		ARSWITCH_UNLOCK(sc);
 		return (ENXIO);
 	}
 
@@ -163,6 +186,7 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	/* Settle time */
 	DELAY(1000);
 
+	ARSWITCH_UNLOCK(sc);
 	return (0);
 }
 
@@ -195,6 +219,13 @@ ar9340_attach(struct arswitch_softc *sc)
 
 	sc->hal.arswitch_hw_setup = ar9340_hw_setup;
 	sc->hal.arswitch_hw_global_setup = ar9340_hw_global_setup;
+	sc->hal.arswitch_atu_learn_default = ar9340_atu_learn_default;
+	/*
+	 * Note: the ar9340 table fetch code/registers matche
+	 * the ar8216/ar8316 for now because we're not supporting
+	 * static entry programming that includes any of the extra
+	 * bits in the AR9340.
+	 */
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
@@ -32,6 +34,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#include <sys/atomic_common.h>
+
 #ifdef _KERNEL
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -45,7 +49,7 @@
  * avoid a dependency on sys/pcpu.h in machine/atomic.h consumers.
  * An assertion in i386/vm_machdep.c ensures that the value is correct.
  */
-#define	__OFFSETOF_MONITORBUF	0x180
+#define	__OFFSETOF_MONITORBUF	0x80
 
 static __inline void
 __mbk(void)
@@ -100,12 +104,18 @@ __mbu(void)
  * Kernel modules call real functions which are built into the kernel.
  * This allows kernel modules to be portable between UP and SMP systems.
  */
-#if defined(KLD_MODULE) || !defined(__GNUCLIKE_ASM)
+#if !defined(__GNUCLIKE_ASM)
 #define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
 void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
+int	atomic_cmpset_char(volatile u_char *dst, u_char expect, u_char src);
+int	atomic_cmpset_short(volatile u_short *dst, u_short expect, u_short src);
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
+int	atomic_fcmpset_char(volatile u_char *dst, u_char *expect, u_char src);
+int	atomic_fcmpset_short(volatile u_short *dst, u_short *expect,
+	    u_short src);
+int	atomic_fcmpset_int(volatile u_int *dst, u_int *expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 int	atomic_testandset_int(volatile u_int *p, u_int v);
 int	atomic_testandclear_int(volatile u_int *p, u_int v);
@@ -120,9 +130,13 @@ u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int		atomic_cmpset_64(volatile uint64_t *, uint64_t, uint64_t);
+int		atomic_fcmpset_64(volatile uint64_t *, uint64_t *, uint64_t);
 uint64_t	atomic_load_acq_64(volatile uint64_t *);
 void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
 uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
+uint64_t	atomic_fetchadd_64(volatile uint64_t *, uint64_t);
+void		atomic_add_64(volatile uint64_t *, uint64_t);
+void		atomic_subtract_64(volatile uint64_t *, uint64_t);
 
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
@@ -130,7 +144,7 @@ uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
  * For userland, always use lock prefixes so that the binaries will run
  * on both SMP and !SMP systems.
  */
-#if defined(SMP) || !defined(_KERNEL)
+#if defined(SMP) || !defined(_KERNEL) || defined(KLD_MODULE)
 #define	MPLOCKED	"lock ; "
 #else
 #define	MPLOCKED
@@ -162,59 +176,60 @@ atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 struct __hack
 
 /*
- * Atomic compare and set, used by the mutex functions
+ * Atomic compare and set, used by the mutex functions.
  *
- * if (*dst == expect) *dst = src (all 32 bit words)
+ * cmpset:
+ *	if (*dst == expect)
+ *		*dst = src
  *
- * Returns 0 on failure, non-zero on success
+ * fcmpset:
+ *	if (*dst == *expect)
+ *		*dst = src
+ *	else
+ *		*expect = *dst
+ *
+ * Returns 0 on failure, non-zero on success.
  */
-
-#ifdef CPU_DISABLE_CMPXCHG
-
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	pushfl ;		"
-	"	cli ;			"
-	"	cmpl	%3,%1 ;		"
-	"	jne	1f ;		"
-	"	movl	%2,%1 ;		"
-	"1:				"
-	"       sete	%0 ;		"
-	"	popfl ;			"
-	"# atomic_cmpset_int"
-	: "=q" (res),			/* 0 */
-	  "+m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "r" (expect)			/* 3 */
-	: "memory");
-	return (res);
+#define	ATOMIC_CMPSET(TYPE, CONS)			\
+static __inline int					\
+atomic_cmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE expect, u_##TYPE src) \
+{							\
+	u_char res;					\
+							\
+	__asm __volatile(				\
+	"	" MPLOCKED "		"		\
+	"	cmpxchg	%3,%1 ;		"		\
+	"	sete	%0 ;		"		\
+	"# atomic_cmpset_" #TYPE "	"		\
+	: "=q" (res),			/* 0 */		\
+	  "+m" (*dst),			/* 1 */		\
+	  "+a" (expect)			/* 2 */		\
+	: CONS (src)			/* 3 */		\
+	: "memory", "cc");				\
+	return (res);					\
+}							\
+							\
+static __inline int					\
+atomic_fcmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE *expect, u_##TYPE src) \
+{							\
+	u_char res;					\
+							\
+	__asm __volatile(				\
+	"	" MPLOCKED "		"		\
+	"	cmpxchg	%3,%1 ;		"		\
+	"	sete	%0 ;		"		\
+	"# atomic_fcmpset_" #TYPE "	"		\
+	: "=q" (res),			/* 0 */		\
+	  "+m" (*dst),			/* 1 */		\
+	  "+a" (*expect)		/* 2 */		\
+	: CONS (src)			/* 3 */		\
+	: "memory", "cc");				\
+	return (res);					\
 }
 
-#else /* !CPU_DISABLE_CMPXCHG */
-
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	cmpxchgl %3,%1 ;	"
-	"       sete	%0 ;		"
-	"# atomic_cmpset_int"
-	: "=q" (res),			/* 0 */
-	  "+m" (*dst),			/* 1 */
-	  "+a" (expect)			/* 2 */
-	: "r" (src)			/* 3 */
-	: "memory", "cc");
-	return (res);
-}
-
-#endif /* CPU_DISABLE_CMPXCHG */
+ATOMIC_CMPSET(char, "q");
+ATOMIC_CMPSET(short, "r");
+ATOMIC_CMPSET(int, "r");
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -288,7 +303,7 @@ atomic_testandclear_int(volatile u_int *p, u_int v)
  */
 
 #if defined(_KERNEL)
-#if defined(SMP)
+#if defined(SMP) || defined(KLD_MODULE)
 #define	__storeload_barrier()	__mbk()
 #else /* _KERNEL && UP */
 #define	__storeload_barrier()	__compiler_membar()
@@ -390,6 +405,18 @@ atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	return (res);
 }
 
+static __inline int
+atomic_fcmpset_64_i386(volatile uint64_t *dst, uint64_t *expect, uint64_t src)
+{
+
+	if (atomic_cmpset_64_i386(dst, *expect, src)) {
+		return (1);
+	} else {
+		*expect = *dst;
+		return (0);
+	}
+}
+
 static __inline uint64_t
 atomic_load_acq_64_i386(volatile uint64_t *p)
 {
@@ -469,6 +496,24 @@ atomic_cmpset_64_i586(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	return (res);
 }
 
+static __inline int
+atomic_fcmpset_64_i586(volatile uint64_t *dst, uint64_t *expect, uint64_t src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchg8b %1 ;		"
+	"	sete	%0"
+	: "=q" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+A" (*expect)		/* 2 */
+	: "b" ((uint32_t)src),		/* 3 */
+	  "c" ((uint32_t)(src >> 32))	/* 4 */
+	: "memory", "cc");
+	return (res);
+}
+
 static __inline uint64_t
 atomic_load_acq_64_i586(volatile uint64_t *p)
 {
@@ -528,6 +573,16 @@ atomic_cmpset_64(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 		return (atomic_cmpset_64_i586(dst, expect, src));
 }
 
+static __inline int
+atomic_fcmpset_64(volatile uint64_t *dst, uint64_t *expect, uint64_t src)
+{
+
+  	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_fcmpset_64_i386(dst, expect, src));
+	else
+		return (atomic_fcmpset_64_i586(dst, expect, src));
+}
+
 static __inline uint64_t
 atomic_load_acq_64(volatile uint64_t *p)
 {
@@ -556,6 +611,41 @@ atomic_swap_64(volatile uint64_t *p, uint64_t v)
 		return (atomic_swap_64_i386(p, v));
 	else
 		return (atomic_swap_64_i586(p, v));
+}
+
+static __inline uint64_t
+atomic_fetchadd_64(volatile uint64_t *p, uint64_t v)
+{
+
+	for (;;) {
+		uint64_t t = *p;
+		if (atomic_cmpset_64(p, t, t + v))
+			return (t);
+	}
+}
+
+static __inline void
+atomic_add_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t t;
+
+	for (;;) {
+		t = *p;
+		if (atomic_cmpset_64(p, t, t + v))
+			break;
+	}
+}
+
+static __inline void
+atomic_subtract_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t t;
+
+	for (;;) {
+		t = *p;
+		if (atomic_cmpset_64(p, t, t - v))
+			break;
+	}
 }
 
 #endif /* _KERNEL */
@@ -603,6 +693,14 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 {
 
 	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)expect,
+	    (u_int)src));
+}
+
+static __inline int
+atomic_fcmpset_long(volatile u_long *dst, u_long *expect, u_long src)
+{
+
+	return (atomic_fcmpset_int((volatile u_int *)dst, (u_int *)expect,
 	    (u_int)src));
 }
 
@@ -664,6 +762,10 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_add_rel_char		atomic_add_barr_char
 #define	atomic_subtract_acq_char	atomic_subtract_barr_char
 #define	atomic_subtract_rel_char	atomic_subtract_barr_char
+#define	atomic_cmpset_acq_char		atomic_cmpset_char
+#define	atomic_cmpset_rel_char		atomic_cmpset_char
+#define	atomic_fcmpset_acq_char		atomic_fcmpset_char
+#define	atomic_fcmpset_rel_char		atomic_fcmpset_char
 
 #define	atomic_set_acq_short		atomic_set_barr_short
 #define	atomic_set_rel_short		atomic_set_barr_short
@@ -673,6 +775,10 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_add_rel_short		atomic_add_barr_short
 #define	atomic_subtract_acq_short	atomic_subtract_barr_short
 #define	atomic_subtract_rel_short	atomic_subtract_barr_short
+#define	atomic_cmpset_acq_short		atomic_cmpset_short
+#define	atomic_cmpset_rel_short		atomic_cmpset_short
+#define	atomic_fcmpset_acq_short	atomic_fcmpset_short
+#define	atomic_fcmpset_rel_short	atomic_fcmpset_short
 
 #define	atomic_set_acq_int		atomic_set_barr_int
 #define	atomic_set_rel_int		atomic_set_barr_int
@@ -684,6 +790,8 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_subtract_rel_int		atomic_subtract_barr_int
 #define	atomic_cmpset_acq_int		atomic_cmpset_int
 #define	atomic_cmpset_rel_int		atomic_cmpset_int
+#define	atomic_fcmpset_acq_int		atomic_fcmpset_int
+#define	atomic_fcmpset_rel_int		atomic_fcmpset_int
 
 #define	atomic_set_acq_long		atomic_set_barr_long
 #define	atomic_set_rel_long		atomic_set_barr_long
@@ -695,6 +803,8 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_subtract_rel_long	atomic_subtract_barr_long
 #define	atomic_cmpset_acq_long		atomic_cmpset_long
 #define	atomic_cmpset_rel_long		atomic_cmpset_long
+#define	atomic_fcmpset_acq_long		atomic_fcmpset_long
+#define	atomic_fcmpset_rel_long		atomic_fcmpset_long
 
 #define	atomic_readandclear_int(p)	atomic_swap_int(p, 0)
 #define	atomic_readandclear_long(p)	atomic_swap_long(p, 0)
@@ -714,6 +824,12 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_subtract_rel_8	atomic_subtract_rel_char
 #define	atomic_load_acq_8	atomic_load_acq_char
 #define	atomic_store_rel_8	atomic_store_rel_char
+#define	atomic_cmpset_8		atomic_cmpset_char
+#define	atomic_cmpset_acq_8	atomic_cmpset_acq_char
+#define	atomic_cmpset_rel_8	atomic_cmpset_rel_char
+#define	atomic_fcmpset_8	atomic_fcmpset_char
+#define	atomic_fcmpset_acq_8	atomic_fcmpset_acq_char
+#define	atomic_fcmpset_rel_8	atomic_fcmpset_rel_char
 
 /* Operations on 16-bit words. */
 #define	atomic_set_16		atomic_set_short
@@ -730,6 +846,12 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_subtract_rel_16	atomic_subtract_rel_short
 #define	atomic_load_acq_16	atomic_load_acq_short
 #define	atomic_store_rel_16	atomic_store_rel_short
+#define	atomic_cmpset_16	atomic_cmpset_short
+#define	atomic_cmpset_acq_16	atomic_cmpset_acq_short
+#define	atomic_cmpset_rel_16	atomic_cmpset_rel_short
+#define	atomic_fcmpset_16	atomic_fcmpset_short
+#define	atomic_fcmpset_acq_16	atomic_fcmpset_acq_short
+#define	atomic_fcmpset_rel_16	atomic_fcmpset_rel_short
 
 /* Operations on 32-bit double words. */
 #define	atomic_set_32		atomic_set_int
@@ -749,11 +871,26 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_cmpset_32	atomic_cmpset_int
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_fcmpset_32	atomic_fcmpset_int
+#define	atomic_fcmpset_acq_32	atomic_fcmpset_acq_int
+#define	atomic_fcmpset_rel_32	atomic_fcmpset_rel_int
 #define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
 #define	atomic_testandset_32	atomic_testandset_int
 #define	atomic_testandclear_32	atomic_testandclear_int
+
+/* Operations on 64-bit quad words. */
+#define	atomic_cmpset_acq_64 atomic_cmpset_64
+#define	atomic_cmpset_rel_64 atomic_cmpset_64
+#define	atomic_fcmpset_acq_64 atomic_fcmpset_64
+#define	atomic_fcmpset_rel_64 atomic_fcmpset_64
+#define	atomic_fetchadd_acq_64	atomic_fetchadd_64
+#define	atomic_fetchadd_rel_64	atomic_fetchadd_64
+#define	atomic_add_acq_64 atomic_add_64
+#define	atomic_add_rel_64 atomic_add_64
+#define	atomic_subtract_acq_64 atomic_subtract_64
+#define	atomic_subtract_rel_64 atomic_subtract_64
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \
@@ -791,6 +928,14 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 	    (u_int)(new))
 #define	atomic_cmpset_rel_ptr(dst, old, new) \
 	atomic_cmpset_rel_int((volatile u_int *)(dst), (u_int)(old), \
+	    (u_int)(new))
+#define	atomic_fcmpset_ptr(dst, old, new) \
+	atomic_fcmpset_int((volatile u_int *)(dst), (u_int *)(old), (u_int)(new))
+#define	atomic_fcmpset_acq_ptr(dst, old, new) \
+	atomic_fcmpset_acq_int((volatile u_int *)(dst), (u_int *)(old), \
+	    (u_int)(new))
+#define	atomic_fcmpset_rel_ptr(dst, old, new) \
+	atomic_fcmpset_rel_int((volatile u_int *)(dst), (u_int *)(old), \
 	    (u_int)(new))
 #define	atomic_swap_ptr(p, v) \
 	atomic_swap_int((volatile u_int *)(p), (u_int)(v))

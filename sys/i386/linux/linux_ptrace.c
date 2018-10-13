@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Alexander Kabaev
  * All rights reserved.
  *
@@ -6,24 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -47,10 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_signal.h>
 
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-
 /*
  *   Linux ptrace requests numbers. Mostly identical to FreeBSD,
  *   except for MD ones and PT_ATTACH/PT_DETACH.
@@ -69,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #define PTRACE_ATTACH		16
 #define PTRACE_DETACH		17
 
-#define	PTRACE_SYSCALL		24
+#define	LINUX_PTRACE_SYSCALL	24
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
@@ -216,7 +212,6 @@ struct linux_pt_fpxreg {
 	l_long		padding[56];
 };
 
-#ifdef CPU_ENABLE_SSE
 static int
 linux_proc_read_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 {
@@ -238,7 +233,6 @@ linux_proc_write_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 	bcopy(fpxregs, &get_pcb_user_save_td(td)->sv_xmm, sizeof(*fpxregs));
 	return (0);
 }
-#endif
 
 int
 linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
@@ -330,14 +324,11 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		}
 		break;
 	case PTRACE_SETFPXREGS:
-#ifdef CPU_ENABLE_SSE
 		error = copyin((void *)uap->data, &r.fpxreg, sizeof(r.fpxreg));
 		if (error)
 			break;
-#endif
 		/* FALL THROUGH */
 	case PTRACE_GETFPXREGS: {
-#ifdef CPU_ENABLE_SSE
 		struct proc *p;
 		struct thread *td2;
 
@@ -411,9 +402,6 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 
 	fail:
 		PROC_UNLOCK(p);
-#else
-		error = EIO;
-#endif
 		break;
 	}
 	case PTRACE_PEEKUSR:
@@ -424,7 +412,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		if (uap->addr < 0 || uap->addr & (sizeof(l_int) - 1))
 			break;
 		/*
-		 * Allow linux programs to access register values in
+		 * Allow Linux programs to access register values in
 		 * user struct. We simulate this through PT_GET/SETREGS
 		 * as necessary.
 		 */
@@ -473,7 +461,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 
 		break;
 	}
-	case PTRACE_SYSCALL:
+	case LINUX_PTRACE_SYSCALL:
 		/* fall through */
 	default:
 		printf("linux: ptrace(%u, ...) not implemented\n",

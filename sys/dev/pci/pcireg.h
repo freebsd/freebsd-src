@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
  *
@@ -119,6 +121,9 @@
 #define	PCIM_HDRTYPE_CARDBUS	0x02
 #define	PCIM_MFDEV		0x80
 #define	PCIR_BIST	0x0f
+
+/* PCI Spec rev 2.2: 0FFFFh is an invalid value for Vendor ID. */
+#define	PCIV_INVALID	0xffff 
 
 /* Capability Register Offsets */
 
@@ -477,6 +482,11 @@
 #define	PCIS_DASP_COMM_SYNC	0x10
 #define	PCIS_DASP_MGMT_CARD	0x20
 #define	PCIS_DASP_OTHER		0x80
+
+#define	PCIC_ACCEL	0x12
+#define	PCIS_ACCEL_PROCESSING	0x00
+
+#define	PCIC_INSTRUMENT	0x13
 
 #define	PCIC_OTHER	0xff
 
@@ -885,10 +895,25 @@
 #define	PCIEM_ROOT_STA_PME_STATUS	0x00010000
 #define	PCIEM_ROOT_STA_PME_PEND		0x00020000
 #define	PCIER_DEVICE_CAP2	0x24
-#define	PCIEM_CAP2_ARI		0x20
+#define	PCIEM_CAP2_COMP_TIMO_RANGES	0x0000000f
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_A	0x00000001
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_B	0x00000002
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_C	0x00000004
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_D	0x00000008
+#define	PCIEM_CAP2_COMP_TIMO_DISABLE	0x00000010
+#define	PCIEM_CAP2_ARI			0x00000020
 #define	PCIER_DEVICE_CTL2	0x28
-#define	PCIEM_CTL2_COMP_TIMEOUT_VAL	0x000f
-#define	PCIEM_CTL2_COMP_TIMEOUT_DIS	0x0010
+#define	PCIEM_CTL2_COMP_TIMO_VAL	0x000f
+#define	PCIEM_CTL2_COMP_TIMO_50MS	0x0000
+#define	PCIEM_CTL2_COMP_TIMO_100US	0x0001
+#define	PCIEM_CTL2_COMP_TIMO_10MS	0x0002
+#define	PCIEM_CTL2_COMP_TIMO_55MS	0x0005
+#define	PCIEM_CTL2_COMP_TIMO_210MS	0x0006
+#define	PCIEM_CTL2_COMP_TIMO_900MS	0x0009
+#define	PCIEM_CTL2_COMP_TIMO_3500MS	0x000a
+#define	PCIEM_CTL2_COMP_TIMO_13S	0x000d
+#define	PCIEM_CTL2_COMP_TIMO_64S	0x000e
+#define	PCIEM_CTL2_COMP_TIMO_DISABLE	0x0010
 #define	PCIEM_CTL2_ARI			0x0020
 #define	PCIEM_CTL2_ATOMIC_REQ_ENABLE	0x0040
 #define	PCIEM_CTL2_ATOMIC_EGR_BLOCK	0x0080
@@ -1025,3 +1050,19 @@
 #define	PCIR_SRIOV_BARS		0x24
 #define	PCIR_SRIOV_BAR(x)	(PCIR_SRIOV_BARS + (x) * 4)
 
+/*
+ * PCI Express Firmware Interface definitions
+ */
+#define	PCI_OSC_STATUS		0
+#define	PCI_OSC_SUPPORT		1
+#define	PCIM_OSC_SUPPORT_EXT_PCI_CONF	0x01	/* Extended PCI Config Space */
+#define	PCIM_OSC_SUPPORT_ASPM		0x02	/* Active State Power Management */
+#define	PCIM_OSC_SUPPORT_CPMC		0x04	/* Clock Power Management Cap */
+#define	PCIM_OSC_SUPPORT_SEG_GROUP	0x08	/* PCI Segment Groups supported */
+#define	PCIM_OSC_SUPPORT_MSI		0x10	/* MSI signalling supported */
+#define	PCI_OSC_CTL		2
+#define	PCIM_OSC_CTL_PCIE_HP		0x01	/* PCIe Native Hot Plug */
+#define	PCIM_OSC_CTL_SHPC_HP		0x02	/* SHPC Native Hot Plug */
+#define	PCIM_OSC_CTL_PCIE_PME		0x04	/* PCIe Native Power Mgt Events */
+#define	PCIM_OSC_CTL_PCIE_AER		0x08	/* PCIe Advanced Error Reporting */
+#define	PCIM_OSC_CTL_PCIE_CAP_STRUCT	0x10	/* Various Capability Structures */

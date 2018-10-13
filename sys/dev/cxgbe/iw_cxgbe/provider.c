@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2013, 2016 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -44,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "iw_cxgbe.h"
 #include "user.h"
-
+extern int use_dsgl;
 static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default = 1)");
@@ -57,7 +59,8 @@ static int c4iw_modify_port(struct ib_device *ibdev,
 }
 
 static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
-				    struct ib_ah_attr *ah_attr)
+				    struct ib_ah_attr *ah_attr,
+				    struct ib_udata *udata)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -78,24 +81,40 @@ static int c4iw_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 }
 
 static int c4iw_process_mad(struct ib_device *ibdev, int mad_flags,
-			    u8 port_num, struct ib_wc *in_wc,
-			    struct ib_grh *in_grh, struct ib_mad *in_mad,
-			    struct ib_mad *out_mad)
+		u8 port_num, const struct ib_wc *in_wc,
+		const struct ib_grh *in_grh,
+		const struct ib_mad_hdr *in_mad,
+		size_t in_mad_size,
+		struct ib_mad_hdr *out_mad,
+		size_t *out_mad_size,
+		u16 *out_mad_pkey_index)
+
 {
 	return -ENOSYS;
 }
 
-static int c4iw_dealloc_ucontext(struct ib_ucontext *context)
+void _c4iw_free_ucontext(struct kref *kref)
 {
-	struct c4iw_dev *rhp = to_c4iw_dev(context->device);
-	struct c4iw_ucontext *ucontext = to_c4iw_ucontext(context);
+	struct c4iw_ucontext *ucontext;
+	struct c4iw_dev *rhp;
 	struct c4iw_mm_entry *mm, *tmp;
 
-	CTR2(KTR_IW_CXGBE, "%s context %p", __func__, context);
+	ucontext = container_of(kref, struct c4iw_ucontext, kref);
+	rhp = to_c4iw_dev(ucontext->ibucontext.device);
+
+	CTR2(KTR_IW_CXGBE, "%s ucontext %p", __func__, ucontext);
 	list_for_each_entry_safe(mm, tmp, &ucontext->mmaps, entry)
 		kfree(mm);
 	c4iw_release_dev_ucontext(&rhp->rdev, &ucontext->uctx);
 	kfree(ucontext);
+}
+
+static int c4iw_dealloc_ucontext(struct ib_ucontext *context)
+{
+	struct c4iw_ucontext *ucontext = to_c4iw_ucontext(context);
+
+	CTR2(KTR_IW_CXGBE, "%s context %p", __func__, context);
+	c4iw_put_ucontext(ucontext);
 	return 0;
 }
 
@@ -104,23 +123,60 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 {
 	struct c4iw_ucontext *context;
 	struct c4iw_dev *rhp = to_c4iw_dev(ibdev);
+	static int warned;
+	struct c4iw_alloc_ucontext_resp uresp;
+	int ret = 0;
+	struct c4iw_mm_entry *mm = NULL;
 
-	CTR2(KTR_IW_CXGBE, "%s ibdev %p", __func__, ibdev);
+	PDBG("%s ibdev %p\n", __func__, ibdev);
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
+	if (!context) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	c4iw_init_dev_ucontext(&rhp->rdev, &context->uctx);
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
-	return &context->ibucontext;
-}
+	kref_init(&context->kref);
 
-#ifdef DOT5
-static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
-{
-    return pgprot_writecombine(prot);
+	if (udata->outlen < sizeof(uresp) - sizeof(uresp.reserved)) {
+		if (!warned++)
+			log(LOG_ERR, "%s Warning - downlevel libcxgb4 "
+			       "(non-fatal), device status page disabled.\n",
+			       __func__);
+		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
+	} else {
+
+		mm = kmalloc(sizeof *mm, GFP_KERNEL);
+		if (!mm)
+			goto err_free;
+
+		uresp.status_page_size = PAGE_SIZE;
+
+		spin_lock(&context->mmap_lock);
+		uresp.status_page_key = context->key;
+		context->key += PAGE_SIZE;
+		spin_unlock(&context->mmap_lock);
+
+		ret = ib_copy_to_udata(udata, &uresp,
+				       sizeof(uresp) - sizeof(uresp.reserved));
+		if (ret)
+			goto err_mm;
+
+		mm->key = uresp.status_page_key;
+		mm->addr = vtophys(rhp->rdev.status_page);
+		mm->len = PAGE_SIZE;
+		insert_mmap(context, mm);
+	}
+	return &context->ibucontext;
+err_mm:
+	kfree(mm);
+err_free:
+	kfree(context);
+err:
+	return ERR_PTR(ret);
 }
-#endif
 
 static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -130,12 +186,10 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	int ret = 0;
 	struct c4iw_mm_entry *mm;
 	struct c4iw_ucontext *ucontext;
-	u64 addr, paddr;
+	u64 addr = 0;
 
-	u64 va_regs_res = 0, va_udbs_res = 0;
-	u64 len_regs_res = 0, len_udbs_res = 0;
-
-	CTR3(KTR_IW_CXGBE, "%s:1 ctx %p vma %p", __func__, context, vma);
+	CTR4(KTR_IW_CXGBE, "%s:1 ctx %p vma %p, vm_start %u", __func__,
+			context, vma, vma->vm_start);
 
 	CTR4(KTR_IW_CXGBE, "%s:1a pgoff 0x%lx key 0x%x len %d", __func__,
 	    vma->vm_pgoff, key, len);
@@ -158,59 +212,16 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	addr = mm->addr;
 	kfree(mm);
 
-	va_regs_res = (u64)rman_get_virtual(rdev->adap->regs_res);
-	len_regs_res = (u64)rman_get_size(rdev->adap->regs_res);
-	va_udbs_res = (u64)rman_get_virtual(rdev->adap->udbs_res);
-	len_udbs_res = (u64)rman_get_size(rdev->adap->udbs_res);
+	/* user DB-GTS registers if addr in udbs_res range,
+	 * else WQ or CQ memory.
+	 * */
+	if (rdev->adap->iwt.wc_en && addr >= rdev->bar2_pa &&
+			addr < rdev->bar2_pa + rdev->bar2_len)
+		vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
 
-	CTR6(KTR_IW_CXGBE,
-	    "%s:4 addr %p, masync region %p:%p, udb region %p:%p", __func__,
-	    addr, va_regs_res, va_regs_res+len_regs_res, va_udbs_res,
-	    va_udbs_res+len_udbs_res);
-
-	if (addr >= va_regs_res && addr < va_regs_res + len_regs_res) {
-		CTR4(KTR_IW_CXGBE, "%s:5 MA_SYNC addr %p region %p, reglen %u",
-		    __func__, addr, va_regs_res, len_regs_res);
-		/*
-		 * MA_SYNC register...
-		 */
-		paddr = vtophys(addr);
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		ret = io_remap_pfn_range(vma, vma->vm_start,
-				paddr >> PAGE_SHIFT,
-				len, vma->vm_page_prot);
-	} else {
-
-		if (addr >= va_udbs_res && addr < va_udbs_res + len_udbs_res) {
-			/*
-			* Map user DB or OCQP memory...
-			*/
-			paddr = vtophys(addr);
-			CTR4(KTR_IW_CXGBE,
-			    "%s:6 USER DB-GTS addr %p region %p, reglen %u",
-			    __func__, addr, va_udbs_res, len_udbs_res);
-#ifdef DOT5
-			if (is_t5(rdev->lldi.adapter_type) && map_udb_as_wc)
-				vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
-			else
-#endif
-				vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-			ret = io_remap_pfn_range(vma, vma->vm_start,
-					paddr >> PAGE_SHIFT,
-					len, vma->vm_page_prot);
-		} else {
-			/*
-			 * Map WQ or CQ contig dma memory...
-			 */
-			CTR4(KTR_IW_CXGBE,
-			    "%s:7 WQ/CQ addr %p vm_start %u vma %p", __func__,
-			    addr, vma->vm_start, vma);
-			ret = io_remap_pfn_range(vma, vma->vm_start,
-				addr >> PAGE_SHIFT,
-				len, vma->vm_page_prot);
-		}
-	}
-	CTR4(KTR_IW_CXGBE, "%s:8 ctx %p vma %p ret %u", __func__, context, vma,
+	ret = io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
+			len, vma->vm_page_prot);
+	CTR4(KTR_IW_CXGBE, "%s:4 ctx %p vma %p ret %u", __func__, context, vma,
 	    ret);
 	return ret;
 }
@@ -303,12 +314,16 @@ c4iw_query_gid(struct ib_device *ibdev, u8 port, int index, union ib_gid *gid)
 }
 
 static int
-c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
+c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+		struct ib_udata *uhw)
 {
 	struct c4iw_dev *dev = to_c4iw_dev(ibdev);
 	struct adapter *sc = dev->rdev.adap;
 
 	CTR3(KTR_IW_CXGBE, "%s ibdev %p, props %p", __func__, ibdev, props);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	memset(props, 0, sizeof *props);
 	memcpy(&props->sys_image_guid, sc->port[0]->vi[0].hw_addr,
@@ -320,18 +335,21 @@ c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 	props->vendor_id = pci_get_vendor(sc->dev);
 	props->vendor_part_id = pci_get_device(sc->dev);
 	props->max_mr_size = T4_MAX_MR_SIZE;
-	props->max_qp = T4_MAX_NUM_QP;
-	props->max_qp_wr = T4_MAX_QP_DEPTH;
+	props->max_qp = sc->vres.qp.size / 2;
+	props->max_qp_wr = dev->rdev.hw_queue.t4_max_qp_depth;
 	props->max_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
-	props->max_qp_rd_atom = c4iw_max_read_depth;
-	props->max_qp_init_rd_atom = c4iw_max_read_depth;
-	props->max_cq = T4_MAX_NUM_CQ;
-	props->max_cqe = T4_MAX_CQ_DEPTH;
+	props->max_res_rd_atom = sc->params.max_ird_adapter;
+	props->max_qp_rd_atom = min(sc->params.max_ordird_qp,
+	    c4iw_max_read_depth);
+	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
+	props->max_cq = sc->vres.qp.size;
+	props->max_cqe = dev->rdev.hw_queue.t4_max_cq_depth;
 	props->max_mr = c4iw_num_stags(&dev->rdev);
 	props->max_pd = T4_MAX_NUM_PD;
 	props->local_ca_ack_delay = 0;
-	props->max_fast_reg_page_list_len = T4_MAX_FR_DEPTH;
+	props->max_fast_reg_page_list_len =
+		t4_max_fr_depth(sc->params.ulptx_memwrite_dsgl && use_dsgl);
 
 	return (0);
 }
@@ -385,6 +403,24 @@ c4iw_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 	return 0;
 }
 
+static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	err = ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	return 0;
+}
+
 /*
  * Returns -errno on error.
  */
@@ -429,7 +465,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	strlcpy(ibdev->node_desc, C4IW_NODE_DESC, sizeof(ibdev->node_desc));
 	ibdev->phys_port_cnt = sc->params.nports;
 	ibdev->num_comp_vectors = 1;
-	ibdev->dma_device = sc->dev;
+	ibdev->dma_device = NULL;
 	ibdev->query_device = c4iw_query_device;
 	ibdev->query_port = c4iw_query_port;
 	ibdev->modify_port = c4iw_modify_port;
@@ -451,16 +487,12 @@ c4iw_register_device(struct c4iw_dev *dev)
 	ibdev->resize_cq = c4iw_resize_cq;
 	ibdev->poll_cq = c4iw_poll_cq;
 	ibdev->get_dma_mr = c4iw_get_dma_mr;
-	ibdev->reg_phys_mr = c4iw_register_phys_mem;
-	ibdev->rereg_phys_mr = c4iw_reregister_phys_mem;
 	ibdev->reg_user_mr = c4iw_reg_user_mr;
 	ibdev->dereg_mr = c4iw_dereg_mr;
 	ibdev->alloc_mw = c4iw_alloc_mw;
-	ibdev->bind_mw = c4iw_bind_mw;
 	ibdev->dealloc_mw = c4iw_dealloc_mw;
-	ibdev->alloc_fast_reg_mr = c4iw_alloc_fast_reg_mr;
-	ibdev->alloc_fast_reg_page_list = c4iw_alloc_fastreg_pbl;
-	ibdev->free_fast_reg_page_list = c4iw_free_fastreg_pbl;
+	ibdev->alloc_mr = c4iw_alloc_mr;
+	ibdev->map_mr_sg = c4iw_map_mr_sg;
 	ibdev->attach_mcast = c4iw_multicast_attach;
 	ibdev->detach_mcast = c4iw_multicast_detach;
 	ibdev->process_mad = c4iw_process_mad;
@@ -468,6 +500,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	ibdev->post_send = c4iw_post_send;
 	ibdev->post_recv = c4iw_post_receive;
 	ibdev->uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
+	ibdev->get_port_immutable = c4iw_port_immutable;
 
 	iwcm = kmalloc(sizeof(*iwcm), GFP_KERNEL);
 	if (iwcm == NULL)
@@ -476,9 +509,8 @@ c4iw_register_device(struct c4iw_dev *dev)
 	iwcm->connect = c4iw_connect;
 	iwcm->accept = c4iw_accept_cr;
 	iwcm->reject = c4iw_reject_cr;
-	iwcm->create_listen_ep = c4iw_create_listen_ep;
-	iwcm->destroy_listen_ep = c4iw_destroy_listen_ep;
-	iwcm->newconn = process_newconn;
+	iwcm->create_listen = c4iw_create_listen;
+	iwcm->destroy_listen = c4iw_destroy_listen;
 	iwcm->add_ref = c4iw_qp_add_ref;
 	iwcm->rem_ref = c4iw_qp_rem_ref;
 	iwcm->get_qp = c4iw_get_qp;

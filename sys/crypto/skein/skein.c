@@ -812,6 +812,7 @@ SKEIN256_Final(unsigned char digest[static SKEIN_256_BLOCK_BYTES], SKEIN256_CTX 
 {
 
 	Skein_256_Final(ctx, digest);
+	explicit_bzero(ctx, sizeof(*ctx));
 }
 
 void
@@ -819,6 +820,7 @@ SKEIN512_Final(unsigned char digest[static SKEIN_512_BLOCK_BYTES], SKEIN512_CTX 
 {
 
 	Skein_512_Final(ctx, digest);
+	explicit_bzero(ctx, sizeof(*ctx));
 }
 
 void
@@ -826,6 +828,7 @@ SKEIN1024_Final(unsigned char digest[static SKEIN1024_BLOCK_BYTES], SKEIN1024_CT
 {
 
 	Skein1024_Final(ctx, digest);
+	explicit_bzero(ctx, sizeof(*ctx));
 }
 
 #ifdef WEAK_REFS

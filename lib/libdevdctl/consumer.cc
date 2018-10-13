@@ -108,11 +108,9 @@ Consumer::ConnectToDevd()
 	strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
 	sLen = SUN_LEN(&devdAddr);
 
-	m_devdSockFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+	m_devdSockFD = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_NONBLOCK, 0);
 	if (m_devdSockFD == -1)
 		err(1, "Unable to create socket");
-        if (fcntl(m_devdSockFD, F_SETFL, O_NONBLOCK) < 0)
-                err(1, "fcntl");
 	result = connect(m_devdSockFD,
 			 reinterpret_cast<sockaddr *>(&devdAddr),
 			 sLen);

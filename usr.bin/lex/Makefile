@@ -14,7 +14,7 @@ LINKS+=	${BINDIR}/lex ${BINDIR}/lex++
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex++
 
-FLEXDIR=	${.CURDIR}/../../contrib/flex
+FLEXDIR=	${SRCTOP}/contrib/flex
 
 .PATH:		${FLEXDIR}
 

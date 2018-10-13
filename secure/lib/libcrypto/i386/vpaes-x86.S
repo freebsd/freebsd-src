@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from vpaes-x86.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from vpaes-x86.pl. */
 #ifdef PIC
-.file	"vpaes-x86.S"
 .text
 .align	64
 .L_vpaes_consts:
@@ -663,7 +662,6 @@ vpaes_cbc_encrypt:
 	ret
 .size	vpaes_cbc_encrypt,.-.L_vpaes_cbc_encrypt_begin
 #else
-.file	"vpaes-x86.S"
 .text
 .align	64
 .L_vpaes_consts:

@@ -11,6 +11,7 @@ nodevice	fxp
 nodevice	ispfw
 nodevice	mwlfw
 nodevice	ralfw
+nodevice	rtwnfw
 nodevice	runfw
 nodevice	sf
 nodevice	ti
@@ -41,5 +42,3 @@ nodevice	rum
 nodevice	uath
 nodevice	zyd
 nodevice	kue
-nodevice	urtwn
-nodevice	urtwnfw

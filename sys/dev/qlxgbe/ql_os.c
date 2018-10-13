@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
@@ -70,17 +72,17 @@ static void qla_free_rcv_bufs(qla_host_t *ha);
 static void qla_clear_tx_buf(qla_host_t *ha, qla_tx_buf_t *txb);
 
 static void qla_init_ifnet(device_t dev, qla_host_t *ha);
-static int qla_sysctl_get_stats(SYSCTL_HANDLER_ARGS);
 static int qla_sysctl_get_link_status(SYSCTL_HANDLER_ARGS);
 static void qla_release(qla_host_t *ha);
 static void qla_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs,
 		int error);
 static void qla_stop(qla_host_t *ha);
-static int qla_send(qla_host_t *ha, struct mbuf **m_headp);
-static void qla_tx_done(void *context, int pending);
 static void qla_get_peer(qla_host_t *ha);
 static void qla_error_recovery(void *context, int pending);
 static void qla_async_event(void *context, int pending);
+static void qla_stats(void *context, int pending);
+static int qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
+		uint32_t iscsi_pdu);
 
 /*
  * Hooks to the Operating Systems
@@ -93,7 +95,14 @@ static void qla_init(void *arg);
 static int qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int qla_media_change(struct ifnet *ifp);
 static void qla_media_status(struct ifnet *ifp, struct ifmediareq *ifmr);
-static void qla_start(struct ifnet *ifp);
+
+static int qla_transmit(struct ifnet *ifp, struct mbuf  *mp);
+static void qla_qflush(struct ifnet *ifp);
+static int qla_alloc_tx_br(qla_host_t *ha, qla_tx_fp_t *tx_fp);
+static void qla_free_tx_br(qla_host_t *ha, qla_tx_fp_t *tx_fp);
+static int qla_create_fp_taskqueues(qla_host_t *ha);
+static void qla_destroy_fp_taskqueues(qla_host_t *ha);
+static void qla_drain_fp_taskqueues(qla_host_t *ha);
 
 static device_method_t qla_pci_methods[] = {
 	/* Device interface */
@@ -161,12 +170,6 @@ qla_add_sysctls(qla_host_t *ha)
 		OID_AUTO, "version", CTLFLAG_RD,
 		ver_str, 0, "Driver Version");
 
-        SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qla_sysctl_get_stats, "I", "Statistics");
-
         SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                 OID_AUTO, "fw_version", CTLFLAG_RD,
@@ -183,6 +186,37 @@ qla_add_sysctls(qla_host_t *ha)
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                 OID_AUTO, "debug", CTLFLAG_RW,
                 &ha->dbg_level, ha->dbg_level, "Debug Level");
+
+	ha->enable_minidump = 1;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "enable_minidump", CTLFLAG_RW,
+		&ha->enable_minidump, ha->enable_minidump,
+		"Minidump retrival prior to error recovery "
+		"is enabled only when this is set");
+
+	ha->enable_driverstate_dump = 1;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "enable_driverstate_dump", CTLFLAG_RW,
+		&ha->enable_driverstate_dump, ha->enable_driverstate_dump,
+		"Driver State retrival prior to error recovery "
+		"is enabled only when this is set");
+
+	ha->enable_error_recovery = 1;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "enable_error_recovery", CTLFLAG_RW,
+		&ha->enable_error_recovery, ha->enable_error_recovery,
+		"when set error recovery is enabled on fatal errors "
+		"otherwise the port is turned offline");
+
+	ha->ms_delay_after_init = 1000;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "ms_delay_after_init", CTLFLAG_RW,
+		&ha->ms_delay_after_init, ha->ms_delay_after_init,
+		"millisecond delay after hw_init");
 
 	ha->std_replenish = QL_STD_REPLENISH_THRES;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -215,6 +249,12 @@ qla_add_sysctls(qla_host_t *ha)
 		CTLFLAG_RD, &ha->hw_vlan_tx_frames,
 		"number of Tx VLAN Frames");
 
+	SYSCTL_ADD_QUAD(device_get_sysctl_ctx(dev),
+                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "hw_lock_failed",
+		CTLFLAG_RD, &ha->hw_lock_failed,
+		"number of hw_lock failures");
+
         return;
 }
 
@@ -224,55 +264,64 @@ qla_watchdog(void *arg)
 	qla_host_t *ha = arg;
 	qla_hw_t *hw;
 	struct ifnet *ifp;
-	uint32_t i;
-	qla_hw_tx_cntxt_t *hw_tx_cntxt;
 
 	hw = &ha->hw;
 	ifp = ha->ifp;
 
-        if (ha->flags.qla_watchdog_exit) {
+        if (ha->qla_watchdog_exit) {
 		ha->qla_watchdog_exited = 1;
 		return;
 	}
 	ha->qla_watchdog_exited = 0;
 
-	if (!ha->flags.qla_watchdog_pause) {
-		if (ql_hw_check_health(ha) || ha->qla_initiate_recovery ||
-			(ha->msg_from_peer == QL_PEER_MSG_RESET)) {
-			ha->qla_watchdog_paused = 1;
-			ha->flags.qla_watchdog_pause = 1;
-			ha->qla_initiate_recovery = 0;
-			ha->err_inject = 0;
-			taskqueue_enqueue(ha->err_tq, &ha->err_task);
-		} else {
+	if (!ha->qla_watchdog_pause) {
+                if (!ha->offline &&
+                        (ql_hw_check_health(ha) || ha->qla_initiate_recovery ||
+                        (ha->msg_from_peer == QL_PEER_MSG_RESET))) {
 
-                        if (ha->async_event) {
-                                ha->async_event = 0;
-                                taskqueue_enqueue(ha->async_event_tq,
-                                        &ha->async_event_task);
-                        }
+	        	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			ql_update_link_state(ha);
 
-			for (i = 0; i < ha->hw.num_tx_rings; i++) {
-				hw_tx_cntxt = &hw->tx_cntxt[i];
-				if (qla_le32_to_host(*(hw_tx_cntxt->tx_cons)) !=
-					hw_tx_cntxt->txr_comp) {
-					taskqueue_enqueue(ha->tx_tq,
-						&ha->tx_task);
-					break;
-				}
+			if (ha->enable_error_recovery) {
+				ha->qla_watchdog_paused = 1;
+				ha->qla_watchdog_pause = 1;
+				ha->err_inject = 0;
+				device_printf(ha->pci_dev,
+					"%s: taskqueue_enqueue(err_task) \n",
+					__func__);
+				taskqueue_enqueue(ha->err_tq, &ha->err_task);
+			} else {
+				if (ifp != NULL)
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				ha->offline = 1;
 			}
+			return;
 
-			if ((ifp->if_snd.ifq_head != NULL) && QL_RUNNING(ifp)) {
-				taskqueue_enqueue(ha->tx_tq, &ha->tx_task);
+		} else {
+			if (ha->qla_interface_up) {
+
+				ha->watchdog_ticks++;
+
+				if (ha->watchdog_ticks > 1000)
+					ha->watchdog_ticks = 0;
+
+				if (!ha->watchdog_ticks && QL_RUNNING(ifp)) {
+					taskqueue_enqueue(ha->stats_tq,
+						&ha->stats_task);
+				}
+
+				if (ha->async_event) {
+					taskqueue_enqueue(ha->async_event_tq,
+						&ha->async_event_task);
+				}
+
 			}
 			ha->qla_watchdog_paused = 0;
 		}
-
 	} else {
 		ha->qla_watchdog_paused = 1;
 	}
 
-	ha->watchdog_ticks = ha->watchdog_ticks++ % 1000;
 	callout_reset(&ha->tx_callout, QLA_WATCHDOG_CALLOUT_TICKS,
 		qla_watchdog, ha);
 }
@@ -301,7 +350,7 @@ qla_pci_attach(device_t dev)
                 return (ENXIO);
 	}
 
-        ha->pci_func = pci_get_function(dev);
+        ha->pci_func = pci_get_function(dev) & 0x1;
 
         ha->pci_dev = dev;
 
@@ -320,13 +369,14 @@ qla_pci_attach(device_t dev)
 					ha->reg_rid);
 
 	mtx_init(&ha->hw_lock, "qla83xx_hw_lock", MTX_NETWORK_LOCK, MTX_DEF);
-
-	mtx_init(&ha->tx_lock, "qla83xx_tx_lock", MTX_NETWORK_LOCK, MTX_DEF);
+	mtx_init(&ha->sp_log_lock, "qla83xx_sp_log_lock", MTX_NETWORK_LOCK, MTX_DEF);
+	ha->flags.lock_init = 1;
 
 	qla_add_sysctls(ha);
-	ql_hw_add_sysctls(ha);
 
-	ha->flags.lock_init = 1;
+	ha->hw.num_sds_rings = MAX_SDS_RINGS;
+	ha->hw.num_rds_rings = MAX_RDS_RINGS;
+	ha->hw.num_tx_rings = NUM_TX_RINGS;
 
 	ha->reg_rid1 = PCIR_BAR(2);
 	ha->pci_reg1 = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -334,15 +384,20 @@ qla_pci_attach(device_t dev)
 
 	ha->msix_count = pci_msix_count(dev);
 
-	if (ha->msix_count < (ha->hw.num_sds_rings + 1)) {
+	if (ha->msix_count < 1 ) {
 		device_printf(dev, "%s: msix_count[%d] not enough\n", __func__,
 			ha->msix_count);
 		goto qla_pci_attach_err;
 	}
 
+	if (ha->msix_count < (ha->hw.num_sds_rings + 1)) {
+		ha->hw.num_sds_rings = ha->msix_count - 1;
+	}
+
 	QL_DPRINT2(ha, (dev, "%s: ha %p pci_func 0x%x rsrc_count 0x%08x"
-		" msix_count 0x%x pci_reg %p\n", __func__, ha,
-		ha->pci_func, rsrc_len, ha->msix_count, ha->pci_reg));
+		" msix_count 0x%x pci_reg %p pci_reg1 %p\n", __func__, ha,
+		ha->pci_func, rsrc_len, ha->msix_count, ha->pci_reg,
+		ha->pci_reg1));
 
         /* initialize hardware */
         if (ql_init_hw(ha)) {
@@ -363,17 +418,24 @@ qla_pci_attach(device_t dev)
                 goto qla_pci_attach_err;
         }
         device_printf(dev, "%s: ha %p pci_func 0x%x rsrc_count 0x%08x"
-                " msix_count 0x%x pci_reg %p num_rcvq = %d\n", __func__, ha,
-                ha->pci_func, rsrc_len, ha->msix_count, ha->pci_reg, num_rcvq);
+                " msix_count 0x%x pci_reg %p pci_reg1 %p num_rcvq = %d\n",
+		__func__, ha, ha->pci_func, rsrc_len, ha->msix_count,
+		ha->pci_reg, ha->pci_reg1, num_rcvq);
 
+        if ((ha->msix_count  < 64) || (num_rcvq != 32)) {
+		if (ha->hw.num_sds_rings > 15) {
+                	ha->hw.num_sds_rings = 15;
+		}
+        }
+
+	ha->hw.num_rds_rings = ha->hw.num_sds_rings;
+	ha->hw.num_tx_rings = ha->hw.num_sds_rings;
 
 #ifdef QL_ENABLE_ISCSI_TLV
-        if ((ha->msix_count  < 64) || (num_rcvq != 32)) {
-                ha->hw.num_sds_rings = 15;
-                ha->hw.num_tx_rings = 32;
-        }
+	ha->hw.num_tx_rings = ha->hw.num_sds_rings * 2;
 #endif /* #ifdef QL_ENABLE_ISCSI_TLV */
-	ha->hw.num_rds_rings = ha->hw.num_sds_rings;
+
+	ql_hw_add_sysctls(ha);
 
 	ha->msix_count = ha->hw.num_sds_rings + 1;
 
@@ -398,7 +460,6 @@ qla_pci_attach(device_t dev)
 		goto qla_pci_attach_err;
 	}
 
-
 	for (i = 0; i < ha->hw.num_sds_rings; i++) {
 		ha->irq_vec[i].sds_idx = i;
                 ha->irq_vec[i].ha = ha;
@@ -419,7 +480,19 @@ qla_pci_attach(device_t dev)
 			device_printf(dev, "could not setup interrupt\n");
 			goto qla_pci_attach_err;
 		}
+
+		ha->tx_fp[i].ha = ha;
+		ha->tx_fp[i].txr_idx = i;
+
+		if (qla_alloc_tx_br(ha, &ha->tx_fp[i])) {
+			device_printf(dev, "%s: could not allocate tx_br[%d]\n",
+				__func__, i);
+			goto qla_pci_attach_err;
+		}
 	}
+
+	if (qla_create_fp_taskqueues(ha) != 0)
+		goto qla_pci_attach_err;
 
 	printf("%s: mp__ncpus %d sds %d rds %d msi-x %d\n", __func__, mp_ncpus,
 		ha->hw.num_sds_rings, ha->hw.num_rds_rings, ha->msix_count);
@@ -440,20 +513,19 @@ qla_pci_attach(device_t dev)
 	}
 	qla_get_peer(ha);
 
+	if (ql_minidump_init(ha) != 0) {
+		device_printf(dev, "%s: ql_minidump_init failed\n", __func__);
+		goto qla_pci_attach_err;
+	}
+	ql_alloc_drvr_state_buffer(ha);
+	ql_alloc_sp_log_buffer(ha);
 	/* create the o.s ethernet interface */
 	qla_init_ifnet(dev, ha);
 
 	ha->flags.qla_watchdog_active = 1;
-	ha->flags.qla_watchdog_pause = 1;
+	ha->qla_watchdog_pause = 0;
 
-
-	TASK_INIT(&ha->tx_task, 0, qla_tx_done, ha);
-	ha->tx_tq = taskqueue_create_fast("qla_txq", M_NOWAIT,
-			taskqueue_thread_enqueue, &ha->tx_tq);
-	taskqueue_start_threads(&ha->tx_tq, 1, PI_NET, "%s txq",
-		device_get_nameunit(ha->pci_dev));
-	
-	callout_init(&ha->tx_callout, 1);
+	callout_init(&ha->tx_callout, TRUE);
 	ha->flags.qla_callout_init = 1;
 
 	/* create ioctl device interface */
@@ -466,15 +538,21 @@ qla_pci_attach(device_t dev)
 		qla_watchdog, ha);
 
 	TASK_INIT(&ha->err_task, 0, qla_error_recovery, ha);
-	ha->err_tq = taskqueue_create_fast("qla_errq", M_NOWAIT,
+	ha->err_tq = taskqueue_create("qla_errq", M_NOWAIT,
 			taskqueue_thread_enqueue, &ha->err_tq);
 	taskqueue_start_threads(&ha->err_tq, 1, PI_NET, "%s errq",
 		device_get_nameunit(ha->pci_dev));
 
         TASK_INIT(&ha->async_event_task, 0, qla_async_event, ha);
-        ha->async_event_tq = taskqueue_create_fast("qla_asyncq", M_NOWAIT,
+        ha->async_event_tq = taskqueue_create("qla_asyncq", M_NOWAIT,
                         taskqueue_thread_enqueue, &ha->async_event_tq);
         taskqueue_start_threads(&ha->async_event_tq, 1, PI_NET, "%s asyncq",
+                device_get_nameunit(ha->pci_dev));
+
+        TASK_INIT(&ha->stats_task, 0, qla_stats, ha);
+        ha->stats_tq = taskqueue_create("qla_statsq", M_NOWAIT,
+                        taskqueue_thread_enqueue, &ha->stats_tq);
+        taskqueue_start_threads(&ha->stats_tq, 1, PI_NET, "%s taskq",
                 device_get_nameunit(ha->pci_dev));
 
 	QL_DPRINT2(ha, (dev, "%s: exit 0\n", __func__));
@@ -483,6 +561,11 @@ qla_pci_attach(device_t dev)
 qla_pci_attach_err:
 
 	qla_release(ha);
+
+	if (ha->flags.lock_init) {
+		mtx_destroy(&ha->hw_lock);
+		mtx_destroy(&ha->sp_log_lock);
+	}
 
 	QL_DPRINT2(ha, (dev, "%s: exit ENXIO\n", __func__));
         return (ENXIO);
@@ -498,20 +581,30 @@ qla_pci_detach(device_t dev)
 	qla_host_t *ha = NULL;
 	struct ifnet *ifp;
 
-	QL_DPRINT2(ha, (dev, "%s: enter\n", __func__));
 
         if ((ha = device_get_softc(dev)) == NULL) {
                 device_printf(dev, "cannot get softc\n");
                 return (ENOMEM);
         }
 
+	QL_DPRINT2(ha, (dev, "%s: enter\n", __func__));
+
 	ifp = ha->ifp;
 
-	(void)QLA_LOCK(ha, __func__, 0);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	QLA_LOCK(ha, __func__, -1, 0);
+
+	ha->qla_detach_active = 1;
 	qla_stop(ha);
-	QLA_UNLOCK(ha, __func__);
 
 	qla_release(ha);
+
+	QLA_UNLOCK(ha, __func__);
+
+	if (ha->flags.lock_init) {
+		mtx_destroy(&ha->hw_lock);
+		mtx_destroy(&ha->sp_log_lock);
+	}
 
 	QL_DPRINT2(ha, (dev, "%s: exit\n", __func__));
 
@@ -521,23 +614,6 @@ qla_pci_detach(device_t dev)
 /*
  * SYSCTL Related Callbacks
  */
-static int
-qla_sysctl_get_stats(SYSCTL_HANDLER_ARGS)
-{
-	int err, ret = 0;
-	qla_host_t *ha;
-
-	err = sysctl_handle_int(oidp, &ret, 0, req);
-
-	if (err || !req->newptr)
-		return (err);
-
-	if (ret == 1) {
-		ha = (qla_host_t *)arg1;
-		ql_get_stats(ha);
-	}
-	return (err);
-}
 static int
 qla_sysctl_get_link_status(SYSCTL_HANDLER_ARGS)
 {
@@ -569,24 +645,24 @@ qla_release(qla_host_t *ha)
 	dev = ha->pci_dev;
 
         if (ha->async_event_tq) {
-                taskqueue_drain(ha->async_event_tq, &ha->async_event_task);
+                taskqueue_drain_all(ha->async_event_tq);
                 taskqueue_free(ha->async_event_tq);
         }
 
 	if (ha->err_tq) {
-		taskqueue_drain(ha->err_tq, &ha->err_task);
+		taskqueue_drain_all(ha->err_tq);
 		taskqueue_free(ha->err_tq);
 	}
 
-	if (ha->tx_tq) {
-		taskqueue_drain(ha->tx_tq, &ha->tx_task);
-		taskqueue_free(ha->tx_tq);
+	if (ha->stats_tq) {
+		taskqueue_drain_all(ha->stats_tq);
+		taskqueue_free(ha->stats_tq);
 	}
 
 	ql_del_cdev(ha);
 
 	if (ha->flags.qla_watchdog_active) {
-		ha->flags.qla_watchdog_exit = 1;
+		ha->qla_watchdog_exit = 1;
 
 		while (ha->qla_watchdog_exited == 0)
 			qla_mdelay(__func__, 1);
@@ -598,6 +674,8 @@ qla_release(qla_host_t *ha)
 	if (ha->ifp != NULL)
 		ether_ifdetach(ha->ifp);
 
+	ql_free_drvr_state_buffer(ha);
+	ql_free_sp_log_buffer(ha);
 	ql_free_dma(ha); 
 	qla_free_parent_dma_tag(ha);
 
@@ -620,15 +698,13 @@ qla_release(qla_host_t *ha)
 				ha->irq_vec[i].irq_rid,
 				ha->irq_vec[i].irq);
 		}
+
+		qla_free_tx_br(ha, &ha->tx_fp[i]);
 	}
+	qla_destroy_fp_taskqueues(ha);
 
 	if (ha->msix_count)
 		pci_release_msi(dev);
-
-	if (ha->flags.lock_init) {
-		mtx_destroy(&ha->tx_lock);
-		mtx_destroy(&ha->hw_lock);
-	}
 
         if (ha->pci_reg)
                 (void) bus_release_resource(dev, SYS_RES_MEMORY, ha->reg_rid,
@@ -637,6 +713,8 @@ qla_release(qla_host_t *ha)
         if (ha->pci_reg1)
                 (void) bus_release_resource(dev, SYS_RES_MEMORY, ha->reg_rid1,
 				ha->pci_reg1);
+
+	return;
 }
 
 /*
@@ -726,7 +804,7 @@ ql_alloc_dmabuf_exit:
 void
 ql_free_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf)
 {
-        bus_dmamap_unload(dma_buf->dma_tag, dma_buf->dma_map);
+	bus_dmamap_unload(dma_buf->dma_tag, dma_buf->dma_map); 
         bus_dmamem_free(dma_buf->dma_tag, dma_buf->dma_b, dma_buf->dma_map);
         bus_dma_tag_destroy(dma_buf->dma_tag);
 }
@@ -796,12 +874,15 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_capabilities = IFCAP_LINKSTATE;
+	ifp->if_mtu = ETHERMTU;
 
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = qla_ioctl;
-	ifp->if_start = qla_start;
+
+	ifp->if_transmit = qla_transmit;
+	ifp->if_qflush = qla_qflush;
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, qla_get_ifq_snd_maxlen(ha));
 	ifp->if_snd.ifq_drv_maxlen = qla_get_ifq_snd_maxlen(ha);
@@ -811,12 +892,14 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ether_ifattach(ifp, qla_get_mac_addr(ha));
 
-	ifp->if_capabilities = IFCAP_HWCSUM |
+	ifp->if_capabilities |= IFCAP_HWCSUM |
 				IFCAP_TSO4 |
-				IFCAP_JUMBO_MTU;
-
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
+				IFCAP_TSO6 |
+				IFCAP_JUMBO_MTU |
+				IFCAP_VLAN_HWTAGGING |
+				IFCAP_VLAN_MTU |
+				IFCAP_VLAN_HWTSO |
+				IFCAP_LRO;
 
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -840,6 +923,8 @@ qla_init_locked(qla_host_t *ha)
 {
 	struct ifnet *ifp = ha->ifp;
 
+	ql_sp_log(ha, 14, 0, 0, 0, 0, 0, 0);
+
 	qla_stop(ha);
 
 	if (qla_alloc_xmt_bufs(ha) != 0) 
@@ -853,16 +938,22 @@ qla_init_locked(qla_host_t *ha)
 	bcopy(IF_LLADDR(ha->ifp), ha->hw.mac_addr, ETHER_ADDR_LEN);
 
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	ifp->if_hwassist |= CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
 
-	ha->flags.stop_rcv = 0;
+	ha->stop_rcv = 0;
  	if (ql_init_hw_if(ha) == 0) {
 		ifp = ha->ifp;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ha->flags.qla_watchdog_pause = 0;
 		ha->hw_vlan_tx_frames = 0;
 		ha->tx_tso_frames = 0;
+		ha->qla_interface_up = 1;
+		ql_update_link_state(ha);
+	} else {
+		if (ha->hw.sp_log_stop_events & Q8_SP_LOG_STOP_IF_START_FAILURE)
+			ha->hw.sp_log_stop = -1;
 	}
+
+	ha->qla_watchdog_pause = 0;
 
 	return;
 }
@@ -876,8 +967,11 @@ qla_init(void *arg)
 
 	QL_DPRINT2(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
-	(void)QLA_LOCK(ha, __func__, 0);
+	if (QLA_LOCK(ha, __func__, -1, 0) != 0)
+		return;
+
 	qla_init_locked(ha);
+
 	QLA_UNLOCK(ha, __func__);
 
 	QL_DPRINT2(ha, (ha->pci_dev, "%s: exit\n", __func__));
@@ -894,7 +988,7 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 
 	if_maddr_rlock(ifp);
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -910,10 +1004,31 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 
 	if_maddr_runlock(ifp);
 
-	if (QLA_LOCK(ha, __func__, 1) == 0) {
-		ret = ql_hw_set_multi(ha, mta, mcnt, add_multi);
-		QLA_UNLOCK(ha, __func__);
+	if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT,
+		QLA_LOCK_NO_SLEEP) != 0)
+		return (-1);
+
+	ql_sp_log(ha, 12, 4, ifp->if_drv_flags,
+		(ifp->if_drv_flags & IFF_DRV_RUNNING),
+		add_multi, (uint32_t)mcnt, 0);
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+
+		if (!add_multi) {
+			ret = qla_hw_del_all_mcast(ha);
+
+			if (ret)
+				device_printf(ha->pci_dev,
+					"%s: qla_hw_del_all_mcast() failed\n",
+				__func__);
+		}
+
+		if (!ret)
+			ret = ql_hw_set_multi(ha, mta, mcnt, 1);
+
 	}
+
+	QLA_UNLOCK(ha, __func__);
 
 	return (ret);
 }
@@ -927,6 +1042,8 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	qla_host_t *ha;
 
 	ha = (qla_host_t *)ifp->if_softc;
+	if (ha->offline || ha->qla_initiate_recovery)
+		return (ret);
 
 	switch (cmd) {
 	case SIOCSIFADDR:
@@ -934,12 +1051,24 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			__func__, cmd));
 
 		if (ifa->ifa_addr->sa_family == AF_INET) {
+
+			ret = QLA_LOCK(ha, __func__,
+					QLA_LOCK_DEFAULT_MS_TIMEOUT,
+					QLA_LOCK_NO_SLEEP);
+			if (ret)
+				break;
+
 			ifp->if_flags |= IFF_UP;
+
+			ql_sp_log(ha, 8, 3, ifp->if_drv_flags,
+				(ifp->if_drv_flags & IFF_DRV_RUNNING),
+				ntohl(IA_SIN(ifa)->sin_addr.s_addr), 0, 0);
+
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				(void)QLA_LOCK(ha, __func__, 0);
 				qla_init_locked(ha);
-				QLA_UNLOCK(ha, __func__);
 			}
+
+			QLA_UNLOCK(ha, __func__);
 			QL_DPRINT4(ha, (ha->pci_dev,
 				"%s: SIOCSIFADDR (0x%lx) ipv4 [0x%08x]\n",
 				__func__, cmd,
@@ -958,13 +1087,22 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ifr->ifr_mtu > QLA_MAX_MTU) {
 			ret = EINVAL;
 		} else {
-			(void) QLA_LOCK(ha, __func__, 0);
+			ret = QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT,
+					QLA_LOCK_NO_SLEEP);
+
+			if (ret)
+				break;
+
 			ifp->if_mtu = ifr->ifr_mtu;
 			ha->max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				ret = ql_set_max_mtu(ha, ha->max_frame_size,
-					ha->hw.rcv_cntxt_id);
+
+			ql_sp_log(ha, 9, 4, ifp->if_drv_flags,
+				(ifp->if_drv_flags & IFF_DRV_RUNNING),
+				ha->max_frame_size, ifp->if_mtu, 0);
+
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				qla_init_locked(ha);
 			}
 
 			if (ifp->if_mtu > ETHERMTU)
@@ -974,9 +1112,6 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				
 
 			QLA_UNLOCK(ha, __func__);
-
-			if (ret)
-				ret = EINVAL;
 		}
 
 		break;
@@ -985,10 +1120,23 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		QL_DPRINT4(ha, (ha->pci_dev, "%s: SIOCSIFFLAGS (0x%lx)\n",
 			__func__, cmd));
 
-		(void)QLA_LOCK(ha, __func__, 0);
+		ret = QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT,
+				QLA_LOCK_NO_SLEEP);
+
+		if (ret)
+			break;
+
+		ql_sp_log(ha, 10, 4, ifp->if_drv_flags,
+			(ifp->if_drv_flags & IFF_DRV_RUNNING),
+			ha->if_flags, ifp->if_flags, 0);
 
 		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+
+			ha->max_frame_size = ifp->if_mtu +
+					ETHER_HDR_LEN + ETHER_CRC_LEN;
+			qla_init_locked(ha);
+						
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ ha->if_flags) &
 					IFF_PROMISC) {
 					ret = ql_set_promisc(ha);
@@ -996,12 +1144,6 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					IFF_ALLMULTI) {
 					ret = ql_set_allmulti(ha);
 				}
-			} else {
-				qla_init_locked(ha);
-				ha->max_frame_size = ifp->if_mtu +
-					ETHER_HDR_LEN + ETHER_CRC_LEN;
-				ret = ql_set_max_mtu(ha, ha->max_frame_size,
-					ha->hw.rcv_cntxt_id);
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1016,20 +1158,16 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		QL_DPRINT4(ha, (ha->pci_dev,
 			"%s: %s (0x%lx)\n", __func__, "SIOCADDMULTI", cmd));
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			if (qla_set_multi(ha, 1))
-				ret = EINVAL;
-		}
+		if (qla_set_multi(ha, 1))
+			ret = EINVAL;
 		break;
 
 	case SIOCDELMULTI:
 		QL_DPRINT4(ha, (ha->pci_dev,
 			"%s: %s (0x%lx)\n", __func__, "SIOCDELMULTI", cmd));
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			if (qla_set_multi(ha, 0))
-				ret = EINVAL;
-		}
+		if (qla_set_multi(ha, 0))
+			ret = EINVAL;
 		break;
 
 	case SIOCSIFMEDIA:
@@ -1051,14 +1189,31 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 		if (mask & IFCAP_TSO4)
 			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_TSO6)
+			ifp->if_capenable ^= IFCAP_TSO6;
 		if (mask & IFCAP_VLAN_HWTAGGING)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		if (mask & IFCAP_VLAN_HWTSO)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if (mask & IFCAP_LRO)
+			ifp->if_capenable ^= IFCAP_LRO;
 
-		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-			qla_init(ha);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ret = QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT,
+				QLA_LOCK_NO_SLEEP);
 
+			if (ret)
+				break;
+
+			ql_sp_log(ha, 11, 4, ifp->if_drv_flags,
+				(ifp->if_drv_flags & IFF_DRV_RUNNING),
+				mask, ifp->if_capenable, 0);
+
+			qla_init_locked(ha);
+
+			QLA_UNLOCK(ha, __func__);
+
+		}
 		VLAN_CAPABILITIES(ifp);
 		break;
 	}
@@ -1118,64 +1273,10 @@ qla_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	return;
 }
 
-static void
-qla_start(struct ifnet *ifp)
-{
-	struct mbuf    *m_head;
-	qla_host_t *ha = (qla_host_t *)ifp->if_softc;
-
-	QL_DPRINT8(ha, (ha->pci_dev, "%s: enter\n", __func__));
-
-	if (!mtx_trylock(&ha->tx_lock)) {
-		QL_DPRINT8(ha, (ha->pci_dev,
-			"%s: mtx_trylock(&ha->tx_lock) failed\n", __func__));
-		return;
-	}
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != 
-		IFF_DRV_RUNNING) {
-		QL_DPRINT8(ha,
-			(ha->pci_dev, "%s: !IFF_DRV_RUNNING\n", __func__));
-		QLA_TX_UNLOCK(ha);
-		return;
-	}
-
-	if (!ha->hw.link_up || !ha->watchdog_ticks)
-		ql_update_link_state(ha);
-
-	if (!ha->hw.link_up) {
-		QL_DPRINT8(ha, (ha->pci_dev, "%s: link down\n", __func__));
-		QLA_TX_UNLOCK(ha);
-		return;
-	}
-
-	while (ifp->if_snd.ifq_head != NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
-
-		if (m_head == NULL) {
-			QL_DPRINT8(ha, (ha->pci_dev, "%s: m_head == NULL\n",
-				__func__));
-			break;
-		}
-
-		if (qla_send(ha, &m_head)) {
-			if (m_head == NULL)
-				break;
-			QL_DPRINT8(ha, (ha->pci_dev, "%s: PREPEND\n", __func__));
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IF_PREPEND(&ifp->if_snd, m_head);
-			break;
-		}
-		/* Send a copy of the frame to the BPF listener */
-		ETHER_BPF_MTAP(ifp, m_head);
-	}
-	QLA_TX_UNLOCK(ha);
-	QL_DPRINT8(ha, (ha->pci_dev, "%s: exit\n", __func__));
-	return;
-}
 
 static int
-qla_send(qla_host_t *ha, struct mbuf **m_headp)
+qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
+	uint32_t iscsi_pdu)
 {
 	bus_dma_segment_t	segs[QLA_MAX_SEGMENTS];
 	bus_dmamap_t		map;
@@ -1183,30 +1284,28 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
 	int			ret = -1;
 	uint32_t		tx_idx;
 	struct mbuf		*m_head = *m_headp;
-	uint32_t		txr_idx = ha->txr_idx;
-	uint32_t		iscsi_pdu = 0;
 
 	QL_DPRINT8(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
-	/* check if flowid is set */
+	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;
 
-	if (M_HASHTYPE_GET(m_head) != M_HASHTYPE_NONE) {
-#ifdef QL_ENABLE_ISCSI_TLV
-		if (qla_iscsi_pdu(ha, m_head) == 0) {
-			iscsi_pdu = 1;
-			txr_idx = m_head->m_pkthdr.flowid &
-					((ha->hw.num_tx_rings >> 1) - 1);
-		} else {
-			txr_idx = m_head->m_pkthdr.flowid &
-					(ha->hw.num_tx_rings - 1);
-		}
-#else
-		txr_idx = m_head->m_pkthdr.flowid & (ha->hw.num_tx_rings - 1);
-#endif /* #ifdef QL_ENABLE_ISCSI_TLV */
+	if ((NULL != ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head) ||
+		(QL_ERR_INJECT(ha, INJCT_TXBUF_MBUF_NON_NULL))){
+		QL_ASSERT(ha, 0, ("%s [%d]: txr_idx = %d tx_idx = %d "\
+			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,\
+			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
+
+		device_printf(ha->pci_dev, "%s [%d]: txr_idx = %d tx_idx = %d "
+			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,
+			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head);
+
+		if (m_head)
+			m_freem(m_head);
+		*m_headp = NULL;
+		QL_INITIATE_RECOVERY(ha);
+		return (ret);
 	}
 
-
-	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;
 	map = ha->tx_ring[txr_idx].tx_buf[tx_idx].map;
 
 	ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head, segs, &nsegs,
@@ -1270,8 +1369,11 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
         if (!(ret = ql_hw_send(ha, segs, nsegs, tx_idx, m_head, txr_idx,
 				iscsi_pdu))) {
 		ha->tx_ring[txr_idx].count++;
+		if (iscsi_pdu)
+			ha->tx_ring[txr_idx].iscsi_pkt_count++;
 		ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head = m_head;
 	} else {
+		bus_dmamap_unload(ha->tx_tag, map); 
 		if (ret == EINVAL) {
 			if (m_head)
 				m_freem(m_head);
@@ -1283,23 +1385,326 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
 	return (ret);
 }
 
+static int
+qla_alloc_tx_br(qla_host_t *ha, qla_tx_fp_t *fp)
+{
+        snprintf(fp->tx_mtx_name, sizeof(fp->tx_mtx_name),
+                "qla%d_fp%d_tx_mq_lock", ha->pci_func, fp->txr_idx);
+
+        mtx_init(&fp->tx_mtx, fp->tx_mtx_name, NULL, MTX_DEF);
+
+        fp->tx_br = buf_ring_alloc(NUM_TX_DESCRIPTORS, M_DEVBUF,
+                                   M_NOWAIT, &fp->tx_mtx);
+        if (fp->tx_br == NULL) {
+            QL_DPRINT1(ha, (ha->pci_dev, "buf_ring_alloc failed for "
+                " fp[%d, %d]\n", ha->pci_func, fp->txr_idx));
+            return (-ENOMEM);
+        }
+        return 0;
+}
+
+static void
+qla_free_tx_br(qla_host_t *ha, qla_tx_fp_t *fp)
+{
+        struct mbuf *mp;
+        struct ifnet *ifp = ha->ifp;
+
+        if (mtx_initialized(&fp->tx_mtx)) {
+
+                if (fp->tx_br != NULL) {
+
+                        mtx_lock(&fp->tx_mtx);
+
+                        while ((mp = drbr_dequeue(ifp, fp->tx_br)) != NULL) {
+                                m_freem(mp);
+                        }
+
+                        mtx_unlock(&fp->tx_mtx);
+
+                        buf_ring_free(fp->tx_br, M_DEVBUF);
+                        fp->tx_br = NULL;
+                }
+                mtx_destroy(&fp->tx_mtx);
+        }
+        return;
+}
+
+static void
+qla_fp_taskqueue(void *context, int pending)
+{
+        qla_tx_fp_t *fp;
+        qla_host_t *ha;
+        struct ifnet *ifp;
+        struct mbuf  *mp = NULL;
+        int ret = 0;
+	uint32_t txr_idx;
+	uint32_t iscsi_pdu = 0;
+	uint32_t rx_pkts_left = -1;
+
+        fp = context;
+
+        if (fp == NULL)
+                return;
+
+        ha = (qla_host_t *)fp->ha;
+
+        ifp = ha->ifp;
+
+	txr_idx = fp->txr_idx;
+
+        mtx_lock(&fp->tx_mtx);
+
+        if (!(ifp->if_drv_flags & IFF_DRV_RUNNING) || (!ha->hw.link_up)) {
+                mtx_unlock(&fp->tx_mtx);
+                goto qla_fp_taskqueue_exit;
+        }
+
+	while (rx_pkts_left && !ha->stop_rcv &&
+		(ifp->if_drv_flags & IFF_DRV_RUNNING) && ha->hw.link_up) {
+		rx_pkts_left = ql_rcv_isr(ha, fp->txr_idx, 64);
+
+#ifdef QL_ENABLE_ISCSI_TLV
+		ql_hw_tx_done_locked(ha, fp->txr_idx);
+		ql_hw_tx_done_locked(ha, (fp->txr_idx + (ha->hw.num_tx_rings >> 1)));
+#else
+		ql_hw_tx_done_locked(ha, fp->txr_idx);
+#endif /* #ifdef QL_ENABLE_ISCSI_TLV */
+
+		mp = drbr_peek(ifp, fp->tx_br);
+
+        	while (mp != NULL) {
+
+			if (M_HASHTYPE_GET(mp) != M_HASHTYPE_NONE) {
+#ifdef QL_ENABLE_ISCSI_TLV
+				if (ql_iscsi_pdu(ha, mp) == 0) {
+					txr_idx = txr_idx +
+						(ha->hw.num_tx_rings >> 1);
+					iscsi_pdu = 1;
+				} else {
+					iscsi_pdu = 0;
+					txr_idx = fp->txr_idx;
+				}
+#endif /* #ifdef QL_ENABLE_ISCSI_TLV */
+			}
+
+			ret = qla_send(ha, &mp, txr_idx, iscsi_pdu);
+
+			if (ret) {
+				if (mp != NULL)
+					drbr_putback(ifp, fp->tx_br, mp);
+				else {
+					drbr_advance(ifp, fp->tx_br);
+				}
+
+				mtx_unlock(&fp->tx_mtx);
+
+				goto qla_fp_taskqueue_exit0;
+			} else {
+				drbr_advance(ifp, fp->tx_br);
+			}
+
+			/* Send a copy of the frame to the BPF listener */
+			ETHER_BPF_MTAP(ifp, mp);
+
+			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
+				(!ha->hw.link_up))
+				break;
+
+			mp = drbr_peek(ifp, fp->tx_br);
+		}
+	}
+        mtx_unlock(&fp->tx_mtx);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto qla_fp_taskqueue_exit;
+
+qla_fp_taskqueue_exit0:
+
+	if (rx_pkts_left || ((mp != NULL) && ret)) {
+		taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
+	} else {
+		if (!ha->stop_rcv) {
+			QL_ENABLE_INTERRUPTS(ha, fp->txr_idx);
+		}
+	}
+
+qla_fp_taskqueue_exit:
+
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: exit ret = %d\n", __func__, ret));
+        return;
+}
+
+static int
+qla_create_fp_taskqueues(qla_host_t *ha)
+{
+        int     i;
+        uint8_t tq_name[32];
+
+        for (i = 0; i < ha->hw.num_sds_rings; i++) {
+
+                qla_tx_fp_t *fp = &ha->tx_fp[i];
+
+                bzero(tq_name, sizeof (tq_name));
+                snprintf(tq_name, sizeof (tq_name), "ql_fp_tq_%d", i);
+
+                TASK_INIT(&fp->fp_task, 0, qla_fp_taskqueue, fp);
+
+                fp->fp_taskqueue = taskqueue_create_fast(tq_name, M_NOWAIT,
+                                        taskqueue_thread_enqueue,
+                                        &fp->fp_taskqueue);
+
+                if (fp->fp_taskqueue == NULL)
+                        return (-1);
+
+                taskqueue_start_threads(&fp->fp_taskqueue, 1, PI_NET, "%s",
+                        tq_name);
+
+                QL_DPRINT1(ha, (ha->pci_dev, "%s: %p\n", __func__,
+                        fp->fp_taskqueue));
+        }
+
+        return (0);
+}
+
+static void
+qla_destroy_fp_taskqueues(qla_host_t *ha)
+{
+        int     i;
+
+        for (i = 0; i < ha->hw.num_sds_rings; i++) {
+
+                qla_tx_fp_t *fp = &ha->tx_fp[i];
+
+                if (fp->fp_taskqueue != NULL) {
+                        taskqueue_drain_all(fp->fp_taskqueue);
+                        taskqueue_free(fp->fp_taskqueue);
+                        fp->fp_taskqueue = NULL;
+                }
+        }
+        return;
+}
+
+static void
+qla_drain_fp_taskqueues(qla_host_t *ha)
+{
+        int     i;
+
+        for (i = 0; i < ha->hw.num_sds_rings; i++) {
+                qla_tx_fp_t *fp = &ha->tx_fp[i];
+
+                if (fp->fp_taskqueue != NULL) {
+                        taskqueue_drain_all(fp->fp_taskqueue);
+                }
+        }
+        return;
+}
+
+static int
+qla_transmit(struct ifnet *ifp, struct mbuf  *mp)
+{
+	qla_host_t *ha = (qla_host_t *)ifp->if_softc;
+        qla_tx_fp_t *fp;
+        int rss_id = 0;
+        int ret = 0;
+
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: enter\n", __func__));
+
+#if __FreeBSD_version >= 1100000
+        if (M_HASHTYPE_GET(mp) != M_HASHTYPE_NONE)
+#else
+        if (mp->m_flags & M_FLOWID)
+#endif
+                rss_id = (mp->m_pkthdr.flowid & Q8_RSS_IND_TBL_MAX_IDX) %
+                                        ha->hw.num_sds_rings;
+        fp = &ha->tx_fp[rss_id];
+
+        if (fp->tx_br == NULL) {
+                ret = EINVAL;
+                goto qla_transmit_exit;
+        }
+
+        if (mp != NULL) {
+                ret = drbr_enqueue(ifp, fp->tx_br, mp);
+        }
+
+        if (fp->fp_taskqueue != NULL)
+                taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
+
+        ret = 0;
+
+qla_transmit_exit:
+
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: exit ret = %d\n", __func__, ret));
+        return ret;
+}
+
+static void
+qla_qflush(struct ifnet *ifp)
+{
+        int                     i;
+        qla_tx_fp_t		*fp;
+        struct mbuf             *mp;
+        qla_host_t              *ha;
+
+        ha = (qla_host_t *)ifp->if_softc;
+
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: enter\n", __func__));
+
+        for (i = 0; i < ha->hw.num_sds_rings; i++) {
+
+                fp = &ha->tx_fp[i];
+
+                if (fp == NULL)
+                        continue;
+
+                if (fp->tx_br) {
+                        mtx_lock(&fp->tx_mtx);
+
+                        while ((mp = drbr_dequeue(ifp, fp->tx_br)) != NULL) {
+                                m_freem(mp);
+                        }
+                        mtx_unlock(&fp->tx_mtx);
+                }
+        }
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: exit\n", __func__));
+
+        return;
+}
+
 static void
 qla_stop(qla_host_t *ha)
 {
 	struct ifnet *ifp = ha->ifp;
 	device_t	dev;
+	int i = 0;
+
+	ql_sp_log(ha, 13, 0, 0, 0, 0, 0, 0);
 
 	dev = ha->pci_dev;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	ha->qla_watchdog_pause = 1;
 
-	ha->flags.qla_watchdog_pause = 1;
+        for (i = 0; i < ha->hw.num_sds_rings; i++) {
+        	qla_tx_fp_t *fp;
+
+		fp = &ha->tx_fp[i];
+
+                if (fp == NULL)
+                        continue;
+
+		if (fp->tx_br != NULL) {
+                        mtx_lock(&fp->tx_mtx);
+                        mtx_unlock(&fp->tx_mtx);
+		}
+	}
 
 	while (!ha->qla_watchdog_paused)
 		qla_mdelay(__func__, 1);
 
-	ha->flags.stop_rcv = 1;
-	ql_hw_stop_rcv(ha);
+	ha->qla_interface_up = 0;
+
+	qla_drain_fp_taskqueues(ha);
 
 	ql_del_hw_if(ha);
 
@@ -1372,16 +1777,24 @@ qla_clear_tx_buf(qla_host_t *ha, qla_tx_buf_t *txb)
 {
 	QL_DPRINT2(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
-	if (txb->m_head && txb->map) {
+	if (txb->m_head) {
+		bus_dmamap_sync(ha->tx_tag, txb->map,
+			BUS_DMASYNC_POSTWRITE);
 
 		bus_dmamap_unload(ha->tx_tag, txb->map);
 
 		m_freem(txb->m_head);
 		txb->m_head = NULL;
+
+		bus_dmamap_destroy(ha->tx_tag, txb->map);
+		txb->map = NULL;
 	}
 
-	if (txb->map)
+	if (txb->map) {
+		bus_dmamap_unload(ha->tx_tag, txb->map);
 		bus_dmamap_destroy(ha->tx_tag, txb->map);
+		txb->map = NULL;
+	}
 
 	QL_DPRINT2(ha, (ha->pci_dev, "%s: exit\n", __func__));
 }
@@ -1585,6 +1998,9 @@ ql_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp)
 
 	if (mp == NULL) {
 
+		if (QL_ERR_INJECT(ha, INJCT_M_GETCL_M_GETJCL_FAILURE))
+			return(-1);
+
                 if (ha->hw.enable_9kb)
                         mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, mbuf_size);
                 else
@@ -1636,25 +2052,6 @@ exit_ql_get_mbuf:
 	return (ret);
 }
 
-static void
-qla_tx_done(void *context, int pending)
-{
-	qla_host_t *ha = context;
-	struct ifnet   *ifp;
-
-	ifp = ha->ifp;
-
-	if (!ifp) 
-		return;
-
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		QL_DPRINT8(ha, (ha->pci_dev, "%s: !IFF_DRV_RUNNING\n", __func__));
-		return;
-	}
-	ql_hw_tx_done(ha);
-
-	qla_start(ha->ifp);
-}
 
 static void
 qla_get_peer(qla_host_t *ha)
@@ -1691,25 +2088,62 @@ qla_send_msg_to_peer(qla_host_t *ha, uint32_t msg_to_peer)
 	}
 }
 
+void
+qla_set_error_recovery(qla_host_t *ha)
+{
+	struct ifnet *ifp = ha->ifp;
+
+	if (!cold && ha->enable_error_recovery) {
+		if (ifp)
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		ha->qla_initiate_recovery = 1;
+	} else
+		ha->offline = 1;
+	return;
+}
+
 static void
 qla_error_recovery(void *context, int pending)
 {
 	qla_host_t *ha = context;
-	uint32_t msecs_100 = 100;
+	uint32_t msecs_100 = 400;
 	struct ifnet *ifp = ha->ifp;
+	int i = 0;
 
-        (void)QLA_LOCK(ha, __func__, 0);
-
+	device_printf(ha->pci_dev, "%s: enter\n", __func__);
 	ha->hw.imd_compl = 1;
-	qla_mdelay(__func__, 300);
 
-        ha->flags.stop_rcv = 1;
+	taskqueue_drain_all(ha->stats_tq);
+	taskqueue_drain_all(ha->async_event_tq);
 
-        ql_hw_stop_rcv(ha);
+	if (QLA_LOCK(ha, __func__, -1, 0) != 0)
+		return;
 
-        ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
+	device_printf(ha->pci_dev, "%s: ts_usecs = %ld start\n",
+		__func__, qla_get_usec_timestamp());
 
-        QLA_UNLOCK(ha, __func__);
+	if (ha->qla_interface_up) {
+
+		qla_mdelay(__func__, 300);
+
+	        //ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+
+		for (i = 0; i < ha->hw.num_sds_rings; i++) {
+	        	qla_tx_fp_t *fp;
+
+			fp = &ha->tx_fp[i];
+
+			if (fp == NULL)
+				continue;
+
+			if (fp->tx_br != NULL) {
+				mtx_lock(&fp->tx_mtx);
+				mtx_unlock(&fp->tx_mtx);
+			}
+		}
+	}
+
+	qla_drain_fp_taskqueues(ha);
 
 	if ((ha->pci_func & 0x1) == 0) {
 
@@ -1723,20 +2157,35 @@ qla_error_recovery(void *context, int pending)
 
 		ha->msg_from_peer = 0;
 
-		ql_minidump(ha);
+		if (ha->enable_minidump)
+			ql_minidump(ha);
 
-		(void) ql_init_hw(ha);
-        	qla_free_xmt_bufs(ha);
-	        qla_free_rcv_bufs(ha);
+		if (ha->enable_driverstate_dump)
+			ql_capture_drvr_state(ha);
 
-		qla_send_msg_to_peer(ha, QL_PEER_MSG_ACK);
+		if (ql_init_hw(ha)) {
+			device_printf(ha->pci_dev,
+				"%s: ts_usecs = %ld exit: ql_init_hw failed\n",
+				__func__, qla_get_usec_timestamp());
+			ha->offline = 1;
+			goto qla_error_recovery_exit;
+		}
+			
+		if (ha->qla_interface_up) {
+			qla_free_xmt_bufs(ha);
+			qla_free_rcv_bufs(ha);
+		}
+
+		if (!QL_ERR_INJECT(ha, INJCT_PEER_PORT_FAILURE_ERR_RECOVERY))
+			qla_send_msg_to_peer(ha, QL_PEER_MSG_ACK);
 
 	} else {
 		if (ha->msg_from_peer == QL_PEER_MSG_RESET) {
 
 			ha->msg_from_peer = 0;
 
-			qla_send_msg_to_peer(ha, QL_PEER_MSG_ACK);
+			if (!QL_ERR_INJECT(ha, INJCT_PEER_PORT_FAILURE_ERR_RECOVERY))
+				qla_send_msg_to_peer(ha, QL_PEER_MSG_ACK);
 		} else {
 			qla_send_msg_to_peer(ha, QL_PEER_MSG_RESET);
 		}
@@ -1745,32 +2194,89 @@ qla_error_recovery(void *context, int pending)
 			qla_mdelay(__func__, 100);
 		ha->msg_from_peer = 0;
 
-		(void) ql_init_hw(ha);
-        	qla_free_xmt_bufs(ha);
-	        qla_free_rcv_bufs(ha);
-	}
-        (void)QLA_LOCK(ha, __func__, 0);
+		if (ha->enable_driverstate_dump)
+			ql_capture_drvr_state(ha);
 
-	if (qla_alloc_xmt_bufs(ha) != 0) {
-        	QLA_UNLOCK(ha, __func__);
-                return;
-	}
-	qla_confirm_9kb_enable(ha);
+		if (msecs_100 == 0) {
+			device_printf(ha->pci_dev,
+				"%s: ts_usecs = %ld exit: QL_PEER_MSG_ACK not received\n",
+				__func__, qla_get_usec_timestamp());
+			ha->offline = 1;
+			goto qla_error_recovery_exit;
+		}
 
-        if (qla_alloc_rcv_bufs(ha) != 0) {
-        	QLA_UNLOCK(ha, __func__);
-                return;
+		if (ql_init_hw(ha)) {
+			device_printf(ha->pci_dev,
+				"%s: ts_usecs = %ld exit: ql_init_hw failed\n",
+				__func__, qla_get_usec_timestamp());
+			ha->offline = 1;
+			goto qla_error_recovery_exit;
+		}
+
+		if (ha->qla_interface_up) {
+			qla_free_xmt_bufs(ha);
+			qla_free_rcv_bufs(ha);
+		}
 	}
 
-        ha->flags.stop_rcv = 0;
-        if (ql_init_hw_if(ha) == 0) {
-                ifp = ha->ifp;
-                ifp->if_drv_flags |= IFF_DRV_RUNNING;
-                ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-                ha->flags.qla_watchdog_pause = 0;
-        }
+	qla_mdelay(__func__, ha->ms_delay_after_init);
+
+	*((uint32_t *)&ha->hw.flags) = 0;
+	ha->qla_initiate_recovery = 0;
+
+	if (ha->qla_interface_up) {
+
+		if (qla_alloc_xmt_bufs(ha) != 0) {
+			ha->offline = 1;
+			goto qla_error_recovery_exit;
+		}
+
+		qla_confirm_9kb_enable(ha);
+
+		if (qla_alloc_rcv_bufs(ha) != 0) {
+			ha->offline = 1;
+			goto qla_error_recovery_exit;
+		}
+
+		ha->stop_rcv = 0;
+
+		if (ql_init_hw_if(ha) == 0) {
+			ifp = ha->ifp;
+			ifp->if_drv_flags |= IFF_DRV_RUNNING;
+			ha->qla_watchdog_pause = 0;
+			ql_update_link_state(ha);
+		} else {
+			ha->offline = 1;
+
+			if (ha->hw.sp_log_stop_events &
+				Q8_SP_LOG_STOP_IF_START_FAILURE)
+				ha->hw.sp_log_stop = -1;
+		}
+	} else {
+		ha->qla_watchdog_pause = 0;
+	}
+
+qla_error_recovery_exit:
+
+	if (ha->offline ) {
+		device_printf(ha->pci_dev, "%s: ts_usecs = %ld port offline\n",
+			__func__, qla_get_usec_timestamp());
+		if (ha->hw.sp_log_stop_events &
+			Q8_SP_LOG_STOP_ERR_RECOVERY_FAILURE)
+			ha->hw.sp_log_stop = -1;
+	}
+
 
         QLA_UNLOCK(ha, __func__);
+
+	if (!ha->offline)
+		callout_reset(&ha->tx_callout, QLA_WATCHDOG_CALLOUT_TICKS,
+			qla_watchdog, ha);
+
+	device_printf(ha->pci_dev,
+		"%s: ts_usecs = %ld exit\n",
+		__func__, qla_get_usec_timestamp());
+	return;
 }
 
 static void
@@ -1778,8 +2284,28 @@ qla_async_event(void *context, int pending)
 {
         qla_host_t *ha = context;
 
-        (void)QLA_LOCK(ha, __func__, 0);
-        qla_hw_async_event(ha);
-        QLA_UNLOCK(ha, __func__);
+	if (QLA_LOCK(ha, __func__, -1, 0) != 0)
+		return;
+
+	if (ha->async_event) {
+		ha->async_event = 0;
+        	qla_hw_async_event(ha);
+	}
+
+	QLA_UNLOCK(ha, __func__);
+
+	return;
+}
+
+static void
+qla_stats(void *context, int pending)
+{
+        qla_host_t *ha;
+
+        ha = context;
+
+	ql_get_stats(ha);
+
+	return;
 }
 

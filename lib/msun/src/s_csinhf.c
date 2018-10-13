@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Bruce D. Evans and Steven G. Kargl
  * All rights reserved.
  *
@@ -90,7 +92,8 @@ csinhf(float complex z)
 		return (CMPLXF(x * cosf(y), INFINITY * sinf(y)));
 	}
 
-	return (CMPLXF((x + x) * (y - y), (x * x) * (y - y)));
+	return (CMPLXF(((long double)x + x) * (y - y),
+	    ((long double)x * x) * (y - y)));
 }
 
 float complex

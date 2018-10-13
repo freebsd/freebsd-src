@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -42,16 +42,21 @@
 struct trapframe;
 
 struct pcb {
-	uint64_t	pcb_ra;
-	uint64_t	pcb_sp;
-	uint64_t	pcb_gp;
-	uint64_t	pcb_tp;
-	uint64_t	pcb_t[7];
-	uint64_t	pcb_s[12];
-	uint64_t	pcb_a[8];
-	uint64_t	pcb_sepc;
+	uint64_t	pcb_ra;		/* Return address */
+	uint64_t	pcb_sp;		/* Stack pointer */
+	uint64_t	pcb_gp;		/* Global pointer */
+	uint64_t	pcb_tp;		/* Thread pointer */
+	uint64_t	pcb_t[7];	/* Temporary registers */
+	uint64_t	pcb_s[12];	/* Saved registers */
+	uint64_t	pcb_a[8];	/* Argument registers */
+	uint64_t	pcb_x[32][2];	/* Floating point registers */
+	uint64_t	pcb_fcsr;	/* Floating point control reg */
+	uint64_t	pcb_fpflags;	/* Floating point flags */
+#define	PCB_FP_STARTED	0x1
+#define	PCB_FP_USERMASK	0x1
+	uint64_t	pcb_sepc;	/* Supervisor exception pc */
 	vm_offset_t	pcb_l1addr;	/* L1 page tables base address */
-	vm_offset_t	pcb_onfault;
+	vm_offset_t	pcb_onfault;	/* Copyinout fault handler */
 };
 
 #ifdef _KERNEL

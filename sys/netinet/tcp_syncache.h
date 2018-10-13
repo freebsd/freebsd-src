@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993, 1994, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +40,7 @@ void	 syncache_init(void);
 #ifdef VIMAGE
 void	syncache_destroy(void);
 #endif
-void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
+void	 syncache_unreach(struct in_conninfo *, tcp_seq);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
 int	 syncache_add(struct in_conninfo *, struct tcpopt *,
@@ -54,7 +56,6 @@ struct syncache {
 	int		sc_rxttime;		/* retransmit time */
 	u_int16_t	sc_rxmits;		/* retransmit counter */
 	u_int32_t	sc_tsreflect;		/* timestamp to reflect */
-	u_int32_t	sc_ts;			/* our timestamp to send */
 	u_int32_t	sc_tsoff;		/* ts offset w/ syncookies */
 	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_seq		sc_irs;			/* seq from peer */
@@ -73,9 +74,7 @@ struct syncache {
 #endif
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
-#ifdef TCP_RFC7413
 	void		*sc_tfo_cookie;		/* for TCP Fast Open response */
-#endif
 	void		*sc_pspare;		/* TCP_SIGNATURE */
 	u_int32_t	sc_spare[2];		/* UTO */
 };
@@ -99,6 +98,7 @@ struct syncache_head {
 	int		sch_nextc;
 	u_int		sch_length;
 	struct tcp_syncache *sch_sc;
+	time_t		sch_last_overflow;
 };
 
 #define	SYNCOOKIE_SECRET_SIZE	16

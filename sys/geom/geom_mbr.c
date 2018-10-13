@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -56,6 +58,8 @@ FEATURE(geom_mbr, "GEOM DOS/MBR partitioning support");
 
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
+
+static int g_mbr_once = 0;
 
 static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
@@ -316,6 +320,12 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		g_slice_spoiled(cp);
 		return (NULL);
 	}
+	if (!g_mbr_once) {
+		g_mbr_once = 1;
+		printf(
+		    "WARNING: geom_mbr (geom %s) is deprecated, "
+		    "use gpart instead.\n", gp->name);
+	}
 	return (gp);
 }
 
@@ -518,3 +528,4 @@ static struct g_class g_mbrext_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_mbrext_class, g_mbrext);
+MODULE_VERSION(geom_mbr, 0);

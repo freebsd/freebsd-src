@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.102 2015/09/25 18:19:54 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.119 2018/07/23 19:53:55 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: September 25 2015 $
+.Dd $Mdocdate: July 23 2018 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -30,8 +30,7 @@
 .Nd secure file transfer program
 .Sh SYNOPSIS
 .Nm sftp
-.Bk -words
-.Op Fl 1246aCfpqrv
+.Op Fl 46aCfpqrv
 .Op Fl B Ar buffer_size
 .Op Fl b Ar batchfile
 .Op Fl c Ar cipher
@@ -44,61 +43,58 @@
 .Op Fl R Ar num_requests
 .Op Fl S Ar program
 .Op Fl s Ar subsystem | sftp_server
-.Ar host
-.Ek
-.Nm sftp
-.Oo Ar user Ns @ Oc Ns
-.Ar host Ns Op : Ns Ar
-.Nm sftp
-.Oo
-.Ar user Ns @ Oc Ns
-.Ar host Ns Oo : Ns Ar dir Ns
-.Op Ar /
-.Oc
-.Nm sftp
-.Fl b Ar batchfile
-.Oo Ar user Ns @ Oc Ns Ar host
+.Ar destination
 .Sh DESCRIPTION
 .Nm
-is an interactive file transfer program, similar to
+is a file transfer program, similar to
 .Xr ftp 1 ,
 which performs all operations over an encrypted
 .Xr ssh 1
 transport.
 It may also use many features of ssh, such as public key authentication and
 compression.
-.Nm
-connects and logs into the specified
-.Ar host ,
-then enters an interactive command mode.
 .Pp
-The second usage format will retrieve files automatically if a non-interactive
+The
+.Ar destination
+may be specified either as
+.Sm off
+.Oo user @ Oc host Op : path
+.Sm on
+or as a URI in the form
+.Sm off
+.No sftp:// Oo user @ Oc host Oo : port Oc Op / path .
+.Sm on
+.Pp
+If the
+.Ar destination
+includes a
+.Ar path
+and it is not a directory,
+.Nm
+will retrieve files automatically if a non-interactive
 authentication method is used; otherwise it will do so after
 successful interactive authentication.
 .Pp
-The third usage format allows
+If no
+.Ar path
+is specified, or if the
+.Ar path
+is a directory,
 .Nm
-to start in a remote directory.
+will log in to the specified
+.Ar host
+and enter interactive command mode, changing to the remote directory
+if one was specified.
+An optional trailing slash can be used to force the
+.Ar path
+to be interpreted as a directory.
 .Pp
-The final usage format allows for automated sessions using the
-.Fl b
-option.
-In such cases, it is necessary to configure non-interactive authentication
-to obviate the need to enter a password at connection time (see
-.Xr sshd 8
-and
-.Xr ssh-keygen 1
-for details).
-.Pp
-Since some usage formats use colon characters to delimit host names from path
-names, IPv6 addresses must be enclosed in square brackets to avoid ambiguity.
+Since the destination formats use colon characters to delimit host
+names from path names or port numbers, IPv6 addresses must be
+enclosed in square brackets to avoid ambiguity.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl 1
-Specify the use of protocol version 1.
-.It Fl 2
-Specify the use of protocol version 2.
 .It Fl 4
 Forces
 .Nm
@@ -125,7 +121,12 @@ Batch mode reads a series of commands from an input
 instead of
 .Em stdin .
 Since it lacks user interaction it should be used in conjunction with
-non-interactive authentication.
+non-interactive authentication to obviate the need to enter a password
+at connection time (see
+.Xr sshd 8
+and
+.Xr ssh-keygen 1
+for details).
 A
 .Ar batchfile
 of
@@ -193,6 +194,7 @@ For full details of the options listed below, and their possible values, see
 .It AddressFamily
 .It BatchMode
 .It BindAddress
+.It BindInterface
 .It CanonicalDomains
 .It CanonicalizeFallbackLocal
 .It CanonicalizeHostname
@@ -201,10 +203,8 @@ For full details of the options listed below, and their possible values, see
 .It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
-.It Cipher
 .It Ciphers
 .It Compression
-.It CompressionLevel
 .It ConnectionAttempts
 .It ConnectTimeout
 .It ControlMaster
@@ -220,8 +220,9 @@ For full details of the options listed below, and their possible values, see
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
-.It IdentityFile
 .It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -234,19 +235,18 @@ For full details of the options listed below, and their possible values, see
 .It PKCS11Provider
 .It Port
 .It PreferredAuthentications
-.It Protocol
 .It ProxyCommand
+.It ProxyJump
+.It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
-.It RhostsRSAAuthentication
-.It RSAAuthentication
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
+.It SetEnv
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It UpdateHostKeys
-.It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS
@@ -280,9 +280,7 @@ options.
 .It Fl s Ar subsystem | sftp_server
 Specifies the SSH2 subsystem or the path for an sftp server
 on the remote host.
-A path is useful for using
-.Nm
-over protocol version 1, or when the remote
+A path is useful when the remote
 .Xr sshd 8
 does not have an sftp subsystem configured.
 .It Fl v
@@ -304,9 +302,12 @@ must be escaped with backslashes
 .It Ic bye
 Quit
 .Nm sftp .
-.It Ic cd Ar path
+.It Ic cd Op Ar path
 Change remote directory to
 .Ar path .
+If
+.Ar path
+is not specified, then change directory to the one the session started in.
 .It Ic chgrp Ar grp Ar path
 Change group of file
 .Ar path
@@ -314,7 +315,7 @@ to
 .Ar grp .
 .Ar path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 .Ar grp
 must be a numeric GID.
@@ -325,7 +326,7 @@ to
 .Ar mode .
 .Ar path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 .It Ic chown Ar own Ar path
 Change owner of file
@@ -334,7 +335,7 @@ to
 .Ar own .
 .Ar path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 .Ar own
 must be a numeric UID.
@@ -372,7 +373,7 @@ path name is not specified, it is given the same name it has on the
 remote machine.
 .Ar remote-path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 If it does and
 .Ar local-path
@@ -410,9 +411,12 @@ Note that
 does not follow symbolic links when performing recursive transfers.
 .It Ic help
 Display help text.
-.It Ic lcd Ar path
+.It Ic lcd Op Ar path
 Change local directory to
 .Ar path .
+If
+.Ar path
+is not specified, then change directory to the local user's home directory.
 .It Ic lls Op Ar ls-options Op Ar path
 Display local directory listing of either
 .Ar path
@@ -425,7 +429,7 @@ may contain any flags supported by the local system's
 command.
 .Ar path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 .It Ic lmkdir Ar path
 Create local directory specified by
@@ -456,7 +460,7 @@ or the current directory if
 is not specified.
 .Ar path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 .Pp
 The following flags are recognized and alter the behaviour of
@@ -509,7 +513,7 @@ If the remote path name is not specified, it is given the same name it has
 on the local machine.
 .Ar local-path
 may contain
-.Xr glob 3
+.Xr glob 7
 characters and may match multiple files.
 If it does and
 .Ar remote-path
@@ -612,8 +616,8 @@ Synonym for help.
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-keygen 1 ,
-.Xr glob 3 ,
 .Xr ssh_config 5 ,
+.Xr glob 7 ,
 .Xr sftp-server 8 ,
 .Xr sshd 8
 .Rs

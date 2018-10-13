@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1993, John Brezak
  * All rights reserved.
  *
@@ -92,9 +94,9 @@ remember_host(struct in_addr addr)
 }
 
 static int
-rusers_reply(caddr_t replyp, struct sockaddr_in *raddrp)
+rusers_reply(void *replyp, struct sockaddr_in *raddrp)
 {
-	u_int x;
+	unsigned int x;
 	int idle;
 	char date[32], idle_time[64], remote[64];
 	struct hostent *hp;
@@ -188,14 +190,14 @@ onehost(char *host)
 	if (rusers_clnt == NULL)
 		errx(1, "%s", clnt_spcreateerror(""));
 
-	bzero((char *)&up, sizeof(up));
+	memset(&up, 0, sizeof(up));
 	tv.tv_sec = 15;	/* XXX ?? */
 	tv.tv_usec = 0;
 	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, (xdrproc_t)xdr_void, NULL,
 	    (xdrproc_t)xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
 		errx(1, "%s", clnt_sperror(rusers_clnt, ""));
 	memcpy(&addr.sin_addr.s_addr, hp->h_addr, sizeof(addr.sin_addr.s_addr));
-	rusers_reply((caddr_t)&up, &addr);
+	rusers_reply(&up, &addr);
 	clnt_destroy(rusers_clnt);
 }
 
@@ -205,7 +207,7 @@ allhosts(void)
 	utmpidlearr up;
 	enum clnt_stat clnt_stat;
 
-	bzero((char *)&up, sizeof(up));
+	memset(&up, 0, sizeof(up));
 	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE,
 	    RUSERSPROC_NAMES, (xdrproc_t)xdr_void, NULL,
 	    (xdrproc_t)xdr_utmpidlearr, (char *)&up,

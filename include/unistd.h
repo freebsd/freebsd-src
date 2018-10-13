@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -384,6 +386,7 @@ extern int optind, opterr, optopt;
 /* ISO/IEC 9945-1: 1996 */
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE
 int	 fsync(int);
+int	 fdatasync(int);
 
 /*
  * ftruncate() was in the POSIX Realtime Extension (it's used for shared
@@ -448,8 +451,6 @@ int	 symlink(const char * __restrict, const char * __restrict);
 /* X/Open System Interfaces */
 #if __XSI_VISIBLE
 char	*crypt(const char *, const char *);
-/* char	*ctermid(char *); */		/* XXX ??? */
-int	 encrypt(char *, int);
 long	 gethostid(void);
 int	 lockf(int, int, off_t);
 int	 nice(int);
@@ -484,14 +485,19 @@ pid_t	 vfork(void) __returns_twice;
 
 #if __BSD_VISIBLE
 struct timeval;				/* select(2) */
+
+struct crypt_data {
+	int	initialized;	/* For compatibility with glibc. */
+	char	__buf[256];	/* Buffer returned by crypt_r(). */
+};
+
 int	 acct(const char *);
 int	 async_daemon(void);
 int	 check_utility_compat(const char *);
 const char *
 	 crypt_get_format(void);
+char	*crypt_r(const char *, const char *, struct crypt_data *);
 int	 crypt_set_format(const char *);
-int	 des_cipher(const char *, char *, long, int);
-int	 des_setkey(const char *key);
 int	 dup3(int, int, int);
 int	 eaccess(const char *, int);
 void	 endusershell(void);
@@ -500,6 +506,7 @@ int	 execvP(const char *, const char *, char * const *);
 int	 feature_present(const char *);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
+int	 getentropy(void *, size_t);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
 int	 getloginclass(char *, size_t);
 mode_t	 getmode(const void *, mode_t);
@@ -559,15 +566,12 @@ int	 setdomainname(const char *, int);
 int	 setgroups(int, const gid_t *);
 void	 sethostid(long);
 int	 sethostname(const char *, int);
-#ifndef _SETKEY_DECLARED
-int	 setkey(const char *);
-#define	_SETKEY_DECLARED
-#endif
 int	 setlogin(const char *);
 int	 setloginclass(const char *);
 void	*setmode(const char *);
 int	 setpgrp(pid_t, pid_t);			/* obsoleted by setpgid() */
 void	 setproctitle(const char *_fmt, ...) __printf0like(1, 2);
+void	 setproctitle_fast(const char *_fmt, ...) __printf0like(1, 2);
 int	 setresgid(gid_t, gid_t, gid_t);
 int	 setresuid(uid_t, uid_t, uid_t);
 int	 setrgid(gid_t);

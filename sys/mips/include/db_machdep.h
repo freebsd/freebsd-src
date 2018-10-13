@@ -1,6 +1,8 @@
 /*	$OpenBSD: db_machdep.h,v 1.2 1998/09/15 10:50:12 pefo Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998 Per Fogelstrom, Opsycon AB
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,17 +41,12 @@
 
 #include <machine/frame.h>
 #include <machine/trap.h>
-#include <machine/endian.h>
 
 typedef struct trapframe db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	register_t	db_expr_t;	/* expression - signed */
-
-#if BYTE_ORDER == _BIG_ENDIAN
-#define	BYTE_MSF	(1)
-#endif
 
 #define	SOFTWARE_SSTEP		/* Need software single step */
 #define	SOFTWARE_SSTEP_EMUL	/* next_instr_address() emulates 100% */
@@ -87,12 +84,8 @@ db_addr_t	next_instr_address(db_addr_t, boolean_t);
 #define	inst_load(i)		(db_inst_type(i) == IT_LOAD)
 #define	inst_store(i)		(db_inst_type(i) == IT_STORE)
 
-#define	DB_SMALL_VALUE_MAX	0x7fffffff
-#define	DB_SMALL_VALUE_MIN	(-0x400001)
-
 int db_inst_type(int);
 db_addr_t branch_taken(int inst, db_addr_t pc);
-void stacktrace_subr(register_t pc, register_t sp, register_t ra, int (*)(const char *, ...));
 int32_t kdbpeek(int *);
 int64_t kdbpeekd(int *);
 

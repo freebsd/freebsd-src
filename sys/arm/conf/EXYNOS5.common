@@ -4,11 +4,11 @@
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -20,12 +20,13 @@
 
 makeoptions	WERROR="-Werror"
 
-include 	"std.armv6"
-options 	HZ=100
+include 	"std.armv7"
 options 	SCHED_ULE		# ULE scheduler
+options 	PLATFORM		# Platform based SoC
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -56,21 +57,6 @@ options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 options 	SMP			# Enable multiple cores
 
-# Debugging for use in -current
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options 	KDB			# Enable kernel debugger support
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic
-# For full debugger support use this instead:
-options 	DDB			# Enable the kernel debugger
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
-
 # NFS root from boopt/dhcp
 #options 	BOOTP
 #options 	BOOTP_NFSROOT
@@ -87,7 +73,6 @@ device		dwmmc
 
 # Interrupt controller
 device		gic
-options 	INTRNG
 
 # ARM Generic Timer
 device		generic_timer
@@ -103,9 +88,6 @@ device		gpio
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 device		usb
-options 	USB_DEBUG
-#options 	USB_REQ_DEBUG
-#options 	USB_VERBOSE
 #device		musb
 device		ehci
 #device		ohci

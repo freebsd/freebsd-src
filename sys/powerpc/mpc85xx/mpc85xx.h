@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Semihalf, Rafal Jaworowski
  * Copyright 2006 by Juniper Networks.
  * All rights reserved.
@@ -36,6 +38,8 @@
  * Configuration control and status registers
  */
 extern vm_offset_t		ccsrbar_va;
+extern vm_paddr_t		ccsrbar_pa;
+extern vm_size_t		ccsrbar_size;
 #define CCSRBAR_VA		ccsrbar_va
 #define	OCP85XX_CCSRBAR		(CCSRBAR_VA + 0x0)
 #define	OCP85XX_BPTR		(CCSRBAR_VA + 0x20)
@@ -67,36 +71,44 @@ extern vm_offset_t		ccsrbar_va;
 /*
  * Local access registers
  */
-#if defined(QORIQ_DPAA)
 /* Write order: OCP_LAWBARH -> OCP_LAWBARL -> OCP_LAWSR */
 #define	OCP85XX_LAWBARH(n)	(CCSRBAR_VA + 0xc00 + 0x10 * (n))
 #define	OCP85XX_LAWBARL(n)	(CCSRBAR_VA + 0xc04 + 0x10 * (n))
-#define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc08 + 0x10 * (n))
-#else
+#define	OCP85XX_LAWSR_QORIQ(n)	(CCSRBAR_VA + 0xc08 + 0x10 * (n))
 #define	OCP85XX_LAWBAR(n)	(CCSRBAR_VA + 0xc08 + 0x10 * (n))
-#define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc10 + 0x10 * (n))
-#endif
+#define	OCP85XX_LAWSR_85XX(n)	(CCSRBAR_VA + 0xc10 + 0x10 * (n))
+#define	OCP85XX_LAWSR(n)	(mpc85xx_is_qoriq() ? OCP85XX_LAWSR_QORIQ(n) : \
+				 OCP85XX_LAWSR_85XX(n))
 
 /* Attribute register */
 #define	OCP85XX_ENA_MASK	0x80000000
 #define	OCP85XX_DIS_MASK	0x7fffffff
 
-#if defined(QORIQ_DPAA)
-#define	OCP85XX_TGTIF_LBC	0x1f
-#define	OCP85XX_TGTIF_RAM_INTL	0x14
-#define	OCP85XX_TGTIF_RAM1	0x10
-#define	OCP85XX_TGTIF_RAM2	0x11
-#define	OCP85XX_TGTIF_BMAN	0x18
-#define	OCP85XX_TGTIF_DCSR	0x1D
-#define	OCP85XX_TGTIF_QMAN	0x3C
-#define	OCP85XX_TRGT_SHIFT	20
-#else
-#define	OCP85XX_TGTIF_LBC	0x04
-#define	OCP85XX_TGTIF_RAM_INTL	0x0b
-#define	OCP85XX_TGTIF_RIO	0x0c
-#define	OCP85XX_TGTIF_RAM1	0x0f
-#define	OCP85XX_TGTIF_RAM2	0x16
-#endif
+#define	OCP85XX_TGTIF_LBC_QORIQ	0x1f
+#define	OCP85XX_TGTIF_RAM_INTL_QORIQ	0x14
+#define	OCP85XX_TGTIF_RAM1_QORIQ	0x10
+#define	OCP85XX_TGTIF_RAM2_QORIQ	0x11
+#define	OCP85XX_TGTIF_BMAN		0x18
+#define	OCP85XX_TGTIF_DCSR		0x1D
+#define	OCP85XX_TGTIF_QMAN		0x3C
+#define	OCP85XX_TRGT_SHIFT_QORIQ	20
+
+#define	OCP85XX_TGTIF_LBC_85XX	0x04
+#define	OCP85XX_TGTIF_RAM_INTL_85XX	0x0b
+#define	OCP85XX_TGTIF_RIO_85XX	0x0c
+#define	OCP85XX_TGTIF_RAM1_85XX	0x0f
+#define	OCP85XX_TGTIF_RAM2_85XX	0x16
+
+#define	OCP85XX_TGTIF_LBC	\
+    (mpc85xx_is_qoriq() ? OCP85XX_TGTIF_LBC_QORIQ : OCP85XX_TGTIF_LBC_85XX)
+#define	OCP85XX_TGTIF_RAM_INTL	\
+     (mpc85xx_is_qoriq() ? OCP85XX_TGTIF_RAM_INTL_QORIQ : OCP85XX_TGTIF_RAM_INTL_85XX)
+#define	OCP85XX_TGTIF_RIO	\
+      (mpc85xx_is_qoriq() ? OCP85XX_TGTIF_RIO_QORIQ : OCP85XX_TGTIF_RIO_85XX)
+#define	OCP85XX_TGTIF_RAM1	\
+       (mpc85xx_is_qoriq() ? OCP85XX_TGTIF_RAM1_QORIQ : OCP85XX_TGTIF_RAM1_85XX)
+#define	OCP85XX_TGTIF_RAM2	\
+	(mpc85xx_is_qoriq() ? OCP85XX_TGTIF_RAM2_QORIQ : OCP85XX_TGTIF_RAM2_85XX)
 
 /*
  * L2 cache registers
@@ -131,6 +143,13 @@ extern vm_offset_t		ccsrbar_va;
  */
 #define	OCP85XX_RSTCR		(CCSRBAR_VA + 0xe00b0)
 
+#define	OCP85XX_CLKDVDR		(CCSRBAR_VA + 0xe0800)
+#define	  OCP85XX_CLKDVDR_PXCKEN	  0x80000000
+#define	  OCP85XX_CLKDVDR_SSICKEN	  0x20000000
+#define	  OCP85XX_CLKDVDR_PXCKINV	  0x10000000
+#define	  OCP85XX_CLKDVDR_PXCLK_MASK	  0x00FF0000
+#define	  OCP85XX_CLKDVDR_SSICLK_MASK	  0x000000FF
+
 /*
  * Run Control/Power Management Registers.
  */
@@ -151,7 +170,8 @@ DECLARE_CLASS(mpc85xx_platform);
 int mpc85xx_attach(platform_t);
 
 void mpc85xx_enable_l3_cache(void);
-void mpc85xx_fix_errata(vm_offset_t);
-void dataloss_erratum_access(vm_offset_t, uint32_t);
+int mpc85xx_is_qoriq(void);
+uint32_t mpc85xx_get_platform_clock(void);
+uint32_t mpc85xx_get_system_clock(void);
 
 #endif /* _MPC85XX_H_ */

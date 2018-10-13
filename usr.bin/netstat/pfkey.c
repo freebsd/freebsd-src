@@ -1,6 +1,8 @@
 /*	$NetBSD: inet.c,v 1.35.2.1 1999/04/29 14:57:08 perry Exp $	*/
 /*	$KAME: ipsec.c,v 1.25 2001/03/12 09:04:39 itojun Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  *
@@ -40,7 +42,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -101,8 +103,7 @@ static const char *pfkey_msgtype_names (int);
 static const char *
 pfkey_msgtype_names(int x)
 {
-	const int max =
-	    sizeof(pfkey_msgtypenames)/sizeof(pfkey_msgtypenames[0]);
+	const int max = nitems(pfkey_msgtypenames);
 	static char buf[20];
 
 	if (x < max && pfkey_msgtypenames[x])

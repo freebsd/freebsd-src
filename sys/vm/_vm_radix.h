@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -36,20 +38,6 @@
  */
 struct vm_radix {
 	uintptr_t	rt_root;
-	uint8_t		rt_flags;
 };
 
-#define	RT_INSERT_INPROG	0x01
-#define	RT_TRIE_MODIFIED	0x02
-
-#ifdef _KERNEL
-
-static __inline boolean_t
-vm_radix_is_empty(struct vm_radix *rtree)
-{
-
-	return (rtree->rt_root == 0);
-}
-
-#endif /* _KERNEL */
 #endif /* !__VM_RADIX_H_ */

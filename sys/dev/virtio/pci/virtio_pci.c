@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -1087,7 +1089,8 @@ vtpci_set_host_msix_vectors(struct vtpci_softc *sc)
 		 * For shared MSIX, all the virtqueues share the first
 		 * interrupt.
 		 */
-		if ((sc->vtpci_flags & VTPCI_FLAG_SHARED_MSIX) == 0)
+		if (!sc->vtpci_vqs[idx].vtv_no_intr &&
+		    (sc->vtpci_flags & VTPCI_FLAG_SHARED_MSIX) == 0)
 			intr++;
 	}
 

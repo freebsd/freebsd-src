@@ -4,9 +4,117 @@
  *
  ******************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,29 +131,30 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/acconvert.h>
 
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -73,6 +182,11 @@ AcpiDmIsTargetAnOperand (
     ACPI_PARSE_OBJECT       *Operand,
     BOOLEAN                 TopLevel);
 
+static BOOLEAN
+AcpiDmIsOptimizationIgnored (
+    ACPI_PARSE_OBJECT       *StoreOp,
+    ACPI_PARSE_OBJECT       *StoreArgument);
+
 
 /*******************************************************************************
  *
@@ -95,9 +209,10 @@ AcpiDmCheckForSymbolicOpcode (
     ACPI_OP_WALK_INFO       *Info)
 {
     char                    *OperatorSymbol = NULL;
-    ACPI_PARSE_OBJECT       *Child1;
-    ACPI_PARSE_OBJECT       *Child2;
+    ACPI_PARSE_OBJECT       *Argument1;
+    ACPI_PARSE_OBJECT       *Argument2;
     ACPI_PARSE_OBJECT       *Target;
+    ACPI_PARSE_OBJECT       *Target2;
 
 
     /* Exit immediately if ASL+ not enabled */
@@ -109,15 +224,15 @@ AcpiDmCheckForSymbolicOpcode (
 
     /* Get the first operand */
 
-    Child1 = AcpiPsGetArg (Op, 0);
-    if (!Child1)
+    Argument1 = AcpiPsGetArg (Op, 0);
+    if (!Argument1)
     {
         return (FALSE);
     }
 
     /* Get the second operand */
 
-    Child2 = Child1->Common.Next;
+    Argument2 = Argument1->Common.Next;
 
     /* Setup the operator string for this opcode */
 
@@ -165,43 +280,43 @@ AcpiDmCheckForSymbolicOpcode (
 
     /* Logical operators, no target */
 
-    case AML_LAND_OP:
+    case AML_LOGICAL_AND_OP:
         OperatorSymbol = " && ";
         break;
 
-    case AML_LEQUAL_OP:
+    case AML_LOGICAL_EQUAL_OP:
         OperatorSymbol = " == ";
         break;
 
-    case AML_LGREATER_OP:
+    case AML_LOGICAL_GREATER_OP:
         OperatorSymbol = " > ";
         break;
 
-    case AML_LLESS_OP:
+    case AML_LOGICAL_LESS_OP:
         OperatorSymbol = " < ";
         break;
 
-    case AML_LOR_OP:
+    case AML_LOGICAL_OR_OP:
         OperatorSymbol = " || ";
         break;
 
-    case AML_LNOT_OP:
+    case AML_LOGICAL_NOT_OP:
         /*
          * Check for the LNOT sub-opcodes. These correspond to
          * LNotEqual, LLessEqual, and LGreaterEqual. There are
          * no actual AML opcodes for these operators.
          */
-        switch (Child1->Common.AmlOpcode)
+        switch (Argument1->Common.AmlOpcode)
         {
-        case AML_LEQUAL_OP:
+        case AML_LOGICAL_EQUAL_OP:
             OperatorSymbol = " != ";
             break;
 
-        case AML_LGREATER_OP:
+        case AML_LOGICAL_GREATER_OP:
             OperatorSymbol = " <= ";
             break;
 
-        case AML_LLESS_OP:
+        case AML_LOGICAL_LESS_OP:
             OperatorSymbol = " >= ";
             break;
 
@@ -213,19 +328,18 @@ AcpiDmCheckForSymbolicOpcode (
             return (TRUE);
         }
 
-        Child1->Common.DisasmOpcode = ACPI_DASM_LNOT_SUFFIX;
+        Argument1->Common.DisasmOpcode = ACPI_DASM_LNOT_SUFFIX;
         Op->Common.DisasmOpcode = ACPI_DASM_LNOT_PREFIX;
-        Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
 
         /* Save symbol string in the next child (not peer) */
 
-        Child2 = AcpiPsGetArg (Child1, 0);
-        if (!Child2)
+        Argument2 = AcpiPsGetArg (Argument1, 0);
+        if (!Argument2)
         {
             return (FALSE);
         }
 
-        Child2->Common.OperatorSymbol = OperatorSymbol;
+        Argument2->Common.OperatorSymbol = OperatorSymbol;
         return (TRUE);
 
     case AML_INDEX_OP:
@@ -235,10 +349,10 @@ AcpiDmCheckForSymbolicOpcode (
          * the symbolic operators for Index(). It doesn't make sense to
          * use Index() with a constant anyway.
          */
-        if ((Child1->Common.AmlOpcode == AML_STRING_OP)  ||
-            (Child1->Common.AmlOpcode == AML_BUFFER_OP)  ||
-            (Child1->Common.AmlOpcode == AML_PACKAGE_OP) ||
-            (Child1->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
+        if ((Argument1->Common.AmlOpcode == AML_STRING_OP)  ||
+            (Argument1->Common.AmlOpcode == AML_BUFFER_OP)  ||
+            (Argument1->Common.AmlOpcode == AML_PACKAGE_OP) ||
+            (Argument1->Common.AmlOpcode == AML_VARIABLE_PACKAGE_OP))
         {
             Op->Common.DisasmFlags |= ACPI_PARSEOP_CLOSING_PAREN;
             return (FALSE);
@@ -246,8 +360,8 @@ AcpiDmCheckForSymbolicOpcode (
 
         /* Index operator is [] */
 
-        Child1->Common.OperatorSymbol = " [";
-        Child2->Common.OperatorSymbol = "]";
+        Argument1->Common.OperatorSymbol = " [";
+        Argument2->Common.OperatorSymbol = "]";
         break;
 
     /* Unary operators */
@@ -269,7 +383,7 @@ AcpiDmCheckForSymbolicOpcode (
         return (FALSE);
     }
 
-    if (Child1->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX)
+    if (Argument1->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX)
     {
         return (TRUE);
     }
@@ -280,9 +394,9 @@ AcpiDmCheckForSymbolicOpcode (
      * deferring symbol output until after the first operand has been
      * emitted.
      */
-    if (!Child1->Common.OperatorSymbol)
+    if (!Argument1->Common.OperatorSymbol)
     {
-        Child1->Common.OperatorSymbol = OperatorSymbol;
+        Argument1->Common.OperatorSymbol = OperatorSymbol;
     }
 
     /*
@@ -312,22 +426,58 @@ AcpiDmCheckForSymbolicOpcode (
 
         /* Target is 3rd operand */
 
-        Target = Child2->Common.Next;
+        Target = Argument2->Common.Next;
         if (Op->Common.AmlOpcode == AML_DIVIDE_OP)
         {
+            Target2 = Target->Common.Next;
+
             /*
              * Divide has an extra target operand (Remainder).
-             * If this extra target is specified, it cannot be converted
-             * to a C-style operator
+             * Default behavior is to simply ignore ASL+ conversion
+             * if the remainder target (modulo) is specified.
              */
-            if (AcpiDmIsValidTarget (Target))
+            if (!AcpiGbl_DoDisassemblerOptimizations)
             {
-                Child1->Common.OperatorSymbol = NULL;
-                return (FALSE);
-            }
+                if (AcpiDmIsValidTarget (Target))
+                {
+                    Argument1->Common.OperatorSymbol = NULL;
+                    Op->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+                    return (FALSE);
+                }
 
-            Target->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
-            Target = Target->Common.Next;
+                Target->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                Target = Target2;
+            }
+            else
+            {
+                /*
+                 * Divide has an extra target operand (Remainder).
+                 * If both targets are specified, it cannot be converted
+                 * to a C-style operator.
+                 */
+                if (AcpiDmIsValidTarget (Target) &&
+                    AcpiDmIsValidTarget (Target2))
+                {
+                    Argument1->Common.OperatorSymbol = NULL;
+                    Op->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+                    return (FALSE);
+                }
+
+                if (AcpiDmIsValidTarget (Target)) /* Only first Target is valid (remainder) */
+                {
+                    /* Convert the Divide to Modulo */
+
+                    Op->Common.AmlOpcode = AML_MOD_OP;
+
+                    Argument1->Common.OperatorSymbol = " % ";
+                    Target2->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                }
+                else /* Only second Target (quotient) is valid */
+                {
+                    Target->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                    Target = Target2;
+                }
+            }
         }
 
         /* Parser should ensure there is at least a placeholder target */
@@ -371,8 +521,8 @@ AcpiDmCheckForSymbolicOpcode (
              *      Add (B, A, A) --> A += B
              *      Add (B, C, A) --> A = (B + C)
              */
-            if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)) ||
-                (AcpiDmIsTargetAnOperand (Target, Child2, TRUE)))
+            if ((AcpiDmIsTargetAnOperand (Target, Argument1, TRUE)) ||
+                (AcpiDmIsTargetAnOperand (Target, Argument2, TRUE)))
             {
                 Target->Common.OperatorSymbol =
                     AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
@@ -380,7 +530,7 @@ AcpiDmCheckForSymbolicOpcode (
                 /* Convert operator to compound assignment */
 
                 Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
-                Child1->Common.OperatorSymbol = NULL;
+                Argument1->Common.OperatorSymbol = NULL;
                 return (TRUE);
             }
             break;
@@ -400,7 +550,7 @@ AcpiDmCheckForSymbolicOpcode (
              *      Subtract (A, B, A) --> A -= B
              *      Subtract (B, A, A) --> A = (B - A)
              */
-            if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)))
+            if ((AcpiDmIsTargetAnOperand (Target, Argument1, TRUE)))
             {
                 Target->Common.OperatorSymbol =
                     AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
@@ -408,7 +558,7 @@ AcpiDmCheckForSymbolicOpcode (
                 /* Convert operator to compound assignment */
 
                 Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
-                Child1->Common.OperatorSymbol = NULL;
+                Argument1->Common.OperatorSymbol = NULL;
                 return (TRUE);
             }
             break;
@@ -433,11 +583,11 @@ AcpiDmCheckForSymbolicOpcode (
         case AML_BIT_AND_OP:
         case AML_BIT_OR_OP:
         case AML_BIT_XOR_OP:
-        case AML_LAND_OP:
-        case AML_LEQUAL_OP:
-        case AML_LGREATER_OP:
-        case AML_LLESS_OP:
-        case AML_LOR_OP:
+        case AML_LOGICAL_AND_OP:
+        case AML_LOGICAL_EQUAL_OP:
+        case AML_LOGICAL_GREATER_OP:
+        case AML_LOGICAL_LESS_OP:
+        case AML_LOGICAL_OR_OP:
 
             Op->Common.DisasmFlags |= ACPI_PARSEOP_ASSIGNMENT;
             AcpiOsPrintf ("(");
@@ -462,7 +612,7 @@ AcpiDmCheckForSymbolicOpcode (
 
         /* Target is optional, 3rd operand */
 
-        Target = Child2->Common.Next;
+        Target = Argument2->Common.Next;
         if (AcpiDmIsValidTarget (Target))
         {
             AcpiDmPromoteTarget (Op, Target);
@@ -476,12 +626,23 @@ AcpiDmCheckForSymbolicOpcode (
 
     case AML_STORE_OP:
         /*
-         * Target is the 2nd operand.
-         * We know the target is valid, it is not optional.
+         * For Store, the Target is the 2nd operand. We know the target
+         * is valid, because it is not optional.
+         *
+         * Ignore any optimizations/folding if flag is set.
+         * Used for iASL/disassembler test suite only.
+         */
+        if (AcpiDmIsOptimizationIgnored (Op, Argument1))
+        {
+            return (FALSE);
+        }
+
+        /*
+         * Perform conversion.
          * In the parse tree, simply swap the target with the
          * source so that the target is processed first.
          */
-        Target = Child1->Common.Next;
+        Target = Argument1->Common.Next;
         if (!Target)
         {
             return (FALSE);
@@ -498,7 +659,7 @@ AcpiDmCheckForSymbolicOpcode (
 
         /* Target is optional, 2nd operand */
 
-        Target = Child1->Common.Next;
+        Target = Argument1->Common.Next;
         if (!Target)
         {
             return (FALSE);
@@ -523,23 +684,129 @@ AcpiDmCheckForSymbolicOpcode (
         break;
     }
 
-    /*
-     * Nodes marked with ACPI_PARSEOP_PARAMLIST don't need a parens
-     * output here. We also need to check the parent to see if this op
-     * is part of a compound test (!=, >=, <=).
-     */
-    if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) ||
-       ((Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
-        (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX)))
-    {
-        /* Do Nothing. Paren already generated */
-        return (TRUE);
-    }
-
     /* All other operators, emit an open paren */
 
     AcpiOsPrintf ("(");
     return (TRUE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmIsOptimizationIgnored
+ *
+ * PARAMETERS:  StoreOp             - Store operator parse object
+ *              StoreArgument       - Target associate with the Op
+ *
+ * RETURN:      TRUE if this Store operator should not be converted/removed.
+ *
+ * DESCRIPTION: The following function implements "Do not optimize if a
+ *              store is immediately followed by a math/bit operator that
+ *              has no target".
+ *
+ *              Function is ignored if DoDisassemblerOptimizations is TRUE.
+ *              This is the default, ignore this function.
+ *
+ *              Disables these types of optimizations, and simply emits
+ *              legacy ASL code:
+ *                  Store (Add (INT1, 4), INT2) --> Add (INT1, 4, INT2)
+ *                                              --> INT2 = INT1 + 4
+ *
+ *                  Store (Not (INT1), INT2)    --> Not (INT1, INT2)
+ *                                              --> INT2 = ~INT1
+ *
+ *              Used only for the ASL test suite. For the test suite, we
+ *              don't want to perform some optimizations to ensure binary
+ *              compatibility with the generation of the legacy ASL->AML.
+ *              In other words, for all test modules we want exactly:
+ *                  (ASL+ -> AML) == (ASL- -> AML)
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+AcpiDmIsOptimizationIgnored (
+    ACPI_PARSE_OBJECT       *StoreOp,
+    ACPI_PARSE_OBJECT       *StoreArgument)
+{
+    ACPI_PARSE_OBJECT       *Argument1;
+    ACPI_PARSE_OBJECT       *Argument2;
+    ACPI_PARSE_OBJECT       *Target;
+
+
+    /* No optimizations/folding for the typical case */
+
+    if (AcpiGbl_DoDisassemblerOptimizations)
+    {
+        return (FALSE);
+    }
+
+    /*
+     * Only a small subset of ASL/AML operators can be optimized.
+     * Can only optimize/fold if there is no target (or targets)
+     * specified for the operator. And of course, the operator
+     * is surrrounded by a Store() operator.
+     */
+    switch (StoreArgument->Common.AmlOpcode)
+    {
+    case AML_ADD_OP:
+    case AML_SUBTRACT_OP:
+    case AML_MULTIPLY_OP:
+    case AML_MOD_OP:
+    case AML_SHIFT_LEFT_OP:
+    case AML_SHIFT_RIGHT_OP:
+    case AML_BIT_AND_OP:
+    case AML_BIT_OR_OP:
+    case AML_BIT_XOR_OP:
+    case AML_INDEX_OP:
+
+        /* These operators have two arguments and one target */
+
+        Argument1 = StoreArgument->Common.Value.Arg;
+        Argument2 = Argument1->Common.Next;
+        Target = Argument2->Common.Next;
+
+        if (!AcpiDmIsValidTarget (Target))
+        {
+            StoreOp->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+            return (TRUE);
+        }
+        break;
+
+    case AML_DIVIDE_OP:
+
+        /* This operator has two arguments and two targets */
+
+        Argument1 = StoreArgument->Common.Value.Arg;
+        Argument2 = Argument1->Common.Next;
+        Target = Argument2->Common.Next;
+
+        if (!AcpiDmIsValidTarget (Target) ||
+            !AcpiDmIsValidTarget (Target->Common.Next))
+        {
+            StoreOp->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+            return (TRUE);
+        }
+        break;
+
+    case AML_BIT_NOT_OP:
+
+        /* This operator has one operand and one target */
+
+        Argument1 = StoreArgument->Common.Value.Arg;
+        Target = Argument1->Common.Next;
+
+        if (!AcpiDmIsValidTarget (Target))
+        {
+            StoreOp->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+            return (TRUE);
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    return (FALSE);
 }
 
 
@@ -561,13 +828,20 @@ void
 AcpiDmCloseOperator (
     ACPI_PARSE_OBJECT       *Op)
 {
-    BOOLEAN                 IsCStyleOp = FALSE;
 
     /* Always emit paren if ASL+ disassembly disabled */
 
     if (!AcpiGbl_CstyleDisassembly)
     {
         AcpiOsPrintf (")");
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
+        return;
+    }
+
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_LEGACY_ASL_ONLY)
+    {
+        AcpiOsPrintf (")");
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
         return;
     }
 
@@ -585,16 +859,17 @@ AcpiDmCloseOperator (
     case AML_BIT_AND_OP:
     case AML_BIT_OR_OP:
     case AML_BIT_XOR_OP:
-    case AML_LAND_OP:
-    case AML_LEQUAL_OP:
-    case AML_LGREATER_OP:
-    case AML_LLESS_OP:
-    case AML_LOR_OP:
+    case AML_LOGICAL_AND_OP:
+    case AML_LOGICAL_EQUAL_OP:
+    case AML_LOGICAL_GREATER_OP:
+    case AML_LOGICAL_LESS_OP:
+    case AML_LOGICAL_OR_OP:
 
         /* Emit paren only if this is not a compound assignment */
 
         if (Op->Common.DisasmFlags & ACPI_PARSEOP_COMPOUND_ASSIGNMENT)
         {
+            ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
             return;
         }
 
@@ -604,8 +879,6 @@ AcpiDmCloseOperator (
         {
             AcpiOsPrintf (")");
         }
-
-        IsCStyleOp = TRUE;
         break;
 
     case AML_INDEX_OP:
@@ -616,15 +889,17 @@ AcpiDmCloseOperator (
         {
             AcpiOsPrintf (")");
         }
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
         return;
 
     /* No need for parens for these */
 
     case AML_DECREMENT_OP:
     case AML_INCREMENT_OP:
-    case AML_LNOT_OP:
+    case AML_LOGICAL_NOT_OP:
     case AML_BIT_NOT_OP:
     case AML_STORE_OP:
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
         return;
 
     default:
@@ -633,20 +908,9 @@ AcpiDmCloseOperator (
         break;
     }
 
-    /*
-     * Nodes marked with ACPI_PARSEOP_PARAMLIST don't need a parens
-     * output here. We also need to check the parent to see if this op
-     * is part of a compound test (!=, >=, <=).
-     */
-    if (IsCStyleOp &&
-       ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) ||
-       ((Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
-        (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX))))
-    {
-        return;
-    }
-
     AcpiOsPrintf (")");
+    ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
+
     return;
 }
 

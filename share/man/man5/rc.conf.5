@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2016
+.Dd August 22, 2018
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -63,6 +63,9 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
 .Pp
 In addition to
 .Pa /etc/rc.conf.local
@@ -182,7 +185,7 @@ Enabling this option is likely to increase your boot time if
 services are enabled that utilize the force_depend check.
 .It Ao Ar name Ac Ns Va _chroot
 .Pq Vt str
-.Xr chroot
+.Xr chroot 8
 to this directory before running the service.
 .It Ao Ar name Ac Ns Va _user
 .Pq Vt str
@@ -418,6 +421,9 @@ If
 .Xr dhclient 8
 is used to set the hostname via DHCP,
 this variable should be set to an empty string.
+Within a
+.Xr jail 8
+the hostname is generally already set and this variable may absent.
 If this value remains unset when the system is done booting
 your console login will display the default hostname of
 .Dq Amnesiac .
@@ -591,6 +597,44 @@ module if
 is also set to
 .Dq Li YES .
 .\" -------------------------------------------------------------------
+.It Va ipfw_netflow_enable
+.Pq Vt bool
+Setting this to
+.Dq Li YES
+will enable netflow logging via
+.Xr ng_netflow 4
+.Pp
+By default a ipfw rule is inserted and all packets are duplicated with
+the ngtee command and netflow packets are sent to 127.0.0.1 on the netflow
+port using protocol version 5.
+.It Va ipfw_netflow_hook
+.Pq Vt int
+netflow hook name, must be numerical
+(default
+.Pa 9995 ) .
+.It Va ipfw_netflow_rule
+.Pq Vt int
+ipfw rule number
+(default
+.Pa 1000 ) .
+.It Va ipfw_netflow_ip
+.Pq Vt str
+Destination server ip for receiving netflow data
+(default
+.Pa 127.0.0.1 ) .
+.It Va ipfw_netflow_port
+.Pq Vt int
+Destination server port for receiving netflow data
+(default
+.Pa 9995 ) .
+.It Va ipfw_netflow_version
+.Pq Vt int
+Do not set for using version 5 of the netflow protocol, set it to 9 for using version 9.
+.It Va ipfw_netflow_fib
+.Pq Vt int
+Only match packet in FIB
+.Pa ipfw_netflow_fib
+(default is undefined meaning all FIBs).
 .It Va natd_program
 .Pq Vt str
 Path to
@@ -948,7 +992,7 @@ is set to the list of
 instances that should be started at system boot time.
 If
 .Va pflog_instances
-is set, for each whitespace-seperated
+is set, for each whitespace-separated
 .Ar element
 in the list,
 .Ao Ar element Ac Ns Va _dev
@@ -990,7 +1034,7 @@ If multiple instances of
 .Xr ftp-proxy 8
 are desired at boot time,
 .Va ftpproxy_instances
-should contain a whitespace-seperated list of instance names.
+should contain a whitespace-separated list of instance names.
 For each
 .Ar element
 in the list, a variable named
@@ -1575,6 +1619,23 @@ is set to 1.
 .Pp
 Default is
 .Dq Li NO .
+.It Va ifconfig_ Ns Ao Ar interface Ac Ns _descr
+.Pq Vt str
+This assigns arbitrary description to an interface.
+The
+.Xr sysctl 8
+variable
+.Va net.ifdescr_maxlen
+limits its length.
+This static setting may be overridden by commands
+started with dynamic interface configuration utilities
+like
+.Xr dhclient 8
+hooks. The description can be seen with
+.Xr ifconfig 8
+command and it may be exported with
+.Xr bsnmpd 1
+daemon using its MIB-2 module.
 .It Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 .Pq Vt str
 IPv6 functionality on an interface should be configured by
@@ -1758,21 +1819,40 @@ This variable is deprecated in favor of
 Set to the list of
 .Xr gif 4
 tunnel interfaces to configure on this host.
-A
-.Va gifconfig_ Ns Aq Ar interface
-variable is assumed to exist for each value of
-.Ar interface .
+For each
+.Xr gif
+tunnel interface, set a variable named
+.Va ifconfig_ Ns Aq Ar interface
+with the parameters for the
+.Xr ifconfig 8
+command to configure the link level for
+.Ar interface
+with the
+.Cm tunnel
+option.
 The value of this variable is used to configure the link layer of the
-tunnel according to the syntax of the
+tunnel using the
 .Cm tunnel
 option to
-.Xr ifconfig 8 .
+.Xr ifconfig .
+For example, configure two
+.Xr gif
+interfaces with:
+.Bd -literal -offset indent
+gif_interfaces="gif0 gif1"
+ifconfig_gif0="tunnel src_addr0 dst_addr0"
+ifconfig_gif1="tunnel src_addr1 dst_addr1"
+.Ed
+.Pp
 Additionally, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
-.Xr ifconfig 8
-before attempting to configure it.
+.Xr ifconfig .
+This example also works with
+.Va cloned_interfaces
+instead of
+.Va gif_interfaces .
 .It Va sppp_interfaces
 .Pq Vt str
 Set to the list of
@@ -1931,6 +2011,13 @@ List of devices to automatically attach on boot.
 Note that .eli devices from
 .Pa /etc/fstab
 are automatically appended to this list.
+.It Va geli_groups
+.Pq Vt str
+List of groups containing devices to automatically attach on boot with the same
+keyfiles and passphrase.
+This must be accompanied with a corresponding
+.Va geli_ Ns Ao Ar group Ac Ns Va _devices
+variable.
 .It Va geli_tries
 .Pq Vt int
 Number of times user is asked for the pass-phrase.
@@ -1942,8 +2029,10 @@ sysctl variable.
 Default flags to use by
 .Xr geli 8
 when configuring disk encryption.
-Flags can be configured for every device separately by defining
+Flags can be configured for every device separately by defining the
 .Va geli_ Ns Ao Ar device Ac Ns Va _flags
+variable, and for every group separately by defining the
+.Va geli_ Ns Ao Ar group Ac Ns Va _flags
 variable.
 .It Va geli_autodetach
 .Pq Vt str
@@ -1951,7 +2040,7 @@ Specifies if GELI devices should be marked for detach on last close after
 file systems are mounted.
 Default is
 .Dq Li YES .
-This can be changed for every device separately by defining
+This can be changed for every device separately by defining the
 .Va geli_ Ns Ao Ar device Ac Ns Va _autodetach
 variable.
 .It Va root_rw_mount
@@ -1979,8 +2068,8 @@ of the file systems fails.
 .It Va background_fsck
 .Pq Vt bool
 If set to
-.Dq Li YES ,
-the system will attempt to run
+.Dq Li NO ,
+the system will not attempt to run
 .Xr fsck 8
 in the background where possible.
 .It Va background_fsck_delay
@@ -2473,6 +2562,14 @@ This command is intended to
 synchronize the system clock only
 .Em once
 from some standard reference.
+.Pp
+Note that the use of the
+.Va ntpd_sync_on_start
+variable is a preferred alternative to the
+.Xr ntpdate 8
+utility as
+.Xr ntpdate 8
+is to be retired from the NTP distribution.
 .It Va ntpdate_config
 .Pq Vt str
 Configuration file for
@@ -2753,19 +2850,6 @@ variable is assumed to exist
 whose contents will later be passed to a
 .Dq Nm route Cm add Fl inet6
 operation.
-.It Va natm_static_routes
-.Pq Vt str
-The
-.Xr natmip 4
-equivalent of
-.Va static_routes .
-If not empty then for each whitespace separated
-.Ar element
-in the value, a
-.Va route_ Ns Aq Ar element
-variable is assumed to exist whose contents will later be passed to a
-.Dq Nm atmconfig Cm natm Cm add
-operation.
 .It Va gateway_enable
 .Pq Vt bool
 If set to
@@ -2818,35 +2902,6 @@ these are the flags to pass to the routing daemon.
 .Pq Vt str
 The IPv6 equivalent of
 .Va routed_flags .
-.It Va mroute6d_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the IPv6 multicast routing daemon.
-.Pp
-Note that multicast routing daemons are no longer included in the
-.Fx
-base system, however, both
-.Xr mrouted 8
-and
-.Xr pim6dd 8
-may be installed from the
-.Fx
-Ports Collection.
-.It Va mroute6d_flags
-.Pq Vt str
-If
-.Va mroute6d_enable
-is set to
-.Dq Li YES ,
-these are the flags passed to the IPv6 multicast routing daemon.
-.It Va mroute6d_program
-.Pq Vt str
-If
-.Va mroute6d_enable
-is set to
-.Dq Li YES ,
-this is the path to the IPv6 multicast routing daemon.
 .It Va rtadvd_enable
 .Pq Vt bool
 If set to
@@ -2975,136 +3030,6 @@ is mutually exclusive to
 .Va rtsol_flags ;
 .Va rtsold_enable
 takes precedence.
-.It Va atm_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to enable the configuration of ATM interfaces at system boot time.
-For all of the ATM variables described below, please refer to the
-.Xr atm 8
-manual page for further details on the available command parameters.
-Also refer to the files in
-.Pa /usr/share/examples/atm
-for more detailed configuration information.
-.It Va atm_load
-.Pq Vt str
-This is a list of physical ATM interface drivers to load.
-Typical values are
-.Dq Li hfa_pci
-and/or
-.Dq Li hea_pci .
-.It Va atm_netif_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the name prefix and count for the ATM network
-interfaces to be created.
-The value will be passed as the parameters of an
-.Dq Nm atm Cm "set netif" Ar intf
-command.
-.It Va atm_sigmgr_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the ATM signalling manager to be used.
-The value will be passed as the parameters of an
-.Dq Nm atm Cm attach Ar intf
-command.
-.It Va atm_prefix_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the NSAP prefix for interfaces using a UNI signalling
-manager.
-If set to
-.Dq Li ILMI ,
-the prefix will automatically be set via the
-.Xr ilmid 8
-daemon.
-Otherwise, the value will be passed as the parameters of an
-.Dq Nm atm Cm "set prefix" Ar intf
-command.
-.It Va atm_macaddr_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the MAC address for interfaces using a UNI signalling
-manager.
-If set to
-.Dq Li NO ,
-the hardware MAC address contained in the ATM interface card will be used.
-Otherwise, the value will be passed as the parameters of an
-.Dq Nm atm Cm "set mac" Ar intf
-command.
-.It Va atm_arpserver_ Ns Aq Ar netif
-.Pq Vt str
-For the ATM network interface
-.Ar netif ,
-this variable defines the ATM address for a host which is to provide ATMARP
-service.
-This variable is only applicable to interfaces using a UNI signalling
-manager.
-If set to
-.Dq Li local ,
-this host will become an ATMARP server.
-The value will be passed as the parameters of an
-.Dq Nm atm Cm "set arpserver" Ar netif
-command.
-.It Va atm_scsparp_ Ns Aq Ar netif
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-SCSP/ATMARP service for the network interface
-.Ar netif
-will be initiated using the
-.Xr scspd 8
-and
-.Xr atmarpd 8
-daemons.
-This variable is only applicable if
-.Va atm_arpserver_ Ns Aq Ar netif
-is set to
-.Dq Li local .
-.It Va atm_pvcs
-.Pq Vt str
-Set to the list of ATM PVCs to be added at system
-boot time.
-For each whitespace separated
-.Ar element
-in the value, an
-.Va atm_pvc_ Ns Aq Ar element
-variable is assumed to exist.
-The value of each of these variables
-will be passed as the parameters of an
-.Dq Nm atm Cm "add pvc"
-command.
-.It Va atm_arps
-.Pq Vt str
-Set to the list of permanent ATM ARP entries to be added
-at system boot time.
-For each whitespace separated
-.Ar element
-in the value, an
-.Va atm_arp_ Ns Aq Ar element
-variable is assumed to exist.
-The value of each of these variables
-will be passed as the parameters of an
-.Dq Nm atm Cm "add arp"
-command.
-.It Va natm_interfaces
-.Pq Vt str
-Set to the list of
-.Xr natm 4
-interfaces that will also be used for HARP through
-.Xr harp 4 .
-If this list is not empty all interfaces in the list will be brought up
-with
-.Xr ifconfig 8
-and
-.Xr harp 4
-will be loaded.
-For this to work the interface drivers must be either compiled into the
-kernel or must reside on the root partition.
 .It Va keybell
 .Pq Vt str
 The keyboard bell sound.
@@ -3511,6 +3436,13 @@ Otherwise, the value of this variable is passed as the argument to
 .Xr dumpon 8 .
 To disable crash dumps, set this variable to
 .Dq Li NO .
+.It Va dumpon_flags
+.Pq Vt str
+Flags to pass to
+.Xr dumpon 8
+when configuring
+.Va dumpdev
+as the system dump device.
 .It Va dumpdir
 .Pq Vt str
 When the system reboots after a crash and a crash dump is found on the
@@ -3648,11 +3580,6 @@ Set to
 .Dq Li YES
 to enable Linux/ELF binary emulation at system initial
 boot time.
-.It Va svr4_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable SysVR4 emulation at boot time.
 .It Va sysvipc_enable
 .Pq Vt bool
 If set to
@@ -4572,6 +4499,18 @@ The default is
 which configures sessions based on the
 .Pa /etc/iscsi.conf
 configuration file.
+.It Va cfumass_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+create and export an USB LUN using
+.Xr cfumass 4
+at boot time.
+.It Va cfumass_dir
+.Pq Vt str
+The directory where the files exported by USB LUN are located.
+The default directory is
+.Pa /var/cfumass .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4580,7 +4519,6 @@ configuration file.
 .It Pa /etc/rc.conf.local
 .El
 .Sh SEE ALSO
-.Xr catman 1 ,
 .Xr chmod 1 ,
 .Xr gdb 1 ,
 .Xr info 1 ,
@@ -4614,7 +4552,6 @@ configuration file.
 .Xr accton 8 ,
 .Xr amd 8 ,
 .Xr apm 8 ,
-.Xr atm 8 ,
 .Xr bsdinstall 8 ,
 .Xr bthidd 8 ,
 .Xr chkprintcap 8 ,
@@ -4666,6 +4603,7 @@ configuration file.
 .Xr swapon 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
+.Xr sysrc 8 ,
 .Xr timed 8 ,
 .Xr unbound 8 ,
 .Xr usbconfig 8 ,

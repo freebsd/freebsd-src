@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -50,7 +52,7 @@ refcount_acquire(volatile u_int *count)
 {
 
 	KASSERT(*count < UINT_MAX, ("refcount %p overflowed", count));
-	atomic_add_acq_int(count, 1);	
+	atomic_add_int(count, 1);
 }
 
 static __inline int
@@ -58,10 +60,51 @@ refcount_release(volatile u_int *count)
 {
 	u_int old;
 
-	/* XXX: Should this have a rel membar? */
+	atomic_thread_fence_rel();
 	old = atomic_fetchadd_int(count, -1);
 	KASSERT(old > 0, ("negative refcount %p", count));
-	return (old == 1);
+	if (old > 1)
+		return (0);
+
+	/*
+	 * Last reference.  Signal the user to call the destructor.
+	 *
+	 * Ensure that the destructor sees all updates.  The fence_rel
+	 * at the start of the function synchronized with this fence.
+	 */
+	atomic_thread_fence_acq();
+	return (1);
+}
+
+/*
+ * A temporary hack until refcount_* APIs are sorted out.
+ */
+static __inline int
+refcount_acquire_if_not_zero(volatile u_int *count)
+{
+	u_int old;
+
+	old = *count;
+	for (;;) {
+		if (old == 0)
+			return (0);
+		if (atomic_fcmpset_int(count, &old, old + 1))
+			return (1);
+	}
+}
+
+static __inline int
+refcount_release_if_not_last(volatile u_int *count)
+{
+	u_int old;
+
+	old = *count;
+	for (;;) {
+		if (old == 1)
+			return (0);
+		if (atomic_fcmpset_int(count, &old, old - 1))
+			return (1);
+	}
 }
 
 #endif	/* ! __SYS_REFCOUNT_H__ */

@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 LSI Corp. 
  * All rights reserved.
  * Author : Manjunath Ranganathaiah <manjunath.ranganathaiah@lsi.com>
@@ -309,9 +311,9 @@ tws_action(struct cam_sim *sim, union ccb *ccb)
             ccb->cpi.bus_id = cam_sim_bus(sim);
             ccb->cpi.initiator_id = TWS_SCSI_INITIATOR_ID;
             ccb->cpi.base_transfer_speed = 6000000;
-            strncpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
-            strncpy(ccb->cpi.hba_vid, "3ware", HBA_IDLEN);
-            strncpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
+            strlcpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
+            strlcpy(ccb->cpi.hba_vid, "3ware", HBA_IDLEN);
+            strlcpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
 #if (__FreeBSD_version >= 700000 )
             ccb->cpi.transport = XPORT_SPI;
             ccb->cpi.transport_version = 2;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008,	Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -35,7 +37,6 @@
 #include <sys/_cpuset.h>
 
 #include <sys/bitset.h>
-#include <sys/queue.h>
 
 #define	_NCPUBITS	_BITSET_BITS
 #define	_NCPUWORDS	__bitset_words(CPU_SETSIZE)
@@ -84,6 +85,8 @@
 #define	CPU_WHICH_IRQ		4	/* Specifies an irq #. */
 #define	CPU_WHICH_JAIL		5	/* Specifies a jail id. */
 #define	CPU_WHICH_DOMAIN	6	/* Specifies a NUMA domain id. */
+#define	CPU_WHICH_INTRHANDLER	7	/* Specifies an irq # (not ithread). */
+#define	CPU_WHICH_ITHREAD	8	/* Specifies an irq's ithread. */
 
 /*
  * Reserved cpuset identifiers.
@@ -92,6 +95,8 @@
 #define	CPUSET_DEFAULT	0
 
 #ifdef _KERNEL
+#include <sys/queue.h>
+
 LIST_HEAD(setlist, cpuset);
 
 /*
@@ -107,6 +112,7 @@ LIST_HEAD(setlist, cpuset);
  */
 struct cpuset {
 	cpuset_t		cs_mask;	/* bitmask of valid cpus. */
+	struct domainset	*cs_domain;	/* (c) NUMA policy. */
 	volatile u_int		cs_ref;		/* (a) Reference count. */
 	int			cs_flags;	/* (s) Flags from below. */
 	cpusetid_t		cs_id;		/* (s) Id or INVALID. */
@@ -133,6 +139,7 @@ int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
 int	cpuset_which(cpuwhich_t, id_t, struct proc **,
 	    struct thread **, struct cpuset **);
+void	cpuset_kernthread(struct thread *);
 
 char	*cpusetobj_strprint(char *, const cpuset_t *);
 int	cpusetobj_strscan(cpuset_t *, const char *);

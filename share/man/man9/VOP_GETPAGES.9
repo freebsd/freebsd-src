@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2015
+.Dd May 7, 2017
 .Dt VOP_GETPAGES 9
 .Os
 .Sh NAME
@@ -41,9 +41,21 @@
 .In sys/vnode.h
 .In vm/vm.h
 .Ft int
-.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int *rbehind" "int *rahead"
+.Fo VOP_GETPAGES
+.Fa "struct vnode *vp"
+.Fa "vm_page_t *ma"
+.Fa "int count"
+.Fa "int *rbehind"
+.Fa "int *rahead"
+.Fc
 .Ft int
-.Fn VOP_PUTPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int sync" "int *rtvals"
+.Fo VOP_PUTPAGES
+.Fa "struct vnode *vp"
+.Fa "vm_page_t *ma"
+.Fa "int bytecount"
+.Fa "int flags"
+.Fa "int *rtvals"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn VOP_GETPAGES
@@ -70,10 +82,32 @@ The file to access.
 Pointer to the first element of an array of pages representing a
 contiguous region of the file to be read or written.
 .It Fa count
-The number of bytes that should be read into the pages of the array.
-.It Fa sync
+The length of the
+.Fa ma
+array.
+.It Fa bytecount
+The number of bytes that should be written from the pages of the array.
+.It Fa flags
+A bitfield of flags affecting the function operation.
+If
 .Dv VM_PAGER_PUT_SYNC
-if the write should be synchronous.
+is set, the write should be synchronous; control must not be returned
+to the caller until after the write is finished.
+If
+.Dv VM_PAGER_PUT_INVAL
+is set, the pages are to be invalidated after being written.
+If
+.Dv VM_PAGER_PUT_NOREUSE
+is set, the I/O performed should set the IO_NOREUSE flag, to indicate
+to the filesystem that pages should be marked for fast reuse if needed.
+This could occur via a call to
+.Xr vm_page_deactivate_noreuse 9 ,
+which puts such pages onto the head of the inactive queue.
+If
+.Dv VM_PAGER_CLUSTER_OK
+is set, writes may be performed asynchronously, so that related writes
+can be coalesced for efficiency, e.g.,
+using the clustering mechanism of the buffer cache.
 .It Fa rtvals
 An array of VM system result codes indicating the status of each
 page written by
@@ -127,32 +161,33 @@ The page was not handled by this request.
 .Pp
 The
 .Fn VOP_GETPAGES
-method is expected to release any pages in
+method must populate and validate all requested pages in order to
+return success.
+It is expected to release any pages in
 .Fa ma
 that it does not successfully handle, by calling
 .Xr vm_page_free 9 .
 When it succeeds,
 .Fn VOP_GETPAGES
 must set the valid bits appropriately.
+Upon entry to
+.Fn VOP_GETPAGES ,
+all pages in
+.Fa ma
+are busied exclusively.
+Upon successful return, the pages must all be busied exclusively
+as well, but pages may be unbusied during processing.
+The filesystem is responsible for activating paged-out pages, but this
+does not necessarily need to be done within
 .Fn VOP_GETPAGES
-must keep
-.Fa reqpage
-busy.
-It must unbusy all other successfully handled pages and put them
-on appropriate page queue(s).
-For example,
-.Fn VOP_GETPAGES
-may either activate a page (if its wanted bit is set)
-or deactivate it (otherwise), and finally call
-.Xr vm_page_xunbusy 9
-to arouse any threads currently waiting for the page to be faulted in.
+depending on the architecture of the particular filesystem.
 .Sh RETURN VALUES
-If it successfully reads
-.Fa ma[reqpage] ,
+If it successfully reads all pages in
+.Fa ma ,
 .Fn VOP_GETPAGES
 returns
 .Dv VM_PAGER_OK ;
-otherwise,
+otherwise, it returns
 .Dv VM_PAGER_ERROR .
 By convention, the return value of
 .Fn VOP_PUTPAGES

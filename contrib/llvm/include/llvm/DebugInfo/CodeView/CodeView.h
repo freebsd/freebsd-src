@@ -6,15 +6,170 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+//
+// Defines constants and basic types describing CodeView debug information.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_DEBUGINFO_CODEVIEW_CODEVIEW_H
 #define LLVM_DEBUGINFO_CODEVIEW_CODEVIEW_H
 
 #include <cinttypes>
+#include <type_traits>
+
+#include "llvm/Support/Endian.h"
 
 namespace llvm {
 namespace codeview {
 
+/// Distinguishes individual records in .debug$T section or PDB type stream. The
+/// documentation and headers talk about this as the "leaf" type.
+enum class TypeRecordKind : uint16_t {
+#define TYPE_RECORD(lf_ename, value, name) name = value,
+#include "CodeViewTypes.def"
+};
+
+/// Duplicate copy of the above enum, but using the official CV names. Useful
+/// for reference purposes and when dealing with unknown record types.
+enum TypeLeafKind : uint16_t {
+#define CV_TYPE(name, val) name = val,
+#include "CodeViewTypes.def"
+};
+
+/// Distinguishes individual records in the Symbols subsection of a .debug$S
+/// section. Equivalent to SYM_ENUM_e in cvinfo.h.
+enum class SymbolRecordKind : uint16_t {
+#define SYMBOL_RECORD(lf_ename, value, name) name = value,
+#include "CodeViewSymbols.def"
+};
+
+/// Duplicate copy of the above enum, but using the official CV names. Useful
+/// for reference purposes and when dealing with unknown record types.
+enum SymbolKind : uint16_t {
+#define CV_SYMBOL(name, val) name = val,
+#include "CodeViewSymbols.def"
+};
+
+#define CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(Class)                            \
+  inline Class operator|(Class a, Class b) {                                   \
+    return static_cast<Class>(                                                 \
+        static_cast<std::underlying_type<Class>::type>(a) |                    \
+        static_cast<std::underlying_type<Class>::type>(b));                    \
+  }                                                                            \
+  inline Class operator&(Class a, Class b) {                                   \
+    return static_cast<Class>(                                                 \
+        static_cast<std::underlying_type<Class>::type>(a) &                    \
+        static_cast<std::underlying_type<Class>::type>(b));                    \
+  }                                                                            \
+  inline Class operator~(Class a) {                                            \
+    return static_cast<Class>(                                                 \
+        ~static_cast<std::underlying_type<Class>::type>(a));                   \
+  }                                                                            \
+  inline Class &operator|=(Class &a, Class b) {                                \
+    a = a | b;                                                                 \
+    return a;                                                                  \
+  }                                                                            \
+  inline Class &operator&=(Class &a, Class b) {                                \
+    a = a & b;                                                                 \
+    return a;                                                                  \
+  }
+
+/// These values correspond to the CV_CPU_TYPE_e enumeration, and are documented
+/// here: https://msdn.microsoft.com/en-us/library/b2fc64ek.aspx
+enum class CPUType : uint16_t {
+  Intel8080 = 0x0,
+  Intel8086 = 0x1,
+  Intel80286 = 0x2,
+  Intel80386 = 0x3,
+  Intel80486 = 0x4,
+  Pentium = 0x5,
+  PentiumPro = 0x6,
+  Pentium3 = 0x7,
+  MIPS = 0x10,
+  MIPS16 = 0x11,
+  MIPS32 = 0x12,
+  MIPS64 = 0x13,
+  MIPSI = 0x14,
+  MIPSII = 0x15,
+  MIPSIII = 0x16,
+  MIPSIV = 0x17,
+  MIPSV = 0x18,
+  M68000 = 0x20,
+  M68010 = 0x21,
+  M68020 = 0x22,
+  M68030 = 0x23,
+  M68040 = 0x24,
+  Alpha = 0x30,
+  Alpha21164 = 0x31,
+  Alpha21164A = 0x32,
+  Alpha21264 = 0x33,
+  Alpha21364 = 0x34,
+  PPC601 = 0x40,
+  PPC603 = 0x41,
+  PPC604 = 0x42,
+  PPC620 = 0x43,
+  PPCFP = 0x44,
+  PPCBE = 0x45,
+  SH3 = 0x50,
+  SH3E = 0x51,
+  SH3DSP = 0x52,
+  SH4 = 0x53,
+  SHMedia = 0x54,
+  ARM3 = 0x60,
+  ARM4 = 0x61,
+  ARM4T = 0x62,
+  ARM5 = 0x63,
+  ARM5T = 0x64,
+  ARM6 = 0x65,
+  ARM_XMAC = 0x66,
+  ARM_WMMX = 0x67,
+  ARM7 = 0x68,
+  ARM64 = 0x69,
+  Omni = 0x70,
+  Ia64 = 0x80,
+  Ia64_2 = 0x81,
+  CEE = 0x90,
+  AM33 = 0xa0,
+  M32R = 0xb0,
+  TriCore = 0xc0,
+  X64 = 0xd0,
+  EBC = 0xe0,
+  Thumb = 0xf0,
+  ARMNT = 0xf4,
+  D3D11_Shader = 0x100,
+};
+
+/// These values correspond to the CV_CFL_LANG enumeration, and are documented
+/// here: https://msdn.microsoft.com/en-us/library/bw3aekw6.aspx
+enum SourceLanguage : uint8_t {
+  C = 0x00,
+  Cpp = 0x01,
+  Fortran = 0x02,
+  Masm = 0x03,
+  Pascal = 0x04,
+  Basic = 0x05,
+  Cobol = 0x06,
+  Link = 0x07,
+  Cvtres = 0x08,
+  Cvtpgd = 0x09,
+  CSharp = 0x0a,
+  VB = 0x0b,
+  ILAsm = 0x0c,
+  Java = 0x0d,
+  JScript = 0x0e,
+  MSIL = 0x0f,
+  HLSL = 0x10,
+
+  /// The DMD compiler emits 'D' for the CV source language. Microsoft doesn't
+  /// have an enumerator for it yet.
+  D = 'D',
+};
+
+/// These values correspond to the CV_call_e enumeration, and are documented
+/// at the following locations:
+///   https://msdn.microsoft.com/en-us/library/b2fc64ek.aspx
+///   https://msdn.microsoft.com/en-us/library/windows/desktop/ms680207(v=vs.85).aspx
+///
 enum class CallingConvention : uint8_t {
   NearC = 0x00,       // near right to left push, caller pops stack
   FarC = 0x01,        // far right to left push, caller pops stack
@@ -58,20 +213,7 @@ enum class ClassOptions : uint16_t {
   Sealed = 0x0400,
   Intrinsic = 0x2000
 };
-
-inline ClassOptions operator|(ClassOptions a, ClassOptions b) {
-  return static_cast<ClassOptions>(static_cast<uint16_t>(a) |
-                                   static_cast<uint16_t>(b));
-}
-
-inline ClassOptions operator&(ClassOptions a, ClassOptions b) {
-  return static_cast<ClassOptions>(static_cast<uint16_t>(a) &
-                                   static_cast<uint16_t>(b));
-}
-
-inline ClassOptions operator~(ClassOptions a) {
-  return static_cast<ClassOptions>(~static_cast<uint16_t>(a));
-}
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(ClassOptions)
 
 enum class FrameProcedureOptions : uint32_t {
   None = 0x00000000,
@@ -95,22 +237,7 @@ enum class FrameProcedureOptions : uint32_t {
   GuardCfg = 0x00200000,
   GuardCfw = 0x00400000
 };
-
-inline FrameProcedureOptions operator|(FrameProcedureOptions a,
-                                       FrameProcedureOptions b) {
-  return static_cast<FrameProcedureOptions>(static_cast<uint32_t>(a) |
-                                            static_cast<uint32_t>(b));
-}
-
-inline FrameProcedureOptions operator&(FrameProcedureOptions a,
-                                       FrameProcedureOptions b) {
-  return static_cast<FrameProcedureOptions>(static_cast<uint32_t>(a) &
-                                            static_cast<uint32_t>(b));
-}
-
-inline FrameProcedureOptions operator~(FrameProcedureOptions a) {
-  return static_cast<FrameProcedureOptions>(~static_cast<uint32_t>(a));
-}
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(FrameProcedureOptions)
 
 enum class FunctionOptions : uint8_t {
   None = 0x00,
@@ -118,20 +245,7 @@ enum class FunctionOptions : uint8_t {
   Constructor = 0x02,
   ConstructorWithVirtualBases = 0x04
 };
-
-inline FunctionOptions operator|(FunctionOptions a, FunctionOptions b) {
-  return static_cast<FunctionOptions>(static_cast<uint8_t>(a) |
-                                      static_cast<uint8_t>(b));
-}
-
-inline FunctionOptions operator&(FunctionOptions a, FunctionOptions b) {
-  return static_cast<FunctionOptions>(static_cast<uint8_t>(a) &
-                                      static_cast<uint8_t>(b));
-}
-
-inline FunctionOptions operator~(FunctionOptions a) {
-  return static_cast<FunctionOptions>(~static_cast<uint8_t>(a));
-}
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(FunctionOptions)
 
 enum class HfaKind : uint8_t {
   None = 0x00,
@@ -140,6 +254,7 @@ enum class HfaKind : uint8_t {
   Other = 0x03
 };
 
+/// Source-level access specifier. (CV_access_e)
 enum class MemberAccess : uint8_t {
   None = 0,
   Private = 1,
@@ -147,6 +262,7 @@ enum class MemberAccess : uint8_t {
   Public = 3
 };
 
+/// Part of member attribute flags. (CV_methodprop_e)
 enum class MethodKind : uint8_t {
   Vanilla = 0x00,
   Virtual = 0x01,
@@ -157,49 +273,37 @@ enum class MethodKind : uint8_t {
   PureIntroducingVirtual = 0x06
 };
 
+/// Equivalent to CV_fldattr_t bitfield.
 enum class MethodOptions : uint16_t {
   None = 0x0000,
+  AccessMask = 0x0003,
+  MethodKindMask = 0x001c,
   Pseudo = 0x0020,
+  NoInherit = 0x0040,
+  NoConstruct = 0x0080,
   CompilerGenerated = 0x0100,
   Sealed = 0x0200
 };
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(MethodOptions)
 
-inline MethodOptions operator|(MethodOptions a, MethodOptions b) {
-  return static_cast<MethodOptions>(static_cast<uint16_t>(a) |
-                                    static_cast<uint16_t>(b));
-}
+/// Equivalent to CV_LABEL_TYPE_e.
+enum class LabelType : uint16_t {
+  Near = 0x0,
+  Far = 0x4,
+};
 
-inline MethodOptions operator&(MethodOptions a, MethodOptions b) {
-  return static_cast<MethodOptions>(static_cast<uint16_t>(a) &
-                                    static_cast<uint16_t>(b));
-}
-
-inline MethodOptions operator~(MethodOptions a) {
-  return static_cast<MethodOptions>(~static_cast<uint16_t>(a));
-}
-
+/// Equivalent to CV_modifier_t.
+/// TODO: Add flag for _Atomic modifier
 enum class ModifierOptions : uint16_t {
   None = 0x0000,
   Const = 0x0001,
   Volatile = 0x0002,
   Unaligned = 0x0004
 };
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(ModifierOptions)
 
-inline ModifierOptions operator|(ModifierOptions a, ModifierOptions b) {
-  return static_cast<ModifierOptions>(static_cast<uint16_t>(a) |
-                                      static_cast<uint16_t>(b));
-}
-
-inline ModifierOptions operator&(ModifierOptions a, ModifierOptions b) {
-  return static_cast<ModifierOptions>(static_cast<uint16_t>(a) &
-                                      static_cast<uint16_t>(b));
-}
-
-inline ModifierOptions operator~(ModifierOptions a) {
-  return static_cast<ModifierOptions>(~static_cast<uint16_t>(a));
-}
-
-enum class ModuleSubstreamKind : uint32_t {
+enum class DebugSubsectionKind : uint32_t {
+  None = 0,
   Symbols = 0xf1,
   Lines = 0xf2,
   StringTable = 0xf3,
@@ -207,9 +311,18 @@ enum class ModuleSubstreamKind : uint32_t {
   FrameData = 0xf5,
   InlineeLines = 0xf6,
   CrossScopeImports = 0xf7,
-  CrossScopeExports = 0xf8
+  CrossScopeExports = 0xf8,
+
+  // These appear to relate to .Net assembly info.
+  ILLines = 0xf9,
+  FuncMDTokenMap = 0xfa,
+  TypeMDTokenMap = 0xfb,
+  MergedAssemblyInput = 0xfc,
+
+  CoffSymbolRVA = 0xfd,
 };
 
+/// Equivalent to CV_ptrtype_e.
 enum class PointerKind : uint8_t {
   Near16 = 0x00,                // 16 bit pointer
   Far16 = 0x01,                 // 16:16 far pointer
@@ -226,6 +339,7 @@ enum class PointerKind : uint8_t {
   Near64 = 0x0c                 // 64 bit pointer
 };
 
+/// Equivalent to CV_ptrmode_e.
 enum class PointerMode : uint8_t {
   Pointer = 0x00,                 // "normal" pointer
   LValueReference = 0x01,         // "old" reference
@@ -234,6 +348,7 @@ enum class PointerMode : uint8_t {
   RValueReference = 0x04          // r-value reference
 };
 
+/// Equivalent to misc lfPointerAttr bitfields.
 enum class PointerOptions : uint32_t {
   None = 0x00000000,
   Flat32 = 0x00000100,
@@ -243,21 +358,9 @@ enum class PointerOptions : uint32_t {
   Restrict = 0x00001000,
   WinRTSmartPointer = 0x00080000
 };
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(PointerOptions)
 
-inline PointerOptions operator|(PointerOptions a, PointerOptions b) {
-  return static_cast<PointerOptions>(static_cast<uint16_t>(a) |
-                                     static_cast<uint16_t>(b));
-}
-
-inline PointerOptions operator&(PointerOptions a, PointerOptions b) {
-  return static_cast<PointerOptions>(static_cast<uint16_t>(a) &
-                                     static_cast<uint16_t>(b));
-}
-
-inline PointerOptions operator~(PointerOptions a) {
-  return static_cast<PointerOptions>(~static_cast<uint16_t>(a));
-}
-
+/// Equivalent to CV_pmtype_e.
 enum class PointerToMemberRepresentation : uint16_t {
   Unknown = 0x00,                     // not specified (pre VC8)
   SingleInheritanceData = 0x01,       // member data, single inheritance
@@ -270,82 +373,7 @@ enum class PointerToMemberRepresentation : uint16_t {
   GeneralFunction = 0x08              // member function, most general
 };
 
-enum class TypeRecordKind : uint16_t {
-  None = 0,
-
-  VirtualTableShape = 0x000a,
-  Label = 0x000e,
-  EndPrecompiledHeader = 0x0014,
-
-  Modifier = 0x1001,
-  Pointer = 0x1002,
-  Procedure = 0x1008,
-  MemberFunction = 0x1009,
-
-  Oem = 0x100f,
-  Oem2 = 0x1011,
-
-  ArgumentList = 0x1201,
-  FieldList = 0x1203,
-  BitField = 0x1205,
-  MethodList = 0x1206,
-
-  BaseClass = 0x1400,
-  VirtualBaseClass = 0x1401,
-  IndirectVirtualBaseClass = 0x1402,
-  Index = 0x1404,
-  VirtualFunctionTablePointer = 0x1409,
-
-  Enumerate = 0x1502,
-  Array = 0x1503,
-  Class = 0x1504,
-  Structure = 0x1505,
-  Union = 0x1506,
-  Enum = 0x1507,
-  Alias = 0x150a,
-  Member = 0x150d,
-  StaticMember = 0x150e,
-  Method = 0x150f,
-  NestedType = 0x1510,
-  OneMethod = 0x1511,
-  VirtualFunctionTable = 0x151d,
-
-  FunctionId = 0x1601,
-  MemberFunctionId = 0x1602,
-  BuildInfo = 0x1603,
-  SubstringList = 0x1604,
-  StringId = 0x1605,
-  UdtSourceLine = 0x1606,
-
-  SByte = 0x8000,
-  Int16 = 0x8001,
-  UInt16 = 0x8002,
-  Int32 = 0x8003,
-  UInt32 = 0x8004,
-  Single = 0x8005,
-  Double = 0x8006,
-  Float80 = 0x8007,
-  Float128 = 0x8008,
-  Int64 = 0x8009,
-  UInt64 = 0x800a,
-  Float48 = 0x800b,
-  Complex32 = 0x800c,
-  Complex64 = 0x800d,
-  Complex80 = 0x800e,
-  Complex128 = 0x800f,
-  VarString = 0x8010,
-
-  Int128 = 0x8017,
-  UInt128 = 0x8018,
-
-  Decimal = 0x8019,
-  Date = 0x801a,
-  Utf8String = 0x801b,
-
-  Float16 = 0x801c
-};
-
-enum class VirtualTableSlotKind : uint8_t {
+enum class VFTableSlotKind : uint8_t {
   Near16 = 0x00,
   Far16 = 0x01,
   This = 0x02,
@@ -361,6 +389,191 @@ enum class WindowsRTClassKind : uint8_t {
   ValueClass = 0x02,
   Interface = 0x03
 };
+
+/// Corresponds to CV_LVARFLAGS bitfield.
+enum class LocalSymFlags : uint16_t {
+  None = 0,
+  IsParameter = 1 << 0,
+  IsAddressTaken = 1 << 1,
+  IsCompilerGenerated = 1 << 2,
+  IsAggregate = 1 << 3,
+  IsAggregated = 1 << 4,
+  IsAliased = 1 << 5,
+  IsAlias = 1 << 6,
+  IsReturnValue = 1 << 7,
+  IsOptimizedOut = 1 << 8,
+  IsEnregisteredGlobal = 1 << 9,
+  IsEnregisteredStatic = 1 << 10,
+};
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(LocalSymFlags)
+
+/// Corresponds to the CV_PUBSYMFLAGS bitfield.
+enum class PublicSymFlags : uint32_t {
+  None = 0,
+  Code = 1 << 0,
+  Function = 1 << 1,
+  Managed = 1 << 2,
+  MSIL = 1 << 3,
+};
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(PublicSymFlags)
+
+/// Corresponds to the CV_PROCFLAGS bitfield.
+enum class ProcSymFlags : uint8_t {
+  None = 0,
+  HasFP = 1 << 0,
+  HasIRET = 1 << 1,
+  HasFRET = 1 << 2,
+  IsNoReturn = 1 << 3,
+  IsUnreachable = 1 << 4,
+  HasCustomCallingConv = 1 << 5,
+  IsNoInline = 1 << 6,
+  HasOptimizedDebugInfo = 1 << 7,
+};
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(ProcSymFlags)
+
+/// Corresponds to COMPILESYM2::Flags bitfield.
+enum class CompileSym2Flags : uint32_t {
+  None = 0,
+  SourceLanguageMask = 0xFF,
+  EC = 1 << 8,
+  NoDbgInfo = 1 << 9,
+  LTCG = 1 << 10,
+  NoDataAlign = 1 << 11,
+  ManagedPresent = 1 << 12,
+  SecurityChecks = 1 << 13,
+  HotPatch = 1 << 14,
+  CVTCIL = 1 << 15,
+  MSILModule = 1 << 16,
+};
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(CompileSym2Flags)
+
+/// Corresponds to COMPILESYM3::Flags bitfield.
+enum class CompileSym3Flags : uint32_t {
+  None = 0,
+  SourceLanguageMask = 0xFF,
+  EC = 1 << 8,
+  NoDbgInfo = 1 << 9,
+  LTCG = 1 << 10,
+  NoDataAlign = 1 << 11,
+  ManagedPresent = 1 << 12,
+  SecurityChecks = 1 << 13,
+  HotPatch = 1 << 14,
+  CVTCIL = 1 << 15,
+  MSILModule = 1 << 16,
+  Sdl = 1 << 17,
+  PGO = 1 << 18,
+  Exp = 1 << 19,
+};
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(CompileSym3Flags)
+
+enum class ExportFlags : uint16_t {
+  None = 0,
+  IsConstant = 1 << 0,
+  IsData = 1 << 1,
+  IsPrivate = 1 << 2,
+  HasNoName = 1 << 3,
+  HasExplicitOrdinal = 1 << 4,
+  IsForwarder = 1 << 5
+};
+CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(ExportFlags)
+
+// Corresponds to BinaryAnnotationOpcode enum.
+enum class BinaryAnnotationsOpCode : uint32_t {
+  Invalid,
+  CodeOffset,
+  ChangeCodeOffsetBase,
+  ChangeCodeOffset,
+  ChangeCodeLength,
+  ChangeFile,
+  ChangeLineOffset,
+  ChangeLineEndDelta,
+  ChangeRangeKind,
+  ChangeColumnStart,
+  ChangeColumnEndDelta,
+  ChangeCodeOffsetAndLineOffset,
+  ChangeCodeLengthAndCodeOffset,
+  ChangeColumnEnd,
+};
+
+// Corresponds to CV_cookietype_e enum.
+enum class FrameCookieKind : uint8_t {
+  Copy,
+  XorStackPointer,
+  XorFramePointer,
+  XorR13,
+};
+
+// Corresponds to CV_HREG_e enum.
+enum class RegisterId : uint16_t {
+#define CV_REGISTER(name, value) name = value,
+#include "CodeViewRegisters.def"
+#undef CV_REGISTER
+};
+
+/// These values correspond to the THUNK_ORDINAL enumeration.
+enum class ThunkOrdinal : uint8_t {
+  Standard,
+  ThisAdjustor,
+  Vcall,
+  Pcode,
+  UnknownLoad,
+  TrampIncremental,
+  BranchIsland
+};
+
+enum class TrampolineType : uint16_t { TrampIncremental, BranchIsland };
+
+// These values correspond to the CV_SourceChksum_t enumeration.
+enum class FileChecksumKind : uint8_t { None, MD5, SHA1, SHA256 };
+
+enum LineFlags : uint16_t {
+  LF_None = 0,
+  LF_HaveColumns = 1, // CV_LINES_HAVE_COLUMNS
+};
+
+/// Data in the the SUBSEC_FRAMEDATA subection.
+struct FrameData {
+  support::ulittle32_t RvaStart;
+  support::ulittle32_t CodeSize;
+  support::ulittle32_t LocalSize;
+  support::ulittle32_t ParamsSize;
+  support::ulittle32_t MaxStackSize;
+  support::ulittle32_t FrameFunc;
+  support::ulittle16_t PrologSize;
+  support::ulittle16_t SavedRegsSize;
+  support::ulittle32_t Flags;
+  enum : uint32_t {
+    HasSEH = 1 << 0,
+    HasEH = 1 << 1,
+    IsFunctionStart = 1 << 2,
+  };
+};
+
+// Corresponds to LocalIdAndGlobalIdPair structure.
+// This structure information allows cross-referencing between PDBs.  For
+// example, when a PDB is being built during compilation it is not yet known
+// what other modules may end up in the PDB at link time.  So certain types of
+// IDs may clash between the various compile time PDBs.  For each affected
+// module, a subsection would be put into the PDB containing a mapping from its
+// local IDs to a single ID namespace for all items in the PDB file.
+struct CrossModuleExport {
+  support::ulittle32_t Local;
+  support::ulittle32_t Global;
+};
+
+struct CrossModuleImport {
+  support::ulittle32_t ModuleNameOffset;
+  support::ulittle32_t Count; // Number of elements
+  // support::ulittle32_t ids[Count]; // id from referenced module
+};
+
+enum class CodeViewContainer { ObjectFile, Pdb };
+
+inline uint32_t alignOf(CodeViewContainer Container) {
+  if (Container == CodeViewContainer::ObjectFile)
+    return 1;
+  return 4;
+}
 }
 }
 

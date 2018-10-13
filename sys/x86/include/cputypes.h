@@ -46,9 +46,4 @@
 #define	CPU_VENDOR_RISE		0xdead2bad	/* Rise */
 #define	CPU_VENDOR_CENTAUR	CPU_VENDOR_IDT
 
-#ifndef LOCORE
-extern int	cpu;
-extern int	cpu_class;
-#endif
-
 #endif /* !_X86_CPUTYPES_H_ */

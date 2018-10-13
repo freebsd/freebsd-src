@@ -46,9 +46,12 @@ static	void	usage(void),
 		parse_args(int c, char *v[]);
 
 static int	run_at_secres(cron_db *);
+static void	find_interval_entry(pid_t);
 
+static cron_db	database;
 static time_t	last_time = 0;
 static int	dst_enabled = 0;
+static int	dont_daemonize = 0;
 struct pidfh *pfh;
 
 static void
@@ -58,7 +61,7 @@ usage() {
 #endif
 
 	fprintf(stderr, "usage: cron [-j jitter] [-J rootjitter] "
-			"[-m mailto] [-s] [-o] [-x debugflag[,...]]\n");
+			"[-m mailto] [-n] [-s] [-o] [-x debugflag[,...]]\n");
 #if DEBUGGING
 	fprintf(stderr, "\ndebugflags: ");
 
@@ -99,7 +102,6 @@ main(argc, argv)
 	int	argc;
 	char	*argv[];
 {
-	cron_db	database;
 	int runnum;
 	int secres1, secres2;
 	struct tm *tm;
@@ -136,7 +138,7 @@ main(argc, argv)
 	if (0) {
 # endif
 		(void) fprintf(stderr, "[%d] cron started\n", getpid());
-	} else {
+	} else if (dont_daemonize == 0) {
 		if (daemon(1, 0) == -1) {
 			pidfile_remove(pfh);
 			log_it("CRON",getpid(),"DEATH","can't become daemon");
@@ -153,8 +155,8 @@ main(argc, argv)
 	database.mtime = (time_t) 0;
 	load_database(&database);
 	secres1 = secres2 = run_at_secres(&database);
-	run_reboot_jobs(&database);
 	cron_sync(secres1);
+	run_reboot_jobs(&database);
 	runnum = 0;
 	while (TRUE) {
 # if DEBUGGING
@@ -208,6 +210,9 @@ run_reboot_jobs(db)
 		for (e = u->crontab;  e != NULL;  e = e->next) {
 			if (e->flags & WHEN_REBOOT) {
 				job_add(e, u);
+			}
+			if (e->flags & INTERVAL) {
+				e->lastexit = TargetTime;
 			}
 		}
 	}
@@ -311,6 +316,13 @@ cron_tick(cron_db *db, int secres)
 			Debug(DSCH|DEXT, ("user [%s:%d:%d:...] cmd=\"%s\"\n",
 					  env_get("LOGNAME", e->envp),
 					  e->uid, e->gid, e->cmd))
+
+			if (e->flags & INTERVAL) {
+				if (e->lastexit > 0 &&
+				    TargetTime >= e->lastexit + e->interval)
+					job_add(e, u);
+				continue;
+			}
 
 			if ( diff != 0 && (e->flags & (RUN_AT|NOT_UNTIL)) ) {
 				if (bit_test(e->second, otzsecond)
@@ -488,6 +500,7 @@ sigchld_handler(int x)
 				("[%d] sigchld...no dead kids\n", getpid()))
 			return;
 		default:
+			find_interval_entry(pid);
 			Debug(DPROC,
 				("[%d] sigchld...pid #%d died, stat=%d\n",
 				getpid(), pid, WEXITSTATUS(waiter)))
@@ -512,7 +525,7 @@ parse_args(argc, argv)
 	int	argch;
 	char	*endp;
 
-	while ((argch = getopt(argc, argv, "j:J:m:osx:")) != -1) {
+	while ((argch = getopt(argc, argv, "j:J:m:nosx:")) != -1) {
 		switch (argch) {
 		case 'j':
 			Jitter = strtoul(optarg, &endp, 10);
@@ -528,6 +541,9 @@ parse_args(argc, argv)
 			break;
 		case 'm':
 			defmailto = optarg;
+			break;
+		case 'n':
+			dont_daemonize = 1;
 			break;
 		case 'o':
 			dst_enabled = 0;
@@ -553,9 +569,26 @@ run_at_secres(cron_db *db)
 
 	for (u = db->head;  u != NULL;  u = u->next) {
 		for (e = u->crontab;  e != NULL;  e = e->next) {
-			if ((e->flags & SEC_RES) != 0)
+			if ((e->flags & (SEC_RES | INTERVAL)) != 0)
 				return 1;
 		}
 	}
 	return 0;
+}
+
+static void
+find_interval_entry(pid_t pid)
+{
+	user *u;
+	entry *e;
+
+	for (u = database.head;  u != NULL;  u = u->next) {
+		for (e = u->crontab;  e != NULL;  e = e->next) {
+			if ((e->flags & INTERVAL) && e->child == pid) {
+				e->lastexit = time(NULL);
+				e->child = 0;
+				break;
+			}
+		}
+	}
 }

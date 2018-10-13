@@ -5,8 +5,6 @@
 
 PROG=	su
 
-WARNS?=	5
-
 LIBADD=	util pam
 
 .if ${MK_AUDIT} != "no"

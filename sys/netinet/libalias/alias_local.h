@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
  *
@@ -69,6 +71,12 @@
 
 #define	GET_ALIAS_PORT		-1
 #define	GET_ALIAS_ID		GET_ALIAS_PORT
+
+#ifdef _KERNEL
+#define INET_NTOA_BUF(buf) (buf)
+#else
+#define INET_NTOA_BUF(buf) (buf), sizeof(buf)
+#endif
 
 struct proxy_entry;
 

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -194,24 +194,24 @@ PAM configuration for
 .El
 .Sh EXAMPLES
 .Bl -tag -width 5n -compact
-.It Li "su -m man -c catman"
+.It Li "su -m operator -c poweroff"
 Starts a shell as user
-.Li man ,
+.Li operator ,
 and runs the command
-.Li catman .
-You will be asked for man's password unless your real UID is 0.
+.Li poweroff .
+You will be asked for operator's password unless your real UID is 0.
 Note that the
 .Fl m
 option is required since user
-.Dq man
+.Dq operator
 does not have a valid shell by default.
 In this example,
 .Fl c
 is passed to the shell of the user
-.Dq man ,
+.Dq operator ,
 and is not interpreted as an argument to
 .Nm .
-.It Li "su -m man -c 'catman /usr/share/man /usr/local/man'"
+.It Li "su -m operator -c 'shutdown -p now'"
 Same as above, but the target command consists of more than a
 single word and hence is quoted for use with the
 .Fl c
@@ -219,7 +219,7 @@ option being passed to the shell.
 (Most shells expect the argument to
 .Fl c
 to be a single word).
-.It Li "su -m -c staff man -c 'catman /usr/share/man /usr/local/man'"
+.It Li "su -m -c staff operator -c 'shutdown -p now'"
 Same as above, but the target command is run with the resource limits of
 the login class
 .Dq staff .

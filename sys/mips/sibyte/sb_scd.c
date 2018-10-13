@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Neelkanth Natu
  * All rights reserved.
  *
@@ -207,7 +209,7 @@ sb_route_intsrc(int intsrc)
 	 * Use a deterministic mapping for the remaining sources.
 	 */
 #ifdef SMP
-	KASSERT(platform_ipi_intrnum() == 4,
+	KASSERT(platform_ipi_hardintr_num() == 4,
 		("Unexpected interrupt number used for IPI"));
 	intrnum = intsrc % 4;
 #else

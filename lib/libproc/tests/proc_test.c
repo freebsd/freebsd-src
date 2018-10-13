@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, 2015 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2014-2017 Mark Johnston <markj@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ start_prog(const struct atf_tc *tc, bool sig)
 		argv[1] = NULL;
 	}
 
-	error = proc_create(argv[0], argv, NULL, NULL, &phdl);
+	error = proc_create(argv[0], argv, NULL, NULL, NULL, &phdl);
 	ATF_REQUIRE_EQ_MSG(error, 0, "failed to run '%s'", target_prog_file);
 	ATF_REQUIRE(phdl != NULL);
 
@@ -105,7 +105,7 @@ static void
 verify_bkpt(struct proc_handle *phdl, GElf_Sym *sym, const char *symname,
     const char *mapname)
 {
-	char mapbname[MAXPATHLEN], *name;
+	char *name, *mapname_copy, *mapbname;
 	GElf_Sym tsym;
 	prmap_t *map;
 	size_t namesz;
@@ -147,41 +147,11 @@ verify_bkpt(struct proc_handle *phdl, GElf_Sym *sym, const char *symname,
 	map = proc_addr2map(phdl, addr);
 	ATF_REQUIRE_MSG(map != NULL, "failed to look up map for address 0x%lx",
 	    addr);
-	basename_r(map->pr_mapname, mapbname);
+	mapname_copy = strdup(map->pr_mapname);
+	mapbname = basename(mapname_copy);
 	ATF_REQUIRE_EQ_MSG(strcmp(mapname, mapbname), 0,
 	    "expected map name '%s' doesn't match '%s'", mapname, mapbname);
-}
-
-ATF_TC(map_alias_obj2map);
-ATF_TC_HEAD(map_alias_obj2map, tc)
-{
-	atf_tc_set_md_var(tc, "descr",
-	    "Callers are supposed to be able to use \"a.out\" as an alias for "
-	    "the program executable. Make sure that proc_obj2map() handles "
-	    "this properly.");
-}
-ATF_TC_BODY(map_alias_obj2map, tc)
-{
-	struct proc_handle *phdl;
-	prmap_t *map1, *map2;
-
-	phdl = start_prog(tc, false);
-
-	/* Initialize the rtld_db handle. */
-	(void)proc_rdagent(phdl);
-
-	/* Ensure that "target_prog" and "a.out" return the same map. */
-	map1 = proc_obj2map(phdl, target_prog_file);
-	ATF_REQUIRE_MSG(map1 != NULL, "failed to look up map for '%s'",
-	    target_prog_file);
-	map2 = proc_obj2map(phdl, aout_object);
-	ATF_REQUIRE_MSG(map2 != NULL, "failed to look up map for '%s'",
-	    aout_object);
-	ATF_CHECK_EQ(strcmp(map1->pr_mapname, map2->pr_mapname), 0);
-
-	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
-
-	proc_free(phdl);
+	free(mapname_copy);
 }
 
 ATF_TC(map_alias_name2map);
@@ -213,7 +183,36 @@ ATF_TC_BODY(map_alias_name2map, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
+}
+
+ATF_TC(map_prefix_name2map);
+ATF_TC_HEAD(map_prefix_name2map, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Verify that proc_name2map() returns prefix matches of the "
+	    "basename of loaded objects if no full matches are found.");
+}
+ATF_TC_BODY(map_prefix_name2map, tc)
+{
+	struct proc_handle *phdl;
+	prmap_t *map1, *map2;
+
+	phdl = start_prog(tc, false);
+
+	/* Initialize the rtld_db handle. */
+	(void)proc_rdagent(phdl);
+
+	/* Make sure that "ld-elf" and "ld-elf.so" return the same map. */
+	map1 = proc_name2map(phdl, "ld-elf");
+	ATF_REQUIRE_MSG(map1 != NULL, "failed to look up map for 'ld-elf'");
+	map2 = proc_name2map(phdl, "ld-elf.so");
+	ATF_REQUIRE_MSG(map2 != NULL, "failed to look up map for 'ld-elf.so'");
+	ATF_CHECK_EQ(strcmp(map1->pr_mapname, map2->pr_mapname), 0);
+
+	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
+
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(map_alias_name2sym);
@@ -252,7 +251,7 @@ ATF_TC_BODY(map_alias_name2sym, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_lookup);
@@ -292,7 +291,7 @@ ATF_TC_BODY(symbol_lookup, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_lookup_fail);
@@ -315,7 +314,7 @@ ATF_TC_BODY(symbol_lookup_fail, tc)
 	/* Initialize the rtld_db handle. */
 	(void)proc_rdagent(phdl);
 
-	map = proc_obj2map(phdl, target_prog_file);
+	map = proc_name2map(phdl, target_prog_file);
 	ATF_REQUIRE_MSG(map != NULL, "failed to look up map for '%s'",
 	    target_prog_file);
 
@@ -329,7 +328,7 @@ ATF_TC_BODY(symbol_lookup_fail, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(signal_forward);
@@ -370,18 +369,114 @@ ATF_TC_BODY(signal_forward, tc)
 	ATF_REQUIRE(WIFEXITED(status));
 	ATF_REQUIRE_EQ(WEXITSTATUS(status), 0);
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
+}
+
+ATF_TC(symbol_sort_local);
+ATF_TC_HEAD(symbol_sort_local, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Ensure that proc_addr2sym() returns the non-local alias when "
+	    "the address resolves to multiple symbols.");
+}
+ATF_TC_BODY(symbol_sort_local, tc)
+{
+	char symname[32];
+	GElf_Sym bar_sym;
+	struct proc_handle *phdl;
+	int error;
+
+	phdl = start_prog(tc, true);
+
+	error = proc_name2sym(phdl, target_prog_file, "bar", &bar_sym, NULL);
+	ATF_REQUIRE_MSG(error == 0, "failed to look up 'bar' in %s",
+	    target_prog_file);
+	ATF_REQUIRE(GELF_ST_BIND(bar_sym.st_info) == STB_LOCAL);
+
+	error = proc_addr2sym(phdl, bar_sym.st_value, symname, sizeof(symname),
+	    &bar_sym);
+	ATF_REQUIRE_MSG(error == 0, "failed to resolve 'bar' by addr");
+
+	ATF_REQUIRE_MSG(strcmp(symname, "baz") == 0,
+	    "unexpected symbol name '%s'", symname);
+	ATF_REQUIRE(GELF_ST_BIND(bar_sym.st_info) == STB_GLOBAL);
+
+	proc_detach(phdl, 0);
+}
+
+ATF_TC(symbol_sort_prefix);
+ATF_TC_HEAD(symbol_sort_prefix, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Ensure that proc_addr2sym() returns the alias whose name is not "
+	    "prefixed with '$' if one exists.");
+}
+ATF_TC_BODY(symbol_sort_prefix, tc)
+{
+	char symname[32];
+	GElf_Sym qux_sym;
+	struct proc_handle *phdl;
+	int error;
+
+	phdl = start_prog(tc, true);
+
+	error = proc_name2sym(phdl, target_prog_file, "$qux", &qux_sym, NULL);
+	ATF_REQUIRE_MSG(error == 0, "failed to look up '$qux' in %s",
+	    target_prog_file);
+
+	error = proc_addr2sym(phdl, qux_sym.st_value, symname, sizeof(symname),
+	    &qux_sym);
+	ATF_REQUIRE_MSG(error == 0, "failed to resolve 'qux' by addr");
+
+	ATF_REQUIRE_MSG(strcmp(symname, "qux") == 0,
+	    "unexpected symbol name '%s'", symname);
+
+	proc_detach(phdl, 0);
+}
+
+ATF_TC(symbol_sort_underscore);
+ATF_TC_HEAD(symbol_sort_underscore, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Ensure that proc_addr2sym() returns the alias with fewest leading "
+	    "underscores in the name when the address resolves to multiple "
+	    "symbols.");
+}
+ATF_TC_BODY(symbol_sort_underscore, tc)
+{
+	char symname[32];
+	GElf_Sym foo_sym;
+	struct proc_handle *phdl;
+	int error;
+
+	phdl = start_prog(tc, true);
+
+	error = proc_name2sym(phdl, target_prog_file, "foo", &foo_sym, NULL);
+	ATF_REQUIRE_MSG(error == 0, "failed to look up 'foo' in %s",
+	    target_prog_file);
+
+	error = proc_addr2sym(phdl, foo_sym.st_value, symname, sizeof(symname),
+	    &foo_sym);
+	ATF_REQUIRE_MSG(error == 0, "failed to resolve 'foo' by addr");
+
+	ATF_REQUIRE_MSG(strcmp(symname, "foo") == 0,
+	    "unexpected symbol name '%s'", symname);
+
+	proc_detach(phdl, 0);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, map_alias_obj2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2map);
+	ATF_TP_ADD_TC(tp, map_prefix_name2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2sym);
 	ATF_TP_ADD_TC(tp, symbol_lookup);
 	ATF_TP_ADD_TC(tp, symbol_lookup_fail);
 	ATF_TP_ADD_TC(tp, signal_forward);
+	ATF_TP_ADD_TC(tp, symbol_sort_local);
+	ATF_TP_ADD_TC(tp, symbol_sort_prefix);
+	ATF_TP_ADD_TC(tp, symbol_sort_underscore);
 
 	return (atf_no_error());
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -58,10 +60,12 @@ static const char rqo[] = "%s: Request Queue Overflow";
 
 static void isp_got_msg_fc(ispsoftc_t *, in_fcentry_t *);
 static void isp_got_tmf_24xx(ispsoftc_t *, at7_entry_t *);
+static void isp_handle_abts(ispsoftc_t *, abts_t *);
 static void isp_handle_atio2(ispsoftc_t *, at2_entry_t *);
 static void isp_handle_ctio2(ispsoftc_t *, ct2_entry_t *);
 static void isp_handle_ctio7(ispsoftc_t *, ct7_entry_t *);
-static void isp_handle_24xx_inotify(ispsoftc_t *, in_fcentry_24xx_t *);
+static void isp_handle_notify(ispsoftc_t *, in_fcentry_t *);
+static void isp_handle_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *);
 
 /*
  * The Qlogic driver gets an interrupt to look at response queue entries.
@@ -112,8 +116,6 @@ static void isp_handle_24xx_inotify(ispsoftc_t *, in_fcentry_24xx_t *);
 int
 isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 {
-	uint16_t status;
-	uint32_t seqid;
 	union {
 		at2_entry_t	*at2iop;
 		at2e_entry_t	*at2eiop;
@@ -152,9 +154,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 #define	hdrp		unp.hp
 	} unp;
 	uint8_t local[QENTRY_LEN];
-	uint16_t iid;
-	int bus, type, len, level, rval = 1;
-	isp_notify_t notify;
+	int type, len, level, rval = 1;
 
 	type = isp_get_response_type(isp, (isphdr_t *)vptr);
 	unp.vp = vptr;
@@ -215,124 +215,17 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 		isp_handle_ctio7(isp, (ct7_entry_t *) local);
 		break;
 
-	case RQSTYPE_ENABLE_LUN:
-	case RQSTYPE_MODIFY_LUN:
-		isp_get_enable_lun(isp, lunenp, (lun_entry_t *) local);
-		isp_async(isp, ISPASYNC_TARGET_ACTION, local);
-		break;
-
 	case RQSTYPE_NOTIFY:
-		bus = 0;
 		if (IS_24XX(isp)) {
 			isp_get_notify_24xx(isp, inot_24xx, (in_fcentry_24xx_t *)local);
-			inot_24xx = (in_fcentry_24xx_t *) local;
-			isp_handle_24xx_inotify(isp, inot_24xx);
-			break;
-		} else {
-			if (ISP_CAP_2KLOGIN(isp)) {
-				in_fcentry_e_t *ecp = (in_fcentry_e_t *)local;
-				isp_get_notify_fc_e(isp, inote_fcp, ecp);
-				iid = ecp->in_iid;
-				status = ecp->in_status;
-				seqid = ecp->in_seqid;
-			} else {
-				in_fcentry_t *fcp = (in_fcentry_t *)local;
-				isp_get_notify_fc(isp, inot_fcp, fcp);
-				iid = fcp->in_iid;
-				status = fcp->in_status;
-				seqid = fcp->in_seqid;
-			}
-		}
-
-		isp_prt(isp, ISP_LOGTDEBUG0, "Immediate Notify On Bus %d, status=0x%x seqid=0x%x", bus, status, seqid);
-
-		switch (status) {
-		case IN_MSG_RECEIVED:
-		case IN_IDE_RECEIVED:
-			isp_got_msg_fc(isp, (in_fcentry_t *)local);
-			break;
-		case IN_RSRC_UNAVAIL:
-			isp_prt(isp, ISP_LOGINFO, "Firmware out of ATIOs");
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, local);
-			break;
-
-		case IN_RESET:
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_tgt = TGT_ANY;
-			notify.nt_nphdl = iid;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_lun = LUN_ANY;
-			notify.nt_tagval = TAG_ANY;
-			notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
-			notify.nt_ncode = NT_BUS_RESET;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_PORT_LOGOUT:
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = iid;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_LOGOUT;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_ABORT_TASK:
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = iid;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_ABORT_TASK;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_GLOBAL_LOGO:
-			isp_prt(isp, ISP_LOGTINFO, "%s: all ports logged out", __func__);
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = NIL_HANDLE;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_GLOBAL_LOGOUT;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_PORT_CHANGED:
-			isp_prt(isp, ISP_LOGTINFO, "%s: port changed", __func__);
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = NIL_HANDLE;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_CHANGED;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		default:
-			ISP_SNPRINTF(local, sizeof local, "%s: unknown status to RQSTYPE_NOTIFY (0x%x)", __func__, status);
-			isp_print_bytes(isp, local, QENTRY_LEN, vptr);
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, local);
+			isp_handle_notify_24xx(isp, (in_fcentry_24xx_t *)local);
 			break;
 		}
+		if (ISP_CAP_2KLOGIN(isp))
+			isp_get_notify_fc_e(isp, inote_fcp, (in_fcentry_e_t *)local);
+		else
+			isp_get_notify_fc(isp, inot_fcp, (in_fcentry_t *)local);
+		isp_handle_notify(isp, (in_fcentry_t *)local);
 		break;
 
 	case RQSTYPE_NOTIFY_ACK:
@@ -367,7 +260,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 
 	case RQSTYPE_ABTS_RCVD:
 		isp_get_abts(isp, abts, (abts_t *)local);
-		isp_async(isp, ISPASYNC_TARGET_ACTION, &local);
+		isp_handle_abts(isp, (abts_t *)local);
 		break;
 	case RQSTYPE_ABTS_RSP:
 		isp_get_abts_rsp(isp, abts_rsp, (abts_rsp_t *)local);
@@ -421,22 +314,37 @@ isp_target_put_entry(ispsoftc_t *isp, void *ap)
 		return (-1);
 	}
 	switch (etype) {
+	case RQSTYPE_NOTIFY_ACK:
+		if (IS_24XX(isp))
+			isp_put_notify_24xx_ack(isp, (na_fcentry_24xx_t *)ap,
+			    (na_fcentry_24xx_t *)outp);
+		else if (ISP_CAP_2KLOGIN(isp))
+			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *)ap,
+			    (na_fcentry_e_t *)outp);
+		else
+			isp_put_notify_ack_fc(isp, ap, (na_fcentry_t *)outp);
+		break;
 	case RQSTYPE_ATIO2:
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_atio2e(isp, (at2e_entry_t *) ap, (at2e_entry_t *) outp);
-		} else {
-			isp_put_atio2(isp, (at2_entry_t *) ap, (at2_entry_t *) outp);
-		}
+		if (ISP_CAP_2KLOGIN(isp))
+			isp_put_atio2e(isp, (at2e_entry_t *)ap,
+			    (at2e_entry_t *)outp);
+		else
+			isp_put_atio2(isp, (at2_entry_t *)ap,
+			    (at2_entry_t *)outp);
 		break;
 	case RQSTYPE_CTIO2:
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_ctio2e(isp, (ct2e_entry_t *) ap, (ct2e_entry_t *) outp);
-		} else {
-			isp_put_ctio2(isp, (ct2_entry_t *) ap, (ct2_entry_t *) outp);
-		}
+		if (ISP_CAP_2KLOGIN(isp))
+			isp_put_ctio2e(isp, (ct2e_entry_t *)ap,
+			    (ct2e_entry_t *)outp);
+		else
+			isp_put_ctio2(isp, (ct2_entry_t *)ap,
+			    (ct2_entry_t *)outp);
 		break;
 	case RQSTYPE_CTIO7:
-		isp_put_ctio7(isp, (ct7_entry_t *) ap, (ct7_entry_t *) outp);
+		isp_put_ctio7(isp, (ct7_entry_t *)ap, (ct7_entry_t *)outp);
+		break;
+	case RQSTYPE_ABTS_RSP:
+		isp_put_abts_rsp(isp, (abts_rsp_t *)ap, (abts_rsp_t *)outp);
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR, "%s: Unknown type 0x%x", __func__, etype);
@@ -503,11 +411,11 @@ isp_endcmd(ispsoftc_t *isp, ...)
 		ct7_entry_t _ctio7;
 	} un;
 	va_list ap;
+	int vpidx, nphdl;
 
 	ISP_MEMZERO(&un, sizeof un);
 
 	if (IS_24XX(isp)) {
-		int vpidx, nphdl;
 		at7_entry_t *aep;
 		ct7_entry_t *cto = &un._ctio7;
 
@@ -558,13 +466,9 @@ isp_endcmd(ispsoftc_t *isp, ...)
 		} else {
 			cto->ct_flags |= CT7_FLAG_MODE1 | CT7_SENDSTATUS;
 		}
-		if (aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl) {
+		if (aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl != 0) {
 			cto->ct_resid = aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl;
-			if (cto->ct_resid < 0) {
-				 cto->ct_scsi_status |= (FCP_RESID_OVERFLOW << 8);
-			} else if (cto->ct_resid > 0) {
-				 cto->ct_scsi_status |= (FCP_RESID_UNDERFLOW << 8);
-			}
+			cto->ct_scsi_status |= (FCP_RESID_UNDERFLOW << 8);
 		}
 		cto->ct_syshandle = hdl;
 	} else {
@@ -573,6 +477,9 @@ isp_endcmd(ispsoftc_t *isp, ...)
 
 		va_start(ap, isp);
 		aep = va_arg(ap, at2_entry_t *);
+		/* nphdl and vpidx are unused here. */
+		nphdl = va_arg(ap, int);
+		vpidx = va_arg(ap, int);
 		code = va_arg(ap, uint32_t);
 		hdl = va_arg(ap, uint32_t);
 		va_end(ap);
@@ -618,7 +525,7 @@ isp_endcmd(ispsoftc_t *isp, ...)
  * These are either broadcast events or specifically CTIO fast completion
  */
 
-int
+void
 isp_target_async(ispsoftc_t *isp, int bus, int event)
 {
 	isp_notify_t notify;
@@ -690,12 +597,8 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 	}
 	default:
 		isp_prt(isp, ISP_LOGERR, "%s: unknown event 0x%x", __func__, event);
-		if (isp->isp_state == ISP_RUNSTATE) {
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, NULL);
-		}
 		break;
 	}
-	return (0);
 }
 
 /*
@@ -705,8 +608,8 @@ static void
 isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 {
 	isp_notify_t notify;
-	static const char f1[] = "%s from N-port handle 0x%x lun %x seq 0x%x";
-	static const char f2[] = "unknown %s 0x%x lun %x N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
+	static const char f1[] = "%s from N-port handle 0x%x lun %jx seq 0x%x";
+	static const char f2[] = "unknown %s 0x%x lun %jx N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
 	uint16_t seqid, nphdl;
 
 	ISP_MEMZERO(&notify, sizeof (isp_notify_t));
@@ -727,9 +630,6 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	/* nt_tgt set in outer layers */
 	if (ISP_CAP_SCCFW(isp)) {
 		notify.nt_lun = inp->in_scclun;
-#if __FreeBSD_version < 1000700
-		notify.nt_lun &= 0x3fff;
-#endif
 	} else {
 		notify.nt_lun = inp->in_lun;
 	}
@@ -771,8 +671,8 @@ static void
 isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 {
 	isp_notify_t notify;
-	static const char f1[] = "%s from PortID 0x%06x lun %x seq 0x%08x";
-	static const char f2[] = "unknown Task Flag 0x%x lun %x PortID 0x%x tag 0x%08x";
+	static const char f1[] = "%s from PortID 0x%06x lun %jx seq 0x%08x";
+	static const char f2[] = "unknown Task Flag 0x%x lun %jx PortID 0x%x tag 0x%08x";
 	fcportdb_t *lp;
 	uint16_t chan;
 	uint32_t sid, did;
@@ -780,7 +680,7 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	ISP_MEMZERO(&notify, sizeof (isp_notify_t));
 	notify.nt_hba = isp;
 	notify.nt_wwn = INI_ANY;
-	notify.nt_lun = (aep->at_cmnd.fcp_cmnd_lun[0] << 8) | (aep->at_cmnd.fcp_cmnd_lun[1]);
+	notify.nt_lun = CAM_EXTLUN_BYTE_SWIZZLE(be64dec(aep->at_cmnd.fcp_cmnd_lun));
 	notify.nt_tagval = aep->at_rxid;
 	notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
 	notify.nt_lreserved = aep;
@@ -790,8 +690,11 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 		/* Channel has to be derived from D_ID */
 		isp_find_chan_by_did(isp, did, &chan);
 		if (chan == ISP_NOCHAN) {
-			isp_prt(isp, ISP_LOGWARN, "%s: D_ID 0x%x not found on any channel", __func__, did);
-			isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
+			isp_prt(isp, ISP_LOGWARN,
+			    "%s: D_ID 0x%x not found on any channel",
+			    __func__, did);
+			isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN,
+			    ECMD_TERMINATE, 0);
 			return;
 		}
 	} else {
@@ -838,98 +741,79 @@ int
 isp_notify_ack(ispsoftc_t *isp, void *arg)
 {
 	char storage[QENTRY_LEN];
-	void *outp;
 
 	/*
 	 * This is in case a Task Management Function ends up here.
 	 */
-	if (IS_24XX(isp) && arg != NULL && (((isphdr_t *)arg)->rqs_entry_type == RQSTYPE_ATIO)) {
+	if (IS_24XX(isp) && ((isphdr_t *)arg)->rqs_entry_type == RQSTYPE_ATIO) {
 		at7_entry_t *aep = arg;
 		return (isp_endcmd(isp, aep, NIL_HANDLE, 0, 0, 0));
 	}
 
-	outp = isp_getrqentry(isp);
-	if (outp == NULL) {
-		isp_prt(isp, ISP_LOGWARN, rqo, __func__);
-		return (1);
-	}
-
 	ISP_MEMZERO(storage, QENTRY_LEN);
-
 	if (IS_24XX(isp)) {
+		in_fcentry_24xx_t *in = arg;
 		na_fcentry_24xx_t *na = (na_fcentry_24xx_t *) storage;
-		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
-		na->na_header.rqs_entry_count = 1;
-		if (arg) {
-			in_fcentry_24xx_t *in = arg;
-			na->na_nphdl = in->in_nphdl;
-			na->na_flags = in->in_flags;
-			na->na_status = in->in_status;
-			na->na_status_subcode = in->in_status_subcode;
-			na->na_fwhandle = in->in_fwhandle;
-			na->na_rxid = in->in_rxid;
-			na->na_oxid = in->in_oxid;
-			na->na_vpidx = in->in_vpidx;
-			if (in->in_status == IN24XX_SRR_RCVD) {
-				na->na_srr_rxid = in->in_srr_rxid;
-				na->na_srr_reloff_hi = in->in_srr_reloff_hi;
-				na->na_srr_reloff_lo = in->in_srr_reloff_lo;
-				na->na_srr_iu = in->in_srr_iu;
-				/*
-				 * Whether we're accepting the SRR or rejecting
-				 * it is determined by looking at the in_reserved
-				 * field in the original notify structure.
-				 */
-				if (in->in_reserved) {
-					na->na_srr_flags = 1;
-					na->na_srr_reject_vunique = 0;
-					na->na_srr_reject_code = 9;		/* unable to perform this command at this time */
-					na->na_srr_reject_explanation = 0x2a;	/* unable to supply the requested data */
-				}
-			}
-		}
-		isp_put_notify_24xx_ack(isp, na, (na_fcentry_24xx_t *)outp);
-	} else {
-		na_fcentry_t *na = (na_fcentry_t *) storage;
-		int iid = 0;
 
-		if (arg) {
-			in_fcentry_t *inp = arg;
-			ISP_MEMCPY(storage, arg, sizeof (isphdr_t));
-			if (ISP_CAP_2KLOGIN(isp)) {
-				((na_fcentry_e_t *)na)->na_iid = ((in_fcentry_e_t *)inp)->in_iid;
-				iid = ((na_fcentry_e_t *)na)->na_iid;
-			} else {
-				na->na_iid = inp->in_iid;
-				iid = na->na_iid;
+		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
+		na->na_header.rqs_entry_count = 1;
+		na->na_nphdl = in->in_nphdl;
+		na->na_flags = in->in_flags;
+		na->na_status = in->in_status;
+		na->na_status_subcode = in->in_status_subcode;
+		na->na_fwhandle = in->in_fwhandle;
+		na->na_rxid = in->in_rxid;
+		na->na_oxid = in->in_oxid;
+		na->na_vpidx = in->in_vpidx;
+		if (in->in_status == IN24XX_SRR_RCVD) {
+			na->na_srr_rxid = in->in_srr_rxid;
+			na->na_srr_reloff_hi = in->in_srr_reloff_hi;
+			na->na_srr_reloff_lo = in->in_srr_reloff_lo;
+			na->na_srr_iu = in->in_srr_iu;
+			/*
+			 * Whether we're accepting the SRR or rejecting
+			 * it is determined by looking at the in_reserved
+			 * field in the original notify structure.
+			 */
+			if (in->in_reserved) {
+				na->na_srr_flags = 1;
+				na->na_srr_reject_vunique = 0;
+				/* Unable to perform this command at this time. */
+				na->na_srr_reject_code = 9;
+				/* Unable to supply the requested data. */
+				na->na_srr_reject_explanation = 0x2a;
 			}
-			na->na_task_flags = inp->in_task_flags & TASK_FLAGS_RESERVED_MASK;
-			na->na_seqid = inp->in_seqid;
-			na->na_status = inp->in_status;
-			na->na_flags = NAFC_RCOUNT;
-			if (inp->in_status == IN_RESET) {
-				na->na_flags = NAFC_RST_CLRD;	/* We do not modify resource counts for LIP resets */
-			}
-			if (inp->in_status == IN_MSG_RECEIVED) {
-				na->na_flags |= NAFC_TVALID;
-				na->na_response = 0;	/* XXX SUCCEEDED XXX */
-			}
+		}
+	} else {
+		in_fcentry_t *in = arg;
+		na_fcentry_t *na = (na_fcentry_t *) storage;
+		int iid;
+
+		ISP_MEMCPY(storage, arg, sizeof (isphdr_t));
+		if (ISP_CAP_2KLOGIN(isp)) {
+			iid = ((in_fcentry_e_t *)in)->in_iid;
+			((na_fcentry_e_t *)na)->na_iid = iid;
 		} else {
+			iid = in->in_iid;
+			na->na_iid = iid;
+		}
+		na->na_task_flags = in->in_task_flags & TASK_FLAGS_RESERVED_MASK;
+		na->na_seqid = in->in_seqid;
+		na->na_status = in->in_status;
+		na->na_flags = NAFC_RCOUNT;
+		/* We do not modify resource counts for LIP resets */
+		if (in->in_status == IN_RESET)
 			na->na_flags = NAFC_RST_CLRD;
+		if (in->in_status == IN_MSG_RECEIVED) {
+			na->na_flags |= NAFC_TVALID;
+			na->na_response = 0;	/* XXX SUCCEEDED XXX */
 		}
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *) na, (na_fcentry_e_t *)outp);
-		} else {
-			isp_put_notify_ack_fc(isp, na, (na_fcentry_t *)outp);
-		}
 		isp_prt(isp, ISP_LOGTDEBUG0, "notify ack handle %x seqid %x flags %x tflags %x response %x", iid, na->na_seqid,
 		    na->na_flags, na->na_task_flags, na->na_response);
 	}
-	ISP_TDQE(isp, "isp_notify_ack", isp->isp_reqidx, storage);
-	ISP_SYNC_REQUEST(isp);
-	return (0);
+	return (isp_target_put_entry(isp, &storage));
 }
 
 int
@@ -940,7 +824,6 @@ isp_acknak_abts(ispsoftc_t *isp, void *arg, int errno)
 	uint8_t tmpb;
 	abts_t *abts = arg;
 	abts_rsp_t *rsp = (abts_rsp_t *) storage;
-	void *outp;
 
 	if (!IS_24XX(isp)) {
 		isp_prt(isp, ISP_LOGERR, "%s: called for non-24XX card", __func__);
@@ -950,12 +833,6 @@ isp_acknak_abts(ispsoftc_t *isp, void *arg, int errno)
 	if (abts->abts_header.rqs_entry_type != RQSTYPE_ABTS_RCVD) {
 		isp_prt(isp, ISP_LOGERR, "%s: called for non-ABTS entry (0x%x)", __func__, abts->abts_header.rqs_entry_type);
 		return (0);
-	}
-
-	outp = isp_getrqentry(isp);
-	if (outp == NULL) {
-		isp_prt(isp, ISP_LOGWARN, rqo, __func__);
-		return (1);
 	}
 
 	ISP_MEMCPY(rsp, abts, QENTRY_LEN);
@@ -1000,27 +877,64 @@ isp_acknak_abts(ispsoftc_t *isp, void *arg, int errno)
 			break;
 		}
 	}
+	return (isp_target_put_entry(isp, rsp));
+}
 
-	/*
-	 * The caller will have set response values as appropriate
-	 * in the ABTS structure just before calling us.
-	 */
-	isp_put_abts_rsp(isp, rsp, (abts_rsp_t *)outp);
-	ISP_TDQE(isp, "isp_acknak_abts", isp->isp_reqidx, storage);
-	ISP_SYNC_REQUEST(isp);
-	return (0);
+static void
+isp_handle_abts(ispsoftc_t *isp, abts_t *abts)
+{
+	isp_notify_t notify, *nt = &notify;
+	fcportdb_t *lp;
+	uint16_t chan;
+	uint32_t sid, did;
+
+	did = (abts->abts_did_hi << 16) | abts->abts_did_lo;
+	sid = (abts->abts_sid_hi << 16) | abts->abts_sid_lo;
+	ISP_MEMZERO(nt, sizeof (isp_notify_t));
+
+	nt->nt_hba = isp;
+	nt->nt_did = did;
+	nt->nt_nphdl = abts->abts_nphdl;
+	nt->nt_sid = sid;
+	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
+		/* Channel has to be derived from D_ID */
+		isp_find_chan_by_did(isp, did, &chan);
+		if (chan == ISP_NOCHAN) {
+			isp_prt(isp, ISP_LOGWARN,
+			    "%s: D_ID 0x%x not found on any channel",
+			    __func__, did);
+			isp_acknak_abts(isp, abts, ENXIO);
+			return;
+		}
+	} else
+		chan = 0;
+	nt->nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
+	if (isp_find_pdb_by_handle(isp, chan, abts->abts_nphdl, &lp))
+		nt->nt_wwn = lp->port_wwn;
+	else
+		nt->nt_wwn = INI_ANY;
+	nt->nt_lun = LUN_ANY;
+	nt->nt_need_ack = 1;
+	nt->nt_tagval = abts->abts_rxid_task;
+	nt->nt_tagval |= (((uint64_t) abts->abts_rxid_abts) << 32);
+	isp_prt(isp, ISP_LOGTINFO, "[0x%x] ABTS from N-Port handle 0x%x"
+	    " Port 0x%06x for task 0x%x (rx_id 0x%04x ox_id 0x%04x)",
+	    abts->abts_rxid_abts, abts->abts_nphdl, sid, abts->abts_rxid_task,
+	    abts->abts_rx_id, abts->abts_ox_id);
+	nt->nt_channel = chan;
+	nt->nt_ncode = NT_ABORT_TASK;
+	nt->nt_lreserved = abts;
+	isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
 }
 
 static void
 isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 {
+	fcportdb_t *lp;
 	int lun, iid;
 
 	if (ISP_CAP_SCCFW(isp)) {
 		lun = aep->at_scclun;
-#if __FreeBSD_version < 1000700
-		lun &= 0x3fff;
-#endif
 	} else {
 		lun = aep->at_lun;
 	}
@@ -1073,9 +987,26 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		break;
 
 	case AT_CDB:		/* Got a CDB */
-		/*
-		 * Punt to platform specific layer.
-		 */
+
+		/* Make sure we have this inititor in port database. */
+		if (!IS_2100(isp) &&
+		    (isp_find_pdb_by_handle(isp, 0, iid, &lp) == 0 ||
+		     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
+		        fcparam *fcp = FCPARAM(isp, 0);
+			uint64_t wwpn =
+				(((uint64_t) aep->at_wwpn[0]) << 48) |
+				(((uint64_t) aep->at_wwpn[1]) << 32) |
+				(((uint64_t) aep->at_wwpn[2]) << 16) |
+				(((uint64_t) aep->at_wwpn[3]) <<  0);
+			isp_add_wwn_entry(isp, 0, wwpn, INI_NONE,
+			    iid, PORT_ANY, 0);
+			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
+				fcp->isp_loopstate = LOOP_LTEST_DONE;
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, 0,
+			    ISPASYNC_CHANGE_PDB, iid, 0x06, 0xff);
+		}
+
+		/* Punt to platform specific layer. */
 		isp_async(isp, ISPASYNC_TARGET_ACTION, aep);
 		break;
 
@@ -1399,51 +1330,230 @@ isp_handle_ctio7(ispsoftc_t *isp, ct7_entry_t *ct)
 }
 
 static void
-isp_handle_24xx_inotify(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
+isp_handle_notify(ispsoftc_t *isp, in_fcentry_t *inp)
 {
-	uint8_t ochan, chan, lochan, hichan;
+	fcportdb_t *lp;
+	uint64_t wwn;
+	uint32_t sid;
+	uint16_t nphdl, status;
+	isp_notify_t notify;
 
-	/*
-	 * Check to see whether we got a wildcard channel.
-	 * If so, we have to iterate over all channels.
-	 */
-	ochan = chan = ISP_GET_VPIDX(isp, inot_24xx->in_vpidx);
-	if (chan == 0xff) {
-		lochan = 0;
-		hichan = isp->isp_nchan;
-	} else {
-		if (chan >= isp->isp_nchan) {
-			char buf[64];
-			ISP_SNPRINTF(buf, sizeof buf, "%s: bad channel %d for status 0x%x", __func__, chan, inot_24xx->in_status);
-			isp_print_bytes(isp, buf, QENTRY_LEN, inot_24xx);
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot_24xx);
-			return;
-		}
-		lochan = chan;
-		hichan = chan + 1;
+	status = inp->in_status;
+	isp_prt(isp, ISP_LOGTDEBUG0, "Immediate Notify, status=0x%x seqid=0x%x",
+	    status, inp->in_seqid);
+	switch (status) {
+	case IN_MSG_RECEIVED:
+	case IN_IDE_RECEIVED:
+		isp_got_msg_fc(isp, inp);
+		return;
+	case IN_RSRC_UNAVAIL:
+		isp_prt(isp, ISP_LOGINFO, "Firmware out of ATIOs");
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inp);
+		return;
 	}
-	isp_prt(isp, ISP_LOGTDEBUG1, "%s: Immediate Notify Channels %d..%d status=0x%x seqid=0x%x", __func__, lochan, hichan-1, inot_24xx->in_status, inot_24xx->in_rxid);
-	for (chan = lochan; chan < hichan; chan++) {
-		if (FCPARAM(isp, chan)->role == ISP_ROLE_NONE)
-			continue;
-		switch (inot_24xx->in_status) {
-		case IN24XX_LIP_RESET:
-		case IN24XX_LINK_RESET:
-		case IN24XX_PORT_LOGOUT:
-		case IN24XX_PORT_CHANGED:
-		case IN24XX_LINK_FAILED:
-		case IN24XX_SRR_RCVD:
-		case IN24XX_ELS_RCVD:
-			inot_24xx->in_reserved = 0;	/* clear this for later usage */
-			inot_24xx->in_vpidx = chan;
-			isp_async(isp, ISPASYNC_TARGET_ACTION, inot_24xx);
+
+	if (ISP_CAP_2KLOGIN(isp))
+		nphdl = ((in_fcentry_e_t *)inp)->in_iid;
+	else
+		nphdl = inp->in_iid;
+	if (isp_find_pdb_by_handle(isp, 0, nphdl, &lp)) {
+		wwn = lp->port_wwn;
+		sid = lp->portid;
+	} else {
+		wwn = INI_ANY;
+		sid = PORT_ANY;
+	}
+
+	ISP_MEMZERO(&notify, sizeof (isp_notify_t));
+	notify.nt_hba = isp;
+	notify.nt_wwn = wwn;
+	notify.nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
+	notify.nt_nphdl = nphdl;
+	notify.nt_sid = sid;
+	notify.nt_did = PORT_ANY;
+	if (ISP_CAP_SCCFW(isp))
+		notify.nt_lun = inp->in_scclun;
+	else
+		notify.nt_lun = inp->in_lun;
+	notify.nt_tagval = inp->in_seqid;
+	notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
+	notify.nt_need_ack = 1;
+	notify.nt_channel = 0;
+	notify.nt_lreserved = inp;
+
+	switch (status) {
+	case IN_RESET:
+		notify.nt_ncode = NT_BUS_RESET;
+		break;
+	case IN_PORT_LOGOUT:
+		notify.nt_ncode = NT_LOGOUT;
+		break;
+	case IN_ABORT_TASK:
+		notify.nt_ncode = NT_ABORT_TASK;
+		break;
+	case IN_GLOBAL_LOGO:
+		notify.nt_ncode = NT_GLOBAL_LOGOUT;
+		break;
+	case IN_PORT_CHANGED:
+		notify.nt_ncode = NT_CHANGED;
+		break;
+	default:
+		isp_prt(isp, ISP_LOGINFO, "%s: unhandled status (0x%x)",
+		    __func__, status);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inp);
+		return;
+	}
+	isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
+}
+
+static void
+isp_handle_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
+{
+	uint8_t chan;
+	uint16_t nphdl, prli_options = 0;
+	uint32_t portid;
+	fcportdb_t *lp;
+	char *msg = NULL;
+	uint8_t *ptr = (uint8_t *)inot;
+	uint64_t wwpn = INI_NONE, wwnn = INI_NONE;
+	isp_notify_t notify;
+	char buf[16];
+
+	nphdl = inot->in_nphdl;
+	if (nphdl != NIL_HANDLE) {
+		portid = inot->in_portid_hi << 16 | inot->in_portid_lo;
+	} else {
+		portid = PORT_ANY;
+	}
+
+	chan = ISP_GET_VPIDX(isp, inot->in_vpidx);
+	if (chan >= isp->isp_nchan &&
+	    inot->in_status != IN24XX_LIP_RESET &&
+	    inot->in_status != IN24XX_LINK_RESET &&
+	    inot->in_status != IN24XX_LINK_FAILED) {
+		isp_prt(isp, ISP_LOGWARN, "%s: Received INOT with status %x on VP %x",
+		    __func__, inot->in_status, chan);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
+		return;
+	}
+
+	switch (inot->in_status) {
+	case IN24XX_ELS_RCVD:
+	{
+		/*
+		 * Note that we're just getting notification that an ELS was
+		 * received (possibly with some associated information sent
+		 * upstream).  This is *not* the same as being given the ELS
+		 * frame to accept or reject.
+		 */
+		switch (inot->in_status_subcode) {
+		case LOGO:
+			msg = "LOGO";
+			wwpn = be64dec(&ptr[IN24XX_PLOGI_WWPN_OFF]);
+			isp_del_wwn_entry(isp, chan, wwpn, nphdl, portid);
+			break;
+		case PRLO:
+			msg = "PRLO";
+			break;
+		case PLOGI:
+			msg = "PLOGI";
+			wwnn = be64dec(&ptr[IN24XX_PLOGI_WWNN_OFF]);
+			wwpn = be64dec(&ptr[IN24XX_PLOGI_WWPN_OFF]);
+			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
+			    nphdl, portid, prli_options);
+			break;
+		case PRLI:
+			msg = "PRLI";
+			prli_options = inot->in_prli_options;
+			if (inot->in_flags & IN24XX_FLAG_PN_NN_VALID)
+				wwnn = be64dec(&ptr[IN24XX_PRLI_WWNN_OFF]);
+			wwpn = be64dec(&ptr[IN24XX_PRLI_WWPN_OFF]);
+			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
+			    nphdl, portid, prli_options);
+			break;
+		case PDISC:
+			msg = "PDISC";
+			break;
+		case ADISC:
+			msg = "ADISC";
 			break;
 		default:
-			isp_prt(isp, ISP_LOGINFO, "%s: unhandled status (0x%x) for chan %d", __func__, inot_24xx->in_status, chan);
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot_24xx);
+			ISP_SNPRINTF(buf, sizeof (buf), "ELS 0x%x",
+			    inot->in_status_subcode);
+			msg = buf;
 			break;
 		}
+		if (inot->in_flags & IN24XX_FLAG_PUREX_IOCB) {
+			isp_prt(isp, ISP_LOGERR, "%s Chan %d ELS N-port handle %x"
+			    " PortID 0x%06x marked as needing a PUREX response",
+			    msg, chan, nphdl, portid);
+			break;
+		}
+		isp_prt(isp, ISP_LOGTDEBUG0, "%s Chan %d ELS N-port handle %x"
+		    " PortID 0x%06x RX_ID 0x%x OX_ID 0x%x", msg, chan, nphdl,
+		    portid, inot->in_rxid, inot->in_oxid);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
+		break;
 	}
-	inot_24xx->in_vpidx = ochan;
+
+	case IN24XX_PORT_LOGOUT:
+		msg = "PORT LOGOUT";
+		if (isp_find_pdb_by_handle(isp, chan, nphdl, &lp))
+			isp_del_wwn_entry(isp, chan, lp->port_wwn, nphdl, lp->portid);
+		/* FALLTHROUGH */
+	case IN24XX_PORT_CHANGED:
+		if (msg == NULL)
+			msg = "PORT CHANGED";
+		/* FALLTHROUGH */
+	case IN24XX_LIP_RESET:
+		if (msg == NULL)
+			msg = "LIP RESET";
+		isp_prt(isp, ISP_LOGINFO, "Chan %d %s (sub-status 0x%x) for "
+		    "N-port handle 0x%x",
+		    chan, msg, inot->in_status_subcode, nphdl);
+
+		/*
+		 * All subcodes here are irrelevant. What is relevant
+		 * is that we need to terminate all active commands from
+		 * this initiator (known by N-port handle).
+		 */
+		/* XXX IMPLEMENT XXX */
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
+		break;
+
+	case IN24XX_SRR_RCVD:
+#ifdef	ISP_TARGET_MODE
+		ISP_MEMZERO(&notify, sizeof (isp_notify_t));
+		notify.nt_hba = isp;
+		notify.nt_wwn = INI_ANY;
+		notify.nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
+		notify.nt_nphdl = nphdl;
+		notify.nt_sid = portid;
+		notify.nt_did = PORT_ANY;
+		notify.nt_lun = LUN_ANY;
+		notify.nt_tagval = inot->in_rxid;
+		notify.nt_tagval |= ((uint64_t)inot->in_srr_rxid << 32);
+		notify.nt_need_ack = 1;
+		notify.nt_channel = chan;
+		notify.nt_lreserved = inot;
+		notify.nt_ncode = NT_SRR;
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
+		break;
+#else
+		if (msg == NULL)
+			msg = "SRR RCVD";
+		/* FALLTHROUGH */
+#endif
+	case IN24XX_LINK_RESET:
+		if (msg == NULL)
+			msg = "LINK RESET";
+	case IN24XX_LINK_FAILED:
+		if (msg == NULL)
+			msg = "LINK FAILED";
+	default:
+		isp_prt(isp, ISP_LOGWARN, "Chan %d %s", chan, msg);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
+		break;
+	}
 }
 #endif

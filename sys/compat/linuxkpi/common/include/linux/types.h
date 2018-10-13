@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,10 +57,25 @@ typedef unsigned int    uint;
 typedef unsigned gfp_t;
 typedef uint64_t loff_t;
 typedef vm_paddr_t resource_size_t;
+typedef uint16_t __bitwise__ __sum16;
+typedef unsigned long pgoff_t;
+typedef unsigned __poll_t;
 
 typedef u64 phys_addr_t;
 
+typedef size_t __kernel_size_t;
+
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
+
+typedef unsigned long irq_hw_number_t;
+
+struct rcu_head {
+	void *raw[2];
+} __aligned(sizeof(void *));
+
+typedef void (*rcu_callback_t)(struct rcu_head *head);
+typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
+typedef int linux_task_fn_t(void *data);
 
 #endif	/* _LINUX_TYPES_H_ */

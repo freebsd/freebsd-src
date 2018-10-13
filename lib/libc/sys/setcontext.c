@@ -42,7 +42,6 @@ __sym_compat(setcontext, __impl_setcontext, FBSD_1.0);
 __weak_reference(setcontext, __impl_setcontext);
 __sym_default(setcontext, setcontext, FBSD_1.2);
 
-#pragma weak setcontext
 int
 setcontext(const ucontext_t *uc)
 {

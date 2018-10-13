@@ -1,11 +1,11 @@
-See http://www.openssh.com/txt/release-7.2p2 for the release notes.
+See https://www.openssh.com/releasenotes.html#7.8p1 for the release notes.
 
-Please read http://www.openssh.com/report.html for bug reporting
+Please read https://www.openssh.com/report.html for bug reporting
 instructions and note that we do not use Github for bug reporting or
 patch/pull-request management.
 
-- A Japanese translation of this document and of the OpenSSH FAQ is
-- available at http://www.unixuser.org/~haruyama/security/openssh/index.html
+- A Japanese translation of this document and of the release notes is
+- available at https://www.unixuser.org/~haruyama/security/openssh/index.html
 - Thanks to HARUYAMA Seigo <haruyama@unixuser.org>
 
 This is the port of OpenBSD's excellent OpenSSH[0] to Linux and other
@@ -16,13 +16,13 @@ implementation with all patent-encumbered algorithms removed (to
 external libraries), all known security bugs fixed, new features
 reintroduced and many other clean-ups.  OpenSSH has been created by
 Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo de Raadt,
-and Dug Song. It has a homepage at http://www.openssh.com/
+and Dug Song. It has a homepage at https://www.openssh.com/
 
 This port consists of the re-introduction of autoconf support, PAM
 support, EGD[1]/PRNGD[2] support and replacements for OpenBSD library
 functions that are (regrettably) absent from other unices. This port
 has been best tested on AIX, Cygwin, HP-UX, Linux, MacOS/X,
-NetBSD, OpenBSD, OpenServer, Solaris, Unicos, and UnixWare.
+NetBSD, OpenBSD, OpenServer, Solaris and UnixWare.
 
 This version actively tracks changes in the OpenBSD CVS repository.
 
@@ -30,20 +30,19 @@ The PAM support is now more functional than the popular packages of
 commercial ssh-1.2.x. It checks "account" and "session" modules for
 all logins, not just when using password authentication.
 
-OpenSSH depends on Zlib[3], OpenSSL[4] and optionally PAM[5].
+OpenSSH depends on Zlib[3], OpenSSL[4], and optionally PAM[5] and
+libedit[6]
 
 There is now several mailing lists for this port of OpenSSH. Please
-refer to http://www.openssh.com/list.html for details on how to join.
+refer to https://www.openssh.com/list.html for details on how to join.
 
 Please send bug reports and patches to the mailing list
-openssh-unix-dev@mindrot.org. The list is open to posting by
-unsubscribed users.Code contribution are welcomed, but please follow the 
-OpenBSD style guidelines[6].
+openssh-unix-dev@mindrot.org. The list is open to posting by unsubscribed
+users.  Code contribution are welcomed, but please follow the OpenBSD
+style guidelines[7].
 
 Please refer to the INSTALL document for information on how to install
-OpenSSH on your system. There are a number of differences between this
-port of OpenSSH and F-Secure SSH 1.x, please refer to the OpenSSH FAQ[7]
-for details and general tips.
+OpenSSH on your system.
 
 Damien Miller <djm@mindrot.org>
 
@@ -55,15 +54,13 @@ implementation released by Tatu Ylonen.
 
 References -
 
-[0] http://www.openssh.com/faq.html
+[0] https://www.openssh.com/
 [1] http://www.lothar.com/tech/crypto/
-[2] http://www.aet.tu-cottbus.de/personen/jaenicke/postfix_tls/prngd.html
-[3] http://www.gzip.org/zlib/
-[4] http://www.openssl.org/
-[5] http://www.openpam.org
-    http://www.kernel.org/pub/linux/libs/pam/ 
+[2] http://prngd.sourceforge.net/
+[3] https://www.zlib.net/
+[4] https://www.openssl.org/
+[5] https://www.openpam.org
+    https://www.kernel.org/pub/linux/libs/pam/
     (PAM also is standard on Solaris and HP-UX 11)
-[6] http://www.openbsd.org/cgi-bin/man.cgi?query=style&sektion=9
-[7] http://www.openssh.com/faq.html
-
-$Id: README,v 1.87 2014/08/10 01:35:06 djm Exp $
+[6] https://thrysoee.dk/editline/ (portable version)
+[7] https://man.openbsd.org/style.9

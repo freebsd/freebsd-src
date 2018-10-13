@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2015
+.Dd January 7, 2017
 .Dt CHMOD 1
 .Os
 .Sh NAME
@@ -105,6 +105,16 @@ options are ignored unless the
 option is specified.
 In addition, these options override each other and the
 command's actions are determined by the last one specified.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new modes are displayed.
 .Pp
 Only the owner of a file or the super-user is permitted to change
 the mode of a file.

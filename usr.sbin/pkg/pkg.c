@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012-2014 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
@@ -34,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/wait.h>
 
-#define _WITH_GETLINE
 #include <archive.h>
 #include <archive_entry.h>
 #include <dirent.h>
@@ -947,6 +948,7 @@ pkg_query_yes_no(void)
 {
 	int ret, c;
 
+	fflush(stdout);
 	c = getchar();
 
 	if (c == 'y' || c == 'Y')
@@ -1030,6 +1032,7 @@ main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
 	const char *pkgarg;
+	int i;
 	bool bootstrap_only, force, yes;
 
 	bootstrap_only = false;
@@ -1081,6 +1084,15 @@ main(int argc, char *argv[])
 		 * tucked in there already.
 		 */
 		config_bool(ASSUME_ALWAYS_YES, &yes);
+		if (!yes) {
+			for (i = 1; i < argc; i++) {
+				if (strcmp(argv[i], "-y") == 0 ||
+				    strcmp(argv[i], "--yes") == 0) {
+					yes = true;
+					break;
+				}
+			}
+		}
 		if (!yes) {
 			if (!isatty(fileno(stdin))) {
 				fprintf(stderr, non_interactive_message);

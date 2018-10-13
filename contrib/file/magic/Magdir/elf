@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.69 2015/06/16 17:23:08 christos Exp $
+# $File: elf,v 1.74 2018/06/23 16:39:53 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -50,8 +50,12 @@
 !:mime	application/x-executable
 >16	leshort		3		shared object,
 !:mime	application/x-sharedlib
->16	leshort		4		core file
+>16	leshort		4		core file,
 !:mime	application/x-coredump
+# OS-specific
+>7	byte		202
+>>16	leshort		0xFE01		executable,
+!:mime	application/x-executable
 # Core file detection is not reliable.
 #>>>(0x38+0xcc) string	>\0		of '%s'
 #>>>(0x38+0x10) lelong	>0		(signal %d),
@@ -301,25 +305,24 @@
 >>0	use		elf-le
 >5	byte		2		MSB
 >>0	use		\^elf-le
-# Up to now only 0, 1 and 2 are defined; I've seen a file with 0x83, it seemed
-# like proper ELF, but extracting the string had bad results.
->4      byte            <0x80
->>8	string		>\0		(%s)
->8	string		\0
->>7	byte		0		(SYSV)
->>7	byte		1		(HP-UX)
->>7	byte		2		(NetBSD)
->>7	byte		3		(GNU/Linux)
->>7	byte		4		(GNU/Hurd)
->>7	byte		5		(86Open)
->>7	byte		6		(Solaris)
->>7	byte		7		(Monterey)
->>7	byte		8		(IRIX)
->>7	byte		9		(FreeBSD)
->>7	byte		10		(Tru64)
->>7	byte		11		(Novell Modesto)
->>7	byte		12		(OpenBSD)
->8      string          \2
->>7     byte            13              (OpenVMS)
->>7	byte		97		(ARM)
->>7	byte		255		(embedded)
+>7	byte		0		(SYSV)
+>7	byte		1		(HP-UX)
+>7	byte		2		(NetBSD)
+>7	byte		3		(GNU/Linux)
+>7	byte		4		(GNU/Hurd)
+>7	byte		5		(86Open)
+>7	byte		6		(Solaris)
+>7	byte		7		(Monterey)
+>7	byte		8		(IRIX)
+>7	byte		9		(FreeBSD)
+>7	byte		10		(Tru64)
+>7	byte		11		(Novell Modesto)
+>7	byte		12		(OpenBSD)
+>7	byte		13		(OpenVMS)
+>7	byte		14		(HP NonStop Kernel)
+>7	byte		15		(AROS Research Operating System)
+>7	byte		16		(FenixOS)
+>7	byte		17		(Nuxi CloudABI)
+>7	byte		97		(ARM)
+>7	byte		202		(Cafe OS)
+>7	byte		255		(embedded)

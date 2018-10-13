@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2013
+.Dd April 24, 2018
 .Dt USB 4
 .Os
 .Sh NAME
@@ -78,8 +78,7 @@ bus.
 .Pp
 The
 .Nm uhub
-device will always be present as it is needed for the
-root hub.
+device will always be present as it is needed for the root hub.
 .Sh INTRODUCTION TO USB
 The
 .Tn USB
@@ -94,38 +93,34 @@ The most common USB speeds are:
 Each
 .Tn USB
 has a USB controller that is the master of the bus.
-The physical communication is simplex which means the host controller only communicates with one USB device at a time.
+The physical communication is simplex which means the host controller only
+communicates with one USB device at a time.
 .Pp
 There can be up to 127 devices connected to an USB HUB tree.
-The addresses are assigned
-dynamically by the host when each device is attached to the bus.
+The addresses are assigned dynamically by the host when each device is
+attached to the bus.
 .Pp
 Within each device there can be up to 16 endpoints.
-Each endpoint
-is individually addressed and the addresses are static.
+Each endpoint is individually addressed and the addresses are static.
 Each of these endpoints will communicate in one of four different modes:
 .Em control , isochronous , bulk ,
 or
 .Em interrupt .
 A device always has at least one endpoint.
-This endpoint has address 0 and is a control
-endpoint and is used to give commands to and extract basic data,
-such as descriptors, from the device.
+This endpoint has address 0 and is a control endpoint and is used to give
+commands to and extract basic data, such as descriptors, from the device.
 Each endpoint, except the control endpoint, is unidirectional.
 .Pp
 The endpoints in a device are grouped into interfaces.
-An interface is a logical unit within a device; e.g.\&
-a compound device with both a keyboard and a trackball would present
-one interface for each.
-An interface can sometimes be set into different modes,
-called alternate settings, which affects how it operates.
-Different alternate settings can have different endpoints
-within it.
+An interface is a logical unit within a device, e.g., a compound device with
+both a keyboard and a trackball, would present one interface for each.
+An interface can sometimes be set into different modes, called alternate
+settings, which affects how it operates.
+Different alternate settings can have different endpoints within it.
 .Pp
 A device may operate in different configurations.
-Depending on the
-configuration, the device may present different sets of endpoints
-and interfaces.
+Depending on the configuration, the device may present different sets of
+endpoints and interfaces.
 .Pp
 The bus enumeration of the
 .Tn USB
@@ -136,6 +131,17 @@ Any interface specific driver can attach to the device.
 .It
 If none is found, generic interface class drivers can attach.
 .El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh SEE ALSO
 The
 .Tn USB
@@ -144,7 +150,6 @@ specifications can be found at:
 .D1 Pa http://www.usb.org/developers/docs/
 .Pp
 .Xr libusb 3 ,
-.Xr usbdi 4 ,
 .Xr aue 4 ,
 .Xr axe 4 ,
 .Xr axge 4 ,
@@ -166,8 +171,9 @@ specifications can be found at:
 .Xr uplcom 4 ,
 .Xr urio 4 ,
 .Xr uvscom 4 ,
-.Xr usbconfig 8 ,
 .Xr xhci 4
+.Xr usbconfig 8 ,
+.Xr usbdi 9 ,
 .Sh STANDARDS
 The
 .Nm

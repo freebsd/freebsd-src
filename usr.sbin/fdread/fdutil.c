@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Joerg Wunsch
  *
  * All rights reserved.
@@ -92,7 +94,6 @@ static struct fd_type fd_types_auto[1] =
 
 
 static struct fd_type fd_types_288m[] = {
-#ifndef PC98
 #if 0
 	{ FDF_3_2880 },
 #endif
@@ -103,20 +104,10 @@ static struct fd_type fd_types_288m[] = {
 	{ FDF_3_820 },
 	{ FDF_3_800 },
 	{ FDF_3_720 },
-#endif	/* !PC98 */
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 static struct fd_type fd_types_144m[] = {
-#ifdef PC98
-	{ FDF_3_1440 },
-	{ FDF_3_1200 },
-	{ FDF_3_720 },
-	{ FDF_3_360 },
-	{ FDF_3_640 },
-	{ FDF_3_1230 },
-	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
-#else
 	{ FDF_3_1722 },
 	{ FDF_3_1476 },
 	{ FDF_3_1440 },
@@ -125,18 +116,9 @@ static struct fd_type fd_types_144m[] = {
 	{ FDF_3_800 },
 	{ FDF_3_720 },
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
-#endif
 };
 
 static struct fd_type fd_types_12m[] = {
-#ifdef PC98
-	{ FDF_5_1200 },
-	{ FDF_5_720 },
-	{ FDF_5_360 },
-	{ FDF_5_640 },
-	{ FDF_5_1230 },
-	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
-#else
 	{ FDF_5_1200 },
 	{ FDF_5_1230 },
 	{ FDF_5_1480 },
@@ -147,22 +129,17 @@ static struct fd_type fd_types_12m[] = {
 	{ FDF_5_360 | FL_2STEP },
 	{ FDF_5_640 },
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
-#endif
 };
 
 static struct fd_type fd_types_720k[] =
 {
-#ifndef PC98
 	{ FDF_3_720 },
-#endif
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 static struct fd_type fd_types_360k[] =
 {
-#ifndef PC98
 	{ FDF_5_360 },
-#endif
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 

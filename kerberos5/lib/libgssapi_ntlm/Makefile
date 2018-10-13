@@ -45,4 +45,4 @@ CFLAGS+=-I${KRB5DIR}/lib/ntlm
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/gssapi/ntlm ${.CURDIR}/../../../lib/libgssapi ${.CURDIR}/../libgssapi_krb5
+.PATH: ${KRB5DIR}/lib/gssapi/ntlm ${SRCTOP}/lib/libgssapi ${.CURDIR:H}/libgssapi_krb5

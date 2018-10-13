@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -797,7 +799,7 @@ sctp_sendmsgx(int sd,
 	memset((void *)&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	sinfo.sinfo_ppid = ppid;
 	sinfo.sinfo_flags = flags;
-	sinfo.sinfo_ssn = stream_no;
+	sinfo.sinfo_stream = stream_no;
 	sinfo.sinfo_timetolive = timetolive;
 	sinfo.sinfo_context = context;
 	return (sctp_sendx(sd, msg, len, addrs, addrcnt, &sinfo, 0));

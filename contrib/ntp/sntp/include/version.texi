@@ -1,3 +1,3 @@
-@set UPDATED 02 June 2016
-@set EDITION 4.2.8p8
-@set VERSION 4.2.8p8
+@set UPDATED 14 August 2018
+@set EDITION 4.2.8p12
+@set VERSION 4.2.8p12

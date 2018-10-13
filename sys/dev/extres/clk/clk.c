@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -48,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 #include <dev/extres/clk/clk.h>
+
+SYSCTL_NODE(_hw, OID_AUTO, clock, CTLFLAG_RD, NULL, "Clocks");
 
 MALLOC_DEFINE(M_CLOCK, "clocks", "Clock framework");
 
@@ -118,6 +121,8 @@ struct clknode {
 
 	/* Cached values. */
 	uint64_t		freq;		/* Actual frequency */
+
+	struct sysctl_ctx_list	sysctl_ctx;
 };
 
 /*
@@ -174,6 +179,15 @@ SX_SYSINIT(clock_topology, &clk_topo_lock, "Clock topology lock");
 #define CLKNODE_UNLOCK(_sc)	sx_unlock(&((_sc)->lock))
 
 static void clknode_adjust_parent(struct clknode *clknode, int idx);
+
+enum clknode_sysctl_type {
+	CLKNODE_SYSCTL_PARENT,
+	CLKNODE_SYSCTL_PARENTS_LIST,
+	CLKNODE_SYSCTL_CHILDREN_LIST,
+};
+
+static int clknode_sysctl(SYSCTL_HANDLER_ARGS);
+static int clkdom_sysctl(SYSCTL_HANDLER_ARGS);
 
 /*
  * Default clock methods for base class.
@@ -382,6 +396,14 @@ clkdom_create(device_t dev)
 	clkdom->ofw_mapper = clknode_default_ofw_map;
 #endif
 
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	  OID_AUTO, "clocks",
+	  CTLTYPE_STRING | CTLFLAG_RD,
+		    clkdom, 0, clkdom_sysctl,
+		    "A",
+		    "Clock list for the domain");
+
 	return (clkdom);
 }
 
@@ -503,6 +525,7 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
     const struct clknode_init_def *def)
 {
 	struct clknode *clknode;
+	struct sysctl_oid *clknode_oid;
 
 	KASSERT(def->name != NULL, ("clock name is NULL"));
 	KASSERT(def->name[0] != '\0', ("clock name is empty"));
@@ -547,6 +570,42 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	clknode->parent_idx = CLKNODE_IDX_NONE;
 	TAILQ_INIT(&clknode->children);
 
+	sysctl_ctx_init(&clknode->sysctl_ctx);
+	clknode_oid = SYSCTL_ADD_NODE(&clknode->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_hw_clock),
+	    OID_AUTO, clknode->name,
+	    CTLFLAG_RD, 0, "A clock node");
+
+	SYSCTL_ADD_U64(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "frequency",
+	    CTLFLAG_RD, &clknode->freq, 0, "The clock frequency");
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "parent",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    clknode, CLKNODE_SYSCTL_PARENT, clknode_sysctl,
+	    "A",
+	    "The clock parent");
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "parents",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    clknode, CLKNODE_SYSCTL_PARENTS_LIST, clknode_sysctl,
+	    "A",
+	    "The clock parents list");
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "childrens",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    clknode, CLKNODE_SYSCTL_CHILDREN_LIST, clknode_sysctl,
+	    "A",
+	    "The clock childrens list");
+	SYSCTL_ADD_INT(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "enable_cnt",
+	    CTLFLAG_RD, &clknode->enable_cnt, 0, "The clock enable counter");
+
 	return (clknode);
 }
 
@@ -585,10 +644,11 @@ clknode_adjust_parent(struct clknode *clknode, int idx)
 	if (clknode->parent_cnt == 0)
 		return;
 	if ((idx == CLKNODE_IDX_NONE) || (idx >= clknode->parent_cnt))
-		panic("Invalid clock parent index\n");
+		panic("%s: Invalid parent index %d for clock %s",
+		    __func__, idx, clknode->name);
 
 	if (clknode->parents[idx] == NULL)
-		panic("%s: Attempt to set invalid parent %d for clock %s",
+		panic("%s: Invalid parent index %d for clock %s",
 		    __func__, idx, clknode->name);
 
 	/* Remove me from old children list. */
@@ -617,8 +677,8 @@ clknode_init_parent_idx(struct clknode *clknode, int idx)
 	if ((idx == CLKNODE_IDX_NONE) ||
 	    (idx >= clknode->parent_cnt) ||
 	    (clknode->parent_names[idx] == NULL))
-		panic("%s: Invalid clock parent index: %d\n", __func__, idx);
-
+		panic("%s: Invalid parent index %d for clock %s",
+		    __func__, idx, clknode->name);
 	clknode->parent_idx = idx;
 }
 
@@ -830,9 +890,10 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 	 * OR
 	 *   clock is glitch free and is enabled by calling consumer only
 	 */
-	if ((clknode->enable_cnt > 1) &&
-	    ((clknode->enable_cnt > enablecnt) ||
-	    !(clknode->flags & CLK_NODE_GLITCH_FREE))) {
+	if ((flags & CLK_SET_DRYRUN) == 0 &&
+	    clknode->enable_cnt > 1 &&
+	    clknode->enable_cnt > enablecnt &&
+	    (clknode->flags & CLK_NODE_GLITCH_FREE) == 0) {
 		return (EBUSY);
 	}
 
@@ -856,9 +917,18 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 
 	if (done) {
 		/* Success - invalidate frequency cache for all children. */
-		clknode->freq = freq;
-		if ((flags & CLK_SET_DRYRUN) == 0)
+		if ((flags & CLK_SET_DRYRUN) == 0) {
+			clknode->freq = freq;
+			/* Clock might have reparent during set_freq */
+			if (clknode->parent_cnt > 0) {
+				rv = clknode_get_freq(clknode->parent,
+				    &parent_freq);
+				if (rv != 0) {
+					return (rv);
+				}
+			}
 			clknode_refresh_cache(clknode, parent_freq);
+		}
 	} else if (clknode->parent != NULL) {
 		/* Nothing changed, pass request to parent. */
 		rv = clknode_set_freq(clknode->parent, freq, flags, enablecnt);
@@ -1195,25 +1265,120 @@ clk_get_by_id(device_t dev, struct clkdom *clkdom, intptr_t id, clk_t *clk)
 
 #ifdef FDT
 
-int
-clk_get_by_ofw_index(device_t dev, int idx, clk_t *clk)
+static void
+clk_set_assigned_parent(device_t dev, clk_t clk, int idx)
 {
-	phandle_t cnode, parent, *cells;
+	clk_t parent;
+	const char *pname;
+	int rv;
+
+	rv = clk_get_by_ofw_index_prop(dev, 0,
+	    "assigned-clock-parents", idx, &parent);
+	if (rv != 0) {
+		device_printf(dev,
+		    "cannot get parent at idx %d\n", idx);
+		return;
+	}
+
+	pname = clk_get_name(parent);
+	rv = clk_set_parent_by_clk(clk, parent);
+	if (rv != 0)
+		device_printf(dev,
+		    "Cannot set parent %s for clock %s\n",
+		    pname, clk_get_name(clk));
+	else if (bootverbose)
+		device_printf(dev, "Set %s as the parent of %s\n",
+		    pname, clk_get_name(clk));
+	clk_release(parent);
+}
+
+static void
+clk_set_assigned_rates(device_t dev, clk_t clk, uint32_t freq)
+{
+	int rv;
+
+	rv = clk_set_freq(clk, freq, 0);
+	if (rv != 0) {
+		device_printf(dev, "Failed to set %s to a frequency of %u\n",
+		    clk_get_name(clk), freq);
+		return;
+	}
+	if (bootverbose)
+		device_printf(dev, "Set %s to %u\n",
+		    clk_get_name(clk), freq);
+}
+
+int
+clk_set_assigned(device_t dev, phandle_t node)
+{
+	clk_t clk;
+	uint32_t *rates;
+	int rv, nclocks, nrates, nparents, i;
+
+	rv = ofw_bus_parse_xref_list_get_length(node,
+	    "assigned-clocks", "#clock-cells", &nclocks);
+
+	if (rv != 0) {
+		if (rv != ENOENT)
+			device_printf(dev,
+			    "cannot parse assigned-clock property\n");
+		return (rv);
+	}
+
+	nrates = OF_getencprop_alloc_multi(node, "assigned-clock-rates",
+	    sizeof(*rates), (void **)&rates);
+	if (nrates <= 0)
+		nrates = 0;
+
+	nparents = ofw_bus_parse_xref_list_get_length(node,
+	    "assigned-clock-parents", "#clock-cells", &nparents);
+
+	for (i = 0; i < nclocks; i++) {
+		/* First get the clock we are supposed to modify */
+		rv = clk_get_by_ofw_index_prop(dev, 0, "assigned-clocks",
+		    i, &clk);
+		if (rv != 0) {
+			if (bootverbose)
+				device_printf(dev,
+				    "cannot get assigned clock at idx %d\n",
+				    i);
+			continue;
+		}
+
+		/* First set it's parent if needed */
+		if (i <= nparents)
+			clk_set_assigned_parent(dev, clk, i);
+
+		/* Then set a new frequency */
+		if (i <= nrates && rates[i] != 0)
+			clk_set_assigned_rates(dev, clk, rates[i]);
+
+		clk_release(clk);
+	}
+
+	return (0);
+}
+
+int
+clk_get_by_ofw_index_prop(device_t dev, phandle_t cnode, const char *prop, int idx, clk_t *clk)
+{
+	phandle_t parent, *cells;
 	device_t clockdev;
 	int ncells, rv;
 	struct clkdom *clkdom;
 	struct clknode *clknode;
 
 	*clk = NULL;
-
-	cnode = ofw_bus_get_node(dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(dev);
 	if (cnode <= 0) {
 		device_printf(dev, "%s called on not ofw based device\n",
 		 __func__);
 		return (ENXIO);
 	}
 
-	rv = ofw_bus_parse_xref_list_alloc(cnode, "clocks", "#clock-cells", idx,
+
+	rv = ofw_bus_parse_xref_list_alloc(cnode, prop, "#clock-cells", idx,
 	    &parent, &ncells, &cells);
 	if (rv != 0) {
 		return (rv);
@@ -1246,12 +1411,18 @@ done:
 }
 
 int
-clk_get_by_ofw_name(device_t dev, const char *name, clk_t *clk)
+clk_get_by_ofw_index(device_t dev, phandle_t cnode, int idx, clk_t *clk)
+{
+	return (clk_get_by_ofw_index_prop(dev, cnode, "clocks", idx, clk));
+}
+
+int
+clk_get_by_ofw_name(device_t dev, phandle_t cnode, const char *name, clk_t *clk)
 {
 	int rv, idx;
-	phandle_t cnode;
 
-	cnode = ofw_bus_get_node(dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(dev);
 	if (cnode <= 0) {
 		device_printf(dev, "%s called on not ofw based device\n",
 		 __func__);
@@ -1260,7 +1431,7 @@ clk_get_by_ofw_name(device_t dev, const char *name, clk_t *clk)
 	rv = ofw_bus_find_string_index(cnode, "clock-names", name, &idx);
 	if (rv != 0)
 		return (rv);
-	return (clk_get_by_ofw_index(dev, idx, clk));
+	return (clk_get_by_ofw_index(dev, cnode, idx, clk));
 }
 
 /* --------------------------------------------------------------------------
@@ -1292,7 +1463,7 @@ clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
 
 	if (!OF_hasprop(node, "clock-indices"))
 		return (name_items);
-	rv = OF_getencprop_alloc(node, "clock-indices", sizeof (uint32_t),
+	rv = OF_getencprop_alloc_multi(node, "clock-indices", sizeof (uint32_t),
 	    (void **)indices);
 	if (rv != name_items) {
 		device_printf(dev, " Size of 'clock-output-names' and "
@@ -1334,3 +1505,64 @@ clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name)
 	return (0);
 }
 #endif
+
+static int
+clkdom_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct clkdom *clkdom = arg1;
+	struct clknode *clknode;
+	struct sbuf *sb;
+	int ret;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	CLK_TOPO_SLOCK();
+	TAILQ_FOREACH(clknode, &clkdom->clknode_list, clkdom_link) {
+		sbuf_printf(sb, "%s ", clknode->name);
+	}
+	CLK_TOPO_UNLOCK();
+
+	ret = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (ret);
+}
+
+static int
+clknode_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct clknode *clknode, *children;
+	enum clknode_sysctl_type type = arg2;
+	struct sbuf *sb;
+	const char **parent_names;
+	int ret, i;
+
+	clknode = arg1;
+	sb = sbuf_new_for_sysctl(NULL, NULL, 512, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	CLK_TOPO_SLOCK();
+	switch (type) {
+	case CLKNODE_SYSCTL_PARENT:
+		if (clknode->parent)
+			sbuf_printf(sb, "%s", clknode->parent->name);
+		break;
+	case CLKNODE_SYSCTL_PARENTS_LIST:
+		parent_names = clknode_get_parent_names(clknode);
+		for (i = 0; i < clknode->parent_cnt; i++)
+			sbuf_printf(sb, "%s ", parent_names[i]);
+		break;
+	case CLKNODE_SYSCTL_CHILDREN_LIST:
+		TAILQ_FOREACH(children, &(clknode->children), sibling_link) {
+			sbuf_printf(sb, "%s ", children->name);
+		}
+		break;
+	}
+	CLK_TOPO_UNLOCK();
+
+	ret = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (ret);
+}

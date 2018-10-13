@@ -1,11 +1,50 @@
 
 #------------------------------------------------------------------------------
-# $File: pgp,v 1.11 2014/11/11 21:32:38 christos Exp $
+# $File: pgp,v 1.15 2018/02/24 16:11:23 christos Exp $
 # pgp:  file(1) magic for Pretty Good Privacy
 # see http://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
 #
-0       beshort         0x9900                  PGP key public ring
-!:mime	application/x-pgp-keyring
+# Update: Joerg Jenderek
+# Note: verified by `gpg -v --debug 0x02 --list-packets < PUBRING263_10.PGP`
+#0		byte	0x99		MAYBE PGP 0x99
+0		byte	0x99
+# 99h~10;0110;01~2=old packet type;tag 6=Public-Key Packet;1=two-octet length
+# A two-octet body header encodes packet lengths of 192~00C0h - 8383~20BFh
+#>1		ubeshort	x		\b, body length 0x%.4x
+# skip Basic.Image Beauty.320 Pic.Icons by looking for low version number
+#>3		ubyte		x		\b, V=%u
+#>3		ubyte		<5		VERSION OK
+>3		ubyte		<5
+# next packet type often b4h~(tag 13)~User ID Packet, b0h~(tag 12)~Trust packet
+#>>(1.S+3)	ubyte	x		\b, next packet type 0x%x
+# skip 9900-v4.bin 9902-v4.bin by looking for valid second packet type (bit 7=1)
+#>>(1.S+3)	ubyte	>0x7F		TYPE OK,
+>>(1.S+3)	ubyte	>0x7F
+# old versions 2,3 implies Pretty Good Privacy
+>>>3		ubyte		<4		PGP key public ring (v%u)
+!:mime		application/pgp-keys
+!:ext		pgp/ASD
+>>>>4		beldate		x		created %s
+# days that this key is valid. If this number is zero, then it does not expire
+>>>>8		ubeshort	>0		\b, %u days valid
+>>>>8		ubeshort	=0		\b, not expire
+# display key algorithm 1~RSA (Encrypt or Sign)
+>>>>10		use		key_algo
+# Multiprecision Integers (MPI) size
+>>>>11		ubeshort	x		%u bits
+# MPI
+>>>>13		ubequad		x		MPI=0x%16.16llx...
+# new version implies Pretty Good Privacy (PGP) >= 5.0 or Gnu Privacy Guard (GPG)
+>>>3		ubyte		>3		PGP/GPG key public ring (v%u)
+!:mime		application/pgp-keys
+!:ext		pgp/gpg/pkr/asd
+>>>>4		beldate		x		created %s
+# display key algorithm 17~DSA
+>>>>8		use		key_algo
+# Multiprecision Integers (MPI) size
+>>>>9		ubeshort	x		%u bits
+>>>>11		ubequad		x		MPI=0x%16.16llx...
+
 0       beshort         0x9501                  PGP key security ring
 !:mime	application/x-pgp-keyring
 0       beshort         0x9500                  PGP key security ring
@@ -19,15 +58,15 @@
 #>15	string	SIGNED\040MESSAGE-	signed message
 #>15	string	PGP\040SIGNATURE-	signature
 
-2	string	---BEGIN\ PGP\ PUBLIC\ KEY\ BLOCK-	PGP public key block
+2	string	---BEGIN\040PGP\040PUBLIC\040KEY\040BLOCK-	PGP public key block
 !:mime	application/pgp-keys
 >10	search/100	\n\n
 >>&0	use		pgp
-0	string	-----BEGIN\040PGP\40MESSAGE-		PGP message
+0	string	-----BEGIN\040PGP\040MESSAGE-		PGP message
 !:mime	application/pgp
 >10	search/100	\n\n
 >>&0	use		pgp
-0	string	-----BEGIN\040PGP\40SIGNATURE-		PGP signature
+0	string	-----BEGIN\040PGP\040SIGNATURE-		PGP signature
 !:mime	application/pgp-signature
 >10	search/100	\n\n
 >>&0	use		pgp
@@ -77,7 +116,7 @@
 >0	byte		0x30
 >>1	byte&0xc0	0x00		Unused [0%x]
 >>1	byte&0xc0	0x40		User Attribute
->>1	byte&0xc0	0x80		Sym. Encrypted and Integrity Protected Data 
+>>1	byte&0xc0	0x80		Sym. Encrypted and Integrity Protected Data
 >>1	byte&0xc0	0xc0		Modification Detection Code
 
 # magic signatures to detect PGP crypto material (from stef)
@@ -193,6 +232,23 @@
 >0	byte	0x09			SHA384
 >0	byte	0x0a			SHA512
 >0	byte	0x0b			SHA224
+
+# display public key algorithms as human readable text
+0	name	key_algo
+>0	byte	0x01			RSA (Encrypt or Sign)
+# keep old look of version 5.28 without parentheses
+>0	byte	0x02			RSA Encrypt-Only
+>0	byte	0x03			RSA (Sign-Only)
+>0	byte	16			ElGamal (Encrypt-Only)
+>0	byte	17			DSA
+>0	byte	18			Elliptic Curve
+>0	byte	19			ECDSA
+>0	byte	20			ElGamal (Encrypt or Sign)
+>0	byte	21			Diffie-Hellman
+>0	default	x
+>>0	ubyte	<22			unknown (pub %d)
+# this should never happen
+>>0	ubyte	>21			invalid (%d)
 
 # pgp symmetric encrypted data
 
@@ -465,5 +521,41 @@
 >1	use	pgpkey
 0	byte	0x97			PGP	Secret Sub-key -
 >1	use	pgpkey
-0	byte	0x9d			PGP	Secret Sub-key -
->1	use	pgpkey
+0	byte	0x9d
+# Update: Joerg Jenderek
+# secret subkey packet (tag 7) with same structure as secret key packet (tag 5)
+# skip Fetus.Sys16 CALIBUS.MAIN OrbFix.Sys16.Ex by looking for positive len
+>1	ubeshort	>0
+#>1	ubeshort	x		\b, body length 0x%x
+# next packet type often 88h,89h~(tag 2)~Signature Packet
+#>>(1.S+3)	ubyte	x		\b, next packet type 0x%x
+# skip Dragon.SHR DEMO.INIT by looking for positive version
+>>3	ubyte		>0
+# skip BUISSON.13 GUITAR1 by looking for low version number
+>>>3	ubyte		<5		PGP Secret Sub-key
+# sub-key are normally part of secret key. So it does not occur as standalone file
+#!:ext	bin
+# version 2,3~old 4~new . Comment following line for version 5.28 look
+>>>>3	ubyte		x		(v%d)
+>>>>3	ubyte		x		-
+# old versions 2 or 3 but no real example found
+>>>>3	ubyte		<4
+# 2 byte for key bits in version 5.28 look
+>>>>>11		ubeshort	x	%db
+>>>>>4		beldate		x	created on %s -
+# old versions use 2 additional bytes after time stamp
+#>>>>>8		ubeshort	x	0x%x
+# display key algorithm 1~RSA Encrypt|Sign - 21~Diffie-Hellman
+>>>>>10	  	use		key_algo
+>>>>>(11.S/8)	ubequad		x
+# look after first key
+>>>>>>&5	use		keyend
+# new version
+>>>>3	ubyte		>3
+>>>>>9		ubeshort	x	%db
+>>>>>4		beldate		x	created on %s -
+# display key algorithm
+>>>>>8		use		key_algo
+>>>>>(9.S/8)	ubequad		x
+# look after first key for something like s2k
+>>>>>>&3	use		keyend

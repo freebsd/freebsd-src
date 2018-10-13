@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -61,7 +63,7 @@ cap_random_buf(cap_channel_t *chan, void *buf, size_t nbytes)
 		nvlist_add_string(nvl, "cmd", "generate");
 		nvlist_add_number(nvl, "size",
 		    (uint64_t)(left > MAXSIZE ? MAXSIZE : left));
-		nvl = cap_xfer_nvlist(chan, nvl, 0);
+		nvl = cap_xfer_nvlist(chan, nvl);
 		if (nvl == NULL)
 			return (-1);
 		if (nvlist_get_number(nvl, "error") != 0) {

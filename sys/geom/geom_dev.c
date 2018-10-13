@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -128,35 +130,45 @@ g_dev_fini(struct g_class *mp)
 }
 
 static int
-g_dev_setdumpdev(struct cdev *dev, struct thread *td)
+g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
+    struct thread *td)
 {
 	struct g_kerneldump kd;
 	struct g_consumer *cp;
 	int error, len;
 
-	if (dev == NULL)
-		return (set_dumper(NULL, NULL, td));
+	if (dev == NULL || kda == NULL)
+		return (clear_dumper(td));
 
 	cp = dev->si_drv2;
 	len = sizeof(kd);
+	memset(&kd, 0, len);
 	kd.offset = 0;
 	kd.length = OFF_MAX;
 	error = g_io_getattr("GEOM::kerneldump", cp, &len, &kd);
-	if (error == 0) {
-		error = set_dumper(&kd.di, devtoname(dev), td);
-		if (error == 0)
-			dev->si_flags |= SI_DUMPDEV;
-	}
+	if (error != 0)
+		return (error);
+
+	error = set_dumper(&kd.di, devtoname(dev), td, kda->kda_compression,
+	    kda->kda_encryption, kda->kda_key, kda->kda_encryptedkeysize,
+	    kda->kda_encryptedkey);
+	if (error == 0)
+		dev->si_flags |= SI_DUMPDEV;
+
 	return (error);
 }
 
 static int
 init_dumpdev(struct cdev *dev)
 {
+	struct diocskerneldump_arg kda;
 	struct g_consumer *cp;
 	const char *devprefix = "/dev/", *devname;
 	int error;
 	size_t len;
+
+	bzero(&kda, sizeof(kda));
+	kda.kda_enable = 1;
 
 	if (dumpdev == NULL)
 		return (0);
@@ -173,7 +185,7 @@ init_dumpdev(struct cdev *dev)
 	if (error != 0)
 		return (error);
 
-	error = g_dev_setdumpdev(dev, curthread);
+	error = g_dev_setdumpdev(dev, &kda, curthread);
 	if (error == 0) {
 		freeenv(dumpdev);
 		dumpdev = NULL;
@@ -305,10 +317,11 @@ static struct g_geom *
 g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
+	struct g_geom_alias *gap;
 	struct g_consumer *cp;
 	struct g_dev_softc *sc;
 	int error;
-	struct cdev *dev;
+	struct cdev *dev, *adev;
 	char buf[SPECNAMELEN + 6];
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
@@ -347,6 +360,20 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_dev_attrchanged(cp, "GEOM::physpath");
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
 	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	/*
+	 * Now add all the aliases for this drive
+	 */
+	LIST_FOREACH(gap, &pp->geom->aliases, ga_next) {
+		error = make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &adev, dev,
+		    "%s", gap->ga_alias);
+		if (error) {
+			printf("%s: make_dev_alias_p() failed (name=%s, error=%d)\n",
+			    __func__, gap->ga_alias, error);
+			continue;
+		}
+		snprintf(buf, sizeof(buf), "cdev=%s", gap->ga_alias);
+		devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	}
 
 	return (gp);
 }
@@ -458,7 +485,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	off_t offset, length, chunk;
+	off_t offset, length, chunk, odd;
 	int i, error;
 
 	cp = dev->si_drv2;
@@ -493,12 +520,56 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	case DIOCGFRONTSTUFF:
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
 		break;
-	case DIOCSKERNELDUMP:
-		if (*(u_int *)data == 0)
-			error = g_dev_setdumpdev(NULL, td);
+#ifdef COMPAT_FREEBSD11
+	case DIOCSKERNELDUMP_FREEBSD11:
+	    {
+		struct diocskerneldump_arg kda;
+
+		bzero(&kda, sizeof(kda));
+		kda.kda_encryption = KERNELDUMP_ENC_NONE;
+		kda.kda_enable = (uint8_t)*(u_int *)data;
+		if (kda.kda_enable == 0)
+			error = g_dev_setdumpdev(NULL, NULL, td);
 		else
-			error = g_dev_setdumpdev(dev, td);
+			error = g_dev_setdumpdev(dev, &kda, td);
 		break;
+	    }
+#endif
+	case DIOCSKERNELDUMP:
+	    {
+		struct diocskerneldump_arg *kda;
+		uint8_t *encryptedkey;
+
+		kda = (struct diocskerneldump_arg *)data;
+		if (kda->kda_enable == 0) {
+			error = g_dev_setdumpdev(NULL, NULL, td);
+			break;
+		}
+
+		if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
+			if (kda->kda_encryptedkeysize <= 0 ||
+			    kda->kda_encryptedkeysize >
+			    KERNELDUMP_ENCKEY_MAX_SIZE) {
+				return (EINVAL);
+			}
+			encryptedkey = malloc(kda->kda_encryptedkeysize, M_TEMP,
+			    M_WAITOK);
+			error = copyin(kda->kda_encryptedkey, encryptedkey,
+			    kda->kda_encryptedkeysize);
+		} else {
+			encryptedkey = NULL;
+		}
+		if (error == 0) {
+			kda->kda_encryptedkey = encryptedkey;
+			error = g_dev_setdumpdev(dev, kda, td);
+		}
+		if (encryptedkey != NULL) {
+			explicit_bzero(encryptedkey, kda->kda_encryptedkeysize);
+			free(encryptedkey, M_TEMP);
+		}
+		explicit_bzero(kda, sizeof(*kda));
+		break;
+	    }
 	case DIOCGFLUSH:
 		error = g_io_flush(cp);
 		break;
@@ -518,6 +589,13 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			    g_dev_del_max_sectors * cp->provider->sectorsize) {
 				chunk = g_dev_del_max_sectors *
 				    cp->provider->sectorsize;
+				if (cp->provider->stripesize > 0) {
+					odd = (offset + chunk +
+					    cp->provider->stripeoffset) %
+					    cp->provider->stripesize;
+					if (chunk > odd)
+						chunk -= odd;
+				}
 			}
 			error = g_delete_data(cp, offset, chunk);
 			length -= chunk;
@@ -668,6 +746,7 @@ g_dev_strategy(struct bio *bp)
 	sc = cp->private;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_strategy"));
+	biotrack(bp, __func__);
 #ifdef INVARIANTS
 	if ((bp->bio_offset % cp->provider->sectorsize) != 0 ||
 	    (bp->bio_bcount % cp->provider->sectorsize) != 0) {
@@ -755,7 +834,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		(void)set_dumper(NULL, NULL, curthread);
+		(void)clear_dumper(curthread);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

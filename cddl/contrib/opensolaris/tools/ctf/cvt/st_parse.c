@@ -229,8 +229,12 @@ parse_fun(char *cp, iidesc_t *ii)
 		nargs++;
 		if (nargs > FUNCARG_DEF)
 			args = xrealloc(args, sizeof (tdesc_t *) * nargs);
-		if (!(cp = read_tid(cp, &args[nargs - 1])))
+		if (!(cp = read_tid(cp, &args[nargs - 1]))) {
+			if (tdp->t_type == TYPEDEF_UNRES)
+				free(tdp);
+			free(args);
 			return (-1);
+		}
 	}
 
 	ii->ii_type = iitype;
@@ -952,7 +956,7 @@ soudef(char *cp, stabtype_t type, tdesc_t **rtdp)
 
 		itdp = find_intrinsic(tdp);
 		if (itdp->t_type == INTRINSIC) {
-			if ((int)mlp->ml_size != itdp->t_intr->intr_nbits) {
+			if (mlp->ml_size != itdp->t_intr->intr_nbits) {
 				parse_debug(4, cp, "making %d bit intrinsic "
 				    "from %s", mlp->ml_size, tdesc_name(itdp));
 				mlp->ml_type = bitintrinsic(itdp, mlp->ml_size);
@@ -1173,7 +1177,7 @@ resolve_typed_bitfields_cb(void *arg, void *private __unused)
 	while (tdp) {
 		switch (tdp->t_type) {
 		case INTRINSIC:
-			if ((int)ml->ml_size != tdp->t_intr->intr_nbits) {
+			if (ml->ml_size != tdp->t_intr->intr_nbits) {
 				debug(3, "making %d bit intrinsic from %s",
 				    ml->ml_size, tdesc_name(tdp));
 				ml->ml_type = bitintrinsic(tdp, ml->ml_size);

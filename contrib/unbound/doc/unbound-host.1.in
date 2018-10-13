@@ -1,4 +1,4 @@
-.TH "unbound\-host" "1" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
+.TH "unbound\-host" "1" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" unbound-host.1 -- unbound DNS lookup utility
 .\"
@@ -12,20 +12,20 @@
 \- unbound DNS lookup utility
 .SH "SYNOPSIS"
 .B unbound\-host
+.RB [ \-C
+.IR configfile ]
 .RB [ \-vdhr46D ]
 .RB [ \-c 
 .IR class ]
 .RB [ \-t
 .IR type ]
-.I hostname
 .RB [ \-y
 .IR key ]
 .RB [ \-f
 .IR keyfile ]
 .RB [ \-F
 .IR namedkeyfile ]
-.RB [ \-C
-.IR configfile ]
+.I hostname
 .SH "DESCRIPTION"
 .B Unbound\-host
 uses the unbound validating resolver to query for the hostname and display
@@ -86,6 +86,8 @@ are read.
 .B \-C \fIconfigfile
 Uses the specified unbound.conf to prime
 .IR libunbound (3).
+Pass it as first argument if you want to override some options from the
+config file with further arguments on the commandline.
 .TP
 .B \-r
 Read /etc/resolv.conf, and use the forward DNS servers from there (those could

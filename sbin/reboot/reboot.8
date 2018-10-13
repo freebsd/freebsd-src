@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd Dec 12, 2015
+.Dd December 20, 2017
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlNnpqr
+.Op Fl cdlNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
 .Op Fl lNnpq
@@ -66,6 +66,20 @@ accounting database.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl c
+The system will turn off the power and then turn it back on if it can.
+If the power down action fails, the system
+will halt or reboot normally, depending on whether
+.Nm halt
+or
+.Nm
+was called.
+At the present time, only the
+.Xr ipmi 4
+driver implements the power cycle functionality and only on hardware
+with a BMC that supports power cycling.
+Unlike power off, the amount of hardware that supports power cycling
+is small.
 .It Fl d
 The system is requested to create a crash dump.
 This option is
@@ -128,6 +142,12 @@ After changing vfs.root.mountfrom with
 .Xr kenv 1 ,
 .Nm Fl r
 can be used to change the root filesystem while preserving kernel state.
+This requires the
+.Xr tmpfs 5
+kernel module to be loaded because
+.Xr init 8
+needs a place to store itself after the old root is unmounted, but
+before the new root is in place.
 .El
 .Pp
 The
@@ -152,9 +172,17 @@ Replace current root filesystem with UFS mounted from
 kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
 reboot -r
 .Ed
+.Pp
+This mechanism can also be used with NFS, with a caveat that
+it only works with NFSv4, and requires a numeric IPv4 address:
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=nfs:192.168.1.1:/share/name
+reboot -r
+.Ed
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr getutxent 3 ,
+.Xr ipmi 4 ,
 .Xr boot 8 ,
 .Xr dumpon 8 ,
 .Xr nextboot 8 ,
@@ -165,4 +193,4 @@ reboot -r
 A
 .Nm
 utility appeared in
-.At v6 .
+.Bx 4.0 .

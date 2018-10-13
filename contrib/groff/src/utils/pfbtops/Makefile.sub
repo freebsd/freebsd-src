@@ -1,7 +1,0 @@
-PROG=pfbtops$(EXEEXT)
-MAN1=pfbtops.n
-OBJS=pfbtops.$(OBJEXT)
-CSRCS=$(srcdir)/pfbtops.c
-XLIBS=$(LIBGROFF)
-MLIB=$(LIBM)
-LINK.c=$(CCC) $(CCFLAGS) $(LDFLAGS)

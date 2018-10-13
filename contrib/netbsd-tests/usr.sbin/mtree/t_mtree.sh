@@ -1,4 +1,4 @@
-# $NetBSD: t_mtree.sh,v 1.6 2013/02/05 16:49:42 christos Exp $
+# $NetBSD: t_mtree.sh,v 1.7 2017/01/14 20:45:16 christos Exp $
 #
 # Copyright (c) 2009, 2012 The NetBSD Foundation, Inc.
 # All rights reserved.

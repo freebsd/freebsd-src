@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -103,8 +105,8 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_configPCIE		= ar5416ConfigPCIE;
 	ah->ah_disablePCIE		= ar5416DisablePCIE;
 	ah->ah_perCalibration		= ar5416PerCalibration;
-	ah->ah_perCalibrationN		= ar5416PerCalibrationN,
-	ah->ah_resetCalValid		= ar5416ResetCalValid,
+	ah->ah_perCalibrationN		= ar5416PerCalibrationN;
+	ah->ah_resetCalValid		= ar5416ResetCalValid;
 	ah->ah_setTxPowerLimit		= ar5416SetTxPowerLimit;
 	ah->ah_setTxPower		= ar5416SetTransmitPower;
 	ah->ah_setBoardValues		= ar5416SetBoardValues;
@@ -967,7 +969,8 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halChanHalfRate = AH_TRUE;
 	pCap->halChanQuarterRate = AH_TRUE;
 
-	pCap->halTstampPrecision = 32;
+	pCap->halTxTstampPrecision = 32;
+	pCap->halRxTstampPrecision = 32;
 	pCap->halHwPhyCounterSupport = AH_TRUE;
 	pCap->halIntrMask = HAL_INT_COMMON
 			| HAL_INT_RX
@@ -1019,8 +1022,6 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halGTTSupport = AH_TRUE;
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halEnhancedDfsSupport = AH_FALSE;
-	/* Hardware supports 32 bit TSF values in the RX descriptor */
-	pCap->halHasLongRxDescTsf = AH_TRUE;
 	/*
 	 * BB Read WAR: this is only for AR5008/AR9001 NICs
 	 * It is also set individually in the AR91xx attach functions.

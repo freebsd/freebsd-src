@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -35,6 +37,7 @@
 #include <assert.h>
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
+#include <dev/evdev/input.h>
 #include <dev/vkbd/vkbd_var.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -46,6 +49,7 @@
 #include <usbhid.h>
 #include "bthid_config.h"
 #include "bthidd.h"
+#include "btuinput.h"
 #include "kbd.h"
 
 #undef	max
@@ -280,13 +284,10 @@ server_accept(bthid_server_p srv, int32_t fd)
 		(fd == srv->ctrl)? "control" : "interrupt",
 		bt_ntoa(&l2addr.l2cap_bdaddr, NULL));
 
-	/* Register session's vkbd descriptor (if needed) for read */
-	if (s->state == OPEN && d->keyboard) {
-		assert(s->vkbd != -1);
-
-		FD_SET(s->vkbd, &srv->rfdset);
-		if (s->vkbd > srv->maxfd)
-			srv->maxfd = s->vkbd;
+	/* Create virtual kbd/mouse after both channels are established */
+	if (s->state == OPEN && session_run(s) < 0) {
+		session_close(s);
+		return (-1);
 	}
 
 	return (0);
@@ -303,9 +304,10 @@ server_process(bthid_server_p srv, int32_t fd)
 	int32_t			len, to_read;
 	int32_t			(*cb)(bthid_session_p, uint8_t *, int32_t);
 	union {
-		uint8_t		b[1024];
-		vkbd_status_t	s;
-	}			data;
+		uint8_t			b[1024];
+		vkbd_status_t		s;
+		struct input_event	ie;
+	}				data;
 
 	if (s == NULL)
 		return (0); /* can happen on device disconnect */
@@ -317,6 +319,9 @@ server_process(bthid_server_p srv, int32_t fd)
 	} else if (fd == s->intr) {
 		cb = hid_interrupt;
 		to_read = sizeof(data.b);
+	} else if (fd == s->ukbd) {
+		cb = uinput_kbd_status_changed;
+		to_read = sizeof(data.ie);
 	} else {
 		assert(fd == s->vkbd);
 

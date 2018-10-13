@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/ata
+.PATH: ${SRCTOP}/sys/dev/ata
 
 KMOD=	ataisa
 SRCS=	ata-isa.c

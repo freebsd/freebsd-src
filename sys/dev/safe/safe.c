@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Sam Leffler, Errno Consulting
  * Copyright (c) 2003 Global Technology Associates, Inc.
  * All rights reserved.
@@ -86,8 +88,7 @@ static	int safe_suspend(device_t);
 static	int safe_resume(device_t);
 static	int safe_shutdown(device_t);
 
-static	int safe_newsession(device_t, u_int32_t *, struct cryptoini *);
-static	int safe_freesession(device_t, u_int64_t);
+static	int safe_newsession(device_t, crypto_session_t, struct cryptoini *);
 static	int safe_process(device_t, struct cryptop *, int);
 
 static device_method_t safe_methods[] = {
@@ -101,7 +102,6 @@ static device_method_t safe_methods[] = {
 
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	safe_newsession),
-	DEVMETHOD(cryptodev_freesession,safe_freesession),
 	DEVMETHOD(cryptodev_process,	safe_process),
 
 	DEVMETHOD_END
@@ -212,7 +212,7 @@ static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
 	/* MarkM: FIX!! Check that this does not swamp the harvester! */
-	random_harvest_queue(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
+	random_harvest_queue(buf, count, RANDOM_PURE_SAFE);
 }
 #endif /* SAFE_NO_RNG */
 
@@ -264,7 +264,8 @@ safe_attach(device_t dev)
 		goto bad2;
 	}
 
-	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct safe_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto bad3;
@@ -653,13 +654,13 @@ safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
 	if (algo == CRYPTO_MD5_HMAC) {
 		MD5Init(&md5ctx);
 		MD5Update(&md5ctx, key, klen);
-		MD5Update(&md5ctx, hmac_ipad_buffer, MD5_HMAC_BLOCK_LEN - klen);
+		MD5Update(&md5ctx, hmac_ipad_buffer, MD5_BLOCK_LEN - klen);
 		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
 	} else {
 		SHA1Init(&sha1ctx);
 		SHA1Update(&sha1ctx, key, klen);
 		SHA1Update(&sha1ctx, hmac_ipad_buffer,
-		    SHA1_HMAC_BLOCK_LEN - klen);
+		    SHA1_BLOCK_LEN - klen);
 		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
 	}
 
@@ -669,13 +670,13 @@ safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
 	if (algo == CRYPTO_MD5_HMAC) {
 		MD5Init(&md5ctx);
 		MD5Update(&md5ctx, key, klen);
-		MD5Update(&md5ctx, hmac_opad_buffer, MD5_HMAC_BLOCK_LEN - klen);
+		MD5Update(&md5ctx, hmac_opad_buffer, MD5_BLOCK_LEN - klen);
 		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
 	} else {
 		SHA1Init(&sha1ctx);
 		SHA1Update(&sha1ctx, key, klen);
 		SHA1Update(&sha1ctx, hmac_opad_buffer,
-		    SHA1_HMAC_BLOCK_LEN - klen);
+		    SHA1_BLOCK_LEN - klen);
 		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
 	}
 
@@ -696,14 +697,13 @@ safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
  * id on successful allocation.
  */
 static int
-safe_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
+safe_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct safe_softc *sc = device_get_softc(dev);
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
 	struct safe_session *ses = NULL;
-	int sesn;
 
-	if (sidp == NULL || cri == NULL || sc == NULL)
+	if (cri == NULL || sc == NULL)
 		return (EINVAL);
 
 	for (c = cri; c != NULL; c = c->cri_next) {
@@ -744,41 +744,7 @@ safe_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 		}
 	}
 
-	if (sc->sc_sessions == NULL) {
-		ses = sc->sc_sessions = (struct safe_session *)malloc(
-		    sizeof(struct safe_session), M_DEVBUF, M_NOWAIT);
-		if (ses == NULL)
-			return (ENOMEM);
-		sesn = 0;
-		sc->sc_nsessions = 1;
-	} else {
-		for (sesn = 0; sesn < sc->sc_nsessions; sesn++) {
-			if (sc->sc_sessions[sesn].ses_used == 0) {
-				ses = &sc->sc_sessions[sesn];
-				break;
-			}
-		}
-
-		if (ses == NULL) {
-			sesn = sc->sc_nsessions;
-			ses = (struct safe_session *)malloc((sesn + 1) *
-			    sizeof(struct safe_session), M_DEVBUF, M_NOWAIT);
-			if (ses == NULL)
-				return (ENOMEM);
-			bcopy(sc->sc_sessions, ses, sesn *
-			    sizeof(struct safe_session));
-			bzero(sc->sc_sessions, sesn *
-			    sizeof(struct safe_session));
-			free(sc->sc_sessions, M_DEVBUF);
-			sc->sc_sessions = ses;
-			ses = &sc->sc_sessions[sesn];
-			sc->sc_nsessions++;
-		}
-	}
-
-	bzero(ses, sizeof(struct safe_session));
-	ses->ses_used = 1;
-
+	ses = crypto_get_driver_session(cses);
 	if (encini) {
 		/* get an IV */
 		/* XXX may read fewer than requested */
@@ -804,30 +770,7 @@ safe_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 		}
 	}
 
-	*sidp = SAFE_SID(device_get_unit(sc->sc_dev), sesn);
 	return (0);
-}
-
-/*
- * Deallocate a session.
- */
-static int
-safe_freesession(device_t dev, u_int64_t tid)
-{
-	struct safe_softc *sc = device_get_softc(dev);
-	int session, ret;
-	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
-
-	if (sc == NULL)
-		return (EINVAL);
-
-	session = SAFE_SESSION(sid);
-	if (session < sc->sc_nsessions) {
-		bzero(&sc->sc_sessions[session], sizeof(sc->sc_sessions[session]));
-		ret = 0;
-	} else
-		ret = EINVAL;
-	return (ret);
 }
 
 static void
@@ -863,10 +806,6 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		safestats.st_invalid++;
 		return (EINVAL);
 	}
-	if (SAFE_SESSION(crp->crp_sid) >= sc->sc_nsessions) {
-		safestats.st_badsession++;
-		return (EINVAL);
-	}
 
 	mtx_lock(&sc->sc_ringmtx);
 	if (sc->sc_front == sc->sc_back && sc->sc_nqchip != 0) {
@@ -883,7 +822,6 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 	re->re_sa.sa_staterec = staterec;	/* restore */
 
 	re->re_crp = crp;
-	re->re_sesn = SAFE_SESSION(crp->crp_sid);
 
 	if (crp->crp_flags & CRYPTO_F_IMBUF) {
 		re->re_src_m = (struct mbuf *)crp->crp_buf;
@@ -898,7 +836,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 	}
 
 	sa = &re->re_sa;
-	ses = &sc->sc_sessions[re->re_sesn];
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	crd1 = crp->crp_desc;
 	if (crd1 == NULL) {
@@ -1499,7 +1437,10 @@ static void
 safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 {
 	struct cryptop *crp = (struct cryptop *)re->re_crp;
+	struct safe_session *ses;
 	struct cryptodesc *crd;
+
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	safestats.st_opackets++;
 	safestats.st_obytes += re->re_dst.mapsize;
@@ -1546,7 +1487,7 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				continue;
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
 			    crd->crd_skip + crd->crd_len - ivsize, ivsize,
-			    (caddr_t)sc->sc_sessions[re->re_sesn].ses_iv);
+			    (caddr_t)ses->ses_iv);
 			break;
 		}
 	}
@@ -1571,8 +1512,7 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				    bswap32(re->re_sastate.sa_saved_indigest[2]);
 			}
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject,
-			    sc->sc_sessions[re->re_sesn].ses_mlen,
+			    crd->crd_inject, ses->ses_mlen,
 			    (caddr_t)re->re_sastate.sa_saved_indigest);
 			break;
 		}
@@ -1593,9 +1533,7 @@ safe_mcopy(struct mbuf *srcm, struct mbuf *dstm, u_int offset)
 	 * Advance src and dst to offset.
 	 */
 	j = offset;
-	while (j >= 0) {
-		if (srcm->m_len > j)
-			break;
+	while (j >= srcm->m_len) {
 		j -= srcm->m_len;
 		srcm = srcm->m_next;
 		if (srcm == NULL)
@@ -1605,9 +1543,7 @@ safe_mcopy(struct mbuf *srcm, struct mbuf *dstm, u_int offset)
 	slen = srcm->m_len - j;
 
 	j = offset;
-	while (j >= 0) {
-		if (dstm->m_len > j)
-			break;
+	while (j >= dstm->m_len) {
 		j -= dstm->m_len;
 		dstm = dstm->m_next;
 		if (dstm == NULL)

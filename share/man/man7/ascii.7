@@ -28,12 +28,12 @@
 .\"	@(#)ascii.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2016
+.Dd October 30, 2017
 .Dt ASCII 7
 .Os
 .Sh NAME
 .Nm ascii
-.Nd octal, hexadecimal and decimal
+.Nd octal, hexadecimal, decimal and binary
 .Tn ASCII
 character sets
 .Sh DESCRIPTION
@@ -64,9 +64,9 @@ The
 set:
 .Bd -literal -offset left
 00 NUL   01 SOH   02 STX   03 ETX   04 EOT   05 ENQ   06 ACK   07 BEL
-08 BS    09 HT    0A LF    0B VT    0C FF    0D CR    0E SO    0F SI
+08 BS    09 HT    0a LF    0b VT    0c FF    0d CR    0e SO    0f SI
 10 DLE   11 DC1   12 DC2   13 DC3   14 DC4   15 NAK   16 SYN   17 ETB
-18 CAN   19 EM    1A SUB   1B ESC   1C FS    1D GS    1E RS    1F US
+18 CAN   19 EM    1a SUB   1b ESC   1c FS    1d GS    1e RS    1f US
 20 SP    21  !    22  "    23  #    24  $    25  %    26  &    27  '
 28  (    29  )    2a  *    2b  +    2c  ,    2d  -    2e  .    2f  /
 30  0    31  1    32  2    33  3    34  4    35  5    36  6    37  7
@@ -101,6 +101,46 @@ set:
 104  h   105  i   106  j   107  k   108  l   109  m   110  n   111  o
 112  p   113  q   114  r   115  s   116  t   117  u   118  v   119  w
 120  x   121  y   122  z   123  {   124  |   125  }   126  ~   127 DEL
+.Ed
+.Pp
+The
+.Nm binary
+set:
+.Bd -literal -offset left
+ 00     01     10     11
+
+NUL     SP      @      `     00000
+SOH      !      A      a     00001
+STX      "      B      b     00010
+ETX      #      C      c     00011
+EOT      $      D      d     00100
+ENQ      %      E      e     00101
+ACK      &      F      f     00110
+BEL      '      G      g     00111
+ BS      (      H      h     01000
+ HT      )      I      i     01001
+ LF      *      J      j     01010
+ VT      +      K      k     01011
+ FF      ,      L      l     01100
+ CR      -      M      m     01101
+ SO      .      N      n     01110
+ SI      /      O      o     01111
+DLE      0      P      p     10000
+DC1      1      Q      q     10001
+DC2      2      R      r     10010
+DC3      3      S      s     10011
+DC4      4      T      t     10100
+NAK      5      U      u     10101
+SYN      6      V      v     10110
+ETB      7      W      w     10111
+CAN      8      X      x     11000
+ EM      9      Y      y     11001
+SUB      :      Z      z     11010
+ESC      ;      [      {     11011
+ FS      <      \e\      |     11100
+ GS      =      ]      }     11101
+ RS      >      ^      -     11110
+ US      ?      _    DEL     11111
 .Ed
 .Sh FILES
 .Bl -tag -width /usr/share/misc/ascii -compact

@@ -52,9 +52,7 @@
 /* XenStore allocations including XenStore data returned to clients. */
 MALLOC_DECLARE(M_XENSTORE);
 
-struct xenstore_domain_interface;
 struct xs_watch;
-extern struct xenstore_domain_interface *xen_store;
 
 typedef	void (xs_watch_cb_t)(struct xs_watch *, const char **vec,
     unsigned int len);
@@ -83,6 +81,27 @@ struct xs_transaction
 };
 
 #define XST_NIL ((struct xs_transaction) { 0 })
+
+/**
+ * Check if Xenstore is initialized.
+ *
+ * \return  True if initialized, false otherwise.
+ */
+bool xs_initialized(void);
+
+/**
+ * Return xenstore event channel port.
+ *
+ * \return event channel port.
+ */
+evtchn_port_t xs_evtchn(void);
+
+/**
+ * Return xenstore page physical memory address.
+ *
+ * \return xenstore page physical address.
+ */
+vm_paddr_t xs_address(void);
 
 /**
  * Fetch the contents of a directory in the XenStore.
@@ -338,4 +357,15 @@ void xs_unregister_watch(struct xs_watch *watch);
  */
 struct sbuf *xs_join(const char *, const char *);
 
+/**
+ * Lock the xenstore request mutex.
+ */
+void xs_lock(void);
+
+/**
+ * Unlock the xenstore request mutex.
+ */
+void xs_unlock(void);
+
 #endif /* _XEN_XENSTORE_XENSTOREVAR_H */
+

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Doug Rabson
  * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
@@ -27,8 +29,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #define __ELF_WORD_SIZE 32
 
@@ -121,12 +121,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_fixlimit	= ia32_fixlimit,
 	.sv_maxssiz	= &ia32_maxssiz,
 	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32 |
-#ifdef __amd64__
-		SV_SHP | SV_TIMEKEEP
-#else
-		0
-#endif
-	,
+			    SV_SHP | SV_TIMEKEEP,
 	.sv_set_syscall_retval = ia32_set_syscall_retval,
 	.sv_fetch_syscall_args = ia32_fetch_syscall_args,
 	.sv_syscallnames = freebsd32_syscallnames,

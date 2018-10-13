@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -250,6 +252,10 @@ keyboard_t 		*kbd_get_keyboard(int index);
 /* a back door for the console driver to tickle the keyboard driver XXX */
 int			kbd_configure(int flags);
 			/* see `kb_config' above for flag bit definitions */
+
+/* evdev2kbd mappings */
+void			kbd_ev_event(keyboard_t *kbd, uint16_t type,
+				    uint16_t code, int32_t value);
 
 #ifdef KBD_INSTALL_CDEV
 

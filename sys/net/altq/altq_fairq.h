@@ -82,6 +82,12 @@ struct fairq_classstats {
 	struct codel_stats	codel;
 };
 
+/*
+ * FAIRQ_STATS_VERSION is defined in altq.h to work around issues stemming
+ * from mixing of public-API and internal bits in each scheduler-specific
+ * header.
+ */
+
 #ifdef _KERNEL
 
 typedef struct fairq_bucket {

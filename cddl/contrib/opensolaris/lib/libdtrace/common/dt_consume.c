@@ -389,8 +389,10 @@ dt_stddev(uint64_t *data, uint64_t normal)
 	 * The standard approximation for standard deviation is
 	 * sqrt(average(x**2) - average(x)**2), i.e. the square root
 	 * of the average of the squares minus the square of the average.
+	 * When normalizing, we should divide the sum of x**2 by normal**2.
 	 */
 	dt_divide_128(data + 2, normal, avg_of_squares);
+	dt_divide_128(avg_of_squares, normal, avg_of_squares);
 	dt_divide_128(avg_of_squares, data[0], avg_of_squares);
 
 	norm_avg = (int64_t)data[1] / (int64_t)normal / (int64_t)data[0];
@@ -1537,314 +1539,6 @@ dt_print_umod(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 	return (err);
 }
 
-int
-dt_print_memory(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr)
-{
-	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
-	size_t nbytes = *((uintptr_t *) addr);
-
-	return (dt_print_bytes(dtp, fp, addr + sizeof(uintptr_t),
-	    nbytes, 50, quiet, 1));
-}
-
-typedef struct dt_type_cbdata {
-	dtrace_hdl_t		*dtp;
-	dtrace_typeinfo_t	dtt;
-	caddr_t			addr;
-	caddr_t			addrend;
-	const char		*name;
-	int			f_type;
-	int			indent;
-	int			type_width;
-	int			name_width;
-	FILE			*fp;
-} dt_type_cbdata_t;
-
-static int	dt_print_type_data(dt_type_cbdata_t *, ctf_id_t);
-
-static int
-dt_print_type_member(const char *name, ctf_id_t type, ulong_t off, void *arg)
-{
-	dt_type_cbdata_t cbdata;
-	dt_type_cbdata_t *cbdatap = arg;
-	ssize_t ssz;
-
-	if ((ssz = ctf_type_size(cbdatap->dtt.dtt_ctfp, type)) <= 0)
-		return (0);
-
-	off /= 8;
-
-	cbdata = *cbdatap;
-	cbdata.name = name;
-	cbdata.addr += off;
-	cbdata.addrend = cbdata.addr + ssz;
-
-	return (dt_print_type_data(&cbdata, type));
-}
-
-static int
-dt_print_type_width(const char *name, ctf_id_t type, ulong_t off, void *arg)
-{
-	char buf[DT_TYPE_NAMELEN];
-	char *p;
-	dt_type_cbdata_t *cbdatap = arg;
-	size_t sz = strlen(name);
-
-	ctf_type_name(cbdatap->dtt.dtt_ctfp, type, buf, sizeof (buf));
-
-	if ((p = strchr(buf, '[')) != NULL)
-		p[-1] = '\0';
-	else
-		p = "";
-
-	sz += strlen(p);
-
-	if (sz > cbdatap->name_width)
-		cbdatap->name_width = sz;
-
-	sz = strlen(buf);
-
-	if (sz > cbdatap->type_width)
-		cbdatap->type_width = sz;
-
-	return (0);
-}
-
-static int
-dt_print_type_data(dt_type_cbdata_t *cbdatap, ctf_id_t type)
-{
-	caddr_t addr = cbdatap->addr;
-	caddr_t addrend = cbdatap->addrend;
-	char buf[DT_TYPE_NAMELEN];
-	char *p;
-	int cnt = 0;
-	uint_t kind = ctf_type_kind(cbdatap->dtt.dtt_ctfp, type);
-	ssize_t ssz = ctf_type_size(cbdatap->dtt.dtt_ctfp, type);
-
-	ctf_type_name(cbdatap->dtt.dtt_ctfp, type, buf, sizeof (buf));
-
-	if ((p = strchr(buf, '[')) != NULL)
-		p[-1] = '\0';
-	else
-		p = "";
-
-	if (cbdatap->f_type) {
-		int type_width = roundup(cbdatap->type_width + 1, 4);
-		int name_width = roundup(cbdatap->name_width + 1, 4);
-
-		name_width -= strlen(cbdatap->name);
-
-		dt_printf(cbdatap->dtp, cbdatap->fp, "%*s%-*s%s%-*s	= ",cbdatap->indent * 4,"",type_width,buf,cbdatap->name,name_width,p);
-	}
-
-	while (addr < addrend) {
-		dt_type_cbdata_t cbdata;
-		ctf_arinfo_t arinfo;
-		ctf_encoding_t cte;
-		uintptr_t *up;
-		void *vp = addr;
-		cbdata = *cbdatap;
-		cbdata.name = "";
-		cbdata.addr = addr;
-		cbdata.addrend = addr + ssz;
-		cbdata.f_type = 0;
-		cbdata.indent++;
-		cbdata.type_width = 0;
-		cbdata.name_width = 0;
-
-		if (cnt > 0)
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s", cbdatap->indent * 4,"");
-
-		switch (kind) {
-		case CTF_K_INTEGER:
-			if (ctf_type_encoding(cbdatap->dtt.dtt_ctfp, type, &cte) != 0)
-				return (-1);
-			if ((cte.cte_format & CTF_INT_SIGNED) != 0)
-				switch (cte.cte_bits) {
-				case 8:
-					if (isprint(*((char *) vp)))
-						dt_printf(cbdatap->dtp, cbdatap->fp, "'%c', ", *((char *) vp));
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%d (0x%x);\n", *((char *) vp), *((char *) vp));
-					break;
-				case 16:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%hd (0x%hx);\n", *((short *) vp), *((u_short *) vp));
-					break;
-				case 32:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%d (0x%x);\n", *((int *) vp), *((u_int *) vp));
-					break;
-				case 64:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%jd (0x%jx);\n", *((long long *) vp), *((unsigned long long *) vp));
-					break;
-				default:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_INTEGER: format %x offset %u bits %u\n",cte.cte_format,cte.cte_offset,cte.cte_bits);
-					break;
-				}
-			else
-				switch (cte.cte_bits) {
-				case 8:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%u (0x%x);\n", *((uint8_t *) vp) & 0xff, *((uint8_t *) vp) & 0xff);
-					break;
-				case 16:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%hu (0x%hx);\n", *((u_short *) vp), *((u_short *) vp));
-					break;
-				case 32:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%u (0x%x);\n", *((u_int *) vp), *((u_int *) vp));
-					break;
-				case 64:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%ju (0x%jx);\n", *((unsigned long long *) vp), *((unsigned long long *) vp));
-					break;
-				default:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_INTEGER: format %x offset %u bits %u\n",cte.cte_format,cte.cte_offset,cte.cte_bits);
-					break;
-				}
-			break;
-		case CTF_K_FLOAT:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_FLOAT: format %x offset %u bits %u\n",cte.cte_format,cte.cte_offset,cte.cte_bits);
-			break;
-		case CTF_K_POINTER:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%p;\n", *((void **) addr));
-			break;
-		case CTF_K_ARRAY:
-			if (ctf_array_info(cbdatap->dtt.dtt_ctfp, type, &arinfo) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "{\n%*s",cbdata.indent * 4,"");
-			dt_print_type_data(&cbdata, arinfo.ctr_contents);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s};\n",cbdatap->indent * 4,"");
-			break;
-		case CTF_K_FUNCTION:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_FUNCTION:\n");
-			break;
-		case CTF_K_STRUCT:
-			cbdata.f_type = 1;
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_width, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "{\n");
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_member, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s};\n",cbdatap->indent * 4,"");
-			break;
-		case CTF_K_UNION:
-			cbdata.f_type = 1;
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_width, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "{\n");
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_member, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s};\n",cbdatap->indent * 4,"");
-			break;
-		case CTF_K_ENUM:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%s;\n", ctf_enum_name(cbdatap->dtt.dtt_ctfp, type, *((int *) vp)));
-			break;
-		case CTF_K_TYPEDEF:
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		case CTF_K_VOLATILE:
-			if (cbdatap->f_type)
-				dt_printf(cbdatap->dtp, cbdatap->fp, "volatile ");
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		case CTF_K_CONST:
-			if (cbdatap->f_type)
-				dt_printf(cbdatap->dtp, cbdatap->fp, "const ");
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		case CTF_K_RESTRICT:
-			if (cbdatap->f_type)
-				dt_printf(cbdatap->dtp, cbdatap->fp, "restrict ");
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		default:
-			break;
-		}
-
-		addr += ssz;
-		cnt++;
-	}
-
-	return (0);
-}
-
-static int
-dt_print_type(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr)
-{
-	caddr_t addrend;
-	char *p;
-	dtrace_typeinfo_t dtt;
-	dt_type_cbdata_t cbdata;
-	int num = 0;
-	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
-	ssize_t ssz;
-
-	if (!quiet)
-		dt_printf(dtp, fp, "\n");
-
-	/* Get the total number of bytes of data buffered. */
-	size_t nbytes = *((uintptr_t *) addr);
-	addr += sizeof(uintptr_t);
-
-	/*
-	 * Get the size of the type so that we can check that it matches
-	 * the CTF data we look up and so that we can figure out how many
-	 * type elements are buffered.
-	 */
-	size_t typs = *((uintptr_t *) addr);
-	addr += sizeof(uintptr_t);
-
-	/*
-	 * Point to the type string in the buffer. Get it's string
-	 * length and round it up to become the offset to the start
-	 * of the buffered type data which we would like to be aligned
-	 * for easy access.
-	 */
-	char *strp = (char *) addr;
-	int offset = roundup(strlen(strp) + 1, sizeof(uintptr_t));
-
-	/*
-	 * The type string might have a format such as 'int [20]'.
-	 * Check if there is an array dimension present.
-	 */
-	if ((p = strchr(strp, '[')) != NULL) {
-		/* Strip off the array dimension. */
-		*p++ = '\0';
-
-		for (; *p != '\0' && *p != ']'; p++)
-			num = num * 10 + *p - '0';
-	} else
-		/* No array dimension, so default. */
-		num = 1;
-
-	/* Lookup the CTF type from the type string. */
-	if (dtrace_lookup_by_type(dtp,  DTRACE_OBJ_EVERY, strp, &dtt) < 0)
-		return (-1);
-
-	/* Offset the buffer address to the start of the data... */
-	addr += offset;
-
-	ssz = ctf_type_size(dtt.dtt_ctfp, dtt.dtt_type);
-
-	if (typs != ssz) {
-		printf("Expected type size from buffer (%lu) to match type size looked up now (%ld)\n", (u_long) typs, (long) ssz);
-		return (-1);
-	}
-
-	cbdata.dtp = dtp;
-	cbdata.dtt = dtt;
-	cbdata.name = "";
-	cbdata.addr = addr;
-	cbdata.addrend = addr + nbytes;
-	cbdata.indent = 1;
-	cbdata.f_type = 1;
-	cbdata.type_width = 0;
-	cbdata.name_width = 0;
-	cbdata.fp = fp;
-
-	return (dt_print_type_data(&cbdata, dtt.dtt_type));
-}
-
 static int
 dt_print_sym(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 {
@@ -1902,6 +1596,16 @@ dt_print_mod(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 		return (-1);
 
 	return (0);
+}
+
+static int
+dt_print_memory(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr)
+{
+	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
+	size_t nbytes = *((uintptr_t *) addr);
+
+	return (dt_print_bytes(dtp, fp, addr + sizeof(uintptr_t),
+	    nbytes, 50, quiet, 1));
 }
 
 typedef struct dt_normal {
@@ -2640,12 +2344,6 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 
 			if (act == DTRACEACT_PRINTM) {
 				if (dt_print_memory(dtp, fp, addr) < 0)
-					return (-1);
-				goto nextrec;
-			}
-
-			if (act == DTRACEACT_PRINTT) {
-				if (dt_print_type(dtp, fp, addr) < 0)
 					return (-1);
 				goto nextrec;
 			}

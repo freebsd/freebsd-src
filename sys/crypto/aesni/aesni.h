@@ -35,7 +35,7 @@
 
 #include <opencrypto/cryptodev.h>
 
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -56,14 +56,16 @@ struct aesni_session {
 	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
+	/* Same as the SHA256 Blocksize. */
+	uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
 	int algo;
 	int rounds;
 	/* uint8_t *ses_ictx; */
 	/* uint8_t *ses_octx; */
 	/* int ses_mlen; */
 	int used;
-	uint32_t id;
-	TAILQ_ENTRY(aesni_session) next;
+	int auth_algo;
+	int mlen;
 };
 
 /*
@@ -79,23 +81,25 @@ void aesni_set_deckey(const uint8_t *encrypt_schedule /*__aligned(16)*/,
  */
 void aesni_encrypt_cbc(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to,
-    const uint8_t iv[static AES_BLOCK_LEN]);
+    const uint8_t iv[__min_size(AES_BLOCK_LEN)]);
 void aesni_decrypt_cbc(int rounds, const void *key_schedule /*__aligned(16)*/,
-    size_t len, uint8_t *buf, const uint8_t iv[static AES_BLOCK_LEN]);
+    size_t len, uint8_t *buf, const uint8_t iv[__min_size(AES_BLOCK_LEN)]);
 void aesni_encrypt_ecb(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to);
 void aesni_decrypt_ecb(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to);
 void aesni_encrypt_icm(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to,
-    const uint8_t iv[static AES_BLOCK_LEN]);
+    const uint8_t iv[__min_size(AES_BLOCK_LEN)]);
 
 void aesni_encrypt_xts(int rounds, const void *data_schedule /*__aligned(16)*/,
     const void *tweak_schedule /*__aligned(16)*/, size_t len,
-    const uint8_t *from, uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN]);
+    const uint8_t *from, uint8_t *to,
+    const uint8_t iv[__min_size(AES_BLOCK_LEN)]);
 void aesni_decrypt_xts(int rounds, const void *data_schedule /*__aligned(16)*/,
     const void *tweak_schedule /*__aligned(16)*/, size_t len,
-    const uint8_t *from, uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN]);
+    const uint8_t *from, uint8_t *to,
+    const uint8_t iv[__min_size(AES_BLOCK_LEN)]);
 
 /* GCM & GHASH functions */
 void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
@@ -109,7 +113,5 @@ int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
 
 int aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
     int keylen);
-uint8_t *aesni_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
-    int *allocated);
 
 #endif /* _AESNI_H_ */

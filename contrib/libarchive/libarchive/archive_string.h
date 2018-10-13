@@ -81,6 +81,10 @@ archive_strappend_char(struct archive_string *, char);
 struct archive_wstring *
 archive_wstrappend_wchar(struct archive_wstring *, wchar_t);
 
+/* Append a raw array to an archive_string, resizing as necessary */
+struct archive_string *
+archive_array_append(struct archive_string *, const char *, size_t);
+
 /* Convert a Unicode string to current locale and append the result. */
 /* Returns -1 if conversion fails. */
 int
@@ -115,13 +119,13 @@ archive_string_conversion_set_opt(struct archive_string_conv *, int);
 
 
 /* Copy one archive_string to another in locale conversion.
- * Return -1 if conversion failes. */
+ * Return -1 if conversion fails. */
 int
 archive_strncpy_l(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 
 /* Copy one archive_string to another in locale conversion.
- * Return -1 if conversion failes. */
+ * Return -1 if conversion fails. */
 int
 archive_strncat_l(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);

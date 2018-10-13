@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -30,6 +32,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/pciio.h>
@@ -44,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <machine/vmm.h>
@@ -361,7 +368,7 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 	uint64_t *dest64;
 	size_t entry_offset;
 	uint32_t vector_control;
-	int error, index;
+	int index;
 
 	pi = sc->psc_pi;
 	if (offset >= pi->pi_msix.pba_offset &&
@@ -416,8 +423,8 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 		/* If the entry is masked, don't set it up */
 		if ((entry->vector_control & PCIM_MSIX_VCTRL_MASK) == 0 ||
 		    (vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
-			error = vm_setup_pptdev_msix(ctx, vcpu,
-			    sc->psc_sel.pc_bus, sc->psc_sel.pc_dev, 
+			(void)vm_setup_pptdev_msix(ctx, vcpu,
+			    sc->psc_sel.pc_bus, sc->psc_sel.pc_dev,
 			    sc->psc_sel.pc_func, index, entry->addr,
 			    entry->msg_data, entry->vector_control);
 		}
@@ -639,9 +646,18 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	int bus, slot, func, error, memflags;
 	struct passthru_softc *sc;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t pci_ioctls[] = { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR };
+	cap_ioctl_t io_ioctls[] = { IODEV_PIO };
+#endif
 
 	sc = NULL;
 	error = 1;
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_IOCTL, CAP_READ, CAP_WRITE);
+#endif
 
 	memflags = vm_get_memflags(ctx);
 	if (!(memflags & VM_MEM_F_WIRED)) {
@@ -657,6 +673,13 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		}
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	if (cap_rights_limit(pcifd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (cap_ioctls_limit(pcifd, pci_ioctls, nitems(pci_ioctls)) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
 	if (iofd < 0) {
 		iofd = open(_PATH_DEVIO, O_RDWR, 0);
 		if (iofd < 0) {
@@ -665,6 +688,13 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		}
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	if (cap_rights_limit(iofd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (cap_ioctls_limit(iofd, io_ioctls, nitems(io_ioctls)) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
 	if (memfd < 0) {
 		memfd = open(_PATH_MEM, O_RDWR, 0);
 		if (memfd < 0) {
@@ -672,6 +702,13 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			goto done;
 		}
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_clear(&rights, CAP_IOCTL);
+	cap_rights_set(&rights, CAP_MMAP_RW);
+	if (cap_rights_limit(memfd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	if (opts == NULL ||
 	    sscanf(opts, "%d/%d/%d", &bus, &slot, &func) != 3) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2002 by Peter Grehan. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -201,10 +203,10 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		return;
 	}
 
-	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
+	nintr = OF_getprop_alloc_multi(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
 	if (nintr == -1) {
-		nintr = OF_getprop_alloc(devnode, "AAPL,interrupts", 
+		nintr = OF_getprop_alloc_multi(devnode, "AAPL,interrupts", 
 			sizeof(*intr), (void **)&intr);
 		if (nintr == -1)
 			return;
@@ -241,7 +243,7 @@ macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
 	char		buf[8];
 	int		i, layout_id = 0, nreg, res;
 
-	nreg = OF_getprop_alloc(devnode, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(devnode, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1)
 		return;
 
@@ -267,7 +269,7 @@ macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
 				sizeof(layout_id));
 
                 if (res > 0 && (layout_id == 36 || layout_id == 76)) {
-                        res = OF_getprop_alloc(OF_parent(devnode), "reg",
+                        res = OF_getprop_alloc_multi(OF_parent(devnode), "reg",
 						sizeof(*regp), (void **)&regp);
                         reg[0] = regp[0];
                         reg[1].mr_base = regp[1].mr_base;
@@ -397,7 +399,8 @@ macio_attach(device_t dev)
 			continue;
 
 		if (strcmp(ofw_bus_get_name(cdev), "bmac") == 0 ||
-		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0) {
+		    (ofw_bus_get_compat(cdev) != NULL &&
+		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0)) {
 			uint32_t fcr;
 
 			fcr = bus_read_4(sc->sc_memr, HEATHROW_FCR);

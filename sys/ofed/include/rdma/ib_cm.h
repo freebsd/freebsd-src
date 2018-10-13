@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
@@ -31,7 +33,10 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
+
 #if !defined(IB_CM_H)
 #define IB_CM_H
 
@@ -105,17 +110,27 @@ enum ib_cm_data_size {
 	IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE = 216,
 	IB_CM_SIDR_REP_PRIVATE_DATA_SIZE = 136,
 	IB_CM_SIDR_REP_INFO_LENGTH	 = 72,
-	IB_CM_COMPARE_SIZE		 = 64
 };
 
 struct ib_cm_id;
 
 struct ib_cm_req_event_param {
 	struct ib_cm_id		*listen_id;
+
+	/* P_Key that was used by the GMP's BTH header */
+	u16			bth_pkey;
+
 	u8			port;
 
 	struct ib_sa_path_rec	*primary_path;
 	struct ib_sa_path_rec	*alternate_path;
+
+	/*
+	 * SGID index of the primary path. Currently only
+	 * useful for RoCE. Alternate path GID attributes
+	 * are not yet supported.
+	 */
+	u8			ppath_sgid_index;
 
 	__be64			remote_ca_guid;
 	u32			remote_qkey;
@@ -222,6 +237,16 @@ struct ib_cm_apr_event_param {
 
 struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
+	__be64			service_id;
+
+	/*
+	 * SGID index of the request. Currently only
+	 * useful for RoCE.
+	 */
+	u8			sgid_index;
+
+	/* P_Key that was used by the GMP's BTH header */
+	u16			bth_pkey;
 	u8			port;
 	u16			pkey;
 };
@@ -336,11 +361,6 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id);
 #define IB_SDP_SERVICE_ID	cpu_to_be64(0x0000000000010000ULL)
 #define IB_SDP_SERVICE_ID_MASK	cpu_to_be64(0xFFFFFFFFFFFF0000ULL)
 
-struct ib_cm_compare_data {
-	u8  data[IB_CM_COMPARE_SIZE];
-	u8  mask[IB_CM_COMPARE_SIZE];
-};
-
 /**
  * ib_cm_listen - Initiates listening on the specified service ID for
  *   connection and service ID resolution requests.
@@ -353,12 +373,13 @@ struct ib_cm_compare_data {
  *   range of service IDs.  If set to 0, the service ID is matched
  *   exactly.  This parameter is ignored if %service_id is set to
  *   IB_CM_ASSIGN_SERVICE_ID.
- * @compare_data: This parameter is optional.  It specifies data that must
- *   appear in the private data of a connection request for the specified
- *   listen request.
  */
-int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
-		 struct ib_cm_compare_data *compare_data);
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
+		 __be64 service_mask);
+
+struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
+				     ib_cm_handler cm_handler,
+				     __be64 service_id);
 
 struct ib_cm_req_param {
 	struct ib_sa_path_rec	*primary_path;
@@ -600,7 +621,5 @@ struct ib_cm_sidr_rep_param {
  */
 int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 			struct ib_cm_sidr_rep_param *param);
-
-int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac);
 
 #endif /* IB_CM_H */

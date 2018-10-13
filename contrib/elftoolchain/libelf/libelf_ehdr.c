@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_ehdr.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: libelf_ehdr.c 3575 2017-09-14 02:13:36Z emaste $");
 
 /*
  * Retrieve counts for sections, phdrs and the section string table index
@@ -170,10 +170,6 @@ _libelf_ehdr(Elf *e, int ec, int allocate)
 	(*xlator)((unsigned char*) ehdr, msz, e->e_rawfile, (size_t) 1,
 	    e->e_byteorder != LIBELF_PRIVATE(byteorder));
 
-	/*
-	 * If extended numbering is being used, read the correct
-	 * number of sections and program header entries.
-	 */
 	if (ec == ELFCLASS32) {
 		phnum = ((Elf32_Ehdr *) ehdr)->e_phnum;
 		shnum = ((Elf32_Ehdr *) ehdr)->e_shnum;
@@ -193,12 +189,19 @@ _libelf_ehdr(Elf *e, int ec, int allocate)
 		return (NULL);
 	}
 
-	if (shnum != 0 || shoff == 0LL) { /* not using extended numbering */
+	/*
+	 * If extended numbering is being used, read the correct
+	 * number of sections and program header entries.
+	 */
+	if ((shnum == 0 && shoff != 0) || phnum == PN_XNUM || strndx == SHN_XINDEX) {
+		if (_libelf_load_extended(e, ec, shoff, phnum, strndx) == 0)
+			return (NULL);
+	} else {
+		/* not using extended numbering */
 		e->e_u.e_elf.e_nphdr = phnum;
 		e->e_u.e_elf.e_nscn = shnum;
 		e->e_u.e_elf.e_strndx = strndx;
-	} else if (_libelf_load_extended(e, ec, shoff, phnum, strndx) == 0)
-		return (NULL);
+	}
 
 	return (ehdr);
 }

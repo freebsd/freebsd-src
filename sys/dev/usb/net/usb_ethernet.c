@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Andrew Thompson (thompsa@FreeBSD.org)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -186,6 +188,17 @@ uether_ifattach(struct usb_ether *ue)
 
 error:
 	return (error);
+}
+
+void
+uether_ifattach_wait(struct usb_ether *ue)
+{
+
+	UE_LOCK(ue);
+	usb_proc_mwait(&ue->ue_tq,
+	    &ue->ue_sync_task[0].hdr,
+	    &ue->ue_sync_task[1].hdr);
+	UE_UNLOCK(ue);
 }
 
 static void
@@ -641,5 +654,9 @@ uether_rxflush(struct usb_ether *ue)
 	}
 }
 
-DECLARE_MODULE(uether, uether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+/*
+ * USB net drivers are run by DRIVER_MODULE() thus SI_SUB_DRIVERS,
+ * SI_ORDER_MIDDLE.  Run uether after that.
+ */
+DECLARE_MODULE(uether, uether_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(uether, 1);

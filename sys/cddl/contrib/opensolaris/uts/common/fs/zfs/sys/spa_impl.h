@@ -20,18 +20,21 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #ifndef _SYS_SPA_IMPL_H
 #define	_SYS_SPA_IMPL_H
 
 #include <sys/spa.h>
+#include <sys/spa_checkpoint.h>
 #include <sys/vdev.h>
+#include <sys/vdev_removal.h>
 #include <sys/metaslab.h>
 #include <sys/dmu.h>
 #include <sys/dsl_pool.h>
@@ -42,6 +45,7 @@
 #include <sys/bplist.h>
 #include <sys/bpobj.h>
 #include <sys/zfeature.h>
+#include <sys/zthr.h>
 #include <zfeature_common.h>
 
 #ifdef	__cplusplus
@@ -61,6 +65,62 @@ typedef struct spa_history_phys {
 	uint64_t sh_eof;		/* logical EOF */
 	uint64_t sh_records_lost;	/* num of records overwritten */
 } spa_history_phys_t;
+
+/*
+ * All members must be uint64_t, for byteswap purposes.
+ */
+typedef struct spa_removing_phys {
+	uint64_t sr_state; /* dsl_scan_state_t */
+
+	/*
+	 * The vdev ID that we most recently attempted to remove,
+	 * or -1 if no removal has been attempted.
+	 */
+	uint64_t sr_removing_vdev;
+
+	/*
+	 * The vdev ID that we most recently successfully removed,
+	 * or -1 if no devices have been removed.
+	 */
+	uint64_t sr_prev_indirect_vdev;
+
+	uint64_t sr_start_time;
+	uint64_t sr_end_time;
+
+	/*
+	 * Note that we can not use the space map's or indirect mapping's
+	 * accounting as a substitute for these values, because we need to
+	 * count frees of not-yet-copied data as though it did the copy.
+	 * Otherwise, we could get into a situation where copied > to_copy,
+	 * or we complete before copied == to_copy.
+	 */
+	uint64_t sr_to_copy; /* bytes that need to be copied */
+	uint64_t sr_copied; /* bytes that have been copied or freed */
+} spa_removing_phys_t;
+
+/*
+ * This struct is stored as an entry in the DMU_POOL_DIRECTORY_OBJECT
+ * (with key DMU_POOL_CONDENSING_INDIRECT).  It is present if a condense
+ * of an indirect vdev's mapping object is in progress.
+ */
+typedef struct spa_condensing_indirect_phys {
+	/*
+	 * The vdev ID of the indirect vdev whose indirect mapping is
+	 * being condensed.
+	 */
+	uint64_t	scip_vdev;
+
+	/*
+	 * The vdev's old obsolete spacemap.  This spacemap's contents are
+	 * being integrated into the new mapping.
+	 */
+	uint64_t	scip_prev_obsolete_sm_object;
+
+	/*
+	 * The new mapping object that is being created.
+	 */
+	uint64_t	scip_next_mapping_object;
+} spa_condensing_indirect_phys_t;
 
 struct spa_aux_vdev {
 	uint64_t	sav_object;		/* MOS object for device list */
@@ -120,14 +180,24 @@ typedef struct spa_taskqs {
 typedef enum spa_all_vdev_zap_action {
 	AVZ_ACTION_NONE = 0,
 	AVZ_ACTION_DESTROY,	/* Destroy all per-vdev ZAPs and the AVZ. */
-	AVZ_ACTION_REBUILD	/* Populate the new AVZ, see spa_avz_rebuild */
+	AVZ_ACTION_REBUILD,	/* Populate the new AVZ, see spa_avz_rebuild */
+	AVZ_ACTION_INITIALIZE
 } spa_avz_action_t;
+
+typedef enum spa_config_source {
+	SPA_CONFIG_SRC_NONE = 0,
+	SPA_CONFIG_SRC_SCAN,		/* scan of path (default: /dev/dsk) */
+	SPA_CONFIG_SRC_CACHEFILE,	/* any cachefile */
+	SPA_CONFIG_SRC_TRYIMPORT,	/* returned from call to tryimport */
+	SPA_CONFIG_SRC_SPLIT,		/* new pool in a pool split */
+	SPA_CONFIG_SRC_MOS		/* MOS, but not always from right txg */
+} spa_config_source_t;
 
 struct spa {
 	/*
 	 * Fields protected by spa_namespace_lock.
 	 */
-	char		spa_name[MAXNAMELEN];	/* pool name */
+	char		spa_name[ZFS_MAX_DATASET_NAME_LEN];	/* pool name */
 	char		*spa_comment;		/* comment */
 	avl_node_t	spa_avl;		/* node in spa_namespace_avl */
 	nvlist_t	*spa_config;		/* last synced config */
@@ -140,6 +210,9 @@ struct spa {
 	int		spa_inject_ref;		/* injection references */
 	uint8_t		spa_sync_on;		/* sync threads are running */
 	spa_load_state_t spa_load_state;	/* current load operation */
+	boolean_t	spa_indirect_vdevs_loaded; /* mappings loaded? */
+	boolean_t	spa_trust_config;	/* do we trust vdev tree? */
+	spa_config_source_t spa_config_source;	/* where config comes from? */
 	uint64_t	spa_import_flags;	/* import specific flags */
 	spa_taskqs_t	spa_zio_taskq[ZIO_TYPES][ZIO_TASKQ_TYPES];
 	dsl_pool_t	*spa_dsl_pool;
@@ -165,6 +238,16 @@ struct spa {
 	uint64_t	spa_last_synced_guid;	/* last synced guid */
 	list_t		spa_config_dirty_list;	/* vdevs with dirty config */
 	list_t		spa_state_dirty_list;	/* vdevs with dirty state */
+	/*
+	 * spa_alloc_locks and spa_alloc_trees are arrays, whose lengths are
+	 * stored in spa_alloc_count. There is one tree and one lock for each
+	 * allocator, to help improve allocation performance in write-heavy
+	 * workloads.
+	 */
+	kmutex_t	*spa_alloc_locks;
+	avl_tree_t	*spa_alloc_trees;
+	int		spa_alloc_count;
+
 	spa_aux_vdev_t	spa_spares;		/* hot spares */
 	spa_aux_vdev_t	spa_l2cache;		/* L2ARC cache devices */
 	nvlist_t	*spa_label_features;	/* Features for reading MOS */
@@ -182,7 +265,8 @@ struct spa {
 	boolean_t	spa_extreme_rewind;	/* rewind past deferred frees */
 	uint64_t	spa_last_io;		/* lbolt of last non-scan I/O */
 	kmutex_t	spa_scrub_lock;		/* resilver/scrub lock */
-	uint64_t	spa_scrub_inflight;	/* in-flight scrub I/Os */
+	uint64_t	spa_scrub_inflight;	/* in-flight scrub bytes */
+	uint64_t	spa_load_verify_ios;	/* in-flight verifications IOs */
 	kcondvar_t	spa_scrub_io_cv;	/* scrub I/O completion */
 	uint8_t		spa_scrub_active;	/* active or suspended? */
 	uint8_t		spa_scrub_type;		/* type of scrub we're doing */
@@ -190,13 +274,30 @@ struct spa {
 	uint8_t		spa_scrub_started;	/* started since last boot */
 	uint8_t		spa_scrub_reopen;	/* scrub doing vdev_reopen */
 	uint64_t	spa_scan_pass_start;	/* start time per pass/reboot */
+	uint64_t	spa_scan_pass_scrub_pause; /* scrub pause time */
+	uint64_t	spa_scan_pass_scrub_spent_paused; /* total paused */
 	uint64_t	spa_scan_pass_exam;	/* examined bytes per pass */
+	uint64_t	spa_scan_pass_issued;	/* issued bytes per pass */
 	kmutex_t	spa_async_lock;		/* protect async state */
 	kthread_t	*spa_async_thread;	/* thread doing async task */
 	kthread_t	*spa_async_thread_vd;	/* thread doing vd async task */
 	int		spa_async_suspended;	/* async tasks suspended */
 	kcondvar_t	spa_async_cv;		/* wait for thread_exit() */
 	uint16_t	spa_async_tasks;	/* async task mask */
+	uint64_t	spa_missing_tvds;	/* unopenable tvds on load */
+	uint64_t	spa_missing_tvds_allowed; /* allow loading spa? */
+
+	spa_removing_phys_t spa_removing_phys;
+	spa_vdev_removal_t *spa_vdev_removal;
+
+	spa_condensing_indirect_phys_t	spa_condensing_indirect_phys;
+	spa_condensing_indirect_t	*spa_condensing_indirect;
+	zthr_t		*spa_condense_zthr;	/* zthr doing condense. */
+
+	uint64_t	spa_checkpoint_txg;	/* the txg of the checkpoint */
+	spa_checkpoint_info_t spa_checkpoint_info; /* checkpoint accounting */
+	zthr_t		*spa_checkpoint_discard_zthr;
+
 	char		*spa_root;		/* alternate root directory */
 	uint64_t	spa_ena;		/* spa-wide ereport ENA */
 	int		spa_last_open_failed;	/* error if last open failed */
@@ -226,16 +327,17 @@ struct spa {
 	/* per-CPU array of root of async I/O: */
 	zio_t		**spa_async_zio_root;
 	zio_t		*spa_suspend_zio_root;	/* root of all suspended I/O */
+	zio_t		*spa_txg_zio[TXG_SIZE]; /* spa_sync() waits for this */
 	kmutex_t	spa_suspend_lock;	/* protects suspend_zio_root */
 	kcondvar_t	spa_suspend_cv;		/* notification of resume */
 	uint8_t		spa_suspended;		/* pool is suspended */
 	uint8_t		spa_claiming;		/* pool is doing zil_claim() */
-	boolean_t	spa_debug;		/* debug enabled? */
 	boolean_t	spa_is_root;		/* pool is root */
 	int		spa_minref;		/* num refs when first opened */
 	int		spa_mode;		/* FREAD | FWRITE */
 	spa_log_state_t spa_log_state;		/* log state */
 	uint64_t	spa_autoexpand;		/* lun expansion on/off */
+	uint64_t	spa_bootsize;		/* efi system partition size */
 	ddt_t		*spa_ddt[ZIO_CHECKSUM_FUNCTIONS]; /* in-core DDTs */
 	uint64_t	spa_ddt_stat_object;	/* DDT statistics */
 	uint64_t	spa_dedup_ditto;	/* dedup ditto threshold */
@@ -258,6 +360,8 @@ struct spa {
 	uint64_t	spa_feat_for_read_obj;	/* required to read from pool */
 	uint64_t	spa_feat_desc_obj;	/* Feature descriptions */
 	uint64_t	spa_feat_enabled_txg_obj; /* Feature enabled txg */
+	kmutex_t	spa_feat_stats_lock;	/* protects spa_feat_stats */
+	nvlist_t	*spa_feat_stats;	/* Cache of enabled features */
 	/* cache feature refcounts */
 	uint64_t	spa_feat_refcount_cache[SPA_FEATURES];
 #ifdef illumos
@@ -265,6 +369,7 @@ struct spa {
 #else	/* !illumos */
 #ifdef _KERNEL
 	struct callout	spa_deadman_cycid;	/* callout id */
+	struct task	spa_deadman_task;
 #endif
 #endif	/* illumos */
 	uint64_t	spa_deadman_calls;	/* number of deadman calls */
@@ -285,6 +390,10 @@ struct spa {
 		int spa_queued;
 	} spa_queue_stats[ZIO_PRIORITY_NUM_QUEUEABLE];
 #endif
+	/* arc_memory_throttle() parameters during low memory condition */
+	uint64_t	spa_lowmem_page_load;	/* memory load during txg */
+	uint64_t	spa_lowmem_last_txg;	/* txg window start */
+
 	hrtime_t	spa_ccw_fail_time;	/* Conf cache write fail time */
 
 	/*
@@ -304,6 +413,8 @@ extern const char *spa_config_path;
 
 extern void spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
     task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent);
+extern void spa_load_spares(spa_t *spa);
+extern void spa_load_l2cache(spa_t *spa);
 
 #ifdef	__cplusplus
 }

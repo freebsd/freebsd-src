@@ -310,7 +310,7 @@ static uint16_t
 keymap_read(struct ckb_softc *sc, int col, int row)
 {
 
-	KASSERT(sc->keymap != NULL, "keymap_read: no keymap");
+	KASSERT(sc->keymap != NULL, ("keymap_read: no keymap"));
 	if (col >= 0 && col < sc->cols &&
 	    row >= 0 && row < sc->rows) {
 		return sc->keymap[row * sc->cols + col];
@@ -323,7 +323,7 @@ static int
 keymap_write(struct ckb_softc *sc, int col, int row, uint16_t key)
 {
 
-	KASSERT(sc->keymap != NULL, "keymap_write: no keymap");
+	KASSERT(sc->keymap != NULL, ("keymap_write: no keymap"));
 	if (col >= 0 && col < sc->cols &&
 	    row >= 0 && row < sc->rows) {
 		sc->keymap[row * sc->cols + col] = key;

@@ -1,6 +1,8 @@
 /*	$NetBSD: pcmcia.c,v 1.23 2000/07/28 19:17:02 drochner Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
@@ -234,6 +237,7 @@ pccard_attach_card(device_t dev)
 	DEVPRINTF((dev, "Card has %d functions. pccard_mfc is %d\n", i + 1,
 	    pccard_mfc(sc)));
 
+	mtx_lock(&Giant);
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
@@ -246,6 +250,7 @@ pccard_attach_card(device_t dev)
 		pf->dev = child;
 		pccard_probe_and_attach_child(dev, child, pf);
 	}
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -470,7 +475,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
-	struct resource *r = 0;
+	struct resource *r = NULL;
 	struct pccard_ce_iospace *ios;
 	struct pccard_ce_memspace *mems;
 	device_t bus;
@@ -1032,13 +1037,18 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
-	char cis0[128], cis1[128];
+	struct sbuf sb;
 
-	devctl_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
-	devctl_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
-	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
-	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
-	    sc->card.manufacturer, sc->card.product, cis0, cis1, pf->function);
+	sbuf_new(&sb, buf, buflen, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	sbuf_printf(&sb, "manufacturer=0x%04x product=0x%04x "
+	    "cisvendor=\"", sc->card.manufacturer, sc->card.product);
+	devctl_safe_quote_sb(&sb, sc->card.cis1_info[0]);
+	sbuf_printf(&sb, "\" cisproduct=\"");
+	devctl_safe_quote_sb(&sb, sc->card.cis1_info[1]);
+	sbuf_printf(&sb, "\" function_type=%d", pf->function);
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
 	return (0);
 }
 
@@ -1115,7 +1125,7 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pccard_ivar *dinfo;
-	struct resource_list_entry *rle = 0;
+	struct resource_list_entry *rle = NULL;
 	int passthrough = (device_get_parent(child) != dev);
 	int isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	struct resource *r = NULL;
@@ -1165,7 +1175,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 {
 	struct pccard_ivar *dinfo;
 	int passthrough = (device_get_parent(child) != dev);
-	struct resource_list_entry *rle = 0;
+	struct resource_list_entry *rle = NULL;
 
 	if (passthrough)
 		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,

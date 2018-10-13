@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Semihalf, Grzegorz Bernacki
  * Copyright (c) 2006 Peter Wemm
  *
@@ -35,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
 #include <sys/param.h>
+#include <vm/vm.h>
 #include <kvm.h>
 #include <limits.h>
 #include <stdint.h>
@@ -51,10 +54,16 @@ __FBSDID("$FreeBSD$");
 
 struct vmstate {
 	struct		minidumphdr hdr;
-	struct		hpt hpt;
-	void		*ptemap;
 	unsigned char	ei_data;
 };
+
+static arm_pt_entry_t
+_arm_pte_get(kvm_t *kd, u_long pteindex)
+{
+	arm_pt_entry_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return _kvm32toh(kd, *pte);
+}
 
 static int
 _arm_minidump_probe(kvm_t *kd)
@@ -69,9 +78,6 @@ _arm_minidump_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	_kvm_hpt_free(&vm->hpt);
-	if (vm->ptemap)
-		free(vm->ptemap);
 	free(vm);
 	kd->vmst = NULL;
 }
@@ -80,8 +86,7 @@ static int
 _arm_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	uint32_t *bitmap;
-	off_t off;
+	off_t off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -122,44 +127,18 @@ _arm_minidump_initvtop(kvm_t *kd)
 	/* Skip header and msgbuf */
 	off = ARM_PAGE_SIZE + arm_round_page(vmst->hdr.msgbufsize);
 
-	bitmap = _kvm_malloc(kd, vmst->hdr.bitmapsize);
-	if (bitmap == NULL) {
-		_kvm_err(kd, kd->program, "cannot allocate %d bytes for "
-		    "bitmap", vmst->hdr.bitmapsize);
-		return (-1);
-	}
-
-	if (pread(kd->pmfd, bitmap, vmst->hdr.bitmapsize, off) !=
-	    (ssize_t)vmst->hdr.bitmapsize) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for page bitmap",
-		    vmst->hdr.bitmapsize);
-		free(bitmap);
+	sparse_off = off + arm_round_page(vmst->hdr.bitmapsize) +
+	    arm_round_page(vmst->hdr.ptesize);
+	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
+	    ARM_PAGE_SIZE, sizeof(uint32_t)) == -1) {
 		return (-1);
 	}
 	off += arm_round_page(vmst->hdr.bitmapsize);
 
-	vmst->ptemap = _kvm_malloc(kd, vmst->hdr.ptesize);
-	if (vmst->ptemap == NULL) {
-		_kvm_err(kd, kd->program, "cannot allocate %d bytes for "
-		    "ptemap", vmst->hdr.ptesize);
-		free(bitmap);
+	if (_kvm_pmap_init(kd, vmst->hdr.ptesize, off) == -1) {
 		return (-1);
 	}
-
-	if (pread(kd->pmfd, vmst->ptemap, vmst->hdr.ptesize, off) !=
-	    (ssize_t)vmst->hdr.ptesize) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for ptemap",
-		    vmst->hdr.ptesize);
-		free(bitmap);
-		return (-1);
-	}
-
-	off += vmst->hdr.ptesize;
-
-	/* Build physical address hash table for sparse pages */
-	_kvm_hpt_init(kd, &vmst->hpt, bitmap, vmst->hdr.bitmapsize, off,
-	    ARM_PAGE_SIZE, sizeof(*bitmap));
-	free(bitmap);
+	off += arm_round_page(vmst->hdr.ptesize);
 
 	return (0);
 }
@@ -172,7 +151,6 @@ _arm_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	arm_physaddr_t offset, a;
 	kvaddr_t pteindex;
 	off_t ofs;
-	arm_pt_entry_t *ptemap;
 
 	if (ISALIVE(kd)) {
 		_kvm_err(kd, 0, "_arm_minidump_kvatop called in live kernel!");
@@ -180,11 +158,12 @@ _arm_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	}
 
 	vm = kd->vmst;
-	ptemap = vm->ptemap;
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> ARM_PAGE_SHIFT;
-		pte = _kvm32toh(kd, ptemap[pteindex]);
+		if (pteindex >= vm->hdr.ptesize / sizeof(pte))
+			goto invalid;
+		pte = _arm_pte_get(kd, pteindex);
 		if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_INV) {
 			_kvm_err(kd, kd->program,
 			    "_arm_minidump_kvatop: pte not valid");
@@ -207,7 +186,7 @@ _arm_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 			a = pte & ARM_L2_S_FRAME;
 		}
 
-		ofs = _kvm_hpt_find(&vm->hpt, a);
+		ofs = _kvm_pt_find(kd, a, ARM_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program, "_arm_minidump_kvatop: "
 			    "physical address 0x%jx not in minidump",
@@ -226,12 +205,69 @@ invalid:
 	return (0);
 }
 
-struct kvm_arch kvm_arm_minidump = {
+static vm_prot_t
+_arm_entry_to_prot(kvm_t *kd, arm_pt_entry_t pte)
+{
+	struct vmstate *vm = kd->vmst;
+	vm_prot_t prot = VM_PROT_READ;
+
+	/* Source: arm/arm/pmap-v4.c:pmap_fault_fixup() */
+	if (vm->hdr.mmuformat == MINIDUMP_MMU_FORMAT_V4) {
+		if (pte & ARM_L2_S_PROT_W)
+			prot |= VM_PROT_WRITE;
+		return prot;
+	}
+
+	/* Source: arm/arm/pmap-v6.c:pmap_protect() */
+	if ((pte & ARM_PTE2_RO) == 0)
+		prot |= VM_PROT_WRITE;
+	if ((pte & ARM_PTE2_NX) == 0)
+		prot |= VM_PROT_EXECUTE;
+	return prot;
+}
+
+static int
+_arm_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
+{
+	struct vmstate *vm = kd->vmst;
+	u_long nptes = vm->hdr.ptesize / sizeof(arm_pt_entry_t);
+	u_long dva, pa, pteindex, va;
+
+	for (pteindex = 0; pteindex < nptes; pteindex++) {
+		arm_pt_entry_t pte = _arm_pte_get(kd, pteindex);
+
+		if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_INV)
+			continue;
+
+		va = vm->hdr.kernbase + (pteindex << ARM_PAGE_SHIFT);
+		if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_L) {
+			/* 64K page */
+			pa = (pte & ARM_L2_L_FRAME) +
+			    (va & ARM_L2_L_OFFSET & ARM_L2_S_FRAME);
+		} else {
+			if (vm->hdr.mmuformat == MINIDUMP_MMU_FORMAT_V4 &&
+			    (pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_T) {
+				continue;
+			}
+			/* 4K page */
+			pa = pte & ARM_L2_S_FRAME;
+		}
+
+		dva = 0; /* no direct map on this platform */
+		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
+		    _arm_entry_to_prot(kd, pte), ARM_PAGE_SIZE, 0))
+			return (0);
+	}
+	return (1);
+}
+
+static struct kvm_arch kvm_arm_minidump = {
 	.ka_probe = _arm_minidump_probe,
 	.ka_initvtop = _arm_minidump_initvtop,
 	.ka_freevtop = _arm_minidump_freevtop,
 	.ka_kvatop = _arm_minidump_kvatop,
 	.ka_native = _arm_native,
+	.ka_walk_pages = _arm_minidump_walk_pages,
 };
 
 KVM_ARCH(kvm_arm_minidump);

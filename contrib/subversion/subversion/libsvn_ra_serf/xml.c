@@ -24,7 +24,6 @@
 
 
 #include <apr_uri.h>
-#include <expat.h>
 #include <serf.h>
 
 #include "svn_hash.h"
@@ -42,22 +41,6 @@
 
 #include "ra_serf.h"
 
-
-/* Fix for older expat 1.95.x's that do not define
- * XML_STATUS_OK/XML_STATUS_ERROR
- */
-#ifndef XML_STATUS_OK
-#define XML_STATUS_OK    1
-#define XML_STATUS_ERROR 0
-#endif
-
-#ifndef XML_VERSION_AT_LEAST
-#define XML_VERSION_AT_LEAST(major,minor,patch)                  \
-(((major) < XML_MAJOR_VERSION)                                       \
- || ((major) == XML_MAJOR_VERSION && (minor) < XML_MINOR_VERSION)    \
- || ((major) == XML_MAJOR_VERSION && (minor) == XML_MINOR_VERSION && \
-     (patch) <= XML_MICRO_VERSION))
-#endif /* XML_VERSION_AT_LEAST */
 
 /* Read/write chunks of this size into the spillbuf.  */
 #define PARSE_CHUNK_SIZE 8000
@@ -149,11 +132,9 @@ struct svn_ra_serf__xml_estate_t {
 
 struct expat_ctx_t {
   svn_ra_serf__xml_context_t *xmlctx;
-  XML_Parser parser;
+  svn_xml_parser_t *parser;
   svn_ra_serf__handler_t *handler;
   const int *expected_status;
-
-  svn_error_t *inner_error;
 
   /* Do not use this pool for allocation. It is merely recorded for running
      the cleanup handler.  */
@@ -886,106 +867,58 @@ xml_cb_cdata(svn_ra_serf__xml_context_t *xmlctx,
   return SVN_NO_ERROR;
 }
 
-/* svn_error_t * wrapper around XML_Parse */
+/* Wrapper around svn_xml_parse */
 static APR_INLINE svn_error_t *
 parse_xml(struct expat_ctx_t *ectx, const char *data, apr_size_t len, svn_boolean_t is_final)
 {
-  int xml_status = XML_Parse(ectx->parser, data, (int)len, is_final);
-  const char *msg;
-  int xml_code;
+  svn_error_t *err = svn_xml_parse(ectx->parser, data, len, is_final);
 
-  if (xml_status == XML_STATUS_OK)
-    return ectx->inner_error;
+  if (err && err->apr_err == SVN_ERR_XML_MALFORMED)
+    err = svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, err,
+                           _("The XML response contains invalid XML"));
 
-  xml_code = XML_GetErrorCode(ectx->parser);
-
-#if XML_VERSION_AT_LEAST(1, 95, 8)
-  /* If we called XML_StopParser() expat will return an abort error. If we
-     have a better error stored we should ignore it as it will not help
-     the end-user to store it in the error chain. */
-  if (xml_code == XML_ERROR_ABORTED && ectx->inner_error)
-    return ectx->inner_error;
-#endif
-
-  msg = XML_ErrorString(xml_code);
-
-  return svn_error_compose_create(
-            ectx->inner_error,
-            svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA,
-                             svn_error_createf(SVN_ERR_XML_MALFORMED, NULL,
-                                               _("Malformed XML: %s"),
-                                               msg),
-                             _("The XML response contains invalid XML")));
+  return err;
 }
 
-/* Apr pool cleanup handler to release an XML_Parser in success and error
-   conditions */
-static apr_status_t
-xml_parser_cleanup(void *baton)
-{
-  XML_Parser *xmlp = baton;
-
-  if (*xmlp)
-    {
-      (void) XML_ParserFree(*xmlp);
-      *xmlp = NULL;
-    }
-
-  return APR_SUCCESS;
-}
-
-/* Conforms to Expat's XML_StartElementHandler  */
+/* Implements svn_xml_start_elem callback */
 static void
-expat_start(void *userData, const char *raw_name, const char **attrs)
+expat_start(void *baton, const char *raw_name, const char **attrs)
 {
-  struct expat_ctx_t *ectx = userData;
+  struct expat_ctx_t *ectx = baton;
+  svn_error_t *err;
 
-  if (ectx->inner_error != NULL)
-    return;
+  err = svn_error_trace(xml_cb_start(ectx->xmlctx, raw_name, attrs));
 
-  ectx->inner_error = svn_error_trace(xml_cb_start(ectx->xmlctx,
-                                                   raw_name, attrs));
-
-#if XML_VERSION_AT_LEAST(1, 95, 8)
-  if (ectx->inner_error)
-    (void) XML_StopParser(ectx->parser, 0 /* resumable */);
-#endif
+  if (err)
+    svn_xml_signal_bailout(err, ectx->parser);
 }
 
 
-/* Conforms to Expat's XML_EndElementHandler  */
+/* Implements svn_xml_end_elem callback */
 static void
-expat_end(void *userData, const char *raw_name)
+expat_end(void *baton, const char *raw_name)
 {
-  struct expat_ctx_t *ectx = userData;
+  struct expat_ctx_t *ectx = baton;
+  svn_error_t *err;
 
-  if (ectx->inner_error != NULL)
-    return;
+  err = svn_error_trace(xml_cb_end(ectx->xmlctx, raw_name));
 
-  ectx->inner_error = svn_error_trace(xml_cb_end(ectx->xmlctx, raw_name));
-
-#if XML_VERSION_AT_LEAST(1, 95, 8)
-  if (ectx->inner_error)
-    (void) XML_StopParser(ectx->parser, 0 /* resumable */);
-#endif
+  if (err)
+    svn_xml_signal_bailout(err, ectx->parser);
 }
 
 
-/* Conforms to Expat's XML_CharacterDataHandler  */
+/* Implements svn_xml_char_data callback */
 static void
-expat_cdata(void *userData, const char *data, int len)
+expat_cdata(void *baton, const char *data, apr_size_t len)
 {
-  struct expat_ctx_t *ectx = userData;
+  struct expat_ctx_t *ectx = baton;
+  svn_error_t *err;
 
-  if (ectx->inner_error != NULL)
-    return;
+  err = svn_error_trace(xml_cb_cdata(ectx->xmlctx, data, len));
 
-  ectx->inner_error = svn_error_trace(xml_cb_cdata(ectx->xmlctx, data, len));
-
-#if XML_VERSION_AT_LEAST(1, 95, 8)
-  if (ectx->inner_error)
-    (void) XML_StopParser(ectx->parser, 0 /* resumable */);
-#endif
+  if (err)
+    svn_xml_signal_bailout(err, ectx->parser);
 }
 
 
@@ -1036,12 +969,8 @@ expat_response_handler(serf_request_t *request,
 
   if (!ectx->parser)
     {
-      ectx->parser = XML_ParserCreate(NULL);
-      apr_pool_cleanup_register(ectx->cleanup_pool, &ectx->parser,
-                                xml_parser_cleanup, apr_pool_cleanup_null);
-      XML_SetUserData(ectx->parser, ectx);
-      XML_SetElementHandler(ectx->parser, expat_start, expat_end);
-      XML_SetCharacterDataHandler(ectx->parser, expat_cdata);
+      ectx->parser = svn_xml_make_parser(ectx, expat_start, expat_end,
+                                         expat_cdata, ectx->cleanup_pool);
     }
 
   while (1)
@@ -1049,7 +978,6 @@ expat_response_handler(serf_request_t *request,
       apr_status_t status;
       const char *data;
       apr_size_t len;
-      svn_error_t *err;
       svn_boolean_t at_eof = FALSE;
 
       status = serf_bucket_read(response, PARSE_CHUNK_SIZE, &data, &len);
@@ -1058,16 +986,7 @@ expat_response_handler(serf_request_t *request,
       else if (APR_STATUS_IS_EOF(status))
         at_eof = TRUE;
 
-      err = parse_xml(ectx, data, len, at_eof /* isFinal */);
-
-      if (at_eof || err)
-        {
-          /* Release xml parser state/tables. */
-          apr_pool_cleanup_run(ectx->cleanup_pool, &ectx->parser,
-                               xml_parser_cleanup);
-        }
-
-      SVN_ERR(err);
+      SVN_ERR(parse_xml(ectx, data, len, at_eof /* isFinal */));
 
       /* The parsing went fine. What has the bucket told us?  */
       if (at_eof)

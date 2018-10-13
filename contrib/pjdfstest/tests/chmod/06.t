@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/chmod/06.t 211474 2010-08-18 22:06:43Z pjd $
 
 desc="chmod returns ELOOP if too many symbolic links were encountered in translating the pathname"

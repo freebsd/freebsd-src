@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, by Peter Wemm and Steve Passe
  * All rights reserved.
  *
@@ -241,17 +243,32 @@ enum LAPIC_REGISTERS {
 	LAPIC_CCR_TIMER	= 0x39,
 	LAPIC_DCR_TIMER	= 0x3e,
 	LAPIC_SELF_IPI	= 0x3f, /* Only in x2APIC */
+	LAPIC_EXT_FEATURES = 0x40, /* AMD */
+	LAPIC_EXT_CTRL	= 0x41, /* AMD */
+	LAPIC_EXT_SEOI	= 0x42, /* AMD */
+	LAPIC_EXT_IER0	= 0x48, /* AMD */
+	LAPIC_EXT_IER1	= 0x49, /* AMD */
+	LAPIC_EXT_IER2	= 0x4a, /* AMD */
+	LAPIC_EXT_IER3	= 0x4b, /* AMD */
+	LAPIC_EXT_IER4	= 0x4c, /* AMD */
+	LAPIC_EXT_IER5	= 0x4d, /* AMD */
+	LAPIC_EXT_IER6	= 0x4e, /* AMD */
+	LAPIC_EXT_IER7	= 0x4f, /* AMD */
+	LAPIC_EXT_LVT0	= 0x50, /* AMD */
+	LAPIC_EXT_LVT1	= 0x51, /* AMD */
+	LAPIC_EXT_LVT2	= 0x52, /* AMD */
+	LAPIC_EXT_LVT3	= 0x53, /* AMD */
 };
 
-/*
- * The LAPIC_SELF_IPI register only exists in x2APIC mode.  The
- * formula below is applicable only to reserve the memory region,
- * i.e. for xAPIC mode, where LAPIC_SELF_IPI finely serves as the
- * address past end of the region.
- */
-#define	LAPIC_MEM_REGION (LAPIC_SELF_IPI * 0x10)
-
 #define	LAPIC_MEM_MUL	0x10
+
+/*
+ * Although some registers are available on AMD processors only,
+ * it's not a big waste to reserve them on all platforms.
+ * However, we need to watch out for this space being assigned for
+ * non-APIC purposes in the future processor models.
+ */
+#define	LAPIC_MEM_REGION ((LAPIC_EXT_LVT3 + 1) * LAPIC_MEM_MUL)
 
 /******************************************************************************
  * I/O APIC structure
@@ -295,6 +312,7 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_VER_MAXLVT		0x00ff0000
 #define MAXLVTSHIFT		16
 #define APIC_VER_EOI_SUPPRESSION 0x01000000
+#define APIC_VER_AMD_EXT_SPACE	0x80000000
 
 /* fields in LDR */
 #define	APIC_LDR_RESERVED	0x00ffffff
@@ -418,6 +436,13 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_TDCR_128		0x0a
 #define APIC_TDCR_1		0x0b
 
+/* Constants related to AMD Extended APIC Features Register */
+#define	APIC_EXTF_ELVT_MASK	0x00ff0000
+#define	APIC_EXTF_ELVT_SHIFT	16
+#define	APIC_EXTF_EXTID_CAP	0x00000004
+#define	APIC_EXTF_SEIO_CAP	0x00000002
+#define	APIC_EXTF_IER_CAP	0x00000001
+
 /* LVT table indices */
 #define	APIC_LVT_LINT0		0
 #define	APIC_LVT_LINT1		1
@@ -427,6 +452,13 @@ typedef struct IOAPIC ioapic_t;
 #define	APIC_LVT_THERMAL	5
 #define	APIC_LVT_CMCI		6
 #define	APIC_LVT_MAX		APIC_LVT_CMCI
+
+/* AMD extended LVT constants, seem to be assigned by fiat */
+#define	APIC_ELVT_IBS		0 /* Instruction based sampling */
+#define	APIC_ELVT_MCA		1 /* MCE thresholding */
+#define	APIC_ELVT_DEI		2 /* Deferred error interrupt */
+#define	APIC_ELVT_SBI		3 /* Sideband interface */
+#define	APIC_ELVT_MAX		APIC_ELVT_SBI
 
 /******************************************************************************
  * I/O APIC defines
@@ -438,6 +470,8 @@ typedef struct IOAPIC ioapic_t;
 /* window register offset */
 #define IOAPIC_WINDOW		0x10
 #define IOAPIC_EOIR		0x40
+
+#define	IOAPIC_WND_SIZE		0x50
 
 /* indexes into IO APIC */
 #define IOAPIC_ID		0x00

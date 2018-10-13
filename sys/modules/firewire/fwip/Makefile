@@ -2,7 +2,7 @@
 
 # Makefile for the fwip(4) module (IP over IEEE1394)
 
-.PATH: ${.CURDIR}/../../../dev/firewire ${.CURDIR}/../../../net
+.PATH: ${SRCTOP}/sys/dev/firewire ${SRCTOP}/sys/net
 
 KMOD    = if_fwip
 SRCS    = bus_if.h device_if.h \

@@ -486,6 +486,7 @@ datum_pts_receive(
 	)
 {
 	int i;
+	size_t nb;
 	l_fp tstmp;
 	struct peer *p;
 	struct datum_pts_unit *datum_pts;
@@ -526,22 +527,23 @@ datum_pts_receive(
 	** received to reduce the jitter.
 	*/
 
-	if (datum_pts->nbytes == 0) {
+	nb = datum_pts->nbytes;
+	if (nb == 0) {
 		datum_pts->lastrec = rbufp->recv_time;
 	}
 
 	/*
 	** Increment our count to the number of bytes received so far. Return if we
 	** haven't gotten all seven bytes yet.
+	** [Sec 3388] make sure we do not overrun the buffer.
+	** TODO: what to do with excessive bytes, if we ever get them?
 	*/
-
-	for (i=0; i<dpend; i++) {
-		datum_pts->retbuf[datum_pts->nbytes+i] = dpt[i];
+	for (i=0; (i < dpend) && (nb < sizeof(datum_pts->retbuf)); i++, nb++) {
+		datum_pts->retbuf[nb] = dpt[i];
 	}
-
-	datum_pts->nbytes += dpend;
-
-	if (datum_pts->nbytes != 7) {
+	datum_pts->nbytes = nb;
+	
+	if (nb < 7) {
 		return;
 	}
 

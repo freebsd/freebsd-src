@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -19,7 +21,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -119,7 +121,7 @@ static char	*dkname;
 static char	*disktype;
 
 static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
-static struct disklabel *getdisklabel(char *s);
+static struct disklabel *getdisklabel(void);
 static void usage(void);
 static int expand_number_int(const char *buf, int *num);
 
@@ -150,7 +152,8 @@ main(int argc, char *argv[])
 		case 'L':
 			volumelabel = optarg;
 			i = -1;
-			while (isalnum(volumelabel[++i]));
+			while (isalnum(volumelabel[++i]) ||
+			    volumelabel[i] == '_');
 			if (volumelabel[i] != '\0') {
 				errx(1, "bad volume label. Valid characters are alphanumerics.");
 			}
@@ -182,6 +185,7 @@ main(int argc, char *argv[])
 		case 'j':
 			jflag = 1;
 			/* fall through to enable soft updates */
+			/* FALLTHROUGH */
 		case 'U':
 			Uflag = 1;
 			break;
@@ -348,7 +352,7 @@ main(int argc, char *argv[])
 		getfssize(&fssize, special, mediasize / sectorsize, reserved);
 	}
 	pp = NULL;
-	lp = getdisklabel(special);
+	lp = getdisklabel();
 	if (lp != NULL) {
 		if (!is_file) /* already set for files */
 			part_name = special[strlen(special) - 1];
@@ -423,7 +427,7 @@ getfssize(intmax_t *fsz, const char *s, intmax_t disksize, intmax_t reserved)
 }
 
 struct disklabel *
-getdisklabel(char *s)
+getdisklabel(void)
 {
 	static struct disklabel lab;
 	struct disklabel *lp;
@@ -450,7 +454,7 @@ getdisklabel(char *s)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	    "usage: %s [ -fsoptions ] special-device%s\n",

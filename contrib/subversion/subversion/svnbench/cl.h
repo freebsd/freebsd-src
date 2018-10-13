@@ -95,6 +95,7 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t trust_server_cert_expired;
   svn_boolean_t trust_server_cert_not_yet_valid;
   svn_boolean_t trust_server_cert_other_failure;
+  apr_array_header_t* search_patterns; /* pattern arguments for --search */
 } svn_cl__opt_state_t;
 
 
@@ -150,8 +151,7 @@ svn_cl__try(svn_error_t *err,
 
 
 /* Our cancellation callback. */
-svn_error_t *
-svn_cl__check_cancel(void *baton);
+extern svn_cancel_func_t svn_cl__check_cancel;
 
 
 

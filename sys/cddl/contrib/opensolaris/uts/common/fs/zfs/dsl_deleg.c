@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 /*
@@ -330,7 +330,7 @@ dsl_deleg_get(const char *ddname, nvlist_t **nvp)
 		zap_attribute_t baseza;
 		nvlist_t *sp_nvp;
 		uint64_t n;
-		char source[MAXNAMELEN];
+		char source[ZFS_MAX_DATASET_NAME_LEN];
 
 		if (dsl_dir_phys(dd)->dd_deleg_zapobj == 0 ||
 		    zap_count(mos,
@@ -384,14 +384,13 @@ typedef struct perm_set {
 static int
 perm_set_compare(const void *arg1, const void *arg2)
 {
-	const perm_set_t *node1 = arg1;
-	const perm_set_t *node2 = arg2;
+	const perm_set_t *node1 = (const perm_set_t *)arg1;
+	const perm_set_t *node2 = (const perm_set_t *)arg2;
 	int val;
 
 	val = strcmp(node1->p_setname, node2->p_setname);
-	if (val == 0)
-		return (0);
-	return (val > 0 ? 1 : -1);
+
+	return (AVL_ISIGN(val));
 }
 
 /*

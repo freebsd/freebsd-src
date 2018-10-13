@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -28,6 +30,23 @@
 
 /* linker set of registered chips */
 OS_SET_DECLARE(ah_chips, struct ath_hal_chip);
+TAILQ_HEAD(, ath_hal_chip) ah_chip_list = TAILQ_HEAD_INITIALIZER(ah_chip_list);
+
+int
+ath_hal_add_chip(struct ath_hal_chip *ahc)
+{
+
+	TAILQ_INSERT_TAIL(&ah_chip_list, ahc, node);
+	return (0);
+}
+
+int
+ath_hal_remove_chip(struct ath_hal_chip *ahc)
+{
+
+	TAILQ_REMOVE(&ah_chip_list, ahc, node);
+	return (0);
+}
 
 /*
  * Check the set of registered chips to see if any recognize
@@ -37,12 +56,22 @@ const char*
 ath_hal_probe(uint16_t vendorid, uint16_t devid)
 {
 	struct ath_hal_chip * const *pchip;
+	struct ath_hal_chip *pc;
 
+	/* Linker set */
 	OS_SET_FOREACH(pchip, ah_chips) {
 		const char *name = (*pchip)->probe(vendorid, devid);
 		if (name != AH_NULL)
 			return name;
 	}
+
+	/* List */
+	TAILQ_FOREACH(pc, &ah_chip_list, node) {
+		const char *name = pc->probe(vendorid, devid);
+		if (name != AH_NULL)
+			return name;
+	}
+
 	return AH_NULL;
 }
 
@@ -60,6 +89,7 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_STATUS *error)
 {
 	struct ath_hal_chip * const *pchip;
+	struct ath_hal_chip *pc;
 
 	OS_SET_FOREACH(pchip, ah_chips) {
 		struct ath_hal_chip *chip = *pchip;
@@ -82,6 +112,30 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 			return ah;
 		}
 	}
+
+	/* List */
+	TAILQ_FOREACH(pc, &ah_chip_list, node) {
+		struct ath_hal_chip *chip = pc;
+		struct ath_hal *ah;
+
+		/* XXX don't have vendorid, assume atheros one works */
+		if (chip->probe(ATHEROS_VENDOR_ID, devid) == AH_NULL)
+			continue;
+		ah = chip->attach(devid, sc, st, sh, eepromdata, ah_config,
+		    error);
+		if (ah != AH_NULL) {
+			/* copy back private state to public area */
+			ah->ah_devid = AH_PRIVATE(ah)->ah_devid;
+			ah->ah_subvendorid = AH_PRIVATE(ah)->ah_subvendorid;
+			ah->ah_macVersion = AH_PRIVATE(ah)->ah_macVersion;
+			ah->ah_macRev = AH_PRIVATE(ah)->ah_macRev;
+			ah->ah_phyRev = AH_PRIVATE(ah)->ah_phyRev;
+			ah->ah_analog5GhzRev = AH_PRIVATE(ah)->ah_analog5GhzRev;
+			ah->ah_analog2GhzRev = AH_PRIVATE(ah)->ah_analog2GhzRev;
+			return ah;
+		}
+	}
+
 	return AH_NULL;
 }
 
@@ -160,6 +214,23 @@ ath_hal_getwirelessmodes(struct ath_hal*ah)
 
 /* linker set of registered RF backends */
 OS_SET_DECLARE(ah_rfs, struct ath_hal_rf);
+TAILQ_HEAD(, ath_hal_rf) ah_rf_list = TAILQ_HEAD_INITIALIZER(ah_rf_list);
+
+int
+ath_hal_add_rf(struct ath_hal_rf *arf)
+{
+
+	TAILQ_INSERT_TAIL(&ah_rf_list, arf, node);
+	return (0);
+}
+
+int
+ath_hal_remove_rf(struct ath_hal_rf *arf)
+{
+
+	TAILQ_REMOVE(&ah_rf_list, arf, node);
+	return (0);
+}
 
 /*
  * Check the set of registered RF backends to see if
@@ -169,9 +240,15 @@ struct ath_hal_rf *
 ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode)
 {
 	struct ath_hal_rf * const *prf;
+	struct ath_hal_rf * rf;
 
 	OS_SET_FOREACH(prf, ah_rfs) {
 		struct ath_hal_rf *rf = *prf;
+		if (rf->probe(ah))
+			return rf;
+	}
+
+	TAILQ_FOREACH(rf, &ah_rf_list, node) {
 		if (rf->probe(ah))
 			return rf;
 	}
@@ -227,7 +304,7 @@ ath_hal_rf_name(struct ath_hal *ah)
 HAL_BOOL
 ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 {
-#define	AH_TIMEOUT	1000
+#define	AH_TIMEOUT	5000
 	return ath_hal_waitfor(ah, reg, mask, val, AH_TIMEOUT);
 #undef AH_TIMEOUT
 }
@@ -275,7 +352,7 @@ ath_hal_reverseBits(uint32_t val, uint32_t n)
 #define	HT_STF		4
 #define	HT_LTF(n)	((n) * 4)
 
-#define	HT_RC_2_MCS(_rc)	((_rc) & 0xf)
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0x1f)
 #define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 #define	IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
 
@@ -284,7 +361,8 @@ ath_hal_reverseBits(uint32_t val, uint32_t n)
  */
 uint32_t
 ath_hal_pkt_txtime(struct ath_hal *ah, const HAL_RATE_TABLE *rates, uint32_t frameLen,
-    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble)
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble,
+    HAL_BOOL includeSifs)
 {
 	uint8_t rc;
 	int numStreams;
@@ -293,7 +371,8 @@ ath_hal_pkt_txtime(struct ath_hal *ah, const HAL_RATE_TABLE *rates, uint32_t fra
 
 	/* Legacy rate? Return the old way */
 	if (! IS_HT_RATE(rc))
-		return ath_hal_computetxtime(ah, rates, frameLen, rateix, shortPreamble);
+		return ath_hal_computetxtime(ah, rates, frameLen, rateix,
+		    shortPreamble, includeSifs);
 
 	/* 11n frame - extract out the number of spatial streams */
 	numStreams = HT_RC_2_STREAMS(rc);
@@ -301,7 +380,9 @@ ath_hal_pkt_txtime(struct ath_hal *ah, const HAL_RATE_TABLE *rates, uint32_t fra
 	    ("number of spatial streams needs to be 1..3: MCS rate 0x%x!",
 	    rateix));
 
-	return ath_computedur_ht(frameLen, rc, numStreams, isht40, shortPreamble);
+	/* XXX TODO: Add SIFS */
+	return ath_computedur_ht(frameLen, rc, numStreams, isht40,
+	    shortPreamble);
 }
 
 static const uint16_t ht20_bps[32] = {
@@ -330,9 +411,9 @@ ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams,
 	KASSERT((rate &~ IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
 
 	if (isht40)
-		bitsPerSymbol = ht40_bps[rate & 0x1f];
+		bitsPerSymbol = ht40_bps[HT_RC_2_MCS(rate)];
 	else
-		bitsPerSymbol = ht20_bps[rate & 0x1f];
+		bitsPerSymbol = ht20_bps[HT_RC_2_MCS(rate)];
 	numBits = OFDM_PLCP_BITS + (frameLen << 3);
 	numSymbols = howmany(numBits, bitsPerSymbol);
 	if (isShortGI)
@@ -350,7 +431,7 @@ ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams,
 uint16_t
 ath_hal_computetxtime(struct ath_hal *ah,
 	const HAL_RATE_TABLE *rates, uint32_t frameLen, uint16_t rateix,
-	HAL_BOOL shortPreamble)
+	HAL_BOOL shortPreamble, HAL_BOOL includeSifs)
 {
 	uint32_t bitsPerSymbol, numBits, numSymbols, phyTime, txTime;
 	uint32_t kbps;
@@ -373,8 +454,10 @@ ath_hal_computetxtime(struct ath_hal *ah,
 		if (shortPreamble && rates->info[rateix].shortPreamble)
 			phyTime >>= 1;
 		numBits		= frameLen << 3;
-		txTime		= CCK_SIFS_TIME + phyTime
+		txTime		= phyTime
 				+ ((numBits * 1000)/kbps);
+		if (includeSifs)
+			txTime	+= CCK_SIFS_TIME;
 		break;
 	case IEEE80211_T_OFDM:
 		bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
@@ -382,9 +465,10 @@ ath_hal_computetxtime(struct ath_hal *ah,
 
 		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
 		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= OFDM_SIFS_TIME
-				+ OFDM_PREAMBLE_TIME
+		txTime		= OFDM_PREAMBLE_TIME
 				+ (numSymbols * OFDM_SYMBOL_TIME);
+		if (includeSifs)
+			txTime	+= OFDM_SIFS_TIME;
 		break;
 	case IEEE80211_T_OFDM_HALF:
 		bitsPerSymbol	= (kbps * OFDM_HALF_SYMBOL_TIME) / 1000;
@@ -392,9 +476,10 @@ ath_hal_computetxtime(struct ath_hal *ah,
 
 		numBits		= OFDM_HALF_PLCP_BITS + (frameLen << 3);
 		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= OFDM_HALF_SIFS_TIME
-				+ OFDM_HALF_PREAMBLE_TIME
+		txTime		= OFDM_HALF_PREAMBLE_TIME
 				+ (numSymbols * OFDM_HALF_SYMBOL_TIME);
+		if (includeSifs)
+			txTime	+= OFDM_HALF_SIFS_TIME;
 		break;
 	case IEEE80211_T_OFDM_QUARTER:
 		bitsPerSymbol	= (kbps * OFDM_QUARTER_SYMBOL_TIME) / 1000;
@@ -402,9 +487,10 @@ ath_hal_computetxtime(struct ath_hal *ah,
 
 		numBits		= OFDM_QUARTER_PLCP_BITS + (frameLen << 3);
 		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= OFDM_QUARTER_SIFS_TIME
-				+ OFDM_QUARTER_PREAMBLE_TIME
+		txTime		= OFDM_QUARTER_PREAMBLE_TIME
 				+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
+		if (includeSifs)
+			txTime	+= OFDM_QUARTER_SIFS_TIME;
 		break;
 	case IEEE80211_T_TURBO:
 		bitsPerSymbol	= (kbps * TURBO_SYMBOL_TIME) / 1000;
@@ -412,9 +498,10 @@ ath_hal_computetxtime(struct ath_hal *ah,
 
 		numBits		= TURBO_PLCP_BITS + (frameLen << 3);
 		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= TURBO_SIFS_TIME
-				+ TURBO_PREAMBLE_TIME
+		txTime		= TURBO_PREAMBLE_TIME
 				+ (numSymbols * TURBO_SYMBOL_TIME);
+		if (includeSifs)
+			txTime	+= TURBO_SIFS_TIME;
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_PHYIO,
@@ -480,6 +567,11 @@ typedef enum {
 	WIRELESS_MODE_MAX
 } WIRELESS_MODE;
 
+/*
+ * XXX TODO: for some (?) chips, an 11b mode still runs at 11bg.
+ * Maybe AR5211 has separate 11b and 11g only modes, so 11b is 22MHz
+ * and 11g is 44MHz, but AR5416 and later run 11b in 11bg mode, right?
+ */
 static WIRELESS_MODE
 ath_hal_chan2wmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
@@ -533,22 +625,34 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 u_int
 ath_hal_mac_usec(struct ath_hal *ah, u_int clks)
 {
+	uint64_t psec;
+
+	psec = ath_hal_mac_psec(ah, clks);
+	return (psec / 1000000);
+}
+
+/*
+ * XXX TODO: half, quarter rates.
+ */
+uint64_t
+ath_hal_mac_psec(struct ath_hal *ah, u_int clks)
+{
 	const struct ieee80211_channel *c = AH_PRIVATE(ah)->ah_curchan;
-	u_int usec;
+	uint64_t psec;
 
 	/* NB: ah_curchan may be null when called attach time */
 	/* XXX merlin and later specific workaround - 5ghz fast clock is 44 */
 	if (c != AH_NULL && IS_5GHZ_FAST_CLOCK_EN(ah, c)) {
-		usec = clks / CLOCK_FAST_RATE_5GHZ_OFDM;
+		psec = (clks * 1000000ULL) / CLOCK_FAST_RATE_5GHZ_OFDM;
 		if (IEEE80211_IS_CHAN_HT40(c))
-			usec >>= 1;
+			psec >>= 1;
 	} else if (c != AH_NULL) {
-		usec = clks / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
+		psec = (clks * 1000000ULL) / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
-			usec >>= 1;
+			psec >>= 1;
 	} else
-		usec = clks / CLOCK_RATE[WIRELESS_MODE_11b];
-	return usec;
+		psec = (clks * 1000000ULL) / CLOCK_RATE[WIRELESS_MODE_11b];
+	return psec;
 }
 
 /*
@@ -588,9 +692,9 @@ ath_hal_setupratetable(struct ath_hal *ah, HAL_RATE_TABLE *rt)
 		 *     2Mb/s rate which will work but is suboptimal
 		 */
 		rt->info[i].lpAckDuration = ath_hal_computetxtime(ah, rt,
-			WLAN_CTRL_FRAME_SIZE, cix, AH_FALSE);
+			WLAN_CTRL_FRAME_SIZE, cix, AH_FALSE, AH_TRUE);
 		rt->info[i].spAckDuration = ath_hal_computetxtime(ah, rt,
-			WLAN_CTRL_FRAME_SIZE, cix, AH_TRUE);
+			WLAN_CTRL_FRAME_SIZE, cix, AH_TRUE, AH_TRUE);
 	}
 #undef N
 }
@@ -749,7 +853,7 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_HT20_SGI:
 		return pCap->halHTSGI20Support ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
-		*result = pCap->halTstampPrecision;
+		*result = pCap->halRxTstampPrecision;
 		return HAL_OK;
 	case HAL_CAP_ANT_DIV_COMB:	/* AR9285/AR9485 LNA diversity */
 		return pCap->halAntDivCombSupport ? HAL_OK  : HAL_ENOTSUPP;
@@ -778,8 +882,6 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		}
 	case HAL_CAP_RXDESC_SELFLINK:	/* hardware supports self-linked final RX descriptors correctly */
 		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_LONG_RXDESC_TSF:		/* 32 bit TSF in RX descriptor? */
-		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_BB_READ_WAR:		/* Baseband read WAR */
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
@@ -791,6 +893,9 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halRxUsingLnaMixing ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_DO_MYBEACON:	/* Hardware supports filtering my-beacons */
 		return pCap->halRxDoMyBeacon ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_TXTSTAMP_PREC:	/* tx desc tstamp precision (bits) */
+		*result = pCap->halTxTstampPrecision;
+		return HAL_OK;
 	default:
 		return HAL_EINVAL;
 	}
@@ -1085,7 +1190,6 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
     const struct ieee80211_channel *chan, int16_t *nf_ctl,
     int16_t *nf_ext)
 {
-#ifdef	AH_SUPPORT_AR5416
 	HAL_CHANNEL_INTERNAL *ichan;
 	int i;
 
@@ -1140,9 +1244,6 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		}
 		return 1;
 	}
-#else
-	return 0;
-#endif	/* AH_SUPPORT_AR5416 */
 }
 
 /*
@@ -1387,6 +1488,9 @@ ath_hal_setcca(struct ath_hal *ah, int ena)
 
 /*
  * Get CCA setting.
+ *
+ * XXX TODO: turn this and the above function into methods
+ * in case there are chipset differences in handling CCA.
  */
 int
 ath_hal_getcca(struct ath_hal *ah)
@@ -1395,6 +1499,21 @@ ath_hal_getcca(struct ath_hal *ah)
 	if (ath_hal_getcapability(ah, HAL_CAP_DIAG, 0, &diag) != HAL_OK)
 		return 1;
 	return ((diag & 0x500000) == 0);
+}
+
+/*
+ * Set the current state of self-generated ACK and RTS/CTS frames.
+ *
+ * For correct DFS operation, the device should not even /ACK/ frames
+ * that are sent to it during CAC or CSA.
+ */
+void
+ath_hal_set_dfs_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL ena)
+{
+
+	if (ah->ah_setDfsCacTxQuiet == NULL)
+		return;
+	ah->ah_setDfsCacTxQuiet(ah, ena);
 }
 
 /*

@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,15 +32,16 @@
  */
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/un.h>
 #include <sys/stat.h>
+#include <sys/ucred.h>
+#include <sys/un.h>
 
+#include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
-#include <syslog.h>
 #include <string.h>
-#include <errno.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "snmpmod.h"
@@ -58,6 +59,7 @@ static void lsock_close_port(struct tport *);
 static int lsock_init_port(struct tport *);
 static ssize_t lsock_send(struct tport *, const u_char *, size_t,
     const struct sockaddr *, size_t);
+static ssize_t lsock_recv(struct tport *, struct port_input *);
 
 /* exported */
 const struct transport_def lsock_trans = {
@@ -67,7 +69,8 @@ const struct transport_def lsock_trans = {
 	lsock_stop,
 	lsock_close_port,
 	lsock_init_port,
-	lsock_send
+	lsock_send,
+	lsock_recv
 };
 static struct transport *my_trans;
 
@@ -143,16 +146,14 @@ lsock_open_port(u_char *name, size_t namelen, struct lsock_port **pp,
 		return (SNMP_ERR_BADVALUE);
 	}
 
-	if ((port = malloc(sizeof(*port))) == NULL)
+	if ((port = calloc(1, sizeof(*port))) == NULL)
 		return (SNMP_ERR_GENERR);
 
-	memset(port, 0, sizeof(*port));
 	if (!is_stream) {
-		if ((peer = malloc(sizeof(*peer))) == NULL) {
+		if ((peer = calloc(1, sizeof(*peer))) == NULL) {
 			free(port);
 			return (SNMP_ERR_GENERR);
 		}
-		memset(peer, 0, sizeof(*peer));
 	}
 	if ((port->name = malloc(namelen + 1)) == NULL) {
 		free(port);
@@ -258,12 +259,11 @@ lsock_listen_input(int fd, void *udata)
 	struct lsock_port *p = udata;
 	struct lsock_peer *peer;
 
-	if ((peer = malloc(sizeof(*peer))) == NULL) {
+	if ((peer = calloc(1, sizeof(*peer))) == NULL) {
 		syslog(LOG_WARNING, "%s: peer malloc failed", p->name);
 		(void)close(accept(fd, NULL, NULL));
 		return;
 	}
-	memset(peer, 0, sizeof(*peer));
 
 	peer->port = p;
 
@@ -305,10 +305,9 @@ lsock_init_port(struct tport *tp)
 			return (SNMP_ERR_RES_UNAVAIL);
 		}
 
-		strcpy(sa.sun_path, p->name);
+		strlcpy(sa.sun_path, p->name, sizeof(sa.sun_path));
 		sa.sun_family = AF_LOCAL;
-		sa.sun_len = strlen(p->name) +
-		    offsetof(struct sockaddr_un, sun_path);
+		sa.sun_len = SUN_LEN(&sa);
 
 		(void)remove(p->name);
 
@@ -360,10 +359,9 @@ lsock_init_port(struct tport *tp)
 			return (SNMP_ERR_GENERR);
 		}
 
-		strcpy(sa.sun_path, p->name);
+		strlcpy(sa.sun_path, p->name, sizeof(sa.sun_path));
 		sa.sun_family = AF_LOCAL;
-		sa.sun_len = strlen(p->name) +
-		    offsetof(struct sockaddr_un, sun_path);
+		sa.sun_len = SUN_LEN(&sa);
 
 		(void)remove(p->name);
 
@@ -417,8 +415,75 @@ lsock_send(struct tport *tp, const u_char *buf, size_t len,
 			return (-1);
 		}
 	}
-	
+
 	return (sendto(peer->input.fd, buf, len, 0, addr, addrlen));
+}
+
+static void
+check_priv_stream(struct port_input *pi)
+{
+	struct xucred ucred;
+	socklen_t ucredlen;
+
+	/* obtain the accept time credentials */
+	ucredlen = sizeof(ucred);
+
+	if (getsockopt(pi->fd, 0, LOCAL_PEERCRED, &ucred, &ucredlen) == 0 &&
+	    ucredlen >= sizeof(ucred) && ucred.cr_version == XUCRED_VERSION)
+		pi->priv = (ucred.cr_uid == 0);
+	else
+		pi->priv = 0;
+}
+
+/*
+ * Receive something
+ */
+static ssize_t
+lsock_recv(struct tport *tp __unused, struct port_input *pi)
+{
+	struct msghdr msg;
+	struct iovec iov[1];
+	ssize_t len;
+
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+
+	if (pi->buf == NULL) {
+		/* no buffer yet - allocate one */
+		if ((pi->buf = buf_alloc(0)) == NULL) {
+			/* ups - could not get buffer. Return an error
+			 * the caller must close the transport. */
+			return (-1);
+		}
+		pi->buflen = buf_size(0);
+		pi->consumed = 0;
+		pi->length = 0;
+	}
+
+	/* try to get a message */
+	msg.msg_name = pi->peer;
+	msg.msg_namelen = pi->peerlen;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags = 0;
+
+	iov[0].iov_base = pi->buf + pi->length;
+	iov[0].iov_len = pi->buflen - pi->length;
+
+	len = recvmsg(pi->fd, &msg, 0);
+
+	if (len == -1 || len == 0)
+		/* receive error */
+		return (-1);
+
+	pi->length += len;
+
+	if (pi->cred)
+		check_priv_stream(pi);
+
+	return (0);
 }
 
 /*

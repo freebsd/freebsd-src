@@ -1,4 +1,4 @@
-# MALTA64 -- 64-bit kernel config for MALTA boards
+# MALTA64 -- 64-bit kernel config for MALTA endian-big boards
 #
 # $FreeBSD$
  
@@ -6,8 +6,10 @@ ident		MALTA64
 
 include		"std.MALTA"
  
-machine		mips mips64el	# Malta supports both, so it isn't in std.malta
+machine		mips mips64
  
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
  
 makeoptions 	KERNLOADADDR=0xffffffff80100000
+
+options 	COMPAT_FREEBSD32	# Compatible with o32 binaries

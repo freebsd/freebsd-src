@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -45,6 +47,7 @@
 #include <usbhid.h>
 #include "bthid_config.h"
 #include "bthidd.h"
+#include "btuinput.h"
 #include "kbd.h"
 
 /*
@@ -66,21 +69,12 @@ session_open(bthid_server_p srv, hid_device_p const d)
 	memcpy(&s->bdaddr, &d->bdaddr, sizeof(s->bdaddr));
 	s->ctrl = -1;
 	s->intr = -1;
-
-	if (d->keyboard) {
-		/* Open /dev/vkbdctl */
-		s->vkbd = open("/dev/vkbdctl", O_RDWR);
-		if (s->vkbd < 0) {
-			syslog(LOG_ERR, "Could not open /dev/vkbdctl " \
-				"for %s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
-				strerror(errno), errno);
-			free(s);
-			return (NULL);
-		}
-	} else
-		s->vkbd = -1;
-
+	s->vkbd = -1;
+	s->ctx = NULL;
 	s->state = CLOSED;
+	s->ukbd = -1;
+	s->umouse = -1;
+	s->obutt = 0;
 
 	s->keys1 = bit_alloc(kbd_maxkey());
 	if (s->keys1 == NULL) {
@@ -98,6 +92,64 @@ session_open(bthid_server_p srv, hid_device_p const d)
 	LIST_INSERT_HEAD(&srv->sessions, s, next);
 
 	return (s);
+}
+
+/*
+ * Initialize virtual keyboard and mouse after both channels are established
+ */
+
+int32_t
+session_run(bthid_session_p s)
+{
+	hid_device_p d = get_hid_device(&s->bdaddr);
+	struct sockaddr_l2cap   local;
+	socklen_t               len;
+
+	if (d->keyboard) {
+		/* Open /dev/vkbdctl */
+		s->vkbd = open("/dev/vkbdctl", O_RDWR);
+		if (s->vkbd < 0) {
+			syslog(LOG_ERR, "Could not open /dev/vkbdctl " \
+				"for %s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
+				strerror(errno), errno);
+			return (-1);
+		}
+		/* Register session's vkbd descriptor (if needed) for read */
+		FD_SET(s->vkbd, &s->srv->rfdset);
+		if (s->vkbd > s->srv->maxfd)
+			s->srv->maxfd = s->vkbd;
+	}
+
+	/* Pass device for probing */
+	hid_initialise(s);
+
+	/* Take local bdaddr */
+	len = sizeof(local);
+	getsockname(s->ctrl, (struct sockaddr *) &local, &len);
+
+	if (d->mouse && s->srv->uinput) {
+		s->umouse = uinput_open_mouse(d, &local.l2cap_bdaddr);
+		if (s->umouse < 0) {
+			syslog(LOG_ERR, "Could not open /dev/uinput " \
+				"for %s. %s (%d)", bt_ntoa(&s->bdaddr,
+				NULL), strerror(errno), errno);
+			return (-1);
+		}
+	}
+	if (d->keyboard && s->srv->uinput) {
+		s->ukbd = uinput_open_keyboard(d, &local.l2cap_bdaddr);
+		if (s->ukbd < 0) {
+			syslog(LOG_ERR, "Could not open /dev/uinput " \
+				"for %s. %s (%d)", bt_ntoa(&s->bdaddr,
+				NULL), strerror(errno), errno);
+			return (-1);
+		}
+		/* Register session's ukbd descriptor (if needed) for read */
+		FD_SET(s->ukbd, &s->srv->rfdset);
+		if (s->ukbd > s->srv->maxfd)
+			s->srv->maxfd = s->ukbd;
+	}
+	return (0);
 }
 
 /*
@@ -132,7 +184,8 @@ session_by_fd(bthid_server_p srv, int32_t fd)
 	assert(fd >= 0);
 
 	LIST_FOREACH(s, &srv->sessions, next)
-		if (s->ctrl == fd || s->intr == fd || s->vkbd == fd)
+		if (s->ctrl == fd || s->intr == fd ||
+		    s->vkbd == fd || s->ukbd == fd)
 			break;
 
 	return (s);
@@ -176,6 +229,18 @@ session_close(bthid_session_p s)
 			s->srv->maxfd --;
 	}
 
+	if (s->umouse != -1)
+		close(s->umouse);
+
+	if (s->ukbd != -1) {
+		FD_CLR(s->ukbd, &s->srv->rfdset);
+		close(s->ukbd);
+
+		if (s->srv->maxfd == s->ukbd)
+			s->srv->maxfd --;
+	}
+
+	free(s->ctx);
 	free(s->keys1);
 	free(s->keys2);
 

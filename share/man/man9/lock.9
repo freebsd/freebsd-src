@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2014
+.Dd November 17, 2017
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -39,7 +39,6 @@
 .Nm lockmgr_printinfo ,
 .Nm lockmgr_recursed ,
 .Nm lockmgr_rw ,
-.Nm lockmgr_waiters ,
 .Nm lockstatus ,
 .Nm lockmgr_assert
 .Nd "lockmgr family of functions"
@@ -65,8 +64,6 @@
 .Fn lockmgr_recursed "const struct lock *lkp"
 .Ft int
 .Fn lockmgr_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk"
-.Ft int
-.Fn lockmgr_waiters "const struct lock *lkp"
 .Ft int
 .Fn lockstatus "const struct lock *lkp"
 .Pp
@@ -96,9 +93,6 @@ The timeout value passed to
 .It Fa flags
 The flags the lock is to be initialized with:
 .Bl -tag -width ".Dv LK_CANRECURSE"
-.It Dv LK_ADAPTIVE
-Enable adaptive spinning for this lock if the kernel is compiled with the
-ADAPTIVE_LOCKMGRS option.
 .It Dv LK_CANRECURSE
 Allow recursive exclusive locks.
 .It Dv LK_NOPROFILE
@@ -277,10 +271,6 @@ The
 .Fn lockmgr_recursed
 function returns true if the lock is recursed, 0
 otherwise.
-.Pp
-The
-.Fn lockmgr_waiters
-function returns true if the lock has waiters, 0 otherwise.
 .Pp
 The
 .Fn lockstatus

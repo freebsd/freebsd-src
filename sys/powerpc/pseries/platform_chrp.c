@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2009 Nathan Whitehorn
  * All rights reserved.
@@ -34,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -72,6 +75,7 @@ static int chrp_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int chrp_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int chrp_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static void chrp_smp_ap_init(platform_t);
+static int chrp_cpuref_init(void);
 #ifdef SMP
 static int chrp_smp_start_cpu(platform_t, struct pcpu *cpu);
 static struct cpu_group *chrp_smp_topo(platform_t plat);
@@ -81,6 +85,10 @@ static void chrp_reset(platform_t);
 #include "phyp-hvcall.h"
 static void phyp_cpu_idle(sbintime_t sbt);
 #endif
+
+static struct cpuref platform_cpuref[MAXCPU];
+static int platform_cpuref_cnt;
+static int platform_cpuref_valid;
 
 static platform_method_t chrp_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		chrp_probe),
@@ -138,7 +146,6 @@ chrp_attach(platform_t plat)
 
 		/* Set up important VPA fields */
 		for (i = 0; i < MAXCPU; i++) {
-			bzero(splpar_vpa[i], sizeof(splpar_vpa));
 			/* First two: VPA size */
 			splpar_vpa[i][4] =
 			    (uint8_t)((sizeof(splpar_vpa[i]) >> 8) & 0xff);
@@ -156,6 +163,7 @@ chrp_attach(platform_t plat)
 		chrp_smp_ap_init(plat);
 	}
 #endif
+	chrp_cpuref_init();
 
 	/* Some systems (e.g. QEMU) need Open Firmware to stand down */
 	ofw_quiesce();
@@ -276,12 +284,24 @@ chrp_real_maxaddr(platform_t plat)
 static u_long
 chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
-	phandle_t phandle;
+	phandle_t cpus, cpunode;
 	int32_t ticks = -1;
+	int res;
+	char buf[8];
 
-	phandle = cpuref->cr_hwref;
+	cpus = OF_finddevice("/cpus");
+	if (cpus == -1)
+		panic("CPU tree not found on Open Firmware\n");
 
-	OF_getencprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
+	for (cpunode = OF_child(cpus); cpunode != 0; cpunode = OF_peer(cpunode)) {
+		res = OF_getprop(cpunode, "device_type", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpu") == 0)
+			break;
+	}
+	if (cpunode <= 0)
+		panic("CPU node not found on Open Firmware\n");
+
+	OF_getencprop(cpunode, "timebase-frequency", &ticks, sizeof(ticks));
 
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
@@ -292,48 +312,12 @@ chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 static int
 chrp_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 {
-	char buf[8];
-	phandle_t cpu, dev, root;
-	int res, cpuid;
 
-	root = OF_peer(0);
+	if (platform_cpuref_valid == 0)
+		return (EINVAL);
 
-	dev = OF_child(root);
-	while (dev != 0) {
-		res = OF_getprop(dev, "name", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpus") == 0)
-			break;
-		dev = OF_peer(dev);
-	}
-	if (dev == 0) {
-		/*
-		 * psim doesn't have a name property on the /cpus node,
-		 * but it can be found directly
-		 */
-		dev = OF_finddevice("/cpus");
-		if (dev == 0)
-			return (ENOENT);
-	}
-
-	cpu = OF_child(dev);
-
-	while (cpu != 0) {
-		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpu") == 0)
-			break;
-		cpu = OF_peer(cpu);
-	}
-	if (cpu == 0)
-		return (ENOENT);
-
-	cpuref->cr_hwref = cpu;
-	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
-	    sizeof(cpuid));
-	if (res <= 0)
-		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
-	if (res <= 0)
-		cpuid = 0;
-	cpuref->cr_cpuid = cpuid;
+	cpuref->cr_cpuid = 0;
+	cpuref->cr_hwref = platform_cpuref[0].cr_hwref;
 
 	return (0);
 }
@@ -341,43 +325,17 @@ chrp_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 static int
 chrp_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 {
-	char buf[8];
-	phandle_t cpu;
-	int i, res, cpuid;
+	int id;
 
-	/* Check for whether it should be the next thread */
-	res = OF_getproplen(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s");
-	if (res > 0) {
-		cell_t interrupt_servers[res/sizeof(cell_t)];
-		OF_getencprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
-		    interrupt_servers, res);
-		for (i = 0; i < res/sizeof(cell_t) - 1; i++) {
-			if (interrupt_servers[i] == cpuref->cr_cpuid) {
-				cpuref->cr_cpuid = interrupt_servers[i+1];
-				return (0);
-			}
-		}
-	}
+	if (platform_cpuref_valid == 0)
+		return (EINVAL);
 
-	/* Next CPU core/package */
-	cpu = OF_peer(cpuref->cr_hwref);
-	while (cpu != 0) {
-		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpu") == 0)
-			break;
-		cpu = OF_peer(cpu);
-	}
-	if (cpu == 0)
+	id = cpuref->cr_cpuid + 1;
+	if (id >= platform_cpuref_cnt)
 		return (ENOENT);
 
-	cpuref->cr_hwref = cpu;
-	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
-	    sizeof(cpuid));
-	if (res <= 0)
-		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
-	if (res <= 0)
-		cpuid = 0;
-	cpuref->cr_cpuid = cpuid;
+	cpuref->cr_cpuid = platform_cpuref[id].cr_cpuid;
+	cpuref->cr_hwref = platform_cpuref[id].cr_hwref;
 
 	return (0);
 }
@@ -385,32 +343,123 @@ chrp_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 static int
 chrp_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 {
-	ihandle_t inst;
-	phandle_t bsp, chosen;
-	int res, cpuid;
+
+	cpuref->cr_cpuid = platform_cpuref[0].cr_cpuid;
+	cpuref->cr_hwref = platform_cpuref[0].cr_hwref;
+	return (0);
+}
+
+static void
+get_cpu_reg(phandle_t cpu, cell_t *reg)
+{
+	int res;
+
+	res = OF_getproplen(cpu, "reg");
+	if (res != sizeof(cell_t))
+		panic("Unexpected length for CPU property reg on Open Firmware\n");
+	OF_getencprop(cpu, "reg", reg, res);
+}
+
+static int
+chrp_cpuref_init(void)
+{
+	phandle_t cpu, dev, chosen, pbsp;
+	ihandle_t ibsp;
+	char buf[32];
+	int a, bsp, res, res2, tmp_cpuref_cnt;
+	static struct cpuref tmp_cpuref[MAXCPU];
+	cell_t interrupt_servers[32], addr_cells, size_cells, reg, bsp_reg;
+
+	if (platform_cpuref_valid)
+		return (0);
+
+	dev = OF_peer(0);
+	dev = OF_child(dev);
+	while (dev != 0) {
+		res = OF_getprop(dev, "name", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpus") == 0)
+			break;
+		dev = OF_peer(dev);
+	}
+
+	/* Make sure that cpus reg property have 1 address cell and 0 size cells */
+	res = OF_getproplen(dev, "#address-cells");
+	res2 = OF_getproplen(dev, "#size-cells");
+	if (res != res2 || res != sizeof(cell_t))
+		panic("CPU properties #address-cells and #size-cells not found on Open Firmware\n");
+	OF_getencprop(dev, "#address-cells", &addr_cells, sizeof(addr_cells));
+	OF_getencprop(dev, "#size-cells", &size_cells, sizeof(size_cells));
+	if (addr_cells != 1 || size_cells != 0)
+		panic("Unexpected values for CPU properties #address-cells and #size-cells on Open Firmware\n");
+
+	/* Look for boot CPU in /chosen/cpu and /chosen/fdtbootcpu */
 
 	chosen = OF_finddevice("/chosen");
-	if (chosen == 0)
-		return (ENXIO);
+	if (chosen == -1)
+		panic("Device /chosen not found on Open Firmware\n");
 
-	res = OF_getencprop(chosen, "cpu", &inst, sizeof(inst));
-	if (res < 0)
-		return (ENXIO);
+	bsp_reg = -1;
 
-	bsp = OF_instance_to_package(inst);
+	/* /chosen/cpu */
+	if (OF_getproplen(chosen, "cpu") == sizeof(ihandle_t)) {
+		OF_getprop(chosen, "cpu", &ibsp, sizeof(ibsp));
+		pbsp = OF_instance_to_package(ibsp);
+		if (pbsp != -1)
+			get_cpu_reg(pbsp, &bsp_reg);
+	}
 
-	/* Pick the primary thread. Can it be any other? */
-	cpuref->cr_hwref = bsp;
-	res = OF_getencprop(bsp, "ibm,ppc-interrupt-server#s", &cpuid,
-	    sizeof(cpuid));
-	if (res <= 0)
-		res = OF_getencprop(bsp, "reg", &cpuid, sizeof(cpuid));
-	if (res <= 0)
-		cpuid = 0;
-	cpuref->cr_cpuid = cpuid;
+	/* /chosen/fdtbootcpu */
+	if (bsp_reg == -1) {
+		if (OF_getproplen(chosen, "fdtbootcpu") == sizeof(cell_t))
+			OF_getprop(chosen, "fdtbootcpu", &bsp_reg, sizeof(bsp_reg));
+	}
+
+	if (bsp_reg == -1)
+		panic("Boot CPU not found on Open Firmware\n");
+
+	bsp = -1;
+	tmp_cpuref_cnt = 0;
+	for (cpu = OF_child(dev); cpu != 0; cpu = OF_peer(cpu)) {
+		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpu") == 0) {
+			res = OF_getproplen(cpu, "ibm,ppc-interrupt-server#s");
+			if (res > 0) {
+				OF_getencprop(cpu, "ibm,ppc-interrupt-server#s",
+				    interrupt_servers, res);
+
+				get_cpu_reg(cpu, &reg);
+				if (reg == bsp_reg)
+					bsp = tmp_cpuref_cnt;
+
+				for (a = 0; a < res/sizeof(cell_t); a++) {
+					tmp_cpuref[tmp_cpuref_cnt].cr_hwref = interrupt_servers[a];
+					tmp_cpuref[tmp_cpuref_cnt].cr_cpuid = tmp_cpuref_cnt;
+					tmp_cpuref_cnt++;
+				}
+			}
+		}
+	}
+
+	if (bsp == -1)
+		panic("Boot CPU not found\n");
+
+	/* Map IDs, so BSP has CPUID 0 regardless of hwref */
+	for (a = bsp; a < tmp_cpuref_cnt; a++) {
+		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref_cnt++;
+	}
+	for (a = 0; a < bsp; a++) {
+		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref_cnt++;
+	}
+
+	platform_cpuref_valid = 1;
 
 	return (0);
 }
+
 
 #ifdef SMP
 static int
@@ -435,7 +484,7 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	ap_pcpu = pc;
 	powerpc_sync();
 
-	result = rtas_call_method(start_cpu, 3, 1, pc->pc_cpuid, EXC_RST, pc,
+	result = rtas_call_method(start_cpu, 3, 1, pc->pc_hwref, EXC_RST, pc,
 	    &err);
 	if (result < 0 || err != 0) {
 		printf("RTAS error (%d/%d): unable to start AP %d\n",
@@ -492,7 +541,18 @@ chrp_reset(platform_t platform)
 static void
 phyp_cpu_idle(sbintime_t sbt)
 {
-	phyp_hcall(H_CEDE);
+	register_t msr;
+
+	msr = mfmsr();
+
+	mtmsr(msr & ~PSL_EE);
+	if (sched_runnable()) {
+		mtmsr(msr);
+		return;
+	}
+
+	phyp_hcall(H_CEDE); /* Re-enables interrupts internally */
+	mtmsr(msr);
 }
 
 static void
@@ -500,8 +560,8 @@ chrp_smp_ap_init(platform_t platform)
 {
 	if (!(mfmsr() & PSL_HV)) {
 		/* Register VPA */
-		phyp_hcall(H_REGISTER_VPA, 1UL, PCPU_GET(cpuid),
-		    splpar_vpa[PCPU_GET(cpuid)]);
+		phyp_hcall(H_REGISTER_VPA, 1UL, PCPU_GET(hwref),
+		    splpar_vpa[PCPU_GET(hwref)]);
 
 		/* Set interrupt priority */
 		phyp_hcall(H_CPPR, 0xff);

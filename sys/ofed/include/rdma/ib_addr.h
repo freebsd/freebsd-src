@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
@@ -29,9 +31,11 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef IB_ADDR_H
+#if !defined(IB_ADDR_H)
 #define IB_ADDR_H
 
 #include <linux/in.h>
@@ -41,9 +45,11 @@
 #include <linux/inetdevice.h>
 #include <linux/socket.h>
 #include <linux/if_vlan.h>
+#include <net/ipv6.h>
+#include <net/if_inet6.h>
+#include <net/ip.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
-#include <net/if_inet6.h>
 #include <net/ipv6.h>
 
 struct rdma_addr_client {
@@ -62,6 +68,17 @@ void rdma_addr_register_client(struct rdma_addr_client *client);
  */
 void rdma_addr_unregister_client(struct rdma_addr_client *client);
 
+/**
+ * struct rdma_dev_addr - Contains resolved RDMA hardware addresses
+ * @src_dev_addr:	Source MAC address.
+ * @dst_dev_addr:	Destination MAC address.
+ * @broadcast:		Broadcast address of the device.
+ * @dev_type:		The interface hardware type of the device.
+ * @bound_dev_if:	An optional device interface index.
+ * @transport:		The transport type used.
+ * @net:		Network namespace containing the bound_dev_if net_dev.
+ */
+struct vnet;
 struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
 	unsigned char dst_dev_addr[MAX_ADDR_LEN];
@@ -69,14 +86,19 @@ struct rdma_dev_addr {
 	unsigned short dev_type;
 	int bound_dev_if;
 	enum rdma_transport_type transport;
+	struct vnet *net;
+	enum rdma_network_type network;
+	int hoplimit;
 };
 
 /**
  * rdma_translate_ip - Translate a local IP address to an RDMA hardware
  *   address.
+ *
+ * The dev_addr->net and dev_addr->bound_dev_if fields must be initialized.
  */
-int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
-		      u16 *vlan_id);
+int rdma_translate_ip(const struct sockaddr *addr,
+		      struct rdma_dev_addr *dev_addr);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
@@ -88,7 +110,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
  * @dst_addr: The destination address to resolve.
  * @addr: A reference to a data location that will receive the resolved
  *   addresses.  The data location must remain valid until the callback has
- *   been invoked.
+ *   been invoked. The net field of the addr struct must be valid.
  * @timeout_ms: Amount of time to wait for the address resolution to complete.
  * @callback: Call invoked once address resolution has completed, timed out,
  *   or been canceled.  A status of 0 indicates success.
@@ -101,20 +123,23 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 				     struct rdma_dev_addr *addr, void *context),
 		    void *context);
 
+int rdma_resolve_ip_route(struct sockaddr *src_addr,
+			  const struct sockaddr *dst_addr,
+			  struct rdma_dev_addr *addr);
+
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	      const unsigned char *dst_dev_addr);
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id,
-				u32 scope_id);
-int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *smac,
-			       u16 *vlan_id, u32 scope_id);
 
-static inline int ip_addr_size(struct sockaddr *addr)
-{
-	return addr->sa_family == AF_INET6 ?
-	       sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
-}
+int rdma_addr_size(struct sockaddr *addr);
+int rdma_addr_size_in6(struct sockaddr_in6 *addr);
+int rdma_addr_size_kss(struct sockaddr_storage *addr);
+
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *smac, struct net_device *dev,
+				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {
@@ -142,21 +167,29 @@ static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
 {
 	uint16_t tag;
 
+	if (dev->if_type == IFT_ETHER && dev->if_pcp != IFNET_PCP_NONE)
+		return 0x0000;	/* prio-tagged traffic */
 	if (VLAN_TAG(__DECONST(struct ifnet *, dev), &tag) != 0)
 		return 0xffff;
 	return tag;
 }
 
-static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
+static inline int rdma_ip2gid(const struct sockaddr *addr, union ib_gid *gid)
 {
 	switch (addr->sa_family) {
 	case AF_INET:
-		ipv6_addr_set_v4mapped(((struct sockaddr_in *)addr)->sin_addr.s_addr,
+		ipv6_addr_set_v4mapped(((const struct sockaddr_in *)
+					addr)->sin_addr.s_addr,
 				       (struct in6_addr *)gid);
 		break;
 	case AF_INET6:
-		memcpy(gid->raw, &((struct sockaddr_in6 *)addr)->sin6_addr,
-				   16);
+		memcpy(gid->raw, &((const struct sockaddr_in6 *)addr)->sin6_addr, 16);
+		/* make sure scope ID gets zeroed inside GID */
+		if (IN6_IS_SCOPE_LINKLOCAL((struct in6_addr *)gid->raw) ||
+		    IN6_IS_ADDR_MC_INTFACELOCAL((struct in6_addr *)gid->raw)) {
+			gid->raw[2] = 0;
+			gid->raw[3] = 0;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -165,10 +198,9 @@ static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
 }
 
 /* Important - sockaddr should be a union of sockaddr_in and sockaddr_in6 */
-static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid,
-    uint32_t scope_id)
+static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 {
-	if (ipv6_addr_v4mapped((struct in6_addr *)gid)) {
+	if (ipv6_addr_v4mapped((const struct in6_addr *)gid)) {
 		struct sockaddr_in *out_in = (struct sockaddr_in *)out;
 		memset(out_in, 0, sizeof(*out_in));
 		out_in->sin_len = sizeof(*out_in);
@@ -180,21 +212,32 @@ static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid,
 		out_in->sin6_len = sizeof(*out_in);
 		out_in->sin6_family = AF_INET6;
 		memcpy(&out_in->sin6_addr.s6_addr, gid->raw, 16);
-		if (scope_id < 256 &&
-		    IN6_IS_SCOPE_LINKLOCAL(&out_in->sin6_addr))
-			out_in->sin6_scope_id = scope_id;
 	}
-	return 0;
 }
 
-u32 rdma_get_ipv6_scope_id(struct ib_device *ib, u8 port_num);
-
-/* This func is called only in loopback ip address (127.0.0.1)
- * case in which sgid is not relevant
- */
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 				      union ib_gid *gid)
 {
+	struct net_device *dev;
+	struct ifaddr *ifa;
+
+#ifdef VIMAGE
+	if (dev_addr->net == NULL)
+		return;
+#endif
+	dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
+	if (dev) {
+		CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr == NULL ||
+			    ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ipv6_addr_set_v4mapped(((struct sockaddr_in *)
+					       ifa->ifa_addr)->sin_addr.s_addr,
+					       (struct in6_addr *)gid);
+			break;
+		}
+		dev_put(dev);
+	}
 }
 
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
@@ -246,13 +289,19 @@ static inline enum ib_mtu iboe_get_mtu(int mtu)
 
 static inline int iboe_get_rate(struct net_device *dev)
 {
-	if (dev->if_baudrate >= IF_Gbps(40))
+	uint64_t baudrate = dev->if_baudrate;
+#ifdef if_baudrate_pf
+	int exp;
+	for (exp = dev->if_baudrate_pf; exp > 0; exp--)
+		baudrate *= 10;
+#endif
+	if (baudrate >= IF_Gbps(40))
 		return IB_RATE_40_GBPS;
-	else if (dev->if_baudrate >= IF_Gbps(30))
+	else if (baudrate >= IF_Gbps(30))
 		return IB_RATE_30_GBPS;
-	else if (dev->if_baudrate >= IF_Gbps(20))
+	else if (baudrate >= IF_Gbps(20))
 		return IB_RATE_20_GBPS;
-	else if (dev->if_baudrate >= IF_Gbps(10))
+	else if (baudrate >= IF_Gbps(10))
 		return IB_RATE_10_GBPS;
 	else
 		return IB_RATE_PORT_CURRENT;
@@ -276,22 +325,14 @@ static inline void rdma_get_ll_mac(struct in6_addr *addr, u8 *mac)
 
 static inline int rdma_is_multicast_addr(struct in6_addr *addr)
 {
-	return addr->s6_addr[0] == 0xff;
+	__be32 ipv4_addr;
+
+	if (addr->s6_addr[0] == 0xff)
+		return 1;
+
+	ipv4_addr = addr->s6_addr32[3];
+	return (ipv6_addr_v4mapped(addr) && ipv4_is_multicast(ipv4_addr));
 }
-
-static inline void resolve_mcast_mac(struct in6_addr *addr, u8 *mac)
-{
-	if (addr->s6_addr[0] != 0xff)
-		return;
-
-#ifdef DUAL_MODE_MCAST_MAC
-	if (addr->s6_addr[1] == 0x0e) /* IPv4 */
-		ip_eth_mc_map(addr->s6_addr32[3], mac);
-	else
-#endif
-		ipv6_eth_mc_map(addr, mac);
-}
-
 
 static inline void rdma_get_mcast_mac(struct in6_addr *addr, u8 *mac)
 {
@@ -308,11 +349,13 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 	u16 vid;
 
 	vid = dgid->raw[11] << 8 | dgid->raw[12];
-	return vid < 0x1000 ? vid  : 0xffff;
+	return vid < 0x1000 ? vid : 0xffff;
 }
 
-static inline struct net_device *rdma_vlan_dev_real_dev(const struct net_device *dev)
+static inline struct net_device *rdma_vlan_dev_real_dev(struct net_device *dev)
 {
+	if (dev->if_type == IFT_ETHER && dev->if_pcp != IFNET_PCP_NONE)
+		return dev; /* prio-tagged traffic */
 	return VLAN_TRUNKDEV(__DECONST(struct ifnet *, dev));
 }
 

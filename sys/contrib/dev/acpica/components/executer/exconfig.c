@@ -4,9 +4,118 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +132,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -59,7 +168,6 @@
 static ACPI_STATUS
 AcpiExAddTable (
     UINT32                  TableIndex,
-    ACPI_NAMESPACE_NODE     *ParentNode,
     ACPI_OPERAND_OBJECT     **DdbHandle);
 
 static ACPI_STATUS
@@ -87,12 +195,9 @@ AcpiExRegionRead (
 static ACPI_STATUS
 AcpiExAddTable (
     UINT32                  TableIndex,
-    ACPI_NAMESPACE_NODE     *ParentNode,
     ACPI_OPERAND_OBJECT     **DdbHandle)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
-    ACPI_STATUS             Status;
-    ACPI_OWNER_ID           OwnerId;
 
 
     ACPI_FUNCTION_TRACE (ExAddTable);
@@ -110,42 +215,8 @@ AcpiExAddTable (
 
     ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
     ObjDesc->Reference.Class = ACPI_REFCLASS_TABLE;
-    *DdbHandle = ObjDesc;
-
-    /* Install the new table into the local data structures */
-
     ObjDesc->Reference.Value = TableIndex;
-
-    /* Add the table to the namespace */
-
-    Status = AcpiNsLoadTable (TableIndex, ParentNode);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiUtRemoveReference (ObjDesc);
-        *DdbHandle = NULL;
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Execute any module-level code that was found in the table */
-
-    AcpiExExitInterpreter ();
-    if (AcpiGbl_GroupModuleLevelCode)
-    {
-        AcpiNsExecModuleCodeList ();
-    }
-    AcpiExEnterInterpreter ();
-
-    /*
-     * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is
-     * responsible for discovering any new wake GPEs by running _PRW methods
-     * that may have been loaded by this table.
-     */
-    Status = AcpiTbGetOwnerId (TableIndex, &OwnerId);
-    if (ACPI_SUCCESS (Status))
-    {
-        AcpiEvUpdateGpes (OwnerId);
-    }
-
+    *DdbHandle = ObjDesc;
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -174,7 +245,6 @@ AcpiExLoadTableOp (
     ACPI_NAMESPACE_NODE     *StartNode;
     ACPI_NAMESPACE_NODE     *ParameterNode = NULL;
     ACPI_OPERAND_OBJECT     *DdbHandle;
-    ACPI_TABLE_HEADER       *Table;
     UINT32                  TableIndex;
 
 
@@ -183,10 +253,12 @@ AcpiExLoadTableOp (
 
     /* Find the ACPI table in the RSDT/XSDT */
 
+    AcpiExExitInterpreter ();
     Status = AcpiTbFindTable (
         Operand[0]->String.Pointer,
         Operand[1]->String.Pointer,
         Operand[2]->String.Pointer, &TableIndex);
+    AcpiExEnterInterpreter ();
     if (ACPI_FAILURE (Status))
     {
         if (Status != AE_NOT_FOUND)
@@ -219,8 +291,9 @@ AcpiExLoadTableOp (
          * Find the node referenced by the RootPathString. This is the
          * location within the namespace where the table will be loaded.
          */
-        Status = AcpiNsGetNode (StartNode, Operand[3]->String.Pointer,
-            ACPI_NS_SEARCH_PARENT, &ParentNode);
+        Status = AcpiNsGetNodeUnlocked (StartNode,
+            Operand[3]->String.Pointer, ACPI_NS_SEARCH_PARENT,
+            &ParentNode);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -243,8 +316,9 @@ AcpiExLoadTableOp (
 
         /* Find the node referenced by the ParameterPathString */
 
-        Status = AcpiNsGetNode (StartNode, Operand[4]->String.Pointer,
-            ACPI_NS_SEARCH_PARENT, &ParameterNode);
+        Status = AcpiNsGetNodeUnlocked (StartNode,
+            Operand[4]->String.Pointer, ACPI_NS_SEARCH_PARENT,
+            &ParameterNode);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -253,11 +327,25 @@ AcpiExLoadTableOp (
 
     /* Load the table into the namespace */
 
-    Status = AcpiExAddTable (TableIndex, ParentNode, &DdbHandle);
+    ACPI_INFO (("Dynamic OEM Table Load:"));
+    AcpiExExitInterpreter ();
+    Status = AcpiTbLoadTable (TableIndex, ParentNode);
+    AcpiExEnterInterpreter ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
+
+    Status = AcpiExAddTable (TableIndex, &DdbHandle);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Complete the initialization/resolution of package objects */
+
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
+        ACPI_UINT32_MAX, 0, AcpiNsInitOnePackage, NULL, NULL, NULL);
 
     /* Parameter Data (optional) */
 
@@ -274,21 +362,6 @@ AcpiExLoadTableOp (
             AcpiUtRemoveReference (DdbHandle);
             return_ACPI_STATUS (Status);
         }
-    }
-
-    Status = AcpiGetTableByIndex (TableIndex, &Table);
-    if (ACPI_SUCCESS (Status))
-    {
-        ACPI_INFO (("Dynamic OEM Table Load:"));
-        AcpiTbPrintTableHeader (0, Table);
-    }
-
-    /* Invoke table handler if present */
-
-    if (AcpiGbl_TableHandler)
-    {
-        (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-            AcpiGbl_TableHandlerContext);
     }
 
     *ReturnDesc = DdbHandle;
@@ -520,29 +593,15 @@ AcpiExLoadOp (
     /* Install the new table into the local data structures */
 
     ACPI_INFO (("Dynamic OEM Table Load:"));
-    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-
-    Status = AcpiTbInstallStandardTable (ACPI_PTR_TO_PHYSADDR (Table),
-        ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL, TRUE, TRUE,
-        &TableIndex);
-
-    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    AcpiExExitInterpreter ();
+    Status = AcpiTbInstallAndLoadTable (ACPI_PTR_TO_PHYSADDR (Table),
+        ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL, TRUE, &TableIndex);
+    AcpiExEnterInterpreter ();
     if (ACPI_FAILURE (Status))
     {
         /* Delete allocated table buffer */
 
         ACPI_FREE (Table);
-        return_ACPI_STATUS (Status);
-    }
-
-    /*
-     * Note: Now table is "INSTALLED", it must be validated before
-     * loading.
-     */
-    Status = AcpiTbValidateTable (
-        &AcpiGbl_RootTableList.Tables[TableIndex]);
-    if (ACPI_FAILURE (Status))
-    {
         return_ACPI_STATUS (Status);
     }
 
@@ -553,13 +612,18 @@ AcpiExLoadOp (
      * This appears to go against the ACPI specification, but we do it for
      * compatibility with other ACPI implementations.
      */
-    Status = AcpiExAddTable (TableIndex, AcpiGbl_RootNode, &DdbHandle);
+    Status = AcpiExAddTable (TableIndex, &DdbHandle);
     if (ACPI_FAILURE (Status))
     {
         /* On error, TablePtr was deallocated above */
 
         return_ACPI_STATUS (Status);
     }
+
+    /* Complete the initialization/resolution of package objects */
+
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
+        ACPI_UINT32_MAX, 0, AcpiNsInitOnePackage, NULL, NULL, NULL);
 
     /* Store the DdbHandle into the Target operand */
 
@@ -577,15 +641,6 @@ AcpiExLoadOp (
     /* Remove the reference by added by AcpiExStore above */
 
     AcpiUtRemoveReference (DdbHandle);
-
-    /* Invoke table handler if present */
-
-    if (AcpiGbl_TableHandler)
-    {
-        (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-            AcpiGbl_TableHandlerContext);
-    }
-
     return_ACPI_STATUS (Status);
 }
 
@@ -609,7 +664,6 @@ AcpiExUnloadTable (
     ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     *TableDesc = DdbHandle;
     UINT32                  TableIndex;
-    ACPI_TABLE_HEADER       *Table;
 
 
     ACPI_FUNCTION_TRACE (ExUnloadTable);
@@ -622,6 +676,17 @@ AcpiExUnloadTable (
      */
     ACPI_WARNING ((AE_INFO,
         "Received request to unload an ACPI table"));
+
+    /*
+     * May 2018: Unload is no longer supported for the following reasons:
+     * 1) A correct implementation on some hosts may not be possible.
+     * 2) Other ACPI implementations do not correctly/fully support it.
+     * 3) It requires host device driver support which does not exist.
+     *    (To properly support namespace unload out from underneath.)
+     * 4) This AML operator has never been seen in the field.
+     */
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "AML Unload operator is not supported"));
 
     /*
      * Validate the handle
@@ -645,40 +710,21 @@ AcpiExUnloadTable (
 
     TableIndex = TableDesc->Reference.Value;
 
-    /* Ensure the table is still loaded */
-
-    if (!AcpiTbIsTableLoaded (TableIndex))
-    {
-        return_ACPI_STATUS (AE_NOT_EXIST);
-    }
-
-    /* Invoke table handler if present */
-
-    if (AcpiGbl_TableHandler)
-    {
-        Status = AcpiGetTableByIndex (TableIndex, &Table);
-        if (ACPI_SUCCESS (Status))
-        {
-            (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_UNLOAD, Table,
-                AcpiGbl_TableHandlerContext);
-        }
-    }
-
-    /* Delete the portion of the namespace owned by this table */
-
-    Status = AcpiTbDeleteNamespaceByOwner (TableIndex);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    (void) AcpiTbReleaseOwnerId (TableIndex);
-    AcpiTbSetTableLoadedFlag (TableIndex, FALSE);
+    /*
+     * Release the interpreter lock so that the table lock won't have
+     * strict order requirement against it.
+     */
+    AcpiExExitInterpreter ();
+    Status = AcpiTbUnloadTable (TableIndex);
+    AcpiExEnterInterpreter ();
 
     /*
      * Invalidate the handle. We do this because the handle may be stored
      * in a named object and may not be actually deleted until much later.
      */
-    DdbHandle->Common.Flags &= ~AOPOBJ_DATA_VALID;
-    return_ACPI_STATUS (AE_OK);
+    if (ACPI_SUCCESS (Status))
+    {
+        DdbHandle->Common.Flags &= ~AOPOBJ_DATA_VALID;
+    }
+    return_ACPI_STATUS (Status);
 }

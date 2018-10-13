@@ -432,6 +432,8 @@ case ${target} in
       tm_defines="${tm_defines} FBSD_MAJOR=10" ;;
     *-*-freebsd11 | *-*-freebsd11.*)
       tm_defines="${tm_defines} FBSD_MAJOR=11" ;;
+    *-*-freebsd12 | *-*-freebsd12.*)
+      tm_defines="${tm_defines} FBSD_MAJOR=12" ;;
     *)
       echo 'Please update *-*-freebsd* in gcc/config.gcc'
       exit 1
@@ -1940,9 +1942,18 @@ rs6000-ibm-aix[56789].* | powerpc-ibm-aix[56789].*)
 	thread_file='aix'
 	extra_headers=
 	;;
+s390-*-freebsd*)
+	tm_file="${tm_file} dbxelf.h elfos.h ${fbsd_tm_file} s390/freebsd.h"
+	;;
 s390-*-linux*)
 	tm_file="s390/s390.h dbxelf.h elfos.h svr4.h linux.h s390/linux.h"
 	tmake_file="${tmake_file} t-dfprules s390/t-crtstuff s390/t-linux"
+	;;
+s390x-*-freebsd*)
+	tm_file="s390/s390.h s390/s390x.h dbxelf.h elfos.h ${fbsd_tm_file} s390/freebsd.h"
+	tm_p_file=s390/s390-protos.h
+	md_file=s390/s390.md
+	out_file=s390/s390.c
 	;;
 s390x-*-linux*)
 	tm_file="s390/s390x.h s390/s390.h dbxelf.h elfos.h svr4.h linux.h s390/linux.h"

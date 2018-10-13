@@ -2,6 +2,8 @@
 /*	$KAME: key_debug.c,v 1.26 2001/06/27 10:46:50 sakane Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -39,8 +41,10 @@
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #endif
 #include <sys/socket.h>
@@ -54,12 +58,14 @@
 #include <netipsec/ipsec.h>
 #ifdef _KERNEL
 #include <netipsec/keydb.h>
+#include <netipsec/xform.h>
 #endif
 
 #ifndef _KERNEL
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #endif /* !_KERNEL */
 
 static void kdebug_sadb_prop(struct sadb_ext *);
@@ -70,16 +76,93 @@ static void kdebug_sadb_sa(struct sadb_ext *);
 static void kdebug_sadb_address(struct sadb_ext *);
 static void kdebug_sadb_key(struct sadb_ext *);
 static void kdebug_sadb_x_sa2(struct sadb_ext *);
-
-#ifdef _KERNEL
-static void kdebug_secreplay(struct secreplay *);
-#endif
+static void kdebug_sadb_x_sa_replay(struct sadb_ext *);
+static void kdebug_sadb_x_natt(struct sadb_ext *);
 
 #ifndef _KERNEL
 #define panic(fmt, ...)	{ printf(fmt, ## __VA_ARGS__); exit(-1); }
 #endif
 
 /* NOTE: host byte order */
+
+static const char*
+kdebug_sadb_type(uint8_t type)
+{
+#define	SADB_NAME(n)	case SADB_ ## n: return (#n)
+
+	switch (type) {
+	SADB_NAME(RESERVED);
+	SADB_NAME(GETSPI);
+	SADB_NAME(UPDATE);
+	SADB_NAME(ADD);
+	SADB_NAME(DELETE);
+	SADB_NAME(GET);
+	SADB_NAME(ACQUIRE);
+	SADB_NAME(REGISTER);
+	SADB_NAME(EXPIRE);
+	SADB_NAME(FLUSH);
+	SADB_NAME(DUMP);
+	SADB_NAME(X_PROMISC);
+	SADB_NAME(X_PCHANGE);
+	SADB_NAME(X_SPDUPDATE);
+	SADB_NAME(X_SPDADD);
+	SADB_NAME(X_SPDDELETE);
+	SADB_NAME(X_SPDGET);
+	SADB_NAME(X_SPDACQUIRE);
+	SADB_NAME(X_SPDDUMP);
+	SADB_NAME(X_SPDFLUSH);
+	SADB_NAME(X_SPDSETIDX);
+	SADB_NAME(X_SPDEXPIRE);
+	SADB_NAME(X_SPDDELETE2);
+	default:
+		return ("UNKNOWN");
+	}
+#undef SADB_NAME
+}
+
+static const char*
+kdebug_sadb_exttype(uint16_t type)
+{
+#define	EXT_NAME(n)	case SADB_EXT_ ## n: return (#n)
+#define	X_NAME(n)	case SADB_X_EXT_ ## n: return (#n)
+
+	switch (type) {
+	EXT_NAME(RESERVED);
+	EXT_NAME(SA);
+	EXT_NAME(LIFETIME_CURRENT);
+	EXT_NAME(LIFETIME_HARD);
+	EXT_NAME(LIFETIME_SOFT);
+	EXT_NAME(ADDRESS_SRC);
+	EXT_NAME(ADDRESS_DST);
+	EXT_NAME(ADDRESS_PROXY);
+	EXT_NAME(KEY_AUTH);
+	EXT_NAME(KEY_ENCRYPT);
+	EXT_NAME(IDENTITY_SRC);
+	EXT_NAME(IDENTITY_DST);
+	EXT_NAME(SENSITIVITY);
+	EXT_NAME(PROPOSAL);
+	EXT_NAME(SUPPORTED_AUTH);
+	EXT_NAME(SUPPORTED_ENCRYPT);
+	EXT_NAME(SPIRANGE);
+	X_NAME(KMPRIVATE);
+	X_NAME(POLICY);
+	X_NAME(SA2);
+	X_NAME(NAT_T_TYPE);
+	X_NAME(NAT_T_SPORT);
+	X_NAME(NAT_T_DPORT);
+	X_NAME(NAT_T_OAI);
+	X_NAME(NAT_T_OAR);
+	X_NAME(NAT_T_FRAG);
+	X_NAME(SA_REPLAY);
+	X_NAME(NEW_ADDRESS_SRC);
+	X_NAME(NEW_ADDRESS_DST);
+	default:
+		return ("UNKNOWN");
+	};
+#undef EXT_NAME
+#undef X_NAME
+}
+
 
 /* %%%: about struct sadb_msg */
 void
@@ -92,8 +175,9 @@ kdebug_sadb(struct sadb_msg *base)
 	if (base == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("sadb_msg{ version=%u type=%u errno=%u satype=%u\n",
+	printf("sadb_msg{ version=%u type=%u(%s) errno=%u satype=%u\n",
 	    base->sadb_msg_version, base->sadb_msg_type,
+	    kdebug_sadb_type(base->sadb_msg_type),
 	    base->sadb_msg_errno, base->sadb_msg_satype);
 	printf("  len=%u reserved=%u seq=%u pid=%u\n",
 	    base->sadb_msg_len, base->sadb_msg_reserved,
@@ -103,8 +187,9 @@ kdebug_sadb(struct sadb_msg *base)
 	ext = (struct sadb_ext *)((caddr_t)base + sizeof(struct sadb_msg));
 
 	while (tlen > 0) {
-		printf("sadb_ext{ len=%u type=%u }\n",
-		    ext->sadb_ext_len, ext->sadb_ext_type);
+		printf("sadb_ext{ len=%u type=%u(%s) }\n",
+		    ext->sadb_ext_len, ext->sadb_ext_type,
+		    kdebug_sadb_exttype(ext->sadb_ext_type));
 
 		if (ext->sadb_ext_len == 0) {
 			printf("%s: invalid ext_len=0 was passed.\n", __func__);
@@ -128,6 +213,10 @@ kdebug_sadb(struct sadb_msg *base)
 		case SADB_EXT_ADDRESS_SRC:
 		case SADB_EXT_ADDRESS_DST:
 		case SADB_EXT_ADDRESS_PROXY:
+		case SADB_X_EXT_NAT_T_OAI:
+		case SADB_X_EXT_NAT_T_OAR:
+		case SADB_X_EXT_NEW_ADDRESS_SRC:
+		case SADB_X_EXT_NEW_ADDRESS_DST:
 			kdebug_sadb_address(ext);
 			break;
 		case SADB_EXT_KEY_AUTH:
@@ -155,6 +244,14 @@ kdebug_sadb(struct sadb_msg *base)
 			break;
 		case SADB_X_EXT_SA2:
 			kdebug_sadb_x_sa2(ext);
+			break;
+		case SADB_X_EXT_SA_REPLAY:
+			kdebug_sadb_x_sa_replay(ext);
+			break;
+		case SADB_X_EXT_NAT_T_TYPE:
+		case SADB_X_EXT_NAT_T_SPORT:
+		case SADB_X_EXT_NAT_T_DPORT:
+			kdebug_sadb_x_natt(ext);
 			break;
 		default:
 			printf("%s: invalid ext_type %u\n", __func__,
@@ -339,8 +436,6 @@ kdebug_sadb_address(struct sadb_ext *ext)
 	    ((u_char *)&addr->sadb_address_reserved)[1]);
 
 	kdebug_sockaddr((struct sockaddr *)((caddr_t)ext + sizeof(*addr)));
-
-	return;
 }
 
 static void
@@ -389,6 +484,41 @@ kdebug_sadb_x_sa2(struct sadb_ext *ext)
 	return;
 }
 
+static void
+kdebug_sadb_x_sa_replay(struct sadb_ext *ext)
+{
+	struct sadb_x_sa_replay *replay;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("%s: NULL pointer was passed.\n", __func__);
+
+	replay = (struct sadb_x_sa_replay *)ext;
+	printf("sadb_x_sa_replay{ replay=%u }\n",
+	    replay->sadb_x_sa_replay_replay);
+}
+
+static void
+kdebug_sadb_x_natt(struct sadb_ext *ext)
+{
+	struct sadb_x_nat_t_type *type;
+	struct sadb_x_nat_t_port *port;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("%s: NULL pointer was passed.\n", __func__);
+
+	if (ext->sadb_ext_type == SADB_X_EXT_NAT_T_TYPE) {
+		type = (struct sadb_x_nat_t_type *)ext;
+		printf("sadb_x_nat_t_type{ type=%u }\n",
+		    type->sadb_x_nat_t_type_type);
+	} else {
+		port = (struct sadb_x_nat_t_port *)ext;
+		printf("sadb_x_nat_t_port{ port=%u }\n",
+		    ntohs(port->sadb_x_nat_t_port_port));
+	}
+}
+
 void
 kdebug_sadb_x_policy(struct sadb_ext *ext)
 {
@@ -399,9 +529,11 @@ kdebug_sadb_x_policy(struct sadb_ext *ext)
 	if (ext == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("sadb_x_policy{ type=%u dir=%u id=%x }\n",
+	printf("sadb_x_policy{ type=%u dir=%u id=%x scope=%u %s=%u }\n",
 		xpl->sadb_x_policy_type, xpl->sadb_x_policy_dir,
-		xpl->sadb_x_policy_id);
+		xpl->sadb_x_policy_id, xpl->sadb_x_policy_scope,
+		xpl->sadb_x_policy_scope == IPSEC_POLICYSCOPE_IFNET ?
+		"ifindex": "priority", xpl->sadb_x_policy_priority);
 
 	if (xpl->sadb_x_policy_type == IPSEC_POLICY_IPSEC) {
 		int tlen;
@@ -456,162 +588,302 @@ kdebug_sadb_x_policy(struct sadb_ext *ext)
 
 #ifdef _KERNEL
 /* %%%: about SPD and SAD */
+const char*
+kdebug_secpolicy_state(u_int state)
+{
+
+	switch (state) {
+	case IPSEC_SPSTATE_DEAD:
+		return ("dead");
+	case IPSEC_SPSTATE_LARVAL:
+		return ("larval");
+	case IPSEC_SPSTATE_ALIVE:
+		return ("alive");
+	case IPSEC_SPSTATE_PCB:
+		return ("pcb");
+	case IPSEC_SPSTATE_IFNET:
+		return ("ifnet");
+	}
+	return ("unknown");
+}
+
+const char*
+kdebug_secpolicy_policy(u_int policy)
+{
+
+	switch (policy) {
+	case IPSEC_POLICY_DISCARD:
+		return ("discard");
+	case IPSEC_POLICY_NONE:
+		return ("none");
+	case IPSEC_POLICY_IPSEC:
+		return ("ipsec");
+	case IPSEC_POLICY_ENTRUST:
+		return ("entrust");
+	case IPSEC_POLICY_BYPASS:
+		return ("bypass");
+	}
+	return ("unknown");
+}
+
+const char*
+kdebug_secpolicyindex_dir(u_int dir)
+{
+
+	switch (dir) {
+	case IPSEC_DIR_ANY:
+		return ("any");
+	case IPSEC_DIR_INBOUND:
+		return ("in");
+	case IPSEC_DIR_OUTBOUND:
+		return ("out");
+	}
+	return ("unknown");
+}
+
+const char*
+kdebug_ipsecrequest_level(u_int level)
+{
+
+	switch (level) {
+	case IPSEC_LEVEL_DEFAULT:
+		return ("default");
+	case IPSEC_LEVEL_USE:
+		return ("use");
+	case IPSEC_LEVEL_REQUIRE:
+		return ("require");
+	case IPSEC_LEVEL_UNIQUE:
+		return ("unique");
+	}
+	return ("unknown");
+}
+
+const char*
+kdebug_secasindex_mode(u_int mode)
+{
+
+	switch (mode) {
+	case IPSEC_MODE_ANY:
+		return ("any");
+	case IPSEC_MODE_TRANSPORT:
+		return ("transport");
+	case IPSEC_MODE_TUNNEL:
+		return ("tunnel");
+	case IPSEC_MODE_TCPMD5:
+		return ("tcp-md5");
+	}
+	return ("unknown");
+}
+
+const char*
+kdebug_secasv_state(u_int state)
+{
+
+	switch (state) {
+	case SADB_SASTATE_LARVAL:
+		return ("larval");
+	case SADB_SASTATE_MATURE:
+		return ("mature");
+	case SADB_SASTATE_DYING:
+		return ("dying");
+	case SADB_SASTATE_DEAD:
+		return ("dead");
+	}
+	return ("unknown");
+}
+
+static char*
+kdebug_port2str(const struct sockaddr *sa, char *buf, size_t len)
+{
+	uint16_t port;
+
+	IPSEC_ASSERT(sa != NULL, ("null sa"));
+	switch (sa->sa_family) {
+#ifdef INET
+	case AF_INET:
+		port = ntohs(((const struct sockaddr_in *)sa)->sin_port);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		port = ntohs(((const struct sockaddr_in6 *)sa)->sin6_port);
+		break;
+#endif
+	default:
+		port = 0;
+	}
+	if (port == 0)
+		return ("*");
+	snprintf(buf, len, "%u", port);
+	return (buf);
+}
+
 void
 kdebug_secpolicy(struct secpolicy *sp)
 {
-	/* sanity check */
-	if (sp == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
+	u_int idx;
 
-	printf("secpolicy{ refcnt=%u policy=%u\n",
-		sp->refcnt, sp->policy);
-
-	kdebug_secpolicyindex(&sp->spidx);
-
-	switch (sp->policy) {
-	case IPSEC_POLICY_DISCARD:
-		printf("  type=discard }\n");
-		break;
-	case IPSEC_POLICY_NONE:
-		printf("  type=none }\n");
-		break;
-	case IPSEC_POLICY_IPSEC:
-	    {
-		struct ipsecrequest *isr;
-		for (isr = sp->req; isr != NULL; isr = isr->next) {
-
-			printf("  level=%u\n", isr->level);
-			kdebug_secasindex(&isr->saidx);
-
-			if (isr->sav != NULL)
-				kdebug_secasv(isr->sav);
-		}
+	IPSEC_ASSERT(sp != NULL, ("null sp"));
+	printf("SP { refcnt=%u id=%u priority=%u state=%s policy=%s\n",
+	    sp->refcnt, sp->id, sp->priority,
+	    kdebug_secpolicy_state(sp->state),
+	    kdebug_secpolicy_policy(sp->policy));
+	kdebug_secpolicyindex(&sp->spidx, "  ");
+	for (idx = 0; idx < sp->tcount; idx++) {
+		printf("  req[%u]{ level=%s ", idx,
+		    kdebug_ipsecrequest_level(sp->req[idx]->level));
+		kdebug_secasindex(&sp->req[idx]->saidx, NULL);
 		printf("  }\n");
-	    }
-		break;
-	case IPSEC_POLICY_BYPASS:
-		printf("  type=bypass }\n");
-		break;
-	case IPSEC_POLICY_ENTRUST:
-		printf("  type=entrust }\n");
-		break;
-	default:
-		printf("%s: Invalid policy found. %d\n", __func__, sp->policy);
-		break;
 	}
-
-	return;
+	printf("}\n");
 }
 
 void
-kdebug_secpolicyindex(struct secpolicyindex *spidx)
+kdebug_secpolicyindex(struct secpolicyindex *spidx, const char *indent)
 {
-	char buf[INET6_ADDRSTRLEN];
+	char buf[IPSEC_ADDRSTRLEN];
 
-	/* sanity check */
-	if (spidx == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
-
-	printf("secpolicyindex{ dir=%u prefs=%u prefd=%u ul_proto=%u\n",
-		spidx->dir, spidx->prefs, spidx->prefd, spidx->ul_proto);
-
-	printf("%s -> ", ipsec_address(&spidx->src, buf, sizeof(buf)));
-	printf("%s }\n", ipsec_address(&spidx->dst, buf, sizeof(buf)));
+	IPSEC_ASSERT(spidx != NULL, ("null spidx"));
+	if (indent != NULL)
+		printf("%s", indent);
+	printf("spidx { dir=%s ul_proto=",
+	    kdebug_secpolicyindex_dir(spidx->dir));
+	if (spidx->ul_proto == IPSEC_ULPROTO_ANY)
+		printf("* ");
+	else
+		printf("%u ", spidx->ul_proto);
+	printf("%s/%u -> ", ipsec_address(&spidx->src, buf, sizeof(buf)),
+	    spidx->prefs);
+	printf("%s/%u }\n", ipsec_address(&spidx->dst, buf, sizeof(buf)),
+	    spidx->prefd);
 }
 
 void
-kdebug_secasindex(struct secasindex *saidx)
+kdebug_secasindex(const struct secasindex *saidx, const char *indent)
 {
-	char buf[INET6_ADDRSTRLEN];
+	char buf[IPSEC_ADDRSTRLEN], port[6];
 
-	/* sanity check */
-	if (saidx == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
-
-	printf("secasindex{ mode=%u proto=%u\n",
-		saidx->mode, saidx->proto);
-
-	printf("%s -> ", ipsec_address(&saidx->src, buf, sizeof(buf)));
-	printf("%s }\n", ipsec_address(&saidx->dst, buf, sizeof(buf)));
+	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
+	if (indent != NULL)
+		printf("%s", indent);
+	printf("saidx { mode=%s proto=%u reqid=%u ",
+	    kdebug_secasindex_mode(saidx->mode), saidx->proto, saidx->reqid);
+	printf("%s:%s -> ", ipsec_address(&saidx->src, buf, sizeof(buf)),
+	    kdebug_port2str(&saidx->src.sa, port, sizeof(port)));
+	printf("%s:%s }\n", ipsec_address(&saidx->dst, buf, sizeof(buf)),
+	    kdebug_port2str(&saidx->dst.sa, port, sizeof(port)));
 }
 
 static void
-kdebug_sec_lifetime(struct seclifetime *lft)
+kdebug_sec_lifetime(struct seclifetime *lft, const char *indent)
 {
-	/* sanity check */
-	if (lft == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("sec_lifetime{ alloc=%u, bytes=%u\n",
-		lft->allocations, (u_int32_t)lft->bytes);
-	printf("  addtime=%u, usetime=%u }\n",
-		(u_int32_t)lft->addtime, (u_int32_t)lft->usetime);
-
-	return;
+	IPSEC_ASSERT(lft != NULL, ("null lft"));
+	if (indent != NULL)
+		printf("%s", indent);
+	printf("lifetime { alloc=%u, bytes=%ju addtime=%ju usetime=%ju }\n",
+	    lft->allocations, (uintmax_t)lft->bytes, (uintmax_t)lft->addtime,
+	    (uintmax_t)lft->usetime);
 }
 
 void
-kdebug_secasv(struct secasvar *sav)
+kdebug_secash(struct secashead *sah, const char *indent)
 {
-	/* sanity check */
-	if (sav == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("secas{");
-	kdebug_secasindex(&sav->sah->saidx);
-
-	printf("  refcnt=%u state=%u auth=%u enc=%u\n",
-	    sav->refcnt, sav->state, sav->alg_auth, sav->alg_enc);
-	printf("  spi=%u flags=%u\n",
-	    (u_int32_t)ntohl(sav->spi), sav->flags);
-
-	if (sav->key_auth != NULL)
-		kdebug_sadb_key((struct sadb_ext *)sav->key_auth);
-	if (sav->key_enc != NULL)
-		kdebug_sadb_key((struct sadb_ext *)sav->key_enc);
-
-	if (sav->replay != NULL)
-		kdebug_secreplay(sav->replay);
-	if (sav->lft_c != NULL)
-		kdebug_sec_lifetime(sav->lft_c);
-	if (sav->lft_h != NULL)
-		kdebug_sec_lifetime(sav->lft_h);
-	if (sav->lft_s != NULL)
-		kdebug_sec_lifetime(sav->lft_s);
-
-#ifdef notyet
-	/* XXX: misc[123] ? */
-#endif
-
-	return;
+	IPSEC_ASSERT(sah != NULL, ("null sah"));
+	if (indent != NULL)
+		printf("%s", indent);
+	printf("SAH { refcnt=%u state=%s\n", sah->refcnt,
+	    kdebug_secasv_state(sah->state));
+	if (indent != NULL)
+		printf("%s", indent);
+	kdebug_secasindex(&sah->saidx, indent);
+	if (indent != NULL)
+		printf("%s", indent);
+	printf("}\n");
 }
 
+#ifdef IPSEC_DEBUG
 static void
 kdebug_secreplay(struct secreplay *rpl)
 {
 	int len, l;
 
-	/* sanity check */
-	if (rpl == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
-
-	printf(" secreplay{ count=%u wsize=%u seq=%u lastseq=%u",
-	    rpl->count, rpl->wsize, rpl->seq, rpl->lastseq);
+	IPSEC_ASSERT(rpl != NULL, ("null rpl"));
+	printf(" secreplay{ count=%u bitmap_size=%u wsize=%u seq=%u lastseq=%u",
+	    rpl->count, rpl->bitmap_size, rpl->wsize, rpl->seq, rpl->lastseq);
 
 	if (rpl->bitmap == NULL) {
-		printf(" }\n");
+		printf("  }\n");
 		return;
 	}
 
-	printf("\n   bitmap { ");
-
-	for (len = 0; len < rpl->wsize; len++) {
+	printf("\n    bitmap { ");
+	for (len = 0; len < rpl->bitmap_size*4; len++) {
 		for (l = 7; l >= 0; l--)
 			printf("%u", (((rpl->bitmap)[len] >> l) & 1) ? 1 : 0);
 	}
-	printf(" }\n");
+	printf("    }\n");
+}
+#endif /* IPSEC_DEBUG */
 
-	return;
+static void
+kdebug_secnatt(struct secnatt *natt)
+{
+	char buf[IPSEC_ADDRSTRLEN];
+
+	IPSEC_ASSERT(natt != NULL, ("null natt"));
+	printf("  natt{ sport=%u dport=%u ", ntohs(natt->sport),
+	    ntohs(natt->dport));
+	if (natt->flags & IPSEC_NATT_F_OAI)
+		printf("oai=%s ", ipsec_address(&natt->oai, buf, sizeof(buf)));
+	if (natt->flags & IPSEC_NATT_F_OAR)
+		printf("oar=%s ", ipsec_address(&natt->oar, buf, sizeof(buf)));
+	printf("}\n");
+}
+
+void
+kdebug_secasv(struct secasvar *sav)
+{
+	struct seclifetime lft_c;
+
+	IPSEC_ASSERT(sav != NULL, ("null sav"));
+
+	printf("SA { refcnt=%u spi=%u seq=%u pid=%u flags=0x%x state=%s\n",
+	    sav->refcnt, ntohl(sav->spi), sav->seq, (uint32_t)sav->pid,
+	    sav->flags, kdebug_secasv_state(sav->state));
+	kdebug_secash(sav->sah, "  ");
+
+	lft_c.addtime = sav->created;
+	lft_c.allocations = (uint32_t)counter_u64_fetch(
+	    sav->lft_c_allocations);
+	lft_c.bytes = counter_u64_fetch(sav->lft_c_bytes);
+	lft_c.usetime = sav->firstused;
+	kdebug_sec_lifetime(&lft_c, "  c_");
+	if (sav->lft_h != NULL)
+		kdebug_sec_lifetime(sav->lft_h, "  h_");
+	if (sav->lft_s != NULL)
+		kdebug_sec_lifetime(sav->lft_s, "  s_");
+
+	if (sav->tdb_authalgxform != NULL)
+		printf("  alg_auth=%s\n", sav->tdb_authalgxform->name);
+	if (sav->key_auth != NULL)
+		KEYDBG(DUMP,
+		    kdebug_sadb_key((struct sadb_ext *)sav->key_auth));
+	if (sav->tdb_encalgxform != NULL)
+		printf("  alg_enc=%s\n", sav->tdb_encalgxform->name);
+	if (sav->key_enc != NULL)
+		KEYDBG(DUMP,
+		    kdebug_sadb_key((struct sadb_ext *)sav->key_enc));
+	if (sav->natt != NULL)
+		kdebug_secnatt(sav->natt);
+	if (sav->replay != NULL) {
+		KEYDBG(DUMP,
+		    SECASVAR_LOCK(sav);
+		    kdebug_secreplay(sav->replay);
+		    SECASVAR_UNLOCK(sav));
+	}
+	printf("}\n");
 }
 
 void
@@ -663,44 +935,88 @@ kdebug_mbuf(const struct mbuf *m0)
 
 	return;
 }
+
+/* Return a printable string for the address. */
+char *
+ipsec_address(const union sockaddr_union* sa, char *buf, socklen_t size)
+{
+
+	switch (sa->sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		return (inet_ntop(AF_INET, &sa->sin.sin_addr, buf, size));
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		if (IN6_IS_SCOPE_LINKLOCAL(&sa->sin6.sin6_addr)) {
+			snprintf(buf, size, "%s%%%u", inet_ntop(AF_INET6,
+			    &sa->sin6.sin6_addr, buf, size),
+			    sa->sin6.sin6_scope_id);
+			return (buf);
+		} else
+			return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr,
+			    buf, size));
+#endif /* INET6 */
+	case 0:
+		return ("*");
+	default:
+		return ("(unknown address family)");
+	}
+}
+
+char *
+ipsec_sa2str(struct secasvar *sav, char *buf, size_t size)
+{
+	char sbuf[IPSEC_ADDRSTRLEN], dbuf[IPSEC_ADDRSTRLEN];
+
+	snprintf(buf, size, "SA(SPI=%08lx src=%s dst=%s)",
+	    (u_long)ntohl(sav->spi),
+	    ipsec_address(&sav->sah->saidx.src, sbuf, sizeof(sbuf)),
+	    ipsec_address(&sav->sah->saidx.dst, dbuf, sizeof(dbuf)));
+	return (buf);
+}
+
 #endif /* _KERNEL */
 
 void
 kdebug_sockaddr(struct sockaddr *addr)
 {
-	struct sockaddr_in *sin4;
-#ifdef INET6
-	struct sockaddr_in6 *sin6;
-#endif
+	char buf[IPSEC_ADDRSTRLEN];
 
 	/* sanity check */
 	if (addr == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	/* NOTE: We deal with port number as host byte order. */
-	printf("sockaddr{ len=%u family=%u", addr->sa_len, addr->sa_family);
-
 	switch (addr->sa_family) {
-	case AF_INET:
-		sin4 = (struct sockaddr_in *)addr;
-		printf(" port=%u\n", ntohs(sin4->sin_port));
-		ipsec_hexdump((caddr_t)&sin4->sin_addr, sizeof(sin4->sin_addr));
+#ifdef INET
+	case AF_INET: {
+		struct sockaddr_in *sin;
+
+		sin = (struct sockaddr_in *)addr;
+		inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
 		break;
-#ifdef INET6
-	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)addr;
-		printf(" port=%u\n", ntohs(sin6->sin6_port));
-		printf("  flowinfo=0x%08x, scope_id=0x%08x\n",
-		    sin6->sin6_flowinfo, sin6->sin6_scope_id);
-		ipsec_hexdump((caddr_t)&sin6->sin6_addr,
-		    sizeof(sin6->sin6_addr));
-		break;
-#endif
 	}
+#endif
+#ifdef INET6
+	case AF_INET6: {
+		struct sockaddr_in6 *sin6;
 
-	printf("  }\n");
-
-	return;
+		sin6 = (struct sockaddr_in6 *)addr;
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+			snprintf(buf, sizeof(buf), "%s%%%u",
+			    inet_ntop(AF_INET6, &sin6->sin6_addr, buf,
+			    sizeof(buf)), sin6->sin6_scope_id);
+		} else
+			inet_ntop(AF_INET6, &sin6->sin6_addr, buf,
+			    sizeof(buf));
+		break;
+	}
+#endif
+	default:
+		sprintf(buf, "unknown");
+	}
+	printf("sockaddr{ len=%u family=%u addr=%s }\n", addr->sa_len,
+	    addr->sa_family, buf);
 }
 
 void

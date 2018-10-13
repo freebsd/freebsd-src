@@ -7,6 +7,7 @@
 .endif
 
 DIRDEPS = \
+	lib/libprocstat/zfs \
 	cddl/lib/drti \
 	cddl/lib/libavl \
 	cddl/lib/libctf \
@@ -21,6 +22,7 @@ DIRDEPS = \
 	cddl/usr.sbin/dtruss \
 	cddl/usr.sbin/lockstat \
 	cddl/usr.sbin/plockstat \
+	cddl/usr.sbin/zfsd \
 
 
 DIRDEPS.ZFS = \

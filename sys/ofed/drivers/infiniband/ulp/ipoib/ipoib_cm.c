@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2006 Mellanox Technologies. All rights reserved
  *
  * This software is available to you under a choice of one of two
@@ -29,6 +31,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "ipoib.h"
 
@@ -287,7 +292,7 @@ static void ipoib_cm_init_rx_wr(struct ipoib_dev_priv *priv,
 	int i;
 
 	for (i = 0; i < IPOIB_CM_RX_SG; i++)
-		sge[i].lkey = priv->mr->lkey;
+		sge[i].lkey = priv->pd->local_dma_lkey;
 
 	wr->next    = NULL;
 	wr->sg_list = sge;
@@ -601,11 +606,11 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 		priv->tx_sge[i].addr = mapping[i];
 		priv->tx_sge[i].length = m->m_len;
 	}
-	priv->tx_wr.num_sge = i;
-	priv->tx_wr.wr_id = wr_id | IPOIB_OP_CM;
-	priv->tx_wr.opcode = IB_WR_SEND;
+	priv->tx_wr.wr.num_sge = i;
+	priv->tx_wr.wr.wr_id = wr_id | IPOIB_OP_CM;
+	priv->tx_wr.wr.opcode = IB_WR_SEND;
 
-	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
+	return ib_post_send(tx->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
 void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm_tx *tx)
@@ -736,8 +741,7 @@ int ipoib_cm_dev_open(struct ipoib_dev_priv *priv)
 		goto err_cm;
 	}
 
-	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num),
-			   0, NULL);
+	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num), 0);
 	if (ret) {
 		printk(KERN_WARNING "%s: failed to listen on ID 0x%llx\n", priv->ca->name,
 		       IPOIB_CM_IETF_ID | priv->qp->qp_num);
@@ -831,7 +835,7 @@ void ipoib_cm_dev_stop(struct ipoib_dev_priv *priv)
 
 	ipoib_cm_free_rx_reap_list(priv);
 
-	cancel_delayed_work(&priv->cm.stale_task);
+	cancel_delayed_work_sync(&priv->cm.stale_task);
 }
 
 static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
@@ -1367,8 +1371,8 @@ static void ipoib_cm_create_srq(struct ipoib_dev_priv *priv, int max_sge)
 int ipoib_cm_dev_init(struct ipoib_dev_priv *priv)
 {
 	struct ifnet *dev = priv->dev;
-	int i, ret;
-	struct ib_device_attr attr;
+	int i;
+	int max_srq_sge;
 
 	INIT_LIST_HEAD(&priv->cm.passive_ids);
 	INIT_LIST_HEAD(&priv->cm.reap_list);
@@ -1387,19 +1391,15 @@ int ipoib_cm_dev_init(struct ipoib_dev_priv *priv)
 	mtx_init(&priv->cm.mb_queue.ifq_mtx,
 	    dev->if_xname, "if send queue", MTX_DEF);
 
-	ret = ib_query_device(priv->ca, &attr);
-	if (ret) {
-		printk(KERN_WARNING "ib_query_device() failed with %d\n", ret);
-		return ret;
-	}
+	max_srq_sge = priv->ca->attrs.max_srq_sge;
 
-	ipoib_dbg(priv, "max_srq_sge=%d\n", attr.max_srq_sge);
+	ipoib_dbg(priv, "max_srq_sge=%d\n", max_srq_sge);
 
-	attr.max_srq_sge = min_t(int, IPOIB_CM_RX_SG, attr.max_srq_sge);
-	ipoib_cm_create_srq(priv, attr.max_srq_sge);
+	max_srq_sge = min_t(int, IPOIB_CM_RX_SG, max_srq_sge);
+	ipoib_cm_create_srq(priv, max_srq_sge);
 	if (ipoib_cm_has_srq(priv)) {
-		priv->cm.max_cm_mtu = attr.max_srq_sge * MJUMPAGESIZE;
-		priv->cm.num_frags  = attr.max_srq_sge;
+		priv->cm.max_cm_mtu = max_srq_sge * MJUMPAGESIZE;
+		priv->cm.num_frags  = max_srq_sge;
 		ipoib_dbg(priv, "max_cm_mtu = 0x%x, num_frags=%d\n",
 			  priv->cm.max_cm_mtu, priv->cm.num_frags);
 	} else {

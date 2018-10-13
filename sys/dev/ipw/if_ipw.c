@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  * Copyright (c) 2006 Sam Leffler, Errno Consulting
@@ -200,6 +202,8 @@ static driver_t ipw_driver = {
 static devclass_t ipw_devclass;
 
 DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ipw, ipw_ident_table,
+    nitems(ipw_ident_table) - 1);
 
 MODULE_VERSION(ipw, 1);
 

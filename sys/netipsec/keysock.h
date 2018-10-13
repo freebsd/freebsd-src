@@ -2,6 +2,8 @@
 /*	$KAME: keysock.h,v 1.8 2000/03/27 05:11:06 sumikawa Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -76,12 +78,8 @@ VNET_PCPUSTAT_DECLARE(struct pfkeystat, pfkeystat);
     VNET_PCPUSTAT_ADD(struct pfkeystat, pfkeystat, name, (val))
 #define	PFKEYSTAT_INC(name)		PFKEYSTAT_ADD(name, 1)
 
-extern int key_output(struct mbuf *m, struct socket *so, ...);
-extern int key_usrreq(struct socket *, int, struct mbuf *,
-    struct mbuf *, struct mbuf *);
-
-extern int key_sendup(struct socket *, struct sadb_msg *, u_int, int);
-extern int key_sendup_mbuf(struct socket *, struct mbuf *, int);
+int key_output(struct mbuf *m, struct socket *so, ...);
+int key_sendup_mbuf(struct socket *, struct mbuf *, int);
 #endif /* _KERNEL */
 
 #endif /*_NETIPSEC_KEYSOCK_H_*/

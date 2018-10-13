@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * All rights reserved.
  *
@@ -30,7 +32,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -45,18 +46,10 @@
 
 #include "etherswitch_if.h"
 
-#define BUFSIZE 1024
-
 struct etherswitch_softc {
 	device_t sc_dev;
-	int sc_count;
-
 	struct cdev *sc_devnode;
-	struct sx sc_lock;
 };
-
-#define	SWITCH_LOCK(sc)			sx_xlock(&(sc)->sc_lock)
-#define	SWITCH_UNLOCK(sc)			sx_xunlock(&(sc)->sc_lock)
 
 static int etherswitch_probe(device_t);
 static int etherswitch_attach(device_t);
@@ -72,7 +65,7 @@ static device_method_t etherswitch_methods[] = {
 	DEVMETHOD(device_attach,	etherswitch_attach),
 	DEVMETHOD(device_detach,	etherswitch_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t etherswitch_driver = {
@@ -81,19 +74,11 @@ driver_t etherswitch_driver = {
 	sizeof(struct etherswitch_softc),
 };
 
-static	d_open_t	etherswitchopen;
-static	d_close_t	etherswitchclose;
-static	d_write_t	etherswitchwrite;
-static	d_read_t	etherswitchread;
 static	d_ioctl_t	etherswitchioctl;
 
 static struct cdevsw etherswitch_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_TRACKCLOSE,
-	.d_open =	etherswitchopen,
-	.d_close =	etherswitchclose,
-	.d_read =	etherswitchread,
-	.d_write =	etherswitchwrite,
 	.d_ioctl =	etherswitchioctl,
 	.d_name =	"etherswitch",
 };
@@ -116,19 +101,24 @@ etherswitch_probe(device_t dev)
 static int
 etherswitch_attach(device_t dev)
 {
-	struct etherswitch_softc *sc = (struct etherswitch_softc *)device_get_softc(dev);
+	int err;
+	struct etherswitch_softc *sc;
+	struct make_dev_args devargs;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sx_init(&sc->sc_lock, "etherswitch");
-	sc->sc_devnode = make_dev(&etherswitch_cdevsw, device_get_unit(dev),
-			UID_ROOT, GID_WHEEL,
-			0600, "etherswitch%d", device_get_unit(dev));
-	if (sc->sc_devnode == NULL) {
+	make_dev_args_init(&devargs);
+	devargs.mda_devsw = &etherswitch_cdevsw;
+	devargs.mda_uid = UID_ROOT;
+	devargs.mda_gid = GID_WHEEL;
+	devargs.mda_mode = 0600;
+	devargs.mda_si_drv1 = sc;
+	err = make_dev_s(&devargs, &sc->sc_devnode, "etherswitch%d",
+	    device_get_unit(dev));
+	if (err != 0) {
 		device_printf(dev, "failed to create character device\n");
-		sx_destroy(&sc->sc_lock);
 		return (ENXIO);
 	}
-	sc->sc_devnode->si_drv1 = sc;
 
 	return (0);
 }
@@ -140,58 +130,8 @@ etherswitch_detach(device_t dev)
 
 	if (sc->sc_devnode)
 		destroy_dev(sc->sc_devnode);
-	sx_destroy(&sc->sc_lock);
 
 	return (0);
-}
-
-static int
-etherswitchopen(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct etherswitch_softc *sc = dev->si_drv1;
-
-	SWITCH_LOCK(sc);
-	if (sc->sc_count > 0) {
-		SWITCH_UNLOCK(sc);
-		return (EBUSY);
-	}
-
-	sc->sc_count++;
-	SWITCH_UNLOCK(sc);
-
-	return (0);
-}
-
-static int
-etherswitchclose(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct etherswitch_softc *sc = dev->si_drv1;
-
-	SWITCH_LOCK(sc);
-	if (sc->sc_count == 0) {
-		SWITCH_UNLOCK(sc);
-		return (EINVAL);
-	}
-
-	sc->sc_count--;
-
-	if (sc->sc_count < 0)
-		panic("%s: etherswitch_count < 0!", __func__);
-	SWITCH_UNLOCK(sc);
-
-	return (0);
-}
-
-static int
-etherswitchwrite(struct cdev *dev, struct uio * uio, int ioflag)
-{
-	return (EINVAL);
-}
-
-static int
-etherswitchread(struct cdev *dev, struct uio * uio, int ioflag)
-{
-	return (EINVAL);
 }
 
 static int
@@ -204,6 +144,7 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 	etherswitch_info_t *info;
 	etherswitch_reg_t *reg;
 	etherswitch_phyreg_t *phyreg;
+	etherswitch_portid_t *portid;
 	int error = 0;
 
 	switch (cmd) {
@@ -260,6 +201,23 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 
 	case IOETHERSWITCHSETCONF:
 		error = ETHERSWITCH_SETCONF(etherswitch, (etherswitch_conf_t *)data);
+		break;
+
+	case IOETHERSWITCHFLUSHALL:
+		error = ETHERSWITCH_FLUSH_ALL(etherswitch);
+		break;
+
+	case IOETHERSWITCHFLUSHPORT:
+		portid = (etherswitch_portid_t *)data;
+		error = ETHERSWITCH_FLUSH_PORT(etherswitch, portid->es_port);
+		break;
+
+	case IOETHERSWITCHGETTABLE:
+		error = ETHERSWITCH_FETCH_TABLE(etherswitch, (void *) data);
+		break;
+
+	case IOETHERSWITCHGETTABLEENTRY:
+		error = ETHERSWITCH_FETCH_TABLE_ENTRY(etherswitch, (void *) data);
 		break;
 
 	default:

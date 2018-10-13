@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 static u_long acpi_root_phys;

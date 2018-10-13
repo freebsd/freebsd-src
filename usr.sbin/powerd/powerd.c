@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Colin Percival
  * Copyright (c) 2005 Nate Lawson
  * All rights reserved.
@@ -291,7 +293,7 @@ acline_init(void)
 		acline_mode = ac_sysctl;
 		if (vflag)
 			warnx("using sysctl for AC line status");
-#if __powerpc__
+#ifdef __powerpc__
 	} else if (sysctlnametomib(PMUAC, acline_mib, &acline_mib_len) == 0) {
 		acline_mode = ac_sysctl;
 		if (vflag)

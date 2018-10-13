@@ -1,6 +1,8 @@
 /*	$NetBSD: gentbi.c,v 1.15 2006/03/29 07:05:24 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-2-Clause
+ *
  * Copyright (c) 1998, 1999, 2000, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

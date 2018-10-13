@@ -9,7 +9,6 @@ DEFAULT_VECTOR=	bfd_elf64_x86_64_freebsd_vec
 
 SRCS+=	elf64-x86-64.c \
 	efi-app-x86_64.c \
-	efi-app-ia32.c \
 	elf64.c \
 	elf64-gen.c \
 	elf64-target.h \

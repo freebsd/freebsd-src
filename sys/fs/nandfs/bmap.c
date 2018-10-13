@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Semihalf
  * All rights reserved.
  *
@@ -67,7 +69,7 @@ int
 bmap_lookup(struct nandfs_node *node, nandfs_lbn_t lblk, nandfs_daddr_t *vblk)
 {
 	struct nandfs_inode *ip;
-	struct nandfs_indir a[NIADDR + 1], *ap;
+	struct nandfs_indir a[NANDFS_NIADDR + 1], *ap;
 	nandfs_daddr_t daddr;
 	struct buf *bp;
 	int error;
@@ -129,7 +131,7 @@ bmap_lookup(struct nandfs_node *node, nandfs_lbn_t lblk, nandfs_daddr_t *vblk)
 int
 bmap_dirty_meta(struct nandfs_node *node, nandfs_lbn_t lblk, int force)
 {
-	struct nandfs_indir a[NIADDR+1], *ap;
+	struct nandfs_indir a[NANDFS_NIADDR+1], *ap;
 #ifdef DEBUG
 	nandfs_daddr_t daddr;
 #endif
@@ -179,7 +181,7 @@ bmap_insert_block(struct nandfs_node *node, nandfs_lbn_t lblk,
     nandfs_daddr_t vblk)
 {
 	struct nandfs_inode *ip;
-	struct nandfs_indir a[NIADDR+1], *ap;
+	struct nandfs_indir a[NANDFS_NIADDR+1], *ap;
 	struct buf *bp;
 	nandfs_daddr_t daddr;
 	int error;
@@ -267,7 +269,7 @@ bmap_insert_block(struct nandfs_node *node, nandfs_lbn_t lblk,
 	return (error);
 }
 
-CTASSERT(NIADDR <= 3);
+CTASSERT(NANDFS_NIADDR <= 3);
 #define SINGLE	0	/* index of single indirect block */
 #define DOUBLE	1	/* index of double indirect block */
 #define TRIPLE	2	/* index of triple indirect block */
@@ -399,8 +401,8 @@ bmap_truncate_mapping(struct nandfs_node *node, nandfs_lbn_t lastblk,
     nandfs_lbn_t todo)
 {
 	struct nandfs_inode *ip;
-	struct nandfs_indir a[NIADDR + 1], f[NIADDR], *ap;
-	nandfs_daddr_t indir_lbn[NIADDR];
+	struct nandfs_indir a[NANDFS_NIADDR + 1], f[NANDFS_NIADDR], *ap;
+	nandfs_daddr_t indir_lbn[NANDFS_NIADDR];
 	nandfs_daddr_t *copy;
 	int error, level;
 	nandfs_lbn_t left, tosub;
@@ -421,12 +423,12 @@ bmap_truncate_mapping(struct nandfs_node *node, nandfs_lbn_t lastblk,
 	if (error)
 		return (error);
 
-	indir_lbn[SINGLE] = -NDADDR;
+	indir_lbn[SINGLE] = -NANDFS_NDADDR;
 	indir_lbn[DOUBLE] = indir_lbn[SINGLE] - MNINDIR(fsdev) - 1;
 	indir_lbn[TRIPLE] = indir_lbn[DOUBLE] - MNINDIR(fsdev)
 	    * MNINDIR(fsdev) - 1;
 
-	for (i = 0; i < NIADDR; i++) {
+	for (i = 0; i < NANDFS_NIADDR; i++) {
 		f[i].in_off = MNINDIR(fsdev) - 1;
 		f[i].in_lbn = 0xdeadbeef;
 	}
@@ -482,7 +484,7 @@ direct:
 	if (num < 0)
 		i = lastblk;
 	else
-		i = NDADDR - 1;
+		i = NANDFS_NDADDR - 1;
 
 	for (; i >= 0 && left > 0; i--) {
 		if (ip->i_db[i] != 0) {
@@ -508,13 +510,13 @@ direct:
 nandfs_lbn_t
 get_maxfilesize(struct nandfs_device *fsdev)
 {
-	struct nandfs_indir f[NIADDR];
+	struct nandfs_indir f[NANDFS_NIADDR];
 	nandfs_lbn_t max;
 	int i;
 
-	max = NDADDR;
+	max = NANDFS_NDADDR;
 
-	for (i = 0; i < NIADDR; i++) {
+	for (i = 0; i < NANDFS_NIADDR; i++) {
 		f[i].in_off = MNINDIR(fsdev) - 1;
 		max += blocks_inside(fsdev, i, f);
 	}
@@ -557,17 +559,17 @@ bmap_getlbns(struct nandfs_node *node, nandfs_lbn_t bn, struct nandfs_indir *ap,
 	if (bn < 0)
 		bn = -bn;
 
-	/* The first NDADDR blocks are direct blocks. */
-	if (bn < NDADDR)
+	/* The first NANDFS_NDADDR blocks are direct blocks. */
+	if (bn < NANDFS_NDADDR)
 		return (0);
 
 	/*
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
-	 * at the previous level of indirection, and NIADDR - i is the number
-	 * of levels of indirection needed to locate the requested block.
+	 * at the previous level of indirection, and NANDFS_NIADDR - i is the
+	 * number of levels of indirection needed to locate the requested block.
 	 */
-	for (blockcnt = 1, i = NIADDR, bn -= NDADDR;; i--, bn -= blockcnt) {
+	for (blockcnt = 1, i = NANDFS_NIADDR, bn -= NANDFS_NDADDR;; i--, bn -= blockcnt) {
 		DPRINTF(BMAP, ("%s: blockcnt=%jd i=%d bn=%jd\n", __func__,
 		    blockcnt, i, bn));
 		if (i == 0)
@@ -579,9 +581,9 @@ bmap_getlbns(struct nandfs_node *node, nandfs_lbn_t bn, struct nandfs_indir *ap,
 
 	/* Calculate the address of the first meta-block. */
 	if (realbn >= 0)
-		metalbn = -(realbn - bn + NIADDR - i);
+		metalbn = -(realbn - bn + NANDFS_NIADDR - i);
 	else
-		metalbn = -(-realbn - bn + NIADDR - i);
+		metalbn = -(-realbn - bn + NANDFS_NIADDR - i);
 
 	/*
 	 * At each iteration, off is the offset into the bap array which is
@@ -590,13 +592,13 @@ bmap_getlbns(struct nandfs_node *node, nandfs_lbn_t bn, struct nandfs_indir *ap,
 	 * into the argument array.
 	 */
 	ap->in_lbn = metalbn;
-	ap->in_off = off = NIADDR - i;
+	ap->in_off = off = NANDFS_NIADDR - i;
 
 	DPRINTF(BMAP, ("%s: initial: ap->in_lbn=%jx ap->in_off=%d\n", __func__,
 	    metalbn, off));
 
 	ap++;
-	for (++numlevels; i <= NIADDR; i++) {
+	for (++numlevels; i <= NANDFS_NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
 		if (metalbn == realbn)
 			break;

@@ -1,4 +1,4 @@
-//===--- IdentifierTable.h - Hash table for identifier lookup ---*- C++ -*-===//
+//===- IdentifierTable.h - Hash table for identifier lookup -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,11 +6,11 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-///
+//
 /// \file
 /// \brief Defines the clang::IdentifierInfo, clang::IdentifierTable, and
 /// clang::Selector interfaces.
-///
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
@@ -18,26 +18,29 @@
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/TokenKinds.h"
+#include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/PointerLikeTypeTraits.h"
+#include "llvm/Support/type_traits.h"
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <string>
-
-namespace llvm {
-  template <typename T> struct DenseMapInfo;
-}
+#include <utility>
 
 namespace clang {
-  class LangOptions;
-  class IdentifierInfo;
-  class IdentifierTable;
-  class SourceLocation;
-  class MultiKeywordSelector; // private class used by Selector
-  class DeclarationName;      // AST class that stores declaration names
 
-  /// \brief A simple pair of identifier info and location.
-  typedef std::pair<IdentifierInfo*, SourceLocation> IdentifierLocPair;
+class IdentifierInfo;
+class LangOptions;
+class MultiKeywordSelector;
+class SourceLocation;
 
+/// \brief A simple pair of identifier info and location.
+using IdentifierLocPair = std::pair<IdentifierInfo *, SourceLocation>;
 
 /// One of these records is kept for each identifier that
 /// is lexed.  This contains information about whether the token was \#define'd,
@@ -45,6 +48,8 @@ namespace clang {
 /// variable or function name).  The preprocessor keeps this information in a
 /// set, and all tok::identifier tokens have a pointer to one of these.
 class IdentifierInfo {
+  friend class IdentifierTable;
+
   unsigned TokenID            : 9; // Front-end token ID or tok::identifier.
   // Objective-C keyword ('protocol' in '@protocol') or builtin (__builtin_inf).
   // First NUM_OBJC_KEYWORDS values are for Objective-C, the remaining values
@@ -62,6 +67,9 @@ class IdentifierInfo {
                                    // partially) from an AST file.
   bool ChangedAfterLoad       : 1; // True if identifier has changed from the
                                    // definition loaded from an AST file.
+  bool FEChangedAfterLoad     : 1; // True if identifier's frontend information
+                                   // has changed from the definition loaded
+                                   // from an AST file.
   bool RevertedTokenID        : 1; // True if revertTokenIDToIdentifier was
                                    // called.
   bool OutOfDate              : 1; // True if there may be additional
@@ -69,31 +77,29 @@ class IdentifierInfo {
                                    // stored externally.
   bool IsModulesImport        : 1; // True if this is the 'import' contextual
                                    // keyword.
-  // 30 bit left in 64-bit word.
+  // 29 bit left in 64-bit word.
 
-  void *FETokenInfo;               // Managed by the language front-end.
-  llvm::StringMapEntry<IdentifierInfo*> *Entry;
+  // Managed by the language front-end.
+  void *FETokenInfo = nullptr;
 
-  IdentifierInfo(const IdentifierInfo&) = delete;
-  void operator=(const IdentifierInfo&) = delete;
+  llvm::StringMapEntry<IdentifierInfo *> *Entry = nullptr;
 
-  friend class IdentifierTable;
-  
 public:
   IdentifierInfo();
-
+  IdentifierInfo(const IdentifierInfo &) = delete;
+  IdentifierInfo &operator=(const IdentifierInfo &) = delete;
 
   /// \brief Return true if this is the identifier for the specified string.
   ///
   /// This is intended to be used for string literals only: II->isStr("foo").
   template <std::size_t StrLen>
   bool isStr(const char (&Str)[StrLen]) const {
-    return getLength() == StrLen-1 && !memcmp(getNameStart(), Str, StrLen-1);
+    return getLength() == StrLen-1 &&
+           memcmp(getNameStart(), Str, StrLen-1) == 0;
   }
 
   /// \brief Return the beginning of the actual null-terminated string for this
   /// identifier.
-  ///
   const char *getNameStart() const {
     if (Entry) return Entry->getKeyData();
     // FIXME: This is gross. It would be best not to embed specific details
@@ -101,12 +107,12 @@ public:
     // The 'this' pointer really points to a
     // std::pair<IdentifierInfo, const char*>, where internal pointer
     // points to the external string data.
-    typedef std::pair<IdentifierInfo, const char*> actualtype;
+    using actualtype = std::pair<IdentifierInfo, const char *>;
+
     return ((const actualtype*) this)->second;
   }
 
   /// \brief Efficiently return the length of this identifier info.
-  ///
   unsigned getLength() const {
     if (Entry) return Entry->getKeyLength();
     // FIXME: This is gross. It would be best not to embed specific details
@@ -114,7 +120,8 @@ public:
     // The 'this' pointer really points to a
     // std::pair<IdentifierInfo, const char*>, where internal pointer
     // points to the external string data.
-    typedef std::pair<IdentifierInfo, const char*> actualtype;
+    using actualtype = std::pair<IdentifierInfo, const char *>;
+
     const char* p = ((const actualtype*) this)->second - 2;
     return (((unsigned) p[0]) | (((unsigned) p[1]) << 8)) - 1;
   }
@@ -134,7 +141,7 @@ public:
 
     HasMacro = Val;
     if (Val) {
-      NeedsHandleIdentifier = 1;
+      NeedsHandleIdentifier = true;
       HadMacro = true;
     } else {
       RecomputeNeedsHandleIdentifier();
@@ -202,8 +209,7 @@ public:
 
   /// \brief Return a value indicating whether this is a builtin function.
   ///
-  /// 0 is not-built-in.  1 is builtin-for-some-nonprimary-target.
-  /// 2+ are specific builtin functions.
+  /// 0 is not-built-in. 1+ are specific builtin functions.
   unsigned getBuiltinID() const {
     if (ObjCOrBuiltinID >= tok::NUM_OBJC_KEYWORDS)
       return ObjCOrBuiltinID - tok::NUM_OBJC_KEYWORDS;
@@ -226,7 +232,7 @@ public:
   void setIsExtensionToken(bool Val) {
     IsExtension = Val;
     if (Val)
-      NeedsHandleIdentifier = 1;
+      NeedsHandleIdentifier = true;
     else
       RecomputeNeedsHandleIdentifier();
   }
@@ -240,7 +246,7 @@ public:
   void setIsFutureCompatKeyword(bool Val) {
     IsFutureCompatKeyword = Val;
     if (Val)
-      NeedsHandleIdentifier = 1;
+      NeedsHandleIdentifier = true;
     else
       RecomputeNeedsHandleIdentifier();
   }
@@ -250,7 +256,7 @@ public:
   void setIsPoisoned(bool Value = true) {
     IsPoisoned = Value;
     if (Value)
-      NeedsHandleIdentifier = 1;
+      NeedsHandleIdentifier = true;
     else
       RecomputeNeedsHandleIdentifier();
   }
@@ -262,15 +268,15 @@ public:
   /// this identifier is a C++ alternate representation of an operator.
   void setIsCPlusPlusOperatorKeyword(bool Val = true) {
     IsCPPOperatorKeyword = Val;
-    if (Val)
-      NeedsHandleIdentifier = 1;
-    else
-      RecomputeNeedsHandleIdentifier();
   }
   bool isCPlusPlusOperatorKeyword() const { return IsCPPOperatorKeyword; }
 
   /// \brief Return true if this token is a keyword in the specified language.
-  bool isKeyword(const LangOptions &LangOpts);
+  bool isKeyword(const LangOptions &LangOpts) const;
+
+  /// \brief Return true if this token is a C++ keyword in the specified
+  /// language.
+  bool isCPlusPlusKeyword(const LangOptions &LangOpts) const;
 
   /// getFETokenInfo/setFETokenInfo - The language front-end is allowed to
   /// associate arbitrary metadata with this token.
@@ -303,6 +309,18 @@ public:
     ChangedAfterLoad = true;
   }
 
+  /// \brief Determine whether the frontend token information for this
+  /// identifier has changed since it was loaded from an AST file.
+  bool hasFETokenInfoChangedSinceDeserialization() const {
+    return FEChangedAfterLoad;
+  }
+  
+  /// \brief Note that the frontend token information for this identifier has
+  /// changed since it was loaded from an AST file.
+  void setFETokenInfoChangedSinceDeserialization() {
+    FEChangedAfterLoad = true;
+  }
+
   /// \brief Determine whether the information for this identifier is out of
   /// date with respect to the external source.
   bool isOutOfDate() const { return OutOfDate; }
@@ -329,6 +347,19 @@ public:
       RecomputeNeedsHandleIdentifier();
   }
 
+  /// Return true if this identifier is an editor placeholder.
+  ///
+  /// Editor placeholders are produced by the code-completion engine and are
+  /// represented as characters between '<#' and '#>' in the source code. An
+  /// example of auto-completed call with a placeholder parameter is shown
+  /// below:
+  /// \code
+  ///   function(<#int x#>);
+  /// \endcode
+  bool isEditorPlaceholder() const {
+    return getName().startswith("<#") && getName().endswith("#>");
+  }
+
   /// \brief Provide less than operator for lexicographical sorting.
   bool operator<(const IdentifierInfo &RHS) const {
     return getName() < RHS.getName();
@@ -342,10 +373,9 @@ private:
   /// This method is very tied to the definition of HandleIdentifier.  Any
   /// change to it should be reflected here.
   void RecomputeNeedsHandleIdentifier() {
-    NeedsHandleIdentifier =
-      (isPoisoned() | hasMacroDefinition() | isCPlusPlusOperatorKeyword() |
-       isExtensionToken() | isFutureCompatKeyword() || isOutOfDate() ||
-       isModulesImport());
+    NeedsHandleIdentifier = isPoisoned() || hasMacroDefinition() ||
+                            isExtensionToken() || isFutureCompatKeyword() ||
+                            isOutOfDate() || isModulesImport();
   }
 };
 
@@ -356,6 +386,7 @@ private:
 class PoisonIdentifierRAIIObject {
   IdentifierInfo *const II;
   const bool OldValue;
+
 public:
   PoisonIdentifierRAIIObject(IdentifierInfo *II, bool NewValue)
     : II(II), OldValue(II ? II->isPoisoned() : false) {
@@ -380,14 +411,13 @@ public:
 /// operation. Subclasses of this iterator type will provide the
 /// actual functionality.
 class IdentifierIterator {
-private:
-  IdentifierIterator(const IdentifierIterator &) = delete;
-  void operator=(const IdentifierIterator &) = delete;
-
 protected:
-  IdentifierIterator() { }
+  IdentifierIterator() = default;
   
 public:
+  IdentifierIterator(const IdentifierIterator &) = delete;
+  IdentifierIterator &operator=(const IdentifierIterator &) = delete;
+
   virtual ~IdentifierIterator();
 
   /// \brief Retrieve the next string in the identifier table and
@@ -431,7 +461,7 @@ public:
 class IdentifierTable {
   // Shark shows that using MallocAllocator is *much* slower than using this
   // BumpPtrAllocator!
-  typedef llvm::StringMap<IdentifierInfo*, llvm::BumpPtrAllocator> HashTableTy;
+  using HashTableTy = llvm::StringMap<IdentifierInfo *, llvm::BumpPtrAllocator>;
   HashTableTy HashTable;
 
   IdentifierInfoLookup* ExternalLookup;
@@ -517,12 +547,12 @@ public:
     return *II;
   }
 
-  typedef HashTableTy::const_iterator iterator;
-  typedef HashTableTy::const_iterator const_iterator;
+  using iterator = HashTableTy::const_iterator;
+  using const_iterator = HashTableTy::const_iterator;
 
   iterator begin() const { return HashTable.begin(); }
   iterator end() const   { return HashTable.end(); }
-  unsigned size() const { return HashTable.size(); }
+  unsigned size() const  { return HashTable.size(); }
 
   /// \brief Print some statistics to stderr that indicate how well the
   /// hashing is doing.
@@ -620,7 +650,9 @@ class Selector {
     MultiArg = 0x3,
     ArgFlags = ZeroArg|OneArg
   };
-  uintptr_t InfoPtr; // a pointer to the MultiKeywordSelector or IdentifierInfo.
+
+  // a pointer to the MultiKeywordSelector or IdentifierInfo.
+  uintptr_t InfoPtr = 0;
 
   Selector(IdentifierInfo *II, unsigned nArgs) {
     InfoPtr = reinterpret_cast<uintptr_t>(II);
@@ -628,6 +660,7 @@ class Selector {
     assert(nArgs < 2 && "nArgs not equal to 0/1");
     InfoPtr |= nArgs+1;
   }
+
   Selector(MultiKeywordSelector *SI) {
     InfoPtr = reinterpret_cast<uintptr_t>(SI);
     assert((InfoPtr & ArgFlags) == 0 &&"Insufficiently aligned IdentifierInfo");
@@ -639,6 +672,7 @@ class Selector {
       return reinterpret_cast<IdentifierInfo *>(InfoPtr & ~ArgFlags);
     return nullptr;
   }
+
   MultiKeywordSelector *getMultiKeywordSelector() const {
     return reinterpret_cast<MultiKeywordSelector *>(InfoPtr & ~ArgFlags);
   }
@@ -657,7 +691,7 @@ public:
 
   /// The default ctor should only be used when creating data structures that
   ///  will contain selectors.
-  Selector() : InfoPtr(0) {}
+  Selector() = default;
   Selector(uintptr_t V) : InfoPtr(V) {}
 
   /// operator==/!= - Indicate whether the specified selectors are identical.
@@ -667,6 +701,7 @@ public:
   bool operator!=(Selector RHS) const {
     return InfoPtr != RHS.InfoPtr;
   }
+
   void *getAsOpaquePtr() const {
     return reinterpret_cast<void*>(InfoPtr);
   }
@@ -678,11 +713,12 @@ public:
   bool isKeywordSelector() const {
     return getIdentifierInfoFlag() != ZeroArg;
   }
+
   bool isUnarySelector() const {
     return getIdentifierInfoFlag() == ZeroArg;
   }
+
   unsigned getNumArgs() const;
-  
   
   /// \brief Retrieve the identifier at a given position in the selector.
   ///
@@ -728,6 +764,7 @@ public:
   static Selector getEmptyMarker() {
     return Selector(uintptr_t(-1));
   }
+
   static Selector getTombstoneMarker() {
     return Selector(uintptr_t(-2));
   }
@@ -738,11 +775,13 @@ public:
 /// \brief This table allows us to fully hide how we implement
 /// multi-keyword caching.
 class SelectorTable {
-  void *Impl;  // Actually a SelectorTableImpl
-  SelectorTable(const SelectorTable &) = delete;
-  void operator=(const SelectorTable &) = delete;
+  // Actually a SelectorTableImpl
+  void *Impl;
+
 public:
   SelectorTable();
+  SelectorTable(const SelectorTable &) = delete;
+  SelectorTable &operator=(const SelectorTable &) = delete;
   ~SelectorTable();
 
   /// \brief Can create any sort of selector.
@@ -754,6 +793,7 @@ public:
   Selector getUnarySelector(IdentifierInfo *ID) {
     return Selector(ID, 1);
   }
+
   Selector getNullarySelector(IdentifierInfo *ID) {
     return Selector(ID, 0);
   }
@@ -791,6 +831,7 @@ public:
 #define OVERLOADED_OPERATOR(Name,Spelling,Token,Unary,Binary,MemberOnly) \
     CXXOperator##Name,
 #include "clang/Basic/OperatorKinds.def"
+    CXXDeductionGuide,
     CXXLiteralOperator,
     CXXUsingDirective,
     NUM_EXTRA_KINDS
@@ -808,17 +849,19 @@ public:
   unsigned ExtraKindOrNumArgs;
 };
 
-}  // end namespace clang
+}  // namespace clang
 
 namespace llvm {
+
 /// Define DenseMapInfo so that Selectors can be used as keys in DenseMap and
 /// DenseSets.
 template <>
 struct DenseMapInfo<clang::Selector> {
-  static inline clang::Selector getEmptyKey() {
+  static clang::Selector getEmptyKey() {
     return clang::Selector::getEmptyMarker();
   }
-  static inline clang::Selector getTombstoneKey() {
+
+  static clang::Selector getTombstoneKey() {
     return clang::Selector::getTombstoneMarker();
   }
 
@@ -832,45 +875,47 @@ struct DenseMapInfo<clang::Selector> {
 template <>
 struct isPodLike<clang::Selector> { static const bool value = true; };
 
-template <typename T> class PointerLikeTypeTraits;
-
 template<>
-class PointerLikeTypeTraits<clang::Selector> {
-public:
-  static inline const void *getAsVoidPointer(clang::Selector P) {
+struct PointerLikeTypeTraits<clang::Selector> {
+  static const void *getAsVoidPointer(clang::Selector P) {
     return P.getAsOpaquePtr();
   }
-  static inline clang::Selector getFromVoidPointer(const void *P) {
+
+  static clang::Selector getFromVoidPointer(const void *P) {
     return clang::Selector(reinterpret_cast<uintptr_t>(P));
   }
+
   enum { NumLowBitsAvailable = 0 };  
 };
 
 // Provide PointerLikeTypeTraits for IdentifierInfo pointers, which
 // are not guaranteed to be 8-byte aligned.
 template<>
-class PointerLikeTypeTraits<clang::IdentifierInfo*> {
-public:
-  static inline void *getAsVoidPointer(clang::IdentifierInfo* P) {
+struct PointerLikeTypeTraits<clang::IdentifierInfo*> {
+  static void *getAsVoidPointer(clang::IdentifierInfo* P) {
     return P;
   }
-  static inline clang::IdentifierInfo *getFromVoidPointer(void *P) {
+
+  static clang::IdentifierInfo *getFromVoidPointer(void *P) {
     return static_cast<clang::IdentifierInfo*>(P);
   }
+
   enum { NumLowBitsAvailable = 1 };
 };
 
 template<>
-class PointerLikeTypeTraits<const clang::IdentifierInfo*> {
-public:
-  static inline const void *getAsVoidPointer(const clang::IdentifierInfo* P) {
+struct PointerLikeTypeTraits<const clang::IdentifierInfo*> {
+  static const void *getAsVoidPointer(const clang::IdentifierInfo* P) {
     return P;
   }
-  static inline const clang::IdentifierInfo *getFromVoidPointer(const void *P) {
+
+  static const clang::IdentifierInfo *getFromVoidPointer(const void *P) {
     return static_cast<const clang::IdentifierInfo*>(P);
   }
+
   enum { NumLowBitsAvailable = 1 };
 };
 
-}  // end namespace llvm
-#endif
+} // namespace llvm
+
+#endif // LLVM_CLANG_BASIC_IDENTIFIERTABLE_H

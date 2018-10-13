@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -59,10 +61,10 @@ fputs(const char * __restrict s, FILE * __restrict fp)
 	uio.uio_resid = iov.iov_len = strlen(s);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	if (retval == 0)
 		return (iov.iov_len > INT_MAX ? INT_MAX : iov.iov_len);
 	return (retval);

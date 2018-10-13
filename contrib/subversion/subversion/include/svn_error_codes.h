@@ -240,6 +240,11 @@ SVN_ERROR_START
              SVN_ERR_BAD_CATEGORY_START + 16,
              "Invalid compression method")
 
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_BAD_PROPERTY_VALUE_EOL,
+             SVN_ERR_BAD_CATEGORY_START + 17,
+             "Unexpected line ending in the property value")
+
   /* xml errors */
 
   SVN_ERRDEF(SVN_ERR_XML_ATTRIB_NOT_FOUND,
@@ -868,6 +873,21 @@ SVN_ERROR_START
              SVN_ERR_FS_CATEGORY_START + 63,
              "Invalid generation number data.")
 
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_FS_CORRUPT_REVPROP_MANIFEST,
+             SVN_ERR_FS_CATEGORY_START + 64,
+             "Revprop manifest corrupt.")
+
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_FS_CORRUPT_PROPLIST,
+             SVN_ERR_FS_CATEGORY_START + 65,
+             "Property list is corrupt.")
+
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_FS_AMBIGUOUS_CHECKSUM_REP,
+             SVN_ERR_FS_CATEGORY_START + 67,
+             "Content checksums supposedly match but content does not.")
+
   /* repos errors */
 
   SVN_ERRDEF(SVN_ERR_REPOS_LOCKED,
@@ -1236,6 +1256,11 @@ SVN_ERROR_START
              SVN_ERR_CLIENT_CATEGORY_START + 23,
              "The operation is forbidden by the server")
 
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_CLIENT_CONFLICT_OPTION_NOT_APPLICABLE,
+             SVN_ERR_CLIENT_CATEGORY_START + 24,
+             "The conflict resolution option is not applicable")
+
   /* misc errors */
 
   SVN_ERRDEF(SVN_ERR_BASE,
@@ -1442,6 +1467,21 @@ SVN_ERROR_START
              SVN_ERR_MISC_CATEGORY_START + 43,
              "Parser error: invalid input")
 
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_SQLITE_ROLLBACK_FAILED,
+             SVN_ERR_MISC_CATEGORY_START + 44,
+             "SQLite transaction rollback failed")
+
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_LZ4_COMPRESSION_FAILED,
+             SVN_ERR_MISC_CATEGORY_START + 45,
+             "LZ4 compression failed")
+
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_LZ4_DECOMPRESSION_FAILED,
+             SVN_ERR_MISC_CATEGORY_START + 46,
+             "LZ4 decompression failed")
+
   /* command-line client errors */
 
   SVN_ERRDEF(SVN_ERR_CL_ARG_PARSING_ERROR,
@@ -1537,6 +1577,16 @@ SVN_ERROR_START
              SVN_ERR_RA_SVN_CATEGORY_START + 8,
              "Editor drive was aborted")
 
+  /** @since New in 1.10  */
+  SVN_ERRDEF(SVN_ERR_RA_SVN_REQUEST_SIZE,
+             SVN_ERR_RA_SVN_CATEGORY_START + 9,
+             "Client request too long")
+
+  /** @since New in 1.10  */
+  SVN_ERRDEF(SVN_ERR_RA_SVN_RESPONSE_SIZE,
+             SVN_ERR_RA_SVN_CATEGORY_START + 10,
+             "Server response too long")
+
   /* libsvn_auth errors */
 
        /* this error can be used when an auth provider doesn't have
@@ -1594,6 +1644,11 @@ SVN_ERROR_START
              SVN_ERR_DIFF_CATEGORY_START + 0,
              "Diff data source modified unexpectedly")
 
+  /** @since New in 1.10 */
+  SVN_ERRDEF(SVN_ERR_DIFF_UNEXPECTED_DATA,
+             SVN_ERR_DIFF_CATEGORY_START + 1,
+             "Diff data unexpected")
+
   /* libsvn_ra_serf errors */
   /** @since New in 1.5.
       @deprecated SSPI now handled by serf rather than libsvn_ra_serf. */
@@ -1616,6 +1671,11 @@ SVN_ERROR_START
   SVN_ERRDEF(SVN_ERR_RA_SERF_WRAPPED_ERROR,
              SVN_ERR_RA_SERF_CATEGORY_START + 3,
              "While handling serf response:")
+
+  /** @since New in 1.10. */
+  SVN_ERRDEF(SVN_ERR_RA_SERF_STREAM_BUCKET_READ_ERROR,
+             SVN_ERR_RA_SERF_CATEGORY_START + 4,
+             "Can't read from stream")
 
   /* malfunctions such as assertion failures */
 

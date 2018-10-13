@@ -14,8 +14,8 @@
 static int
 test_handler (XO_ENCODER_HANDLER_ARGS)
 {
-    printf("op %s: [%s] [%s]\n", xo_encoder_op_name(op),
-	   name ?: "", value ?: "");
+    printf("op %s: [%s] [%s] [%#llx]\n", xo_encoder_op_name(op),
+	   name ?: "", value ?: "", flags);
 
     return 0;
 }

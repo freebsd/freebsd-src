@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2006-2012 Semihalf.
  * All rights reserved.
  *
@@ -65,7 +67,11 @@
 #define	TLB_SIZE_1G		10
 #define	TLB_SIZE_4G		11
 
+#ifdef __powerpc64__
+#define	MAS2_EPN_MASK		0xFFFFFFFFFFFFF000UL
+#else
 #define	MAS2_EPN_MASK		0xFFFFF000
+#endif
 #define	MAS2_EPN_SHIFT		12
 #define	MAS2_X0			0x00000040
 #define	MAS2_X1			0x00000020
@@ -137,7 +143,11 @@ typedef struct tlb_entry {
 	vm_offset_t virt;
 	vm_size_t size;
 	uint32_t mas1;
+#ifdef __powerpc64__
+	uint64_t mas2;
+#else
 	uint32_t mas2;
+#endif
 	uint32_t mas3;
 	uint32_t mas7;
 } tlb_entry_t;
@@ -217,8 +227,8 @@ typedef int tlbtid_t;
 
 struct pmap;
 
-void tlb_lock(uint32_t *);
-void tlb_unlock(uint32_t *);
+void tlb_lock(uintptr_t *);
+void tlb_unlock(uintptr_t *);
 void tlb1_ap_prep(void);
 int  tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 

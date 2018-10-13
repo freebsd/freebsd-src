@@ -18,7 +18,9 @@
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
 #include "llvm/IR/Mangler.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Support/CodeGen.h"
@@ -29,11 +31,29 @@ using namespace llvm;
 extern cl::opt<bool> EnableAArch64ELFLocalDynamicTLSGeneration;
 
 AArch64MCInstLower::AArch64MCInstLower(MCContext &ctx, AsmPrinter &printer)
-    : Ctx(ctx), Printer(printer), TargetTriple(printer.getTargetTriple()) {}
+    : Ctx(ctx), Printer(printer) {}
 
 MCSymbol *
 AArch64MCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
-  return Printer.getSymbol(MO.getGlobal());
+  const GlobalValue *GV = MO.getGlobal();
+  unsigned TargetFlags = MO.getTargetFlags();
+  const Triple &TheTriple = Printer.TM.getTargetTriple();
+  if (!TheTriple.isOSBinFormatCOFF())
+    return Printer.getSymbol(GV);
+
+  assert(TheTriple.isOSWindows() &&
+         "Windows is the only supported COFF target");
+
+  bool IsIndirect = (TargetFlags & AArch64II::MO_DLLIMPORT);
+  if (!IsIndirect)
+    return Printer.getSymbol(GV);
+
+  SmallString<128> Name;
+  Name = "__imp_";
+  Printer.TM.getNameWithPrefix(Name, GV,
+                               Printer.getObjFileLowering().getMangler());
+
+  return Ctx.getOrCreateSymbol(Name);
 }
 
 MCSymbol *
@@ -151,12 +171,24 @@ MCOperand AArch64MCInstLower::lowerSymbolOperandELF(const MachineOperand &MO,
   return MCOperand::createExpr(Expr);
 }
 
+MCOperand AArch64MCInstLower::lowerSymbolOperandCOFF(const MachineOperand &MO,
+                                                     MCSymbol *Sym) const {
+  MCSymbolRefExpr::VariantKind RefKind = MCSymbolRefExpr::VK_None;
+  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, RefKind, Ctx);
+  if (!MO.isJTI() && MO.getOffset())
+    Expr = MCBinaryExpr::createAdd(
+        Expr, MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
+  return MCOperand::createExpr(Expr);
+}
+
 MCOperand AArch64MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
                                                  MCSymbol *Sym) const {
-  if (TargetTriple.isOSDarwin())
+  if (Printer.TM.getTargetTriple().isOSDarwin())
     return lowerSymbolOperandDarwin(MO, Sym);
+  if (Printer.TM.getTargetTriple().isOSBinFormatCOFF())
+    return lowerSymbolOperandCOFF(MO, Sym);
 
-  assert(TargetTriple.isOSBinFormatELF() && "Expect Darwin or ELF target");
+  assert(Printer.TM.getTargetTriple().isOSBinFormatELF() && "Invalid target");
   return lowerSymbolOperandELF(MO, Sym);
 }
 

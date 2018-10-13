@@ -17,6 +17,7 @@
 #include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/CodeGenCWrappers.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetOptions.h"
 #include <cstring>
@@ -186,8 +187,8 @@ LLVMBool LLVMCreateMCJITCompilerForModule(
     // NoFramePointerElim.
     for (auto &F : *Mod) {
       auto Attrs = F.getAttributes();
-      auto Value = options.NoFramePointerElim ? "true" : "false";
-      Attrs = Attrs.addAttribute(F.getContext(), AttributeSet::FunctionIndex,
+      StringRef Value(options.NoFramePointerElim ? "true" : "false");
+      Attrs = Attrs.addAttribute(F.getContext(), AttributeList::FunctionIndex,
                                  "no-frame-pointer-elim", Value);
       F.setAttributes(Attrs);
     }
@@ -197,8 +198,10 @@ LLVMBool LLVMCreateMCJITCompilerForModule(
   builder.setEngineKind(EngineKind::JIT)
          .setErrorStr(&Error)
          .setOptLevel((CodeGenOpt::Level)options.OptLevel)
-         .setCodeModel(unwrap(options.CodeModel))
          .setTargetOptions(targetOptions);
+  bool JIT;
+  if (Optional<CodeModel::Model> CM = unwrap(options.CodeModel, JIT))
+    builder.setCodeModel(*CM);
   if (options.MCJMM)
     builder.setMCJITMemoryManager(
       std::unique_ptr<RTDyldMemoryManager>(unwrap(options.MCJMM)));
@@ -215,10 +218,12 @@ void LLVMDisposeExecutionEngine(LLVMExecutionEngineRef EE) {
 }
 
 void LLVMRunStaticConstructors(LLVMExecutionEngineRef EE) {
+  unwrap(EE)->finalizeObject();
   unwrap(EE)->runStaticConstructorsDestructors(false);
 }
 
 void LLVMRunStaticDestructors(LLVMExecutionEngineRef EE) {
+  unwrap(EE)->finalizeObject();
   unwrap(EE)->runStaticConstructorsDestructors(true);
 }
 

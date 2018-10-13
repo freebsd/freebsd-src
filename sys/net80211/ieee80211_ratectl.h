@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
@@ -34,8 +36,49 @@ enum ieee80211_ratealgs {
 	IEEE80211_RATECTL_MAX
 };
 
-#define	IEEE80211_RATECTL_TX_SUCCESS	1
-#define	IEEE80211_RATECTL_TX_FAILURE	0
+/* used fields for tx_complete() events */
+#define IEEE80211_RATECTL_STATUS_PKTLEN		0x00000001
+#define IEEE80211_RATECTL_STATUS_FINAL_RATE	0x00000002
+#define IEEE80211_RATECTL_STATUS_SHORT_RETRY	0x00000004
+#define IEEE80211_RATECTL_STATUS_LONG_RETRY	0x00000008
+#define IEEE80211_RATECTL_STATUS_RSSI		0x00000010
+
+/* failure reason */
+enum ieee80211_ratectl_tx_fail_reason {
+	IEEE80211_RATECTL_TX_SUCCESS		= 0,
+	IEEE80211_RATECTL_TX_FAIL_SHORT		= 1,	/* too many RTS retries */
+	IEEE80211_RATECTL_TX_FAIL_LONG		= 2,	/* too many retries */
+	IEEE80211_RATECTL_TX_FAIL_EXPIRED	= 3,	/* lifetime expired */
+	IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED	= 4,	/* another reason */
+};
+#define IEEE80211_RATECTL_TX_FAIL_MAX	\
+	(IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED + 1)
+
+struct ieee80211_ratectl_tx_status {
+	uint32_t	flags;		/* mark used fields */
+	enum ieee80211_ratectl_tx_fail_reason status;	/* Tx status */
+
+	int		pktlen;		/* frame length */
+	int		final_rate;	/* transmission rate */
+	uint_fast8_t	short_retries;	/* RTS/CTS retries */
+	uint_fast8_t	long_retries;	/* ACK retries */
+	int8_t		rssi;		/* ACK RSSI */
+
+	uint8_t		spare[15];	/* for future use */
+};
+
+/* used fields for tx_update() events */
+#define IEEE80211_RATECTL_TX_STATS_NODE		0x00000001
+#define IEEE80211_RATECTL_TX_STATS_RETRIES	0x00000002
+
+struct ieee80211_ratectl_tx_stats {
+	uint32_t	flags;		/* mark used fields */
+
+	struct ieee80211_node *ni;	/* receiver */
+	int		nframes;	/* transmitted frames */
+	int		nsuccess;	/* ACKed frames */
+	int		nretries;	/* number of retries */
+};
 
 struct ieee80211_ratectl {
 	const char *ir_name;
@@ -46,12 +89,10 @@ struct ieee80211_ratectl {
 	void	(*ir_node_init)(struct ieee80211_node *);
 	void	(*ir_node_deinit)(struct ieee80211_node *);
 	int	(*ir_rate)(struct ieee80211_node *, void *, uint32_t);
-	void	(*ir_tx_complete)(const struct ieee80211vap *,
-	    			  const struct ieee80211_node *, int,
-	    			  void *, void *);
-	void	(*ir_tx_update)(const struct ieee80211vap *,
-	    			const struct ieee80211_node *,
-	    			void *, void *, void *);
+	void	(*ir_tx_complete)(const struct ieee80211_node *,
+	    			  const struct ieee80211_ratectl_tx_status *);
+	void	(*ir_tx_update)(struct ieee80211vap *,
+				struct ieee80211_ratectl_tx_stats *);
 	void	(*ir_setinterval)(const struct ieee80211vap *, int);
 	void	(*ir_node_stats)(struct ieee80211_node *ni, struct sbuf *s);
 };
@@ -94,19 +135,21 @@ ieee80211_ratectl_rate(struct ieee80211_node *ni, void *arg, uint32_t iarg)
 }
 
 static __inline void
-ieee80211_ratectl_tx_complete(const struct ieee80211vap *vap,
-    const struct ieee80211_node *ni, int status, void *arg1, void *arg2)
+ieee80211_ratectl_tx_complete(const struct ieee80211_node *ni,
+    const struct ieee80211_ratectl_tx_status *status)
 {
-	vap->iv_rate->ir_tx_complete(vap, ni, status, arg1, arg2);
+	const struct ieee80211vap *vap = ni->ni_vap;
+
+	vap->iv_rate->ir_tx_complete(ni, status);
 }
 
 static __inline void
-ieee80211_ratectl_tx_update(const struct ieee80211vap *vap,
-    const struct ieee80211_node *ni, void *arg1, void *arg2, void *arg3)
+ieee80211_ratectl_tx_update(struct ieee80211vap *vap,
+    struct ieee80211_ratectl_tx_stats *stats)
 {
 	if (vap->iv_rate->ir_tx_update == NULL)
 		return;
-	vap->iv_rate->ir_tx_update(vap, ni, arg1, arg2, arg3);
+	vap->iv_rate->ir_tx_update(vap, stats);
 }
 
 static __inline void

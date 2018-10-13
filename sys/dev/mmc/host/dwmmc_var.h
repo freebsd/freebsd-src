@@ -33,6 +33,10 @@
 #ifndef DEV_MMC_HOST_DWMMC_VAR_H
 #define DEV_MMC_HOST_DWMMC_VAR_H
 
+#ifdef EXT_RESOURCES
+#include <dev/extres/clk/clk.h>
+#endif
+
 enum {
 	HWTYPE_NONE,
 	HWTYPE_ALTERA,
@@ -56,6 +60,8 @@ struct dwmmc_softc {
 	uint32_t		pwren_inverted;
 	u_int			desc_count;
 
+	int			(*update_ios)(struct dwmmc_softc *sc, struct mmc_ios *ios);
+
 	bus_dma_tag_t		desc_tag;
 	bus_dmamap_t		desc_map;
 	struct idmac_desc	*desc_ring;
@@ -67,14 +73,20 @@ struct dwmmc_softc {
 	uint32_t		dto_rcvd;
 	uint32_t		acd_rcvd;
 	uint32_t		cmd_done;
-	uint32_t		bus_hz;
+	uint64_t		bus_hz;
+	uint32_t		max_hz;
 	uint32_t		fifo_depth;
 	uint32_t		num_slots;
 	uint32_t		sdr_timing;
 	uint32_t		ddr_timing;
+
+#ifdef EXT_RESOURCES
+	clk_t			biu;
+	clk_t			ciu;
+#endif
 };
 
-extern driver_t dwmmc_driver;
+DECLARE_CLASS(dwmmc_driver);
 
 int dwmmc_attach(device_t);
 

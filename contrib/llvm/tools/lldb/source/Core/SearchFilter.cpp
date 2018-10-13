@@ -7,125 +7,192 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-
-#include "lldb/lldb-private.h"
 #include "lldb/Core/SearchFilter.h"
+
+#include "lldb/Breakpoint/Breakpoint.h" // for Breakpoint
 #include "lldb/Core/Module.h"
+#include "lldb/Core/ModuleList.h" // for ModuleList
 #include "lldb/Symbol/CompileUnit.h"
+#include "lldb/Symbol/SymbolContext.h" // for SymbolContext
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Utility/Status.h"      // for Status
+#include "lldb/Utility/Stream.h"      // for Stream
+#include "lldb/lldb-enumerations.h"   // for SymbolContextItem::eSymbolCo...
+
+#include "llvm/ADT/StringRef.h"         // for StringRef
+#include "llvm/Support/ErrorHandling.h" // for llvm_unreachable
+
+#include <memory> // for shared_ptr
+#include <mutex>  // for recursive_mutex, lock_guard
+#include <string> // for string
+
+#include <inttypes.h> // for PRIu64
+#include <string.h>   // for size_t, strcmp
+
+namespace lldb_private {
+class Address;
+}
+namespace lldb_private {
+class Function;
+}
 
 using namespace lldb;
 using namespace lldb_private;
 
+const char *SearchFilter::g_ty_to_name[] = {"Unconstrained", "Exception",
+                                            "Module",        "Modules",
+                                            "ModulesAndCU",  "Unknown"};
+
+const char
+    *SearchFilter::g_option_names[SearchFilter::OptionNames::LastOptionName] = {
+        "ModuleList", "CUList"};
+
+const char *SearchFilter::FilterTyToName(enum FilterTy type) {
+  if (type > LastKnownFilterType)
+    return g_ty_to_name[UnknownFilter];
+
+  return g_ty_to_name[type];
+}
+
+SearchFilter::FilterTy SearchFilter::NameToFilterTy(llvm::StringRef name) {
+  for (size_t i = 0; i <= LastKnownFilterType; i++) {
+    if (name == g_ty_to_name[i])
+      return (FilterTy)i;
+  }
+  return UnknownFilter;
+}
+
+Searcher::Searcher() = default;
+
+Searcher::~Searcher() = default;
+
+void Searcher::GetDescription(Stream *s) {}
+
+SearchFilter::SearchFilter(const TargetSP &target_sp, unsigned char filterType)
+    : m_target_sp(target_sp), SubclassID(filterType) {}
+
+SearchFilter::SearchFilter(const SearchFilter &rhs) = default;
+
+SearchFilter &SearchFilter::operator=(const SearchFilter &rhs) = default;
+
+SearchFilter::~SearchFilter() = default;
+
+SearchFilterSP SearchFilter::CreateFromStructuredData(
+    Target &target, const StructuredData::Dictionary &filter_dict,
+    Status &error) {
+  SearchFilterSP result_sp;
+  if (!filter_dict.IsValid()) {
+    error.SetErrorString("Can't deserialize from an invalid data object.");
+    return result_sp;
+  }
+
+  llvm::StringRef subclass_name;
+
+  bool success = filter_dict.GetValueForKeyAsString(
+      GetSerializationSubclassKey(), subclass_name);
+  if (!success) {
+    error.SetErrorStringWithFormat("Filter data missing subclass key");
+    return result_sp;
+  }
+
+  FilterTy filter_type = NameToFilterTy(subclass_name);
+  if (filter_type == UnknownFilter) {
+    error.SetErrorStringWithFormatv("Unknown filter type: {0}.", subclass_name);
+    return result_sp;
+  }
+
+  StructuredData::Dictionary *subclass_options = nullptr;
+  success = filter_dict.GetValueForKeyAsDictionary(
+      GetSerializationSubclassOptionsKey(), subclass_options);
+  if (!success || !subclass_options || !subclass_options->IsValid()) {
+    error.SetErrorString("Filter data missing subclass options key.");
+    return result_sp;
+  }
+
+  switch (filter_type) {
+  case Unconstrained:
+    result_sp = SearchFilterForUnconstrainedSearches::CreateFromStructuredData(
+        target, *subclass_options, error);
+    break;
+  case ByModule:
+    result_sp = SearchFilterByModule::CreateFromStructuredData(
+        target, *subclass_options, error);
+    break;
+  case ByModules:
+    result_sp = SearchFilterByModuleList::CreateFromStructuredData(
+        target, *subclass_options, error);
+    break;
+  case ByModulesAndCU:
+    result_sp = SearchFilterByModuleListAndCU::CreateFromStructuredData(
+        target, *subclass_options, error);
+    break;
+  case Exception:
+    error.SetErrorString("Can't serialize exception breakpoints yet.");
+    break;
+  default:
+    llvm_unreachable("Should never get an uresolvable filter type.");
+  }
+
+  return result_sp;
+}
+
+bool SearchFilter::ModulePasses(const FileSpec &spec) { return true; }
+
+bool SearchFilter::ModulePasses(const ModuleSP &module_sp) { return true; }
+
+bool SearchFilter::AddressPasses(Address &address) { return true; }
+
+bool SearchFilter::CompUnitPasses(FileSpec &fileSpec) { return true; }
+
+bool SearchFilter::CompUnitPasses(CompileUnit &compUnit) { return true; }
+
+uint32_t SearchFilter::GetFilterRequiredItems() {
+  return (lldb::SymbolContextItem)0;
+}
+
+void SearchFilter::GetDescription(Stream *s) {}
+
+void SearchFilter::Dump(Stream *s) const {}
+
+lldb::SearchFilterSP SearchFilter::CopyForBreakpoint(Breakpoint &breakpoint) {
+  SearchFilterSP ret_sp = DoCopyForBreakpoint(breakpoint);
+  TargetSP target_sp = breakpoint.GetTargetSP();
+  ret_sp->SetTarget(target_sp);
+  return ret_sp;
+}
+
 //----------------------------------------------------------------------
-// SearchFilter constructor
+// Helper functions for serialization.
 //----------------------------------------------------------------------
-Searcher::Searcher ()
-{
 
+StructuredData::DictionarySP
+SearchFilter::WrapOptionsDict(StructuredData::DictionarySP options_dict_sp) {
+  if (!options_dict_sp || !options_dict_sp->IsValid())
+    return StructuredData::DictionarySP();
+
+  auto type_dict_sp = std::make_shared<StructuredData::Dictionary>();
+  type_dict_sp->AddStringItem(GetSerializationSubclassKey(), GetFilterName());
+  type_dict_sp->AddItem(GetSerializationSubclassOptionsKey(), options_dict_sp);
+
+  return type_dict_sp;
 }
 
-Searcher::~Searcher ()
-{
+void SearchFilter::SerializeFileSpecList(
+    StructuredData::DictionarySP &options_dict_sp, OptionNames name,
+    FileSpecList &file_list) {
+  size_t num_modules = file_list.GetSize();
 
-}
+  // Don't serialize empty lists.
+  if (num_modules == 0)
+    return;
 
-void
-Searcher::GetDescription (Stream *s)
-{
-}
-
-//----------------------------------------------------------------------
-// SearchFilter constructor
-//----------------------------------------------------------------------
-SearchFilter::SearchFilter(const TargetSP &target_sp) :
-    m_target_sp (target_sp)
-{
-}
-
-//----------------------------------------------------------------------
-// SearchFilter copy constructor
-//----------------------------------------------------------------------
-SearchFilter::SearchFilter(const SearchFilter& rhs) :
-    m_target_sp (rhs.m_target_sp)
-{
-}
-
-//----------------------------------------------------------------------
-// SearchFilter assignment operator
-//----------------------------------------------------------------------
-const SearchFilter&
-SearchFilter::operator=(const SearchFilter& rhs)
-{
-    m_target_sp = rhs.m_target_sp;
-    return *this;
-}
-
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-SearchFilter::~SearchFilter()
-{
-}
-
-bool
-SearchFilter::ModulePasses (const FileSpec &spec)
-{
-    return true;
-}
-
-bool
-SearchFilter::ModulePasses (const ModuleSP &module_sp)
-{
-    return true;
-}
-
-bool
-SearchFilter::AddressPasses (Address &address)
-{
-    return true;
-}
-
-bool
-SearchFilter::CompUnitPasses (FileSpec &fileSpec)
-{
-    return true;
-}
-
-bool
-SearchFilter::CompUnitPasses (CompileUnit &compUnit)
-{
-    return true;
-}
-
-uint32_t
-SearchFilter::GetFilterRequiredItems()
-{
-    return (lldb::SymbolContextItem) 0;
-}
-
-void
-SearchFilter::GetDescription (Stream *s)
-{
-}
-
-void
-SearchFilter::Dump (Stream *s) const
-{
-
-}
-
-lldb::SearchFilterSP
-SearchFilter::CopyForBreakpoint (Breakpoint &breakpoint)
-{
-    SearchFilterSP ret_sp = DoCopyForBreakpoint (breakpoint);
-    TargetSP target_sp = breakpoint.GetTargetSP();
-    ret_sp->SetTarget(target_sp);
-    return ret_sp;
+  auto module_array_sp = std::make_shared<StructuredData::Array>();
+  for (size_t i = 0; i < num_modules; i++) {
+    module_array_sp->AddItem(std::make_shared<StructuredData::String>(
+        file_list.GetFileSpecAtIndex(i).GetPath()));
+  }
+  options_dict_sp->AddItem(GetKey(name), module_array_sp);
 }
 
 //----------------------------------------------------------------------
@@ -133,192 +200,178 @@ SearchFilter::CopyForBreakpoint (Breakpoint &breakpoint)
 // SymbolContext.
 //----------------------------------------------------------------------
 
-void
-SearchFilter::Search (Searcher &searcher)
-{
-    SymbolContext empty_sc;
+void SearchFilter::Search(Searcher &searcher) {
+  SymbolContext empty_sc;
 
-    if (!m_target_sp)
-        return;
-    empty_sc.target_sp = m_target_sp;
+  if (!m_target_sp)
+    return;
+  empty_sc.target_sp = m_target_sp;
 
-    if (searcher.GetDepth() == Searcher::eDepthTarget)
-        searcher.SearchCallback (*this, empty_sc, NULL, false);
-    else
-        DoModuleIteration(empty_sc, searcher);
+  if (searcher.GetDepth() == Searcher::eDepthTarget)
+    searcher.SearchCallback(*this, empty_sc, nullptr, false);
+  else
+    DoModuleIteration(empty_sc, searcher);
 }
 
-void
-SearchFilter::SearchInModuleList (Searcher &searcher, ModuleList &modules)
-{
-    SymbolContext empty_sc;
+void SearchFilter::SearchInModuleList(Searcher &searcher, ModuleList &modules) {
+  SymbolContext empty_sc;
 
-    if (!m_target_sp)
-        return;
-    empty_sc.target_sp = m_target_sp;
+  if (!m_target_sp)
+    return;
+  empty_sc.target_sp = m_target_sp;
 
-    if (searcher.GetDepth() == Searcher::eDepthTarget)
-        searcher.SearchCallback (*this, empty_sc, NULL, false);
-    else
-    {
-        Mutex::Locker modules_locker(modules.GetMutex());
-        const size_t numModules = modules.GetSize();
+  if (searcher.GetDepth() == Searcher::eDepthTarget)
+    searcher.SearchCallback(*this, empty_sc, nullptr, false);
+  else {
+    std::lock_guard<std::recursive_mutex> guard(modules.GetMutex());
+    const size_t numModules = modules.GetSize();
 
-        for (size_t i = 0; i < numModules; i++)
-        {
-            ModuleSP module_sp(modules.GetModuleAtIndexUnlocked(i));
-            if (ModulePasses(module_sp))
-            {
-                if (DoModuleIteration(module_sp, searcher) == Searcher::eCallbackReturnStop)
-                    return;
-            }
-        }
+    for (size_t i = 0; i < numModules; i++) {
+      ModuleSP module_sp(modules.GetModuleAtIndexUnlocked(i));
+      if (ModulePasses(module_sp)) {
+        if (DoModuleIteration(module_sp, searcher) ==
+            Searcher::eCallbackReturnStop)
+          return;
+      }
     }
-}
-
-
-Searcher::CallbackReturn
-SearchFilter::DoModuleIteration (const lldb::ModuleSP& module_sp, Searcher &searcher)
-{
-    SymbolContext matchingContext (m_target_sp, module_sp);
-    return DoModuleIteration(matchingContext, searcher);
+  }
 }
 
 Searcher::CallbackReturn
-SearchFilter::DoModuleIteration (const SymbolContext &context, Searcher &searcher)
-{
-    if (searcher.GetDepth () >= Searcher::eDepthModule)
-    {
-        if (context.module_sp)
-        {
-            if (searcher.GetDepth () == Searcher::eDepthModule)
-            {
-                SymbolContext matchingContext(context.module_sp.get());
-                searcher.SearchCallback (*this, matchingContext, NULL, false);
-            }
-            else
-            {
-                return DoCUIteration(context.module_sp, context, searcher);
-            }
-        }
-        else
-        {
-            const ModuleList &target_images = m_target_sp->GetImages();
-            Mutex::Locker modules_locker(target_images.GetMutex());
-            
-            size_t n_modules = target_images.GetSize();
-            for (size_t i = 0; i < n_modules; i++)
-            {
-                // If this is the last level supplied, then call the callback directly,
-                // otherwise descend.
-                ModuleSP module_sp(target_images.GetModuleAtIndexUnlocked (i));
-                if (!ModulePasses (module_sp))
-                    continue;
-
-                if (searcher.GetDepth () == Searcher::eDepthModule)
-                {
-                    SymbolContext matchingContext(m_target_sp, module_sp);
-
-                    Searcher::CallbackReturn shouldContinue = searcher.SearchCallback (*this, matchingContext, NULL, false);
-                    if (shouldContinue == Searcher::eCallbackReturnStop
-                        || shouldContinue == Searcher::eCallbackReturnPop)
-                        return shouldContinue;
-                }
-                else
-                {
-                    Searcher::CallbackReturn shouldContinue = DoCUIteration(module_sp, context, searcher);
-                    if (shouldContinue == Searcher::eCallbackReturnStop)
-                        return shouldContinue;
-                    else if (shouldContinue == Searcher::eCallbackReturnPop)
-                        continue;
-                }
-            }
-        }
-    }
-    return Searcher::eCallbackReturnContinue;
+SearchFilter::DoModuleIteration(const lldb::ModuleSP &module_sp,
+                                Searcher &searcher) {
+  SymbolContext matchingContext(m_target_sp, module_sp);
+  return DoModuleIteration(matchingContext, searcher);
 }
 
 Searcher::CallbackReturn
-SearchFilter::DoCUIteration (const ModuleSP &module_sp, const SymbolContext &context, Searcher &searcher)
-{
-    Searcher::CallbackReturn shouldContinue;
-    if (context.comp_unit == NULL)
-    {
-        const size_t num_comp_units = module_sp->GetNumCompileUnits();
-        for (size_t i = 0; i < num_comp_units; i++)
-        {
-            CompUnitSP cu_sp (module_sp->GetCompileUnitAtIndex (i));
-            if (cu_sp)
-            {
-                if (!CompUnitPasses (*(cu_sp.get())))
-                    continue;
+SearchFilter::DoModuleIteration(const SymbolContext &context,
+                                Searcher &searcher) {
+  if (searcher.GetDepth() >= Searcher::eDepthModule) {
+    if (context.module_sp) {
+      if (searcher.GetDepth() == Searcher::eDepthModule) {
+        SymbolContext matchingContext(context.module_sp.get());
+        searcher.SearchCallback(*this, matchingContext, nullptr, false);
+      } else {
+        return DoCUIteration(context.module_sp, context, searcher);
+      }
+    } else {
+      const ModuleList &target_images = m_target_sp->GetImages();
+      std::lock_guard<std::recursive_mutex> guard(target_images.GetMutex());
 
-                if (searcher.GetDepth () == Searcher::eDepthCompUnit)
-                {
-                    SymbolContext matchingContext(m_target_sp, module_sp, cu_sp.get());
+      size_t n_modules = target_images.GetSize();
+      for (size_t i = 0; i < n_modules; i++) {
+        // If this is the last level supplied, then call the callback directly,
+        // otherwise descend.
+        ModuleSP module_sp(target_images.GetModuleAtIndexUnlocked(i));
+        if (!ModulePasses(module_sp))
+          continue;
 
-                    shouldContinue = searcher.SearchCallback (*this, matchingContext, NULL, false);
+        if (searcher.GetDepth() == Searcher::eDepthModule) {
+          SymbolContext matchingContext(m_target_sp, module_sp);
 
-                    if (shouldContinue == Searcher::eCallbackReturnPop)
-                        return Searcher::eCallbackReturnContinue;
-                    else if (shouldContinue == Searcher::eCallbackReturnStop)
-                        return shouldContinue;
-                }
-                else
-                {
-                    // FIXME Descend to block.
-                }
-            }
+          Searcher::CallbackReturn shouldContinue =
+              searcher.SearchCallback(*this, matchingContext, nullptr, false);
+          if (shouldContinue == Searcher::eCallbackReturnStop ||
+              shouldContinue == Searcher::eCallbackReturnPop)
+            return shouldContinue;
+        } else {
+          Searcher::CallbackReturn shouldContinue =
+              DoCUIteration(module_sp, context, searcher);
+          if (shouldContinue == Searcher::eCallbackReturnStop)
+            return shouldContinue;
+          else if (shouldContinue == Searcher::eCallbackReturnPop)
+            continue;
         }
+      }
     }
-    else
-    {
-        if (CompUnitPasses(*context.comp_unit))
-        {
-            SymbolContext matchingContext (m_target_sp, module_sp, context.comp_unit);
-            return searcher.SearchCallback (*this, matchingContext, NULL, false);
-        }
-    }
-    return Searcher::eCallbackReturnContinue;
+  }
+  return Searcher::eCallbackReturnContinue;
 }
 
 Searcher::CallbackReturn
-SearchFilter::DoFunctionIteration (Function *function, const SymbolContext &context, Searcher &searcher)
-{
-    // FIXME: Implement...
-    return Searcher::eCallbackReturnContinue;
+SearchFilter::DoCUIteration(const ModuleSP &module_sp,
+                            const SymbolContext &context, Searcher &searcher) {
+  Searcher::CallbackReturn shouldContinue;
+  if (context.comp_unit == nullptr) {
+    const size_t num_comp_units = module_sp->GetNumCompileUnits();
+    for (size_t i = 0; i < num_comp_units; i++) {
+      CompUnitSP cu_sp(module_sp->GetCompileUnitAtIndex(i));
+      if (cu_sp) {
+        if (!CompUnitPasses(*(cu_sp.get())))
+          continue;
+
+        if (searcher.GetDepth() == Searcher::eDepthCompUnit) {
+          SymbolContext matchingContext(m_target_sp, module_sp, cu_sp.get());
+
+          shouldContinue =
+              searcher.SearchCallback(*this, matchingContext, nullptr, false);
+
+          if (shouldContinue == Searcher::eCallbackReturnPop)
+            return Searcher::eCallbackReturnContinue;
+          else if (shouldContinue == Searcher::eCallbackReturnStop)
+            return shouldContinue;
+        } else {
+          // FIXME Descend to block.
+        }
+      }
+    }
+  } else {
+    if (CompUnitPasses(*context.comp_unit)) {
+      SymbolContext matchingContext(m_target_sp, module_sp, context.comp_unit);
+      return searcher.SearchCallback(*this, matchingContext, nullptr, false);
+    }
+  }
+  return Searcher::eCallbackReturnContinue;
+}
+
+Searcher::CallbackReturn SearchFilter::DoFunctionIteration(
+    Function *function, const SymbolContext &context, Searcher &searcher) {
+  // FIXME: Implement...
+  return Searcher::eCallbackReturnContinue;
 }
 
 //----------------------------------------------------------------------
 //  SearchFilterForUnconstrainedSearches:
-//  Selects a shared library matching a given file spec, consulting the targets "black list".
+//  Selects a shared library matching a given file spec, consulting the targets
+//  "black list".
 //----------------------------------------------------------------------
-
-bool
-SearchFilterForUnconstrainedSearches::ModulePasses (const FileSpec &module_spec)
-{
-    if (m_target_sp->ModuleIsExcludedForUnconstrainedSearches (module_spec))
-        return false;
-    else
-        return true;
+SearchFilterSP SearchFilterForUnconstrainedSearches::CreateFromStructuredData(
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
+  // No options for an unconstrained search.
+  return std::make_shared<SearchFilterForUnconstrainedSearches>(
+      target.shared_from_this());
 }
 
-bool
-SearchFilterForUnconstrainedSearches::ModulePasses (const lldb::ModuleSP &module_sp)
-{
-    if (!module_sp)
-        return true;
-    else if (m_target_sp->ModuleIsExcludedForUnconstrainedSearches (module_sp))
-        return false;
-    else
-        return true;
+StructuredData::ObjectSP
+SearchFilterForUnconstrainedSearches::SerializeToStructuredData() {
+  // The options dictionary is an empty dictionary:
+  auto result_sp = std::make_shared<StructuredData::Dictionary>();
+  return WrapOptionsDict(result_sp);
 }
 
-lldb::SearchFilterSP
-SearchFilterForUnconstrainedSearches::DoCopyForBreakpoint (Breakpoint &breakpoint)
-{
-    SearchFilterSP ret_sp(new SearchFilterForUnconstrainedSearches(*this));
-    return ret_sp;
+bool SearchFilterForUnconstrainedSearches::ModulePasses(
+    const FileSpec &module_spec) {
+  if (m_target_sp->ModuleIsExcludedForUnconstrainedSearches(module_spec))
+    return false;
+  else
+    return true;
+}
+
+bool SearchFilterForUnconstrainedSearches::ModulePasses(
+    const lldb::ModuleSP &module_sp) {
+  if (!module_sp)
+    return true;
+  else if (m_target_sp->ModuleIsExcludedForUnconstrainedSearches(module_sp))
+    return false;
+  else
+    return true;
+}
+
+lldb::SearchFilterSP SearchFilterForUnconstrainedSearches::DoCopyForBreakpoint(
+    Breakpoint &breakpoint) {
+  return std::make_shared<SearchFilterForUnconstrainedSearches>(*this);
 }
 
 //----------------------------------------------------------------------
@@ -326,151 +379,129 @@ SearchFilterForUnconstrainedSearches::DoCopyForBreakpoint (Breakpoint &breakpoin
 //  Selects a shared library matching a given file spec
 //----------------------------------------------------------------------
 
-//----------------------------------------------------------------------
-// SearchFilterByModule constructors
-//----------------------------------------------------------------------
+SearchFilterByModule::SearchFilterByModule(const lldb::TargetSP &target_sp,
+                                           const FileSpec &module)
+    : SearchFilter(target_sp, FilterTy::ByModule), m_module_spec(module) {}
 
-SearchFilterByModule::SearchFilterByModule (const lldb::TargetSP &target_sp, const FileSpec &module) :
-    SearchFilter (target_sp),
-    m_module_spec (module)
-{
+SearchFilterByModule::SearchFilterByModule(const SearchFilterByModule &rhs) =
+    default;
+
+SearchFilterByModule &SearchFilterByModule::
+operator=(const SearchFilterByModule &rhs) {
+  m_target_sp = rhs.m_target_sp;
+  m_module_spec = rhs.m_module_spec;
+  return *this;
 }
 
+SearchFilterByModule::~SearchFilterByModule() = default;
 
-//----------------------------------------------------------------------
-// SearchFilterByModule copy constructor
-//----------------------------------------------------------------------
-SearchFilterByModule::SearchFilterByModule(const SearchFilterByModule& rhs) :
-    SearchFilter (rhs),
-    m_module_spec (rhs.m_module_spec)
-{
+bool SearchFilterByModule::ModulePasses(const ModuleSP &module_sp) {
+  return (module_sp &&
+          FileSpec::Equal(module_sp->GetFileSpec(), m_module_spec, false));
 }
 
-//----------------------------------------------------------------------
-// SearchFilterByModule assignment operator
-//----------------------------------------------------------------------
-const SearchFilterByModule&
-SearchFilterByModule::operator=(const SearchFilterByModule& rhs)
-{
-    m_target_sp = rhs.m_target_sp;
-    m_module_spec = rhs.m_module_spec;
-    return *this;
+bool SearchFilterByModule::ModulePasses(const FileSpec &spec) {
+  // Do a full match only if "spec" has a directory
+  const bool full_match = (bool)spec.GetDirectory();
+  return FileSpec::Equal(spec, m_module_spec, full_match);
 }
 
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-SearchFilterByModule::~SearchFilterByModule()
-{
+bool SearchFilterByModule::AddressPasses(Address &address) {
+  // FIXME: Not yet implemented
+  return true;
 }
 
-bool
-SearchFilterByModule::ModulePasses (const ModuleSP &module_sp)
-{
-    if (module_sp && FileSpec::Equal(module_sp->GetFileSpec(), m_module_spec, false))
-        return true;
-    else
-        return false;
+bool SearchFilterByModule::CompUnitPasses(FileSpec &fileSpec) { return true; }
+
+bool SearchFilterByModule::CompUnitPasses(CompileUnit &compUnit) {
+  return true;
 }
 
-bool
-SearchFilterByModule::ModulePasses (const FileSpec &spec)
-{
-    // Do a full match only if "spec" has a directory
-    const bool full_match = (bool)spec.GetDirectory();
-    return FileSpec::Equal(spec, m_module_spec, full_match);
-}
+void SearchFilterByModule::Search(Searcher &searcher) {
+  if (!m_target_sp)
+    return;
 
-bool
-SearchFilterByModule::AddressPasses (Address &address)
-{
-    // FIXME: Not yet implemented
-    return true;
-}
+  if (searcher.GetDepth() == Searcher::eDepthTarget) {
+    SymbolContext empty_sc;
+    empty_sc.target_sp = m_target_sp;
+    searcher.SearchCallback(*this, empty_sc, nullptr, false);
+  }
 
+  // If the module file spec is a full path, then we can just find the one
+  // filespec that passes.  Otherwise, we need to go through all modules and
+  // find the ones that match the file name.
 
-bool
-SearchFilterByModule::CompUnitPasses (FileSpec &fileSpec)
-{
-    return true;
-}
+  const ModuleList &target_modules = m_target_sp->GetImages();
+  std::lock_guard<std::recursive_mutex> guard(target_modules.GetMutex());
 
-bool
-SearchFilterByModule::CompUnitPasses (CompileUnit &compUnit)
-{
-    return true;
-}
+  const size_t num_modules = target_modules.GetSize();
+  for (size_t i = 0; i < num_modules; i++) {
+    Module *module = target_modules.GetModulePointerAtIndexUnlocked(i);
+    const bool full_match = (bool)m_module_spec.GetDirectory();
+    if (FileSpec::Equal(m_module_spec, module->GetFileSpec(), full_match)) {
+      SymbolContext matchingContext(m_target_sp, module->shared_from_this());
+      Searcher::CallbackReturn shouldContinue;
 
-void
-SearchFilterByModule::Search (Searcher &searcher)
-{
-    if (!m_target_sp)
+      shouldContinue = DoModuleIteration(matchingContext, searcher);
+      if (shouldContinue == Searcher::eCallbackReturnStop)
         return;
-
-    if (searcher.GetDepth() == Searcher::eDepthTarget)
-    {
-        SymbolContext empty_sc;
-        empty_sc.target_sp = m_target_sp;
-        searcher.SearchCallback (*this, empty_sc, NULL, false);
     }
-
-    // If the module file spec is a full path, then we can just find the one
-    // filespec that passes.  Otherwise, we need to go through all modules and
-    // find the ones that match the file name.
-
-    const ModuleList &target_modules = m_target_sp->GetImages();
-    Mutex::Locker modules_locker (target_modules.GetMutex());
-    
-    const size_t num_modules = target_modules.GetSize ();
-    for (size_t i = 0; i < num_modules; i++)
-    {
-        Module* module = target_modules.GetModulePointerAtIndexUnlocked(i);
-        const bool full_match = (bool)m_module_spec.GetDirectory();
-        if (FileSpec::Equal (m_module_spec, module->GetFileSpec(), full_match))
-        {
-            SymbolContext matchingContext(m_target_sp, module->shared_from_this());
-            Searcher::CallbackReturn shouldContinue;
-
-            shouldContinue = DoModuleIteration(matchingContext, searcher);
-            if (shouldContinue == Searcher::eCallbackReturnStop)
-                return;
-        }
-    }
+  }
 }
 
-void
-SearchFilterByModule::GetDescription (Stream *s)
-{
-    s->PutCString(", module = ");
-    if (s->GetVerbose())
-    {
-        char buffer[2048];
-        m_module_spec.GetPath(buffer, 2047);
-        s->PutCString(buffer);
-    }
-    else
-    {
-        s->PutCString(m_module_spec.GetFilename().AsCString("<Unknown>"));
-    }
+void SearchFilterByModule::GetDescription(Stream *s) {
+  s->PutCString(", module = ");
+  s->PutCString(m_module_spec.GetFilename().AsCString("<Unknown>"));
 }
 
-uint32_t
-SearchFilterByModule::GetFilterRequiredItems()
-{
-    return eSymbolContextModule;
+uint32_t SearchFilterByModule::GetFilterRequiredItems() {
+  return eSymbolContextModule;
 }
 
-void
-SearchFilterByModule::Dump (Stream *s) const
-{
-
-}
+void SearchFilterByModule::Dump(Stream *s) const {}
 
 lldb::SearchFilterSP
-SearchFilterByModule::DoCopyForBreakpoint (Breakpoint &breakpoint)
-{
-    SearchFilterSP ret_sp(new SearchFilterByModule(*this));
-    return ret_sp;
+SearchFilterByModule::DoCopyForBreakpoint(Breakpoint &breakpoint) {
+  return std::make_shared<SearchFilterByModule>(*this);
+}
+
+SearchFilterSP SearchFilterByModule::CreateFromStructuredData(
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
+  StructuredData::Array *modules_array;
+  bool success = data_dict.GetValueForKeyAsArray(GetKey(OptionNames::ModList),
+                                                 modules_array);
+  if (!success) {
+    error.SetErrorString("SFBM::CFSD: Could not find the module list key.");
+    return nullptr;
+  }
+
+  size_t num_modules = modules_array->GetSize();
+  if (num_modules > 1) {
+    error.SetErrorString(
+        "SFBM::CFSD: Only one modules allowed for SearchFilterByModule.");
+    return nullptr;
+  }
+
+  llvm::StringRef module;
+  success = modules_array->GetItemAtIndexAsString(0, module);
+  if (!success) {
+    error.SetErrorString("SFBM::CFSD: filter module item not a string.");
+    return nullptr;
+  }
+  FileSpec module_spec(module, false);
+
+  return std::make_shared<SearchFilterByModule>(target.shared_from_this(),
+                                                module_spec);
+}
+
+StructuredData::ObjectSP SearchFilterByModule::SerializeToStructuredData() {
+  auto options_dict_sp = std::make_shared<StructuredData::Dictionary>();
+  auto module_array_sp = std::make_shared<StructuredData::Array>();
+  module_array_sp->AddItem(
+      std::make_shared<StructuredData::String>(m_module_spec.GetPath()));
+  options_dict_sp->AddItem(GetKey(OptionNames::ModList), module_array_sp);
+  return WrapOptionsDict(options_dict_sp);
 }
 
 //----------------------------------------------------------------------
@@ -478,379 +509,344 @@ SearchFilterByModule::DoCopyForBreakpoint (Breakpoint &breakpoint)
 //  Selects a shared library matching a given file spec
 //----------------------------------------------------------------------
 
-//----------------------------------------------------------------------
-// SearchFilterByModuleList constructors
-//----------------------------------------------------------------------
+SearchFilterByModuleList::SearchFilterByModuleList(
+    const lldb::TargetSP &target_sp, const FileSpecList &module_list)
+    : SearchFilter(target_sp, FilterTy::ByModules),
+      m_module_spec_list(module_list) {}
 
-SearchFilterByModuleList::SearchFilterByModuleList (const lldb::TargetSP &target_sp,
-                                                    const FileSpecList &module_list) :
-    SearchFilter (target_sp),
-    m_module_spec_list (module_list)
-{
+SearchFilterByModuleList::SearchFilterByModuleList(
+    const lldb::TargetSP &target_sp, const FileSpecList &module_list,
+    enum FilterTy filter_ty)
+    : SearchFilter(target_sp, filter_ty), m_module_spec_list(module_list) {}
+
+SearchFilterByModuleList::SearchFilterByModuleList(
+    const SearchFilterByModuleList &rhs) = default;
+
+SearchFilterByModuleList &SearchFilterByModuleList::
+operator=(const SearchFilterByModuleList &rhs) {
+  m_target_sp = rhs.m_target_sp;
+  m_module_spec_list = rhs.m_module_spec_list;
+  return *this;
 }
 
+SearchFilterByModuleList::~SearchFilterByModuleList() = default;
 
-//----------------------------------------------------------------------
-// SearchFilterByModuleList copy constructor
-//----------------------------------------------------------------------
-SearchFilterByModuleList::SearchFilterByModuleList(const SearchFilterByModuleList& rhs) :
-    SearchFilter (rhs),
-    m_module_spec_list (rhs.m_module_spec_list)
-{
-}
-
-//----------------------------------------------------------------------
-// SearchFilterByModuleList assignment operator
-//----------------------------------------------------------------------
-const SearchFilterByModuleList&
-SearchFilterByModuleList::operator=(const SearchFilterByModuleList& rhs)
-{
-    m_target_sp = rhs.m_target_sp;
-    m_module_spec_list = rhs.m_module_spec_list;
-    return *this;
-}
-
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-SearchFilterByModuleList::~SearchFilterByModuleList()
-{
-}
-
-bool
-SearchFilterByModuleList::ModulePasses (const ModuleSP &module_sp)
-{
-    if (m_module_spec_list.GetSize() == 0)
-        return true;
-        
-    if (module_sp && m_module_spec_list.FindFileIndex(0, module_sp->GetFileSpec(), false) != UINT32_MAX)
-        return true;
-    else
-        return false;
-}
-
-bool
-SearchFilterByModuleList::ModulePasses (const FileSpec &spec)
-{
-    if (m_module_spec_list.GetSize() == 0)
-        return true;
-        
-    if (m_module_spec_list.FindFileIndex(0, spec, true) != UINT32_MAX)
-        return true;
-    else
-        return false;
-}
-
-bool
-SearchFilterByModuleList::AddressPasses (Address &address)
-{
-    // FIXME: Not yet implemented
+bool SearchFilterByModuleList::ModulePasses(const ModuleSP &module_sp) {
+  if (m_module_spec_list.GetSize() == 0)
     return true;
-}
 
-
-bool
-SearchFilterByModuleList::CompUnitPasses (FileSpec &fileSpec)
-{
+  if (module_sp &&
+      m_module_spec_list.FindFileIndex(0, module_sp->GetFileSpec(), false) !=
+          UINT32_MAX)
     return true;
+  else
+    return false;
 }
 
-bool
-SearchFilterByModuleList::CompUnitPasses (CompileUnit &compUnit)
-{
+bool SearchFilterByModuleList::ModulePasses(const FileSpec &spec) {
+  if (m_module_spec_list.GetSize() == 0)
     return true;
+
+  if (m_module_spec_list.FindFileIndex(0, spec, true) != UINT32_MAX)
+    return true;
+  else
+    return false;
 }
 
-void
-SearchFilterByModuleList::Search (Searcher &searcher)
-{
-    if (!m_target_sp)
+bool SearchFilterByModuleList::AddressPasses(Address &address) {
+  // FIXME: Not yet implemented
+  return true;
+}
+
+bool SearchFilterByModuleList::CompUnitPasses(FileSpec &fileSpec) {
+  return true;
+}
+
+bool SearchFilterByModuleList::CompUnitPasses(CompileUnit &compUnit) {
+  return true;
+}
+
+void SearchFilterByModuleList::Search(Searcher &searcher) {
+  if (!m_target_sp)
+    return;
+
+  if (searcher.GetDepth() == Searcher::eDepthTarget) {
+    SymbolContext empty_sc;
+    empty_sc.target_sp = m_target_sp;
+    searcher.SearchCallback(*this, empty_sc, nullptr, false);
+  }
+
+  // If the module file spec is a full path, then we can just find the one
+  // filespec that passes.  Otherwise, we need to go through all modules and
+  // find the ones that match the file name.
+
+  const ModuleList &target_modules = m_target_sp->GetImages();
+  std::lock_guard<std::recursive_mutex> guard(target_modules.GetMutex());
+
+  const size_t num_modules = target_modules.GetSize();
+  for (size_t i = 0; i < num_modules; i++) {
+    Module *module = target_modules.GetModulePointerAtIndexUnlocked(i);
+    if (m_module_spec_list.FindFileIndex(0, module->GetFileSpec(), false) !=
+        UINT32_MAX) {
+      SymbolContext matchingContext(m_target_sp, module->shared_from_this());
+      Searcher::CallbackReturn shouldContinue;
+
+      shouldContinue = DoModuleIteration(matchingContext, searcher);
+      if (shouldContinue == Searcher::eCallbackReturnStop)
         return;
-
-    if (searcher.GetDepth() == Searcher::eDepthTarget)
-    {
-        SymbolContext empty_sc;
-        empty_sc.target_sp = m_target_sp;
-        searcher.SearchCallback (*this, empty_sc, NULL, false);
     }
-
-    // If the module file spec is a full path, then we can just find the one
-    // filespec that passes.  Otherwise, we need to go through all modules and
-    // find the ones that match the file name.
-
-    const ModuleList &target_modules = m_target_sp->GetImages();
-    Mutex::Locker modules_locker (target_modules.GetMutex());
-    
-    const size_t num_modules = target_modules.GetSize ();
-    for (size_t i = 0; i < num_modules; i++)
-    {
-        Module* module = target_modules.GetModulePointerAtIndexUnlocked(i);
-        if (m_module_spec_list.FindFileIndex(0, module->GetFileSpec(), false) != UINT32_MAX)
-        {
-            SymbolContext matchingContext(m_target_sp, module->shared_from_this());
-            Searcher::CallbackReturn shouldContinue;
-
-            shouldContinue = DoModuleIteration(matchingContext, searcher);
-            if (shouldContinue == Searcher::eCallbackReturnStop)
-                return;
-        }
-    }
+  }
 }
 
-void
-SearchFilterByModuleList::GetDescription (Stream *s)
-{
-    size_t num_modules = m_module_spec_list.GetSize();
-    if (num_modules == 1)
-    {
-        s->Printf (", module = ");
-        if (s->GetVerbose())
-        {
-            char buffer[2048];
-            m_module_spec_list.GetFileSpecAtIndex(0).GetPath(buffer, 2047);
-            s->PutCString(buffer);
-        }
-        else
-        {
-            s->PutCString(m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString("<Unknown>"));
-        }
+void SearchFilterByModuleList::GetDescription(Stream *s) {
+  size_t num_modules = m_module_spec_list.GetSize();
+  if (num_modules == 1) {
+    s->Printf(", module = ");
+    s->PutCString(
+        m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString(
+            "<Unknown>"));
+  } else {
+    s->Printf(", modules(%" PRIu64 ") = ", (uint64_t)num_modules);
+    for (size_t i = 0; i < num_modules; i++) {
+      s->PutCString(
+          m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString(
+              "<Unknown>"));
+      if (i != num_modules - 1)
+        s->PutCString(", ");
     }
-    else
-    {
-        s->Printf(", modules(%" PRIu64 ") = ", (uint64_t)num_modules);
-        for (size_t i = 0; i < num_modules; i++)
-        {
-            if (s->GetVerbose())
-            {
-                char buffer[2048];
-                m_module_spec_list.GetFileSpecAtIndex(i).GetPath(buffer, 2047);
-                s->PutCString(buffer);
-            }
-            else
-            {
-                s->PutCString(m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString("<Unknown>"));
-            }
-            if (i != num_modules - 1)
-                s->PutCString (", ");
-        }
-    }
+  }
 }
 
-uint32_t
-SearchFilterByModuleList::GetFilterRequiredItems()
-{
-    return eSymbolContextModule;
+uint32_t SearchFilterByModuleList::GetFilterRequiredItems() {
+  return eSymbolContextModule;
 }
 
-void
-SearchFilterByModuleList::Dump (Stream *s) const
-{
-
-}
+void SearchFilterByModuleList::Dump(Stream *s) const {}
 
 lldb::SearchFilterSP
-SearchFilterByModuleList::DoCopyForBreakpoint (Breakpoint &breakpoint)
-{
-    SearchFilterSP ret_sp(new SearchFilterByModuleList(*this));
-    return ret_sp;
+SearchFilterByModuleList::DoCopyForBreakpoint(Breakpoint &breakpoint) {
+  return std::make_shared<SearchFilterByModuleList>(*this);
 }
 
+SearchFilterSP SearchFilterByModuleList::CreateFromStructuredData(
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
+  StructuredData::Array *modules_array;
+  bool success = data_dict.GetValueForKeyAsArray(GetKey(OptionNames::ModList),
+                                                 modules_array);
+  FileSpecList modules;
+  if (success) {
+    size_t num_modules = modules_array->GetSize();
+    for (size_t i = 0; i < num_modules; i++) {
+      llvm::StringRef module;
+      success = modules_array->GetItemAtIndexAsString(i, module);
+      if (!success) {
+        error.SetErrorStringWithFormat(
+            "SFBM::CFSD: filter module item %zu not a string.", i);
+        return nullptr;
+      }
+      modules.Append(FileSpec(module, false));
+    }
+  }
+
+  return std::make_shared<SearchFilterByModuleList>(target.shared_from_this(),
+                                                    modules);
+}
+
+void SearchFilterByModuleList::SerializeUnwrapped(
+    StructuredData::DictionarySP &options_dict_sp) {
+  SerializeFileSpecList(options_dict_sp, OptionNames::ModList,
+                        m_module_spec_list);
+}
+
+StructuredData::ObjectSP SearchFilterByModuleList::SerializeToStructuredData() {
+  auto options_dict_sp = std::make_shared<StructuredData::Dictionary>();
+  SerializeUnwrapped(options_dict_sp);
+  return WrapOptionsDict(options_dict_sp);
+}
 
 //----------------------------------------------------------------------
 //  SearchFilterByModuleListAndCU:
 //  Selects a shared library matching a given file spec
 //----------------------------------------------------------------------
 
-//----------------------------------------------------------------------
-// SearchFilterByModuleListAndCU constructors
-//----------------------------------------------------------------------
+SearchFilterByModuleListAndCU::SearchFilterByModuleListAndCU(
+    const lldb::TargetSP &target_sp, const FileSpecList &module_list,
+    const FileSpecList &cu_list)
+    : SearchFilterByModuleList(target_sp, module_list,
+                               FilterTy::ByModulesAndCU),
+      m_cu_spec_list(cu_list) {}
 
-SearchFilterByModuleListAndCU::SearchFilterByModuleListAndCU (const lldb::TargetSP &target_sp, 
-                                                              const FileSpecList &module_list,
-                                                              const FileSpecList &cu_list) :
-    SearchFilterByModuleList (target_sp, module_list),
-    m_cu_spec_list (cu_list)
-{
+SearchFilterByModuleListAndCU::SearchFilterByModuleListAndCU(
+    const SearchFilterByModuleListAndCU &rhs) = default;
+
+SearchFilterByModuleListAndCU &SearchFilterByModuleListAndCU::
+operator=(const SearchFilterByModuleListAndCU &rhs) {
+  if (&rhs != this) {
+    m_target_sp = rhs.m_target_sp;
+    m_module_spec_list = rhs.m_module_spec_list;
+    m_cu_spec_list = rhs.m_cu_spec_list;
+  }
+  return *this;
 }
 
+SearchFilterByModuleListAndCU::~SearchFilterByModuleListAndCU() = default;
 
-//----------------------------------------------------------------------
-// SearchFilterByModuleListAndCU copy constructor
-//----------------------------------------------------------------------
-SearchFilterByModuleListAndCU::SearchFilterByModuleListAndCU(const SearchFilterByModuleListAndCU& rhs) :
-    SearchFilterByModuleList (rhs),
-    m_cu_spec_list (rhs.m_cu_spec_list)
-{
-}
-
-//----------------------------------------------------------------------
-// SearchFilterByModuleListAndCU assignment operator
-//----------------------------------------------------------------------
-const SearchFilterByModuleListAndCU&
-SearchFilterByModuleListAndCU::operator=(const SearchFilterByModuleListAndCU& rhs)
-{
-    if (&rhs != this)
-    {
-        m_target_sp = rhs.m_target_sp;
-        m_module_spec_list = rhs.m_module_spec_list;
-        m_cu_spec_list = rhs.m_cu_spec_list;
+lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
+  StructuredData::Array *modules_array = nullptr;
+  SearchFilterSP result_sp;
+  bool success = data_dict.GetValueForKeyAsArray(GetKey(OptionNames::ModList),
+                                                 modules_array);
+  FileSpecList modules;
+  if (success) {
+    size_t num_modules = modules_array->GetSize();
+    for (size_t i = 0; i < num_modules; i++) {
+      llvm::StringRef module;
+      success = modules_array->GetItemAtIndexAsString(i, module);
+      if (!success) {
+        error.SetErrorStringWithFormat(
+            "SFBM::CFSD: filter module item %zu not a string.", i);
+        return result_sp;
+      }
+      modules.Append(FileSpec(module, false));
     }
-    return *this;
-}
+  }
 
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-SearchFilterByModuleListAndCU::~SearchFilterByModuleListAndCU()
-{
-}
+  StructuredData::Array *cus_array = nullptr;
+  success =
+      data_dict.GetValueForKeyAsArray(GetKey(OptionNames::CUList), cus_array);
+  if (!success) {
+    error.SetErrorString("SFBM::CFSD: Could not find the CU list key.");
+    return result_sp;
+  }
 
-bool
-SearchFilterByModuleListAndCU::AddressPasses (Address &address)
-{
-    return true;
-}
-
-
-bool
-SearchFilterByModuleListAndCU::CompUnitPasses (FileSpec &fileSpec)
-{
-    return m_cu_spec_list.FindFileIndex(0, fileSpec, false) != UINT32_MAX;
-}
-
-bool
-SearchFilterByModuleListAndCU::CompUnitPasses (CompileUnit &compUnit)
-{
-    bool in_cu_list = m_cu_spec_list.FindFileIndex(0, compUnit, false) != UINT32_MAX;
-    if (in_cu_list)
-    {
-        ModuleSP module_sp(compUnit.GetModule());
-        if (module_sp)
-        {
-            bool module_passes = SearchFilterByModuleList::ModulePasses(module_sp);
-            return module_passes;
-        }
-        else
-            return true;
+  size_t num_cus = cus_array->GetSize();
+  FileSpecList cus;
+  for (size_t i = 0; i < num_cus; i++) {
+    llvm::StringRef cu;
+    success = cus_array->GetItemAtIndexAsString(i, cu);
+    if (!success) {
+      error.SetErrorStringWithFormat(
+          "SFBM::CFSD: filter cu item %zu not a string.", i);
+      return nullptr;
     }
-    else
-        return false;
+    cus.Append(FileSpec(cu, false));
+  }
+
+  return std::make_shared<SearchFilterByModuleListAndCU>(
+      target.shared_from_this(), modules, cus);
 }
 
-void
-SearchFilterByModuleListAndCU::Search (Searcher &searcher)
-{
-    if (!m_target_sp)
-        return;
+StructuredData::ObjectSP
+SearchFilterByModuleListAndCU::SerializeToStructuredData() {
+  auto options_dict_sp = std::make_shared<StructuredData::Dictionary>();
+  SearchFilterByModuleList::SerializeUnwrapped(options_dict_sp);
+  SerializeFileSpecList(options_dict_sp, OptionNames::CUList, m_cu_spec_list);
+  return WrapOptionsDict(options_dict_sp);
+}
 
-    if (searcher.GetDepth() == Searcher::eDepthTarget)
-    {
-        SymbolContext empty_sc;
-        empty_sc.target_sp = m_target_sp;
-        searcher.SearchCallback (*this, empty_sc, NULL, false);
-    }
+bool SearchFilterByModuleListAndCU::AddressPasses(Address &address) {
+  return true;
+}
 
-    // If the module file spec is a full path, then we can just find the one
-    // filespec that passes.  Otherwise, we need to go through all modules and
-    // find the ones that match the file name.
+bool SearchFilterByModuleListAndCU::CompUnitPasses(FileSpec &fileSpec) {
+  return m_cu_spec_list.FindFileIndex(0, fileSpec, false) != UINT32_MAX;
+}
 
-    ModuleList matching_modules;
-    const ModuleList &target_images = m_target_sp->GetImages();
-    Mutex::Locker modules_locker(target_images.GetMutex());
-    
-    const size_t num_modules = target_images.GetSize ();
-    bool no_modules_in_filter = m_module_spec_list.GetSize() == 0;
-    for (size_t i = 0; i < num_modules; i++)
-    {
-        lldb::ModuleSP module_sp = target_images.GetModuleAtIndexUnlocked(i);
-        if (no_modules_in_filter || m_module_spec_list.FindFileIndex(0, module_sp->GetFileSpec(), false) != UINT32_MAX)
-        {
-            SymbolContext matchingContext(m_target_sp, module_sp);
-            Searcher::CallbackReturn shouldContinue;
+bool SearchFilterByModuleListAndCU::CompUnitPasses(CompileUnit &compUnit) {
+  bool in_cu_list =
+      m_cu_spec_list.FindFileIndex(0, compUnit, false) != UINT32_MAX;
+  if (in_cu_list) {
+    ModuleSP module_sp(compUnit.GetModule());
+    if (module_sp) {
+      bool module_passes = SearchFilterByModuleList::ModulePasses(module_sp);
+      return module_passes;
+    } else
+      return true;
+  } else
+    return false;
+}
 
-            if (searcher.GetDepth() == Searcher::eDepthModule)
-            {
-                shouldContinue = DoModuleIteration(matchingContext, searcher);
-                if (shouldContinue == Searcher::eCallbackReturnStop)
-                    return;
+void SearchFilterByModuleListAndCU::Search(Searcher &searcher) {
+  if (!m_target_sp)
+    return;
+
+  if (searcher.GetDepth() == Searcher::eDepthTarget) {
+    SymbolContext empty_sc;
+    empty_sc.target_sp = m_target_sp;
+    searcher.SearchCallback(*this, empty_sc, nullptr, false);
+  }
+
+  // If the module file spec is a full path, then we can just find the one
+  // filespec that passes.  Otherwise, we need to go through all modules and
+  // find the ones that match the file name.
+
+  ModuleList matching_modules;
+  const ModuleList &target_images = m_target_sp->GetImages();
+  std::lock_guard<std::recursive_mutex> guard(target_images.GetMutex());
+
+  const size_t num_modules = target_images.GetSize();
+  bool no_modules_in_filter = m_module_spec_list.GetSize() == 0;
+  for (size_t i = 0; i < num_modules; i++) {
+    lldb::ModuleSP module_sp = target_images.GetModuleAtIndexUnlocked(i);
+    if (no_modules_in_filter ||
+        m_module_spec_list.FindFileIndex(0, module_sp->GetFileSpec(), false) !=
+            UINT32_MAX) {
+      SymbolContext matchingContext(m_target_sp, module_sp);
+      Searcher::CallbackReturn shouldContinue;
+
+      if (searcher.GetDepth() == Searcher::eDepthModule) {
+        shouldContinue = DoModuleIteration(matchingContext, searcher);
+        if (shouldContinue == Searcher::eCallbackReturnStop)
+          return;
+      } else {
+        const size_t num_cu = module_sp->GetNumCompileUnits();
+        for (size_t cu_idx = 0; cu_idx < num_cu; cu_idx++) {
+          CompUnitSP cu_sp = module_sp->GetCompileUnitAtIndex(cu_idx);
+          matchingContext.comp_unit = cu_sp.get();
+          if (matchingContext.comp_unit) {
+            if (m_cu_spec_list.FindFileIndex(0, *matchingContext.comp_unit,
+                                             false) != UINT32_MAX) {
+              shouldContinue =
+                  DoCUIteration(module_sp, matchingContext, searcher);
+              if (shouldContinue == Searcher::eCallbackReturnStop)
+                return;
             }
-            else
-            {
-                const size_t num_cu = module_sp->GetNumCompileUnits();
-                for (size_t cu_idx = 0; cu_idx < num_cu; cu_idx++)
-                {
-                    CompUnitSP cu_sp = module_sp->GetCompileUnitAtIndex(cu_idx);
-                    matchingContext.comp_unit = cu_sp.get();
-                    if (matchingContext.comp_unit)
-                    {
-                        if (m_cu_spec_list.FindFileIndex(0, *matchingContext.comp_unit, false) != UINT32_MAX)
-                        {
-                            shouldContinue = DoCUIteration(module_sp, matchingContext, searcher);
-                            if (shouldContinue == Searcher::eCallbackReturnStop)
-                                return;
-                        }
-                    }
-                }
-            }
+          }
         }
+      }
     }
+  }
 }
 
-void
-SearchFilterByModuleListAndCU::GetDescription (Stream *s)
-{
-    size_t num_modules = m_module_spec_list.GetSize();
-    if (num_modules == 1)
-    {
-        s->Printf (", module = ");
-        if (s->GetVerbose())
-        {
-            char buffer[2048];
-            m_module_spec_list.GetFileSpecAtIndex(0).GetPath(buffer, 2047);
-            s->PutCString(buffer);
-        }
-        else
-        {
-            s->PutCString(m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString("<Unknown>"));
-        }
+void SearchFilterByModuleListAndCU::GetDescription(Stream *s) {
+  size_t num_modules = m_module_spec_list.GetSize();
+  if (num_modules == 1) {
+    s->Printf(", module = ");
+    s->PutCString(
+        m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString(
+            "<Unknown>"));
+  } else if (num_modules > 0) {
+    s->Printf(", modules(%" PRIu64 ") = ", static_cast<uint64_t>(num_modules));
+    for (size_t i = 0; i < num_modules; i++) {
+      s->PutCString(
+          m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString(
+              "<Unknown>"));
+      if (i != num_modules - 1)
+        s->PutCString(", ");
     }
-    else if (num_modules > 0)
-    {
-        s->Printf (", modules(%" PRIu64 ") = ", static_cast<uint64_t>(num_modules));
-        for (size_t i = 0; i < num_modules; i++)
-        {
-            if (s->GetVerbose())
-            {
-                char buffer[2048];
-                m_module_spec_list.GetFileSpecAtIndex(i).GetPath(buffer, 2047);
-                s->PutCString(buffer);
-            }
-            else
-            {
-                s->PutCString(m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString("<Unknown>"));
-            }
-            if (i != num_modules - 1)
-                s->PutCString (", ");
-        }
-    }
+  }
 }
 
-uint32_t
-SearchFilterByModuleListAndCU::GetFilterRequiredItems()
-{
-    return eSymbolContextModule | eSymbolContextCompUnit;
+uint32_t SearchFilterByModuleListAndCU::GetFilterRequiredItems() {
+  return eSymbolContextModule | eSymbolContextCompUnit;
 }
 
-void
-SearchFilterByModuleListAndCU::Dump (Stream *s) const
-{
-
-}
+void SearchFilterByModuleListAndCU::Dump(Stream *s) const {}
 
 lldb::SearchFilterSP
-SearchFilterByModuleListAndCU::DoCopyForBreakpoint (Breakpoint &breakpoint)
-{
-    SearchFilterSP ret_sp(new SearchFilterByModuleListAndCU(*this));
-    return ret_sp;
+SearchFilterByModuleListAndCU::DoCopyForBreakpoint(Breakpoint &breakpoint) {
+  return std::make_shared<SearchFilterByModuleListAndCU>(*this);
 }
-

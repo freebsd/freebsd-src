@@ -2,6 +2,8 @@
 /*	$OpenBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2002 Jason L. Wright (jason@thought.net)
  * All rights reserved.
  *

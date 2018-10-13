@@ -46,9 +46,9 @@
 .Ft int
 .Fn pthread_condattr_destroy "pthread_condattr_t *attr"
 .Ft int
-.Fn pthread_condattr_getclock "pthread_condattr_t * restrict attr" "clock_t * restrict clock_id"
+.Fn pthread_condattr_getclock "pthread_condattr_t * restrict attr" "clockid_t * restrict clock_id"
 .Ft int
-.Fn pthread_condattr_setclock "pthread_condattr_t *attr" "clock_t clock_id"
+.Fn pthread_condattr_setclock "pthread_condattr_t *attr" "clockid_t clock_id"
 .Ft int
 .Fn pthread_condattr_getpshared "pthread_condattr_t * restrict attr" "int * restrict pshared"
 .Ft int

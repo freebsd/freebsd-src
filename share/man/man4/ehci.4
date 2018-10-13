@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2012
+.Dd April 24, 2018
 .Dt EHCI 4
 .Os
 .Sh NAME
@@ -68,17 +68,7 @@ but can be noticed since
 1.x and
 .Tn USB
 2.0 devices plugged in to the same
-connector appear to connect to different USB busses.
-.Sh SEE ALSO
-.Xr ohci 4 ,
-.Xr uhci 4 ,
-.Xr usb 4 ,
-.Xr xhci 4
-.Sh HISTORY
-The
-.Nm
-device driver first appeared in
-.Fx 5.1 .
+connector appear to connect to different USB buses.
 .Sh LOADER TUNABLES
 When the kernel has been compiled with
 .Cd options USB_DEBUG ,
@@ -98,4 +88,25 @@ The default value is 0 (off).
 .It Va hw.usb.ehci.no_hs
 This tunable disables USB devices to attach like HIGH-speed ones and will force all attached devices to attach to the FULL- or LOW-speed companion controller.
 The default value is 0 (off).
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ehci.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .El
+.Sh SEE ALSO
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr xhci 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.1 .

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
@@ -444,12 +446,17 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		size += sizeof(*crde) * nsec;
 		size += sizeof(*crda) * nsec;
 		size += G_ELI_AUTH_SECKEYLEN * nsec;
+		size += sizeof(uintptr_t);	/* Space for alignment. */
 		data = malloc(size, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
 		p = data + encr_secsize * nsec;
 	}
 	bp->bio_inbed = 0;
 	bp->bio_children = nsec;
+
+#if defined(__mips_n64) || defined(__mips_o64)
+	p = (char *)roundup((uintptr_t)p, sizeof(uintptr_t));
+#endif
 
 	for (i = 1; i <= nsec; i++, dstoff += encr_secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
@@ -458,8 +465,16 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		authkey = (u_char *)p;		p += G_ELI_AUTH_SECKEYLEN;
 
 		data_secsize = sc->sc_data_per_sector;
-		if ((i % lsec) == 0)
+		if ((i % lsec) == 0) {
 			data_secsize = decr_secsize % data_secsize;
+			/*
+			 * Last encrypted sector of each decrypted sector is
+			 * only partially filled.
+			 */
+			if (bp->bio_cmd == BIO_WRITE)
+				memset(data + sc->sc_alen + data_secsize, 0,
+				    encr_secsize - sc->sc_alen - data_secsize);
+		}
 
 		if (bp->bio_cmd == BIO_READ) {
 			/* Remember read HMAC. */
@@ -472,7 +487,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 			plaindata += data_secsize;
 		}
 
-		crp->crp_sid = wr->w_sid;
+		crp->crp_session = wr->w_sid;
 		crp->crp_ilen = sc->sc_alen + data_secsize;
 		crp->crp_olen = data_secsize;
 		crp->crp_opaque = (void *)bp;

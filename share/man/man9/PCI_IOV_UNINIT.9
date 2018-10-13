@@ -47,11 +47,11 @@ resources that it has allocated and disable any device-specific SR-IOV
 configuration in the device.
 .Pp
 This method will only be called following a successful call to
-.Xr PCI_IOV_INIT .
+.Xr PCI_IOV_INIT 9 .
 It is not guaranteed that
-.Xr PCI_IOV_ADD_VF
+.Xr PCI_IOV_ADD_VF 9
 will have been called for any Virtual Function (VF) after the call to
-.Xr PCI_IOV_INIT
+.Xr PCI_IOV_INIT 9
 and before the call to
 .Nm .
 .Sh SEE ALSO

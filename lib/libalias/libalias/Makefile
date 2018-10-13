@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../sys/netinet/libalias
+.PATH: ${SRCTOP}/sys/netinet/libalias
 
+CONFS=	libalias.conf
 PACKAGE=lib${LIB}
 LIB=	alias
 SHLIBDIR?= /lib

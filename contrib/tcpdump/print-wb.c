@@ -19,14 +19,15 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: White Board printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -48,8 +49,8 @@ static const char tstr[] = "[|wb]";
 #define DOP_ALIGN 4
 #define DOP_ROUNDUP(x)	((((int)(x)) + (DOP_ALIGN - 1)) & ~(DOP_ALIGN - 1))
 #define DOP_NEXT(d)\
-	((struct dophdr *)((u_char *)(d) + \
-			  DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
+	((const struct dophdr *)((const u_char *)(d) + \
+				DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
 
 /*
  * Format of the whiteboard packet header.
@@ -200,11 +201,11 @@ wb_id(netdissect_options *ndo,
 
 	nid = EXTRACT_16BITS(&id->pi_ps.nid);
 	len -= sizeof(*io) * nid;
-	io = (struct id_off *)(id + 1);
-	cp = (char *)(io + nid);
+	io = (const struct id_off *)(id + 1);
+	cp = (const char *)(io + nid);
 	if (ND_TTEST2(cp, len)) {
 		ND_PRINT((ndo, "\""));
-		fn_print(ndo, (u_char *)cp, (u_char *)cp + len);
+		fn_print(ndo, (const u_char *)cp, (const u_char *)cp + len);
 		ND_PRINT((ndo, "\""));
 	}
 
@@ -262,9 +263,8 @@ wb_prep(netdissect_options *ndo,
 	const u_char *ep = ndo->ndo_snapend;
 
 	ND_PRINT((ndo, " wb-prep:"));
-	if (len < sizeof(*prep)) {
+	if (len < sizeof(*prep) || !ND_TTEST(*prep))
 		return (-1);
-	}
 	n = EXTRACT_32BITS(&prep->pp_n);
 	ps = (const struct pgstate *)(prep + 1);
 	while (--n >= 0 && ND_TTEST(*ps)) {
@@ -275,16 +275,16 @@ wb_prep(netdissect_options *ndo,
 		    EXTRACT_32BITS(&ps->slot),
 		    ipaddr_string(ndo, &ps->page.p_sid),
 		    EXTRACT_32BITS(&ps->page.p_uid)));
-		io = (struct id_off *)(ps + 1);
+		io = (const struct id_off *)(ps + 1);
 		for (ie = io + ps->nid; io < ie && ND_TTEST(*io); ++io) {
 			ND_PRINT((ndo, "%c%s:%u", c, ipaddr_string(ndo, &io->id),
 			    EXTRACT_32BITS(&io->off)));
 			c = ',';
 		}
 		ND_PRINT((ndo, ">"));
-		ps = (struct pgstate *)io;
+		ps = (const struct pgstate *)io;
 	}
-	return ((u_char *)ps <= ep? 0 : -1);
+	return ((const u_char *)ps <= ep? 0 : -1);
 }
 
 
@@ -416,33 +416,39 @@ wb_print(netdissect_options *ndo,
 		return;
 
 	case PT_ID:
-		if (wb_id(ndo, (struct pkt_id *)(ph + 1), len) >= 0)
+		if (wb_id(ndo, (const struct pkt_id *)(ph + 1), len) >= 0)
 			return;
+		ND_PRINT((ndo, "%s", tstr));
 		break;
 
 	case PT_RREQ:
-		if (wb_rreq(ndo, (struct pkt_rreq *)(ph + 1), len) >= 0)
+		if (wb_rreq(ndo, (const struct pkt_rreq *)(ph + 1), len) >= 0)
 			return;
+		ND_PRINT((ndo, "%s", tstr));
 		break;
 
 	case PT_RREP:
-		if (wb_rrep(ndo, (struct pkt_rrep *)(ph + 1), len) >= 0)
+		if (wb_rrep(ndo, (const struct pkt_rrep *)(ph + 1), len) >= 0)
 			return;
+		ND_PRINT((ndo, "%s", tstr));
 		break;
 
 	case PT_DRAWOP:
-		if (wb_drawop(ndo, (struct pkt_dop *)(ph + 1), len) >= 0)
+		if (wb_drawop(ndo, (const struct pkt_dop *)(ph + 1), len) >= 0)
 			return;
+		ND_PRINT((ndo, "%s", tstr));
 		break;
 
 	case PT_PREQ:
-		if (wb_preq(ndo, (struct pkt_preq *)(ph + 1), len) >= 0)
+		if (wb_preq(ndo, (const struct pkt_preq *)(ph + 1), len) >= 0)
 			return;
+		ND_PRINT((ndo, "%s", tstr));
 		break;
 
 	case PT_PREP:
-		if (wb_prep(ndo, (struct pkt_prep *)(ph + 1), len) >= 0)
+		if (wb_prep(ndo, (const struct pkt_prep *)(ph + 1), len) >= 0)
 			return;
+		ND_PRINT((ndo, "%s", tstr));
 		break;
 
 	default:

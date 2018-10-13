@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
  * Copyright (c) 1992, 1993

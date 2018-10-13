@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2013 Johann 'Myrkraverk' Oskarsson.
  * Copyright (c) 1992 Diomidis Spinellis.
  * Copyright (c) 1992, 1993
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -58,7 +60,6 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #include <locale.h>
 #include <regex.h>
 #include <stddef.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,6 +102,7 @@ FILE *outfile;			/* Current output file */
 
 int aflag, eflag, nflag;
 int rflags = 0;
+int quit = 0;
 static int rval;		/* Exit status */
 
 static int ispan;		/* Whether inplace editing spans across files */
@@ -114,7 +116,7 @@ const char *fname;		/* File name. */
 const char *outfname;		/* Output file name */
 static char oldfname[PATH_MAX];	/* Old file name (for in-place editing) */
 static char tmpfname[PATH_MAX];	/* Temporary file name (for in-place editing) */
-static const char *inplace;	/* Inplace edit file extension. */
+const char *inplace;		/* Inplace edit file extension. */
 u_long linenum;
 
 static void add_compunit(enum e_cut, char *);
@@ -249,6 +251,8 @@ again:
 			s = script->s;
 			state = ST_STRING;
 			goto again;
+		default:
+			__unreachable();
 		}
 	case ST_FILE:
 		if ((p = fgets(buf, n, f)) != NULL) {
@@ -315,6 +319,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 {
 	struct stat sb;
 	ssize_t len;
+	char *dirbuf, *basebuf;
 	static char *p = NULL;
 	static size_t plen = 0;
 	int c;
@@ -334,7 +339,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 	}
 
 	for (;;) {
-		if (infile != NULL && (c = getc(infile)) != EOF) {
+		if (infile != NULL && (c = getc(infile)) != EOF && !quit) {
 			(void)ungetc(c, infile);
 			break;
 		}
@@ -391,7 +396,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 		if (inplace != NULL) {
 			if (lstat(fname, &sb) != 0)
 				err(1, "%s", fname);
-			if (!(sb.st_mode & S_IFREG))
+			if (!S_ISREG(sb.st_mode))
 				errx(1, "%s: %s %s", fname,
 				    "in-place editing only",
 				    "works for regular files");
@@ -403,9 +408,14 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 				if (len > (ssize_t)sizeof(oldfname))
 					errx(1, "%s: name too long", fname);
 			}
+			if ((dirbuf = strdup(fname)) == NULL ||
+			    (basebuf = strdup(fname)) == NULL)
+				err(1, "strdup");
 			len = snprintf(tmpfname, sizeof(tmpfname),
-			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
-			    basename(fname));
+			    "%s/.!%ld!%s", dirname(dirbuf), (long)getpid(),
+			    basename(basebuf));
+			free(dirbuf);
+			free(basebuf);
 			if (len >= (ssize_t)sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);

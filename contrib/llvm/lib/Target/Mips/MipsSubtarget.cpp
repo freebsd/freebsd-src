@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MipsMachineFunction.h"
-#include "Mips.h"
-#include "MipsRegisterInfo.h"
 #include "MipsSubtarget.h"
+#include "Mips.h"
+#include "MipsMachineFunction.h"
+#include "MipsRegisterInfo.h"
 #include "MipsTargetMachine.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
@@ -57,11 +57,11 @@ static cl::opt<bool>
     GPOpt("mgpopt", cl::Hidden,
           cl::desc("Enable gp-relative addressing of mips small data items"));
 
-void MipsSubtarget::anchor() { }
+void MipsSubtarget::anchor() {}
 
-MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
-                             const std::string &FS, bool little,
-                             const MipsTargetMachine &TM)
+MipsSubtarget::MipsSubtarget(const Triple &TT, StringRef CPU, StringRef FS,
+                             bool little, const MipsTargetMachine &TM,
+                             unsigned StackAlignOverride)
     : MipsGenSubtargetInfo(TT, CPU, FS), MipsArchVersion(MipsDefault),
       IsLittle(little), IsSoftFloat(false), IsSingleFloat(false), IsFPXX(false),
       NoABICalls(false), IsFP64bit(false), UseOddSPReg(true),
@@ -70,14 +70,14 @@ MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
       HasMips4_32r2(false), HasMips5_32r2(false), InMips16Mode(false),
       InMips16HardFloat(Mips16HardFloat), InMicroMipsMode(false), HasDSP(false),
       HasDSPR2(false), HasDSPR3(false), AllowMixed16_32(Mixed16_32 | Mips_Os16),
-      Os16(Mips_Os16), HasMSA(false), UseTCCInDIV(false), HasEVA(false), TM(TM),
-      TargetTriple(TT), TSInfo(),
+      Os16(Mips_Os16), HasMSA(false), UseTCCInDIV(false), HasSym32(false),
+      HasEVA(false), DisableMadd4(false), HasMT(false),
+      UseIndirectJumpsHazard(false), StackAlignOverride(StackAlignOverride),
+      TM(TM), TargetTriple(TT), TSInfo(),
       InstrInfo(
           MipsInstrInfo::create(initializeSubtargetDependencies(CPU, FS, TM))),
       FrameLowering(MipsFrameLowering::create(*this)),
       TLInfo(MipsTargetLowering::create(TM, *this)) {
-
-  PreviousInMips16Mode = InMips16Mode;
 
   if (MipsArchVersion == MipsDefault)
     MipsArchVersion = Mips32;
@@ -90,7 +90,7 @@ MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
     report_fatal_error("Code generation for MIPS-V is not implemented", false);
 
   // Check if Architecture and ABI are compatible.
-  assert(((!isGP64bit() && (isABI_O32() || isABI_EABI())) ||
+  assert(((!isGP64bit() && isABI_O32()) ||
           (isGP64bit() && (isABI_N32() || isABI_N64()))) &&
          "Invalid  Arch & ABI pair.");
 
@@ -105,6 +105,18 @@ MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
   if (IsFPXX && (isABI_N32() || isABI_N64()))
     report_fatal_error("FPXX is not permitted for the N32/N64 ABI's.", false);
 
+  if (hasMips64r6() && InMicroMipsMode)
+    report_fatal_error("microMIPS64R6 is not supported", false);
+
+
+  if (UseIndirectJumpsHazard) {
+    if (InMicroMipsMode)
+      report_fatal_error(
+          "cannot combine indirect jumps with hazard barriers and microMIPS");
+    if (!hasMips32r2())
+      report_fatal_error(
+          "indirect jumps with hazard barriers requires MIPS32R2 or later");
+  }
   if (hasMips32r6()) {
     StringRef ISA = hasMips64r6() ? "MIPS64r6" : "MIPS32r6";
 
@@ -114,8 +126,11 @@ MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
       report_fatal_error(ISA + " is not compatible with the DSP ASE", false);
   }
 
-  if (NoABICalls && TM.getRelocationModel() == Reloc::PIC_)
+  if (NoABICalls && TM.isPositionIndependent())
     report_fatal_error("position-independent code requires '-mabicalls'");
+
+  if (isABI_N64() && !TM.isPositionIndependent() && !hasSym32())
+    NoABICalls = true;
 
   // Set UseSmallSection.
   UseSmallSection = GPOpt;
@@ -126,13 +141,17 @@ MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
   }
 }
 
+bool MipsSubtarget::isPositionIndependent() const {
+  return TM.isPositionIndependent();
+}
+
 /// This overrides the PostRAScheduler bit in the SchedModel for any CPU.
 bool MipsSubtarget::enablePostRAScheduler() const { return true; }
 
 void MipsSubtarget::getCriticalPathRCs(RegClassVector &CriticalPathRCs) const {
   CriticalPathRCs.clear();
-  CriticalPathRCs.push_back(isGP64bit() ?
-                            &Mips::GPR64RegClass : &Mips::GPR32RegClass);
+  CriticalPathRCs.push_back(isGP64bit() ? &Mips::GPR64RegClass
+                                        : &Mips::GPR32RegClass);
 }
 
 CodeGenOpt::Level MipsSubtarget::getOptLevelToEnablePostRAScheduler() const {
@@ -152,6 +171,15 @@ MipsSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS,
   if (InMips16Mode && !IsSoftFloat)
     InMips16HardFloat = true;
 
+  if (StackAlignOverride)
+    stackAlignment = StackAlignOverride;
+  else if (isABI_N32() || isABI_N64())
+    stackAlignment = 16;
+  else {
+    assert(isABI_O32() && "Unknown ABI for stack alignment!");
+    stackAlignment = 8;
+  }
+
   return *this;
 }
 
@@ -164,7 +192,6 @@ Reloc::Model MipsSubtarget::getRelocationModel() const {
   return TM.getRelocationModel();
 }
 
-bool MipsSubtarget::isABI_EABI() const { return getABI().IsEABI(); }
 bool MipsSubtarget::isABI_N64() const { return getABI().IsN64(); }
 bool MipsSubtarget::isABI_N32() const { return getABI().IsN32(); }
 bool MipsSubtarget::isABI_O32() const { return getABI().IsO32(); }

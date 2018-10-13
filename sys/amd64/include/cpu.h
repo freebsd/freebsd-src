@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,7 +68,9 @@ struct cpu_ops {
 };
 
 extern struct	cpu_ops cpu_ops;
+extern char	brwsection[];
 extern char	btext[];
+extern char	_end[];
 extern char	etext[];
 
 /* Resume hook for VMM. */
@@ -87,6 +91,10 @@ get_cyclecount(void)
 
 	return (rdtsc());
 }
+
+#define MEMSET_EARLY_FUNC       memset_std
+#define MEMCPY_EARLY_FUNC       memcpy_std
+#define MEMMOVE_EARLY_FUNC      memmove_std
 
 #endif
 

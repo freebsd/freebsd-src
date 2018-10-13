@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2014
+.Dd January 1, 2018
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nm
 .Op Fl
 .Oo
-.Fl h | Fl p |
+.Fl c | Fl h | Fl p |
 .Fl r | Fl k
 .Oc
 .Oo
@@ -59,12 +59,22 @@ would otherwise not bother with such niceties.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl c
+The system is power cycled (power turned off and then back on)
+at the specified time.
+If the hardware doesn't support power cycle, the system will be
+halted.
+At the present time, only systems with BMC supported by the
+.Xr ipmi 4
+driver that implement this functionality support this flag.
+The amount of time the system is off is dependent on the device
+that implements this feature.
 .It Fl h
 The system is halted at the specified
 .Ar time .
 .It Fl p
 The system is halted and the power is turned off
-(hardware support required)
+(hardware support required, otherwise the system is halted)
 at the specified
 .Ar time .
 .It Fl r
@@ -79,6 +89,7 @@ does not actually halt the system, but leaves the
 system multi-user with logins disabled (for all but super-user).
 .It Fl o
 If one of the
+.Fl c ,
 .Fl h ,
 .Fl p
 or
@@ -127,6 +138,14 @@ suffix:
 .Dq Li min .
 .Dq Li h ,
 .Dq Li hour .
+.Pp
+If an absolute time is specified, but not a date,
+and that time today has already passed,
+.Nm
+will assume that the same time tomorrow was meant.
+(If a complete date is specified which has already passed,
+.Nm
+will print an error and exit without shutting the system down.)
 .It Ar warning-message
 Any other arguments comprise the warning message that is broadcast
 to users currently logged into the system.
@@ -215,7 +234,9 @@ a colon (``:'') for backward compatibility.
 .Xr init 8 ,
 .Xr reboot 8
 .Sh HISTORY
-The
+A
 .Nm
-utility appeared in
-.Bx 4.0 .
+command was originally written by Ian Johnstone for UNSW's modified
+.At "6th Edn" .
+It was modified and then incorporated in
+.Bx 4.1 .

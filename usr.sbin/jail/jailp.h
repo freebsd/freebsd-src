@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 James Gritton.
  * All rights reserved.
  *
@@ -64,6 +66,7 @@
 #define JF_PERSIST	0x0100	/* Jail is temporarily persistent */
 #define JF_TIMEOUT	0x0200	/* A command (or process kill) timed out */
 #define JF_SLEEPQ	0x0400	/* Waiting on a command and/or timeout */
+#define JF_FROM_RUNQ	0x0800	/* Has already been on the run queue */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)
@@ -85,6 +88,7 @@ enum intparam {
 	IP_EXEC_POSTSTOP,	/* Commands run outside jail after removing */
 	IP_EXEC_PRESTART,	/* Commands run outside jail before creating */
 	IP_EXEC_PRESTOP,	/* Commands run outside jail before removing */
+	IP_EXEC_CREATED,	/* Commands run outside jail right after it was started */
 	IP_EXEC_START,		/* Commands run inside jail on creation */
 	IP_EXEC_STOP,		/* Commands run inside jail on removal */
 	IP_EXEC_SYSTEM_JAIL_USER,/* Get jail_user from system passwd file */
@@ -116,7 +120,6 @@ enum intparam {
 	KP_ALLOW_SOCKET_AF,
 	KP_ALLOW_SYSVIPC,
 	KP_DEVFS_RULESET,
-	KP_ENFORCE_STATFS,
 	KP_HOST_HOSTNAME,
 #ifdef INET
 	KP_IP4_ADDR,
@@ -223,6 +226,7 @@ extern struct cfjail *next_jail(void);
 extern int start_state(const char *target, int docf, unsigned state,
     int running);
 extern void requeue(struct cfjail *j, struct cfjails *queue);
+extern void requeue_head(struct cfjail *j, struct cfjails *queue);
 
 extern void yyerror(const char *);
 extern int yylex(void);

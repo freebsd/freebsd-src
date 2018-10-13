@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,9 +57,8 @@ void *
 hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
     int flags)
 {
-	long hashsize;
+	long hashsize, i;
 	LIST_HEAD(generic, generic) *hashtbl;
-	int i;
 
 	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */
@@ -112,9 +113,8 @@ static const int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531,
 void *
 phashinit_flags(int elements, struct malloc_type *type, u_long *nentries, int flags)
 {
-	long hashsize;
+	long hashsize, i;
 	LIST_HEAD(generic, generic) *hashtbl;
-	int i;
 
 	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */

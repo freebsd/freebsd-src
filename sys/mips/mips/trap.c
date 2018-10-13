@@ -1,6 +1,8 @@
 /*	$OpenBSD: trap.c,v 1.19 1998/09/30 12:40:41 pefo Exp $	*/
 /* tracked to 1.23 */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -17,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,7 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/trap.h>
 #include <machine/cpu.h>
+#include <machine/cpuinfo.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/md_var.h>
@@ -278,13 +280,8 @@ char *trap_type[] = {
 struct trapdebug trapdebug[TRAPSIZE], *trp = trapdebug;
 #endif
 
-#if defined(DDB) || defined(DEBUG)
-void stacktrace(struct trapframe *);
-void logstacktrace(struct trapframe *);
-#endif
-
 #define	KERNLAND(x)	((vm_offset_t)(x) >= VM_MIN_KERNEL_ADDRESS && (vm_offset_t)(x) < VM_MAX_KERNEL_ADDRESS)
-#define	DELAYBRANCH(x)	((int)(x) < 0)
+#define	DELAYBRANCH(x)	((x) & MIPS_CR_BR_DELAY)
 
 /*
  * MIPS load/store access type
@@ -339,12 +336,16 @@ static int emulate_unaligned_access(struct trapframe *frame, int mode);
 extern void fswintrberr(void); /* XXX */
 
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
-	struct trapframe *locr0 = td->td_frame;
+	struct trapframe *locr0;
 	struct sysentvec *se;
+	struct syscall_args *sa;
 	int error, nsaved;
 
+	locr0 = td->td_frame;
+	sa = &td->td_sa;
+	
 	bzero(sa->args, sizeof(sa->args));
 
 	/* compute next PC after syscall instruction */
@@ -525,11 +526,16 @@ trap(struct trapframe *trapframe)
 	char *msg = NULL;
 	intptr_t addr = 0;
 	register_t pc;
-	int cop;
+	int cop, error;
 	register_t *frame_regs;
 
 	trapdebug_enter(trapframe, 0);
-	
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return (0);
+	}
+#endif
 	type = (trapframe->cause & MIPS_CR_EXC_CODE) >> MIPS_CR_EXC_CODE_SHIFT;
 	if (TRAPF_USERMODE(trapframe)) {
 		type |= T_USER;
@@ -590,7 +596,8 @@ trap(struct trapframe *trapframe)
 			break;
 		}
 		if ((last_badvaddr == this_badvaddr) &&
-		    ((type & ~T_USER) != T_SYSCALL)) {
+		    ((type & ~T_USER) != T_SYSCALL) &&
+		    ((type & ~T_USER) != T_COP_UNUSABLE)) {
 			if (++count == 3) {
 				trap_frame_dump(trapframe);
 				panic("too many faults at %p\n", (void *)last_badvaddr);
@@ -682,14 +689,6 @@ trap(struct trapframe *trapframe)
 		if (td->td_pcb->pcb_onfault == NULL)
 			goto err;
 
-		/* check for fuswintr() or suswintr() getting a page fault */
-		/* XXX There must be a nicer way to do this.  */
-		if (td->td_pcb->pcb_onfault == fswintrberr) {
-			pc = (register_t)(intptr_t)td->td_pcb->pcb_onfault;
-			td->td_pcb->pcb_onfault = NULL;
-			return (pc);
-		}
-
 		goto dofault;
 
 	case T_TLB_LD_MISS + T_USER:
@@ -741,8 +740,11 @@ dofault:
 				}
 				goto err;
 			}
-			ucode = ftype;
-			i = ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+			i = SIGSEGV;
+			if (rv == KERN_PROTECTION_FAILURE)
+				ucode = SEGV_ACCERR;
+			else
+				ucode = SEGV_MAPERR;
 			addr = trapframe->pc;
 
 			msg = "BAD_PAGE_FAULT";
@@ -786,19 +788,18 @@ dofault:
 
 	case T_SYSCALL + T_USER:
 		{
-			struct syscall_args sa;
 			int error;
 
-			sa.trapframe = trapframe;
-			error = syscallenter(td, &sa);
+			td->td_sa.trapframe = trapframe;
+			error = syscallenter(td);
 
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))
 			if (trp == trapdebug)
-				trapdebug[TRAPSIZE - 1].code = sa.code;
+				trapdebug[TRAPSIZE - 1].code = td->td_sa.code;
 			else
-				trp[-1].code = sa.code;
+				trp[-1].code = td->td_sa.code;
 #endif
-			trapdebug_enter(td->td_frame, -sa.code);
+			trapdebug_enter(td->td_frame, -td->td_sa.code);
 
 			/*
 			 * The sync'ing of I & D caches for SYS_ptrace() is
@@ -806,7 +807,7 @@ dofault:
 			 * instead of being done here under a special check
 			 * for SYS_ptrace().
 			 */
-			syscallret(td, error, &sa);
+			syscallret(td, error);
 			return (trapframe->pc);
 		}
 
@@ -829,32 +830,34 @@ dofault:
 			intptr_t va;
 			uint32_t instr;
 
+			i = SIGTRAP;
+			ucode = TRAP_BRKPT;
+			addr = trapframe->pc;
+
 			/* compute address of break instruction */
 			va = trapframe->pc;
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
 
+			if (td->td_md.md_ss_addr != va)
+				break;
+
 			/* read break instruction */
 			instr = fuword32((caddr_t)va);
-#if 0
-			printf("trap: %s (%d) breakpoint %x at %x: (adr %x ins %x)\n",
-			    p->p_comm, p->p_pid, instr, trapframe->pc,
-			    p->p_md.md_ss_addr, p->p_md.md_ss_instr);	/* XXX */
-#endif
-			if (td->td_md.md_ss_addr != va ||
-			    instr != MIPS_BREAK_SSTEP) {
-				i = SIGTRAP;
-				addr = trapframe->pc;
+
+			if (instr != MIPS_BREAK_SSTEP)
 				break;
-			}
-			/*
-			 * The restoration of the original instruction and
-			 * the clearing of the berakpoint will be done later
-			 * by the call to ptrace_clear_single_step() in
-			 * issignal() when SIGTRAP is processed.
-			 */
-			addr = trapframe->pc;
-			i = SIGTRAP;
+
+			CTR3(KTR_PTRACE,
+			    "trap: tid %d, single step at %#lx: %#08x",
+			    td->td_tid, va, instr);
+			PROC_LOCK(p);
+			_PHOLD(p);
+			error = ptrace_clear_single_step(td);
+			_PRELE(p);
+			PROC_UNLOCK(p);
+			if (error == 0)
+				ucode = TRAP_TRACE;
 			break;
 		}
 
@@ -869,6 +872,7 @@ dofault:
 				va += sizeof(int);
 			printf("watch exception @ %p\n", (void *)va);
 			i = SIGTRAP;
+			ucode = TRAP_BRKPT;
 			addr = va;
 			break;
 		}
@@ -876,15 +880,12 @@ dofault:
 	case T_TRAP + T_USER:
 		{
 			intptr_t va;
-			uint32_t instr;
 			struct trapframe *locr0 = td->td_frame;
 
 			/* compute address of trap instruction */
 			va = trapframe->pc;
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
-			/* read break instruction */
-			instr = fuword32((caddr_t)va);
 
 			if (DELAYBRANCH(trapframe->cause)) {	/* Check BD bit */
 				locr0->pc = MipsEmulateBranch(locr0, trapframe->pc, 0,
@@ -909,12 +910,7 @@ dofault:
 					if (inst.RType.rd == 29) {
 						frame_regs = &(trapframe->zero);
 						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
-#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-						if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
-							frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE32;
-						else
-#endif
-						frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE;
+						frame_regs[inst.RType.rt] += td->td_md.md_tls_tcb_offset;
 						trapframe->pc += sizeof(int);
 						goto out;
 					}
@@ -973,19 +969,23 @@ dofault:
 	case T_COP_UNUSABLE + T_USER:
 		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
 		if (cop == 1) {
-#if !defined(CPU_HAVEFPU)
-		/* FP (COP1) instruction */
-			log_illegal_instruction("COP1_UNUSABLE", trapframe);
-			i = SIGILL;
-			break;
-#else
+			/* FP (COP1) instruction */
+			if (cpuinfo.fpu_id == 0) {
+				log_illegal_instruction("COP1_UNUSABLE",
+				    trapframe);
+				i = SIGILL;
+				break;
+			}
 			addr = trapframe->pc;
 			MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
 			PCPU_SET(fpcurthread, td);
+#if defined(__mips_n32) || defined(__mips_n64)
+			td->td_frame->sr |= MIPS_SR_COP_1_BIT | MIPS_SR_FR;
+#else
 			td->td_frame->sr |= MIPS_SR_COP_1_BIT;
+#endif
 			td->td_md.md_flags |= MDTD_FPUSED;
 			goto out;
-#endif
 		}
 #ifdef	CPU_CNMIPS
 		else  if (cop == 2) {
@@ -1030,7 +1030,7 @@ dofault:
 
 	case T_FPE + T_USER:
 		if (!emulate_fp) {
-			i = SIGILL;
+			i = SIGFPE;
 			addr = trapframe->pc;
 			break;
 		}
@@ -1079,7 +1079,6 @@ dofault:
 err:
 
 #if !defined(SMP) && defined(DEBUG)
-		stacktrace(!usermode ? trapframe : td->td_frame);
 		trapDump("trap");
 #endif
 #ifdef SMP
@@ -1101,8 +1100,10 @@ err:
 #endif
 
 #ifdef KDB
-		if (debugger_on_panic || kdb_active) {
+		if (debugger_on_panic) {
+			kdb_why = KDB_WHY_TRAP;
 			kdb_trap(type, 0, trapframe);
+			kdb_why = KDB_WHY_UNSET;
 		}
 #endif
 		panic("trap");
@@ -1299,18 +1300,6 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 	return (retAddr);
 }
 
-
-#if defined(DDB) || defined(DEBUG)
-/*
- * Print a stack backtrace.
- */
-void
-stacktrace(struct trapframe *regs)
-{
-	stacktrace_subr(regs->pc, regs->sp, regs->ra, printf);
-}
-#endif
-
 static void
 log_frame_dump(struct trapframe *frame)
 {
@@ -1349,13 +1338,8 @@ log_frame_dump(struct trapframe *frame)
 	log(LOG_ERR, "\tsr: %#jx\tmullo: %#jx\tmulhi: %#jx\tbadvaddr: %#jx\n",
 	    (intmax_t)frame->sr, (intmax_t)frame->mullo, (intmax_t)frame->mulhi, (intmax_t)frame->badvaddr);
 
-#ifdef IC_REG
-	log(LOG_ERR, "\tcause: %#jx\tpc: %#jx\tic: %#jx\n",
-	    (intmax_t)frame->cause, (intmax_t)frame->pc, (intmax_t)frame->ic);
-#else
 	log(LOG_ERR, "\tcause: %#jx\tpc: %#jx\n",
 	    (intmax_t)frame->cause, (intmax_t)frame->pc);
-#endif
 }
 
 #ifdef TRAP_DEBUG
@@ -1396,13 +1380,8 @@ trap_frame_dump(struct trapframe *frame)
 	printf("\tsr: %#jx\tmullo: %#jx\tmulhi: %#jx\tbadvaddr: %#jx\n",
 	    (intmax_t)frame->sr, (intmax_t)frame->mullo, (intmax_t)frame->mulhi, (intmax_t)frame->badvaddr);
 
-#ifdef IC_REG
-	printf("\tcause: %#jx\tpc: %#jx\tic: %#jx\n",
-	    (intmax_t)frame->cause, (intmax_t)frame->pc, (intmax_t)frame->ic);
-#else
 	printf("\tcause: %#jx\tpc: %#jx\n",
 	    (intmax_t)frame->cause, (intmax_t)frame->pc);
-#endif
 }
 
 #endif

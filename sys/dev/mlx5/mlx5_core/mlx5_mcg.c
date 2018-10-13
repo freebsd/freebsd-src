@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,36 +33,28 @@
 
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn)
 {
-	u32 in[MLX5_ST_SZ_DW(attach_to_mcg_in)];
-	u32 out[MLX5_ST_SZ_DW(attach_to_mcg_out)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(attach_to_mcg_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(attach_to_mcg_out)] = {0};
 
 	MLX5_SET(attach_to_mcg_in, in, opcode, MLX5_CMD_OP_ATTACH_TO_MCG);
 	MLX5_SET(attach_to_mcg_in, in, qpn, qpn);
 	memcpy(MLX5_ADDR_OF(attach_to_mcg_in, in, multicast_gid), mgid,
 	       sizeof(*mgid));
 
-	memset(out, 0, sizeof(out));
-	return mlx5_cmd_exec_check_status(dev, in,  sizeof(in),
-					       out, sizeof(out));
+	return mlx5_cmd_exec(dev, in,  sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_attach_mcg);
 
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn)
 {
-	u32 in[MLX5_ST_SZ_DW(detach_from_mcg_in)];
-	u32 out[MLX5_ST_SZ_DW(detach_from_mcg_out)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(detach_from_mcg_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(detach_from_mcg_out)] = {0};
 
 	MLX5_SET(detach_from_mcg_in, in, opcode, MLX5_CMD_OP_DETACH_FROM_MCG);
 	MLX5_SET(detach_from_mcg_in, in, qpn, qpn);
 	memcpy(MLX5_ADDR_OF(detach_from_mcg_in, in, multicast_gid), mgid,
 	       sizeof(*mgid));
 
-	memset(out, 0, sizeof(out));
-	return mlx5_cmd_exec_check_status(dev, in,  sizeof(in),
-					       out, sizeof(out));
+	return mlx5_cmd_exec(dev, in,  sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_detach_mcg);

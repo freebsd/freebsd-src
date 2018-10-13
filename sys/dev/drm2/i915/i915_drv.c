@@ -380,6 +380,7 @@ static const struct intel_gfx_device_id {
 	INTEL_VGA_DEVICE(0x016a, &intel_ivybridge_d_info), /* GT2 server */
 	INTEL_VGA_DEVICE(0x0402, &intel_haswell_d_info), /* GT1 desktop */
 	INTEL_VGA_DEVICE(0x0412, &intel_haswell_d_info), /* GT2 desktop */
+	INTEL_VGA_DEVICE(0x041e, &intel_haswell_d_info), /* GT2 desktop */
 	INTEL_VGA_DEVICE(0x0422, &intel_haswell_d_info), /* GT2 desktop */
 	INTEL_VGA_DEVICE(0x040a, &intel_haswell_d_info), /* GT1 server */
 	INTEL_VGA_DEVICE(0x041a, &intel_haswell_d_info), /* GT2 server */
@@ -1235,6 +1236,8 @@ MODULE_DEPEND(i915kms, agp, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbus, 1, 1, 1);
 MODULE_DEPEND(i915kms, iic, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbb, 1, 1, 1);
+MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:#", vgapci, i915, pciidlist,
+    nitems(pciidlist) - 1);
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \

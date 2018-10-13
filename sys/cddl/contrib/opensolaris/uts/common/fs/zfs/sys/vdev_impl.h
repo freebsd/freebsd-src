@@ -20,13 +20,14 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
 #define	_SYS_VDEV_IMPL_H
 
 #include <sys/avl.h>
+#include <sys/bpobj.h>
 #include <sys/dmu.h>
 #include <sys/metaslab.h>
 #include <sys/nvpair.h>
@@ -34,6 +35,9 @@
 #include <sys/vdev.h>
 #include <sys/dkio.h>
 #include <sys/uberblock_impl.h>
+#include <sys/vdev_indirect_mapping.h>
+#include <sys/vdev_indirect_births.h>
+#include <sys/vdev_removal.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -52,6 +56,11 @@ extern "C" {
 typedef struct vdev_queue vdev_queue_t;
 typedef struct vdev_cache vdev_cache_t;
 typedef struct vdev_cache_entry vdev_cache_entry_t;
+struct abd;
+
+extern int zfs_vdev_queue_depth_pct;
+extern int zfs_vdev_def_queue_depth;
+extern uint32_t zfs_vdev_async_write_max_active;
 
 /*
  * Virtual device operations
@@ -63,8 +72,20 @@ typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
 typedef void	vdev_io_start_func_t(zio_t *zio);
 typedef void	vdev_io_done_func_t(zio_t *zio);
 typedef void	vdev_state_change_func_t(vdev_t *vd, int, int);
+typedef boolean_t vdev_need_resilver_func_t(vdev_t *vd, uint64_t, size_t);
 typedef void	vdev_hold_func_t(vdev_t *vd);
 typedef void	vdev_rele_func_t(vdev_t *vd);
+
+typedef void	vdev_remap_cb_t(uint64_t inner_offset, vdev_t *vd,
+    uint64_t offset, uint64_t size, void *arg);
+typedef void	vdev_remap_func_t(vdev_t *vd, uint64_t offset, uint64_t size,
+    vdev_remap_cb_t callback, void *arg);
+/*
+ * Given a target vdev, translates the logical range "in" to the physical
+ * range "res"
+ */
+typedef void vdev_xlation_func_t(vdev_t *cvd, const range_seg_t *in,
+    range_seg_t *res);
 
 typedef struct vdev_ops {
 	vdev_open_func_t		*vdev_op_open;
@@ -73,8 +94,15 @@ typedef struct vdev_ops {
 	vdev_io_start_func_t		*vdev_op_io_start;
 	vdev_io_done_func_t		*vdev_op_io_done;
 	vdev_state_change_func_t	*vdev_op_state_change;
+	vdev_need_resilver_func_t	*vdev_op_need_resilver;
 	vdev_hold_func_t		*vdev_op_hold;
 	vdev_rele_func_t		*vdev_op_rele;
+	vdev_remap_func_t		*vdev_op_remap;
+	/*
+	 * For translating ranges from non-leaf vdevs (e.g. raidz) to leaves.
+	 * Used when initializing vdevs. Isn't used by leaf ops.
+	 */
+	vdev_xlation_func_t		*vdev_op_xlate;
 	char				vdev_op_type[16];
 	boolean_t			vdev_op_leaf;
 } vdev_ops_t;
@@ -83,7 +111,7 @@ typedef struct vdev_ops {
  * Virtual device properties
  */
 struct vdev_cache_entry {
-	char		*ve_data;
+	struct abd	*ve_abd;
 	uint64_t	ve_offset;
 	uint64_t	ve_lastused;
 	avl_node_t	ve_offset_node;
@@ -120,6 +148,45 @@ struct vdev_queue {
 	kmutex_t	vq_lock;
 	uint64_t	vq_lastoffset;
 };
+
+/*
+ * On-disk indirect vdev state.
+ *
+ * An indirect vdev is described exclusively in the MOS config of a pool.
+ * The config for an indirect vdev includes several fields, which are
+ * accessed in memory by a vdev_indirect_config_t.
+ */
+typedef struct vdev_indirect_config {
+	/*
+	 * Object (in MOS) which contains the indirect mapping. This object
+	 * contains an array of vdev_indirect_mapping_entry_phys_t ordered by
+	 * vimep_src. The bonus buffer for this object is a
+	 * vdev_indirect_mapping_phys_t. This object is allocated when a vdev
+	 * removal is initiated.
+	 *
+	 * Note that this object can be empty if none of the data on the vdev
+	 * has been copied yet.
+	 */
+	uint64_t	vic_mapping_object;
+
+	/*
+	 * Object (in MOS) which contains the birth times for the mapping
+	 * entries. This object contains an array of
+	 * vdev_indirect_birth_entry_phys_t sorted by vibe_offset. The bonus
+	 * buffer for this object is a vdev_indirect_birth_phys_t. This object
+	 * is allocated when a vdev removal is initiated.
+	 *
+	 * Note that this object can be empty if none of the vdev has yet been
+	 * copied.
+	 */
+	uint64_t	vic_births_object;
+
+	/*
+	 * This is the vdev ID which was removed previous to this vdev, or
+	 * UINT64_MAX if there are no previously removed vdevs.
+	 */
+	uint64_t	vic_prev_indirect_vdev;
+} vdev_indirect_config_t;
 
 /*
  * Virtual device descriptor
@@ -190,8 +257,81 @@ struct vdev {
 	uint64_t	vdev_deflate_ratio; /* deflation ratio (x512)	*/
 	uint64_t	vdev_islog;	/* is an intent log device	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
-	boolean_t	vdev_ishole;	/* is a hole in the namespace 	*/
+	boolean_t	vdev_ishole;	/* is a hole in the namespace	*/
+	kmutex_t	vdev_queue_lock; /* protects vdev_queue_depth	*/
 	uint64_t	vdev_top_zap;
+
+	/* pool checkpoint related */
+	space_map_t	*vdev_checkpoint_sm;	/* contains reserved blocks */
+	
+	boolean_t	vdev_initialize_exit_wanted;
+	vdev_initializing_state_t	vdev_initialize_state;
+	kthread_t	*vdev_initialize_thread;
+	/* Protects vdev_initialize_thread and vdev_initialize_state. */
+	kmutex_t	vdev_initialize_lock;
+	kcondvar_t	vdev_initialize_cv;
+	uint64_t	vdev_initialize_offset[TXG_SIZE];
+	uint64_t	vdev_initialize_last_offset;
+	range_tree_t	*vdev_initialize_tree;	/* valid while initializing */
+	uint64_t	vdev_initialize_bytes_est;
+	uint64_t	vdev_initialize_bytes_done;
+	time_t		vdev_initialize_action_time;	/* start and end time */
+
+	/* for limiting outstanding I/Os */
+	kmutex_t	vdev_initialize_io_lock;
+	kcondvar_t	vdev_initialize_io_cv;
+	uint64_t	vdev_initialize_inflight;
+
+	/*
+	 * Values stored in the config for an indirect or removing vdev.
+	 */
+	vdev_indirect_config_t	vdev_indirect_config;
+
+	/*
+	 * The vdev_indirect_rwlock protects the vdev_indirect_mapping
+	 * pointer from changing on indirect vdevs (when it is condensed).
+	 * Note that removing (not yet indirect) vdevs have different
+	 * access patterns (the mapping is not accessed from open context,
+	 * e.g. from zio_read) and locking strategy (e.g. svr_lock).
+	 */
+	krwlock_t vdev_indirect_rwlock;
+	vdev_indirect_mapping_t *vdev_indirect_mapping;
+	vdev_indirect_births_t *vdev_indirect_births;
+
+	/*
+	 * In memory data structures used to manage the obsolete sm, for
+	 * indirect or removing vdevs.
+	 *
+	 * The vdev_obsolete_segments is the in-core record of the segments
+	 * that are no longer referenced anywhere in the pool (due to
+	 * being freed or remapped and not referenced by any snapshots).
+	 * During a sync, segments are added to vdev_obsolete_segments
+	 * via vdev_indirect_mark_obsolete(); at the end of each sync
+	 * pass, this is appended to vdev_obsolete_sm via
+	 * vdev_indirect_sync_obsolete().  The vdev_obsolete_lock
+	 * protects against concurrent modifications of vdev_obsolete_segments
+	 * from multiple zio threads.
+	 */
+	kmutex_t	vdev_obsolete_lock;
+	range_tree_t	*vdev_obsolete_segments;
+	space_map_t	*vdev_obsolete_sm;
+
+	/*
+	 * The queue depth parameters determine how many async writes are
+	 * still pending (i.e. allocated by net yet issued to disk) per
+	 * top-level (vdev_async_write_queue_depth) and the maximum allowed
+	 * (vdev_max_async_write_queue_depth). These values only apply to
+	 * top-level vdevs.
+	 */
+	uint64_t	vdev_async_write_queue_depth;
+	uint64_t	vdev_max_async_write_queue_depth;
+
+	/*
+	 * Protects the vdev_scan_io_queue field itself as well as the
+	 * structure's contents (when present).
+	 */
+	kmutex_t			vdev_scan_io_queue_lock;
+	struct dsl_scan_io_queue	*vdev_scan_io_queue;
 
 	/*
 	 * Leaf vdev state.
@@ -331,9 +471,8 @@ extern void vdev_remove_parent(vdev_t *cvd);
 /*
  * vdev sync load and sync
  */
-extern void vdev_load_log_state(vdev_t *nvd, vdev_t *ovd);
 extern boolean_t vdev_log_state_valid(vdev_t *vd);
-extern void vdev_load(vdev_t *vd);
+extern int vdev_load(vdev_t *vd);
 extern int vdev_dtl_load(vdev_t *vd);
 extern void vdev_sync(vdev_t *vd, uint64_t txg);
 extern void vdev_sync_done(vdev_t *vd, uint64_t txg);
@@ -356,10 +495,13 @@ extern vdev_ops_t vdev_file_ops;
 extern vdev_ops_t vdev_missing_ops;
 extern vdev_ops_t vdev_hole_ops;
 extern vdev_ops_t vdev_spare_ops;
+extern vdev_ops_t vdev_indirect_ops;
 
 /*
  * Common size functions
  */
+extern void vdev_default_xlate(vdev_t *vd, const range_seg_t *in,
+    range_seg_t *out);
 extern uint64_t vdev_default_asize(vdev_t *vd, uint64_t psize);
 extern uint64_t vdev_get_min_asize(vdev_t *vd);
 extern void vdev_set_min_asize(vdev_t *vd);
@@ -367,11 +509,26 @@ extern void vdev_set_min_asize(vdev_t *vd);
 /*
  * Global variables
  */
+extern int vdev_standard_sm_blksz;
 /* zdb uses this tunable, so it must be declared here to make lint happy. */
 extern int zfs_vdev_cache_size;
 extern uint_t zfs_geom_probe_vdev_key;
 
+/*
+ * Functions from vdev_indirect.c
+ */
+extern void vdev_indirect_sync_obsolete(vdev_t *vd, dmu_tx_t *tx);
+extern boolean_t vdev_indirect_should_condense(vdev_t *vd);
+extern void spa_condense_indirect_start_sync(vdev_t *vd, dmu_tx_t *tx);
+extern int vdev_obsolete_sm_object(vdev_t *vd);
+extern boolean_t vdev_obsolete_counts_are_precise(vdev_t *vd);
+
 #ifdef illumos
+/*
+ * Other miscellaneous functions
+ */
+int vdev_checkpoint_sm_object(vdev_t *vd);
+
 /*
  * The vdev_buf_t is used to translate between zio_t and buf_t, and back again.
  */

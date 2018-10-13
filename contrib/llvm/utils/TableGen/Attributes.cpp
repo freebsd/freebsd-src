@@ -7,9 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include <algorithm>
 #include <string>
@@ -27,6 +25,7 @@ public:
 
 private:
   void emitTargetIndependentEnums(raw_ostream &OS);
+  void emitConversionFn(raw_ostream &OS);
   void emitFnAttrCompatCheck(raw_ostream &OS, bool IsStringAttr);
 
   void printEnumAttrClasses(raw_ostream &OS,
@@ -48,6 +47,27 @@ void Attributes::emitTargetIndependentEnums(raw_ostream &OS) {
 
   for (auto A : Attrs)
     OS << A->getName() << ",\n";
+
+  OS << "#endif\n";
+}
+
+void Attributes::emitConversionFn(raw_ostream &OS) {
+  OS << "#ifdef GET_ATTR_KIND_FROM_NAME\n";
+  OS << "#undef GET_ATTR_KIND_FROM_NAME\n";
+
+  std::vector<Record*> Attrs =
+      Records.getAllDerivedDefinitions("EnumAttr");
+
+  OS << "static Attribute::AttrKind getAttrKindFromName(StringRef AttrName) {\n";
+  OS << "  return StringSwitch<Attribute::AttrKind>(AttrName)\n";
+
+  for (auto A : Attrs) {
+    OS << "    .Case(\"" << A->getValueAsString("AttrString");
+    OS << "\", Attribute::" << A->getName() << ")\n";
+  }
+
+  OS << "    .Default(Attribute::None);\n";
+  OS << "}\n\n";
 
   OS << "#endif\n";
 }
@@ -93,7 +113,7 @@ void Attributes::emitFnAttrCompatCheck(raw_ostream &OS, bool IsStringAttr) {
       Records.getAllDerivedDefinitions("CompatRule");
 
   for (auto *Rule : CompatRules) {
-    std::string FuncName = Rule->getValueAsString("CompatFunc");
+    StringRef FuncName = Rule->getValueAsString("CompatFunc");
     OS << "  Ret &= " << FuncName << "(Caller, Callee);\n";
   }
 
@@ -107,7 +127,7 @@ void Attributes::emitFnAttrCompatCheck(raw_ostream &OS, bool IsStringAttr) {
      << "                                const Function &Callee) {\n";
 
   for (auto *Rule : MergeRules) {
-    std::string FuncName = Rule->getValueAsString("MergeFunc");
+    StringRef FuncName = Rule->getValueAsString("MergeFunc");
     OS << "  " << FuncName << "(Caller, Callee);\n";
   }
 
@@ -134,7 +154,7 @@ void Attributes::printStrBoolAttrClasses(raw_ostream &OS,
   OS << "// StrBoolAttr classes\n";
   for (const auto *R : Records) {
     OS << "struct " << R->getName() << "Attr : StrBoolAttr {\n";
-    OS << "  static const char *getKind() {\n";
+    OS << "  static StringRef getKind() {\n";
     OS << "    return \"" << R->getValueAsString("AttrString") << "\";\n";
     OS << "  }\n";
     OS << "};\n";
@@ -144,6 +164,7 @@ void Attributes::printStrBoolAttrClasses(raw_ostream &OS,
 
 void Attributes::emit(raw_ostream &OS) {
   emitTargetIndependentEnums(OS);
+  emitConversionFn(OS);
   emitFnAttrCompatCheck(OS, false);
 }
 

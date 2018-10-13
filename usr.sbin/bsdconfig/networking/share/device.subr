@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #
-# Copyright (c) 2006-2015 Devin Teske
+# Copyright (c) 2006-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@ f_dprintf "%s: loading includes..." networking/device.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/media/wlan.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
 f_include $BSDCFG_SHARE/networking/media.subr
@@ -194,15 +195,29 @@ f_dialog_menu_netdev_edit()
 	# to ifconfig(8).
 	#
 	local defaultitem=
+	local wlans wlan_status
 	while :; do
 		local dhcp_status="$msg_disabled"
 		[ "$dhcp" ] && dhcp_status="$msg_enabled"
+
+		if f_device_is_wireless "$interface"; then
+			wlans=$( f_sysrc_get "wlans_$interface" )
+			wlan_status="$msg_unconfigured"
+			[ -e "$( f_sysrc_get wpa_supplicant_conf_file )" ] &&
+				wlan_status="$msg_configured"
+		fi
 
 		#
 		# Display configuration-edit menu
 		#
 		menu_list="
 			'X $msg_save_exit' '$msg_return_to_previous_menu'
+		" # END-QUOTE
+		f_device_is_wireless "$interface" && menu_list="$menu_list
+			'W $msg_wireless_networks' '$wlan_status'
+			'1 $msg_wlans'             '$wlans'
+		" # END-QUOTE
+		menu_list="$menu_list
 			'2 $msg_dhcp'      '$dhcp_status'
 			'3 $msg_ipaddr4'   '$ipaddr'
 			'4 $msg_netmask'   '$netmask'
@@ -251,6 +266,9 @@ f_dialog_menu_netdev_edit()
 		#
 		case "$tag" in
 		X\ *) break ;;
+		W\ *) f_dialog_menu_wireless_edit ;;
+		1\ *) f_dialog_menu_wlandev_edit \
+		      	"$interface" "${wlans%%[$IFS]*}" ;;
 		2\ *) #
 		      # Proceed cautiously (confirm with the user) if/when NFS-
 		      # mounts are active. If the network on which these mounts

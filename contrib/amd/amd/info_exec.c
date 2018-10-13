@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,8 +48,8 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amd.h>
+#include <sun_map.h>
 
-#define	MAX_LINE_LEN		1500
 
 /* forward declarations */
 int exec_init(mnt_map *m, char *map, time_t *tp);
@@ -74,13 +70,13 @@ fgets_timed(char *s, int size, int rdfd, int secs)
   if (!s || size < 0 || rdfd < 0)
     return 0;
 
-  s[0] = 0;
+  s[0] = '\0';
   if (size == 0)
     return s;
 
   start = clocktime(NULL);
   while (s[i] != '\n'  &&  i < size-1) {
-    s[i+1] = 0; /* places the requisite trailing '\0' */
+    s[i+1] = '\0'; /* places the requisite trailing '\0' */
 
     /* ready for reading */
     rval = read(rdfd, (void *)(s+i), 1);
@@ -114,7 +110,7 @@ fgets_timed(char *s, int size, int rdfd, int secs)
     FD_ZERO(&fds);
     FD_SET(rdfd, &fds);
 
-    rval = select(rdfd+1, &fds, 0, 0, &timeo);
+    rval = select(rdfd+1, &fds, NULL, NULL, &timeo);
     if (rval < 0) {
       /* error selecting */
       plog(XLOG_WARNING, "fgets_timed select error: %m");
@@ -165,9 +161,9 @@ read_line(char *buf, int size, int fd)
  * Try to locate a value in a query answer
  */
 static int
-exec_parse_qanswer(int fd, char *map, char *key, char **pval, time_t *tp)
+exec_parse_qanswer(mnt_map *m, int fd, char *map, char *key, char **pval, time_t *tp)
 {
-  char qanswer[MAX_LINE_LEN], *dc = 0;
+  char qanswer[INFO_MAX_LINE_LEN], *dc = NULL;
   int chuck = 0;
   int line_no = 0;
 
@@ -197,7 +193,7 @@ exec_parse_qanswer(int fd, char *map, char *key, char **pval, time_t *tp)
     /*
      * Find beginning of value (query answer)
      */
-    for (cp = qanswer; *cp && !isascii((int)*cp) && !isspace((int)*cp); cp++)
+    for (cp = qanswer; *cp && !isascii((unsigned char)*cp) && !isspace((unsigned char)*cp); cp++)
       ;;
 
     /* Ignore blank lines */
@@ -207,7 +203,10 @@ exec_parse_qanswer(int fd, char *map, char *key, char **pval, time_t *tp)
     /*
      * Return a copy of the data
      */
-    dc = strdup(cp);
+    if (m->cfm && (m->cfm->cfm_flags & CFM_SUN_MAP_SYNTAX))
+      dc = sun_entry2amd(key, cp);
+    else
+      dc = xstrdup(cp);
     *pval = dc;
     dlog("%s returns %s", key, dc);
 
@@ -324,7 +323,7 @@ exec_map_open(char *emap, char *key)
   close(pdes[1]);
 
   /* anti-zombie insurance */
-  while (waitpid(p1,0,0) < 0)
+  while (waitpid(p1, 0, 0) < 0)
     if (errno != EINTR)
       exit(errno);
 
@@ -416,7 +415,7 @@ exec_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
     if (tp)
       *tp = clocktime(NULL);
 
-    return exec_parse_qanswer(mapfd, map, key, pval, tp);
+    return exec_parse_qanswer(m, mapfd, map, key, pval, tp);
   }
 
   return errno;

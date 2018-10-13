@@ -2,6 +2,8 @@
 /*	$KAME: ipsec.h,v 1.44 2001/03/23 08:08:47 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -59,14 +61,22 @@ VNET_DECLARE(int, ip6_ipsec_ecn);
 #define	V_ip6_ipsec_ecn		VNET(ip6_ipsec_ecn)
 
 struct inpcb;
-extern int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
+struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
+    struct inpcb *, int *, int);
 
-struct m_tag;
-extern int ipsec6_common_input(struct mbuf **mp, int *offp, int proto);
-extern int ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff);
-extern void esp6_ctlinput(int, struct sockaddr *, void *);
-extern int ipsec6_process_packet(struct mbuf *, struct ipsecrequest *);
+void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
+    union sockaddr_union *);
+int ipsec6_input(struct mbuf *, int, int);
+int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec6_forward(struct mbuf *);
+int ipsec6_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec6_output(struct mbuf *, struct inpcb *);
+int ipsec6_capability(struct mbuf *, u_int);
+int ipsec6_common_input_cb(struct mbuf *, struct secasvar *, int, int);
+int ipsec6_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
+
+int ip6_ipsec_filtertunnel(struct mbuf *);
+int ip6_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 #endif /*_KERNEL*/
 
 #endif /*_NETIPSEC_IPSEC6_H_*/

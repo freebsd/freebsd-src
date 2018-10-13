@@ -1,7 +1,6 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from md5-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from md5-586.pl. */
 #ifdef PIC
-.file	"md5-586.S"
 .text
 .globl	md5_block_asm_data_order
 .type	md5_block_asm_data_order,@function
@@ -33,319 +32,319 @@ md5_block_asm_data_order:
 	andl	%ebx,%edi
 	leal	3614090360(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	4(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	3905402710(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	8(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	606105819(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	12(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	3250441966(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	16(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 	xorl	%edx,%edi
 	andl	%ebx,%edi
 	leal	4118548399(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	20(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	1200080426(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	24(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	2821735955(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	28(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	4249261313(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	32(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 	xorl	%edx,%edi
 	andl	%ebx,%edi
 	leal	1770035416(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	36(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	2336552879(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	40(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	4294925233(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	44(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	2304563134(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	48(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 	xorl	%edx,%edi
 	andl	%ebx,%edi
 	leal	1804603682(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	52(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	4254626195(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	56(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	2792965006(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	60(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	1236535329(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	4(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 
 
+	xorl	%ebx,%edi
+	andl	%edx,%edi
 	leal	4129170786(%eax,%ebp,1),%eax
-	xorl	%ebx,%edi
-	andl	%edx,%edi
+	xorl	%ecx,%edi
 	movl	24(%esi),%ebp
-	xorl	%ecx,%edi
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
+	xorl	%eax,%edi
+	andl	%ecx,%edi
 	leal	3225465664(%edx,%ebp,1),%edx
-	xorl	%eax,%edi
-	andl	%ecx,%edi
+	xorl	%ebx,%edi
 	movl	44(%esi),%ebp
-	xorl	%ebx,%edi
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
+	xorl	%edx,%edi
+	andl	%ebx,%edi
 	leal	643717713(%ecx,%ebp,1),%ecx
-	xorl	%edx,%edi
-	andl	%ebx,%edi
+	xorl	%eax,%edi
 	movl	(%esi),%ebp
-	xorl	%eax,%edi
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
+	xorl	%ecx,%edi
+	andl	%eax,%edi
 	leal	3921069994(%ebx,%ebp,1),%ebx
-	xorl	%ecx,%edi
-	andl	%eax,%edi
-	movl	20(%esi),%ebp
 	xorl	%edx,%edi
+	movl	20(%esi),%ebp
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
 	addl	%ecx,%ebx
 
+	xorl	%ebx,%edi
+	andl	%edx,%edi
 	leal	3593408605(%eax,%ebp,1),%eax
-	xorl	%ebx,%edi
-	andl	%edx,%edi
+	xorl	%ecx,%edi
 	movl	40(%esi),%ebp
-	xorl	%ecx,%edi
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
+	xorl	%eax,%edi
+	andl	%ecx,%edi
 	leal	38016083(%edx,%ebp,1),%edx
-	xorl	%eax,%edi
-	andl	%ecx,%edi
+	xorl	%ebx,%edi
 	movl	60(%esi),%ebp
-	xorl	%ebx,%edi
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
+	xorl	%edx,%edi
+	andl	%ebx,%edi
 	leal	3634488961(%ecx,%ebp,1),%ecx
-	xorl	%edx,%edi
-	andl	%ebx,%edi
+	xorl	%eax,%edi
 	movl	16(%esi),%ebp
-	xorl	%eax,%edi
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
+	xorl	%ecx,%edi
+	andl	%eax,%edi
 	leal	3889429448(%ebx,%ebp,1),%ebx
-	xorl	%ecx,%edi
-	andl	%eax,%edi
+	xorl	%edx,%edi
 	movl	36(%esi),%ebp
-	xorl	%edx,%edi
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
 	addl	%ecx,%ebx
 
+	xorl	%ebx,%edi
+	andl	%edx,%edi
 	leal	568446438(%eax,%ebp,1),%eax
-	xorl	%ebx,%edi
-	andl	%edx,%edi
-	movl	56(%esi),%ebp
 	xorl	%ecx,%edi
+	movl	56(%esi),%ebp
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
-	leal	3275163606(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	andl	%ecx,%edi
-	movl	12(%esi),%ebp
+	leal	3275163606(%edx,%ebp,1),%edx
 	xorl	%ebx,%edi
+	movl	12(%esi),%ebp
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
-	leal	4107603335(%ecx,%ebp,1),%ecx
 	xorl	%edx,%edi
 	andl	%ebx,%edi
-	movl	32(%esi),%ebp
+	leal	4107603335(%ecx,%ebp,1),%ecx
 	xorl	%eax,%edi
+	movl	32(%esi),%ebp
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
-	leal	1163531501(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	andl	%eax,%edi
-	movl	52(%esi),%ebp
+	leal	1163531501(%ebx,%ebp,1),%ebx
 	xorl	%edx,%edi
+	movl	52(%esi),%ebp
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
 	addl	%ecx,%ebx
 
-	leal	2850285829(%eax,%ebp,1),%eax
 	xorl	%ebx,%edi
 	andl	%edx,%edi
-	movl	8(%esi),%ebp
+	leal	2850285829(%eax,%ebp,1),%eax
 	xorl	%ecx,%edi
+	movl	8(%esi),%ebp
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
-	leal	4243563512(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	andl	%ecx,%edi
-	movl	28(%esi),%ebp
+	leal	4243563512(%edx,%ebp,1),%edx
 	xorl	%ebx,%edi
+	movl	28(%esi),%ebp
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
-	leal	1735328473(%ecx,%ebp,1),%ecx
 	xorl	%edx,%edi
 	andl	%ebx,%edi
-	movl	48(%esi),%ebp
+	leal	1735328473(%ecx,%ebp,1),%ecx
 	xorl	%eax,%edi
+	movl	48(%esi),%ebp
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
-	leal	2368359562(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	andl	%eax,%edi
-	movl	20(%esi),%ebp
+	leal	2368359562(%ebx,%ebp,1),%ebx
 	xorl	%edx,%edi
+	movl	20(%esi),%ebp
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
@@ -357,13 +356,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	4294588738(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	32(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	2272392833(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	2272392833(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	44(%esi),%ebp
 	addl	%edi,%edx
@@ -375,13 +374,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	1839030562(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	56(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	4259657740(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	4259657740(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	4(%esi),%ebp
 	addl	%edi,%ebx
@@ -393,13 +392,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	2763975236(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	16(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	1272893353(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	1272893353(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	28(%esi),%ebp
 	addl	%edi,%edx
@@ -411,13 +410,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	4139469664(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	40(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	3200236656(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	3200236656(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	52(%esi),%ebp
 	addl	%edi,%ebx
@@ -429,13 +428,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	681279174(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	3936430074(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	3936430074(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	12(%esi),%ebp
 	addl	%edi,%edx
@@ -447,13 +446,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	3572445317(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	24(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	76029189(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	76029189(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	36(%esi),%ebp
 	addl	%edi,%ebx
@@ -465,13 +464,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	3654602809(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	48(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	3873151461(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	3873151461(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	60(%esi),%ebp
 	addl	%edi,%edx
@@ -483,13 +482,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	530742520(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	8(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	3299628645(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	3299628645(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	(%esi),%ebp
 	addl	%edi,%ebx
@@ -681,7 +680,6 @@ md5_block_asm_data_order:
 	ret
 .size	md5_block_asm_data_order,.-.L_md5_block_asm_data_order_begin
 #else
-.file	"md5-586.S"
 .text
 .globl	md5_block_asm_data_order
 .type	md5_block_asm_data_order,@function
@@ -713,319 +711,319 @@ md5_block_asm_data_order:
 	andl	%ebx,%edi
 	leal	3614090360(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	4(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	3905402710(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	8(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	606105819(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	12(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	3250441966(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	16(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 	xorl	%edx,%edi
 	andl	%ebx,%edi
 	leal	4118548399(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	20(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	1200080426(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	24(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	2821735955(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	28(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	4249261313(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	32(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 	xorl	%edx,%edi
 	andl	%ebx,%edi
 	leal	1770035416(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	36(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	2336552879(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	40(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	4294925233(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	44(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	2304563134(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	48(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 	xorl	%edx,%edi
 	andl	%ebx,%edi
 	leal	1804603682(%eax,%ebp,1),%eax
 	xorl	%edx,%edi
-	addl	%edi,%eax
-	movl	%ebx,%edi
-	roll	$7,%eax
 	movl	52(%esi),%ebp
+	addl	%edi,%eax
+	roll	$7,%eax
+	movl	%ebx,%edi
 	addl	%ebx,%eax
 
 	xorl	%ecx,%edi
 	andl	%eax,%edi
 	leal	4254626195(%edx,%ebp,1),%edx
 	xorl	%ecx,%edi
-	addl	%edi,%edx
-	movl	%eax,%edi
-	roll	$12,%edx
 	movl	56(%esi),%ebp
+	addl	%edi,%edx
+	roll	$12,%edx
+	movl	%eax,%edi
 	addl	%eax,%edx
 
 	xorl	%ebx,%edi
 	andl	%edx,%edi
 	leal	2792965006(%ecx,%ebp,1),%ecx
 	xorl	%ebx,%edi
-	addl	%edi,%ecx
-	movl	%edx,%edi
-	roll	$17,%ecx
 	movl	60(%esi),%ebp
+	addl	%edi,%ecx
+	roll	$17,%ecx
+	movl	%edx,%edi
 	addl	%edx,%ecx
 
 	xorl	%eax,%edi
 	andl	%ecx,%edi
 	leal	1236535329(%ebx,%ebp,1),%ebx
 	xorl	%eax,%edi
-	addl	%edi,%ebx
-	movl	%ecx,%edi
-	roll	$22,%ebx
 	movl	4(%esi),%ebp
+	addl	%edi,%ebx
+	roll	$22,%ebx
+	movl	%ecx,%edi
 	addl	%ecx,%ebx
 
 
 
+	xorl	%ebx,%edi
+	andl	%edx,%edi
 	leal	4129170786(%eax,%ebp,1),%eax
-	xorl	%ebx,%edi
-	andl	%edx,%edi
+	xorl	%ecx,%edi
 	movl	24(%esi),%ebp
-	xorl	%ecx,%edi
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
+	xorl	%eax,%edi
+	andl	%ecx,%edi
 	leal	3225465664(%edx,%ebp,1),%edx
-	xorl	%eax,%edi
-	andl	%ecx,%edi
+	xorl	%ebx,%edi
 	movl	44(%esi),%ebp
-	xorl	%ebx,%edi
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
+	xorl	%edx,%edi
+	andl	%ebx,%edi
 	leal	643717713(%ecx,%ebp,1),%ecx
-	xorl	%edx,%edi
-	andl	%ebx,%edi
+	xorl	%eax,%edi
 	movl	(%esi),%ebp
-	xorl	%eax,%edi
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
+	xorl	%ecx,%edi
+	andl	%eax,%edi
 	leal	3921069994(%ebx,%ebp,1),%ebx
-	xorl	%ecx,%edi
-	andl	%eax,%edi
-	movl	20(%esi),%ebp
 	xorl	%edx,%edi
+	movl	20(%esi),%ebp
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
 	addl	%ecx,%ebx
 
+	xorl	%ebx,%edi
+	andl	%edx,%edi
 	leal	3593408605(%eax,%ebp,1),%eax
-	xorl	%ebx,%edi
-	andl	%edx,%edi
+	xorl	%ecx,%edi
 	movl	40(%esi),%ebp
-	xorl	%ecx,%edi
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
+	xorl	%eax,%edi
+	andl	%ecx,%edi
 	leal	38016083(%edx,%ebp,1),%edx
-	xorl	%eax,%edi
-	andl	%ecx,%edi
+	xorl	%ebx,%edi
 	movl	60(%esi),%ebp
-	xorl	%ebx,%edi
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
+	xorl	%edx,%edi
+	andl	%ebx,%edi
 	leal	3634488961(%ecx,%ebp,1),%ecx
-	xorl	%edx,%edi
-	andl	%ebx,%edi
+	xorl	%eax,%edi
 	movl	16(%esi),%ebp
-	xorl	%eax,%edi
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
+	xorl	%ecx,%edi
+	andl	%eax,%edi
 	leal	3889429448(%ebx,%ebp,1),%ebx
-	xorl	%ecx,%edi
-	andl	%eax,%edi
+	xorl	%edx,%edi
 	movl	36(%esi),%ebp
-	xorl	%edx,%edi
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
 	addl	%ecx,%ebx
 
+	xorl	%ebx,%edi
+	andl	%edx,%edi
 	leal	568446438(%eax,%ebp,1),%eax
-	xorl	%ebx,%edi
-	andl	%edx,%edi
-	movl	56(%esi),%ebp
 	xorl	%ecx,%edi
+	movl	56(%esi),%ebp
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
-	leal	3275163606(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	andl	%ecx,%edi
-	movl	12(%esi),%ebp
+	leal	3275163606(%edx,%ebp,1),%edx
 	xorl	%ebx,%edi
+	movl	12(%esi),%ebp
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
-	leal	4107603335(%ecx,%ebp,1),%ecx
 	xorl	%edx,%edi
 	andl	%ebx,%edi
-	movl	32(%esi),%ebp
+	leal	4107603335(%ecx,%ebp,1),%ecx
 	xorl	%eax,%edi
+	movl	32(%esi),%ebp
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
-	leal	1163531501(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	andl	%eax,%edi
-	movl	52(%esi),%ebp
+	leal	1163531501(%ebx,%ebp,1),%ebx
 	xorl	%edx,%edi
+	movl	52(%esi),%ebp
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
 	addl	%ecx,%ebx
 
-	leal	2850285829(%eax,%ebp,1),%eax
 	xorl	%ebx,%edi
 	andl	%edx,%edi
-	movl	8(%esi),%ebp
+	leal	2850285829(%eax,%ebp,1),%eax
 	xorl	%ecx,%edi
+	movl	8(%esi),%ebp
 	addl	%edi,%eax
 	movl	%ebx,%edi
 	roll	$5,%eax
 	addl	%ebx,%eax
 
-	leal	4243563512(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	andl	%ecx,%edi
-	movl	28(%esi),%ebp
+	leal	4243563512(%edx,%ebp,1),%edx
 	xorl	%ebx,%edi
+	movl	28(%esi),%ebp
 	addl	%edi,%edx
 	movl	%eax,%edi
 	roll	$9,%edx
 	addl	%eax,%edx
 
-	leal	1735328473(%ecx,%ebp,1),%ecx
 	xorl	%edx,%edi
 	andl	%ebx,%edi
-	movl	48(%esi),%ebp
+	leal	1735328473(%ecx,%ebp,1),%ecx
 	xorl	%eax,%edi
+	movl	48(%esi),%ebp
 	addl	%edi,%ecx
 	movl	%edx,%edi
 	roll	$14,%ecx
 	addl	%edx,%ecx
 
-	leal	2368359562(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	andl	%eax,%edi
-	movl	20(%esi),%ebp
+	leal	2368359562(%ebx,%ebp,1),%ebx
 	xorl	%edx,%edi
+	movl	20(%esi),%ebp
 	addl	%edi,%ebx
 	movl	%ecx,%edi
 	roll	$20,%ebx
@@ -1037,13 +1035,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	4294588738(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	32(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	2272392833(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	2272392833(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	44(%esi),%ebp
 	addl	%edi,%edx
@@ -1055,13 +1053,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	1839030562(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	56(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	4259657740(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	4259657740(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	4(%esi),%ebp
 	addl	%edi,%ebx
@@ -1073,13 +1071,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	2763975236(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	16(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	1272893353(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	1272893353(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	28(%esi),%ebp
 	addl	%edi,%edx
@@ -1091,13 +1089,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	4139469664(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	40(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	3200236656(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	3200236656(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	52(%esi),%ebp
 	addl	%edi,%ebx
@@ -1109,13 +1107,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	681279174(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	3936430074(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	3936430074(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	12(%esi),%ebp
 	addl	%edi,%edx
@@ -1127,13 +1125,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	3572445317(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	24(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	76029189(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	76029189(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	36(%esi),%ebp
 	addl	%edi,%ebx
@@ -1145,13 +1143,13 @@ md5_block_asm_data_order:
 	xorl	%ebx,%edi
 	leal	3654602809(%eax,%ebp,1),%eax
 	addl	%edi,%eax
-	roll	$4,%eax
 	movl	48(%esi),%ebp
+	roll	$4,%eax
 	movl	%ebx,%edi
 
-	leal	3873151461(%edx,%ebp,1),%edx
 	addl	%ebx,%eax
 	xorl	%ecx,%edi
+	leal	3873151461(%edx,%ebp,1),%edx
 	xorl	%eax,%edi
 	movl	60(%esi),%ebp
 	addl	%edi,%edx
@@ -1163,13 +1161,13 @@ md5_block_asm_data_order:
 	xorl	%edx,%edi
 	leal	530742520(%ecx,%ebp,1),%ecx
 	addl	%edi,%ecx
-	roll	$16,%ecx
 	movl	8(%esi),%ebp
+	roll	$16,%ecx
 	movl	%edx,%edi
 
-	leal	3299628645(%ebx,%ebp,1),%ebx
 	addl	%edx,%ecx
 	xorl	%eax,%edi
+	leal	3299628645(%ebx,%ebp,1),%ebx
 	xorl	%ecx,%edi
 	movl	(%esi),%ebp
 	addl	%edi,%ebx

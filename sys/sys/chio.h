@@ -1,4 +1,8 @@
+/*	$NetBSD: chio.h,v 1.9 1997/09/29 17:32:26 mjacob Exp $	*/
+
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
  *

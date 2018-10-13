@@ -11,9 +11,11 @@ const YYINT error_len[] = {                        2,
 const YYINT error_defred[] = {                     0,
     1,    0,
 };
+#if defined(YYDESTRUCT_CALL) || defined(YYSTYPE_TOSTRING)
 const YYINT error_stos[] = {                       0,
   256,  258,
 };
+#endif /* YYDESTRUCT_CALL || YYSTYPE_TOSTRING */
 const YYINT error_dgoto[] = {                      2,
 };
 const YYINT error_sindex[] = {                  -256,

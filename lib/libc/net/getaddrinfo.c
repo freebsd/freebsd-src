@@ -1,6 +1,8 @@
 /*	$KAME: getaddrinfo.c,v 1.15 2000/07/09 04:37:24 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -35,7 +37,7 @@
  *   in the source code.  This is because RFC2553 is silent about which error
  *   code must be returned for which situation.
  * - freeaddrinfo(NULL).  RFC2553 is silent about it.  XNET 5.2 says it is
- *   invalid.  current code - SEGV on freeaddrinfo(NULL)
+ *   invalid.  Current code accepts NULL to be compatible with other OSes.
  *
  * Note:
  * - The code filters out AFs that are not supported by the kernel,
@@ -224,6 +226,7 @@ struct ai_order {
 	struct policyqueue *aio_dstpolicy;
 	struct addrinfo *aio_ai;
 	int aio_matchlen;
+	int aio_initial_sequence;
 };
 
 static const ns_src default_dns_files[] = {
@@ -358,14 +361,13 @@ freeaddrinfo(struct addrinfo *ai)
 {
 	struct addrinfo *next;
 
-	do {
+	while (ai != NULL) {
 		next = ai->ai_next;
-		if (ai->ai_canonname)
-			free(ai->ai_canonname);
+		free(ai->ai_canonname);
 		/* no need to free(ai->ai_addr) */
 		free(ai);
 		ai = next;
-	} while (ai);
+	}
 }
 
 static int
@@ -690,9 +692,8 @@ reorder(struct addrinfo *sentinel)
 		return(n);
 
 	/* allocate a temporary array for sort and initialization of it. */
-	if ((aio = malloc(sizeof(*aio) * n)) == NULL)
+	if ((aio = calloc(n, sizeof(*aio))) == NULL)
 		return(n);	/* give up reordering */
-	memset(aio, 0, sizeof(*aio) * n);
 
 	/* retrieve address selection policy from the kernel */
 	TAILQ_INIT(&policyhead);
@@ -708,6 +709,7 @@ reorder(struct addrinfo *sentinel)
 		aio[i].aio_dstpolicy = match_addrselectpolicy(ai->ai_addr,
 							      &policyhead);
 		set_source(&aio[i], &policyhead);
+		aio[i].aio_initial_sequence = i;
 	}
 
 	/* perform sorting. */
@@ -947,7 +949,7 @@ matchlen(struct sockaddr *src, struct sockaddr *dst)
 
 	while (s < lim)
 		if ((r = (*d++ ^ *s++)) != 0) {
-			while (r < addrlen * 8) {
+			while ((r & 0x80) == 0) {
 				match++;
 				r <<= 1;
 			}
@@ -1066,6 +1068,23 @@ comp_dst(const void *arg1, const void *arg2)
 	}
 
 	/* Rule 10: Otherwise, leave the order unchanged. */
+
+	/* 
+	 * Note that qsort is unstable; so, we can't return zero and 
+	 * expect the order to be unchanged.
+	 * That also means we can't depend on the current position of
+	 * dst2 being after dst1.  We must enforce the initial order
+	 * with an explicit compare on the original position.
+	 * The qsort specification requires that "When the same objects 
+	 * (consisting of width bytes, irrespective of their current 
+	 * positions in the array) are passed more than once to the 
+	 * comparison function, the results shall be consistent with one 
+	 * another."  
+	 * In other words, If A < B, then we must also return B > A.
+	 */
+	if (dst2->aio_initial_sequence < dst1->aio_initial_sequence)
+		return(1);
+
 	return(-1);
 }
 
@@ -1258,7 +1277,8 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		 * does not accept.  So we need to separate the case for
 		 * AF_INET.
 		 */
-		if (inet_aton(hostname, (struct in_addr *)pton) != 1)
+		if (inet_aton(hostname, (struct in_addr *)pton) != 1 ||
+		    hostname[strspn(hostname, "0123456789.xabcdefXABCDEF")] != '\0')
 			return 0;
 		p = pton;
 		break;
@@ -1430,9 +1450,8 @@ copy_ai(const struct addrinfo *pai)
 	size_t l;
 
 	l = sizeof(*ai) + pai->ai_addrlen;
-	if ((ai = (struct addrinfo *)malloc(l)) == NULL)
+	if ((ai = calloc(1, l)) == NULL)
 		return NULL;
-	memset(ai, 0, l);
 	memcpy(ai, pai, sizeof(*ai));
 	ai->ai_addr = (struct sockaddr *)(void *)(ai + 1);
 	memcpy(ai->ai_addr, pai->ai_addr, pai->ai_addrlen);
@@ -1855,8 +1874,7 @@ addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
 		size = new_ai.ai_addrlen + sizeof(struct addrinfo) +
 			_ALIGNBYTES;
 
-		sentinel = (struct addrinfo *)malloc(size);
-		memset(sentinel, 0, size);
+		sentinel = calloc(1, size);
 
 		memcpy(sentinel, &new_ai, sizeof(struct addrinfo));
 		sentinel->ai_addr = (struct sockaddr *)_ALIGN((char *)sentinel +
@@ -1869,8 +1887,7 @@ addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
 			memcpy(&size, p, sizeof(size_t));
 			p += sizeof(size_t);
 
-			sentinel->ai_canonname = (char *)malloc(size + 1);
-			memset(sentinel->ai_canonname, 0, size + 1);
+			sentinel->ai_canonname = calloc(1, size + 1);
 
 			memcpy(sentinel->ai_canonname, p, size);
 			p += size;
@@ -2249,6 +2266,8 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	struct res_target q, q2;
 	res_state res;
 
+	ai = NULL;
+
 	hostname = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
 
@@ -2327,16 +2346,16 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	/* prefer IPv6 */
 	if (q.next) {
 		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai, res);
-		if (ai) {
+		if (ai != NULL) {
 			cur->ai_next = ai;
 			while (cur && cur->ai_next)
 				cur = cur->ai_next;
 		}
 	}
-	if (!ai || pai->ai_family != AF_UNSPEC ||
+	if (ai == NULL || pai->ai_family != AF_UNSPEC ||
 	    (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) != AI_V4MAPPED) {
 		ai = getanswer(buf, q.n, q.name, q.qtype, pai, res);
-		if (ai)
+		if (ai != NULL)
 			cur->ai_next = ai;
 	}
 	free(buf);

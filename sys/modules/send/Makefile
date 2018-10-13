@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH: ${.CURDIR}/../../netinet6
+.PATH: ${SRCTOP}/sys/netinet6
 
 KMOD=	send
 SRCS=	send.c

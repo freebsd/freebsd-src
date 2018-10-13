@@ -49,6 +49,12 @@ __FBSDID("$FreeBSD$");
 #define	EFX_EV_QSTAT_INCR(_eep, _stat)
 #endif
 
+/*
+ * Non-interrupting event queue requires interrrupting event queue to
+ * refer to for wake-up events even if wake ups are never used.
+ * It could be even non-allocated event queue.
+ */
+#define	EFX_EF10_ALWAYS_INTERRUPTING_EVQ_INDEX	(0)
 
 static	__checkReturn	boolean_t
 ef10_ev_rx(
@@ -140,6 +146,7 @@ efx_mcdi_init_evq(
 	__in		size_t nevs,
 	__in		uint32_t irq,
 	__in		uint32_t us,
+	__in		uint32_t flags,
 	__in		boolean_t low_latency)
 {
 	efx_mcdi_req_t req;
@@ -150,6 +157,7 @@ efx_mcdi_init_evq(
 	uint64_t addr;
 	int npages;
 	int i;
+	boolean_t interrupting;
 	int ev_cut_through;
 	efx_rc_t rc;
 
@@ -170,6 +178,9 @@ efx_mcdi_init_evq(
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_INSTANCE, instance);
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_IRQ_NUM, irq);
 
+	interrupting = ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT);
+
 	/*
 	 * On Huntington RX and TX event batching can only be requested together
 	 * (even if the datapath firmware doesn't actually support RX
@@ -178,9 +189,22 @@ efx_mcdi_init_evq(
 	 * So always enable RX and TX event batching, and enable event cut
 	 * through if we want low latency operation.
 	 */
-	ev_cut_through = low_latency ? 1 : 0;
+	switch (flags & EFX_EVQ_FLAGS_TYPE_MASK) {
+	case EFX_EVQ_FLAGS_TYPE_AUTO:
+		ev_cut_through = low_latency ? 1 : 0;
+		break;
+	case EFX_EVQ_FLAGS_TYPE_THROUGHPUT:
+		ev_cut_through = 0;
+		break;
+	case EFX_EVQ_FLAGS_TYPE_LOW_LATENCY:
+		ev_cut_through = 1;
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
 	MCDI_IN_POPULATE_DWORD_6(req, INIT_EVQ_IN_FLAGS,
-	    INIT_EVQ_IN_FLAG_INTERRUPTING, 1,
+	    INIT_EVQ_IN_FLAG_INTERRUPTING, interrupting,
 	    INIT_EVQ_IN_FLAG_RPTR_DOS, 0,
 	    INIT_EVQ_IN_FLAG_INT_ARMD, 0,
 	    INIT_EVQ_IN_FLAG_CUT_THRU, ev_cut_through,
@@ -197,7 +221,7 @@ efx_mcdi_init_evq(
 		unsigned int ticks;
 
 		if ((rc = efx_ev_usecs_to_ticks(enp, us, &ticks)) != 0)
-			goto fail2;
+			goto fail3;
 
 		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_MODE,
 		    MC_CMD_INIT_EVQ_IN_TMR_INT_HLDOFF);
@@ -225,18 +249,20 @@ efx_mcdi_init_evq(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail3;
+		goto fail4;
 	}
 
 	if (req.emr_out_length_used < MC_CMD_INIT_EVQ_OUT_LEN) {
 		rc = EMSGSIZE;
-		goto fail4;
+		goto fail5;
 	}
 
 	/* NOTE: ignore the returned IRQ param as firmware does not set it. */
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
@@ -257,12 +283,15 @@ efx_mcdi_init_evq_v2(
 	__in		efsys_mem_t *esmp,
 	__in		size_t nevs,
 	__in		uint32_t irq,
-	__in		uint32_t us)
+	__in		uint32_t us,
+	__in		uint32_t flags)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[
 		MAX(MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
 		    MC_CMD_INIT_EVQ_V2_OUT_LEN)];
+	boolean_t interrupting;
+	unsigned int evq_type;
 	efx_qword_t *dma_addr;
 	uint64_t addr;
 	int npages;
@@ -286,11 +315,28 @@ efx_mcdi_init_evq_v2(
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_V2_IN_INSTANCE, instance);
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_V2_IN_IRQ_NUM, irq);
 
+	interrupting = ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT);
+
+	switch (flags & EFX_EVQ_FLAGS_TYPE_MASK) {
+	case EFX_EVQ_FLAGS_TYPE_AUTO:
+		evq_type = MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_AUTO;
+		break;
+	case EFX_EVQ_FLAGS_TYPE_THROUGHPUT:
+		evq_type = MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_THROUGHPUT;
+		break;
+	case EFX_EVQ_FLAGS_TYPE_LOW_LATENCY:
+		evq_type = MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_LOW_LATENCY;
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
 	MCDI_IN_POPULATE_DWORD_4(req, INIT_EVQ_V2_IN_FLAGS,
-	    INIT_EVQ_V2_IN_FLAG_INTERRUPTING, 1,
+	    INIT_EVQ_V2_IN_FLAG_INTERRUPTING, interrupting,
 	    INIT_EVQ_V2_IN_FLAG_RPTR_DOS, 0,
 	    INIT_EVQ_V2_IN_FLAG_INT_ARMD, 0,
-	    INIT_EVQ_V2_IN_FLAG_TYPE, MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_AUTO);
+	    INIT_EVQ_V2_IN_FLAG_TYPE, evq_type);
 
 	/* If the value is zero then disable the timer */
 	if (us == 0) {
@@ -302,7 +348,7 @@ efx_mcdi_init_evq_v2(
 		unsigned int ticks;
 
 		if ((rc = efx_ev_usecs_to_ticks(enp, us, &ticks)) != 0)
-			goto fail2;
+			goto fail3;
 
 		MCDI_IN_SET_DWORD(req, INIT_EVQ_V2_IN_TMR_MODE,
 		    MC_CMD_INIT_EVQ_V2_IN_TMR_INT_HLDOFF);
@@ -330,12 +376,12 @@ efx_mcdi_init_evq_v2(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail3;
+		goto fail4;
 	}
 
 	if (req.emr_out_length_used < MC_CMD_INIT_EVQ_V2_OUT_LEN) {
 		rc = EMSGSIZE;
-		goto fail4;
+		goto fail5;
 	}
 
 	/* NOTE: ignore the returned IRQ param as firmware does not set it. */
@@ -345,6 +391,8 @@ efx_mcdi_init_evq_v2(
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
@@ -416,6 +464,7 @@ ef10_ev_qcreate(
 	__in		size_t n,
 	__in		uint32_t id,
 	__in		uint32_t us,
+	__in		uint32_t flags,
 	__in		efx_evq_t *eep)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
@@ -449,7 +498,17 @@ ef10_ev_qcreate(
 	eep->ee_mcdi	= ef10_ev_mcdi;
 
 	/* Set up the event queue */
-	irq = index;	/* INIT_EVQ expects function-relative vector number */
+	/* INIT_EVQ expects function-relative vector number */
+	if ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT) {
+		irq = index;
+	} else if (index == EFX_EF10_ALWAYS_INTERRUPTING_EVQ_INDEX) {
+		irq = index;
+		flags = (flags & ~EFX_EVQ_FLAGS_NOTIFY_MASK) |
+		    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT;
+	} else {
+		irq = EFX_EF10_ALWAYS_INTERRUPTING_EVQ_INDEX;
+	}
 
 	/*
 	 * Interrupts may be raised for events immediately after the queue is
@@ -459,29 +518,30 @@ ef10_ev_qcreate(
 	if (encp->enc_init_evq_v2_supported) {
 		/*
 		 * On Medford the low latency license is required to enable RX
-		 * and event cut through and to disable RX batching.  We let the
-		 * firmware decide the settings to use. If the adapter has a low
-		 * latency license, it will choose the best settings for low
-		 * latency, otherwise it choose the best settings for
-		 * throughput.
+		 * and event cut through and to disable RX batching.  If event
+		 * queue type in flags is auto, we let the firmware decide the
+		 * settings to use. If the adapter has a low latency license,
+		 * it will choose the best settings for low latency, otherwise
+		 * it will choose the best settings for throughput.
 		 */
-		rc = efx_mcdi_init_evq_v2(enp, index, esmp, n, irq, us);
+		rc = efx_mcdi_init_evq_v2(enp, index, esmp, n, irq, us, flags);
 		if (rc != 0)
 			goto fail4;
 	} else {
 		/*
-		 * On Huntington we need to specify the settings to use. We
-		 * favour latency if the adapter is running low-latency firmware
-		 * and throughput otherwise, and assume not support RX batching
-		 * implies the adapter is running low-latency firmware.  (This
-		 * is how it's been done since Huntington GA. It doesn't make
-		 * much sense with hindsight as the 'low-latency' firmware
-		 * variant is also best for throughput, and does now support RX
-		 * batching).
+		 * On Huntington we need to specify the settings to use.
+		 * If event queue type in flags is auto, we favour throughput
+		 * if the adapter is running virtualization supporting firmware
+		 * (i.e. the full featured firmware variant)
+		 * and latency otherwise. The Ethernet Virtual Bridging
+		 * capability is used to make this decision. (Note though that
+		 * the low latency firmware variant is also best for
+		 * throughput and corresponding type should be specified
+		 * to choose it.)
 		 */
-		boolean_t low_latency = encp->enc_rx_batching_enabled ? 0 : 1;
-		rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, us,
-				    low_latency);
+		boolean_t low_latency = encp->enc_datapath_cap_evb ? 0 : 1;
+		rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, us, flags,
+		    low_latency);
 		if (rc != 0)
 			goto fail5;
 	}
@@ -800,7 +860,7 @@ ef10_ev_rx(
 		 * or headers that are too long for the parser.
 		 * Headers and checksums must be validated by the host.
 		 */
-		// TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE);
+		/* TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE); */
 		goto deliver;
 	}
 
@@ -990,7 +1050,7 @@ ef10_ev_mcdi(
 	__in_opt	void *arg)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	unsigned code;
+	unsigned int code;
 	boolean_t should_abort = B_FALSE;
 
 	EFX_EV_QSTAT_INCR(eep, EV_MCDI_RESPONSE);

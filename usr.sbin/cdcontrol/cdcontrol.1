@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2008
+.Dd August 25, 2016
 .Dt CDCONTROL 1
 .Os
 .Sh NAME
@@ -17,9 +17,7 @@ The
 utility is a program to control audio features of a CD drive.
 The device is a name such
 as
-.Pa cd0
-or
-.Pa acd0 .
+.Pa cd0 .
 .Pp
 If no
 .Ar command
@@ -37,9 +35,7 @@ Verbose mode.
 Print as much information as possible.
 .It Fl f Ar device
 Specify a device, such as
-.Pa /dev/cd0
-or
-.Pa acd0 .
+.Pa /dev/cd0 .
 Both absolute path and relative to
 .Pa /dev
 filename are possible.
@@ -56,9 +52,7 @@ option is specified,
 tries opening first
 .Pa /dev/cdrom ,
 then
-.Pa /dev/cd0 ,
-and finally
-.Pa /dev/acd0 .
+.Pa /dev/cd0 .
 .El
 .Pp
 The available commands are listed below.
@@ -206,10 +200,8 @@ These variables have been deprecated in favour of
 .Ev CDROM .
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /dev/mcd0" -compact
+.Bl -tag -width ".Pa /dev/cd0" -compact
 .It Pa /dev/cd0
-.It Pa /dev/mcd0
-.It Pa /dev/acd0
 .El
 .Sh HISTORY
 The

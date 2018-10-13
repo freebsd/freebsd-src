@@ -1,4 +1,4 @@
-/*	$NetBSD: t_rnd.c,v 1.5 2012/03/18 09:46:50 jruoho Exp $	*/
+/*	$NetBSD: t_rnd.c,v 1.10 2017/01/13 21:30:41 christos Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,19 +27,19 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_rnd.c,v 1.5 2012/03/18 09:46:50 jruoho Exp $");
+__RCSID("$NetBSD: t_rnd.c,v 1.10 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/rnd.h>
+#include <sys/rndio.h>
 
 #include <atf-c.h>
 
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(RNDADDDATA);
 ATF_TC_HEAD(RNDADDDATA, tc)
@@ -86,10 +86,29 @@ ATF_TC_BODY(RNDADDDATA2, tc)
 	ATF_REQUIRE_ERRNO(EINVAL, rump_sys_ioctl(fd, RNDADDDATA, &rd) == -1);
 }
 
+ATF_TC(read_random);
+ATF_TC_HEAD(read_random, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "does reading /dev/random return "
+	    "within reasonable time");
+	atf_tc_set_md_var(tc, "timeout", "10");
+}
+
+ATF_TC_BODY(read_random, tc)
+{
+	char buf[128];
+	int fd;
+
+	rump_init();
+	RL(fd = rump_sys_open("/dev/random", O_RDONLY));
+	RL(rump_sys_read(fd, buf, sizeof(buf)));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, RNDADDDATA);
 	ATF_TP_ADD_TC(tp, RNDADDDATA2);
+	ATF_TP_ADD_TC(tp, read_random);
 
 	return atf_no_error();
 }

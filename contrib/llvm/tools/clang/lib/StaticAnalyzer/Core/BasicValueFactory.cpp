@@ -33,6 +33,13 @@ void LazyCompoundValData::Profile(llvm::FoldingSetNodeID& ID,
   ID.AddPointer(region);
 }
 
+void PointerToMemberData::Profile(
+    llvm::FoldingSetNodeID& ID, const DeclaratorDecl *D,
+    llvm::ImmutableList<const CXXBaseSpecifier *> L) {
+  ID.AddPointer(D);
+  ID.AddPointer(L.getInternalPointer());
+}
+
 typedef std::pair<SVal, uintptr_t> SValData;
 typedef std::pair<SVal, SVal> SValPair;
 
@@ -142,6 +149,49 @@ BasicValueFactory::getLazyCompoundValData(const StoreRef &store,
   return D;
 }
 
+const PointerToMemberData *BasicValueFactory::getPointerToMemberData(
+    const DeclaratorDecl *DD, llvm::ImmutableList<const CXXBaseSpecifier*> L) {
+  llvm::FoldingSetNodeID ID;
+  PointerToMemberData::Profile(ID, DD, L);
+  void *InsertPos;
+
+  PointerToMemberData *D =
+      PointerToMemberDataSet.FindNodeOrInsertPos(ID, InsertPos);
+
+  if (!D) {
+    D = (PointerToMemberData*) BPAlloc.Allocate<PointerToMemberData>();
+    new (D) PointerToMemberData(DD, L);
+    PointerToMemberDataSet.InsertNode(D, InsertPos);
+  }
+
+  return D;
+}
+
+const clang::ento::PointerToMemberData *BasicValueFactory::accumCXXBase(
+    llvm::iterator_range<CastExpr::path_const_iterator> PathRange,
+    const nonloc::PointerToMember &PTM) {
+  nonloc::PointerToMember::PTMDataType PTMDT = PTM.getPTMData();
+  const DeclaratorDecl *DD = nullptr;
+  llvm::ImmutableList<const CXXBaseSpecifier *> PathList;
+
+  if (PTMDT.isNull() || PTMDT.is<const DeclaratorDecl *>()) {
+    if (PTMDT.is<const DeclaratorDecl *>())
+      DD = PTMDT.get<const DeclaratorDecl *>();
+
+    PathList = CXXBaseListFactory.getEmptyList();
+  } else { // const PointerToMemberData *
+    const PointerToMemberData *PTMD =
+        PTMDT.get<const PointerToMemberData *>();
+    DD = PTMD->getDeclaratorDecl();
+
+    PathList = PTMD->getCXXBaseList();
+  }
+
+  for (const auto &I : llvm::reverse(PathRange))
+    PathList = prependCXXBase(I, PathList);
+  return getPointerToMemberData(DD, PathList);
+}
+
 const llvm::APSInt*
 BasicValueFactory::evalAPSInt(BinaryOperator::Opcode Op,
                              const llvm::APSInt& V1, const llvm::APSInt& V2) {
@@ -175,6 +225,8 @@ BasicValueFactory::evalAPSInt(BinaryOperator::Opcode Op,
       // test these conditions symbolically.
 
       // FIXME: Expand these checks to include all undefined behavior.
+      if (V1.isSigned() && V1.isNegative())
+        return nullptr;
 
       if (V2.isSigned() && V2.isNegative())
         return nullptr;

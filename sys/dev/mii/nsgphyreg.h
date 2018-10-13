@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wind River Systems
  * Copyright (c) 2001
  *	Bill Paul <wpaul@bsdi.com>.  All rights reserved.

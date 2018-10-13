@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/arm/gic_common.h>
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
  */
 static int gic_v3_fdt_probe(device_t);
 static int gic_v3_fdt_attach(device_t);
+static int gic_v3_fdt_print_child(device_t, device_t);
 
 static struct resource *gic_v3_ofw_bus_alloc_res(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
@@ -64,6 +66,7 @@ static device_method_t gic_v3_fdt_methods[] = {
 	DEVMETHOD(device_attach,	gic_v3_fdt_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_print_child,		gic_v3_fdt_print_child),
 	DEVMETHOD(bus_alloc_resource,		gic_v3_ofw_bus_alloc_res),
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
 
@@ -116,13 +119,12 @@ gic_v3_fdt_attach(device_t dev)
 {
 	struct gic_v3_softc *sc;
 	pcell_t redist_regions;
-#ifdef INTRNG
 	intptr_t xref;
-#endif
 	int err;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->gic_bus = GIC_BUS_FDT;
 
 	/*
 	 * Recover number of the Re-Distributor regions.
@@ -137,7 +139,6 @@ gic_v3_fdt_attach(device_t dev)
 	if (err != 0)
 		goto error;
 
-#ifdef INTRNG
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 	sc->gic_pic = intr_pic_register(dev, xref);
 	if (sc->gic_pic == NULL) {
@@ -146,12 +147,14 @@ gic_v3_fdt_attach(device_t dev)
 		goto error;
 	}
 
+	/* Register xref */
+	OF_device_register_xref(xref, dev);
+
 	if (intr_pic_claim_root(dev, xref, arm_gic_v3_intr, sc,
 	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 		err = ENXIO;
 		goto error;
 	}
-#endif
 
 	/*
 	 * Try to register ITS to this GIC.
@@ -165,10 +168,8 @@ gic_v3_fdt_attach(device_t dev)
 		}
 	}
 
-#ifdef INTRNG
 	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) != 0)
 		sc->gic_nchildren = 0;
-#endif
 
 	return (err);
 
@@ -185,9 +186,24 @@ error:
 
 /* OFW bus interface */
 struct gic_v3_ofw_devinfo {
+	struct gic_v3_devinfo	di_gic_dinfo;
 	struct ofw_bus_devinfo	di_dinfo;
 	struct resource_list	di_rl;
 };
+
+static int
+gic_v3_fdt_print_child(device_t bus, device_t child)
+{
+	struct gic_v3_ofw_devinfo *di = device_get_ivars(child);
+	struct resource_list *rl = &di->di_rl;
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, child);
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += bus_print_child_footer(bus, child);
+
+	return (retval);
+}
 
 static const struct ofw_bus_devinfo *
 gic_v3_ofw_get_devinfo(device_t bus __unused, device_t child)
@@ -250,10 +266,12 @@ static int
 gic_v3_ofw_bus_attach(device_t dev)
 {
 	struct gic_v3_ofw_devinfo *di;
+	struct gic_v3_softc *sc;
 	device_t child;
 	phandle_t parent, node;
 	pcell_t addr_cells, size_cells;
 
+	sc = device_get_softc(dev);
 	parent = ofw_bus_get_node(dev);
 	if (parent > 0) {
 		addr_cells = 2;
@@ -266,6 +284,14 @@ gic_v3_ofw_bus_attach(device_t dev)
 		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
 			/* Allocate and populate devinfo. */
 			di = malloc(sizeof(*di), M_GIC_V3, M_WAITOK | M_ZERO);
+
+			/* Read the numa node, or -1 if there is none */
+			if (OF_getencprop(node, "numa-node-id",
+			    &di->di_gic_dinfo.gic_domain,
+			    sizeof(di->di_gic_dinfo.gic_domain)) <= 0) {
+				di->di_gic_dinfo.gic_domain = -1;
+			}
+
 			if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node)) {
 				if (bootverbose) {
 					device_printf(dev,
@@ -296,43 +322,10 @@ gic_v3_ofw_bus_attach(device_t dev)
 				continue;
 			}
 
+			sc->gic_nchildren++;
 			device_set_ivars(child, di);
 		}
 	}
 
 	return (bus_generic_attach(dev));
 }
-
-#ifndef INTRNG
-static int gic_v3_its_fdt_probe(device_t dev);
-
-static device_method_t gic_v3_its_fdt_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		gic_v3_its_fdt_probe),
-
-	/* End */
-	DEVMETHOD_END
-};
-
-DEFINE_CLASS_1(its, gic_v3_its_fdt_driver, gic_v3_its_fdt_methods,
-    sizeof(struct gic_v3_its_softc), gic_v3_its_driver);
-
-static devclass_t gic_v3_its_fdt_devclass;
-
-EARLY_DRIVER_MODULE(its, gic, gic_v3_its_fdt_driver,
-    gic_v3_its_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-
-static int
-gic_v3_its_fdt_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, GIC_V3_ITS_COMPSTR))
-		return (ENXIO);
-
-	device_set_desc(dev, GIC_V3_ITS_DEVSTR);
-	return (BUS_PROBE_DEFAULT);
-}
-#endif

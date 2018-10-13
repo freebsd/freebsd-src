@@ -38,7 +38,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -360,8 +360,14 @@ kilobytes read per second
 kilobytes write per second
 .It qlen
 transactions queue length
-.It svc_t
-average duration of transactions, in milliseconds
+.It ms/r
+average duration of read transactions, in milliseconds
+.It ms/w
+average duration of write transactions, in milliseconds
+.It ms/o
+average duration of all other transactions, in milliseconds
+.It ms/t
+average duration of all transactions, in milliseconds
 .It %b
 % of time the device had one or more outstanding transactions
 .El

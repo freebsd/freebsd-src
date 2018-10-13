@@ -219,7 +219,7 @@ aesni_encrypt_icm(int rounds, const void *key_schedule, size_t len,
 
 	BSWAP_EPI64 = _mm_set_epi8(8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7);
 
-	ctr1 = _mm_loadu_si128((__m128i*)iv);
+	ctr1 = _mm_loadu_si128((const __m128i *)iv);
 	ctr1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
 
 	cnt = len / AES_BLOCK_LEN / 8;

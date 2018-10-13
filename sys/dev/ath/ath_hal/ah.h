@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -194,12 +196,13 @@ typedef enum {
 	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
-	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
 	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
 	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
 	HAL_CAP_DO_MYBEACON	= 248,	/* Supports HAL_RX_FILTER_MYBEACON */
+	HAL_CAP_TOA_LOCATIONING	= 249,	/* time of flight / arrival locationing */
+	HAL_CAP_TXTSTAMP_PREC	= 250,	/* tx desc tstamp precision (bits) */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -634,7 +637,8 @@ typedef enum {
 	REG_EXT_JAPAN_MIDBAND		= 1,
 	REG_EXT_FCC_DFS_HT40		= 2,
 	REG_EXT_JAPAN_NONDFS_HT40	= 3,
-	REG_EXT_JAPAN_DFS_HT40		= 4
+	REG_EXT_JAPAN_DFS_HT40		= 4,
+	REG_EXT_FCC_CH_144		= 5,
 } REG_EXT_BITMAP;
 
 enum {
@@ -758,6 +762,12 @@ typedef enum {
 	HAL_RESET_BBPANIC	= 1,		/* Reset because of BB panic */
 	HAL_RESET_FORCE_COLD	= 2,		/* Force full reset */
 } HAL_RESET_TYPE;
+
+enum {
+	HAL_RESET_POWER_ON,
+	HAL_RESET_WARM,
+	HAL_RESET_COLD
+};
 
 typedef struct {
 	uint8_t		kv_type;		/* one of HAL_CIPHER */
@@ -1393,6 +1403,7 @@ struct ath_hal {
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
 	HAL_BOOL  __ahdecl(*ah_isFastClockEnabled)(struct ath_hal *ah);
+	void	  __ahdecl(*ah_setDfsCacTxQuiet)(struct ath_hal *, HAL_BOOL);
 
 	/* Spectral Scan functions */
 	void	__ahdecl(*ah_spectralConfigure)(struct ath_hal *ah,
@@ -1625,7 +1636,8 @@ extern	int ath_hal_get_curmode(struct ath_hal *ah,
  */
 extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
     const HAL_RATE_TABLE *rates, uint32_t frameLen,
-    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble);
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble,
+    HAL_BOOL includeSifs);
 
 /*
  * Calculate the duration of an 11n frame.
@@ -1638,7 +1650,8 @@ extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
  */
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,
-		uint16_t rateix, HAL_BOOL shortPreamble);
+		uint16_t rateix, HAL_BOOL shortPreamble,
+		HAL_BOOL includeSifs);
 
 /*
  * Adjust the TSF.
@@ -1656,6 +1669,11 @@ void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
 int __ahdecl ath_hal_getcca(struct ath_hal *ah);
 
 /*
+ * Enable/disable and get self-gen frame (ACK, CTS) for CAC.
+ */
+void __ahdecl ath_hal_set_dfs_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL ena);
+
+/*
  * Read EEPROM data from ah_eepromdata
  */
 HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
@@ -1670,5 +1688,12 @@ ath_hal_get_mfp_qos(struct ath_hal *ah)
 	//return AH_PRIVATE(ah)->ah_mfp_qos;
 	return HAL_MFP_QOSDATA;
 }
+
+/*
+ * Convert between microseconds and core system clocks.
+ */
+extern u_int ath_hal_mac_clks(struct ath_hal *ah, u_int usecs);
+extern u_int ath_hal_mac_usec(struct ath_hal *ah, u_int clks);
+extern uint64_t ath_hal_mac_psec(struct ath_hal *ah, u_int clks);
 
 #endif /* _ATH_AH_H_ */

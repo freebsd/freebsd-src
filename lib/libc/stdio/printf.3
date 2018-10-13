@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,17 +32,26 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2009
+.Dd May 22, 2018
 .Dt PRINTF 3
 .Os
 .Sh NAME
-.Nm printf , fprintf , sprintf , snprintf , asprintf , dprintf ,
-.Nm vprintf , vfprintf, vsprintf , vsnprintf , vasprintf, vdprintf
+.Nm printf ,
+.Nm fprintf ,
+.Nm sprintf ,
+.Nm snprintf ,
+.Nm asprintf ,
+.Nm dprintf ,
+.Nm vprintf ,
+.Nm vfprintf ,
+.Nm vsprintf ,
+.Nm vsnprintf ,
+.Nm vasprintf ,
+.Nm vdprintf
 .Nd formatted output conversion
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd "#define _WITH_DPRINTF"
 .In stdio.h
 .Ft int
 .Fn printf "const char * restrict format" ...
@@ -642,6 +651,12 @@ integer indicated by the
 .Vt "int *"
 (or variant) pointer argument.
 No argument is converted.
+.It Cm m
+Print the string representation of the error code stored in the
+.Dv errno
+variable at the beginning of the call, as returned by
+.Xr strerror 3 .
+No argument is taken.
 .It Cm %
 A
 .Ql %
@@ -715,40 +730,18 @@ char *newfmt(const char *fmt, ...)
 }
 .Ed
 .Sh COMPATIBILITY
-Many application writers used the name
-.Va dprintf
-before the
-.Fn dprintf
-function was introduced in
-.St -p1003.1 ,
-so a prototype is not provided by default in order to avoid
-compatibility problems.
-Applications that wish to use the
-.Fn dprintf
-function described herein should either request a strict
-.St -p1003.1-2008
-environment by defining the macro
-.Dv _POSIX_C_SOURCE
-to the value 200809 or greater, or by defining the macro
-.Dv _WITH_DPRINTF ,
-prior to the inclusion of
-.In stdio.h .
-For compatibility with GNU libc, defining either
-.Dv _BSD_SOURCE
-or
-.Dv _GNU_SOURCE
-prior to the inclusion of
-.In stdio.h
-will also make
-.Fn dprintf
-available.
-.Pp
 The conversion formats
 .Cm \&%D , \&%O ,
 and
 .Cm \&%U
 are not standard and
 are provided only for backward compatibility.
+The conversion format
+.Cm \&%m
+is also not standard and provides the popular extension from the
+.Tn GNU C
+library.
+.Pp
 The effect of padding the
 .Cm %p
 format with zeros (either by the
@@ -786,9 +779,11 @@ or the return value would be too large to be represented by an
 .El
 .Sh SEE ALSO
 .Xr printf 1 ,
+.Xr errno 2 ,
 .Xr fmtcheck 3 ,
 .Xr scanf 3 ,
 .Xr setlocale 3 ,
+.Xr strerror 3 ,
 .Xr wprintf 3
 .Sh STANDARDS
 Subject to the caveats noted in the
@@ -841,6 +836,12 @@ and
 .Fn vdprintf
 functions were added in
 .Fx 8.0 .
+The
+.Cm \&%m
+format extension first appeared in the
+.Tn GNU C
+library, and was implemented in
+.Fx 12.0 .
 .Sh BUGS
 The
 .Nm

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2013
+.Dd September 26, 2016
 .Dt PSM 4
 .Os
 .Sh NAME
@@ -340,10 +340,12 @@ at boot-time.
 This will enable
 .Nm
 to handle packets from guest devices (sticks) and extra buttons.
-Similarly, extended support for IBM/Lenovo TrackPoint can be enabled
-by setting
+Similarly, extended support for IBM/Lenovo TrackPoint and Elantech touchpads
+can be enabled by setting
 .Va hw.psm.trackpoint_support
-to
+or
+.Va hw.psm.elantech_support,
+respectively, to
 .Em 1
 at boot-time.
 .Pp
@@ -589,12 +591,6 @@ You may also put zero in
 and
 .Dv rate ,
 and the default value for the fields will be selected.
-.\" .Pp
-.\" .It Dv MOUSE_GETVARS Ar mousevar_t *vars
-.\" .It Dv MOUSE_SETVARS Ar mousevar_t *vars
-.\" These commands are not supported by the
-.\" .Nm
-.\" driver.
 .Pp
 .It Dv MOUSE_READDATA Ar mousedata_t *data
 .\" The command reads the raw data from the device.
@@ -866,11 +862,6 @@ unless the X server is accessing the mouse via
 .Xr moused 8 .
 Clicking any button without moving the mouse may also work.
 .Sh BUGS
-The ioctl command
-.Dv MOUSEIOCREAD
-has been removed.
-It was never functional anyway.
-.Pp
 Enabling the extended support for Synaptics touchpads has been reported to
 cause problems with responsivity on some (newer) models of Synaptics
 hardware, particularly those with guest devices.

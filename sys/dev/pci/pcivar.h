@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
  *
@@ -31,6 +33,7 @@
 #define	_PCIVAR_H_
 
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 
 /* some PCI bus constants */
 #define	PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
@@ -174,7 +177,7 @@ struct pcicfg_ea {
 
 /* config header information common to all header types */
 typedef struct pcicfg {
-    struct device *dev;		/* device which owns this */
+    device_t	dev;		/* device which owns this */
 
     STAILQ_HEAD(, pci_map) maps; /* BARs */
 
@@ -255,6 +258,66 @@ typedef struct {
 } pcih2cfgregs;
 
 extern uint32_t pci_numdevs;
+
+struct pci_device_table {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	uint16_t
+		match_flag_vendor:1,
+		match_flag_device:1,
+		match_flag_subvendor:1,
+		match_flag_subdevice:1,
+		match_flag_class:1,
+		match_flag_subclass:1,
+		match_flag_revid:1,
+		match_flag_unused:9;
+#else
+	uint16_t
+		match_flag_unused:9,
+		match_flag_revid:1,
+		match_flag_subclass:1,
+		match_flag_class:1,
+		match_flag_subdevice:1,
+		match_flag_subvendor:1,
+		match_flag_device:1,
+		match_flag_vendor:1;
+#endif
+	uint16_t	vendor;
+	uint16_t	device;
+	uint16_t	subvendor;
+	uint16_t	subdevice;
+	uint16_t	class_id;
+	uint16_t	subclass;
+	uint16_t	revid;
+	uint16_t	unused;
+	uintptr_t	driver_data;
+	char		*descr;
+};
+
+#define	PCI_DEV(v, d)							\
+	.match_flag_vendor = 1, .vendor = (v),				\
+	.match_flag_device = 1, .device = (d)
+#define	PCI_SUBDEV(sv, sd)						\
+	.match_flag_subvendor = 1, .subvendor = (sv),			\
+	.match_flag_subdevice = 1, .subdevice = (sd)
+#define	PCI_CLASS(x)							\
+	.match_flag_class = 1, .class_id = (x)
+#define	PCI_SUBCLASS(x)							\
+	.match_flag_subclass = 1, .subclass = (x)
+#define	PCI_REVID(x)							\
+	.match_flag_revid = 1, .revid = (x)
+#define	PCI_DESCR(x)							\
+	.descr = (x)
+#define PCI_PNP_STR							\
+	"M16:mask;U16:vendor;U16:device;U16:subvendor;U16:subdevice;"	\
+	"U16:class;U16:subclass;U16:revid;"
+#define PCI_PNP_INFO(table)						\
+	MODULE_PNP_INFO(PCI_PNP_STR, pci, table, table,			\
+	    sizeof(table) / sizeof(table[0]))
+
+const struct pci_device_table *pci_match_device(device_t child,
+    const struct pci_device_table *id, size_t nelt);
+#define PCI_MATCH(child, table) \
+	pci_match_device(child, (table), nitems(table));
 
 /* Only if the prerequisites are present */
 #if defined(_SYS_BUS_H_) && defined(_SYS_PCIIO_H_)
@@ -413,7 +476,7 @@ pci_get_vpd_readonly(device_t dev, const char *kw, const char **vptr)
 static __inline int
 pci_is_vga_ioport_range(rman_res_t start, rman_res_t end)
 {
- 
+
 	return (((start >= 0x3b0 && end <= 0x3bb) ||
 	    (start >= 0x3c0 && end <= 0x3df)) ? 1 : 0);
 }
@@ -465,15 +528,36 @@ pci_find_cap(device_t dev, int capability, int *capreg)
 }
 
 static __inline int
+pci_find_next_cap(device_t dev, int capability, int start, int *capreg)
+{
+    return (PCI_FIND_NEXT_CAP(device_get_parent(dev), dev, capability, start,
+        capreg));
+}
+
+static __inline int
 pci_find_extcap(device_t dev, int capability, int *capreg)
 {
     return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
 }
 
 static __inline int
+pci_find_next_extcap(device_t dev, int capability, int start, int *capreg)
+{
+    return (PCI_FIND_NEXT_EXTCAP(device_get_parent(dev), dev, capability,
+        start, capreg));
+}
+
+static __inline int
 pci_find_htcap(device_t dev, int capability, int *capreg)
 {
     return (PCI_FIND_HTCAP(device_get_parent(dev), dev, capability, capreg));
+}
+
+static __inline int
+pci_find_next_htcap(device_t dev, int capability, int start, int *capreg)
+{
+    return (PCI_FIND_NEXT_HTCAP(device_get_parent(dev), dev, capability,
+        start, capreg));
 }
 
 static __inline int
@@ -585,6 +669,7 @@ int	pci_msix_device_blacklisted(device_t dev);
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 device_t pci_find_pcie_root_port(device_t dev);
+int	pci_get_max_payload(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
@@ -593,7 +678,11 @@ uint32_t pcie_read_config(device_t dev, int reg, int width);
 void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
 uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
 	    uint32_t value, int width);
+bool	pcie_flr(device_t dev, u_int max_delay, bool force);
+int	pcie_get_max_completion_timeout(device_t dev);
+bool	pcie_wait_for_pending_transactions(device_t dev, u_int max_delay);
 
+void	pci_print_faulted_dev(void);
 
 #ifdef BUS_SPACE_MAXADDR
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
@@ -629,5 +718,13 @@ int	vga_pci_is_boot_display(device_t dev);
 void *	vga_pci_map_bios(device_t dev, size_t *size);
 void	vga_pci_unmap_bios(device_t dev, void *bios);
 int	vga_pci_repost(device_t dev);
+
+/**
+ * Global eventhandlers invoked when PCI devices are added or removed
+ * from the system.
+ */
+typedef void (*pci_event_fn)(void *arg, device_t dev);
+EVENTHANDLER_DECLARE(pci_add_device, pci_event_fn);
+EVENTHANDLER_DECLARE(pci_delete_device, pci_event_fn);
 
 #endif /* _PCIVAR_H_ */

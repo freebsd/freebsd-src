@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -38,12 +40,6 @@
 #include <stdbool.h>
 #include <stringlist.h>
 
-#if defined(__FreeBSD__)
-#define	RET_SETGRENT	int
-#else
-#define	RET_SETGRENT	void
-#endif
-
 struct pwf {
 	int		    _altdir;
 	void		  (*_setpwent)(void);
@@ -51,7 +47,7 @@ struct pwf {
 	struct passwd * (*_getpwent)(void);
 	struct passwd	* (*_getpwuid)(uid_t uid);
 	struct passwd	* (*_getpwnam)(const char * nam);
-	RET_SETGRENT	  (*_setgrent)(void);
+	void		  (*_setgrent)(void);
 	void		  (*_endgrent)(void);
 	struct group  * (*_getgrent)(void);
 	struct group  * (*_getgrgid)(gid_t gid);
@@ -141,7 +137,7 @@ struct passwd * vgetpwnam(const char * nam);
 struct group * vgetgrent(void);
 struct group * vgetgrgid(gid_t gid);
 struct group * vgetgrnam(const char * nam);
-RET_SETGRENT   vsetgrent(void);
+void           vsetgrent(void);
 void           vendgrent(void);
 
 void copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,

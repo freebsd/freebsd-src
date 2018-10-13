@@ -13,7 +13,6 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 WARNS?=	3
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
-PPP_NO_ATM=
 PPP_NO_DES=
 PPP_NO_KLDLOAD=
 PPP_NO_NAT=
@@ -25,9 +24,6 @@ CONFS=	ppp.conf
 CONFSDIR=	${CONFDIR}/ppp
 CONFSMODE=	600
 
-.if ${MK_ATM} == "no"
-PPP_NO_ATM=
-.endif
 .if ${MK_NETGRAPH} == "no"
 PPP_NO_NETGRAPH=
 .endif
@@ -68,12 +64,6 @@ SRCS+=	nat_cmd.c
 LIBADD+=	alias
 .endif
 
-.if defined(PPP_NO_ATM)
-CFLAGS+=-DNOATM
-.else
-SRCS+=	atm.c
-.endif
-
 .if defined(PPP_NO_SUID)
 CFLAGS+=-DNOSUID
 .else
@@ -107,6 +97,7 @@ SRCS+=	netgraph.c
 
 .if defined(PPP_NO_PAM)
 CFLAGS+=-DNOPAM
+LIBADD+=	crypt
 .else
 LIBADD+=	pam
 .endif

@@ -40,10 +40,9 @@
 typedef struct poll_table_struct {
 } poll_table;
 
-static inline void
-poll_wait(struct linux_file *filp, wait_queue_head_t *wait_address, poll_table *p)
-{
-	selrecord(curthread, &filp->f_selinfo);
-}
+extern void linux_poll_wait(struct linux_file *, wait_queue_head_t *, poll_table *);
+#define	poll_wait(...) linux_poll_wait(__VA_ARGS__)
+
+extern void linux_poll_wakeup(struct linux_file *);
 
 #endif	/* _LINUX_POLL_H_ */

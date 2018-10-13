@@ -103,9 +103,9 @@ ssize_t sldns_bget_token(struct sldns_buffer *b, char *token, const char *delim,
  * after the keyword + k_del until we hit d_del
  * \param[in] f file pointer to read from
  * \param[in] keyword keyword to look for
- * \param[in] k_del keyword delimeter 
+ * \param[in] k_del keyword delimiter 
  * \param[out] data the data found 
- * \param[in] d_del the data delimeter
+ * \param[in] d_del the data delimiter
  * \param[in] data_limit maximum size the the data buffer
  * \return the number of character read
  */
@@ -116,9 +116,9 @@ ssize_t sldns_fget_keyword_data(FILE *f, const char *keyword, const char *k_del,
  * after the keyword + k_del until we hit d_del
  * \param[in] f file pointer to read from
  * \param[in] keyword keyword to look for
- * \param[in] k_del keyword delimeter 
+ * \param[in] k_del keyword delimiter 
  * \param[out] data the data found 
- * \param[in] d_del the data delimeter
+ * \param[in] d_del the data delimiter
  * \param[in] data_limit maximum size the the data buffer
  * \param[in] line_nr pointer to an integer containing the current line number (for
 debugging purposes)
@@ -131,9 +131,9 @@ ssize_t sldns_fget_keyword_data_l(FILE *f, const char *keyword, const char *k_de
  * after the keyword + k_del until we hit d_del
  * \param[in] b buffer pointer to read from
  * \param[in] keyword keyword to look for
- * \param[in] k_del keyword delimeter 
+ * \param[in] k_del keyword delimiter 
  * \param[out] data the data found 
- * \param[in] d_del the data delimeter
+ * \param[in] d_del the data delimiter
  * \param[in] data_limit maximum size the the data buffer
  * \return the number of character read
  */

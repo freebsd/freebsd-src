@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,7 +68,9 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int errors, numsig, pid, ret;
+	long pidl;
+	pid_t pid;
+	int errors, numsig, ret;
 	char *ep;
 
 	if (argc < 2)
@@ -137,8 +141,10 @@ main(int argc, char *argv[])
 		else
 #endif
 		{
-			pid = strtol(*argv, &ep, 10);
-			if (!**argv || *ep)
+			pidl = strtol(*argv, &ep, 10);
+			/* Check for overflow of pid_t. */
+			pid = (pid_t)pidl;
+			if (!**argv || *ep || pid != pidl)
 				errx(2, "illegal process id: %s", *argv);
 			ret = kill(pid, numsig);
 		}

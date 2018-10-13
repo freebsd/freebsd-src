@@ -13,7 +13,6 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Lex/Lexer.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
@@ -33,6 +32,13 @@ static std::string GetSignature(const FunctionDecl *Target) {
   if (!Target)
     return "";
   std::string Signature;
+
+  // When a flow sensitive bug happens in templated code we should not generate
+  // distinct hash value for every instantiation. Use the signature from the
+  // primary template.
+  if (const FunctionDecl *InstantiatedFrom =
+          Target->getTemplateInstantiationPattern())
+    Target = InstantiatedFrom;
 
   if (!isa<CXXConstructorDecl>(Target) && !isa<CXXDestructorDecl>(Target) &&
       !isa<CXXConversionDecl>(Target))
@@ -132,8 +138,11 @@ static std::string NormalizeLine(const SourceManager &SM, FullSourceLoc &L,
 
   StringRef Str = GetNthLineOfFile(SM.getBuffer(L.getFileID(), L),
                                    L.getExpansionLineNumber());
-  unsigned col = Str.find_first_not_of(Whitespaces);
-  col++;
+  StringRef::size_type col = Str.find_first_not_of(Whitespaces);
+  if (col == StringRef::npos)
+    col = 1; // The line only contains whitespace.
+  else
+    col++;
   SourceLocation StartOfLine =
       SM.translateLineCol(SM.getFileID(L), L.getExpansionLineNumber(), col);
   llvm::MemoryBuffer *Buffer =
@@ -180,7 +189,7 @@ std::string clang::GetIssueString(const SourceManager &SM,
 
   return (llvm::Twine(CheckerName) + Delimiter +
           GetEnclosingDeclContextSignature(D) + Delimiter +
-          llvm::utostr(IssueLoc.getExpansionColumnNumber()) + Delimiter +
+          Twine(IssueLoc.getExpansionColumnNumber()) + Delimiter +
           NormalizeLine(SM, IssueLoc, LangOpts) + Delimiter + BugType)
       .str();
 }

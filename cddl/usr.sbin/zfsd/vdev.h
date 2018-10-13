@@ -108,6 +108,12 @@ public:
 	 * \brief No-op copy constructor for nonexistent vdevs.
 	 */
 	Vdev();
+
+	/**
+	 * \brief No-op virtual destructor, since this class has virtual
+	 *        functions.
+	 */
+	virtual ~Vdev();
 	bool			DoesNotExist()	const;
 
 	/**
@@ -145,6 +151,10 @@ private:
 extern Vdev NonexistentVdev;
 
 //- Vdev Inline Public Methods ------------------------------------------------
+inline Vdev::~Vdev()
+{
+}
+
 inline DevdCtl::Guid
 Vdev::PoolGUID() const
 {

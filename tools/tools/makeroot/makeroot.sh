@@ -80,7 +80,7 @@ while getopts "B:de:f:g:K:k:l:p:s:" opt; do
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;
 	e)	EXTRAS="${EXTRAS} ${OPTARG}" ;;
-	f)	FILELIST="${OPTARG}"; DUPFLAG= ;;
+	f)	FILELIST="${OPTARG}";;
 	g)	GROUP="${OPTARG}" ;;
 	K)	KEYUSERS="${KEYUSERS} ${OPTARG}" ;;
 	k)	KEYDIR="${OPTARG}" ;;
@@ -237,6 +237,10 @@ fi
 if [ -n "${SIZE}" ]; then
 SIZEFLAG="-s ${SIZE}"
 fi
+
+# Zero out subsecond component of time= keywords as they are currently not
+# supported by makefs
+sed -i '' -E 's/(time=[0-9]*)\.[0-9]*/\1.0/' ${manifest}
 
 cd ${BSDROOT}; makefs ${DUPFLAG} -N ${DBDIR} ${SIZEFLAG} ${BFLAG} \
      -t ffs ${LABELFLAG} -f 256 ${IMGFILE} ${manifest}

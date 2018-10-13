@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
@@ -34,9 +36,14 @@
 #define	_SYS_PMC_H_
 
 #include <dev/hwpmc/pmc_events.h>
-
+#include <sys/proc.h>
+#include <sys/counter.h>
 #include <machine/pmc_mdep.h>
 #include <machine/profile.h>
+#ifdef _KERNEL
+#include <sys/epoch.h>
+#include <ck_queue.h>
+#endif
 
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		64 /* HW counter name size */
@@ -54,12 +61,16 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x03
-#define	PMC_VERSION_MINOR	0x01
+#define	PMC_VERSION_MAJOR	0x09
+#define	PMC_VERSION_MINOR	0x03
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
 	PMC_VERSION_MINOR << 16 | PMC_VERSION_PATCH)
+
+#define PMC_CPUID_LEN 64
+/* cpu model name for pmu lookup */
+extern char pmc_cpuid[PMC_CPUID_LEN];
 
 /*
  * Kinds of CPUs known.
@@ -105,7 +116,6 @@
 	__PMC_CPU(MIPS_74K,     0x202,  "MIPS 74K")		\
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
 	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
-	__PMC_CPU(PPC_MPC85XX,  0x340,  "Freescale PowerPC MPC85XX")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
 	__PMC_CPU(GENERIC, 	0x400,  "Generic")		\
 	__PMC_CPU(ARMV7_CORTEX_A5,	0x500,	"ARMv7 Cortex A5")	\
@@ -354,22 +364,23 @@ enum pmc_ops {
  * Flags used in operations on PMCs.
  */
 
-#define	PMC_F_FORCE		0x00000001 /*OP ADMIN force operation */
+#define	PMC_F_UNUSED1		0x00000001 /* unused */
 #define	PMC_F_DESCENDANTS	0x00000002 /*OP ALLOCATE track descendants */
 #define	PMC_F_LOG_PROCCSW	0x00000004 /*OP ALLOCATE track ctx switches */
 #define	PMC_F_LOG_PROCEXIT	0x00000008 /*OP ALLOCATE log proc exits */
 #define	PMC_F_NEWVALUE		0x00000010 /*OP RW write new value */
 #define	PMC_F_OLDVALUE		0x00000020 /*OP RW get old value */
-#define	PMC_F_KGMON		0x00000040 /*OP ALLOCATE kgmon(8) profiling */
+
 /* V2 API */
 #define	PMC_F_CALLCHAIN		0x00000080 /*OP ALLOCATE capture callchains */
+#define	PMC_F_USERCALLCHAIN	0x00000100 /*OP ALLOCATE use userspace stack */
 
 /* internal flags */
 #define	PMC_F_ATTACHED_TO_OWNER	0x00010000 /*attached to owner*/
 #define	PMC_F_NEEDS_LOGFILE	0x00020000 /*needs log file */
 #define	PMC_F_ATTACH_DONE	0x00040000 /*attached at least once */
 
-#define	PMC_CALLCHAIN_DEPTH_MAX	128
+#define	PMC_CALLCHAIN_DEPTH_MAX	512
 
 #define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
 
@@ -385,15 +396,15 @@ typedef uint64_t	pmc_value_t;
 /*
  * PMC IDs have the following format:
  *
- * +--------+----------+-----------+-----------+
- * |   CPU  | PMC MODE | PMC CLASS | ROW INDEX |
- * +--------+----------+-----------+-----------+
+ * +-----------------------+-------+-----------+
+ * |   CPU      | PMC MODE | CLASS | ROW INDEX |
+ * +-----------------------+-------+-----------+
  *
- * where each field is 8 bits wide.  Field 'CPU' is set to the
- * requested CPU for system-wide PMCs or PMC_CPU_ANY for process-mode
- * PMCs.  Field 'PMC MODE' is the allocated PMC mode.  Field 'PMC
- * CLASS' is the class of the PMC.  Field 'ROW INDEX' is the row index
- * for the PMC.
+ * where CPU is 12 bits, MODE 8, CLASS 4, and ROW INDEX 8  Field 'CPU'
+ * is set to the requested CPU for system-wide PMCs or PMC_CPU_ANY for
+ * process-mode PMCs.  Field 'PMC MODE' is the allocated PMC mode.
+ * Field 'PMC CLASS' is the class of the PMC.  Field 'ROW INDEX' is the
+ * row index for the PMC.
  *
  * The 'ROW INDEX' ranges over 0..NWPMCS where NHWPMCS is the total
  * number of hardware PMCs on this cpu.
@@ -401,12 +412,12 @@ typedef uint64_t	pmc_value_t;
 
 
 #define	PMC_ID_TO_ROWINDEX(ID)	((ID) & 0xFF)
-#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xFF00) >> 8)
-#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xFF0000) >> 16)
-#define	PMC_ID_TO_CPU(ID)	(((ID) & 0xFF000000) >> 24)
+#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xF00) >> 8)
+#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xFF000) >> 12)
+#define	PMC_ID_TO_CPU(ID)	(((ID) & 0xFFF00000) >> 20)
 #define	PMC_ID_MAKE_ID(CPU,MODE,CLASS,ROWINDEX)			\
-	((((CPU) & 0xFF) << 24) | (((MODE) & 0xFF) << 16) |	\
-	(((CLASS) & 0xFF) << 8) | ((ROWINDEX) & 0xFF))
+	((((CPU) & 0xFFF) << 20) | (((MODE) & 0xFF) << 12) |	\
+	(((CLASS) & 0xF) << 8) | ((ROWINDEX) & 0xFF))
 
 /*
  * Data structures for system calls supported by the pmc driver.
@@ -428,6 +439,7 @@ struct pmc_op_pmcallocate {
 	uint32_t	pm_flags;	/* additional modifiers PMC_F_* */
 	enum pmc_mode	pm_mode;	/* desired mode */
 	pmc_id_t	pm_pmcid;	/* [return] process pmc id */
+	pmc_value_t	pm_count;	/* initial/sample count */
 
 	union pmc_md_op_pmcallocate pm_md; /* MD layer extensions */
 };
@@ -551,6 +563,21 @@ struct pmc_op_configurelog {
  *
  * Retrieve pmc(4) driver-wide statistics.
  */
+#ifdef _KERNEL
+struct pmc_driverstats {
+	counter_u64_t	pm_intr_ignored;	/* #interrupts ignored */
+	counter_u64_t	pm_intr_processed;	/* #interrupts processed */
+	counter_u64_t	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
+	counter_u64_t	pm_syscalls;		/* #syscalls */
+	counter_u64_t	pm_syscall_errors;	/* #syscalls with errors */
+	counter_u64_t	pm_buffer_requests;	/* #buffer requests */
+	counter_u64_t	pm_buffer_requests_failed; /* #failed buffer requests */
+	counter_u64_t	pm_log_sweeps;		/* #sample buffer processing
+						   passes */
+	counter_u64_t	pm_merges;		/* merged k+u */
+	counter_u64_t	pm_overwrites;		/* UR overwrites */
+};
+#endif
 
 struct pmc_op_getdriverstats {
 	unsigned int	pm_intr_ignored;	/* #interrupts ignored */
@@ -624,10 +651,11 @@ struct pmc_op_getdyneventinfo {
 
 #define	PMC_HASH_SIZE				1024
 #define	PMC_MTXPOOL_SIZE			2048
-#define	PMC_LOG_BUFFER_SIZE			4
-#define	PMC_NLOGBUFFERS				1024
-#define	PMC_NSAMPLES				1024
-#define	PMC_CALLCHAIN_DEPTH			32
+#define	PMC_LOG_BUFFER_SIZE			256
+#define	PMC_NLOGBUFFERS_PCPU			32
+#define	PMC_NSAMPLES				256
+#define	PMC_CALLCHAIN_DEPTH			128
+#define	PMC_THREADLIST_MAX			128
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 
@@ -637,6 +665,8 @@ struct pmc_op_getdyneventinfo {
  * (b) - pmc_bufferlist_mtx (spin lock)
  * (k) - pmc_kthread_mtx (sleep lock)
  * (o) - po->po_mtx (spin lock)
+ * (g) - global_epoch_preempt (epoch)
+ * (p) - pmc_sx (sx)
  */
 
 /*
@@ -700,7 +730,10 @@ struct pmc_target {
  * field is '0'.
  *
  */
-
+struct pmc_pcpu_state {
+	uint8_t pps_stalled;
+	uint8_t pps_cpustate;
+} __aligned(CACHE_LINE_SIZE);
 struct pmc {
 	LIST_HEAD(,pmc_target)	pm_targets;	/* list of target processes */
 	LIST_ENTRY(pmc)		pm_next;	/* owner's list */
@@ -734,14 +767,15 @@ struct pmc {
 		pmc_value_t	pm_initial;	/* counting PMC modes */
 	} pm_sc;
 
-	volatile cpuset_t pm_stalled;	/* marks stalled sampling PMCs */
+	struct pmc_pcpu_state *pm_pcpu_state;
 	volatile cpuset_t pm_cpustate;	/* CPUs where PMC should be active */
 	uint32_t	pm_caps;	/* PMC capabilities */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */
 	struct pmc_owner *pm_owner;	/* owner thread state */
-	int		pm_runcount;	/* #cpus currently on */
+	counter_u64_t		pm_runcount;	/* #cpus currently on */
 	enum pmc_state	pm_state;	/* current PMC state */
+	uint32_t	pm_overflowcnt;	/* count overflow interrupts */
 
 	/*
 	 * The PMC ID field encodes the row-index for the PMC, its
@@ -749,6 +783,7 @@ struct pmc {
 	 */
 
 	pmc_id_t	pm_id;		/* allocated PMC id */
+	enum pmc_class pm_class;
 
 	/* md extensions */
 	union pmc_md_pmc	pm_md;
@@ -763,6 +798,25 @@ struct pmc {
 #define	PMC_TO_ROWINDEX(P)	PMC_ID_TO_ROWINDEX((P)->pm_id)
 #define	PMC_TO_CPU(P)		PMC_ID_TO_CPU((P)->pm_id)
 
+/*
+ * struct pmc_threadpmcstate
+ *
+ * Record per-PMC, per-thread state.
+ */
+struct pmc_threadpmcstate {
+	pmc_value_t	pt_pmcval;	/* per-thread reload count */
+};
+
+/*
+ * struct pmc_thread
+ *
+ * Record a 'target' thread being profiled.
+ */
+struct pmc_thread {
+	LIST_ENTRY(pmc_thread) pt_next;		/* linked list */
+	struct thread	*pt_td;			/* target thread */
+	struct pmc_threadpmcstate pt_pmcs[];	/* per-PMC state */
+};
 
 /*
  * struct pmc_process
@@ -785,9 +839,11 @@ struct pmc_targetstate {
 
 struct pmc_process {
 	LIST_ENTRY(pmc_process) pp_next;	/* hash chain */
+	LIST_HEAD(,pmc_thread) pp_tds;		/* list of threads */
+	struct mtx	*pp_tdslock;		/* lock on pp_tds thread list */
 	int		pp_refcnt;		/* reference count */
 	uint32_t	pp_flags;		/* flags PMC_PP_* */
-	struct proc	*pp_proc;		/* target thread */
+	struct proc	*pp_proc;		/* target process */
 	struct pmc_targetstate pp_pmcs[];       /* NHWPMCs */
 };
 
@@ -807,18 +863,18 @@ struct pmc_process {
 
 struct pmc_owner  {
 	LIST_ENTRY(pmc_owner)	po_next;	/* hash chain */
-	LIST_ENTRY(pmc_owner)	po_ssnext;	/* list of SS PMC owners */
+	CK_LIST_ENTRY(pmc_owner)	po_ssnext;	/* (g/p) list of SS PMC owners */
 	LIST_HEAD(, pmc)	po_pmcs;	/* owned PMC list */
 	TAILQ_HEAD(, pmclog_buffer) po_logbuffers; /* (o) logbuffer list */
 	struct mtx		po_mtx;		/* spin lock for (o) */
 	struct proc		*po_owner;	/* owner proc */
 	uint32_t		po_flags;	/* (k) flags PMC_PO_* */
 	struct proc		*po_kthread;	/* (k) helper kthread */
-	struct pmclog_buffer	*po_curbuf;	/* current log buffer */
 	struct file		*po_file;	/* file reference */
 	int			po_error;	/* recorded error */
 	short			po_sscount;	/* # SS PMCs owned */
 	short			po_logprocmaps;	/* global mappings done */
+	struct pmclog_buffer	*po_curbuf[MAXCPU];	/* current log buffer */
 };
 
 #define	PMC_PO_OWNS_LOGFILE		0x00000001 /* has a log file */
@@ -875,25 +931,37 @@ struct pmc_hw {
 
 struct pmc_sample {
 	uint16_t		ps_nsamples;	/* callchain depth */
-	uint8_t			ps_cpu;		/* cpu number */
-	uint8_t			ps_flags;	/* other flags */
+	uint16_t		ps_nsamples_actual;
+	uint16_t		ps_cpu;		/* cpu number */
+	uint16_t		ps_flags;	/* other flags */
+	lwpid_t			ps_tid;		/* thread id */
 	pid_t			ps_pid;		/* process PID or -1 */
+	int		ps_ticks; /* ticks at sample time */
+	/* pad */
 	struct thread		*ps_td;		/* which thread */
 	struct pmc		*ps_pmc;	/* interrupting PMC */
 	uintptr_t		*ps_pc;		/* (const) callchain start */
+	uint64_t		ps_tsc;		/* tsc value */
 };
 
 #define 	PMC_SAMPLE_FREE		((uint16_t) 0)
-#define 	PMC_SAMPLE_INUSE	((uint16_t) 0xFFFF)
+#define 	PMC_USER_CALLCHAIN_PENDING	((uint16_t) 0xFFFF)
 
 struct pmc_samplebuffer {
-	struct pmc_sample * volatile ps_read;	/* read pointer */
-	struct pmc_sample * volatile ps_write;	/* write pointer */
+	volatile uint64_t		ps_prodidx; /* producer index */
+	volatile uint64_t		ps_considx; /* consumer index */
 	uintptr_t		*ps_callchains;	/* all saved call chains */
-	struct pmc_sample	*ps_fence;	/* one beyond ps_samples[] */
 	struct pmc_sample	ps_samples[];	/* array of sample entries */
 };
 
+#define PMC_CONS_SAMPLE(psb)					\
+	(&(psb)->ps_samples[(psb)->ps_considx & pmc_sample_mask])
+
+#define PMC_CONS_SAMPLE_OFF(psb, off)							\
+	(&(psb)->ps_samples[(off) & pmc_sample_mask])
+
+#define PMC_PROD_SAMPLE(psb)					\
+	(&(psb)->ps_samples[(psb)->ps_prodidx & pmc_sample_mask])
 
 /*
  * struct pmc_cpustate
@@ -904,7 +972,7 @@ struct pmc_samplebuffer {
 
 struct pmc_cpu {
 	uint32_t	pc_state;	/* physical cpu number + flags */
-	struct pmc_samplebuffer *pc_sb[2]; /* space for samples */
+	struct pmc_samplebuffer *pc_sb[3]; /* space for samples */
 	struct pmc_hw	*pc_hwpmcs[];	/* 'npmc' pointers */
 };
 
@@ -994,7 +1062,7 @@ struct pmc_mdep  {
 	int (*pmd_switch_out)(struct pmc_cpu *_p, struct pmc_process *_pp);
 
 	/* handle a PMC interrupt */
-	int (*pmd_intr)(int _cpu, struct trapframe *_tf);
+	int (*pmd_intr)(struct trapframe *_tf);
 
 	/*
 	 * PMC class dependent information.
@@ -1010,7 +1078,7 @@ struct pmc_mdep  {
 extern struct pmc_cpu **pmc_pcpu;
 
 /* driver statistics */
-extern struct pmc_op_getdriverstats pmc_stats;
+extern struct pmc_driverstats pmc_stats;
 
 #if	defined(HWPMC_DEBUG)
 #include <sys/ktr.h>
@@ -1150,13 +1218,13 @@ MALLOC_DECLARE(M_PMC);
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _cpu, int _soft, struct pmc *_pm,
-    struct trapframe *_tf, int _inuserspace);
+int	pmc_process_interrupt(int _ring, struct pmc *_pm, struct trapframe *_tf);
 int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 struct pmc_mdep *pmc_mdep_alloc(int nclasses);
 void pmc_mdep_free(struct pmc_mdep *md);
+uint64_t pmc_rdtsc(void);
 #endif /* _KERNEL */
 #endif /* _SYS_PMC_H_ */

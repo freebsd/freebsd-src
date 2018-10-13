@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2014-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2018 Limelight Networks, Inc.
+ * Copyright (c) 2014-2018 Mellanox Technologies, Ltd.
  * Copyright (c) 2015 François Tigeot
  * All rights reserved.
  *
@@ -26,106 +27,137 @@
  *
  * $FreeBSD$
  */
+
 #ifndef _LINUX_KTIME_H
-#define _LINUX_KTIME_H
+#define	_LINUX_KTIME_H
 
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/jiffies.h>
 
-#define ktime_get_ts(x) getnanouptime(x)
+#define	ktime_get_ts(x) getnanouptime(x)
 
 /* time values in nanoseconds */
-union ktime {
-	int64_t tv64;
-};
+typedef s64 ktime_t;
 
-typedef union ktime ktime_t;
-
-#define KTIME_MAX                       ((s64)~((u64)1 << 63))
-#define KTIME_SEC_MAX                   (KTIME_MAX / NSEC_PER_SEC)
+#define	KTIME_MAX			((s64)~((u64)1 << 63))
+#define	KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
 
 static inline int64_t
 ktime_to_ns(ktime_t kt)
 {
-	return kt.tv64;
+	return (kt);
+}
+
+static inline ktime_t
+ns_to_ktime(uint64_t nsec)
+{
+	return (nsec);
 }
 
 static inline int64_t
 ktime_divns(const ktime_t kt, int64_t div)
 {
-	return kt.tv64 / div;
+	return (kt / div);
 }
 
 static inline int64_t
 ktime_to_us(ktime_t kt)
 {
-        return ktime_divns(kt, NSEC_PER_USEC);
+	return (ktime_divns(kt, NSEC_PER_USEC));
 }
 
 static inline int64_t
 ktime_to_ms(ktime_t kt)
 {
-        return ktime_divns(kt, NSEC_PER_MSEC);
+	return (ktime_divns(kt, NSEC_PER_MSEC));
 }
 
 static inline struct timeval
 ktime_to_timeval(ktime_t kt)
 {
-	return ns_to_timeval(kt.tv64);
+	return (ns_to_timeval(kt));
 }
 
 static inline ktime_t
 ktime_add_ns(ktime_t kt, int64_t ns)
 {
-	ktime_t res;
+	return (kt + ns);
+}
 
-	res.tv64 = kt.tv64 + ns;
-	return kt;
+static inline ktime_t
+ktime_add_ms(ktime_t kt, int64_t ms)
+{
+
+	return (ktime_add_ns(kt, ms * NSEC_PER_MSEC));
 }
 
 static inline ktime_t
 ktime_sub_ns(ktime_t kt, int64_t ns)
 {
-	ktime_t res;
-
-	res.tv64 = kt.tv64 - ns;
-	return kt;
+	return (kt - ns);
 }
 
 static inline ktime_t
 ktime_set(const long secs, const unsigned long nsecs)
 {
-	ktime_t retval = { (s64)secs * NSEC_PER_SEC + (s64)nsecs };
+	ktime_t retval = {(s64) secs * NSEC_PER_SEC + (s64) nsecs};
+
 	return (retval);
 }
 
 static inline ktime_t
 ktime_sub(ktime_t lhs, ktime_t rhs)
 {
-	lhs.tv64 -= rhs.tv64;
-	return (lhs);
+	return (lhs - rhs);
 }
 
 static inline int64_t
 ktime_us_delta(ktime_t later, ktime_t earlier)
 {
-        ktime_t diff = ktime_sub(later, earlier);
-        return ktime_to_us(diff);
+	ktime_t diff = ktime_sub(later, earlier);
+
+	return (ktime_to_us(diff));
 }
 
 static inline int64_t
 ktime_ms_delta(ktime_t later, ktime_t earlier)
 {
-        ktime_t diff = ktime_sub(later, earlier);
-        return ktime_to_ms(diff);
+	ktime_t diff = ktime_sub(later, earlier);
+
+	return (ktime_to_ms(diff));
 }
 
 static inline ktime_t
 ktime_add(ktime_t lhs, ktime_t rhs)
 {
-	lhs.tv64 += rhs.tv64;
-	return (lhs);
+	return (lhs + rhs);
+}
+
+static inline int
+ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	if (cmp1 > cmp2)
+		return (1);
+	else if (cmp1 < cmp2)
+		return (-1);
+	else
+		return (0);
+}
+
+static inline bool
+ktime_after(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	return (ktime_compare(cmp1, cmp2) > 0);
+}
+
+static inline bool
+ktime_before(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	return (ktime_compare(cmp1, cmp2) < 0);
 }
 
 static inline ktime_t
@@ -140,19 +172,19 @@ timeval_to_ktime(struct timeval tv)
 	return (ktime_set(tv.tv_sec, tv.tv_usec * NSEC_PER_USEC));
 }
 
-#define ktime_to_timespec(kt)		ns_to_timespec((kt).tv64)
-#define ktime_to_timeval(kt)		ns_to_timeval((kt).tv64)
-#define ktime_to_ns(kt)			((kt).tv64)
+#define	ktime_to_timespec(kt)		ns_to_timespec(kt)
+#define	ktime_to_timespec64(kt)		ns_to_timespec(kt)
+#define	ktime_to_timeval(kt)		ns_to_timeval(kt)
+#define	ktime_to_ns(kt)			(kt)
 
-static inline s64
+static inline int64_t
 ktime_get_ns(void)
 {
 	struct timespec ts;
-	ktime_t kt;
 
 	ktime_get_ts(&ts);
-	kt = timespec_to_ktime(ts);
-	return (ktime_to_ns(kt));
+
+	return (ktime_to_ns(timespec_to_ktime(ts)));
 }
 
 static inline ktime_t
@@ -164,4 +196,49 @@ ktime_get(void)
 	return (timespec_to_ktime(ts));
 }
 
-#endif	/* _LINUX_KTIME_H */
+static inline ktime_t
+ktime_get_boottime(void)
+{
+	struct timespec ts;
+
+	nanouptime(&ts);
+	return (timespec_to_ktime(ts));
+}
+
+static inline ktime_t
+ktime_get_real(void)
+{
+	struct timespec ts;
+
+	nanotime(&ts);
+	return (timespec_to_ktime(ts));
+}
+
+static inline ktime_t
+ktime_get_real_seconds(void)
+{
+	struct timespec ts;
+
+	nanotime(&ts);
+	return (ts.tv_sec);
+}
+
+static inline ktime_t
+ktime_get_raw(void)
+{
+	struct timespec ts;
+
+	nanotime(&ts);
+	return (timespec_to_ktime(ts));
+}
+
+static inline u64
+ktime_get_raw_ns(void)
+{
+	struct timespec ts;
+
+	nanouptime(&ts);
+	return (ktime_to_ns(timespec_to_ktime(ts)));
+}
+
+#endif /* _LINUX_KTIME_H */

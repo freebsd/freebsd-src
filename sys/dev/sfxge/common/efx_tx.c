@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -329,7 +331,7 @@ efx_tx_qcreate(
 
 	if ((rc = etxop->etxo_qcreate(enp, index, label, esmp,
 	    n, id, flags, eep, etp, addedp)) != 0)
-			goto fail2;
+		goto fail2;
 
 	enp->en_tx_qcount++;
 	*etpp = etp;
@@ -748,8 +750,12 @@ siena_tx_qpost(
 		size_t size = ebp->eb_size;
 		efsys_dma_addr_t end = start + size;
 
-		/* Fragments must not span 4k boundaries. */
-		EFSYS_ASSERT(P2ROUNDUP(start + 1, 4096) >= end);
+		/*
+		 * Fragments must not span 4k boundaries.
+		 * Here it is a stricter requirement than the maximum length.
+		 */
+		EFSYS_ASSERT(P2ROUNDUP(start + 1,
+		    etp->et_enp->en_nic_cfg.enc_tx_dma_desc_boundary) >= end);
 
 		EFX_TX_DESC(etp, start, size, ebp->eb_eop, added);
 	}
@@ -1009,8 +1015,12 @@ siena_tx_qdesc_dma_create(
 	__in	boolean_t eop,
 	__out	efx_desc_t *edp)
 {
-	/* Fragments must not span 4k boundaries. */
-	EFSYS_ASSERT(P2ROUNDUP(addr + 1, 4096) >= addr + size);
+	/*
+	 * Fragments must not span 4k boundaries.
+	 * Here it is a stricter requirement than the maximum length.
+	 */
+	EFSYS_ASSERT(P2ROUNDUP(addr + 1,
+	    etp->et_enp->en_nic_cfg.enc_tx_dma_desc_boundary) >= addr + size);
 
 	EFSYS_PROBE4(tx_desc_dma_create, unsigned int, etp->et_index,
 		    efsys_dma_addr_t, addr,
@@ -1029,8 +1039,8 @@ siena_tx_qdesc_dma_create(
 
 #if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
-/* START MKCONFIG GENERATED EfxTransmitQueueStatNamesBlock 9d8d26a0a5e2c453 */
-static const char 	*__efx_tx_qstat_name[] = {
+/* START MKCONFIG GENERATED EfxTransmitQueueStatNamesBlock 2866874ecd7a363b */
+static const char * const __efx_tx_qstat_name[] = {
 	"post",
 	"post_pio",
 };

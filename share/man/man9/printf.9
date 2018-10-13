@@ -30,7 +30,10 @@
 .Dt PRINTF 9
 .Os
 .Sh NAME
-.Nm printf , uprintf , tprintf, log
+.Nm printf ,
+.Nm uprintf ,
+.Nm tprintf ,
+.Nm log
 .Nd formatted output conversion
 .Sh SYNOPSIS
 .In sys/types.h
@@ -111,7 +114,7 @@ It requires two arguments: a
 pointer and a
 .Vt "char *"
 string.
-The memory pointed to be the pointer is output in hexadecimal one byte at
+The memory pointed to by the pointer is output in hexadecimal one byte at
 a time.
 The string is used as a delimiter between individual bytes.
 If present, a width directive will specify the number of bytes to display.

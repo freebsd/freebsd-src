@@ -2229,7 +2229,7 @@ static int cmd_osu_select(struct hs20_osu_client *ctx, const char *dir,
 		fprintf(f, "</table></a><br><small>BSSID: %s<br>\n"
 			"SSID: %s<br>\n",
 			last->bssid, last->osu_ssid);
-		if (last->osu_nai)
+		if (last->osu_nai[0])
 			fprintf(f, "NAI: %s<br>\n", last->osu_nai);
 		fprintf(f, "URL: %s<br>\n"
 			"methods:%s%s<br>\n"
@@ -2339,11 +2339,22 @@ static int cmd_signup(struct hs20_osu_client *ctx, int no_prod_assoc,
 		return -1;
 
 	snprintf(fname, sizeof(fname), "%s/osu-info", dir);
-	if (mkdir(fname, S_IRWXU | S_IRWXG) < 0 && errno != EEXIST) {
+	if (mkdir(fname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0 &&
+	    errno != EEXIST) {
 		wpa_printf(MSG_INFO, "mkdir(%s) failed: %s",
 			   fname, strerror(errno));
 		return -1;
 	}
+
+#ifdef ANDROID
+	/* Allow processes running with Group ID as AID_WIFI
+	 * to read/write files from osu-info directory
+	 */
+	if (chown(fname, -1, AID_WIFI)) {
+		wpa_printf(MSG_INFO, "Could not chown osu-info directory: %s",
+			   strerror(errno));
+	}
+#endif /* ANDROID */
 
 	snprintf(buf, sizeof(buf), "SET osu_dir %s", fname);
 	if (wpa_command(ifname, buf) < 0) {
@@ -2559,7 +2570,7 @@ static int cmd_pol_upd(struct hs20_osu_client *ctx, const char *address,
 	if (!pps_fname) {
 		char buf[256];
 		wpa_printf(MSG_INFO, "Determining PPS file based on Home SP information");
-		if (os_strncmp(address, "fqdn=", 5) == 0) {
+		if (address && os_strncmp(address, "fqdn=", 5) == 0) {
 			wpa_printf(MSG_INFO, "Use requested FQDN from command line");
 			os_snprintf(buf, sizeof(buf), "%s", address + 5);
 			address = NULL;
@@ -3122,20 +3133,12 @@ int main(int argc, char *argv[])
 			usage();
 			exit(0);
 		}
-		if (argc - optind < 2)
-			wpa_printf(MSG_ERROR, "Server URL missing from command line");
-		else
-			ret = cmd_sub_rem(&ctx, argv[optind + 1],
-					  argc > optind + 2 ?
-					  argv[optind + 2] : NULL,
-					  argc > optind + 3 ?
-					  argv[optind + 3] : NULL);
+		ret = cmd_sub_rem(&ctx, argv[optind + 1],
+				  argc > optind + 2 ? argv[optind + 2] : NULL,
+				  argc > optind + 3 ? argv[optind + 3] : NULL);
 	} else if (strcmp(argv[optind], "pol_upd") == 0) {
-		if (argc - optind < 2) {
-			usage();
-			exit(0);
-		}
-		ret = cmd_pol_upd(&ctx, argc > 2 ? argv[optind + 1] : NULL,
+		ret = cmd_pol_upd(&ctx,
+				  argc > optind + 1 ? argv[optind + 1] : NULL,
 				  argc > optind + 2 ? argv[optind + 2] : NULL,
 				  argc > optind + 3 ? argv[optind + 3] : NULL);
 	} else if (strcmp(argv[optind], "prov") == 0) {

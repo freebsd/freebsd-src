@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -54,10 +56,12 @@
 #include <usbhid.h>
 #include "bthid_config.h"
 #include "bthidd.h"
+#include "btuinput.h"
 #include "kbd.h"
 
 static void	kbd_write(bitstr_t *m, int32_t fb, int32_t make, int32_t fd);
 static int32_t	kbd_xlate(int32_t code, int32_t make, int32_t *b, int32_t const *eob);
+static void	uinput_kbd_write(bitstr_t *m, int32_t fb, int32_t make, int32_t fd);
 
 /*
  * HID code to PS/2 set 1 code translation table.
@@ -352,6 +356,7 @@ kbd_process_keys(bthid_session_p s)
 		if (f2 != -1) {
 			/* release old keys */
 			kbd_write(s->keys2, f2, 0, s->vkbd);
+			uinput_kbd_write(s->keys2, f2, 0, s->ukbd);
 			memset(s->keys2, 0, bitstr_size(xsize));
 		}
 
@@ -364,6 +369,7 @@ kbd_process_keys(bthid_session_p s)
 		
 		memcpy(s->keys2, s->keys1, bitstr_size(xsize));
 		kbd_write(s->keys1, f1, 1, s->vkbd);
+		uinput_kbd_write(s->keys1, f1, 1, s->ukbd);
 		memset(s->keys1, 0, bitstr_size(xsize));
 
 		return (0);
@@ -391,16 +397,35 @@ kbd_process_keys(bthid_session_p s)
 	}
 
 	bit_ffs(diff, xsize, &f2);
-	if (f2 > 0)
+	if (f2 > 0) {
 		kbd_write(diff, f2, 0, s->vkbd);
+		uinput_kbd_write(diff, f2, 0, s->ukbd);
+	}
 
 	bit_ffs(s->keys1, xsize, &f1);
 	if (f1 > 0) {
 		kbd_write(s->keys1, f1, 1, s->vkbd);
+		uinput_kbd_write(s->keys1, f1, 1, s->ukbd);
 		memset(s->keys1, 0, bitstr_size(xsize));
 	}
 
 	return (0);
+}
+
+/*
+ * Translate given keymap and write keyscodes
+ */
+void
+uinput_kbd_write(bitstr_t *m, int32_t fb, int32_t make, int32_t fd)
+{
+	int32_t i;
+
+	if (fd >= 0) {
+		for (i = fb; i < xsize; i++) {
+			if (bit_test(m, i))
+				uinput_rep_key(fd, i, make);
+		}
+	}
 }
 
 /*
@@ -518,6 +543,7 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_device_p	hid_device;
 	hid_data_t	d;
 	hid_item_t	h;
+	uint8_t		leds_mask = 0;
 
 	assert(s != NULL);
 	assert(len == sizeof(vkbd_status_t));
@@ -551,16 +577,19 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 			case 0x01: /* Num Lock LED */
 				if (st.leds & LED_NUM)
 					hid_set_data(&data[1], &h, 1);
+				leds_mask |= LED_NUM;
 				break;
 
 			case 0x02: /* Caps Lock LED */
 				if (st.leds & LED_CAP)
 					hid_set_data(&data[1], &h, 1);
+				leds_mask |= LED_CAP;
 				break;
 
 			case 0x03: /* Scroll Lock LED */
 				if (st.leds & LED_SCR)
 					hid_set_data(&data[1], &h, 1);
+				leds_mask |= LED_SCR;
 				break;
 
 			/* XXX add other LEDs ? */
@@ -569,8 +598,16 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 	}
 	hid_end_parse(d);
 
+	if (report_id != NO_REPORT_ID) {
+		data[2] = data[1];
+		data[1] = report_id;
+	}
+
 	if (found)
 		write(s->intr, data, (report_id != NO_REPORT_ID) ? 3 : 2);
+
+	if (found && s->srv->uinput && hid_device->keyboard)
+		uinput_rep_leds(s->ukbd, st.leds, leds_mask);
 
 	return (0);
 }

@@ -14,7 +14,9 @@
 #ifndef LLVM_LIB_TARGET_POWERPC_PPCMACHINEFUNCTIONINFO_H
 #define LLVM_LIB_TARGET_POWERPC_PPCMACHINEFUNCTIONINFO_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/TargetCallingConv.h"
 
 namespace llvm {
 
@@ -26,17 +28,17 @@ class PPCFunctionInfo : public MachineFunctionInfo {
   /// FramePointerSaveIndex - Frame index of where the old frame pointer is
   /// stored.  Also used as an anchor for instructions that need to be altered
   /// when using frame pointers (dyna_add, dyna_sub.)
-  int FramePointerSaveIndex;
+  int FramePointerSaveIndex = 0;
   
   /// ReturnAddrSaveIndex - Frame index of where the return address is stored.
   ///
-  int ReturnAddrSaveIndex;
+  int ReturnAddrSaveIndex = 0;
 
   /// Frame index where the old base pointer is stored.
-  int BasePointerSaveIndex;
+  int BasePointerSaveIndex = 0;
 
   /// Frame index where the old PIC base pointer is stored.
-  int PICBasePointerSaveIndex;
+  int PICBasePointerSaveIndex = 0;
 
   /// MustSaveLR - Indicates whether LR is defined (or clobbered) in the current
   /// function.  This is only valid after the initial scan of the function by
@@ -44,54 +46,58 @@ class PPCFunctionInfo : public MachineFunctionInfo {
   bool MustSaveLR;
 
   /// Does this function have any stack spills.
-  bool HasSpills;
+  bool HasSpills = false;
 
   /// Does this function spill using instructions with only r+r (not r+i)
   /// forms.
-  bool HasNonRISpills;
+  bool HasNonRISpills = false;
 
   /// SpillsCR - Indicates whether CR is spilled in the current function.
-  bool SpillsCR;
+  bool SpillsCR = false;
 
   /// Indicates whether VRSAVE is spilled in the current function.
-  bool SpillsVRSAVE;
+  bool SpillsVRSAVE = false;
 
   /// LRStoreRequired - The bool indicates whether there is some explicit use of
   /// the LR/LR8 stack slot that is not obvious from scanning the code.  This
   /// requires that the code generator produce a store of LR to the stack on
   /// entry, even though LR may otherwise apparently not be used.
-  bool LRStoreRequired;
+  bool LRStoreRequired = false;
 
   /// This function makes use of the PPC64 ELF TOC base pointer (register r2).
-  bool UsesTOCBasePtr;
+  bool UsesTOCBasePtr = false;
 
   /// MinReservedArea - This is the frame size that is at least reserved in a
   /// potential caller (parameter+linkage area).
-  unsigned MinReservedArea;
+  unsigned MinReservedArea = 0;
 
   /// TailCallSPDelta - Stack pointer delta used when tail calling. Maximum
   /// amount the stack pointer is adjusted to make the frame bigger for tail
   /// calls. Used for creating an area before the register spill area.
-  int TailCallSPDelta;
+  int TailCallSPDelta = 0;
 
   /// HasFastCall - Does this function contain a fast call. Used to determine
   /// how the caller's stack pointer should be calculated (epilog/dynamicalloc).
-  bool HasFastCall;
+  bool HasFastCall = false;
 
   /// VarArgsFrameIndex - FrameIndex for start of varargs area.
-  int VarArgsFrameIndex;
+  int VarArgsFrameIndex = 0;
+
   /// VarArgsStackOffset - StackOffset for start of stack
   /// arguments.
-  int VarArgsStackOffset;
+
+  int VarArgsStackOffset = 0;
+
   /// VarArgsNumGPR - Index of the first unused integer
   /// register for parameter passing.
-  unsigned VarArgsNumGPR;
+  unsigned VarArgsNumGPR = 0;
+
   /// VarArgsNumFPR - Index of the first unused double
   /// register for parameter passing.
-  unsigned VarArgsNumFPR;
+  unsigned VarArgsNumFPR = 0;
 
   /// CRSpillFrameIndex - FrameIndex for CR spill slot for 32-bit SVR4.
-  int CRSpillFrameIndex;
+  int CRSpillFrameIndex = 0;
 
   /// If any of CR[2-4] need to be saved in the prologue and restored in the
   /// epilogue then they are added to this array. This is used for the
@@ -102,30 +108,18 @@ class PPCFunctionInfo : public MachineFunctionInfo {
   MachineFunction &MF;
 
   /// Whether this uses the PIC Base register or not.
-  bool UsesPICBase;
+  bool UsesPICBase = false;
+
+  /// True if this function has a subset of CSRs that is handled explicitly via
+  /// copies
+  bool IsSplitCSR = false;
+
+  /// We keep track attributes for each live-in virtual registers
+  /// to use SExt/ZExt flags in later optimization.
+  std::vector<std::pair<unsigned, ISD::ArgFlagsTy>> LiveInAttrs;
 
 public:
-  explicit PPCFunctionInfo(MachineFunction &MF) 
-    : FramePointerSaveIndex(0),
-      ReturnAddrSaveIndex(0),
-      BasePointerSaveIndex(0),
-      PICBasePointerSaveIndex(0),
-      HasSpills(false),
-      HasNonRISpills(false),
-      SpillsCR(false),
-      SpillsVRSAVE(false),
-      LRStoreRequired(false),
-      UsesTOCBasePtr(false),
-      MinReservedArea(0),
-      TailCallSPDelta(0),
-      HasFastCall(false),
-      VarArgsFrameIndex(0),
-      VarArgsStackOffset(0),
-      VarArgsNumGPR(0),
-      VarArgsNumFPR(0),
-      CRSpillFrameIndex(0),
-      MF(MF),
-      UsesPICBase(0) {}
+  explicit PPCFunctionInfo(MachineFunction &MF) : MF(MF) {}
 
   int getFramePointerSaveIndex() const { return FramePointerSaveIndex; }
   void setFramePointerSaveIndex(int Idx) { FramePointerSaveIndex = Idx; }
@@ -186,6 +180,19 @@ public:
   unsigned getVarArgsNumFPR() const { return VarArgsNumFPR; }
   void setVarArgsNumFPR(unsigned Num) { VarArgsNumFPR = Num; }
 
+  /// This function associates attributes for each live-in virtual register.
+  void addLiveInAttr(unsigned VReg, ISD::ArgFlagsTy Flags) {
+    LiveInAttrs.push_back(std::make_pair(VReg, Flags));
+  }
+
+  /// This function returns true if the spesified vreg is
+  /// a live-in register and sign-extended.
+  bool isLiveInSExt(unsigned VReg) const;
+
+  /// This function returns true if the spesified vreg is
+  /// a live-in register and zero-extended.
+  bool isLiveInZExt(unsigned VReg) const;
+
   int getCRSpillFrameIndex() const { return CRSpillFrameIndex; }
   void setCRSpillFrameIndex(int idx) { CRSpillFrameIndex = idx; }
 
@@ -196,6 +203,9 @@ public:
   void setUsesPICBase(bool uses) { UsesPICBase = uses; }
   bool usesPICBase() const { return UsesPICBase; }
 
+  bool isSplitCSR() const { return IsSplitCSR; }
+  void setIsSplitCSR(bool s) { IsSplitCSR = s; }
+
   MCSymbol *getPICOffsetSymbol() const;
 
   MCSymbol *getGlobalEPSymbol() const;
@@ -203,7 +213,6 @@ public:
   MCSymbol *getTOCOffsetSymbol() const;
 };
 
-} // end of namespace llvm
+} // end namespace llvm
 
-
-#endif
+#endif // LLVM_LIB_TARGET_POWERPC_PPCMACHINEFUNCTIONINFO_H

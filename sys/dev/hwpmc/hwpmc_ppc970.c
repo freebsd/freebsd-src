@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Justin Hibbits
  * All rights reserved.
  *
@@ -477,13 +479,14 @@ ppc970_write_pmc(int cpu, int ri, pmc_value_t v)
 }
 
 static int
-ppc970_intr(int cpu, struct trapframe *tf)
+ppc970_intr(struct trapframe *tf)
 {
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
 	uint32_t config;
-	int i, error, retval;
+	int i, error, retval, cpu;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
@@ -517,8 +520,7 @@ ppc970_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error != 0)
 			ppc970_stop_pmc(cpu, i);
 
@@ -526,8 +528,10 @@ ppc970_intr(int cpu, struct trapframe *tf)
 		ppc970_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
 	}
 
-	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (retval)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	/* Re-enable PERF exceptions. */
 	if (retval)

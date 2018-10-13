@@ -44,32 +44,6 @@
 #define OP_RA(x) (((x) & 0x001F0000) >> 16)
 #define OP_RB(x) (((x) & 0x0000F100) >> 11)
 
-static int
-uread(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_readmem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n <= 0 || n < len)
-		return (ENOMEM);
-	return (0);
-}
-
-static int
-uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_writemem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n <= 0 || n < len)
-		return (ENOMEM);
-	return (0);
-}
-
 int
 fasttrap_tracepoint_install(proc_t *p, fasttrap_tracepoint_t *tp)
 {
@@ -354,17 +328,22 @@ fasttrap_branch_taken(int bo, int bi, struct reg *regs)
 
 
 int
-fasttrap_pid_probe(struct reg *rp)
+fasttrap_pid_probe(struct trapframe *frame)
 {
+	struct reg reg, *rp;
 	struct rm_priotracker tracker;
 	proc_t *p = curproc;
-	uintptr_t pc = rp->pc;
+	uintptr_t pc;
 	uintptr_t new_pc = 0;
 	fasttrap_bucket_t *bucket;
 	fasttrap_tracepoint_t *tp, tp_local;
 	pid_t pid;
 	dtrace_icookie_t cookie;
 	uint_t is_enabled = 0;
+
+	fill_regs(curthread, &reg);
+	rp = &reg;
+	pc = rp->pc;
 
 	/*
 	 * It's possible that a user (in a veritable orgy of bad planning)
@@ -541,8 +520,9 @@ done:
 }
 
 int
-fasttrap_return_probe(struct reg *rp)
+fasttrap_return_probe(struct trapframe *tf)
 {
+	struct reg reg, *rp;
 	proc_t *p = curproc;
 	uintptr_t pc = curthread->t_dtrace_pc;
 	uintptr_t npc = curthread->t_dtrace_npc;
@@ -552,12 +532,13 @@ fasttrap_return_probe(struct reg *rp)
 	curthread->t_dtrace_scrpc = 0;
 	curthread->t_dtrace_astpc = 0;
 
+	fill_regs(curthread, &reg);
+	rp = &reg;
+
 	/*
 	 * We set rp->pc to the address of the traced instruction so
 	 * that it appears to dtrace_probe() that we're on the original
-	 * instruction, and so that the user can't easily detect our
-	 * complex web of lies. dtrace_return_probe() (our caller)
-	 * will correctly set %pc after we return.
+	 * instruction.
 	 */
 	rp->pc = pc;
 
@@ -565,4 +546,3 @@ fasttrap_return_probe(struct reg *rp)
 
 	return (0);
 }
-

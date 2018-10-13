@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
@@ -32,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -41,25 +44,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
+    int wait)
 {
 	vm_page_t m;
 	vm_paddr_t pa;
 	void *va;
-	int pflags;
 
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-	for (;;) {
-		m = vm_page_alloc(NULL, 0, pflags);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			else
-				VM_WAIT;
-		} else
-			break;
-	}
+	m = vm_page_alloc_domain(NULL, 0, domain,
+	    malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
+	if (m == NULL)
+		return (NULL);
 	pa = m->phys_addr;
 	if ((wait & M_NODUMP) == 0)
 		dump_add_page(pa);
@@ -78,7 +74,6 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 	pa = DMAP_TO_PHYS((vm_offset_t)mem);
 	dump_drop_page(pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	m->wire_count--;
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 }

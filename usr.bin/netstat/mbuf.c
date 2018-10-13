@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2005 Robert N. M. Watson
@@ -340,6 +342,9 @@ mbpr(void *kvmd, u_long mbaddr)
         xo_emit("{:sendfile-pages-valid/%ju} "
 	    "{N:pages were valid at time of a sendfile request}\n",
             (uintmax_t)sfstat.sf_pages_valid);
+        xo_emit("{:sendfile-pages-bogus/%ju} "
+	    "{N:pages were valid and substituted to bogus page}\n",
+            (uintmax_t)sfstat.sf_pages_bogus);
         xo_emit("{:sendfile-requested-readahead/%ju} "
 	    "{N:pages were requested for read ahead by applications}\n",
             (uintmax_t)sfstat.sf_rhpages_requested);

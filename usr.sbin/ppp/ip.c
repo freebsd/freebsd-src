@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996 - 2001 Brian Somers <brian@Awfulhak.org>
  *          based on work by Toshiharu OHNO <tony-o@iij.ad.jp>
  *                           Internet Initiative Japan, Inc (IIJ)
@@ -224,7 +226,7 @@ FilterCheck(const unsigned char *packet,
   int match;			/* true if condition matched */
   int mindata;			/* minimum data size or zero */
   const struct filterent *fp = filter->rule;
-  char dbuff[100], dstip[16];
+  char dbuff[100], dstip[NCP_ASCIIBUFFERSIZE];
   struct ncpaddr srcaddr, dstaddr;
   const char *payload;		/* IP payload */
   int datalen;			/* IP datagram length */
@@ -818,6 +820,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
     if (!frag && ncp_IsUrgentTcpPort(&bundle->ncp, ntohs(th->th_sport),
                                      ntohs(th->th_dport)))
       pri++;
+    else if (!frag && ncp_IsUrgentTcpLen(&bundle->ncp, datalen))
+      pri++;
 
     if (logit && loglen < sizeof logbuf) {
       len = datalen - (th->th_off << 2);
@@ -849,6 +853,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
           loglen += strlen(logbuf + loglen);
         }
       }
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, " pri:%d", pri);
+      loglen += strlen(logbuf + loglen);
     }
     break;
 

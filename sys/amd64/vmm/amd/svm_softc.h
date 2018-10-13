@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Anish Gupta (akgupt3@gmail.com)
  * All rights reserved.
  *
@@ -56,13 +58,13 @@ struct svm_vcpu {
  * SVM softc, one per virtual machine.
  */
 struct svm_softc {
-	uint8_t iopm_bitmap[SVM_IO_BITMAP_SIZE];    /* shared by all vcpus */
-	uint8_t msr_bitmap[SVM_MSR_BITMAP_SIZE];    /* shared by all vcpus */
 	uint8_t apic_page[VM_MAXCPU][PAGE_SIZE];
 	struct svm_vcpu vcpu[VM_MAXCPU];
 	vm_offset_t 	nptp;			    /* nested page table */
+	uint8_t		*iopm_bitmap;    /* shared by all vcpus */
+	uint8_t		*msr_bitmap;    /* shared by all vcpus */
 	struct vm	*vm;
-} __aligned(PAGE_SIZE);
+};
 
 CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);
 

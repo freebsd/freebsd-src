@@ -12,8 +12,8 @@ SRCS=	dir.c ea.c fsutil.c inode.c main.c pass1.c pass1b.c pass2.c pass3.c \
 	globs.c
 LIBADD=	ufs
 WARNS?=	2
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../mount
+CFLAGS+= -I${.CURDIR} -I${.CURDIR:H}/mount
 
-.PATH:	${.CURDIR}/../../sys/ufs/ffs ${.CURDIR}/../mount
+.PATH:	${SRCTOP}/sys/ufs/ffs ${.CURDIR:H}/mount
 
 .include <bsd.prog.mk>

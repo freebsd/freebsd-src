@@ -61,7 +61,7 @@ void InitializeFlags() {
   {
     CommonFlags cf;
     cf.CopyFrom(*common_flags());
-    cf.detect_leaks = CAN_SANITIZE_LEAKS;
+    cf.detect_leaks = cf.detect_leaks && CAN_SANITIZE_LEAKS;
     cf.external_symbolizer_path = GetEnv("ASAN_SYMBOLIZER_PATH");
     cf.malloc_context_size = kDefaultMallocContextSize;
     cf.intercept_tls_get_addr = true;
@@ -95,6 +95,18 @@ void InitializeFlags() {
   RegisterCommonFlags(&ubsan_parser);
 #endif
 
+  if (SANITIZER_MAC) {
+    // Support macOS MallocScribble and MallocPreScribble:
+    // <https://developer.apple.com/library/content/documentation/Performance/
+    // Conceptual/ManagingMemory/Articles/MallocDebug.html>
+    if (GetEnv("MallocScribble")) {
+      f->max_free_fill_size = 0x1000;
+    }
+    if (GetEnv("MallocPreScribble")) {
+      f->malloc_fill_byte = 0xaa;
+    }
+  }
+
   // Override from ASan compile definition.
   const char *asan_compile_def = MaybeUseAsanDefaultOptionsCompileDefinition();
   asan_parser.ParseString(asan_compile_def);
@@ -106,6 +118,10 @@ void InitializeFlags() {
   const char *ubsan_default_options = __ubsan::MaybeCallUbsanDefaultOptions();
   ubsan_parser.ParseString(ubsan_default_options);
 #endif
+#if CAN_SANITIZE_LEAKS
+  const char *lsan_default_options = __lsan::MaybeCallLsanDefaultOptions();
+  lsan_parser.ParseString(lsan_default_options);
+#endif
 
   // Override from command line.
   asan_parser.ParseString(GetEnv("ASAN_OPTIONS"));
@@ -116,7 +132,7 @@ void InitializeFlags() {
   ubsan_parser.ParseString(GetEnv("UBSAN_OPTIONS"));
 #endif
 
-  SetVerbosity(common_flags()->verbosity);
+  InitializeCommonFlags();
 
   // TODO(eugenis): dump all flags at verbosity>=2?
   if (Verbosity()) ReportUnrecognizedFlags();
@@ -132,6 +148,9 @@ void InitializeFlags() {
            SanitizerToolName);
     Die();
   }
+  // Ensure that redzone is at least SHADOW_GRANULARITY.
+  if (f->redzone < (int)SHADOW_GRANULARITY)
+    f->redzone = SHADOW_GRANULARITY;
   // Make "strict_init_order" imply "check_initialization_order".
   // TODO(samsonov): Use a single runtime flag for an init-order checker.
   if (f->strict_init_order) {
@@ -156,16 +175,40 @@ void InitializeFlags() {
     f->quarantine_size_mb = f->quarantine_size >> 20;
   if (f->quarantine_size_mb < 0) {
     const int kDefaultQuarantineSizeMb =
-        (ASAN_LOW_MEMORY) ? 1UL << 6 : 1UL << 8;
+        (ASAN_LOW_MEMORY) ? 1UL << 4 : 1UL << 8;
     f->quarantine_size_mb = kDefaultQuarantineSizeMb;
+  }
+  if (f->thread_local_quarantine_size_kb < 0) {
+    const u32 kDefaultThreadLocalQuarantineSizeKb =
+        // It is not advised to go lower than 64Kb, otherwise quarantine batches
+        // pushed from thread local quarantine to global one will create too
+        // much overhead. One quarantine batch size is 8Kb and it  holds up to
+        // 1021 chunk, which amounts to 1/8 memory overhead per batch when
+        // thread local quarantine is set to 64Kb.
+        (ASAN_LOW_MEMORY) ? 1 << 6 : FIRST_32_SECOND_64(1 << 8, 1 << 10);
+    f->thread_local_quarantine_size_kb = kDefaultThreadLocalQuarantineSizeKb;
+  }
+  if (f->thread_local_quarantine_size_kb == 0 && f->quarantine_size_mb > 0) {
+    Report("%s: thread_local_quarantine_size_kb can be set to 0 only when "
+           "quarantine_size_mb is set to 0\n", SanitizerToolName);
+    Die();
+  }
+  if (!f->replace_str && common_flags()->intercept_strlen) {
+    Report("WARNING: strlen interceptor is enabled even though replace_str=0. "
+           "Use intercept_strlen=0 to disable it.");
+  }
+  if (!f->replace_str && common_flags()->intercept_strchr) {
+    Report("WARNING: strchr* interceptors are enabled even though "
+           "replace_str=0. Use intercept_strchr=0 to disable them.");
+  }
+  if (!f->replace_str && common_flags()->intercept_strndup) {
+    Report("WARNING: strndup* interceptors are enabled even though "
+           "replace_str=0. Use intercept_strndup=0 to disable them.");
   }
 }
 
 }  // namespace __asan
 
-#if !SANITIZER_SUPPORTS_WEAK_HOOKS
-extern "C" {
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-const char* __asan_default_options() { return ""; }
-}  // extern "C"
-#endif
+SANITIZER_INTERFACE_WEAK_DEF(const char*, __asan_default_options, void) {
+  return "";
+}

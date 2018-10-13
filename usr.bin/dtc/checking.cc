@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 David Chisnall
  * All rights reserved.
  *
@@ -33,7 +35,7 @@
 #include "checking.hh"
 #include <stdio.h>
 
-
+using std::string;
 
 namespace dtc
 {
@@ -44,6 +46,30 @@ namespace checking
 
 namespace
 {
+	struct deleted_node_checker : public checker
+	{
+		deleted_node_checker(const char *name) : checker(name) {}
+		virtual bool check_node(device_tree *, const node_ptr &n)
+		{
+			auto &deleted = n->deleted_child_nodes();
+			if (deleted.empty())
+			{
+				return true;
+			}
+			bool plural = deleted.size() > 1;
+			string errmsg("Attempts to delete ");
+			errmsg += plural ? "nodes" : "node";
+			errmsg += " that ";
+			errmsg += plural ? "were" : "was";
+			errmsg += " not added in merge: ";
+			for (auto &d : deleted)
+			{
+				errmsg += d;
+			}
+			report_error(errmsg.c_str());
+			return false;
+		}
+	};
 	/**
 	 * Checker that verifies that every node that has children has
 	 * #address-cells and #size-cells properties.
@@ -126,11 +152,11 @@ checker::report_error(const char *errmsg)
 	for (auto &p : path)
 	{
 		putc('/', stderr);
-		p.first.dump();
+		puts(p.first.c_str());
 		if (!(p.second.empty()))
 		{
 			putc('@', stderr);
-			p.second.dump();
+			puts(p.second.c_str());
 		}
 	}
 	fprintf(stderr, " [-W%s]\n", checker_name);
@@ -167,7 +193,7 @@ property_size_checker::check(device_tree *, const node_ptr &, property_ptr p)
 
 template<property_value::value_type T>
 void
-check_manager::add_property_type_checker(const char *name, string prop)
+check_manager::add_property_type_checker(const char *name, const string &prop)
 {
 	checkers.insert(std::make_pair(string(name),
 		new property_type_checker<T>(name, prop)));
@@ -175,7 +201,7 @@ check_manager::add_property_type_checker(const char *name, string prop)
 
 void
 check_manager::add_property_size_checker(const char *name,
-                                         string prop,
+                                         const string &prop,
                                          uint32_t size)
 {
 	checkers.insert(std::make_pair(string(name),
@@ -207,6 +233,8 @@ check_manager::check_manager()
 	add_property_size_checker("type-phandle", string("phandle"), 4);
 	disabled_checkers.insert(std::make_pair(string("cells-attributes"),
 		new address_cells_checker("cells-attributes")));
+	checkers.insert(std::make_pair(string("deleted-nodes"),
+		new deleted_node_checker("deleted-nodes")));
 }
 
 bool
@@ -225,7 +253,7 @@ check_manager::run_checks(device_tree *tree, bool keep_going)
 }
 
 bool
-check_manager::disable_checker(string name)
+check_manager::disable_checker(const string &name)
 {
 	auto checker = checkers.find(name);
 	if (checker != checkers.end())
@@ -239,7 +267,7 @@ check_manager::disable_checker(string name)
 }
 
 bool
-check_manager::enable_checker(string name)
+check_manager::enable_checker(const string &name)
 {
 	auto checker = disabled_checkers.find(name);
 	if (checker != disabled_checkers.end())

@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2002 Hiroyuki Aizu <aizu@navi.org>
  *
  * Redistribution and use in source and binary forms, with or without

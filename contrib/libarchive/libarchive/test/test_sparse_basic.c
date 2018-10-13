@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * NOTE: On FreeBSD and Solaris, this test needs ZFS.
- * You may should perfom this test as
+ * You may perform this test as
  * 'TMPDIR=<a directory on the ZFS> libarchive_test'.
  */
 
@@ -118,13 +118,26 @@ create_sparse_file(const char *path, const struct sparse *s)
 	assert(handle != INVALID_HANDLE_VALUE);
 	assert(DeviceIoControl(handle, FSCTL_SET_SPARSE, NULL, 0,
 	    NULL, 0, &dmy, NULL) != 0);
+
+	size_t offsetSoFar = 0;
+
 	while (s->type != END) {
 		if (s->type == HOLE) {
-			LARGE_INTEGER distance;
+			LARGE_INTEGER fileOffset, beyondOffset, distanceToMove;
+			fileOffset.QuadPart = offsetSoFar;
+			beyondOffset.QuadPart = offsetSoFar + s->size;
+			distanceToMove.QuadPart = s->size;
 
-			distance.QuadPart = s->size;
-			assert(SetFilePointerEx(handle, distance,
-			    NULL, FILE_CURRENT) != 0);
+			FILE_ZERO_DATA_INFORMATION zeroInformation;
+			zeroInformation.FileOffset = fileOffset;
+			zeroInformation.BeyondFinalZero = beyondOffset;
+
+			DWORD bytesReturned;
+			assert(SetFilePointerEx(handle, distanceToMove,
+				NULL, FILE_CURRENT) != 0);
+			assert(SetEndOfFile(handle) != 0);
+			assert(DeviceIoControl(handle, FSCTL_SET_ZERO_DATA, &zeroInformation,
+				sizeof(FILE_ZERO_DATA_INFORMATION), NULL, 0, &bytesReturned, NULL) != 0);
 		} else {
 			DWORD w, wr;
 			size_t size;
@@ -139,6 +152,7 @@ create_sparse_file(const char *path, const struct sparse *s)
 				size -= wr;
 			}
 		}
+		offsetSoFar += s->size;
 		s++;
 	}
 	assertEqualInt(CloseHandle(handle), 1);
@@ -146,28 +160,14 @@ create_sparse_file(const char *path, const struct sparse *s)
 
 #else
 
-#if defined(_PC_MIN_HOLE_SIZE)
-
-/*
- * FreeBSD and Solaris can detect 'hole' of a sparse file
- * through lseek(HOLE) on ZFS. (UFS does not support yet)
- */
-
-static int
-is_sparse_supported(const char *path)
-{
-	return (pathconf(path, _PC_MIN_HOLE_SIZE) > 0);
-}
-
-#elif defined(__linux__)&& defined(HAVE_LINUX_FIEMAP_H)
-
+#if defined(HAVE_LINUX_FIEMAP_H)
 /*
  * FIEMAP, which can detect 'hole' of a sparse file, has
  * been supported from 2.6.28
  */
 
 static int
-is_sparse_supported(const char *path)
+is_sparse_supported_fiemap(const char *path)
 {
 	const struct sparse sparse_file[] = {
  		/* This hole size is too small to create a sparse
@@ -198,7 +198,58 @@ is_sparse_supported(const char *path)
 	return (r >= 0);
 }
 
-#else
+#if !defined(SEEK_HOLE) || !defined(SEEK_DATA)
+static int
+is_sparse_supported(const char *path)
+{
+	return is_sparse_supported_fiemap(path);
+}
+#endif
+#endif
+
+#if defined(_PC_MIN_HOLE_SIZE)
+
+/*
+ * FreeBSD and Solaris can detect 'hole' of a sparse file
+ * through lseek(HOLE) on ZFS. (UFS does not support yet)
+ */
+
+static int
+is_sparse_supported(const char *path)
+{
+	return (pathconf(path, _PC_MIN_HOLE_SIZE) > 0);
+}
+
+#elif defined(SEEK_HOLE) && defined(SEEK_DATA)
+
+static int
+is_sparse_supported(const char *path)
+{
+	const struct sparse sparse_file[] = {
+ 		/* This hole size is too small to create a sparse
+		 * files for almost filesystem. */
+		{ HOLE,	 1024 }, { DATA, 10240 },
+		{ END,	0 }
+	};
+	int fd, r;
+	const char *testfile = "can_sparse";
+
+	(void)path; /* UNUSED */
+	create_sparse_file(testfile, sparse_file);
+	fd = open(testfile,  O_RDWR);
+	if (fd < 0)
+		return (0);
+	r = lseek(fd, 0, SEEK_HOLE);
+	close(fd);
+	unlink(testfile);
+#if defined(HAVE_LINUX_FIEMAP_H)
+	if (r < 0)
+		return (is_sparse_supported_fiemap(path));
+#endif
+	return (r >= 0);
+}
+
+#elif !defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * Other system may do not have the API such as lseek(HOLE),
@@ -371,6 +422,7 @@ verify_sparse_file(struct archive *a, const char *path,
 	assert(sparse->type == END);
 	assertEqualInt(expected_offset, archive_entry_size(ae));
 
+	failure(path);
 	assertEqualInt(holes_seen, expected_holes);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -406,6 +458,7 @@ verify_sparse_file2(struct archive *a, const char *path,
 	/* Verify the number of holes only, not its offset nor its
 	 * length because those alignments are deeply dependence on
 	 * its filesystem. */ 
+	failure(path);
 	assertEqualInt(blocks, archive_entry_sparse_count(ae));
 	archive_entry_free(ae);
 }
@@ -447,10 +500,15 @@ DEFINE_TEST(test_sparse_basic)
 	 * on all platform.
 	 */
 	const struct sparse sparse_file0[] = {
+		// 0             // 1024
 		{ DATA,	 1024 }, { HOLE,   2048000 },
+		// 2049024       // 2051072
 		{ DATA,	 2048 }, { HOLE,   2048000 },
+		// 4099072       // 4103168
 		{ DATA,	 4096 }, { HOLE,  20480000 },
+		// 24583168      // 24591360
 		{ DATA,	 8192 }, { HOLE, 204800000 },
+		// 229391360     // 229391361
 		{ DATA,     1 }, { END,	0 }
 	};
 	const struct sparse sparse_file1[] = {

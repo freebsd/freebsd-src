@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -80,6 +82,7 @@
 #define NG_HCI_FEATURES_SIZE			8   /* LMP features */
 #define NG_HCI_UNIT_NAME_SIZE			248 /* unit name size */
 #define NG_HCI_COMMANDS_SIZE			64  /*Command list BMP size*/
+#define NG_HCI_EXTINQ_MAX			240 /**/
 /* HCI specification */
 #define NG_HCI_SPEC_V10				0x00 /* v1.0 */
 #define NG_HCI_SPEC_V11				0x01 /* v1.1 */
@@ -561,6 +564,9 @@ typedef struct {
 	u_int16_t	clock_offset;                   /* clock offset */
 	bdaddr_t	bdaddr;                         /* bdaddr */
 	u_int8_t	features[NG_HCI_FEATURES_SIZE]; /* features */
+	uint8_t 	addrtype;
+	uint8_t		extinq_size; /* MAX 240*/
+	uint8_t		extinq_data[NG_HCI_EXTINQ_MAX];
 } ng_hci_node_neighbor_cache_entry_ep;
 
 #define NG_HCI_MAX_NEIGHBOR_NUM \

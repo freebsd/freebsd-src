@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -34,11 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signal.h>
 
+#include <machine/cpufunc.h>
 #include <machine/frame.h>
 #include <machine/gdb_machdep.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
+#include <machine/specialreg.h>
 #include <machine/trap.h>
 #include <machine/frame.h>
 #include <machine/endian.h>
@@ -119,3 +124,18 @@ gdb_cpu_signal(int type, int code)
 	}
 	return (SIGEMT);
 }
+
+void *
+gdb_begin_write(void)
+{
+
+	return (disable_wp() ? &gdb_begin_write : NULL);
+}
+
+void
+gdb_end_write(void *arg)
+{
+
+	restore_wp(arg != NULL);
+}
+

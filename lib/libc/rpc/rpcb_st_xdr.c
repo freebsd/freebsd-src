@@ -1,6 +1,8 @@
 /*	$NetBSD: rpcb_st_xdr.c,v 1.3 2000/07/14 08:40:42 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include "un-namespace.h"
 
 /* Link list of all the stats about getport and getaddr */
@@ -63,7 +66,7 @@ xdr_rpcbs_addrlist(XDR *xdrs, rpcbs_addrlist *objp)
 	    if (!xdr_int(xdrs, &objp->failure)) {
 		return (FALSE);
 	    }
-	    if (!xdr_string(xdrs, &objp->netid, (u_int)~0)) {
+	    if (!xdr_string(xdrs, &objp->netid, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	    }
 
@@ -115,7 +118,7 @@ xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 		IXDR_PUT_INT32(buf, objp->failure);
 		IXDR_PUT_INT32(buf, objp->indirect);
 	}
-	if (!xdr_string(xdrs, &objp->netid, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->netid, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
 	pnext = &objp->next;
@@ -154,7 +157,7 @@ xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 		objp->failure = (int)IXDR_GET_INT32(buf);
 		objp->indirect = (int)IXDR_GET_INT32(buf);
 	}
-	if (!xdr_string(xdrs, &objp->netid, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->netid, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
 	if (!xdr_pointer(xdrs, (char **) pnext,
@@ -182,7 +185,7 @@ xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 	if (!xdr_int(xdrs, &objp->indirect)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->netid, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->netid, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
 	if (!xdr_pointer(xdrs, (char **) pnext,

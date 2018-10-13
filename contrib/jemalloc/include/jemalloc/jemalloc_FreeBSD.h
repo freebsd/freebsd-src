@@ -10,51 +10,65 @@
 
 #undef JEMALLOC_DSS
 
+#undef JEMALLOC_BACKGROUND_THREAD
+
 /*
  * The following are architecture-dependent, so conditionally define them for
  * each supported architecture.
  */
 #undef JEMALLOC_TLS_MODEL
-#undef STATIC_PAGE_SHIFT
+#undef LG_PAGE
+#undef LG_VADDR
 #undef LG_SIZEOF_PTR
 #undef LG_SIZEOF_INT
 #undef LG_SIZEOF_LONG
 #undef LG_SIZEOF_INTMAX_T
 
 #ifdef __i386__
+#  define LG_VADDR		32
 #  define LG_SIZEOF_PTR		2
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __ia64__
+#  define LG_VADDR		64
 #  define LG_SIZEOF_PTR		3
 #endif
 #ifdef __sparc64__
+#  define LG_VADDR		64
 #  define LG_SIZEOF_PTR		3
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __amd64__
+#  define LG_VADDR		48
 #  define LG_SIZEOF_PTR		3
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __arm__
+#  define LG_VADDR		32
 #  define LG_SIZEOF_PTR		2
 #endif
 #ifdef __aarch64__
+#  define LG_VADDR		48
 #  define LG_SIZEOF_PTR		3
 #endif
 #ifdef __mips__
 #ifdef __mips_n64
+#  define LG_VADDR		64
 #  define LG_SIZEOF_PTR		3
 #else
+#  define LG_VADDR		32
 #  define LG_SIZEOF_PTR		2
 #endif
 #endif
 #ifdef __powerpc64__
+#  define LG_VADDR		64
 #  define LG_SIZEOF_PTR		3
 #elif defined(__powerpc__)
+#  define LG_VADDR		32
 #  define LG_SIZEOF_PTR		2
 #endif
-#ifdef __riscv__
+#ifdef __riscv
+#  define LG_VADDR		64
 #  define LG_SIZEOF_PTR		3
 #endif
 
@@ -62,7 +76,7 @@
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
 
-#define	STATIC_PAGE_SHIFT	PAGE_SHIFT
+#define	LG_PAGE			PAGE_SHIFT
 #define	LG_SIZEOF_INT		2
 #define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
 #define	LG_SIZEOF_INTMAX_T	3
@@ -128,8 +142,17 @@ extern int __isthreaded;
 #define	read			_read
 #define	write			_write
 #define	close			_close
+#define	pthread_join		_pthread_join
+#define	pthread_once		_pthread_once
+#define	pthread_self		_pthread_self
+#define	pthread_equal		_pthread_equal
 #define	pthread_mutex_lock	_pthread_mutex_lock
+#define	pthread_mutex_trylock	_pthread_mutex_trylock
 #define	pthread_mutex_unlock	_pthread_mutex_unlock
+#define	pthread_cond_init	_pthread_cond_init
+#define	pthread_cond_wait	_pthread_cond_wait
+#define	pthread_cond_timedwait	_pthread_cond_timedwait
+#define	pthread_cond_signal	_pthread_cond_signal
 
 #ifdef JEMALLOC_C_
 /*

@@ -33,7 +33,7 @@
 #
 
 KMOD = twa
-.PATH: ${.CURDIR}/../../dev/${KMOD}
+.PATH: ${SRCTOP}/sys/dev/${KMOD}
 SRCS=  tw_osl_freebsd.c tw_osl_cam.c \
       tw_cl_init.c tw_cl_io.c tw_cl_intr.c tw_cl_misc.c \
       bus_if.h device_if.h pci_if.h opt_scsi.h opt_cam.h opt_twa.h
@@ -42,6 +42,6 @@ SRCS=  tw_osl_freebsd.c tw_osl_cam.c \
 #CFLAGS+= -DTWA_ENCLOSURE_SUPPORT
 
 #CFLAGS+= -DTWA_DEBUG=0
-CFLAGS+= -I${.CURDIR}/../../dev/${KMOD}
+CFLAGS+= -I${SRCTOP}/sys/dev/${KMOD}
 
 .include <bsd.kmod.mk>

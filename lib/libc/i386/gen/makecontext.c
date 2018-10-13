@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Daniel M. Eischen <deischen@freebsd.org>
  * All rights reserved.
  *
@@ -83,7 +85,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		ucp->uc_mcontext.mc_len = 0;
 	}
 	/* XXX - Do we want to sanity check argc? */
-	else if ((argc < 0) || (argc > NCARGS)) {
+	else if (argc < 0) {
 		ucp->uc_mcontext.mc_len = 0;
 	}
 	/* Make sure the context is valid. */

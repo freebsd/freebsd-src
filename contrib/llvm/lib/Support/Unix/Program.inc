@@ -40,9 +40,6 @@
 #include <unistd.h>
 #endif
 #ifdef HAVE_POSIX_SPAWN
-#ifdef __sun__
-#define  _RESTRICT_KYWD
-#endif
 #include <spawn.h>
 
 #if defined(__APPLE__)
@@ -96,7 +93,7 @@ ErrorOr<std::string> sys::findProgramByName(StringRef Name,
   return errc::no_such_file_or_directory;
 }
 
-static bool RedirectIO(const StringRef *Path, int FD, std::string* ErrMsg) {
+static bool RedirectIO(Optional<StringRef> Path, int FD, std::string* ErrMsg) {
   if (!Path) // Noop
     return false;
   std::string File;
@@ -147,8 +144,7 @@ static bool RedirectIO_PS(const std::string *Path, int FD, std::string *ErrMsg,
 static void TimeOutHandler(int Sig) {
 }
 
-static void SetMemoryLimits (unsigned size)
-{
+static void SetMemoryLimits(unsigned size) {
 #if HAVE_SYS_RESOURCE_H && HAVE_GETRLIMIT && HAVE_SETRLIMIT
   struct rlimit r;
   __typeof__ (r.rlim_cur) limit = (__typeof__ (r.rlim_cur)) (size) * 1048576;
@@ -163,24 +159,14 @@ static void SetMemoryLimits (unsigned size)
   r.rlim_cur = limit;
   setrlimit (RLIMIT_RSS, &r);
 #endif
-#ifdef RLIMIT_AS  // e.g. NetBSD doesn't have it.
-  // Don't set virtual memory limit if built with any Sanitizer. They need 80Tb
-  // of virtual memory for shadow memory mapping.
-#if !LLVM_MEMORY_SANITIZER_BUILD && !LLVM_ADDRESS_SANITIZER_BUILD
-  // Virtual memory.
-  getrlimit (RLIMIT_AS, &r);
-  r.rlim_cur = limit;
-  setrlimit (RLIMIT_AS, &r);
-#endif
-#endif
 #endif
 }
 
 }
 
-static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
-                    const char **envp, const StringRef **redirects,
-                    unsigned memoryLimit, std::string *ErrMsg) {
+static bool Execute(ProcessInfo &PI, StringRef Program, const char **Args,
+                    const char **Envp, ArrayRef<Optional<StringRef>> Redirects,
+                    unsigned MemoryLimit, std::string *ErrMsg) {
   if (!llvm::sys::fs::exists(Program)) {
     if (ErrMsg)
       *ErrMsg = std::string("Executable \"") + Program.str() +
@@ -191,7 +177,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
   // If this OS has posix_spawn and there is no memory limit being implied, use
   // posix_spawn.  It is more efficient than fork/exec.
 #ifdef HAVE_POSIX_SPAWN
-  if (memoryLimit == 0) {
+  if (MemoryLimit == 0) {
     posix_spawn_file_actions_t FileActionsStore;
     posix_spawn_file_actions_t *FileActions = nullptr;
 
@@ -200,11 +186,12 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     // so we copy any StringRefs into this variable.
     std::string RedirectsStorage[3];
 
-    if (redirects) {
+    if (!Redirects.empty()) {
+      assert(Redirects.size() == 3);
       std::string *RedirectsStr[3] = {nullptr, nullptr, nullptr};
       for (int I = 0; I < 3; ++I) {
-        if (redirects[I]) {
-          RedirectsStorage[I] = *redirects[I];
+        if (Redirects[I]) {
+          RedirectsStorage[I] = *Redirects[I];
           RedirectsStr[I] = &RedirectsStorage[I];
         }
       }
@@ -216,8 +203,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
       if (RedirectIO_PS(RedirectsStr[0], 0, ErrMsg, FileActions) ||
           RedirectIO_PS(RedirectsStr[1], 1, ErrMsg, FileActions))
         return false;
-      if (redirects[1] == nullptr || redirects[2] == nullptr ||
-          *redirects[1] != *redirects[2]) {
+      if (!Redirects[1] || !Redirects[2] || *Redirects[1] != *Redirects[2]) {
         // Just redirect stderr
         if (RedirectIO_PS(RedirectsStr[2], 2, ErrMsg, FileActions))
           return false;
@@ -229,20 +215,20 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
       }
     }
 
-    if (!envp)
+    if (!Envp)
 #if !USE_NSGETENVIRON
-      envp = const_cast<const char **>(environ);
+      Envp = const_cast<const char **>(environ);
 #else
       // environ is missing in dylibs.
-      envp = const_cast<const char **>(*_NSGetEnviron());
+      Envp = const_cast<const char **>(*_NSGetEnviron());
 #endif
 
     // Explicitly initialized to prevent what appears to be a valgrind false
     // positive.
     pid_t PID = 0;
     int Err = posix_spawn(&PID, Program.str().c_str(), FileActions,
-                          /*attrp*/nullptr, const_cast<char **>(args),
-                          const_cast<char **>(envp));
+                          /*attrp*/nullptr, const_cast<char **>(Args),
+                          const_cast<char **>(Envp));
 
     if (FileActions)
       posix_spawn_file_actions_destroy(FileActions);
@@ -267,13 +253,12 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     // Child process: Execute the program.
     case 0: {
       // Redirect file descriptors...
-      if (redirects) {
+      if (!Redirects.empty()) {
         // Redirect stdin
-        if (RedirectIO(redirects[0], 0, ErrMsg)) { return false; }
+        if (RedirectIO(Redirects[0], 0, ErrMsg)) { return false; }
         // Redirect stdout
-        if (RedirectIO(redirects[1], 1, ErrMsg)) { return false; }
-        if (redirects[1] && redirects[2] &&
-            *(redirects[1]) == *(redirects[2])) {
+        if (RedirectIO(Redirects[1], 1, ErrMsg)) { return false; }
+        if (Redirects[1] && Redirects[2] && *Redirects[1] == *Redirects[2]) {
           // If stdout and stderr should go to the same place, redirect stderr
           // to the FD already open for stdout.
           if (-1 == dup2(1,2)) {
@@ -282,24 +267,24 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
           }
         } else {
           // Just redirect stderr
-          if (RedirectIO(redirects[2], 2, ErrMsg)) { return false; }
+          if (RedirectIO(Redirects[2], 2, ErrMsg)) { return false; }
         }
       }
 
       // Set memory limits
-      if (memoryLimit!=0) {
-        SetMemoryLimits(memoryLimit);
+      if (MemoryLimit!=0) {
+        SetMemoryLimits(MemoryLimit);
       }
 
       // Execute!
       std::string PathStr = Program;
-      if (envp != nullptr)
+      if (Envp != nullptr)
         execve(PathStr.c_str(),
-               const_cast<char **>(args),
-               const_cast<char **>(envp));
+               const_cast<char **>(Args),
+               const_cast<char **>(Envp));
       else
         execv(PathStr.c_str(),
-              const_cast<char **>(args));
+              const_cast<char **>(Args));
       // If the execve() failed, we should exit. Follow Unix protocol and
       // return 127 if the executable was not found, and 126 otherwise.
       // Use _exit rather than exit so that atexit functions and static
@@ -446,7 +431,8 @@ llvm::sys::writeFileWithEncoding(StringRef FileName, StringRef Contents,
   return EC;
 }
 
-bool llvm::sys::commandLineFitsWithinSystemLimits(StringRef Program, ArrayRef<const char*> Args) {
+bool llvm::sys::commandLineFitsWithinSystemLimits(StringRef Program,
+                                                  ArrayRef<const char *> Args) {
   static long ArgMax = sysconf(_SC_ARG_MAX);
 
   // System says no practical limit.
@@ -457,13 +443,23 @@ bool llvm::sys::commandLineFitsWithinSystemLimits(StringRef Program, ArrayRef<co
   long HalfArgMax = ArgMax / 2;
 
   size_t ArgLength = Program.size() + 1;
-  for (ArrayRef<const char*>::iterator I = Args.begin(), E = Args.end();
-       I != E; ++I) {
-    ArgLength += strlen(*I) + 1;
+  for (const char* Arg : Args) {
+    size_t length = strlen(Arg);
+
+    // Ensure that we do not exceed the MAX_ARG_STRLEN constant on Linux, which
+    // does not have a constant unlike what the man pages would have you
+    // believe. Since this limit is pretty high, perform the check
+    // unconditionally rather than trying to be aggressive and limiting it to
+    // Linux only.
+    if (length >= (32 * 4096))
+      return false;
+
+    ArgLength += length + 1;
     if (ArgLength > size_t(HalfArgMax)) {
       return false;
     }
   }
+
   return true;
 }
 }

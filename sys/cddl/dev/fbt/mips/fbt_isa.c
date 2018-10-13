@@ -82,7 +82,6 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
     linker_symval_t *symval, void *opaque)
 {
 	fbt_probe_t *fbt, *retfbt;
-	uint32_t *target, *start;
 	uint32_t *instr, *limit;
 	const char *name;
 	char *modname;
@@ -143,7 +142,7 @@ again:
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
 		    name, FBT_RETURN, 3, fbt);
 	} else {
-		retfbt->fbtp_next = fbt;
+		retfbt->fbtp_probenext = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
 	}
 	retfbt = fbt;

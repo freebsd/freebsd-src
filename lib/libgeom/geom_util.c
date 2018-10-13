@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -56,8 +58,6 @@ g_open(const char *name, int dowrite)
 	path = g_device_path_open(name, &fd, dowrite);
 	if (path != NULL)
 		free(path);
-	if (fd == -1)
-		return (-1);
 	return (fd);
 }
 
@@ -281,58 +281,45 @@ g_device_path_open(const char *devpath, int *fdp, int dowrite)
 	/* Make sure that we can fail. */
 	if (fdp != NULL)
 		*fdp = -1;
+
 	/* Use the device node if we're able to open it. */
-	do {
-		fd = open(devpath, dowrite ? O_RDWR : O_RDONLY);
-		if (fd == -1)
-			break;
-		/*
-		 * Let try to get sectorsize, which will prove it is a GEOM
-		 * provider. 
-		 */
-		if (g_sectorsize(fd) == -1) {
-			close(fd);
-			errno = EFTYPE;
-			return (NULL);
-		}
+	fd = open(devpath, dowrite ? O_RDWR : O_RDONLY);
+	if (fd != -1) {
 		if ((path = strdup(devpath)) == NULL) {
 			close(fd);
 			return (NULL);
 		}
-		if (fdp != NULL)
-			*fdp = fd;
-		else
-			close(fd);
-		return (path);
-	} while (0);
+		goto fd_ok;
+	}
 
 	/* If we're not given an absolute path, assume /dev/ prefix. */
-	if (*devpath != '/') {
-		asprintf(&path, "%s%s", _PATH_DEV, devpath);
-		if (path == NULL)
-			return (NULL);
-		fd = open(path, dowrite ? O_RDWR : O_RDONLY);
-		if (fd == -1) {
-			free(path);
-			return (NULL);
-		}
-		/*
-		 * Let try to get sectorsize, which will prove it is a GEOM
-		 * provider.
-		 */
-		if (g_sectorsize(fd) == -1) {
-			free(path);
-			close(fd);
-			errno = EFTYPE;
-			return (NULL);
-		}
-		if (fdp != NULL)
-			*fdp = fd;
-		else
-			close(fd);
-		return (path);
+	if (*devpath == '/')
+		return (NULL);
+
+	asprintf(&path, "%s%s", _PATH_DEV, devpath);
+	if (path == NULL)
+		return (NULL);
+	fd = open(path, dowrite ? O_RDWR : O_RDONLY);
+	if (fd == -1) {
+		free(path);
+		return (NULL);
 	}
-	return (NULL);
+
+fd_ok:
+	/*
+	 * Let try to get sectorsize, which will prove it is a GEOM provider.
+	 */
+	if (g_sectorsize(fd) == -1) {
+		free(path);
+		close(fd);
+		errno = EFTYPE;
+		return (NULL);
+	}
+	if (fdp != NULL)
+		*fdp = fd;
+	else
+		close(fd);
+	return (path);
 }
 
 char *

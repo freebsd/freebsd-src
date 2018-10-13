@@ -4,7 +4,7 @@
 PROG=	nologin
 MAN=	nologin.5 nologin.8
 
-SYMLINKS=	${BINDIR}/nologin /sbin/nologin
+SYMLINKS=	..${BINDIR}/nologin /sbin/nologin
 
 # It is important that nologin be statically linked for security
 # reasons.  A dynamic non-setuid binary can be linked against a trojan

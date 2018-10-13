@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
@@ -41,9 +42,26 @@ __FBSDID("$FreeBSD$");
 int armada38x_open_bootrom_win(void);
 int armada38x_scu_enable(void);
 int armada38x_win_set_iosync_barrier(void);
+int armada38x_mbus_optimization(void);
+static uint64_t get_sar_value_armada38x(void);
+
+static int hw_clockrate;
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
+    &hw_clockrate, 0, "CPU instruction clock rate");
+
+static uint64_t
+get_sar_value_armada38x(void)
+{
+	uint32_t sar_low, sar_high;
+
+	sar_high = 0;
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_ARMADA38X);
+	return (((uint64_t)sar_high << 32) | sar_low);
+}
 
 uint32_t
-get_tclk(void)
+get_tclk_armada38x(void)
 {
 	uint32_t sar;
 
@@ -51,12 +69,35 @@ get_tclk(void)
 	 * On Armada38x TCLK can be configured to 250 MHz or 200 MHz.
 	 * Current setting is read from Sample At Reset register.
 	 */
-	sar = (uint32_t)get_sar_value();
-	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
+	sar = (uint32_t)get_sar_value_armada38x();
+	sar = (sar & TCLK_MASK_ARMADA38X) >> TCLK_SHIFT_ARMADA38X;
 	if (sar == 0)
 		return (TCLK_250MHZ);
 	else
 		return (TCLK_200MHZ);
+}
+
+uint32_t
+get_cpu_freq_armada38x(void)
+{
+	uint32_t sar;
+
+	static const uint32_t cpu_frequencies[] = {
+		0, 0, 0, 0,
+		1066, 0, 0, 0,
+		1332, 0, 0, 0,
+		1600, 0, 0, 0,
+		1866, 0, 0, 2000
+	};
+
+	sar = (uint32_t)get_sar_value_armada38x();
+	sar = (sar & A38X_CPU_DDR_CLK_MASK) >> A38X_CPU_DDR_CLK_SHIFT;
+	if (sar >= nitems(cpu_frequencies))
+		return (0);
+
+	hw_clockrate = cpu_frequencies[sar];
+
+	return (hw_clockrate * 1000 * 1000);
 }
 
 int
@@ -115,6 +156,50 @@ armada38x_open_bootrom_win(void)
 }
 
 int
+armada38x_mbus_optimization(void)
+{
+	bus_space_handle_t vaddr_iowind;
+	int rv;
+
+	rv = bus_space_map(fdtbus_bs_tag, (bus_addr_t)MV_MBUS_CTRL_BASE,
+	    MV_MBUS_CTRL_REGS_LEN, 0, &vaddr_iowind);
+	if (rv != 0)
+		return (rv);
+
+	/*
+	 * MBUS Units Priority Control Register - Prioritize XOR,
+	 * PCIe and GbEs (ID=4,6,3,7,8) DRAM access
+	 * GbE is High and others are Medium.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0, 0x19180);
+
+	/*
+	 * Fabric Units Priority Control Register -
+	 * Prioritize CPUs requests.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0x4, 0x3000A);
+
+	/*
+	 * MBUS Units Prefetch Control Register -
+	 * Pre-fetch enable for all IO masters.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0x8, 0xFFFF);
+
+	/*
+	 * Fabric Units Prefetch Control Register -
+	 * Enable the CPUs Instruction and Data prefetch.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0xc, 0x303);
+
+	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0, MV_MBUS_CTRL_REGS_LEN,
+	    BUS_SPACE_BARRIER_WRITE);
+
+	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_MBUS_CTRL_REGS_LEN);
+
+	return (rv);
+}
+
+int
 armada38x_scu_enable(void)
 {
 	bus_space_handle_t vaddr_scu;
@@ -128,9 +213,13 @@ armada38x_scu_enable(void)
 
 	/* Enable SCU */
 	val = bus_space_read_4(fdtbus_bs_tag, vaddr_scu, MV_SCU_REG_CTRL);
-	if (!(val & MV_SCU_ENABLE))
+	if (!(val & MV_SCU_ENABLE)) {
+		/* Enable SCU Speculative linefills to L2 */
+		val |= MV_SCU_SL_L2_ENABLE;
+
 		bus_space_write_4(fdtbus_bs_tag, vaddr_scu, 0,
 		    val | MV_SCU_ENABLE);
+	}
 
 	bus_space_unmap(fdtbus_bs_tag, vaddr_scu, MV_SCU_REGS_LEN);
 	return (0);

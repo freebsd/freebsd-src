@@ -23,12 +23,12 @@
 
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  * Use is subject to license terms.
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_DTRACE_IMPL_H
@@ -50,6 +50,7 @@ extern "C" {
  */
 
 #include <sys/dtrace.h>
+
 #ifndef illumos
 #ifdef __sparcv9
 typedef uint32_t		pc_t;
@@ -64,6 +65,10 @@ typedef	u_long			greg_t;
  */
 #define	DTRACE_MAXPROPLEN		128
 #define	DTRACE_DYNVAR_CHUNKSIZE		256
+
+#ifdef __FreeBSD__
+#define	NCPU		MAXCPU
+#endif /* __FreeBSD__ */
 
 struct dtrace_probe;
 struct dtrace_ecb;
@@ -932,6 +937,7 @@ typedef struct dtrace_mstate {
 	int dtms_ipl;				/* cached interrupt pri lev */
 	int dtms_fltoffs;			/* faulting DIFO offset */
 	uintptr_t dtms_strtok;			/* saved strtok() pointer */
+	uintptr_t dtms_strtok_limit;		/* upper bound of strtok ptr */
 	uint32_t dtms_access;			/* memory access rights */
 	dtrace_difo_t *dtms_difo;		/* current dif object */
 	file_t *dtms_getf;			/* cached rval of getf() */
@@ -1168,6 +1174,7 @@ struct dtrace_state {
 	dtrace_cred_t dts_cred;			/* credentials */
 	size_t dts_nretained;			/* number of retained enabs */
 	int dts_getf;				/* number of getf() calls */
+	uint64_t dts_rstate[NCPU][2];		/* per-CPU random state */
 };
 
 struct dtrace_provider {

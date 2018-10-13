@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.14 2014/04/30 21:41:02 christos Exp $
+# $File: games,v 1.16 2017/10/19 16:40:37 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -34,12 +34,48 @@
 
 # Quake
 
-0       string  PACK    Quake I or II world or extension
->8	lelong	>0	\b, %d entries
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/PAK
+# reference: https://quakewiki.org/wiki/.pak
+# GRR: line below is too general as it matches also Acorn PackDir compressed Archive
+# and Git pack ./revision
+0       string  PACK    
+# real Quake examples like pak0.pak have only some hundreds like 150 files
+# So test for few files
+>8	ulelong <0x01000000	
+# in file version 5.32 test for null terminator is only true for
+# offset ~< FILE_BYTES_MAX = 1 MB defined in ../../src/file.h 
+# look for null terminator of 1st entry name
+>>(4.l+55)	ubyte	0	Quake I or II world or extension
+!:mime	application/x-dzip
+!:ext	pak
+#>>>8	ulelong	x	\b, table size %u
+# dividing this by entry size (64) gives number of files
+>>>8	ulelong/64 x	\b, %u files
+# offset to the beginning of the file table
+>>>4	ulelong	x	\b, offset 0x%x
+# 1st file entry
+>>>(4.l)	use	pak-entry
+# 2nd file entry
+#>>>4	ulelong+64	x	\b, offset 0x%x
+#>>>(4.l+64)	use	pak-entry
+#
+#	display file table entry of Quake PAK archive
+0	name		pak-entry
+# normally entry start after header which implies offset 12 or higher
+>56	ulelong	>11	
+# the offset from the beginning of pak to beginning of this entry file contents
+>>56	ulelong	x	at 0x%x
+# the size of file for this entry 
+>>60	ulelong	x	%u bytes
+# 56 byte null-terminated entry name string includes path like maps/e1m1.bsp
+>>0	string	x	'%-.56s'
+# inspect entry content by jumping to entry offset
+>>(56)	indirect x	\b: 
 
 #0       string  -1\x0a  Quake I demo
 #>30     string  x        version %.4s
-#>61     string  x        level %s       
+#>61     string  x        level %s
 
 #0       string  5\x0a   Quake I save
 
@@ -240,7 +276,7 @@
 # Summary: NetImmerse game engine file
 # Extension .nif
 # Created by: Abel Cheung <abelcheung@gmail.com>
-0		string		NetImmerse\ File\ Format,\ Versio		
+0		string		NetImmerse\ File\ Format,\ Versio
 >&0		string		n\ 					NetImmerse game engine file
 >>&0		regex		[0-9a-z.]+				\b, version %s
 

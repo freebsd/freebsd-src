@@ -46,6 +46,8 @@
  *****************************************************************************/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -598,7 +600,7 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 	} else {
 		mode |= GM_RXCR_UCF_ENA;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -1953,12 +1955,6 @@ mskc_attach(device_t dev)
 		goto fail;
 	}
 	mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (mmd == NULL) {
-		device_printf(dev, "failed to allocate memory for "
-		    "ivars of PORT_A\n");
-		error = ENXIO;
-		goto fail;
-	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
 	mmd->mii_flags |= MIIF_DOPAUSE;
@@ -1977,12 +1973,6 @@ mskc_attach(device_t dev)
 		}
 		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK |
 		    M_ZERO);
-		if (mmd == NULL) {
-			device_printf(dev, "failed to allocate memory for "
-			    "ivars of PORT_B\n");
-			error = ENXIO;
-			goto fail;
-		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
 		if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
@@ -4505,7 +4495,7 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 
 	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "MSK Statistics");
-	schild = child = SYSCTL_CHILDREN(tree);
+	schild = SYSCTL_CHILDREN(tree);
 	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
 	    NULL, "MSK RX Statistics");
 	child = SYSCTL_CHILDREN(tree);

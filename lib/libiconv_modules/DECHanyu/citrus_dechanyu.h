@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_dechanyu.h,v 1.1 2007/04/01 18:52:32 tnozaki Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2006 Citrus Project,
  * All rights reserved.
  *

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/bus.h>
 
 #include <sys/sbuf.h>
 #include <geom/geom.h>
@@ -246,6 +249,16 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	u_int blksize;		/* NB: flash block size stored as stripesize */
 	u_char *buf;
 	off_t offset;
+	const char *value;
+	char *op;
+
+	offset = 0;
+	if (resource_string_value("redboot", 0, "fisoffset", &value) == 0) {
+		offset = strtouq(value, &op, 0);
+		if (*op != '\0') {
+			offset = 0;
+		}
+	}
 
 	g_trace(G_T_TOPOLOGY, "redboot_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -278,7 +291,8 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		return (NULL);
 	g_topology_unlock();
 	head = NULL;
-	offset = cp->provider->mediasize - blksize;
+	if(offset == 0)
+		offset = cp->provider->mediasize - blksize;
 again:
 	buf = g_read_data(cp, offset, blksize, NULL);
 	if (buf != NULL)
@@ -343,3 +357,4 @@ static struct g_class g_redboot_class	= {
 	.ioctl		= g_redboot_ioctl,
 };
 DECLARE_GEOM_CLASS(g_redboot_class, g_redboot);
+MODULE_VERSION(geom_redboot, 0);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Bjoern A. Zeeb <bz@FreeBSD.org>
  * All rights reserved.
  *
@@ -65,6 +67,10 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%d", if_index_reserved);
 	IF_DB_PRINTF("%p", if_softc);
 	IF_DB_PRINTF("%p", if_l2com);
+	IF_DB_PRINTF("%p", if_llsoftc);
+	IF_DB_PRINTF("%d", if_amcount);
+	IF_DB_PRINTF("%p", if_addr);
+	IF_DB_PRINTF("%p", if_broadcastaddr);
 	IF_DB_PRINTF("%p", if_afdata);
 	IF_DB_PRINTF("%d", if_afdata_initialized);
 	IF_DB_PRINTF("%u", if_fib);
@@ -72,10 +78,13 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%p", if_home_vnet);
 	IF_DB_PRINTF("%p", if_vlantrunk);
 	IF_DB_PRINTF("%p", if_bpf);
-	IF_DB_PRINTF("%p", if_addr);
-	IF_DB_PRINTF("%p", if_llsoftc);
-	IF_DB_PRINTF("%p", if_label);
 	IF_DB_PRINTF("%u", if_pcount);
+	IF_DB_PRINTF("%p", if_bridge);
+	IF_DB_PRINTF("%p", if_lagg);
+	IF_DB_PRINTF("%p", if_pf_kif);
+	IF_DB_PRINTF("%p", if_carp);
+	IF_DB_PRINTF("%p", if_label);
+	IF_DB_PRINTF("%p", if_netmap);
 	IF_DB_PRINTF("0x%08x", if_flags);
 	IF_DB_PRINTF("0x%08x", if_drv_flags);
 	IF_DB_PRINTF("0x%08x", if_capabilities);

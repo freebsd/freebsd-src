@@ -1,6 +1,11 @@
 .\" Copyright (c) 2004-2009 Apple Inc.
-.\" Copyright (c) 2006 Robert N. M. Watson
+.\" Copyright (c) 2006, 2016 Robert N. M. Watson
 .\" All rights reserved.
+.\"
+.\" Portions of this software were developed by BAE Systems, the University of
+.\" Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+.\" contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+.\" Computing (TC) research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +31,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 14, 2009
+.Dd August 19, 2016
 .Dt AUDIT_CONTROL 5
 .Os
 .Sh NAME
@@ -108,6 +113,20 @@ If no expire-after parameter is given then audit log files will not
 expire and be removed by the audit control system.
 See the information below for the format of the expiration
 specification.
+.It Va qsize
+Specifies the maximum number of outstanding committed audit records that can
+be in the kernel's post-commit queue pending write to disk.
+If this number has been reached, user threads performing an auditable event
+will be suspended until the queue has fallen below the limit.
+Depending on the underlying kernel implementation, the number of in-flight
+records can exceed this number, as it does not constrain uncommitted records
+(e.g., those associated with incomplete auditable system calls), and may also
+exclude the set of records extracted from the queue and currently being
+prepared for or undergoing I/O.
+Other operational limits may be affected by this parameter, such as the
+minimum free space on disk required to continue system operation, estimated as
+the maximum number of allowable in-flight records multiplied by the maximum
+audit record size.
 .El
 .Sh AUDIT FLAGS
 Audit flags are a comma-delimited list of audit classes as defined in the

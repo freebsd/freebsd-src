@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Luiz Otavio O Souza.
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2012 Adrian Chadd.
@@ -234,6 +236,13 @@ ip175c_get_vlan_mode(struct ip17x_softc *sc)
 void
 ip175c_attach(struct ip17x_softc *sc)
 {
+	uint32_t data;
+
+	data = ip17x_readphy(sc->sc_dev, IP175C_MII_PHY, IP175C_MII_CTL_REG);
+	device_printf(sc->sc_dev, "MII: %x\n", data);
+	/* check mii1 interface if disabled then phy4 and mac4 hold on switch */
+	if((data & (1 << IP175C_MII_MII1_RMII_EN)) == 0)
+		sc->phymask |= 0x10;
 
 	sc->hal.ip17x_reset = ip175c_reset;
 	sc->hal.ip17x_hw_setup = ip175c_hw_setup;

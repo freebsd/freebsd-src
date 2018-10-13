@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBUCL=	${.CURDIR}/../../contrib/libucl
+LIBUCL=	${SRCTOP}/contrib/libucl
 
 PACKAGE=lib${LIB}
 LIB=		ucl

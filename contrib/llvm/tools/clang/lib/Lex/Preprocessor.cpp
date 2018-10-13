@@ -1,4 +1,4 @@
-//===--- Preprocess.cpp - C Language Family Preprocessor Implementation ---===//
+//===- Preprocess.cpp - C Language Family Preprocessor Implementation -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -28,66 +28,71 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
+#include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/Module.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/Lex/LiteralSupport.h"
 #include "clang/Lex/MacroArgs.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/ModuleLoader.h"
+#include "clang/Lex/PTHLexer.h"
 #include "clang/Lex/PTHManager.h"
 #include "clang/Lex/Pragma.h"
 #include "clang/Lex/PreprocessingRecord.h"
+#include "clang/Lex/PreprocessorLexer.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Lex/ScratchBuffer.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
+#include "clang/Lex/Token.h"
+#include "clang/Lex/TokenLexer.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Capacity.h"
-#include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cassert>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 using namespace clang;
 
-//===----------------------------------------------------------------------===//
-ExternalPreprocessorSource::~ExternalPreprocessorSource() { }
+LLVM_INSTANTIATE_REGISTRY(PragmaHandlerRegistry)
 
-Preprocessor::Preprocessor(IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
+ExternalPreprocessorSource::~ExternalPreprocessorSource() = default;
+
+Preprocessor::Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
                            DiagnosticsEngine &diags, LangOptions &opts,
-                           SourceManager &SM, HeaderSearch &Headers,
-                           ModuleLoader &TheModuleLoader,
+                           SourceManager &SM, MemoryBufferCache &PCMCache,
+                           HeaderSearch &Headers, ModuleLoader &TheModuleLoader,
                            IdentifierInfoLookup *IILookup, bool OwnsHeaders,
                            TranslationUnitKind TUKind)
-    : PPOpts(PPOpts), Diags(&diags), LangOpts(opts), Target(nullptr),
-      AuxTarget(nullptr), FileMgr(Headers.getFileMgr()), SourceMgr(SM),
-      ScratchBuf(new ScratchBuffer(SourceMgr)), HeaderInfo(Headers),
-      TheModuleLoader(TheModuleLoader), ExternalSource(nullptr),
-      Identifiers(opts, IILookup),
-      PragmaHandlers(new PragmaNamespace(StringRef())),
-      IncrementalProcessing(false), TUKind(TUKind), CodeComplete(nullptr),
-      CodeCompletionFile(nullptr), CodeCompletionOffset(0),
-      LastTokenWasAt(false), ModuleImportExpectsIdentifier(false),
-      CodeCompletionReached(0), MainFileDir(nullptr),
-      SkipMainFilePreamble(0, true), CurPPLexer(nullptr), CurDirLookup(nullptr),
-      CurLexerKind(CLK_Lexer), CurSubmodule(nullptr), Callbacks(nullptr),
-      CurSubmoduleState(&NullSubmoduleState), MacroArgCache(nullptr),
-      Record(nullptr), MIChainHead(nullptr), DeserialMIChainHead(nullptr) {
+    : PPOpts(std::move(PPOpts)), Diags(&diags), LangOpts(opts),
+      FileMgr(Headers.getFileMgr()), SourceMgr(SM),
+      PCMCache(PCMCache), ScratchBuf(new ScratchBuffer(SourceMgr)),
+      HeaderInfo(Headers), TheModuleLoader(TheModuleLoader),
+      ExternalSource(nullptr), Identifiers(opts, IILookup),
+      PragmaHandlers(new PragmaNamespace(StringRef())), TUKind(TUKind),
+      SkipMainFilePreamble(0, true),
+      CurSubmoduleState(&NullSubmoduleState) {
   OwnsHeaderSearch = OwnsHeaders;
-  
-  CounterValue = 0; // __COUNTER__ starts at 0.
-  
-  // Clear stats.
-  NumDirectives = NumDefined = NumUndefined = NumPragma = 0;
-  NumIf = NumElse = NumEndif = 0;
-  NumEnteredSourceFiles = 0;
-  NumMacroExpanded = NumFnMacroExpanded = NumBuiltinMacroExpanded = 0;
-  NumFastMacroExpanded = NumTokenPaste = NumFastTokenPaste = 0;
-  MaxIncludeStackDepth = 0;
-  NumSkipped = 0;
   
   // Default to discarding comments.
   KeepComments = false;
@@ -104,16 +109,20 @@ Preprocessor::Preprocessor(IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
   ParsingIfOrElifDirective = false;
   PreprocessedOutput = false;
 
-  CachedLexPos = 0;
-
   // We haven't read anything from the external source.
   ReadMacrosFromExternalSource = false;
-  
-  // "Poison" __VA_ARGS__, which can only appear in the expansion of a macro.
-  // This gets unpoisoned where it is allowed.
+
+  // "Poison" __VA_ARGS__, __VA_OPT__ which can only appear in the expansion of
+  // a macro. They get unpoisoned where it is allowed.
   (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
   SetPoisonReason(Ident__VA_ARGS__,diag::ext_pp_bad_vaargs_use);
-  
+  if (getLangOpts().CPlusPlus2a) {
+    (Ident__VA_OPT__ = getIdentifierInfo("__VA_OPT__"))->setIsPoisoned();
+    SetPoisonReason(Ident__VA_OPT__,diag::ext_pp_bad_vaopt_use);
+  } else {
+    Ident__VA_OPT__ = nullptr;
+  }
+
   // Initialize the pragma handlers.
   RegisterBuiltinPragmas();
   
@@ -137,6 +146,9 @@ Preprocessor::Preprocessor(IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
     Ident_GetExceptionInfo = Ident_GetExceptionCode = nullptr;
     Ident_AbnormalTermination = nullptr;
   }
+
+  if (this->PPOpts->GeneratePreamble)
+    PreambleConditionalStack.startRecording();
 }
 
 Preprocessor::~Preprocessor() {
@@ -155,11 +167,6 @@ Preprocessor::~Preprocessor() {
   // before the code below that frees up the MacroArgCache list.
   std::fill(TokenLexerCache, TokenLexerCache + NumCachedTokenLexers, nullptr);
   CurTokenLexer.reset();
-
-  while (DeserializedMacroInfoChain *I = DeserialMIChainHead) {
-    DeserialMIChainHead = I->Next;
-    I->~DeserializedMacroInfoChain();
-  }
 
   // Free any cached MacroArgs.
   for (MacroArgs *ArgList = MacroArgCache; ArgList;)
@@ -413,10 +420,9 @@ bool Preprocessor::SetCodeCompletionPoint(const FileEntry *File,
   CodeCompletionFile = File;
   CodeCompletionOffset = Position - Buffer->getBufferStart();
 
-  std::unique_ptr<MemoryBuffer> NewBuffer =
-      MemoryBuffer::getNewUninitMemBuffer(Buffer->getBufferSize() + 1,
-                                          Buffer->getBufferIdentifier());
-  char *NewBuf = const_cast<char*>(NewBuffer->getBufferStart());
+  auto NewBuffer = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(
+      Buffer->getBufferSize() + 1, Buffer->getBufferIdentifier());
+  char *NewBuf = NewBuffer->getBufferStart();
   char *NewPos = std::copy(Buffer->getBufferStart(), Position, NewBuf);
   *NewPos = '\0';
   std::copy(Position, Buffer->getBufferEnd(), NewPos+1);
@@ -477,7 +483,7 @@ void Preprocessor::CreateString(StringRef Str, Token &Tok,
 }
 
 Module *Preprocessor::getCurrentModule() {
-  if (getLangOpts().CurrentModule.empty())
+  if (!getLangOpts().isCompilingModule())
     return nullptr;
 
   return getHeaderSearchInfo().lookupModule(getLangOpts().CurrentModule);
@@ -486,7 +492,6 @@ Module *Preprocessor::getCurrentModule() {
 //===----------------------------------------------------------------------===//
 // Preprocessor Initialization Methods
 //===----------------------------------------------------------------------===//
-
 
 /// EnterMainSourceFile - Enter the specified FileID as the main source file,
 /// which implicitly adds the builtin defines etc.
@@ -506,9 +511,9 @@ void Preprocessor::EnterMainSourceFile() {
     // If we've been asked to skip bytes in the main file (e.g., as part of a
     // precompiled preamble), do so now.
     if (SkipMainFilePreamble.first > 0)
-      CurLexer->SkipBytes(SkipMainFilePreamble.first, 
-                          SkipMainFilePreamble.second);
-    
+      CurLexer->SetByteOffset(SkipMainFilePreamble.first,
+                              SkipMainFilePreamble.second);
+
     // Tell the header info that the main file was entered.  If the file is later
     // #imported, it won't be re-entered.
     if (const FileEntry *FE = SourceMgr.getFileEntryForID(MainFileID))
@@ -525,6 +530,23 @@ void Preprocessor::EnterMainSourceFile() {
 
   // Start parsing the predefines.
   EnterSourceFile(FID, nullptr, SourceLocation());
+}
+
+void Preprocessor::replayPreambleConditionalStack() {
+  // Restore the conditional stack from the preamble, if there is one.
+  if (PreambleConditionalStack.isReplaying()) {
+    assert(CurPPLexer &&
+           "CurPPLexer is null when calling replayPreambleConditionalStack.");
+    CurPPLexer->setConditionalLevels(PreambleConditionalStack.getStack());
+    PreambleConditionalStack.doneReplaying();
+    if (PreambleConditionalStack.reachedEOFWhileSkipping())
+      SkipExcludedConditionalBlock(
+          PreambleConditionalStack.SkipInfo->HashTokenLoc,
+          PreambleConditionalStack.SkipInfo->IfTokenLoc,
+          PreambleConditionalStack.SkipInfo->FoundNonSkipPortion,
+          PreambleConditionalStack.SkipInfo->FoundElse,
+          PreambleConditionalStack.SkipInfo->ElseLoc);
+  }
 }
 
 void Preprocessor::EndSourceFile() {
@@ -564,7 +586,11 @@ IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier) const {
 
   // Update the token info (identifier info and appropriate token kind).
   Identifier.setIdentifierInfo(II);
-  Identifier.setKind(II->getTokenID());
+  if (getLangOpts().MSVCCompat && II->isCPlusPlusOperatorKeyword() &&
+      getSourceManager().isInSystemHeader(Identifier.getLocation()))
+    Identifier.setKind(tok::identifier);
+  else
+    Identifier.setKind(II->getTokenID());
 
   return II;
 }
@@ -608,11 +634,18 @@ static diag::kind getFutureCompatDiagKind(const IdentifierInfo &II,
     return llvm::StringSwitch<diag::kind>(II.getName())
 #define CXX11_KEYWORD(NAME, FLAGS)                                             \
         .Case(#NAME, diag::warn_cxx11_keyword)
+#define CXX2A_KEYWORD(NAME, FLAGS)                                             \
+        .Case(#NAME, diag::warn_cxx2a_keyword)
 #include "clang/Basic/TokenKinds.def"
         ;
 
   llvm_unreachable(
       "Keyword not known to come from a newer Standard or proposed Standard");
+}
+
+void Preprocessor::updateOutOfDateIdentifier(IdentifierInfo &II) const {
+  assert(II.isOutOfDate() && "not out of date");
+  getExternalSource()->updateOutOfDateIdentifier(II);
 }
 
 /// HandleIdentifier - This callback is invoked when the lexer reads an
@@ -636,13 +669,15 @@ bool Preprocessor::HandleIdentifier(Token &Identifier) {
   // unpoisoned it if we're defining a C99 macro.
   if (II.isOutOfDate()) {
     bool CurrentIsPoisoned = false;
-    if (&II == Ident__VA_ARGS__)
-      CurrentIsPoisoned = Ident__VA_ARGS__->isPoisoned();
+    const bool IsSpecialVariadicMacro =
+        &II == Ident__VA_ARGS__ || &II == Ident__VA_OPT__;
+    if (IsSpecialVariadicMacro)
+      CurrentIsPoisoned = II.isPoisoned();
 
-    ExternalSource->updateOutOfDateIdentifier(II);
+    updateOutOfDateIdentifier(II);
     Identifier.setKind(II.getTokenID());
 
-    if (&II == Ident__VA_ARGS__)
+    if (IsSpecialVariadicMacro)
       II.setIsPoisoned(CurrentIsPoisoned);
   }
   
@@ -685,12 +720,6 @@ bool Preprocessor::HandleIdentifier(Token &Identifier) {
     II.setIsFutureCompatKeyword(false);
   }
 
-  // C++ 2.11p2: If this is an alternative representation of a C++ operator,
-  // then we act as if it is the actual operator and not the textual
-  // representation of it.
-  if (II.isCPlusPlusOperatorKeyword())
-    Identifier.setIdentifierInfo(nullptr);
-
   // If this is an extension token, diagnose its use.
   // We avoid diagnosing tokens that originate from macro definitions.
   // FIXME: This warning is disabled in cases where it shouldn't be,
@@ -704,9 +733,12 @@ bool Preprocessor::HandleIdentifier(Token &Identifier) {
   // Note that we do not treat 'import' as a contextual
   // keyword when we're in a caching lexer, because caching lexers only get
   // used in contexts where import declarations are disallowed.
-  if (LastTokenWasAt && II.isModulesImport() && !InMacroArgs && 
-      !DisableMacroExpansion &&
-      (getLangOpts().Modules || getLangOpts().DebuggerSupport) && 
+  //
+  // Likewise if this is the C++ Modules TS import keyword.
+  if (((LastTokenWasAt && II.isModulesImport()) ||
+       Identifier.is(tok::kw_import)) &&
+      !InMacroArgs && !DisableMacroExpansion &&
+      (getLangOpts().Modules || getLangOpts().DebuggerSupport) &&
       CurLexerKind != CLK_CachingLexer) {
     ModuleImportLoc = Identifier.getLocation();
     ModuleImportPath.clear();
@@ -741,9 +773,11 @@ void Preprocessor::Lex(Token &Result) {
     }
   } while (!ReturnedToken);
 
+  if (Result.is(tok::code_completion))
+    setCodeCompletionIdentifierInfo(Result.getIdentifierInfo());
+
   LastTokenWasAt = Result.is(tok::at);
 }
-
 
 /// \brief Lex a token following the 'import' contextual keyword.
 ///
@@ -771,7 +805,8 @@ void Preprocessor::LexAfterModuleImport(Token &Result) {
   }
   
   // If we're expecting a '.' or a ';', and we got a '.', then wait until we
-  // see the next identifier.
+  // see the next identifier. (We can also see a '[[' that begins an
+  // attribute-specifier-seq here under the C++ Modules TS.)
   if (!ModuleImportExpectsIdentifier && Result.getKind() == tok::period) {
     ModuleImportExpectsIdentifier = true;
     CurLexerKind = CLK_LexAfterModuleImport;
@@ -780,6 +815,23 @@ void Preprocessor::LexAfterModuleImport(Token &Result) {
 
   // If we have a non-empty module path, load the named module.
   if (!ModuleImportPath.empty()) {
+    // Under the Modules TS, the dot is just part of the module name, and not
+    // a real hierarachy separator. Flatten such module names now.
+    //
+    // FIXME: Is this the right level to be performing this transformation?
+    std::string FlatModuleName;
+    if (getLangOpts().ModulesTS) {
+      for (auto &Piece : ModuleImportPath) {
+        if (!FlatModuleName.empty())
+          FlatModuleName += ".";
+        FlatModuleName += Piece.first->getName();
+      }
+      SourceLocation FirstPathLoc = ModuleImportPath[0].second;
+      ModuleImportPath.clear();
+      ModuleImportPath.push_back(
+          std::make_pair(getIdentifierInfo(FlatModuleName), FirstPathLoc));
+    }
+
     Module *Imported = nullptr;
     if (getLangOpts().Modules) {
       Imported = TheModuleLoader.loadModule(ModuleImportLoc,
@@ -878,8 +930,8 @@ void Preprocessor::addCommentHandler(CommentHandler *Handler) {
 }
 
 void Preprocessor::removeCommentHandler(CommentHandler *Handler) {
-  std::vector<CommentHandler *>::iterator Pos
-  = std::find(CommentHandlers.begin(), CommentHandlers.end(), Handler);
+  std::vector<CommentHandler *>::iterator Pos =
+      std::find(CommentHandlers.begin(), CommentHandlers.end(), Handler);
   assert(Pos != CommentHandlers.end() && "Comment handler not registered");
   CommentHandlers.erase(Pos);
 }
@@ -898,11 +950,11 @@ bool Preprocessor::HandleComment(Token &result, SourceRange Comment) {
   return true;
 }
 
-ModuleLoader::~ModuleLoader() { }
+ModuleLoader::~ModuleLoader() = default;
 
-CommentHandler::~CommentHandler() { }
+CommentHandler::~CommentHandler() = default;
 
-CodeCompletionHandler::~CodeCompletionHandler() { }
+CodeCompletionHandler::~CodeCompletionHandler() = default;
 
 void Preprocessor::createPreprocessingRecord() {
   if (Record)

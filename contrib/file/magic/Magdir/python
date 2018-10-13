@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.28 2015/09/16 22:19:54 christos Exp $
+# $File: python,v 1.34 2017/08/14 07:40:38 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -9,7 +9,7 @@
 0	string/t	"""	Python script text executable
 # MAGIC as specified in Python/import.c (1.5 to 2.7a0 and 3.1a0, assuming
 # that Py_UnicodeFlag is off for Python 2)
-# 20121  ( YEAR - 1995 ) + MONTH  + DAY (little endian followed by "\r\n"
+# two bytes of magic followed by "\r\n" in little endian order
 0	belong		0x994e0d0a	python 1.5/1.6 byte-compiled
 0	belong		0x87c60d0a	python 2.0 byte-compiled
 0	belong		0x2aeb0d0a	python 2.1 byte-compiled
@@ -24,6 +24,11 @@
 0	belong		0x6c0c0d0a	python 3.2 byte-compiled
 0	belong		0x9e0c0d0a	python 3.3 byte-compiled
 0	belong		0xee0c0d0a	python 3.4 byte-compiled
+0	belong		0x160d0d0a	python 3.5.1- byte-compiled
+0	belong		0x170d0d0a	python 3.5.2+ byte-compiled
+0	belong		0x330d0d0a	python 3.6 byte-compiled
+0	belong		0x3e0d0d0a	python 3.7 byte-compiled
+
 
 0	search/1/w	#!\ /usr/bin/python	Python script text executable
 !:strength + 15
@@ -40,12 +45,25 @@
 
 
 # from module.submodule import func1, func2
-0	regex	\^from\\s+(\\w|\\.)+\\s+import.*$	Python script text executable
+0	regex		\^from[\040\t\f\r\n]+([A-Za-z0-9_]|\\.)+[\040\t\f\r\n]+import.*$	Python script text executable
+!:strength + 15
 !:mime text/x-python
 
 # def __init__ (self, ...):
 0	search/4096	def\ __init__
 >&0	search/64 self	Python script text executable
+!:strength + 15
+!:mime text/x-python
+
+# if __name__ == "__main__":
+0 search/4096 if\ __name__
+>&0 search/64 '__main__'	Python script text executable
+>&0 search/64 "__main__"	Python script text executable
+!:strength + 15
+!:mime text/x-python
+
+# import module [as abrev]
+0	regex	\^import\ [_[:alpha:]]+\ as\ [[:alpha:]][[:space:]]*$ Python script text executable
 !:mime text/x-python
 
 # comments
@@ -61,12 +79,19 @@
 # except: or finally:
 # block
 0	search/4096	try:
->&0	regex	\^\\s*except.*:	Python script text executable
+>&0	regex	\^[[:space:]]*except.*:$	Python script text executable
+!:strength + 15
 !:mime text/x-python
 >&0	search/4096	finally:	Python script text executable
 !:mime text/x-python
 
-# def name(args, args):
-0	regex	 \^(\ |\\t){0,50}def\ {1,50}[a-zA-Z]{1,100}
->&0	regex	\ {0,50}\\(([a-zA-Z]|,|\ ){1,255}\\):$ Python script text executable
+# class name[(base classes,)]: [pass]
+0	regex	\^class\ [_[:alpha:]]+(\\(.*\\))?(\ )*:([\ \t]+pass)?$		Python script text executable
+!:strength + 15
+!:mime text/x-python
+
+# def name(*args, **kwargs):
+0	regex	 \^[[:space:]]{0,50}def\ {1,50}[_a-zA-Z]{1,100}
+>&0	regex	 \\(([[:alpha:]*_,\ ]){0,255}\\):$ Python script text executable
+!:strength + 15
 !:mime text/x-python

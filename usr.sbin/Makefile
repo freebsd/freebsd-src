@@ -6,7 +6,6 @@
 SUBDIR=	adduser \
 	arp \
 	binmiscctl \
-	bsdconfig \
 	camdd \
 	cdcontrol \
 	chkgrp \
@@ -22,9 +21,9 @@ SUBDIR=	adduser \
 	dconschat \
 	devctl \
 	devinfo \
-	digictl \
 	diskinfo \
 	dumpcis \
+	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
@@ -60,8 +59,14 @@ SUBDIR=	adduser \
 	nologin \
 	pciconf \
 	periodic \
+	pmcannotate \
+	pmccontrol \
+	pmcstat \
+	pnfsdscopymr \
+	pnfsdsfile \
+	pnfsdskill \
 	powerd \
-	procctl \
+	prometheus_sysctl_exporter \
 	pstat \
 	pw \
 	pwd_mkdb \
@@ -73,6 +78,7 @@ SUBDIR=	adduser \
 	rpc.statd \
 	rpc.umntall \
 	rtprio \
+	rwhod \
 	service \
 	services_mkdb \
 	sesutil \
@@ -81,6 +87,7 @@ SUBDIR=	adduser \
 	setpmac \
 	smbmsg \
 	snapinfo \
+	spi \
 	spray \
 	syslogd \
 	sysrc \
@@ -89,7 +96,6 @@ SUBDIR=	adduser \
 	traceroute \
 	trpt \
 	tzsetup \
-	uefisign \
 	ugidfw \
 	vigr \
 	vipw \
@@ -113,15 +119,19 @@ SUBDIR.${MK_AUDIT}+=	auditreduce
 SUBDIR.${MK_AUDIT}+=	praudit
 SUBDIR.${MK_AUTHPF}+=	authpf
 SUBDIR.${MK_AUTOFS}+=	autofs
-.if ${MK_BLACKLIST} != "no"
 SUBDIR.${MK_BLACKLIST}+=	blacklistctl
 SUBDIR.${MK_BLACKLIST}+=	blacklistd
-.endif
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BOOTPARAMD}+=	bootparamd
 SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
 SUBDIR.${MK_BSNMP}+=	bsnmpd
 SUBDIR.${MK_CTM}+=	ctm
+SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
+SUBDIR.${MK_DIALOG}+=	bsdconfig
+SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr
+.if ${MK_OPENSSL} != "no"
+SUBDIR.${MK_EFI}+=	uefisign
+.endif
 SUBDIR.${MK_FLOPPY}+=	fdcontrol
 SUBDIR.${MK_FLOPPY}+=	fdformat
 SUBDIR.${MK_FLOPPY}+=	fdread
@@ -157,10 +167,10 @@ SUBDIR.${MK_NS_CACHING}+=	nscd
 .endif
 SUBDIR.${MK_LPR}+=	lpr
 SUBDIR.${MK_MAN_UTILS}+=	manctl
+SUBDIR.${MK_MLX5TOOL}+=	mlx5tool
 SUBDIR.${MK_NAND}+=	nandsim
 SUBDIR.${MK_NAND}+=	nandtool
 SUBDIR.${MK_NETGRAPH}+=	flowctl
-SUBDIR.${MK_NETGRAPH}+=	lmcconfig
 SUBDIR.${MK_NETGRAPH}+=	ngctl
 SUBDIR.${MK_NETGRAPH}+=	nghook
 SUBDIR.${MK_NIS}+=	rpc.yppasswdd
@@ -178,16 +188,15 @@ SUBDIR.${MK_OPENSSL}+=	keyserv
 SUBDIR.${MK_PC_SYSINSTALL}+=	pc-sysinstall
 SUBDIR.${MK_PF}+=	ftp-proxy
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg
-SUBDIR.${MK_PMC}+=	pmcannotate
-SUBDIR.${MK_PMC}+=	pmccontrol
-SUBDIR.${MK_PMC}+=	pmcstat
+.if ${COMPILER_FEATURES:Mc++11}
+SUBDIR.${MK_PMC}+=	pmc
+.endif
+SUBDIR.${MK_PMC}+=	pmcstudy
 SUBDIR.${MK_PORTSNAP}+=	portsnap
 SUBDIR.${MK_PPP}+=	ppp
 SUBDIR.${MK_QUOTAS}+=	edquota
 SUBDIR.${MK_QUOTAS}+=	quotaon
 SUBDIR.${MK_QUOTAS}+=	repquota
-SUBDIR.${MK_RCMDS}+=	rwhod
-SUBDIR.${MK_RCS}+=	etcupdate
 SUBDIR.${MK_SENDMAIL}+=	editmap
 SUBDIR.${MK_SENDMAIL}+=	mailstats
 SUBDIR.${MK_SENDMAIL}+=	makemap
@@ -213,8 +222,6 @@ SUBDIR.${MK_WIRELESS}+=	wpa
 SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.arch.inc.mk>
-
-SUBDIR:=	${SUBDIR:O}
 
 SUBDIR_PARALLEL=
 

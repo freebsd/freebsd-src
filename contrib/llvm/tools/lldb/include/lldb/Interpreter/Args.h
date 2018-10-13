@@ -14,42 +14,33 @@
 // C++ Includes
 #include <list>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 // Other libraries and framework includes
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 // Project includes
+#include "lldb/Utility/Status.h"
 #include "lldb/lldb-private-types.h"
 #include "lldb/lldb-types.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Host/OptionParser.h"
 
 namespace lldb_private {
 
-typedef std::pair<int, std::string> OptionArgValue;
-typedef std::pair<std::string, OptionArgValue> OptionArgPair;
-typedef std::vector<OptionArgPair> OptionArgVector;
+struct Option;
+
+typedef std::vector<std::tuple<std::string, int, std::string>> OptionArgVector;
 typedef std::shared_ptr<OptionArgVector> OptionArgVectorSP;
 
-struct OptionArgElement
-{
-    enum {
-        eUnrecognizedArg = -1,
-        eBareDash = -2,
-        eBareDoubleDash = -3
-    };
-    
-    OptionArgElement (int defs_index, int pos, int arg_pos) :
-        opt_defs_index(defs_index),
-        opt_pos (pos),
-        opt_arg_pos (arg_pos)
-    {
-    }
+struct OptionArgElement {
+  enum { eUnrecognizedArg = -1, eBareDash = -2, eBareDoubleDash = -3 };
 
-    int opt_defs_index;
-    int opt_pos;
-    int opt_arg_pos;
+  OptionArgElement(int defs_index, int pos, int arg_pos)
+      : opt_defs_index(defs_index), opt_pos(pos), opt_arg_pos(arg_pos) {}
+
+  int opt_defs_index;
+  int opt_pos;
+  int opt_arg_pos;
 };
 
 typedef std::vector<OptionArgElement> OptionElementVector;
@@ -65,394 +56,425 @@ typedef std::vector<OptionArgElement> OptionElementVector;
 /// can be escaped using a \ character to avoid having to surround an
 /// argument that contains a space with quotes.
 //----------------------------------------------------------------------
-class Args
-{
+class Args {
 public:
+  struct ArgEntry {
+  private:
+    friend class Args;
+    std::unique_ptr<char[]> ptr;
 
-    //------------------------------------------------------------------
-    /// Construct with an option command string.
-    ///
-    /// @param[in] command
-    ///     A NULL terminated command that will be copied and split up
-    ///     into arguments.
-    ///
-    /// @see Args::SetCommandString(llvm::StringRef)
-    //------------------------------------------------------------------
-    Args (llvm::StringRef command = llvm::StringRef());
+    char *data() { return ptr.get(); }
 
-    Args (const Args &rhs);
-    
-    const Args &
-    operator= (const Args &rhs);
+  public:
+    ArgEntry() = default;
+    ArgEntry(llvm::StringRef str, char quote);
 
-    //------------------------------------------------------------------
-    /// Destructor.
-    //------------------------------------------------------------------
-    ~Args();
+    llvm::StringRef ref;
+    char quote;
+    const char *c_str() const { return ptr.get(); }
+  };
 
-    //------------------------------------------------------------------
-    /// Dump all arguments to the stream \a s.
-    ///
-    /// @param[in] s
-    ///     The stream to which to dump all arguments in the argument
-    ///     vector.
-    //------------------------------------------------------------------
-    void
-    Dump (Stream *s);
+  //------------------------------------------------------------------
+  /// Construct with an option command string.
+  ///
+  /// @param[in] command
+  ///     A NULL terminated command that will be copied and split up
+  ///     into arguments.
+  ///
+  /// @see Args::SetCommandString(llvm::StringRef)
+  //------------------------------------------------------------------
+  Args(llvm::StringRef command = llvm::StringRef());
 
-    //------------------------------------------------------------------
-    /// Sets the command string contained by this object.
-    ///
-    /// The command string will be copied and split up into arguments
-    /// that can be accessed via the accessor functions.
-    ///
-    /// @param[in] command
-    ///     A command StringRef that will be copied and split up
-    ///     into arguments.
-    ///
-    /// @see Args::GetArgumentCount() const
-    /// @see Args::GetArgumentAtIndex (size_t) const
-    /// @see Args::GetArgumentVector ()
-    /// @see Args::Shift ()
-    /// @see Args::Unshift (const char *)
-    //------------------------------------------------------------------
-    void
-    SetCommandString (llvm::StringRef command);
+  Args(const Args &rhs);
+  explicit Args(const StringList &list);
 
-    bool
-    GetCommandString (std::string &command) const;
+  Args &operator=(const Args &rhs);
 
-    bool
-    GetQuotedCommandString (std::string &command) const;
+  //------------------------------------------------------------------
+  /// Destructor.
+  //------------------------------------------------------------------
+  ~Args();
 
-    //------------------------------------------------------------------
-    /// Gets the number of arguments left in this command object.
-    ///
-    /// @return
-    ///     The number or arguments in this object.
-    //------------------------------------------------------------------
-    size_t
-    GetArgumentCount () const;
+  //------------------------------------------------------------------
+  /// Dump all entries to the stream \a s using label \a label_name.
+  ///
+  /// If label_name is nullptr, the dump operation is skipped.
+  ///
+  /// @param[in] s
+  ///     The stream to which to dump all arguments in the argument
+  ///     vector.
+  /// @param[in] label_name
+  ///     The label_name to use as the label printed for each
+  ///     entry of the args like so:
+  ///       {label_name}[{index}]={value}
+  //------------------------------------------------------------------
+  void Dump(Stream &s, const char *label_name = "argv") const;
 
-    //------------------------------------------------------------------
-    /// Gets the NULL terminated C string argument pointer for the
-    /// argument at index \a idx.
-    ///
-    /// @return
-    ///     The NULL terminated C string argument pointer if \a idx is a
-    ///     valid argument index, NULL otherwise.
-    //------------------------------------------------------------------
-    const char *
-    GetArgumentAtIndex (size_t idx) const;
+  //------------------------------------------------------------------
+  /// Sets the command string contained by this object.
+  ///
+  /// The command string will be copied and split up into arguments
+  /// that can be accessed via the accessor functions.
+  ///
+  /// @param[in] command
+  ///     A command StringRef that will be copied and split up
+  ///     into arguments.
+  ///
+  /// @see Args::GetArgumentCount() const
+  /// @see Args::GetArgumentAtIndex (size_t) const
+  /// @see Args::GetArgumentVector ()
+  /// @see Args::Shift ()
+  /// @see Args::Unshift (const char *)
+  //------------------------------------------------------------------
+  void SetCommandString(llvm::StringRef command);
 
-    char
-    GetArgumentQuoteCharAtIndex (size_t idx) const;
+  bool GetCommandString(std::string &command) const;
 
-    //------------------------------------------------------------------
-    /// Gets the argument vector.
-    ///
-    /// The value returned by this function can be used by any function
-    /// that takes and vector. The return value is just like \a argv
-    /// in the standard C entry point function:
-    ///     \code
-    ///         int main (int argc, const char **argv);
-    ///     \endcode
-    ///
-    /// @return
-    ///     An array of NULL terminated C string argument pointers that
-    ///     also has a terminating NULL C string pointer
-    //------------------------------------------------------------------
-    char **
-    GetArgumentVector ();
+  bool GetQuotedCommandString(std::string &command) const;
 
-    //------------------------------------------------------------------
-    /// Gets the argument vector.
-    ///
-    /// The value returned by this function can be used by any function
-    /// that takes and vector. The return value is just like \a argv
-    /// in the standard C entry point function:
-    ///     \code
-    ///         int main (int argc, const char **argv);
-    ///     \endcode
-    ///
-    /// @return
-    ///     An array of NULL terminate C string argument pointers that
-    ///     also has a terminating NULL C string pointer
-    //------------------------------------------------------------------
-    const char **
-    GetConstArgumentVector () const;
+  //------------------------------------------------------------------
+  /// Gets the number of arguments left in this command object.
+  ///
+  /// @return
+  ///     The number or arguments in this object.
+  //------------------------------------------------------------------
+  size_t GetArgumentCount() const;
+  bool empty() const { return GetArgumentCount() == 0; }
 
+  //------------------------------------------------------------------
+  /// Gets the NULL terminated C string argument pointer for the
+  /// argument at index \a idx.
+  ///
+  /// @return
+  ///     The NULL terminated C string argument pointer if \a idx is a
+  ///     valid argument index, NULL otherwise.
+  //------------------------------------------------------------------
+  const char *GetArgumentAtIndex(size_t idx) const;
 
-    //------------------------------------------------------------------
-    /// Appends a new argument to the end of the list argument list.
-    ///
-    /// @param[in] arg_cstr
-    ///     The new argument as a NULL terminated C string.
-    ///
-    /// @param[in] quote_char
-    ///     If the argument was originally quoted, put in the quote char here.
-    ///
-    /// @return
-    ///     The NULL terminated C string of the copy of \a arg_cstr.
-    //------------------------------------------------------------------
-    const char *
-    AppendArgument (const char *arg_cstr, char quote_char = '\0');
+  llvm::ArrayRef<ArgEntry> entries() const { return m_entries; }
+  char GetArgumentQuoteCharAtIndex(size_t idx) const;
 
-    void
-    AppendArguments (const Args &rhs);
-    
-    void
-    AppendArguments (const char **argv);
+  std::vector<ArgEntry>::const_iterator begin() const {
+    return m_entries.begin();
+  }
+  std::vector<ArgEntry>::const_iterator end() const { return m_entries.end(); }
 
-    //------------------------------------------------------------------
-    /// Insert the argument value at index \a idx to \a arg_cstr.
-    ///
-    /// @param[in] idx
-    ///     The index of where to insert the argument.
-    ///
-    /// @param[in] arg_cstr
-    ///     The new argument as a NULL terminated C string.
-    ///
-    /// @param[in] quote_char
-    ///     If the argument was originally quoted, put in the quote char here.
-    ///
-    /// @return
-    ///     The NULL terminated C string of the copy of \a arg_cstr.
-    //------------------------------------------------------------------
-    const char *
-    InsertArgumentAtIndex (size_t idx, const char *arg_cstr, char quote_char = '\0');
+  size_t size() const { return GetArgumentCount(); }
+  const ArgEntry &operator[](size_t n) const { return m_entries[n]; }
 
-    //------------------------------------------------------------------
-    /// Replaces the argument value at index \a idx to \a arg_cstr
-    /// if \a idx is a valid argument index.
-    ///
-    /// @param[in] idx
-    ///     The index of the argument that will have its value replaced.
-    ///
-    /// @param[in] arg_cstr
-    ///     The new argument as a NULL terminated C string.
-    ///
-    /// @param[in] quote_char
-    ///     If the argument was originally quoted, put in the quote char here.
-    ///
-    /// @return
-    ///     The NULL terminated C string of the copy of \a arg_cstr if
-    ///     \a idx was a valid index, NULL otherwise.
-    //------------------------------------------------------------------
-    const char *
-    ReplaceArgumentAtIndex (size_t idx, const char *arg_cstr, char quote_char = '\0');
+  //------------------------------------------------------------------
+  /// Gets the argument vector.
+  ///
+  /// The value returned by this function can be used by any function
+  /// that takes and vector. The return value is just like \a argv
+  /// in the standard C entry point function:
+  ///     \code
+  ///         int main (int argc, const char **argv);
+  ///     \endcode
+  ///
+  /// @return
+  ///     An array of NULL terminated C string argument pointers that
+  ///     also has a terminating NULL C string pointer
+  //------------------------------------------------------------------
+  char **GetArgumentVector();
 
-    //------------------------------------------------------------------
-    /// Deletes the argument value at index
-    /// if \a idx is a valid argument index.
-    ///
-    /// @param[in] idx
-    ///     The index of the argument that will have its value replaced.
-    ///
-    //------------------------------------------------------------------
-    void
-    DeleteArgumentAtIndex (size_t idx);
+  //------------------------------------------------------------------
+  /// Gets the argument vector.
+  ///
+  /// The value returned by this function can be used by any function
+  /// that takes and vector. The return value is just like \a argv
+  /// in the standard C entry point function:
+  ///     \code
+  ///         int main (int argc, const char **argv);
+  ///     \endcode
+  ///
+  /// @return
+  ///     An array of NULL terminate C string argument pointers that
+  ///     also has a terminating NULL C string pointer
+  //------------------------------------------------------------------
+  const char **GetConstArgumentVector() const;
 
-    //------------------------------------------------------------------
-    /// Sets the argument vector value, optionally copying all
-    /// arguments into an internal buffer.
-    ///
-    /// Sets the arguments to match those found in \a argv. All argument
-    /// strings will be copied into an internal buffers.
-    //
-    //  FIXME: Handle the quote character somehow.
-    //------------------------------------------------------------------
-    void
-    SetArguments (size_t argc, const char **argv);
+  //------------------------------------------------------------------
+  /// Gets the argument as an ArrayRef. Note that the return value does *not*
+  /// have a nullptr const char * at the end, as the size of the list is
+  /// embedded in the ArrayRef object.
+  //------------------------------------------------------------------
+  llvm::ArrayRef<const char *> GetArgumentArrayRef() const {
+    return llvm::makeArrayRef(m_argv).drop_back();
+  }
 
-    void
-    SetArguments (const char **argv);
+  //------------------------------------------------------------------
+  /// Appends a new argument to the end of the list argument list.
+  ///
+  /// @param[in] arg_cstr
+  ///     The new argument as a NULL terminated C string.
+  ///
+  /// @param[in] quote_char
+  ///     If the argument was originally quoted, put in the quote char here.
+  //------------------------------------------------------------------
+  void AppendArgument(llvm::StringRef arg_str, char quote_char = '\0');
 
-    //------------------------------------------------------------------
-    /// Shifts the first argument C string value of the array off the
-    /// argument array.
-    ///
-    /// The string value will be freed, so a copy of the string should
-    /// be made by calling Args::GetArgumentAtIndex (size_t) const
-    /// first and copying the returned value before calling
-    /// Args::Shift().
-    ///
-    /// @see Args::GetArgumentAtIndex (size_t) const
-    //------------------------------------------------------------------
-    void
-    Shift ();
+  void AppendArguments(const Args &rhs);
 
-    //------------------------------------------------------------------
-    /// Inserts a class owned copy of \a arg_cstr at the beginning of
-    /// the argument vector.
-    ///
-    /// A copy \a arg_cstr will be made.
-    ///
-    /// @param[in] arg_cstr
-    ///     The argument to push on the front of the argument stack.
-    ///
-    /// @param[in] quote_char
-    ///     If the argument was originally quoted, put in the quote char here.
-    ///
-    /// @return
-    ///     A pointer to the copy of \a arg_cstr that was made.
-    //------------------------------------------------------------------
-    const char *
-    Unshift (const char *arg_cstr, char quote_char = '\0');
+  void AppendArguments(const char **argv);
 
-    //------------------------------------------------------------------
-    /// Parse the arguments in the contained arguments.
-    ///
-    /// The arguments that are consumed by the argument parsing process
-    /// will be removed from the argument vector. The arguments that
-    /// get processed start at the second argument. The first argument
-    /// is assumed to be the command and will not be touched.
-    ///
-    /// @see class Options
-    //------------------------------------------------------------------
-    Error
-    ParseOptions (Options &options);
-    
-    size_t
-    FindArgumentIndexForOption (Option *long_options, int long_options_index);
-    
-    bool
-    IsPositionalArgument (const char *arg);
+  //------------------------------------------------------------------
+  /// Insert the argument value at index \a idx to \a arg_cstr.
+  ///
+  /// @param[in] idx
+  ///     The index of where to insert the argument.
+  ///
+  /// @param[in] arg_cstr
+  ///     The new argument as a NULL terminated C string.
+  ///
+  /// @param[in] quote_char
+  ///     If the argument was originally quoted, put in the quote char here.
+  ///
+  /// @return
+  ///     The NULL terminated C string of the copy of \a arg_cstr.
+  //------------------------------------------------------------------
+  void InsertArgumentAtIndex(size_t idx, llvm::StringRef arg_str,
+                             char quote_char = '\0');
 
-    // The following works almost identically to ParseOptions, except that no option is required to have arguments,
-    // and it builds up the option_arg_vector as it parses the options.
+  //------------------------------------------------------------------
+  /// Replaces the argument value at index \a idx to \a arg_cstr
+  /// if \a idx is a valid argument index.
+  ///
+  /// @param[in] idx
+  ///     The index of the argument that will have its value replaced.
+  ///
+  /// @param[in] arg_cstr
+  ///     The new argument as a NULL terminated C string.
+  ///
+  /// @param[in] quote_char
+  ///     If the argument was originally quoted, put in the quote char here.
+  //------------------------------------------------------------------
+  void ReplaceArgumentAtIndex(size_t idx, llvm::StringRef arg_str,
+                              char quote_char = '\0');
 
-    void
-    ParseAliasOptions (Options &options, CommandReturnObject &result, OptionArgVector *option_arg_vector, 
-                       std::string &raw_input_line);
+  //------------------------------------------------------------------
+  /// Deletes the argument value at index
+  /// if \a idx is a valid argument index.
+  ///
+  /// @param[in] idx
+  ///     The index of the argument that will have its value replaced.
+  ///
+  //------------------------------------------------------------------
+  void DeleteArgumentAtIndex(size_t idx);
 
-    void
-    ParseArgsForCompletion (Options &options, OptionElementVector &option_element_vector, uint32_t cursor_index);
+  //------------------------------------------------------------------
+  /// Sets the argument vector value, optionally copying all
+  /// arguments into an internal buffer.
+  ///
+  /// Sets the arguments to match those found in \a argv. All argument
+  /// strings will be copied into an internal buffers.
+  //
+  //  FIXME: Handle the quote character somehow.
+  //------------------------------------------------------------------
+  void SetArguments(size_t argc, const char **argv);
 
-    //------------------------------------------------------------------
-    // Clear the arguments.
-    //
-    // For re-setting or blanking out the list of arguments.
-    //------------------------------------------------------------------
-    void
-    Clear ();
+  void SetArguments(const char **argv);
 
-    static const char *
-    StripSpaces (std::string &s,
-                 bool leading = true,
-                 bool trailing = true,
-                 bool return_null_if_empty = true);
+  //------------------------------------------------------------------
+  /// Shifts the first argument C string value of the array off the
+  /// argument array.
+  ///
+  /// The string value will be freed, so a copy of the string should
+  /// be made by calling Args::GetArgumentAtIndex (size_t) const
+  /// first and copying the returned value before calling
+  /// Args::Shift().
+  ///
+  /// @see Args::GetArgumentAtIndex (size_t) const
+  //------------------------------------------------------------------
+  void Shift();
 
-    static bool
-    UInt64ValueIsValidForByteSize (uint64_t uval64, size_t total_byte_size)
-    {
-        if (total_byte_size > 8)
-            return false;
-        
-        if (total_byte_size == 8)
-            return true;
-        
-        const uint64_t max = ((uint64_t)1 << (uint64_t)(total_byte_size * 8)) - 1;
-        return uval64 <= max;
-    }
+  //------------------------------------------------------------------
+  /// Inserts a class owned copy of \a arg_cstr at the beginning of
+  /// the argument vector.
+  ///
+  /// A copy \a arg_cstr will be made.
+  ///
+  /// @param[in] arg_cstr
+  ///     The argument to push on the front of the argument stack.
+  ///
+  /// @param[in] quote_char
+  ///     If the argument was originally quoted, put in the quote char here.
+  //------------------------------------------------------------------
+  void Unshift(llvm::StringRef arg_str, char quote_char = '\0');
 
-    static bool
-    SInt64ValueIsValidForByteSize (int64_t sval64, size_t total_byte_size)
-    {
-        if (total_byte_size > 8)
-            return false;
-        
-        if (total_byte_size == 8)
-            return true;
-        
-        const int64_t max = ((int64_t)1 << (uint64_t)(total_byte_size * 8 - 1)) - 1;
-        const int64_t min = ~(max);
-        return min <= sval64 && sval64 <= max;
-    }
+  //------------------------------------------------------------------
+  /// Parse the arguments in the contained arguments.
+  ///
+  /// The arguments that are consumed by the argument parsing process
+  /// will be removed from the argument vector. The arguments that
+  /// get processed start at the second argument. The first argument
+  /// is assumed to be the command and will not be touched.
+  ///
+  /// param[in] platform_sp
+  ///   The platform used for option validation.  This is necessary
+  ///   because an empty execution_context is not enough to get us
+  ///   to a reasonable platform.  If the platform isn't given,
+  ///   we'll try to get it from the execution context.  If we can't
+  ///   get it from the execution context, we'll skip validation.
+  ///
+  /// param[in] require_validation
+  ///   When true, it will fail option parsing if validation could
+  ///   not occur due to not having a platform.
+  ///
+  /// @see class Options
+  //------------------------------------------------------------------
+  Status ParseOptions(Options &options, ExecutionContext *execution_context,
+                      lldb::PlatformSP platform_sp, bool require_validation);
 
-    static lldb::addr_t
-    StringToAddress (const ExecutionContext *exe_ctx,
-                     const char *s,
-                     lldb::addr_t fail_value,
-                     Error *error);
+  bool IsPositionalArgument(const char *arg);
 
-    static bool
-    StringToBoolean (const char *s, bool fail_value, bool *success_ptr);
+  // The following works almost identically to ParseOptions, except that no
+  // option is required to have arguments, and it builds up the
+  // option_arg_vector as it parses the options.
 
-    static char StringToChar(const char *s, char fail_value, bool *success_ptr);
+  std::string ParseAliasOptions(Options &options, CommandReturnObject &result,
+                                OptionArgVector *option_arg_vector,
+                                llvm::StringRef raw_input_line);
 
-    static int64_t
-    StringToOptionEnum (const char *s, OptionEnumValueElement *enum_values, int32_t fail_value, Error &error);
+  void ParseArgsForCompletion(Options &options,
+                              OptionElementVector &option_element_vector,
+                              uint32_t cursor_index);
 
-    static lldb::ScriptLanguage
-    StringToScriptLanguage (const char *s, lldb::ScriptLanguage fail_value, bool *success_ptr);
+  //------------------------------------------------------------------
+  // Clear the arguments.
+  //
+  // For re-setting or blanking out the list of arguments.
+  //------------------------------------------------------------------
+  void Clear();
 
-    static Error
-    StringToFormat (const char *s,
-                    lldb::Format &format,
-                    size_t *byte_size_ptr); // If non-NULL, then a byte size can precede the format character
+  static const char *StripSpaces(std::string &s, bool leading = true,
+                                 bool trailing = true,
+                                 bool return_null_if_empty = true);
 
-    static lldb::Encoding
-    StringToEncoding (const char *s,
-                      lldb::Encoding fail_value = lldb::eEncodingInvalid);
+  static bool UInt64ValueIsValidForByteSize(uint64_t uval64,
+                                            size_t total_byte_size) {
+    if (total_byte_size > 8)
+      return false;
 
-    static uint32_t
-    StringToGenericRegister (const char *s);
-    
-    static const char *
-    StringToVersion (const char *s, uint32_t &major, uint32_t &minor, uint32_t &update);
+    if (total_byte_size == 8)
+      return true;
 
-    static const char *
-    GetShellSafeArgument (const char *unsafe_arg, std::string &safe_arg);
+    const uint64_t max = ((uint64_t)1 << (uint64_t)(total_byte_size * 8)) - 1;
+    return uval64 <= max;
+  }
 
-    // EncodeEscapeSequences will change the textual representation of common
-    // escape sequences like "\n" (two characters) into a single '\n'. It does
-    // this for all of the supported escaped sequences and for the \0ooo (octal)
-    // and \xXX (hex). The resulting "dst" string will contain the character
-    // versions of all supported escape sequences. The common supported escape
-    // sequences are: "\a", "\b", "\f", "\n", "\r", "\t", "\v", "\'", "\"", "\\".
+  static bool SInt64ValueIsValidForByteSize(int64_t sval64,
+                                            size_t total_byte_size) {
+    if (total_byte_size > 8)
+      return false;
 
-    static void
-    EncodeEscapeSequences (const char *src, std::string &dst);
+    if (total_byte_size == 8)
+      return true;
 
-    // ExpandEscapeSequences will change a string of possibly non-printable
-    // characters and expand them into text. So '\n' will turn into two characters
-    // like "\n" which is suitable for human reading. When a character is not
-    // printable and isn't one of the common in escape sequences listed in the
-    // help for EncodeEscapeSequences, then it will be encoded as octal. Printable
-    // characters are left alone.
-    static void
-    ExpandEscapedCharacters (const char *src, std::string &dst);
+    const int64_t max = ((int64_t)1 << (uint64_t)(total_byte_size * 8 - 1)) - 1;
+    const int64_t min = ~(max);
+    return min <= sval64 && sval64 <= max;
+  }
 
-    static std::string
-    EscapeLLDBCommandArgument (const std::string& arg, char quote_char);
+  static lldb::addr_t StringToAddress(const ExecutionContext *exe_ctx,
+                                      llvm::StringRef s,
+                                      lldb::addr_t fail_value, Status *error);
 
-    // This one isn't really relevant to Arguments per se, but we're using the Args as a
-    // general strings container, so...
-    void
-    LongestCommonPrefix (std::string &common_prefix);
+  static bool StringToBoolean(llvm::StringRef s, bool fail_value,
+                              bool *success_ptr);
 
-protected:
-    //------------------------------------------------------------------
-    // Classes that inherit from Args can see and modify these
-    //------------------------------------------------------------------
-    typedef std::list<std::string> arg_sstr_collection;
-    typedef std::vector<const char *> arg_cstr_collection;
-    typedef std::vector<char> arg_quote_char_collection;
-    arg_sstr_collection m_args;
-    arg_cstr_collection m_argv; ///< The current argument vector.
-    arg_quote_char_collection m_args_quote_char;
+  static char StringToChar(llvm::StringRef s, char fail_value,
+                           bool *success_ptr);
 
-    void
-    UpdateArgsAfterOptionParsing ();
+  static int64_t StringToOptionEnum(llvm::StringRef s,
+                                    OptionEnumValueElement *enum_values,
+                                    int32_t fail_value, Status &error);
 
-    void
-    UpdateArgvFromArgs ();
+  static lldb::ScriptLanguage
+  StringToScriptLanguage(llvm::StringRef s, lldb::ScriptLanguage fail_value,
+                         bool *success_ptr);
 
-    llvm::StringRef
-    ParseSingleArgument (llvm::StringRef command);
+  // TODO: Use StringRef
+  static Status StringToFormat(const char *s, lldb::Format &format,
+                               size_t *byte_size_ptr); // If non-NULL, then a
+                                                       // byte size can precede
+                                                       // the format character
+
+  static lldb::Encoding
+  StringToEncoding(llvm::StringRef s,
+                   lldb::Encoding fail_value = lldb::eEncodingInvalid);
+
+  static uint32_t StringToGenericRegister(llvm::StringRef s);
+
+  static bool StringToVersion(llvm::StringRef string, uint32_t &major,
+                              uint32_t &minor, uint32_t &update);
+
+  static const char *GetShellSafeArgument(const FileSpec &shell,
+                                          const char *unsafe_arg,
+                                          std::string &safe_arg);
+
+  // EncodeEscapeSequences will change the textual representation of common
+  // escape sequences like "\n" (two characters) into a single '\n'. It does
+  // this for all of the supported escaped sequences and for the \0ooo (octal)
+  // and \xXX (hex). The resulting "dst" string will contain the character
+  // versions of all supported escape sequences. The common supported escape
+  // sequences are: "\a", "\b", "\f", "\n", "\r", "\t", "\v", "\'", "\"", "\\".
+
+  static void EncodeEscapeSequences(const char *src, std::string &dst);
+
+  // ExpandEscapeSequences will change a string of possibly non-printable
+  // characters and expand them into text. So '\n' will turn into two characters
+  // like "\n" which is suitable for human reading. When a character is not
+  // printable and isn't one of the common in escape sequences listed in the
+  // help for EncodeEscapeSequences, then it will be encoded as octal. Printable
+  // characters are left alone.
+  static void ExpandEscapedCharacters(const char *src, std::string &dst);
+
+  static std::string EscapeLLDBCommandArgument(const std::string &arg,
+                                               char quote_char);
+
+  //------------------------------------------------------------------
+  /// Add or replace an environment variable with the given value.
+  ///
+  /// This command adds the environment variable if it is not already
+  /// present using the given value.  If the environment variable is
+  /// already in the list, it replaces the first such occurrence
+  /// with the new value.
+  //------------------------------------------------------------------
+  void AddOrReplaceEnvironmentVariable(llvm::StringRef env_var_name,
+                                       llvm::StringRef new_value);
+
+  /// Return whether a given environment variable exists.
+  ///
+  /// This command treats Args like a list of environment variables,
+  /// as used in ProcessLaunchInfo.  It treats each argument as
+  /// an {env_var_name}={value} or an {env_var_name} entry.
+  ///
+  /// @param[in] env_var_name
+  ///     Specifies the name of the environment variable to check.
+  ///
+  /// @param[out] argument_index
+  ///     If non-null, then when the environment variable is found,
+  ///     the index of the argument position will be returned in
+  ///     the size_t pointed to by this argument.
+  ///
+  /// @return
+  ///     true if the specified env var name exists in the list in
+  ///     either of the above-mentioned formats; otherwise, false.
+  //------------------------------------------------------------------
+  bool ContainsEnvironmentVariable(llvm::StringRef env_var_name,
+                                   size_t *argument_index = nullptr) const;
+
+private:
+  size_t FindArgumentIndexForOption(Option *long_options,
+                                    int long_options_index) const;
+
+  std::vector<ArgEntry> m_entries;
+  std::vector<char *> m_argv;
+
+  void UpdateArgsAfterOptionParsing();
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_Command_h_
+#endif // liblldb_Command_h_

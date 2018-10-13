@@ -17,6 +17,8 @@ __FBSDID("$FreeBSD$");
 #define	SCSI_LOW_FLAGS_QUIRKS_OK
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
@@ -84,6 +86,65 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_low.h>
 
 #include <sys/cons.h>
+
+/**************************************************************
+ * CCB Macros
+ **************************************************************/
+
+/* (II)  static allocated memory */
+#define GENERIC_CCB_STATIC_ALLOC(DEV, CCBTYPE)				\
+static struct CCBTYPE##que CCBTYPE##que;
+
+/* (III)  functions */
+#define GENERIC_CCB(DEV, CCBTYPE, CHAIN)				\
+									\
+void									\
+DEV##_init_ccbque(int count)						\
+{									\
+	if (CCBTYPE##que.maxccb == 0)					\
+		TAILQ_INIT(&CCBTYPE##que.CCBTYPE##tab);			\
+	CCBTYPE##que.maxccb += count;					\
+}									\
+									\
+struct CCBTYPE *							\
+DEV##_get_ccb(void)							\
+{									\
+	struct CCBTYPE *cb;						\
+									\
+	if (CCBTYPE##que.count < CCBTYPE##que.maxccb)			\
+	{								\
+		CCBTYPE##que.count ++;					\
+		cb = TAILQ_FIRST(&(CCBTYPE##que.CCBTYPE##tab));		\
+		if (cb != NULL) {					\
+			TAILQ_REMOVE(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);\
+			goto out;					\
+		} else {						\
+			cb = malloc(sizeof(*cb), M_DEVBUF, M_NOWAIT  | M_ZERO);	\
+			if (cb != NULL)					\
+				goto out;				\
+		}							\
+		CCBTYPE##que.count --;					\
+	}								\
+									\
+	cb = NULL;							\
+									\
+out:									\
+	return cb;							\
+}									\
+									\
+void									\
+DEV##_free_ccb(struct CCBTYPE *cb)					\
+{									\
+									\
+	TAILQ_INSERT_TAIL(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);	\
+	CCBTYPE##que.count --;						\
+									\
+	if (CCBTYPE##que.flags & CCB_MWANTED)				\
+	{								\
+		CCBTYPE##que.flags &= ~CCB_MWANTED;			\
+		wakeup ((caddr_t) &CCBTYPE##que.count);			\
+	}								\
+}
 
 /**************************************************************
  * Constants
@@ -479,15 +540,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 #endif	/* SCSI_LOW_DEBUG */
 		break;
 
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
-		/* XXX Implement */
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		break;
-
 	case XPT_ABORT:			/* Abort the specified CCB */
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD || lun == CAM_LUN_WILDCARD)
@@ -722,9 +774,9 @@ settings_out:
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "SCSI_LOW", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "SCSI_LOW", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

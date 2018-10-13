@@ -198,7 +198,7 @@ err_pt_alloc:
 	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		if (ppgtt->pt_pages[i]) {
-			vm_page_unwire(ppgtt->pt_pages[i], PQ_INACTIVE);
+			vm_page_unwire(ppgtt->pt_pages[i], PQ_NONE);
 			vm_page_free(ppgtt->pt_pages[i]);
 		}
 	}
@@ -228,7 +228,7 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 
 	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		vm_page_unwire(ppgtt->pt_pages[i], PQ_INACTIVE);
+		vm_page_unwire(ppgtt->pt_pages[i], PQ_NONE);
 		vm_page_free(ppgtt->pt_pages[i]);
 	}
 	free(ppgtt->pt_pages, DRM_I915_GEM);
@@ -589,7 +589,7 @@ retry:
 		if (tries < 1) {
 			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
 			    PAGE_SIZE, 0))
-				VM_WAIT;
+				vm_wait(NULL);
 			tries++;
 			goto retry;
 		}

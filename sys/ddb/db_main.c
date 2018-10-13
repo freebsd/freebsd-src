@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -98,6 +100,7 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 	c_linker_sym_t lsym;
 	Elf_Sym *sym, *match;
 	unsigned long diff;
+	db_addr_t stoffs;
 
 	if (symtab->private == NULL) {
 		if (!linker_ddb_search_symbol((caddr_t)off, &lsym, &diff)) {
@@ -109,19 +112,20 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 
 	diff = ~0UL;
 	match = NULL;
+	stoffs = DB_STOFFS(off);
 	for (sym = (Elf_Sym*)symtab->start; (char*)sym < symtab->end; sym++) {
 		if (sym->st_name == 0 || sym->st_shndx == SHN_UNDEF)
 			continue;
-		if (off < sym->st_value)
+		if (stoffs < sym->st_value)
 			continue;
 		if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT &&
 		    ELF_ST_TYPE(sym->st_info) != STT_FUNC &&
 		    ELF_ST_TYPE(sym->st_info) != STT_NOTYPE)
 			continue;
-		if ((off - sym->st_value) > diff)
+		if ((stoffs - sym->st_value) > diff)
 			continue;
-		if ((off - sym->st_value) < diff) {
-			diff = off - sym->st_value;
+		if ((stoffs - sym->st_value) < diff) {
+			diff = stoffs - sym->st_value;
 			match = sym;
 		} else {
 			if (match == NULL)
@@ -226,10 +230,7 @@ db_trap(int type, int code)
 	if (cnunavailable())
 		return (0);
 
-	bkpt = IS_BREAKPOINT_TRAP(type, code);
-	watchpt = IS_WATCHPOINT_TRAP(type, code);
-
-	if (db_stop_at_pc(&bkpt)) {
+	if (db_stop_at_pc(type, code, &bkpt, &watchpt)) {
 		if (db_inst_count) {
 			db_printf("After %d instructions (%d loads, %d stores),\n",
 			    db_inst_count, db_load_count, db_store_count);

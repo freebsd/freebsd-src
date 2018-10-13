@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012-2017 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -34,14 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include "pic_if.h"
 
 #ifdef  DEBUG
 #define dprintf(fmt, args...) printf(fmt, ##args)
@@ -60,15 +63,141 @@ __FBSDID("$FreeBSD$");
 #define	SIC_PICENSET	0x20
 #define	SIC_PICENCLR	0x24
 
-struct versatile_sic_softc {
-	device_t		sc_dev;
-	struct resource *	mem_res;
+#define	SIC_NIRQS	32
+
+struct versatile_sic_irqsrc {
+	struct intr_irqsrc		isrc;
+	u_int				irq;
 };
 
-#define	sic_read_4(sc, reg)			\
+struct versatile_sic_softc {
+	device_t		dev;
+	struct mtx		mtx;
+	struct resource *	mem_res;
+	struct resource *	irq_res;
+	void			*intrh;
+	struct versatile_sic_irqsrc	isrcs[SIC_NIRQS];
+};
+
+#define	SIC_LOCK(_sc) mtx_lock_spin(&(_sc)->mtx)
+#define	SIC_UNLOCK(_sc) mtx_unlock_spin(&(_sc)->mtx)
+
+#define	SIC_READ_4(sc, reg)			\
     bus_read_4(sc->mem_res, (reg))
-#define	sic_write_4(sc, reg, val)		\
+#define	SIC_WRITE_4(sc, reg, val)		\
     bus_write_4(sc->mem_res, (reg), (val))
+
+/*
+ * Driver stuff
+ */
+static int versatile_sic_probe(device_t);
+static int versatile_sic_attach(device_t);
+static int versatile_sic_detach(device_t);
+
+static void
+versatile_sic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct versatile_sic_softc *sc;
+	struct versatile_sic_irqsrc *src;
+
+	sc = device_get_softc(dev);
+	src = (struct versatile_sic_irqsrc *)isrc;
+
+	SIC_LOCK(sc);
+	SIC_WRITE_4(sc, SIC_ENCLR, (1 << src->irq));
+	SIC_UNLOCK(sc);
+}
+
+static void
+versatile_sic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct versatile_sic_softc *sc;
+	struct versatile_sic_irqsrc *src;
+
+	sc = device_get_softc(dev);
+	src = (struct versatile_sic_irqsrc *)isrc;
+
+	SIC_LOCK(sc);
+	SIC_WRITE_4(sc, SIC_ENSET, (1 << src->irq));
+	SIC_UNLOCK(sc);
+}
+
+static int
+versatile_sic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct intr_map_data_fdt *daf;
+	struct versatile_sic_softc *sc;
+
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 1 || daf->cells[0] >= SIC_NIRQS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+	*isrcp = &sc->isrcs[daf->cells[0]].isrc;
+	return (0);
+}
+
+static void
+versatile_sic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	versatile_sic_disable_intr(dev, isrc);
+}
+
+static void
+versatile_sic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct versatile_sic_irqsrc *src;
+
+	src = (struct versatile_sic_irqsrc *)isrc;
+	arm_irq_memory_barrier(src->irq);
+	versatile_sic_enable_intr(dev, isrc);
+}
+
+static void
+versatile_sic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct versatile_sic_irqsrc *src;
+
+	src = (struct versatile_sic_irqsrc *)isrc;
+	arm_irq_memory_barrier(src->irq);
+}
+
+static int
+versatile_sic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+
+	return (0);
+}
+
+static int
+versatile_sic_filter(void *arg)
+{
+	struct versatile_sic_softc *sc;
+	struct intr_irqsrc *isrc;
+	uint32_t i, interrupts;
+
+	sc = arg;
+	SIC_LOCK(sc);
+	interrupts = SIC_READ_4(sc, SIC_STATUS);
+	SIC_UNLOCK(sc);
+	for (i = 0; interrupts != 0; i++, interrupts >>= 1) {
+		if ((interrupts & 0x1) == 0)
+			continue;
+		isrc = &sc->isrcs[i].isrc;
+		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
+			versatile_sic_disable_intr(sc->dev, isrc);
+			versatile_sic_post_filter(sc->dev, isrc);
+			device_printf(sc->dev, "Stray irq %u disabled\n", i);
+		}
+	}
+
+	return (FILTER_HANDLED);
+}
 
 static int
 versatile_sic_probe(device_t dev)
@@ -87,10 +216,14 @@ static int
 versatile_sic_attach(device_t dev)
 {
 	struct		versatile_sic_softc *sc = device_get_softc(dev);
-	uint32_t	pass_irqs;
-	int		rid;
+	int		rid, error;
+	uint32_t	irq;
+	const char	*name;
+	struct		versatile_sic_irqsrc *isrcs;
 
-	sc->sc_dev = dev;
+	sc->dev = dev;
+	mtx_init(&sc->mtx, device_get_nameunit(dev), "sic",
+	    MTX_SPIN);
 
 	/* Request memory resources */
 	rid = 0;
@@ -101,29 +234,81 @@ versatile_sic_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Request memory resources */
+	rid = 0;
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->irq_res == NULL) {
+		device_printf(dev, "could not allocate IRQ resources\n");
+		versatile_sic_detach(dev);
+		return (ENXIO);
+	}
+
+	if ((bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
+	    versatile_sic_filter, NULL, sc, &sc->intrh))) {
+		device_printf(dev,
+		    "unable to register interrupt handler\n");
+		versatile_sic_detach(dev);
+		return (ENXIO);
+	}
+
 	/* Disable all interrupts on SIC */
-	sic_write_4(sc, SIC_ENCLR, 0xffffffff);
+	SIC_WRITE_4(sc, SIC_ENCLR, 0xffffffff);
 
-	/* 
-	 * XXX: Enable IRQ3 for KMI
-	 * Should be replaced by proper interrupts cascading
-	 */
-	sic_write_4(sc, SIC_ENSET, (1 << 3));
+	/* PIC attachment */
+	isrcs = sc->isrcs;
+	name = device_get_nameunit(sc->dev);
+	for (irq = 0; irq < SIC_NIRQS; irq++) {
+		isrcs[irq].irq = irq;
+		error = intr_isrc_register(&isrcs[irq].isrc, sc->dev,
+		    0, "%s,%u", name, irq);
+		if (error != 0)
+			return (error);
+	}
 
-	/*
-	 * Let PCI and Ethernet interrupts pass through
-	 * IRQ25, IRQ27..IRQ31
-	 */
-	pass_irqs = (0x1f << 27) | (1 << 25);
-	sic_write_4(sc, SIC_PICENSET, pass_irqs);
+	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
 
 	return (0);
+}
+
+static int
+versatile_sic_detach(device_t dev)
+{
+	struct		versatile_sic_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->intrh)
+		bus_teardown_intr(dev, sc->irq_res, sc->intrh);
+
+	if (sc->mem_res == NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+			rman_get_rid(sc->mem_res), sc->mem_res);
+
+	if (sc->irq_res == NULL)
+		bus_release_resource(dev, SYS_RES_IRQ,
+			rman_get_rid(sc->irq_res), sc->irq_res);
+
+	mtx_destroy(&sc->mtx);
+
+	return (0);
+
 }
 
 static device_method_t versatile_sic_methods[] = {
 	DEVMETHOD(device_probe,		versatile_sic_probe),
 	DEVMETHOD(device_attach,	versatile_sic_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_detach,	versatile_sic_detach),
+
+	DEVMETHOD(pic_disable_intr,	versatile_sic_disable_intr),
+	DEVMETHOD(pic_enable_intr,	versatile_sic_enable_intr),
+	DEVMETHOD(pic_map_intr,		versatile_sic_map_intr),
+	DEVMETHOD(pic_post_filter,	versatile_sic_post_filter),
+	DEVMETHOD(pic_post_ithread,	versatile_sic_post_ithread),
+	DEVMETHOD(pic_pre_ithread,	versatile_sic_pre_ithread),
+	DEVMETHOD(pic_setup_intr,	versatile_sic_setup_intr),
+
+	DEVMETHOD_END
 };
 
 static driver_t versatile_sic_driver = {

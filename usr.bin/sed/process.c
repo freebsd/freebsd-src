@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992 Diomidis Spinellis.
  * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -77,8 +79,8 @@ static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
 struct s_appends *appends;	/* Array of pointers to strings to append. */
-static int appendx;		/* Index into appends array. */
-int appendnum;			/* Size of appends array. */
+static unsigned int appendx;	/* Index into appends array. */
+unsigned int appendnum;		/* Size of appends array. */
 
 static int lastaddr;		/* Set by applies if last address of a range. */
 static int sdone;		/* If any substitutes since last line input. */
@@ -97,11 +99,12 @@ process(void)
 {
 	struct s_command *cp;
 	SPACE tspace;
-	size_t oldpsl = 0;
+	size_t oldpsl;
 	char *p;
 	int oldpsanl;
 
 	p = NULL;
+	oldpsanl = oldpsl = 0;
 
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
@@ -207,10 +210,14 @@ redirect:
 				}
 				break;
 			case 'q':
-				if (!nflag && !pd)
-					OUT();
-				flush_appends();
-				exit(0);
+				if (inplace == NULL) {
+					if (!nflag && !pd)
+						OUT();
+					flush_appends();
+					exit(0);
+				}
+				quit = 1;
+				break;
 			case 'r':
 				if (appendx >= appendnum)
 					if ((appends = realloc(appends,
@@ -382,7 +389,7 @@ substitute(struct s_command *cp)
 	regex_t *re;
 	regoff_t slen;
 	int lastempty, n;
-	size_t le = 0;
+	regoff_t le = 0;
 	char *s;
 
 	s = ps;
@@ -450,7 +457,7 @@ substitute(struct s_command *cp)
 	    regexec_e(re, ps, REG_NOTBOL, 0, le, psl));
 
 	/* Did not find the requested number of matches. */
-	if (n > 1)
+	if (n > 0)
 		return (0);
 
 	/* Copy the trailing retained string. */
@@ -547,13 +554,13 @@ static void
 flush_appends(void)
 {
 	FILE *f;
-	int count, i;
+	unsigned int count, idx;
 	char buf[8 * 1024];
 
-	for (i = 0; i < appendx; i++)
-		switch (appends[i].type) {
+	for (idx = 0; idx < appendx; idx++)
+		switch (appends[idx].type) {
 		case AP_STRING:
-			fwrite(appends[i].s, sizeof(char), appends[i].len,
+			fwrite(appends[idx].s, sizeof(char), appends[idx].len,
 			    outfile);
 			break;
 		case AP_FILE:
@@ -565,7 +572,7 @@ flush_appends(void)
 			 * would be truly bizarre, but possible.  It's probably
 			 * not that big a performance win, anyhow.
 			 */
-			if ((f = fopen(appends[i].s, "r")) == NULL)
+			if ((f = fopen(appends[idx].s, "r")) == NULL)
 				break;
 			while ((count = fread(buf, sizeof(char), sizeof(buf), f)))
 				(void)fwrite(buf, sizeof(char), count, outfile);

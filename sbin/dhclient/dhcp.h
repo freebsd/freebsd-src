@@ -3,7 +3,9 @@
 
 /* Protocol structures... */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995, 1996 The Internet Software Consortium.
  * All rights reserved.
  *

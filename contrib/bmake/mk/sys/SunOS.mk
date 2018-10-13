@@ -1,4 +1,4 @@
-#	$Id: SunOS.mk,v 1.7 2016/03/22 20:45:15 sjg Exp $
+#	$Id: SunOS.mk,v 1.8 2017/05/05 18:02:17 sjg Exp $
 
 .if ${.PARSEFILE} == "sys.mk"
 .include <host-target.mk>
@@ -97,8 +97,6 @@ LDFLAGS=
 
 LINT=		lint
 LINTFLAGS=	-chapbx
-
-MAKE=		bmake
 
 PC=		pc
 PFLAGS=

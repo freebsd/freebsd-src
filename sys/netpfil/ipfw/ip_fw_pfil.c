@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Andre Oppermann, Internet Business Solutions AG
  * All rights reserved.
  *
@@ -68,15 +70,15 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-static VNET_DEFINE(int, fw_enable) = 1;
+VNET_DEFINE_STATIC(int, fw_enable) = 1;
 #define V_fw_enable	VNET(fw_enable)
 
 #ifdef INET6
-static VNET_DEFINE(int, fw6_enable) = 1;
+VNET_DEFINE_STATIC(int, fw6_enable) = 1;
 #define V_fw6_enable	VNET(fw6_enable)
 #endif
 
-static VNET_DEFINE(int, fwlink_enable) = 0;
+VNET_DEFINE_STATIC(int, fwlink_enable) = 0;
 #define V_fwlink_enable	VNET(fwlink_enable)
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
@@ -303,11 +305,9 @@ again:
 
 /*
  * ipfw processing for ethernet packets (in and out).
- * Inteface is NULL from ether_demux, and ifp from
- * ether_output_frame.
  */
 int
-ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
+ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ether_header *eh;
@@ -317,20 +317,15 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 	struct ip_fw_args args;
 	struct m_tag *mtag;
 
-	/* fetch start point from rule, if any */
+	/* fetch start point from rule, if any.  remove the tag if present. */
 	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
 	if (mtag == NULL) {
 		args.rule.slot = 0;
 	} else {
-		/* dummynet packet, already partially processed */
-		struct ipfw_rule_ref *r;
-
-		/* XXX can we free it after use ? */
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		r = (struct ipfw_rule_ref *)(mtag + 1);
-		if (r->info & IPFW_ONEPASS)
+		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
+		m_tag_delete(*m0, mtag);
+		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
-		args.rule = *r;
 	}
 
 	/* I need some amt of data to be contiguous */
@@ -348,7 +343,7 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
 	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dir == PFIL_OUT ? dst: NULL;	/* destination, if any	*/
+	args.oif = dir == PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.next_hop6 = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
@@ -383,14 +378,13 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 
 	case IP_FW_DUMMYNET:
 		ret = EACCES;
-		int dir;
 
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
 
 		*m0 = NULL;
-		dir = PROTO_LAYER2 | (dst ? DIR_OUT : DIR_IN);
-		ip_dn_io_ptr(&m, dir, &args);
+		dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
 		return 0;
 
 	default:

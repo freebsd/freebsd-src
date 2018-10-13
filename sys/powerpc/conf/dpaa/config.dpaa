@@ -1,8 +1,11 @@
 # $FreeBSD$
 
-makeoptions DPAA_COMPILE_CMD_COMMON="${NORMAL_C} \
+files		"dpaa/files.dpaa"
+
+makeoptions DPAA_COMPILE_CMD="${LINUXKPI_C} \
 	-Wno-cast-qual -Wno-unused-function -Wno-init-self -fms-extensions \
 	-include $S/contrib/ncsw/build/dflags.h \
+	-Wno-error=missing-prototypes \
 	-I$S/contrib/ncsw/build/ \
 	-I$S/contrib/ncsw/inc \
 	-I$S/contrib/ncsw/inc/cores \
@@ -18,4 +21,5 @@ makeoptions DPAA_COMPILE_CMD_COMMON="${NORMAL_C} \
 	-I$S/contrib/ncsw/Peripherals/FM/Port \
 	-I$S/contrib/ncsw/Peripherals/FM/Rtc \
 	-I$S/contrib/ncsw/Peripherals/QM \
+	-I$S/contrib/ncsw/inc/flib \
 	-I$S/contrib/ncsw/inc/integrations"

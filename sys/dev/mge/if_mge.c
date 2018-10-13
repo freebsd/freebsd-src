@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * Copyright (C) 2009-2015 Semihalf
  * Copyright (C) 2015 Stormshield
@@ -2050,7 +2052,7 @@ mge_setup_multicast(struct mge_softc *sc)
 		memset(omt, 0, sizeof(omt));
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 

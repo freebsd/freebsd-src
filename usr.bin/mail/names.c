@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -85,7 +87,7 @@ tailof(struct name *name)
  * Return the list or NULL if none found.
  */
 struct name *
-extract(char line[], int ntype)
+extract(char *line, int ntype)
 {
 	char *cp, *nbuf;
 	struct name *top, *np, *t;
@@ -158,7 +160,7 @@ detract(struct name *np, int ntype)
  * Throw away things between ()'s, and take anything between <>.
  */
 char *
-yankword(char *ap, char wbuf[])
+yankword(char *ap, char *wbuf)
 {
 	char *cp, *cp2;
 
@@ -203,7 +205,7 @@ yankword(char *ap, char wbuf[])
  * and look for words before metacharacters %, @, !.
  */
 char *
-yanklogin(char *ap, char wbuf[])
+yanklogin(char *ap, char *wbuf)
 {
 	char *cp, *cp2, *cp_temp;
 	int n;
@@ -573,7 +575,7 @@ unpack(struct name *np)
 		extra++;
 	top = (char **)salloc((t + extra) * sizeof(*top));
 	ap = top;
-	*ap++ = "send-mail";
+	*ap++ = "sendmail";
 	*ap++ = "-i";
 	if (metoo)
 		*ap++ = "-m";

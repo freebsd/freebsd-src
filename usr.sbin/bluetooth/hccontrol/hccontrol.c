@@ -1,5 +1,7 @@
-/*
+/*-
  * hccontrol.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -103,13 +105,14 @@ socket_open(char const *node)
 	int					 s, mib[4], num;
 	size_t					 size;
 	struct nodeinfo 			*nodes;
+	char                                    *lnode = NULL;
 
 	num = find_hci_nodes(&nodes);
 	if (num == 0)
 		errx(7, "Could not find HCI nodes");
 
 	if (node == NULL) {
-		node = strdup(nodes[0].name);
+		node = lnode = strdup(nodes[0].name);
 		if (num > 1)
 			fprintf(stdout, "Using HCI node: %s\n", node);
 	}
@@ -130,6 +133,7 @@ socket_open(char const *node)
 	if (connect(s, (struct sockaddr *) &addr, sizeof(addr)) < 0)
 		err(3, "Could not connect socket, node=%s", node);
 
+	free(lnode);
 	memset(&filter, 0, sizeof(filter));
 	bit_set(filter.event_mask, NG_HCI_EVENT_COMMAND_COMPL - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_COMMAND_STATUS - 1);

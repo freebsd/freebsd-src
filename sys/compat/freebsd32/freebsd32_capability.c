@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -47,18 +49,6 @@ __FBSDID("$FreeBSD$");
 #ifdef CAPABILITIES
 
 MALLOC_DECLARE(M_FILECAPS);
-
-int
-freebsd32_cap_enter(struct thread *td,
-    struct freebsd32_cap_enter_args *uap)
-{
-
-	/*
-	 * We do not have an equivalent of capabilities.conf for freebsd32
-	 * compatibility, so do not allow capability mode for now.
-	 */
-	return (ENOSYS);
-}
 
 int
 freebsd32_cap_ioctls_limit(struct thread *td,
@@ -146,14 +136,6 @@ out:
 }
 
 #else /* !CAPABILITIES */
-
-int
-freebsd32_cap_enter(struct thread *td,
-    struct freebsd32_cap_enter_args *uap)
-{
-
-	return (ENOSYS);
-}
 
 int
 freebsd32_cap_ioctls_limit(struct thread *td,

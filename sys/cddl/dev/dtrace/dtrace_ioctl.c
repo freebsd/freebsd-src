@@ -44,10 +44,8 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case DTRACEHIOC_ADDDOF:
 		dhp = (dof_helper_t *)addr;
 		addr = (caddr_t)(uintptr_t)dhp->dofhp_dof;
-		/* FALLTHROUGH */
-	case DTRACEHIOC_ADD:
 		p = curproc;
-		if (dhp == NULL || p->p_pid == dhp->dofhp_pid) {
+		if (p->p_pid == dhp->dofhp_pid) {
 			dof = dtrace_dof_copyin((uintptr_t)addr, &rval);
 		} else {
 			p = pfind(dhp->dofhp_pid);
@@ -72,10 +70,7 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 		mutex_enter(&dtrace_lock);
 		if ((rval = dtrace_helper_slurp(dof, dhp, p)) != -1) {
-			if (dhp != NULL) {
-				dhp->dofhp_gen = rval;
-				copyout(dhp, addr, sizeof(*dhp));
-			}
+			dhp->dofhp_gen = rval;
 			rval = 0;
 		} else {
 			rval = EINVAL;
@@ -236,9 +231,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		    "DTRACEIOC_AGGSNAP":"DTRACEIOC_BUFSNAP",
 		    curcpu, desc.dtbd_cpu);
 
-		if (desc.dtbd_cpu >= NCPU)
-			return (ENOENT);
-		if (pcpu_find(desc.dtbd_cpu) == NULL)
+		if (desc.dtbd_cpu >= MAXCPU || CPU_ABSENT(desc.dtbd_cpu))
 			return (ENOENT);
 
 		mutex_enter(&dtrace_lock);
@@ -434,7 +427,8 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			return (EBUSY);
 		}
 
-		if (dtrace_dof_slurp(dof, vstate, td->td_ucred, &enab, 0, B_TRUE) != 0) {
+		if (dtrace_dof_slurp(dof, vstate, td->td_ucred, &enab, 0, 0,
+		    B_TRUE) != 0) {
 			mutex_exit(&dtrace_lock);
 			mutex_exit(&cpu_lock);
 			dtrace_dof_destroy(dof);
@@ -801,11 +795,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		nerrs = state->dts_errors;
 		dstate = &state->dts_vstate.dtvs_dynvars;
 
-		for (i = 0; i < NCPU; i++) {
-#ifndef illumos
-			if (pcpu_find(i) == NULL)
-				continue;
-#endif
+		CPU_FOREACH(i) {
 			dtrace_dstate_percpu_t *dcpu = &dstate->dtds_percpu[i];
 
 			stat->dtst_dyndrops += dcpu->dtdsc_drops;

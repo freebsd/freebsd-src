@@ -1,4 +1,5 @@
 /**************************************************************************
+SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 
 Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
@@ -41,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus_dma.h>
 #include <sys/rman.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -389,6 +389,15 @@ reclaim_completed_tx(struct sge_qset *qs, int reclaim_min, int queue)
 
 	return (reclaim);
 }
+
+#ifdef NETDUMP
+int
+cxgb_netdump_poll_tx(struct sge_qset *qs)
+{
+
+	return (reclaim_completed_tx(qs, TX_RECLAIM_MAX, TXQ_ETH));
+}
+#endif
 
 /**
  *	should_restart_tx - are there enough resources to restart a Tx queue?
@@ -1585,6 +1594,23 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 
 	return (0);
 }
+
+#ifdef NETDUMP
+int
+cxgb_netdump_encap(struct sge_qset *qs, struct mbuf **m)
+{
+	int error;
+
+	error = t3_encap(qs, m);
+	if (error == 0)
+		check_ring_tx_db(qs->port->adapter, &qs->txq[TXQ_ETH], 1);
+	else if (*m != NULL) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	return (error);
+}
+#endif
 
 void
 cxgb_tx_watchdog(void *arg)
@@ -2870,7 +2896,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
                         memcpy(mtod(m, char *), r, AN_PKT_SIZE);
 			m->m_len = m->m_pkthdr.len = AN_PKT_SIZE;
-                        *mtod(m, char *) = CPL_ASYNC_NOTIF;
+                        *mtod(m, uint8_t *) = CPL_ASYNC_NOTIF;
 			opcode = CPL_ASYNC_NOTIF;
 			eop = 1;
                         rspq->async_notif++;
@@ -3014,6 +3040,14 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 	return (work);
 }
 
+#ifdef NETDUMP
+int
+cxgb_netdump_poll_rx(adapter_t *adap, struct sge_qset *qs)
+{
+
+	return (process_responses_gts(adap, &qs->rspq));
+}
+#endif
 
 /*
  * Interrupt handler for legacy INTx interrupts for T3B-based cards.

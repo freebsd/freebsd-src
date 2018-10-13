@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -155,10 +157,10 @@ struct sfxge_rxq {
 	struct sfxge_softc		*sc __aligned(CACHE_LINE_SIZE);
 	unsigned int			index;
 	efsys_mem_t			mem;
-	unsigned int			buf_base_id;
 	enum sfxge_rxq_state		init_state;
 	unsigned int			entries;
 	unsigned int			ptr_mask;
+	efx_rxq_t			*common;
 
 	struct sfxge_rx_sw_desc		*queue __aligned(CACHE_LINE_SIZE);
 	unsigned int			added;
@@ -173,8 +175,8 @@ struct sfxge_rxq {
 	struct callout			refill_callout;
 	unsigned int			refill_delay;
 
-	efx_rxq_t			*common __aligned(CACHE_LINE_SIZE);
-	volatile enum sfxge_flush_state	flush_state;
+	volatile enum sfxge_flush_state	flush_state __aligned(CACHE_LINE_SIZE);
+	unsigned int			buf_base_id;
 };
 
 /*

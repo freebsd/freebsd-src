@@ -19,7 +19,7 @@ struct wpa_eapol_key;
  * struct wpa_sm - Internal WPA state machine data
  */
 struct wpa_sm {
-	u8 pmk[PMK_LEN];
+	u8 pmk[PMK_LEN_MAX];
 	size_t pmk_len;
 	struct wpa_ptk ptk, tptk;
 	int ptk_set, tptk_set;
@@ -30,6 +30,12 @@ struct wpa_sm {
 	u8 rx_replay_counter[WPA_REPLAY_COUNTER_LEN];
 	int rx_replay_counter_set;
 	u8 request_counter[WPA_REPLAY_COUNTER_LEN];
+	struct wpa_gtk gtk;
+	struct wpa_gtk gtk_wnm_sleep;
+#ifdef CONFIG_IEEE80211W
+	struct wpa_igtk igtk;
+	struct wpa_igtk igtk_wnm_sleep;
+#endif /* CONFIG_IEEE80211W */
 
 	struct eapol_sm *eapol; /* EAPOL state machine from upper level code */
 
@@ -60,6 +66,7 @@ struct wpa_sm {
 	size_t ssid_len;
 	int wpa_ptk_rekey;
 	int p2p;
+	int wpa_rsc_relaxation;
 
 	u8 own_addr[ETH_ALEN];
 	const char *ifname;
@@ -121,6 +128,7 @@ struct wpa_sm {
 	size_t r0kh_id_len;
 	u8 r1kh_id[FT_R1KH_ID_LEN];
 	int ft_completed;
+	int ft_reassoc_completed;
 	int over_the_ds_in_progress;
 	u8 target_ap[ETH_ALEN]; /* over-the-DS target AP */
 	int set_ptk_after_assoc;
@@ -132,6 +140,10 @@ struct wpa_sm {
 #ifdef CONFIG_P2P
 	u8 p2p_ip_addr[3 * 4];
 #endif /* CONFIG_P2P */
+
+#ifdef CONFIG_TESTING_OPTIONS
+	struct wpabuf *test_assoc_ie;
+#endif /* CONFIG_TESTING_OPTIONS */
 };
 
 
@@ -342,16 +354,14 @@ wpa_sm_tdls_disable_channel_switch(struct wpa_sm *sm, const u8 *addr)
 static inline int wpa_sm_key_mgmt_set_pmk(struct wpa_sm *sm,
 					  const u8 *pmk, size_t pmk_len)
 {
-	if (!sm->proactive_key_caching)
-		return 0;
 	if (!sm->ctx->key_mgmt_set_pmk)
 		return -1;
 	return sm->ctx->key_mgmt_set_pmk(sm->ctx->ctx, pmk, pmk_len);
 }
 
-void wpa_eapol_key_send(struct wpa_sm *sm, const u8 *kck, size_t kck_len,
-			int ver, const u8 *dest, u16 proto,
-			u8 *msg, size_t msg_len, u8 *key_mic);
+int wpa_eapol_key_send(struct wpa_sm *sm, const u8 *kck, size_t kck_len,
+		       int ver, const u8 *dest, u16 proto,
+		       u8 *msg, size_t msg_len, u8 *key_mic);
 int wpa_supplicant_send_2_of_4(struct wpa_sm *sm, const unsigned char *dst,
 			       const struct wpa_eapol_key *key,
 			       int ver, const u8 *nonce,

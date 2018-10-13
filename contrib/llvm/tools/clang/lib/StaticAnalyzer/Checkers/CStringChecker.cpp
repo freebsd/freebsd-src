@@ -22,7 +22,6 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -63,13 +62,13 @@ public:
   void checkPreStmt(const DeclStmt *DS, CheckerContext &C) const;
   void checkLiveSymbols(ProgramStateRef state, SymbolReaper &SR) const;
   void checkDeadSymbols(SymbolReaper &SR, CheckerContext &C) const;
-  bool wantsRegionChangeUpdate(ProgramStateRef state) const;
 
   ProgramStateRef
     checkRegionChanges(ProgramStateRef state,
                        const InvalidatedSymbols *,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
+                       const LocationContext *LCtx,
                        const CallEvent *Call) const;
 
   typedef void (CStringChecker::*FnCheck)(CheckerContext &,
@@ -117,6 +116,11 @@ public:
                         bool ignoreCase = false) const;
 
   void evalStrsep(CheckerContext &C, const CallExpr *CE) const;
+
+  void evalStdCopy(CheckerContext &C, const CallExpr *CE) const;
+  void evalStdCopyBackward(CheckerContext &C, const CallExpr *CE) const;
+  void evalStdCopyCommon(CheckerContext &C, const CallExpr *CE) const;
+  void evalMemset(CheckerContext &C, const CallExpr *CE) const;
 
   // Utility methods
   std::pair<ProgramStateRef , ProgramStateRef >
@@ -285,8 +289,8 @@ ProgramStateRef CStringChecker::CheckLocation(CheckerContext &C,
   if (!ER)
     return state;
 
-  assert(ER->getValueType() == C.getASTContext().CharTy &&
-    "CheckLocation should only be called with char* ElementRegions");
+  if (ER->getValueType() != C.getASTContext().CharTy)
+    return state;
 
   // Get the size of the array.
   const SubRegion *superReg = cast<SubRegion>(ER->getSuperRegion());
@@ -682,6 +686,7 @@ SVal CStringChecker::getCStringLengthForRegion(CheckerContext &C,
   QualType sizeTy = svalBuilder.getContext().getSizeType();
   SVal strLength = svalBuilder.getMetadataSymbolVal(CStringChecker::getTag(),
                                                     MR, Ex, sizeTy,
+                                                    C.getLocationContext(),
                                                     C.blockCount());
 
   if (!hypothetical) {
@@ -869,6 +874,8 @@ bool CStringChecker::IsFirstBufInBound(CheckerContext &C,
   if (!ER)
     return true; // cf top comment.
 
+  // FIXME: Does this crash when a non-standard definition
+  // of a library function is encountered?
   assert(ER->getValueType() == C.getASTContext().CharTy &&
          "IsFirstBufInBound should only be called with char* ElementRegions");
 
@@ -916,7 +923,7 @@ ProgramStateRef CStringChecker::InvalidateBuffer(CheckerContext &C,
     // Invalidate and escape only indirect regions accessible through the source
     // buffer.
     if (IsSourceBuffer) {
-      ITraits.setTrait(R,
+      ITraits.setTrait(R->getBaseRegion(),
                        RegionAndSymbolInvalidationTraits::TK_PreserveContents);
       ITraits.setTrait(R, RegionAndSymbolInvalidationTraits::TK_SuppressEscape);
       CausesPointerEscape = true;
@@ -1045,31 +1052,22 @@ void CStringChecker::evalCopyCommon(CheckerContext &C,
     // If this is mempcpy, get the byte after the last byte copied and
     // bind the expr.
     if (IsMempcpy) {
-      loc::MemRegionVal destRegVal = destVal.castAs<loc::MemRegionVal>();
-
-      // Get the length to copy.
-      if (Optional<NonLoc> lenValNonLoc = sizeVal.getAs<NonLoc>()) {
-        // Get the byte after the last byte copied.
-        SValBuilder &SvalBuilder = C.getSValBuilder();
-        ASTContext &Ctx = SvalBuilder.getContext();
-        QualType CharPtrTy = Ctx.getPointerType(Ctx.CharTy);
-        loc::MemRegionVal DestRegCharVal = SvalBuilder.evalCast(destRegVal,
-          CharPtrTy, Dest->getType()).castAs<loc::MemRegionVal>();
-        SVal lastElement = C.getSValBuilder().evalBinOpLN(state, BO_Add,
-                                                          DestRegCharVal,
-                                                          *lenValNonLoc,
-                                                          Dest->getType());
-
-        // The byte after the last byte copied is the return value.
-        state = state->BindExpr(CE, LCtx, lastElement);
-      } else {
-        // If we don't know how much we copied, we can at least
-        // conjure a return value for later.
-        SVal result = C.getSValBuilder().conjureSymbolVal(nullptr, CE, LCtx,
+      // Get the byte after the last byte copied.
+      SValBuilder &SvalBuilder = C.getSValBuilder();
+      ASTContext &Ctx = SvalBuilder.getContext();
+      QualType CharPtrTy = Ctx.getPointerType(Ctx.CharTy);
+      SVal DestRegCharVal =
+          SvalBuilder.evalCast(destVal, CharPtrTy, Dest->getType());
+      SVal lastElement = C.getSValBuilder().evalBinOp(
+          state, BO_Add, DestRegCharVal, sizeVal, Dest->getType());
+      // If we don't know how much we copied, we can at least
+      // conjure a return value for later.
+      if (lastElement.isUnknown())
+        lastElement = C.getSValBuilder().conjureSymbolVal(nullptr, CE, LCtx,
                                                           C.blockCount());
-        state = state->BindExpr(CE, LCtx, result);
-      }
 
+      // The byte after the last byte copied is the return value.
+      state = state->BindExpr(CE, LCtx, lastElement);
     } else {
       // All other copies return the destination buffer.
       // (Well, bcopy() has a void return type, but this won't hurt.)
@@ -1833,6 +1831,8 @@ void CStringChecker::evalStrcmpCommon(CheckerContext &C, const CallExpr *CE,
   const StringLiteral *s1StrLiteral = getCStringLiteral(C, state, s1, s1Val);
   const StringLiteral *s2StrLiteral = getCStringLiteral(C, state, s2, s2Val);
   bool canComputeResult = false;
+  SVal resultVal = svalBuilder.conjureSymbolVal(nullptr, CE, LCtx,
+                                                C.blockCount());
 
   if (s1StrLiteral && s2StrLiteral) {
     StringRef s1StrRef = s1StrLiteral->getString();
@@ -1866,28 +1866,29 @@ void CStringChecker::evalStrcmpCommon(CheckerContext &C, const CallExpr *CE,
         s2StrRef = s2StrRef.substr(0, s2Term);
 
       // Use StringRef's comparison methods to compute the actual result.
-      int result;
+      int compareRes = ignoreCase ? s1StrRef.compare_lower(s2StrRef)
+                                  : s1StrRef.compare(s2StrRef);
 
-      if (ignoreCase) {
-        // Compare string 1 to string 2 the same way strcasecmp() does.
-        result = s1StrRef.compare_lower(s2StrRef);
-      } else {
-        // Compare string 1 to string 2 the same way strcmp() does.
-        result = s1StrRef.compare(s2StrRef);
+      // The strcmp function returns an integer greater than, equal to, or less
+      // than zero, [c11, p7.24.4.2].
+      if (compareRes == 0) {
+        resultVal = svalBuilder.makeIntVal(compareRes, CE->getType());
       }
-
-      // Build the SVal of the comparison and bind the return value.
-      SVal resultVal = svalBuilder.makeIntVal(result, CE->getType());
-      state = state->BindExpr(CE, LCtx, resultVal);
+      else {
+        DefinedSVal zeroVal = svalBuilder.makeIntVal(0, CE->getType());
+        // Constrain strcmp's result range based on the result of StringRef's
+        // comparison methods.
+        BinaryOperatorKind op = (compareRes == 1) ? BO_GT : BO_LT;
+        SVal compareWithZero =
+          svalBuilder.evalBinOp(state, op, resultVal, zeroVal,
+                                svalBuilder.getConditionType());
+        DefinedSVal compareWithZeroVal = compareWithZero.castAs<DefinedSVal>();
+        state = state->assume(compareWithZeroVal, true);
+      }
     }
   }
 
-  if (!canComputeResult) {
-    // Conjure a symbolic value. It's the best we can do.
-    SVal resultVal = svalBuilder.conjureSymbolVal(nullptr, CE, LCtx,
-                                                  C.blockCount());
-    state = state->BindExpr(CE, LCtx, resultVal);
-  }
+  state = state->BindExpr(CE, LCtx, resultVal);
 
   // Record this as a possible path.
   C.addTransition(state);
@@ -1937,8 +1938,12 @@ void CStringChecker::evalStrsep(CheckerContext &C, const CallExpr *CE) const {
     // Overwrite the search string pointer. The new value is either an address
     // further along in the same string, or NULL if there are no more tokens.
     State = State->bindLoc(*SearchStrLoc,
-                           SVB.conjureSymbolVal(getTag(), CE, LCtx, CharPtrTy,
-                                                C.blockCount()));
+                           SVB.conjureSymbolVal(getTag(),
+                                                CE,
+                                                LCtx,
+                                                CharPtrTy,
+                                                C.blockCount()),
+                           LCtx);
   } else {
     assert(SearchStrVal.isUnknown());
     // Conjure a symbolic value. It's the best we can do.
@@ -1950,7 +1955,105 @@ void CStringChecker::evalStrsep(CheckerContext &C, const CallExpr *CE) const {
   C.addTransition(State);
 }
 
+// These should probably be moved into a C++ standard library checker.
+void CStringChecker::evalStdCopy(CheckerContext &C, const CallExpr *CE) const {
+  evalStdCopyCommon(C, CE);
+}
 
+void CStringChecker::evalStdCopyBackward(CheckerContext &C,
+                                         const CallExpr *CE) const {
+  evalStdCopyCommon(C, CE);
+}
+
+void CStringChecker::evalStdCopyCommon(CheckerContext &C,
+                                       const CallExpr *CE) const {
+  if (CE->getNumArgs() < 3)
+    return;
+
+  ProgramStateRef State = C.getState();
+
+  const LocationContext *LCtx = C.getLocationContext();
+
+  // template <class _InputIterator, class _OutputIterator>
+  // _OutputIterator
+  // copy(_InputIterator __first, _InputIterator __last,
+  //        _OutputIterator __result)
+
+  // Invalidate the destination buffer
+  const Expr *Dst = CE->getArg(2);
+  SVal DstVal = State->getSVal(Dst, LCtx);
+  State = InvalidateBuffer(C, State, Dst, DstVal, /*IsSource=*/false,
+                           /*Size=*/nullptr);
+
+  SValBuilder &SVB = C.getSValBuilder();
+
+  SVal ResultVal = SVB.conjureSymbolVal(nullptr, CE, LCtx, C.blockCount());
+  State = State->BindExpr(CE, LCtx, ResultVal);
+
+  C.addTransition(State);
+}
+
+void CStringChecker::evalMemset(CheckerContext &C, const CallExpr *CE) const {
+  if (CE->getNumArgs() != 3)
+    return;
+
+  CurrentFunctionDescription = "memory set function";
+
+  const Expr *Mem = CE->getArg(0);
+  const Expr *Size = CE->getArg(2);
+  ProgramStateRef State = C.getState();
+
+  // See if the size argument is zero.
+  const LocationContext *LCtx = C.getLocationContext();
+  SVal SizeVal = State->getSVal(Size, LCtx);
+  QualType SizeTy = Size->getType();
+
+  ProgramStateRef StateZeroSize, StateNonZeroSize;
+  std::tie(StateZeroSize, StateNonZeroSize) =
+    assumeZero(C, State, SizeVal, SizeTy);
+
+  // Get the value of the memory area.
+  SVal MemVal = State->getSVal(Mem, LCtx);
+
+  // If the size is zero, there won't be any actual memory access, so
+  // just bind the return value to the Mem buffer and return.
+  if (StateZeroSize && !StateNonZeroSize) {
+    StateZeroSize = StateZeroSize->BindExpr(CE, LCtx, MemVal);
+    C.addTransition(StateZeroSize);
+    return;
+  }
+
+  // Ensure the memory area is not null.
+  // If it is NULL there will be a NULL pointer dereference.
+  State = checkNonNull(C, StateNonZeroSize, Mem, MemVal);
+  if (!State)
+    return;
+
+  State = CheckBufferAccess(C, State, Size, Mem);
+  if (!State)
+    return;
+  State = InvalidateBuffer(C, State, Mem, C.getSVal(Mem),
+                           /*IsSourceBuffer*/false, Size);
+  if (!State)
+    return;
+
+  State = State->BindExpr(CE, LCtx, MemVal);
+  C.addTransition(State);
+}
+
+static bool isCPPStdLibraryFunction(const FunctionDecl *FD, StringRef Name) {
+  IdentifierInfo *II = FD->getIdentifier();
+  if (!II)
+    return false;
+
+  if (!AnalysisDeclContext::isInStdNamespace(FD))
+    return false;
+
+  if (II->getName().equals(Name))
+    return true;
+
+  return false;
+}
 //===----------------------------------------------------------------------===//
 // The driver method, and other Checker callbacks.
 //===----------------------------------------------------------------------===//
@@ -1971,6 +2074,8 @@ bool CStringChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
     evalFunction =  &CStringChecker::evalMemcmp;
   else if (C.isCLibraryFunction(FDecl, "memmove"))
     evalFunction =  &CStringChecker::evalMemmove;
+  else if (C.isCLibraryFunction(FDecl, "memset"))
+    evalFunction =  &CStringChecker::evalMemset;
   else if (C.isCLibraryFunction(FDecl, "strcpy"))
     evalFunction =  &CStringChecker::evalStrcpy;
   else if (C.isCLibraryFunction(FDecl, "strncpy"))
@@ -1999,6 +2104,10 @@ bool CStringChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
     evalFunction =  &CStringChecker::evalBcopy;
   else if (C.isCLibraryFunction(FDecl, "bcmp"))
     evalFunction =  &CStringChecker::evalMemcmp;
+  else if (isCPPStdLibraryFunction(FDecl, "copy"))
+    evalFunction =  &CStringChecker::evalStdCopy;
+  else if (isCPPStdLibraryFunction(FDecl, "copy_backward"))
+    evalFunction =  &CStringChecker::evalStdCopyBackward;
 
   // If the callee isn't a string function, let another checker handle it.
   if (!evalFunction)
@@ -2051,16 +2160,12 @@ void CStringChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   C.addTransition(state);
 }
 
-bool CStringChecker::wantsRegionChangeUpdate(ProgramStateRef state) const {
-  CStringLengthTy Entries = state->get<CStringLength>();
-  return !Entries.isEmpty();
-}
-
 ProgramStateRef
 CStringChecker::checkRegionChanges(ProgramStateRef state,
                                    const InvalidatedSymbols *,
                                    ArrayRef<const MemRegion *> ExplicitRegions,
                                    ArrayRef<const MemRegion *> Regions,
+                                   const LocationContext *LCtx,
                                    const CallEvent *Call) const {
   CStringLengthTy Entries = state->get<CStringLength>();
   if (Entries.isEmpty())

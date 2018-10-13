@@ -583,8 +583,8 @@ static void wpa_supplicant_wps_event_m2d(struct wpa_supplicant *wpa_s,
 		m2d->dev_password_id, m2d->config_error);
 	wpas_notify_wps_event_m2d(wpa_s, m2d);
 #ifdef CONFIG_P2P
-	if (wpa_s->parent && wpa_s->parent != wpa_s) {
-		wpa_msg(wpa_s->parent, MSG_INFO, WPS_EVENT_M2D
+	if (wpa_s->p2pdev && wpa_s->p2pdev != wpa_s) {
+		wpa_msg(wpa_s->p2pdev, MSG_INFO, WPS_EVENT_M2D
 			"dev_password_id=%d config_error=%d",
 			m2d->dev_password_id, m2d->config_error);
 	}
@@ -617,8 +617,8 @@ static void wpa_supplicant_wps_event_fail(struct wpa_supplicant *wpa_s,
 			WPS_EVENT_FAIL "msg=%d config_error=%d reason=%d (%s)",
 			fail->msg, fail->config_error, fail->error_indication,
 			wps_ei_str(fail->error_indication));
-		if (wpa_s->parent && wpa_s->parent != wpa_s)
-			wpa_msg(wpa_s->parent, MSG_INFO, WPS_EVENT_FAIL
+		if (wpa_s->p2pdev && wpa_s->p2pdev != wpa_s)
+			wpa_msg(wpa_s->p2pdev, MSG_INFO, WPS_EVENT_FAIL
 				"msg=%d config_error=%d reason=%d (%s)",
 				fail->msg, fail->config_error,
 				fail->error_indication,
@@ -627,8 +627,8 @@ static void wpa_supplicant_wps_event_fail(struct wpa_supplicant *wpa_s,
 		wpa_msg(wpa_s, MSG_INFO,
 			WPS_EVENT_FAIL "msg=%d config_error=%d",
 			fail->msg, fail->config_error);
-		if (wpa_s->parent && wpa_s->parent != wpa_s)
-			wpa_msg(wpa_s->parent, MSG_INFO, WPS_EVENT_FAIL
+		if (wpa_s->p2pdev && wpa_s->p2pdev != wpa_s)
+			wpa_msg(wpa_s->p2pdev, MSG_INFO, WPS_EVENT_FAIL
 				"msg=%d config_error=%d",
 				fail->msg, fail->config_error);
 	}
@@ -680,6 +680,13 @@ static void wpas_wps_reenable_networks_cb(void *eloop_ctx, void *timeout_ctx)
 	struct wpa_supplicant *wpa_s = eloop_ctx;
 	/* Enable the networks disabled during wpas_wps_reassoc */
 	wpas_wps_reenable_networks(wpa_s);
+}
+
+
+int wpas_wps_reenable_networks_pending(struct wpa_supplicant *wpa_s)
+{
+	return eloop_is_timeout_registered(wpas_wps_reenable_networks_cb,
+					   wpa_s, NULL);
 }
 
 
@@ -1135,6 +1142,13 @@ int wpas_wps_start_pbc(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		return -1;
 	ssid->temporary = 1;
 	ssid->p2p_group = p2p_group;
+	/*
+	 * When starting a regular WPS process (not P2P group formation)
+	 * the registrar/final station can be either AP or PCP
+	 * so use a "don't care" value for the pbss flag.
+	 */
+	if (!p2p_group)
+		ssid->pbss = 2;
 #ifdef CONFIG_P2P
 	if (p2p_group && wpa_s->go_params && wpa_s->go_params->ssid_len) {
 		ssid->ssid = os_zalloc(wpa_s->go_params->ssid_len + 1);
@@ -1142,6 +1156,10 @@ int wpas_wps_start_pbc(struct wpa_supplicant *wpa_s, const u8 *bssid,
 			ssid->ssid_len = wpa_s->go_params->ssid_len;
 			os_memcpy(ssid->ssid, wpa_s->go_params->ssid,
 				  ssid->ssid_len);
+			if (wpa_s->go_params->freq > 56160) {
+				/* P2P in 60 GHz uses PBSS */
+				ssid->pbss = 1;
+			}
 			wpa_hexdump_ascii(MSG_DEBUG, "WPS: Use specific AP "
 					  "SSID", ssid->ssid, ssid->ssid_len);
 		}
@@ -1186,6 +1204,13 @@ static int wpas_wps_start_dev_pw(struct wpa_supplicant *wpa_s,
 	}
 	ssid->temporary = 1;
 	ssid->p2p_group = p2p_group;
+	/*
+	 * When starting a regular WPS process (not P2P group formation)
+	 * the registrar/final station can be either AP or PCP
+	 * so use a "don't care" value for the pbss flag.
+	 */
+	if (!p2p_group)
+		ssid->pbss = 2;
 	if (ssid_val) {
 		ssid->ssid = os_malloc(ssid_len);
 		if (ssid->ssid) {
@@ -1209,6 +1234,10 @@ static int wpas_wps_start_dev_pw(struct wpa_supplicant *wpa_s,
 			ssid->ssid_len = wpa_s->go_params->ssid_len;
 			os_memcpy(ssid->ssid, wpa_s->go_params->ssid,
 				  ssid->ssid_len);
+			if (wpa_s->go_params->freq > 56160) {
+				/* P2P in 60 GHz uses PBSS */
+				ssid->pbss = 1;
+			}
 			wpa_hexdump_ascii(MSG_DEBUG, "WPS: Use specific AP "
 					  "SSID", ssid->ssid, ssid->ssid_len);
 		}
@@ -1221,7 +1250,10 @@ static int wpas_wps_start_dev_pw(struct wpa_supplicant *wpa_s,
 		os_snprintf(val, sizeof(val), "\"dev_pw_id=%u%s\"",
 			    dev_pw_id, hash);
 	} else {
-		rpin = wps_generate_pin();
+		if (wps_generate_pin(&rpin) < 0) {
+			wpa_printf(MSG_DEBUG, "WPS: Could not generate PIN");
+			return -1;
+		}
 		os_snprintf(val, sizeof(val), "\"pin=%08d dev_pw_id=%u%s\"",
 			    rpin, dev_pw_id, hash);
 	}

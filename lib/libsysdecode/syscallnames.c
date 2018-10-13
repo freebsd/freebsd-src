@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/acl.h>
+#include <sys/wait.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
@@ -46,9 +49,11 @@ static
 #include <compat/freebsd32/freebsd32_syscalls.c>
 #endif
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 static
-#ifdef __amd64__
+#ifdef __aarch64__
+#include <arm64/linux/linux_syscalls.c>
+#elif __amd64__
 #include <amd64/linux/linux_syscalls.c>
 #else
 #include <i386/linux/linux_syscalls.c>
@@ -60,10 +65,10 @@ static
 #include <amd64/linux32/linux32_syscalls.c>
 #endif
 
-#if defined(__amd64__) || defined(__aarch64__)
+static
+#include <compat/cloudabi32/cloudabi32_syscalls.c>
 static
 #include <compat/cloudabi64/cloudabi64_syscalls.c>
-#endif
 
 const char *
 sysdecode_syscallname(enum sysdecode_abi abi, unsigned int code)
@@ -80,7 +85,7 @@ sysdecode_syscallname(enum sysdecode_abi abi, unsigned int code)
 			return (freebsd32_syscallnames[code]);
 		break;
 #endif
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	case SYSDECODE_ABI_LINUX:
 		if (code < nitems(linux_syscallnames))
 			return (linux_syscallnames[code]);
@@ -92,12 +97,14 @@ sysdecode_syscallname(enum sysdecode_abi abi, unsigned int code)
 			return (linux32_syscallnames[code]);
 		break;
 #endif
-#if defined(__amd64__) || defined(__aarch64__)
+	case SYSDECODE_ABI_CLOUDABI32:
+		if (code < nitems(cloudabi32_syscallnames))
+			return (cloudabi32_syscallnames[code]);
+		break;
 	case SYSDECODE_ABI_CLOUDABI64:
 		if (code < nitems(cloudabi64_syscallnames))
 			return (cloudabi64_syscallnames[code]);
 		break;
-#endif
 	default:
 		break;
 	}

@@ -16,22 +16,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/BasicTTIImpl.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Analysis/TargetTransformInfoImpl.h"
-#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
-#include <utility>
-using namespace llvm;
+#include "llvm/Target/TargetMachine.h"
 
-#define DEBUG_TYPE "basictti"
+using namespace llvm;
 
 // This flag is used by the template base class for BasicTTIImpl, and here to
 // provide a definition.
 cl::opt<unsigned>
-    llvm::PartialUnrollingThreshold("partial-unrolling-threshold", cl::init(0),
-                                    cl::desc("Threshold for partial unrolling"),
-                                    cl::Hidden);
+llvm::PartialUnrollingThreshold("partial-unrolling-threshold", cl::init(0),
+                                cl::desc("Threshold for partial unrolling"),
+                                cl::Hidden);
 
 BasicTTIImpl::BasicTTIImpl(const TargetMachine *TM, const Function &F)
     : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),

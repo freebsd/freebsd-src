@@ -185,9 +185,11 @@ FSTAB_FMT="%s\t\t%s\t%s\t%s\t\t%s\t%s\n"
 #
 # Command strings for various tasks
 #
+COPY='cp "%s" "%s"'
 CHMOD_MODE='chmod %s "%s"'
 DD_WITH_OPTIONS='dd if="%s" of="%s" %s'
 ECHO_APPEND='echo "%s" >> "%s"'
+ECHO_OVERWRITE='echo "%s" > "%s"'
 GELI_ATTACH='geli attach -j - -k "%s" "%s"'
 GELI_ATTACH_NOKEY='geli attach -j - "%s"'
 GELI_DETACH_F='geli detach -f "%s"'
@@ -211,6 +213,7 @@ KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
+NEWFS_ESP='newfs_msdos -F %s -L "%s" "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
@@ -218,11 +221,13 @@ SWAP_GMIRROR_LABEL='gmirror label swap %s'
 SYSCTL_ZFS_MIN_ASHIFT_12='sysctl vfs.zfs.min_auto_ashift=12'
 UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
+ZFS_MOUNT='zfs mount "%s"'
 ZFS_SET='zfs set "%s" "%s"'
 ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
 ZPOOL_DESTROY='zpool destroy "%s"'
 ZPOOL_EXPORT='zpool export "%s"'
+ZPOOL_EXPORT_F='zpool export -f "%s"'
 ZPOOL_IMPORT_WITH_OPTIONS='zpool import %s "%s"'
 ZPOOL_LABELCLEAR_F='zpool labelclear -f "%s"'
 ZPOOL_SET='zpool set %s "%s"'
@@ -782,6 +787,14 @@ zfs_create_diskpart()
 	# NOTE: `-F' required to destroy if partitions still exist.
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
 	#
+	f_dprintf "$funcname: Exporting ZFS pools..."
+	zpool list -Ho name | while read z_name; do
+		f_eval_catch -d $funcname zpool "$ZPOOL_EXPORT_F" $z_name
+	done
+	f_dprintf "$funcname: Detaching all GELI providers..."
+	geli status | tail -n +2 | while read g_name g_status g_component; do
+		f_eval_catch -d $funcname geli "$GELI_DETACH_F" $g_name
+	done
 	f_dprintf "$funcname: Destroying all data/layouts on \`%s'..." "$disk"
 	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
 	f_eval_catch -d $funcname graid "$GRAID_DELETE" $disk
@@ -831,18 +844,34 @@ zfs_create_diskpart()
 		# 2. Add small freebsd-boot and/or efi partition
 		#
 		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
-			#
-			# Enable boot pool if encryption is desired
-			#
-			[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
-
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
-			             "$align_small" efiboot$index efi 800k $disk ||
+			             "$align_small" efiboot$index efi 200M \
+				     $disk ||
 			             return $FAILURE
-			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PARTONLY" \
-			             /boot/boot1.efifat 1 $disk ||
-			             return $FAILURE
+
+			f_eval_catch $funcname mkdir "$MKDIR_P" \
+				     "$BSDINSTALL_TMPETC/esp" || return $FAILURE
+			f_eval_catch $funcname newfs_msdos "$NEWFS_ESP" "16" \
+				     "EFISYS" "/dev/${disk}p1" ||
+				     return $FAILURE
+			f_eval_catch $funcname mount "$MOUNT_TYPE" "msdosfs" \
+				     "/dev/${disk}p1" \
+				     "$BSDINSTALL_TMPETC/esp" ||
+				     return $FAILURE
+			f_eval_catch $funcname mkdir "$MKDIR_P" \
+				     "$BSDINSTALL_TMPETC/esp/efi/boot" ||
+				     return $FAILURE
+			f_eval_catch $funcname cp "$COPY" "/boot/loader.efi" \
+				     "$BSDINSTALL_TMPETC/esp/efi/boot/$ZFSBOOT_ESP_NAME" ||
+				     return $FAILURE
+			f_eval_catch $funcname echo "$ECHO_OVERWRITE" \
+				     "$ZFSBOOT_ESP_NAME" \
+				     "$BSDINSTALL_TMPETC/esp/efi/boot/startup.nsh" ||
+				     return $FAILURE
+			f_eval_catch $funcname umount "$UMOUNT" \
+				     "$BSDINSTALL_TMPETC/esp" ||
+				     return $FAILURE
 		fi
 
 		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
@@ -1350,13 +1379,6 @@ zfs_create_boot()
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
 
-	# Create symlink(s)
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
-		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
-		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
-		             $BSDINSTALL_CHROOT/boot || return $FAILURE
-	fi
-
 	# Set bootfs property
 	local zroot_bootfs="$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 	f_dprintf "$funcname: Setting bootfs property..."
@@ -1390,13 +1412,23 @@ zfs_create_boot()
 			     "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
 			     return $FAILURE
 		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			# Import the bootpool, but do not mount it yet
 			f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-				     "-o altroot=\"$BSDINSTALL_CHROOT\"" \
+				     "-o altroot=\"$BSDINSTALL_CHROOT\" -N" \
 				     "$bootpool_name" || return $FAILURE
 		fi
 	fi
 
-	# While this is apparently not needed, it seems to help MBR
+	# Remount bootpool and create symlink(s)
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname zfs "$ZFS_MOUNT" "$bootpool_name" ||
+			return $FAILURE
+		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
+		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
+		             $BSDINSTALL_CHROOT/boot || return $FAILURE
+	fi
+
+	# zpool.cache is required to mount more than one pool at boot time
 	f_dprintf "$funcname: Configuring zpool.cache for zroot..."
 	f_eval_catch $funcname mkdir "$MKDIR_P" $BSDINSTALL_CHROOT/boot/zfs ||
 	             return $FAILURE
@@ -1429,6 +1461,12 @@ zfs_create_boot()
 	f_eval_catch $funcname echo "$ECHO_APPEND" \
 	             'kern.geom.label.gptid.enable=\"0\"' \
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+
+	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
+		f_eval_catch $funcname echo "$ECHO_APPEND" \
+	             'vfs.zfs.min_auto_ashift=12' \
+	             $BSDINSTALL_TMPETC/sysctl.conf.zfs || return $FAILURE
+	fi
 
 	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname echo "$ECHO_APPEND" \
@@ -1535,17 +1573,41 @@ f_dprintf "BSDINSTALL_TMPETC=[%s]" "$BSDINSTALL_TMPETC"
 f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 
 #
-# If the system was booted with UEFI, set the default boot type to UEFI
+# Determine default boot type
 #
-bootmethod=$( sysctl -n machdep.bootmethod )
-f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
-if [ "$bootmethod" = "UEFI" ]; then
-	: ${ZFSBOOT_BOOT_TYPE:=BIOS+UEFI}
+case $(uname -m) in
+arm64)
+	# We support only UEFI boot for arm64
+	: ${ZFSBOOT_BOOT_TYPE:=UEFI}
 	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
-else
-	: ${ZFSBOOT_BOOT_TYPE:=BIOS}
-	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
-fi
+	;;
+*)
+	# If the system was booted with UEFI, set the default boot type to UEFI
+	bootmethod=$( sysctl -n machdep.bootmethod )
+	f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
+	if [ "$bootmethod" = "UEFI" ]; then
+		: ${ZFSBOOT_BOOT_TYPE:=BIOS+UEFI}
+		: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+	else
+		: ${ZFSBOOT_BOOT_TYPE:=BIOS}
+		: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+	fi
+	;;
+esac
+
+#
+# The EFI loader installed in the ESP (EFI System Partition) must
+# have the expected name in order to load correctly.
+#
+[ "$ZFSBOOT_ESP_NAME" ] || case "${UNAME_m:-$( uname -m )}" in
+	arm64) ZFSBOOT_ESP_NAME=BOOTaa64.efi ;;
+	arm) ZFSBOOT_ESP_NAME=BOOTarm.efi ;;
+	i386) ZFSBOOT_ESP_NAME=BOOTia32.efi ;;
+	amd64) ZFSBOOT_ESP_NAME=BOOTx64.efi ;;
+	*)
+		f_dprintf "Unsupported architecture: %s" $UNAME_m
+		f_die
+esac
 
 #
 # Loop over the main menu until we've accomplished what we came here to do

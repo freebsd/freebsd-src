@@ -9,7 +9,6 @@ SUBDIR+=	acpi
 .if ${MK_APM} != "no"
 SUBDIR+=	apm
 .endif
-SUBDIR+=	asf
 .if ${MK_BHYVE} != "no"
 SUBDIR+=	bhyve
 SUBDIR+=	bhyvectl
@@ -29,6 +28,5 @@ SUBDIR+=	mptable
 .if ${MK_NDIS} != "no"
 SUBDIR+=	ndiscvt
 .endif
-SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz

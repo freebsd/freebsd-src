@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/psl.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sysdecode.h>
@@ -119,7 +122,9 @@ static struct procabi amd64_freebsd32 = {
 	"FreeBSD ELF32",
 	SYSDECODE_ABI_FREEBSD32,
 	amd64_freebsd32_fetch_args,
-	amd64_freebsd32_fetch_retval
+	amd64_freebsd32_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(amd64_freebsd32.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(amd64_freebsd32);
@@ -128,7 +133,9 @@ static struct procabi amd64_freebsd32_aout = {
 	"FreeBSD a.out",
 	SYSDECODE_ABI_FREEBSD32,
 	amd64_freebsd32_fetch_args,
-	amd64_freebsd32_fetch_retval
+	amd64_freebsd32_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(amd64_freebsd32.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(amd64_freebsd32_aout);

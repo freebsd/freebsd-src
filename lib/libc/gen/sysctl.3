@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2015
+.Dd October 22, 2017
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -183,16 +183,16 @@ The top level names are defined with a CTL_ prefix in
 and are as follows.
 The next and subsequent levels down are found in the include files
 listed here, and described in separate sections below.
-.Bl -column CTLXMACHDEPXXX "Next level namesXXXXXX" -offset indent
-.It Sy "Name	Next level names	Description"
-.It "CTL_DEBUG	sys/sysctl.h	Debugging"
-.It "CTL_VFS	sys/mount.h	File system"
-.It "CTL_HW	sys/sysctl.h	Generic CPU, I/O"
-.It "CTL_KERN	sys/sysctl.h	High kernel limits"
-.It "CTL_MACHDEP	sys/sysctl.h	Machine dependent"
-.It "CTL_NET	sys/socket.h	Networking"
-.It "CTL_USER	sys/sysctl.h	User-level"
-.It "CTL_VM	vm/vm_param.h	Virtual memory"
+.Bl -column CTLXMACHDEPXXX "Next Level NamesXXXXXX" -offset indent
+.It Sy Name Ta Sy Next Level Names Ta Sy Description
+.It Dv CTL_DEBUG Ta In sys/sysctl.h Ta Debugging
+.It Dv CTL_VFS Ta In sys/mount.h Ta File system
+.It Dv CTL_HW Ta In sys/sysctl.h Ta Generic CPU, I/O
+.It Dv CTL_KERN Ta In sys/sysctl.h Ta High kernel limits
+.It Dv CTL_MACHDEP Ta In sys/sysctl.h Ta Machine dependent
+.It Dv CTL_NET Ta In sys/socket.h Ta Networking
+.It Dv CTL_USER Ta In sys/sysctl.h Ta User-level
+.It Dv CTL_VM Ta In vm/vm_param.h Ta Virtual memory
 .El
 .Pp
 For example, the following retrieves the maximum number of processes allowed
@@ -270,20 +270,20 @@ The string and integer information available for the CTL_HW level
 is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
-.Bl -column "Second level nameXXXXXX" integerXXX -offset indent
-.It Sy "Second level name	Type	Changeable"
-.It "HW_MACHINE	string	no"
-.It "HW_MODEL	string	no"
-.It "HW_NCPU	integer	no"
-.It "HW_BYTEORDER	integer	no"
-.It "HW_PHYSMEM	integer	no"
-.It "HW_USERMEM	integer	no"
-.It "HW_PAGESIZE	integer	no"
-.\".It "HW_DISKNAMES	integer	no"
-.\".It "HW_DISKSTATS	integer	no"
-.It "HW_FLOATINGPT	integer	no"
-.It "HW_MACHINE_ARCH	string	no"
-.It "HW_REALMEM	integer	no"
+.Bl -column "Second Level Name" integerXXX Changeable -offset indent
+.It Sy Second Level Name Ta Sy Type Ta Sy Changeable
+.It Dv HW_MACHINE Ta string Ta no
+.It Dv HW_MODEL Ta string Ta no
+.It Dv HW_NCPU Ta integer Ta no
+.It Dv HW_BYTEORDER Ta integer Ta no
+.It Dv HW_PHYSMEM Ta integer Ta no
+.It Dv HW_USERMEM Ta integer Ta no
+.It Dv HW_PAGESIZE Ta integer Ta no
+.\".It Dv HW_DISKNAMES Ta integer Ta no
+.\".It Dv HW_DISKSTATS Ta integer Ta no
+.It Dv HW_FLOATINGPT Ta integer Ta no
+.It Dv HW_MACHINE_ARCH Ta string Ta no
+.It Dv HW_REALMEM Ta integer Ta no
 .El
 .Bl -tag -width 6n
 .It Li HW_MACHINE
@@ -293,7 +293,7 @@ The machine model
 .It Li HW_NCPU
 The number of cpus.
 .It Li HW_BYTEORDER
-The byteorder (4,321, or 1,234).
+The byteorder (4321 or 1234).
 .It Li HW_PHYSMEM
 The bytes of physical memory.
 .It Li HW_USERMEM
@@ -319,36 +319,36 @@ system vnodes, the open file entries, routing table entries,
 virtual memory statistics, load average history, and clock rate
 information.
 .Bl -column "KERNXMAXFILESPERPROCXXX" "struct clockrateXXX" -offset indent
-.It Sy "Second level name	Type	Changeable"
-.It "KERN_ARGMAX	integer	no"
-.It "KERN_BOOTFILE	string	yes"
-.It "KERN_BOOTTIME	struct timeval	no"
-.It "KERN_CLOCKRATE	struct clockinfo	no"
-.It "KERN_FILE	struct xfile	no"
-.It "KERN_HOSTID	integer	yes"
-.It "KERN_HOSTUUID	string	yes"
-.It "KERN_HOSTNAME	string	yes"
-.It "KERN_JOB_CONTROL	integer	no"
-.It "KERN_MAXFILES	integer	yes"
-.It "KERN_MAXFILESPERPROC	integer	yes"
-.It "KERN_MAXPROC	integer	no"
-.It "KERN_MAXPROCPERUID	integer	yes"
-.It "KERN_MAXVNODES	integer	yes"
-.It "KERN_NGROUPS	integer	no"
-.It "KERN_NISDOMAINNAME	string	yes"
-.It "KERN_OSRELDATE	integer	no"
-.It "KERN_OSRELEASE	string	no"
-.It "KERN_OSREV	integer	no"
-.It "KERN_OSTYPE	string	no"
-.It "KERN_POSIX1	integer	no"
-.It "KERN_PROC	node	not applicable"
-.It "KERN_PROF	node	not applicable"
-.It "KERN_QUANTUM	integer	yes"
-.It "KERN_SAVED_IDS	integer	no"
-.It "KERN_SECURELVL	integer	raise only"
-.It "KERN_UPDATEINTERVAL	integer	no"
-.It "KERN_VERSION	string	no"
-.It "KERN_VNODE	struct xvnode	no"
+.It Sy Second Level Name Ta Sy Type Ta Sy Changeable
+.It Dv KERN_ARGMAX Ta integer Ta no
+.It Dv KERN_BOOTFILE Ta string Ta yes
+.It Dv KERN_BOOTTIME Ta struct timeval Ta no
+.It Dv KERN_CLOCKRATE Ta struct clockinfo Ta no
+.It Dv KERN_FILE Ta struct xfile Ta no
+.It Dv KERN_HOSTID Ta integer Ta yes
+.It Dv KERN_HOSTUUID Ta string Ta yes
+.It Dv KERN_HOSTNAME Ta string Ta yes
+.It Dv KERN_JOB_CONTROL Ta integer Ta no
+.It Dv KERN_MAXFILES Ta integer Ta yes
+.It Dv KERN_MAXFILESPERPROC Ta integer Ta yes
+.It Dv KERN_MAXPROC Ta integer Ta no
+.It Dv KERN_MAXPROCPERUID Ta integer Ta yes
+.It Dv KERN_MAXVNODES Ta integer Ta yes
+.It Dv KERN_NGROUPS Ta integer Ta no
+.It Dv KERN_NISDOMAINNAME Ta string Ta yes
+.It Dv KERN_OSRELDATE Ta integer Ta no
+.It Dv KERN_OSRELEASE Ta string Ta no
+.It Dv KERN_OSREV Ta integer Ta no
+.It Dv KERN_OSTYPE Ta string Ta no
+.It Dv KERN_POSIX1 Ta integer Ta no
+.It Dv KERN_PROC Ta node Ta not applicable
+.It Dv KERN_PROF Ta node Ta not applicable
+.It Dv KERN_QUANTUM Ta integer Ta yes
+.It Dv KERN_SAVED_IDS Ta integer Ta no
+.It Dv KERN_SECURELVL Ta integer Ta raise only
+.It Dv KERN_UPDATEINTERVAL Ta integer Ta no
+.It Dv KERN_VERSION Ta string Ta no
+.It Dv KERN_VNODE Ta struct xvnode Ta no
 .El
 .Bl -tag -width 6n
 .It Li KERN_ARGMAX
@@ -439,14 +439,14 @@ For the following names, an array of
 .Va struct kinfo_proc
 structures is returned,
 whose size depends on the current number of such objects in the system.
-.Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
-.It "Third level name	Fourth level is:"
-.It "KERN_PROC_ALL	None"
-.It "KERN_PROC_PID	A process ID"
-.It "KERN_PROC_PGRP	A process group"
-.It "KERN_PROC_TTY	A tty device"
-.It "KERN_PROC_UID	A user ID"
-.It "KERN_PROC_RUID	A real user ID"
+.Bl -column "Third Level NameXXXXXX" "Fourth LevelXXXXXX" -offset indent
+.It Sy Third Level Name Ta Sy Fourth Level
+.It Dv KERN_PROC_ALL Ta None
+.It Dv KERN_PROC_PID Ta A process ID
+.It Dv KERN_PROC_PGRP Ta A process group
+.It Dv KERN_PROC_TTY Ta A tty device
+.It Dv KERN_PROC_UID Ta A user ID
+.It Dv KERN_PROC_RUID Ta A real user ID
 .El
 .Pp
 If the third level name is
@@ -465,8 +465,8 @@ For
 a process ID of
 .Li \-1
 implies the current process.
-.Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
-.It Sy "Third level name	Fourth level is:"
+.Bl -column "Third Level NameXXXXXX" "Fourth LevelXXXXXX" -offset indent
+.It Sy Third Level Name Ta Sy Fourth Level
 .It Dv KERN_PROC_ARGS Ta "A process ID"
 .It Dv KERN_PROC_PATHNAME Ta "A process ID"
 .El
@@ -481,12 +481,12 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "GPROFXGMONPARAMXXX" "struct gmonparamXXX" -offset indent
-.It Sy "Third level name	Type	Changeable"
-.It "GPROF_STATE	integer	yes"
-.It "GPROF_COUNT	u_short[\|]	yes"
-.It "GPROF_FROMS	u_short[\|]	yes"
-.It "GPROF_TOS	struct tostruct	yes"
-.It "GPROF_GMONPARAM	struct gmonparam	no"
+.It Sy Third Level Name Ta Sy Type Ta Sy Changeable
+.It Dv GPROF_STATE Ta integer Ta yes
+.It Dv GPROF_COUNT Ta u_short[\|] Ta yes
+.It Dv GPROF_FROMS Ta u_short[\|] Ta yes
+.It Dv GPROF_TOS Ta struct tostruct Ta yes
+.It Dv GPROF_GMONPARAM Ta struct gmonparam Ta no
 .El
 .Pp
 The variables are as follows:
@@ -530,11 +530,11 @@ The string and integer information available for the CTL_NET level
 is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
-.Bl -column "Second level nameXXXXXX" "routing messagesXXX" -offset indent
-.It Sy "Second level name	Type	Changeable"
-.It "PF_ROUTE	routing messages	no"
-.It "PF_INET	IPv4 values	yes"
-.It "PF_INET6	IPv6 values	yes"
+.Bl -column "Second Level NameXXXXXX" "routing messagesXXX" -offset indent
+.It Sy Second Level Name Ta Sy Type Ta Sy Changeable
+.It Dv PF_ROUTE Ta routing messages Ta no
+.It Dv PF_INET Ta IPv4 values Ta yes
+.It Dv PF_INET6 Ta IPv6 values Ta yes
 .El
 .Bl -tag -width 6n
 .It Li PF_ROUTE
@@ -548,13 +548,13 @@ The third level name is a protocol number, which is currently always 0.
 The fourth level name is an address family, which may be set to 0 to
 select all address families.
 The fifth, sixth, and seventh level names are as follows:
-.Bl -column -offset indent "Fifth level      Sixth level" "Seventh level"
-.It Sy "Fifth level      Sixth level" Ta Sy "Seventh level"
-.It "NET_RT_FLAGS     rtflags" Ta "None"
-.It "NET_RT_DUMP      None" Ta "None or fib number"
-.It "NET_RT_IFLIST    0 or if_index" Ta None
-.It "NET_RT_IFMALIST  0 or if_index" Ta None
-.It "NET_RT_IFLISTL   0 or if_index" Ta None
+.Bl -column -offset indent "Fifth Level" "Sixth Level" "Seventh Level"
+.It Sy Fifth level Ta Sy Sixth Level Ta Sy Seventh Level
+.It Dv NET_RT_FLAGS Ta rtflags Ta None
+.It Dv NET_RT_DUMP Ta None Ta None or fib number
+.It Dv NET_RT_IFLIST Ta 0 or if_index Ta None
+.It Dv NET_RT_IFMALIST Ta 0 or if_index Ta None
+.It Dv NET_RT_IFLISTL Ta 0 or if_index Ta None
 .El
 .Pp
 The
@@ -582,13 +582,13 @@ The third level name is the protocol.
 The fourth level name is the variable name.
 The currently defined protocols and names are:
 .Bl -column ProtocolXX VariableXX TypeXX ChangeableXX
-.It Sy "Protocol	Variable	Type	Changeable"
-.It "icmp	bmcastecho	integer	yes"
-.It "icmp	maskrepl	integer	yes"
-.It "ip	forwarding	integer	yes"
-.It "ip	redirect	integer	yes"
-.It "ip	ttl	integer	yes"
-.It "udp	checksum	integer	yes"
+.It Sy Protocol Ta Sy Variable Ta Sy Type Ta Sy Changeable
+.It icmp Ta bmcastecho Ta integer Ta yes
+.It icmp Ta maskrepl Ta integer Ta yes
+.It ip Ta forwarding Ta integer Ta yes
+.It ip Ta redirect Ta integer Ta yes
+.It ip Ta ttl Ta integer Ta yes
+.It udp Ta checksum Ta integer Ta yes
 .El
 .Pp
 The variables are as follows:
@@ -633,27 +633,27 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "USER_COLL_WEIGHTS_MAXXXX" "integerXXX" -offset indent
-.It Sy "Second level name	Type	Changeable"
-.It "USER_BC_BASE_MAX	integer	no"
-.It "USER_BC_DIM_MAX	integer	no"
-.It "USER_BC_SCALE_MAX	integer	no"
-.It "USER_BC_STRING_MAX	integer	no"
-.It "USER_COLL_WEIGHTS_MAX	integer	no"
-.It "USER_CS_PATH	string	no"
-.It "USER_EXPR_NEST_MAX	integer	no"
-.It "USER_LINE_MAX	integer	no"
-.It "USER_POSIX2_CHAR_TERM	integer	no"
-.It "USER_POSIX2_C_BIND	integer	no"
-.It "USER_POSIX2_C_DEV	integer	no"
-.It "USER_POSIX2_FORT_DEV	integer	no"
-.It "USER_POSIX2_FORT_RUN	integer	no"
-.It "USER_POSIX2_LOCALEDEF	integer	no"
-.It "USER_POSIX2_SW_DEV	integer	no"
-.It "USER_POSIX2_UPE	integer	no"
-.It "USER_POSIX2_VERSION	integer	no"
-.It "USER_RE_DUP_MAX	integer	no"
-.It "USER_STREAM_MAX	integer	no"
-.It "USER_TZNAME_MAX	integer	no"
+.It Sy Second Level Name Ta Sy Type Ta Sy Changeable
+.It Dv USER_BC_BASE_MAX Ta integer Ta no
+.It Dv USER_BC_DIM_MAX Ta integer Ta no
+.It Dv USER_BC_SCALE_MAX Ta integer Ta no
+.It Dv USER_BC_STRING_MAX Ta integer Ta no
+.It Dv USER_COLL_WEIGHTS_MAX Ta integer Ta no
+.It Dv USER_CS_PATH Ta string Ta no
+.It Dv USER_EXPR_NEST_MAX Ta integer Ta no
+.It Dv USER_LINE_MAX Ta integer Ta no
+.It Dv USER_POSIX2_CHAR_TERM Ta integer Ta no
+.It Dv USER_POSIX2_C_BIND Ta integer Ta no
+.It Dv USER_POSIX2_C_DEV Ta integer Ta no
+.It Dv USER_POSIX2_FORT_DEV Ta integer Ta no
+.It Dv USER_POSIX2_FORT_RUN Ta integer Ta no
+.It Dv USER_POSIX2_LOCALEDEF Ta integer Ta no
+.It Dv USER_POSIX2_SW_DEV Ta integer Ta no
+.It Dv USER_POSIX2_UPE Ta integer Ta no
+.It Dv USER_POSIX2_VERSION Ta integer Ta no
+.It Dv USER_RE_DUP_MAX Ta integer Ta no
+.It Dv USER_STREAM_MAX Ta integer Ta no
+.It Dv USER_TZNAME_MAX Ta integer Ta no
 .El
 .Bl -tag -width 6n
 .It Li USER_BC_BASE_MAX
@@ -731,16 +731,17 @@ The string and integer information available for the CTL_VM level
 is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
-.Bl -column "Second level nameXXXXXX" "struct loadavgXXX" -offset indent
-.It Sy "Second level name	Type	Changeable"
-.It "VM_LOADAVG	struct loadavg	no"
-.It "VM_TOTAL	struct vmtotal	no"
-.It "VM_SWAPPING_ENABLED	integer	maybe"
-.It "VM_V_FREE_MIN	integer	yes"
-.It "VM_V_FREE_RESERVED	integer	yes"
-.It "VM_V_FREE_TARGET	integer	yes"
-.It "VM_V_INACTIVE_TARGET	integer	yes"
-.It "VM_V_PAGEOUT_FREE_MIN	integer	yes"
+.Bl -column "Second Level NameXXXXXX" "struct loadavgXXX" -offset indent
+.It Sy Second Level Name Ta Sy Type Ta Sy Changeable
+.It Dv VM_LOADAVG Ta struct loadavg Ta no
+.It Dv VM_TOTAL Ta struct vmtotal Ta no
+.It Dv VM_SWAPPING_ENABLED Ta integer Ta maybe
+.It Dv VM_V_FREE_MIN Ta integer Ta yes
+.It Dv VM_V_FREE_RESERVED Ta integer Ta yes
+.It Dv VM_V_FREE_TARGET Ta integer Ta yes
+.It Dv VM_V_INACTIVE_TARGET Ta integer Ta yes
+.It Dv VM_V_PAGEOUT_FREE_MIN Ta integer Ta yes
+.It Dv VM_OVERCOMMIT Ta integer Ta yes
 .El
 .Bl -tag -width 6n
 .It Li VM_LOADAVG
@@ -773,6 +774,9 @@ process address space when needed.
 .It Li VM_V_PAGEOUT_FREE_MIN
 If the amount of free and cache memory falls below this value, the
 pageout daemon will enter "memory conserving mode" to avoid deadlock.
+.It Li VM_OVERCOMMIT
+Overcommit behaviour, as described in
+.Xr tuning 7 .
 .El
 .Sh RETURN VALUES
 .Rv -std

@@ -1,3 +1,42 @@
+Sep 03, 2018: libarchive 3.3.3 released
+
+Jul 19, 2018: Avoid super-linear slowdown on malformed mtree files
+
+Jan 27, 2018: Many fixes for building with Visual Studio
+
+Oct 19, 2017: NO_OVERWRITE doesn't change existing directory attributes
+
+Aug 12, 2017: New support for Zstandard read and write filters
+
+Jul 09, 2017: libarchive 3.3.2 released
+
+Mar 16, 2017: NFSv4 ACL support for Linux (librichacl)
+
+Feb 26, 2017: libarchive 3.3.1 released
+    Security & Feature release
+
+Feb 19, 2017: libarchive 3.3.0 released
+    Security & Feature release
+
+Jan 29, 2017: Limited NFSv4 ACL support for Mac OS (Darwin)
+
+Jan 10, 2017: POSIX.1e and NFSv4 ACL support for Solaris and derivates
+
+Dec 27, 2016: NFSv4 ACL read and write support for pax
+    Deprecated functions: archive_entry_acl_text(), archive_entry_acl_text_w()
+
+Nov, 2016: libarchive is now being tested by the OSS-Fuzz project
+
+Oct 26, 2016: Remove liblzmadec support
+
+Oct 23, 2016: libarchive 3.2.2 released
+    Security release
+
+Jun 20, 2016: libarchive 3.2.1 released
+    This fixes a handful of security and other critical issues with 3.2.0
+
+May 01, 2016: libarchive 3.2.0 released
+
 Apr 09, 2016: libarchive 3.1.901a released
     Another test release in preparation for 3.2.0
 
@@ -268,7 +307,7 @@ May 04, 2008: libarchive 2.5.3b released
 	* libarchive: Mark which entry strings are set; be accurate about
 	  distinguishing empty strings ("") from unset ones (NULL)
 	* tar: Don't crash reading entries with empty filenames
-	* libarchive_test, bsdtar_test, bsdcpio_test:  Better detaults:
+	* libarchive_test, bsdtar_test, bsdcpio_test:  Better defaults:
 	  run all tests, delete temp dirs, summarize repeated failures
 	* -no-undefined to libtool for Cygwin
 	* libarchive_test: Skip large file tests on systems with 32-bit off_t

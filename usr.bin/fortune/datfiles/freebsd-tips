@@ -7,6 +7,7 @@ a root login. You can add a user to the wheel group by editing /etc/group.
 %
 By pressing "Scroll Lock" you can use the arrow keys to scroll backward
 through the console output.  Press "Scroll Lock" again to turn it off.
+Don't have a "Scroll Lock" key? The "Pause / Break" key acts alike.
 %
 Can't remember if you've installed a certain port or not? Try "pkg info
 -x port_name".
@@ -40,15 +41,11 @@ Having trouble using fetch through a firewall? Try setting the environment
 variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.
 %
 If other operating systems have damaged your Master Boot Record, you can
-reinstall it with boot0cfg(8). See
-"man boot0cfg" for details.
+reinstall it with gpart(8). See
+"man gpart" for details.
 %
 If you accidentally end up inside vi, you can quit it by pressing Escape, colon
 (:), q (q), bang (!) and pressing return.
-%
-If you are in the C shell and have just installed a new program, you won't
-be able to run it unless you first type "rehash".
-		-- Dru <genesis@istar.ca>
 %
 If you do not want to get beeps in X11 (X Windows), you can turn them off with
 
@@ -68,7 +65,7 @@ If you need a reminder to leave your terminal, type "leave +hhmm" where
 %
 If you need to ask a question on the FreeBSD-questions mailing list then
 
-	http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/\
+	https://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/\
 		freebsd-questions/index.html
 
 contains lots of useful advice to help you get the best results.
@@ -99,7 +96,7 @@ environment variable in order to make cdcontrol want to start.)
 If you'd like to keep track of applications in the FreeBSD ports tree, take a
 look at FreshPorts;
 
-	http://www.freshports.org/
+	https://www.freshports.org/
 %
 In order to make fetch (the FreeBSD downloading tool) ask for
 username/password when it encounters a password-protected web page, you can set
@@ -114,9 +111,9 @@ also do a lot more advanced searches - type 'man grep' for details.
 %
 In order to support national characters for European languages in tools like
 less without creating other nationalisation aspects, set the environment
-variable LC_ALL to 'en_US.ISO8859-1'.
+variable LC_ALL to 'en_US.UTF-8'.
 %
-"man firewall" will give advice for building a FreeBSD firewall
+"man firewall" will give advice for building a FreeBSD firewall using ipfw(8).
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
 "man hier" will explain the way FreeBSD filesystems are normally laid out.
@@ -141,7 +138,8 @@ FreeBSD system.
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
 Need to do a search in a manpage or in a file you've sent to a pager? Use
-"/search_word". To repeat the same search, type "n" for next.
+"/search_word". To repeat the same search, type "n" for next or "p" for
+previous.
 		-- Dru <genesis@istar.ca>
 %
 Need to find the location of a program? Use "locate program_name".
@@ -150,11 +148,6 @@ Need to find the location of a program? Use "locate program_name".
 Need to leave your terminal for a few minutes and don't want to logout?
 Use "lock -p". When you return, use your password as the key to unlock the
 terminal.
-		-- Dru <genesis@istar.ca>
-%
-Need to print a manpage? Use
-
-	man name_of_manpage | col -bx | lpr
 		-- Dru <genesis@istar.ca>
 %
 Need to quickly empty a file? Use ": > filename".
@@ -183,7 +176,7 @@ flag is your gateway.
 Nice bash prompt: PS1='(\[$(tput md)\]\t <\w>\[$(tput me)\]) $(echo $?) \$ '
 		-- Mathieu <mathieu@hal.interactionvirtuelle.com>
 %
-Over quota?  "du -s * | sort -n " will give you a sorted list of your
+Over quota?  "du -sh * | sort -h " will give you a sorted list of your
 directory sizes.
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
@@ -191,7 +184,8 @@ nc(1) (or netcat) is useful not only for redirecting input/output to
 TCP or UDP connections, but also for proxying them with inetd(8).
 %
 sh (the default Bourne shell in FreeBSD) supports command-line editing.  Just
-``set -o emacs'' or ``set -o vi'' to enable it.
+``set -o emacs'' or ``set -o vi'' to enable it. Use "<TAB>" key to complete
+paths.
 %
 Simple tcsh prompt: set prompt = '%# '
 %
@@ -215,6 +209,8 @@ the scroll lock key and use your page up button. When you're finished,
 press the scroll lock key again to get your prompt back.
 		-- Dru <genesis@istar.ca>
 %
+You can press Ctrl-L while in the shell to clear the screen.
+%
 To determine whether a file is a text file, executable, or some other type
 of file, use
 
@@ -231,10 +227,10 @@ is running FreeBSD at the time) to quickly find files based on name only.
 To erase a line you've written at the command prompt, use "Ctrl-U".
 		-- Dru <genesis@istar.ca>
 %
-To find the hostname associated with an IP address, use
+To find out the hostname associated with an IP address, use
 
 	drill -x IP_address
-		-- Allan Jude <allanjude@FreeBSD.org>
+		-- Dru <genesis@istar.ca>
 %
 To obtain a neat PostScript rendering of a manual page, use ``-t'' switch
 of the man(1) utility: ``man -t <topic>''.  For example:
@@ -247,10 +243,8 @@ To quickly create an empty file, use "touch filename".
 		-- Dru <genesis@istar.ca>
 %
 To read a compressed file without having to first uncompress it, use
-"zcat" or "zless" to view it.
-		-- Dru <genesis@istar.ca>
-%
-To repeat the last command in the C shell, type "!!".
+"zcat" or "zless" to view it. There is also "bzcat", "bzless", "xzcat"
+and "xzless".
 		-- Dru <genesis@istar.ca>
 %
 To save disk space in your home directory, compress files you rarely
@@ -283,7 +277,7 @@ To see how much disk space is left on your partitions, use
 %
 To see the 10 largest files on a directory or partition, use
 
-	du /partition_or_directory_name | sort -rn | head
+	du -h /partition_or_directory_name | sort -rh | head
 		-- Dru <genesis@istar.ca>
 %
 To see the IP addresses currently set on your active interfaces, type
@@ -291,7 +285,8 @@ To see the IP addresses currently set on your active interfaces, type
 		-- Dru <genesis@istar.ca>
 %
 To see the last 10 lines of a long file, use "tail filename". To see the
-first 10 lines, use "head filename".
+first 10 lines, use "head filename". To see new lines as they're appended
+to a file, use "tail -f filename".
 		-- Dru <genesis@istar.ca>
 %
 To see the last time that you logged in, use lastlogin(8).
@@ -343,6 +338,9 @@ write
 
 This won't work if you don't have write permissions to the directory
 and probably won't be suitable if you're editing through a symbolic link.
+
+If you have sudo(8) installed and permissions to use it, type 
+``<ESC>w ! sudo tee %'' to force a write.
 %
 You can adjust the volume of various parts of the sound system in your
 computer by typing 'mixer <type> <volume>'.  To get a list of what you can
@@ -393,7 +391,7 @@ You can make a log of your terminal session with script(1).
 You can often get answers to your questions about FreeBSD by searching in the
 FreeBSD mailing list archives at
 
-	http://www.FreeBSD.org/search/search.html
+	http://freebsd.markmail.org
 %
 You can open up a new split-screen window in (n)vi with :N or :E and then
 use ^w to switch between the two.
@@ -407,8 +405,6 @@ variable.
 You can press Ctrl-D to quickly exit from a shell, or logout from a
 login shell.
 		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
-%
-You can press Ctrl-L while in the shell to clear the screen.
 %
 You can press up-arrow or down-arrow to walk through a list of
 previous commands in tcsh.
@@ -439,13 +435,15 @@ aliases, you can usually type just 'alias'.
 %
 You can use /etc/make.conf to control the options used to compile software
 on this system.  Example entries are in
-/usr/share/examples/etc/make.conf.
+/usr/share/examples/etc/make.conf and in make.conf(5).
+For options that are set for building FreeBSD's kernel and its world, see
+src.conf(5).
 %
 You can use "pkg info" to see a list of packages you have installed.
 %
 You can use the 'fetch' command to retrieve files over ftp, http or https.
 
-	 fetch http://www.FreeBSD.org/index.html
+	 fetch https://www.FreeBSD.org/index.html
 
 will download the front page of the FreeBSD web site.
 %
@@ -457,8 +455,102 @@ Try "whereis firefox" and "whereis whereis".
 		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
 %
 Want to run the same command again?
-In tcsh you can type "!!"
+In many shells (e.g., tcsh, zsh, bash) you can type "!!".
 %
 Want to go the directory you were just in?
 Type "cd -"
+%
+Can't delete /usr/obj? Enter "chflags -R noschg /usr/obj" to remove the
+system immutable flag for all files in /usr/obj.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Want to list all files of an installed package? Enter
+"pkg info -l packagename".
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Are you looking for a package? Search for it with
+"pkg search part_of_package_name"
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you want to recursively copy a directory preserving file and directory
+attributes use
+"cp -a source target"
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you wonder what a terminal program is doing at the moment? dd(1) does not
+show any throughput? Hit "^T" (Control + t) to send SIGINFO to the process
+and see what it is doing.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you want to know which version of FreeBSD you are running? Enter
+"freebsd-version -ku" to display kernel and userland version.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you want to end one or more processes at a time using a regular expression
+enter "pkill regex".
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you want to run a program directly after some other process has ended? Use
+"pwait pid && new_program"
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+When you want your users to be able to reboot or shutdown FreeBSD, add them
+to the group "operator" and they are allowed to use shutdown(8) and poweroff(8).
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you need to create a FAT32 formatted USB thumb drive, find out its devicename
+running dmesg(8) after inserting it. Then create an MBR schema, a single slice and
+format it:
+
+# gpart create -s MBR ${devicename}
+# gpart add -t fat32 ${devicename}
+# newfs_msdos -F 32 -L thumbdrive ${devicename}s1
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you want to get a sorted list of all services that are started when FreeBSD boots,
+enter "service -e".
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+To easily configure your installed FreeBSD use bsdconfig(8).
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+After you compiled and installed a new version of FreeBSD, use etcupdate(8) to merge
+configuration updates.
+Run "etcupdate extract" once when your sources match your running system, then run
+"etcupdate" after every upgrade and "etcupdate resolve" to resolve any conflicts.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you want to do a binary upgrade of your running FreeBSD installation? Use freebsd-update(8).
+
+To install updates and patches for the running branch use
+# freebsd-update fetch install
+
+To upgrade to a newer release use
+# freebsd-update upgrade -r ${name_of_release}
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+To run rc scripts in /etc/rc.d and /usr/local/etc/rc.d use service(8).
+Run "service ${name_of_rc_script} start" to start a daemon and
+"service ${name_of_rc_script} stop" to stop it.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you don't want to edit /etc/rc.conf directly, use sysrc(8) to add and remove entries.
+Use "sysrc name=value" to add an entry and "sysrc -x name" to delete an entry.
+
+		-- Lars Engels <lme@FreeBSD.org>
 %

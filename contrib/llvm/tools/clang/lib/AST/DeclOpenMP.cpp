@@ -7,7 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 /// \file
-/// \brief This file implements OMPThreadPrivateDecl class.
+/// \brief This file implements OMPThreadPrivateDecl, OMPCapturedExprDecl
+/// classes.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -52,3 +53,55 @@ void OMPThreadPrivateDecl::setVars(ArrayRef<Expr *> VL) {
   std::uninitialized_copy(VL.begin(), VL.end(), getTrailingObjects<Expr *>());
 }
 
+//===----------------------------------------------------------------------===//
+// OMPDeclareReductionDecl Implementation.
+//===----------------------------------------------------------------------===//
+
+void OMPDeclareReductionDecl::anchor() {}
+
+OMPDeclareReductionDecl *OMPDeclareReductionDecl::Create(
+    ASTContext &C, DeclContext *DC, SourceLocation L, DeclarationName Name,
+    QualType T, OMPDeclareReductionDecl *PrevDeclInScope) {
+  return new (C, DC) OMPDeclareReductionDecl(OMPDeclareReduction, DC, L, Name,
+                                             T, PrevDeclInScope);
+}
+
+OMPDeclareReductionDecl *
+OMPDeclareReductionDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  return new (C, ID) OMPDeclareReductionDecl(
+      OMPDeclareReduction, /*DC=*/nullptr, SourceLocation(), DeclarationName(),
+      QualType(), /*PrevDeclInScope=*/nullptr);
+}
+
+OMPDeclareReductionDecl *OMPDeclareReductionDecl::getPrevDeclInScope() {
+  return cast_or_null<OMPDeclareReductionDecl>(
+      PrevDeclInScope.get(getASTContext().getExternalSource()));
+}
+const OMPDeclareReductionDecl *
+OMPDeclareReductionDecl::getPrevDeclInScope() const {
+  return cast_or_null<OMPDeclareReductionDecl>(
+      PrevDeclInScope.get(getASTContext().getExternalSource()));
+}
+
+//===----------------------------------------------------------------------===//
+// OMPCapturedExprDecl Implementation.
+//===----------------------------------------------------------------------===//
+
+void OMPCapturedExprDecl::anchor() {}
+
+OMPCapturedExprDecl *OMPCapturedExprDecl::Create(ASTContext &C, DeclContext *DC,
+                                                 IdentifierInfo *Id, QualType T,
+                                                 SourceLocation StartLoc) {
+  return new (C, DC) OMPCapturedExprDecl(C, DC, Id, T, StartLoc);
+}
+
+OMPCapturedExprDecl *OMPCapturedExprDecl::CreateDeserialized(ASTContext &C,
+                                                             unsigned ID) {
+  return new (C, ID)
+      OMPCapturedExprDecl(C, nullptr, nullptr, QualType(), SourceLocation());
+}
+
+SourceRange OMPCapturedExprDecl::getSourceRange() const {
+  assert(hasInit());
+  return SourceRange(getInit()->getLocStart(), getInit()->getLocEnd());
+}

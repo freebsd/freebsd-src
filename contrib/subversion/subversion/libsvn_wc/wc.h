@@ -158,6 +158,8 @@ extern "C" {
  * Bumped in r1395109.
  *
  * == 1.8.x shipped with format 31
+ * == 1.9.x shipped with format 31
+ * == 1.10.x shipped with format 31
  *
  * Please document any further format changes here.
  */
@@ -479,7 +481,7 @@ svn_wc__conflicted_for_update_p(svn_boolean_t *conflicted_p,
 
 /* Internal version of svn_wc_transmit_text_deltas3(). */
 svn_error_t *
-svn_wc__internal_transmit_text_deltas(const char **tempfile,
+svn_wc__internal_transmit_text_deltas(svn_stream_t *tempstream,
                                       const svn_checksum_t **new_text_base_md5_checksum,
                                       const svn_checksum_t **new_text_base_sha1_checksum,
                                       svn_wc__db_t *db,

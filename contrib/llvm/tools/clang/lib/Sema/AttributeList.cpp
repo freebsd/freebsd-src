@@ -16,11 +16,11 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
+#include "clang/Basic/AttrSubjectMatchRules.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 using namespace clang;
 
 IdentifierLoc *IdentifierLoc::create(ASTContext &Ctx, SourceLocation Loc,
@@ -63,7 +63,7 @@ void *AttributeFactory::allocate(size_t size) {
   }
 
   // Otherwise, allocate something new.
-  return Alloc.Allocate(size, llvm::AlignOf<AttributeFactory>::Alignment);
+  return Alloc.Allocate(size, alignof(AttributeFactory));
 }
 
 void AttributeFactory::reclaimPool(AttributeList *cur) {
@@ -114,7 +114,8 @@ static StringRef normalizeAttrName(StringRef AttrName, StringRef ScopeName,
   // Normalize the attribute name, __foo__ becomes foo. This is only allowable
   // for GNU attributes.
   bool IsGNU = SyntaxUsed == AttributeList::AS_GNU ||
-               (SyntaxUsed == AttributeList::AS_CXX11 && ScopeName == "gnu");
+               ((SyntaxUsed == AttributeList::AS_CXX11 ||
+                SyntaxUsed == AttributeList::AS_C2x) && ScopeName == "gnu");
   if (IsGNU && AttrName.size() >= 4 && AttrName.startswith("__") &&
       AttrName.endswith("__"))
     AttrName = AttrName.slice(2, AttrName.size() - 2);
@@ -135,7 +136,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
 
   // Ensure that in the case of C++11 attributes, we look for '::foo' if it is
   // unscoped.
-  if (ScopeName || SyntaxUsed == AS_CXX11)
+  if (ScopeName || SyntaxUsed == AS_CXX11 || SyntaxUsed == AS_C2x)
     FullName += "::";
   FullName += AttrName;
 
@@ -159,13 +160,18 @@ struct ParsedAttrInfo {
   unsigned HasCustomParsing : 1;
   unsigned IsTargetSpecific : 1;
   unsigned IsType : 1;
+  unsigned IsStmt : 1;
   unsigned IsKnownToGCC : 1;
+  unsigned IsSupportedByPragmaAttribute : 1;
 
   bool (*DiagAppertainsToDecl)(Sema &S, const AttributeList &Attr,
                                const Decl *);
   bool (*DiagLangOpts)(Sema &S, const AttributeList &Attr);
   bool (*ExistsInTarget)(const TargetInfo &Target);
   unsigned (*SpellingIndexToSemanticSpelling)(const AttributeList &Attr);
+  void (*GetPragmaAttributeMatchRules)(
+      llvm::SmallVectorImpl<std::pair<attr::SubjectMatchRule, bool>> &Rules,
+      const LangOptions &LangOpts);
 };
 
 namespace {
@@ -192,6 +198,18 @@ bool AttributeList::diagnoseAppertainsTo(Sema &S, const Decl *D) const {
   return getInfo(*this).DiagAppertainsToDecl(S, *this, D);
 }
 
+bool AttributeList::appliesToDecl(const Decl *D,
+                                  attr::SubjectMatchRule MatchRule) const {
+  return checkAttributeMatchRuleAppliesTo(D, MatchRule);
+}
+
+void AttributeList::getMatchRules(
+    const LangOptions &LangOpts,
+    SmallVectorImpl<std::pair<attr::SubjectMatchRule, bool>> &MatchRules)
+    const {
+  return getInfo(*this).GetPragmaAttributeMatchRules(MatchRules, LangOpts);
+}
+
 bool AttributeList::diagnoseLangOpts(Sema &S) const {
   return getInfo(*this).DiagLangOpts(S, *this);
 }
@@ -204,12 +222,20 @@ bool AttributeList::isTypeAttr() const {
   return getInfo(*this).IsType;
 }
 
+bool AttributeList::isStmtAttr() const {
+  return getInfo(*this).IsStmt;
+}
+
 bool AttributeList::existsInTarget(const TargetInfo &Target) const {
   return getInfo(*this).ExistsInTarget(Target);
 }
 
 bool AttributeList::isKnownToGCC() const {
   return getInfo(*this).IsKnownToGCC;
+}
+
+bool AttributeList::isSupportedByPragmaAttribute() const {
+  return getInfo(*this).IsSupportedByPragmaAttribute;
 }
 
 unsigned AttributeList::getSemanticSpelling() const {

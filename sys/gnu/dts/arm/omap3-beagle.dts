@@ -19,7 +19,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -64,6 +64,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio5 19 GPIO_ACTIVE_LOW>;	/* gpio_147 */
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
 	sound {
@@ -85,7 +86,7 @@
 
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder0 {
 		compatible = "ti,tfp410";
 		powerdown-gpios = <&gpio6 10 GPIO_ACTIVE_LOW>;	/* gpio_170 */
 
@@ -99,7 +100,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_out>;
 				};
 			};
@@ -107,14 +108,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@0 {
+	dvi0: connector0 {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -129,7 +130,7 @@
 		};
 	};
 
-	tv0: connector@1 {
+	tv0: connector1 {
 		compatible = "svideo-connector";
 		label = "tv";
 
@@ -283,7 +284,7 @@
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	bus-width = <8>;
 };
 
@@ -384,9 +385,13 @@
 
 	/* Chip select 0 */
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;		/* NAND I/O window, 4 bytes */
-		interrupts = <20>;
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		ti,nand-ecc-opt = "ham1";
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <16>;
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -125,6 +125,9 @@ class AnalyzerOptions : public RefCountedBase<AnalyzerOptions> {
 public:
   typedef llvm::StringMap<std::string> ConfigTable;
 
+  static std::vector<StringRef>
+  getRegisteredCheckers(bool IncludeExperimental = false);
+
   /// \brief Pair of checker name and enable/disable.
   std::vector<std::pair<std::string, bool> > CheckersControlList;
   
@@ -149,6 +152,7 @@ public:
   unsigned DisableAllChecks : 1;
 
   unsigned ShowCheckerHelp : 1;
+  unsigned ShowEnabledCheckerList : 1;
   unsigned AnalyzeAll : 1;
   unsigned AnalyzerDisplayProgress : 1;
   unsigned AnalyzeNestedBlocks : 1;
@@ -201,9 +205,18 @@ private:
   /// Controls which C++ member functions will be considered for inlining.
   CXXInlineableMemberKind CXXMemberInliningMode;
   
+  /// \sa includeImplicitDtorsInCFG
+  Optional<bool> IncludeImplicitDtorsInCFG;
+
   /// \sa includeTemporaryDtorsInCFG
   Optional<bool> IncludeTemporaryDtorsInCFG;
-  
+
+  /// \sa IncludeLifetimeInCFG
+  Optional<bool> IncludeLifetimeInCFG;
+
+  /// \sa IncludeLoopExitInCFG
+  Optional<bool> IncludeLoopExitInCFG;
+
   /// \sa mayInlineCXXStandardLibrary
   Optional<bool> InlineCXXStandardLibrary;
   
@@ -264,6 +277,12 @@ private:
 
   /// \sa shouldWidenLoops
   Optional<bool> WidenLoops;
+
+  /// \sa shouldUnrollLoops
+  Optional<bool> UnrollLoops;
+
+  /// \sa shouldDisplayNotesAsEvents
+  Optional<bool> DisplayNotesAsEvents;
 
   /// A helper function that retrieves option for a given full-qualified
   /// checker name.
@@ -387,6 +406,27 @@ public:
   /// This is controlled by the 'cfg-temporary-dtors' config option, which
   /// accepts the values "true" and "false".
   bool includeTemporaryDtorsInCFG();
+
+  /// Returns whether or not implicit destructors for C++ objects should
+  /// be included in the CFG.
+  ///
+  /// This is controlled by the 'cfg-implicit-dtors' config option, which
+  /// accepts the values "true" and "false".
+  bool includeImplicitDtorsInCFG();
+
+  /// Returns whether or not end-of-lifetime information should be included in
+  /// the CFG.
+  ///
+  /// This is controlled by the 'cfg-lifetime' config option, which accepts
+  /// the values "true" and "false".
+  bool includeLifetimeInCFG();
+
+  /// Returns whether or not the end of the loop information should be included
+  /// in the CFG.
+  ///
+  /// This is controlled by the 'cfg-loopexit' config option, which accepts
+  /// the values "true" and "false".
+  bool includeLoopExitInCFG();
 
   /// Returns whether or not C++ standard library functions may be considered
   /// for inlining.
@@ -533,6 +573,18 @@ public:
   /// This is controlled by the 'widen-loops' config option.
   bool shouldWidenLoops();
 
+  /// Returns true if the analysis should try to unroll loops with known bounds.
+  /// This is controlled by the 'unroll-loops' config option.
+  bool shouldUnrollLoops();
+
+  /// Returns true if the bug reporter should transparently treat extra note
+  /// diagnostic pieces as event diagnostic pieces. Useful when the diagnostic
+  /// consumer doesn't support the extra note pieces.
+  ///
+  /// This is controlled by the 'extra-notes-as-events' option, which defaults
+  /// to false when unset.
+  bool shouldDisplayNotesAsEvents();
+
 public:
   AnalyzerOptions() :
     AnalysisStoreOpt(RegionStoreModel),
@@ -541,6 +593,7 @@ public:
     AnalysisPurgeOpt(PurgeStmt),
     DisableAllChecks(0),
     ShowCheckerHelp(0),
+    ShowEnabledCheckerList(0),
     AnalyzeAll(0),
     AnalyzerDisplayProgress(0),
     AnalyzeNestedBlocks(0),
