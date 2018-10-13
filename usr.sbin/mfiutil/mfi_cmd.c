@@ -31,17 +31,18 @@
  * $FreeBSD$
  */
 
-#include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/param.h>
+#include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "mfiutil.h"
@@ -311,24 +312,32 @@ mfi_open(int unit, int acs)
 	return (open(path, acs));
 }
 
+static void
+print_time_humanized(uint seconds)
+{
+
+	if (seconds > 3600)
+		printf("%u:", seconds / 3600);
+	if (seconds > 60) {
+		seconds %= 3600;
+		printf("%02u:%02u", seconds / 60, seconds % 60);
+	} else
+		printf("%us", seconds);
+}
+
 void
 mfi_display_progress(const char *label, struct mfi_progress *prog)
 {
 	uint seconds;
 
-	printf("%s: %.2f%% complete, after %ds", label,
-	    (float)prog->progress * 100 / 0xffff, prog->elapsed_seconds);
+	printf("%s: %.2f%% complete after ", label,
+	    (float)prog->progress * 100 / 0xffff);
+	print_time_humanized(prog->elapsed_seconds);
 	if (prog->progress != 0 && prog->elapsed_seconds > 10) {
 		printf(" finished in ");
 		seconds = (0x10000 * (uint32_t)prog->elapsed_seconds) /
 		    prog->progress - prog->elapsed_seconds;
-		if (seconds > 3600)
-			printf("%u:", seconds / 3600);
-		if (seconds > 60) {
-			seconds %= 3600;
-			printf("%02u:%02u", seconds / 60, seconds % 60);
-		} else
-			printf("%us", seconds);
+		print_time_humanized(seconds);
 	}
 	printf("\n");
 }
