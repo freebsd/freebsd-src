@@ -970,21 +970,19 @@ dblfault_handler(struct trapframe *frame)
 	panic("double fault");
 }
 
-int
-cpu_fetch_syscall_args(struct thread *td)
+static int __noinline
+cpu_fetch_syscall_args_fallback(struct thread *td, struct syscall_args *sa)
 {
 	struct proc *p;
 	struct trapframe *frame;
 	register_t *argp;
-	struct syscall_args *sa;
 	caddr_t params;
 	int reg, regcnt, error;
 
 	p = td->td_proc;
 	frame = td->td_frame;
-	sa = &td->td_sa;
 	reg = 0;
-	regcnt = 6;
+	regcnt = NARGREGS;
 
 	sa->code = frame->tf_rax;
 
@@ -1002,24 +1000,58 @@ cpu_fetch_syscall_args(struct thread *td)
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 
 	sa->narg = sa->callp->sy_narg;
-	KASSERT(sa->narg <= sizeof(sa->args) / sizeof(sa->args[0]),
-	    ("Too many syscall arguments!"));
-	error = 0;
+	KASSERT(sa->narg <= nitems(sa->args), ("Too many syscall arguments!"));
 	argp = &frame->tf_rdi;
 	argp += reg;
-	memcpy(sa->args, argp, sizeof(sa->args[0]) * 6);
+	memcpy(sa->args, argp, sizeof(sa->args[0]) * NARGREGS);
 	if (sa->narg > regcnt) {
 		params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 		error = copyin(params, &sa->args[regcnt],
 	    	    (sa->narg - regcnt) * sizeof(sa->args[0]));
+		if (__predict_false(error != 0))
+			return (error);
 	}
 
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		td->td_retval[1] = frame->tf_rdx;
-	}
+	td->td_retval[0] = 0;
+	td->td_retval[1] = frame->tf_rdx;
 
-	return (error);
+	return (0);
+}
+
+int
+cpu_fetch_syscall_args(struct thread *td)
+{
+	struct proc *p;
+	struct trapframe *frame;
+	struct syscall_args *sa;
+
+	p = td->td_proc;
+	frame = td->td_frame;
+	sa = &td->td_sa;
+
+	sa->code = frame->tf_rax;
+
+	if (__predict_false(sa->code == SYS_syscall ||
+	    sa->code == SYS___syscall ||
+	    sa->code >= p->p_sysent->sv_size))
+		return (cpu_fetch_syscall_args_fallback(td, sa));
+
+	sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
+	KASSERT(sa->narg <= nitems(sa->args), ("Too many syscall arguments!"));
+
+	if (p->p_sysent->sv_mask)
+		sa->code &= p->p_sysent->sv_mask;
+
+	if (__predict_false(sa->narg > NARGREGS))
+		return (cpu_fetch_syscall_args_fallback(td, sa));
+
+	memcpy(sa->args, &frame->tf_rdi, sizeof(sa->args[0]) * NARGREGS);
+
+	td->td_retval[0] = 0;
+	td->td_retval[1] = frame->tf_rdx;
+
+	return (0);
 }
 
 #include "../../kern/subr_syscall.c"
