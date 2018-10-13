@@ -723,7 +723,6 @@ spa_condense_indirect_thread(void *arg, zthr_t *zthr)
 	    ZFS_SPACE_CHECK_EXTRA_RESERVED));
 
 	return (0);
-	thread_exit();
 }
 
 /*
