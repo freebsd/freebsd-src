@@ -1180,7 +1180,8 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 	}
 
 	/* Not all IO types require vdev io done stage e.g. free */
-	if (!(pio->io_pipeline & ZIO_STAGE_VDEV_IO_DONE))
+	if (type == ZIO_TYPE_FREE &&
+	    !(pio->io_pipeline & ZIO_STAGE_VDEV_IO_DONE))
 		pipeline &= ~ZIO_STAGE_VDEV_IO_DONE;
 
 	if (vd->vdev_ops->vdev_op_leaf) {
