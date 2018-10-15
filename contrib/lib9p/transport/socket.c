@@ -60,6 +60,8 @@ static int l9p_socket_get_response_buffer(struct l9p_request *,
     struct iovec *, size_t *, void *);
 static int l9p_socket_send_response(struct l9p_request *, const struct iovec *,
     const size_t, const size_t, void *);
+static void l9p_socket_drop_response(struct l9p_request *, const struct iovec *,
+    size_t, void *);
 static void *l9p_socket_thread(void *);
 static ssize_t xread(int, void *, size_t);
 static ssize_t xwrite(int, void *, size_t);
@@ -126,7 +128,7 @@ l9p_start_server(struct l9p_server *server, const char *host, const char *port)
 
 		for (i = 0; i < evs; i++) {
 			struct sockaddr client_addr;
-			socklen_t client_addr_len;
+			socklen_t client_addr_len = sizeof(client_addr);
 			int news = accept((int)event[i].ident, &client_addr,
 			    &client_addr_len);
 
@@ -172,11 +174,22 @@ l9p_socket_accept(struct l9p_server *server, int conn_fd,
 	sc->ls_conn = conn;
 	sc->ls_fd = conn_fd;
 
-	l9p_connection_on_send_response(conn, l9p_socket_send_response, sc);
-	l9p_connection_on_get_response_buffer(conn,
-	    l9p_socket_get_response_buffer, sc);
+	/*
+	 * Fill in transport handler functions and aux argument.
+	 */
+	conn->lc_lt.lt_aux = sc;
+	conn->lc_lt.lt_get_response_buffer = l9p_socket_get_response_buffer;
+	conn->lc_lt.lt_send_response = l9p_socket_send_response;
+	conn->lc_lt.lt_drop_response = l9p_socket_drop_response;
 
-	pthread_create(&sc->ls_thread, NULL, l9p_socket_thread, sc);
+	err = pthread_create(&sc->ls_thread, NULL, l9p_socket_thread, sc);
+	if (err) {
+		L9P_LOG(L9P_ERROR,
+		    "pthread_create (for connection from %s:%s): error %s",
+		    host, serv, strerror(err));
+		l9p_connection_close(sc->ls_conn);
+		free(sc);
+	}
 }
 
 static void *
@@ -194,9 +207,12 @@ l9p_socket_thread(void *arg)
 		iov.iov_base = buf;
 		iov.iov_len = length;
 		l9p_connection_recv(sc->ls_conn, &iov, 1, NULL);
+		free(buf);
 	}
 
 	L9P_LOG(L9P_INFO, "connection closed");
+	l9p_connection_close(sc->ls_conn);
+	free(sc);
 	return (NULL);
 }
 
@@ -220,14 +236,18 @@ l9p_socket_readmsg(struct l9p_socket_softc *sc, void **buf, size_t *size)
 	}
 
 	if (ret != sizeof(uint32_t)) {
-		L9P_LOG(L9P_ERROR, "short read: %zd bytes of %zd expected",
-		    ret, sizeof(uint32_t));
+		if (ret == 0)
+			L9P_LOG(L9P_DEBUG, "%p: EOF", (void *)sc->ls_conn);
+		else
+			L9P_LOG(L9P_ERROR,
+			    "short read: %zd bytes of %zd expected",
+			    ret, sizeof(uint32_t));
 		return (-1);
 	}
 
 	msize = le32toh(*(uint32_t *)buffer);
 	toread = msize - sizeof(uint32_t);
-	buffer = realloc(buffer, msize);
+	buffer = l9p_realloc(buffer, msize);
 
 	ret = xread(fd, (char *)buffer + sizeof(uint32_t), toread);
 	if (ret < 0) {
@@ -244,7 +264,7 @@ l9p_socket_readmsg(struct l9p_socket_softc *sc, void **buf, size_t *size)
 	*size = msize;
 	*buf = buffer;
 	L9P_LOG(L9P_INFO, "%p: read complete message, buf=%p size=%d",
-	    sc->ls_conn, buffer, msize);
+	    (void *)sc->ls_conn, buffer, msize);
 
 	return (0);
 }
@@ -271,7 +291,7 @@ l9p_socket_send_response(struct l9p_request *req __unused,
 {
 	struct l9p_socket_softc *sc = (struct l9p_socket_softc *)arg;
 
-	assert(sc->ls_fd > 0);
+	assert(sc->ls_fd >= 0);
 
 	L9P_LOG(L9P_DEBUG, "%p: sending reply, buf=%p, size=%d", arg,
 	    iov[0].iov_base, iolen);
@@ -283,6 +303,15 @@ l9p_socket_send_response(struct l9p_request *req __unused,
 
 	free(iov[0].iov_base);
 	return (0);
+}
+
+static void
+l9p_socket_drop_response(struct l9p_request *req __unused,
+    const struct iovec *iov, size_t niov __unused, void *arg)
+{
+
+	L9P_LOG(L9P_DEBUG, "%p: drop buf=%p", arg, iov[0].iov_base);
+	free(iov[0].iov_base);
 }
 
 static ssize_t

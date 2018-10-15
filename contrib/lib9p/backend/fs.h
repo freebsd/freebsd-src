@@ -1,5 +1,6 @@
+
 /*
- * Copyright 2016 Jakub Klama <jceel@FreeBSD.org>
+ * Copyright 2016 Chris Torek <torek@ixsystems.com>
  * All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,59 +26,9 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <err.h>
-#include <unistd.h>
-#include "../lib9p.h"
-#include "../backend/fs.h"
-#include "../transport/socket.h"
+#ifndef LIB9P_BACKEND_FS_H
+#define LIB9P_BACKEND_FS_H
 
-int
-main(int argc, char **argv)
-{
-	struct l9p_backend *fs_backend;
-	struct l9p_server *server;
-	char *host = "0.0.0.0";
-	char *port = "564";
-	char *path;
-	int rootfd;
-	int opt;
+int l9p_backend_fs_init(struct l9p_backend **backendp, int rootfd);
 
-	while ((opt = getopt(argc, argv, "h:p:")) != -1) {
-		switch (opt) {
-		case 'h':
-			host = optarg;
-			break;
-		case 'p':
-			port = optarg;
-			break;
-		case '?':
-		default:
-			goto usage;
-		}
-	}
-	if (optind >= argc) {
-usage:
-		errx(1, "Usage: server <path>");
-	}
-	path = argv[optind];
-	rootfd = open(path, O_DIRECTORY);
-
-	if (rootfd < 0)
-		err(1, "cannot open root directory");
-
-	if (l9p_backend_fs_init(&fs_backend, rootfd) != 0)
-		err(1, "cannot init backend");
-
-	if (l9p_server_init(&server, fs_backend) != 0)
-		err(1, "cannot create server");
-
-	server->ls_max_version = L9P_2000L;
-	if (l9p_start_server(server, host, port))
-		err(1, "l9p_start_server() failed");
-
-	/* XXX - we never get here, l9p_start_server does not return */
-	exit(0);
-}
+#endif  /* LIB9P_BACKEND_FS_H */

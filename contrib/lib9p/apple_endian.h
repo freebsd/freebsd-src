@@ -1,5 +1,5 @@
 #ifndef _APPLE_ENDIAN_H
-# define _APPLE_ENDIAN_H
+#define _APPLE_ENDIAN_H
 
 /*
  * Shims to make Apple's endian headers and macros compatible

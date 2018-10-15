@@ -112,7 +112,7 @@ sbuf_data(struct sbuf *s)
 }
 
 int
-sbuf_done(struct sbuf *s)
+sbuf_finish(struct sbuf *s)
 {
 	if (s->s_buf != NULL)
 		s->s_buf[s->s_size] = '\0';

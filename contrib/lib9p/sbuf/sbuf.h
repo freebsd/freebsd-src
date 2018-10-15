@@ -48,6 +48,7 @@ int sbuf_printf(struct sbuf *s, const char *fmt, ...);
 int sbuf_vprintf(struct sbuf *s, const char *fmt, va_list args);
 int sbuf_done(struct sbuf *s);
 void sbuf_delete(struct sbuf *s);
+int sbuf_finish(struct sbuf *s);
 char *sbuf_data(struct sbuf *s);
 
 #endif /* LIB9P_SBUF_H */

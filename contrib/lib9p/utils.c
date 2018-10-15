@@ -26,11 +26,15 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <assert.h>
 #include <inttypes.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
 #if defined(__FreeBSD__)
 #include <sys/sbuf.h>
@@ -41,20 +45,38 @@
 #include "fcall.h"
 #include "linux_errno.h"
 
+#ifdef __APPLE__
+  #define GETGROUPS_GROUP_TYPE_IS_INT
+#endif
+
 #define N(ary)          (sizeof(ary) / sizeof(*ary))
 
+/* See l9p_describe_bits() below. */
+struct descbits {
+	uint64_t	db_mask;	/* mask value */
+	uint64_t	db_match;	/* match value */
+	const char	*db_name;	/* name for matched value */
+};
+
+
+static bool l9p_describe_bits(const char *, uint64_t, const char *,
+    const struct descbits *, struct sbuf *);
 static void l9p_describe_fid(const char *, uint32_t, struct sbuf *);
 static void l9p_describe_mode(const char *, uint32_t, struct sbuf *);
 static void l9p_describe_name(const char *, char *, struct sbuf *);
 static void l9p_describe_perm(const char *, uint32_t, struct sbuf *);
+static void l9p_describe_lperm(const char *, uint32_t, struct sbuf *);
 static void l9p_describe_qid(const char *, struct l9p_qid *, struct sbuf *);
-static void l9p_describe_stat(const char *, struct l9p_stat *, struct sbuf *);
+static void l9p_describe_l9stat(const char *, struct l9p_stat *,
+    enum l9p_version, struct sbuf *);
 static void l9p_describe_statfs(const char *, struct l9p_statfs *,
     struct sbuf *);
 static void l9p_describe_time(struct sbuf *, const char *, uint64_t, uint64_t);
 static void l9p_describe_readdir(struct sbuf *, struct l9p_f_io *);
 static void l9p_describe_size(const char *, uint64_t, struct sbuf *);
 static void l9p_describe_ugid(const char *, uint32_t, struct sbuf *);
+static void l9p_describe_getattr_mask(uint64_t, struct sbuf *);
+static void l9p_describe_unlinkat_flags(const char *, uint32_t, struct sbuf *);
 static const char *lookup_linux_errno(uint32_t);
 
 /*
@@ -94,6 +116,7 @@ static const char *ftype_names[] = {
 	X(RENAME,	"rename"),
 	X(READLINK,	"readlink"),
 	X(GETATTR,	"getattr"),
+	X(SETATTR,	"setattr"),
 	X(XATTRWALK,	"xattrwalk"),
 	X(XATTRCREATE,	"xattrcreate"),
 	X(READDIR,	"readdir"),
@@ -156,6 +179,128 @@ l9p_truncate_iov(struct iovec *iov, size_t niov, size_t length)
 }
 
 /*
+ * This wrapper for getgrouplist() that malloc'ed memory, and
+ * papers over FreeBSD vs Mac differences in the getgrouplist()
+ * argument types.
+ *
+ * Note that this function guarantees that *either*:
+ *     return value != NULL and *angroups has been set
+ * or: return value == NULL and *angroups is 0
+ */
+gid_t *
+l9p_getgrlist(const char *name, gid_t basegid, int *angroups)
+{
+#ifdef GETGROUPS_GROUP_TYPE_IS_INT
+	int i, *int_groups;
+#endif
+	gid_t *groups;
+	int ngroups;
+
+	/*
+	 * Todo, perhaps: while getgrouplist() returns -1, expand.
+	 * For now just use NGROUPS_MAX.
+	 */
+	ngroups = NGROUPS_MAX;
+	groups = malloc((size_t)ngroups * sizeof(*groups));
+#ifdef GETGROUPS_GROUP_TYPE_IS_INT
+	int_groups = groups ? malloc((size_t)ngroups * sizeof(*int_groups)) :
+	    NULL;
+	if (int_groups == NULL) {
+		free(groups);
+		groups = NULL;
+	}
+#endif
+	if (groups == NULL) {
+		*angroups = 0;
+		return (NULL);
+	}
+#ifdef GETGROUPS_GROUP_TYPE_IS_INT
+	(void) getgrouplist(name, (int)basegid, int_groups, &ngroups);
+	for (i = 0; i < ngroups; i++)
+		groups[i] = (gid_t)int_groups[i];
+#else
+	(void) getgrouplist(name, basegid, groups, &ngroups);
+#endif
+	*angroups = ngroups;
+	return (groups);
+}
+
+/*
+ * For the various debug describe ops: decode bits in a bit-field-y
+ * value.  For example, we might produce:
+ *     value=0x3c[FOO,BAR,QUUX,?0x20]
+ * when FOO is bit 0x10, BAR is 0x08, and QUUX is 0x04 (as defined
+ * by the table).  This leaves 0x20 (bit 5) as a mystery, while bits
+ * 4, 3, and 2 were decoded.  (Bits 0 and 1 were 0 on input hence
+ * were not attempted here.)
+ *
+ * For general use we take a uint64_t <value>.  The bit description
+ * table <db> is an array of {mask, match, str} values ending with
+ * {0, 0, NULL}.
+ *
+ * If <str> is non-NULL we'll print it and the mask as well (if
+ * str is NULL we'll print neither).  The mask is always printed in
+ * hex at the moment.  See undec description too.
+ *
+ * For convenience, you can use a mask-and-match value, e.g., to
+ * decode a 2-bit field in bits 0 and 1 you can mask against 3 and
+ * match the values 0, 1, 2, and 3.  To handle this, make sure that
+ * all masks-with-same-match are sequential.
+ *
+ * If there are any nonzero undecoded bits, print them after
+ * all the decode-able bits have been handled.
+ *
+ * The <oc> argument defines the open and close bracket characters,
+ * typically "[]", that surround the entire string.  If NULL, no
+ * brackets are added, else oc[0] goes in the front and oc[1] at
+ * the end, after printing any <str><value> part.
+ *
+ * Returns true if it printed anything (other than the implied
+ * str-and-value, that is).
+ */
+static bool
+l9p_describe_bits(const char *str, uint64_t value, const char *oc,
+    const struct descbits *db, struct sbuf *sb)
+{
+	char *sep;
+	char bracketbuf[2] = "";
+	bool printed = false;
+
+	if (str != NULL)
+		sbuf_printf(sb, "%s0x%" PRIx64, str, value);
+
+	if (oc != NULL)
+		bracketbuf[0] = oc[0];
+	sep = bracketbuf;
+	for (; db->db_name != NULL; db++) {
+		if ((value & db->db_mask) == db->db_match) {
+			sbuf_printf(sb, "%s%s", sep, db->db_name);
+			sep = (char *)",";
+			printed = true;
+
+			/*
+			 * Clear the field, and make sure we
+			 * won't match a zero-valued field with
+			 * this same mask.
+			 */
+			value &= ~db->db_mask;
+			while (db[1].db_mask == db->db_mask &&
+			    db[1].db_name != NULL)
+				db++;
+		}
+	}
+	if (value != 0) {
+		sbuf_printf(sb, "%s?0x%" PRIx64, sep, value);
+		printed = true;
+	}
+	if (printed && oc != NULL) {
+		bracketbuf[0] = oc[1];
+		sbuf_cat(sb, bracketbuf);
+	}
+	return (printed);
+}
+
+/*
  * Show file ID.
  */
 static void
@@ -176,16 +321,63 @@ l9p_describe_ugid(const char *str, uint32_t ugid, struct sbuf *sb)
 }
 
 /*
- * Show file mode (O_RDWR, O_RDONLY, etc) - note that upper bits
- * may be set for .L open, where this is called "flags".
- *
- * For now we just decode in hex.
+ * Show file mode (O_RDWR, O_RDONLY, etc).  The argument is
+ * an l9p_omode, not a Linux flags mode.  Linux flags are
+ * decoded with l9p_describe_lflags.
  */
 static void
 l9p_describe_mode(const char *str, uint32_t mode, struct sbuf *sb)
 {
+	static const struct descbits bits[] = {
+		{ L9P_OACCMODE,	L9P_OREAD,	"OREAD" },
+		{ L9P_OACCMODE,	L9P_OWRITE,	"OWRITE" },
+		{ L9P_OACCMODE,	L9P_ORDWR,	"ORDWR" },
+		{ L9P_OACCMODE,	L9P_OEXEC,	"OEXEC" },
 
-	sbuf_printf(sb, "%s%" PRIx32, str, mode);
+		{ L9P_OCEXEC,	L9P_OCEXEC,	"OCEXEC" },
+		{ L9P_ODIRECT,	L9P_ODIRECT,	"ODIRECT" },
+		{ L9P_ORCLOSE,	L9P_ORCLOSE,	"ORCLOSE" },
+		{ L9P_OTRUNC,	L9P_OTRUNC,	"OTRUNC" },
+		{ 0, 0, NULL }
+	};
+
+	(void) l9p_describe_bits(str, mode, "[]", bits, sb);
+}
+
+/*
+ * Show Linux mode/flags.
+ */
+static void
+l9p_describe_lflags(const char *str, uint32_t flags, struct sbuf *sb)
+{
+	static const struct descbits bits[] = {
+	    { L9P_OACCMODE,	L9P_OREAD,		"O_READ" },
+	    { L9P_OACCMODE,	L9P_OWRITE,		"O_WRITE" },
+	    { L9P_OACCMODE,	L9P_ORDWR,		"O_RDWR" },
+	    { L9P_OACCMODE,	L9P_OEXEC,		"O_EXEC" },
+
+	    { L9P_L_O_APPEND,	L9P_L_O_APPEND,		"O_APPEND" },
+	    { L9P_L_O_CLOEXEC,	L9P_L_O_CLOEXEC,	"O_CLOEXEC" },
+	    { L9P_L_O_CREAT,	L9P_L_O_CREAT,		"O_CREAT" },
+	    { L9P_L_O_DIRECT,	L9P_L_O_DIRECT,		"O_DIRECT" },
+	    { L9P_L_O_DIRECTORY, L9P_L_O_DIRECTORY,	"O_DIRECTORY" },
+	    { L9P_L_O_DSYNC,	L9P_L_O_DSYNC,		"O_DSYNC" },
+	    { L9P_L_O_EXCL,	L9P_L_O_EXCL,		"O_EXCL" },
+	    { L9P_L_O_FASYNC,	L9P_L_O_FASYNC,		"O_FASYNC" },
+	    { L9P_L_O_LARGEFILE, L9P_L_O_LARGEFILE,	"O_LARGEFILE" },
+	    { L9P_L_O_NOATIME,	L9P_L_O_NOATIME,	"O_NOATIME" },
+	    { L9P_L_O_NOCTTY,	L9P_L_O_NOCTTY,		"O_NOCTTY" },
+	    { L9P_L_O_NOFOLLOW,	L9P_L_O_NOFOLLOW,	"O_NOFOLLOW" },
+	    { L9P_L_O_NONBLOCK,	L9P_L_O_NONBLOCK,	"O_NONBLOCK" },
+	    { L9P_L_O_PATH,	L9P_L_O_PATH,		"O_PATH" },
+	    { L9P_L_O_SYNC,	L9P_L_O_SYNC,		"O_SYNC" },
+	    { L9P_L_O_TMPFILE,	L9P_L_O_TMPFILE,	"O_TMPFILE" },
+	    { L9P_L_O_TMPFILE,	L9P_L_O_TMPFILE,	"O_TMPFILE" },
+	    { L9P_L_O_TRUNC,	L9P_L_O_TRUNC,		"O_TRUNC" },
+	    { 0, 0, NULL }
+	};
+
+	(void) l9p_describe_bits(str, flags, "[]", bits, sb);
 }
 
 /*
@@ -212,7 +404,8 @@ l9p_describe_name(const char *str, char *name, struct sbuf *sb)
 }
 
 /*
- * Show permissions (rwx etc).
+ * Show permissions (rwx etc).  Prints the value in hex only if
+ * the rwx bits do not cover the entire value.
  */
 static void
 l9p_describe_perm(const char *str, uint32_t mode, struct sbuf *sb)
@@ -220,7 +413,67 @@ l9p_describe_perm(const char *str, uint32_t mode, struct sbuf *sb)
 	char pbuf[12];
 
 	strmode(mode & 0777, pbuf);
-	sbuf_printf(sb, "%s%" PRIx32 "<%.9s>", str, mode, pbuf + 1);
+	if ((mode & ~(uint32_t)0777) != 0)
+		sbuf_printf(sb, "%s0x%" PRIx32 "<%.9s>", str, mode, pbuf + 1);
+	else
+		sbuf_printf(sb, "%s<%.9s>", str, pbuf + 1);
+}
+
+/*
+ * Show "extended" permissions: regular permissions, but also the
+ * various DM* extension bits from 9P2000.u.
+ */
+static void
+l9p_describe_ext_perm(const char *str, uint32_t mode, struct sbuf *sb)
+{
+	static const struct descbits bits[] = {
+		{ L9P_DMDIR,	L9P_DMDIR,	"DMDIR" },
+		{ L9P_DMAPPEND,	L9P_DMAPPEND,	"DMAPPEND" },
+		{ L9P_DMEXCL,	L9P_DMEXCL,	"DMEXCL" },
+		{ L9P_DMMOUNT,	L9P_DMMOUNT,	"DMMOUNT" },
+		{ L9P_DMAUTH,	L9P_DMAUTH,	"DMAUTH" },
+		{ L9P_DMTMP,	L9P_DMTMP,	"DMTMP" },
+		{ L9P_DMSYMLINK, L9P_DMSYMLINK,	"DMSYMLINK" },
+		{ L9P_DMDEVICE,	L9P_DMDEVICE,	"DMDEVICE" },
+		{ L9P_DMNAMEDPIPE, L9P_DMNAMEDPIPE, "DMNAMEDPIPE" },
+		{ L9P_DMSOCKET,	L9P_DMSOCKET,	"DMSOCKET" },
+		{ L9P_DMSETUID,	L9P_DMSETUID,	"DMSETUID" },
+		{ L9P_DMSETGID,	L9P_DMSETGID,	"DMSETGID" },
+		{ 0, 0, NULL }
+	};
+	bool need_sep;
+
+	sbuf_printf(sb, "%s[", str);
+	need_sep = l9p_describe_bits(NULL, mode & ~(uint32_t)0777, NULL,
+	    bits, sb);
+	l9p_describe_perm(need_sep ? "," : "", mode & 0777, sb);
+	sbuf_cat(sb, "]");
+}
+
+/*
+ * Show Linux-specific permissions: regular permissions, but also
+ * the S_IFMT field.
+ */
+static void
+l9p_describe_lperm(const char *str, uint32_t mode, struct sbuf *sb)
+{
+	static const struct descbits bits[] = {
+		{ S_IFMT,	S_IFIFO,	"S_IFIFO" },
+		{ S_IFMT,	S_IFCHR,	"S_IFCHR" },
+		{ S_IFMT,	S_IFDIR,	"S_IFDIR" },
+		{ S_IFMT,	S_IFBLK,	"S_IFBLK" },
+		{ S_IFMT,	S_IFREG,	"S_IFREG" },
+		{ S_IFMT,	S_IFLNK,	"S_IFLNK" },
+		{ S_IFMT,	S_IFSOCK,	"S_IFSOCK" },
+		{ 0, 0, NULL }
+	};
+	bool need_sep;
+
+	sbuf_printf(sb, "%s[", str);
+	need_sep = l9p_describe_bits(NULL, mode & ~(uint32_t)0777, NULL,
+	    bits, sb);
+	l9p_describe_perm(need_sep ? "," : "", mode & 0777, sb);
+	sbuf_cat(sb, "]");
 }
 
 /*
@@ -229,11 +482,32 @@ l9p_describe_perm(const char *str, uint32_t mode, struct sbuf *sb)
 static void
 l9p_describe_qid(const char *str, struct l9p_qid *qid, struct sbuf *sb)
 {
+	static const struct descbits bits[] = {
+		/*
+		 * NB: L9P_QTFILE is 0, i.e., is implied by no
+		 * other bits being set.  We get this produced
+		 * when we mask against 0xff and compare for
+		 * L9P_QTFILE, but we must do it first so that
+		 * we mask against the original (not-adjusted)
+		 * value.
+		 */
+		{ 0xff,		L9P_QTFILE,	"FILE" },
+		{ L9P_QTDIR,	L9P_QTDIR,	"DIR" },
+		{ L9P_QTAPPEND,	L9P_QTAPPEND,	"APPEND" },
+		{ L9P_QTEXCL,	L9P_QTEXCL,	"EXCL" },
+		{ L9P_QTMOUNT,	L9P_QTMOUNT,	"MOUNT" },
+		{ L9P_QTAUTH,	L9P_QTAUTH,	"AUTH" },
+		{ L9P_QTTMP,	L9P_QTTMP,	"TMP" },
+		{ L9P_QTSYMLINK, L9P_QTSYMLINK,	"SYMLINK" },
+		{ 0, 0, NULL }
+	};
 
 	assert(qid != NULL);
 
-	sbuf_printf(sb, "%s<0x%02x,%u,0x%016" PRIx64 ">", str,
-	    qid->type, qid->version, qid->path);
+	sbuf_cat(sb, str);
+	(void) l9p_describe_bits("<", qid->type, "[]", bits, sb);
+	sbuf_printf(sb, ",%" PRIu32 ",0x%016" PRIx64 ">",
+	    qid->version, qid->path);
 }
 
 /*
@@ -246,16 +520,46 @@ l9p_describe_size(const char *str, uint64_t size, struct sbuf *sb)
 	sbuf_printf(sb, "%s%" PRIu64, str, size);
 }
 
+/*
+ * Show l9stat (including 9P2000.u extensions if appropriate).
+ */
 static void
-l9p_describe_stat(const char *str, struct l9p_stat *st, struct sbuf *sb)
+l9p_describe_l9stat(const char *str, struct l9p_stat *st,
+    enum l9p_version version, struct sbuf *sb)
 {
+	bool dotu = version >= L9P_2000U;
 
 	assert(st != NULL);
 
-	sbuf_printf(sb, "%stype=0x%04x dev=0x%08" PRIx32,
-	    str, st->type, st->dev);
+	sbuf_printf(sb, "%stype=0x%04" PRIx32 " dev=0x%08" PRIx32, str,
+	    st->type, st->dev);
+	l9p_describe_qid(" qid=", &st->qid, sb);
+	l9p_describe_ext_perm(" mode=", st->mode, sb);
+	if (st->atime != (uint32_t)-1)
+		sbuf_printf(sb, " atime=%" PRIu32, st->atime);
+	if (st->mtime != (uint32_t)-1)
+		sbuf_printf(sb, " mtime=%" PRIu32, st->mtime);
+	if (st->length != (uint64_t)-1)
+		sbuf_printf(sb, " length=%" PRIu64, st->length);
 	l9p_describe_name(" name=", st->name, sb);
-	l9p_describe_name(" uid=", st->uid, sb);
+	/*
+	 * It's pretty common to have NULL name+gid+muid.  They're
+	 * just noise if NULL *and* dot-u; decode only if non-null
+	 * or not-dot-u.
+	 */
+	if (st->uid != NULL || !dotu)
+		l9p_describe_name(" uid=", st->uid, sb);
+	if (st->gid != NULL || !dotu)
+		l9p_describe_name(" gid=", st->gid, sb);
+	if (st->muid != NULL || !dotu)
+		l9p_describe_name(" muid=", st->muid, sb);
+	if (dotu) {
+		if (st->extension != NULL)
+			l9p_describe_name(" extension=", st->extension, sb);
+		sbuf_printf(sb,
+		    " n_uid=%" PRIu32 " n_gid=%" PRIu32 " n_muid=%" PRIu32,
+		    st->n_uid, st->n_gid, st->n_muid);
+	}
 }
 
 static void
@@ -283,7 +587,8 @@ l9p_describe_time(struct sbuf *sb, const char *s, uint64_t sec, uint64_t nsec)
 
 	sbuf_cat(sb, s);
 	if (nsec > 999999999)
-		sbuf_printf(sb, "%" PRIu64 ".<invalid nsec %" PRIu64 ">)", sec, nsec);
+		sbuf_printf(sb, "%" PRIu64 ".<invalid nsec %" PRIu64 ">)",
+		    sec, nsec);
 	else
 		sbuf_printf(sb, "%" PRIu64 ".%09" PRIu64, sec, nsec);
 }
@@ -331,6 +636,69 @@ l9p_describe_readdir(struct sbuf *sb, struct l9p_f_io *io)
 #else /* notyet */
 	sbuf_printf(sb, " count=%" PRIu32, count);
 #endif
+}
+
+/*
+ * Decode Tgetattr request_mask field.
+ */
+static void
+l9p_describe_getattr_mask(uint64_t request_mask, struct sbuf *sb)
+{
+	static const struct descbits bits[] = {
+		/*
+		 * Note: ALL and BASIC must occur first and second.
+		 * This is a little dirty: it depends on the way the
+		 * describe_bits code clears the values.  If we
+		 * match ALL, we clear all those bits and do not
+		 * match BASIC; if we match BASIC, we clear all
+		 * those bits and do not match individual bits.  Thus
+		 * if we have BASIC but not all the additional bits,
+		 * we'll see, e.g., [BASIC,BTIME,GEN]; if we have
+		 * all the additional bits too, we'll see [ALL].
+		 *
+		 * Since <undec> is true below, we'll also spot any
+		 * bits added to the protocol since we made this table.
+		 */
+		{ L9PL_GETATTR_ALL,	L9PL_GETATTR_ALL,	"ALL" },
+		{ L9PL_GETATTR_BASIC,	L9PL_GETATTR_BASIC,	"BASIC" },
+
+		/* individual bits in BASIC */
+		{ L9PL_GETATTR_MODE,	L9PL_GETATTR_MODE,	"MODE" },
+		{ L9PL_GETATTR_NLINK,	L9PL_GETATTR_NLINK,	"NLINK" },
+		{ L9PL_GETATTR_UID,	L9PL_GETATTR_UID,	"UID" },
+		{ L9PL_GETATTR_GID,	L9PL_GETATTR_GID,	"GID" },
+		{ L9PL_GETATTR_RDEV,	L9PL_GETATTR_RDEV,	"RDEV" },
+		{ L9PL_GETATTR_ATIME,	L9PL_GETATTR_ATIME,	"ATIME" },
+		{ L9PL_GETATTR_MTIME,	L9PL_GETATTR_MTIME,	"MTIME" },
+		{ L9PL_GETATTR_CTIME,	L9PL_GETATTR_CTIME,	"CTIME" },
+		{ L9PL_GETATTR_INO,	L9PL_GETATTR_INO,	"INO" },
+		{ L9PL_GETATTR_SIZE,	L9PL_GETATTR_SIZE,	"SIZE" },
+		{ L9PL_GETATTR_BLOCKS,	L9PL_GETATTR_BLOCKS,	"BLOCKS" },
+
+		/* additional bits in ALL */
+		{ L9PL_GETATTR_BTIME,	L9PL_GETATTR_BTIME,	"BTIME" },
+		{ L9PL_GETATTR_GEN,	L9PL_GETATTR_GEN,	"GEN" },
+		{ L9PL_GETATTR_DATA_VERSION, L9PL_GETATTR_DATA_VERSION,
+							"DATA_VERSION" },
+		{ 0, 0, NULL }
+	};
+
+	(void) l9p_describe_bits(" request_mask=", request_mask, "[]", bits,
+	    sb);
+}
+
+/*
+ * Decode Tunlinkat flags.
+ */
+static void
+l9p_describe_unlinkat_flags(const char *str, uint32_t flags, struct sbuf *sb)
+{
+	static const struct descbits bits[] = {
+		{ L9PL_AT_REMOVEDIR, L9PL_AT_REMOVEDIR, "AT_REMOVEDIR" },
+		{ 0, 0, NULL }
+	};
+
+	(void) l9p_describe_bits(str, flags, "[]", bits, sb);
 }
 
 static const char *
@@ -473,7 +841,16 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 
 	if (type < L9P__FIRST || type >= L9P__LAST_PLUS_1 ||
 	    ftype_names[type - L9P__FIRST] == NULL) {
-		sbuf_printf(sb, "<unknown request %d> tag=%d", type,
+		const char *rr;
+
+		/*
+		 * Can't say for sure that this distinction --
+		 * an even number is a request, an odd one is
+		 * a response -- will be maintained forever,
+		 * but it's good enough for now.
+		 */
+		rr = (type & 1) != 0 ? "response" : "request";
+		sbuf_printf(sb, "<unknown %s %d> tag=%d", rr, type,
 		    fcall->hdr.tag);
 	} else {
 		sbuf_printf(sb, "%s tag=%d", ftype_names[type - L9P__FIRST],
@@ -526,12 +903,13 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 	case L9P_TWALK:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
 		l9p_describe_fid(" newfid=", fcall->twalk.newfid, sb);
-		sbuf_cat(sb, " wname=\"");
-		for (i = 0; i < fcall->twalk.nwname; i++)
-			sbuf_printf(sb, "%s%s", i == 0 ? "" : "/",
-			    fcall->twalk.wname[i]);
-		sbuf_cat(sb, "\"");
-
+		if (fcall->twalk.nwname) {
+			sbuf_cat(sb, " wname=\"");
+			for (i = 0; i < fcall->twalk.nwname; i++)
+				sbuf_printf(sb, "%s%s", i == 0 ? "" : "/",
+				    fcall->twalk.wname[i]);
+			sbuf_cat(sb, "\"");
+		}
 		return;
 
 	case L9P_RWALK:
@@ -555,8 +933,11 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 	case L9P_TCREATE:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
 		l9p_describe_name(" name=", fcall->tcreate.name, sb);
-		l9p_describe_perm(" perm=", fcall->tcreate.perm, sb);
+		l9p_describe_ext_perm(" perm=", fcall->tcreate.perm, sb);
 		l9p_describe_mode(" mode=", fcall->tcreate.mode, sb);
+		if (version >= L9P_2000U && fcall->tcreate.extension != NULL)
+			l9p_describe_name(" extension=",
+			    fcall->tcreate.extension, sb);
 		return;
 
 	case L9P_RCREATE:
@@ -584,7 +965,6 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 
 	case L9P_TCLUNK:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
-		sbuf_printf(sb, " fid=%d", fcall->hdr.fid);
 		return;
 
 	case L9P_RCLUNK:
@@ -602,12 +982,12 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 		return;
 
 	case L9P_RSTAT:
-		l9p_describe_stat(" ", &fcall->rstat.stat, sb);
+		l9p_describe_l9stat(" ", &fcall->rstat.stat, version, sb);
 		return;
 
 	case L9P_TWSTAT:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
-		l9p_describe_stat(" ", &fcall->twstat.stat, sb);
+		l9p_describe_l9stat(" ", &fcall->twstat.stat, version, sb);
 		return;
 
 	case L9P_RWSTAT:
@@ -623,7 +1003,7 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 
 	case L9P_TLOPEN:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
-		l9p_describe_mode(" flags=", fcall->tlcreate.flags, sb);
+		l9p_describe_lflags(" flags=", fcall->tlcreate.flags, sb);
 		return;
 
 	case L9P_RLOPEN:
@@ -635,8 +1015,9 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
 		l9p_describe_name(" name=", fcall->tlcreate.name, sb);
 		/* confusing: "flags" is open-mode, "mode" is permissions */
-		l9p_describe_mode(" flags=", fcall->tlcreate.flags, sb);
-		l9p_describe_perm(" mode=", fcall->tlcreate.mode, sb);
+		l9p_describe_lflags(" flags=", fcall->tlcreate.flags, sb);
+		/* TLCREATE mode/permissions have S_IFREG (0x8000) set */
+		l9p_describe_lperm(" mode=", fcall->tlcreate.mode, sb);
 		l9p_describe_ugid(" gid=", fcall->tlcreate.gid, sb);
 		return;
 
@@ -659,9 +1040,13 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 	case L9P_TMKNOD:
 		l9p_describe_fid(" dfid=", fcall->hdr.fid, sb);
 		l9p_describe_name(" name=", fcall->tmknod.name, sb);
-		/* can't just use permission decode: mode contains blk/chr */
-		sbuf_printf(sb, " mode=0x%08x major=%u minor=%u",
-		    fcall->tmknod.mode,
+		/*
+		 * TMKNOD mode/permissions have S_IFBLK/S_IFCHR/S_IFIFO
+		 * bits.  The major and minor values are only meaningful
+		 * for S_IFBLK and S_IFCHR, but just decode always here.
+		 */
+		l9p_describe_lperm(" mode=", fcall->tmknod.mode, sb);
+		sbuf_printf(sb, " major=%u minor=%u",
 		    fcall->tmknod.major, fcall->tmknod.minor);
 		l9p_describe_ugid(" gid=", fcall->tmknod.gid, sb);
 		return;
@@ -689,17 +1074,16 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 
 	case L9P_TGETATTR:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
-		mask = fcall->tgetattr.request_mask;
-		sbuf_printf(sb, " request_mask=0x%016" PRIx64, mask);
-		/* XXX decode request_mask later */
+		l9p_describe_getattr_mask(fcall->tgetattr.request_mask, sb);
 		return;
 
 	case L9P_RGETATTR:
+		/* Don't need to decode bits: they're implied by the output */
 		mask = fcall->rgetattr.valid;
 		sbuf_printf(sb, " valid=0x%016" PRIx64, mask);
 		l9p_describe_qid(" qid=", &fcall->rgetattr.qid, sb);
 		if (mask & L9PL_GETATTR_MODE)
-			sbuf_printf(sb, " mode=0x%08x", fcall->rgetattr.mode);
+			l9p_describe_lperm(" mode=", fcall->rgetattr.mode, sb);
 		if (mask & L9PL_GETATTR_UID)
 			l9p_describe_ugid(" uid=", fcall->rgetattr.uid, sb);
 		if (mask & L9PL_GETATTR_GID)
@@ -739,12 +1123,13 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 		return;
 
 	case L9P_TSETATTR:
+		/* As with RGETATTR, we'll imply decode via output. */
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
 		mask = fcall->tsetattr.valid;
 		/* NB: tsetattr valid mask is only 32 bits, hence %08x */
 		sbuf_printf(sb, " valid=0x%08" PRIx64, mask);
 		if (mask & L9PL_SETATTR_MODE)
-			sbuf_printf(sb, " mode=0x%08x", fcall->tsetattr.mode);
+			l9p_describe_lperm(" mode=", fcall->tsetattr.mode, sb);
 		if (mask & L9PL_SETATTR_UID)
 			l9p_describe_ugid(" uid=", fcall->tsetattr.uid, sb);
 		if (mask & L9PL_SETATTR_GID)
@@ -757,7 +1142,7 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 				    fcall->tsetattr.atime_sec,
 				    fcall->tsetattr.atime_nsec);
 			else
-				sbuf_printf(sb, " atime=now");
+				sbuf_cat(sb, " atime=now");
 		}
 		if (mask & L9PL_SETATTR_MTIME) {
 			if (mask & L9PL_SETATTR_MTIME_SET)
@@ -765,8 +1150,10 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 				    fcall->tsetattr.mtime_sec,
 				    fcall->tsetattr.mtime_nsec);
 			else
-				sbuf_printf(sb, " mtime=now");
+				sbuf_cat(sb, " mtime=now");
 		}
+		if (mask & L9PL_SETATTR_CTIME)
+			sbuf_cat(sb, " ctime=now");
 		return;
 
 	case L9P_RSETATTR:
@@ -844,7 +1231,8 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 	case L9P_TMKDIR:
 		l9p_describe_fid(" fid=", fcall->hdr.fid, sb);
 		l9p_describe_name(" name=", fcall->tmkdir.name, sb);
-		l9p_describe_perm(" mode=", fcall->tmkdir.mode, sb);
+		/* TMKDIR mode/permissions have S_IFDIR set */
+		l9p_describe_lperm(" mode=", fcall->tmkdir.mode, sb);
 		l9p_describe_ugid(" gid=", fcall->tmkdir.gid, sb);
 		return;
 
@@ -867,7 +1255,8 @@ l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 	case L9P_TUNLINKAT:
 		l9p_describe_fid(" dirfd=", fcall->hdr.fid, sb);
 		l9p_describe_name(" name=", fcall->tunlinkat.name, sb);
-		sbuf_printf(sb, " flags=0x%08" PRIx32, fcall->tunlinkat.flags);
+		l9p_describe_unlinkat_flags(" flags=",
+		    fcall->tunlinkat.flags, sb);
 		return;
 
 	case L9P_RUNLINKAT:

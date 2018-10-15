@@ -190,19 +190,58 @@ enum {
 	L9P_DMSETGID = 0x00040000,
 };
 
-enum {
+/*
+ * Open/create mode bits in 9P2000 and 9P2000.u operations
+ * (not Linux lopen and lcreate flags, which are different).
+ * Note that the mode field is only one byte wide.
+ */
+enum l9p_omode {
 	L9P_OREAD = 0,	/* open for read */
 	L9P_OWRITE = 1,	/* write */
 	L9P_ORDWR = 2,	/* read and write */
 	L9P_OEXEC = 3,	/* execute, == read but check execute permission */
+	L9P_OACCMODE = 3, /* mask for the above access-mode bits */
 	L9P_OTRUNC = 16,	/* or'ed in (except for exec), truncate file first */
 	L9P_OCEXEC = 32,	/* or'ed in, close on exec */
 	L9P_ORCLOSE = 64,	/* or'ed in, remove on close */
 	L9P_ODIRECT = 128,	/* or'ed in, direct access */
-	L9P_ONONBLOCK = 256,	/* or'ed in, non-blocking call */
-	L9P_OEXCL = 0x1000,	/* or'ed in, exclusive use (create only) */
-	L9P_OLOCK = 0x2000,	/* or'ed in, lock after opening */
-	L9P_OAPPEND = 0x4000	/* or'ed in, append only */
+};
+
+/*
+ * Flag bits in 9P2000.L operations (Tlopen, Tlcreate).  These are
+ * basically just the Linux L_* flags.  The bottom 3 bits are the
+ * same as for l9p_omode, although open-for-exec is not used:
+ * instead, the client does a Tgetattr and checks the mode for
+ * execute bits, then just opens for reading.
+ *
+ * Each L_O_xxx is just value O_xxx has on Linux in <fcntl.h>;
+ * not all are necessarily used.  From observation, we do get
+ * L_O_CREAT and L_O_EXCL when creating with exclusive, and always
+ * get L_O_LARGEFILE.  We do get L_O_APPEND when opening for
+ * append.  We also get both L_O_DIRECT and L_O_DIRECTORY set
+ * when opening directories.
+ *
+ * We probably never get L_O_NOCTTY which makes no sense, and
+ * some of the other options may need to be handled on the client.
+ */
+enum l9p_l_o_flags {
+	L9P_L_O_CREAT =		000000100U,
+	L9P_L_O_EXCL =		000000200U,
+	L9P_L_O_NOCTTY =	000000400U,
+	L9P_L_O_TRUNC =		000001000U,
+	L9P_L_O_APPEND =	000002000U,
+	L9P_L_O_NONBLOCK =	000004000U,
+	L9P_L_O_DSYNC =		000010000U,
+	L9P_L_O_FASYNC =	000020000U,
+	L9P_L_O_DIRECT =	000040000U,
+	L9P_L_O_LARGEFILE =	000100000U,
+	L9P_L_O_DIRECTORY =	000200000U,
+	L9P_L_O_NOFOLLOW =	000400000U,
+	L9P_L_O_NOATIME =	001000000U,
+	L9P_L_O_CLOEXEC =	002000000U,
+	L9P_L_O_SYNC =		004000000U,
+	L9P_L_O_PATH =		010000000U,
+	L9P_L_O_TMPFILE =	020000000U,
 };
 
 struct l9p_hdr {
@@ -230,10 +269,12 @@ struct l9p_stat {
 	char *gid;
 	char *muid;
 	char *extension;
-	uid_t n_uid;
-	gid_t n_gid;
-	uid_t n_muid;
+	uint32_t n_uid;
+	uint32_t n_gid;
+	uint32_t n_muid;
 };
+
+#define	L9P_FSTYPE	 0x01021997
 
 struct l9p_statfs {
 	uint32_t type;		/* file system type */
@@ -280,8 +321,10 @@ struct l9p_f_attach {
 	uint32_t afid;
 	char *uname;
 	char *aname;
-	uid_t n_uname;
+	uint32_t n_uname;
 };
+#define	L9P_NOFID ((uint32_t)-1)	/* in Tattach, no auth fid */
+#define	L9P_NONUNAME ((uint32_t)-1)	/* in Tattach, no n_uname */
 
 struct l9p_f_tcreate {
 	struct l9p_hdr hdr;
@@ -308,7 +351,6 @@ struct l9p_f_io {
 	struct l9p_hdr hdr;
 	uint64_t offset; /* Tread, Twrite, Treaddir */
 	uint32_t count; /* Tread, Twrite, Rread, Treaddir, Rreaddir */
-	char *data; /* Twrite, Rread, Rreaddir */
 };
 
 struct l9p_f_rstat {
@@ -405,10 +447,25 @@ enum l9pl_getattr_flags {
 	L9PL_GETATTR_SIZE = 0x00000200,
 	L9PL_GETATTR_BLOCKS = 0x00000400,
 	/* everything up to and including BLOCKS is BASIC */
+	L9PL_GETATTR_BASIC = L9PL_GETATTR_MODE |
+		L9PL_GETATTR_NLINK |
+		L9PL_GETATTR_UID |
+		L9PL_GETATTR_GID |
+		L9PL_GETATTR_RDEV |
+		L9PL_GETATTR_ATIME |
+		L9PL_GETATTR_MTIME |
+		L9PL_GETATTR_CTIME |
+		L9PL_GETATTR_INO |
+		L9PL_GETATTR_SIZE |
+		L9PL_GETATTR_BLOCKS,
 	L9PL_GETATTR_BTIME = 0x00000800,
 	L9PL_GETATTR_GEN = 0x00001000,
 	L9PL_GETATTR_DATA_VERSION = 0x00002000,
 	/* BASIC + birthtime + gen + data-version = ALL */
+	L9PL_GETATTR_ALL = L9PL_GETATTR_BASIC |
+		L9PL_GETATTR_BTIME |
+		L9PL_GETATTR_GEN |
+		L9PL_GETATTR_DATA_VERSION,
 };
 
 struct l9p_f_tsetattr {
@@ -508,6 +565,15 @@ struct l9p_f_trenameat {
 	char *oldname;
 	uint32_t newdirfid;
 	char *newname;
+};
+
+/*
+ * Flags in Tunlinkat (which re-uses f_tlcreate data structure but
+ * with different meaning).
+ */
+enum l9p_l_unlinkat_flags {
+	/* not sure if any other AT_* flags are passed through */
+	L9PL_AT_REMOVEDIR =	0x0200,
 };
 
 union l9p_fcall {

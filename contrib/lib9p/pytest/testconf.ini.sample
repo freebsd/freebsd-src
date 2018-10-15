@@ -1,0 +1,16 @@
+# test configuration
+
+[client]
+server = localhost
+port = 12345
+# timeout is in seconds
+timeout = 0.1
+loglevel = INFO
+logfile = ./ctest.log
+# logfmt = ...
+# protocol = 9p2000, 9p2000.u, or 9p2000.L
+protocol = 9p2000.L
+only_dotl = true
+may_downgrade = False
+uname = anonymous
+n_uname = 1001

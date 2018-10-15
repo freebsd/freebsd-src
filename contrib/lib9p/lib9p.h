@@ -29,6 +29,7 @@
 #ifndef LIB9P_LIB9P_H
 #define LIB9P_LIB9P_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -42,18 +43,45 @@
 #endif
 
 #include "fcall.h"
+#include "threadpool.h"
 #include "hashtable.h"
 
 #define L9P_DEFAULT_MSIZE   8192
-#define L9P_MAX_IOV         8
+#define L9P_MAX_IOV         128
+#define	L9P_NUMTHREADS      8
 
 struct l9p_request;
 
-typedef int (l9p_get_response_buffer_t) (struct l9p_request *,
-    struct iovec *, size_t *, void *);
-
-typedef int (l9p_send_response_t) (struct l9p_request *, const struct iovec *,
-    const size_t, const size_t, void *);
+/*
+ * Functions to implement underlying transport for lib9p.
+ *
+ * The transport is responsible for:
+ *
+ *   - allocating a response buffer (filling in the iovec and niov)
+ *     (gets req, pointer to base of iov array of size L9P_MAX_IOV,
+ *      pointer to niov, lt_aux)
+ *
+ *   - sending a response, when a request has a reply ready
+ *     (gets req, pointer to iov, niov, actual response length, lt_aux)
+ *
+ *   - dropping the response buffer, when a request has been
+ *     flushed or otherwise dropped without a response
+ *     (gets req, pointer to iov, niov, lt_aux)
+ *
+ * The transport is of course also responsible for feeding in
+ * request-buffers, but that happens by the transport calling
+ * l9p_connection_recv().
+ */
+struct l9p_transport {
+	void	*lt_aux;
+	int	(*lt_get_response_buffer)(struct l9p_request *,
+					  struct iovec *, size_t *, void *);
+	int	(*lt_send_response)(struct l9p_request *,
+				    const struct iovec *, size_t, size_t,
+				    void *);
+	void	(*lt_drop_response)(struct l9p_request *,
+				    const struct iovec *, size_t, void *);
+};
 
 enum l9p_pack_mode {
 	L9P_PACK,
@@ -74,6 +102,14 @@ enum l9p_version {
 	L9P_2000L = 3
 };
 
+/*
+ * This structure is used for unpacking (decoding) incoming
+ * requests and packing (encoding) outgoing results.  It has its
+ * own copy of the iov array, with its own counters for working
+ * through that array, but it borrows the actual DATA from the
+ * original iov array associated with the original request (see
+ * below).
+ */
 struct l9p_message {
 	enum l9p_pack_mode lm_mode;
 	struct iovec lm_iov[L9P_MAX_IOV];
@@ -83,8 +119,16 @@ struct l9p_message {
 	size_t lm_size;
 };
 
+struct l9p_fid;
+
 /*
  * Data structure for a request/response pair (Tfoo/Rfoo).
+ *
+ * Note that the response is not formatted out into raw data
+ * (overwriting the request raw data) until we are really
+ * responding, with the exception of read operations Tread
+ * and Treaddir, which overlay their result-data into the
+ * iov array in the process of reading.
  *
  * We have room for two incoming fids, in case we are
  * using 9P2000.L protocol.  Note that nothing that uses two
@@ -92,28 +136,39 @@ struct l9p_message {
  * union of lr_fid2 and lr_newfid, but keeping them separate
  * is probably a bit less error-prone.  (If we want to shave
  * memory requirements there are more places to look.)
+ *
+ * (The fid, fid2, and newfid fields should be removed via
+ * reorganization, as they are only used for smuggling data
+ * between request.c and the backend and should just be
+ * parameters to backend ops.)
  */
 struct l9p_request {
-	uint32_t lr_tag;
-	struct l9p_message lr_req_msg;
-	struct l9p_message lr_resp_msg;
-	union l9p_fcall lr_req;
-	union l9p_fcall lr_resp;
-	struct l9p_openfile *lr_fid;
-	struct l9p_openfile *lr_fid2;
-	struct l9p_openfile *lr_newfid;
-	struct l9p_connection *lr_conn;
-	pthread_t lr_thread;
-	void *lr_aux;
-	struct iovec lr_data_iov[L9P_MAX_IOV];
-	size_t lr_data_niov;
-};
+	struct l9p_message lr_req_msg;	/* for unpacking the request */
+	struct l9p_message lr_resp_msg;	/* for packing the response */
+	union l9p_fcall lr_req;		/* the request, decoded/unpacked */
+	union l9p_fcall lr_resp;	/* the response, not yet packed */
 
-struct l9p_openfile {
-	void *lo_aux;
-	uint32_t lo_fid;
-	struct l9p_qid lo_qid;
-	struct l9p_connection *lo_conn;
+	struct l9p_fid *lr_fid;
+	struct l9p_fid *lr_fid2;
+	struct l9p_fid *lr_newfid;
+
+	struct l9p_connection *lr_conn;	/* containing connection */
+	void *lr_aux;			/* reserved for transport layer */
+
+	struct iovec lr_data_iov[L9P_MAX_IOV];	/* iovecs for req + resp */
+	size_t lr_data_niov;			/* actual size of data_iov */
+
+	int	lr_error;		/* result from l9p_dispatch_request */
+
+	/* proteced by threadpool mutex */
+	enum l9p_workstate lr_workstate;	/* threadpool: work state */
+	enum l9p_flushstate lr_flushstate;	/* flush state if flushee */
+	struct l9p_worker *lr_worker;		/* threadpool: worker */
+	STAILQ_ENTRY(l9p_request) lr_worklink;	/* reserved to threadpool */
+
+	/* protected by tag hash table lock */
+	struct l9p_request_queue lr_flushq;	/* q of flushers */
+	STAILQ_ENTRY(l9p_request) lr_flushlink;	/* link w/in flush queue */
 };
 
 /* N.B.: these dirents are variable length and for .L only */
@@ -124,61 +179,36 @@ struct l9p_dirent {
 	char *name;
 };
 
+/*
+ * The 9pfs protocol has the notion of a "session", which is
+ * traffic between any two "Tversion" requests.  All fids
+ * (lc_files, below) are specific to one particular session.
+ *
+ * We need a data structure per connection (client/server
+ * pair). This data structure lasts longer than these 9pfs
+ * sessions, but contains the request/response pairs and fids.
+ * Logically, the per-session data should be separate, but
+ * most of the time that would just require an extra
+ * indirection.  Instead, a new session simply clunks all
+ * fids, and otherwise keeps using this same connection.
+ */
 struct l9p_connection {
 	struct l9p_server *lc_server;
+	struct l9p_transport lc_lt;
+	struct l9p_threadpool lc_tp;
 	enum l9p_version lc_version;
-	pthread_mutex_t lc_send_lock;
 	uint32_t lc_msize;
 	uint32_t lc_max_io_size;
-	l9p_send_response_t *lc_send_response;
-	l9p_get_response_buffer_t *lc_get_response_buffer;
-	void *lc_get_response_buffer_aux;
-	void *lc_send_response_aux;
-	void *lc_softc;
 	struct ht lc_files;
 	struct ht lc_requests;
 	LIST_ENTRY(l9p_connection) lc_link;
 };
 
+struct l9p_backend;
 struct l9p_server {
 	struct l9p_backend *ls_backend;
 	enum l9p_version ls_max_version;
 	LIST_HEAD(, l9p_connection) ls_conns;
-};
-
-struct l9p_backend {
-	void *softc;
-	void (*freefid)(void *, struct l9p_openfile *);
-	void (*attach)(void *, struct l9p_request *);
-	void (*clunk)(void *, struct l9p_request *);
-	void (*create)(void *, struct l9p_request *);
-	void (*flush)(void *, struct l9p_request *);
-	void (*open)(void *, struct l9p_request *);
-	void (*read)(void *, struct l9p_request *);
-	void (*remove)(void *, struct l9p_request *);
-	void (*stat)(void *, struct l9p_request *);
-	void (*walk)(void *, struct l9p_request *);
-	void (*write)(void *, struct l9p_request *);
-	void (*wstat)(void *, struct l9p_request *);
-	void (*statfs)(void *, struct l9p_request *);
-	void (*lopen)(void *, struct l9p_request *);
-	void (*lcreate)(void *, struct l9p_request *);
-	void (*symlink)(void *, struct l9p_request *);
-	void (*mknod)(void *, struct l9p_request *);
-	void (*rename)(void *, struct l9p_request *);
-	void (*readlink)(void *, struct l9p_request *);
-	void (*getattr)(void *, struct l9p_request *);
-	void (*setattr)(void *, struct l9p_request *);
-	void (*xattrwalk)(void *, struct l9p_request *);
-	void (*xattrcreate)(void *, struct l9p_request *);
-	void (*readdir)(void *, struct l9p_request *);
-	void (*fsync)(void *, struct l9p_request *);
-	void (*lock)(void *, struct l9p_request *);
-	void (*getlock)(void *, struct l9p_request *);
-	void (*link)(void *, struct l9p_request *);
-	void (*mkdir)(void *, struct l9p_request *);
-	void (*renameat)(void *, struct l9p_request *);
-	void (*unlinkat)(void *, struct l9p_request *);
 };
 
 int l9p_pufcall(struct l9p_message *msg, union l9p_fcall *fcall,
@@ -195,20 +225,16 @@ int l9p_server_init(struct l9p_server **serverp, struct l9p_backend *backend);
 int l9p_connection_init(struct l9p_server *server,
     struct l9p_connection **connp);
 void l9p_connection_free(struct l9p_connection *conn);
-void l9p_connection_on_send_response(struct l9p_connection *conn,
-    l9p_send_response_t *cb, void *aux);
-void l9p_connection_on_get_response_buffer(struct l9p_connection *conn,
-    l9p_get_response_buffer_t *cb, void *aux);
 void l9p_connection_recv(struct l9p_connection *conn, const struct iovec *iov,
     size_t niov, void *aux);
 void l9p_connection_close(struct l9p_connection *conn);
-struct l9p_openfile *l9p_connection_alloc_fid(struct l9p_connection *conn,
+struct l9p_fid *l9p_connection_alloc_fid(struct l9p_connection *conn,
     uint32_t fid);
 void l9p_connection_remove_fid(struct l9p_connection *conn,
-    struct l9p_openfile *fid);
+    struct l9p_fid *fid);
 
-void l9p_dispatch_request(struct l9p_request *req);
-void l9p_respond(struct l9p_request *req, int errnum);
+int l9p_dispatch_request(struct l9p_request *req);
+void l9p_respond(struct l9p_request *req, bool drop, bool rmtag);
 
 void l9p_init_msg(struct l9p_message *msg, struct l9p_request *req,
     enum l9p_pack_mode mode);
@@ -220,6 +246,6 @@ void l9p_describe_fcall(union l9p_fcall *fcall, enum l9p_version version,
 void l9p_freefcall(union l9p_fcall *fcall);
 void l9p_freestat(struct l9p_stat *stat);
 
-int l9p_backend_fs_init(struct l9p_backend **backendp, const char *root);
+gid_t *l9p_getgrlist(const char *, gid_t, int *);
 
 #endif  /* LIB9P_LIB9P_H */

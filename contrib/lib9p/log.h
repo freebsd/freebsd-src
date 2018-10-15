@@ -28,8 +28,7 @@
 #ifndef LIB9P_LOG_H
 #define	LIB9P_LOG_H
 
-enum l9p_log_level
-{
+enum l9p_log_level {
 	L9P_DEBUG,
 	L9P_INFO,
 	L9P_WARNING,

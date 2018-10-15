@@ -25,6 +25,9 @@
  *
  */
 
+#ifndef LIB9P_LINUX_ERRNO_H
+#define LIB9P_LINUX_ERRNO_H
+
 /*
  * Linux error numbers that are outside of the original base range
  * (which ends with ERANGE).
@@ -240,3 +243,5 @@
 #define	LINUX_ERFKILL_STR	"Operation not possible due to RF-kill"
 #define	LINUX_EHWPOISON		133
 #define	LINUX_EHWPOISON_STR	"Memory page has hardware error"
+
+#endif	/* LIB9P_LINUX_ERRNO_H */

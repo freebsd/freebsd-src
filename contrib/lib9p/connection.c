@@ -32,8 +32,11 @@
 #include <sys/queue.h>
 #include "lib9p.h"
 #include "lib9p_impl.h"
+#include "fid.h"
 #include "hashtable.h"
 #include "log.h"
+#include "threadpool.h"
+#include "backend/backend.h"
 
 int
 l9p_server_init(struct l9p_server **serverp, struct l9p_backend *backend)
@@ -41,7 +44,7 @@ l9p_server_init(struct l9p_server **serverp, struct l9p_backend *backend)
 	struct l9p_server *server;
 
 	server = l9p_calloc(1, sizeof (*server));
-	server->ls_max_version = L9P_2000U;
+	server->ls_max_version = L9P_2000L;
 	server->ls_backend = backend;
 	LIST_INIT(&server->ls_conns);
 
@@ -57,9 +60,15 @@ l9p_connection_init(struct l9p_server *server, struct l9p_connection **conn)
 	assert(server != NULL);
 	assert(conn != NULL);
 
-	newconn = l9p_calloc(1, sizeof (*newconn));
+	newconn = calloc(1, sizeof (*newconn));
+	if (newconn == NULL)
+		return (-1);
 	newconn->lc_server = server;
 	newconn->lc_msize = L9P_DEFAULT_MSIZE;
+	if (l9p_threadpool_init(&newconn->lc_tp, L9P_NUMTHREADS)) {
+		free(newconn);
+		return (-1);
+	}
 	ht_init(&newconn->lc_files, 100);
 	ht_init(&newconn->lc_requests, 100);
 	LIST_INSERT_HEAD(&server->ls_conns, newconn, lc_link);
@@ -77,33 +86,15 @@ l9p_connection_free(struct l9p_connection *conn)
 }
 
 void
-l9p_connection_on_send_response(struct l9p_connection *conn,
-    l9p_send_response_t cb, void *aux)
-{
-
-	conn->lc_send_response = cb;
-	conn->lc_send_response_aux = aux;
-}
-
-void
-l9p_connection_on_get_response_buffer(struct l9p_connection *conn,
-    l9p_get_response_buffer_t cb, void *aux)
-{
-
-	conn->lc_get_response_buffer = cb;
-	conn->lc_get_response_buffer_aux = aux;
-}
-
-void
 l9p_connection_recv(struct l9p_connection *conn, const struct iovec *iov,
     const size_t niov, void *aux)
 {
 	struct l9p_request *req;
+	int error;
 
 	req = l9p_calloc(1, sizeof (struct l9p_request));
 	req->lr_aux = aux;
 	req->lr_conn = conn;
-	ht_add(&conn->lc_requests, req->lr_req.hdr.tag, req);
 
 	req->lr_req_msg.lm_mode = L9P_UNPACK;
 	req->lr_req_msg.lm_niov = niov;
@@ -113,37 +104,72 @@ l9p_connection_recv(struct l9p_connection *conn, const struct iovec *iov,
 
 	if (l9p_pufcall(&req->lr_req_msg, &req->lr_req, conn->lc_version) != 0) {
 		L9P_LOG(L9P_WARNING, "cannot unpack received message");
+		l9p_freefcall(&req->lr_req);
+		free(req);
 		return;
 	}
 
-	if (conn->lc_get_response_buffer(req, req->lr_resp_msg.lm_iov,
-	    &req->lr_resp_msg.lm_niov, conn->lc_get_response_buffer_aux) != 0) {
+	if (ht_add(&conn->lc_requests, req->lr_req.hdr.tag, req)) {
+		L9P_LOG(L9P_WARNING, "client reusing outstanding tag %d",
+		    req->lr_req.hdr.tag);
+		l9p_freefcall(&req->lr_req);
+		free(req);
+		return;
+	}
+
+	error = conn->lc_lt.lt_get_response_buffer(req,
+	    req->lr_resp_msg.lm_iov,
+	    &req->lr_resp_msg.lm_niov,
+	    conn->lc_lt.lt_aux);
+	if (error) {
 		L9P_LOG(L9P_WARNING, "cannot obtain buffers for response");
+		ht_remove(&conn->lc_requests, req->lr_req.hdr.tag);
+		l9p_freefcall(&req->lr_req);
+		free(req);
 		return;
 	}
 
-	l9p_dispatch_request(req);
+	/*
+	 * NB: it's up to l9p_threadpool_run to decide whether
+	 * to queue the work or to run it immediately and wait
+	 * (it must do the latter for Tflush requests).
+	 */
+	l9p_threadpool_run(&conn->lc_tp, req);
 }
 
 void
 l9p_connection_close(struct l9p_connection *conn)
 {
 	struct ht_iter iter;
-	struct l9p_openfile *fid;
+	struct l9p_fid *fid;
 	struct l9p_request *req;
 
+	L9P_LOG(L9P_DEBUG, "waiting for thread pool to shut down");
+	l9p_threadpool_shutdown(&conn->lc_tp);
+
 	/* Drain pending requests (if any) */
+	L9P_LOG(L9P_DEBUG, "draining pending requests");
 	ht_iter(&conn->lc_requests, &iter);
 	while ((req = ht_next(&iter)) != NULL) {
-		l9p_respond(req, EINTR);
+#ifdef notyet
+		/* XXX would be good to know if there is anyone listening */
+		if (anyone listening) {
+			/* XXX crude - ops like Tclunk should succeed */
+			req->lr_error = EINTR;
+			l9p_respond(req, false, false);
+		} else
+#endif
+		l9p_respond(req, true, false);	/* use no-answer path */
 		ht_remove_at_iter(&iter);
 	}
 
 	/* Close opened files (if any) */
+	L9P_LOG(L9P_DEBUG, "closing opened files");
 	ht_iter(&conn->lc_files, &iter);
 	while ((fid = ht_next(&iter)) != NULL) {
 		conn->lc_server->ls_backend->freefid(
 		    conn->lc_server->ls_backend->softc, fid);
+		free(fid);
 		ht_remove_at_iter(&iter);
 	}
 
@@ -151,14 +177,20 @@ l9p_connection_close(struct l9p_connection *conn)
 	ht_destroy(&conn->lc_files);
 }
 
-struct l9p_openfile *
+struct l9p_fid *
 l9p_connection_alloc_fid(struct l9p_connection *conn, uint32_t fid)
 {
-	struct l9p_openfile *file;
+	struct l9p_fid *file;
 
-	file = l9p_calloc(1, sizeof (struct l9p_openfile));
+	file = l9p_calloc(1, sizeof (struct l9p_fid));
 	file->lo_fid = fid;
-	file->lo_conn = conn;
+	/*
+	 * Note that the new fid is not marked valid yet.
+	 * The insert here will fail if the fid number is
+	 * in use, otherwise we have an invalid fid in the
+	 * table (as desired).
+	 */
+
 	if (ht_add(&conn->lc_files, fid, file) != 0) {
 		free(file);
 		return (NULL);
@@ -168,11 +200,16 @@ l9p_connection_alloc_fid(struct l9p_connection *conn, uint32_t fid)
 }
 
 void
-l9p_connection_remove_fid(struct l9p_connection *conn, struct l9p_openfile *fid)
+l9p_connection_remove_fid(struct l9p_connection *conn, struct l9p_fid *fid)
 {
+	struct l9p_backend *be;
 
-	conn->lc_server->ls_backend->freefid(conn->lc_server->ls_backend->softc,
-	    fid);
+	/* fid should be marked invalid by this point */
+	assert(!l9p_fid_isvalid(fid));
+
+	be = conn->lc_server->ls_backend;
+	be->freefid(be->softc, fid);
 
 	ht_remove(&conn->lc_files, fid->lo_fid);
+	free(fid);
 }

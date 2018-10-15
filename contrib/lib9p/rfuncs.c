@@ -30,6 +30,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(WITH_CASPER)
+#include <libcasper.h>
+#include <casper/cap_pwd.h>
+#include <casper/cap_grp.h>
+#endif
+
 #include "rfuncs.h"
 
 /*
@@ -256,6 +262,7 @@ r_getpwuid(uid_t uid, struct r_pgdata *pg)
 			error = getpwuid_r(uid, &pg->r_pgun.un_pw,
 			    pg->r_pgbuf, pg->r_pgbufsize, &result);
 	} while (error == ERANGE);
+
 	return (error ? NULL : result);
 }
 
@@ -272,5 +279,42 @@ r_getgrgid(gid_t gid, struct r_pgdata *pg)
 			error = getgrgid_r(gid, &pg->r_pgun.un_gr,
 			    pg->r_pgbuf, pg->r_pgbufsize, &result);
 	} while (error == ERANGE);
+
 	return (error ? NULL : result);
 }
+
+#if defined(WITH_CASPER)
+struct passwd *
+r_cap_getpwuid(cap_channel_t *cap, uid_t uid, struct r_pgdata *pg)
+{
+	struct passwd *result = NULL;
+	int error;
+
+	r_pginit(pg);
+	do {
+		error = r_pgexpand(pg);
+		if (error == 0)
+			error = cap_getpwuid_r(cap, uid, &pg->r_pgun.un_pw,
+			    pg->r_pgbuf, pg->r_pgbufsize, &result);
+	} while (error == ERANGE);
+
+	return (error ? NULL : result);
+}
+
+struct group *
+r_cap_getgrgid(cap_channel_t *cap, gid_t gid, struct r_pgdata *pg)
+{
+	struct group *result = NULL;
+	int error;
+
+	r_pginit(pg);
+	do {
+		error = r_pgexpand(pg);
+		if (error == 0)
+			error = cap_getgrgid_r(cap, gid, &pg->r_pgun.un_gr,
+			    pg->r_pgbuf, pg->r_pgbufsize, &result);
+	} while (error == ERANGE);
+
+	return (error ? NULL : result);
+}
+#endif

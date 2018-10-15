@@ -31,3 +31,7 @@
 # Debug files
 *.dSYM/
 /build/
+
+*.po
+*.pico
+*.depend
