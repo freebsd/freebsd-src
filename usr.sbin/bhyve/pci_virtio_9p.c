@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_rnd.c 282865 2015-05-13 17:38:07Z grehan $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -44,14 +44,17 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_rnd.c 282865 2015-05-13 17:38
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
+#include <sys/capsicum.h>
 
 #include <lib9p.h>
+#include <backend/fs.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "virtio.h"
 
-#define VT9P_RINGSZ	64
+#define	VT9P_MAX_IOV	128
+#define VT9P_RINGSZ	256
 #define	VT9P_MAXTAGSZ	256
 #define	VT9P_CONFIGSPACESZ	(VT9P_MAXTAGSZ + sizeof(uint16_t))
 
@@ -76,10 +79,12 @@ struct pci_vt9p_softc {
 };
 
 struct pci_vt9p_request {
+	struct pci_vt9p_softc *	vsr_sc;
 	struct iovec *		vsr_iov;
 	size_t			vsr_niov;
 	size_t			vsr_respidx;
 	size_t			vsr_iolen;
+	uint16_t		vsr_idx;
 };
 
 struct pci_vt9p_config {
@@ -87,6 +92,10 @@ struct pci_vt9p_config {
 	char tag[0];
 } __attribute__((packed));
 
+static int pci_vt9p_send(struct l9p_request *, const struct iovec *,
+    const size_t, const size_t, void *);
+static void pci_vt9p_drop(struct l9p_request *, const struct iovec *, size_t,
+    void *);
 static void pci_vt9p_reset(void *);
 static void pci_vt9p_notify(void *, struct vqueue_info *);
 static int pci_vt9p_cfgread(void *, int, int, uint32_t *);
@@ -153,34 +162,58 @@ pci_vt9p_send(struct l9p_request *req, const struct iovec *iov,
     const size_t niov, const size_t iolen, void *arg)
 {
 	struct pci_vt9p_request *preq = req->lr_aux;
+	struct pci_vt9p_softc *sc = preq->vsr_sc;
 
 	preq->vsr_iolen = iolen;
+
+	pthread_mutex_lock(&sc->vsc_mtx);
+	vq_relchain(&sc->vsc_vq, preq->vsr_idx, preq->vsr_iolen);
+	vq_endchains(&sc->vsc_vq, 1);
+	pthread_mutex_unlock(&sc->vsc_mtx);
+	free(preq);
 	return (0);
+}
+
+static void
+pci_vt9p_drop(struct l9p_request *req, const struct iovec *iov, size_t niov,
+    void *arg)
+{
+	struct pci_vt9p_request *preq = req->lr_aux;
+	struct pci_vt9p_softc *sc = preq->vsr_sc;
+
+	pthread_mutex_lock(&sc->vsc_mtx);
+	vq_relchain(&sc->vsc_vq, preq->vsr_idx, 0);
+	vq_endchains(&sc->vsc_vq, 1);
+	pthread_mutex_unlock(&sc->vsc_mtx);
+	free(preq);
 }
 
 static void
 pci_vt9p_notify(void *vsc, struct vqueue_info *vq)
 {
-	struct iovec iov[8];
+	struct iovec iov[VT9P_MAX_IOV];
 	struct pci_vt9p_softc *sc;
-	struct pci_vt9p_request preq;
+	struct pci_vt9p_request *preq;
 	uint16_t idx, n, i;
-	uint16_t flags[8];
+	uint16_t flags[VT9P_MAX_IOV];
 
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, &idx, iov, 8, flags);
-		preq.vsr_iov = iov;
-		preq.vsr_niov = n;
-		preq.vsr_respidx = 0;
+		n = vq_getchain(vq, &idx, iov, VT9P_MAX_IOV, flags);
+		preq = calloc(1, sizeof(struct pci_vt9p_request));
+		preq->vsr_sc = sc;
+		preq->vsr_idx = idx;
+		preq->vsr_iov = iov;
+		preq->vsr_niov = n;
+		preq->vsr_respidx = 0;
 
 		/* Count readable descriptors */
 		for (i = 0; i < n; i++) {
 			if (flags[i] & VRING_DESC_F_WRITE)
 				break;
 
-			preq.vsr_respidx++;
+			preq->vsr_respidx++;
 		}
 
 		for (int i = 0; i < n; i++) {
@@ -189,14 +222,8 @@ pci_vt9p_notify(void *vsc, struct vqueue_info *vq)
 			    iov[i].iov_len, flags[i]));
 		}
 
-		l9p_connection_recv(sc->vsc_conn, iov, preq.vsr_respidx, &preq);
-
-		/*
-		 * Release this chain and handle more
-		 */
-		vq_relchain(vq, idx, preq.vsr_iolen);
+		l9p_connection_recv(sc->vsc_conn, iov, preq->vsr_respidx, preq);
 	}
-	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 }
 
 
@@ -207,6 +234,8 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	char *opt;
 	char *sharename = NULL;
 	char *rootpath = NULL;
+	int rootfd;
+	cap_rights_t rootcap;
 
 	if (opts == NULL) {
 		printf("virtio-9p: share name and path required\n");
@@ -216,6 +245,8 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc = calloc(1, sizeof(struct pci_vt9p_softc));
 	sc->vsc_config = calloc(1, sizeof(struct pci_vt9p_config) +
 	    VT9P_MAXTAGSZ);
+
+	pthread_mutex_init(&sc->vsc_mtx, NULL);
 
 	while ((opt = strsep(&opts, ",")) != NULL) {
 		if (sharename == NULL) {
@@ -228,10 +259,24 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			DPRINTF(("read-only mount requested\r\n"));
 	}
 
+	rootfd = open(rootpath, O_DIRECTORY);
+	if (rootfd < 0)
+		return (-1);
+
+	cap_rights_init(&rootcap,
+	    CAP_LOOKUP, CAP_ACL_CHECK, CAP_ACL_DELETE, CAP_ACL_GET,
+	    CAP_ACL_SET, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_FSTAT,
+	    CAP_CREATE, CAP_FCHMODAT, CAP_FCHOWNAT, CAP_FTRUNCATE,
+	    CAP_LINKAT_SOURCE, CAP_LINKAT_TARGET, CAP_MKDIRAT, CAP_MKNODAT,
+	    CAP_PREAD, CAP_PWRITE, CAP_RENAMEAT_SOURCE, CAP_RENAMEAT_TARGET,
+	    CAP_SEEK, CAP_SYMLINKAT, CAP_UNLINKAT, CAP_EXTATTR_DELETE,
+	    CAP_EXTATTR_GET, CAP_EXTATTR_LIST, CAP_EXTATTR_SET,
+	    CAP_FUTIMES, CAP_FSTATFS, CAP_FSYNC, CAP_FPATHCONF);
+
 	sc->vsc_config->tag_len = (uint16_t)strlen(sharename);
 	strncpy(sc->vsc_config->tag, sharename, strlen(sharename));
 	
-	if (l9p_backend_fs_init(&sc->vsc_fs_backend, rootpath) != 0) {
+	if (l9p_backend_fs_init(&sc->vsc_fs_backend, rootfd) != 0) {
 		errno = ENXIO;
 		return (1);
 	}
@@ -246,13 +291,13 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		return (1);
 	}
 
-	l9p_connection_on_send_response(sc->vsc_conn, pci_vt9p_send, NULL);
-	l9p_connection_on_get_response_buffer(sc->vsc_conn, pci_vt9p_get_buffer,
-	    NULL);
+	sc->vsc_conn->lc_msize = L9P_MAX_IOV * PAGE_SIZE;
+	sc->vsc_conn->lc_lt.lt_get_response_buffer = pci_vt9p_get_buffer;
+	sc->vsc_conn->lc_lt.lt_send_response = pci_vt9p_send;
+	sc->vsc_conn->lc_lt.lt_drop_response = pci_vt9p_drop;
 
 	vi_softc_linkup(&sc->vsc_vs, &vt9p_vi_consts, sc, pi, &sc->vsc_vq);
 	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
-
 	sc->vsc_vq.vq_qsize = VT9P_RINGSZ;
 
 	/* initialize config space */
